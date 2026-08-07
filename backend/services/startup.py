@@ -1220,7 +1220,7 @@ def _seed_local_llm_config():
     from backend.database.models import LLMConfiguration
 
     base_url = os.getenv("LOCAL_LLM_BASE_URL", "http://10.29.193.24:8888/v1")
-    api_key = os.getenv("LOCAL_LLM_API_KEY", "sk-unsloth-5afeb017e46f2641d777a5482e6dcbb9")
+    api_key = os.getenv("LOCAL_LLM_API_KEY", "sk-your-local-api-key")
     model = os.getenv("LOCAL_LLM_MODEL", "local-model")
     preset_name = os.getenv("LOCAL_LLM_NAME", "内网本地模型 (Unsloth)")
 

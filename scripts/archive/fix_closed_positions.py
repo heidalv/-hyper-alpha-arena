@@ -19,7 +19,7 @@ from datetime import datetime
 import json
 
 # 数据库连接
-DATABASE_URL = "postgresql://alpha_user:alpha_pass@localhost:5432/alpha_arena"
+DATABASE_URL = "postgresql://alpha_user:YOUR_DB_PASSWORD@localhost:5432/alpha_arena"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 

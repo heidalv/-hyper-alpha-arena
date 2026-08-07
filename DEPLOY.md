@@ -9,7 +9,7 @@
 
 ### 1. DB 角色:RLS 与超用户
 
-- **现状**:开发期 DB 连接用 `laobao`(PostgreSQL **superuser**)。
+- **现状**:开发期 DB 连接用 `db_admin`(PostgreSQL **superuser**)。
 - **关键**:PostgreSQL superuser **无条件绕过 RLS**(FORCE 也无法覆盖)。
 - **生产部署时**:若把 DB 角色换成非超用户(最小权限,安全最佳实践),RLS 才真正生效过滤读。
   - ✅ 本分支已处理:后台交易循环(scalp/coordinator/midlong + 6 个 APScheduler tick + 衍生线程)设了 `system_identity`(`is_admin=True`),非超用户下也能正常读写,不会 fail-closed 破坏交易。
@@ -152,4 +152,4 @@ cd backend && python -m pytest tests/ --ignore=tests/unit/test_phase5_adaptive_e
 - `test_ws_redis_bridge.py` — 多 worker WS 广播
 - `test_trade_gate.py` / `test_leverage_authority.py` — 交易闸口
 
-**注意**:RLS 隔离测试用 `NOSUPERUSER NOBYPASSRLS` 角色(`rls_test_*`)验证真隔离。若 DB 连接是超用户(laobao),RLS 被绕过,测试仍过但是"假通过"——生产换非超用户角色才真正生效。
+**注意**:RLS 隔离测试用 `NOSUPERUSER NOBYPASSRLS` 角色(`rls_test_*`)验证真隔离。若 DB 连接是超用户(db_admin),RLS 被绕过,测试仍过但是"假通过"——生产换非超用户角色才真正生效。

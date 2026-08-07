@@ -1,6 +1,6 @@
 """全链路测试: 因子→策略→执行→回测→进化"""
 import sys, os
-os.chdir('/Users/laobao/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena')
+os.chdir('/Users/db_admin/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena')
 sys.path.insert(0, os.getcwd())
 sys.path.insert(0, os.path.join(os.getcwd(), 'backend'))
 

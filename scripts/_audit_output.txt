@@ -1,5 +1,5 @@
-﻿=== DATA SOURCE ===
-DB: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena
+=== DATA SOURCE ===
+DB: postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena
 Tables: paper_positions, paper_orders
 Nature filter: {'swing', 'trend_follow', 'trend'}; Tier filter: {'mid', 'long'}
 Window: last 14d from 2026-07-05 06:39:30.287156

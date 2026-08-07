@@ -17,9 +17,9 @@ def load_env():
 
 env = load_env()
 DSNS = {
-    'arena': env.get('DATABASE_URL', 'postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena'),
-    'analytics': env.get('ANALYTICS_DATABASE_URL', 'postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics'),
-    'market': env.get('MARKET_DATABASE_URL', 'postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_market'),
+    'arena': env.get('DATABASE_URL', 'postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena'),
+    'analytics': env.get('ANALYTICS_DATABASE_URL', 'postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_analytics'),
+    'market': env.get('MARKET_DATABASE_URL', 'postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market'),
 }
 
 def parse_dsn(dsn):

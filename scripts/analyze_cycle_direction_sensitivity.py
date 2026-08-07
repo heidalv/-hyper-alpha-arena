@@ -118,7 +118,7 @@ FEATURES = [
 def _psycopg_dsn() -> str:
     raw = os.environ.get(
         "MARKET_DATABASE_URL",
-        "postgresql://laobao:alpha_pass@localhost:5432/alpha_market",
+        "postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market",
     )
     # SQLAlchemy 方言前缀 postgresql+psycopg:// → psycopg 可直接吃 postgresql://
     return raw.replace("postgresql+psycopg://", "postgresql://")

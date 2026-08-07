@@ -30,7 +30,7 @@
 
 ### 1.2 数据落库
 
-- 全部落 **PostgreSQL `alpha_market`**（`MARKET_DATABASE_URL=postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_market`），不经 Redis
+- 全部落 **PostgreSQL `alpha_market`**（`MARKET_DATABASE_URL=postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market`），不经 Redis
 - 核心表：`crypto_klines`（K线）、`market_trades_aggregated`（成交/CVD）、`market_orderbook_snapshots`（盘口）、`market_asset_metrics`（OI/费率/mark）、`perp_funding`（资金费）、`raw_market_events`（shadow 原始事件）
 
 ---

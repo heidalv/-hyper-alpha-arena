@@ -17,7 +17,7 @@
 【第1步】确保 PostgreSQL 运行
 
 1. 确认 PostgreSQL 服务已启动（services.msc 查看）
-2. 验证连接：psql -U laobao -d alpha_arena -c "SELECT 1"
+2. 验证连接：psql -U db_admin -d alpha_arena -c "SELECT 1"
 
 ---
 

@@ -144,7 +144,7 @@ STOP.bat
 **A**: 确保PostgreSQL正在运行：
 ```bash
 # 检查本地PostgreSQL服务（如已安装 PostgreSQL 15）
-psql -U laobao -d alpha_arena -c "SELECT 1"
+psql -U db_admin -d alpha_arena -c "SELECT 1"
 ```
 
 ---

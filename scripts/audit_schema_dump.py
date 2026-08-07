@@ -15,7 +15,7 @@ con.close()
 print("\n\n### Postgres schema ###")
 from sqlalchemy import create_engine, text
 for db in ["alpha_arena", "alpha_analytics"]:
-    eng = create_engine(f"postgresql+psycopg://laobao:alpha_pass@localhost:5432/{db}", isolation_level="AUTOCOMMIT")
+    eng = create_engine(f"postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/{db}", isolation_level="AUTOCOMMIT")
     tabs = ['strategy_memories','strategy_trades','strategy_templates','prompt_training_records','strategy_regime_scores','drl_performance','coordinator_actions','decision_retrospectives','mlto_signal_weights','mlto_thesis_events']
     with eng.connect() as c:
         for t in tabs:

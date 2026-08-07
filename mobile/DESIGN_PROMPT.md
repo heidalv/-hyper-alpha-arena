@@ -6,7 +6,7 @@
 该应用与现有的桌面端前端完全独立，共用同一个后端 API（FastAPI，端口8000）。
 通过 Tailscale 组网，移动设备可以远程访问运行在 Mac 上的后端服务。
 
-项目位置：`/Users/laobao/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena/mobile/`
+项目位置：`/Users/db_admin/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena/mobile/`
 
 ---
 

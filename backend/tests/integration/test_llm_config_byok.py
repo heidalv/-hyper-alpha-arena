@@ -7,14 +7,14 @@
    (BYOK §6.4 —— 不允许全局/NULL tenant 的 LLM 配置)。
 2. GET /{id}/api-key 改返回部分掩码 key(``sk-****abcd``),不再泄露完整明文。
 3. 跨租户隔离由 RLS 兜底:租户 A 创建的配置,租户 B 在 DB 层看不到
-   (用非 superuser 测试角色直接验证 RLS,绕开"laobao 是 superuser 绕过 RLS"
+   (用非 superuser 测试角色直接验证 RLS,绕开"db_admin 是 superuser 绕过 RLS"
    的 HTTP 层限制 —— 见下方说明)。
 
 superuser 测试限制(关键背景)
 -----------------------------
-生产/开发库的 Alembic 连接角色 ``laobao`` 在 PostgreSQL 里是 superuser,
+生产/开发库的 Alembic 连接角色 ``db_admin`` 在 PostgreSQL 里是 superuser,
 superuser 永远绕过 RLS(``BYPASSRLS`` 也一样,``FORCE`` 都覆盖不了)。
-因此 HTTP 路由用 TestClient 打库时,所有查询都以 laobao 身份执行 ——
+因此 HTTP 路由用 TestClient 打库时,所有查询都以 db_admin 身份执行 ——
 无论中间件怎么设 ``app.tenant_id`` GUC,RLS 都不参与查询规划,
 跨租户读会"看起来"通过(假安全)。
 
@@ -311,7 +311,7 @@ def rls_role():
 
 @pytest.fixture()
 def seeded_llm_rows():
-    """用 superuser(laobao,绕 RLS)插入两个租户的 llm_configurations 行。
+    """用 superuser(db_admin,绕 RLS)插入两个租户的 llm_configurations 行。
 
     tenant_id=NOT NULL(0004),故两行都有明确归属。测后按 name 清理。
     """

@@ -16,7 +16,7 @@ def load_env():
     return d
 
 env = load_env()
-DSNS = {'analytics': env.get('ANALYTICS_DATABASE_URL', 'postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics')}
+DSNS = {'analytics': env.get('ANALYTICS_DATABASE_URL', 'postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_analytics')}
 
 def parse_dsn(dsn):
     body = dsn.split('://', 1)[1]

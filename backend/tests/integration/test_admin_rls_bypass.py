@@ -24,8 +24,8 @@ JWT.role == "admin"
    而没有 is_admin 时只看到自己租户的行。这是 Task 3.3 RLS policy 的 is_admin
    分支被真正触发的端到端证据。
 
-   (为什么不直接用 SessionLocal 测跨租户:SessionLocal 连的是 laobao 角色,
-   laobao 在 PG 里是 superuser,superuser 与 BYPASSRLS 角色永远绕过 RLS,
+   (为什么不直接用 SessionLocal 测跨租户:SessionLocal 连的是 db_admin 角色,
+   db_admin 在 PG 里是 superuser,superuser 与 BYPASSRLS 角色永远绕过 RLS,
    即使 FORCED 也覆盖不了 —— 见 test_rls_isolation.py 头部注释。所以 SessionLocal
    的 ``SELECT count(*)`` 看到的永远都是全部行,证明不了 RLS policy 生效。
    GUC 联通测试只证明 "GUC 被设上了",实际 RLS 短路必须靠非 superuser 角色验证。)
@@ -184,7 +184,7 @@ def test_role_nosuperuser():
 def seeded_two_tenant_positions():
     """插入两个租户的诱饵 positions 行,测后清理。
 
-    superuser(laobao)写入 → 绕 RLS,可直接插入任意 tenant_id。
+    superuser(db_admin)写入 → 绕 RLS,可直接插入任意 tenant_id。
     """
     rows = [
         ("ADM-A1", _TENANT_A),

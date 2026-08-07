@@ -13,10 +13,10 @@
 
 为什么不能用 SessionLocal() 直接测(关键)
 -----------------------------------------
-生产/开发库的 Alembic 连接角色(laobao)在 PostgreSQL 里是 **superuser**
-(见 ``SELECT rolsuper FROM pg_roles WHERE rolname='laobao'``)。PostgreSQL 硬规则:
+生产/开发库的 Alembic 连接角色(db_admin)在 PostgreSQL 里是 **superuser**
+(见 ``SELECT rolsuper FROM pg_roles WHERE rolname='db_admin'``)。PostgreSQL 硬规则:
 **superuser 与 BYPASSRLS 角色永远绕过 RLS,FORCE 也覆盖不了。** 因此用
-``SessionLocal()``(连 laobao)跑 ``SELECT count(*) FROM positions``,无论设不设
+``SessionLocal()``(连 db_admin)跑 ``SELECT count(*) FROM positions``,无论设不设
 ``app.tenant_id``,看到的都是全部行 —— 这会"测过"但根本没证明 RLS 生效(假安全)。
 
 正确的做法
@@ -65,7 +65,7 @@ def _as_test_role():
 
     强制 host=127.0.0.1:本机 PG 的 pg_hba 在 IPv4 环回上对 scram-sha-256 放行,
     而 ``localhost`` 会被 psycopg 同时解析为 ::1 与 127.0.0.1,某些 IPv6 规则
-    配置下对新创建的 LOGIN 角色认证失败(实测 laobao 走 localhost 可连,新建
+    配置下对新创建的 LOGIN 角色认证失败(实测 db_admin 走 localhost 可连,新建
     角色走 localhost 失败、走 127.0.0.1 成功)。固定 IPv4 环回最稳。
 
     注意:必须把 URL **对象**直接传给 create_engine,不能用 str(url) ——
@@ -83,7 +83,7 @@ def _as_test_role():
 def test_role():
     """建立非 superuser 测试角色 + 授权。模块级,整组测试复用。
 
-    用主连接(laobao superuser)建角色、授权。该角色对两张被测表只有 SELECT,
+    用主连接(db_admin superuser)建角色、授权。该角色对两张被测表只有 SELECT,
     且因为是普通角色 → 受 RLS 约束。"""
     # CREATE ROLE 的 PASSWORD 子句不接受绑定参数(与 SET LOCAL 同样的 PG 限制),
     # 故把名字/密码内联。两者均为本文件写死的常量,无注入面。
@@ -122,7 +122,7 @@ def test_role():
 def seeded_rows():
     """为每个测试插入固定 tenant_id 的诱饵行,测后清理。
 
-    用 superuser(laobao)连接写入 → superuser 绕过 RLS,可直接插入任意
+    用 superuser(db_admin)连接写入 → superuser 绕过 RLS,可直接插入任意
     tenant_id 的行(含 NULL)。
 
     positions(tenant_id NOT NULL):BTC-A/ETH-A 属 A,SOL-B 属 B。

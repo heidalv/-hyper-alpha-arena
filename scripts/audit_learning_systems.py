@@ -16,8 +16,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
 PG = {
-    "arena": "postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena",
-    "analytics": "postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics",
+    "arena": "postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena",
+    "analytics": "postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_analytics",
 }
 
 

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Database configuration
 DB_USER = "alpha_user"
-DB_PASSWORD = "alpha_pass"
+DB_PASSWORD = "YOUR_DB_PASSWORD"
 DB_HOST = "localhost"
 MAIN_DB_NAME = "alpha_arena"
 SNAPSHOT_DB_NAME = "alpha_snapshots"

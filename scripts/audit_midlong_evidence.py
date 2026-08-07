@@ -47,7 +47,7 @@ STUB_STRINGS = {
 
 def _dsn() -> str:
     raw = os.environ.get(
-        "ANALYTICS_DATABASE_URL", "postgresql://laobao:alpha_pass@localhost:5432/alpha_analytics"
+        "ANALYTICS_DATABASE_URL", "postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_analytics"
     )
     return raw.replace("postgresql+psycopg://", "postgresql://")
 

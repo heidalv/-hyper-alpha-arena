@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import psycopg
 
-CONN = 'postgresql://laobao:alpha_pass@localhost:5432/alpha_arena'
+CONN = 'postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena'
 
 def main():
     conn = psycopg.connect(CONN)

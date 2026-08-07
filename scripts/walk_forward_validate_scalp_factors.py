@@ -114,7 +114,7 @@ COMPOSITE_FUSED = "composite_fused_cycle_prob"
 def _psycopg_dsn() -> str:
     raw = os.environ.get(
         "MARKET_DATABASE_URL",
-        "postgresql://laobao:alpha_pass@localhost:5432/alpha_market",
+        "postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market",
     )
     return raw.replace("postgresql+psycopg://", "postgresql://")
 

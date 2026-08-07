@@ -11,7 +11,7 @@
 # ══════════════════════════════════════════════════════════════
 
 set -e
-PROJECT_ROOT="/Users/laobao/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena"
+PROJECT_ROOT="/Users/db_admin/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena"
 FACTORS_DIR="$PROJECT_ROOT/backend/services/factor_engine/factors/external"
 LOG_FILE="$PROJECT_ROOT/logs/factor_sync_$(date +%Y%m%d).log"
 
@@ -57,4 +57,4 @@ echo "[4/4] 同步完成 $(date '+%H:%M:%S')" | tee -a "$LOG_FILE"
 echo "日志: $LOG_FILE"
 
 # Crontab 配置（手动添加）:
-# 0 3 * * 6 /bin/bash /Users/laobao/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena/scripts/sync_external_factors.sh
+# 0 3 * * 6 /bin/bash /Users/db_admin/项目/claude/001-02Alpha/001Alpha/Hyper-Alpha-Arena/scripts/sync_external_factors.sh

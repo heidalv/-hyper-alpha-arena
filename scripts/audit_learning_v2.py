@@ -56,7 +56,7 @@ con.close()
 
 # ---------- Postgres ----------
 from sqlalchemy import create_engine, text
-def pg(db): return create_engine(f"postgresql+psycopg://laobao:alpha_pass@localhost:5432/{db}", isolation_level="AUTOCOMMIT")
+def pg(db): return create_engine(f"postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/{db}", isolation_level="AUTOCOMMIT")
 def run(eng, title, qs):
     hr(title)
     with eng.connect() as cc:

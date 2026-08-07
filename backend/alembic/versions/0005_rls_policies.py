@@ -31,7 +31,7 @@ FORCE 的含义与陷阱(重要,给后续迁移作者)
 覆盖这一点。
 
 后果:
-  1. Alembic 的连接角色若为 superuser(如本环境的 laobao),它自己的读写不会被
+  1. Alembic 的连接角色若为 superuser(如本环境的 db_admin),它自己的读写不会被
      RLS 过滤——所以**本迁移(创建策略)**不受影响:它跑在策略大量尚不存在时,
      且 superuser 本就绕过。
   2. **后续在已 FORCE 的表上做 ALTER/UPDATE/DELETE 的迁移**:若连接角色是普通

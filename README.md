@@ -93,7 +93,7 @@ VIP 专属特色：平台共用看板（短线 / 长线）+ 管理员 LLM 深度
 
 ### Windows 迁移注意事项
 
-1. **数据库使用本机 PostgreSQL 15**。Mac 的完整数据已于 2026-06-10 从 `postgres_backup/` 恢复（数据截至当晚 23:00）。连接账号 `laobao / alpha_pass`，4 个库：alpha_arena / alpha_market / alpha_analytics / alpha_snapshots。`data/` 目录下的 SQLite 文件是 5/27 之前的旧数据，仅作备份保留。
+1. **数据库使用本机 PostgreSQL 15**。Mac 的完整数据已于 2026-06-10 从 `postgres_backup/` 恢复（数据截至当晚 23:00）。连接账号 `db_admin / YOUR_DB_PASSWORD`，4 个库：alpha_arena / alpha_market / alpha_analytics / alpha_snapshots。`data/` 目录下的 SQLite 文件是 5/27 之前的旧数据，仅作备份保留。
 2. **全自动交易会话已被手动暂停**（迁移时为安全起见）。如需恢复自动交易，在前端界面的全自动交易页面手动点击"恢复/Resume"。
 3. 首次安装依赖：根目录运行 `pnpm install`，再 `cd frontend-next && npm install`，以及 `python -m uv sync --directory backend`（后端）。
 

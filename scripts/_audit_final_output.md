@@ -1,7 +1,7 @@
-﻿# Paper Trading 中长线策略审计（swing / trend_follow）
+# Paper Trading 中长线策略审计（swing / trend_follow）
 
 ## 数据来源
-- **数据库**: `postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena`
+- **数据库**: `postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena`
 - **主表**: `paper_positions`（已平仓记录，`unrealized_pnl` 字段存最终已实现盈亏）
 - **辅表**: `paper_orders`（平仓/减仓订单，`pnl` + `close_reason`）
 - **策略识别**: `trade_nature IN (swing, trend_follow, trend)` 或 `timeframe_tier IN (mid, long)`

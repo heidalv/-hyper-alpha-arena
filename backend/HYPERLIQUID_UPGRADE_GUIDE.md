@@ -40,7 +40,7 @@ cat .env | grep HYPERLIQUID_ENCRYPTION_KEY
 
 Expected output:
 ```
-HYPERLIQUID_ENCRYPTION_KEY=_Vb-0WhmCmh2_NPbbZfSUk8ZGnWK3oBfcbGt0HeYHG0=
+HYPERLIQUID_ENCRYPTION_KEY=<your-encryption-key>
 ```
 
 ### Step 4: Run Database Upgrade Script

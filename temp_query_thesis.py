@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv(r'D:\001Alpha\Hyper-Alpha-Arena\.env', override=True)
 from sqlalchemy import create_engine, text
 
-eng = create_engine('postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena')
+eng = create_engine('postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena')
 with eng.connect() as c:
     # 所有连接的详细信息，按 xact_start 排序
     rows = c.execute(text("""

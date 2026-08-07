@@ -595,8 +595,8 @@ _pool_monitor_lock = threading.Lock()
 # 表现为主循环反复超时、AI 决策做了但下单落库失败，最终看起来像"系统不开仓了"。
 #
 # 双重保护：
-#   1. 数据库层兜底：已对 laobao 角色设置
-#      `ALTER ROLE laobao SET idle_in_transaction_session_timeout='90s'`，
+#   1. 数据库层兜底：已对 db_admin 角色设置
+#      `ALTER ROLE db_admin SET idle_in_transaction_session_timeout='90s'`，
 #      任何连接空占事务超过 90s 会被 PostgreSQL 自己强制回滚+断开，
 #      保证不会无限堆积到把系统拖死（这是"断路器"，防止总崩）。
 #   2. 这里加的是"可观测性"：每次巡检时把所有挂起 >20s 的事务（pid/存活库/

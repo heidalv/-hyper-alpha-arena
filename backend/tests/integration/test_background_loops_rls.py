@@ -7,7 +7,7 @@ APScheduler 后台交易循环(scalp/coordinator/midlong 等)跑在调度器自�
 不在 HTTP 请求上下文,因此 ``auth.py`` 中间件不会为它们设 ``tenant_id`` /
 ``is_admin``。若不显式设置,在非 superuser DB 角色下 RLS 会 fail-closed(0 行),
 静默破坏交易(查不到 positions/balance → 直接 return → 不下单)。当前仅因
-``laobao`` 是 superuser 才被掩盖。
+``db_admin`` 是 superuser 才被掩盖。
 
 修复
 ----
@@ -22,7 +22,7 @@ APScheduler 后台交易循环(scalp/coordinator/midlong 等)跑在调度器自�
 3. 在 ``system_identity()`` 作用域内,通过 ``SessionLocal`` 的 RLS ``begin`` 钩子
    会把 ``app.is_admin`` GUC 设成 ``'on'``(这是真正让 RLS 短路的机制)。
 
-注意:``SessionLocal`` 连的是 ``laobao``(superuser),superuser 本身就绕过 RLS,故这里
+注意:``SessionLocal`` 连的是 ``db_admin``(superuser),superuser 本身就绕过 RLS,故这里
 只能证明 GUC 被正确设上;真正的非 superuser 穿透证明由 ``test_rls_isolation.py`` 的
 ``test_admin_bypass_sees_all_positions`` 提供(用非 superuser 角色 + ``app.is_admin='on'``)。
 本测试聚焦"上下文管理器是否设对了 ContextVar / GUC"这一层。

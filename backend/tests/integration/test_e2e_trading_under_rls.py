@@ -9,7 +9,7 @@
 非 superuser 角色下失效,交易会静默 0 行而无人察觉。
 
 本文件用与 ``test_rls_isolation.py`` 相同的 ``NOSUPERUSER NOBYPASSRLS`` 角色模式
-(不是 superuser laobao —— superuser 永远绕过 RLS,测了等于没测),填这个缺口:
+(不是 superuser db_admin —— superuser 永远绕过 RLS,测了等于没测),填这个缺口:
 
 1. **system_identity 下后台查 paper_positions 见行**(C1 修复有效)。
 2. **无 system_identity fail-closed(0 行)** —— 证明 RLS 真生效 + 修复是
@@ -109,7 +109,7 @@ def test_role():
     """建立非 superuser 测试角色 + 授权。模块级,整组测试复用。
 
     与 test_rls_isolation 的 rls_test_tenant **分开**(独立角色),避免两套测试
-    并发跑时权限/角色生命周期相互干扰。用主连接(laobao superuser)建角色、授权。
+    并发跑时权限/角色生命周期相互干扰。用主连接(db_admin superuser)建角色、授权。
     """
     with engine.connect() as c:
         c.execute(text(f"DROP ROLE IF EXISTS {_TEST_ROLE}"))
@@ -144,7 +144,7 @@ def test_role():
 def seeded_position():
     """为每个测试插入一条 tenant_id=default 的诱饵 position,测后清理。
 
-    用 superuser(laobao)写 → superuser 绕 RLS,可直接写任意 tenant_id。
+    用 superuser(db_admin)写 → superuser 绕 RLS,可直接写任意 tenant_id。
     清理按专用 symbol 删(superuser 绕 RLS)。
     """
     with engine.connect() as c:

@@ -214,7 +214,7 @@ def main():
     pg_url = args.pg_url or os.environ.get(
         "PG_TARGET_URL",
         os.environ.get("DATABASE_URL", "").startswith("postgresql") and os.environ.get("DATABASE_URL")
-        or "postgresql://alpha_user:alpha_pass@localhost:5432/alpha_arena"
+        or "postgresql://alpha_user:YOUR_DB_PASSWORD@localhost:5432/alpha_arena"
     )
 
     if not pg_url or not pg_url.startswith("postgresql"):

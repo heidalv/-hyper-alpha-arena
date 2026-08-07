@@ -1,4 +1,4 @@
-﻿import os
+import os
 os.environ['NO_PROXY']='127.0.0.1,localhost'; os.environ['no_proxy']='127.0.0.1,localhost'
 os.environ.pop('HTTP_PROXY',None); os.environ.pop('http_proxy',None)
 os.environ.pop('HTTPS_PROXY',None); os.environ.pop('https_proxy',None)
@@ -7,7 +7,7 @@ sys.path.insert(0, r'D:\001Alpha\Hyper-Alpha-Arena')
 from dotenv import load_dotenv
 load_dotenv(r'D:\001Alpha\Hyper-Alpha-Arena\.env', override=True)
 from sqlalchemy import create_engine, text
-eng = create_engine('postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena')
+eng = create_engine('postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena')
 stop = threading.Event()
 def snap():
     for _ in range(60):

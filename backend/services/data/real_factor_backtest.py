@@ -19,7 +19,7 @@ import pandas as pd
 import psycopg
 
 # 默认连 alpha_market（市场数据所在库）
-DB_URL = "postgresql://laobao:alpha_pass@localhost:5432/alpha_market"
+DB_URL = "postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market"
 
 
 def load_real_klines(symbol: str = "BTC", period: str = "1d",

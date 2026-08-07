@@ -485,7 +485,7 @@ backend\.venv\Scripts\python.exe scripts/phase0_tier_stats.py
 
 ### 8.3 72 小时 SQL 验收（PostgreSQL）
 
-**连接**：`.env` 中 `DATABASE_URL=postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena`
+**连接**：`.env` 中 `DATABASE_URL=postgresql+psycopg://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_arena`
 
 ```sql
 -- 1. 按 tier 统计近 3 天成交（已平仓 + 仍持仓）
