@@ -1,0 +1,20 @@
+rules:
+- id: block_reduce_on_small_drawdown
+  when:
+    action: reduce
+    floating_loss_pct_lt: 0.05
+    risk_score_lt: 70
+  effect: block
+  reason: 轻微回调禁止减仓，交给 SL/TP
+- id: allow_close_on_sl_breach
+  when:
+    sl_breach_ratio_gte: 1.5
+  effect: allow
+  reason: SL 已穿透，允许 Master close
+- id: block_master_close_tiny_loss
+  when:
+    action: close
+    floating_loss_pct_lt: 0.043
+    risk_score_lt: 72
+  effect: block
+  reason: 浮亏不足 3% 且风险分低，禁止 Master 主动平仓

@@ -1,0 +1,171 @@
+{
+  "total_closed": 17,
+  "overall_win_rate": 0.5882,
+  "overall_pnl": -4439.79,
+  "by_close_reason": [
+    {
+      "key": "max_hold_timeout",
+      "count": 6,
+      "wins": 4,
+      "total_pnl": -3905.81,
+      "avg_pnl": -650.97,
+      "win_rate": 0.6667
+    },
+    {
+      "key": "sl",
+      "count": 2,
+      "wins": 1,
+      "total_pnl": -500.91,
+      "avg_pnl": -250.46,
+      "win_rate": 0.5
+    },
+    {
+      "key": "ai_reverse",
+      "count": 3,
+      "wins": 0,
+      "total_pnl": -363.05,
+      "avg_pnl": -121.02,
+      "win_rate": 0.0
+    },
+    {
+      "key": "profit_drawdown_full",
+      "count": 1,
+      "wins": 0,
+      "total_pnl": -14.77,
+      "avg_pnl": -14.77,
+      "win_rate": 0.0
+    },
+    {
+      "key": "breakeven_tp",
+      "count": 5,
+      "wins": 5,
+      "total_pnl": 344.75,
+      "avg_pnl": 68.95,
+      "win_rate": 1.0
+    }
+  ],
+  "by_tier": [
+    {
+      "key": "mid",
+      "count": 7,
+      "wins": 6,
+      "total_pnl": -3648.12,
+      "avg_pnl": -521.16,
+      "win_rate": 0.8571
+    },
+    {
+      "key": "long",
+      "count": 2,
+      "wins": 1,
+      "total_pnl": -496.49,
+      "avg_pnl": -248.24,
+      "win_rate": 0.5
+    },
+    {
+      "key": "short",
+      "count": 8,
+      "wins": 3,
+      "total_pnl": -295.18,
+      "avg_pnl": -36.9,
+      "win_rate": 0.375
+    }
+  ],
+  "by_nature": [
+    {
+      "key": "swing",
+      "count": 7,
+      "wins": 6,
+      "total_pnl": -3648.12,
+      "avg_pnl": -521.16,
+      "win_rate": 0.8571
+    },
+    {
+      "key": "trend_follow",
+      "count": 2,
+      "wins": 1,
+      "total_pnl": -496.49,
+      "avg_pnl": -248.24,
+      "win_rate": 0.5
+    },
+    {
+      "key": "scalp",
+      "count": 8,
+      "wins": 3,
+      "total_pnl": -295.18,
+      "avg_pnl": -36.9,
+      "win_rate": 0.375
+    }
+  ],
+  "by_symbol": [
+    {
+      "key": "VIRTUAL",
+      "count": 3,
+      "wins": 1,
+      "total_pnl": -9388.41,
+      "avg_pnl": -3129.47,
+      "win_rate": 0.3333
+    },
+    {
+      "key": "BNB",
+      "count": 2,
+      "wins": 0,
+      "total_pnl": -358.77,
+      "avg_pnl": -179.39,
+      "win_rate": 0.0
+    },
+    {
+      "key": "BTC",
+      "count": 3,
+      "wins": 1,
+      "total_pnl": 10.48,
+      "avg_pnl": 3.49,
+      "win_rate": 0.3333
+    },
+    {
+      "key": "SOL",
+      "count": 1,
+      "wins": 1,
+      "total_pnl": 14.38,
+      "avg_pnl": 14.38,
+      "win_rate": 1.0
+    },
+    {
+      "key": "XPL",
+      "count": 4,
+      "wins": 3,
+      "total_pnl": 302.73,
+      "avg_pnl": 75.68,
+      "win_rate": 0.75
+    },
+    {
+      "key": "ASTER",
+      "count": 2,
+      "wins": 2,
+      "total_pnl": 1994.92,
+      "avg_pnl": 997.46,
+      "win_rate": 1.0
+    },
+    {
+      "key": "ETH",
+      "count": 2,
+      "wins": 2,
+      "total_pnl": 2984.89,
+      "avg_pnl": 1492.44,
+      "win_rate": 1.0
+    }
+  ],
+  "insights": [
+    "最大亏损来源 close_reason=max_hold_timeout: 6 笔累计 -3906 USDT",
+    "最赚钱退出 close_reason=breakeven_tp: 胜率 100%，累计 +345",
+    "tier=mid 累计亏损 -3648（7 笔，胜率 86%）",
+    "tier=long 累计亏损 -496（2 笔，胜率 50%）",
+    "tier=short 累计亏损 -295（8 笔，胜率 38%）",
+    "nature=swing 累计亏损 -3648（7 笔，胜率 86%）",
+    "nature=trend_follow 累计亏损 -496（2 笔，胜率 50%）",
+    "nature=scalp 累计亏损 -295（8 笔，胜率 38%）",
+    "symbol=VIRTUAL 拖累最大: -9388，建议单独风控",
+    "建议：提高 short/intraday/scalp 开仓门槛 +8%，限制连续同向短线开仓",
+    "止损出场累计 -501：检查 SL 距离是否过紧或入场时机"
+  ],
+  "generated_at": "2026-06-10T13:53:04.777386+00:00"
+}

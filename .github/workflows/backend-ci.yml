@@ -1,0 +1,49 @@
+name: backend-ci
+
+# P0.6：后端 CI 骨架。覆盖语法、关键导入、env-flag 登记、契约分层（占位）。
+# 随 P1/P2 推进逐步收紧（加 ruff 全量、类型检查、5层契约强制、单测）。
+on:
+  push:
+    branches: [main, dev, "feat/**", "fix/**"]
+    paths:
+      - "backend/**"
+      - "scripts/check_contracts.py"
+      - "pyproject.toml"
+      - "requirements.txt"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "scripts/check_contracts.py"
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff lint (Pyflakes + 语法 + import 排序)
+        run: ruff check backend/
+      - name: Contract & integrity check
+        env:
+          ENV_STRICT: warn
+        run: python scripts/check_contracts.py
+
+  import-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install core deps (hard deps only)
+        run: |
+          pip install -r requirements.txt
+      - name: Import smoke test（关键模块可导入）
+        run: |
+          python -c "from backend.config import env_registry; print('env_registry OK, flags:', len(env_registry.KNOWN_FLAGS))"
+          python -c "from backend.api import atas_routes, atas_v2_routes; print('ATAS routes OK:', len(atas_routes.router.routes)+len(atas_v2_routes.router.routes), 'endpoints')"

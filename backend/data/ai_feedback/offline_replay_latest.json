@@ -1,0 +1,46 @@
+{
+  "baseline": {
+    "total_trades": 17,
+    "wins": 10,
+    "win_rate": 0.5882,
+    "total_pnl": -4439.79,
+    "avg_win": 585.01,
+    "avg_loss": -1469.99,
+    "profit_factor": 0.57,
+    "max_drawdown": 8891.93,
+    "fee_ratio": 0.3713,
+    "by_close_reason": {
+      "breakeven_tp": 344.74992948785456,
+      "ai_reverse": -363.04735214355105,
+      "profit_drawdown_full": -14.771811140122038,
+      "sl": -500.9128525480538,
+      "max_hold_timeout": -3905.8106055515327
+    },
+    "by_tier": {
+      "mid": -3648.1231866673047,
+      "short": -295.182363572701,
+      "long": -496.4871416553986
+    },
+    "by_nature": {
+      "swing": -3648.1231866673047,
+      "scalp": -295.182363572701,
+      "trend_follow": -496.4871416553986
+    }
+  },
+  "with_short_gate_simulation": {
+    "total_trades": 12,
+    "wins": 10,
+    "win_rate": 0.8333,
+    "total_pnl": -3588.95,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.0,
+    "fee_ratio": 0.0,
+    "by_close_reason": {},
+    "by_tier": {},
+    "by_nature": {}
+  },
+  "simulated_blocked_losing_short_trades": 5,
+  "pnl_improvement": 850.84
+}

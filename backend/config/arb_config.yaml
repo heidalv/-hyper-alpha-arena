@@ -1,0 +1,65 @@
+# V3 统计套利系统配置
+# 环境变量覆盖: ARB_<SECTION>_<KEY>
+
+engine:
+  default_mode: paper          # paper | live
+  max_pool_pct_of_equity: 0.30
+  daily_loss_limit_pct: 0.03
+  position_size_pct: 0.20
+
+scanner:
+  min_annual_yield: 0.15
+  min_history_periods: 24
+  basis_scan_enabled: false   # HL 无现货，默认关闭假基差扫描
+  basis_entry_threshold_pct: 0.003
+  cross_exchange_entry_zscore: 2.0
+  cross_exchange_exit_zscore: 0.5
+  cross_exchange_min_history: 5
+  mid_cache_ttl_sec: 5.0      # 跨所 mid 缓存 TTL（秒）
+  # 跨所扫描优先级（靠前优先配对）
+  exchange_priority:
+    - hyperliquid
+    - binance
+    - bybit
+    - okx
+    - asterdex
+    - gateio
+
+funding:
+  primary_exchange: asterdex
+  hedge_exchange: binance       # Live 资金费率对冲所
+  min_annual_yield: 0.15
+  max_position_usd: 10000.0
+  max_holding_hours: 72
+
+capital_allocation:
+  # 与 Rebate 系统共享的全局分配（占权益比例，总和 <= 1.0）
+  v3_arbitrage_total: 0.30      # V3 统计套利总池
+  funding_rate_arb: 0.10
+  cross_exchange_spread: 0.20
+  rebate_points_arb: 0.60
+  emergency_reserve: 0.10
+
+ws_feed:
+  enabled: true
+  poll_interval_sec: 2.0
+  symbols:
+    - BTC
+    - ETH
+    - SOL
+
+market_data_hub:
+  enabled: true
+  stale_ttl_sec: 5.0
+  rest_fallback_interval_sec: 30.0
+  disable_rest_market_stream: true   # Hub 运行时跳过 5s REST 轮询
+  primary_exchange: asterdex
+  symbols:
+    - BTC
+    - ETH
+    - SOL
+  channels:
+    - l2_book
+    - trades
+    - funding
+    - asset_ctx

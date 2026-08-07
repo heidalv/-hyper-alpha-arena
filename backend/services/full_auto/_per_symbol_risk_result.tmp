@@ -1,0 +1,7 @@
+@dataclass
+class _PerSymbolRiskResult:
+    """per-symbol 风控检查结果"""
+    global_freeze: bool = False
+    global_reason: str = ""
+    frozen_symbols: List[str] = field(default_factory=list)
+    symbol_reasons: Dict[str, str] = field(default_factory=dict)

@@ -1,0 +1,17 @@
+{
+  "factor_id": "cloud_microstructure_kyle",
+  "name": "KyleLambda",
+  "display_name": "Kyle Lambda",
+  "description": "Kyle's Lambda市场微观结构指标，衡量价格对交易量的敏感度。高Lambda表示市场流动性差(大单导致大波动)，低Lambda表示流动性好。",
+  "category": "behavioral",
+  "subcategory": "orderflow",
+  "version": "1.0.0",
+  "author": "Cloud Factor Library",
+  "tags": ["microstructure", "liquidity", "kyle"],
+  "parameters": {
+    "lookback": 20
+  },
+  "required_data_fields": ["close", "volume"],
+  "dependencies": [],
+  "calculation_code": "def calculate(self, data: pd.DataFrame) -> pd.Series:\n    lookback = self.params.get('lookback', 20)\n    price_change = data['close'].diff().abs()\n    sqrt_volume = np.sqrt(data['volume'] + 1e-9)\n    rolling_price_vol = price_change.rolling(lookback).sum()\n    rolling_sqrt_vol = sqrt_volume.rolling(lookback).sum()\n    kyle_lambda = rolling_price_vol / (rolling_sqrt_vol + 1e-9)\n    result = kyle_lambda.rank(pct=True).fillna(0.5)\n    return result"
+}

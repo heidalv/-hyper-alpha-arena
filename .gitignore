@@ -1,0 +1,403 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST.spec
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django / Flask
+local_settings.py
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv / pipenv / poetry / pdm
+.python-version
+pipenv/
+Pipfile.lock
+poetry.lock
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Virtual environments
+venv/
+.venv/
+.venv.old/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs
+/site
+
+# mypy / pytype
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# type checkers
+pyright/
+
+# ===== Node =====
+node_modules/
+jspm_packages/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.next/
+.nuxt/
+.output
+.cache
+.parcel-cache
+.vite/
+.turbo
+.eslintcache
+
+# Vitepress temp & cache
+*.temp
+.cache/
+
+# Snowpack
+build/
+
+# Storybook
+storybook-static/
+
+# Browser dependencies
+package-lock.json
+
+# ===== TypeScript =====
+*.tsbuildinfo
+next-env.d.ts
+
+# Optional REPL history
+.node_repl_history
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# FuseBox
+.fusebox/
+
+# DynamoDB Local
+.dynamodb/
+
+# Serverless
+.serverless/
+
+# TernJS port file
+.tern-port
+
+# Vuepress
+.vuepress/dist
+.vuepress/.cache
+
+# Bundled
+builder/pi_build/target/
+
+# ===== Databases =====
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ===== Logs =====
+*.log
+logs/
+*.log.*
+*.out
+uvicorn.log
+gunicorn.log
+
+# ===== Environment / secrets =====
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ===== OS =====
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# ===== IDE / Editors =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+.qoder/
+.claude/
+.qodo/
+.opencode/
+.windsurf/
+**/.od-skills/
+**/.qoder/
+*.code-workspace
+.history/
+
+# ===== Project-specific runtime (can grow to GB) =====
+qaa_memory/
+qaa_workflow/
+qaa_evolution/
+qaa_knowledge/
+qaa_chromadb/
+.qaa/
+*.parquet
+_scratch/
+_scratch_*/
+
+# ===== Screenshots / temp output =====
+screenshot_*.png
+*.screenshot.png
+sc*.txt
+sg*.txt
+sgt*.txt
+t*.txt
+tall.txt
+tb.txt
+tc.txt
+ms.json
+error_output*.txt
+status_tmp*.json
+backend_restart*.log
+frontend_restart*.log
+
+# ===== Dev / temp scripts =====
+_dev_backend.cmd
+_dev_frontend.cmd
+_probe*.py
+_tmp_*
+_b.py
+_chk*.py
+_clean*.py
+_cleanup.py
+_cleanup.txt
+_trace_*.py
+_trace_out.txt
+_tmp_opencode_diag.py
+_tmp_query.py
+_import_test*.py
+_import_test*.txt
+_tmp_qaa_artifact_smoke
+fix2.py
+fix3.py
+
+# ===== Build tool caches =====
+.ruff_cache/
+.pyre/
+
+# ===== AI Programming Assistants =====
+.agents/
+.zcode/
+CLAUDE.md
+AGENT.md
+AGENTS.md
+.cursorrules
+
+# ===== Development Plans (sensitive) =====
+REAL_TRADING_PLAN.md
+*_PLAN.md
+
+# ===== Memory Bank and Prompts (local only) =====
+memory-bank/
+prompts/
+
+# ===== Backups =====
+*.backup
+*.backup.*
+*.bak
+.bak/
+_bak/
+
+# ===== Archive (local) =====
+_archive/
+
+# ===== Internal docs (not for public repo) =====
+docs/desktop-installer-spec.md
+
+# ===== Large data dumps (do NOT commit) =====
+*.sql
+*.sql.gz
+hyper_alpha_arena_backup.sql
+
+# ===== Additional excludes (post-baseline audit) =====
+screenshots/
+docs/opencode/
+frontend/app/components/opencode/
+**/opencode/
+opencode_*.py.bak
+qaa_architecture_package/
+qaa_snapshots/
+run_logs/
+_run_logs/
+test_autocoin*.png
+test_autocoin*.py
+test_*.png
+test_full_report.txt
+test_factor_loader.py
+
+# ===== Runtime locks / pid / data (do NOT commit) =====
+backend/data/locks/
+*.lock
+*.pid
+.run/
+.run_logs/
+backend/data/runs/
+backend/data/snapshots/
+
+# Windows reserved-name artifacts (PowerShell > nul bug)
+nul
+**/nul
+
+# ===== RAG / ChromaDB vector stores (runtime, can be huge) =====
+backend/data/rag_chromadb/
+**/rag_chromadb/
+chromadb/
+**/chroma/
+*.bin
+
+# ===== DB backups =====
+*.db.bak*
+data/*.bak*
+data/alpha_arena.db*
+data/prompt_trace.jsonl
+data/runtime_governor_decisions.jsonl
+data/*.jsonl
+!data/decision_arbiter.jsonl
+!backend/data/decision_arbiter.jsonl
+
+# ===== Runtime state files (live system writes, do NOT commit) =====
+data/opencode_reports/
+data/strategy_runtime_reports/
+data/runtime_tuning*
+data/runtime_governor_decisions.jsonl
+data/audit_chain_state.json
+data/maturity_state.json
+data/prompt_trace.jsonl
+backend/data/auto_coin_injected/
+backend/data/runs/
+backend/data/snapshots/
+backend/data/decision_arbiter.jsonl
+
+# ===== Git onboarding additions (2026-08-07) =====
+# Virtual env not covered by venv/ patterns
+venv-gpu/
+venv-gpu.*/
+
+# DB dumps (large)
+postgres_backup/
+*.dump
+
+# Obsidian knowledge base (local only, sensitive decision records)
+obsidian_vault/
+
+# Runtime data (keep only config files at data/ root)
+data/prompt_archives/
+data/training_reports/
+data/ai_feedback/
+data/market_klines/
+data/policy_snapshots/
+data/parity_reports/
+data/scalp_factor_validation/
+data/cycle_prob/
+data/cycle_sensitivity/
+
+# Shell-accident junk files (broken names)
+'2026-06-20
+'stop_loss_pct'
+'trade_nature')
+=
+Enable
+NOW()-INTERVAL
+Open
+_nul

@@ -1,0 +1,58 @@
+# ============================================================================
+# 项目级工具配置（P0.6）
+# backend/ 仍用 requirements.txt 管理依赖（无 [project] 依赖声明，避免与 uv 冲突）。
+# 本文件仅承载 ruff（lint+format）配置，供 CI 和本地开发共用。
+# ============================================================================
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = [
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    ".next",
+    "qaa_architecture_package",   # QAA 包有自己的 lint 规范
+    "build",
+    "dist",
+    "migrations",
+    "frontend",
+    "frontend-next",
+]
+
+[tool.ruff.lint]
+# 起步阶段保守选择：只开最有价值的规则集，避免历史代码一次性炸出海量告警。
+# 后续随整改逐步收紧（P1+ 可加 "ANN", "D", "PT"）。
+select = [
+    "F",     # Pyflakes (未用 import、未定义变量等硬错误)
+    "E9",    # 语法错误
+    "W6",    # deprecated
+    "I",     # isort (import 排序)
+]
+ignore = [
+    "E501",  # line too long (line-length 已管，且历史代码超长多)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ----------------------------------------------------------------------------
+# pytest 配置（与 pytest.ini 同义，统一到 pyproject.toml；保留 pytest.ini 兼容旧调用）
+# ----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "unit: Unit tests (fast, no DB/network)",
+    "integration: Integration tests (may need DB)",
+    "e2e: End-to-end tests (full stack)",
+    "slow: Tests that take > 10s",
+    "contract: Lean 5-layer contract checks (P0.6/P2.1)",
+]

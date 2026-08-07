@@ -1,0 +1,31 @@
+# 因子生命周期阈值（P1.3，方案 §2.2）
+#
+# 所有阈值由 ShadowJudgeAgent 自动驱动状态转换（R4：客观指标驱动，非人工）。
+# 注意：阈值本身也走 DSR 校验（方案要求防手调过拟合）——改这些值需配套重跑 PBO。
+# 调整前先评估对历史活跃集的影响。
+
+# CANDIDATE → ORTHO（CPCV 评估）
+min_icir: 0.30
+max_monotonicity_p: 0.05
+max_turnover: 0.70
+min_halflife_bars: 5
+
+# ORTHO → PAPER
+max_incremental_corr: 0.50
+min_dsr_significant: true
+max_pbo: 0.50
+min_capacity_usd: 100000
+
+# PAPER → SMALL_LIVE
+min_paper_sharpe: 1.0
+max_live_deviation: 0.003
+paper_min_days: 5
+
+# SMALL_LIVE → ACTIVE
+small_live_min_days: 14
+
+# ACTIVE → DEWEIGHT（退化，任一满足）
+decay_icir_threshold: 0.15
+decay_consecutive_days: 3
+decay_halflife_min_bars: 3
+decay_capacity_min_usd: 50000

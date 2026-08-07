@@ -1,0 +1,1 @@
+{"intents":[{"action":"open","loop":"scalp","reason":"evaluate_scalp_proposal","side":"buy","symbol":"BTC","tier":"short"}],"loop":"scalp","observed_calls":{"evaluate_scalp_proposal":true,"place_order":false},"scenario":"scalp_buy_signal_reaches_v5"}

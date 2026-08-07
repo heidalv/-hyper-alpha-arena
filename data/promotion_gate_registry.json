@@ -1,0 +1,22 @@
+{
+  "candidates": {
+    "ml_learned_weighting": {
+      "stage": "shadow",
+      "domain": "factor_weighting",
+      "previous_stage": "shadow",
+      "dsr": null,
+      "patch_id": null,
+      "updated_at": 1786083332.9910057,
+      "blend_alpha": 0.0
+    },
+    "factor_hybrid_mode": {
+      "stage": "canary",
+      "domain": "factor_weighting",
+      "previous_stage": "shadow",
+      "dsr": 0.5566498778829992,
+      "patch_id": null,
+      "updated_at": 1783965000.9954362,
+      "blend_alpha": 0.22
+    }
+  }
+}

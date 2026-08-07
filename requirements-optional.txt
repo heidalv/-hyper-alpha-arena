@@ -1,0 +1,41 @@
+# ============================================================================
+# 可选依赖 — RL / 在线学习 / 高级后端
+# 这些包在代码中通过 try/except 守卫，缺失时优雅降级（详见 rl/trading_env.py 等）。
+# 仅在启用对应功能时安装：pip install -r requirements-optional.txt
+# 安装后需重新生成 uv.lock（见下方说明）。
+# ============================================================================
+
+# ---- 深度学习后端（GRU 时序 / RL 策略网络）----
+torch==2.11.0               # uv.lock 锚定；GRU 后端 + RL 策略（缺失则降级 linear）
+# torchvision>=0.20         # 若需图像特征再启
+
+# ---- 强化学习（trading_env / AlphaEnsemble 的 SAC/RecurrentPPO）----
+gymnasium>=1.0.0            # Gym 兼容环境（缺失则 TradingEnv 降级为 stub）
+stable-baselines3>=2.4.0    # SAC/PPO（缺失则跳过 RL 训练）
+sb3-contrib>=2.4.0          # MaskablePPO（AlphaGen 式因子挖掘 + RecurrentPPO）
+
+# ---- 在线学习（River：drift→adapt 闭环，P4 用）----
+river>=0.21.0               # 单样本流式 ML + ADWIN/Page-Hinkley 漂移检测
+
+# ---- 向量化回测（P1/P4 大规模参数扫描用）----
+vectorbt>=0.26.0
+
+# ---- 遗传编程（P4 GP 多样性因子挖掘）----
+# gplearn>=0.4.3            # P4 启用前再装
+
+# ---- 可选 ML 后端 ----
+catboost>=1.2               # 缺失则 get_model 降级 lightgbm
+
+# ---- 可选指标库（若 factors 使用 ta 而非自研）----
+ta>=0.11.0
+
+# ---- 缓存（若启用 Redis 热状态后端，否则用内存）----
+redis>=5.0.0
+
+# ============================================================================
+# 重新生成 lock 文件（在 backend/ 下执行）：
+#   uv lock
+# 或（无 uv）：
+#   pip install -r requirements.txt -r requirements-optional.txt
+#   pip freeze > requirements.lock.txt
+# ============================================================================

@@ -1,0 +1,132 @@
+﻿=== DATA SOURCE ===
+DB: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_arena
+Tables: paper_positions, paper_orders
+Nature filter: {'swing', 'trend_follow', 'trend'}; Tier filter: {'mid', 'long'}
+Window: last 14d from 2026-07-05 06:39:30.287156
+Positions closed (mid/long): 76
+Range: 2026-07-05 07:20:54.240922 ~ 2026-07-19 10:07:30.365337
+Close orders (mid/long nature): 222
+
+=== PNL SANITY TOP5 (positions) ===
+  id=101 ETH long pnl=-58602.20 margin=7312.77 size=1.0000 entry=60000.0 close=1397.800804 lev=5.0 reason=tp
+  id=42 SOL long pnl=-49053.89 margin=11987.88 size=1.0000 entry=50000.0 close=54.621305 lev=15.0 reason=tp
+  id=7 VIRTUAL long pnl=-29999.57 margin=1372.26 size=0.5000 entry=60000.0 close=0.859657 lev=6.0 reason=sl
+  id=88 BTC long pnl=20921.02 margin=6233.59 size=1.5000 entry=50000.0 close=63947.348 lev=15.0 reason=breakeven_tp
+  id=99 MORPHO long pnl=-2634.16 margin=1741.88 size=1.0000 entry=3000.0 close=2.2694 lev=7.0 reason=dust_cleanup
+
+=== PNL SANITY TOP5 (orders) ===
+  BTC pnl=20921.02 reason=breakeven_tp nature=swing
+  SOL pnl=-11987.88 reason=tp nature=trend_follow
+  ETH pnl=-7312.77 reason=tp nature=swing
+  ETH pnl=-2231.39 reason=max_hold_timeout nature=swing
+  MORPHO pnl=-1741.88 reason=dust_cleanup nature=swing
+
+=== BY NATURE (positions) ===
+| 维度 | 笔数 | 胜率 | 总盈亏 | 平均盈亏 | 平均持仓h | 最大连亏 |
+|---|---:|---:|---:|---:|---:|---:|
+| swing | 62 | 29.0% | -42576.98 | -686.73 | 41.5 | 10 |
+| trend_follow | 14 | 21.4% | -79052.36 | -5646.60 | 179.4 | 9 |
+
+=== BY SYMBOL (positions) ===
+| 维度 | 笔数 | 胜率 | 总盈亏 | 平均盈亏 | 平均持仓h | 最大连亏 |
+|---|---:|---:|---:|---:|---:|---:|
+| ASTER | 1 | 100.0% | 0.21 | 0.21 | 17.8 | 0 |
+| BNB | 5 | 20.0% | -2.67 | -0.53 | 10.4 | 4 |
+| BTC | 6 | 50.0% | 20919.04 | 3486.51 | 130.0 | 2 |
+| CRV | 1 | 0.0% | -0.31 | -0.31 | 7.1 | 1 |
+| ETH | 12 | 41.7% | -60833.99 | -5069.50 | 74.0 | 3 |
+| FARTCOIN | 1 | 0.0% | -0.44 | -0.44 | 0.7 | 1 |
+| HYPE | 2 | 50.0% | 9.15 | 4.57 | 9.1 | 1 |
+| KAITO | 1 | 0.0% | -5.07 | -5.07 | 6.4 | 1 |
+| LDO | 8 | 0.0% | -17.09 | -2.14 | 3.8 | 8 |
+| LIT | 4 | 25.0% | 0.54 | 0.14 | 3.1 | 3 |
+| MORPHO | 1 | 0.0% | -2634.16 | -2634.16 | 712.5 | 1 |
+| ONDO | 1 | 100.0% | 2.22 | 2.22 | 13.2 | 0 |
+| SOL | 19 | 31.6% | -49058.46 | -2582.02 | 53.9 | 5 |
+| VIRTUAL | 1 | 0.0% | -29999.57 | -29999.57 | 1459.8 | 1 |
+| XPL | 6 | 0.0% | -5.07 | -0.84 | 4.1 | 6 |
+| ZEC | 7 | 28.6% | -3.67 | -0.52 | 5.2 | 3 |
+
+=== BY SIDE (positions) ===
+| 维度 | 笔数 | 胜率 | 总盈亏 | 平均盈亏 | 平均持仓h | 最大连亏 |
+|---|---:|---:|---:|---:|---:|---:|
+| long | 55 | 23.6% | -121632.03 | -2211.49 | 88.4 | 9 |
+| short | 21 | 38.1% | 2.69 | 0.13 | 10.4 | 8 |
+
+=== BY CLOSE REASON (positions) ===
+| 原因 | 笔数 | 占比 | 胜率 | 平均盈亏 |
+|---|---:|---:|---:|---:|
+| master_running_close | 25 | 32.9% | 16.0% | -1.60 |
+| dust_cleanup | 15 | 19.7% | 46.7% | -174.75 |
+| ai_reverse | 7 | 9.2% | 14.3% | -0.26 |
+| hold_timeout_review | 7 | 9.2% | 42.9% | -0.69 |
+| profit_drawdown_full | 5 | 6.6% | 20.0% | -1.24 |
+| trend_review_close | 5 | 6.6% | 0.0% | -1.02 |
+| breakeven_tp | 3 | 3.9% | 100.0% | 6978.80 |
+| sl | 2 | 2.6% | 0.0% | -15000.61 |
+| tp | 2 | 2.6% | 0.0% | -53828.04 |
+| emergency_drawdown | 2 | 2.6% | 100.0% | 2.95 |
+| max_hold_timeout | 1 | 1.3% | 0.0% | -2231.39 |
+| master_running_reduce | 1 | 1.3% | 0.0% | -0.49 |
+| liquidation | 1 | 1.3% | 0.0% | -3.20 |
+
+=== BY CLOSE REASON (orders) ===
+| 原因 | 笔数 | 占比 | 胜率 | 平均盈亏 |
+|---|---:|---:|---:|---:|
+| master_running_reduce | 99 | 44.6% | 45.5% | 0.04 |
+| master_running_close | 25 | 11.3% | 12.0% | -1.15 |
+| trend_review_reduce_40% | 24 | 10.8% | 62.5% | 0.06 |
+| hold_timeout_review | 19 | 8.6% | 52.6% | -0.12 |
+| dust_cleanup | 15 | 6.8% | 46.7% | -116.12 |
+| ai_reverse | 7 | 3.2% | 14.3% | -0.29 |
+| trend_review_reduce_30% | 6 | 2.7% | 50.0% | -0.09 |
+| profit_drawdown_full | 5 | 2.3% | 20.0% | -0.74 |
+| trend_review_close | 5 | 2.3% | 0.0% | -0.67 |
+| breakeven_tp | 3 | 1.4% | 100.0% | 6978.20 |
+| trend_review_reduce_50% | 2 | 0.9% | 0.0% | -0.16 |
+| sl | 2 | 0.9% | 0.0% | -686.96 |
+| tp | 2 | 0.9% | 0.0% | -9650.32 |
+| emergency_drawdown | 2 | 0.9% | 100.0% | 0.01 |
+| trend_review_reduce_35% | 2 | 0.9% | 0.0% | -0.82 |
+| max_hold_timeout | 1 | 0.5% | 0.0% | -2231.39 |
+| profit_drawdown_partial | 1 | 0.5% | 100.0% | 0.08 |
+| profit_stage_close | 1 | 0.5% | 100.0% | 0.12 |
+| liquidation | 1 | 0.5% | 0.0% | -2.57 |
+
+=== SL / LOSS SPECIAL (positions) ===
+labeled_sl_n=3 sl_avg_hold=493.9195704980555
+win_avg_hold=46.90166881231481
+loss_avg_hold=74.49939559812627
+sl_dist_pct ALL n=75 p25=4.50 p50=4.50 p75=6.50
+sl_dist_pct SL-only n=3 p25=14.75 p50=25.00 p75=62.50
+
+--- Re-entry after SL_labeled ---
+  1h: 0.0% (0/3)
+  4h: 33.3% (1/3)
+  12h: 33.3% (1/3)
+  24h: 33.3% (1/3)
+
+--- Re-entry after ANY_loss ---
+  1h: 21.8% (12/55)
+  4h: 41.8% (23/55)
+  12h: 52.7% (29/55)
+  24h: 58.2% (32/55)
+
+=== VICIOUS CYCLES (loss->reopen<=24h->loss, >=2 steps) ===
+
+Case 1: LDO long steps=3 total_pnl=-3.68
+python : Traceback (most recent call last):
+所在位置 C:\Users\dell\AppData\Local\Temp\ps-script-f7aa4ece-8f6f-47e5-ba9c-44184906b190.ps1:86 字符: 77
++ ... lpha-Arena"; python scripts/_audit_swing_trend_14d_v2.py 2>&1 | Out-F ...
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\BaiduNetdiskDownload\001Alpha\001Alpha\Hyper-Alpha-Arena\scripts\_audit_swing_trend_14d_v2.py", line 383, in
+ <module>
+    main()
+  File "D:\BaiduNetdiskDownload\001Alpha\001Alpha\Hyper-Alpha-Arena\scripts\_audit_swing_trend_14d_v2.py", line 354, in
+ main
+    f"reason={r['reason']} hold_h={r['hold_h']:.1f if r['hold_h'] else '?'}")
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Invalid format specifier '.1f if r['hold_h'] else '?'' for object of type 'float'

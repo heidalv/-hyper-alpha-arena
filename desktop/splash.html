@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: Tahoma, 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    background: #000080;
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    user-select: none;
+    overflow: hidden;
+  }
+  .splash {
+    text-align: center;
+    width: 380px;
+  }
+  .logo-box {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 16px;
+    background: linear-gradient(135deg, #FF0000 25%, #00FF00 25%, #00FF00 50%, #0000FF 50%, #0000FF 75%, #FFFF00 75%);
+    image-rendering: pixelated;
+  }
+  h1 { font-size: 20px; margin-bottom: 4px; letter-spacing: 2px; }
+  .sub { font-size: 12px; color: #AAA; margin-bottom: 24px; }
+  .progress-track {
+    width: 100%;
+    height: 18px;
+    background: #000;
+    border: 2px solid;
+    border-color: #808080 #FFF #FFF #808080;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: repeating-linear-gradient(
+      90deg,
+      #000080 0px,
+      #000080 8px,
+      transparent 8px,
+      transparent 10px
+    );
+    width: 0%;
+    animation: loading 4s ease-in-out forwards;
+  }
+  @keyframes loading {
+    0%   { width: 0%; }
+    20%  { width: 15%; }
+    40%  { width: 35%; }
+    60%  { width: 55%; }
+    80%  { width: 80%; }
+    100% { width: 100%; }
+  }
+  .status {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #CCC;
+  }
+  .version {
+    margin-top: 16px;
+    font-size: 10px;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+  <div class="splash">
+    <div class="logo-box"></div>
+    <h1>Heidalv Alpha Arena</h1>
+    <div class="sub">全自动交易系统</div>
+    <div class="progress-track">
+      <div class="progress-bar"></div>
+    </div>
+    <div class="status" id="status">正在初始化后端服务...</div>
+    <div class="version">v0.7.0</div>
+  </div>
+  <script>
+    const msgs = [
+      '正在初始化后端服务...',
+      '加载数据库...',
+      '连接 Hyperliquid...',
+      '启动 AI 引擎...',
+      '准备完毕！'
+    ];
+    let i = 0;
+    setInterval(() => {
+      if (i < msgs.length) {
+        document.getElementById('status').textContent = msgs[i++];
+      }
+    }, 800);
+  </script>
+</body>
+</html>

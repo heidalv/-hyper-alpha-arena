@@ -1,0 +1,623 @@
+"""
+Hyperliquid Environment Management
+
+Provides functions for:
+- Account setup for Hyperliquid trading
+- Environment switching (testnet <-> mainnet)
+- Client factory with automatic environment detection
+"""
+import logging
+import threading
+from typing import Dict, Any, Tuple
+from sqlalchemy.orm import Session
+
+from backend.database.models import Account, HyperliquidPosition, HyperliquidWallet, SystemConfig
+from backend.services.hyperliquid_trading_client import (
+    HyperliquidTradingClient,
+    create_hyperliquid_client
+)
+from backend.utils.encryption import encrypt_private_key, decrypt_private_key
+
+logger = logging.getLogger(__name__)
+
+# ═════════════════════════════════════════════════════════════════
+# 进程级 Hyperliquid 客户端缓存
+#
+# [2026-07-09 性能修复] 原实现每次调用 get_hyperliquid_client() 都重新执行
+# ccxt.hyperliquid() + load_markets() + SDK 初始化（单账户 10-12s）。仪表盘多账户
+# 轮询时，每个账户每次刷新都重建客户端，是冷启动 50-60s 卡顿的主要来源。
+#
+# 客户端实例是无状态的读取器（凭证/环境在创建时固定，exchange/sdk 对象只读），
+# 可安全跨请求复用。按 (account_id, environment) 缓存，命中直接返回。
+# ═════════════════════════════════════════════════════════════════
+_CLIENT_CACHE: Dict[Tuple[int, str], HyperliquidTradingClient] = {}
+_CLIENT_CACHE_LOCK = threading.Lock()
+
+
+def get_cached_client(account_id: int, environment: str) -> HyperliquidTradingClient:
+    """返回缓存的客户端实例，未缓存返回 None。"""
+    with _CLIENT_CACHE_LOCK:
+        return _CLIENT_CACHE.get((account_id, environment))
+
+
+def clear_client_cache(account_id: int = None, environment: str = None) -> None:
+    """清除客户端缓存。account_id=None 清全部，否则清指定账户（可配合 environment）。"""
+    with _CLIENT_CACHE_LOCK:
+        if account_id is None:
+            _CLIENT_CACHE.clear()
+        else:
+            keys_to_remove = [
+                k for k in _CLIENT_CACHE
+                if k[0] == account_id and (environment is None or k[1] == environment)
+            ]
+            for k in keys_to_remove:
+                del _CLIENT_CACHE[k]
+
+
+def setup_hyperliquid_account(
+    db: Session,
+    account_id: int,
+    environment: str,
+    private_key: str,
+    max_leverage: int = 20,
+    default_leverage: int = 10
+) -> Dict[str, Any]:
+    """
+    Setup Hyperliquid trading for an account
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+        environment: "testnet" or "mainnet"
+        private_key: Hyperliquid private key (will be encrypted)
+        max_leverage: Maximum allowed leverage (1-50)
+        default_leverage: Default leverage for orders (1-50)
+
+    Returns:
+        Setup result dict
+
+    Raises:
+        ValueError: If parameters invalid or account not found
+    """
+    if environment not in ["testnet", "mainnet"]:
+        raise ValueError("Environment must be 'testnet' or 'mainnet'")
+
+    if max_leverage < 1 or max_leverage > 50:
+        raise ValueError("max_leverage must be between 1 and 50")
+
+    if default_leverage < 1 or default_leverage > max_leverage:
+        raise ValueError(f"default_leverage must be between 1 and {max_leverage}")
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    # Encrypt private key
+    try:
+        encrypted_key = encrypt_private_key(private_key)
+    except Exception as e:
+        logger.error(f"Failed to encrypt private key: {e}")
+        raise ValueError(f"Private key encryption failed: {e}")
+
+    # Store in environment-specific field
+    if environment == "testnet":
+        account.hyperliquid_testnet_private_key = encrypted_key
+    else:
+        account.hyperliquid_mainnet_private_key = encrypted_key
+
+    # Configure account
+    # IMPORTANT: Account environment MUST sync with global trading mode
+    global_mode = get_global_trading_mode(db)
+    account.hyperliquid_environment = global_mode
+    account.hyperliquid_enabled = "true"
+    account.max_leverage = max_leverage
+    account.default_leverage = default_leverage
+
+    if global_mode != environment:
+        logger.warning(
+            f"Account environment set to global mode '{global_mode}' instead of requested '{environment}'. "
+            f"Credentials stored for '{environment}' but will use global mode."
+        )
+
+    try:
+        db.commit()
+        logger.info(
+            f"Account {account.name} (ID: {account_id}) configured for Hyperliquid {environment.upper()}: "
+            f"max_leverage={max_leverage}x, default_leverage={default_leverage}x"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save account configuration: {e}")
+        raise
+
+    # [2026-07-09 性能修复] 凭证变更后清除该账户的客户端缓存，避免返回用旧密钥的客户端
+    clear_client_cache(account_id=account_id)
+
+    return {
+        'success': True,
+        'message': f'Account {account.name} configured for Hyperliquid {environment.upper()}',
+        'account_id': account_id,
+        'account_name': account.name,
+        'environment': environment,
+        'max_leverage': max_leverage,
+        'default_leverage': default_leverage,
+        'status': 'configured'
+    }
+
+
+def get_global_trading_mode(db: Session) -> str:
+    """
+    Get global Hyperliquid trading mode from system config
+
+    Returns:
+        "testnet" or "mainnet", defaults to "testnet" if not configured
+    """
+    config = db.query(SystemConfig).filter(
+        SystemConfig.key == "hyperliquid_trading_mode"
+    ).first()
+
+    if config and config.value in ["testnet", "mainnet"]:
+        return config.value
+
+    # Default to testnet for safety
+    return "testnet"
+
+
+def get_leverage_settings(db: Session, account_id: int, environment: str) -> Dict[str, int]:
+    """
+    Get leverage settings for an account in a specific environment
+
+    This function implements the unified leverage retrieval logic:
+    1. Query HyperliquidWallet table for the specific (account_id, environment)
+    2. If wallet found and active, use wallet.max_leverage and wallet.default_leverage
+    3. If no wallet found, fall back to account.max_leverage and account.default_leverage
+
+    This ensures leverage settings are consistent across all code locations:
+    - Prompt template variable filling (_build_prompt_context)
+    - Order placement validation (hyperliquid_routes.py)
+    - AI decision-making process
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+        environment: "testnet" or "mainnet"
+
+    Returns:
+        Dict with keys: "max_leverage" (int), "default_leverage" (int)
+
+    Raises:
+        ValueError: If account not found or environment invalid
+    """
+    if environment not in ["testnet", "mainnet"]:
+        raise ValueError(f"Invalid environment: {environment}. Must be 'testnet' or 'mainnet'")
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    # Try to get wallet from hyperliquid_wallets table (new architecture)
+    wallet = db.query(HyperliquidWallet).filter(
+        HyperliquidWallet.account_id == account_id,
+        HyperliquidWallet.environment == environment,
+        HyperliquidWallet.is_active == "true"
+    ).first()
+
+    if wallet:
+        # Use wallet leverage settings (new architecture)
+        logger.info(
+            f"Using leverage from {environment} wallet for account {account.name} (ID: {account_id}): "
+            f"max={wallet.max_leverage}x, default={wallet.default_leverage}x"
+        )
+        return {
+            "max_leverage": wallet.max_leverage,
+            "default_leverage": wallet.default_leverage
+        }
+    else:
+        # Fall back to Account table leverage settings (backward compatibility)
+        max_lev = account.max_leverage if account.max_leverage is not None else 20
+        default_lev = account.default_leverage if account.default_leverage is not None else 10
+        logger.info(
+            f"No {environment} wallet found for account {account.name} (ID: {account_id}), "
+            f"using Account table fallback: max={max_lev}x, default={default_lev}x"
+        )
+        return {
+            "max_leverage": max_lev,
+            "default_leverage": default_lev
+        }
+
+
+def get_hyperliquid_client(db: Session, account_id: int, override_environment: str = None) -> HyperliquidTradingClient:
+    """
+    Get Hyperliquid trading client for an account
+
+    NEW BEHAVIOR (Multi-wallet architecture):
+    - Reads wallet configuration from hyperliquid_wallets table
+    - Uses global trading_mode from system config (unless override_environment specified)
+    - Falls back to Account table fields if wallet not configured (backward compatibility)
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+        override_environment: Optional environment override ("testnet" or "mainnet")
+                            If not specified, uses global trading_mode
+
+    Returns:
+        Initialized HyperliquidTradingClient
+
+    Raises:
+        ValueError: If account not configured or private key missing
+    """
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    # Determine which environment to use
+    if override_environment:
+        if override_environment not in ["testnet", "mainnet"]:
+            raise ValueError("override_environment must be 'testnet' or 'mainnet'")
+        environment = override_environment
+    else:
+        # Use global trading mode
+        environment = get_global_trading_mode(db)
+
+    # [2026-07-09 性能修复] 命中进程级缓存直接返回，避免重复 ccxt 初始化（10-12s/次）
+    cached = get_cached_client(account_id, environment)
+    if cached is not None:
+        return cached
+
+    logger.info(f"Getting Hyperliquid client for account {account.name} (ID: {account_id}), environment: {environment}")
+
+    # Try to get wallet from hyperliquid_wallets table (new architecture)
+    wallet = db.query(HyperliquidWallet).filter(
+        HyperliquidWallet.account_id == account_id,
+        HyperliquidWallet.environment == environment
+    ).first()
+
+    # Filter out inactive wallets if needed
+    if wallet and wallet.is_active and str(wallet.is_active).lower() == 'false':
+        wallet = None
+
+    if wallet:
+        # New architecture: use wallet table
+        logger.info(f"Using {environment} wallet from hyperliquid_wallets table (wallet_address: {wallet.wallet_address})")
+        encrypted_key = wallet.private_key_encrypted
+    else:
+        # Backward compatibility: fallback to Account table fields
+        logger.info(f"No {environment} wallet found in hyperliquid_wallets table, falling back to Account table")
+
+        if environment == "testnet":
+            encrypted_key = account.hyperliquid_testnet_private_key
+        else:
+            encrypted_key = account.hyperliquid_mainnet_private_key
+
+        if not encrypted_key:
+            raise ValueError(
+                f"No wallet configured for account {account.name} (ID: {account_id}). "
+                f"Please configure Hyperliquid wallet in AI Trader settings."
+            )
+
+    # Decrypt private key
+    try:
+        private_key = decrypt_private_key(encrypted_key)
+        import sys
+        logger.info(f"[DEBUG] Decrypted private_key format: starts_with_0x={private_key.startswith('0x')}, length={len(private_key)}", file=sys.stderr, flush=True)
+    except Exception as e:
+        logger.error(f"Failed to decrypt private key for account {account_id}: {e}")
+        raise ValueError(f"Private key decryption failed: {e}")
+
+    # Create and return client
+    wallet_address = wallet.wallet_address if wallet else None
+    logger.info(f"[DEBUG] get_hyperliquid_client: account_id={account_id}, environment={environment}, wallet_address={wallet_address}")
+    client = create_hyperliquid_client(
+        account_id=account_id,
+        private_key=private_key,
+        wallet_address=wallet_address,
+        environment=environment
+    )
+    # [2026-07-09 性能修复] 缓存客户端实例，后续同账户+环境直接复用
+    with _CLIENT_CACHE_LOCK:
+        _CLIENT_CACHE[(account_id, environment)] = client
+    return client
+
+
+
+def switch_hyperliquid_environment(
+    db: Session,
+    account_id: int,
+    target_environment: str,
+    confirm_switch: bool = False
+) -> Dict[str, Any]:
+    """
+    Switch account between testnet and mainnet
+
+    Safety measures:
+    - Requires explicit confirmation (confirm_switch=True)
+    - Checks for open positions (blocks switch if any exist)
+    - Verifies target environment has private key configured
+    - Logs the switch action
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+        target_environment: "testnet" or "mainnet"
+        confirm_switch: Must be True to proceed (safety check)
+
+    Returns:
+        Switch result dict
+
+    Raises:
+        ValueError: If validation fails or open positions exist
+    """
+    if not confirm_switch:
+        raise ValueError(
+            "Must explicitly confirm environment switch by setting confirm_switch=True. "
+            "This is a safety measure to prevent accidental switches."
+        )
+
+    if target_environment not in ["testnet", "mainnet"]:
+        raise ValueError("Target environment must be 'testnet' or 'mainnet'")
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    current_env = account.hyperliquid_environment
+    if current_env == target_environment:
+        return {
+            'status': 'no_change',
+            'message': f'Account already on {target_environment}',
+            'current_environment': current_env
+        }
+
+    # Safety check: No open positions on current environment
+    if current_env:
+        logger.info(f"Checking for open positions on {current_env} before switch...")
+
+        # Query recent positions
+        recent_positions = (
+            db.query(HyperliquidPosition)
+            .filter(
+                HyperliquidPosition.account_id == account_id,
+                HyperliquidPosition.environment == current_env
+            )
+            .order_by(HyperliquidPosition.snapshot_time.desc())
+            .limit(20)
+            .all()
+        )
+
+        # Check if any positions have non-zero size
+        open_positions = [
+            pos for pos in recent_positions
+            if pos.position_size and float(pos.position_size) != 0
+        ]
+
+        if open_positions:
+            position_details = [
+                f"{pos.symbol}: {float(pos.position_size)}" for pos in open_positions[:5]
+            ]
+            raise ValueError(
+                f"Cannot switch environment: Account has {len(open_positions)} open positions on {current_env}. "
+                f"Positions: {', '.join(position_details)}. "
+                f"Please close all positions before switching environments."
+            )
+
+        logger.info(f"No open positions found on {current_env}, safe to switch")
+
+    # Verify target environment has private key configured
+    if target_environment == "testnet":
+        if not account.hyperliquid_testnet_private_key:
+            raise ValueError(
+                "No testnet private key configured. "
+                "Please setup testnet credentials first using setup_hyperliquid_account()."
+            )
+    else:
+        if not account.hyperliquid_mainnet_private_key:
+            raise ValueError(
+                "No mainnet private key configured. "
+                "Please setup mainnet credentials first using setup_hyperliquid_account()."
+            )
+
+    # IMPORTANT: Switch GLOBAL trading mode, not per-account
+    # Update system config
+    config = db.query(SystemConfig).filter(
+        SystemConfig.key == "hyperliquid_trading_mode"
+    ).first()
+
+    if not config:
+        config = SystemConfig(key="hyperliquid_trading_mode", value=target_environment)
+        db.add(config)
+    else:
+        old_global_mode = config.value
+        config.value = target_environment
+        logger.info(f"Switching GLOBAL trading mode from {old_global_mode} to {target_environment}")
+
+    # Sync ALL Hyperliquid-enabled accounts to new global mode
+    all_hl_accounts = db.query(Account).filter(
+        Account.hyperliquid_enabled == "true"
+    ).all()
+
+    synced_count = 0
+    for acc in all_hl_accounts:
+        acc.hyperliquid_environment = target_environment
+        synced_count += 1
+
+    try:
+        db.commit()
+        logger.warning(
+            f"GLOBAL ENVIRONMENT SWITCH: Trading mode changed to {target_environment.upper()}. "
+            f"Synced {synced_count} Hyperliquid accounts."
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to switch environment: {e}")
+        raise
+
+    # [2026-07-09 性能修复] 环境切换后旧环境的客户端缓存失效，清除避免返回错误环境的客户端
+    clear_client_cache()
+
+    return {
+        'status': 'success',
+        'account_id': account_id,
+        'account_name': account.name,
+        'old_environment': old_env,
+        'new_environment': target_environment,
+        'message': f'Successfully switched from {old_env} to {target_environment}'
+    }
+
+
+def get_account_hyperliquid_config(db: Session, account_id: int) -> Dict[str, Any]:
+    """
+    Get Hyperliquid configuration for an account
+
+    NEW BEHAVIOR (Multi-wallet architecture):
+    - Checks HyperliquidWallet table for testnet/mainnet wallets
+    - Falls back to Account table for backward compatibility
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+
+    Returns:
+        Configuration dict
+    """
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    # Check for wallets in new multi-wallet architecture
+    testnet_wallet = db.query(HyperliquidWallet).filter(
+        HyperliquidWallet.account_id == account_id,
+        HyperliquidWallet.environment == "testnet",
+        HyperliquidWallet.is_active == "true"
+    ).first()
+
+    mainnet_wallet = db.query(HyperliquidWallet).filter(
+        HyperliquidWallet.account_id == account_id,
+        HyperliquidWallet.environment == "mainnet",
+        HyperliquidWallet.is_active == "true"
+    ).first()
+
+    # Determine if Hyperliquid is enabled (has at least one wallet)
+    has_any_wallet = bool(testnet_wallet or mainnet_wallet)
+
+    # For backward compatibility, also check old Account table fields
+    has_testnet = bool(testnet_wallet or account.hyperliquid_testnet_private_key)
+    has_mainnet = bool(mainnet_wallet or account.hyperliquid_mainnet_private_key)
+
+    # Determine enabled status: has any wallet OR old hyperliquid_enabled flag
+    enabled = has_any_wallet or (account.hyperliquid_enabled == "true")
+
+    # Get global trading mode as the current environment
+    current_environment = get_global_trading_mode(db)
+
+    # Get leverage settings for current environment (uses unified getter)
+    try:
+        leverage_settings = get_leverage_settings(db, account_id, current_environment)
+        max_leverage = leverage_settings["max_leverage"]
+        default_leverage = leverage_settings["default_leverage"]
+    except Exception as e:
+        logger.warning(f"Failed to get leverage settings for account {account_id}: {e}, using Account table fallback")
+        max_leverage = account.max_leverage if account.max_leverage is not None else 20
+        default_leverage = account.default_leverage if account.default_leverage is not None else 10
+
+    return {
+        'account_id': account_id,
+        'account_name': account.name,
+        'hyperliquid_enabled': enabled,
+        'environment': current_environment,  # Use global trading mode
+        'max_leverage': max_leverage,
+        'default_leverage': default_leverage,
+        'testnet_configured': has_testnet,
+        'mainnet_configured': has_mainnet,
+        # Additional info for frontend (optional, for WalletConfigPanel)
+        'hasTestnetKey': has_testnet,
+        'hasMainnetKey': has_mainnet
+    }
+
+
+def disable_hyperliquid_trading(db: Session, account_id: int) -> Dict[str, Any]:
+    """
+    Disable Hyperliquid trading for an account
+
+    Note: This does NOT delete private keys, only disables trading.
+    Keys remain encrypted in database for potential re-enable.
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+
+    Returns:
+        Disable result dict
+    """
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    account.hyperliquid_enabled = "false"
+
+    try:
+        db.commit()
+        logger.info(f"Hyperliquid trading disabled for account {account.name}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to disable Hyperliquid trading: {e}")
+        raise
+
+    return {
+        'status': 'success',
+        'account_id': account_id,
+        'account_name': account.name,
+        'message': 'Hyperliquid trading disabled successfully'
+    }
+
+
+def enable_hyperliquid_trading(db: Session, account_id: int) -> Dict[str, Any]:
+    """
+    Re-enable Hyperliquid trading for an account
+
+    Args:
+        db: Database session
+        account_id: Target account ID
+
+    Returns:
+        Enable result dict
+
+    Raises:
+        ValueError: If account has no environment or private keys configured
+    """
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise ValueError(f"Account {account_id} not found")
+
+    # Verify configuration exists
+    if not account.hyperliquid_environment:
+        raise ValueError(
+            "No environment configured. "
+            "Please setup Hyperliquid first using setup_hyperliquid_account()."
+        )
+
+    env = account.hyperliquid_environment
+    if env == "testnet":
+        if not account.hyperliquid_testnet_private_key:
+            raise ValueError(f"No testnet private key configured")
+    else:
+        if not account.hyperliquid_mainnet_private_key:
+            raise ValueError(f"No mainnet private key configured")
+
+    account.hyperliquid_enabled = "true"
+
+    try:
+        db.commit()
+        logger.info(f"Hyperliquid trading enabled for account {account.name} on {env}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to enable Hyperliquid trading: {e}")
+        raise
+
+    return {
+        'status': 'success',
+        'account_id': account_id,
+        'account_name': account.name,
+        'environment': env,
+        'message': f'Hyperliquid trading enabled on {env}'
+    }

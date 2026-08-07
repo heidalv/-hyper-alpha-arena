@@ -1,0 +1,164 @@
+[
+  {
+    "id": "hammer_1",
+    "pattern": "锤子线 (Hammer)",
+    "type": "bullish",
+    "description": "下影线较长，上影线极短或无，实体在顶部。暗示下跌趋势可能反转。",
+    "reliability": "medium",
+    "expectation": "看涨反弹，止跌信号",
+    "trading_hints": ["等待次日确认", "配合成交量放大"]
+  },
+  {
+    "id": "shooting_star_1",
+    "pattern": "射击之星 (Shooting Star)",
+    "type": "bearish",
+    "description": "上影线较长，下影线极短或无，实体在底部。暗示上涨趋势可能反转。",
+    "reliability": "medium",
+    "expectation": "看跌回调，高位预警",
+    "trading_hints": ["等待次日确认", "配合成交量放大"]
+  },
+  {
+    "id": "doji_1",
+    "pattern": "十字星 (Doji)",
+    "type": "neutral",
+    "description": "开盘价与收盘价接近，形成十字形态。暗示市场犹豫，可能变盘。",
+    "reliability": "low",
+    "expectation": "观望，等待确认",
+    "trading_hints": ["结合前后K线判断", "需配合其他指标"]
+  },
+  {
+    "id": "engulf_bullish_1",
+    "pattern": "看涨吞没 (Bullish Engulfing)",
+    "type": "bullish",
+    "description": "次日阳线完全吞没前一日阴线。强烈反转信号。",
+    "reliability": "high",
+    "expectation": "强烈看涨，反转上行",
+    "trading_hints": ["前一日趋势越强信号越可靠", "配合市场环境判断"]
+  },
+  {
+    "id": "engulf_bearish_1",
+    "pattern": "看跌吞没 (Bearish Engulfing)",
+    "type": "bearish",
+    "description": "次日阴线完全吞没前一日阳线。强烈反转信号。",
+    "reliability": "high",
+    "expectation": "强烈看跌，反转下行",
+    "trading_hints": ["前一日趋势越强信号越可靠", "配合市场环境判断"]
+  },
+  {
+    "id": "morning_star_1",
+    "pattern": "晨星 (Morning Star)",
+    "type": "bullish",
+    "description": "三根K线组合：阴线-十字星-阳线，预示底部反转。",
+    "reliability": "high",
+    "expectation": "底部反转，看涨信号",
+    "trading_hints": ["十字星实体越小越好", "阳线需突破阴线中点"]
+  },
+  {
+    "id": "evening_star_1",
+    "pattern": "夜星 (Evening Star)",
+    "type": "bearish",
+    "description": "三根K线组合：阳线-十字星-阴线，预示顶部反转。",
+    "reliability": "high",
+    "expectation": "顶部反转，看跌信号",
+    "trading_hints": ["十字星实体越小越好", "阴线需跌破阳线中点"]
+  },
+  {
+    "id": "three_white_soldiers_1",
+    "pattern": "三白兵 (Three White Soldiers)",
+    "type": "bullish",
+    "description": "连续三根阳线，稳步上涨。强势上涨信号。",
+    "reliability": "high",
+    "expectation": "强势上涨，趋势延续",
+    "trading_hints": ["每根阳线需高于前一根", "成交量递增确认"]
+  },
+  {
+    "id": "three_black_crows_1",
+    "pattern": "三乌鸦 (Three Black Crows)",
+    "type": "bearish",
+    "description": "连续三根阴线，稳步下跌。弱势下跌信号。",
+    "reliability": "high",
+    "expectation": "弱势下跌，趋势延续",
+    "trading_hints": ["每根阴线需低于前一根", "成交量递增确认"]
+  },
+  {
+    "id": "double_top_1",
+    "pattern": "双顶 (Double Top)",
+    "type": "bearish",
+    "description": "两次冲高形成相同高点，颈线破位确认顶部。",
+    "reliability": "high",
+    "expectation": "顶部形成，看跌信号",
+    "trading_hints": ["颈线破位后入场做空", "止损设在前高上方"]
+  },
+  {
+    "id": "double_bottom_1",
+    "pattern": "双底 (Double Bottom)",
+    "type": "bullish",
+    "description": "两次探底形成相同低点，颈线突破确认底部。",
+    "reliability": "high",
+    "expectation": "底部形成，看涨信号",
+    "trading_hints": ["颈线突破后入场做多", "止损设在前低下方"]
+  },
+  {
+    "id": "head_shoulders_1",
+    "pattern": "头肩顶 (Head and Shoulders)",
+    "type": "bearish",
+    "description": "左肩、头部、右肩三个峰值，头部最高。经典反转形态。",
+    "reliability": "high",
+    "expectation": "顶部反转，看跌信号",
+    "trading_hints": ["颈线破位后入场", "目标为头部到颈线的距离"]
+  },
+  {
+    "id": "head_shoulders_bottom_1",
+    "pattern": "头肩底 (Inverse Head and Shoulders)",
+    "type": "bullish",
+    "description": "左肩、头部、右肩三个谷底，头部最低。经典底部反转形态。",
+    "reliability": "high",
+    "expectation": "底部反转，看涨信号",
+    "trading_hints": ["颈线突破后入场", "目标为头部到颈线的距离"]
+  },
+  {
+    "id": "rising_wedge_1",
+    "pattern": "上升楔形 (Rising Wedge)",
+    "type": "bearish",
+    "description": "高点与低点同时上升，但角度不同最终收敛。通常看跌。",
+    "reliability": "medium",
+    "expectation": "上行动能衰减，看跌",
+    "trading_hints": ["等待下破支撑线", "止损设在楔形上轨"]
+  },
+  {
+    "id": "falling_wedge_1",
+    "pattern": "下降楔形 (Falling Wedge)",
+    "type": "bullish",
+    "description": "高点与低点同时下降，但角度不同最终收敛。通常看涨。",
+    "reliability": "medium",
+    "expectation": "下行动能衰减，看涨",
+    "trading_hints": ["等待上破阻力线", "止损设在楔形下轨"]
+  },
+  {
+    "id": "ascending_triangle_1",
+    "pattern": "上升三角形 (Ascending Triangle)",
+    "type": "bullish",
+    "description": "水平上轨与上升下轨收敛，通常向上突破。",
+    "reliability": "high",
+    "expectation": "向上突破，趋势延续",
+    "trading_hints": ["上破三角形上轨入场", "止损设在下轨下方"]
+  },
+  {
+    "id": "descending_triangle_1",
+    "pattern": "下降三角形 (Descending Triangle)",
+    "type": "bearish",
+    "description": "水平下轨与下降上轨收敛，通常向下突破。",
+    "reliability": "high",
+    "expectation": "向下突破，趋势延续",
+    "trading_hints": ["下破三角形下轨入场", "止损设在上轨上方"]
+  },
+  {
+    "id": "cup_handle_1",
+    "pattern": "杯柄形态 (Cup and Handle)",
+    "type": "bullish",
+    "description": "类似茶杯的圆弧底部加小回撤。强势上涨形态。",
+    "reliability": "high",
+    "expectation": "强势上涨，趋势延续",
+    "trading_hints": ["柄部回撤不破杯部一半", "向上突破后入场"]
+  }
+]

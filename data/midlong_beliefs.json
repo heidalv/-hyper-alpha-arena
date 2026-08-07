@@ -1,0 +1,46 @@
+{
+  "failed_intents": [
+    {
+      "symbol": "SOL",
+      "reason": "llm_should_open_false_respected",
+      "regime": "ranging",
+      "score": 47,
+      "authority": "trend",
+      "source": "trend",
+      "session_id": "fa_10d44c724e",
+      "noise": true,
+      "ts": "2026-08-07T06:19:36.017093+00:00"
+    }
+  ],
+  "beliefs": [
+    {
+      "id": "ranging_no_chase_trend",
+      "lesson": "震荡市（ranging）勿追 trend_follow 满仓：优先 hold 或极小仓探针；等待趋势态再 BUILD。",
+      "regime": "ranging",
+      "ts": "2026-08-03T22:44:48.714488+00:00",
+      "hits": 7,
+      "type": "midlong_belief"
+    },
+    {
+      "id": "wait_for_score_alignment",
+      "lesson": "趋势分长期偏低时勿用主观强行开仓；等 MTF 共振与 should_open 一致。",
+      "regime": "any",
+      "ts": "2026-08-03T16:43:43.430988+00:00",
+      "hits": 5,
+      "type": "midlong_belief"
+    }
+  ],
+  "last_review_ts": 1786062646.4411602,
+  "last_review": {
+    "ts": "2026-08-07T00:30:46.574783+00:00",
+    "ranging_blocks": 0,
+    "score_low": 0,
+    "authority_blocks": 0,
+    "closed_stats": {
+      "closed": 0,
+      "losses": 0,
+      "ranging_hint": 0
+    },
+    "added": []
+  }
+}

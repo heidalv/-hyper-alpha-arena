@@ -1,0 +1,17 @@
+{
+  "factor_id": "cloud_vwap_deviation",
+  "name": "VWAPDeviation",
+  "display_name": "VWAP 偏离度",
+  "description": "当前价格相对于VWAP(成交量加权平均价)的偏离程度。正偏离表示价格高于平均成本，负偏离表示低于平均成本。",
+  "category": "technical",
+  "subcategory": "volume",
+  "version": "1.0.0",
+  "author": "Cloud Factor Library",
+  "tags": ["vwap", "mean-reversion", "institutional"],
+  "parameters": {
+    "lookback": 20
+  },
+  "required_data_fields": ["high", "low", "close", "volume"],
+  "dependencies": [],
+  "calculation_code": "def calculate(self, data: pd.DataFrame) -> pd.Series:\n    typical_price = (data['high'] + data['low'] + data['close']) / 3\n    lookback = self.params.get('lookback', 20)\n    cum_tp_vol = (typical_price * data['volume']).rolling(lookback).sum()\n    cum_vol = data['volume'].rolling(lookback).sum()\n    vwap = cum_tp_vol / (cum_vol + 1e-9)\n    result = ((data['close'] - vwap) / (vwap + 1e-9)).fillna(0)\n    return result"
+}

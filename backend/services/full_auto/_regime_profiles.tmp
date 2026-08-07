@@ -1,0 +1,27 @@
+    REGIME_PARAM_PROFILES = {
+        "trending": {
+            "position_cap_pct": 0.80,
+            "confidence_threshold": 55,
+            "sl_mult": 1.3,
+            "trade_freq_mult": 1.0,
+        },
+        "ranging": {
+            "position_cap_pct": 0.40,
+            "confidence_threshold": 70,
+            "sl_mult": 0.8,
+            "trade_freq_mult": 0.6,
+        },
+        "volatile": {
+            "position_cap_pct": 0.30,
+            "confidence_threshold": 75,
+            "sl_mult": 0.6,
+            "trade_freq_mult": 0.4,
+        },
+        "crisis": {
+            "position_cap_pct": 0.10,
+            "confidence_threshold": 85,
+            "sl_mult": 0.4,
+            "trade_freq_mult": 0.2,
+        },
+    }
+

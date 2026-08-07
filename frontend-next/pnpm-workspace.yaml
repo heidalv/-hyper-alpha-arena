@@ -1,0 +1,12 @@
+allowBuilds:
+  electron: true
+  sharp: true
+  unrs-resolver: true
+packages:
+  - "."
+
+onlyBuiltDependencies:
+  - electron
+  - sharp
+  - unrs-resolver
+  - esbuild

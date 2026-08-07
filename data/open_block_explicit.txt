@@ -1,0 +1,11 @@
+﻿explicit_open_blocks 3
+python : Traceback (most recent call last):
+所在位置 C:\Users\dell\AppData\Local\Temp\ps-script-0e4e4f67-0044-4ae8-9707-b3601176c346.ps1:92 字符: 102
++ ... pha-Windows迁移包-20260610-2228\001Alpha\Hyper-Alpha-Arena"; python -c "
++                                                               ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<string>", line 27, in <module>
+UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f6ab' in position 0: illegal multibyte sequence
+2026-06-27T18:50:56.134180+00:00 orchestrator_override 

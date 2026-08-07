@@ -1,0 +1,29 @@
+{
+  "name": "hyper-alpha-arena",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "dev:desktop": "concurrently \"pnpm run dev:backend\" \"pnpm run desktop\"",
+    "desktop": "cd frontend-next && npm run electron:dev",
+    "desktop:build": "cd frontend-next && npm run electron:build",
+    "dev:daemon": "./scripts/dev-stack.sh start --watch",
+    "dev:up": "./scripts/dev-stack.sh up",
+    "dev:stop": "./scripts/dev-stack.sh stop",
+    "dev:restart": "./scripts/dev-stack.sh restart --watch",
+    "dev:status": "./scripts/dev-stack.sh status",
+    "dev:cleanup": "./scripts/dev-stack.sh cleanup",
+    "dev:frontend": "cd frontend-next && npm run dev",
+    "dev:frontend:legacy": "node -e \"console.error('FROZEN: frontend(:5173) 已冻结，见 frontend/FROZEN.md'); process.exit(1)\"",
+    "dev:backend": "backend\\.venv\\Scripts\\python.exe scripts/run_uvicorn_dev.py",
+    "dev:backend:mac": "uv sync --directory backend --quiet && backend/.venv/bin/uvicorn backend.main:app --reload --reload-dir backend --reload-include '*.py' --reload-exclude 'backend/static/*' --reload-exclude 'backend/data/*' --reload-exclude 'logs/*' --reload-exclude '*.log' --reload-exclude '*.lock' --port 8000 --host 0.0.0.0",
+    "build": "pnpm run build:frontend && pnpm run build:backend",
+    "build:frontend": "cd frontend-next && npm run build",
+    "build:frontend:legacy": "node -e \"console.error('FROZEN: frontend(:5173) 已冻结，见 frontend/FROZEN.md'); process.exit(1)\"",
+    "build:backend": "cd backend && echo \"Backend build step not yet implemented\"",
+    "install:all": "pnpm install && cd frontend-next && npm install && cd ../backend && uv sync --quiet"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "packageManager": "pnpm@8.15.5+sha512.b051a32c7e695833b84926d3b29b8cca57254b589f0649d899c6e9d0edb670b91ec7e2a43459bb5ce619c3266f116bf931ce22d1ef1759a7e45aa96f"
+}

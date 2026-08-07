@@ -1,0 +1,539 @@
+{
+  "updated_at": "2026-07-19T14:02:48.823580+00:00",
+  "mode": "paper",
+  "global": {
+    "stage": "mature",
+    "count": 1030,
+    "win_rate": 0.4301,
+    "conf_relief": 0.0,
+    "n1": 20,
+    "n2": 60
+  },
+  "by_symbol_side": {
+    "ETH|long": {
+      "stage": "mature",
+      "count": 80,
+      "win_rate": 0.375,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "BNB|short": {
+      "stage": "mature",
+      "count": 42,
+      "win_rate": 0.4048,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "VIRTUAL|long": {
+      "stage": "mature",
+      "count": 15,
+      "win_rate": 0.2667,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "XPL|short": {
+      "stage": "mature",
+      "count": 17,
+      "win_rate": 0.5294,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "BTC|short": {
+      "stage": "mature",
+      "count": 51,
+      "win_rate": 0.3922,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "SOL|long": {
+      "stage": "mature",
+      "count": 97,
+      "win_rate": 0.4639,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ASTER|short": {
+      "stage": "mature",
+      "count": 61,
+      "win_rate": 0.4098,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ENA|short": {
+      "stage": "growth",
+      "count": 6,
+      "win_rate": 0.3333,
+      "conf_relief": 13.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "CHIP|short": {
+      "stage": "growth",
+      "count": 5,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "XPL|long": {
+      "stage": "mature",
+      "count": 29,
+      "win_rate": 0.3103,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "FET|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ETH|short": {
+      "stage": "mature",
+      "count": 62,
+      "win_rate": 0.371,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ICP|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "SOL|short": {
+      "stage": "mature",
+      "count": 79,
+      "win_rate": 0.519,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "BTC|long": {
+      "stage": "mature",
+      "count": 69,
+      "win_rate": 0.3913,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "JTO|long": {
+      "stage": "mature",
+      "count": 24,
+      "win_rate": 0.4167,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ONDO|long": {
+      "stage": "growth",
+      "count": 12,
+      "win_rate": 0.75,
+      "conf_relief": 4.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "NEAR|long": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.25,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "VIRTUAL|short": {
+      "stage": "growth",
+      "count": 13,
+      "win_rate": 0.6923,
+      "conf_relief": 3.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "LIT|long": {
+      "stage": "growth",
+      "count": 6,
+      "win_rate": 0.1667,
+      "conf_relief": 13.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "BNB|long": {
+      "stage": "mature",
+      "count": 68,
+      "win_rate": 0.4706,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ONDO|short": {
+      "stage": "mature",
+      "count": 17,
+      "win_rate": 0.5294,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ASTER|long": {
+      "stage": "mature",
+      "count": 63,
+      "win_rate": 0.4762,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "MORPHO|long": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.25,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "MOVE|long": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "IO|long": {
+      "stage": "warmup",
+      "count": 3,
+      "win_rate": 0.6667,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "LDO|long": {
+      "stage": "mature",
+      "count": 16,
+      "win_rate": 0.375,
+      "conf_relief": -5.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "MOVE|short": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "XMR|long": {
+      "stage": "warmup",
+      "count": 3,
+      "win_rate": 1.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ZEC|long": {
+      "stage": "mature",
+      "count": 20,
+      "win_rate": 0.45,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "TON|short": {
+      "stage": "growth",
+      "count": 7,
+      "win_rate": 0.0,
+      "conf_relief": 12.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "CRV|short": {
+      "stage": "growth",
+      "count": 10,
+      "win_rate": 0.7,
+      "conf_relief": 7.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "HMSTR|long": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "WLD|long": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.5,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "CRV|long": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.5,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "TAO|short": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "RESOLV|long": {
+      "stage": "mature",
+      "count": 24,
+      "win_rate": 0.4583,
+      "conf_relief": 0.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "UNI|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ADA|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "LDO|short": {
+      "stage": "growth",
+      "count": 11,
+      "win_rate": 0.6364,
+      "conf_relief": 6.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ENA|long": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "XLM|long": {
+      "stage": "growth",
+      "count": 11,
+      "win_rate": 0.4545,
+      "conf_relief": 6.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "LAYER|long": {
+      "stage": "growth",
+      "count": 10,
+      "win_rate": 0.3,
+      "conf_relief": 7.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "TNSR|long": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "XLM|short": {
+      "stage": "growth",
+      "count": 12,
+      "win_rate": 0.5833,
+      "conf_relief": 4.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "KAITO|short": {
+      "stage": "growth",
+      "count": 7,
+      "win_rate": 0.2857,
+      "conf_relief": 12.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "VVV|long": {
+      "stage": "warmup",
+      "count": 3,
+      "win_rate": 0.3333,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "VVV|short": {
+      "stage": "growth",
+      "count": 5,
+      "win_rate": 0.4,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "KAITO|long": {
+      "stage": "warmup",
+      "count": 3,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "SPX|short": {
+      "stage": "warmup",
+      "count": 2,
+      "win_rate": 0.5,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "LIT|short": {
+      "stage": "growth",
+      "count": 8,
+      "win_rate": 0.5,
+      "conf_relief": 10.5,
+      "n1": 5,
+      "n2": 15
+    },
+    "CHIP|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 1.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "FARTCOIN|long": {
+      "stage": "growth",
+      "count": 11,
+      "win_rate": 0.5455,
+      "conf_relief": 6.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ZEC|short": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.25,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "HYPE|short": {
+      "stage": "warmup",
+      "count": 3,
+      "win_rate": 0.6667,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "ETHFI|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "HYPE|long": {
+      "stage": "growth",
+      "count": 7,
+      "win_rate": 0.7143,
+      "conf_relief": 12.0,
+      "n1": 5,
+      "n2": 15
+    },
+    "KBONK|long": {
+      "stage": "warmup",
+      "count": 1,
+      "win_rate": 0.0,
+      "conf_relief": 15.0,
+      "n1": 5,
+      "n2": 15
+    }
+  },
+  "by_nature_tier": {
+    "swing|mid": {
+      "stage": "mature",
+      "count": 144,
+      "win_rate": 0.3542,
+      "conf_relief": -5.0,
+      "n1": 6,
+      "n2": 20
+    },
+    "scalp|short": {
+      "stage": "mature",
+      "count": 812,
+      "win_rate": 0.4495,
+      "conf_relief": 0.0,
+      "n1": 6,
+      "n2": 20
+    },
+    "trend_follow|long": {
+      "stage": "mature",
+      "count": 50,
+      "win_rate": 0.42,
+      "conf_relief": 0.0,
+      "n1": 6,
+      "n2": 20
+    },
+    "swing|long": {
+      "stage": "warmup",
+      "count": 4,
+      "win_rate": 0.25,
+      "conf_relief": 15.0,
+      "n1": 6,
+      "n2": 20
+    },
+    "intraday|short": {
+      "stage": "mature",
+      "count": 20,
+      "win_rate": 0.25,
+      "conf_relief": -5.0,
+      "n1": 6,
+      "n2": 20
+    }
+  },
+  "config": {
+    "thresholds": {
+      "global": {
+        "n1": 20,
+        "n2": 60
+      },
+      "symbol_side": {
+        "n1": 5,
+        "n2": 15
+      },
+      "nature_tier": {
+        "n1": 6,
+        "n2": 20
+      }
+    },
+    "max_warmup_conf_relief": 15.0,
+    "mature_good_win_rate": 0.55,
+    "mature_bad_win_rate": 0.4
+  }
+}

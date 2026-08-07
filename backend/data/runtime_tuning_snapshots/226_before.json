@@ -1,0 +1,61 @@
+{
+  "master_reduce_min_loss_pct": {
+    "value": 0.1,
+    "min": 0.05,
+    "max": 0.2
+  },
+  "master_close_min_loss_pct_by_tier": {
+    "short": 0.02,
+    "mid": 0.04,
+    "long": 0.07
+  },
+  "tier_max_hold_sec": {
+    "short": 7200,
+    "mid": 172800,
+    "long": 604800
+  },
+  "max_daily_trades": {
+    "value": 10.0,
+    "min": 3,
+    "max": 20
+  },
+  "scalp_min_confidence": {
+    "value": 70,
+    "min": 60,
+    "max": 90
+  },
+  "min_risk_reward": {
+    "value": 1.8,
+    "min": 1.5,
+    "max": 2.5
+  },
+  "maturity_max_warmup_relief": {
+    "value": 15,
+    "min": 5,
+    "max": 20
+  },
+  "maturity_global_n1": {
+    "value": 20,
+    "min": 5,
+    "max": 60
+  },
+  "maturity_global_n2": {
+    "value": 60,
+    "min": 20,
+    "max": 120
+  },
+  "disabled_natures": [],
+  "by_nature": {
+    "swing": {
+      "min_confidence": 55,
+      "min_alignment": 6,
+      "min_risk_reward": 1.5
+    },
+    "trend_follow": {
+      "min_score": 68,
+      "min_alignment": 6,
+      "min_risk_reward": 1.8
+    }
+  },
+  "rebate_paper_multipliers": {}
+}

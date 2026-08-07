@@ -1,0 +1,13 @@
+{
+  "mode": "paper",
+  "equity": 300.0,
+  "size_usd": 50.0,
+  "passed": 14,
+  "total": 14,
+  "strategies": [
+    "S3",
+    "S8"
+  ],
+  "opened_positions": [],
+  "timestamp": 1780885200.522413
+}

@@ -1,0 +1,1 @@
+{"intents":[],"loop":"coordinator","observed_calls":{"arbitrage_tick":false,"learning_integration":false,"maintenance_cycle":false,"trading_cycle":false},"scenario":"coordinator_paused"}

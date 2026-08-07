@@ -1,0 +1,18 @@
+{
+  "factor_id": "cloud_obv_oscillator",
+  "name": "OBVOscillator",
+  "display_name": "OBV 震荡器",
+  "description": "基于OBV(能量潮)的震荡指标，衡量买卖压力变化。OBV与价格的背离是重要的趋势反转信号。",
+  "category": "technical",
+  "subcategory": "volume",
+  "version": "1.0.0",
+  "author": "Cloud Factor Library",
+  "tags": ["volume", "oscillator", "divergence"],
+  "parameters": {
+    "fast_period": 10,
+    "slow_period": 30
+  },
+  "required_data_fields": ["close", "volume"],
+  "dependencies": [],
+  "calculation_code": "def calculate(self, data: pd.DataFrame) -> pd.Series:\n    close = data['close']\n    volume = data['volume']\n    direction = np.sign(close.diff())\n    obv = (direction * volume).cumsum()\n    fast_ma = obv.rolling(self.params.get('fast_period', 10)).mean()\n    slow_ma = obv.rolling(self.params.get('slow_period', 30)).mean()\n    result = ((fast_ma - slow_ma) / (slow_ma.abs() + 1e-9)).fillna(0)\n    return result"
+}

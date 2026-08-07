@@ -1,0 +1,1557 @@
+"""
+Signal Backtest Service
+
+Backtests signals against historical data to show where triggers would occur.
+"""
+
+import json
+import logging
+import sys
+from typing import Dict, List, Any, Optional
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+# Configure logger to output to stdout for debugging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.WARNING)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING)
+
+# Timeframe to milliseconds mapping
+TIMEFRAME_MS = {
+    "1m": 60 * 1000,
+    "3m": 3 * 60 * 1000,
+    "5m": 5 * 60 * 1000,
+    "15m": 15 * 60 * 1000,
+    "30m": 30 * 60 * 1000,
+    "1h": 60 * 60 * 1000,
+    "2h": 2 * 60 * 60 * 1000,
+    "4h": 4 * 60 * 60 * 1000,
+}
+
+
+class SignalBacktestService:
+    """Service for backtesting signals against historical data."""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def backtest_signal(
+        self, db: Session, signal_id: int, symbol: str,
+        kline_min_ts: int = None, kline_max_ts: int = None
+    ) -> Dict[str, Any]:
+        """
+        Backtest a signal against historical data.
+        Returns only trigger points - K-lines should be fetched separately via market API.
+
+        Args:
+            db: Database session
+            signal_id: Signal definition ID
+            symbol: Trading symbol (e.g., 'BTC')
+            kline_min_ts: Minimum K-line timestamp in milliseconds (for filtering triggers)
+            kline_max_ts: Maximum K-line timestamp in milliseconds (for filtering triggers)
+        """
+        logger.warning(f"[Backtest] START signal_id={signal_id} symbol={symbol} "
+                       f"ts_range=[{kline_min_ts}, {kline_max_ts}]")
+
+        # Clear bucket cache for fresh data
+        self._bucket_cache = {}
+
+        # Get signal definition
+        result = db.execute(
+            text("""
+                SELECT id, signal_name, description, trigger_condition, enabled
+                FROM signal_definitions WHERE id = :id
+            """),
+            {"id": signal_id}
+        )
+        row = result.fetchone()
+        if not row:
+            logger.warning(f"[Backtest] Signal {signal_id} NOT FOUND in database")
+            return {"error": "Signal not found"}
+
+        # Debug: log raw row data and types
+        logger.warning(f"[Backtest] DB row: id={row[0]}, name={row[1]}, "
+                       f"trigger_condition type={type(row[3])}")
+
+        # Handle trigger_condition - may be string (SQLite/some drivers) or dict (PostgreSQL JSONB)
+        trigger_condition = row[3]
+        if isinstance(trigger_condition, str):
+            import json
+            try:
+                trigger_condition = json.loads(trigger_condition)
+                logger.warning(f"[Backtest] Parsed trigger_condition from JSON string")
+            except json.JSONDecodeError as e:
+                logger.warning(f"[Backtest] Failed to parse trigger_condition: {e}")
+                trigger_condition = {}
+
+        signal_def = {
+            "id": row[0],
+            "signal_name": row[1],
+            "description": row[2],
+            "trigger_condition": trigger_condition if isinstance(trigger_condition, dict) else {},
+            "enabled": row[4]
+        }
+
+        condition = signal_def.get("trigger_condition", {})
+        metric = condition.get("metric") if isinstance(condition, dict) else None
+        time_window = condition.get("time_window", "5m") if isinstance(condition, dict) else "5m"
+
+        logger.warning(f"[Backtest] Signal found: name={signal_def['signal_name']}, "
+                       f"metric={metric}, time_window={time_window}, condition={condition}")
+
+        if not metric:
+            logger.warning(f"[Backtest] Signal {signal_id} has no metric configured")
+            return {"error": "Signal has no metric configured"}
+
+        # Find triggers within the specified time range
+        triggers = self._find_triggers_in_range(
+            db, signal_def, symbol, time_window, kline_min_ts, kline_max_ts
+        )
+
+        logger.warning(f"[Backtest] END signal_id={signal_id} success, {len(triggers)} triggers found")
+        return {
+            "signal_id": signal_id,
+            "signal_name": signal_def["signal_name"],
+            "symbol": symbol,
+            "time_window": time_window,
+            "condition": condition,
+            "trigger_count": len(triggers),
+            "triggers": triggers,
+        }
+
+    def backtest_temp_signal(
+        self, db: Session, symbol: str, trigger_condition: Dict,
+        kline_min_ts: int = None, kline_max_ts: int = None
+    ) -> Dict[str, Any]:
+        """
+        Backtest a temporary signal configuration without saving to database.
+        Used for AI signal creation preview.
+
+        Args:
+            db: Database session
+            symbol: Trading symbol (e.g., 'BTC')
+            trigger_condition: Signal trigger condition dict
+            kline_min_ts: Minimum K-line timestamp in milliseconds
+            kline_max_ts: Maximum K-line timestamp in milliseconds
+        """
+        # Clear bucket cache for fresh data
+        self._bucket_cache = {}
+
+        # Build temporary signal definition
+        signal_def = {
+            "id": None,
+            "signal_name": "Temporary Preview",
+            "description": "AI-generated signal preview",
+            "trigger_condition": trigger_condition,
+            "enabled": True
+        }
+
+        metric = trigger_condition.get("metric")
+        time_window = trigger_condition.get("time_window", "5m")
+
+        if not metric:
+            return {"error": "Signal has no metric configured"}
+
+        # Find triggers within the specified time range
+        triggers = self._find_triggers_in_range(
+            db, signal_def, symbol, time_window, kline_min_ts, kline_max_ts
+        )
+
+        return {
+            "signal_id": None,
+            "signal_name": "Temporary Preview",
+            "symbol": symbol,
+            "time_window": time_window,
+            "condition": trigger_condition,
+            "trigger_count": len(triggers),
+            "triggers": triggers,
+        }
+
+    def _find_triggers_in_range(
+        self, db: Session, signal_def: Dict, symbol: str, time_window: str,
+        kline_min_ts: int = None, kline_max_ts: int = None
+    ) -> List[Dict]:
+        """
+        Find trigger points within a time range using 15-second sliding window detection.
+
+        This simulates real-time detection behavior:
+        - Check every 15 seconds (matching data collection granularity)
+        - At each check point, calculate indicator using data available at that moment
+        - Apply edge detection: only trigger on False -> True transitions
+
+        Args:
+            db: Database session
+            signal_def: Signal definition dict
+            symbol: Trading symbol
+            time_window: Time window (e.g., '5m', '15m')
+            kline_min_ts: Minimum timestamp in milliseconds (optional)
+            kline_max_ts: Maximum timestamp in milliseconds (optional)
+        """
+        condition = signal_def.get("trigger_condition", {})
+        metric = condition.get("metric")
+        operator = condition.get("operator")
+        threshold = condition.get("threshold")
+
+        logger.warning(f"[Backtest] _find_triggers_in_range: symbol={symbol}, metric={metric}, "
+                       f"operator={operator}, threshold={threshold}, time_window={time_window}")
+
+        # Handle taker_volume composite signal
+        if metric == "taker_volume":
+            logger.warning(f"[Backtest] Using taker_volume composite signal handler")
+            return self._find_taker_triggers_in_range(
+                db, signal_def, symbol, time_window, kline_min_ts, kline_max_ts
+            )
+
+        if not all([metric, operator, threshold is not None]):
+            logger.warning(f"[Backtest] Missing required fields: metric={metric}, "
+                           f"operator={operator}, threshold={threshold}")
+            return []
+
+        # Map metric names for backward compatibility
+        metric_map = {
+            "oi_delta_percent": "oi_delta",
+            "funding_rate": "funding",
+            "taker_buy_ratio": "taker_ratio",
+        }
+        mapped_metric = metric_map.get(metric, metric)
+        if mapped_metric != metric:
+            logger.warning(f"[Backtest] Metric mapped: {metric} -> {mapped_metric}")
+        metric = mapped_metric
+
+        interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+        check_interval_ms = 15000  # 15 seconds, matching data granularity
+
+        # Load raw 15-second granularity data for the time range
+        raw_data = self._load_raw_data_for_metric(
+            db, symbol, metric, kline_min_ts, kline_max_ts, interval_ms
+        )
+        if not raw_data:
+            logger.warning(f"[Backtest] NO DATA returned from _load_raw_data_for_metric "
+                           f"for {symbol}/{metric}")
+            return []
+        logger.warning(f"[Backtest] Loaded {len(raw_data)} raw data points for {symbol}/{metric}")
+
+        # Generate check points every 15 seconds
+        check_points = self._generate_check_points(
+            raw_data, kline_min_ts, kline_max_ts, check_interval_ms
+        )
+
+        # Simulate real-time detection with edge triggering
+        triggers = []
+        was_active = False
+
+        # Build timestamps index for O(log n) binary search optimization
+        timestamps_index = [r[0] for r in raw_data]
+
+        for check_time in check_points:
+            # Calculate indicator value at this check point (using only data up to check_time)
+            value = self._calculate_indicator_at_time(
+                raw_data, metric, check_time, interval_ms, timestamps_index
+            )
+
+            if value is None:
+                continue
+
+            # Check condition
+            condition_met = self._evaluate_condition(value, operator, threshold)
+
+            # Edge detection: only trigger on False -> True
+            if condition_met and not was_active:
+                triggers.append({
+                    "timestamp": check_time,
+                    "value": value,
+                    "threshold": threshold,
+                    "operator": operator,
+                })
+
+            was_active = condition_met
+
+        return triggers
+
+    def _find_taker_triggers_in_range(
+        self, db: Session, signal_def: Dict, symbol: str, time_window: str,
+        kline_min_ts: int = None, kline_max_ts: int = None
+    ) -> List[Dict]:
+        """
+        Find taker_volume composite signal triggers using 15-second sliding window.
+        Simulates real-time detection with edge triggering.
+        """
+        condition = signal_def.get("trigger_condition", {})
+        direction = condition.get("direction", "any")
+        ratio_threshold = condition.get("ratio_threshold", 1.5)
+        volume_threshold = condition.get("volume_threshold", 0)
+
+        interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+        # Load raw 15-second granularity data
+        raw_data = self._load_raw_data_for_metric(
+            db, symbol, "taker_ratio", kline_min_ts, kline_max_ts, interval_ms
+        )
+        if not raw_data:
+            return []
+
+        # Generate check points every 15 seconds
+        check_points = self._generate_check_points(raw_data, kline_min_ts, kline_max_ts, 15000)
+
+        # Simulate real-time detection with edge triggering
+        triggers = []
+        was_active = False
+
+        import math
+        # Convert user's ratio threshold to log threshold
+        log_threshold = math.log(max(ratio_threshold, 1.01))
+
+        # Build timestamps index for O(log n) binary search optimization
+        timestamps_index = [r[0] for r in raw_data]
+
+        for check_time in check_points:
+            # Calculate taker data at this check point
+            taker_data = self._calc_taker_data_at_time(raw_data, check_time, interval_ms, timestamps_index)
+            if not taker_data:
+                continue
+
+            log_ratio = taker_data["log_ratio"]
+            ratio = taker_data["ratio"]  # Original ratio for display
+            total = taker_data["volume"]
+
+            if total < volume_threshold:
+                was_active = False
+                continue
+
+            # Check condition using log ratio (symmetric around 0)
+            condition_met = False
+            actual_dir = None
+
+            if direction == "buy" and log_ratio >= log_threshold:
+                condition_met, actual_dir = True, "buy"
+            elif direction == "sell" and log_ratio <= -log_threshold:
+                condition_met, actual_dir = True, "sell"
+            elif direction == "any":
+                if log_ratio >= log_threshold:
+                    condition_met, actual_dir = True, "buy"
+                elif log_ratio <= -log_threshold:
+                    condition_met, actual_dir = True, "sell"
+
+            # Edge detection: only trigger on False -> True
+            if condition_met and not was_active:
+                triggers.append({
+                    "timestamp": check_time,
+                    "direction": actual_dir,
+                    "log_ratio": log_ratio,
+                    "ratio": ratio,  # Original ratio for display
+                    "ratio_threshold": ratio_threshold,
+                    "volume": total,
+                    "volume_threshold": volume_threshold,
+                })
+
+            was_active = condition_met
+
+        return triggers
+
+    # Legacy method - kept for backward compatibility but no longer used
+    def _find_triggers(
+        self, db: Session, signal_def: Dict, symbol: str, klines: List[Dict], time_window: str
+    ) -> List[Dict]:
+        """
+        Find trigger points in historical data.
+
+        IMPORTANT: This method iterates over MARKET FLOW DATA (buckets), not K-lines.
+        K-lines are only used as a visual background - the actual trigger detection
+        is based on market flow indicator values from the database.
+
+        The trigger timestamp is the bucket timestamp, and we find the closest
+        K-line to display the price context.
+        """
+        condition = signal_def.get("trigger_condition", {})
+        metric = condition.get("metric")
+        operator = condition.get("operator")
+        threshold = condition.get("threshold")
+
+        if not all([metric, operator, threshold is not None]):
+            # Handle taker_volume composite signal
+            if metric == "taker_volume":
+                return self._find_taker_triggers(db, signal_def, symbol, klines, time_window)
+            return []
+
+        # Map metric names for backward compatibility
+        metric_map = {
+            "oi_delta_percent": "oi_delta",
+            "funding_rate": "funding",
+            "taker_buy_ratio": "taker_ratio",
+        }
+        metric = metric_map.get(metric, metric)
+
+        interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+        # Get ALL bucket values from market flow data (this is the PRIMARY data source)
+        cache_key = f"{symbol}_{metric}_{interval_ms}"
+        if cache_key not in self._bucket_cache:
+            self._bucket_cache[cache_key] = self._compute_all_bucket_values(
+                db, symbol, metric, interval_ms
+            )
+        bucket_values = self._bucket_cache[cache_key]
+
+        if not bucket_values:
+            return []
+
+        # Build a lookup for K-line prices (for display only)
+        from services.market_flow_indicators import floor_timestamp
+        kline_prices = {}
+        for kline in klines:
+            bucket_ts = floor_timestamp(kline["timestamp"], interval_ms)
+            kline_prices[bucket_ts] = kline["close"]
+
+        # Get K-line time range for filtering triggers to display
+        if klines:
+            kline_min_ts = min(floor_timestamp(k["timestamp"], interval_ms) for k in klines)
+            kline_max_ts = max(floor_timestamp(k["timestamp"], interval_ms) for k in klines)
+        else:
+            return []
+
+        # Iterate over ALL buckets and find triggers
+        triggers = []
+        for bucket_ts, value in sorted(bucket_values.items()):
+            # Only include triggers within K-line display range
+            if bucket_ts < kline_min_ts or bucket_ts > kline_max_ts:
+                continue
+
+            if value is not None and self._evaluate_condition(value, operator, threshold):
+                # Get price from K-line (for display context)
+                price = kline_prices.get(bucket_ts, 0)
+                triggers.append({
+                    "timestamp": bucket_ts,
+                    "value": value,
+                    "threshold": threshold,
+                    "operator": operator,
+                    "price": price,
+                })
+
+        return triggers
+
+    def _get_indicator_at_time(
+        self, db: Session, symbol: str, metric: str, timestamp_ms: int, interval_ms: int
+    ) -> Optional[float]:
+        """
+        Get indicator value at a specific timestamp using bucket aggregation.
+
+        IMPORTANT: This method uses the same bucket aggregation logic as
+        signal_analysis_service to ensure consistency between:
+        - Statistical analysis (threshold suggestions)
+        - Preview backtest (trigger visualization)
+        - K-line chart indicators
+
+        The key insight is that we need to return the indicator value FOR that
+        specific bucket, not the "current" value looking back from that timestamp.
+        """
+        # Use pre-computed bucket values if available
+        cache_key = f"{symbol}_{metric}_{interval_ms}"
+        if not hasattr(self, '_bucket_cache'):
+            self._bucket_cache = {}
+
+        if cache_key not in self._bucket_cache:
+            self._bucket_cache[cache_key] = self._compute_all_bucket_values(
+                db, symbol, metric, interval_ms
+            )
+
+        bucket_values = self._bucket_cache[cache_key]
+        if not bucket_values:
+            return None
+
+        # Find the bucket that contains this timestamp
+        from services.market_flow_indicators import floor_timestamp
+        bucket_ts = floor_timestamp(timestamp_ms, interval_ms)
+
+        return bucket_values.get(bucket_ts)
+
+    def _compute_all_bucket_values(
+        self, db: Session, symbol: str, metric: str, interval_ms: int
+    ) -> Dict[int, float]:
+        """
+        Compute indicator values for all buckets using the same logic as
+        signal_analysis_service. This ensures consistency between statistical
+        analysis and backtest preview.
+
+        Returns a dict mapping bucket_timestamp -> indicator_value
+        """
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketAssetMetrics, MarketTradesAggregated
+        from database.models import MarketOrderbookSnapshots
+        from datetime import datetime, timezone
+
+        # Query 7 days of data (same as signal_analysis_service)
+        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        start_time_ms = current_time_ms - (7 * 24 * 60 * 60 * 1000)
+
+        if metric == "oi_delta":
+            return self._compute_oi_delta_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "cvd":
+            return self._compute_cvd_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "depth_ratio":
+            return self._compute_depth_ratio_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "order_imbalance":
+            return self._compute_imbalance_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "taker_ratio":
+            return self._compute_taker_ratio_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "funding":
+            return self._compute_funding_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        elif metric == "oi":
+            return self._compute_oi_buckets(
+                db, symbol, interval_ms, start_time_ms, current_time_ms
+            )
+        else:
+            logger.warning(f"Unknown metric for bucket computation: {metric}")
+            return {}
+
+    def _compute_oi_delta_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute OI delta percentage for each bucket (same as signal_analysis)."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketAssetMetrics
+
+        records = db.query(
+            MarketAssetMetrics.timestamp,
+            MarketAssetMetrics.open_interest
+        ).filter(
+            MarketAssetMetrics.symbol == symbol.upper(),
+            MarketAssetMetrics.timestamp >= start_time_ms,
+            MarketAssetMetrics.timestamp <= current_time_ms
+        ).order_by(MarketAssetMetrics.timestamp).all()
+
+        if not records:
+            return {}
+
+        # Bucket by period
+        buckets = {}
+        for ts, oi in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = float(oi) if oi else None
+
+        # Calculate deltas - map each bucket to its delta value
+        sorted_times = sorted(buckets.keys())
+        result = {}
+        for i in range(1, len(sorted_times)):
+            prev_oi = buckets[sorted_times[i-1]]
+            curr_oi = buckets[sorted_times[i]]
+            if prev_oi and curr_oi and prev_oi != 0:
+                delta_pct = ((curr_oi - prev_oi) / prev_oi) * 100
+                # The delta is associated with the CURRENT bucket
+                result[sorted_times[i]] = delta_pct
+
+        return result
+
+    def _compute_cvd_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute CVD for each bucket."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketTradesAggregated
+
+        records = db.query(
+            MarketTradesAggregated.timestamp,
+            MarketTradesAggregated.taker_buy_notional,
+            MarketTradesAggregated.taker_sell_notional
+        ).filter(
+            MarketTradesAggregated.symbol == symbol.upper(),
+            MarketTradesAggregated.timestamp >= start_time_ms,
+            MarketTradesAggregated.timestamp <= current_time_ms
+        ).order_by(MarketTradesAggregated.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, buy, sell in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        result = {}
+        for ts in buckets:
+            result[ts] = buckets[ts]["buy"] - buckets[ts]["sell"]
+
+        return result
+
+    def _compute_depth_ratio_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute depth ratio (bid/ask) for each bucket."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketOrderbookSnapshots
+
+        records = db.query(
+            MarketOrderbookSnapshots.timestamp,
+            MarketOrderbookSnapshots.bid_depth_5,
+            MarketOrderbookSnapshots.ask_depth_5
+        ).filter(
+            MarketOrderbookSnapshots.symbol == symbol.upper(),
+            MarketOrderbookSnapshots.timestamp >= start_time_ms,
+            MarketOrderbookSnapshots.timestamp <= current_time_ms
+        ).order_by(MarketOrderbookSnapshots.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, bid, ask in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = {"bid": float(bid or 0), "ask": float(ask or 0)}
+
+        result = {}
+        for ts in buckets:
+            ask = buckets[ts]["ask"]
+            if ask > 0:
+                result[ts] = buckets[ts]["bid"] / ask
+
+        return result
+
+    def _compute_imbalance_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute order imbalance for each bucket."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketOrderbookSnapshots
+
+        records = db.query(
+            MarketOrderbookSnapshots.timestamp,
+            MarketOrderbookSnapshots.bid_depth_5,
+            MarketOrderbookSnapshots.ask_depth_5
+        ).filter(
+            MarketOrderbookSnapshots.symbol == symbol.upper(),
+            MarketOrderbookSnapshots.timestamp >= start_time_ms,
+            MarketOrderbookSnapshots.timestamp <= current_time_ms
+        ).order_by(MarketOrderbookSnapshots.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, bid, ask in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = {"bid": float(bid or 0), "ask": float(ask or 0)}
+
+        result = {}
+        for ts in buckets:
+            bid, ask = buckets[ts]["bid"], buckets[ts]["ask"]
+            total = bid + ask
+            if total > 0:
+                result[ts] = (bid - ask) / total
+
+        return result
+
+    def _compute_taker_ratio_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute taker buy/sell log ratio for each bucket.
+
+        Uses ln(buy/sell) for symmetric ratio around 0:
+        - ln(2.0) = +0.69 (buyers 2x sellers)
+        - ln(1.0) = 0 (balanced)
+        - ln(0.5) = -0.69 (sellers 2x buyers)
+        """
+        import math
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketTradesAggregated
+
+        records = db.query(
+            MarketTradesAggregated.timestamp,
+            MarketTradesAggregated.taker_buy_notional,
+            MarketTradesAggregated.taker_sell_notional
+        ).filter(
+            MarketTradesAggregated.symbol == symbol.upper(),
+            MarketTradesAggregated.timestamp >= start_time_ms,
+            MarketTradesAggregated.timestamp <= current_time_ms
+        ).order_by(MarketTradesAggregated.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, buy, sell in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        result = {}
+        for ts in buckets:
+            buy = buckets[ts]["buy"]
+            sell = buckets[ts]["sell"]
+            if buy > 0 and sell > 0:
+                result[ts] = math.log(buy / sell)  # Log transformation
+
+        return result
+
+    def _compute_funding_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute funding rate for each bucket."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketAssetMetrics
+
+        records = db.query(
+            MarketAssetMetrics.timestamp,
+            MarketAssetMetrics.funding_rate
+        ).filter(
+            MarketAssetMetrics.symbol == symbol.upper(),
+            MarketAssetMetrics.timestamp >= start_time_ms,
+            MarketAssetMetrics.timestamp <= current_time_ms,
+            MarketAssetMetrics.funding_rate.isnot(None)
+        ).order_by(MarketAssetMetrics.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, funding in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = float(funding) * 100  # Convert to percentage
+
+        return buckets
+
+    def _compute_oi_buckets(
+        self, db, symbol, interval_ms, start_time_ms, current_time_ms
+    ) -> Dict[int, float]:
+        """Compute absolute OI for each bucket."""
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketAssetMetrics
+
+        records = db.query(
+            MarketAssetMetrics.timestamp,
+            MarketAssetMetrics.open_interest
+        ).filter(
+            MarketAssetMetrics.symbol == symbol.upper(),
+            MarketAssetMetrics.timestamp >= start_time_ms,
+            MarketAssetMetrics.timestamp <= current_time_ms,
+            MarketAssetMetrics.open_interest.isnot(None)
+        ).order_by(MarketAssetMetrics.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, oi in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = float(oi)
+
+        return buckets
+
+    def _find_taker_triggers(
+        self, db: Session, signal_def: Dict, symbol: str, klines: List[Dict], time_window: str
+    ) -> List[Dict]:
+        """
+        Find taker_volume composite signal triggers.
+
+        IMPORTANT: This method iterates over MARKET FLOW DATA (buckets), not K-lines.
+        K-lines are only used as a visual background.
+        Uses log(buy/sell) for symmetric ratio detection.
+        """
+        import math
+        condition = signal_def.get("trigger_condition", {})
+        direction = condition.get("direction", "any")
+        ratio_threshold = condition.get("ratio_threshold", 1.5)
+        volume_threshold = condition.get("volume_threshold", 0)
+
+        # Convert user's ratio threshold to log threshold
+        log_threshold = math.log(max(ratio_threshold, 1.01))
+
+        interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+        # Compute all taker volume buckets from market flow data
+        taker_buckets = self._compute_taker_volume_buckets(db, symbol, interval_ms)
+        if not taker_buckets:
+            return []
+
+        # Build K-line price lookup
+        from services.market_flow_indicators import floor_timestamp
+        kline_prices = {}
+        for kline in klines:
+            bucket_ts = floor_timestamp(kline["timestamp"], interval_ms)
+            kline_prices[bucket_ts] = kline["close"]
+
+        # Get K-line time range
+        if not klines:
+            return []
+        kline_min_ts = min(floor_timestamp(k["timestamp"], interval_ms) for k in klines)
+        kline_max_ts = max(floor_timestamp(k["timestamp"], interval_ms) for k in klines)
+
+        # Iterate over all buckets and find triggers
+        triggers = []
+        for bucket_ts, data in sorted(taker_buckets.items()):
+            # Only include triggers within K-line display range
+            if bucket_ts < kline_min_ts or bucket_ts > kline_max_ts:
+                continue
+
+            log_ratio = data["log_ratio"]
+            ratio = data["ratio"]  # Original ratio for display
+            total = data["volume"]
+
+            if total < volume_threshold:
+                continue
+
+            triggered = False
+            actual_dir = None
+
+            if direction == "buy" and log_ratio >= log_threshold:
+                triggered, actual_dir = True, "buy"
+            elif direction == "sell" and log_ratio <= -log_threshold:
+                triggered, actual_dir = True, "sell"
+            elif direction == "any":
+                if log_ratio >= log_threshold:
+                    triggered, actual_dir = True, "buy"
+                elif log_ratio <= -log_threshold:
+                    triggered, actual_dir = True, "sell"
+
+            if triggered:
+                triggers.append({
+                    "timestamp": bucket_ts,
+                    "direction": actual_dir,
+                    "log_ratio": log_ratio,
+                    "ratio": ratio,  # Original ratio for display
+                    "ratio_threshold": ratio_threshold,
+                    "volume": total,
+                    "volume_threshold": volume_threshold,
+                    "price": kline_prices.get(bucket_ts, 0),
+                })
+
+        return triggers
+
+    def _compute_taker_volume_buckets(
+        self, db, symbol, interval_ms
+    ) -> Dict[int, Dict]:
+        """Compute taker volume data (log_ratio and volume) for each bucket.
+
+        Uses ln(buy/sell) for symmetric ratio around 0.
+        """
+        import math
+        from services.market_flow_indicators import floor_timestamp
+        from database.models import MarketTradesAggregated
+        from datetime import datetime, timezone
+
+        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        start_time_ms = current_time_ms - (7 * 24 * 60 * 60 * 1000)
+
+        records = db.query(
+            MarketTradesAggregated.timestamp,
+            MarketTradesAggregated.taker_buy_notional,
+            MarketTradesAggregated.taker_sell_notional
+        ).filter(
+            MarketTradesAggregated.symbol == symbol.upper(),
+            MarketTradesAggregated.timestamp >= start_time_ms,
+            MarketTradesAggregated.timestamp <= current_time_ms
+        ).order_by(MarketTradesAggregated.timestamp).all()
+
+        if not records:
+            return {}
+
+        buckets = {}
+        for ts, buy, sell in records:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        # Calculate log ratio and volume for each bucket
+        result = {}
+        for ts, data in buckets.items():
+            buy, sell = data["buy"], data["sell"]
+            total = buy + sell
+            if buy > 0 and sell > 0 and total > 0:
+                result[ts] = {
+                    "log_ratio": math.log(buy / sell),
+                    "ratio": buy / sell,  # Original ratio for display
+                    "volume": total
+                }
+
+        return result
+
+    def backtest_pool(
+        self, db: Session, pool_id: int, symbol: str,
+        kline_min_ts: int = None, kline_max_ts: int = None
+    ) -> Dict[str, Any]:
+        """
+        Backtest a signal pool against historical data.
+        For AND logic: evaluates all signals at each check point with pool-level edge detection.
+        For OR logic: combines individual signal triggers.
+        """
+        logger.warning(f"[Backtest] START pool_id={pool_id} symbol={symbol} "
+                       f"ts_range=[{kline_min_ts}, {kline_max_ts}]")
+
+        self._bucket_cache = {}
+
+        # Get pool definition
+        result = db.execute(
+            text("""
+                SELECT id, pool_name, signal_ids, symbols, enabled, logic
+                FROM signal_pools WHERE id = :id
+            """),
+            {"id": pool_id}
+        )
+        row = result.fetchone()
+        if not row:
+            logger.warning(f"[Backtest] Pool {pool_id} NOT FOUND in database")
+            return {"error": "Pool not found"}
+
+        # Parse signal_ids and symbols - ORM defines as Text
+        raw_signal_ids = row[2]
+        if isinstance(raw_signal_ids, str):
+            try:
+                raw_signal_ids = json.loads(raw_signal_ids)
+            except json.JSONDecodeError:
+                raw_signal_ids = []
+        raw_symbols = row[3]
+        if isinstance(raw_symbols, str):
+            try:
+                raw_symbols = json.loads(raw_symbols)
+            except json.JSONDecodeError:
+                raw_symbols = []
+
+        pool_def = {
+            "id": row[0],
+            "pool_name": row[1],
+            "signal_ids": raw_signal_ids or [],
+            "symbols": raw_symbols or [],
+            "enabled": row[4],
+            "logic": row[5] or "OR"
+        }
+
+        signal_ids = pool_def["signal_ids"]
+        logger.warning(f"[Backtest] Pool found: name={pool_def['pool_name']}, "
+                       f"logic={pool_def['logic']}, signal_ids={signal_ids}")
+
+        if not signal_ids:
+            logger.warning(f"[Backtest] Pool {pool_id} has no signals configured")
+            return {"error": "Pool has no signals configured"}
+
+        logic = pool_def["logic"]
+
+        # For AND logic, use pool-level detection to match real-time behavior
+        if logic == "AND":
+            return self._backtest_pool_and_logic(
+                db, pool_def, signal_ids, symbol, kline_min_ts, kline_max_ts
+            )
+
+        # For OR logic, use individual signal triggers
+        signal_triggers = {}
+        signal_names = {}
+        time_window = "5m"
+
+        for signal_id in signal_ids:
+            signal_result = self.backtest_signal(
+                db, signal_id, symbol, kline_min_ts, kline_max_ts
+            )
+            if "error" not in signal_result:
+                signal_triggers[signal_id] = {
+                    t["timestamp"]: t for t in signal_result.get("triggers", [])
+                }
+                signal_names[signal_id] = signal_result.get("signal_name", f"Signal {signal_id}")
+                time_window = signal_result.get("time_window", time_window)
+
+        if not signal_triggers:
+            return {"error": "No valid signals in pool"}
+
+        combined_triggers = self._combine_pool_triggers(
+            signal_triggers, signal_names, logic
+        )
+
+        logger.warning(f"[Backtest] END pool_id={pool_id} success, {len(combined_triggers)} combined triggers")
+        return {
+            "pool_id": pool_id,
+            "pool_name": pool_def["pool_name"],
+            "symbol": symbol,
+            "time_window": time_window,
+            "logic": logic,
+            "signal_count": len(signal_ids),
+            "signal_names": signal_names,
+            "trigger_count": len(combined_triggers),
+            "triggers": combined_triggers,
+        }
+
+    def _backtest_pool_and_logic(
+        self, db: Session, pool_def: Dict, signal_ids: List[int], symbol: str,
+        kline_min_ts: int, kline_max_ts: int
+    ) -> Dict[str, Any]:
+        """
+        Backtest pool with AND logic using pool-level edge detection.
+        Evaluates all signals at each check point simultaneously.
+        """
+        # Get all signal definitions
+        signal_defs = {}
+        signal_names = {}
+        time_window = "5m"
+
+        for signal_id in signal_ids:
+            result = db.execute(
+                text("""
+                    SELECT id, signal_name, trigger_condition
+                    FROM signal_definitions WHERE id = :id
+                """),
+                {"id": signal_id}
+            )
+            row = result.fetchone()
+            if row:
+                # Parse trigger_condition - ORM defines as Text, so it may be string
+                trigger_cond = row[2]
+                if isinstance(trigger_cond, str):
+                    try:
+                        trigger_cond = json.loads(trigger_cond)
+                    except json.JSONDecodeError:
+                        trigger_cond = {}
+                signal_defs[signal_id] = {
+                    "id": row[0],
+                    "signal_name": row[1],
+                    "trigger_condition": trigger_cond
+                }
+                signal_names[signal_id] = row[1]
+                time_window = trigger_cond.get("time_window", time_window)
+
+        if not signal_defs:
+            return {"error": "No valid signals in pool"}
+
+        interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+        # Load raw data for all metrics needed
+        metrics_data = {}
+        metrics_timestamps_index = {}  # timestamps_index for each metric
+        for signal_id, sig_def in signal_defs.items():
+            condition = sig_def["trigger_condition"]
+            metric = condition.get("metric")
+            if metric:
+                # taker_volume uses taker_ratio data internally
+                if metric == "taker_volume":
+                    mapped_metric = "taker_ratio"
+                else:
+                    metric_map = {"oi_delta_percent": "oi_delta", "taker_buy_ratio": "taker_ratio"}
+                    mapped_metric = metric_map.get(metric, metric)
+
+                if mapped_metric not in metrics_data:
+                    raw_data = self._load_raw_data_for_metric(
+                        db, symbol, mapped_metric, kline_min_ts, kline_max_ts, interval_ms
+                    )
+                    metrics_data[mapped_metric] = raw_data
+                    # Build timestamps index for O(log n) binary search
+                    metrics_timestamps_index[mapped_metric] = [r[0] for r in raw_data] if raw_data else []
+
+        # Generate check points from all data
+        all_timestamps = set()
+        for data in metrics_data.values():
+            if data:
+                all_timestamps.update(r[0] for r in data)
+
+        if kline_min_ts:
+            all_timestamps = {ts for ts in all_timestamps if ts >= kline_min_ts}
+        if kline_max_ts:
+            all_timestamps = {ts for ts in all_timestamps if ts <= kline_max_ts}
+
+        check_points = sorted(all_timestamps)
+
+        # Evaluate all signals at each check point with pool-level edge detection
+        triggers = []
+        was_active = False
+
+        for check_time in check_points:
+            all_met = True
+            signal_values = []
+
+            for signal_id, sig_def in signal_defs.items():
+                condition = sig_def["trigger_condition"]
+                metric = condition.get("metric")
+
+                # Handle taker_volume composite signal specially
+                if metric == "taker_volume":
+                    import math
+                    direction = condition.get("direction", "any")
+                    ratio_threshold = condition.get("ratio_threshold", 1.5)
+                    volume_threshold = condition.get("volume_threshold", 0)
+                    log_threshold = math.log(max(ratio_threshold, 1.01))
+
+                    raw_data = metrics_data.get("taker_ratio", [])
+                    timestamps_index = metrics_timestamps_index.get("taker_ratio")
+                    taker_data = self._calc_taker_data_at_time(raw_data, check_time, interval_ms, timestamps_index)
+
+                    if taker_data is None:
+                        all_met = False
+                        break
+
+                    log_ratio = taker_data["log_ratio"]
+                    total_volume = taker_data["volume"]
+
+                    # Check ratio condition
+                    if direction == "buy":
+                        ratio_met = log_ratio >= log_threshold
+                    elif direction == "sell":
+                        ratio_met = log_ratio <= -log_threshold
+                    else:  # any
+                        ratio_met = abs(log_ratio) >= log_threshold
+
+                    # Check volume condition
+                    volume_met = total_volume >= volume_threshold
+
+                    if not (ratio_met and volume_met):
+                        all_met = False
+                        break
+
+                    # Determine actual direction based on log_ratio (not the filter condition)
+                    # log_ratio > 0 means buyers dominate, log_ratio < 0 means sellers dominate
+                    actual_direction = "buy" if log_ratio > 0 else "sell"
+
+                    signal_values.append({
+                        "signal_id": signal_id,
+                        "signal_name": sig_def["signal_name"],
+                        "metric": "taker_volume",
+                        "value": taker_data["ratio"],
+                        "threshold": ratio_threshold,
+                        # taker_volume specific fields for tooltip display
+                        "direction": actual_direction,  # Use actual direction, not filter condition
+                        "ratio": taker_data["ratio"],
+                        "volume": total_volume,
+                        "ratio_threshold": ratio_threshold,
+                        "volume_threshold": volume_threshold,
+                    })
+                else:
+                    # Standard signal with operator/threshold
+                    operator = condition.get("operator")
+                    threshold = condition.get("threshold")
+
+                    metric_map = {"oi_delta_percent": "oi_delta", "taker_buy_ratio": "taker_ratio"}
+                    mapped_metric = metric_map.get(metric, metric)
+
+                    raw_data = metrics_data.get(mapped_metric, [])
+                    timestamps_index = metrics_timestamps_index.get(mapped_metric)
+                    value = self._calculate_indicator_at_time(raw_data, mapped_metric, check_time, interval_ms, timestamps_index)
+
+                    if value is None:
+                        all_met = False
+                        break
+
+                    condition_met = self._evaluate_condition(value, operator, threshold)
+                    if not condition_met:
+                        all_met = False
+                        break
+
+                    signal_values.append({
+                        "signal_id": signal_id,
+                        "signal_name": sig_def["signal_name"],
+                        "value": value,
+                        "threshold": threshold,
+                    })
+
+            # Pool-level edge detection
+            if all_met and not was_active:
+                triggers.append({
+                    "timestamp": check_time,
+                    "triggered_signals": signal_values,
+                    "trigger_type": "all",
+                })
+
+            was_active = all_met
+
+        return {
+            "pool_id": pool_def["id"],
+            "pool_name": pool_def["pool_name"],
+            "symbol": symbol,
+            "time_window": time_window,
+            "logic": "AND",
+            "signal_count": len(signal_ids),
+            "signal_names": signal_names,
+            "trigger_count": len(triggers),
+            "triggers": triggers,
+        }
+
+    def _combine_pool_triggers(
+        self, signal_triggers: Dict[int, Dict], signal_names: Dict[int, str], logic: str
+    ) -> List[Dict]:
+        """
+        Combine triggers from multiple signals based on pool logic.
+
+        Args:
+            signal_triggers: Dict mapping signal_id to {timestamp: trigger_data}
+            signal_names: Dict mapping signal_id to signal name
+            logic: 'AND' or 'OR'
+        """
+        if logic == "OR":
+            # OR: Any signal triggers = pool triggers
+            all_timestamps = set()
+            for triggers in signal_triggers.values():
+                all_timestamps.update(triggers.keys())
+
+            combined = []
+            for ts in sorted(all_timestamps):
+                triggered_signals = []
+                for signal_id, triggers in signal_triggers.items():
+                    if ts in triggers:
+                        triggered_signals.append({
+                            "signal_id": signal_id,
+                            "signal_name": signal_names.get(signal_id, f"Signal {signal_id}"),
+                            "value": triggers[ts].get("value"),
+                            "threshold": triggers[ts].get("threshold"),
+                        })
+                combined.append({
+                    "timestamp": ts,
+                    "triggered_signals": triggered_signals,
+                    "trigger_type": "any",
+                })
+            return combined
+
+        else:  # AND
+            # AND: All signals must trigger at the same timestamp
+            if not signal_triggers:
+                return []
+
+            # Find timestamps where ALL signals triggered
+            common_timestamps = None
+            for triggers in signal_triggers.values():
+                ts_set = set(triggers.keys())
+                if common_timestamps is None:
+                    common_timestamps = ts_set
+                else:
+                    common_timestamps &= ts_set
+
+            if not common_timestamps:
+                return []
+
+            combined = []
+            for ts in sorted(common_timestamps):
+                triggered_signals = []
+                for signal_id, triggers in signal_triggers.items():
+                    triggered_signals.append({
+                        "signal_id": signal_id,
+                        "signal_name": signal_names.get(signal_id, f"Signal {signal_id}"),
+                        "value": triggers[ts].get("value"),
+                        "threshold": triggers[ts].get("threshold"),
+                    })
+                combined.append({
+                    "timestamp": ts,
+                    "triggered_signals": triggered_signals,
+                    "trigger_type": "all",
+                })
+            return combined
+
+    def _load_raw_data_for_metric(
+        self, db: Session, symbol: str, metric: str,
+        kline_min_ts: int, kline_max_ts: int, interval_ms: int
+    ) -> List[tuple]:
+        """
+        Load raw 15-second granularity data for a metric.
+        Returns list of (timestamp, value1, value2, ...) tuples.
+        """
+        from database.models import MarketTradesAggregated, MarketAssetMetrics, MarketOrderbookSnapshots
+
+        logger.warning(f"[Backtest] _load_raw_data_for_metric: symbol={symbol}, metric={metric}, "
+                       f"ts_range=[{kline_min_ts}, {kline_max_ts}], interval_ms={interval_ms}")
+
+        # Extend range to include lookback period for first check point
+        lookback_ms = interval_ms * 10
+        start_time = (kline_min_ts - lookback_ms) if kline_min_ts else None
+
+        result = []
+        table_name = "unknown"
+
+        if metric in ("cvd", "taker_ratio"):
+            table_name = "market_trades_aggregated"
+            query = db.query(
+                MarketTradesAggregated.timestamp,
+                MarketTradesAggregated.taker_buy_notional,
+                MarketTradesAggregated.taker_sell_notional
+            ).filter(MarketTradesAggregated.symbol == symbol.upper())
+            if start_time:
+                query = query.filter(MarketTradesAggregated.timestamp >= start_time)
+            if kline_max_ts:
+                query = query.filter(MarketTradesAggregated.timestamp <= kline_max_ts)
+            result = query.order_by(MarketTradesAggregated.timestamp).all()
+
+        elif metric == "oi_delta":
+            table_name = "market_asset_metrics"
+            query = db.query(
+                MarketAssetMetrics.timestamp,
+                MarketAssetMetrics.open_interest
+            ).filter(MarketAssetMetrics.symbol == symbol.upper())
+            if start_time:
+                query = query.filter(MarketAssetMetrics.timestamp >= start_time)
+            if kline_max_ts:
+                query = query.filter(MarketAssetMetrics.timestamp <= kline_max_ts)
+            result = query.order_by(MarketAssetMetrics.timestamp).all()
+
+        elif metric in ("order_imbalance", "depth_ratio"):
+            table_name = "market_orderbook_snapshots"
+            query = db.query(
+                MarketOrderbookSnapshots.timestamp,
+                MarketOrderbookSnapshots.bid_depth_5,
+                MarketOrderbookSnapshots.ask_depth_5
+            ).filter(MarketOrderbookSnapshots.symbol == symbol.upper())
+            if start_time:
+                query = query.filter(MarketOrderbookSnapshots.timestamp >= start_time)
+            if kline_max_ts:
+                query = query.filter(MarketOrderbookSnapshots.timestamp <= kline_max_ts)
+            result = query.order_by(MarketOrderbookSnapshots.timestamp).all()
+
+        else:
+            logger.warning(f"[Backtest] UNKNOWN metric: {metric}, returning empty data")
+            return []
+
+        if len(result) == 0:
+            logger.warning(f"[Backtest] NO DATA in {table_name} for symbol={symbol.upper()}, "
+                           f"metric={metric}, ts_range=[{start_time}, {kline_max_ts}]")
+        else:
+            logger.warning(f"[Backtest] Loaded {len(result)} rows from {table_name} for {symbol}/{metric}")
+
+        return result
+
+    def _generate_check_points(
+        self, raw_data: List[tuple], kline_min_ts: int, kline_max_ts: int, check_interval_ms: int
+    ) -> List[int]:
+        """Generate check points every 15 seconds within the time range."""
+        if not raw_data:
+            return []
+
+        # Use actual data timestamps as check points (they are already 15s aligned)
+        timestamps = [r[0] for r in raw_data]
+
+        # Filter to requested range
+        if kline_min_ts:
+            timestamps = [ts for ts in timestamps if ts >= kline_min_ts]
+        if kline_max_ts:
+            timestamps = [ts for ts in timestamps if ts <= kline_max_ts]
+
+        return sorted(set(timestamps))
+
+    def _calculate_indicator_at_time(
+        self, raw_data: List[tuple], metric: str, check_time: int, interval_ms: int,
+        timestamps_index: List[int] = None
+    ) -> Optional[float]:
+        """
+        Calculate indicator value at a specific check time.
+        Simulates real-time detection: only uses data up to check_time.
+
+        Performance optimization: uses binary search instead of linear filtering.
+        If timestamps_index is provided, uses it for O(log n) lookup.
+        """
+        import bisect
+
+        # Same lookback as real-time detection
+        lookback_ms = interval_ms * 10
+        start_time = check_time - lookback_ms
+
+        # Use binary search for O(log n) instead of O(n) linear filter
+        if timestamps_index is not None:
+            # Binary search for range [start_time, check_time]
+            left_idx = bisect.bisect_left(timestamps_index, start_time)
+            right_idx = bisect.bisect_right(timestamps_index, check_time)
+            relevant_data = raw_data[left_idx:right_idx]
+        else:
+            # Fallback to linear filter for backward compatibility
+            relevant_data = [r for r in raw_data if start_time <= r[0] <= check_time]
+
+        if not relevant_data:
+            return None
+
+        if metric == "cvd":
+            return self._calc_cvd_at_time(relevant_data, interval_ms)
+        elif metric == "oi_delta":
+            return self._calc_oi_delta_at_time(relevant_data, interval_ms)
+        elif metric == "order_imbalance":
+            return self._calc_imbalance_at_time(relevant_data, interval_ms)
+        elif metric == "depth_ratio":
+            return self._calc_depth_ratio_at_time(relevant_data, interval_ms)
+        elif metric == "taker_ratio":
+            return self._calc_taker_ratio_at_time(relevant_data, interval_ms)
+        return None
+
+    def _calc_cvd_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
+        """Calculate CVD at a specific time (same logic as _get_cvd_data)."""
+        from services.market_flow_indicators import floor_timestamp
+
+        buckets = {}
+        for ts, buy, sell in data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        if not buckets:
+            return None
+
+        # Return last bucket's delta (same as real-time detection)
+        sorted_times = sorted(buckets.keys())
+        last_bucket = buckets[sorted_times[-1]]
+        return last_bucket["buy"] - last_bucket["sell"]
+
+    def _calc_oi_delta_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
+        """Calculate OI delta percentage at a specific time."""
+        from services.market_flow_indicators import floor_timestamp
+
+        buckets = {}
+        for ts, oi in data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = float(oi) if oi else None
+
+        sorted_times = sorted(buckets.keys())
+        if len(sorted_times) < 2:
+            return None
+
+        prev_oi = buckets[sorted_times[-2]]
+        curr_oi = buckets[sorted_times[-1]]
+        if prev_oi and curr_oi and prev_oi != 0:
+            return ((curr_oi - prev_oi) / prev_oi) * 100
+        return None
+
+    def _calc_imbalance_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
+        """Calculate order book imbalance at a specific time."""
+        from services.market_flow_indicators import floor_timestamp
+
+        buckets = {}
+        for ts, bid, ask in data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = {"bid": float(bid or 0), "ask": float(ask or 0)}
+
+        if not buckets:
+            return None
+
+        sorted_times = sorted(buckets.keys())
+        last = buckets[sorted_times[-1]]
+        total = last["bid"] + last["ask"]
+        if total > 0:
+            return (last["bid"] - last["ask"]) / total
+        return None
+
+    def _calc_depth_ratio_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
+        """Calculate depth ratio (bid/ask) at a specific time."""
+        from services.market_flow_indicators import floor_timestamp
+
+        buckets = {}
+        for ts, bid, ask in data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            buckets[bucket_ts] = {"bid": float(bid or 0), "ask": float(ask or 0)}
+
+        if not buckets:
+            return None
+
+        sorted_times = sorted(buckets.keys())
+        last = buckets[sorted_times[-1]]
+        if last["ask"] > 0:
+            return last["bid"] / last["ask"]
+        return None
+
+    def _calc_taker_ratio_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
+        """Calculate taker buy/sell log ratio at a specific time.
+
+        Uses ln(buy/sell) for symmetric ratio around 0.
+        """
+        import math
+        from services.market_flow_indicators import floor_timestamp
+
+        buckets = {}
+        for ts, buy, sell in data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        if not buckets:
+            return None
+
+        sorted_times = sorted(buckets.keys())
+        last = buckets[sorted_times[-1]]
+        if last["buy"] > 0 and last["sell"] > 0:
+            return math.log(last["buy"] / last["sell"])
+        return None
+
+    def _calc_taker_data_at_time(
+        self, raw_data: List[tuple], check_time: int, interval_ms: int,
+        timestamps_index: List[int] = None
+    ) -> Optional[Dict]:
+        """Calculate taker volume data (log_ratio and volume) at a specific time.
+
+        Uses ln(buy/sell) for symmetric ratio around 0.
+        """
+        import bisect
+        import math
+        from services.market_flow_indicators import floor_timestamp
+
+        lookback_ms = interval_ms * 10
+        start_time = check_time - lookback_ms
+
+        # Use binary search for O(log n) instead of O(n) linear filter
+        if timestamps_index is not None:
+            left_idx = bisect.bisect_left(timestamps_index, start_time)
+            right_idx = bisect.bisect_right(timestamps_index, check_time)
+            relevant_data = raw_data[left_idx:right_idx]
+        else:
+            relevant_data = [r for r in raw_data if start_time <= r[0] <= check_time]
+
+        if not relevant_data:
+            return None
+
+        buckets = {}
+        for ts, buy, sell in relevant_data:
+            bucket_ts = floor_timestamp(ts, interval_ms)
+            if bucket_ts not in buckets:
+                buckets[bucket_ts] = {"buy": 0, "sell": 0}
+            buckets[bucket_ts]["buy"] += float(buy or 0)
+            buckets[bucket_ts]["sell"] += float(sell or 0)
+
+        if not buckets:
+            return None
+
+        sorted_times = sorted(buckets.keys())
+        last = buckets[sorted_times[-1]]
+        buy, sell = last["buy"], last["sell"]
+        total = buy + sell
+
+        if buy > 0 and sell > 0 and total > 0:
+            return {"log_ratio": math.log(buy / sell), "ratio": buy / sell, "volume": total}
+        return None
+
+    def _evaluate_condition(self, value: float, operator: str, threshold: float) -> bool:
+        """Evaluate if a condition is met."""
+        # Support both symbol and text forms of operators
+        if operator in (">", "greater_than", "gt"):
+            return value > threshold
+        elif operator in (">=", "greater_than_or_equal", "gte"):
+            return value >= threshold
+        elif operator in ("<", "less_than", "lt"):
+            return value < threshold
+        elif operator in ("<=", "less_than_or_equal", "lte"):
+            return value <= threshold
+        elif operator in ("==", "equal", "eq"):
+            return abs(value - threshold) < 1e-9
+        elif operator in ("!=", "not_equal", "ne"):
+            return abs(value - threshold) >= 1e-9
+        elif operator in ("abs_greater_than", "abs_gt"):
+            return abs(value) > threshold
+        elif operator in ("abs_less_than", "abs_lt"):
+            return abs(value) < threshold
+        return False
+
+
+# Singleton instance
+signal_backtest_service = SignalBacktestService()

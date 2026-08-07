@@ -1,0 +1,27 @@
+{
+  "evolution_result": {
+    "elapsed_sec": 26.8,
+    "symbols": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "BNB",
+      "XRP",
+      "DOGE",
+      "ADA"
+    ],
+    "candidates": 16,
+    "evaluated": 16,
+    "survivors": 1,
+    "promoted": 0,
+    "advanced": 0,
+    "degraded": 0,
+    "replaced": 0,
+    "active_total": 0,
+    "promoted_factors": []
+  },
+  "weight_update_result": {
+    "skipped": "无活跃因子"
+  },
+  "recent_backtest_triggers": []
+}

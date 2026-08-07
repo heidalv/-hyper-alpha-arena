@@ -1,0 +1,4318 @@
+{
+  "active_addresses": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ad_line": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "aggressive_buy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adaptive_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adx_low": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adx_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adx_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_adxweak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ai_fail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ai_rev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ai_rev_boost": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ai_reverse": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ai_reverse_guard": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_airev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ambig": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ampvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_anr": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ar": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_aro": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_aroon": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_autocorrelation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_compress": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_pos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_reverse": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_squeeze_fake": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_sqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_tension": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_width": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bb_zone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bband_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbcontract": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbdev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbmeanrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbvol": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbw": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbw_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bbzone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bear_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bearish_pressure": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bias": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bmt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_boll_pos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bollinger_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bollwidth": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bpk": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_br": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_breakfail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_breakout_fake": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_breakout_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_brkfail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bsqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bsrf": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bss": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bvm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_candle_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ccr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_center": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_chop": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_choppiness": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_choppy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_choppy_adx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_clarity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_cleanup_fail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_clear_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_cm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_comp_rev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_conflict": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_consis": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_consist": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_consol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_consolidation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_contra_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_contrarian": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_contrarian_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_contrarian_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_corr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_crosscorr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_diver": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_diverg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_down_momentum": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_drawdown_speed": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dst": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_bounce": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_clean": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_cleanup": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_sweep": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_swing": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dust_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dustclean": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_dvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_eff_disp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_eff_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_eff_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_efficiency_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_effr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_effratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ent": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_entropy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_entropy_micro": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_er": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_exh": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_extreme_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_extreme_revert": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fake_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fake_breakout": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fake_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fakebreak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fakeout_rsi_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_false_break": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_falsebreak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fbk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fbo": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fbrk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_fkbreak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_flow_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_gapfade": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hdr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_high_pos": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_high_vol_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_safety": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_time_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_timeout": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_timeout_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_to": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hold_window": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holddecay": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdpenalty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdprs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdtime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdtime_risk": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdtimeout": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_holdto": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hot": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hri": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hrv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_hsp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_htp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_htr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_imb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_intra_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_intraday_imbalance": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_intraday_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_intraday_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ldiv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lhv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_bounce": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_distort": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_drought": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_exhaust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_exhaustion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_imp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_mag": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_magnet_fade": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_magnet_rev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_magnet_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_rev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_shock": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_sqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_sweep": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_trap_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liq_w": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqabn": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqdrop": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqmag": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqmagnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqrev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liqrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquid": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquid_gap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidation_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_dry": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_dryup": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_gap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_sweep": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_tiny": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquidity_trap": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_liquiditygap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lmr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_long_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_long_short_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_longshort": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_longshort_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_longweak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_loss_cluster": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_low_adx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lowmom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lowvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lowvol_choppy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lowvol_mr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqm_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqm_rvrs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqmagnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lqrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lri": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lrr": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lsi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lsimb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ltr": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ltvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_lvt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ma_slope": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mad": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_market_efficiency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_market_entropy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_market_neutrality": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_market_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_market_regime_oscillator": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_master_close": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_master_exit": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_master_flow": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_master_run": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_maxhold": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mci": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_md": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mdf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mdr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mdv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_me": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mean_rev_boll": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mean_rev_confidence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mean_reversion_confidence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mean_reversion_risk": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mean_revert_decay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meandev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meank": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meanrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meanrev_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meanrevert": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_meanrevertime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mft": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mht": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_micro_corr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_micro_noise": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_micro_profit_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_micro_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_micro_weakness": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_microrange": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_midp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_midprice": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mini_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mkt_eff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mkt_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mktconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mktreg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mmc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_coherence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_dec": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_decay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_fade": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mom_vol_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momcon": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momconflict": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momconsensus": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momconsistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momd": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momdec": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momdecay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momdiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_coherence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_decay": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_exhaustion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momentum_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momqual": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momrev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momrv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_momweak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_money_flow": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mpd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mpf": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mr": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_mr_conf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mr_failure": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mr_signal": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mr_skew": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mr_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrbm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrmean": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrq": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrr": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrsi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrstrength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mrvc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mtc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mte": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mtf_align": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mtmc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mtmdecay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_multi_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_multi_time_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_multi_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_multimom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_multitimeframe": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_mur": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_narrow_range": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_net_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_netreverse": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_netting": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_filter": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_intensity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_level": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_signal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noise_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_noiseratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_nri": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_nrv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ntrend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_obvdiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ohlc_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_order_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_osc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_oscillation_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_overbought_risk": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_overheat": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_oversold_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_path_curv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pdf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pmf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pos_reg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ppc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pres_idx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_coherence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_eff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_efficiency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_jump": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_position": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_volatility": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_volume_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_price_zone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pricepath": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pricequality": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pricestall": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_prich": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_prp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pseudo_breakout": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pseudo_signal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pseudotrend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pvc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pvd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pvm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_pvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_range_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_range_pos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_range_position": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_range_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rangebound": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rangehold": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rangestag": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rbd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rct": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ree": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reg_uncert": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reg_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_adapt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_ambiguity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_chaos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_clarity": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_regime_confusion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_entropy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_fear": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_filter": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_noise": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_quality": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_r2": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_shift": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_switch": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_unc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_unknown": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_vol_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regime_voltrend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regimeavoid": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regimeuncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regimeunk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regimeunknown": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_regn": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_residual_meanrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_retmov": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_retrace": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_retrace_weakness": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_conflict": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_fail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_intensity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_liq": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_ma": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_mom": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_net": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rev_surge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_confirm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_delta": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_pat": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_power": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_proximity": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_safety": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_signal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_volatility": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversal_volume": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversalrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversalscore": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversalsignal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reversalstrength": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reverse_net": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reverse_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reverse_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_reverse_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revert": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revint": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revpot": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revstrength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_revvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rgmm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rgn_un": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rgpos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_risk_mode": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_riskregime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rngbd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rpm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rsi_extreme": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rsi_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rsi_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rsi_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rsidiv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ru": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rui": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvn": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvol": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_rvsurge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sdl": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sent_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_shadow": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sho": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_short_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_short_reversal_risk": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_short_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_short_sqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_short_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_shortrev": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_shortrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sideways": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sl": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sl_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_slconc": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_slhit": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_snr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sq_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_squeeze_exhaustion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_squeeze_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_sqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ssd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ssr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stagnant": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_state_aware": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stbl": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stop_avoidance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stop_cluster": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stop_hunt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stop_proximity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stopclean": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stopcluster": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stopdist": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stoploss": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_stoptrap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_str": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_supres": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ta": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tail_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tailmom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tau_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tci": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tcl": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tclr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tcon": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tcsi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tdc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tde": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tdf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tdi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tdr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_te": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tef": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_teff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tei": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_teo": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ter": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_texh": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tf_ex": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tfatigue": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_thresh": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_time_decay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_time_decay_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timedecay": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timeout": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timeout_decay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timeout_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timeoutclean": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timepenalty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timereversal": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_timing_fail": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tndstr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_to": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tor": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tpr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tq": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trad_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trd_inertia_decay": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trd_qlt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trd_str": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trdcon": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trdstr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trdvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trdwk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tre": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_treff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tregime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tren": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_alignment": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_ambig": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_blur": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_clarity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_coherence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_con": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_conflict": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_conformity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_confusion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_cons": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_consensus": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_eff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_efficiency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_ex": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_exhaust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_exhaustion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_fade": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_fatigue": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_fuzzy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_incon": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_instability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_integrity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_mr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_noise": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_persist": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_qual": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_quality": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_rev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_slope": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_stab": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_str": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_unstable": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_vuln": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_weak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_weakness": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trend_zscore": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendclarity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendclr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendcoherence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendcon": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendcons": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendexhaust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendnoise": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendregime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendsig": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendstab": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendstrength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendvol_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trendvoldiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trenq": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trentropy": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trenvix": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trexf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trnd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trndstb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trstr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_trv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ts": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tsc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tscore": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tsd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tskew": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tsr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tss": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tstb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tte": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_ttv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tvdiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tvmb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_tw": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_uncert": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_uncert_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unk_adx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unk_reg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unk_shape": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unk_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkn": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkn_adx": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkn_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkn_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkn_vol_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_chaos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_osc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknown_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unknownregime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_unkreg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_utr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_va": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vam": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vb": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vbc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vbd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vbf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vbm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vcc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vcd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vci": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vcl": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vcr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vcv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vdiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vdp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vdryup": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vdu": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vif": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vis": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vix": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vld": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vlmc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vltr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vmnt": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vmom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_accel": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_adapt_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_adj": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_adj_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_adjust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_adverse": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_asym": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_break_failure": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_breakdown": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_change": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_chaos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_chg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_chop": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_cleanse": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_cluster": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_comp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_compress": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_compression": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_conf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_confinement": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_confirm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_confirm_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_consolidation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_cont": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_contract": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_contraction": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_convergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_deviation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_disp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_div": {
+    "status": "quarantined",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_vol_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_exp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_expand": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_expansion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_filter": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_impact": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_jump": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_low": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_ma": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_ma_reversal": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_mom_div": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_ob": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_ord": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_price_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_price_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_regime_shift": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_reversal": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_skew": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_slope": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_spike": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_spread": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_sqz": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_stab": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_surge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_trend_con": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_uncertainty": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vol_zone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vola_surge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volab": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volabnorm": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volad": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voladj_mom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volanom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volanomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volat": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_break": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_contraction": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_expansion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_mean_reversion": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_regime_change": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_shock": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_shrink": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_skew": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_spike": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_stability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_stall": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatility_zone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatilityspike": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volatrap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volbreak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volchange": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volclarity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volclust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volcom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volcon": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volconf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volconfirm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volconv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volcv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voldiff": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voldiv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volexp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volgap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volimb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volimp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volinstability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volmom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volnoi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volprc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volprdiscor": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volpric": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volprice": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volprice_corr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volpricecorr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volreg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volregime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volrev": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volreversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volrisk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volrsi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volrvol": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volshift": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volshock": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volshrink": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volskew": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volslump": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volspike": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volsq": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volstab": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volstability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volstb": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volstop": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volsurge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voltexhaust": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voltrend": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voltrend_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voltrend_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volty_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volty_shift": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volu": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_breakout": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_conf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_confirm": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_confirmation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_conviction": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_corr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_diverge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_divergence": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_impact": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_instability": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_liquidity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_lull": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_price_dissonance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_price_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_stall": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_surge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_surge_reversal": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_sync": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volume_trend_consistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumebreak": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeconfirm": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeconsistency": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeconv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeconviction": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumediv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeimpact": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volumeprice": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_volvol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vom": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vop": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_voreg": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vos": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vp_div": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vp_diverge": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vp_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vp_risk": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vpc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vpd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vpdiv": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vpt_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vptc": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vqci": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vrat": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vrf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vri": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vrr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vrs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vs": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vsf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vshock": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vsi": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vsp": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vsqueeze": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vsr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vtr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vtrend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vts": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vv": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vvd": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vvr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_vxf": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wave_regime": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_weak_trend": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_whale_cleanup": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_whipsaw": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wick_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wick_reversal": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wick_trap": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wk_mom": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_wr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_zone": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_zscore_revert": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "amihud_illiquidity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "bb_lower": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "bb_upper": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "bb_width_raw": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "bid_ask_spread": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "btc_dominance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "bull_bear_index": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "buy_sell_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "buy_volume": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cci_14": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cloud_bollinger_width": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cloud_microstructure_kyle": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cloud_obv_oscillator": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cloud_rsi_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cloud_vwap_deviation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cmf_20": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "consolidation": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cross_market_corr": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cvd_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "cvd_volume_residual": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "depth_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "dollar_volume": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "exchange_net_flow": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "fear_greed_index": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "fear_greed_macro": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "fear_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "flow_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_oi_alignment": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_oi_divergence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate_24h": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate_extreme": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate_ma": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "funding_rate_vol": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "gap_size": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "global_liquidity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "high_low_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ichimoku_kijun": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ichimoku_tenkan": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "keltner_lower": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "keltner_upper": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "liquidation_magnet": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "liquidation_pressure": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "liquidity_premium": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "liquidity_score": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "long_short_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "mfi_14": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "multi_tf_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "open_interest_momentum": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "options_structure": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "order_flow_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "order_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "orderflow_delta": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "pressure_index": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "price_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "price_range": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "price_to_ma20": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "psar": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "regime_change": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "regime_transition_score": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "reverse_pattern": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "risk_on_score": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "rsi_7": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "rsi_vol_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "sell_volume": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "smart_money_flow": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "spike_detection": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "stoch_d": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "stoch_k": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "trade_intensity": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "trend_persistence": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "trend_strength": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "trix_12": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "turnover_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "tvl_change": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "uo": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "volatility_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "volatility_ratio": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "volume_anomaly": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "whale_transactions": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "williams_r": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "win_streak": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha001": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha002": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha003": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha006": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha009": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha012": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha016": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha020": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha028": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha038": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha044": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha049": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha053": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha064": {
+    "status": "quarantined",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha068": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha086": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "wq_alpha101": {
+    "status": "pending_archive",
+    "since": "2026-07-20T22:10:04.350273+00:00"
+  },
+  "ai_gen_bsq": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_corr_break": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_dust_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_liq_quality": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_liquidity_squeeze": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_low_vol_momentum": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_mrext": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_slrisk": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_stability": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_trend_conf": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_voladj_momentum": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_volume_flow": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_volumereg": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_vpr": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "ai_gen_vqc": {
+    "status": "pending_archive",
+    "since": "2026-08-03T20:05:56.678172+00:00"
+  }
+}

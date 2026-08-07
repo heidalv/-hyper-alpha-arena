@@ -1,0 +1,222 @@
+/**
+ * Obsidia 设计令牌 —— Tokyo Night 暗色
+ * ------------------------------------------------------------
+ * 用 `.obsidia` 作用域覆盖 shadcn 的 HSL 变量，让所有现有页面
+ * （bg-background / text-foreground / card ...）自动换肤成 Tokyo Night，
+ * 与真实 vault 的 Canvas 配色浑然一体。
+ * 同时提供 --obs-* 专用令牌给外壳组件使用。
+ * 配色基准: #1a1b26 底 / #24283b 面板 / #c0caf5 文字 / #7aa2f7 蓝 / #bb9af7 紫
+ */
+
+.obsidia {
+  /* ---- shadcn 令牌重映射 (HSL 分量) ---- */
+  --background: 230 23% 13%;
+  --foreground: 229 76% 86%;
+  --card: 229 24% 17%;
+  --card-foreground: 229 76% 86%;
+  --popover: 231 27% 12%;
+  --popover-foreground: 229 76% 86%;
+  --primary: 221 89% 72%;
+  --primary-foreground: 230 30% 10%;
+  --secondary: 232 20% 22%;
+  --secondary-foreground: 229 40% 88%;
+  --muted: 232 18% 20%;
+  --muted-foreground: 231 20% 62%;
+  --accent: 261 60% 34%;
+  --accent-foreground: 261 87% 91%;
+  --destructive: 349 89% 68%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 232 20% 24%;
+  --input: 232 20% 24%;
+  --ring: 221 89% 72%;
+  --success: 92 46% 58%;
+  --warning: 24 100% 68%;
+  --selected-bg: 221 60% 24%;
+  --selected-border: 221 89% 72%;
+  --radius: 0.5rem;
+
+  /* ---- Obsidia 专用令牌 ---- */
+  --obs-bg: #1a1b26;
+  --obs-ribbon: #16161e;
+  --obs-sidebar: #1b1d2b;
+  --obs-panel: #24283b;
+  --obs-tabbar: #16161e;
+  --obs-statusbar: #16161e;
+  --obs-border: #2a2e3f;
+  --obs-border-strong: #3b4261;
+  --obs-text: #c0caf5;
+  --obs-text-muted: #787c99;
+  --obs-text-faint: #565f89;
+  --obs-accent: #7aa2f7;
+  --obs-purple: #bb9af7;
+  --obs-green: #9ece6a;
+  --obs-red: #f7768e;
+  --obs-orange: #ff9e64;
+  --obs-yellow: #e0af68;
+  --obs-cyan: #7dcfff;
+  --obs-hover: rgba(122, 162, 247, 0.10);
+  --obs-active: rgba(122, 162, 247, 0.18);
+}
+
+/* 外壳根：铺满视口、Tokyo Night 底色 */
+.obsidia-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--obs-bg);
+  color: var(--obs-text);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Tahoma, sans-serif;
+  overflow: hidden;
+}
+
+/* 细滚动条（Obsidian 风格） */
+.obsidia ::-webkit-scrollbar { width: 10px; height: 10px; }
+.obsidia ::-webkit-scrollbar-track { background: transparent; }
+.obsidia ::-webkit-scrollbar-thumb {
+  background: #2a2e3f;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.obsidia ::-webkit-scrollbar-thumb:hover { background: #3b4261; background-clip: content-box; }
+
+/* Ribbon 图标按钮 */
+.obs-ribbon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 2px auto;
+  border-radius: 8px;
+  color: var(--obs-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.obs-ribbon-btn:hover { background: var(--obs-hover); color: var(--obs-text); }
+.obs-ribbon-btn.active { background: var(--obs-active); color: var(--obs-accent); }
+
+/* 侧栏导航项 */
+.obs-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  margin: 1px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--obs-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s, color 0.12s;
+}
+.obs-nav-item:hover { background: var(--obs-hover); color: var(--obs-text); }
+.obs-nav-item.active { background: var(--obs-active); color: var(--obs-text); font-weight: 600; }
+.obs-nav-item.active svg { color: var(--obs-accent); }
+
+.obs-nav-group-label {
+  padding: 8px 14px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--obs-text-faint);
+  text-transform: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 标签页 */
+.obs-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 0 10px;
+  height: 34px;
+  font-size: 13px;
+  color: var(--obs-text-muted);
+  background: transparent;
+  border-right: 1px solid var(--obs-border);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.obs-tab:hover { background: var(--obs-hover); color: var(--obs-text); }
+.obs-tab.active { background: var(--obs-bg); color: var(--obs-text); }
+.obs-tab .obs-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  opacity: 0.5;
+}
+.obs-tab .obs-tab-close:hover { background: var(--obs-border-strong); opacity: 1; }
+
+/* 命令面板 */
+.obs-cmd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 9999;
+}
+.obs-cmd-panel {
+  width: 640px;
+  max-width: 90vw;
+  max-height: 60vh;
+  background: var(--obs-panel);
+  border: 1px solid var(--obs-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.obs-cmd-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 15px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--obs-border);
+  color: var(--obs-text);
+  outline: none;
+}
+.obs-cmd-list { overflow-y: auto; padding: 6px; }
+.obs-cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--obs-text-muted);
+  cursor: pointer;
+}
+.obs-cmd-item .obs-cmd-hint { margin-left: auto; font-size: 11px; color: var(--obs-text-faint); }
+.obs-cmd-item.active, .obs-cmd-item:hover { background: var(--obs-active); color: var(--obs-text); }
+
+/* Markdown 阅读区（配合 @tailwindcss/typography） */
+.obs-markdown { color: var(--obs-text); }
+.obs-markdown a { color: var(--obs-accent); text-decoration: none; }
+.obs-markdown a:hover { text-decoration: underline; }
+.obs-wikilink {
+  color: var(--obs-purple);
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(187,154,247,0.5);
+}
+.obs-wikilink:hover { background: rgba(187,154,247,0.12); }
+.obs-wikilink.unresolved { color: var(--obs-text-faint); border-bottom-color: rgba(86,95,137,0.5); }
+
+/* React Flow 暗色适配 */
+.obsidia .react-flow__background { background: var(--obs-bg); }
+.obsidia .react-flow__controls { background: var(--obs-panel); border: 1px solid var(--obs-border); border-radius: 6px; }
+.obsidia .react-flow__controls-button { background: var(--obs-panel); border-bottom: 1px solid var(--obs-border); color: var(--obs-text); fill: var(--obs-text); }
+.obsidia .react-flow__controls-button:hover { background: var(--obs-hover); }
+.obsidia .react-flow__attribution { background: transparent; color: var(--obs-text-faint); }

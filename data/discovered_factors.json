@@ -1,0 +1,1199 @@
+{
+  "ai_a101_mom_4h": {
+    "factor_id": "ai_a101_mom_4h",
+    "name": "a101_mom_4h",
+    "category": "alpha101",
+    "formula": "delta(close, 20) / (delay(close, 20) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.2954,
+      "icir": -1.1776,
+      "ic_decay_halflife": 7,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.287081,
+      "oos_sharpe": -1.5216,
+      "oos_win_rate": 0.4425,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.270899,
+          "sharpe": -1.8162,
+          "win_rate": 0.431,
+          "trades": 58,
+          "n": 514
+        },
+        "ETH": {
+          "net_return": -0.390526,
+          "sharpe": -1.9217,
+          "win_rate": 0.4483,
+          "trades": 58,
+          "n": 514
+        },
+        "SOL": {
+          "net_return": -0.199818,
+          "sharpe": -0.8269,
+          "win_rate": 0.4483,
+          "trades": 58,
+          "n": 514
+        }
+      }
+    },
+    "created_at": 1783506343.9891248,
+    "updated_at": 1785390868.424123,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "20期动量"
+    },
+    "scored_at": 1783506386.4288535
+  },
+  "ai_a101_mom_1d": {
+    "factor_id": "ai_a101_mom_1d",
+    "name": "a101_mom_1d",
+    "category": "alpha101",
+    "formula": "delta(close, 20) / (delay(close, 20) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.1456,
+      "icir": -0.8304,
+      "ic_decay_halflife": 8,
+      "monotonicity": 0.5833,
+      "oos_net_return": -0.423012,
+      "oos_sharpe": -0.4236,
+      "oos_win_rate": 0.5136,
+      "oos_trades": 588,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": 0.165611,
+          "sharpe": 0.3284,
+          "win_rate": 0.5561,
+          "trades": 196,
+          "n": 877
+        },
+        "ETH": {
+          "net_return": -1.097187,
+          "sharpe": -1.2523,
+          "win_rate": 0.4541,
+          "trades": 196,
+          "n": 877
+        },
+        "SOL": {
+          "net_return": -0.337461,
+          "sharpe": -0.3469,
+          "win_rate": 0.5306,
+          "trades": 196,
+          "n": 877
+        }
+      }
+    },
+    "created_at": 1783506344.0780082,
+    "updated_at": 1785390868.4481964,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "20期动量"
+    },
+    "scored_at": 1783506445.9349713
+  },
+  "ai_a101_mom_fast_4h": {
+    "factor_id": "ai_a101_mom_fast_4h",
+    "name": "a101_mom_fast_4h",
+    "category": "alpha101",
+    "formula": "delta(close, 6) / (delay(close, 6) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0801,
+      "icir": -0.3313,
+      "ic_decay_halflife": 12,
+      "monotonicity": 0.9167,
+      "oos_net_return": -0.173159,
+      "oos_sharpe": -0.9932,
+      "oos_win_rate": 0.4611,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.234019,
+          "sharpe": -1.6552,
+          "win_rate": 0.4167,
+          "trades": 60,
+          "n": 528
+        },
+        "ETH": {
+          "net_return": -0.184024,
+          "sharpe": -0.8873,
+          "win_rate": 0.4667,
+          "trades": 60,
+          "n": 528
+        },
+        "SOL": {
+          "net_return": -0.101433,
+          "sharpe": -0.437,
+          "win_rate": 0.5,
+          "trades": 60,
+          "n": 528
+        }
+      }
+    },
+    "created_at": 1783506344.1511092,
+    "updated_at": 1785390868.473009,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "6期动量"
+    },
+    "scored_at": 1783506473.2182724
+  },
+  "ai_a101_rev_z_4h": {
+    "factor_id": "ai_a101_rev_z_4h",
+    "name": "a101_rev_z_4h",
+    "category": "alpha101",
+    "formula": "-1 * ((close - ts_mean(close, 20)) / (ts_std(close, 20) + 1e-9))",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.1798,
+      "icir": 0.6847,
+      "ic_decay_halflife": 10,
+      "monotonicity": 0.5,
+      "oos_net_return": -0.189549,
+      "oos_sharpe": -0.9257,
+      "oos_win_rate": 0.5287,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.131494,
+          "sharpe": -0.8605,
+          "win_rate": 0.5172,
+          "trades": 58,
+          "n": 515
+        },
+        "ETH": {
+          "net_return": -0.330197,
+          "sharpe": -1.5405,
+          "win_rate": 0.5345,
+          "trades": 58,
+          "n": 515
+        },
+        "SOL": {
+          "net_return": -0.106956,
+          "sharpe": -0.3761,
+          "win_rate": 0.5345,
+          "trades": 58,
+          "n": 515
+        }
+      }
+    },
+    "created_at": 1783506344.206941,
+    "updated_at": 1785390868.559179,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "均值回归z分"
+    },
+    "scored_at": 1783506494.0989678
+  },
+  "ai_a101_rev_z_1d": {
+    "factor_id": "ai_a101_rev_z_1d",
+    "name": "a101_rev_z_1d",
+    "category": "alpha101",
+    "formula": "-1 * ((close - ts_mean(close, 20)) / (ts_std(close, 20) + 1e-9))",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.0999,
+      "icir": 0.5868,
+      "ic_decay_halflife": 3,
+      "monotonicity": 0.6667,
+      "oos_net_return": 0.361941,
+      "oos_sharpe": 0.3943,
+      "oos_win_rate": 0.4983,
+      "oos_trades": 588,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.10902,
+          "sharpe": -0.2131,
+          "win_rate": 0.4796,
+          "trades": 196,
+          "n": 878
+        },
+        "ETH": {
+          "net_return": 0.728803,
+          "sharpe": 0.8699,
+          "win_rate": 0.5,
+          "trades": 196,
+          "n": 878
+        },
+        "SOL": {
+          "net_return": 0.46604,
+          "sharpe": 0.5261,
+          "win_rate": 0.5153,
+          "trades": 196,
+          "n": 878
+        }
+      }
+    },
+    "created_at": 1783506344.3327363,
+    "updated_at": 1785390868.58982,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "均值回归z分"
+    },
+    "scored_at": 1783506544.2592394
+  },
+  "ai_a101_close_open_4h": {
+    "factor_id": "ai_a101_close_open_4h",
+    "name": "a101_close_open_4h",
+    "category": "alpha101",
+    "formula": "(close - open) / (open + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0702,
+      "icir": -0.5095,
+      "ic_decay_halflife": 2,
+      "monotonicity": 0.5833,
+      "oos_net_return": -0.048878,
+      "oos_sharpe": -0.353,
+      "oos_win_rate": 0.4944,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.082383,
+          "sharpe": -0.5658,
+          "win_rate": 0.4833,
+          "trades": 60,
+          "n": 534
+        },
+        "ETH": {
+          "net_return": -0.272421,
+          "sharpe": -1.3768,
+          "win_rate": 0.45,
+          "trades": 60,
+          "n": 534
+        },
+        "SOL": {
+          "net_return": 0.20817,
+          "sharpe": 0.8835,
+          "win_rate": 0.55,
+          "trades": 60,
+          "n": 534
+        }
+      }
+    },
+    "created_at": 1783506344.3768117,
+    "updated_at": 1785390868.6084092,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "日内收益(Alpha#101变体)"
+    },
+    "scored_at": 1783506581.8317754
+  },
+  "ai_a101_hl_pos_4h": {
+    "factor_id": "ai_a101_hl_pos_4h",
+    "name": "a101_hl_pos_4h",
+    "category": "alpha101",
+    "formula": "(close - low) / ((high - low) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0643,
+      "icir": -0.5562,
+      "ic_decay_halflife": 3,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.250033,
+      "oos_sharpe": -1.2151,
+      "oos_win_rate": 0.4222,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.096012,
+          "sharpe": -0.6594,
+          "win_rate": 0.4833,
+          "trades": 60,
+          "n": 534
+        },
+        "ETH": {
+          "net_return": -0.233685,
+          "sharpe": -1.1693,
+          "win_rate": 0.4333,
+          "trades": 60,
+          "n": 534
+        },
+        "SOL": {
+          "net_return": -0.420401,
+          "sharpe": -1.8165,
+          "win_rate": 0.35,
+          "trades": 60,
+          "n": 534
+        }
+      }
+    },
+    "created_at": 1783506344.4113536,
+    "updated_at": 1785390869.5983005,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "收盘在高低区间位置"
+    },
+    "scored_at": 1783506609.250779
+  },
+  "ai_a101_alpha006_4h": {
+    "factor_id": "ai_a101_alpha006_4h",
+    "name": "a101_alpha006_4h",
+    "category": "alpha101",
+    "formula": "-1 * ts_corr(open, volume, 10)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.0219,
+      "icir": 0.1377,
+      "ic_decay_halflife": 11,
+      "monotonicity": 0.5,
+      "oos_net_return": 0.044952,
+      "oos_sharpe": 0.1579,
+      "oos_win_rate": 0.4778,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.055819,
+          "sharpe": -0.3619,
+          "win_rate": 0.4667,
+          "trades": 60,
+          "n": 525
+        },
+        "ETH": {
+          "net_return": 0.118258,
+          "sharpe": 0.5535,
+          "win_rate": 0.4667,
+          "trades": 60,
+          "n": 525
+        },
+        "SOL": {
+          "net_return": 0.072417,
+          "sharpe": 0.282,
+          "win_rate": 0.5,
+          "trades": 60,
+          "n": 525
+        }
+      }
+    },
+    "created_at": 1783506344.4488935,
+    "updated_at": 1785390870.092263,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "Alpha#6 量价背离"
+    },
+    "scored_at": 1783506639.4409695
+  },
+  "ai_a101_alpha012_4h": {
+    "factor_id": "ai_a101_alpha012_4h",
+    "name": "a101_alpha012_4h",
+    "category": "alpha101",
+    "formula": "sign(delta(volume, 1)) * (-1 * delta(close, 1))",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.056,
+      "icir": 0.394,
+      "ic_decay_halflife": 9,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.048251,
+      "oos_sharpe": -0.064,
+      "oos_win_rate": 0.4556,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": 0.082915,
+          "sharpe": 0.5272,
+          "win_rate": 0.5167,
+          "trades": 60,
+          "n": 533
+        },
+        "ETH": {
+          "net_return": 0.063878,
+          "sharpe": 0.2857,
+          "win_rate": 0.45,
+          "trades": 60,
+          "n": 533
+        },
+        "SOL": {
+          "net_return": -0.291546,
+          "sharpe": -1.0049,
+          "win_rate": 0.4,
+          "trades": 60,
+          "n": 533
+        }
+      }
+    },
+    "created_at": 1783506344.4758527,
+    "updated_at": 1785390870.1822321,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "Alpha#12 量增价跌反转"
+    },
+    "scored_at": 1783506664.1969497
+  },
+  "ai_a101_corr_c_v_4h": {
+    "factor_id": "ai_a101_corr_c_v_4h",
+    "name": "a101_corr_c_v_4h",
+    "category": "alpha101",
+    "formula": "ts_corr(close, volume, 15)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.1436,
+      "icir": -0.4972,
+      "ic_decay_halflife": 20,
+      "monotonicity": 0.5,
+      "oos_net_return": -0.033005,
+      "oos_sharpe": -0.2666,
+      "oos_win_rate": 0.5345,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.187057,
+          "sharpe": -1.1267,
+          "win_rate": 0.5345,
+          "trades": 58,
+          "n": 520
+        },
+        "ETH": {
+          "net_return": 0.003955,
+          "sharpe": 0.0167,
+          "win_rate": 0.5172,
+          "trades": 58,
+          "n": 520
+        },
+        "SOL": {
+          "net_return": 0.084086,
+          "sharpe": 0.3101,
+          "win_rate": 0.5517,
+          "trades": 58,
+          "n": 520
+        }
+      }
+    },
+    "created_at": 1783506344.5123973,
+    "updated_at": 1785390870.3460572,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "价量滚动相关"
+    },
+    "scored_at": 1783506691.7790265
+  },
+  "ai_a101_corr_c_v_1d": {
+    "factor_id": "ai_a101_corr_c_v_1d",
+    "name": "a101_corr_c_v_1d",
+    "category": "alpha101",
+    "formula": "ts_corr(close, volume, 15)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0676,
+      "icir": -0.3227,
+      "ic_decay_halflife": 15,
+      "monotonicity": 0.5,
+      "oos_net_return": -0.138096,
+      "oos_sharpe": -0.2907,
+      "oos_win_rate": 0.4738,
+      "oos_trades": 591,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.699548,
+          "sharpe": -1.2327,
+          "win_rate": 0.467,
+          "trades": 197,
+          "n": 883
+        },
+        "ETH": {
+          "net_return": 1.306446,
+          "sharpe": 1.428,
+          "win_rate": 0.5228,
+          "trades": 197,
+          "n": 883
+        },
+        "SOL": {
+          "net_return": -1.021186,
+          "sharpe": -1.0675,
+          "win_rate": 0.4315,
+          "trades": 197,
+          "n": 883
+        }
+      }
+    },
+    "created_at": 1783506344.5955107,
+    "updated_at": 1785390870.4041893,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "价量滚动相关"
+    },
+    "scored_at": 1783506736.179828
+  },
+  "ai_a101_vol_mom_4h": {
+    "factor_id": "ai_a101_vol_mom_4h",
+    "name": "a101_vol_mom_4h",
+    "category": "alpha101",
+    "formula": "delta(close, 5) / (ts_std(close, 20) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0663,
+      "icir": -0.3129,
+      "ic_decay_halflife": 14,
+      "monotonicity": 0.8333,
+      "oos_net_return": -0.21308,
+      "oos_sharpe": -0.9352,
+      "oos_win_rate": 0.4655,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.150958,
+          "sharpe": -0.9923,
+          "win_rate": 0.5172,
+          "trades": 58,
+          "n": 515
+        },
+        "ETH": {
+          "net_return": -0.065594,
+          "sharpe": -0.3018,
+          "win_rate": 0.5,
+          "trades": 58,
+          "n": 515
+        },
+        "SOL": {
+          "net_return": -0.422689,
+          "sharpe": -1.5116,
+          "win_rate": 0.3793,
+          "trades": 58,
+          "n": 515
+        }
+      }
+    },
+    "created_at": 1783506344.6567676,
+    "updated_at": 1785390870.4209342,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "波动归一动量"
+    },
+    "scored_at": 1783506757.8071656
+  },
+  "ai_a101_tsr_vol_dir_4h": {
+    "factor_id": "ai_a101_tsr_vol_dir_4h",
+    "name": "a101_tsr_vol_dir_4h",
+    "category": "alpha101",
+    "formula": "ts_rank(volume, 20) * sign(delta(close, 5))",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0423,
+      "icir": -0.1903,
+      "ic_decay_halflife": 8,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.132532,
+      "oos_sharpe": -0.6477,
+      "oos_win_rate": 0.477,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.132906,
+          "sharpe": -0.8693,
+          "win_rate": 0.5,
+          "trades": 58,
+          "n": 515
+        },
+        "ETH": {
+          "net_return": -0.13109,
+          "sharpe": -0.6013,
+          "win_rate": 0.4828,
+          "trades": 58,
+          "n": 515
+        },
+        "SOL": {
+          "net_return": -0.133599,
+          "sharpe": -0.4725,
+          "win_rate": 0.4483,
+          "trades": 58,
+          "n": 515
+        }
+      }
+    },
+    "created_at": 1783506345.600443,
+    "updated_at": 1785390870.4449923,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "量能排名×方向"
+    },
+    "scored_at": 1783506781.8769028
+  },
+  "ai_a101_decay_mom_4h": {
+    "factor_id": "ai_a101_decay_mom_4h",
+    "name": "a101_decay_mom_4h",
+    "category": "alpha101",
+    "formula": "decay_linear(delta(close, 1), 10)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.1123,
+      "icir": -0.469,
+      "ic_decay_halflife": 8,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.373141,
+      "oos_sharpe": -1.9853,
+      "oos_win_rate": 0.4389,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.414146,
+          "sharpe": -2.8051,
+          "win_rate": 0.45,
+          "trades": 60,
+          "n": 525
+        },
+        "ETH": {
+          "net_return": -0.450864,
+          "sharpe": -2.1512,
+          "win_rate": 0.4,
+          "trades": 60,
+          "n": 525
+        },
+        "SOL": {
+          "net_return": -0.254412,
+          "sharpe": -0.9996,
+          "win_rate": 0.4667,
+          "trades": 60,
+          "n": 525
+        }
+      }
+    },
+    "created_at": 1783506345.830152,
+    "updated_at": 1785390870.4693584,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "线性衰减动量"
+    },
+    "scored_at": 1783506806.507919
+  },
+  "ai_a101_argmax_rev_4h": {
+    "factor_id": "ai_a101_argmax_rev_4h",
+    "name": "a101_argmax_rev_4h",
+    "category": "alpha101",
+    "formula": "-1 * (ts_argmax(close, 20) - 0.5)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.2241,
+      "icir": -0.8589,
+      "ic_decay_halflife": 14,
+      "monotonicity": 0.5833,
+      "oos_net_return": -0.114614,
+      "oos_sharpe": -0.4317,
+      "oos_win_rate": 0.5287,
+      "oos_trades": 174,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": 0.062332,
+          "sharpe": 0.4065,
+          "win_rate": 0.569,
+          "trades": 58,
+          "n": 515
+        },
+        "ETH": {
+          "net_return": -0.25013,
+          "sharpe": -1.1526,
+          "win_rate": 0.5,
+          "trades": 58,
+          "n": 515
+        },
+        "SOL": {
+          "net_return": -0.156043,
+          "sharpe": -0.5489,
+          "win_rate": 0.5172,
+          "trades": 58,
+          "n": 515
+        }
+      }
+    },
+    "created_at": 1783506345.9289398,
+    "updated_at": 1785390870.4922183,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "新高位置反转"
+    },
+    "scored_at": 1783506827.447665
+  },
+  "ai_a101_argmax_rev_1d": {
+    "factor_id": "ai_a101_argmax_rev_1d",
+    "name": "a101_argmax_rev_1d",
+    "category": "alpha101",
+    "formula": "-1 * (ts_argmax(close, 20) - 0.5)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0705,
+      "icir": -0.3859,
+      "ic_decay_halflife": 14,
+      "monotonicity": 0.6667,
+      "oos_net_return": 0.08487,
+      "oos_sharpe": 0.0333,
+      "oos_win_rate": 0.5085,
+      "oos_trades": 588,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.16822,
+          "sharpe": -0.3287,
+          "win_rate": 0.5255,
+          "trades": 196,
+          "n": 878
+        },
+        "ETH": {
+          "net_return": -0.823951,
+          "sharpe": -0.9837,
+          "win_rate": 0.5,
+          "trades": 196,
+          "n": 878
+        },
+        "SOL": {
+          "net_return": 1.24678,
+          "sharpe": 1.4124,
+          "win_rate": 0.5,
+          "trades": 196,
+          "n": 878
+        }
+      }
+    },
+    "created_at": 1783506345.9793618,
+    "updated_at": 1785390870.5249078,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "新高位置反转"
+    },
+    "scored_at": 1783506859.0434825
+  },
+  "ai_a101_range_contract_1d": {
+    "factor_id": "ai_a101_range_contract_1d",
+    "name": "a101_range_contract_1d",
+    "category": "alpha101",
+    "formula": "(ts_max(high, 10) - ts_min(low, 10)) / (close + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.034,
+      "icir": 0.1739,
+      "ic_decay_halflife": 20,
+      "monotonicity": 0.75,
+      "oos_net_return": -0.456227,
+      "oos_sharpe": -0.5632,
+      "oos_win_rate": 0.5118,
+      "oos_trades": 594,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.124504,
+          "sharpe": -0.2562,
+          "win_rate": 0.5051,
+          "trades": 198,
+          "n": 888
+        },
+        "ETH": {
+          "net_return": -0.554899,
+          "sharpe": -0.6579,
+          "win_rate": 0.5,
+          "trades": 198,
+          "n": 888
+        },
+        "SOL": {
+          "net_return": -0.689279,
+          "sharpe": -0.7755,
+          "win_rate": 0.5303,
+          "trades": 198,
+          "n": 888
+        }
+      }
+    },
+    "created_at": 1783506346.0445225,
+    "updated_at": 1785390870.548307,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "区间收缩/扩张"
+    },
+    "scored_at": 1783506894.1817944
+  },
+  "ai_a101_gap_4h": {
+    "factor_id": "ai_a101_gap_4h",
+    "name": "a101_gap_4h",
+    "category": "alpha101",
+    "formula": "(open - delay(close, 1)) / (delay(close, 1) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "F",
+    "scores": {
+      "ic_mean": 0.0,
+      "icir": 0.0,
+      "ic_decay_halflife": 0,
+      "monotonicity": 0.0,
+      "oos_net_return": 0.0,
+      "oos_sharpe": 0.0,
+      "oos_win_rate": 0.0,
+      "oos_trades": 0,
+      "redundant_with": null,
+      "per_symbol": {}
+    },
+    "created_at": 1783506346.1040616,
+    "updated_at": 1785390870.5997233,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "跳空"
+    },
+    "scored_at": 1783506897.84282
+  },
+  "ai_a101_accel_4h": {
+    "factor_id": "ai_a101_accel_4h",
+    "name": "a101_accel_4h",
+    "category": "alpha101",
+    "formula": "delta(delta(close, 1), 1)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0193,
+      "icir": -0.224,
+      "ic_decay_halflife": 3,
+      "monotonicity": 0.75,
+      "oos_net_return": -0.089527,
+      "oos_sharpe": -0.4839,
+      "oos_win_rate": 0.4556,
+      "oos_trades": 180,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": 0.035806,
+          "sharpe": 0.2324,
+          "win_rate": 0.5167,
+          "trades": 60,
+          "n": 532
+        },
+        "ETH": {
+          "net_return": -0.496911,
+          "sharpe": -2.4818,
+          "win_rate": 0.3,
+          "trades": 60,
+          "n": 532
+        },
+        "SOL": {
+          "net_return": 0.192525,
+          "sharpe": 0.7977,
+          "win_rate": 0.55,
+          "trades": 60,
+          "n": 532
+        }
+      }
+    },
+    "created_at": 1783506346.1636407,
+    "updated_at": 1785390870.6177256,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "价格加速度"
+    },
+    "scored_at": 1783506915.2806854
+  },
+  "ai_a101_mom_long_1d": {
+    "factor_id": "ai_a101_mom_long_1d",
+    "name": "a101_mom_long_1d",
+    "category": "alpha101",
+    "formula": "delta(close, 40) / (delay(close, 40) + 1e-9)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.1947,
+      "icir": -1.0038,
+      "ic_decay_halflife": 14,
+      "monotonicity": 0.6667,
+      "oos_net_return": 0.346503,
+      "oos_sharpe": 0.1853,
+      "oos_win_rate": 0.5026,
+      "oos_trades": 573,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.527432,
+          "sharpe": -1.1259,
+          "win_rate": 0.4503,
+          "trades": 191,
+          "n": 857
+        },
+        "ETH": {
+          "net_return": 0.463032,
+          "sharpe": 0.5283,
+          "win_rate": 0.5079,
+          "trades": 191,
+          "n": 857
+        },
+        "SOL": {
+          "net_return": 1.103909,
+          "sharpe": 1.1535,
+          "win_rate": 0.5497,
+          "trades": 191,
+          "n": 857
+        }
+      }
+    },
+    "created_at": 1783506346.198771,
+    "updated_at": 1785390870.661338,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "长周期动量"
+    },
+    "scored_at": 1783506939.1015725
+  },
+  "ai_a101_rev_long_1d": {
+    "factor_id": "ai_a101_rev_long_1d",
+    "name": "a101_rev_long_1d",
+    "category": "alpha101",
+    "formula": "-1 * ((close - ts_mean(close, 40)) / (ts_std(close, 40) + 1e-9))",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": 0.1341,
+      "icir": 0.8268,
+      "ic_decay_halflife": 19,
+      "monotonicity": 0.5,
+      "oos_net_return": -0.76168,
+      "oos_sharpe": -0.9142,
+      "oos_win_rate": 0.4879,
+      "oos_trades": 576,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.502679,
+          "sharpe": -0.9054,
+          "win_rate": 0.5156,
+          "trades": 192,
+          "n": 858
+        },
+        "ETH": {
+          "net_return": -1.272779,
+          "sharpe": -1.3413,
+          "win_rate": 0.474,
+          "trades": 192,
+          "n": 858
+        },
+        "SOL": {
+          "net_return": -0.509583,
+          "sharpe": -0.4958,
+          "win_rate": 0.474,
+          "trades": 192,
+          "n": 858
+        }
+      }
+    },
+    "created_at": 1783506346.2339118,
+    "updated_at": 1785390870.7096212,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "长周期均值回归"
+    },
+    "scored_at": 1783506962.551642
+  },
+  "ai_a101_vp_trend_4h": {
+    "factor_id": "ai_a101_vp_trend_4h",
+    "name": "a101_vp_trend_4h",
+    "category": "alpha101",
+    "formula": "sign(delta(close, 10)) * ts_rank(volume, 10)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0591,
+      "icir": -0.2808,
+      "ic_decay_halflife": 8,
+      "monotonicity": 0.6667,
+      "oos_net_return": -0.118629,
+      "oos_sharpe": -0.584,
+      "oos_win_rate": 0.5311,
+      "oos_trades": 177,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": -0.029724,
+          "sharpe": -0.2125,
+          "win_rate": 0.5763,
+          "trades": 59,
+          "n": 524
+        },
+        "ETH": {
+          "net_return": -0.148906,
+          "sharpe": -0.7693,
+          "win_rate": 0.5424,
+          "trades": 59,
+          "n": 524
+        },
+        "SOL": {
+          "net_return": -0.177257,
+          "sharpe": -0.7702,
+          "win_rate": 0.4746,
+          "trades": 59,
+          "n": 524
+        }
+      }
+    },
+    "created_at": 1783506346.2673078,
+    "updated_at": 1785390870.9001536,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "4h",
+      "note": "量价趋势确认"
+    },
+    "scored_at": 1783506974.387597
+  },
+  "ai_a101_vp_trend_1d": {
+    "factor_id": "ai_a101_vp_trend_1d",
+    "name": "a101_vp_trend_1d",
+    "category": "alpha101",
+    "formula": "sign(delta(close, 10)) * ts_rank(volume, 10)",
+    "source": "alpha101_lib",
+    "discovery_ic": null,
+    "discovery_rank_ic": null,
+    "status": "rejected",
+    "grade": "C",
+    "scores": {
+      "ic_mean": -0.0533,
+      "icir": -0.3974,
+      "ic_decay_halflife": 17,
+      "monotonicity": 0.5833,
+      "oos_net_return": 0.28314,
+      "oos_sharpe": 0.3567,
+      "oos_win_rate": 0.4933,
+      "oos_trades": 594,
+      "redundant_with": null,
+      "per_symbol": {
+        "BTC": {
+          "net_return": 0.119584,
+          "sharpe": 0.2346,
+          "win_rate": 0.4848,
+          "trades": 198,
+          "n": 887
+        },
+        "ETH": {
+          "net_return": 0.218083,
+          "sharpe": 0.2583,
+          "win_rate": 0.4798,
+          "trades": 198,
+          "n": 887
+        },
+        "SOL": {
+          "net_return": 0.511752,
+          "sharpe": 0.5771,
+          "win_rate": 0.5152,
+          "trades": 198,
+          "n": 887
+        }
+      }
+    },
+    "created_at": 1783506346.3198915,
+    "updated_at": 1785390870.928605,
+    "extra": {
+      "horizon": "midlong",
+      "timeframe": "1d",
+      "note": "量价趋势确认"
+    },
+    "scored_at": 1783506997.2121615
+  }
+}

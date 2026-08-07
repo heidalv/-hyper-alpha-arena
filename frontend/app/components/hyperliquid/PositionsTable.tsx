@@ -1,0 +1,289 @@
+import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { RefreshCw, TrendingUp, TrendingDown, X } from 'lucide-react';
+import {
+  getHyperliquidPositions,
+  placeManualOrder,
+  getPositionSide,
+  formatPnl,
+  formatLeverage,
+} from '@/lib/hyperliquidApi';
+import { formatPrice, formatPercentage } from '@/lib/priceFormat';
+import { getCurrentPrice } from '@/lib/hyperliquidApi';
+import type { PositionDisplay } from '@/lib/types/hyperliquid';
+import { cn } from '@/lib/utils';
+import { formatTime } from '@/lib/dateTime';
+
+interface PositionsTableProps {
+  accountId: number;
+  environment: 'testnet' | 'mainnet';
+  autoRefresh?: boolean;
+  refreshInterval?: number;
+  refreshTrigger?: number; // external trigger for forced refresh
+  onPositionClosed?: () => void;
+  className?: string;
+  showRefreshButton?: boolean;
+}
+
+export default function PositionsTable({
+  accountId,
+  environment,
+  autoRefresh = false,
+  refreshInterval = 300,
+  refreshTrigger,
+  onPositionClosed,
+  className,
+  showRefreshButton = true,
+}: PositionsTableProps) {
+  const [positions, setPositions] = useState<PositionDisplay[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [closingPositionId, setClosingPositionId] = useState<string | null>(null);
+  const [totalPnl, setTotalPnl] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadPositions();
+
+    if (autoRefresh) {
+      const interval = setInterval(loadPositions, refreshInterval * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [accountId, environment, autoRefresh, refreshInterval, refreshTrigger]);
+
+  const loadPositions = async (forceRefresh?: boolean) => {
+    try {
+      setLoading(true);
+      const data = await getHyperliquidPositions(accountId, environment, forceRefresh);
+      // Transform positions to display format
+      const displayPositions: PositionDisplay[] = data.positions.map((pos) => {
+        const side = getPositionSide(pos.szi);
+        const sizeAbs = Math.abs(pos.szi);
+        const positionValue = pos.positionValue || 0;
+        const unrealized = pos.unrealizedPnl || 0;
+        const marginUsed = pos.marginUsed || 0;
+        const pnlPercent = positionValue !== 0 ? (unrealized / positionValue) * 100 : 0;
+        const marginUsagePercent = positionValue !== 0 ? (marginUsed / positionValue) * 100 : 0;
+
+        let riskLevel: 'low' | 'medium' | 'high' = 'low';
+        if (marginUsagePercent > 75) riskLevel = 'high';
+        else if (marginUsagePercent > 50) riskLevel = 'medium';
+
+        return {
+          ...pos,
+          side,
+          sizeAbs,
+          pnlPercent,
+          riskLevel,
+          positionValue,
+          unrealizedPnl: unrealized,
+          marginUsed,
+          liquidationPx: pos.liquidationPx ?? 0,
+          entryPx: pos.entryPx ?? 0,
+        };
+      });
+
+      setPositions(displayPositions);
+      setLastUpdated(data.cachedAt ?? null);
+
+      // Calculate total PnL
+      const total = displayPositions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0);
+      setTotalPnl(total);
+    } catch (error: any) {
+      console.error('Failed to load positions:', error);
+      toast.error('Failed to load positions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClosePosition = async (position: PositionDisplay) => {
+    const positionId = `${position.coin}-${position.side}`;
+    setClosingPositionId(positionId);
+
+    try {
+      const marketPrice = await getCurrentPrice(position.coin);
+      const executionPrice = marketPrice || position.entryPx || 0;
+
+      if (!executionPrice || executionPrice <= 0) {
+        throw new Error('Unable to determine market price for closing the position');
+      }
+
+      await placeManualOrder(accountId, {
+        symbol: position.coin,
+        is_buy: position.side === 'SHORT', // Opposite side to close
+        size: position.sizeAbs,
+        price: executionPrice,
+        time_in_force: 'Ioc',
+        leverage: 1,
+        reduce_only: true,
+        environment,
+      });
+
+      toast.success(`Closed ${position.side} position for ${position.coin}`);
+      await loadPositions();
+
+      if (onPositionClosed) {
+        onPositionClosed();
+      }
+    } catch (error: any) {
+      console.error('Failed to close position:', error);
+      toast.error(error.message || 'Failed to close position');
+    } finally {
+      setClosingPositionId(null);
+    }
+  };
+
+  const pnlFormatted = formatPnl(totalPnl);
+
+  return (
+    <Card className={cn('p-6 space-y-4 h-full flex flex-col', className)}>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold">Open Positions</h2>
+          <p className="text-sm text-gray-500">
+            Hyperliquid {environment.charAt(0).toUpperCase() + environment.slice(1)}
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Total Unrealized P&L</p>
+            <p className={`text-lg font-bold ${pnlFormatted.color}`}>
+              {pnlFormatted.icon} ${pnlFormatted.value}
+            </p>
+          </div>
+          {lastUpdated && (
+            <div className="text-xs text-gray-400 text-right">
+              Last update: {formatTime(lastUpdated)}
+            </div>
+          )}
+
+          {showRefreshButton && (
+            <Button
+              onClick={() => loadPositions(true)}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {positions.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+          <p className="text-gray-500">No open positions</p>
+          <p className="text-sm text-gray-400 mt-2">
+            Positions will appear here after placing orders
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Symbol</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Size</TableHead>
+                <TableHead className="text-right">Entry</TableHead>
+                <TableHead className="text-right">Mark</TableHead>
+                <TableHead className="text-right">Value</TableHead>
+                <TableHead className="text-right">Unrealized P&L</TableHead>
+                <TableHead className="text-right">Liq. Price</TableHead>
+                <TableHead className="text-center">Leverage</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {positions.map((position) => {
+                const positionId = `${position.coin}-${position.side}`;
+                const isClosing = closingPositionId === positionId;
+                const pnl = formatPnl(position.unrealizedPnl ?? 0);
+                const pnlPercent = formatPercentage(position.pnlPercent);
+                const entryPx = position.entryPx ?? 0;
+                const positionValue = position.positionValue ?? 0;
+                const liquidationPx = position.liquidationPx ?? 0;
+                const sizeAbs = position.sizeAbs ?? 0;
+                // Calculate current mark price from position value and size
+                const markPrice = sizeAbs > 0 ? positionValue / sizeAbs : entryPx;
+
+                return (
+                  <TableRow key={positionId}>
+                    <TableCell className="font-medium">{position.coin}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={position.side === 'LONG' ? 'default' : 'destructive'}
+                        className="flex items-center w-fit"
+                      >
+                        {position.side === 'LONG' ? (
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3 mr-1" />
+                        )}
+                        {position.side}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {sizeAbs.toFixed(4)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPrice(entryPx, position.coin)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPrice(markPrice, position.coin)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${positionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className={`text-right ${pnl.color}`}>
+                      <div>
+                        {pnl.icon} {formatPrice(Math.abs(position.unrealizedPnl ?? 0), 'USDT')}
+                      </div>
+                      <div className="text-xs">
+                        ({pnlPercent})
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      ${liquidationPx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">
+                        {formatLeverage(position.leverage ?? 1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleClosePosition(position)}
+                        disabled={isClosing}
+                      >
+                        {isClosing ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <X className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
+  );
+}

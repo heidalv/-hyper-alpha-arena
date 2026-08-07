@@ -1,0 +1,26 @@
+{
+  "updated_at": "2026-06-19T11:55:22.389228+00:00",
+  "lookback_days": 14,
+  "samples": 277,
+  "data_source": "rebate_trade_outcomes",
+  "speculative_discount": 0.2,
+  "stage6_hold_default_seconds": 7200,
+  "neutral_macro_position_scale": null,
+  "_discount_stats": {
+    "total_points": 6447.24,
+    "total_cash": -144.81,
+    "cash_per_point": -0.02246
+  },
+  "_hold_stats": [
+    {
+      "n": 242,
+      "score_per_hour": -5.709
+    },
+    {
+      "n": 34,
+      "score_per_hour": -0.3999
+    },
+    null,
+    null
+  ]
+}

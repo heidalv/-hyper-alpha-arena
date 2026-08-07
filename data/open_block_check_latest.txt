@@ -1,0 +1,59 @@
+generated_at=2026-06-27T19:29:59.393850+00:00
+session=fa_e55efe8e92 recent_events=80
+
+=== event types (top 25) ===
+  master_decision: 50
+  scalp_scan: 24
+  orchestrator_override: 4
+  symbols_added: 1
+  trade_error: 1
+
+=== orchestrator_override (NOT blocks, forced opens): 4 ===
+  [2026-06-27T19:23:20.919526+00:00] 🔥 编排器覆盖 ETH: LLM hold → sell (L=bearish/M=bearish/S=bearish conf=60%)
+  [2026-06-27T19:23:20.932046+00:00] 🚫 编排器覆盖被V5门控拦截 ETH: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+  [2026-06-27T19:28:03.084928+00:00] 🔥 编排器覆盖 BTC: LLM hold → sell (L=bearish/M=bearish/S=bearish conf=60%)
+  [2026-06-27T19:28:03.093460+00:00] 🚫 编排器覆盖被V5门控拦截 BTC: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+
+=== OPEN gate blocks in recent 80 events: 2 ===
+  [2026-06-27T19:23:20.932046+00:00] orchestrator_override: 🚫 编排器覆盖被V5门控拦截 ETH: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+  [2026-06-27T19:28:03.093460+00:00] orchestrator_override: 🚫 编排器覆盖被V5门控拦截 BTC: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+
+=== CLOSE/exit blocks in recent 80 events: 0 ===
+
+=== DB event_log total: 200 ===
+last 2000 event types:
+  master_decision: 128
+  scalp_scan: 34
+  symbols_added: 9
+  master_close_would_block_shadow: 7
+  orchestrator_override: 6
+  ai_tp_sl_adjust: 5
+  reduce_blocked: 5
+  close_sl_soft_bypass: 3
+  reduce_cooldown: 2
+  trade_error: 1
+
+open gate blocks in last 2000 DB events: 7
+  [2026-06-27T17:21:22.032042+00:00] reduce_cooldown: ⏳ 子仓审核拦截减仓 ASTER[scalp]: 减仓浮盈$0.44 < 3x综合成本$35.10 (fee=0.035% slip=0.060%)
+  [2026-06-27T17:22:05.715478+00:00] master_decision: 🎯 BTC[中线]: hold (置信=56%) | [Persistence] 需连续2tick同向才开仓 | [SwingAgent独立] conf=56 rr=2.8 趋势：4h EMA空头排列（ema9<ema21≈ema50）偏空，1h EMA多头但量比仅0.01为缩量假突破。支撑阻
+  [2026-06-27T17:44:07.429544+00:00] reduce_cooldown: ⏳ 子仓审核拦截减仓 ASTER[scalp]: 减仓浮盈$1.02 < 3x综合成本$35.10 (fee=0.035% slip=0.060%)
+  [2026-06-27T18:42:37.497828+00:00] master_decision: 🎯 ETH[长线]: hold (置信=55%) | [Persistence] 需连续2tick同向才开仓 | [TrendAgent独立] score=55 dir=short 周线、日线、4hEMA均呈bearish排列，4h/1d共振空头，价格处于90天低位8%，但MACD柱收窄显示下跌减速。 [nature仲裁: AI=trend_follow(优先), 编排器=swing]
+  [2026-06-27T18:50:56.134180+00:00] orchestrator_override: 🚫 编排器覆盖被V5门控拦截 BTC: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+  [2026-06-27T19:23:20.932046+00:00] orchestrator_override: 🚫 编排器覆盖被V5门控拦截 ETH: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+  [2026-06-27T19:28:03.093460+00:00] orchestrator_override: 🚫 编排器覆盖被V5门控拦截 BTC: short/scalp 置信度 60% < 硬门槛 68% (基础60%+8%)
+
+risk_control_events scan: (psycopg.errors.UndefinedColumn) 字段 "symbol" 不存在
+LINE 1: SELECT created_at, event_type, symbol, detail FROM risk_cont...
+                                       ^
+[SQL: SELECT created_at, event_type, symbol, detail FROM risk_control_events WHERE created_at >= datetime('now', '-24 hours') AND (event_type LIKE '%%block%%' OR event_type LIKE '%%gate%%' OR detail LIKE '%%拦截%%') ORDER BY created_at DESC LIMIT 30]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+=== backend code activation ===
+  UNIFIED_EXIT_EXECUTOR_ENABLED=True
+  RISK_P3_MASTER_CLOSE_REQUIRES_HARDFACT=shadow
+  short min_hold_emergency_loss_pct=8.0
+  unified_exit_executor loaded=True
+
+=== frontend :8000 === OLD bundle (forces light, dark mode NOT deployed)
+  source index.html mtime=1782587635.7307968
+  dist index.html mtime=1782587741.7594357

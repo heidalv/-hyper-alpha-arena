@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme: Dark (default, RGB channels) ── */
+:root,
+.dark {
+  --terminal-bg: 10 14 23;
+  --terminal-card: 17 24 39;
+  --terminal-border: 31 41 55;
+  --terminal-profit: 0 220 130;
+  --terminal-loss: 239 68 68;
+  --terminal-primary: 59 130 246;
+  --terminal-muted: 107 114 128;
+  --terminal-text: 249 250 251;
+  --terminal-warning: 245 158 11;
+}
+
+/* ── Theme: Light (RGB channels) ── */
+.light {
+  --terminal-bg: 241 245 249;
+  --terminal-card: 255 255 255;
+  --terminal-border: 203 213 225;
+  --terminal-profit: 5 150 105;
+  --terminal-loss: 220 38 38;
+  --terminal-primary: 37 99 235;
+  --terminal-muted: 100 116 139;
+  --terminal-text: 15 23 42;
+  --terminal-warning: 217 119 6;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  body {
+    @apply bg-terminal-bg text-terminal-text font-sans;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* safe area padding for notch devices */
+  #root {
+    @apply min-h-screen flex flex-col;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  input, textarea, select {
+    @apply bg-terminal-card border border-terminal-border rounded-lg px-3 py-2 text-terminal-text;
+    font-size: 16px; /* prevent iOS zoom on focus */
+  }
+
+  input:focus, textarea:focus, select:focus {
+    @apply border-terminal-primary outline-none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-terminal-card border border-terminal-border rounded-xl p-4;
+  }
+
+  .card-interactive {
+    @apply card active:opacity-80 transition-opacity;
+  }
+
+  .badge-profit {
+    @apply bg-terminal-profit/15 text-terminal-profit text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-loss {
+    @apply bg-terminal-loss/15 text-terminal-loss text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-neutral {
+    @apply bg-terminal-muted/15 text-terminal-muted text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-active {
+    @apply bg-terminal-profit/15 text-terminal-profit text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-paused {
+    @apply bg-terminal-warning/15 text-terminal-warning text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-defensive {
+    @apply bg-terminal-warning/15 text-terminal-warning text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .badge-stopped {
+    @apply bg-terminal-loss/15 text-terminal-loss text-xs px-2 py-0.5 rounded font-medium;
+  }
+
+  .btn-primary {
+    @apply bg-terminal-primary text-white rounded-lg py-3 px-6 font-medium min-h-[48px]
+           active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply bg-terminal-loss text-white rounded-lg py-3 px-6 font-medium min-h-[48px]
+           active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-success {
+    @apply bg-terminal-profit text-terminal-bg rounded-lg py-3 px-6 font-medium min-h-[48px]
+           active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply border border-terminal-border text-terminal-text rounded-lg py-3 px-6 font-medium min-h-[48px]
+           active:opacity-80 transition-opacity;
+  }
+
+  /* BottomSheet animation */
+  .sheet-overlay {
+    @apply fixed inset-0 bg-black/60 z-40;
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .sheet-content {
+    @apply fixed bottom-0 left-0 right-0 bg-terminal-card rounded-t-2xl z-50
+           max-h-[85vh] overflow-y-auto;
+    animation: slideUp 300ms ease-out;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sheet-handle {
+    @apply w-10 h-1 bg-terminal-muted/40 rounded-full mx-auto mt-3 mb-2;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

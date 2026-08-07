@@ -1,0 +1,6791 @@
+{
+  "updated_at": "2026-08-07T04:42:13.855937+00:00",
+  "lookback_days": 30,
+  "weights": {
+    "ai_gen_regime_chaos": 1.0,
+    "ai_gen_regime_clarity": 0.5,
+    "ai_gen_regime_confusi": 1.0,
+    "ai_gen_regime_entropy": 1.0,
+    "ai_gen_regime_filter": 1.0,
+    "ai_gen_regime_noise": 0.5,
+    "ai_gen_regime_quality": 1.0,
+    "ai_gen_regime_r2": 1.0,
+    "ai_gen_regime_risk": 1.0,
+    "ai_gen_regime_shift": 1.0,
+    "ai_gen_regime_strengt": 1.0,
+    "ai_gen_regime_switch": 1.0,
+    "ai_gen_regime_unc": 1.0,
+    "ai_gen_regime_uncerta": 1.0,
+    "ai_gen_regime_vol": 1.0,
+    "ai_gen_regime_vol_tre": 1.0,
+    "ai_gen_regimeavoid": 1.0,
+    "ai_gen_regimeuncertai": 1.0,
+    "ai_gen_regimeunknown": 1.0,
+    "ai_gen_regn": 1.0,
+    "ai_gen_retrace_weakne": 1.0,
+    "ai_gen_rev_conflict": 1.0,
+    "ai_gen_rev_ma": 1.0,
+    "ai_gen_rev_magnet": 1.0,
+    "ai_gen_rev_strength": 1.0,
+    "ai_gen_reversal": 1.0,
+    "ai_gen_reversal_proxi": 0.5,
+    "ai_gen_reversal_risk": 1.0,
+    "ai_gen_reversal_safet": 1.0,
+    "ai_gen_reversal_volum": 0.5,
+    "ai_gen_reversalsignal": 1.0,
+    "ai_gen_reverse_trap": 1.0,
+    "ai_gen_revrisk": 1.0,
+    "ai_gen_revstrength": 1.0,
+    "ai_gen_rgmm": 1.0,
+    "ai_gen_rgpos": 1.0,
+    "ai_gen_riskregime": 1.0,
+    "ai_gen_rr": 1.0,
+    "ai_gen_rsi_div": 1.0,
+    "ai_gen_rsi_extreme": 1.0,
+    "ai_gen_rsi_rev": 1.0,
+    "ai_gen_rsi_reversal": 1.0,
+    "ai_gen_rsidiv": 1.0,
+    "ai_gen_rui": 1.0,
+    "ai_gen_rvc": 1.0,
+    "ai_gen_rvsurge": 1.0,
+    "ai_gen_short_squeeze": 1.0,
+    "ai_gen_sideways": 1.0,
+    "ai_gen_sl": 1.0,
+    "ai_gen_sl_risk": 1.0,
+    "ai_gen_slconc": 1.0,
+    "ai_gen_slhit": 1.0,
+    "ai_gen_snr": 1.0,
+    "ai_gen_squeeze_exhaus": 1.0,
+    "ai_gen_ssd": 1.0,
+    "ai_gen_ssr": 1.0,
+    "ai_gen_stagnant": 1.0,
+    "ai_gen_stbl": 1.0,
+    "ai_gen_stop_avoidance": 1.0,
+    "ai_gen_stop_cluster": 1.0,
+    "ai_gen_stop_hunting": 1.0,
+    "ai_gen_stopdist": 1.0,
+    "ai_gen_stoptrap": 1.0,
+    "ai_gen_ta": 1.0,
+    "ai_gen_tau_mom": 1.0,
+    "ai_gen_tc": 1.0,
+    "ai_gen_tci": 1.0,
+    "ai_gen_tcl": 1.0,
+    "ai_gen_tclr": 1.0,
+    "ai_gen_tcon": 1.0,
+    "ai_gen_tconf": 1.0,
+    "ai_gen_tcsi": 1.0,
+    "ai_gen_tdf": 1.0,
+    "ai_gen_tdr": 1.0,
+    "ai_gen_te": 0.5,
+    "ai_gen_teff": 1.0,
+    "ai_gen_tei": 1.0,
+    "ai_gen_teo": 1.0,
+    "ai_gen_ter": 1.2,
+    "ai_gen_texh": 1.0,
+    "ai_gen_tf_ex": 1.0,
+    "ai_gen_tfatigue": 0.5,
+    "ai_gen_timedecay": 0.5,
+    "ai_gen_timeout": 1.0,
+    "ai_gen_timeout_decay": 1.0,
+    "ai_gen_timing_fail": 1.0,
+    "ai_gen_tndstr": 1.0,
+    "ai_gen_to": 1.0,
+    "ai_gen_tor": 1.0,
+    "ai_gen_tpr": 1.0,
+    "ai_gen_trad_uncertain": 1.0,
+    "ai_gen_trd": 1.0,
+    "ai_gen_trd_inertia_de": 1.0,
+    "ai_gen_trd_str": 1.0,
+    "ai_gen_trdcon": 1.0,
+    "ai_gen_trdstr": 1.0,
+    "ai_gen_trdvol": 1.0,
+    "ai_gen_treff": 1.0,
+    "ai_gen_tregime": 1.0,
+    "ai_gen_tren": 1.0,
+    "ai_gen_trend": 1.2,
+    "ai_gen_trend_alignmen": 1.0,
+    "ai_gen_trend_ambig": 1.0,
+    "ai_gen_trend_ambiguit": 1.0,
+    "ai_gen_trend_clarity": 1.0,
+    "ai_gen_trend_coherenc": 1.0,
+    "ai_gen_trend_con": 1.0,
+    "ai_gen_trend_conf": 1.0,
+    "ai_gen_trend_conflict": 1.0,
+    "ai_gen_trend_conformi": 1.0,
+    "ai_gen_trend_confusio": 1.0,
+    "ai_gen_trend_consensu": 1.0,
+    "ai_gen_trend_consiste": 1.0,
+    "ai_gen_trend_divergen": 1.0,
+    "ai_gen_trend_eff": 1.0,
+    "ai_gen_trend_efficien": 1.0,
+    "ai_gen_trend_ex": 1.0,
+    "ai_gen_trend_exhausti": 0.25,
+    "ai_gen_trend_fade": 1.0,
+    "ai_gen_trend_fatigue": 1.0,
+    "ai_gen_trend_fuzzy": 1.0,
+    "ai_gen_trend_momentum": 1.0,
+    "ai_gen_trend_persist": 1.0,
+    "ai_gen_trend_quality": 1.0,
+    "ai_gen_trend_ratio": 1.0,
+    "ai_gen_trend_regime": 1.0,
+    "ai_gen_trend_slope": 1.0,
+    "ai_gen_trend_str": 1.0,
+    "ai_gen_trend_strength": 1.0,
+    "ai_gen_trend_vol": 1.0,
+    "ai_gen_trend_weak": 1.0,
+    "ai_gen_trend_zscore": 1.0,
+    "ai_gen_trendclarity": 1.0,
+    "ai_gen_trendclr": 1.0,
+    "ai_gen_trendcoherence": 1.2,
+    "ai_gen_trendcon": 1.0,
+    "ai_gen_trendcons": 1.0,
+    "ai_gen_trendexhaust": 1.0,
+    "ai_gen_trendnoise": 1.0,
+    "ai_gen_trendsig": 1.0,
+    "ai_gen_trendstr": 1.0,
+    "ai_gen_trendstrength": 1.0,
+    "ai_gen_trendvol": 1.0,
+    "ai_gen_trendvol_div": 1.0,
+    "ai_gen_trenq": 1.0,
+    "ai_gen_trexf": 1.0,
+    "ai_gen_trnd": 1.0,
+    "ai_gen_trndstb": 1.0,
+    "ai_gen_trs": 1.0,
+    "ai_gen_trstr": 1.0,
+    "ai_gen_trv": 1.0,
+    "ai_gen_trw": 1.0,
+    "ai_gen_ts": 1.0,
+    "ai_gen_tscore": 1.0,
+    "ai_gen_tsd": 0.5,
+    "ai_gen_tsi": 1.0,
+    "ai_gen_tskew": 1.0,
+    "ai_gen_tsr": 1.0,
+    "ai_gen_tstb": 1.0,
+    "ai_gen_tt": 1.0,
+    "ai_gen_ttv": 1.0,
+    "ai_gen_tvr": 0.5,
+    "ai_gen_tw": 1.0,
+    "ai_gen_unc": 1.0,
+    "ai_gen_unk_adx": 1.0,
+    "ai_gen_unk_reg": 1.0,
+    "ai_gen_unk_shape": 1.0,
+    "ai_gen_unkn": 1.0,
+    "ai_gen_unkn_risk": 1.0,
+    "ai_gen_unknown_consis": 1.0,
+    "ai_gen_unknown_osc": 1.0,
+    "ai_gen_unknown_regime": 1.0,
+    "ai_gen_unknown_vol": 1.0,
+    "ai_gen_unkreg": 1.0,
+    "ai_gen_unkstate": 1.0,
+    "ai_gen_utr": 1.0,
+    "ai_gen_va": 1.0,
+    "ai_gen_vam": 1.0,
+    "ai_gen_vbf": 1.0,
+    "ai_gen_vbm": 1.2,
+    "ai_gen_vcd": 1.0,
+    "ai_gen_vcr": 1.0,
+    "ai_gen_vcv": 0.25,
+    "ai_gen_vd": 1.0,
+    "ai_gen_vdiv": 1.0,
+    "ai_gen_vdu": 1.0,
+    "ai_gen_vf": 1.0,
+    "ai_gen_vif": 1.0,
+    "ai_gen_vix": 1.0,
+    "ai_gen_vld": 1.0,
+    "ai_gen_vlmc": 1.0,
+    "ai_gen_vltr": 0.5,
+    "ai_gen_vmnt": 1.0,
+    "ai_gen_vmom": 1.0,
+    "ai_gen_vol_accel": 1.0,
+    "ai_gen_vol_adapt_mome": 1.0,
+    "ai_gen_vol_adj": 1.0,
+    "ai_gen_vol_adjust": 1.0,
+    "ai_gen_vol_adjusted_m": 1.0,
+    "ai_gen_vol_breakdown": 1.0,
+    "ai_gen_vol_change": 1.0,
+    "ai_gen_vol_chaos": 1.0,
+    "ai_gen_vol_cluster": 1.0,
+    "ai_gen_vol_comp": 1.0,
+    "ai_gen_vol_conf": 1.0,
+    "ai_gen_vol_confirm": 1.0,
+    "ai_gen_vol_confirm_mo": 1.0,
+    "ai_gen_vol_cont": 1.0,
+    "ai_gen_vol_contract": 1.0,
+    "ai_gen_vol_contractio": 1.0,
+    "ai_gen_vol_deviation": 1.0,
+    "ai_gen_vol_div": 1.0,
+    "ai_gen_vol_dry": 0.5,
+    "ai_gen_vol_exp": 1.0,
+    "ai_gen_vol_expansion": 1.0,
+    "ai_gen_vol_filter": 0.25,
+    "ai_gen_vol_impact": 1.0,
+    "ai_gen_vol_ma": 0.5,
+    "ai_gen_vol_ma_reversa": 1.0,
+    "ai_gen_vol_mom": 1.0,
+    "ai_gen_vol_mom_div": 1.0,
+    "ai_gen_vol_momentum": 1.0,
+    "ai_gen_vol_ob": 1.0,
+    "ai_gen_vol_ord": 1.0,
+    "ai_gen_vol_price_dive": 1.0,
+    "ai_gen_vol_ratio": 1.0,
+    "ai_gen_vol_regime": 1.0,
+    "ai_gen_vol_risk": 1.0,
+    "ai_gen_vol_skew": 0.5,
+    "ai_gen_vol_spread": 1.0,
+    "ai_gen_vol_stab": 1.0,
+    "ai_gen_vol_trend_con": 1.0,
+    "ai_gen_vol_zone": 1.0,
+    "ai_gen_vola_anomaly": 1.0,
+    "ai_gen_vola_stability": 1.0,
+    "ai_gen_vola_surge": 1.0,
+    "ai_gen_volabnorm": 0.5,
+    "ai_gen_volatility_con": 1.0,
+    "ai_gen_volatility_exp": 1.0,
+    "ai_gen_volatility_mea": 1.0,
+    "ai_gen_volatility_reg": 1.0,
+    "ai_gen_volatility_shr": 1.0,
+    "ai_gen_volatility_ske": 1.0,
+    "ai_gen_volatility_sta": 1.0,
+    "ai_gen_volatility_ten": 1.0,
+    "ai_gen_volatility_tre": 0.5,
+    "ai_gen_volchange": 1.0,
+    "ai_gen_volclarity": 1.0,
+    "ai_gen_volclust": 1.0,
+    "ai_gen_volconf": 1.0,
+    "ai_gen_volconfirm": 1.0,
+    "ai_gen_volconv": 1.0,
+    "ai_gen_volcv": 1.0,
+    "ai_gen_volexp": 1.0,
+    "ai_gen_volgap": 1.0,
+    "ai_gen_volimb": 1.0,
+    "ai_gen_volmom": 1.0,
+    "ai_gen_volnoise": 0.5,
+    "ai_gen_volprc": 1.0,
+    "ai_gen_volpric": 1.0,
+    "ai_gen_volprice": 1.0,
+    "ai_gen_volprice_corr": 1.0,
+    "ai_gen_volpricecorr": 1.0,
+    "ai_gen_volr": 1.0,
+    "ai_gen_volregime": 1.0,
+    "ai_gen_volrisk": 1.0,
+    "ai_gen_volrsi": 1.0,
+    "ai_gen_volrvol": 1.2,
+    "ai_gen_volshift": 1.0,
+    "ai_gen_volshock": 1.0,
+    "ai_gen_volstab": 1.0,
+    "ai_gen_volsurge": 1.0,
+    "ai_gen_voltexhaust": 1.0,
+    "ai_gen_volu": 1.0,
+    "ai_gen_volume_anomaly": 1.0,
+    "ai_gen_volume_confirm": 1.0,
+    "ai_gen_volume_convict": 1.0,
+    "ai_gen_volume_corr": 1.0,
+    "ai_gen_volume_div": 1.0,
+    "ai_gen_volume_diverge": 1.0,
+    "ai_gen_volume_imbalan": 1.0,
+    "ai_gen_volume_impact": 1.0,
+    "ai_gen_volume_instabi": 1.0,
+    "ai_gen_volume_liquidi": 1.0,
+    "ai_gen_volume_lull": 1.0,
+    "ai_gen_volume_regime": 1.0,
+    "ai_gen_volume_surge": 1.0,
+    "ai_gen_volume_sync": 1.0,
+    "ai_gen_volume_trend_c": 1.0,
+    "ai_gen_volumeconfirm": 0.25,
+    "ai_gen_volumeconsiste": 1.0,
+    "ai_gen_volumeconv": 1.0,
+    "ai_gen_volumeconvicti": 1.0,
+    "ai_gen_volumediv": 0.25,
+    "ai_gen_volumeprice": 1.0,
+    "ai_gen_volvol": 1.0,
+    "ai_gen_vom": 0.5,
+    "ai_gen_vop": 1.0,
+    "ai_gen_vos": 1.0,
+    "ai_gen_vp_diverge": 0.5,
+    "ai_gen_vp_divergence": 1.0,
+    "ai_gen_vp_risk": 1.0,
+    "ai_gen_vpc": 1.0,
+    "ai_gen_vpt_divergence": 0.5,
+    "ai_gen_vqci": 1.0,
+    "ai_gen_vrf": 1.0,
+    "ai_gen_vrsi": 0.5,
+    "ai_gen_vsqueeze": 1.0,
+    "ai_gen_vsr": 1.0,
+    "ai_gen_vtr": 1.0,
+    "ai_gen_vtrend": 1.0,
+    "ai_gen_vv": 1.0,
+    "ai_gen_vvd": 1.0,
+    "ai_gen_vvr": 1.0,
+    "ai_gen_vxf": 1.0,
+    "ai_gen_wick_ratio": 1.0,
+    "ai_gen_wk_mom": 1.0,
+    "ai_gen_wr": 1.0,
+    "ai_gen_zone": 1.0,
+    "ai_gen_zscore_revert": 1.0,
+    "bb_lower": 1.0,
+    "bb_upper": 1.0,
+    "bull_bear_index": 1.0,
+    "buy_sell_ratio": 1.0,
+    "buy_volume": 1.0,
+    "cci_14": 1.0,
+    "cloud_bollinger_width": 1.0,
+    "cloud_obv_oscillator": 1.0,
+    "cmf_20": 1.0,
+    "consolidation": 1.0,
+    "cvd_volume_residual": 1.0,
+    "depth_ratio": 1.0,
+    "dollar_volume": 1.0,
+    "flow_ratio": 1.0,
+    "high_low_ratio": 1.0,
+    "ichimoku_kijun": 1.0,
+    "ichimoku_tenkan": 1.0,
+    "keltner_lower": 1.0,
+    "keltner_upper": 1.0,
+    "liquidity_premium": 1.0,
+    "liquidity_score": 1.0,
+    "mean_reversion_score": 1.0,
+    "mfi_14": 1.0,
+    "multi_tf_momentum": 1.0,
+    "order_imbalance": 1.0,
+    "orderflow_delta": 1.0,
+    "pressure_index": 1.0,
+    "price_anomaly": 1.0,
+    "price_to_ma20": 1.0,
+    "psar": 1.0,
+    "rsi_7": 1.0,
+    "rsi_vol_ratio": 1.0,
+    "sell_volume": 1.0,
+    "stoch_d": 1.0,
+    "stoch_k": 1.0,
+    "trade_intensity": 1.0,
+    "trend_persistence": 1.0,
+    "turnover_ratio": 1.0,
+    "uo": 1.0,
+    "volatility_anomaly": 1.0,
+    "volatility_ratio": 1.0,
+    "volume_anomaly": 1.0,
+    "whale_transactions": 1.0,
+    "williams_r": 1.0,
+    "wq_alpha002": 0.25,
+    "wq_alpha006": 1.0,
+    "wq_alpha012": 1.0,
+    "ai_gen_fakeout_rsi_di": 1.0,
+    "ai_gen_falsebreak": 1.0,
+    "ai_gen_flow_reversal": 1.0,
+    "ai_gen_hdr": 1.0,
+    "ai_gen_high_pos": 0.5,
+    "ai_gen_hold_mom": 1.0,
+    "ai_gen_hold_risk": 1.0,
+    "ai_gen_hold_window": 1.0,
+    "ai_gen_holdprs": 1.0,
+    "ai_gen_holdrisk": 1.0,
+    "ai_gen_holdtimeout": 1.0,
+    "ai_gen_holdto": 0.5,
+    "ai_gen_hot": 1.0,
+    "ai_gen_intraday_imbal": 0.5,
+    "ai_gen_intraday_rever": 1.0,
+    "ai_gen_intraday_stren": 1.0,
+    "ai_gen_ldiv": 0.25,
+    "ai_gen_lhv": 1.0,
+    "ai_gen_liq_distort": 1.0,
+    "ai_gen_liq_drought": 1.0,
+    "ai_gen_liq_imp": 1.0,
+    "ai_gen_liq_mag": 1.0,
+    "ai_gen_liq_risk": 1.0,
+    "ai_gen_liq_shock": 1.0,
+    "ai_gen_liq_squeeze": 1.0,
+    "ai_gen_liqabn": 1.0,
+    "ai_gen_liqdrop": 1.0,
+    "ai_gen_liqrisk": 1.0,
+    "ai_gen_liquid": 1.0,
+    "ai_gen_liquidity_anom": 1.0,
+    "ai_gen_liquidity_magn": 1.0,
+    "ai_gen_liquidity_risk": 1.0,
+    "ai_gen_liquidity_swee": 1.0,
+    "ai_gen_liquidity_tiny": 1.0,
+    "ai_gen_liquiditygap": 1.0,
+    "ai_gen_long_short_imb": 1.0,
+    "ai_gen_longshort": 1.0,
+    "ai_gen_longshort_imba": 1.0,
+    "ai_gen_lr": 1.0,
+    "ai_gen_lrr": 1.0,
+    "ai_gen_ltr": 1.0,
+    "ai_gen_ltvol": 1.0,
+    "ai_gen_lvr": 1.0,
+    "ai_gen_mad": 1.0,
+    "ai_gen_market_entropy": 1.0,
+    "ai_gen_market_neutral": 1.0,
+    "ai_gen_market_regime": 1.0,
+    "ai_gen_master_flow": 1.0,
+    "ai_gen_maxhold": 1.0,
+    "ai_gen_mci": 1.0,
+    "ai_gen_md": 1.0,
+    "ai_gen_mdf": 1.0,
+    "ai_gen_meanrevert": 0.25,
+    "ai_gen_meanrevertime": 1.0,
+    "ai_gen_mft": 1.0,
+    "ai_gen_mht": 0.5,
+    "ai_gen_micro_corr": 1.0,
+    "ai_gen_micro_noise": 1.0,
+    "ai_gen_micro_profit_r": 1.0,
+    "ai_gen_micro_weakness": 1.0,
+    "ai_gen_microrange": 1.0,
+    "ai_gen_midp": 1.0,
+    "ai_gen_midprice": 0.5,
+    "ai_gen_mini_rev": 1.0,
+    "ai_gen_mkt_eff": 1.0,
+    "ai_gen_mktconf": 1.0,
+    "ai_gen_mktreg": 1.0,
+    "ai_gen_mom": 1.0,
+    "ai_gen_mom_coherence": 1.0,
+    "ai_gen_mom_consistenc": 1.0,
+    "ai_gen_momconflict": 1.0,
+    "ai_gen_momconsensus": 1.0,
+    "ai_gen_momconsistency": 1.0,
+    "ai_gen_momdiv": 1.0,
+    "ai_gen_momentum_coher": 1.0,
+    "ai_gen_momentum_consi": 1.0,
+    "ai_gen_momentum_diver": 1.0,
+    "ai_gen_momentum_stabi": 1.0,
+    "ai_gen_momqual": 1.0,
+    "ai_gen_momrev": 1.0,
+    "ai_gen_momrv": 1.0,
+    "ai_gen_momv": 0.5,
+    "ai_gen_momvol": 1.0,
+    "ai_gen_mpd": 1.0,
+    "ai_gen_mr": 1.0,
+    "ai_gen_mrmean": 1.0,
+    "ai_gen_mrs": 1.0,
+    "ai_gen_mtc": 1.0,
+    "ai_gen_multi_trend": 1.0,
+    "ai_gen_multitimeframe": 1.0,
+    "ai_gen_narrow_range": 1.0,
+    "ai_gen_noise": 1.0,
+    "ai_gen_noise_ratio": 1.0,
+    "ai_gen_noise_trap": 0.5,
+    "ai_gen_noise_vol": 1.0,
+    "ai_gen_noiseratio": 1.0,
+    "ai_gen_nri": 1.0,
+    "ai_gen_ntrend": 1.0,
+    "ai_gen_obvdiv": 0.5,
+    "ai_gen_osc": 1.0,
+    "ai_gen_overheat": 1.0,
+    "ai_gen_pdf": 1.0,
+    "ai_gen_pmf": 0.5,
+    "ai_gen_ppc": 1.0,
+    "ai_gen_price_eff": 1.0,
+    "ai_gen_price_efficien": 1.0,
+    "ai_gen_price_position": 1.0,
+    "ai_gen_price_volatili": 1.0,
+    "ai_gen_price_zone": 1.0,
+    "ai_gen_pricepath": 1.0,
+    "ai_gen_pricequality": 1.0,
+    "ai_gen_pricestall": 1.0,
+    "ai_gen_prp": 1.0,
+    "ai_gen_pseudo_signal": 1.0,
+    "ai_gen_pseudotrend": 1.0,
+    "ai_gen_pv": 1.0,
+    "ai_gen_pvc": 1.0,
+    "ai_gen_range_break": 1.0,
+    "ai_gen_range_pos": 1.0,
+    "ai_gen_range_position": 1.0,
+    "ai_gen_rangehold": 1.0,
+    "ai_gen_rangestag": 1.0,
+    "ai_gen_rbd": 1.0,
+    "ai_gen_rct": 1.0,
+    "ai_gen_ree": 1.0,
+    "ai_gen_reg_uncert": 1.0,
+    "ai_gen_regime_adapt": 1.0,
+    "ai_gen_regime_fear": 1.0,
+    "ai_gen_regime_voltren": 1.0,
+    "ai_gen_reversal_delta": 1.0,
+    "ai_gen_rgn_un": 1.0,
+    "ai_gen_rngbd": 1.0,
+    "ai_gen_rvr": 1.0,
+    "ai_gen_shadow": 1.0,
+    "ai_gen_sq_risk": 1.0,
+    "ai_gen_tde": 1.0,
+    "ai_gen_tf": 1.0,
+    "rsi": 1.0,
+    "zscore": 1.0,
+    "obv": 1.0,
+    "ema_trend": 1.0,
+    "active_addresses": 1.0,
+    "ad_line": 1.0,
+    "aggressive_buy": 1.0,
+    "aggressive_sell": 1.0,
+    "ai_gen_adaptive_vol": 1.0,
+    "ai_gen_adi": 1.0,
+    "ai_gen_adx": 1.0,
+    "ai_gen_adx_filter": 1.0,
+    "ai_gen_adx_low": 1.0,
+    "ai_gen_adx_regime": 1.0,
+    "ai_gen_adx_trend": 1.0,
+    "ai_gen_adxweak": 1.0,
+    "ai_gen_ai_rev": 0.25,
+    "ai_gen_ai_reverse": 1.0,
+    "ai_gen_ampvol": 1.0,
+    "ai_gen_aroon": 0.5,
+    "ai_gen_bb_pos": 1.0,
+    "ai_gen_bb_tension": 1.0,
+    "ai_gen_bb_width": 1.0,
+    "ai_gen_bb_zone": 1.0,
+    "ai_gen_bbcontract": 1.0,
+    "ai_gen_bbp": 1.0,
+    "ai_gen_bias": 1.0,
+    "ai_gen_boll_pos": 1.0,
+    "ai_gen_bollwidth": 1.0,
+    "ai_gen_bpk": 0.25,
+    "ai_gen_br": 1.0,
+    "ai_gen_breakout_stren": 1.0,
+    "ai_gen_bs": 1.0,
+    "ai_gen_bss": 1.0,
+    "ai_gen_ccr": 1.0,
+    "ai_gen_center": 1.0,
+    "ai_gen_choppiness": 1.0,
+    "ai_gen_choppy": 1.0,
+    "ai_gen_clarity": 1.0,
+    "ai_gen_clear_trend": 1.0,
+    "ai_gen_cm": 1.0,
+    "ai_gen_consis": 1.0,
+    "ai_gen_consist": 1.0,
+    "ai_gen_consistency": 1.0,
+    "ai_gen_consol": 1.0,
+    "ai_gen_contra_trend": 0.5,
+    "ai_gen_dust": 1.0,
+    "ai_gen_dustclean": 1.0,
+    "ai_gen_eff_disp": 1.0,
+    "ai_gen_eff_ratio": 1.0,
+    "ai_gen_effr": 1.0,
+    "ai_gen_ent": 1.0,
+    "ai_gen_entropy": 1.0,
+    "ai_gen_entropy_micro": 1.0,
+    "ai_gen_er": 1.0,
+    "ai_gen_fb": 1.0,
+    "ai_gen_holdtime": 1.0,
+    "ai_gen_liq_trap_rever": 1.0,
+    "ai_gen_longweak": 1.0,
+    "ai_gen_low_adx": 1.0,
+    "ai_gen_lowvol": 1.0,
+    "ai_gen_lvt": 1.0,
+    "ai_gen_market_regime_": 1.0,
+    "ai_gen_marketregime": 1.0,
+    "ai_gen_mean_rev_boll": 1.0,
+    "ai_gen_mean_reversion": 0.5,
+    "ai_gen_mean_revert_de": 1.0,
+    "ai_gen_meandev": 1.0,
+    "ai_gen_mom_decay": 1.0,
+    "ai_gen_momcon": 1.0,
+    "ai_gen_momconf": 1.0,
+    "ai_gen_momentum_rever": 1.0,
+    "ai_gen_momweak": 0.25,
+    "ai_gen_money_flow": 1.0,
+    "ai_gen_mpf": 0.5,
+    "ai_gen_mr_signal": 0.5,
+    "ai_gen_mrsi": 1.0,
+    "ai_gen_mrstrength": 1.0,
+    "ai_gen_net_reversal": 1.0,
+    "ai_gen_noise_signal": 0.5,
+    "ai_gen_overbought_ris": 0.5,
+    "ai_gen_path_curv": 1.0,
+    "ai_gen_pvd": 0.5,
+    "ai_gen_rangebound": 1.0,
+    "ai_gen_reg_uncertaint": 0.5,
+    "ai_gen_regime": 1.0,
+    "ai_gen_rev_surge": 1.0,
+    "ai_gen_reversal_signa": 1.0,
+    "ai_gen_reverse_risk": 1.0,
+    "ai_gen_risk_mode": 1.0,
+    "ai_gen_short_sqz": 1.0,
+    "ai_gen_shortrev": 1.0,
+    "ai_gen_tef": 1.0,
+    "ai_gen_timeoutclean": 1.0,
+    "ai_gen_timereversal": 1.0,
+    "ai_gen_trend_cohesion": 0.5,
+    "ai_gen_trend_instabil": 1.0,
+    "ai_gen_trend_noise": 1.0,
+    "ai_gen_unkn_adx": 1.0,
+    "ai_gen_vol_cleanse": 1.0,
+    "ai_gen_vol_regime_shi": 1.0,
+    "ai_gen_vol_rv": 1.0,
+    "ai_gen_vol_uncertaint": 1.0,
+    "ai_gen_vola_break": 1.0,
+    "ai_gen_volab": 1.2,
+    "ai_gen_volatility_ano": 1.0,
+    "ai_gen_voldiv": 1.0,
+    "ai_gen_volreversal": 0.5,
+    "ai_gen_volspike": 1.0,
+    "ai_gen_volty_regime": 1.0,
+    "ai_gen_volum": 1.0,
+    "ai_gen_volume_clash": 1.0,
+    "ai_gen_volume_stall": 1.0,
+    "ai_gen_volumeimpact": 1.0,
+    "ai_gen_vp_div": 1.0,
+    "ai_gen_vpd": 1.0,
+    "ai_gen_vptc": 1.0,
+    "ai_gen_vshock": 1.0,
+    "ai_gen_vts": 1.0,
+    "ai_gen_whipsaw": 1.0,
+    "cloud_microstructure_": 1.0,
+    "wq_alpha003": 1.0,
+    "wq_alpha020": 1.0,
+    "wq_alpha028": 1.0,
+    "wq_alpha049": 1.0,
+    "wq_alpha053": 1.0,
+    "wq_alpha057": 0.25,
+    "wq_alpha068": 1.0,
+    "wq_alpha086": 1.2,
+    "wq_alpha101": 1.0,
+    "ai_gen_adt": 1.0,
+    "ai_gen_anr": 0.25,
+    "ai_gen_aro": 1.0,
+    "ai_gen_atr_squeeze": 1.0,
+    "ai_gen_autocorrelatio": 1.0,
+    "ai_gen_choppy_adx": 1.0,
+    "ai_gen_contrarian_tra": 0.5,
+    "ai_gen_crosscorr": 0.5,
+    "ai_gen_dev": 1.0,
+    "ai_gen_diverg": 1.0,
+    "ai_gen_down_momentum": 1.0,
+    "ai_gen_dust_swing": 1.0,
+    "ai_gen_dvr": 1.0,
+    "ai_gen_effratio": 1.0,
+    "ai_gen_false_breakout": 0.5,
+    "ai_gen_fbrk": 1.0,
+    "ai_gen_htr": 1.0,
+    "ai_gen_liq_reversal": 1.0,
+    "ai_gen_liq_w": 1.0,
+    "ai_gen_liquidity_trap": 1.0,
+    "ai_gen_lmr": 1.0,
+    "ai_gen_lqm": 1.0,
+    "ai_gen_lri": 1.0,
+    "ai_gen_lsi": 1.0,
+    "ai_gen_micro_reversal": 1.0,
+    "ai_gen_mom_dec": 0.5,
+    "ai_gen_mrev": 1.0,
+    "ai_gen_multi_momentum": 1.0,
+    "ai_gen_multimom": 1.0,
+    "ai_gen_mur": 1.0,
+    "ai_gen_noise_intensit": 1.0,
+    "ai_gen_ohlc_strength": 1.0,
+    "ai_gen_pvm": 1.0,
+    "ai_gen_pvr": 1.0,
+    "ai_gen_reversal_volat": 1.0,
+    "ai_gen_sdl": 1.0,
+    "ai_gen_tail_risk": 1.0,
+    "ai_gen_tre": 1.0,
+    "ai_gen_trend_adx": 1.0,
+    "ai_gen_trend_blur": 1.0,
+    "ai_gen_trend_unstable": 1.0,
+    "ai_gen_tsc": 1.0,
+    "ai_gen_unk_vol": 1.0,
+    "ai_gen_unkn_vol": 1.0,
+    "ai_gen_unkn_vol_vol": 1.0,
+    "ai_gen_unknown": 1.0,
+    "ai_gen_vci": 1.0,
+    "ai_gen_vol": 1.0,
+    "ai_gen_vol_chg": 1.0,
+    "ai_gen_vol_compressio": 1.0,
+    "ai_gen_vol_consolidat": 1.0,
+    "ai_gen_vol_divergence": 1.0,
+    "ai_gen_vol_expand": 1.0,
+    "ai_gen_vol_jump": 1.0,
+    "ai_gen_vol_reversal": 1.0,
+    "ai_gen_vol_slope": 1.0,
+    "ai_gen_volatility_bre": 1.0,
+    "ai_gen_volatility_sho": 1.0,
+    "ai_gen_volatility_squ": 1.0,
+    "ai_gen_voldiff": 1.0,
+    "ai_gen_volnoi": 1.0,
+    "ai_gen_volratio": 1.0,
+    "ai_gen_volrev": 1.0,
+    "ai_gen_volstb": 1.0,
+    "ai_gen_vp": 1.0,
+    "ai_gen_vrat": 0.5,
+    "ai_gen_wave_regime": 1.0,
+    "ai_gen_wick_trap": 1.0,
+    "regime_transition_sco": 1.0,
+    "win_streak": 1.0,
+    "wq_alpha001": 1.0,
+    "wq_alpha038": 1.0,
+    "wq_alpha044": 1.0,
+    "wq_alpha064": 1.0,
+    "ai_gen_trend_div": 1.0,
+    "ai_gen_trend_qual": 1.0,
+    "ai_gen_trendvoldiv": 1.0,
+    "ai_gen_tvdiv": 1.0,
+    "ai_gen_vol_price_div": 1.0,
+    "ai_gen_vola": 0.5,
+    "wq_alpha016": 1.0,
+    "ai_gen_volume_conf": 1.2,
+    "ai_gen_volume_strengt": 1.0,
+    "cvd_divergence": 1.0,
+    "order_flow_imbalance": 1.0,
+    "regime_change": 1.0,
+    "ai_gen_trenvix": 1.0,
+    "macd": 1.0,
+    "ai_gen_bbzone": 1.0,
+    "ai_gen_bearish_pressu": 1.0,
+    "ai_gen_candle_reversa": 0.25,
+    "ai_gen_div": 1.0,
+    "ai_gen_diver": 1.0,
+    "ai_gen_divergence": 1.0,
+    "ai_gen_hold": 1.0,
+    "ai_gen_hold_safety": 1.0,
+    "ai_gen_long_risk": 1.0,
+    "ai_gen_lqd": 1.0,
+    "ai_gen_market_efficie": 1.0,
+    "ai_gen_master_close": 0.25,
+    "ai_gen_mrr": 0.5,
+    "ai_gen_price_coherenc": 1.0,
+    "ai_gen_price_volume_d": 1.0,
+    "ai_gen_supres": 1.0,
+    "ai_gen_timeout_risk": 1.0,
+    "ai_gen_hrv": 1.0,
+    "ai_gen_momdec": 1.0,
+    "ai_gen_mrv": 1.0,
+    "ai_gen_netflow": 1.0,
+    "ai_gen_regime_stabili": 1.2,
+    "ai_gen_unknown_chaos": 1.0,
+    "ai_gen_volskew": 1.2,
+    "ai_gen_volumebreak": 1.0,
+    "ai_gen_vpdiv": 0.25,
+    "ai_gen_vs": 1.0,
+    "ai_gen_vcc": 1.0,
+    "ai_gen_volinstability": 1.0,
+    "ai_gen_volmomcon": 1.0,
+    "ai_gen_volprdiscor": 0.5,
+    "ai_gen_volreg": 1.0,
+    "ai_gen_bsrf": 1.0,
+    "ai_gen_consolidation": 0.5,
+    "ai_gen_eff_trend": 1.0,
+    "ai_gen_extreme_revert": 1.0,
+    "ai_gen_fake_break": 1.0,
+    "ai_gen_liq_magnet": 1.0,
+    "ai_gen_liquidity_dry": 0.5,
+    "ai_gen_netreverse": 1.0,
+    "ai_gen_order_imbalanc": 1.0,
+    "ai_gen_revnet": 1.0,
+    "momentum": 1.0,
+    "roc": 1.0,
+    "ai_gen_ar": 0.5,
+    "ai_gen_conflict": 1.0,
+    "ai_gen_exh": 1.0,
+    "ai_gen_extreme_revers": 1.0,
+    "ai_gen_hri": 1.0,
+    "ai_gen_liq_magnet_rev": 1.0,
+    "ai_gen_market_microst": 1.0,
+    "ai_gen_mom_vol_div": 1.0,
+    "ai_gen_momentum_decay": 1.0,
+    "ai_gen_mr_vol": 1.0,
+    "ai_gen_mtmc": 1.0,
+    "ai_gen_multi_time_mom": 1.0,
+    "ai_gen_pos_reg": 1.0,
+    "ai_gen_lqmagnet": 1.2,
+    "ai_gen_momdecay": 1.0,
+    "ai_gen_mrbm": 1.0,
+    "ai_gen_mtf_align": 1.0,
+    "ai_gen_high_vol_rev": 1.0,
+    "ai_gen_vol_stability": 1.0,
+    "ai_gen_volimp": 1.0,
+    "ai_gen_volslump": 1.0,
+    "ai_gen_residual_meanr": 1.0,
+    "ai_gen_bbw": 0.5,
+    "ai_gen_regime_ambigui": 1.0,
+    "ai_gen_dust_cln": 1.0,
+    "ai_gen_volanomaly": 1.0,
+    "ai_gen_volcon": 1.0,
+    "ai_gen_trend_uncertai": 1.0,
+    "ai_gen_dust_reversal": 1.0,
+    "ai_gen_liqrev": 1.0,
+    "ai_gen_mtmdecay": 1.0,
+    "ai_gen_reversal_trap": 1.0,
+    "ai_gen_vbd": 1.0,
+    "wq_alpha023": 1.0,
+    "ai_gen_bmt": 1.0,
+    "ai_gen_intra_reversal": 1.0,
+    "ai_gen_rev_net": 1.0,
+    "ai_gen_volshrink": 1.0,
+    "ai_gen_volstability": 1.0,
+    "ai_gen_vrs": 1.0,
+    "ai_gen_contrarian": 1.0,
+    "ai_gen_str": 1.0,
+    "ai_gen_tvmb": 1.0,
+    "ai_gen_liquidity_dryu": 1.0,
+    "ai_gen_volatilityspik": 1.0,
+    "ai_gen_ma_slope": 1.0,
+    "ai_gen_liqmag": 1.0,
+    "ai_gen_liquidation_ma": 1.0,
+    "ai_gen_liquidity": 0.5,
+    "ai_gen_madiv": 1.0,
+    "ai_gen_rev": 1.0,
+    "ai_gen_vdryup": 1.0,
+    "ai_gen_vol_break_fail": 1.0,
+    "ai_gen_wick_reversal": 1.0,
+    "ai_gen_skewrev": 1.0,
+    "ai_gen_vola_ratio": 1.0,
+    "ai_gen_pseudo_breakou": 1.0,
+    "ai_gen_meanrev": 1.0,
+    "ai_gen_noi": 1.0,
+    "ai_gen_sho": 1.0,
+    "ai_gen_noise_level": 1.0,
+    "ai_gen_prich": 1.0,
+    "ai_gen_regime_confide": 1.0,
+    "ai_gen_retmov": 1.0,
+    "ai_gen_reversal_stren": 1.0,
+    "ai_gen_reversalstreng": 1.0,
+    "ai_gen_breakout_fake": 1.0,
+    "ai_gen_corr_break": 1.0,
+    "ai_gen_noise_filter": 1.0,
+    "ai_gen_ru": 1.0,
+    "ai_gen_stop_prob": 1.0,
+    "ai_gen_stopcluster": 1.0,
+    "ai_gen_stoploss_densi": 1.0,
+    "ai_gen_trendconf": 1.0,
+    "ai_gen_trendweak": 1.0,
+    "ai_gen_trentropy": 1.0,
+    "ai_gen_uncert_vol": 1.0,
+    "ai_gen_uncertainty": 1.0,
+    "ai_gen_voconf": 1.0,
+    "ai_gen_vol_convergenc": 1.0,
+    "ai_gen_volat": 1.0,
+    "ai_gen_volatility_zon": 1.0,
+    "ai_gen_volcom": 1.0,
+    "ai_gen_state_aware": 1.0,
+    "ai_gen_stop_proximity": 1.0,
+    "ai_gen_thresh": 1.0,
+    "ai_gen_trendstab": 1.0,
+    "ai_gen_bb_compress": 1.0,
+    "ai_gen_bbmeanrev": 1.0,
+    "ai_gen_ma_revert": 1.0,
+    "ai_gen_tailmom": 1.0,
+    "ai_gen_tdi": 1.0,
+    "ai_gen_volatrap": 1.0,
+    "ai_gen_dust_sweep": 1.0,
+    "ai_gen_imb": 1.0,
+    "ai_gen_liq_bounce": 1.0,
+    "ai_gen_liquidity_gap": 1.0,
+    "ai_gen_squeeze_risk": 1.0,
+    "ai_gen_volanom": 1.0,
+    "ai_gen_volume_price_d": 1.0,
+    "ai_gen_lqm_rev": 1.0,
+    "ai_gen_micro_reverse": 0.25,
+    "ai_gen_mkt_uncertaint": 1.0,
+    "ai_gen_price_jump": 1.0,
+    "ai_gen_rev_liq": 1.0,
+    "ai_gen_revint": 1.0,
+    "ai_gen_dust_vol": 1.0,
+    "ai_gen_reversal_pat": 1.0,
+    "ai_gen_sent_rev": 1.0,
+    "ai_gen_volatility_tra": 1.0,
+    "ai_gen_fakebreak": 1.0,
+    "ai_gen_contrarian_ris": 1.0,
+    "ai_gen_imbrm": 1.0,
+    "ai_gen_loss_cluster": 1.0,
+    "ai_gen_reversal_magne": 1.0,
+    "ai_gen_rsi_vol": 0.5,
+    "ai_gen_rvol": 1.0,
+    "ai_gen_rvp": 1.0,
+    "ai_gen_trend_mr": 1.0,
+    "ai_gen_lsimb": 1.0,
+    "ai_gen_voreg": 1.0,
+    "ai_gen_dst": 1.0,
+    "ai_gen_liq": 1.0,
+    "ai_gen_revpot": 1.0,
+    "ai_gen_volume_breakou": 1.0,
+    "ai_gen_volume_surge_r": 1.0,
+    "ai_gen_regime_instabi": 1.0,
+    "ai_gen_squeeze": 1.0,
+    "ai_gen_trend_cons": 1.0,
+    "ai_gen_trendfade": 1.0,
+    "ai_gen_vol_squeeze": 1.0,
+    "ai_gen_vol_trend_conf": 1.0,
+    "ai_gen_vol_twist": 1.0,
+    "ai_gen_bband_reversal": 1.0,
+    "ai_gen_netting": 1.0,
+    "ai_gen_oversold_rever": 1.0,
+    "ai_gen_pres_idx": 1.0,
+    "ai_gen_htp": 1.0,
+    "ai_gen_reversal_prob": 1.0,
+    "ai_gen_vol_trend": 1.0,
+    "ai_gen_vol_trap": 1.0,
+    "ai_gen_vol_rev": 1.0,
+    "ai_gen_short_rev": 1.0,
+    "ai_gen_slrisk": 1.0,
+    "ai_gen_vol_price": 1.0,
+    "ai_gen_rev_vol": 0.25,
+    "ai_gen_vr": 1.0,
+    "ai_gen_mrconf": 1.0,
+    "ai_gen_rsi_mom": 1.0,
+    "ai_gen_short_term_rev": 1.0,
+    "ai_gen_volbreak": 1.0,
+    "ai_gen_extreme_rev": 1.0,
+    "ai_gen_imbalance": 1.0,
+    "ai_gen_vsi": 1.0,
+    "ai_gen_reversal_confi": 1.0,
+    "ai_gen_dust_squeeze": 1.0,
+    "ai_gen_lqk": 1.0,
+    "ai_gen_liq_exhaustion": 1.0,
+    "spike_detection": 1.0,
+    "ai_gen_rev_intra": 1.0,
+    "ai_gen_vol_break": 1.0,
+    "ai_gen_liq_imbalance": 1.0,
+    "ai_gen_mmc": 1.0,
+    "ai_gen_netting_revers": 1.0,
+    "ai_gen_fake_breakout": 1.0,
+    "ai_gen_vdp": 1.0,
+    "ai_gen_volad": 1.0,
+    "ai_gen_vol_imb": 1.0,
+    "ai_gen_rev_fail": 0.25,
+    "ai_gen_regime_un": 1.0,
+    "ai_gen_vol_compress": 1.0,
+    "ai_gen_risk": 1.0,
+    "ai_gen_bsq": 1.0,
+    "ai_gen_liq_quality": 1.0,
+    "ai_gen_liquidity_sque": 0.5,
+    "ai_gen_low_vol_moment": 1.0,
+    "ai_gen_stability": 1.0,
+    "ai_gen_vol_spike": 1.0,
+    "ai_gen_voladj_momentu": 1.0,
+    "ai_gen_voltrend": 1.0,
+    "ai_gen_vpr": 1.0,
+    "ai_gen_volume_flow": 1.0,
+    "ai_gen_volumereg": 1.0,
+    "ai_gen_mrext": 1.0,
+    "ai_gen_vqc": 0.5,
+    "cloud_vwap_deviation": 1.0,
+    "ai_gen_pdr": 1.0,
+    "ai_gen_regime_certain": 1.0,
+    "ai_gen_trend_stab": 1.0,
+    "ai_gen_trg": 1.0,
+    "ai_gen_uncertainty_vo": 1.0,
+    "ai_gen_vatc": 1.0,
+    "ai_gen_vrg": 1.0,
+    "ai_gen_dyn_skew": 1.0,
+    "cloud_rsi_divergence": 1.0,
+    "ai_gen_unreg": 1.0,
+    "ai_gen_mvr": 1.0,
+    "ai_gen_wpd": 1.0,
+    "ai_gen_liquidity_shoc": 1.0,
+    "ai_gen_pricerange": 1.0,
+    "ai_gen_mfa": 1.0,
+    "ai_gen_pdz": 1.0,
+    "ai_gen_vva": 1.0
+  },
+  "stats": {
+    "ai_gen_regime_chaos": {
+      "n": 305,
+      "win_rate": 0.5082,
+      "ic": -0.016,
+      "weight": 1.0
+    },
+    "ai_gen_regime_clarity": {
+      "n": 80,
+      "win_rate": 0.4375,
+      "ic": 0.1298,
+      "weight": 0.5
+    },
+    "ai_gen_regime_confusi": {
+      "n": 261,
+      "win_rate": 0.4598,
+      "ic": -0.0482,
+      "weight": 1.0
+    },
+    "ai_gen_regime_entropy": {
+      "n": 127,
+      "win_rate": 0.4961,
+      "ic": 0.0824,
+      "weight": 1.0
+    },
+    "ai_gen_regime_filter": {
+      "n": 56,
+      "win_rate": 0.4821,
+      "ic": -0.0355,
+      "weight": 1.0
+    },
+    "ai_gen_regime_noise": {
+      "n": 245,
+      "win_rate": 0.4204,
+      "ic": -0.1171,
+      "weight": 0.5
+    },
+    "ai_gen_regime_quality": {
+      "n": 205,
+      "win_rate": 0.5024,
+      "ic": 0.0064,
+      "weight": 1.0
+    },
+    "ai_gen_regime_r2": {
+      "n": 247,
+      "win_rate": 0.5061,
+      "ic": 0.053,
+      "weight": 1.0
+    },
+    "ai_gen_regime_risk": {
+      "n": 267,
+      "win_rate": 0.5431,
+      "ic": 0.0196,
+      "weight": 1.0
+    },
+    "ai_gen_regime_shift": {
+      "n": 201,
+      "win_rate": 0.5672,
+      "ic": 0.1059,
+      "weight": 1.0
+    },
+    "ai_gen_regime_strengt": {
+      "n": 147,
+      "win_rate": 0.5102,
+      "ic": -0.0151,
+      "weight": 1.0
+    },
+    "ai_gen_regime_switch": {
+      "n": 267,
+      "win_rate": 0.4944,
+      "ic": 0.0167,
+      "weight": 1.0
+    },
+    "ai_gen_regime_unc": {
+      "n": 299,
+      "win_rate": 0.5217,
+      "ic": 0.0047,
+      "weight": 1.0
+    },
+    "ai_gen_regime_uncerta": {
+      "n": 355,
+      "win_rate": 0.4986,
+      "ic": 0.0111,
+      "weight": 1.0
+    },
+    "ai_gen_regime_vol": {
+      "n": 198,
+      "win_rate": 0.4697,
+      "ic": -0.0014,
+      "weight": 1.0
+    },
+    "ai_gen_regime_vol_tre": {
+      "n": 302,
+      "win_rate": 0.4901,
+      "ic": -0.0269,
+      "weight": 1.0
+    },
+    "ai_gen_regimeavoid": {
+      "n": 13,
+      "win_rate": 0.4615,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_regimeuncertai": {
+      "n": 308,
+      "win_rate": 0.526,
+      "ic": 0.0213,
+      "weight": 1.0
+    },
+    "ai_gen_regimeunknown": {
+      "n": 296,
+      "win_rate": 0.5101,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_regn": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_retrace_weakne": {
+      "n": 267,
+      "win_rate": 0.5019,
+      "ic": -0.0417,
+      "weight": 1.0
+    },
+    "ai_gen_rev_conflict": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev_ma": {
+      "n": 35,
+      "win_rate": 0.4571,
+      "ic": 0.1446,
+      "weight": 1.0
+    },
+    "ai_gen_rev_magnet": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": -0.0851,
+      "weight": 1.0
+    },
+    "ai_gen_rev_strength": {
+      "n": 307,
+      "win_rate": 0.5244,
+      "ic": -0.0272,
+      "weight": 1.0
+    },
+    "ai_gen_reversal": {
+      "n": 17,
+      "win_rate": 0.5294,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_proxi": {
+      "n": 67,
+      "win_rate": 0.4478,
+      "ic": 0.0113,
+      "weight": 0.5
+    },
+    "ai_gen_reversal_risk": {
+      "n": 186,
+      "win_rate": 0.4516,
+      "ic": 0.0095,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_safet": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": 0.0103,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_volum": {
+      "n": 63,
+      "win_rate": 0.4127,
+      "ic": -0.1724,
+      "weight": 0.5
+    },
+    "ai_gen_reversalsignal": {
+      "n": 284,
+      "win_rate": 0.5387,
+      "ic": -0.0063,
+      "weight": 1.0
+    },
+    "ai_gen_reverse_trap": {
+      "n": 608,
+      "win_rate": 0.4688,
+      "ic": 0.0575,
+      "weight": 1.0
+    },
+    "ai_gen_revrisk": {
+      "n": 101,
+      "win_rate": 0.4752,
+      "ic": 0.0102,
+      "weight": 1.0
+    },
+    "ai_gen_revstrength": {
+      "n": 274,
+      "win_rate": 0.5401,
+      "ic": 0.0308,
+      "weight": 1.0
+    },
+    "ai_gen_rgmm": {
+      "n": 192,
+      "win_rate": 0.5365,
+      "ic": 0.0769,
+      "weight": 1.0
+    },
+    "ai_gen_rgpos": {
+      "n": 248,
+      "win_rate": 0.5524,
+      "ic": 0.0391,
+      "weight": 1.0
+    },
+    "ai_gen_riskregime": {
+      "n": 301,
+      "win_rate": 0.5349,
+      "ic": 0.1105,
+      "weight": 1.0
+    },
+    "ai_gen_rr": {
+      "n": 46,
+      "win_rate": 0.5217,
+      "ic": 0.0547,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_div": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": -0.0225,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_extreme": {
+      "n": 14,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_rev": {
+      "n": 223,
+      "win_rate": 0.4978,
+      "ic": 0.0176,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_reversal": {
+      "n": 225,
+      "win_rate": 0.4933,
+      "ic": 0.0197,
+      "weight": 1.0
+    },
+    "ai_gen_rsidiv": {
+      "n": 66,
+      "win_rate": 0.5152,
+      "ic": -0.036,
+      "weight": 1.0
+    },
+    "ai_gen_rui": {
+      "n": 308,
+      "win_rate": 0.4805,
+      "ic": 0.0179,
+      "weight": 1.0
+    },
+    "ai_gen_rvc": {
+      "n": 295,
+      "win_rate": 0.5322,
+      "ic": -0.0019,
+      "weight": 1.0
+    },
+    "ai_gen_rvsurge": {
+      "n": 293,
+      "win_rate": 0.4778,
+      "ic": -0.028,
+      "weight": 1.0
+    },
+    "ai_gen_short_squeeze": {
+      "n": 276,
+      "win_rate": 0.5181,
+      "ic": -0.0191,
+      "weight": 1.0
+    },
+    "ai_gen_sideways": {
+      "n": 262,
+      "win_rate": 0.5611,
+      "ic": 0.0931,
+      "weight": 1.0
+    },
+    "ai_gen_sl": {
+      "n": 92,
+      "win_rate": 0.5326,
+      "ic": -0.1688,
+      "weight": 1.0
+    },
+    "ai_gen_sl_risk": {
+      "n": 17,
+      "win_rate": 0.5294,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_slconc": {
+      "n": 27,
+      "win_rate": 0.4074,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_slhit": {
+      "n": 37,
+      "win_rate": 0.5676,
+      "ic": 0.1575,
+      "weight": 1.0
+    },
+    "ai_gen_snr": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": 0.017,
+      "weight": 1.0
+    },
+    "ai_gen_squeeze_exhaus": {
+      "n": 308,
+      "win_rate": 0.5195,
+      "ic": 0.0193,
+      "weight": 1.0
+    },
+    "ai_gen_ssd": {
+      "n": 263,
+      "win_rate": 0.4905,
+      "ic": -0.051,
+      "weight": 1.0
+    },
+    "ai_gen_ssr": {
+      "n": 241,
+      "win_rate": 0.5062,
+      "ic": -0.0129,
+      "weight": 1.0
+    },
+    "ai_gen_stagnant": {
+      "n": 287,
+      "win_rate": 0.4564,
+      "ic": 0.0062,
+      "weight": 1.0
+    },
+    "ai_gen_stbl": {
+      "n": 149,
+      "win_rate": 0.4765,
+      "ic": -0.0257,
+      "weight": 1.0
+    },
+    "ai_gen_stop_avoidance": {
+      "n": 228,
+      "win_rate": 0.5219,
+      "ic": -0.0243,
+      "weight": 1.0
+    },
+    "ai_gen_stop_cluster": {
+      "n": 308,
+      "win_rate": 0.4545,
+      "ic": -0.021,
+      "weight": 1.0
+    },
+    "ai_gen_stop_hunting": {
+      "n": 58,
+      "win_rate": 0.569,
+      "ic": 0.1253,
+      "weight": 1.0
+    },
+    "ai_gen_stopdist": {
+      "n": 308,
+      "win_rate": 0.5065,
+      "ic": 0.0377,
+      "weight": 1.0
+    },
+    "ai_gen_stoptrap": {
+      "n": 125,
+      "win_rate": 0.528,
+      "ic": 0.0516,
+      "weight": 1.0
+    },
+    "ai_gen_ta": {
+      "n": 303,
+      "win_rate": 0.4818,
+      "ic": -0.0427,
+      "weight": 1.0
+    },
+    "ai_gen_tau_mom": {
+      "n": 234,
+      "win_rate": 0.5256,
+      "ic": 0.0086,
+      "weight": 1.0
+    },
+    "ai_gen_tc": {
+      "n": 278,
+      "win_rate": 0.5432,
+      "ic": 0.0541,
+      "weight": 1.0
+    },
+    "ai_gen_tci": {
+      "n": 302,
+      "win_rate": 0.4967,
+      "ic": -0.0125,
+      "weight": 1.0
+    },
+    "ai_gen_tcl": {
+      "n": 171,
+      "win_rate": 0.4912,
+      "ic": -0.0065,
+      "weight": 1.0
+    },
+    "ai_gen_tclr": {
+      "n": 136,
+      "win_rate": 0.5662,
+      "ic": 0.1304,
+      "weight": 1.0
+    },
+    "ai_gen_tcon": {
+      "n": 308,
+      "win_rate": 0.5162,
+      "ic": 0.0612,
+      "weight": 1.0
+    },
+    "ai_gen_tconf": {
+      "n": 88,
+      "win_rate": 0.5,
+      "ic": -0.0684,
+      "weight": 1.0
+    },
+    "ai_gen_tcsi": {
+      "n": 250,
+      "win_rate": 0.472,
+      "ic": -0.0332,
+      "weight": 1.0
+    },
+    "ai_gen_tdf": {
+      "n": 271,
+      "win_rate": 0.5351,
+      "ic": 0.0677,
+      "weight": 1.0
+    },
+    "ai_gen_tdr": {
+      "n": 251,
+      "win_rate": 0.4661,
+      "ic": 0.0586,
+      "weight": 1.0
+    },
+    "ai_gen_te": {
+      "n": 250,
+      "win_rate": 0.44,
+      "ic": -0.1267,
+      "weight": 0.5
+    },
+    "ai_gen_teff": {
+      "n": 287,
+      "win_rate": 0.5122,
+      "ic": 0.069,
+      "weight": 1.0
+    },
+    "ai_gen_tei": {
+      "n": 54,
+      "win_rate": 0.5,
+      "ic": -0.0356,
+      "weight": 1.0
+    },
+    "ai_gen_teo": {
+      "n": 197,
+      "win_rate": 0.5635,
+      "ic": 0.0506,
+      "weight": 1.0
+    },
+    "ai_gen_ter": {
+      "n": 79,
+      "win_rate": 0.6076,
+      "ic": 0.0918,
+      "weight": 1.2
+    },
+    "ai_gen_texh": {
+      "n": 212,
+      "win_rate": 0.5755,
+      "ic": 0.0817,
+      "weight": 1.0
+    },
+    "ai_gen_tf_ex": {
+      "n": 224,
+      "win_rate": 0.5134,
+      "ic": -0.0204,
+      "weight": 1.0
+    },
+    "ai_gen_tfatigue": {
+      "n": 54,
+      "win_rate": 0.4444,
+      "ic": -0.1329,
+      "weight": 0.5
+    },
+    "ai_gen_timedecay": {
+      "n": 83,
+      "win_rate": 0.4458,
+      "ic": -0.1353,
+      "weight": 0.5
+    },
+    "ai_gen_timeout": {
+      "n": 26,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_timeout_decay": {
+      "n": 33,
+      "win_rate": 0.4545,
+      "ic": -0.0392,
+      "weight": 1.0
+    },
+    "ai_gen_timing_fail": {
+      "n": 308,
+      "win_rate": 0.5032,
+      "ic": 0.0507,
+      "weight": 1.0
+    },
+    "ai_gen_tndstr": {
+      "n": 281,
+      "win_rate": 0.4911,
+      "ic": -0.0232,
+      "weight": 1.0
+    },
+    "ai_gen_to": {
+      "n": 305,
+      "win_rate": 0.518,
+      "ic": -0.0239,
+      "weight": 1.0
+    },
+    "ai_gen_tor": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_tpr": {
+      "n": 308,
+      "win_rate": 0.4545,
+      "ic": -0.1277,
+      "weight": 1.0
+    },
+    "ai_gen_trad_uncertain": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trd": {
+      "n": 266,
+      "win_rate": 0.5188,
+      "ic": 0.0097,
+      "weight": 1.0
+    },
+    "ai_gen_trd_inertia_de": {
+      "n": 135,
+      "win_rate": 0.5481,
+      "ic": 0.0826,
+      "weight": 1.0
+    },
+    "ai_gen_trd_str": {
+      "n": 9,
+      "win_rate": 0.4444,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trdcon": {
+      "n": 307,
+      "win_rate": 0.5505,
+      "ic": 0.0308,
+      "weight": 1.0
+    },
+    "ai_gen_trdstr": {
+      "n": 149,
+      "win_rate": 0.5235,
+      "ic": 0.0241,
+      "weight": 1.0
+    },
+    "ai_gen_trdvol": {
+      "n": 266,
+      "win_rate": 0.5338,
+      "ic": -0.0058,
+      "weight": 1.0
+    },
+    "ai_gen_treff": {
+      "n": 232,
+      "win_rate": 0.5517,
+      "ic": 0.0911,
+      "weight": 1.0
+    },
+    "ai_gen_tregime": {
+      "n": 221,
+      "win_rate": 0.5113,
+      "ic": 0.0193,
+      "weight": 1.0
+    },
+    "ai_gen_tren": {
+      "n": 366,
+      "win_rate": 0.5164,
+      "ic": 0.0811,
+      "weight": 1.0
+    },
+    "ai_gen_trend": {
+      "n": 214,
+      "win_rate": 0.6075,
+      "ic": 0.1937,
+      "weight": 1.2
+    },
+    "ai_gen_trend_alignmen": {
+      "n": 308,
+      "win_rate": 0.5519,
+      "ic": 0.0524,
+      "weight": 1.0
+    },
+    "ai_gen_trend_ambig": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": -0.0688,
+      "weight": 1.0
+    },
+    "ai_gen_trend_ambiguit": {
+      "n": 248,
+      "win_rate": 0.5202,
+      "ic": 0.0472,
+      "weight": 1.0
+    },
+    "ai_gen_trend_clarity": {
+      "n": 175,
+      "win_rate": 0.4971,
+      "ic": 0.0059,
+      "weight": 1.0
+    },
+    "ai_gen_trend_coherenc": {
+      "n": 180,
+      "win_rate": 0.5389,
+      "ic": 0.158,
+      "weight": 1.0
+    },
+    "ai_gen_trend_con": {
+      "n": 308,
+      "win_rate": 0.539,
+      "ic": 0.0524,
+      "weight": 1.0
+    },
+    "ai_gen_trend_conf": {
+      "n": 325,
+      "win_rate": 0.4523,
+      "ic": -0.0922,
+      "weight": 1.0
+    },
+    "ai_gen_trend_conflict": {
+      "n": 307,
+      "win_rate": 0.5049,
+      "ic": 0.0107,
+      "weight": 1.0
+    },
+    "ai_gen_trend_conformi": {
+      "n": 303,
+      "win_rate": 0.4818,
+      "ic": 0.0344,
+      "weight": 1.0
+    },
+    "ai_gen_trend_confusio": {
+      "n": 245,
+      "win_rate": 0.5061,
+      "ic": 0.0906,
+      "weight": 1.0
+    },
+    "ai_gen_trend_consensu": {
+      "n": 58,
+      "win_rate": 0.569,
+      "ic": -0.1396,
+      "weight": 1.0
+    },
+    "ai_gen_trend_consiste": {
+      "n": 257,
+      "win_rate": 0.5292,
+      "ic": 0.0273,
+      "weight": 1.0
+    },
+    "ai_gen_trend_divergen": {
+      "n": 306,
+      "win_rate": 0.5163,
+      "ic": -0.0126,
+      "weight": 1.0
+    },
+    "ai_gen_trend_eff": {
+      "n": 189,
+      "win_rate": 0.5185,
+      "ic": -0.0125,
+      "weight": 1.0
+    },
+    "ai_gen_trend_efficien": {
+      "n": 253,
+      "win_rate": 0.5059,
+      "ic": 0.1555,
+      "weight": 1.0
+    },
+    "ai_gen_trend_ex": {
+      "n": 188,
+      "win_rate": 0.5532,
+      "ic": 0.0408,
+      "weight": 1.0
+    },
+    "ai_gen_trend_exhausti": {
+      "n": 45,
+      "win_rate": 0.3333,
+      "ic": -0.0893,
+      "weight": 0.25
+    },
+    "ai_gen_trend_fade": {
+      "n": 225,
+      "win_rate": 0.4667,
+      "ic": 0.0087,
+      "weight": 1.0
+    },
+    "ai_gen_trend_fatigue": {
+      "n": 201,
+      "win_rate": 0.5174,
+      "ic": 0.1256,
+      "weight": 1.0
+    },
+    "ai_gen_trend_fuzzy": {
+      "n": 289,
+      "win_rate": 0.5329,
+      "ic": 0.0304,
+      "weight": 1.0
+    },
+    "ai_gen_trend_momentum": {
+      "n": 245,
+      "win_rate": 0.5633,
+      "ic": 0.0796,
+      "weight": 1.0
+    },
+    "ai_gen_trend_persist": {
+      "n": 248,
+      "win_rate": 0.5081,
+      "ic": -0.0096,
+      "weight": 1.0
+    },
+    "ai_gen_trend_quality": {
+      "n": 435,
+      "win_rate": 0.4759,
+      "ic": -0.0081,
+      "weight": 1.0
+    },
+    "ai_gen_trend_ratio": {
+      "n": 280,
+      "win_rate": 0.4964,
+      "ic": -0.0302,
+      "weight": 1.0
+    },
+    "ai_gen_trend_regime": {
+      "n": 83,
+      "win_rate": 0.5783,
+      "ic": 0.0979,
+      "weight": 1.0
+    },
+    "ai_gen_trend_slope": {
+      "n": 299,
+      "win_rate": 0.5318,
+      "ic": 0.0553,
+      "weight": 1.0
+    },
+    "ai_gen_trend_str": {
+      "n": 158,
+      "win_rate": 0.5063,
+      "ic": 0.0697,
+      "weight": 1.0
+    },
+    "ai_gen_trend_strength": {
+      "n": 495,
+      "win_rate": 0.4929,
+      "ic": -0.034,
+      "weight": 1.0
+    },
+    "ai_gen_trend_vol": {
+      "n": 307,
+      "win_rate": 0.557,
+      "ic": 0.0448,
+      "weight": 1.0
+    },
+    "ai_gen_trend_weak": {
+      "n": 258,
+      "win_rate": 0.5233,
+      "ic": -0.0145,
+      "weight": 1.0
+    },
+    "ai_gen_trend_zscore": {
+      "n": 286,
+      "win_rate": 0.5385,
+      "ic": 0.0138,
+      "weight": 1.0
+    },
+    "ai_gen_trendclarity": {
+      "n": 173,
+      "win_rate": 0.4798,
+      "ic": 0.1198,
+      "weight": 1.0
+    },
+    "ai_gen_trendclr": {
+      "n": 285,
+      "win_rate": 0.5158,
+      "ic": 0.0039,
+      "weight": 1.0
+    },
+    "ai_gen_trendcoherence": {
+      "n": 39,
+      "win_rate": 0.641,
+      "ic": 0.0485,
+      "weight": 1.2
+    },
+    "ai_gen_trendcon": {
+      "n": 298,
+      "win_rate": 0.4799,
+      "ic": 0.036,
+      "weight": 1.0
+    },
+    "ai_gen_trendcons": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": 0.0585,
+      "weight": 1.0
+    },
+    "ai_gen_trendexhaust": {
+      "n": 82,
+      "win_rate": 0.4756,
+      "ic": -0.1116,
+      "weight": 1.0
+    },
+    "ai_gen_trendnoise": {
+      "n": 61,
+      "win_rate": 0.5082,
+      "ic": -0.0061,
+      "weight": 1.0
+    },
+    "ai_gen_trendsig": {
+      "n": 82,
+      "win_rate": 0.5732,
+      "ic": 0.0895,
+      "weight": 1.0
+    },
+    "ai_gen_trendstr": {
+      "n": 98,
+      "win_rate": 0.551,
+      "ic": 0.0789,
+      "weight": 1.0
+    },
+    "ai_gen_trendstrength": {
+      "n": 308,
+      "win_rate": 0.5195,
+      "ic": 0.0732,
+      "weight": 1.0
+    },
+    "ai_gen_trendvol": {
+      "n": 26,
+      "win_rate": 0.5769,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trendvol_div": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_trenq": {
+      "n": 276,
+      "win_rate": 0.5326,
+      "ic": 0.1064,
+      "weight": 1.0
+    },
+    "ai_gen_trexf": {
+      "n": 228,
+      "win_rate": 0.5439,
+      "ic": 0.0166,
+      "weight": 1.0
+    },
+    "ai_gen_trnd": {
+      "n": 20,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trndstb": {
+      "n": 228,
+      "win_rate": 0.5395,
+      "ic": 0.1657,
+      "weight": 1.0
+    },
+    "ai_gen_trs": {
+      "n": 247,
+      "win_rate": 0.5061,
+      "ic": 0.053,
+      "weight": 1.0
+    },
+    "ai_gen_trstr": {
+      "n": 188,
+      "win_rate": 0.4947,
+      "ic": -0.0787,
+      "weight": 1.0
+    },
+    "ai_gen_trv": {
+      "n": 271,
+      "win_rate": 0.4908,
+      "ic": 0.0617,
+      "weight": 1.0
+    },
+    "ai_gen_trw": {
+      "n": 238,
+      "win_rate": 0.4958,
+      "ic": -0.0326,
+      "weight": 1.0
+    },
+    "ai_gen_ts": {
+      "n": 206,
+      "win_rate": 0.5291,
+      "ic": 0.0805,
+      "weight": 1.0
+    },
+    "ai_gen_tscore": {
+      "n": 205,
+      "win_rate": 0.5805,
+      "ic": 0.1505,
+      "weight": 1.0
+    },
+    "ai_gen_tsd": {
+      "n": 243,
+      "win_rate": 0.4486,
+      "ic": -0.1116,
+      "weight": 0.5
+    },
+    "ai_gen_tsi": {
+      "n": 143,
+      "win_rate": 0.5245,
+      "ic": 0.0587,
+      "weight": 1.0
+    },
+    "ai_gen_tskew": {
+      "n": 248,
+      "win_rate": 0.5081,
+      "ic": -0.004,
+      "weight": 1.0
+    },
+    "ai_gen_tsr": {
+      "n": 221,
+      "win_rate": 0.5385,
+      "ic": -0.0351,
+      "weight": 1.0
+    },
+    "ai_gen_tstb": {
+      "n": 236,
+      "win_rate": 0.5424,
+      "ic": 0.0352,
+      "weight": 1.0
+    },
+    "ai_gen_tt": {
+      "n": 185,
+      "win_rate": 0.5027,
+      "ic": -0.0709,
+      "weight": 1.0
+    },
+    "ai_gen_ttv": {
+      "n": 229,
+      "win_rate": 0.5502,
+      "ic": 0.0474,
+      "weight": 1.0
+    },
+    "ai_gen_tvr": {
+      "n": 140,
+      "win_rate": 0.4429,
+      "ic": 0.0579,
+      "weight": 0.5
+    },
+    "ai_gen_tw": {
+      "n": 299,
+      "win_rate": 0.5184,
+      "ic": -0.0147,
+      "weight": 1.0
+    },
+    "ai_gen_unc": {
+      "n": 257,
+      "win_rate": 0.5097,
+      "ic": -0.0333,
+      "weight": 1.0
+    },
+    "ai_gen_unk_adx": {
+      "n": 287,
+      "win_rate": 0.5087,
+      "ic": -0.0435,
+      "weight": 1.0
+    },
+    "ai_gen_unk_reg": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_unk_shape": {
+      "n": 262,
+      "win_rate": 0.5,
+      "ic": -0.017,
+      "weight": 1.0
+    },
+    "ai_gen_unkn": {
+      "n": 202,
+      "win_rate": 0.5495,
+      "ic": 0.0925,
+      "weight": 1.0
+    },
+    "ai_gen_unkn_risk": {
+      "n": 253,
+      "win_rate": 0.4941,
+      "ic": 0.0107,
+      "weight": 1.0
+    },
+    "ai_gen_unknown_consis": {
+      "n": 308,
+      "win_rate": 0.4643,
+      "ic": -0.0786,
+      "weight": 1.0
+    },
+    "ai_gen_unknown_osc": {
+      "n": 285,
+      "win_rate": 0.4982,
+      "ic": -0.0556,
+      "weight": 1.0
+    },
+    "ai_gen_unknown_regime": {
+      "n": 296,
+      "win_rate": 0.5169,
+      "ic": 0.0905,
+      "weight": 1.0
+    },
+    "ai_gen_unknown_vol": {
+      "n": 308,
+      "win_rate": 0.5195,
+      "ic": -0.051,
+      "weight": 1.0
+    },
+    "ai_gen_unkreg": {
+      "n": 262,
+      "win_rate": 0.4809,
+      "ic": 0.0512,
+      "weight": 1.0
+    },
+    "ai_gen_unkstate": {
+      "n": 97,
+      "win_rate": 0.5258,
+      "ic": 0.0116,
+      "weight": 1.0
+    },
+    "ai_gen_utr": {
+      "n": 168,
+      "win_rate": 0.5714,
+      "ic": 0.1803,
+      "weight": 1.0
+    },
+    "ai_gen_va": {
+      "n": 290,
+      "win_rate": 0.5345,
+      "ic": 0.0312,
+      "weight": 1.0
+    },
+    "ai_gen_vam": {
+      "n": 251,
+      "win_rate": 0.5418,
+      "ic": 0.0559,
+      "weight": 1.0
+    },
+    "ai_gen_vbf": {
+      "n": 274,
+      "win_rate": 0.5255,
+      "ic": 0.0315,
+      "weight": 1.0
+    },
+    "ai_gen_vbm": {
+      "n": 54,
+      "win_rate": 0.6852,
+      "ic": -0.0966,
+      "weight": 1.2
+    },
+    "ai_gen_vcd": {
+      "n": 174,
+      "win_rate": 0.5172,
+      "ic": -0.0468,
+      "weight": 1.0
+    },
+    "ai_gen_vcr": {
+      "n": 205,
+      "win_rate": 0.4585,
+      "ic": -0.0312,
+      "weight": 1.0
+    },
+    "ai_gen_vcv": {
+      "n": 64,
+      "win_rate": 0.375,
+      "ic": -0.2442,
+      "weight": 0.25
+    },
+    "ai_gen_vd": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": 0.0214,
+      "weight": 1.0
+    },
+    "ai_gen_vdiv": {
+      "n": 160,
+      "win_rate": 0.5875,
+      "ic": 0.2055,
+      "weight": 1.0
+    },
+    "ai_gen_vdu": {
+      "n": 253,
+      "win_rate": 0.5336,
+      "ic": -0.0038,
+      "weight": 1.0
+    },
+    "ai_gen_vf": {
+      "n": 158,
+      "win_rate": 0.4747,
+      "ic": -0.1054,
+      "weight": 1.0
+    },
+    "ai_gen_vif": {
+      "n": 266,
+      "win_rate": 0.4774,
+      "ic": -0.1068,
+      "weight": 1.0
+    },
+    "ai_gen_vix": {
+      "n": 281,
+      "win_rate": 0.5338,
+      "ic": 0.0077,
+      "weight": 1.0
+    },
+    "ai_gen_vld": {
+      "n": 308,
+      "win_rate": 0.4968,
+      "ic": -0.0642,
+      "weight": 1.0
+    },
+    "ai_gen_vlmc": {
+      "n": 195,
+      "win_rate": 0.5231,
+      "ic": 0.0951,
+      "weight": 1.0
+    },
+    "ai_gen_vltr": {
+      "n": 114,
+      "win_rate": 0.4386,
+      "ic": -0.0441,
+      "weight": 0.5
+    },
+    "ai_gen_vmnt": {
+      "n": 182,
+      "win_rate": 0.5659,
+      "ic": 0.1052,
+      "weight": 1.0
+    },
+    "ai_gen_vmom": {
+      "n": 26,
+      "win_rate": 0.5385,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_accel": {
+      "n": 258,
+      "win_rate": 0.5039,
+      "ic": -0.0037,
+      "weight": 1.0
+    },
+    "ai_gen_vol_adapt_mome": {
+      "n": 264,
+      "win_rate": 0.5379,
+      "ic": -0.0042,
+      "weight": 1.0
+    },
+    "ai_gen_vol_adj": {
+      "n": 269,
+      "win_rate": 0.5353,
+      "ic": 0.0042,
+      "weight": 1.0
+    },
+    "ai_gen_vol_adjust": {
+      "n": 214,
+      "win_rate": 0.5467,
+      "ic": 0.0324,
+      "weight": 1.0
+    },
+    "ai_gen_vol_adjusted_m": {
+      "n": 204,
+      "win_rate": 0.4559,
+      "ic": -0.043,
+      "weight": 1.0
+    },
+    "ai_gen_vol_breakdown": {
+      "n": 308,
+      "win_rate": 0.5,
+      "ic": 0.0867,
+      "weight": 1.0
+    },
+    "ai_gen_vol_change": {
+      "n": 290,
+      "win_rate": 0.5172,
+      "ic": -0.0043,
+      "weight": 1.0
+    },
+    "ai_gen_vol_chaos": {
+      "n": 279,
+      "win_rate": 0.5269,
+      "ic": -0.0013,
+      "weight": 1.0
+    },
+    "ai_gen_vol_cluster": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_comp": {
+      "n": 269,
+      "win_rate": 0.4796,
+      "ic": -0.0003,
+      "weight": 1.0
+    },
+    "ai_gen_vol_conf": {
+      "n": 195,
+      "win_rate": 0.5231,
+      "ic": 0.0951,
+      "weight": 1.0
+    },
+    "ai_gen_vol_confirm": {
+      "n": 275,
+      "win_rate": 0.5273,
+      "ic": 0.0437,
+      "weight": 1.0
+    },
+    "ai_gen_vol_confirm_mo": {
+      "n": 197,
+      "win_rate": 0.5635,
+      "ic": 0.0298,
+      "weight": 1.0
+    },
+    "ai_gen_vol_cont": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": -0.1089,
+      "weight": 1.0
+    },
+    "ai_gen_vol_contract": {
+      "n": 210,
+      "win_rate": 0.5381,
+      "ic": 0.0388,
+      "weight": 1.0
+    },
+    "ai_gen_vol_contractio": {
+      "n": 74,
+      "win_rate": 0.5,
+      "ic": -0.0304,
+      "weight": 1.0
+    },
+    "ai_gen_vol_deviation": {
+      "n": 288,
+      "win_rate": 0.5278,
+      "ic": -0.1493,
+      "weight": 1.0
+    },
+    "ai_gen_vol_div": {
+      "n": 309,
+      "win_rate": 0.5275,
+      "ic": 0.0645,
+      "weight": 1.0
+    },
+    "ai_gen_vol_dry": {
+      "n": 74,
+      "win_rate": 0.4189,
+      "ic": -0.1499,
+      "weight": 0.5
+    },
+    "ai_gen_vol_exp": {
+      "n": 285,
+      "win_rate": 0.5193,
+      "ic": 0.0439,
+      "weight": 1.0
+    },
+    "ai_gen_vol_expansion": {
+      "n": 239,
+      "win_rate": 0.5774,
+      "ic": 0.1219,
+      "weight": 1.0
+    },
+    "ai_gen_vol_filter": {
+      "n": 77,
+      "win_rate": 0.3896,
+      "ic": -0.1702,
+      "weight": 0.25
+    },
+    "ai_gen_vol_impact": {
+      "n": 230,
+      "win_rate": 0.5217,
+      "ic": -0.0457,
+      "weight": 1.0
+    },
+    "ai_gen_vol_ma": {
+      "n": 74,
+      "win_rate": 0.4459,
+      "ic": -0.1393,
+      "weight": 0.5
+    },
+    "ai_gen_vol_ma_reversa": {
+      "n": 49,
+      "win_rate": 0.5102,
+      "ic": 0.0124,
+      "weight": 1.0
+    },
+    "ai_gen_vol_mom": {
+      "n": 271,
+      "win_rate": 0.5018,
+      "ic": -0.0081,
+      "weight": 1.0
+    },
+    "ai_gen_vol_mom_div": {
+      "n": 187,
+      "win_rate": 0.5455,
+      "ic": 0.1995,
+      "weight": 1.0
+    },
+    "ai_gen_vol_momentum": {
+      "n": 212,
+      "win_rate": 0.5189,
+      "ic": -0.0641,
+      "weight": 1.0
+    },
+    "ai_gen_vol_ob": {
+      "n": 211,
+      "win_rate": 0.4976,
+      "ic": -0.037,
+      "weight": 1.0
+    },
+    "ai_gen_vol_ord": {
+      "n": 261,
+      "win_rate": 0.4789,
+      "ic": -0.0069,
+      "weight": 1.0
+    },
+    "ai_gen_vol_price_dive": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_vol_ratio": {
+      "n": 249,
+      "win_rate": 0.5301,
+      "ic": 0.0605,
+      "weight": 1.0
+    },
+    "ai_gen_vol_regime": {
+      "n": 224,
+      "win_rate": 0.5,
+      "ic": 0.0629,
+      "weight": 1.0
+    },
+    "ai_gen_vol_risk": {
+      "n": 211,
+      "win_rate": 0.5118,
+      "ic": 0.0107,
+      "weight": 1.0
+    },
+    "ai_gen_vol_skew": {
+      "n": 218,
+      "win_rate": 0.422,
+      "ic": -0.1158,
+      "weight": 0.5
+    },
+    "ai_gen_vol_spread": {
+      "n": 179,
+      "win_rate": 0.4693,
+      "ic": 0.0268,
+      "weight": 1.0
+    },
+    "ai_gen_vol_stab": {
+      "n": 263,
+      "win_rate": 0.4601,
+      "ic": -0.0479,
+      "weight": 1.0
+    },
+    "ai_gen_vol_trend_con": {
+      "n": 131,
+      "win_rate": 0.5725,
+      "ic": 0.0281,
+      "weight": 1.0
+    },
+    "ai_gen_vol_zone": {
+      "n": 89,
+      "win_rate": 0.5393,
+      "ic": 0.0148,
+      "weight": 1.0
+    },
+    "ai_gen_vola_anomaly": {
+      "n": 242,
+      "win_rate": 0.4959,
+      "ic": 0.0484,
+      "weight": 1.0
+    },
+    "ai_gen_vola_stability": {
+      "n": 243,
+      "win_rate": 0.5103,
+      "ic": 0.0521,
+      "weight": 1.0
+    },
+    "ai_gen_vola_surge": {
+      "n": 270,
+      "win_rate": 0.5444,
+      "ic": 0.062,
+      "weight": 1.0
+    },
+    "ai_gen_volabnorm": {
+      "n": 39,
+      "win_rate": 0.4103,
+      "ic": -0.0015,
+      "weight": 0.5
+    },
+    "ai_gen_volatility_con": {
+      "n": 328,
+      "win_rate": 0.5213,
+      "ic": 0.0276,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_exp": {
+      "n": 282,
+      "win_rate": 0.5355,
+      "ic": 0.0177,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_mea": {
+      "n": 245,
+      "win_rate": 0.5224,
+      "ic": -0.0049,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_reg": {
+      "n": 777,
+      "win_rate": 0.5006,
+      "ic": 0.0506,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_shr": {
+      "n": 271,
+      "win_rate": 0.5055,
+      "ic": -0.0198,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_ske": {
+      "n": 232,
+      "win_rate": 0.4655,
+      "ic": -0.0397,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_sta": {
+      "n": 286,
+      "win_rate": 0.493,
+      "ic": 0.1462,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_ten": {
+      "n": 259,
+      "win_rate": 0.4942,
+      "ic": -0.032,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_tre": {
+      "n": 296,
+      "win_rate": 0.4392,
+      "ic": -0.0572,
+      "weight": 0.5
+    },
+    "ai_gen_volchange": {
+      "n": 187,
+      "win_rate": 0.508,
+      "ic": 0.0919,
+      "weight": 1.0
+    },
+    "ai_gen_volclarity": {
+      "n": 264,
+      "win_rate": 0.4962,
+      "ic": 0.0298,
+      "weight": 1.0
+    },
+    "ai_gen_volclust": {
+      "n": 225,
+      "win_rate": 0.5111,
+      "ic": 0.0367,
+      "weight": 1.0
+    },
+    "ai_gen_volconf": {
+      "n": 195,
+      "win_rate": 0.5231,
+      "ic": 0.0951,
+      "weight": 1.0
+    },
+    "ai_gen_volconfirm": {
+      "n": 215,
+      "win_rate": 0.5302,
+      "ic": 0.1544,
+      "weight": 1.0
+    },
+    "ai_gen_volconv": {
+      "n": 214,
+      "win_rate": 0.5327,
+      "ic": 0.0034,
+      "weight": 1.0
+    },
+    "ai_gen_volcv": {
+      "n": 305,
+      "win_rate": 0.4721,
+      "ic": -0.0206,
+      "weight": 1.0
+    },
+    "ai_gen_volexp": {
+      "n": 294,
+      "win_rate": 0.4898,
+      "ic": -0.1279,
+      "weight": 1.0
+    },
+    "ai_gen_volgap": {
+      "n": 254,
+      "win_rate": 0.5,
+      "ic": 0.0556,
+      "weight": 1.0
+    },
+    "ai_gen_volimb": {
+      "n": 204,
+      "win_rate": 0.5098,
+      "ic": -0.0347,
+      "weight": 1.0
+    },
+    "ai_gen_volmom": {
+      "n": 184,
+      "win_rate": 0.5489,
+      "ic": 0.0424,
+      "weight": 1.0
+    },
+    "ai_gen_volnoise": {
+      "n": 232,
+      "win_rate": 0.444,
+      "ic": -0.0989,
+      "weight": 0.5
+    },
+    "ai_gen_volprc": {
+      "n": 195,
+      "win_rate": 0.5333,
+      "ic": 0.1155,
+      "weight": 1.0
+    },
+    "ai_gen_volpric": {
+      "n": 41,
+      "win_rate": 0.5122,
+      "ic": 0.0049,
+      "weight": 1.0
+    },
+    "ai_gen_volprice": {
+      "n": 94,
+      "win_rate": 0.5,
+      "ic": -0.0087,
+      "weight": 1.0
+    },
+    "ai_gen_volprice_corr": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_volpricecorr": {
+      "n": 308,
+      "win_rate": 0.5325,
+      "ic": 0.0833,
+      "weight": 1.0
+    },
+    "ai_gen_volr": {
+      "n": 279,
+      "win_rate": 0.5269,
+      "ic": 0.0482,
+      "weight": 1.0
+    },
+    "ai_gen_volregime": {
+      "n": 287,
+      "win_rate": 0.4878,
+      "ic": 0.008,
+      "weight": 1.0
+    },
+    "ai_gen_volrisk": {
+      "n": 270,
+      "win_rate": 0.4704,
+      "ic": -0.0259,
+      "weight": 1.0
+    },
+    "ai_gen_volrsi": {
+      "n": 308,
+      "win_rate": 0.4805,
+      "ic": 0.0244,
+      "weight": 1.0
+    },
+    "ai_gen_volrvol": {
+      "n": 72,
+      "win_rate": 0.6111,
+      "ic": -0.0253,
+      "weight": 1.2
+    },
+    "ai_gen_volshift": {
+      "n": 226,
+      "win_rate": 0.5044,
+      "ic": 0.0756,
+      "weight": 1.0
+    },
+    "ai_gen_volshock": {
+      "n": 258,
+      "win_rate": 0.4845,
+      "ic": -0.0105,
+      "weight": 1.0
+    },
+    "ai_gen_volstab": {
+      "n": 308,
+      "win_rate": 0.5357,
+      "ic": -0.0082,
+      "weight": 1.0
+    },
+    "ai_gen_volsurge": {
+      "n": 277,
+      "win_rate": 0.5126,
+      "ic": 0.0249,
+      "weight": 1.0
+    },
+    "ai_gen_voltexhaust": {
+      "n": 295,
+      "win_rate": 0.4983,
+      "ic": 0.0782,
+      "weight": 1.0
+    },
+    "ai_gen_volu": {
+      "n": 308,
+      "win_rate": 0.474,
+      "ic": -0.0013,
+      "weight": 1.0
+    },
+    "ai_gen_volume_anomaly": {
+      "n": 275,
+      "win_rate": 0.4764,
+      "ic": -0.0691,
+      "weight": 1.0
+    },
+    "ai_gen_volume_confirm": {
+      "n": 421,
+      "win_rate": 0.4751,
+      "ic": -0.0466,
+      "weight": 1.0
+    },
+    "ai_gen_volume_convict": {
+      "n": 281,
+      "win_rate": 0.5267,
+      "ic": -0.0022,
+      "weight": 1.0
+    },
+    "ai_gen_volume_corr": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_volume_div": {
+      "n": 195,
+      "win_rate": 0.5231,
+      "ic": 0.0951,
+      "weight": 1.0
+    },
+    "ai_gen_volume_diverge": {
+      "n": 344,
+      "win_rate": 0.4884,
+      "ic": 0.0228,
+      "weight": 1.0
+    },
+    "ai_gen_volume_imbalan": {
+      "n": 261,
+      "win_rate": 0.4943,
+      "ic": 0.0433,
+      "weight": 1.0
+    },
+    "ai_gen_volume_impact": {
+      "n": 196,
+      "win_rate": 0.5255,
+      "ic": 0.1724,
+      "weight": 1.0
+    },
+    "ai_gen_volume_instabi": {
+      "n": 229,
+      "win_rate": 0.5153,
+      "ic": 0.0542,
+      "weight": 1.0
+    },
+    "ai_gen_volume_liquidi": {
+      "n": 252,
+      "win_rate": 0.4881,
+      "ic": -0.0432,
+      "weight": 1.0
+    },
+    "ai_gen_volume_lull": {
+      "n": 261,
+      "win_rate": 0.5096,
+      "ic": 0.0073,
+      "weight": 1.0
+    },
+    "ai_gen_volume_regime": {
+      "n": 290,
+      "win_rate": 0.5345,
+      "ic": 0.0266,
+      "weight": 1.0
+    },
+    "ai_gen_volume_surge": {
+      "n": 192,
+      "win_rate": 0.5104,
+      "ic": -0.0449,
+      "weight": 1.0
+    },
+    "ai_gen_volume_sync": {
+      "n": 190,
+      "win_rate": 0.4842,
+      "ic": -0.0315,
+      "weight": 1.0
+    },
+    "ai_gen_volume_trend_c": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_volumeconfirm": {
+      "n": 64,
+      "win_rate": 0.375,
+      "ic": -0.2442,
+      "weight": 0.25
+    },
+    "ai_gen_volumeconsiste": {
+      "n": 280,
+      "win_rate": 0.5286,
+      "ic": 0.0497,
+      "weight": 1.0
+    },
+    "ai_gen_volumeconv": {
+      "n": 307,
+      "win_rate": 0.5896,
+      "ic": 0.1735,
+      "weight": 1.0
+    },
+    "ai_gen_volumeconvicti": {
+      "n": 190,
+      "win_rate": 0.4842,
+      "ic": -0.0315,
+      "weight": 1.0
+    },
+    "ai_gen_volumediv": {
+      "n": 64,
+      "win_rate": 0.375,
+      "ic": -0.2442,
+      "weight": 0.25
+    },
+    "ai_gen_volumeprice": {
+      "n": 204,
+      "win_rate": 0.4951,
+      "ic": -0.0353,
+      "weight": 1.0
+    },
+    "ai_gen_volvol": {
+      "n": 250,
+      "win_rate": 0.536,
+      "ic": -0.0495,
+      "weight": 1.0
+    },
+    "ai_gen_vom": {
+      "n": 152,
+      "win_rate": 0.4474,
+      "ic": -0.0643,
+      "weight": 0.5
+    },
+    "ai_gen_vop": {
+      "n": 222,
+      "win_rate": 0.5225,
+      "ic": 0.1603,
+      "weight": 1.0
+    },
+    "ai_gen_vos": {
+      "n": 272,
+      "win_rate": 0.5478,
+      "ic": 0.036,
+      "weight": 1.0
+    },
+    "ai_gen_vp_diverge": {
+      "n": 175,
+      "win_rate": 0.4286,
+      "ic": -0.1305,
+      "weight": 0.5
+    },
+    "ai_gen_vp_divergence": {
+      "n": 206,
+      "win_rate": 0.5243,
+      "ic": 0.0778,
+      "weight": 1.0
+    },
+    "ai_gen_vp_risk": {
+      "n": 249,
+      "win_rate": 0.5341,
+      "ic": 0.0972,
+      "weight": 1.0
+    },
+    "ai_gen_vpc": {
+      "n": 296,
+      "win_rate": 0.5,
+      "ic": -0.0406,
+      "weight": 1.0
+    },
+    "ai_gen_vpt_divergence": {
+      "n": 195,
+      "win_rate": 0.441,
+      "ic": -0.0852,
+      "weight": 0.5
+    },
+    "ai_gen_vqci": {
+      "n": 148,
+      "win_rate": 0.473,
+      "ic": -0.0699,
+      "weight": 1.0
+    },
+    "ai_gen_vrf": {
+      "n": 298,
+      "win_rate": 0.547,
+      "ic": 0.0591,
+      "weight": 1.0
+    },
+    "ai_gen_vrsi": {
+      "n": 88,
+      "win_rate": 0.4318,
+      "ic": -0.043,
+      "weight": 0.5
+    },
+    "ai_gen_vsqueeze": {
+      "n": 188,
+      "win_rate": 0.5,
+      "ic": 0.009,
+      "weight": 1.0
+    },
+    "ai_gen_vsr": {
+      "n": 281,
+      "win_rate": 0.4626,
+      "ic": -0.0594,
+      "weight": 1.0
+    },
+    "ai_gen_vtr": {
+      "n": 185,
+      "win_rate": 0.5081,
+      "ic": 0.0364,
+      "weight": 1.0
+    },
+    "ai_gen_vtrend": {
+      "n": 87,
+      "win_rate": 0.5057,
+      "ic": 0.106,
+      "weight": 1.0
+    },
+    "ai_gen_vv": {
+      "n": 272,
+      "win_rate": 0.511,
+      "ic": -0.019,
+      "weight": 1.0
+    },
+    "ai_gen_vvd": {
+      "n": 304,
+      "win_rate": 0.5164,
+      "ic": 0.0928,
+      "weight": 1.0
+    },
+    "ai_gen_vvr": {
+      "n": 191,
+      "win_rate": 0.5497,
+      "ic": 0.0367,
+      "weight": 1.0
+    },
+    "ai_gen_vxf": {
+      "n": 167,
+      "win_rate": 0.4731,
+      "ic": -0.049,
+      "weight": 1.0
+    },
+    "ai_gen_wick_ratio": {
+      "n": 148,
+      "win_rate": 0.5203,
+      "ic": -0.1061,
+      "weight": 1.0
+    },
+    "ai_gen_wk_mom": {
+      "n": 11,
+      "win_rate": 0.3636,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_wr": {
+      "n": 49,
+      "win_rate": 0.551,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_zone": {
+      "n": 290,
+      "win_rate": 0.5034,
+      "ic": -0.0089,
+      "weight": 1.0
+    },
+    "ai_gen_zscore_revert": {
+      "n": 261,
+      "win_rate": 0.4559,
+      "ic": -0.009,
+      "weight": 1.0
+    },
+    "bb_lower": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0467,
+      "weight": 1.0
+    },
+    "bb_upper": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0455,
+      "weight": 1.0
+    },
+    "bull_bear_index": {
+      "n": 255,
+      "win_rate": 0.4863,
+      "ic": 0.0169,
+      "weight": 1.0
+    },
+    "buy_sell_ratio": {
+      "n": 498,
+      "win_rate": 0.4598,
+      "ic": -0.0397,
+      "weight": 1.0
+    },
+    "buy_volume": {
+      "n": 489,
+      "win_rate": 0.4663,
+      "ic": 0.0608,
+      "weight": 1.0
+    },
+    "cci_14": {
+      "n": 608,
+      "win_rate": 0.5,
+      "ic": -0.0262,
+      "weight": 1.0
+    },
+    "cloud_bollinger_width": {
+      "n": 575,
+      "win_rate": 0.4852,
+      "ic": -0.0065,
+      "weight": 1.0
+    },
+    "cloud_obv_oscillator": {
+      "n": 250,
+      "win_rate": 0.476,
+      "ic": -0.0313,
+      "weight": 1.0
+    },
+    "cmf_20": {
+      "n": 218,
+      "win_rate": 0.5459,
+      "ic": 0.0245,
+      "weight": 1.0
+    },
+    "consolidation": {
+      "n": 608,
+      "win_rate": 0.4704,
+      "ic": null,
+      "weight": 1.0
+    },
+    "cvd_volume_residual": {
+      "n": 586,
+      "win_rate": 0.5341,
+      "ic": 0.0456,
+      "weight": 1.0
+    },
+    "depth_ratio": {
+      "n": 376,
+      "win_rate": 0.492,
+      "ic": 0.0232,
+      "weight": 1.0
+    },
+    "dollar_volume": {
+      "n": 498,
+      "win_rate": 0.4598,
+      "ic": 0.0036,
+      "weight": 1.0
+    },
+    "flow_ratio": {
+      "n": 490,
+      "win_rate": 0.4714,
+      "ic": 0.0795,
+      "weight": 1.0
+    },
+    "high_low_ratio": {
+      "n": 608,
+      "win_rate": 0.4704,
+      "ic": -0.0225,
+      "weight": 1.0
+    },
+    "ichimoku_kijun": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0462,
+      "weight": 1.0
+    },
+    "ichimoku_tenkan": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0456,
+      "weight": 1.0
+    },
+    "keltner_lower": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0465,
+      "weight": 1.0
+    },
+    "keltner_upper": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0458,
+      "weight": 1.0
+    },
+    "liquidity_premium": {
+      "n": 299,
+      "win_rate": 0.5686,
+      "ic": 0.1041,
+      "weight": 1.0
+    },
+    "liquidity_score": {
+      "n": 496,
+      "win_rate": 0.4597,
+      "ic": 0.0406,
+      "weight": 1.0
+    },
+    "mean_reversion_score": {
+      "n": 435,
+      "win_rate": 0.492,
+      "ic": -0.007,
+      "weight": 1.0
+    },
+    "mfi_14": {
+      "n": 562,
+      "win_rate": 0.4733,
+      "ic": -0.0616,
+      "weight": 1.0
+    },
+    "multi_tf_momentum": {
+      "n": 340,
+      "win_rate": 0.4912,
+      "ic": -0.0519,
+      "weight": 1.0
+    },
+    "order_imbalance": {
+      "n": 490,
+      "win_rate": 0.4898,
+      "ic": -0.048,
+      "weight": 1.0
+    },
+    "orderflow_delta": {
+      "n": 373,
+      "win_rate": 0.4826,
+      "ic": -0.054,
+      "weight": 1.0
+    },
+    "pressure_index": {
+      "n": 456,
+      "win_rate": 0.5088,
+      "ic": 0.0189,
+      "weight": 1.0
+    },
+    "price_anomaly": {
+      "n": 566,
+      "win_rate": 0.5,
+      "ic": -0.0097,
+      "weight": 1.0
+    },
+    "price_to_ma20": {
+      "n": 608,
+      "win_rate": 0.4704,
+      "ic": 0.006,
+      "weight": 1.0
+    },
+    "psar": {
+      "n": 525,
+      "win_rate": 0.48,
+      "ic": 0.0468,
+      "weight": 1.0
+    },
+    "rsi_7": {
+      "n": 455,
+      "win_rate": 0.5165,
+      "ic": 0.0854,
+      "weight": 1.0
+    },
+    "rsi_vol_ratio": {
+      "n": 593,
+      "win_rate": 0.511,
+      "ic": -0.0892,
+      "weight": 1.0
+    },
+    "sell_volume": {
+      "n": 489,
+      "win_rate": 0.4663,
+      "ic": 0.0607,
+      "weight": 1.0
+    },
+    "stoch_d": {
+      "n": 585,
+      "win_rate": 0.4684,
+      "ic": -0.0332,
+      "weight": 1.0
+    },
+    "stoch_k": {
+      "n": 553,
+      "win_rate": 0.4756,
+      "ic": -0.0596,
+      "weight": 1.0
+    },
+    "trade_intensity": {
+      "n": 304,
+      "win_rate": 0.477,
+      "ic": -0.0648,
+      "weight": 1.0
+    },
+    "trend_persistence": {
+      "n": 608,
+      "win_rate": 0.477,
+      "ic": 0.0189,
+      "weight": 1.0
+    },
+    "turnover_ratio": {
+      "n": 366,
+      "win_rate": 0.4809,
+      "ic": 0.033,
+      "weight": 1.0
+    },
+    "uo": {
+      "n": 599,
+      "win_rate": 0.4674,
+      "ic": -0.0245,
+      "weight": 1.0
+    },
+    "volatility_anomaly": {
+      "n": 537,
+      "win_rate": 0.5605,
+      "ic": 0.1284,
+      "weight": 1.0
+    },
+    "volatility_ratio": {
+      "n": 604,
+      "win_rate": 0.4685,
+      "ic": 0.0866,
+      "weight": 1.0
+    },
+    "volume_anomaly": {
+      "n": 529,
+      "win_rate": 0.5406,
+      "ic": 0.0898,
+      "weight": 1.0
+    },
+    "whale_transactions": {
+      "n": 608,
+      "win_rate": 0.4704,
+      "ic": null,
+      "weight": 1.0
+    },
+    "williams_r": {
+      "n": 551,
+      "win_rate": 0.5136,
+      "ic": -0.0165,
+      "weight": 1.0
+    },
+    "wq_alpha002": {
+      "n": 60,
+      "win_rate": 0.2833,
+      "ic": -0.4869,
+      "weight": 0.25
+    },
+    "wq_alpha006": {
+      "n": 59,
+      "win_rate": 0.5085,
+      "ic": 0.024,
+      "weight": 1.0
+    },
+    "wq_alpha012": {
+      "n": 23,
+      "win_rate": 0.4348,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_fakeout_rsi_di": {
+      "n": 278,
+      "win_rate": 0.5216,
+      "ic": -0.0257,
+      "weight": 1.0
+    },
+    "ai_gen_falsebreak": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": 0.1173,
+      "weight": 1.0
+    },
+    "ai_gen_flow_reversal": {
+      "n": 52,
+      "win_rate": 0.4808,
+      "ic": -0.0757,
+      "weight": 1.0
+    },
+    "ai_gen_hdr": {
+      "n": 296,
+      "win_rate": 0.4797,
+      "ic": -0.0001,
+      "weight": 1.0
+    },
+    "ai_gen_high_pos": {
+      "n": 73,
+      "win_rate": 0.4384,
+      "ic": -0.1638,
+      "weight": 0.5
+    },
+    "ai_gen_hold_mom": {
+      "n": 267,
+      "win_rate": 0.5131,
+      "ic": 0.0213,
+      "weight": 1.0
+    },
+    "ai_gen_hold_risk": {
+      "n": 275,
+      "win_rate": 0.5527,
+      "ic": 0.0564,
+      "weight": 1.0
+    },
+    "ai_gen_hold_window": {
+      "n": 254,
+      "win_rate": 0.5,
+      "ic": -0.0558,
+      "weight": 1.0
+    },
+    "ai_gen_holdprs": {
+      "n": 298,
+      "win_rate": 0.5436,
+      "ic": 0.0567,
+      "weight": 1.0
+    },
+    "ai_gen_holdrisk": {
+      "n": 208,
+      "win_rate": 0.5433,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_holdtimeout": {
+      "n": 264,
+      "win_rate": 0.5492,
+      "ic": 0.1163,
+      "weight": 1.0
+    },
+    "ai_gen_holdto": {
+      "n": 42,
+      "win_rate": 0.4048,
+      "ic": -0.0361,
+      "weight": 0.5
+    },
+    "ai_gen_hot": {
+      "n": 307,
+      "win_rate": 0.4951,
+      "ic": -0.1012,
+      "weight": 1.0
+    },
+    "ai_gen_intraday_imbal": {
+      "n": 54,
+      "win_rate": 0.4074,
+      "ic": -0.0255,
+      "weight": 0.5
+    },
+    "ai_gen_intraday_rever": {
+      "n": 308,
+      "win_rate": 0.4578,
+      "ic": -0.045,
+      "weight": 1.0
+    },
+    "ai_gen_intraday_stren": {
+      "n": 154,
+      "win_rate": 0.4545,
+      "ic": -0.1397,
+      "weight": 1.0
+    },
+    "ai_gen_ldiv": {
+      "n": 64,
+      "win_rate": 0.375,
+      "ic": -0.2442,
+      "weight": 0.25
+    },
+    "ai_gen_lhv": {
+      "n": 292,
+      "win_rate": 0.5103,
+      "ic": 0.036,
+      "weight": 1.0
+    },
+    "ai_gen_liq_distort": {
+      "n": 179,
+      "win_rate": 0.5084,
+      "ic": 0.1501,
+      "weight": 1.0
+    },
+    "ai_gen_liq_drought": {
+      "n": 167,
+      "win_rate": 0.509,
+      "ic": 0.0434,
+      "weight": 1.0
+    },
+    "ai_gen_liq_imp": {
+      "n": 201,
+      "win_rate": 0.4627,
+      "ic": 0.0147,
+      "weight": 1.0
+    },
+    "ai_gen_liq_mag": {
+      "n": 284,
+      "win_rate": 0.5246,
+      "ic": -0.0094,
+      "weight": 1.0
+    },
+    "ai_gen_liq_risk": {
+      "n": 241,
+      "win_rate": 0.5104,
+      "ic": -0.068,
+      "weight": 1.0
+    },
+    "ai_gen_liq_shock": {
+      "n": 244,
+      "win_rate": 0.5287,
+      "ic": 0.0069,
+      "weight": 1.0
+    },
+    "ai_gen_liq_squeeze": {
+      "n": 308,
+      "win_rate": 0.5097,
+      "ic": -0.0034,
+      "weight": 1.0
+    },
+    "ai_gen_liqabn": {
+      "n": 295,
+      "win_rate": 0.539,
+      "ic": 0.0307,
+      "weight": 1.0
+    },
+    "ai_gen_liqdrop": {
+      "n": 295,
+      "win_rate": 0.4915,
+      "ic": -0.0257,
+      "weight": 1.0
+    },
+    "ai_gen_liqrisk": {
+      "n": 243,
+      "win_rate": 0.535,
+      "ic": -0.016,
+      "weight": 1.0
+    },
+    "ai_gen_liquid": {
+      "n": 253,
+      "win_rate": 0.4545,
+      "ic": -0.0573,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_anom": {
+      "n": 119,
+      "win_rate": 0.5462,
+      "ic": 0.0606,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_magn": {
+      "n": 232,
+      "win_rate": 0.5647,
+      "ic": 0.0414,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_risk": {
+      "n": 251,
+      "win_rate": 0.4701,
+      "ic": -0.0093,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_swee": {
+      "n": 308,
+      "win_rate": 0.4935,
+      "ic": 0.0825,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_tiny": {
+      "n": 290,
+      "win_rate": 0.5345,
+      "ic": 0.0312,
+      "weight": 1.0
+    },
+    "ai_gen_liquiditygap": {
+      "n": 233,
+      "win_rate": 0.4635,
+      "ic": -0.0462,
+      "weight": 1.0
+    },
+    "ai_gen_long_short_imb": {
+      "n": 114,
+      "win_rate": 0.5,
+      "ic": -0.0257,
+      "weight": 1.0
+    },
+    "ai_gen_longshort": {
+      "n": 273,
+      "win_rate": 0.5275,
+      "ic": -0.0521,
+      "weight": 1.0
+    },
+    "ai_gen_longshort_imba": {
+      "n": 186,
+      "win_rate": 0.5215,
+      "ic": -0.0371,
+      "weight": 1.0
+    },
+    "ai_gen_lr": {
+      "n": 256,
+      "win_rate": 0.4883,
+      "ic": 0.0567,
+      "weight": 1.0
+    },
+    "ai_gen_lrr": {
+      "n": 92,
+      "win_rate": 0.5326,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_ltr": {
+      "n": 76,
+      "win_rate": 0.5263,
+      "ic": 0.0175,
+      "weight": 1.0
+    },
+    "ai_gen_ltvol": {
+      "n": 205,
+      "win_rate": 0.5366,
+      "ic": 0.0515,
+      "weight": 1.0
+    },
+    "ai_gen_lvr": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mad": {
+      "n": 171,
+      "win_rate": 0.5322,
+      "ic": -0.0012,
+      "weight": 1.0
+    },
+    "ai_gen_market_entropy": {
+      "n": 272,
+      "win_rate": 0.5515,
+      "ic": 0.0609,
+      "weight": 1.0
+    },
+    "ai_gen_market_neutral": {
+      "n": 308,
+      "win_rate": 0.4708,
+      "ic": 0.033,
+      "weight": 1.0
+    },
+    "ai_gen_market_regime": {
+      "n": 263,
+      "win_rate": 0.4753,
+      "ic": -0.0416,
+      "weight": 1.0
+    },
+    "ai_gen_master_flow": {
+      "n": 242,
+      "win_rate": 0.5124,
+      "ic": 0.0197,
+      "weight": 1.0
+    },
+    "ai_gen_maxhold": {
+      "n": 26,
+      "win_rate": 0.5769,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mci": {
+      "n": 274,
+      "win_rate": 0.5401,
+      "ic": 0.1104,
+      "weight": 1.0
+    },
+    "ai_gen_md": {
+      "n": 306,
+      "win_rate": 0.4673,
+      "ic": -0.1284,
+      "weight": 1.0
+    },
+    "ai_gen_mdf": {
+      "n": 99,
+      "win_rate": 0.5152,
+      "ic": 0.0834,
+      "weight": 1.0
+    },
+    "ai_gen_meanrevert": {
+      "n": 80,
+      "win_rate": 0.3875,
+      "ic": -0.2636,
+      "weight": 0.25
+    },
+    "ai_gen_meanrevertime": {
+      "n": 273,
+      "win_rate": 0.4725,
+      "ic": -0.0178,
+      "weight": 1.0
+    },
+    "ai_gen_mft": {
+      "n": 303,
+      "win_rate": 0.4785,
+      "ic": 0.057,
+      "weight": 1.0
+    },
+    "ai_gen_mht": {
+      "n": 264,
+      "win_rate": 0.4432,
+      "ic": -0.1285,
+      "weight": 0.5
+    },
+    "ai_gen_micro_corr": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": -0.0064,
+      "weight": 1.0
+    },
+    "ai_gen_micro_noise": {
+      "n": 297,
+      "win_rate": 0.5253,
+      "ic": -0.012,
+      "weight": 1.0
+    },
+    "ai_gen_micro_profit_r": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_micro_weakness": {
+      "n": 262,
+      "win_rate": 0.5229,
+      "ic": -0.0173,
+      "weight": 1.0
+    },
+    "ai_gen_microrange": {
+      "n": 246,
+      "win_rate": 0.4919,
+      "ic": 0.026,
+      "weight": 1.0
+    },
+    "ai_gen_midp": {
+      "n": 248,
+      "win_rate": 0.5202,
+      "ic": 0.0156,
+      "weight": 1.0
+    },
+    "ai_gen_midprice": {
+      "n": 213,
+      "win_rate": 0.4413,
+      "ic": 0.0009,
+      "weight": 0.5
+    },
+    "ai_gen_mini_rev": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": -0.0937,
+      "weight": 1.0
+    },
+    "ai_gen_mkt_eff": {
+      "n": 246,
+      "win_rate": 0.5041,
+      "ic": -0.022,
+      "weight": 1.0
+    },
+    "ai_gen_mktconf": {
+      "n": 193,
+      "win_rate": 0.5337,
+      "ic": 0.1041,
+      "weight": 1.0
+    },
+    "ai_gen_mktreg": {
+      "n": 157,
+      "win_rate": 0.5414,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mom": {
+      "n": 246,
+      "win_rate": 0.561,
+      "ic": 0.0787,
+      "weight": 1.0
+    },
+    "ai_gen_mom_coherence": {
+      "n": 215,
+      "win_rate": 0.507,
+      "ic": 0.0434,
+      "weight": 1.0
+    },
+    "ai_gen_mom_consistenc": {
+      "n": 308,
+      "win_rate": 0.5519,
+      "ic": 0.0524,
+      "weight": 1.0
+    },
+    "ai_gen_momconflict": {
+      "n": 308,
+      "win_rate": 0.4903,
+      "ic": -0.0075,
+      "weight": 1.0
+    },
+    "ai_gen_momconsensus": {
+      "n": 256,
+      "win_rate": 0.5469,
+      "ic": 0.0486,
+      "weight": 1.0
+    },
+    "ai_gen_momconsistency": {
+      "n": 305,
+      "win_rate": 0.4656,
+      "ic": -0.0677,
+      "weight": 1.0
+    },
+    "ai_gen_momdiv": {
+      "n": 304,
+      "win_rate": 0.5395,
+      "ic": 0.0301,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_coher": {
+      "n": 256,
+      "win_rate": 0.4844,
+      "ic": -0.0442,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_consi": {
+      "n": 306,
+      "win_rate": 0.4935,
+      "ic": 0.0005,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_diver": {
+      "n": 257,
+      "win_rate": 0.4864,
+      "ic": -0.0077,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_stabi": {
+      "n": 308,
+      "win_rate": 0.4643,
+      "ic": -0.0446,
+      "weight": 1.0
+    },
+    "ai_gen_momqual": {
+      "n": 301,
+      "win_rate": 0.5216,
+      "ic": -0.048,
+      "weight": 1.0
+    },
+    "ai_gen_momrev": {
+      "n": 69,
+      "win_rate": 0.4638,
+      "ic": -0.0567,
+      "weight": 1.0
+    },
+    "ai_gen_momrv": {
+      "n": 92,
+      "win_rate": 0.5,
+      "ic": -0.0779,
+      "weight": 1.0
+    },
+    "ai_gen_momv": {
+      "n": 216,
+      "win_rate": 0.4444,
+      "ic": -0.0808,
+      "weight": 0.5
+    },
+    "ai_gen_momvol": {
+      "n": 281,
+      "win_rate": 0.5053,
+      "ic": 0.011,
+      "weight": 1.0
+    },
+    "ai_gen_mpd": {
+      "n": 297,
+      "win_rate": 0.5455,
+      "ic": 0.0148,
+      "weight": 1.0
+    },
+    "ai_gen_mr": {
+      "n": 272,
+      "win_rate": 0.5294,
+      "ic": 0.0819,
+      "weight": 1.0
+    },
+    "ai_gen_mrmean": {
+      "n": 195,
+      "win_rate": 0.5538,
+      "ic": 0.0939,
+      "weight": 1.0
+    },
+    "ai_gen_mrs": {
+      "n": 301,
+      "win_rate": 0.5116,
+      "ic": -0.0264,
+      "weight": 1.0
+    },
+    "ai_gen_mtc": {
+      "n": 218,
+      "win_rate": 0.5138,
+      "ic": 0.0326,
+      "weight": 1.0
+    },
+    "ai_gen_multi_trend": {
+      "n": 308,
+      "win_rate": 0.5065,
+      "ic": 0.0536,
+      "weight": 1.0
+    },
+    "ai_gen_multitimeframe": {
+      "n": 308,
+      "win_rate": 0.5584,
+      "ic": 0.0425,
+      "weight": 1.0
+    },
+    "ai_gen_narrow_range": {
+      "n": 269,
+      "win_rate": 0.513,
+      "ic": 0.0214,
+      "weight": 1.0
+    },
+    "ai_gen_noise": {
+      "n": 334,
+      "win_rate": 0.491,
+      "ic": -0.0057,
+      "weight": 1.0
+    },
+    "ai_gen_noise_ratio": {
+      "n": 308,
+      "win_rate": 0.5097,
+      "ic": 0.0579,
+      "weight": 1.0
+    },
+    "ai_gen_noise_trap": {
+      "n": 201,
+      "win_rate": 0.4378,
+      "ic": -0.0042,
+      "weight": 0.5
+    },
+    "ai_gen_noise_vol": {
+      "n": 255,
+      "win_rate": 0.4902,
+      "ic": -0.1131,
+      "weight": 1.0
+    },
+    "ai_gen_noiseratio": {
+      "n": 261,
+      "win_rate": 0.4981,
+      "ic": 0.0507,
+      "weight": 1.0
+    },
+    "ai_gen_nri": {
+      "n": 268,
+      "win_rate": 0.4925,
+      "ic": 0.0611,
+      "weight": 1.0
+    },
+    "ai_gen_ntrend": {
+      "n": 197,
+      "win_rate": 0.5025,
+      "ic": 0.0029,
+      "weight": 1.0
+    },
+    "ai_gen_obvdiv": {
+      "n": 139,
+      "win_rate": 0.446,
+      "ic": -0.0886,
+      "weight": 0.5
+    },
+    "ai_gen_osc": {
+      "n": 268,
+      "win_rate": 0.541,
+      "ic": 0.0543,
+      "weight": 1.0
+    },
+    "ai_gen_overheat": {
+      "n": 308,
+      "win_rate": 0.474,
+      "ic": 0.0705,
+      "weight": 1.0
+    },
+    "ai_gen_pdf": {
+      "n": 115,
+      "win_rate": 0.5478,
+      "ic": 0.0288,
+      "weight": 1.0
+    },
+    "ai_gen_pmf": {
+      "n": 200,
+      "win_rate": 0.425,
+      "ic": -0.0319,
+      "weight": 0.5
+    },
+    "ai_gen_ppc": {
+      "n": 237,
+      "win_rate": 0.4684,
+      "ic": 0.0086,
+      "weight": 1.0
+    },
+    "ai_gen_price_eff": {
+      "n": 285,
+      "win_rate": 0.5158,
+      "ic": 0.0039,
+      "weight": 1.0
+    },
+    "ai_gen_price_efficien": {
+      "n": 285,
+      "win_rate": 0.5158,
+      "ic": 0.0039,
+      "weight": 1.0
+    },
+    "ai_gen_price_position": {
+      "n": 518,
+      "win_rate": 0.4942,
+      "ic": -0.0109,
+      "weight": 1.0
+    },
+    "ai_gen_price_volatili": {
+      "n": 223,
+      "win_rate": 0.5112,
+      "ic": -0.0895,
+      "weight": 1.0
+    },
+    "ai_gen_price_zone": {
+      "n": 237,
+      "win_rate": 0.5316,
+      "ic": -0.0086,
+      "weight": 1.0
+    },
+    "ai_gen_pricepath": {
+      "n": 244,
+      "win_rate": 0.5,
+      "ic": -0.0343,
+      "weight": 1.0
+    },
+    "ai_gen_pricequality": {
+      "n": 193,
+      "win_rate": 0.5026,
+      "ic": 0.0411,
+      "weight": 1.0
+    },
+    "ai_gen_pricestall": {
+      "n": 236,
+      "win_rate": 0.4958,
+      "ic": 0.0738,
+      "weight": 1.0
+    },
+    "ai_gen_prp": {
+      "n": 237,
+      "win_rate": 0.5316,
+      "ic": -0.0084,
+      "weight": 1.0
+    },
+    "ai_gen_pseudo_signal": {
+      "n": 308,
+      "win_rate": 0.5455,
+      "ic": 0.0468,
+      "weight": 1.0
+    },
+    "ai_gen_pseudotrend": {
+      "n": 257,
+      "win_rate": 0.5097,
+      "ic": -0.0161,
+      "weight": 1.0
+    },
+    "ai_gen_pv": {
+      "n": 188,
+      "win_rate": 0.516,
+      "ic": 0.1455,
+      "weight": 1.0
+    },
+    "ai_gen_pvc": {
+      "n": 195,
+      "win_rate": 0.5231,
+      "ic": 0.0951,
+      "weight": 1.0
+    },
+    "ai_gen_range_break": {
+      "n": 308,
+      "win_rate": 0.5422,
+      "ic": -0.0864,
+      "weight": 1.0
+    },
+    "ai_gen_range_pos": {
+      "n": 238,
+      "win_rate": 0.5462,
+      "ic": 0.0235,
+      "weight": 1.0
+    },
+    "ai_gen_range_position": {
+      "n": 237,
+      "win_rate": 0.4684,
+      "ic": 0.0086,
+      "weight": 1.0
+    },
+    "ai_gen_rangehold": {
+      "n": 87,
+      "win_rate": 0.5747,
+      "ic": 0.0438,
+      "weight": 1.0
+    },
+    "ai_gen_rangestag": {
+      "n": 301,
+      "win_rate": 0.5216,
+      "ic": 0.068,
+      "weight": 1.0
+    },
+    "ai_gen_rbd": {
+      "n": 244,
+      "win_rate": 0.5,
+      "ic": -0.0189,
+      "weight": 1.0
+    },
+    "ai_gen_rct": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": 0.0975,
+      "weight": 1.0
+    },
+    "ai_gen_ree": {
+      "n": 274,
+      "win_rate": 0.5219,
+      "ic": -0.1016,
+      "weight": 1.0
+    },
+    "ai_gen_reg_uncert": {
+      "n": 201,
+      "win_rate": 0.5124,
+      "ic": 0.0401,
+      "weight": 1.0
+    },
+    "ai_gen_regime_adapt": {
+      "n": 271,
+      "win_rate": 0.5424,
+      "ic": 0.0731,
+      "weight": 1.0
+    },
+    "ai_gen_regime_fear": {
+      "n": 237,
+      "win_rate": 0.519,
+      "ic": 0.0504,
+      "weight": 1.0
+    },
+    "ai_gen_regime_voltren": {
+      "n": 228,
+      "win_rate": 0.5526,
+      "ic": 0.065,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_delta": {
+      "n": 76,
+      "win_rate": 0.5658,
+      "ic": 0.2322,
+      "weight": 1.0
+    },
+    "ai_gen_rgn_un": {
+      "n": 71,
+      "win_rate": 0.5211,
+      "ic": 0.2491,
+      "weight": 1.0
+    },
+    "ai_gen_rngbd": {
+      "n": 161,
+      "win_rate": 0.5466,
+      "ic": 0.0361,
+      "weight": 1.0
+    },
+    "ai_gen_rvr": {
+      "n": 141,
+      "win_rate": 0.4823,
+      "ic": -0.0031,
+      "weight": 1.0
+    },
+    "ai_gen_shadow": {
+      "n": 152,
+      "win_rate": 0.5,
+      "ic": 0.099,
+      "weight": 1.0
+    },
+    "ai_gen_sq_risk": {
+      "n": 211,
+      "win_rate": 0.5592,
+      "ic": 0.0143,
+      "weight": 1.0
+    },
+    "ai_gen_tde": {
+      "n": 103,
+      "win_rate": 0.466,
+      "ic": 0.0168,
+      "weight": 1.0
+    },
+    "ai_gen_tf": {
+      "n": 214,
+      "win_rate": 0.4673,
+      "ic": -0.0719,
+      "weight": 1.0
+    },
+    "rsi": {
+      "n": 410,
+      "win_rate": 0.5024,
+      "ic": 0.0292,
+      "weight": 1.0
+    },
+    "zscore": {
+      "n": 397,
+      "win_rate": 0.4861,
+      "ic": -0.0155,
+      "weight": 1.0
+    },
+    "obv": {
+      "n": 590,
+      "win_rate": 0.5,
+      "ic": 0.0251,
+      "weight": 1.0
+    },
+    "ema_trend": {
+      "n": 363,
+      "win_rate": 0.4683,
+      "ic": 0.0337,
+      "weight": 1.0
+    },
+    "active_addresses": {
+      "n": 608,
+      "win_rate": 0.4704,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ad_line": {
+      "n": 597,
+      "win_rate": 0.5176,
+      "ic": 0.028,
+      "weight": 1.0
+    },
+    "aggressive_buy": {
+      "n": 409,
+      "win_rate": 0.4792,
+      "ic": -0.0636,
+      "weight": 1.0
+    },
+    "aggressive_sell": {
+      "n": 385,
+      "win_rate": 0.4857,
+      "ic": -0.0216,
+      "weight": 1.0
+    },
+    "ai_gen_adaptive_vol": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": 0.0428,
+      "weight": 1.0
+    },
+    "ai_gen_adi": {
+      "n": 221,
+      "win_rate": 0.5113,
+      "ic": 0.0193,
+      "weight": 1.0
+    },
+    "ai_gen_adx": {
+      "n": 238,
+      "win_rate": 0.5042,
+      "ic": 0.0326,
+      "weight": 1.0
+    },
+    "ai_gen_adx_filter": {
+      "n": 196,
+      "win_rate": 0.5357,
+      "ic": 0.0234,
+      "weight": 1.0
+    },
+    "ai_gen_adx_low": {
+      "n": 255,
+      "win_rate": 0.5255,
+      "ic": 0.104,
+      "weight": 1.0
+    },
+    "ai_gen_adx_regime": {
+      "n": 279,
+      "win_rate": 0.5125,
+      "ic": 0.052,
+      "weight": 1.0
+    },
+    "ai_gen_adx_trend": {
+      "n": 297,
+      "win_rate": 0.5118,
+      "ic": 0.0399,
+      "weight": 1.0
+    },
+    "ai_gen_adxweak": {
+      "n": 297,
+      "win_rate": 0.5118,
+      "ic": 0.0399,
+      "weight": 1.0
+    },
+    "ai_gen_ai_rev": {
+      "n": 57,
+      "win_rate": 0.3158,
+      "ic": -0.2404,
+      "weight": 0.25
+    },
+    "ai_gen_ai_reverse": {
+      "n": 38,
+      "win_rate": 0.5,
+      "ic": 0.1118,
+      "weight": 1.0
+    },
+    "ai_gen_ampvol": {
+      "n": 185,
+      "win_rate": 0.5243,
+      "ic": 0.0005,
+      "weight": 1.0
+    },
+    "ai_gen_aroon": {
+      "n": 83,
+      "win_rate": 0.4337,
+      "ic": -0.0896,
+      "weight": 0.5
+    },
+    "ai_gen_bb_pos": {
+      "n": 263,
+      "win_rate": 0.4563,
+      "ic": -0.0081,
+      "weight": 1.0
+    },
+    "ai_gen_bb_tension": {
+      "n": 258,
+      "win_rate": 0.4922,
+      "ic": -0.0314,
+      "weight": 1.0
+    },
+    "ai_gen_bb_width": {
+      "n": 222,
+      "win_rate": 0.5315,
+      "ic": 0.0239,
+      "weight": 1.0
+    },
+    "ai_gen_bb_zone": {
+      "n": 172,
+      "win_rate": 0.4535,
+      "ic": -0.0395,
+      "weight": 1.0
+    },
+    "ai_gen_bbcontract": {
+      "n": 236,
+      "win_rate": 0.5,
+      "ic": -0.0402,
+      "weight": 1.0
+    },
+    "ai_gen_bbp": {
+      "n": 232,
+      "win_rate": 0.4871,
+      "ic": 0.1466,
+      "weight": 1.0
+    },
+    "ai_gen_bias": {
+      "n": 225,
+      "win_rate": 0.4622,
+      "ic": -0.0006,
+      "weight": 1.0
+    },
+    "ai_gen_boll_pos": {
+      "n": 263,
+      "win_rate": 0.5437,
+      "ic": 0.0081,
+      "weight": 1.0
+    },
+    "ai_gen_bollwidth": {
+      "n": 289,
+      "win_rate": 0.526,
+      "ic": 0.0612,
+      "weight": 1.0
+    },
+    "ai_gen_bpk": {
+      "n": 57,
+      "win_rate": 0.2982,
+      "ic": -0.2897,
+      "weight": 0.25
+    },
+    "ai_gen_br": {
+      "n": 261,
+      "win_rate": 0.4559,
+      "ic": -0.009,
+      "weight": 1.0
+    },
+    "ai_gen_breakout_stren": {
+      "n": 185,
+      "win_rate": 0.5514,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bs": {
+      "n": 237,
+      "win_rate": 0.481,
+      "ic": -0.0022,
+      "weight": 1.0
+    },
+    "ai_gen_bss": {
+      "n": 308,
+      "win_rate": 0.4675,
+      "ic": -0.0387,
+      "weight": 1.0
+    },
+    "ai_gen_ccr": {
+      "n": 180,
+      "win_rate": 0.5056,
+      "ic": -0.0336,
+      "weight": 1.0
+    },
+    "ai_gen_center": {
+      "n": 248,
+      "win_rate": 0.4798,
+      "ic": -0.0156,
+      "weight": 1.0
+    },
+    "ai_gen_choppiness": {
+      "n": 115,
+      "win_rate": 0.487,
+      "ic": -0.1575,
+      "weight": 1.0
+    },
+    "ai_gen_choppy": {
+      "n": 481,
+      "win_rate": 0.5135,
+      "ic": 0.0339,
+      "weight": 1.0
+    },
+    "ai_gen_clarity": {
+      "n": 270,
+      "win_rate": 0.4778,
+      "ic": -0.0658,
+      "weight": 1.0
+    },
+    "ai_gen_clear_trend": {
+      "n": 262,
+      "win_rate": 0.5496,
+      "ic": 0.0657,
+      "weight": 1.0
+    },
+    "ai_gen_cm": {
+      "n": 255,
+      "win_rate": 0.5176,
+      "ic": -0.0114,
+      "weight": 1.0
+    },
+    "ai_gen_consis": {
+      "n": 308,
+      "win_rate": 0.5,
+      "ic": 0.0575,
+      "weight": 1.0
+    },
+    "ai_gen_consist": {
+      "n": 308,
+      "win_rate": 0.5065,
+      "ic": 0.0462,
+      "weight": 1.0
+    },
+    "ai_gen_consistency": {
+      "n": 369,
+      "win_rate": 0.5176,
+      "ic": -0.0245,
+      "weight": 1.0
+    },
+    "ai_gen_consol": {
+      "n": 226,
+      "win_rate": 0.5,
+      "ic": -0.0056,
+      "weight": 1.0
+    },
+    "ai_gen_contra_trend": {
+      "n": 40,
+      "win_rate": 0.4,
+      "ic": -0.4615,
+      "weight": 0.5
+    },
+    "ai_gen_dust": {
+      "n": 178,
+      "win_rate": 0.5,
+      "ic": 0.0885,
+      "weight": 1.0
+    },
+    "ai_gen_dustclean": {
+      "n": 308,
+      "win_rate": 0.5227,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_eff_disp": {
+      "n": 249,
+      "win_rate": 0.494,
+      "ic": -0.0029,
+      "weight": 1.0
+    },
+    "ai_gen_eff_ratio": {
+      "n": 255,
+      "win_rate": 0.5176,
+      "ic": -0.0114,
+      "weight": 1.0
+    },
+    "ai_gen_effr": {
+      "n": 285,
+      "win_rate": 0.5158,
+      "ic": 0.0039,
+      "weight": 1.0
+    },
+    "ai_gen_ent": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_entropy": {
+      "n": 308,
+      "win_rate": 0.4773,
+      "ic": -0.0167,
+      "weight": 1.0
+    },
+    "ai_gen_entropy_micro": {
+      "n": 307,
+      "win_rate": 0.5212,
+      "ic": 0.0404,
+      "weight": 1.0
+    },
+    "ai_gen_er": {
+      "n": 428,
+      "win_rate": 0.4673,
+      "ic": -0.0416,
+      "weight": 1.0
+    },
+    "ai_gen_fb": {
+      "n": 178,
+      "win_rate": 0.5337,
+      "ic": 0.02,
+      "weight": 1.0
+    },
+    "ai_gen_holdtime": {
+      "n": 293,
+      "win_rate": 0.5392,
+      "ic": 0.0358,
+      "weight": 1.0
+    },
+    "ai_gen_liq_trap_rever": {
+      "n": 161,
+      "win_rate": 0.4534,
+      "ic": 0.0377,
+      "weight": 1.0
+    },
+    "ai_gen_longweak": {
+      "n": 198,
+      "win_rate": 0.5152,
+      "ic": 0.0871,
+      "weight": 1.0
+    },
+    "ai_gen_low_adx": {
+      "n": 225,
+      "win_rate": 0.5067,
+      "ic": 0.056,
+      "weight": 1.0
+    },
+    "ai_gen_lowvol": {
+      "n": 240,
+      "win_rate": 0.475,
+      "ic": 0.0162,
+      "weight": 1.0
+    },
+    "ai_gen_lvt": {
+      "n": 211,
+      "win_rate": 0.4929,
+      "ic": -0.0045,
+      "weight": 1.0
+    },
+    "ai_gen_market_regime_": {
+      "n": 242,
+      "win_rate": 0.5496,
+      "ic": 0.0371,
+      "weight": 1.0
+    },
+    "ai_gen_marketregime": {
+      "n": 282,
+      "win_rate": 0.5177,
+      "ic": 0.0625,
+      "weight": 1.0
+    },
+    "ai_gen_mean_rev_boll": {
+      "n": 261,
+      "win_rate": 0.4559,
+      "ic": -0.0077,
+      "weight": 1.0
+    },
+    "ai_gen_mean_reversion": {
+      "n": 136,
+      "win_rate": 0.4412,
+      "ic": -0.0931,
+      "weight": 0.5
+    },
+    "ai_gen_mean_revert_de": {
+      "n": 273,
+      "win_rate": 0.4652,
+      "ic": -0.0399,
+      "weight": 1.0
+    },
+    "ai_gen_meandev": {
+      "n": 221,
+      "win_rate": 0.5339,
+      "ic": -0.001,
+      "weight": 1.0
+    },
+    "ai_gen_mom_decay": {
+      "n": 125,
+      "win_rate": 0.544,
+      "ic": 0.072,
+      "weight": 1.0
+    },
+    "ai_gen_momcon": {
+      "n": 132,
+      "win_rate": 0.5152,
+      "ic": 0.0063,
+      "weight": 1.0
+    },
+    "ai_gen_momconf": {
+      "n": 96,
+      "win_rate": 0.5625,
+      "ic": 0.0571,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_rever": {
+      "n": 213,
+      "win_rate": 0.5446,
+      "ic": 0.0842,
+      "weight": 1.0
+    },
+    "ai_gen_momweak": {
+      "n": 30,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 0.25
+    },
+    "ai_gen_money_flow": {
+      "n": 205,
+      "win_rate": 0.522,
+      "ic": 0.0172,
+      "weight": 1.0
+    },
+    "ai_gen_mpf": {
+      "n": 53,
+      "win_rate": 0.434,
+      "ic": 0.0393,
+      "weight": 0.5
+    },
+    "ai_gen_mr_signal": {
+      "n": 82,
+      "win_rate": 0.439,
+      "ic": -0.176,
+      "weight": 0.5
+    },
+    "ai_gen_mrsi": {
+      "n": 92,
+      "win_rate": 0.5435,
+      "ic": 0.0934,
+      "weight": 1.0
+    },
+    "ai_gen_mrstrength": {
+      "n": 221,
+      "win_rate": 0.4661,
+      "ic": 0.001,
+      "weight": 1.0
+    },
+    "ai_gen_net_reversal": {
+      "n": 41,
+      "win_rate": 0.4634,
+      "ic": -0.0866,
+      "weight": 1.0
+    },
+    "ai_gen_noise_signal": {
+      "n": 153,
+      "win_rate": 0.4379,
+      "ic": 0.0357,
+      "weight": 0.5
+    },
+    "ai_gen_overbought_ris": {
+      "n": 78,
+      "win_rate": 0.4103,
+      "ic": -0.1462,
+      "weight": 0.5
+    },
+    "ai_gen_path_curv": {
+      "n": 102,
+      "win_rate": 0.5098,
+      "ic": 0.1171,
+      "weight": 1.0
+    },
+    "ai_gen_pvd": {
+      "n": 70,
+      "win_rate": 0.4429,
+      "ic": 0.136,
+      "weight": 0.5
+    },
+    "ai_gen_rangebound": {
+      "n": 233,
+      "win_rate": 0.4936,
+      "ic": 0.041,
+      "weight": 1.0
+    },
+    "ai_gen_reg_uncertaint": {
+      "n": 155,
+      "win_rate": 0.4387,
+      "ic": -0.0956,
+      "weight": 0.5
+    },
+    "ai_gen_regime": {
+      "n": 63,
+      "win_rate": 0.5079,
+      "ic": -0.0506,
+      "weight": 1.0
+    },
+    "ai_gen_rev_surge": {
+      "n": 206,
+      "win_rate": 0.5049,
+      "ic": 0.0337,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_signa": {
+      "n": 33,
+      "win_rate": 0.5152,
+      "ic": -0.2481,
+      "weight": 1.0
+    },
+    "ai_gen_reverse_risk": {
+      "n": 144,
+      "win_rate": 0.4583,
+      "ic": -0.0801,
+      "weight": 1.0
+    },
+    "ai_gen_risk_mode": {
+      "n": 194,
+      "win_rate": 0.5206,
+      "ic": -0.042,
+      "weight": 1.0
+    },
+    "ai_gen_short_sqz": {
+      "n": 138,
+      "win_rate": 0.5507,
+      "ic": 0.0713,
+      "weight": 1.0
+    },
+    "ai_gen_shortrev": {
+      "n": 16,
+      "win_rate": 0.375,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_tef": {
+      "n": 249,
+      "win_rate": 0.51,
+      "ic": -0.0246,
+      "weight": 1.0
+    },
+    "ai_gen_timeoutclean": {
+      "n": 69,
+      "win_rate": 0.5507,
+      "ic": 0.1999,
+      "weight": 1.0
+    },
+    "ai_gen_timereversal": {
+      "n": 72,
+      "win_rate": 0.4583,
+      "ic": -0.1468,
+      "weight": 1.0
+    },
+    "ai_gen_trend_cohesion": {
+      "n": 149,
+      "win_rate": 0.4295,
+      "ic": -0.0118,
+      "weight": 0.5
+    },
+    "ai_gen_trend_instabil": {
+      "n": 179,
+      "win_rate": 0.5251,
+      "ic": 0.0047,
+      "weight": 1.0
+    },
+    "ai_gen_trend_noise": {
+      "n": 297,
+      "win_rate": 0.5152,
+      "ic": -0.0012,
+      "weight": 1.0
+    },
+    "ai_gen_unkn_adx": {
+      "n": 275,
+      "win_rate": 0.4982,
+      "ic": 0.1138,
+      "weight": 1.0
+    },
+    "ai_gen_vol_cleanse": {
+      "n": 268,
+      "win_rate": 0.4627,
+      "ic": 0.0066,
+      "weight": 1.0
+    },
+    "ai_gen_vol_regime_shi": {
+      "n": 278,
+      "win_rate": 0.5072,
+      "ic": 0.0193,
+      "weight": 1.0
+    },
+    "ai_gen_vol_rv": {
+      "n": 51,
+      "win_rate": 0.549,
+      "ic": -0.3933,
+      "weight": 1.0
+    },
+    "ai_gen_vol_uncertaint": {
+      "n": 268,
+      "win_rate": 0.4888,
+      "ic": -0.048,
+      "weight": 1.0
+    },
+    "ai_gen_vola_break": {
+      "n": 246,
+      "win_rate": 0.5041,
+      "ic": 0.0711,
+      "weight": 1.0
+    },
+    "ai_gen_volab": {
+      "n": 33,
+      "win_rate": 0.6061,
+      "ic": null,
+      "weight": 1.2
+    },
+    "ai_gen_volatility_ano": {
+      "n": 295,
+      "win_rate": 0.539,
+      "ic": -0.0134,
+      "weight": 1.0
+    },
+    "ai_gen_voldiv": {
+      "n": 138,
+      "win_rate": 0.5507,
+      "ic": 0.1169,
+      "weight": 1.0
+    },
+    "ai_gen_volreversal": {
+      "n": 83,
+      "win_rate": 0.4337,
+      "ic": -0.046,
+      "weight": 0.5
+    },
+    "ai_gen_volspike": {
+      "n": 253,
+      "win_rate": 0.5534,
+      "ic": 0.1011,
+      "weight": 1.0
+    },
+    "ai_gen_volty_regime": {
+      "n": 191,
+      "win_rate": 0.534,
+      "ic": 0.0442,
+      "weight": 1.0
+    },
+    "ai_gen_volum": {
+      "n": 12,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volume_clash": {
+      "n": 13,
+      "win_rate": 0.6154,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volume_stall": {
+      "n": 197,
+      "win_rate": 0.4772,
+      "ic": 0.0224,
+      "weight": 1.0
+    },
+    "ai_gen_volumeimpact": {
+      "n": 186,
+      "win_rate": 0.4946,
+      "ic": -0.0358,
+      "weight": 1.0
+    },
+    "ai_gen_vp_div": {
+      "n": 172,
+      "win_rate": 0.5058,
+      "ic": -0.0188,
+      "weight": 1.0
+    },
+    "ai_gen_vpd": {
+      "n": 243,
+      "win_rate": 0.4733,
+      "ic": -0.0067,
+      "weight": 1.0
+    },
+    "ai_gen_vptc": {
+      "n": 96,
+      "win_rate": 0.5417,
+      "ic": 0.2196,
+      "weight": 1.0
+    },
+    "ai_gen_vshock": {
+      "n": 243,
+      "win_rate": 0.5185,
+      "ic": -0.0319,
+      "weight": 1.0
+    },
+    "ai_gen_vts": {
+      "n": 181,
+      "win_rate": 0.5028,
+      "ic": -0.0745,
+      "weight": 1.0
+    },
+    "ai_gen_whipsaw": {
+      "n": 202,
+      "win_rate": 0.5297,
+      "ic": 0.0586,
+      "weight": 1.0
+    },
+    "cloud_microstructure_": {
+      "n": 498,
+      "win_rate": 0.492,
+      "ic": 0.1064,
+      "weight": 1.0
+    },
+    "wq_alpha003": {
+      "n": 58,
+      "win_rate": 0.5,
+      "ic": 0.0303,
+      "weight": 1.0
+    },
+    "wq_alpha020": {
+      "n": 78,
+      "win_rate": 0.5256,
+      "ic": -0.0504,
+      "weight": 1.0
+    },
+    "wq_alpha028": {
+      "n": 77,
+      "win_rate": 0.5195,
+      "ic": 0.071,
+      "weight": 1.0
+    },
+    "wq_alpha049": {
+      "n": 72,
+      "win_rate": 0.5556,
+      "ic": -0.0044,
+      "weight": 1.0
+    },
+    "wq_alpha053": {
+      "n": 78,
+      "win_rate": 0.4872,
+      "ic": -0.0494,
+      "weight": 1.0
+    },
+    "wq_alpha057": {
+      "n": 88,
+      "win_rate": 0.3864,
+      "ic": -0.1341,
+      "weight": 0.25
+    },
+    "wq_alpha068": {
+      "n": 83,
+      "win_rate": 0.5422,
+      "ic": 0.0135,
+      "weight": 1.0
+    },
+    "wq_alpha086": {
+      "n": 84,
+      "win_rate": 0.6071,
+      "ic": 0.1317,
+      "weight": 1.2
+    },
+    "wq_alpha101": {
+      "n": 81,
+      "win_rate": 0.5679,
+      "ic": 0.0651,
+      "weight": 1.0
+    },
+    "ai_gen_adt": {
+      "n": 188,
+      "win_rate": 0.4947,
+      "ic": -0.0795,
+      "weight": 1.0
+    },
+    "ai_gen_anr": {
+      "n": 48,
+      "win_rate": 0.3958,
+      "ic": 0.0345,
+      "weight": 0.25
+    },
+    "ai_gen_aro": {
+      "n": 223,
+      "win_rate": 0.5291,
+      "ic": 0.0283,
+      "weight": 1.0
+    },
+    "ai_gen_atr_squeeze": {
+      "n": 154,
+      "win_rate": 0.5714,
+      "ic": -0.0221,
+      "weight": 1.0
+    },
+    "ai_gen_autocorrelatio": {
+      "n": 139,
+      "win_rate": 0.4532,
+      "ic": -0.1966,
+      "weight": 1.0
+    },
+    "ai_gen_choppy_adx": {
+      "n": 276,
+      "win_rate": 0.5254,
+      "ic": 0.0411,
+      "weight": 1.0
+    },
+    "ai_gen_contrarian_tra": {
+      "n": 145,
+      "win_rate": 0.4483,
+      "ic": -0.0782,
+      "weight": 0.5
+    },
+    "ai_gen_crosscorr": {
+      "n": 184,
+      "win_rate": 0.4293,
+      "ic": -0.1874,
+      "weight": 0.5
+    },
+    "ai_gen_dev": {
+      "n": 178,
+      "win_rate": 0.5506,
+      "ic": 0.0955,
+      "weight": 1.0
+    },
+    "ai_gen_diverg": {
+      "n": 166,
+      "win_rate": 0.4759,
+      "ic": -0.0769,
+      "weight": 1.0
+    },
+    "ai_gen_down_momentum": {
+      "n": 43,
+      "win_rate": 0.4651,
+      "ic": -0.0827,
+      "weight": 1.0
+    },
+    "ai_gen_dust_swing": {
+      "n": 27,
+      "win_rate": 0.6296,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dvr": {
+      "n": 98,
+      "win_rate": 0.5612,
+      "ic": 0.1604,
+      "weight": 1.0
+    },
+    "ai_gen_effratio": {
+      "n": 421,
+      "win_rate": 0.4584,
+      "ic": -0.057,
+      "weight": 1.0
+    },
+    "ai_gen_false_breakout": {
+      "n": 34,
+      "win_rate": 0.4412,
+      "ic": -0.0956,
+      "weight": 0.5
+    },
+    "ai_gen_fbrk": {
+      "n": 16,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_htr": {
+      "n": 228,
+      "win_rate": 0.5132,
+      "ic": 0.034,
+      "weight": 1.0
+    },
+    "ai_gen_liq_reversal": {
+      "n": 4,
+      "win_rate": 0.75,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liq_w": {
+      "n": 99,
+      "win_rate": 0.4646,
+      "ic": -0.0494,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_trap": {
+      "n": 18,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_lmr": {
+      "n": 75,
+      "win_rate": 0.4933,
+      "ic": 0.139,
+      "weight": 1.0
+    },
+    "ai_gen_lqm": {
+      "n": 43,
+      "win_rate": 0.5116,
+      "ic": 0.1214,
+      "weight": 1.0
+    },
+    "ai_gen_lri": {
+      "n": 49,
+      "win_rate": 0.5918,
+      "ic": -0.0304,
+      "weight": 1.0
+    },
+    "ai_gen_lsi": {
+      "n": 235,
+      "win_rate": 0.4723,
+      "ic": -0.0576,
+      "weight": 1.0
+    },
+    "ai_gen_micro_reversal": {
+      "n": 34,
+      "win_rate": 0.4706,
+      "ic": -0.1729,
+      "weight": 1.0
+    },
+    "ai_gen_mom_dec": {
+      "n": 107,
+      "win_rate": 0.4486,
+      "ic": 0.0647,
+      "weight": 0.5
+    },
+    "ai_gen_mrev": {
+      "n": 143,
+      "win_rate": 0.4825,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_multi_momentum": {
+      "n": 136,
+      "win_rate": 0.5221,
+      "ic": -0.0088,
+      "weight": 1.0
+    },
+    "ai_gen_multimom": {
+      "n": 179,
+      "win_rate": 0.5084,
+      "ic": 0.0299,
+      "weight": 1.0
+    },
+    "ai_gen_mur": {
+      "n": 185,
+      "win_rate": 0.4865,
+      "ic": -0.0083,
+      "weight": 1.0
+    },
+    "ai_gen_noise_intensit": {
+      "n": 26,
+      "win_rate": 0.4615,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_ohlc_strength": {
+      "n": 90,
+      "win_rate": 0.4778,
+      "ic": -0.1391,
+      "weight": 1.0
+    },
+    "ai_gen_pvm": {
+      "n": 144,
+      "win_rate": 0.4514,
+      "ic": 0.003,
+      "weight": 1.0
+    },
+    "ai_gen_pvr": {
+      "n": 86,
+      "win_rate": 0.5349,
+      "ic": 0.036,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_volat": {
+      "n": 5,
+      "win_rate": 0.6,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_sdl": {
+      "n": 31,
+      "win_rate": 0.4839,
+      "ic": -0.1371,
+      "weight": 1.0
+    },
+    "ai_gen_tail_risk": {
+      "n": 181,
+      "win_rate": 0.5083,
+      "ic": -0.0149,
+      "weight": 1.0
+    },
+    "ai_gen_tre": {
+      "n": 14,
+      "win_rate": 0.3571,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trend_adx": {
+      "n": 71,
+      "win_rate": 0.4648,
+      "ic": -0.0332,
+      "weight": 1.0
+    },
+    "ai_gen_trend_blur": {
+      "n": 102,
+      "win_rate": 0.5098,
+      "ic": -0.2045,
+      "weight": 1.0
+    },
+    "ai_gen_trend_unstable": {
+      "n": 180,
+      "win_rate": 0.5278,
+      "ic": -0.0136,
+      "weight": 1.0
+    },
+    "ai_gen_tsc": {
+      "n": 59,
+      "win_rate": 0.4746,
+      "ic": -0.0851,
+      "weight": 1.0
+    },
+    "ai_gen_unk_vol": {
+      "n": 281,
+      "win_rate": 0.4911,
+      "ic": 0.1258,
+      "weight": 1.0
+    },
+    "ai_gen_unkn_vol": {
+      "n": 182,
+      "win_rate": 0.5,
+      "ic": -0.1049,
+      "weight": 1.0
+    },
+    "ai_gen_unkn_vol_vol": {
+      "n": 178,
+      "win_rate": 0.5169,
+      "ic": 0.0066,
+      "weight": 1.0
+    },
+    "ai_gen_unknown": {
+      "n": 131,
+      "win_rate": 0.5191,
+      "ic": 0.0079,
+      "weight": 1.0
+    },
+    "ai_gen_vci": {
+      "n": 179,
+      "win_rate": 0.4581,
+      "ic": -0.0557,
+      "weight": 1.0
+    },
+    "ai_gen_vol": {
+      "n": 248,
+      "win_rate": 0.5161,
+      "ic": 0.0135,
+      "weight": 1.0
+    },
+    "ai_gen_vol_chg": {
+      "n": 118,
+      "win_rate": 0.5424,
+      "ic": 0.0972,
+      "weight": 1.0
+    },
+    "ai_gen_vol_compressio": {
+      "n": 26,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_consolidat": {
+      "n": 193,
+      "win_rate": 0.456,
+      "ic": -0.0161,
+      "weight": 1.0
+    },
+    "ai_gen_vol_divergence": {
+      "n": 148,
+      "win_rate": 0.4662,
+      "ic": -0.1492,
+      "weight": 1.0
+    },
+    "ai_gen_vol_expand": {
+      "n": 47,
+      "win_rate": 0.4894,
+      "ic": -0.2537,
+      "weight": 1.0
+    },
+    "ai_gen_vol_jump": {
+      "n": 180,
+      "win_rate": 0.5056,
+      "ic": 0.1016,
+      "weight": 1.0
+    },
+    "ai_gen_vol_reversal": {
+      "n": 29,
+      "win_rate": 0.3793,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_slope": {
+      "n": 192,
+      "win_rate": 0.5104,
+      "ic": 0.0854,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_bre": {
+      "n": 19,
+      "win_rate": 0.3684,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_sho": {
+      "n": 118,
+      "win_rate": 0.5424,
+      "ic": 0.0972,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_squ": {
+      "n": 31,
+      "win_rate": 0.4516,
+      "ic": -0.1525,
+      "weight": 1.0
+    },
+    "ai_gen_voldiff": {
+      "n": 173,
+      "win_rate": 0.4798,
+      "ic": -0.0666,
+      "weight": 1.0
+    },
+    "ai_gen_volnoi": {
+      "n": 159,
+      "win_rate": 0.4717,
+      "ic": -0.1063,
+      "weight": 1.0
+    },
+    "ai_gen_volratio": {
+      "n": 168,
+      "win_rate": 0.4821,
+      "ic": -0.2092,
+      "weight": 1.0
+    },
+    "ai_gen_volrev": {
+      "n": 118,
+      "win_rate": 0.4576,
+      "ic": -0.0972,
+      "weight": 1.0
+    },
+    "ai_gen_volstb": {
+      "n": 211,
+      "win_rate": 0.4834,
+      "ic": -0.0587,
+      "weight": 1.0
+    },
+    "ai_gen_vp": {
+      "n": 244,
+      "win_rate": 0.5533,
+      "ic": 0.0302,
+      "weight": 1.0
+    },
+    "ai_gen_vrat": {
+      "n": 70,
+      "win_rate": 0.4143,
+      "ic": -0.0191,
+      "weight": 0.5
+    },
+    "ai_gen_wave_regime": {
+      "n": 115,
+      "win_rate": 0.4957,
+      "ic": -0.1053,
+      "weight": 1.0
+    },
+    "ai_gen_wick_trap": {
+      "n": 19,
+      "win_rate": 0.3684,
+      "ic": null,
+      "weight": 1.0
+    },
+    "regime_transition_sco": {
+      "n": 444,
+      "win_rate": 0.5225,
+      "ic": 0.0234,
+      "weight": 1.0
+    },
+    "win_streak": {
+      "n": 281,
+      "win_rate": 0.4591,
+      "ic": 0.0009,
+      "weight": 1.0
+    },
+    "wq_alpha001": {
+      "n": 50,
+      "win_rate": 0.6,
+      "ic": 0.0221,
+      "weight": 1.0
+    },
+    "wq_alpha038": {
+      "n": 78,
+      "win_rate": 0.5385,
+      "ic": 0.0459,
+      "weight": 1.0
+    },
+    "wq_alpha044": {
+      "n": 69,
+      "win_rate": 0.4638,
+      "ic": -0.1545,
+      "weight": 1.0
+    },
+    "wq_alpha064": {
+      "n": 41,
+      "win_rate": 0.561,
+      "ic": 0.2082,
+      "weight": 1.0
+    },
+    "ai_gen_trend_div": {
+      "n": 117,
+      "win_rate": 0.5214,
+      "ic": -0.0825,
+      "weight": 1.0
+    },
+    "ai_gen_trend_qual": {
+      "n": 198,
+      "win_rate": 0.5,
+      "ic": 0.0368,
+      "weight": 1.0
+    },
+    "ai_gen_trendvoldiv": {
+      "n": 57,
+      "win_rate": 0.5088,
+      "ic": 0.1812,
+      "weight": 1.0
+    },
+    "ai_gen_tvdiv": {
+      "n": 91,
+      "win_rate": 0.4945,
+      "ic": -0.0822,
+      "weight": 1.0
+    },
+    "ai_gen_vol_price_div": {
+      "n": 194,
+      "win_rate": 0.567,
+      "ic": 0.0962,
+      "weight": 1.0
+    },
+    "ai_gen_vola": {
+      "n": 73,
+      "win_rate": 0.411,
+      "ic": -0.085,
+      "weight": 0.5
+    },
+    "wq_alpha016": {
+      "n": 78,
+      "win_rate": 0.5128,
+      "ic": -0.225,
+      "weight": 1.0
+    },
+    "ai_gen_volume_conf": {
+      "n": 139,
+      "win_rate": 0.6187,
+      "ic": 0.1216,
+      "weight": 1.2
+    },
+    "ai_gen_volume_strengt": {
+      "n": 195,
+      "win_rate": 0.4513,
+      "ic": -0.0689,
+      "weight": 1.0
+    },
+    "cvd_divergence": {
+      "n": 517,
+      "win_rate": 0.5435,
+      "ic": 0.0988,
+      "weight": 1.0
+    },
+    "order_flow_imbalance": {
+      "n": 353,
+      "win_rate": 0.4929,
+      "ic": -0.098,
+      "weight": 1.0
+    },
+    "regime_change": {
+      "n": 281,
+      "win_rate": 0.5552,
+      "ic": 0.1208,
+      "weight": 1.0
+    },
+    "ai_gen_trenvix": {
+      "n": 265,
+      "win_rate": 0.5132,
+      "ic": 0.0212,
+      "weight": 1.0
+    },
+    "macd": {
+      "n": 296,
+      "win_rate": 0.4899,
+      "ic": 0.0376,
+      "weight": 1.0
+    },
+    "ai_gen_bbzone": {
+      "n": 49,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bearish_pressu": {
+      "n": 23,
+      "win_rate": 0.4783,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_candle_reversa": {
+      "n": 53,
+      "win_rate": 0.3962,
+      "ic": -0.0545,
+      "weight": 0.25
+    },
+    "ai_gen_div": {
+      "n": 214,
+      "win_rate": 0.5467,
+      "ic": 0.0104,
+      "weight": 1.0
+    },
+    "ai_gen_diver": {
+      "n": 52,
+      "win_rate": 0.4808,
+      "ic": -0.4196,
+      "weight": 1.0
+    },
+    "ai_gen_divergence": {
+      "n": 183,
+      "win_rate": 0.4754,
+      "ic": 0.0203,
+      "weight": 1.0
+    },
+    "ai_gen_hold": {
+      "n": 122,
+      "win_rate": 0.5492,
+      "ic": 0.0207,
+      "weight": 1.0
+    },
+    "ai_gen_hold_safety": {
+      "n": 146,
+      "win_rate": 0.5411,
+      "ic": 0.0221,
+      "weight": 1.0
+    },
+    "ai_gen_long_risk": {
+      "n": 128,
+      "win_rate": 0.4766,
+      "ic": 0.0194,
+      "weight": 1.0
+    },
+    "ai_gen_lqd": {
+      "n": 110,
+      "win_rate": 0.5818,
+      "ic": 0.1317,
+      "weight": 1.0
+    },
+    "ai_gen_market_efficie": {
+      "n": 64,
+      "win_rate": 0.5312,
+      "ic": 0.0302,
+      "weight": 1.0
+    },
+    "ai_gen_master_close": {
+      "n": 51,
+      "win_rate": 0.3725,
+      "ic": 0.0187,
+      "weight": 0.25
+    },
+    "ai_gen_mrr": {
+      "n": 61,
+      "win_rate": 0.4426,
+      "ic": -0.097,
+      "weight": 0.5
+    },
+    "ai_gen_price_coherenc": {
+      "n": 61,
+      "win_rate": 0.4918,
+      "ic": -0.2422,
+      "weight": 1.0
+    },
+    "ai_gen_price_volume_d": {
+      "n": 76,
+      "win_rate": 0.5,
+      "ic": -0.1056,
+      "weight": 1.0
+    },
+    "ai_gen_supres": {
+      "n": 227,
+      "win_rate": 0.4978,
+      "ic": 0.0123,
+      "weight": 1.0
+    },
+    "ai_gen_timeout_risk": {
+      "n": 40,
+      "win_rate": 0.55,
+      "ic": 0.2002,
+      "weight": 1.0
+    },
+    "ai_gen_hrv": {
+      "n": 29,
+      "win_rate": 0.2414,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_momdec": {
+      "n": 97,
+      "win_rate": 0.4845,
+      "ic": 0.0084,
+      "weight": 1.0
+    },
+    "ai_gen_mrv": {
+      "n": 68,
+      "win_rate": 0.5441,
+      "ic": 0.076,
+      "weight": 1.0
+    },
+    "ai_gen_netflow": {
+      "n": 82,
+      "win_rate": 0.4878,
+      "ic": 0.0228,
+      "weight": 1.0
+    },
+    "ai_gen_regime_stabili": {
+      "n": 42,
+      "win_rate": 0.6429,
+      "ic": 0.3444,
+      "weight": 1.2
+    },
+    "ai_gen_unknown_chaos": {
+      "n": 127,
+      "win_rate": 0.5591,
+      "ic": -0.0162,
+      "weight": 1.0
+    },
+    "ai_gen_volskew": {
+      "n": 41,
+      "win_rate": 0.6098,
+      "ic": null,
+      "weight": 1.2
+    },
+    "ai_gen_volumebreak": {
+      "n": 46,
+      "win_rate": 0.4565,
+      "ic": -0.1106,
+      "weight": 1.0
+    },
+    "ai_gen_vpdiv": {
+      "n": 56,
+      "win_rate": 0.3214,
+      "ic": -0.2022,
+      "weight": 0.25
+    },
+    "ai_gen_vs": {
+      "n": 95,
+      "win_rate": 0.5474,
+      "ic": -0.0602,
+      "weight": 1.0
+    },
+    "ai_gen_vcc": {
+      "n": 17,
+      "win_rate": 0.6471,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volinstability": {
+      "n": 65,
+      "win_rate": 0.5692,
+      "ic": -0.0353,
+      "weight": 1.0
+    },
+    "ai_gen_volmomcon": {
+      "n": 128,
+      "win_rate": 0.4609,
+      "ic": 0.0,
+      "weight": 1.0
+    },
+    "ai_gen_volprdiscor": {
+      "n": 32,
+      "win_rate": 0.4375,
+      "ic": -0.347,
+      "weight": 0.5
+    },
+    "ai_gen_volreg": {
+      "n": 237,
+      "win_rate": 0.5485,
+      "ic": 0.1644,
+      "weight": 1.0
+    },
+    "ai_gen_bsrf": {
+      "n": 10,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_consolidation": {
+      "n": 73,
+      "win_rate": 0.4384,
+      "ic": -0.1822,
+      "weight": 0.5
+    },
+    "ai_gen_eff_trend": {
+      "n": 107,
+      "win_rate": 0.5327,
+      "ic": 0.0834,
+      "weight": 1.0
+    },
+    "ai_gen_extreme_revert": {
+      "n": 59,
+      "win_rate": 0.5085,
+      "ic": 0.0538,
+      "weight": 1.0
+    },
+    "ai_gen_fake_break": {
+      "n": 47,
+      "win_rate": 0.5532,
+      "ic": 0.1947,
+      "weight": 1.0
+    },
+    "ai_gen_liq_magnet": {
+      "n": 132,
+      "win_rate": 0.5606,
+      "ic": 0.039,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_dry": {
+      "n": 126,
+      "win_rate": 0.4286,
+      "ic": -0.0388,
+      "weight": 0.5
+    },
+    "ai_gen_netreverse": {
+      "n": 15,
+      "win_rate": 0.5333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_order_imbalanc": {
+      "n": 134,
+      "win_rate": 0.4925,
+      "ic": 0.0508,
+      "weight": 1.0
+    },
+    "ai_gen_revnet": {
+      "n": 75,
+      "win_rate": 0.48,
+      "ic": 0.1548,
+      "weight": 1.0
+    },
+    "momentum": {
+      "n": 92,
+      "win_rate": 0.4674,
+      "ic": -0.0134,
+      "weight": 1.0
+    },
+    "roc": {
+      "n": 92,
+      "win_rate": 0.4674,
+      "ic": -0.0134,
+      "weight": 1.0
+    },
+    "ai_gen_ar": {
+      "n": 60,
+      "win_rate": 0.4167,
+      "ic": -0.2452,
+      "weight": 0.5
+    },
+    "ai_gen_conflict": {
+      "n": 63,
+      "win_rate": 0.5556,
+      "ic": 0.0725,
+      "weight": 1.0
+    },
+    "ai_gen_exh": {
+      "n": 69,
+      "win_rate": 0.4638,
+      "ic": -0.0088,
+      "weight": 1.0
+    },
+    "ai_gen_extreme_revers": {
+      "n": 18,
+      "win_rate": 0.5556,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_hri": {
+      "n": 21,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liq_magnet_rev": {
+      "n": 20,
+      "win_rate": 0.8,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_market_microst": {
+      "n": 10,
+      "win_rate": 0.7,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mom_vol_div": {
+      "n": 49,
+      "win_rate": 0.4694,
+      "ic": -0.0125,
+      "weight": 1.0
+    },
+    "ai_gen_momentum_decay": {
+      "n": 86,
+      "win_rate": 0.5116,
+      "ic": 0.1512,
+      "weight": 1.0
+    },
+    "ai_gen_mr_vol": {
+      "n": 158,
+      "win_rate": 0.4557,
+      "ic": -0.0426,
+      "weight": 1.0
+    },
+    "ai_gen_mtmc": {
+      "n": 10,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_multi_time_mom": {
+      "n": 16,
+      "win_rate": 0.625,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pos_reg": {
+      "n": 78,
+      "win_rate": 0.5,
+      "ic": 0.1182,
+      "weight": 1.0
+    },
+    "ai_gen_lqmagnet": {
+      "n": 39,
+      "win_rate": 0.6154,
+      "ic": 0.2131,
+      "weight": 1.2
+    },
+    "ai_gen_momdecay": {
+      "n": 9,
+      "win_rate": 0.2222,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mrbm": {
+      "n": 15,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mtf_align": {
+      "n": 7,
+      "win_rate": 0.4286,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_high_vol_rev": {
+      "n": 88,
+      "win_rate": 0.5341,
+      "ic": 0.1111,
+      "weight": 1.0
+    },
+    "ai_gen_vol_stability": {
+      "n": 60,
+      "win_rate": 0.4833,
+      "ic": 0.0745,
+      "weight": 1.0
+    },
+    "ai_gen_volimp": {
+      "n": 25,
+      "win_rate": 0.52,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volslump": {
+      "n": 143,
+      "win_rate": 0.5175,
+      "ic": 0.0849,
+      "weight": 1.0
+    },
+    "ai_gen_residual_meanr": {
+      "n": 39,
+      "win_rate": 0.4615,
+      "ic": 0.1508,
+      "weight": 1.0
+    },
+    "ai_gen_bbw": {
+      "n": 106,
+      "win_rate": 0.4245,
+      "ic": -0.0691,
+      "weight": 0.5
+    },
+    "ai_gen_regime_ambigui": {
+      "n": 28,
+      "win_rate": 0.6071,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dust_cln": {
+      "n": 14,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volanomaly": {
+      "n": 127,
+      "win_rate": 0.5433,
+      "ic": 0.0626,
+      "weight": 1.0
+    },
+    "ai_gen_volcon": {
+      "n": 134,
+      "win_rate": 0.5224,
+      "ic": -0.0152,
+      "weight": 1.0
+    },
+    "ai_gen_trend_uncertai": {
+      "n": 41,
+      "win_rate": 0.5366,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dust_reversal": {
+      "n": 16,
+      "win_rate": 0.5625,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liqrev": {
+      "n": 7,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mtmdecay": {
+      "n": 19,
+      "win_rate": 0.7368,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_trap": {
+      "n": 19,
+      "win_rate": 0.3684,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vbd": {
+      "n": 11,
+      "win_rate": 0.4545,
+      "ic": null,
+      "weight": 1.0
+    },
+    "wq_alpha023": {
+      "n": 11,
+      "win_rate": 0.5455,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bmt": {
+      "n": 8,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_intra_reversal": {
+      "n": 57,
+      "win_rate": 0.5088,
+      "ic": -0.009,
+      "weight": 1.0
+    },
+    "ai_gen_rev_net": {
+      "n": 13,
+      "win_rate": 0.2308,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volshrink": {
+      "n": 34,
+      "win_rate": 0.5588,
+      "ic": 0.2499,
+      "weight": 1.0
+    },
+    "ai_gen_volstability": {
+      "n": 91,
+      "win_rate": 0.5604,
+      "ic": 0.0751,
+      "weight": 1.0
+    },
+    "ai_gen_vrs": {
+      "n": 102,
+      "win_rate": 0.549,
+      "ic": 0.1275,
+      "weight": 1.0
+    },
+    "ai_gen_contrarian": {
+      "n": 48,
+      "win_rate": 0.5208,
+      "ic": -0.1106,
+      "weight": 1.0
+    },
+    "ai_gen_str": {
+      "n": 6,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_tvmb": {
+      "n": 66,
+      "win_rate": 0.5152,
+      "ic": 0.0872,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_dryu": {
+      "n": 51,
+      "win_rate": 0.5686,
+      "ic": -0.3136,
+      "weight": 1.0
+    },
+    "ai_gen_volatilityspik": {
+      "n": 45,
+      "win_rate": 0.5111,
+      "ic": 0.2195,
+      "weight": 1.0
+    },
+    "ai_gen_ma_slope": {
+      "n": 270,
+      "win_rate": 0.4815,
+      "ic": -0.0213,
+      "weight": 1.0
+    },
+    "ai_gen_liqmag": {
+      "n": 7,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liquidation_ma": {
+      "n": 11,
+      "win_rate": 0.2727,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity": {
+      "n": 54,
+      "win_rate": 0.4259,
+      "ic": -0.1434,
+      "weight": 0.5
+    },
+    "ai_gen_madiv": {
+      "n": 21,
+      "win_rate": 0.4286,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev": {
+      "n": 26,
+      "win_rate": 0.5385,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vdryup": {
+      "n": 124,
+      "win_rate": 0.5,
+      "ic": -0.0118,
+      "weight": 1.0
+    },
+    "ai_gen_vol_break_fail": {
+      "n": 23,
+      "win_rate": 0.4783,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_wick_reversal": {
+      "n": 12,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_skewrev": {
+      "n": 146,
+      "win_rate": 0.4658,
+      "ic": -0.1405,
+      "weight": 1.0
+    },
+    "ai_gen_vola_ratio": {
+      "n": 28,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pseudo_breakou": {
+      "n": 14,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_meanrev": {
+      "n": 228,
+      "win_rate": 0.5395,
+      "ic": 0.0134,
+      "weight": 1.0
+    },
+    "ai_gen_noi": {
+      "n": 151,
+      "win_rate": 0.4901,
+      "ic": -0.0232,
+      "weight": 1.0
+    },
+    "ai_gen_sho": {
+      "n": 182,
+      "win_rate": 0.5055,
+      "ic": -0.0408,
+      "weight": 1.0
+    },
+    "ai_gen_noise_level": {
+      "n": 180,
+      "win_rate": 0.5,
+      "ic": -0.0434,
+      "weight": 1.0
+    },
+    "ai_gen_prich": {
+      "n": 346,
+      "win_rate": 0.5145,
+      "ic": 0.0533,
+      "weight": 1.0
+    },
+    "ai_gen_regime_confide": {
+      "n": 167,
+      "win_rate": 0.485,
+      "ic": 0.0653,
+      "weight": 1.0
+    },
+    "ai_gen_retmov": {
+      "n": 213,
+      "win_rate": 0.4695,
+      "ic": -0.1089,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_stren": {
+      "n": 115,
+      "win_rate": 0.5043,
+      "ic": 0.0665,
+      "weight": 1.0
+    },
+    "ai_gen_reversalstreng": {
+      "n": 23,
+      "win_rate": 0.4348,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_breakout_fake": {
+      "n": 7,
+      "win_rate": 0.7143,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_corr_break": {
+      "n": 419,
+      "win_rate": 0.4869,
+      "ic": 0.0326,
+      "weight": 1.0
+    },
+    "ai_gen_noise_filter": {
+      "n": 229,
+      "win_rate": 0.4847,
+      "ic": -0.0753,
+      "weight": 1.0
+    },
+    "ai_gen_ru": {
+      "n": 238,
+      "win_rate": 0.5084,
+      "ic": -0.0267,
+      "weight": 1.0
+    },
+    "ai_gen_stop_prob": {
+      "n": 139,
+      "win_rate": 0.4604,
+      "ic": -0.0225,
+      "weight": 1.0
+    },
+    "ai_gen_stopcluster": {
+      "n": 239,
+      "win_rate": 0.5105,
+      "ic": 0.0102,
+      "weight": 1.0
+    },
+    "ai_gen_stoploss_densi": {
+      "n": 150,
+      "win_rate": 0.4733,
+      "ic": -0.1151,
+      "weight": 1.0
+    },
+    "ai_gen_trendconf": {
+      "n": 207,
+      "win_rate": 0.5121,
+      "ic": 0.0374,
+      "weight": 1.0
+    },
+    "ai_gen_trendweak": {
+      "n": 148,
+      "win_rate": 0.4662,
+      "ic": 0.0812,
+      "weight": 1.0
+    },
+    "ai_gen_trentropy": {
+      "n": 212,
+      "win_rate": 0.5047,
+      "ic": 0.0111,
+      "weight": 1.0
+    },
+    "ai_gen_uncert_vol": {
+      "n": 155,
+      "win_rate": 0.5161,
+      "ic": -0.0458,
+      "weight": 1.0
+    },
+    "ai_gen_uncertainty": {
+      "n": 139,
+      "win_rate": 0.4532,
+      "ic": 0.0132,
+      "weight": 1.0
+    },
+    "ai_gen_voconf": {
+      "n": 212,
+      "win_rate": 0.4858,
+      "ic": -0.0003,
+      "weight": 1.0
+    },
+    "ai_gen_vol_convergenc": {
+      "n": 198,
+      "win_rate": 0.4899,
+      "ic": 0.0667,
+      "weight": 1.0
+    },
+    "ai_gen_volat": {
+      "n": 163,
+      "win_rate": 0.4847,
+      "ic": -0.0548,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_zon": {
+      "n": 249,
+      "win_rate": 0.498,
+      "ic": -0.1137,
+      "weight": 1.0
+    },
+    "ai_gen_volcom": {
+      "n": 223,
+      "win_rate": 0.4978,
+      "ic": 0.0389,
+      "weight": 1.0
+    },
+    "ai_gen_state_aware": {
+      "n": 45,
+      "win_rate": 0.6,
+      "ic": 0.1642,
+      "weight": 1.0
+    },
+    "ai_gen_stop_proximity": {
+      "n": 224,
+      "win_rate": 0.5045,
+      "ic": -0.04,
+      "weight": 1.0
+    },
+    "ai_gen_thresh": {
+      "n": 20,
+      "win_rate": 0.7,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trendstab": {
+      "n": 28,
+      "win_rate": 0.3929,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bb_compress": {
+      "n": 12,
+      "win_rate": 0.5833,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bbmeanrev": {
+      "n": 38,
+      "win_rate": 0.4737,
+      "ic": -0.1142,
+      "weight": 1.0
+    },
+    "ai_gen_ma_revert": {
+      "n": 27,
+      "win_rate": 0.5185,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_tailmom": {
+      "n": 171,
+      "win_rate": 0.5146,
+      "ic": 0.0436,
+      "weight": 1.0
+    },
+    "ai_gen_tdi": {
+      "n": 23,
+      "win_rate": 0.6522,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volatrap": {
+      "n": 24,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dust_sweep": {
+      "n": 28,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_imb": {
+      "n": 81,
+      "win_rate": 0.5802,
+      "ic": 0.3497,
+      "weight": 1.0
+    },
+    "ai_gen_liq_bounce": {
+      "n": 12,
+      "win_rate": 0.75,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_gap": {
+      "n": 39,
+      "win_rate": 0.5385,
+      "ic": 0.2505,
+      "weight": 1.0
+    },
+    "ai_gen_squeeze_risk": {
+      "n": 13,
+      "win_rate": 0.6154,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volanom": {
+      "n": 21,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volume_price_d": {
+      "n": 34,
+      "win_rate": 0.4706,
+      "ic": 0.1681,
+      "weight": 1.0
+    },
+    "ai_gen_lqm_rev": {
+      "n": 5,
+      "win_rate": 0.4,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_micro_reverse": {
+      "n": 38,
+      "win_rate": 0.2632,
+      "ic": -0.3476,
+      "weight": 0.25
+    },
+    "ai_gen_mkt_uncertaint": {
+      "n": 8,
+      "win_rate": 0.375,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_price_jump": {
+      "n": 6,
+      "win_rate": 0.1667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev_liq": {
+      "n": 3,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_revint": {
+      "n": 4,
+      "win_rate": 0.75,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dust_vol": {
+      "n": 15,
+      "win_rate": 0.5333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_pat": {
+      "n": 14,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_sent_rev": {
+      "n": 10,
+      "win_rate": 0.7,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volatility_tra": {
+      "n": 6,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_fakebreak": {
+      "n": 45,
+      "win_rate": 0.4889,
+      "ic": 0.1433,
+      "weight": 1.0
+    },
+    "ai_gen_contrarian_ris": {
+      "n": 46,
+      "win_rate": 0.4565,
+      "ic": 0.1246,
+      "weight": 1.0
+    },
+    "ai_gen_imbrm": {
+      "n": 12,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_loss_cluster": {
+      "n": 5,
+      "win_rate": 0.8,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_magne": {
+      "n": 39,
+      "win_rate": 0.5128,
+      "ic": -0.1592,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_vol": {
+      "n": 31,
+      "win_rate": 0.4194,
+      "ic": 0.0377,
+      "weight": 0.5
+    },
+    "ai_gen_rvol": {
+      "n": 4,
+      "win_rate": 0.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rvp": {
+      "n": 8,
+      "win_rate": 0.625,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trend_mr": {
+      "n": 4,
+      "win_rate": 1.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_lsimb": {
+      "n": 10,
+      "win_rate": 0.4,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_voreg": {
+      "n": 17,
+      "win_rate": 0.8235,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dst": {
+      "n": 8,
+      "win_rate": 0.25,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liq": {
+      "n": 7,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_revpot": {
+      "n": 13,
+      "win_rate": 0.6154,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volume_breakou": {
+      "n": 79,
+      "win_rate": 0.4937,
+      "ic": -0.1183,
+      "weight": 1.0
+    },
+    "ai_gen_volume_surge_r": {
+      "n": 6,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_regime_instabi": {
+      "n": 94,
+      "win_rate": 0.5532,
+      "ic": 0.0688,
+      "weight": 1.0
+    },
+    "ai_gen_squeeze": {
+      "n": 126,
+      "win_rate": 0.5476,
+      "ic": 0.0477,
+      "weight": 1.0
+    },
+    "ai_gen_trend_cons": {
+      "n": 100,
+      "win_rate": 0.55,
+      "ic": 0.0897,
+      "weight": 1.0
+    },
+    "ai_gen_trendfade": {
+      "n": 53,
+      "win_rate": 0.5472,
+      "ic": 0.0635,
+      "weight": 1.0
+    },
+    "ai_gen_vol_squeeze": {
+      "n": 34,
+      "win_rate": 0.5,
+      "ic": 0.0439,
+      "weight": 1.0
+    },
+    "ai_gen_vol_trend_conf": {
+      "n": 97,
+      "win_rate": 0.5876,
+      "ic": 0.0292,
+      "weight": 1.0
+    },
+    "ai_gen_vol_twist": {
+      "n": 154,
+      "win_rate": 0.513,
+      "ic": 0.0931,
+      "weight": 1.0
+    },
+    "ai_gen_bband_reversal": {
+      "n": 13,
+      "win_rate": 0.3846,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_netting": {
+      "n": 5,
+      "win_rate": 0.4,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_oversold_rever": {
+      "n": 6,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pres_idx": {
+      "n": 24,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_htp": {
+      "n": 5,
+      "win_rate": 0.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_prob": {
+      "n": 68,
+      "win_rate": 0.4853,
+      "ic": -0.1139,
+      "weight": 1.0
+    },
+    "ai_gen_vol_trend": {
+      "n": 97,
+      "win_rate": 0.4536,
+      "ic": -0.0823,
+      "weight": 1.0
+    },
+    "ai_gen_vol_trap": {
+      "n": 12,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_rev": {
+      "n": 23,
+      "win_rate": 0.6087,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_short_rev": {
+      "n": 6,
+      "win_rate": 0.8333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_slrisk": {
+      "n": 194,
+      "win_rate": 0.5773,
+      "ic": 0.2874,
+      "weight": 1.0
+    },
+    "ai_gen_vol_price": {
+      "n": 4,
+      "win_rate": 0.75,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev_vol": {
+      "n": 49,
+      "win_rate": 0.3878,
+      "ic": -0.0981,
+      "weight": 0.25
+    },
+    "ai_gen_vr": {
+      "n": 118,
+      "win_rate": 0.5763,
+      "ic": 0.2057,
+      "weight": 1.0
+    },
+    "ai_gen_mrconf": {
+      "n": 4,
+      "win_rate": 0.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rsi_mom": {
+      "n": 102,
+      "win_rate": 0.4804,
+      "ic": -0.0132,
+      "weight": 1.0
+    },
+    "ai_gen_short_term_rev": {
+      "n": 39,
+      "win_rate": 0.5128,
+      "ic": -0.0871,
+      "weight": 1.0
+    },
+    "ai_gen_volbreak": {
+      "n": 10,
+      "win_rate": 0.4,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_extreme_rev": {
+      "n": 4,
+      "win_rate": 0.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_imbalance": {
+      "n": 5,
+      "win_rate": 0.2,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vsi": {
+      "n": 3,
+      "win_rate": 0.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_reversal_confi": {
+      "n": 8,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dust_squeeze": {
+      "n": 78,
+      "win_rate": 0.5385,
+      "ic": 0.1188,
+      "weight": 1.0
+    },
+    "ai_gen_lqk": {
+      "n": 47,
+      "win_rate": 0.5745,
+      "ic": 0.1787,
+      "weight": 1.0
+    },
+    "ai_gen_liq_exhaustion": {
+      "n": 7,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "spike_detection": {
+      "n": 13,
+      "win_rate": 0.5385,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev_intra": {
+      "n": 6,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_break": {
+      "n": 8,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liq_imbalance": {
+      "n": 3,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mmc": {
+      "n": 4,
+      "win_rate": 0.75,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_netting_revers": {
+      "n": 7,
+      "win_rate": 0.2857,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_fake_breakout": {
+      "n": 8,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vdp": {
+      "n": 3,
+      "win_rate": 1.0,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_volad": {
+      "n": 3,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vol_imb": {
+      "n": 7,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_rev_fail": {
+      "n": 32,
+      "win_rate": 0.2812,
+      "ic": -0.329,
+      "weight": 0.25
+    },
+    "ai_gen_regime_un": {
+      "n": 53,
+      "win_rate": 0.4906,
+      "ic": 0.0246,
+      "weight": 1.0
+    },
+    "ai_gen_vol_compress": {
+      "n": 8,
+      "win_rate": 0.625,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_risk": {
+      "n": 3,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_bsq": {
+      "n": 249,
+      "win_rate": 0.5341,
+      "ic": 0.0985,
+      "weight": 1.0
+    },
+    "ai_gen_liq_quality": {
+      "n": 76,
+      "win_rate": 0.5395,
+      "ic": 0.1179,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_sque": {
+      "n": 107,
+      "win_rate": 0.4299,
+      "ic": -0.1265,
+      "weight": 0.5
+    },
+    "ai_gen_low_vol_moment": {
+      "n": 201,
+      "win_rate": 0.4776,
+      "ic": -0.1592,
+      "weight": 1.0
+    },
+    "ai_gen_stability": {
+      "n": 222,
+      "win_rate": 0.5495,
+      "ic": -0.0033,
+      "weight": 1.0
+    },
+    "ai_gen_vol_spike": {
+      "n": 280,
+      "win_rate": 0.5071,
+      "ic": -0.0068,
+      "weight": 1.0
+    },
+    "ai_gen_voladj_momentu": {
+      "n": 173,
+      "win_rate": 0.5202,
+      "ic": 0.011,
+      "weight": 1.0
+    },
+    "ai_gen_voltrend": {
+      "n": 267,
+      "win_rate": 0.4644,
+      "ic": -0.0703,
+      "weight": 1.0
+    },
+    "ai_gen_vpr": {
+      "n": 270,
+      "win_rate": 0.463,
+      "ic": -0.0306,
+      "weight": 1.0
+    },
+    "ai_gen_volume_flow": {
+      "n": 114,
+      "win_rate": 0.4912,
+      "ic": -0.0775,
+      "weight": 1.0
+    },
+    "ai_gen_volumereg": {
+      "n": 50,
+      "win_rate": 0.5,
+      "ic": 0.049,
+      "weight": 1.0
+    },
+    "ai_gen_mrext": {
+      "n": 207,
+      "win_rate": 0.4879,
+      "ic": -0.0577,
+      "weight": 1.0
+    },
+    "ai_gen_vqc": {
+      "n": 55,
+      "win_rate": 0.4,
+      "ic": 0.0382,
+      "weight": 0.5
+    },
+    "cloud_vwap_deviation": {
+      "n": 13,
+      "win_rate": 0.5385,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pdr": {
+      "n": 19,
+      "win_rate": 0.5789,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_regime_certain": {
+      "n": 22,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trend_stab": {
+      "n": 12,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_trg": {
+      "n": 20,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_uncertainty_vo": {
+      "n": 17,
+      "win_rate": 0.5882,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vatc": {
+      "n": 25,
+      "win_rate": 0.56,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vrg": {
+      "n": 7,
+      "win_rate": 0.4286,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_dyn_skew": {
+      "n": 15,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 1.0
+    },
+    "cloud_rsi_divergence": {
+      "n": 4,
+      "win_rate": 0.5,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_unreg": {
+      "n": 7,
+      "win_rate": 0.5714,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mvr": {
+      "n": 6,
+      "win_rate": 0.6667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_wpd": {
+      "n": 6,
+      "win_rate": 0.1667,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_liquidity_shoc": {
+      "n": 10,
+      "win_rate": 0.3,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pricerange": {
+      "n": 5,
+      "win_rate": 0.6,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_mfa": {
+      "n": 5,
+      "win_rate": 0.6,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_pdz": {
+      "n": 5,
+      "win_rate": 0.4,
+      "ic": null,
+      "weight": 1.0
+    },
+    "ai_gen_vva": {
+      "n": 3,
+      "win_rate": 0.3333,
+      "ic": null,
+      "weight": 1.0
+    }
+  }
+}

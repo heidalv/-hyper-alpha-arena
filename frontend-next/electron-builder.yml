@@ -1,0 +1,31 @@
+# frontend-next/electron-builder.yml
+appId: com.alphaarena.web
+productName: AlphaArena
+# version 默认读 package.json version; electron-updater 用它比对 latest.yml
+files:
+  - out/**/*
+  - electron/**/*
+  - package.json
+directories:
+  output: dist-electron
+# Win/mac/Linux 目标
+win:
+  target: nsis
+  # 避免 winCodeSign 在未开「开发人员模式」时因符号链接权限失败
+  signAndEditExecutable: false
+mac:
+  target: dmg
+linux:
+  target: AppImage
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+# 自动更新源(electron-updater autoUpdater.checkForUpdatesAndNotify 读这里)。
+# 部署时把 url 改成真实更新源;它需要提供 latest.yml + 安装包。
+# 可选 provider: github(GitHub Releases) / generic(自托管静态目录) / s3 / bintray
+publish:
+  provider: generic
+  url: https://yourdomain.com/arena-updates/

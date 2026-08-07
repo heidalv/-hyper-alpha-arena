@@ -1,0 +1,117 @@
+{
+  "ts": 1786078529,
+  "usable": false,
+  "n_settled_raw": 189422,
+  "n_settled": 5069,
+  "dedup_sec": 1800,
+  "pos": 1784,
+  "neg": 3285,
+  "status": "trained",
+  "features": 23,
+  "oos_auc_lgbm": 0.51,
+  "oos_auc_linear": 0.5127,
+  "baseline": {
+    "win_rate": 0.3519,
+    "net_ret": -0.002268
+  },
+  "filter_top30pct": {
+    "coverage": 0.2999506660088801,
+    "win_rate": 0.35526315789473684,
+    "net_ret": -0.0028230121965025713,
+    "n": 1216
+  },
+  "filter_top15pct": {
+    "coverage": 0.14997533300444005,
+    "win_rate": 0.34210526315789475,
+    "net_ret": -0.0027737887703544097,
+    "n": 608
+  },
+  "top_importance": [
+    {
+      "name": "of_cvd",
+      "importance": 0.0967
+    },
+    {
+      "name": "of_buy_notional",
+      "importance": 0.0914
+    },
+    {
+      "name": "amplitude_pct",
+      "importance": 0.0887
+    },
+    {
+      "name": "of_oi_delta_pct",
+      "importance": 0.0815
+    },
+    {
+      "name": "of_depth_ratio",
+      "importance": 0.073
+    },
+    {
+      "name": "factor_score",
+      "importance": 0.0706
+    },
+    {
+      "name": "pos_extreme",
+      "importance": 0.0651
+    },
+    {
+      "name": "of_funding_rate",
+      "importance": 0.0628
+    },
+    {
+      "name": "of_imbalance",
+      "importance": 0.0606
+    },
+    {
+      "name": "range_position",
+      "importance": 0.0575
+    },
+    {
+      "name": "rsi",
+      "importance": 0.0555
+    },
+    {
+      "name": "rsi_extreme",
+      "importance": 0.0448
+    },
+    {
+      "name": "cycle_prob_up",
+      "importance": 0.0295
+    },
+    {
+      "name": "cycle_prob_agreement",
+      "importance": 0.0266
+    },
+    {
+      "name": "raw_dir",
+      "importance": 0.0243
+    },
+    {
+      "name": "composite",
+      "importance": 0.0214
+    },
+    {
+      "name": "cycle_prob_down",
+      "importance": 0.0201
+    },
+    {
+      "name": "cycle_prob_confidence",
+      "importance": 0.0184
+    },
+    {
+      "name": "crypto_alpha",
+      "importance": 0.0057
+    },
+    {
+      "name": "dir_sign",
+      "importance": 0.0055
+    }
+  ],
+  "gate_reasons": [
+    "AUC 0.510 < 门槛 0.53",
+    "过滤后净收益 -0.2823% 未超基线 -0.2268%",
+    "过滤后净收益仍为负 -0.2823%"
+  ],
+  "model_path": "D:\\001Alpha\\Hyper-Alpha-Arena\\data\\scalp_meta_model.pkl"
+}

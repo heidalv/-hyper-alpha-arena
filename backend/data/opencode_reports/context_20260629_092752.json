@@ -1,0 +1,1317 @@
+{
+  "window": "24h",
+  "domain": "ai",
+  "generated_at": "2026-06-29T09:27:52.095103+00:00",
+  "runtime_report": {
+    "window": "24h",
+    "domain": "ai",
+    "generated_at": "2026-06-29T09:27:50.546797+00:00",
+    "total_closed": 10,
+    "win_rate": 0.3,
+    "total_pnl": -703.11,
+    "max_single_loss": -261.67,
+    "master_close_loss_ratio": 0.8274,
+    "master_close_count": 3,
+    "close_reason_breakdown": {
+      "master_running_close": {
+        "key": "master_running_close",
+        "count": 3,
+        "wins": 0,
+        "total_pnl": -581.77,
+        "avg_pnl": -193.92,
+        "win_rate": 0.0
+      },
+      "max_hold_timeout": {
+        "key": "max_hold_timeout",
+        "count": 3,
+        "wins": 2,
+        "total_pnl": -99.25,
+        "avg_pnl": -33.08,
+        "win_rate": 0.6667
+      },
+      "hold_timeout_review": {
+        "key": "hold_timeout_review",
+        "count": 4,
+        "wins": 1,
+        "total_pnl": -22.09,
+        "avg_pnl": -5.52,
+        "win_rate": 0.25
+      }
+    },
+    "by_tier": [
+      {
+        "key": "short",
+        "count": 6,
+        "wins": 1,
+        "total_pnl": -522.16,
+        "avg_pnl": -87.03,
+        "win_rate": 0.1667
+      },
+      {
+        "key": "mid",
+        "count": 4,
+        "wins": 2,
+        "total_pnl": -180.96,
+        "avg_pnl": -45.24,
+        "win_rate": 0.5
+      }
+    ],
+    "by_nature": [
+      {
+        "key": "scalp",
+        "count": 6,
+        "wins": 1,
+        "total_pnl": -522.16,
+        "avg_pnl": -87.03,
+        "win_rate": 0.1667
+      },
+      {
+        "key": "swing",
+        "count": 4,
+        "wins": 2,
+        "total_pnl": -180.96,
+        "avg_pnl": -45.24,
+        "win_rate": 0.5
+      }
+    ],
+    "by_symbol": [
+      {
+        "key": "BNB",
+        "count": 2,
+        "wins": 0,
+        "total_pnl": -379.95,
+        "avg_pnl": -189.97,
+        "win_rate": 0.0
+      },
+      {
+        "key": "ETH",
+        "count": 3,
+        "wins": 1,
+        "total_pnl": -375.59,
+        "avg_pnl": -125.2,
+        "win_rate": 0.3333
+      },
+      {
+        "key": "ASTER",
+        "count": 1,
+        "wins": 0,
+        "total_pnl": -261.67,
+        "avg_pnl": -261.67,
+        "win_rate": 0.0
+      },
+      {
+        "key": "BTC",
+        "count": 1,
+        "wins": 0,
+        "total_pnl": -169.02,
+        "avg_pnl": -169.02,
+        "win_rate": 0.0
+      },
+      {
+        "key": "SOL",
+        "count": 3,
+        "wins": 2,
+        "total_pnl": 483.12,
+        "avg_pnl": 161.04,
+        "win_rate": 0.6667
+      }
+    ],
+    "insights": [
+      {
+        "severity": "major",
+        "category": "win_rate",
+        "message": "rolling 24h 胜率 30% < 40%",
+        "metric": "win_rate",
+        "value": 0.3,
+        "threshold": 0.4
+      },
+      {
+        "severity": "critical",
+        "category": "negative_ev",
+        "message": "每笔期望收益 $-70.3 < -$10（严重亏损策略）",
+        "metric": "avg_pnl_per_trade",
+        "value": -70.31125484779172,
+        "threshold": -10
+      },
+      {
+        "severity": "major",
+        "category": "master_close",
+        "message": "总控 close 亏损占比 83% > 60%",
+        "metric": "master_close_loss_ratio",
+        "value": 0.8274199594960928,
+        "threshold": 0.6
+      },
+      {
+        "severity": "info",
+        "category": "perf",
+        "message": "最大亏损来源 close_reason=master_running_close: 3 笔累计 -582 USDT"
+      },
+      {
+        "severity": "info",
+        "category": "perf",
+        "message": "tier=short 累计亏损 -522（6 笔，胜率 17%）"
+      },
+      {
+        "severity": "info",
+        "category": "perf",
+        "message": "tier=mid 累计亏损 -181（4 笔，胜率 50%）"
+      },
+      {
+        "severity": "info",
+        "category": "perf",
+        "message": "nature=scalp 累计亏损 -522（6 笔，胜率 17%）"
+      },
+      {
+        "severity": "info",
+        "category": "perf",
+        "message": "nature=swing 累计亏损 -181（4 笔，胜率 50%）"
+      }
+    ],
+    "rule_breaches": [
+      "rolling 24h 胜率 30% < 40%",
+      "每笔期望收益 $-70.3 < -$10（严重亏损策略）",
+      "总控 close 亏损占比 83% > 60%"
+    ],
+    "arb": null
+  },
+  "data_quality": {
+    "runtime_report_total_closed": 10,
+    "runtime_report_win_rate": 0.3,
+    "has_recent_trades": true,
+    "strategy_memories_n": 10,
+    "open_major_issues_n": 10,
+    "has_log_errors": true,
+    "log_error_total_24h": 609,
+    "log_error_p0_count": 0,
+    "sufficient_for_analysis": true
+  },
+  "training_phase": {
+    "active": true,
+    "symbols": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "BNB",
+      "ASTER"
+    ],
+    "max_active_strategies": 10
+  },
+  "health_apis_snapshot": {
+    "overall_ok": true,
+    "ok_count": 6,
+    "total": 6,
+    "apis": {
+      "api_health": {
+        "ok": true,
+        "data": {
+          "status": "ok"
+        }
+      },
+      "system_log_stats": {
+        "ok": true,
+        "data": {
+          "total_logs": 0,
+          "by_level": {
+            "INFO": 0,
+            "WARNING": 0,
+            "ERROR": 0
+          },
+          "by_category": {
+            "price_update": 0,
+            "ai_decision": 0,
+            "system_error": 0
+          }
+        }
+      },
+      "proposal_funnel": {
+        "ok": true,
+        "data": {
+          "total": 201,
+          "by_status": {
+            "rejected": 81,
+            "rolled_back": 27,
+            "paper_validated": 73,
+            "applied": 20
+          },
+          "verdicts": {
+            "improved": 28,
+            "neutral": 42,
+            "degraded": 2,
+            "unevaluated": 129
+          },
+          "validation_policy": {
+            "min_age_hours": 2,
+            "max_wait_hours": 24,
+            "min_samples": 3,
+            "gear": "training_narrow",
+            "mode": "post_apply_slice"
+          },
+          "funnel": {
+            "created": 201,
+            "applied": 93,
+            "evaluated": 100,
+            "improved": 28
+          },
+          "improve_rate": 0.28
+        }
+      },
+      "governor_ownership": {
+        "ok": true,
+        "data": {
+          "ownership": {
+            "max_daily_trades": {
+              "owner": "opencode",
+              "target_value": 10,
+              "effective_value": 10.0,
+              "candidates": []
+            },
+            "min_risk_reward": {
+              "owner": "default",
+              "target_value": 1.8,
+              "effective_value": 1.8,
+              "candidates": []
+            },
+            "scalp_min_confidence": {
+              "owner": "default",
+              "target_value": 70,
+              "effective_value": 70,
+              "candidates": []
+            },
+            "disabled_natures": {
+              "owner": "default",
+              "target_value": [],
+              "effective_value": [],
+              "candidates": []
+            },
+            "maturity_global_n1": {
+              "owner": "opencode",
+              "target_value": 20,
+              "effective_value": 20,
+              "candidates": [],
+              "governed_by": "opencode_exclusive"
+            },
+            "maturity_global_n2": {
+              "owner": "opencode",
+              "target_value": 60,
+              "effective_value": 60,
+              "candidates": [],
+              "governed_by": "opencode_exclusive"
+            },
+            "maturity_max_warmup_relief": {
+              "owner": "opencode",
+              "target_value": 15,
+              "effective_value": 15,
+              "candidates": [],
+              "governed_by": "opencode_exclusive"
+            }
+          }
+        }
+      },
+      "learning_health": {
+        "ok": true,
+        "data": {
+          "items": [
+            {
+              "name": "retrospective",
+              "label": "决策复盘",
+              "status": "ok",
+              "last_activity": "2026-06-29T16:27:41.319910+00:00",
+              "age_hours": -7.0,
+              "threshold_hours": 48,
+              "detail": "累计 305 条复盘记录"
+            },
+            {
+              "name": "evolution",
+              "label": "参数进化(NSGA-II)",
+              "status": "ok",
+              "last_activity": "2026-06-29T17:27:36.777975+00:00",
+              "age_hours": -8.0,
+              "threshold_hours": 96,
+              "detail": "累计 232 次进化回测"
+            },
+            {
+              "name": "runtime_gates",
+              "label": "运行时门槛(v5_gates)",
+              "status": "dead",
+              "last_activity": null,
+              "age_hours": null,
+              "threshold_hours": 48,
+              "detail": "日报/进化写入，决策核心 60s 内生效"
+            },
+            {
+              "name": "kelly",
+              "label": "Kelly 仓位聚合",
+              "status": "ok",
+              "last_activity": "2026-06-29T17:18:45.858271+00:00",
+              "age_hours": -7.8,
+              "threshold_hours": 2,
+              "detail": "LearningLoop 每 30min 聚合"
+            },
+            {
+              "name": "coordinator",
+              "label": "系统协调器",
+              "status": "ok",
+              "last_activity": "2026-06-29T17:18:45.814498+00:00",
+              "age_hours": -7.8,
+              "threshold_hours": 2,
+              "detail": "LearningLoop 每 1h 协调检查"
+            },
+            {
+              "name": "strategy_memory",
+              "label": "策略记忆/教训",
+              "status": "ok",
+              "last_activity": "2026-06-29T16:48:52.248082+00:00",
+              "age_hours": -7.4,
+              "threshold_hours": 72,
+              "detail": "累计 119 条策略记忆"
+            }
+          ],
+          "overall": "dead",
+          "checked_at": "2026-06-29T09:27:50.953886+00:00"
+        }
+      },
+      "opencode_status": {
+        "ok": true,
+        "data": {
+          "bridge": {
+            "enabled": true,
+            "transport": "http",
+            "last_error": null,
+            "last_ok_ts": 1782725271.1622157,
+            "server_url": "http://127.0.0.1:4096",
+            "model": "deepseek/deepseek-v4-pro",
+            "sidecar_healthy": true
+          },
+          "serve_healthy": true,
+          "pace": {
+            "gear": "conservative",
+            "manual_lock": false,
+            "tick_seconds": 120,
+            "max_strategies_per_tick": 6,
+            "max_symbols_per_tick": 6,
+            "learning_review_every_n": 20,
+            "learning_miner_every_n": 30,
+            "hold_timeout_multiplier": 0.85,
+            "master_close_mode": "enforce"
+          },
+          "sidecar": {
+            "autostart": true,
+            "managed": false,
+            "adopted": false,
+            "running": true,
+            "healthy": true,
+            "healthy_via": "external",
+            "pid": null,
+            "exe_found": true,
+            "host": "127.0.0.1",
+            "port": 4096
+          }
+        }
+      }
+    }
+  },
+  "log_error_digest": {
+    "generated_at": "2026-06-29T09:27:50.692136+00:00",
+    "window_hours": 24,
+    "log_paths": [
+      "D:\\BaiduNetdiskDownload\\001Alpha-Windows迁移包-20260610-2228\\001Alpha\\Hyper-Alpha-Arena\\logs\\backend.log",
+      "D:\\BaiduNetdiskDownload\\001Alpha-Windows迁移包-20260610-2228\\001Alpha\\Hyper-Alpha-Arena\\logs\\backend.error.log"
+    ],
+    "scanned_lines": 44183,
+    "total_errors": 609,
+    "distinct_groups": 8,
+    "p0_count": 0,
+    "has_log_errors": true,
+    "time_range": {
+      "oldest": "2026-06-29 07:08:13",
+      "newest": "2026-06-29 17:23:54"
+    },
+    "entries": [
+      {
+        "logger": "[tr=-] backend.services.llm_config_service",
+        "count": 504,
+        "sample": "LLM API error (sync stream): 402 - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+        "pattern": "LLM API error (sync stream): <N> - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 17:23:54"
+      },
+      {
+        "logger": "[tr=-] backend.services.opencode_bridge",
+        "count": 55,
+        "sample": "[OpenCodeBridge] cross_cycle_pattern_mining: timed out",
+        "pattern": "[OpenCodeBridge] cross_cycle_pattern_mining: timed out",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 16:27:42"
+      },
+      {
+        "logger": "[tr=-] backend.services.full_auto_trading_service",
+        "count": 24,
+        "sample": "[FullAuto] AI 连续3次失败: LLM 不可用，已降级到规则引擎",
+        "pattern": "[FullAuto] AI 连续3次失败: LLM 不可用，已降级到规则引擎",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 17:23:49"
+      },
+      {
+        "logger": "[tr=-] backend.services.hermes_prompt_optimizer_engine",
+        "count": 8,
+        "sample": "[Hermes:L2] auto_optimize task_trading_runtime_analysis: timed out",
+        "pattern": "[Hermes:L2] auto_optimize task_trading_runtime_analysis: timed out",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 10:53:09"
+      },
+      {
+        "logger": "[tr=-] backend.services.unified_learning_service",
+        "count": 8,
+        "sample": "[UnifiedLearning] DRL表现归档失败: (psycopg.errors.CannotCoerce) 无法把类型 boolean 转换为 double precision",
+        "pattern": "[UnifiedLearning] DRL表现归档失败: (psycopg.errors.CannotCoerce) 无法把类型 boolean 转换为 double precision",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 16:48:46"
+      },
+      {
+        "logger": "[tr=-] backend.services.strategy_learning_service",
+        "count": 5,
+        "sample": "[Promote] 策略晋升失败: 'StrategyMemory' object has no attribute 'avg_pnl_pct'",
+        "pattern": "[Promote] 策略晋升失败: 'StrategyMemory' object has no attribute 'avg_pnl_pct'",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 16:48:52"
+      },
+      {
+        "logger": "[tr=-] websocket",
+        "count": 4,
+        "sample": "Connection to remote host was lost. - goodbye",
+        "pattern": "Connection to remote host was lost. - goodbye",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 16:25:15"
+      },
+      {
+        "logger": "[tr=-] services.market_flow_collector",
+        "count": 1,
+        "sample": "Failed to flush market flow for ASTER: (psycopg.errors.UniqueViolation) 重复键违反唯一约束\"market_asset_metrics_exchange_symbol_timestamp_key\"",
+        "pattern": "Failed to flush market flow for ASTER: (psycopg.errors.UniqueViolation) 重复键违反唯一约束\"market_asset_metrics_exchange_symbol_timestamp_key\"",
+        "severity_hint": "P2",
+        "last_seen": "2026-06-29 11:56:05"
+      }
+    ],
+    "group_by": "logger"
+  },
+  "pace_gear": "conservative",
+  "strategy_memories_top": [
+    {
+      "strategy_id": "tpl_mid_reversion_c51d79",
+      "win_rate": 0.1375,
+      "total_trades": 160,
+      "key_lessons": [
+        {
+          "type": "loss_analysis",
+          "symbol": "ETH",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "ai_reverse",
+          "lesson": "ETH long: 亏损-173.08(0.12%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "ETH",
+          "tier": "swing",
+          "regime": "ranging",
+          "lesson": "ETH[swing]亏损-0.25%(ranging市场)，需复盘入场逻辑",
+          "severity": "medium",
+          "pnl_pct": -0.00245924518980577,
+          "ts": "2026-06-20T14:58:06.096060+00:00"
+        },
+        {
+          "type": "exit_quality",
+          "symbol": "ETH",
+          "tier": "swing",
+          "regime": "ranging",
+          "lesson": "ETH峰值利润保留率仅-1091% (peak=+0.5%, exit=-0.2%)，后续同类仓位应更早上移SL或收紧trailing",
+          "severity": "high",
+          "retention_ratio": -10.907026454438505,
+          "peak_pnl_pct": 0.004792581093266555,
+          "exit_pnl_pct": -0.00245924518980577,
+          "exit_channel": "ai_reverse",
+          "ts": "2026-06-20T14:58:06.096060+00:00"
+        },
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(0%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "ETH",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "max_hold_timeout",
+          "lesson": "ETH short: 盈利+4.40(+0.04%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-07T14:04:32.519340+00:00",
+          "symbol": "ETH",
+          "regime": "unknown",
+          "pnl": 10036.267677535385,
+          "pnl_pct": 0.02045028423932066,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-18T07:44:58.530323+00:00",
+          "symbol": "ETH",
+          "regime": "ranging",
+          "pnl": -413.69145401380405,
+          "pnl_pct": -0.01193199380206928,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "strategy_id": "scalp_router_direct",
+      "win_rate": 0.3787878787878789,
+      "total_trades": 132,
+      "key_lessons": [
+        {
+          "type": "win_pattern",
+          "symbol": "JTO",
+          "tier": "short",
+          "trade_nature": "scalp",
+          "regime": "max_hold_timeout",
+          "lesson": "JTO long: 盈利+419.66(+1.71%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "ASTER",
+          "tier": "short",
+          "trade_nature": "scalp",
+          "regime": "master_running",
+          "lesson": "ASTER long: 盈利+48.74(+0.20%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "BNB",
+          "tier": "short",
+          "trade_nature": "scalp",
+          "regime": "max_hold_timeout",
+          "lesson": "BNB long: 盈利+23.13(+0.09%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "SOL",
+          "tier": "short",
+          "trade_nature": "scalp",
+          "regime": "max_hold_timeout",
+          "lesson": "SOL long: 盈利+128.22(+0.52%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "JTO",
+          "tier": "short",
+          "trade_nature": "scalp",
+          "regime": "max_hold_timeout",
+          "lesson": "JTO long: 盈利+350.52(+1.42%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-25T01:46:10.559043+00:00",
+          "symbol": "JTO",
+          "regime": "ranging",
+          "pnl": 875.7166032674534,
+          "pnl_pct": 0.035615833653643694,
+          "side": "long",
+          "source": "paper",
+          "trade_nature": "scalp",
+          "r_multiple": null
+        },
+        {
+          "symbol": "JTO",
+          "side": "long",
+          "pnl_pct": 0.035615833653643694,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-25T01:46:18.090138+00:00",
+          "symbol": "RESOLV",
+          "regime": "unknown",
+          "pnl": -915.9339369733651,
+          "pnl_pct": -0.03637417575812872,
+          "side": "long",
+          "source": "paper",
+          "trade_nature": "scalp",
+          "r_multiple": null,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_short_range_80651a",
+      "win_rate": 0.42500000000000004,
+      "total_trades": 80,
+      "key_lessons": [
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-0.3%)远大于平均盈利(0.0%)，需收紧止损"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-1.1%)远大于平均盈利(0.2%)，需收紧止损"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "ASTER",
+          "tier": "short",
+          "trade_nature": "intraday",
+          "regime": "max_hold_timeout",
+          "lesson": "ASTER short: 盈利+171.05(+0.42%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "ASTER",
+          "tier": "short",
+          "trade_nature": "intraday",
+          "regime": "max_hold_timeout",
+          "lesson": "ASTER short: 亏损-87.62(-0.34%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "exit_quality",
+          "symbol": "ASTER",
+          "tier": "scalp",
+          "regime": "ranging",
+          "lesson": "ASTER峰值利润保留率仅-24% (peak=+1.4%, exit=-0.3%)，后续同类仓位应更早上移SL或收紧trailing",
+          "severity": "high",
+          "retention_ratio": -0.241518175058335,
+          "peak_pnl_pct": 0.014266538251381201,
+          "exit_pnl_pct": -0.0034456282828735176,
+          "exit_channel": "max_hold_timeout",
+          "ts": "2026-06-19T15:55:19.522191+00:00"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-19T01:59:11.633311+00:00",
+          "symbol": "ASTER",
+          "regime": "ranging",
+          "pnl": 171.05142230511862,
+          "pnl_pct": 0.0042285284913049755,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "intraday",
+          "r_multiple": null
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-19T15:55:19.522191+00:00",
+          "symbol": "ASTER",
+          "regime": "ranging",
+          "pnl": -87.62295509241363,
+          "pnl_pct": -0.0034456282828735176,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "intraday",
+          "r_multiple": null,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_mid_swing_b87e79",
+      "win_rate": 1.0,
+      "total_trades": 76,
+      "key_lessons": [
+        {
+          "type": "win_pattern",
+          "symbol": "BNB",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "tp",
+          "lesson": "BNB long: 盈利+873.55(+1.77%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-22T13:31:12.181462+00:00",
+          "symbol": "BNB",
+          "regime": "ranging",
+          "pnl": 873.5459612940878,
+          "pnl_pct": 0.01774715687561053,
+          "side": "long",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null
+        }
+      ],
+      "failed_patterns": []
+    },
+    {
+      "strategy_id": "tpl_mid_reversion_3071d2",
+      "win_rate": 0.10666666666666667,
+      "total_trades": 75,
+      "key_lessons": [
+        {
+          "type": "regime_weakness",
+          "symbol": "ASTER",
+          "tier": "all",
+          "regime": "unknown",
+          "lesson": "在unknown市场表现极差(胜率9%，66笔)，建议避开此环境",
+          "severity": "high",
+          "ts": "2026-06-29T08:27:41.456207+00:00"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "ASTER",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "master_running_close",
+          "lesson": "ASTER short: 亏损-158.58(-2.13%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "regime_strength",
+          "symbol": "ASTER",
+          "tier": "all",
+          "regime": "unknown",
+          "lesson": "在unknown市场表现出色(胜率100%，6笔)，可加大仓位",
+          "severity": "info",
+          "ts": "2026-06-26T05:53:07.415970+00:00"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "ASTER",
+          "tier": "swing",
+          "regime": "ranging",
+          "lesson": "ASTER[swing]亏损-0.43%(ranging市场)，需复盘入场逻辑",
+          "severity": "medium",
+          "pnl_pct": -0.004332503497947163,
+          "ts": "2026-06-28T19:16:50.453037+00:00"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "ASTER",
+          "tier": "swing",
+          "regime": "ranging",
+          "lesson": "ASTER[swing]亏损-0.55%(ranging市场)，需复盘入场逻辑",
+          "severity": "medium",
+          "pnl_pct": -0.0055413956728992885,
+          "ts": "2026-06-29T08:25:58.505649+00:00"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-18T06:00:02.271810+00:00",
+          "symbol": "ASTER",
+          "regime": "ranging",
+          "pnl": 50.987492773644995,
+          "pnl_pct": 0.0018923985410665444,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-18T07:09:51.721448+00:00",
+          "symbol": "ASTER",
+          "regime": "ranging",
+          "pnl": -315.51373809365833,
+          "pnl_pct": -0.005855139223118608,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null,
+          "reason": ""
+        },
+        {
+          "symbol": "ASTER",
+          "side": "short",
+          "pnl_pct": -0.020270661648916992,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_mid_reversion_75cb25",
+      "win_rate": 0.0,
+      "total_trades": 70,
+      "key_lessons": [
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(0%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-4.0%)远大于平均盈利(0.0%)，需收紧止损"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "JTO",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "sl",
+          "lesson": "JTO long: 亏损-205.76(-4.00%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(0%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-4.0%)远大于平均盈利(0.0%)，需收紧止损"
+        }
+      ],
+      "successful_patterns": [],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-25T13:47:07.856082+00:00",
+          "symbol": "JTO",
+          "regime": "ranging",
+          "pnl": -205.7613461912814,
+          "pnl_pct": -0.039999370440015614,
+          "side": "long",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null,
+          "reason": ""
+        },
+        {
+          "symbol": "JTO",
+          "side": "long",
+          "pnl_pct": -0.039999370440015614,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_long_swing_27af06",
+      "win_rate": 0.2666666666666667,
+      "total_trades": 60,
+      "key_lessons": [
+        {
+          "type": "loss_analysis",
+          "symbol": "SOL",
+          "tier": "long",
+          "trade_nature": "trend_follow",
+          "regime": "master_running_close_tiny",
+          "lesson": "SOL short: 亏损-238.75(-3.24%). 检查是否有未识别的风险信号.",
+          "severity": "high"
+        },
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(0%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-0.2%)远大于平均盈利(0.0%)，需收紧止损"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "SOL",
+          "tier": "long",
+          "trade_nature": "trend_follow",
+          "regime": "master_running",
+          "lesson": "SOL long: 盈利+398.23(+1.03%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-5.3%)远大于平均盈利(0.0%)，需收紧止损"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-07T14:04:32.509090+00:00",
+          "symbol": "SOL",
+          "regime": "unknown",
+          "pnl": 6090.561413559737,
+          "pnl_pct": 0.01693533316067875,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "trend_follow",
+          "r_multiple": null
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-08T12:58:49.510003+00:00",
+          "symbol": "SOL",
+          "regime": "ranging",
+          "pnl": -4518.707588735923,
+          "pnl_pct": -0.017572161517556632,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "trend_follow",
+          "r_multiple": null,
+          "reason": ""
+        },
+        {
+          "symbol": "SOL",
+          "side": "short",
+          "pnl_pct": -0.052526395980935864,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_mid_swing_44f4c7",
+      "win_rate": 0.8571428571428571,
+      "total_trades": 56,
+      "key_lessons": [
+        {
+          "type": "win_pattern",
+          "symbol": "SOL",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "master_running",
+          "lesson": "SOL long: 盈利+271.78(+0.70%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "SOL",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "max_hold_timeout",
+          "lesson": "SOL short: 盈利+585.26(+2.46%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "win_pattern",
+          "symbol": "SOL",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "max_hold_timeout",
+          "lesson": "SOL short: 盈利+227.39(+1.26%). 决策正确, 继续保持此策略逻辑.",
+          "severity": "info"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "SOL",
+          "tier": "mid",
+          "trade_nature": "swing",
+          "regime": "master_running_close",
+          "lesson": "SOL short: 亏损-151.08(-0.86%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-18T08:04:34.233526+00:00",
+          "symbol": "SOL",
+          "regime": "ranging",
+          "pnl": 271.7804884692991,
+          "pnl_pct": 0.007046966614633882,
+          "side": "long",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null
+        },
+        {
+          "symbol": "SOL",
+          "side": "short",
+          "pnl_pct": 0.024582394833519663,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ],
+      "failed_patterns": []
+    },
+    {
+      "strategy_id": "tpl_short_range_1ea8ad",
+      "win_rate": 0.0,
+      "total_trades": 39,
+      "key_lessons": [
+        {
+          "type": "loss_analysis",
+          "symbol": "BNB",
+          "tier": "short",
+          "trade_nature": "intraday",
+          "regime": "max_hold_timeout",
+          "lesson": "BNB short: 亏损-13.06(-0.07%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "loss_analysis",
+          "symbol": "BNB",
+          "tier": "short",
+          "trade_nature": "intraday",
+          "regime": "max_hold_timeout",
+          "lesson": "BNB short: 亏损-208.93(-0.52%). [归因:AI主动平仓] 检查方向判断是否有误.",
+          "severity": "high"
+        },
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(0%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-0.3%)远大于平均盈利(0.0%)，需收紧止损"
+        },
+        {
+          "type": "bad_risk_reward",
+          "severity": "high",
+          "message": "平均亏损(-0.5%)远大于平均盈利(0.0%)，需收紧止损"
+        }
+      ],
+      "successful_patterns": [],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-18T14:53:48.545524+00:00",
+          "symbol": "BNB",
+          "regime": "ranging",
+          "pnl": -13.063474628045245,
+          "pnl_pct": -0.0006908736353837157,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "intraday",
+          "r_multiple": null,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "strategy_id": "tpl_mid_swing_464ee1",
+      "win_rate": 0.13043478260869565,
+      "total_trades": 23,
+      "key_lessons": [
+        {
+          "type": "win_rate_warning",
+          "symbol": "ETH",
+          "tier": "all",
+          "regime": "*",
+          "lesson": "近15笔胜率仅13%(<35%)，策略可能失效——考虑暂停或调整参数",
+          "severity": "critical",
+          "ts": "2026-06-16T13:53:22.495556+00:00"
+        },
+        {
+          "type": "exit_quality",
+          "symbol": "ETH",
+          "tier": "swing",
+          "regime": "ranging",
+          "lesson": "ETH峰值利润保留率仅-1% (peak=+2.3%, exit=-0.0%)，后续同类仓位应更早上移SL或收紧trailing",
+          "severity": "high",
+          "retention_ratio": -0.007737233265176238,
+          "peak_pnl_pct": 0.02272442029089163,
+          "exit_pnl_pct": -0.00017582414060653262,
+          "exit_channel": "master_running",
+          "ts": "2026-06-16T13:53:22.495556+00:00"
+        },
+        {
+          "type": "win_rate_warning",
+          "symbol": "ETH",
+          "tier": "all",
+          "regime": "*",
+          "lesson": "近16笔胜率仅12%(<35%)，策略可能失效——考虑暂停或调整参数",
+          "severity": "critical",
+          "ts": "2026-06-16T13:54:35.949746+00:00"
+        },
+        {
+          "type": "low_win_rate",
+          "severity": "high",
+          "message": "胜率偏低(14%)，考虑增加EMA滤波或提高入场门槛"
+        },
+        {
+          "type": "losing_streak",
+          "severity": "medium",
+          "message": "出现连续 5 笔亏损，建议设置连亏熔断机制"
+        }
+      ],
+      "successful_patterns": [
+        {
+          "timestamp": "2026-06-15T22:41:03.995566+00:00",
+          "symbol": "ETH",
+          "regime": "ranging",
+          "pnl": 930.4858775297688,
+          "pnl_pct": 0.024183346394603983,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null
+        },
+        {
+          "symbol": "ETH",
+          "side": "short",
+          "pnl_pct": 0.024183346394603983,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ],
+      "failed_patterns": [
+        {
+          "timestamp": "2026-06-11T09:12:38.086527+00:00",
+          "symbol": "ETH",
+          "regime": "ranging",
+          "pnl": -3022.189005056477,
+          "pnl_pct": -0.025347436607937947,
+          "side": "short",
+          "source": "paper",
+          "trade_nature": "swing",
+          "r_multiple": null,
+          "reason": ""
+        },
+        {
+          "symbol": "ETH",
+          "side": "short",
+          "pnl_pct": -0.025347436607937947,
+          "market_regime": "unknown",
+          "volatility": "unknown"
+        }
+      ]
+    }
+  ],
+  "recent_trades_summary": "### 🧾 你自己的最近战绩（逐笔，最新在前 — 这是你过去决策的真实结果）\n- 近 14 笔: 胜 4 负 10 (胜率 29%) | 净盈亏 $-819.61\n  ❌ BTC long [scalp] PnL=$-169.02(-0.0%) 持仓0分钟 4.0h前 平仓原因=master_running_close\n  ❌ ETH long [scalp] PnL=$-331.04(-0.0%) 持仓0分钟 4.2h前 平仓原因=max_hold_timeout\n  ✅ SOL long [scalp] PnL=$+203.51(+0.0%) 持仓0分钟 6.1h前 平仓原因=master_running_reduce\n  ✅ ETH short [trend_follow] PnL=$+83.91(+0.0%) 持仓12.4小时 9.1h前 平仓原因=trend_review_reduce_40%\n  ❌ BNB long [scalp] PnL=$-107.70(-0.0%) 持仓0分钟 10.5h前 平仓原因=master_running_reduce\n  ❌ ASTER short [swing] PnL=$-45.23(-0.0%) 持仓0分钟 14.2h前 平仓原因=master_running_reduce\n  ❌ ETH long [scalp] PnL=$-20.96(-0.0%) 持仓0分钟 18.4h前 平仓原因=hold_timeout_review\n  ❌ BNB long [scalp] PnL=$-53.18(-0.0%) 持仓0分钟 18.6h前 平仓原因=master_running_reduce\n  ❌ SOL short [swing] PnL=$-151.08(-0.0%) 持仓0分钟 20.5h前 平仓原因=master_running_close\n  ✅ SOL short [swing] PnL=$+227.39(+0.0%) 持仓44分钟 1.2天前 平仓原因=max_hold_timeout\n  ✅ ETH short [swing] PnL=$+4.40(+0.0%) 持仓54分钟 1.2天前 平仓原因=max_hold_timeout\n  ❌ XPL long [scalp] PnL=$-258.08(-0.0%) 持仓0分钟 1.6天前 平仓原因=master_running\n  ❌ ASTER long [scalp] PnL=$-108.39(-0.0%) 持仓0分钟 1.6天前 平仓原因=master_running\n  ❌ BNB long [scalp] PnL=$-94.13(-0.0%) 持仓0分钟 1.6天前 平仓原因=master_running\n\n⚠️ **近期连亏警告（12h内连续做错，再开仓必须给出与之前不同的关键证据）**:\n  - BNB: 连亏 3 笔，累计 $-255.01\n\nℹ️ **历史连亏参考（超过12h，行情已变，仅供参考不再强制约束）**:\n  - ASTER: 曾连亏 2 笔 $-153.63（已陈旧）\n\n📌 决策要求：开仓前先对照上面战绩 — 同币种/同方向「近期」刚亏过的，说明你近期的判断依据失效了，必须在 reasoning 中说明这次有什么不同；但「历史」连亏行情已变，不应作为拒绝开仓的唯一理由。",
+  "arb": {},
+  "open_issues": [
+    "#835 [tr=-] backend.services.full_auto_trading_service 反复报错（1h×24）",
+    "#834 [tr=-] backend.services.llm_config_service 反复报错（1h×504）",
+    "#831 总控 close 亏损占比 73% > 60%",
+    "#830 每笔期望收益 $-12.5 < -$10（严重亏损策略）",
+    "#829 总控 close 亏损占比 72% > 60%",
+    "#828 胜率50%但每笔期望收益 $-4.5（大亏小赚，盈亏比差）",
+    "#827 总控 close 亏损占比 82% > 60%",
+    "#826 每笔期望收益 $-37.2 < -$10（严重亏损策略）",
+    "#825 每笔期望收益 $-27.2 < -$10（严重亏损策略）",
+    "#822 每笔期望收益 $-18.4 < -$10（严重亏损策略）"
+  ],
+  "rule_breaches": [
+    "rolling 24h 胜率 30% < 40%",
+    "每笔期望收益 $-70.3 < -$10（严重亏损策略）",
+    "总控 close 亏损占比 83% > 60%"
+  ],
+  "whitelist_files": [
+    "data/runtime_tuning.json",
+    "data/decision_policies/master_close.yaml"
+  ],
+  "whitelist_keys": [
+    "master_close_min_loss_pct_by_tier",
+    "master_reduce_min_loss_pct",
+    "maturity_global_n1",
+    "maturity_global_n2",
+    "maturity_max_warmup_relief",
+    "max_daily_trades"
+  ],
+  "whitelist_policy_note": "policy_yaml 仅允许 master_close 的字段级 patch，key 形如 'rule_id.field' 或 'master_close.yaml#rule_id.field'；禁止整文件 content 替换，禁止任何 .py 源码修改。",
+  "unified_accounts": {
+    "accounts": [
+      {
+        "id": 1,
+        "scope": "ai",
+        "source_table": "paper_balances",
+        "name": "default AI Trader",
+        "total_equity": 100000.0,
+        "available_balance": 100000.0,
+        "frozen_balance": 0.0,
+        "unrealized_pnl": 0.0,
+        "realized_pnl": 0.0,
+        "total_fee_paid": 0.0,
+        "initial_balance": 100000.0,
+        "status": "active",
+        "owner_account_id": 1,
+        "exchange": "hyperliquid",
+        "risk_profile": null
+      },
+      {
+        "id": 4,
+        "scope": "ai",
+        "source_table": "paper_balances",
+        "name": "主力",
+        "total_equity": 9269.26,
+        "available_balance": 9269.26,
+        "frozen_balance": 0.0,
+        "unrealized_pnl": 0.0,
+        "realized_pnl": -676.25,
+        "total_fee_paid": 54.48,
+        "initial_balance": 10000.0,
+        "status": "active",
+        "owner_account_id": 4,
+        "exchange": "hyperliquid",
+        "risk_profile": null
+      },
+      {
+        "id": 5,
+        "scope": "ai",
+        "source_table": "paper_balances",
+        "name": "测试001",
+        "total_equity": 490106.01,
+        "available_balance": 476728.85,
+        "frozen_balance": 12568.42,
+        "unrealized_pnl": 808.74,
+        "realized_pnl": 10362.8,
+        "total_fee_paid": 21065.53,
+        "initial_balance": 500000.0,
+        "status": "active",
+        "owner_account_id": 5,
+        "exchange": "hyperliquid",
+        "risk_profile": null
+      },
+      {
+        "id": 3,
+        "scope": "arbitrage",
+        "source_table": "arbitrage_paper_accounts",
+        "name": "套利 Paper 300U",
+        "total_equity": 155.1,
+        "available_balance": 155.1,
+        "frozen_balance": 0.0,
+        "unrealized_pnl": 0.0,
+        "realized_pnl": -112.75,
+        "total_fee_paid": 0.0,
+        "initial_balance": 155.1,
+        "status": "running",
+        "owner_account_id": 7,
+        "exchange": null,
+        "risk_profile": "balanced"
+      }
+    ],
+    "combined_exposure": {
+      "ai_equity": 100000.0,
+      "ai_frozen": 0.0,
+      "ai_upnl": 0.0,
+      "arbitrage_equity": 155.1,
+      "arbitrage_frozen": 0.0,
+      "arbitrage_upnl": 0.0,
+      "total_equity": 100155.1,
+      "total_frozen": 0.0,
+      "total_upnl": 0.0,
+      "ai_account_id": 1,
+      "arbitrage_account_id": 3
+    }
+  },
+  "hermes_wisdom": "## 历史提案智慧（从已验证提案中提炼的参数调整经验）\n\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1257.21（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1257.21（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `master_close.yaml#block_master_close_tiny_loss.floating_loss_pct_lt` → 每笔 PnL $+1129.89（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `master_close.yaml#block_master_close_tiny_loss.risk_score_lt` → 每笔 PnL $+1080.73（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `maturity_global_n1` → 每笔 PnL $+1080.73（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `master_reduce_min_loss_pct` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1048.69（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `max_daily_trades` → 每笔 PnL $+1005.57（市况: ranging，置信度: 50%）\n- [✅ 改善] 修改 `master_close.yaml#block_master_close_tiny_loss.floating_loss_pct_lt` → 每笔 PnL $+985.45（市况: ranging，置信度: 50%）"
+}

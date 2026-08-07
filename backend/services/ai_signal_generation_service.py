@@ -1,0 +1,1519 @@
+"""
+AI Signal Generation Service
+
+Handles AI-assisted signal creation conversations using LLM.
+Supports Function Calling for AI to query real market data.
+"""
+
+import json
+import logging
+import re
+import time
+import requests
+from typing import Dict, List, Optional, Any
+from datetime import datetime
+
+from sqlalchemy.orm import Session
+
+from backend.database.models import AiSignalConversation, AiSignalMessage, Account
+from backend.services.ai_decision_service import build_chat_completion_endpoints, _extract_text_from_message
+from backend.services.signal_backtest_service import signal_backtest_service, TIMEFRAME_MS
+from backend.services.system_logger import system_logger
+
+logger = logging.getLogger(__name__)
+
+# AI 信号生成的系统提示词，支持 Function Calling
+SIGNAL_SYSTEM_PROMPT = """你是加密货币永续合约的专业交易信号设计师。
+你可以使用工具查询实时市场数据。在设置阈值前，请先用工具分析指标。
+
+## 重要：先进行引导式对话
+在使用任何工具之前，你必须先问用户 2-3 个澄清问题，以更好地理解他们的需求：
+
+1. **交易方向**：你想找做多机会、做空机会还是两者都要？
+2. **信号类型偏好**：你对哪种市场信号最感兴趣？
+   - 价格/动量变化
+   - 订单簿深度异常
+   - 资金费率极端值
+   - 成交量/持仓量激增
+3. **触发频率**：你期望信号多久触发一次？
+   - 高频（每天多次）
+   - 中频（每天 1-2 次）
+   - 低频（每周几次）
+
+用一条消息以对话方式提问这些问题。等待用户回复后再调用任何工具。
+如果用户说"直接分析"或"跳过问题"，则直接进行工具分析。
+
+## 优化的 3 步工作流程（只需 3 次工具调用！）
+你有 3 个工具。高效使用它们：
+
+**第 1 步：`get_indicators_batch`** - 一次调用分析多个指标
+- 根据用户偏好查询 2-4 个指标
+- 返回每个指标的 p50/p75/p90/p95/p99 百分位
+- 使用百分位确定合适的阈值
+
+**第 2 步：`predict_signal_combination`** - 创建前测试信号组合
+- 输入你建议的信号配置和阈值
+- 选择 AND（严格）或 OR（宽松）逻辑
+- 返回：各信号触发次数、组合触发次数、示例时间戳
+- 如果 combined_triggers < 3（AND 太严格）或 > 50（OR 太宽松），调整后重新调用
+
+**第 3 步：`get_kline_context`**（可选）- 验证触发质量
+- 使用第 2 步的示例时间戳检查价格变动
+- 确认信号与有意义的市场变动一致
+
+## 关键规则
+- 在调用 `predict_signal_combination` 之前，绝对不要输出信号配置
+- AND 逻辑在阈值太严格时常常导致 0 次触发 - 始终验证！
+- 目标是 7 天内 5-30 次组合触发
+- 如果组合失败，放宽阈值或将 AND 改为 OR
+
+## 可用指标（查询你需要的任何指标）
+- oi_delta_percent: 时间窗口内的 OI 变化百分比（资金流指标）
+- funding_rate: 永续合约资金费率 %（市场情绪）
+- cvd: 累计成交量差（买卖压力）
+- depth_ratio: 买卖深度比率（订单簿失衡）
+- order_imbalance: 标准化失衡 -1 到 +1（实时压力）
+- taker_buy_ratio: 主卖买卖比率的对数，ln(buy/sell)。>0=买方占优，<0=卖方占优。以 0 为中心对称。
+- taker_volume: **复合指标** - 检测一方以显著成交量占优的情况。需要：direction (买/卖/任意)，ratio_threshold (倍数，如 1.5 = 多 50%)，volume_threshold (最小总成交量，美元)。
+
+## 运算符（标准指标用）
+- greater_than（大于）、less_than（小于）、greater_than_or_equal（大于等于）、less_than_or_equal（小于等于）、abs_greater_than（绝对值大于）
+- 注意：taker_volume 不使用运算符 - 它使用 direction + ratio_threshold + volume_threshold
+
+## 时间窗口
+- 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h
+
+## 输出格式 - 两种选择
+
+### 选择 1：单个信号（用户需要一个简单信号时使用）
+```signal-config
+{
+  "name": "BTC_OI_激增",
+  "symbol": "BTC",
+  "description": "检测 OI 显著增加",
+  "trigger_condition": {
+    "metric": "oi_delta_percent",
+    "operator": "greater_than",
+    "threshold": 1.0,
+    "time_window": "5m"
+  }
+}
+```
+
+### 选择 2：信号池（组合多个信号使用 AND/OR 时首选）
+使用 `predict_signal_combination` 测试组合后使用此格式：
+```signal-pool-config
+{
+  "name": "BTC_5M_多头激增",
+  "symbol": "BTC",
+  "description": "捕捉多重确认的强势看涨动量",
+  "logic": "AND",
+  "signals": [
+    {"metric": "cvd", "operator": "greater_than", "threshold": 10000000, "time_window": "5m"},
+    {"metric": "order_imbalance", "operator": "greater_than", "threshold": 0.99, "time_window": "5m"},
+    {"metric": "oi_delta_percent", "operator": "greater_than", "threshold": 0.3, "time_window": "5m"}
+  ]
+}
+```
+
+### 选择 3：taker_volume 复合信号（特殊格式）
+```signal-config
+{
+  "name": "BTC_主买激增",
+  "symbol": "BTC",
+  "description": "检测主买成交量强势占优",
+  "trigger_condition": {
+    "metric": "taker_volume",
+    "direction": "buy",
+    "ratio_threshold": 1.5,
+    "volume_threshold": 100000,
+    "time_window": "5m"
+  }
+}
+```
+- direction: "buy"（买方占优）、"sell"（卖方占优）或 "any"（任一方）
+- ratio_threshold: 倍数（1.5 = 一方是另一方的 1.5 倍）
+- volume_threshold: 最小总成交量（美元，买+卖）
+
+**重要**：当你使用 `predict_signal_combination` 测试 AND/OR 组合时，始终使用 `signal-pool-config` 格式输出。这样可以一键创建整个信号池。
+"""
+
+# Tools schema for Function Calling (optimized: 3 tools for 3-round workflow)
+SIGNAL_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_kline_context",
+            "description": "Get K-line price data around specific timestamps to verify if triggers align with meaningful price movements. Time window matches the signal's time_window.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "Trading symbol"},
+                    "timestamps": {"type": "array", "items": {"type": "integer"}, "description": "List of trigger timestamps (max 10)"},
+                    "time_window": {"type": "string", "description": "K-line interval matching signal time_window"}
+                },
+                "required": ["symbol", "timestamps", "time_window"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_indicators_batch",
+            "description": "Get statistical distribution of MULTIPLE indicators in one call. More efficient than calling get_indicator_statistics multiple times. Returns stats for each indicator.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "Trading symbol, e.g., BTC, ETH"},
+                    "indicators": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": ["oi_delta_percent", "funding_rate", "cvd", "depth_ratio", "order_imbalance", "taker_buy_ratio", "taker_volume"]},
+                        "description": "List of indicator metric names to analyze (max 7). Note: taker_volume is a composite indicator."
+                    },
+                    "time_window": {"type": "string", "enum": ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h"], "description": "Aggregation time window"}
+                },
+                "required": ["symbol", "indicators", "time_window"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "predict_signal_combination",
+            "description": "Predict trigger count when combining multiple signals with AND/OR logic. Use this BEFORE creating signals to ensure the combination will have reasonable trigger frequency. For taker_volume, use direction/ratio_threshold/volume_threshold instead of operator/threshold.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "Trading symbol"},
+                    "signals": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "indicator": {"type": "string", "description": "Metric name. Use 'taker_volume' for composite taker signal."},
+                                "operator": {"type": "string", "description": "For standard indicators only. Not used for taker_volume."},
+                                "threshold": {"type": "number", "description": "For standard indicators only. Not used for taker_volume."},
+                                "time_window": {"type": "string"},
+                                "direction": {"type": "string", "enum": ["buy", "sell", "any"], "description": "For taker_volume only: which side must dominate"},
+                                "ratio_threshold": {"type": "number", "description": "For taker_volume only: multiplier (e.g., 1.5 = 50% more)"},
+                                "volume_threshold": {"type": "number", "description": "For taker_volume only: min total volume in USD"}
+                            },
+                            "required": ["indicator", "time_window"]
+                        },
+                        "description": "List of signal configurations to combine (max 5). For taker_volume, use direction/ratio_threshold/volume_threshold."
+                    },
+                    "logic": {"type": "string", "enum": ["AND", "OR"], "description": "Combination logic: AND (all must trigger) or OR (any triggers)"}
+                },
+                "required": ["symbol", "signals", "logic"]
+            }
+        }
+    }
+]
+
+
+def generate_signal_with_ai(
+    db: Session,
+    account_id: int,
+    user_message: str,
+    conversation_id: Optional[int] = None,
+    user_id: int = 1
+) -> Dict[str, Any]:
+    """
+    Generate signal configuration using AI.
+    Follows the same pattern as ai_prompt_generation_service.generate_prompt_with_ai
+    """
+    start_time = time.time()
+    request_id = f"signal_gen_{int(start_time)}"
+
+    logger.info(f"[AI Signal Gen {request_id}] Starting: account_id={account_id}, "
+                f"conversation_id={conversation_id}, user_message_length={len(user_message)}")
+
+    try:
+        # Get the specified AI account
+        account = db.query(Account).filter(
+            Account.id == account_id,
+            Account.account_type == "AI"
+        ).first()
+
+        if not account:
+            return {"success": False, "error": "AI account not found"}
+
+        # Get or create conversation
+        conversation = None
+        if conversation_id:
+            conversation = db.query(AiSignalConversation).filter(
+                AiSignalConversation.id == conversation_id,
+                AiSignalConversation.user_id == user_id
+            ).first()
+            if not conversation:
+                logger.warning(f"[AI Signal Gen {request_id}] Conversation {conversation_id} not found")
+
+        if not conversation:
+            title = user_message[:50] + "..." if len(user_message) > 50 else user_message
+            conversation = AiSignalConversation(user_id=user_id, title=title)
+            db.add(conversation)
+            db.flush()
+            logger.info(f"[AI Signal Gen {request_id}] Created new conversation: id={conversation.id}")
+
+        # Save user message
+        user_msg = AiSignalMessage(
+            conversation_id=conversation.id,
+            role="user",
+            content=user_message
+        )
+        db.add(user_msg)
+        db.flush()
+
+        # Build message history (same pattern as ai_prompt_generation_service)
+        messages = [{"role": "system", "content": SIGNAL_SYSTEM_PROMPT}]
+
+        history_messages = db.query(AiSignalMessage).filter(
+            AiSignalMessage.conversation_id == conversation.id,
+            AiSignalMessage.id != user_msg.id
+        ).order_by(AiSignalMessage.created_at).limit(10).all()
+
+        for msg in history_messages:
+            messages.append({"role": msg.role, "content": msg.content})
+
+        messages.append({"role": "user", "content": user_message})
+
+        logger.info(f"[AI Signal Gen {request_id}] Built message context: {len(messages)} messages total")
+
+        # Call LLM API with Function Calling support
+        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        if not endpoints:
+            return {"success": False, "error": "Invalid base_url configuration"}
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {account.api_key}"
+        }
+
+        # Function Calling loop (max 30 rounds, last round forces no tools)
+        max_tool_rounds = 30
+        tool_round = 0
+        assistant_content = None
+
+        while tool_round < max_tool_rounds:
+            tool_round += 1
+            is_last_round = (tool_round == max_tool_rounds)
+            logger.info(f"[AI Signal Gen {request_id}] Tool round {tool_round}/{max_tool_rounds} (last={is_last_round})")
+
+            request_payload = {
+                "model": account.model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            }
+
+            # On last round, force model to give final answer without tools
+            if is_last_round:
+                # Don't include tools, force text response
+                messages.append({
+                    "role": "user",
+                    "content": "You have used enough tools. Now output the final signal configuration based on your analysis. Include the ```signal-config``` block."
+                })
+            else:
+                request_payload["tools"] = SIGNAL_TOOLS
+                request_payload["tool_choice"] = "auto"
+
+            response = None
+            last_error = None
+
+            for endpoint in endpoints:
+                try:
+                    logger.info(f"[AI Signal Gen {request_id}] Trying endpoint: {endpoint}")
+                    api_start = time.time()
+                    response = requests.post(endpoint, json=request_payload, headers=headers, timeout=120)
+                    api_elapsed = time.time() - api_start
+
+                    if response.status_code == 200:
+                        logger.info(f"[AI Signal Gen {request_id}] Success in {api_elapsed:.2f}s")
+                        break
+                    else:
+                        logger.warning(f"[AI Signal Gen {request_id}] Endpoint failed: {response.status_code}")
+                        last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+                except requests.exceptions.Timeout:
+                    last_error = "Request timeout"
+                    logger.warning(f"[AI Signal Gen {request_id}] Timeout on {endpoint}")
+                except Exception as e:
+                    last_error = str(e)
+                    logger.warning(f"[AI Signal Gen {request_id}] Error on {endpoint}: {e}")
+
+            if not response or response.status_code != 200:
+                return {"success": False, "error": f"All endpoints failed. Last error: {last_error}"}
+
+            # Parse response
+            try:
+                response_json = response.json()
+                message = response_json["choices"][0]["message"]
+            except Exception as e:
+                logger.error(f"[AI Signal Gen {request_id}] Failed to parse response: {e}")
+                return {"success": False, "error": f"Failed to parse AI response: {str(e)}"}
+
+            # Check for tool calls
+            tool_calls = message.get("tool_calls", [])
+            reasoning_content = message.get("reasoning_content", "")
+            content = message.get("content", "")
+
+            # Log for debugging
+            logger.info(f"[AI Signal Gen {request_id}] Response: tool_calls={len(tool_calls) if tool_calls else 0}, "
+                       f"has_reasoning={bool(reasoning_content)}, has_content={bool(content)}")
+
+            if tool_calls:
+                # Add assistant message with tool calls AND reasoning_content to history
+                # DeepSeek Reasoner requires reasoning_content to be passed back
+                assistant_msg_dict = {
+                    "role": "assistant",
+                    "content": content or "",
+                    "tool_calls": tool_calls
+                }
+                # Include reasoning_content if present (required for DeepSeek Reasoner)
+                if reasoning_content:
+                    assistant_msg_dict["reasoning_content"] = reasoning_content
+                messages.append(assistant_msg_dict)
+
+                # Execute each tool and add results
+                for tool_call in tool_calls:
+                    func_name = tool_call["function"]["name"]
+                    try:
+                        func_args = json.loads(tool_call["function"]["arguments"])
+                    except json.JSONDecodeError:
+                        func_args = {}
+
+                    logger.info(f"[AI Signal Gen {request_id}] Executing tool: {func_name}({func_args})")
+                    tool_result = _execute_tool(db, func_name, func_args)
+                    logger.info(f"[AI Signal Gen {request_id}] Tool result: {tool_result[:200]}...")
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": tool_result
+                    })
+                # Continue loop for next round
+            else:
+                # No tool calls - AI returned final response
+                # Combine reasoning_content and content for full response
+                full_content = ""
+                if reasoning_content:
+                    full_content += f"**Reasoning:**\n{reasoning_content}\n\n"
+                if content:
+                    full_content += content
+                assistant_content = _extract_text_from_message(full_content) if full_content else ""
+                break
+
+        # If we exhausted tool rounds, use the last content we received
+        if assistant_content is None:
+            # Try to get content from the last message in the loop
+            if 'message' in dir() and message:
+                last_content = message.get("content", "")
+                last_reasoning = message.get("reasoning_content", "")
+                if last_content or last_reasoning:
+                    full_content = ""
+                    if last_reasoning:
+                        full_content += f"**Reasoning:**\n{last_reasoning}\n\n"
+                    if last_content:
+                        full_content += last_content
+                    assistant_content = _extract_text_from_message(full_content)
+                    logger.info(f"[AI Signal Gen {request_id}] Using last round content after limit reached")
+
+            if not assistant_content:
+                assistant_content = "Tool calling limit reached. Please try again with a simpler request."
+
+        # Extract signal configs from response
+        signal_configs = extract_signal_configs(assistant_content)
+
+        # Save assistant message
+        assistant_msg = AiSignalMessage(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=assistant_content,
+            signal_configs=json.dumps(signal_configs) if signal_configs else None
+        )
+        db.add(assistant_msg)
+        db.commit()
+
+        total_elapsed = time.time() - start_time
+        logger.info(f"[AI Signal Gen {request_id}] Completed in {total_elapsed:.2f}s: "
+                   f"conversation_id={conversation.id}, configs_found={len(signal_configs)}")
+
+        return {
+            "success": True,
+            "conversation_id": conversation.id,
+            "message_id": assistant_msg.id,
+            "content": assistant_content,
+            "signal_configs": signal_configs
+        }
+
+    except Exception as e:
+        logger.error(f"[AI Signal Gen {request_id}] Unexpected error: {type(e).__name__}: {str(e)}",
+                    exc_info=True)
+        db.rollback()
+        return {"success": False, "error": f"Internal error: {type(e).__name__}"}
+
+
+def extract_signal_configs(content: str) -> List[Dict]:
+    """Extract signal configurations from AI response.
+
+    Supports two formats:
+    - signal-config: Single signal configuration
+    - signal-pool-config: Signal pool with multiple signals
+
+    Returns list of configs with 'type' field: 'signal' or 'pool'
+    """
+    configs = []
+
+    # Pattern for single signal config
+    signal_pattern = r"```signal-config\s*([\s\S]*?)```"
+    signal_matches = re.findall(signal_pattern, content)
+
+    for match in signal_matches:
+        try:
+            config = json.loads(match.strip())
+            config["_type"] = "signal"
+            configs.append(config)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse signal config: {e}")
+            continue
+
+    # Pattern for signal pool config
+    pool_pattern = r"```signal-pool-config\s*([\s\S]*?)```"
+    pool_matches = re.findall(pool_pattern, content)
+
+    for match in pool_matches:
+        try:
+            config = json.loads(match.strip())
+            config["_type"] = "pool"
+            configs.append(config)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse signal pool config: {e}")
+            continue
+
+    return configs
+
+
+def get_signal_conversation_history(
+    db: Session,
+    user_id: int,
+    limit: int = 20
+) -> List[Dict]:
+    """Get list of AI signal conversations for a user."""
+    conversations = db.query(AiSignalConversation).filter(
+        AiSignalConversation.user_id == user_id
+    ).order_by(AiSignalConversation.updated_at.desc()).limit(limit).all()
+
+    return [
+        {
+            "id": conv.id,
+            "title": conv.title,
+            "created_at": conv.created_at.isoformat() if conv.created_at else None,
+            "updated_at": conv.updated_at.isoformat() if conv.updated_at else None
+        }
+        for conv in conversations
+    ]
+
+
+def get_signal_conversation_messages(
+    db: Session,
+    conversation_id: int,
+    user_id: int
+) -> Optional[List[Dict]]:
+    """Get all messages in a specific conversation."""
+    conversation = db.query(AiSignalConversation).filter(
+        AiSignalConversation.id == conversation_id,
+        AiSignalConversation.user_id == user_id
+    ).first()
+
+    if not conversation:
+        return None
+
+    messages = db.query(AiSignalMessage).filter(
+        AiSignalMessage.conversation_id == conversation_id
+    ).order_by(AiSignalMessage.created_at).all()
+
+    return [
+        {
+            "id": msg.id,
+            "role": msg.role,
+            "content": msg.content,
+            "signal_configs": json.loads(msg.signal_configs) if msg.signal_configs else None,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None
+        }
+        for msg in messages
+    ]
+
+
+# ============== Tool Function Implementations ==============
+
+def _tool_get_indicator_statistics(
+    db: Session, symbol: str, indicator: str, time_window: str
+) -> Dict[str, Any]:
+    """Get statistical distribution of an indicator."""
+    import numpy as np
+
+    # Map indicator names
+    metric_map = {
+        "oi_delta_percent": "oi_delta",
+        "funding_rate": "funding",
+        "taker_buy_ratio": "taker_ratio",
+    }
+    metric = metric_map.get(indicator, indicator)
+    interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+    # Get bucket values using backtest service's method
+    signal_backtest_service._bucket_cache = {}
+    bucket_values = signal_backtest_service._compute_all_bucket_values(
+        db, symbol.upper(), metric, interval_ms
+    )
+
+    if not bucket_values:
+        return {"error": f"No data found for {indicator} on {symbol}"}
+
+    values = [v for v in bucket_values.values() if v is not None]
+    if not values:
+        return {"error": "No valid values found"}
+
+    arr = np.array(values)
+    return {
+        "symbol": symbol.upper(),
+        "indicator": indicator,
+        "time_window": time_window,
+        "data_points": len(values),
+        "min": float(np.min(arr)),
+        "max": float(np.max(arr)),
+        "mean": float(np.mean(arr)),
+        "std": float(np.std(arr)),
+        "p50": float(np.percentile(arr, 50)),
+        "p75": float(np.percentile(arr, 75)),
+        "p90": float(np.percentile(arr, 90)),
+        "p95": float(np.percentile(arr, 95)),
+        "p99": float(np.percentile(arr, 99)),
+    }
+
+
+def _tool_backtest_threshold(
+    db: Session, symbol: str, indicator: str, operator: str,
+    threshold: float, time_window: str
+) -> Dict[str, Any]:
+    """Backtest a threshold on historical market flow data."""
+    # Build trigger condition
+    trigger_condition = {
+        "metric": indicator,
+        "operator": operator,
+        "threshold": threshold,
+        "time_window": time_window
+    }
+
+    # Use existing backtest service
+    result = signal_backtest_service.backtest_temp_signal(
+        db=db,
+        symbol=symbol.upper(),
+        trigger_condition=trigger_condition,
+        kline_min_ts=None,
+        kline_max_ts=None
+    )
+
+    if "error" in result:
+        return {"error": result["error"]}
+
+    triggers = result.get("triggers", [])
+    trigger_count = len(triggers)
+
+    # Return sample timestamps (max 10 for AI to analyze)
+    sample_timestamps = [t["timestamp"] for t in triggers[:10]]
+
+    return {
+        "symbol": symbol.upper(),
+        "indicator": indicator,
+        "operator": operator,
+        "threshold": threshold,
+        "time_window": time_window,
+        "trigger_count": trigger_count,
+        "sample_timestamps": sample_timestamps,
+        "assessment": (
+            "too_many" if trigger_count > 50 else
+            "too_few" if trigger_count < 5 else
+            "reasonable"
+        )
+    }
+
+
+def _tool_get_kline_context(
+    db: Session, symbol: str, timestamps: List[int], time_window: str
+) -> Dict[str, Any]:
+    """Get K-line price data around specific timestamps."""
+    # Map time_window to Hyperliquid interval format
+    interval_map = {
+        "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m",
+        "30m": "30m", "1h": "1h", "2h": "2h", "4h": "4h"
+    }
+    interval = interval_map.get(time_window, "5m")
+    interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+    # Limit to 10 timestamps
+    timestamps = timestamps[:10]
+    if not timestamps:
+        return {"error": "No timestamps provided"}
+
+    # Fetch K-lines from Hyperliquid API
+    try:
+        # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止直连 HL
+        # candleSnapshot，改为读数据中心 DB。
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled():
+            from backend.services.kline_data_service import kline_service
+            rows = kline_service.query_klines(
+                symbol, time_window,
+                exchange="hyperliquid",
+                start_ts=min_ts, end_ts=max_ts,
+            ) or []
+            kline_map = {}
+            for k in rows:
+                ts = int(k.get("timestamp", 0))
+                kline_map[ts] = {
+                    "open": float(k.get("open", 0)),
+                    "high": float(k.get("high", 0)),
+                    "low": float(k.get("low", 0)),
+                    "close": float(k.get("close", 0)),
+                    "volume": float(k.get("volume", 0)),
+                    "timestamp": ts,
+                }
+            results = []
+            for ts in timestamps:
+                if ts in kline_map:
+                    results.append(kline_map[ts])
+            return {"klines": results}
+
+        url = "https://api.hyperliquid.xyz/info"
+        payload = {
+            "type": "candleSnapshot",
+            "req": {
+                "coin": symbol.upper(),
+                "interval": interval,
+                "startTime": min_ts,
+                "endTime": max_ts
+            }
+        }
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code != 200:
+            return {"error": f"Failed to fetch K-lines: HTTP {resp.status_code}"}
+
+        klines = resp.json()
+        if not klines:
+            return {"error": "No K-line data returned"}
+
+        # Build K-line lookup by timestamp
+        kline_map = {}
+        for k in klines:
+            ts = k.get("t", k.get("T", 0))
+            kline_map[ts] = {
+                "open": float(k.get("o", 0)),
+                "high": float(k.get("h", 0)),
+                "low": float(k.get("l", 0)),
+                "close": float(k.get("c", 0)),
+                "volume": float(k.get("v", 0))
+            }
+
+        # For each trigger timestamp, get context (before, at, after)
+        contexts = []
+        sorted_kline_ts = sorted(kline_map.keys())
+        for trigger_ts in timestamps:
+            # Find closest K-line
+            closest_ts = min(sorted_kline_ts, key=lambda x: abs(x - trigger_ts))
+            idx = sorted_kline_ts.index(closest_ts)
+
+            context = {"trigger_ts": trigger_ts, "klines": []}
+            # Get 3 K-lines before, the trigger, and 3 after
+            for i in range(max(0, idx - 3), min(len(sorted_kline_ts), idx + 4)):
+                ts = sorted_kline_ts[i]
+                k = kline_map[ts]
+                context["klines"].append({
+                    "ts": ts,
+                    "o": k["open"], "h": k["high"], "l": k["low"], "c": k["close"]
+                })
+            contexts.append(context)
+
+        return {
+            "symbol": symbol.upper(),
+            "time_window": time_window,
+            "contexts": contexts
+        }
+    except Exception as e:
+        logger.error(f"Error fetching K-line context: {e}")
+        return {"error": str(e)}
+
+
+def _tool_get_indicators_batch(
+    db: Session, symbol: str, indicators: List[str], time_window: str
+) -> Dict[str, Any]:
+    """Get statistical distribution of multiple indicators in one call."""
+    import numpy as np
+
+    # Limit to 6 indicators
+    indicators = indicators[:6]
+    if not indicators:
+        return {"error": "No indicators provided"}
+
+    metric_map = {
+        "oi_delta_percent": "oi_delta",
+        "funding_rate": "funding",
+        "taker_buy_ratio": "taker_ratio",
+        "taker_volume": "taker_ratio",  # taker_volume uses same underlying data
+    }
+    interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+
+    results = {"symbol": symbol.upper(), "time_window": time_window, "indicators": {}}
+
+    for indicator in indicators:
+        metric = metric_map.get(indicator, indicator)
+
+        # Special note for taker_volume
+        if indicator == "taker_volume":
+            results["indicators"][indicator] = {
+                "note": "taker_volume is a composite indicator. Use direction (buy/sell/any), ratio_threshold (multiplier), and volume_threshold (USD) instead of operator/threshold.",
+                "underlying_metric": "taker_ratio (log scale)",
+                "example": {"direction": "buy", "ratio_threshold": 1.5, "volume_threshold": 100000}
+            }
+            continue
+        signal_backtest_service._bucket_cache = {}
+        bucket_values = signal_backtest_service._compute_all_bucket_values(
+            db, symbol.upper(), metric, interval_ms
+        )
+
+        if not bucket_values:
+            results["indicators"][indicator] = {"error": f"No data for {indicator}"}
+            continue
+
+        values = [v for v in bucket_values.values() if v is not None]
+        if not values:
+            results["indicators"][indicator] = {"error": "No valid values"}
+            continue
+
+        arr = np.array(values)
+        results["indicators"][indicator] = {
+            "data_points": len(values),
+            "min": float(np.min(arr)),
+            "max": float(np.max(arr)),
+            "mean": float(np.mean(arr)),
+            "p50": float(np.percentile(arr, 50)),
+            "p75": float(np.percentile(arr, 75)),
+            "p90": float(np.percentile(arr, 90)),
+            "p95": float(np.percentile(arr, 95)),
+            "p99": float(np.percentile(arr, 99)),
+        }
+
+    return results
+
+
+def _combine_signals_with_pool_edge_detection(
+    db: Session, symbol: str, signals: List[Dict],
+    preloaded_data: Dict[str, List] = None,
+    preloaded_indexes: Dict[str, List[int]] = None
+) -> set:
+    """
+    Combine signals using pool-level edge detection (same as real-time detection).
+    Evaluates all signals at each check point and triggers only on False->True transition.
+
+    Performance optimization: accepts preloaded_data and preloaded_indexes to avoid
+    redundant database queries and enable O(log n) binary search.
+    """
+    if not signals:
+        return set()
+
+    # Get time window from first signal
+    time_window = signals[0].get("time_window", "5m")
+    timeframe_ms = {
+        "1m": 60000, "3m": 180000, "5m": 300000,
+        "15m": 900000, "30m": 1800000, "1h": 3600000
+    }
+    interval_ms = timeframe_ms.get(time_window, 300000)
+
+    import math
+    metric_map = {"oi_delta_percent": "oi_delta", "taker_buy_ratio": "taker_ratio"}
+
+    # Use preloaded data if available, otherwise load from database
+    if preloaded_data is not None:
+        metrics_data = preloaded_data
+        metrics_indexes = preloaded_indexes or {}
+    else:
+        # Fallback: load raw data for all metrics (backward compatibility)
+        metrics_data = {}
+        metrics_indexes = {}
+        for sig in signals:
+            metric = sig.get("indicator")
+            if metric:
+                # taker_volume uses taker_ratio data
+                if metric == "taker_volume":
+                    mapped_metric = "taker_ratio"
+                else:
+                    mapped_metric = metric_map.get(metric, metric)
+                if mapped_metric not in metrics_data:
+                    raw_data = signal_backtest_service._load_raw_data_for_metric(
+                        db, symbol, mapped_metric, None, None, interval_ms
+                    )
+                    metrics_data[mapped_metric] = raw_data
+                    metrics_indexes[mapped_metric] = [r[0] for r in raw_data] if raw_data else []
+
+    # Generate check points from all data timestamps
+    all_timestamps = set()
+    for data in metrics_data.values():
+        if data:
+            all_timestamps.update(r[0] for r in data)
+
+    check_points = sorted(all_timestamps)
+    if not check_points:
+        return set()
+
+    # Evaluate all signals at each check point with pool-level edge detection
+    triggers = set()
+    was_active = False
+
+    for check_time in check_points:
+        all_met = True
+
+        for sig in signals:
+            metric = sig.get("indicator")
+
+            # Handle taker_volume composite signal
+            if metric == "taker_volume":
+                direction = sig.get("direction", "any")
+                ratio_threshold = sig.get("ratio_threshold", 1.5)
+                volume_threshold = sig.get("volume_threshold", 0)
+                log_threshold = math.log(max(ratio_threshold, 1.01))
+
+                raw_data = metrics_data.get("taker_ratio", [])
+
+                # Use _calc_taker_data_at_time to get both log_ratio and volume
+                taker_data = signal_backtest_service._calc_taker_data_at_time(
+                    raw_data, check_time, interval_ms
+                )
+
+                if taker_data is None:
+                    all_met = False
+                    break
+
+                log_ratio = taker_data["log_ratio"]
+                total_volume = taker_data["volume"]
+
+                # Check ratio condition
+                if direction == "buy":
+                    ratio_met = log_ratio >= log_threshold
+                elif direction == "sell":
+                    ratio_met = log_ratio <= -log_threshold
+                else:  # any
+                    ratio_met = abs(log_ratio) >= log_threshold
+
+                # Check volume condition
+                volume_met = total_volume >= volume_threshold
+
+                if not (ratio_met and volume_met):
+                    all_met = False
+                    break
+            else:
+                # Standard indicator
+                operator = sig.get("operator")
+                threshold = sig.get("threshold")
+
+                mapped_metric = metric_map.get(metric, metric)
+                raw_data = metrics_data.get(mapped_metric, [])
+                ts_index = metrics_indexes.get(mapped_metric)
+
+                value = signal_backtest_service._calculate_indicator_at_time(
+                    raw_data, mapped_metric, check_time, interval_ms, ts_index
+                )
+
+                if value is None:
+                    all_met = False
+                    break
+
+                if not signal_backtest_service._evaluate_condition(value, operator, threshold):
+                    all_met = False
+                    break
+
+        # Pool-level edge detection: only trigger on False -> True
+        if all_met and not was_active:
+            triggers.add(check_time)
+
+        was_active = all_met
+
+    return triggers
+
+
+def _tool_predict_signal_combination(
+    db: Session, symbol: str, signals: List[Dict], logic: str
+) -> Dict[str, Any]:
+    """
+    Predict trigger count when combining multiple signals.
+
+    Performance optimizations:
+    1. Preload all required metric data once (avoid redundant DB queries)
+    2. Build timestamp indexes for O(log n) binary search
+    3. Reuse preloaded data for both individual and combined analysis
+    """
+    # Limit to 5 signals
+    signals = signals[:5]
+    if not signals:
+        return {"error": "No signals provided"}
+
+    # Get time window from first signal (assume all signals use same time window)
+    time_window = signals[0].get("time_window", "5m")
+    timeframe_ms = {
+        "1m": 60000, "3m": 180000, "5m": 300000,
+        "15m": 900000, "30m": 1800000, "1h": 3600000
+    }
+    interval_ms = timeframe_ms.get(time_window, 300000)
+
+    metric_map = {"oi_delta_percent": "oi_delta", "taker_buy_ratio": "taker_ratio"}
+
+    # Step 1: Preload all required metric data ONCE
+    preloaded_data = {}
+    preloaded_indexes = {}
+    required_metrics = set()
+
+    for sig in signals:
+        metric = sig.get("indicator")
+        if metric:
+            # taker_volume uses taker_ratio data internally
+            if metric == "taker_volume":
+                required_metrics.add("taker_ratio")
+            else:
+                mapped_metric = metric_map.get(metric, metric)
+                required_metrics.add(mapped_metric)
+
+    for mapped_metric in required_metrics:
+        raw_data = signal_backtest_service._load_raw_data_for_metric(
+            db, symbol.upper(), mapped_metric, None, None, interval_ms
+        )
+        preloaded_data[mapped_metric] = raw_data
+        # Build timestamp index for binary search (data is already sorted by timestamp)
+        preloaded_indexes[mapped_metric] = [r[0] for r in raw_data] if raw_data else []
+
+    # Step 2: Calculate individual signal triggers using preloaded data
+    signal_triggers = {}
+    individual_counts = {}
+    individual_samples = {}
+
+    for i, sig in enumerate(signals):
+        metric = sig.get("indicator")
+
+        # Handle taker_volume composite signal separately
+        if metric == "taker_volume":
+            direction = sig.get("direction", "any")
+            ratio_threshold = sig.get("ratio_threshold", 1.5)
+            volume_threshold = sig.get("volume_threshold", 0)
+
+            raw_data = preloaded_data.get("taker_ratio", [])
+            ts_index = preloaded_indexes.get("taker_ratio", [])
+
+            if not raw_data:
+                return {"error": f"No data found for taker_volume"}
+
+            triggers = _find_taker_volume_triggers(
+                raw_data, ts_index, direction, ratio_threshold, volume_threshold, interval_ms
+            )
+        else:
+            # Standard indicator
+            operator = sig.get("operator")
+            threshold = sig.get("threshold")
+
+            if not all([metric, operator, threshold is not None]):
+                return {"error": f"Signal {i+1} has incomplete configuration"}
+
+            mapped_metric = metric_map.get(metric, metric)
+            raw_data = preloaded_data.get(mapped_metric, [])
+            ts_index = preloaded_indexes.get(mapped_metric, [])
+
+            if not raw_data:
+                return {"error": f"No data found for metric {metric}"}
+
+            # Find triggers using preloaded data with binary search
+            triggers = _find_triggers_with_preloaded_data(
+                raw_data, ts_index, mapped_metric, operator, threshold, interval_ms
+            )
+
+        signal_triggers[i] = set(triggers)
+        individual_counts[i] = len(triggers)
+        individual_samples[i] = sorted(triggers)[:5]
+
+    # Step 3: Combine based on logic (reuse preloaded data)
+    if logic == "AND":
+        combined_ts = _combine_signals_with_pool_edge_detection(
+            db, symbol.upper(), signals, preloaded_data, preloaded_indexes
+        )
+    else:  # OR
+        combined_ts = set.union(*signal_triggers.values()) if signal_triggers else set()
+
+    combined_count = len(combined_ts)
+    combined_samples = sorted(list(combined_ts))[:10]
+
+    # Build response
+    response = {
+        "symbol": symbol.upper(),
+        "logic": logic,
+        "signal_count": len(signals),
+        "individual_triggers": individual_counts,
+        "individual_sample_timestamps": individual_samples,
+        "combined_triggers": combined_count,
+        "combined_sample_timestamps": combined_samples,
+        "assessment": (
+            "too_many" if combined_count > 50 else
+            "too_few" if combined_count < 3 else
+            "reasonable"
+        )
+    }
+
+    if logic == "AND" and combined_count < 3:
+        response["recommendation"] = "AND logic too strict. Consider relaxing thresholds or using OR logic."
+    elif logic == "OR" and combined_count > 50:
+        response["recommendation"] = "OR logic too loose. Consider tightening thresholds or using AND logic."
+
+    return response
+
+
+def _find_triggers_with_preloaded_data(
+    raw_data: List, ts_index: List[int], metric: str,
+    operator: str, threshold: float, interval_ms: int
+) -> List[int]:
+    """
+    Find trigger timestamps using preloaded data with binary search optimization.
+    Implements edge detection: only triggers on False -> True transitions.
+    """
+    if not raw_data:
+        return []
+
+    # Generate check points from data timestamps
+    check_points = sorted(set(ts_index))
+    if not check_points:
+        return []
+
+    triggers = []
+    was_active = False
+
+    for check_time in check_points:
+        value = signal_backtest_service._calculate_indicator_at_time(
+            raw_data, metric, check_time, interval_ms, ts_index
+        )
+
+        if value is None:
+            was_active = False
+            continue
+
+        condition_met = signal_backtest_service._evaluate_condition(value, operator, threshold)
+
+        # Edge detection: only trigger on False -> True
+        if condition_met and not was_active:
+            triggers.append(check_time)
+
+        was_active = condition_met
+
+    return triggers
+
+
+def _find_taker_volume_triggers(
+    raw_data: List, ts_index: List[int], direction: str,
+    ratio_threshold: float, volume_threshold: float, interval_ms: int
+) -> List[int]:
+    """
+    Find taker_volume trigger timestamps using log ratio AND volume threshold.
+    Uses edge detection: only triggers on False -> True transitions.
+
+    Both conditions must be met:
+    1. Ratio condition: |log(buy/sell)| >= log(ratio_threshold) for direction
+    2. Volume condition: total_volume (buy + sell) >= volume_threshold
+    """
+    import math
+
+    if not raw_data:
+        return []
+
+    check_points = sorted(set(ts_index))
+    if not check_points:
+        return []
+
+    # Convert ratio_threshold to log threshold
+    log_threshold = math.log(max(ratio_threshold, 1.01))
+
+    triggers = []
+    was_active = False
+
+    for check_time in check_points:
+        # Get taker data including volume at this time point
+        taker_data = signal_backtest_service._calc_taker_data_at_time(
+            raw_data, check_time, interval_ms
+        )
+
+        if taker_data is None:
+            was_active = False
+            continue
+
+        log_ratio = taker_data["log_ratio"]
+        total_volume = taker_data["volume"]
+
+        # Check BOTH ratio and volume conditions
+        ratio_met = False
+        if direction == "buy":
+            ratio_met = log_ratio >= log_threshold
+        elif direction == "sell":
+            ratio_met = log_ratio <= -log_threshold
+        elif direction == "any":
+            ratio_met = abs(log_ratio) >= log_threshold
+
+        volume_met = total_volume >= volume_threshold
+        condition_met = ratio_met and volume_met
+
+        # Edge detection: only trigger on False -> True
+        if condition_met and not was_active:
+            triggers.append(check_time)
+
+        was_active = condition_met
+
+    return triggers
+
+
+def _execute_tool(db: Session, tool_name: str, arguments: Dict) -> str:
+    """Execute a tool and return JSON result."""
+    try:
+        if tool_name == "get_kline_context":
+            result = _tool_get_kline_context(
+                db=db,
+                symbol=arguments.get("symbol", "BTC"),
+                timestamps=arguments.get("timestamps", []),
+                time_window=arguments.get("time_window", "5m")
+            )
+        elif tool_name == "get_indicators_batch":
+            result = _tool_get_indicators_batch(
+                db=db,
+                symbol=arguments.get("symbol", "BTC"),
+                indicators=arguments.get("indicators", []),
+                time_window=arguments.get("time_window", "5m")
+            )
+        elif tool_name == "predict_signal_combination":
+            result = _tool_predict_signal_combination(
+                db=db,
+                symbol=arguments.get("symbol", "BTC"),
+                signals=arguments.get("signals", []),
+                logic=arguments.get("logic", "AND")
+            )
+        else:
+            result = {"error": f"Unknown tool: {tool_name}"}
+
+        return json.dumps(result)
+    except Exception as e:
+        logger.error(f"Tool execution error: {tool_name} - {e}")
+        return json.dumps({"error": str(e)})
+
+
+# ============== SSE Streaming Implementation ==============
+
+def _sse_event(event_type: str, data: Any) -> str:
+    """Format an SSE event."""
+    json_data = json.dumps(data, ensure_ascii=False)
+    return f"event: {event_type}\ndata: {json_data}\n\n"
+
+
+def _format_analysis_log(analysis_log: List[Dict]) -> str:
+    """Format analysis log as Markdown for storage and display."""
+    if not analysis_log:
+        return ""
+
+    lines = ["<details>", "<summary>Analysis Process</summary>", ""]
+
+    for entry in analysis_log:
+        if entry["type"] == "reasoning":
+            # Truncate long reasoning content
+            content = entry["content"]
+            if len(content) > 500:
+                content = content[:500] + "..."
+            lines.append(f"**Round {entry['round']} - Reasoning:**")
+            lines.append(f"> {content}")
+            lines.append("")
+        elif entry["type"] == "tool_call":
+            lines.append(f"**Round {entry['round']} - Tool: `{entry['name']}`**")
+            # Format arguments
+            args_str = ", ".join(f"{k}={v}" for k, v in entry["arguments"].items())
+            lines.append(f"- Arguments: {args_str}")
+            # Format result summary
+            result = entry.get("result", {})
+            if entry["name"] == "get_indicator_statistics":
+                stats = result
+                lines.append(f"- Result: p90={stats.get('p90')}, p95={stats.get('p95')}, p99={stats.get('p99')}")
+            elif entry["name"] == "backtest_threshold":
+                lines.append(f"- Result: {result.get('trigger_count')} triggers ({result.get('assessment')})")
+            else:
+                lines.append(f"- Result: {json.dumps(result)[:200]}")
+            lines.append("")
+
+    lines.append("</details>")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_signal_with_ai_stream(
+    db: Session,
+    account_id: int,
+    user_message: str,
+    conversation_id: Optional[int] = None,
+    user_id: int = 1
+):
+    """
+    Generate signal configuration using AI with SSE streaming.
+    Yields SSE events for real-time progress updates.
+
+    Event types:
+    - status: Progress status message
+    - tool_call: Tool being called with arguments
+    - tool_result: Result from tool execution
+    - content: AI response content chunk
+    - signal_config: Parsed signal configuration
+    - done: Completion with final result
+    - error: Error occurred
+    """
+    start_time = time.time()
+    request_id = f"signal_gen_{int(start_time)}"
+
+    logger.info(f"[AI Signal Gen Stream {request_id}] Starting")
+    yield _sse_event("status", {"message": "Initializing AI signal generation..."})
+
+    try:
+        # Get the specified AI account
+        account = db.query(Account).filter(
+            Account.id == account_id,
+            Account.account_type == "AI"
+        ).first()
+
+        if not account:
+            yield _sse_event("error", {"message": "AI account not found"})
+            return
+
+        yield _sse_event("status", {"message": f"Using model: {account.model}"})
+
+        # Get or create conversation
+        conversation = None
+        if conversation_id:
+            conversation = db.query(AiSignalConversation).filter(
+                AiSignalConversation.id == conversation_id,
+                AiSignalConversation.user_id == user_id
+            ).first()
+
+        if not conversation:
+            title = user_message[:50] + "..." if len(user_message) > 50 else user_message
+            conversation = AiSignalConversation(user_id=user_id, title=title)
+            db.add(conversation)
+            db.flush()
+
+        # Save user message
+        user_msg = AiSignalMessage(
+            conversation_id=conversation.id,
+            role="user",
+            content=user_message
+        )
+        db.add(user_msg)
+        db.flush()
+
+        # Build message history
+        messages = [{"role": "system", "content": SIGNAL_SYSTEM_PROMPT}]
+        history_messages = db.query(AiSignalMessage).filter(
+            AiSignalMessage.conversation_id == conversation.id,
+            AiSignalMessage.id != user_msg.id
+        ).order_by(AiSignalMessage.created_at).limit(10).all()
+
+        for msg in history_messages:
+            messages.append({"role": msg.role, "content": msg.content})
+        messages.append({"role": "user", "content": user_message})
+
+        # Build endpoints and headers
+        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        if not endpoints:
+            yield _sse_event("error", {"message": "Invalid base_url configuration"})
+            return
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {account.api_key}"
+        }
+
+        yield _sse_event("status", {"message": "Analyzing your request..."})
+
+        # Function Calling loop (max 30 rounds)
+        max_tool_rounds = 30
+        tool_round = 0
+        assistant_content = None
+        # Accumulate analysis process for white-box display
+        analysis_log = []
+
+        while tool_round < max_tool_rounds:
+            tool_round += 1
+            is_last_round = (tool_round == max_tool_rounds)
+
+            yield _sse_event("status", {
+                "message": f"Processing round {tool_round}/{max_tool_rounds}...",
+                "round": tool_round,
+                "max_rounds": max_tool_rounds
+            })
+
+            request_payload = {
+                "model": account.model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            }
+
+            if is_last_round:
+                messages.append({
+                    "role": "user",
+                    "content": "Output the final signal configuration now. Include the ```signal-config``` block."
+                })
+            else:
+                request_payload["tools"] = SIGNAL_TOOLS
+                request_payload["tool_choice"] = "auto"
+
+            # Call API
+            response = None
+            for endpoint in endpoints:
+                try:
+                    logger.info(f"[AI Signal Gen Stream {request_id}] Round {tool_round} - Calling endpoint: {endpoint}")
+                    response = requests.post(endpoint, json=request_payload, headers=headers, timeout=120)
+                    logger.info(f"[AI Signal Gen Stream {request_id}] Round {tool_round} - Response status: {response.status_code}")
+                    if response.status_code == 200:
+                        break
+                    else:
+                        logger.warning(f"[AI Signal Gen Stream {request_id}] Round {tool_round} - Non-200 response: {response.text[:300]}")
+                except Exception as e:
+                    logger.warning(f"[AI Signal Gen Stream {request_id}] Endpoint error: {e}")
+
+            if not response or response.status_code != 200:
+                error_detail = "No response"
+                if response:
+                    error_detail = f"HTTP {response.status_code}: {response.text[:500]}"
+                logger.error(f"[AI Signal Gen Stream {request_id}] API failed at round {tool_round}: {error_detail}")
+                system_logger.add_log("ERROR", "ai_signal_gen", f"API failed at round {tool_round}", {"error": error_detail, "request_id": request_id})
+                yield _sse_event("error", {"message": f"API request failed: {error_detail}"})
+                return
+
+            # Parse response
+            try:
+                response_json = response.json()
+                message = response_json["choices"][0]["message"]
+            except Exception as e:
+                logger.error(f"[AI Signal Gen Stream {request_id}] Failed to parse response: {e}")
+                system_logger.add_log("ERROR", "ai_signal_gen", f"Failed to parse response", {"error": str(e), "request_id": request_id})
+                yield _sse_event("error", {"message": f"Failed to parse response: {e}"})
+                return
+
+            tool_calls = message.get("tool_calls", [])
+            reasoning_content = message.get("reasoning_content", "")
+            content = message.get("content", "")
+            
+            logger.info(f"[AI Signal Gen Stream {request_id}] Round {tool_round} - has_content: {bool(content)}, has_tool_calls: {len(tool_calls)}, has_reasoning: {bool(reasoning_content)}")
+            if content:
+                logger.info(f"[AI Signal Gen Stream {request_id}] Round {tool_round} - Content preview: {content[:200]}...")
+
+            # Send reasoning content if present
+            if reasoning_content:
+                yield _sse_event("reasoning", {"content": reasoning_content})
+                # Log reasoning for white-box display
+                analysis_log.append({
+                    "type": "reasoning",
+                    "round": tool_round,
+                    "content": reasoning_content
+                })
+
+            # Send content if present
+            if content:
+                yield _sse_event("content", {"content": content})
+
+            if tool_calls:
+                # Process tool calls
+                assistant_msg_dict = {
+                    "role": "assistant",
+                    "content": content or "",
+                    "tool_calls": tool_calls
+                }
+                if reasoning_content:
+                    assistant_msg_dict["reasoning_content"] = reasoning_content
+                messages.append(assistant_msg_dict)
+
+                for tool_call in tool_calls:
+                    func_name = tool_call["function"]["name"]
+                    try:
+                        func_args = json.loads(tool_call["function"]["arguments"])
+                    except json.JSONDecodeError:
+                        func_args = {}
+
+                    yield _sse_event("tool_call", {
+                        "name": func_name,
+                        "arguments": func_args
+                    })
+
+                    tool_result = _execute_tool(db, func_name, func_args)
+                    tool_result_parsed = json.loads(tool_result)
+
+                    yield _sse_event("tool_result", {
+                        "name": func_name,
+                        "result": tool_result_parsed
+                    })
+
+                    # Log tool call for white-box display
+                    analysis_log.append({
+                        "type": "tool_call",
+                        "round": tool_round,
+                        "name": func_name,
+                        "arguments": func_args,
+                        "result": tool_result_parsed
+                    })
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": tool_result
+                    })
+            else:
+                # No tool calls - final response
+                # Don't add reasoning here - analysis_log already has it via <details> format
+                assistant_content = _extract_text_from_message(content) if content else ""
+                break
+
+        # Handle limit reached
+        if assistant_content is None:
+            if 'message' in dir() and message:
+                last_content = message.get("content", "")
+                if last_content:
+                    assistant_content = _extract_text_from_message(last_content)
+            if not assistant_content:
+                assistant_content = "Processing completed."
+
+        # Extract signal configs and save
+        signal_configs = extract_signal_configs(assistant_content)
+
+        for config in signal_configs:
+            yield _sse_event("signal_config", {"config": config})
+
+        # Format analysis log as Markdown for storage
+        analysis_markdown = _format_analysis_log(analysis_log)
+        full_content_for_storage = analysis_markdown + assistant_content if analysis_markdown else assistant_content
+
+        # Save assistant message with analysis process
+        assistant_msg = AiSignalMessage(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=full_content_for_storage,
+            signal_configs=json.dumps(signal_configs) if signal_configs else None
+        )
+        db.add(assistant_msg)
+        db.commit()
+
+        # Send completion event
+        yield _sse_event("done", {
+            "success": True,
+            "conversation_id": conversation.id,
+            "message_id": assistant_msg.id,
+            "content": assistant_content,
+            "signal_configs": signal_configs,
+            "elapsed": round(time.time() - start_time, 2)
+        })
+
+    except Exception as e:
+        logger.error(f"[AI Signal Gen Stream {request_id}] Error: {e}", exc_info=True)
+        system_logger.add_log("ERROR", "ai_signal_gen", f"Unexpected error in AI signal generation", {"error": str(e), "request_id": request_id})
+        db.rollback()
+        yield _sse_event("error", {"message": str(e)})

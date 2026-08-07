@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hyper-alpha-arena-backend"
+version = "0.5.0"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "websockets>=12.0",
+    "requests>=2.31.0",
+    "apscheduler>=3.10.0",
+    "pandas>=2.3.3",
+    "ccxt>=4.0.0",
+    "pydantic>=2.5.0",
+    "pydantic-core>=2.14.0",
+    "cryptography>=41.0.0",
+    "eth-account>=0.10.0",
+    "msgpack>=1.0.0",
+    "eth-utils>=2.0.0",
+    "hyperliquid-python-sdk>=0.20.0",
+    "pandas-ta==0.4.71b0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    "psutil>=7.2.2",
+    "pyyaml>=6.0",
+    "psycopg[binary]>=3.0",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    # redis>=5.0: WS 跨 worker 广播(pub/sub)。REDIS_URL 未设时不会导入,dev 单 worker 无需 Redis。
+    "redis>=5.0",
+    # bcrypt >=4.1 移除了 __about__ 并改动行为,与 passlib 1.7.x 的后端探测不兼容
+    # (会抛 AttributeError + detect_wrap_bug ValueError)。4.0.x 是最后兼容版本。
+    "bcrypt>=4.0,<4.1",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["main.py"]

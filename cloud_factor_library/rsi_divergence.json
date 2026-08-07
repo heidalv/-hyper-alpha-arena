@@ -1,0 +1,18 @@
+{
+  "factor_id": "cloud_rsi_divergence",
+  "name": "RSIDivergence",
+  "display_name": "RSI 背离检测",
+  "description": "检测价格与RSI之间的背离。价格创新高但RSI未创新高=熊市背离(看跌)，价格创新低但RSI未创新低=牛市背离(看涨)。",
+  "category": "technical",
+  "subcategory": "momentum",
+  "version": "1.0.0",
+  "author": "Cloud Factor Library",
+  "tags": ["rsi", "divergence", "reversal"],
+  "parameters": {
+    "rsi_period": 14,
+    "lookback": 20
+  },
+  "required_data_fields": ["close"],
+  "dependencies": [],
+  "calculation_code": "def calculate(self, data: pd.DataFrame) -> pd.Series:\n    period = self.params.get('rsi_period', 14)\n    lookback = self.params.get('lookback', 20)\n    delta = data['close'].diff()\n    gain = delta.where(delta > 0, 0).rolling(period).mean()\n    loss = (-delta.where(delta < 0, 0)).rolling(period).mean()\n    rs = gain / (loss + 1e-9)\n    rsi = 100 - (100 / (1 + rs))\n    price_roc = data['close'].pct_change(lookback)\n    rsi_roc = rsi.pct_change(lookback)\n    result = np.where(\n        (price_roc > 0.02) & (rsi_roc < -0.02), -1.0,\n        np.where(\n            (price_roc < -0.02) & (rsi_roc > 0.02), 1.0,\n            0.0\n        )\n    )\n    return pd.Series(result, index=data.index).fillna(0)"
+}

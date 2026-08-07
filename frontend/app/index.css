@@ -1,0 +1,470 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ========== 现代配色系统 ========== */
+    /* 主色调 - 深蓝紫色 */
+    --primary: 240 85% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    /* 背景色 - 柔和渐变 */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    /* 卡片色 */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* 弹出层 */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* 次要色 */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* 静音色 */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* 强调色 */
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    /* 危险色 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* 边框和输入 */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 240 85% 55%;
+
+    /* 圆角 - 现代圆角 */
+    --radius: 0.5rem;
+
+    /* 图表颜色 */
+    --chart-1: 220 90% 55%;
+    --chart-2: 142 76% 45%;
+    --chart-3: 340 75% 55%;
+    --chart-4: 280 75% 55%;
+    --chart-5: 200 75% 45%;
+
+    /* ========== 选择状态增强色 ========== */
+    /* 选中状态背景 */
+    --selected-bg: 240 85% 95%;
+    /* 选中状态边框 */
+    --selected-border: 240 85% 55%;
+    /* 成功色 */
+    --success: 142 76% 45%;
+    /* 警告色 */
+    --warning: 38 92% 50%;
+  }
+
+  .dark {
+    /* 深色模式配色 */
+    --primary: 240 85% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 240 85% 65%;
+
+    /* 深色模式选择状态 */
+    --selected-bg: 240 85% 20%;
+    --selected-border: 240 85% 65%;
+    --success: 142 76% 55%;
+    --warning: 38 92% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Tahoma, Geneva, sans-serif;
+    font-size: 15px; /* 提升基础字体从13px到15px */
+    line-height: 1.6;
+    overflow-x: hidden;
+    /* 添加平滑过渡 */
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* ========== 现代字体大小系统 ========== */
+  /* 标题层级 - 确保层级分明 */
+  h1 { @apply text-3xl font-bold tracking-tight; }
+  h2 { @apply text-2xl font-semibold tracking-tight; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-medium; }
+
+  /* 基础文字 - 从14px起 */
+  p, span, div {
+    @apply text-sm; /* 默认14px */
+  }
+
+  /* 小文字 - 最少12px */
+  .text-xs-custom {
+    font-size: 12px !important;
+  }
+
+  /* 标签文字 */
+  label {
+    @apply text-sm font-medium;
+  }
+
+  /* 按钮文字 */
+  button {
+    @apply text-sm font-medium;
+  }
+
+  .react-flow,
+  .react-flow *,
+  .react-flow__renderer,
+  .react-flow__pane,
+  .react-flow__viewport,
+  .react-flow__container,
+  .react-flow__edges,
+  .react-flow__nodes,
+  .react-flow__node,
+  .react-flow__edge {
+    cursor: default !important;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .mobile-nav-safe {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+    }
+  }
+}
+
+@layer components {
+  /* ========== 现代卡片样式 ========== */
+  .rounded-none {
+    border-radius: 0;
+  }
+
+  .glass-card {
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card:hover {
+    @apply shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .glass-content {
+    @apply rounded-lg border bg-card text-card-foreground;
+    backdrop-filter: blur(10px);
+  }
+
+  .card {
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    @apply shadow-md;
+  }
+
+  /* ========== 现代按钮样式 ========== */
+  .btn, button {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Tahoma, sans-serif;
+    @apply rounded-lg font-medium;
+    transition: all 0.2s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+  }
+
+  button:active {
+    transform: translateY(0);
+  }
+
+  /* ========== 现代输入框样式 ========== */
+  input, textarea, select {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Tahoma, sans-serif;
+    @apply rounded-lg bg-background text-foreground border;
+    transition: all 0.2s ease;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    @apply ring-2 ring-primary/20 border-primary;
+    transform: scale(1.01);
+  }
+
+  [data-radix-select-trigger],
+  [data-radix-select-content] {
+    @apply rounded-lg border shadow-lg;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent font-bold;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-primary/50 ring-offset-2;
+  }
+
+  /* ========== 选中状态增强样式 ========== */
+  /* 选中状态 - 非常明显 */
+  .selected-item {
+    @apply border-2 border-primary bg-primary/5 shadow-sm;
+    position: relative;
+  }
+
+  .selected-item::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    @apply rounded-lg border-2 border-primary/30;
+    z-index: -1;
+  }
+
+  .selected-item-check {
+    @apply absolute top-2 right-2 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center;
+  }
+
+  /* 选中标签样式 */
+  .chip-selected {
+    @apply bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-full text-sm;
+    box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
+  }
+
+  .chip-unselected {
+    @apply bg-secondary text-secondary-foreground px-3 py-1.5 rounded-full text-sm;
+    @apply hover:bg-primary/10 hover:text-primary;
+  }
+
+  /* 风险选择卡片 */
+  .risk-card {
+    @apply relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-300;
+    @apply hover:shadow-lg hover:scale-[1.02];
+  }
+
+  .risk-card-selected {
+    @apply border-primary bg-primary/10 shadow-lg scale-[1.02];
+  }
+
+  .risk-card-selected::after {
+    content: '✓';
+    @apply absolute top-3 right-3 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold;
+  }
+
+  /* 交易对选择 */
+  .symbol-chip {
+    @apply px-4 py-2 rounded-full border-2 cursor-pointer transition-all duration-200 text-sm font-medium;
+    @apply hover:shadow-md hover:scale-105;
+  }
+
+  .symbol-chip-selected {
+    @apply bg-primary text-primary-foreground border-primary shadow-lg;
+  }
+
+  .symbol-chip-unselected {
+    @apply bg-secondary text-secondary-foreground border-border;
+  }
+
+  /* 交易模式选择 */
+  .mode-card {
+    @apply relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 flex items-center gap-3;
+    @apply hover:shadow-md hover:scale-[1.01];
+  }
+
+  .mode-card-selected {
+    @apply border-primary bg-primary/10 shadow-lg;
+  }
+
+  .mode-card-selected::before {
+    content: '';
+    @apply absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full;
+  }
+
+  /* ========== 动画和过渡 ========== */
+  .animate-highlight {
+    animation: highlight-flash 0.6s ease-out;
+  }
+
+  @keyframes highlight-flash {
+    0% { background-color: hsl(var(--primary) / 0.3); }
+    100% { background-color: transparent; }
+  }
+
+  .logo-blink {
+    animation: logo-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes logo-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* 悬停提升效果 */
+  .hover-lift {
+    @apply transition-transform duration-200;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    @apply shadow-lg;
+  }
+
+  /* 加载动画 */
+  .loading-shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .loading-shimmer::after {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* ========== 响应式 ========== */
+  @media (max-width: 768px) {
+    .main-content-mobile {
+      padding-bottom: 5rem !important;
+    }
+    .sidebar-desktop {
+      display: none !important;
+    }
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  .sidebar-transition {
+    transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+  }
+
+  .main-content-transition {
+    transition: margin-left 0.3s ease-in-out, padding-left 0.3s ease-in-out;
+  }
+
+  .z-sidebar { z-index: 40; }
+  .z-header { z-index: 30; }
+  .z-mobile-nav { z-index: 50; }
+  .z-modal { z-index: 100; }
+}
+
+/* ========== 现代化数字翻转动画 ========== */
+.flip-number-container {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.flip-digit {
+  display: inline-block;
+  min-width: 0.6em;
+  text-align: center;
+}
+
+/* ========== Recharts 样式 ========== */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-cartesian-grid,
+.recharts-line,
+.recharts-area,
+.recharts-bar,
+.recharts-dot,
+.recharts-legend-wrapper,
+.recharts-tooltip-wrapper,
+.recharts-brush,
+.recharts-reference-line,
+.recharts-reference-area,
+.recharts-reference-dot {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+svg:focus,
+svg *:focus {
+  outline: none !important;
+}
+
+/* ========== 额外增强 ========== */
+/* 悬停发光效果 */
+.hover-glow {
+  @apply transition-shadow duration-300;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+/* 渐变背景 */
+.bg-gradient-primary {
+  @apply bg-gradient-to-r from-primary to-purple-600;
+}
+
+/* 状态指示器 */
+.status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.status-dot-success {
+  @apply bg-green-500;
+  animation: pulse 2s infinite;
+}
+
+.status-dot-warning {
+  @apply bg-yellow-500;
+  animation: pulse 2s infinite;
+}
+
+.status-dot-error {
+  @apply bg-red-500;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

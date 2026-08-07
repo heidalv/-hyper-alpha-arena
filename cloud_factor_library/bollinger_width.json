@@ -1,0 +1,18 @@
+{
+  "factor_id": "cloud_bollinger_width",
+  "name": "BollingerBandWidth",
+  "display_name": "布林带宽度",
+  "description": "布林带宽度指标，反映市场波动率状态。宽度收窄表示市场进入盘整，宽度扩张表示趋势可能来临。用于识别波动率压缩和突破机会。",
+  "category": "technical",
+  "subcategory": "volatility",
+  "version": "1.0.0",
+  "author": "Cloud Factor Library",
+  "tags": ["bollinger", "volatility", "squeeze"],
+  "parameters": {
+    "period": 20,
+    "num_std": 2.0
+  },
+  "required_data_fields": ["close"],
+  "dependencies": [],
+  "calculation_code": "def calculate(self, data: pd.DataFrame) -> pd.Series:\n    period = self.params.get('period', 20)\n    num_std = self.params.get('num_std', 2.0)\n    sma = data['close'].rolling(period).mean()\n    std = data['close'].rolling(period).std()\n    upper = sma + num_std * std\n    lower = sma - num_std * std\n    bandwidth = ((upper - lower) / (sma + 1e-9)).fillna(0)\n    result = bandwidth.rank(pct=True).fillna(0.5)\n    return result"
+}

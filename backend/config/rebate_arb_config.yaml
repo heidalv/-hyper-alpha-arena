@@ -1,0 +1,181 @@
+# ======================================================
+# Rebate Arbitrage System Configuration
+# All parameters externalized - no hardcoding in source
+# Override via environment: REBATE_ARB_<SECTION>_<KEY>
+# ======================================================
+# 适配300U小资金方案
+
+engine:
+  paper_mode: true
+  auto_execute: false          # 全自动 tick 是否自动开仓（默认关闭）
+  min_monthly_value: 5.0      # 小资金门槛降低：月预期>$5即可行
+  max_position_usd: 300.0     # 单仓位不超过总资金
+  max_holding_days: 30
+  max_total_volume_7d: 100000.0  # 杠杆下周交易量上限
+  tick_interval_seconds: 90
+  min_account_equity: 100.0   # 最低100U即可启动
+
+risk_gate:
+  max_daily_volume_per_exchange: 50000.0   # 杠杆下日均量上限
+  max_weekly_volume_per_exchange: 200000.0  # 周量上限
+  min_active_days_per_week: 2
+  wash_trade_threshold: 0.7
+  single_exchange_exposure_pct: 0.50       # 小资金允许单所集中
+  total_rebate_exposure_pct: 0.80          # 允许80%资金用于积分策略
+  min_value_ratio: 0.001                   # 降低价值比门槛
+  campaign_deadline_critical_days: 3
+  daily_loss_circuit_breaker_pct: 0.05     # 5%日亏损熔断（$15 on 300U）
+  fee_change_alert_pct: 0.50
+
+capital_allocation:
+  # [2026-07-06 病灶B 修复] 主力从 S8(Aster Stage6) 切走——该活动已于 2026-03-29 结束，
+  # Aster 已转 veASTER 质押模式，交易刷分不再产生空投积分。原 S8 的 50% 配额转给
+  # 当前仍 active 的 S3(Hyperliquid Season 2 积分挖矿)。
+  funding_rate_arb: 0.10        # $30 备用
+  cross_exchange_spread: 0.10   # $30 V3 跨所（S1/S6 已下线/关闭）
+  rebate_points_arb: 0.70      # $210 积分策略池（现全部倾斜给活跃的 S3）
+  emergency_reserve: 0.10       # $30 应急
+  strategy_sub_pools:
+    SDN: 0.40  # [Phase2 新主力] delta-neutral 刷积分：多积分DEX做多+深场所做空
+    S1: 0.0    # 已下线（负 EV：月返佣 $0.45 vs 成本 $40）
+    S2: 0.05   # 保持关闭（数据管线已修通，待大资金启用）
+    S3: 0.30   # 次主力（Hyperliquid Season 2 积分挖矿，仍 active）
+    S4: 0.05   # 保持关闭（campaigns 管线已修通）
+    S5: 0.0    # 已下线（数据结构 bug + 与 V3 资金费套利重复）
+    S6: 0.0    # 已关闭（负 EV，伪可行门槛已收紧）
+    S8: 0.0    # [已退役] Aster Stage6 于 2026-03-29 结束，配额清零、不再占资
+    S7: 0.0    # monitor_only
+
+wash_trade:
+  max_daily_volume_equity_mult: 50.0   # 小资金+杠杆: 允许50x日量
+  poisson_lambda: 0.015                 # 略降低频率
+  size_randomization_pct: 0.20          # 20%随机化
+
+cache_ttls:
+  fee_tier_seconds: 3600
+  points_seconds: 300
+  rebate_info_seconds: 600
+  campaigns_seconds: 1800
+
+exchanges:
+  asterdex:
+    enabled: true
+    # Stage 6 官方费率（USDT 永续）：0% maker / 0.04% taker
+    # 单一来源 = rule_registry.STAGE6_POINT_MODEL.fee_schedule，此处保持一致
+    default_maker_rate: 0.0
+    default_taker_rate: 0.0004
+    default_rebate_rate: 0.0   # 旧赛季 10% 返佣假设已废弃
+  binance:
+    enabled: true
+    default_maker_rate: 0.0002
+    default_taker_rate: 0.0004
+    use_bnb_discount: true
+  okx:
+    enabled: true
+    default_maker_rate: 0.0002
+    default_taker_rate: 0.0005
+  bybit:
+    enabled: true
+    default_maker_rate: 0.0002
+    default_taker_rate: 0.00055
+  gateio:
+    enabled: true
+    default_maker_rate: 0.0002
+    default_taker_rate: 0.0005
+  hyperliquid:
+    enabled: true
+    # 现行基础档费率（与 program_registry.hyperliquid_season2 / S3 策略保持一致）
+    default_maker_rate: 0.00015
+    default_taker_rate: 0.00045
+
+strategies:
+  SDN_delta_neutral:
+    # [2026-07-06 Phase2 新主力] delta-neutral 刷积分：active 积分DEX开多 + 深场所开等额空。
+    # 对冲方向风险，赚资金费价差 + 白拿积分。需 incentive_data['funding_rates'] 有数据；
+    # 无实时资金费率时策略自判 not viable（不臆造机会）。
+    enabled: true
+    min_equity: 100
+    default_leverage: 3          # delta 中性可适度放大名义
+    notional_equity_pct: 0.5     # 单组合用 50% 权益作单腿名义基数
+    horizon_days: 7.0            # 假设持有期（摊销手续费、年化净 EV）
+    min_net_apr: 0.05            # 扣成本后净年化 >=5% 才可行
+    use_conservative_points: true  # 积分估值取保守档，宁可低估
+  S1_maker_hedge:
+    enabled: false             # [M4 已下线] 负 EV（月返佣 $0.45 vs 成本 $40），与 S6 重复且更差
+    deprecated: true
+    min_equity: 100
+    min_spread_bps: 3.0
+    default_leverage: 5
+  S2_vip_sprint:
+    enabled: false             # 需要大资金(>50000U)，小资金不适用；volume_30d 管线已修通待启用
+    target_tier: "VIP4"
+    volume_target_30d: 5000000.0
+  S3_points_mining:
+    enabled: true              # 次级主力：HL Season 3 积分挖矿（积分兑换无承诺，EV 含投机折扣）
+    min_equity: 100
+    min_daily_points_value: 1.0  # 降低门槛
+    default_leverage: 5
+    # hype_price 改为行情实时读取，此值仅作行情不可用时的回退
+    hype_price_fallback: 30.0
+    # Season 3: Maker 量更优；积分估值打投机性折扣
+    maker_volume_weight: 2.0
+    points_speculative_discount: 0.5
+  S4_campaign_arb:
+    enabled: false             # 竞赛套利需要大资金；active_campaigns 管线已修通待启用
+    min_expected_roi_pct: 2.0
+  S5_funding_points:
+    enabled: false             # [M4 已下线] funding 数据结构假设错误 + 与 V3 资金费套利重复
+    deprecated: true
+    min_funding_rate_annualized: 0.05
+  S6_cross_fee_spread:
+    enabled: false             # [M4 关闭] 负 EV；is_viable 伪可行门槛（月亏$5内算可行）已收紧
+    min_equity: 200
+    min_spread_bps: 1.0
+    default_leverage: 5
+  S7_binance_alpha:
+    enabled: false             # 2025.6.17后交易量不再计积分+API不可用
+    mode: "monitor_only"       # 仅监控模式
+    min_alpha_points_daily: 5
+  S8_asterdex_rh:
+    # [2026-07-06 已退役] Asterdex Stage 6 (Rh 积分) 于 2026-03-29 结束，Aster 已转
+    # veASTER 质押/回购模式，交易刷分不再产生空投积分。配额清零、默认关闭；
+    # program_registry 标记 aster_stage6=ended，引擎自检会额外跳过本策略。
+    # 源码保留供历史仓位解读，Phase 2 将改造为 veASTER 质押只读监控或归档。
+    enabled: false             # 活动已结束，停用（原 P0 主力）
+    min_equity: 100
+    min_rh_multiplier: 1.0
+    default_leverage: 10       # Asterdex超低费率允许高杠杆
+    aster_price: 0.70          # 已上线实际价格
+    points_maximization_mode: true
+    rh_optimization_mode: "paper_experiment"  # Paper 刷积分：15min 快轮（stage6_optimal=2~4h）
+    rounds_per_day: 6
+    # AI 中性信号：half=半仓刷积分（横盘仍可开单）；skip=无方向不开仓
+    neutral_direction_action: "half"
+    paper_stop_loss_notional_pct: 0.008
+    paper_stop_loss_margin_pct: 0.04
+    paper_profit_min_margin_pct_to_close: 0.015
+    neutral_macro_position_scale: 0.60
+    # ── stage6_optimal: Maker优先 + 动态持仓 + USDF全仓 ──
+    stage6_maker_first: true
+    stage6_taker_fallback_seconds: 90       # 限价挂单超时回退 Taker
+    stage6_expected_maker_ratio: 0.7        # EV 估算用预期 Maker 成交占比
+    stage6_hold_min_seconds: 7200           # 资金费为成本时缩到 2h
+    stage6_hold_max_seconds: 28800          # 资金费为收益时拉到 8h
+    stage6_hold_default_seconds: 14400      # 默认 4h（持仓积分无上限 T+1）
+    stage6_funding_threshold: 0.0001        # 资金费率显著阈值
+    stage6_require_cross_margin: true       # 资产积分要求全仓模式
+    safe_max_leverage: 12
+    quick_max_leverage: 15
+    quick_min_confidence: 70
+    quick_min_symbol_boost: 1.5
+    quick_margin_scale: 0.75
+    paper_experiment_margin_scale: 0.30
+    paper_experiment_hold_seconds: 900
+    default_slippage_bps: 2.0
+    min_rh_per_fee: 10.0
+    symbol_boost_map:
+      ASTER/USDT: 2.0
+      BTC/USDT: 1.5
+      ETH/USDT: 1.2
+      SOL/USDT: 1.2
+      BNB/USDT: 1.1

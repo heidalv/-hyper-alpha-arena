@@ -1,0 +1,999 @@
+{
+  "generated_at": "2026-07-28T19:46:31.001386+00:00",
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB",
+    "XRP"
+  ],
+  "reports": {
+    "BTC": {
+      "symbol": "BTC",
+      "generated_at": "2026-07-28T19:45:12.662498+00:00",
+      "data_coverage_note": "本地历史数据扫描到18个真实插针窗口；因本地crypto_klines最早仅到2025-06-09(不覆盖2021/2022经典事件)，补充4个与生产公式同源的已知事件日历合成窗口",
+      "wick_events_tested": 22,
+      "wick_block_count": 22,
+      "wick_block_rate": 1.0,
+      "wick_missed_count": 0,
+      "wick_details": [
+        {
+          "label": "BTC@1769788800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 13.65,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1770436800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 170.56,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1772596800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 20.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1773244800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 435.92,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1773532800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 116.92,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1776268800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 8.6,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1776772800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 20.57,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1778356800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 1110000000000.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1778428800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 13.62,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1778932800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 28.5,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1780732800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 55.21,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1781380800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 48.04,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1782028800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 749.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1782172800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 27.56,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1783036800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 21.91,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1783468800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 222.46,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1784404800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.45,
+          "peak_wick_ratio": 248.67,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.45>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BTC@1784836800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 836.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2021-05-19 全网闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 134.96,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-05 LUNA/UST崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.65,
+          "peak_wick_ratio": 8999.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.65>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-11 FTX崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 220.26,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2024-08-05 日元套利平仓闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 172.06,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        }
+      ],
+      "exit_hard_fact_passthrough": true,
+      "exit_hard_fact_detail": {
+        "expected_action": "close",
+        "actual_action": "close",
+        "hard_fact_passthrough": true,
+        "reason": "hard_fact:sl extreme_scenario_stress_test_wick_pierce_sl",
+        "pass": true
+      },
+      "cascade_events_tested": 1,
+      "cascade_severity": [
+        "low"
+      ],
+      "cascade_slippage_multiplier": [
+        1.0
+      ],
+      "cascade_data_limitation_note": "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）",
+      "overall_pass": true
+    },
+    "ETH": {
+      "symbol": "ETH",
+      "generated_at": "2026-07-28T19:45:41.317401+00:00",
+      "data_coverage_note": "本地历史数据扫描到23个真实插针窗口；因本地crypto_klines最早仅到2025-06-09(不覆盖2021/2022经典事件)，补充4个与生产公式同源的已知事件日历合成窗口",
+      "wick_events_tested": 27,
+      "wick_block_count": 27,
+      "wick_block_rate": 1.0,
+      "wick_missed_count": 0,
+      "wick_details": [
+        {
+          "label": "ETH@1769788800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 17.91,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1769860800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 172.53,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1770220800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 9.09,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1770940800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 42.52,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1771660800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 40300000000.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1771876800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 57500000000.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1771948800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 43.95,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1772164800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.45,
+          "peak_wick_ratio": 61.59,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.45>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1772380800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 865.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1772524800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 59.42,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1773316800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 313.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1774396800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 36.76,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1774900800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 23.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1779292800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 10.83,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1779868800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 17.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1780084800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 20.76,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1780156800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 47.73,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1781380800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 22.95,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1782028800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 23.27,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1782244800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 43.22,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1782604800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.45,
+          "peak_wick_ratio": 20.81,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.45>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1784404800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 22.15,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "ETH@1785052800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 46.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2021-05-19 全网闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 134.96,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-05 LUNA/UST崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.65,
+          "peak_wick_ratio": 8999.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.65>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-11 FTX崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 220.26,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2024-08-05 日元套利平仓闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 172.06,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        }
+      ],
+      "exit_hard_fact_passthrough": true,
+      "exit_hard_fact_detail": {
+        "expected_action": "close",
+        "actual_action": "close",
+        "hard_fact_passthrough": true,
+        "reason": "hard_fact:sl extreme_scenario_stress_test_wick_pierce_sl",
+        "pass": true
+      },
+      "cascade_events_tested": 1,
+      "cascade_severity": [
+        "high"
+      ],
+      "cascade_slippage_multiplier": [
+        2.5
+      ],
+      "cascade_data_limitation_note": "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）",
+      "overall_pass": true
+    },
+    "SOL": {
+      "symbol": "SOL",
+      "generated_at": "2026-07-28T19:45:58.920351+00:00",
+      "data_coverage_note": "本地历史数据扫描到10个真实插针窗口；因本地crypto_klines最早仅到2025-06-09(不覆盖2021/2022经典事件)，补充4个与生产公式同源的已知事件日历合成窗口",
+      "wick_events_tested": 14,
+      "wick_block_count": 14,
+      "wick_block_rate": 1.0,
+      "wick_missed_count": 0,
+      "wick_details": [
+        {
+          "label": "SOL@1777546800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.5,
+          "peak_wick_ratio": 3390000000.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.50>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1779130800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 31.59,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1779490800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 25.08,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1779778800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 22.23,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1781362800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 56.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1782802800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 98.67,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1783594800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.5,
+          "peak_wick_ratio": 14.92,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.50>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1784314800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 30.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1784386800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 2060000000.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "SOL@1784962800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 17.46,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2021-05-19 全网闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 134.96,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-05 LUNA/UST崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.65,
+          "peak_wick_ratio": 8999.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.65>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-11 FTX崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 220.26,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2024-08-05 日元套利平仓闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 172.06,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        }
+      ],
+      "exit_hard_fact_passthrough": true,
+      "exit_hard_fact_detail": {
+        "expected_action": "close",
+        "actual_action": "close",
+        "hard_fact_passthrough": true,
+        "reason": "hard_fact:sl extreme_scenario_stress_test_wick_pierce_sl",
+        "pass": true
+      },
+      "cascade_events_tested": 1,
+      "cascade_severity": [
+        "low"
+      ],
+      "cascade_slippage_multiplier": [
+        1.0
+      ],
+      "cascade_data_limitation_note": "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）",
+      "overall_pass": true
+    },
+    "BNB": {
+      "symbol": "BNB",
+      "generated_at": "2026-07-28T19:46:18.485167+00:00",
+      "data_coverage_note": "本地历史数据扫描到6个真实插针窗口；因本地crypto_klines最早仅到2025-06-09(不覆盖2021/2022经典事件)，补充4个与生产公式同源的已知事件日历合成窗口",
+      "wick_events_tested": 10,
+      "wick_block_count": 10,
+      "wick_block_rate": 1.0,
+      "wick_missed_count": 0,
+      "wick_details": [
+        {
+          "label": "BNB@1780930800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 146.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BNB@1782514800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 187.0,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BNB@1784098800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 24.18,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BNB@1784746800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.4,
+          "peak_wick_ratio": 21.5,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.40>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BNB@1784962800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 7.33,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "BNB@1785178800(真实历史插针)",
+          "source": "historical_scan",
+          "high_wick_density": 0.35,
+          "peak_wick_ratio": 23.37,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.35>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2021-05-19 全网闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 134.96,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-05 LUNA/UST崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.65,
+          "peak_wick_ratio": 8999.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.65>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-11 FTX崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 220.26,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2024-08-05 日元套利平仓闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 172.06,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        }
+      ],
+      "exit_hard_fact_passthrough": true,
+      "exit_hard_fact_detail": {
+        "expected_action": "close",
+        "actual_action": "close",
+        "hard_fact_passthrough": true,
+        "reason": "hard_fact:sl extreme_scenario_stress_test_wick_pierce_sl",
+        "pass": true
+      },
+      "cascade_events_tested": 1,
+      "cascade_severity": [
+        "low"
+      ],
+      "cascade_slippage_multiplier": [
+        1.0
+      ],
+      "cascade_data_limitation_note": "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）",
+      "overall_pass": true
+    },
+    "XRP": {
+      "symbol": "XRP",
+      "generated_at": "2026-07-28T19:46:31.001147+00:00",
+      "data_coverage_note": "本地历史数据扫描到0个真实插针窗口；因本地crypto_klines最早仅到2025-06-09(不覆盖2021/2022经典事件)，补充4个与生产公式同源的已知事件日历合成窗口",
+      "wick_events_tested": 4,
+      "wick_block_count": 4,
+      "wick_block_rate": 1.0,
+      "wick_missed_count": 0,
+      "wick_details": [
+        {
+          "label": "2021-05-19 全网闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 134.96,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-05 LUNA/UST崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.65,
+          "peak_wick_ratio": 8999.89,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.65>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2022-11 FTX崩盘",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 220.26,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        },
+        {
+          "label": "2024-08-05 日元套利平仓闪崩",
+          "source": "synthetic_calendar",
+          "high_wick_density": 0.55,
+          "peak_wick_ratio": 172.06,
+          "expected_block": true,
+          "actual_blocked": true,
+          "gate_tier": "block",
+          "gate_reason": "高插针密度环境 high_wick_density=0.55>0.3 (近20根K线中止损猎杀/操纵形态频发,暂停开仓)",
+          "pass": true
+        }
+      ],
+      "exit_hard_fact_passthrough": true,
+      "exit_hard_fact_detail": {
+        "expected_action": "close",
+        "actual_action": "close",
+        "hard_fact_passthrough": true,
+        "reason": "hard_fact:sl extreme_scenario_stress_test_wick_pierce_sl",
+        "pass": true
+      },
+      "cascade_events_tested": 1,
+      "cascade_severity": [
+        "low"
+      ],
+      "cascade_slippage_multiplier": [
+        1.0
+      ],
+      "cascade_data_limitation_note": "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）",
+      "overall_pass": true
+    }
+  }
+}

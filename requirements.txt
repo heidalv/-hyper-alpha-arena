@@ -1,0 +1,66 @@
+# ============================================================================
+# 核心依赖 — 硬依赖（缺失则系统无法启动）
+# P0.3 整改：补齐此前代码已用但未声明的包（ccxt/hyperliquid/eth-account/psycopg/pyyaml）
+# 版本以 uv.lock 解析结果为锚点。可选/RL/在线学习依赖见 requirements-optional.txt
+# ============================================================================
+
+# 核心Web框架
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.9
+pydantic==2.9.2
+pydantic-settings==2.14.0   # P0.3 补：config schema 用（uv.lock 锚定）
+python-dotenv==1.0.1
+
+# 数据库
+SQLAlchemy==2.0.35
+alembic==1.13.3
+psycopg[binary]==3.3.4      # P0.3 补：PostgreSQL async 驱动（uv.lock 锚定，原缺失）
+
+# HTTP客户端
+httpx==0.27.2
+requests==2.32.5
+aiohttp==3.10.11
+
+# WebSocket
+websockets==13.1
+python-socketio==5.11.4
+
+# 加密和安全
+cryptography==43.0.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# AI/LLM
+openai==1.52.2
+anthropic==0.39.0
+
+# 向量数据库 (RAG 知识库)
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+
+# 数据处理
+pandas==2.2.3
+numpy==2.1.2
+PyYAML==6.0.3               # P0.3 补：配置 YAML 解析（uv.lock 锚定，原缺失）
+
+# 回测优化（整改#1 WFO：Optuna TPE 参数搜索；未安装时 walk_forward 自动回退 grid，非强制）
+optuna>=3.6.0
+cmaes>=0.10.0          # 整改#20 CMA-ES 连续精调（optuna CmaEsSampler 依赖它；缺失时自动回退随机搜索）
+
+# ML 训练管线（整改#10）：默认 lightgbm；catboost/torch 为可选后端（缺失时 get_model 自动降级 linear）
+scikit-learn>=1.3.0
+joblib>=1.3.0
+lightgbm>=4.0.0
+
+# ============================================================================
+# 交易所接入（P0.3 补：代码已用但原 requirements 完全缺失）
+# ============================================================================
+ccxt==4.5.11                # P0.3 补：统一交易所 API（6 adapter 依赖，uv.lock 锚定，原缺失）
+hyperliquid-python-sdk==0.24.0  # P0.3 补：HyperLiquid 原生 SDK（EIP-712 签名客户端依赖，distribution 名为 hyperliquid-python-sdk，原缺失）
+eth-account==0.13.7         # P0.3 补：HyperLiquid EIP-712 签名（uv.lock 锚定，原缺失）
+
+# 其他工具
+python-dateutil==2.9.0.post0
+psutil==7.2.2
+

@@ -1,0 +1,172 @@
+{
+  "window": "24h",
+  "domain": "ai",
+  "generated_at": "2026-06-29T09:27:53.730030+00:00",
+  "total_closed": 10,
+  "win_rate": 0.3,
+  "total_pnl": -703.11,
+  "max_single_loss": -261.67,
+  "master_close_loss_ratio": 0.8274,
+  "master_close_count": 3,
+  "close_reason_breakdown": {
+    "master_running_close": {
+      "key": "master_running_close",
+      "count": 3,
+      "wins": 0,
+      "total_pnl": -581.77,
+      "avg_pnl": -193.92,
+      "win_rate": 0.0
+    },
+    "max_hold_timeout": {
+      "key": "max_hold_timeout",
+      "count": 3,
+      "wins": 2,
+      "total_pnl": -99.25,
+      "avg_pnl": -33.08,
+      "win_rate": 0.6667
+    },
+    "hold_timeout_review": {
+      "key": "hold_timeout_review",
+      "count": 4,
+      "wins": 1,
+      "total_pnl": -22.09,
+      "avg_pnl": -5.52,
+      "win_rate": 0.25
+    }
+  },
+  "by_tier": [
+    {
+      "key": "short",
+      "count": 6,
+      "wins": 1,
+      "total_pnl": -522.16,
+      "avg_pnl": -87.03,
+      "win_rate": 0.1667
+    },
+    {
+      "key": "mid",
+      "count": 4,
+      "wins": 2,
+      "total_pnl": -180.96,
+      "avg_pnl": -45.24,
+      "win_rate": 0.5
+    }
+  ],
+  "by_nature": [
+    {
+      "key": "scalp",
+      "count": 6,
+      "wins": 1,
+      "total_pnl": -522.16,
+      "avg_pnl": -87.03,
+      "win_rate": 0.1667
+    },
+    {
+      "key": "swing",
+      "count": 4,
+      "wins": 2,
+      "total_pnl": -180.96,
+      "avg_pnl": -45.24,
+      "win_rate": 0.5
+    }
+  ],
+  "by_symbol": [
+    {
+      "key": "BNB",
+      "count": 2,
+      "wins": 0,
+      "total_pnl": -379.95,
+      "avg_pnl": -189.97,
+      "win_rate": 0.0
+    },
+    {
+      "key": "ETH",
+      "count": 3,
+      "wins": 1,
+      "total_pnl": -375.59,
+      "avg_pnl": -125.2,
+      "win_rate": 0.3333
+    },
+    {
+      "key": "ASTER",
+      "count": 1,
+      "wins": 0,
+      "total_pnl": -261.67,
+      "avg_pnl": -261.67,
+      "win_rate": 0.0
+    },
+    {
+      "key": "BTC",
+      "count": 1,
+      "wins": 0,
+      "total_pnl": -169.02,
+      "avg_pnl": -169.02,
+      "win_rate": 0.0
+    },
+    {
+      "key": "SOL",
+      "count": 3,
+      "wins": 2,
+      "total_pnl": 483.12,
+      "avg_pnl": 161.04,
+      "win_rate": 0.6667
+    }
+  ],
+  "insights": [
+    {
+      "severity": "major",
+      "category": "win_rate",
+      "message": "rolling 24h 胜率 30% < 40%",
+      "metric": "win_rate",
+      "value": 0.3,
+      "threshold": 0.4
+    },
+    {
+      "severity": "critical",
+      "category": "negative_ev",
+      "message": "每笔期望收益 $-70.3 < -$10（严重亏损策略）",
+      "metric": "avg_pnl_per_trade",
+      "value": -70.31125484779172,
+      "threshold": -10
+    },
+    {
+      "severity": "major",
+      "category": "master_close",
+      "message": "总控 close 亏损占比 83% > 60%",
+      "metric": "master_close_loss_ratio",
+      "value": 0.8274199594960928,
+      "threshold": 0.6
+    },
+    {
+      "severity": "info",
+      "category": "perf",
+      "message": "最大亏损来源 close_reason=master_running_close: 3 笔累计 -582 USDT"
+    },
+    {
+      "severity": "info",
+      "category": "perf",
+      "message": "tier=short 累计亏损 -522（6 笔，胜率 17%）"
+    },
+    {
+      "severity": "info",
+      "category": "perf",
+      "message": "tier=mid 累计亏损 -181（4 笔，胜率 50%）"
+    },
+    {
+      "severity": "info",
+      "category": "perf",
+      "message": "nature=scalp 累计亏损 -522（6 笔，胜率 17%）"
+    },
+    {
+      "severity": "info",
+      "category": "perf",
+      "message": "nature=swing 累计亏损 -181（4 笔，胜率 50%）"
+    }
+  ],
+  "rule_breaches": [
+    "rolling 24h 胜率 30% < 40%",
+    "每笔期望收益 $-70.3 < -$10（严重亏损策略）",
+    "总控 close 亏损占比 83% > 60%"
+  ],
+  "arb": null
+}

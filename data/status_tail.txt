@@ -1,0 +1,11 @@
+﻿recent 80 {'master_decision': 47, 'scalp_scan': 26, 'trade_error': 1, 'orchestrator_override': 4, 'symbols_removed': 1, 'symbols_added': 1}
+python : Traceback (most recent call last):
+所在位置 C:\Users\dell\AppData\Local\Temp\ps-script-0c6bf732-0ef4-4584-ae28-ae47bfd23c75.ps1:92 字符: 102
++ ... pha-Windows迁移包-20260610-2228\001Alpha\Hyper-Alpha-Arena"; python -c "
++                                                               ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<string>", line 11, in <module>
+UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f3af' in position 0: illegal multibyte sequence
+2026-06-27T19:28:03.093460+00:00 master_decision 

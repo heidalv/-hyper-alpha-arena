@@ -1,0 +1,1 @@
+import{j as t}from"./index-637008ab.js";import{S as r}from"./StrategyPromptPage-51b5ccc5.js";import"./lock-0a8800a9.js";import"./rotate-ccw-acff4745.js";import"./play-ee7a212d.js";import"./save-8d975c8e.js";function s(){return t.jsx(r,{tier:"mid"})}export{s as default};

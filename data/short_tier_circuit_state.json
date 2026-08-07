@@ -1,0 +1,152 @@
+{
+  "BTC": {
+    "consec_losses": 0,
+    "last_loss_at": 1786061307.9888494,
+    "banned_until": 1786081455.8089201
+  },
+  "ETH": {
+    "consec_losses": 0,
+    "last_loss_at": 1786061303.3376322,
+    "banned_until": 0
+  },
+  "ASTER": {
+    "consec_losses": 1,
+    "last_loss_at": 1784524396.7217467,
+    "banned_until": 0
+  },
+  "SOL": {
+    "consec_losses": 1,
+    "last_loss_at": 1786061469.6047072,
+    "banned_until": 0
+  },
+  "BNB": {
+    "consec_losses": 0,
+    "last_loss_at": 1784529224.95723,
+    "banned_until": 0
+  },
+  "CHIP": {
+    "consec_losses": 2,
+    "last_loss_at": 1783478610.6378663,
+    "banned_until": 0
+  },
+  "VIRTUAL": {
+    "consec_losses": 2,
+    "last_loss_at": 1783918778.2304032,
+    "banned_until": 0
+  },
+  "LIT": {
+    "consec_losses": 0,
+    "last_loss_at": 1786061472.662148,
+    "banned_until": 1786083072.662148
+  },
+  "CRV": {
+    "consec_losses": 0,
+    "last_loss_at": 1784004882.7090673,
+    "banned_until": 0
+  },
+  "SPX": {
+    "consec_losses": 0,
+    "last_loss_at": 1784089335.319382,
+    "banned_until": 0
+  },
+  "ZEC": {
+    "consec_losses": 1,
+    "last_loss_at": 1786061512.8541362,
+    "banned_until": 0
+  },
+  "FARTCOIN": {
+    "consec_losses": 1,
+    "last_loss_at": 1786059821.5170612,
+    "banned_until": 1786080835.8843994
+  },
+  "ONDO": {
+    "consec_losses": 1,
+    "last_loss_at": 1786061522.3394737,
+    "banned_until": 0
+  },
+  "XPL": {
+    "consec_losses": 1,
+    "last_loss_at": 1784189899.3487427,
+    "banned_until": 0
+  },
+  "ETHFI": {
+    "consec_losses": 2,
+    "last_loss_at": 1784190953.6894045,
+    "banned_until": 0
+  },
+  "LDO": {
+    "consec_losses": 0,
+    "last_loss_at": 1784351815.5690022,
+    "banned_until": 0
+  },
+  "KAITO": {
+    "consec_losses": 0,
+    "last_loss_at": 1786061095.2778592,
+    "banned_until": 1786082695.2778592
+  },
+  "HYPE": {
+    "consec_losses": 2,
+    "last_loss_at": 1786061514.797738,
+    "banned_until": 0
+  },
+  "KBONK": {
+    "consec_losses": 2,
+    "last_loss_at": 1784563235.625199,
+    "banned_until": 0
+  },
+  "VVV": {
+    "consec_losses": 2,
+    "last_loss_at": 1784600588.0403712,
+    "banned_until": 0
+  },
+  "PUMP": {
+    "consec_losses": 1,
+    "last_loss_at": 1786061507.8612168,
+    "banned_until": 0
+  },
+  "NEAR": {
+    "consec_losses": 1,
+    "last_loss_at": 1786061504.2067087,
+    "banned_until": 1786082701.0221007
+  },
+  "KPEPE": {
+    "consec_losses": 0,
+    "last_loss_at": 0,
+    "banned_until": 0
+  },
+  "AAVE": {
+    "consec_losses": 5,
+    "last_loss_at": 1786061518.2476351,
+    "banned_until": 1786083118.2476351
+  },
+  "XMR": {
+    "consec_losses": 0,
+    "last_loss_at": 1786060861.7602267,
+    "banned_until": 0
+  },
+  "UNI": {
+    "consec_losses": 1,
+    "last_loss_at": 1786059822.0640454,
+    "banned_until": 1786080916.686621
+  },
+  "ENA": {
+    "consec_losses": 3,
+    "last_loss_at": 1786060856.0943367,
+    "banned_until": 0
+  },
+  "TSLA": {
+    "consec_losses": 0,
+    "last_loss_at": 1786059635.744587,
+    "banned_until": 1786081235.744587
+  },
+  "ARB": {
+    "consec_losses": 3,
+    "last_loss_at": 1786059940.9472466,
+    "banned_until": 0
+  },
+  "WIF": {
+    "consec_losses": 2,
+    "last_loss_at": 1786060831.297213,
+    "banned_until": 0
+  }
+}

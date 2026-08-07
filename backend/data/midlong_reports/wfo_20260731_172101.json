@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-07-31T09:21:01.098368+00:00",
+  "lookback_days": 400,
+  "strategy": "ema_trend_proxy",
+  "note": "代理趋势策略 WFO，用于证明闭环；非实盘 MLTO 参数。",
+  "reports": [
+    {
+      "symbol": "BTC",
+      "ok": false,
+      "reason": "DataFrame constructor not properly called!"
+    }
+  ]
+}

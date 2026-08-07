@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-07-31T09:21:38.582905+00:00",
+  "lookback_days": 400,
+  "strategy": "ema_trend_proxy",
+  "note": "代理趋势策略 WFO，用于证明闭环；非实盘 MLTO 参数。",
+  "reports": [
+    {
+      "symbol": "BTC",
+      "ok": true,
+      "bars": 401,
+      "periods": 20,
+      "oos_return": 0.02811540293573439,
+      "oos_sharpe": 0.3888958756086375,
+      "oos_max_dd": 0.24204756381785217,
+      "overfitting_score": 0.0,
+      "consistency_score": 0.37205576916090866,
+      "dsr": 0.46549176326774677,
+      "psr": 0.8328566249011292,
+      "pbo": null,
+      "pbo_verdict": ""
+    },
+    {
+      "symbol": "ETH",
+      "ok": true,
+      "bars": 401,
+      "periods": 20,
+      "oos_return": 0.01878239703178138,
+      "oos_sharpe": -0.0077728946199575825,
+      "oos_max_dd": 0.2712141818968285,
+      "overfitting_score": 0.15725043039189768,
+      "consistency_score": 0.49407808494948835,
+      "dsr": 0.29210468592695493,
+      "psr": 0.6931771367395609,
+      "pbo": null,
+      "pbo_verdict": ""
+    }
+  ]
+}

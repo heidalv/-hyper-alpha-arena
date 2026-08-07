@@ -1,0 +1,110 @@
+[
+  {
+    "id": "btc_halving_2024",
+    "event": "BTC减半 2024",
+    "date": "2024-04-20",
+    "category": "protocol",
+    "impact": "供应减少，长期看涨",
+    "btc_change": "+120% (减半后1年)",
+    "lesson": "减半前1-2个月通常是最佳布局时机，减半后价格通常上涨但过程曲折"
+  },
+  {
+    "id": "btc_halving_2020",
+    "event": "BTC减半 2020",
+    "date": "2020-05-11",
+    "category": "protocol",
+    "impact": "供应减半，通缩效应",
+    "btc_change": "+650% (减半后1年)",
+    "lesson": "减半后通常有6-12个月的上涨周期，但过程会有大幅回调"
+  },
+  {
+    "id": "ftx_collapse_2022",
+    "event": "FTX交易所崩溃",
+    "date": "2022-11-11",
+    "category": "exchange",
+    "impact": "市场恐慌，流动性枯竭",
+    "btc_change": "-25% (2周内)",
+    "lesson": "中心化交易所风险高，资金应分散存放，过度DeFi需谨慎"
+  },
+  {
+    "id": "fed_rate_hike_2022",
+    "event": "美联储激进加息 2022",
+    "date": "2022-03-17",
+    "category": "macro",
+    "impact": "流动性收紧，风险资产承压",
+    "btc_change": "-60% (全年)",
+    "lesson": "高利率环境下BTC与纳指高度相关，应降低风险敞口"
+  },
+  {
+    "id": "china_crypto_ban_2021",
+    "event": "中国禁止加密货币挖矿",
+    "date": "2021-05-21",
+    "category": "regulation",
+    "impact": "算力转移，短期内市场恐慌",
+    "btc_change": "-50% (2个月内)",
+    "lesson": "监管政策冲击通常造成短期恐慌，但BTC网络具有韧性"
+  },
+  {
+    "id": "spot_etf_approval_2024",
+    "event": "BTC现货ETF获批",
+    "date": "2024-01-11",
+    "category": "regulation",
+    "impact": "机构资金涌入，市场大涨",
+    "btc_change": "+70% (3个月内)",
+    "lesson": "重大监管利好会引发持续上涨，可顺势持有但需设置止盈"
+  },
+  {
+    "id": "tether_binance_2023",
+    "event": "BUSD/Tether监管争议",
+    "date": "2023-02-13",
+    "category": "stablecoin",
+    "impact": "稳定币信心动摇",
+    "btc_change": "-20% (1个月内)",
+    "lesson": "稳定币脱锚事件会引发连锁恐慌，需关注稳定币储备透明度"
+  },
+  {
+    "id": "lunar_new_year_2023",
+    "event": "春节效应",
+    "date": "2023-01-22",
+    "category": "seasonal",
+    "impact": "亚洲市场成交量下降，波动降低",
+    "btc_change": "低波动横盘",
+    "lesson": "春节前后1-2周市场通常平淡，适合减少仓位观望"
+  },
+  {
+    "id": "us_election_2024",
+    "event": "美国大选",
+    "date": "2024-11-05",
+    "category": "political",
+    "impact": "政策不确定性增加",
+    "btc_change": "剧烈波动",
+    "lesson": "大选前后市场波动加剧，应降低杠杆比例，避免追涨杀跌"
+  },
+  {
+    "id": "cpi_inflation_2022",
+    "event": "美国CPI通胀爆表",
+    "date": "2022-06-10",
+    "category": "macro",
+    "impact": "通胀担忧加剧，加息预期升温",
+    "btc_change": "-15% (1周内)",
+    "lesson": "高通胀数据会引发风险资产抛售，需关注宏观数据发布时间"
+  },
+  {
+    "id": "bank_crisis_2023",
+    "event": "美国银行危机 (SVB)",
+    "date": "2023-03-10",
+    "category": "financial",
+    "impact": "银行业信心危机，可能引发流动性宽松预期",
+    "btc_change": "+35% (1个月内)",
+    "lesson": "银行危机通常导致避险情绪和宽松预期，对BTC短期利好"
+  },
+  {
+    "id": "sec_etf_rejections_2023",
+    "event": "SEC拒绝BTC ETF申请",
+    "date": "2023-06-15",
+    "category": "regulation",
+    "impact": "监管不确定性",
+    "btc_change": "-5% (当日)",
+    "lesson": "SEC决定通常造成短期波动，但不影响长期趋势"
+  }
+]

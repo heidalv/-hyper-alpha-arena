@@ -1,0 +1,22 @@
+{
+  "max_daily_trades": [],
+  "disabled_natures": [],
+  "min_risk_reward": [
+    {
+      "value": 2.5,
+      "source": "evolution_gc",
+      "confidence": 0.5,
+      "reason": "champion TP 16.2%/SL 5.1% → rr=2.5 (template=tpl_pro_e96eb89d, fitness=7.402)",
+      "created_at": 1783195907.468142,
+      "expires_at": 1783800707.468142
+    },
+    {
+      "value": 2.0,
+      "source": "decision_feedback",
+      "confidence": 0.6,
+      "reason": "daily_feedback_loop",
+      "created_at": 1783239622.9183972,
+      "expires_at": 1783369222.9183972
+    }
+  ]
+}

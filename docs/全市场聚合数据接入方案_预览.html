@@ -1,0 +1,876 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>全市场聚合数据接入方案</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--mut:#8b949e;--acc:#58a6ff;--bd:#30363d;--cd:#1f2428;--warn:#d29922;--err:#f85149}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,"Microsoft YaHei",sans-serif;line-height:1.75;max-width:980px;margin:0 auto;padding:32px 24px 100px}
+h1{color:#fff;border-bottom:2px solid var(--acc);padding-bottom:.4em;font-size:1.7em;margin-top:.5em}
+h2{color:#fff;border-bottom:1px solid var(--bd);padding-bottom:.3em;margin-top:2em;font-size:1.35em}
+h3{color:var(--acc);margin-top:1.6em;font-size:1.1em}
+h4{color:#fff;margin-top:1.3em}
+p,li{color:var(--fg)}
+blockquote{background:var(--card);border-left:4px solid var(--acc);margin:1em 0;padding:.8em 1.2em;color:#c9d1d9;border-radius:0 6px 6px 0}
+blockquote p{color:#c9d1d9;margin:.3em 0}
+code{background:var(--cd);color:#79c0ff;padding:2px 6px;border-radius:4px;font-size:.88em;font-family:Consolas,monospace}
+pre{background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:16px;overflow-x:auto}
+pre code{background:none;color:#e6edf3;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92em}
+th,td{border:1px solid var(--bd);padding:8px 12px;text-align:left}
+th{background:var(--card);color:#fff}
+tr:nth-child(even){background:rgba(22,27,34,.5)}
+hr{border:none;border-top:1px solid var(--bd);margin:2em 0}
+strong{color:#fff}
+</style></head><body><h1>全市场聚合数据接入方案 — 机构级对手盘数据基础设施</h1>
+
+<blockquote>**版本**：v1.0 &#124; **日期**：2026-07-10 &#124; **状态**：设计稿（待评审）</blockquote>
+<blockquote>**目标**：从单交易所盲人摸象，升级到全市场聚合视角，跟随大机构/大资金，做散户对手盘</blockquote>
+
+<hr>
+
+<h2>一、问题陈述</h2>
+
+<h3>1.1 现状：单交易所视角的致命缺陷</h3>
+
+<p>当前系统的数据来源高度集中在 Hyperliquid 单一交易所：</p>
+
+<table><thead><tr><th>数据类型</th><th>当前来源</th><th>问题</th></tr></thead><tbody>
+<tr><td>**鲸鱼数据**</td><td>mempool.space + blockchain.info（仅 BTC）</td><td>只看 BTC 链上转账，看不到交易所内大单、跨所搬砖、稳定币流向</td></tr>
+<tr><td>**资金流动性**</td><td>Etherscan gas（已证伪为合成假数据）</td><td>无法反映真实资金净流入/流出交易所</td></tr>
+<tr><td>**订单簿深度**</td><td>Hyperliquid 单所 WS</td><td>看不到 Binance/Bybit 的盘口，无法判断全市场买卖压力</td></tr>
+<tr><td>**资金费率**</td><td>Hyperliquid 固定值（已修复改用 Binance/Bybit）</td><td>仍缺 OKX/Gateio 等所，全市场费率套利视角不全</td></tr>
+<tr><td>**清算数据**</td><td>Coinalyze（聚合）</td><td>✅ 已是聚合源，但只覆盖清算一项</td></tr>
+</tbody></table>
+
+<h3>1.2 为什么必须升级</h3>
+
+<p>用户的核心交易哲学（正确）：</p>
+
+<blockquote>K线只反映价格历史，不能反映市场全貌。量化分析需要看到**做市商层面、大资金层面**的数据。我们要**跟着大机构和大资金走，做散户的对手盘**。</blockquote>
+
+<p>这要求：</p>
+<p>1. **全市场鲸鱼监控**：不是只看 BTC 链上，而是看所有大所在永续合约上的大单开仓、CEX 的稳定币净流入、巨鲸钱包的链上行为</p>
+<p>2. **跨所资金流**：资金从哪个所流向哪个所（USDT 充提、跨所搬套利），预示行情方向</p>
+<p>3. **聚合订单簿深度**：把 Binance+Bybit+OKX 的盘口合并，看真实买卖墙、冰山单</p>
+<p>4. **衍生品全市场指标**：全市场 OI、全市场多空比、清算热力图、资金费率套利空间</p>
+
+<p>单凭一个交易所的数据，**只能看到冰山一角**，会被大资金收割。</p>
+
+<hr>
+
+<h2>二、现有基础设施评估</h2>
+
+<h3>2.1 可复用的现成基建（好消息）</h3>
+
+<p>系统已有较好的扩展骨架，不需要从零重建：</p>
+
+<table><thead><tr><th>组件</th><th>位置</th><th>复用价值</th></tr></thead><tbody>
+<tr><td>**UnifiedDataPool**</td><td><code>unified_data_pool.py</code>（2962行）</td><td>核心数据载体，<code>_capture_xxx</code> 方法模式 + 16线程并行池，加新数据源只需加方法+加字段</td></tr>
+<tr><td>**UnifiedSnapshot**</td><td><code>unified_data_pool.py:108</code></td><td>注入 AI 决策的快照对象，加字段即让三周期策略看到新数据</td></tr>
+<tr><td>**ExchangeAdapterRegistry**</td><td><code>market_data_adapters/registry.py:35</code></td><td>行情层统一 adapter（ccxt 已封装 5 所），接新所只需加子类</td></tr>
+<tr><td>**multi_venue_funding_collector**</td><td><code>multi_venue_funding_collector.py</code>（499行）</td><td>&quot;列表配置+并发抓取+诊断+诚实空转&quot;模式，可作为聚合采集器的范本</td></tr>
+<tr><td>**跨所 WS 行情**</td><td><code>arbitrage/cross_exchange_ws_feed.py</code></td><td>已有 CCXT <code>watch_order_book</code> 多所 WS，目前只服务套利，可桥接到决策快照</td></tr>
+<tr><td>**CoinGecko/Coinalyze**</td><td>已落地实现</td><td>真实可用的聚合平台，可继续扩展</td></tr>
+</tbody></table>
+
+<h3>2.2 关键缺口</h3>
+
+<table><thead><tr><th>缺口</th><th>影响</th></tr></thead><tbody>
+<tr><td>UnifiedSnapshot **无 orderbook/跨所价差字段**</td><td>AI 决策看不到多所盘口深度</td></tr>
+<tr><td>CoinGlass/Glassnode/Arkham/Nansen **零代码**</td><td>没有专业级鲸鱼/链上/资金流数据</td></tr>
+<tr><td>whale_tracker **无统一多源插件接口**</td><td>三源硬编码，加源要改方法体</td></tr>
+<tr><td>跨所 orderbook **未桥接到决策快照**</td><td>只服务套利，AI 看不到</td></tr>
+<tr><td>无**聚合数据采集框架**（泛化的 funding collector）</td><td>每加一个数据源要从头写</td></tr>
+</tbody></table>
+
+<h3>2.3 可行性验证（2026-07-10 实测，结合项目现状）</h3>
+
+<blockquote>**以下结论均通过代码实测得出，非推测。** 这是设计的地基——任何方案都必须先过这些现实约束。</blockquote>
+
+<h4>验证 A：ccxt 多所公共 API 直连 —— ❌ 全部超时（关键阻塞点）</h4>
+
+<p>实测用 <code>ccxt.fetch_order_book(&#x27;BTC/USDT:USDT&#x27;)</code> 直连三所：</p>
+<pre><code>
+binance: ❌ NetworkError (api.binance.com 直连被墙)
+bybit:   ❌ RequestTimeout (8s 超时)
+okx:     ❌ RequestTimeout (8s 超时)
+</code></pre>
+<p>**根因**：<code>ccxt_base_adapter.py:63-72</code> 创建 ccxt 客户端时 **config 里没有 proxy 配置**。本机网络环境（国内）访问 Binance/Bybit/OKX 必须走代理（<code>127.0.0.1:1080</code>），但 ccxt 客户端没透传代理。</p>
+<p>**影响**：设计中所有&quot;用 ccxt 多所取盘口/OI/费率&quot;的方案，**必须先解决代理透传**，否则取不到任何数据。</p>
+<p>**修正方案**：</p>
+<li>在 <code>ccxt_base_adapter.py</code> 的 config 里加 <code>aiohttp_proxy</code> / <code>proxies</code>（读 <code>.env</code> 的 <code>BINANCE_HTTPS_PROXY</code>）</li>
+<li>同理 <code>cross_exchange_ws_feed.py</code> 的 ccxt async WS 也要配 <code>aiohttp_proxy</code></li>
+<li>这是 Phase 0 的**第一优先**前置任务（不加代理，后面全是空转）</li>
+
+<h4>验证 B：L2 订单簿基础设施 —— ✅ 存在，但当前无数据流入</h4>
+
+<p><code>market_data_hub</code> 有完整的 L2 基础设施：</p>
+<pre><code>
+属性: _l2_store, _store_l2, get_l2, publish_l2_book
+get_l2 签名: (exchange: str, symbol: str) -&gt; Optional[L2Snapshot]
+</code></pre>
+<p>但实测 <code>get_l2(&#x27;hyperliquid&#x27;,&#x27;BTC&#x27;)</code> 返回 <code>None</code> —— 当前没有 L2 数据在内存。</p>
+<p>**根因**：L2 数据的唯一写入方是 <code>arbitrage/cross_exchange_ws_feed.py</code>（<code>publish_l2_book</code>），它只在套利服务运行 + WS 连接建立后才写。若套利未启动或 WS 未连，L2 store 永远空。</p>
+<p>**修正方案**：前端盘口 Tab 不能依赖 <code>get_l2</code>（可能为空），必须走新建的实时采集端点（带代理的 ccxt 直取），并在 UI 上正确显示&quot;无数据&quot;（而非等待）。</p>
+
+<h4>验证 C：现有衍生品 API —— ⚠️ 响应超时（事件循环阻塞）</h4>
+
+<p>实测 <code>GET /api/intelligence/derivatives/BTC</code> → **超时**（后端健康但该端点无响应）。</p>
+<p>**根因**：该端点内部同步调用 Coinalyze/Hyperliquid REST（经代理），阻塞了 FastAPI 同步路由 + 事件循环。这与之前&quot;连接卡住&quot;同一类问题。</p>
+<p>**修正方案**：新建的中台 API 必须用**异步路由**（<code>async def</code>）+ <code>asyncio.to_thread</code> 包装同步调用，或用独立线程池，避免阻塞事件循环。</p>
+
+<h4>验证 D：ExchangeClientFactory 路径 —— ⚠️ 文档路径错误</h4>
+
+<p>实际路径是 <code>services/exchange/exchange_factory.py</code>（非 <code>services.exchange_factory</code>）。设计稿引用路径需更正。</p>
+
+<h4>验证 E：多所资金费矩阵 API —— ✅ 可复用</h4>
+
+<p><code>GET /api/rebate/funding-matrix</code> 已存在且实现完善（<code>rebate_routes.py:606-711</code>），含各所费率 + 健康状态。前端 OI/费率 Tab 可直接复用，无需新建。</p>
+
+<h3>2.4 修正后的数据源能力矩阵</h3>
+
+<blockquote>基于实测：ccxt 多所直连当前不可用（需先修代理），以下标注的是**代理修复后**的可达性。</blockquote>
+
+<table><thead><tr><th>数据类型</th><th>Hyperliquid</th><th>Binance</th><th>Bybit</th><th>OKX</th><th>Gate</th><th>Aster</th><th>CoinGecko</th><th>Coinalyze</th><th>阻塞点</th></tr></thead><tbody>
+<tr><td>K线</td><td>✅</td><td>⚠️需代理</td><td>⚠️需代理</td><td>⚠️需代理</td><td>⚠️需代理</td><td>✅</td><td>—</td><td>—</td><td>代理</td></tr>
+<tr><td>资金费率</td><td>✅(真实值)</td><td>✅(已有采集器)</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>—</td><td>✅</td><td>采集器默认关</td></tr>
+<tr><td>OI</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>—</td><td>✅</td><td>—</td></tr>
+<tr><td>清算</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>—</td><td>✅</td><td>—</td></tr>
+<tr><td>多空比</td><td>❌</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>—</td><td>✅</td><td>代理</td></tr>
+<tr><td>鲸鱼</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>—</td><td>—</td><td>**需新平台**</td></tr>
+<tr><td>资金净流</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>✅(市值)</td><td>—</td><td>**需新平台**</td></tr>
+<tr><td>订单簿深度</td><td>✅(WS)</td><td>⚠️需代理</td><td>⚠️需代理</td><td>⚠️需代理</td><td>⚠️需代理</td><td>❌</td><td>—</td><td>—</td><td>代理+WS</td></tr>
+<tr><td>情绪</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>—</td><td>Santiment</td></tr>
+</tbody></table>
+
+<p>**核心结论**：代理透传是解锁多所数据的**总开关**。Phase 0 必须先修这个，否则 Phase 1 的盘口/费率多所采集全部空转。</p>
+
+<hr>
+
+<h2>三、目标数据架构</h2>
+
+<h3>3.1 设计原则</h3>
+
+<p>1. **聚合优先**：优先用专业聚合平台（CoinGlass/Glassnode/Arkham），它们天然提供全市场视角，比逐所自采更全更准</p>
+<p>2. **复用现有**：基于 UnifiedDataPool 的 <code>_capture_xxx</code> 模式扩展，不重建架构</p>
+<p>3. **诚实降级**：数据源失败时空缺（标 N/A），绝不合成假数据（刚修的教训）</p>
+<p>4. **分级接入**：免费源先上（CoinGecko/Coinalyze 已有），付费源按价值逐步加</p>
+<p>5. **统一注入**：所有聚合数据汇入 <code>UnifiedSnapshot</code>，三周期策略自动可见</p>
+
+<h3>3.2 目标快照结构（UnifiedSnapshot 扩展）</h3>
+
+<pre><code>
+UnifiedSnapshot（扩展后）
+├── markets          ← 现有：单所价格/量
+├── klines           ← 现有：多周期K线
+├── indicators       ← 现有：技术指标
+├── accounts         ← 现有：账户
+├── strategy         ← 现有：策略分析
+├── whale_signals    ← 现有(扩)：单源→多源聚合
+├── derivatives_snapshot ← 现有(扩)：单所→全市场聚合
+├── sentiment_index  ← 现有
+├── 🆕 aggregate_market     ← 新增：全市场聚合指标
+│   ├── total_oi_by_exchange   各所OI分布
+│   ├── funding_arbitrage      跨所费率套利空间
+│   ├── global_long_short      全市场多空比
+│   └── liquidation_heatmap    清算热力图
+├── 🆕 smart_money_flow      ← 新增：聪明钱/资金流向
+│   ├── exchange_net_flow      交易所稳定币净流入/出
+│   ├── whale_wallet_activity  巨鲸钱包链上行为
+│   ├── stablecoin_flow        USDT/USDC 跨所流动
+│   └── institutional_position 大户持仓变化
+├── 🆕 aggregate_orderbook    ← 新增：聚合订单簿
+│   ├── merged_depth           多所盘口合并
+│   ├── bid_ask_imbalance      全市场买卖失衡
+│   ├── cross_venue_spread     跨所价差
+│   └── iceberg_detection      冰山单检测
+└── data_completeness ← 现有(扩)：纳入新数据源的完整度
+</code></pre>
+
+<h3>3.3 数据源选型（分层）</h3>
+
+<h4>第一层：免费聚合源（Phase 1，立即可做）</h4>
+<table><thead><tr><th>平台</th><th>数据</th><th>费用</th><th>接入难度</th></tr></thead><tbody>
+<tr><td>**CoinGecko**</td><td>市值、交易量、交易所排名</td><td>免费</td><td>✅ 已接入</td></tr>
+<tr><td>**Coinalyze**</td><td>清算、OI、多空比、资金费</td><td>免费(API Key)</td><td>✅ 已接入</td></tr>
+<tr><td>**DefiLlama**</td><td>TVL、链上协议资金</td><td>免费</td><td>✅ 已接入</td></tr>
+<tr><td>**mempool/blockchain.info**</td><td>BTC链上</td><td>免费</td><td>✅ 已接入</td></tr>
+</tbody></table>
+
+<h4>第二层：免费/低成本专业源（Phase 2，需注册）</h4>
+<table><thead><tr><th>平台</th><th>数据</th><th>费用</th><th>价值</th></tr></thead><tbody>
+<tr><td>**CoinGlass**</td><td>全所OI、清算热力图、多空比聚合</td><td>免费基础+付费高级</td><td>⭐⭐⭐⭐⭐ 衍生品全貌</td></tr>
+<tr><td>**Whale Alert**</td><td>跨链大额转账（XRP/ETH/USDT等）</td><td>免费额度</td><td>⭐⭐⭐ 稳定币流向</td></tr>
+<tr><td>**CCXT 多所公共API**</td><td>跨所 orderbook/OI/funding</td><td>免费</td><td>⭐⭐⭐⭐ 自采基础</td></tr>
+</tbody></table>
+
+<h4>第三层：付费专业源（Phase 3，按需）</h4>
+<table><thead><tr><th>平台</th><th>数据</th><th>费用</th><th>价值</th></tr></thead><tbody>
+<tr><td>**Glassnode**</td><td>交易所净流、链上指标、周期指标</td><td>$39/月起</td><td>⭐⭐⭐⭐⭐ 机构级链上</td></tr>
+<tr><td>**Arkham**</td><td>巨鲸钱包标签、实体追踪</td><td>部分免费</td><td>⭐⭐⭐⭐ 聪明钱追踪</td></tr>
+<tr><td>**CryptoQuant**</td><td>矿工流向、交易所储备</td><td>$29/月起</td><td>⭐⭐⭐⭐ BTC资金流</td></tr>
+<tr><td>**Santiment**</td><td>社交+链上+开发活动</td><td>$49/月起</td><td>⭐⭐⭐ 综合</td></tr>
+</tbody></table>
+
+<hr>
+
+<h2>四、执行方案（分四阶段）</h2>
+
+<h3>Phase 0：代理透传 + 泛化采集框架（2-3天）⚠️ 含关键阻塞点</h3>
+
+<p>**目标**：先解决代理阻塞（否则后续全是空转），再把 <code>multi_venue_funding_collector</code> 的成功模式抽象成通用框架。</p>
+
+<p>**0.1 代理透传（最高优先，实测阻塞点）**</p>
+<li>**问题**（验证 A 实测）：<code>ccxt_base_adapter.py:63-72</code> 的 ccxt config 无 proxy → Binance/Bybit/OKX 直连全部超时</li>
+<li>**改动**：在 config 里加代理（读 <code>.env</code> 的 <code>BINANCE_HTTPS_PROXY</code>）：</li>
+<pre><code>
+  # ccxt_base_adapter.py __init__ 里
+  proxy = os.environ.get(&quot;BINANCE_HTTPS_PROXY&quot;) or os.environ.get(&quot;HTTPS_PROXY&quot;)
+  if proxy:
+      config[&quot;aiohttp_proxy&quot;] = proxy      # async WS (watch_order_book)
+      config[&quot;proxies&quot;] = {&quot;http&quot;: proxy, &quot;https&quot;: proxy}  # sync REST
+</code></pre>
+<li>同样改 <code>cross_exchange_ws_feed.py</code> 的 ccxt async 创建处（加 <code>aiohttp_proxy</code>）</li>
+<li>**验收标准**：实测 <code>ccxt.binance().fetch_order_book(&#x27;BTC/USDT:USDT&#x27;)</code> 能返回真实盘口（非超时）</li>
+
+<p>**0.2 泛化采集基类**</p>
+<li>新建 <code>backend/services/market_aggregation/aggregate_collector_base.py</code> — 通用基类</li>
+<li><code>VENUES</code> 列表配置、<code>_fetch_one_venue</code> 并发抓取、<code>_persist</code> 幂等写入、健康诊断、诚实空转</li>
+<li>whale_tracker 抽 <code>_fetch_from_*</code> 为插件注册（<code>WHALE_SOURCES</code> 列表）</li>
+<li>UnifiedSnapshot 加 3 个新字段（<code>aggregate_market</code>/<code>smart_money_flow</code>/<code>aggregate_orderbook</code>）</li>
+
+<p>**验收**：代理修复后 Binance/Bybit 盘口可取；基类能被继承；whale_tracker 改插件式后行为不变。</p>
+
+<hr>
+
+<h3>Phase 1：免费源全量接入（3-5天）⚠️ 依赖 Phase 0 代理修复</h3>
+
+<p>**目标**：用免费源把&quot;全市场聚合视角&quot;补齐，让 AI 第一次看到多所数据。</p>
+<p>**前置**：Phase 0.1 代理透传必须完成，否则 ccxt 多所采集全部超时空转。</p>
+
+<p>**1.1 跨所订单簿聚合**（<code>_capture_orderbook</code>）</p>
+<li>**不能依赖 <code>market_data_hub.get_l2</code>**（验证 B 实测：当前 L2 store 为空，只有套利 WS 运行时才有数据）</li>
+<li>改为：新建 <code>AggregateOrderbookCollector</code>，用代理修复后的 ccxt 各所 <code>fetch_order_book</code> 实时聚合</li>
+<li>合并 Binance+Bybit+OKX 盘口 → 计算全市场买卖失衡、跨所价差</li>
+<li>注入 <code>UnifiedSnapshot.aggregate_orderbook</code></li>
+
+<p>**1.2 全市场 OI/费率聚合**（<code>_capture_aggregate_market</code>）</p>
+<li>开启已有的 <code>multi_venue_funding_collector</code>（改 <code>.env</code>：<code>MULTI_VENUE_FUNDING_COLLECTOR_ENABLED=true</code>）</li>
+<li>该采集器已有健康诊断 + 诚实空转（offline 时 rows_written=0 不造假），复用其 <code>/api/rebate/funding-collector/status</code></li>
+<li>新建 <code>AggregateMarketCollector</code>：聚合各所 OI → 全市场 OI 分布、费率套利空间</li>
+<li>数据源：代理修复后的 CCXT 公共 API（免费）+ Coinalyze（已有）</li>
+
+<p>**1.3 CoinGlass 衍生品聚合**（免费基础版）</p>
+<li>新建 <code>coinglass_client.py</code>：清算热力图、全所多空比、OI 聚合</li>
+<li>注册 CoinGlass 免费 API Key</li>
+<li>注入 <code>UnifiedSnapshot.aggregate_market</code></li>
+
+<p>**验收**：AI 决策 prompt 里出现&quot;全市场OI&quot;、&quot;跨所费率差&quot;、&quot;聚合盘口买卖失衡&quot;。</p>
+
+<hr>
+
+<h3>Phase 2：聪明钱/资金流向（5-7天）</h3>
+
+<p>**目标**：追踪大资金动向，实现&quot;跟随机构做散户对手盘&quot;。</p>
+
+<p>**2.1 交易所稳定币净流入**（<code>_capture_smart_money</code>）</p>
+<li>新建 <code>SmartMoneyFlowCollector</code></li>
+<li>数据源：CoinGecko（交易所交易量）+ Whale Alert（USDT/USDC 大额转账，免费额度）</li>
+<li>计算：各交易所 24h 稳定币净流入/出（资金流入所=可能要买，流出=可能要卖）</li>
+
+<p>**2.2 巨鲸钱包行为**（扩 whale_tracker）</p>
+<li>whale_tracker 插件化后新增数据源：</li>
+<li><code>WhaleAlertSource</code>：跨链大额转账</li>
+<li><code>HyperliquidLargeOrderSource</code>：Hyperliquid 大单开仓（复用现有 CVD 数据）</li>
+<li><code>BinanceLargeOrderSource</code>：Binance 大单（WS aggTrade）</li>
+<li>聚合后注入 <code>UnifiedSnapshot.smart_money_flow</code></li>
+
+<p>**2.3 大户持仓变化**</p>
+<li>Binance <code>topLongShortAccountRatio</code>（已有，修复代理后可用）</li>
+<li>Coinalyze 多空比（已有）</li>
+<li>聚合成&quot;全市场大户多空倾向&quot;</li>
+
+<p>**验收**：AI 能看到&quot;ETH 24h 交易所净流入 +$50M，大户多空比 1.8，鲸鱼净买入&quot;。</p>
+
+<hr>
+
+<h3>Phase 3：付费源按需接入（按预算）</h3>
+
+<p>**目标**：用专业数据补齐免费源覆盖不到的维度。</p>
+
+<li>Glassnode：交易所净流、链上周期指标（最推荐，机构标配）</li>
+<li>Arkham：巨鲸钱包标签识别（知道是哪个机构在动）</li>
+<li>CryptoQuant：BTC 矿工流向、交易所储备</li>
+
+<p>**验收**：数据完整度面板显示&quot;机构级数据覆盖率 &gt;80%&quot;。</p>
+
+<hr>
+
+<h3>Phase 4：对手盘信号引擎（3-5天）</h3>
+
+<p>**目标**：把聚合数据转化为**可交易的对手盘信号**。</p>
+
+<p>**4.1 散户情绪反向指标**</p>
+<li>聚合多空比 + 恐贪指数 + 社交情绪 → 计算&quot;散户拥挤度&quot;</li>
+<li>拥挤度过高 → 反向操作（散户做多拥挤→寻找做空机会）</li>
+
+<p>**4.2 聪明钱跟随信号**</p>
+<li>鲸鱼净买入 + 大户增持 + 资金净流入 → &quot;聪明钱看多&quot;信号</li>
+<li>结合价格位置（低位聪明钱买入=强信号）</li>
+
+<p>**4.3 流动性真空/堆叠检测**</p>
+<li>聚合订单簿 → 识别大单墙、流动性真空区</li>
+<li>价格接近流动性堆叠 → 预期磁吸效应</li>
+
+<p>**输出**：<code>UnifiedSnapshot.smart_money_flow.institutional_signal</code>，注入三周期策略的 quant_brief 和证据清单。</p>
+
+<hr>
+
+<h2>五、初级设计稿</h2>
+
+<h3>5.1 模块结构</h3>
+
+<pre><code>
+backend/services/market_aggregation/           🆕 新建目录
+├── aggregate_collector_base.py                通用采集基类（Phase 0）
+├── aggregate_orderbook_collector.py           聚合订单簿（Phase 1.1）
+├── aggregate_market_collector.py              全市场OI/费率（Phase 1.2）
+├── smart_money_flow_collector.py              聪明钱/资金流（Phase 2.1）
+├── institutional_signal_engine.py             对手盘信号引擎（Phase 4）
+└── sources/                                   数据源插件
+    ├── coinglass_client.py                    CoinGlass（Phase 1.3）
+    ├── whale_alert_client.py                  Whale Alert（Phase 2.1）
+    ├── glassnode_client.py                    Glassnode（Phase 3）
+    └── arkham_client.py                       Arkham（Phase 3）
+
+backend/services/                              现有文件改动
+├── unified_data_pool.py                       加3个_capture方法+3个字段
+├── whale_tracker_service.py                   插件化WHALE_SOURCES
+├── exchange/ccxt_base_adapter.py              🆕Phase0 代理透传(最高优先)
+├── arbitrage/cross_exchange_ws_feed.py        🆕Phase0 WS代理透传
+└── decision_core/
+    └── quant_brief.py                         加对手盘信号段
+</code></pre>
+
+<h3>5.2 通用采集基类设计</h3>
+
+<pre><code>
+# backend/services/market_aggregation/aggregate_collector_base.py
+&quot;&quot;&quot;
+全市场聚合数据采集基类 — 泛化自 multi_venue_funding_collector 的成功模式。
+子类只需实现 _fetch_one_venue，自动获得：并发抓取/诊断/降级/持久化。
+&quot;&quot;&quot;
+class AggregateCollectorBase:
+    VENUES: list[str] = []              # 子类配置：[&quot;binance&quot;,&quot;bybit&quot;,&quot;okx&quot;]
+    CACHE_TTL: int = 60                 # 缓存秒数
+    SOURCE_NAME: str = &quot;&quot;               # 数据源名（诊断用）
+
+    def collect(self, symbols: list[str]) -&gt; dict:
+        &quot;&quot;&quot;主入口：并发抓取所有venue，聚合返回。失败venue诚实跳过。&quot;&quot;&quot;
+        results = {}
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {
+                pool.submit(self._fetch_one_venue, venue, symbols): venue
+                for venue in self._healthy_venues()
+            }
+            for future in as_completed(futures):
+                venue = futures[future]
+                try:
+                    data = future.result()
+                    if data:
+                        results[venue] = data  # 只存成功的，失败的直接不出现
+                except Exception as e:
+                    logger.warning(f&quot;[{self.SOURCE_NAME}] {venue} 采集失败，跳过: {e}&quot;)
+        return self._aggregate(results)  # 子类实现聚合逻辑
+
+    def _fetch_one_venue(self, venue, symbols) -&gt; dict &#124; None:
+        &quot;&quot;&quot;子类实现：从单个venue抓取。失败返回None（不造假）。&quot;&quot;&quot;
+        raise NotImplementedError
+
+    def _aggregate(self, venue_results: dict) -&gt; dict:
+        &quot;&quot;&quot;子类实现：把多venue结果聚合成统一结构。&quot;&quot;&quot;
+        raise NotImplementedError
+
+    def _healthy_venues(self) -&gt; list[str]:
+        &quot;&quot;&quot;过滤掉连续失败的venue（健康诊断）。&quot;&quot;&quot;
+        ...
+</code></pre>
+
+<h3>5.3 聚合订单簿采集器（示例实现骨架）</h3>
+
+<pre><code>
+# backend/services/market_aggregation/aggregate_orderbook_collector.py
+class AggregateOrderbookCollector(AggregateCollectorBase):
+    &quot;&quot;&quot;合并多所订单簿 → 全市场买卖失衡 + 跨所价差。
+    复用 arbitrage/cross_exchange_ws_feed 已有的多所 WS 连接。&quot;&quot;&quot;
+    VENUES = [&quot;binance&quot;, &quot;bybit&quot;, &quot;okx&quot;]
+    CACHE_TTL = 5  # 盘口变化快，5秒缓存
+    SOURCE_NAME = &quot;AggregateOrderbook&quot;
+
+    def _fetch_one_venue(self, venue, symbols):
+        # 复用 cross_exchange_ws_feed 的 watch_order_book
+        client = get_cross_exchange_client(venue)
+        books = {}
+        for sym in symbols:
+            ob = client.fetch_order_book(f&quot;{sym}/USDT:USDT&quot;, limit=20)
+            books[sym] = {&quot;bids&quot;: ob[&quot;bids&quot;][:20], &quot;asks&quot;: ob[&quot;asks&quot;][:20]}
+        return books
+
+    def _aggregate(self, venue_results):
+        merged = {}
+        for sym in self._symbols:
+            all_bids, all_asks = [], []
+            for venue, books in venue_results.items():
+                ob = books.get(sym, {})
+                for price, size in ob.get(&quot;bids&quot;, []):
+                    all_bids.append((price, size, venue))
+                for price, size in ob.get(&quot;asks&quot;, []):
+                    all_asks.append((price, size, venue))
+            # 合并排序 → 计算全市场买卖失衡
+            bid_vol = sum(s for _, s, _ in all_bids)
+            ask_vol = sum(s for _, s, _ in all_asks)
+            merged[sym] = {
+                &quot;merged_bid_volume&quot;: bid_vol,
+                &quot;merged_ask_volume&quot;: ask_vol,
+                &quot;global_imbalance&quot;: (bid_vol - ask_vol) / max(bid_vol + ask_vol, 1e-9),
+                &quot;best_bid&quot;: max(p for p, _, _ in all_bids) if all_bids else None,
+                &quot;best_ask&quot;: min(p for p, _, _ in all_asks) if all_asks else None,
+                &quot;cross_venue_spread&quot;: self._calc_spread(all_bids, all_asks),
+            }
+        return merged
+</code></pre>
+
+<h3>5.4 UnifiedSnapshot 扩展（3个新字段）</h3>
+
+<pre><code>
+# unified_data_pool.py 的 UnifiedSnapshot dataclass 扩展
+@dataclass
+class UnifiedSnapshot:
+    # ... 现有字段 ...
+
+    # 🆕 全市场聚合指标（Phase 1）
+    aggregate_market: Dict[str, Any] = field(default_factory=dict)
+    # 结构: {symbol: {total_oi, oi_by_exchange, funding_arb, global_ls_ratio, liq_heatmap}}
+
+    # 🆕 聪明钱/资金流向（Phase 2）
+    smart_money_flow: Dict[str, Any] = field(default_factory=dict)
+    # 结构: {symbol: {exchange_net_flow, whale_net, stablecoin_flow, institutional_signal}}
+
+    # 🆕 聚合订单簿（Phase 1）
+    aggregate_orderbook: Dict[str, Any] = field(default_factory=dict)
+    # 结构: {symbol: {merged_bid_vol, merged_ask_vol, global_imbalance, cross_spread}}
+</code></pre>
+
+<h3>5.5 注入 AI 决策（quant_brief 扩展）</h3>
+
+<pre><code>
+# decision_core/quant_brief.py 新增对手盘信号段
+def build_smart_money_block(snapshot, symbol) -&gt; str:
+    &quot;&quot;&quot;聪明钱/对手盘信号 → 注入 Swing/Trend 的 prompt&quot;&quot;&quot;
+    am = snapshot.aggregate_market.get(symbol, {})
+    sm = snapshot.smart_money_flow.get(symbol, {})
+    ob = snapshot.aggregate_orderbook.get(symbol, {})
+    lines = []
+    if am.get(&quot;total_oi&quot;):
+        lines.append(f&quot;全市场OI: ${am[&#x27;total_oi&#x27;]:,.0f} ({am.get(&#x27;oi_concentration&#x27;,&#x27;?&#x27;)})&quot;)
+    if sm.get(&quot;exchange_net_flow&quot;):
+        flow = sm[&quot;exchange_net_flow&quot;]
+        direction = &quot;净流入(潜在买盘)&quot; if flow &gt; 0 else &quot;净流出(潜在卖盘)&quot;
+        lines.append(f&quot;交易所资金{direction}: ${abs(flow):,.0f}&quot;)
+    if sm.get(&quot;institutional_signal&quot;):
+        lines.append(f&quot;机构信号: {sm[&#x27;institutional_signal&#x27;]}&quot;)
+    if ob.get(&quot;global_imbalance&quot;) is not None:
+        imb = ob[&quot;global_imbalance&quot;]
+        lines.append(f&quot;盘口失衡: {imb:+.2f} ({&#x27;买方主导&#x27; if imb &gt; 0.1 else &#x27;卖方主导&#x27; if imb &lt; -0.1 else &#x27;均衡&#x27;})&quot;)
+    return &quot;\n&quot;.join(lines) if lines else &quot;&quot;
+</code></pre>
+
+<h3>5.6 数据源健康诊断面板</h3>
+
+<pre><code>
+┌─────────────────────────────────────────────────────────┐
+│  全市场聚合数据健康面板                                    │
+├──────────────────┬──────┬────────┬──────────────────────┤
+│ 数据源           │ 状态 │ 延迟   │ 覆盖币种             │
+├──────────────────┼──────┼────────┼──────────────────────┤
+│ Binance orderbook│ ✅   │ 120ms  │ BTC/ETH/SOL/...      │
+│ Bybit orderbook  │ ✅   │ 180ms  │ BTC/ETH/SOL          │
+│ OKX orderbook    │ ❌   │ 超时   │ (代理问题)           │
+│ CoinGlass OI     │ ✅   │ 2s     │ 全市场               │
+│ Whale Alert      │ ✅   │ 5s     │ USDT/ETH 大额        │
+│ Coinalyze 清算   │ ✅   │ 1s     │ BTC/ETH/SOL          │
+│ Glassnode(未接入)│ ⏸   │ —      │ Phase 3              │
+├──────────────────┼──────┼────────┼──────────────────────┤
+│ 聚合完整度       │ 78%  │        │ 6/8 数据源可用       │
+└──────────────────┴──────┴────────┴──────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2>六、优先级与里程碑</h2>
+
+<table><thead><tr><th>阶段</th><th>工作量</th><th>交付物</th><th>价值</th></tr></thead><tbody>
+<tr><td>**Phase 0** 采集框架</td><td>1-2天</td><td>通用基类 + whale 插件化 + snapshot 扩展</td><td>后续每个源接入成本降到半天</td></tr>
+<tr><td>**Phase 1** 免费源</td><td>3-5天</td><td>跨所盘口 + 全市场OI + CoinGlass</td><td>AI 第一次有全市场视角 ⭐⭐⭐⭐</td></tr>
+<tr><td>**Phase 2** 聪明钱</td><td>5-7天</td><td>资金净流 + 鲸鱼多源 + 大户持仓</td><td>实现&quot;跟大资金&quot;核心目标 ⭐⭐⭐⭐⭐</td></tr>
+<tr><td>**Phase 3** 付费源</td><td>按预算</td><td>Glassnode/Arkham/CryptoQuant</td><td>机构级数据完整度</td></tr>
+<tr><td>**Phase 4** 信号引擎</td><td>3-5天</td><td>对手盘信号 + 散户拥挤度 + 流动性检测</td><td>把数据变成可交易信号 ⭐⭐⭐⭐</td></tr>
+</tbody></table>
+
+<p>**建议起步**：先做 Phase 0 + Phase 1（合计 5-7 天），让 AI 立刻拥有全市场盘口和 OI 视角。这是性价比最高的第一步，全部用免费源，不增加成本。</p>
+
+<hr>
+
+<h2>七、风险与对策</h2>
+
+<table><thead><tr><th>风险</th><th>对策</th></tr></thead><tbody>
+<tr><td>代理/网络问题导致多所API失败</td><td>复用 <code>BINANCE_HTTPS_PROXY</code>；失败的所诚实跳过，不造假</td></tr>
+<tr><td>API 限频</td><td>复用 funding collector 的 rateLimit；CCXT 自带限频</td></tr>
+<tr><td>聚合数据延迟影响决策</td><td>盘口走 WS（实时），OI/资金流走 60s 缓存（可接受）</td></tr>
+<tr><td>付费源成本</td><td>Phase 1-2 全免费；付费源按月评估 ROI 再开</td></tr>
+<tr><td>数据量增大拖慢快照</td><td>并行采集（16线程池已有）；只注入账户选中的币种</td></tr>
+</tbody></table>
+
+<hr>
+
+<h2>附录 A：关键文件清单</h2>
+
+<table><thead><tr><th>文件</th><th>角色</th><th>改动类型</th></tr></thead><tbody>
+<tr><td><code>unified_data_pool.py:108</code></td><td>快照定义</td><td>加3字段</td></tr>
+<tr><td><code>unified_data_pool.py:212-264</code></td><td>采集流水线</td><td>加3个_capture调用</td></tr>
+<tr><td><code>multi_venue_funding_collector.py</code></td><td>范本</td><td>参考不改动</td></tr>
+<tr><td><code>arbitrage/cross_exchange_ws_feed.py</code></td><td>多所WS</td><td>复用桥接</td></tr>
+<tr><td><code>whale_tracker_service.py</code></td><td>鲸鱼</td><td>插件化</td></tr>
+<tr><td><code>decision_core/quant_brief.py</code></td><td>决策注入</td><td>加对手盘段</td></tr>
+<tr><td><code>market_aggregation/</code>（新目录）</td><td>全部新增</td><td>Phase 0-4</td></tr>
+</tbody></table>
+
+<h2>附录 B：配置项（.env 新增）</h2>
+
+<pre><code>
+# 全市场聚合数据开关
+AGGREGATE_ORDERBOOK_ENABLED=true
+AGGREGATE_ORDERBOOK_VENUES=binance,bybit,okx
+AGGREGATE_MARKET_ENABLED=true
+COINGLASS_API_KEY=&lt;待注册&gt;
+SMART_MONEY_FLOW_ENABLED=true
+WHALE_ALERT_API_KEY=&lt;待注册&gt;
+# Phase 3 付费源（按需）
+GLASSNODE_API_KEY=
+ARKHAM_API_KEY=
+</code></pre>
+
+<hr>
+
+<h2>八、前端数据中台页面设计</h2>
+
+<h3>8.0 设计原则（铁律）</h3>
+
+<blockquote>**数据拿不到就显示&quot;缺失&quot;，绝不用兜底占位数据。没有就是没有。**</blockquote>
+
+<p>这是整套前端的最高约束，源于用户的核心交易思想：误导性的假数据比没有数据危害大得多——它会让人基于不存在的&quot;信号&quot;做出错误的开仓决策。</p>
+
+<p>**三条硬性 UI 规范（贯穿全页面）**：</p>
+
+<p>1. **来源透明**：每个数值必须标注数据来源（如 <code>来源:Coinalyze</code>、<code>来源:Binance+Bybit</code>）。用户随时可追溯每个数字从哪来。</p>
+<p>2. **状态可视**：每个指标带状态标签 —— ✅实时（绿色）/ ⏳延迟（黄色，超TTL）/ ❌缺失（红色）。</p>
+<p>3. **缺失即缺失**：数据源失败时，对应卡片变灰 + 红色&quot;❌ 数据缺失&quot;标签 + 失败原因（如&quot;binance SSL timeout&quot;），**不显示任何数字**。绝不用 0 / 50 / 1.0 这类中性占位值冒充真实数据。</p>
+
+<hr>
+
+<h3>8.1 页面定位与导航</h3>
+
+<table><thead><tr><th>维度</th><th>决策</th></tr></thead><tbody>
+<tr><td>**页面 key**</td><td><code>market-intelligence</code></td></tr>
+<tr><td>**页面名**</td><td>全市场实盘数据中台</td></tr>
+<tr><td>**与 data-center 关系**</td><td>**全新独立页面**，与 data-center 并存。data-center 保留做历史K线同步/数据质量；本页面专做多所实盘实时数据 + 数据源配置</td></tr>
+<tr><td>**导航位置**</td><td><code>obsidia/plugins.tsx</code> 的 intelligencePlugin（智能/分析分组），与 data-center 同组</td></tr>
+<tr><td>**连接要求**</td><td>加入 <code>NO_CONN_PAGES</code>（无需账户登录即可查看，独立运作）</td></tr>
+<tr><td>**懒加载**</td><td><code>React.lazy(() =&gt; import(&#x27;./components/market-intelligence/MarketIntelView&#x27;))</code></td></tr>
+</tbody></table>
+
+<h3>8.2 整体布局</h3>
+
+<pre><code>
+┌──────────────────────────────────────────────────────────────────┐
+│  全市场实盘数据中台                          [币种: BTC▾ ETH SOL] │
+├──────────────────────────────────────────────────────────────────┤
+│  📊 数据健康度                                                    │
+│  ┌──────────┬──────────┬──────────┬──────────────────────────┐  │
+│  │  78%     │  5/8     │  3 项    │  Binance✅ Bybit✅ OKX❌ │  │
+│  │ 总可用率 │ 数据源   │ 缺失     │  Gate✅ Coinalyze✅ ...  │  │
+│  └──────────┴──────────┴──────────┴──────────────────────────┘  │
+├──────────────────────────────────────────────────────────────────┤
+│  [多所盘口深度] [全市场OI/费率] [鲸鱼/资金流] [数据源配置]       │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│                   （当前 Tab 内容区，见 8.3-8.6）                 │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p>**顶部数据健康度仪表盘**（常驻，所有 Tab 可见）：</p>
+<li>总可用率：<code>sum(可用项) / sum(全部项)</code>，实时计算</li>
+<li>数据源在线数：<code>5/8</code>（在线/总数）</li>
+<li>缺失项数：红色高亮，点击展开缺失清单</li>
+<li>各源状态徽章：逐个交易所/平台的 ✅/❌ 状态</li>
+
+<h3>8.3 Tab 1：多所盘口深度</h3>
+
+<p>**目标**：把 Binance+Bybit+OKX 的订单簿合并，看全市场买卖压力、跨所价差。</p>
+
+<pre><code>
+┌──────────────────────────────┬───────────────────────────────────┐
+│  聚合盘口深度 (BTC)          │  全市场买卖失衡                   │
+│  来源: Binance+Bybit+OKX ✅  │  来源: 实时聚合 ✅                │
+│                              │                                   │
+│  卖单 (红)                   │     ╱╲                            │
+│  64200 ████████ 2.3M  Binance│    ╱  ╲      ╱╲                   │
+│  64180 ██████ 1.8M    Bybit  │   ╱    ╲    ╱  ╲  ← 实时折线     │
+│  64150 ████ 1.2M      OKX    │  ╱      ╲╱╱                      │
+│  ────── 当前价 64120 ──────  │  -0.3  0  +0.4  (失衡值)          │
+│  64120 ██████████ 3.1M Binance│                                  │
+│  64100 ███████ 2.0M   Bybit  │  当前: +0.12 (买方略主导)         │
+│  64080 █████ 1.5M     OKX    │                                   │
+│  买单 (绿)                   │                                   │
+├──────────────────────────────┴───────────────────────────────────┤
+│  跨所价差表                              来源: 各所WS ✅         │
+│  ┌──────────┬──────────┬──────────┬──────────┬────────┐         │
+│  │ 交易所   │ Best Bid │ Best Ask │ 价差     │ 状态   │         │
+│  │ Binance  │ 64120    │ 64125    │ $5       │ ✅     │         │
+│  │ Bybit    │ 64118    │ 64124    │ $6       │ ✅     │         │
+│  │ OKX      │   —      │   —      │   —      │ ❌缺失 │         │
+│  └──────────┴──────────┴──────────┴──────────┴────────┘         │
+│  （OKX 取不到 → 整行标红&quot;缺失&quot;，不显示假价格）                    │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p>**关键交互**：</p>
+<li>深度条按价格档位合并多所量，每档标注最大贡献交易所</li>
+<li>失衡折线用 recharts，滚动窗口（参考 <code>AssetCurveChart.tsx</code> 模式），<code>isAnimationActive={false}</code></li>
+<li>各所独立标 available；某所超时则该行变灰 + ❌，不影响其他所展示</li>
+
+<h3>8.4 Tab 2：全市场 OI / 资金费率</h3>
+
+<p>**目标**：各交易所 OI 分布、资金费率对比、费率套利空间。复用现有 <code>/api/rebate/funding-matrix</code> + <code>/api/intelligence/derivatives</code>。</p>
+
+<pre><code>
+┌────────────────────────┬──────────────────────────────────────┐
+│  OI 分布 (BTC)         │  资金费率对比                        │
+│  来源: Coinalyze ✅    │  来源: 多所采集器 ✅                 │
+│                        │                                      │
+│   Binance  ███████ 45% │  ┌──────┬────────┬────────┬───────┐  │
+│   Bybit    █████  28%  │  │ 交易所│ 费率   │ 下次结算│ 状态  │  │
+│   OKX      ████   18%  │  │Binance│0.0065% │ 4h后   │ ✅    │  │
+│   Hyperliq ██      6%  │  │Bybit  │0.0100% │ 4h后   │ ✅    │  │
+│   其他     █       3%  │  │OKX    │  —     │  —     │ ❌缺失│  │
+│                        │  └──────┴────────┴────────┴───────┘  │
+│   总OI: 380,000 BTC    │                                      │
+├────────────────────────┴──────────────────────────────────────┤
+│  费率套利空间                          来源: 自动计算 ✅       │
+│  ⚡ Binance(0.0065%) vs Bybit(0.0100%): 价差 0.0035%           │
+│  → 做多低费率所 + 做空高费率所，收费率差                         │
+│  （费率差 &gt; 0.003% 高亮为可套利机会）                           │
+├───────────────────────────────────────────────────────────────┤
+│  清算热力图                            来源: Coinalyze ✅      │
+│  [当前价 64120]                                                │
+│  上方清算: $2.8M (空头清算区，磁吸效应↑)                       │
+│  下方清算: $1.5M (多头清算区)                                  │
+└───────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.5 Tab 3：鲸鱼 / 资金流</h3>
+
+<p>**目标**：追踪大资金动向，实现&quot;跟随机构做散户对手盘&quot;。复用 <code>/api/intelligence/whale</code>。</p>
+
+<pre><code>
+┌────────────────────────────┬──────────────────────────────────┐
+│  鲸鱼异动 (实时流)          │  交易所资金净流入/出             │
+│  来源: mempool+CVD ✅      │  来源: Whale Alert ⚠️(部分缺失) │
+│                            │                                  │
+│  🔴 12:34 ETH -$8.2M       │     ▲ +50M                       │
+│      鲸鱼转入交易所(潜在卖) │     │                            │
+│  🟢 12:28 BTC +$5.1M       │     │    ▲ +30M                  │
+│      鲸鱼转出交易所(潜在买) │     │    │    ▲                   │
+│  🔴 12:15 ETH -$3.0M       │  ───┼────┼────┼─────── 0线       │
+│      ...                   │     │    │    │                   │
+│  [自动滚动，新事件置顶]     │     ▼-20M                        │
+│                            │  Binance Bybit OKX               │
+│  聚合方向: 净流出 -$6.1M   │  (流入▲=潜在买盘，流出▼=潜在卖)  │
+│  (资金正在离开交易所)       │                                  │
+├────────────────────────────┴──────────────────────────────────┤
+│  大户多空比                       来源: Binance ✅ / OKX ❌   │
+│  Binance: 1.92 (多头拥挤)  ← 当前                               │
+│  ┄┄┄┄┄┄┄┄ 趋势折线 ┄┄┄┄┄┄┄┄                                   │
+│  ⚠️ 多头拥挤 &gt;1.8 时关注反向机会（散户做多拥挤→寻找做空）       │
+└───────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.6 Tab 4：数据源配置</h3>
+
+<p>**目标**：配置各交易所开关、API Key、采集频率；查看每个数据源实时健康状态。</p>
+
+<pre><code>
+┌──────────────────────────────────────────────────────────────┐
+│  交易所接入配置                                              │
+├──────────┬────────┬──────────┬──────────┬───────────────────┤
+│ 交易所   │ 启用   │ API Key  │ 延迟     │ 健康              │
+│ Binance  │ [ON]   │ ✅已配置 │ 120ms    │ ✅ 正常           │
+│ Bybit    │ [ON]   │ 公共API  │ 180ms    │ ✅ 正常           │
+│ OKX      │ [OFF]  │ 公共API  │   —      │ ❌ 连接失败       │
+│ Gate.io  │ [ON]   │ 公共API  │ 220ms    │ ✅ 正常           │
+│ Hyperliq │ [ON]   │ ✅已配置 │ 80ms     │ ✅ 正常           │
+├──────────┴────────┴──────────┴──────────┴───────────────────┤
+│  聚合数据源配置                                              │
+├──────────────────┬────────┬──────────┬──────────────────────┤
+│ 数据源           │ 启用   │ Key状态  │ 健康                 │
+│ CoinGecko(免费)  │ [ON]   │ 无需     │ ✅ 在线              │
+│ Coinalyze        │ [ON]   │ ✅已配置 │ ✅ 在线              │
+│ CoinGlass        │ [OFF]  │ ❌未配置 │ ⏸ 未启用            │
+│ Whale Alert      │ [OFF]  │ ❌未配置 │ ⏸ 未启用            │
+│ Glassnode(付费)  │ [OFF]  │ ❌未配置 │ ⏸ 未启用            │
+├──────────────────┴────────┴──────────┴──────────────────────┤
+│  采集频率                                                    │
+│  盘口刷新: [5秒 ▾]    OI/费率: [60秒 ▾]    鲸鱼: [实时]      │
+│                                                              │
+│                                          [保存配置]          │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.7 通用组件设计：IntelCard（数据真实性卡片）</h3>
+
+<p>所有指标卡片都基于这个统一组件，**强制带来源+状态**：</p>
+
+<pre><code>
+// components/market-intelligence/IntelCard.tsx
+interface IntelCardProps {
+  title: string           // &quot;资金费率&quot; / &quot;OI分布&quot; / &quot;鲸鱼方向&quot;
+  source: string          // &quot;Coinalyze&quot; / &quot;Binance+Bybit&quot; / &quot;mempool+CVD&quot;
+  status: &#x27;realtime&#x27; &#124; &#x27;stale&#x27; &#124; &#x27;missing&#x27;  // ✅ ⏳ ❌
+  missingReason?: string  // &quot;binance SSL timeout&quot;
+  children: ReactNode     // 有数据时的内容
+}
+
+// 渲染逻辑：
+// - status=realtime: 绿色✅ + 正常显示 children
+// - status=stale:    黄色⏳ + 显示数据 + 角标&quot;延迟&quot;
+// - status=missing:  整卡变灰 + 红色❌&quot;数据缺失&quot; + missingReason，不渲染 children
+</code></pre>
+
+<p>**状态标签规范**：</p>
+<table><thead><tr><th>状态</th><th>图标</th><th>颜色</th><th>含义</th></tr></thead><tbody>
+<tr><td>realtime</td><td>✅</td><td>绿色</td><td>数据新鲜（在TTL内）</td></tr>
+<tr><td>stale</td><td>⏳</td><td>黄色</td><td>数据过期（超TTL但非空）</td></tr>
+<tr><td>missing</td><td>❌</td><td>红色</td><td>数据源失败/未取到</td></tr>
+</tbody></table>
+
+<h3>8.8 数据流设计</h3>
+
+<p>**轮询模式**（非WS，复用 DataCenterView 的成熟模式）：</p>
+<pre><code>
+MarketIntelView
+  ├── usePageActive() → 仅当前可见 Tab 才轮询（省资源）
+  ├── setInterval 5s  → GET /api/market-intel/overview?symbols=选中币种
+  │       └── 后端聚合：调用各数据源服务，每项标 available + source
+  ├── Tab 切换 → 各 Tab 独立按需加载细分数据
+  │       ├── 盘口Tab: GET /api/market-intel/orderbook/{symbol}
+  │       ├── OI/费率Tab: 复用 /api/rebate/funding-matrix
+  │       └── 鲸鱼Tab: 复用 /api/intelligence/whale/{symbol}
+  └── 健康度: GET /api/market-intel/data-health（30s轮询）
+</code></pre>
+
+<p>**为什么用轮询而非 WS**：</p>
+<li>现有 WS（wsManager）是单连接复用、账户交易快照导向，无市场数据推送通道</li>
+<li>新建市场数据 WS 推送通道工程量大且非首期必需</li>
+<li>5秒轮询对盘口足够实时，OI/费率/鲸鱼变化慢，60秒即可</li>
+<li>参考 DataCenterView 的成熟轮询模式，风险低</li>
+
+<h3>8.9 后端 API 设计</h3>
+
+<p>**新建 <code>backend/api/market_intelligence_routes.py</code>**（router prefix <code>/api/market-intel</code>）：</p>
+
+<table><thead><tr><th>端点</th><th>功能</th><th>真实性处理</th></tr></thead><tbody>
+<tr><td><code>GET /overview?symbols=</code></td><td>总览：每币多维数据</td><td>每项带 <code>{value, source, available, stale}</code></td></tr>
+<tr><td><code>GET /orderbook/{symbol}?depth=20</code></td><td>多所聚合盘口</td><td>各所独立标 available，某所失败=该所null</td></tr>
+<tr><td><code>GET /data-health</code></td><td>数据健康面板</td><td>暴露 data_readiness_gate 的 missing/warnings</td></tr>
+<tr><td><code>GET /sources-config</code></td><td>读取数据源配置</td><td>返回各所开关/Key状态/健康</td></tr>
+<tr><td><code>PUT /sources-config</code></td><td>保存配置</td><td>更新 .env / 内存开关</td></tr>
+</tbody></table>
+
+<blockquote>⚠️ **可行性约束（验证 C 实测）**：现有 <code>/api/intelligence/derivatives/BTC</code> 同步路由超时无响应（事件循环被同步REST调用阻塞）。**新建的中台 API 必须用异步路由**：<code>async def</code> + <code>asyncio.to_thread()</code> 包装所有同步的 ccxt/REST 调用，或用 <code>run_in_executor</code>，避免一个慢请求拖死整个事件循环。这是硬性要求，否则页面会卡死。</blockquote>
+
+<blockquote>⚠️ **订单簿数据源约束（验证 B 实测）**：<code>market_data_hub.get_l2()</code> 当前返回 None（L2 store 为空，只有套利WS运行时才写入）。**<code>/orderbook/{symbol}</code> 端点不能依赖 get_l2**，必须用代理修复后的 ccxt <code>fetch_order_book</code> 实时取（Phase 0.1 前置任务），或在 get_l2 为空时降级到 ccxt 实时取。</blockquote>
+
+<p>**响应真实性规范**（所有端点统一）：</p>
+<pre><code>
+# 每个数据项的标准结构
+{
+    &quot;value&quot;: &lt;实际值或null&gt;,
+    &quot;source&quot;: &quot;数据来源名&quot;,
+    &quot;available&quot;: true/false,    # 是否真实可用
+    &quot;reason&quot;: null/&quot;失败原因&quot;,  # available=false时填
+    &quot;fetched_at&quot;: 1783656941    # 取数时间戳（前端判断stale）
+}
+</code></pre>
+<p>**绝不返回假数据**：取数失败时 <code>value=null, available=false</code>，前端据此显示红色缺失。</p>
+
+<p>**异步路由实现示例**（避免阻塞事件循环）：</p>
+<pre><code>
+@router.get(&quot;/orderbook/{symbol}&quot;)
+async def get_orderbook(symbol: str, depth: int = 20):
+    # ccxt 同步调用包在 to_thread 里，不阻塞事件循环
+    results = await asyncio.to_thread(_fetch_orderbook_sync, symbol, depth)
+    return results  # 各所独立标 available，失败=该所null
+
+def _fetch_orderbook_sync(symbol, depth):
+    &quot;&quot;&quot;同步聚合多所盘口（在线程池里跑）&quot;&quot;&quot;
+    out = {}
+    for venue in ENABLED_VENUES:
+        try:
+            client = ExchangeClientFactory.create(venue)  # 已配代理(Phase 0.1)
+            ob = client.get_orderbook(f&quot;{symbol}/USDT:USDT&quot;, depth=depth)
+            out[venue] = {&quot;value&quot;: ob, &quot;available&quot;: True, &quot;source&quot;: venue}
+        except Exception as e:
+            out[venue] = {&quot;value&quot;: None, &quot;available&quot;: False, &quot;reason&quot;: str(e)[:100]}
+    return out
+</code></pre>
+
+<p>**复用现有 API**（overview 内部聚合调用，注意都要包 to_thread）：</p>
+<li><code>/api/market/exchange-quotes/{symbol}</code>（跨所价差）</li>
+<li><code>/api/intelligence/derivatives/{symbol}</code>（衍生品，**补返回 data_sources 字段**）</li>
+<li><code>/api/intelligence/whale/{symbol}</code>（鲸鱼）</li>
+<li><code>/api/rebate/funding-matrix</code> + <code>/funding-collector/status</code>（多所费率+健康度，✅ 已验证可复用）</li>
+
+<h3>8.10 前端文件清单</h3>
+
+<table><thead><tr><th>文件</th><th>类型</th><th>说明</th></tr></thead><tbody>
+<tr><td><code>components/market-intelligence/MarketIntelView.tsx</code></td><td>新建</td><td>主页面（Tab容器+健康度顶栏+币种选择）</td></tr>
+<tr><td><code>components/market-intelligence/IntelCard.tsx</code></td><td>新建</td><td>通用真实性卡片（来源+状态+缺失处理）</td></tr>
+<tr><td><code>components/market-intelligence/HealthDashboard.tsx</code></td><td>新建</td><td>顶部数据健康度仪表盘</td></tr>
+<tr><td><code>components/market-intelligence/OrderbookTab.tsx</code></td><td>新建</td><td>Tab1：多所盘口深度</td></tr>
+<tr><td><code>components/market-intelligence/OIFundingTab.tsx</code></td><td>新建</td><td>Tab2：全市场OI/费率</td></tr>
+<tr><td><code>components/market-intelligence/WhaleFlowTab.tsx</code></td><td>新建</td><td>Tab3：鲸鱼/资金流</td></tr>
+<tr><td><code>components/market-intelligence/SourcesConfigTab.tsx</code></td><td>新建</td><td>Tab4：数据源配置</td></tr>
+<tr><td><code>lib/marketIntelApi.ts</code></td><td>新建</td><td>API客户端（apiRequest封装）</td></tr>
+<tr><td><code>main.tsx</code></td><td>改动</td><td>lazy import + PAGE_TITLES + keepAlive + NO_CONN_PAGES</td></tr>
+<tr><td><code>obsidia/plugins.tsx</code></td><td>改动</td><td>导航菜单加项</td></tr>
+</tbody></table>
+
+<p>**复用的现有组件**：<code>Card/Badge/Button</code>（ui/）、recharts、<code>apiRequest</code>、<code>usePageActive</code>、<code>toast</code>、lucide 图标</p>
+
+<h3>8.11 前后端文件改动汇总（更新附录A）</h3>
+
+<table><thead><tr><th>文件</th><th>角色</th><th>改动类型</th></tr></thead><tbody>
+<tr><td>**后端**</td><td></td><td></td></tr>
+<tr><td><code>services/exchange/ccxt_base_adapter.py:63</code></td><td>ccxt代理</td><td>⚠️Phase0最高优先：加proxy透传(实测阻塞点)</td></tr>
+<tr><td><code>services/arbitrage/cross_exchange_ws_feed.py</code></td><td>WS代理</td><td>Phase0：ccxt async WS加aiohttp_proxy</td></tr>
+<tr><td><code>api/market_intelligence_routes.py</code></td><td>中台API</td><td>新建（5端点，**必须异步路由**）</td></tr>
+<tr><td><code>api/intelligence_routes.py:118</code></td><td>衍生品API</td><td>补返回 data_sources 字段</td></tr>
+<tr><td><code>main.py</code></td><td>路由注册</td><td>注册 market_intelligence router</td></tr>
+<tr><td><code>unified_data_pool.py:108</code></td><td>快照定义</td><td>加3字段</td></tr>
+<tr><td><code>market_aggregation/</code>（新目录）</td><td>采集器</td><td>Phase 0-4</td></tr>
+<tr><td>**前端**</td><td></td><td></td></tr>
+<tr><td><code>components/market-intelligence/</code>（新目录）</td><td>中台页面</td><td>新建（7组件+1 API客户端）</td></tr>
+<tr><td><code>main.tsx</code></td><td>页面注册</td><td>lazy+TITLE+keepAlive+NO_CONN</td></tr>
+<tr><td><code>obsidia/plugins.tsx</code></td><td>导航</td><td>加菜单项</td></tr>
+</tbody></table>
+</body></html>
