@@ -1,6 +1,6 @@
 {
   "name": "frontend-next",
-  "version": "0.2.3",
+  "version": "0.2.7",
   "description": "Heidalv Alpha Arena desktop client",
   "author": "Heidalv Alpha Arena",
   "private": true,
@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "e2e": "playwright test",
     "electron:dev": "wait-on http://127.0.0.1:5273/login && electron .",
     "electron:dev:full": "concurrently \"npm run dev\" \"wait-on http://127.0.0.1:5273/login && electron .\"",
     "electron:build": "next build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@base-ui/react": "^1.6.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@tanstack/react-query": "^5.101.2",
     "@types/node": "^20",

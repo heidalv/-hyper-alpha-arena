@@ -154,6 +154,12 @@ def main() -> int:
         print(f"事实清单不存在: {FACTS_PATH}")
         return 2
 
+    if not ENV_PATH.exists():
+        # CI / 无 .env 环境：只做事实清单结构性校验，跳过比对
+        facts = load_facts(FACTS_PATH)
+        print(f".env not found (CI?) — {len(facts)} facts parsed; comparison skipped")
+        return 0
+
     env, duplicates = load_env(ENV_PATH)
     facts = load_facts(FACTS_PATH)
 

@@ -11,7 +11,9 @@ import { EquityCurve } from "@/components/charts/EquityCurve";
 import {
   KpiCell, TierStatCell, RiskCell, SectionHeader, StatusBadge, EmptyState,
 } from "@/components/trading/cells";
-import type { Account, Position, TierActivity, TierActivityItem } from "@/types/api";
+import { DecisionTimeline } from "@/components/trading/DecisionTimeline";
+import { BlockReportPanel } from "@/components/trading/BlockReportPanel";
+import type { Account, Position } from "@/types/api";
 
 const TIER_KEYS = ["short", "mid", "long"] as const;
 type TierKey = (typeof TIER_KEYS)[number];
@@ -67,16 +69,6 @@ export default function DashboardPage() {
   const availableBalance = balance?.available_balance ?? 0;
   const longCount = openPositions.filter((p) => p.side === "long").length;
   const shortCount = openPositions.filter((p) => p.side === "short").length;
-
-  // 注意：所有 hooks 必须在 early return 之前（rules-of-hooks）
-  const activityFeed: TierActivityItem[] = useMemo(() => {
-    const act: TierActivity = tierActivity ?? {};
-    return [
-      ...(act.short ?? []).slice(-4),
-      ...(act.mid ?? []).slice(-2),
-      ...(act.long ?? []).slice(-2),
-    ];
-  }, [tierActivity]);
 
   if (accountsLoading) {
     return <div className="flex items-center justify-center h-40"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -301,24 +293,11 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* AI Decision Stream */}
-        <Card className="p-2.5 border-border flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-medium">AI 决策流</h2>
-          </div>
-          <div className="flex flex-col gap-1 overflow-y-auto max-h-[200px]">
-            {activityFeed.map((a, i) => (
-              <div key={i} className="py-1.5 border-b border-border/20 last:border-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[9px] text-muted-foreground font-mono">{a.time}</span>
-                  <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${a.action === "开多" ? "bg-profit/15 text-profit" : a.action === "开空" ? "bg-loss/15 text-loss" : "bg-muted/30 text-muted-foreground"}`}>{a.action} {a.symbol}</span>
-                </div>
-                <div className="text-xs leading-snug text-foreground/85">{(a.reasoning || "").slice(0, 100)}</div>
-              </div>
-            ))}
-            {!tierActivity && <div className="text-center text-muted-foreground text-xs py-4">加载中...</div>}
-          </div>
-        </Card>
+        {/* AI Decisions + BlockReport (R8) */}
+        <div className="flex flex-col gap-2">
+          <DecisionTimeline activity={tierActivity} loading={!tierActivity} />
+          <BlockReportPanel />
+        </div>
       </div>
 
       {/* Section: Strategies Table */}
