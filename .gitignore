@@ -432,3 +432,7 @@ data/factor_matrices/
 
 # Cleanup archive (cleanup.ps1 moves junk here; recoverable, do NOT commit)
 _cleanup_archive/
+
+# Runtime report snapshots written by the live system (high churn, do NOT commit)
+reports/scalp_chain/
+reports/scalp_symbols/
