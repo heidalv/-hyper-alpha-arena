@@ -18,18 +18,18 @@
 | V5_SCALP_MIN_RR | 短线 Live 盈亏比下限 | 1.4 | 同上 |
 | V5_TREND_MIN_RR | 中长线 Live 盈亏比下限 | 1.8 | 同上 |
 | ENABLE_KELLY_POSITION | Kelly 仓位上限夹紧 | true | ARCHITECTURE §5 |
-| ENABLE_PORTFOLIO_RISK | 组合风险聚合（PortfolioRiskAggregator） | true | ⚠ 待确认：架构文档 v3 写默认 false，实况 true |
+| ENABLE_PORTFOLIO_RISK | 组合风险聚合（PortfolioRiskAggregator） | true | 2026-08-13 用户确认实况即意图（架构文档 v3 旧描述待同步） |
 | ENABLE_COORDINATOR | SystemCoordinator 自动触发进化/重训仲裁 | true | ARCHITECTURE §5 |
 | ENABLE_DRL_INTEGRATION | DRL 进入主循环（已下线，恒 false） | false | README §学习进化系统 |
-| DRL_SHADOW_MODE | DRL 影子预测记录（无执行权） | true | ⚠ 待确认：README 说「DRL 已下线、关闭 shadow」，实况 true |
-| DRL_RETRAIN_AUTO | DRL 自动重训 | true | ⚠ 待确认：README 说「协调器不再触发重训」，实况 true（DRL 已下线，该开关疑为遗留） |
-| PROMPT_EVOLUTION_ENABLED | Prompt 自动进化（历史 36/36 失败后禁用） | true | ⚠ 待确认：README 默认 false，实况 true（是否后有意重开？） |
+| DRL_SHADOW_MODE | DRL 影子预测记录（无执行权） | true | 2026-08-13 用户确认：有意保持开启（README 旧文案「已关闭」已修正） |
+| DRL_RETRAIN_AUTO | DRL 自动重训 | true | 2026-08-13 用户确认：保持实况 true |
+| PROMPT_EVOLUTION_ENABLED | Prompt 自动进化 | true | 2026-08-13 用户确认：有意开启（README 旧文案「默认 false」已修正） |
 | PROMPT_TRAINING_AB_ENABLED | Prompt 训练 A/B | false | |
-| MIDLONG_EXEC_AUTHORITY | 中长线执行权归属（trend/mlto） | mlto | ⚠ 待确认：README 写「默认 trend」，实况 mlto |
+| MIDLONG_EXEC_AUTHORITY | 中长线执行权归属（trend/mlto） | mlto | 2026-08-13 用户确认：实况 mlto 即意图（README 旧文案「默认 trend」已修正） |
 | MIDLONG_MLTO_CONTROLS_EXEC | MLTO 控制中长线执行 | true | 与上一条一致 |
 | MIDLONG_POSITION_MGMT_ENABLED | Phase 5 持仓发展分析（模式 B） | true | README §Phase 5 |
 | MIDLONG_DIRECTION_CONSISTENCY_ENABLED | 中长线方向一致性门 | false | |
-| MULTI_VENUE_FUNDING_COLLECTOR_ENABLED | 多场所资金费采集（Binance/Bybit/OKX/Gate/Asterdex） | true | ⚠ 待确认：README 默认 false，实况 true；.env 中该键重复出现两次，需去重 |
+| MULTI_VENUE_FUNDING_COLLECTOR_ENABLED | 多场所资金费采集（Binance/Bybit/OKX/Gate/Asterdex） | true | 2026-08-13 用户确认：实况 true 即意图（README 旧文案「默认 false」已修正） |
 | CYCLE_PROB_GATE_ENABLED | 周期方向概率门禁（校准达标才硬拦截） | false | README §周期方向概率引擎 |
 | ARBITRAGE_ENABLED | V3 统计套利总开关 | false | README §套利开关语义 |
 | RISK_ENGINE_ENABLED | 风险引擎主开关 | true | 安全关键 flag |

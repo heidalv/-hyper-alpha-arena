@@ -91,7 +91,7 @@
 | `ENABLE_DRL_INTEGRATION` | false | DRL 进入主循环；shadow 仍可单独打开 |
 | `ENABLE_KELLY_POSITION` | **true** | Kelly 作为上限夹紧 |
 | `ENABLE_EVOLUTION_FEEDBACK` | false | 进化结果写入实盘 genome |
-| `ENABLE_PORTFOLIO_RISK` | false | PortfolioRiskAggregator |
+| `ENABLE_PORTFOLIO_RISK` | **true**（2026-08-13 实况，用户确认） | PortfolioRiskAggregator |
 | `ENABLE_COORDINATOR` | **true** | SystemCoordinator 自动触发紧急进化/DRL 重训 |
 | `DRL_SHADOW_MODE` | true | DRL 仅记录不执行 |
 

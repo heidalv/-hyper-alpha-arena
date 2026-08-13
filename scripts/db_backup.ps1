@@ -13,15 +13,19 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\db_backup.ps1
 #   powershell ... -RetentionDays 14      # 自定义保留天数
 #   powershell ... -NoCleanup             # 只备份不清理
-# 任务计划（每日 02:00）：
+# 任务计划（每日 02:00，三库日备；周日 03:00 加 -IncludeMarket 全量）：
 #   schtasks /Create /TN "AlphaArena-DailyDBBackup" /SC DAILY /ST 02:00 \
 #     /TR "powershell -NoProfile -ExecutionPolicy Bypass -File D:\001Alpha\Hyper-Alpha-Arena\scripts\db_backup.ps1"
+#   schtasks /Create /TN "AlphaArena-WeeklyMarketBackup" /SC WEEKLY /D SUN /ST 03:00 \
+#     /TR "powershell -NoProfile -ExecutionPolicy Bypass -File D:\001Alpha\Hyper-Alpha-Arena\scripts\db_backup.ps1 -IncludeMarket"
 # =====================================================================
 [CmdletBinding()]
 param(
     [string]$RepoRoot = "D:\001Alpha\Hyper-Alpha-Arena",
     [int]$RetentionDays = 7,
+    [int]$MarketRetentionDays = 21,
     [int]$LockWaitMs = 60000,
+    [switch]$IncludeMarket,
     [switch]$NoCleanup
 )
 
@@ -70,10 +74,10 @@ Get-Content $envFile | ForEach-Object {
 }
 
 $dbKeys = @(
-    @{ Key = 'DATABASE_URL';           Name = 'alpha_arena' },
-    @{ Key = 'MARKET_DATABASE_URL';    Name = 'alpha_market' },
-    @{ Key = 'ANALYTICS_DATABASE_URL'; Name = 'alpha_analytics' },
-    @{ Key = 'SNAPSHOT_DATABASE_URL';  Name = 'alpha_snapshots' }
+    @{ Key = 'DATABASE_URL';           Name = 'alpha_arena';     Weekly = $false; MinMB = 1 },
+    @{ Key = 'MARKET_DATABASE_URL';    Name = 'alpha_market';    Weekly = $true;  MinMB = 1 },
+    @{ Key = 'ANALYTICS_DATABASE_URL'; Name = 'alpha_analytics'; Weekly = $false; MinMB = 1 },
+    @{ Key = 'SNAPSHOT_DATABASE_URL';  Name = 'alpha_snapshots'; Weekly = $false; MinMB = 0.001 }
 )
 
 $targets = @()
@@ -82,25 +86,37 @@ foreach ($d in $dbKeys) {
     if (-not $url) { Write-Log "[WARN] $($d.Key) 未配置，跳过 $($d.Name)"; continue }
     if ($url -match '^postgresql(\+\w+)?://([^:]+):([^@]+)@([^:/]+):?(\d+)?/([A-Za-z0-9_]+)$') {
         $targets += [pscustomobject]@{
-            Name = $d.Name
-            User = $Matches[2]
-            Pass = $Matches[3]
-            Host = $Matches[4]
-            Port = if ($Matches[5]) { $Matches[5] } else { '5432' }
-            Db   = $Matches[6]
+            Name   = $d.Name
+            User   = $Matches[2]
+            Pass   = $Matches[3]
+            Host   = $Matches[4]
+            Port   = if ($Matches[5]) { $Matches[5] } else { '5432' }
+            Db     = $Matches[6]
+            Weekly = $d.Weekly
+            MinMB  = $d.MinMB
         }
     } else {
         Write-Log "[WARN] $($d.Key) 解析失败（非标准 postgresql URL），跳过 $($d.Name)"
     }
 }
-Write-Log "[INFO] 待备份 $($targets.Count) 个库"
+$daily = @($targets | Where-Object { -not $_.Weekly }).Count
+Write-Log "[INFO] 待备份 $($targets.Count) 个库（日备 $daily + 周备 $($targets.Count - $daily)，market 是否含本次: $IncludeMarket）"
 
 # ---------- 执行备份 ----------
-$outDir = Join-Path $BackupRoot $today
-New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-
 $failures = 0
+$dumpedNames = @()
 foreach ($t in $targets) {
+    # 周备库（market）：仅 -IncludeMarket 时执行
+    if ($t.Weekly -and -not $IncludeMarket) {
+        Write-Log "[SKIP] $($t.Name) 周备模式（周日任务带 -IncludeMarket 触发）"
+        continue
+    }
+    if ($t.Weekly) {
+        $outDir = Join-Path $BackupRoot "market_weekly\$today"
+    } else {
+        $outDir = Join-Path $BackupRoot $today
+    }
+    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
     $dumpPath = Join-Path $outDir "$($t.Name).dump"
     $env:PGPASSWORD = $t.Pass
     try {
@@ -116,8 +132,9 @@ foreach ($t in $targets) {
     }
     if ($code -eq 0 -and (Test-Path $dumpPath)) {
         $sz = (Get-Item $dumpPath).Length
-        if ($sz -gt 1MB) {
+        if ($sz -gt ($t.MinMB * 1MB)) {
             Write-Log "[OK] $($t.Name) -> $dumpPath ($([math]::Round($sz/1MB,1)) MB)"
+            $dumpedNames += $t.Name
         } else {
             $failures++
             Write-Log "[FAIL] $($t.Name) dump 过小 ($sz bytes)，疑似空库/失败"
@@ -154,6 +171,17 @@ if (-not $NoCleanup) {
             }
         } catch { Write-Log "[WARN] 目录名解析失败: $($_.Name)" }
     }
+    # market 周备目录：独立保留期（默认 21 天 = 3 周）
+    Get-ChildItem (Join-Path $BackupRoot 'market_weekly') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d{8}$' } | ForEach-Object {
+            try {
+                $d = [datetime]::ParseExact($_.Name, 'yyyyMMdd', $null)
+                if ((Get-Date) - $d -gt [timespan]::FromDays($MarketRetentionDays)) {
+                    Remove-Item $_.FullName -Recurse -Force
+                    Write-Log "[CLEAN] 删除过期 market 周备 $($_.Name) (>$MarketRetentionDays 天)"
+                }
+            } catch { Write-Log "[WARN] 目录名解析失败: $($_.Name)" }
+        }
     Get-ChildItem (Join-Path $BackupRoot 'globals') -File -ErrorAction SilentlyContinue |
         Where-Object { (Get-Date) - $_.LastWriteTime -gt [timespan]::FromDays($RetentionDays) } |
         ForEach-Object { Remove-Item $_.FullName -Force; Write-Log "[CLEAN] 删除过期 globals $($_.Name)" }
@@ -161,7 +189,7 @@ if (-not $NoCleanup) {
 
 # ---------- 摘要 ----------
 if ($failures -eq 0) {
-    Write-Log "[SUMMARY] backup OK: $($targets.Count) dbs -> $outDir"
+    Write-Log "[SUMMARY] backup OK: $($dumpedNames.Count) dbs dumped (market included: $IncludeMarket)"
     exit 0
 } else {
     Write-Log "[SUMMARY] backup FAILED: $failures 个库失败（检查上方 FAIL 行；飞书告警接入见 R6）"

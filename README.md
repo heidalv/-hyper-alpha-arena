@@ -188,7 +188,7 @@ V5 上线前历史基线（近 14 天）：日交易最多 19 笔、最大单笔
 
 [`docs/MIDLONG_V2_ARCHITECTURE_DESIGN_2026-08-02.md`](docs/MIDLONG_V2_ARCHITECTURE_DESIGN_2026-08-02.md)
 
-**Phase 0–4 已落地（默认 `MIDLONG_EXEC_AUTHORITY=trend`）**：Single Writer + Hub/Regime + Master 减负 + LLM 分桶；Phase4 概念信念闭环（失败 Intent → `midlong_beliefs.json` → Trend/MLTO prompt + 有界 OWM/门槛）。详见设计文档。改配置后需**重启后端**生效。
+**Phase 0–4 已落地（当前实况 `MIDLONG_EXEC_AUTHORITY=mlto`，2026-08-13 确认有意；代码默认 trend）**：Single Writer + Hub/Regime + Master 减负 + LLM 分桶；Phase4 概念信念闭环（失败 Intent → `midlong_beliefs.json` → Trend/MLTO prompt + 有界 OWM/门槛）。详见设计文档。改配置后需**重启后端**生效。
 
 **Phase 5 持仓管理模式已落地（2026-08-04）**：开仓后分析大脑自动从「入场分析」切换到「持仓发展分析」（模式 B），围绕已持仓交易对做六维发展分析——① 方向延续（`trend_agent.review_position`）② 滚仓（`evaluate_pyramid` + 5 层门控）③ TP/SL 调整 ④ DCA（默认禁止）⑤ 分批止盈（`long_tier_staged_tp`）⑥ 反转/无进展离场（`evaluate_midlong_exit` / `evaluate_no_progress_exit`）。执行复用 `paper_engine`，不新建平仓/加仓路径；同时解除 `master_execution` 中长线滚仓/补仓委托跳过断点（受 `trend_pyramid_gate` 5 层门控保护），`TIER_PYRAMID_PARAMS["long"]` 已启用。实现模块：`backend/services/full_auto/midlong_position_manager.py`；核心配置 `MIDLONG_POSITION_MGMT_ENABLED` / `MIDLONG_POSITION_MGMT_INTERVAL_SEC` / `MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC` / `MIDLONG_POSITION_MGMT_PYRAMID_ONLY_PROFIT`。审计与设计见 [`docs/MIDLONG_V2_AUDIT_REPORT_2026-08-04.md`](docs/MIDLONG_V2_AUDIT_REPORT_2026-08-04.md)。
 
@@ -348,12 +348,12 @@ python scripts\audit_midlong_evidence.py --hours 3   # 审计最近 N 小时中�
 
 ### 本次取舍（用户已确认）
 
-- **DRL 已下线**：无训练模型、1722 条影子预测 `is_correct` 从未回填（只写不读）。
-  关闭 `DRL_SHADOW_MODE` / `ENABLE_DRL_INTEGRATION`，协调器不再触发重训，前端面板移除。
-  历史数据保留在 `drl_performance` 表。**回滚方式**：`.env` 中两个开关改回 `true` 重启。
-- **Prompt 自动进化已禁用**：历史 36/36 次 LLM 改写提示词全部失败。
-  新增总开关 `PROMPT_EVOLUTION_ENABLED`（默认 false）。教训提取/参数自适应/因子权重不受影响。
-  **回滚方式**：`.env` 加 `PROMPT_EVOLUTION_ENABLED=true` 重启。
+- **DRL 已下线（主循环）**：无训练模型、影子预测无执行权。`ENABLE_DRL_INTEGRATION=false` 恒关闭；
+  `DRL_SHADOW_MODE=true`（**2026-08-13 确认：有意保持开启，仅记录不执行**）与 `DRL_RETRAIN_AUTO=true`
+  为当前实况（见 `docs/RUNTIME_CONFIG_FACTS.md`），历史数据保留在 `drl_performance` 表。
+- **Prompt 自动进化**：历史 36/36 次 LLM 改写提示词全部失败。总开关 `PROMPT_EVOLUTION_ENABLED`
+  **当前实况为 true（2026-08-13 确认有意启用）**，默认仍以 false 为安全档。教训提取/参数自适应/因子权重不受影响。
+  **关闭方式**：`.env` 改 `PROMPT_EVOLUTION_ENABLED=false` 重启。
 - **`ENABLE_EVOLUTION_FEEDBACK` 假开关废弃**：消费端 `adapt_params` 从未被主循环调用（死链路）。
   进化反哺统一改走 `v5_runtime_gates.json` 通道（`_sync_champion_to_v5_gates`，
   只派生盈亏比门槛且夹紧在 [V5_MIN_RISK_REWARD, 3.0]，不能放松 V5 硬约束）。
@@ -556,8 +556,7 @@ Phase 0（止血：引擎可加载 + 停刷死项目 + 掐断自污染）→ Pha
   - **Windows 关键修复**：ccxt/aiohttp 依赖 aiodns，在 Windows 默认 ProactorEventLoop 下会抛
     `aiodns needs a SelectorEventLoop`——采集器在独立线程用 `SelectorEventLoop` 运行抓取，规避该问题、
     有网即生效。
-  - **诚实原则**：无外网/被墙时各场所返回 {} → **优雅空转、绝不写虚构费率**；默认关闭
-    （`MULTI_VENUE_FUNDING_COLLECTOR_ENABLED=false`），需运维在有网环境显式开启。
+  - **诚实原则**：无外网/被墙时各场所返回 {} → **优雅空转、绝不写虚构费率**；当前实况 `MULTI_VENUE_FUNDING_COLLECTOR_ENABLED=true`（2026-08-13 确认有意，README 原「默认关闭」已修正）。
   - **手动采集**：`python -m backend.services.multi_venue_funding_collector --once --symbols BTC,ETH`
 - **调度接入**：`scheduler.start_multi_venue_funding_collector()`（默认每 300s，开关关时只打印提示不跑），
   已在 `startup.py` 挂载。
