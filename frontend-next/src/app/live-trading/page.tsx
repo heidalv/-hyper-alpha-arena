@@ -9,6 +9,7 @@ import {
   TrendingUp, TrendingDown, Wallet, RefreshCw, Loader2, AlertTriangle,
 } from "lucide-react";
 import { liveApi } from "@/lib/api";
+import type { LiveOrder, LivePosition, AsterPointsSnapshot } from "@/types/api";
 import { useAccounts } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +26,11 @@ export default function LiveTradingPage() {
   const { data: accounts } = useAccounts();
   const qc = useQueryClient();
   const liveAccounts = useMemo(
-    () => (accounts ?? []).filter((a: any) => a.trading_mode === "live"),
+    () => (accounts ?? []).filter((a) => a.trading_mode === "live"),
     [accounts]
   );
   const [accountId, setAccountId] = useState<number | null>(null);
-  const activeAccount = liveAccounts.find((a: any) => a.id === accountId) ?? liveAccounts[0];
+  const activeAccount = liveAccounts.find((a) => a.id === accountId) ?? liveAccounts[0];
   const aid = activeAccount?.id ?? null;
 
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -92,7 +93,7 @@ export default function LiveTradingPage() {
       setMsgErr(!r?.success);
       setMsg(r?.success ? `下单已提交: ${r.symbol} ${r.side}` : `下单失败: ${r?.result?.message ?? ""}`);
     },
-    onError: (e: any) => { setMsgErr(true); setMsg(`下单失败: ${e?.message ?? e}`); },
+    onError: (e: Error) => { setMsgErr(true); setMsg(`下单失败: ${e?.message ?? e}`); },
   });
   const closeMut = useMutation({
     mutationFn: liveApi.closePosition,
@@ -101,7 +102,7 @@ export default function LiveTradingPage() {
       setMsgErr(!r?.success);
       setMsg(r?.success ? `平仓已提交: ${r.symbol}` : `平仓失败: ${r?.result?.message ?? ""}`);
     },
-    onError: (e: any) => { setMsgErr(true); setMsg(`平仓失败: ${e?.message ?? e}`); },
+    onError: (e: Error) => { setMsgErr(true); setMsg(`平仓失败: ${e?.message ?? e}`); },
   });
 
   const submitOrder = () => {
@@ -120,7 +121,7 @@ export default function LiveTradingPage() {
     });
   };
 
-  const closePosition = (pos: any) => {
+  const closePosition = (pos: LivePosition) => {
     if (!window.confirm(`确认平仓 ${pos.symbol} ${pos.side === "long" ? "多" : "空"} ${pos.size}？`)) return;
     closeMut.mutate({ account_id: aid, symbol: pos.symbol, side: pos.side });
   };
@@ -139,7 +140,7 @@ export default function LiveTradingPage() {
               onChange={(e) => setAccountId(Number(e.target.value))}
               className="bg-card border border-border text-sm rounded px-3 py-1.5"
             >
-              {liveAccounts.map((a: any) => (
+              {liveAccounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name} · {a.exchange}</option>
               ))}
             </select>
@@ -295,7 +296,7 @@ export default function LiveTradingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((p: any, i: number) => {
+                  {positions.map((p: LivePosition, i: number) => {
                     const pnl = Number(p.unrealized_pnl || 0);
                     const pct = Number(p.margin) > 0 ? (pnl / Number(p.margin)) * 100 : 0;
                     return (
@@ -354,7 +355,7 @@ export default function LiveTradingPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((o: any, i: number) => (
+                {orders.map((o: LiveOrder, i: number) => (
                   <tr key={i} className="border-b border-border/40 last:border-0">
                     <td className="py-2 pr-2 font-medium">{o.symbol}</td>
                     <td className="py-2 pr-2"><span className={cn("text-[10px] px-1.5 py-0.5 rounded", o.side === "buy" ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss")}>{o.side}</span></td>
@@ -414,7 +415,7 @@ export default function LiveTradingPage() {
                 </div>
                 <div className="p-3 rounded bg-muted/30">
                   <div className="text-xs text-muted-foreground">预计月价值</div>
-                  <div className="text-lg font-bold tabular-nums">${fmt(pointsQ.data.projection.total_estimated_monthly_value)}</div>
+                  <div className="text-lg font-bold tabular-nums">${fmt(pointsQ.data.projection?.total_estimated_monthly_value)}</div>
                   <div className="text-[10px] text-muted-foreground">返佣 + 空投估算</div>
                 </div>
               </div>
@@ -422,28 +423,28 @@ export default function LiveTradingPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                 <div className="p-2.5 rounded bg-muted/20">
                   <div className="text-muted-foreground mb-1">7日交易量</div>
-                  <div className="font-medium tabular-nums">${fmt(pointsQ.data.projection.volume_7d_usd)}</div>
+                  <div className="font-medium tabular-nums">${fmt(pointsQ.data.projection?.volume_7d_usd)}</div>
                 </div>
                 <div className="p-2.5 rounded bg-muted/20">
                   <div className="text-muted-foreground mb-1">返佣率 (当前)</div>
-                  <div className="font-medium tabular-nums">{(Number(pointsQ.data.projection.rebate_rate) * 100).toFixed(4)}%</div>
+                  <div className="font-medium tabular-nums">{(Number(pointsQ.data.projection?.rebate_rate) * 100).toFixed(4)}%</div>
                 </div>
                 <div className="p-2.5 rounded bg-muted/20">
                   <div className="text-muted-foreground mb-1">预计返佣</div>
                   <div className="font-medium tabular-nums">
-                    周 ${fmt(pointsQ.data.projection.weekly_rebate_usd)} · 月 ${fmt(pointsQ.data.projection.monthly_rebate_usd)} · 年 ${fmt(pointsQ.data.projection.yearly_rebate_usd)}
+                    周 ${fmt(pointsQ.data.projection?.weekly_rebate_usd)} · 月 ${fmt(pointsQ.data.projection?.monthly_rebate_usd)} · 年 ${fmt(pointsQ.data.projection?.yearly_rebate_usd)}
                   </div>
                 </div>
                 <div className="p-2.5 rounded bg-muted/20">
                   <div className="text-muted-foreground mb-1">预计积分</div>
                   <div className="font-medium tabular-nums">
-                    日 {fmt(pointsQ.data.projection.daily_points, 1)}
-                    {pointsQ.data.projection.points_estimated ? " (估算)" : ""} · 周 {fmt(pointsQ.data.projection.weekly_points, 1)} · 月 {fmt(pointsQ.data.projection.monthly_points, 1)}
+                    日 {fmt(pointsQ.data.projection?.daily_points, 1)}
+                    {pointsQ.data.projection?.points_estimated ? " (估算)" : ""} · 周 {fmt(pointsQ.data.projection?.weekly_points, 1)} · 月 {fmt(pointsQ.data.projection?.monthly_points, 1)}
                   </div>
                 </div>
               </div>
 
-              {pointsQ.data.history?.length > 0 && (
+              {pointsQ.data.history?.length ? (
                 <div className="pt-1">
                   <div className="text-xs text-muted-foreground mb-2">积分记录（最近 {pointsQ.data.history.length} 条快照）</div>
                   <div className="overflow-x-auto max-h-48 overflow-y-auto border border-border/40 rounded">
@@ -458,7 +459,7 @@ export default function LiveTradingPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {pointsQ.data.history.map((h: any, i: number) => (
+                        {pointsQ.data.history?.map((h: AsterPointsSnapshot, i: number) => (
                           <tr key={i} className="border-b border-border/20 last:border-0">
                             <td className="py-1.5 px-2 text-muted-foreground">{String(h.snapshot_time).replace("T", " ").slice(5, 16)}</td>
                             <td className="py-1.5 px-2 text-right tabular-nums">{Number(h.points_balance).toLocaleString()}</td>
@@ -471,7 +472,7 @@ export default function LiveTradingPage() {
                     </table>
                   </div>
                 </div>
-              )}
+              ) : null}
             </>
           ) : (
             <div className="text-center py-6 text-muted-foreground text-sm">暂无积分数据</div>

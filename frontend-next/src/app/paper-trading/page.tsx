@@ -13,6 +13,7 @@ import {
   useClosePosition, useCreateAccount, useDeleteAccount,
 } from "@/hooks/useTradingData";
 import { paperApi } from "@/lib/api";
+import type { PaperOrder, Position } from "@/types/api";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,7 +37,6 @@ export default function PaperTradingPage() {
   // 对齐旧前端 loadData 的 5 个并行请求
   const { data: balance, isLoading: balanceLoading } = usePaperBalance(activeAccountId);
   const { data: openPositions } = usePositions(activeAccountId, "open");
-  const { data: closedPositions } = usePositions(activeAccountId, "closed");
   const { data: orders } = useOrders(activeAccountId);
   const { data: summary } = usePaperSummary(activeAccountId);
 
@@ -444,12 +444,12 @@ function formatPosPrice(v: number | null | undefined): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 8 });
 }
 
-function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: any; onClose: () => void; closing: boolean; onPartialClose?: (pct: number) => void }) {
+function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: Position; onClose: () => void; closing: boolean; onPartialClose?: (pct: number) => void }) {
   const pnl = pos.unrealized_pnl || 0;
   const margin = pos.margin || 0;
   const pnlPct = margin > 0 ? (pnl / margin) * 100 : 0;
-  const openedAt = pos.opened_at ? new Date(pos.opened_at) : null;
-  const holdHours = openedAt ? (Date.now() - openedAt.getTime()) / 3600000 : 0;
+  // 已持时长由 HoldTimeCell 内部每秒自算；fallback 仅用于 opened_at 缺失（记 0）
+  const holdHours = 0;
   const isLong = pos.side === "long";
   const [showPct, setShowPct] = useState(false);
   const entry = Number(pos.entry_price || 0);
@@ -527,7 +527,7 @@ function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: any; onCl
  * 对齐旧前端 PaperTradingPanel 的 hold_* 字段展示（已持/最大/剩余/进度/可延长范围），
  * 并补上实时秒级倒计时（旧版只是每次轮询时的静态快照）。
  */
-function HoldTimeCell({ pos, fallbackAgeHours }: { pos: any; fallbackAgeHours: number }) {
+function HoldTimeCell({ pos, fallbackAgeHours }: { pos: Position; fallbackAgeHours: number }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
@@ -599,7 +599,7 @@ function HoldTimeCell({ pos, fallbackAgeHours }: { pos: any; fallbackAgeHours: n
   );
 }
 
-function OrderRow({ order }: { order: any }) {
+function OrderRow({ order }: { order: PaperOrder }) {
   const pnl = order.pnl || 0;
   const isLong = order.side === "buy" || order.side === "long";
   const statusColor =
@@ -619,7 +619,9 @@ function OrderRow({ order }: { order: any }) {
         </span>
       </td>
       <td className="py-1.5 px-2 text-muted-foreground">{
-        ({scalp:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[order.trade_nature] || order.trade_nature || "—"
+        order.trade_nature
+          ? ({scalp:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[order.trade_nature] || order.trade_nature
+          : "—"
       }</td>
       <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">
         {(order.filled_price || order.entry_price || order.price || 0).toLocaleString()}

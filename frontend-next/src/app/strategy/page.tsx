@@ -13,7 +13,8 @@ import { useSessions, usePositions, useAccounts } from "@/hooks/useTradingData";
 import { SessionManager } from "@/components/trading/SessionManager";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useMemo, useState } from "react";
+import type { AtasDecision, AiDecisionEntry, Position, TickIntervals } from "@/types/api";
+import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 const BACKEND = getBackendUrl().replace(/\/$/, "");
@@ -28,7 +29,8 @@ export default function StrategyPage() {
   // 从后端读取实际调度间隔
   const { data: tickData } = useQuery({
     queryKey: ["tick-intervals"],
-    queryFn: () => fetch(`${BACKEND}/api/full-auto/tick-intervals`).then(r => r.json()),
+    queryFn: (): Promise<TickIntervals> =>
+      fetch(`${BACKEND}/api/full-auto/tick-intervals`).then((r) => r.json()),
     staleTime: 60_000,
   });
   const tickIntervals = tickData?.intervals ?? { short: 30, mid: 120, long: 240 };
@@ -45,7 +47,7 @@ export default function StrategyPage() {
 
   const { data: positions } = usePositions(tradingAccountId, "open");
   const openPositions = positions ?? [];
-  const llmAccount = accounts?.find((a: any) => a.id === tradingAccountId);
+  const llmAccount = accounts?.find((a) => a.id === tradingAccountId);
 
   const scalpPos = openPositions.filter((p) => p.trade_nature === "scalp");
   const swingPos = openPositions.filter((p) => p.trade_nature === "swing");
@@ -145,7 +147,7 @@ export default function StrategyPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {openPositions.map((pos: any) => <PosRow key={pos.id} pos={pos} />)}
+                    {openPositions.map((pos: Position) => <PosRow key={pos.id} pos={pos} />)}
                   </tbody>
                 </table>
               </div>
@@ -195,7 +197,7 @@ function StrategyTierCard({
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   description: string;
-  positions: any[];
+  positions: Position[];
   configPath: string;
   tickInterval: string;
   holdRange: string;
@@ -296,10 +298,10 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
   // 统计
   const stats = {
     total: decisions.length,
-    buy: decisions.filter((d: any) => d.operation === "buy" || d.operation === "add").length,
-    sell: decisions.filter((d: any) => d.operation === "sell" || d.operation === "reduce" || d.operation === "close").length,
-    hold: decisions.filter((d: any) => d.operation === "hold").length,
-    executed: decisions.filter((d: any) => d.executed).length,
+    buy: decisions.filter((d: AtasDecision) => d.operation === "buy" || d.operation === "add").length,
+    sell: decisions.filter((d: AtasDecision) => d.operation === "sell" || d.operation === "reduce" || d.operation === "close").length,
+    hold: decisions.filter((d: AtasDecision) => d.operation === "hold").length,
+    executed: decisions.filter((d: AtasDecision) => d.executed).length,
   };
 
   return (
@@ -328,11 +330,10 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
           <div className="text-center py-8 text-muted-foreground text-sm">暂无决策记录</div>
         ) : (
           <div className="max-h-[600px] overflow-y-auto divide-y divide-border/20">
-            {decisions.map((d: any, i: number) => {
+            {decisions.map((d: AtasDecision, i: number) => {
               const op = d.operation || "hold";
               const isBuy = op === "buy" || op === "add";
               const isSell = op === "sell" || op === "reduce" || op === "close";
-              const isHold = op === "hold";
               return (
                 <div key={d.id || i} className="px-4 py-2.5 hover:bg-muted/10">
                   <div className="flex items-center gap-2 mb-1">
@@ -350,7 +351,7 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
                       {isBuy ? "买入" : isSell ? "卖出" : "观望"}
                     </Badge>
                     {/* 仓位 */}
-                    {d.target_portion > 0 && (
+                    {d.target_portion != null && d.target_portion > 0 && (
                       <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                         目标 {(d.target_portion * 100).toFixed(0)}%
                       </span>
@@ -403,7 +404,7 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
         <div className="text-center py-8 text-muted-foreground text-sm">暂无 AI 决策记录</div>
       ) : (
         <div className="max-h-[600px] overflow-y-auto divide-y divide-border/20">
-          {decisions.map((dec: any, i: number) => {
+          {decisions.map((dec: AiDecisionEntry, i: number) => {
             const action = dec.operation || dec.action || dec.decision || "—";
             const isBuy = action === "buy" || action === "long" || action === "add";
             const isSell = action === "sell" || action === "short" || action === "reduce" || action === "close";
@@ -415,7 +416,9 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
                 {/* 第一行：时间 + 币种 + 操作 + 标签 */}
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
-                    {dec.decision_time || dec.created_at ? new Date(dec.decision_time || dec.created_at).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}
+                    {dec.decision_time || dec.created_at
+                      ? new Date(dec.decision_time ?? dec.created_at ?? "").toLocaleTimeString("zh-CN", { hour12: false })
+                      : "--"}
                   </span>
                   <span className="text-xs font-bold shrink-0">{dec.symbol || "—"}</span>
                   <span className={cn("text-xs font-medium shrink-0", isBuy ? "text-profit" : isSell ? "text-loss" : "text-muted-foreground")}>
@@ -472,12 +475,18 @@ function TabButton({ active, onClick, icon: Icon, label }: {
   );
 }
 
-function PosRow({ pos }: { pos: any }) {
+function PosRow({ pos }: { pos: Position }) {
+  // 每秒自更新已持时长（首秒显示 0m，随后由 interval 校正）
+  const [nowMs, setNowMs] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   const pnl = pos.unrealized_pnl || 0;
   const margin = pos.margin || 0;
   const pnlPct = margin > 0 ? (pnl / margin) * 100 : 0;
   const openedAt = pos.opened_at ? new Date(pos.opened_at) : null;
-  const holdHours = openedAt ? (Date.now() - openedAt.getTime()) / 3600000 : 0;
+  const holdHours = openedAt ? Math.max(0, (nowMs - openedAt.getTime()) / 3600000) : 0;
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/20">

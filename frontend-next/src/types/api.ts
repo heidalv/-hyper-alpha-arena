@@ -57,6 +57,8 @@ export interface Position {
   side: string;
   entry_price: number;
   mark_price?: number;
+  current_price?: number;
+  size?: number;
   quantity: number;
   filled_quantity?: number;
   leverage: number;
@@ -209,4 +211,119 @@ export interface StrategyRecord {
   status?: string;
   tier?: string;
   [key: string]: unknown;
+}
+
+// ═══ 实盘交易（/api/live/*，R4 第二批类型化） ═══
+
+export interface LiveBalance {
+  total_equity?: number;
+  available_balance?: number;
+  unrealized_pnl?: number;
+  frozen_margin?: number;
+  position_count?: number;
+  keys_configured?: boolean;
+}
+
+export interface LivePosition {
+  symbol: string;
+  side: string;
+  entry_price?: number;
+  mark_price?: number;
+  last_price?: number;
+  size: number;
+  leverage?: number;
+  margin?: number;
+  unrealized_pnl?: number;
+}
+
+export interface LiveOrder {
+  symbol: string;
+  side: string;
+  type?: string;
+  price?: number;
+  amount?: number;
+  filled?: number;
+  status?: string;
+}
+
+/** live 下单/平仓的统一返回 */
+export interface LiveOrderResult {
+  success?: boolean;
+  symbol?: string;
+  side?: string;
+  result?: { message?: string };
+}
+
+export interface AsterPointsSnapshot {
+  snapshot_time?: string;
+  points_balance?: number;
+  points_multiplier?: number;
+  estimated_airdrop_value?: number;
+  volume_7d_usd?: number;
+}
+
+export interface AsterPointsResponse {
+  keys_configured?: boolean;
+  message?: string;
+  points?: {
+    points_balance?: number;
+    points_multiplier?: number;
+    season?: string | number;
+    qualifying_days?: number;
+    required_days?: number;
+    airdrop_eligible?: boolean;
+    estimated_airdrop_value?: number;
+  };
+  projection?: {
+    total_estimated_monthly_value?: number;
+    volume_7d_usd?: number;
+    rebate_rate?: number;
+    weekly_rebate_usd?: number;
+    monthly_rebate_usd?: number;
+    yearly_rebate_usd?: number;
+    daily_points?: number;
+    weekly_points?: number;
+    monthly_points?: number;
+    points_estimated?: boolean;
+  };
+  history?: AsterPointsSnapshot[];
+}
+
+// ═══ AI 决策（/api/atas/decisions、/api/arena/model-chat） ═══
+
+export interface AtasDecision {
+  id?: number | string;
+  created_at?: string;
+  symbol?: string;
+  operation?: string;
+  target_portion?: number;
+  executed?: boolean;
+  reasoning?: string;
+}
+
+export interface AiDecisionEntry {
+  id?: number | string;
+  operation?: string;
+  action?: string;
+  decision?: string;
+  confidence?: number;
+  tier?: string;
+  trade_nature?: string;
+  agent_source?: string;
+  decision_time?: string;
+  created_at?: string;
+  symbol?: string;
+  executed?: boolean;
+  reasoning?: string;
+  stop_loss_price?: number | null;
+  take_profit_price?: number | null;
+  leverage?: number | null;
+  short_bias?: string | number;
+  mid_bias?: string | number;
+  long_bias?: string | number;
+}
+
+/** /api/full-auto/tick-intervals */
+export interface TickIntervals {
+  intervals?: { short?: number; mid?: number; long?: number };
 }

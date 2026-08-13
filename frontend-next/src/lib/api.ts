@@ -186,11 +186,13 @@ export async function apiRequest<T = any>(
 import type {
   Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
+  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterPointsResponse,
 } from "@/types/api";
 
 export type {
   Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
+  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterPointsResponse,
 };
 // ═══ 模拟交易 API（对齐旧前端 PaperTradingPanel） ═══
 
@@ -253,15 +255,15 @@ export const paperApi = {
 
 // ═══ 实盘交易 ═══
 export const liveApi = {
-  getAccounts: () => apiRequest<{ accounts: any[] }>("/live/accounts"),
-  getBalance: (accountId: number) => apiRequest<any>(`/live/balance/${accountId}`),
-  getPositions: (accountId: number) => apiRequest<any>(`/live/positions/${accountId}`),
-  getOrders: (accountId: number) => apiRequest<any>(`/live/orders/${accountId}`),
-  getAsterdexPoints: (accountId: number) => apiRequest<any>(`/live/asterdex/points/${accountId}`),
-  placeOrder: (data: any) =>
-    apiRequest<any>("/live/order", { method: "POST", body: JSON.stringify(data) }),
-  closePosition: (data: any) =>
-    apiRequest<any>("/live/close", { method: "POST", body: JSON.stringify(data) }),
+  getAccounts: () => apiRequest<{ accounts: Account[] }>("/live/accounts"),
+  getBalance: (accountId: number) => apiRequest<LiveBalance>(`/live/balance/${accountId}`),
+  getPositions: (accountId: number) => apiRequest<{ positions: LivePosition[] }>(`/live/positions/${accountId}`),
+  getOrders: (accountId: number) => apiRequest<{ orders: LiveOrder[] }>(`/live/orders/${accountId}`),
+  getAsterdexPoints: (accountId: number) => apiRequest<AsterPointsResponse>(`/live/asterdex/points/${accountId}`),
+  placeOrder: (data: Record<string, unknown>) =>
+    apiRequest<LiveOrderResult>("/live/order", { method: "POST", body: JSON.stringify(data) }),
+  closePosition: (data: Record<string, unknown>) =>
+    apiRequest<LiveOrderResult>("/live/close", { method: "POST", body: JSON.stringify(data) }),
 };
 
 // ═══ 账户管理 ═══
