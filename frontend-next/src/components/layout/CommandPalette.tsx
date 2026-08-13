@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { softNavigate } from "@/lib/app-nav";
+import { useUIStore } from "@/lib/stores/ui";
 
 interface Cmd {
   label: string;
@@ -41,25 +42,29 @@ const COMMANDS: Cmd[] = [
 ];
 
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const router = useRouter();
+  // R5-1：面板状态/查询由 ui store 驱动（TopBar 搜索框与 Ctrl+K 共用）
+  const open = useUIStore((s) => s.commandPaletteOpen);
+  const query = useUIStore((s) => s.paletteQuery);
+  const openPalette = useUIStore((s) => s.openCommandPalette);
+  const closePalette = useUIStore((s) => s.closeCommandPalette);
+  const setQuery = useUIStore((s) => s.setPaletteQuery);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Cmd+K / Ctrl+K 打开
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        open ? closePalette() : openPalette();
       }
       if (e.key === "Escape") {
-        setOpen(false);
+        closePalette();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [open, openPalette, closePalette]);
 
   const filtered = useCallback(() => {
     if (!query.trim()) return COMMANDS;
@@ -72,8 +77,10 @@ export function CommandPalette() {
   }, [query]);
 
   const results = filtered();
+  // 渲染时钳位选中索引（查询变化导致结果缩短时兜底，避免 effect 内同步 setState）
+  const activeIndex = results.length > 0 ? Math.min(selectedIndex, results.length - 1) : 0;
 
-  // 键盘导航
+  // 键盘导航（↑↓ + Enter）
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -85,9 +92,9 @@ export function CommandPalette() {
         setSelectedIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const cmd = results[selectedIndex];
+        const cmd = results[activeIndex];
         if (cmd) {
-          setOpen(false);
+          closePalette();
           setQuery("");
           softNavigate(cmd.href, (url) => router.push(url));
         }
@@ -95,12 +102,7 @@ export function CommandPalette() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, results, selectedIndex, router]);
-
-  // 重置选中
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+  }, [open, results, activeIndex, router, closePalette, setQuery]);
 
   if (!open) return null;
 
@@ -109,7 +111,7 @@ export function CommandPalette() {
       {/* 背景遮罩 */}
       <div
         className="fixed inset-0 bg-black/50 z-50"
-        onClick={() => setOpen(false)}
+        onClick={closePalette}
       />
 
       {/* 面板 */}
@@ -122,8 +124,12 @@ export function CommandPalette() {
               autoFocus
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
               placeholder="搜索页面或功能..."
+              aria-label="搜索页面或功能"
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -135,12 +141,12 @@ export function CommandPalette() {
             ) : (
               results.map((cmd, i) => {
                 const Icon = cmd.icon;
-                const isActive = i === selectedIndex;
+                const isActive = i === activeIndex;
                 return (
                   <button
                     key={cmd.href}
                     onClick={() => {
-                      setOpen(false);
+                      closePalette();
                       setQuery("");
                       softNavigate(cmd.href, (url) => router.push(url));
                     }}

@@ -5,7 +5,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, paperApi, accountApi, sessionApi } from "@/lib/api";
+import { api, paperApi, accountApi, sessionApi, fullAutoApi } from "@/lib/api";
+import type { Account } from "@/types/api";
 
 // Query Keys
 export const QK = {
@@ -91,6 +92,37 @@ export function useSessions() {
     // 用户误以为"删除后又刷新回来"。2s 既避免高频请求又保证数据及时。
     staleTime: 2_000,
     refetchInterval: 5_000,
+  });
+}
+
+// ═══ 全自动会话：tier 状态/活动/策略（R4 新增，dashboard 专用） ═══
+
+export function useTierStatus(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: ["tier-status", sessionId],
+    queryFn: () => fullAutoApi.tierStatus(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useTierActivity(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: ["tier-activity", sessionId],
+    queryFn: () => fullAutoApi.tierActivity(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useStrategies(accountId: number | null) {
+  return useQuery({
+    queryKey: ["strategies", accountId],
+    queryFn: () => fullAutoApi.strategies(accountId!),
+    enabled: !!accountId,
+    staleTime: 30_000,
   });
 }
 
@@ -220,7 +252,7 @@ export function useUpdateScalpConfig() {
 export function useUpdateStrategyConfig(tier: "mid" | "long") {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (updates: Record<string, any>) => api.updateStrategyConfig(tier, updates),
+    mutationFn: (updates: Record<string, unknown>) => api.updateStrategyConfig(tier, updates),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.strategyConfig(tier) }),
   });
 }
@@ -313,7 +345,7 @@ export function useDeleteAccount() {
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => accountApi.update(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<Account> }) => accountApi.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.accounts }),
   });
 }

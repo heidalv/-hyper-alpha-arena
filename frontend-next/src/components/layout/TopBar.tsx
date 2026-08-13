@@ -6,11 +6,17 @@ import { hardNavigate } from "@/lib/app-nav";
 import { isElectronRuntime } from "@/lib/auth-storage";
 import { getWs } from "@/lib/ws";
 import { useAuthStore } from "@/lib/stores/auth";
+import { useUIStore } from "@/lib/stores/ui";
 import { apiRequest } from "@/lib/api";
 import type { UpdaterState } from "@/types/electron";
 
+/** 报错角标轮询间隔（R5-2：魔法数字提为常量） */
+const ALERT_POLL_MS = 30_000;
+
 export function TopBar({ wsConnected }: { wsConnected: boolean }) {
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString("zh-CN", { hour12: false })
+  );
   const [loggingOut, setLoggingOut] = useState(false);
   const [appVersion, setAppVersion] = useState("");
   const [updBusy, setUpdBusy] = useState(false);
@@ -18,13 +24,15 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
   const [alertCount, setAlertCount] = useState(0);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // R5-1：搜索框接命令面板（focus 即打开、输入即过滤）
+  const openPalette = useUIStore((s) => s.openCommandPalette);
+  const setPaletteQuery = useUIStore((s) => s.setPaletteQuery);
 
   useEffect(() => {
-    const update = () => {
-      setTime(new Date().toLocaleTimeString("zh-CN", { hour12: false }));
-    };
-    update();
-    const id = setInterval(update, 1000);
+    const id = setInterval(
+      () => setTime(new Date().toLocaleTimeString("zh-CN", { hour12: false })),
+      1000
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -44,7 +52,7 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
       }
     };
     void load();
-    const id = setInterval(() => void load(), 30000);
+    const id = setInterval(() => void load(), ALERT_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -110,7 +118,20 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 px-3 py-1 rounded bg-muted/50 text-muted-foreground text-xs w-64">
           <Search className="w-3.5 h-3.5" />
-          <span className="text-muted-foreground/60">搜索... (Ctrl+K)</span>
+          <input
+            type="text"
+            placeholder="搜索... (Ctrl+K)"
+            aria-label="搜索页面或功能（打开命令面板）"
+            onFocus={() => openPalette()}
+            onChange={(e) => {
+              openPalette();
+              setPaletteQuery(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") e.currentTarget.blur();
+            }}
+            className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
+          />
         </div>
       </div>
 
@@ -147,6 +168,7 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
 
         <a
           href="/ops#ops-errors"
+          aria-label="运维报错中心"
           title={alertCount > 0 ? `P0/P1 报错 ${alertCount}` : "运维报错中心"}
           className="text-muted-foreground hover:text-foreground transition-colors relative"
         >
@@ -176,6 +198,7 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
             type="button"
             onClick={() => void onLogout()}
             disabled={loggingOut}
+            aria-label="退出登录"
             title="退出登录"
             className="ml-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 transition-colors"
           >
