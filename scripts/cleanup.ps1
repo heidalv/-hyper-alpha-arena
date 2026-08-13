@@ -13,6 +13,7 @@
 #   powershell -File scripts\cleanup.ps1 -Execute     # 执行移动
 #   powershell -File scripts\cleanup.ps1 -Execute -IncludeWorkspace   # 含工作区根目录
 #   powershell -File scripts\cleanup.ps1 -Execute -DeleteCaches       # 额外删缓存目录
+#   powershell -File scripts\cleanup.ps1 -Execute -PruneLogs          # 额外清理 >7 天日志
 # =====================================================================
 [CmdletBinding()]
 param(
@@ -20,7 +21,8 @@ param(
     [string]$WorkspaceRoot = "D:\001Alpha",
     [switch]$Execute,
     [switch]$IncludeWorkspace,
-    [switch]$DeleteCaches
+    [switch]$DeleteCaches,
+    [switch]$PruneLogs
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -136,6 +138,17 @@ if ($DeleteCaches) {
             Remove-Item -LiteralPath $d -Recurse -Force
             if (-not (Test-Path $d)) { $deletedCaches++ }
         }
+    }
+}
+
+# 日志轮转（R6-1）：调用 prune_logs.ps1 清理 >7 天日志，需 -PruneLogs
+if ($PruneLogs) {
+    $prune = Join-Path $RepoRoot 'scripts\prune_logs.ps1'
+    if (Test-Path $prune) {
+        Write-Output "---- 日志轮转 (prune_logs.ps1 -Execute) ----"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $prune -Execute -RepoRoot $RepoRoot | Out-Host
+    } else {
+        Write-Warning "prune_logs.ps1 不存在，跳过日志清理"
     }
 }
 
