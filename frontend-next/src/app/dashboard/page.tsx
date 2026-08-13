@@ -63,6 +63,10 @@ export default function DashboardPage() {
   const openPositions: Position[] = positions ?? [];
   const totalUnrealizedPnl = openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
   const tiers = tierStatus?.tiers;
+  // F8：活跃策略数取真实契约字段（旧 active_strategies 字段不存在，恒显示 0）
+  const activeStrategyCount = tiers
+    ? TIER_KEYS.reduce((s, k) => s + (tiers[k]?.active_count ?? 0), 0)
+    : 0;
   const totalEquity = balance?.total_equity ?? 0;
   const realizedPnl = balance?.realized_pnl ?? 0;
   const feePaid = balance?.total_fee_paid ?? 0;
@@ -182,8 +186,8 @@ export default function DashboardPage() {
           <KpiCell label="可用余额" value={`$${availableBalance.toFixed(2)}`} />
           <KpiCell label="持仓" value={String(openPositions.length)} delta={`${longCount}多 ${shortCount}空`} deltaColor="muted" />
           <KpiCell label="手续费" value={`$${feePaid.toFixed(2)}`} deltaColor="loss" />
-          <KpiCell label="胜率" value={tierStatus?.win_rate ? `${(tierStatus.win_rate * 100).toFixed(1)}%` : "—"} deltaColor="muted" />
-          <KpiCell label="交易笔数" value={String(tierStatus?.total_trades ?? "—")} deltaColor="muted" />
+          <KpiCell label="活跃策略" value={String(activeStrategyCount)} deltaColor="muted" />
+          <KpiCell label="中线AI" value={tierStatus?.auto_coin_mid_enabled ? "开启" : "关闭"} deltaColor={tierStatus?.auto_coin_mid_enabled ? "profit" : "muted"} />
         </div>
       </div>
 
@@ -210,20 +214,22 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-1.5 text-[13px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-sm" style={{ background: TIER_COLORS[tierKey] }} />{TIER_LABELS[tierKey]}
                     </div>
-                    <div className="text-[9px] text-muted-foreground font-mono">{t.active_strategies || 0} 策略 · {tierPositions.length} 持仓</div>
+                    <div className="text-[9px] text-muted-foreground font-mono">
+                      {t.active_count ?? 0}/{t.strategy_count ?? 0} 策略 · {t.position_count ?? tierPositions.length} 持仓
+                    </div>
                   </div>
                   <div className="grid grid-cols-4">
                     <TierStatCell value={fmtMoney(tierPnl)} label="PnL" color={tierPnl >= 0 ? "profit" : "loss"} />
-                    <TierStatCell value={t.budget_used != null ? `$${t.budget_used}` : "—"} label="保证" />
-                    <TierStatCell value={t.drawdown != null ? `${t.drawdown}%` : "—"} label="DD" color="loss" />
-                    <TierStatCell value={t.win_rate != null ? `${t.win_rate}%` : "—"} label="胜率" />
+                    <TierStatCell value={t.margin_used != null ? `$${Number(t.margin_used).toFixed(0)}` : "—"} label="保证金" />
+                    <TierStatCell value={t.budget_allocated != null ? `$${Number(t.budget_allocated).toFixed(0)}` : "—"} label="预算" />
+                    <TierStatCell value={t.budget_utilization != null ? `${Number(t.budget_utilization).toFixed(1)}%` : "—"} label="占用" color={Number(t.budget_utilization ?? 0) > 80 ? "loss" : undefined} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono text-muted-foreground">预算</span>
+                    <span className="text-[9px] font-mono text-muted-foreground">预算占用</span>
                     <div className="flex-1 h-[3px] bg-muted/30 rounded-sm overflow-hidden">
-                      <div className="h-full rounded-sm" style={{ width: `${Math.min(t.budget_pct || 25, 100)}%`, background: TIER_COLORS[tierKey] }} />
+                      <div className="h-full rounded-sm" style={{ width: `${Math.min(Number(t.budget_utilization) || 0, 100)}%`, background: TIER_COLORS[tierKey] }} />
                     </div>
-                    <span className="text-[9px] font-mono text-muted-foreground">{t.budget_pct || 25}%</span>
+                    <span className="text-[9px] font-mono text-muted-foreground">{t.budget_utilization ?? 0}%</span>
                   </div>
                   <div className="flex flex-wrap gap-0.5">
                     {tierPositions.length > 0 ? (
@@ -232,7 +238,15 @@ export default function DashboardPage() {
                       ))
                     ) : <span className="text-[9px] text-muted-foreground">无持仓</span>}
                   </div>
-                  {lastAct && <div className="text-[10px] text-muted-foreground leading-snug mt-0.5">{lastAct.time} {lastAct.symbol} {lastAct.action} {(lastAct.reasoning || "").slice(0, 80)}</div>}
+                  {lastAct && (
+                    <div className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+                      {lastAct.time} {lastAct.symbol} {lastAct.action}
+                      {" "}{lastAct.allowed === true && <span className="text-profit">✓放行</span>}
+                      {lastAct.allowed === false && <span className="text-loss">⛔拦截</span>}
+                      {lastAct.block_reason && <span className="text-loss"> · {lastAct.block_reason.slice(0, 50)}</span>}
+                      {lastAct.reasoning && <span className="text-muted-foreground/70"> · {(lastAct.reasoning || "").slice(0, 60)}</span>}
+                    </div>
+                  )}
                 </Card>
               );
             })}
@@ -354,7 +368,7 @@ export default function DashboardPage() {
           <RiskCell label="已实现 PnL" value={fmtMoney(realizedPnl)} valueColor={realizedPnl >= 0 ? "profit" : "loss"} />
           <RiskCell label="手续费" value={`$${feePaid.toFixed(2)}`} valueColor="loss" />
           <RiskCell label="多空比" value={`${longCount} / ${shortCount}`} ctx={`${longCount + shortCount} 总持仓`} />
-          <RiskCell label="活跃策略" value={String(tiers ? (tiers.short?.active_strategies || 0) + (tiers.mid?.active_strategies || 0) + (tiers.long?.active_strategies || 0) : "—")} />
+          <RiskCell label="活跃策略" value={String(activeStrategyCount)} />
         </div>
       </div>
     </div>

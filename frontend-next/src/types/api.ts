@@ -174,28 +174,57 @@ export interface SessionStatus {
   created_at?: string;
 }
 
-/** 三周期单 tier 状态（/api/full-auto/tier-status/{session}） */
+/** 三周期单 tier 状态（/api/full-auto/tier-status/{session}）— 与后端契约一致 */
 export interface TierInfo {
-  active_strategies?: number;
-  budget_used?: number | string;
-  budget_pct?: number;
-  drawdown?: number | string;
-  win_rate?: number | string;
+  label?: string;
+  strategy_count?: number;
+  active_count?: number;
+  paused_count?: number;
+  position_count?: number;
+  position_count_mid?: number;
+  position_count_long_only?: number;
+  margin_used?: number;
+  budget_allocated?: number;
+  budget_max?: number;
+  budget_utilization?: number;
+  symbols?: string[];
   [key: string]: unknown;
 }
 
 export interface TierStatus {
+  session_id?: string;
+  total_equity?: number;
+  tier_budget_allocation?: Record<"short" | "mid" | "long", number>;
+  lanes?: {
+    fixed_long?: string[];
+    fixed_mid?: string[];
+    fixed_short?: string[];
+    ai_mid?: string[];
+    auto_coin?: string[];
+  };
+  fixed_symbols_by_tier?: { short?: string[]; mid?: string[]; long?: string[] };
+  auto_coin_mid_enabled?: boolean;
+  auto_coin_mid_max_slots?: number;
   tiers?: Record<"short" | "mid" | "long", TierInfo>;
-  win_rate?: number;
-  total_trades?: number;
 }
 
 /** 三周期活动流单条（/api/full-auto/tier-activity/{session}） */
 export interface TierActivityItem {
+  id?: string;
   time: string;
   symbol: string;
   action: string;
+  executed?: boolean;
+  /** 风控放行/拦截结果（evaluate_verdict.allowed） */
+  allowed?: boolean | null;
+  confidence?: number;
+  /** 风控拦截原因（evaluate_verdict.reason） */
+  block_reason?: string;
+  source?: string;
   reasoning?: string;
+  direction?: string;
+  tier_tag?: string;
+  lane_note?: string;
 }
 
 export interface TierActivity {
