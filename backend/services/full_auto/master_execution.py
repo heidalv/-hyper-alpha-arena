@@ -3215,6 +3215,22 @@ def execute_master_decisions(
                         f"used={_tier_used:.1f} >= cap={_tier_cap:.1f}")
                     continue
 
+                # ── P0-E 分层熔断：周期级日亏预算（只冻本 tier，绝不跨周期）──
+                try:
+                    from backend.services.tier_circuit_breaker import (
+                        is_tier_open_blocked as _tier_cb_blocked,
+                    )
+                    _tier_blk, _tier_why = _tier_cb_blocked(account_id, tier)
+                    if _tier_blk:
+                        host.append_event(session, "tier_circuit_block",
+                            f"⛔ 周期熔断拦截 {sym}[{tier}] {action}: {_tier_why[:80]}")
+                        logger.info(
+                            f"[FullAuto] 周期熔断拦截 {sym}[{tier}]: {_tier_why[:80]}")
+                        continue
+                except Exception as _tier_cb_err:
+                    logger.warning(
+                        f"[FullAuto] tier_circuit_breaker 检查异常: {_tier_cb_err}")
+
                 # ── 编排器硬门控 ──
                 try:
                     _orch_blk, _orch_why = host.orchestrator_blocks_open(

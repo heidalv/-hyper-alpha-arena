@@ -276,6 +276,20 @@ export interface CooldownSnapshot {
   reduce?: CooldownReduceRow[];
   ai_reverse?: CooldownAiReverseRow[];
   tier_blocked?: Record<"short" | "mid" | "long", string[]>;
+  /** P0-E：周期级日亏熔断快照（只读） */
+  tier_circuit?: Record<"short" | "mid" | "long", TierCircuitState>;
+}
+
+export interface TierCircuitState {
+  tier: "short" | "mid" | "long";
+  day?: string;
+  loss?: number | null;
+  budget?: number | null;
+  budget_pct?: number;
+  equity?: number | null;
+  frozen?: boolean;
+  reason?: string;
+  frozen_at?: number | null;
 }
 
 /** P0-D：门禁拦截事件流（/api/full-auto/events/{session}） */

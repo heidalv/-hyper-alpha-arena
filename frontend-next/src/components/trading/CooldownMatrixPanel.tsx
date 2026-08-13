@@ -9,10 +9,10 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { ShieldAlert, ShieldCheck, Timer } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Timer, Zap } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { CooldownSnapshot, SessionEventsResponse } from "@/types/api";
+import type { CooldownSnapshot, SessionEventsResponse, TierCircuitState } from "@/types/api";
 
 const TIER_LABELS: Record<string, string> = { short: "短线", mid: "中线", long: "长线", default: "默认" };
 
@@ -57,6 +57,36 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
           {blockedSymbols.size > 0 ? `${blockedSymbols.size} 处阻挡` : "✅ 全部放行"}
         </span>
       </div>
+
+      {/* P0-E 周期级日亏熔断 */}
+      {data?.tier_circuit && (
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["short", "mid", "long"] as const).map((k) => {
+            const c: TierCircuitState | undefined = data.tier_circuit?.[k];
+            if (!c) return null;
+            const loss = Number(c.loss ?? 0);
+            const budget = Number(c.budget ?? 0);
+            return (
+              <div key={k} className={cn("rounded px-1.5 py-1 border", c.frozen ? "border-loss/40 bg-loss/10" : "border-border/60 bg-muted/20")}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono flex items-center gap-1">
+                    <Zap className="w-2.5 h-2.5 text-warning" />{TIER_LABELS[k]}
+                  </span>
+                  <span className={cn("text-[9px] font-mono", c.frozen ? "text-loss" : "text-profit")}>
+                    {c.frozen ? "⛔熔断" : "✅正常"}
+                  </span>
+                </div>
+                <div className="text-[9px] font-mono text-muted-foreground">
+                  {c.loss != null ? `日 ${loss >= 0 ? "+" : ""}$${loss.toFixed(2)} / $${budget.toFixed(0)}` : "未巡检"}
+                </div>
+                {c.frozen && c.reason && (
+                  <div className="text-[9px] text-loss leading-snug mt-0.5">{c.reason.slice(0, 60)}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {fullClose.length === 0 && reduce.length === 0 && aiReverse.length === 0 ? (
         <div className="text-center text-muted-foreground text-xs py-3">当前无冷却阻挡 — 各周期可正常开仓</div>

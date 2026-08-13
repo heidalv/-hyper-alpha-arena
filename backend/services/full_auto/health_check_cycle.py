@@ -961,6 +961,31 @@ def run_health_check(
         # ── 4.55 per-symbol 日亏损追踪 ──
         host.update_symbol_daily_pnl(db, session)
 
+        # ── 4.56 P0-E 分层熔断：周期级日亏预算（只冻本 tier，绝不跨周期）──
+        try:
+            from backend.services.tier_circuit_breaker import (
+                check_and_update as _tier_cb_update,
+                get_tier_circuit_snapshot as _tier_cb_snapshot,
+            )
+            _tier_acct = host.get_trading_account_id(db, session)
+            if _tier_acct:
+                _tier_before = {
+                    t: bool(s.get("frozen"))
+                    for t, s in _tier_cb_snapshot(_tier_acct).items()
+                }
+                _tier_after = _tier_cb_update(db, _tier_acct)
+                for _t in ("short", "mid", "long"):
+                    _was_frozen = _tier_before.get(_t, False)
+                    _now_frozen = bool((_tier_after.get(_t) or {}).get("frozen"))
+                    if _now_frozen and not _was_frozen:
+                        host.append_event(session, "tier_circuit_trigger",
+                            f"🚧 周期熔断触发[{_t}]: {(_tier_after[_t] or {}).get('reason', '')}")
+                    elif _was_frozen and not _now_frozen:
+                        host.append_event(session, "tier_circuit_release",
+                            f"✅ 周期熔断解除[{_t}]（日亏预算跨日重置）")
+        except Exception as _tier_cb_err:
+            logger.debug("[FullAuto] tier_circuit_breaker 巡检跳过: %s", _tier_cb_err)
+
         # ── 4.6 风控巡检 (per-symbol + 全局极端安全网) ──
         if host.live_constitutional_enabled(session):
             host.check_live_constitutional_session_risk(db, session)
@@ -987,7 +1012,10 @@ def run_health_check(
                 # per-symbol 冻结：仅冻结亏损 symbol，其他正常交易
                 for _fz_sym in risk_result.frozen_symbols:
                     _fz_reason = risk_result.symbol_reasons.get(_fz_sym, "未知原因")
-                    host.freeze_symbol_strategies(db, session, _fz_sym, _fz_reason)
+                    # P0-E: tier 归因可用时只冻结亏损所属周期
+                    _fz_tiers = risk_result.frozen_symbol_tiers.get(_fz_sym) or None
+                    host.freeze_symbol_strategies(db, session, _fz_sym, _fz_reason,
+                                                  tiers=_fz_tiers)
 
                 # 解冻已恢复的 symbol
                 host.unfreeze_recovered_symbols(db, session, risk_result.frozen_symbols)

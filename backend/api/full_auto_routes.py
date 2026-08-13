@@ -1060,8 +1060,8 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
 # ══════════════════════════════════════════════════════
 
 _BLOCK_EVENT_MARKERS = (
-    "block", "blocked", "cooldown", "circuit_breaker", "defensive_entry",
-    "veto", "reject", "gate", "freeze", "tier_budget", "rebound_gate",
+    "block", "blocked", "cooldown", "circuit", "defensive_entry",
+    "veto", "reject", "gate", "loss_freeze", "tier_budget", "rebound_gate",
 )
 
 
@@ -1096,6 +1096,14 @@ def get_session_cooldowns(session_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning("[P0-D] cooldown snapshot failed: %s", e)
         snapshot = {"error": str(e)[:120]}
+
+    # P0-E 透明化：周期级熔断快照（只读）
+    try:
+        from backend.services.tier_circuit_breaker import get_tier_circuit_snapshot
+        snapshot["tier_circuit"] = get_tier_circuit_snapshot(_trading_acct)
+    except Exception as e:
+        logger.warning("[P0-E] tier circuit snapshot failed: %s", e)
+        snapshot["tier_circuit"] = {"error": str(e)[:120]}
 
     snapshot["session_id"] = session_id
     snapshot["trading_account_id"] = _trading_acct

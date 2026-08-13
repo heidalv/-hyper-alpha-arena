@@ -47,6 +47,7 @@ class PaperSessionHost:
     defensive_entered_at: Dict[str, float] = field(default_factory=dict)
     recovery_until: Dict[str, float] = field(default_factory=dict)
     symbol_frozen_set: Dict[str, set] = field(default_factory=dict)
+    symbol_frozen_tiers: Dict[str, Dict[str, set]] = field(default_factory=dict)
     strat_pause_meta: Dict[Any, Dict[str, Any]] = field(default_factory=dict)
 
     paper_loss_locks_disabled: Callable = field(repr=False, default=lambda *a, **k: False)
@@ -65,6 +66,7 @@ def build_paper_session_host(svc) -> PaperSessionHost:
         defensive_entered_at=svc._defensive_entered_at,
         recovery_until=svc._recovery_until,
         symbol_frozen_set=getattr(svc, "_symbol_frozen_set", None) or {},
+        symbol_frozen_tiers=getattr(svc, "_symbol_frozen_tiers", None) or {},
         strat_pause_meta=getattr(svc, "_strat_pause_meta", None) or {},
         paper_loss_locks_disabled=svc._paper_loss_locks_disabled,
         clear_strategy_pause_meta=svc._clear_strategy_pause_meta,
@@ -106,6 +108,9 @@ def paper_auto_unlock_session(db: Session, session, host: PaperSessionHost) -> b
     frozen = host.symbol_frozen_set.get(sid)
     if frozen:
         host.symbol_frozen_set[sid] = set()
+        changed = True
+    if host.symbol_frozen_tiers.get(sid):
+        host.symbol_frozen_tiers[sid] = {}
         changed = True
 
     sids = list(session.active_strategy_ids or []) + list(session.terminated_strategy_ids or [])

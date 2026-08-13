@@ -317,6 +317,25 @@ def try_execute_independent_agent_open(
                         pass
                     _audit_skip(f"midlong_cooldown_block:{_cd_reason}")
                     return False
+                # ── P0-E 分层熔断：周期级日亏预算（只冻本 tier，绝不跨周期）──
+                try:
+                    from backend.services.tier_circuit_breaker import (
+                        is_tier_open_blocked as _tier_cb_blocked,
+                    )
+                    _tier_blk, _tier_why = _tier_cb_blocked(_account_id_cd, _tier_cd)
+                    if _tier_blk:
+                        logger.info(
+                            "[TierCircuit] BLOCK %s %s tier=%s: %s",
+                            _sym_u, _act, _tier_cd, _tier_why,
+                        )
+                        host.append_event(
+                            session, "tier_circuit_block",
+                            f"⛔ 周期熔断[{_tier_cd}] {_sym_u} {_act}: {_tier_why[:100]}",
+                        )
+                        _audit_skip(f"tier_circuit_block:{_tier_why[:60]}")
+                        return False
+                except Exception as _tier_cb_err:
+                    logger.debug("[TierCircuit] 检查跳过: %s", _tier_cb_err)
         except Exception as _cd_err:
             logger.debug("[MidLongCooldown] %s 冷却检查跳过: %s", _sym_u, _cd_err)
 

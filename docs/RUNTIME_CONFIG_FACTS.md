@@ -56,3 +56,6 @@
 | HERMES_L2_AB_ENABLED | Hermes L2 A/B | false | |
 | PAIR_BINDING_LANE_ENABLED | 交易对绑定车道 | false | |
 | AI_AB_FRAMEWORK_ENABLED | AI A/B 框架 | false | |
+| TIER_DAILY_LOSS_BUDGET_PCT_SHORT | P0-E 短线周期独立日亏预算（权益%，0=禁用） | 2.0 | 只冻本周期新开仓，绝不跨周期 |
+| TIER_DAILY_LOSS_BUDGET_PCT_MID | P0-E 中线周期独立日亏预算（权益%，0=禁用） | 2.0 | 只冻本周期新开仓，绝不跨周期 |
+| TIER_DAILY_LOSS_BUDGET_PCT_LONG | P0-E 长线周期独立日亏预算（权益%，0=禁用） | 3.0 | 只冻本周期新开仓，绝不跨周期 |

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
+from sqlalchemy import text as sa_text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -18,12 +19,18 @@ class PerSymbolRiskResult:
     global_reason: str = ""
     frozen_symbols: List[str] = field(default_factory=list)
     symbol_reasons: Dict[str, str] = field(default_factory=dict)
+    # P0-E: symbol → 被冻结的 tier 列表（空列表=未记录=冻结全部 tier）
+    frozen_symbol_tiers: Dict[str, List[str]] = field(default_factory=dict)
 
 
 @dataclass
 class SymbolRiskHost:
     symbol_daily_pnl: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    # P0-E: {session_id: {(symbol, tier): pnl}} — tier 归因的日盈亏
+    symbol_tier_daily_pnl: Dict[str, Dict[str, float]] = field(default_factory=dict)
     symbol_frozen_set: Dict[str, set] = field(default_factory=dict)
+    # P0-E: {session_id: {symbol: set(tier)}} — 各 symbol 被冻结的 tier
+    symbol_frozen_tiers: Dict[str, Dict[str, set]] = field(default_factory=dict)
     strat_pause_meta: Dict[Any, Dict[str, Any]] = field(default_factory=dict)
     defensive_entered_at: Dict[str, float] = field(default_factory=dict)
     recovery_until: Dict[str, float] = field(default_factory=dict)
@@ -47,7 +54,9 @@ class SymbolRiskHost:
 def build_symbol_risk_host(svc) -> SymbolRiskHost:
     return SymbolRiskHost(
         symbol_daily_pnl=getattr(svc, "_symbol_daily_pnl", None) or {},
+        symbol_tier_daily_pnl=getattr(svc, "_symbol_tier_daily_pnl", None) or {},
         symbol_frozen_set=getattr(svc, "_symbol_frozen_set", None) or {},
+        symbol_frozen_tiers=getattr(svc, "_symbol_frozen_tiers", None) or {},
         strat_pause_meta=getattr(svc, "_strat_pause_meta", None) or {},
         defensive_entered_at=svc._defensive_entered_at,
         recovery_until=svc._recovery_until,
@@ -174,8 +183,46 @@ def update_symbol_daily_pnl(db: Session, session, host: SymbolRiskHost) -> None:
             sym = (row[0] or "").upper().replace("/USDT", "").replace("/USDC", "")
             if sym:
                 pnl_map[sym] = float(row[1] or 0)
+
+        # P0-E: tier 归因的日盈亏（XPL 中线亏只冻 XPL 中线，不冻 XPL 短线/长线）
+        # 归因优先级：trade_nature(NATURE_TO_TIER) > AIStrategy.timeframe_tier
+        # （后者 server_default='mid'，会把 legacy 短线单误归入中线）
+        _tier_rows = db.execute(sa_text("""
+            SELECT symbol,
+                   COALESCE(
+                     CASE o.trade_nature
+                       WHEN 'scalp' THEN 'short'
+                       WHEN 'intraday' THEN 'short'
+                       WHEN 'swing' THEN 'mid'
+                       WHEN 'trend_follow' THEN 'long'
+                       WHEN 'position' THEN 'long'
+                       ELSE NULL
+                     END,
+                     s.timeframe_tier,
+                     'unknown'
+                   ) AS tier,
+                   SUM(CASE WHEN o.pnl IS NOT NULL THEN o.pnl ELSE 0 END) as total_pnl
+            FROM paper_orders o
+            LEFT JOIN ai_strategies s ON s.strategy_id = o.strategy_id
+            WHERE o.account_id = :acct_id
+              AND o.status = 'filled'
+              AND o.created_at >= :cutoff_start
+              AND COALESCE(o.close_reason, '') NOT IN ('old_position_cleanup', 'smoke_test_cleanup')
+            GROUP BY 1, 2
+        """), {
+            "acct_id": trading_acct,
+            "cutoff_start": cutoff_start,
+        }).fetchall()
+        tier_pnl_map: Dict[str, float] = {}
+        for row in _tier_rows:
+            _sym = (row[0] or "").upper().replace("/USDT", "").replace("/USDC", "")
+            _tier = str(row[1] or "unknown").strip().lower()
+            if _sym and _tier in ("short", "mid", "long"):
+                tier_pnl_map[f"{_sym}|{_tier}"] = float(row[2] or 0)
+
         with host.state_lock:
             host.symbol_daily_pnl[sid] = pnl_map
+            host.symbol_tier_daily_pnl[sid] = tier_pnl_map
         if pnl_map:
             loss_symbols = [s for s, p in pnl_map.items() if p < 0]
             if loss_symbols:
@@ -183,10 +230,37 @@ def update_symbol_daily_pnl(db: Session, session, host: SymbolRiskHost) -> None:
                     f"[PerSymbolRisk] {sid} 日亏损追踪: " +
                     ", ".join(f"{s}=${p:.0f}" for s, p in pnl_map.items() if p < 0)
                 )
+        _tier_loss = [(k, v) for k, v in tier_pnl_map.items() if v < 0]
+        if _tier_loss:
+            logger.info(
+                "[PerSymbolRisk] %s 日亏损(tier归因): %s",
+                sid,
+                ", ".join(f"{k.split('|')[0]}[{k.split('|')[1]}]=${v:.0f}" for k, v in _tier_loss),
+            )
     except Exception as e:
         logger.debug(f"[PerSymbolRisk] 日亏损追踪查询失败(非致命): {e}")
 
-def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str, host: SymbolRiskHost) -> None:
+def _strategy_tier(strat) -> str:
+    """策略周期归因：timeframe_tier > genome.trade_nature。未知回退 ''。"""
+    try:
+        from backend.services.sub_position_manager import NATURE_TO_TIER
+    except Exception:
+        NATURE_TO_TIER = {}
+    _t = str(getattr(strat, "timeframe_tier", None) or "").strip().lower()
+    if _t in ("short", "mid", "long"):
+        return _t
+    _genome = getattr(strat, "genome", None)
+    if isinstance(_genome, dict):
+        _t = NATURE_TO_TIER.get(str(_genome.get("trade_nature") or "").strip().lower(), "")
+        if _t in ("short", "mid", "long"):
+            return _t
+    return ""
+
+
+def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str,
+                             host: SymbolRiskHost, tiers: Optional[List[str]] = None) -> None:
+    """P0-E: 冻结某 symbol 的策略。tiers 给定时只冻结这些周期（tier 隔离）；
+    tiers=None 表示冻结全部周期（旧行为 / 情绪层等 symbol 级信号）。"""
     if host.paper_loss_locks_disabled(session):
         return
     from backend.database.models import AIStrategy
@@ -196,8 +270,10 @@ def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str, hos
         if symbol in frozen:
             return  # 已冻结，跳过
         frozen.add(symbol)
+        if tiers:
+            host.symbol_frozen_tiers.setdefault(sid, {})[symbol] = set(tiers)
 
-    # 暂停该 symbol 的所有 active 策略
+    # 暂停该 symbol 的 active 策略（tiers 给定时只暂停对应周期）
     sids = list(session.active_strategy_ids or [])
     paused_count = 0
     for strat_id in sids:
@@ -206,16 +282,19 @@ def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str, hos
             AIStrategy.primary_symbol == symbol,
             AIStrategy.status == "active",
         ).first()
-        if strat:
-            strat.status = "paused"
-            host.record_strategy_pause(
-                strat.strategy_id, f"日亏损冻结:{reason[:40]}", by="per_symbol_risk"
-            )
-            # 2026-06-19: 统一注册到 SymbolLockRegistry
-            from backend.services.symbol_lock_registry import lock_registry
-            lock_registry.lock(symbol, strategy_id=str(strat.strategy_id),
-                               reason_code="per_symbol_loss", by="per_symbol_risk")
-            paused_count += 1
+        if not strat:
+            continue
+        if tiers and _strategy_tier(strat) not in set(tiers):
+            continue  # P0-E: 其他周期照常，绝不连坐
+        strat.status = "paused"
+        host.record_strategy_pause(
+            strat.strategy_id, f"日亏损冻结:{reason[:40]}", by="per_symbol_risk"
+        )
+        # 2026-06-19: 统一注册到 SymbolLockRegistry
+        from backend.services.symbol_lock_registry import lock_registry
+        lock_registry.lock(symbol, strategy_id=str(strat.strategy_id),
+                           reason_code="per_symbol_loss", by="per_symbol_risk")
+        paused_count += 1
     try:
         db.flush()
     except Exception as _flush_err:
@@ -225,18 +304,20 @@ def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str, hos
         except Exception:
             pass
 
-    # 同步冻结 MTOrchestrator
-    try:
-        from backend.services.multi_timeframe_orchestrator import mt_orchestrator
-        mt_orchestrator._freeze_until[symbol] = time.time() + host.SYMBOL_FREEZE_COOLDOWN_MINUTES * 60
-        mt_orchestrator._freeze_reason[symbol] = reason[:60]
-    except Exception:
-        pass
+    # 同步冻结 MTOrchestrator：仅 symbol 级全周期冻结时才冻结（tier 限定时跳过，
+    # 避免 MTOrchestrator 的 symbol 级 _freeze_until 连坐其他周期）
+    if not tiers:
+        try:
+            from backend.services.multi_timeframe_orchestrator import mt_orchestrator
+            mt_orchestrator._freeze_until[symbol] = time.time() + host.SYMBOL_FREEZE_COOLDOWN_MINUTES * 60
+            mt_orchestrator._freeze_reason[symbol] = reason[:60]
+        except Exception:
+            pass
 
     if host.should_log_pause_event(session.session_id, f"sym_freeze:{symbol}"):
         host.append_event(session, "symbol_loss_freeze",
             f"[PerSymbolRisk] {symbol} 冻结: {reason} (暂停{paused_count}个策略)")
-    logger.warning(f"[PerSymbolRisk] {symbol} 冻结: {reason}")
+    logger.warning(f"[PerSymbolRisk] {symbol} 冻结: {reason} (暂停{paused_count}个策略)")
 
 def unfreeze_recovered_symbols(db: Session, session, still_frozen: List[str], host: SymbolRiskHost) -> None:
     from backend.database.models import AIStrategy
@@ -251,6 +332,8 @@ def unfreeze_recovered_symbols(db: Session, session, still_frozen: List[str], ho
         return
 
     for symbol in to_unfreeze:
+        # P0-E: 只恢复「本 symbol 被冻结的周期」策略；未记录 = 旧行为恢复全部
+        _frozen_tiers = (host.symbol_frozen_tiers.get(sid, {}) or {}).pop(symbol, None)
         # 恢复该 symbol 的 paused 策略
         sids = list(session.active_strategy_ids or []) + list(session.terminated_strategy_ids or [])
         resumed = 0
@@ -260,13 +343,16 @@ def unfreeze_recovered_symbols(db: Session, session, still_frozen: List[str], ho
                 AIStrategy.primary_symbol == symbol,
                 AIStrategy.status == "paused",
             ).first()
-            if strat:
-                _meta = host.strat_pause_meta.get(int(strat.strategy_id), {})
-                if "震荡市" in str(_meta.get("reason") or ""):
-                    continue
-                strat.status = "active"
-                host.clear_strategy_pause_meta(strat.strategy_id)
-                resumed += 1
+            if not strat:
+                continue
+            if _frozen_tiers and _strategy_tier(strat) not in _frozen_tiers:
+                continue  # 其他周期的 paused 策略与本 symbol 冻结无关，不动
+            _meta = host.strat_pause_meta.get(int(strat.strategy_id), {})
+            if "震荡市" in str(_meta.get("reason") or ""):
+                continue
+            strat.status = "active"
+            host.clear_strategy_pause_meta(strat.strategy_id)
+            resumed += 1
         try:
             db.flush()
         except Exception as _dbf_err:
@@ -301,8 +387,9 @@ def check_per_symbol_risk(db: Session, session, host: SymbolRiskHost) -> PerSymb
     global_dd = profile.global_extreme_drawdown
     global_daily = profile.global_extreme_daily_loss_pct
 
-    # ── Layer 1: per-symbol 日亏损检查 ──
+    # ── Layer 1: per-symbol 日亏损检查（P0-E: tier 归因，只冻亏损所属周期）──
     symbol_pnl = host.symbol_daily_pnl.get(sid, {})
+    tier_pnl = host.symbol_tier_daily_pnl.get(sid, {})
     total_equity = 0.0
     try:
         trading_acct = host.get_trading_account_id(db, session)
@@ -314,16 +401,37 @@ def check_per_symbol_risk(db: Session, session, host: SymbolRiskHost) -> PerSymb
     if total_equity <= 0:
         total_equity = 10000.0  # fallback
 
-    for symbol, pnl in symbol_pnl.items():
-        if pnl >= 0:
-            continue  # 该 symbol 盈利或持平
-        loss_pct = abs(pnl) / total_equity
-        if loss_pct >= symbol_loss_pct:
-            result.frozen_symbols.append(symbol)
-            result.symbol_reasons[symbol] = (
-                f"日亏损 ${abs(pnl):.0f} ({loss_pct*100:.1f}% 权益) "
+    if tier_pnl:
+        # tier 归因数据可用：按 (symbol, tier) 精确冻结（绝不跨周期）
+        tier_loss_items = [(k, p) for k, p in tier_pnl.items() if p < 0]
+        for k, pnl in tier_loss_items:
+            _sym, _tier = k.split("|", 1)
+            loss_pct = abs(pnl) / total_equity
+            if loss_pct < symbol_loss_pct:
+                continue
+            if _sym not in result.frozen_symbols:
+                result.frozen_symbols.append(_sym)
+                result.frozen_symbol_tiers[_sym] = []
+            if _tier not in result.frozen_symbol_tiers[_sym]:
+                result.frozen_symbol_tiers[_sym].append(_tier)
+            _prev = result.symbol_reasons.get(_sym)
+            _new = (
+                f"[{_tier}]日亏损 ${abs(pnl):.0f} ({loss_pct*100:.1f}% 权益) "
                 f"超过阈值 {symbol_loss_pct*100:.0f}%"
             )
+            result.symbol_reasons[_sym] = "; ".join(x for x in (_prev, _new) if x)
+    else:
+        # tier 归因不可用（旧数据）→ 回退旧行为：symbol 级整体判断（冻结全部周期）
+        for symbol, pnl in symbol_pnl.items():
+            if pnl >= 0:
+                continue  # 该 symbol 盈利或持平
+            loss_pct = abs(pnl) / total_equity
+            if loss_pct >= symbol_loss_pct:
+                result.frozen_symbols.append(symbol)
+                result.symbol_reasons[symbol] = (
+                    f"日亏损 ${abs(pnl):.0f} ({loss_pct*100:.1f}% 权益) "
+                    f"超过阈值 {symbol_loss_pct*100:.0f}%"
+                )
 
     # ── Layer 2: 全局极端安全网 ──
     # 2a. 总回撤超过 50%

@@ -48,6 +48,9 @@ class FullAutoTradingService:
     # ── per-symbol 日亏损追踪 ──
     _symbol_daily_pnl: Dict[str, Dict[str, float]] = {}  # {session_id: {symbol: realized_pnl_today}}
     _symbol_frozen_set: Dict[str, set] = {}              # {session_id: set(frozen_symbols)}
+    # P0-E: tier 归因日盈亏 + 各 symbol 被冻结的周期（tier 隔离，绝不跨周期连坐）
+    _symbol_tier_daily_pnl: Dict[str, Dict[str, float]] = {}   # {session_id: {"SYM|tier": pnl}}
+    _symbol_frozen_tiers: Dict[str, Dict[str, set]] = {}       # {session_id: {symbol: set(tier)}}
 
     # ── per-symbol 风控参数 ──
     _SYMBOL_DAILY_LOSS_PCT = 0.03          # 单 symbol 日亏损 3% 触发冻结
@@ -263,6 +266,7 @@ class FullAutoTradingService:
         self._defensive_entered_at = host.defensive_entered_at
         self._recovery_until = host.recovery_until
         self._symbol_frozen_set = host.symbol_frozen_set
+        self._symbol_frozen_tiers = host.symbol_frozen_tiers
         self._strat_pause_meta = host.strat_pause_meta
         return changed
 
@@ -2840,6 +2844,7 @@ class FullAutoTradingService:
         host = build_symbol_risk_host(self)
         update_symbol_daily_pnl(db, session, host)
         self._symbol_daily_pnl = host.symbol_daily_pnl
+        self._symbol_tier_daily_pnl = host.symbol_tier_daily_pnl
 
     def _freeze_symbol_strategies(self, db: Session, session, symbol: str, reason: str):
         from backend.services.full_auto.symbol_risk import (
@@ -2849,6 +2854,7 @@ class FullAutoTradingService:
         host = build_symbol_risk_host(self)
         freeze_symbol_strategies(db, session, symbol, reason, host)
         self._symbol_frozen_set = host.symbol_frozen_set
+        self._symbol_frozen_tiers = host.symbol_frozen_tiers
 
     def _unfreeze_recovered_symbols(self, db: Session, session, still_frozen: List[str]):
         from backend.services.full_auto.symbol_risk import (
@@ -2858,6 +2864,7 @@ class FullAutoTradingService:
         host = build_symbol_risk_host(self)
         unfreeze_recovered_symbols(db, session, still_frozen, host)
         self._symbol_frozen_set = host.symbol_frozen_set
+        self._symbol_frozen_tiers = host.symbol_frozen_tiers
 
     def _check_per_symbol_risk(self, db: Session, session) -> '_PerSymbolRiskResult':
         from backend.services.full_auto.symbol_risk import (
