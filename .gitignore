@@ -436,3 +436,4 @@ _cleanup_archive/
 # Runtime report snapshots written by the live system (high churn, do NOT commit)
 reports/scalp_chain/
 reports/scalp_symbols/
+reports/coverage/
