@@ -206,39 +206,52 @@ class FactorExposureService:
     # ------------------------------------------------------------------
 
     def _load_active(self) -> List[Dict[str, Any]]:
-        """加载 ACTIVE 因子（factor_active_set）。"""
+        """加载可参与匹配的因子（factor_active_set）。
+
+        [2026-08-08 P1-3] 新晋升几乎总是 PAPER；若只读 ACTIVE，M4 factor_match
+        在影子期长期空转。纳入 ACTIVE/PAPER/SMALL_LIVE；影子态无权重时给地板
+        权重（PAPER=0.5 / SMALL_LIVE=0.75），ACTIVE 缺权重给 1.0。
+        """
         global _GOVERNANCE_COLUMNS_CHECKED
         if not _GOVERNANCE_COLUMNS_CHECKED:
             self._ensure_governance_columns()
             _GOVERNANCE_COLUMNS_CHECKED = True
         try:
-            from backend.database.connection import AnalyticsSessionLocal
-            from backend.database.models import FactorActiveSet
-            from backend.services.factor_engine.expr.parser import parse as _parse
-            from sqlalchemy import text as _sa_text
-            with AnalyticsSessionLocal() as db:
-                db.execute(_sa_text("SET LOCAL app.is_admin='on'"))
-                rows = db.query(FactorActiveSet).filter(
-                    FactorActiveSet.state == "ACTIVE"
-                ).all()
+            from backend.services.factor_engine.active_set_policy import (
+                ActiveSetRole,
+                load_factor_active_rows,
+            )
+            rows = load_factor_active_rows(ActiveSetRole.TRADABLE, parse_expr=True)
+            _floor = {"ACTIVE": 1.0, "SMALL_LIVE": 0.75, "PAPER": 0.5}
             out = []
             for r in rows:
                 try:
-                    expr = _parse(r.expr_ast)
+                    expr = r.get("expr")
+                    if not expr:
+                        continue
                     w = 0.0
-                    if r.current_weight:
-                        vals = list(r.current_weight.values())
+                    cw = r.get("current_weight") or {}
+                    if cw:
+                        vals = list(cw.values()) if isinstance(cw, dict) else []
                         w = float(vals[0]) if vals else 0.0
+                    if w <= 0:
+                        w = float(_floor.get(str(r.get("state")), 0.5))
                     out.append({
-                        "factor_id": r.factor_id,
+                        "factor_id": r.get("factor_id"),
                         "expr": expr,
-                        "net_ic": float(r.last_net_ic or r.icir or 0),
+                        "net_ic": float(r.get("last_net_ic") or r.get("icir") or 0),
                         "weight": w,
+                        "state": str(r.get("state")),
                     })
                 except Exception:
                     continue
+            if out:
+                logger.debug(
+                    "[FactorExposure] 载入 %d 因子 (TRADABLE)", len(out),
+                )
             return out
-        except Exception:
+        except Exception as e:
+            logger.warning("[FactorExposure] _load_active 失败: %s", e)
             return []
 
     def _compute(self, symbol: str, period: str, count: int) -> List[FactorExposure]:

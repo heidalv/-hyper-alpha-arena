@@ -75,6 +75,7 @@ class RLPolicyOptimizer:
         learning_rate: float = 3e-4,
         save_after: bool = True,
         progress_callback: callable = None,
+        device: Optional[str] = None,
     ) -> bool:
         """
         训练 PPO 模型
@@ -85,6 +86,7 @@ class RLPolicyOptimizer:
             learning_rate: 学习率
             save_after: 训练成功后是否自动 save 到默认路径（ppo_latest.zip）
             progress_callback: 可选，训练进度回调 callback(pct: float, current_ts: int, total_ts: int)
+            device: 训练设备（cuda / cpu / auto），默认读 DRL_DEVICE env（auto 回退）
 
         Returns:
             是否训练成功
@@ -94,42 +96,62 @@ class RLPolicyOptimizer:
             return False
 
         try:
-            self.model = self._ppo_class(
-                "MlpPolicy",
-                env,
-                learning_rate=learning_rate,
-                n_steps=2048,
-                batch_size=64,
-                n_epochs=10,
-                verbose=0,
-            )
-
-            # ── 构建 SB3 进度回调 ──
-            def _sb3_callback(_locals: dict, _globals: dict) -> bool:
-                if progress_callback:
-                    current = _locals.get("num_timesteps", 0)
-                    pct = min(99, round(current / total_timesteps * 100, 1))
-                    progress_callback(pct, current, total_timesteps)
-                return True
-
-            self.model.learn(
-                total_timesteps=total_timesteps,
-                callback=_sb3_callback if progress_callback else None,
-            )
-            self._total_timesteps_trained += total_timesteps
-            # 版本号 = 训练结束时间戳
-            self._model_version = f"ppo_{int(time.time())}"
-            # 记录 feature_dim，供 load 时比对
-            try:
-                self._model_feature_dim = int(env.observation_space.shape[0])
-            except Exception:
-                self._model_feature_dim = self.EXPECTED_FEATURE_DIM
-
-            if save_after:
+            # 设备解析：DRL_DEVICE env > 参数；auto = cuda 可用则 cuda
+            if device is None:
+                device = os.environ.get("DRL_DEVICE", "auto").strip().lower() or "auto"
+            if device == "auto":
                 try:
-                    self.save()
-                except Exception as save_err:
-                    logger.warning(f"[RLPolicyOptimizer] save after train failed: {save_err}")
+                    import torch
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                except Exception:
+                    device = "cpu"
+
+            # GPU 任务全局互斥（单卡：与 ML 深度模型重训总串行）；被占用则跳过本次
+            from backend.services.resource_guard import gpu_training_operation
+
+            with gpu_training_operation("drl-train") as acquired:
+                if not acquired:
+                    logger.warning(
+                        "[RLPolicyOptimizer] GPU 训练互斥被占用，跳过本次 DRL 训练（下轮冷却后再试）"
+                    )
+                    return False
+                self.model = self._ppo_class(
+                    "MlpPolicy",
+                    env,
+                    learning_rate=learning_rate,
+                    n_steps=2048,
+                    batch_size=64,
+                    n_epochs=10,
+                    verbose=0,
+                    device=device,
+                )
+
+                # ── 构建 SB3 进度回调 ──
+                def _sb3_callback(_locals: dict, _globals: dict) -> bool:
+                    if progress_callback:
+                        current = _locals.get("num_timesteps", 0)
+                        pct = min(99, round(current / total_timesteps * 100, 1))
+                        progress_callback(pct, current, total_timesteps)
+                    return True
+
+                self.model.learn(
+                    total_timesteps=total_timesteps,
+                    callback=_sb3_callback if progress_callback else None,
+                )
+                self._total_timesteps_trained += total_timesteps
+                # 版本号 = 训练结束时间戳
+                self._model_version = f"ppo_{int(time.time())}"
+                # 记录 feature_dim，供 load 时比对
+                try:
+                    self._model_feature_dim = int(env.observation_space.shape[0])
+                except Exception:
+                    self._model_feature_dim = self.EXPECTED_FEATURE_DIM
+
+                if save_after:
+                    try:
+                        self.save()
+                    except Exception as save_err:
+                        logger.warning(f"[RLPolicyOptimizer] save after train failed: {save_err}")
             return True
         except Exception as e:
             logger.error("[RLPolicyOptimizer] Training failed: %s", e)

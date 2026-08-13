@@ -49,6 +49,9 @@ def snapshot_with_hub_mode(snapshot: Dict[str, Any]) -> Dict[str, Any]:
         else:
             out["hub_mode"] = MODE_STANDARD
             out["ai_governed_weight"] = None
+        # v6 M6：透传方向来源，便于看板查 AI→成交 一致率
+        if out.get("dir_src") is None and snapshot.get("dir_src"):
+            out["dir_src"] = snapshot.get("dir_src")
         return out
     except Exception:
         return dict(snapshot or {})

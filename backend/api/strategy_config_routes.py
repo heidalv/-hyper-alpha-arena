@@ -80,7 +80,7 @@ _LONG_PARAMS: Dict[str, Dict[str, Any]] = {
     "review_max":        {"env": "TREND_REVIEW_MAX_PER_TICK","default": "2",     "type": "int",   "min": 1,     "max": 5,     "label": "每次复查数",  "unit": "个"},
     # MLTO
     "thesis_ledger":     {"env": "MIDLONG_THESIS_LEDGER_ENABLED","default":"true","type":"bool",  "min": 0,     "max": 1,     "label": "论点账本",     "unit": ""},
-    "mlto_controls":     {"env": "MIDLONG_MLTO_CONTROLS_EXEC","default": "false","type": "bool",  "min": 0,     "max": 1,     "label": "MLTO控开单",   "unit": ""},
+    "mlto_controls":     {"env": "MIDLONG_MLTO_CONTROLS_EXEC","default": "true","type": "bool",  "min": 0,     "max": 1,     "label": "MLTO控开单",   "unit": ""},
 }
 
 _GROUPS = {

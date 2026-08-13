@@ -24,10 +24,23 @@ def _retention_days(period: str, default_days: int) -> int:
     return default_days
 
 
+def _retention_days_monthly() -> int:
+    """月线(1M)保留天数：走专用键，避免与 1m 分钟周期共用
+    KLINE_RETENTION_DAYS_1M（该键已被 1m 占用，.env=30 天）。"""
+    try:
+        v = int(os.getenv("KLINE_RETENTION_DAYS_1M_MONTH", "1825"))
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return 1825
+
+
 RETENTION = {
     "kline_1m_3m_5m": _retention_days("1m", 30) * 86400,     # 1m/3m/5m 保留 30 天（回填目标 30 天）
     "kline_15m_30m": _retention_days("15m", 90) * 86400,     # 15m/30m 保留 90 天（回填目标 60/90 天）
     "kline_1h_4h": _retention_days("1h", 400) * 86400,       # 1h/4h 保留 400 天（回填目标 210/365 天）
+    "kline_1M": _retention_days_monthly() * 86400,            # 1M 月线保留 5 年（回填目标 60 根）
     "ai_decision_logs": 90 * 86400,     # AI 决策日志保留 90 天，便于排查策略卡死/重复决策
     "llm_usage_logs": 14 * 86400,       # LLM 使用日志保留 14 天
     "whale_activities": 7 * 86400,      # 鲸鱼活动保留 7 天
@@ -59,6 +72,7 @@ def run_db_maintenance():
                 (("1m", "3m", "5m"), "kline_1m_3m_5m"),
                 (("15m", "30m"), "kline_15m_30m"),
                 (("1h", "4h"), "kline_1h_4h"),
+                (("1M",), "kline_1M"),
             ]:
                 cutoff = now_ts - RETENTION[key]
                 placeholders = ",".join(f"'{p}'" for p in periods)

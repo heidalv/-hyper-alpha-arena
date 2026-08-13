@@ -116,6 +116,20 @@ def compute_initial_tp_sl_prices(
     _tp_pct = tp_sl_def.get("tp_pct", 0.08)
     _sl_pct = tp_sl_def.get("sl_pct", 0.03)
 
+    # [可训练出场] 网格学到的 (tp,sl) 覆盖静态表；Agent 结构止损分支已提前 return
+    try:
+        from backend.services.risk.tp_sl_grid_trainer import get_learned_pct
+
+        _learned = get_learned_pct(str(tier), band=_band)
+        if _learned:
+            if float(_learned.get("tp_pct") or 0) > 0 or str(tier) == "long":
+                _tp_pct = float(_learned.get("tp_pct") or _tp_pct)
+            if float(_learned.get("sl_pct") or 0) > 0:
+                _sl_pct = float(_learned.get("sl_pct") or _sl_pct)
+            tp_sl_source = f"{tp_sl_source}+learned"
+    except Exception as _learn_err:
+        logger.debug("[TP/SL] learned 覆盖跳过: %s", _learn_err)
+
     _base_atr_pct = 0.01
     _vol_mult = max(0.7, min(3.0, atr_pct / _base_atr_pct)) if atr_pct > 0 else 1.0
 

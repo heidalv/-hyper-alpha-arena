@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 import json
 
 from backend.database.models import PromptTemplate, SignalDefinition, SignalPool
@@ -348,35 +349,78 @@ Analyze the provided market data and determine if the signal conditions are met.
         Returns:
             Dictionary with mapping information
         """
-        # This would typically involve looking for specific connections
-        # For now, we'll return placeholder information
+        # [2026-08-11 修复] 移除占位实现：基于真实信号/提示词按名称/描述关联检索，
+        # 返回真实的派生映射（match_type=name_overlap），不再硬编码空 mappings。
         result = {
             "signals": [],
             "prompts": [],
             "mappings": []
         }
-        
-        # If we had specific mappings stored in a table, we would query them here
-        # For now, this is a basic implementation
-        
+
+        def _tokens(text: str) -> List[str]:
+            words = []
+            for part in (text or "").replace("_", " ").replace("-", " ").split():
+                w = part.strip("[](){}:：,，。.!！?？")
+                if len(w) >= 2:
+                    words.append(w)
+            return words
+
+        def _overlap(a: str, b: str) -> bool:
+            ta = set(_tokens(a))
+            tb = set(_tokens(b))
+            return bool(ta & tb)
+
+        def _prompt_dict(t: PromptTemplate) -> Dict[str, Any]:
+            return {
+                "id": t.id,
+                "name": t.name,
+                "description": t.description,
+            }
+
+        def _signal_dict(s: SignalDefinition) -> Dict[str, Any]:
+            return {
+                "id": s.id,
+                "name": s.signal_name,
+                "description": s.description,
+            }
+
         if signal_id:
             signal = db.query(SignalDefinition).filter(SignalDefinition.id == signal_id).first()
             if signal:
-                result["signals"].append({
-                    "id": signal.id,
-                    "name": signal.signal_name,
-                    "description": signal.description
-                })
-        
+                result["signals"].append(_signal_dict(signal))
+                # 与 signal 名称/描述有词重叠的提示词视为派生映射。
+                all_prompts = db.query(PromptTemplate).filter(PromptTemplate.name.isnot(None)).all()
+                for t in all_prompts:
+                    if _overlap(signal.signal_name, t.name) or _overlap(signal.signal_name, t.description or ""):
+                        if not any(p["id"] == t.id for p in result["prompts"]):
+                            result["prompts"].append(_prompt_dict(t))
+                        result["mappings"].append({
+                            "signal_id": signal.id,
+                            "prompt_template_id": t.id,
+                            "match_type": "name_overlap",
+                        })
+
         if prompt_template_id:
             template = db.query(PromptTemplate).filter(PromptTemplate.id == prompt_template_id).first()
             if template:
-                result["prompts"].append({
-                    "id": template.id,
-                    "name": template.name,
-                    "description": template.description
-                })
-        
+                if not any(p["id"] == template.id for p in result["prompts"]):
+                    result["prompts"].append(_prompt_dict(template))
+                # 反向：与提示词名称/描述有词重叠的信号。
+                all_signals = db.query(SignalDefinition).filter(SignalDefinition.signal_name.isnot(None)).all()
+                for s in all_signals:
+                    if _overlap(template.name, s.signal_name) or _overlap(template.name, s.description or ""):
+                        if not any(x["id"] == s.id for x in result["signals"]):
+                            result["signals"].append(_signal_dict(s))
+                        if not any(
+                            m["signal_id"] == s.id and m["prompt_template_id"] == template.id
+                            for m in result["mappings"]
+                        ):
+                            result["mappings"].append({
+                                "signal_id": s.id,
+                                "prompt_template_id": template.id,
+                                "match_type": "name_overlap",
+                            })
+
         return result
 
 

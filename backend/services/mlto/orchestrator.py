@@ -223,6 +223,27 @@ class MltoOrchestrator:
         if not ok:
             reason = f"[MLTO] {hub.reason_text} | gate: {gate_reason} | {thesis.thesis_summary[:80]}"
             thesis_store.append_event(thesis.thesis_id, "thesis_update", {"hold": gate_reason}, db=db)
+            try:
+                from backend.services.mlto.midlong_direction_audit import (
+                    record_decision_audit,
+                )
+                record_decision_audit(
+                    outcome="skip",
+                    stage="gate",
+                    symbol=packet.symbol,
+                    reason=f"gate:{gate_reason}",
+                    session_id=getattr(packet, "session_id", "") or "",
+                    tier=packet.tier,
+                    source="mlto",
+                    action="hold",
+                    hub_action=getattr(hub, "action", "") or "",
+                    direction=getattr(hub, "direction", "") or "",
+                    score=getattr(hub, "adjusted", None),
+                    mode=getattr(hub, "mode", "") or "",
+                    extra={"hub_reason": (getattr(hub, "reason_text", "") or "")[:120]},
+                )
+            except Exception:
+                pass
             return MltoTickResult(
                 action="hold",
                 reason=reason,
@@ -234,6 +255,21 @@ class MltoOrchestrator:
         margin_pct = tranche_gate.compute_margin_pct(thesis, hub, has_pos)
         action = hub.direction_to_action()
         mem_ids = [e.event_id for e in memory_events[:8]]
+
+        # Paper NIBBLE 探针：方向由 hub soft lean 给出时，保证金再打折
+        _dir_src = str(getattr(hub, "dir_src", "") or "")
+        if _dir_src.startswith("nibble_probe") and action in ("buy", "sell"):
+            try:
+                from backend.config.settings import MIDLONG_NIBBLE_PROBE_MARGIN_MULT
+                _pm = float(MIDLONG_NIBBLE_PROBE_MARGIN_MULT or 0.5)
+            except Exception:
+                _pm = 0.5
+            _pm = max(0.15, min(1.0, _pm))
+            margin_pct = float(margin_pct or 0) * _pm
+            logger.info(
+                "[MLTO] NIBBLE probe size×%.2f → margin=%.1f%% dir_src=%s %s",
+                _pm, margin_pct * 100, _dir_src, packet.symbol,
+            )
 
         # [2026-08-05 v6 6.3 第3项] LLM 止损参数直通：优先用 thesis.sl_pct
         #（LLM exit_plan，ATR 下限硬校验），structure_stops 降级为兜底。
@@ -251,11 +287,47 @@ class MltoOrchestrator:
             _ts._persist(db, thesis)
 
         reason = f"[MLTO] {hub.action} {hub.direction} adj={hub.adjusted:.2f} tranche={thesis.tranche_stage} | {thesis.thesis_summary[:60]}"
+        if _dir_src.startswith("nibble_probe"):
+            reason = f"[MLTO][nibble_probe] {hub.action} {hub.direction} adj={hub.adjusted:.2f} | {thesis.thesis_summary[:50]}"
         thesis_store.append_event(
             thesis.thesis_id, "open_attempt",
-            {"action": action, "margin_pct": margin_pct, "hub": hub.adjusted},
+            {"action": action, "margin_pct": margin_pct, "hub": hub.adjusted,
+             "dir_src": _dir_src},
             db=db,
         )
+        try:
+            from backend.services.mlto.midlong_direction_audit import (
+                record_decision_audit,
+            )
+            _oa_outcome = "open_attempt" if action in ("buy", "sell") else "skip"
+            _oa_reason = (
+                f"hub:{hub.action}"
+                if action in ("buy", "sell")
+                else f"hub_wait_or_neutral:{hub.action}:{hub.direction}"
+            )
+            if _dir_src.startswith("nibble_probe"):
+                _oa_reason = f"nibble_probe_applied:{hub.action}:{hub.direction}"
+            record_decision_audit(
+                outcome=_oa_outcome,
+                stage="hub",
+                symbol=packet.symbol,
+                reason=_oa_reason,
+                session_id=getattr(packet, "session_id", "") or "",
+                tier=packet.tier,
+                source="mlto",
+                action=action,
+                hub_action=getattr(hub, "action", "") or "",
+                direction=getattr(hub, "direction", "") or "",
+                score=getattr(hub, "adjusted", None),
+                mode=getattr(hub, "mode", "") or "",
+                extra={
+                    "margin_pct": margin_pct,
+                    "tranche": thesis.tranche_stage,
+                    "dir_src": _dir_src,
+                },
+            )
+        except Exception:
+            pass
         logger.info("[MLTO] %s %s %s → %s margin=%.0f%%", packet.symbol, packet.tier, hub.action, action, margin_pct * 100)
 
         return MltoTickResult(
@@ -520,6 +592,25 @@ def _llm_stops(
                 logger.debug("[MLTO-S2-7] %s sl_multiplier 应用失败: %s",
                              packet.symbol, _rs_err)
         tp = max(llm_tp, sl * 2.0)  # RR 兜底：TP 至少 2×SL
+        # [v6 S2-7 接入] tp_trigger：TP 触发阈值（ATR 倍数），只允许把 TP 抬得
+        # 更高，绝不低于 2×SL 的 RR 底线。
+        _rs2 = getattr(thesis, "regime_suggestion", None)
+        if isinstance(_rs2, dict) and _rs2.get("tp_trigger") and _atr:
+            try:
+                _tp_trig = float(_rs2.get("tp_trigger") or 0)
+                if _tp_trig >= 1.0:
+                    _tp_atr = float(_atr) * _tp_trig
+                    if _tp_atr > tp:
+                        logger.info(
+                            "[MLTO-S2-7] %s %s regime tp_trigger=%.2f → TP %.4f→%.4f",
+                            packet.symbol, packet.tier, _tp_trig, tp, _tp_atr,
+                        )
+                        tp = _tp_atr
+            except Exception as _tp_err:
+                logger.debug(
+                    "[MLTO-S2-7] %s tp_trigger 应用失败: %s",
+                    packet.symbol, _tp_err,
+                )
         return sl, tp
     except Exception as _llm_sl_err:
         logger.warning(

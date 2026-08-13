@@ -109,10 +109,26 @@ class FactorCacheManager:
             return 0
     
     async def _fetch_historical_data(self, symbol: str, timeframe: str, days: int):
-        """获取历史数据（模拟）"""
-        # TODO: 实际实现从数据库获取历史数据
-        # 这里返回None表示数据不可用
-        return None
+        """[2026-08-11 修复] 从统一数据中心读取历史 K 线（原实现直接返回 None）。"""
+        try:
+            from backend.services.data_center import PERIOD_SECONDS, data_center
+
+            period_sec = PERIOD_SECONDS.get(timeframe, 86400)
+            count = max(50, int(days * 86400 / period_sec) + 10)
+            df = await asyncio.to_thread(
+                data_center.get_klines_df,
+                symbol,
+                timeframe,
+                count=count,
+                purpose="research",
+            )
+            if df is None or len(df) == 0:
+                logger.debug(f"[FactorCache] {symbol}/{timeframe} 无历史数据（{days}d）")
+                return None
+            return df
+        except Exception as e:
+            logger.warning(f"[FactorCache] {symbol}/{timeframe} 历史数据读取失败: {e}")
+            return None
     
     def invalidate_pattern(self, pattern: str):
         """

@@ -130,12 +130,14 @@ export function ComputePanel({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn("h-full", className)}>
       {(title || description || action || status) && (
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-          <div className="space-y-1">
-            {title && <CardTitle className="text-base">{title}</CardTitle>}
-            {description && <CardDescription>{description}</CardDescription>}
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3 pb-3">
+          <div className="min-w-0 space-y-1">
+            {title && <CardTitle className="text-base leading-none">{title}</CardTitle>}
+            {description && (
+              <CardDescription className="text-xs leading-relaxed">{description}</CardDescription>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {status && <StatusBadge status={status} />}
@@ -143,10 +145,60 @@ export function ComputePanel({
           </div>
         </CardHeader>
       )}
-      <CardContent className={title || description ? "pt-0" : "pt-6"}>
-        {children}
-      </CardContent>
+      <CardContent className={title || description ? "pt-0" : "pt-6"}>{children}</CardContent>
     </Card>
+  );
+}
+
+/** 卡内轻量分区：一层边框，禁止再套 ComputePanel */
+export function SubSection({
+  title,
+  icon,
+  action,
+  badge,
+  children,
+  className,
+}: {
+  title: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+  badge?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 space-y-2",
+        className
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium min-w-0">
+          {icon}
+          <span className="truncate">{title}</span>
+          {badge}
+        </div>
+        {action ? <div className="flex items-center gap-2 flex-shrink-0">{action}</div> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** 页面分区小标题（Tab 内） */
+export function SectionLabel({
+  title,
+  hint,
+}: {
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-2 px-0.5">
+      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+      {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+    </div>
   );
 }
 

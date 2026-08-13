@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -36,6 +37,9 @@ _reconcile_stats: Dict[str, int] = {
     "mismatches": 0,
     "last_ok": 1,
 }
+
+# [2026-08-11] 自愈节流：同一 (account, pid) 60s 内最多补写一次事件，防止反复刷事件日志。
+_heal_ts: Dict[str, float] = {}
 
 
 def is_phase2_read_enabled() -> bool:
@@ -144,6 +148,12 @@ def reconcile_db_vs_projection(
     if status != "open":
         return ReconcileResult(ok=True)
 
+    # [2026-08-11 修复] db_positions 为空可能是 RLS 隐藏（非管理员上下文），
+    # 不是“仓位真的没了”。此时不能把投影里的 open 仓位当 extra 关掉，
+    # 否则会误平真实开仓并和下一轮对拍形成 关→开 震荡。
+    if not db_positions:
+        return ReconcileResult(ok=True)
+
     db_open = {
         str(p.get("id") or p.get("position_id") or ""):
         p for p in (db_positions or []) if p.get("status", "open") == "open"
@@ -198,6 +208,60 @@ def reconcile_db_vs_projection(
                 missing_in_proj=missing, extra_in_proj=extra, field_mismatches=field_mm,
             ).summary,
         )
+        # [2026-08-11 修复] C7 自愈：DB 有而投影缺的 open 仓位补写 PositionOpened；
+        # 投影 open 但 DB 已不存在的补写 PositionClosed；size 差异补 PositionChanged。
+        # 收敛后下轮对拍即 ok，读路径才允许走投影。
+        healed = 0
+        now = time.time()
+        for pid in missing:
+            key = f"open:{account_id}:{pid}"
+            if now - _heal_ts.get(key, 0.0) < 60:
+                continue
+            dbp = db_open[pid]
+            record_position_event(EVT_POSITION_OPENED, pid, {
+                "account_id": account_id,
+                "symbol": dbp.get("symbol"),
+                "side": dbp.get("side"),
+                "size": float(dbp.get("size") or 0),
+                "entry_price": float(dbp.get("entry_price") or 0),
+                "trade_nature": dbp.get("trade_nature"),
+                "strategy_id": dbp.get("strategy_id"),
+                "leverage": float(dbp.get("leverage") or 1),
+                "_source": "reconcile_sync",
+            })
+            _heal_ts[key] = now
+            healed += 1
+        for pid in extra:
+            key = f"close:{account_id}:{pid}"
+            if now - _heal_ts.get(key, 0.0) < 60:
+                continue
+            prj = proj_open[pid]
+            record_position_event(EVT_POSITION_CLOSED, pid, {
+                "exit_price": float(prj.get("entry_price") or 0),
+                "realized_pnl": 0.0,
+                "_source": "reconcile_sync",
+            })
+            _heal_ts[key] = now
+            healed += 1
+        for pid in db_ids & proj_ids:
+            if not any(pid in fm for fm in field_mm):
+                continue
+            key = f"change:{account_id}:{pid}"
+            if now - _heal_ts.get(key, 0.0) < 60:
+                continue
+            dbp = db_open[pid]
+            record_position_event(EVT_POSITION_CHANGED, pid, {
+                "size": float(dbp.get("size") or 0),
+                "_source": "reconcile_sync",
+            })
+            _heal_ts[key] = now
+            healed += 1
+        if healed:
+            logger.info(
+                "[EventSourcing#9 Phase2] C7 自愈写入 %d 条事件 account=%s "
+                "(missing=%d extra=%d field=%d)",
+                healed, account_id, len(missing), len(extra), len(field_mm),
+            )
     else:
         _reconcile_stats["last_ok"] = 1
 

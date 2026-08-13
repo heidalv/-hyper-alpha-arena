@@ -29,6 +29,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Windows 默认关热重载：reload 子进程常残留占 8000，新进程起不来，前端 API 全挂像「卡死」
+if (-not $PSBoundParameters.ContainsKey('NoReload') -and $env:OS -match 'Windows') {
+    $NoReload = $true
+    Write-Host "[info] Windows 默认 NO_RELOAD（需要热重载请显式: -NoReload:`$false 不支持；请设 `$env:FORCE_RELOAD=1）" -ForegroundColor DarkGray
+}
+if ($env:FORCE_RELOAD -eq '1') { $NoReload = $false }
+
 $RepoRoot    = Split-Path $PSScriptRoot -Parent
 $FrontendDir = Join-Path $RepoRoot 'frontend-next'
 $LogDir      = Join-Path $RepoRoot 'logs'
@@ -126,6 +133,8 @@ if (-not $NoBackend) {
         Write-Host "   DATA_CENTER_MODE=standalone" -ForegroundColor DarkGray
         # [fix] 单引号字符串：cmd 的 && 与路径引号全部按字面量传给 cmd.exe，
         # 避免 Windows PowerShell 5.1 把 `&& "` 误解析为运算符导致脚本无法运行。
+        # 注意：不要把 stdout 重定向到 backend.log / uvicorn-stdout.log——
+        # Windows 下 uvicorn --reload 子进程继承句柄后容易 PermissionError / 起不来。
         $backendCmd = 'set DATA_CENTER_MODE=standalone&& "' + $PyExe + '" "' + $runner + '"'
         $bp = Start-Process -FilePath 'cmd.exe' `
             -ArgumentList '/c', $backendCmd `
@@ -137,7 +146,8 @@ if (-not $NoBackend) {
             -WorkingDirectory $RepoRoot `
             -WindowStyle Hidden -PassThru
     }
-    Write-Host "   pid=$($bp.Id)  log=$BackendLog" -ForegroundColor Green
+    $reloadNote = if ($NoReload) { 'NO_RELOAD=true（单进程，改 .py 需手动重启）' } else { 'reload ON（改 .py 自动重启）' }
+    Write-Host "   launcher_pid=$($bp.Id)  log=$BackendLog ($reloadNote)" -ForegroundColor Green
 }
 
 if (-not $NoFrontend) {
@@ -193,8 +203,32 @@ if ($useStandaloneDc) {
 }
 if (-not $NoBackend) {
     $pidB = Test-Port $BackendPort
+    $healthOk = $false
+    $healthErr = $null
+    try {
+        $hr = Invoke-WebRequest -Uri "http://127.0.0.1:$BackendPort/api/health" -UseBasicParsing -TimeoutSec 3
+        $healthOk = ($hr.StatusCode -eq 200)
+    } catch { $healthErr = $_.Exception.Message }
+    $ownerCmd = $null
     if ($pidB) {
-        Write-Host "  [OK  ] backend  -> http://127.0.0.1:$BackendPort  (pid=$pidB)" -ForegroundColor Green
+        $owner = Get-CimInstance Win32_Process -Filter "ProcessId=$pidB" -ErrorAction SilentlyContinue
+        $ownerCmd = $owner.CommandLine
+    }
+    $ours = $ownerCmd -and (
+        $ownerCmd -match 'run_uvicorn_dev|uvicorn.*backend\.main|Hyper-Alpha-Arena'
+    )
+    if ($pidB -and $healthOk -and ($ours -or -not $ownerCmd)) {
+        Write-Host "  [OK  ] backend  -> http://127.0.0.1:$BackendPort  (pid=$pidB, health=ok)" -ForegroundColor Green
+        if (-not $ownerCmd) {
+            Write-Host "         [WARN] listener pid=$pidB 进程表缺失（幽灵端口风险）；若 API 异常请 stop-dev 后再起" -ForegroundColor Yellow
+        }
+    } elseif ($pidB -and -not $ours -and $ownerCmd) {
+        Write-Host "  [FAIL] backend  -> :$BackendPort 被非本项目进程占用 pid=$pidB" -ForegroundColor Red
+        Write-Host "         $ownerCmd" -ForegroundColor DarkGray
+        Write-Host "         请先: .\scripts\stop-dev.ps1  再重新 start-dev" -ForegroundColor Yellow
+    } elseif ($pidB -and -not $healthOk) {
+        Write-Host "  [FAIL] backend  -> 端口在听但 /api/health 失败 (pid=$pidB): $healthErr" -ForegroundColor Red
+        Write-Host "         多为旧僵尸占口；请 stop-dev 后重试。log=$BackendLog" -ForegroundColor Yellow
     } else {
         Write-Host "  [WAIT] backend  -> port $BackendPort still not listening after $WaitTotalSec s" -ForegroundColor Yellow
         Write-Host "         check $BackendLog" -ForegroundColor Yellow
@@ -211,13 +245,41 @@ if (-not $NoFrontend) {
 Write-Host "`nTip: 正式前端是 :5273 (frontend-next)。旧 Vite :5173 已冻结。" -ForegroundColor DarkGray
 Write-Host "Tip: stop-dev 默认保留数据中心；要一起停加 -StopDataCenter" -ForegroundColor DarkGray
 
-if (-not $NoBackend -and -not $NoWatchdog) {
-    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -match 'backend-watchdog\.ps1' } |
+if (-not $NoWatchdog) {
+    # 清掉旧看门狗（powershell / pwsh / 外包 cmd）
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe' OR Name='cmd.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and ($_.CommandLine -match 'backend-watchdog\.ps1|data-center-watchdog\.ps1') } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 400
+    Remove-Item (Join-Path $LogDir 'backend-watchdog.lock') -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $LogDir 'data-center-watchdog.lock') -Force -ErrorAction SilentlyContinue
 
-    $wdLog = Join-Path $LogDir 'backend-watchdog.log'
-    Write-Host "`n[watchdog] starting backend health watchdog -> $wdLog" -ForegroundColor DarkGray
-    $wdCmd = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'backend-watchdog.ps1')`" -BackendPort $BackendPort"
-    Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wdCmd -WorkingDirectory $RepoRoot -WindowStyle Hidden | Out-Null
+    if (-not $NoBackend) {
+        $wdScript = Join-Path $PSScriptRoot 'backend-watchdog.ps1'
+        $wdLog = Join-Path $LogDir 'backend-watchdog.log'
+        Write-Host "`n[watchdog] starting backend watchdog -> $wdLog" -ForegroundColor DarkGray
+        Start-Process -FilePath 'powershell.exe' `
+            -ArgumentList @(
+                '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', $wdScript,
+                '-BackendPort', "$BackendPort"
+            ) `
+            -WorkingDirectory $RepoRoot `
+            -WindowStyle Hidden | Out-Null
+    }
+
+    if ($useStandaloneDc) {
+        $dcWd = Join-Path $PSScriptRoot 'data-center-watchdog.ps1'
+        $dcWdLog = Join-Path $LogDir 'data-center-watchdog.log'
+        Write-Host "[watchdog] starting data-center watchdog -> $dcWdLog" -ForegroundColor DarkGray
+        Start-Process -FilePath 'powershell.exe' `
+            -ArgumentList @(
+                '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', $dcWd,
+                '-HealthPort', "$DataCenterHealthPort",
+                '-PythonExe', $PyExe
+            ) `
+            -WorkingDirectory $RepoRoot `
+            -WindowStyle Hidden | Out-Null
+    }
 }

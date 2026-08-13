@@ -112,6 +112,9 @@ NATURE_TO_TIER = {
     "swing": "mid",
     "position": "long",
     "trend_follow": "long",
+    # 研究车道独立 tier：不再污染 mid/long 的冷却与再开统计
+    "pair_research": "research",
+    "research": "research",
 }
 
 # 统一权威:tier→nature 映射委托 tp_sl_authority(消除第4处分歧,见 I1)

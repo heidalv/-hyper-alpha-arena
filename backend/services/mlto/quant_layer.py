@@ -47,17 +47,21 @@ def compute(packet: PerceptionPacket, thesis: ThesisDTO, db=None) -> List[Signal
     fb = _feedback_loop(thesis)
     signals.append(Signal("feedback_loop", fb, 0.8, "framework"))
 
-    # [P4-修复] LLM 未评估时（review_count==0 且 conviction 仍为初始 0）不得把
-    # conviction=0 当成"极度看空"：llm_conviction 默认 0，若直接代入公式得到
-    # llm_qual=0.0，decision_hub._derive_direction 判 ≤0.4 → 系统性做空偏见，
-    # 即使 framework 信号全部看多也会被拉偏。未评估=未知 → 中性 0.5（只影响
-    # composite 幅度，不贡献方向）。
-    # 判据：llm_conviction==0 且 review_count<=0 → 从未产出有效研判（空响应/未跑）。
-    # review_count>0 或 conviction≠0 时 conviction 有语义，照常映射（真悲观=0.0）。
-    if thesis.review_count <= 0 and thesis.llm_conviction == 0:
+    # [P5-修复] LLM 方向语义化映射：llm_conviction 的 clamp(0,100) 使 0 与
+    # "从未评级"不可区分——LLM 持续 neutral 时 conviction_delta=0 → conviction 恒 0，
+    # 但 review_count 每次 LLM 调用都 +1（含失败空响应），旧判据
+    # `review_count<=0 and llm_conviction==0` 永假 → 中性被映射成 0.0（极度看空）
+    # → ai_governed 下 direction 恒 short、composite 被拉低 → 长线 0 开仓。
+    # 现在以 thesis.direction（orchestrator 在 quant 之前已写入 LLM 最新方向）为
+    # 真语义：neutral → 0.5（不贡献方向，落入 _orch_bias_direction 兜底）；
+    # long/short → 映射后夹取到方向侧，conviction=0 不再反噬方向。
+    # 夹取边界 0.55/0.45 与 decision_hub._derive_direction 的 ai_governed 映射精确对齐。
+    _d = (thesis.direction or "neutral").lower()
+    if _d == "neutral":
         llm_v = 0.5
     else:
         llm_v = 0.5 + (thesis.llm_conviction - 50) / 100.0
+        llm_v = max(llm_v, 0.55) if _d == "long" else min(llm_v, 0.45)
     # [阶段3b] confidence 0.5→0.85：让 LLM 全权重（0.30）真正生效。
     # 旧值 0.5 使有效权重=0.30×0.5=0.15（半折），LLM 研判被系统性低估。
     # LLM thesis 是经过推理的研判，0.85 的"信号可靠度"合理（vs 规则信号 0.8-0.9）。

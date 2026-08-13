@@ -1,0 +1,135 @@
+{
+  "generated_at": "2026-08-11T10:29:15.868959+00:00",
+  "exchange": "asterdex",
+  "round_trip_cost_bps": 6.94,
+  "configs": {
+    "actual": {
+      "sl_pct": null,
+      "tp_pct": null,
+      "max_hold_min": 180
+    },
+    "target_12_18": {
+      "sl_pct": 0.012,
+      "tp_pct": 0.018,
+      "max_hold_min": 20
+    },
+    "target_12_30": {
+      "sl_pct": 0.012,
+      "tp_pct": 0.03,
+      "max_hold_min": 20
+    },
+    "wide_30_30": {
+      "sl_pct": 0.03,
+      "tp_pct": 0.03,
+      "max_hold_min": 180
+    }
+  },
+  "by_symbol_config": {
+    "actual": {
+      "BTC": {
+        "n": 140,
+        "win_rate": 0.4714,
+        "avg_net_ret": -0.000488,
+        "profit_factor": 0.9246
+      },
+      "ETH": {
+        "n": 149,
+        "win_rate": 0.4497,
+        "avg_net_ret": 0.00131,
+        "profit_factor": 1.187
+      },
+      "SOL": {
+        "n": 167,
+        "win_rate": 0.515,
+        "avg_net_ret": 0.00419,
+        "profit_factor": 1.5868
+      }
+    },
+    "target_12_18": {
+      "BTC": {
+        "n": 140,
+        "win_rate": 0.4429,
+        "avg_net_ret": 0.000186,
+        "profit_factor": 1.0424
+      },
+      "ETH": {
+        "n": 149,
+        "win_rate": 0.4765,
+        "avg_net_ret": 0.000888,
+        "profit_factor": 1.2087
+      },
+      "SOL": {
+        "n": 167,
+        "win_rate": 0.521,
+        "avg_net_ret": 0.002467,
+        "profit_factor": 1.6178
+      }
+    },
+    "target_12_30": {
+      "BTC": {
+        "n": 140,
+        "win_rate": 0.4429,
+        "avg_net_ret": 0.001407,
+        "profit_factor": 1.32
+      },
+      "ETH": {
+        "n": 149,
+        "win_rate": 0.4765,
+        "avg_net_ret": 0.00282,
+        "profit_factor": 1.6627
+      },
+      "SOL": {
+        "n": 167,
+        "win_rate": 0.521,
+        "avg_net_ret": 0.005083,
+        "profit_factor": 2.2729
+      }
+    },
+    "wide_30_30": {
+      "BTC": {
+        "n": 140,
+        "win_rate": 0.4643,
+        "avg_net_ret": -0.000842,
+        "profit_factor": 0.8837
+      },
+      "ETH": {
+        "n": 149,
+        "win_rate": 0.4497,
+        "avg_net_ret": -0.000173,
+        "profit_factor": 0.977
+      },
+      "SOL": {
+        "n": 167,
+        "win_rate": 0.521,
+        "avg_net_ret": 0.002966,
+        "profit_factor": 1.4444
+      }
+    }
+  },
+  "total_by_config": {
+    "actual": {
+      "n": 456,
+      "win_rate": 0.4803,
+      "avg_net_ret": 0.001813,
+      "profit_factor": 1.2631
+    },
+    "target_12_18": {
+      "n": 456,
+      "win_rate": 0.4825,
+      "avg_net_ret": 0.001251,
+      "profit_factor": 1.2976
+    },
+    "target_12_30": {
+      "n": 456,
+      "win_rate": 0.4825,
+      "avg_net_ret": 0.003215,
+      "profit_factor": 1.7649
+    },
+    "wide_30_30": {
+      "n": 456,
+      "win_rate": 0.4803,
+      "avg_net_ret": 0.000771,
+      "profit_factor": 1.1082
+    }
+  }
+}

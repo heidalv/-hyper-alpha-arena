@@ -1,4 +1,4 @@
-"""
+﻿"""
 AI Decision Service - Handles AI model API calls for trading decisions
 """
 import logging
@@ -3226,7 +3226,7 @@ _LLM_FALLBACK_TIMEOUT_SECONDS = 15.0  # 历史默认值(未真正生效，见下
 # [2026-07-11 修复] 原来的 15s 从未真正生效：旧代码用 `with ThreadPoolExecutor` 包裹
 # future.result(timeout=15)，即使 15s 后抛出 TimeoutError，`with` 退出时的
 # executor.shutdown(wait=True) 仍会阻塞到 LLM 真正响应完成(reasoning 模型最长 240s+重试)。
-# 修复后 15s 会真正生效——但当前生产账户使用的 deepseek-v4-pro 等推理模型，
+# 修复后 15s 会真正生效——但当前生产账户使用的 deepseek-v4-flash 等推理模型，
 # 正常响应时间本身就可能超过 15s，若直接让 15s 生效，会导致几乎所有决策都被
 # 误判为"超时"而降级成规则引擎/纯观望，交易质量和频率反而变差。
 # 现在 DB 会话已经和 LLM 调用解耦（后台线程用独立连接），不再需要用短超时来

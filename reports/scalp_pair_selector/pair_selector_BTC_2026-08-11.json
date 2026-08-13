@@ -1,0 +1,656 @@
+{
+  "generated_at": "2026-08-11T10:56:31.477364+00:00",
+  "symbol": "BTC",
+  "exchange": "asterdex",
+  "candidates": [
+    {
+      "period": "5m",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 295,
+        "avg_net_ret": -0.000931,
+        "profit_factor": 0.5417,
+        "t_stat": -4.1822,
+        "permutation_p": 1.0,
+        "older_pf": 0.6863,
+        "newer_pf": 0.4134
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 291,
+        "avg_net_ret": -0.000802,
+        "profit_factor": 0.5909,
+        "t_stat": -3.5827,
+        "permutation_p": 1.0,
+        "older_pf": 0.6507,
+        "newer_pf": 0.5283
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 290,
+        "avg_net_ret": -0.00088,
+        "profit_factor": 0.5582,
+        "t_stat": -3.9644,
+        "permutation_p": 1.0,
+        "older_pf": 0.4782,
+        "newer_pf": 0.6556
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 295,
+        "avg_net_ret": -0.000554,
+        "profit_factor": 0.707,
+        "t_stat": -2.3475,
+        "permutation_p": 1.0,
+        "older_pf": 0.7474,
+        "newer_pf": 0.6652
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 296,
+        "avg_net_ret": -0.000593,
+        "profit_factor": 0.6924,
+        "t_stat": -2.512,
+        "permutation_p": 1.0,
+        "older_pf": 0.6504,
+        "newer_pf": 0.7403
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 293,
+        "avg_net_ret": -0.00053,
+        "profit_factor": 0.7177,
+        "t_stat": -2.2349,
+        "permutation_p": 0.9406,
+        "older_pf": 0.6926,
+        "newer_pf": 0.7466
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 293,
+        "avg_net_ret": -0.000638,
+        "profit_factor": 0.6613,
+        "t_stat": -2.7994,
+        "permutation_p": 1.0,
+        "older_pf": 0.7195,
+        "newer_pf": 0.5998
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 297,
+        "avg_net_ret": -0.000998,
+        "profit_factor": 0.5194,
+        "t_stat": -4.5176,
+        "permutation_p": 1.0,
+        "older_pf": 0.5501,
+        "newer_pf": 0.4886
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "5m",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.005,
+        "tp_pct": 0.01,
+        "max_hold_candles": 24,
+        "cooldown_candles": 6,
+        "warmup": 120,
+        "days": 60
+      },
+      "metrics": {
+        "n": 288,
+        "avg_net_ret": -0.000795,
+        "profit_factor": 0.5896,
+        "t_stat": -3.5279,
+        "permutation_p": 1.0,
+        "older_pf": 0.5916,
+        "newer_pf": 0.5875
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 335,
+        "avg_net_ret": -9e-06,
+        "profit_factor": 0.9982,
+        "t_stat": -0.0141,
+        "permutation_p": 0.8911,
+        "older_pf": 1.1766,
+        "newer_pf": 0.8385
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 333,
+        "avg_net_ret": -0.000214,
+        "profit_factor": 0.958,
+        "t_stat": -0.3416,
+        "permutation_p": 0.8911,
+        "older_pf": 1.0881,
+        "newer_pf": 0.832
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 323,
+        "avg_net_ret": -0.000267,
+        "profit_factor": 0.9465,
+        "t_stat": -0.4276,
+        "permutation_p": 1.0,
+        "older_pf": 1.1106,
+        "newer_pf": 0.7942
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 325,
+        "avg_net_ret": -0.001,
+        "profit_factor": 0.8158,
+        "t_stat": -1.6143,
+        "permutation_p": 0.9901,
+        "older_pf": 0.7971,
+        "newer_pf": 0.8372
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 322,
+        "avg_net_ret": -0.000356,
+        "profit_factor": 0.9321,
+        "t_stat": -0.5549,
+        "permutation_p": 0.4059,
+        "older_pf": 0.9109,
+        "newer_pf": 0.9565
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 322,
+        "avg_net_ret": -0.000461,
+        "profit_factor": 0.9129,
+        "t_stat": -0.7166,
+        "permutation_p": 0.0693,
+        "older_pf": 0.8939,
+        "newer_pf": 0.9349
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 331,
+        "avg_net_ret": 4e-06,
+        "profit_factor": 1.0007,
+        "t_stat": 0.0058,
+        "permutation_p": 0.2079,
+        "older_pf": 1.2083,
+        "newer_pf": 0.8087
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 330,
+        "avg_net_ret": -0.000414,
+        "profit_factor": 0.9203,
+        "t_stat": -0.6568,
+        "permutation_p": 0.9109,
+        "older_pf": 1.0958,
+        "newer_pf": 0.7528
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "1h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.01,
+        "tp_pct": 0.02,
+        "max_hold_candles": 12,
+        "cooldown_candles": 3,
+        "warmup": 120,
+        "days": 180
+      },
+      "metrics": {
+        "n": 317,
+        "avg_net_ret": 0.000157,
+        "profit_factor": 1.0319,
+        "t_stat": 0.244,
+        "permutation_p": 0.0792,
+        "older_pf": 1.2122,
+        "newer_pf": 0.862
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 235,
+        "avg_net_ret": 0.000304,
+        "profit_factor": 1.0371,
+        "t_stat": 0.2328,
+        "permutation_p": 0.8515,
+        "older_pf": 1.3071,
+        "newer_pf": 0.8374
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 230,
+        "avg_net_ret": -2e-06,
+        "profit_factor": 0.9997,
+        "t_stat": -0.0018,
+        "permutation_p": 0.8614,
+        "older_pf": 1.335,
+        "newer_pf": 0.7536
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "hybrid",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 224,
+        "avg_net_ret": 0.000127,
+        "profit_factor": 1.0156,
+        "t_stat": 0.0962,
+        "permutation_p": 0.9208,
+        "older_pf": 1.2262,
+        "newer_pf": 0.8388
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 237,
+        "avg_net_ret": -0.001711,
+        "profit_factor": 0.8084,
+        "t_stat": -1.3865,
+        "permutation_p": 0.9703,
+        "older_pf": 0.6004,
+        "newer_pf": 1.0911
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 234,
+        "avg_net_ret": -0.001271,
+        "profit_factor": 0.853,
+        "t_stat": -1.0224,
+        "permutation_p": 0.9109,
+        "older_pf": 0.6889,
+        "newer_pf": 1.0654
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "meanrev",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 232,
+        "avg_net_ret": -0.001215,
+        "profit_factor": 0.8628,
+        "t_stat": -0.949,
+        "permutation_p": 0.9109,
+        "older_pf": 0.752,
+        "newer_pf": 0.9891
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.3,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 235,
+        "avg_net_ret": 0.000438,
+        "profit_factor": 1.0534,
+        "t_stat": 0.3331,
+        "permutation_p": 0.0594,
+        "older_pf": 1.244,
+        "newer_pf": 0.8944
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.5,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 229,
+        "avg_net_ret": 0.000729,
+        "profit_factor": 1.0906,
+        "t_stat": 0.5466,
+        "permutation_p": 0.1188,
+        "older_pf": 1.2895,
+        "newer_pf": 0.9349
+      },
+      "verdict": "fail"
+    },
+    {
+      "period": "4h",
+      "factor_set": "breakout",
+      "params": {
+        "threshold": 0.7,
+        "z_window": 120,
+        "sl_pct": 0.02,
+        "tp_pct": 0.04,
+        "max_hold_candles": 6,
+        "cooldown_candles": 2,
+        "warmup": 120,
+        "days": 365
+      },
+      "metrics": {
+        "n": 221,
+        "avg_net_ret": -0.000249,
+        "profit_factor": 0.97,
+        "t_stat": -0.1877,
+        "permutation_p": 0.7921,
+        "older_pf": 1.1377,
+        "newer_pf": 0.8376
+      },
+      "verdict": "fail"
+    }
+  ],
+  "n_pass": 0
+}

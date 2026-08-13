@@ -2,7 +2,8 @@
 
 设计见 docs/MIDLONG_V2_ARCHITECTURE_DESIGN_2026-08-02.md：
 - 同一时刻仅一个 authority（trend | mlto）可发中长线新开
-- 执行层强制 trade_nature=trend_follow（中长线一体，消灭 swing daily_cap=0）
+- mid → trade_nature=swing（AI 中线槽位/绩效独立）；long → trend_follow
+- V5 日配额仍由 unified_gate.normalize_v5_nature 把 swing 映射到 trend_follow 配额
 - Phase2：Regime 路由接到 fuse；Trend hint 供 Hub bonus
 """
 from __future__ import annotations
@@ -23,42 +24,55 @@ _REGIME_CACHE: Dict[str, Dict[str, Any]] = {}
 _HINT_TTL_SEC = 900.0
 
 
-def get_midlong_exec_authority() -> str:
-    """返回 trend | mlto。显式 MIDLONG_EXEC_AUTHORITY 优先，否则回退旧开关。"""
+def get_midlong_exec_authority(trading_mode: Optional[str] = None) -> str:
+    """返回 trend | mlto。显式 MIDLONG_EXEC_AUTHORITY 优先，否则回退旧开关。
+
+    v6 第六章：paper 默认 mlto（AI thesis 说了算）；live 未显式配置时仍保守 trend。
+    """
     try:
+        import os
+
         from backend.config.settings import (
             MIDLONG_EXEC_AUTHORITY,
             MIDLONG_MLTO_CONTROLS_EXEC,
+            PAPER_FAST_TRIAL,
         )
         auth = (MIDLONG_EXEC_AUTHORITY or "").strip().lower()
         if auth in ("trend", "mlto"):
             return auth
-        return "mlto" if MIDLONG_MLTO_CONTROLS_EXEC else "trend"
-    except Exception:
+        if MIDLONG_MLTO_CONTROLS_EXEC:
+            return "mlto"
+        mode = (trading_mode or os.getenv("TRADING_MODE", "paper") or "paper").strip().lower()
+        # paper / 快速试单：默认交还 MLTO；live 未显式配置仍用 trend
+        if mode != "live" or bool(PAPER_FAST_TRIAL):
+            return "mlto"
         return "trend"
+    except Exception:
+        return "mlto"
 
 
 def normalize_midlong_nature(raw: Optional[str], tier: Optional[str] = None) -> str:
-    """中长线执行层 nature 归一。
+    """中长线执行层 nature 归一（保留 mid/swing 通道语义）。
 
-    中长线一体：swing/mid → trend_follow；scalp/intraday 保持原样；
-    position 保留为长线子类（live 侧 tier=long 的策略 genome 使用 position，
-    见 full_auto_trading_service._get_validated_trade_nature 的 tier 反推表
-    {"long": "position"}）。
+    - scalp/intraday 保持
+    - tier=mid 或 raw∈(swing,mid) → swing（AI 中线≤3 / 绩效归因）
+    - position 保留为长线子类
+    - 其余长线 → trend_follow
 
-    [P2-7 修复] 原实现第 49-50 行存在死代码：`if n == "trend_follow" or n ==
-    "position"` 分支永远不可达——position 已在第 47 行的 `n in MIDLONG_NATURES`
-    被捕获返回 trend_follow。但调用方（midlong_executor:309-313、midlong_helpers）
-    明确期望 position 保留为长线子类，故 position 应命中前置分支返回自身。
+    V5 daily_cap：仍由 unified_gate.normalize_v5_nature 把 swing 映射到
+    trend_follow 配额，避免 daily_cap=0；此处不再把 mid 抹成 long。
     """
     n = (raw or "").strip().lower()
     t = (tier or "").strip().lower()
     if n in ("scalp", "intraday"):
         return n
     if n == "position":
-        # 长线持仓子类：保留，不并入 trend_follow
         return "position"
-    if n in MIDLONG_NATURES or t in ("mid", "long") or n in ("", "swing"):
+    if t == "mid" or n in ("swing", "mid"):
+        return "swing"
+    if t == "long" or n in ("trend_follow", "long", ""):
+        return "trend_follow"
+    if n in MIDLONG_NATURES:
         return "trend_follow"
     return "trend_follow"
 
@@ -244,6 +258,10 @@ def execute_midlong_open(
     reason: str = "",
     trading_mode: str = "paper",
     skip_regime: bool = False,
+    thesis_dir: str = "",
+    hub_dir: str = "",
+    hub_mode: str = "",
+    dir_src: str = "",
 ) -> bool:
     """唯一中长线新开 Writer 包装：authority 门禁 + regime + nature 归一 + 统一日志。"""
     auth = get_midlong_exec_authority()
@@ -261,6 +279,7 @@ def execute_midlong_open(
             margin = 0.0
 
     def _record_fail(_reason: str, _regime: str = "") -> None:
+        _sid = str(getattr(session, "session_id", "") or "")
         try:
             from backend.services.mlto.midlong_belief_loop import record_failed_intent
             record_failed_intent(
@@ -270,7 +289,28 @@ def execute_midlong_open(
                 score=int(confidence or 0),
                 authority=auth,
                 source=source,
-                session_id=str(getattr(session, "session_id", "") or ""),
+                session_id=_sid,
+            )
+        except Exception:
+            pass
+        try:
+            from backend.services.mlto.midlong_direction_audit import (
+                record_decision_audit,
+            )
+            record_decision_audit(
+                outcome="skip",
+                stage="writer",
+                symbol=sym_u,
+                reason=str(_reason or "writer_block"),
+                session_id=_sid,
+                tier=str(tier or ""),
+                source=str(source or ""),
+                authority=auth,
+                action="hold",
+                direction=hub_dir or "",
+                score=int(confidence or 0),
+                regime=_regime,
+                mode=hub_mode or "",
             )
         except Exception:
             pass
@@ -325,11 +365,14 @@ def execute_midlong_open(
             return False
 
     nature = normalize_midlong_nature(trade_nature, tier)
-    # position 仍保留为长线子类；其余中长线一律 trend_follow
-    if nature not in ("trend_follow", "position"):
+    # [P1] 保留 swing；勿再把 mid 抹成 trend_follow
+    if nature not in ("trend_follow", "position", "swing"):
         nature = "trend_follow"
-    exec_tier = "long" if nature in ("trend_follow", "position") else (tier or "long")
-
+    # AI 中线单保留 tier=mid（分通道计数/槽位/风控）
+    if (tier or "").lower() == "mid" or nature == "swing":
+        exec_tier = "mid"
+    else:
+        exec_tier = "long"
     logger.info(
         "[MidLong] stage=exec symbol=%s authority=%s source=%s action=%s "
         "conf=%d nature=%s regime=%s margin=%.3f rr_hint=%.2f reason=%s",
@@ -359,5 +402,10 @@ def execute_midlong_open(
             invalidation_condition=invalidation_condition,
             expected_hold_hours=float(expected_hold_hours or 0),
             tranche_margin_pct=float(margin),
+            thesis_dir=thesis_dir,
+            hub_dir=hub_dir,
+            hub_mode=hub_mode,
+            dir_src=dir_src,
+            authority=auth,
         )
     )

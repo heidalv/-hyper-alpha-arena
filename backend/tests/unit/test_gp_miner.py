@@ -128,8 +128,11 @@ def test_gp_miner_blas_thread_env_locked():
 
 
 def test_gp_miner_eval_population_loky_parallel():
-    """_eval_population 走 joblib loky 进程池（ThreadPool 负加速 0.84x 已弃用）。"""
+    """_eval_population 每次新建 joblib loky Parallel（禁止跨种子复用 _par）。"""
+    from unittest.mock import MagicMock, patch
+
     from joblib import Parallel
+
     fields, target = _make_fields_and_target(n=200)
     pool = AlphaPool(capacity=5)
     cfg = GPConfig(population_size=20, generations=1, n_seeds=1, seed_values=[9], max_workers=2)
@@ -140,11 +143,19 @@ def test_gp_miner_eval_population_loky_parallel():
         ast = miner._random_ast(rng, depth=0)
         if ast is not None and parse(ast) is not None:
             pop.append(ast)
-    fits = miner._eval_population(pop, 2)
+
+    real_par = Parallel(n_jobs=2, backend="loky", prefer="processes")
+    with patch(
+        "backend.services.evolution.gp_miner.Parallel",
+        side_effect=lambda **kw: real_par,
+    ) as mocked:
+        fits = miner._eval_population(pop, 2)
+        assert mocked.called
+        assert mocked.call_args.kwargs.get("backend") == "loky"
     assert len(fits) == len(pop)
-    assert isinstance(miner._par, Parallel)  # loky 进程池已建立
+    # 新契约：不跨评估缓存 self._par
+    assert getattr(miner, "_par", None) is None
     miner.close()
-    assert miner._par is None  # 释放后无残留
 
 
 def test_gp_miner_fitness_state_picklable():

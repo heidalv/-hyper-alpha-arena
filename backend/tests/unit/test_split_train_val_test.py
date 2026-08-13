@@ -1,13 +1,17 @@
 """三层切分 + 周期分档单测（v6 计划 5.4.3）。"""
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 
 from backend.services.evolution.factor_evolution_loop import (
+    _check_split_depth,
     _final_test_confirm,
+    _load_data,
     _lookback_for_period,
+    _required_coverage_days,
+    _run_evolution_loop_impl,
     _split_days_for_period,
     _split_train_val_test,
 )
@@ -38,8 +42,10 @@ def test_split_days_env_override():
 
 
 def test_lookback_period():
-    assert _lookback_for_period("4h") == (180 + 60 + 30) * 6
-    assert _lookback_for_period("1h") == (90 + 30 + 15) * 24
+    # +50 安全缓冲（与 _lookback_for_period 实现对齐）
+    assert _lookback_for_period("4h") == (180 + 60 + 30) * 6 + 50
+    assert _lookback_for_period("1h") == (90 + 30 + 15) * 24 + 50
+    assert _lookback_for_period("5m") == (30 + 10 + 10) * 288 + 50
 
 
 def test_split_train_val_test_4h():
@@ -106,3 +112,77 @@ def test_final_test_confirm_fail_open_without_test():
     p = {"factor_id": "x", "expr": None, "source": "test"}
     kept = _final_test_confirm([p], {}, {})
     assert len(kept) == 1
+
+
+def test_load_data_uses_period_lookback():
+    """P0-1: period=5m 必须按 5m 档取数，不得回落 DEFAULT_LOOKBACK(4h)。"""
+    need_5m = _lookback_for_period("5m")
+    captured = {}
+
+    class _Res:
+        def to_dataframe(self):
+            return _make_df(200)
+
+    class _DC:
+        def get_klines(self, sym, p, count=0, purpose=None):
+            captured["count"] = count
+            captured["period"] = p
+            return _Res()
+
+    fake_mod = MagicMock()
+    fake_mod.data_center = _DC()
+    with patch.dict("sys.modules", {"backend.services.data_center": fake_mod}):
+        dfs = _load_data(symbols=["BTC"], period="5m")
+
+    assert captured.get("period") == "5m"
+    assert captured.get("count") == need_5m
+    assert "BTC" in dfs
+
+
+def test_required_coverage_days_5m():
+    assert _required_coverage_days("5m") == 50  # 30+10+10
+
+
+def test_check_split_depth_short_fails():
+    depth = _check_split_depth({"BTC": _make_df(500)}, "5m")
+    assert depth["ok"] is False
+    assert "BTC" in depth["short_symbols"]
+    assert depth["need_days"] == 50
+
+
+def test_check_split_depth_ok():
+    need = _lookback_for_period("5m")
+    depth = _check_split_depth({"BTC": _make_df(need)}, "5m")
+    assert depth["ok"] is True
+    assert depth["short_symbols"] == []
+
+
+def test_tag_short_horizon_prefix():
+    from backend.services.evolution.factor_evolution_loop import _tag_short_horizon_factors
+    tagged = _tag_short_horizon_factors(
+        [{"factor_id": "abc123", "source": "gp", "expr_id": "abc123"}], "5m",
+    )
+    assert tagged[0]["factor_id"].startswith("s5m_")
+    assert "horizon=scalp" in tagged[0]["source"]
+    # 4h 不打标
+    mid = _tag_short_horizon_factors(
+        [{"factor_id": "abc123", "source": "gp"}], "4h",
+    )
+    assert mid[0]["factor_id"] == "abc123"
+
+
+def test_depth_insufficient_aborts_no_silent_degrade():
+    """P0-1/P0-2: 深度不足时返回 error，禁止 train=val=全窗假 OOS。"""
+    short = {"BTC": _make_df(500)}  # 远小于 5m need≈14450
+    with patch(
+        "backend.services.evolution.factor_evolution_loop._load_data",
+        return_value=short,
+    ), patch(
+        "backend.services.evolution.factor_evolution_loop._ensure_governance_columns",
+    ), patch(
+        "backend.services.evolution.factor_evolution_loop._nudge_depth_backfill",
+    ):
+        report = _run_evolution_loop_impl(
+            symbols=["BTC"], period="5m", quick=True, t0=0.0,
+        )
+    assert report.get("error") in ("depth_insufficient", "split_insufficient_data")

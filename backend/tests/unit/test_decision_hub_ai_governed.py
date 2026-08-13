@@ -94,7 +94,47 @@ def test_neutral_llm_orb_bias_fallback_short(monkeypatch):
 def test_neutral_llm_no_hint_falls_to_neutral(monkeypatch):
     """LLM 中性 + 无 orch + framework 中性 → neutral。"""
     monkeypatch.setattr(dh, "_AI_GOVERNED", True)
+    monkeypatch.setattr(dh, "_nibble_probe_enabled", lambda: False)
     d = dh.fuse_signals(_sig_llm_fw(llm_val=0.50, fw_val=0.5), "mid", mode="paper")
+    assert d.direction == "neutral"
+
+
+def test_neutral_llm_framework_cannot_flip(monkeypatch):
+    """ai_governed：LLM 中性时 framework 偏多也不得翻向（仅 orch 可兜底）。"""
+    monkeypatch.setattr(dh, "_AI_GOVERNED", True)
+    monkeypatch.setattr(dh, "_nibble_probe_enabled", lambda: False)
+    d = dh.fuse_signals(_sig_llm_fw(llm_val=0.50, fw_val=0.90), "mid", mode="paper")
+    assert d.direction == "neutral"
+    assert d.dir_src == "llm_qual"
+
+
+def test_nibble_probe_soft_direction_from_llm_band(monkeypatch):
+    """Paper NIBBLE：llm 落在死区微偏（0.51）→ 探针给 long。"""
+    monkeypatch.setattr(dh, "_AI_GOVERNED", True)
+    monkeypatch.setattr(dh, "_nibble_probe_enabled", lambda: True)
+    monkeypatch.setattr(dh, "_nibble_probe_quota_remaining", lambda: True)
+    d = dh.fuse_signals(_sig_llm_fw(llm_val=0.51, fw_val=0.55), "long", mode="paper")
+    assert d.action in ("NIBBLE", "BUILD")
+    assert d.direction == "long"
+    assert str(d.dir_src).startswith("nibble_probe")
+
+
+def test_nibble_probe_build_neutral_also_leans(monkeypatch):
+    """BUILD+neutral 也应探针（审计见 ETH BUILD/neutral 被 gate 拒）。"""
+    monkeypatch.setattr(dh, "_AI_GOVERNED", True)
+    monkeypatch.setattr(dh, "_nibble_probe_enabled", lambda: True)
+    monkeypatch.setattr(dh, "_nibble_probe_quota_remaining", lambda: True)
+    # 高 adj 走 BUILD，llm 仍中性微偏
+    d = dh.fuse_signals(_sig_llm_fw(llm_val=0.54, fw_val=0.70), "long", mode="paper")
+    assert d.action in ("NIBBLE", "BUILD")
+    assert d.direction == "long"
+    assert str(d.dir_src).startswith("nibble_probe")
+
+
+def test_nibble_probe_disabled_keeps_neutral(monkeypatch):
+    monkeypatch.setattr(dh, "_AI_GOVERNED", True)
+    monkeypatch.setattr(dh, "_nibble_probe_enabled", lambda: False)
+    d = dh.fuse_signals(_sig_llm_fw(llm_val=0.51, fw_val=0.55), "long", mode="paper")
     assert d.direction == "neutral"
 
 
@@ -164,7 +204,8 @@ def test_weight_ladder_marked_in_decision(monkeypatch):
     d = dh.fuse_signals(_sig_llm_fw(), "mid", mode="paper")
     assert d.mode == "ai_governed"
     assert d.ai_governed_weight == 0.40
-    assert "[ai_governed]" in d.reason_text
+    assert "ai_governed" in d.reason_text
+    assert "dir_src=" in d.reason_text
     monkeypatch.setattr(dh, "_AI_GOVERNED", False)
     d2 = dh.fuse_signals(_sig_llm_fw(), "mid", mode="paper")
     assert d2.mode == "standard"

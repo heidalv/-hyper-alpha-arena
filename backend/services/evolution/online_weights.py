@@ -90,15 +90,23 @@ class OnlineLinearModel:
         """权重 L2 范数（监控用）。"""
         return float(np.linalg.norm(self.weights))
 
-    def feature_importance(self) -> dict[str, float]:
-        """因子重要性（归一化权重绝对值）。"""
+    def feature_importance(self, names: list[str] | None = None) -> dict[str, float]:
+        """因子重要性（归一化权重绝对值）。
+
+        names 与当前 weights 同序时，键为真实 factor_id；未传则回退 f0/f1（兼容旧测）。
+        """
         if len(self.weights) == 0:
             return {}
         abs_w = np.abs(self.weights)
         total = abs_w.sum()
+        n = len(self.weights)
+        if names is not None and len(names) == n:
+            keys = [str(x) for x in names]
+        else:
+            keys = [f"f{i}" for i in range(n)]
         if total < 1e-12:
-            return {f"f{i}": 0.0 for i in range(len(self.weights))}
-        return {f"f{i}": float(abs_w[i] / total) for i in range(len(self.weights))}
+            return {keys[i]: 0.0 for i in range(n)}
+        return {keys[i]: float(abs_w[i] / total) for i in range(n)}
 
     def stats(self) -> dict:
         return {

@@ -177,6 +177,39 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# 桌面端（Electron）连接集合：连接 URL 带 ?client=desktop 才计入。
+# 用于「前端改动自动发布后」只向桌面端广播新版本，不给 web 浏览器客户端推。
+_desktop_connections: Set[WebSocket] = set()
+
+
+async def _broadcast_desktop_update(version: str, path: str) -> int:
+    """向所有已连接的桌面端推送 desktop_update 事件，返回送达数量。"""
+    message = json.dumps(
+        {"type": "desktop_update", "version": version, "path": path, "ts": time.time()}
+    )
+    dead = []
+    sent = 0
+    for ws in list(_desktop_connections):
+        try:
+            if getattr(ws, "client_state", None) is not None and ws.client_state.name != "CONNECTED":
+                dead.append(ws)
+                continue
+            await ws.send_text(message)
+            sent += 1
+        except Exception:
+            dead.append(ws)
+    for d in dead:
+        _desktop_connections.discard(d)
+    return sent
+
+
+def notify_desktop_update(version: str, path: str = "") -> None:
+    """同步入口：由发布流水线/API 调用，经 manager 事件循环调度广播协程。"""
+    try:
+        manager.schedule_task(_broadcast_desktop_update(str(version or ""), str(path or "")))
+    except Exception as exc:  # 后端未启动/事件循环不可用时仅记录
+        logger.warning("[WS] desktop_update 广播调度失败: %s", exc)
+
 # 接线 Redis pub/sub 桥(跨 worker WS 广播)。
 # - configure_local_dispatch:让 bridge 收到 Redis 消息时回调 manager._dispatch_local
 #   投递给本地 socket。
@@ -1019,6 +1052,12 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
         return
     logging.info(f"[WS] WebSocket connection accepted from {client_host}")
+    _is_desktop_client = (
+        str(websocket.query_params.get("client") or "").strip().lower() == "desktop"
+    )
+    if _is_desktop_client:
+        _desktop_connections.add(websocket)
+        logging.info("[WS] desktop client registered (will receive update broadcasts)")
     try:
         manager.set_event_loop(asyncio.get_running_loop())
     except RuntimeError:
@@ -1437,6 +1476,7 @@ async def websocket_endpoint(websocket: WebSocket):
             manager.unregister(account_id, websocket)
         if user_id is not None:
             manager.unregister(user_id, websocket)
+        _desktop_connections.discard(websocket)
         try:
             from backend.services.ws_broadcast import ws_broadcast_hub
             ws_broadcast_hub.unsubscribe_all(websocket)
@@ -1449,6 +1489,7 @@ async def websocket_endpoint(websocket: WebSocket):
             manager.unregister(account_id, websocket)
         if user_id is not None:
             manager.unregister(user_id, websocket)
+        _desktop_connections.discard(websocket)
         try:
             from backend.services.ws_broadcast import ws_broadcast_hub
             ws_broadcast_hub.unsubscribe_all(websocket)

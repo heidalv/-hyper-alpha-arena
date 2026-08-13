@@ -11,6 +11,7 @@ import {
   FileText, Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { softNavigate } from "@/lib/app-nav";
 
 interface Cmd {
   label: string;
@@ -34,7 +35,8 @@ const COMMANDS: Cmd[] = [
   { label: "套利中心", href: "/arbitrage", icon: ArrowRightLeft, keywords: ["arbitrage", "套利"] },
   { label: "Hyperliquid", href: "/hyperliquid", icon: CandlestickChart, keywords: ["hyperliquid", "hl", "dex"] },
   { label: "风控监控", href: "/risk", icon: Shield, keywords: ["risk", "风控"] },
-  { label: "系统日志", href: "/logs", icon: FileText, keywords: ["log", "日志", "system"] },
+  { label: "运维看板", href: "/ops", icon: Activity, keywords: ["ops", "运维", "看板", "heartbeat"] },
+  { label: "报错中心", href: "/ops#ops-errors", icon: FileText, keywords: ["log", "日志", "报错", "system", "errors"] },
   { label: "设置", href: "/settings", icon: Settings, keywords: ["settings", "设置", "config"] },
 ];
 
@@ -85,9 +87,9 @@ export function CommandPalette() {
         e.preventDefault();
         const cmd = results[selectedIndex];
         if (cmd) {
-          router.push(cmd.href);
           setOpen(false);
           setQuery("");
+          softNavigate(cmd.href, (url) => router.push(url));
         }
       }
     };
@@ -138,9 +140,9 @@ export function CommandPalette() {
                   <button
                     key={cmd.href}
                     onClick={() => {
-                      router.push(cmd.href);
                       setOpen(false);
                       setQuery("");
+                      softNavigate(cmd.href, (url) => router.push(url));
                     }}
                     onMouseEnter={() => setSelectedIndex(i)}
                     className={cn(

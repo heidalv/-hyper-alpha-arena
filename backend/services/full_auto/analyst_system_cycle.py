@@ -418,6 +418,17 @@ def run_analyst_system_unified(
 
         _acct_id = getattr(session, "account_id", None) or getattr(account, "id", None)
 
+        # [2026-08-07 修复] 长事务拆分：LLM 分析（流式 10-100s+）前先提交主连接事务，
+        # 避免分析期间连接 idle-in-transaction（>20s 被 LeakGuard 告警、>120s 被强制
+        # 终止，导致本 tick 决策落库失败 + 持仓 UPDATE 被行锁阻塞）。
+        try:
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
         # AI 精选币打标：让 Master LLM 看到选币评分并差异化加权
         host.annotate_auto_coin_meta(
             getattr(session, "session_id", "") or "", market_summary or {})

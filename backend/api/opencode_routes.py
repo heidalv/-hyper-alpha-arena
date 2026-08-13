@@ -1,4 +1,4 @@
-"""OpenCode 智能分析层 API。"""
+﻿"""OpenCode 智能分析层 API。"""
 
 from __future__ import annotations
 
@@ -375,7 +375,7 @@ def opencode_config() -> Dict[str, Any]:
         "OPENCODE_MAJOR_AUTO_APPLY": getattr(s, "OPENCODE_MAJOR_AUTO_APPLY", False),
         "OPENCODE_MAJOR_PACE_DOWNSHIFT_STEPS": getattr(s, "OPENCODE_MAJOR_PACE_DOWNSHIFT_STEPS", 1),
         "OPENCODE_MAJOR_PACE_FLOOR": getattr(s, "OPENCODE_MAJOR_PACE_FLOOR", "balanced"),
-        "OPENCODE_MODEL": getattr(s, "OPENCODE_MODEL", "deepseek/deepseek-v4-pro"),
+        "OPENCODE_MODEL": getattr(s, "OPENCODE_MODEL", "deepseek/deepseek-v4-flash"),
         "OPENCODE_SMALL_MODEL": getattr(s, "OPENCODE_SMALL_MODEL", "deepseek/deepseek-v4-flash"),
         "OPENCODE_AUTO_REVIEW": getattr(s, "OPENCODE_AUTO_REVIEW", True),
         "OPENCODE_AGENT_REVIEW": getattr(s, "OPENCODE_AGENT_REVIEW", "review"),

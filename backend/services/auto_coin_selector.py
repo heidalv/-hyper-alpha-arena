@@ -839,6 +839,7 @@ class AutoCoinSelector:
                 _min_abs_alpha = float(os.getenv("AUTO_COIN_FACTOR_MIN_ABS_ALPHA", "0.005"))
                 _blend = float(os.getenv("AUTO_COIN_FACTOR_BLEND", "0.50"))
             if float(total_score or 0) >= _min_market:
+                _exp = None
                 try:
                     if _factor_on:
                         from backend.services.factor_engine.exposure_service import (
@@ -854,7 +855,14 @@ class AutoCoinSelector:
                 if _factor_match is not None and abs(_alpha) >= _min_abs_alpha:
                     _fm = (_factor_match + 1.0) / 2.0
                     _b = max(0.0, min(1.0, _blend))
+                    _before = float(total_score or 0)
                     total_score = _b * _fm + (1.0 - _b) * total_score
+                    logger.info(
+                        "[AutoCoin] M4 factor_match %s alpha=%.5f match=%.3f "
+                        "score %.3f→%.3f (blend=%.2f n_exp=%d)",
+                        symbol_upper, _alpha, _factor_match, _before, total_score, _b,
+                        len(_exp) if _exp else 0,
+                    )
             scores["factor_match"] = _factor_match
             scores["factor_alpha"] = _alpha if _factor_match is not None else None
 
@@ -2010,44 +2018,43 @@ class AutoCoinSelector:
             logger.info("[AutoCoinSelector] Phase 4: 所有候选数据未就绪，跳过本轮注入")
             return []
 
-        # ── S2-9：LLM 组合决策（非 VIP 看板；未启用/失败回退规则路径）──
+        # ── S2-9：LLM 组合决策（board 跟投与 legacy 扫描共用；未启用/失败回退规则路径）──
         # 候选池已按 (ai_confidence, score) 降序，LLM 在此之上做组合级取舍：
         # 避免高分同质币扎堆，兼顾因子 IC 正维度。
-        if not board_src:
-            try:
-                from backend.config.settings import (
-                    AUTO_COIN_LLM_COMPOSE_ENABLED,
-                    AUTO_COIN_LLM_COMPOSE_MAX,
+        try:
+            from backend.config.settings import (
+                AUTO_COIN_LLM_COMPOSE_ENABLED,
+                AUTO_COIN_LLM_COMPOSE_MAX,
+            )
+            if AUTO_COIN_LLM_COMPOSE_ENABLED and len(approved) > 1:
+                from backend.services.coin_rank.ic_weights import llm_compose, factor_vector
+                pool = [
+                    {
+                        "symbol": c.symbol,
+                        "score": round(float(c.score or 0), 3),
+                        "confidence": c.ai_confidence,
+                        "reason": c.ai_reason or "",
+                        "factors": factor_vector(c.scores_detail or {}),
+                    }
+                    for c in approved
+                ]
+                picked = llm_compose(
+                    pool,
+                    self._llm_compose_caller(),
+                    max_select=int(AUTO_COIN_LLM_COMPOSE_MAX),
                 )
-                if AUTO_COIN_LLM_COMPOSE_ENABLED and len(approved) > 1:
-                    from backend.services.coin_rank.ic_weights import llm_compose, factor_vector
-                    pool = [
-                        {
-                            "symbol": c.symbol,
-                            "score": round(float(c.score or 0), 3),
-                            "confidence": c.ai_confidence,
-                            "reason": c.ai_reason or "",
-                            "factors": factor_vector(c.scores_detail or {}),
-                        }
-                        for c in approved
-                    ]
-                    picked = llm_compose(
-                        pool,
-                        self._llm_compose_caller(),
-                        max_select=int(AUTO_COIN_LLM_COMPOSE_MAX),
+                if picked:
+                    picked_set = set(picked)
+                    before = len(approved)
+                    approved = [c for c in approved if c.symbol.upper() in picked_set]
+                    logger.info(
+                        f"[AutoCoinSelector] LLM 组合决策: {before} -> {len(approved)} "
+                        f"(picked={picked})"
                     )
-                    if picked:
-                        picked_set = set(picked)
-                        before = len(approved)
-                        approved = [c for c in approved if c.symbol.upper() in picked_set]
-                        logger.info(
-                            f"[AutoCoinSelector] LLM 组合决策: {before} -> {len(approved)} "
-                            f"(picked={picked})"
-                        )
-                        if not approved:
-                            return []
-            except Exception as e:
-                logger.debug(f"[AutoCoinSelector] LLM 组合跳过(回退规则路径): {e}")
+                    if not approved:
+                        return []
+        except Exception as e:
+            logger.debug(f"[AutoCoinSelector] LLM 组合跳过(回退规则路径): {e}")
 
         service = FullAutoTradingService.get_instance()
 
@@ -2099,6 +2106,32 @@ class AutoCoinSelector:
                     pass
                 c.scores_detail = sd
 
+        # ── S2-9 移植：board 跟投路径注入前 IC 加权重排 + 组合相关去重 ──
+        # （legacy 扫描路径已有同能力；此处让统一跟投路径也消费 V3/IC/去重）
+        if board_src:
+            if self._score_v3_enabled(db):
+                rescored = self._apply_v3_rescore(approved, db)
+                if rescored:
+                    approved = rescored
+            try:
+                from backend.config.settings import AUTO_COIN_CORR_DEDUP_THRESHOLD
+                from backend.services.coin_rank.ic_weights import dedup_by_correlation, factor_vector
+                threshold = float(AUTO_COIN_CORR_DEDUP_THRESHOLD)
+                if threshold > 0 and len(approved) > 1:
+                    kept_syms = dedup_by_correlation(
+                        [(c.symbol, factor_vector(c.scores_detail or {})) for c in approved],
+                        threshold=threshold,
+                    )
+                    if kept_syms:
+                        kept_set = set(kept_syms)
+                        before_n = len(approved)
+                        approved = [c for c in approved if c.symbol in kept_set]
+                        logger.info(
+                            f"[AutoCoinSelector] S2-9 board 相关去重: {before_n} -> {len(approved)}"
+                        )
+            except Exception as e:
+                logger.debug(f"[AutoCoinSelector] board 相关性去重跳过: {e}")
+
         # ── VIP 看板：补满槽位（加大槽位能立刻多跟投；不因看板变薄而误删已有 AI 币）──
         if board_src:
             fixed_now = {
@@ -2141,6 +2174,16 @@ class AutoCoinSelector:
                 if s not in ordered:
                     ordered.append(s)
             target = ordered[: max(1, pool_limit)]
+            # S2-9 移植：board 路径同板块上限（含已有池，与 legacy 一致）
+            try:
+                from backend.config.settings import AUTO_COIN_SECTOR_SIGNAL_ENABLED
+                if AUTO_COIN_SECTOR_SIGNAL_ENABLED:
+                    from backend.services.auto_coin_sector_signal import enforce_max_per_sector
+                    pooled = list(existing_auto) + ordered
+                    allowed = set(enforce_max_per_sector(pooled))
+                    target = [s for s in target if s in allowed]
+            except Exception as e:
+                logger.debug(f"[AutoCoinSelector] board sector cap skip: {e}")
             target_set = set(target)
             to_remove = sorted(
                 (existing_auto - target_set)
@@ -4180,14 +4223,29 @@ class AutoCoinSelector:
             llm_cfg = get_llm_config_for_usage("coin_select", account_id=self.account_id, tier="deep")
             if not llm_cfg or not getattr(llm_cfg, "api_key", None):
                 raise RuntimeError("no llm api key")
-            resp_data = asyncio.run(
-                call_llm_api(
+
+            async def _invoke():
+                return await call_llm_api(
                     config=llm_cfg,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.3,
                     max_tokens=300,
                 )
-            )
+
+            # S2-9 修复：Cycle 在 async 事件循环内同步调用本 caller 时，
+            # asyncio.run() 会抛 "cannot be called from a running event loop"；
+            # Python 3.12 亦禁止同线程嵌套运行另一事件循环（
+            # "Cannot run the event loop while another loop is running"）。
+            # 故检测到 running loop 时转到独立线程执行 —— 线程内无 running
+            # loop，asyncio.run 合法；llm_config_service 的 httpx 客户端按
+            # loop_id 索引缓存，线程内新建 loop 自动重建 client，安全。
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures as _cf
+                with _cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm-compose") as _ex:
+                    resp_data = _ex.submit(lambda: asyncio.run(_invoke())).result()
+            except RuntimeError:
+                resp_data = asyncio.run(_invoke())
             if not resp_data:
                 raise RuntimeError("empty llm response")
             choices = resp_data.get("choices", [])
@@ -4668,36 +4726,122 @@ def is_auto_coin_symbol(symbol: str, session_id: str = None) -> bool:
     return auto_coin_scheduler.is_auto_coin_symbol(symbol, session_id=session_id)
 
 
-def get_fixed_symbols_for_session(session_id: str, db: Optional[Session] = None) -> Set[str]:
-    """长线(tier=long)候选唯一权威来源——正向白名单，而不是"排除AI选币"的反向判断。
+_FIXED_TIERS = ("short", "mid", "long")
 
-    [2026-07-21 修复 — 用户反馈"长线又把AI选币选进去了"根因排查]
-    此前 mlto_cycle.py / tier_fanout.py / orch_background.py 各自维护一份
-    "session.auto_coin_symbols 排除法"：只要某个 symbol 当前不在 auto_coin_symbols
-    里就被当成"固定币"放行进长线。但 AI 选币是每 ~30min 轮换一次的动态子系统（注入/
-    到期剔除/表现淘汰随时发生），而中长线一个 tick 常常要跑几分钟到十分钟（LLM 分析
-    耗时）——期间若 AI 选币模块用另一条 DB 连接完成了注入/剔除的提交，本 tick 一开始
-    加载、且长期持有的 ORM session 对象上的 auto_coin_symbols 属性并不会自动刷新，
-    形成"某个symbol明明是AI选的，但本次tick读到的auto_coin_symbols快照里还没有它（或
-    已经没有它)"的时间窗口，导致该symbol被误判成"固定币"漏进长线分析——这正是KBONK
-    反复出现在 tier=long 决策日志里的根因：不是某一个symbol的偶然遗漏，而是"反向排除法
-    + 长期持有的ORM对象"这个结构性组合，在AI选币持续动态更新时必然会有窗口期。
-    修复：改成正向白名单，且每次都用 db.execute 原始SQL现查最新DB行（不经过任何可能
-    stale 的 ORM identity map/长期持有对象），把过期窗口从"整个tick的分钟级"压缩到
-    "毫秒级单次查询"，并且从"猜哪些是固定的"变成"明确认定哪些是固定的"。
-    所有需要判断"长线是否允许这个symbol"的地方都应调用本函数，不要各自再造一份判断。
+
+def _parse_symbol_list(raw) -> List[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw.strip() else []
+        except Exception:
+            raw = [x.strip() for x in raw.split(",") if x.strip()]
+    if not isinstance(raw, (list, tuple, set)):
+        return []
+    out: List[str] = []
+    seen: set = set()
+    for s in raw:
+        u = str(s or "").strip().upper()
+        if u and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
+
+
+def _coerce_by_tier_raw(raw) -> Any:
+    """把 DB 里可能的双重 JSON 字符串还原成 dict。
+
+    历史 bug：`CAST(:by_tier AS json)` + `json.dumps(...)` 会把对象存成 JSON 字符串，
+    ORM 读出来是 str；前端 typeof==='string' 后整组回退 symbols，表现为「保存失败/回退默认」。
     """
+    cur = raw
+    for _ in range(3):
+        if cur is None:
+            return None
+        if isinstance(cur, dict):
+            return cur
+        if isinstance(cur, (bytes, bytearray)):
+            try:
+                cur = cur.decode("utf-8")
+            except Exception:
+                return None
+        if isinstance(cur, str):
+            s = cur.strip()
+            if not s:
+                return None
+            try:
+                cur = json.loads(s)
+            except Exception:
+                return None
+            continue
+        return None
+    return cur if isinstance(cur, dict) else None
+
+
+def _parse_by_tier_map(raw) -> Dict[str, List[str]]:
+    """解析 fixed_symbols_by_tier。
+
+    只要任一 short/mid/long 键存在，即视为已分周期配置；
+    **空列表也保留**（表示该周期故意不配固定币），不得省略后回退 symbols，
+    否则会出现「三周期联动 / 无法单独清空」的假象。
+    """
+    raw = _coerce_by_tier_raw(raw)
+    if not isinstance(raw, dict):
+        return {}
+    if not any(k in raw for k in _FIXED_TIERS):
+        return {}
+    out: Dict[str, List[str]] = {}
+    for k in _FIXED_TIERS:
+        if k in raw:
+            out[k] = _parse_symbol_list(raw.get(k))
+    return out
+
+
+def _union_preserve(*lists: List[str]) -> List[str]:
+    out: List[str] = []
+    seen: set = set()
+    for lst in lists:
+        for s in lst or []:
+            u = str(s or "").strip().upper()
+            if u and u not in seen:
+                seen.add(u)
+                out.append(u)
+    return out
+
+
+def validate_symbols_in_backup_pool(symbols: List[str]) -> Tuple[List[str], List[str]]:
+    """返回 (ok, rejected)；备选池读失败时放行（不因配置服务宕机卡死）。"""
+    try:
+        from backend.services.trading_pairs_config import get_user_trading_pairs
+        pool = {str(s).strip().upper() for s in (get_user_trading_pairs() or []) if s}
+    except Exception:
+        pool = set()
+    if not pool:
+        ok = _parse_symbol_list(symbols)
+        return ok, []
+    ok, bad = [], []
+    for s in _parse_symbol_list(symbols):
+        (ok if s in pool else bad).append(s)
+    return ok, bad
+
+
+def get_session_mid_ai_config(session_id: str, db: Optional[Session] = None) -> Dict[str, Any]:
+    """读会话中线 AI 开关/槽位。"""
+    enabled = False
+    max_slots = 3
+    try:
+        from sqlalchemy import text as _sa_text
+        from backend.config.settings import AUTO_COIN_MID_MAX_SLOTS
+        max_slots = max(1, min(5, int(AUTO_COIN_MID_MAX_SLOTS or 3)))
+    except Exception:
+        max_slots = 3
     try:
         from sqlalchemy import text as _sa_text
         _owns_db = db is None
         if _owns_db:
             from backend.database.connection import SessionLocal
             db = SessionLocal()
-            # [2026-08-04 修复] 长线白名单是权威查询，必须穿透 RLS：
-            # 后台线程/线程池（APScheduler / ThreadPoolExecutor）无 HTTP 租户上下文，
-            # begin 钩子读不到 ContextVar 身份 → RLS fail-closed 隐藏 full_auto_sessions →
-            # 白名单恒空 → is_long_allowed 全 False → MLTO 跳过所有长线 thesis。
-            # 这里自建连接后直接对连接设 admin GUC（不动 ContextVar，避免污染调用线程）。
             try:
                 db.connection().exec_driver_sql("SET app.is_admin = 'on'")
             except Exception:
@@ -4705,8 +4849,125 @@ def get_fixed_symbols_for_session(session_id: str, db: Optional[Session] = None)
         try:
             row = db.execute(
                 _sa_text(
-                    "SELECT symbols, auto_coin_symbols FROM full_auto_sessions "
-                    "WHERE session_id = :sid"
+                    "SELECT auto_coin_mid_enabled, auto_coin_mid_max_slots "
+                    "FROM full_auto_sessions WHERE session_id = :sid"
+                ),
+                {"sid": session_id},
+            ).first()
+            if row:
+                enabled = bool(row[0])
+                if row[1] is not None:
+                    try:
+                        max_slots = max(1, min(5, int(row[1])))
+                    except Exception:
+                        pass
+        finally:
+            if _owns_db:
+                db.close()
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] get_session_mid_ai_config fail %s: %s", session_id, e)
+    return {"enabled": enabled, "max_slots": max_slots}
+
+
+def set_fixed_symbols_by_tier(
+    session_id: str,
+    by_tier: Dict[str, List[str]],
+    db: Optional[Session] = None,
+    *,
+    enforce_backup_pool: bool = True,
+) -> Dict[str, Any]:
+    """写入分周期固定币，并同步 symbols=三周期并集。"""
+    cleaned: Dict[str, List[str]] = {}
+    rejected: Dict[str, List[str]] = {}
+    for k in _FIXED_TIERS:
+        vals = _parse_symbol_list((by_tier or {}).get(k))
+        if enforce_backup_pool:
+            ok, bad = validate_symbols_in_backup_pool(vals)
+            cleaned[k] = ok
+            if bad:
+                rejected[k] = bad
+        else:
+            cleaned[k] = vals
+    if any(rejected.values()):
+        return {
+            "success": False,
+            "error": "以下币不在固定币备选池(交易对配置)中",
+            "rejected": rejected,
+            "fixed_symbols_by_tier": cleaned,
+        }
+    union = _union_preserve(cleaned.get("short", []), cleaned.get("mid", []), cleaned.get("long", []))
+    try:
+        from backend.database.models import FullAutoSession
+        from sqlalchemy.orm.attributes import flag_modified
+
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal
+            db = SessionLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            row = (
+                db.query(FullAutoSession)
+                .filter(FullAutoSession.session_id == session_id)
+                .first()
+            )
+            if not row:
+                return {"success": False, "error": "会话不存在"}
+            # 直接赋 dict，避免 CAST(json.dumps(...)) 双重编码成字符串
+            row.fixed_symbols_by_tier = cleaned
+            row.symbols = union
+            flag_modified(row, "fixed_symbols_by_tier")
+            flag_modified(row, "symbols")
+            db.commit()
+        finally:
+            if _owns_db:
+                db.close()
+        return {
+            "success": True,
+            "fixed_symbols_by_tier": cleaned,
+            "symbols": union,
+        }
+    except Exception as e:
+        logger.warning("[AutoCoinSelector] set_fixed_symbols_by_tier fail %s: %s", session_id, e)
+        try:
+            if db is not None:
+                db.rollback()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+def get_fixed_symbols_for_session(
+    session_id: str,
+    db: Optional[Session] = None,
+    tier: Optional[str] = None,
+) -> Set[str]:
+    """固定币正向白名单。
+
+    tier:
+      - "short"|"mid"|"long"：该周期固定币（by_tier 非空用 by_tier，否则回退 symbols）
+      - None：三周期并集（运维/进化）；无 by_tier 时回退 symbols
+    始终减去 AI 污染（短线 auto + 历史 AI；中线 sticky 在 mid 时减去）。
+    """
+    try:
+        from sqlalchemy import text as _sa_text
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal
+            db = SessionLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            row = db.execute(
+                _sa_text(
+                    "SELECT s.symbols, s.auto_coin_symbols, s.fixed_symbols_by_tier "
+                    "FROM full_auto_sessions s "
+                    "WHERE s.session_id = :sid"
                 ),
                 {"sid": session_id},
             ).first()
@@ -4715,26 +4976,537 @@ def get_fixed_symbols_for_session(session_id: str, db: Optional[Session] = None)
                 db.close()
         if not row:
             return set()
-        _symbols = row[0] or []
-        _auto = row[1] or []
-        if isinstance(_symbols, str):
-            _symbols = json.loads(_symbols) if _symbols else []
-        if isinstance(_auto, str):
-            _auto = json.loads(_auto) if _auto else []
-        fixed = {str(s).strip().upper() for s in _symbols if s}
-        auto_set = {str(s).strip().upper() for s in _auto if s}
-        # P2：人工核心币池并入长线白名单（仍排除 AI 选币）
-        try:
-            from backend.services.mlto.midlong_portfolio_risk import parse_core_basket
-            core = {s for s in parse_core_basket() if s}
-            if core:
-                fixed = fixed | core
-        except Exception:
-            pass
-        return fixed - auto_set
+        legacy = _parse_symbol_list(row[0])
+        auto_set = set(_parse_symbol_list(row[1]))
+        by_tier = _parse_by_tier_map(row[2] if len(row) > 2 else None)
+
+        t = str(tier or "").strip().lower() or None
+        if t in _FIXED_TIERS:
+            # 已分周期配置时：缺键/空列表都不再回退 symbols（避免三周期被并集「焊死」）
+            if by_tier:
+                base = list(by_tier.get(t, []))
+            else:
+                base = legacy
+        elif by_tier:
+            base = _union_preserve(
+                by_tier.get("short", []),
+                by_tier.get("mid", []),
+                by_tier.get("long", []),
+            )
+        else:
+            base = legacy
+
+        fixed = set(base)
+        # [根因修复] 禁止把 MIDLONG_CORE_BASKET(BTC/ETH/SOL) 强行并进长线白名单。
+        # 否则会话里「长线只勾 BTC/ETH」仍会分析/展示 SOL，配置与实盘脱节。
+        # 长线唯一权威 = fixed_symbols_by_tier.long（无 by_tier 时才回退 symbols）。
+
+        # 只剔除「当前」AI 池，不剔除历史扫描记录。
+        # 否则 VIRTUAL/XPL 等曾进过 auto_coin_selections 的币，即使用户明确勾进固定币，
+        # 也会被永久抹掉，运维台「会话当前启用」永远对不上备选池。
+        fixed = fixed - auto_set
+        if t in (None, "mid"):
+            try:
+                sticky = _load_ai_mid_sticky(session_id)
+                mid_ai = {
+                    str(s).strip().upper()
+                    for s in (sticky.get("symbols") or [])
+                    if s
+                }
+                fixed = fixed - mid_ai
+            except Exception:
+                pass
+        return fixed
     except Exception as e:
         logger.warning(f"[AutoCoinSelector] get_fixed_symbols_for_session 查询失败 {session_id}: {e}")
         return set()
+
+
+def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None) -> int:
+    """open 的 tier=mid 持仓数（AI 中线单分通道计数）。
+
+    [2026-08-10 问题三] 修复前 mid lane 全禁、中长线一律归一成 long，不存在 mid
+    持仓；修复后 mid 持仓只可能来自 AI 中线候选，timeframe_tier='mid' 即通道标记，
+    无需再区分来源。槽位 ≤3 硬上限依赖本计数（候选查询截断 + 开仓前二次校验）。
+    """
+    try:
+        from sqlalchemy import text as _sa_text
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal as _CoreLocal
+            db = _CoreLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            _sql = (
+                "SELECT COUNT(*) FROM paper_positions "
+                "WHERE status = 'open' AND timeframe_tier = 'mid'"
+            )
+            _params: Dict[str, Any] = {}
+            if account_id is not None:
+                _sql += " AND account_id = :acc"
+                _params["acc"] = int(account_id)
+            return int(db.execute(_sa_text(_sql), _params).scalar() or 0)
+        finally:
+            if _owns_db:
+                db.close()
+    except Exception as e:
+        logger.warning(f"[AutoCoinSelector] count_open_ai_mid_positions 失败: {e}")
+        return 0
+
+
+def _ai_mid_sticky_path(session_id: str) -> str:
+    base = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "data", "ai_mid_sticky"
+    )
+    os.makedirs(base, exist_ok=True)
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in str(session_id))
+    return os.path.join(base, f"{safe}.json")
+
+
+def _load_ai_mid_sticky(session_id: str) -> Dict[str, Any]:
+    path = _ai_mid_sticky_path(session_id)
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            if isinstance(data, dict):
+                return data
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] load ai_mid sticky fail %s: %s", session_id, e)
+    return {}
+
+
+def _save_ai_mid_sticky(session_id: str, symbols: List[str], *, reason: str) -> None:
+    path = _ai_mid_sticky_path(session_id)
+    payload = {
+        "session_id": session_id,
+        "symbols": [str(s).upper() for s in symbols if s],
+        "updated_at": time.time(),
+        "updated_iso": datetime.utcnow().isoformat() + "Z",
+        "reason": reason,
+    }
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning("[AutoCoinSelector] save ai_mid sticky fail %s: %s", session_id, e)
+
+
+def _midlong_board_approve_candidates(
+    db: Session,
+    *,
+    fixed: Set[str],
+    min_conf: float,
+    limit: int = 40,
+) -> List[tuple]:
+    """平台看板 midlong approve 候选：(symbol, confidence)，已排除固定长线白名单。"""
+    from sqlalchemy import text as _sa_text
+
+    rows = db.execute(
+        _sa_text(
+            "SELECT symbol, confidence FROM coin_select_candidates "
+            "WHERE listed IS TRUE "
+            "AND horizon = 'midlong' "
+            "AND lower(ai_verdict) = 'approve' "
+            "AND COALESCE(confidence, 0) >= :min_conf "
+            "ORDER BY confidence DESC NULLS LAST "
+            "LIMIT :lim"
+        ),
+        {"min_conf": float(min_conf), "lim": int(limit)},
+    ).all()
+    out: List[tuple] = []
+    seen: Set[str] = set()
+    for r in rows:
+        sym = str(r[0] or "").strip().upper()
+        if not sym or sym in seen or sym in fixed:
+            continue
+        seen.add(sym)
+        try:
+            conf = float(r[1]) if r[1] is not None else 0.0
+        except (TypeError, ValueError):
+            conf = 0.0
+        out.append((sym, conf))
+    return out
+
+
+def _auto_coin_pool_mid_fallback_candidates(
+    db: Session,
+    session_id: str,
+    *,
+    fixed: Set[str],
+) -> List[tuple]:
+    """看板无合格 midlong approve 时的兜底：短线 auto_coin_symbols + 最近注入审计。"""
+    from sqlalchemy import text as _sa_text
+
+    _row = db.execute(
+        _sa_text(
+            "SELECT auto_coin_symbols FROM full_auto_sessions "
+            "WHERE session_id = :sid"
+        ),
+        {"sid": session_id},
+    ).first()
+    _auto_syms = [
+        str(s).strip().upper()
+        for s in (_row[0] if _row else []) or []
+        if s and str(s).strip().upper() not in fixed
+    ]
+    if not _auto_syms:
+        return []
+
+    _rows = db.execute(
+        _sa_text(
+            "SELECT DISTINCT ON (symbol) symbol, action, ai_confidence "
+            "FROM auto_coin_selections "
+            "WHERE session_id = :sid AND upper(symbol) = ANY(:syms) "
+            "ORDER BY symbol, id DESC"
+        ),
+        {"sid": session_id, "syms": _auto_syms},
+    ).all()
+    _cands: List[tuple] = []
+    for r in _rows:
+        _sym = str(r[0]).strip().upper()
+        _act = str(r[1] or "")
+        if _act not in ("injected", "renewed"):
+            continue
+        _cands.append((_sym, r[2]))
+    _found = {s for s, _ in _cands}
+    for _s in _auto_syms:
+        if _s not in _found:
+            _cands.append((_s, None))
+    _cands.sort(key=lambda x: (x[1] is None, -(x[1] or 0.0)))
+    return _cands
+
+
+def force_adopt_ai_mid_symbol(session_id: str, symbol: str, *, max_slots: int = 3) -> Dict[str, Any]:
+    """VIP 人工采纳 midlong：写入 AI 中线 sticky，不进固定长线表、不进短线 auto 池。"""
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return {"success": False, "error": "symbol required"}
+    mid_cfg = get_session_mid_ai_config(session_id)
+    if not mid_cfg.get("enabled"):
+        return {
+            "success": False,
+            "error": "会话未开启中线AI选币，请先在会话管理打开开关",
+        }
+    try:
+        from backend.config.settings import AUTO_COIN_MID_MAX_SLOTS
+        _max = max(1, int(max_slots or mid_cfg.get("max_slots") or AUTO_COIN_MID_MAX_SLOTS or 3))
+    except Exception:
+        _max = max(1, int(max_slots or mid_cfg.get("max_slots") or 3))
+    _max = max(1, min(5, _max))
+
+    fixed = get_fixed_symbols_for_session(session_id, db=None, tier="mid")
+    if sym in fixed:
+        return {
+            "success": True,
+            "symbol": sym,
+            "skipped": "already_fixed_mid",
+            "note": "已在中线固定币表，无需占 AI 中线槽",
+        }
+
+    sticky = _load_ai_mid_sticky(session_id)
+    cur = [
+        str(s).strip().upper()
+        for s in (sticky.get("symbols") or [])
+        if s and str(s).strip().upper() not in fixed
+    ]
+    merged = [sym] + [s for s in cur if s != sym]
+    merged = merged[:_max]
+    _save_ai_mid_sticky(
+        session_id, merged,
+        reason="manual_adopt midlong_board",
+    )
+    return {"success": True, "symbol": sym, "ai_mid_watch": merged}
+
+
+def get_ai_mid_candidates_for_session(
+    session_id: str,
+    db: Optional[Session] = None,
+    max_slots: Optional[int] = None,
+) -> List[str]:
+    """AI 中线(tier=mid)候选权威来源——平台看板 midlong approve + 粘性慢刷新。
+
+    主源：coin_select_candidates（horizon=midlong, ai_verdict=approve,
+    confidence≥MIDLONG_AI_MIN_CONF），与固定长线白名单正交。
+    粘性：AUTO_COIN_MID_RESAMPLE_SEC（默认 3h）内沿用 sticky；
+    仅 reason 含 midlong_board / manual_adopt 的 sticky 才算有效主源缓存。
+    兜底：看板无合格项时，才回退短线 auto_coin_symbols（并打日志）。
+
+    槽位优先：显式 max_slots → 会话 auto_coin_mid_max_slots → env。
+    会话 auto_coin_mid_enabled=false 时返回空（已有 mid 仓由调用方续管）。
+    """
+    mid_cfg = get_session_mid_ai_config(session_id, db=db)
+    if not mid_cfg.get("enabled"):
+        return []
+    try:
+        from sqlalchemy import text as _sa_text
+        try:
+            from backend.config.settings import (
+                AUTO_COIN_MID_MAX_SLOTS,
+                AUTO_COIN_MID_RESAMPLE_SEC,
+                MIDLONG_AI_MIN_CONF,
+            )
+            _raw_slots = (
+                max_slots
+                if max_slots is not None
+                else (mid_cfg.get("max_slots") or AUTO_COIN_MID_MAX_SLOTS or 3)
+            )
+            _max_slots = max(1, min(5, int(_raw_slots)))
+            _resample = max(3600, int(AUTO_COIN_MID_RESAMPLE_SEC or 10800))  # 至少 1h
+            _min_conf = float(MIDLONG_AI_MIN_CONF or 0.60)
+        except Exception:
+            _raw_slots = (
+                max_slots
+                if max_slots is not None
+                else (mid_cfg.get("max_slots") or 3)
+            )
+            _max_slots = max(1, min(5, int(_raw_slots)))
+            _resample = 10800
+            _min_conf = 0.60
+
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal as _CoreLocal
+            db = _CoreLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            _acc_id = None
+            _acc_row = db.execute(
+                _sa_text(
+                    "SELECT paper_account_id FROM full_auto_sessions "
+                    "WHERE session_id = :sid"
+                ),
+                {"sid": session_id},
+            ).first()
+            if _acc_row and _acc_row[0] is not None:
+                _acc_id = int(_acc_row[0])
+            _open_mid_n = count_open_ai_mid_positions(db=db, account_id=_acc_id)
+            _free = max(0, _max_slots - _open_mid_n)
+            if _free <= 0:
+                logger.info(
+                    "[AutoCoinSelector] AI 中线槽位已满 open=%d max=%d "
+                    "(ai_mid_slot_full) session=%s",
+                    _open_mid_n, _max_slots, session_id,
+                )
+                return []
+
+            _fixed = get_fixed_symbols_for_session(session_id, db=None, tier="mid")
+            _open_mid_rows = db.execute(
+                _sa_text(
+                    "SELECT DISTINCT upper(symbol) FROM paper_positions "
+                    "WHERE status = 'open' AND timeframe_tier = 'mid'"
+                    + (" AND account_id = :acc" if _acc_id is not None else "")
+                ),
+                {"acc": _acc_id} if _acc_id is not None else {},
+            ).all()
+            _open_mid = {str(r[0]).upper() for r in _open_mid_rows if r[0]}
+
+            sticky = _load_ai_mid_sticky(session_id)
+            sticky_reason = str(sticky.get("reason") or "")
+            sticky_from_board = (
+                "midlong_board" in sticky_reason or "manual_adopt" in sticky_reason
+            )
+            sticky_syms = [
+                str(s).strip().upper()
+                for s in (sticky.get("symbols") or [])
+                if s and str(s).strip().upper() not in _fixed
+            ]
+            sticky_ts = float(sticky.get("updated_at") or 0)
+            age = time.time() - sticky_ts if sticky_ts > 0 else 1e18
+            # 旧版「from auto_coin」sticky 立即失效，强制改读看板
+            if sticky_syms and age < _resample and sticky_from_board:
+                picked = [s for s in sticky_syms if s not in _open_mid][:_free]
+                logger.info(
+                    "[AutoCoinSelector] AI 中线候选 sticky(board) session=%s picked=%s "
+                    "age=%.0fs<%ds (open_mid=%d free=%d reason=%s)",
+                    session_id, picked, age, _resample, _open_mid_n, _free,
+                    sticky_reason[:80],
+                )
+                return picked
+
+            # 到期重算：主源 = 平台看板 midlong approve
+            _cands = _midlong_board_approve_candidates(
+                db, fixed=_fixed, min_conf=_min_conf,
+            )
+            _source = "midlong_board"
+            if not _cands:
+                _cands = _auto_coin_pool_mid_fallback_candidates(
+                    db, session_id, fixed=_fixed,
+                )
+                _source = "auto_coin_fallback"
+                if _cands:
+                    logger.warning(
+                        "[AutoCoinSelector] AI 中线看板无合格 approve"
+                        "(min_conf=%.2f)，兜底短线池 session=%s n=%d",
+                        _min_conf, session_id, len(_cands),
+                    )
+
+            if not _cands:
+                if sticky_syms:
+                    picked = [s for s in sticky_syms if s not in _open_mid][:_free]
+                    logger.info(
+                        "[AutoCoinSelector] AI 中线主源空，宽限沿用 sticky=%s session=%s",
+                        picked, session_id,
+                    )
+                    return picked
+                logger.info(
+                    "[AutoCoinSelector] AI 中线候选为空 "
+                    "(board+auto_coin 均无合格项) session=%s min_conf=%.2f",
+                    session_id, _min_conf,
+                )
+                return []
+        finally:
+            if _owns_db:
+                db.close()
+
+        full_watch: List[str] = []
+        for _s, _c in _cands:
+            if _s in full_watch:
+                continue
+            full_watch.append(_s)
+            if len(full_watch) >= _max_slots:
+                break
+        _save_ai_mid_sticky(
+            session_id, full_watch,
+            reason=f"resample age>={_resample}s from {_source} min_conf={_min_conf}",
+        )
+        picked = [s for s in full_watch if s not in _open_mid][:_free]
+        logger.info(
+            "[AutoCoinSelector] AI 中线候选 resample session=%s source=%s "
+            "watch=%s picked=%s (open_mid=%d free=%d min_conf=%.2f)",
+            session_id, _source, full_watch, picked,
+            _open_mid_n, _free, _min_conf,
+        )
+        return picked
+    except Exception as e:
+        logger.warning(
+            f"[AutoCoinSelector] get_ai_mid_candidates_for_session 查询失败 {session_id}: {e}"
+        )
+        return []
+
+
+def sanitize_fixed_symbols_column(
+    session_id: str, db: Optional[Session] = None
+) -> Dict[str, Any]:
+    """清出「当前仍占 AI 池、却躺在固定列」的重叠币。
+
+    只对照当前 auto_coin_symbols + 中线 sticky；不按历史扫描表清洗。
+    清洗 symbols + fixed_symbols_by_tier 各组；不碰 auto_coin_symbols。
+    返回 {"removed": [...], "kept": [...], "changed": bool, "by_tier": {...}}。
+    """
+    result: Dict[str, Any] = {"removed": [], "kept": [], "changed": False, "by_tier": {}}
+    try:
+        from sqlalchemy import text as _sa_text
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal
+            db = SessionLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            row = db.execute(
+                _sa_text(
+                    "SELECT s.symbols, s.fixed_symbols_by_tier, s.auto_coin_symbols "
+                    "FROM full_auto_sessions s "
+                    "WHERE s.session_id = :sid"
+                ),
+                {"sid": session_id},
+            ).first()
+            if not row:
+                return result
+            _symbols = _parse_symbol_list(row[0])
+            by_tier = _parse_by_tier_map(row[1] if len(row) > 1 else None)
+            # 仅剔除当前短线 AI 池 + 当前中线 sticky，绝不按历史扫描表清洗。
+            # 历史 auto_coin_selections 几乎含全市场，会把用户勾选的 VIRTUAL/XPL 等洗掉。
+            pollution = set(_parse_symbol_list(row[2] if len(row) > 2 else None))
+            try:
+                sticky = _load_ai_mid_sticky(session_id)
+                pollution |= {
+                    str(s).strip().upper()
+                    for s in (sticky.get("symbols") or [])
+                    if s
+                }
+            except Exception:
+                pass
+
+            def _clean(lst: List[str]) -> Tuple[List[str], List[str]]:
+                kept, removed = [], []
+                for s in lst:
+                    u = str(s or "").strip().upper()
+                    if not u:
+                        continue
+                    if u in pollution:
+                        removed.append(u)
+                    elif u not in kept:
+                        kept.append(u)
+                return kept, removed
+
+            kept, removed = _clean(_symbols)
+            cleaned_tier: Dict[str, List[str]] = {}
+            tier_removed: List[str] = []
+            for k in _FIXED_TIERS:
+                tk, tr = _clean(by_tier.get(k, []))
+                cleaned_tier[k] = tk
+                tier_removed.extend(tr)
+            all_removed = list(dict.fromkeys(removed + tier_removed))
+            if not all_removed and by_tier == cleaned_tier and kept == _symbols:
+                result["kept"] = kept
+                result["by_tier"] = cleaned_tier
+                return result
+
+            union = _union_preserve(
+                cleaned_tier.get("short", []),
+                cleaned_tier.get("mid", []),
+                cleaned_tier.get("long", []),
+            ) or kept
+            # 若 by_tier 原本为空，只更新 symbols
+            from backend.database.models import FullAutoSession
+            from sqlalchemy.orm.attributes import flag_modified
+
+            row = (
+                db.query(FullAutoSession)
+                .filter(FullAutoSession.session_id == session_id)
+                .first()
+            )
+            if not row:
+                return result
+            if by_tier:
+                row.symbols = union
+                row.fixed_symbols_by_tier = cleaned_tier
+                flag_modified(row, "fixed_symbols_by_tier")
+                flag_modified(row, "symbols")
+            else:
+                row.symbols = kept
+                flag_modified(row, "symbols")
+            db.commit()
+            result.update({
+                "removed": all_removed,
+                "kept": union if by_tier else kept,
+                "changed": True,
+                "by_tier": cleaned_tier if by_tier else {},
+            })
+            logger.warning(
+                "[AutoCoinSelector] sanitize_fixed_symbols session=%s "
+                "removed=%s kept=%s",
+                session_id, all_removed, result["kept"],
+            )
+            return result
+        finally:
+            if _owns_db:
+                db.close()
+    except Exception as e:
+        logger.warning(
+            "[AutoCoinSelector] sanitize_fixed_symbols 失败 %s: %s", session_id, e
+        )
+        return result
 
 
 def is_long_allowed(symbol: str, session_id: str, db: Optional[Session] = None) -> bool:
@@ -4763,7 +5535,7 @@ def is_long_allowed(symbol: str, session_id: str, db: Optional[Session] = None) 
         return True  # 开关关闭：退回旧行为
     try:
         # 始终用 core DB (SessionLocal)，不用调用方可能传入的 analytics DB
-        fixed = get_fixed_symbols_for_session(session_id, db=None)
+        fixed = get_fixed_symbols_for_session(session_id, db=None, tier="long")
         return str(symbol).strip().upper() in fixed
     except Exception:
         return False  # 查询失败保守拒绝

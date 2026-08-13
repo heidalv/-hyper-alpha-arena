@@ -43,6 +43,7 @@ DEEPSEEK_OFFICIAL_PRICING: List[Dict[str, Any]] = [
     {
         "model_id": "deepseek-v4-pro",
         "display_name": "DeepSeek-V4-Pro",
+        # 仅用于历史账单归类；运行时已统一改用 deepseek-v4-flash
         "aliases": ["deepseek-reasoner", "deepseek-v4-pro"],
         "context_length": "1M",
         "max_output_tokens": "384K",

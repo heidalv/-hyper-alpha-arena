@@ -5,7 +5,8 @@
 # 调整前先评估对历史活跃集的影响。
 
 # CANDIDATE → ORTHO（CPCV 评估）
-min_icir: 0.30
+# [2026-08-13 P2-11] 0.30→0.40 收紧（诊断：准入门槛系统性偏松）
+min_icir: 0.40
 max_monotonicity_p: 0.05
 max_turnover: 0.70
 min_halflife_bars: 5
@@ -13,13 +14,15 @@ min_halflife_bars: 5
 # ORTHO → PAPER
 max_incremental_corr: 0.50
 min_dsr_significant: true
-max_pbo: 0.50
+# [2026-08-13 P2-11] 0.50→0.35（诊断：PBO 门槛低于行业常规）
+max_pbo: 0.35
 min_capacity_usd: 100000
 
 # PAPER → SMALL_LIVE
 min_paper_sharpe: 1.0
 max_live_deviation: 0.003
-paper_min_days: 5
+# [2026-08-13 P2-11] 5→10（影子期过短不足以暴露 regime 切换）
+paper_min_days: 10
 
 # SMALL_LIVE → ACTIVE
 small_live_min_days: 14

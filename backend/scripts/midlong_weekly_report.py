@@ -37,6 +37,168 @@ from sqlalchemy import bindparam, text  # noqa: E402
 from backend.database.connection import SessionLocal  # noqa: E402
 
 NATURES = ("swing", "trend_follow", "position")
+_MIDISH = set(NATURES) | {"mid", "long"}
+
+
+def _repo_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _event_log_path() -> str:
+    return os.getenv(
+        "EVENT_LOG_PATH",
+        os.path.join(_repo_root(), "data", "event_log.jsonl"),
+    )
+
+
+class _ERow:
+    """轻量行对象，兼容 compute_order_stats / compute_open_stats。"""
+
+    __slots__ = (
+        "id", "account_id", "symbol", "side", "trade_nature", "close_reason",
+        "pnl", "filled_at", "timeframe_tier", "status", "tp_level_reached",
+        "opened_at", "closed_at", "partial_realized_pnl", "size",
+        "entry_price", "margin", "leverage",
+    )
+
+    def __init__(self, **kw):
+        for k in self.__slots__:
+            setattr(self, k, kw.get(k))
+
+
+def _parse_iso(s: str):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _fetch_event_log_midlong(days: int) -> tuple:
+    """当 paper_* 空库时，从 event_log.jsonl 回填中长线开/平样本。
+
+    返回 (order_like_rows, position_like_rows)。平仓按 aggregate_id 去重。
+    """
+    path = _event_log_path()
+    if not os.path.isfile(path):
+        return [], []
+    cutoff = datetime.utcnow() - timedelta(days=int(days))
+    # 用 naive UTC 比较；event 时间可能带 tz
+    opens: dict = {}
+    closes: dict = {}
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                except Exception:
+                    continue
+                et = str(ev.get("event_type") or "")
+                if et not in ("PositionOpened", "PositionClosed"):
+                    continue
+                pl = ev.get("payload") or ev.get("data") or {}
+                if not isinstance(pl, dict):
+                    continue
+                tn = str(
+                    pl.get("trade_nature")
+                    or pl.get("nature")
+                    or pl.get("timeframe_tier")
+                    or ""
+                ).lower()
+                if tn not in _MIDISH:
+                    # close 可能缺 nature：若 open 已登记则补
+                    pid = str(ev.get("aggregate_id") or pl.get("position_id") or "")
+                    if et == "PositionClosed" and pid in opens:
+                        tn = opens[pid].trade_nature
+                    else:
+                        continue
+                if tn == "mid":
+                    tn = "swing"
+                if tn == "long":
+                    tn = "trend_follow"
+                ts = _parse_iso(ev.get("timestamp") or ev.get("occurred_at") or "")
+                if ts is None:
+                    continue
+                ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
+                if ts_naive < cutoff:
+                    continue
+                pid = str(ev.get("aggregate_id") or pl.get("position_id") or "")
+                if not pid:
+                    continue
+                if et == "PositionOpened":
+                    opens[pid] = _ERow(
+                        id=int(pid) if str(pid).isdigit() else 0,
+                        account_id=pl.get("account_id"),
+                        symbol=str(pl.get("symbol") or "").upper(),
+                        side=str(pl.get("side") or ""),
+                        trade_nature=tn,
+                        timeframe_tier="mid" if tn == "swing" else "long",
+                        status="open",
+                        tp_level_reached=0,
+                        opened_at=ts_naive,
+                        closed_at=None,
+                        partial_realized_pnl=0.0,
+                        size=pl.get("size"),
+                        entry_price=pl.get("entry_price"),
+                        margin=pl.get("margin"),
+                        leverage=pl.get("leverage"),
+                        close_reason=None,
+                        pnl=None,
+                        filled_at=ts_naive,
+                    )
+                else:
+                    pnl = float(
+                        pl.get("realized_pnl")
+                        or pl.get("pnl")
+                        or pl.get("partial_realized_pnl")
+                        or 0
+                    )
+                    reason = pl.get("close_reason") or pl.get("reason") or "unknown"
+                    o = opens.get(pid)
+                    closes[pid] = _ERow(
+                        id=int(pid) if str(pid).isdigit() else 0,
+                        account_id=pl.get("account_id") or (o.account_id if o else None),
+                        symbol=str(pl.get("symbol") or (o.symbol if o else "") or "").upper(),
+                        side=str(pl.get("side") or (o.side if o else "") or ""),
+                        trade_nature=tn or (o.trade_nature if o else "swing"),
+                        close_reason=str(reason),
+                        pnl=pnl,
+                        filled_at=ts_naive,
+                        timeframe_tier="mid" if (tn or "") == "swing" else "long",
+                        status="closed",
+                        tp_level_reached=int(pl.get("tp_level_reached") or 0),
+                        opened_at=o.opened_at if o else None,
+                        closed_at=ts_naive,
+                        partial_realized_pnl=pnl,
+                        size=pl.get("size") or (o.size if o else None),
+                        entry_price=pl.get("entry_price") or (o.entry_price if o else None),
+                        margin=pl.get("margin") or (o.margin if o else None),
+                        leverage=pl.get("leverage") or (o.leverage if o else None),
+                    )
+    except Exception:
+        return [], []
+
+    # 已平仓的 open 标记 closed
+    positions = []
+    for pid, o in opens.items():
+        c = closes.get(pid)
+        if c:
+            o.status = "closed"
+            o.closed_at = c.closed_at
+            o.close_reason = c.close_reason
+            o.partial_realized_pnl = c.pnl
+            o.tp_level_reached = c.tp_level_reached
+        positions.append(o)
+    # 仅有 close 没有 open 的也补一条 position
+    for pid, c in closes.items():
+        if pid not in opens:
+            positions.append(c)
+    orders = list(closes.values())
+    return orders, positions
 
 
 def _fetch_orders(db, days: int):
@@ -243,6 +405,15 @@ def compute_nibble_conversion(days: int) -> dict:
             {"natures": list(NATURES)},
         ).fetchall()
         open_list = [(o.opened_at, o.symbol) for o in opens if o.opened_at]
+        # P0/P1：paper_positions 空时回退 event_log，避免转化率永久 0%
+        if not open_list:
+            try:
+                _eo, _ep = _fetch_event_log_midlong(int(days) + 2)
+                for p in _ep or []:
+                    if getattr(p, "opened_at", None) and getattr(p, "symbol", None):
+                        open_list.append((p.opened_at, str(p.symbol).upper()))
+            except Exception:
+                pass
 
         converted = 0
         for ts, sym in nibble_ts:
@@ -250,7 +421,14 @@ def compute_nibble_conversion(days: int) -> dict:
                 if osym != sym:
                     continue
                 try:
-                    gap_h = (oa - ts).total_seconds() / 3600.0
+                    # analytics ts 可能带 tz；event_log 为 naive
+                    _oa = oa
+                    _ts = ts
+                    if hasattr(_oa, "tzinfo") and _oa.tzinfo and getattr(_ts, "tzinfo", None) is None:
+                        _ts = _ts.replace(tzinfo=_oa.tzinfo) if hasattr(_ts, "replace") else _ts
+                    if hasattr(_ts, "tzinfo") and _ts.tzinfo and getattr(_oa, "tzinfo", None) is None:
+                        _oa = _oa.replace(tzinfo=_ts.tzinfo) if hasattr(_oa, "replace") else _oa
+                    gap_h = (_oa - _ts).total_seconds() / 3600.0
                 except Exception:
                     continue
                 if 0 <= gap_h <= 24:
@@ -264,6 +442,7 @@ def compute_nibble_conversion(days: int) -> dict:
             "build": build_n,
             "converted_opens_24h": converted,
             "conversion_rate": (converted / total) if total else 0.0,
+            "open_samples": len(open_list),
         }
     except Exception as e:
         try:
@@ -351,16 +530,28 @@ def render_report(
     funding: Optional[dict] = None,
     exposure: Optional[dict] = None,
     nibble: Optional[dict] = None,
+    funnel: Optional[dict] = None,
+    data_source: str = "paper_db",
 ) -> str:
     lines = []
     lines.append(f"# 中长线策略周度绩效报表（近 {days} 天）")
     lines.append("")
     lines.append(f"生成时间: {datetime.now().isoformat(timespec='seconds')}")
     lines.append("")
-    lines.append(
-        "> 数据来源: paper_orders(平仓单pnl) + paper_positions + paper_funding_ledger"
-        " + mlto_thesis_events。对应 04 综合方案 §3.5 / P3 证明闭环。"
+    _src_note = (
+        "paper_orders + paper_positions + paper_funding_ledger + mlto_thesis_events"
+        if data_source == "paper_db"
+        else "event_log.jsonl（paper_* 空库回退）+ mlto_thesis_events + midlong_direction_audit.jsonl"
     )
+    lines.append(
+        f"> 数据来源: {_src_note}。对应 04 综合方案 §3.5 / P3 证明闭环。"
+    )
+    if data_source != "paper_db":
+        lines.append("")
+        lines.append(
+            f"> **注意**: paper_* 表无样本，已回退 `{data_source}`，"
+            "盈亏/开仓以事件日志为准。"
+        )
     lines.append("")
 
     # ── P3 KPI 总览 ──
@@ -382,6 +573,24 @@ def render_report(
             lines.append(
                 f"- NIBBLE/BUILD→24h 开仓转化率: {float(nibble.get('conversion_rate') or 0):.1%} "
                 f"({nibble.get('converted_opens_24h', 0)}/{nibble.get('nibble_or_build_events', 0)})"
+            )
+    if funnel is not None and not funnel.get("error"):
+        lines.append(
+            f"- 决策漏斗(审计JSONL {funnel.get('lookback_hours', '?')}h): "
+            f"skip={funnel.get('skips', 0)} / open_attempt={funnel.get('open_attempts', 0)} "
+            f"/ opened={funnel.get('opened', 0)}"
+        )
+        _by_stg = funnel.get("by_stage_skip") or {}
+        if _by_stg:
+            lines.append(
+                "- 拒仓按阶段: "
+                + " · ".join(f"{k}={v}" for k, v in sorted(_by_stg.items(), key=lambda kv: -kv[1]))
+            )
+        _top = funnel.get("top_skip_reasons") or []
+        if _top:
+            lines.append(
+                "- 拒仓原因 TOP: "
+                + " · ".join(f"{r.get('reason')}×{r.get('count')}" for r in _top[:6])
             )
     if funding is not None:
         lines.append(
@@ -478,20 +687,66 @@ def render_report(
 def generate_report(days: int = 14) -> str:
     """供程序化调用（如定时任务）的入口，返回 markdown 文本。"""
     db = SessionLocal()
+    data_source = "paper_db"
     try:
-        orders = _fetch_orders(db, days)
-        positions = _fetch_positions(db, days)
+        orders = list(_fetch_orders(db, days) or [])
+        positions = list(_fetch_positions(db, days) or [])
+        # P0：paper_* 空库时回退 event_log，避免 KPI 永久显示开仓 0
+        if not orders and not positions:
+            elog_orders, elog_positions = _fetch_event_log_midlong(days)
+            if elog_orders or elog_positions:
+                orders = elog_orders
+                positions = elog_positions
+                data_source = "event_log.jsonl"
         order_stats = compute_order_stats(orders)
         tp_stats = compute_tp_stage_stats(positions)
         reopen = compute_reopen_rate(positions)
         open_stats = compute_open_stats(positions)
         funding = compute_funding_adjusted_pnl(db, days, order_stats)
+        # event_log 回退时 funding 账本可能仍空；交易盈亏以 order_stats 为准
+        if data_source != "paper_db":
+            try:
+                _gross = 0.0
+                for _n, _s in (order_stats or {}).items():
+                    _gross += float(_s.get("gross_profit") or 0) - float(
+                        _s.get("gross_loss") or 0
+                    )
+                funding = {
+                    **(funding or {}),
+                    "trade_pnl": round(_gross, 2),
+                    "funding_payment": float((funding or {}).get("funding_payment") or 0),
+                    "net_pnl_with_funding": round(
+                        _gross + float((funding or {}).get("funding_payment") or 0), 2
+                    ),
+                }
+            except Exception:
+                pass
         exposure = compute_max_same_dir_exposure(positions)
         nibble = compute_nibble_conversion(days)
+        # 若 analytics 开仓样本为空但 event_log 有开仓，补转化分母可见性
+        if (
+            data_source != "paper_db"
+            and isinstance(nibble, dict)
+            and int(nibble.get("converted_opens_24h") or 0) == 0
+            and sum(int(v) for v in open_stats.values()) > 0
+        ):
+            nibble = {
+                **nibble,
+                "converted_opens_24h_note": "paper_positions 空；开仓数见 event_log open_stats",
+            }
+        funnel = {}
+        try:
+            from backend.services.mlto.midlong_direction_audit import (
+                summarize_decision_funnel,
+            )
+            funnel = summarize_decision_funnel(float(days) * 24.0)
+        except Exception as _fun_err:
+            funnel = {"error": str(_fun_err)[:120]}
         return render_report(
             days, order_stats, tp_stats, reopen,
             open_stats=open_stats, funding=funding,
             exposure=exposure, nibble=nibble,
+            funnel=funnel, data_source=data_source,
         )
     finally:
         db.close()

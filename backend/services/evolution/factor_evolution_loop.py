@@ -26,8 +26,93 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA"]
+# 仅当「无会话固定币、无训练核心、无 FACTOR_EVO_SYMBOLS」时的最后兜底。
+# 这不是用户固定币白名单；运维台也不应把它标成「你的固定币」。
+DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "ASTER"]
 DEFAULT_PERIOD = "4h"
+
+
+def resolve_evolution_symbols(symbols=None) -> list[str]:
+    """解析本轮进化实际用币。
+
+    优先级：
+      1. 调用方显式传入
+      2. env FACTOR_EVO_SYMBOLS
+      3. running 会话固定币 ∪ 全局固定币备选池(user_trading_pairs)
+         —— 会话当前启用的固定币 + 你在交易对配置里的备选池
+      4. TRAINING_CORE_SYMBOLS
+      5. DEFAULT_SYMBOLS 最后兜底（不是备选池）
+    """
+    import os as _os
+
+    if symbols:
+        out = [str(s).strip().upper() for s in symbols if str(s).strip()]
+        if out:
+            return list(dict.fromkeys(out))
+
+    env_raw = (_os.getenv("FACTOR_EVO_SYMBOLS") or "").strip()
+    if env_raw:
+        out = [s.strip().upper() for s in env_raw.split(",") if s.strip()]
+        if out:
+            return list(dict.fromkeys(out))
+
+    session_fixed: list[str] = []
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import SessionLocal
+        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+
+        db = SessionLocal()
+        try:
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+            rows = db.execute(
+                _sa_text(
+                    "SELECT session_id FROM full_auto_sessions WHERE status = 'running'"
+                )
+            ).fetchall()
+            for r in rows or []:
+                sid = str(r[0] or "")
+                if not sid:
+                    continue
+                try:
+                    fixed = get_fixed_symbols_for_session(sid, db)
+                    # set 无序；按字母稳定一下，避免 SOL 莫名排第一
+                    session_fixed.extend(sorted(str(s).upper() for s in (fixed or [])))
+                except Exception:
+                    continue
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("[FactorEvo] 读会话固定币失败: %s", e)
+
+    backup_pool: list[str] = []
+    try:
+        from backend.services.trading_pairs_config import get_user_trading_pairs
+        backup_pool = [
+            str(s).strip().upper() for s in (get_user_trading_pairs() or []) if s
+        ]
+    except Exception as e:
+        logger.debug("[FactorEvo] 读固定币备选池失败: %s", e)
+
+    # 备选池保留用户配置顺序；会话固定币补在前面（当前在跑的优先）
+    merged = list(dict.fromkeys([*session_fixed, *backup_pool]))
+    if merged:
+        return merged
+
+    try:
+        from backend.config.settings import TRAINING_CORE_SYMBOLS
+        core = [str(s).strip().upper() for s in (TRAINING_CORE_SYMBOLS or []) if s]
+        if core:
+            return list(dict.fromkeys(core))
+    except Exception:
+        pass
+
+    return list(DEFAULT_SYMBOLS)
+
 # [2026-07-18 数据窗口标准化 P1，规划文档§4.2] 原 2000根4h≈333天的训练窗口对
 # crypto这种regime快速切换的市场太长，会把过时regime的噪声也当作信号。改为
 # "训练90天+验证30天"，且不再是"合并成一个更小的窗口"这种表面改法——下面
@@ -66,6 +151,45 @@ def _split_days_for_period(period: str | None) -> tuple[int, int, int]:
     return _PERIOD_SPLIT_DAYS.get(p, _PERIOD_SPLIT_DAYS["4h"])
 
 
+def _evo_gate_fail_closed() -> bool:
+    """进化链门禁异常时是否 fail-closed（默认 True，与 Paper 交易 fail-open 拆开）。"""
+    raw = (_os_window.getenv("FACTOR_EVO_GATE_FAIL_CLOSED") or "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+def _mine_symbol_keys(dfs: dict) -> list[str]:
+    keys = [str(k) for k in dfs.keys()]
+    try:
+        k = int(_os_window.getenv("FACTOR_MINE_SYMBOLS", "5") or 5)
+    except (TypeError, ValueError):
+        k = 5
+    return keys[: max(1, min(k, len(keys)))]
+
+
+def _stack_mine_panel(dfs: dict, symbol_keys: list[str]):
+    """多币拼接面板：挖矿适应度不再只绑第一币。"""
+    field_dicts = []
+    targets = []
+    for s in symbol_keys:
+        df = dfs[s]
+        field_dicts.append(_kline_to_fields(df))
+        targets.append(np.asarray(_forward_returns(df), dtype=float))
+    target = np.concatenate(targets) if targets else np.array([], dtype=float)
+
+    def eval_fn(ctx):
+        expr = ctx["expr"]
+        parts = []
+        for fields, df_len in zip(field_dicts, [len(t) for t in targets]):
+            try:
+                parts.append(np.asarray(expr.evaluate(fields), dtype=float))
+            except Exception:
+                parts.append(np.zeros(df_len, dtype=float))
+        return np.concatenate(parts) if parts else np.array([], dtype=float)
+
+    field_names = sorted({k for fd in field_dicts for k in fd.keys()})
+    return eval_fn, target, field_names
+
+
 def _lookback_for_period(period: str | None) -> int:
     """按周期取三段窗口总和（根数）+ 50 根安全缓冲，供取数 lookback。
 
@@ -83,8 +207,62 @@ TRAIN_BARS = TRAIN_DAYS * _BARS_PER_DAY.get(DEFAULT_PERIOD, 6)
 VAL_BARS = VAL_DAYS * _BARS_PER_DAY.get(DEFAULT_PERIOD, 6)
 DEFAULT_LOOKBACK = _lookback_for_period(DEFAULT_PERIOD)
 
+# 当前进化任务周期（run_factor_evolution_loop 进入时设置；供目标标签切换）
+_ACTIVE_EVO_PERIOD: str | None = None
 
-def _forward_returns(df: pd.DataFrame, horizon: int = 5) -> np.ndarray:
+# [2026-08-13 P1-5] 标签前瞻期按周期对齐实盘 scalp ATR 持仓节奏：
+# 1m/3m/5m 持仓分钟~小时级 → 12 根；15m → 6 根；30m → 4 根；
+# 1h → 2 根（2h 持仓）；2h/4h/8h/1d → 1 根（随 bar 拉长）。
+_PERIOD_FWD_BARS: dict[str, int] = {
+    "1m": 12, "3m": 12, "5m": 12, "15m": 6, "30m": 4,
+    "1h": 2, "2h": 1, "4h": 1, "8h": 1, "1d": 1,
+}
+
+
+def _fwd_bars_for_period(period: str | None = None, fallback: int = 5) -> int:
+    """前瞻期分档；env FACTOR_EVO_FWD_BARS 显式覆盖时优先（可回滚）。"""
+    env = _os_window.getenv("FACTOR_EVO_FWD_BARS")
+    if env:
+        try:
+            return max(1, int(env))
+        except (TypeError, ValueError):
+            pass
+    p = (period or _ACTIVE_EVO_PERIOD or "").strip().lower()
+    return _PERIOD_FWD_BARS.get(p, fallback)
+
+
+def _forward_returns(df: pd.DataFrame, horizon: int | None = None) -> np.ndarray:
+    """评估/清洗目标序列。
+
+    默认：未来 horizon 根简单收益；horizon 由周期分档（_PERIOD_FWD_BARS，
+    对应 scalp ATR 持仓节奏），FACTOR_EVO_FWD_BARS 可显式覆盖。
+    当 FEATURE_FACTOR_LABELS_ENABLED 且当前进化 period∈{5m,15m}：改用三重障碍
+    标签（-1/0/+1 → float），使挖矿目标更贴近短线 SL/TP/超时结算。
+    """
+    horizon = int(horizon) if horizon is not None else _fwd_bars_for_period()
+    period = (_ACTIVE_EVO_PERIOD or "").strip().lower()
+    use_tb = False
+    try:
+        from backend.services.evolution.factor_labels import (
+            FEATURE_FACTOR_LABELS_ENABLED,
+            build_triple_barrier_labels,
+        )
+        use_tb = bool(FEATURE_FACTOR_LABELS_ENABLED) and period in (
+            "5m", "5min", "15m", "15min",
+        )
+    except Exception:
+        use_tb = False
+
+    if use_tb:
+        try:
+            labels = build_triple_barrier_labels(df, horizon_bars=max(int(horizon), 12))
+            arr = labels.astype(float).to_numpy()
+            if arr is not None and len(arr) == len(df) and np.any(arr != 0):
+                return arr
+            logger.debug("[FactorEvo] 三重障碍标签为空，回退 forward returns")
+        except Exception as e:
+            logger.debug("[FactorEvo] 三重障碍标签失败，回退 forward returns: %s", e)
+
     close = df["close"].values.astype(float)
     if len(close) <= horizon:
         return np.zeros(len(close))
@@ -159,6 +337,13 @@ def _save_active_factors(factors: list[dict]):
                 ).first()
                 if existing:
                     existing.state = f.get("state", "ACTIVE")
+                    # 隔离后再晋级必须刷回表达式，否则永久卡在不可求值的死行
+                    if f.get("expr_ast"):
+                        existing.expr_ast = f.get("expr_ast")
+                    if f.get("expr_id") is not None:
+                        existing.expr_id = f.get("expr_id")
+                    if f.get("source") is not None:
+                        existing.source = f.get("source")
                     existing.icir = f.get("icir")
                     existing.incremental_corr = f.get("incremental_corr")
                     existing.capacity_usd = f.get("capacity_usd")
@@ -167,6 +352,11 @@ def _save_active_factors(factors: list[dict]):
                     existing.evaluated_cycles = f.get("evaluated_cycles")
                     existing.current_weight = f.get("current_weight")
                     existing.last_evaluated_at = now
+                    # 重新进入可交易/影子态时清停用戳
+                    if str(existing.state) in ("PAPER", "SMALL_LIVE", "ACTIVE", "ORTHO"):
+                        existing.deactivated_at = None
+                        if existing.activated_at is None:
+                            existing.activated_at = now
                 else:
                     db.add(FactorActiveSet(
                         factor_id=f["factor_id"],
@@ -196,41 +386,15 @@ def _save_active_factors(factors: list[dict]):
 
 
 def _load_active_factors() -> list[dict]:
-    """从 DB 加载活跃因子，返回字典列表（含 expr 对象）。"""
+    """从 DB 加载研究池因子（含 SMALL_LIVE），返回字典列表（含 expr 对象）。"""
     try:
-        from backend.database.models import FactorActiveSet
-        from backend.services.factor_engine.expr.parser import parse as _parse
-        db = _get_analytics_db()
-        try:
-            rows = db.query(FactorActiveSet).filter(
-                FactorActiveSet.state.in_(["ACTIVE", "ORTHO", "PAPER"])
-            ).all()
-            factors = []
-            for r in rows:
-                try:
-                    expr = _parse(r.expr_ast)
-                    factors.append({
-                        "factor_id": r.factor_id,
-                        "expr": expr,
-                        "expr_ast": r.expr_ast,
-                        "expr_id": r.expr_id,
-                        "source": r.source,
-                        "state": r.state,
-                        "icir": r.icir,
-                        "incremental_corr": r.incremental_corr,
-                        "capacity_usd": r.capacity_usd,
-                        "last_net_ic": r.last_net_ic,
-                        "turnover": r.turnover,
-                        "evaluated_cycles": r.evaluated_cycles,
-                        "current_weight": r.current_weight or {},
-                        "activated_at": r.activated_at,
-                    })
-                except Exception:
-                    continue
-            logger.info(f"[FactorEvo] 从DB加载 {len(factors)} 个活跃因子")
-            return factors
-        finally:
-            db.close()
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole,
+            load_factor_active_rows,
+        )
+        factors = load_factor_active_rows(ActiveSetRole.RESEARCH, parse_expr=True)
+        logger.info(f"[FactorEvo] 从DB加载 {len(factors)} 个活跃因子(RESEARCH)")
+        return factors
     except Exception:
         return []
 
@@ -261,10 +425,64 @@ def _deactivate_factor(factor_id: str):
 #  阶段 1：取数
 # ═══════════════════════════════════════════════════════════════
 
-def _load_data(symbols=None, period=None, lookback=None):
-    syms = symbols or DEFAULT_SYMBOLS
+def _required_coverage_days(period: str | None) -> int:
+    """三段切分所需覆盖天数（train+val+test），供深度门槛使用。"""
+    td, vd, ted = _split_days_for_period(period)
+    return int(td + vd + ted)
+
+
+def _check_split_depth(dfs: dict[str, pd.DataFrame], period: str | None) -> dict:
+    """P0-2：进化前检查库深是否够真三段切分。
+
+    返回 {ok, need_days, need_bars, by_symbol, short_symbols}。
+    ok=False 时调用方应中止并 nudge 深度回填，禁止假 OOS。
+    """
     p = period or DEFAULT_PERIOD
-    lb = lookback or DEFAULT_LOOKBACK
+    need_days = _required_coverage_days(p)
+    need_bars = _lookback_for_period(p)
+    by_symbol: dict[str, dict] = {}
+    short: list[str] = []
+    for sym, df in (dfs or {}).items():
+        n = len(df)
+        bpd = _BARS_PER_DAY.get(p, 6)
+        days = float(n) / float(bpd) if bpd else 0.0
+        ok_sym = n >= need_bars
+        by_symbol[sym] = {"bars": n, "days": round(days, 2), "ok": ok_sym}
+        if not ok_sym:
+            short.append(sym)
+    ok = bool(dfs) and not short
+    return {
+        "ok": ok,
+        "period": p,
+        "need_days": need_days,
+        "need_bars": need_bars,
+        "by_symbol": by_symbol,
+        "short_symbols": short,
+    }
+
+
+def _nudge_depth_backfill(symbols, period: str | None) -> None:
+    """数据不足时催促 DepthBackfillRunner（失败不影响主流程返回）。"""
+    try:
+        from backend.services.kline_history_sync import depth_backfill_runner
+        syms = resolve_evolution_symbols(symbols)
+        depth_backfill_runner.nudge(symbols=syms, periods=[period or DEFAULT_PERIOD])
+    except Exception as e:
+        logger.warning("[FactorEvo] depth backfill nudge 失败: %s", e)
+
+
+def _load_data(symbols=None, period=None, lookback=None):
+    """按周期取足三段切分所需 K 线（v6 5.4.3）。
+
+    [2026-08-08 P0-1] 此前 `lookback or DEFAULT_LOOKBACK` 在 period=5m 时仍用
+    4h 档 ≈1670 根，远小于 5m 需要的 ≈14450 根 → 三段切分必失败并静默退化。
+    现改为 `_lookback_for_period(p)`，并记录 need/got。
+    """
+    syms = resolve_evolution_symbols(symbols)
+    p = period or DEFAULT_PERIOD
+    need = _lookback_for_period(p)
+    lb = int(lookback) if lookback is not None else need
+    logger.info("[FactorEvo] 本轮进化币池(%d): %s", len(syms), ",".join(syms))
     try:
         from backend.services.data_center import data_center
     except Exception:
@@ -272,6 +490,7 @@ def _load_data(symbols=None, period=None, lookback=None):
         return {}
 
     dfs = {}
+    got_bars: dict[str, int] = {}
     for sym in syms:
         try:
             # [2026-08-07 v6 s7 fix] 因子挖掘为研究/回放用途，改用 purpose="research"：
@@ -280,11 +499,23 @@ def _load_data(symbols=None, period=None, lookback=None):
             # 曾因默认 trade 语义导致 16h stale 时因子日循环/小时权重全链停摆）。
             result = data_center.get_klines(sym, p, count=lb, purpose="research")
             df = result.to_dataframe()
-            if len(df) >= 100:
+            n = len(df)
+            got_bars[sym] = n
+            if n >= 100:
                 dfs[sym] = df
         except Exception as e:
             logger.debug(f"[FactorEvo] 取数失败 {sym}/{p}: {e}")
-    logger.info(f"[FactorEvo] 阶段1 取数: {len(dfs)}/{len(syms)} 品种, period={p}")
+            got_bars[sym] = 0
+    max_got = max(got_bars.values()) if got_bars else 0
+    logger.info(
+        f"[FactorEvo] 阶段1 取数: {len(dfs)}/{len(syms)} 品种, period={p}, "
+        f"need={need} got_max={max_got} lookback={lb}"
+    )
+    if dfs and max_got < need:
+        logger.warning(
+            f"[FactorEvo] 数据深度不足 period={p}: need={need} bars, "
+            f"got_max={max_got} ({ {k: v for k, v in got_bars.items() if v > 0} })"
+        )
     return dfs
 
 
@@ -322,42 +553,75 @@ def _final_test_confirm(promoted: list[dict], eval_results: dict, dfs_test: dict
     """三层切分最终裁判（v6 计划 5.4.3）：测试集 IC 复评。
 
     测试集绝不参与挖掘与选因；仅在 WFO 通过后、落库前，用测试集做最后一次
-    样本外复评：测试集 IC 均值为负（< -0.005）视为明显失效 → 拦截晋升。
-    测试集不可用（无数据/异常）时 fail-open 不拦截（与 WFO 门禁一致）。
+    样本外复评：测试集 IC 均值低于 +0.01（FACTOR_EVO_TEST_IC_MIN，近零即无预测力）
+    → 拦截晋升。fail-closed（默认）：测试集不可用 / 算不出 IC → 拦截（FACTOR_EVO_GATE_FAIL_CLOSED）。
     """
     from backend.services.factor_engine.evaluation import information_coefficient
 
+    fail_closed = _evo_gate_fail_closed()
     if not dfs_test:
+        if fail_closed:
+            for p in promoted:
+                _log_evolution(
+                    p.get("factor_id"), "test_gate",
+                    source=p.get("source"),
+                    action="test_reject",
+                    reason="test_set_missing_fail_closed",
+                )
+            logger.warning("[FactorEvo] 测试集缺失，fail-closed 拦截全部晋升 (%d)", len(promoted))
+            return []
         return promoted
     kept = []
     for p in promoted:
         expr = p.get("expr") or (eval_results.get(p["factor_id"], {}) or {}).get("expr")
         if not expr:
+            if fail_closed:
+                _log_evolution(
+                    p.get("factor_id"), "test_gate",
+                    source=p.get("source"),
+                    action="test_reject",
+                    reason="no_expr_fail_closed",
+                )
+                continue
             kept.append(p)
             continue
         ics = []
         for sym, df in dfs_test.items():
             try:
                 fields = _kline_to_fields(df)
-                fwd = _forward_returns(df, horizon=5)
+                fwd = _forward_returns(df)
                 ic = information_coefficient(expr.evaluate(fields), fwd)
                 if ic is not None and np.isfinite(ic):
                     ics.append(ic)
             except Exception:
                 continue
         if not ics:
+            if fail_closed:
+                _log_evolution(
+                    p.get("factor_id"), "test_gate",
+                    source=p.get("source"),
+                    action="test_reject",
+                    reason="test_ic_unavailable_fail_closed",
+                )
+                continue
             kept.append(p)
             continue
         test_ic = float(np.mean(ics))
-        if test_ic < -0.005:
+        # [2026-08-13 P0-4] test_gate 收紧：test_ic < +0.01 拦截（近零 IC 无预测力）。
+        # 原阈值 -0.005 只拦明显失效，噪声因子可蒙混晋升。参数化 FACTOR_EVO_TEST_IC_MIN。
+        _test_ic_min = float(_os_window.getenv("FACTOR_EVO_TEST_IC_MIN", "0.01"))
+        if test_ic < _test_ic_min:
             _log_evolution(
                 p["factor_id"], "test_gate",
                 source=p.get("source"),
                 action="test_reject",
-                reason=f"test_ic={test_ic:.4f} 为负",
+                reason=f"test_ic={test_ic:.4f} < {_test_ic_min}",
                 metrics={"test_ic": test_ic, "n_test_symbols": len(ics)},
             )
-            logger.warning("[FactorEvo] 测试集 IC 为负，拦截晋升 %s: %.4f", p["factor_id"], test_ic)
+            logger.warning(
+                "[FactorEvo] 测试集 IC 低于门槛 %.4f，拦截晋升 %s: %.4f",
+                _test_ic_min, p["factor_id"], test_ic,
+            )
             continue
         p["test_ic"] = test_ic
         kept.append(p)
@@ -370,7 +634,7 @@ def _final_test_confirm(promoted: list[dict], eval_results: dict, dfs_test: dict
 #  阶段 2：挖掘候选因子
 # ═══════════════════════════════════════════════════════════════
 
-def _mine_candidates(dfs, period=None):
+def _mine_candidates(dfs, period=None, quick: bool = False):
     from backend.services.factor_engine.expr.parser import FactorExpr, parse
     candidates: list[tuple[FactorExpr, str]] = []
 
@@ -427,29 +691,37 @@ def _mine_candidates(dfs, period=None):
     except Exception:
         pass
 
+    shared_pool = None
+    _eval_fn = target = field_names = sym_keys = None
+
+    # [根因修复] quick=止血模式：只保留种子/永续公式，禁止 GP/MCTS。
+    # 此前 quick 仍跑 GP+MCTS（仅跳过 LLM），loky 常驻 15–25 分钟占满 CPU/GIL，
+    # 表现为运维台「运行中 quick」卡死 + 前端 API 全超时。
+    if quick:
+        logger.info(
+            "[FactorEvo] quick 模式：跳过 GP/MCTS，仅种子候选 n=%d",
+            len(candidates),
+        )
+        logger.info(f"[FactorEvo] 阶段2 挖掘: {len(candidates)} 个候选")
+        return candidates
+
     try:
-        # [2026-08-05] GP 挖掘器（v6 计划 5.3.1）：替换纯随机 AlphaMiner 搜索。
-        # 进化压力 = 锦标赛选择 + 子树交叉(70%) + 变异(20%) + 精英保留(top5%)；
-        # 适应度 = |IC| − λ1×复杂度 − λ2×与精英池最大相关（防公式膨胀与同质化）；
-        # 多种子并行（幻方 6 种子方法论）→ top 候选经 AlphaPool.try_admit 池感知准入。
+        # [2026-08-05] GP 挖掘器（v6 计划 5.3.1）
+        # [根因修复] 四路共享同一 AlphaPool；多币拼接面板适应度
         import os as _os_gp
 
         from backend.services.evolution.alpha_miner import AlphaPool
         from backend.services.evolution.gp_miner import GPConfig, GPMiner
-        first_sym = list(dfs.keys())[0]
-        first_df = dfs[first_sym]
-        fields = _kline_to_fields(first_df)
-        target = _forward_returns(first_df)
 
-        def _eval_fn(ctx):
-            try:
-                return ctx["expr"].evaluate(fields)
-            except Exception:
-                return np.zeros(len(first_df))
+        shared_pool = AlphaPool(capacity=80)
+        sym_keys = _mine_symbol_keys(dfs)
+        _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
+        logger.info(
+            "[FactorEvo] 挖矿面板 symbols=%s n=%d shared_pool_cap=%d",
+            sym_keys, len(target), shared_pool.capacity,
+        )
 
-        gp_pool = AlphaPool(capacity=50)
         gp_config = GPConfig()
-        # 环境变量可调（默认 300 种群 / 20 代 / 5 种子）
         for _env, _attr in (("FACTOR_GP_POPULATION", "population_size"),
                             ("FACTOR_GP_GENERATIONS", "generations"),
                             ("FACTOR_GP_SEEDS", "n_seeds"),
@@ -460,7 +732,7 @@ def _mine_candidates(dfs, period=None):
                     setattr(gp_config, _attr, int(_v))
                 except (TypeError, ValueError):
                     pass
-        miner = GPMiner(list(fields.keys()), _eval_fn, target, gp_pool, gp_config)
+        miner = GPMiner(field_names, _eval_fn, target, shared_pool, gp_config)
         admitted = miner.mine()
         logger.info(f"[FactorEvo] GP 挖掘: {len(admitted)} 命中入池")
         for expr, _contrib in admitted:
@@ -468,10 +740,7 @@ def _mine_candidates(dfs, period=None):
     except Exception as e:
         logger.warning(f"[FactorEvo] GP 挖掘异常: {e}")
 
-    # [2026-08-06 阶段2 S2-12] MCTS 挖掘器（UCT + 短板扩展 + FSA + CoE + 宏微分离）：
-    # 与 GP 并列的第二种挖掘器。短板种子 = 活跃集中 |IC| 最低的因子（定向改进短板）；
-    # 窗口档位/深度/复杂度惩罚按周期宏微分离（micro/mid/macro）；FSA 过滤参数不稳候选；
-    # CoE 进化链（fitness 改进边）落库 factor_evolution_log（action=mcts_chain）。
+    # [2026-08-06 阶段2 S2-12] MCTS 挖掘器 — 复用 shared_pool / 多币面板
     try:
         import os as _os_mcts
 
@@ -481,19 +750,12 @@ def _mine_candidates(dfs, period=None):
                 MCTSConfig, MctsMiner, scale_for_period,
             )
 
-            # 独立取字段（不依赖 GP 段变量：GP 异常时也能跑 MCTS）
-            mcts_first_sym = list(dfs.keys())[0]
-            mcts_first_df = dfs[mcts_first_sym]
-            mcts_fields = _kline_to_fields(mcts_first_df)
-            mcts_target = _forward_returns(mcts_first_df)
+            if shared_pool is None:
+                shared_pool = AlphaPool(capacity=80)
+                sym_keys = _mine_symbol_keys(dfs)
+                _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
 
-            def _mcts_eval_fn(ctx):
-                try:
-                    return ctx["expr"].evaluate(mcts_fields)
-                except Exception:
-                    return np.zeros(len(mcts_first_df))
-
-            mcts_pool = AlphaPool(capacity=50)
+            mcts_pool = shared_pool
             mcts_config = MCTSConfig(scale=scale_for_period(period))
             for _env, _attr in (("FACTOR_MCTS_ITERATIONS", "n_iterations"),
                                 ("FACTOR_MCTS_ROOTS", "n_roots"),
@@ -505,7 +767,6 @@ def _mine_candidates(dfs, period=None):
                         setattr(mcts_config, _attr, int(_v))
                     except (TypeError, ValueError):
                         pass
-            # 短板种子：活跃集中 |IC| 最低的因子（短板扩展）
             weak_seeds: list[dict] = []
             try:
                 actives = _load_active_factors()
@@ -517,7 +778,7 @@ def _mine_candidates(dfs, period=None):
             except Exception:
                 pass
             mcts_miner = MctsMiner(
-                list(mcts_fields.keys()), _mcts_eval_fn, mcts_target, mcts_pool,
+                list(field_names), _eval_fn, target, mcts_pool,
                 mcts_config, weak_seeds=weak_seeds,
             )
             mcts_admitted, mcts_chains = mcts_miner.mine()
@@ -527,7 +788,6 @@ def _mine_candidates(dfs, period=None):
             )
             for expr, _contrib in mcts_admitted:
                 candidates.append((expr, f"mcts_{expr.expr_id[:8]}"))
-            # CoE 进化链落库（每条 fitness 改进边保留 parent/child 血缘）
             for ch in mcts_chains[:50]:
                 try:
                     child_expr = parse(ch["child_ast"])
@@ -548,6 +808,77 @@ def _mine_candidates(dfs, period=None):
     except Exception as e:
         logger.warning(f"[FactorEvo] MCTS 挖掘异常: {e}")
 
+    # [2026-08-08 P1-1] Codegen LLM — 复用 shared_pool
+    try:
+        import os as _os_llm
+        _llm_on = _os_llm.getenv("FACTOR_CODEGEN_ENABLED", "1") != "0"
+        if _llm_on and not quick:
+            from backend.services.evolution.alpha_miner import AlphaMiner, AlphaPool, CodegenCritic
+
+            if shared_pool is None:
+                shared_pool = AlphaPool(capacity=80)
+                sym_keys = _mine_symbol_keys(dfs)
+                _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
+
+            fail_hints = []
+            try:
+                for f in (_load_active_factors() or [])[:5]:
+                    fail_hints.append(
+                        f"id={f.get('factor_id')} icir={f.get('icir')} "
+                        f"source={f.get('source')}"
+                    )
+            except Exception:
+                pass
+            period_tag = period or DEFAULT_PERIOD
+            # [2026-08-13 P1-10] 领域约束注入：目标持仓周期（=该周期 × TP/SL 节奏）、
+            # taker+funding 成本、换手/容量自述——避免 LLM 生成脱离实盘成本结构的因子。
+            _fwd_bars = _fwd_bars_for_period(period_tag)
+            try:
+                _taker_fee = float(_os_llm.getenv("FACTOR_CODEGEN_TAKER_FEE", "0.0021") or 0.0021)
+                _funding_8h = float(_os_llm.getenv("FACTOR_CODEGEN_FUNDING_8H", "0.0001") or 0.0001)
+            except (TypeError, ValueError):
+                _taker_fee, _funding_8h = 0.0021, 0.0001
+            _domain_hint = (
+                f"Domain constraints: period={period_tag} → target holding horizon ≈ "
+                f"{_fwd_bars} bars (scalp ATR-based TP/SL, minutes-to-hours). "
+                f"Round-trip cost ≈ taker {_taker_fee:.4f}/side + perp funding "
+                f"{_funding_8h:.4f}/8h on overnight holds; the signal must clear this "
+                f"net of costs. State expected turnover (bars per flip) and capacity "
+                f"(liquid majors only vs altcoins). "
+            )
+            prompt = (
+                f"Generate crypto alpha factor AST for period={period_tag}. "
+                f"{_domain_hint}"
+                f"Prefer complementary hypotheses (momentum/reversal/vol/volume-price/"
+                f"microstructure). Existing weak factors to improve: "
+                f"{fail_hints or ['none']}. "
+                f"Output JSON AST only; do NOT evaluate quality."
+            )
+            n_llm = int(_os_llm.getenv("FACTOR_CODEGEN_N", "8"))
+            miner = AlphaMiner(shared_pool)
+            critic = CodegenCritic()
+            admitted_llm = miner.mine_llm_candidates(
+                list(field_names), _eval_fn, target,
+                prompt=prompt, n_candidates=n_llm, critic=critic,
+            )
+            logger.info(f"[FactorEvo] Codegen LLM 挖掘: {len(admitted_llm)} 命中入池")
+            for expr, _contrib in admitted_llm:
+                candidates.append((expr, f"llm_{expr.expr_id[:8]}"))
+                try:
+                    _log_evolution(
+                        expr.expr_id, "mine",
+                        expr_ast=expr.ast,
+                        source="codegen_llm",
+                        action="llm_admit",
+                        reason=f"period={period_tag} prompt_weak={len(fail_hints)}",
+                    )
+                except Exception:
+                    pass
+        elif quick:
+            logger.info("[FactorEvo] Codegen LLM 跳过（quick 修复模式）")
+    except Exception as e:
+        logger.warning(f"[FactorEvo] Codegen LLM 挖掘异常（显式降级）: {e}")
+
     logger.info(f"[FactorEvo] 阶段2 挖掘: {len(candidates)} 个候选")
     return candidates
 
@@ -567,7 +898,7 @@ def _evaluate_candidates(candidates, dfs, period=None):
             try:
                 fields = _kline_to_fields(df)
                 factor_values = expr.evaluate(fields)
-                fwd = _forward_returns(df, horizon=5)
+                fwd = _forward_returns(df)
                 mask = np.isfinite(factor_values) & np.isfinite(fwd)
                 if mask.sum() < 50:
                     continue
@@ -597,8 +928,8 @@ def _evaluate_candidates(candidates, dfs, period=None):
                 "all_results": sym_results,
             }
 
-            # [2026-08-05 v6 2.4 S2-4] 完整因子报告卡落库（factor card JSON →
-            # factor_evolution_log.metrics.card，L274/L287）：IC/分层/显著性/衰减/
+            # [2026-08-05 v6 2.4 S2-4 / P1-2] 完整因子报告卡落库（factor card JSON →
+            # factor_evolution_log.metrics.card）：IC/分层/显著性/衰减/
             # parsimony/数据质量/admission_gate。单项失败容错，绝不阻塞评估主流程。
             try:
                 from backend.services.factor_engine.factor_card import build_factor_card
@@ -606,6 +937,14 @@ def _evaluate_candidates(candidates, dfs, period=None):
                     factor_id=expr.expr_id, expr=expr, dfs=dfs,
                     period=_period, horizon=5, source=source,
                 )
+                results[expr.expr_id]["factor_card"] = {
+                    "admission": (_card or {}).get("admission"),
+                    "quantile": {
+                        k: (_card or {}).get("quantile", {}).get(k)
+                        for k in ("long_short_sharpe", "top_excess_annual", "monotonic_r")
+                    },
+                    "ic_p": ((_card or {}).get("ic") or {}).get("p_value"),
+                }
                 _log_evolution(
                     expr.expr_id, "card",
                     expr_ast=getattr(expr, "ast", None),
@@ -613,8 +952,16 @@ def _evaluate_candidates(candidates, dfs, period=None):
                     action="card_generated",
                     metrics={"card": _card, "net_ic": avg_net_ic},
                 )
+                _adm = ((_card or {}).get("admission") or {})
+                if _adm and not _adm.get("passed", True):
+                    logger.info(
+                        "[FactorEvo] admission_gate 未过 %s: %s",
+                        expr.expr_id, _adm.get("reasons"),
+                    )
             except Exception as _card_err:
-                logger.debug(
+                # 短周期报告卡失败升为 warning，便于短线闭环验收
+                _lvl = logger.warning if _period in ("1m", "3m", "5m", "15m") else logger.debug
+                _lvl(
                     "[FactorEvo] 报告卡生成失败 %s: %s", expr.expr_id, str(_card_err)[:120]
                 )
 
@@ -656,15 +1003,32 @@ def _purge_and_select(eval_results, dfs):
         except Exception:
             return pd.Series()
 
+    def factor_matrix_fn(cs: list) -> np.ndarray:
+        cols = []
+        for c in cs:
+            s = factor_series_fn(c)
+            cols.append(np.asarray(s.values, dtype=float))
+        if not cols:
+            return np.zeros((0, 0))
+        # 对齐到最短长度
+        m = min(len(x) for x in cols)
+        return np.column_stack([x[-m:] for x in cols])
+
     first_df = list(dfs.values())[0]
-    fwd = _forward_returns(first_df, horizon=5)
+    fwd = _forward_returns(first_df)
     return_series = pd.Series(fwd, index=first_df.index)
+    sample_len = max(50, len(return_series))
 
     survivors, report = run_purge_pipeline(
-        candidates, factor_series_fn=factor_series_fn,
+        candidates,
+        factor_series_fn=factor_series_fn,
         return_series=return_series,
+        factor_matrix_fn=factor_matrix_fn,
         config=PurgeConfig(max_active_factors=50),
         thresholds=LifecycleThresholds(),
+        dsr_pbo_gate=None,  # 走内置 default_dsr_pbo_gate
+        sample_len=sample_len,
+        n_total_candidates=len(candidates),
     )
 
     enriched = []
@@ -739,34 +1103,158 @@ def _estimate_capacity_usd(df: pd.DataFrame, factor_turnover: float) -> float:
     return _cap(vol, factor_turnover)
 
 
-def _promote_factors(survivors, eval_results, all_icir_values, n_total, dfs=None):
+def _estimate_capacity_usd_from_dfs(dfs, factor_turnover: float) -> float:
+    """跨品种取最大可交易容量，避免 next(iter(dfs)) 抽到薄币把整轮晋升杀死。"""
+    if not dfs:
+        return 0.0
+    best = 0.0
+    for df in dfs.values():
+        try:
+            best = max(best, float(_estimate_capacity_usd(df, factor_turnover) or 0.0))
+        except Exception:
+            continue
+    return best
+
+
+def _promoted_rows_for_save(promoted: list[dict], period=None) -> list[dict]:
+    """晋升通过门禁后的落库行（缺 expr_ast 的跳过，避免假晋升）。"""
+    rows = []
+    for p in promoted or []:
+        ast = p.get("expr_ast")
+        if not ast:
+            # 兜底：从 eval_result / expr 取
+            expr = p.get("expr")
+            ast = getattr(expr, "ast", None) if expr is not None else None
+        if not ast:
+            logger.warning(
+                "[FactorEvo] 晋升跳过落库(无表达式) %s source=%s",
+                p.get("factor_id"), p.get("source"),
+            )
+            continue
+        eval_result = p.get("eval_result")
+        row = {
+            "factor_id": p["factor_id"],
+            "expr_ast": ast,
+            "expr_id": p.get("expr_id") or p["factor_id"],
+            "source": p.get("source"),
+            "state": p.get("_to_state", "PAPER"),
+            "icir": eval_result.icir if eval_result else p.get("icir"),
+            "incremental_corr": p.get("incremental_corr"),
+            "capacity_usd": p.get("capacity_usd"),
+            "current_weight": None,
+        }
+        rows.append(row)
+        # 回写，供后续监控/权重用
+        p["expr_ast"] = ast
+    return _tag_short_horizon_factors(rows, period)
+
+
+def _log_promote_committed(promoted: list[dict], *, via: str = "main") -> None:
+    """仅在落库成功后记 promote，避免「日志已晋级、库里没有」的假成功。"""
+    for p in promoted or []:
+        eval_result = p.get("eval_result")
+        _log_evolution(
+            p["factor_id"], "promote",
+            expr_ast=p.get("expr_ast"),
+            source=p.get("source"),
+            state_from="ORTHO",
+            state_to=p.get("_to_state", "PAPER"),
+            action="promote",
+            reason=p.get("_promote_reason") or "门禁通过并已落库",
+            metrics={
+                "icir": getattr(eval_result, "icir", None) if eval_result else p.get("icir"),
+                "incremental_corr": p.get("incremental_corr"),
+                "dsr_significant": p.get("_dsr_significant"),
+                "pbo": p.get("_pbo"),
+                "capacity_usd": p.get("capacity_usd"),
+                "via": via,
+            },
+        )
+
+
+def _trigger_meta_retrain_after_promote(n_promoted: int) -> None:
+    """新因子进 PAPER 后异步拉一把元标签重训（与日调度解耦，补「挖→训」闭环）。"""
+    if n_promoted <= 0:
+        return
+    try:
+        import threading
+
+        def _run():
+            try:
+                from backend.services.scalp_meta_trainer import train_and_validate
+                report = train_and_validate()
+                logger.info(
+                    "[FactorEvo] 晋升后元标签重训完成 usable=%s auc=%s",
+                    (report or {}).get("usable"),
+                    (report or {}).get("oos_auc_lgbm"),
+                )
+            except Exception as e:
+                logger.warning("[FactorEvo] 晋升后元标签重训失败: %s", str(e)[:200])
+
+        threading.Thread(target=_run, name="scalp-meta-after-promote", daemon=True).start()
+    except Exception as e:
+        logger.debug("[FactorEvo] 元标签重训线程启动失败: %s", e)
+
+
+def _promote_factors(
+    survivors, eval_results, all_icir_values, n_total, dfs=None, period=None,
+):
     from backend.services.evolution.shadow_judge import ShadowJudge
     from backend.services.factor_engine.dsr_pbo import compute_dsr_pbo_for_factors
     from backend.services.factor_engine.lifecycle import (
         FactorMetrics,
         FactorState,
+        LifecycleThresholds,
     )
 
-    # ── DSR/PBO 全局评估 ──
-    sample_len = DEFAULT_LOOKBACK
+    # ── DSR/PBO 全局评估（P0-3：sample_len 用验证窗根数，对齐真 OOS）──
+    _td, _vd, _ted = _split_days_for_period(period)
+    _bpd = _BARS_PER_DAY.get(period or DEFAULT_PERIOD, 6)
+    sample_len = max(50, int(_vd * _bpd))
+    # n_trials = 实际参与 IC 评估的因子数（含池内已有），不用未评估模板虚增
+    n_trials = max(len(all_icir_values), 1)
+    # 空可交易池冷启动：全量搜索 breadth 会把 DSR 期望最大 SR 抬到天文数字，
+    # 导致 ICIR>1 的 survivor 仍 dsr_significant=False、整轮零晋升。
+    # 冷启动时用「过净IC的 survivor 数」作多重检验分母（仍防单点作弊，但不自杀）。
+    try:
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole,
+            load_factor_active_rows,
+        )
+        _tradable_n = len(load_factor_active_rows(ActiveSetRole.TRADABLE))
+    except Exception:
+        _tradable_n = 0
+    if _tradable_n == 0 and survivors:
+        n_trials = max(len(survivors), 1)
+        logger.info(
+            "[FactorEvo] 空 TRADABLE 冷启动：DSR n_trials=%d（原搜索广度=%d）",
+            n_trials, n_total,
+        )
     dsr_pbo = compute_dsr_pbo_for_factors(
         icir_list=all_icir_values,
-        n_total_candidates=n_total,
+        n_total_candidates=n_trials,
         sample_len=sample_len,
     )
     dsr_significant = dsr_pbo.get("dsr_result", {}).get("significant", True)
     pbo_val = dsr_pbo.get("pbo_result", {}).get("pbo", 0.3)
     logger.info(
         f"[FactorEvo] DSR/PBO: dsr_sig={dsr_significant} pbo={pbo_val:.3f} "
-        f"best_icir={dsr_pbo.get('best_icir')} n_factors={dsr_pbo.get('n_factors')}"
+        f"best_icir={dsr_pbo.get('best_icir')} n_factors={dsr_pbo.get('n_factors')} "
+        f"sample_len={sample_len} n_trials={n_trials} (search_breadth={n_total})"
     )
 
     judge = ShadowJudge()
     promoted = []
+    reject_reasons: list[dict] = []
+    _cap_floor = LifecycleThresholds().min_capacity_usd
 
     for s in survivors:
         info = eval_results.get(s["factor_id"], {})
         if info.get("net_ic", 1.0) < _min_net_ic_threshold():
+            reject_reasons.append({
+                "factor_id": s["factor_id"], "reason": "net_ic",
+                "detail": float(info.get("net_ic", 0) or 0),
+            })
             logger.info(
                 "[FactorEvo] 净IC不足跳过 %s: net_ic=%.4f",
                 s["factor_id"], info.get("net_ic", 0),
@@ -774,7 +1262,29 @@ def _promote_factors(survivors, eval_results, all_icir_values, n_total, dfs=None
             continue
         eval_result = s.get("eval_result")
         if not eval_result:
+            reject_reasons.append({"factor_id": s["factor_id"], "reason": "no_eval_result"})
             continue
+
+        cap = _estimate_capacity_usd_from_dfs(
+            dfs,
+            float(getattr(eval_result, "turnover", 0) or 0),
+        )
+        # 成交额缺失：fail-closed 跳过（数据缺口≠数学过门）
+        if cap <= 0:
+            if _evo_gate_fail_closed():
+                reject_reasons.append({
+                    "factor_id": s["factor_id"], "reason": "capacity_missing",
+                })
+                logger.warning(
+                    "[FactorEvo] capacity 无法估计 %s，fail-closed 跳过",
+                    s["factor_id"],
+                )
+                continue
+            logger.warning(
+                "[FactorEvo] capacity 无法估计 %s，fail-open 用门槛地板 %.0f",
+                s["factor_id"], _cap_floor,
+            )
+            cap = float(_cap_floor)
 
         metrics = FactorMetrics(
             factor_id=s["factor_id"],
@@ -788,7 +1298,7 @@ def _promote_factors(survivors, eval_results, all_icir_values, n_total, dfs=None
             incremental_corr=s.get("incremental_corr", 1.0),
             dsr_significant=dsr_significant,
             pbo=pbo_val,
-            capacity_usd=_estimate_capacity_usd(next(iter(dfs.values())) if dfs else None, float(getattr(eval_result, 'turnover', 0) or 0)),  # TODO: 接 capacity.py 真实计算
+            capacity_usd=cap,
         )
 
         judgment = judge.judge(metrics)
@@ -811,29 +1321,67 @@ def _promote_factors(survivors, eval_results, all_icir_values, n_total, dfs=None
             # 都从 ORTHO 起评）完全脱节——晋升等于"绕过影子期直接实盘"。现在真实
             # 状态随 to_state 走，只有状态机判定到 ACTIVE 才会写 ACTIVE。
             s["_to_state"] = judgment.decision.to_state.value
+            s["capacity_usd"] = cap
+            s["_dsr_significant"] = dsr_significant
+            s["_pbo"] = pbo_val
+            s["_promote_reason"] = judgment.decision.reason
             promoted.append(s)
-            # 记录到进化日志
+            # 门禁通过先记 gate_pass；真正 promote 等落库后再写，避免假晋级日志
             _log_evolution(
                 s["factor_id"], "promote",
                 expr_ast=s.get("expr_ast"),
                 source=s.get("source"),
                 state_from=judgment.decision.from_state.value,
                 state_to=judgment.decision.to_state.value,
-                action="promote",
+                action="gate_pass",
                 reason=judgment.decision.reason,
                 metrics={
                     "icir": eval_result.icir,
                     "incremental_corr": s.get("incremental_corr"),
                     "dsr_significant": dsr_significant,
                     "pbo": pbo_val,
+                    "capacity_usd": cap,
                 },
             )
             logger.info(
-                f"[FactorEvo] 因子晋升 {s['factor_id']}: "
+                f"[FactorEvo] 门禁通过(待落库) {s['factor_id']}: "
                 f"{judgment.decision.from_state}→{judgment.decision.to_state} ({judgment.decision.reason})"
             )
+        else:
+            failed = dict(judgment.decision.conditions_failed or {})
+            reject_reasons.append({
+                "factor_id": s["factor_id"],
+                "reason": judgment.decision.reason or "gate",
+                "conditions_failed": failed,
+                "dsr_significant": dsr_significant,
+                "pbo": pbo_val,
+            })
+            _log_evolution(
+                s["factor_id"], "promote",
+                expr_ast=s.get("expr_ast"),
+                source=s.get("source"),
+                action="promote_reject",
+                reason=judgment.decision.reason,
+                metrics={
+                    "conditions_failed": failed,
+                    "dsr_significant": dsr_significant,
+                    "pbo": pbo_val,
+                    "capacity_usd": cap,
+                    "icir": getattr(eval_result, "icir", None),
+                },
+            )
+            logger.info(
+                "[FactorEvo] 晋升拒绝 %s: %s failed=%s",
+                s["factor_id"], judgment.decision.reason, failed,
+            )
 
-    logger.info(f"[FactorEvo] 阶段5 上线: {len(promoted)}/{len(survivors)} 晋升, dsr_sig={dsr_significant} pbo={pbo_val:.3f}")
+    logger.info(
+        f"[FactorEvo] 阶段5 上线: {len(promoted)}/{len(survivors)} 门禁通过, "
+        f"dsr_sig={dsr_significant} pbo={pbo_val:.3f} rejects={len(reject_reasons)}"
+    )
+    # 供 quick 快路径把可审计拒绝原因带回报告
+    for s in survivors:
+        s.setdefault("_promote_rejects", reject_reasons)
     return promoted
 
 
@@ -858,7 +1406,7 @@ def _monitor_active(active_factors, dfs):
             try:
                 fields = _kline_to_fields(df)
                 vals = expr.evaluate(fields)
-                fwd = _forward_returns(df, horizon=5)
+                fwd = _forward_returns(df)
                 ic = information_coefficient(vals, fwd)
                 event = watcher.observe_error(f["factor_id"], ic, baseline=0.0)
                 if event:
@@ -885,6 +1433,82 @@ def _monitor_active(active_factors, dfs):
 #  阶段 6.5：影子期推进（PAPER→SMALL_LIVE→ACTIVE，逐日复评）
 # ═══════════════════════════════════════════════════════════════
 
+def _shadow_paper_metrics(expr, dfs: dict, period: str | None = None) -> dict:
+    """[2026-08-13 P2-11] 影子组合真实指标（替换 icir 代理 Sharpe）。
+
+    对每个 symbol：z-score(|z|≥1) 定方向仓位 → 每 bar 净值收益 =
+    pos[t] × fwd[t] − taker 成本 × |Δpos|。年化 Sharpe 按持仓周期
+    （bars/day × 365 / fwd_bars）折算。序列不足时 sharpe=None（调用方回退 icir 代理）。
+    """
+    _cost = float(_os_window.getenv("FACTOR_EVO_SHADOW_COST", "0.0021") or 0.0021)
+    _fwd_bars = _fwd_bars_for_period(period)
+    _bpd = _BARS_PER_DAY.get(period or DEFAULT_PERIOD, 24)
+    _rets: list[float] = []
+    for _sym, _df in (dfs or {}).items():
+        try:
+            _fields = _kline_to_fields(_df)
+            _vals = pd.Series(expr.evaluate(_fields))
+            _z = (
+                (_vals - _vals.rolling(30, min_periods=10).mean())
+                / _vals.rolling(30, min_periods=10).std().replace(0, np.nan)
+            )
+            _pos = np.where(_z.abs().ge(1.0), np.sign(_z), 0.0)
+            _fwd = pd.Series(_forward_returns(_df), index=_df.index)
+            _dpos = np.abs(_pos - np.roll(_pos, 1))
+            if len(_dpos):
+                _dpos[0] = abs(float(_pos[0]))
+            _net = _pos * _fwd.values - _cost * _dpos
+            _net = _net[np.isfinite(_net)]
+            _rets.extend(float(v) for v in _net)
+        except Exception:
+            continue
+    if len(_rets) < 30:
+        return {"sharpe": None, "mean_ret": None, "n_bars": len(_rets)}
+    _arr = np.asarray(_rets, dtype=float)
+    _mean = float(np.mean(_arr))
+    _std = float(np.std(_arr))
+    _periods_per_year = max(1.0, _bpd * 365.0 / max(1, _fwd_bars))
+    _sharpe = (_mean / _std) * (_periods_per_year ** 0.5) if _std > 1e-12 else 0.0
+    _sharpe = float(max(-5.0, min(5.0, _sharpe)))
+    return {"sharpe": _sharpe, "mean_ret": _mean, "n_bars": len(_rets)}
+
+
+def _live_backtest_deviation() -> "float | None":
+    """[2026-08-13 P2-11] 实盘信号日志回溯偏差（scalp_signal_log 结算结果）。
+
+    取 scalp_signal_log 最近 N 天已结算信号的平均净收益，作为「影子预测 vs
+    真实执行」对照的实盘侧。样本不足（默认 <50 条）返回 None，调用方保持
+    live_deviation 不参与硬拦截的旧行为。
+    """
+    try:
+        _min_n = max(30, int(_os_window.getenv("FACTOR_EVO_LIVE_DEV_MIN_SAMPLES", "50") or 50))
+        _days = int(_os_window.getenv("FACTOR_EVO_LIVE_DEV_LOOKBACK_DAYS", "30") or 30)
+    except (TypeError, ValueError):
+        _min_n, _days = 50, 30
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ScalpSignalLog
+        _db = SessionLocal()
+        try:
+            _cutoff = int(time.time()) - _days * 86400
+            _rows = (
+                _db.query(ScalpSignalLog)
+                .filter(ScalpSignalLog.settled == True,  # noqa: E712
+                        ScalpSignalLog.signal_ts >= _cutoff,
+                        ScalpSignalLog.net_ret.isnot(None))
+                .all()
+            )
+        finally:
+            _db.close()
+        _rets = [float(r.net_ret) for r in _rows if r.net_ret is not None]
+        if len(_rets) < _min_n:
+            return None
+        return float(np.mean(_rets))
+    except Exception as exc:
+        logger.debug("[FactorEvo] live 回溯偏差读取失败: %s", exc)
+        return None
+
+
 def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
     """对已在 PAPER/SMALL_LIVE 影子期的因子逐日复评，判断是否可推进到下一状态。
 
@@ -895,12 +1519,11 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
     没出口。这里补上：每天用当天重算的 ICIR + 影子期已持续天数复评一次。
 
     注意（诚实标注局限）：
-      - paper_sharpe 用 icir 换算的代理值（真实基于逐笔盈亏的 Parity Score 属于
-        P3 阶段待办，尚未接入），仅作为方向性代理，非严格 Sharpe。
-      - live_deviation（PAPER 影子表现 vs 真实小仓执行的偏差）需要 DualTrackExecutor
-        才能算真实值，该组件目前是孤立脚手架未接入实盘路径，这里先按"无小仓
-        对照数据"处理为不参与硬拦截，改用比基础阈值严格得多的 paper_sharpe/
-        paper_days 门槛（1.5x/2x，见 _auto_oversight_approve）作为补偿性风控。
+      - [2026-08-13 P2-11] paper_sharpe 改为影子组合真实 Sharpe（z-score 仓位 ×
+        前瞻收益 − taker 成本，按持仓周期年化）；序列不足时回退 icir 代理。
+      - [2026-08-13 P2-11] live_deviation 改为「影子组合平均净收益 vs
+        scalp_signal_log 实盘结算平均净收益」的偏差；无实盘结算样本时保持 0
+        （不参与硬拦截）。
     """
     from datetime import datetime
     from datetime import timezone as _tz
@@ -927,7 +1550,7 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
             try:
                 fields = _kline_to_fields(df)
                 vals = expr.evaluate(fields)
-                fwd = _forward_returns(df, horizon=5)
+                fwd = _forward_returns(df)
                 ic = information_coefficient(vals, fwd)
                 if ic is not None and np.isfinite(ic):
                     ics.append(ic)
@@ -946,6 +1569,21 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
                 days_in_state = 0
 
         paper_sharpe_proxy = max(0.0, min(3.0, icir * (252 ** 0.5)))
+        # [2026-08-13 P2-11] paper_sharpe：影子组合真实 Sharpe（回退 icir 代理）；
+        # live_deviation：影子组合平均净收益 vs 实盘 scalp_signal_log 结算平均
+        # 净收益的偏差（无实盘结算样本时保持 0，不参与硬拦截）。
+        _shadow = _shadow_paper_metrics(expr, dfs)
+        paper_sharpe_real = _shadow.get("sharpe")
+        if paper_sharpe_real is None:
+            paper_sharpe_real = paper_sharpe_proxy
+        _live_ret = _live_backtest_deviation()
+        if _live_ret is None:
+            live_deviation = 0.0
+        else:
+            _shadow_ret = _shadow.get("mean_ret")
+            live_deviation = (
+                abs(_shadow_ret - _live_ret) if _shadow_ret is not None else 1.0
+            )
 
         metrics = FactorMetrics(
             factor_id=f["factor_id"],
@@ -958,8 +1596,8 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
             dsr_significant=True,
             pbo=0.3,
             capacity_usd=f.get("capacity_usd") or 1e5,
-            paper_sharpe=paper_sharpe_proxy,
-            live_deviation=0.0,  # 见函数说明：暂无小仓对照数据，不参与硬拦截
+            paper_sharpe=paper_sharpe_real,
+            live_deviation=live_deviation,
             paper_days=days_in_state if state_str == "PAPER" else 999,
             small_live_days=days_in_state if state_str == "SMALL_LIVE" else 0,
         )
@@ -997,29 +1635,47 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
 # ═══════════════════════════════════════════════════════════════
 
 def _replace_degraded(degraded, dfs, period=None):
+    """隔离退化因子后补挖；**必须落库**，否则日志有 promote、池永远空。"""
     for f in degraded:
         logger.info(f"[FactorEvo] 隔离退化因子: {f['factor_id']}")
         _deactivate_factor(f["factor_id"])
         _log_evolution(
             f["factor_id"], "degrade",
             source=f.get("source"),
-            state_from="ACTIVE", state_to="QUARANTINE",
+            state_from=str(f.get("state") or "ACTIVE"), state_to="QUARANTINE",
             action="quarantine",
             reason="IC衰减连续drift→隔离",
         )
 
     if not degraded:
-        return 0
+        return []
 
-    new_candidates = _mine_candidates(dfs, period)
+    # 补挖用验证窗逻辑与主链一致：先在全量上挖/评，再走同一套晋升门禁
+    # 注意：替换补挖走完整 GP 很重；若调用方处于 quick 止血轮，应避免走到这里。
+    new_candidates = _mine_candidates(dfs, period, quick=False)
     new_eval = _evaluate_candidates(new_candidates, dfs, period)
     new_survivors = _purge_and_select(new_eval, dfs)
 
     icir_values = [info.get("avg_icir", 0) for info in new_eval.values()]
-    new_promoted = _promote_factors(new_survivors, new_eval, icir_values, len(new_candidates))
+    new_promoted = _promote_factors(
+        new_survivors, new_eval, icir_values, len(new_candidates), dfs, period=period,
+    )
+    if not new_promoted:
+        logger.info("[FactorEvo] 阶段7 替换: 补挖门禁全拒，无可落库因子")
+        return []
 
-    logger.info(f"[FactorEvo] 阶段7 替换: 补挖 {len(new_promoted)} 个新因子")
-    return len(new_promoted)
+    to_save = _promoted_rows_for_save(new_promoted, period)
+    if not to_save:
+        logger.warning("[FactorEvo] 阶段7 替换: 门禁通过但无有效表达式，放弃落库")
+        return []
+    for p in new_promoted:
+        _tag_one_short_horizon(p, period)
+    _save_active_factors(to_save)
+    _log_promote_committed(new_promoted, via="replace_degraded")
+    _trigger_meta_retrain_after_promote(len(to_save))
+
+    logger.info(f"[FactorEvo] 阶段7 替换: 补挖并落库 {len(to_save)} 个新因子")
+    return new_promoted
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1030,20 +1686,34 @@ def _update_online_weights(active_factors, dfs):
     from backend.services.evolution.online_weights import OnlineLinearModel
 
     model = OnlineLinearModel()
+    # 与向量同序保留 factor_id，避免 feature_importance 用 f0/f1 导致回写永不命中
+    factor_ids: list[str] = []
+    for f in active_factors or []:
+        if not f.get("expr"):
+            continue
+        fid = str(f.get("factor_id") or "").strip()
+        if not fid:
+            continue
+        factor_ids.append(fid)
+
     for sym, df in dfs.items():
         try:
             fields = _kline_to_fields(df)
-            factor_vector = np.array([
-                f["expr"].evaluate(fields)[-1]
-                for f in active_factors if f.get("expr")
-            ])
+            vals = []
+            for f in active_factors or []:
+                if not f.get("expr"):
+                    continue
+                if not str(f.get("factor_id") or "").strip():
+                    continue
+                vals.append(f["expr"].evaluate(fields)[-1])
+            factor_vector = np.array(vals)
             fwd = _forward_returns(df, horizon=1)
-            if len(factor_vector) > 0 and np.isfinite(factor_vector).all():
+            if len(factor_vector) > 0 and len(factor_vector) == len(factor_ids) and np.isfinite(factor_vector).all():
                 model.learn_one(factor_vector, fwd[-1])
         except Exception:
             continue
 
-    weights = model.feature_importance()
+    weights = model.feature_importance(names=factor_ids if factor_ids else None)
     logger.info(f"[FactorEvo] 阶段8 在线权重: {len(weights)} 个因子")
     return weights
 
@@ -1094,7 +1764,7 @@ def _review_active_factors(active_factors: list[dict], dfs) -> tuple[list[dict],
             try:
                 fields = _kline_to_fields(df)
                 vals = expr.evaluate(fields)
-                fwd = _forward_returns(df, horizon=5)
+                fwd = _forward_returns(df)
                 ic = information_coefficient(vals, fwd)
                 if ic is not None:
                     ic_mean += float(ic)
@@ -1175,27 +1845,126 @@ def _enforce_active_cap(active_factors: list[dict]) -> int:
 #  主循环
 # ═══════════════════════════════════════════════════════════════
 
-def run_factor_evolution_loop(symbols=None, period=None) -> dict:
-    t0 = time.time()
-    logger.info("[FactorEvo] ═══ 因子进化闭环启动 ═══")
+def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: str | None = None) -> dict:
+    """因子进化闭环主入口。
 
+    quick=True：快速修复模式（portfolio_budget 修复流水线专用，2026-08-07 加固）——
+    压缩 GP/MCTS 挖掘规模（1 种子 5 代 100 个体 / MCTS 60 iter 1 根，经环境变量
+    FACTOR_GP_*/FACTOR_MCTS_* 传导），跳过 WFO 双门禁与测试集复评，全程生效
+    （含阶段7 补挖的二次挖掘），函数结束恢复环境变量；定时进化链路不受影响。
+    """
+    from backend.services.evolution import evo_runtime
+
+    t0 = time.time()
+    period_eff = period or DEFAULT_PERIOD
+    src = source or ("quick" if quick else "cron")
+    owned = evo_runtime.mark_start(period=str(period_eff), quick=bool(quick), source=src)
+    if not owned:
+        return {
+            "error": "already_running",
+            "message": "因子进化已在运行",
+            "runtime": evo_runtime.snapshot(),
+        }
+
+    logger.info(
+        "[FactorEvo] ═══ 因子进化闭环启动 ═══" + (" [快速修复模式]" if quick else "")
+    )
+
+    if not quick:
+        boost = evo_runtime.ensure_mining_boost_if_auto()
+        if boost is not None:
+            evo_runtime.mark_boost(boost)
+
+    _env_backup: dict = {}
+    if quick:
+        for _ev in ("FACTOR_GP_SEEDS", "FACTOR_GP_GENERATIONS", "FACTOR_GP_POPULATION",
+                    "FACTOR_MCTS_ITERATIONS", "FACTOR_MCTS_ROOTS"):
+            _env_backup[_ev] = _os_window.getenv(_ev)
+        _os_window.environ["FACTOR_GP_SEEDS"] = "1"
+        _os_window.environ["FACTOR_GP_GENERATIONS"] = "5"
+        _os_window.environ["FACTOR_GP_POPULATION"] = "100"
+        _os_window.environ["FACTOR_MCTS_ITERATIONS"] = "60"
+        _os_window.environ["FACTOR_MCTS_ROOTS"] = "1"
+    global _ACTIVE_EVO_PERIOD
+    _prev_period = _ACTIVE_EVO_PERIOD
+    _ACTIVE_EVO_PERIOD = period_eff
+    report: dict = {}
+    err: str | None = None
+    try:
+        report = _run_evolution_loop_impl(symbols, period, quick, t0)
+        if isinstance(report, dict) and report.get("error"):
+            err = str(report.get("message") or report.get("error"))[:400]
+        return report
+    except Exception as e:
+        err = str(e)[:400]
+        raise
+    finally:
+        _ACTIVE_EVO_PERIOD = _prev_period
+        if quick:
+            for _ev, _old in _env_backup.items():
+                if _old is None:
+                    _os_window.environ.pop(_ev, None)
+                else:
+                    _os_window.environ[_ev] = _old
+        evo_runtime.mark_end(report=report if isinstance(report, dict) else None, error=err)
+
+
+def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
+    """原闭环主体（quick=True 时跳过 WFO 双门禁与测试集复评）。"""
     # 1. 取数
     dfs = _load_data(symbols, period)
     _ensure_governance_columns()
     if not dfs:
         return {"error": "取数失败，无可用数据"}
 
+    # 1.4 P0-2 深度门槛：不足则催促回填并中止（禁止假 OOS）
+    depth = _check_split_depth(dfs, period)
+    if not depth.get("ok"):
+        _nudge_depth_backfill(list(dfs.keys()), period)
+        msg = (
+            f"数据深度不足 period={depth.get('period')} "
+            f"need_days>={depth.get('need_days')} need_bars>={depth.get('need_bars')} "
+            f"short={depth.get('short_symbols')} detail={depth.get('by_symbol')}"
+        )
+        logger.error(f"[FactorEvo] {msg} — 已 nudge 深度回填，本轮中止")
+        return {
+            "error": "depth_insufficient",
+            "message": msg,
+            "period": depth.get("period"),
+            "need_days": depth.get("need_days"),
+            "need_bars": depth.get("need_bars"),
+            "by_symbol": depth.get("by_symbol"),
+            "short_symbols": depth.get("short_symbols"),
+            "quick": bool(quick),
+            "elapsed_sec": round(time.time() - t0, 1),
+        }
+
     # 1.5 训练/验证/测试三段切分（v6 计划 5.4.3：周期分档窗口，测试集绝不参与挖掘与选因）
+    # [2026-08-08 P0-1] 禁止静默退化为 train=val=全窗（假 OOS）。数据不足直接失败，
+    # 由调用方（PB quick / 调度）解冻或触发回填，绝不在同集上挖评。
     dfs_train, dfs_val, dfs_test = _split_train_val_test(dfs, period)
     if not dfs_train or not dfs_val:
-        logger.warning(
-            f"[FactorEvo] 三段切分后数据不足(train={len(dfs_train)} val={len(dfs_val)} "
-            f"test={len(dfs_test)})，退化为全窗口(与切分前行为一致)"
+        need = _lookback_for_period(period)
+        got = {sym: len(df) for sym, df in dfs.items()}
+        _nudge_depth_backfill(list(dfs.keys()), period)
+        msg = (
+            f"三段切分数据不足(train={len(dfs_train)} val={len(dfs_val)} "
+            f"test={len(dfs_test)}) period={period or DEFAULT_PERIOD} "
+            f"need>={need} got={got}"
         )
-        dfs_train, dfs_val, dfs_test = dfs, dfs, {}
+        logger.error(f"[FactorEvo] {msg} — 拒绝假 OOS，本轮中止")
+        return {
+            "error": "split_insufficient_data",
+            "message": msg,
+            "period": period or DEFAULT_PERIOD,
+            "need_bars": need,
+            "got_bars": got,
+            "quick": bool(quick),
+            "elapsed_sec": round(time.time() - t0, 1),
+        }
 
     # 2. 挖掘（只用训练集拟合，不看验证/测试集）
-    candidates = _mine_candidates(dfs_train, period)
+    candidates = _mine_candidates(dfs_train, period, quick=bool(quick))
 
     # 3. 验证（样本外：用训练阶段没见过的验证集算IC，而非在训练集上自证）
     eval_results = _evaluate_candidates(candidates, dfs_val, period)
@@ -1214,90 +1983,181 @@ def run_factor_evolution_loop(symbols=None, period=None) -> dict:
     survivors = _purge_and_select(eval_results, dfs_val)
 
     # 5. 上线（DSR/PBO 真实计算代替硬编码）
-    promoted = _promote_factors(survivors, eval_results, all_icir, n_total, dfs)
+    promoted = _promote_factors(
+        survivors, eval_results, all_icir, n_total, dfs, period=period,
+    )
+
+    # [2026-08-08 P0-3] quick 修复：无晋升时带可审计拒绝原因快速返回，
+    # 跳过监控/影子推进/替换等长尾，避免 PB 空转 17–40min。
+    if quick and not promoted:
+        rejects = []
+        if survivors:
+            rejects = list(survivors[0].get("_promote_rejects") or [])
+        logger.warning(
+            "[FactorEvo] quick 无晋升，快失败返回 survivors=%d rejects=%d",
+            len(survivors), len(rejects),
+        )
+        return {
+            "error": "promote_rejected" if survivors else "no_survivors",
+            "message": "quick 修复无因子晋升（门禁拒绝可审计）",
+            "period": period or DEFAULT_PERIOD,
+            "quick": True,
+            "candidates": len(candidates),
+            "evaluated": len(eval_results),
+            "survivors": len(survivors),
+            "promoted": 0,
+            "promote_rejects": rejects[:20],
+            "dsr_note": "见 promote_rejects / factor_evolution_log action=promote_reject",
+            "elapsed_sec": round(time.time() - t0, 1),
+        }
 
     # ── 持久化新晋升的活跃因子 ──
     if promoted:
-        # M5 WFO 门禁：样本外滚动验证不通过则不晋升（异常 fail-open）
-        _wfo_freq = {
-            "1m": "1min", "3m": "3min", "5m": "5min", "15m": "15min",
-            "30m": "30min", "1h": "1h", "4h": "4h", "1d": "1d",
-        }.get((period or "1h"), "1h")
-        try:
-            from backend.services.evolution.factor_wfo import (
-                run_factor_wfo,
-                run_factor_wfo_ic,
-            )
-            _wfo_kept = []
-            for p in promoted:
-                _expr = p.get("expr") or (eval_results.get(p["factor_id"], {}) or {}).get("expr")
-                _res = run_factor_wfo(
-                    _expr, next(iter(dfs.values())) if dfs else None, p["factor_id"],
-                    freq=_wfo_freq,
+        # [2026-08-07 quick] 快速修复模式（修复流水线）跳过 WFO 双门禁与测试集复评：
+        # WFO 全量评估 4 个候选耗时 ~9min，与"止血后 ~10min 内补完"的目标冲突；
+        # 修复链路自有 PB_REPAIR_TIMEOUT_SEC 超时兜底，且 DSR/PBO 门已在阶段5 执行。
+        # 定时进化链路不受影响，仍走完整门禁。
+        if not quick:
+            # M5 WFO 门禁：样本外滚动验证不通过则不晋升
+            # 异常默认 fail-closed（FACTOR_EVO_GATE_FAIL_CLOSED=1）
+            _wfo_freq = {
+                "1m": "1min", "3m": "3min", "5m": "5min", "15m": "15min",
+                "30m": "30min", "1h": "1h", "4h": "4h", "1d": "1d",
+            }.get((period or "1h"), "1h")
+            _fail_closed = _evo_gate_fail_closed()
+            try:
+                from backend.services.evolution.factor_wfo import (
+                    run_factor_wfo,
+                    run_factor_wfo_ic,
                 )
-                if _res.get("passed", True):
-                    # [2026-08-05 v6 5.4.2 S2-5] 叠加 IC 级 WFO：滚动训练窗
-                    # OOS IC 序列（均值/显著性/衰退率<50%）。异常 fail-open。
-                    try:
-                        _ic_res = run_factor_wfo_ic(
-                            _expr,
-                            next(iter(dfs.values())) if dfs else None,
-                            p["factor_id"],
-                            freq=_wfo_freq,
-                        )
-                        if not _ic_res.get("passed", True):
-                            _log_evolution(
-                                p["factor_id"], "wfo",
-                                source=p.get("source"),
-                                action="wfo_ic_reject",
-                                reason=(
-                                    f"OOS IC 均值 {_ic_res.get('oos_ic_mean')} / "
-                    f"p {_ic_res.get('oos_ic_p')} / 衰退率 {_ic_res.get('decay_rate')}"
-                                ),
-                                metrics={"oos_ic": _ic_res},
+                _wfo_kept = []
+                # [2026-08-13 P1-8] WFO 多币验证：遍历训练面板全部 symbol（不再只验第一个），
+                # 任一币不达标即拒（FACTOR_EVO_WFO_REQUIRE_ALL=1 默认）；
+                # 关闭后改为 ≥ FACTOR_EVO_WFO_MIN_SYMBOL_RATIO（默认 2/3）币通过。
+                _wfo_require_all = (
+                    (_os_window.getenv("FACTOR_EVO_WFO_REQUIRE_ALL") or "1").strip().lower()
+                    not in ("0", "false", "no", "off")
+                )
+                try:
+                    _wfo_min_ratio = float(
+                        _os_window.getenv("FACTOR_EVO_WFO_MIN_SYMBOL_RATIO", "0.667") or 0.667
+                    )
+                except (TypeError, ValueError):
+                    _wfo_min_ratio = 0.667
+                _wfo_symbols = list((dfs or {}).keys())
+                try:
+                    _wfo_max_syms = int(_os_window.getenv("FACTOR_EVO_WFO_SYMBOLS", "0") or 0)
+                except (TypeError, ValueError):
+                    _wfo_max_syms = 0
+                if _wfo_max_syms > 0:
+                    _wfo_symbols = _wfo_symbols[:_wfo_max_syms]
+                if not _wfo_symbols:
+                    raise RuntimeError("WFO 面板为空：无 symbol 可验证")
+                for p in promoted:
+                    _expr = p.get("expr") or (eval_results.get(p["factor_id"], {}) or {}).get("expr")
+                    _n_pass = 0
+                    _n_fail = 0
+                    _fail_reasons: list[str] = []
+                    _factor_err: Exception | None = None
+                    for _sym in _wfo_symbols:
+                        _df = (dfs or {}).get(_sym)
+                        if _df is None or len(_df) == 0:
+                            _n_fail += 1
+                            _fail_reasons.append(f"{_sym}:no_data")
+                            continue
+                        try:
+                            _res = run_factor_wfo(
+                                _expr, _df, p["factor_id"],
+                                freq=_wfo_freq,
                             )
-                            logger.warning(
-                                "[FactorEvo] IC-WFO 拒绝晋升 %s: %s",
-                                p["factor_id"], _ic_res,
+                        except Exception as _wfo_one_err:
+                            _factor_err = _wfo_one_err
+                            if _fail_closed:
+                                _n_fail += 1
+                                _fail_reasons.append(f"{_sym}:wfo_error:{str(_wfo_one_err)[:80]}")
+                            else:
+                                _n_pass += 1  # fail-open：异常币视为通过（旧行为）
+                            continue
+                        if not _res.get("passed", True):
+                            _n_fail += 1
+                            _fail_reasons.append(f"{_sym}:wfo_reject:{_res.get('reason', '未过门')}")
+                            continue
+                        try:
+                            _ic_res = run_factor_wfo_ic(
+                                _expr, _df, p["factor_id"],
+                                freq=_wfo_freq,
+                            )
+                        except Exception as _ic_err:
+                            _factor_err = _ic_err
+                            if _fail_closed:
+                                _n_fail += 1
+                                _fail_reasons.append(f"{_sym}:wfo_ic_error:{str(_ic_err)[:80]}")
+                            else:
+                                _n_pass += 1  # fail-open：异常币视为通过（旧行为）
+                            continue
+                        if not _ic_res.get("passed", True):
+                            _n_fail += 1
+                            _fail_reasons.append(
+                                f"{_sym}:wfo_ic_reject:oos_ic={_ic_res.get('oos_ic_mean')}"
+                                f"/p={_ic_res.get('oos_ic_p')}/decay={_ic_res.get('decay_rate')}"
                             )
                             continue
-                    except Exception as _ic_err:
-                        logger.warning(
-                            "[FactorEvo] IC-WFO 门禁异常(fail-open): %s",
-                            str(_ic_err)[:150],
+                        _n_pass += 1
+                    if _wfo_require_all:
+                        _passed_ok = _n_fail == 0 and _n_pass == len(_wfo_symbols)
+                    else:
+                        _passed_ok = _n_pass / max(1, len(_wfo_symbols)) >= _wfo_min_ratio
+                    if not _passed_ok:
+                        _log_evolution(
+                            p["factor_id"], "wfo",
+                            source=p.get("source"),
+                            action=(
+                                ("wfo_error_fail_closed" if _fail_closed else "wfo_error_fail_open")
+                                if _factor_err is not None else "wfo_reject"
+                            ),
+                            reason=("; ".join(_fail_reasons) or "多币验证未通过")[:300],
+                            metrics={
+                                "pass": _n_pass, "fail": _n_fail,
+                                "symbols": len(_wfo_symbols),
+                                "require_all": _wfo_require_all,
+                            },
                         )
+                        logger.warning(
+                            "[FactorEvo] WFO 多币验证拒绝晋升 %s: %s",
+                            p["factor_id"], _fail_reasons,
+                        )
+                        continue
                     _wfo_kept.append(p)
-                else:
-                    _log_evolution(
-                        p["factor_id"], "wfo",
-                        source=p.get("source"),
-                        action="wfo_reject",
-                        reason="pbo/overfit/consistency 未过门",
-                    )
-                    logger.warning("[FactorEvo] WFO 拒绝晋升 %s", p["factor_id"])
-            promoted = _wfo_kept
-        except Exception as _wfo_err:
-            logger.warning("[FactorEvo] WFO 门禁异常(fail-open): %s", str(_wfo_err)[:150])
+                promoted = _wfo_kept
+            except Exception as _wfo_err:
+                logger.warning(
+                    "[FactorEvo] WFO 门禁异常(%s): %s",
+                    "fail-closed" if _fail_closed else "fail-open",
+                    str(_wfo_err)[:150],
+                )
+                if _fail_closed:
+                    for p in promoted:
+                        _log_evolution(
+                            p.get("factor_id"), "wfo",
+                            source=p.get("source"),
+                            action="wfo_error_fail_closed",
+                            reason=str(_wfo_err)[:150],
+                        )
+                    promoted = []
 
-        # 三层切分最终裁判：测试集 IC 复评（测试集绝不参与挖掘与选因）
-        promoted = _final_test_confirm(promoted, eval_results, dfs_test)
+            # 三层切分最终裁判：测试集 IC 复评（测试集绝不参与挖掘与选因）
+            promoted = _final_test_confirm(promoted, eval_results, dfs_test)
 
-        to_save = []
+        to_save = _promoted_rows_for_save(promoted, period)
+        # 与 to_save 对齐：无表达式的门禁通过项不计入「已晋升」
+        _ok_ids = {r["factor_id"] for r in to_save}
+        promoted = [p for p in promoted if p.get("factor_id") in _ok_ids]
         for p in promoted:
-            eval_result = p.get("eval_result")
-            to_save.append({
-                "factor_id": p["factor_id"],
-                "expr_ast": p.get("expr_ast", {}),
-                "expr_id": p["factor_id"],
-                "source": p.get("source"),
-                # [2026-07-18 修复] 用状态机真实判定的 to_state，不再硬编码 ACTIVE
-                # （见 _promote_factors 内注释）。新晋升因子几乎总是先落地 PAPER。
-                "state": p.get("_to_state", "PAPER"),
-                "icir": eval_result.icir if eval_result else None,
-                "incremental_corr": p.get("incremental_corr"),
-                "current_weight": None,
-            })
-        _save_active_factors(to_save)
+            _tag_one_short_horizon(p, period)
+        if to_save:
+            _save_active_factors(to_save)
+            _log_promote_committed(promoted, via="main")
+            _trigger_meta_retrain_after_promote(len(to_save))
 
         # 事件驱动回测触发（规划文档§4.1）：新因子晋升后不用等次日3点调度，
         # 立即在后台跑一次独立的单因子交易模拟，5分钟内产出可查报告。
@@ -1343,8 +2203,27 @@ def run_factor_evolution_loop(symbols=None, period=None) -> dict:
                 len(degraded_review), capped,
             )
 
-    # 7. 替换退化因子
-    replaced = _replace_degraded(degraded, dfs, period) if degraded else 0
+    # 7. 替换退化因子（返回新落库列表；此前只 return 计数 → 假补挖）
+    # quick 止血轮禁止二次完整 GP 补挖（否则又卡 15–25 分钟）
+    if quick:
+        replaced_raw = []
+        replaced = 0
+        replaced_list = []
+    else:
+        replaced_raw = _replace_degraded(degraded, dfs, period) if degraded else []
+        if isinstance(replaced_raw, list):
+            replaced_list = replaced_raw
+        else:
+            # 兼容旧测试 mock 返回 int
+            replaced_list = []
+            logger.debug("[FactorEvo] _replace_degraded 非 list 返回: %r", replaced_raw)
+        replaced = len(replaced_list) if isinstance(replaced_raw, list) else int(replaced_raw or 0)
+    if replaced_list:
+        # 退化项从热池剔除，补上新晋级
+        _deg_ids = {f.get("factor_id") for f in degraded}
+        all_active = [f for f in all_active if f.get("factor_id") not in _deg_ids]
+        all_active.extend(replaced_list)
+        promoted = list(promoted) + list(replaced_list)
 
     # 8. 在线权重
     if all_active:
@@ -1360,6 +2239,8 @@ def run_factor_evolution_loop(symbols=None, period=None) -> dict:
     report = {
         "elapsed_sec": round(elapsed, 1),
         "symbols": list(dfs.keys()),
+        "period": period or DEFAULT_PERIOD,
+        "quick": bool(quick),
         "candidates": len(candidates),
         "evaluated": len(eval_results),
         "survivors": len(survivors),
@@ -1372,6 +2253,41 @@ def run_factor_evolution_loop(symbols=None, period=None) -> dict:
     }
     logger.info(f"[FactorEvo] ═══ 因子进化完成: {report} ═══")
     return report
+
+
+_SHORT_HORIZON_PERIODS = frozenset({"1m", "3m", "5m", "15m"})
+_SHORT_FACTOR_PREFIX = "s5m_"
+
+
+def _tag_one_short_horizon(factor: dict, period: str | None) -> dict:
+    """短周期因子打 s5m_ 前缀 + source 含 horizon=scalp（与 4h 池隔离）。"""
+    p = period or DEFAULT_PERIOD
+    if p not in _SHORT_HORIZON_PERIODS:
+        return factor
+    fid = str(factor.get("factor_id") or "")
+    if fid and not fid.startswith(_SHORT_FACTOR_PREFIX):
+        factor["factor_id"] = f"{_SHORT_FACTOR_PREFIX}{fid}"
+    if factor.get("expr_id") and not str(factor["expr_id"]).startswith(_SHORT_FACTOR_PREFIX):
+        factor["expr_id"] = f"{_SHORT_FACTOR_PREFIX}{factor['expr_id']}"
+    src = str(factor.get("source") or "")
+    tag = f"horizon=scalp|period={p}"
+    if tag not in src:
+        factor["source"] = f"{src}|{tag}" if src else tag
+    return factor
+
+
+def _tag_short_horizon_factors(factors: list[dict], period: str | None) -> list[dict]:
+    return [_tag_one_short_horizon(f, period) for f in (factors or [])]
+
+
+def run_scalp_factor_evolution_loop(symbols=None, source: str | None = None) -> dict:
+    """短线专用完整进化入口（v6 5.4.3 / P0-4）：period=5m，非 quick，走完整 WFO。
+
+    与日级 4h `run_factor_evolution_loop` 并行；产物 factor_id 带 s5m_ 前缀。
+    调度：main.py cron 每日 04:00（避开 03:00 的 4h 进化）。
+    """
+    logger.info("[FactorEvo] ═══ 短线 5m 完整进化启动（非 quick）═══")
+    return run_factor_evolution_loop(symbols=symbols, period="5m", quick=False, source=source)
 
 
 def run_online_weight_update(symbols=None) -> dict:

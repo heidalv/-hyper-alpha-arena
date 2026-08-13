@@ -20,7 +20,9 @@
     "tpl_mid_reversion_3b76ff",
     "gen_swing_sol_btc_mid_v3_331",
     "tpl_long_swing_36a2f5",
-    "gen_mean_reversion_multi_mid_ranging_313"
+    "gen_mean_reversion_multi_mid_ranging_313",
+    "gen_swing_alt_high_beta_mid_v1_334",
+    "tpl_mid_reversion_ee142d"
   ],
   "strategy_graduation": {
     "tpl_mid_reversion_290af6": {
@@ -90,27 +92,40 @@
       "dd": 0.025575837427557657
     },
     "gen_swing_alt_high_beta_mid_v1_334": {
-      "status": "candidate",
-      "trades": 19,
-      "wr": 1.0,
-      "dd": 0.0
+      "status": "graduated",
+      "trades": 35,
+      "wr": 0.6857142857142858,
+      "dd": 0.02373196054291919
     },
     "gen_swing_sol_btc_mid_v3_331": {
       "status": "graduated",
-      "trades": 41,
+      "trades": 46,
       "wr": 1.0,
       "dd": 0.0
     },
     "gen_mean_reversion_multi_mid_ranging_313": {
       "status": "graduated",
-      "trades": 116,
-      "wr": 0.7758620689655171,
+      "trades": 120,
+      "wr": 0.7833333333333332,
       "dd": 0.002976710127051307
+    },
+    "tpl_mid_reversion_ee142d": {
+      "status": "graduated",
+      "trades": 30,
+      "wr": 0.4666666666666666,
+      "dd": 0.010279596014125742
+    },
+    "gen_mean_reversion_btc_tight_loss_v1_335": {
+      "status": "graduated",
+      "trades": 22,
+      "wr": 0.5,
+      "dd": 0.002312024440643133
     }
   },
   "champion_windows": {
-    "tpl_pro_075b93de_926c4c": 34,
-    "tpl_mid_swing_44f4c7": 24
+    "tpl_pro_075b93de_926c4c": 105,
+    "tpl_mid_swing_44f4c7": 24,
+    "gen_swing_alt_high_beta_mid_v1_334": 44
   },
   "live_cooldown_until": {},
   "started_at": "2026-07-29T09:52:16.126995+00:00"

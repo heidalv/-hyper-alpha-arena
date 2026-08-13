@@ -1,4 +1,4 @@
-# Heidalv-Alpha-Arena — AI驱动加密货币短线交易系统 项目Wiki
+﻿# Heidalv-Alpha-Arena — AI驱动加密货币短线交易系统 项目Wiki
 
 > 生成日期: 2026-07-16 | 版本: v1.0
 
@@ -15,7 +15,7 @@
 | **后端** | Python FastAPI (port 8000) |
 | **前端** | Next.js 16.2.10 (App Router) + React 19 + TypeScript (port 5273) |
 | **数据库** | SQLite为默认(alpha_arena/market/analytics/snapshots 4库), 支持PostgreSQL |
-| **LLM** | DeepSeek v4-pro/v4-flash |
+| **LLM** | DeepSeek v4-flash/v4-flash |
 
 ---
 

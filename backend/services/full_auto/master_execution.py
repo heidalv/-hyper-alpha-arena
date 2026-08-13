@@ -598,11 +598,11 @@ def execute_master_decisions(
                 try:
                     from backend.services.kline_data_service import kline_service as _ks
                     import pandas as _kp
-                    _tf_pairs = [("1h", "1h"), ("4h", "4h"), ("1d", "1d")]
+                    _tf_pairs = [("15m", "15m"), ("1h", "1h"), ("4h", "4h"), ("1d", "1d")]
                     if trend_agent.is_trend_nature(_dec_nature_raw):
                         _tf_pairs.append(("1w", "1w"))
                     for _tf, _tf_key in _tf_pairs:
-                        _min_bars = {"1w": 8, "1d": 20, "4h": 20, "1h": 20}.get(_tf, 20)
+                        _min_bars = {"1w": 8, "1d": 20, "4h": 20, "1h": 20, "15m": 20}.get(_tf, 20)
                         # 决策热路径：仅 data_center(purpose=trade)，禁止 get_kline_data 旁路
                         _raw_kl = _ks.get_klines_from_db(sym, _tf, count=60)
                         if not _raw_kl or len(_raw_kl) < _min_bars:
@@ -824,7 +824,7 @@ def execute_master_decisions(
         # [阶段0 修复] 改用正向白名单 fresh DB 查询，避免 ORM 快照在长 tick 内漏入
         # 新注入的 auto-coin（getattr(session,"auto_coin_symbols") 是 stale 快照）。
         from backend.services.auto_coin_selector import get_fixed_symbols_for_session
-        _fixed_symbols = get_fixed_symbols_for_session(session.session_id, db)
+        _fixed_symbols = get_fixed_symbols_for_session(session.session_id, db, tier="long")
         # 不在固定白名单 = auto-coin 或非会话币 → 都不应进长线
         _sym_is_auto_coin = sym.upper() not in _fixed_symbols
         try:
@@ -2077,7 +2077,7 @@ def execute_master_decisions(
                 # auto-coin。is_auto_coin 语义：不在固定白名单 = auto-coin 或非会话币。
                 from backend.services.auto_coin_selector import get_fixed_symbols_for_session
                 from backend.services.auto_coin_policy import is_training_core_symbol
-                _fixed_syms_v5 = get_fixed_symbols_for_session(session.session_id, db)
+                _fixed_syms_v5 = get_fixed_symbols_for_session(session.session_id, db, tier="long")
                 # 训练核心币永远不算 auto-coin（保留原 applies_strict_auto_coin_rules 语义）
                 _is_auto_coin_fresh = (
                     sym.upper() not in _fixed_syms_v5
@@ -2869,15 +2869,25 @@ def execute_master_decisions(
                 _equity = float((balance_info or {}).get("equity", 0) or (balance_info or {}).get("total_equity", 0) or 0)
                 _req_margin = float(dec.get("margin_usd", 0) or dec.get("_sizing_margin_usd", 0) or 0)
                 _tm = host.session_trading_mode(session)
+                _budget_acct = (
+                    getattr(session, "paper_account_id", None)
+                    or getattr(session, "account_id", None)
+                )
                 if _equity > 0 and _req_margin > 0:
-                    _bf = budget_service.scale_factor_for_layer(tier or _dec_nature_raw, _equity, _tm)
+                    _bf = budget_service.scale_factor_for_layer(
+                        tier or _dec_nature_raw, _equity, _tm,
+                        account_id=_budget_acct,
+                    )
                     if _bf <= 0:
                         host.append_event(session, "layer_budget_block",
                             f"📊 {_layer}层预算已满，跳过 {sym} {action}")
                         continue
                     if _bf < 1.0:
                         dec["size_multiplier"] = float(dec.get("size_multiplier") or 1.0) * _bf
-                    elif not budget_service.can_open(tier or "mid", _req_margin, _equity, _tm):
+                    elif not budget_service.can_open(
+                        tier or "mid", _req_margin, _equity, _tm,
+                        account_id=_budget_acct,
+                    ):
                         host.append_event(session, "layer_budget_block",
                             f"📊 {_layer}层预算不足，跳过 {sym} {action}")
                         continue

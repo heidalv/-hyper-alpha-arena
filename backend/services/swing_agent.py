@@ -365,7 +365,7 @@ class SwingAgent:
             if db is not None and account_id:
                 _cd_info = render_recent_loss_block(
                     db, symbol, _orch.get("mid_bias", "neutral") if isinstance(_orch, dict) else "neutral",
-                    account_id, window_hours=24,
+                    account_id, window_hours=24, nature="swing",
                 )
                 _recent_loss_block = _cd_info.get("block_text", "")
                 _cooldown_active = bool(_cd_info.get("cooldown_active", False))

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Check, X, RefreshCw, Star, Settings2, Merge } from 'lucide-react'
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import toast from 'react-hot-toast'
 
 const DEEPSEEK_FLASH = 'deepseek-v4-flash'
-const DEEPSEEK_PRO = 'deepseek-v4-pro'
 
 function isFlashModelName(model: string): boolean {
   const m = (model || '').toLowerCase()
@@ -17,6 +16,7 @@ function isFlashModelName(model: string): boolean {
 }
 
 function isProModelName(model: string): boolean {
+  // 历史 Pro/reasoner 配置仍识别；新建一律 flash
   const m = (model || '').toLowerCase()
   return m.includes('pro') || m.includes('reasoner') || m.includes('r1')
 }
@@ -27,8 +27,9 @@ function inferDeepseekToggles(config: LLMConfiguration): { enableFlash: boolean;
   const hasFlash = isFlashModelName(model) || isFlashModelName(modelDeep)
   const hasPro = isProModelName(model) || isProModelName(modelDeep)
   return {
-    enableFlash: hasFlash || (!hasPro && Boolean(model)),
-    enablePro: hasPro || Boolean(modelDeep),
+    enableFlash: hasFlash || Boolean(model) || !hasPro,
+    // 深度档位也统一 flash，不再默认勾选 Pro
+    enablePro: false,
   }
 }
 
@@ -218,10 +219,10 @@ export default function LLMConfigManager({
       setFormData((prev) => ({
         ...prev,
         model: provider.default_model || DEEPSEEK_FLASH,
-        model_deep: provider.id === 'deepseek' ? DEEPSEEK_PRO : '',
+        model_deep: provider.id === 'deepseek' ? DEEPSEEK_FLASH : '',
         base_url: provider.default_base_url,
         enableFlash: provider.id === 'deepseek',
-        enablePro: provider.id === 'deepseek',
+        enablePro: false,
       }))
     }
   }
@@ -229,12 +230,10 @@ export default function LLMConfigManager({
   const buildModelPayload = () => {
     if (isDeepseekDual) {
       if (!formData.enableFlash && !formData.enablePro) {
-        throw new Error('请至少勾选 Flash 或 Pro 其中一个模型')
+        throw new Error('请勾选启用 DeepSeek V4 Flash')
       }
-      const model = formData.enableFlash ? DEEPSEEK_FLASH : DEEPSEEK_PRO
-      const model_deep =
-        formData.enableFlash && formData.enablePro ? DEEPSEEK_PRO : undefined
-      return { model, model_deep }
+      // 统一 flash：深度任务也走同一模型
+      return { model: DEEPSEEK_FLASH, model_deep: DEEPSEEK_FLASH }
     }
     if (!formData.model.trim()) throw new Error('请填写模型名称')
     return { model: formData.model.trim(), model_deep: formData.model_deep || undefined }
@@ -503,32 +502,19 @@ export default function LLMConfigManager({
             {isDeepseekDual ? (
               <div className="rounded-lg border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 p-3 space-y-2">
                 <p className="text-sm font-medium text-purple-900 dark:text-purple-200">
-                  声明此 API Key 下启用了哪些模型（不是手动指定每次用哪个）
+                  DeepSeek V4 Flash（统一模型）
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  勾选后，各业务模块会按任务类型<strong>自动选择</strong> Flash 或 Pro，无需两条配置、也无需在交易员里分开选。
+                  快速与深度任务均使用 <strong>deepseek-v4-flash</strong>，不再默认调用 V4 Pro。
                 </p>
-                <div className="text-xs text-muted-foreground space-y-1 pl-1 border-l-2 border-purple-300/60">
-                  <p>· <strong>Flash</strong>：短线扫描、执行判断、轻量分类、因子筛选</p>
-                  <p>· <strong>Pro</strong>：策略分析、多空辩论、综合决策、OpenCode 审计</p>
-                </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
                     checked={formData.enableFlash}
-                    onChange={(e) => setFormData({ ...formData, enableFlash: e.target.checked })}
+                    onChange={(e) => setFormData({ ...formData, enableFlash: e.target.checked, enablePro: false })}
                   />
-                  V4 Flash（快速）— deepseek-v4-flash
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={formData.enablePro}
-                    onChange={(e) => setFormData({ ...formData, enablePro: e.target.checked })}
-                  />
-                  V4 Pro（深度）— deepseek-v4-pro
+                  V4 Flash — deepseek-v4-flash
                 </label>
               </div>
             ) : (

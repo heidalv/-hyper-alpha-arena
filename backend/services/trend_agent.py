@@ -121,6 +121,15 @@ class TrendAgent:
             format_evidence_for_prompt,
         )
 
+        # [2026-08-11 修复] rollback 必须放在 prompt 构建之前：
+        # _build_direction_prompt 内部会调 build_trend_deep_context → onchain 网络请求，
+        # 若事务仍开着，10-20s 的网络阻塞就会触发 LeakGuard。
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
         facts = build_trend_evidence(symbol, market_envs or {}, db=db)
         evidence_block = format_evidence_for_prompt(facts)
         min_score = resolve_trend_min_score(trading_mode)
@@ -342,6 +351,7 @@ class TrendAgent:
             if db is not None and account_id:
                 _cd_info = render_recent_loss_block(
                     db, symbol, _side_hint or "long", account_id, window_hours=24,
+                    nature="trend_follow",
                 )
                 _recent_loss_block = _cd_info.get("block_text", "")
                 _cooldown_active = bool(_cd_info.get("cooldown_active", False))
@@ -754,9 +764,23 @@ class TrendAgent:
                 }
             }
         """
+        # [2026-08-11 修复] 先释放只读事务再构建 prompt：
+        # _build_review_prompt 内部会调 build_trend_deep_context → onchain 网络请求，
+        # 事务开着会在网络阻塞期间 idle-in-transaction。
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
         prompt = self._build_review_prompt(
             symbol, side, position, reports, market_envs, db=db,
         )
+        # [2026-08-11 修复] 释放只读事务再进 LLM，避免 idle-in-transaction。
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
         result = self._call_llm(prompt, account_id=account_id, caller="TrendAgent:review")
         if result:
             return self._normalize_review(result, symbol)
@@ -960,7 +984,8 @@ class TrendAgent:
 持仓：{symbol} {side}，入场 {entry}，现价 {mark}，浮盈 {pnl_pct:+.2f}%
 
 补仓原则：
-- 只在**浮盈 + 回调到支撑 + 趋势仍成立**时补仓（顺势金字塔）。
+- 只在**浮盈且多周期结构未破坏**时补仓（顺势金字塔）；趋势初期 ADX 偏低也允许补仓，不要求 ADX≥20 硬门槛。
+- 浮盈已覆盖 2 倍手续费时优先考虑 add（避免手续费侵蚀小浮盈仓）。
 - **绝不**在浮亏时补仓（加密永续亏损加仓=自杀）。
 - 第一笔补仓比例建议 25-30%，不要一次性加太多。
 - 趋势加速（非回调）时不补——等回调。
@@ -992,79 +1017,141 @@ class TrendAgent:
             # Pro reasoning 模型思维链与答案共享 max_completion_tokens 额度，
             # 8192 偏紧易导致 JSON 被截断 → 解析失败走规则回退。放宽到 16384，可经环境变量覆盖。
             _max_tokens = int(os.getenv("TREND_LLM_MAX_TOKENS", "16384"))
-            resp = call_llm_api_sync(
-                cfg,
-                [
-                    {"role": "system", "content": (
-                        "你是趋势交易专家 Agent，只返回 JSON。\n"
-                        "你专注于 4h-1d 级别趋势分析，忽略短期噪声。\n"
-                        "你的方向判断完全基于数据自主做出：顺势、逆势、中性都可以，只要证据支持。\n"
-                        "系统不会强制你顺势，也不会因为方向与宏观锚点不一致而拒单。\n"
-                        "你必须基于提供的数据做判断，不要编造数据。\n"
-                        "当你看到逐笔战绩和亏损教训时，请认真参考——避免重蹈覆辙。\n"
-                        "reasoning 必须包含完整分析逻辑（趋势判断+多周期共振+衍生品确认+择时），不要只写一句话。"
-                    )},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.2,
-                max_tokens=_max_tokens,
-                response_format={"type": "json_object"},
-                account_id=account_id,
-                caller=caller,
-                # [2026-07-31] MLTO thesis_update 必须绕过语义缓存：
-                # SOL/ETH/BTC 的 prompt 结构相似度 >95%，HashingEmbedder 会误判为同一查询，
-                # 导致 BTC/ETH 命中 SOL 的缓存 → 返回相同方向 → 中性死循环。
-                bypass_cache=("thesis_update" in (caller or "")),
+            _sys = (
+                "你是趋势交易专家 Agent，只返回 JSON。\n"
+                "你专注于 4h-1d 级别趋势分析，忽略短期噪声。\n"
+                "你的方向判断完全基于数据自主做出：顺势、逆势、中性都可以，只要证据支持。\n"
+                "系统不会强制你顺势，也不会因为方向与宏观锚点不一致而拒单。\n"
+                "你必须基于提供的数据做判断，不要编造数据。\n"
+                "当你看到逐笔战绩和亏损教训时，请认真参考——避免重蹈覆辙。\n"
+                "reasoning 必须包含完整分析逻辑（趋势判断+多周期共振+衍生品确认+择时），不要只写一句话。"
             )
-            content = (((resp or {}).get("choices") or [{}])[0].get("message") or {}).get("content") or ""
-            if isinstance(content, list):
-                content = "\n".join(str(x.get("text", x)) if isinstance(x, dict) else str(x) for x in content)
-            content = content.strip()
-            # [fix] 捞回 reasoning 模型的深度推理（DeepSeek R1/V4-Pro 等），不再整体丢弃。
-            reasoning_cot = extract_reasoning_content_safe(resp or {})
-            _finish = ((((resp or {}).get("choices") or [{}])[0].get("finish_reason")) or "")
-            if _finish == "length":
-                logger.warning("[%s] finish_reason=length 推理/答案被截断，考虑调大 TREND_LLM_MAX_TOKENS=%d", caller, _max_tokens)
-            elif not reasoning_cot:
-                logger.info("[%s] reasoning捞回 0 chars（非推理模型或无思维链）| content %d chars | finish=%s", caller, len(content), _finish)
-            else:
-                logger.info("[%s] reasoning捞回 %d chars | content %d chars | finish=%s", caller, len(reasoning_cot), len(content), _finish)
-            # 提取 JSON
-            if content.startswith("```"):
-                content = re.sub(r"^```(?:json)?\s*", "", content)
-                content = re.sub(r"\s*```$", "", content)
-            _start = content.find("{")
-            _end = content.rfind("}")
-            if _start >= 0 and _end > _start:
-                content = content[_start:_end + 1]
-            # [2026-07-31 修复] DeepSeek 推理模型常返回带尾随逗号、单引号、
-            # 或 JSON 中嵌套未转义字符 → json.loads 直接失败 → thesis_update 永远走
-            # 规则回退 → direction=neutral → open_gate 拦截 → 中长线永远不开仓。
-            # 增加多层容错：严格解析失败后尝试修复常见格式问题再解析。
-            try:
-                result = json.loads(content)
-            except json.JSONDecodeError:
-                # 修复常见 LLM JSON 格式问题
-                _fixed = content
-                # 1. 尾随逗号 (trailing comma before } or ])
-                _fixed = re.sub(r",\s*([}\]])", r"\1", _fixed)
-                # 2. 单引号 → 双引号
-                _fixed = _fixed.replace("'", '"')
-                # 3. 去除注释 (// 行注释)
-                _fixed = re.sub(r"//[^\n]*", "", _fixed)
-                # 4. 去除 control characters
-                _fixed = re.sub(r"[\x00-\x1f\x7f]", "", _fixed)
+            _messages = [
+                {"role": "system", "content": _sys},
+                {"role": "user", "content": prompt},
+            ]
+
+            def _one_shot(_msgs):
+                return call_llm_api_sync(
+                    cfg,
+                    _msgs,
+                    temperature=0.2,
+                    max_tokens=_max_tokens,
+                    response_format={"type": "json_object"},
+                    account_id=account_id,
+                    caller=caller,
+                    # [2026-07-31] MLTO thesis_update 必须绕过语义缓存：
+                    # SOL/ETH/BTC 的 prompt 结构相似度 >95%，HashingEmbedder 会误判为同一查询，
+                    # 导致 BTC/ETH 命中 SOL 的缓存 → 返回相同方向 → 中性死循环。
+                    bypass_cache=("thesis_update" in (caller or "")),
+                )
+
+            def _extract_content(_resp) -> tuple:
+                content = (((_resp or {}).get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+                if isinstance(content, list):
+                    content = "\n".join(
+                        str(x.get("text", x)) if isinstance(x, dict) else str(x)
+                        for x in content
+                    )
+                content = (content or "").strip()
+                reasoning_cot = extract_reasoning_content_safe(_resp or {})
+                _finish = ((((_resp or {}).get("choices") or [{}])[0].get("finish_reason")) or "")
+                return content, reasoning_cot, _finish
+
+            def _parse_json_obj(_content: str) -> Dict:
+                content = (_content or "").strip()
+                if content.startswith("```"):
+                    content = re.sub(r"^```(?:json)?\s*", "", content)
+                    content = re.sub(r"\s*```$", "", content)
+                _start = content.find("{")
+                _end = content.rfind("}")
+                if _start >= 0 and _end > _start:
+                    content = content[_start:_end + 1]
                 try:
-                    result = json.loads(_fixed)
-                    logger.info("[%s] JSON 容错解析成功（原始格式有误，已修复）", caller)
-                except json.JSONDecodeError as e2:
-                    # 最后兜底：用正则提取关键字段
-                    logger.warning("[%s] JSON 容错解析仍失败: %s | content前200字符: %.200s", caller, str(e2)[:80], content)
-                    raise e2
-            # 透传完整思维链供下游 thesis/决策记录持久化（上限保护防超大）
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    _fixed = content
+                    _fixed = re.sub(r",\s*([}\]])", r"\1", _fixed)
+                    _fixed = _fixed.replace("'", '"')
+                    _fixed = re.sub(r"//[^\n]*", "", _fixed)
+                    _fixed = re.sub(r"[\x00-\x1f\x7f]", "", _fixed)
+                    try:
+                        result = json.loads(_fixed)
+                        logger.info("[%s] JSON 容错解析成功（原始格式有误，已修复）", caller)
+                        return result
+                    except json.JSONDecodeError as e2:
+                        logger.warning(
+                            "[%s] JSON 容错解析仍失败: %s | content前200字符: %.200s",
+                            caller, str(e2)[:80], content,
+                        )
+                        raise e2
+
+            resp = _one_shot(_messages)
+            content, reasoning_cot, _finish = _extract_content(resp)
+            if _finish == "length":
+                logger.warning(
+                    "[%s] finish_reason=length 推理/答案被截断，考虑调大 TREND_LLM_MAX_TOKENS=%d",
+                    caller, _max_tokens,
+                )
+            elif not reasoning_cot:
+                logger.info(
+                    "[%s] reasoning捞回 0 chars（非推理模型或无思维链）| content %d chars | finish=%s",
+                    caller, len(content), _finish,
+                )
+            else:
+                logger.info(
+                    "[%s] reasoning捞回 %d chars | content %d chars | finish=%s",
+                    caller, len(reasoning_cot), len(content), _finish,
+                )
+
+            # P1：空 content / 坏 JSON → 再请求一次「只吐合法 JSON」
+            result = None
+            try:
+                if not content:
+                    raise json.JSONDecodeError("empty content", "", 0)
+                result = _parse_json_obj(content)
+            except (json.JSONDecodeError, TypeError, ValueError) as _parse_err:
+                logger.warning(
+                    "[%s] 首次 JSON 失败，发起 1 次结构化重试: %s",
+                    caller, str(_parse_err)[:80],
+                )
+                _retry_msgs = list(_messages) + [
+                    {
+                        "role": "assistant",
+                        "content": content[:1500] if content else "",
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            "上一次输出不是合法 JSON（空内容或截断/语法错误）。"
+                            "请只返回一个完整 JSON 对象，不要 markdown，不要注释，"
+                            "字符串用双引号，不要尾随逗号。"
+                        ),
+                    },
+                ]
+                try:
+                    resp2 = _one_shot(_retry_msgs)
+                    content2, reasoning_cot2, _finish2 = _extract_content(resp2)
+                    if reasoning_cot2:
+                        reasoning_cot = reasoning_cot2
+                    logger.info(
+                        "[%s] JSON 重试 content %d chars finish=%s",
+                        caller, len(content2), _finish2,
+                    )
+                    if not content2:
+                        raise json.JSONDecodeError("empty retry content", "", 0)
+                    result = _parse_json_obj(content2)
+                except Exception as _retry_err:
+                    logger.warning(
+                        "[%s] JSON 重试仍失败，走规则回退: %s",
+                        caller, str(_retry_err)[:120],
+                    )
+                    return None
+
             if isinstance(result, dict):
-                result["_reasoning_content"] = reasoning_cot[:6000]
-            return result
+                result["_reasoning_content"] = (reasoning_cot or "")[:6000]
+                return result
+            return None
         except Exception as e:
             logger.warning("[%s] LLM 调用失败，走规则回退: %s", caller, str(e)[:120])
             return None

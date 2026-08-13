@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from typing import Dict, List
 
@@ -296,12 +296,12 @@ LLM_HTTPS_PROXY = os.getenv("LLM_HTTPS_PROXY", "").strip()
 LLM_CALL_TIMEOUT_DEEP_SECONDS = int(os.getenv("LLM_CALL_TIMEOUT_DEEP_SECONDS", "240"))
 
 # 流式推理防挂死上限（秒）。
-# 180s 为模拟盘默认（深度推理模型如 DeepSeek v4-pro 需要更长推理时间）；
+# 180s 为模拟盘默认（深度推理模型如 DeepSeek v4-flash 需要更长推理时间）；
 # 原 120s 反复触发 safety cap 导致 LLM JSON 解析失败。深度模型可通过 env 调高。
 LLM_STREAM_SAFETY_CAP_SECONDS = float(os.getenv("LLM_STREAM_SAFETY_CAP_SECONDS", "180"))
 
 # 全局同步 LLM 并发上限（BackgroundScheduler 线程池保护）
-# DeepSeek 官方并发限制: v4-pro=500, v4-flash=2500。
+# DeepSeek 官方并发限制: v4-pro=500, v4-flash=2500（现统一用 flash）。
 # 系统日调用几千次，远低于限制，不需要本地并发槽限制。
 # 原 LLM_GLOBAL_MAX_CONCURRENT=3 导致辅助分析占满槽位，SwingAgent/TrendAgent
 # 排队超时 → conf=0% → 中长线不开仓。设为 0 表示不限制。
@@ -456,6 +456,13 @@ REENTRY_COOLDOWN_SECONDS = int(os.getenv("REENTRY_COOLDOWN_SECONDS", "600"))  # 
 # ══════════════════════════════════════════════════
 #  全周期交易 · Tier 差异化保护参数
 # ══════════════════════════════════════════════════
+#
+# [三周期持仓时间收敛 2026-08-13]
+# 持仓复审点的唯一权威 = data/runtime_tuning.json 的 tier_max_hold_sec
+# （resolve_tier_review_seconds 优先读 runtime_tuning，此处 max_hold_sec 仅作回退）。
+# 当前权威值：short=7200s(2h) / mid=172800s(48h) / long=604800s(7d)。
+# min_hold_sec 的权威 = 本表（min_hold 不参与 runtime_tuning 热调），
+# 且必须与 unified_exit_state_machine.TIER_PROTECTION、TIER_PROMPT_HINTS 保持一致。
 
 TIER_PROTECTION_PARAMS = {
     "short": {
@@ -513,6 +520,15 @@ TIER_PROTECTION_PARAMS = {
         "min_hold_emergency_loss_pct": float(os.getenv("TIER_LONG_MIN_HOLD_EMERGENCY_LOSS_PCT", "5")),
         "tight_trail_start":   0.95,
         "cooldown_sec":        int(os.getenv("TIER_LONG_COOLDOWN_SEC", "14400")),      # 4 hour
+    },
+    # [三周期持仓时间收敛 2026-08-13] 研究车道独立 tier（NATURE_TO_TIER:
+    # pair_research/research→research）：与 mid 统计/冷却/门控完全隔离。
+    # 2h 固定上限（=复审点=绝对天花板，禁 AI 延长），TP/SL 分钟级退出走
+    # Tier0 直通不受 min_hold 影响，故 min_hold_sec=0（无保护期）。
+    "research": {
+        "min_hold_sec":        0,                                                     # 无保护期（研究仓退出全走 Tier0 直通）
+        "max_hold_sec":        int(os.getenv("TIER_RESEARCH_MAX_HOLD_SEC", "7200")),  # 2 hours（研究车道固定上限）
+        "min_hold_emergency_loss_pct": 5.0,
     },
 }
 
@@ -806,8 +822,14 @@ MIDLONG_RISK_PCT: float = float(os.getenv("MIDLONG_RISK_PCT", "0.01"))
 MIDLONG_PORTFOLIO_GATE_ENABLED: bool = os.getenv("MIDLONG_PORTFOLIO_GATE_ENABLED", "true").lower() in (
     "true", "1", "yes", "on",
 )
-# 中长线净方向名义敞口 / 权益 上限（BTC/ETH/SOL 同向高度相关）
-MIDLONG_MAX_NET_EXPOSURE_PCT: float = float(os.getenv("MIDLONG_MAX_NET_EXPOSURE_PCT", "0.30"))
+# 中长线净方向名义敞口 / 权益 上限。
+# 与真实开仓尺度对齐：NIBBLE/BUILD 常见保证金 5%–30% ×10x → 名义 50%–300%。
+# 旧默认 0.30 会在第一笔成交后锁死整条中长线通道。
+MIDLONG_MAX_NET_EXPOSURE_PCT: float = float(os.getenv("MIDLONG_MAX_NET_EXPOSURE_PCT", "1.5"))
+# 探针单可单独更宽（避免首笔试探占满后无法继续）
+MIDLONG_NIBBLE_NET_EXPOSURE_PCT: float = float(
+    os.getenv("MIDLONG_NIBBLE_NET_EXPOSURE_PCT", "2.0") or "2.0"
+)
 # 相关簇同向持仓数上限
 MIDLONG_CORR_CLUSTER_SYMBOLS: str = os.getenv("MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL")
 MIDLONG_CORR_CLUSTER_MAX: int = int(os.getenv("MIDLONG_CORR_CLUSTER_MAX", "2") or "2")
@@ -1020,13 +1042,25 @@ SCALP_EV_COLD_START_ALLOWANCE_PCT: float = float(
 FACTOR_SCORER_SYMBOLS: str = os.getenv("FACTOR_SCORER_SYMBOLS", "BTC,ETH,SOL")
 FACTOR_SCORER_INTERVAL: str = os.getenv("FACTOR_SCORER_INTERVAL", "1h")
 FACTOR_SCORER_LOOKBACK_BARS: int = int(os.getenv("FACTOR_SCORER_LOOKBACK_BARS", "720"))
-FACTOR_SCORER_FWD_PERIOD: int = int(os.getenv("FACTOR_SCORER_FWD_PERIOD", "5"))
+# [2026-08-13 P1-5] 打分前瞻期：0=按周期分档（与进化侧 _PERIOD_FWD_BARS 对齐），
+# 显式 >0 时覆盖（回滚：设回 5 即恢复旧全局 5 根前瞻）。
+FACTOR_SCORER_FWD_PERIOD: int = int(os.getenv("FACTOR_SCORER_FWD_PERIOD", "0") or 0)
 # 单因子回测每次持仓的往返成本（手续费+滑点，价格变动比例口径）。
 FACTOR_SCORER_COST: float = float(os.getenv("FACTOR_SCORER_COST", "0.0021"))
 # 准入门槛：样本外 Sharpe 与净收益需同时达标，且非冗余。
 FACTOR_SCORER_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIN_SHARPE", "0.5"))
 FACTOR_SCORER_MIN_NET_RETURN: float = float(os.getenv("FACTOR_SCORER_MIN_NET_RETURN", "0.0"))
 FACTOR_SCORER_REDUNDANCY_CORR: float = float(os.getenv("FACTOR_SCORER_REDUNDANCY_CORR", "0.8"))
+# [2026-08-13 短线因子根因修复 P1-7] 打分闸门成本/防过拟合升级：
+# funding 费率（永续 8h 结算，短线过夜持仓真实成本）、DSR/PBO 多重检验闸门、
+# 每笔平均净收益须覆盖往返成本 + NET_BUFFER 缓冲、PBO 上限。
+FACTOR_SCORER_FUNDING_RATE: float = float(os.getenv("FACTOR_SCORER_FUNDING_RATE", "0.0001"))
+FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FACTOR_SCORER_DSR_N_TRIALS: int = int(os.getenv("FACTOR_SCORER_DSR_N_TRIALS", "40"))
+FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
+FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0005"))
 # 短线活跃因子集上限（避免无限膨胀）。
 SCALP_ACTIVE_FACTOR_MAX: int = int(os.getenv("SCALP_ACTIVE_FACTOR_MAX", "40"))
 
@@ -1665,13 +1699,15 @@ RISK_USE_MID_TIER_IMMUNE: bool = os.getenv(
 # --- D14 — long tier 分批战略 TP ---
 # 取代 long tier 单一 TP 点位，改为"浮盈 %" 分档
 LONG_TIER_STAGED_TP = {
+    # [P0-1 修复] 原 8%/15%/25% 触发线（TP1=5.6% 价格）从未触发——全库 long tier
+    # peak 上限 4.64%；下修到 4%/8%/12%（TP1 触发线 2.8%）进入实际 peak 可达区间。
     "stages": [
-        {"trigger_pnl_pct": 0.08, "exit_ratio": 0.30},   # TP1: 浮盈 8% 减 30%
-        {"trigger_pnl_pct": 0.15, "exit_ratio": 0.30},   # TP2: 浮盈 15% 再减 30%
-        {"trigger_pnl_pct": 0.25, "exit_ratio": 0.30},   # TP3: 浮盈 25% 再减 30%
+        {"trigger_pnl_pct": 0.04, "exit_ratio": 0.30},   # TP1: 浮盈 4% 减 30%
+        {"trigger_pnl_pct": 0.08, "exit_ratio": 0.30},   # TP2: 浮盈 8% 再减 30%
+        {"trigger_pnl_pct": 0.12, "exit_ratio": 0.30},   # TP3: 浮盈 12% 再减 30%
     ],
     "trailing_after_final_stage": {
-        "activate_after_pnl_pct": 0.25,
+        "activate_after_pnl_pct": 0.12,
         "atr_mult":               2.0,
     },
     # 浮盈 % 的计算基准：
@@ -1682,27 +1718,40 @@ LONG_TIER_STAGED_TP = {
 }
 
 # --- D15 — 三周期 prompt 片段（trading_analysts 会 import） ---
+# [2026-08-10 v3.1.0] mid/long 与 docs/opencode/prompts/tasks 模板对齐：
+# 去掉 SL/杠杆硬编码（AI 主导：SL 宽度/杠杆由 LLM 依据波动率与结构自主决定，
+# 系统仅以 5 条物理风险底线 + 执行层动态杠杆约束）。
 TIER_PROMPT_HINTS = {
     "short": (
         "SHORT (scalp, 5-15min K): 快进快出，对错 30 分钟内必须平仓；"
         "SL ≤ 3.5%；杠杆 5-20x（系统动态控制）；持仓目标 < 2h；仅高置信度/明确形态才开。"
     ),
     "mid": (
-        "MID (swing, 1h/4h K): 波段中线；持仓目标 24-48h，至少 12h 内不得主动全平；"
-        "SL 3-5%；杠杆 5-20x（系统动态控制）；需要多指标共振。"
+        "MID (swing, 15m/1h/4h K): 聚焦 15m/1h/4h 结构验证（回调/突破/量价确认），"
+        "1d 作为趋势方向锚；持仓目标 2-8 小时，至少 12h 内不得主动全平"
+        "（与系统 min_hold 12h 保护一致，紧急亏损除外）；"
+        "SL 宽度/杠杆由你依据波动率与结构自主决定（系统动态控制）。"
     ),
     "long": (
-        "LONG (trend, 4h-1d K): 周级趋势；持仓目标 3-7 天，至少 3 天(72h)；"
-        "SL 6-10%，杠杆建议≤8x（高波动/弱趋势≤6x，系统动态控制，长线偏低）；"
-        "仅在出现明确周线级突破/多周期共振时才开仓；"
+        "LONG (trend, 4h/1d/1w/1M K): 聚焦大周期结构+生命周期阶段+宏观背景；"
+        "1h/4h 仅作入场择时（由 mid_view 承载）；持仓目标 3-7 天，至少 72h 内不得主动全平；"
         "开仓后 3 天(72h) 内不得主动减仓（SL/TP 硬止损止盈不受此限制）；"
-        "TP 由系统分批战略 TP 管理 (+8% / +15% / +25%)，你不必单独给 TP 价位。"
+        "SL 宽度/杠杆由你依据 ATR 与结构自主决定（系统动态控制）；"
+        "仅在明确周级突破/多周期共振时才开仓。"
     ),
 }
 
 # --- P2 feature flags（默认 on，V2 TP/SL + 杠杆上限 + long ATR + long 免疫 + 分批 TP） ---
 RISK_P2_ENABLED:                       bool = os.getenv("RISK_P2_ENABLED", "true").lower() == "true"
 RISK_USE_TIER_TP_SL_V2:                bool = os.getenv("RISK_USE_TIER_TP_SL_V2", "true").lower() == "true"
+# 开仓时用网格训练出的 (tp_pct,sl_pct) 覆盖静态表（见 backend/data/tp_sl_learned/latest.json）
+RISK_USE_LEARNED_TP_SL:                bool = os.getenv("RISK_USE_LEARNED_TP_SL", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+# 每日自动网格训练 TP/SL（05:00 + 启动补训）
+RISK_TP_SL_TRAIN_AUTO:                 bool = os.getenv("RISK_TP_SL_TRAIN_AUTO", "true").lower() in (
+    "true", "1", "yes", "on",
+)
 RISK_USE_LEVERAGE_CAP_BY_TIER:         bool = os.getenv("RISK_USE_LEVERAGE_CAP_BY_TIER", "true").lower() == "true"
 DYNAMIC_LEVERAGE_ENABLED:              bool = os.getenv("DYNAMIC_LEVERAGE_ENABLED", "true").lower() == "true"
 RISK_USE_LONG_TIER_1D_ATR:             bool = os.getenv("RISK_USE_LONG_TIER_1D_ATR", "true").lower() == "true"
@@ -1927,6 +1976,14 @@ MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC: int = int(os.getenv("MIDLONG_POSITION_MG
 MIDLONG_POSITION_MGMT_PYRAMID_ONLY_PROFIT: bool = os.getenv(
     "MIDLONG_POSITION_MGMT_PYRAMID_ONLY_PROFIT", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [P1-1] 滚仓规则直通：保证金口径浮盈 > 此值且 review 方向 valid(hold/tighten) 时，
+# 跳过 LLM wait 直接进 5 层门控（修复 LLM 从未判 add 导致滚仓 0 执行）
+MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL: float = float(
+    os.getenv("MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL", "0.05")
+)
+# [P0-2] 浮盈 tighten 保护：保证金口径浮盈 > 此值时，收紧 SL 不得越过 entry±MIDLONG_TIGHTEN_SL_FLOOR
+MIDLONG_TIGHTEN_PROFIT_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_PROFIT_FLOOR", "0.015"))
+MIDLONG_TIGHTEN_SL_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_SL_FLOOR", "0.01"))
 # [DEPRECATED — 阶段4] 原 SwingAgent 独立分支的 QuantBrief 对齐阈值；该分支已删除，
 # 中线对齐现由 long thesis 的 mid_view + decision_hub mid_timing 权重统一处理。
 # 保留变量定义避免 env_registry/旧调用点报 AttributeError；新代码不应再读取。
@@ -1940,12 +1997,12 @@ MIDLONG_THESIS_LEDGER_ENABLED: bool = os.getenv("MIDLONG_THESIS_LEDGER_ENABLED",
 )
 # true=中长线开单走 MLTO 新链路（ingest → LLM thesis_update → Hub → open_gate）
 # false=回退旧路径 SwingAgent/TrendAgent.analyze 直接开单（仅兼容/对照）
-MIDLONG_MLTO_CONTROLS_EXEC: bool = os.getenv("MIDLONG_MLTO_CONTROLS_EXEC", "false").lower() in (
+MIDLONG_MLTO_CONTROLS_EXEC: bool = os.getenv("MIDLONG_MLTO_CONTROLS_EXEC", "true").lower() in (
     "1", "true", "yes", "on",
 )
-# MidLong v2 Single Writer：trend | mlto。空则回退 MIDLONG_MLTO_CONTROLS_EXEC。
+# MidLong v2 Single Writer：trend | mlto。空则按 trading_mode 智能默认（paper→mlto）。
 # 禁止 dual：同一时刻只有一个组件可发中长线新开。
-MIDLONG_EXEC_AUTHORITY: str = os.getenv("MIDLONG_EXEC_AUTHORITY", "trend").strip().lower()
+MIDLONG_EXEC_AUTHORITY: str = os.getenv("MIDLONG_EXEC_AUTHORITY", "mlto").strip().lower()
 # Master 对中长线：summary=不重跑深度 LLM（减负）；full=旧行为
 MASTER_MIDLONG_LLM_MODE: str = os.getenv("MASTER_MIDLONG_LLM_MODE", "summary").strip().lower()
 # Paper TrendAgent 分数地板（低于则 hold）；略低于旧 38 以减少样本期全 hold
@@ -1970,21 +2027,36 @@ MIDLONG_ALLOW_RANGE_PROBE: bool = os.getenv(
 MIDLONG_PAPER_PROBE_ON_WAIT: bool = os.getenv(
     "MIDLONG_PAPER_PROBE_ON_WAIT", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+# Paper：Hub=NIBBLE 但方向落在 AI 中性带(0.45-0.55)时，用更软门槛给方向试探
+# （否则 direction_to_action→hold，NIBBLE 永远转化不成开仓）
+MIDLONG_NIBBLE_PROBE_ENABLED: bool = os.getenv(
+    "MIDLONG_NIBBLE_PROBE_ENABLED", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+MIDLONG_NIBBLE_PROBE_DAILY_MAX: int = int(
+    os.getenv("MIDLONG_NIBBLE_PROBE_DAILY_MAX", "2") or "2"
+)
+# 探针仓相对 NIBBLE 保证金再打折（默认再 ×0.5 → 约 7.5% 档）
+MIDLONG_NIBBLE_PROBE_MARGIN_MULT: float = float(
+    os.getenv("MIDLONG_NIBBLE_PROBE_MARGIN_MULT", "0.5") or "0.5"
+)
 # MidLong v2 Phase4：概念信念闭环（失败 Intent → 信念 → prompt/OWM）
 MIDLONG_BELIEF_LOOP_ENABLED: bool = os.getenv(
     "MIDLONG_BELIEF_LOOP_ENABLED", "true"
 ).strip().lower() in ("1", "true", "yes", "on")
-# [DEPRECATED — 阶段4] 三层独立架构（2026-07-03）的"中线由 SwingAgent 单独跑"已废弃。
-# 中线分析现由长线 thesis 的 mid_view 子结构统一提供（Phase 2 起 qual_layer 同时产出
-# long + mid_view；Phase 4 删除了 SwingAgent 独立执行路径）。
-# 此开关保留仅做向后兼容：即便显式设 true，mlto_cycle._swing_one 已删除、
-# master_execution 中线分支已删除，回退路径也不再可达。新部署无需配置。
-# 默认强制 false。
-MIDLONG_MID_VIA_MLTO: bool = False
+# [2026-08-10 问题三 / 2026-08-12 接通] AI 中线通道：符号主源 = 平台看板
+# coin_select_candidates（horizon=midlong, approve, conf≥MIDLONG_AI_MIN_CONF），
+# 经 get_ai_mid_candidates_for_session 粘性输出（槽位 ≤3），与固定长线白名单正交。
+# 看板无合格项时才兜底短线 auto_coin_symbols。
+MIDLONG_MID_VIA_MLTO: bool = os.getenv("MIDLONG_MID_VIA_MLTO", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# AI 中线候选最低置信度：看板 midlong approve 且 confidence ≥ 此值才进 mid 槽。
+MIDLONG_AI_MIN_CONF: float = float(os.getenv("MIDLONG_AI_MIN_CONF", "0.60") or "0.60")
 MIDLONG_QUANT_BRIEF_HARD_GATE: bool = os.getenv("MIDLONG_QUANT_BRIEF_HARD_GATE", "false").lower() in (
     "1", "true", "yes", "on",
 )
-MIDLONG_THESIS_OPEN_GATE: bool = os.getenv("MIDLONG_THESIS_OPEN_GATE", "false").lower() in (
+# v6：物理安全网默认开（数据/白名单/recommend_open/funding 清算级）；chop 仅 soft。
+MIDLONG_THESIS_OPEN_GATE: bool = os.getenv("MIDLONG_THESIS_OPEN_GATE", "true").lower() in (
     "1", "true", "yes", "on",
 )
 MIDLONG_THESIS_DEBATE_ENABLED: bool = os.getenv("MIDLONG_THESIS_DEBATE_ENABLED", "true").lower() in (
@@ -2150,6 +2222,10 @@ AUTO_COIN_ENABLED: bool = os.getenv("AUTO_COIN_ENABLED", "true").lower() == "tru
 # （50 笔 +66192 vs 130 笔 +8283），故扫描 1h→30min、池容量 5→7 放大优势
 AUTO_COIN_SCAN_INTERVAL: int = int(os.getenv("AUTO_COIN_SCAN_INTERVAL", "1800"))
 AUTO_COIN_EVALUATION_INTERVAL: int = int(os.getenv("AUTO_COIN_EVALUATION_INTERVAL", "3600"))
+# AI 中线候选「粘性」重算间隔（秒）。短线选币仍按 AUTO_COIN_SCAN_INTERVAL(~30min) 轮换；
+# 中线候选独立慢刷新，默认 3h（可调 2–4h: 7200–14400），避免跟短线同频换人。
+AUTO_COIN_MID_RESAMPLE_SEC: int = int(os.getenv("AUTO_COIN_MID_RESAMPLE_SEC", "10800") or "10800")
+AUTO_COIN_MID_MAX_SLOTS: int = int(os.getenv("AUTO_COIN_MID_MAX_SLOTS", "3") or "3")
 # P2 调优（2026-07-14）：池容量 5→8，降低门槛让更多候选通过，趋势维度修复后评分更准
 AUTO_COIN_MAX_COUNT: int = int(os.getenv("AUTO_COIN_MAX_COUNT", "7"))
 AUTO_COIN_MIN_SCORE: float = float(os.getenv("AUTO_COIN_MIN_SCORE", "0.50"))
@@ -2176,9 +2252,10 @@ KLINE_SYNC_EXCHANGES: list = [
         "KLINE_SYNC_EXCHANGES", "asterdex,binance,okx,hyperliquid",
     ).split(",") if s.strip()
 ]
-# P1 仓储周期：默认全周期（1m~1w），禁止只采短线三档
+# P1 仓储周期：默认全周期（1m~1M 月线），禁止只采短线三档
+# [2026-08-10 修复] 纳入 1M 月线（asterdex 主所此前无月线，长线缺月线锚）
 KLINE_P1_PERIODS: str = os.getenv(
-    "KLINE_P1_PERIODS", "1m,3m,5m,15m,30m,1h,4h,1d,1w",
+    "KLINE_P1_PERIODS", "1m,3m,5m,15m,30m,1h,4h,1d,1w,1M",
 )
 # rotate=分三组轮转覆盖；all=每批一次采完全部周期（更慢更重）
 KLINE_P1_PERIOD_MODE: str = os.getenv("KLINE_P1_PERIOD_MODE", "rotate")
@@ -2572,7 +2649,40 @@ V5_TREND_FOLLOW_MIN_CONFIDENCE: int = int(os.getenv("V5_TREND_FOLLOW_MIN_CONFIDE
 
 # 单笔最大风险占权益比例（杜绝单笔 -7% 权益的灾难单）
 V5_MAX_TRADE_RISK_PCT: float = float(os.getenv("V5_MAX_TRADE_RISK_PCT", "0.015"))
+# 短线专用：保证金下限 / 单笔风险上限（动态仓位用，比全局 V5 略宽）
+SCALP_MIN_MARGIN_PCT: float = float(os.getenv("SCALP_MIN_MARGIN_PCT", "0.025"))
+SCALP_MAX_TRADE_RISK_PCT: float = float(os.getenv("SCALP_MAX_TRADE_RISK_PCT", "0.03"))
+# 短线排除 PATTERN/BEHAVIORAL（Loop/Router 共用）；0 可回滚
+SCALP_EXCLUDE_PATTERN: bool = os.getenv("SCALP_EXCLUDE_PATTERN", "true").lower() in (
+    "1", "true", "yes", "on",
+)
+# Meta 软进 EV（默认关；仅 usable 模型生效）
+SCALP_META_IN_EV: bool = os.getenv("SCALP_META_IN_EV", "false").lower() in (
+    "1", "true", "yes", "on",
+)
+SCALP_META_EV_BLEND: float = float(os.getenv("SCALP_META_EV_BLEND", "0.35"))
 
+# AI 选币后快速策略观察者（pair_selector_watcher）：默认开，每 5 分钟扫活跃 AI 币
+PAIR_SELECTOR_WATCHER_ENABLED: bool = os.getenv(
+    "PAIR_SELECTOR_WATCHER_ENABLED", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+PAIR_SELECTOR_WATCHER_INTERVAL_SEC: int = max(
+    60, int(os.getenv("PAIR_SELECTOR_WATCHER_INTERVAL_SEC", "300") or 300)
+)
+# 绑定执行车道：默认关交易（仅调度干跑心跳）；显式 true 才对研究纸盘开仓
+PAIR_BINDING_LANE_ENABLED: bool = os.getenv(
+    "PAIR_BINDING_LANE_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+PAIR_BINDING_LANE_INTERVAL_SEC: int = max(
+    60, int(os.getenv("PAIR_BINDING_LANE_INTERVAL_SEC", "300") or 300)
+)
+# 绑定熔断：默认干跑（只报告 would_pause）；显式 true 才 pause
+SCALP_CIRCUIT_BREAKER_ENABLED: bool = os.getenv(
+    "SCALP_CIRCUIT_BREAKER_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+SCALP_CIRCUIT_BREAKER_INTERVAL_SEC: int = max(
+    120, int(os.getenv("SCALP_CIRCUIT_BREAKER_INTERVAL_SEC", "600") or 600)
+)
 # ═══════════════════════════════════════════════════════════════════════════════
 # OpenCode 智能分析层
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2600,7 +2710,7 @@ OPENCODE_MAJOR_CREATE_PROPOSALS: bool = os.getenv("OPENCODE_MAJOR_CREATE_PROPOSA
 OPENCODE_MAJOR_AUTO_APPLY: bool = os.getenv("OPENCODE_MAJOR_AUTO_APPLY", "false").lower() in ("1", "true", "yes", "on")
 OPENCODE_MAJOR_PACE_DOWNSHIFT_STEPS: int = int(os.getenv("OPENCODE_MAJOR_PACE_DOWNSHIFT_STEPS", "1"))
 OPENCODE_MAJOR_PACE_FLOOR: str = os.getenv("OPENCODE_MAJOR_PACE_FLOOR", "balanced").strip().lower()
-OPENCODE_MODEL: str = os.getenv("OPENCODE_MODEL", "deepseek/deepseek-v4-pro").strip()
+OPENCODE_MODEL: str = os.getenv("OPENCODE_MODEL", "deepseek/deepseek-v4-flash").strip()
 OPENCODE_SMALL_MODEL: str = os.getenv("OPENCODE_SMALL_MODEL", "deepseek/deepseek-v4-flash").strip()
 OPENCODE_AUTO_REVIEW: bool = os.getenv("OPENCODE_AUTO_REVIEW", "true").lower() in ("1", "true", "yes", "on")
 OPENCODE_AGENT_REVIEW: str = os.getenv("OPENCODE_AGENT_REVIEW", "review").strip()

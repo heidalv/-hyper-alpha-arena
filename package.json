@@ -6,6 +6,7 @@
     "dev:desktop": "concurrently \"pnpm run dev:backend\" \"pnpm run desktop\"",
     "desktop": "cd frontend-next && npm run electron:dev",
     "desktop:build": "cd frontend-next && npm run electron:build",
+    "desktop:publish": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-desktop.ps1",
     "dev:daemon": "./scripts/dev-stack.sh start --watch",
     "dev:up": "./scripts/dev-stack.sh up",
     "dev:stop": "./scripts/dev-stack.sh stop",

@@ -9,7 +9,9 @@
 
 用法：
     python scripts/run_factor_evolution_once.py
+    python scripts/run_factor_evolution_once.py --period 5m   # 短线完整进化（P0-4）
 """
+import argparse
 import json
 import logging
 import os
@@ -23,8 +25,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--period", default="", help="如 5m=短线完整进化；空=默认4h")
+    args = parser.parse_args()
+
     from backend.services.evolution.factor_evolution_loop import (
-        run_factor_evolution_loop, run_online_weight_update,
+        run_factor_evolution_loop,
+        run_online_weight_update,
+        run_scalp_factor_evolution_loop,
     )
     from backend.services.backtest.trigger import get_recent_triggers
 
@@ -32,7 +40,12 @@ def main():
     print("第一步：运行因子进化闭环主流程(挖掘→样本外验证→DSR/PBO→晋升→影子期推进)")
     print("=" * 60)
     t0 = time.time()
-    result = run_factor_evolution_loop()
+    if (args.period or "").strip().lower() in ("5m", "scalp", "short"):
+        result = run_scalp_factor_evolution_loop()
+    elif args.period:
+        result = run_factor_evolution_loop(period=args.period.strip(), quick=False)
+    else:
+        result = run_factor_evolution_loop()
     elapsed = time.time() - t0
     print(f"\n耗时 {elapsed:.1f}s，结果：")
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))

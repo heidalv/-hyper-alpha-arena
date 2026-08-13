@@ -1,4 +1,4 @@
-"""应用程序启动初始化服务"""
+﻿"""应用程序启动初始化服务"""
 
 import logging
 import threading
@@ -1262,9 +1262,8 @@ def _seed_deepseek_config():
     """
     初始化 DeepSeek V4 双模型预设配置。
 
-    写入两条记录到 llm_configurations 表：
-    - DeepSeek V4 Flash (deepseek-chat): 快速推理、因子分类、信号生成
-    - DeepSeek V4 Pro (deepseek-reasoner): 深度策略分析、综合决策
+    写入一条 DeepSeek V4 Flash 预设（quick/deep 均用 flash）：
+    - model / model_deep = deepseek-v4-flash
 
     当以下条件之一满足时自动创建：
     - 数据库中不存在 provider='deepseek' 的任何记录
@@ -1279,9 +1278,6 @@ def _seed_deepseek_config():
 
     db = SessionLocal()
     try:
-        # [fix] 改为按 model 去重，而非按 provider。
-        # 旧逻辑: 若 provider='deepseek' 有任何记录就跳过全部 → Flash 存在时 Pro 永远不会创建。
-        # 新逻辑: 分别检查每个 model 是否已存在，只插入缺失的。
         existing_deepseek = db.query(LLMConfiguration).filter(
             LLMConfiguration.provider == "deepseek"
         ).all()
@@ -1295,11 +1291,11 @@ def _seed_deepseek_config():
             return
 
         config = LLMConfiguration(
-            name="DeepSeek V4 (Flash + Pro)",
+            name="DeepSeek V4 Flash",
             provider="deepseek",
-            description="同一 API Key 启用 Flash 快速推理与 Pro 深度推理，系统自动按任务切换",
+            description="统一使用 DeepSeek V4 Flash（快速+深度任务均走 flash）",
             model="deepseek-v4-flash",
-            model_deep="deepseek-v4-pro",
+            model_deep="deepseek-v4-flash",
             base_url=deepseek_base,
             api_key=deepseek_key,
             is_default="true",
@@ -1308,7 +1304,7 @@ def _seed_deepseek_config():
         )
         db.add(config)
         db.commit()
-        logger.info("[Seed] 已写入 DeepSeek 双模型预设 (Flash + Pro)")
+        logger.info("[Seed] 已写入 DeepSeek V4 Flash 预设")
     except Exception as e:
         db.rollback()
         logger.warning(f"[Seed] DeepSeek 预设写入失败: {e}")

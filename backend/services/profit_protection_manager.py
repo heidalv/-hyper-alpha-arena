@@ -57,7 +57,9 @@ _GRADUATED_LOCK_RULES = [
 # 保本 SL 缓冲
 # [2026-07-30 crypto-native] 0.3% 是传统股市参数，加密 5m 噪音带 0.5-1%，
 # 0.3% buffer 被正常波动轻松击穿→breakeven_tp 微利出场。提升到 0.8%。
-_BREAKEVEN_BUFFER = 0.008
+# [P0-2 修复] 0.8% 仍不够：breakeven_tp 148 笔成为事实止盈器（id=2641 peak 2.32%
+# 被 1.47% 保本线扫掉）；提升到 1.5%，让微利仓有足够波动缓冲区。
+_BREAKEVEN_BUFFER = 0.015
 
 # ── 无 TP 时的进度回退 ──
 # 当 AI 没设 TP 目标时，假设 X% 价格波动 = 100% TP 进度

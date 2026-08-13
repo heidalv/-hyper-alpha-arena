@@ -1,4 +1,4 @@
-# OpenCode setup - DeepSeek configured in opencode.json, key from .env to Sidecar
+﻿# OpenCode setup - DeepSeek configured in opencode.json, key from .env to Sidecar
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
@@ -56,7 +56,7 @@ $defaults = @{
     "OPENCODE_ENABLED"           = "true"
     "OPENCODE_SERVER_URL"        = "http://127.0.0.1:4096"
     "OPENCODE_AGENT_PLAN"        = "plan"
-    "OPENCODE_MODEL"             = "deepseek/deepseek-v4-pro"
+    "OPENCODE_MODEL"             = "deepseek/deepseek-v4-flash"
     "OPENCODE_SMALL_MODEL"       = "deepseek/deepseek-v4-flash"
     "OPENCODE_BRIDGE_TRANSPORT"  = "http"
     "OPENCODE_REQUEST_TIMEOUT_S" = "180"

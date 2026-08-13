@@ -1,4 +1,4 @@
-"""OpenCode / SRR 定时任务注册。"""
+﻿"""OpenCode / SRR 定时任务注册。"""
 
 from __future__ import annotations
 
@@ -303,7 +303,7 @@ def register_opencode_jobs() -> None:
                 return
             from backend.services.llm_config_service import get_default_model_slug
             from backend.services.opencode_bridge import run_http_agent_message
-            model_slug = get_default_model_slug(tier="deep") or "deepseek/deepseek-v4-pro"
+            model_slug = get_default_model_slug(tier="deep") or "deepseek/deepseek-v4-flash"
             trades_text = "\n".join([
                 f"- {r[0]} {r[1]} entry={float(r[2]):.1f} exit={float(r[3]):.1f} pnl={float(r[4]):+.1f}({float(r[5])*100:+.1f}%) reason={r[7]}"
                 for r in worst

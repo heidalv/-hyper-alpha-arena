@@ -119,7 +119,7 @@ class GPConfig:
     lambda_complexity: float = 1e-3      # 复杂度惩罚系数（5.3.1，可调）
     lambda_corr: float = 0.05            # 与精英池最大相关惩罚系数
     patience: int = 3                    # 早停：连续 3 代无提升
-    n_seeds: int = 5                     # 幻方 6 种子方法论（此处 5 个并行）
+    n_seeds: int = 6                     # 幻方 6 种子方法论（每种子独立 Parallel）
     top_k_admit: int = 50                # 进化结束取 top 个候选做池准入
     min_samples: int = 50                # 有效样本下限
     seed_values: Optional[List[int]] = None   # 显式种子列表（测试用）
@@ -178,26 +178,23 @@ class GPMiner:
         seeds = self.config.seed_values or list(range(self.config.n_seeds))
         workers = max_workers or self.config.max_workers or min(32, os.cpu_count() or 32)
 
-        # [2026-08-06 2.3 修复] 多种子必须串行执行：joblib 的 Parallel 实例
-        # 不是线程安全的，原 ThreadPoolExecutor 并发多个种子共享 self._par 会抛
-        # "This Parallel instance is already running !" → 种子全部异常 → 挖掘 0 候选。
-        # 串行后每个种子内部种群评估仍走 loky 32 进程并行（算力不受损），
-        # 仅种子间顺序执行（5 种子 ≈ 5×单种子时长，换取正确性）。
+        # 种子串行（共享 self 状态非线程安全）；种群评估每次新建 Parallel，
+        # 根因修复：禁止跨种子复用同一 Parallel 实例导致 already running。
         best_by_seed: List[Tuple[dict, float]] = []
         for _s in seeds:
             try:
                 best_by_seed.extend(self._run_seed(_s))
-            except Exception as e:  # 单种子失败不影响整体
+            except Exception as e:
                 logger.warning(f"[GPMiner] 种子挖掘异常: {e}")
 
         # 按适应度排序取 top_k_admit
         best_by_seed.sort(key=lambda x: x[1], reverse=True)
         top = best_by_seed[: self.config.top_k_admit]
         logger.info(
-            f"[GPMiner] 多种子进化完成: {len(seeds)} 种子, 候选 {len(best_by_seed)}, 准入尝试 {len(top)}"
+            f"[GPMiner] 多种子进化完成: {len(seeds)} 种子(独立Parallel评估), "
+            f"候选 {len(best_by_seed)}, 准入尝试 {len(top)}"
         )
 
-        # 释放并行评估进程池（长任务结束，避免 32 个 loky worker 常驻内存）
         self.close()
 
         # 池感知准入（复用 AlphaPool.try_admit 现有逻辑）
@@ -304,24 +301,23 @@ class GPMiner:
           cloudpickle 序列化（标准 pickle 不可；实例级序列化含 AlphaPool 等不可）。
         - 实测：ThreadPoolExecutor 因 numpy GIL/BLAS 争用为负加速（0.84x），
           弃用线程池；loky 每进程独立解释器，E5-2698B 16C/32T 目标 >=4-6x。
-        - 进程池跨代复用（self._par），避免每代重建 32 进程的 spawn 开销。
+        - 每次评估新建 Parallel 并在 finally 终止，禁止跨种子复用导致 already running。
         """
         workers = workers or self.config.max_workers or min(32, os.cpu_count() or 32)
         if len(population) <= 1:
             return [self._fitness(population[0])] if population else []
         if workers <= 1:
             return [self._fitness(a) for a in population]
-        par = getattr(self, "_par", None)
-        if par is None or par.n_jobs != workers:
-            if par is not None:
-                try:
-                    par._terminate_backend()
-                except Exception:
-                    pass
-            par = Parallel(n_jobs=workers, backend="loky", prefer="processes")
-            self._par = par
+        # 每次评估新建 Parallel，禁止跨种子/跨线程复用同一实例
+        par = Parallel(n_jobs=workers, backend="loky", prefer="processes")
         state = self._fitness_state()
-        return par(delayed(_fitness_core)(a, state) for a in population)
+        try:
+            return par(delayed(_fitness_core)(a, state) for a in population)
+        finally:
+            try:
+                par._terminate_backend()
+            except Exception:
+                pass
 
     def _fitness_state(self) -> dict:
         """构造 worker 可序列化的适应度求值上下文（含闭包 factor_value_fn）。"""

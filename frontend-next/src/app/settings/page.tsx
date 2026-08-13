@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -448,8 +448,8 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
             variants={quickVariants} placeholder="如：deepseek-v4-flash" />
         </div>
         <div className="col-span-2">
-          <ModelField label="深模型（Pro / 深度推理，可留空）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
-            variants={deepVariants} placeholder="如：deepseek-v4-pro" />
+          <ModelField label="深模型（可留空；建议也填 deepseek-v4-flash）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
+            variants={deepVariants} placeholder="如：deepseek-v4-flash" />
         </div>
         <div><Label className="text-xs">描述</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="text-sm" placeholder="用途说明（可选）" /></div>
         <div><Label className="text-xs">Base URL</Label><Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className="text-sm" placeholder="https://api.deepseek.com" /></div>

@@ -78,6 +78,10 @@ class PositionSizingInput:
     market_regime: str = "unknown"
     risk_level: str = "medium"
     tier_position_cap_pct: float = 0.0
+    # 单仓名义占权益上限覆盖（None=按 tier 默认 cap）。
+    # 独立路径（如 ScalpRouter）可传大值绕过 short tier 的 8% 分散上限——
+    # 该 cap 是给主链路多策略分散设计的，短线高杠杆小保证金策略不适用。
+    position_cap_override: Optional[float] = None
     size_multiplier: float = 1.0
     leverage_cap: Optional[int] = None
     # 多周期共振仓位缩放（2026-06-24 修复"算而不用"）。
@@ -421,12 +425,16 @@ class PositionSizingAgent:
 
     def _position_cap_pct(self, ctx: PositionSizingInput) -> float:
         tier = (ctx.tier or "mid").lower()
-        cap = self._TIER_CAP.get(tier, 0.18)
-        if ctx.tier_position_cap_pct and ctx.tier_position_cap_pct > 0:
-            cap = min(cap, float(ctx.tier_position_cap_pct))
+        if ctx.position_cap_override is not None and ctx.position_cap_override > 0:
+            cap = max(0.01, min(5.0, float(ctx.position_cap_override)))
+        else:
+            cap = self._TIER_CAP.get(tier, 0.18)
+            if ctx.tier_position_cap_pct and ctx.tier_position_cap_pct > 0:
+                cap = min(cap, float(ctx.tier_position_cap_pct))
         if (ctx.risk_level or "").lower() in ("high", "critical"):
             cap *= 0.6
-        return max(0.01, min(0.35, cap))
+        _upper = 5.0 if ctx.position_cap_override is not None else 0.35
+        return max(0.01, min(_upper, cap))
 
 
 position_sizing_agent = PositionSizingAgent()

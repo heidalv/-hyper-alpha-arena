@@ -122,6 +122,40 @@ def collect_midlong_positions(
     return [p for p in src if isinstance(p, dict) and _is_midlong_pos(p)]
 
 
+def estimate_open_notional(
+    *,
+    equity: float,
+    margin_frac: float,
+    leverage: float = 10.0,
+    sl_pct: float = 0.0,
+    risk_pct: float = 0.01,
+) -> float:
+    """估计本笔开仓名义，口径对齐真实成交。
+
+    MLTO 的 tranche_margin_pct 是「占权益的保证金比例」（如 NIBBLE 0.15、BUILD 0.30，
+    探针再 ×0.5）。真实名义 ≈ equity × margin_frac × leverage。
+
+    旧口径用 equity×risk_pct/SL×tranche，会把 $350 的成交估成 ~$6，导致闸口形同虚设。
+    当 margin_frac≈1.0（非 MLTO「不缩仓」默认）时退回风险预算公式，避免当成 100% 保证金。
+    """
+    eq = float(equity or 0)
+    if eq <= 0:
+        return 0.0
+    try:
+        mf = float(margin_frac)
+    except (TypeError, ValueError):
+        mf = 0.0
+    if mf != mf or mf < 0:  # NaN / neg
+        mf = 0.0
+    lev = max(1.0, float(leverage or 10.0))
+    if 0.0 < mf < 0.99:
+        return abs(eq * mf * lev)
+    sl = max(float(sl_pct or 0), 0.01)
+    rp = float(risk_pct or 0.01)
+    mult = 1.0 if mf <= 0 else min(1.0, mf)
+    return abs(eq * rp / sl * mult)
+
+
 def check_portfolio_open_allowed(
     *,
     symbol: str,
@@ -129,6 +163,8 @@ def check_portfolio_open_allowed(
     portfolio: Optional[Dict[str, Any]] = None,
     positions: Optional[Sequence[Dict[str, Any]]] = None,
     new_notional: float = 0.0,
+    max_net_pct: Optional[float] = None,
+    is_probe: bool = False,
 ) -> Tuple[bool, str]:
     """开仓前组合闸：净方向敞口 + 相关簇同向数量。"""
     if not _cfg_bool("MIDLONG_PORTFOLIO_GATE_ENABLED", True):
@@ -157,12 +193,25 @@ def check_portfolio_open_allowed(
     else:
         signed_after = signed - add
 
-    max_net_pct = _cfg_float("MIDLONG_MAX_NET_EXPOSURE_PCT", 0.30)
-    if equity > 0 and abs(signed_after) / equity > max_net_pct:
+    if max_net_pct is not None:
+        try:
+            cap = float(max_net_pct)
+        except (TypeError, ValueError):
+            cap = _cfg_float("MIDLONG_MAX_NET_EXPOSURE_PCT", 1.5)
+    elif is_probe:
+        # 探针可单独更宽，避免首笔试探锁死全通道
+        base = _cfg_float("MIDLONG_MAX_NET_EXPOSURE_PCT", 1.5)
+        cap = _cfg_float("MIDLONG_NIBBLE_NET_EXPOSURE_PCT", max(base, 2.0))
+    else:
+        cap = _cfg_float("MIDLONG_MAX_NET_EXPOSURE_PCT", 1.5)
+
+    if equity > 0 and abs(signed_after) / equity > cap:
+        before_pct = abs(signed) / equity
+        after_pct = abs(signed_after) / equity
         return (
             False,
-            f"net_exposure {abs(signed_after)/equity:.0%}>{max_net_pct:.0%} "
-            f"(after {sym} {direction})",
+            f"net_exposure {after_pct:.0%}>{cap:.0%} "
+            f"(after {sym} {direction}; before={before_pct:.0%} est=${add:.0f})",
         )
 
     # ── 相关簇同向上限 ──
@@ -175,11 +224,11 @@ def check_portfolio_open_allowed(
                 continue
             if _pos_dir(p.get("side")) == direction:
                 same_dir += 1
-        cap = _cfg_int("MIDLONG_CORR_CLUSTER_MAX", 2)
-        if same_dir >= cap:
+        cap_n = _cfg_int("MIDLONG_CORR_CLUSTER_MAX", 2)
+        if same_dir >= cap_n:
             return (
                 False,
-                f"corr_cluster {direction} count={same_dir}>={cap} "
+                f"corr_cluster {direction} count={same_dir}>={cap_n} "
                 f"({','.join(sorted(cluster))})",
             )
 

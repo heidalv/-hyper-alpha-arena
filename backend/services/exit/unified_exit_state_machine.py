@@ -51,6 +51,8 @@ class TierProtectionConfig:
     max_reduce_count: int = 3         # 单仓最大减仓次数
 
 
+# [三周期持仓时间收敛 2026-08-13] min_hold_sec 对齐主配置 settings.TIER_PROTECTION_PARAMS：
+# mid 30min→12h、long 2h→72h（与 min_hold 保护一致，状态机路径不得使用脱节值）。
 TIER_PROTECTION: dict[str, TierProtectionConfig] = {
     "short": TierProtectionConfig(
         min_hold_sec=3600,             # 1h
@@ -60,14 +62,14 @@ TIER_PROTECTION: dict[str, TierProtectionConfig] = {
         max_reduce_count=3,
     ),
     "mid": TierProtectionConfig(
-        min_hold_sec=1800,             # 30min
+        min_hold_sec=43200,            # 12h（对齐 TIER_PROTECTION_PARAMS mid）
         min_profit_to_reduce_pct=3.0,
         reentry_cooldown_sec=14400,    # 4h
         reduce_cooldown_sec=3600,      # 1h
         max_reduce_count=3,
     ),
     "long": TierProtectionConfig(
-        min_hold_sec=7200,             # 2h
+        min_hold_sec=259200,           # 72h（对齐 TIER_PROTECTION_PARAMS long）
         min_profit_to_reduce_pct=5.0,
         reentry_cooldown_sec=28800,    # 8h
         reduce_cooldown_sec=7200,      # 2h

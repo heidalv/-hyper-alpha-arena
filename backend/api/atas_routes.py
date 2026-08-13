@@ -213,14 +213,17 @@ async def get_active_signals(db: Session = Depends(get_db)):
 @router.get("/decisions")
 async def get_recent_decisions(
     limit: int = 20,
+    account_id: Optional[int] = None,
 ):
-    """获取最近的 AI 决策（AIDecisionLog 在 Analytics DB）"""
+    """获取最近的 AI 决策（AIDecisionLog 在 Analytics DB）；account_id 可选过滤单账户"""
     try:
         analytics_db = AnalyticsSessionLocal()
         try:
+            q = analytics_db.query(AIDecisionLog)
+            if account_id:
+                q = q.filter(AIDecisionLog.account_id == account_id)
             decisions = (
-                analytics_db.query(AIDecisionLog)
-                .order_by(AIDecisionLog.created_at.desc())
+                q.order_by(AIDecisionLog.created_at.desc())
                 .limit(limit)
                 .all()
             )

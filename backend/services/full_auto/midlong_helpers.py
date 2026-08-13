@@ -3,12 +3,36 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+
+def _clamp_tp_to_tier_max(tp_pct, tier, symbol, action):
+    """[P0-1] TP 上限 clamp：复用 mid_long_structure_stop 的 MLTO_*_MAX_TP（long 20% / mid 10%）。
+
+    防止 LLM 拍脑袋设 20%+ 目标（实测 id=2641 TP=+22.4%），全库 peak 上限仅 5.03%，
+    超出 tier 上限的 TP 永远触达不了。
+    """
+    try:
+        _key = "LONG" if str(tier or "").lower() == "long" else "MID"
+        _max = float(os.getenv(f"MLTO_{_key}_MAX_TP", "0.20" if _key == "LONG" else "0.10"))
+        _tp = float(tp_pct or 0)
+        if _tp > _max:
+            logger.info(
+                "[MidLongTPClamp] %s %s tier=%s: tp %.1f%% → %.1f%% (max)",
+                symbol, action, tier, _tp * 100, _max * 100,
+            )
+            return _max
+        return _tp
+    except Exception as _e:
+        logger.debug("[MidLongTPClamp] %s 跳过: %s", symbol, _e)
+        return tp_pct
 
 
 @dataclass
@@ -114,11 +138,40 @@ def try_execute_independent_agent_open(
     # < 1.0 时按此比例缩放最终下单 size（乘在 budget/V5Gate/MTF 缩仓之后）。
     # 默认 1.0 = 不缩（向后兼容：未传则保持原行为，整仓下单）。
     tranche_margin_pct: float = 1.0,
+    # v6 M6：方向一致性审计（可选）
+    thesis_dir: str = "",
+    hub_dir: str = "",
+    hub_mode: str = "",
+    dir_src: str = "",
+    authority: str = "",
 ) -> bool:
     from backend.services.decision_core.proposal import TradeProposal
 
     _sym_u = str(sym).upper()
     _act = (action or "hold").lower()
+    _session_id_aud = str(getattr(session, "session_id", "") or "")
+
+    def _audit_skip(_reason: str, *, stage: str = "exec") -> None:
+        try:
+            from backend.services.mlto.midlong_direction_audit import (
+                record_decision_audit,
+            )
+            record_decision_audit(
+                outcome="skip",
+                stage=stage,
+                symbol=_sym_u,
+                reason=str(_reason or "exec_block")[:160],
+                session_id=_session_id_aud,
+                tier=str(tier or ""),
+                source="exec",
+                authority=str(authority or ""),
+                action=_act,
+                direction=str(hub_dir or ""),
+                score=int(confidence or 0),
+                mode=str(hub_mode or ""),
+            )
+        except Exception:
+            pass
 
     # === 固定交易对守卫（阶段0 Task1）：auto-coin 符号绝不能触发长线开仓 ===
     # 长线下单唯一终点（短线 paper_engine.place_order 不经此函数）。
@@ -127,7 +180,7 @@ def try_execute_independent_agent_open(
     # 阶段0 暂不拦截 mid/swing（mid 路径仍在运行），仅守 long/trend/position。
     _tier_l = (tier or "").strip().lower()
     _tn_l = (trade_nature or "").strip().lower()
-    # MidLong v2：中长线一体 — swing/mid 进入执行前归一为 trend_follow，避免 V5 daily_cap=0
+    # P1：归一保留 swing；禁止把 mid 强制改写成 long（否则 AI 中线撞 FixedSymbolGate）
     try:
         from backend.services.full_auto.midlong_executor import (
             is_midlong_nature,
@@ -136,16 +189,20 @@ def try_execute_independent_agent_open(
         if is_midlong_nature(_tn_l) or _tier_l in ("mid", "long"):
             trade_nature = normalize_midlong_nature(_tn_l, _tier_l)
             _tn_l = trade_nature
-            if _tier_l == "mid":
+            if _tier_l == "mid" or _tn_l == "swing":
+                tier = "mid"
+                _tier_l = "mid"
+            elif _tn_l in ("trend_follow", "position"):
                 tier = "long"
                 _tier_l = "long"
     except Exception as _norm_err:
         logger.debug("[MidLong] nature 归一跳过: %s", _norm_err)
+    # 固定币守卫仅拦长线；中线 AI 选币允许非白名单
     if _tier_l == "long" or _tn_l in ("trend_follow", "position"):
         try:
             from backend.services.auto_coin_selector import get_fixed_symbols_for_session
             _session_id = getattr(session, "session_id", None)
-            _fixed = get_fixed_symbols_for_session(_session_id, db) if _session_id else set()
+            _fixed = get_fixed_symbols_for_session(_session_id, db, tier="long") if _session_id else set()
             if _fixed and _sym_u not in _fixed:
                 logger.warning(
                     "[FixedSymbolGate] auto-coin/非固定符号 %s 在 %s 长线开仓门被拦截 "
@@ -157,6 +214,7 @@ def try_execute_independent_agent_open(
                     f"[固定币守卫] {_sym_u} tier={_tier_l} trade_nature={_tn_l} "
                     f"不在长线白名单，已拒绝开仓",
                 )
+                _audit_skip(f"fixed_symbol_gate:{_sym_u}")
                 return False
         except Exception as _gate_err:
             # 守卫本身异常不应阻断开仓（容错优先）；记录后继续。
@@ -176,6 +234,7 @@ def try_execute_independent_agent_open(
                 session, "midlong_1w_missing",
                 f"[长线1w] {_sym_u} 本币周线缺失，已拒绝开仓",
             )
+            _audit_skip("midlong_1w_missing")
             return False
 
     # 开仓执行前确保 DB 连接健康（防止上游 MLTO LLM 长时间占连接导致事务损坏）
@@ -206,6 +265,7 @@ def try_execute_independent_agent_open(
                 session, "midlong_mtf_block",
                 f"[中长线MTF] {_sym_u} {_act} 否决: {_mtf.reason[:120]}",
             )
+            _audit_skip(f"midlong_mtf_block:{_mtf.reason}")
             return False
         _mtf_size_mult = float(_mtf.size_multiplier or 1.0)
     except Exception as _mtf_err:
@@ -255,16 +315,14 @@ def try_execute_independent_agent_open(
                         )
                     except Exception:
                         pass
+                    _audit_skip(f"midlong_cooldown_block:{_cd_reason}")
                     return False
         except Exception as _cd_err:
             logger.debug("[MidLongCooldown] %s 冷却检查跳过: %s", _sym_u, _cd_err)
 
-    # ── S0-2 止血修复（R2）：独立路径接入 mid_long_structure_stop ──
-    # 背景：独立路径此前用 LLM 的 sl_pct（常为 3.5%，且部分被兜底拉到 0.8%），
-    # 跳过了 mid_long_structure_stop.compute()——窄 SL 在高波动币上被震出，
-    # 是"止损→同方向再开"循环的另一根因。
-    # 复用现有 mid_long_structure_stop 模块（Swing 用 4h/1h，Trend 用 1w/1d/4h），
-    # 取 max(LLM sl, structure sl) 作为最终 SL（更保守）。
+    # ── v6 M3：LLM exit_plan 止损直通；禁止 max(LLM, structure) 加宽 ──
+    # 有 LLM sl → 用之；structure 仅 LLM 缺失时兜底；随后仅 ATR×1.5 地板抬升。
+    _sl_source = "llm" if float(sl_pct or 0) > 0 else ""
     _structure_sl_pct = 0.0
     _structure_tp_pct = 0.0
     try:
@@ -272,13 +330,12 @@ def try_execute_independent_agent_open(
         _use_struct_sl = bool(MIDLONG_STRUCTURE_STOP_ON_INDEPENDENT)
     except Exception:
         _use_struct_sl = True
-    if _use_struct_sl and _act in ("buy", "sell"):
+    if _use_struct_sl and _act in ("buy", "sell") and float(sl_pct or 0) <= 0:
         try:
             from backend.services.mid_long_structure_stop import mid_long_structure_stop
             _ms_for_stop = (market_summary or {}).get(_sym_u) if isinstance(market_summary, dict) else None
             if not isinstance(_ms_for_stop, dict):
                 _ms_for_stop = {}
-            # 取入场参考价（优先 market_data.price，回退 entry_price 字段）
             _ref_price = float(
                 _ms_for_stop.get("current_price")
                 or _ms_for_stop.get("price")
@@ -286,7 +343,6 @@ def try_execute_independent_agent_open(
                 or 0.0
             )
             if _ref_price <= 0:
-                # 最后回退：从 K 线取最新 close
                 try:
                     _klines = _ms_for_stop.get("klines")
                     if _klines is not None and hasattr(_klines, "iloc"):
@@ -304,23 +360,23 @@ def try_execute_independent_agent_open(
                 )
                 if _sl_p > 0:
                     _structure_sl_pct = float(_sl_p)
-                    # 取 max(LLM sl, structure sl) —— 更保守（更宽的 SL）
-                    if _structure_sl_pct > float(sl_pct or 0):
-                        logger.info(
-                            "[MidLongStructureSL] %s %s tier=%s: LLM sl=%.2f%% → structure sl=%.2f%% (取更宽)",
-                            _sym_u, _act, tier, (sl_pct or 0) * 100, _structure_sl_pct * 100,
-                        )
-                        sl_pct = _structure_sl_pct
-                if _tp_p > 0:
-                    # TP 取 max（更保守，保证 RR 不被 LLM 缩小）
-                    if _tp_p > float(tp_pct or 0):
-                        _structure_tp_pct = float(_tp_p)
-                        tp_pct = _structure_tp_pct
+                    sl_pct = _structure_sl_pct
+                    _sl_source = "structure_fallback"
+                    logger.info(
+                        "[MidLongStructureSL] %s %s tier=%s: LLM 缺失 → structure sl=%.2f%% (fallback)",
+                        _sym_u, _act, tier, _structure_sl_pct * 100,
+                    )
+                if _tp_p > 0 and float(tp_pct or 0) <= 0:
+                    _structure_tp_pct = float(_tp_p)
+                    tp_pct = _structure_tp_pct
         except Exception as _ss_err:
             logger.debug("[MidLongStructureSL] %s 结构 SL 跳过: %s", _sym_u, _ss_err)
 
-    # ── P1：ATR 止损地板 + funding 净 RR + ATR 仓位 ──
-    # 杠杆：不在此覆盖。统一走 leverage_authority / 动态杠杆（交易所+周期既定规则）。
+    # [P0-1] LLM 给的 tp_pct 上限 clamp（mid 10% / long 20%）：防 LLM 拍脑袋设 20%+ 目标
+    if float(tp_pct or 0) > 0:
+        tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
+
+    # ── P1：ATR 止损地板 + funding 净 RR + ATR 仓位；chop 仅缩仓不否决 ──
     _atr_size_mult = 1.0
     if (tier or "").lower() == "long" and _act in ("buy", "sell"):
         try:
@@ -337,21 +393,39 @@ def try_execute_independent_agent_open(
             _orch_td = (_ms_td.get("orchestrator") if isinstance(_ms_td.get("orchestrator"), dict) else {}) or {}
             _chop, _chop_why = is_chop_regime(_ms_td, _orch_td)
             if _chop:
-                logger.info("[MidLongChop] BLOCK %s %s: %s", _sym_u, _act, _chop_why)
-                host.append_event(session, "midlong_chop_block", f"[震荡禁开] {_sym_u}: {_chop_why}")
-                return False
+                # v6：chop 不得否决 AI 方向——最多缩仓 + soft_warning
+                _atr_size_mult *= 0.5
+                logger.info(
+                    "[MidLongChop] SOFT %s %s size×0.5: %s",
+                    _sym_u, _act, _chop_why,
+                )
+                host.append_event(
+                    session, "midlong_chop_soft",
+                    f"[震荡缩仓] {_sym_u}: {_chop_why}",
+                )
             _atr = estimate_atr_1d_pct(_ms_td)
             if _atr is not None and not _ms_td.get("atr_1d_pct"):
                 _ms_td["atr_1d_pct"] = _atr
                 if isinstance(market_summary, dict):
                     market_summary.setdefault(_sym_u, _ms_td)
                     market_summary[_sym_u]["atr_1d_pct"] = _atr
-            sl_pct, _atr_floor_why = apply_structure_atr_floor(sl_pct=float(sl_pct or 0), atr_1d_pct=_atr)
-            if "→" in _atr_floor_why:
+            _sl_before_floor = float(sl_pct or 0)
+            sl_pct, _atr_floor_why = apply_structure_atr_floor(
+                sl_pct=_sl_before_floor, atr_1d_pct=_atr,
+            )
+            if "→" in str(_atr_floor_why):
                 logger.info("[MidLongATR] %s %s", _sym_u, _atr_floor_why)
+                if _sl_source.startswith("llm") or _sl_source == "llm":
+                    _sl_source = "llm+atr_floor"
+                elif not _sl_source:
+                    _sl_source = "atr_floor"
+            elif not _sl_source and float(sl_pct or 0) > 0:
+                _sl_source = "llm"
             # TP 至少满足净 RR（粗：2×SL）；若原 TP 更宽则保留
             if float(tp_pct or 0) < float(sl_pct or 0) * 2.0:
                 tp_pct = float(sl_pct or 0) * 2.0
+            # [P0-1] RR 地板可能把 TP 抬过 tier 上限 → 再 clamp 回 max（20%/10%）
+            tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
             _fr_ok, _nrr, _fr_why = funding_net_rr_ok(
                 action=_act,
                 tp_pct=float(tp_pct or 0),
@@ -361,10 +435,12 @@ def try_execute_independent_agent_open(
             if not _fr_ok:
                 logger.info("[MidLongFunding] BLOCK %s %s: %s", _sym_u, _act, _fr_why)
                 host.append_event(session, "midlong_funding_block", f"[费率RR] {_sym_u}: {_fr_why}")
+                _audit_skip(f"midlong_funding_block:{_fr_why}")
                 return False
-            _atr_size_mult, _atr_sz_why = atr_size_multiplier(
+            _atr_sz, _atr_sz_why = atr_size_multiplier(
                 sl_pct=float(sl_pct or 0), atr_1d_pct=_atr,
             )
+            _atr_size_mult *= float(_atr_sz or 1.0)
             if _atr_size_mult < 0.999:
                 logger.info("[MidLongATRSize] %s %s", _sym_u, _atr_sz_why)
         except Exception as _td_err:
@@ -394,12 +470,15 @@ def try_execute_independent_agent_open(
         try:
             from backend.services.mlto.midlong_portfolio_risk import (
                 check_portfolio_open_allowed,
+                estimate_open_notional,
             )
             from backend.services.paper_trading_engine import paper_engine
 
             _acct_pf = host.get_trading_account_id(db, session)
             _portfolio = None
             _est_notional = 0.0
+            _equity = 0.0
+            _pos_list = None
             if _acct_pf:
                 _bal = paper_engine.get_balance(db, _acct_pf) or {}
                 _pos_list = paper_engine.get_positions(db, _acct_pf, status="open") or []
@@ -415,23 +494,53 @@ def try_execute_independent_agent_open(
                     _risk_pct = float(getattr(_cfg_pf, "MIDLONG_RISK_PCT", 0.01) or 0.01)
                 except Exception:
                     _risk_pct = 0.01
-                _sl_for_n = max(float(sl_pct or 0), 0.01)
-                if _equity > 0:
-                    _est_notional = (
-                        _equity * _risk_pct / _sl_for_n * float(_tranche_mult or 1.0)
+                # 杠杆：跟真实成交对齐（同币已有仓跟仓；否则默认 10x）
+                _lev = 10.0
+                try:
+                    from backend.services.leverage_authority import (
+                        DEFAULT_LEVERAGE,
+                        extract_existing_symbol_leverage,
+                        resolve_leverage,
                     )
+                    _exist_lev = extract_existing_symbol_leverage(_sym_u, _pos_list)
+                    if _exist_lev and float(_exist_lev) > 0:
+                        _lev = float(_exist_lev)
+                    else:
+                        _lev = float(
+                            resolve_leverage(
+                                tier=(tier or "mid").lower(),
+                                requested=float(DEFAULT_LEVERAGE),
+                            )
+                            or DEFAULT_LEVERAGE
+                        )
+                except Exception:
+                    _lev = 10.0
+                # 名义 = 权益 × 保证金比例 × 杠杆（与 ETH 成交口径一致）
+                _est_notional = estimate_open_notional(
+                    equity=_equity,
+                    margin_frac=float(_tranche_mult or 0),
+                    leverage=_lev,
+                    sl_pct=float(sl_pct or 0),
+                    risk_pct=_risk_pct,
+                )
+            _is_probe = str(dir_src or "").startswith("nibble_probe")
             _pf_ok, _pf_why = check_portfolio_open_allowed(
                 symbol=_sym_u,
                 action=_act,
                 portfolio=_portfolio,
                 new_notional=_est_notional,
+                is_probe=_is_probe,
             )
             if not _pf_ok:
-                logger.info("[MidLongPortfolio] BLOCK %s %s: %s", _sym_u, _act, _pf_why)
+                logger.info(
+                    "[MidLongPortfolio] BLOCK %s %s: %s (est_notional=%.1f equity=%.1f margin×=%.3f)",
+                    _sym_u, _act, _pf_why, _est_notional, _equity, float(_tranche_mult or 0),
+                )
                 host.append_event(
                     session, "midlong_portfolio_block",
                     f"[组合风控] {_sym_u} {_act}: {_pf_why}",
                 )
+                _audit_skip(f"midlong_portfolio_block:{_pf_why}")
                 return False
         except Exception as _pf_err:
             logger.debug("[MidLongPortfolio] %s 跳过: %s", _sym_u, _pf_err)
@@ -471,6 +580,9 @@ def try_execute_independent_agent_open(
                     session, "portfolio_budget_block",
                     f"[组合预算] {_sym_u} {_act}: {';'.join(_pb_dec.reasons[:3])}",
                 )
+                _audit_skip(
+                    "portfolio_budget_block:" + ";".join(_pb_dec.reasons[:3])
+                )
                 return False
         except Exception as _pb_err:
             logger.debug("[MidLongPortfolio] %s 组合预算跳过: %s", _sym_u, _pb_err)
@@ -483,6 +595,13 @@ def try_execute_independent_agent_open(
         "tranche_margin_pct": _tranche_mult,
     }
 
+    if not _sl_source and float(sl_pct or 0) > 0:
+        _sl_source = "llm"
+    logger.info(
+        "[MidLong] stage=open_ready symbol=%s action=%s sl_source=%s sl=%.2f%% tp=%.2f%%",
+        _sym_u, _act, _sl_source or "-", float(sl_pct or 0) * 100, float(tp_pct or 0) * 100,
+    )
+
     proposal = TradeProposal.from_agent(
         sym=_sym_u,
         tier=(tier or "mid").lower(),
@@ -494,13 +613,98 @@ def try_execute_independent_agent_open(
         source_lane=f"{trade_nature}_independent",
         **_extra_kwargs,
     )
-    return host.evaluate_and_execute_proposal(
-        db=db,
-        session=session,
-        proposal=proposal,
-        market_summary=market_summary,
-        session_mode=session_mode,
-    )
+    _eval = getattr(host, "evaluate_and_execute_proposal", None)
+    if not callable(_eval):
+        logger.error(
+            "[MidLong] host missing evaluate_and_execute_proposal (type=%s) symbol=%s",
+            type(host).__name__, _sym_u,
+        )
+        try:
+            from backend.services.mlto.midlong_direction_audit import record_decision_audit
+            record_decision_audit(
+                outcome="skip",
+                stage="exec",
+                symbol=_sym_u,
+                reason="host_missing_evaluate_and_execute_proposal",
+                session_id=str(getattr(session, "session_id", "") or ""),
+                tier=(tier or "").lower(),
+                action=_act,
+                mode=hub_mode or "",
+                direction=hub_dir or "",
+                authority=authority or "",
+                extra={"host_type": type(host).__name__},
+            )
+        except Exception:
+            pass
+        return False
+
+    try:
+        _ok = bool(_eval(
+            db=db,
+            session=session,
+            proposal=proposal,
+            market_summary=market_summary,
+            session_mode=session_mode,
+        ))
+    except Exception as _eval_err:
+        logger.warning(
+            "[MidLong] evaluate_and_execute_proposal failed %s: %s",
+            _sym_u, _eval_err,
+        )
+        try:
+            from backend.services.mlto.midlong_direction_audit import record_decision_audit
+            record_decision_audit(
+                outcome="skip",
+                stage="exec",
+                symbol=_sym_u,
+                reason=("exec_exception:%s:%s" % (type(_eval_err).__name__, _eval_err))[:160],
+                session_id=str(getattr(session, "session_id", "") or ""),
+                tier=(tier or "").lower(),
+                action=_act,
+                mode=hub_mode or "",
+                direction=hub_dir or "",
+                authority=authority or "",
+            )
+        except Exception:
+            pass
+        return False
+
+    if _ok and _act in ("buy", "sell"):
+        try:
+            from backend.services.mlto.midlong_direction_audit import record_open_audit
+            from backend.services.mlto.decision_hub import ai_governed_enabled
+            _mode = hub_mode or ("ai_governed" if ai_governed_enabled() else "standard")
+            record_open_audit(
+                symbol=_sym_u,
+                fill_dir=_act,
+                thesis_dir=thesis_dir,
+                hub_dir=hub_dir,
+                sl_source=_sl_source or "",
+                mode=_mode,
+                dir_src=dir_src,
+                authority=authority,
+                session_id=str(getattr(session, "session_id", "") or ""),
+            )
+        except Exception as _aud_err:
+            logger.debug("[MidLongAudit] open record skip: %s", _aud_err)
+    elif not _ok and _act in ("buy", "sell"):
+        try:
+            from backend.services.mlto.midlong_direction_audit import record_decision_audit
+            record_decision_audit(
+                outcome="skip",
+                stage="exec",
+                symbol=_sym_u,
+                reason="evaluate_and_execute_returned_false",
+                session_id=str(getattr(session, "session_id", "") or ""),
+                tier=(tier or "").lower(),
+                action=_act,
+                mode=hub_mode or "",
+                direction=hub_dir or "",
+                authority=authority or "",
+            )
+        except Exception:
+            pass
+    return _ok
 
 def record_midlong_factor_snapshots(
     *,
@@ -632,7 +836,7 @@ def persist_independent_scan_log(
     except Exception as _log_err:
         logger.debug("[ScanLog] %s %s 审计落库跳过: %s", symbol, tier, _log_err)
 
-def _compute_midlong_indicator_block(kdf) -> dict:
+def _compute_midlong_indicator_block(kdf, period: Optional[str] = None) -> dict:
     """从 OHLCV DataFrame 计算长线 quant brief / MLTO 所需指标。
 
     [2026-07-31] 补齐 macd_hist / adx / trend：此前只写 RSI/EMA，导致
@@ -698,10 +902,33 @@ def _compute_midlong_indicator_block(kdf) -> dict:
     except Exception:
         pass
     if "volume" in kdf.columns and len(kdf) >= 20:
-        _vol_ma = kdf["volume"].iloc[-20:].mean()
-        _ind["vol_ratio"] = round(
-            float(kdf["volume"].iloc[-1] / _vol_ma), 2
-        ) if _vol_ma > 0 else 1.0
+        _vol = kdf["volume"]
+        _period_sec_map = {
+            "1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
+            "1h": 3600, "2h": 7200, "4h": 14400, "6h": 21600, "8h": 28800,
+            "12h": 43200, "1d": 86400, "1w": 604800, "1M": 2592000,
+        }
+        _period_sec = _period_sec_map.get(period, 0) if period else 0
+        _last_ts = (
+            int(kdf["timestamp"].iloc[-1])
+            if "timestamp" in kdf.columns and kdf["timestamp"].iloc[-1] is not None
+            else 0
+        )
+        _partial = bool(
+            _period_sec > 0 and _last_ts > 0
+            and int(time.time()) < _last_ts + _period_sec
+        )
+        if _partial and len(kdf) >= 2:
+            _cur_vol = float(_vol.iloc[-2])
+            _vol_ma = float(_vol.iloc[-21:-1].mean())
+        else:
+            _cur_vol = float(_vol.iloc[-1])
+            _vol_ma = float(_vol.iloc[-20:].mean())
+        _ind["vol_ratio"] = (
+            round(_cur_vol / _vol_ma, 2)
+            if _vol_ma > 0 and _cur_vol > 0
+            else None
+        )
     # 最近30根 OHLCV（带时间）喂提示词 / evidence / MLTO brief
     _cols = [c for c in ("datetime", "timestamp", "open", "high", "low", "close", "volume") if c in kdf.columns]
     _recent = kdf.tail(30)[_cols].round(4) if _cols else kdf.tail(30)
@@ -714,6 +941,44 @@ def _indicator_block_incomplete(ind: dict | None) -> bool:
     if not isinstance(ind, dict) or not ind:
         return True
     return any(ind.get(k) is None for k in ("rsi", "ema_trend", "macd_hist", "adx", "trend"))
+
+
+def _inject_structure_levels(ms: dict) -> None:
+    """从 4h K线最近 8 根摆动高低点补算支撑/阻力，写入 ms['structure_levels']。
+
+    仅供 quant_brief 展示与 LLM 关键位参考；数据不足或结构位不跨现价两侧时
+    保持缺失（下游输出诚实的“无明确支撑/阻力数据”文案），绝不虚构数值。
+    """
+    if not isinstance(ms, dict) or ms.get("structure_levels"):
+        return
+    _ind4 = ms.get("indicators_4h")
+    if not isinstance(_ind4, dict):
+        return
+    rows = _ind4.get("recent_klines")
+    if not isinstance(rows, list) or len(rows) < 8:
+        return
+    highs: list = []
+    lows: list = []
+    for row in rows[-8:]:
+        if not isinstance(row, dict):
+            continue
+        try:
+            h = float(row.get("high") or 0)
+            l = float(row.get("low") or 0)
+        except (TypeError, ValueError):
+            continue
+        if h > 0:
+            highs.append(h)
+        if l > 0:
+            lows.append(l)
+    if len(highs) < 3 or len(lows) < 3:
+        return
+    price = float(ms.get("current_price") or ms.get("price") or 0)
+    support = min(lows)
+    resistance = max(highs)
+    if price > 0 and (support >= price or resistance <= price):
+        return
+    ms["structure_levels"] = {"support": support, "resistance": resistance}
 
 
 def inject_midlong_indicators(
@@ -733,11 +998,24 @@ def inject_midlong_indicators(
     try:
         from backend.services.decision_core.regime_agent import classify_regime
         _reg = classify_regime(ms)
-        ms.setdefault("regime", {
+        _fresh_regime = {
             "name": _reg.regime,
             "size_multiplier": getattr(_reg, "size_multiplier", 1.0),
             "detail": getattr(_reg, "detail", "") or "",
-        })
+        }
+        _existing_regime = ms.get("regime")
+        if isinstance(_existing_regime, dict):
+            # 陈旧/占位 name（unknown/空）用新分类愈合；已有有效 name 保留
+            if not _existing_regime.get("name") or str(
+                _existing_regime.get("name")
+            ).strip().lower() in ("", "unknown"):
+                _existing_regime["name"] = _fresh_regime["name"]
+            _existing_regime.setdefault(
+                "size_multiplier", _fresh_regime["size_multiplier"]
+            )
+            _existing_regime.setdefault("detail", _fresh_regime["detail"])
+        else:
+            ms["regime"] = _fresh_regime
     except Exception:
         pass
     # S4 基座：把中长线活跃因子在 4h/1d 的读数注入 market_data，供 Swing/Trend 参考。
@@ -754,7 +1032,9 @@ def inject_midlong_indicators(
         pass
     # 长线(include_weekly)把 1w 也纳入"是否需要补K线"的判断，否则 1h/4h/1d 齐了
     # 就提前 return、周线永远补不上 → 长线继续被 StrictData 卡死。
-    _tfs = ("1h", "4h", "1d", "1w") if include_weekly else ("1h", "4h", "1d")
+    # [2026-08-10 v3.1.0] 中线（非 weekly）额外纳入 15m：供入场择时验证，
+    # qual_layer 的 K 线摘要段优先读 indicators_15m.recent_klines。
+    _tfs = ("1h", "4h", "1d", "1w") if include_weekly else ("15m", "1h", "4h", "1d")
     # 缺整块 或 缺 macd/adx/trend → 都要重算（不能因“有个空壳 indicators_1h”就提前 return）
     _need_klines = any(_indicator_block_incomplete(ms.get(f"indicators_{_tf}")) for _tf in _tfs)
     if not _need_klines:
@@ -776,6 +1056,7 @@ def inject_midlong_indicators(
             inject_derivatives_into_market_summary(market_summary, sym)
         except Exception:
             pass
+        _inject_structure_levels(ms)
         return
     try:
         import pandas as _kp
@@ -786,7 +1067,7 @@ def inject_midlong_indicators(
             # 周线数据天然稀少，最小根数放宽到 8（对齐主循环 :8776）；其余周期仍要 20 根。
             _min_bars = 8 if _tf == "1w" else 20
             # 决策热路径：只走 data_center(purpose=trade)，禁止 get_kline_data 旁路/过期兜底
-            _raw = _ks.get_klines_from_db(sym, _tf, count=60)
+            _raw = _ks.get_aggregated_klines(sym, _tf, count=60)
             if not _raw or len(_raw) < _min_bars:
                 logger.info(
                     "[MidLong] %s/%s K线不足(%s<%s)，跳过该周期（不跨所/不借大盘）",
@@ -796,7 +1077,9 @@ def inject_midlong_indicators(
             _kdf = _kp.DataFrame(_raw)
             if "datetime" not in _kdf.columns and "timestamp" in _kdf.columns:
                 _kdf["datetime"] = _kp.to_datetime(_kdf["timestamp"], unit="s", utc=True).astype(str)
-            ms[f"indicators_{_tf}"] = _compute_midlong_indicator_block(_kdf)
+            ms[f"indicators_{_tf}"] = _compute_midlong_indicator_block(
+                _kdf, period=_tf
+            )
             # [P1-修复] 从 1h K线补算 price_change_1h/24h_pct 与 volatility_pct：
             # 独立循环 merge 后这三个字段可能缺失，导致 classify_regime 恒判 ranging。
             # 用与 unified_data_pool 一致的 1h 口径（close[-1]/close[-2]、close[-1]/close[-25]）。
@@ -839,3 +1122,4 @@ def inject_midlong_indicators(
         inject_derivatives_into_market_summary(market_summary, sym)
     except Exception:
         pass
+    _inject_structure_levels(ms)

@@ -15,8 +15,9 @@ TIER_HOLD_EXTENSION_MAX_MULT = float(os.getenv("TIER_HOLD_EXTENSION_MAX_MULT", "
 AI_EXTEND_HOLD_HOURS_MIN = float(os.getenv("AI_EXTEND_HOLD_HOURS_MIN", "4"))
 AI_EXTEND_HOLD_HOURS_MAX = float(os.getenv("AI_EXTEND_HOLD_HOURS_MAX", "16"))
 
-# 短线（scalp/intraday）：禁止 AI 复审/延长，超时规则强平
-_SHORT_NO_AI_HOLD_NATURES = frozenset({"scalp", "intraday"})
+# 无 AI 复审/延长车道：短线（scalp/intraday）超时规则强平；
+# 研究车道（pair_research/research）与 mid 完全隔离，2h 固定上限同样规则强平
+_SHORT_NO_AI_HOLD_NATURES = frozenset({"scalp", "intraday", "pair_research", "research"})
 
 
 def is_short_no_ai_hold_nature(nature: str | None) -> bool:
@@ -60,7 +61,12 @@ def resolve_tier_review_seconds(pos: PositionLike) -> int:
 
         default = int(TIER_PROTECTION_PARAMS.get(tier, {}).get("max_hold_sec", 0) or 0)
         base = int(get_tier_value("tier_max_hold_sec", tier, float(default)))
-        mult = paper_pace_controller.get_knobs().hold_timeout_multiplier
+        # [三周期持仓时间收敛 2026-08-13] 短线/研究车道复审点固定（pace 节奏倍率
+        # 不生效），否则同一仓时限随 gear 在 0.85x~1.8x 漂移；mid/long 保留 pace 倍率。
+        if tier in ("short", "research"):
+            mult = 1.0
+        else:
+            mult = paper_pace_controller.get_knobs().hold_timeout_multiplier
         return max(60, int(base * mult))
     except Exception:
         from backend.config.settings import TIER_PROTECTION_PARAMS

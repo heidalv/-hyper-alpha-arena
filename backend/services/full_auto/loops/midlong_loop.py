@@ -11,7 +11,7 @@ mid_view 子结构提供（Phase 2 起 qual_layer prompt 同时产出 long + mid
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from backend.services.full_auto_trading_service import FullAutoTradingService
@@ -85,15 +85,78 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
                 handled.clear()
         except Exception as _clr_err:
             logger.debug("[MidLongAgent独立] handled_keys clear skip: %s", _clr_err)
-        # [源头切断] 长线只用固定交易对,绝不含 auto-coin
-        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+        # [源头切断] 长线只用固定交易对,绝不含 auto-coin / 历史 AI 选币
+        from backend.services.auto_coin_selector import (
+            get_ai_mid_candidates_for_session,
+            get_fixed_symbols_for_session,
+            sanitize_fixed_symbols_column,
+        )
         _session_id = getattr(session, "session_id", None)
-        _fixed = get_fixed_symbols_for_session(_session_id, db) if _session_id else set()
-        symbols = list(_fixed) if _fixed else self._resolve_session_trade_symbols(session, db)
-        logger.info(f"[MidLongAgent独立] tick#{tick} 固定符号={symbols}(auto-coin已从源头切断)")
-        market_summary = session.last_market_summary if isinstance(session.last_market_summary, dict) else {}
+        if _session_id:
+            try:
+                _san = sanitize_fixed_symbols_column(_session_id, db)
+                if _san.get("removed"):
+                    logger.warning(
+                        "[MidLongAgent独立] 清洗伪固定AI币 session=%s removed=%s kept=%s",
+                        _session_id, _san.get("removed"), _san.get("kept"),
+                    )
+                    db.refresh(session)
+            except Exception as _san_err:
+                logger.debug("[MidLongAgent独立] sanitize_fixed skip: %s", _san_err)
+        _fixed_long = (
+            get_fixed_symbols_for_session(_session_id, db, tier="long")
+            if _session_id else set()
+        )
+        _fixed_mid = (
+            get_fixed_symbols_for_session(_session_id, db, tier="mid")
+            if _session_id else set()
+        )
+        # [2026-08-10 问题三] AI 中线候选：只读消费平台看板 midlong approve，
+        # 仅走 mid lane（与长线白名单正交、互不污染）；候选为空时
+        # _run_mid 仍可因固定中线币而继续。
+        _ai_mid: List[str] = []
+        if _session_id:
+            try:
+                _ai_mid = list(get_ai_mid_candidates_for_session(_session_id, db=db) or [])
+            except Exception as _ai_err:
+                logger.debug("[MidLongAgent独立] AI 中线候选查询跳过: %s", _ai_err)
+        # 续管：已开 mid 仓即使不在候选表，也并入本轮 mid 扫描/管仓集合
+        _ai_mid_hold: List[str] = []
         try:
-            fresh = self._scan_markets(db, symbols)
+            _acct = self._get_trading_account_id(db, session) if hasattr(self, "_get_trading_account_id") else None
+            if not _acct:
+                _acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
+            if _acct:
+                from backend.services.full_auto.midlong_position_manager import (
+                    _open_midlong_positions as _omp,
+                )
+                for _p in _omp(db, int(_acct)) or []:
+                    if str(_p.get("timeframe_tier") or "").lower() == "mid" or str(
+                        _p.get("trade_nature") or ""
+                    ).lower() == "swing":
+                        _su = str(_p.get("symbol") or "").upper()
+                        if _su and _su not in _ai_mid and _su not in _ai_mid_hold:
+                            _ai_mid_hold.append(_su)
+        except Exception as _hold_err:
+            logger.debug("[MidLongAgent独立] mid 持仓续管并入跳过: %s", _hold_err)
+        _ai_mid_scan = list(dict.fromkeys(list(_ai_mid) + list(_ai_mid_hold)))
+        # 长线只扫 long 固定；中线宇宙 = mid 固定 ∪ AI中线 ∪ 续管持仓
+        symbols = list(_fixed_long) if _fixed_long else []
+        _mid_universe = list(dict.fromkeys(list(_fixed_mid) + list(_ai_mid_scan)))
+        if not symbols:
+            logger.warning(
+                "[MidLongAgent独立] tick#%s 长线白名单为空，跳过入场分析（不回退全量交易对）",
+                tick,
+            )
+        logger.info(
+            f"[MidLongAgent独立] tick#{tick} 固定long={symbols} 固定mid={list(_fixed_mid)} "
+            f"ai_mid={_ai_mid} hold={_ai_mid_hold} mid_universe={_mid_universe}"
+        )
+        market_summary = session.last_market_summary if isinstance(session.last_market_summary, dict) else {}
+        # 市场扫描覆盖 long(fixed) + mid(固定∪AI∪续管)
+        _scan_syms = list(dict.fromkeys(list(symbols) + list(_mid_universe)))
+        try:
+            fresh = self._scan_markets(db, _scan_syms)
             if isinstance(fresh, dict) and fresh:
                 # [P1-修复] 原实现 {**market_summary, **fresh} 用 scan dict 整体替换
                 # symbol 条目，而 scan dict 不含 price_change_1h/24h_pct、volatility_pct
@@ -111,10 +174,10 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
                 db.flush()
         except Exception as _scan_err:
             logger.debug("[MidLongAgent独立] 市场扫描跳过: %s", _scan_err)
-        if symbols:
-            self._ensure_market_prices(market_summary, symbols)
+        if _scan_syms:
+            self._ensure_market_prices(market_summary, _scan_syms)
         # 编排器结果在 OrchBG 缓存里，合并进 market_summary（含 XPL 等非 session.symbols 币）
-        for _sym in symbols:
+        for _sym in _scan_syms:
             # 修复4：跳过数据不可靠的品种
             _sym_data = market_summary.get(_sym) or {}
             if not _sym_data.get("data_reliable", True) or _sym_data.get("data_stale"):
@@ -138,24 +201,30 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
             _batch_n = max(1, int(MIDLONG_SCAN_BATCH or 1))
         except Exception:
             _batch_n = 1
-        _cursor = self._midlong_symbol_cursor.get(session_id, 0)
-        if symbols:
-            _n = min(_batch_n, len(symbols))
-            _sym_one = [symbols[(_cursor + i) % len(symbols)] for i in range(_n)]
-        else:
-            _sym_one = []
-        # [阶段4] mid 不再单独调度——中线由长线 thesis 的 mid_view 统一产出。
-        # _run_mid 强制 False：保留调度器 due 里的 mid 信号仅作游标推进/可观测性，
-        # 实际 LLM/开仓只走 long（含 mid_view）。
-        _run_mid = False
+        # 中线：固定交易对始终在 + AI中线≤3 + 续管；不再只扫 AI 候选
+        _run_mid = ("mid" in due) and bool(_mid_universe)
         _run_long = "long" in due
-        # 游标每 tick 前进一个 batch，保证滚动覆盖全部 symbol（不再仅在 long 轮才前进）。
-        if symbols:
-            self._midlong_symbol_cursor[session_id] = (_cursor + len(_sym_one)) % len(symbols)
+        # 分游标：long 只滚固定币；mid 滚固定∪AI∪续管
+        _sym_one: List[str] = []
+        if _run_long and symbols:
+            _long_cur = int(self._midlong_symbol_cursor.get(session_id, 0) or 0)
+            _n_long = min(_batch_n, len(symbols))
+            _long_batch = [symbols[(_long_cur + i) % len(symbols)] for i in range(_n_long)]
+            _sym_one.extend(_long_batch)
+            self._midlong_symbol_cursor[session_id] = (_long_cur + _n_long) % len(symbols)
+        if _run_mid and _mid_universe:
+            if not hasattr(self, "_midlong_ai_mid_cursor"):
+                self._midlong_ai_mid_cursor = {}
+            _mid_cur = int(self._midlong_ai_mid_cursor.get(session_id, 0) or 0)
+            _n_mid = min(_batch_n, len(_mid_universe))
+            _mid_batch = [_mid_universe[(_mid_cur + i) % len(_mid_universe)] for i in range(_n_mid)]
+            _sym_one.extend(_mid_batch)
+            self._midlong_ai_mid_cursor[session_id] = (_mid_cur + _n_mid) % len(_mid_universe)
+        _sym_one = list(dict.fromkeys(_sym_one))
         _trade_mode = (getattr(session, "trading_mode", None) or "paper").strip().lower()
         logger.info(
-            "[MidLongAgent独立] batch=%s mid=deprecated long=%s scan_n=%d",
-            _sym_one, _run_long, len(_sym_one),
+            "[MidLongAgent独立] batch=%s mid=%s long=%s scan_n=%d ai_mid=%s mid_u=%s",
+            _sym_one, _run_mid, _run_long, len(_sym_one), _ai_mid, _mid_universe,
         )
         _portfolio = self._build_portfolio_for_agents(db, session)
         _pos_list = _portfolio.get("positions") or []

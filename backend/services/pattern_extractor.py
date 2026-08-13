@@ -143,7 +143,13 @@ class PatternExtractor:
             StrategyMemory.total_trades >= MIN_TOTAL_TRADES,
         )
         if account_id:
-            query = query.filter(StrategyMemory.id == account_id)  # placeholder
+            # [2026-08-11 修复] 原占位过滤写成了 id == account_id（strategy_memories
+            # 没有 account_id 字段）。改为按 ai_strategies.account_id 关联过滤。
+            from backend.database.models import AIStrategy
+            query = query.join(
+                AIStrategy,
+                AIStrategy.strategy_id == StrategyMemory.strategy_id,
+            ).filter(AIStrategy.account_id == account_id)
 
         results = []
         for memory in query.all():

@@ -67,6 +67,8 @@ class PurgeReport:
     rejected_pool: int = 0        # 增量池筛选
     rejected_dsr_pbo: int = 0
     surviving: int = 0
+    # applied=数值层 QR 已跑；skipped_no_matrix=调用方未供矩阵；skipped_trivial=因子数不足
+    ortho_status: str = "skipped_no_matrix"
     candidates: list[CandidateFactor] = field(default_factory=list)
 
     def summary(self) -> str:
@@ -78,8 +80,64 @@ class PurgeReport:
             f"质量拒 {self.rejected_quality}, "
             f"池筛拒 {self.rejected_pool}, "
             f"DSR/PBO 拒 {self.rejected_dsr_pbo} → "
-            f"幸存 {self.surviving}"
+            f"幸存 {self.surviving} "
+            f"(ortho={self.ortho_status})"
         )
+
+
+def default_dsr_pbo_gate(
+    survivors: list[CandidateFactor],
+    *,
+    sample_len: int = 252,
+    n_total_candidates: int | None = None,
+) -> tuple[list[CandidateFactor], list[CandidateFactor]]:
+    """Stage7 内置 DSR/PBO：禁止调用方漏传导致空跑。
+
+    用幸存者 ICIR 集做多重检验；整批未过则全部拒绝（与 promote 全局语义一致，
+    但发生在 purge，漏斗可计数）。
+    """
+    from backend.services.factor_engine.dsr_pbo import compute_dsr_pbo_for_factors
+
+    if not survivors:
+        return [], []
+    icirs = []
+    for c in survivors:
+        r = c.eval_result
+        if r is not None and np.isfinite(getattr(r, "icir", float("nan"))):
+            icirs.append(float(r.icir))
+    if not icirs:
+        rejected = []
+        for c in survivors:
+            c.status = "REJECTED"
+            c.reject_reason = "DSR/PBO：无有效 ICIR"
+            rejected.append(c)
+        return [], rejected
+
+    n_trials = max(int(n_total_candidates or len(survivors)), len(icirs), 1)
+    # 冷启动：仅少数幸存者时用幸存者数作分母，避免搜索广度自杀
+    if len(survivors) <= 5:
+        n_trials = max(len(survivors), 1)
+
+    result = compute_dsr_pbo_for_factors(
+        icir_list=icirs,
+        n_total_candidates=n_trials,
+        sample_len=max(50, int(sample_len)),
+    )
+    if result.get("overall_passes"):
+        return survivors, []
+
+    dsr = (result.get("dsr_result") or {})
+    pbo = (result.get("pbo_result") or {})
+    reason = (
+        f"DSR/PBO 未过 dsr_sig={dsr.get('significant')} "
+        f"pbo={pbo.get('pbo')}"
+    )
+    rejected = []
+    for c in survivors:
+        c.status = "REJECTED"
+        c.reject_reason = reason
+        rejected.append(c)
+    return [], rejected
 
 
 def _normalize_ast_for_dedup(ast: dict) -> str:
@@ -261,26 +319,35 @@ def stage4_data_quality(
 def stage5_orthogonalize(
     candidates: list[CandidateFactor],
     factor_matrix_fn: Callable[[list[CandidateFactor]], np.ndarray],
-) -> list[CandidateFactor]:
-    """
-    步骤 5：symmetric 正交化。
-    输入因子矩阵（n_samples × n_factors），输出残差因子（去相关）。
+) -> tuple[list[CandidateFactor], str]:
+    """步骤 5：数值层 QR 正交化。
+
+    保留可解释 AST；把正交化后的列相关残差写入 ``c._ortho_column``（调用方可选用）。
+    禁止再写 ``expr_ast = expr_ast`` 空操作却宣称已正交。
+    返回 (candidates, status) status ∈ applied|skipped_trivial|failed。
     """
     if len(candidates) <= 1:
-        return candidates
-    F = factor_matrix_fn(candidates)  # (n, k)
-    if F.shape[1] < 2:
-        return candidates
-    # symmetric: F_orth = F (F'F)^{-1} F'F ... 简化用 QR
+        return candidates, "skipped_trivial"
     try:
-        Q, R = np.linalg.qr(F)
-        # Q 即正交化后的因子（列正交）
-        # 标记正交化完成（实际因子值由调用方用 Q 重建）
+        F = np.asarray(factor_matrix_fn(candidates), dtype=float)
+    except Exception:
+        return candidates, "failed"
+    if F.ndim != 2 or F.shape[1] < 2:
+        return candidates, "skipped_trivial"
+    try:
+        # 列标准化后 QR，得到正交列；不改写 AST
+        col_std = np.nanstd(F, axis=0)
+        col_std = np.where(col_std < 1e-12, 1.0, col_std)
+        F_n = (F - np.nanmean(F, axis=0)) / col_std
+        F_n = np.nan_to_num(F_n, nan=0.0, posinf=0.0, neginf=0.0)
+        Q, _R = np.linalg.qr(F_n)
         for i, c in enumerate(candidates):
-            c.expr_ast = c.expr_ast  # 保留原 AST，正交化是数值层操作
-        return candidates
+            if i < Q.shape[1]:
+                setattr(c, "_ortho_column", Q[:, i].copy())
+                setattr(c, "_ortho_applied", True)
+        return candidates, "applied"
     except np.linalg.LinAlgError:
-        return candidates
+        return candidates, "failed"
 
 
 def stage6_pool_select(
@@ -348,9 +415,13 @@ def run_purge_pipeline(
     config: PurgeConfig | None = None,
     thresholds: LifecycleThresholds | None = None,
     dsr_pbo_gate: Callable[[list[CandidateFactor]], tuple[list[CandidateFactor], list[CandidateFactor]]] | None = None,
+    sample_len: int = 252,
+    n_total_candidates: int | None = None,
 ) -> tuple[list[CandidateFactor], PurgeReport]:
     """
     运行完整清洗管线。返回 (活跃因子列表, 报告)。
+
+    dsr_pbo_gate 为 None 时使用内置 default_dsr_pbo_gate（禁止 Stage7 空跑）。
     """
     config = config or PurgeConfig()
     thresholds = thresholds or LifecycleThresholds()
@@ -368,26 +439,31 @@ def run_purge_pipeline(
     s3_surv, s3_rej = stage3_cpcv_eval(s2_surv, factor_series_fn, return_series, thresholds)
     report.rejected_eval = len(s3_rej)
 
-    # Stage 4.5: 数据质量门槛（S2-4 L101：因子值缺失比例过高的候选淘汰，
-    # 数据残缺的因子即使样本内 IC 好看也不可信）
+    # Stage 4.5: 数据质量门槛
     s4_surv, s4_rej = stage4_data_quality(s3_surv, config, factor_series_fn=factor_series_fn)
     report.rejected_quality = len(s4_rej)
 
-    # Stage 5: 正交化
+    # Stage 5: 正交化（无 matrix 则显式标记 skipped，禁止伪宣称）
     if factor_matrix_fn:
-        s5_surv = stage5_orthogonalize(s4_surv, factor_matrix_fn)
+        s5_surv, report.ortho_status = stage5_orthogonalize(s4_surv, factor_matrix_fn)
     else:
         s5_surv = s4_surv
+        report.ortho_status = "skipped_no_matrix"
 
     # Stage 6: 增量池筛选
     s6_surv, s6_rej = stage6_pool_select(s5_surv, factor_series_fn, return_series, config)
     report.rejected_pool = len(s6_rej)
 
-    # Stage 7: DSR/PBO 硬门槛（可选，外部提供）
-    final = s6_surv
-    if dsr_pbo_gate:
-        final, dsr_rej = dsr_pbo_gate(s6_surv)
-        report.rejected_dsr_pbo = len(dsr_rej)
+    # Stage 7: DSR/PBO — 未传 callback 时走内置，杜绝空跑
+    gate = dsr_pbo_gate
+    if gate is None:
+        def gate(surv, _sl=sample_len, _n=n_total_candidates or report.total_input):
+            return default_dsr_pbo_gate(
+                surv, sample_len=_sl, n_total_candidates=_n,
+            )
+
+    final, dsr_rej = gate(s6_surv)
+    report.rejected_dsr_pbo = len(dsr_rej)
 
     report.surviving = len(final)
     report.candidates = report.candidates or candidates

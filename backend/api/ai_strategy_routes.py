@@ -2956,12 +2956,14 @@ def auto_launch_strategy(
             if strategy_id not in _ids:
                 _ids.append(strategy_id)
                 existing_session.active_strategy_ids = _ids
-                _syms = list(existing_session.symbols or [])
-                if primary_symbol and primary_symbol not in _syms:
-                    _syms.append(primary_symbol)
-                    existing_session.symbols = _syms
+                # 禁止写 session.symbols：固定列只给用户手动交易对。
+                # 旧逻辑无条件 append(primary_symbol)，会把 AI/临时策略币钉进固定列，
+                # 长线白名单按 symbols−auto_coin 判定后把它们当「真固定」继续分析。
                 db.commit()
-                logger.info(f"[AutoLaunch] 策略 {strategy_id} 已注册到现有 FullAutoSession")
+                logger.info(
+                    f"[AutoLaunch] 策略 {strategy_id} 已注册到现有 FullAutoSession "
+                    f"(不改动固定交易对 symbols; primary={primary_symbol})"
+                )
         else:
             logger.info(
                 f"[AutoLaunch] 无运行中的 FullAutoSession，策略 {strategy_id} 已创建但需手动启动全自动会话")

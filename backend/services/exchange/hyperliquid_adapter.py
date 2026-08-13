@@ -7,6 +7,7 @@ HyperliquidAdapter — Hyperliquid交易所适配器
 
 import asyncio
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from backend.services.exchange.base_exchange_client import (
@@ -44,9 +45,12 @@ class HyperliquidAdapter(BaseExchangeClient):
 
         try:
             import ccxt.async_support as ccxt
-            self._market_exchange = ccxt.hyperliquid({
-                "enableRateLimit": True,
-            })
+            _cfg: Dict[str, Any] = {"enableRateLimit": True}
+            _proxy = os.environ.get("BINANCE_HTTPS_PROXY") or os.environ.get("HTTPS_PROXY")
+            if _proxy:
+                _cfg["proxies"] = {"http": _proxy, "https": _proxy}
+                _cfg["aiohttp_proxy"] = _proxy
+            self._market_exchange = ccxt.hyperliquid(_cfg)
         except ImportError:
             logger.warning("ccxt not installed, HL market data unavailable")
 

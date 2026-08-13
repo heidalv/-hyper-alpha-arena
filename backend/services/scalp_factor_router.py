@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
@@ -29,6 +30,86 @@ from backend.config.settings import (
     SCALP_FACTOR_EXECUTE_THRESHOLD as _SCALP_EXECUTE_THRESHOLD,
 )
 _SCALP_USE_LLM_CONFIRM = os.getenv("SCALP_USE_LLM_CONFIRM", "false").lower() == "true"
+
+# [2026-08-13 P2-12] 山寨币交易过滤：打分币宇宙（FACTOR_SCORER_SYMBOLS）外的币种
+# 需「显式迁移白名单」或「该币独立实盘结算记录达标」才允许交易。
+# 实证：FARTCOIN -0.457%/LIT -1.18%/PUMP -0.479%，山寨币亏损最重且因子可迁移性未验证。
+# 回滚：SCALP_SCORE_UNIVERSE_ONLY=0|false|off。
+_SCALP_UNIVERSE_ONLY = (os.getenv("SCALP_SCORE_UNIVERSE_ONLY", "1") or "1").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+_UNIVERSE_CACHE_SEC = 60.0   # 每币过滤结果缓存秒数（避免每 tick 查库）
+_universe_cache: Dict[str, tuple] = {}
+
+
+def _symbol_universe_allowed(symbol: str) -> tuple:
+    """返回 (allowed, note)：山寨币宇宙过滤判定（TTL 缓存）。"""
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return False, "empty_symbol"
+    _now = time.time()
+    _cached = _universe_cache.get(sym)
+    if _cached and _now - _cached[0] < _UNIVERSE_CACHE_SEC:
+        return _cached[1]
+    if not _SCALP_UNIVERSE_ONLY:
+        return True, "universe_filter_off"
+    try:
+        from backend.config.settings import FACTOR_SCORER_SYMBOLS
+        _universe = {s.strip().upper() for s in str(FACTOR_SCORER_SYMBOLS).split(",") if s.strip()}
+    except Exception:
+        _universe = {"BTC", "ETH", "SOL"}
+    if sym in _universe:
+        result = (True, "score_universe")
+        _universe_cache[sym] = (_now, result)
+        return result
+    # 显式迁移白名单（仅 BTC/ETH/SOL 训练因子的迁移白名单）
+    _allowlist = {
+        s.strip().upper()
+        for s in (os.getenv("SCALP_ALTCOIN_MIGRATION_ALLOWLIST", "") or "").split(",")
+        if s.strip()
+    }
+    if sym in _allowlist:
+        result = (True, "migration_allowlist")
+        _universe_cache[sym] = (_now, result)
+        return result
+    # 该币独立实盘结算记录达标（样本外证据代理）：
+    # 已结算 ≥ SCALP_ALTCOIN_MIN_SETTLED 且胜率 ≥ SCALP_ALTCOIN_MIN_WINRATE。
+    try:
+        _min_n = max(50, int(os.getenv("SCALP_ALTCOIN_MIN_SETTLED", "200") or 200))
+        _min_wr = float(os.getenv("SCALP_ALTCOIN_MIN_WINRATE", "0.42") or 0.42)
+    except (TypeError, ValueError):
+        _min_n, _min_wr = 200, 0.42
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ScalpSignalLog
+        from sqlalchemy import func as _sa_func
+        _db = SessionLocal()
+        try:
+            _n = _db.query(_sa_func.count(ScalpSignalLog.id)).filter(
+                ScalpSignalLog.symbol == sym,
+                ScalpSignalLog.settled == True,  # noqa: E712
+                ScalpSignalLog.win.isnot(None),
+            ).scalar() or 0
+            if _n < _min_n:
+                result = (False, f"altcoin_no_oos_evidence:{_n}<{_min_n}")
+            else:
+                _wins = _db.query(_sa_func.count(ScalpSignalLog.id)).filter(
+                    ScalpSignalLog.symbol == sym,
+                    ScalpSignalLog.settled == True,  # noqa: E712
+                    ScalpSignalLog.win == True,  # noqa: E712
+                ).scalar() or 0
+                _wr = _wins / _n if _n else 0.0
+                if _wr >= _min_wr:
+                    result = (True, f"altcoin_oos_wr:{_wr:.2f}")
+                else:
+                    result = (False, f"altcoin_wr_too_low:{_wr:.2f}<{_min_wr}")
+        finally:
+            _db.close()
+    except Exception as exc:
+        logger.debug("[ScalpRouter] 山寨币过滤检查失败(默认拦截): %s", exc)
+        result = (False, "altcoin_filter_error")
+    _universe_cache[sym] = (_now, result)
+    return result
 
 
 @dataclass
@@ -80,6 +161,11 @@ class ScalpFactorRouter:
         """
         if not market_data or not symbol:
             return ScalpSignal(reasoning="无数据")
+        # [2026-08-13 P2-12] 山寨币宇宙过滤：打分币外的币种需白名单/实盘证据，
+        # 否则直接 hold（诊断：山寨币亏损最重且因子可迁移性未验证）。
+        _uni_ok, _uni_note = _symbol_universe_allowed(symbol)
+        if not _uni_ok:
+            return ScalpSignal(action="hold", reasoning=f"山寨币过滤({_uni_note})，不交易")
         _mode_l = (mode or "paper").strip().lower()
         if not _mode_l:
             _mode_l = str((market_data or {}).get("trading_mode") or "paper").strip().lower()
@@ -139,6 +225,17 @@ class ScalpFactorRouter:
                 breakdown.update(_fusion.breakdown)
         except Exception as e:
             logger.debug(f"[ScalpRouter] AI概率融合失败(安全降级): {e}")
+
+        # [2026-08-13 P0-2] score≥70 高分段历史胜率条件（校准不达标则封顶 69，
+        # 不再凭高分拿高仓位待遇——实证高分桶胜率 36.5% 低于保本线）。
+        try:
+            from backend.services.scalp.scalp_score_calibration import high_score_cap
+            _capped, _cap_note = high_score_cap(factor_score)
+            if _cap_note:
+                factor_score = _capped
+                breakdown["high_score_gate"] = _cap_note
+        except Exception:
+            pass
 
         # 1.7 动态胜率门槛（2026-06-26：根据该币种历史表现自适应门槛）
         adaptive_threshold = self._get_adaptive_threshold(symbol, is_paper=_is_paper)
@@ -307,7 +404,16 @@ class ScalpFactorRouter:
                 # [fix] 传 timeframe 给因子引擎，z-score 归一化按 symbol+timeframe 隔离
                 _md_5m = dict(market_data) if isinstance(market_data, dict) else {"symbol": symbol}
                 _md_5m.setdefault("timeframe", "5m")
-                factor_values_5m = factor_engine.compute_all_factors(klines_5m_df, _md_5m)
+                # 与 scalp_loop 缓存路径共用排除集与精选白名单，避免缓存命中/回退重算口径分裂
+                from backend.services.scalp.scalp_factor_exclude import (
+                    get_scalp_factor_exclude_categories,
+                    get_scalp_factor_allowlist,
+                )
+                _excl = get_scalp_factor_exclude_categories()
+                _allow = get_scalp_factor_allowlist()
+                factor_values_5m = factor_engine.compute_all_factors(
+                    klines_5m_df, _md_5m, exclude_categories=_excl, allowlist=_allow
+                )
 
                 if factor_values_5m:
                     composite_5m = factor_pipeline.compute_weighted_signals(factor_values_5m, _md_5m)
@@ -325,7 +431,9 @@ class ScalpFactorRouter:
                                 klines_15m_df = klines_15m if isinstance(klines_15m, pd.DataFrame) else pd.DataFrame(klines_15m)
                                 _md_15m = dict(market_data) if isinstance(market_data, dict) else {"symbol": symbol}
                                 _md_15m["timeframe"] = "15m"  # [fix] z-score 按 15m 隔离
-                                factor_values_15m = factor_engine.compute_all_factors(klines_15m_df, _md_15m)
+                                factor_values_15m = factor_engine.compute_all_factors(
+                                    klines_15m_df, _md_15m, exclude_categories=_excl, allowlist=_allow
+                                )
                                 if factor_values_15m:
                                     composite_15m = factor_pipeline.compute_weighted_signals(factor_values_15m, _md_15m)
                                     if composite_15m is not None:
@@ -415,7 +523,17 @@ class ScalpFactorRouter:
         return 0
 
     def _get_adaptive_threshold(self, symbol: str, is_paper: bool = True) -> int:
-        """动态胜率门槛：根据该币种近期 scalp 胜率自适应。
+        """动态胜率门槛：按币种近期胜率自适应 + 分数-胜率校准门槛上提（P0-2）。"""
+        base = self._adaptive_threshold_inner(symbol, is_paper)
+        # [2026-08-13 P0-2] 校准门槛只升不降：历史分桶胜率决定的保本门槛优先
+        try:
+            from backend.services.scalp.scalp_score_calibration import effective_threshold
+            return int(effective_threshold(base))
+        except Exception:
+            return base
+
+    def _adaptive_threshold_inner(self, symbol: str, is_paper: bool = True) -> int:
+        """动态胜率门槛（原有逻辑，见 _get_adaptive_threshold docstring）。
 
         胜率 < 30%（连亏币）→ 门槛提高（Live 50；Paper 有上限，默认 38）
         胜率 > 60%（表现好）→ 门槛降到 CONFIRM-5（最低 25）

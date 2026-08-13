@@ -225,3 +225,20 @@ def run_train_scalp_meta() -> _Job:
         return rep
 
     return factor_job_manager.submit("scalp_meta_train", _fn)
+
+
+def run_train_tp_sl(tiers: Optional[list] = None) -> _Job:
+    """后台执行止盈止损网格训练（样本外选优，写 latest.json）。"""
+
+    def _fn(job: _Job) -> Dict[str, Any]:
+        job.total = 1
+        job.message = "网格搜索 TP/SL（short/mid/long）"
+        from backend.services.risk.tp_sl_grid_trainer import run_train_tp_sl as _train
+
+        rep = _train(tiers=tiers)
+        job.progress = 1
+        keys = list((rep.get("by_tier") or {}).keys())
+        job.message = f"完成: tiers={keys} ok={rep.get('ok')}"
+        return rep
+
+    return factor_job_manager.submit("tp_sl_train", _fn)

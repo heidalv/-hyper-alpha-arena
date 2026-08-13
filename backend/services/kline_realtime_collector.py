@@ -292,8 +292,12 @@ class KlineRealtimeCollector:
         #   4h  —— 每 15 分钟刷一次（4h K 线 4 小时才结算一根，15 分钟刷足以不落后）
         #   1d  —— 整点 (minute==0) 刷一次即可
         #   1w  —— 每日 0 点刷一次（周线一根/周，日更足够）
-        self.periods = ["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]
-        self._short_backfill_periods = [p for p in self.periods if p != "1w"]
+        #   1M  —— 月线一根/月，随 P1 低频组轮转即可（无需每日刷）
+        # [2026-08-10 修复] 全周期纳入 1M 月线：此前 asterdex 主所从未采集月线
+        #（长线分析缺月线锚，用户反馈数据不全）。
+        self.periods = ["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M"]
+        # 短周期全深度回填只针对日内周期；1w/1M 由 P1 浅补 + P2 深历史覆盖
+        self._short_backfill_periods = [p for p in self.periods if p not in ("1w", "1M")]
         # P1 多交易所：每所独立 catalog / 游标 / 刷新时间
         self._p1_cursors: dict = {}
         self._p1_catalogs: dict = {}  # ex -> List[str]
@@ -835,7 +839,7 @@ class KlineRealtimeCollector:
         interval_s = max(30, int(os.getenv("KLINE_P1_WATCH_INTERVAL_S", "240")))
         logger.info(f"[P1-Watch] freshness watch loop started (interval={interval_s}s)")
         await asyncio.sleep(20)  # 让 P0/P1 先占资源
-        _long_periods = ("4h", "1d", "1w")  # 阈值宽（4h=8h critical），无需每轮刷
+        _long_periods = ("4h", "1d", "1w", "1M")  # 阈值宽（4h=8h critical），无需每轮刷
         round_no = 0
         while self.running:
             round_no += 1
@@ -862,6 +866,34 @@ class KlineRealtimeCollector:
                 t0 = time.time()
                 ok = err = 0
                 for ex in exchanges:
+                    # [2026-08-11 修复] 活跃所观察币并入“交易宇宙 + 选币研究池”，
+                    # 保证 auto_coin/持仓/active 策略币的 15m/30m/1h 分钟级刷新，
+                    # 不再依赖 P1 游标轮转（519 币轮一圈要数小时）。
+                    watch_ex = list(watch)
+                    if ex == active:
+                        try:
+                            merged: List[str] = []
+                            for s in (get_trade_universe_symbols() + get_research_priority_symbols(80)):
+                                su = normalize_symbol(s)
+                                if su and su not in merged:
+                                    merged.append(su)
+                            watch_ex = list(dict.fromkeys(watch_ex + merged))
+                        except Exception as _we:
+                            logger.debug(f"[P1-Watch] merge trade universe failed: {_we}")
+                    try:
+                        _cat = self._p1_catalogs.get(ex)
+                        if _cat:
+                            watch_ex = [s for s in watch_ex if s in _cat]
+                    except Exception:
+                        pass
+                    try:
+                        _max_watch = int(os.getenv(
+                            "KLINE_P1_WATCH_MAX_SYMBOLS",
+                            "60" if ex == active else "12",
+                        ))
+                    except Exception:
+                        _max_watch = 60 if ex == active else 12
+                    watch_ex = watch_ex[:_max_watch]
                     periods_for_ex = all_periods
                     if ex == active:
                         # active 所 1m/3m/5m 由 P0 每分钟覆盖，不重复请求
@@ -872,7 +904,7 @@ class KlineRealtimeCollector:
                         periods_for_ex = [p for p in periods_for_ex if p not in _long_periods]
                     tasks = [
                         asyncio.create_task(_limited(s, p, ex))
-                        for s in watch
+                        for s in watch_ex
                         for p in periods_for_ex
                     ]
                     if not tasks:
@@ -896,7 +928,7 @@ class KlineRealtimeCollector:
                         err += len(pending)
                 logger.info(
                     f"[P1-Watch] done ok={ok} err={err} elapsed={time.time() - t0:.0f}s "
-                    f"symbols={watch} exchanges={exchanges}"
+                    f"symbols={watch_ex} exchanges={exchanges}"
                 )
             except asyncio.CancelledError:
                 logger.info("[P1-Watch] cancelled")
@@ -952,7 +984,7 @@ class KlineRealtimeCollector:
         """仓储全量周期（不是短线三档）。可用 KLINE_P1_PERIODS 覆盖。"""
         raw = os.getenv(
             "KLINE_P1_PERIODS",
-            "1m,3m,5m,15m,30m,1h,4h,1d,1w",
+            "1m,3m,5m,15m,30m,1h,4h,1d,1w,1M",
         )
         periods = [p.strip() for p in raw.split(",") if p.strip()]
         return periods or list(self.periods)
@@ -970,7 +1002,7 @@ class KlineRealtimeCollector:
         groups_def = [
             ["1m", "3m", "5m"],
             ["15m", "30m", "1h"],
-            ["4h", "1d", "1w"],
+            ["4h", "1d", "1w", "1M"],
         ]
         out: List[List[str]] = []
         for g in groups_def:
@@ -986,6 +1018,13 @@ class KlineRealtimeCollector:
 
     def _p1_depth_days(self, period: str) -> int:
         """P1 薄弱时只补「浅层」近端，深历史交给 P2，避免单批卡死。"""
+        # [2026-08-10 修复] "1M" 月线与 "1m" 分钟周期 env 键同名（KLINE_P1_DEPTH_DAYS_1M
+        # 已被 1m 占用，.env=30 天）→ 月线走专用键，避免误读 30 天（≈1 根月线）触发反复深补。
+        if period == "1M":
+            try:
+                return max(1, int(os.getenv("KLINE_P1_DEPTH_DAYS_1M_MONTH", "1825")))
+            except (TypeError, ValueError):
+                return 1825
         env_key = f"KLINE_P1_DEPTH_DAYS_{period.upper()}"
         if os.getenv(env_key):
             try:
@@ -1003,6 +1042,7 @@ class KlineRealtimeCollector:
             "4h": 60,
             "1d": 180,
             "1w": 365,
+            "1M": 1825,
         }
         return int(defaults.get(period, 7))
 
@@ -1022,6 +1062,7 @@ class KlineRealtimeCollector:
             "4h": 120,
             "1d": 120,
             "1w": 40,
+            "1M": 12,
         }
         override = os.getenv("KLINE_P1_MIN_BARS", "").strip()
         if override:
@@ -1127,6 +1168,23 @@ class KlineRealtimeCollector:
         exchange = (exchange or self._p1_sync_exchanges()[0]).strip().lower()
         if exchange == "aster":
             exchange = "asterdex"
+        # [2026-08-11 修复] 冷所（binance/okx/bybit/gateio）自己的冷却窗口：
+        # 冷却期内整批跳过，不再对每个 symbol 逐个报错把一次限流放大成几十上百个失败。
+        from backend.services.kline_collectors import _ColdExchangeRateLimiter
+        if exchange != "asterdex" and _ColdExchangeRateLimiter.banned_remaining(exchange) > 0:
+            logger.info(
+                "[P1] %s 限流冷却中（%.0fs 后恢复），本轮整批跳过",
+                exchange, _ColdExchangeRateLimiter.banned_remaining(exchange),
+            )
+            try:
+                from backend.services.kline_sync_meta import record_heartbeat
+                record_heartbeat(
+                    exchange, pool="p1", period="*", symbols_ok=0, symbols_fail=0,
+                    meta={"skipped": "rate_limit_cooldown"},
+                )
+            except Exception:
+                pass
+            return
         catalog = self._refresh_p1_catalog(exchange)
         if not catalog:
             logger.warning(f"[P1] empty catalog for {exchange}")
@@ -1209,12 +1267,16 @@ class KlineRealtimeCollector:
                     else:
                         err += 1
                 except ExchangeRateLimitError as e:
-                    # [2026-08-04 修复] P1 命中限流：进入全链冷却。
-                    self._rate_limited_ts = time.time()
-                    logger.warning(
-                        f"[P1] 限流/封禁，进入 %.0fs 冷却: %s",
-                        self._rate_backoff_sec, e,
-                    )
+                    # [2026-08-11 修复] 冷所限流只由冷所自己的限速器管理，
+                    # 不要误触发 Asterdex 全局冷却标志（_rate_limited_ts）。
+                    if exchange == "asterdex":
+                        self._rate_limited_ts = time.time()
+                        logger.warning(
+                            f"[P1] Asterdex 限流/封禁，进入 %.0fs 冷却: %s",
+                            self._rate_backoff_sec, e,
+                        )
+                    else:
+                        logger.warning(f"[P1] {exchange} 限流/封禁（冷所独立冷却）: %s", e)
                     err += 1
                 except Exception:
                     err += 1
@@ -1292,12 +1354,15 @@ class KlineRealtimeCollector:
 
             return True
         except ExchangeRateLimitError as e:
-            # [2026-08-04 修复] 限流异常（kline_collectors 上抛）：立即进入冷却。
-            self._rate_limited_ts = time.time()
-            logger.warning(
-                f"限流/封禁 {symbol}/{period}@{exchange_id}，进入 %.0fs 冷却: %s",
-                self._rate_backoff_sec, e,
-            )
+            # [2026-08-11 修复] 冷所限流走冷所独立冷却，不误触发 Asterdex 全局冷却。
+            if exchange_id == "asterdex":
+                self._rate_limited_ts = time.time()
+                logger.warning(
+                    f"限流/封禁 {symbol}/{period}@{exchange_id}，进入 %.0fs 冷却: %s",
+                    self._rate_backoff_sec, e,
+                )
+            else:
+                logger.debug(f"[P1] {exchange_id} 限流冷却中（冷所独立管理）: {e}")
             return False
         except Exception as e:
             logger.error(f"Failed to collect kline for {symbol}/{period}@{exchange_id}: {e}")

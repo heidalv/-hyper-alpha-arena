@@ -30,7 +30,7 @@ TIER_TO_LAYER: Dict[str, str] = {
     "trend": "trend",
 }
 
-NATURE_TO_LAYER: Dict[str, str] = {
+NATURE_TO_LAYER: Dict[str, Optional[str]] = {
     "scalp": "scalp", "intraday": "scalp",
     "swing": "trend",    # 中长线合并：swing 重定向到 trend（不报错）
     "trend_follow": "trend", "position": "trend",
@@ -81,15 +81,16 @@ class BudgetService:
         }
 
     # ── 映射 ──────────────────────────────────────────────
-    def nature_to_layer(self, nature: str) -> str:
-        """trade_nature → layer（scalp/trend），未知默认 trend。
+    def nature_to_layer(self, nature: str) -> Optional[str]:
+        """trade_nature → layer（scalp/trend），未知返回 None。
 
-        中长线合并后 swing 不再是独立层，未知 nature 统一回退到 trend（原 swing 的
-        兜底语义已并入 trend）。
+        中长线合并后 swing 不再是独立层；未知 nature（pair_research/research 等研究
+        车道）不属于任何交易预算层，返回 None，由 _query_layer_used_margin 跳过，
+        不再把研究仓位误计入 trend/scalp 池。
         """
-        return NATURE_TO_LAYER.get((nature or "").lower(), "trend")
+        return NATURE_TO_LAYER.get((nature or "").lower())
 
-    def tier_to_layer(self, tier: str) -> str:
+    def tier_to_layer(self, tier: str) -> Optional[str]:
         """tier/nature → layer；先查 tier 表，再退到 nature 映射。"""
         t = (tier or "mid").lower()
         if t in TIER_TO_LAYER:
@@ -97,8 +98,13 @@ class BudgetService:
         return self.nature_to_layer(t)
 
     # ── 已用保证金（DB 聚合，唯一实现处）──────────────────
-    def _query_layer_used_margin(self, layer: str) -> float:
-        """查询该层当前已用保证金：聚合所有 open 仓位、按 trade_nature 归到 layer。
+    def _query_layer_used_margin(
+        self, layer: str, account_id: Optional[int] = None
+    ) -> float:
+        """查询该层当前已用保证金：聚合 open 仓位、按 trade_nature 归到 layer。
+
+        account_id 提供时只统计该账户（会话资金池）的仓位；None 时保持全局聚合
+        （供监控接口使用）。未知 nature 的仓位不计入任何交易层。
 
         （原 LayerBudgetManager._get_layer_used_margin 迁入，为本类唯一实现。）
         """
@@ -112,6 +118,10 @@ class BudgetService:
                 ).all()
                 total = 0.0
                 for p in positions:
+                    if account_id is not None and int(
+                        getattr(p, "account_id", 0) or 0
+                    ) != int(account_id):
+                        continue
                     if self.nature_to_layer((p.trade_nature or "").lower()) == layer:
                         total += float(p.margin or 0)
                 return total
@@ -120,8 +130,13 @@ class BudgetService:
         except Exception:
             return 0.0
 
-    def get_used_margin(self, layer: str, mode: str = "paper") -> float:
-        return self._query_layer_used_margin(layer)
+    def get_used_margin(
+        self,
+        layer: str,
+        mode: str = "paper",
+        account_id: Optional[int] = None,
+    ) -> float:
+        return self._query_layer_used_margin(layer, account_id=account_id)
 
     # ── 额度 / 预算 ────────────────────────────────────────
     def get_layer_cap(self, layer: str, total_equity: float) -> float:
@@ -153,9 +168,15 @@ class BudgetService:
         except Exception:
             return cap
 
-    def get_layer_budget(self, layer: str, total_equity: float, mode: str = "paper") -> float:
+    def get_layer_budget(
+        self,
+        layer: str,
+        total_equity: float,
+        mode: str = "paper",
+        account_id: Optional[int] = None,
+    ) -> float:
         allocated = self.get_layer_cap(layer, total_equity)
-        used = self.get_used_margin(layer, mode)
+        used = self.get_used_margin(layer, mode, account_id=account_id)
         return max(0.0, allocated - used)
 
     def can_open(
@@ -164,9 +185,12 @@ class BudgetService:
         required_margin: float,
         total_equity: float,
         mode: str = "paper",
+        account_id: Optional[int] = None,
     ) -> bool:
         layer = self.tier_to_layer(tier)
-        budget = self.get_layer_budget(layer, total_equity, mode)
+        if layer is None:
+            return False
+        budget = self.get_layer_budget(layer, total_equity, mode, account_id=account_id)
         ok = budget >= float(required_margin or 0)
         if not ok:
             logger.info(
@@ -175,7 +199,12 @@ class BudgetService:
             )
         return ok
 
-    def get_budget_utilization(self, total_equity: float, mode: str = "paper") -> Dict[str, Dict]:
+    def get_budget_utilization(
+        self,
+        total_equity: float,
+        mode: str = "paper",
+        account_id: Optional[int] = None,
+    ) -> Dict[str, Dict]:
         """各层预算利用率快照（阶段二 B1 可观测性）。
 
         返回每层的 {alloc, cap, used, utilization, idle_pct}，用于中长线健康视图判断
@@ -187,7 +216,7 @@ class BudgetService:
         eq = float(total_equity or 0)
         for layer in ("scalp", "trend"):
             cap = self.get_layer_cap(layer, eq)
-            used = self.get_used_margin(layer, mode)
+            used = self.get_used_margin(layer, mode, account_id=account_id)
             util = round(used / cap, 4) if cap > 0 else 0.0
             out[layer] = {
                 "alloc": round(allocs.get(layer, 0.0), 4),
@@ -198,13 +227,21 @@ class BudgetService:
             }
         return out
 
-    def scale_factor_for_layer(self, tier: str, total_equity: float, mode: str = "paper") -> float:
+    def scale_factor_for_layer(
+        self,
+        tier: str,
+        total_equity: float,
+        mode: str = "paper",
+        account_id: Optional[int] = None,
+    ) -> float:
         """层预算使用 >90% 时缩仓，非新 gate。"""
         layer = self.tier_to_layer(tier)
+        if layer is None:
+            return 1.0
         cap = self.get_layer_cap(layer, total_equity)
         if cap <= 0:
             return 1.0
-        used = self.get_used_margin(layer, mode)
+        used = self.get_used_margin(layer, mode, account_id=account_id)
         usage = used / cap
         if usage >= 1.0:
             return 0.0
@@ -216,9 +253,10 @@ class BudgetService:
 budget_service = BudgetService()
 
 
-def nature_to_layer(nature: str) -> str:
+def nature_to_layer(nature: str) -> Optional[str]:
     """模块级便捷封装：trade_nature → layer（委托单例）。
 
-    中长线合并后 swing→trend（重定向，不报错）；未知 nature 兜底 trend。
+    中长线合并后 swing→trend（重定向，不报错）；未知 nature（pair_research/research
+    等研究车道）返回 None，不计入任何交易预算层。
     """
     return budget_service.nature_to_layer(nature)

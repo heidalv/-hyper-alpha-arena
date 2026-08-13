@@ -11,7 +11,7 @@ Factor Sync API Routes — 云端因子库同步管理接口
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -496,4 +496,51 @@ def scalp_meta_train():
     """
     from backend.services.factor_engine.factor_jobs import run_train_scalp_meta
     job = run_train_scalp_meta()
+    return {"async": True, **job.to_dict()}
+
+
+@router.get("/tp-sl/status")
+def tp_sl_learned_status():
+    """止盈止损训练结果：是否启用、各周期最优 (tp,sl)、更新时间。"""
+    from backend.services.risk.tp_sl_grid_trainer import get_status
+
+    return get_status()
+
+
+@router.post("/tp-sl/auto")
+def tp_sl_train_auto(body: dict = Body(default_factory=dict)):
+    """开启/关闭 TP/SL 自动训练（默认开；每日 05:00 + 启动补训）。"""
+    from backend.services.compute.compute_config import update
+    from backend.services.risk.tp_sl_grid_trainer import get_status
+
+    enabled = bool((body or {}).get("enabled", True))
+    upd = update({"RISK_TP_SL_TRAIN_AUTO": enabled})
+    if not upd.get("ok"):
+        raise HTTPException(status_code=400, detail=upd.get("errors"))
+    st = get_status()
+    return {
+        "ok": True,
+        "auto_train": enabled,
+        "status": st,
+        "message": (
+            "已开启：每天凌晨 5 点自动训练；缺结果或超过 36 小时会在启动后补训"
+            if enabled
+            else "已关闭自动训练（仍可手动点「训练 TP/SL」）"
+        ),
+    }
+
+
+@router.post("/tp-sl/train")
+def tp_sl_train(tiers: Optional[str] = Query(None, description="逗号分隔: short,mid,long")):
+    """手动触发 TP/SL 网格训练（后台异步，单飞）。
+
+    立即返回 `job_id`，用 `GET /api/factors/jobs/{job_id}` 轮询。
+    结果写入 ``backend/data/tp_sl_learned/latest.json``，开仓时自动覆盖静态表。
+    """
+    from backend.services.factor_engine.factor_jobs import run_train_tp_sl
+
+    tier_list = None
+    if tiers:
+        tier_list = [t.strip().lower() for t in tiers.split(",") if t.strip()]
+    job = run_train_tp_sl(tiers=tier_list)
     return {"async": True, **job.to_dict()}

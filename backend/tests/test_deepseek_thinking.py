@@ -1,4 +1,4 @@
-"""DeepSeek V4 思考分层策略单测。"""
+﻿"""DeepSeek V4 思考分层策略单测。"""
 import os
 
 from backend.services.deepseek_thinking import (
@@ -29,7 +29,7 @@ def test_auto_short_disables_thinking(monkeypatch):
 def test_auto_deep_uses_high(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_THINKING_MODE", "auto")
     monkeypatch.setenv("DEEPSEEK_REASONING_EFFORT", "auto")
-    p = resolve_thinking_policy("deepseek-v4-pro", "TrendAgent:direction")
+    p = resolve_thinking_policy("deepseek-v4-flash", "TrendAgent:direction")
     assert p["thinking_enabled"] is True
     assert p["reasoning_effort"] == "high"
 
@@ -37,7 +37,7 @@ def test_auto_deep_uses_high(monkeypatch):
 def test_auto_max_uses_max(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_THINKING_MODE", "auto")
     monkeypatch.setenv("DEEPSEEK_REASONING_EFFORT", "auto")
-    p = resolve_thinking_policy("deepseek-v4-pro", "hermes:evolve")
+    p = resolve_thinking_policy("deepseek-v4-flash", "hermes:evolve")
     assert p["thinking_enabled"] is True
     assert p["reasoning_effort"] == "max"
     assert p["bump_max_tokens"] is True
@@ -48,11 +48,11 @@ def test_apply_payload_max_bumps_tokens(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_REASONING_EFFORT", "auto")
     monkeypatch.setenv("DEEPSEEK_THINKING_MAX_TOKENS_FLOOR", "16000")
     payload = {
-        "model": "deepseek-v4-pro",
+        "model": "deepseek-v4-flash",
         "messages": [],
         "max_completion_tokens": 2000,
     }
-    apply_deepseek_thinking_to_payload(payload, model="deepseek-v4-pro", caller="opencode")
+    apply_deepseek_thinking_to_payload(payload, model="deepseek-v4-flash", caller="opencode")
     assert payload["thinking"]["type"] == "enabled"
     assert payload["reasoning_effort"] == "max"
     assert payload["max_completion_tokens"] >= 16000

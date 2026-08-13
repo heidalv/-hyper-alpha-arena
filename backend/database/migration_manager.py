@@ -53,6 +53,7 @@ MIGRATIONS = [
     "add_paper_order_exchange.py",  # Paper订单锁定下单时交易所
     "create_ai_learning_integration_tables.py",  # AI学习整合：system_coordinator_state 等
     "add_rebate_position_owner_account.py",  # 阶段4.2: rebate_positions 软关联 arbitrage_paper_accounts
+    "widen_position_exit_events.py",  # P0: position_exit_events.exit_channel 40 -> 100
 ]
 
 

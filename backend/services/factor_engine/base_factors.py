@@ -24,6 +24,19 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+def _resolve_admin_tenant_id():
+    """[2026-08-13 P1-9] 管理员租户 id。
+
+    custom_factor_store 按 t{tenant_id}:factor_id 隔离，list_active 不传租户时
+    返回空列表 → active 公式因子从未挂进 FACTORS。显式取管理员租户恢复链路。
+    """
+    try:
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        return resolve_admin_tenant_id()
+    except Exception:
+        return None
+
+
 class FactorCategory(Enum):
     """因子类别"""
     MOMENTUM = "momentum"
@@ -323,7 +336,7 @@ class FactorEngine:
                 custom_factor_store,
                 make_formula_compute,
             )
-            for rec in custom_factor_store.list_active():
+            for rec in custom_factor_store.list_active(tenant_id=_resolve_admin_tenant_id()):
                 fid = rec.get("factor_id")
                 if not fid or fid in self.FACTORS:
                     continue
@@ -364,27 +377,25 @@ class FactorEngine:
         """
         loaded = 0
         try:
-            from backend.database.connection import AnalyticsSessionLocal
-            from backend.database.models import FactorActiveSet
             from backend.services.alpha.factor_compute import kline_df_to_fields
-            from backend.services.factor_engine.expr.parser import parse as _parse_expr
+            from backend.services.factor_engine.active_set_policy import (
+                ActiveSetRole,
+                load_factor_active_rows,
+            )
 
-            db = AnalyticsSessionLocal()
-            try:
-                rows = db.query(FactorActiveSet).filter(
-                    FactorActiveSet.state == "ACTIVE"
-                ).all()
-            finally:
-                db.close()
+            # TRADABLE=PAPER/SMALL_LIVE/ACTIVE（SSOT）；短线优先排序已在 policy 内
+            rows = load_factor_active_rows(
+                ActiveSetRole.TRADABLE, parse_expr=True, limit=50
+            )
 
             for r in rows:
-                fid = f"evo_{r.factor_id}"
-                if fid in self.FACTORS:
+                expr = r.get("expr")
+                expr_ast = r.get("expr_ast")
+                factor_id = r.get("factor_id")
+                if not expr or not expr_ast or not factor_id:
                     continue
-                try:
-                    expr = _parse_expr(r.expr_ast)
-                except Exception as e:
-                    logger.debug(f"[FactorEngine] 跳过失效表达式因子 {r.factor_id}: {e}")
+                fid = f"evo_{factor_id}"
+                if fid in self.FACTORS:
                     continue
 
                 def _compute(klines, market_data=None, _expr=expr):
@@ -402,18 +413,22 @@ class FactorEngine:
                         return None
 
                 self.FACTORS[fid] = {
-                    "category": self._resolve_category(r.source),
+                    "category": self._resolve_category(r.get("source")),
                     "name": fid,
-                    "description": f"evolution_loop/{r.source or '?'} icir={r.icir}",
+                    "description": (
+                        f"evolution_loop/{r.get('source') or '?'} "
+                        f"state={r.get('state')} icir={r.get('icir')}"
+                    ),
                     "compute": _compute,
                     # 保留原始表达式对象供事件驱动回测触发器(backend/services/backtest/
                     # trigger.py)复用——它需要对整段K线序列求值(而不是只取compute()
                     # 返回的最新一个点)来跑一次简化交易模拟，避免重新解析AST。
                     "_expr": expr,
+                    "_evo_state": str(r.get("state")),
                 }
                 loaded += 1
         except Exception as e:
-            logger.debug(f"[FactorEngine] _load_active_evolution_factors 跳过: {e}")
+            logger.warning(f"[FactorEngine] _load_active_evolution_factors 跳过: {e}")
         if loaded:
             logger.info(f"[FactorEngine] 桥接载入 {loaded} 个因子进化闭环产出的活跃因子(evo_*)")
         return loaded
@@ -608,6 +623,7 @@ class FactorEngine:
         klines: pd.DataFrame,
         market_data: Optional[Dict] = None,
         exclude_categories: Optional[set] = None,
+        allowlist: Optional[set] = None,
     ) -> Dict[str, FactorValue]:
         """
         计算所有可用因子
@@ -617,6 +633,9 @@ class FactorEngine:
             market_data: 市场数据 (成交量、OI、资金费率等)
             exclude_categories: 跳过的因子类别集合（如 {FactorCategory.PATTERN}）。
                 短线热路径传此参数跳过 300+ 模式因子，从 ~8s/币降到 <1s。
+            allowlist: [2026-08-13 P0-1] 仅计算白名单内因子（有 OOS 证据的精选池）。
+                实盘 scalp 传此参数，无验证的 ai_generated 全量因子退出实盘加权；
+                None 时全量计算（因子面板等展示场景不受影响）。
 
         Returns:
             因子名称 -> 因子值
@@ -646,6 +665,9 @@ class FactorEngine:
         for name, config in list(self.FACTORS.items()):
             # 跳过指定类别的因子（短线热路径跳过 PATTERN/BEHAVIORAL 等 300+ 模式因子）
             if exclude_categories and config.get('category') in exclude_categories:
+                continue
+            # [2026-08-13 P0-1] 实盘因子集收敛：不在精选白名单内的因子不参与实盘计算
+            if allowlist is not None and name not in allowlist:
                 continue
             try:
                 value = config['compute'](klines, market_data)

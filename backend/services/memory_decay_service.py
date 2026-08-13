@@ -170,6 +170,25 @@ class MemoryDecayService:
 
         return result
 
+    def run_daily_decay(self, db: Session = None) -> Dict[str, Any]:
+        """兼容 evolution_scheduler 调用名；内部走独立会话的每日扫描。
+
+        调用方传入的 db 仅用于清理可能存在的失败事务，不直接复用，
+        避免把调用方的长会话状态带进扫描。
+        """
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        result = self.daily_sweep()
+        return {
+            "expired": int(result.get("time_decayed", 0) or 0)
+            + int(result.get("event_expired", 0) or 0),
+            "total_lessons": int(result.get("strategies_scanned", 0) or 0),
+            **result,
+        }
+
     def register_daily_task(self, scheduler: Any = None) -> None:
         """注册每日扫描定时任务到 EvolutionScheduler。
 

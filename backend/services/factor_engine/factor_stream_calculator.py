@@ -235,12 +235,32 @@ class StreamFactorCalculator:
         """
         获取完整历史数据（用于不支持增量的因子）
         
-        实际应用中应该从数据库或缓存中获取历史数据
-        这里简化处理，仅返回new_data
+        [2026-08-11 修复] 从统一数据中心读取历史 K 线，并与增量数据合并。
         """
-        # TODO: 从数据库/缓存获取历史数据
-        # 目前简化实现
-        return new_data
+        try:
+            from backend.services.data_center import PERIOD_SECONDS, data_center
+
+            period_sec = PERIOD_SECONDS.get(timeframe, 86400)
+            count = max(50, int(lookback * 86400 / period_sec) + 10)
+            hist = data_center.get_klines_df(
+                symbol, timeframe, count=count, purpose="research",
+            )
+            if hist is None or len(hist) == 0:
+                return new_data
+            if new_data is None or len(new_data) == 0:
+                return hist
+            # 增量数据若带整数 timestamp 列，先转成 datetime index 再合并。
+            nd = new_data
+            if "timestamp" in nd.columns and not isinstance(nd.index, pd.DatetimeIndex):
+                nd = nd.copy()
+                nd["datetime"] = pd.to_datetime(nd["timestamp"], unit="s")
+                nd = nd.set_index("datetime")
+            combined = pd.concat([hist, nd])
+            combined = combined[~combined.index.duplicated(keep="last")].sort_index()
+            return combined[["open", "high", "low", "close", "volume"]]
+        except Exception as e:
+            logger.warning(f"[StreamFactor] {symbol}/{timeframe} 历史数据读取失败，退回增量数据: {e}")
+            return new_data
     
     def clear_state(self, symbol: Optional[str] = None):
         """清理状态缓存"""

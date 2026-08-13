@@ -270,14 +270,73 @@ class SystemCoordinator:
             logger.debug(f"[Coordinator] _should_trigger_evolution 异常: {e}")
             return False
 
-    def _should_retrain_drl(self, db: Session) -> bool:
-        """DRL 已下线（2026-06-11）：恒返回 False。
+    # DRL 重训判据阈值（2026-08-09 恢复，配合 drl_performance_backfill 回填）
+    DRL_ACCURACY_RESUME_THRESHOLD: float = 0.52   # 准确率高于此值才允许自动重训
+    DRL_ACCURACY_PAUSE_THRESHOLD: float = 0.45    # 低于此值暂停重训（模型可能欠拟合）
+    DRL_MIN_DECIDED_SAMPLES: int = 30             # 参与判定的最少样本数
+    DRL_MIN_BACKFILL_RATE: float = 0.80           # 回填率门槛
 
-        历史问题：影子预测的 is_correct 从未回填，此处的准确率判断把
-        NULL 当 False，准确率恒为 0，会误触发重训。下线后保留方法签名
-        以兼容外部调用。
+    def _should_retrain_drl(self, db: Session) -> bool:
+        """基于回填统计决定是否重训（2026-08-09 恢复，先修回填再开）。
+
+        2026-06-11 下线原因：影子预测 is_correct 从未回填，准确率恒为 0 会
+        误触发重训。现在回填链路已由 learning_loop 的 DRL 回填 tick 兜底
+        （drl_performance_backfill.backfill_pending），本判据基于真实回填
+        统计，且叠加 2h 冷却：
+
+        - 近 7 天回填率 < DRL_MIN_BACKFILL_RATE（或判定样本 < 门槛）→ 不触发
+        - 准确率 > DRL_ACCURACY_RESUME_THRESHOLD → 可重训
+        - 准确率 < DRL_ACCURACY_PAUSE_THRESHOLD → 暂停（避免用差模型反复重训）
+        - 同时叠加 DRL_RETRAIN_COOLDOWN_SECONDS 冷却（SystemCoordinatorState）
         """
-        return False
+        try:
+            from backend.services.rl.drl_performance_backfill import accuracy_summary
+
+            summary = accuracy_summary(db, days=7)
+            if summary["decided"] < self.DRL_MIN_DECIDED_SAMPLES:
+                logger.info(
+                    "[Coordinator] _should_retrain_drl=False 判定样本不足: %d < %d",
+                    summary["decided"], self.DRL_MIN_DECIDED_SAMPLES,
+                )
+                return False
+            if summary["backfill_rate"] < self.DRL_MIN_BACKFILL_RATE:
+                logger.info(
+                    "[Coordinator] _should_retrain_drl=False 回填率不足: %.2f < %.2f",
+                    summary["backfill_rate"], self.DRL_MIN_BACKFILL_RATE,
+                )
+                return False
+            acc = summary["accuracy"]
+            if acc is None or acc < self.DRL_ACCURACY_PAUSE_THRESHOLD:
+                logger.info(
+                    "[Coordinator] _should_retrain_drl=False 准确率过低: %s < %.2f",
+                    acc, self.DRL_ACCURACY_PAUSE_THRESHOLD,
+                )
+                return False
+            if acc <= self.DRL_ACCURACY_RESUME_THRESHOLD:
+                logger.info(
+                    "[Coordinator] _should_retrain_drl=False 准确率未达标: %.2f <= %.2f",
+                    acc, self.DRL_ACCURACY_RESUME_THRESHOLD,
+                )
+                return False
+
+            # 叠加 2h 冷却
+            from backend.database.models import SystemCoordinatorState
+
+            state = db.query(SystemCoordinatorState).first()
+            if state and state.last_drl_training_at:
+                last = state.last_drl_training_at
+                if last.tzinfo is None:
+                    last = last.replace(tzinfo=timezone.utc)
+                if (datetime.now(timezone.utc) - last).total_seconds() < self.DRL_RETRAIN_COOLDOWN_SECONDS:
+                    return False
+            logger.info(
+                "[Coordinator] _should_retrain_drl=True accuracy=%.2f decided=%d",
+                acc, summary["decided"],
+            )
+            return True
+        except Exception as e:
+            logger.debug(f"[Coordinator] _should_retrain_drl 异常: {e}")
+            return False
 
     def _should_update_kelly(self, db: Session) -> bool:
         """检查是否需要更新Kelly统计（P0-2 修复）

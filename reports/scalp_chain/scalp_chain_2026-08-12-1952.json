@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-08-12T19:52:38.289045+00:00",
+  "kline_freshness": {
+    "global_max_ts": 1786564200,
+    "freshness_sec": 158,
+    "count": 10142581,
+    "by_symbol": {
+      "BTC": {
+        "freshness_sec": 158,
+        "count": 37542
+      },
+      "ETH": {
+        "freshness_sec": 158,
+        "count": 36228
+      },
+      "SOL": {
+        "freshness_sec": 158,
+        "count": 36706
+      },
+      "AAVE": {
+        "freshness_sec": 158,
+        "count": 46510
+      },
+      "ENA": {
+        "freshness_sec": 158,
+        "count": 42042
+      },
+      "ZEC": {
+        "freshness_sec": 158,
+        "count": 53685
+      },
+      "KAITO": {
+        "freshness_sec": 158,
+        "count": 41096
+      },
+      "UNI": {
+        "freshness_sec": 158,
+        "count": 27293
+      },
+      "DOGE": {
+        "freshness_sec": 158,
+        "count": 39537
+      },
+      "HYPE": {
+        "freshness_sec": 158,
+        "count": 40634
+      }
+    }
+  },
+  "settlement": {
+    "unsettled_backlog": 86,
+    "oldest_unsettled_ts": 1786562125,
+    "avg_lag_sec": 2156.5,
+    "max_lag_sec": 2572,
+    "settled_last_6h": 3155
+  },
+  "learning_artifacts": {
+    "scalp_meta_report_age_min": 208,
+    "factor_runtime_weights_age_min": 536
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "item": "learning_artifacts",
+      "detail": "运行时权重超过 60 分钟未更新"
+    }
+  ]
+}

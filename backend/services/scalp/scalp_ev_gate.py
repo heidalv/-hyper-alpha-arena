@@ -141,7 +141,7 @@ class ScalpEvGate:
                 reason=reason, ev_min=ev_min,
             )
 
-        # p_win：优先用外部传入，否则问校准器
+        # p_win：优先用外部传入，否则问校准器；可选与 usable meta 软混合
         p_win = p_win_override
         p_src = "override"
         if p_win is None:
@@ -158,6 +158,61 @@ class ScalpEvGate:
                 logger.debug(f"[ScalpEvGate] {symbol} 校准器失败，用保守回退 p_win: {e}")
                 p_win = 0.50 if strategy_tag == "ranging_mr" else 0.42
                 p_src = "fallback_const"
+
+        # P0-4B：仅 SCALP_META_IN_EV=1 且模型 usable 时软混入 meta p_win（默认关）
+        try:
+            import os as _os
+            _meta_in_ev = (_os.getenv("SCALP_META_IN_EV", "0") or "0").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+            if _meta_in_ev and p_win_override is None:
+                from backend.services.scalp_meta_trainer import predict_win_prob
+                _meta_p = predict_win_prob(
+                    {
+                        "factor_score": float(factor_score or 0),
+                        "direction": str(direction or ""),
+                    },
+                    require_usable=True,
+                )
+                if _meta_p is not None:
+                    _blend = float(self._cfg("SCALP_META_EV_BLEND", 0.35) or 0.35)
+                    _blend = max(0.0, min(1.0, _blend))
+                    # min 更保守：差信号更容易被压低；blend 做平滑
+                    _mixed = (1.0 - _blend) * float(p_win) + _blend * float(_meta_p)
+                    p_win = min(float(p_win), float(_mixed))
+                    p_src = f"{p_src}+meta_soft"
+        except Exception as _me:
+            logger.debug(f"[ScalpEvGate] {symbol} meta 软接入跳过: {_me}")
+
+        # [2026-08-13 P1-6] meta 硬过滤：usable 模型存在且预测「会赢」概率低于
+        # 门槛 → 直接拒绝开仓（SCALP_META_HARD_FILTER 默认开，可回滚）。
+        # 与上方软接入互补：软接入只压低 p_win，硬过滤直接一票否决。
+        try:
+            _meta_hard = (_os.getenv("SCALP_META_HARD_FILTER", "1") or "1").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+            if _meta_hard:
+                from backend.services.scalp_meta_trainer import predict_win_prob
+                _meta_hp = predict_win_prob(
+                    {
+                        "factor_score": float(factor_score or 0),
+                        "direction": str(direction or ""),
+                    },
+                    require_usable=True,
+                )
+                _min_pwin = float(self._cfg("SCALP_META_MIN_PWIN", 0.5) or 0.5)
+                if _meta_hp is not None and float(_meta_hp) < _min_pwin:
+                    return EvDecision(
+                        allowed=False, tp_pct=tp, sl_pct=sl,
+                        reason=(
+                            f"meta硬过滤: usable模型胜率 {float(_meta_hp):.3f} "
+                            f"< 门槛 {_min_pwin}"
+                        ),
+                        ev_min=ev_min,
+                    )
+        except Exception as _mh:
+            logger.debug(f"[ScalpEvGate] {symbol} meta 硬过滤跳过: {_mh}")
+
         p_win = max(0.01, min(0.99, float(p_win)))
 
         # 往返成本（手续费 + 滑点 + 资金费率，按交易所费率）

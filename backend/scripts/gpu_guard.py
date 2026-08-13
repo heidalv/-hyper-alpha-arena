@@ -15,7 +15,8 @@
 阈值（GTX 1070 实测口径）:
   - 温度: TjMax=94°C，预警 83°C（85%）
   - 功耗: TDP 151W，预警 135W（90%）
-  - 显存: 总 8GB（桌面占用 ~1.6GB），可用 < 512MB 视为不足
+  - 显存: 总 8GB（桌面占用 ~1.6GB），可用 < 1GB 视为不足（2026-08-09 上调：
+    ML 深度模型 / DRL 训练开始占卡后，512MB 余量不够做一轮保底回退）
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ from typing import Dict, List, Optional
 
 TEMP_WARN_C = 83          # GTX 1070 TjMax 94°C 的 ~85%
 POWER_WARN_RATIO = 0.90   # TDP 90%
-VRAM_MIN_MB = 512         # 可用显存下限（长训 batch 最小余量）
+VRAM_MIN_MB = 1024        # 可用显存下限（深度模型/DRL 训练保底余量）
 
 _QUERY = (
     "name,driver_version,memory.total,memory.used,memory.free,"

@@ -2,9 +2,15 @@
  * API 客户端 — 与后端 FastAPI (:8000) 通信
  * 开发:可走 Next rewrites 或绝对 URL；生产 Electron: NEXT_PUBLIC_API_URL
  * 鉴权: Authorization Bearer + 401 时自动 refresh 一次
+ *
+ * 闲置卡死修复：
+ * - access 默认 15 分钟过期；请求前主动续期
+ * - 401 重试用全新 AbortSignal，避免原请求超时信号误杀重试
+ * - refresh 自带超时；网络失败保留会话并派发降级事件
  */
 
 import { getBackendUrl } from "./backend-config";
+import { isAccessTokenExpiringSoon } from "./auth-storage";
 import {
   getAccessToken,
   getRefreshToken,
@@ -12,6 +18,10 @@ import {
 } from "./stores/auth";
 
 const CLIENT_VERSION = process.env.NEXT_PUBLIC_VERSION || "0.0.0";
+const REFRESH_TIMEOUT_MS = 12_000;
+
+export const AUTH_REFRESHED_EVENT = "arena-auth-refreshed";
+export const AUTH_DEGRADED_EVENT = "arena-auth-degraded";
 
 function apiBase(): string {
   return getBackendUrl().replace(/\/$/, "") + "/api";
@@ -41,16 +51,28 @@ function isAuthWhitelisted(endpoint: string): boolean {
 
 let refreshInFlight: Promise<"ok" | "invalid" | "network"> | null = null;
 
+function dispatchAuthEvent(name: string, detail?: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent(name, { detail }));
+  } catch {
+    /* ignore */
+  }
+}
+
 async function tryRefreshAccessToken(): Promise<"ok" | "invalid" | "network"> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
     const refresh = getRefreshToken();
     if (!refresh) return "invalid";
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REFRESH_TIMEOUT_MS);
     try {
       const resp = await fetch(`${apiBase()}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refresh }),
+        signal: ctrl.signal,
       });
       if (!resp.ok) return "invalid";
       const data = await resp.json();
@@ -59,17 +81,30 @@ async function tryRefreshAccessToken(): Promise<"ok" | "invalid" | "network"> {
         data.refresh_token,
       );
       if (data.user) {
-        useAuthStore.setState({ user: data.user });
+        useAuthStore.setState({ user: data.user, hydrated: true, hydrating: false });
       }
+      dispatchAuthEvent(AUTH_REFRESHED_EVENT);
+      useAuthStore.getState().armAuthKeepalive();
       return "ok";
     } catch {
-      // 网络错误(后端重启 / 瞬时断网)≠ token 失效,保留会话下次再试
+      // 网络错误 / 超时 ≠ token 失效
+      dispatchAuthEvent(AUTH_DEGRADED_EVENT, { reason: "refresh_network" });
       return "network";
     } finally {
+      clearTimeout(timer);
       refreshInFlight = null;
     }
   })();
   return refreshInFlight;
+}
+
+/** 请求前：若 access 将过期则先续期 */
+export async function ensureFreshAccessToken(): Promise<boolean> {
+  const access = getAccessToken();
+  if (!access) return !!getRefreshToken();
+  if (!isAccessTokenExpiringSoon(access, 90_000)) return true;
+  const status = await tryRefreshAccessToken();
+  return status === "ok";
 }
 
 export async function apiRequest<T = any>(
@@ -79,9 +114,6 @@ export async function apiRequest<T = any>(
   const url = `${apiBase()}${endpoint}`;
   const timeout = options?.timeout ?? 30000;
   const skipAuth = options?.skipAuth || isAuthWhitelisted(endpoint);
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
 
   const buildHeaders = (token: string | null): HeadersInit => {
     const headers: Record<string, string> = {
@@ -95,51 +127,57 @@ export async function apiRequest<T = any>(
     return headers;
   };
 
-  try {
-    let resp = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: buildHeaders(getAccessToken()),
-    });
-
-    if (resp.status === 401 && !skipAuth) {
-      const status = await tryRefreshAccessToken();
-      if (status === "ok") {
-        resp = await fetch(url, {
-          ...options,
-          signal: controller.signal,
-          headers: buildHeaders(getAccessToken()),
-        });
-      } else if (status === "invalid") {
-        // refresh token 已失效(后端明确拒绝)→ 清会话,交给 AuthGate 跳登录
-        await useAuthStore.getState().logout();
-      }
-      // status === "network":后端暂不可达,保留会话,本次请求按失败抛出
+  const doFetch = async (token: string | null, ms: number): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: buildHeaders(token),
+      });
+    } finally {
+      clearTimeout(timer);
     }
+  };
 
-    if (!resp.ok) {
-      let detail = `HTTP ${resp.status}`;
-      try {
-        const err = await resp.json();
-        detail =
-          typeof err.detail === "string"
-            ? err.detail
-            : err.message || detail;
-      } catch {
-        /* ignore */
-      }
-      throw new ApiError(resp.status, detail);
-    }
-
-    const ct = resp.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) {
-      throw new ApiError(0, "Response is not JSON");
-    }
-
-    return resp.json() as Promise<T>;
-  } finally {
-    clearTimeout(timer);
+  if (!skipAuth) {
+    await ensureFreshAccessToken();
   }
+
+  let resp = await doFetch(getAccessToken(), timeout);
+
+  if (resp.status === 401 && !skipAuth) {
+    const status = await tryRefreshAccessToken();
+    if (status === "ok") {
+      resp = await doFetch(getAccessToken(), timeout);
+    } else if (status === "invalid") {
+      await useAuthStore.getState().logout();
+    } else {
+      throw new ApiError(0, "后端暂不可达，登录态已保留，请稍后重试或刷新");
+    }
+  }
+
+  if (!resp.ok) {
+    let detail = `HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      detail =
+        typeof err.detail === "string"
+          ? err.detail
+          : err.message || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(resp.status, detail);
+  }
+
+  const ct = resp.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    throw new ApiError(0, "Response is not JSON");
+  }
+
+  return resp.json() as Promise<T>;
 }
 
 // ═══ 类型定义 ═══
@@ -284,7 +322,12 @@ export interface SessionStatus {
   // 2026-07-20：补齐卡片展示与编辑所需字段
   auto_coin_enabled?: boolean;
   auto_coin_symbols?: string[];
-  auto_coin_max_slots?: number; // 5~10，默认 5
+  auto_coin_max_slots?: number; // 5~10，短线 AI，默认 5
+  auto_coin_mid_enabled?: boolean;
+  auto_coin_mid_max_slots?: number; // 1~5，中线 AI，默认 3
+  auto_coin_mid_symbols?: string[];
+  fixed_symbols_by_tier?: { short?: string[]; mid?: string[]; long?: string[] };
+  backup_pool?: string[];
   risk_level?: string;
   risk_mode?: string;
   active_exchange?: string;
@@ -399,10 +442,21 @@ export const sessionApi = {
     apiRequest<any>(`/full-auto/status/${sessionId}`),
   healthCheck: (sessionId: string) =>
     apiRequest<any>(`/full-auto/health-check/${sessionId}`, { method: "POST" }),
-  addSymbols: (sessionId: string, symbols: string[]) =>
-    apiRequest<any>(`/full-auto/add-symbols/${sessionId}`, { method: "POST", body: JSON.stringify({ symbols }) }),
+  addSymbols: (sessionId: string, symbols: string[], tier?: string) =>
+    apiRequest<any>(`/full-auto/add-symbols/${sessionId}`, {
+      method: "POST",
+      body: JSON.stringify({ symbols, ...(tier ? { tier } : {}) }),
+    }),
   removeSymbols: (sessionId: string, symbols: string[]) =>
     apiRequest<any>(`/full-auto/remove-symbols/${sessionId}`, { method: "POST", body: JSON.stringify({ symbols }) }),
+  setFixedSymbolsByTier: (
+    sessionId: string,
+    data: { short?: string[]; mid?: string[]; long?: string[] },
+  ) =>
+    apiRequest<any>(`/full-auto/fixed-symbols-by-tier/${sessionId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   tierStatus: (sessionId: string) =>
     apiRequest<any>(`/full-auto/tier-status/${sessionId}`),
   getStatus: (sessionId: string) =>
@@ -415,8 +469,14 @@ export const sessionApi = {
     daily_loss_limit_pct?: number;
     active_exchange?: string;
     auto_coin_max_slots?: number;
+    auto_coin_mid_enabled?: boolean;
+    auto_coin_mid_max_slots?: number;
   }) =>
     apiRequest<any>(`/full-auto/update-config/${sessionId}`, { method: "POST", body: JSON.stringify(data) }),
+  enableAutoCoinMid: (sessionId: string) =>
+    apiRequest<any>(`/full-auto/auto-coin-mid/${sessionId}/enable`, { method: "POST" }),
+  disableAutoCoinMid: (sessionId: string) =>
+    apiRequest<any>(`/full-auto/auto-coin-mid/${sessionId}/disable`, { method: "POST" }),
 };
 
 // ═══ 自动选币 ═══

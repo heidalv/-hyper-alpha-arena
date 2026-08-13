@@ -1,4 +1,4 @@
-"""OpenCode Bridge — 通过 Sidecar HTTP Session 调用 plan agent（DeepSeek 在 opencode.json 内配置）。"""
+﻿"""OpenCode Bridge — 通过 Sidecar HTTP Session 调用 plan agent（DeepSeek 在 opencode.json 内配置）。"""
 
 from __future__ import annotations
 
@@ -78,9 +78,9 @@ def _model() -> str:
         logger.debug("[OpenCodeBridge] 默认模型通道读取失败: %s", exc)
     try:
         from backend.config.settings import OPENCODE_MODEL
-        return OPENCODE_MODEL or "deepseek/deepseek-v4-pro"
+        return OPENCODE_MODEL or "deepseek/deepseek-v4-flash"
     except Exception:
-        return "deepseek/deepseek-v4-pro"
+        return "deepseek/deepseek-v4-flash"
 
 
 def _agent_plan() -> str:
@@ -92,7 +92,7 @@ def _agent_plan() -> str:
 
 
 def _parse_model_slug(slug: str) -> Tuple[str, str]:
-    """``deepseek/deepseek-v4-pro`` → (providerID, modelID)."""
+    """``deepseek/deepseek-v4-flash`` → (providerID, modelID)."""
     slug = (slug or "").strip()
     if "/" in slug:
         provider, model_id = slug.split("/", 1)

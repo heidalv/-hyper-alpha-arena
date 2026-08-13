@@ -37,9 +37,10 @@ _AI_GOVERNED = os.getenv("MLTO_AI_GOVERNED", "0").strip().lower() in (
     "1", "true", "on", "yes"
 )
 try:
-    _AI_GOVERNED_WEIGHT = float(os.getenv("MLTO_AI_GOVERNED_WEIGHT", "0.40"))
+    # paper 起步默认 0.60（v6 松绑）；live 可用 env 降到 0.40
+    _AI_GOVERNED_WEIGHT = float(os.getenv("MLTO_AI_GOVERNED_WEIGHT", "0.60"))
 except (TypeError, ValueError):
-    _AI_GOVERNED_WEIGHT = 0.40
+    _AI_GOVERNED_WEIGHT = 0.60
 _AI_GOVERNED_WEIGHT = max(0.40, min(1.0, _AI_GOVERNED_WEIGHT))
 # framework 信号在 ai_governed 下作为"参照偏移"的权重上限（≤0.4）
 _FW_REFERENCE_SCALE = 0.4
@@ -265,7 +266,7 @@ def fuse_signals(
         _td = str(_hint.get("direction") or "").strip().lower()
         if _td in ("long", "short"):
             # 先估方向再比；最终 direction 在分档后派生，这里用初步方向
-            _pre_dir = _derive_direction(signals, adjusted, ai_governed=ai_g)
+            _pre_dir, _ = _derive_direction(signals, adjusted, ai_governed=ai_g)
             if _pre_dir == _td or (_pre_dir == "neutral" and adjusted >= 0.28):
                 # neutral 但 Trend 明确方向时也给一半 bonus，帮助越过 NIBBLE
                 _add = _bonus if _pre_dir == _td else (_bonus * 0.5)
@@ -299,8 +300,9 @@ def fuse_signals(
     else:
         action = "WAIT"
 
-    direction = _derive_direction(signals, adjusted, ai_governed=ai_g)
+    direction, dir_src = _derive_direction(signals, adjusted, ai_governed=ai_g)
     # Trend 方向明确且 Hub 中性时，对齐专家方向（仅影响标注，不开仓权威仍在 Writer）
+    # ai_governed：框架永不改方向；Trend hint 仅作中性兜底标注（等同 orch 级证据）
     if (
         direction == "neutral"
         and _hint
@@ -309,13 +311,32 @@ def fuse_signals(
         and action in ("NIBBLE", "BUILD")
     ):
         direction = str(_hint.get("direction")).lower()
+        dir_src = "trend_hint"
+
+    # P1：Paper NIBBLE/BUILD 探针 — AI 中性带导致 action+neutral→gate 全拒
+    # 用更软的 llm/orch/quant 偏向给方向；日限额由审计 JSONL 计数。
+    if (
+        direction == "neutral"
+        and action in ("NIBBLE", "BUILD")
+        and _use_paper_hub_thresholds(mode)
+        and _nibble_probe_enabled()
+    ):
+        lean, lean_src = _nibble_probe_lean(signals)
+        if lean in ("long", "short") and _nibble_probe_quota_remaining():
+            direction = lean
+            dir_src = lean_src
+            bonus_note = (bonus_note + f" {lean_src}").strip()
+            logger.info(
+                "[decision_hub] %s probe lean=%s src=%s adj=%.2f",
+                action, lean, lean_src, adjusted,
+            )
 
     readiness = int(min(100, max(0, adjusted * 100)))
 
     _mode_tag = "ai_governed" if ai_g else "standard"
     reason = (
         f"MLTO hub adj={adjusted:.2f} cons={consistency:.2f} → {action}/{direction}"
-        + f" [{_mode_tag}]"
+        + f" [{_mode_tag} dir_src={dir_src or '-'}]"
         + (f" {bonus_note}" if bonus_note else "")
     )
 
@@ -347,6 +368,7 @@ def fuse_signals(
         signals=signals,
         mode=("ai_governed" if ai_g else "standard"),
         ai_governed_weight=(_AI_GOVERNED_WEIGHT if ai_g else None),
+        dir_src=dir_src or "",
     )
 
 
@@ -369,54 +391,132 @@ def _orch_bias_direction(signals: List[Signal], adjusted: float) -> str:
     return "neutral"
 
 
-def _derive_direction(signals: List[Signal], adjusted: float, *, ai_governed: bool = False) -> str:
-    # [2026-08-05 v6 6.3 第2项] ai_governed：direction = llm_qual 单调映射
-    # （≥0.55 多 / ≤0.45 空）；orch_bias 仅在 LLM 中性（0.45-0.55）时兜底，
-    # 任何情况下规则/框架禁止覆盖 AI 方向。
-    # [阶段3a] LLM 主导：若 llm_qual 信号值 ≥0.6（LLM conviction 偏多），
-    # 则方向由 LLM 决定，优先级高于 orch_*_bias。
-    # adjusted≥0.32 的门控保留（与原逻辑一致：只在整体 readiness 达标时
-    # 确认方向；否则回落到 framework 均值/neutral）。
+def _derive_direction(
+    signals: List[Signal], adjusted: float, *, ai_governed: bool = False
+) -> tuple:
+    """返回 (direction, dir_src)。
+
+    ai_governed：direction = llm_qual 单调映射（≥0.55 多 / ≤0.45 空）；
+    orch_bias 仅在 LLM 中性带兜底；framework 永不改方向。
+    """
     llm_sig = next((s for s in signals if s.name == "llm_qual"), None)
     if llm_sig is not None:
         if ai_governed:
             if llm_sig.value >= 0.55:
-                return "long"
+                return "long", "llm_qual"
             if llm_sig.value <= 0.45:
-                return "short"
-            # LLM 中性（0.45 < v < 0.55）：允许 orch_bias 兜底，否则回落框架均值
+                return "short", "llm_qual"
+            # LLM 中性：仅 orch_bias 兜底（禁止 framework 翻向）
             _d = _orch_bias_direction(signals, adjusted)
             if _d != "neutral":
-                return _d
-            fw_mean = _fw_mean(signals)
-            if fw_mean >= 0.55:
-                return "long"
-            if fw_mean <= 0.45:
-                return "short"
-            return "neutral"
-        # [阶段3a] LLM 主导：若 llm_qual 信号值 ≥0.6（LLM conviction 偏多），
-        # 则方向由 LLM 决定，优先级高于 orch_*_bias。
-        # adjusted≥0.32 的门控保留（与原逻辑一致：只在整体 readiness 达标时
-        # 确认方向；否则回落到 framework 均值/neutral）。
+                return _d, "orch_bias"
+            return "neutral", "llm_qual"
         if llm_sig.value >= 0.6:
-            return "long" if adjusted >= 0.32 else (
-                "long" if _fw_mean(signals) >= 0.55 else "neutral"
+            if adjusted >= 0.32:
+                return "long", "llm_qual"
+            return (
+                ("long", "framework") if _fw_mean(signals) >= 0.55 else ("neutral", "llm_qual")
             )
         if llm_sig.value <= 0.4:
-            return "short" if adjusted >= 0.32 else (
-                "short" if _fw_mean(signals) <= 0.45 else "neutral"
+            if adjusted >= 0.32:
+                return "short", "llm_qual"
+            return (
+                ("short", "framework") if _fw_mean(signals) <= 0.45 else ("neutral", "llm_qual")
             )
 
-    # orch_bias 作为 LLM 中性时的回退方向来源（降级为规则权威）。
     _d = _orch_bias_direction(signals, adjusted)
     if _d != "neutral":
-        return _d
-    fw_mean = _fw_mean(signals)
-    if fw_mean >= 0.55:
-        return "long"
-    if fw_mean <= 0.45:
-        return "short"
-    return "neutral"
+        return _d, "orch_bias"
+    return "neutral", "framework"
+
+
+def _nibble_probe_enabled() -> bool:
+    try:
+        from backend.config.settings import MIDLONG_NIBBLE_PROBE_ENABLED
+        return bool(MIDLONG_NIBBLE_PROBE_ENABLED)
+    except Exception:
+        return os.getenv("MIDLONG_NIBBLE_PROBE_ENABLED", "true").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+
+
+def _nibble_probe_quota_remaining() -> bool:
+    try:
+        from backend.config.settings import MIDLONG_NIBBLE_PROBE_DAILY_MAX
+        cap = int(MIDLONG_NIBBLE_PROBE_DAILY_MAX or 0)
+    except Exception:
+        try:
+            cap = int(os.getenv("MIDLONG_NIBBLE_PROBE_DAILY_MAX", "2") or "2")
+        except Exception:
+            cap = 2
+    if cap <= 0:
+        return False
+    try:
+        from backend.services.mlto.midlong_direction_audit import count_nibble_probes_today
+        used = int(count_nibble_probes_today() or 0)
+    except Exception:
+        used = 0
+    return used < cap
+
+
+def _nibble_probe_lean(signals: List[Signal]) -> tuple:
+    """NIBBLE/BUILD 探针软方向。
+
+    实盘审计：大量 adj≈0.50–0.56 却 dir=neutral（llm 卡在 0.45–0.55）。
+    策略：
+      1) llm 相对 0.5 的微小偏离（±0.01）即 lean
+      2) orch 软门槛 0.55/0.45（正式 orch 兜底要 0.65/0.35）
+      3) quant_alignment / entry_timing 同软门槛
+    """
+    llm_sig = next((s for s in signals if s.name == "llm_qual"), None)
+    if llm_sig is not None:
+        try:
+            v = float(llm_sig.value)
+        except (TypeError, ValueError):
+            v = 0.5
+        # 死区 (0.45, 0.55) 内：只要偏离中性 0.01 就给方向
+        if v >= 0.51:
+            return "long", "nibble_probe_llm"
+        if v <= 0.49:
+            return "short", "nibble_probe_llm"
+
+    # orch 软门槛（探针专用，低于正式 0.65/0.35）
+    for name in ("orch_long_bias", "orch_mid_bias"):
+        s = next((x for x in signals if x.name == name), None)
+        if s is None:
+            continue
+        try:
+            ov = float(s.value)
+        except (TypeError, ValueError):
+            continue
+        if ov >= 0.55:
+            return "long", "nibble_probe_orch"
+        if ov <= 0.45:
+            return "short", "nibble_probe_orch"
+
+    for name in ("quant_alignment", "entry_timing", "mid_timing"):
+        s = next((x for x in signals if x.name == name), None)
+        if s is None:
+            continue
+        try:
+            qv = float(s.value)
+        except (TypeError, ValueError):
+            continue
+        if qv >= 0.58:
+            return "long", "nibble_probe_quant"
+        if qv <= 0.42:
+            return "short", "nibble_probe_quant"
+
+    # 最后：llm 恰为 0.5 时，用 framework 均值微偏（仅探针，且幅度够大）
+    try:
+        fw = _fw_mean(signals)
+        if fw >= 0.58:
+            return "long", "nibble_probe_fw"
+        if fw <= 0.42:
+            return "short", "nibble_probe_fw"
+    except Exception:
+        pass
+    return "neutral", ""
 
 
 def _fw_mean(signals: List[Signal]) -> float:

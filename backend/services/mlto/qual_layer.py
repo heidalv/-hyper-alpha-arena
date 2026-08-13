@@ -187,7 +187,7 @@ def update_thesis(
             except Exception:
                 pass
 
-    prompt = _build_prompt(thesis, memory_block, delta_block, constraints, packet)
+    prompt = _build_prompt(thesis, memory_block, delta_block, constraints, packet, db=db)
 
     raw = _call_llm(agent, prompt, packet.account_id)
 
@@ -283,7 +283,7 @@ def _build_market_brief(packet) -> str:
             parts.append(f"ADX={ind['adx']:.1f}")
         if ind.get("ema9") is not None and ind.get("ema21") is not None:
             parts.append(f"EMA9={'%.2f' % ind['ema9']}/EMA21={'%.2f' % ind['ema21']}")
-        if ind.get("vol_ratio") is not None:
+        if ind.get("vol_ratio"):
             parts.append(f"量比={ind['vol_ratio']:.2f}")
         if ind.get("oi_delta") is not None:
             parts.append(f"OI变化={ind['oi_delta']:.2f}")
@@ -357,7 +357,26 @@ def _build_market_brief(packet) -> str:
         )
     mf = ms.get("midlong_factors")
     if isinstance(mf, dict) and mf.get("count"):
-        lines.append(f"中长线因子快照: count={mf.get('count')} keys={list((mf.get('4h') or {}).keys())[:6]}")
+        # v6 M4：因子只作 LLM 证据摘要（禁止进 Hub 投票），给深度分析看读数
+        bits = [f"count={mf.get('count')}"]
+        for tf in ("4h", "1d"):
+            vals = mf.get(tf) or {}
+            if not isinstance(vals, dict) or not vals:
+                continue
+            ranked = []
+            for k, v in list(vals.items())[:12]:
+                try:
+                    ranked.append((str(k), float(v)))
+                except (TypeError, ValueError):
+                    continue
+            ranked.sort(key=lambda x: abs(x[1]), reverse=True)
+            top = ", ".join(f"{k}={v:+.3f}" for k, v in ranked[:6])
+            if top:
+                bits.append(f"{tf}[{top}]")
+        fw_sig = ms.get("framework_signals") or ms.get("orch_bias") or orch.get("bias")
+        if fw_sig is not None:
+            bits.append(f"framework_ref={fw_sig}")
+        lines.append("中长线因子证据(仅供分析,不投票): " + " | ".join(bits))
     reports = packet.analyst_reports or {}
     if isinstance(reports, dict) and reports:
         bits = []
@@ -383,14 +402,25 @@ def _build_market_brief(packet) -> str:
         )
 
     # ── 原始 K 线摘要（本币 × data_center trade；优先用 inject 写入的 recent_klines）──
-    for tf in ("4h", "1d", "1w"):
+    # [2026-08-10 v3.1.0] K线 8→30 根/周期，周期 +1h；mid 额外 15m（入场验证），
+    # long 额外 1M 月线锚（asterdex 已回填，_min_bars=12，不足标注不阻塞）。
+    kline_tfs = ("15m", "1h", "4h", "1d") if packet.tier == "mid" else ("1h", "4h", "1d", "1w")
+    for tf in kline_tfs:
         ind = ms.get(f"indicators_{tf}")
-        if not isinstance(ind, dict):
-            continue
-        recent = ind.get("recent_klines") or []
+        recent = []
+        if isinstance(ind, dict):
+            recent = ind.get("recent_klines") or []
+        if not isinstance(recent, list) or len(recent) < 5:
+            # 兜底：15m 注入未跑时直查 data_center（1h/4h/1d/1w 由指标块保证）
+            if tf in ("15m", "1M"):
+                try:
+                    from backend.services.kline_data_service import kline_service as _ks
+                    recent = _ks.get_klines_from_db(packet.symbol, tf, count=30) or []
+                except Exception:
+                    recent = []
         if not isinstance(recent, list) or len(recent) < 5:
             continue
-        tail = recent[-8:]
+        tail = recent[-30:]
         candle_bits = []
         for row in tail:
             if not isinstance(row, dict):
@@ -403,18 +433,124 @@ def _build_market_brief(packet) -> str:
         if candle_bits:
             lines.append(f"[{tf} K线×{len(tail)}]\n" + "\n".join(candle_bits))
 
+    # 长线 1M 月线锚（asterdex 主所已回填 60 根；不足 12 根标注不报错）
+    if packet.tier == "long":
+        try:
+            from backend.services.kline_data_service import kline_service as _ks
+            m1 = _ks.get_klines_from_db(packet.symbol, "1M", count=20) or []
+            if len(m1) >= 12:
+                candle_bits = []
+                for row in m1[-20:]:
+                    if not isinstance(row, dict):
+                        continue
+                    dt = str(row.get("datetime") or row.get("timestamp") or "")[:7]
+                    candle_bits.append(
+                        f"{dt} O={row.get('open')} H={row.get('high')} "
+                        f"L={row.get('low')} C={row.get('close')} V={row.get('volume')}"
+                    )
+                if candle_bits:
+                    lines.append(f"[1M K线×{len(candle_bits)}]\n" + "\n".join(candle_bits))
+            else:
+                lines.append("[1M] 月线数据不足（<12 根），暂缺月线锚")
+        except Exception as _m1_err:
+            logger.debug("[Qual] 1M kline skip: %s", _m1_err)
+            lines.append("[1M] 月线数据不可用")
+
     return "\n".join(lines) if lines else "（无实时行情数据）"
 
 
 
+def _build_cross_views(packet, db=None) -> Dict[str, str]:
+    """[2026-08-10 v3.1.0] 中长线互验段构建。
+
+    mid prompt 注入同标的长线 thesis.mid_view（direction/timing_score/key_levels）；
+    long prompt 注入同标的中线 thesis 最新方向与确信度。
+    任一查询失败 → 返回占位文本，不阻塞主流程。
+    """
+    out = {"long_timing_view": "（无长线择时视图）", "mid_thesis_view": "（无中线观点）"}
+    session_id = getattr(packet, "session_id", None)
+    symbol = getattr(packet, "symbol", "")
+    if not session_id or not symbol:
+        return out
+    try:
+        from backend.services.mlto import thesis_store
+        if packet.tier == "mid":
+            lt = thesis_store.get(session_id, symbol, "long", db=db)
+            if lt is not None:
+                mv = getattr(lt, "mid_view", None)
+                if mv is not None:
+                    d = mv.to_dict() if hasattr(mv, "to_dict") else {}
+                    out["long_timing_view"] = (
+                        f"- direction: {d.get('direction', 'neutral')}（相对长线方向）\n"
+                        f"- timing_score: {d.get('timing_score', 50)}/100\n"
+                        f"- timing_rationale: {d.get('timing_rationale') or '（无）'}\n"
+                        f"- key_levels: {d.get('key_levels') or '（无）'}\n"
+                        f"- invalidation_for_timing: {d.get('invalidation_for_timing') or '（无）'}"
+                    )
+        else:
+            mt = thesis_store.get(session_id, symbol, "mid", db=db)
+            if mt is not None:
+                out["mid_thesis_view"] = (
+                    f"- direction: {getattr(mt, 'direction', 'neutral')}\n"
+                    f"- llm_conviction: {getattr(mt, 'llm_conviction', 0)}\n"
+                    f"- summary: {(getattr(mt, 'thesis_summary', '') or '（无）')[:200]}"
+                )
+    except Exception as e:
+        logger.debug("[Qual] cross thesis view skip: %s", e)
+    return out
 
 
-def _build_prompt(thesis, memory_block, delta_block, constraints, packet) -> str:
+
+
+
+def _build_prompt(thesis, memory_block, delta_block, constraints, packet, db=None) -> str:
 
     # [2026-07-31 修复] 注入实时行情摘要——此前 prompt 完全没有市场数据，
     # LLM 无法判断趋势方向 → 永远 neutral + Cache#13 命中。
     market_brief = _build_market_brief(packet)
     logger.info("[MLTO] market_brief %s %s: %d chars | %.200s", packet.symbol, packet.tier, len(market_brief), market_brief)
+
+    # [2026-08-10 v3.1.0] 深度市场数据（与老链路同源，消除重复实现）：
+    # mid → build_full_deep_context(15m/1h/4h/1d×30)；long → build_trend_deep_context(4h/1d/1w/1M×52+结构)。
+    deep_context = ""
+    try:
+        from backend.services.agent_deep_context import (
+            build_full_deep_context,
+            build_trend_deep_context,
+        )
+        if packet.tier == "mid":
+            deep_context = build_full_deep_context(
+                packet.symbol,
+                db=db,
+                account_id=getattr(packet, "account_id", None),
+                kline_periods=["15m", "1h", "4h", "1d"],
+                kline_count=30,
+            )
+        else:
+            deep_context = build_trend_deep_context(packet.symbol, db=db)
+    except Exception as _dc_err:
+        logger.debug("[Qual] deep_context skip: %s", _dc_err)
+        deep_context = ""
+    if not deep_context:
+        deep_context = "（深度市场数据不可用）"
+
+    # [2026-08-10 v3.1.0] 短线建议独立成段（market_brief 内已有摘要行，模板要求独立可见）
+    _ov = (packet.market_summary_sym or {}).get("short_overlay")
+    if isinstance(_ov, dict) and _ov:
+        short_overlay = (
+            f"- direction: {_ov.get('direction', '?')}\n"
+            f"- confidence: {_ov.get('confidence', '?')}\n"
+            f"- age_sec: {_ov.get('age_sec', '?')}\n"
+            f"- summary: {_ov.get('summary') or _ov.get('signal') or _ov.get('text') or '（无描述）'}"
+        )
+    else:
+        short_overlay = "（当前无 2 小时内短线建议）"
+
+    # [2026-08-10 v3.1.0] 中长线互验段（mid 看长线 mid_view；long 看中线观点）
+    cross = _build_cross_views(packet, db)
+    long_timing_view = cross.get("long_timing_view", "（无长线择时视图）")
+    mid_thesis_view = cross.get("mid_thesis_view", "（无中线观点）")
+    cross_view = long_timing_view if packet.tier == "mid" else mid_thesis_view
 
     # [阶段2] 中周期子视图请求片段：长线 thesis 同时产出 mid_view（择时子结构）。
     # 中线 tier 本身就是中周期，无需再嵌 mid_view，仅在长线时附上。
@@ -439,6 +575,24 @@ def _build_prompt(thesis, memory_block, delta_block, constraints, packet) -> str
 ## 实时行情数据（{packet.symbol}）
 
 {market_brief}
+
+
+
+## 深度市场数据
+
+{deep_context}
+
+
+
+## 短线建议（近2小时 scalp 信号）
+
+{short_overlay}
+
+
+
+## 互验参考（同标的中线/长线 thesis 视图）
+
+{cross_view}
 
 
 
@@ -527,6 +681,15 @@ def _build_prompt(thesis, memory_block, delta_block, constraints, packet) -> str
 
                 "constraints": constraints or "",
 
+                # [2026-08-10 v3.1.0] 深度市场数据 / 短线建议 / 互验段
+                "deep_context": deep_context,
+
+                "short_overlay": short_overlay,
+
+                "long_timing_view": long_timing_view,
+
+                "mid_thesis_view": mid_thesis_view,
+
                 # [阶段2] 把 mid_view 请求片段透传给 prompt 模板（仅长线）。
                 # 模板可引用 {{mid_view_request}}；若模板未使用此变量也不影响渲染。
                 "mid_view_request": mid_view_request,
@@ -562,8 +725,10 @@ def _call_llm(agent: str, prompt: str, account_id: Optional[int]) -> dict:
         return trend_agent.update_thesis("", prompt, account_id=account_id) or {}
 
     except Exception as exc:
-
-        logger.debug("[MLTO] qual LLM fail: %s", exc)
+        # [P5] LLM 调用失败曾长期静默（debug 级别）——失败时 direction 默认
+        # neutral 且 review_count 依旧上涨，是 thesis 方向失真的一大来源。
+        # 升为 warning 便于在日志中直接观测 LLM 可用性。
+        logger.warning("[MLTO] qual LLM fail: %s", exc)
 
         return {}
 

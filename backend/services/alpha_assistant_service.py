@@ -1,4 +1,4 @@
-"""Alpha 悬浮助手 — L1/L2 + 会话持久化 + 飞书同步入口。"""
+﻿"""Alpha 悬浮助手 — L1/L2 + 会话持久化 + 飞书同步入口。"""
 
 from __future__ import annotations
 
@@ -238,7 +238,7 @@ def _process_chat(
             from backend.services.opencode_bridge import run_http_agent_message
 
             ensure_sidecar()
-            model_slug = get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-pro"
+            model_slug = get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-flash"
             # 与 OpenCode 智能分析一致：plan agent + 星标默认配置 deep 档
             raw, err = run_http_agent_message(
                 system_prompt=system_prompt,
@@ -430,7 +430,7 @@ def chat_stream(
             from backend.services.opencode_sidecar import ensure_sidecar
             from backend.services.opencode_bridge import iter_http_agent_message_stream
 
-            model_slug = (get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-pro").strip()
+            model_slug = (get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-flash").strip()
             model_label = model_slug.split("/")[-1] if "/" in model_slug else model_slug
             yield _sse(
                 "status",

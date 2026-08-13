@@ -355,6 +355,12 @@ def maybe_run_belief_review(
         )
 
         closed_stats = _count_closed_ranging_losses(db)
+        # v6 M6：方向一致率回填到 last_review，供看板验收
+        try:
+            from backend.services.mlto.midlong_direction_audit import summarize_consistency
+            dir_audit = summarize_consistency(48.0)
+        except Exception:
+            dir_audit = {}
         added: List[str] = []
 
         # 规则 1：震荡相关失败多 → 「震荡勿追 trend」
@@ -394,6 +400,7 @@ def maybe_run_belief_review(
             "score_low": score_low,
             "authority_blocks": authority_blocks,
             "closed_stats": closed_stats,
+            "direction_audit_48h": dir_audit,
             "added": added,
         }
         _save(data)

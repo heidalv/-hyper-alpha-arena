@@ -1,15 +1,15 @@
 {
   "active_addresses": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ad_line": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "aggressive_buy": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_adaptive_vol": {
     "status": "pending_archive",
@@ -156,8 +156,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_bbw": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_bbw_risk": {
     "status": "pending_archive",
@@ -260,8 +260,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_choppy": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_choppy_adx": {
     "status": "pending_archive",
@@ -300,8 +300,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_consistency": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_consol": {
     "status": "pending_archive",
@@ -428,8 +428,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_effratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_ent": {
     "status": "pending_archive",
@@ -444,8 +444,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_er": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_exh": {
     "status": "pending_archive",
@@ -460,8 +460,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_fake_break": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_fake_breakout": {
     "status": "pending_archive",
@@ -472,8 +472,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_fakebreak": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_fakeout_rsi_div": {
     "status": "pending_archive",
@@ -528,8 +528,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_high_vol_rev": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_hold": {
     "status": "pending_archive",
@@ -680,8 +680,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_liq_exhaustion": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_liq_imbalance": {
     "status": "pending_archive",
@@ -1148,8 +1148,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_mom_vol_div": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_momcon": {
     "status": "pending_archive",
@@ -1180,8 +1180,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_momdecay": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_momdiv": {
     "status": "pending_archive",
@@ -1324,8 +1324,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_mtf_align": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_mtmc": {
     "status": "pending_archive",
@@ -1336,8 +1336,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_multi_momentum": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_multi_time_momentum": {
     "status": "pending_archive",
@@ -1380,8 +1380,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_noise": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_noise_filter": {
     "status": "pending_archive",
@@ -1503,10 +1503,6 @@
     "status": "pending_archive",
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
-  "ai_gen_price_position": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
-  },
   "ai_gen_price_volatility": {
     "status": "pending_archive",
     "since": "2026-07-20T22:10:04.350273+00:00"
@@ -1532,8 +1528,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_prich": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_prp": {
     "status": "pending_archive",
@@ -1760,8 +1756,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_rev_fail": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_rev_intensity": {
     "status": "pending_archive",
@@ -1884,8 +1880,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_reverse_trap": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_revert": {
     "status": "pending_archive",
@@ -2004,8 +2000,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_sent_rev": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_shadow": {
     "status": "pending_archive",
@@ -2280,8 +2276,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_timeout_risk": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_timeoutclean": {
     "status": "pending_archive",
@@ -2368,8 +2364,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_tren": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_trend": {
     "status": "pending_archive",
@@ -2400,8 +2396,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_trend_conflict": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_trend_conformity": {
     "status": "pending_archive",
@@ -2500,8 +2496,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_trend_quality": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_trend_ratio": {
     "status": "pending_archive",
@@ -2532,8 +2528,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_trend_strength": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_trend_uncertainty": {
     "status": "pending_archive",
@@ -2680,8 +2676,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_tsr": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_tss": {
     "status": "pending_archive",
@@ -2708,8 +2704,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_tvmb": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_tvr": {
     "status": "pending_archive",
@@ -3056,8 +3052,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_vol_div": {
-    "status": "quarantined",
-    "since": "2026-08-03T20:05:56.678172+00:00"
+    "status": "pending_archive",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_vol_divergence": {
     "status": "pending_archive",
@@ -3156,8 +3152,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_vol_spike": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_vol_spread": {
     "status": "pending_archive",
@@ -3276,8 +3272,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_volatility_regime": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volatility_regime_change": {
     "status": "pending_archive",
@@ -3328,12 +3324,12 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_volatrap": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volbreak": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volchange": {
     "status": "pending_archive",
@@ -3440,12 +3436,12 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_volreg": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volregime": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volrev": {
     "status": "pending_archive",
@@ -3552,8 +3548,8 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "ai_gen_volume_breakout": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ai_gen_volume_conf": {
     "status": "pending_archive",
@@ -3856,336 +3852,336 @@
     "since": "2026-07-20T22:10:04.350273+00:00"
   },
   "amihud_illiquidity": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "bb_lower": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "bb_upper": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "bb_width_raw": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "bid_ask_spread": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "btc_dominance": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "bull_bear_index": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "buy_sell_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "buy_volume": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cci_14": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cloud_bollinger_width": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cloud_microstructure_kyle": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cloud_obv_oscillator": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cloud_rsi_divergence": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cloud_vwap_deviation": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cmf_20": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "consolidation": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cross_market_corr": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cvd_divergence": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "cvd_volume_residual": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "depth_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "dollar_volume": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "exchange_net_flow": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "fear_greed_index": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "fear_greed_macro": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "fear_momentum": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "flow_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_oi_alignment": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_oi_divergence": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate_24h": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate_extreme": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate_ma": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate_momentum": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "funding_rate_vol": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "gap_size": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "global_liquidity": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "high_low_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ichimoku_kijun": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "ichimoku_tenkan": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "keltner_lower": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "keltner_upper": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "liquidation_magnet": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "liquidation_pressure": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "liquidity_premium": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "liquidity_score": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "long_short_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "mfi_14": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "multi_tf_momentum": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "open_interest_momentum": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "options_structure": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "order_flow_imbalance": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "order_imbalance": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "orderflow_delta": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "pressure_index": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "price_anomaly": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "price_range": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "price_to_ma20": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "psar": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "regime_change": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "regime_transition_score": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "reverse_pattern": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "risk_on_score": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "rsi_7": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "rsi_vol_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "sell_volume": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "smart_money_flow": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "spike_detection": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "stoch_d": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "stoch_k": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "trade_intensity": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "trend_persistence": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "trend_strength": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "trix_12": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "turnover_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "tvl_change": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "uo": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "volatility_anomaly": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "volatility_ratio": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "volume_anomaly": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "whale_transactions": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "williams_r": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "win_streak": {
-    "status": "pending_archive",
-    "since": "2026-07-20T22:10:04.350273+00:00"
+    "status": "archived",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   },
   "wq_alpha001": {
     "status": "pending_archive",
@@ -4314,5 +4310,21 @@
   "ai_gen_vqc": {
     "status": "pending_archive",
     "since": "2026-08-03T20:05:56.678172+00:00"
+  },
+  "l2_depth_imbalance": {
+    "status": "pending_archive",
+    "since": "2026-08-10T20:31:07.234797+00:00"
+  },
+  "mean_reversion_score": {
+    "status": "pending_archive",
+    "since": "2026-08-10T20:31:07.234797+00:00"
+  },
+  "stablecoin_mint_burn": {
+    "status": "pending_archive",
+    "since": "2026-08-10T20:31:07.234797+00:00"
+  },
+  "wick_protection": {
+    "status": "pending_archive",
+    "since": "2026-08-10T20:31:07.234797+00:00"
   }
 }

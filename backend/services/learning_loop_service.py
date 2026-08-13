@@ -482,6 +482,25 @@ class LearningLoopService:
             except Exception:
                 pass
 
+        # ── DRL 影子预测回填（2026-08-09 打通）──
+        # 预测落定窗口（5 根 1h bar）后回填 actual_direction/is_correct，
+        # 供 SystemCoordinator._should_retrain_drl 的准确率判据使用；
+        # 与 outcome 批处理同频兜底，失败不影响主 tick。
+        drl_backfilled = 0
+        try:
+            from backend.services.rl.drl_performance_backfill import backfill_pending
+            _drl_db = None
+            try:
+                from backend.database.connection import SessionLocal as _DRL_SL
+                _drl_db = _DRL_SL()
+                drl_backfilled = int(backfill_pending(_drl_db) or 0)
+            finally:
+                if _drl_db:
+                    _drl_db.close()
+        except Exception as _drl_err:
+            logger.warning(f"[LearningLoop] DRL 影子回填失败: {_drl_err}")
+
+        extra["drl_backfilled"] = drl_backfilled
         return extra
 
     # ─────────────────────────────

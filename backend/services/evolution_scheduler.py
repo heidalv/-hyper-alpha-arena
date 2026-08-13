@@ -9,6 +9,7 @@
 """
 
 import logging
+import os as _os
 import threading
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
@@ -137,6 +138,13 @@ class EvolutionScheduler:
 
             for tpl in templates:
                 try:
+                    # [2026-08-11 修复] 上一模板失败后 session 可能处于 failed 事务，
+                    # 不 rollback 会导致后续所有模板报
+                    # “This Session's transaction has been rolled back...”。
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
                     logger.info(f"[EvoScheduler] 进化模板 [{evolved_count+1}/{len(templates)}]: {tpl.name or tpl.template_id} (rating={tpl.rating})")
                     # 构建多目标 fitness_fn：包装 evolver 的单次回测
                     def _make_fitness_fn(template, _evolver, _db):
@@ -260,6 +268,11 @@ class EvolutionScheduler:
                         )
                         logger.info(f"[EvoScheduler] 模板 {tpl.template_id} 降级到 StrategyEvolver 完成")
                 except Exception as e:
+                    # [2026-08-11 修复] 失败后先 rollback，保证下一个模板能继续使用同一会话。
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
                     logger.warning(f"[EvoScheduler] 模板 {tpl.template_id} 进化失败: {e}")
 
             # ── 冠军参数 → v5_runtime_gates.json（统一下发通道）──
@@ -490,6 +503,22 @@ class EvolutionScheduler:
                     )
             except Exception as _pr_err:
                 logger.debug(f"[EvoScheduler] 活跃因子衰减复检跳过: {_pr_err}")
+
+            # [2026-08-13 P0-2] 分数-胜率校准：用 scalp_signal_log 已结算样本分桶
+            # 重估门槛与高分段条件，结果写 data/scalp_calibration.json 供 Router 读。
+            try:
+                from backend.services.scalp.scalp_score_calibration import calibrate
+                _calib = calibrate()
+                if _calib.get("enabled") and _calib.get("threshold"):
+                    logger.info(
+                        "[EvoScheduler] 分数-胜率校准: n=%s threshold=%s high_score_ok=%s",
+                        _calib.get("n_samples"), _calib.get("threshold"),
+                        _calib.get("high_score_ok"),
+                    )
+                elif _calib.get("enabled"):
+                    logger.warning("[EvoScheduler] 分数-胜率校准无有效门槛: %s", _calib)
+            except Exception as _cal_err:
+                logger.debug(f"[EvoScheduler] 分数-胜率校准跳过: {_cal_err}")
 
             # S4 基座：中长线活跃因子集在 4h/1d 上的衰减复检退役（与短线独立）。
             try:
@@ -1183,6 +1212,36 @@ def register_evolution_tasks():
 
         CYCLE_SECONDS = 3 * 24 * 3600   # 7×24h 运行，3天一个进化周期
         DAY_SECONDS = 24 * 3600
+
+        # [2026-08-13 P1-9] 进化节奏分档：短线周期（1m/5m/15m）每日一次——短线
+        # regime 切换快于因子更新，3 天周期跟不上；中长线保持 3 天 CYCLE_SECONDS。
+        # 5m 已由 main.py cron 每日 04:00 注册（task_id=factor_evolution_scalp_5m_daily），
+        # 这里补 1m/15m；env FACTOR_EVO_SCALP_PERIODS 可配（空串 = 全部关闭）。
+        try:
+            from backend.services.evolution.factor_evolution_loop import (
+                run_factor_evolution_loop as _run_factor_evo,
+            )
+            _scalp_periods = [
+                _s.strip() for _s in
+                (_os.getenv("FACTOR_EVO_SCALP_PERIODS", "1m,15m") or "").split(",")
+                if _s.strip()
+            ]
+            for _per in _scalp_periods:
+                def _run_scalp_evo(_per=_per):
+                    try:
+                        return _run_factor_evo(period=_per, quick=False, source="scalp_daily_sched")
+                    except Exception as _e:
+                        logger.warning("[EvoScheduler] 短线 %s 每日进化失败: %s", _per, _e)
+                        return {"error": str(_e)[:150]}
+                task_scheduler.add_interval_task(
+                    task_func=_run_scalp_evo,
+                    interval_seconds=DAY_SECONDS,
+                    task_id=f"factor_evolution_scalp_{_per}_daily_evo",
+                    max_instances=1,
+                )
+                logger.info("[EvoScheduler] 已注册短线 %s 每日进化任务", _per)
+        except Exception as _e:
+            logger.warning("[EvoScheduler] 短线周期每日进化注册失败: %s", _e)
 
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.weekly_evolution,

@@ -1,0 +1,157 @@
+{
+  "generated_at": "2026-08-11T09:14:55.161536+00:00",
+  "days": 60,
+  "exchange": "asterdex",
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "KAITO",
+    "ZEC",
+    "NEAR",
+    "AAVE",
+    "ONDO",
+    "XMR",
+    "HYPE"
+  ],
+  "result": {
+    "start": {
+      "message": "同步任务已启动",
+      "exchange": "asterdex",
+      "symbols": [
+        "BTC",
+        "ETH",
+        "SOL",
+        "KAITO",
+        "ZEC",
+        "NEAR",
+        "AAVE",
+        "ONDO",
+        "XMR",
+        "HYPE"
+      ],
+      "periods": [
+        "5m"
+      ],
+      "days": 60,
+      "total_tasks": 10,
+      "pending_tasks": 0,
+      "skipped_tasks": 10
+    },
+    "final": {
+      "status": "completed",
+      "exchange": "asterdex",
+      "total_tasks": 10,
+      "completed_tasks": 10,
+      "failed_tasks": 0,
+      "current_task": "",
+      "overall_progress": 0.0,
+      "started_at": "2026-08-11T09:14:50.146914+00:00",
+      "estimated_remaining_seconds": 0,
+      "total_records_synced": 0,
+      "error": "",
+      "sub_tasks": [
+        {
+          "symbol": "BTC",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "ETH",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "SOL",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "KAITO",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "ZEC",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "NEAR",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "AAVE",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "ONDO",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17279,
+          "existing_in_db": 17279,
+          "error": ""
+        },
+        {
+          "symbol": "XMR",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        },
+        {
+          "symbol": "HYPE",
+          "period": "5m",
+          "status": "skipped",
+          "progress": 100.0,
+          "total_expected": 17280,
+          "collected": 17280,
+          "existing_in_db": 17280,
+          "error": ""
+        }
+      ]
+    }
+  }
+}

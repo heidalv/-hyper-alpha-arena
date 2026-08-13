@@ -1,4 +1,4 @@
-"""
+﻿"""
 LLM Configuration Routes
 
 API endpoints for unified LLM configuration management.
@@ -271,18 +271,16 @@ def list_providers():
             {
                 "id": "deepseek",
                 "name": "Deepseek",
-                "default_model": "deepseek-chat",
+                "default_model": "deepseek-v4-flash",
                 "default_base_url": "https://api.deepseek.com",
-                "description": "DeepSeek高性价比模型",
+                "description": "DeepSeek 高性价比模型（统一默认 V4 Flash）",
                 "key_placeholder": "sk-...",
                 "model_variants": [
-                    {"value": "deepseek-v4-flash", "label": "DeepSeek V4 Flash (快速推理)", "tier": "quick"},
+                    {"value": "deepseek-v4-flash", "label": "DeepSeek V4 Flash", "tier": "quick"},
                     {"value": "deepseek-chat", "label": "DeepSeek Chat (Flash 别名)", "tier": "quick"},
-                    {"value": "deepseek-v4-pro", "label": "DeepSeek V4 Pro (深度推理)", "tier": "deep"},
-                    {"value": "deepseek-reasoner", "label": "DeepSeek Reasoner (Pro 别名)", "tier": "deep"},
                 ],
                 "dual_model": True,
-                "dual_model_hint": "同一 API Key 可同时启用 Flash 与 Pro，系统按任务自动选择模型",
+                "dual_model_hint": "统一使用 V4 Flash；深度任务也走同一模型",
             },
             {
                 "id": "qwen",
@@ -295,12 +293,12 @@ def list_providers():
             {
                 "id": "volcengine",
                 "name": "火山方舟 Ark (Volcengine)",
-                "default_model": "deepseek-v4-pro-260425",
+                "default_model": "deepseek-v4-flash-260425",
                 "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
-                "description": "火山方舟 Ark（OpenAI 兼容）。可托管 DeepSeek 等模型，调用模型名如 deepseek-v4-pro-260425，或用接入点ID ep-xxxxx",
+                "description": "火山方舟 Ark（OpenAI 兼容）。可托管 DeepSeek 等模型，调用模型名如 deepseek-v4-flash-260425，或用接入点ID ep-xxxxx",
                 "key_placeholder": "火山方舟 API Key（如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）",
                 "model_variants": [
-                    {"value": "deepseek-v4-pro-260425", "label": "DeepSeek V4 Pro (Ark 托管)", "tier": "deep"},
+                    {"value": "deepseek-v4-flash-260425", "label": "DeepSeek V4 Flash (Ark 托管)", "tier": "deep"},
                     {"value": "deepseek-v3-250624", "label": "DeepSeek V3 (Ark 托管)", "tier": "deep"},
                 ],
             },
@@ -624,7 +622,7 @@ def test_llm_config(
         model_lower = model.lower()
         is_reasoning_model = any(x in model_lower for x in [
             'gpt-5', 'o1-preview', 'o1-mini', 'o1-', 'o3-', 'o4-',
-            'deepseek-r1', 'deepseek-reasoner', 'deepseek-v4-pro',
+            'deepseek-r1', 'deepseek-reasoner', 'deepseek-v4-flash',
             'qwq', 'qwen-plus-thinking', 'qwen-max-thinking', 'qwen3-thinking',
             'claude-4', 'claude-sonnet-4-5',
             'gemini-2.5', 'gemini-3', 'gemini-2.0-flash-thinking',

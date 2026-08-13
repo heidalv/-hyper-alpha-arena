@@ -1,0 +1,324 @@
+{
+  "generated_at": "2026-08-11T10:00:49.733183+00:00",
+  "mode": "kline_factor",
+  "factor_set": "meanrev",
+  "scenario": "realistic",
+  "days": 60,
+  "exchange": "asterdex",
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB",
+    "XRP",
+    "DOGE",
+    "ADA",
+    "AVAX",
+    "LINK",
+    "SUI",
+    "LTC",
+    "AAVE"
+  ],
+  "config": {
+    "threshold": 0.5,
+    "sl_pct": 0.005,
+    "tp_pct": 0.01,
+    "max_hold_candles": 48,
+    "cooldown_candles": 6,
+    "warmup": 120,
+    "z_window": 120,
+    "fee_bps": 0.5,
+    "slip_bps": 2.97,
+    "funding_bps_per_hour": 0.0,
+    "round_trip_cost_bps": 6.94
+  },
+  "n_signals": 2852,
+  "total": {
+    "n": 2852,
+    "win_rate": 0.4155,
+    "avg_net_ret": -0.000231,
+    "profit_factor": 0.9197
+  },
+  "older_half": {
+    "n": 1426,
+    "win_rate": 0.432,
+    "avg_net_ret": -2.6e-05,
+    "profit_factor": 0.9909
+  },
+  "newer_half": {
+    "n": 1426,
+    "win_rate": 0.399,
+    "avg_net_ret": -0.000436,
+    "profit_factor": 0.8505
+  },
+  "permutation_p": 1.0,
+  "buckets": [
+    {
+      "bucket": "30-40",
+      "n": 18,
+      "win_rate": 0.2222,
+      "avg_net_ret": -0.002128
+    },
+    {
+      "bucket": "40-50",
+      "n": 303,
+      "win_rate": 0.4356,
+      "avg_net_ret": -0.000241
+    },
+    {
+      "bucket": "50-60",
+      "n": 335,
+      "win_rate": 0.403,
+      "avg_net_ret": -0.000468
+    },
+    {
+      "bucket": ">=60",
+      "n": 2196,
+      "win_rate": 0.4162,
+      "avg_net_ret": -0.000178
+    }
+  ],
+  "per_symbol": {
+    "AAVE": {
+      "total": {
+        "n": 292,
+        "win_rate": 0.4247,
+        "avg_net_ret": 0.000359,
+        "profit_factor": 1.1152
+      },
+      "older_half": {
+        "n": 146,
+        "win_rate": 0.411,
+        "avg_net_ret": -2.3e-05,
+        "profit_factor": 0.9929
+      },
+      "newer_half": {
+        "n": 146,
+        "win_rate": 0.4384,
+        "avg_net_ret": 0.000741,
+        "profit_factor": 1.2513
+      }
+    },
+    "ADA": {
+      "total": {
+        "n": 317,
+        "win_rate": 0.3943,
+        "avg_net_ret": 8e-06,
+        "profit_factor": 1.0025
+      },
+      "older_half": {
+        "n": 158,
+        "win_rate": 0.4051,
+        "avg_net_ret": 0.00013,
+        "profit_factor": 1.0405
+      },
+      "newer_half": {
+        "n": 159,
+        "win_rate": 0.3836,
+        "avg_net_ret": -0.000113,
+        "profit_factor": 0.9668
+      }
+    },
+    "AVAX": {
+      "total": {
+        "n": 244,
+        "win_rate": 0.4508,
+        "avg_net_ret": 0.00038,
+        "profit_factor": 1.1371
+      },
+      "older_half": {
+        "n": 122,
+        "win_rate": 0.4098,
+        "avg_net_ret": -3e-05,
+        "profit_factor": 0.99
+      },
+      "newer_half": {
+        "n": 122,
+        "win_rate": 0.4918,
+        "avg_net_ret": 0.000789,
+        "profit_factor": 1.3134
+      }
+    },
+    "BNB": {
+      "total": {
+        "n": 190,
+        "win_rate": 0.4158,
+        "avg_net_ret": -0.001116,
+        "profit_factor": 0.5516
+      },
+      "older_half": {
+        "n": 95,
+        "win_rate": 0.4842,
+        "avg_net_ret": -0.00031,
+        "profit_factor": 0.8543
+      },
+      "newer_half": {
+        "n": 95,
+        "win_rate": 0.3474,
+        "avg_net_ret": -0.001921,
+        "profit_factor": 0.3254
+      }
+    },
+    "BTC": {
+      "total": {
+        "n": 197,
+        "win_rate": 0.3959,
+        "avg_net_ret": -0.000712,
+        "profit_factor": 0.7117
+      },
+      "older_half": {
+        "n": 98,
+        "win_rate": 0.449,
+        "avg_net_ret": -0.000298,
+        "profit_factor": 0.8761
+      },
+      "newer_half": {
+        "n": 99,
+        "win_rate": 0.3434,
+        "avg_net_ret": -0.001123,
+        "profit_factor": 0.5572
+      }
+    },
+    "DOGE": {
+      "total": {
+        "n": 230,
+        "win_rate": 0.3739,
+        "avg_net_ret": -0.000794,
+        "profit_factor": 0.7399
+      },
+      "older_half": {
+        "n": 115,
+        "win_rate": 0.3913,
+        "avg_net_ret": -0.000214,
+        "profit_factor": 0.9287
+      },
+      "newer_half": {
+        "n": 115,
+        "win_rate": 0.3565,
+        "avg_net_ret": -0.001373,
+        "profit_factor": 0.5567
+      }
+    },
+    "ETH": {
+      "total": {
+        "n": 231,
+        "win_rate": 0.4459,
+        "avg_net_ret": -0.000343,
+        "profit_factor": 0.8756
+      },
+      "older_half": {
+        "n": 115,
+        "win_rate": 0.4783,
+        "avg_net_ret": 0.000105,
+        "profit_factor": 1.0395
+      },
+      "newer_half": {
+        "n": 116,
+        "win_rate": 0.4138,
+        "avg_net_ret": -0.000787,
+        "profit_factor": 0.7242
+      }
+    },
+    "LINK": {
+      "total": {
+        "n": 237,
+        "win_rate": 0.443,
+        "avg_net_ret": 0.000204,
+        "profit_factor": 1.0723
+      },
+      "older_half": {
+        "n": 118,
+        "win_rate": 0.4831,
+        "avg_net_ret": 0.000717,
+        "profit_factor": 1.2805
+      },
+      "newer_half": {
+        "n": 119,
+        "win_rate": 0.4034,
+        "avg_net_ret": -0.000304,
+        "profit_factor": 0.9017
+      }
+    },
+    "LTC": {
+      "total": {
+        "n": 213,
+        "win_rate": 0.4507,
+        "avg_net_ret": 0.000127,
+        "profit_factor": 1.0494
+      },
+      "older_half": {
+        "n": 106,
+        "win_rate": 0.4528,
+        "avg_net_ret": 0.000487,
+        "profit_factor": 1.1798
+      },
+      "newer_half": {
+        "n": 107,
+        "win_rate": 0.4486,
+        "avg_net_ret": -0.000229,
+        "profit_factor": 0.9067
+      }
+    },
+    "SOL": {
+      "total": {
+        "n": 231,
+        "win_rate": 0.4242,
+        "avg_net_ret": -0.000372,
+        "profit_factor": 0.8717
+      },
+      "older_half": {
+        "n": 115,
+        "win_rate": 0.4348,
+        "avg_net_ret": -0.000403,
+        "profit_factor": 0.8657
+      },
+      "newer_half": {
+        "n": 116,
+        "win_rate": 0.4138,
+        "avg_net_ret": -0.000341,
+        "profit_factor": 0.8781
+      }
+    },
+    "SUI": {
+      "total": {
+        "n": 252,
+        "win_rate": 0.3413,
+        "avg_net_ret": -0.00077,
+        "profit_factor": 0.7655
+      },
+      "older_half": {
+        "n": 126,
+        "win_rate": 0.3333,
+        "avg_net_ret": -0.000833,
+        "profit_factor": 0.7524
+      },
+      "newer_half": {
+        "n": 126,
+        "win_rate": 0.3492,
+        "avg_net_ret": -0.000708,
+        "profit_factor": 0.7792
+      }
+    },
+    "XRP": {
+      "total": {
+        "n": 218,
+        "win_rate": 0.4358,
+        "avg_net_ret": -0.000184,
+        "profit_factor": 0.9282
+      },
+      "older_half": {
+        "n": 109,
+        "win_rate": 0.4862,
+        "avg_net_ret": 0.000355,
+        "profit_factor": 1.1522
+      },
+      "newer_half": {
+        "n": 109,
+        "win_rate": 0.3853,
+        "avg_net_ret": -0.000722,
+        "profit_factor": 0.741
+      }
+    }
+  },
+  "parity_score": null
+}

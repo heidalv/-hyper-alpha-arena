@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -487,11 +488,62 @@ class CodegenCritic:
         if ast is None:
             return CodegenResult(expr_ast=None, audit_passed=False, reason="llm_invalid_ast")
         result = audit(ast)
+        if result.ok:
+            # [2026-08-13 P1-10] 换手上限拦截：look-ahead 之外的第二道静态门
+            _ok_turn, _reason_turn = self._audit_turnover_cap(ast)
+            if not _ok_turn:
+                return CodegenResult(expr_ast=None, audit_passed=False, reason=_reason_turn)
         return CodegenResult(
             expr_ast=ast if result.ok else None,
             audit_passed=result.ok,
             reason="OK" if result.ok else "; ".join(result.errors),
         )
+
+    @staticmethod
+    def _audit_turnover_cap(ast: dict) -> tuple[bool, str]:
+        """[2026-08-13 P1-10] 换手上限拦截（静态代理）。
+
+        收集 AST 内所有窗口/延迟类算子的窗口参数（args[-1] 常量），
+        最短窗口 < CODEGEN_MIN_TURNOVER_WINDOW（默认 2 根）说明信号每
+        1-2 根 K 线即重算/翻转 → 换手过高，taker+funding 成本会吃掉
+        alpha。env CODEGEN_MIN_TURNOVER_WINDOW=0 显式关闭。
+        """
+        try:
+            _min_win = int(os.getenv("CODEGEN_MIN_TURNOVER_WINDOW", "2") or 2)
+        except (TypeError, ValueError):
+            _min_win = 2
+        if _min_win <= 0:
+            return True, "OK"  # 显式关闭
+        _WINDOW_OPS = frozenset({
+            "ref", "mean", "sum", "std", "var", "max", "min", "ts_rank",
+            "delta", "wma", "ema", "decay_linear", "ts_argmax", "ts_argmin",
+            "ts_corr", "corr", "cov",
+        })
+        windows: list[float] = []
+
+        def _walk(node):
+            if not isinstance(node, dict):
+                return
+            args = node.get("args", []) if "op" in node else []
+            if "op" in node and node["op"] in _WINDOW_OPS and isinstance(args, list) and args:
+                last = args[-1]
+                val = None
+                if isinstance(last, (int, float)):
+                    val = last
+                elif isinstance(last, dict) and "c" in last and isinstance(last["c"], (int, float)):
+                    val = last["c"]
+                if val is not None and val > 0:
+                    windows.append(float(val))
+            for ch in args:
+                _walk(ch)
+
+        _walk(ast)
+        if windows and min(windows) < _min_win:
+            return False, (
+                f"turnover_cap: 最短窗口 {min(windows):.0f} 根 < 下限 {_min_win} 根，"
+                f"换手过高（taker+funding 成本会吃掉 alpha）"
+            )
+        return True, "OK"
 
     def reject_lookahead(self, ast: dict) -> tuple[bool, str]:
         """critic 检测 look-ahead bias。"""

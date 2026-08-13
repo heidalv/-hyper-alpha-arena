@@ -28,7 +28,12 @@ _stats: Dict[str, int] = {
     "blocked_sync_train": 0,
     "deferred_off_peak": 0,
     "off_peak_runs": 0,
+    "gpu_train_blocked": 0,
 }
+
+# GPU 训练任务全局互斥（单卡阶段：ML 深度模型重训与 DRL 训练总串行）
+_gpu_train_lock = threading.Lock()
+_gpu_train_holder: Optional[str] = None
 
 _HEAVY_PREFIXES = (
     "lightgbm", "torch", "tensorflow", "dspy", "sklearn.ensemble",
@@ -133,3 +138,29 @@ def wrap_heavy_import(module_name: str) -> None:
     low = module_name.lower()
     if any(low.startswith(p) or p in low for p in _HEAVY_PREFIXES):
         logger.warning("[ResourceGuard] 热路径 import 重模块: %s", module_name)
+
+
+@contextmanager
+def gpu_training_operation(label: str = "gpu-train"):
+    """GPU 训练任务全局互斥（非阻塞）：同一时刻只允许一个训练任务持有 GPU。
+
+    与 guard_training_operation 互补：后者挡「热路径上的训练」，本锁挡
+    「GPU 训练任务之间的并发」（单卡 1070：深度模型重训 vs DRL 训练总串行）。
+    被占用时立即 yield False（调用方应跳过本次、下个周期再试），不排队不阻塞。
+    零风险：RESOURCE_GUARD_ENABLED=false 时恒 yield True 放行。
+    """
+    global _gpu_train_holder
+    if not is_enabled():
+        yield True
+        return
+    if not _gpu_train_lock.acquire(blocking=False):
+        _bump("gpu_train_blocked")
+        logger.info("[ResourceGuard] GPU 训练互斥被占用(%s)，跳过: %s", _gpu_train_holder, label)
+        yield False
+        return
+    _gpu_train_holder = label
+    try:
+        yield True
+    finally:
+        _gpu_train_holder = None
+        _gpu_train_lock.release()

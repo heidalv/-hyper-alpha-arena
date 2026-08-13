@@ -12,10 +12,11 @@
   ⑥ 反转离场      evaluate_midlong_exit + no_progress   → close
 
 执行链路（§7.5，单一优先级，每 tick 最多执行一个实质动作）：
-  close  （⑥反转 > ①方向破坏 > ⑤trailing_hit） → paper_engine.close_position
-  reduce （⑤分档止盈 > ①方向减弱）              → paper_engine.close_position(部分)
+  close  （⑥反转 > ⑤trailing_hit > ①方向破坏） → paper_engine.close_position
+  reduce （⑤分档止盈）                          → paper_engine.close_position(部分)
+  add    （② 浮盈+LLM add，或浮盈>5% 规则直通） → position_manager.evaluate_pyramid → place_order(add_type="pyramid")
   tighten（①收紧追踪止损 / ③ TP上移）          → paper_engine.update_position_tp_sl
-  add    （② 仅浮盈+回调+趋势成立）            → position_manager.evaluate_pyramid → place_order(add_type="pyramid")
+  reduce （①方向减弱，仅浮亏/平盘执行）         → paper_engine.close_position(部分)
   hold                                          → 更新趋势复查时间戳，继续持有
 
 频率（§7.6）：
@@ -57,6 +58,17 @@ def _cfg_int(key: str, default: int) -> int:
     except Exception:
         try:
             return int(os.getenv(key, str(default)))
+        except Exception:
+            return default
+
+
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        from backend.config import settings
+        return float(getattr(settings, key, default) or default)
+    except Exception:
+        try:
+            return float(os.getenv(key, str(default)))
         except Exception:
             return default
 
@@ -372,6 +384,19 @@ def _exec_close(db, *, account_id, position, reason: str, host, session) -> Opti
         )
         if res:
             _pnl = res.get("pnl", 0) if isinstance(res, dict) else 0
+            # reduce_count 记账：持仓管理减仓此前未 +1，导致统计口径缺失。
+            try:
+                from datetime import datetime as _dt, timezone as _tz
+                from backend.database.models import PaperPosition as _PPos
+                _pid = position.get("id")
+                if _pid:
+                    _row = db.query(_PPos).filter(_PPos.id == int(_pid)).first()
+                    if _row is not None:
+                        _row.reduce_count = int(getattr(_row, "reduce_count", 0) or 0) + 1
+                        _row.last_reduce_at = _dt.now(_tz.utc)
+                        db.commit()
+            except Exception as _rc_err:
+                logger.debug("[MidLong] stage=manage %s reduce_count 更新失败: %s", sym, _rc_err)
             host.append_event(
                 session, "pos_mgmt_close",
                 f"🚪 [持仓管理] {sym}[{side}] 离场: {reason} | PnL=${_pnl:+.2f}",
@@ -399,7 +424,7 @@ def _exec_reduce(db, *, account_id, position, ratio: float, reason: str, host, s
     try:
         from backend.services.paper_trading_engine import paper_engine
         res = paper_engine.close_position(
-            db, account_id, sym, side, reason=str(reason)[:120],
+            db, account_id, sym, side, reason=str(reason)[:100],
             quantity=_qty, strategy_id=position.get("strategy_id"),
         )
         if res:
@@ -422,6 +447,30 @@ def _exec_tighten(db, *, account_id, position, new_sl, host, session, tp_price=N
     pid = position.get("id")
     if not pid:
         return False
+    # [P0-2] 浮盈 tighten 保护：保证金口径浮盈 > 1.5% 时，收紧的 SL 不得越过
+    # entry±1%（价格），防止微利仓被推进的保本线过早收割
+    # （id=2641 peak 2.32% 被推进到 entry+1.47% 的 SL 扫掉）。阈值可经 env 覆盖。
+    try:
+        entry = float(position.get("entry_price", 0) or 0)
+        if entry > 0 and _pnl_pct_of(position) > _cfg_float("MIDLONG_TIGHTEN_PROFIT_FLOOR", 0.015):
+            _sl_floor = entry * (1 + _cfg_float("MIDLONG_TIGHTEN_SL_FLOOR", 0.01))
+            _sl_cap = entry * (1 - _cfg_float("MIDLONG_TIGHTEN_SL_FLOOR", 0.01))
+            _sl = float(new_sl or 0)
+            side = _pos_direction(position.get("side"))
+            if side == "long" and _sl < _sl_floor:
+                logger.info(
+                    "[MidLong] stage=manage %s tighten SL %.6f < entry+1%%=%.6f → 抬到 %.6f（浮盈保护）",
+                    str(position.get("symbol", "") or "").upper(), _sl, _sl_floor, _sl_floor,
+                )
+                new_sl = round(_sl_floor, 6)
+            elif side == "short" and _sl > _sl_cap:
+                logger.info(
+                    "[MidLong] stage=manage %s tighten SL %.6f > entry-1%%=%.6f → 压到 %.6f（浮盈保护）",
+                    str(position.get("symbol", "") or "").upper(), _sl, _sl_cap, _sl_cap,
+                )
+                new_sl = round(_sl_cap, 6)
+    except Exception as _te:
+        logger.debug("[MidLong] stage=manage pid=%s tighten 浮盈保护计算异常: %s", pid, _te)
     try:
         from backend.services.paper_trading_engine import paper_engine
         ok = paper_engine.update_position_tp_sl(
@@ -527,7 +576,7 @@ def manage_position(
 ) -> Dict[str, Any]:
     """模式 B：对单个已持仓交易对做六维仓位发展分析并执行。
 
-    每 tick 最多执行一个实质动作，优先级：close > reduce > tighten > add > hold。
+    每 tick 最多执行一个实质动作，优先级：close > add(pyramid) > tighten > reduce(仅浮亏) > hold。
     返回决策摘要 dict（供 _trend_one 组装事件与日志）。
     """
     sym = str(symbol or "").upper()
@@ -668,7 +717,7 @@ def manage_position(
     _last_llm_run_ts[_key] = _now
     _reason_base = str(review.get("reasoning") or "")[:200]
 
-    # ═══ 决策合并（单一优先级）═══
+    # ═══ 决策合并（单一优先级：close > pyramid(add) > tighten > reduce[仅浮亏] > hold）═══
     if _review_action == "close":
         _exec_close(db, account_id=account_id, position=position,
                     reason=f"trend_broken: {_reason_base}", host=host, session=session)
@@ -679,16 +728,23 @@ def manage_position(
         )
         return _summary(f"方向破坏离场: {_reason_base}", action="manage_close")
 
-    if _review_action == "reduce":
-        _exec_reduce(db, account_id=account_id, position=position,
-                     ratio=float(review.get("reduce_ratio", 0.3) or 0.3),
-                     reason=f"trend_weaken: {_reason_base}", host=host, session=session)
-        logger.info(
-            "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
-            "direction=weaken pyramid=%s review=reduce staged_tp=%s exit=no reason=%s",
-            sym, side, pnl_pct * 100, hold_hours, _pyr_action, _sig["staged_tp"], _reason_base,
+    # [P1-1] 滚仓优先于减仓：
+    # ① LLM 判 add 且浮盈 → 立即进 5 层门控；
+    # ② 规则直通：保证金浮盈 > MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL(默认5%) 且
+    #    方向 valid(hold/tighten_trailing) → 跳过 LLM wait 直接进 5 层门控。
+    _pyr_direct = (
+        pnl_pct > _cfg_float("MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL", 0.05)
+        and _review_action in ("hold", "tighten_trailing")
+    )
+    if (_pyr_action == "add" and pnl_pct > 0) or _pyr_direct:
+        _ok = _exec_pyramid(
+            db, account_id=account_id, position=position,
+            market_summary=market_summary, host=host,
+            session=session, trading_mode=trading_mode,
         )
-        return _summary(f"趋势减弱减仓: {_reason_base}", action="manage_reduce")
+        if _ok:
+            _why = "规则直通" if (_pyr_direct and _pyr_action != "add") else "LLM add"
+            return _summary(f"顺势滚仓执行({_why}): {pyr.get('reasoning') or ''}", action="manage_pyramid")
 
     if _review_action == "tighten_trailing":
         _trend_adj = review.get("trend_adjustment") or {}
@@ -717,12 +773,24 @@ def manage_position(
             )
             return _summary(f"收紧追踪止损 SL→{_new_sl:.6f}: {_reason_base}", action="manage_tighten")
 
-    if _pyr_action == "add":
-        _ok = _exec_pyramid(db, account_id=account_id, position=position,
-                            market_summary=market_summary, host=host,
-                            session=session, trading_mode=trading_mode)
-        if _ok:
-            return _summary(f"顺势滚仓执行: {pyr.get('reasoning') or ''}", action="manage_pyramid")
+    # [P1-2] 减仓不对称治理：浮盈时 LLM reduce 降级为 hold（趋势未破坏不砍盈利仓），
+    # 仅浮亏或平盘时允许执行减仓。
+    if _review_action == "reduce":
+        if pnl_pct <= 0:
+            _exec_reduce(db, account_id=account_id, position=position,
+                         ratio=float(review.get("reduce_ratio", 0.3) or 0.3),
+                         reason=f"trend_weaken: {_reason_base}", host=host, session=session)
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
+                "direction=weaken pyramid=%s review=reduce staged_tp=%s exit=no reason=%s",
+                sym, side, pnl_pct * 100, hold_hours, _pyr_action, _sig["staged_tp"], _reason_base,
+            )
+            return _summary(f"趋势减弱减仓: {_reason_base}", action="manage_reduce")
+        logger.info(
+            "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
+            "direction=weaken pyramid=%s review=reduce→hold(浮盈保护) staged_tp=%s exit=no reason=%s",
+            sym, side, pnl_pct * 100, hold_hours, _pyr_action, _sig["staged_tp"], _reason_base,
+        )
 
     # ═══ 更新趋势复查时间戳 + trend_adjustment ═══
     try:

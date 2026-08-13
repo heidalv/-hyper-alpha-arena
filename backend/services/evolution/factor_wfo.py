@@ -5,7 +5,8 @@ M5 因子级 Walk-Forward 门禁
 在因子晋升前用 WalkForwardAnalyzer 做样本外滚动验证：
 - 门禁：pbo ≤ 0.30 且 overfitting_score ≥ 0.5 且 consistency ≥ 0.6；
 - 报告写入 walk_forward_reports 表；
-- 失败/异常时 fail-open（记录但不阻断晋升），由 FEATURE_WFO_GATE_ENABLED 控制。
+- [2026-08-13 P1-8] 失败/异常默认 fail-closed（对齐 FACTOR_EVO_GATE_FAIL_CLOSED），
+  由 FEATURE_WFO_GATE_ENABLED 控制是否启用该门禁。
 
 [v6 阶段 2 S2-5] 新增因子级 IC-WFO（5.4.2）：滚动训练窗 → 测试窗 → 步长，
 输出 OOS IC 序列；判据 = OOS IC 均值 + OOS IC 显著性 + 相对训练 IC 衰退率
@@ -30,6 +31,12 @@ FEATURE_WFO_GATE_ENABLED = os.getenv("FEATURE_WFO_GATE_ENABLED", "true").lower()
     "1", "true", "yes", "on",
 )
 
+# [2026-08-13 P1-8] 数据不足/运行异常时的放行方向：默认 fail-closed（对齐
+# FACTOR_EVO_GATE_FAIL_CLOSED）；回滚：FACTOR_EVO_GATE_FAIL_CLOSED=0|false|off。
+_WFO_FAIL_CLOSED = (os.getenv("FACTOR_EVO_GATE_FAIL_CLOSED") or "1").strip().lower() not in (
+    "0", "false", "no", "off",
+)
+
 # [v6 5.4.2 S2-5] IC-WFO 窗口与判据（env 可配；4h 周期默认 训练60天→测试15天→步长7天）
 _WFO_IC_TRAIN_DAYS = int(os.getenv("WFO_IC_TRAIN_DAYS", "60"))
 _WFO_IC_TEST_DAYS = int(os.getenv("WFO_IC_TEST_DAYS", "15"))
@@ -37,6 +44,24 @@ _WFO_IC_STEP_DAYS = int(os.getenv("WFO_IC_STEP_DAYS", "7"))
 _WFO_IC_MIN_OOS_IC = float(os.getenv("WFO_IC_MIN_OOS_IC", "0.01"))
 _WFO_IC_MAX_DECAY = float(os.getenv("WFO_IC_MAX_DECAY", "0.50"))  # 衰退率 <50% 视为稳定
 _WFO_IC_MIN_WINDOWS = int(os.getenv("WFO_IC_MIN_WINDOWS", "3"))
+
+# [2026-08-13 P1-5] IC 前瞻期按周期分档（对齐 scalp ATR 持仓节奏；与
+# factor_evolution_loop._PERIOD_FWD_BARS 同口径），未知周期回退 env/5。
+_WFO_IC_FWD_BARS: Dict[str, int] = {
+    "1min": 12, "3min": 12, "5min": 12, "15min": 6, "30min": 4,
+    "1h": 2, "2h": 1, "4h": 1, "8h": 1, "1d": 1,
+}
+
+
+def _wfo_ic_fwd_bars(freq: str) -> int:
+    """周期 → 标签前瞻 K 线根数（IC-WFO 用，与进化链 _PERIOD_FWD_BARS 同口径）。"""
+    key = (freq or "").strip().lower()
+    if key in _WFO_IC_FWD_BARS:
+        return _WFO_IC_FWD_BARS[key]
+    try:
+        return int(os.getenv("WFO_IC_FWD_BARS", "5") or 5)
+    except (TypeError, ValueError):
+        return 5
 
 
 def _ensure_reports_table() -> None:
@@ -146,7 +171,10 @@ def run_factor_wfo(
     if not FEATURE_WFO_GATE_ENABLED:
         return {"passed": True, "report": None, "skipped": True}
     if df is None or len(df) < 500:
-        return {"passed": True, "report": None, "skipped": True, "reason": "insufficient_data"}
+        return {
+            "passed": not _WFO_FAIL_CLOSED, "report": None, "skipped": True,
+            "reason": "insufficient_data",
+        }
     try:
         # WFO 需要 DatetimeIndex（train_start + timedelta）
         if not isinstance(df.index, pd.DatetimeIndex):
@@ -197,8 +225,15 @@ def run_factor_wfo(
         )
         return {"passed": passed, "report": report, "skipped": False}
     except Exception as exc:
-        logger.warning("[FactorWFO] %s 运行异常(fail-open): %s", factor_id, str(exc)[:150])
-        return {"passed": True, "report": None, "skipped": True, "error": str(exc)[:150]}
+        logger.warning(
+            "[FactorWFO] %s 运行异常(%s): %s",
+            factor_id, "fail-closed" if _WFO_FAIL_CLOSED else "fail-open",
+            str(exc)[:150],
+        )
+        return {
+            "passed": not _WFO_FAIL_CLOSED, "report": None, "skipped": True,
+            "error": str(exc)[:150],
+        }
 
 
 # ═══════════════════════════════════════════════════════════
@@ -283,13 +318,14 @@ def run_factor_wfo_ic(
 
     返回 dict：{passed, skipped, oos_ic_series, train_ic_series, oos_ic_mean,
                  oos_ic_std, oos_ic_p, decay_rate, n_windows, error?}；
-    异常/窗口不足 fail-open（skipped=True, passed=True）。
+    异常/窗口不足默认 fail-closed（skipped=True, passed=False；
+    对齐 FACTOR_EVO_GATE_FAIL_CLOSED，回滚 = 0|false|off）。
     """
     if df is None or len(df) < 200:
-        return {"passed": True, "skipped": True, "reason": "insufficient_data"}
+        return {"passed": not _WFO_FAIL_CLOSED, "skipped": True, "reason": "insufficient_data"}
     bpd = _freq_to_bars_per_day(freq)
     if not bpd or bpd <= 0:
-        return {"passed": True, "skipped": True, "reason": f"unknown_freq:{freq}"}
+        return {"passed": not _WFO_FAIL_CLOSED, "skipped": True, "reason": f"unknown_freq:{freq}"}
     try:
         from backend.services.alpha.factor_compute import kline_df_to_fields
         from backend.services.factor_engine.evaluation import (
@@ -301,8 +337,10 @@ def run_factor_wfo_ic(
         test_bars = int(_WFO_IC_TEST_DAYS * bpd)
         step_bars = max(1, int(_WFO_IC_STEP_DAYS * bpd))
         if train_bars <= 0 or test_bars <= 0:
-            return {"passed": True, "skipped": True, "reason": "invalid_window"}
+            return {"passed": not _WFO_FAIL_CLOSED, "skipped": True, "reason": "invalid_window"}
 
+        # [2026-08-13 P1-5] 标签前瞻期按周期分档（原 horizon=5 全局，1h 周期即 5 小时前瞻）
+        _fwd = _wfo_ic_fwd_bars(freq)
         total = len(df)
         windows = []
         end = total
@@ -315,9 +353,9 @@ def run_factor_wfo_ic(
                 tr_close = train_df["close"].values.astype(float)
                 te_close = test_df["close"].values.astype(float)
                 train_ic = information_coefficient(
-                    train_vals, _forward_returns(tr_close, horizon=5))
+                    train_vals, _forward_returns(tr_close, horizon=_fwd))
                 oos_ic = information_coefficient(
-                    test_vals, _forward_returns(te_close, horizon=5))
+                    test_vals, _forward_returns(te_close, horizon=_fwd))
                 if np.isfinite(train_ic) and np.isfinite(oos_ic):
                     windows.append({
                         "train_ic": float(train_ic),
@@ -332,7 +370,7 @@ def run_factor_wfo_ic(
 
         if len(windows) < _WFO_IC_MIN_WINDOWS:
             return {
-                "passed": True, "skipped": True,
+                "passed": not _WFO_FAIL_CLOSED, "skipped": True,
                 "reason": f"insufficient_windows:{len(windows)}",
                 "n_windows": len(windows),
             }
@@ -372,6 +410,10 @@ def run_factor_wfo_ic(
         )
         return result
     except Exception as exc:
-        logger.warning("[FactorWFO-IC] %s 异常(fail-open): %s", factor_id, str(exc)[:150])
-        return {"passed": True, "skipped": True, "error": str(exc)[:150]}
+        logger.warning(
+            "[FactorWFO-IC] %s 异常(%s): %s",
+            factor_id, "fail-closed" if _WFO_FAIL_CLOSED else "fail-open",
+            str(exc)[:150],
+        )
+        return {"passed": not _WFO_FAIL_CLOSED, "skipped": True, "error": str(exc)[:150]}
 

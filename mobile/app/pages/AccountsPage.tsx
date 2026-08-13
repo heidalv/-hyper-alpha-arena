@@ -342,8 +342,8 @@ export default function AccountsPage({ ws }: PageProps) {
               onChange={(e) => setAiModel(e.target.value)}
               className="w-full bg-terminal-bg border border-terminal-border rounded px-3 py-2 text-sm text-terminal-text focus:outline-none focus:border-terminal-primary"
             >
+              <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
               <option value="deepseek-chat">DeepSeek Chat</option>
-              <option value="deepseek-reasoner">DeepSeek Reasoner</option>
               <option value="gpt-4-turbo">GPT-4 Turbo</option>
               <option value="gpt-4o">GPT-4o</option>
               <option value="claude-3-opus">Claude 3 Opus</option>

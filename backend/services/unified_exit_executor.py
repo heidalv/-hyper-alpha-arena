@@ -196,6 +196,7 @@ class UnifiedExitExecutor:
                 sl_price=_sl_p_f, unrealized_pnl=_upnl, margin=_margin,
                 risk_score=_risk, reason_hint=reason_hint,
                 exit_channel=req.exit_channel,
+                opened_at=pos.get("opened_at"),
             )
             if hf.allow:
                 return ExitGateResult(blocked=False, detail=hf.detail)
@@ -254,6 +255,15 @@ class UnifiedExitExecutor:
         # 短线重开，形成用户看到的「不停开仓平仓」循环。短线 reduce 历史胜率 ~5%，
         # 必须强制 enforce，不受 pace shadow 降级影响。
         if req.action == "reduce" and _pos_tier == "short":
+            _eff_flag = "enforce"
+
+        # [三周期持仓时间收敛 2026-08-13] mid/long 的 master hardfact 从 shadow
+        # 收敛为 enforce（短线保持 shadow 灰度，仅 reduce 已有 enforce 先例）。
+        # 根因: turbo 档 pace.master_close_mode=shadow 会把 _eff_flag 降为 shadow，
+        # swing 仓 12h min_hold 过后 hardfact 拦截意见仍不生效。注意:
+        # RISK_P3_HARDFAT_SHADOW=true 灰度期间 Tier2 hardfact 意见仍只记日志
+        # （见下方 _hardfat_shadow_enabled 分支），此收敛保证灰度结束后立即生效。
+        if _pos_tier in ("mid", "long"):
             _eff_flag = "enforce"
 
         hf = check_master_close_hardfact(

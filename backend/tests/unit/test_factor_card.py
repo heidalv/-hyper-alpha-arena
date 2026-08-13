@@ -213,9 +213,15 @@ class TestPurgeDataQuality:
 
         def fsf(c):
             return series_fn(c)  # bad 含 NaN → 数据质量维度生效
+
+        # 本测只验证质量拒计数；放行 Stage7，避免内置 DSR 因噪声 IC 误杀 good
+        def pass_dsr(surv):
+            return surv, []
+
         final, report = run_purge_pipeline(
             cands, factor_series_fn=fsf, return_series=return_series,
             config=PurgeConfig(min_data_quality=0.8), thresholds=loose,
+            dsr_pbo_gate=pass_dsr,
         )
         assert report.rejected_quality == 1
         assert "质量拒 1" in report.summary()

@@ -1,4 +1,4 @@
-"""Hermes Layer 3: 系统架构进化引擎
+﻿"""Hermes Layer 3: 系统架构进化引擎
 
 从跨提案模式中发现系统架构缺口，生成新模块/新配置/重构建议。
 通过 LLM 分析参数变动热力图 + 提案智慧摘要，产出系统级升级方案。
@@ -367,7 +367,7 @@ class ArchitectureEvolutionEngine:
     def _json_output_protocol(expected_fields: str) -> str:
         """强制 LLM 直出 JSON、禁用工具/代码探索的输出协议。
 
-        实测发现：deepseek-v4-pro 在 `plan` agent 下，面对含代码/数据上下文的
+        实测发现：deepseek-v4-flash 在 `plan` agent 下，面对含代码/数据上下文的
         开放式提问会进入「探索代码库」的工具循环（"Let me explore the codebase..."），
         耗尽整轮生成也不产出 JSON，导致 L3/L4 永远 0 提案。本协议前置约束，
         确保模型直接产出可解析 JSON。

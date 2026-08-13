@@ -152,19 +152,23 @@ def adopt(body: AdoptRequest, request: Request, db: Session = Depends(get_db)):
 
     from backend.services.full_auto_trading_service import full_auto_service
 
-    is_auto = horizon == "scalp"
-    # 长线：确保不进 auto 池；若已在 auto 池则移出
-    if not is_auto:
+    # scalp → 短线 auto 池；midlong → AI 中线 sticky（绝不进固定长线表）
+    if horizon == "midlong":
         auto_list = list(getattr(session, "auto_coin_symbols", None) or [])
         if symbol in auto_list:
             session.auto_coin_symbols = [s for s in auto_list if s != symbol]
             db.commit()
+        from backend.services.auto_coin_selector import force_adopt_ai_mid_symbol
 
-    result = full_auto_service.add_symbols(
-        db, body.session_id, [symbol], is_auto_coin=is_auto
-    )
-    if not result.get("success"):
-        raise HTTPException(400, result.get("error") or "adopt failed")
+        result = force_adopt_ai_mid_symbol(body.session_id, symbol)
+        if not result.get("success"):
+            raise HTTPException(400, result.get("error") or "adopt midlong failed")
+    else:
+        result = full_auto_service.add_symbols(
+            db, body.session_id, [symbol], is_auto_coin=True
+        )
+        if not result.get("success"):
+            raise HTTPException(400, result.get("error") or "adopt failed")
 
     cand = None
     if body.candidate_id:

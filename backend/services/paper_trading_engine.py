@@ -220,7 +220,8 @@ class PaperTradingEngine:
             return "sl"
         if r == "breakeven_sl" and pnl > 0:
             return "breakeven_tp"
-        return r
+        # DB close_reason 扩至 VARCHAR(100)；仍截断防历史库未迁移
+        return r[:100]
 
     @staticmethod
     def sl_reason_for_position(pos, mark_price: float) -> str:
@@ -348,6 +349,12 @@ class PaperTradingEngine:
             if peak_pnl > 0 and realized is not None:
                 retention = max(-1.0, min(2.0, float(realized) / peak_pnl))
 
+            # VARCHAR(40) 列：长 reason（如 mlto_invalidation 长文）会触发
+            # StringDataRightTruncation，整笔平仓事务回滚 → BTC mid 管仓反复失败。
+            _rev = (metadata or {}).get("reversal_level")
+            _rev_s = (str(_rev)[:40] if _rev is not None else None)
+            _ch_s = (str(exit_channel)[:80] if exit_channel is not None else None)
+            _etype = str(event_type or "")[:40]
             event = PositionExitEvent(
                 position_id=int(getattr(pos, "id", 0) or 0),
                 account_id=int(getattr(pos, "account_id", 0) or 0),
@@ -355,7 +362,7 @@ class PaperTradingEngine:
                 symbol=getattr(pos, "symbol", ""),
                 side=getattr(pos, "side", ""),
                 trade_nature=getattr(pos, "trade_nature", None),
-                event_type=event_type,
+                event_type=_etype,
                 quantity=quantity,
                 price=price,
                 pnl=pnl,
@@ -368,8 +375,8 @@ class PaperTradingEngine:
                 retention_ratio=retention,
                 health_score=getattr(pos, "health_score", None),
                 health_regime=getattr(pos, "health_regime", None),
-                reversal_level=(metadata or {}).get("reversal_level"),
-                exit_channel=exit_channel,
+                reversal_level=_rev_s,
+                exit_channel=_ch_s,
                 metadata_json=json.dumps(metadata or {}, ensure_ascii=False),
             )
             db.add(event)
@@ -1004,6 +1011,13 @@ class PaperTradingEngine:
                            position_metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """以当前市价成交 market order（按 strategy_id 隔离仓位）"""
         from backend.database.models import PaperPosition
+
+        # [三周期持仓时间收敛 2026-08-13] research 车道落库保险丝：
+        # 上游（pair_binding_lane / kline_research_lane）已传 timeframe_tier="research"，
+        # 但历史生产版本曾以 mid 落库（112 笔研究仓污染中线统计/冷却/门控）。
+        # 此处按 trade_nature 强制校正，任何版本/入口都不可能再把研究仓写入 mid。
+        if (trade_nature or "").strip().lower() in ("research", "pair_research"):
+            timeframe_tier = "research"
 
         self._recalc_balance(db, bal)
 
@@ -2074,13 +2088,20 @@ class PaperTradingEngine:
                 is_position_hold_expired,
                 format_hold_timeout_reason,
                 is_short_no_ai_hold_nature,
+                resolve_tier_from_position,
             )
 
             account_id = int(getattr(pos, "account_id", 0) or 0)
             _nature = (getattr(pos, "trade_nature", "") or "").strip().lower()
 
-            # 短线 scalp/intraday：不进 AI 复审；超时则规则强平（交给 TP/SL 之外的硬上限）
-            if is_short_no_ai_hold_nature(_nature):
+            # [三周期持仓时间收敛 2026-08-13] 短线判定双保险：trade_nature 短线
+            # 或 tier=short 一律不进 AI 复审队列，超时直接 max_hold_timeout 强平。
+            # 根因: 08-08 六笔 short/scalp 仓在引擎停摆后落回复审队列兜底链条，
+            # 延迟约 28h 才被强平；tier 判定补齐 nature 缺失时的漏网路径。
+            _is_short_tier = is_short_no_ai_hold_nature(_nature) or (
+                resolve_tier_from_position(pos) == "short"
+            )
+            if _is_short_tier:
                 expired, status = is_position_hold_expired(pos)
                 if expired:
                     logger.warning(
@@ -3006,6 +3027,9 @@ class PaperTradingEngine:
         from backend.database.models import DecisionRetrospective
         from backend.database.connection import AnalyticsSessionLocal, sqlite_write_commit
 
+        # exit_reason 列 VARCHAR(50)：长 reason（如 midlong:no_progress ...）曾触发
+        # StringDataRightTruncation 导致复盘静默丢失；与主退出事件同一原则截断兜底。
+        exit_reason = str(exit_reason or "")[:50]
         entry_price = float(pos.entry_price or 0)
         if entry_price <= 0 or not exit_price:
             logger.warning(

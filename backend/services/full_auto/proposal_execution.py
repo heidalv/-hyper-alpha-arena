@@ -131,7 +131,9 @@ def evaluate_and_execute_proposal(
     try:
         _portfolio = host.build_portfolio_for_agents(db, session)
         _equity = float((_portfolio.get("balance") or {}).get("total_equity", 0) or 0)
-        _bf = budget_service.scale_factor_for_layer(tier, _equity, _trade_mode)
+        _bf = budget_service.scale_factor_for_layer(
+            tier, _equity, _trade_mode, account_id=account_id
+        )
         if _bf <= 0:
             logger.info("[BudgetService] %s 层预算已满，跳过新开", sym_u)
             return False

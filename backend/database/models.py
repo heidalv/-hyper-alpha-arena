@@ -2315,7 +2315,7 @@ class PaperPosition(Base):
 
     status = Column(String(20), nullable=False, default="open", index=True)  # open / closed / liquidated
     close_price = Column(Float, nullable=True)
-    close_reason = Column(String(30), nullable=True)    # manual / tp / sl / trailing / liquidation
+    close_reason = Column(String(100), nullable=True)    # manual / tp / sl / trailing / liquidation / pos_mgmt_*
 
     # 分批止盈累计（用于平仓时给学习系统完整的 PnL）
     partial_realized_pnl = Column(Float, nullable=False, default=0.0)
@@ -2408,7 +2408,7 @@ class PositionExitEvent(Base):
     health_score = Column(Float, nullable=True)
     health_regime = Column(String(30), nullable=True)
     reversal_level = Column(String(40), nullable=True)
-    exit_channel = Column(String(40), nullable=True)
+    exit_channel = Column(String(100), nullable=True)
     metadata_json = Column(Text, nullable=True)
 
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
@@ -2440,7 +2440,7 @@ class PaperOrder(Base):
     entry_price = Column(Float, nullable=True)          # 开仓均价（平仓单记录对应持仓成本）
 
     # None=开仓, tp/sl/manual/trailing/liquidation=全平, partial_tp/manual_partial=部分平仓
-    close_reason = Column(String(30), nullable=True)
+    close_reason = Column(String(100), nullable=True)
 
     trade_nature = Column(String(20), nullable=True)  # 子仓位身份标签
 
@@ -2526,7 +2526,9 @@ class FullAutoSession(Base):
     arbitrage_paper_account_id = Column(Integer, ForeignKey("arbitrage_paper_accounts.id"), nullable=True, index=True)
 
     # 用户配置（仅这些需要用户决定）
-    symbols = Column(JSON, nullable=False)                   # ["BTC", "ETH", "SOL"]
+    symbols = Column(JSON, nullable=False)                   # ["BTC", "ETH", "SOL"] — 三周期并集/旧兼容
+    # 分周期固定币：{"short":[...],"mid":[...],"long":[...]}；空/缺省回退 symbols
+    fixed_symbols_by_tier = Column(JSON, nullable=True)
     risk_level = Column(String(20), nullable=True, default="moderate")
     risk_mode = Column(String(20), nullable=True, default="ai_dynamic")  # ai_dynamic / conservative / aggressive
     trading_mode = Column(String(10), nullable=True, default="paper")
@@ -2534,8 +2536,11 @@ class FullAutoSession(Base):
     auto_coin_enabled = Column(Boolean, nullable=True, default=False)
     arb_enabled = Column(Boolean, nullable=True, default=False)
     auto_coin_symbols = Column(JSON, nullable=True, default=[])
-    # AI 选币槽位：本会话最多同时持有的自动选币数量（5~10，默认 5）
+    # AI 选币槽位：本会话最多同时持有的自动选币数量（5~10，默认 5）— 短线专用
     auto_coin_max_slots = Column(Integer, nullable=True, default=5)
+    # 中线 AI 选币（与短线隔离；默认关）
+    auto_coin_mid_enabled = Column(Boolean, nullable=True, default=False)
+    auto_coin_mid_max_slots = Column(Integer, nullable=True, default=3)
     active_exchange = Column(String(20), nullable=True)
 
     # AI 动态风控评估结果
@@ -2813,7 +2818,7 @@ class TradeMemoryRecord(Base):
     confidence_at_entry = Column(Float, nullable=True)
     volatility_at_entry = Column(Float, nullable=True)   # ATR%
 
-    close_reason = Column(String(30), nullable=True)     # tp/sl/trailing/ai_reverse/manual/liquidation
+    close_reason = Column(String(100), nullable=True)     # tp/sl/trailing/ai_reverse/manual/liquidation
 
     opened_at = Column(TIMESTAMP, nullable=False)
     closed_at = Column(TIMESTAMP, server_default=func.current_timestamp())

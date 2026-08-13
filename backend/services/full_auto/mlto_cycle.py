@@ -28,6 +28,10 @@ class MltoCycleHost:
     try_execute_independent_agent_open: Callable = field(repr=False, default=lambda *a, **k: False)
     persist_independent_scan_log: Callable = field(repr=False, default=lambda *a, **k: None)
     build_midlong_agent_envelope: Callable = field(repr=False, default=lambda *a, **k: {})
+    # P0 缺口：execute_midlong_open → try_execute_independent_agent_open 需要这两个
+    # 方法；此前缺失导致「open_ready 后 AttributeError，探针永远不成交」。
+    get_trading_account_id: Callable = field(repr=False, default=lambda *a, **k: 0)
+    evaluate_and_execute_proposal: Callable = field(repr=False, default=lambda *a, **k: False)
 
 
 def build_mlto_cycle_host(svc) -> MltoCycleHost:
@@ -57,6 +61,8 @@ def build_mlto_cycle_host(svc) -> MltoCycleHost:
         try_execute_independent_agent_open=svc._try_execute_independent_agent_open,
         persist_independent_scan_log=svc._persist_independent_scan_log,
         build_midlong_agent_envelope=svc._build_midlong_agent_envelope,
+        get_trading_account_id=svc._get_trading_account_id,
+        evaluate_and_execute_proposal=svc._evaluate_and_execute_proposal,
     )
 
 
@@ -267,10 +273,10 @@ def maintain_mlto_theses_for_session(
                     _trend_action = "hold"
                 if _trend_action in ("buy", "sell"):
                     if _exec_auth != "trend":
-                        # Single Writer=mlto：Trend 只产出分析
+                        # Single Writer=mlto：Trend 只写 hint/证据，不开仓
                         logger.info(
                             "[MidLong] stage=fuse symbol=%s authority=%s source=trend "
-                            "action=hold reason=authority_block (→ mlto writer)",
+                            "action=hold reason=evidence_only (writer=mlto)",
                             sym_u, _exec_auth,
                         )
                         _trend_action = "hold"
@@ -303,11 +309,12 @@ def maintain_mlto_theses_for_session(
                         # [P2-4] should_open=False 的 trend_hold 是「正常市场结论」
                         # 而非失败：每 2 分钟一轮循环若全记 failed_intent，200 条上限
                         # 会被噪音灌满，稀释真正需要复盘的失败样本。标记 noise=True。
+                        _hold_why = str(
+                            _trend_result.get("hold_reason") or "trend_hold"
+                        )
                         record_failed_intent(
                             symbol=sym_u,
-                            reason=str(
-                                _trend_result.get("hold_reason") or "trend_hold"
-                            ),
+                            reason=_hold_why,
                             regime=_reg_h,
                             score=_trend_score,
                             authority=_exec_auth,
@@ -315,6 +322,27 @@ def maintain_mlto_theses_for_session(
                             session_id=session_id,
                             noise=not bool(_trend_result.get("raw_should_open")),
                         )
+                        # P0：统一「为何没开」审计（与信念 Intent 并行，供漏斗 KPI）
+                        try:
+                            from backend.services.mlto.midlong_direction_audit import (
+                                record_decision_audit,
+                            )
+                            record_decision_audit(
+                                outcome="skip",
+                                stage="trend",
+                                symbol=sym_u,
+                                reason=_hold_why,
+                                session_id=session_id,
+                                tier="long",
+                                source="trend",
+                                authority=_exec_auth,
+                                action="hold",
+                                direction=_trend_dir,
+                                score=_trend_score,
+                                regime=_reg_h,
+                            )
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
@@ -389,7 +417,7 @@ def maintain_mlto_theses_for_session(
         # 因为"暂时不在过期快照的auto_coin_symbols里"被误判成固定币漏进长线（用户反馈
         # KBONK反复出现在tier=long日志的根因）。改为调用统一的正向白名单函数，每次都
         # 现查DB最新行，把过期窗口从"分钟级"压缩到"毫秒级"。
-        _fixed_symbols = get_fixed_symbols_for_session(session_id)
+        _fixed_symbols = get_fixed_symbols_for_session(session_id, tier="long")
         for _s in symbols:
             _su = str(_s).upper()
             # 只有确认是"会话固定配置"的symbol才能进长线；AI选币(含任何未被明确
@@ -424,6 +452,83 @@ def maintain_mlto_theses_for_session(
                         )
     # [阶段4] _swing_db 已废弃（原 _swing_one 路径删除），无需 close。
 
+    # ═══ 中线持仓管理（模式 B）：AI 中线 swing 仓位与长线一样接入动态 TP/SL ═══
+    # 修复根因：manage_position 此前只挂在 _trend_one（长线固定币），AI 中线持仓
+    # （如 XPL swing）从未进入 LLM 复盘/收紧/分档止盈链路，TP/SL 永远静态。
+    try:
+        from concurrent.futures import ThreadPoolExecutor as _MTPE, as_completed as _MAC
+        from backend.services.auto_coin_selector import get_fixed_symbols_for_session as _gfs_long
+        from backend.services.full_auto.midlong_position_manager import (
+            has_open_midlong_position as _has_midlong_pos,
+            manage_position as _manage_pos,
+        )
+        _fixed_long_now = set(
+            str(x).upper() for x in (_gfs_long(session_id, tier="long") or [])
+        )
+        _mgmt_acct = (
+            getattr(session, "paper_account_id", None)
+            or getattr(session, "account_id", None)
+        )
+        _mid_manage_targets = [
+            str(s).upper() for s in symbols
+            if str(s).upper() not in _fixed_long_now
+        ]
+        if _mid_manage_targets and _mgmt_acct:
+            def _mid_manage_one(sym_raw: str):
+                from backend.core.tenant import set_system_identity
+                set_system_identity()
+                sym_u = str(sym_raw).upper()
+                _db_m = _SwingDB()
+                try:
+                    host.inject_midlong_indicators(
+                        market_summary, sym_u, include_weekly=False
+                    )
+                    if not _has_midlong_pos(_db_m, _mgmt_acct, sym_u):
+                        return None
+                    _dec = _manage_pos(
+                        _db_m,
+                        host=host,
+                        session=session,
+                        account_id=_mgmt_acct,
+                        symbol=sym_u,
+                        position={},
+                        market_summary=market_summary or {},
+                        analyst_reports=analyst_reports or {},
+                        trading_mode=_trade_mode,
+                    )
+                    return (
+                        sym_u,
+                        str(_dec.get("action") or "manage_hold"),
+                        int(_dec.get("score", 0) or 0),
+                        str(_dec.get("reasoning") or ""),
+                    )
+                except Exception as _me:
+                    logger.warning("[MidLong] 中线持仓管理异常 %s: %s", sym_u, _me)
+                    return None
+                finally:
+                    try:
+                        _db_m.close()
+                    except Exception:
+                        pass
+
+            with _MTPE(max_workers=max(1, len(_mid_manage_targets))) as _mpool:
+                _mfuts = {_mpool.submit(_mid_manage_one, s): s for s in _mid_manage_targets}
+                for _mf in _MAC(_mfuts):
+                    _res = _mf.result()
+                    if _res:
+                        host.append_event(
+                            session,
+                            "master_decision",
+                            host.format_agent_event_detail(
+                                _res[0], "中线", _res[1],
+                                metric_label="score", metric_value=_res[2],
+                                agent_label="中线持仓管理",
+                                reasoning=_res[3],
+                            ),
+                        )
+    except Exception as _mid_mgmt_err:
+        logger.debug("[MidLong] 中线持仓管理段跳过: %s", _mid_mgmt_err)
+
     # ═══ 长线 MLTO thesis 管理（仅 MIDLONG_THESIS_LEDGER_ENABLED 时）═══
     from backend.config.settings import MIDLONG_THESIS_LEDGER_ENABLED
     if not MIDLONG_THESIS_LEDGER_ENABLED:
@@ -440,8 +545,42 @@ def maintain_mlto_theses_for_session(
     from backend.config.settings import MIDLONG_AI_MANDATORY
     # [2026-07-21 修复] 与上方 TrendAgent 独立段同源同法：正向白名单 + 每次现查DB，
     # 不再靠本 tick 长期持有的 session 对象上可能过期的 auto_coin_symbols 快照做排除。
-    from backend.services.auto_coin_selector import get_fixed_symbols_for_session
-    _fixed_symbols = get_fixed_symbols_for_session(session_id)
+    from backend.services.auto_coin_selector import (
+        get_ai_mid_candidates_for_session,
+        get_fixed_symbols_for_session,
+    )
+    _fixed_symbols = get_fixed_symbols_for_session(session_id, tier="long")
+    _fixed_mid_symbols = get_fixed_symbols_for_session(session_id, tier="mid")
+    # [2026-08-10 问题三] AI 中线候选：仅 mid lane 消费（与固定长线白名单正交）。
+    # 候选为空时下方 tier='mid' 段自然跳过；mid 符号不参与长线 thesis（源头切断不变）。
+    _ai_mid_symbols = set(get_ai_mid_candidates_for_session(session_id) or [])
+    # 已开 mid 仓但候选人被刷掉：仍纳入 mid thesis/管仓，禁止「列表没了就没人管仓」
+    try:
+        _acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
+        if _acct:
+            from backend.database.connection import SessionLocal as _CorePos
+            from backend.services.full_auto.midlong_position_manager import (
+                _open_midlong_positions as _omp,
+            )
+            _pdb = _CorePos()
+            try:
+                for _p in _omp(_pdb, int(_acct)) or []:
+                    if str(_p.get("timeframe_tier") or "").lower() == "mid" or str(
+                        _p.get("trade_nature") or ""
+                    ).lower() == "swing":
+                        _su = str(_p.get("symbol") or "").upper()
+                        if _su:
+                            _ai_mid_symbols.add(_su)
+            finally:
+                try:
+                    _pdb.close()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    _ai_mid_new_only = set(get_ai_mid_candidates_for_session(session_id) or [])
+    # 中线可分析集合 = 固定中线 ∪ AI中线候选 ∪ 续管持仓（勿用 long 白名单冒充 mid）
+    _mid_allowed = set(_fixed_mid_symbols) | set(_ai_mid_symbols)
     _ana_db = None
     try:
         from backend.database.connection import AnalyticsSessionLocal
@@ -449,7 +588,7 @@ def maintain_mlto_theses_for_session(
 
         _ana_db = None
 
-        def _thesis_llm_one(sym_u, slot_action):
+        def _thesis_llm_one(sym_u, slot_action, tier):
             # 每符号独立连接 + 独立 run_mlto_tick（LLM 60-90s），线程内自闭环。
             from backend.core.tenant import set_system_identity
             # [2026-08-04 修复] 同 _trend_one：worker 线程无 HTTP/主线程 ContextVar，
@@ -461,7 +600,7 @@ def maintain_mlto_theses_for_session(
                 return run_mlto_tick(
                     session_id=session_id,
                     symbol=sym_u,
-                    tier="long",
+                    tier=tier,
                     market_summary=market_summary or {},
                     analyst_reports=analyst_reports or {},
                     session=session,
@@ -489,17 +628,25 @@ def maintain_mlto_theses_for_session(
             for tier in ("mid", "long"):
                 if tier not in _active_tiers:
                     continue
-                # [阶段4] 中线已并入长线：thesis 段只管 long
+                # mid：固定币 + AI中线≤3；long：仅固定币
                 if tier == "mid":
-                    continue
-                if light_context and not run_long:
-                    continue
-                if sym_u not in _fixed_symbols:
-                    logger.debug("[MLTO] %s 非会话固定币种，跳过长线 thesis", sym_u)
-                    continue
-                host.inject_midlong_indicators(market_summary, sym_u, include_weekly=True)
+                    if not run_mid:
+                        continue
+                    if sym_u not in _mid_allowed:
+                        logger.debug("[MLTO] %s 不在中线宇宙(固定∪AI)，跳过中线 thesis", sym_u)
+                        continue
+                else:
+                    if light_context and not run_long:
+                        continue
+                    if sym_u not in _fixed_symbols:
+                        logger.debug("[MLTO] %s 非会话固定币种，跳过长线 thesis", sym_u)
+                        continue
+                host.inject_midlong_indicators(
+                    market_summary, sym_u,
+                    include_weekly=(tier != "mid"),
+                )
                 _ms = market_summary.get(sym_u) or {}
-                if not _ms.get("indicators_1w"):
+                if tier != "mid" and not _ms.get("indicators_1w"):
                     logger.info("[MLTO] %s 本币周线缺失，拒绝注入大盘参考（fail-closed）", sym_u)
                 if MIDLONG_AI_MANDATORY:
                     slot_action = "create"
@@ -507,23 +654,23 @@ def maintain_mlto_theses_for_session(
                     slot_action = (actions or {}).get(tier) or "observe"
                     if slots is not None and tier not in (slots or []):
                         slot_action = "observe"
-                _thesis_jobs.append((sym_u, slot_action))
+                _thesis_jobs.append((sym_u, slot_action, tier))
 
         # [中长线合并] thesis 更新并行（用户要求不设并发上限）：
         # 每符号独立线程 + 独立 DB 连接，run_mlto_tick（LLM 60-90s）并发执行。
         _thesis_futs: dict = {}
         if _thesis_jobs:
             with ThreadPoolExecutor(max_workers=max(1, len(_thesis_jobs))) as _pool:
-                for _sym_u, _slot_action in _thesis_jobs:
-                    _thesis_futs[_sym_u] = (
-                        _pool.submit(_thesis_llm_one, _sym_u, _slot_action),
+                for _sym_u, _slot_action, _tier in _thesis_jobs:
+                    _thesis_futs[(_sym_u, _tier)] = (
+                        _pool.submit(_thesis_llm_one, _sym_u, _slot_action, _tier),
                         _slot_action,
+                        _tier,
                     )
 
-        for sym_u, (_fut, slot_action) in _thesis_futs.items():
+        for (sym_u, tier), (_fut, slot_action, _tier) in _thesis_futs.items():
                 try:
-                    tier = "long"
-                    key = f"{sym_u}:long"
+                    key = f"{sym_u}:{tier}"
                     _mlto_result = _fut.result()
                     # 与 _reserve_key 同一把锁，避免与独立循环竞态分叉
                     with _handled_lock:
@@ -533,10 +680,9 @@ def maintain_mlto_theses_for_session(
 
                     # 修复（2026-07-02）：MLTO 结果推送到前端事件流
                     # 之前 MLTO 只记日志不推事件，导致前端 AI 决策日志看不到中长线
-                    # [中长线合并] 仅 MLTO 控制执行模式下 thesis 段才开仓；
-                    # TrendAgent 全权模式（MIDLONG_MLTO_CONTROLS_EXEC=false）下
-                    # thesis 只更新论点（含 mid_view），开仓统一由 TrendAgent 负责。
-                    if MIDLONG_MLTO_CONTROLS_EXEC and _mlto_result and hasattr(_mlto_result, "action"):
+                    # MidLong v2：authority=mlto 时 thesis 段推事件并可开仓；
+                    # authority=trend 时 thesis 只更新论点，开仓由 TrendAgent 负责。
+                    if _exec_auth == "mlto" and _mlto_result and hasattr(_mlto_result, "action"):
                         _mlto_tier_lbl = "中线" if tier == "mid" else "长线"
                         _mlto_action = (_mlto_result.action or "hold").lower()
                         if _mlto_action == "wait":
@@ -592,7 +738,7 @@ def maintain_mlto_theses_for_session(
                             if _exec_auth != "mlto":
                                 logger.info(
                                     "[MidLong] stage=fuse symbol=%s authority=%s source=mlto "
-                                    "action=hold reason=authority_block (thesis-only)",
+                                    "action=hold reason=evidence_only (writer=trend)",
                                     sym_u, _exec_auth,
                                 )
                             else:
@@ -612,6 +758,57 @@ def maintain_mlto_theses_for_session(
                                     _mlto_margin_pct = float(
                                         getattr(_mlto_result, "tranche_margin_pct", 0) or 0
                                     )
+                                    # [2026-08-10 问题三] AI 中线槽位 ≤3 二次校验：候选查询
+                                    # 已按槽位截断，此处防同 tick 多候选并发开仓全部看到空槽。
+                                    if tier == "mid":
+                                        # 固定币中线可新开；AI 币仅当前候选可新开，否则只续管
+                                        if (
+                                            sym_u not in _fixed_mid_symbols
+                                            and sym_u not in _ai_mid_new_only
+                                        ):
+                                            logger.info(
+                                                "[MLTO] %s 已不在 AI 中线候选，禁止新开只续管 "
+                                                "(ai_mid_hold_only)",
+                                                sym_u,
+                                            )
+                                            continue
+                                        # AI 中线槽位 ≤3 只约束非固定币
+                                        if sym_u not in _fixed_mid_symbols:
+                                            try:
+                                                from backend.services.auto_coin_selector import (
+                                                    count_open_ai_mid_positions,
+                                                )
+                                                _acc_mid = getattr(
+                                                    _exec_session, "paper_account_id", None
+                                                )
+                                                if count_open_ai_mid_positions(
+                                                    db=_exec_db, account_id=_acc_mid
+                                                ) >= 3:
+                                                    logger.info(
+                                                        "[MLTO] %s AI 中线槽位已满(≥3)，拒绝新开 "
+                                                        "(ai_mid_slot_full)",
+                                                        sym_u,
+                                                    )
+                                                    host.append_event(
+                                                        _exec_session, "master_decision",
+                                                        f"🚫 {sym_u}[中线]: AI 中线槽位已满(≤3)，拒绝新开",
+                                                    )
+                                                    continue
+                                            except Exception as _slot_err:
+                                                logger.debug(
+                                                    "[MLTO] AI 中线槽位校验跳过: %s", _slot_err
+                                                )
+                                    _th_exec = getattr(_mlto_result, "thesis", None)
+                                    _hub_exec = getattr(_mlto_result, "hub", None)
+                                    # [v6 S2-7 接入] regime_suggestion.trailing → 写入
+                                    # 持仓 exit_state（PEO 分档止盈引擎按 ATR 追踪）。
+                                    _rs_exec = (
+                                        getattr(_th_exec, "regime_suggestion", None)
+                                        if _th_exec is not None else None
+                                    )
+                                    _tp_sl_prop = None
+                                    if isinstance(_rs_exec, dict) and _rs_exec.get("trailing"):
+                                        _tp_sl_prop = {"trailing_atr_mult": 2.0}
                                     execute_midlong_open(
                                         host=host,
                                         db=_exec_db,
@@ -624,17 +821,44 @@ def maintain_mlto_theses_for_session(
                                         tp_pct=_mlto_tp,
                                         market_summary=market_summary,
                                         session_mode=getattr(session, "status", "running"),
-                                        tier="long",
+                                        tier=tier,
                                         trade_nature="trend_follow",
                                         tranche_margin_pct=_mlto_margin_pct,
                                         reason=(getattr(_mlto_result, "reason", "") or "")[:80],
                                         trading_mode=_trade_mode or "paper",
+                                        thesis_dir=str(getattr(_th_exec, "direction", "") or ""),
+                                        hub_dir=str(getattr(_hub_exec, "direction", "") or ""),
+                                        hub_mode=str(getattr(_hub_exec, "mode", "") or ""),
+                                        dir_src=str(getattr(_hub_exec, "dir_src", "") or ""),
+                                        tp_sl_proposal=_tp_sl_prop,
                                     )
                                 except Exception as _mlto_exec_err:
                                     logger.warning(
                                         "[MLTO] 独立开仓失败 %s %s: %s",
                                         sym_u, tier, _mlto_exec_err,
                                     )
+                                    try:
+                                        from backend.services.mlto.midlong_direction_audit import (
+                                            record_decision_audit,
+                                        )
+                                        record_decision_audit(
+                                            outcome="skip",
+                                            stage="exec",
+                                            symbol=sym_u,
+                                            reason=(
+                                                f"mlto_exec_exception:"
+                                                f"{type(_mlto_exec_err).__name__}:"
+                                                f"{_mlto_exec_err}"
+                                            )[:160],
+                                            session_id=str(
+                                                getattr(session, "session_id", "") or ""
+                                            ),
+                                            tier=str(tier or "").lower(),
+                                            action=str(_mlto_act or ""),
+                                            authority="mlto",
+                                        )
+                                    except Exception:
+                                        pass
                                 finally:
                                     if _exec_db is not None:
                                         try:
@@ -666,6 +890,51 @@ def maintain_mlto_theses_for_session(
                             _reasoning_full = (
                                 getattr(_th, "reasoning_content", "") or _summary or _reason_txt
                             )[:4000]
+                            # 真实账本数据：不再用 0 占位（total_balance/prev_portion）。
+                            _real_balance = 0.0
+                            _prev_portion = 0.0
+                            _target_portion = 0.0
+                            try:
+                                from backend.database.connection import SessionLocal as _BalDB
+                                from backend.database.models import PaperPosition as _PP, PaperBalance as _PB
+                                _bal_db = _BalDB()
+                                try:
+                                    _pb = _bal_db.query(_PB).filter(
+                                        _PB.account_id == _acc_id
+                                    ).first()
+                                    _real_balance = float(
+                                        getattr(_pb, "total_equity", 0) or 0
+                                    )
+                                    if _real_balance > 0:
+                                        _open = _bal_db.query(_PP).filter(
+                                            _PP.account_id == _acc_id,
+                                            _PP.symbol == sym_u,
+                                            _PP.status == "open",
+                                        ).all()
+                                        _notional = sum(
+                                            float(getattr(p, "size", 0) or 0)
+                                            * float(getattr(p, "mark_price", 0) or 0)
+                                            for p in _open
+                                        )
+                                        _prev_portion = _notional / _real_balance
+                                finally:
+                                    _bal_db.close()
+                                if _op in ("buy", "sell"):
+                                    _target_portion = max(
+                                        0.0,
+                                        min(
+                                            1.0,
+                                            float(
+                                                getattr(
+                                                    _mlto_result, "tranche_margin_pct", 0
+                                                ) or 0
+                                            ),
+                                        ),
+                                    )
+                            except Exception as _bal_err:
+                                logger.debug(
+                                    "[MLTO] 长线决策日志账本查询跳过: %s", _bal_err
+                                )
                             _dec_log_long = _AIDL(
                                 account_id=_acc_id,
                                 symbol=sym_u,
@@ -674,13 +943,12 @@ def maintain_mlto_theses_for_session(
                                 reasoning_snapshot=_reasoning_full,
                                 executed="false",
                                 decision_source="mlto",
-                                # 这三列 NOT NULL 且无默认值，必须显式赋值（维护 tick 无实时余额，置 0）
-                                prev_portion=0,
-                                target_portion=0,
-                                total_balance=0,
+                                prev_portion=_prev_portion,
+                                target_portion=_target_portion,
+                                total_balance=_real_balance,
                                 decision_snapshot=json.dumps({
                                     "trade_nature": "trend",
-                                    "tier": "long",
+                                    "tier": tier,
                                     "confidence": _conf_i,
                                     "reasoning": _summary[:2000],
                                     "agent_source": "mlto",
@@ -859,7 +1127,7 @@ def execute_mlto_lane(
         if get_midlong_exec_authority() != "mlto":
             logger.info(
                 "[MidLong] stage=fuse symbol=%s authority=%s source=mlto "
-                "action=hold reason=authority_block (lane path thesis-only)",
+                "action=hold reason=evidence_only (lane path writer≠mlto)",
                 str(sym).upper(), get_midlong_exec_authority(),
             )
         else:
@@ -870,6 +1138,15 @@ def execute_mlto_lane(
                 _sl_pct_val = float(dec.get("stop_loss_pct") or result.sl_pct or 0.05)
                 _tp_pct_val = float(dec.get("take_profit_pct") or result.tp_pct or 0.10)
                 _lane_margin_pct = float(getattr(result, "tranche_margin_pct", 0) or 0)
+                _th_lane = getattr(result, "thesis", None)
+                _hub_lane = getattr(result, "hub", None)
+                _rs_lane = (
+                    getattr(_th_lane, "regime_suggestion", None)
+                    if _th_lane is not None else None
+                )
+                _tp_sl_prop_lane = None
+                if isinstance(_rs_lane, dict) and _rs_lane.get("trailing"):
+                    _tp_sl_prop_lane = {"trailing_atr_mult": 2.0}
                 execute_midlong_open(
                     host=host,
                     db=_exec_db,
@@ -882,7 +1159,7 @@ def execute_mlto_lane(
                     tp_pct=_tp_pct_val,
                     market_summary=market_summary,
                     session_mode=getattr(session, "status", "running"),
-                    tier="long",
+                    tier=tier,
                     trade_nature="trend_follow",
                     tranche_margin_pct=_lane_margin_pct,
                     reason=(getattr(result, "reason", "") or "")[:80],
@@ -890,6 +1167,11 @@ def execute_mlto_lane(
                         getattr(session, "trading_mode", None)
                         or ("paper" if getattr(session, "paper_account_id", None) else "live")
                     ),
+                    thesis_dir=str(getattr(_th_lane, "direction", "") or ""),
+                    hub_dir=str(getattr(_hub_lane, "direction", "") or ""),
+                    hub_mode=str(getattr(_hub_lane, "mode", "") or ""),
+                    dir_src=str(getattr(_hub_lane, "dir_src", "") or ""),
+                    tp_sl_proposal=_tp_sl_prop_lane,
                 )
             except Exception as _exec_err:
                 logger.warning("[MLTO] 独立开仓失败 %s %s: %s", sym.upper(), tier, _exec_err)

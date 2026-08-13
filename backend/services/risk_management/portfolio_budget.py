@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -33,6 +33,14 @@ _MIDLONG_TIERS = frozenset({"mid", "long"})
 # ① 8 月前是废弃/迁移数据，全历史窗口会把 30.82σ 假熔断喂给短线策略（永久冻结）；
 # ② 无时间窗查询每次扫全表（paper_positions 1271+ 行），实测出现 98s 挂起事务。
 PB_DD_LOOKBACK_DAYS = 30
+
+# [2026-08-07 修复] 冻结设计修正（用户硬性要求）：
+# ① 冻结最小粒度 (account_id, strategy, symbol)：绝不允许因单一组合连续亏损冻结全部交易；
+# ② 账户隔离：任何一级冻结不影响其他账户/其他策略/其他交易对；
+# ③ 止血→修复→恢复：冻结即触发修复流水线（挖掘→回测→应用→解冻），冷却时间递减，绝不永久冻结。
+PB_FREEZE_TOP_WORST = 3                 # 3σ 熔断时冻结该策略亏损最重的 symbol 数
+PB_CONSEC_LOSS_LIMIT = 5                # 单 (账户,策略,交易对) 连续亏损熔断阈值
+PB_ACCOUNT_FREEZE_COOLDOWN_SEC = 900.0  # 账户级冷却（15min，替代全局 3600s 硬冻结）
 
 
 def _cfg_bool(name: str, default: bool = True) -> bool:
@@ -148,8 +156,18 @@ class PortfolioBudget:
     """组合级风险预算（单例：portfolio_budget）。"""
 
     def __init__(self) -> None:
+        # 四级冻结（粒度由细到粗，全部按账户隔离）：
+        # key: (account_id, strategy, symbol) → 默认最小粒度（止血点）
+        # strategy: (account_id, strategy)；account: account_id；global: 仅运维手动
+        self._key_frozen_until: Dict[Tuple[int, str, str], float] = {}
+        self._strategy_frozen_until: Dict[Tuple[int, str], float] = {}
+        self._account_frozen_until: Dict[int, float] = {}
         self._frozen_until: float = 0.0
-        self._strategy_frozen_until: Dict[str, float] = {}
+        self._trigger_count: Dict[Any, int] = {}   # 触发次数（冷却递减依据）
+        self._repair_locks: Dict[Any, bool] = {}   # 修复流水线去重
+        self._repair_running: int = 0              # 修复流水线在跑数（全局并发闸）
+        # [2026-08-08 P2-1] 修复失败后冷却，避免 depth/promote 失败时空转占锁
+        self._repair_fail_until: Dict[Any, float] = {}
         self._cache: Dict[str, Any] = {}
         self._lock = __import__("threading").Lock()
         self._last_decision: Optional[BudgetDecision] = None
@@ -183,22 +201,75 @@ class PortfolioBudget:
             return BudgetDecision(True, [], metrics, strategy=strategy)
 
         try:
-            # ── 0. 冻结信号 ──
+            # ── 0. 冻结信号（四级粒度：key→策略→账户→全局；只拦命中者，其余照常）──
             now = time.time()
-            frozen_until = max(self._frozen_until, self._strategy_frozen_until.get(strategy, 0.0))
+            key_f = self._key_frozen_until.get((account_id, strategy, sym), 0.0)
+            strat_f = self._strategy_frozen_until.get((account_id, strategy), 0.0)
+            acct_f = self._account_frozen_until.get(account_id, 0.0)
+            frozen_until = max(key_f, strat_f, acct_f, self._frozen_until)
+            # [2026-08-07 诊断] 冻结表非空但未命中：节流打印当前表内容，
+            # 便于发现 key 类型/格式错位（曾现冻结写入后 8 分钟再次触发）
+            if frozen_until <= now and (self._key_frozen_until or self._strategy_frozen_until
+                                        or self._account_frozen_until):
+                _nz = time.time()
+                if _nz - getattr(self, "_last_fz_diag", 0.0) > 30.0:
+                    self._last_fz_diag = _nz
+                    logger.info(
+                        "[PortfolioBudget] 冻结检查未命中 acct=%r strat=%r sym=%r "
+                        "key_frozen=%s strategy_frozen=%s account_frozen=%s",
+                        account_id, strategy, sym,
+                        {repr(k): int(v - _nz) for k, v in self._key_frozen_until.items() if v > _nz},
+                        {repr(k): int(v - _nz) for k, v in self._strategy_frozen_until.items() if v > _nz},
+                        {k: int(v - _nz) for k, v in self._account_frozen_until.items() if v > _nz},
+                    )
             if frozen_until > now:
-                reasons.append(f"portfolio_frozen_until={int(frozen_until - now)}s")
-                metrics["frozen"] = True
-                return BudgetDecision(False, reasons, metrics, freeze_until=frozen_until, strategy=strategy)
+                if key_f > now:
+                    scope = f"key({sym})"
+                elif strat_f > now:
+                    scope = f"strategy({strategy})"
+                elif acct_f > now:
+                    # 短线 daily_var 等曾用账户级冻结，会误伤中长线；
+                    # 三层独立：中长线忽略账户级冻结，只认自身 strategy/key。
+                    if strategy == "midlong" and key_f <= now and strat_f <= now:
+                        metrics["ignored_account_freeze"] = True
+                        scope = ""
+                    else:
+                        scope = f"account({account_id})"
+                else:
+                    scope = "global"
+                if scope:
+                    reasons.append(f"portfolio_frozen_until={int(frozen_until - now)}s scope={scope}")
+                    metrics["frozen"] = True
+                    metrics["freeze_scope"] = scope
+                    return BudgetDecision(False, reasons, metrics, freeze_until=frozen_until, strategy=strategy)
 
             # ── 1. 单币种集中度 ──
+            # 口径是「名义/权益」。10x 杠杆下名义=保证金×10，所以 0.30 的名义上限
+            # 只允许约 3% 保证金——与短线抬高后的仓位（6%~15% 保证金）永久冲突，
+            # 会触发冻结+修复冷却把短线锁死。短线单独放宽，且超限只拒单不冻结。
+            # 中长线与短线常同币并存：集中度含全账户名义，须单独放宽，否则探针永远被
+            # concentration 108%>80% 拦死；同样只拒单不冻结。
             pos_list = self._load_positions(db, account_id, positions)
             conc = self._concentration_pct(pos_list, sym, notional_usd, equity)
             metrics["concentration_pct"] = conc
             max_conc = _cfg_float("PB_MAX_SYMBOL_EXPOSURE_PCT", 0.30)
+            _strat = str(strategy).lower()
+            if _strat == "scalp":
+                max_conc = _cfg_float(
+                    "PB_SCALP_MAX_SYMBOL_EXPOSURE_PCT",
+                    max(float(max_conc), 1.50),
+                )
+            elif _strat == "midlong":
+                max_conc = _cfg_float(
+                    "PB_MIDLONG_MAX_SYMBOL_EXPOSURE_PCT",
+                    max(float(max_conc), 2.0),
+                )
             if equity > 0 and conc > max_conc:
                 reasons.append(f"concentration {conc:.0%}>{max_conc:.0%} ({sym})")
-                self._freeze(strategy, why=reasons[-1], global_scope=True)
+                if _strat in ("scalp", "midlong"):
+                    # 拒单即可，勿冻结（避免抬仓/探针后每单都冻 30 分钟）
+                    return BudgetDecision(False, reasons, metrics, strategy=strategy)
+                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="key")
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 2. 组合日 VaR（95% 历史模拟，含本单） ──
@@ -207,16 +278,51 @@ class PortfolioBudget:
             max_var = _cfg_float("PB_MAX_DAILY_VAR_PCT", 0.05)
             if var_ratio is not None and var_ratio > max_var:
                 reasons.append(f"daily_var {var_ratio:.1%}>{max_var:.1%}")
-                self._freeze(strategy, why=reasons[-1], global_scope=True)
+                # 策略级短冷却：只冻触发方（scalp/midlong），不串门冻整账户。
+                # 已有持仓的 TP/SL/减仓管理不受影响；触发即告警（日志 WARNING）
+                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="strategy",
+                             cooldown=_cfg_float("PB_ACCOUNT_FREEZE_COOLDOWN_SEC",
+                                                 PB_ACCOUNT_FREEZE_COOLDOWN_SEC))
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 3. 单策略回撤 3σ 熔断 ──
             dd_sigma = self._strategy_drawdown_sigma(strategy, db, account_id)
             metrics["drawdown_sigma"] = dd_sigma
             sigma_cap = _cfg_float("PB_STRATEGY_DRAWDOWN_SIGMA", 3.0)
+            # 中长线历史回撤序列波动大（纸盘探针期常 >3σ）；单独放宽避免永久熔断。
+            if _strat == "midlong":
+                sigma_cap = _cfg_float(
+                    "PB_MIDLONG_DRAWDOWN_SIGMA",
+                    max(float(sigma_cap), 10.0),
+                )
             if dd_sigma is not None and dd_sigma > sigma_cap:
                 reasons.append(f"{strategy} drawdown={dd_sigma:.2f}σ>{sigma_cap:.0f}σ")
-                self._freeze(strategy, why=reasons[-1])
+                # 最小粒度：只冻结该策略下亏损最重的 symbol（止血），
+                # 非亏损源的当前 symbol 放行继续后续规则，其余 symbol 不受影响
+                worst = self._worst_symbols(
+                    strategy, db, account_id,
+                    top_k=_cfg_int("PB_FREEZE_TOP_WORST", PB_FREEZE_TOP_WORST),
+                )
+                metrics["drawdown_worst"] = worst
+                if worst:
+                    for wsym in worst:
+                        self._freeze(account_id, strategy, wsym,
+                                     why=f"drawdown {dd_sigma:.2f}σ", scope="key")
+                    if sym in worst:
+                        return BudgetDecision(False, reasons, metrics, strategy=strategy)
+                    # 本单非亏损源：继续后续规则（连亏/集中度等）
+                else:
+                    self._freeze(account_id, strategy, sym,
+                                 why=f"drawdown {dd_sigma:.2f}σ", scope="key")
+                    return BudgetDecision(False, reasons, metrics, strategy=strategy)
+
+            # ── 4. 单 (账户,策略,交易对) 连续亏损熔断（最小粒度，止血不杀死）──
+            cons_losses = self._consecutive_losses(db, account_id, strategy, sym)
+            metrics["consecutive_losses"] = cons_losses
+            cons_cap = _cfg_int("PB_CONSEC_LOSS_LIMIT", PB_CONSEC_LOSS_LIMIT)
+            if cons_losses is not None and cons_losses >= cons_cap:
+                reasons.append(f"{sym} 连续亏损 {cons_losses} 笔>={cons_cap} 笔")
+                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="key")
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             reasons.append("ok")
@@ -234,39 +340,265 @@ class PortfolioBudget:
 
     # ── 冻结信号 ─────────────────────────────────────────────
 
-    def _freeze(self, strategy: str, why: str, *, global_scope: bool = False) -> None:
-        """冻结信号：global_scope=True 全局冻结（硬指标），否则只冻结该策略（3σ 熔断）。"""
-        cooldown = max(0.0, _cfg_float("PB_FREEZE_COOLDOWN_SEC", 3600.0))
-        until = time.time() + cooldown
+    def _freeze(
+        self,
+        account_id: int,
+        strategy: str,
+        symbol: str,
+        why: str,
+        *,
+        scope: str = "key",
+        cooldown: Optional[float] = None,
+    ) -> None:
+        """冻结（止血）：scope=key 最小粒度 (账户,策略,交易对) | account 账户级 | strategy 策略级。
+        冷却时间随触发次数递减（3600→1800→900→450s），绝不自动全局冻结；
+        触发即启动修复流水线（止血→修复→恢复），不做永久冻结。"""
+        # [2026-08-08 P2-1] 短线默认更短冷却（900s），避免 opens 长期为 0
+        if cooldown is not None:
+            base = cooldown
+        elif str(strategy).lower() == "scalp":
+            base = _cfg_float("PB_SCALP_FREEZE_COOLDOWN_SEC", 900.0)
+        else:
+            base = _cfg_float("PB_FREEZE_COOLDOWN_SEC", 3600.0)
+        sym = str(symbol or "").upper()
+        key = (account_id, strategy, sym)
+        cnt_key = key if scope == "key" else (account_id, strategy) if scope == "strategy" else (account_id, "__acct__")
         with self._lock:
-            if global_scope:
-                self._frozen_until = max(self._frozen_until, until)
-            self._strategy_frozen_until[strategy] = max(
-                self._strategy_frozen_until.get(strategy, 0.0), until
-            )
-        logger.warning(
-            "[PortfolioBudget] %s 触发%s冻结 %ds: %s",
-            strategy, "全局" if global_scope else "策略级", int(cooldown), why,
-        )
-
-    def manual_unfreeze(self, strategy: Optional[str] = None) -> None:
-        """手动解除冻结（运维/测试）。strategy=None 解除全局。"""
-        with self._lock:
-            if strategy:
-                self._strategy_frozen_until.pop(strategy, None)
+            # [2026-08-07 诊断+防护] 冻结期内重复触发：正常路径下第 0 步冻结检查应
+            # 拦截一切命中评估，走到这里说明评估链有漏网（曾现 ZEC 冻结 3600s 后
+            # 8 分钟再次触发 n=2）。此处不重复计次/不刷新冻结，并留日志定位漏洞。
+            if scope == "key":
+                _exist = self._key_frozen_until.get(key, 0.0)
+            elif scope == "strategy":
+                _exist = self._strategy_frozen_until.get((account_id, strategy), 0.0)
             else:
+                _exist = self._account_frozen_until.get(account_id, 0.0)
+            if _exist > time.time():
+                logger.warning(
+                    "[PortfolioBudget] %s %s %s 冻结期内重复触发(忽略,防循环): "
+                    "现有冻结剩余%ds key=%r",
+                    account_id, strategy, sym, int(_exist - time.time()), key,
+                )
+                return
+            n = self._trigger_count.get(cnt_key, 0) + 1
+            self._trigger_count[cnt_key] = n
+            decay = 2.0 ** min(n - 1, 3)          # 3600→1800→900→450
+            # 短线最低冷却 180s（原 450），加快恢复交易
+            _min_cd = 180.0 if str(strategy).lower() == "scalp" else 450.0
+            cooldown_eff = max(_min_cd, base / decay)
+            until = time.time() + cooldown_eff
+            if scope == "account":
+                self._account_frozen_until[account_id] = max(
+                    self._account_frozen_until.get(account_id, 0.0), until)
+            elif scope == "strategy":
+                self._strategy_frozen_until[(account_id, strategy)] = max(
+                    self._strategy_frozen_until.get((account_id, strategy), 0.0), until)
+            else:
+                self._key_frozen_until[key] = max(self._key_frozen_until.get(key, 0.0), until)
+        logger.warning(
+            "[PortfolioBudget] acct=%s %s %s 触发%s冻结 %ds(第%d次): %s",
+            account_id, strategy, sym, scope, int(cooldown_eff), n, why,
+        )
+        # 止血后立即进入修复流水线（后台异步，不阻塞其他交易）
+        self._spawn_repair(account_id, strategy, sym, why, scope)
+
+    def _spawn_repair(self, account_id: int, strategy: str, symbol: str, why: str, scope: str) -> None:
+        """启动修复流水线（后台线程）：记录进化事件 → 触发该组合快速因子挖掘/回测/应用
+        → 流水线完成即自动解冻恢复（不等被动冷却）；任何异常/超时兜底解冻，绝不永久冻结。
+
+        资源保护（2026-08-07 加固）：
+        - 全局并发闸 PB_REPAIR_MAX_CONCURRENT（默认 1）：多个组合同时冻结时串行修复，
+          防止 N 条完整进化闭环并发把进程/DB 连接池打爆（实测 3 条并发 → 32 loky
+          worker × 每 worker 连接 → PG max_connections 打满，全库写入被拒）；
+        - 并行度钳制 PB_REPAIR_MAX_WORKERS（默认 4）：GP/MCTS 默认按 CPU 核起 loky 池，
+          修复轮限 4 worker，不冲击连接池；
+        - 超时兜底 PB_REPAIR_TIMEOUT_SEC（默认 600）：流水线超限立即解冻该组合，
+          止血不等于永久冻结（挖掘线程继续跑完自然退出，资源已受限可控）。"""
+        if scope != "key":
+            return  # 账户/策略级是短时冷却窗口本身，不做单组合修复
+        key = (account_id, strategy, symbol)
+        max_conc = max(1, _cfg_int("PB_REPAIR_MAX_CONCURRENT", 1))
+        with self._lock:
+            fail_until = float(self._repair_fail_until.get(key, 0.0) or 0.0)
+            if fail_until > time.time():
+                logger.info(
+                    "[PortfolioBudget] 修复失败冷却中，跳过 %s %s 剩余%ds",
+                    strategy, symbol, int(fail_until - time.time()),
+                )
+                return
+            if self._repair_locks.get(key):
+                return
+            if self._repair_running >= max_conc:
+                logger.warning(
+                    "[PortfolioBudget] 修复流水线繁忙(%d/%d)，%s %s 跳过流水线(冷却到期自动恢复)",
+                    self._repair_running, max_conc, strategy, symbol,
+                )
+                return  # 不阻塞交易：该组合等冷却自然恢复，其余组合不受影响
+            self._repair_locks[key] = True
+            self._repair_running += 1
+        threading = __import__("threading")
+        # 短线修复超时更短：深度不足会立即返回，无需占满 600s
+        _default_to = 180.0 if str(strategy).lower() == "scalp" else 600.0
+        timeout_sec = float(_cfg_float("PB_REPAIR_TIMEOUT_SEC", _default_to))
+
+        def _unfreeze_safe() -> None:
+            # 超时/完成共用解冻出口（幂等）
+            self.manual_unfreeze(account_id=account_id, strategy=strategy, symbol=symbol)
+
+        def _worker() -> None:
+            timer = None
+            # 止血后默认不再拉起 quick 进化：quick 常卡 15–25 分钟且 no_survivors，
+            # 占着单飞锁导致运维台「永远运行中」。需要时设 PB_REPAIR_SPAWN_EVO=1。
+            spawn_evo = os.getenv("PB_REPAIR_SPAWN_EVO", "0").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+            if not spawn_evo:
+                try:
+                    from backend.services.evolution.factor_evolution_loop import _log_evolution
+                    _log_evolution(
+                        f"pb_freeze:{symbol}", "pb_freeze",
+                        account_id=account_id, strategy=strategy, symbol=symbol,
+                        reason=f"{str(why)[:160]} | spawn_evo=0 skip quick",
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                logger.info(
+                    "[PortfolioBudget] 冻结仅冷却，跳过 quick 进化 %s %s (PB_REPAIR_SPAWN_EVO=0)",
+                    strategy, symbol,
+                )
+                with self._lock:
+                    self._repair_running = max(0, self._repair_running - 1)
+                    self._repair_locks.pop(key, None)
+                return
+            try:
+                # 快速轮：限定单 symbol 挖掘/回测/应用（走既有进化链路）
+                period = "5m" if strategy == "scalp" else "4h"
+                env_backup: Dict[str, Optional[str]] = {}
+                for _ev in ("FACTOR_GP_MAX_WORKERS", "FACTOR_MCTS_MAX_WORKERS"):
+                    env_backup[_ev] = os.environ.get(_ev)
+                try:
+                    _mw = str(max(1, _cfg_int("PB_REPAIR_MAX_WORKERS", 4)))
+                    os.environ["FACTOR_GP_MAX_WORKERS"] = _mw
+                    os.environ["FACTOR_MCTS_MAX_WORKERS"] = _mw
+                    from backend.services.evolution.factor_evolution_loop import (
+                        _log_evolution,
+                        run_factor_evolution_loop,
+                    )
+                    _log_evolution(
+                        f"pb_freeze:{symbol}", "pb_freeze",  # phase 列 VARCHAR(20)，"portfolio_budget_freeze" 23 字符超长会 INSERT 失败
+                        account_id=account_id, strategy=strategy, symbol=symbol,
+                        reason=str(why)[:200],
+                    )
+                    # 超时兜底：流水线超限也立即解冻（止血不等于永久冻结）
+                    timer = threading.Timer(timeout_sec, _unfreeze_safe)
+                    timer.daemon = True
+                    timer.start()
+                    # [2026-08-07 快速修复] quick=True：压缩 GP/MCTS 挖掘规模 + 跳过
+                    # WFO 双门禁（约省 9min），目标止血后 ~10min 内完成补挖替换，
+                    # 避免 4 个 loky worker 长时间常驻（此前完整链路实测 3h+）。
+                    # [2026-08-08 P0-3] 深度不足/晋升拒绝时进化立即返回 error，
+                    # 此处记录后解冻，禁止把失败当成"修好了"。
+                    from backend.services.evolution import evo_runtime as _evo_rt
+                    if _evo_rt.is_running():
+                        logger.warning(
+                            "[PortfolioBudget] 跳过修复：因子进化已在跑 %s",
+                            _evo_rt.snapshot(),
+                        )
+                        report = {"error": "already_running", "runtime": _evo_rt.snapshot()}
+                    else:
+                        report = run_factor_evolution_loop(
+                            symbols=[symbol], period=period, quick=True,
+                        )
+                    if isinstance(report, dict) and report.get("error"):
+                        logger.warning(
+                            "[PortfolioBudget] 修复快失败 %s %s: error=%s elapsed=%s rejects=%s",
+                            strategy, symbol, report.get("error"),
+                            report.get("elapsed_sec"),
+                            len(report.get("promote_rejects") or []),
+                        )
+                        # P2-1：失败后进入修复冷却，防止连环占用并发闸
+                        _fail_cd = float(_cfg_float(
+                            "PB_REPAIR_FAIL_COOLDOWN_SEC",
+                            1800.0 if str(strategy).lower() == "scalp" else 3600.0,
+                        ))
+                        with self._lock:
+                            self._repair_fail_until[key] = time.time() + _fail_cd
+                    else:
+                        logger.info(
+                            "[PortfolioBudget] 修复完成 %s %s: promoted=%s active=%s elapsed=%s",
+                            strategy, symbol,
+                            (report or {}).get("promoted"),
+                            (report or {}).get("active_total"),
+                            (report or {}).get("elapsed_sec"),
+                        )
+                        with self._lock:
+                            self._repair_fail_until.pop(key, None)
+                finally:
+                    for _ev, _old in env_backup.items():
+                        if _old is None:
+                            os.environ.pop(_ev, None)
+                        else:
+                            os.environ[_ev] = _old
+            except Exception as e:
+                logger.warning("[PortfolioBudget] 修复流水线异常(兜底解冻): %s", e)
+            finally:
+                if timer is not None:
+                    timer.cancel()
+                # 兜底：无论流水线成败，完成即解冻（宁可回到交易+继续学习，不可永久冻结）
+                _unfreeze_safe()
+                with self._lock:
+                    self._repair_running = max(0, self._repair_running - 1)
+                    self._repair_locks.pop(key, None)
+
+        threading.Thread(target=_worker, daemon=True,
+                         name=f"pb-repair-a{account_id}-{symbol}").start()
+
+    def manual_unfreeze(
+        self,
+        account_id: Optional[int] = None,
+        strategy: Optional[str] = None,
+        symbol: Optional[str] = None,
+    ) -> None:
+        """手动解除冻结。全 None=全部；account_id=该账户全部级别；
+        +strategy=该策略级+该策略下全部 key；+symbol=精确 key。"""
+        # [2026-08-07 诊断] 记录调用参数（含类型），定位异常解冻调用方
+        logger.info(
+            "[PortfolioBudget] manual_unfreeze(acct=%r, strat=%r, sym=%r)",
+            account_id, strategy, symbol,
+        )
+        with self._lock:
+            if account_id is None:
                 self._frozen_until = 0.0
+                self._account_frozen_until.clear()
+                self._strategy_frozen_until.clear()
+                self._key_frozen_until.clear()
+                return
+            self._account_frozen_until.pop(account_id, None)
+            if strategy is None:
+                for k in [k for k in self._strategy_frozen_until if k[0] == account_id]:
+                    self._strategy_frozen_until.pop(k, None)
+                for k in [k for k in self._key_frozen_until if k[0] == account_id]:
+                    self._key_frozen_until.pop(k, None)
+                return
+            self._strategy_frozen_until.pop((account_id, strategy), None)
+            if symbol is None:
+                for k in [k for k in self._key_frozen_until
+                          if k[0] == account_id and k[1] == strategy]:
+                    self._key_frozen_until.pop(k, None)
+                return
+            self._key_frozen_until.pop((account_id, strategy, str(symbol).upper()), None)
 
     def status(self) -> Dict[str, Any]:
-        """供监控看板/前端：预算状态与最近决策。"""
+        """供监控看板/前端：预算状态与最近决策（按账户分级冻结清单）。"""
         now = time.time()
         return {
             "enabled": _cfg_bool("PB_ENABLED", True),
             "global_frozen": self._frozen_until > now,
             "global_frozen_until": self._frozen_until,
-            "strategy_frozen": {
-                k: v for k, v in self._strategy_frozen_until.items() if v > now
-            },
+            "account_frozen": {k: v for k, v in self._account_frozen_until.items() if v > now},
+            "strategy_frozen": {k: v for k, v in self._strategy_frozen_until.items() if v > now},
+            "key_frozen": {k: v for k, v in self._key_frozen_until.items() if v > now},
+            "trigger_count": dict(self._trigger_count),
             "last_decision": self._last_decision,
         }
 
@@ -433,7 +765,15 @@ class PortfolioBudget:
                     strategy,
                 ):
                     continue
-                pnl = float(r.unrealized_pnl or 0) + float(r.partial_realized_pnl or 0)
+                # [2026-08-07 修复] pnl 取差价口径：closed 仓的 unrealized_pnl 残留值
+                # 语义不可靠（实测 923/923 非 0 且把盈利序列算成 -12.85），
+                # 用 (close_price-entry_price)*size*方向 + 部分已实现，才是真实已实现口径。
+                d = 1 if str(r.side or "").lower() in ("long", "buy") else -1
+                if r.close_price is not None and r.entry_price:
+                    pnl = (float(r.close_price) - float(r.entry_price)) * float(r.size or 0) * d
+                else:
+                    pnl = float(r.unrealized_pnl or 0)
+                pnl = pnl + float(r.partial_realized_pnl or 0)
                 if np.isfinite(pnl):
                     pnls.append(pnl)
             except Exception:
@@ -450,6 +790,101 @@ class PortfolioBudget:
         dd_sigma = current_dd / sigma
         self._cache[cache_key] = (time.time(), dd_sigma)
         return dd_sigma
+
+    def _worst_symbols(
+        self, strategy: str, db, account_id: int, top_k: int = 3,
+    ) -> List[str]:
+        """该策略 30 天 closed 按 symbol 汇总 PnL（差价口径），返回亏损最重 top_k（仅亏损者）。"""
+        try:
+            from backend.database.models import PaperPosition
+            import datetime as _dt
+            cutoff = _dt.datetime.now() - _dt.timedelta(
+                days=_cfg_int("PB_DD_LOOKBACK_DAYS", PB_DD_LOOKBACK_DAYS)
+            )
+            rows = (
+                db.query(PaperPosition)
+                .filter(
+                    PaperPosition.account_id == account_id,
+                    PaperPosition.status == "closed",
+                    PaperPosition.closed_at >= cutoff,
+                )
+                .all()
+            )
+        except Exception:
+            return []
+        by_sym: Dict[str, float] = {}
+        for r in rows:
+            if not _is_strategy_pos(
+                {"trade_nature": r.trade_nature, "timeframe_tier": r.timeframe_tier},
+                strategy,
+            ):
+                continue
+            sym = str(r.symbol or "").upper()
+            d = 1 if str(r.side or "").lower() in ("long", "buy") else -1
+            try:
+                if r.close_price is not None and r.entry_price:
+                    pnl = (float(r.close_price) - float(r.entry_price)) * float(r.size or 0) * d
+                else:
+                    pnl = float(r.unrealized_pnl or 0)
+                pnl += float(r.partial_realized_pnl or 0)
+                by_sym[sym] = by_sym.get(sym, 0.0) + pnl
+            except Exception:
+                continue
+        worst = sorted(by_sym.items(), key=lambda kv: kv[1])[:top_k]
+        return [s for s, p in worst if p < 0]
+
+    def _consecutive_losses(
+        self, db, account_id: int, strategy: str, symbol: str,
+    ) -> Optional[int]:
+        """该 (账户,策略,交易对) 最近连续亏损笔数（差价口径）。
+        无历史交易/异常返回 None（fail-open）。缓存 120s 防热路径拖累。"""
+        if not db or not account_id:
+            return None
+        cache_key = f"cl:{account_id}:{strategy}:{str(symbol or '').upper()}"
+        hit = self._cache.get(cache_key)
+        if hit and time.time() - hit[0] < _cfg_float("PB_CONSEC_CACHE_TTL_SEC", 120.0):
+            return hit[1]
+        try:
+            from backend.database.models import PaperPosition
+            rows = (
+                db.query(PaperPosition)
+                .filter(
+                    PaperPosition.account_id == account_id,
+                    PaperPosition.status == "closed",
+                    PaperPosition.symbol == str(symbol or "").upper(),
+                    PaperPosition.closed_at.isnot(None),
+                )
+                .order_by(PaperPosition.closed_at.desc())
+                .limit(10)
+                .all()
+            )
+        except Exception:
+            return None
+        if not rows:
+            return None
+        n = 0
+        for r in rows:
+            if not _is_strategy_pos(
+                {"trade_nature": r.trade_nature, "timeframe_tier": r.timeframe_tier},
+                strategy,
+            ):
+                continue
+            d = 1 if str(r.side or "").lower() in ("long", "buy") else -1
+            try:
+                if r.close_price is not None and r.entry_price:
+                    pnl = (float(r.close_price) - float(r.entry_price)) * float(r.size or 0) * d
+                else:
+                    pnl = float(r.unrealized_pnl or 0)
+                pnl += float(r.partial_realized_pnl or 0)
+            except Exception:
+                break
+            if pnl < 0:
+                n += 1
+            else:
+                break
+        result = n
+        self._cache[cache_key] = (time.time(), result)
+        return result
 
 
 # 单例

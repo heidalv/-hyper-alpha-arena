@@ -1,4 +1,4 @@
-"""OpenCode 提案评审 — 硬规则校验 + Review Agent + 自动 apply/reject。"""
+﻿"""OpenCode 提案评审 — 硬规则校验 + Review Agent + 自动 apply/reject。"""
 
 from __future__ import annotations
 
@@ -58,9 +58,9 @@ def _review_model() -> str:
         pass
     try:
         from backend.config.settings import OPENCODE_MODEL, OPENCODE_REVIEW_MODEL
-        return OPENCODE_REVIEW_MODEL or OPENCODE_MODEL or "deepseek/deepseek-v4-pro"
+        return OPENCODE_REVIEW_MODEL or OPENCODE_MODEL or "deepseek/deepseek-v4-flash"
     except Exception:
-        return "deepseek/deepseek-v4-pro"
+        return "deepseek/deepseek-v4-flash"
 
 
 def _review_timeout_s() -> int:

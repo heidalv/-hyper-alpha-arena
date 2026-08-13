@@ -1,4 +1,4 @@
-# 中长线策略(Swing/Trend)深度审计与重新设计
+﻿# 中长线策略(Swing/Trend)深度审计与重新设计
 
 > 版本: v1.0 | 日期: 2026-07-19 | 基于代码审计 + 日志实证
 
@@ -70,7 +70,7 @@ TrendAgent 有少量开仓，但存在"多频率方向冲突"问题(1h看空×4h
 
 | 维度 | Hyper-Alpha-Arena (SwingAgent) | Freqtrade+FreqAI | nautilus_trader | Jesse |
 |------|------|------|------|------|
-| AI 范式 | LLM 深度推理(DeepSeek v4-pro) | 传统ML(CatBoost/LGBM) | 纯规则策略 | 纯规则策略 |
+| AI 范式 | LLM 深度推理(DeepSeek v4-flash) | 传统ML(CatBoost/LGBM) | 纯规则策略 | 纯规则策略 |
 | 决策输入 | prompt文本(深度上下文+分析师报告+量化简报) | 特征向量(indicators+OHLCV) | 事件驱动(OrderBook/Bar) | dataframe(indicators) |
 | 输出格式 | JSON结构化 | 预测值(buy/sell信号) | 领域事件 | 策略信号 |
 | TP/SL | LLM建议(固定比例) | 策略参数配置 | 策略代码定义 | 策略代码定义 |

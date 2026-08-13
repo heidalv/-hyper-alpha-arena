@@ -1,15 +1,235 @@
 {
   "failed_intents": [
     {
+      "symbol": "HYPE",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 55,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T11:35:58.990909+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 58,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T12:40:47.800126+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 58,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T12:42:11.449316+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 58,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T12:49:51.827737+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 57,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T12:57:45.326411+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 57,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T13:02:25.094547+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 54,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T13:19:53.510850+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 54,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T13:29:09.447824+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 54,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T13:50:36.485814+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 55,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T14:02:57.669854+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 53,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T14:13:42.429126+00:00"
+    },
+    {
+      "symbol": "CASHCAT",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 55,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-11T14:18:44.766467+00:00"
+    },
+    {
+      "symbol": "VELVET",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-12T00:33:29.380925+00:00"
+    },
+    {
+      "symbol": "VELVET",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 54,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-12T00:48:28.042671+00:00"
+    },
+    {
       "symbol": "SOL",
-      "reason": "llm_should_open_false_respected",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T09:22:40.882984+00:00"
+    },
+    {
+      "symbol": "SOL",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T09:37:10.813804+00:00"
+    },
+    {
+      "symbol": "SOL",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T09:46:28.959156+00:00"
+    },
+    {
+      "symbol": "SOL",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T09:52:06.159245+00:00"
+    },
+    {
+      "symbol": "SOL",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T10:02:55.522585+00:00"
+    },
+    {
+      "symbol": "SOL",
+      "reason": "margin_zero",
+      "regime": "",
+      "score": 56,
+      "authority": "mlto",
+      "source": "mlto",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-13T10:14:05.936209+00:00"
+    },
+    {
+      "symbol": "ETH",
+      "reason": "score_low(13<32)",
       "regime": "ranging",
-      "score": 47,
-      "authority": "trend",
+      "score": 13,
+      "authority": "mlto",
       "source": "trend",
       "session_id": "fa_10d44c724e",
       "noise": true,
-      "ts": "2026-08-07T06:19:36.017093+00:00"
+      "ts": "2026-08-13T14:33:47.703712+00:00"
     }
   ],
   "beliefs": [
@@ -30,9 +250,9 @@
       "type": "midlong_belief"
     }
   ],
-  "last_review_ts": 1786062646.4411602,
+  "last_review_ts": 1786625231.5275495,
   "last_review": {
-    "ts": "2026-08-07T00:30:46.574783+00:00",
+    "ts": "2026-08-13T12:47:12.131581+00:00",
     "ranging_blocks": 0,
     "score_low": 0,
     "authority_blocks": 0,
@@ -40,6 +260,14 @@
       "closed": 0,
       "losses": 0,
       "ranging_hint": 0
+    },
+    "direction_audit_48h": {
+      "path": "D:\\001Alpha\\Hyper-Alpha-Arena\\data\\midlong_direction_audit.jsonl",
+      "n": 4,
+      "comparable": 4,
+      "consistent": 4,
+      "rate": 1.0,
+      "flips": 0
     },
     "added": []
   }

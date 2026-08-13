@@ -8,6 +8,10 @@ files:
   - package.json
 directories:
   output: dist-electron
+# 只打包简体中文与英文 locale，减少安装包体积
+electronLanguages:
+  - zh-CN
+  - en-US
 # Win/mac/Linux 目标
 win:
   target: nsis
@@ -23,9 +27,9 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-# 自动更新源(electron-updater autoUpdater.checkForUpdatesAndNotify 读这里)。
-# 部署时把 url 改成真实更新源;它需要提供 latest.yml + 安装包。
-# 可选 provider: github(GitHub Releases) / generic(自托管静态目录) / s3 / bintray
+# 自动更新源（electron-updater）。
+# 打包时写入 app-update.yml 作兜底；运行时 Electron 会按登录页填写的
+# 后端地址覆盖为 <backend>/arena-updates/（本机/Tailscale 均可）。
 publish:
   provider: generic
-  url: https://yourdomain.com/arena-updates/
+  url: http://127.0.0.1:8000/arena-updates/

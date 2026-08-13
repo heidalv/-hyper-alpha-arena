@@ -253,19 +253,32 @@ def thesis_summary(
 
     enriched = [_enrich_thesis_row(row, session_id, db) for row in items]
 
-    # 中线已不走 MLTO（三层独立架构 2026-07-03）：默认从 thesis 汇总过滤掉 mid，
-    # 避免前端显示中线"僵尸卡片"（重启前遗留、已停更的旧 mid thesis）。
-    # 仅当 MIDLONG_MID_VIA_MLTO=True（中线回退到 MLTO 与长线复合）时才保留 mid。
+    # [2026-08-10] 中线/长线双通道展示：
+    #   long → 仅固定交易对
+    #   mid  → 固定交易对 ∪ AI中线≤3（固定币中线不能丢）
     from backend.config.settings import MIDLONG_MID_VIA_MLTO as _MID_VIA_MLTO
-    _mlto_tiers = ("mid", "long") if _MID_VIA_MLTO else ("long",)
+    from backend.services.auto_coin_selector import (
+        get_ai_mid_candidates_for_session as _get_ai_mid,
+        get_fixed_symbols_for_session as _get_fixed,
+        is_long_allowed as _is_long_allowed,
+    )
+    _fixed_long = {str(s).upper() for s in (_get_fixed(session_id, tier="long") or set())}
+    _fixed_mid = {str(s).upper() for s in (_get_fixed(session_id, tier="mid") or set())}
+    _ai_mid_syms = (
+        {str(s).upper() for s in (_get_ai_mid(session_id) or [])}
+        if _MID_VIA_MLTO
+        else set()
+    )
+    _mid_syms = set(_fixed_mid) | set(_ai_mid_syms) if _MID_VIA_MLTO else set()
     if not _MID_VIA_MLTO:
         enriched = [r for r in enriched if r.get("tier") != "mid"]
+    else:
+        enriched = [
+            r for r in enriched
+            if r.get("tier") != "mid"
+            or str(r.get("symbol", "")).upper() in _mid_syms
+        ]
 
-    # [2026-07-23 统一守卫] 替换 _auto_coin_set 反向排除法。
-    # 原来：读 session.auto_coin_symbols 快照做"排除"——但 AI 选币动态轮换，
-    # ORM session 对象的 auto_coin_symbols 属性可能 stale，导致已退役 AI 选币
-    # 漏过过滤出现在前端。现在：统一用 is_long_allowed 正向白名单过滤长线 thesis。
-    from backend.services.auto_coin_selector import is_long_allowed as _is_long_allowed
     enriched = [
         r for r in enriched
         if r.get("tier") != "long" or _is_long_allowed(r.get("symbol", ""), session_id, db=db)
@@ -273,20 +286,51 @@ def thesis_summary(
 
     existing = {(r.get("symbol", "").upper(), r.get("tier")) for r in enriched}
 
-    for sym in _resolve_session_symbols(session_id, symbols):
-        for tier in _mlto_tiers:
-            if tier == "long" and not _is_long_allowed(sym, session_id, db=db):
-                continue
-            if (sym, tier) not in existing:
-                enriched.append(_placeholder_thesis(sym, tier))
+    # long 占位：只补长线固定币
+    _long_want = _fixed_long or {
+        str(s).upper() for s in _resolve_session_symbols(session_id, symbols) if s
+    }
+    for sym in sorted(_long_want):
+        if not _is_long_allowed(sym, session_id, db=db):
+            continue
+        if (sym, "long") not in existing:
+            enriched.append(_placeholder_thesis(sym, "long"))
+            existing.add((sym, "long"))
 
-
+    # mid 占位：中线固定币 + AI中线候选
+    if _MID_VIA_MLTO:
+        for sym in sorted(_mid_syms):
+            if (sym, "mid") not in existing:
+                ph = _placeholder_thesis(sym, "mid")
+                _is_ai = sym in _ai_mid_syms and sym not in _fixed_mid
+                ph["gate_status"] = {
+                    "summary": (
+                        "尚未运行 MLTO tick（等待 AI 中线调度）"
+                        if _is_ai
+                        else "尚未运行 MLTO tick（等待固定中线调度）"
+                    ),
+                    "can_open": False,
+                    "checks": [],
+                }
+                enriched.append(ph)
+                existing.add((sym, "mid"))
 
     enriched.sort(key=lambda x: (0 if x.get("tier") == "mid" else 1, x.get("symbol", "")))
 
     metrics = get_learning_metrics(session_id, db)
 
-    return {"session_id": session_id, "theses": enriched, "metrics": metrics}
+    return {
+        "session_id": session_id,
+        "theses": enriched,
+        "metrics": metrics,
+        "lanes": {
+            "long_symbols": sorted(_fixed_long),
+            "mid_symbols": sorted(_mid_syms),
+            "ai_mid_symbols": sorted(_ai_mid_syms),
+            "fixed_in_mid": sorted(_fixed_mid),
+            "mid_via_mlto": bool(_MID_VIA_MLTO),
+        },
+    }
 
 
 

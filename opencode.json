@@ -1,8 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "plan",
-  "model": "ark/deepseek-v4-pro-260425",
-  "small_model": "ark/deepseek-v4-pro-260425",
+  "model": "ark/deepseek-v4-flash-260425",
+  "small_model": "ark/deepseek-v4-flash-260425",
   "instructions": [
     "backend/prompts/opencode_analysis_system.md"
   ],
@@ -15,33 +15,24 @@
         "apiKey": "{env:ARK_API_KEY}"
       },
       "models": {
-        "deepseek-v4-pro-260425": {
-          "name": "DeepSeek V4 Pro (Ark)",
-          "limit": { "context": 128000, "output": 65536 },
+        "deepseek-v4-flash-260425": {
+          "name": "DeepSeek V4 Flash (Ark)",
+          "limit": { "context": 128000, "output": 8192 },
           "options": { "thinking": { "type": "enabled" } }
         }
       }
     },
     "deepseek": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "DeepSeek (备份-余额已耗尽)",
+      "name": "DeepSeek (备份)",
       "options": {
         "baseURL": "https://api.deepseek.com/v1",
         "apiKey": "{env:DEEPSEEK_API_KEY}"
       },
       "models": {
-        "deepseek-v4-pro": {
-          "name": "DeepSeek V4 Pro",
-          "limit": { "context": 128000, "output": 65536 },
-          "options": { "thinking": { "type": "enabled" } }
-        },
         "deepseek-v4-flash": {
           "name": "DeepSeek V4 Flash",
-          "limit": { "context": 128000, "output": 8192 }
-        },
-        "deepseek-reasoner": {
-          "name": "DeepSeek Reasoner（官方 Pro API ID）",
-          "limit": { "context": 128000, "output": 65536 },
+          "limit": { "context": 128000, "output": 8192 },
           "options": { "thinking": { "type": "enabled" } }
         },
         "deepseek-chat": {
@@ -53,24 +44,24 @@
   },
   "agent": {
     "plan": {
-      "model": "ark/deepseek-v4-pro-260425",
+      "model": "ark/deepseek-v4-flash-260425",
       "description": "Alpha Arena 只读分析 agent",
       "prompt": "你是 Alpha Arena 全自动 Paper 交易系统的分析 agent（只读 plan 模式）。输入含 runtime_report、strategy_memories、recent_trades、pace_gear、rule_breaches。仅输出 JSON：severity、domain、findings、actions、patches。master_running 亏损占比>60% 或 24h 胜率<40% 且样本>=20 时 severity=major。patch 仅 whitelist，单次变化不超过 ±20%。禁止建议改 full_auto_trading_service.py 或 paper_trading_engine.py。",
       "tools": { "write": false, "edit": false, "bash": false }
     },
     "review": {
-      "model": "ark/deepseek-v4-pro-260425",
+      "model": "ark/deepseek-v4-flash-260425",
       "description": "Alpha Arena 提案评审 agent",
       "prompt": "评审 evolution 提案是否可在 Paper 自动执行。仅输出 JSON：decision(approve|reject|defer)、confidence、approved_patches、reasons、risks。approve 时 approved_patches 为 patches 子集。",
       "tools": { "write": false, "edit": false, "bash": false }
     },
     "build": {
-      "model": "ark/deepseek-v4-pro-260425",
+      "model": "ark/deepseek-v4-flash-260425",
       "tools": { "write": true, "edit": true }
     },
     "assistant": {
-      "model": "ark/deepseek-v4-pro-260425",
-      "description": "Alpha 悬浮助手 — 系统健康 / 报错 / OpenCode 问答（v4-pro）",
+      "model": "ark/deepseek-v4-flash-260425",
+      "description": "Alpha 悬浮助手 — 系统健康 / 报错 / OpenCode 问答（v4-flash）",
       "prompt": "你是 Alpha Arena 的悬浮助手。用简洁中文回答用户关于系统报错、OpenCode Sidecar、Paper 交易、进化提案的问题。只读为主；涉及写操作提醒用户在 Web 或飞书确认。",
       "tools": { "write": false, "edit": false, "bash": false }
     }

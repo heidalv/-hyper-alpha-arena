@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-08-13T08:35:39.711477+00:00",
+  "kline_freshness": {
+    "global_max_ts": 1786610100,
+    "freshness_sec": 39,
+    "count": 7398933,
+    "by_symbol": {
+      "BTC": {
+        "freshness_sec": 39,
+        "count": 37302
+      },
+      "ETH": {
+        "freshness_sec": 339,
+        "count": 35901
+      },
+      "SOL": {
+        "freshness_sec": 339,
+        "count": 36339
+      },
+      "AAVE": {
+        "freshness_sec": 339,
+        "count": 40663
+      },
+      "DOGE": {
+        "freshness_sec": 339,
+        "count": 33584
+      },
+      "HYPE": {
+        "freshness_sec": 339,
+        "count": 34666
+      },
+      "ENA": {
+        "freshness_sec": 339,
+        "count": 35652
+      },
+      "BNB": {
+        "freshness_sec": 339,
+        "count": 36669
+      },
+      "XRP": {
+        "freshness_sec": 339,
+        "count": 37172
+      },
+      "ADA": {
+        "freshness_sec": 339,
+        "count": 37792
+      }
+    }
+  },
+  "settlement": {
+    "unsettled_backlog": 28,
+    "oldest_unsettled_ts": 1786607722,
+    "avg_lag_sec": 2169.0,
+    "max_lag_sec": 2687,
+    "settled_last_6h": 3462
+  },
+  "learning_artifacts": {
+    "scalp_meta_report_age_min": 2,
+    "factor_runtime_weights_age_min": 39
+  },
+  "issues": []
+}

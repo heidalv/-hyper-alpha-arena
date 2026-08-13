@@ -58,8 +58,38 @@ def main() -> None:
     # start-dev.ps1 启动后端时注入 BACKEND_HOST=0.0.0.0，即可让外地电脑通过
     # Tailscale 虚拟 IP (100.x.x.x) 访问本项目。
     host = os.getenv("BACKEND_HOST", "127.0.0.1")
-    no_reload = True  # [fix] 暂时强制禁用 reload — 子进程不继承 venv 导致缺包崩溃
+    # 默认开热重载；NO_RELOAD=1/true 时关闭（start-backend-fix.cmd / start-dev -NoReload）
+    no_reload = os.getenv("NO_RELOAD", "").strip().lower() in ("1", "true", "yes", "on")
     backend_dir = os.path.join(_REPO_ROOT, "backend")
+
+    # reload 子进程用 multiprocessing.spawn，不跑本文件顶部的 sys.path 注入。
+    # 把仓库根 + backend 写入 PYTHONPATH，避免 worker 缺包 / 找不到 backend.*。
+    _pp_parts = [_REPO_ROOT, backend_dir]
+    _existing_pp = os.environ.get("PYTHONPATH", "")
+    if _existing_pp:
+        _pp_parts.extend(p for p in _existing_pp.split(os.pathsep) if p)
+    # 去重保序
+    _seen: set[str] = set()
+    _pp_clean: list[str] = []
+    for _p in _pp_parts:
+        if _p and _p not in _seen:
+            _seen.add(_p)
+            _pp_clean.append(_p)
+    os.environ["PYTHONPATH"] = os.pathsep.join(_pp_clean)
+
+    # Windows venv：保证 spawn 子进程仍走本仓库 .venv（Scripts 优先 + VIRTUAL_ENV）
+    _venv = os.path.join(_REPO_ROOT, ".venv")
+    _venv_scripts = os.path.join(_venv, "Scripts" if os.name == "nt" else "bin")
+    if os.path.isdir(_venv_scripts):
+        os.environ.setdefault("VIRTUAL_ENV", _venv)
+        _path0 = os.environ.get("PATH", "")
+        if not _path0.lower().startswith(_venv_scripts.lower()):
+            os.environ["PATH"] = _venv_scripts + os.pathsep + _path0
+    try:
+        import multiprocessing as _mp
+        _mp.set_executable(sys.executable)
+    except Exception:
+        pass
 
     kwargs: dict = {
         "app": "backend.main:app",
@@ -73,16 +103,30 @@ def main() -> None:
             {
                 "reload": True,
                 "reload_dirs": [backend_dir],
-                "reload_delay": 4.0,
+                "reload_includes": ["*.py"],
+                "reload_delay": 8.0,
                 "reload_excludes": [
                     "backend/static/*",
                     "backend/data/*",
+                    "backend/**/_reload*",
                     "**/__pycache__/*",
                     "**/*.jsonl",
                     "**/*.log",
                     "**/*.db",
+                    "**/*.lock",
+                    "**/*.pyc",
                 ],
             }
+        )
+        print(
+            f"[run_uvicorn_dev] hot-reload ON  host={host} port={port}  "
+            f"watch={backend_dir}",
+            flush=True,
+        )
+    else:
+        print(
+            f"[run_uvicorn_dev] hot-reload OFF (NO_RELOAD)  host={host} port={port}",
+            flush=True,
         )
 
     uvicorn.run(**kwargs)

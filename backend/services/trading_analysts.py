@@ -4073,6 +4073,16 @@ class TradingAnalystSystem:
             reports_dict[k] = v.to_dict() if isinstance(v, AnalystReport) else v
 
         _stage_t = time.time()
+        # [2026-08-07 修复] master LLM 调用前提交主连接事务（L1 持仓感知等查询
+        # 开启的事务不跨 LLM 调用），避免 LLM 期间 idle-in-transaction 被 LeakGuard
+        # 强杀导致决策落库失败。
+        try:
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
         try:
             from backend.services.dual_agent_coordinator import dual_agent_coordinator
             master_decision = dual_agent_coordinator.coordinate(

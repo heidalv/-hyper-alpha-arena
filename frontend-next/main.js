@@ -1,7 +1,7 @@
 // frontend-next/electron/main.js
 // Electron 主进程:加载 Next.js 产物(生产)或 dev server(开发)。
 // 说明:故意写成 plain JS(Electron 主进程跑 Node,避免 ts-node/tsx 启动复杂度)。
-const { app, BrowserWindow, ipcMain, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -10,6 +10,13 @@ const log = require("electron-log");
 
 let win = null;
 let staticServer = null;
+let autoUpdaterRef = null;
+
+/** @type {{ status: string, version?: string, percent?: number, error?: string, currentVersion: string }} */
+const updaterState = {
+  status: "idle",
+  currentVersion: "0.0.0",
+};
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -29,6 +36,39 @@ const MIME = {
 
 function tokenFilePath() {
   return path.join(app.getPath("userData"), "auth-tokens.bin");
+}
+
+function backendUrlFilePath() {
+  return path.join(app.getPath("userData"), "backend-url.txt");
+}
+
+function readSavedBackendUrl() {
+  try {
+    const fp = backendUrlFilePath();
+    if (!fs.existsSync(fp)) return "";
+    return String(fs.readFileSync(fp, "utf8") || "").trim().replace(/\/$/, "");
+  } catch (e) {
+    log.warn("[config] read backend url:", e?.message || e);
+    return "";
+  }
+}
+
+function writeSavedBackendUrl(url) {
+  const cleaned = String(url || "").trim().replace(/\/$/, "");
+  if (!cleaned) return { ok: false, error: "empty url" };
+  try {
+    fs.writeFileSync(backendUrlFilePath(), cleaned, "utf8");
+    return { ok: true, url: cleaned };
+  } catch (e) {
+    log.warn("[config] write backend url:", e?.message || e);
+    return { ok: false, error: String(e?.message || e) };
+  }
+}
+
+function feedUrlFromBackend(backendBase) {
+  const base = String(backendBase || "").trim().replace(/\/$/, "");
+  if (!base) return "http://127.0.0.1:8000/arena-updates/";
+  return `${base}/arena-updates/`;
 }
 
 function encryptPayload(obj) {
@@ -51,6 +91,17 @@ function decryptPayload(buf) {
   } catch (e) {
     log.warn("[auth] decrypt failed:", e?.message || e);
     return null;
+  }
+}
+
+function pushUpdaterEvent(payload) {
+  Object.assign(updaterState, payload || {});
+  try {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("updater:event", { ...updaterState });
+    }
+  } catch (e) {
+    log.warn("[updater] push event:", e?.message || e);
   }
 }
 
@@ -92,6 +143,66 @@ function setupAuthIpc() {
     } catch (e) {
       log.warn("[auth] clearTokens:", e?.message || e);
       return { ok: false };
+    }
+  });
+
+  ipcMain.handle("config:getBackendUrl", () => {
+    return { url: readSavedBackendUrl() || "http://127.0.0.1:8000" };
+  });
+
+  ipcMain.handle("config:setBackendUrl", (_evt, payload) => {
+    const res = writeSavedBackendUrl(payload?.url || payload);
+    if (res.ok && autoUpdaterRef && app.isPackaged) {
+      try {
+        const feed = feedUrlFromBackend(res.url);
+        autoUpdaterRef.setFeedURL({ provider: "generic", url: feed });
+        log.info("[updater] feed url updated →", feed);
+      } catch (e) {
+        log.warn("[updater] setFeedURL after backend change:", e?.message || e);
+      }
+    }
+    return res;
+  });
+
+  ipcMain.handle("updater:getStatus", () => ({ ...updaterState }));
+
+  ipcMain.handle("updater:getVersion", () => ({
+    version: app.getVersion(),
+    isPackaged: app.isPackaged,
+  }));
+
+  ipcMain.handle("updater:check", async () => {
+    if (!app.isPackaged) {
+      pushUpdaterEvent({ status: "dev-skip", error: "开发模式不检查更新" });
+      return { ok: false, reason: "dev" };
+    }
+    if (!autoUpdaterRef) {
+      pushUpdaterEvent({ status: "error", error: "updater 未初始化" });
+      return { ok: false, reason: "no-updater" };
+    }
+    try {
+      const saved = readSavedBackendUrl();
+      const feed = feedUrlFromBackend(saved);
+      autoUpdaterRef.setFeedURL({ provider: "generic", url: feed });
+      log.info("[updater] manual check feed=", feed);
+      pushUpdaterEvent({ status: "checking", error: undefined });
+      const result = await autoUpdaterRef.checkForUpdates();
+      return { ok: true, updateInfo: result?.updateInfo || null };
+    } catch (e) {
+      const msg = String(e?.message || e);
+      pushUpdaterEvent({ status: "error", error: msg });
+      return { ok: false, error: msg };
+    }
+  });
+
+  ipcMain.handle("updater:install", () => {
+    if (!autoUpdaterRef) return { ok: false };
+    try {
+      // true = 强制退出并安装
+      autoUpdaterRef.quitAndInstall(false, true);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
     }
   });
 }
@@ -160,7 +271,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: "Hyper Alpha Arena",
+    title: "Heidalv Alpha Arena",
     backgroundColor: "#0A0E14",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -197,25 +308,84 @@ async function createWindow() {
 }
 
 function setupAutoUpdater() {
-  if (!app.isPackaged) return;
+  updaterState.currentVersion = app.getVersion();
+  if (!app.isPackaged) {
+    pushUpdaterEvent({ status: "dev-skip", currentVersion: app.getVersion() });
+    return;
+  }
   try {
     const { autoUpdater } = require("electron-updater");
+    autoUpdaterRef = autoUpdater;
     autoUpdater.logger = log;
     autoUpdater.logger.transports.file.level = "info";
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
-    autoUpdater.on("update-downloaded", (info) => {
-      log.info(`[updater] Update downloaded v${info.version}; will install on next restart`);
+    const saved = readSavedBackendUrl();
+    const feed = feedUrlFromBackend(saved);
+    autoUpdater.setFeedURL({ provider: "generic", url: feed });
+    log.info("[updater] feed=", feed);
+
+    autoUpdater.on("checking-for-update", () => {
+      pushUpdaterEvent({ status: "checking", error: undefined });
+    });
+    autoUpdater.on("update-available", (info) => {
+      pushUpdaterEvent({
+        status: "available",
+        version: info?.version,
+        error: undefined,
+      });
+    });
+    autoUpdater.on("update-not-available", () => {
+      pushUpdaterEvent({ status: "not-available", error: undefined });
+    });
+    autoUpdater.on("download-progress", (p) => {
+      pushUpdaterEvent({
+        status: "downloading",
+        percent: Math.round(Number(p?.percent || 0)),
+      });
+    });
+    autoUpdater.on("update-downloaded", async (info) => {
+      pushUpdaterEvent({
+        status: "downloaded",
+        version: info?.version,
+        percent: 100,
+        error: undefined,
+      });
+      log.info(`[updater] Update downloaded v${info?.version}; prompt install`);
+      try {
+        const res = await dialog.showMessageBox(win || undefined, {
+          type: "info",
+          title: "发现新版本",
+          message: `新版本 v${info?.version || "?"} 已下载完成`,
+          detail: "点击「立即安装」将关闭程序并完成更新。",
+          buttons: ["立即安装", "稍后"],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (res.response === 0) {
+          autoUpdater.quitAndInstall(false, true);
+        }
+      } catch (e) {
+        log.warn("[updater] install dialog:", e?.message || e);
+      }
     });
     autoUpdater.on("error", (e) => {
-      log.warn("[updater] error:", e?.message || e);
+      const msg = String(e?.message || e);
+      pushUpdaterEvent({ status: "error", error: msg });
+      log.warn("[updater] error:", msg);
     });
 
-    autoUpdater.checkForUpdatesAndNotify();
-    log.info("[updater] checkForUpdatesAndNotify scheduled");
+    // 启动稍后再查，避免抢登录首屏
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((e) => {
+        log.warn("[updater] initial check:", e?.message || e);
+      });
+    }, 5000);
+    log.info("[updater] scheduled initial check");
   } catch (e) {
     log.warn("[updater] electron-updater not available:", e?.message || e);
+    pushUpdaterEvent({ status: "error", error: String(e?.message || e) });
   }
 }
 

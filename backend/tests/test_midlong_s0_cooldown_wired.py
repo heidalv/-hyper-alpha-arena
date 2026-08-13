@@ -530,8 +530,8 @@ class TestS02IndependentPathStructureStopWired:
         from backend.services import reentry_cooldown
         reentry_cooldown.clear_state(self.ACCT, self.SYMBOL)
 
-    def test_structure_sl_widens_narrow_llm_sl(self):
-        """LLM 给窄 sl_pct(0.008=0.8%),结构 SL 应拉宽到 ≥ 3%。"""
+    def test_llm_sl_not_widened_by_structure(self):
+        """v6 M3：有 LLM sl 时禁止 max(LLM,structure) 加宽；structure 仅兜底。"""
         from backend.services.full_auto.midlong_helpers import try_execute_independent_agent_open
         from backend.services.mid_long_structure_stop import MidLongStructureStop
 
@@ -544,31 +544,53 @@ class TestS02IndependentPathStructureStopWired:
         db.execute.return_value = None
         session = MagicMock()
 
-        # mock structure_stop 返回宽 SL(5%)
+        # structure 故意给更宽 SL(5%)——不得覆盖 LLM 0.8%
+        _ms = {
+            self.SYMBOL: {
+                "current_price": 10000.0,
+                "indicators_1w": {"trend": "up", "rsi": 55},
+            }
+        }
         with patch.object(
             MidLongStructureStop, "compute",
             return_value=(0.05, 0.125, 9500.0, 10625.0, "midlong_structure_swing_agent"),
+        ), patch(
+            "backend.config.settings.MIDLONG_INDEPENDENT_COOLDOWN_ENFORCE", False
+        ), patch(
+            "backend.services.auto_coin_selector.get_fixed_symbols_for_session",
+            return_value={self.SYMBOL},
+        ), patch(
+            "backend.services.full_auto.midlong_helpers.inject_midlong_indicators",
+            lambda *a, **k: None,
+        ), patch(
+            "backend.services.mlto.midlong_trade_design.is_chop_regime",
+            return_value=(False, ""),
+        ), patch(
+            "backend.services.mlto.midlong_trade_design.estimate_atr_1d_pct",
+            return_value=None,
+        ), patch(
+            "backend.services.mlto.midlong_trade_design.funding_net_rr_ok",
+            return_value=(True, 2.0, "ok"),
+        ), patch(
+            "backend.services.mlto.midlong_portfolio_risk.check_portfolio_open_allowed",
+            return_value=(True, "ok"),
         ):
-            with patch(
-                "backend.config.settings.MIDLONG_INDEPENDENT_COOLDOWN_ENFORCE", False
-            ):
-                try_execute_independent_agent_open(
-                    db=db, session=session, sym=self.SYMBOL, tier="mid",
-                    action="buy",
-                    confidence=70,
-                    sl_pct=0.008,  # LLM 给的窄 SL(0.8%)
-                    tp_pct=0.02,
-                    trade_nature="swing",
-                    market_summary={self.SYMBOL: {"current_price": 10000.0}},
-                    session_mode="running", host=host,
-                )
+            try_execute_independent_agent_open(
+                db=db, session=session, sym=self.SYMBOL, tier="mid",
+                action="buy",
+                confidence=70,
+                sl_pct=0.008,  # LLM 紧止损
+                tp_pct=0.02,
+                trade_nature="swing",
+                market_summary=_ms,
+                session_mode="running", host=host,
+            )
 
-        # 验证传给 evaluate_and_execute_proposal 的 proposal 用了更宽的 SL
         proposal_call = host.evaluate_and_execute_proposal.call_args
+        assert proposal_call is not None, "应走到下单提案"
         proposal = proposal_call[1]["proposal"]
-        # SL 应取 max(LLM 0.008, structure 0.05) = 0.05
-        assert proposal.sl_pct == pytest.approx(0.05, abs=0.001), \
-            f"SL 应被结构止损拉宽到 0.05,实际: {proposal.sl_pct}"
+        assert proposal.sl_pct == pytest.approx(0.008, abs=0.001), \
+            f"LLM sl 应直通不被 structure 加宽,实际: {proposal.sl_pct}"
 
 
 # ════════════════════════════════════════════════════════════════════

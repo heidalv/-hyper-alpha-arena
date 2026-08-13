@@ -84,22 +84,26 @@ def _bootstrap_logging() -> None:
         _ch.setLevel(_level)
         _ch.setFormatter(_fmt)
         _root.addHandler(_ch)
-    _fh = logging.handlers.RotatingFileHandler(
-        filename=str(_logs_dir / "backend.log"),
-        maxBytes=20 * 1024 * 1024,
-        backupCount=10,
-        encoding="utf-8",
-    )
+
+    def _open_rotating(name: str, **kwargs):
+        """Windows 下 reload 父进程若把 stdout 重定向到同名日志，子进程再 open 会 PermissionError。"""
+        path = _logs_dir / name
+        try:
+            return logging.handlers.RotatingFileHandler(
+                filename=str(path), encoding="utf-8", **kwargs
+            )
+        except PermissionError:
+            alt = _logs_dir / f"{path.stem}.pid{_os_log_init.getpid()}{path.suffix}"
+            return logging.handlers.RotatingFileHandler(
+                filename=str(alt), encoding="utf-8", **kwargs
+            )
+
+    _fh = _open_rotating("backend.log", maxBytes=20 * 1024 * 1024, backupCount=10)
     _fh.setLevel(_level)
     _fh.setFormatter(_fmt)
     _fh._hyper_alpha_arena_file = True  # type: ignore[attr-defined]
     _root.addHandler(_fh)
-    _err_fh = logging.handlers.RotatingFileHandler(
-        filename=str(_logs_dir / "backend.error.log"),
-        maxBytes=10 * 1024 * 1024,
-        backupCount=10,
-        encoding="utf-8",
-    )
+    _err_fh = _open_rotating("backend.error.log", maxBytes=10 * 1024 * 1024, backupCount=10)
     _err_fh.setLevel(logging.WARNING)
     _err_fh.setFormatter(_fmt)
     _err_fh._hyper_alpha_arena_file = True  # type: ignore[attr-defined]
@@ -389,6 +393,9 @@ def _ensure_columns_safe(eng, inspector, columns=None):
         ("users", "coin_select_default_session", "VARCHAR(64)"),
         ("accounts", "ai_coin_select_enabled", "VARCHAR(10) DEFAULT 'false'"),
         ("full_auto_sessions", "auto_coin_max_slots", "INTEGER DEFAULT 5"),
+        ("full_auto_sessions", "fixed_symbols_by_tier", "JSONB"),
+        ("full_auto_sessions", "auto_coin_mid_enabled", "BOOLEAN DEFAULT FALSE"),
+        ("full_auto_sessions", "auto_coin_mid_max_slots", "INTEGER DEFAULT 3"),
     ]
     
     is_sqlite = str(eng.url).startswith("sqlite")
@@ -426,6 +433,33 @@ def _ensure_columns_safe(eng, inspector, columns=None):
             except Exception as e:
                 # Column might already exist or table doesn't exist - both are fine
                 logger.info(f"[startup] Column check {table}.{col_name}: {e}")
+
+        # 分周期固定币列若被建成 text，ORM 会读成 str，前端整组回退 symbols。
+        # 幂等升级为 jsonb，并把已有 JSON 文本解析为对象。
+        if not is_sqlite:
+            try:
+                row = conn.execute(sa_text(
+                    "SELECT data_type FROM information_schema.columns "
+                    "WHERE table_name = 'full_auto_sessions' "
+                    "AND column_name = 'fixed_symbols_by_tier'"
+                )).first()
+                if row and str(row[0]).lower() in ("text", "character varying", "varchar"):
+                    conn.execute(sa_text(
+                        "ALTER TABLE full_auto_sessions "
+                        "ALTER COLUMN fixed_symbols_by_tier TYPE jsonb "
+                        "USING CASE "
+                        "  WHEN fixed_symbols_by_tier IS NULL OR btrim(fixed_symbols_by_tier) = '' "
+                        "    THEN NULL "
+                        "  ELSE fixed_symbols_by_tier::jsonb "
+                        "END"
+                    ))
+                    logger.info(
+                        "[startup] ✅ fixed_symbols_by_tier text→jsonb 已升级"
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[startup] fixed_symbols_by_tier jsonb 升级跳过: %s", e
+                )
 
 
 @app.on_event("startup")
@@ -486,9 +520,20 @@ def on_startup():
         )
     except Exception as _cs_err:
         logger.warning(f"[startup] CoinSelect ORM 导入失败: {_cs_err}")
-    Base.metadata.create_all(bind=engine)
-    MarketBase.metadata.create_all(bind=market_engine)
-    AnalyticsBase.metadata.create_all(bind=analytics_engine)
+    # create_all 遇 PG「类型已存在」(上次建表中断留下的孤儿 type) 时不应阻断启动
+    def _safe_create_all(meta, bind, label: str) -> None:
+        try:
+            meta.create_all(bind=bind)
+        except Exception as _cae:
+            msg = str(_cae).lower()
+            if "already exists" in msg or "duplicateobject" in msg or "已经存在" in str(_cae):
+                logger.warning("[startup] %s create_all 跳过已存在对象: %s", label, _cae)
+            else:
+                raise
+
+    _safe_create_all(Base.metadata, engine, "core")
+    _safe_create_all(MarketBase.metadata, market_engine, "market")
+    _safe_create_all(AnalyticsBase.metadata, analytics_engine, "analytics")
 
     # 幂等补齐 Hyperliquid 快照表（修复 no such table: hyperliquid_account_snapshots）
     try:
@@ -670,6 +715,28 @@ def on_startup():
                     logger.info(f"[startup] ✅ signal_trade_feedback.signal_type 扩容 {int(_cur_len)}→100")
         except Exception as _e_st:
             logger.info(f"[startup] signal_type 扩容跳过(非致命，已有代码层截断兜底): {_e_st}")
+
+    # [v6 M5] midlong 减仓 reason 常 >30 字 → StringDataRightTruncation；扩容 close_reason
+    try:
+        with engine.begin() as _conn:
+            for _tbl in ("paper_positions", "paper_orders", "trade_memory_records"):
+                try:
+                    _cur_len = _conn.execute(text(
+                        "SELECT character_maximum_length FROM information_schema.columns "
+                        f"WHERE table_name='{_tbl}' AND column_name='close_reason'"
+                    )).scalar()
+                    if _cur_len and int(_cur_len) < 100:
+                        _conn.execute(text(
+                            f"ALTER TABLE {_tbl} ALTER COLUMN close_reason TYPE VARCHAR(100)"
+                        ))
+                        logger.info(
+                            "[startup] ✅ %s.close_reason 扩容 %s→100",
+                            _tbl, int(_cur_len),
+                        )
+                except Exception as _col_e:
+                    logger.debug("[startup] %s.close_reason 扩容跳过: %s", _tbl, _col_e)
+    except Exception as _e_cr:
+        logger.info(f"[startup] close_reason 扩容跳过(非致命): {_e_cr}")
 
     # DeepSeek: merge duplicate configs (same API key → one Flash+Pro entry)
     try:
@@ -1200,12 +1267,13 @@ def on_startup():
                 logger.info(f"[async] KlineDepthBackfill 启动失败: {e}")
 
         # M3 因子暴露快照（每 10 分钟，热币）
+        # [2026-08-08 P1-3] 用运行时 _exposure_enabled()，避免 import 早于 dotenv 冻成 false
         try:
             from backend.services.factor_engine.exposure_service import (
-                FEATURE_FACTOR_EXPOSURE_ENABLED,
+                _exposure_enabled,
                 factor_exposure_service,
             )
-            if FEATURE_FACTOR_EXPOSURE_ENABLED:
+            if _exposure_enabled():
                 from backend.services.scheduler import task_scheduler as _expo_sched
                 _expo_sched.start()
 
@@ -1214,10 +1282,11 @@ def on_startup():
                         from backend.services.kline_realtime_collector import (
                             get_trade_universe_symbols,
                         )
-                        syms = list(get_trade_universe_symbols() or [])[:60]
-                        factor_exposure_service.snapshot(syms, ["5m", "15m", "1h", "4h"])
-                    except Exception:
-                        pass
+                        syms = list(get_trade_universe_symbols() or [])[:40]
+                        # 短线优先 5m/15m；限制币数减轻 DB LeakGuard
+                        factor_exposure_service.snapshot(syms, ["5m", "15m"])
+                    except Exception as _snap_err:
+                        logger.warning("[FactorExposure] snapshot tick: %s", _snap_err)
 
                 _expo_sched.add_interval_task(
                     task_func=_exposure_snapshot_tick,
@@ -1225,7 +1294,9 @@ def on_startup():
                     task_id="factor_exposure_snapshot",
                     max_instances=1,
                 )
-                logger.info("[async] FactorExposure 快照任务已注册（600s）")
+                logger.info("[async] FactorExposure 快照任务已注册（600s, 5m/15m）")
+            else:
+                logger.info("[async] FactorExposure 快照跳过（FEATURE 未开）")
         except Exception as e:
             logger.info(f"[async] FactorExposure 快照注册失败: {e}")
 
@@ -1336,18 +1407,27 @@ def on_startup():
             logger.info(f"[async] SnapshotScheduler 启动失败: {e}")
 
         # 因子进化闭环：每日凌晨3点挖掘+清洗+上线，每小时在线权重更新
+        # [2026-08-08 P0-4] 另注册短线 5m 完整进化（04:00，非 quick），与 4h 池隔离
         try:
             from backend.services.evolution.factor_evolution_loop import (
                 run_factor_evolution_loop,
                 run_online_weight_update,
+                run_scalp_factor_evolution_loop,
             )
             from backend.services.scheduler import task_scheduler
             task_scheduler.start()
-            # 每日因子进化（凌晨3点）
+            # 每日因子进化（凌晨3点，默认 4h）
             task_scheduler.add_cron_task(
                 task_func=run_factor_evolution_loop,
                 hour=3, minute=0,
                 task_id="factor_evolution_daily",
+                max_instances=1,
+            )
+            # 短线 5m 完整进化（凌晨4点，走 WFO/测试集终审，非 PB quick）
+            task_scheduler.add_cron_task(
+                task_func=run_scalp_factor_evolution_loop,
+                hour=4, minute=0,
+                task_id="factor_evolution_scalp_5m_daily",
                 max_instances=1,
             )
             # 每小时在线权重更新
@@ -1357,9 +1437,124 @@ def on_startup():
                 task_id="factor_online_weight_hourly",
                 max_instances=1,
             )
-            logger.info("[async] 因子进化闭环已注册（每日3点 + 每小时权重）")
+            logger.info(
+                "[async] 因子进化闭环已注册（每日3点4h + 每日4点5m短线 + 每小时权重）"
+            )
         except Exception as e:
             logger.info(f"[async] 因子进化注册失败: {e}")
+
+        # 止盈止损自动训练：每日 05:00；缺结果/过期时启动补训
+        try:
+            from backend.services.risk.tp_sl_grid_trainer import (
+                maybe_startup_train,
+                scheduled_tp_sl_train,
+            )
+            from backend.services.scheduler import task_scheduler
+
+            task_scheduler.start()
+            task_scheduler.add_cron_task(
+                task_func=lambda: scheduled_tp_sl_train(source="cron"),
+                hour=5,
+                minute=0,
+                task_id="tp_sl_train_daily",
+                max_instances=1,
+            )
+            _startup_tpsl = maybe_startup_train(max_age_hours=36.0)
+            logger.info(
+                "[async] TP/SL 自动训练已注册（每日05:00）startup=%s",
+                _startup_tpsl,
+            )
+        except Exception as e:
+            logger.info(f"[async] TP/SL 自动训练注册失败: {e}")
+
+        # 短线因子每日体检 + 链路巡检（M0，只读，不改变交易行为）
+        try:
+            from backend.services.scalp.scalp_daily_health import run_scalp_daily_health
+            from backend.services.scalp.scalp_chain_health import run_scalp_chain_health
+            from backend.services.scheduler import task_scheduler
+            task_scheduler.start()
+            task_scheduler.add_cron_task(
+                task_func=run_scalp_daily_health,
+                hour=5, minute=30,
+                task_id="scalp_daily_health",
+                max_instances=1,
+            )
+            task_scheduler.add_interval_task(
+                task_func=run_scalp_chain_health,
+                interval_seconds=600,
+                task_id="scalp_chain_health",
+                max_instances=1,
+            )
+            from backend.services.scalp.scalp_symbol_profile import build_symbol_scalp_profile
+            task_scheduler.add_cron_task(
+                task_func=build_symbol_scalp_profile,
+                hour=5, minute=45,
+                task_id="scalp_symbol_profile_daily",
+                max_instances=1,
+            )
+            # AI 选币 → 快速策略矩阵扫描（每 N 分钟扫活跃 auto_coin_symbols，
+            # 每 tick 最多启动 1 个币的 pair_selector；候选写库，达标可自动晋级绑定）
+            try:
+                from backend.config.settings import (
+                    PAIR_SELECTOR_WATCHER_ENABLED,
+                    PAIR_SELECTOR_WATCHER_INTERVAL_SEC,
+                )
+                if PAIR_SELECTOR_WATCHER_ENABLED:
+                    from backend.services.scalp.pair_selector_watcher import (
+                        run_pair_selector_watcher,
+                    )
+                    _pw_iv = max(60, int(PAIR_SELECTOR_WATCHER_INTERVAL_SEC or 300))
+                    task_scheduler.add_interval_task(
+                        task_func=run_pair_selector_watcher,
+                        interval_seconds=_pw_iv,
+                        task_id="pair_selector_watcher",
+                        max_instances=1,
+                    )
+                    logger.info(
+                        "[async] pair_selector_watcher 已注册（每 %ds，AI选币→快速策略）",
+                        _pw_iv,
+                    )
+                else:
+                    logger.info("[async] pair_selector_watcher 已关闭（PAIR_SELECTOR_WATCHER_ENABLED=0）")
+            except Exception as _pw_err:
+                logger.info(f"[async] pair_selector_watcher 注册失败: {_pw_err}")
+            # 绑定车道：默认关交易，只干跑心跳；显式 PAIR_BINDING_LANE_ENABLED=true 才开仓
+            try:
+                from backend.config.settings import PAIR_BINDING_LANE_INTERVAL_SEC
+                from backend.services.scalp.pair_binding_lane import run_tick as _pair_lane_tick
+                _lane_iv = max(60, int(PAIR_BINDING_LANE_INTERVAL_SEC or 300))
+                task_scheduler.add_interval_task(
+                    task_func=_pair_lane_tick,
+                    interval_seconds=_lane_iv,
+                    task_id="pair_binding_lane",
+                    max_instances=1,
+                )
+                logger.info(
+                    "[async] pair_binding_lane 已注册（每 %ds，默认 dry-run）",
+                    _lane_iv,
+                )
+            except Exception as _lane_err:
+                logger.info(f"[async] pair_binding_lane 注册失败: {_lane_err}")
+            # 熔断：默认 dry-run（不 pause）；SCALP_CIRCUIT_BREAKER_ENABLED=true 才生效
+            try:
+                from backend.config.settings import SCALP_CIRCUIT_BREAKER_INTERVAL_SEC
+                from backend.services.scalp.scalp_circuit_breaker import run_tick as _cb_tick
+                _cb_iv = max(120, int(SCALP_CIRCUIT_BREAKER_INTERVAL_SEC or 600))
+                task_scheduler.add_interval_task(
+                    task_func=_cb_tick,
+                    interval_seconds=_cb_iv,
+                    task_id="scalp_circuit_breaker",
+                    max_instances=1,
+                )
+                logger.info(
+                    "[async] scalp_circuit_breaker 已注册（每 %ds，默认 dry-run）",
+                    _cb_iv,
+                )
+            except Exception as _cb_err:
+                logger.info(f"[async] scalp_circuit_breaker 注册失败: {_cb_err}")
+            logger.info("[async] scalp 每日体检/链路巡检/选币画像已注册")
+        except Exception as e:
+            logger.info(f"[async] scalp 体检注册失败: {e}")
 
         # 算力中心历史指标采样线程（v6 第十章：60s 周期 CPU/内存/GPU 落库）
         try:
@@ -1802,6 +1997,14 @@ try:
 except Exception as _cp_err:
     logger.warning(f"[Compute] 挂载失败（非致命）: {_cp_err}")
 
+# 统一运维看板事实层
+try:
+    from .api.ops_routes import router as ops_router
+    app.include_router(ops_router)
+    logger.info("[Ops] /api/ops/* 已挂载")
+except Exception as _ops_err:
+    logger.warning(f"[Ops] 挂载失败（非致命）: {_ops_err}")
+
 # 深挖第 3 轮 (2026-05-08)：系统健康观测 API（LLM 烧钱排行 / 风控事件 / Session 健康）
 try:
     from .api.system_health_routes import router as system_health_router
@@ -1809,6 +2012,14 @@ try:
     logger.info("[SystemHealth] /api/system-health/* 已挂载")
 except Exception as _sh_err:
     logger.warning(f"[SystemHealth] 挂载失败（非致命）: {_sh_err}")
+
+# 桌面 EXE 版本元数据（更新包本体见下方 /arena-updates 静态挂载）
+try:
+    from .api.desktop_routes import router as desktop_router
+    app.include_router(desktop_router)
+    logger.info("[Desktop] /api/desktop/* 已挂载")
+except Exception as _desk_err:
+    logger.warning(f"[Desktop] 挂载失败（非致命）: {_desk_err}")
 
 # 全市场数据中台
 try:
@@ -1956,6 +2167,28 @@ async def serve_auth_config():
 
 # [阶段0] serve_root() GET / 已删(后端不再托管前端首页)
 # [阶段0] serve_spa() catch-all 已删(后端不再做 SPA fallback,前端路由由独立前端服务处理)
+
+# ─────────────────────────────────────────────────────────────
+# 桌面 EXE 自动更新静态目录：releases/desktop/ → /arena-updates/
+# electron-updater 读 latest.yml + Setup.exe；无需登录。
+# ─────────────────────────────────────────────────────────────
+try:
+    from backend.services.update_feed import UPDATES_DIR as _UPDATES_DIR
+    from backend.services.update_feed import update_feed_asgi as _update_feed_asgi
+
+    os.makedirs(_UPDATES_DIR, exist_ok=True)
+    app.mount(
+        "/arena-updates",
+        _update_feed_asgi,
+        name="arena-updates",
+    )
+    logging.getLogger(__name__).info(
+        "[desktop-updates] /arena-updates → %s (Range/差分下载支持)", _UPDATES_DIR
+    )
+except Exception as _upd_exc:
+    logging.getLogger(__name__).warning(
+        "[desktop-updates] 静态挂载失败（非致命）: %s", _upd_exc
+    )
 
 # ─────────────────────────────────────────────────────────────
 # [2026-08-05 浏览器直连] 可选：后端同源托管前端静态产物。

@@ -6,7 +6,7 @@ import logging
 import threading
 import time as _time_mod
 import queue
-from typing import Optional, Tuple, Callable, Any
+from typing import Optional, Tuple, Callable, Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -611,6 +611,9 @@ _LEAK_GUARD_AGE_SECONDS = int(os.environ.get("DB_LEAK_GUARD_AGE_SECONDS", "20"))
 # 现在对超过此阈值的事务直接 pg_terminate_backend，立即释放连接和锁。
 _LEAK_GUARD_KILL_SECONDS = int(os.environ.get("DB_LEAK_GUARD_KILL_SECONDS", "120"))
 
+# [2026-08-11] 同一挂起事务按 pid+SQL 前缀 60s 只告警一次，避免每 2 分钟刷屏数百条。
+_leak_warn_ts: Dict[str, float] = {}
+
 
 def _check_leaked_transactions() -> None:
     if not (DATABASE_URL.lower().startswith("postgresql") or DATABASE_URL.lower().startswith("postgres")):
@@ -632,15 +635,38 @@ def _check_leaked_transactions() -> None:
                 """
             ), {"age_s": _LEAK_GUARD_AGE_SECONDS}).fetchall()
         if rows:
-            logger.warning(
-                f"[DB LeakGuard] 发现 {len(rows)} 个挂起 idle-in-transaction 事务 "
-                f"(>{_LEAK_GUARD_AGE_SECONDS}s)，{_LEAK_GUARD_KILL_SECONDS}s 后会被强制终止:"
-            )
+            _now = _time_mod.time()
+            new_rows = []
             for r in rows:
+                _key = f"{r.pid}:{str(r.query or '')[:80]}"
+                if _now - _leak_warn_ts.get(_key, 0.0) >= 60:
+                    _leak_warn_ts[_key] = _now
+                    new_rows.append(r)
+            if new_rows:
                 logger.warning(
-                    f"[DB LeakGuard]   pid={r.pid} db={r.datname} app={r.application_name} "
-                    f"age={r.age_s}s sql={r.query!r}"
+                    f"[DB LeakGuard] 发现 {len(new_rows)} 个挂起 idle-in-transaction 事务 "
+                    f"(>{_LEAK_GUARD_AGE_SECONDS}s)，{_LEAK_GUARD_KILL_SECONDS}s 后会被强制终止 "
+                    f"(共 {len(rows)} 个，重复项已抑制):"
                 )
+                for r in new_rows:
+                    logger.warning(
+                        f"[DB LeakGuard]   pid={r.pid} db={r.datname} app={r.application_name} "
+                        f"age={r.age_s}s sql={r.query!r}"
+                    )
+                # [2026-08-11] 根因定位：同一进程内转储所有线程栈。
+                # 泄漏事务通常被“开了 session 又去跑 LLM”的线程持有，
+                # 转储能直接给出开 session 的调用链。
+                try:
+                    import sys as _sys
+                    import traceback as _tb
+                    for _tid, _frame in _sys._current_frames().items():
+                        _stack = "".join(_tb.format_stack(_frame))
+                        logger.warning(
+                            "[DB LeakGuard] thread=%s stack:\n%s",
+                            _tid, _stack[-4000:],
+                        )
+                except Exception as _stack_err:
+                    logger.debug(f"[DB LeakGuard] 线程栈转储失败: {_stack_err}")
             # P0 修复：对超过 kill 阈值的事务主动终止，释放锁和连接
             kill_pids = [r.pid for r in rows if r.age_s and r.age_s >= _LEAK_GUARD_KILL_SECONDS]
             for pid in kill_pids:

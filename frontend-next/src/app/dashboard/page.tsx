@@ -161,13 +161,17 @@ export default function DashboardPage() {
               <button className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/25">风险敞口</button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {(["short", "long"] as const).map((tierKey) => {
+          <div className="grid grid-cols-3 gap-2">
+            {(["short", "mid", "long"] as const).map((tierKey) => {
               const t = tiers[tierKey];
               if (!t) return null;
-              const colors: Record<string, string> = { short: "#6366f1", long: "#eab308" };
-              const labels: Record<string, string> = { short: "短线 Scalp", long: "长线 Trend (含中周期)" };
-              const tierPositions = openPositions.filter((p: any) => (tierKey === "short" && p.trade_nature === "scalp") || (tierKey === "long" && (p.trade_nature === "trend_follow" || p.trade_nature === "swing" || p.trade_nature === "position")));
+              const colors: Record<string, string> = { short: "#6366f1", mid: "#22c55e", long: "#eab308" };
+              const labels: Record<string, string> = { short: "短线 Scalp", mid: "中线(固定+AI≤3)", long: "固定长线" };
+              const tierPositions = openPositions.filter((p: any) =>
+                (tierKey === "short" && p.trade_nature === "scalp")
+                || (tierKey === "mid" && (p.trade_nature === "swing" || p.timeframe_tier === "mid"))
+                || (tierKey === "long" && (p.trade_nature === "trend_follow" || p.trade_nature === "position" || p.timeframe_tier === "long"))
+              );
               const tierPnl = tierPositions.reduce((s: number, p: any) => s + (p.unrealized_pnl || 0), 0);
               const acts = tierActivity?.[tierKey] || [];
               const lastAct = acts[acts.length - 1];

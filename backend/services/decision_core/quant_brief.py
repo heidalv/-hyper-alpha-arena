@@ -65,7 +65,10 @@ def _alignment_section(ms: Dict[str, Any]) -> str:
 def _structure_section(ms: Dict[str, Any]) -> str:
     # 兼容多种结构位来源字段
     struct = ms.get("structure_levels") or ms.get("structure") or {}
-    price = _fnum(ms.get("price") or ms.get("last_price") or ms.get("close"), None)
+    price = _fnum(
+        ms.get("price") or ms.get("last_price") or ms.get("current_price")
+        or ms.get("close") or ms.get("mark_price"), None
+    )
     sup = None
     res = None
     if isinstance(struct, dict):
@@ -87,11 +90,19 @@ def _missing_section(ms: Dict[str, Any]) -> str:
         val = ms.get(tf)
         if not (isinstance(val, dict) and val):
             missing.append(tf.replace("indicators_", ""))
-    ml = ms.get("midlong_factors") or {}
-    fac_n = int(ml.get("count") or 0) if isinstance(ml, dict) else 0
+    ml = ms.get("midlong_factors")
+    if not isinstance(ml, dict):
+        fac_txt = "活跃因子：无快照"
+    else:
+        fac_n = int(ml.get("count") or 0)
+        fac_txt = (
+            f"活跃因子：{fac_n} 个"
+            if fac_n > 0
+            else "活跃因子：0 个（因子研究尚未产出可用因子）"
+        )
     if missing:
-        return f"数据完整度：⚠ 缺失 {','.join(missing)} 指标（数据残缺→保守，不可满仓）；活跃因子读数={fac_n}"
-    return f"数据完整度：1h/4h/1d 指标齐全；活跃因子读数={fac_n}"
+        return f"数据完整度：⚠ 缺失 {','.join(missing)} 指标（数据残缺→保守，不可满仓）；{fac_txt}"
+    return f"数据完整度：1h/4h/1d 指标齐全；{fac_txt}"
 
 
 def build_quant_brief(

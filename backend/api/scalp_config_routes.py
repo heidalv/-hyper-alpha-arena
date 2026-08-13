@@ -37,7 +37,9 @@ _PARAM_DEFS: Dict[str, Dict[str, Any]] = {
     "min_rr":            {"env": "SCALP_MIN_RR_NEW",        "default": "1.3",   "type": "float", "min": 1.0,   "max": 3.0,   "group": "tp_sl",     "label": "最低盈亏比",       "unit": ""},
 
     # ── 2. 时间管理 ──
-    "max_hold_sec":      {"env": "SCALP_MAX_HOLD_SEC",      "default": "2700",  "type": "int",   "min": 600,   "max": 7200,  "group": "time",      "label": "最大持仓时间",     "unit": "秒"},
+    # [三周期持仓时间收敛 2026-08-13] 移除 SCALP_MAX_HOLD_SEC 声明：该 env 从未被
+    # settings/引擎读取（死配置），短线实际最大持仓由 runtime_tuning.json 的
+    # tier_max_hold_sec.short（7200s=2h）唯一权威控制，不再在本 UI 暴露误导项。
     "roi_t1_sec":        {"env": "SCALP_ROI_T1",            "default": "600",   "type": "int",   "min": 300,   "max": 1200,  "group": "time",      "label": "ROI阶段1(保持100%)","unit": "秒"},
     "roi_t2_sec":        {"env": "SCALP_ROI_T2",            "default": "1200",  "type": "int",   "min": 600,   "max": 2400,  "group": "time",      "label": "ROI阶段2(衰减70%)","unit": "秒"},
     "roi_t3_sec":        {"env": "SCALP_ROI_T3",            "default": "1800",  "type": "int",   "min": 900,   "max": 3600,  "group": "time",      "label": "ROI阶段3(衰减40%)","unit": "秒"},
@@ -127,7 +129,7 @@ _PRESETS = {
         "name": "保守",
         "description": "保本优先，低回撤，适合验证阶段",
         "params": {
-            "tp_pct": 0.015, "sl_pct": 0.010, "max_hold_sec": 1800,
+            "tp_pct": 0.015, "sl_pct": 0.010,
             "execute_threshold": 50, "ev_min_pct": 0.001,
             "position_pct": 0.20, "ai_reverse_disabled": True,
             "liq_magnet_disabled": True, "mr_enabled": True, "min_volume_usd": 100000000,
@@ -137,7 +139,7 @@ _PRESETS = {
         "name": "均衡",
         "description": "推荐方案，兼顾胜率和频率",
         "params": {
-            "tp_pct": 0.018, "sl_pct": 0.012, "max_hold_sec": 2700,
+            "tp_pct": 0.018, "sl_pct": 0.012,
             "execute_threshold": 45, "ev_min_pct": 0.0,
             "position_pct": 0.30, "ai_reverse_disabled": True,
             "liq_magnet_disabled": True, "mr_enabled": True, "min_volume_usd": 50000000,
@@ -147,7 +149,7 @@ _PRESETS = {
         "name": "激进",
         "description": "高频高量，追求日化2%+",
         "params": {
-            "tp_pct": 0.018, "sl_pct": 0.012, "max_hold_sec": 1200,
+            "tp_pct": 0.018, "sl_pct": 0.012,
             "execute_threshold": 35, "ev_min_pct": -0.002,
             "position_pct": 0.40, "ai_reverse_disabled": True,
             "liq_magnet_disabled": True, "mr_enabled": True, "min_volume_usd": 20000000,
@@ -158,7 +160,7 @@ _PRESETS = {
         "name": "纯均值回归",
         "description": "只做震荡市高抛低吸，高胜率低回撤",
         "params": {
-            "tp_pct": 0.018, "sl_pct": 0.012, "max_hold_sec": 1800,
+            "tp_pct": 0.018, "sl_pct": 0.012,
             "execute_threshold": 30, "ev_min_pct": 0.0,
             "position_pct": 0.25, "mr_size_mult": 1.5,
             "mr_min_range": 0.006, "mr_max_range": 0.060,

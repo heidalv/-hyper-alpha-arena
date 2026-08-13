@@ -30,7 +30,7 @@ CONFIG_SPECS: Dict[str, Dict[str, Any]] = {
     # ── GP 因子挖掘（factor_evolution_loop → GPConfig）──
     "FACTOR_GP_POPULATION":  {"default": 300, "type": int,   "min": 50,   "max": 2000, "group": "gp",    "label": "GP 种群大小",      "desc": "每代种群个体数（GPConfig.population_size）"},
     "FACTOR_GP_GENERATIONS": {"default": 20,  "type": int,   "min": 1,    "max": 200,  "group": "gp",    "label": "GP 进化代数",      "desc": "GPConfig.generations"},
-    "FACTOR_GP_SEEDS":       {"default": 5,   "type": int,   "min": 1,    "max": 32,   "group": "gp",    "label": "GP 并行种子数",    "desc": "幻方多种子方法论（GPConfig.n_seeds）"},
+    "FACTOR_GP_SEEDS":       {"default": 6,   "type": int,   "min": 1,    "max": 32,   "group": "gp",    "label": "GP 并行种子数",    "desc": "幻方 6 种子方法论（GPConfig.n_seeds）"},
     "FACTOR_GP_MAX_WORKERS": {"default": 32,  "type": int,   "min": 1,    "max": 64,   "group": "gp",    "label": "GP 并行评估线程",   "desc": "joblib loky 进程数（GPConfig.max_workers，v6 10.2.2 32 线程主力）"},
     # ── MCTS 因子挖掘（factor_evolution_loop → MCTSConfig）──
     "FACTOR_MCTS_ENABLED":   {"default": 1,   "type": bool,  "min": None, "max": None, "group": "mcts",  "label": "MCTS 挖掘开关",    "desc": "FACTOR_MCTS_ENABLED=0 关闭 MCTS 挖掘器"},
@@ -49,8 +49,23 @@ CONFIG_SPECS: Dict[str, Dict[str, Any]] = {
     "FACTOR_EVO_TRAIN_DAYS": {"default": 90, "type": int, "min": 10, "max": 3650, "group": "evo", "label": "训练窗口(天)", "desc": "三层切分训练集（4h 档默认 90 天）"},
     "FACTOR_EVO_VAL_DAYS":   {"default": 30, "type": int, "min": 5,  "max": 1825, "group": "evo", "label": "验证窗口(天)", "desc": "样本外 IC 评分集"},
     "FACTOR_EVO_TEST_DAYS":  {"default": 0,  "type": int, "min": 0,  "max": 1825, "group": "evo", "label": "测试窗口(天)", "desc": "0=不启用测试集终审（4h 档默认 30，按周期分档）"},
-    "FACTOR_MIN_NET_IC":     {"default": 0.02, "type": float, "min": 0.0, "max": 1.0, "group": "evo", "label": "净 IC 门槛",     "desc": "晋升最低净 IC（过滤换手后）"},
-    "FACTOR_ACTIVE_CAP":     {"default": 50, "type": int, "min": 1, "max": 500, "group": "evo", "label": "活跃因子上限",   "desc": "ACTIVE 数量上限，超限强制淘汰"},
+    "FACTOR_CODEGEN_ENABLED": {"default": 1, "type": bool, "min": None, "max": None, "group": "evo", "label": "LLM Codegen 开关", "desc": "FACTOR_CODEGEN_ENABLED=0 关闭 LLM 补挖"},
+    "FACTOR_CODEGEN_N": {"default": 8, "type": int, "min": 1, "max": 64, "group": "evo", "label": "LLM 候选数", "desc": "每轮 Codegen 生成公式数"},
+    "FACTOR_MINE_SYMBOLS": {"default": 5, "type": int, "min": 1, "max": 32, "group": "evo", "label": "挖矿币数", "desc": "多币拼接面板最多用几币"},
+    "FACTOR_EVO_GATE_FAIL_CLOSED": {"default": 1, "type": bool, "min": None, "max": None, "group": "evo", "label": "进化门禁 fail-closed", "desc": "WFO/测试集/capacity 异常时拒绝而非放行"},
+    "FACTOR_MIN_NET_IC": {"default": 0.02, "type": float, "min": 0.0, "max": 1.0, "group": "evo", "label": "最小净 IC", "desc": "晋升门槛净 IC（FACTOR_MIN_NET_IC）"},
+    "FACTOR_MINING_BOOST_AUTO": {"default": 0, "type": bool, "min": None, "max": None, "group": "evo", "label": "挖矿加强自动", "desc": "开启后每日定时/手动进化前自动套用 mining_boost 预设"},
+    # ── 止盈止损网格训练（tp_sl_grid_trainer）──
+    "RISK_TP_SL_TRAIN_AUTO": {
+        "default": 1, "type": bool, "min": None, "max": None, "group": "risk",
+        "label": "TP/SL 自动训练",
+        "desc": "开启后每日定时自动网格搜索止盈止损；结果写入 tp_sl_learned/latest.json",
+    },
+    "RISK_USE_LEARNED_TP_SL": {
+        "default": 1, "type": bool, "min": None, "max": None, "group": "risk",
+        "label": "开仓使用学习 TP/SL",
+        "desc": "开启后开仓用训练结果覆盖静态表",
+    },
     # ── 本地 LLM 双机（gate_optimizer_service）──
     "LOCAL_LLM_CONFIG_ID":   {"default": 0,   "type": int, "min": 0, "max": 9999, "group": "llm", "label": "本地 LLM 配置 ID", "desc": "0=禁用本地 LLM 门控优化；>0 时读取 LLMConfig 表对应配置"},
 }
@@ -220,3 +235,37 @@ def update(updates: Dict[str, Any]) -> Dict[str, Any]:
     ]
     logger.info("[ComputeConfig] 配置已下发: %s", list(validated.keys()))
     return {"ok": True, "applied": applied}
+
+
+# 命名预设：加强挖矿（不降低 DSR/PBO/相关/漂移门禁）
+PRESETS: Dict[str, Dict[str, Any]] = {
+    "mining_boost": {
+        "FACTOR_GP_POPULATION": 500,
+        "FACTOR_GP_GENERATIONS": 30,
+        "FACTOR_GP_SEEDS": 6,
+        "FACTOR_MCTS_ITERATIONS": 500,
+        "FACTOR_MCTS_ROOTS": 5,
+        "FACTOR_CODEGEN_ENABLED": 1,
+        "FACTOR_CODEGEN_N": 16,
+        "FACTOR_EVO_TRAIN_DAYS": 120,
+        "FACTOR_EVO_VAL_DAYS": 40,
+        "FACTOR_EVO_TEST_DAYS": 30,
+        "FACTOR_MINE_SYMBOLS": 5,
+        "FACTOR_EVO_GATE_FAIL_CLOSED": 1,
+        "FACTOR_MIN_NET_IC": 0.02,
+    },
+}
+
+
+def list_presets() -> List[Dict[str, Any]]:
+    return [
+        {"name": name, "keys": sorted(spec.keys()), "values": dict(spec)}
+        for name, spec in PRESETS.items()
+    ]
+
+
+def apply_preset(name: str) -> Dict[str, Any]:
+    spec = PRESETS.get(name)
+    if not spec:
+        return {"ok": False, "errors": {"__global__": f"未知预设: {name}"}}
+    return update(dict(spec))

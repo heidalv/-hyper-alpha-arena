@@ -349,6 +349,7 @@ def check_agent_exit_hardfact(
     risk_score: Optional[float] = None,
     reason_hint: str = "",
     exit_channel: str = "",
+    opened_at: Any = None,
 ) -> HardfactResult:
     """Tier 1 轻量门控：Agent 复查专用（trend_review / hold_timeout / scalp_fast）。
 
@@ -361,6 +362,22 @@ def check_agent_exit_hardfact(
     tier_norm = (tier or "mid").strip().lower()
     if tier_norm not in ("short", "mid", "long"):
         tier_norm = "mid"
+
+    # ── min_hold 前置（[三周期持仓时间收敛 2026-08-13]）──
+    # 根因: 下方 Agent 白名单命中即放行，trend_review_close 在 long 72h 保护期内
+    # 以小亏提前平掉仓位（12 笔全部 -0.3%~-3.5%、时长 3.1h~10.3h）。
+    # Layer A check_position_protection 理论上先拦，但存在历史未接线/穿透窗口，
+    # 此处复用 Tier2 的 min_hold 硬拦作为 Tier1 兜底：long 72h（紧急 5%）/
+    # mid 12h（紧急 6%）内非紧急亏损不得放行；short 自动跳过（allow=True）。
+    _min_hold_gate = check_master_min_hold_block(
+        tier=tier_norm,
+        opened_at=opened_at,
+        margin=margin,
+        unrealized_pnl=unrealized_pnl,
+        action=action,
+    )
+    if not _min_hold_gate.allow:
+        return _min_hold_gate
 
     ch = (exit_channel or "").strip().lower()
     rh = (reason_hint or "").strip().lower()

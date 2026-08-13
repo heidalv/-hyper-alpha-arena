@@ -48,6 +48,18 @@ class OnchainDataCollector:
         self._coinglass_netflow_ttl = 1800      # 30min（Coinglass 免费额度有限）
         self._coinglass_stable_ttl = 3600       # 1h
 
+    @staticmethod
+    def _public_get(url: str, timeout: float = 5.0):
+        """[2026-08-11 修复] 公共免费 API 直连，不走 HTTP(S)_PROXY：
+        Shadowsocks 代理失效时 requests 会挂满 timeout，拖垮调用线程并连带
+        DB 事务 idle-in-transaction。公共 API 直连更稳，超时缩短到 5s。"""
+        import requests
+        return requests.get(
+            url,
+            timeout=timeout,
+            proxies={"http": None, "https": None},
+        )
+
     def collect_all(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
         """
         采集所有链上+宏观数据
@@ -128,7 +140,7 @@ class OnchainDataCollector:
             import requests
             chain = self._symbol_to_chain(symbol)
             url = f"https://api.llama.fi/v2/historicalChainTvl/{chain}"
-            resp = requests.get(url, timeout=10)
+            resp = self._public_get(url)
             if resp.status_code == 200:
                 data = resp.json()
                 if data and isinstance(data, list):
@@ -219,7 +231,7 @@ class OnchainDataCollector:
         try:
             import requests
             url = "https://api.alternative.me/fng/?limit=1"
-            resp = requests.get(url, timeout=10)
+            resp = self._public_get(url)
             if resp.status_code == 200:
                 data = resp.json()
                 value = float(data['data'][0]['value'])
@@ -245,7 +257,7 @@ class OnchainDataCollector:
         try:
             import requests
             url = "https://api.coingecko.com/api/v3/global"
-            resp = requests.get(url, timeout=10)
+            resp = self._public_get(url)
             if resp.status_code == 200:
                 data = resp.json()
                 dominance = float(data['data']['market_cap_percentage']['btc'])

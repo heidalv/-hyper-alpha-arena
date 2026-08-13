@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-08-11T10:10:41.527655+00:00",
+  "mode": "kline_factor",
+  "factor_set": "meanrev",
+  "scenario": "realistic",
+  "days": 365,
+  "exchange": "asterdex",
+  "period": "4h",
+  "symbols": [
+    "AAVE"
+  ],
+  "config": {
+    "threshold": 0.5,
+    "sl_pct": 0.02,
+    "tp_pct": 0.04,
+    "max_hold_candles": 6,
+    "cooldown_candles": 2,
+    "warmup": 120,
+    "z_window": 120,
+    "fee_bps": 0.5,
+    "slip_bps": 2.97,
+    "funding_bps_per_hour": 0.0,
+    "round_trip_cost_bps": 6.94
+  },
+  "n_signals": 297,
+  "total": {
+    "n": 297,
+    "win_rate": 0.4613,
+    "avg_net_ret": 0.004044,
+    "profit_factor": 1.3849,
+    "t_stat": 2.5737,
+    "ci95_lo": 0.001,
+    "ci95_hi": 0.007084,
+    "permutation_p": 0.005
+  },
+  "older_half": {
+    "n": 148,
+    "win_rate": 0.473,
+    "avg_net_ret": 0.004634,
+    "profit_factor": 1.4515,
+    "t_stat": 2.0723,
+    "ci95_lo": 0.000405,
+    "ci95_hi": 0.009081,
+    "permutation_p": 0.005
+  },
+  "newer_half": {
+    "n": 149,
+    "win_rate": 0.4497,
+    "avg_net_ret": 0.003457,
+    "profit_factor": 1.3217,
+    "t_stat": 1.5614,
+    "ci95_lo": -0.00094,
+    "ci95_hi": 0.007952,
+    "permutation_p": 0.0945
+  },
+  "permutation_p": 0.005,
+  "buckets": [
+    {
+      "bucket": "30-40",
+      "n": 3,
+      "win_rate": 0.0,
+      "avg_net_ret": -0.020694
+    },
+    {
+      "bucket": "40-50",
+      "n": 29,
+      "win_rate": 0.4138,
+      "avg_net_ret": 0.002294
+    },
+    {
+      "bucket": "50-60",
+      "n": 29,
+      "win_rate": 0.5172,
+      "avg_net_ret": 0.004618
+    },
+    {
+      "bucket": ">=60",
+      "n": 236,
+      "win_rate": 0.4661,
+      "avg_net_ret": 0.004502
+    }
+  ],
+  "per_symbol": {
+    "AAVE": {
+      "total": {
+        "n": 297,
+        "win_rate": 0.4613,
+        "avg_net_ret": 0.004044,
+        "profit_factor": 1.3849,
+        "t_stat": 2.5737,
+        "ci95_lo": 0.001,
+        "ci95_hi": 0.007084,
+        "permutation_p": 0.005
+      },
+      "older_half": {
+        "n": 148,
+        "win_rate": 0.473,
+        "avg_net_ret": 0.004634,
+        "profit_factor": 1.4515,
+        "t_stat": 2.0723,
+        "ci95_lo": 0.000405,
+        "ci95_hi": 0.009081,
+        "permutation_p": 0.005
+      },
+      "newer_half": {
+        "n": 149,
+        "win_rate": 0.4497,
+        "avg_net_ret": 0.003457,
+        "profit_factor": 1.3217,
+        "t_stat": 1.5614,
+        "ci95_lo": -0.00094,
+        "ci95_hi": 0.007952,
+        "permutation_p": 0.0945
+      }
+    }
+  },
+  "parity_score": null
+}

@@ -325,6 +325,10 @@ def _build_dual_horizon_prompt(batch: List[Dict[str, Any]]) -> str:
 4. 同一币可同时出现在 scalp 与 midlong（若适合）。
 5. 至少给出若干 approve/watch；reject 也要写清原因。
 6. 禁止 markdown、禁止 JSON 外任何文字。
+7. **通过率纪律（校准要求）**：approve 每批次控制在 20%-40%——宁可错过不可错杀，
+   只放行证据链最强的候选；多数候选给 watch/reject。
+8. approve 必须有明确证据链：叙事/流动性/因子/风险四要素中至少三项明确支持，
+   且 confidence >= 0.6；证据不足一律降为 watch。
 
 候选：
 {body}

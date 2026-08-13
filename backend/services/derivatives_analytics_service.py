@@ -138,6 +138,23 @@ class DerivativesAnalyticsService:
     def _get_client(self, timeout: int = 10) -> httpx.Client:
         return httpx.Client(timeout=timeout, proxy=self._proxy)
 
+    def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """[2026-08-11 修复] 代理优先、直连兜底：代理失败不再让整个数据源静默全挂。"""
+        timeout = kwargs.pop("timeout", 10)
+        proxies = [self._proxy] if self._proxy else [None]
+        if self._proxy:
+            proxies.append(None)
+        last_exc: Optional[Exception] = None
+        for proxy in proxies:
+            try:
+                with httpx.Client(timeout=timeout, proxy=proxy) as client:
+                    return client.request(method, url, **kwargs)
+            except Exception as e:  # noqa: BLE001 — 逐个代理尝试，最后上抛
+                last_exc = e
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError(f"request failed: {url}")
+
     def _throttled_warning(self, key: str, msg: str, interval: float = 60.0):
         """降频告警：同一 key 每 interval 秒最多输出一次 warning，其余累计抑制"""
         now = time.time()
@@ -413,8 +430,8 @@ class DerivativesAnalyticsService:
                 # 资金费率（如果还没有）
                 if snap.funding_rate == 0:
                     try:
-                        r = client.get(f"{BINANCE_FAPI}/fapi/v1/fundingRate",
-                                       params={"symbol": binance_symbol, "limit": 1})
+                        r = self._request("GET", f"{BINANCE_FAPI}/fapi/v1/fundingRate",
+                                          params={"symbol": binance_symbol, "limit": 1})
                         if r.status_code == 200:
                             data = r.json()
                             if data:
@@ -426,8 +443,8 @@ class DerivativesAnalyticsService:
                 # OI 历史（5分钟粒度，最近2条用于计算变化）
                 if snap.oi_change_1h == 0:
                     try:
-                        r = client.get(f"{BINANCE_FUTURES_DATA}/openInterestHist",
-                                       params={"symbol": binance_symbol, "period": "5m", "limit": 13})
+                        r = self._request("GET", f"{BINANCE_FUTURES_DATA}/openInterestHist",
+                                          params={"symbol": binance_symbol, "period": "5m", "limit": 13})
                         if r.status_code == 200:
                             data = r.json()
                             if data and len(data) >= 2:
@@ -443,8 +460,8 @@ class DerivativesAnalyticsService:
 
                 # 全局多空比
                 try:
-                    r = client.get(f"{BINANCE_FUTURES_DATA}/globalLongShortAccountRatio",
-                                   params={"symbol": binance_symbol, "period": "1h", "limit": 1})
+                    r = self._request("GET", f"{BINANCE_FUTURES_DATA}/globalLongShortAccountRatio",
+                                      params={"symbol": binance_symbol, "period": "1h", "limit": 1})
                     if r.status_code == 200:
                         data = r.json()
                         if data:
@@ -455,8 +472,8 @@ class DerivativesAnalyticsService:
 
                 # 大户多空比
                 try:
-                    r = client.get(f"{BINANCE_FUTURES_DATA}/topLongShortAccountRatio",
-                                   params={"symbol": binance_symbol, "period": "1h", "limit": 1})
+                    r = self._request("GET", f"{BINANCE_FUTURES_DATA}/topLongShortAccountRatio",
+                                      params={"symbol": binance_symbol, "period": "1h", "limit": 1})
                     if r.status_code == 200:
                         data = r.json()
                         if data:
@@ -491,11 +508,11 @@ class DerivativesAnalyticsService:
             with self._get_client() as client:
                 # 清算数据（Coinalyze 独有免费清算 — 替代 CoinGlass）
                 try:
-                    r = client.get(f"{COINALYZE_BASE}/liquidation-history",
-                                   params={"symbols": ca_symbol, "interval": "1hour",
-                                           "from": four_hours_ago, "to": now_ts,
-                                           "convert_to_usd": "true"},
-                                   headers=headers)
+                    r = self._request("GET", f"{COINALYZE_BASE}/liquidation-history",
+                                      params={"symbols": ca_symbol, "interval": "1hour",
+                                              "from": four_hours_ago, "to": now_ts,
+                                              "convert_to_usd": "true"},
+                                      headers=headers)
                     if r.status_code == 200:
                         data = r.json()
                         if data and isinstance(data, list) and data[0].get("history"):
@@ -519,10 +536,10 @@ class DerivativesAnalyticsService:
                         # [2026-07-10 修复] 原用未定义变量 hour_ago → NameError 被
                         # 下方 except: pass 吞掉，Coinalyze 多空比兜底永远失效。
                         # 改用本函数定义的 four_hours_ago（与清算数据同窗口）。
-                        r = client.get(f"{COINALYZE_BASE}/long-short-ratio-history",
-                                       params={"symbols": ca_symbol, "interval": "1hour",
-                                               "from": four_hours_ago, "to": now_ts},
-                                       headers=headers)
+                        r = self._request("GET", f"{COINALYZE_BASE}/long-short-ratio-history",
+                                          params={"symbols": ca_symbol, "interval": "1hour",
+                                                  "from": four_hours_ago, "to": now_ts},
+                                          headers=headers)
                         if r.status_code == 200:
                             data = r.json()
                             if data and isinstance(data, list) and data[0].get("history"):
@@ -535,9 +552,9 @@ class DerivativesAnalyticsService:
                 # OI 补充
                 if snap.oi_total == 0:
                     try:
-                        r = client.get(f"{COINALYZE_BASE}/open-interest",
-                                       params={"symbols": ca_symbol, "convert_to_usd": "true"},
-                                       headers=headers)
+                        r = self._request("GET", f"{COINALYZE_BASE}/open-interest",
+                                          params={"symbols": ca_symbol, "convert_to_usd": "true"},
+                                          headers=headers)
                         if r.status_code == 200:
                             data = r.json()
                             if data and isinstance(data, list):

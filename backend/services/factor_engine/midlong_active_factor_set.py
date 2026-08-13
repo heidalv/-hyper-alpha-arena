@@ -28,6 +28,17 @@ _RETIRE_ABS_IC = float(os.getenv("MIDLONG_ACTIVE_RETIRE_ABS_IC", "0.012"))
 _HORIZON = "midlong"
 
 
+def _resolve_tenant_id() -> "int | None":
+    """[2026-08-13 P1-9] 租户修复：custom_factor_store 按租户隔离存储，
+    list_active() 不传 tenant_id 返回空列表（防误共享设计）→ 中长线因子集的
+    查询/复检/退役链路从未真正运行。显式传 admin tenant_id 恢复管理闭环。"""
+    try:
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        return resolve_admin_tenant_id()
+    except Exception:
+        return None
+
+
 def _is_midlong(rec: Dict[str, Any]) -> bool:
     return str((rec.get("extra") or {}).get("horizon") or "scalp").lower() == _HORIZON
 
@@ -49,7 +60,7 @@ class MidLongActiveFactorSet:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return []
-        active = [r for r in custom_factor_store.list_active() if _is_midlong(r)]
+        active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
         weights = self._runtime_weights()
         for rec in active:
             rec["runtime_weight"] = weights.get(rec["factor_id"], 1.0)
@@ -82,7 +93,7 @@ class MidLongActiveFactorSet:
         except Exception as e:
             return {"checked": 0, "retired": 0, "error": str(e)}
 
-        active = [r for r in custom_factor_store.list_active() if _is_midlong(r)]
+        active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
         checked = retired = reduced = 0
         for rec in active:
             fid = rec.get("factor_id")
@@ -111,6 +122,7 @@ class MidLongActiveFactorSet:
                 if abs_ic < _RETIRE_ABS_IC or sr.grade in ("D", "F"):
                     custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="rejected",
+                        tenant_id=_resolve_tenant_id(),
                     )
                     self._detach_from_engine(fid)
                     retired += 1
@@ -118,6 +130,7 @@ class MidLongActiveFactorSet:
                 elif sr.grade == "C":
                     custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="candidate",
+                        tenant_id=_resolve_tenant_id(),
                     )
                     self._detach_from_engine(fid)
                     reduced += 1
@@ -125,6 +138,7 @@ class MidLongActiveFactorSet:
                 else:
                     custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="active",
+                        tenant_id=_resolve_tenant_id(),
                     )
             except Exception as e:
                 logger.debug(f"[MidLongFactorSet] 复检 {fid} 跳过: {e}")
@@ -197,10 +211,10 @@ class MidLongActiveFactorSet:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return {"active": 0, "candidate": 0, "rejected": 0}
-        all_active = custom_factor_store.list_active()
+        all_active = custom_factor_store.list_active(tenant_id=_resolve_tenant_id())
         active = [r for r in all_active if _is_midlong(r)]
-        candidates = [r for r in custom_factor_store.list_candidates() if _is_midlong(r)]
-        rejected = [r for r in custom_factor_store.list(status="rejected") if _is_midlong(r)]
+        candidates = [r for r in custom_factor_store.list_candidates(tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
+        rejected = [r for r in custom_factor_store.list(status="rejected", tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
         weights = self._runtime_weights()
         ics = [r.get("scores", {}).get("ic_mean") for r in active if r.get("scores")]
         ics = [x for x in ics if isinstance(x, (int, float))]

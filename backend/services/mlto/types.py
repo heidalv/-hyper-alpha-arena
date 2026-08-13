@@ -28,6 +28,8 @@ class HubDecision:
     # ai_governed_weight=灰度权重档位（0.40/0.60/1.0，standard 下为 None）
     mode: str = "standard"
     ai_governed_weight: Optional[float] = None
+    # 方向来源：llm_qual | orch_bias | trend_hint | framework | neutral
+    dir_src: str = ""
 
     def direction_to_action(self) -> str:
         if self.action in ("WAIT",) or self.direction == "neutral":

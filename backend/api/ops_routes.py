@@ -1,0 +1,963 @@
+"""统一运维看板事实层 API（/api/ops/*）。
+
+只读优先；干预接口需二次确认语义由前端承担，后端写审计字段。
+"""
+from __future__ import annotations
+
+import logging
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/ops", tags=["ops"])
+
+# 心跳 SLA（秒）：正常 / 滞后 / 中断
+_HB_WARN_SEC = 900
+_HB_CRIT_SEC = 3600
+
+
+def _age_sec(iso_ts: Optional[str]) -> Optional[float]:
+    if not iso_ts:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(iso_ts).replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - ts).total_seconds())
+    except Exception:
+        return None
+
+
+def _sla(age: Optional[float]) -> str:
+    if age is None:
+        return "unknown"
+    if age <= _HB_WARN_SEC:
+        return "ok"
+    if age <= _HB_CRIT_SEC:
+        return "lag"
+    return "down"
+
+
+def _parse_metrics(raw: Any) -> Dict[str, Any]:
+    if raw is None:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            import json
+            return json.loads(raw) or {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _gate_reasons(metrics: Dict[str, Any], verdict: str | None) -> List[str]:
+    """把硬门禁失败翻译成中文原因（表无 gate_reasons 列，从 metrics 推导）。
+
+    入库形态是扁平：{n, profit_factor, t_stat, older_pf, newer_pf}；
+    也兼容嵌套 {total, older_half, newer_half}。
+    """
+    total = metrics.get("total") if isinstance(metrics.get("total"), dict) else metrics
+    older = metrics.get("older_half") if isinstance(metrics.get("older_half"), dict) else {}
+    newer = metrics.get("newer_half") if isinstance(metrics.get("newer_half"), dict) else {}
+    n = int((total or {}).get("n", 0) or metrics.get("n") or 0)
+    pf = (total or {}).get("profit_factor", metrics.get("profit_factor"))
+    t = (total or {}).get("t_stat", metrics.get("t_stat"))
+    older_pf = older.get("profit_factor", metrics.get("older_pf"))
+    newer_pf = newer.get("profit_factor", metrics.get("newer_pf"))
+    reasons: List[str] = []
+    if verdict == "insufficient_data" or n < 100:
+        reasons.append(f"样本不足 n={n}<100")
+        return reasons
+    if pf is None:
+        reasons.append("缺 profit_factor")
+    elif float(pf) < 1.0:
+        reasons.append(f"PF={float(pf):.2f}<1.0")
+    if older_pf is None:
+        reasons.append("缺前半段 PF")
+    elif float(older_pf) < 0.95:
+        reasons.append(f"前半PF={float(older_pf):.2f}<0.95")
+    if newer_pf is None:
+        reasons.append("缺后半段 PF")
+    elif float(newer_pf) < 0.95:
+        reasons.append(f"后半PF={float(newer_pf):.2f}<0.95")
+    if verdict == "promising":
+        reasons.append(f"t_stat={t}≤1.0（有希望未过硬门）")
+    elif verdict == "fail" and t is not None and float(t) <= 1.0 and not reasons:
+        reasons.append(f"t_stat={float(t):.2f}≤1.0")
+    if verdict == "pass":
+        return ["通过硬门禁"]
+    if not reasons:
+        reasons.append(f"未达标({verdict or '?'})")
+    return reasons
+
+
+def _meta_train_digest() -> Dict[str, Any]:
+    """读 scalp_meta 报告；路径与 trainer 一致（仓库 data/，不是 backend/data/）。"""
+    try:
+        from backend.services.scalp_meta_trainer import get_report
+        data = get_report() or {}
+        if data.get("status") == "no_report" and not data.get("oos_auc_lgbm"):
+            return {"report": None, "missing": True, "path_hint": "data/scalp_meta_report.json"}
+        baseline = data.get("baseline") or {}
+        f30 = data.get("filter_top30pct") or {}
+        f15 = data.get("filter_top15pct") or {}
+        return {
+            "report": {
+                "usable": data.get("usable"),
+                "oos_auc_lgbm": data.get("oos_auc_lgbm"),
+                "oos_auc_linear": data.get("oos_auc_linear"),
+                "auc": data.get("auc"),
+                "n_settled": data.get("n_settled"),
+                "n_settled_raw": data.get("n_settled_raw"),
+                "pos": data.get("pos"),
+                "neg": data.get("neg"),
+                "features": data.get("features"),
+                "ts": data.get("ts"),
+                "status": data.get("status"),
+                "error": data.get("error"),
+                "note": data.get("note"),
+                "gate_reasons": data.get("gate_reasons") or [],
+                "baseline": {
+                    "win_rate": baseline.get("win_rate"),
+                    "net_ret": baseline.get("net_ret"),
+                },
+                "filter_top30pct": {
+                    "win_rate": f30.get("win_rate"),
+                    "net_ret": f30.get("net_ret"),
+                    "n": f30.get("n"),
+                    "coverage": f30.get("coverage"),
+                } if f30 else None,
+                "filter_top15pct": {
+                    "win_rate": f15.get("win_rate"),
+                    "net_ret": f15.get("net_ret"),
+                    "n": f15.get("n"),
+                    "coverage": f15.get("coverage"),
+                } if f15 else None,
+                "top_importance": (data.get("top_importance") or [])[:5],
+            },
+            "missing": False,
+        }
+    except Exception as e:
+        return {"report": None, "error": str(e), "missing": True}
+
+
+def _fixed_pool_digest() -> Dict[str, Any]:
+    """固定币池：会话当前固定币 + 全局备选池(user_trading_pairs) + 进化实际用币。"""
+    from backend.database.connection import AnalyticsSessionLocal
+
+    # 全局固定币备选池（system_configs.user_trading_pairs）——权威手动配置
+    backup_pool: List[str] = []
+    try:
+        from backend.services.trading_pairs_config import get_user_trading_pairs
+        backup_pool = [str(s).upper() for s in (get_user_trading_pairs() or []) if s]
+    except Exception:
+        backup_pool = []
+
+    training_core: List[str] = []
+    try:
+        from backend.config.settings import TRAINING_CORE_SYMBOLS
+        training_core = [str(s).upper() for s in (TRAINING_CORE_SYMBOLS or []) if s]
+    except Exception:
+        training_core = ["BTC", "ETH", "SOL", "BNB", "ASTER"]
+
+    session_fixed: List[str] = []
+    session_ids: List[str] = []
+    try:
+        from backend.core.tenant import system_identity
+        from backend.database.connection import SessionLocal
+        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+
+        with system_identity():
+            with SessionLocal() as db:
+                rows = db.execute(
+                    text(
+                        "SELECT session_id FROM full_auto_sessions "
+                        "WHERE status = 'running'"
+                    )
+                ).mappings().all()
+                for r in rows:
+                    sid = str(r["session_id"] or "")
+                    if not sid:
+                        continue
+                    session_ids.append(sid)
+                    try:
+                        fixed = get_fixed_symbols_for_session(sid, db)
+                        session_fixed.extend(str(s).upper() for s in (fixed or []))
+                    except Exception:
+                        continue
+        session_fixed = sorted(set(session_fixed))
+    except Exception:
+        session_fixed = []
+
+    # 进化实际解析结果（会话固定 ∪ 备选池）
+    evo_symbols: List[str] = []
+    try:
+        from backend.services.evolution.factor_evolution_loop import resolve_evolution_symbols
+        evo_symbols = [str(s).upper() for s in (resolve_evolution_symbols() or [])]
+    except Exception:
+        evo_symbols = list(dict.fromkeys([*session_fixed, *backup_pool])) or list(training_core)
+
+    # 主展示：会话当前固定币；没有会话时退到备选池
+    display_symbols = session_fixed or backup_pool or training_core
+    _meta = _meta_train_digest()
+
+    out: Dict[str, Any] = {
+        "note": "会话固定币=当前启用；备选池=全局交易对配置；进化用两者并集。右侧才是 AI 选币",
+        "symbols": display_symbols,
+        "backup_pool": backup_pool,
+        "evo_symbols": evo_symbols,
+        "training_core": training_core,
+        "session_fixed": session_fixed,
+        "running_sessions": session_ids,
+        "evo_4h": {"last_at": None, "actions_7d": {}},
+        "evo_5m": {"last_at": None, "actions_7d": {}},
+        "meta": _meta.get("report"),
+        "meta_missing": bool(_meta.get("missing")),
+    }
+    try:
+        with AnalyticsSessionLocal() as db:
+            for key, pred in (
+                ("evo_4h", "AND (factor_id IS NULL OR factor_id NOT LIKE 's5m_%')"),
+                ("evo_5m", "AND factor_id LIKE 's5m_%'"),
+            ):
+                last = db.execute(
+                    text(
+                        f"SELECT max(created_at) AS t FROM factor_evolution_log "
+                        f"WHERE created_at IS NOT NULL {pred}"
+                    )
+                ).mappings().first()
+                ts = last["t"] if last else None
+                out[key]["last_at"] = ts.isoformat() if hasattr(ts, "isoformat") else (
+                    str(ts) if ts else None
+                )
+                rows = db.execute(
+                    text(
+                        f"SELECT action, count(*) AS n FROM factor_evolution_log "
+                        f"WHERE created_at >= now() - interval '7 days' {pred} "
+                        f"GROUP BY action"
+                    )
+                ).mappings().all()
+                out[key]["actions_7d"] = {
+                    str(r["action"] or "unknown"): int(r["n"]) for r in rows
+                }
+            # 因子池状态分布（可交易=0 时要能看见 QUARANTINE，避免误判看板坏了）
+            try:
+                dist_rows = db.execute(
+                    text(
+                        "SELECT state, count(*) AS n FROM factor_active_set GROUP BY state"
+                    )
+                ).mappings().all()
+                state_dist = {str(r["state"] or "?"): int(r["n"] or 0) for r in dist_rows}
+                out["state_dist"] = state_dist
+                out["tradable_factor_rows"] = (
+                    int(state_dist.get("PAPER", 0))
+                    + int(state_dist.get("SMALL_LIVE", 0))
+                    + int(state_dist.get("ACTIVE", 0))
+                )
+                out["research_factor_rows"] = (
+                    out["tradable_factor_rows"]
+                    + int(state_dist.get("ORTHO", 0))
+                )
+                out["quarantine_rows"] = int(state_dist.get("QUARANTINE", 0))
+                out["total_factor_rows"] = sum(state_dist.values())
+                # 最近隔离原因（帮助理解为何可交易=0）
+                qrows = db.execute(
+                    text(
+                        "SELECT left(coalesce(reason,''), 80) AS reason, count(*) AS n "
+                        "FROM factor_evolution_log "
+                        "WHERE action = 'quarantine' "
+                        "AND created_at >= now() - interval '14 days' "
+                        "GROUP BY left(coalesce(reason,''), 80) "
+                        "ORDER BY n DESC LIMIT 5"
+                    )
+                ).mappings().all()
+                out["quarantine_reasons"] = [
+                    {"reason": r["reason"] or "（无原因）", "n": int(r["n"] or 0)}
+                    for r in qrows
+                ]
+            except Exception as e:
+                out["tradable_factor_rows"] = None
+                out["state_dist_error"] = str(e)
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
+def _ai_scan_digest() -> Dict[str, Any]:
+    """AI 选币 → pair_selector 快速矩阵扫描进度。"""
+    from backend.core.tenant import system_identity
+    from backend.database.connection import SessionLocal
+    from backend.services.scalp.pair_selector import ensure_table
+    from backend.services.scalp.pair_selector_watcher import _active_auto_symbols
+
+    ensure_table()
+    symbols = []
+    try:
+        symbols = _active_auto_symbols()
+    except Exception:
+        symbols = []
+
+    hb_detail: Dict[str, Any] = {}
+    last_ok = None
+    try:
+        from backend.services.scalp.scalp_heartbeat import get_heartbeats
+        raw = (get_heartbeats() or {}).get("pair_selector_watcher") or {}
+        last_ok = raw.get("last_ok_at")
+        detail = raw.get("detail") or {}
+        if isinstance(detail, str):
+            import json
+            try:
+                detail = json.loads(detail)
+            except Exception:
+                detail = {}
+        hb_detail = detail if isinstance(detail, dict) else {}
+    except Exception:
+        pass
+
+    by_symbol: List[Dict[str, Any]] = []
+    pending: List[str] = []
+    scanned_24h: List[str] = []
+    pass_24h = 0
+    candidates_24h = 0
+    with system_identity():
+        with SessionLocal() as db:
+            try:
+                rows = db.execute(
+                    text(
+                        "SELECT symbol, "
+                        "COUNT(*) AS n, "
+                        "SUM(CASE WHEN gate_verdict='pass' THEN 1 ELSE 0 END) AS n_pass, "
+                        "SUM(CASE WHEN gate_verdict='promising' THEN 1 ELSE 0 END) AS n_prom, "
+                        "SUM(CASE WHEN gate_verdict='fail' THEN 1 ELSE 0 END) AS n_fail, "
+                        "MAX(generated_at) AS last_at "
+                        "FROM pair_strategy_candidates "
+                        "WHERE generated_at >= now() - interval '24 hours' "
+                        "GROUP BY symbol ORDER BY last_at DESC NULLS LAST"
+                    )
+                ).mappings().all()
+            except Exception as e:
+                return {
+                    "ai_symbols": symbols,
+                    "error": str(e),
+                    "pending_scan": symbols,
+                    "scanned_24h": [],
+                    "by_symbol": [],
+                }
+            for r in rows:
+                sym = str(r["symbol"] or "")
+                scanned_24h.append(sym)
+                n = int(r["n"] or 0)
+                np_ = int(r["n_pass"] or 0)
+                candidates_24h += n
+                pass_24h += np_
+                by_symbol.append({
+                    "symbol": sym,
+                    "n": n,
+                    "n_pass": np_,
+                    "n_promising": int(r["n_prom"] or 0),
+                    "n_fail": int(r["n_fail"] or 0),
+                    "last_at": r["last_at"].isoformat() if r["last_at"] else None,
+                })
+    pending = [s for s in symbols if s not in set(scanned_24h)]
+    started = list(hb_detail.get("started") or [])
+    return {
+        "note": "AI选币快速矩阵：每 tick 最多扫 1 币；候选≠绑定",
+        "ai_symbols": symbols,
+        "pending_scan": pending,
+        "scanning": started,
+        "scanned_24h": scanned_24h,
+        "candidates_24h": candidates_24h,
+        "pass_24h": pass_24h,
+        "last_watcher_at": last_ok,
+        "watcher_detail": {
+            "checked": hb_detail.get("checked"),
+            "started": started,
+            "auto_enabled": hb_detail.get("auto_enabled") or [],
+        },
+        "by_symbol": by_symbol,
+        "lane_note": (
+            "绑定 running 是历史 pass 晋级后的持久态；"
+            "候选窗口被最近一币扫描冲掉时会「看起来只有一个币」"
+        ),
+    }
+
+
+@router.get("/pipeline")
+def ops_pipeline() -> Dict[str, Any]:
+    """挖矿→池→选币→绑定→训练 一页脉搏摘要。"""
+    hb = ops_heartbeats()
+    pool = ops_factor_pool(view="tradable", limit=5)
+    funnel = ops_evolution_funnel(days=7)
+    cands = ops_candidates(limit=40)
+    binds = ops_bindings(limit=20)
+    train = _meta_train_digest()
+    fixed = _fixed_pool_digest()
+    ai_scan = _ai_scan_digest()
+    lane_on = os.getenv("PAIR_BINDING_LANE_ENABLED", "false").lower() in (
+        "1", "true", "yes", "on",
+    )
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "pulse": {
+            "heartbeat_ok": sum(1 for x in hb.get("items", []) if x.get("sla") == "ok"),
+            "heartbeat_total": len(hb.get("items", [])),
+            "tradable_factors": pool.get("total", 0),
+            "funnel_promoted_7d": funnel.get("counts", {}).get("promote", 0),
+            "candidates_pass": cands.get("pass_count_global", cands.get("pass_count", 0)),
+            "candidates_pass_page": cands.get("pass_count", 0),
+            "bindings_running": binds.get("status_dist", {}).get("running", 0),
+            "lane_trading_enabled": lane_on,
+            "meta_usable": bool((train.get("report") or {}).get("usable")),
+            "ai_symbols": len(ai_scan.get("ai_symbols") or []),
+            "ai_pending_scan": len(ai_scan.get("pending_scan") or []),
+            "ai_pass_24h": ai_scan.get("pass_24h", 0),
+            "fixed_symbols": fixed.get("symbols") or [],
+            "fixed_symbol_count": len(fixed.get("symbols") or []),
+            "evo_4h_last": (fixed.get("evo_4h") or {}).get("last_at"),
+            "evo_5m_last": (fixed.get("evo_5m") or {}).get("last_at"),
+        },
+        "heartbeats": hb,
+        "funnel_counts": funnel.get("counts", {}),
+        "training": train,
+        "fixed_pool": fixed,
+        "ai_scan": ai_scan,
+        "candidates_summary": {
+            "by_symbol": cands.get("by_symbol", []),
+            "pass_count_global": cands.get("pass_count_global", 0),
+            "symbol_count_24h": cands.get("symbol_count_24h", 0),
+        },
+    }
+
+
+@router.get("/heartbeats")
+def ops_heartbeats() -> Dict[str, Any]:
+    from backend.services.scalp.scalp_heartbeat import get_heartbeats
+
+    raw = get_heartbeats() or {}
+    items = []
+    for tid, info in sorted(raw.items()):
+        age = _age_sec(info.get("last_ok_at"))
+        items.append({
+            "task_id": tid,
+            "last_ok_at": info.get("last_ok_at"),
+            "last_status": info.get("last_status"),
+            "detail": info.get("detail") or info.get("detail_json") or {},
+            "age_sec": round(age, 1) if age is not None else None,
+            "age_human": _human_age(age),
+            "sla": _sla(age),
+        })
+    return {"items": items, "warn_sec": _HB_WARN_SEC, "crit_sec": _HB_CRIT_SEC}
+
+
+def _human_age(age: Optional[float]) -> str:
+    if age is None:
+        return "从未"
+    if age < 60:
+        return f"{int(age)}秒前"
+    if age < 3600:
+        return f"{int(age // 60)}分钟前"
+    if age < 86400:
+        return f"{age / 3600:.1f}小时前"
+    return f"{age / 86400:.1f}天前"
+
+
+@router.get("/factor-pool")
+def ops_factor_pool(
+    view: str = Query("tradable", description="tradable|research|shadow|quarantine"),
+    limit: int = Query(50, ge=1, le=200),
+) -> Dict[str, Any]:
+    from backend.database.connection import AnalyticsSessionLocal
+    from backend.services.factor_engine.active_set_policy import (
+        ActiveSetRole,
+        load_factor_active_rows,
+        states_for,
+    )
+    from sqlalchemy import text
+
+    role_map = {
+        "tradable": ActiveSetRole.UI_TOP,
+        "research": ActiveSetRole.RESEARCH,
+        "shadow": ActiveSetRole.SHADOW,
+        "quarantine": ActiveSetRole.QUARANTINE,
+    }
+    role = role_map.get(view.lower(), ActiveSetRole.UI_TOP)
+    rows = load_factor_active_rows(role, parse_expr=False, limit=limit)
+    items = []
+    for r in rows:
+        cw = r.get("current_weight") or {}
+        w = None
+        if isinstance(cw, dict) and cw:
+            try:
+                w = float(next(iter(cw.values())))
+            except Exception:
+                w = None
+        items.append({
+            "factor_id": r.get("factor_id"),
+            "state": r.get("state"),
+            "source": r.get("source"),
+            "icir": r.get("icir"),
+            "last_net_ic": r.get("last_net_ic"),
+            "online_weight": w,
+            "activated_at": (
+                r["activated_at"].isoformat()
+                if hasattr(r.get("activated_at"), "isoformat")
+                else r.get("activated_at")
+            ),
+            "router_reachable": str(r.get("state")) in states_for(ActiveSetRole.TRADABLE),
+        })
+
+    state_dist: Dict[str, int] = {}
+    quarantine_reasons: List[Dict[str, Any]] = []
+    try:
+        with AnalyticsSessionLocal() as db:
+            dist_rows = db.execute(
+                text("SELECT state, count(*) AS n FROM factor_active_set GROUP BY state")
+            ).mappings().all()
+            state_dist = {str(r["state"] or "?"): int(r["n"] or 0) for r in dist_rows}
+            qrows = db.execute(
+                text(
+                    "SELECT left(coalesce(reason,''), 100) AS reason, count(*) AS n "
+                    "FROM factor_evolution_log "
+                    "WHERE action = 'quarantine' "
+                    "AND created_at >= now() - interval '14 days' "
+                    "GROUP BY left(coalesce(reason,''), 100) "
+                    "ORDER BY n DESC LIMIT 5"
+                )
+            ).mappings().all()
+            quarantine_reasons = [
+                {"reason": r["reason"] or "（无原因）", "n": int(r["n"] or 0)}
+                for r in qrows
+            ]
+    except Exception as e:
+        logger.warning("[Ops] factor-pool state_dist: %s", e)
+
+    tradable_n = (
+        int(state_dist.get("PAPER", 0))
+        + int(state_dist.get("SMALL_LIVE", 0))
+        + int(state_dist.get("ACTIVE", 0))
+    )
+    research_n = tradable_n + int(state_dist.get("ORTHO", 0))
+    quarantine_n = int(state_dist.get("QUARANTINE", 0))
+
+    if role in (ActiveSetRole.UI_TOP, ActiveSetRole.TRADABLE):
+        callout = "可交易=PAPER/SMALL_LIVE/ACTIVE（与 Router 热路径一致）"
+        if not items and quarantine_n > 0:
+            callout = (
+                f"可交易=0：库内 {quarantine_n} 行全在隔离区 QUARANTINE，"
+                "请切到「隔离」查看（不是看板坏了）"
+            )
+    elif role == ActiveSetRole.RESEARCH:
+        callout = "研究=ORTHO+可交易；不等于可进 Router"
+        if not items and quarantine_n > 0:
+            callout = (
+                f"研究池为空；隔离区有 {quarantine_n} 行，切「隔离」可看"
+            )
+    elif role == ActiveSetRole.QUARANTINE:
+        callout = "隔离区：IC 衰减/复评失败后移出交易面，需进化回路重新晋升"
+    else:
+        callout = ""
+
+    return {
+        "view": view,
+        "role": role.value,
+        "states": sorted(states_for(role)),
+        "total": len(items),
+        "items": items,
+        "callout": callout,
+        "state_dist": state_dist,
+        "counts": {
+            "tradable": tradable_n,
+            "research": research_n,
+            "quarantine": quarantine_n,
+            "all": sum(state_dist.values()),
+        },
+        "quarantine_reasons": quarantine_reasons,
+    }
+
+
+@router.get("/evolution-funnel")
+def ops_evolution_funnel(days: int = Query(7, ge=1, le=90)) -> Dict[str, Any]:
+    from backend.database.connection import AnalyticsSessionLocal
+
+    counts: Dict[str, int] = {}
+    rejects: List[Dict[str, Any]] = []
+    try:
+        with AnalyticsSessionLocal() as db:
+            rows = db.execute(
+                text(
+                    "SELECT action, count(*) AS n FROM factor_evolution_log "
+                    "WHERE created_at >= now() - (:d || ' days')::interval "
+                    "GROUP BY action ORDER BY n DESC"
+                ),
+                {"d": str(int(days))},
+            ).mappings().all()
+            counts = {str(r["action"] or "unknown"): int(r["n"]) for r in rows}
+            rej = db.execute(
+                text(
+                    "SELECT factor_id, action, reason, metrics, created_at "
+                    "FROM factor_evolution_log "
+                    "WHERE created_at >= now() - (:d || ' days')::interval "
+                    "AND action IN ('promote_reject','reject','quarantine','deactivate') "
+                    "ORDER BY created_at DESC LIMIT 40"
+                ),
+                {"d": str(int(days))},
+            ).mappings().all()
+            for r in rej:
+                rejects.append({
+                    "factor_id": r["factor_id"],
+                    "action": r["action"],
+                    "reason": r["reason"],
+                    "metrics": r["metrics"],
+                    "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                })
+    except Exception as e:
+        logger.warning("[Ops] evolution-funnel: %s", e)
+        return {"days": days, "counts": {}, "rejects": [], "error": str(e)}
+    return {"days": days, "counts": counts, "rejects": rejects}
+
+
+@router.get("/candidates")
+def ops_candidates(limit: int = Query(50, ge=1, le=200)) -> Dict[str, Any]:
+    """候选列表：按币汇总 + 全表 pass + 门禁中文原因；避免「只看见最近一币」。"""
+    from backend.core.tenant import system_identity
+    from backend.database.connection import SessionLocal
+    from backend.services.scalp.pair_selector import ensure_table
+
+    ensure_table()
+    items: List[Dict[str, Any]] = []
+    by_symbol: List[Dict[str, Any]] = []
+    pass_global = 0
+    promising_global = 0
+    fail_global = 0
+    symbol_count_24h = 0
+
+    def _row_item(r) -> Dict[str, Any]:
+        metrics = _parse_metrics(r.get("metrics_json"))
+        verdict = r.get("gate_verdict")
+        return {
+            "id": int(r["id"]),
+            "symbol": r["symbol"],
+            "period": r["period"],
+            "factor_set": r["factor_set"],
+            "gate_verdict": verdict,
+            "gate_reasons": _gate_reasons(metrics, verdict),
+            "metrics": {
+                "n": metrics.get("n") or (metrics.get("total") or {}).get("n"),
+                "pf": metrics.get("profit_factor")
+                or (metrics.get("total") or {}).get("profit_factor"),
+                "t_stat": metrics.get("t_stat")
+                or (metrics.get("total") or {}).get("t_stat"),
+                "older_pf": metrics.get("older_pf"),
+                "newer_pf": metrics.get("newer_pf"),
+            },
+            "created_at": (
+                r["generated_at"].isoformat() if r.get("generated_at") else None
+            ),
+        }
+
+    with system_identity():
+        with SessionLocal() as db:
+            try:
+                stats = db.execute(
+                    text(
+                        "SELECT "
+                        "COUNT(*) FILTER (WHERE gate_verdict='pass') AS n_pass, "
+                        "COUNT(*) FILTER (WHERE gate_verdict='promising') AS n_prom, "
+                        "COUNT(*) FILTER (WHERE gate_verdict='fail') AS n_fail, "
+                        "COUNT(DISTINCT symbol) FILTER ("
+                        "  WHERE generated_at >= now() - interval '24 hours') AS n_sym "
+                        "FROM pair_strategy_candidates"
+                    )
+                ).mappings().first()
+                if stats:
+                    pass_global = int(stats["n_pass"] or 0)
+                    promising_global = int(stats["n_prom"] or 0)
+                    fail_global = int(stats["n_fail"] or 0)
+                    symbol_count_24h = int(stats["n_sym"] or 0)
+
+                by_rows = db.execute(
+                    text(
+                        "SELECT symbol, "
+                        "COUNT(*) AS n, "
+                        "SUM(CASE WHEN gate_verdict='pass' THEN 1 ELSE 0 END) AS n_pass, "
+                        "SUM(CASE WHEN gate_verdict='promising' THEN 1 ELSE 0 END) AS n_prom, "
+                        "SUM(CASE WHEN gate_verdict='fail' THEN 1 ELSE 0 END) AS n_fail, "
+                        "MAX(generated_at) AS last_at "
+                        "FROM pair_strategy_candidates "
+                        "WHERE generated_at >= now() - interval '24 hours' "
+                        "GROUP BY symbol ORDER BY "
+                        "SUM(CASE WHEN gate_verdict='pass' THEN 1 ELSE 0 END) DESC, "
+                        "last_at DESC NULLS LAST"
+                    )
+                ).mappings().all()
+                for r in by_rows:
+                    by_symbol.append({
+                        "symbol": r["symbol"],
+                        "n": int(r["n"] or 0),
+                        "n_pass": int(r["n_pass"] or 0),
+                        "n_promising": int(r["n_prom"] or 0),
+                        "n_fail": int(r["n_fail"] or 0),
+                        "last_at": r["last_at"].isoformat() if r["last_at"] else None,
+                    })
+
+                # 优先拉 pass / promising，再补各币最新 fail，避免被单币 27 行冲掉
+                preferred = db.execute(
+                    text(
+                        "SELECT id, symbol, period, factor_set, gate_verdict, "
+                        "metrics_json, generated_at "
+                        "FROM pair_strategy_candidates "
+                        "WHERE gate_verdict IN ('pass','promising') "
+                        "ORDER BY "
+                        "CASE gate_verdict WHEN 'pass' THEN 0 ELSE 1 END, "
+                        "id DESC LIMIT :lim"
+                    ),
+                    {"lim": max(10, limit // 2)},
+                ).mappings().all()
+                seen_ids = set()
+                for r in preferred:
+                    item = _row_item(r)
+                    seen_ids.add(item["id"])
+                    items.append(item)
+
+                # 每币取最新 1 条（展示多样性）
+                latest_per_sym = db.execute(
+                    text(
+                        "SELECT DISTINCT ON (symbol) id, symbol, period, factor_set, "
+                        "gate_verdict, metrics_json, generated_at "
+                        "FROM pair_strategy_candidates "
+                        "ORDER BY symbol, id DESC"
+                    )
+                ).mappings().all()
+                for r in latest_per_sym:
+                    iid = int(r["id"])
+                    if iid in seen_ids:
+                        continue
+                    seen_ids.add(iid)
+                    items.append(_row_item(r))
+                    if len(items) >= limit:
+                        break
+
+                if len(items) < limit:
+                    recent = db.execute(
+                        text(
+                            "SELECT id, symbol, period, factor_set, gate_verdict, "
+                            "metrics_json, generated_at "
+                            "FROM pair_strategy_candidates ORDER BY id DESC LIMIT :lim"
+                        ),
+                        {"lim": limit},
+                    ).mappings().all()
+                    for r in recent:
+                        iid = int(r["id"])
+                        if iid in seen_ids:
+                            continue
+                        seen_ids.add(iid)
+                        items.append(_row_item(r))
+                        if len(items) >= limit:
+                            break
+            except Exception as e:
+                return {
+                    "items": [],
+                    "pass_count": 0,
+                    "pass_count_global": 0,
+                    "by_symbol": [],
+                    "error": str(e),
+                    "callout": "读候选表失败",
+                }
+
+    page_pass = sum(1 for x in items if x.get("gate_verdict") == "pass")
+    return {
+        "items": items[:limit],
+        "pass_count": page_pass,
+        "pass_count_global": pass_global,
+        "promising_count_global": promising_global,
+        "fail_count_global": fail_global,
+        "symbol_count_24h": symbol_count_24h,
+        "by_symbol": by_symbol,
+        "total": len(items[:limit]),
+        "callout": (
+            "列表已按「pass优先 + 每币最新」混合，避免只显示最近扫描的一币；"
+            f"全表 pass={pass_global}，24h 涉及 {symbol_count_24h} 个币"
+        ),
+    }
+
+
+@router.get("/bindings")
+def ops_bindings(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
+    from backend.services.scalp.scalp_bindings import ensure_tables, list_bindings
+
+    ensure_tables()
+    try:
+        rows = list_bindings()
+    except Exception:
+        rows = []
+        from backend.core.tenant import system_identity
+        from backend.database.connection import SessionLocal
+        with system_identity():
+            with SessionLocal() as db:
+                raw = db.execute(
+                    text("SELECT * FROM pair_strategy_bindings ORDER BY id DESC LIMIT :lim"),
+                    {"lim": limit},
+                ).mappings().all()
+                for r in raw:
+                    rows.append(dict(r))
+    status_dist: Dict[str, int] = {}
+    for r in rows[:limit]:
+        st = str(r.get("status") or "unknown")
+        status_dist[st] = status_dist.get(st, 0) + 1
+    lane_enabled = os.getenv("PAIR_BINDING_LANE_ENABLED", "false").lower() in (
+        "1", "true", "yes", "on",
+    )
+    ai_syms: List[str] = []
+    try:
+        from backend.services.scalp.pair_selector_watcher import _active_auto_symbols
+        ai_syms = _active_auto_symbols()
+    except Exception:
+        pass
+    ai_set = {s.upper() for s in ai_syms}
+    enriched = []
+    for r in rows[:limit]:
+        item = dict(r) if not isinstance(r, dict) else {**r}
+        sym = str(item.get("symbol") or "").upper()
+        item["in_ai_pool"] = sym in ai_set if ai_set else None
+        item["link_note"] = (
+            "历史 pass 晋级；与当前候选窗口无关"
+            if item.get("status") == "running"
+            else item.get("stop_reason")
+        )
+        enriched.append(item)
+    return {
+        "items": enriched,
+        "status_dist": status_dist,
+        "ai_symbols": ai_syms,
+        "lane": {
+            "PAIR_BINDING_LANE_ENABLED": lane_enabled,
+            "note": (
+                "干跑=调度只写心跳不开仓；running 绑定会一直挂着，"
+                "不是候选列表矛盾，而是「已启用未执行」"
+            ),
+        },
+        "circuit_breaker": {
+            "SCALP_CIRCUIT_BREAKER_ENABLED": os.getenv(
+                "SCALP_CIRCUIT_BREAKER_ENABLED", "false"
+            ).lower() in ("1", "true", "yes", "on"),
+        },
+    }
+
+
+@router.get("/training")
+def ops_training() -> Dict[str, Any]:
+    """元标签 + 固定池进化进度 + AI 快速扫描进度（一眼分清三条链）。"""
+    meta = _meta_train_digest()
+    return {
+        **meta,
+        "fixed_pool": _fixed_pool_digest(),
+        "ai_scan": _ai_scan_digest(),
+    }
+
+
+@router.get("/errors")
+def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
+    """中文分级报错中心：系统日志 + 心跳中断 + 车道配置谎言。"""
+    items: List[Dict[str, Any]] = []
+    try:
+        from backend.services.system_logger import system_logger
+        logs = system_logger.get_logs(level=None, category=None, limit=limit, min_level="WARNING")
+        for lg in logs:
+            lvl = str(lg.get("level") or "WARNING").upper()
+            sev = "P1" if lvl == "ERROR" else ("P2" if "WARN" in lvl else "P3")
+            items.append({
+                "severity": sev,
+                "source": "system_logs",
+                "level": lvl,
+                "category": lg.get("category"),
+                "message": lg.get("message") or lg.get("msg"),
+                "timestamp": lg.get("timestamp") or lg.get("created_at"),
+            })
+    except Exception as e:
+        items.append({
+            "severity": "P2",
+            "source": "ops",
+            "message": f"读取 system_logs 失败: {e}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    hb = ops_heartbeats()
+    _hb_cn = {
+        "pair_selector_watcher": "AI选币扫描",
+        "pair_binding_lane": "币种绑定车道",
+        "scalp_chain_health": "短线链路健康",
+        "scalp_circuit_breaker": "短线熔断器",
+    }
+    for h in hb.get("items", []):
+        _name = _hb_cn.get(h.get("task_id") or "", h.get("task_id") or "?")
+        if h.get("sla") == "down":
+            items.append({
+                "severity": "P0",
+                "source": "heartbeat",
+                "message": f"心跳中断：{_name}（{h.get('age_human')}）",
+                "timestamp": h.get("last_ok_at"),
+                "task_id": h["task_id"],
+            })
+        elif h.get("sla") == "lag":
+            items.append({
+                "severity": "P1",
+                "source": "heartbeat",
+                "message": f"心跳滞后：{_name}（{h.get('age_human')}）",
+                "timestamp": h.get("last_ok_at"),
+                "task_id": h["task_id"],
+            })
+
+    if os.getenv("PAIR_BINDING_LANE_ENABLED", "false").lower() not in ("1", "true", "yes", "on"):
+        # 信息项，非故障
+        pass
+
+    p0 = sum(1 for x in items if x.get("severity") == "P0")
+    p1 = sum(1 for x in items if x.get("severity") == "P1")
+    return {
+        "items": items[:limit],
+        "counts": {"P0": p0, "P1": p1, "total": len(items)},
+    }
+
+
+@router.get("/health-digest")
+def ops_health_digest() -> Dict[str, Any]:
+    err = ops_errors(limit=50)
+    return {
+        "opencode": {
+            "available": False,
+            "reason": "路由已在 main.py 注释；禁止轮询 /api/opencode/*",
+        },
+        "errors": err.get("counts", {}),
+        "lane_enabled": os.getenv("PAIR_BINDING_LANE_ENABLED", "false").lower() in (
+            "1", "true", "yes", "on",
+        ),
+    }
+
+
+@router.post("/bindings/{binding_id}/pause")
+def ops_pause_binding(binding_id: int) -> Dict[str, Any]:
+    from backend.services.scalp.scalp_bindings import disable_binding
+
+    try:
+        out = disable_binding(binding_id, reason="ops_manual_pause")
+        return {"ok": True, "binding": out}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/candidates/{candidate_id}/enable")
+def ops_enable_candidate(candidate_id: int) -> Dict[str, Any]:
+    from backend.services.scalp.scalp_bindings import enable_candidate
+
+    try:
+        out = enable_candidate(candidate_id)
+        return {"ok": True, "binding": out}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

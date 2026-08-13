@@ -56,28 +56,30 @@ class MidLongStructureStop:
 
         # ── 中长线 TP/SL 扩展：覆盖短线窄区间钳制 ──
         # structure_stop_calculator 把 SL 钳到 0.8-2%、TP 钳到 1.2-2.5%（为短线设计）。
-        # 中长线需要远宽于此：中线 SL 3-8%、TP 6-20%；长线 SL 5-15%、TP 15-50%。
-        # 加密货币趋势行情涨幅极大，窄止盈会在黎明前被洗出。
+        # 中长线需要远宽于此：中线 SL 3-8%、TP 3-10%；长线 SL 5-15%、TP 6-20%。
+        # [P0-1 修复] TP 上限按全库实测 peak 上限 5.03% 校准（原 15-50% 从未触达，
+        # mid/long TP 事件 0 笔），止盈线必须落在市场可达区间。
         import os
         if agent_source == "trend_agent":
             # 长线：宽止损让趋势跑，宽止盈捕获大行情
             min_sl = float(os.getenv("MLTO_LONG_MIN_SL", "0.05"))   # 5%
             max_sl = float(os.getenv("MLTO_LONG_MAX_SL", "0.15"))   # 15%
-            min_tp = float(os.getenv("MLTO_LONG_MIN_TP", "0.15"))   # 15%
-            max_tp = float(os.getenv("MLTO_LONG_MAX_TP", "0.50"))   # 50%
+            min_tp = float(os.getenv("MLTO_LONG_MIN_TP", "0.06"))   # 6%
+            max_tp = float(os.getenv("MLTO_LONG_MAX_TP", "0.20"))   # 20%
         else:
             # 中线：适中
             min_sl = float(os.getenv("MLTO_MID_MIN_SL", "0.03"))    # 3%
             max_sl = float(os.getenv("MLTO_MID_MAX_SL", "0.08"))    # 8%
-            min_tp = float(os.getenv("MLTO_MID_MIN_TP", "0.06"))    # 6%
-            max_tp = float(os.getenv("MLTO_MID_MAX_TP", "0.20"))    # 20%
+            min_tp = float(os.getenv("MLTO_MID_MIN_TP", "0.03"))    # 3%
+            max_tp = float(os.getenv("MLTO_MID_MAX_TP", "0.10"))    # 10%
 
         # ATR 自适应：从原始 sl_pct 推断波动级别
         raw_sl = max(sl_pct, 0.01)
         sl_pct = max(min_sl, min(max_sl, raw_sl * 3))  # 中长线 SL = 短线 SL × 3（放大到合适级别）
 
-        # TP 按 RR ≥ 2.0 计算（中长线盈亏比要求更高）
-        tp_pct = max(min_tp, min(max_tp, sl_pct * 2.5))
+        # TP 按 RR ≥ 1.8 计算（P0-1：原 2.5 倍 SL 叠加 ATR 地板后 TP 达 16-22%，
+        # 远超全库 peak 上限 5.03%，止盈从未触发；下修到 1.8 倍换取可触达性）
+        tp_pct = max(min_tp, min(max_tp, sl_pct * 1.8))
 
         # 重新计算价格
         side_l = (side or "long").lower()

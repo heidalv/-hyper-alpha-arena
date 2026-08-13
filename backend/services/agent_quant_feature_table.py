@@ -50,6 +50,18 @@ def _safe_pct(v: Any, default: str = "unavailable") -> str:
         return default
 
 
+def _nature_scope(nature: Optional[str]) -> Optional[tuple]:
+    """按 agent nature 限定记忆查询范围；None 表示不过滤。"""
+    if not nature:
+        return None
+    n = str(nature).lower()
+    if n in ("trend_follow", "position"):
+        return ("trend_follow", "position")
+    if n in ("swing", "mid"):
+        return ("swing",)
+    return (n,)
+
+
 def _get_atr(symbol: str, timeframe: str) -> Tuple[float, float]:
     """获取指定周期的 ATR 绝对值 + ATR%（相对价格）。
 
@@ -67,8 +79,56 @@ def _get_atr(symbol: str, timeframe: str) -> Tuple[float, float]:
         return 0.0, 0.0
 
 
+def _resolve_atr_pct(ms: Optional[Dict[str, Any]], sym: str, tf: str) -> Tuple[float, float]:
+    """ATR% 统一回退链，返回 (atr_pct, atr_abs)。
+
+    顺序：ms 的 atr_{tf}_pct 字段 → indicators_{tf}.atr（绝对值）/price →
+    1d 走 midlong_trade_design.estimate_atr_1d_pct（含 K 线估算）→
+    market_data_service。消除特征表 0.00% 与深度上下文 K 线 ATR 的口径矛盾。
+    """
+    ms = ms if isinstance(ms, dict) else {}
+    price = float(
+        ms.get("current_price") or ms.get("price") or ms.get("mark_price") or 0
+    )
+    if price <= 0:
+        try:
+            from backend.services.market_data import market_data_service
+            price = float(market_data_service.get_latest_price(sym) or 0)
+        except Exception:
+            price = 0.0
+
+    v = ms.get(f"atr_{tf}_pct")
+    try:
+        if v is not None and float(v) > 0:
+            return float(v), float(v) * price
+    except (TypeError, ValueError):
+        pass
+
+    ind = ms.get(f"indicators_{tf}")
+    if isinstance(ind, dict):
+        a = ind.get("atr") or ind.get("atr_14")
+        try:
+            if a is not None and float(a) > 0 and price > 0:
+                return float(a) / price, float(a)
+        except (TypeError, ValueError):
+            pass
+
+    if tf == "1d":
+        try:
+            from backend.services.mlto.midlong_trade_design import estimate_atr_1d_pct
+            est = estimate_atr_1d_pct(ms)
+            if est and float(est) > 0:
+                return float(est), float(est) * price
+        except Exception:
+            pass
+
+    a_abs, a_pct = _get_atr(sym, tf)
+    return (float(a_pct or 0), float(a_abs or 0))
+
+
 def _get_trade_memory(
     db, symbol: str, account_id: int, limit: int = 5, window_days: int = 14,
+    nature: Optional[str] = None,
 ) -> Dict[str, Any]:
     """查询同币种最近 N 笔交易记录（用于 memory_block + 同方向连亏统计）。
 
@@ -94,13 +154,19 @@ def _get_trade_memory(
     try:
         from backend.database.models import PaperPosition
         since = datetime.utcnow() - timedelta(days=window_days)
+        filters = [
+            PaperPosition.symbol == symbol.upper(),
+            PaperPosition.status.in_(["closed", "liquidated"]),
+            PaperPosition.closed_at >= since,
+        ]
+        if account_id:
+            filters.append(PaperPosition.account_id == account_id)
+        _scope = _nature_scope(nature)
+        if _scope:
+            filters.append(PaperPosition.trade_nature.in_(_scope))
         recent = (
             db.query(PaperPosition)
-            .filter(
-                PaperPosition.symbol == symbol.upper(),
-                PaperPosition.status.in_(["closed", "liquidated"]),
-                PaperPosition.closed_at >= since,
-            )
+            .filter(*filters)
             .order_by(PaperPosition.closed_at.desc())
             .limit(limit)
             .all()
@@ -127,7 +193,9 @@ def _get_trade_memory(
         logger.debug("[QuantFeatureTable] %s 交易记忆查询失败: %s", symbol, e)
 
     # 同方向连续亏损数（24h 内，对 long 和 short 分别统计）
-    result["same_dir_losses_24h"] = _count_same_dir_losses_24h(db, symbol, account_id)
+    result["same_dir_losses_24h"] = _count_same_dir_losses_24h(
+        db, symbol, account_id, nature=nature
+    )
 
     # 冷却状态（来自 reentry_cooldown）
     result["cooldown_remain_sec"], result["blocked_sides"] = _get_cooldown_status(
@@ -137,7 +205,9 @@ def _get_trade_memory(
     return result
 
 
-def _count_same_dir_losses_24h(db, symbol: str, account_id: int) -> int:
+def _count_same_dir_losses_24h(
+    db, symbol: str, account_id: int, nature: Optional[str] = None
+) -> int:
     """统计同币种 24h 内同方向连续亏损数（取 long/short 中较大者）。
 
     用于 prompt 告知 LLM"同方向已连续亏 N 次"，触发宪法第 5 条冷却规则。
@@ -145,13 +215,19 @@ def _count_same_dir_losses_24h(db, symbol: str, account_id: int) -> int:
     try:
         from backend.database.models import PaperPosition
         since = datetime.utcnow() - timedelta(hours=24)
+        filters = [
+            PaperPosition.symbol == symbol.upper(),
+            PaperPosition.status.in_(["closed", "liquidated"]),
+            PaperPosition.closed_at >= since,
+        ]
+        if account_id:
+            filters.append(PaperPosition.account_id == account_id)
+        _scope = _nature_scope(nature)
+        if _scope:
+            filters.append(PaperPosition.trade_nature.in_(_scope))
         recent = (
             db.query(PaperPosition)
-            .filter(
-                PaperPosition.symbol == symbol.upper(),
-                PaperPosition.status.in_(["closed", "liquidated"]),
-                PaperPosition.closed_at >= since,
-            )
+            .filter(*filters)
             .order_by(PaperPosition.closed_at.desc())
             .limit(10)
             .all()
@@ -278,19 +354,26 @@ def render_quant_feature_table(
     nature_l = (nature or "swing").lower()
 
     # 1. ATR（按 nature 选主周期）
+    _ms_q = (
+        (market_envs or {}).get(sym) if isinstance(market_envs, dict) else {}
+    )
+    if not isinstance(_ms_q, dict):
+        _ms_q = {}
     if nature_l in ("trend_follow", "position"):
-        atr_1d_abs, atr_1d_pct = _get_atr(sym, "1d")
-        atr_4h_abs, atr_4h_pct = _get_atr(sym, "4h")
+        atr_1d_pct, atr_1d_abs = _resolve_atr_pct(_ms_q, sym, "1d")
+        atr_4h_pct, atr_4h_abs = _resolve_atr_pct(_ms_q, sym, "4h")
         primary_atr_pct = atr_1d_pct if atr_1d_pct > 0 else atr_4h_pct
-        primary_tf = "1d"
+        primary_tf = "1d" if atr_1d_pct > 0 else "4h"
     else:
-        atr_1h_abs, atr_1h_pct = _get_atr(sym, "1h")
-        atr_4h_abs, atr_4h_pct = _get_atr(sym, "4h")
+        atr_1h_pct, atr_1h_abs = _resolve_atr_pct(_ms_q, sym, "1h")
+        atr_4h_pct, atr_4h_abs = _resolve_atr_pct(_ms_q, sym, "4h")
         primary_atr_pct = atr_4h_pct if atr_4h_pct > 0 else atr_1h_pct
-        primary_tf = "4h"
+        primary_tf = "4h" if atr_4h_pct > 0 else "1h"
 
     # 2. 交易记忆 + 冷却状态
-    memory = _get_trade_memory(db, sym, account_id or 0, limit=5, window_days=14)
+    memory = _get_trade_memory(
+        db, sym, account_id or 0, limit=5, window_days=14, nature=nature_l,
+    )
 
     # 3. 多周期偏向 + 对齐分
     biases = _get_orch_biases(market_envs, sym)
@@ -315,9 +398,29 @@ def render_quant_feature_table(
             "max_leverage": "5x",
         }
 
-    # 6. 开仓配额
-    opens_today = _count_opens_today(db, sym, account_id or 0)
-    opens_week = _count_opens_this_week(db, sym, account_id or 0)
+    # 6. 开仓配额：按 nature 限定统计口径，上限读取真实配置（不再写死误导性门槛）
+    try:
+        from backend.config import settings as _qs
+        _trend_daily_cap = int(getattr(_qs, "TREND_DAILY_OPEN_CAP", 15) or 15)
+        _trend_week_cap = int(getattr(_qs, "TREND_MAX_OPENS_PER_WEEK", 6) or 6)
+    except Exception:
+        _trend_daily_cap, _trend_week_cap = 15, 6
+    if nature_l in ("trend_follow", "position"):
+        _scope = ("trend_follow", "position")
+        opens_today = _count_opens_today(db, sym, account_id or 0, scope=_scope)
+        opens_week = _count_opens_this_week(db, sym, account_id or 0, scope=_scope)
+        _quota_lines = [
+            f"- long_opens_today: **{opens_today}** (上限 {_trend_daily_cap}/天)",
+            f"- long_opens_week: **{opens_week}** (上限 {_trend_week_cap}/周)",
+        ]
+    else:
+        _scope = ("swing",)
+        opens_today = _count_opens_today(db, sym, account_id or 0, scope=_scope)
+        opens_week = _count_opens_this_week(db, sym, account_id or 0, scope=_scope)
+        _quota_lines = [
+            f"- mid_opens_today: **{opens_today}** (无独立日配额，受 V5 全局与组合风控约束)",
+            f"- mid_opens_week: **{opens_week}** (参考值)",
+        ]
 
     # ── 拼装 markdown 表 ──
     lines = [
@@ -372,8 +475,7 @@ def render_quant_feature_table(
     lines.extend([
         "",
         "### 开仓配额",
-        f"- mid_opens_today: **{opens_today}** (≤1 才可开)",
-        f"- long_opens_week: **{opens_week}** (≤2 才可开)",
+        *_quota_lines,
         "",
         "### 风控硬边界（代码层强制）",
         f"- max_sl_pct: **{risk_bounds['max_sl_pct']}**",
@@ -386,34 +488,48 @@ def render_quant_feature_table(
     return "\n".join(lines)
 
 
-def _count_opens_today(db, symbol: str, account_id: int) -> int:
-    """统计今日同币种同 tier 开仓数。"""
+def _count_opens_today(
+    db, symbol: str, account_id: int, scope: Optional[tuple] = None
+) -> int:
+    """统计今日同币种开仓数；scope 限定 trade_nature，None 表示不过滤。"""
     try:
         from backend.database.models import PaperPosition
         since = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        filters = [
+            PaperPosition.symbol == symbol.upper(),
+            PaperPosition.opened_at >= since,
+        ]
+        if account_id:
+            filters.append(PaperPosition.account_id == account_id)
+        if scope:
+            filters.append(PaperPosition.trade_nature.in_(scope))
         return (
             db.query(PaperPosition)
-            .filter(
-                PaperPosition.symbol == symbol.upper(),
-                PaperPosition.opened_at >= since,
-            )
+            .filter(*filters)
             .count()
         )
     except Exception:
         return 0
 
 
-def _count_opens_this_week(db, symbol: str, account_id: int) -> int:
-    """统计本周同币种开仓数。"""
+def _count_opens_this_week(
+    db, symbol: str, account_id: int, scope: Optional[tuple] = None
+) -> int:
+    """统计本周同币种开仓数；scope 限定 trade_nature，None 表示不过滤。"""
     try:
         from backend.database.models import PaperPosition
         since = datetime.utcnow() - timedelta(days=7)
+        filters = [
+            PaperPosition.symbol == symbol.upper(),
+            PaperPosition.opened_at >= since,
+        ]
+        if account_id:
+            filters.append(PaperPosition.account_id == account_id)
+        if scope:
+            filters.append(PaperPosition.trade_nature.in_(scope))
         return (
             db.query(PaperPosition)
-            .filter(
-                PaperPosition.symbol == symbol.upper(),
-                PaperPosition.opened_at >= since,
-            )
+            .filter(*filters)
             .count()
         )
     except Exception:
@@ -427,7 +543,14 @@ def render_memory_block(
 
     这是 task_swing_agent.md 的 {{memory_block}} 变量内容。
     """
-    memory = _get_trade_memory(db, symbol, account_id or 0, limit=limit, window_days=14)
+    _nature = (
+        "trend_follow" if str(agent_type or "").lower() == "trend"
+        else "swing" if str(agent_type or "").lower() in ("swing", "mid")
+        else None
+    )
+    memory = _get_trade_memory(
+        db, symbol, account_id or 0, limit=limit, window_days=14, nature=_nature,
+    )
     if not memory["recent_trades"]:
         return "（暂无历史交易记录）"
 
@@ -456,32 +579,46 @@ def render_memory_block(
 def render_atr_block(symbol: str, market_envs: Dict[str, Any]) -> str:
     """渲染 ATR / 波动率块（兼容旧调用）。"""
     sym = str(symbol).upper()
-    atr_1h_abs, atr_1h_pct = _get_atr(sym, "1h")
-    atr_4h_abs, atr_4h_pct = _get_atr(sym, "4h")
-    atr_1d_abs, atr_1d_pct = _get_atr(sym, "1d")
-    price = 0.0
-    try:
-        from backend.services.market_data import market_data_service
-        price = float(market_data_service.get_latest_price(sym) or 0)
-    except Exception:
-        pass
+    _ms_a = (market_envs or {}).get(sym) if isinstance(market_envs, dict) else {}
+    if not isinstance(_ms_a, dict):
+        _ms_a = {}
+    price = float(
+        _ms_a.get("current_price") or _ms_a.get("price") or _ms_a.get("mark_price") or 0
+    )
+    if price <= 0:
+        try:
+            from backend.services.market_data import market_data_service
+            price = float(market_data_service.get_latest_price(sym) or 0)
+        except Exception:
+            price = 0.0
+    atr_1h_pct, atr_1h_abs = _resolve_atr_pct(_ms_a, sym, "1h")
+    atr_4h_pct, atr_4h_abs = _resolve_atr_pct(_ms_a, sym, "4h")
+    atr_1d_pct, atr_1d_abs = _resolve_atr_pct(_ms_a, sym, "1d")
 
-    if not price or not atr_1h_abs:
+    if not price or not (atr_1h_abs or atr_4h_abs or atr_1d_abs):
         return "## 波动率环境\n（ATR 数据不可用）"
 
-    return f"""## 波动率环境（建议 SL/TP 基于此）
-- 当前价: {price:.4f}
-- 1h ATR: {atr_1h_abs:.4f} ({atr_1h_pct*100:.2f}%)
-- 4h ATR: {atr_4h_abs:.4f} ({atr_4h_pct*100:.2f}%)
-- 1d ATR: {atr_1d_abs:.4f} ({atr_1d_pct*100:.2f}%)
-- 建议 SL 距离: 1.5×~3.0× ATR (按 lifecycle 调整)
-- 建议 TP1 距离: ≥1.2× SL 距离
-- 建议 TP3 距离: ≥2.5× SL 距离 (确保正 RR)
-"""
+    lines = ["## 波动率环境（建议 SL/TP 基于此）", f"- 当前价: {price:.4f}"]
+    for _tf, _abs, _pct in (
+        ("1h", atr_1h_abs, atr_1h_pct),
+        ("4h", atr_4h_abs, atr_4h_pct),
+        ("1d", atr_1d_abs, atr_1d_pct),
+    ):
+        if _abs and _abs > 0:
+            lines.append(f"- {_tf} ATR: {_abs:.4f} ({_pct*100:.2f}%)")
+        else:
+            lines.append(f"- {_tf} ATR: 不可用")
+    lines.extend([
+        "- 建议 SL 距离: 1.5×~3.0× ATR (按 lifecycle 调整)",
+        "- 建议 TP1 距离: ≥1.2× SL 距离",
+        "- 建议 TP3 距离: ≥2.5× SL 距离 (确保正 RR)",
+    ])
+    return "\n".join(lines)
 
 
 def render_recent_loss_block(
     db, symbol: str, direction: str, account_id: int, window_hours: int = 24,
+    nature: Optional[str] = None,
 ) -> Dict[str, Any]:
     """渲染最近同方向亏损块（兼容旧调用）。
 
@@ -492,7 +629,9 @@ def render_recent_loss_block(
             "consecutive_losses": int,   # 同方向连续亏损数
         }
     """
-    memory = _get_trade_memory(db, symbol, account_id or 0, limit=5, window_days=1)
+    memory = _get_trade_memory(
+        db, symbol, account_id or 0, limit=5, window_days=1, nature=nature,
+    )
     consecutive = memory["same_dir_losses_24h"]
     cooldown_active = consecutive >= 2
 

@@ -1,4 +1,4 @@
-# 长线策略(TrendAgent)深度审计报告
+﻿# 长线策略(TrendAgent)深度审计报告
 
 > 版本: v2.0 | 日期: 2026-07-20 | 基于 trend_agent.py(878行)、midlong_loop.py(207行)、mlto_cycle.py(743行)、trading_analysts.py + DB实证
 
@@ -38,7 +38,7 @@ midlong_loop.py(每120s)
   → TrendAgent.analyze_direction(side=锚点)
       ├─ build_trend_evidence() → 收集9类事实(趋势/MACD/RSI/vol/resonance/regime/猎杀/vol_ratio/衍生品)
       ├─ _build_direction_prompt() → 构建完整prompt(10步分析 + 深度上下文注入)
-      ├─ _call_llm(DeepSeek v4-pro, temperature=0.2, response_format=json_object)
+      ├─ _call_llm(DeepSeek v4-flash, temperature=0.2, response_format=json_object)
       ├─ _normalize_direction() → MTF融合(65%LLM+35%规则) + 币圈尾部风险调整
       ├─ _apply_fact_guard_direction() → FactGuard enforce/shadow
       └─ 返回 {score, direction, should_open, suggested_sl_pct, reasoning}

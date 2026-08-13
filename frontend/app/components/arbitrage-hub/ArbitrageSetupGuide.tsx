@@ -54,9 +54,9 @@ export default function ArbitrageSetupGuide({
       name: '专用套利（交易员档案）',
       where: 'AI 交易员管理 → 专用套利',
       funds: '指向上面「套利模拟账户」',
-      llm: '分析模型(深度/reasoner) + 执行模型(快速) — 与 AI 交易员共用',
+      llm: '分析/执行模型统一用 deepseek-v4-flash',
       forWhat: '授权 S3/S8、证明是套利用交易员、绑定 Paper',
-      notFor: '不是两套重复配置；分析模型请选 deepseek-reasoner 等深度模型',
+      notFor: '不是两套重复配置；模型请选 deepseek-v4-flash',
     },
   ]
 

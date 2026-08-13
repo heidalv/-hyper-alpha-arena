@@ -17,7 +17,14 @@ class WsManager {
   constructor() {
     // 运行时后端地址:用户设置(localStorage) > NEXT_PUBLIC_WS_URL > 默认 ws://localhost:8000/ws。
     // 单例首次实例化时求值;改地址后新会话生效(getWs() 首次调用,通常页面加载时)。
-    this.url = getWsUrl();
+    const base = getWsUrl();
+    const isDesktop =
+      typeof window !== "undefined" &&
+      Boolean((window as any)?.electronAPI);
+    // 桌面端打标 client=desktop：后端据此只向桌面客户端广播版本更新。
+    this.url = isDesktop
+      ? `${base}${base.includes("?") ? "&" : "?"}client=desktop`
+      : base;
   }
 
   connect() {

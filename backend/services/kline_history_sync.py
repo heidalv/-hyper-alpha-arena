@@ -61,12 +61,20 @@ class SyncProgress:
     total_records_synced: int = 0
 
 
-PERIOD_PRIORITY = ["1d", "4h", "1h", "30m", "15m", "5m", "1m"]
+PERIOD_PRIORITY = ["1M", "1d", "4h", "1h", "30m", "15m", "5m", "1m"]
 PERIOD_SECONDS = {
     "1m": 60, "3m": 180, "5m": 300, "15m": 900,
     "30m": 1800, "1h": 3600, "2h": 7200,
     "4h": 14400, "8h": 28800, "12h": 43200, "1d": 86400,
+    "1w": 604800, "1M": 2592000,
 }
+
+# [2026-08-08] 长周期内部空洞检测范围（earliest→latest 之间的缺失补齐）；
+# 短周期实时写入密集 + 受 retention 裁剪，内部空洞意义小，不检测。
+# [2026-08-10 修复] 纳入 1M 月线：asterdex 主所此前无月线，长线缺月线锚。
+_INNER_GAP_PERIODS = {"1h", "4h", "1d", "1w", "1M"}
+_MAX_INNER_WINDOWS = 64  # 缺失窗口上限：超出按缺口大小取前 64 大，防碎片爆炸
+_BACKFILL_SYMBOL_CONCURRENCY = 4  # 符号级并发：限流桶保护请求率，并发只叠加墙钟吞吐
 
 logger = logging.getLogger(__name__)
 
@@ -655,14 +663,26 @@ history_sync = KlineHistorySync()
 
 
 def _depth_targets() -> Dict[str, int]:
-    """读取 KLINE_P1_DEPTH_DAYS_<PERIOD> 环境变量。"""
+    """读取 KLINE_P1_DEPTH_DAYS_<PERIOD> 环境变量。
+
+    [2026-08-08 P0-2] 5m 默认 30→50：对齐因子进化三段切分短窗 30/10/10 天
+    （v6 5.4.3），否则短线进化即使 lookback 正确仍因库深不够无法真 OOS。
+    """
     defaults = {
-        "1m": 30, "3m": 30, "5m": 30, "15m": 60,
+        "1m": 30, "3m": 30, "5m": 50, "15m": 60,
         "30m": 90, "1h": 210, "4h": 365, "1d": 730, "1w": 520,
+        "1M": 60,
     }
     out: Dict[str, int] = {}
     for period, default in defaults.items():
-        env = os.getenv(f"KLINE_P1_DEPTH_DAYS_{period.upper()}", "")
+        # [2026-08-10 修复] "1M" 月线与 "1m" 分钟周期 env 键同名
+        #（KLINE_P1_DEPTH_DAYS_1M 已被 1m 占用）→ 月线走专用键，避免误读 30 天。
+        env_key = (
+            "KLINE_P1_DEPTH_DAYS_1M_MONTH"
+            if period == "1M"
+            else f"KLINE_P1_DEPTH_DAYS_{period.upper()}"
+        )
+        env = os.getenv(env_key, "")
         try:
             out[period] = max(1, int(env)) if env else default
         except (TypeError, ValueError):
@@ -765,6 +785,25 @@ class DepthBackfillRunner:
             "targets": _depth_targets(),
         }
 
+    def nudge(self, symbols: Optional[List[str]] = None, periods: Optional[List[str]] = None) -> bool:
+        """短线进化数据不足时催促深度回填（P0-2）。
+
+        若线程未开则尝试 start()；已在跑则仅打日志（下一轮/_run_once 会补差）。
+        不阻塞调用方——进化侧应立即返回 depth_insufficient，等回填完成后再跑。
+        """
+        syms = [str(s).upper() for s in (symbols or []) if s][:20]
+        pers = [str(p) for p in (periods or []) if p][:8]
+        logger.warning(
+            "[DepthBackfill] nudge 催促回填 symbols=%s periods=%s running=%s",
+            syms or "*", pers or "*",
+            bool(self._thread and self._thread.is_alive()),
+        )
+        try:
+            return bool(self.start())
+        except Exception as e:
+            logger.warning("[DepthBackfill] nudge/start 失败: %s", e)
+            return False
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -806,19 +845,24 @@ class DepthBackfillRunner:
             for ex in ("binance", "okx", "bybit", "hyperliquid"):
                 exchange_jobs.append((ex, cold_symbols))
 
-        # asterdex 周期顺序：1h/4h/1d/1w 优先（规则引擎依赖），1m 大头放最后
-        ordered_periods = ["1h", "4h", "1d", "1w", "30m", "15m", "5m", "3m", "1m"]
+        # [2026-08-08 修复] 周期顺序：1d/1w 优先——长周期内部空洞是因子长周期依赖的
+        # 主战场且请求量小（每币 1-2 批），关键币几分钟内补齐；1h/4h 其次（规则引擎
+        # 依赖）；1m 大头（30 天≈29 批/币）放最后。
+        ordered_periods = ["1M", "1d", "1w", "1h", "4h", "30m", "15m", "5m", "3m", "1m"]
         period_days = {p: targets.get(p, 30) for p in ordered_periods if p in targets}
 
         def _cold_days(period: str, days: int) -> int:
             """冷所短周期浅回填：请求量巨大（1m 30天≈29批/币），冷所是备选源，
             短周期给浅深度即可覆盖「主流币短周期缺失」，同时避免冷所限流桶排队过久。
-            - 1m/3m/5m：15 天
+            - 1m/3m：15 天
+            - 5m：与主动所同深（默认 50，对齐短线因子进化 30/10/10）
             - 15m/30m：45 天
             - 1h/4h/1d/1w：与 asterdex 相同深度
             """
-            if period in ("1m", "3m", "5m"):
+            if period in ("1m", "3m"):
                 return min(days, 15)
+            if period == "5m":
+                return days  # 研究取数择深；浅回填会导致 5m 进化 depth_insufficient
             if period in ("15m", "30m"):
                 return min(days, 45)
             return days
@@ -844,6 +888,34 @@ class DepthBackfillRunner:
                 period_jobs.append((exchange, symbols, job_days))
 
             async def _job(exchange: str, symbols: list, days: int):
+                # [2026-08-11 修复] 限流冷却期整批跳过，不再对每个 symbol 逐个报错刷屏。
+                try:
+                    from backend.services.kline_collectors import (
+                        _AsterdexRateLimiter,
+                        _ColdExchangeRateLimiter,
+                    )
+                    _rem = (
+                        _AsterdexRateLimiter.banned_remaining()
+                        if exchange == "asterdex"
+                        else _ColdExchangeRateLimiter.banned_remaining(exchange)
+                    )
+                    if _rem > 0:
+                        logger.info(
+                            "[DepthBackfill] %s 限流冷却中（%.0fs），跳过 %s/%s 整批",
+                            exchange, _rem, exchange, period,
+                        )
+                        try:
+                            from backend.services.kline_sync_meta import record_heartbeat
+                            record_heartbeat(
+                                exchange, pool="p2_depth", period=period,
+                                symbols_ok=0, symbols_fail=0,
+                                meta={"skipped": "rate_limit_cooldown"},
+                            )
+                        except Exception:
+                            pass
+                        return
+                except Exception:
+                    pass
                 logger.info(
                     "[DepthBackfill] %s %s × %d 天，symbols=%d",
                     exchange, period, days, len(symbols),
@@ -904,44 +976,95 @@ class DepthBackfillRunner:
         start_dt = end_dt - _td(days=days)
         ok_n = 0
         fail_n = 0
-        for sym in symbols:
-            if self._stop.is_set():
-                break
-            try:
-                with MarketSessionLocal() as mdb:
-                    row = mdb.execute(_sa_text(
-                        "SELECT min(timestamp), max(timestamp) FROM crypto_klines "
-                        "WHERE exchange=:ex AND symbol=:s AND period=:p"
-                    ), {"ex": exchange, "s": sym.upper(), "p": period}).first()
-                total_bars = 0
-                if row and row[0]:
-                    earliest = _dt.fromtimestamp(int(row[0]), tz=_tz.utc)
-                    latest = _dt.fromtimestamp(int(row[1]), tz=_tz.utc)
-                    windows = [
-                        (start_dt, min(earliest - _td(minutes=1), end_dt)),  # 前缀缺口
-                        (latest + _td(minutes=1), end_dt),                    # 后缀缺口
-                    ]
-                else:
-                    windows = [(start_dt, end_dt)]
-                for _ws, _we in windows:
-                    if _ws >= _we:
-                        continue
-                    bars = await collector.fetch_historical_klines(
-                        sym.upper(), _ws, _we, period,
-                    )
-                    if bars:
-                        await kline_service._insert_kline_data(bars)
-                        total_bars += len(bars)
-                if total_bars:
-                    logger.info(
-                        "[DepthBackfill] %s/%s@%s: +%d bars (prefix/suffix 补齐)",
-                        sym.upper(), period, exchange, total_bars,
-                    )
-                ok_n += 1
-            except Exception as exc:
-                fail_n += 1
-                logger.warning("[DepthBackfill] %s/%s@%s 失败: %s",
-                               sym.upper(), period, exchange, str(exc)[:140])
+        # [2026-08-08 修复] 符号级并发：每符号「空洞检测 + 窗口抓取 + 入库」整体并行，
+        # 请求率仍由各所限流桶保护（asterdex backfill 桶 150 req/min / 冷所独立桶），
+        # 并发只叠加墙钟吞吐、不放大请求率。实测单批代理延迟 ~30s，顺序处理 519 币
+        # 1h 需 10h+，并发后关键币长周期几分钟内补齐、全库 1d 轮次压缩到 ~1.5h。
+        sem = asyncio.Semaphore(_BACKFILL_SYMBOL_CONCURRENCY)
+
+        async def _process_symbol(sym: str):
+            """单符号回填：返回 True=成功 / False=失败 / None=被 stop 跳过。"""
+            async with sem:
+                if self._stop.is_set():
+                    return None
+                try:
+                    with MarketSessionLocal() as mdb:
+                        row = mdb.execute(_sa_text(
+                            "SELECT min(timestamp), max(timestamp) FROM crypto_klines "
+                            "WHERE exchange=:ex AND symbol=:s AND period=:p"
+                        ), {"ex": exchange, "s": sym.upper(), "p": period}).first()
+                    total_bars = 0
+                    if row and row[0]:
+                        earliest = _dt.fromtimestamp(int(row[0]), tz=_tz.utc)
+                        latest = _dt.fromtimestamp(int(row[1]), tz=_tz.utc)
+                        windows = [
+                            (start_dt, min(earliest - _td(minutes=1), end_dt)),  # 前缀缺口
+                            (latest + _td(minutes=1), end_dt),                    # 后缀缺口
+                        ]
+                        # [2026-08-08 修复] 长周期内部空洞检测：earliest→latest 之间缺失的
+                        # 期望时间点聚合成连续窗口（上限 _MAX_INNER_WINDOWS，超出取前 64 大），
+                        # 补历史内部空洞（如 BTC 1d 2023-07→2026-07 三年空洞）。
+                        if period in _INNER_GAP_PERIODS:
+                            step = PERIOD_SECONDS[period]
+                            # 独立 session：修复旧实现复用已关闭连接导致
+                            # idle-in-transaction 泄漏（LeakGuard 持续报警）。
+                            with MarketSessionLocal() as mdb2:
+                                ts_rows = mdb2.execute(_sa_text(
+                                    "SELECT timestamp FROM crypto_klines "
+                                    "WHERE exchange=:ex AND symbol=:s AND period=:p "
+                                    "ORDER BY timestamp"
+                                ), {"ex": exchange, "s": sym.upper(), "p": period}).fetchall()
+                            existing = {int(r[0]) for r in ts_rows}
+                            missing = [
+                                t for t in range(
+                                    int(earliest.timestamp()) + step,
+                                    int(latest.timestamp()) + 1,
+                                    step,
+                                ) if t not in existing
+                            ]
+                            gaps = []
+                            if missing:
+                                gs = ge = missing[0]
+                                for m in missing[1:]:
+                                    if m - ge == step:
+                                        ge = m
+                                    else:
+                                        gaps.append((gs, ge))
+                                        gs = ge = m
+                                gaps.append((gs, ge))
+                            if len(gaps) > _MAX_INNER_WINDOWS:
+                                gaps.sort(key=lambda g: g[1] - g[0], reverse=True)
+                                gaps = gaps[:_MAX_INNER_WINDOWS]
+                            for gs, ge in gaps:
+                                windows.append((
+                                    _dt.fromtimestamp(gs, tz=_tz.utc),
+                                    _dt.fromtimestamp(ge + step - 1, tz=_tz.utc),
+                                ))
+                    else:
+                        windows = [(start_dt, end_dt)]
+                    for _ws, _we in windows:
+                        if _ws >= _we:
+                            continue
+                        bars = await collector.fetch_historical_klines(
+                            sym.upper(), _ws, _we, period,
+                        )
+                        if bars:
+                            await kline_service._insert_kline_data(bars)
+                            total_bars += len(bars)
+                    if total_bars:
+                        logger.info(
+                            "[DepthBackfill] %s/%s@%s: +%d bars (prefix/suffix 补齐)",
+                            sym.upper(), period, exchange, total_bars,
+                        )
+                    return True
+                except Exception as exc:
+                    logger.warning("[DepthBackfill] %s/%s@%s 失败: %s",
+                                   sym.upper(), period, exchange, str(exc)[:140])
+                    return False
+
+        results = await asyncio.gather(*[_process_symbol(s) for s in symbols])
+        ok_n = sum(1 for r in results if r is True)
+        fail_n = sum(1 for r in results if r is False)
         return ok_n, fail_n
 
     async def _backfill_asterdex_period(

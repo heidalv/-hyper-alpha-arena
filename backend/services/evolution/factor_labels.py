@@ -16,19 +16,22 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
-FEATURE_FACTOR_LABELS_ENABLED = os.getenv("FEATURE_FACTOR_LABELS_ENABLED", "false").lower() in (
+# [2026-08-13 P1-5] 三重障碍标签默认启用（短线 5m/15m 挖矿目标贴近 SL/TP 结算）；
+# 回滚：FEATURE_FACTOR_LABELS_ENABLED=0|false|off
+FEATURE_FACTOR_LABELS_ENABLED = os.getenv("FEATURE_FACTOR_LABELS_ENABLED", "true").lower() in (
     "1", "true", "yes", "on",
 )
 
 
 @dataclass
 class FactorLabelConfig:
-    """标签参数（默认值来自设计文档 §2.1）。"""
+    """标签参数（默认值来自设计文档 §2.1，经网格小验证固化；env 可覆盖）。"""
     horizon_bars: int = 12        # 5m 因子默认 12 根（1h）
-    vol_mult: float = 1.5         # 上下障碍 = 当日波动率 × vol_mult
-    min_vol: float = 0.0001       # 波动率下限，过低跳过
+    vol_mult: float = float(os.getenv("FEATURE_FACTOR_LABELS_VOL_MULT", "1.5") or 1.5)   # 障碍 = 波动率 × vol_mult
+    min_vol: float = float(os.getenv("FEATURE_FACTOR_LABELS_MIN_VOL", "0.0001") or 0.0001)  # 波动率下限，过低跳过
     vol_lookback: int = 20
 
 
@@ -95,13 +98,119 @@ def meta_label_samples(
     features: dict,
     horizon_bars: int = 12,
 ) -> pd.DataFrame:
-    """meta-labeling 样本生成（骨架）。
+    """meta-labeling 样本生成：粗信号触发事件集 → 二分类训练 DataFrame。
 
-    设计：在粗信号（因子方向）触发的事件集上，用 5~8 个特征
-    （ATR%、量比、盘口失衡、OI delta）训练"是否值得交易"二分类。
-    当前仅返回空 DataFrame，等待 FEATURE_FACTOR_LABELS_ENABLED 启用后实现。
+    在粗信号（|factor_series|>0）触发的事件上，用 5-8 个特征
+    （ATR%、量比、盘口失衡、OI delta 等）对齐「该不该交易」标签（labels>0 → win=1）。
+
+    Parameters:
+        factor_series: 粗信号分数（确定事件集 + 保留 signal 列）。
+        labels: 三重障碍/收益标签（>0 视为 win）。
+        features: {特征名: Series}，必须与 factor_series 同索引。
+        horizon_bars: 标签前瞻期（透传语义，构造侧不重算）。
+
+    Returns:
+        DataFrame：列 = [signal, <features...>, win]，仅含有效触发事件行。
     """
-    return pd.DataFrame()
+    if factor_series is None or labels is None or not features:
+        return pd.DataFrame()
+    try:
+        sig = pd.Series(factor_series).astype(float)
+        lab = pd.Series(labels).astype(float)
+        idx = sig.index.intersection(lab.index)
+        if len(idx) == 0:
+            return pd.DataFrame()
+        cols = {"signal": sig.reindex(idx)}
+        for name, fs in features.items():
+            if isinstance(fs, pd.Series):
+                cols[str(name)] = fs.reindex(idx).astype(float)
+        df = pd.DataFrame(cols)
+        df["win"] = (lab.reindex(idx) > 0).astype(int)
+        # 仅在粗信号触发的事件上训练（|signal|>0），标签 NaN 的行剔除
+        df = df[(df["signal"].abs() > 0) & df["signal"].notna()]
+        df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["win"])
+        return df.reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame()
+
+
+def meta_label_samples_from_signal_log(
+    min_samples: int = 200,
+    lookback_days: int = 90,
+    feature_freq: float = 0.2,
+) -> pd.DataFrame:
+    """[2026-08-13 P1-6] 从 scalp_signal_log 的 features_json 快照构造 meta 训练样本。
+
+    接入 scalp_meta_trainer 现有采集链路：信号发生时的因子快照（breakdown +
+    订单流字段）已存 features_json，事后由结算任务回填 win 标签。这里把
+    「粗信号触发事件 + 真实 win」对齐成二分类 DataFrame，供
+    scalp_meta_trainer.train_and_validate 训练「该不该交易」模型。
+
+    Parameters:
+        min_samples: 有效样本下限（低于此值返回空，调用方应继续采集）。
+        lookback_days: 取近 N 天样本。
+        feature_freq: 快照键入列门槛（在样本中出现频率 ≥ 此值才作为特征）。
+
+    Returns:
+        DataFrame：列 = [signal, dir_sign, <数值快照特征...>, win]。
+    """
+    import json as _json
+    from sqlalchemy import text as _text
+    from backend.database.connection import SessionLocal
+
+    db = SessionLocal()
+    try:
+        rows = db.execute(_text(
+            "SELECT factor_score, direction, win, features_json FROM scalp_signal_log "
+            "WHERE settled = true AND win IS NOT NULL "
+            "AND created_at >= NOW() - INTERVAL '" + str(int(lookback_days)) + " days'"
+        )).fetchall()
+    finally:
+        db.close()
+
+    recs = []
+    for fs, direction, win, feats_raw in rows:
+        try:
+            feats = _json.loads(feats_raw) if feats_raw else {}
+        except Exception:
+            feats = {}
+        if not isinstance(feats, dict):
+            feats = {}
+        recs.append({
+            "signal": float(fs or 0),
+            "dir_sign": 1.0 if str(direction) == "long" else (-1.0 if str(direction) == "short" else 0.0),
+            "win": 1 if bool(win) else 0,
+            "feats": feats,
+        })
+    if len(recs) < min_samples:
+        return pd.DataFrame()
+
+    # 快照键频率筛选（只保留数值型、出现频率达标的键）
+    key_count: dict = {}
+    for r in recs:
+        for k, v in r["feats"].items():
+            try:
+                float(v)
+                key_count[k] = key_count.get(k, 0) + 1
+            except (TypeError, ValueError):
+                continue
+    n = len(recs)
+    snap_cols = sorted(k for k, c in key_count.items() if c / n >= feature_freq)
+    cols = {"signal": [], "dir_sign": [], "win": []}
+    for c in snap_cols:
+        cols[c] = []
+    for r in recs:
+        cols["signal"].append(r["signal"])
+        cols["dir_sign"].append(r["dir_sign"])
+        cols["win"].append(r["win"])
+        for c in snap_cols:
+            try:
+                v = float(r["feats"].get(c))
+                cols[c].append(v if np.isfinite(v) else 0.0)
+            except (TypeError, ValueError):
+                cols[c].append(0.0)
+    df = pd.DataFrame(cols)
+    return df[(df["signal"].abs() > 0)]
 
 
 def net_ic(ic_mean: float, turnover: float, cost_per_turn: float = 0.001) -> float:

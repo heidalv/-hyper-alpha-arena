@@ -239,37 +239,48 @@ def get_heartbeats(exchange: Optional[str] = None) -> List[dict[str, Any]]:
 
 
 def get_catalog_coverage() -> List[dict[str, Any]]:
-    """各所 catalog 规模 + crypto_klines 粗覆盖（运维/磁盘规划）。"""
+    """各所 catalog 规模 + crypto_klines 粗覆盖（运维/磁盘规划）。
+
+    禁止对整表 crypto_klines（约 6800 万行 / 38GB）做 COUNT(*) 全表聚合：
+    Snapshot/监控若周期性调用会把磁盘 IO 打满，表现为后端“假死”。
+    这里只做 catalog 精确统计 + 表级近似行数/体积。
+    """
     _ensure_tables()
     out: List[dict[str, Any]] = []
     try:
         from backend.database.connection import MarketSessionLocal
         with MarketSessionLocal() as db:
+            try:
+                db.execute(sa_text("SET LOCAL statement_timeout = '2500ms'"))
+            except Exception:
+                pass
             cat_rows = db.execute(sa_text("""
                 SELECT exchange, COUNT(*) FILTER (WHERE status = 'trading') AS trading_n,
                        COUNT(*) AS total_n, MAX(updated_at) AS updated_at
                 FROM symbol_catalog GROUP BY exchange ORDER BY exchange
             """)).fetchall()
-            kline_rows = db.execute(sa_text("""
-                SELECT exchange, COUNT(DISTINCT symbol) AS sym_n, COUNT(*) AS row_n,
-                       pg_size_pretty(pg_total_relation_size('crypto_klines')) AS table_size
-                FROM crypto_klines GROUP BY exchange ORDER BY exchange
-            """)).fetchall()
-        kline_map = {r[0]: {"symbols_with_klines": r[1], "kline_rows": r[2], "table_size": r[3]} for r in kline_rows}
+            approx = db.execute(sa_text("""
+                SELECT COALESCE(c.reltuples, 0)::bigint AS approx_rows,
+                       pg_size_pretty(pg_total_relation_size(c.oid)) AS table_size
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relname = 'crypto_klines'
+            """)).first()
+        approx_rows = int(approx[0]) if approx else 0
+        table_size = approx[1] if approx else None
+        n_ex = max(len(cat_rows), 1)
         for r in cat_rows:
-            item = {
+            out.append({
                 "exchange": r[0],
                 "catalog_trading": r[1],
                 "catalog_total": r[2],
                 "catalog_updated_at": r[3].isoformat() if r[3] else None,
-            }
-            item.update(kline_map.get(r[0], {}))
-            out.append(item)
-        # 补上有 K 线但尚无 catalog 的所
-        known = {x["exchange"] for x in out}
-        for ex, info in kline_map.items():
-            if ex not in known:
-                out.append({"exchange": ex, "catalog_trading": 0, "catalog_total": 0, **info})
+                "symbols_with_klines": None,  # 全表 DISTINCT 过贵，不再实时算
+                "kline_rows": max(approx_rows // n_ex, 0),
+                "kline_rows_approx_total": approx_rows,
+                "table_size": table_size,
+                "approximate": True,
+            })
     except Exception as e:
         logger.warning("[KlineSyncMeta] get_catalog_coverage 失败: %s", e)
     return out

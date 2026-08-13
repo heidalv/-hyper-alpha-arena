@@ -45,19 +45,19 @@ APPROVAL_TIMEOUT_SEC = 24 * 3600
 class LifecycleThresholds:
     """状态转换阈值（方案：阈值本身也走 DSR 校验防手调过拟合）。"""
     # CANDIDATE → ORTHO（CPCV 评估）
-    min_icir: float = 0.30
+    min_icir: float = 0.40   # [2026-08-13 P2-11] 0.30→0.40 收紧（诊断：准入门槛系统性偏松）
     max_monotonicity_p: float = 0.05   # 单调性 p 值（越小越单调）
     max_turnover: float = 0.70
     min_halflife_bars: int = 5
     # ORTHO → PAPER
     max_incremental_corr: float = 0.50  # 对活跃池的增量相关
     min_dsr_significant: bool = True    # Deflated Sharpe 显著
-    max_pbo: float = 0.50               # PBO < 0.5
+    max_pbo: float = 0.35               # [2026-08-13 P2-11] 0.50→0.35（诊断：PBO 门槛低于行业常规）
     min_capacity_usd: float = 1e5       # 容量下限（P1.6）
     # PAPER → SMALL_LIVE
     min_paper_sharpe: float = 1.0
     max_live_deviation: float = 0.003   # 实盘对齐偏差 0.3%
-    paper_min_days: int = 5
+    paper_min_days: int = 10   # [2026-08-13 P2-11] 5→10（影子期过短不足以暴露 regime 切换）
     # SMALL_LIVE → ACTIVE
     small_live_min_days: int = 14
     # ACTIVE → DEWEIGHT（退化触发，任一满足）

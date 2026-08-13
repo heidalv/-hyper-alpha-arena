@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import {
   LayoutDashboard, Brain, FlaskConical,
@@ -12,6 +12,7 @@ import {
   Radar, Coins, Workflow, Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shouldHandleNavClick, softNavigate } from "@/lib/app-nav";
 import { useAuthStore } from "@/lib/stores/auth";
 
 interface NavItem {
@@ -67,7 +68,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: "系统",
     items: [
       { href: "/risk", label: "风控监控", icon: Shield },
-      { href: "/logs", label: "系统日志", icon: FileText },
+      { href: "/ops", label: "运维看板", icon: Activity },
+      { href: "/ops#ops-errors", label: "报错中心", icon: FileText },
       { href: "/settings", label: "设置", icon: Settings },
     ],
   },
@@ -75,6 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const showVip = useMemo(() => {
     const tier = (user?.tier || "").toLowerCase();
@@ -122,11 +125,32 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             )}
             {group.items.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+              const hrefPath = item.href.split(/[?#]/)[0] || "/";
+              const isActive =
+                pathname === hrefPath ||
+                (hrefPath !== "/" && !!pathname?.startsWith(hrefPath + "/"));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
+                  onClick={(e) => {
+                    if (!shouldHandleNavClick(e)) return;
+                    e.preventDefault();
+                    // 同页锚点：直接滚到报错区
+                    if (
+                      item.href.includes("#") &&
+                      pathname === hrefPath
+                    ) {
+                      const id = item.href.split("#")[1];
+                      const el = id ? document.getElementById(id) : null;
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        return;
+                      }
+                    }
+                    softNavigate(item.href, (url) => router.push(url));
+                  }}
                   className={cn(
                     "flex items-center gap-3 px-4 py-2 text-sm transition-colors relative group",
                     isActive

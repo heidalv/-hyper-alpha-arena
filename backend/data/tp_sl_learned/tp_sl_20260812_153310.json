@@ -1,0 +1,232 @@
+{
+  "updated_at": "2026-08-12T15:33:10.428165+00:00",
+  "version": 1,
+  "by_tier": {
+    "short": {
+      "tp_pct": 0.012,
+      "sl_pct": 0.01,
+      "oos_avg": -0.000807,
+      "oos_n": 649,
+      "oos_win_rate": 0.4284,
+      "source": "grid_oos",
+      "period": "5m"
+    },
+    "mid": {
+      "tp_pct": 0.04,
+      "sl_pct": 0.02,
+      "oos_avg": -0.004592,
+      "oos_n": 657,
+      "oos_win_rate": 0.3516,
+      "source": "grid_oos",
+      "period": "1h"
+    }
+  },
+  "details": {
+    "short": {
+      "ok": true,
+      "adopted": true,
+      "reject_reason": null,
+      "error": null,
+      "n_books": 5,
+      "n_trials": 19,
+      "baseline": {
+        "tp_pct": 0.018,
+        "sl_pct": 0.012,
+        "oos": {
+          "n": 649,
+          "avg": -0.00084,
+          "win_rate": 0.4314,
+          "expectancy": -0.00084,
+          "score": -0.021399
+        }
+      },
+      "best": {
+        "tp_pct": 0.012,
+        "sl_pct": 0.01,
+        "train": {
+          "n": 1704,
+          "avg": -0.000711,
+          "win_rate": 0.436,
+          "expectancy": -0.000711,
+          "score": -0.029358
+        },
+        "oos": {
+          "n": 649,
+          "avg": -0.000807,
+          "win_rate": 0.4284,
+          "expectancy": -0.000807,
+          "score": -0.020568
+        },
+        "source": "grid_oos"
+      },
+      "top3": [
+        {
+          "tp_pct": 0.012,
+          "sl_pct": 0.01,
+          "train": {
+            "n": 1704,
+            "avg": -0.000711,
+            "win_rate": 0.436,
+            "expectancy": -0.000711,
+            "score": -0.029358
+          },
+          "oos": {
+            "n": 649,
+            "avg": -0.000807,
+            "win_rate": 0.4284,
+            "expectancy": -0.000807,
+            "score": -0.020568
+          }
+        },
+        {
+          "tp_pct": 0.015,
+          "sl_pct": 0.012,
+          "train": {
+            "n": 1704,
+            "avg": -0.000662,
+            "win_rate": 0.4384,
+            "expectancy": -0.000662,
+            "score": -0.027334
+          },
+          "oos": {
+            "n": 649,
+            "avg": -0.000816,
+            "win_rate": 0.4314,
+            "expectancy": -0.000816,
+            "score": -0.020783
+          }
+        },
+        {
+          "tp_pct": 0.018,
+          "sl_pct": 0.015,
+          "train": {
+            "n": 1704,
+            "avg": -0.000707,
+            "win_rate": 0.439,
+            "expectancy": -0.000707,
+            "score": -0.029196
+          },
+          "oos": {
+            "n": 649,
+            "avg": -0.000828,
+            "win_rate": 0.4314,
+            "expectancy": -0.000828,
+            "score": -0.021086
+          }
+        }
+      ],
+      "symbols": [
+        "BTC",
+        "ETH",
+        "SOL",
+        "BNB",
+        "ASTER"
+      ],
+      "period": "5m"
+    },
+    "mid": {
+      "ok": true,
+      "adopted": true,
+      "reject_reason": null,
+      "error": null,
+      "n_books": 5,
+      "n_trials": 20,
+      "baseline": {
+        "tp_pct": 0.07,
+        "sl_pct": 0.035,
+        "oos": {
+          "n": 657,
+          "avg": -0.005745,
+          "win_rate": 0.3881,
+          "expectancy": -0.005745,
+          "score": -0.147262
+        }
+      },
+      "best": {
+        "tp_pct": 0.04,
+        "sl_pct": 0.02,
+        "train": {
+          "n": 1574,
+          "avg": 0.000151,
+          "win_rate": 0.3895,
+          "expectancy": 0.000151,
+          "score": 0.006003
+        },
+        "oos": {
+          "n": 657,
+          "avg": -0.004592,
+          "win_rate": 0.3516,
+          "expectancy": -0.004592,
+          "score": -0.11771
+        },
+        "source": "grid_oos"
+      },
+      "top3": [
+        {
+          "tp_pct": 0.04,
+          "sl_pct": 0.02,
+          "train": {
+            "n": 1574,
+            "avg": 0.000151,
+            "win_rate": 0.3895,
+            "expectancy": 0.000151,
+            "score": 0.006003
+          },
+          "oos": {
+            "n": 657,
+            "avg": -0.004592,
+            "win_rate": 0.3516,
+            "expectancy": -0.004592,
+            "score": -0.11771
+          }
+        },
+        {
+          "tp_pct": 0.04,
+          "sl_pct": 0.025,
+          "train": {
+            "n": 1574,
+            "avg": 0.000427,
+            "win_rate": 0.4371,
+            "expectancy": 0.000427,
+            "score": 0.016949
+          },
+          "oos": {
+            "n": 657,
+            "avg": -0.004812,
+            "win_rate": 0.376,
+            "expectancy": -0.004812,
+            "score": -0.123341
+          }
+        },
+        {
+          "tp_pct": 0.07,
+          "sl_pct": 0.045,
+          "train": {
+            "n": 1574,
+            "avg": -0.000137,
+            "win_rate": 0.4797,
+            "expectancy": -0.000137,
+            "score": -0.005426
+          },
+          "oos": {
+            "n": 657,
+            "avg": -0.005151,
+            "win_rate": 0.3988,
+            "expectancy": -0.005151,
+            "score": -0.13204
+          }
+        }
+      ],
+      "symbols": [
+        "BTC",
+        "ETH",
+        "SOL",
+        "BNB",
+        "ASTER"
+      ],
+      "period": "1h"
+    }
+  },
+  "elapsed_sec": 8.6,
+  "note": "仅当样本外优于静态默认表时才写入 by_tier；否则开仓继续用原表"
+}

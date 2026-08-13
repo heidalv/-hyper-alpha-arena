@@ -83,6 +83,7 @@ _NON_API_PREFIXES: tuple[str, ...] = (
     "/assets/",
     "/ws",
     "/auth-config.json",
+    "/arena-updates/",  # 桌面 EXE 自动更新静态目录（无需登录）
 )
 
 # 根路径

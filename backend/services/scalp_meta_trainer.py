@@ -404,10 +404,17 @@ def get_report() -> Dict[str, Any]:
 _MODEL_CACHE: Dict[str, Any] = {"mtime": 0, "obj": None}
 
 
-def predict_win_prob(features: Dict[str, Any]) -> Optional[float]:
+def predict_win_prob(
+    features: Dict[str, Any],
+    *,
+    require_usable: bool = True,
+) -> Optional[float]:
     """给单个信号的因子快照打"会赢"概率。模型不存在/不可用则返回 None。
 
-    注意：默认仅"影子"用途，不接入实盘决策；接入与否由调用方按 usable 决定。
+    Args:
+        features: 特征字典（与训练列对齐）。
+        require_usable: True（默认）时仅 usable 模型返回概率，供 EV 软接入；
+            False 时影子日志仍可拿到概率（即使 usable=false），不用于决策。
     """
     try:
         if not os.path.exists(_MODEL_PATH):
@@ -418,6 +425,9 @@ def predict_win_prob(features: Dict[str, Any]) -> Optional[float]:
             _MODEL_CACHE["obj"] = joblib.load(_MODEL_PATH)
             _MODEL_CACHE["mtime"] = mt
         bundle = _MODEL_CACHE["obj"]
+        meta = bundle.get("meta") or {}
+        if require_usable and not bool(meta.get("usable")):
+            return None
         cols = bundle["feature_cols"]
         x = np.zeros((1, len(cols)), dtype=np.float64)
         for j, c in enumerate(cols):

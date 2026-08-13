@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { CommandPalette } from "./CommandPalette";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { DesktopUpdateBanner } from "@/components/desktop/DesktopUpdateBanner";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useMarketStore } from "@/lib/stores/market";
 import { useAuthStore } from "@/lib/stores/auth";
@@ -22,6 +23,7 @@ function ShellBody({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <div className="flex flex-1 flex-col overflow-hidden">
+        <DesktopUpdateBanner />
         <TopBar wsConnected={wsConnected} />
         <main className="flex-1 overflow-auto">{children}</main>
         <CommandPalette />
@@ -36,7 +38,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGate>
-      {isLogin ? children : <ShellBody>{children}</ShellBody>}
+      {isLogin ? (
+        <>
+          <DesktopUpdateBanner />
+          {children}
+        </>
+      ) : (
+        <ShellBody>{children}</ShellBody>
+      )}
     </AuthGate>
   );
 }

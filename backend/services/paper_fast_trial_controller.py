@@ -41,8 +41,8 @@ PARAM_DEFS: List[Dict[str, Any]] = [
         "type": "bool",
         "group": "master",
         "label": "MLTO 控开单",
-        "desc": "true=MLTO Hub 控开单；false（默认）=SwingAgent/TrendAgent 独立直控",
-        "default": False,
+        "desc": "true=MLTO Hub 控开单（v6 paper 默认）；false=TrendAgent 独立直控",
+        "default": True,
     },
     # ── 三周期 Tick（协调器 vs AI 分析分离）──
     {
@@ -512,8 +512,9 @@ PRESET_DEFS: List[Dict[str, Any]] = [
             "TIER_COORDINATOR_TICK_SEC": 45,
             "TIER_MID_AI_TICK_SEC": 45,
             "TIER_LONG_AI_TICK_SEC": 90,
-            "MIDLONG_MLTO_CONTROLS_EXEC": False,
-            "MIDLONG_THESIS_OPEN_GATE": False,
+            "MIDLONG_MLTO_CONTROLS_EXEC": True,
+            "MIDLONG_EXEC_AUTHORITY": "mlto",
+            "MIDLONG_THESIS_OPEN_GATE": True,
             "MIDLONG_AI_MANDATORY": True,
             "MIDLONG_AGENT_INDEPENDENT_SCHEDULER": True,
             "MIDLONG_QUANT_BRIEF_HARD_GATE": False,

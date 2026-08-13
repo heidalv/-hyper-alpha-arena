@@ -107,6 +107,10 @@ class _ColdExchangeRateLimiter:
     _req_ts: Dict[str, List[float]] = {}
     _banned_until: Dict[str, float] = {}
 
+    # 每个冷所两次请求之间的最小间隔（秒）。默认取 KLINE_REQUEST_INTERVAL_SEC，
+    # 防止 P1 并发任务在同一瞬间同时放行造成突发打满交易所每秒限额。
+    _min_interval = max(0.2, float(os.getenv("KLINE_REQUEST_INTERVAL_SEC", "0.3")))
+
     def _max_per_min(exchange: str) -> int:
         try:
             v = int(os.getenv(
@@ -146,9 +150,14 @@ class _ColdExchangeRateLimiter:
                 wait_s = 60.0 - (now - cls._req_ts[exchange][0]) + 0.05
             else:
                 wait_s = 0.0
-        if wait_s > 0:
-            time.sleep(wait_s)
-        with cls._lock:
+            if wait_s > 0:
+                time.sleep(wait_s)
+                now = time.time()
+            # 在锁内做最小间隔排队：并发任务不会同一瞬间全部放行。
+            last_ts = cls._req_ts[exchange][-1] if cls._req_ts[exchange] else 0.0
+            gap = cls._min_interval - (now - last_ts)
+            if gap > 0:
+                time.sleep(gap)
             cls._req_ts.setdefault(exchange, []).append(time.time())
 
 
@@ -451,7 +460,7 @@ class HyperliquidKlineCollector(BaseKlineCollector):
 
             period_sec = {"1m":60,"3m":180,"5m":300,"15m":900,"30m":1800,
                           "1h":3600,"2h":7200,"4h":14400,"8h":28800,
-                          "12h":43200,"1d":86400,"1w":604800}.get(period, 3600)
+                          "12h":43200,"1d":86400,"1w":604800,"1M":2592000}.get(period, 3600)
             batch_size = 5000  # 每批最多 5000 根
             total_sec = (end_time - start_time).total_seconds()
             total_expected = int(total_sec / period_sec)
@@ -559,7 +568,7 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
                 volume=float(candle[5] or 0),
             )
         except Exception as e:
-            if _is_rate_limited_error(e):
+            if isinstance(e, ExchangeRateLimitError) or _is_rate_limited_error(e):
                 # [2026-08-04 修复] 限流必须上抛：上层据此进入冷却，停止继续顶满窗口。
                 raise ExchangeRateLimitError(
                     f"[{self.exchange_id}] {symbol}/{period} 限流/封禁: {e}"
@@ -587,7 +596,7 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
 
             period_sec = {"1m":60,"3m":180,"5m":300,"15m":900,"30m":1800,
                           "1h":3600,"2h":7200,"4h":14400,"8h":28800,
-                          "12h":43200,"1d":86400,"1w":604800}.get(period, 3600)
+                          "12h":43200,"1d":86400,"1w":604800,"1M":2592000}.get(period, 3600)
             batch_size = 1000
             result: List[KlineData] = []
             cursor = start_time
@@ -607,7 +616,7 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
                     )
                     _consecutive_failures = 0
                 except Exception as e:
-                    if _is_rate_limited_error(e):
+                    if isinstance(e, ExchangeRateLimitError) or _is_rate_limited_error(e):
                         # [2026-08-04 修复] 限流立即中止回填并上抛，交给上层冷却。
                         raise ExchangeRateLimitError(
                             f"[{self.exchange_id}] {base_sym}/{period} 历史回填限流: {e}"
@@ -653,7 +662,7 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
             )
             return result
         except Exception as e:
-            if _is_rate_limited_error(e):
+            if isinstance(e, ExchangeRateLimitError) or _is_rate_limited_error(e):
                 raise ExchangeRateLimitError(
                     f"[{self.exchange_id}] {symbol}/{period} 历史回填限流: {e}"
                 ) from e

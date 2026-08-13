@@ -144,14 +144,14 @@ class TestDeriveDirectionLlmDriven:
             Signal("llm_qual", 0.80, 0.5, "llm"),               # LLM 看多
         ]
         # adjusted 足够高时 → long
-        assert _derive_direction(sigs, adjusted=0.55) == "long"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "long"
 
     def test_llm_bearish_overrides_bullish_orch(self):
         sigs = [
             Signal("orch_long_bias", 0.70, 0.9, "framework"),   # 规则看多
             Signal("llm_qual", 0.30, 0.5, "llm"),               # LLM 看空
         ]
-        assert _derive_direction(sigs, adjusted=0.55) == "short"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "short"
 
     def test_llm_neutral_falls_back_to_orch(self):
         """LLM 中性（0.5）→ 回退到 orch_bias 逻辑。"""
@@ -159,7 +159,7 @@ class TestDeriveDirectionLlmDriven:
             Signal("orch_long_bias", 0.80, 0.9, "framework"),   # 规则强烈看多
             Signal("llm_qual", 0.50, 0.5, "llm"),               # LLM 中性
         ]
-        assert _derive_direction(sigs, adjusted=0.55) == "long"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "long"
 
     def test_no_llm_signal_uses_orch(self):
         """llm_qual 缺席时，方向由 orch_bias 决定（向后兼容）。"""
@@ -167,7 +167,7 @@ class TestDeriveDirectionLlmDriven:
             Signal("orch_long_bias", 0.75, 0.9, "framework"),
             Signal("quant_alignment", 0.60, 0.9, "framework"),
         ]
-        assert _derive_direction(sigs, adjusted=0.55) == "long"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "long"
 
     def test_llm_bullish_low_adjusted_returns_long_only_if_fw_supports(self):
         """adjusted < 0.32 且 framework 均值不足 → neutral（不无脑多头）。"""
@@ -176,7 +176,7 @@ class TestDeriveDirectionLlmDriven:
             Signal("llm_qual", 0.80, 0.5, "llm"),               # LLM 看多
         ]
         # adjusted 低 + fw_mean < 0.55 → neutral
-        assert _derive_direction(sigs, adjusted=0.25) == "neutral"
+        assert _derive_direction(sigs, adjusted=0.25)[0] == "neutral"
 
 
 # ════════════════════════════════════════════════════════════════════

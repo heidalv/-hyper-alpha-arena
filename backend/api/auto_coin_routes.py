@@ -160,9 +160,8 @@ def _load_persisted_auto_symbols(db: Session, session_id: str) -> List[str]:
                         seen.add(key)
     except Exception as e:
         logger.debug(f"[AutoCoinRoutes] read injected file failed for {session_id}: {e}")
-    if session and session.symbols:
-        session_set = {str(s).upper() for s in session.symbols}
-        symbols = [s for s in symbols if s in session_set]
+    # AI 选币隔离在 auto_coin_symbols，不得再与 session.symbols 求交——
+    # 否则隔离后前端永远显示「暂无选出交易对」，用户误以为列表空/只剩固定币。
     return symbols
 
 

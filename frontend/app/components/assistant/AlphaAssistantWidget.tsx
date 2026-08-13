@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { Brain, Minus, Plus, Send, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -118,7 +118,7 @@ function AssistantMarkdown({ content }: { content: string }) {
 
 function waitingHint(elapsedSec: number): string {
   if (elapsedSec < 8) return '正在连接 AI 服务，请稍候…';
-  if (elapsedSec < 30) return 'v4-pro 模型正在深度思考，首次回复通常需要 1-3 分钟。';
+  if (elapsedSec < 30) return 'v4-flash 模型正在思考，通常几十秒内会回复。';
   if (elapsedSec < 90) return `已等待 ${elapsedSec} 秒，模型仍在生成中，没有卡死，请继续等待。`;
   return `已等待 ${elapsedSec} 秒，复杂问题可能更久；你可以先做别的事，回复完成后会显示在这里。`;
 }
@@ -647,7 +647,7 @@ export default function AlphaAssistantWidget() {
               <span>
                 AI 正在生成回复
                 {waitSeconds > 0 ? `（${waitSeconds} 秒）` : ''}
-                — v4-pro 深度思考约需 1-3 分钟
+                — v4-flash 通常几十秒内回复
               </span>
             </div>
           )}

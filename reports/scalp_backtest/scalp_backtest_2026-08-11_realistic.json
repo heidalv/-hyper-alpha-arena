@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-08-11T09:29:54.271680+00:00",
+  "scenario": "realistic",
+  "days": 30,
+  "config": {
+    "horizon_sec": 1800,
+    "sl_pct": 0.005,
+    "tp_pct": 0.01,
+    "max_hold_sec": 7200,
+    "fee_bps": 0.5,
+    "slip_bps": 2.97,
+    "funding_bps_per_hour": 0.0,
+    "dedup_sec": 1800,
+    "round_trip_cost_bps": 6.94
+  },
+  "n_signals": 6316,
+  "n_traded": 6316,
+  "n_skipped_no_kline": 0,
+  "n_anomalies": 0,
+  "fixed": {
+    "n": 6316,
+    "win_rate": 0.3643,
+    "avg_net_ret": -0.002263,
+    "profit_factor": 0.5223,
+    "gross_win": 15.625715,
+    "gross_loss": -29.918519
+  },
+  "triple_barrier": {
+    "n": 6316,
+    "win_rate": 0.3581,
+    "avg_net_ret": -0.001041,
+    "profit_factor": 0.674,
+    "gross_win": 13.589136,
+    "gross_loss": -20.16199
+  },
+  "fixed_permutation_p": 1.0,
+  "triple_permutation_p": 1.0,
+  "buckets_fixed": [
+    {
+      "bucket": "<30",
+      "n": 542,
+      "win_rate": 0.3487,
+      "avg_net_ret": -0.000802
+    },
+    {
+      "bucket": "30-40",
+      "n": 618,
+      "win_rate": 0.3738,
+      "avg_net_ret": 8e-06
+    },
+    {
+      "bucket": "40-50",
+      "n": 366,
+      "win_rate": 0.3552,
+      "avg_net_ret": -0.001608
+    },
+    {
+      "bucket": "50-60",
+      "n": 612,
+      "win_rate": 0.3775,
+      "avg_net_ret": -0.001716
+    },
+    {
+      "bucket": ">=60",
+      "n": 4178,
+      "win_rate": 0.3638,
+      "avg_net_ret": -0.002926
+    }
+  ],
+  "buckets_triple": [
+    {
+      "bucket": "<30",
+      "n": 542,
+      "win_rate": 0.3875,
+      "avg_net_ret": -0.000915
+    },
+    {
+      "bucket": "30-40",
+      "n": 618,
+      "win_rate": 0.3706,
+      "avg_net_ret": -0.000578
+    },
+    {
+      "bucket": "40-50",
+      "n": 366,
+      "win_rate": 0.3743,
+      "avg_net_ret": -0.000891
+    },
+    {
+      "bucket": "50-60",
+      "n": 612,
+      "win_rate": 0.3693,
+      "avg_net_ret": -0.000995
+    },
+    {
+      "bucket": ">=60",
+      "n": 4178,
+      "win_rate": 0.3494,
+      "avg_net_ret": -0.001145
+    }
+  ],
+  "parity_score": null,
+  "gate": {
+    "verdict": "fail",
+    "gates": {
+      "net_oos_positive": {
+        "ok": false,
+        "value": -0.001041
+      },
+      "random_benchmark": {
+        "ok": false,
+        "value": 1.0
+      },
+      "bucket_monotonic": {
+        "ok": false,
+        "value": {
+          "rho": -0.7,
+          "p": 0.18812,
+          "layered_positive": false
+        }
+      },
+      "min_samples": {
+        "ok": true,
+        "value": 6316
+      },
+      "parity": {
+        "ok": null,
+        "value": null,
+        "status": "pending"
+      }
+    },
+    "failed": [
+      "net_oos_positive",
+      "random_benchmark",
+      "bucket_monotonic"
+    ],
+    "pending": [
+      "parity"
+    ],
+    "min_samples": 3000
+  }
+}

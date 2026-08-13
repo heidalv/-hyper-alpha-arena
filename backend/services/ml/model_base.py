@@ -193,17 +193,63 @@ class PyTorchGRUModel(SupervisedModel):
     """GRU 时序回归 —— 对标 FreqAI PyTorchTransformerRegressor / Qlib GRU。
 
     以长度 seq_len 的滑动窗口把因子矩阵转成序列，预测序列末端的前瞻收益。
+    - device：训练读 ML_TRAIN_DEVICE / 推理读 ML_INFER_DEVICE（auto = cuda
+      可用且显存充足才用，否则 cpu；单卡 1070 阶段即走此策略）
+    - 训练：时序 train/val 切分 + early stopping + minibatch；CUDA OOM 自动降级 CPU 重训
     """
 
-    def __init__(self, seq_len: int = 8, hidden_size: int = 32, epochs: int = 20, lr: float = 1e-3):
+    def __init__(
+        self,
+        seq_len: int = 8,
+        hidden_size: int = 32,
+        epochs: int = 20,
+        lr: float = 1e-3,
+        num_layers: int = 1,
+        dropout: float = 0.0,
+        batch_size: int = 64,
+        patience: int = 5,
+        device: Optional[str] = None,
+    ):
         self.seq_len = seq_len
         self.hidden_size = hidden_size
         self.epochs = epochs
         self.lr = lr
+        self.num_layers = num_layers
+        self.dropout = dropout
+        self.batch_size = batch_size
+        self.patience = patience
+        self._device = device
         self._model = None
         self._columns: List[str] = []
         self._mu = None
         self._sd = None
+
+    # ---------- device 解析（单卡 1070 阶段：显存充足才上卡） ----------
+
+    @staticmethod
+    def _cuda_usable(min_free_gb: float = 2.0) -> bool:
+        try:
+            import torch
+            if not torch.cuda.is_available():
+                return False
+            free_mb, _total = torch.cuda.mem_get_info(0)
+            return free_mb >= min_free_gb * 1024 * 1024 * 1024
+        except Exception:
+            return False
+
+    def _resolve_device(self, infer: bool = False):
+        """按 env（ML_TRAIN_DEVICE / ML_INFER_DEVICE）解析 torch.device。"""
+        import torch
+
+        env_key = "ML_INFER_DEVICE" if infer else "ML_TRAIN_DEVICE"
+        val = (self._device or os.environ.get(env_key) or "auto").strip().lower() or "auto"
+        if val.startswith("cuda"):
+            if torch.cuda.is_available():
+                return torch.device(val)
+            return torch.device("cpu")
+        if val == "auto":
+            return torch.device("cuda") if self._cuda_usable() else torch.device("cpu")
+        return torch.device("cpu")
 
     def _build_sequences(self, X: np.ndarray, y: Optional[np.ndarray] = None):
         seqs, targets = [], []
@@ -216,9 +262,72 @@ class PyTorchGRUModel(SupervisedModel):
         ts = _np.asarray(targets, dtype="float32") if targets else None
         return xs, ts
 
-    def fit(self, ctx: TrainingContext) -> None:
+    def _build_net(self, in_dim: int):
+        import torch.nn as nn
+
+        class _GRU(nn.Module):
+            def __init__(self, in_dim, hidden, num_layers, dropout):
+                super().__init__()
+                # PyTorch 要求 num_layers>1 时 dropout 才生效
+                self.gru = nn.GRU(
+                    in_dim, hidden, num_layers=num_layers,
+                    dropout=dropout if num_layers > 1 else 0.0,
+                    batch_first=True,
+                )
+                self.head = nn.Linear(hidden, 1)
+
+            def forward(self, x):
+                out, _ = self.gru(x)
+                return self.head(out[:, -1, :]).squeeze(-1)
+
+        return _GRU(in_dim, self.hidden_size, self.num_layers, self.dropout)
+
+    def _fit_on_device(self, model, train_x, train_y, val_x, val_y, device):
+        """minibatch 训练 + 时序验证集 early stopping（返回 best 权重）。"""
         import torch
         import torch.nn as nn
+
+        model.to(device)
+        opt = torch.optim.Adam(model.parameters(), lr=self.lr)
+        loss_fn = nn.MSELoss()
+        xt = torch.from_numpy(train_x).to(device)
+        yt = torch.from_numpy(train_y).to(device)
+        xv = torch.from_numpy(val_x).to(device)
+        yv = torch.from_numpy(val_y).to(device)
+        n = len(xt)
+        batch = max(1, min(self.batch_size, n))
+        rng = np.random.default_rng(42)
+        best_val = float("inf")
+        best_state = None
+        bad_epochs = 0
+        model.train()
+        for _ in range(self.epochs):
+            order = rng.permutation(n)
+            for i in range(0, n, batch):
+                idx = order[i:i + batch]
+                opt.zero_grad()
+                pred = model(xt[idx])
+                loss = loss_fn(pred, yt[idx])
+                loss.backward()
+                opt.step()
+            model.eval()
+            with torch.no_grad():
+                val_loss = float(loss_fn(model(xv), yv).item())
+            model.train()
+            if val_loss < best_val - 1e-6:
+                best_val = val_loss
+                best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+                bad_epochs = 0
+            else:
+                bad_epochs += 1
+                if bad_epochs >= self.patience:
+                    break
+        if best_state is not None:
+            model.load_state_dict(best_state)
+        model.eval()
+
+    def fit(self, ctx: TrainingContext) -> None:
+        import torch
 
         X, y = ctx.aligned_train_xy()
         self._columns = list(X.columns)
@@ -238,30 +347,27 @@ class PyTorchGRUModel(SupervisedModel):
             return
         n_features = Xn.shape[1]
 
-        class _GRU(nn.Module):
-            def __init__(self, in_dim, hidden):
-                super().__init__()
-                self.gru = nn.GRU(in_dim, hidden, batch_first=True)
-                self.head = nn.Linear(hidden, 1)
-
-            def forward(self, x):
-                out, _ = self.gru(x)
-                return self.head(out[:, -1, :]).squeeze(-1)
+        # 时序切分：后 20% 为验证集（early stopping 用，不参与梯度）
+        split = max(int(len(xs) * 0.8), 1)
+        train_x, val_x = xs[:split], xs[split:]
+        train_y, val_y = ts[:split], ts[split:]
 
         torch.manual_seed(42)
-        self._model = _GRU(n_features, self.hidden_size)
-        opt = torch.optim.Adam(self._model.parameters(), lr=self.lr)
-        loss_fn = nn.MSELoss()
-        xt = torch.from_numpy(xs)
-        yt = torch.from_numpy(ts)
-        self._model.train()
-        for _ in range(self.epochs):
-            opt.zero_grad()
-            pred = self._model(xt)
-            loss = loss_fn(pred, yt)
-            loss.backward()
-            opt.step()
-        self._model.eval()
+        device = self._resolve_device()
+        model = self._build_net(n_features)
+        try:
+            self._fit_on_device(model, train_x, train_y, val_x, val_y, device)
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower() and device.type == "cuda":
+                # 单卡 1070 显存预算内失败 → 降级 CPU 重训，保底完成
+                logger.warning("[ML] PyTorchGRU CUDA OOM，降级 CPU 重训: %s", e)
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                model = self._build_net(n_features)
+                self._fit_on_device(model, train_x, train_y, val_x, val_y, torch.device("cpu"))
+            else:
+                raise
+        self._model = model
 
     def predict(self, features: pd.DataFrame, feature_columns: List[str]) -> pd.Series:
         import torch
@@ -273,8 +379,14 @@ class PyTorchGRUModel(SupervisedModel):
         Xv = X.values.astype("float32")
         Xn = (Xv - self._mu) / self._sd
         xs, _ = self._build_sequences(Xn, None)
-        with torch.no_grad():
-            preds = self._model(torch.from_numpy(xs)).numpy()
+        device = self._resolve_device(infer=True)
+        self._model.to(device)
+        try:
+            with torch.no_grad():
+                preds = self._model(torch.from_numpy(xs).to(device)).cpu().numpy()
+        finally:
+            # 推理后回 CPU，避免常驻显存占用（单卡阶段不抢占训练预算）
+            self._model.to("cpu")
         # 前 seq_len-1 行无完整序列 → 填 0
         out = np.concatenate([np.zeros(self.seq_len - 1, dtype="float32"), preds])
         return pd.Series(out[: len(X)], index=features.index)
@@ -288,12 +400,13 @@ class PyTorchGRUModel(SupervisedModel):
             "columns": self._columns,
             "mu": self._mu, "sd": self._sd,
             "hparams": {"seq_len": self.seq_len, "hidden_size": self.hidden_size,
-                        "epochs": self.epochs, "lr": self.lr},
+                        "epochs": self.epochs, "lr": self.lr,
+                        "num_layers": self.num_layers, "dropout": self.dropout,
+                        "batch_size": self.batch_size, "patience": self.patience},
         }, path)
 
     def load(self, path: str) -> None:
         import torch
-        import torch.nn as nn
 
         data = torch.load(path, weights_only=False)
         self._columns = data["columns"]
@@ -302,20 +415,11 @@ class PyTorchGRUModel(SupervisedModel):
         hp = data.get("hparams", {})
         self.seq_len = hp.get("seq_len", self.seq_len)
         self.hidden_size = hp.get("hidden_size", self.hidden_size)
+        self.num_layers = hp.get("num_layers", 1)
+        self.dropout = hp.get("dropout", 0.0)
         if data["state_dict"] is not None:
             n_features = len(self._columns)
-
-            class _GRU(nn.Module):
-                def __init__(self, in_dim, hidden):
-                    super().__init__()
-                    self.gru = nn.GRU(in_dim, hidden, batch_first=True)
-                    self.head = nn.Linear(hidden, 1)
-
-                def forward(self, x):
-                    out, _ = self.gru(x)
-                    return self.head(out[:, -1, :]).squeeze(-1)
-
-            self._model = _GRU(n_features, self.hidden_size)
+            self._model = self._build_net(n_features)
             self._model.load_state_dict(data["state_dict"])
             self._model.eval()
 

@@ -722,12 +722,21 @@ class FullAutoTradingService:
             paper_account_mode=paper_account_mode if trading_mode == "paper" else None,
             arbitrage_paper_account_id=arbitrage_paper_account_id if uses_dedicated_arb_paper else None,
             symbols=symbols,
+            # 分周期固定币不得启动时焊死成同一份。
+            # 启动勾选的 symbols 只种子「长线」；短/中默认空，由定币面板各自勾选。
+            fixed_symbols_by_tier={
+                "short": [],
+                "mid": [],
+                "long": list(symbols or []),
+            },
             risk_level=risk_level,
             risk_mode=risk_mode,
             trading_mode=trading_mode,
             auto_coin_enabled=auto_coin_enabled,
             arb_enabled=arb_enabled,
             auto_coin_max_slots=5,
+            auto_coin_mid_enabled=False,
+            auto_coin_mid_max_slots=3,
             active_exchange=_active_exchange_norm,
             status="running",
             event_log=[{
@@ -1030,16 +1039,23 @@ class FullAutoTradingService:
         return {"success": True}
 
     def add_symbols(self, db: Session, session_id: str, symbols: List[str],
-                    *, is_auto_coin: bool = False) -> dict:
+                    *, is_auto_coin: bool = False, tier: str | None = None) -> dict:
         """向运行中的会话添加交易对。
 
         两张独立表（互不占槽）：
-        - session.symbols = 手动固定交易对（长线），不占 AI 选币槽位
+        - session.symbols / fixed_symbols_by_tier = 手动固定交易对
         - session.auto_coin_symbols = AI 选币（短线），仅此表受 auto_coin_max_slots 限制
 
-        is_auto_coin: True → 只写 auto_coin_symbols；False → 只写 symbols。
+        is_auto_coin: True → 只写 auto_coin_symbols；False → 写固定币（可指定 tier）。
+        tier: short|mid|long；None 时写入全部周期并集兼容旧行为（写 long + 同步并集）。
         """
         from backend.database.models import FullAutoSession
+        from backend.services.auto_coin_selector import (
+            _parse_by_tier_map,
+            _parse_symbol_list,
+            _union_preserve,
+            validate_symbols_in_backup_pool,
+        )
 
         session = db.query(FullAutoSession).filter(
             FullAutoSession.session_id == session_id
@@ -1049,8 +1065,9 @@ class FullAutoTradingService:
         if session.status not in ("running", "defensive", "paused"):
             return {"success": False, "error": f"会话状态为 {session.status}，运行/防守/暂停中可添加"}
 
-        current = [str(s).upper() for s in (session.symbols or []) if s]
-        auto_coin = [str(s).upper() for s in (getattr(session, "auto_coin_symbols", None) or []) if s]
+        current = _parse_symbol_list(session.symbols)
+        auto_coin = _parse_symbol_list(getattr(session, "auto_coin_symbols", None))
+        by_tier = _parse_by_tier_map(getattr(session, "fixed_symbols_by_tier", None))
         # 脏数据：同币两表并存时，固定表优先，踢出 AI 池（固定不占 AI 槽）
         overlap = set(current) & set(auto_coin)
         if overlap:
@@ -1070,6 +1087,8 @@ class FullAutoTradingService:
             except Exception:
                 max_slots = 5
             fixed_set = set(current)
+            for _tv in by_tier.values():
+                fixed_set |= set(_tv)
             room = max(0, max_slots - len(auto_coin))
             if room <= 0:
                 return {
@@ -1082,7 +1101,6 @@ class FullAutoTradingService:
                 s = (sym or "").strip().upper()
                 if not s or s in auto_coin:
                     continue
-                # 已在固定表：不抢 AI 槽、不挪进 auto 池
                 if s in fixed_set:
                     skipped_fixed.append(s)
                     continue
@@ -1105,30 +1123,50 @@ class FullAutoTradingService:
             session.auto_coin_symbols = auto_coin
             session.symbols = current  # 固定表不动
         else:
-            for sym in symbols:
-                s = (sym or "").strip().upper()
-                if not s or s in current:
+            t = str(tier or "long").strip().lower()
+            if t not in ("short", "mid", "long"):
+                return {"success": False, "error": "tier 须为 short/mid/long"}
+            ok, bad = validate_symbols_in_backup_pool(symbols)
+            if bad:
+                return {
+                    "success": False,
+                    "error": f"不在固定币备选池(交易对): {', '.join(bad)}",
+                    "rejected": bad,
+                }
+            tier_list = list(
+                by_tier[t] if t in by_tier else (current if not by_tier else [])
+            )
+            for s in ok:
+                if s in tier_list:
                     continue
-                # 若已在 AI 池：提升为固定（移出 auto，释放 AI 槽位）
                 if s in auto_coin:
                     auto_coin = [x for x in auto_coin if x != s]
-                    current.append(s)
-                    added.append(s)
-                    continue
-                current.append(s)
+                tier_list.append(s)
                 added.append(s)
             if not added:
                 return {
                     "success": True,
                     "symbols": current,
                     "auto_coin_symbols": auto_coin,
+                    "fixed_symbols_by_tier": by_tier,
                     "added": [],
                     "message": "无新交易对需要添加",
                 }
-            session.symbols = current
+            by_tier[t] = tier_list
+            # 确保三键都有：缺键补空列表（不要用并集回填，否则短/中/长又被焊死）
+            for k in ("short", "mid", "long"):
+                by_tier.setdefault(k, [])
+            by_tier[t] = tier_list
+            union = _union_preserve(
+                by_tier.get("short", []),
+                by_tier.get("mid", []),
+                by_tier.get("long", []),
+            )
+            session.fixed_symbols_by_tier = by_tier
+            session.symbols = union
             session.auto_coin_symbols = auto_coin
+            current = union
 
-        # [核心隔离] session.symbols = 固定；session.auto_coin_symbols = AI；互不占用槽位
         self._append_event(
             session,
             "symbols_added",
@@ -1136,7 +1174,7 @@ class FullAutoTradingService:
                 f"添加AI选币: {', '.join(added)}，自动池 {len(auto_coin)}/{getattr(session, 'auto_coin_max_slots', 5) or 5}"
                 + (f"（跳过固定币 {', '.join(skipped_fixed)}）" if skipped_fixed else "")
                 if is_auto_coin
-                else f"添加固定交易对: {', '.join(added)}，固定 {len(current)} / AI池 {len(auto_coin)}"
+                else f"添加{tier or 'long'}固定交易对: {', '.join(added)}，固定并集 {len(current)} / AI池 {len(auto_coin)}"
             ),
         )
         self._safe_commit(db, "add_symbols")
@@ -1271,8 +1309,14 @@ class FullAutoTradingService:
             return {"success": False, "error": f"会话状态为 {session.status}，运行/防守/暂停中可移除"}
 
         # 两张表独立：固定 symbols / AI auto_coin_symbols，互不占对方名额
-        current = [str(s).upper() for s in (session.symbols or []) if s]
-        auto_coin = [str(s).upper() for s in (getattr(session, "auto_coin_symbols", None) or []) if s]
+        from backend.services.auto_coin_selector import (
+            _parse_by_tier_map,
+            _parse_symbol_list,
+            _union_preserve,
+        )
+        current = _parse_symbol_list(session.symbols)
+        auto_coin = _parse_symbol_list(getattr(session, "auto_coin_symbols", None))
+        by_tier = _parse_by_tier_map(getattr(session, "fixed_symbols_by_tier", None))
         want = []
         for sym in symbols:
             s = (sym or "").strip().upper()
@@ -1280,9 +1324,17 @@ class FullAutoTradingService:
                 want.append(s)
 
         fixed_removed = [s for s in want if s in current]
+        # 也从分周期表移除
+        for tlist in by_tier.values():
+            for s in want:
+                if s in tlist and s not in fixed_removed:
+                    fixed_removed.append(s)
         auto_removed = [s for s in want if s in auto_coin]
         for s in fixed_removed:
-            current.remove(s)
+            if s in current:
+                current.remove(s)
+        for k in list(by_tier.keys()):
+            by_tier[k] = [x for x in by_tier.get(k, []) if x not in set(want)]
 
         # 2026-07-31：AI 选币轮出的币不在 session.symbols 里（那里只有手动固定对），
         # 原逻辑因此把它们判为"无匹配"直接 return，策略从未被下架。但只要该币还有
@@ -1386,6 +1438,17 @@ class FullAutoTradingService:
         session.active_strategy_ids = _active_ids
 
         session.symbols = current
+        if by_tier:
+            # 同步并集；若 by_tier 非空则写回
+            union = _union_preserve(
+                by_tier.get("short", []),
+                by_tier.get("mid", []),
+                by_tier.get("long", []),
+            )
+            session.fixed_symbols_by_tier = by_tier
+            if union:
+                session.symbols = union
+                current = union
         session.auto_coin_symbols = auto_coin
         self._append_event(
             session,
@@ -1785,6 +1848,29 @@ class FullAutoTradingService:
         except Exception as _mental_err:
             logger.debug("[FullAuto] trader_mental_state 读取跳过: %s", _mental_err)
 
+        _backup_pool: list = []
+        try:
+            from backend.services.trading_pairs_config import get_user_trading_pairs
+            _backup_pool = list(get_user_trading_pairs() or [])
+        except Exception:
+            _backup_pool = []
+        _by_tier = getattr(session, "fixed_symbols_by_tier", None) or {}
+        try:
+            from backend.services.auto_coin_selector import _parse_by_tier_map
+            _by_tier = _parse_by_tier_map(_by_tier) or {}
+        except Exception:
+            if not isinstance(_by_tier, dict):
+                _by_tier = {}
+        _ai_mid_watch: list = []
+        try:
+            from backend.services.auto_coin_selector import get_ai_mid_candidates_for_session
+            if getattr(session, "auto_coin_mid_enabled", False):
+                _ai_mid_watch = list(
+                    get_ai_mid_candidates_for_session(session.session_id, db=db) or []
+                )
+        except Exception:
+            _ai_mid_watch = []
+
         return {
             "session_id": session.session_id,
             "account_id": session.account_id,
@@ -1798,6 +1884,11 @@ class FullAutoTradingService:
             "auto_coin_enabled": getattr(session, "auto_coin_enabled", False),
             "auto_coin_symbols": getattr(session, "auto_coin_symbols", None) or [],
             "auto_coin_max_slots": int(getattr(session, "auto_coin_max_slots", None) or 5),
+            "auto_coin_mid_enabled": bool(getattr(session, "auto_coin_mid_enabled", False)),
+            "auto_coin_mid_max_slots": int(getattr(session, "auto_coin_mid_max_slots", None) or 3),
+            "auto_coin_mid_symbols": _ai_mid_watch,
+            "fixed_symbols_by_tier": _by_tier,
+            "backup_pool": _backup_pool,
             "started_at": self._utc_iso(session.started_at),
             "stopped_at": self._utc_iso(session.stopped_at),
             "total_strategies_created": session.total_strategies_created or 0,
@@ -4185,10 +4276,31 @@ class FullAutoTradingService:
                 seen.add(u)
                 merged.append(u)
 
-        for s in (getattr(session, "symbols", None) or []):
-            _add(s)
-        for s in (getattr(session, "auto_coin_symbols", None) or []):
-            _add(s)
+        try:
+            from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+        except Exception:
+            get_fixed_symbols_for_session = None  # type: ignore
+
+        if get_fixed_symbols_for_session and getattr(session, "session_id", None):
+            for s in get_fixed_symbols_for_session(
+                session.session_id, db, tier="short"
+            ):
+                _add(s)
+        else:
+            for s in (getattr(session, "symbols", None) or []):
+                _add(s)
+
+        # 短线 AI 选币：开关开启时并入；关闭时仅靠持仓/策略续管
+        if getattr(session, "auto_coin_enabled", False):
+            for s in (getattr(session, "auto_coin_symbols", None) or []):
+                _add(s)
+
+        # 兼容兜底：固定+AI 都空时回退旧 symbols 并集
+        if not merged:
+            for s in (getattr(session, "symbols", None) or []):
+                _add(s)
+            for s in (getattr(session, "auto_coin_symbols", None) or []):
+                _add(s)
 
         if db is not None:
             if include_positions:

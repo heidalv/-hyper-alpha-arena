@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * 开源框架集成卡（第十章 10.3）
- * 8 项开关行三态：已集成(绿) / 未集成(灰) / 符合取舍(蓝)
- * 静态数据来源：第十章审计结论（实机核验 2026-08-06），无后端端点，不伪造。
+ * 开源框架集成卡 — 紧凑网格排版
  */
 import { CheckCircle2, XCircle, Scale, Boxes } from "lucide-react";
 import { ComputePanel } from "./common";
@@ -19,14 +17,14 @@ interface OSSItem {
 }
 
 const ITEMS: OSSItem[] = [
-  { name: "joblib", state: "integrated", note: "gp_miner / mcts_miner loky 真实使用（32 workers 并行）" },
-  { name: "Qlib", state: "not", note: "无 import；研究层借自有管线（WFO/DSR/PBO）等效替代" },
-  { name: "FinRL", state: "not", note: "无 import（DRL 已整体下线）" },
-  { name: "FreqAI", state: "tradeoff", note: "仅对标注释，符合“不引入”取舍" },
-  { name: "vectorbt", state: "not", note: "无 import" },
-  { name: "PyPortfolioOpt", state: "not", note: "无 import" },
-  { name: "Ray", state: "tradeoff", note: "无 import；符合“Windows 受限 joblib 优先”取舍" },
-  { name: "红线：不开新实盘链路", state: "integrated", note: "产出全走 purge→lifecycle→shadow_judge→online_weights" },
+  { name: "joblib", state: "integrated", note: "GP / MCTS 并行评估" },
+  { name: "Qlib", state: "not", note: "自有 WFO/DSR/PBO 替代" },
+  { name: "FinRL", state: "not", note: "DRL 已整体下线" },
+  { name: "FreqAI", state: "tradeoff", note: "仅对标，不引入" },
+  { name: "vectorbt", state: "not", note: "无引入" },
+  { name: "PyPortfolioOpt", state: "not", note: "无引入" },
+  { name: "Ray", state: "tradeoff", note: "Windows 优先 joblib" },
+  { name: "实盘链路红线", state: "integrated", note: "产出走既有晋升链路" },
 ];
 
 const STATE_META: Record<
@@ -51,43 +49,49 @@ const STATE_META: Record<
 };
 
 export function OSSIntegrationCard() {
+  const integrated = ITEMS.filter((i) => i.state === "integrated").length;
+  const not = ITEMS.filter((i) => i.state === "not").length;
+  const tradeoff = ITEMS.filter((i) => i.state === "tradeoff").length;
+
   return (
     <ComputePanel
       title="开源框架集成"
-      description="第十章审计实机结论（2026-08-06 核验，静态展示）"
+      description="实机审计结论，静态展示"
       action={
         <Badge variant="outline" className="font-normal">
           <Boxes className="w-3 h-3 mr-1" />
-          {ITEMS.filter((i) => i.state === "integrated").length} 集成 /{" "}
-          {ITEMS.filter((i) => i.state === "not").length} 未集成 /{" "}
-          {ITEMS.filter((i) => i.state === "tradeoff").length} 取舍
+          {integrated} 集成 / {not} 未集成 / {tradeoff} 取舍
         </Badge>
       }
     >
-      <ul className="space-y-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {ITEMS.map((it) => {
           const meta = STATE_META[it.state];
           const Icon = meta.icon;
           return (
-            <li
+            <div
               key={it.name}
-              className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2"
+              className="flex items-start justify-between gap-2 rounded-lg border border-border/70 bg-muted/15 px-3 py-2.5"
             >
-              <span className="flex items-center gap-2 text-xs min-w-0">
-                <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", it.state === "integrated" && "text-green-500")} />
-                <span className="font-medium whitespace-nowrap">{it.name}</span>
-                <span className="text-[11px] text-muted-foreground truncate">{it.note}</span>
-              </span>
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-xs font-medium">
+                  <Icon
+                    className={cn(
+                      "w-3.5 h-3.5 flex-shrink-0",
+                      it.state === "integrated" && "text-green-500"
+                    )}
+                  />
+                  {it.name}
+                </div>
+                <p className="text-[11px] text-muted-foreground pl-5">{it.note}</p>
+              </div>
               <Badge variant="outline" className={cn("font-normal whitespace-nowrap", meta.cls)}>
                 {meta.label}
               </Badge>
-            </li>
+            </div>
           );
         })}
-      </ul>
-      <p className="text-[10px] text-muted-foreground mt-2">
-        取舍项：Qlib 借研究层 → 自有管线替代；Ray → Windows 受限 joblib 优先；FreqAI → 不引入。
-      </p>
+      </div>
     </ComputePanel>
   );
 }

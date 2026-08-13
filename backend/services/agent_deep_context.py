@@ -8,9 +8,16 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+_PERIOD_SECONDS = {
+    "1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
+    "1h": 3600, "2h": 7200, "4h": 14400, "6h": 21600, "8h": 28800,
+    "12h": 43200, "1d": 86400, "1w": 604800, "1M": 2592000,
+}
 
 
 def _safe_round(v, n=2):
@@ -50,7 +57,7 @@ def _fetch_klines_for_prompt(symbol: str, tf: str, count: int) -> list:
     except Exception as e:
         logger.debug("[AgentDeepContext] 快照 K 线复用失败 %s/%s，回退 DB: %s", symbol, tf, e)
     if not rows:
-        rows = ks.get_klines_from_db(symbol, tf, count=count) or []
+        rows = ks.get_aggregated_klines(symbol, tf, count=count) or []
     # 补时间轴，保证 deep_context OHLCV 表有可读时间
     for r in rows:
         if not isinstance(r, dict):
@@ -108,8 +115,27 @@ def build_kline_block(symbol: str, periods: list, count: int = 30) -> str:
             macd_s = close.ewm(span=26, adjust=False).mean()
             macd_hist = float((macd_f - macd_s - (macd_f - macd_s).ewm(span=9, adjust=False).mean()).iloc[-1])
 
-            vol_ma = kdf["volume"].iloc[-20:].mean()
-            vol_ratio = round(float(kdf["volume"].iloc[-1] / vol_ma), 2) if vol_ma > 0 else 1.0
+            _vol = kdf["volume"]
+            _period_sec = _PERIOD_SECONDS.get(tf, 3600)
+            _last_ts = (
+                int(kdf["timestamp"].iloc[-1])
+                if "timestamp" in kdf.columns and kdf["timestamp"].iloc[-1] is not None
+                else 0
+            )
+            _partial = bool(
+                _last_ts > 0 and int(time.time()) < _last_ts + _period_sec
+            )
+            if _partial and len(kdf) >= 2:
+                _cur_vol = float(_vol.iloc[-2])
+                _vol_ma = _vol.iloc[-21:-1].mean()
+            else:
+                _cur_vol = float(_vol.iloc[-1])
+                _vol_ma = _vol.iloc[-20:].mean()
+            vol_ratio = (
+                round(_cur_vol / float(_vol_ma), 2)
+                if float(_vol_ma) > 0 and _cur_vol > 0
+                else None
+            )
 
             # ATR
             if len(kdf) >= 14:
@@ -128,12 +154,14 @@ def build_kline_block(symbol: str, periods: list, count: int = 30) -> str:
                 dt_str = str(dt)[:16] if dt else ""
                 klines_text += f"  {dt_str} O={_safe_round(row['open'])} H={_safe_round(row['high'])} L={_safe_round(row['low'])} C={_safe_round(row['close'])} V={_safe_round(row['volume'])}\n"
 
-            parts.append(
+            _header = (
                 f"### {tf} K线（最近{count}根，ATR={atr_pct}%）\n"
                 f"RSI(14)={rsi} | EMA9={_safe_round(ema9)} EMA21={_safe_round(ema21)} EMA50={_safe_round(ema50)} | "
-                f"趋势={ema_trend} | MACD柱={_safe_round(macd_hist, 4)} | 量比={vol_ratio}\n"
-                f"```\n{klines_text}```\n"
+                f"趋势={ema_trend} | MACD柱={_safe_round(macd_hist, 4)}"
             )
+            if vol_ratio is not None and vol_ratio > 0:
+                _header += f" | 量比={vol_ratio}"
+            parts.append(_header + f"\n```\n{klines_text}```\n")
     except Exception as e:
         logger.debug(f"[AgentDeepContext] K线块构建失败 {symbol}: {e}")
 
@@ -404,6 +432,19 @@ def build_full_deep_context(
     if intel_block:
         parts.append(intel_block)
 
+    # 链上/巨鲸摘要（best-effort；缺失时明确标注不可用）
+    try:
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        _onchain_block = build_onchain_summary(symbol)
+        if _onchain_block:
+            parts.append(_onchain_block)
+    except Exception:
+        pass
+
     # 交易记忆 + 教训 + RAG
     if db:
         mem_block = build_memory_block(db, symbol, account_id, agent_focus="swing")
@@ -417,6 +458,44 @@ def build_full_deep_context(
             f"模块数={len(parts)}"
         )
     return result
+
+
+def build_onchain_summary(symbol: str) -> str:
+    """best-effort 链上/巨鲸摘要；无数据时明确标注不可用，绝不虚构数字。"""
+    lines: list = []
+    try:
+        from backend.services.onchain_data_collector import onchain_collector as _oc
+        _data = _oc.collect_all([symbol]).get(symbol, {})
+        if isinstance(_data, dict):
+            for _k in (
+                "fear_greed", "btc_dominance", "tvl", "exchange_net_flow",
+                "active_addresses", "whale_tx_count", "whale_tx_volume",
+            ):
+                _v = _data.get(_k)
+                try:
+                    if _v is not None and float(_v) != 0:
+                        lines.append(f"  {_k}: {float(_v):.4f}")
+                except (TypeError, ValueError):
+                    pass
+            _smb = _data.get("stablecoin_mint_burn")
+            try:
+                if _smb is not None and float(_smb) != 0:
+                    lines.append(f"  stablecoin_mint_burn: {float(_smb):.4f}")
+            except (TypeError, ValueError):
+                pass
+    except Exception:
+        pass
+    try:
+        from backend.services.whale_tracker_service import WhaleTrackerService
+        _ws = WhaleTrackerService().get_whale_signal(str(symbol).upper())
+        _summary = getattr(_ws, "summary", "") or ""
+        if _summary and "暂无" not in _summary:
+            lines.append(f"  巨鲸: {_summary}")
+    except Exception:
+        pass
+    if not lines:
+        return "### 链上/宏观数据\n（链上数据不可用）\n"
+    return "### 链上/宏观数据（best-effort）\n" + "\n".join(lines) + "\n"
 
 
 def build_trend_deep_context(
@@ -435,8 +514,9 @@ def build_trend_deep_context(
     """
     parts = []
 
-    # 1. 多周期 K线（4h + 1d + 1w 真周线）
-    kl_block = build_kline_block(symbol, ["4h", "1d", "1w"], count=52)
+    # 1. 多周期 K线（4h + 1d + 1w 真周线 + 1M 真月线）
+    # [2026-08-10 v3.1.0] 纳入 1M：长线锚定月线级别大周期（asterdex 主所已全量回填）
+    kl_block = build_kline_block(symbol, ["4h", "1d", "1w", "1M"], count=52)
     if kl_block:
         parts.append(kl_block)
 
@@ -464,6 +544,33 @@ def build_trend_deep_context(
             )
     except Exception as e:
         logger.debug(f"[AgentDeepContext] 周线结构块构建失败 {symbol}: {e}")
+
+    # 1c. 月线结构摘要（真 1M K 线，长线大周期锚；asterdex 主所已回填 60 根）
+    try:
+        import pandas as pd
+        kl_1M = _fetch_klines_for_prompt(symbol, "1M", count=52)
+        if kl_1M and len(kl_1M) >= 12:
+            mdf = pd.DataFrame(kl_1M)
+            m_high = float(mdf["high"].max())
+            m_low = float(mdf["low"].min())
+            m_close = float(mdf["close"].iloc[-1])
+            m_diff = m_high - m_low
+            m_pos = (m_close - m_low) / m_diff * 100 if m_diff > 0 else 50
+            m_ema9 = float(mdf["close"].ewm(span=9, adjust=False).mean().iloc[-1])
+            m_ema21 = float(mdf["close"].ewm(span=21, adjust=False).mean().iloc[-1])
+            m_trend = (
+                "bullish" if m_ema9 > m_ema21 else
+                "bearish" if m_ema9 < m_ema21 else "mixed"
+            )
+            parts.append(
+                f"### 月线结构（真 1M K 线，{len(mdf)} 个月）\n"
+                f"历史高={m_high:.0f} 低={m_low:.0f} 当前={m_close:.0f} (位置={m_pos:.0f}%)\n"
+                f"月线EMA趋势={m_trend} (EMA9={m_ema9:.0f} EMA21={m_ema21:.0f})\n"
+            )
+        else:
+            parts.append("### 月线结构\n（1M 月线数据不足 <12 根，暂缺月线锚）\n")
+    except Exception as e:
+        logger.debug(f"[AgentDeepContext] 月线结构块构建失败 {symbol}: {e}")
 
     # 2. 日线级别关键价位（高低点、支撑阻力、斐波那契 — 补充 1w 以下的中观地图）
     try:
@@ -539,16 +646,16 @@ def build_trend_deep_context(
 
     # 6. 链上/宏观数据（长线专属）
     try:
-        from backend.services.onchain_data_collector import onchain_collector as _oc
-        _oc_data = _oc.collect_all([symbol]).get(symbol, {})
-        if isinstance(_oc_data, dict):
-            _macro_lines = []
-            for k in ("fear_greed", "btc_dominance", "tvl", "exchange_net_flow", "active_addresses"):
-                v = _oc_data.get(k)
-                if v is not None and float(v) != 0:
-                    _macro_lines.append(f"  {k}: {float(v):.2f}")
-            if _macro_lines:
-                parts.append("### 链上/宏观数据（天级宏观资金流向）\n" + "\n".join(_macro_lines) + "\n")
+        # [2026-08-11 修复] 外部网络调用前释放调用方只读事务，
+        # 防止 onchain 请求阻塞期间 DB 连接 idle-in-transaction。
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        _onchain_block = build_onchain_summary(symbol)
+        if _onchain_block:
+            parts.append(_onchain_block)
     except Exception:
         pass
 

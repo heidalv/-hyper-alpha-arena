@@ -20,13 +20,29 @@ from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
-# IC 退役阈值：重检后 |IC| 低于此值 → 退役；低于降权阈值 → 降级为候选。
-_RETIRE_ABS_IC = float(os.getenv("SCALP_ACTIVE_RETIRE_ABS_IC", "0.015"))
+# [2026-08-13 短线因子根因修复 P1-7] 退役阈值收紧 0.015→0.02：
+# 原阈值太松，|IC|~0.02 的近零因子长期滞留实盘。联合 ICIR 条件防误杀
+# （|IC| 与 |ICIR| 双低才退役；grade D/F 不受 ICIR 约束直接退役）。
+_RETIRE_ABS_IC = float(os.getenv("SCALP_ACTIVE_RETIRE_ABS_IC", "0.02"))
+_RETIRE_ICIR = float(os.getenv("SCALP_ACTIVE_RETIRE_ICIR", "0.3"))
 
 
 def _is_scalp(rec: Dict[str, Any]) -> bool:
     """非 midlong 标签的（含未标记）都归短线，避免与中长线因子集混淆。"""
     return str((rec.get("extra") or {}).get("horizon") or "scalp").lower() != "midlong"
+
+
+def _resolve_tenant_id() -> Optional[int]:
+    """[2026-08-13 P1-9] 解析管理员租户 id。
+
+    custom_factor_store 按 t{tenant_id}:factor_id 隔离存储，list_* 不传租户时
+    返回空列表（防误共享）。这里显式取管理员租户，恢复 AI 因子的退役/晋升管理。
+    """
+    try:
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        return resolve_admin_tenant_id()
+    except Exception:
+        return None
 
 
 class ScalpActiveFactorSet:
@@ -46,7 +62,7 @@ class ScalpActiveFactorSet:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return []
-        active = [r for r in custom_factor_store.list_active() if _is_scalp(r)]
+        active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_scalp(r)]
         weights = self._runtime_weights()
         for rec in active:
             rec["runtime_weight"] = weights.get(rec["factor_id"], 1.0)
@@ -78,7 +94,7 @@ class ScalpActiveFactorSet:
         except Exception as e:
             return {"checked": 0, "retired": 0, "error": str(e)}
 
-        active = [r for r in custom_factor_store.list_active() if _is_scalp(r)]
+        active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_scalp(r)]
         checked = 0
         retired = 0
         reduced = 0
@@ -98,14 +114,20 @@ class ScalpActiveFactorSet:
                     pass
 
                 abs_ic = abs(sr.ic_mean)
-                if abs_ic < _RETIRE_ABS_IC or sr.grade in ("D", "F"):
+                abs_icir = abs(sr.icir or 0.0)
+                # [2026-08-13 P1-7] 联合条件：|IC| 与 ICIR 双低才退役；
+                # grade D/F 仍直接退役（独立证据，不依赖 ICIR）。
+                if (abs_ic < _RETIRE_ABS_IC and abs_icir < _RETIRE_ICIR) or sr.grade in ("D", "F"):
                     # 退役：从实时 FACTORS 摘除 + 目录标记 rejected
                     custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="rejected",
                     )
                     self._detach_from_engine(fid)
                     retired += 1
-                    logger.info(f"[ActiveFactorSet] 退役衰减因子 {fid} (|IC|={abs_ic:.3f} grade={sr.grade})")
+                    logger.info(
+                        f"[ActiveFactorSet] 退役衰减因子 {fid} "
+                        f"(|IC|={abs_ic:.3f} |ICIR|={abs_icir:.3f} grade={sr.grade})"
+                    )
                 elif sr.grade == "C":
                     # 降级为候选（暂不参与实时，等下次闸门复议）
                     custom_factor_store.update_scores(
@@ -148,14 +170,15 @@ class ScalpActiveFactorSet:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return {"active": 0, "candidate": 0, "rejected": 0}
-        active = [r for r in custom_factor_store.list_active() if _is_scalp(r)]
+        _tid = _resolve_tenant_id()
+        active = [r for r in custom_factor_store.list_active(tenant_id=_tid) if _is_scalp(r)]
         weights = self._runtime_weights()
         ics = [r.get("scores", {}).get("ic_mean") for r in active if r.get("scores")]
         ics = [x for x in ics if isinstance(x, (int, float))]
         return {
             "active": len(active),
-            "candidate": len([r for r in custom_factor_store.list_candidates() if _is_scalp(r)]),
-            "rejected": len([r for r in custom_factor_store.list(status="rejected") if _is_scalp(r)]),
+            "candidate": len([r for r in custom_factor_store.list_candidates(tenant_id=_tid) if _is_scalp(r)]),
+            "rejected": len([r for r in custom_factor_store.list(status="rejected", tenant_id=_tid) if _is_scalp(r)]),
             "avg_active_ic": round(sum(ics) / len(ics), 4) if ics else None,
             "top_active": sorted(
                 [

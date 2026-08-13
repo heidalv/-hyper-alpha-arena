@@ -1,4 +1,4 @@
-"""OpenCode 智能分析层 — 单元与集成测试。"""
+﻿"""OpenCode 智能分析层 — 单元与集成测试。"""
 
 from __future__ import annotations
 
@@ -154,7 +154,7 @@ class TestOpenCodeBridge:
     def test_parse_model_slug(self):
         from backend.services.opencode_bridge import _parse_model_slug
 
-        assert _parse_model_slug("deepseek/deepseek-v4-pro") == ("deepseek", "deepseek-v4-pro")
+        assert _parse_model_slug("deepseek/deepseek-v4-flash") == ("deepseek", "deepseek-v4-flash")
         assert _parse_model_slug("deepseek-v4-flash") == ("deepseek", "deepseek-v4-flash")
 
     def test_disabled_returns_skipped(self):

@@ -176,6 +176,30 @@ $viteFilter = {
 $n2vite = Stop-Matched -Name 'node.exe' -Filter $viteFilter -Label 'frozen vite :5173'
 $n2 = $n2next + $n2vite
 
+Write-Step "2.5) kill orphan loky / joblib / dead-parent spawn (GP 挖矿残留)"
+# Windows 上父进程死后，loky resource_tracker 与 spawn_main 常仍占 CPU；
+# 且会出现 netstat 显示 LISTEN pid=已消失进程（幽灵端口）→ 新后端绑口失败。
+$orphanEvoFilter = {
+    $cmd = $_.CommandLine
+    if (-not $cmd) { return $false }
+    $isArena = $cmd -match 'Hyper-Alpha-Arena' -or $_.ExecutablePath -match 'Hyper-Alpha-Arena'
+    $isLoky = $cmd -match 'joblib\.externals\.loky|loky\.backend\.resource_tracker'
+    $isSpawn = $cmd -match 'spawn_main|multiprocessing\.spawn'
+    if (-not ($isLoky -or $isSpawn)) { return $false }
+    if ($isLoky -and $isArena) { return $true }
+    if ($isSpawn -and $isArena) {
+        # 父已死：ParentProcessId 不存在，或 CommandLine 里 parent_pid 已无进程
+        $pp = Get-Process -Id $_.ParentProcessId -ErrorAction SilentlyContinue
+        if (-not $pp) { return $true }
+        if ($cmd -match 'parent_pid=(\d+)') {
+            $gp = [int]$Matches[1]
+            if (-not (Get-Process -Id $gp -ErrorAction SilentlyContinue)) { return $true }
+        }
+    }
+    return $false
+}
+$nOrphan = Stop-Matched -Name 'python.exe' -Filter $orphanEvoFilter -Label 'orphan loky/spawn'
+
 Write-Step "3) free listening ports ($($Ports -join ', '))"
 $extraKilled = 0
 foreach ($port in $Ports) {
@@ -186,8 +210,27 @@ foreach ($port in $Ports) {
     }
     foreach ($c in $conns) {
         $pid_ = $c.OwningProcess
-        $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pid_"
-        if (-not $proc) { continue }
+        $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pid_" -ErrorAction SilentlyContinue
+        # 幽灵端口：TCP 仍 LISTEN 但进程表已无该 PID → 必须 taskkill（Stop-Process 无效）
+        if (-not $proc) {
+            if ($port -in 8000, 8001, 5273) {
+                if ($DryRun) {
+                    Write-Host "  [DRY ] ghost listener port $port pid=$pid_ (process gone)" -ForegroundColor Yellow
+                } else {
+                    Write-Host "  [KILL] ghost listener port $port pid=$pid_ via taskkill" -ForegroundColor Yellow
+                    & taskkill.exe /F /PID $pid_ 2>$null | Out-Null
+                    # 顺带杀仍引用该 parent_pid 的 spawn 子进程
+                    Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+                        Where-Object { $_.CommandLine -match "parent_pid=$pid_(\D|$)" } |
+                        ForEach-Object {
+                            Write-Host "  [KILL] ghost-child spawn pid=$($_.ProcessId)" -ForegroundColor Yellow
+                            & taskkill.exe /F /PID $_.ProcessId 2>$null | Out-Null
+                        }
+                    $extraKilled++
+                }
+            }
+            continue
+        }
         # "ours" = uvicorn reloader, orphan uvicorn worker (spawn_main), or vite.
         # spawn_main workers are only treated as ours when squatting our backend ports (8000/8001).
         $isOurs = ($proc.Name -eq 'python.exe' -and $proc.CommandLine -match 'uvicorn') -or
@@ -204,6 +247,7 @@ foreach ($port in $Ports) {
             Write-Host "  [DRY ] port $port -> kill pid=$pid_ $($proc.Name)" -ForegroundColor Yellow
         } else {
             Write-Host "  [KILL] port $port -> pid=$pid_ $($proc.Name)" -ForegroundColor Yellow
+            & taskkill.exe /F /PID $pid_ /T 2>$null | Out-Null
             Stop-Process -Id $pid_ -Force -ErrorAction SilentlyContinue
             $extraKilled++
         }
@@ -300,4 +344,4 @@ if ($StopDataCenter) {
 }
 
 Write-Host ""
-Write-Host ("done. uvicorn killed=$n1, frontend killed=$n2, by-port killed=$extraKilled") -ForegroundColor Cyan
+Write-Host ("done. uvicorn killed=$n1, frontend killed=$n2, orphan-evo killed=$nOrphan, by-port killed=$extraKilled") -ForegroundColor Cyan

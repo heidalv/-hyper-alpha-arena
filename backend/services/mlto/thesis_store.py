@@ -89,6 +89,11 @@ def get_or_create(
         _THESIS_CACHE[k] = dto
         if db is not None:
             _persist(db, dto)
+            # _persist 可能因唯一约束 adopt 库内规范 thesis_id；回读保证缓存一致
+            loaded = _load(db, session_id, symbol, tier)
+            if loaded:
+                _THESIS_CACHE[k] = loaded
+                return loaded
         return dto
 
 
@@ -107,7 +112,12 @@ def update_hub(thesis: ThesisDTO, hub: HubDecision, db=None) -> None:
 
 
 def apply_llm_update(thesis: ThesisDTO, qual: QualUpdateResult, db=None) -> None:
-    thesis.review_count += 1
+    # [P5-修复] review_count 只在 LLM 给出实质方向研判时 +1（direction 非 neutral
+    # 或 conviction_delta≠0）；持续 neutral / 空响应（LLM 失败返回 {} 时
+    # direction 默认 "neutral"）的“空转”轮次不再计数。此前无条件 +1 会把计数
+    # 通胀到上万（BTC 11551），使 quant_layer 的“从未评级”判据失效。
+    if (qual.direction or "").strip().lower() in ("long", "short") or int(qual.conviction_delta or 0) != 0:
+        thesis.review_count += 1
     if qual.thesis_summary:
         thesis.thesis_summary = qual.thesis_summary[:500]
     # [add] 透传 reasoning 模型完整思维链（放宽到 6000 字，区别于精简的 thesis_summary）。
@@ -181,24 +191,23 @@ def append_event(
     payload: Dict[str, Any],
     db=None,
 ) -> None:
-    if db is None:
+    # db 参数保留兼容；与 _persist 一样用独立短连接，避免 LLM 后传入连接已死导致事件丢失。
+    if not thesis_id:
         return
     try:
+        from backend.database.connection import AnalyticsSessionLocal as _ASL
         from backend.services.mlto.db_models import MltoThesisEvent
-        db.add(
-            MltoThesisEvent(
-                thesis_id=thesis_id,
-                event_type=event_type,
-                payload_json=json.dumps(payload, ensure_ascii=False)[:8000],
+        with _ASL() as _db:
+            _db.add(
+                MltoThesisEvent(
+                    thesis_id=thesis_id,
+                    event_type=event_type,
+                    payload_json=json.dumps(payload, ensure_ascii=False)[:8000],
+                )
             )
-        )
-        db.commit()
+            _db.commit()
     except Exception as exc:
-        logger.debug("[MLTO] audit event skip: %s", exc)
-        try:
-            db.rollback()
-        except Exception:
-            pass
+        logger.warning("[MLTO] audit event skip thesis=%s type=%s: %s", thesis_id, event_type, exc)
 
 
 def list_session_theses(session_id: str, db=None) -> list:
@@ -236,23 +245,90 @@ def get_by_id(thesis_id: str, db=None) -> Optional[ThesisDTO]:
 def _persist(db, thesis: ThesisDTO) -> None:
     try:
         from backend.database.connection import AnalyticsSessionLocal as _ASL
-        from backend.services.mlto.db_models import MltoThesis
-        # [中长线合并修复] 独立短连接落库：thesis 的 LLM 调用（30-90s）期间
-        # 传入的连接可能被 PostgreSQL 掐断（server closed the connection
-        # unexpectedly），复用死连接 commit 必然失败。这里无视传入 db，
-        # 每次用全新连接按 thesis_id 写入，保证 thesis/mid_view 稳定落库。
+        from backend.services.mlto.db_models import MltoThesis, MltoThesisEvent
+        # 独立短连接落库。主键对齐顺序：
+        # 1) (session, symbol, tier) 唯一约束行（规范行）
+        # 2) thesis_id
+        # 3) 都不存在才 INSERT
+        # 曾出现：缓存里换了新 UUID → INSERT 撞 uq_mlto_thesis_session_sym_tier
+        # → 异常被 debug 吞掉 → BTC long 论点永远停在旧行，事件写成孤儿 thesis_id，
+        # 前端 JOIN mlto_thesis 看不到「BTC 长线分析」。
         with _ASL() as _db:
-            row = _db.query(MltoThesis).filter(MltoThesis.thesis_id == thesis.thesis_id).first()
-            if not row:
+            sym_u = str(thesis.symbol or "").upper()
+            row = None
+            try:
+                if thesis.session_id and sym_u and thesis.tier:
+                    row = (
+                        _db.query(MltoThesis)
+                        .filter(
+                            MltoThesis.session_id == thesis.session_id,
+                            MltoThesis.symbol == sym_u,
+                            MltoThesis.tier == thesis.tier,
+                        )
+                        .first()
+                    )
+            except Exception as _sel_err:
+                msg = str(_sel_err).lower()
+                if "dataconrupted" in msg or "toast" in msg or "missing chunk" in msg:
+                    logger.warning(
+                        "[MLTO] persist SELECT toast corrupt %s %s, null reasoning: %s",
+                        sym_u, thesis.tier, _sel_err,
+                    )
+                    try:
+                        _db.rollback()
+                        from sqlalchemy import text as _sa_text
+                        _db.execute(
+                            _sa_text(
+                                "UPDATE mlto_thesis SET reasoning_snapshot = NULL "
+                                "WHERE session_id = :sid AND symbol = :sym AND tier = :tier"
+                            ),
+                            {
+                                "sid": thesis.session_id,
+                                "sym": sym_u,
+                                "tier": thesis.tier,
+                            },
+                        )
+                        _db.commit()
+                        row = (
+                            _db.query(MltoThesis)
+                            .filter(
+                                MltoThesis.session_id == thesis.session_id,
+                                MltoThesis.symbol == sym_u,
+                                MltoThesis.tier == thesis.tier,
+                            )
+                            .first()
+                        )
+                    except Exception as _heal_err:
+                        logger.warning("[MLTO] persist toast heal failed: %s", _heal_err)
+                        try:
+                            _db.rollback()
+                        except Exception:
+                            pass
+                        row = None
+                else:
+                    raise
+            if row is None and thesis.thesis_id:
+                row = (
+                    _db.query(MltoThesis)
+                    .filter(MltoThesis.thesis_id == thesis.thesis_id)
+                    .first()
+                )
+            orphan_id = None
+            if row is None:
                 row = MltoThesis(thesis_id=thesis.thesis_id)
                 _db.add(row)
+            elif row.thesis_id != thesis.thesis_id:
+                orphan_id = thesis.thesis_id
+                logger.warning(
+                    "[MLTO] adopt canonical thesis_id %s → %s (%s %s)",
+                    orphan_id, row.thesis_id, sym_u, thesis.tier,
+                )
+                thesis.thesis_id = row.thesis_id
             row.session_id = thesis.session_id
-            row.symbol = thesis.symbol
+            row.symbol = sym_u
             row.tier = thesis.tier
             row.direction = thesis.direction
             row.thesis_summary = thesis.thesis_summary
-            # [add] 持久化 reasoning 模型完整思维链（列由 _ensure_columns_safe 幂等补齐）。
-            # 若旧库尚未补列，setAttribute 失败会被外层 except 兜住，不影响其它字段。
             if hasattr(row.__class__, "reasoning_snapshot"):
                 row.reasoning_snapshot = (thesis.reasoning_content or "")[:6000]
             row.llm_conviction = thesis.llm_conviction
@@ -267,39 +343,45 @@ def _persist(db, thesis: ThesisDTO) -> None:
             row.invalidation_json = json.dumps(thesis.invalidation, ensure_ascii=False)
             row.missing_evidence_json = json.dumps(thesis.missing_evidence, ensure_ascii=False)
             row.owm_weights_json = json.dumps(thesis.owm_weights, ensure_ascii=False)
-            # [v6 S2-7] regime 参数建议通道落库（校验后 applied dict）；
-            # 列类型 JSON(→PG JSONB)，直接赋 dict 由 ORM 序列化；
-            # 旧库未补列时 hasattr 守卫跳过。
+            row.updated_at = thesis.updated_at or _utcnow()
             if hasattr(row.__class__, "regime_suggestion_json"):
                 row.regime_suggestion_json = (
                     dict(thesis.regime_suggestion) if thesis.regime_suggestion else None
                 )
-            # [v6 阶段2 审计项7] LLM exit_plan 止损参数直通落库（0017 加列）；
-            # >0 才写（0.0=本轮未提供，不覆盖历史有效值）；旧库未补列时守卫跳过。
             if hasattr(row.__class__, "sl_pct"):
                 if float(thesis.sl_pct or 0) > 0:
                     row.sl_pct = thesis.sl_pct
-                # else: 保留 DB 历史值（DTO 0.0 表示本轮未提供，不覆盖）
             if hasattr(row.__class__, "tp_pct"):
                 if float(thesis.tp_pct or 0) > 0:
                     row.tp_pct = thesis.tp_pct
-            # [v6 4.2] 注入的回测智慧 id 落库（列由 main._ensure_columns_safe 幂等补齐）
             if hasattr(row.__class__, "wisdom_ids_json") and thesis.wisdom_ids:
                 row.wisdom_ids_json = json.dumps(thesis.wisdom_ids, ensure_ascii=False)
-            # [阶段2] mid_view 以 JSONB/TEXT 持久化；列由 0009 迁移幂等补齐。
-            # 旧库未补列时 hasattr 守卫跳过，不影响其它字段。
-            # [中长线合并修复] 直接赋 dict（JSON→PG JSONB 类型自动序列化），
-            # 弃用 cast(json_str, JSONB)：真实 PG 上会生成 CAST(%s::JSONB AS JSONB)
-            # + Jsonb 包装参数，INSERT 整句失败被 except 吞掉导致落库静默丢失。
             if hasattr(row.__class__, "mid_view_json"):
                 row.mid_view_json = (
                     thesis.mid_view.to_dict() if thesis.mid_view else None
                 )
+            # 把孤儿事件挂回规范 thesis_id，否则活动流 JOIN 永远看不到
+            if orphan_id and orphan_id != row.thesis_id:
+                try:
+                    _db.execute(
+                        MltoThesisEvent.__table__.update()
+                        .where(MltoThesisEvent.thesis_id == orphan_id)
+                        .values(thesis_id=row.thesis_id)
+                    )
+                except Exception as _heal_err:
+                    logger.debug("[MLTO] orphan event heal skip: %s", _heal_err)
             _db.commit()
     except Exception as exc:
-        logger.debug("[MLTO] thesis persist skip: %s", exc)
+        logger.warning(
+            "[MLTO] thesis persist skip %s %s %s: %s",
+            getattr(thesis, "symbol", "?"),
+            getattr(thesis, "tier", "?"),
+            getattr(thesis, "thesis_id", "?"),
+            exc,
+        )
         try:
-            db.rollback()
+            if db is not None:
+                db.rollback()
         except Exception:
             pass
 
@@ -317,7 +399,44 @@ def _load(db, session_id, symbol, tier) -> Optional[ThesisDTO]:
             .first()
         )
         return _row_to_dto(r) if r else None
-    except Exception:
+    except Exception as exc:
+        # PG TOAST 损坏（常见于超大 reasoning_snapshot）会导致整行 ORM 读失败，
+        # 进而 get_or_create 换新 UUID → 唯一约束撞车 → 长线论点「消失」。
+        # 尝试清空损坏列后重读。
+        msg = str(exc).lower()
+        if "dataconrupted" in msg or "toast" in msg or "missing chunk" in msg:
+            logger.warning(
+                "[MLTO] thesis row TOAST corrupt %s %s %s, null reasoning_snapshot: %s",
+                session_id, symbol, tier, exc,
+            )
+            try:
+                from sqlalchemy import text as _sa_text
+                db.rollback()
+                db.execute(
+                    _sa_text(
+                        "UPDATE mlto_thesis SET reasoning_snapshot = NULL "
+                        "WHERE session_id = :sid AND symbol = :sym AND tier = :tier"
+                    ),
+                    {"sid": session_id, "sym": str(symbol).upper(), "tier": tier},
+                )
+                db.commit()
+                from backend.services.mlto.db_models import MltoThesis
+                r = (
+                    db.query(MltoThesis)
+                    .filter(
+                        MltoThesis.session_id == session_id,
+                        MltoThesis.symbol == symbol.upper(),
+                        MltoThesis.tier == tier,
+                    )
+                    .first()
+                )
+                return _row_to_dto(r) if r else None
+            except Exception as heal_err:
+                logger.warning("[MLTO] toast heal failed: %s", heal_err)
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
         return None
 
 

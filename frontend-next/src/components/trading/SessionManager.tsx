@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,21 @@ import {
   useSessions, useAccounts, useStartSession, useStopSession,
   usePauseSession, useResumeSession, useDeleteSession,
 } from "@/hooks/useTradingData";
-import { sessionApi, autoCoinApi, type SessionStatus } from "@/lib/api";
+import { sessionApi, autoCoinApi, configApi, type SessionStatus } from "@/lib/api";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/auth";
 import { cn } from "@/lib/utils";
 
-/** 会话内 AI 选币：仅 VIP / 管理员 */
+/** 会话内 AI 选币：VIP / 管理员 / 已开选币特权 */
 function useCanSessionAutoCoin(): boolean {
   const user = useAuthStore((s) => s.user);
   const tier = (user?.tier || "").toLowerCase();
   const role = (user?.role || "").toLowerCase();
-  return role === "admin" || tier === "vip";
+  if (role === "admin" || role === "administrator") return true;
+  if (tier === "vip") return true;
+  const cse = user?.coin_select_enabled as unknown;
+  if (cse === true || cse === "true" || cse === "1") return true;
+  return false;
 }
 
 type SessionConfigForm = {
@@ -34,6 +38,8 @@ type SessionConfigForm = {
   daily_loss_limit_pct: number;
   active_exchange: string;
   auto_coin_max_slots: number;
+  auto_coin_mid_enabled: boolean;
+  auto_coin_mid_max_slots: number;
 };
 
 function configFromSession(session: SessionStatus): SessionConfigForm {
@@ -45,7 +51,53 @@ function configFromSession(session: SessionStatus): SessionConfigForm {
     daily_loss_limit_pct: session.daily_loss_limit_pct ?? 0.05,
     active_exchange: session.active_exchange ?? "",
     auto_coin_max_slots: session.auto_coin_max_slots ?? 5,
+    auto_coin_mid_enabled: !!session.auto_coin_mid_enabled,
+    auto_coin_mid_max_slots: session.auto_coin_mid_max_slots ?? 3,
   };
+}
+
+function normalizeFixedByTier(
+  raw: unknown,
+): { short?: string[]; mid?: string[]; long?: string[] } | null {
+  let cur: any = raw;
+  for (let i = 0; i < 3; i++) {
+    if (!cur) return null;
+    if (typeof cur === "string") {
+      try {
+        cur = JSON.parse(cur);
+      } catch {
+        return null;
+      }
+      continue;
+    }
+    if (typeof cur === "object" && !Array.isArray(cur)) {
+      return cur as { short?: string[]; mid?: string[]; long?: string[] };
+    }
+    return null;
+  }
+  return null;
+}
+
+function hasTierFixedConfig(session: SessionStatus): boolean {
+  const by = normalizeFixedByTier(session.fixed_symbols_by_tier);
+  if (!by) return false;
+  return (["short", "mid", "long"] as const).some((k) => Array.isArray(by[k]));
+}
+
+/** 分周期固定币；已配置时允许某周期为空（不再回退到并集，避免三周期看起来「焊死」）。 */
+function tierFixedList(session: SessionStatus, tier: "short" | "mid" | "long"): string[] {
+  const by = normalizeFixedByTier(session.fixed_symbols_by_tier);
+  if (by && (["short", "mid", "long"] as const).some((k) => Array.isArray(by[k]))) {
+    const hit = by[tier];
+    return Array.isArray(hit) ? hit.map((s) => String(s).toUpperCase()) : [];
+  }
+  return (session.symbols || []).map((s) => String(s).toUpperCase());
+}
+
+function sameSymList(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sb = new Set(b);
+  return a.every((x) => sb.has(x));
 }
 
 export function SessionManager() {
@@ -209,11 +261,15 @@ function SessionRow({
   // running/paused/defensive 都允许热改配置与交易对
   const canEdit = !isStopped;
   const [expanded, setExpanded] = useState(isRunning || isPaused || isDefensive);
-  const [addSym, setAddSym] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [autoCoinStatus, setAutoCoinStatus] = useState<any>(null);
+  const [midErr, setMidErr] = useState<string | null>(null);
+  const [midMsg, setMidMsg] = useState<string | null>(null);
   const canAutoCoin = useCanSessionAutoCoin();
   const isConfirming = confirmDelete === session.session_id;
+  const midFixed = tierFixedList(session, "mid");
+  const midAiOn = !!session.auto_coin_mid_enabled;
+  const midAiSyms = session.auto_coin_mid_symbols || [];
 
   const loadAutoCoin = async () => {
     try { setAutoCoinStatus(await autoCoinApi.status(session.session_id)); } catch {}
@@ -259,15 +315,33 @@ function SessionRow({
     await action("scan", () => autoCoinApi.scanNow(session.session_id));
   };
 
-  const handleAddSym = async () => {
-    if (!addSym.trim()) return;
-    const syms = addSym.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
-    await action("add", () => sessionApi.addSymbols(session.session_id, syms));
-    setAddSym("");
-  };
-
-  const handleRemoveSym = async (sym: string) => {
-    await action("remove", () => sessionApi.removeSymbols(session.session_id, [sym]));
+  const toggleMidAi = async (e?: MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!canAutoCoin && !midAiOn) {
+      setMidErr("中线 AI 选币仅 VIP / 管理员可用");
+      return;
+    }
+    if (!canEdit) {
+      setMidErr("会话已停止，无法切换");
+      return;
+    }
+    setBusy("midAi");
+    setMidErr(null);
+    setMidMsg(null);
+    try {
+      const res = midAiOn
+        ? await sessionApi.disableAutoCoinMid(session.session_id)
+        : await sessionApi.enableAutoCoinMid(session.session_id);
+      setMidMsg(res?.message || (midAiOn ? "已关闭中线AI" : "已开启中线AI"));
+      await qc.invalidateQueries({ queryKey: ["sessions"] });
+      await qc.refetchQueries({ queryKey: ["sessions"] });
+    } catch (err: any) {
+      const msg = err?.message || err?.detail || String(err);
+      setMidErr(msg);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const healthCheck = async () => {
@@ -362,82 +436,83 @@ function SessionRow({
         )}
       </div>
 
-      {/* 固定交易对（不占 AI 选币槽位） */}
-      <div className="mt-2 space-y-1">
-        <div className="text-[10px] text-muted-foreground">固定交易对 · 长线</div>
-        <div className="flex flex-wrap gap-1">
-          {(session.symbols || []).length === 0 ? (
-            <span className="text-[10px] text-muted-foreground/70">无</span>
-          ) : (
-            (session.symbols || []).map((s: string) => (
-              <div key={s} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/50 text-[10px]">
-                {s}
-                {canEdit && (
-                  <button onClick={() => handleRemoveSym(s)} className="text-muted-foreground hover:text-loss ml-0.5">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+      {/* 分周期固定币 + AI 选币摘要 */}
+      <div className="mt-2 space-y-2">
+        {(["short", "mid", "long"] as const).map((tier) => {
+          const label = tier === "short" ? "短线固定" : tier === "mid" ? "中线固定" : "长线固定";
+          const list = tierFixedList(session, tier);
+          return (
+            <div key={tier}>
+              <div className="text-[10px] text-muted-foreground">{label}</div>
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {list.length === 0 ? (
+                  <span className="text-[10px] text-muted-foreground/70">无</span>
+                ) : (
+                  list.map((s) => (
+                    <div key={`${tier}-${s}`} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/50 text-[10px]">
+                      {s}
+                    </div>
+                  ))
                 )}
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          );
+        })}
         {(session.auto_coin_symbols || []).length > 0 && (
           <>
             <div className="text-[10px] text-muted-foreground pt-1">
               AI选币 · 短线 · 槽位 {(session.auto_coin_symbols || []).length}/{session.auto_coin_max_slots ?? 5}
+              {session.auto_coin_enabled ? "" : "（已关）"}
             </div>
             <div className="flex flex-wrap gap-1">
               {(session.auto_coin_symbols || []).map((s: string) => (
                 <div key={`auto-${s}`} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px]">
                   {s}
-                  {canEdit && (
-                    <button onClick={() => handleRemoveSym(s)} className="text-primary/60 hover:text-loss ml-0.5">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
           </>
+        )}
+        <div className="text-[10px] text-muted-foreground">
+          中线固定：{midFixed.length ? midFixed.join(", ") : "无"} · 中线 AI：
+          {midAiOn ? "开" : "关"} · 槽位 {midAiSyms.length}/{session.auto_coin_mid_max_slots ?? 3}
+        </div>
+        {midAiSyms.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {midAiSyms.map((s: string) => (
+              <div key={`mid-ai-${s}`} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px]">
+                {s}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
       {/* 展开区 */}
       {expanded && (
         <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
-          {/* 动态加币 */}
+          {/* 分周期固定币（从备选池勾选） */}
           {canEdit && (
-            <div className="flex gap-2">
-              <Input value={addSym} onChange={(e) => setAddSym(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddSym()}
-                placeholder="加币 (如 ARB,OP)" className="text-xs h-7" disabled={!!busy} />
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleAddSym} disabled={busy === "add"}>
-                {busy === "add" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              </Button>
-            </div>
+            <FixedTierEditor
+              session={session}
+              onUpdated={() => {
+                qc.invalidateQueries({ queryKey: ["sessions"] });
+                qc.refetchQueries({ queryKey: ["sessions"] });
+              }}
+            />
           )}
 
-          {/* 自动选币（仅 VIP / 管理员可开启） */}
+          {/* 自动选币 · 短线（仅 VIP / 管理员可开启） */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs">自动选币</span>
+                <span className="text-xs">短线 AI 选币</span>
                 <Badge variant="outline" className="text-[9px]">VIP</Badge>
                 {autoCoinStatus && (
                   <Badge variant="secondary" className={cn("text-[9px]",
                     autoCoinStatus.auto_coin_enabled ? "bg-profit/20 text-profit" : "bg-muted text-muted-foreground")}>
                     {autoCoinStatus.auto_coin_enabled ? "ON" : "OFF"}
-                  </Badge>
-                )}
-                {autoCoinStatus?.degraded && (
-                  <Badge variant="outline" className="text-[9px] text-amber-400 border-amber-500/40">
-                    {autoCoinStatus.degraded === "score_only" ? "规则分·非AI" : autoCoinStatus.degraded}
-                  </Badge>
-                )}
-                {autoCoinStatus?.rank_source && (
-                  <Badge variant="outline" className="text-[9px]">
-                    {autoCoinStatus.rank_source}
                   </Badge>
                 )}
                 <Badge variant="outline" className="text-[9px]">
@@ -473,19 +548,72 @@ function SessionRow({
             )}
             {canAutoCoin && autoCoinStatus?.auto_coin_enabled && (
               <p className="text-[10px] text-muted-foreground pl-5">
-                槽位是上限；实际跟投数量取决于 VIP 短线看板（不含你的固定币 BTC/ETH/SOL）。
-                改大槽位后点「补仓扫描」或保存配置会自动补。看板币不够时无法凑满。
+                短线 AI 与固定币分开；槽位在下方「会话配置」调整。
               </p>
             )}
           </div>
 
-          {/* 自动选币状态 */}
           {autoCoinStatus?.auto_coin_enabled && autoCoinStatus.auto_symbols && (
             <div className="text-xs">
-              <span className="text-muted-foreground">选中的币: </span>
+              <span className="text-muted-foreground">短线 AI 选中: </span>
               <span className="text-primary">{autoCoinStatus.auto_symbols.join(", ")}</span>
             </div>
           )}
+
+          {/* 中线 AI 选币 */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Zap className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs">中线 AI 选币</span>
+                <Badge variant="outline" className="text-[9px]">VIP</Badge>
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "text-[9px]",
+                    midAiOn ? "bg-profit/20 text-profit" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {midAiOn ? "ON" : "OFF"}
+                </Badge>
+                <Badge variant="outline" className="text-[9px]">
+                  槽位 {midAiSyms.length}/{session.auto_coin_mid_max_slots ?? 3}
+                </Badge>
+              </div>
+              {canAutoCoin || midAiOn ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0"
+                  onClick={toggleMidAi}
+                  disabled={busy === "midAi" || !canEdit}
+                >
+                  {busy === "midAi" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                  {midAiOn ? "关闭" : "开启"}
+                </Button>
+              ) : (
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs opacity-60" disabled title="需 VIP">
+                  需 VIP
+                </Button>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground pl-5">
+              中线固定币（{midFixed.length ? midFixed.join(", ") : "无"}）与 AI 选币分开：
+              固定币在会话运行时就会交易；这里的开关只控制「额外 AI 中线币」。
+              {midAiOn
+                ? " 已开启：等待看板 approve / sticky 填充槽位。"
+                : " 当前关闭：日志里的中线策略多半来自固定币，不是 AI 选币。"}
+            </p>
+            {midMsg && <div className="text-[10px] text-profit pl-5">{midMsg}</div>}
+            {midErr && <div className="text-[10px] text-loss pl-5">{midErr}</div>}
+            {midAiSyms.length > 0 && (
+              <div className="text-xs pl-5">
+                <span className="text-muted-foreground">中线 AI 选中: </span>
+                <span className="text-primary">{midAiSyms.join(", ")}</span>
+              </div>
+            )}
+          </div>
 
           {/* 会话配置（运行中可直接改，含 AI 槽位） */}
           <ConfigEditor
@@ -622,6 +750,157 @@ function HealthStatus({
   );
 }
 
+function FixedTierEditor({
+  session,
+  onUpdated,
+}: {
+  session: SessionStatus;
+  onUpdated: () => void;
+}) {
+  const { data: pairsData } = useQuery({
+    queryKey: ["trading-pairs"],
+    queryFn: () => configApi.tradingPairs(),
+    staleTime: 60_000,
+  });
+  const pool: string[] = useMemo(() => {
+    const raw = pairsData?.symbols || pairsData?.pairs || pairsData || [];
+    if (Array.isArray(raw)) {
+      return raw.map((x: any) => String(typeof x === "string" ? x : x?.symbol || "").toUpperCase()).filter(Boolean);
+    }
+    return (session.backup_pool || []).map((s) => String(s).toUpperCase());
+  }, [pairsData, session.backup_pool]);
+
+  const [draft, setDraft] = useState(() => ({
+    short: [...tierFixedList(session, "short")],
+    mid: [...tierFixedList(session, "mid")],
+    long: [...tierFixedList(session, "long")],
+  }));
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 会话切换：重置草稿
+    setDirty(false);
+    setDraft({
+      short: [...tierFixedList(session, "short")],
+      mid: [...tierFixedList(session, "mid")],
+      long: [...tierFixedList(session, "long")],
+    });
+    setErr(null);
+    setMsg(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.session_id]);
+
+  useEffect(() => {
+    // 有未保存修改时，不要被 5s 会话轮询冲掉（否则三周期看起来无法单独改）
+    if (dirty) return;
+    const next = {
+      short: [...tierFixedList(session, "short")],
+      mid: [...tierFixedList(session, "mid")],
+      long: [...tierFixedList(session, "long")],
+    };
+    setDraft((prev) => {
+      if (
+        sameSymList(prev.short, next.short) &&
+        sameSymList(prev.mid, next.mid) &&
+        sameSymList(prev.long, next.long)
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [dirty, session.symbols, session.fixed_symbols_by_tier]);
+
+  const toggle = (tier: "short" | "mid" | "long", sym: string) => {
+    setDirty(true);
+    setMsg(null);
+    setDraft((prev) => {
+      const cur = new Set(prev[tier]);
+      if (cur.has(sym)) cur.delete(sym);
+      else cur.add(sym);
+      return { ...prev, [tier]: Array.from(cur) };
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      const res = await sessionApi.setFixedSymbolsByTier(session.session_id, {
+        short: [...draft.short],
+        mid: [...draft.mid],
+        long: [...draft.long],
+      });
+      const saved = normalizeFixedByTier(res?.fixed_symbols_by_tier);
+      if (saved) {
+        setDraft({
+          short: [...(saved.short || [])].map((s) => String(s).toUpperCase()),
+          mid: [...(saved.mid || [])].map((s) => String(s).toUpperCase()),
+          long: [...(saved.long || [])].map((s) => String(s).toUpperCase()),
+        });
+      }
+      setDirty(false);
+      setMsg("已保存：短/中/长各自独立");
+      onUpdated();
+    } catch (e: any) {
+      setErr(e?.message || e?.detail || "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-border/40 p-2 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">分周期固定币</span>
+        <Button size="sm" className="h-7 text-xs" onClick={save} disabled={saving || !dirty}>
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+          保存固定币
+        </Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        从「设置 → 交易对」备选池勾选；短/中/长可不同，互不影响。长线仅固定币，无 AI。
+        启动时勾选的币默认只进「长线」；短/中请在此分别勾选后点「保存固定币」。
+        {dirty ? " · 有未保存修改" : ""}
+      </p>
+      {(["short", "mid", "long"] as const).map((tier) => (
+        <div key={tier}>
+          <div className="text-[10px] text-muted-foreground mb-1">
+            {tier === "short" ? "短线" : tier === "mid" ? "中线" : "长线"}固定
+            <span className="ml-1 tabular-nums">({draft[tier].length})</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(pool.length ? pool : draft[tier]).map((sym) => {
+              const on = draft[tier].includes(sym);
+              return (
+                <button
+                  key={`${tier}-${sym}`}
+                  type="button"
+                  onClick={() => toggle(tier, sym)}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] border",
+                    on ? "bg-profit/15 text-profit border-profit/40" : "bg-muted/30 text-muted-foreground border-border/40",
+                  )}
+                >
+                  {sym}
+                </button>
+              );
+            })}
+            {!pool.length && (
+              <span className="text-[10px] text-muted-foreground">备选池为空，请先在交易对配置添加</span>
+            )}
+          </div>
+        </div>
+      ))}
+      {msg && <div className="text-[10px] text-profit">{msg}</div>}
+      {err && <div className="text-[10px] text-loss">{err}</div>}
+    </div>
+  );
+}
+
 function ConfigEditor({
   session, canEdit, onUpdated,
 }: {
@@ -645,6 +924,8 @@ function ConfigEditor({
     session.daily_loss_limit_pct,
     session.active_exchange,
     session.auto_coin_max_slots,
+    session.auto_coin_mid_enabled,
+    session.auto_coin_mid_max_slots,
   ]);
 
   const dirty = useMemo(() => {
@@ -655,7 +936,9 @@ function ConfigEditor({
       Number(form.max_total_drawdown_pct) !== Number(baseline.max_total_drawdown_pct) ||
       Number(form.daily_loss_limit_pct) !== Number(baseline.daily_loss_limit_pct) ||
       (form.active_exchange || "") !== (baseline.active_exchange || "") ||
-      Number(form.auto_coin_max_slots) !== Number(baseline.auto_coin_max_slots)
+      Number(form.auto_coin_max_slots) !== Number(baseline.auto_coin_max_slots) ||
+      !!form.auto_coin_mid_enabled !== !!baseline.auto_coin_mid_enabled ||
+      Number(form.auto_coin_mid_max_slots) !== Number(baseline.auto_coin_mid_max_slots)
     );
   }, [form, baseline]);
 
@@ -681,6 +964,8 @@ function ConfigEditor({
       };
       if (canAutoCoin) {
         payload.auto_coin_max_slots = Number(form.auto_coin_max_slots);
+        payload.auto_coin_mid_enabled = !!form.auto_coin_mid_enabled;
+        payload.auto_coin_mid_max_slots = Number(form.auto_coin_mid_max_slots);
       }
       const res = await sessionApi.updateConfig(session.session_id, payload as any);
       setMsg(res.message || "已保存，运行中立即生效");
@@ -791,7 +1076,7 @@ function ConfigEditor({
         </div>
         <div className={cn(fieldCls, "col-span-2")}>
           <span className="text-muted-foreground">
-            AI选币槽位{!canAutoCoin ? "（需VIP）" : "（仅约束AI池，固定币不占）"}
+            短线 AI 槽位{!canAutoCoin ? "（需VIP）" : "（5~10，固定币不占）"}
           </span>
           <select
             className={selectCls}
@@ -800,6 +1085,33 @@ function ConfigEditor({
             onChange={(e) => setForm({ ...form, auto_coin_max_slots: Number(e.target.value) })}
           >
             {[5, 6, 7, 8, 9, 10].map((n) => (
+              <option key={n} value={n}>{n} 个</option>
+            ))}
+          </select>
+        </div>
+        <div className={cn(fieldCls, "col-span-2")}>
+          <span className="text-muted-foreground">中线 AI 开关</span>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              disabled={!canEdit || !canAutoCoin}
+              checked={!!form.auto_coin_mid_enabled}
+              onChange={(e) => setForm({ ...form, auto_coin_mid_enabled: e.target.checked })}
+            />
+            {form.auto_coin_mid_enabled ? "已开启" : "已关闭"}
+          </label>
+        </div>
+        <div className={cn(fieldCls, "col-span-2")}>
+          <span className="text-muted-foreground">
+            中线 AI 槽位{!canAutoCoin ? "（需VIP）" : "（1~5）"}
+          </span>
+          <select
+            className={selectCls}
+            disabled={!canEdit || !canAutoCoin}
+            value={form.auto_coin_mid_max_slots}
+            onChange={(e) => setForm({ ...form, auto_coin_mid_max_slots: Number(e.target.value) })}
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
               <option key={n} value={n}>{n} 个</option>
             ))}
           </select>

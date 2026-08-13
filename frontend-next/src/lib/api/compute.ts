@@ -171,6 +171,7 @@ export interface ScalpMetaReport {
     status?: string;
     error?: string;
     auc?: number;
+    oos_auc_lgbm?: number;
     [k: string]: unknown;
   } | null;
 }

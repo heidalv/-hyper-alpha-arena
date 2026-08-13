@@ -132,6 +132,8 @@ def allow(
             return False, "direction neutral"
         return hub.action in ("BUILD", "NIBBLE", "WAIT"), "open_gate disabled"
 
+    _soft = ""
+
     # ── 底线 1：方向不能是 neutral ──
     if hub.direction == "neutral":
         return False, "direction neutral"
@@ -149,14 +151,36 @@ def allow(
 
     # ── 底线 4：尊重 LLM 的 recommend_open=False（AI 自己说不建议开仓）──
     # thesis.recommend_open：None=LLM 未明确给出（放行）；False=LLM 明确拒绝。
+    # Paper 探针例外：Hub 已 NIBBLE/BUILD 且有方向时，recommend_open=False 只 soft
+    # （否则审计大量 NIBBLE/long 被本门一票否决，探针永远进不了 Writer）。
     if thesis.recommend_open is False:
-        return False, "llm recommend_open=False"
+        _probe_soft_rec = False
+        try:
+            from backend.config.settings import MIDLONG_NIBBLE_PROBE_ENABLED
+            _mode = str(getattr(packet, "trading_mode", "") or "paper").lower()
+            if (
+                bool(MIDLONG_NIBBLE_PROBE_ENABLED)
+                and _mode != "live"
+                and hub.action in ("NIBBLE", "BUILD")
+                and hub.direction in ("long", "short")
+            ):
+                _probe_soft_rec = True
+        except Exception:
+            _probe_soft_rec = False
+        if _probe_soft_rec:
+            logger.info(
+                "[OpenGate] recommend_open=False soft_pass (nibble_probe) %s %s/%s",
+                packet.symbol, hub.action, hub.direction,
+            )
+            _soft = ((_soft + " | ") if _soft else "") + "recommend_open_false_soft"
+        else:
+            return False, "llm recommend_open=False"
 
     # ── 底线 5：hub action 合法（非空、非 hold-only）──
     if hub.action not in ("BUILD", "NIBBLE", "WAIT"):
         return False, f"hub_action={hub.action}"
 
-    # ── P1 底线 6：震荡市禁开长线（虚拟币永续）──
+    # ── P1 底线 6（v6 松绑）：chop 不得否决/翻转 AI 方向 —— 仅 soft_warning ──
     if packet.tier == "long":
         try:
             from backend.services.mlto.midlong_trade_design import is_chop_regime
@@ -165,16 +189,43 @@ def allow(
                 packet.orchestrator or {},
             )
             if _chop:
-                return False, f"chop_regime: {_chop_why}"
+                _soft = ((_soft + " | ") if _soft else "") + f"chop_soft:{_chop_why}"
+                logger.info(
+                    "[OpenGate] chop soft_warning (no veto) %s: %s",
+                    packet.symbol, _chop_why,
+                )
         except Exception as _chop_err:
             logger.debug("[OpenGate] chop check skip: %s", _chop_err)
 
-    # ── P1 底线 7：资金费率扣减后净 RR（仅当 hub 已给出方向且非 WAIT）──
+    # ── v3.1.0 短线遵循软约束：short_overlay 强冲突（conf≥0.6 且 2h 内）
+    # BUILD → NIBBLE 降档（只缩仓位，不否决 AI 方向），reasoning 由 LLM 侧说明。
+    if hub.action == "BUILD" and hub.direction in ("long", "short"):
+        try:
+            _ms = packet.market_summary_sym or {}
+            _ov = _ms.get("short_overlay")
+            if isinstance(_ov, dict) and _ov.get("direction"):
+                _ov_dir = str(_ov.get("direction")).lower()
+                _ov_conf = float(_ov.get("confidence") or 0)
+                _ov_age = float(_ov.get("age_sec") or 0)
+                _opp = {"long": "short", "short": "long"}.get(hub.direction)
+                if _ov_dir == _opp and _ov_conf >= 0.6 and _ov_age <= 7200:
+                    hub.action = "NIBBLE"
+                    _soft = (
+                        f"short_overlay_conflict:BUILD->NIBBLE("
+                        f"{_ov_dir} conf={_ov_conf:.2f} age={int(_ov_age)}s)"
+                    )
+                    logger.info(
+                        "[OpenGate] short_overlay 冲突降档 %s: %s",
+                        packet.symbol, _soft,
+                    )
+        except Exception as _ov_err:
+            logger.debug("[OpenGate] short_overlay check skip: %s", _ov_err)
+
+    # ── P1 底线 7：资金费率清算级净 RR（物理风险，仍可硬拒）──
     if packet.tier == "long" and hub.action in ("NIBBLE", "BUILD") and hub.direction in ("long", "short"):
         try:
             from backend.services.mlto.midlong_trade_design import funding_net_rr_ok
             ms = packet.market_summary_sym or {}
-            # 粗估 TP/SL：用 invalidation 距离或默认 2×/1× ATR 量级；真正 SL/TP 在执行层再校
             atr = None
             try:
                 from backend.services.mlto.midlong_trade_design import estimate_atr_1d_pct
@@ -195,7 +246,7 @@ def allow(
         except Exception as _fr_err:
             logger.debug("[OpenGate] funding check skip: %s", _fr_err)
 
-    return True, "ok"
+    return True, (_soft or "ok")
 
 
 def _critical_data_missing(packet: PerceptionPacket) -> str:
@@ -230,7 +281,7 @@ def _is_auto_coin(packet: PerceptionPacket) -> bool:
         _session_id = getattr(packet, "session_id", None)
         if not _session_id:
             return False
-        _fixed = get_fixed_symbols_for_session(_session_id)
+        _fixed = get_fixed_symbols_for_session(_session_id, tier="long")
         if not _fixed:
             # 白名单为空（未配置/查询异常）→ 不拦截，交给执行层守卫。
             return False

@@ -133,6 +133,7 @@ def resume_full_auto(session_id: str, db: Session = Depends(get_db)):
 
 class AddSymbolsRequest(BaseModel):
     symbols: List[str]
+    tier: Optional[str] = None  # short|mid|long；固定币写入目标周期
 
 
 @router.post("/add-symbols/{session_id}")
@@ -140,7 +141,9 @@ def add_symbols(session_id: str, request: AddSymbolsRequest, db: Session = Depen
     """向运行中的会话添加交易对"""
     if not request.symbols:
         raise HTTPException(status_code=400, detail="请至少选择一个交易对")
-    result = full_auto_service.add_symbols(db, session_id, request.symbols)
+    result = full_auto_service.add_symbols(
+        db, session_id, request.symbols, tier=request.tier,
+    )
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "添加失败"))
     return result
@@ -161,6 +164,120 @@ def remove_symbols(session_id: str, request: RemoveSymbolsRequest, db: Session =
     return result
 
 
+class FixedSymbolsByTierRequest(BaseModel):
+    short: Optional[List[str]] = None
+    mid: Optional[List[str]] = None
+    long: Optional[List[str]] = None
+
+
+@router.put("/fixed-symbols-by-tier/{session_id}")
+@router.post("/fixed-symbols-by-tier/{session_id}")
+def put_fixed_symbols_by_tier(
+    session_id: str, request: FixedSymbolsByTierRequest, db: Session = Depends(get_db),
+):
+    """一次提交短/中/长固定币（必须来自交易对备选池）。
+
+    同时挂 PUT/POST：旧进程未加载本路由时，PUT 会落到 SPA 的 GET catch-all → 405；
+    前端统一走 POST，与 add-symbols / update-config 一致。
+    """
+    session = db.query(FullAutoSession).filter(
+        FullAutoSession.session_id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    if session.status not in ("running", "defensive", "paused"):
+        raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}")
+
+    from backend.services.auto_coin_selector import (
+        _parse_by_tier_map,
+        set_fixed_symbols_by_tier,
+    )
+    # 合并：未传的周期保留现有；空列表 [] 必须保留（不能 or 并集，否则三路焊死）
+    cur = _parse_by_tier_map(getattr(session, "fixed_symbols_by_tier", None))
+    legacy = [str(s).upper() for s in (session.symbols or []) if s]
+
+    def _pick(req_val, key: str):
+        if req_val is not None:
+            return req_val
+        if cur and key in cur:
+            return cur.get(key) or []
+        # 尚无分周期配置时，仅 long 可回退并集；短/中默认空，避免焊死
+        if key == "long":
+            return list(legacy)
+        return []
+
+    payload = {
+        "short": _pick(request.short, "short"),
+        "mid": _pick(request.mid, "mid"),
+        "long": _pick(request.long, "long"),
+    }
+    result = set_fixed_symbols_by_tier(session_id, payload, db=db, enforce_backup_pool=True)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "保存失败"))
+    db.refresh(session)
+    try:
+        full_auto_service._append_event(
+            session,
+            "fixed_symbols_by_tier_saved",
+            (
+                f"短={','.join(payload.get('short') or []) or '空'} | "
+                f"中={','.join(payload.get('mid') or []) or '空'} | "
+                f"长={','.join(payload.get('long') or []) or '空'}"
+            ),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    full_auto_service._invalidate_session_status_cache(session_id)
+    return result
+
+
+@router.post("/auto-coin-mid/{session_id}/enable")
+def enable_auto_coin_mid(session_id: str, http_request: Request, db: Session = Depends(get_db)):
+    """开启会话中线 AI 选币（与短线 auto-coin 通道隔离）。"""
+    return _set_auto_coin_mid(session_id, True, http_request, db)
+
+
+@router.post("/auto-coin-mid/{session_id}/disable")
+def disable_auto_coin_mid(session_id: str, http_request: Request, db: Session = Depends(get_db)):
+    """关闭会话中线 AI 选币：不再新纳入 AI 中线币；已有 mid 仓继续管。"""
+    return _set_auto_coin_mid(session_id, False, http_request, db)
+
+
+def _set_auto_coin_mid(session_id: str, enabled: bool, http_request: Request, db: Session):
+    session = db.query(FullAutoSession).filter(
+        FullAutoSession.session_id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    if session.status not in ("running", "defensive", "paused"):
+        raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}")
+    from backend.api.auto_coin_routes import _assert_vip_session_auto_coin
+    _assert_vip_session_auto_coin(http_request, db, session)
+    session.auto_coin_mid_enabled = bool(enabled)
+    if session.auto_coin_mid_max_slots is None:
+        session.auto_coin_mid_max_slots = 3
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"保存失败: {e}")
+    if session_id in full_auto_service._running_sessions:
+        full_auto_service._running_sessions[session_id]["auto_coin_mid_enabled"] = bool(enabled)
+    full_auto_service._invalidate_session_status_cache(session_id)
+    logger.info(
+        "[FullAuto] auto_coin_mid_enabled=%s session=%s",
+        enabled, session_id,
+    )
+    return {
+        "success": True,
+        "session_id": session_id,
+        "auto_coin_mid_enabled": bool(enabled),
+        "auto_coin_mid_max_slots": int(session.auto_coin_mid_max_slots or 3),
+        "message": "中线AI选币已开启" if enabled else "中线AI选币已关闭（中线固定币仍可交易）",
+    }
+
+
 class UpdateConfigRequest(BaseModel):
     """会话配置更新请求 — 所有字段可选，只更新提交的字段。
 
@@ -174,7 +291,9 @@ class UpdateConfigRequest(BaseModel):
     max_total_drawdown_pct: Optional[float] = None
     daily_loss_limit_pct: Optional[float] = None
     active_exchange: Optional[str] = None
-    auto_coin_max_slots: Optional[int] = None  # 5~10，会话 AI 选币槽位
+    auto_coin_max_slots: Optional[int] = None  # 5~10，短线 AI 选币槽位
+    auto_coin_mid_enabled: Optional[bool] = None
+    auto_coin_mid_max_slots: Optional[int] = None  # 1~5，中线 AI 选币槽位
 
 
 @router.post("/update-config/{session_id}")
@@ -192,7 +311,11 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
     if session.status not in ("running", "defensive", "paused"):
         raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}，运行/防守/暂停中可更新配置")
 
-    if request.auto_coin_max_slots is not None:
+    if (
+        request.auto_coin_max_slots is not None
+        or request.auto_coin_mid_enabled is not None
+        or request.auto_coin_mid_max_slots is not None
+    ):
         from backend.api.auto_coin_routes import _assert_vip_session_auto_coin
         _assert_vip_session_auto_coin(http_request, db, session)
     updated = []
@@ -233,6 +356,15 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
             raise HTTPException(status_code=400, detail="auto_coin_max_slots 须在 5-10")
         session.auto_coin_max_slots = v
         updated.append(f"auto_coin_max_slots={v}")
+    if request.auto_coin_mid_enabled is not None:
+        session.auto_coin_mid_enabled = bool(request.auto_coin_mid_enabled)
+        updated.append(f"auto_coin_mid_enabled={session.auto_coin_mid_enabled}")
+    if request.auto_coin_mid_max_slots is not None:
+        v = int(request.auto_coin_mid_max_slots)
+        if v < 1 or v > 5:
+            raise HTTPException(status_code=400, detail="auto_coin_mid_max_slots 须在 1-5")
+        session.auto_coin_mid_max_slots = v
+        updated.append(f"auto_coin_mid_max_slots={v}")
 
     if not updated:
         return {"success": True, "session_id": session_id, "updated": [], "message": "无字段需要更新"}
@@ -255,6 +387,10 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
             rs["active_exchange"] = session.active_exchange
         if request.auto_coin_max_slots is not None:
             rs["auto_coin_max_slots"] = session.auto_coin_max_slots
+        if request.auto_coin_mid_enabled is not None:
+            rs["auto_coin_mid_enabled"] = session.auto_coin_mid_enabled
+        if request.auto_coin_mid_max_slots is not None:
+            rs["auto_coin_mid_max_slots"] = session.auto_coin_mid_max_slots
 
     # 槽位变更：同步内存池上限，并立刻触发补仓（不依赖会话是否在内存 dict）
     if request.auto_coin_max_slots is not None:
@@ -473,6 +609,21 @@ def list_sessions(
         else_=4,
     )
     sessions = q.order_by(active_order, FullAutoSession.created_at.desc()).limit(50).all()
+    _backup_pool: list = []
+    try:
+        from backend.services.trading_pairs_config import get_user_trading_pairs
+        _backup_pool = list(get_user_trading_pairs() or [])
+    except Exception:
+        _backup_pool = []
+    try:
+        from backend.services.auto_coin_selector import (
+            _load_ai_mid_sticky as _load_mid_sticky,
+            _parse_by_tier_map as _parse_by_tier,
+        )
+    except Exception:
+        _load_mid_sticky = None  # type: ignore
+        def _parse_by_tier(raw):  # type: ignore
+            return raw if isinstance(raw, dict) else {}
     result = []
     for s in sessions:
         _pnl = s.total_pnl or 0
@@ -497,6 +648,17 @@ def list_sessions(
         _paper_id = getattr(s, "paper_account_id", None)
         _paper = db.query(Account).filter(Account.id == _paper_id).first() if _paper_id else None
         _trading_id = _paper_id if (s.trading_mode == "paper" and _paper_id) else s.account_id
+        _mid_syms: list = []
+        if bool(getattr(s, "auto_coin_mid_enabled", False)) and _load_mid_sticky:
+            try:
+                _st = _load_mid_sticky(s.session_id) or {}
+                _mid_syms = [
+                    str(x).strip().upper()
+                    for x in (_st.get("symbols") or [])
+                    if x
+                ][: int(getattr(s, "auto_coin_mid_max_slots", None) or 3)]
+            except Exception:
+                _mid_syms = []
         result.append({
             "session_id": s.session_id,
             "account_id": s.account_id,
@@ -509,6 +671,11 @@ def list_sessions(
             "auto_coin_enabled": bool(getattr(s, "auto_coin_enabled", False)),
             "auto_coin_symbols": getattr(s, "auto_coin_symbols", None) or [],
             "auto_coin_max_slots": int(getattr(s, "auto_coin_max_slots", None) or 5),
+            "auto_coin_mid_enabled": bool(getattr(s, "auto_coin_mid_enabled", False)),
+            "auto_coin_mid_max_slots": int(getattr(s, "auto_coin_mid_max_slots", None) or 3),
+            "auto_coin_mid_symbols": _mid_syms,
+            "fixed_symbols_by_tier": _parse_by_tier(getattr(s, "fixed_symbols_by_tier", None)),
+            "backup_pool": _backup_pool,
             "risk_level": s.risk_level,
             "risk_mode": getattr(s, "risk_mode", None) or "ai_dynamic",
             "trading_mode": s.trading_mode,
@@ -581,8 +748,13 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
     except Exception:
         pass
 
-    # 2026-07-20：AI 选币币种不做长线（只做短线/中线）。
-    # 长线 tier 的 symbols 排除 AI 选币，短线/中线仍显示全部。
+    # 三通道拆分：短线固定 / AI中线 / 固定长线
+    from backend.services.auto_coin_selector import (
+        _parse_by_tier_map,
+        get_ai_mid_candidates_for_session as _get_ai_mid,
+        get_fixed_symbols_for_session as _get_fixed,
+        get_session_mid_ai_config,
+    )
     _auto_coin_set = {
         str(s).strip().upper()
         for s in (getattr(session, "auto_coin_symbols", None) or [])
@@ -593,6 +765,13 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
         for s in (getattr(session, "symbols", None) or [])
         if s
     }
+    _fixed_long = {str(s).upper() for s in (_get_fixed(session_id, tier="long") or set())}
+    _fixed_mid = {str(s).upper() for s in (_get_fixed(session_id, tier="mid") or set())}
+    _fixed_short = {str(s).upper() for s in (_get_fixed(session_id, tier="short") or set())}
+    _fixed_set = _fixed_long  # lanes.fixed_long 兼容
+    _ai_mid_set = {str(s).upper() for s in (_get_ai_mid(session_id, db=db) or [])}
+    _mid_cfg = get_session_mid_ai_config(session_id, db=db)
+    _by_tier = _parse_by_tier_map(getattr(session, "fixed_symbols_by_tier", None))
 
     from sqlalchemy import or_ as _or
 
@@ -602,9 +781,6 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
             getattr(s, "timeframe_tier", None) == t
             or NATURE_TO_TIER.get((s.genome or {}).get("trade_nature", ""), "mid") == t
         )]
-        # 2026-08-02：Agent 监控「长线 Trend (含中周期)」只读 tiers.long。
-        # 存量 swing 仓多为 timeframe_tier=mid，若 long 只数 long 会显示持仓=0。
-        # 长线桶合并 mid+long（及 nature∈swing/trend_follow/position）以匹配 UI 文案。
         if t == "long":
             positions = (
                 db.query(_PP)
@@ -612,55 +788,55 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
                     _PP.account_id == _trading_acct,
                     _PP.status == "open",
                     _or(
-                        _PP.timeframe_tier.in_(("mid", "long")),
-                        _PP.trade_nature.in_(("swing", "trend_follow", "position")),
+                        _PP.timeframe_tier == "long",
+                        _PP.trade_nature.in_(("trend_follow", "position")),
                     ),
                 )
                 .all()
             )
-            # mid 策略一并计入（中长线一体调度）
-            _mid_strats = [s for s in strats if (
-                getattr(s, "timeframe_tier", None) == "mid"
-                or NATURE_TO_TIER.get((s.genome or {}).get("trade_nature", ""), "") == "mid"
-            )]
-            _seen_sid = {id(s) for s in tier_strats}
-            for _ms in _mid_strats:
-                if id(_ms) not in _seen_sid:
-                    tier_strats.append(_ms)
-                    _seen_sid.add(id(_ms))
+        elif t == "mid":
+            positions = (
+                db.query(_PP)
+                .filter(
+                    _PP.account_id == _trading_acct,
+                    _PP.status == "open",
+                    _or(
+                        _PP.timeframe_tier == "mid",
+                        _PP.trade_nature == "swing",
+                    ),
+                )
+                .all()
+            )
         else:
             positions = db.query(_PP).filter(
                 _PP.account_id == _trading_acct,
                 _PP.status == "open",
-                _PP.timeframe_tier == t,
+                _or(
+                    _PP.timeframe_tier == "short",
+                    _PP.trade_nature == "scalp",
+                ),
             ).all()
         margin_used = sum(float(p.margin or 0) for p in positions)
         budget = total_equity * TIER_BUDGET_ALLOCATION.get(t, 0.3)
         max_margin = total_equity * TIER_MAX_MARGIN_PCT.get(t, 0.4)
 
-        # 2026-07-20：symbols 统计逻辑
-        # - 短线/中线：显示 session.symbols 里的全部币种（固定交易对 + AI 选币）。
-        #   仪表盘反映"会话正在交易的币种"，不论该 tier 策略是 active 还是 paused。
-        # - 长线：排除 AI 选币（AI 选币不做长线交易），只显示固定交易对 BTC/ETH/SOL。
-        #   这样仪表盘短/中线能看到 AI 选币，长线只有固定交易对。
         if t == "long":
-            _tier_symbols = sorted(_session_symbol_set - _auto_coin_set)
+            _tier_symbols = sorted(_fixed_long)
+        elif t == "mid":
+            _pos_syms = {str(p.symbol).upper() for p in positions if p.symbol}
+            _tier_symbols = sorted(_fixed_mid | _ai_mid_set | _pos_syms)
         else:
-            _tier_symbols = sorted(_session_symbol_set)
+            _short_ai = _auto_coin_set if getattr(session, "auto_coin_enabled", False) else set()
+            _tier_symbols = sorted(_fixed_short | _short_ai)
 
-        _pos_mid = sum(
-            1 for p in positions
-            if (getattr(p, "timeframe_tier", None) or "").lower() == "mid"
-            or (getattr(p, "trade_nature", None) or "").lower() == "swing"
-        )
         tiers[t] = {
-            "label": {"short": "短线", "mid": "中线", "long": "长线(含中周期)"}[t],
+            "label": {"short": "短线", "mid": "AI中线", "long": "固定长线"}[t],
             "strategy_count": len(tier_strats),
             "active_count": sum(1 for s in tier_strats if s.status == "active"),
             "paused_count": sum(1 for s in tier_strats if s.status == "paused"),
             "position_count": len(positions),
-            "position_count_mid": _pos_mid if t == "long" else 0,
-            "position_count_long_only": (len(positions) - _pos_mid) if t == "long" else len(positions),
+            "position_count_mid": 0,
+            "position_count_long_only": len(positions) if t == "long" else 0,
             "margin_used": round(margin_used, 2),
             "budget_allocated": round(budget, 2),
             "budget_max": round(max_margin, 2),
@@ -672,6 +848,20 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
         "session_id": session_id,
         "total_equity": round(total_equity, 2),
         "tier_budget_allocation": TIER_BUDGET_ALLOCATION,
+        "lanes": {
+            "fixed_long": sorted(_fixed_long),
+            "fixed_mid": sorted(_fixed_mid),
+            "fixed_short": sorted(_fixed_short),
+            "ai_mid": sorted(_ai_mid_set),
+            "auto_coin": sorted(_auto_coin_set),
+        },
+        "fixed_symbols_by_tier": _by_tier or {
+            "short": sorted(_fixed_short),
+            "mid": sorted(_fixed_mid),
+            "long": sorted(_fixed_long),
+        },
+        "auto_coin_mid_enabled": bool(_mid_cfg.get("enabled")),
+        "auto_coin_mid_max_slots": int(_mid_cfg.get("max_slots") or 3),
         "tiers": tiers,
     }
 
@@ -696,7 +886,10 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
         adb.close()
 
     result: dict = {"short": [], "mid": [], "long": []}
-    # 会话 AI 选币集合：主控常把无策略币误标 mid，活动面板需纠正归短线
+    from backend.services.auto_coin_selector import (
+        get_ai_mid_candidates_for_session as _get_ai_mid_act,
+        get_fixed_symbols_for_session as _get_fixed_act,
+    )
     _auto_syms = set()
     try:
         _raw_auto = getattr(session, "auto_coin_symbols", None) or []
@@ -706,11 +899,37 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
         _auto_syms = {str(x).strip().upper() for x in _raw_auto if x}
     except Exception:
         _auto_syms = set()
+    # 分周期固定白名单：并集会把 mid 币误当 long 兜底
+    _fixed_long = {str(s).upper() for s in (_get_fixed_act(session_id, tier="long") or set())}
+    _fixed_mid = {str(s).upper() for s in (_get_fixed_act(session_id, tier="mid") or set())}
+    _fixed_syms = _fixed_long | _fixed_mid
+    _ai_mid_syms = {str(s).upper() for s in (_get_ai_mid_act(session_id, db=db) or [])}
+    # 已开仓但列表被刷掉的币：仍按真实持仓性质归桶（续管），避免 AAVE 这类短线仓窜进长线
+    _open_short = set()
+    _open_mid = set()
+    _open_long = set()
+    try:
+        from backend.database.models import PaperPosition as _PP2
+        _acct = (
+            session.paper_account_id
+            if (session.trading_mode == "paper" and getattr(session, "paper_account_id", None))
+            else session.account_id
+        )
+        if _acct:
+            for _p in db.query(_PP2).filter(_PP2.account_id == _acct, _PP2.status == "open").all():
+                _su = str(_p.symbol or "").upper()
+                _tt = str(_p.timeframe_tier or "").lower()
+                _tn = str(_p.trade_nature or "").lower()
+                if _tt == "short" or _tn == "scalp":
+                    _open_short.add(_su)
+                elif _tt == "mid" or _tn == "swing":
+                    _open_mid.add(_su)
+                elif _tt == "long" or _tn in ("trend_follow", "position"):
+                    _open_long.add(_su)
+    except Exception:
+        pass
 
     for s in snapshots:
-        # [中长线合并] 过滤主循环调度桩：reasoning 为 "[中长线AI强制→TrendAgent/SwingAgent
-        # LLM]" 的占位记录表示该符号已委派独立循环、主循环未做真实分析，不应出现在
-        # 活动面板（否则满屏"观望 [中长线AI强制→...]"误导运营）。
         _snap_reasoning = str(s.ai_reasoning or "")
         if "中长线AI强制→" in _snap_reasoning:
             continue
@@ -719,14 +938,24 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
             continue
         _sym_u = str(s.symbol or "").upper()
         _lane = str(getattr(s, "source_lane", None) or "").lower()
-        # AI 选币池只做短线：活动面板一律进 short，避免主控误标 mid 混入「长线(含中周期)」
-        if _sym_u in _auto_syms:
+        # 归桶优先级：显式 snapshot.tier / lane > 持仓续管兜底 > 白名单
+        # 禁止「有 mid 仓就把该币所有 long 分析吞进中线」（BTC 长线消失根因之一）
+        if _lane in ("scalp", "scalp_lane") or tier == "short":
             _bucket = "short"
+        elif tier == "long":
+            _bucket = "long"
         elif tier == "mid":
-            # UI「长线(含中周期)」：固定币的 mid 并入 long
+            _bucket = "mid"
+        elif _sym_u in _open_short or (
+            _sym_u in _auto_syms and _sym_u not in _ai_mid_syms and _sym_u not in _fixed_syms
+        ):
+            _bucket = "short"
+        elif _sym_u in _open_mid or _sym_u in _ai_mid_syms or _sym_u in _fixed_mid:
+            _bucket = "mid"
+        elif _sym_u in _open_long or _sym_u in _fixed_long:
             _bucket = "long"
         else:
-            _bucket = tier
+            _bucket = "short"  # 未知杂项默认短线，禁止污染长线
 
         action_raw = str(s.action or "hold").lower()
         action_cn = {
@@ -754,7 +983,13 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
             "source": str(s.source_lane or ""),
             "reasoning": (s.ai_reasoning or "")[:120],
             "direction": s.direction or "",
-            "tier_tag": "short" if _bucket == "short" and _sym_u in _auto_syms else tier,
+            "tier_tag": _bucket,
+            "lane_note": (
+                "持仓续管" if (
+                    (_bucket == "short" and _sym_u in _open_short and _sym_u not in _auto_syms)
+                    or (_bucket == "mid" and _sym_u in _open_mid and _sym_u not in _ai_mid_syms)
+                ) else ""
+            ),
         })
 
     for t in result:
@@ -769,10 +1004,10 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
         try:
             _ev_lim = max(int(limit), 40)
             _events = adb2.execute(_sa_text(
-                "SELECT te.id, te.ts, t.symbol, te.payload_json, t.llm_conviction "
+                "SELECT te.id, te.ts, t.symbol, te.payload_json, t.llm_conviction, t.tier "
                 "FROM mlto_thesis_events te "
                 "JOIN mlto_thesis t ON t.thesis_id = te.thesis_id "
-                "WHERE t.session_id = :sid AND t.tier = 'long' "
+                "WHERE t.session_id = :sid AND t.tier IN ('long', 'mid') "
                 "AND te.event_type = 'thesis_update' "
                 "ORDER BY te.ts DESC LIMIT :lim"
             ), {"sid": session_id, "lim": _ev_lim}).fetchall()
@@ -793,7 +1028,10 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
             _conv = _payload.get("conviction")
             if _conv is None:
                 _conv = ev[4]
-            result["long"].append({
+            _ev_tier = str(ev[5] or "long").lower()
+            if _ev_tier not in ("mid", "long"):
+                _ev_tier = "long"
+            result[_ev_tier].append({
                 "id": f"mlto-ev-{ev[0]}",
                 "time": _ts.strftime("%m-%d %H:%M:%S") if _ts else "",
                 "symbol": ev[2] or "",
@@ -805,7 +1043,7 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
                 "source": "mlto_thesis_events",
                 "reasoning": _summary,
                 "direction": _dir,
-                "tier_tag": "long",
+                "tier_tag": _ev_tier,
             })
     except Exception as _mlto_err:
         logger.debug(f"[TierActivity] 补充 MLTO thesis 历史失败: {_mlto_err}")
@@ -840,16 +1078,38 @@ def merge_duplicate_strategies(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/debug/scheduler-state")
-def debug_scheduler_state(db: Session = Depends(get_db)):
-    """诊断：查看调度器状态和已注册的任务"""
+def debug_scheduler_state(
+    session_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """诊断：查看调度器状态和已注册的任务。
+
+    session_id 可选：传入时按该会话读取 DB 状态；缺省时取内存 running_sessions
+    的第一个（或 DB 中最新 running/defensive 会话），无任何活跃会话时 db_session 相关字段为 null。
+    """
     try:
         from backend.services.scheduler import task_scheduler
         running = task_scheduler.is_running()
         jobs = task_scheduler.get_job_info() if task_scheduler.scheduler else []
-        # 直接从 DB 读取 session 状态（绕过内存缓存）
-        db_session = db.query(FullAutoSession).filter(
-            FullAutoSession.session_id == "fa_2313766258"
-        ).first()
+        # 定位展示用的 DB session：参数优先 → 内存 running 会话 → DB 最新活跃会话
+        db_session = None
+        if session_id:
+            db_session = db.query(FullAutoSession).filter(
+                FullAutoSession.session_id == session_id
+            ).first()
+        else:
+            _running = list(full_auto_service._running_sessions.keys())
+            if _running:
+                db_session = db.query(FullAutoSession).filter(
+                    FullAutoSession.session_id == _running[0]
+                ).first()
+            if not db_session:
+                db_session = (
+                    db.query(FullAutoSession)
+                    .filter(FullAutoSession.status.in_(["running", "defensive"]))
+                    .order_by(FullAutoSession.created_at.desc())
+                    .first()
+                )
         return {
             "scheduler_started": task_scheduler._started,
             "scheduler_running": running,

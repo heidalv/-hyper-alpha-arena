@@ -56,6 +56,24 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
 
     logger.info(f"[ScalpRouter独立] tick#{tick} 扫描 symbols={symbols}")
 
+    # [2026-08-08 P1-4] 周期性热载进化因子 + 短线活跃集衰减复检，
+    # 让日级/修复晋升的 evo_* / 公式因子进入本进程 FACTORS，无需重启。
+    try:
+        _reload_every = int(os.getenv("SCALP_EVO_HOT_RELOAD_EVERY_N", "30") or 30)
+        if _reload_every > 0 and int(tick) % _reload_every == 0:
+            from backend.services.factor_engine.base_factors import factor_engine as _fe
+            _n = int(_fe.hot_reload() or 0)
+            if _n:
+                logger.info("[ScalpRouter独立] tick#%s 热载进化/公式因子 +%s", tick, _n)
+            if int(tick) % max(_reload_every * 4, 1) == 0:
+                from backend.services.factor_engine.scalp_active_factor_set import (
+                    scalp_active_factor_set,
+                )
+                _pr = scalp_active_factor_set.recheck_and_prune()
+                logger.info("[ScalpRouter独立] 短线活跃集 prune: %s", _pr)
+    except Exception as _hr_err:
+        logger.debug("[ScalpRouter独立] evo 热载跳过: %s", _hr_err)
+
     # 获取市场快照（从编排器缓存，可能为空——不阻断，K线自己拉）
     market_summary = self._market_scan_cache or {}
     # 不再因 market_summary 空就 return——K线数据自己从 DB 拉
@@ -344,12 +362,18 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             _fv = None
                             _bucket = None
                         if not _fv:
-                            # [2026-07-10 性能修复] 短线跳过 PATTERN/BEHAVIORAL 422个模式因子
-                            # （487因子全量计算~8s/币，6币串行45s+ → 循环超时无法成交）。
-                            # 模式因子对短线方向决策贡献极小，核心动量/趋势/波动率/量能/衍生品因子足够。
-                            from backend.services.factor_engine.base_factors import FactorCategory
-                            _scalp_exclude = {FactorCategory.PATTERN, FactorCategory.BEHAVIORAL}
-                            _fv = factor_engine.compute_all_factors(_kdf, _md, exclude_categories=_scalp_exclude)
+                            # [2026-07-10 性能修复] 短线跳过 PATTERN/BEHAVIORAL（与 Router 共用常量）
+                            # [2026-08-13 P0-1] 实盘因子集收敛：只计算有 OOS 证据的精选池因子
+                            from backend.services.scalp.scalp_factor_exclude import (
+                                get_scalp_factor_exclude_categories,
+                                get_scalp_factor_allowlist,
+                            )
+                            _scalp_exclude = get_scalp_factor_exclude_categories()
+                            _scalp_allow = get_scalp_factor_allowlist()
+                            _fv = factor_engine.compute_all_factors(
+                                _kdf, _md, exclude_categories=_scalp_exclude,
+                                allowlist=_scalp_allow,
+                            )
                             try:
                                 self._scalp_factor_cache[sym] = {"bucket": _bucket, "fv": _fv}
                             except Exception:
@@ -467,6 +491,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             # ── 真实信号日志（元标签数据采集，2026-07-08）──
             # 把"触发的"短线信号 + 因子快照落库，事后结算输赢，供元标签模型训练。
             # 安全降级：任何异常都不影响交易；flag SCALP_SIGNAL_LOG_ENABLED 可关。
+            # P0-4A：影子写入 meta_p_win（不进决策）；P1-3：top 贡献因子归因。
             try:
                 if str(_sig.direction or "") in ("long", "short"):
                     from backend.services.scalp_signal_logger import log_signal as _log_sig
@@ -475,6 +500,35 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                                "sell_notional", "depth_ratio", "imbalance", "premium"):
                         if _k in _md:
                             _snap[f"of_{_k}"] = _md.get(_k)
+                    # P1-3：按绝对值取 top 贡献因子，便于日后归因喂权重
+                    try:
+                        _ranked = sorted(
+                            (
+                                (str(k), float(v))
+                                for k, v in _breakdown.items()
+                                if isinstance(v, (int, float))
+                            ),
+                            key=lambda kv: abs(kv[1]),
+                            reverse=True,
+                        )[:8]
+                        _snap["top_factors"] = [
+                            {"name": n, "contrib": round(c, 6)} for n, c in _ranked
+                        ]
+                    except Exception:
+                        pass
+                    # P0-4A：meta 影子概率（usable 与否都记，决策仍不读）
+                    try:
+                        from backend.services.scalp_meta_trainer import predict_win_prob
+                        _meta_feats = {
+                            "factor_score": float(_sig.factor_score or 0),
+                            "direction": str(_sig.direction or ""),
+                            **{k: v for k, v in _snap.items() if not isinstance(v, (dict, list))},
+                        }
+                        _mp = predict_win_prob(_meta_feats, require_usable=False)
+                        if _mp is not None:
+                            _snap["meta_p_win"] = round(float(_mp), 6)
+                    except Exception:
+                        pass
                     _log_sig(
                         symbol=sym, direction=str(_sig.direction),
                         action=str(_sig.action or "hold"),
@@ -584,8 +638,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             _sig.tp_price = _gate.tp_price or _sig.tp_price
             _sig.sl_pct = _gate.sl_pct or _sig.sl_pct
             _sig.tp_pct = _gate.tp_pct or _sig.tp_pct
-            # [P1-2] 周末/时段缩仓 × Gate(regime/软否决/宇宙降级软放行)
-            _size_mult = _liquidity_mult * float(getattr(_gate, "size_multiplier", 1.0) or 1.0)
+            # [P1-2] 周末/时段缩仓（Gate 的 regime/软否决/降级缩仓由下方
+            # regime 段单乘传导，不在本处重复乘 gate.size_multiplier——
+            # [2026-08-10 问题二修复] 同源双乘导致仓位被平方压缩：
+            # 实测 SKHYNIX gate.size_multiplier=0.25 被乘两次 →
+            # 444u 权益 x1.5 名义 x0.25x0.25/10x = 4.16u 保证金（应 16.65u）
+            _size_mult = _liquidity_mult
 
             if _gate.needs_veto and scalp_flash_veto.should_invoke(_gate.tier, _gate.needs_veto):
                 _ohlc = []
@@ -615,6 +673,16 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     # 而不是只看一个总分瞎猜。
                     "factor_breakdown": _sig.factor_breakdown,
                 }
+                # [2026-08-07 修复] 长事务拆分：FlashVeto 边缘裁决 LLM（流式
+                # 20-50s，scalp 10s 高频 tick 下几乎每轮命中）前先提交主连接事务，
+                # 避免 LLM 期间连接 idle-in-transaction 被 LeakGuard 告警/强杀。
+                try:
+                    _db.commit()
+                except Exception:
+                    try:
+                        _db.rollback()
+                    except Exception:
+                        pass
                 _veto = scalp_flash_veto.evaluate(
                     _veto_ctx, account_id=account_id,
                     trading_mode=(getattr(session_row, "trading_mode", None) or "paper"),
@@ -758,45 +826,90 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             except Exception as _gate_err:
                 logger.debug(f"[ScalpRouter独立] short_tier_gate 检查跳过: {_gate_err}")
 
-            # 短线名义仓位：直接配置占权益比例
-            # 20x 杠杆下 150% 名义 = 7.5% 保证金 → 每笔 $36 保证金（$482 权益）
-            # 高杠杆小保证金宽止损 = 高资金效率
-            _scalp_size_pct = float(os.getenv("SCALP_SIZE_PCT", "1.50"))
-            _margin_est = equity * _scalp_size_pct * _size_mult
+            # ── 短线动态仓位（公共函数单源，禁止与 scalp_sizing 双份漂移）──
+            from backend.services.full_auto.scalp_sizing import compute_scalp_dynamic_notional
 
-            # 动态杠杆提前到预算检查前计算（用于把名义仓位折算成真实保证金），
-            # 并在下方 place_order 处复用同一个 _dyn_lev，避免重复计算/口径漂移。
+            _sizing_entry = float(_sig.entry_price or _md.get("price") or 0)
+            _sizing_vol = float(_md.get("volatility_pct") or _md.get("volatility_value") or 0.015)
+            _scalp_size_pct = max(0.05, min(3.0, float(os.getenv("SCALP_SIZE_PCT", "0.50") or 0.50)))
+            _min_margin_pct = max(0.01, min(0.20, float(os.getenv("SCALP_MIN_MARGIN_PCT", "0.025") or 0.025)))
+            _scalp_risk_cap = max(
+                0.01,
+                min(0.08, float(os.getenv("SCALP_MAX_TRADE_RISK_PCT", "0.03") or 0.03)),
+            )
+            _dyn_lev = 10
+            _conf_raw = float(
+                getattr(_gate, "effective_score", 0)
+                or getattr(_sig, "confidence", 0)
+                or getattr(_sig, "factor_score", 0)
+                or 0
+            )
+            _scalp_sl_pct = float(getattr(_sig, "sl_pct", 0) or 0)
+            if _scalp_sl_pct <= 0 and _sizing_entry > 0 and float(getattr(_sig, "sl_price", 0) or 0) > 0:
+                _scalp_sl_pct = abs(_sizing_entry - float(_sig.sl_price)) / _sizing_entry
+            if _scalp_sl_pct <= 0:
+                _scalp_sl_pct = 0.012
+            _scalp_sl_pct = max(0.005, min(0.08, _scalp_sl_pct))
+
             try:
-                # 短线杠杆直接用 TIER_LEVERAGE 配置（20x），不走动态杠杆计算。
-                # 动态杠杆被 vol_band cap 限制在 10-15，不适合短线高杠杆策略。
-                from backend.services.position_memory_manager import TIER_LEVERAGE
-                _dyn_lev = TIER_LEVERAGE.get("scalp", 20)
-            except Exception:
-                _dyn_lev = 20
-
-            _bf = budget_service.scale_factor_for_layer("short", equity, "paper")
-            if _bf <= 0:
-                logger.info(f"[ScalpRouter独立] {sym} 短线层预算已满，跳过")
-                continue
-            if _bf < 1.0:
-                _margin_est *= _bf
-            # [fix 2026-07-09 单位口径] _margin_est 是【名义仓位】(equity×30%)，而
-            # budget_service 的预算是【保证金】口径(used=Σ position.margin、cap=equity×配比)。
-            # 此前直接把名义额当保证金传给 can_open → 拿 30% 名义去撞 25% 保证金上限、
-            # 永远撞不进，导致所有短线单(趋势+震荡MR)零成交。现按「名义÷杠杆」折算成
-            # 真实保证金再比预算，30% 名义仓位维持不变、真实占用保证金仅约 3%。
-            _scalp_req_margin = _margin_est / max(int(_dyn_lev or 1), 1)
-            if not budget_service.can_open("short", _scalp_req_margin, equity, "paper"):
-                logger.info(
-                    f"[ScalpRouter独立] {sym} 短线层预算不足，跳过 "
-                    f"(名义{_margin_est:.0f}÷{_dyn_lev}x=保证金{_scalp_req_margin:.0f})"
+                from backend.services.position_sizing_agent import (
+                    PositionSizingInput,
+                    position_sizing_agent,
                 )
-                continue
+                _scalp_plan = position_sizing_agent.build_plan(PositionSizingInput(
+                    symbol=sym,
+                    side=_side_str,
+                    price=_sizing_entry,
+                    confidence=_conf_raw,
+                    total_equity=equity,
+                    available_balance=equity,
+                    stop_loss_price=float(_sig.sl_price or 0),
+                    take_profit_price=float(_sig.tp_price or 0),
+                    volatility_pct=_sizing_vol,
+                    tier="short",
+                    trade_nature="scalp",
+                    market_regime="unknown",
+                    risk_level="medium",
+                    position_cap_override=_scalp_size_pct,
+                    size_multiplier=1.0,
+                    alignment_scale=1.0,
+                    leverage_cap=10,
+                ))
+                _dyn_lev = max(5, min(10, int(_scalp_plan.leverage or 10)))
+            except Exception as _sizing_err:
+                logger.warning(
+                    f"[ScalpRouter独立] {sym} 杠杆解析失败，固定10x继续: {_sizing_err}"
+                )
+                _dyn_lev = 10
 
-            # ── 震荡市缩仓传导接入 Scalp 路径（此前 GateDecision.size_multiplier
-            # 恒为默认值 1.0，regime 的震荡市 0.5 折扣从未真正传导到 Scalp 仓位）──
+            _dyn = compute_scalp_dynamic_notional(
+                equity,
+                base_size_pct=_scalp_size_pct,
+                confidence=_conf_raw,
+                sl_pct=_scalp_sl_pct,
+                volatility_pct=_sizing_vol,
+                size_mult=float(_size_mult or 1.0),
+                leverage=int(_dyn_lev),
+                min_margin_pct=_min_margin_pct,
+                max_trade_risk_pct=_scalp_risk_cap,
+            )
+            _margin_est = float(_dyn.get("notional") or 0.0)
+            _conf_n = _conf_raw / 100.0 if _conf_raw > 1.5 else _conf_raw
+            _conf_n = max(0.35, min(0.95, float(_conf_n or 0.5)))
+            logger.info(
+                f"[ScalpRouter独立] {sym} 动态仓位(预): base={_scalp_size_pct:.0%} "
+                f"q×{_dyn.get('q_mult', 0):.2f} sl×{_dyn.get('sl_mult', 0):.2f} "
+                f"vol×{_dyn.get('vol_mult', 0):.2f} "
+                f"notional=${_margin_est:.0f} margin=${_margin_est / max(_dyn_lev, 1):.0f} "
+                f"lev={_dyn_lev}x conf={_conf_n:.2f} sl={_scalp_sl_pct:.2%}"
+                f"{' floored' if _dyn.get('floored') else ''}"
+                f"{' capped' if _dyn.get('capped') else ''}"
+            )
+
+            # ── 震荡市缩仓（最多砍到 0.7，避免灰尘仓）──
             _regime_size_mult = float(getattr(_gate, "size_multiplier", 1.0) or 1.0)
             if _regime_size_mult < 0.999:
+                _regime_size_mult = max(0.70, _regime_size_mult)
                 logger.info(
                     f"[ScalpRouter独立] {sym} regime 缩仓生效: notional "
                     f"{_margin_est:.0f}->{_margin_est * _regime_size_mult:.0f} "
@@ -804,28 +917,59 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 )
                 _margin_est *= _regime_size_mult
 
-            # ── V5 单笔风险硬顶接入 Scalp 路径（此前 ScalpRouter 完全绕过） ──
-            # _margin_est 在下方用于 quantity = _margin_est/entry_price，本质是名义
-            # 仓位价值（notional）。复用 position_sizing_agent.clamp_position_by_risk_cap
-            # 与主路径 build_plan 完全同一份风险数学，超出硬顶时按比例缩小 notional
-            # 而非直接拒绝下单（与主路径处理方式一致）。
-            _scalp_sl_pct = float(getattr(_sig, "sl_pct", 0) or 0)
+            # 保证金下限：与 compute_scalp_dynamic_notional 一致（已可能 floored）
+            _min_notional = float(equity) * _min_margin_pct * max(int(_dyn_lev), 1)
+            if _margin_est < _min_notional:
+                logger.info(
+                    f"[ScalpRouter独立] {sym} 保证金下限抬升: notional "
+                    f"{_margin_est:.0f}->{_min_notional:.0f} "
+                    f"(min_margin={_min_margin_pct:.0%}equity)"
+                )
+                _margin_est = _min_notional
+
+            # 短线风险硬顶（默认单笔亏损 ≤ 权益 3%）
             if _scalp_sl_pct > 0:
-                from backend.config.settings import V5_MAX_TRADE_RISK_PCT as _V5_RISK_CAP_PCT
                 from backend.services.position_sizing_agent import clamp_position_by_risk_cap
                 _capped_notional = clamp_position_by_risk_cap(
                     equity=equity,
                     notional_value=_margin_est,
                     sl_pct=_scalp_sl_pct,
-                    max_risk_pct=float(_V5_RISK_CAP_PCT),
+                    max_risk_pct=float(_scalp_risk_cap),
                 )
                 if _capped_notional < _margin_est - 1e-9:
                     logger.info(
-                        f"[ScalpRouter独立] {sym} 单笔风险硬顶生效: notional "
+                        f"[ScalpRouter独立] {sym} 短线风险硬顶: notional "
                         f"{_margin_est:.0f}->{_capped_notional:.0f} "
-                        f"(max_loss≤{_V5_RISK_CAP_PCT:.1%}equity)"
+                        f"(max_loss≤{_scalp_risk_cap:.1%}equity)"
                     )
                 _margin_est = _capped_notional
+                if _margin_est + 1e-9 < _min_notional * 0.85:
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} 风险硬顶后低于可用下限 "
+                        f"(${_margin_est:.0f}<${_min_notional:.0f})，跳过"
+                    )
+                    _bump_block("size_floor_vs_risk")
+                    continue
+
+            # 预算闸门放在最终名义之后，避免「先过预算再被下限抬高」超配
+            _bf = budget_service.scale_factor_for_layer(
+                "short", equity, "paper", account_id=account_id
+            )
+            if _bf <= 0:
+                logger.info(f"[ScalpRouter独立] {sym} 短线层预算已满，跳过")
+                continue
+            if _bf < 1.0:
+                _margin_est *= _bf
+            _scalp_req_margin = _margin_est / max(int(_dyn_lev or 1), 1)
+            if not budget_service.can_open(
+                "short", _scalp_req_margin, equity, "paper",
+                account_id=account_id,
+            ):
+                logger.info(
+                    f"[ScalpRouter独立] {sym} 短线层预算不足，跳过 "
+                    f"(名义{_margin_est:.0f}÷{_dyn_lev}x=保证金{_scalp_req_margin:.0f})"
+                )
+                continue
 
             # 修复 BUG H：记录本 tick 已交易的 symbol，防双重执行
             if not hasattr(self, '_scalp_traded_this_tick'):
@@ -991,6 +1135,30 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     logger.warning(
                         f"[ScalpRouter独立] {sym} finalize_open_tp_sl 异常: {_final_err}"
                     )
+
+            # ── 实验A：退出参数覆盖（SCALP_EXIT_PARAM_OVERRIDE，默认关）──
+            # 依据《BTC_ETH_SOL真实交易与参数对照》：真实进场在 SL1.2%/TP3.0% 下
+            # 反事实回放 PF=1.76；当前 router/结构扫描给的 SL/TP 过宽且多单 SL>TP。
+            # 开关默认关；开启后强制覆盖 scalp 的 SL/TP，可随时回滚。
+            try:
+                _exit_override = os.getenv("SCALP_EXIT_PARAM_OVERRIDE", "0").lower() in (
+                    "1", "true", "yes", "on",
+                )
+                if _exit_override and _scalp_entry > 0:
+                    _sl_o = float(os.getenv("SCALP_EXIT_SL_PCT", "0.012") or 0.012)
+                    _tp_o = float(os.getenv("SCALP_EXIT_TP_PCT", "0.030") or 0.030)
+                    if str(side).lower() in ("long", "buy"):
+                        _scalp_sl = _scalp_entry * (1.0 - _sl_o)
+                        _scalp_tp = _scalp_entry * (1.0 + _tp_o)
+                    else:
+                        _scalp_sl = _scalp_entry * (1.0 + _sl_o)
+                        _scalp_tp = _scalp_entry * (1.0 - _tp_o)
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} 实验A退出参数覆盖: "
+                        f"sl={_sl_o:.1%} tp={_tp_o:.1%} -> SL={_scalp_sl:.4f} TP={_scalp_tp:.4f}"
+                    )
+            except Exception as _exit_ov_err:
+                logger.debug(f"[ScalpRouter独立] {sym} 退出参数覆盖跳过: {_exit_ov_err}")
 
             try:
                 # [修复] place_order 前刷新 DB 连接(防 600s factor 计算后连接失效)

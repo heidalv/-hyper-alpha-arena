@@ -4,6 +4,9 @@ K线数据统一服务层 - 提供统一的数据操作接口
 
 import asyncio
 import logging
+import os
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -20,6 +23,27 @@ from .kline_collector_executor import get_kline_collector_executor
 from .kline_collectors import BaseKlineCollector, ExchangeDataSourceFactory, KlineData
 
 logger = logging.getLogger(__name__)
+
+
+# ── 多所成交量聚合（读侧，不改表/不动采集）──
+# key=(symbol,period,count,exchanges,base_exchange) -> (ts, rows)
+_KLINE_AGG_CACHE: Dict[tuple, tuple] = {}
+_KLINE_AGG_LOCK = threading.Lock()
+_KLINE_AGG_TTL_SEC = 60.0
+_KLINE_AGG_MAX_ENTRIES = 500
+
+
+def _kline_agg_exchanges() -> List[str]:
+    raw = os.getenv(
+        "KLINE_AGG_EXCHANGES", "asterdex,binance,okx,bybit,hyperliquid"
+    )
+    return [x.strip().lower() for x in raw.split(",") if x.strip()]
+
+
+def _kline_agg_enabled() -> bool:
+    return os.getenv("KLINE_VOLUME_AGGREGATION_ENABLED", "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
 
 
 # 各周期允许的最大滞后（秒）。超过则视为"过期"，触发降级。
@@ -310,6 +334,71 @@ class KlineDataService:
             exchange = get_active_exchange()
         klines = self._query_klines_from_db(symbol, period, count, exchange)
         return klines[-count:] if klines and len(klines) > count else (klines or [])
+
+    def get_aggregated_klines(
+        self,
+        symbol: str,
+        period: str,
+        count: int = 500,
+        exchanges: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """多所成交量聚合（价格保持 active_exchange 单所同源）。
+
+        返回结构与 get_klines_from_db 完全一致：OHLC 取基准所，volume=各所同 bar
+        成交量之和，并附加 volume_sources=参与聚合的所数。任何异常/无多所数据时
+        回退基准所单源，绝不静默换成其它所的价格。
+
+        开关：KLINE_VOLUME_AGGREGATION_ENABLED（默认 true）；
+        聚合所列表：KLINE_AGG_EXCHANGES（默认 asterdex,binance,okx,bybit,hyperliquid）。
+        """
+        if not _kline_agg_enabled():
+            return self.get_klines_from_db(symbol, period, count=count)
+
+        base_ex = get_active_exchange()
+        exs = [
+            e for e in (exchanges or _kline_agg_exchanges())
+            if e and str(e).strip().lower() != str(base_ex).strip().lower()
+        ]
+        cache_key = (str(symbol).upper(), period, int(count), tuple(exs), base_ex)
+        now = time.time()
+        with _KLINE_AGG_LOCK:
+            hit = _KLINE_AGG_CACHE.get(cache_key)
+            if hit is not None and now - float(hit[0]) >= _KLINE_AGG_TTL_SEC:
+                _KLINE_AGG_CACHE.pop(cache_key, None)
+                hit = None
+        if hit and now - float(hit[0]) < _KLINE_AGG_TTL_SEC:
+            return [dict(r) for r in hit[1]]
+
+        base_rows = self._query_klines_from_db(symbol, period, count, base_ex)
+        if not base_rows:
+            return []
+        merged: Dict[int, Dict[str, Any]] = {}
+        for row in base_rows:
+            ts = int(row.get("timestamp") or 0)
+            if ts <= 0:
+                continue
+            item = dict(row)
+            item["volume"] = float(item.get("volume") or 0)
+            item["volume_sources"] = 1
+            merged[ts] = item
+        for ex in exs:
+            try:
+                rows = self._query_klines_from_db(symbol, period, count, ex)
+            except Exception as exc:
+                logger.debug("[KlineAgg] %s/%s %s 查询跳过: %s", symbol, period, ex, exc)
+                continue
+            for row in rows:
+                ts = int(row.get("timestamp") or 0)
+                if ts in merged:
+                    merged[ts]["volume"] += float(row.get("volume") or 0)
+                    merged[ts]["volume_sources"] += 1
+        out = [merged[k] for k in sorted(merged)]
+        with _KLINE_AGG_LOCK:
+            _KLINE_AGG_CACHE[cache_key] = (now, [dict(r) for r in out])
+            # 有界缓存：按插入序淘汰最旧条目，避免 symbol×period 组合无限增长。
+            while len(_KLINE_AGG_CACHE) > _KLINE_AGG_MAX_ENTRIES:
+                _KLINE_AGG_CACHE.pop(next(iter(_KLINE_AGG_CACHE)), None)
+        return out
 
     def _query_klines_from_db(self, symbol: str, period: str, count: int, exchange: str) -> List[Dict[str, Any]]:
         """单交易所 K线查询（含缓存），不做降级。"""

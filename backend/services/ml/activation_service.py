@@ -26,8 +26,14 @@ logger = logging.getLogger(__name__)
 _ML_SYMBOLS = ("BTC", "ETH", "SOL")
 _ML_TIERS = ("short", "mid")
 _ML_TIMEFRAME = "15m"
-_KLINE_LIMIT = 400
+# [2026-08-09 深度模型窗口扩充] 400 根 15m（≈4 天）对滚动窗口训练不足（train 90 天
+# 需 ~8640 根），先扩到 2400 根（≈25 天）供 GRU 深度模型可用；后续数据管道加深后
+# 再按 RollingWindowConfig 对齐到完整 90 天训练窗。
+_KLINE_LIMIT = 2400
 _FACTOR_STEP = 5  # 每 N 根 K 线采一次因子快照（维护线程可接受）
+
+# 深度模型（pytorch_gru）独立维护通道：与 lightgbm 主通道同窗同特征并行训练/对照
+_ML_DEEP_TIERS = ("short", "mid")
 
 _stats: Dict[str, Any] = {
     "enabled": False,
@@ -36,6 +42,7 @@ _stats: Dict[str, Any] = {
     "last_error": "",
     "continual_retrains": 0,
     "learned_retrains": 0,
+    "deep_retrains": 0,
     "symbols_processed": 0,
     "in_flight": False,
 }
@@ -44,6 +51,7 @@ _last_run_mono = 0.0
 
 _pipeline = None
 _learned = None
+_deep_pipeline = None
 _replay_buffer = None
 _replay_trainer = None
 _ewc_trainer = None
@@ -87,6 +95,20 @@ def _get_learned():
 
         _learned = LearnedFactorWeighting(LearnedWeightingConfig())
     return _learned
+
+
+def _get_deep_pipeline():
+    """深度模型（pytorch_gru）独立重训管线：与 lightgbm 主通道并行维护。"""
+    global _deep_pipeline
+    if _deep_pipeline is None:
+        from backend.services.ml.training_pipeline import ContinualTrainingPipeline
+
+        _deep_pipeline = ContinualTrainingPipeline(model_type="pytorch_gru")
+    return _deep_pipeline
+
+
+def is_deep_model_enabled() -> bool:
+    return _env_bool("ML_DEEP_MODEL_ENABLED", True)
 
 
 def _get_continual_helpers():
@@ -292,6 +314,64 @@ def _run_continual_for_symbol(symbol: str, df: pd.DataFrame) -> bool:
     return ok
 
 
+def _run_deep_for_symbol(symbol: str, df: pd.DataFrame) -> bool:
+    """深度因子模型（Qlib 风格 GRU，GPU 优先）滚动重训通道。
+
+    与 lightgbm 主通道同窗同特征并行维护，产出自训练深度因子模型，
+    供 Phase 1 样本外 IC/ICIR 对照（验收：GRU 不劣于 lightgbm）。
+    """
+    if not is_deep_model_enabled():
+        return False
+    from backend.services.ml.training_pipeline import make_forward_return_label
+
+    # GPU 任务全局互斥（单卡：与 DRL 训练总串行）；被占用则本次跳过（下轮 12h 周期再试）
+    from backend.services.resource_guard import gpu_training_operation
+
+    with gpu_training_operation(f"ml-deep-{symbol}") as acquired:
+        if not acquired:
+            logger.info("[MLActivation] %s 深度模型重训跳过：GPU 训练互斥被占用", symbol)
+            return False
+        feat_df = build_ml_feature_frame(df)
+        feature_cols = list(feat_df.columns)
+        pipeline = _get_deep_pipeline()
+        ok = False
+        for tier in _ML_DEEP_TIERS:
+            model = pipeline.check_and_retrain(
+                symbol,
+                tier,
+                feat_df,
+                feature_cols,
+                make_forward_return_label(horizon=5),
+                timeframe=_ML_TIMEFRAME,
+            )
+            if model is not None:
+                ok = True
+                with _lock:
+                    _stats["deep_retrains"] += 1
+                logger.info("[MLActivation] %s/%s 深度模型重训完成 device=%s",
+                            symbol, tier, getattr(model, "_resolve_device", lambda: "?")())
+        return ok
+
+
+def _persist_factor_matrix(hist: pd.DataFrame, symbol: str) -> Optional[str]:
+    """因子矩阵落库（CSV，data/factor_matrices/）供重复实验与 WFO 终审。
+
+    与模型文件（data/ml_models/）同风格：不依赖 PostgreSQL，维护周期每次
+    滚动重算后全量覆盖，保留最近一次窗口快照（含时间戳索引）。
+    """
+    if hist is None or hist.empty:
+        return None
+    try:
+        out_dir = os.path.join(".", "data", "factor_matrices")
+        os.makedirs(out_dir, exist_ok=True)
+        path = os.path.join(out_dir, f"{symbol.upper()}_{_ML_TIMEFRAME}.csv")
+        hist.to_csv(path)
+        return path
+    except Exception as exc:
+        logger.debug("[MLActivation] 因子矩阵落库失败 %s: %s", symbol, exc)
+        return None
+
+
 def _run_learned_for_symbol(symbol: str, df: pd.DataFrame) -> bool:
     from backend.services.factor_engine.learned_weighting import LearnedWeightingConfig
 
@@ -301,6 +381,7 @@ def _run_learned_for_symbol(symbol: str, df: pd.DataFrame) -> bool:
     hist = build_factor_history(df, symbol)
     if hist.empty or len(hist) < 25:
         return False
+    _persist_factor_matrix(hist, symbol)  # Phase 0：因子矩阵落库供重复实验
     labels = _forward_return_labels(df["close"].astype(float))
     labels = labels.reindex(hist.index)
     weights = _ddgda_sample_weights(hist, symbol)
@@ -384,6 +465,7 @@ def _activation_worker(session_id: str, tick: int) -> None:
                 continue
             df = _inject_deribit(df, sym)
             _run_continual_for_symbol(sym, df)
+            _run_deep_for_symbol(sym, df)
             _run_learned_for_symbol(sym, df)
             processed += 1
 
