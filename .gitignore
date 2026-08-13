@@ -426,13 +426,6 @@ data/factor_matrices/
 /_backfill_settle.py
 /pytest_full_run.txt
 /pytest_last_run.txt
-/tmp_boot*
-/tmp_d_*
-/tmp_pg_*
-/tmp_mig_*
-/tmp_read_*
-/tmp_verify_*
-/tmp_wait_*
-/tmp_last_*
-/tmp_force_*
+/tmp_*
+/scripts/tmp_*.py
 /_start_backend.sh
