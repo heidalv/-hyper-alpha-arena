@@ -58,6 +58,23 @@ async def set_feature_flag(body: FeatureFlagToggle) -> Dict[str, Any]:
     return {"ok": True, "flag": body.flag, "enabled": bool(body.enabled)}
 
 
+@router.get("/health-overview")
+async def get_health_overview() -> Dict[str, Any]:
+    """
+    R6-2 健康总览聚合：DB 连通/延迟、P0-P3 报错计数、学习闭环健康、
+    资金费采集器快照、磁盘/内存资源、进程 uptime。
+
+    只读、只聚合真实数据源；任一子源失败如实标记，不伪造。
+    ops 页健康卡片每 60s 轮询本端点。
+    """
+    try:
+        from backend.services.health_overview_service import build_health_overview
+        return build_health_overview()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("health-overview failed: %s", exc)
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 @router.get("/block-report-top")
 async def get_block_report_top(n: int = 3, hours: int = 24) -> Dict[str, Any]:
     """

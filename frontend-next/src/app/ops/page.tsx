@@ -13,6 +13,7 @@ import { OpsTraining } from "@/components/ops/OpsTraining";
 import { OpsErrors } from "@/components/ops/OpsErrors";
 import { OpsMiningBoost } from "@/components/ops/OpsMiningBoost";
 import { OpsTpSlTrain } from "@/components/ops/OpsTpSlTrain";
+import { OpsHealthOverview, type HealthOverviewData } from "@/components/ops/OpsHealthOverview";
 import { cn } from "@/lib/utils";
 import "./ops.css";
 
@@ -33,6 +34,7 @@ function OpsDashboard() {
   const [binds, setBinds] = useState<any>(null);
   const [train, setTrain] = useState<any>(null);
   const [errors, setErrors] = useState<any>(null);
+  const [health, setHealth] = useState<HealthOverviewData | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [ago, setAgo] = useState(0);
@@ -53,7 +55,7 @@ function OpsDashboard() {
     setLoading(true);
     try {
       const opts = { timeout: 10000 };
-      const [p, h, f, po, ca, bi, tr, er] = await Promise.all([
+      const [p, h, f, po, ca, bi, tr, er, ho] = await Promise.all([
         apiRequest("/ops/pipeline", opts),
         apiRequest("/ops/heartbeats", opts),
         apiRequest("/ops/evolution-funnel?days=7", opts),
@@ -62,6 +64,7 @@ function OpsDashboard() {
         apiRequest("/ops/bindings?limit=80", opts),
         apiRequest("/ops/training", opts),
         apiRequest("/ops/errors?limit=80", opts),
+        apiRequest("/system/health-overview", opts),
       ]);
       setPulse(p);
       setHb(h);
@@ -82,6 +85,7 @@ function OpsDashboard() {
       setBinds(bi);
       setTrain(tr);
       setErrors(er);
+      setHealth(ho);
       setLastRefresh(new Date());
       setFlash(true);
       window.setTimeout(() => setFlash(false), 220);
@@ -94,10 +98,14 @@ function OpsDashboard() {
   }, [poolView, poolAutoSwitched]);
 
   useEffect(() => {
-    void refresh();
+    // 首次刷新延后一个宏任务，避免 effect 内同步 setState 级联渲染
+    const first = window.setTimeout(() => void refresh(), 0);
     // 15s：降低与后端重负载叠峰；失败/慢时靠 in-flight 跳过
     const id = window.setInterval(() => void refresh(), 15000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -239,6 +247,9 @@ function OpsDashboard() {
           onRefresh={() => void refresh()}
         />
         <OpsKpiStrip items={kpiItems} />
+        <div className="px-4 pb-2">
+          <OpsHealthOverview data={health} />
+        </div>
       </div>
 
       <div className="ops-dash">

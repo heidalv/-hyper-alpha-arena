@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -19,6 +20,35 @@ router = APIRouter(prefix="/api/ops", tags=["ops"])
 # 心跳 SLA（秒）：正常 / 滞后 / 中断
 _HB_WARN_SEC = 900
 _HB_CRIT_SEC = 3600
+
+# R6-3：P0 报错飞书告警节流（ALERT_P0_ENABLED=true 才生效；同计数 10 分钟内最多一条）
+_P0_ALERT_STATE: Dict[str, Any] = {"last_sent": 0.0, "last_count": 0}
+
+
+def _maybe_alert_p0(p0_count: int) -> None:
+    """P0 报错出现时飞书告警（节流 + 静默降级，绝不阻塞报错接口）。"""
+    if os.getenv("ALERT_P0_ENABLED", "false").lower() not in ("1", "true", "yes", "on"):
+        return
+    try:
+        now = time.time()
+        if p0_count <= 0:
+            _P0_ALERT_STATE["last_count"] = 0
+            return
+        if p0_count == _P0_ALERT_STATE["last_count"] and now - _P0_ALERT_STATE["last_sent"] < 600:
+            return
+        from backend.services.openclaw_notify import get_notifier
+
+        ok = get_notifier().send_sync(
+            f"报错中心检测到 {p0_count} 条 P0（心跳中断级）。请到运维看板 /ops#ops-errors 查看。",
+            title=f"⚠️ P0 报错 {p0_count} 条",
+            level="critical",
+            event_type="system",
+        )
+        _P0_ALERT_STATE["last_sent"] = now
+        _P0_ALERT_STATE["last_count"] = p0_count
+        logger.info("[ops/P0-alert] sent=%s count=%s", ok, p0_count)
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[ops/P0-alert] failed: %s", exc)
 
 
 def _age_sec(iso_ts: Optional[str]) -> Optional[float]:
@@ -920,6 +950,7 @@ def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
 
     p0 = sum(1 for x in items if x.get("severity") == "P0")
     p1 = sum(1 for x in items if x.get("severity") == "P1")
+    _maybe_alert_p0(p0)
     return {
         "items": items[:limit],
         "counts": {"P0": p0, "P1": p1, "total": len(items)},
