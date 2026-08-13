@@ -40,10 +40,11 @@ class StrategyRuntimeSpec:
     qaa_agent_chain: tuple = ()
 
 
-# M4 注销（2026-06）：S1/S5 已下线，从运行时注册表移除。
+# M4 注销（2026-06）：S1/S5 已下线，从运行时注册表移除；S6 于 2026-08-13（R3）一并移除。
 # - S1 Maker返佣对冲：负 EV，与 S6 重复且更差，且 Stage 6 惩罚对冲刷分
 # - S5 资金费率+积分：数据结构假设错误，与 V3 资金费套利重复
-# 历史仓位/数据解读请看 strategies/s1_maker_hedge.py、s5_funding_points.py（文件保留）。
+# - S6 跨所费率差：负 EV，伪可行门槛
+# 历史实现经 git 历史找回（R3 死代码清除前 commit）。
 STRATEGY_RUNTIME: Dict[str, StrategyRuntimeSpec] = {
     "S2": StrategyRuntimeSpec(
         strategy_id="S2",
@@ -93,21 +94,6 @@ STRATEGY_RUNTIME: Dict[str, StrategyRuntimeSpec] = {
         ai_decision_mode="optional_deep",
         coordination_group="volume_program",
         summary="依赖交易所活动 campaign；volume_program 执行器 + QAA campaign 管道。",
-    ),
-    "S6": StrategyRuntimeSpec(
-        strategy_id="S6",
-        name="跨所费率差",
-        category="trade_points",
-        execution_mode="hedge",
-        required_exchanges=("asterdex", "binance"),
-        min_equity_usd=200.0,
-        paper_auto_executable=True,
-        requires_trader_profile=True,
-        requires_ai_signal=False,
-        requires_funding_signal=False,
-        direction_rule="fixed_hedge",
-        hold_model="hedge_until_close",
-        summary="与 S1 类似双所对冲，赚费率差与积分；腿方向固定，不需 AI。",
     ),
     "S7": StrategyRuntimeSpec(
         strategy_id="S7",

@@ -21,7 +21,6 @@ router = APIRouter(prefix="/api/system", tags=["System Control"])
 _FEATURE_FLAG_MAP = {
     "drl_integration": "ENABLE_DRL_INTEGRATION",
     "kelly_position": "ENABLE_KELLY_POSITION",
-    "evolution_feedback": "ENABLE_EVOLUTION_FEEDBACK",
     "portfolio_risk": "ENABLE_PORTFOLIO_RISK",
     "coordinator": "ENABLE_COORDINATOR",
     "drl_shadow_mode": "DRL_SHADOW_MODE",

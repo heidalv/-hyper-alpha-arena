@@ -23,7 +23,6 @@
 | ENABLE_DRL_INTEGRATION | DRL 进入主循环（已下线，恒 false） | false | README §学习进化系统 |
 | DRL_SHADOW_MODE | DRL 影子预测记录（无执行权） | true | ⚠ 待确认：README 说「DRL 已下线、关闭 shadow」，实况 true |
 | DRL_RETRAIN_AUTO | DRL 自动重训 | true | ⚠ 待确认：README 说「协调器不再触发重训」，实况 true（DRL 已下线，该开关疑为遗留） |
-| ENABLE_EVOLUTION_FEEDBACK | 进化结果写入实盘 genome（历史假开关，消费端从未被调用） | false | R3 死代码清除将删除此开关 |
 | PROMPT_EVOLUTION_ENABLED | Prompt 自动进化（历史 36/36 失败后禁用） | true | ⚠ 待确认：README 默认 false，实况 true（是否后有意重开？） |
 | PROMPT_TRAINING_AB_ENABLED | Prompt 训练 A/B | false | |
 | MIDLONG_EXEC_AUTHORITY | 中长线执行权归属（trend/mlto） | mlto | ⚠ 待确认：README 写「默认 trend」，实况 mlto |

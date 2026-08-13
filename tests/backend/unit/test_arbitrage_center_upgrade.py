@@ -64,10 +64,11 @@ def test_program_registry_offline_fees():
 def test_all_strategies_registry():
     from backend.services.rebate_arb.strategies import ALL_STRATEGIES, DEPRECATED_STRATEGY_IDS
 
-    # S1/S5 下线，不注册
+    # S1/S5/S6 下线（R3 死代码清除：源码已删），不注册
     assert "S1" not in ALL_STRATEGIES
     assert "S5" not in ALL_STRATEGIES
-    assert set(DEPRECATED_STRATEGY_IDS) == {"S1", "S5"}
+    assert "S6" not in ALL_STRATEGIES
+    assert set(DEPRECATED_STRATEGY_IDS) == {"S1", "S5", "S6"}
     # 新 delta-neutral 主力已注册
     assert "SDN" in ALL_STRATEGIES
     # 每个策略都有统一接口

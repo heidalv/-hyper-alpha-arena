@@ -27,7 +27,6 @@ from typing import Any, Dict
 from .s2_vip_sprint import S2VIPSprintStrategy
 from .s3_points_mining import S3PointsMiningStrategy
 from .s4_campaign_arb import S4CampaignArbStrategy
-from .s6_cross_fee_spread import S6CrossFeeSpreadStrategy
 from .s7_binance_alpha import S7BinanceAlphaStrategy
 from .s8_asterdex_rh import S8AsterdexRhStrategy
 from .s_delta_neutral_points import DeltaNeutralPointsStrategy
@@ -47,7 +46,7 @@ def _strategy_params(strategy_id: str) -> Dict[str, Any]:
 
 
 # 已下线策略：不注册（负 EV / 数据结构 bug），仅保留源码供历史仓位解读。
-DEPRECATED_STRATEGY_IDS = ("S1", "S5")
+DEPRECATED_STRATEGY_IDS = ("S1", "S5", "S6")
 
 # (策略 ID, 策略类) —— 注册顺序即扫描顺序
 _STRATEGY_CLASSES = (
@@ -55,7 +54,6 @@ _STRATEGY_CLASSES = (
     ("S2", S2VIPSprintStrategy),
     ("S3", S3PointsMiningStrategy),
     ("S4", S4CampaignArbStrategy),
-    ("S6", S6CrossFeeSpreadStrategy),
     ("S7", S7BinanceAlphaStrategy),
     ("S8", S8AsterdexRhStrategy),
 )
@@ -87,7 +85,6 @@ __all__ = [
     "S2VIPSprintStrategy",
     "S3PointsMiningStrategy",
     "S4CampaignArbStrategy",
-    "S6CrossFeeSpreadStrategy",
     "S7BinanceAlphaStrategy",
     "S8AsterdexRhStrategy",
     "DeltaNeutralPointsStrategy",

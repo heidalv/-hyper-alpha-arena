@@ -942,7 +942,6 @@ class SystemCoordinator:
             'feature_flags': {
                 'drl_integration': self._get_flag('ENABLE_DRL_INTEGRATION'),
                 'kelly_position': kelly_flag,
-                'evolution_feedback': self._get_flag('ENABLE_EVOLUTION_FEEDBACK'),
                 'portfolio_risk': portfolio_flag,
                 'coordinator': self._get_flag('ENABLE_COORDINATOR'),
                 'drl_shadow_mode': self._get_flag('DRL_SHADOW_MODE'),

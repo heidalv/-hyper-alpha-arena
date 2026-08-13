@@ -222,14 +222,14 @@
     },
     {
       "symbol": "ETH",
-      "reason": "score_low(13<32)",
+      "reason": "score_low(21<32)",
       "regime": "ranging",
-      "score": 13,
+      "score": 21,
       "authority": "mlto",
       "source": "trend",
       "session_id": "fa_10d44c724e",
       "noise": true,
-      "ts": "2026-08-13T14:33:47.703712+00:00"
+      "ts": "2026-08-13T15:23:10.479146+00:00"
     }
   ],
   "beliefs": [

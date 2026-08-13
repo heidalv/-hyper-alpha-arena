@@ -13,30 +13,13 @@ class TestRebateConfig:
         cfg = load_config()
         assert cfg.engine.auto_execute is False
 
-    def test_s1_disabled_in_yaml(self):
+    def test_deprecated_strategies_absent_from_yaml(self):
+        """R3 死代码清除：S1/S5/S6 已从 YAML 移除。"""
         from backend.config.rebate_config_loader import load_config
 
         cfg = load_config()
-        s1 = cfg.strategies.get("S1_maker_hedge")
-        assert s1 is not None
-        assert s1.enabled is False
-
-
-@pytest.mark.integration
-class TestS1MakerHedge:
-    def test_not_viable_when_negative_ev(self):
-        from backend.services.rebate_arb.strategies.s1_maker_hedge import S1MakerHedgeStrategy
-
-        strat = S1MakerHedgeStrategy()
-        ev = strat.evaluate(
-            incentive_data={
-                "asterdex": {"rebate_rate": 0.10, "maker_rate": 0.00005},
-                "binance": {"taker_rate": 0.0004},
-            },
-            account_equity=300,
-        )
-        assert not ev.is_viable
-        assert ev.details.get("net_monthly", 0) < 0
+        for key in ("S1_maker_hedge", "S5_funding_points", "S6_cross_fee_spread"):
+            assert cfg.strategies.get(key) is None
 
 
 @pytest.mark.integration

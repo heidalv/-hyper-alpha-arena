@@ -7,13 +7,11 @@ import pytest
 
 def test_strategy_to_action_mapping():
     from backend.services.rebate_arb.qaa_strategy_constants import (
-        STRATEGY_TO_ACTION,
         strategy_to_executor_action,
     )
 
     assert strategy_to_executor_action("S8") == "execute_asterdex_rh"
     assert strategy_to_executor_action("S7") is None
-    assert STRATEGY_TO_ACTION["S5"] == "execute_funding_points"
 
 
 def test_coordinator_mutex_hedge_vs_s8():
@@ -25,18 +23,6 @@ def test_coordinator_mutex_hedge_vs_s8():
     ]
     r = rank_and_filter(opps, active_strategy_ids=["S8"], account_equity=300)
     assert r["strategy_id"] != "S1"
-
-
-def test_s5_execution_plan_side_a():
-    from backend.services.rebate_arb.strategies.s5_funding_points import S5FundingPointsStrategy
-
-    s5 = S5FundingPointsStrategy()
-    plan = s5.build_execution_plan(
-        50.0,
-        opportunity={"details": {"best_symbol": "ETH-PERP", "funding_rate": 0.0001}},
-    )
-    assert plan.get("side_a") is not None
-    assert plan["side_a"]["exchange"] == "hyperliquid"
 
 
 def test_s3_hold_phase():
@@ -52,12 +38,6 @@ def test_macro_filter_neutral_allows():
 
     r = evaluate_macro_filter("ETH", "neutral")
     assert r.get("passed") is True
-
-
-def test_rebate_router_resolve_action():
-    from qaa.domains.rebate_arb.router import resolve_executor_action
-
-    assert resolve_executor_action("S6") == "execute_cross_fee"
 
 
 def test_volume_program_normalize():

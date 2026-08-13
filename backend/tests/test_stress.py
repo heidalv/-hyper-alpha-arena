@@ -6,7 +6,6 @@ os.environ['ENABLE_COORDINATOR'] = 'true'
 os.environ['ENABLE_PORTFOLIO_RISK'] = 'true'
 os.environ['ENABLE_KELLY_POSITION'] = 'true'
 os.environ['ENABLE_DRL_INTEGRATION'] = 'true'
-os.environ['ENABLE_EVOLUTION_FEEDBACK'] = 'true'
 os.environ['DRL_SHADOW_MODE'] = 'true'
 
 from backend.services.rl.portfolio_risk_aggregator import portfolio_risk_aggregator

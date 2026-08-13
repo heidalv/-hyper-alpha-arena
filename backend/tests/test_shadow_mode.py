@@ -6,7 +6,6 @@ os.environ['ENABLE_COORDINATOR'] = 'true'
 os.environ['ENABLE_PORTFOLIO_RISK'] = 'true'
 os.environ['ENABLE_KELLY_POSITION'] = 'true'
 os.environ['ENABLE_DRL_INTEGRATION'] = 'true'
-os.environ['ENABLE_EVOLUTION_FEEDBACK'] = 'true'
 os.environ['DRL_SHADOW_MODE'] = 'true'
 
 from backend.services.rl.system_coordinator import system_coordinator
@@ -63,10 +62,10 @@ print(f'[9] StateConsistencyManager: {type(state_consistency_manager).__name__}'
 
 # Test 10: Feature Flags
 from backend.config.settings import (
-    ENABLE_DRL_INTEGRATION, ENABLE_KELLY_POSITION, ENABLE_EVOLUTION_FEEDBACK,
+    ENABLE_DRL_INTEGRATION, ENABLE_KELLY_POSITION,
     ENABLE_PORTFOLIO_RISK, ENABLE_COORDINATOR, DRL_SHADOW_MODE
 )
-print(f'[10] FeatureFlags: COORD={ENABLE_COORDINATOR}, RISK={ENABLE_PORTFOLIO_RISK}, KELLY={ENABLE_KELLY_POSITION}, DRL={ENABLE_DRL_INTEGRATION}, EVO={ENABLE_EVOLUTION_FEEDBACK}, SHADOW={DRL_SHADOW_MODE}')
+print(f'[10] FeatureFlags: COORD={ENABLE_COORDINATOR}, RISK={ENABLE_PORTFOLIO_RISK}, KELLY={ENABLE_KELLY_POSITION}, DRL={ENABLE_DRL_INTEGRATION}, SHADOW={DRL_SHADOW_MODE}')
 
 print()
 print('=== ALL 10 SHADOW MODE TESTS PASSED ===')

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 from typing import Dict, List
 
@@ -1292,9 +1292,8 @@ ENABLE_DRL_INTEGRATION: bool = os.getenv("ENABLE_DRL_INTEGRATION", "false").lowe
 ENABLE_KELLY_POSITION: bool = os.getenv("ENABLE_KELLY_POSITION", "true").lower() == "true"
 
 # 进化结果反馈到实盘genome（默认关闭，需与 params_registry 写入口一起启用）
-# [已废弃 2026-06-11] ENABLE_EVOLUTION_FEEDBACK — 历史假开关（消费端 adapt_params 从未被调用）。
-# 进化反哺统一走 data/v5_runtime_gates.json 通道。保留变量避免旧代码 import 报错。
-ENABLE_EVOLUTION_FEEDBACK: bool = os.getenv("ENABLE_EVOLUTION_FEEDBACK", "false").lower() == "true"
+# [2026-08-13 R3] ENABLE_EVOLUTION_FEEDBACK 假开关已删除（历史消费端 adapt_params 从未被调用，
+# 进化反哺统一走 data/v5_runtime_gates.json 通道）。历史代码见 git commit 4b0fa39 之前。
 
 # 组合级风险聚合（默认关闭，需先验证 PortfolioRiskAggregator 与单笔风控联动）
 ENABLE_PORTFOLIO_RISK: bool = os.getenv("ENABLE_PORTFOLIO_RISK", "false").lower() == "true"

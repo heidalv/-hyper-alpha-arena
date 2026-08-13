@@ -37,12 +37,9 @@ capital_allocation:
   emergency_reserve: 0.10       # $30 应急
   strategy_sub_pools:
     SDN: 0.40  # [Phase2 新主力] delta-neutral 刷积分：多积分DEX做多+深场所做空
-    S1: 0.0    # 已下线（负 EV：月返佣 $0.45 vs 成本 $40）
     S2: 0.05   # 保持关闭（数据管线已修通，待大资金启用）
     S3: 0.30   # 次主力（Hyperliquid Season 2 积分挖矿，仍 active）
     S4: 0.05   # 保持关闭（campaigns 管线已修通）
-    S5: 0.0    # 已下线（数据结构 bug + 与 V3 资金费套利重复）
-    S6: 0.0    # 已关闭（负 EV，伪可行门槛已收紧）
     S8: 0.0    # [已退役] Aster Stage6 于 2026-03-29 结束，配额清零、不再占资
     S7: 0.0    # monitor_only
 
@@ -100,12 +97,6 @@ strategies:
     horizon_days: 7.0            # 假设持有期（摊销手续费、年化净 EV）
     min_net_apr: 0.05            # 扣成本后净年化 >=5% 才可行
     use_conservative_points: true  # 积分估值取保守档，宁可低估
-  S1_maker_hedge:
-    enabled: false             # [M4 已下线] 负 EV（月返佣 $0.45 vs 成本 $40），与 S6 重复且更差
-    deprecated: true
-    min_equity: 100
-    min_spread_bps: 3.0
-    default_leverage: 5
   S2_vip_sprint:
     enabled: false             # 需要大资金(>50000U)，小资金不适用；volume_30d 管线已修通待启用
     target_tier: "VIP4"
@@ -123,15 +114,6 @@ strategies:
   S4_campaign_arb:
     enabled: false             # 竞赛套利需要大资金；active_campaigns 管线已修通待启用
     min_expected_roi_pct: 2.0
-  S5_funding_points:
-    enabled: false             # [M4 已下线] funding 数据结构假设错误 + 与 V3 资金费套利重复
-    deprecated: true
-    min_funding_rate_annualized: 0.05
-  S6_cross_fee_spread:
-    enabled: false             # [M4 关闭] 负 EV；is_viable 伪可行门槛（月亏$5内算可行）已收紧
-    min_equity: 200
-    min_spread_bps: 1.0
-    default_leverage: 5
   S7_binance_alpha:
     enabled: false             # 2025.6.17后交易量不再计积分+API不可用
     mode: "monitor_only"       # 仅监控模式
