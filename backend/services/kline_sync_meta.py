@@ -19,6 +19,22 @@ logger = logging.getLogger(__name__)
 _tables_ready = False
 _tables_lock = threading.Lock()
 
+# [2026-08-14 F1 整改] 非加密货币 ticker 黑名单（防再污染 symbol_catalog）。
+# 事故溯源：CL/CSCO/CYS/SPCX/XAU/1000NEX 曾被写入 catalog 并标 trading，
+# 最终经选币链路进入中线分析宇宙（进程内实测 _mid_allowed 含 CSCO/CYS）。
+# 黑名单可扩展：发现新污染 ticker 时在此追加并同步清理存量行。
+# 注意：只收「明确非加密」的 ticker，避免误伤真实币种（如 1000PEPE 是真实合约）。
+NON_CRYPTO_TICKERS: frozenset[str] = frozenset({
+    # 本次事故实测污染源
+    "CL", "CSCO", "CYS", "SPCX", "1000NEX",
+    # 贵金属现货/期货
+    "XAU", "XAG", "XPT", "XPD", "GC", "SI", "HG", "PL", "PA",
+    # 能源期货
+    "NG",
+    # 知名美股 ticker（加密市场无同名主流币）
+    "C", "MSFT", "AAPL", "NVDA",
+})
+
 
 def _ensure_tables() -> None:
     global _tables_ready
@@ -86,9 +102,11 @@ def upsert_symbol_catalog(
 
     for s in symbols or []:
         su = normalize_symbol(s)
-        if su and is_valid_base_symbol(su) and su not in seen:
+        if su and is_valid_base_symbol(su) and su not in NON_CRYPTO_TICKERS and su not in seen:
             seen.add(su)
             cleaned.append(su)
+        elif su in NON_CRYPTO_TICKERS:
+            logger.warning("[KlineSyncMeta] 拒绝写入非加密 ticker: %s (%s)", su, ex)
     if not cleaned:
         return 0
     n = 0

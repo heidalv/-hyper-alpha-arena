@@ -197,6 +197,22 @@ class StrategyLearningService:
                 if not strategy:
                     continue
 
+                # [2026-08-14 F4 整改] 中长线晋升守卫：
+                # 历史问题——早期样本胜率=1.0 / sharpe=0.5 的退化指标直接晋升激活
+                # （「[实战验证]」模板 backtest_win_rate=1.0 占位数据实锤）。
+                # 中长线要求更严：样本>=30、胜率落在 (0.05,0.95) 区间、回撤<=25%。
+                # 短线维持原阈值（不触碰短期策略逻辑）。
+                _tier = str(getattr(strategy, "timeframe_tier", "") or "").strip().lower()
+                if _tier in ("mid", "long"):
+                    _wr = float(memory.win_rate or 0)
+                    _dd = float(memory.max_drawdown or 1)
+                    if int(memory.total_trades or 0) < 30 or _wr <= 0.05 or _wr >= 0.95 or _dd > 0.25:
+                        logger.info(
+                            "[Promote] %s 中长线晋升被 F4 守卫拒绝: n=%s wr=%.2f dd=%.2f",
+                            memory.strategy_id, memory.total_trades, _wr, _dd,
+                        )
+                        continue
+
                 expected_name = f"[实战验证] {strategy.name}"
                 already = db.query(StrategyTemplate).filter(
                     StrategyTemplate.source == "promoted",

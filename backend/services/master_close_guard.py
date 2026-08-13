@@ -42,8 +42,9 @@ from typing import Any, Optional
 
 
 # Agent 复查专用 reason 白名单（Tier 1 退出）
+# [2026-08-14 F6 整改] 移除 trend_review/trend_review_close/trend_review_reduce：
+# 该通道历史 12 笔 0% 胜率 -44.90（orders 权威账本），纳入与 master 同标准硬事实门。
 _AGENT_EXIT_REASON_WHITELIST = frozenset({
-    "trend_review", "trend_review_close", "trend_review_reduce",
     "hold_timeout", "hold_timeout_review", "scalp_fast_review",
     "trend_reversal", "trend_weakening", "structure_break",
 })
@@ -427,12 +428,8 @@ def check_agent_exit_hardfact(
             detail=f"tier={tier_norm} agent loss_pct={loss_pct:.2%}>={min_loss:.1%}",
         )
 
-    if action == "close" and ch.startswith("trend_review"):
-        return HardfactResult(
-            allow=True,
-            matched_rule="trend_review_close",
-            detail="trend_review close allowed (tier1 default pass for agent review)",
-        )
+    # [2026-08-14 F6 整改] 删除 trend_review* close 的显式放行分支——
+    # 该通道纳入与 master 同标准硬事实门（历史 12 笔 0% 胜率 -44.90）。
 
     return HardfactResult(
         allow=False, matched_rule="",

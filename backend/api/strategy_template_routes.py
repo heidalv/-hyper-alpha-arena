@@ -386,6 +386,18 @@ def promote_strategy_to_template(request: PromoteRequest, db: Session = Depends(
 
     memory = db.query(StrategyMemory).filter(StrategyMemory.strategy_id == request.strategy_id).first()
 
+    # [2026-08-14 F4 整改] 中长线手动晋升守卫：拒绝退化指标（胜率=1.0 等占位数据）。
+    _tier = str(getattr(strategy, "timeframe_tier", "") or "").strip().lower()
+    if _tier in ("mid", "long"):
+        if not memory or int(memory.total_trades or 0) < 30:
+            raise HTTPException(status_code=400, detail=f"中长线晋升需真实交易样本>=30（当前 {memory.total_trades if memory else 0}）")
+        _wr = float(memory.win_rate or 0)
+        _dd = float(memory.max_drawdown or 1)
+        if _wr <= 0.05 or _wr >= 0.95:
+            raise HTTPException(status_code=400, detail=f"胜率 {_wr:.0%} 疑似退化指标，禁止晋升")
+        if _dd > 0.25:
+            raise HTTPException(status_code=400, detail=f"最大回撤 {_dd:.0%} 超限（>25%），禁止晋升")
+
     existing = db.query(StrategyTemplate).filter(
         StrategyTemplate.name == (request.name or strategy.name),
         StrategyTemplate.source == "promoted",

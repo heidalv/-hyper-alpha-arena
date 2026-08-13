@@ -122,6 +122,13 @@ def build_midlong_health(lookback_days: int = 14, account_id: Optional[int] = No
         from backend.database.models import FullAutoSession, PaperBalance
         db = SessionLocal()
         try:
+            # [2026-08-14 F5 整改] 带租户上下文：此前无上下文导致 RLS 过滤空表，
+            # 周报「paper_* 表无样本」是假的。统一按管理口径读取（与
+            # get_fixed_symbols_for_session 等同模式）。
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
             if resolved_acct is None:
                 sess = db.query(FullAutoSession).filter(
                     FullAutoSession.status.in_(("running", "defensive"))

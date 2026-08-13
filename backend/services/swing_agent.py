@@ -706,29 +706,26 @@ class SwingAgent:
         )
 
     def _fallback(self, symbol: str, market_envs) -> SwingDecision:
-        """LLM 失败时的规则回退：用编排器中期 bias 做保守判断。"""
+        """LLM 失败时的规则回退（2026-08-14 F7 整改：只允许 hold，禁止开新仓）。
+
+        历史问题：回退用编排器中期 bias 造单、置信度被抬到 max(55, ...) 越过门槛，
+        且绕过 fact_guard——「LLM 坏了 → 规则引擎替它开仓」。整改后回退只 hold，
+        把 bias/conf 写进 reasoning 供观测，开仓必须等下一次 LLM 成功。
+        """
         _ms = (market_envs or {}).get(symbol, {}) if isinstance(market_envs, dict) else {}
         _orch = _ms.get("orchestrator", {}) if isinstance(_ms, dict) else {}
         mid_bias = (_orch.get("mid_bias") or "neutral").lower() if isinstance(_orch, dict) else "neutral"
         mid_conf = float(
             _orch.get("mid_confidence") or _orch.get("mid_conf") or 0
         ) if isinstance(_orch, dict) else 0
+        _note = ""
         if mid_bias != "neutral" and mid_conf >= 0.4:
-            direction = "long" if mid_bias == "bullish" else "short"
-            return self._normalize({
-                "action": "buy" if direction == "long" else "sell",
-                "confidence": max(55, int(mid_conf * 100)),
-                "direction": direction,
-                "sl_pct": 0.04,
-                "tp_pct": 0.08,
-                "risk_reward": 2.0,
-                "reasoning": f"[规则回退] 编排器中期bias={mid_bias} conf={mid_conf:.0%}",
-            }, symbol, market_envs=market_envs)
+            _note = f"（编排器中期 bias={mid_bias} conf={mid_conf:.0%}，但 LLM 失败回退禁止开仓）"
         return self._normalize({
             "action": "hold",
             "confidence": 0,
             "direction": "neutral",
-            "reasoning": "[规则回退] 中期信号不足",
+            "reasoning": f"[规则回退-F7] LLM 调用失败，本轮只观望{_note}",
         }, symbol, market_envs=market_envs)
 
     def _call_llm(self, prompt: str, account_id: Optional[int]) -> Optional[Dict]:

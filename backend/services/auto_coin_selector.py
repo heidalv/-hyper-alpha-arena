@@ -2293,6 +2293,10 @@ class AutoCoinSelector:
                     continue
                 if self._is_cooling(c.symbol, now):
                     continue
+                # [2026-08-14 F2 整改] 24h 内被 removed 过的候选禁止重注入（防闪烁）
+                if self._recently_removed(c.symbol):
+                    logger.info("[AutoCoinSelector] %s 24h 内刚被移除，跳过本轮注入（F2 冷却）", c.symbol)
+                    continue
             eligible.append(c)
 
         # S2-9：组合相关性去重 —— 贪心保留与已选低相关的候选（阈值 0 关闭）
@@ -3365,6 +3369,44 @@ class AutoCoinSelector:
                 return True
             del self._pool.cooling[symbol]
         return False
+
+    # [2026-08-14 F2 整改] 移除后 24h 禁止重新注入（防 injected/removed 闪烁循环）
+    _REINJECT_COOLDOWN_SEC = 86400
+
+    def _recently_removed(self, symbol: str) -> bool:
+        """该 symbol 24h 内被 removed 过则禁止本轮重新注入。
+
+        历史事故：CL/CSCO/SPCX 等每 ~15 分钟 injected→removed 反复，
+        反复改写 auto_coin_symbols、抖动中线候选集合。
+        """
+        try:
+            from backend.database.connection import SessionLocal as _AL
+            from backend.database.models import AutoCoinSelection
+
+            db = _AL()
+            try:
+                try:
+                    db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+                except Exception:
+                    pass
+                cutoff = datetime.utcnow() - timedelta(seconds=self._REINJECT_COOLDOWN_SEC)
+                row = (
+                    db.query(AutoCoinSelection)
+                    .filter(
+                        AutoCoinSelection.session_id == self.session_id,
+                        AutoCoinSelection.symbol == str(symbol).upper(),
+                        AutoCoinSelection.action == "removed",
+                        AutoCoinSelection.created_at >= cutoff,
+                    )
+                    .order_by(AutoCoinSelection.id.desc())
+                    .first()
+                )
+                return row is not None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.debug("[AutoCoinSelector] recently_removed check fail %s: %s", symbol, e)
+            return False
 
     def _add_cooling(self, symbol: str, tier: str = "short"):
         """将币种加入冷却池（分级冷却）并持久化。"""

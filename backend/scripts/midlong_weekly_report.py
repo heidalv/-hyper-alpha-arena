@@ -360,6 +360,11 @@ def compute_nibble_conversion(days: int) -> dict:
 
     adb = AnalyticsSessionLocal()
     core = SessionLocal()
+    # [2026-08-14 F5 整改] 同上：核心库连接补租户上下文（RLS）
+    try:
+        core.connection().exec_driver_sql("SET app.is_admin = 'on'")
+    except Exception:
+        pass
     try:
         rows = adb.execute(
             text(
@@ -687,6 +692,12 @@ def render_report(
 def generate_report(days: int = 14) -> str:
     """供程序化调用（如定时任务）的入口，返回 markdown 文本。"""
     db = SessionLocal()
+    # [2026-08-14 F5 整改] 带租户上下文，修复「paper_* 空库回退 event_log」假象
+    #（此前无上下文被 RLS 过滤，实际上 paper_orders 有数千条平仓记录）。
+    try:
+        db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+    except Exception:
+        pass
     data_source = "paper_db"
     try:
         orders = list(_fetch_orders(db, days) or [])

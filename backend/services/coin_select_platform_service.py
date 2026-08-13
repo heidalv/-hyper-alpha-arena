@@ -129,6 +129,8 @@ def _scan_market_candidates(limit: int = 40) -> List[Dict[str, Any]]:
         if engine_enabled():
             ranked = rank_universe(limit=limit, apply_factor=True, apply_gate=True, apply_decay=True)
             out = rank_results_to_platform_candidates(ranked)
+            # [2026-08-14 F2 整改] fail-closed：候选必须属于数据中心 catalog 可交易集。
+            out = _fail_closed_filter(out)
             logger.info(
                 "[CoinSelectPlatform] CoinRankEngine ranked=%d top=%s",
                 len(out),
@@ -228,7 +230,7 @@ def _scan_market_candidates(limit: int = 40) -> List[Dict[str, Any]]:
         "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "AVAX", "LINK", "DOT", "ATOM",
         "NEAR", "APT", "SUI", "ARB", "OP", "INJ", "TIA", "SEI", "AAVE", "UNI",
         "LTC", "FIL", "RENDER", "FET", "ONDO", "HYPE", "WIF", "TON", "ADA", "TRX",
-    )
+    )  # noqa: F841 —— 保留为模块级 _LIQUID_PREF 的别名引用，避免大范围改动
 
     if not by_sym:
         logger.error(
@@ -299,7 +301,48 @@ def _scan_market_candidates(limit: int = 40) -> List[Dict[str, Any]]:
         if fm is not None:
             row["score"] = round(0.65 * float(row["score"]) + 0.35 * float(fm), 4)
     out.sort(key=lambda x: float(x.get("score") or 0), reverse=True)
+    # [2026-08-14 F2 整改] fail-closed：剔除不在数据中心 catalog 可交易集的 symbol
+    #（历史事故：CL/CSCO/CYS 等股票代码经此进入选币候选 → 看板 approve → 中线宇宙）。
+    out = _fail_closed_filter(out)
     return out
+
+
+_LIQUID_PREF = (
+    "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "AVAX", "LINK", "DOT", "ATOM",
+    "NEAR", "APT", "SUI", "ARB", "OP", "INJ", "TIA", "SEI", "AAVE", "UNI",
+    "LTC", "FIL", "RENDER", "FET", "ONDO", "HYPE", "WIF", "TON", "ADA", "TRX",
+)
+
+
+def _fail_closed_filter(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """候选白名单过滤：只保留数据中心 symbol_catalog(status=trading) 中的 symbol。
+
+    catalog 读取失败时降级为内置流动性偏好白名单（仍 fail-closed，不放任陌生 symbol）。
+    """
+    trading_set: set = set()
+    try:
+        from backend.services.kline_sync_meta import list_catalog_symbols
+
+        for ex in ("asterdex", "binance", "hyperliquid", "bybit", "okx"):
+            try:
+                trading_set.update(str(s).strip().upper() for s in (list_catalog_symbols(ex, status="trading") or []))
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning("[CoinSelectPlatform] catalog 读取失败，降级流动性白名单: %s", e)
+    if not trading_set:
+        trading_set = {s for s in _LIQUID_PREF}
+    dropped = []
+    kept: List[Dict[str, Any]] = []
+    for c in candidates:
+        sym = str(c.get("symbol") or "").strip().upper()
+        if sym and sym in trading_set:
+            kept.append(c)
+        else:
+            dropped.append(sym)
+    if dropped:
+        logger.warning("[CoinSelectPlatform] fail-closed 剔除 %d 个非 catalog symbol: %s", len(dropped), dropped[:12])
+    return kept
 
 
 def _build_dual_horizon_prompt(batch: List[Dict[str, Any]]) -> str:

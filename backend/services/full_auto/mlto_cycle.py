@@ -581,6 +581,24 @@ def maintain_mlto_theses_for_session(
     _ai_mid_new_only = set(get_ai_mid_candidates_for_session(session_id) or [])
     # 中线可分析集合 = 固定中线 ∪ AI中线候选 ∪ 续管持仓（勿用 long 白名单冒充 mid）
     _mid_allowed = set(_fixed_mid_symbols) | set(_ai_mid_symbols)
+    # [2026-08-14 F3 整改] 最终防线：中线宇宙 ∩ 数据中心 catalog 可交易集。
+    # fail-closed——即使选币链路再被污染，非 catalog symbol 到不了分析层。
+    # （事故：CSCO/CYS 股票代码经 AI 中线候选进入 _mid_allowed 并被分析。）
+    try:
+        from backend.services.kline_sync_meta import list_catalog_symbols
+        _trading: set = set()
+        for _ex in ("asterdex", "binance", "hyperliquid", "bybit", "okx"):
+            _trading.update(str(s).strip().upper() for s in (list_catalog_symbols(_ex, status="trading") or []))
+        if _trading:
+            _dropped = _mid_allowed - _trading
+            _mid_allowed = _mid_allowed & _trading
+            if _dropped:
+                logger.warning(
+                    "[MLTO] F3 防线剔除 %d 个非 catalog 中线标的: %s",
+                    len(_dropped), sorted(_dropped),
+                )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[MLTO] F3 防线 catalog 读取失败(保持原集合): %s", e)
     _ana_db = None
     try:
         from backend.database.connection import AnalyticsSessionLocal
