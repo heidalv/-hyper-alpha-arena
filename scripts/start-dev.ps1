@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     One-shot dev launcher: Data Center → backend (uvicorn) → frontend-next (:5273).
 
@@ -58,6 +58,17 @@ foreach ($cand in @(
 if (-not $PyExe) {
     Write-Host "[WARN] venv python not found under backend\.venv; falling back to 'python' on PATH." -ForegroundColor Yellow
     $PyExe = 'python'
+}
+
+# R1 配置漂移校验（不阻断启动；有漂移/重复键时黄字提示）
+$DriftScript = Join-Path $RepoRoot 'scripts\check_config_drift.py'
+if (Test-Path $DriftScript) {
+    & $PyExe $DriftScript *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[drift] config OK (no drift / no duplicate keys)" -ForegroundColor DarkGray
+    } else {
+        Write-Host "[drift] WARNING: config drift or duplicate keys found. Run: python scripts\check_config_drift.py --verbose" -ForegroundColor Yellow
+    }
 }
 
 $BackendLog  = Join-Path $LogDir 'backend.log'

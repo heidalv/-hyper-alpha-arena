@@ -119,6 +119,22 @@ pnpm run dev:frontend
 
 后端默认端口是 `8000`，正式前端是 **`5273`**（Next.js）。旧 `frontend` Vite `:5173` 已冻结。
 
+## 配置管理与漂移校验（2026-08-13）
+
+**单一事实来源**：`docs/RUNTIME_CONFIG_FACTS.md` 登记关键开关的「声明意图 + 期望值」。
+
+**校验**：`python scripts\check_config_drift.py` 比对事实清单与 `.env`，报告 OK / DRIFT / MISSING / DUPLICATE；
+有漂移或重复键时退出码 1（`dev-start` 启动时自动跑一次，不阻断、黄字提示）。
+
+**变更纪律**：改 `.env` 必须同步事实清单，同一 commit 提交；提交前跑校验确认 `NO DRIFT`。
+脚本绝不读取/输出含 `KEY/SECRET/PASSWORD/TOKEN/...` 的键；`--fix-doc` 可把实况回写清单（生成 .bak 备份）。
+
+**2026-08-13 首次收敛记录**：
+- `.env` 中 3 个重复键已去重（`SCALP_FACTOR_SCAN_INTERVAL_SEC`、`MULTI_VENUE_FUNDING_COLLECTOR_ENABLED`、`PROMOTION_MIN_TRADES` 按 python-dotenv 实效值 50 保留）；
+- 下列开关实况与历史文档声明不一致，已按**实况**登记并标 `⚠ 待确认`，请维护者确认意图后消除标记：
+  `DRL_SHADOW_MODE=true`、`DRL_RETRAIN_AUTO=true`、`PROMPT_EVOLUTION_ENABLED=true`、
+  `ENABLE_PORTFOLIO_RISK=true`、`MIDLONG_EXEC_AUTHORITY=mlto`、`MULTI_VENUE_FUNDING_COLLECTOR_ENABLED=true`。
+
 ## V5 决策核心（2026-06-10 经济学深度重构）
 
 针对「盈亏比倒挂 + 过度交易 + 手续费侵蚀」的根因，新增 `backend/services/decision_core/` 包，
