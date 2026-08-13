@@ -429,3 +429,6 @@ data/factor_matrices/
 /tmp_*
 /scripts/tmp_*.py
 /_start_backend.sh
+
+# Cleanup archive (cleanup.ps1 moves junk here; recoverable, do NOT commit)
+_cleanup_archive/
