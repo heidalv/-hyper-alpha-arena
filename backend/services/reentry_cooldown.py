@@ -447,6 +447,179 @@ def clear_state(account_id: int, symbol: str, tier: str = "") -> None:
         _loss_history.pop(loss_key, None)
 
 
+# ══════════════════════════════════════════════════════
+#  P0-D 透明化：只读冷却快照（冷却矩阵数据源）
+#  供 GET /api/full-auto/cooldowns/{session_id} 使用。
+#  只读：不修改、不删除任何冷却状态（与 reopen_blocked 不同）。
+# ══════════════════════════════════════════════════════
+
+def _parse_state_key(key: str, account_id: int) -> tuple:
+    """解析 state key → (symbol, tier)。兼容 v4 无 tier 残留格式。"""
+    prefix = f"{int(account_id)}_"
+    rest = key[len(prefix):] if key.startswith(prefix) else ""
+    parts = rest.rsplit("_", 1)
+    if len(parts) == 2 and parts[1] in ("short", "mid", "long", "default"):
+        return parts[0], parts[1]
+    return rest, "default"
+
+
+def _fmt_remain(remain_sec: int) -> str:
+    """倒计时人类可读：'3h15m' / '45m' / '58s'。"""
+    if remain_sec <= 0:
+        return "0s"
+    h = remain_sec // 3600
+    m = (remain_sec % 3600) // 60
+    s = remain_sec % 60
+    if h > 0:
+        return f"{h}h{m:02d}m"
+    if m > 0:
+        return f"{m}m{s:02d}s"
+    return f"{s}s"
+
+
+def get_cooldown_snapshot(account_id: int) -> dict:
+    """P0-D：只读冷却快照（冷却矩阵 + 倒计时 + 原因）。
+
+    Returns:
+      {
+        generated_at, account_id,
+        full_close:   [{symbol, tier, closed_side, started_at, multiplier,
+                        same_dir_remain_sec, same_dir_remain, same_dir_reason,
+                        flip_remain_sec, flip_remain, flip_reason}],
+        reduce:       [{symbol, side, tier, started_at, multiplier,
+                        remain_sec, remain, reason}],
+        ai_reverse:   [{symbol, started_at, remain_sec, remain, reason}],
+        tier_blocked: {short|mid|long: [symbol]}   # 有活跃冷却的 symbol 列表
+      }
+    只返回未过期条目；任何异常均降级为空列表，不影响交易主流程。
+    """
+    from datetime import datetime, timezone
+
+    now = time.time()
+    out = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "account_id": int(account_id),
+        "full_close": [],
+        "reduce": [],
+        "ai_reverse": [],
+        "tier_blocked": {"short": [], "mid": [], "long": []},
+    }
+    try:
+        # ── 全平冷却 ──
+        with _lock:
+            items = list(_state.items())
+        for key, data in items:
+            if not key.startswith(f"{int(account_id)}_"):
+                continue
+            symbol, tier = _parse_state_key(key, account_id)
+            # 兼容 2~5 元组
+            if len(data) == 2:
+                closed_side, ts = data
+                multiplier, stored_cd = 1.0, None
+            elif len(data) == 3:
+                closed_side, ts, _t = data
+                multiplier, stored_cd = 1.0, None
+            elif len(data) == 4:
+                closed_side, ts, _t, multiplier = data[:4]
+                stored_cd = None
+            elif len(data) >= 5:
+                closed_side, ts, _t, multiplier, stored_cd = data[:5]
+            else:
+                continue
+            elapsed = now - float(ts)
+            if elapsed < 0:
+                continue
+            if stored_cd is not None and stored_cd > 0:
+                same_cd = int(stored_cd)
+            else:
+                same_cd = int(_get_cooldown_sec(tier) * multiplier)
+            same_remain = max(0, same_cd - elapsed)
+            flip_remain = max(0, _FLIP_COOLDOWN_SEC - elapsed)
+            if same_remain <= 0 and flip_remain <= 0:
+                continue
+            side_cn = "多" if closed_side == "long" else "空"
+            row = {
+                "symbol": symbol,
+                "tier": tier,
+                "closed_side": closed_side,
+                "started_at": datetime.fromtimestamp(float(ts), timezone.utc).isoformat(),
+                "multiplier": multiplier,
+                "same_dir_remain_sec": int(same_remain),
+                "same_dir_remain": _fmt_remain(int(same_remain)),
+                "same_dir_reason": (
+                    f"刚平{side_cn}仓(tier={tier})，同向再开冷却"
+                    + (f"×{multiplier:.0f}倍" if multiplier > 1.0 else "")
+                ),
+                "flip_remain_sec": int(flip_remain),
+                "flip_remain": _fmt_remain(int(flip_remain)),
+                "flip_reason": f"刚平{side_cn}仓，反向翻转冷却（防多空互损）",
+            }
+            out["full_close"].append(row)
+            if tier in out["tier_blocked"] and symbol not in out["tier_blocked"][tier]:
+                out["tier_blocked"][tier].append(symbol)
+
+        # ── 减仓冷却 ──
+        with _reduce_lock:
+            r_items = list(_reduce_cooldowns.items())
+        for key, entry in r_items:
+            if not key.startswith(f"{int(account_id)}_"):
+                continue
+            rest = key[len(str(int(account_id))) + 1:]
+            symbol, side = rest.rsplit("_", 1)
+            tier = str(entry.get("tier") or "mid").strip().lower() or "mid"
+            multiplier = float(entry.get("multiplier") or 1.0)
+            cd_min = _get_reduce_cooldown_minutes(tier) * multiplier
+            elapsed = now - float(entry.get("time") or now)
+            remain = max(0, cd_min * 60 - elapsed)
+            if remain <= 0:
+                continue
+            out["reduce"].append({
+                "symbol": symbol,
+                "side": side,
+                "tier": tier,
+                "started_at": datetime.fromtimestamp(float(entry["time"]), timezone.utc).isoformat(),
+                "multiplier": multiplier,
+                "remain_sec": int(remain),
+                "remain": _fmt_remain(int(remain)),
+                "reason": f"刚减仓，重仓冷却" + (f"×{multiplier:.0f}倍" if multiplier > 1.0 else ""),
+            })
+            if tier in out["tier_blocked"] and symbol not in out["tier_blocked"][tier]:
+                out["tier_blocked"][tier].append(symbol)
+
+        # ── ai_reverse 冷却 ──
+        try:
+            from backend.config.settings import RISK_P3_AI_REVERSE_COOLDOWN_SEC as _AR_CD
+        except Exception:
+            _AR_CD = 0
+        if int(_AR_CD or 0) > 0:
+            with _ai_reverse_lock:
+                ar_items = list(_ai_reverse_last.items())
+            for key, ts in ar_items:
+                if not key.startswith(f"{int(account_id)}_"):
+                    continue
+                symbol = key[len(str(int(account_id))) + 1:]
+                remain = max(0, int(_AR_CD) - (now - float(ts)))
+                if remain <= 0:
+                    continue
+                out["ai_reverse"].append({
+                    "symbol": symbol,
+                    "started_at": datetime.fromtimestamp(float(ts), timezone.utc).isoformat(),
+                    "remain_sec": int(remain),
+                    "remain": _fmt_remain(int(remain)),
+                    "reason": "刚 AI 反向开仓过，同币种再次翻转冷却",
+                })
+                for _t in ("short", "mid", "long"):
+                    if symbol not in out["tier_blocked"][_t]:
+                        out["tier_blocked"][_t].append(symbol)
+    except Exception as e:
+        logger.warning("[ReentryCD] get_cooldown_snapshot 降级: %s", e)
+
+    # 排序：同向剩余时间长的在前（矩阵重点看最久阻挡）
+    out["full_close"].sort(key=lambda x: -(x["same_dir_remain_sec"] + x["flip_remain_sec"]))
+    out["reduce"].sort(key=lambda x: -x["remain_sec"])
+    return out
+
+
 def clear_all_cooldowns() -> int:
     """一次性清空所有账户的冷却状态，主要用于调试或修复后手动放行。返回清理条数。"""
     with _lock:

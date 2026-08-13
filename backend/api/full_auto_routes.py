@@ -1055,6 +1055,79 @@ def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(ge
     return result
 
 
+# ══════════════════════════════════════════════════════
+#  P0-D 透明化：冷却矩阵 + 门禁拦截事件流（只读）
+# ══════════════════════════════════════════════════════
+
+_BLOCK_EVENT_MARKERS = (
+    "block", "blocked", "cooldown", "circuit_breaker", "defensive_entry",
+    "veto", "reject", "gate", "freeze", "tier_budget", "rebound_gate",
+)
+
+
+def _is_block_event(event_type: str) -> bool:
+    _et = (event_type or "").lower()
+    return any(m in _et for m in _BLOCK_EVENT_MARKERS)
+
+
+@router.get("/cooldowns/{session_id}")
+def get_session_cooldowns(session_id: str, db: Session = Depends(get_db)):
+    """P0-D 只读：会话交易账户的冷却矩阵（全平/减仓/AI反向 三类冷却 + 分周期遮挡）。
+
+    不修改任何冷却状态；数据源为 reentry_cooldown.get_cooldown_snapshot。
+    """
+    session = db.query(FullAutoSession).filter(
+        FullAutoSession.session_id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    _trading_acct = (
+        session.paper_account_id
+        if (session.trading_mode == "paper" and getattr(session, "paper_account_id", None))
+        else session.account_id
+    )
+    if not _trading_acct:
+        raise HTTPException(status_code=404, detail="会话未绑定交易账户")
+
+    try:
+        from backend.services.reentry_cooldown import get_cooldown_snapshot
+        snapshot = get_cooldown_snapshot(_trading_acct)
+    except Exception as e:
+        logger.warning("[P0-D] cooldown snapshot failed: %s", e)
+        snapshot = {"error": str(e)[:120]}
+
+    snapshot["session_id"] = session_id
+    snapshot["trading_account_id"] = _trading_acct
+    return snapshot
+
+
+@router.get("/events/{session_id}")
+def get_session_events(session_id: str, limit: int = 60, mode: str = "blocks",
+                       db: Session = Depends(get_db)):
+    """P0-D 只读：会话门禁拦截事件流（session.event_log 过滤，最新在前）。
+
+    mode=blocks: 仅阻断/冷却/门禁类事件（默认）；mode=all: 全部事件。
+    """
+    session = db.query(FullAutoSession).filter(
+        FullAutoSession.session_id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    events = list(session.event_log or [])
+    if mode != "all":
+        events = [e for e in events if _is_block_event(str(e.get("event") or ""))]
+    # 最新在前
+    events.sort(key=lambda e: str(e.get("time") or ""), reverse=True)
+    return {
+        "session_id": session_id,
+        "mode": mode,
+        "total": len(events),
+        "events": events[: max(1, min(int(limit), 200))],
+    }
+
+
 @router.post("/cleanup-stale-strategies")
 def cleanup_stale_strategies(db: Session = Depends(get_db)):
     """清理所有已停止会话的残留策略（处理历史遗留数据）"""

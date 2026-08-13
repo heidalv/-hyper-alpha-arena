@@ -233,6 +233,67 @@ export interface TierActivity {
   long?: TierActivityItem[];
 }
 
+/** P0-D：冷却快照（/api/full-auto/cooldowns/{session}） */
+export interface CooldownFullCloseRow {
+  symbol: string;
+  tier: "short" | "mid" | "long" | "default";
+  closed_side: "long" | "short";
+  started_at?: string;
+  multiplier?: number;
+  same_dir_remain_sec: number;
+  same_dir_remain: string;
+  same_dir_reason: string;
+  flip_remain_sec: number;
+  flip_remain: string;
+  flip_reason: string;
+}
+
+export interface CooldownReduceRow {
+  symbol: string;
+  side: string;
+  tier: string;
+  started_at?: string;
+  multiplier?: number;
+  remain_sec: number;
+  remain: string;
+  reason: string;
+}
+
+export interface CooldownAiReverseRow {
+  symbol: string;
+  started_at?: string;
+  remain_sec: number;
+  remain: string;
+  reason: string;
+}
+
+export interface CooldownSnapshot {
+  generated_at?: string;
+  account_id?: number;
+  session_id?: string;
+  trading_account_id?: number;
+  full_close?: CooldownFullCloseRow[];
+  reduce?: CooldownReduceRow[];
+  ai_reverse?: CooldownAiReverseRow[];
+  tier_blocked?: Record<"short" | "mid" | "long", string[]>;
+}
+
+/** P0-D：门禁拦截事件流（/api/full-auto/events/{session}） */
+export interface SessionEventItem {
+  time?: string;
+  event?: string;
+  detail?: string;
+  severity?: string;
+  trace_id?: string;
+}
+
+export interface SessionEventsResponse {
+  session_id?: string;
+  mode?: string;
+  total?: number;
+  events?: SessionEventItem[];
+}
+
 /** 活跃策略（/api/strategies?account_id=...） */
 export interface StrategyRecord {
   strategy_id?: string;

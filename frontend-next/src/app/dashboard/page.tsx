@@ -13,6 +13,7 @@ import {
 } from "@/components/trading/cells";
 import { DecisionTimeline } from "@/components/trading/DecisionTimeline";
 import { BlockReportPanel } from "@/components/trading/BlockReportPanel";
+import { CooldownMatrixPanel, BlockEventStream } from "@/components/trading/CooldownMatrixPanel";
 import type { Account, Position } from "@/types/api";
 
 const TIER_KEYS = ["short", "mid", "long"] as const;
@@ -250,6 +251,19 @@ export default function DashboardPage() {
                 </Card>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Section: P0-D 冷却/门禁透明化 */}
+      {activeSession?.session_id && (
+        <div>
+          <SectionHeader title="冷却与门禁透明化">
+            <span className="text-[9px] text-muted-foreground font-mono">P0-D · 只读 · 10s 轮询</span>
+          </SectionHeader>
+          <div className="grid grid-cols-2 gap-2">
+            <CooldownMatrixPanel sessionId={activeSession.session_id} />
+            <BlockEventStream sessionId={activeSession.session_id} />
           </div>
         </div>
       )}
