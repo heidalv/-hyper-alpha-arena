@@ -40,6 +40,25 @@ _ALPHA_LIB: List[Tuple[str, str, List[str], str]] = [
     ("mom_long",      "delta(close, 40) / (delay(close, 40) + 1e-9)",              ["1d"],       "长周期动量"),
     ("rev_long",      "-1 * ((close - ts_mean(close, 40)) / (ts_std(close, 40) + 1e-9))", ["1d"], "长周期均值回归"),
     ("vp_trend",      "sign(delta(close, 10)) * ts_rank(volume, 10)",              ["4h", "1d"], "量价趋势确认"),
+    # [2026-08-14 弹药扩源 v2] 参数域扩展：4h 侧重趋势/动量/突破，1d 侧重位置/长动量。
+    ("mom10",         "delta(close, 10) / (delay(close, 10) + 1e-9)",             ["4h", "1d"], "10期动量"),
+    ("mom30",         "delta(close, 30) / (delay(close, 30) + 1e-9)",             ["4h", "1d"], "30期动量"),
+    ("mom60",         "delta(close, 60) / (delay(close, 60) + 1e-9)",             ["1d"], "60期长动量"),
+    ("sma_dev20",     "(close - ts_mean(close, 20)) / (ts_mean(close, 20) + 1e-9)", ["4h", "1d"], "价格偏离20均线"),
+    ("sma_dev50",     "(close - ts_mean(close, 50)) / (ts_mean(close, 50) + 1e-9)", ["4h", "1d"], "价格偏离50均线"),
+    ("breakout_hi",   "(close - ts_max(high, 20)) / (ts_max(high, 20) + 1e-9)",   ["4h"], "20期新高突破"),
+    ("breakout_lo",   "(close - ts_min(low, 20)) / (ts_min(low, 20) + 1e-9)",     ["4h"], "20期新低突破"),
+    ("macd_like",     "delta(ts_mean(close, 12), 1) - delta(ts_mean(close, 26), 1)", ["4h", "1d"], "MACD近似(12/26)"),
+    ("macd_sig",      "ts_mean(delta(ts_mean(close, 12), 1) - delta(ts_mean(close, 26), 1), 9)", ["4h"], "MACD信号线近似"),
+    ("rsi_like",      "(ts_mean(np.maximum(delta(close, 1), 0), 14) - ts_mean(np.maximum(-delta(close, 1), 0), 14)) / (ts_mean(np.maximum(delta(close, 1), 0), 14) + ts_mean(np.maximum(-delta(close, 1), 0), 14) + 1e-9)", ["4h"], "RSI14近似(多空强度差比)"),
+    ("range_pos",     "(close - ts_min(low, 20)) / ((ts_max(high, 20) - ts_min(low, 20)) + 1e-9)", ["4h", "1d"], "唐奇安通道位置"),
+    ("atr_mom",       "delta(close, 20) / (ts_mean(ts_max(high, 14) - ts_min(low, 14), 14) + 1e-9)", ["4h"], "ATR归一动量"),
+    ("vol_expand",    "ts_std(close, 10) / (ts_std(close, 40) + 1e-9)",           ["4h", "1d"], "波动扩张比"),
+    ("trend_pos",     "ts_rank(close, 60)",                                        ["1d"], "60期价格位置"),
+    ("mom_rank",      "ts_rank(delta(close, 20), 60)",                            ["4h"], "动量排名"),
+    ("gap_rev",       "-1 * (open - delay(close, 1)) / (delay(close, 1) + 1e-9)", ["4h"], "跳空反转"),
+    ("hl_corr",       "ts_corr(close, high, 20)",                                 ["4h"], "价高相关"),
+    ("vol_mom10",     "delta(close, 10) / (ts_std(close, 20) + 1e-9)",            ["4h"], "短窗波动归一动量"),
 ]
 
 
