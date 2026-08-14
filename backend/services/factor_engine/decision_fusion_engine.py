@@ -73,8 +73,10 @@ class DecisionFusionEngine:
         Returns:
             FusionDecision
         """
-        # 1. 编排器 frozen 硬约束
-        if orchestrator_action == "frozen":
+        # 1. 编排器硬约束：[2026-08-14 P2-8 修复] frozen 与 hold 均为风控/编排否决，
+        #    此前只有 frozen 短路，hold 被静默忽略（fail-open），编排器否决无法
+        #    在融合层落地 → 融合引擎仍按因子给 buy/sell。
+        if orchestrator_action in ("frozen", "hold"):
             return FusionDecision(
                 action="hold",
                 confidence=0.0,
@@ -82,10 +84,25 @@ class DecisionFusionEngine:
                 signal_strength=0.0,
                 data_quality="unknown",
                 regime=regime,
-                reasoning="orchestrator frozen, skip",
+                reasoning=f"orchestrator {orchestrator_action}, skip",
             )
 
         # 2. 信号生成
+        # [2026-08-14 P1-E3 修复] regime 权重是「和为 1」的相对配额，直接当乘法
+        # 权重会让被强调因子(~0.15)比未提及因子(聚合默认 1.0)轻一个数量级，方向
+        # 与设计意图相反。先转成围绕 1.0 的乘数（与 factor_evaluation_pipeline
+        # 的修复同源，提取自 factor_weighting.regime_weights_to_multipliers）。
+        # 回滚开关：FUSION_REGIME_WEIGHT_MULTIPLIERS=false。
+        if weights:
+            try:
+                from backend.config import settings as _s
+                if bool(getattr(_s, "FUSION_REGIME_WEIGHT_MULTIPLIERS", True)):
+                    from .factor_weighting import regime_weights_to_multipliers
+                    _mult = regime_weights_to_multipliers(weights)
+                    if _mult:
+                        weights = _mult
+            except Exception:
+                pass
         composite = self._signal_gen.generate_signals(
             factor_values, weights=weights, regime=regime,
         )
@@ -96,6 +113,24 @@ class DecisionFusionEngine:
         quality_report = self._quality_eval.evaluate(
             factor_values, expected_factors,
         )
+
+        # 3.5 [2026-08-14 P2-8] 低质量强制 hold（可选灰度，默认关闭）
+        try:
+            from backend.config import settings as _s2
+            _lowq_hold = bool(getattr(_s2, "FUSION_LOW_QUALITY_HOLD", False))
+        except Exception:
+            _lowq_hold = False
+        if _lowq_hold and quality_report.overall_quality == "low":
+            return FusionDecision(
+                action="hold",
+                confidence=0.0,
+                signal_direction=composite.direction,
+                signal_strength=composite.strength,
+                data_quality=quality_report.overall_quality,
+                regime=regime,
+                reasoning="data quality low → hold (FUSION_LOW_QUALITY_HOLD)",
+                factor_details=composite.signals,
+            )
 
         # 4. 方向判定
         action = self._determine_action(

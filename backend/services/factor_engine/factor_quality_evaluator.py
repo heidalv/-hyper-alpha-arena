@@ -54,7 +54,12 @@ class FactorQualityEvaluator:
         """
         # 1. 数据完整性
         missing = [f for f in expected_factors if f not in factor_values]
-        completeness = len(factor_values) / max(len(expected_factors), 1)
+        # [2026-08-14 P2-7 修复] completeness 应为「期望因子中命中的比例」。
+        # 旧算法 len(factor_values)/len(expected) 统计的是"返回了多少因子"：
+        # expected=[A,B,C]、实际={A,X,Y}（B/C 缺失）时 completeness=1.0 虚高；
+        # 返回多于期望时甚至 >1。修正为命中期望因子数的比例。
+        hit = len([f for f in expected_factors if f in factor_values])
+        completeness = hit / max(len(expected_factors), 1)
 
         # 2. 异常值检测
         outlier_count = self._count_outliers(factor_values)
@@ -120,15 +125,30 @@ class FactorQualityEvaluator:
         """
         计算因子方向一致性。
 
-        将所有因子值转为 sign(-1/0/+1)，
+        [2026-08-14 P2-7 修复] 旧实现直接取 fv.value 的原始符号：对 RSI(>50 看空)、
+        funding_rate(正=过热看空) 等反向因子，原始值符号与实际信号方向**相反**，
+        且不同量纲的因子混求 sign 无意义。修复：复用 FactorSignalGenerator 的
+        方向映射后再取符号一致性（与合成 direction 同口径）。
+
         一致性 = |sum(signs)| / count（全部同方向=1，均分=0）。
         """
         if not factor_values:
             return 0.0
 
+        try:
+            from .factor_signal_generator import FactorSignalGenerator
+            _mapper = FactorSignalGenerator()._map_direction
+        except Exception:
+            _mapper = None
+
         signs = []
-        for fv in factor_values.values():
-            if fv.value is not None and _is_finite(fv.value):
+        for name, fv in factor_values.items():
+            if fv.value is None or not _is_finite(fv.value):
+                continue
+            if _mapper is not None:
+                direction = _mapper(name, fv.value)
+                signs.append(1 if direction > 0.05 else (-1 if direction < -0.05 else 0))
+            else:
                 signs.append(1 if fv.value > 0 else (-1 if fv.value < 0 else 0))
 
         if not signs:
