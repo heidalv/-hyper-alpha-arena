@@ -95,6 +95,20 @@ def build_factor_context(
         )
 
 
+def _compute_factor_values(symbol: str, klines) -> "Dict[str, Any]":
+    """[2026-08-14 P1-E4] 计算原始 FactorValue 对象（供 D7 因子引导链路使用）。
+
+    build_factor_context 会把 factor_values 转成裸 float（供展示/其它消费），
+    而 FactorSignalGenerator.generate_signals / DecisionFusionEngine.fuse 需要
+    完整的 FactorValue（value/category/is_directional/has_data 字段）。
+    """
+    try:
+        from services.factor_engine import factor_engine
+        return factor_engine.compute_all_factors(klines, None)
+    except Exception:
+        return {}
+
+
 def build_execution_context(
     symbol: str,
     entry_price: float,
@@ -296,11 +310,19 @@ def add_adaptive_context_to_prompt(
         if price <= 0:
             continue
         
+        # [2026-08-14 P2-19 修复] side 此前硬编码 'long'：即使 positions 显示该
+        # symbol 为空头/空仓，止损/止盈/仓位方向仍按多头计算。改用实际持仓方向。
+        _pos_side = None
+        if positions:
+            try:
+                _pos_side = (positions.get(symbol) or {}).get("side")
+            except Exception:
+                _pos_side = None
         params = get_adaptive_parameters_for_symbol(
             symbol=symbol,
             klines=klines,
             entry_price=price,
-            side='long',
+            side=_pos_side or 'long',
             market_data=market_data.get(symbol) if market_data else None
         )
         
@@ -443,10 +465,23 @@ def build_factor_guidance_for_prompt(
                 continue
             try:
                 factor_ctx = build_factor_context(sym, klines)
-                if not factor_ctx.factor_values:
+                # [2026-08-14 P1-E4 修复] 此前调用了不存在的 _sig_gen.generate(...)
+                # （FactorSignalGenerator 只有 generate_signals）且 fuse 按错误
+                # 签名传参，加上 factor_ctx.factor_values 已被转成裸 float →
+                # 每个 symbol 都抛异常输出"因子计算失败"，D7 因子引导从未生效。
+                # 修复：重新计算 FactorValue 对象 → generate_signals → fuse 按
+                # 真实签名传参；adaptive_weights 复用 factor_ctx 已算好的 regime 权重。
+                _fv = _compute_factor_values(sym, klines)
+                if not _fv:
                     continue
-                composite = _sig_gen.generate(factor_ctx.factor_values)
-                fusion = _fusion.fuse(composite, factor_ctx)
+                _regime = str(getattr(factor_ctx, "market_regime", "unknown") or "unknown")
+                _weights = dict(getattr(factor_ctx, "adaptive_weights", {}) or {})
+                composite = _sig_gen.generate_signals(_fv, weights=_weights, regime=_regime)
+                fusion = _fusion.fuse(
+                    factor_values=_fv,
+                    weights=_weights,
+                    regime=_regime,
+                )
                 _dir_symbol = "🟢" if fusion.signal_direction > 0.2 else ("🔴" if fusion.signal_direction < -0.2 else "⚪")
                 lines.append(
                     f"{_dir_symbol} {sym:6s} | 方向={fusion.signal_direction:+.2f} "
@@ -454,7 +489,7 @@ def build_factor_guidance_for_prompt(
                     f"| 状态={fusion.regime} | 融合建议={fusion.action.upper()}"
                 )
                 top_factors = sorted(
-                    factor_ctx.adaptive_weights.items(),
+                    _weights.items(),
                     key=lambda x: x[1], reverse=True
                 )[:3]
                 if top_factors:

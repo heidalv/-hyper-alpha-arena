@@ -1065,6 +1065,20 @@ FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
 # 默认 4 对应 PBO 简化实现的最小样本要求；可用 env 覆盖。
 FACTOR_SCORER_DSR_MIN_SYMBOLS: int = int(os.getenv("FACTOR_SCORER_DSR_MIN_SYMBOLS", "4"))
 FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0005"))
+# [2026-08-14 阶段2 P1-E1/E2/E3/P2-8] 信号融合方向/权重修复的灰度回退开关。
+# 默认全部开启（修复生效）；出问题时设 false 一键回退旧行为（无需改代码）。
+FACTOR_FUNDING_DIRECTION_FIX: bool = os.getenv("FACTOR_FUNDING_DIRECTION_FIX", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FACTOR_SIGNAL_FILTER_NONDIRECTIONAL: bool = os.getenv("FACTOR_SIGNAL_FILTER_NONDIRECTIONAL", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FUSION_REGIME_WEIGHT_MULTIPLIERS: bool = os.getenv("FUSION_REGIME_WEIGHT_MULTIPLIERS", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FUSION_LOW_QUALITY_HOLD: bool = os.getenv("FUSION_LOW_QUALITY_HOLD", "false").lower() in (
+    "true", "1", "yes", "on",
+)
 # 短线活跃因子集上限（避免无限膨胀）。
 SCALP_ACTIVE_FACTOR_MAX: int = int(os.getenv("SCALP_ACTIVE_FACTOR_MAX", "40"))
 
