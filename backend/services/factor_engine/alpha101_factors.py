@@ -43,10 +43,23 @@ _ALPHA_LIB: List[Tuple[str, str, List[str], str]] = [
 ]
 
 
+def _admin_tenant() -> "int | None":
+    """[2026-08-14 阶段2-1] 租户修复：register/list 不传 tenant_id 时读 ContextVar，
+    在脚本/调度器上下文恒为 None → 登记被拒（"tenant_id required"）、候选列表恒空，
+    导致中长线因子挖掘从未产出过候选。显式解析 admin tenant（与
+    midlong_active_factor_set._resolve_tenant_id 同源）。"""
+    try:
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        return resolve_admin_tenant_id()
+    except Exception:
+        return None
+
+
 def seed_alpha101(timeframes: List[str] = None) -> Dict[str, Any]:
     """把公式库登记为中长线候选因子（幂等）。返回登记统计。"""
     from backend.services.factor_engine.custom_factor_store import custom_factor_store
 
+    _tid = _admin_tenant()
     want = set(timeframes or ["4h", "1d"])
     registered, skipped = 0, 0
     ids: List[str] = []
@@ -60,6 +73,7 @@ def seed_alpha101(timeframes: List[str] = None) -> Dict[str, Any]:
                 category="alpha101",
                 source="alpha101_lib",
                 extra={"horizon": "midlong", "timeframe": tf, "note": note},
+                tenant_id=_tid,
             )
             if res.get("ok"):
                 registered += 1
@@ -76,8 +90,9 @@ def validate_alpha101(limit: int = 50) -> Dict[str, Any]:
     from backend.services.factor_engine.custom_factor_store import custom_factor_store
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
+    _tid = _admin_tenant()
     cands = [
-        r for r in custom_factor_store.list_candidates()
+        r for r in custom_factor_store.list_candidates(tenant_id=_tid)
         if r.get("category") == "alpha101"
         and str((r.get("extra") or {}).get("horizon") or "").lower() == "midlong"
     ][:limit]

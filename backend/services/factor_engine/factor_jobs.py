@@ -150,6 +150,15 @@ factor_job_manager = FactorJobManager()
 #  预置任务：与旧同步接口等价，但带逐因子进度上报
 # ══════════════════════════════════════════════════════════════
 
+def _factor_admin_tenant() -> "int | None":
+    """[2026-08-14 阶段2-1] 租户修复：后台任务上下文无 ContextVar tenant → 显式解析。"""
+    try:
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        return resolve_admin_tenant_id()
+    except Exception:
+        return None
+
+
 def run_validate_alpha101(limit: int = 50) -> _Job:
     """后台执行 Alpha101 中长线候选样本外打分晋升（带进度）。"""
 
@@ -157,8 +166,9 @@ def run_validate_alpha101(limit: int = 50) -> _Job:
         from backend.services.factor_engine.custom_factor_store import custom_factor_store
         from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
+        _tid = _factor_admin_tenant()
         cands = [
-            r for r in custom_factor_store.list_candidates()
+            r for r in custom_factor_store.list_candidates(tenant_id=_tid)
             if r.get("category") == "alpha101"
             and str((r.get("extra") or {}).get("horizon") or "").lower() == "midlong"
         ][:limit]
@@ -191,7 +201,8 @@ def run_validate_candidates(limit: int = 20) -> _Job:
         from backend.services.factor_engine.custom_factor_store import custom_factor_store
         from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
-        cands = custom_factor_store.list_candidates()[:limit]
+        _tid = _factor_admin_tenant()
+        cands = custom_factor_store.list_candidates(tenant_id=_tid)[:limit]
         job.total = len(cands)
         results: List[Dict[str, Any]] = []
         for i, rec in enumerate(cands):

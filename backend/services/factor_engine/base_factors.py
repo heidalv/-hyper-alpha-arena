@@ -311,10 +311,17 @@ class FactorEngine:
         """
         try:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
+            # [2026-08-14 阶段2-1] 租户修复：调用方（OpenCode/发现管线）无 ContextVar
+            # tenant → register 恒被拒，发现因子从未入库。显式解析 admin tenant。
+            try:
+                from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+                _tid = resolve_admin_tenant_id()
+            except Exception:
+                _tid = None
             res = custom_factor_store.register(
                 name=name, formula=formula, category=category,
                 ic=ic, rank_ic=rank_ic, source=source,
-                extra=extra,
+                extra=extra, tenant_id=_tid,
             )
             if res.get("ok"):
                 logger.info(
