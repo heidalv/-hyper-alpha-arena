@@ -471,9 +471,20 @@ def ops_heartbeats() -> Dict[str, Any]:
     from backend.services.scalp.scalp_heartbeat import get_heartbeats
 
     raw = get_heartbeats() or {}
+    # [2026-08-14] 已知"按配置关闭"的任务：开关关闭时心跳不会更新（任务跳过不
+    # touch），按 age 会误报"中断"。此处显式标记 disabled，前端显示"已关闭"。
+    _disabled_tasks = set()
+    if os.getenv("PAIR_SELECTOR_WATCHER_ENABLED", "true").strip().lower() not in (
+        "1", "true", "yes", "on",
+    ):
+        _disabled_tasks.add("pair_selector_watcher")
     items = []
     for tid, info in sorted(raw.items()):
         age = _age_sec(info.get("last_ok_at"))
+        if tid in _disabled_tasks or str(info.get("last_status")) == "disabled":
+            sla = "disabled"
+        else:
+            sla = _sla(age)
         items.append({
             "task_id": tid,
             "last_ok_at": info.get("last_ok_at"),
@@ -481,7 +492,7 @@ def ops_heartbeats() -> Dict[str, Any]:
             "detail": info.get("detail") or info.get("detail_json") or {},
             "age_sec": round(age, 1) if age is not None else None,
             "age_human": _human_age(age),
-            "sla": _sla(age),
+            "sla": sla,
         })
     return {"items": items, "warn_sec": _HB_WARN_SEC, "crit_sec": _HB_CRIT_SEC}
 
@@ -1091,6 +1102,8 @@ def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
                 "timestamp": h.get("last_ok_at"),
                 "task_id": h["task_id"],
             })
+        # [2026-08-14] sla=disabled（按配置关闭）不生成故障项，避免"已关闭"
+        # 的任务在报错中心反复刷 P0 误导。
 
     if os.getenv("PAIR_BINDING_LANE_ENABLED", "false").lower() not in ("1", "true", "yes", "on"):
         # 信息项，非故障

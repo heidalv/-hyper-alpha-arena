@@ -33,6 +33,7 @@ const SLA_CN: Record<string, string> = {
   ok: "正常",
   lag: "滞后",
   down: "中断",
+  disabled: "已关闭",
   unknown: "未知",
 };
 
