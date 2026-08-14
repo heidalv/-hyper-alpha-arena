@@ -60,6 +60,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "XRP"]
 DEFAULT_PERIOD = "1h"
 ARCHIVE_OBSERVE_DAYS = 14   # 淘汰候选先降权观察期
+# [2026-08-14 P1-D3] 隔离候选观察期：首次判定 quarantine 时先降权观察，
+# 观察期满仍判隔离才物理移文件（此前首次命中即物理移动，无观察期、无恢复）。
+QUARANTINE_OBSERVE_DAYS = 14
 QUARANTINE_RECHECK_DAYS = 60
 
 IC_MIN_ABS = 0.02
@@ -218,6 +221,61 @@ def _save_json(path: str, data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def _load_tradable_factor_ids() -> set:
+    """[2026-08-14 P1-D3] factor_active_set 中可交易行（ACTIVE/SMALL_LIVE/PAPER）
+    的因子 id —— 受保护集：审计只报告不移动，防止正在实盘使用的因子被物理删源。"""
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        from backend.database.models import FactorActiveSet
+        db = AnalyticsSessionLocal()
+        try:
+            rows = (
+                db.query(FactorActiveSet.factor_id)
+                .filter(FactorActiveSet.state.in_(["ACTIVE", "SMALL_LIVE", "PAPER"]))
+                .all()
+            )
+            return {str(fid) for (fid,) in rows if fid}
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(
+            "[Slimming] factor_active_set 保护集读取失败（保护集为空，物理移动风险上升）: %s", e
+        )
+        return set()
+
+
+def restore_quarantined_factors() -> dict:
+    """[2026-08-14 P1-D3] 恢复逻辑：把隔离区文件移回原分类目录（按 state 记录的 src）。
+
+    人工/运维触发（因子隔离 60 天后需要复核时，或误隔离时）：
+        from backend.services.factor_engine.factor_slimming_audit import restore_quarantined_factors
+        restore_quarantined_factors()
+    """
+    state = _load_json(STATE_PATH)
+    restored = []
+    for fid, st in list((state or {}).items()):
+        if not isinstance(st, dict) or st.get("status") != "quarantined":
+            continue
+        src_str = st.get("src")
+        if not src_str:
+            continue
+        src = Path(src_str)
+        dest = Path(QUARANTINE_DIR) / src.name
+        try:
+            if not src.exists() and dest.exists():
+                src.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(dest), str(src))
+                st["status"] = "restored"
+                st["restored_at"] = datetime.now(timezone.utc).isoformat()
+                restored.append(fid)
+                logger.info("[Slimming] 已恢复隔离因子 %s → %s", fid, src)
+        except Exception as e:
+            logger.warning("[Slimming] 恢复 %s 失败: %s", fid, e)
+    if restored:
+        _save_json(STATE_PATH, state)
+    return {"restored": restored}
+
+
 def _move_factor_file(factor_cls, dest_dir: Path, dry_run: bool) -> str | None:
     import inspect
     try:
@@ -277,6 +335,20 @@ def run_audit(symbols: list[str] | None = None, period: str = DEFAULT_PERIOD,
     state = _load_json(STATE_PATH)
     now = datetime.now(timezone.utc)
 
+    # [2026-08-14 P1-D3] 受保护因子：factor_active_set 可交易行（ACTIVE/SMALL_LIVE/
+    # PAPER）只报告不移动，防止每周二 3:30 的自动审计物理移除实盘因子。
+    protected = _load_tradable_factor_ids()
+    if protected:
+        logger.info("[Slimming] 受保护因子（factor_active_set 可交易）%d 个：只报告不移动", len(protected))
+
+    # [2026-08-14 P1-D3] 恢复检查：曾隔离因子若源文件已回来（人工/脚本恢复）→ 清状态
+    for _fid in list(state.keys()):
+        _st = state.get(_fid) or {}
+        if isinstance(_st, dict) and _st.get("status") == "quarantined" and _st.get("src"):
+            if os.path.exists(str(_st["src"])):
+                del state[_fid]
+                logger.info("[Slimming] 检测到隔离因子 %s 已恢复，清除状态", _fid)
+
     report_items = []
     counts = {"active": 0, "quarantine": 0, "archive": 0}
     actions = []
@@ -298,7 +370,13 @@ def run_audit(symbols: list[str] | None = None, period: str = DEFAULT_PERIOD,
         }
 
         prev_state = state.get(fid, {})
-        if cls == "archive":
+        if fid in protected and cls in ("archive", "quarantine"):
+            # 受保护：只报告，不降权、不移动
+            item["action"] = "protected_report_only"
+            item["protected"] = True
+            if fid in state:
+                del state[fid]
+        elif cls == "archive":
             if prev_state.get("status") == "pending_archive":
                 since = prev_state.get("since")
                 try:
@@ -323,11 +401,39 @@ def run_audit(symbols: list[str] | None = None, period: str = DEFAULT_PERIOD,
                 item["action"] = "downweighted_50pct_observing" if apply_changes else "would_downweight"
                 state[fid] = {"status": "pending_archive", "since": now.isoformat()}
         elif cls == "quarantine":
-            msg = _move_factor_file(r["factor_cls"], QUARANTINE_DIR, dry_run=not apply_changes)
-            item["action"] = "quarantined" if apply_changes else "would_quarantine"
-            if msg:
-                actions.append(f"{fid}: {msg}")
-            state[fid] = {"status": "quarantined", "since": now.isoformat()}
+            # [2026-08-14 P1-D3 修复] 观察期状态机：首次判定 → 降权观察
+            # （pending_quarantine）；观察期满仍判隔离 → 才物理移动并记录 src 供恢复。
+            if prev_state.get("status") == "pending_quarantine":
+                since = prev_state.get("since")
+                try:
+                    since_dt = datetime.fromisoformat(since) if since else now
+                except Exception:
+                    since_dt = now
+                if (now - since_dt) >= timedelta(days=QUARANTINE_OBSERVE_DAYS):
+                    import inspect as _inspect
+                    try:
+                        _src = str(Path(_inspect.getfile(r["factor_cls"])))
+                    except Exception:
+                        _src = None
+                    msg = _move_factor_file(r["factor_cls"], QUARANTINE_DIR, dry_run=not apply_changes)
+                    item["action"] = "quarantined" if apply_changes else "would_quarantine"
+                    if msg:
+                        actions.append(f"{fid}: {msg}")
+                    state[fid] = {
+                        "status": "quarantined",
+                        "since": now.isoformat(),
+                        "src": _src,   # 供 restore_quarantined_factors 恢复
+                    }
+                else:
+                    item["action"] = "observing_quarantine"
+                    item["pending_since"] = prev_state.get("since")
+                    state[fid] = prev_state
+            else:
+                # 首次判定隔离：降权50%观察（与 archive 一致），不立即物理移除
+                if apply_changes:
+                    weights[fid] = round(float(weights.get(fid, 1.0) or 1.0) * 0.5, 4)
+                item["action"] = "downweighted_50pct_observing_quarantine" if apply_changes else "would_downweight"
+                state[fid] = {"status": "pending_quarantine", "since": now.isoformat()}
         else:
             # 恢复为 active：清掉旧的 pending/quarantine 状态标记
             if fid in state:

@@ -235,6 +235,23 @@ class FactorEvaluationPipeline:
         except Exception as e:
             logger.debug(f"[FactorPipeline] IC 运行时权重跳过: {e}")
 
+        # [2026-08-14 P1-C4] PAPER 影子因子权重上限（拍板：PAPER 可交易但权重受限）。
+        # factor_active_set.state=PAPER 的因子在线权重强制 min(w, cap)，避免未经
+        # SMALL_LIVE/ACTIVE 审批的影子因子占据过大合成份额。
+        try:
+            from backend.config import settings as _s_cfg
+            _paper_cap = float(getattr(_s_cfg, "PAPER_FACTOR_WEIGHT_CAP", 0.5) or 0.5)
+            if _paper_cap > 0:
+                from backend.services.scalp.scalp_factor_exclude import get_paper_factor_ids
+                from backend.services.factor_engine.key_utils import normalize_engine_key
+                _paper_ids = get_paper_factor_ids()
+                if _paper_ids:
+                    for name in factor_names:
+                        if normalize_engine_key(name) in _paper_ids:
+                            base_weights[name] = min(base_weights[name], _paper_cap)
+        except Exception as e:
+            logger.debug(f"[FactorPipeline] PAPER 权重上限跳过: {e}")
+
         # 归一化（防止某些因子权重过大）
         total = sum(base_weights.values())
         if total > 0:

@@ -1638,9 +1638,12 @@ def on_startup():
                 hour=3, minute=30, day_of_week="tue",
                 task_id="factor_slimming_weekly",
                 max_instances=1,
-                apply_changes=True,
+                # [2026-08-14 P1-D3] True → False：首月只出报告不物理移动。
+                # 配合 factor_active_set 保护集/隔离观察期；观察确认后（或人工
+                # --apply 复核）再恢复自动执行。
+                apply_changes=False,
             )
-            logger.info("[async] 因子瘦身审计已注册（每周二3:30，apply=True）")
+            logger.info("[async] 因子瘦身审计已注册（每周二3:30，apply=False 只报告）")
         except Exception as e:
             logger.info(f"[async] 因子瘦身审计注册失败: {e}")
 

@@ -87,3 +87,37 @@ def get_scalp_factor_allowlist() -> Optional[Set[str]]:
             "白名单将退化为仅公式因子）: %s", _e,
         )
     return allow
+
+
+# [2026-08-14 P1-C4] PAPER 影子因子 id 集合（TTL 缓存，供权重上限强制使用）。
+_PAPER_CACHE: dict = {"ts": 0.0, "ids": None}
+_PAPER_TTL_SEC = 300.0
+
+
+def get_paper_factor_ids() -> set:
+    """factor_active_set 中 state=PAPER 的因子 id（裸 id，与白名单同构）。"""
+    import time as _t
+    _now = _t.time()
+    if _PAPER_CACHE["ids"] is not None and _now - float(_PAPER_CACHE["ts"]) < _PAPER_TTL_SEC:
+        return set(_PAPER_CACHE["ids"])
+    ids: Set[str] = set()
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        from backend.database.models import FactorActiveSet
+        db = AnalyticsSessionLocal()
+        try:
+            rows = (
+                db.query(FactorActiveSet.factor_id)
+                .filter(FactorActiveSet.state == "PAPER")
+                .all()
+            )
+            for (fid,) in rows:
+                if fid:
+                    ids.add(str(fid))
+        finally:
+            db.close()
+    except Exception:
+        ids = set()
+    _PAPER_CACHE["ts"] = _now
+    _PAPER_CACHE["ids"] = set(ids)
+    return set(ids)

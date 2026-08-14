@@ -18,7 +18,13 @@ class ActiveSetRole(str, Enum):
     QUARANTINE = "quarantine"  # 运维台：隔离区（不进交易热路径）
 
 
-# TRADABLE 冻结为现热路径，禁止把 ORTHO 塞进交易面
+# TRADABLE 冻结为现热路径，禁止把 ORTHO 塞进交易面。
+# [2026-08-14 P1-C4 拍板定稿（用户确认）]：PAPER 保持可交易（现状）——影子期因子
+# 允许进入 Engine/Router/Exposure 热路径，这是刻意设计（可交易=PAPER/SMALL_LIVE/ACTIVE，
+# 与 Router 热路径一致，ops 面板 callout 同步）。与 lifecycle 文档 "PAPER=纸上影子"
+# 的语义差异由两条机制补偿：① PAPER 因子在线权重受 PAPER_FACTOR_WEIGHT_CAP 上限
+# （factor_evaluation_pipeline 强制）；② 晋升 SMALL_LIVE/ACTIVE 仍需 OversightAgent
+# 审批（lifecycle.APPROVAL_REQUIRED）。
 STATES: dict[ActiveSetRole, frozenset[str]] = {
     ActiveSetRole.TRADABLE: frozenset({"PAPER", "SMALL_LIVE", "ACTIVE"}),
     ActiveSetRole.RESEARCH: frozenset({"ORTHO", "PAPER", "SMALL_LIVE", "ACTIVE"}),
