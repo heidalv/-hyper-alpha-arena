@@ -21,6 +21,36 @@ from .base_factors import FactorEngine, FactorCategory, FactorValue
 logger = logging.getLogger(__name__)
 
 
+def regime_weights_to_multipliers(weights: Optional[Dict[str, float]]) -> Dict[str, float]:
+    """[2026-08-14 P1-E3] 把「和为 1」的 regime 相对配额转成围绕 1.0 的乘数。
+
+    REGIME_WEIGHTS 每个 regime 只挑 ~12 个因子瓜分总量 1.0（单个 0.02~0.15），
+    直接当乘法权重会让「被强调因子(0.15)」比「未提及因子(聚合默认 1.0)」轻一个
+    数量级，方向与设计意图相反。factor_evaluation_pipeline._compute_weights 已
+    修过此问题（按正权重均值归一为乘数），实盘 DecisionFusionEngine 路径此前
+    未修。此处提取公共实现，供两条路径共用。
+
+    Args:
+        weights: regime 配额 dict（和≈1）。空/无正值时返回 {}（调用方应保持原权重）。
+
+    Returns:
+        {name: 乘数}（均值≈1.0；未被提及的因子由调用方默认权重兜底）。
+    """
+    if not weights:
+        return {}
+    positive = [v for v in weights.values() if v is not None and float(v) > 0]
+    if not positive:
+        return {}
+    mean = sum(positive) / len(positive)
+    if mean <= 0:
+        return {}
+    return {
+        k: float(v) / mean
+        for k, v in weights.items()
+        if v is not None and float(v) > 0
+    }
+
+
 class MarketRegime(Enum):
     """市场状态"""
     BREAKOUT = "breakout"  # 突破
