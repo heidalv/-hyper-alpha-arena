@@ -55,6 +55,20 @@ class FactorCategory(Enum):
     MACRO = "macro"              # 宏观情绪因子 (V3 §2.6)
 
 
+# [2026-08-14 P0-2] 旧分类字符串别名表：枚举未收录的 historical category
+# 统一映射到合理类别，避免 `_resolve_category` 静默落 PATTERN 导致
+# 被短线热路径 exclude_categories={PATTERN,BEHAVIORAL} 误排除。
+# 映射语义：technical→TREND、composite→STRENGTH、discovered/alpha101→MOMENTUM；
+# 进化闭环 source 字符串（alphaminer/gp/mcts 等）仍落 PATTERN（白名单优先语义下
+# 命中精选池的因子不受类别排除影响）。
+_CATEGORY_ALIASES: Dict[str, "FactorCategory"] = {
+    "TECHNICAL": FactorCategory.TREND,
+    "COMPOSITE": FactorCategory.STRENGTH,
+    "DISCOVERED": FactorCategory.MOMENTUM,
+    "ALPHA101": FactorCategory.MOMENTUM,
+}
+
+
 @dataclass
 class FactorValue:
     """因子值"""
@@ -226,11 +240,8 @@ class FactorEngine:
                     if metadata is None:
                         continue
                     # 映射 category 字符串到 FactorCategory enum
-                    cat_str = metadata.category.upper() if metadata.category else "PATTERN"
-                    try:
-                        cat_enum = FactorCategory[cat_str]
-                    except KeyError:
-                        cat_enum = FactorCategory.PATTERN
+                    # [2026-08-14 P0-2] 统一走 _resolve_category（含别名表与未知告警）
+                    cat_enum = self._resolve_category(metadata.category)
 
                     adapter = self._make_registry_adapter(factor_cls)
                     if adapter is None:
@@ -441,10 +452,23 @@ class FactorEngine:
         return loaded
 
     def _resolve_category(self, cat_str):
-        """把 category 字符串映射到 FactorCategory enum（失败回退 PATTERN）。"""
+        """把 category 字符串映射到 FactorCategory enum。
+
+        [2026-08-14 P0-2] 未知值 WARNING（不再静默落 PATTERN）；常见旧分类
+        （technical/composite/discovered/alpha101）走 _CATEGORY_ALIASES 别名表。
+        仍无法映射才回退 PATTERN。
+        """
+        _key = (str(cat_str or "")).strip().upper()
+        if _key in _CATEGORY_ALIASES:
+            return _CATEGORY_ALIASES[_key]
         try:
-            return FactorCategory[(cat_str or "PATTERN").upper()]
+            return FactorCategory[_key]
         except (KeyError, AttributeError):
+            logger.warning(
+                "[FactorEngine] 未知因子类别 %r，回退 PATTERN"
+                "（请补充 _CATEGORY_ALIASES 或在源数据修正 category）",
+                cat_str,
+            )
             return FactorCategory.PATTERN
 
     @staticmethod
@@ -670,11 +694,16 @@ class FactorEngine:
 
         # 复制一份遍历，防止热加载因子时 dict changed size during iteration
         for name, config in list(self.FACTORS.items()):
-            # 跳过指定类别的因子（短线热路径跳过 PATTERN/BEHAVIORAL 等 300+ 模式因子）
-            if exclude_categories and config.get('category') in exclude_categories:
-                continue
-            # [2026-08-13 P0-1] 实盘因子集收敛：不在精选白名单内的因子不参与实盘计算
-            if allowlist is not None and name not in allowlist:
+            # [2026-08-14 P0-2 修复] 白名单优先语义：
+            # - allowlist 启用时：仅白名单命中（键归一化后匹配，evo_ 前缀与裸 id 同构）
+            #   的因子参与计算，且不再受类别排除影响（精选池=有 OOS 证据，优先于
+            #   类别启发式）；旧逻辑"先类别排除再白名单"会把已晋升因子误杀。
+            # - allowlist 未启用时：按 exclude_categories 跳过（旧行为不变）。
+            if allowlist is not None:
+                from .key_utils import normalize_engine_key
+                if normalize_engine_key(name) not in allowlist:
+                    continue
+            elif exclude_categories and config.get('category') in exclude_categories:
                 continue
             try:
                 value = config['compute'](klines, market_data)
