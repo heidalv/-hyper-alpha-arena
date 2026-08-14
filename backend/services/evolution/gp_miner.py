@@ -34,7 +34,7 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from backend.services.factor_engine.expr.audit import audit
-from backend.services.factor_engine.expr.ops import OP_REGISTRY
+from backend.services.factor_engine.expr.ops import LOOKAHEAD_BANNED_OPS, OP_REGISTRY
 from backend.services.factor_engine.expr.parser import FactorExpr, parse
 from backend.services.evolution.alpha_miner import AlphaPool
 
@@ -148,7 +148,8 @@ class GPMiner:
         self.target = np.asarray(target, dtype=float)
         self.pool = pool
         self.config = config or GPConfig()
-        self._op_names = list(OP_REGISTRY.keys())
+        # [2026-08-14 P1-G1] 剔除单序列前视算子（rank/cs_rank/scale 已被 audit 禁）
+        self._op_names = [n for n in OP_REGISTRY.keys() if n not in LOOKAHEAD_BANNED_OPS]
         # 各代精英（防同质化相关性惩罚的参照系）
         self._elite_ast: List[dict] = []
 

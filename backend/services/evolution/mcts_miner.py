@@ -34,7 +34,7 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from backend.services.factor_engine.expr.audit import audit
-from backend.services.factor_engine.expr.ops import OP_REGISTRY
+from backend.services.factor_engine.expr.ops import LOOKAHEAD_BANNED_OPS, OP_REGISTRY
 from backend.services.factor_engine.expr.parser import FactorExpr, parse
 
 logger = logging.getLogger(__name__)
@@ -623,7 +623,8 @@ class MctsMiner:
             return self._random_leaf(rng)
         if depth > 0 and depth >= max(2, self.config.max_depth - 3) and rng.random() < 0.4:
             return self._random_leaf(rng)
-        op = str(rng.choice(list(OP_REGISTRY.keys())))
+        # [2026-08-14 P1-G1] 剔除单序列前视算子（rank/cs_rank/scale 已被 audit 禁）
+        op = str(rng.choice([n for n in OP_REGISTRY.keys() if n not in LOOKAHEAD_BANNED_OPS]))
         arity, _ = OP_REGISTRY.get(op, (0, None))
         if arity <= 0:
             return None

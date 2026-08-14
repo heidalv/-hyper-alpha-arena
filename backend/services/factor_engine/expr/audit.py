@@ -88,6 +88,16 @@ def _check_lookahead(op_name: str, args: list, errors: list[str], path: str):
     if op_name not in WINDOW_OPS:
         return  # 算术算子不检查负参数
 
+    # [2026-08-14 P1-G1] 单序列结构性前视算子：rank/cs_rank 为全序列分位排名、
+    # scale 为全序列范数缩放——t 时刻值依赖 t 之后数据，且无窗口参数可查负，
+    # _check_lookahead 的负参数检查对它们零覆盖。这里直接拦截（新公式禁用）。
+    if op_name in ("rank", "cs_rank", "scale"):
+        errors.append(
+            f"{path}: op '{op_name}' 在单序列上下文是全序列算子（未来函数），已禁用；"
+            "跨截面语义需由 FactorCompute 层注入，或改用 ts_rank/ts_sum 等滚动算子"
+        )
+        return
+
     for i, arg in enumerate(args):
         val = None
         if isinstance(arg, (int, float)):

@@ -19,7 +19,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from backend.services.factor_engine.expr.audit import audit
-from backend.services.factor_engine.expr.ops import OP_REGISTRY
+from backend.services.factor_engine.expr.ops import LOOKAHEAD_BANNED_OPS, OP_REGISTRY
 from backend.services.factor_engine.expr.parser import FactorExpr, parse
 
 logger = logging.getLogger(__name__)
@@ -219,7 +219,8 @@ class AlphaMiner:
         """
         admitted: list[tuple[FactorExpr, float]] = []
         attempts = max_attempts or self.config.n_candidates
-        op_names = list(OP_REGISTRY.keys())
+        # [2026-08-14 P1-G1] 剔除单序列前视算子（rank/cs_rank/scale 已被 audit 禁）
+        op_names = [n for n in OP_REGISTRY.keys() if n not in LOOKAHEAD_BANNED_OPS]
         tgt_arr = np.asarray(target, dtype=float)
         # [2026-07-18 修复] 此前这里调 try_admit 从不传 pool_factor_matrix，
         # AlphaPool 里"增量相关/边际IC"整段准入逻辑因此从未真正执行过——挖掘器

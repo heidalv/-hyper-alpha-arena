@@ -21,6 +21,8 @@
 """
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 # 复用已验证的现有算子（避免语义漂移）
@@ -43,6 +45,10 @@ from backend.services.factor_engine.formula_ops import (  # noqa: F401
 
 # 内部辅助
 _a1d = lambda x: np.asarray(x, dtype=float).reshape(-1)
+
+# [2026-08-14 P1-G1] 单序列前视算子集合：expr/audit 已禁（新公式禁用），
+# 矿机算子池（gp/alpha/mcts_miner）同步剔除，避免随机生成永远被审计拒绝的个体。
+LOOKAHEAD_BANNED_OPS = frozenset({"rank", "cs_rank", "scale"})
 
 
 def _rolling(a, w, fn):
@@ -85,22 +91,30 @@ def sqrt(x):
     return out
 
 
-def cs_rank(x):
-    """横截面排名（当前实现为序列内排名百分位 0..1）。
+def _rank_single_series_allowed() -> bool:
+    """FACTOR_EXPR_RANK_SINGLE_SERIES=1 时允许 rank 退化为滚动 ts_rank（因果）。"""
+    try:
+        return os.environ.get("FACTOR_EXPR_RANK_SINGLE_SERIES", "0").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return False
 
-    注：真正的横截面 rank 需在 FactorCompute 层跨品种计算（需多品种对齐）。
-    单序列内退化为当前值在全序列的分位，作为占位；横截面版由 FactorCompute 注入覆盖。
+
+def cs_rank(x):
+    """横截面排名。
+
+    [2026-08-14 P1-G1 修复] 单序列实现 = 对整段（含未来）求分位排名，是未来函数：
+    t 时刻的排名依赖 t 之后的数据分布，会系统性抬高回测 IC。默认抛错（fail-closed）；
+    设 FACTOR_EXPR_RANK_SINGLE_SERIES=1 时退化为滚动 ts_rank(x, 20)（因果）。
+    真正的横截面 rank 需在 FactorCompute 层跨品种注入。
     """
-    a = _a1d(x)
-    valid = np.isfinite(a)
-    out = np.full_like(a, np.nan)
-    if valid.sum() < 2:
-        return out
-    argsort = np.argsort(a[valid])
-    ranks = np.empty_like(argsort, dtype=float)
-    ranks[argsort] = np.arange(len(argsort))
-    out[valid] = ranks / max(1, (len(ranks) - 1))
-    return out
+    if not _rank_single_series_allowed():
+        raise ValueError(
+            "cs_rank 在单序列上下文的实现为全序列排名（未来函数），已禁用；"
+            "如需退化行为设 FACTOR_EXPR_RANK_SINGLE_SERIES=1"
+        )
+    return ts_rank(x, 20)
 
 
 # ==================== Binary ====================
