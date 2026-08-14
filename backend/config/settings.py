@@ -1060,6 +1060,10 @@ FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true
 )
 FACTOR_SCORER_DSR_N_TRIALS: int = int(os.getenv("FACTOR_SCORER_DSR_N_TRIALS", "40"))
 FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
+# [2026-08-14 P0-1] DSR/PBO 跨币样本下限：单因子打分的 ICIR 样本数（币种数）
+# 低于该值时多重检验无法估计，闸门显式 fail-open 跳过并告警（由 OOS/净收益/冗余兜底）。
+# 默认 4 对应 PBO 简化实现的最小样本要求；可用 env 覆盖。
+FACTOR_SCORER_DSR_MIN_SYMBOLS: int = int(os.getenv("FACTOR_SCORER_DSR_MIN_SYMBOLS", "4"))
 FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0005"))
 # 短线活跃因子集上限（避免无限膨胀）。
 SCALP_ACTIVE_FACTOR_MAX: int = int(os.getenv("SCALP_ACTIVE_FACTOR_MAX", "40"))

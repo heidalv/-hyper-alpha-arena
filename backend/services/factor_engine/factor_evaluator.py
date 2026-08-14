@@ -344,4 +344,9 @@ def get_factor_evaluator(forward_period: int = 5) -> FactorEvaluator:
     global _evaluator
     if _evaluator is None:
         _evaluator = FactorEvaluator(forward_period=forward_period)
+    else:
+        # [2026-08-14 P1-A1 修复] 单例首次创建后 forward_period 不再更新的 bug：
+        # 进程内第一个被评分因子的前瞻期会固化并污染后续所有周期（1h/4h/1d）
+        # 的 IC/ICIR/衰减/单调性评级。改为每次调用同步更新（标量写，无锁安全）。
+        _evaluator.forward_period = int(forward_period)
     return _evaluator

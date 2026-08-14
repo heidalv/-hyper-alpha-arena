@@ -347,6 +347,8 @@ class FactorBacktestScorer:
                     factor_id,
                     pd.Series(factor_vals),
                     pd.Series(arrays["close"]),
+                    # [2026-08-14 P1-A1] 显式传前瞻期，与单例 forward_period 同步更新双保险
+                    forward_period=fwd,
                 )
                 if rep.data_points >= 30:
                     ic_list.append(rep.ic_mean)
@@ -446,31 +448,51 @@ class FactorBacktestScorer:
                 f"OOS_sharpe={result.oos_sharpe} OOS_net={result.oos_net_return} "
                 f"win={result.oos_win_rate} trades={result.oos_trades}"
             )
+        # [2026-08-14 P0-1] DSR 跳过的可见性：reason 落库供运维台确认跳过原因
+        if pbo_val is None:
+            result.reason += " | DSR/PBO 跳过（跨币样本不足 fail-open）"
         return result
 
     @staticmethod
     def _dsr_pbo_gate(icir_list: List[float], sample_len: int, n_trials: int):
         """[2026-08-13 P1-7] DSR/PBO 多重检验闸门。
 
-        返回 (dsr_ok, pbo)。单币（元素<2）时统计无意义，fail-open 并告警；
-        工具异常时 fail-closed（宁可误拒，不放无验证因子入实盘）。
+        返回 (dsr_ok, pbo)：
+        - pbo 为 None 表示「跨币样本不足，显式 fail-open 跳过」（单币/2~3 币一致化），
+          由 OOS Sharpe/净收益/冗余等其它门槛兜底；
+        - 跨币样本充足（>=FACTOR_SCORER_DSR_MIN_SYMBOLS）时才正常计算；
+        - 计算工具异常时仍 fail-closed（宁可误拒，不放无验证因子入实盘）。
+
+        [2026-08-14 P0-1 修复] 此前 3 币场景 pbo 恒 0.5 且门槛 `pbo < 0.5` 恒假 →
+        所有因子机械性拒绝（晋升管道死锁）；单币场景又 fail-open，语义不对称。
+        现统一为样本不足一律显式跳过并告警。
         """
+        _min_symbols = max(1, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 4)))
+        if len(icir_list) < _min_symbols:
+            logger.warning(
+                "[FactorScorer] DSR/PBO 跳过（跨币样本 %d < %d，fail-open）"
+                "——多重检验无法估计，由 OOS/净收益/冗余门槛兜底",
+                len(icir_list), _min_symbols,
+            )
+            return True, None
         try:
             from backend.services.factor_engine.dsr_pbo import compute_dsr_pbo_for_factors
-            if len(icir_list) < 2:
-                logger.warning(
-                    "[FactorScorer] icir_list<2（单币打分），DSR/PBO 无法估计，fail-open"
-                )
-                return True, 0.0
             r = compute_dsr_pbo_for_factors(
                 icir_list=list(icir_list),
                 n_total_candidates=max(int(n_trials), 1),
                 sample_len=max(int(sample_len), 50),
             )
+            _pbo_r = r.get("pbo_result") or {}
+            if bool(_pbo_r.get("indeterminate")):
+                logger.warning(
+                    "[FactorScorer] DSR/PBO 不可判定（PBO 组合无效），fail-open 跳过"
+                )
+                return True, None
             dsr_sig = bool((r.get("dsr_result") or {}).get("significant", False))
-            pbo = float((r.get("pbo_result") or {}).get("pbo", 1.0))
+            pbo = float(_pbo_r.get("pbo", 1.0))
             _max_pbo = float(_cfg("FACTOR_SCORER_MAX_PBO", 0.5))
-            return bool(dsr_sig and pbo < _max_pbo), pbo
+            # [2026-08-14 P0-1] pbo<=阈值（0.5=无证据，不应成为硬阻断边界陷阱）
+            return bool(dsr_sig and pbo <= _max_pbo), pbo
         except Exception as e:
             logger.warning("[FactorScorer] DSR/PBO 计算失败，fail-closed: %s", e)
             return False, 1.0

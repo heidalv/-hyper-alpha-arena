@@ -152,13 +152,17 @@ def compute_pbo_simple(
     """
     n_factors = len(icir_values)
     if n_factors < 4 or n_splits < 4:
-        # 样本不足，保守估计
+        # 样本不足，保守估计。
+        # [2026-08-14 P0-1] 显式标记 indeterminate：调用方不得把 pbo=0.5 当作
+        # 有效概率参与 `pbo < 阈值` 类门槛判定（曾导致晋升闸门恒拒死锁）。
         return {"pbo": 0.5, "significant": False, "n_splits": n_splits,
+                "indeterminate": True,
                 "note": "样本不足，返回保守值"}
 
     n_splits = min(n_splits, n_factors // 2)
     if n_splits < 2:
         return {"pbo": 0.5, "significant": False, "n_splits": n_splits,
+                "indeterminate": True,
                 "note": "因子数太少"}
 
     # 将因子按 ICIR 分为 n_splits 组（模拟时序切分）
@@ -213,6 +217,7 @@ def compute_pbo_simple(
 
     if total_valid == 0:
         return {"pbo": 0.5, "significant": False, "n_splits": n_splits,
+                "indeterminate": True,
                 "note": "无有效组合"}
 
     pbo = overfit_count / total_valid
@@ -222,6 +227,7 @@ def compute_pbo_simple(
         "n_splits": n_splits,
         "total_combos": total_valid,
         "overfit_combos": overfit_count,
+        "indeterminate": False,
     }
 
 
