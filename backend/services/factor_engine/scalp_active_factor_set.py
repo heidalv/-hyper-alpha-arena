@@ -119,9 +119,17 @@ class ScalpActiveFactorSet:
                 # grade D/F 仍直接退役（独立证据，不依赖 ICIR）。
                 if (abs_ic < _RETIRE_ABS_IC and abs_icir < _RETIRE_ICIR) or sr.grade in ("D", "F"):
                     # 退役：从实时 FACTORS 摘除 + 目录标记 rejected
-                    custom_factor_store.update_scores(
+                    # [2026-08-14 P1-B1 修复] 补 tenant_id（此前漏传 → _resolve_key
+                    # 找不到 t{tid}:factor_id 前缀键 → 写回静默失败，目录仍 active，
+                    # 热加载/重启后"已退役"因子复活震荡）。并检查返回值。
+                    _ok = custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="rejected",
+                        tenant_id=_resolve_tenant_id(),
                     )
+                    if not _ok:
+                        logger.warning(
+                            "[ActiveFactorSet] 退役写回失败（目录未更新）: %s", fid
+                        )
                     self._detach_from_engine(fid)
                     retired += 1
                     logger.info(
@@ -130,17 +138,27 @@ class ScalpActiveFactorSet:
                     )
                 elif sr.grade == "C":
                     # 降级为候选（暂不参与实时，等下次闸门复议）
-                    custom_factor_store.update_scores(
+                    _ok = custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="candidate",
+                        tenant_id=_resolve_tenant_id(),
                     )
+                    if not _ok:
+                        logger.warning(
+                            "[ActiveFactorSet] 降级写回失败（目录未更新）: %s", fid
+                        )
                     self._detach_from_engine(fid)
                     reduced += 1
                     logger.info(f"[ActiveFactorSet] 降级因子 {fid} (grade=C)")
                 else:
                     # 仍达标：更新分数保持 active
-                    custom_factor_store.update_scores(
+                    _ok = custom_factor_store.update_scores(
                         fid, grade=sr.grade, scores=self._scores_dict(sr), status="active",
+                        tenant_id=_resolve_tenant_id(),
                     )
+                    if not _ok:
+                        logger.warning(
+                            "[ActiveFactorSet] 保级写回失败（目录未更新）: %s", fid
+                        )
             except Exception as e:
                 logger.debug(f"[ActiveFactorSet] 复检 {fid} 跳过: {e}")
 
