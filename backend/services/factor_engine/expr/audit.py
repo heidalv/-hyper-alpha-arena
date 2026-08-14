@@ -79,6 +79,16 @@ def _check_lookahead(op_name: str, args: list, errors: list[str], path: str):
     仅对窗口/延迟类算子检查负参数（ref/mean/std/rank/delta/decay 等）。
     算术算子（mul/add/sub/pow/greater/less）的负常量完全合法（如 mul(-1, x) 取负）。
     """
+    # [2026-08-14 P1-G1] 单序列结构性前视算子：rank/cs_rank 为全序列分位排名、
+    # scale 为全序列范数缩放——t 时刻值依赖 t 之后数据，且无窗口参数可查负，
+    # 负参数检查对它们零覆盖。这里在 WINDOW_OPS 早退**之前**直接拦截（新公式禁用）。
+    if op_name in ("rank", "cs_rank", "scale"):
+        errors.append(
+            f"{path}: op '{op_name}' 在单序列上下文是全序列算子（未来函数），已禁用；"
+            "跨截面语义需由 FactorCompute 层注入，或改用 ts_rank/ts_sum 等滚动算子"
+        )
+        return
+
     # 只有这些算子的参数中有窗口/延迟语义，负值才是 look-ahead
     WINDOW_OPS = frozenset({
         "ref", "mean", "sum", "std", "var", "max", "min", "rank", "ts_rank",
@@ -87,16 +97,6 @@ def _check_lookahead(op_name: str, args: list, errors: list[str], path: str):
     })
     if op_name not in WINDOW_OPS:
         return  # 算术算子不检查负参数
-
-    # [2026-08-14 P1-G1] 单序列结构性前视算子：rank/cs_rank 为全序列分位排名、
-    # scale 为全序列范数缩放——t 时刻值依赖 t 之后数据，且无窗口参数可查负，
-    # _check_lookahead 的负参数检查对它们零覆盖。这里直接拦截（新公式禁用）。
-    if op_name in ("rank", "cs_rank", "scale"):
-        errors.append(
-            f"{path}: op '{op_name}' 在单序列上下文是全序列算子（未来函数），已禁用；"
-            "跨截面语义需由 FactorCompute 层注入，或改用 ts_rank/ts_sum 等滚动算子"
-        )
-        return
 
     for i, arg in enumerate(args):
         val = None
