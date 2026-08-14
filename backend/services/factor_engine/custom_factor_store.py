@@ -212,18 +212,34 @@ class CustomFactorStore:
         with self._lock:
             existing = self._data.get(key)
             if existing:
+                # [2026-08-14 P2-1 修复] 公式实际变化时重置评分状态：
+                # 旧实现保留 rejected 的 status/grade/scores → 被拒因子换公式后
+                # 永远无法重新进入 candidate 复评（"一键挖矿/定时验证"二次起空转）。
+                # 公式未变时保持原状态（幂等种子语义，避免相同公式反复入队）。
+                _formula_changed = str(existing.get("formula") or "") != str(formula or "")
                 existing["formula"] = formula
                 existing["discovery_ic"] = ic
                 existing["discovery_rank_ic"] = rank_ic
                 existing["updated_at"] = now
                 existing["tenant_id"] = int(tenant_id)
+                if not existing.get("category"):
+                    existing["category"] = category or "discovered"
+                if not existing.get("name"):
+                    existing["name"] = name
+                if not existing.get("source"):
+                    existing["source"] = source
                 if extra:
                     existing.setdefault("extra", {}).update(extra)
+                if _formula_changed:
+                    existing["status"] = "candidate"
+                    existing["grade"] = None
+                    existing["scores"] = {}
+                    existing.pop("scored_at", None)
                 self._persist()
                 return {
                     "ok": True, "factor_id": factor_id,
                     "status": existing.get("status", "candidate"),
-                    "reason": "updated",
+                    "reason": "reopened" if _formula_changed else "updated",
                 }
             record = {
                 "factor_id": factor_id,
@@ -302,6 +318,104 @@ class CustomFactorStore:
             rec["updated_at"] = time.time()
             self._persist()
         return True
+
+    def reopen_rejected(
+        self,
+        tenant_id: Optional[int] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        """[2026-08-14 P2-1] 把 rejected 因子重新开为 candidate（供重评）。
+
+        用途：闸门阈值/引擎修复后，批量重新验证此前被拒因子；
+        或"一键挖矿"重灌后让全部因子重新进入验证队列。
+        Returns: 重开的因子数。
+        """
+        self._ensure_loaded()
+        reopened = 0
+        with self._lock:
+            for rec in self._data.values():
+                if tenant_id is not None and rec.get("tenant_id") not in (None, int(tenant_id)):
+                    continue
+                if category and str(rec.get("category") or "") != category:
+                    continue
+                if rec.get("status") != "rejected":
+                    continue
+                rec["status"] = "candidate"
+                rec["grade"] = None
+                rec["scores"] = {}
+                rec.pop("scored_at", None)
+                rec["updated_at"] = time.time()
+                reopened += 1
+            if reopened:
+                self._persist()
+        logger.info("[CustomFactorStore] reopen_rejected: 重开 %d 个因子", reopened)
+        return reopened
+
+    def register_reference(
+        self,
+        factor_id: str,
+        *,
+        tenant_id: Optional[int] = None,
+        horizon: str = "midlong",
+        timeframe: str = "4h",
+        category: str = "registry",
+        source: str = "registry",
+        registry_factor_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """[2026-08-14 弹药扩源] 登记 registry Python 类因子的引用记录。
+
+        与 register 的区别：无公式（kind=registry）。因子值由
+        FactorService/FactorCalculator 按 registry_factor_id 计算；评分由
+        midlong_registry_factors.scan_registry_midlong 用同一闸门引擎回写。
+        """
+        self._ensure_loaded()
+        if tenant_id is None:
+            try:
+                from backend.core.tenant import tenant_id_var
+                tenant_id = tenant_id_var.get()
+            except Exception:
+                tenant_id = None
+        if tenant_id is None:
+            return {"ok": False, "factor_id": factor_id, "status": "invalid",
+                    "reason": "tenant_id required"}
+        fid = str(factor_id or "").strip()
+        if not fid:
+            return {"ok": False, "factor_id": "", "status": "invalid", "reason": "factor_id required"}
+        _reg_fid = str(registry_factor_id or fid)
+        key = f"t{int(tenant_id)}:{fid}"
+        now = time.time()
+        with self._lock:
+            existing = self._data.get(key)
+            if existing is not None and str(existing.get("formula") or ""):
+                # 同名公式记录已存在：不覆盖公式轨道，只补标记并返回现有
+                existing.setdefault("extra", {}).setdefault("kind", "registry")
+                existing.setdefault("extra", {}).setdefault("horizon", horizon)
+                existing.setdefault("extra", {}).setdefault("timeframe", timeframe)
+                self._persist()
+                return {"ok": True, "factor_id": fid, "status": existing.get("status", "candidate"),
+                        "reason": "merged"}
+            if existing is None:
+                self._data[key] = {
+                    "factor_id": fid,
+                    "tenant_id": int(tenant_id),
+                    "name": _reg_fid,
+                    "category": category,
+                    "formula": None,          # registry 因子无公式（Python 类计算）
+                    "source": source,
+                    "discovery_ic": None,
+                    "discovery_rank_ic": None,
+                    "status": "candidate",
+                    "grade": None,
+                    "scores": {},
+                    "created_at": now,
+                    "updated_at": now,
+                    "extra": {
+                        "horizon": horizon, "timeframe": timeframe, "kind": "registry",
+                        "registry_factor_id": _reg_fid,
+                    },
+                }
+                self._persist()
+        return {"ok": True, "factor_id": fid, "status": "candidate", "reason": "registered"}
 
     def get(self, factor_id: str, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         self._ensure_loaded()

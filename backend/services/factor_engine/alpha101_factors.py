@@ -55,11 +55,18 @@ def _admin_tenant() -> "int | None":
         return None
 
 
-def seed_alpha101(timeframes: List[str] = None) -> Dict[str, Any]:
-    """把公式库登记为中长线候选因子（幂等）。返回登记统计。"""
+def seed_alpha101(timeframes: List[str] = None, reopen: bool = False) -> Dict[str, Any]:
+    """把公式库登记为中长线候选因子（幂等）。返回登记统计。
+
+    [2026-08-14 P2-1] reopen=True 时先把 rejected 的 alpha101 因子重开为
+    candidate（闸门阈值/引擎修复后批量重评，或"一键挖矿"重灌后全部重新入队）。
+    """
     from backend.services.factor_engine.custom_factor_store import custom_factor_store
 
     _tid = _admin_tenant()
+    reopened = 0
+    if reopen and _tid is not None:
+        reopened = custom_factor_store.reopen_rejected(tenant_id=_tid, category="alpha101")
     want = set(timeframes or ["4h", "1d"])
     registered, skipped = 0, 0
     ids: List[str] = []
@@ -81,8 +88,9 @@ def seed_alpha101(timeframes: List[str] = None) -> Dict[str, Any]:
             else:
                 skipped += 1
                 logger.info(f"[Alpha101] 跳过 {base}_{tf}: {res.get('reason')}")
-    logger.info(f"[Alpha101] 灌库完成: 登记{registered} 跳过{skipped}")
-    return {"registered": registered, "skipped": skipped, "factor_ids": ids}
+    logger.info(f"[Alpha101] 灌库完成: 登记{registered} 跳过{skipped} 重开{reopened}")
+    return {"registered": registered, "skipped": skipped, "reopened": reopened,
+            "factor_ids": ids}
 
 
 def validate_alpha101(limit: int = 50) -> Dict[str, Any]:
