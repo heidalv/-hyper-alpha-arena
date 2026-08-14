@@ -27,6 +27,14 @@ const HB_LABELS: Record<string, { title: string; hint: string }> = {
     title: "短线熔断器",
     hint: "连亏/异常时自动刹车",
   },
+  scalp_daily_health: {
+    title: "短线每日体检",
+    hint: "每日 05:30 全链路健康扫描",
+  },
+  scalp_symbol_profile: {
+    title: "币种画像刷新",
+    hint: "每日 05:45 重建币种短线画像",
+  },
 };
 
 const SLA_CN: Record<string, string> = {

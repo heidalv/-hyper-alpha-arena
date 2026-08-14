@@ -21,6 +21,15 @@ router = APIRouter(prefix="/api/ops", tags=["ops"])
 _HB_WARN_SEC = 900
 _HB_CRIT_SEC = 3600
 
+# 按任务节奏覆盖的 SLA 阈值（秒）。cron 型任务一天只跑一次
+# （main.py: scalp_daily_health 05:30 / scalp_symbol_profile_daily 05:45），
+# 若沿用默认 1 小时阈值，当天其余 23 小时会被误报为"中断"。
+# warn：距上次成功超过该值判"滞后"（错过一次排期）；crit：超过该值判"中断"（连续错过两次）。
+_HB_CADENCE_SEC: Dict[str, Dict[str, int]] = {
+    "scalp_daily_health": {"warn": 26 * 3600, "crit": 50 * 3600},
+    "scalp_symbol_profile": {"warn": 26 * 3600, "crit": 50 * 3600},
+}
+
 # R6-3：P0 报错飞书告警节流（ALERT_P0_ENABLED=true 才生效；同计数 10 分钟内最多一条）
 _P0_ALERT_STATE: Dict[str, Any] = {"last_sent": 0.0, "last_count": 0}
 
@@ -63,12 +72,16 @@ def _age_sec(iso_ts: Optional[str]) -> Optional[float]:
         return None
 
 
-def _sla(age: Optional[float]) -> str:
+def _sla(
+    age: Optional[float],
+    warn_sec: int = _HB_WARN_SEC,
+    crit_sec: int = _HB_CRIT_SEC,
+) -> str:
     if age is None:
         return "unknown"
-    if age <= _HB_WARN_SEC:
+    if age <= warn_sec:
         return "ok"
-    if age <= _HB_CRIT_SEC:
+    if age <= crit_sec:
         return "lag"
     return "down"
 
@@ -484,7 +497,8 @@ def ops_heartbeats() -> Dict[str, Any]:
         if tid in _disabled_tasks or str(info.get("last_status")) == "disabled":
             sla = "disabled"
         else:
-            sla = _sla(age)
+            cad = _HB_CADENCE_SEC.get(tid)
+            sla = _sla(age, cad["warn"], cad["crit"]) if cad else _sla(age)
         items.append({
             "task_id": tid,
             "last_ok_at": info.get("last_ok_at"),
