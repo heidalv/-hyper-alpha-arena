@@ -20,11 +20,18 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+# [2026-08-14] 冷池因子大量退化序列会刷 np.corrcoef 除零警告（每秒数千行，
+# 足以压垮 stderr 管道）。扫描是研究用途，指标侧已用 isfinite/std 防护，
+# 此处抑制警告噪音。
+warnings.filterwarnings("ignore", message="invalid value encountered")
+warnings.filterwarnings("ignore", message="divide by zero")
 
 logger = logging.getLogger(__name__)
 
