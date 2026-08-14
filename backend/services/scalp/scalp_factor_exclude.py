@@ -62,9 +62,14 @@ def get_scalp_factor_allowlist() -> Optional[Set[str]]:
     except Exception:
         pass
     try:
-        from backend.database.connection import SessionLocal
+        # [2026-08-14 P0-2 根因修复] FactorActiveSet 位于 Analytics 库
+        # （models.FactorActiveSet(AnalyticsBase)），此前误用 Market 库的
+        # SessionLocal → 查询异常被静默吞掉 → 白名单恒为空集 → compute_all_factors
+        # 全拦（实盘 scalp factors=0.00 score=0 hold）。改用 AnalyticsSessionLocal。
+        import logging as _lg
+        from backend.database.connection import AnalyticsSessionLocal
         from backend.database.models import FactorActiveSet
-        db = SessionLocal()
+        db = AnalyticsSessionLocal()
         try:
             rows = (
                 db.query(FactorActiveSet.factor_id)
@@ -76,6 +81,9 @@ def get_scalp_factor_allowlist() -> Optional[Set[str]]:
                     allow.add(str(fid))
         finally:
             db.close()
-    except Exception:
-        pass
+    except Exception as _e:
+        _lg.getLogger(__name__).warning(
+            "[ScalpFactorExclude] factor_active_set 白名单读取失败（DB 因子缺失，"
+            "白名单将退化为仅公式因子）: %s", _e,
+        )
     return allow

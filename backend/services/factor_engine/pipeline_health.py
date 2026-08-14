@@ -58,8 +58,22 @@ def collect_factor_pipeline_health() -> Dict[str, Any]:
 def check_startup(raise_on_fatal: bool = False) -> Dict[str, Any]:
     """启动期自检：返回健康快照；白名单 0 命中时 ERROR 告警（可升级为异常）。"""
     health = collect_factor_pipeline_health()
-    if health.get("allowlist_enabled") and health.get("allowlist_size", 0) > 0:
-        if health.get("allowlist_hits", 0) == 0:
+    if health.get("allowlist_enabled"):
+        if health.get("allowlist_size", 0) == 0:
+            # 空白名单 = 精选路径全拦（宁缺毋滥）。若 DB 里实际有 PAPER/ACTIVE 因子，
+            # 说明白名单构造链路断了（例如 DB 会话错库），必须显式告警。
+            _db_tradable = _count_db_tradable_factors()
+            msg = (
+                "[FactorPipeline] ⚠️ 精选白名单为空：实盘精选路径将拦掉全部因子。"
+                "factor_active_set 可交易行=%d（>0 说明白名单构造链路异常，见 P0-2 修复）。"
+            ) % _db_tradable
+            if _db_tradable > 0:
+                logger.error(msg)
+            else:
+                logger.warning(msg)
+            if raise_on_fatal and _db_tradable > 0:
+                raise RuntimeError(msg)
+        elif health.get("allowlist_hits", 0) == 0:
             msg = (
                 "[FactorPipeline] ⚠️ 精选白名单已启用（%d 个 id）但命中 FACTORS 键数为 0："
                 "实盘精选路径恒为空集（可能为 evo_ 前缀/类别映射错位，见 P0-2）。"
@@ -75,3 +89,22 @@ def check_startup(raise_on_fatal: bool = False) -> Dict[str, Any]:
                 health.get("engine_factor_count", 0),
             )
     return health
+
+
+def _count_db_tradable_factors() -> int:
+    """factor_active_set 中 state∈{ACTIVE,PAPER,SMALL_LIVE} 的行数（只读）。"""
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        from backend.database.models import FactorActiveSet
+        db = AnalyticsSessionLocal()
+        try:
+            return int(
+                db.query(FactorActiveSet.factor_id)
+                .filter(FactorActiveSet.state.in_(["ACTIVE", "PAPER", "SMALL_LIVE"]))
+                .count()
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("[PipelineHealth] DB tradable 计数失败: %s", e)
+        return -1
