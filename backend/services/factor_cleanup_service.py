@@ -32,6 +32,15 @@ _CLEANUP_REPORT_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "factor_cleanup_report.json",
 )
+# [2026-08-14 P1-D1 修复] 决策文件：清洗结论（rejected/low_signal 名单）落这里，
+# 由下游（FactorEvaluationPipeline 等）消费。此前结论写进 custom_factor_store
+# 的 set_status —— 但清理目标是 registry 因子（rsi/macd…），store 的键是
+# t{tid}:ai_*，两者命名空间完全不重叠 → 写回全部静默失败、读取恒空，
+# 每周 7 天一次的大批量 IC 评估产物无人消费（假闭环）。
+_DECISIONS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    "data", "factor_cleanup_decisions.json",
+)
 _LAST_RUN_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "factor_cleanup_last_run.json",
@@ -189,22 +198,32 @@ def run_batch_ic_cleanup(
     overflow = [fid for fid, _ in active_candidates[MAX_ACTIVE_FACTORS:]]
     low_signal.extend(overflow)
 
-    # ── 持久化到 CustomFactorStore ──
+    # ── [2026-08-14 P1-D1/D2 修复] 持久化改为决策文件 ──
+    # 旧代码对 registry 因子调 custom_factor_store.set_status：
+    # 1) 命名空间错配 → 全部返回 False 被忽略（持久化空转）；
+    # 2) 对 active_top 调 set_status(fid, "active") 构成一条绕过
+    #    validate_and_promote 的免检晋升旁路（一旦命名空间修好就会生效）。
+    # 修复：只写决策文件（rejected/low_signal 名单 + 审计信息）；
+    # 晋升 active 的唯一入口保持 validate_and_promote。
+    decisions = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "rejected": sorted(rejected),
+        "low_signal": sorted(low_signal),
+        "note": "仅记录清洗结论，不作任何晋升；晋升唯一入口为 "
+                "factor_backtest_scorer.validate_and_promote",
+    }
     try:
-        from backend.services.factor_engine.custom_factor_store import custom_factor_store
-        for fid in rejected:
-            custom_factor_store.set_status(fid, "rejected")
-        for fid in low_signal:
-            custom_factor_store.set_status(fid, "low_signal")
-        for fid in active_top:
-            custom_factor_store.set_status(fid, "active")
+        os.makedirs(os.path.dirname(_DECISIONS_FILE), exist_ok=True)
+        tmp = _DECISIONS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(decisions, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, _DECISIONS_FILE)
         logger.info(
-            "[FactorCleanup] CustomFactorStore 更新完成: "
-            "rejected=%d, low_signal=%d, active=%d",
-            len(rejected), len(low_signal), len(active_top),
+            "[FactorCleanup] 决策文件已写入 %s: rejected=%d low_signal=%d",
+            _DECISIONS_FILE, len(rejected), len(low_signal),
         )
     except Exception as exc:
-        logger.warning("[FactorCleanup] CustomFactorStore 更新失败(降级为只写报告): %s", exc)
+        logger.warning("[FactorCleanup] 决策文件写入失败(降级为只写报告): %s", exc)
 
     # ── 产出报告 ──
     report = {
@@ -242,22 +261,34 @@ def run_batch_ic_cleanup(
     return report
 
 
-def get_rejected_factor_ids() -> set:
-    """获取被淘汰的因子 ID 集合（供 FactorEvaluationPipeline 调用过滤）。"""
+def _load_decisions() -> Dict[str, Any]:
+    """读取清洗决策文件（不存在/损坏时返回空决策）。"""
     try:
-        from backend.services.factor_engine.custom_factor_store import custom_factor_store
-        return {r["factor_id"] for r in custom_factor_store.list(status="rejected")}
-    except Exception:
-        return set()
+        if not os.path.exists(_DECISIONS_FILE):
+            return {}
+        with open(_DECISIONS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        logger.warning("[FactorCleanup] 决策文件读取失败: %s", exc)
+        return {}
+
+
+def get_rejected_factor_ids() -> set:
+    """获取被淘汰的因子 ID 集合（供下游过滤）。
+
+    [2026-08-14 P1-D1 修复] 改读决策文件；旧实现从 custom_factor_store.list
+    （tenant_id=None 恒返回空列表，防误共享设计）读取 → 恒为空集。
+    """
+    return {str(f) for f in (_load_decisions().get("rejected") or [])}
 
 
 def get_low_signal_factor_ids() -> set:
-    """获取低信号因子 ID 集合。"""
-    try:
-        from backend.services.factor_engine.custom_factor_store import custom_factor_store
-        return {r["factor_id"] for r in custom_factor_store.list(status="low_signal")}
-    except Exception:
-        return set()
+    """获取低信号因子 ID 集合。
+
+    [2026-08-14 P1-D1 修复] 同 get_rejected_factor_ids，改读决策文件。
+    """
+    return {str(f) for f in (_load_decisions().get("low_signal") or [])}
 
 
 def _is_throttled() -> bool:
