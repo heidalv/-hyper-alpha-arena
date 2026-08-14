@@ -212,6 +212,22 @@ class {class_name}(BaseFactor):
             if kw in factor.python_code.lower():
                 logger.warning(f"[AIFactor] {factor.factor_id} 含禁止调用")
                 return False
+        # [2026-08-14 P1-F2 修复] 黑名单字面量匹配可绕过（import os/os.popen/getattr
+        # 等不在名单），升级为 AST 白名单：禁 import/dunder/白名单外属性链与函数调用。
+        try:
+            from backend.services.factor_engine.code_safety import ast_whitelist_check
+            ok, reason = ast_whitelist_check(factor.python_code)
+            if not ok:
+                logger.warning(f"[AIFactor] {factor.factor_id} AST 白名单拒绝: {reason}")
+                return False
+        except Exception as e:
+            logger.warning(f"[AIFactor] {factor.factor_id} AST 校验异常: {e}")
+            return False
+        # [2026-08-14 P1-F2] factor_id 路径穿越防护：拒绝路径分隔符与 ..
+        _fid = str(factor.factor_id or "")
+        if not _fid or any(sep in _fid for sep in ("/", "\\", "..")):
+            logger.warning(f"[AIFactor] 拒绝非法 factor_id: {_fid!r}")
+            return False
         try:
             # 2026-07-06 修复：校验最终渲染后的完整源码（而非渲染前的代码
             # 片段），否则模板自身的 bug（如类名非法）永远不会被这层校验拦下。
@@ -234,7 +250,11 @@ class {class_name}(BaseFactor):
         """
         os.makedirs(output_dir, exist_ok=True)
         full_code = self._render_factor_source(factor)
-        fp = os.path.join(output_dir, f"{factor.factor_id}.py")
+        # [2026-08-14 P1-F2] 文件名清洗（防路径穿越；validate 已拒分隔符，此处兜底）
+        safe_fid = re.sub(r"[^0-9a-zA-Z_]", "_", str(factor.factor_id or "factor"))
+        if not safe_fid:
+            safe_fid = "factor"
+        fp = os.path.join(output_dir, f"{safe_fid}.py")
         with open(fp, "w", encoding="utf-8") as f:
             f.write(full_code)
         logger.info(f"[AIFactor] 注入: {factor.factor_id} -> {fp}")
