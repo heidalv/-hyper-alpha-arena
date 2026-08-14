@@ -1696,20 +1696,45 @@ def _update_online_weights(active_factors, dfs):
             continue
         factor_ids.append(fid)
 
+    # [2026-08-14 P1-C2 修复] 旧代码用 (特征[-1], fwd[-1]) 配对：_forward_returns
+    # 尾部 horizon 根恒为 0/NaN（前向收益在序列末尾不可计算）→ 标签恒 0 →
+    # 在线权重被"零收益"监督训练，向 0 收敛（运行态 3 个 PAPER 因子权重全 0
+    # 与此吻合）。修复：标签取 t = n-1-horizon（最后一个可计算的前向收益），
+    # 特征取同一行的因子值；三重障碍标签模式下 horizon=12（与 _forward_returns
+    # 内部 TB 逻辑对齐），其余为 1。
+    _tb_horizon = 1
+    try:
+        from backend.services.evolution.factor_labels import FEATURE_FACTOR_LABELS_ENABLED
+        _ev_period = (_ACTIVE_EVO_PERIOD or "").strip().lower()
+        if FEATURE_FACTOR_LABELS_ENABLED and _ev_period in ("5m", "5min", "15m", "15min"):
+            _tb_horizon = 12
+    except Exception:
+        _tb_horizon = 1
+
     for sym, df in dfs.items():
         try:
             fields = _kline_to_fields(df)
+            n = len(df)
+            t_label = int(n - 1 - _tb_horizon)
+            if t_label < 0:
+                continue
             vals = []
             for f in active_factors or []:
                 if not f.get("expr"):
                     continue
                 if not str(f.get("factor_id") or "").strip():
                     continue
-                vals.append(f["expr"].evaluate(fields)[-1])
+                vals.append(f["expr"].evaluate(fields)[t_label])
             factor_vector = np.array(vals)
             fwd = _forward_returns(df, horizon=1)
-            if len(factor_vector) > 0 and len(factor_vector) == len(factor_ids) and np.isfinite(factor_vector).all():
-                model.learn_one(factor_vector, fwd[-1])
+            label = float(fwd[t_label])
+            if (
+                len(factor_vector) > 0
+                and len(factor_vector) == len(factor_ids)
+                and np.isfinite(factor_vector).all()
+                and np.isfinite(label)
+            ):
+                model.learn_one(factor_vector, label)
         except Exception:
             continue
 
@@ -2149,11 +2174,14 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
             promoted = _final_test_confirm(promoted, eval_results, dfs_test)
 
         to_save = _promoted_rows_for_save(promoted, period)
-        # 与 to_save 对齐：无表达式的门禁通过项不计入「已晋升」
-        _ok_ids = {r["factor_id"] for r in to_save}
-        promoted = [p for p in promoted if p.get("factor_id") in _ok_ids]
+        # [2026-08-14 P1-C1 修复] 先给 promoted 打短周期前缀（s5m_），再与
+        # to_save 的前缀 id 对齐过滤。旧顺序下 1m/3m/5m/15m 的 p["factor_id"]
+        # 未加前缀、_ok_ids 已加前缀 → 恒不匹配 → promoted 被清空：
+        # 晋升日志/事件回测触发/本轮监控全部断链（因子其实已落库）。
         for p in promoted:
             _tag_one_short_horizon(p, period)
+        _ok_ids = {r["factor_id"] for r in to_save}
+        promoted = [p for p in promoted if p.get("factor_id") in _ok_ids]
         if to_save:
             _save_active_factors(to_save)
             _log_promote_committed(promoted, via="main")
