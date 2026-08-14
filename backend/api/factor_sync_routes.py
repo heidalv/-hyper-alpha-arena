@@ -316,8 +316,12 @@ def list_discovered_factors(
 
 
 @router.post("/validate/{factor_id}")
-def validate_factor(factor_id: str):
+def validate_factor(factor_id: str, request: Request):
     """对单个候选因子做样本外回测打分，A/B 级晋升为 active。"""
+    # [2026-08-14 P1-H3 修复] 补租户鉴权：此前该端点无鉴权且内部固定操作管理员
+    # 租户目录，任意登录用户（或无租户上下文）可触发管理员因子打分晋升。
+    from backend.core.request_identity import require_user_tenant
+    require_user_tenant(request)
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
     result = factor_backtest_scorer.validate_and_promote(factor_id)
     return {
@@ -340,6 +344,7 @@ def validate_factor(factor_id: str):
 
 @router.post("/validate")
 def validate_all_candidates(
+    request: Request,
     limit: int = Query(20, ge=1, le=200),
     wait: bool = Query(False, description="true=同步阻塞返回结果（旧行为）；默认 false=后台异步"),
 ):
@@ -348,6 +353,9 @@ def validate_all_candidates(
     默认**后台异步**：立即返回 `job_id`，用 `GET /api/factors/jobs/{job_id}` 轮询进度/结果。
     同类任务单飞——重复触发会复用正在跑的任务。传 `wait=true` 走旧的同步阻塞行为。
     """
+    # [2026-08-14 P1-H3 修复] 补租户鉴权（同 /validate/{factor_id}）。
+    from backend.core.request_identity import require_user_tenant
+    require_user_tenant(request)
     if wait:
         from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
         return factor_backtest_scorer.validate_all_candidates(limit=limit)
@@ -413,8 +421,11 @@ def midlong_health(
 
 
 @router.post("/alpha101/seed")
-def alpha101_seed(timeframes: Optional[str] = Query(None, description="逗号分隔，如 4h,1d")):
+def alpha101_seed(request: Request, timeframes: Optional[str] = Query(None, description="逗号分隔，如 4h,1d")):
     """把 Alpha101 风格公式因子库灌为中长线候选（幂等）。"""
+    # [2026-08-14 P1-H3 修复] 补租户鉴权（同 /validate/{factor_id}）。
+    from backend.core.request_identity import require_user_tenant
+    require_user_tenant(request)
     from backend.services.factor_engine.alpha101_factors import seed_alpha101
     tfs = [t.strip() for t in timeframes.split(",")] if timeframes else None
     return seed_alpha101(timeframes=tfs)
@@ -422,6 +433,7 @@ def alpha101_seed(timeframes: Optional[str] = Query(None, description="逗号分
 
 @router.post("/alpha101/validate")
 def alpha101_validate(
+    request: Request,
     limit: int = Query(50, ge=1, le=200),
     wait: bool = Query(False, description="true=同步阻塞返回结果（旧行为）；默认 false=后台异步"),
 ):
@@ -430,6 +442,9 @@ def alpha101_validate(
     默认**后台异步**：立即返回 `job_id`，用 `GET /api/factors/jobs/{job_id}` 轮询进度/结果。
     同类任务单飞——重复触发会复用正在跑的任务。传 `wait=true` 走旧的同步阻塞行为。
     """
+    # [2026-08-14 P1-H3 修复] 补租户鉴权（同 /validate/{factor_id}）。
+    from backend.core.request_identity import require_user_tenant
+    require_user_tenant(request)
     if wait:
         from backend.services.factor_engine.alpha101_factors import validate_alpha101
         return validate_alpha101(limit=limit)

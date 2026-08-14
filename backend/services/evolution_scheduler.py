@@ -102,7 +102,13 @@ class EvolutionScheduler:
             logger.info("[EvoScheduler] 进化正在运行中，跳过")
             return
 
+        # [2026-08-14 P1-H1 修复] TOCTOU 竞态：此前锁外检查 _running_evolution、
+        # 锁内置 True 后立即释放锁——两个线程可同时看到 False 并各自置位后
+        # 并发跑完整进化。检查+置位必须同处临界区。
         with self._lock:
+            if self._running_evolution:
+                logger.info("[EvoScheduler] 进化正在运行中，跳过")
+                return
             self._running_evolution = True
 
         # strategy_templates / backtest_runs 都在主库（曾误用 Analytics 会话，
@@ -477,18 +483,18 @@ class EvolutionScheduler:
             # 阶段二 2.2/2.3：发现因子准入闸门 —— 给候选公式因子做样本外回测打分，
             # A/B 级晋升为 active（进入短线活跃因子集），其余淘汰。定时兜底，确保
             # 任何来源登记的候选都会被闸门过一遍，而不是永远停在 candidate。
+            # [2026-08-14 P1-H4 修复] 原为同步直调 validate_all_candidates：与 API
+            # /validate 的 factor_job_manager 后台单飞队列、两活跃集 recheck 无互斥，
+            # 可同日并发对同批候选重复打分写状态。改走 factor_job_manager
+            # （single-flight 单飞：已有 pending/running 同类任务时直接复用）。
             try:
-                from backend.services.factor_engine.factor_backtest_scorer import (
-                    factor_backtest_scorer,
+                from backend.services.factor_engine.factor_jobs import run_validate_candidates
+                job = run_validate_candidates(limit=60)
+                logger.info(
+                    f"[EvoScheduler] 因子发现闸门已排队（single-flight job={job.id}）"
                 )
-                gate = factor_backtest_scorer.validate_all_candidates(limit=60)
-                if gate.get("scored"):
-                    logger.info(
-                        f"[EvoScheduler] 因子发现闸门: 打分{gate['scored']} "
-                        f"晋升{gate['promoted']}"
-                    )
             except Exception as _fs_err:
-                logger.error(f"[EvoScheduler] 因子发现闸门异常: {_fs_err}", exc_info=True)
+                logger.error(f"[EvoScheduler] 因子发现闸门排队异常: {_fs_err}", exc_info=True)
 
             # 阶段二 2.4：活跃因子衰减复检 —— IC 衰减到阈值以下自动降权/退役。
             try:
@@ -886,19 +892,32 @@ class EvolutionScheduler:
 
         协调器侧依此将 "emergency_evolution" 写入 triggered / skipped。
         """
-        if self._running_evolution:
-            logger.info(f"[EvoScheduler] 进化正在运行，紧急进化 {template_id} 被拒绝")
-            return {"started": False, "reason": "running"}
+        # [2026-08-14 P1-H1 修复] 检查+置位同处临界区（原锁外检查存在 TOCTOU：
+        # 两个紧急触发可并发通过检查、各起一个进化线程）。
+        with self._lock:
+            if self._running_evolution:
+                logger.info(f"[EvoScheduler] 进化正在运行，紧急进化 {template_id} 被拒绝")
+                return {"started": False, "reason": "running"}
+            self._running_evolution = True
 
         # —— 24h 冷却（P1-4 持久化层）——
+        # [2026-08-14 P1-H2 修复] 冷却改用 evolution_events 表最近一次
+        # evolution_type='emergency' 的记录；原实现读 SystemCoordinatorState.
+        # last_evolution_at —— 该字段同时被 weekly 进化落库写入（persist_genetic_result），
+        # 一次 weekly 完成后 24h 内紧急进化被误拒（冷却被 weekly 抢占/污染）。
         try:
             from backend.database.connection import SessionLocal as _SL
-            from backend.database.models import SystemCoordinatorState as _SCS
+            from backend.database.models import EvolutionEvent as _EE
             _db = _SL()
             try:
-                _state = _db.query(_SCS).first()
-                if _state is not None and _state.last_evolution_at is not None:
-                    _last = _state.last_evolution_at
+                _last_emerg = (
+                    _db.query(_EE.created_at)
+                    .filter(_EE.evolution_type == "emergency")
+                    .order_by(_EE.created_at.desc())
+                    .first()
+                )
+                if _last_emerg is not None and _last_emerg[0] is not None:
+                    _last = _last_emerg[0]
                     if getattr(_last, "tzinfo", None) is None:
                         from datetime import timezone as _tz
                         _last = _last.replace(tzinfo=_tz.utc)
@@ -910,6 +929,8 @@ class EvolutionScheduler:
                             f"[EvoScheduler] 紧急进化冷却中 {template_id} "
                             f"已过{int(elapsed)}s，剩余{remain}s"
                         )
+                        with self._lock:
+                            self._running_evolution = False   # 释放预留位
                         return {"started": False, "reason": "cooldown", "remain_s": remain}
             finally:
                 _db.close()
@@ -926,6 +947,8 @@ class EvolutionScheduler:
             ).start()
             return {"started": True, "template_id": template_id, "reason": reason}
         except Exception as e:
+            with self._lock:
+                self._running_evolution = False   # 起线程失败必须释放预留位
             logger.error(f"[EvoScheduler] 无法启动紧急进化线程: {e}", exc_info=True)
             return {"started": False, "reason": "exception", "error": str(e)}
 
