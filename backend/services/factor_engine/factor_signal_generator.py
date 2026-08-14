@@ -76,8 +76,21 @@ def _bb_zscore_direction(value: float) -> float:
 
 
 def _funding_rate_direction(value: float) -> float:
-    """资金费率: 极端正值=市场过热→看空，极端负值=市场恐慌→看多（反向）"""
-    return max(-1.0, min(1.0, -value * 100.0))
+    """资金费率: 极端正值=市场过热→看空，极端负值=市场恐慌→看多（反向）。
+
+    [2026-08-14 P1-E1 修复] 单位约定：value 为**百分比数值**（0.01 = 0.01%，
+    由 `base_factors.compute_funding_rate` 对十进制费率单次 ×100 转换）。
+    饱和点 0.05% → 满格看空。旧实现 `-value*100` 对正常费率(0.01%~0.1%)
+    恒饱和为 -1.0，给合成信号注入恒定满格空头偏置（|direction|=1 恒进 top-N）。
+    回滚开关：FACTOR_FUNDING_DIRECTION_FIX=false。
+    """
+    try:
+        from backend.config import settings as _s
+        if not bool(getattr(_s, "FACTOR_FUNDING_DIRECTION_FIX", True)):
+            return max(-1.0, min(1.0, -float(value) * 100.0))
+    except Exception:
+        pass
+    return max(-1.0, min(1.0, -float(value) / 0.05))
 
 
 def _adx_direction(value: float) -> float:
@@ -273,11 +286,27 @@ class FactorSignalGenerator:
             )
 
         signals: Dict[str, FactorSignal] = {}
+        # [2026-08-14 P1-E2 修复] 实盘路径补幽灵因子过滤：此前只有
+        # factor_evaluation_pipeline._compute_weights 把 has_data=False /
+        # is_directional=False 的因子权重设 0；本函数注释声称"配合 is_directional
+        # 过滤幽灵因子"但循环体从未实现 → 价格/成交量绝对值类因子（value 恒正）
+        # 被当成看多参与方向聚合，重新注入策略偏多。
+        # 回滚开关：FACTOR_SIGNAL_FILTER_NONDIRECTIONAL=false。
+        _filter_nondir = True
+        try:
+            from backend.config import settings as _s
+            _filter_nondir = bool(getattr(_s, "FACTOR_SIGNAL_FILTER_NONDIRECTIONAL", True))
+        except Exception:
+            pass
         for name, fv in factor_values.items():
+            if _filter_nondir:
+                if getattr(fv, "has_data", True) is False:
+                    continue
+                if getattr(fv, "is_directional", True) is False:
+                    continue
             # [fix] z-score 重做（timeframe 隔离后不再污染）：
             # 有专用 mapper 的因子用原始 value（有自己的语义归一化）；
             # 其余用 z-score 归一化后的 normalized（跨因子可比，放大方向强度）。
-            # 配合 is_directional 过滤幽灵因子，既纠正偏多又保证 score 强度。
             if name in self._direction_mappers:
                 direction = self._map_direction(name, fv.value)
             else:
