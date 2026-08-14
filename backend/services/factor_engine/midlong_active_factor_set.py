@@ -98,7 +98,12 @@ class MidLongActiveFactorSet:
         for rec in active:
             fid = rec.get("factor_id")
             formula = rec.get("formula")
-            if not fid or not formula:
+            if not fid:
+                continue
+            if not formula:
+                # [2026-08-14 弹药扩源] kind=registry 因子无公式：由
+                # scan_registry_midlong 负责复评，本函数只处理公式因子。
+                logger.debug("[MidLongFactorSet] 跳过 registry 因子复检: %s", fid)
                 continue
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
             try:
@@ -165,18 +170,25 @@ class MidLongActiveFactorSet:
             return out
 
         by_tf: Dict[str, List[str]] = {"4h": [], "1d": []}
+        # [2026-08-14 弹药扩源] kind=registry 记录用 extra.registry_factor_id 计算
+        # （store 键为 f"{fid}@{tf}"，registry 真实 id 另行存放）。
+        compute_ids: Dict[str, str] = {}
         for rec in active:
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
             if tf in by_tf:
                 by_tf[tf].append(rec["factor_id"])
+                compute_ids[rec["factor_id"]] = str(
+                    (rec.get("extra") or {}).get("registry_factor_id") or rec["factor_id"]
+                )
         n = 0
         for tf, fids in by_tf.items():
             if not fids:
                 continue
             try:
-                fv = factor_service.compute(symbol, timeframe=tf, factor_ids=fids)
+                _real_ids = [compute_ids[f] for f in fids]
+                fv = factor_service.compute(symbol, timeframe=tf, factor_ids=_real_ids)
                 if isinstance(fv, dict):
-                    out[tf] = {k: v for k, v in fv.items() if k in fids}
+                    out[tf] = {k: v for k, v in fv.items() if k in _real_ids}
                     n += len(out[tf])
             except Exception as e:
                 logger.debug(f"[MidLongFactorSet] {symbol} {tf} compute 跳过: {e}")

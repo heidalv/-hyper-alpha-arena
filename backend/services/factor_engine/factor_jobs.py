@@ -238,6 +238,22 @@ def run_train_scalp_meta() -> _Job:
     return factor_job_manager.submit("scalp_meta_train", _fn)
 
 
+def run_scan_registry_midlong(limit: int = 200) -> _Job:
+    """[2026-08-14 弹药扩源] 后台执行 registry 因子中线 4h/1d 扫描打分晋升。"""
+
+    def _fn(job: _Job) -> Dict[str, Any]:
+        job.message = "registry 因子中线扫描（4h/1d 样本外打分）"
+        from backend.services.factor_engine.midlong_registry_factors import (
+            scan_registry_midlong,
+        )
+        rep = scan_registry_midlong(limit=limit)
+        job.progress = 1
+        job.message = f"完成: 打分{rep['scored']} 晋升{rep['promoted']}"
+        return rep
+
+    return factor_job_manager.submit("midlong_registry_scan", _fn)
+
+
 def run_train_tp_sl(tiers: Optional[list] = None) -> _Job:
     """后台执行止盈止损网格训练（样本外选优，写 latest.json）。"""
 

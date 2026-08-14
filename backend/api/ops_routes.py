@@ -727,12 +727,27 @@ def ops_midlong_mine(validate: bool = Query(True, description="灌库后立即�
     返回 seed 统计 + 异步 job 信息（用 GET /api/factors/jobs/{job_id} 轮询）。"""
     from backend.services.factor_engine.alpha101_factors import seed_alpha101
 
-    seed = seed_alpha101(["4h", "1d"])
-    out: Dict[str, Any] = {"seed": seed, "validate": None}
+    # [2026-08-14 P2-1/弹药扩源] reopen=True：把 rejected 的 alpha101 重开为
+    # candidate（修复"二次挖矿空转"）；同时登记 registry 因子并排队扫描。
+    seed = seed_alpha101(["4h", "1d"], reopen=True)
+    out: Dict[str, Any] = {"seed": seed, "validate": None, "registry_scan": None}
+    try:
+        from backend.services.factor_engine.midlong_registry_factors import seed_registry_candidates
+        out["registry_seed"] = seed_registry_candidates(["4h", "1d"])
+    except Exception as e:
+        out["registry_seed"] = {"error": str(e)[:200]}
     if validate:
-        from backend.services.factor_engine.factor_jobs import run_validate_alpha101
+        from backend.services.factor_engine.factor_jobs import (
+            run_validate_alpha101,
+            run_scan_registry_midlong,
+        )
         job = run_validate_alpha101(limit=80)
         out["validate"] = job.to_dict()
+        try:
+            job2 = run_scan_registry_midlong(limit=200)
+            out["registry_scan"] = job2.to_dict()
+        except Exception as e:
+            out["registry_scan"] = {"error": str(e)[:200]}
     return out
 
 

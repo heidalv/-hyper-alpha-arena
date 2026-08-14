@@ -360,6 +360,9 @@ class FactorEngine:
                     continue
                 formula = rec.get("formula") or ""
                 if not formula:
+                    # [2026-08-14 弹药扩源] kind=registry 的引用记录无公式：
+                    # 其值由 registry Python 类在 FACTORS 中直接计算（_merge_registry
+                    # 已挂载），此处跳过，避免 make_formula_compute("") 报错。
                     continue
                 try:
                     cat_enum = self._resolve_category(rec.get("category"))
