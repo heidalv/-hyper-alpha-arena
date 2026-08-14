@@ -480,6 +480,31 @@ class EvolutionScheduler:
             except Exception as _a101_err:
                 logger.debug(f"[EvoScheduler] Alpha101 灌库跳过: {_a101_err}")
 
+            # [2026-08-14 弹药扩源] registry Python 类因子（ai_generated/legacy_compat）
+            # 登记为中线引用候选 + 每日排队扫描打分（4h/1d，复用闸门引擎）。
+            # 扫描是重活（84 条 × 3 币），走 factor_job_manager single-flight。
+            try:
+                from backend.config.settings import MIDLONG_FACTOR_RESEARCH_ENABLED
+                if MIDLONG_FACTOR_RESEARCH_ENABLED:
+                    from backend.services.factor_engine.midlong_registry_factors import (
+                        seed_registry_candidates,
+                    )
+                    from backend.services.factor_engine.factor_jobs import (
+                        run_scan_registry_midlong,
+                    )
+                    if not getattr(self, "_registry_seeded", False):
+                        _rseed = seed_registry_candidates(["4h", "1d"])
+                        self._registry_seeded = True
+                        logger.info(
+                            f"[EvoScheduler] registry 中线候选登记: {_rseed.get('registered')}"
+                        )
+                    _scan_job = run_scan_registry_midlong(limit=200)
+                    logger.info(
+                        f"[EvoScheduler] 中线 registry 扫描已排队（single-flight job={_scan_job.id}）"
+                    )
+            except Exception as _rs_err:
+                logger.debug(f"[EvoScheduler] registry 中线扫描跳过: {_rs_err}")
+
             # 阶段二 2.2/2.3：发现因子准入闸门 —— 给候选公式因子做样本外回测打分，
             # A/B 级晋升为 active（进入短线活跃因子集），其余淘汰。定时兜底，确保
             # 任何来源登记的候选都会被闸门过一遍，而不是永远停在 candidate。
