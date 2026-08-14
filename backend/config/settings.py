@@ -1082,6 +1082,11 @@ FUSION_LOW_QUALITY_HOLD: bool = os.getenv("FUSION_LOW_QUALITY_HOLD", "false").lo
 # [2026-08-14 P1-C4] PAPER 影子因子在线权重上限（拍板：PAPER 保持可交易但权重受限）。
 # factor_evaluation_pipeline 对 state=PAPER 的因子强制 min(weight, cap)；0=不限制。
 PAPER_FACTOR_WEIGHT_CAP: float = float(os.getenv("PAPER_FACTOR_WEIGHT_CAP", "0.5") or 0.5)
+# [2026-08-14 P1-E5] 云端因子同步总开关：安全加固完成前默认禁用。
+# sync_from_repo 在开关关闭时直接跳过；本地化产物一律 candidate（待验证）。
+FACTOR_CLOUD_SYNC_ENABLED: bool = os.getenv("FACTOR_CLOUD_SYNC_ENABLED", "false").lower() in (
+    "true", "1", "yes", "on",
+)
 # 短线活跃因子集上限（避免无限膨胀）。
 SCALP_ACTIVE_FACTOR_MAX: int = int(os.getenv("SCALP_ACTIVE_FACTOR_MAX", "40"))
 
