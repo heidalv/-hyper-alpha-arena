@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -243,7 +244,32 @@ def run_v3_factor_pipeline(
                     except Exception:
                         pass
 
-                _fvals = _fe.compute_all_factors(_kdf, market_data=_md)
+                # [2026-08-14 P0-2] 精选白名单灰度入口：SCALP_VETTED_IN_V3=1 时主 V3
+                # 路径与 scalp_loop/Router 回退路径共用同一套 allowlist/exclude（三路径
+                # 口径统一）；默认 0 保持旧行为（全量计算），灰度观察后切 1。
+                _use_vetted = False
+                try:
+                    _use_vetted = bool(
+                        str(os.environ.get("SCALP_VETTED_IN_V3", "0")).strip().lower()
+                        in ("1", "true", "yes", "on")
+                    )
+                except Exception:
+                    _use_vetted = False
+                if _use_vetted:
+                    try:
+                        from backend.services.scalp.scalp_factor_exclude import (
+                            get_scalp_factor_allowlist,
+                            get_scalp_factor_exclude_categories,
+                        )
+                        _fvals = _fe.compute_all_factors(
+                            _kdf, market_data=_md,
+                            exclude_categories=get_scalp_factor_exclude_categories(),
+                            allowlist=get_scalp_factor_allowlist(),
+                        )
+                    except Exception:
+                        _fvals = _fe.compute_all_factors(_kdf, market_data=_md)
+                else:
+                    _fvals = _fe.compute_all_factors(_kdf, market_data=_md)
                 _regime_tag = "unknown"
                 _reg = None
                 try:

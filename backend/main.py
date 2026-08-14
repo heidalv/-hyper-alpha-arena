@@ -1644,6 +1644,15 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 因子瘦身审计注册失败: {e}")
 
+        # [2026-08-14 阶段0] 因子管线健康自检（P0-1/P0-2 基线仪表）：
+        # 精选白名单 0 命中（= 实盘精选路径恒空集）等结构性问题在启动期即告警，
+        # 不再等到事后从运维台排查。只读、无重活，失败不影响启动。
+        try:
+            from backend.services.factor_engine.pipeline_health import check_startup
+            check_startup(raise_on_fatal=False)
+        except Exception as _ph_err:
+            logger.warning(f"[FactorPipeline] 启动健康自检失败: {_ph_err}")
+
         # 极端行情模拟压力测试（规划文档§4.3+§3.4验收，P1）：把插针/清算窗口喂给生产环境
         # ScalpExecutionGate/ExitStateMachine真实判定，验证硬拦截逻辑没有被后续改动破坏。
         # 之前只能手动CLI跑，同样从未挂定时任务。压力回归性质，周频即可，选周三3:45

@@ -594,6 +594,13 @@ def ops_factor_pool(
     else:
         callout = ""
 
+    _pipeline_health = None
+    try:
+        from backend.services.factor_engine.pipeline_health import collect_factor_pipeline_health
+        _pipeline_health = collect_factor_pipeline_health()
+    except Exception as _ph_err:
+        logger.debug("[Ops] pipeline_health 采集失败: %s", _ph_err)
+
     return {
         "view": view,
         "role": role.value,
@@ -609,6 +616,8 @@ def ops_factor_pool(
             "all": sum(state_dist.values()),
         },
         "quarantine_reasons": quarantine_reasons,
+        # [2026-08-14 阶段0] 因子管线健康快照（白名单命中率 / DSR 配置）
+        "pipeline_health": _pipeline_health,
     }
 
 
