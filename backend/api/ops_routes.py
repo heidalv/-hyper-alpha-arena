@@ -676,7 +676,7 @@ def ops_midlong_factors() -> Dict[str, Any]:
             if s.strip()
         ]
         _lookback = int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 900))
-        from backend.services.kline_service import kline_service
+        from backend.services.kline_data_service import kline_service
 
         preflight["symbols"] = _syms
         for tf in ("4h", "1d"):
