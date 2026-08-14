@@ -145,7 +145,7 @@ export function PromptEditorPanel({
               "px-3 py-1 text-xs rounded",
               tier === "mid" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"
             )}
-            title="中线已并入长线，仅保留历史任务编辑"
+            title="中线已因子化：LLM 仅保留边缘裁决（fail-closed）；此页仅供过渡期/历史提示词编辑"
           >
             中线(旧)
           </button>

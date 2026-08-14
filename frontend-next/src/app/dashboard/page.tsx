@@ -22,7 +22,7 @@ type TierKey = (typeof TIER_KEYS)[number];
 const TIER_COLORS: Record<TierKey, string> = { short: "#6366f1", mid: "#22c55e", long: "#eab308" };
 const TIER_LABELS: Record<TierKey, string> = {
   short: "短线 Scalp",
-  mid: "中线(固定+AI≤3)",
+  mid: "中线(因子化)",
   long: "固定长线",
 };
 
@@ -188,7 +188,7 @@ export default function DashboardPage() {
           <KpiCell label="持仓" value={String(openPositions.length)} delta={`${longCount}多 ${shortCount}空`} deltaColor="muted" />
           <KpiCell label="手续费" value={`$${feePaid.toFixed(2)}`} deltaColor="loss" />
           <KpiCell label="活跃策略" value={String(activeStrategyCount)} deltaColor="muted" />
-          <KpiCell label="中线AI" value={tierStatus?.auto_coin_mid_enabled ? "开启" : "关闭"} deltaColor={tierStatus?.auto_coin_mid_enabled ? "profit" : "muted"} />
+          <KpiCell label="中线AI选币" value={tierStatus?.auto_coin_mid_enabled ? "开启" : "关闭"} deltaColor={tierStatus?.auto_coin_mid_enabled ? "profit" : "muted"} />
         </div>
       </div>
 

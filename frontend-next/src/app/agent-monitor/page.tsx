@@ -270,6 +270,8 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
   const mltoThesis = usePoll<any>(sessionId ? `${BACKEND}/api/mlto/sessions/${sessionId}/thesis/summary` : null, 15000);
   const autoCoinStatus = usePoll<any>(sessionId ? `${BACKEND}/api/auto-coin/${sessionId}/status` : null, 15000);
   const autoCoinHistory = usePoll<any>(sessionId ? `${BACKEND}/api/auto-coin/${sessionId}/history?limit=10` : null, 30000);
+  // 中线因子池状态（因子化新形态的数据源：active/候选/拒绝 + 时间框架分布）
+  const midlongFactors = usePoll<any>(`${BACKEND}/api/ops/midlong-factors`, 30000);
 
   const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 30, mid: 120, long: 240 };
   const tiers = tierStatus.data?.tiers ?? {};
@@ -315,8 +317,9 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       job: findJob("scalp"),
     },
     {
-      key: "mid", name: "中线(固定+AI≤3)", icon: Boxes, color: "profit",
-      interval: intervals.mid ?? intervals.long, label: "MLTO mid · 候选+持仓续管",
+      key: "mid", name: "中线 · 因子化", icon: Boxes, color: "profit",
+      interval: intervals.mid ?? intervals.long,
+      label: "因子池 mid · 4h/1d · regime/ADX 过滤 → IC 加权",
       data: {
         ...(tiers.mid || {}),
         symbols: tiers.mid?.symbols?.length
@@ -326,21 +329,20 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       job: findJob("midlong"),
       footer: (
         <div className="text-[9px] text-muted-foreground space-y-0.5 pt-1">
-          <div>中线候选约每 3 小时重算（短线选币仍约 30 分钟）；已开仓续管不随列表消失</div>
-          <div className="flex gap-1 flex-wrap">
-            {mltoTheses.filter((t: any) => t.tier === "mid").map((t: any) => (
-              <span key={`mid-${t.symbol}`} className={cn(
-                "px-1 py-0.5 rounded",
-                t.direction === "long" ? "bg-profit/10 text-profit" :
-                t.direction === "short" ? "bg-loss/10 text-loss" : "bg-muted/30 text-muted-foreground"
-              )}>
-                {t.symbol} {t.direction === "long" ? "多" : t.direction === "short" ? "空" : "中性"}
-              </span>
-            ))}
-            {!mltoTheses.some((t: any) => t.tier === "mid") && (
-              <span className="text-muted-foreground/70">暂无 mid thesis</span>
-            )}
+          <div>
+            因子池：
+            active={midlongFactors.data?.health?.active ?? "…"}
+            {" · "}候选={midlongFactors.data?.health?.candidate ?? "…"}
+            {" · "}拒绝={midlongFactors.data?.health?.rejected ?? "…"}
+            {midlongFactors.data?.health?.by_timeframe
+              ? ` · 4h=${midlongFactors.data.health.by_timeframe["4h"] ?? 0} / 1d=${midlongFactors.data.health.by_timeframe["1d"] ?? 0}`
+              : ""}
+            {midlongFactors.data?.health?.avg_active_ic != null
+              ? ` · 均|IC|=${midlongFactors.data.health.avg_active_ic}`
+              : ""}
           </div>
+          <div>宇宙 = 固定 ∪ AI≤3；得分高/低直接执行或否决，仅边缘带问 LLM（fail-closed）</div>
+          <div>过渡期：因子研究进行中，MLTO 平行对照；shadow 达标后切因子路由</div>
         </div>
       ),
     },
@@ -518,11 +520,11 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
         </div>
       </Card>
 
-      {/* MLTO：长线=仅固定；中线=固定∪AI≤3（同币可同时有 mid+long，属正常） */}
+      {/* 中长线：长线=纯AI（TrendAgent 唯一通道）；中线=因子化（固定∪AI≤3，过渡期 MLTO 对照） */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium flex items-center gap-1.5">
-            <Brain className="w-4 h-4 text-warning" /> MLTO 中长线
+            <Brain className="w-4 h-4 text-warning" /> 中长线 · 中线因子化（过渡期 MLTO 对照）
           </span>
           <Badge variant="secondary" className="text-[10px]">
             {mltoThesis.data?.theses?.length ?? 0} 个 thesis
@@ -612,7 +614,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               </div>
               <div>
                 <div className="text-[10px] text-muted-foreground mb-1">
-                  中线 · {midRows.length}
+                  中线（过渡期 MLTO 对照） · {midRows.length}
                   {" · 固定 "}{(lanes.fixed_in_mid || []).join("/") || "—"}
                   {" + AI≤3 "}{(lanes.ai_mid_symbols || []).join("/") || "—"}
                 </div>
@@ -642,7 +644,7 @@ function TierActivityPanels({ sessionId }: { sessionId?: string }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
       <TierActivityColumn title="短线" items={acts.short ?? []} color="primary" icon={Zap} />
-      <TierActivityColumn title="中线(固定+AI)" items={acts.mid ?? []} color="profit" icon={Boxes} />
+      <TierActivityColumn title="中线(因子化)" items={acts.mid ?? []} color="profit" icon={Boxes} />
       <TierActivityColumn title="固定长线" items={acts.long ?? []} color="warning" icon={Boxes} />
     </div>
   );

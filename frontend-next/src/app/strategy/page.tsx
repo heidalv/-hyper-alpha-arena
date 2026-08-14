@@ -114,7 +114,7 @@ export default function StrategyPage() {
               name="长线 Trend (含中周期)"
               icon={TrendingUp}
               color="warning"
-              description="TrendAgent · 4h/1d + MLTO mid_view"
+              description="TrendAgent 长线 · 4h/1d；中线因子化(过渡期 MLTO 对照)"
               positions={[...trendPos, ...swingPos]}
               configPath="/long"
               tickInterval={`${tickIntervals.long}s`}
