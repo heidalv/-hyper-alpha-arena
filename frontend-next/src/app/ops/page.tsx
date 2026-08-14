@@ -12,6 +12,7 @@ import { OpsPairs } from "@/components/ops/OpsPairs";
 import { OpsTraining } from "@/components/ops/OpsTraining";
 import { OpsErrors } from "@/components/ops/OpsErrors";
 import { OpsMiningBoost } from "@/components/ops/OpsMiningBoost";
+import { OpsMidlongFactors } from "@/components/ops/OpsMidlongFactors";
 import { OpsTpSlTrain } from "@/components/ops/OpsTpSlTrain";
 import { OpsHealthOverview, type HealthOverviewData } from "@/components/ops/OpsHealthOverview";
 import { cn } from "@/lib/utils";
@@ -254,6 +255,7 @@ function OpsDashboard() {
 
       <div className="ops-dash">
         <OpsMiningBoost />
+        <OpsMidlongFactors />
         <OpsTpSlTrain />
         <OpsChainProgress
           fixedPool={pulse?.fixed_pool || train?.fixed_pool}

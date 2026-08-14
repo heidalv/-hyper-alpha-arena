@@ -612,6 +612,130 @@ def ops_factor_pool(
     }
 
 
+# ══════════════════════════════════════════════════════════
+#  P0 运维台 · 中线因子概况/挖掘/回测（阶段2-1，与短线运维台对称）
+# ══════════════════════════════════════════════════════════
+
+def _midlong_horizon(r: Dict[str, Any]) -> bool:
+    return str((r.get("extra") or {}).get("horizon") or "scalp").lower() == "midlong"
+
+
+@router.get("/midlong-factors")
+def ops_midlong_factors() -> Dict[str, Any]:
+    """中线因子概况：活跃/候选/拒绝计数、按时间框架、Top 活跃、最近回测证据、
+    打分截面 K 线预检、当前闸门参数。只读。"""
+    from backend.services.factor_engine.midlong_active_factor_set import (
+        midlong_active_factor_set,
+    )
+    from backend.services.factor_engine.custom_factor_store import custom_factor_store
+    from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+    from backend.config import settings as _s
+
+    tid = resolve_admin_tenant_id()
+    health = midlong_active_factor_set.get_health_snapshot()
+
+    candidates = [
+        r for r in custom_factor_store.list_candidates(tenant_id=tid) if _midlong_horizon(r)
+    ]
+    rejected = [
+        r for r in custom_factor_store.list(status="rejected", tenant_id=tid)
+        if _midlong_horizon(r)
+    ]
+    rejected.sort(key=lambda x: float(x.get("scored_at") or 0), reverse=True)
+
+    cand_items = [
+        {
+            "factor_id": r.get("factor_id"),
+            "name": r.get("name"),
+            "timeframe": (r.get("extra") or {}).get("timeframe"),
+            "note": (r.get("extra") or {}).get("note"),
+            "category": r.get("category"),
+            "source": r.get("source"),
+        }
+        for r in candidates
+    ]
+    rej_items = [
+        {
+            "factor_id": r.get("factor_id"),
+            "name": r.get("name"),
+            "timeframe": (r.get("extra") or {}).get("timeframe"),
+            "grade": r.get("grade"),
+            "scores": r.get("scores") or {},
+            "scored_at": r.get("scored_at"),
+        }
+        for r in rejected[:20]
+    ]
+
+    # K 线预检：与打分器同源（get_klines_from_db），确保「能挖」判断真实
+    preflight: Dict[str, Any] = {"symbols": [], "rows": {}}
+    try:
+        _syms = [
+            s.strip().upper()
+            for s in str(_s.FACTOR_SCORER_SYMBOLS if hasattr(_s, "FACTOR_SCORER_SYMBOLS")
+                         else "BTC,ETH,SOL").split(",")
+            if s.strip()
+        ]
+        _lookback = int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 900))
+        from backend.services.kline_service import kline_service
+
+        preflight["symbols"] = _syms
+        for tf in ("4h", "1d"):
+            preflight["rows"][tf] = {}
+            for sym in _syms:
+                try:
+                    rows = kline_service.get_klines_from_db(sym, tf, _lookback) or []
+                    preflight["rows"][tf][sym] = len(rows)
+                except Exception:
+                    preflight["rows"][tf][sym] = -1
+        preflight["need_bars"] = _lookback
+        preflight["ok"] = all(
+            (n or 0) >= 120 for tf in preflight["rows"] for n in preflight["rows"][tf].values()
+        )
+    except Exception as e:
+        preflight["error"] = str(e)[:150]
+
+    return {
+        "health": health,
+        "candidates": cand_items,
+        "candidate_count": len(cand_items),
+        "rejected_recent": rej_items,
+        "rejected_count": len(rejected),
+        "preflight": preflight,
+        "gate_config": {
+            "lookback": int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 900)),
+            "fwd_4h": int(getattr(_s, "FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
+            "fwd_1d": int(getattr(_s, "FACTOR_SCORER_MIDLONG_FWD_1D", 3)),
+            "min_sharpe": float(getattr(_s, "FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
+            "active_max": int(getattr(_s, "MIDLONG_ACTIVE_FACTOR_MAX", 30)),
+            "research_enabled": bool(getattr(_s, "MIDLONG_FACTOR_RESEARCH_ENABLED", True)),
+        },
+    }
+
+
+@router.post("/midlong-factors/mine")
+def ops_midlong_mine(validate: bool = Query(True, description="灌库后立即排队样本外回测")):
+    """一键快速挖掘：灌库 Alpha101 候选（幂等）→ 后台单飞排队回测。
+    返回 seed 统计 + 异步 job 信息（用 GET /api/factors/jobs/{job_id} 轮询）。"""
+    from backend.services.factor_engine.alpha101_factors import seed_alpha101
+
+    seed = seed_alpha101(["4h", "1d"])
+    out: Dict[str, Any] = {"seed": seed, "validate": None}
+    if validate:
+        from backend.services.factor_engine.factor_jobs import run_validate_alpha101
+        job = run_validate_alpha101(limit=80)
+        out["validate"] = job.to_dict()
+    return out
+
+
+@router.post("/midlong-factors/prune")
+def ops_midlong_prune():
+    """对活跃中线因子重跑样本外复检，衰减者退役/降级（当前 active=0 时为无害空跑）。"""
+    from backend.services.factor_engine.midlong_active_factor_set import (
+        midlong_active_factor_set,
+    )
+    return midlong_active_factor_set.recheck_and_prune()
+
+
 @router.get("/evolution-funnel")
 def ops_evolution_funnel(days: int = Query(7, ge=1, le=90)) -> Dict[str, Any]:
     from backend.database.connection import AnalyticsSessionLocal

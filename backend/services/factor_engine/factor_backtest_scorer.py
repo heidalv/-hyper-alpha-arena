@@ -543,6 +543,8 @@ class FactorBacktestScorer:
                 "oos_trades": result.oos_trades,
                 "redundant_with": result.redundant_with,
                 "per_symbol": result.per_symbol,
+                # [2026-08-14 阶段2] 运维台可见性：拒绝原因落库，供中线因子面板展示
+                "reason": (result.reason or "")[:200],
             },
             status=status,
             tenant_id=_resolve_admin_tenant(),
