@@ -705,14 +705,29 @@ def get_tick_intervals():
         intervals = get_intervals()
     except Exception:
         intervals = {"coordinator": 30, "short": 30, "mid": 120, "long": 240}
+    # [2026-08-14] 中线状态明示：标签随运行时开关动态变化，
+    # 避免"因子化已定案但旧 AI 仍在过渡执行"造成的显示混乱。
+    _mid_mode = "mlto_transition"
+    _mid_label = "中线AI(过渡)"
+    try:
+        from backend.config.settings import MIDLONG_MID_VIA_MLTO as _mv
+        if _mv:
+            _mid_mode = "mlto_transition"
+            _mid_label = "中线AI(过渡)"
+        else:
+            _mid_mode = "factor_route"
+            _mid_label = "中线因子路由"
+    except Exception:
+        pass
     return {
         "intervals": intervals,
         "labels": {
             "coordinator": "协调器",
             "short": "短线因子",
-            "mid": "中线AI",
+            "mid": _mid_label,
             "long": "长线AI",
         },
+        "mid_mode": _mid_mode,
     }
 
 

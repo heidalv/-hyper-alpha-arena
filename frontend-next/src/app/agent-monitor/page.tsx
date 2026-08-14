@@ -329,6 +329,13 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       job: findJob("midlong"),
       footer: (
         <div className="text-[9px] text-muted-foreground space-y-0.5 pt-1">
+          <div className={cn(
+            "px-1 py-0.5 rounded",
+            tickIntervals.data?.mid_mode === "factor_route" ? "bg-profit/10 text-profit" : "bg-warning/10 text-warning",
+          )}>
+            执行引擎：{tickIntervals.data?.mid_mode === "factor_route" ? "因子路由（已切换）" : "MLTO 旧AI（过渡期）"}
+            {" · "}切换条件：因子池 active≥5 且 shadow 对照达标
+          </div>
           <div>
             因子池：
             active={midlongFactors.data?.health?.active ?? "…"}
