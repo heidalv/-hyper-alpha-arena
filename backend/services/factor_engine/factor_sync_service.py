@@ -37,6 +37,13 @@ class FactorSyncService:
             self._project_root,
             "backend", "services", "factor_engine", "factors", "external",
         )
+        # [2026-08-14 P1-E5] 云端因子待验证目录：下划线前缀 → FactorLoader 按约定
+        # 跳过，本地化后不会进入实盘计算；通过 promote_cloud_factor 显式晋升
+        # （移入 external/ + 注册）后才生效。
+        self._cloud_pending_dir = os.path.join(
+            self._project_root,
+            "backend", "services", "factor_engine", "factors", "_cloud_pending",
+        )
 
     # ------------------------------------------------------------------
     # 公共接口
@@ -44,7 +51,7 @@ class FactorSyncService:
 
     def sync_from_repo(self, config_id: int = None) -> Dict:
         """
-        完整同步流程：下载 → 验证 → 本地化 → 注册。
+        完整同步流程：下载 → 验证 → 本地化（候选，不注册）。
 
         Args:
             config_id: 指定同步配置 ID（None=全部启用的配置）
@@ -52,6 +59,16 @@ class FactorSyncService:
         Returns:
             同步结果摘要
         """
+        # [2026-08-14 P1-E5] 总开关：安全加固完成前默认禁用（FACTOR_CLOUD_SYNC_ENABLED）。
+        try:
+            from backend.config import settings as _sync_s
+            if not bool(getattr(_sync_s, "FACTOR_CLOUD_SYNC_ENABLED", False)):
+                logger.warning(
+                    "[FactorSync] 云同步已禁用（FACTOR_CLOUD_SYNC_ENABLED=false，安全加固默认关）"
+                )
+                return {"status": "skipped", "reason": "cloud sync disabled by FACTOR_CLOUD_SYNC_ENABLED"}
+        except Exception:
+            pass
         from backend.database.connection import SessionLocal
         from backend.database.models import FactorSyncConfig, CloudFactorDefinition
 
@@ -95,20 +112,14 @@ class FactorSyncService:
                                 total_errors += 1
                                 continue
 
-                            # 本地化
+                            # 本地化（写入 _cloud_pending，不注册、不置 active）
                             local_path = self._localize_factor(defn)
                             if local_path:
                                 self._update_factor_status(
-                                    db, defn["factor_id"], "localized",
+                                    db, defn["factor_id"], "candidate",
                                     localized_path=local_path,
                                 )
                                 total_localized += 1
-
-                                # 注册到 FactorRegistry
-                                self._register_localized_factor(local_path, defn)
-                                self._update_factor_status(
-                                    db, defn["factor_id"], "active"
-                                )
                             else:
                                 total_errors += 1
 
@@ -223,20 +234,85 @@ class FactorSyncService:
                 factor.localized = True
                 factor.localized_path = local_path
                 factor.localized_at = datetime.now(timezone.utc)
-                factor.status = "localized"
+                # [2026-08-14 P1-E5 修复] 本地化后状态=candidate（待验证），
+                # 不再无条件置 active；文件落在 _cloud_pending（loader 不扫描），
+                # 不注册进 Registry → 未经验证的云端因子不会进入实盘计算。
+                # 晋升需显式调用 promote_cloud_factor()。
+                factor.status = "candidate"
                 db.commit()
-
-                self._register_localized_factor(local_path, defn)
-                factor.status = "active"
-                db.commit()
-
-                return {"status": "success", "factor_id": factor_id, "path": local_path}
+                return {"status": "success", "factor_id": factor_id, "path": local_path,
+                        "note": "candidate（待验证，未注册进实盘）；确认安全后调用 promote_cloud_factor"}
 
             return {"status": "error", "reason": "localization failed"}
 
     # ------------------------------------------------------------------
     # 内部实现
     # ------------------------------------------------------------------
+
+    def promote_cloud_factor(self, factor_id: str, confirm: bool = False) -> Dict:
+        """[2026-08-14 P1-E5] 显式晋升：把已验证的云端候选因子移入 external/ 并注册。
+
+        - 仅当 confirm=True 时执行（人工确认），且重新过一遍安全校验；
+        - 移文件（_cloud_pending → external/）→ 注册 Registry → 检查返回值 → active；
+        - 任何一步失败都不置 active。
+        """
+        if not confirm:
+            return {"status": "skipped", "reason": "promote requires confirm=True（显式确认）"}
+        from backend.database.connection import SessionLocal
+        from backend.database.models import CloudFactorDefinition
+
+        with SessionLocal() as db:
+            factor = db.query(CloudFactorDefinition).filter(
+                CloudFactorDefinition.factor_id == factor_id
+            ).first()
+            if not factor:
+                return {"status": "error", "reason": f"factor {factor_id} not found"}
+            if not factor.localized or not factor.localized_path:
+                return {"status": "error", "reason": "因子未本地化，先执行 localize"}
+
+            # 重新安全校验（晋升点二次把关）
+            if not self._validate_code(factor.calculation_code or ""):
+                return {"status": "error", "reason": "security validation failed"}
+
+            src = factor.localized_path
+            if not os.path.exists(src):
+                return {"status": "error", "reason": f"本地化文件不存在: {src}"}
+            safe_id = re.sub(r"[^a-zA-Z0-9_]", "_", str(factor_id))
+            dest = os.path.join(self._external_dir, f"{safe_id}.py")
+            try:
+                os.makedirs(self._external_dir, exist_ok=True)
+                if os.path.exists(dest):
+                    os.remove(dest)
+                shutil.move(src, dest)
+            except Exception as e:
+                logger.error(f"[FactorSync] 晋升移文件失败 {factor_id}: {e}")
+                return {"status": "error", "reason": f"move failed: {e}"}
+
+            defn = {
+                "factor_id": factor.factor_id,
+                "name": factor.name,
+                "display_name": factor.display_name or factor.name,
+                "description": factor.description or "",
+                "category": factor.category,
+                "subcategory": factor.subcategory or "",
+            }
+            ok = self._register_localized_factor(dest, defn)
+            if not ok:
+                logger.error(f"[FactorSync] 晋升注册失败（状态保持 candidate）: {factor_id}")
+                # 移回 pending，保持 candidate
+                try:
+                    shutil.move(dest, src)
+                except Exception:
+                    pass
+                factor.status = "candidate"
+                db.commit()
+                return {"status": "error", "reason": "register failed, status kept candidate"}
+
+            factor.localized_path = dest
+            factor.status = "active"
+            db.commit()
+            logger.info(f"[FactorSync] 云端因子晋升 active: {factor_id} → {dest}")
+            return {"status": "success", "factor_id": factor_id, "path": dest}
 
     def _detect_project_root(self) -> str:
         """检测项目根目录"""
@@ -324,8 +400,8 @@ class FactorSyncService:
         return all(k in data for k in required)
 
     def _validate_code(self, code: str) -> bool:
-        """安全验证因子代码"""
-        code_lower = code.lower()
+        """安全验证因子代码：黑名单 + 编译 + AST 白名单（code_safety）。"""
+        code_lower = (code or "").lower()
         for pattern in _FORBIDDEN_PATTERNS:
             if pattern in code_lower:
                 logger.warning(f"[FactorSync] 代码包含禁止模式: {pattern}")
@@ -335,46 +411,73 @@ class FactorSyncService:
         except SyntaxError as e:
             logger.warning(f"[FactorSync] 语法错误: {e}")
             return False
+        # [2026-08-14 P1-F1] AST 白名单：禁 import/dunder/白名单外属性链与函数调用
+        from backend.services.factor_engine.code_safety import ast_whitelist_check
+        ok, reason = ast_whitelist_check(code)
+        if not ok:
+            logger.warning(f"[FactorSync] AST 白名单拒绝: {reason}")
+            return False
         return True
 
     def _localize_factor(self, definition: Dict) -> Optional[str]:
         """
         将 JSON 因子定义转化为 Python BaseFactor 类文件。
 
-        生成目录: backend/services/factor_engine/factors/external/
+        [2026-08-14 P1-E5/P1-F1 修复]
+        - 生成目录改为 factors/_cloud_pending/（下划线前缀 → FactorLoader 跳过，
+          本地化不等于上线；经 promote_cloud_factor 晋升后才进入 external/ 与 Registry）。
+        - 所有元数据用 json.dumps 生成字符串字面量（修复裸插值注入面：含引号/
+          换行的 name/description 等不再能逃逸出字符串）。
+        - factor_id 拒绝路径分隔符与 ..（路径穿越）。
         """
-        factor_id = definition["factor_id"]
-        # 清理 factor_id 中的特殊字符
+        factor_id = str(definition.get("factor_id") or "")
+        # 路径穿越防护：先拒，再清洗（清洗只影响合法字符集）
+        if not factor_id or any(sep in factor_id for sep in ("/", "\\", "..")):
+            logger.warning(f"[FactorSync] 拒绝非法 factor_id: {factor_id!r}")
+            return None
         safe_id = re.sub(r"[^a-zA-Z0-9_]", "_", factor_id)
+        if not safe_id:
+            logger.warning(f"[FactorSync] factor_id 清洗后为空: {factor_id!r}")
+            return None
         filename = f"{safe_id}.py"
-        filepath = os.path.join(self._external_dir, filename)
+        filepath = os.path.join(self._cloud_pending_dir, filename)
 
         # 生成类名（PascalCase）
         class_name = "".join(
             word.capitalize() for word in safe_id.split("_") if word
-        )
+        ) or "CloudFactor"
+        if not class_name[0].isalpha():
+            class_name = "CloudFactor_" + class_name
+
+        # ── 元数据字符串字面量：json.dumps 转义（含引号/换行/反斜杠安全）──
+        def _q(value) -> str:
+            return json.dumps(str(value or ""), ensure_ascii=False)
+
+        # docstring 内嵌用「剥除外层引号」的转义内容：json.dumps 的输出自带外层
+        # 引号，若值以引号结尾，其收尾引号会与 docstring 的三重引号终止符粘连
+        # （`#""""`），导致 unterminated string literal。
+        def _q_naked(value) -> str:
+            return json.dumps(str(value or ""), ensure_ascii=False)[1:-1]
+
+        fid_q = _q(factor_id)
+        name_q = _q(definition.get("name"))
+        display_q = _q(definition.get("display_name", definition.get("name")))
+        display_naked = _q_naked(definition.get("display_name", definition.get("name")))
+        desc_q = _q(definition.get("description", ""))
+        cat_q = _q(definition.get("category"))
+        subcat_q = _q(definition.get("subcategory", ""))
+        ver_q = _q(definition.get("version", "1.0.0"))
+        author_q = _q(definition.get("author", "Cloud Sync"))
 
         params = definition.get("parameters", {})
-        if isinstance(params, dict):
-            params_str = json.dumps(params, ensure_ascii=False)
-        else:
-            params_str = "{}"
-
+        params_str = json.dumps(params, ensure_ascii=False) if isinstance(params, dict) else "{}"
         required_fields = definition.get("required_data_fields", ["close"])
-        if isinstance(required_fields, list):
-            fields_str = json.dumps(required_fields)
-        else:
-            fields_str = '["close"]'
-
+        fields_str = json.dumps(required_fields) if isinstance(required_fields, list) else '["close"]'
         dependencies = definition.get("dependencies", [])
-        if isinstance(dependencies, list):
-            deps_str = json.dumps(dependencies)
-        else:
-            deps_str = "[]"
+        deps_str = json.dumps(dependencies) if isinstance(dependencies, list) else "[]"
 
         # 提取 calculate 方法体
         calc_code = definition.get("calculation_code", "")
-        # 如果已经有 def calculate(...) 则缩进到类方法级别
         if "def calculate" in calc_code:
             indented_lines = []
             for line in calc_code.split("\n"):
@@ -384,50 +487,53 @@ class FactorSyncService:
                     indented_lines.append("        " + line)
             method_code = "\n".join(indented_lines)
         else:
-            method_code = f"    def calculate(self, data: pd.DataFrame) -> pd.Series:\n"
-            for line in calc_code.strip().split("\n"):
-                method_code += f"        {line}\n"
-            method_code += f"        return result\n"
+            method_code = (
+                "    def calculate(self, data: pd.DataFrame) -> pd.Series:\n"
+                + "".join(f"        {line}\n" for line in calc_code.strip().split("\n"))
+                + "        return result\n"
+            )
 
-        code = f'''"""Cloud-synced factor: {definition.get("display_name", definition["name"])}"""
-import pandas as pd
-import numpy as np
-from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
-
-
-class {class_name}(BaseFactor):
-    """Auto-localized from cloud factor library."""
-
-    def get_metadata(self) -> FactorMetadata:
-        return FactorMetadata(
-            factor_id="{factor_id}",
-            name="{definition["name"]}",
-            display_name="{definition.get("display_name", definition["name"])}",
-            description="""{definition.get("description", "")}""",
-            category="{definition["category"]}",
-            subcategory="{definition.get("subcategory", "")}",
-            version="{definition.get("version", "1.0.0")}",
-            author="{definition.get("author", "Cloud Sync")}",
-            required_data_fields={fields_str},
-            dependencies={deps_str},
+        # 模板分段拼接：元数据全部为 json 转义字面量；method_code（已过 AST 白名单）原样插入。
+        code = (
+            '"""Cloud-synced factor (pending validation): %s"""\n'
+            "import pandas as pd\n"
+            "import numpy as np\n"
+            "from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata\n"
+            "\n\n"
+            "class %s(BaseFactor):\n"
+            '    """Auto-localized from cloud factor library."""\n\n'
+            "    def get_metadata(self) -> FactorMetadata:\n"
+            "        return FactorMetadata(\n"
+            "            factor_id=%s,\n"
+            "            name=%s,\n"
+            "            display_name=%s,\n"
+            "            description=%s,\n"
+            "            category=%s,\n"
+            "            subcategory=%s,\n"
+            "            version=%s,\n"
+            "            author=%s,\n"
+            "            required_data_fields=%s,\n"
+            "            dependencies=%s,\n"
+            "        )\n\n"
+            "    def get_default_params(self):\n"
+            "        return %s\n\n"
+            "%s\n"
+        ) % (
+            display_naked, class_name, fid_q, name_q, display_q, desc_q, cat_q,
+            subcat_q, ver_q, author_q, fields_str, deps_str, params_str,
+            method_code,
         )
 
-    def get_default_params(self):
-        return {params_str}
-
-{method_code}
-'''
-
         try:
-            os.makedirs(self._external_dir, exist_ok=True)
+            os.makedirs(self._cloud_pending_dir, exist_ok=True)
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(code)
 
             # 验证生成的文件可以编译
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 compile(f.read(), filepath, "exec")
 
-            logger.info(f"[FactorSync] 本地化成功: {factor_id} → {filepath}")
+            logger.info(f"[FactorSync] 本地化成功（待验证）: {factor_id} → {filepath}")
             return filepath
 
         except Exception as e:
@@ -443,7 +549,8 @@ class {class_name}(BaseFactor):
             from backend.services.factor_engine.factor_registry import registry
             import importlib.util
 
-            module_name = f"cloud_factor_{definition['factor_id']}"
+            _safe_mod = re.sub(r"[^a-zA-Z0-9_]", "_", str(definition.get("factor_id") or ""))
+            module_name = f"cloud_factor_{_safe_mod or 'anon'}"
             spec = importlib.util.spec_from_file_location(module_name, filepath)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
