@@ -140,6 +140,7 @@ class CustomFactorStore:
         self._lock = threading.RLock()
         self._data: Dict[str, Dict[str, Any]] = {}
         self._loaded = False
+        self._loaded_mtime = 0.0
 
     def _ensure_loaded(self) -> None:
         if self._loaded:
@@ -147,18 +148,39 @@ class CustomFactorStore:
         with self._lock:
             if self._loaded:
                 return
-            try:
-                if os.path.exists(_STORE_FILE):
-                    with open(_STORE_FILE, "r", encoding="utf-8") as f:
-                        raw = json.load(f)
-                    if isinstance(raw, dict):
-                        self._data = raw
-                    elif isinstance(raw, list):
-                        self._data = {r["factor_id"]: r for r in raw if r.get("factor_id")}
-            except Exception as e:
-                logger.warning(f"[CustomFactorStore] 载入失败(降级空目录): {e}")
-                self._data = {}
+            self._load_locked()
             self._loaded = True
+
+    def _load_locked(self) -> None:
+        try:
+            if os.path.exists(_STORE_FILE):
+                with open(_STORE_FILE, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                if isinstance(raw, dict):
+                    self._data = raw
+                elif isinstance(raw, list):
+                    self._data = {r["factor_id"]: r for r in raw if r.get("factor_id")}
+                self._loaded_mtime = os.path.getmtime(_STORE_FILE)
+        except Exception as e:
+            logger.warning(f"[CustomFactorStore] 载入失败(降级空目录): {e}")
+            self._data = {}
+
+    def _maybe_reload(self) -> None:
+        """[2026-08-15 多进程竞态修复] 写前检测文件是否被其它进程更新。
+
+        多进程（后端 / 独立验证脚本 / 其他 agent 长驻进程）共用同一 JSON 文件，
+        各自持有内存副本，last-writer-wins 会互相覆盖（曾导致：18:31 验证晋升的
+        A 级因子被 17:08 启动的陈旧副本覆盖回 candidate）。写前按 mtime 检测
+        外部更新并重载合并，把「整文件覆盖」降级为「读-改-写」，大幅缩小丢更新窗口。
+        """
+        try:
+            if not os.path.exists(_STORE_FILE):
+                return
+            st_mtime = os.path.getmtime(_STORE_FILE)
+            if st_mtime > self._loaded_mtime + 0.3:
+                self._load_locked()
+        except Exception:
+            pass
 
     def _persist(self) -> None:
         try:
@@ -167,6 +189,7 @@ class CustomFactorStore:
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=2)
             os.replace(tmp, _STORE_FILE)
+            self._loaded_mtime = os.path.getmtime(_STORE_FILE)
         except Exception as e:
             logger.warning(f"[CustomFactorStore] 持久化失败: {e}")
 
@@ -187,6 +210,7 @@ class CustomFactorStore:
             {"ok": bool, "factor_id": str, "status": str, "reason": str}
         """
         self._ensure_loaded()
+        self._maybe_reload()
         if tenant_id is None:
             try:
                 from backend.core.tenant import tenant_id_var
@@ -285,6 +309,7 @@ class CustomFactorStore:
     ) -> bool:
         """回测打分器写回评级/明细/状态。"""
         self._ensure_loaded()
+        self._maybe_reload()
         with self._lock:
             key = self._resolve_key(factor_id, tenant_id)
             if not key:
@@ -305,6 +330,7 @@ class CustomFactorStore:
 
     def set_status(self, factor_id: str, status: str, tenant_id: Optional[int] = None) -> bool:
         self._ensure_loaded()
+        self._maybe_reload()
         with self._lock:
             key = self._resolve_key(factor_id, tenant_id)
             if not key:
@@ -331,6 +357,7 @@ class CustomFactorStore:
         Returns: 重开的因子数。
         """
         self._ensure_loaded()
+        self._maybe_reload()
         reopened = 0
         with self._lock:
             for rec in self._data.values():
@@ -369,6 +396,7 @@ class CustomFactorStore:
         midlong_registry_factors.scan_registry_midlong 用同一闸门引擎回写。
         """
         self._ensure_loaded()
+        self._maybe_reload()
         if tenant_id is None:
             try:
                 from backend.core.tenant import tenant_id_var
@@ -431,6 +459,7 @@ class CustomFactorStore:
 
     def get(self, factor_id: str, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         self._ensure_loaded()
+        self._maybe_reload()
         with self._lock:
             key = self._resolve_key(factor_id, tenant_id)
             if not key:
@@ -449,6 +478,7 @@ class CustomFactorStore:
     ) -> List[Dict[str, Any]]:
         """列出因子。传入 tenant_id 时只返回该账户挖掘因子；不含历史无主记录。"""
         self._ensure_loaded()
+        self._maybe_reload()
         with self._lock:
             items = list(self._data.values())
         if tenant_id is not None:
