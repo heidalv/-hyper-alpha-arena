@@ -39,6 +39,7 @@ _COLD_DIRS = ("_ai_gen_archive", "_ai_gen_quarantine")
 _SYMBOLS = ("BTC", "ETH", "SOL")
 _FWD_VARIANTS = {"4h": (3, 4, 6), "1d": (1, 2, 3)}
 _REPORT_PATH = os.path.join("data", "midlong_cold_pool_report.json")
+_MAX_TIMEOUTS = 15   # [2026-08-15] 僵尸线程熔断阈值：超时 worker 无法杀死，累积即停
 
 # [2026-08-15 前视防护] 冷池里大量因子用 close.shift(-N) 引未来数据（如
 # ai_gen_liq_magnet_rev 的 shift(-2)，ICIR 2.4 全靠前视作弊）。公式因子有 AST
@@ -265,6 +266,12 @@ def scan_cold_pool_midlong(
                     continue
                 # [2026-08-14 防护] 冷池病态因子可能挂起：calculate 20s 超时跳过
                 # （线程不可杀，shutdown(wait=False) 后线程在进程退出时终止）。
+                # [2026-08-15 熔断] 超时放弃的 worker 线程无法杀死，会以僵尸线程
+                # 形式累积吞噬 CPU（本次挂死根因）。超过阈值直接中止整轮扫描，
+                # 保留已算出的部分结果。
+                if timeouts >= _MAX_TIMEOUTS:
+                    logger.warning("[ColdPool] 超时次数达 %d，中止扫描（僵尸线程累积保护）", timeouts)
+                    break
                 series = None
                 _ex = None
                 try:
