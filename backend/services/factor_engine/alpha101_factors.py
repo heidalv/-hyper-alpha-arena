@@ -59,6 +59,14 @@ _ALPHA_LIB: List[Tuple[str, str, List[str], str]] = [
     ("gap_rev",       "-1 * (open - delay(close, 1)) / (delay(close, 1) + 1e-9)", ["4h"], "跳空反转"),
     ("hl_corr",       "ts_corr(close, high, 20)",                                 ["4h"], "价高相关"),
     ("vol_mom10",     "delta(close, 10) / (ts_std(close, 20) + 1e-9)",            ["4h"], "短窗波动归一动量"),
+    # [2026-08-15 反转弹药] 样本窗口呈均值回归 regime，动量型公式 IC 全负且 OOS 失效。
+    # 补显式反转型公式（方向符号已内嵌，回测仍按训练窗 IC 自动定向）。
+    ("bb_fade",       "-1 * (close - ts_mean(close, 20)) / (2 * ts_std(close, 20) + 1e-9)", ["4h", "1d"], "布林带位置反转"),
+    ("bias30_rev",    "-1 * (close - ts_mean(close, 30)) / (ts_mean(close, 30) + 1e-9)", ["4h", "1d"], "30期乖离反转"),
+    ("ma_gap_rev",    "-1 * (ts_mean(close, 5) - ts_mean(close, 20)) / (ts_std(close, 20) + 1e-9)", ["4h", "1d"], "双均线乖离反转"),
+    ("rsi_fade",      "-1 * (ts_mean(np.maximum(delta(close, 1), 0), 14) - ts_mean(np.maximum(-delta(close, 1), 0), 14)) / (ts_mean(np.maximum(delta(close, 1), 0), 14) + ts_mean(np.maximum(-delta(close, 1), 0), 14) + 1e-9)", ["4h", "1d"], "RSI14反转(反向)"),
+    ("mom3_fade",     "-1 * sign(delta(close, 3)) * ts_rank(np.abs(delta(close, 3)), 20)", ["4h"], "短动量极值反转"),
+    ("vol_spike_rev", "-1 * sign(delta(close, 1)) * (volume / (ts_mean(volume, 20) + 1e-9))", ["4h", "1d"], "放量反向反转"),
 ]
 
 
