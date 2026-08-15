@@ -137,6 +137,11 @@ def _rolling_recompute(
     except Exception as e:
         logger.debug("[MidlongRegistry] rolling 取因子失败 %s: %s", registry_factor_id, e)
         return out
+    # [2026-08-15] 滚动回退仅针对 legacy_compat 快照型因子。其它类别（如
+    # ai_generated）全量计算即序列型；对其做逐点重算既无必要，还可能触发其
+    # 重写 preprocess 里 pandas replace 的深层递归栈溢出，把整个扫描进程打死。
+    if ".legacy_compat." not in str(factor.__class__.__module__ or ""):
+        return out
     stride = max(1, int(fwd))
     for t in range(min_hist, n, stride):
         sub = df.iloc[: t + 1]
