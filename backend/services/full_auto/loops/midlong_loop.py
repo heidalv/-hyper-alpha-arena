@@ -320,6 +320,7 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
             mode=_trade_mode,
             portfolio=_portfolio,
             symbols_batch=_sym_one,
+            mid_universe=_mid_universe,
             run_mid=_run_mid,
             run_long=_run_long,
             # [2026-07-31] 长线开仓/thesis 必须 deep_context：注入 4h/1d/1w OHLCV。

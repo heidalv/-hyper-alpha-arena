@@ -138,6 +138,7 @@ def maintain_mlto_theses_for_session(
     portfolio: dict,
     host: MltoCycleHost,
     symbols_batch: Optional[List[str]] = None,
+    mid_universe: Optional[List[str]] = None,
     run_mid: bool = True,
     run_long: bool = True,
     light_context: bool = False,
@@ -179,9 +180,41 @@ def maintain_mlto_theses_for_session(
     # 历史上的 _swing_one 并行 LLM 路径曾是"3 killers"之一（参数不匹配的 TypeError
     # 被静默吞掉、整轮中线零开仓），现随 mid-into-long 合并彻底删除。
     if run_mid:
-        # 仅 reserve mid key，避免下游 MLTO 段误判 mid 未处理而重复触发。
-        for _s in symbols:
-            _reserve_key(f"{str(_s).upper()}:mid")
+        # [2026-08-15 因子化] 因子路由开启时：中线宇宙逐币用活跃因子合成信号入场
+        # （decide → execute_midlong_open source=factor_route）；未开启时保持占位语义。
+        from backend.config.settings import MIDLONG_MID_VIA_FACTOR_ROUTE as _FR
+        _mid_syms = list(dict.fromkeys(
+            [str(s).upper() for s in (mid_universe or [])]
+            or [str(s).upper() for s in symbols]
+        ))
+        if _FR and _mid_syms:
+            for _m in _mid_syms:
+                if not _reserve_key(f"{_m}:mid"):
+                    continue
+                try:
+                    from backend.services.factor_engine.midlong_factor_route import (
+                        factor_route_open,
+                    )
+                    _fr_dec = factor_route_open(
+                        host=host,
+                        session=session,
+                        symbol=_m,
+                        market_summary=market_summary,
+                        portfolio=portfolio,
+                        trading_mode=_trade_mode,
+                    )
+                    logger.info(
+                        "[FactorRoute] %s action=%s score=%s opened=%s gate=%s | %s",
+                        _m, _fr_dec.get("action"), _fr_dec.get("score"),
+                        _fr_dec.get("opened"), _fr_dec.get("gate"),
+                        (_fr_dec.get("reason") or "")[:110],
+                    )
+                except Exception as _fr_err:
+                    logger.warning("[FactorRoute] %s 决策异常: %s", _m, _fr_err, exc_info=True)
+        else:
+            # 仅 reserve mid key，避免下游 MLTO 段误判 mid 未处理而重复触发。
+            for _s in symbols:
+                _reserve_key(f"{str(_s).upper()}:mid")
 
     # SwingDB 句柄曾供 _swing_one 使用；保留 import 兼容下游 _trend_one 的 DB 工厂。
     from backend.database.connection import SessionLocal as _SwingDB

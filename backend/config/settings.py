@@ -2075,6 +2075,18 @@ MIDLONG_BELIEF_LOOP_ENABLED: bool = os.getenv(
 MIDLONG_MID_VIA_MLTO: bool = os.getenv("MIDLONG_MID_VIA_MLTO", "false").strip().lower() in (
     "1", "true", "yes", "on",
 )
+# [2026-08-15 因子化] 中线因子路由：旧 AI 中线（MLTO mid thesis）停用后，
+# 中线入场决策由「通过 4h/1d 样本外闸门的活跃因子」合成信号驱动。
+# 开启后 midlong_loop 对中线宇宙逐币调用 factor_route_decide，buy/sell 走
+# execute_midlong_open(source=factor_route)（authority=mlto 时放行）。
+MIDLONG_MID_VIA_FACTOR_ROUTE: bool = os.getenv(
+    "MIDLONG_MID_VIA_FACTOR_ROUTE", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+# 因子路由入场参数：最少活跃因子数 / 合成分数阈值 / 止损止盈 / 权重衰减
+FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "2") or "2")
+FACTOR_ROUTE_ENTRY_THRESHOLD: float = float(os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD", "0.35") or "0.35")
+FACTOR_ROUTE_SL_PCT: float = float(os.getenv("FACTOR_ROUTE_SL_PCT", "0.05") or "0.05")
+FACTOR_ROUTE_TP_PCT: float = float(os.getenv("FACTOR_ROUTE_TP_PCT", "0.10") or "0.10")
 # AI 中线候选最低置信度：看板 midlong approve 且 confidence ≥ 此值才进 mid 槽。
 MIDLONG_AI_MIN_CONF: float = float(os.getenv("MIDLONG_AI_MIN_CONF", "0.60") or "0.60")
 MIDLONG_QUANT_BRIEF_HARD_GATE: bool = os.getenv("MIDLONG_QUANT_BRIEF_HARD_GATE", "false").lower() in (

@@ -707,16 +707,22 @@ def get_tick_intervals():
         intervals = {"coordinator": 30, "short": 30, "mid": 120, "long": 240}
     # [2026-08-14] 中线状态明示：标签随运行时开关动态变化，
     # 避免"因子化已定案但旧 AI 仍在过渡执行"造成的显示混乱。
+    # 三态：mlto_transition（旧AI执行）/ mid_paused（旧AI已停、因子路由未接线，
+    # 只跑因子研究）/ factor_route（因子路由接管中线入场）。
     _mid_mode = "mlto_transition"
     _mid_label = "中线AI(过渡)"
     try:
         from backend.config.settings import MIDLONG_MID_VIA_MLTO as _mv
+        from backend.config.settings import MIDLONG_MID_VIA_FACTOR_ROUTE as _fr
         if _mv:
             _mid_mode = "mlto_transition"
             _mid_label = "中线AI(过渡)"
-        else:
+        elif _fr:
             _mid_mode = "factor_route"
             _mid_label = "中线因子路由"
+        else:
+            _mid_mode = "mid_paused"
+            _mid_label = "中线暂停(因子研究)"
     except Exception:
         pass
     return {

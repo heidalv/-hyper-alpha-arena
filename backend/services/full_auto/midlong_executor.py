@@ -138,13 +138,18 @@ class MidLongIntent:
 
 
 def authority_allows_open(authority: str, source: str) -> bool:
-    """source: trend | mlto。仅当与当前 Single Writer 一致才允许开仓。"""
+    """source: trend | mlto | factor_route。仅当与当前 Single Writer 一致才允许开仓。
+
+    [2026-08-15 因子化] authority=mlto（paper 默认）时同时放行 factor_route 中线新开：
+    中线入场已由活跃因子信号驱动，与长线 mlto thesis 共用同一 Single Writer 配额/冷却。
+    authority=trend（live 保守）时仍只放行 trend。
+    """
     auth = (authority or get_midlong_exec_authority()).strip().lower()
     src = (source or "").strip().lower()
     if auth == "trend":
         return src == "trend"
     if auth == "mlto":
-        return src == "mlto"
+        return src in ("mlto", "factor_route")
     return False
 
 
