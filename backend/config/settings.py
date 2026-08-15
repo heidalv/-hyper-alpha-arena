@@ -2087,6 +2087,12 @@ FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FA
 FACTOR_ROUTE_ENTRY_THRESHOLD: float = float(os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD", "0.35") or "0.35")
 FACTOR_ROUTE_SL_PCT: float = float(os.getenv("FACTOR_ROUTE_SL_PCT", "0.05") or "0.05")
 FACTOR_ROUTE_TP_PCT: float = float(os.getenv("FACTOR_ROUTE_TP_PCT", "0.10") or "0.10")
+# 因子路由单笔保证金比例（占权益）：小资金账户（权益~400）在 10x 杠杆口径下，
+# 默认 1.0 档会估出 4000 名义 → 净敞口 1000% 被组合风控永久拦截。
+# 0.12 → 480 名义 = 120% 敞口，在 MIDLONG_MAX_NET_EXPOSURE_PCT(1.5) 之内。
+FACTOR_ROUTE_TRANCHE_MARGIN_PCT: float = float(
+    os.getenv("FACTOR_ROUTE_TRANCHE_MARGIN_PCT", "0.12") or "0.12"
+)
 # AI 中线候选最低置信度：看板 midlong approve 且 confidence ≥ 此值才进 mid 槽。
 MIDLONG_AI_MIN_CONF: float = float(os.getenv("MIDLONG_AI_MIN_CONF", "0.60") or "0.60")
 MIDLONG_QUANT_BRIEF_HARD_GATE: bool = os.getenv("MIDLONG_QUANT_BRIEF_HARD_GATE", "false").lower() in (

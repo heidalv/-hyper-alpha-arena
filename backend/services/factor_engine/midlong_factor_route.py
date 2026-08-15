@@ -264,9 +264,7 @@ def factor_route_open(
                 session_mode=str(getattr(session, "status", "running") or "running"),
                 tier="mid",
                 trade_nature="swing",
-                tranche_margin_pct=float(_s.MIDLONG_TRANCHE_ENTRY_MARGIN_PCT
-                                         if hasattr(_s, "MIDLONG_TRANCHE_ENTRY_MARGIN_PCT")
-                                         else 1.0),
+                tranche_margin_pct=float(_s.FACTOR_ROUTE_TRANCHE_MARGIN_PCT),
                 reason=(str(dec.get("reason") or ""))[:80],
                 trading_mode=trading_mode,
             )

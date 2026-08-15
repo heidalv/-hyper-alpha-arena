@@ -62,11 +62,41 @@ def _get_full_param_ranges() -> Dict[str, Tuple[float, float]]:
         return base
 
 
+_SCAN_MARKER_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "data", "midlong_scan_markers.json",
+)
+
+
+def _midlong_scan_due(marker_key: str, min_interval_sec: float) -> bool:
+    """落盘标记限频：weekly_evolution 每次重启后 ~60s 首跑，扫描若不加闸门会反复排队。"""
+    try:
+        import json as _json
+        now = time.time()
+        data = {}
+        if os.path.exists(_SCAN_MARKER_FILE):
+            try:
+                with open(_SCAN_MARKER_FILE, "r", encoding="utf-8") as _f:
+                    data = _json.load(_f) or {}
+            except Exception:
+                data = {}
+        last = float(data.get(marker_key) or 0)
+        if now - last < min_interval_sec:
+            return False
+        data[marker_key] = now
+        os.makedirs(os.path.dirname(_SCAN_MARKER_FILE), exist_ok=True)
+        with open(_SCAN_MARKER_FILE, "w", encoding="utf-8") as _f:
+            _json.dump(data, _f)
+        return True
+    except Exception as e:
+        logger.debug("[EvoScheduler] scan marker 检查失败(fail-open): %s", e)
+        return True
+
+
 class EvolutionScheduler:
     """回测进化自动调度"""
 
     _instance = None
-
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -483,14 +513,13 @@ class EvolutionScheduler:
             # [2026-08-14 弹药扩源] registry Python 类因子（ai_generated/legacy_compat）
             # 登记为中线引用候选 + 每日排队扫描打分（4h/1d，复用闸门引擎）。
             # 扫描是重活（84 条 × 3 币），走 factor_job_manager single-flight。
+            # [2026-08-15 重启去重] weekly_evolution 在每次后端重启后 ~60s 都会首跑，
+            # 若不闸门会反复排队 1-2 小时的重扫描。用落盘标记把扫描限频为每日一次。
             try:
                 from backend.config.settings import MIDLONG_FACTOR_RESEARCH_ENABLED
                 if MIDLONG_FACTOR_RESEARCH_ENABLED:
                     from backend.services.factor_engine.midlong_registry_factors import (
                         seed_registry_candidates,
-                    )
-                    from backend.services.factor_engine.factor_jobs import (
-                        run_scan_registry_midlong,
                     )
                     if not getattr(self, "_registry_seeded", False):
                         _rseed = seed_registry_candidates(["4h", "1d"])
@@ -498,10 +527,16 @@ class EvolutionScheduler:
                         logger.info(
                             f"[EvoScheduler] registry 中线候选登记: {_rseed.get('registered')}"
                         )
-                    _scan_job = run_scan_registry_midlong(limit=200)
-                    logger.info(
-                        f"[EvoScheduler] 中线 registry 扫描已排队（single-flight job={_scan_job.id}）"
-                    )
+                    if _midlong_scan_due("registry_scan", min_interval_sec=22 * 3600):
+                        from backend.services.factor_engine.factor_jobs import (
+                            run_scan_registry_midlong,
+                        )
+                        _scan_job = run_scan_registry_midlong(limit=200)
+                        logger.info(
+                            f"[EvoScheduler] 中线 registry 扫描已排队（single-flight job={_scan_job.id}）"
+                        )
+                    else:
+                        logger.info("[EvoScheduler] 中线 registry 扫描今日已跑，跳过（重启去重）")
             except Exception as _rs_err:
                 logger.debug(f"[EvoScheduler] registry 中线扫描跳过: {_rs_err}")
 
