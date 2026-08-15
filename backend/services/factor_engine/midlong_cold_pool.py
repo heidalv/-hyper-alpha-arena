@@ -165,7 +165,7 @@ def _robust_rolling_ic(factor: np.ndarray, closes: np.ndarray, fwd: int, window:
     反复调用时触发 pandas C 层递归栈溢出，进程卡死。此处改用纯 numpy，
     数学口径一致（Pearson IC），避开 pandas rank。
     """
-    f = np.asarray(factor, dtype=float)
+    f = np.asarray(factor, dtype=float).ravel()
     r = np.full(len(closes), np.nan)
     r[:-fwd] = (closes[fwd:] - closes[:-fwd]) / closes[:-fwd]
     ics = []
@@ -176,12 +176,17 @@ def _robust_rolling_ic(factor: np.ndarray, closes: np.ndarray, fwd: int, window:
         if int(m.sum()) < 30:
             ics.append(0.0)
             continue
-        fs, rs = fs[m], rs[m]
-        if float(np.std(fs)) < 1e-12 or float(np.std(rs)) < 1e-12:
+        xs = fs[m] - float(np.mean(fs[m]))
+        ys = rs[m] - float(np.mean(rs[m]))
+        denom = float(np.sqrt(np.sum(xs * xs)) * np.sqrt(np.sum(ys * ys)))
+        if denom < 1e-12:
             ics.append(0.0)
             continue
-        c = np.corrcoef(fs, rs)[0, 1]
-        ics.append(float(c) if np.isfinite(c) else 0.0)
+        # [2026-08-15] 手写 Pearson：np.corrcoef→np.cov 在冷池大批量退化
+        # 数据上会触发 numpy 警告洪泛（Degrees of freedom / Mean of empty
+        # slice）把进程压死，这里完全绕开 cov。
+        c = float(np.sum(xs * ys) / denom)
+        ics.append(c if np.isfinite(c) else 0.0)
     if not ics:
         return 0.0, 0.0
     arr = np.asarray(ics, dtype=float)
