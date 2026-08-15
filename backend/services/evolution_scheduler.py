@@ -62,8 +62,8 @@ def _get_full_param_ranges() -> Dict[str, Tuple[float, float]]:
         return base
 
 
-_SCAN_MARKER_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+_SCAN_MARKER_FILE = _os.path.join(
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
     "data", "midlong_scan_markers.json",
 )
 
@@ -72,9 +72,10 @@ def _midlong_scan_due(marker_key: str, min_interval_sec: float) -> bool:
     """落盘标记限频：weekly_evolution 每次重启后 ~60s 首跑，扫描若不加闸门会反复排队。"""
     try:
         import json as _json
-        now = time.time()
+        import time as _time
+        now = _time.time()
         data = {}
-        if os.path.exists(_SCAN_MARKER_FILE):
+        if _os.path.exists(_SCAN_MARKER_FILE):
             try:
                 with open(_SCAN_MARKER_FILE, "r", encoding="utf-8") as _f:
                     data = _json.load(_f) or {}
@@ -84,7 +85,7 @@ def _midlong_scan_due(marker_key: str, min_interval_sec: float) -> bool:
         if now - last < min_interval_sec:
             return False
         data[marker_key] = now
-        os.makedirs(os.path.dirname(_SCAN_MARKER_FILE), exist_ok=True)
+        _os.makedirs(_os.path.dirname(_SCAN_MARKER_FILE), exist_ok=True)
         with open(_SCAN_MARKER_FILE, "w", encoding="utf-8") as _f:
             _json.dump(data, _f)
         return True
