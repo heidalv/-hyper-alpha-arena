@@ -101,9 +101,59 @@ class MidLongActiveFactorSet:
             if not fid:
                 continue
             if not formula:
-                # [2026-08-14 弹药扩源] kind=registry 因子无公式：由
-                # scan_registry_midlong 负责复评，本函数只处理公式因子。
-                logger.debug("[MidLongFactorSet] 跳过 registry 因子复检: %s", fid)
+                # [2026-08-15 因子化闭环] registry 因子（无公式）此前被跳过、
+                # 永无复检/退役路径。现用与 scan_registry_midlong 相同的打分器
+                # 复评：衰减/降级同样收敛回 rejected/candidate。
+                try:
+                    from backend.services.factor_engine.midlong_registry_factors import (
+                        _score_one_registry_factor,
+                    )
+                    _reg_fid = str((rec.get("extra") or {}).get("registry_factor_id") or fid)
+                    _tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
+                    r = _score_one_registry_factor(fid, _reg_fid, _tf)
+                    if not r or str(r.get("reason") or "") == "有效样本不足":
+                        continue
+                    _g = str(r.get("grade") or "F")
+                    _ic = float(r.get("ic_mean") or 0.0)
+                    checked += 1
+                    _scores = {
+                        "ic_mean": r.get("ic_mean", 0.0),
+                        "icir": r.get("icir", 0.0),
+                        "ic_decay_halflife": r.get("ic_decay_halflife", 0),
+                        "monotonicity": r.get("monotonicity", 0.0),
+                        "oos_net_return": r.get("oos_net_return", 0.0),
+                        "oos_sharpe": r.get("oos_sharpe", 0.0),
+                        "oos_win_rate": r.get("oos_win_rate", 0.0),
+                        "oos_trades": r.get("oos_trades", 0),
+                        "per_symbol": r.get("per_symbol") or {},
+                        "reason": r.get("reason", ""),
+                    }
+                    if abs(_ic) < _RETIRE_ABS_IC or _g in ("D", "F"):
+                        custom_factor_store.update_scores(
+                            fid, grade=_g, scores=_scores, status="rejected",
+                            tenant_id=_resolve_tenant_id(),
+                        )
+                        self._detach_from_engine(fid)
+                        retired += 1
+                        logger.info(
+                            "[MidLongFactorSet] 退役 registry 因子 %s tf=%s (|IC|=%.3f grade=%s)",
+                            fid, _tf, abs(_ic), _g,
+                        )
+                    elif _g == "C":
+                        custom_factor_store.update_scores(
+                            fid, grade=_g, scores=_scores, status="candidate",
+                            tenant_id=_resolve_tenant_id(),
+                        )
+                        self._detach_from_engine(fid)
+                        reduced += 1
+                        logger.info("[MidLongFactorSet] 降级 registry 因子 %s tf=%s (grade=C)", fid, _tf)
+                    else:
+                        custom_factor_store.update_scores(
+                            fid, grade=_g, scores=_scores, status="active",
+                            tenant_id=_resolve_tenant_id(),
+                        )
+                except Exception as e:
+                    logger.debug("[MidLongFactorSet] registry 复检 %s 跳过: %s", fid, e)
                 continue
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
             try:
