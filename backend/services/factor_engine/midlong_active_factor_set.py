@@ -128,7 +128,18 @@ class MidLongActiveFactorSet:
                         "per_symbol": r.get("per_symbol") or {},
                         "reason": r.get("reason", ""),
                     }
-                    if abs(_ic) < _RETIRE_ABS_IC or _g in ("D", "F"):
+                    _failed = abs(_ic) < _RETIRE_ABS_IC or _g in ("D", "F")
+                    _weak = _g == "C"
+                    # [2026-08-15 去抖] 单次复检受窗口滑动 1-2 根 K 线影响即可 A↔C
+                    # 翻跳（macd@4h：IC 同 -0.117，sharpe 0.83→0.21）。降级/退役
+                    # 须连续两次复检失败，避免因子池震荡、路由反复换因子。
+                    _extra = rec.setdefault("extra", {})
+                    if _failed or _weak:
+                        _fails = int(_extra.get("recheck_fails") or 0) + 1
+                        _extra["recheck_fails"] = _fails
+                    else:
+                        _extra["recheck_fails"] = 0
+                    if _failed and _extra["recheck_fails"] >= 2:
                         custom_factor_store.update_scores(
                             fid, grade=_g, scores=_scores, status="rejected",
                             tenant_id=_resolve_tenant_id(),
@@ -139,18 +150,26 @@ class MidLongActiveFactorSet:
                             "[MidLongFactorSet] 退役 registry 因子 %s tf=%s (|IC|=%.3f grade=%s)",
                             fid, _tf, abs(_ic), _g,
                         )
-                    elif _g == "C":
+                    elif _weak and _extra["recheck_fails"] >= 2:
                         custom_factor_store.update_scores(
                             fid, grade=_g, scores=_scores, status="candidate",
                             tenant_id=_resolve_tenant_id(),
                         )
                         self._detach_from_engine(fid)
                         reduced += 1
-                        logger.info("[MidLongFactorSet] 降级 registry 因子 %s tf=%s (grade=C)", fid, _tf)
+                        logger.info(
+                            "[MidLongFactorSet] 降级 registry 因子 %s tf=%s (grade=C, 连续%d次)",
+                            fid, _tf, _extra["recheck_fails"],
+                        )
                     else:
+                        # 保留 active 但刷新分数（单次波动不摘牌）
                         custom_factor_store.update_scores(
-                            fid, grade=_g, scores=_scores, status="active",
-                            tenant_id=_resolve_tenant_id(),
+                            fid, grade=rec.get("grade") or _g, scores=_scores,
+                            status="active", tenant_id=_resolve_tenant_id(),
+                        )
+                        logger.info(
+                            "[MidLongFactorSet] registry 复检保持 %s tf=%s grade=%s fails=%d",
+                            fid, _tf, _g, _extra["recheck_fails"],
                         )
                 except Exception as e:
                     logger.debug("[MidLongFactorSet] registry 复检 %s 跳过: %s", fid, e)
