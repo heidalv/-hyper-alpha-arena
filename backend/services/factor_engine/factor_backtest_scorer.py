@@ -417,14 +417,17 @@ class FactorBacktestScorer:
         # 同样有效，不应因符号被误判。准入还要求样本外风险调整收益达标（perf_ok）。
         abs_ic = abs(result.ic_mean)
         abs_icir = abs(result.icir)
-        # [2026-08-13 P1-7] min_net 收紧：每笔平均净收益须覆盖往返成本 + 0.05% 缓冲，
-        # 不再允许「总净收益>0 但每笔利润薄过成本」的因子准入。
+        # [2026-08-13 P1-7] min_net 收紧：每笔平均净收益须为正且有 5bps 缓冲。
+        # [2026-08-15 校准修复] walk-forward 已按换手逐笔扣除成本（gross - trade_cost
+        # - funding），此处再要求 > cost+buffer 属于**双重扣费**：会把 sharpe 2+ 的
+        # 高频因子（如 liq_magnet_rev：600 笔 × 0.09% 净利）全部拒掉。
+        # 改为仅要求「扣费后每笔净利 > 5bps 缓冲」，成本由回测层单次扣除。
         _avg_net_per_trade = (net_total / max(trades_total, 1)) if trades_total > 0 else 0.0
         _net_buffer = float(_cfg("FACTOR_SCORER_NET_BUFFER", 0.0005))
         perf_ok = (
             result.oos_sharpe >= min_sharpe
             and result.oos_net_return > min_net
-            and _avg_net_per_trade > (cost + _net_buffer)
+            and _avg_net_per_trade > _net_buffer
         )
         if result.redundant_with:
             result.grade = "C"

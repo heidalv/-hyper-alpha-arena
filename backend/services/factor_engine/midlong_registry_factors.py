@@ -96,10 +96,12 @@ def _grade_from_metrics(
     from backend.config import settings as _s
 
     net_buffer = float(getattr(_s, "FACTOR_SCORER_NET_BUFFER", 0.0005))
+    # [2026-08-15 校准修复] walk-forward 已扣成本，此处不再双重扣费（同
+    # factor_backtest_scorer._grade）：仅要求扣费后每笔净利 > 缓冲。
     perf_ok = (
         oos_sharpe >= min_sharpe
         and oos_net > min_net
-        and avg_net_per_trade > (cost + net_buffer)
+        and avg_net_per_trade > net_buffer
     )
     abs_ic = abs(ic_mean)
     abs_icir = abs(icir)

@@ -40,6 +40,17 @@ _SYMBOLS = ("BTC", "ETH", "SOL")
 _FWD_VARIANTS = {"4h": (3, 4, 6), "1d": (1, 2, 3)}
 _REPORT_PATH = os.path.join("data", "midlong_cold_pool_report.json")
 
+# [2026-08-15 前视防护] 冷池里大量因子用 close.shift(-N) 引未来数据（如
+# ai_gen_liq_magnet_rev 的 shift(-2)，ICIR 2.4 全靠前视作弊）。公式因子有 AST
+# 审计，Python 类因子此前漏检 → 这里做源码级静态拦截。
+import re as _re
+
+_LOOKAHEAD_RE = _re.compile(r"\.shift\(\s*-\s*\d+")
+
+
+def _is_lookahead_source(src: str) -> bool:
+    return bool(_LOOKAHEAD_RE.search(src))
+
 
 def _cfg(name: str, default):
     from backend.config import settings as _s
@@ -83,6 +94,7 @@ def load_cold_factor_classes(
     loaded: List[Tuple[str, type]] = []
     errors = 0
     syntax_skipped = 0
+    lookahead_skipped = 0
     try:
         for dname in dirs:
             d = os.path.join(factors_root, dname)
@@ -91,14 +103,26 @@ def load_cold_factor_classes(
             for fname in sorted(os.listdir(d)):
                 if not fname.endswith(".py"):
                     continue
-                if max_files is not None and len(loaded) + errors + syntax_skipped >= max_files:
+                if max_files is not None and (
+                    len(loaded) + errors + syntax_skipped + lookahead_skipped >= max_files
+                ):
                     break
                 fpath = os.path.join(d, fname)
+                # [2026-08-15 前视防护] 源码含 shift(-N)（引未来数据）的因子直接跳过，
+                # 不进隔离注册也不打分——避免前视因子霸榜 top_by_ic 误导选因子。
+                try:
+                    with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                        _src = f.read()
+                except Exception:
+                    errors += 1
+                    continue
+                if _is_lookahead_source(_src):
+                    lookahead_skipped += 1
+                    continue
                 # [2026-08-14 防护] 预编译过滤：隔离区大量文件语法损坏（类名带空格等），
                 # 先 compile 快筛，避免 exec_module 抛错浪费时间。
                 try:
-                    with open(fpath, "r", encoding="utf-8", errors="replace") as f:
-                        compile(f.read(), fpath, "exec")
+                    compile(_src, fpath, "exec")
                 except Exception:
                     syntax_skipped += 1
                     continue
@@ -123,13 +147,13 @@ def load_cold_factor_classes(
                                 errors += 1
                 except Exception:
                     errors += 1
-                if (len(loaded) + errors + syntax_skipped) % 100 == 0:
-                    logger.info("[ColdPool] 加载进度: ok=%d 失败=%d 语法跳过=%d",
-                                len(loaded), errors, syntax_skipped)
+                if (len(loaded) + errors + syntax_skipped + lookahead_skipped) % 100 == 0:
+                    logger.info("[ColdPool] 加载进度: ok=%d 失败=%d 语法跳过=%d 前视跳过=%d",
+                                len(loaded), errors, syntax_skipped, lookahead_skipped)
     finally:
         _fr_mod.registry = _orig_registry   # 还原
-    logger.info("[ColdPool] 加载 %d 个冷池因子类（失败 %d，语法跳过 %d）",
-                len(loaded), errors, syntax_skipped)
+    logger.info("[ColdPool] 加载 %d 个冷池因子类（失败 %d，语法跳过 %d，前视跳过 %d）",
+                len(loaded), errors, syntax_skipped, lookahead_skipped)
     return loaded
 
 
