@@ -157,6 +157,40 @@ def load_cold_factor_classes(
     return loaded
 
 
+def _robust_rolling_ic(factor: np.ndarray, closes: np.ndarray, fwd: int, window: int = 120):
+    """numpy 版滚动 Pearson IC + ICIR（冷池专用）。
+
+    [2026-08-15] 原路径 evaluator.evaluate_factor → _rolling_ic 用
+    pandas `Series.rank().corr()`，在冷池大批量（1130 因子 × 多 fwd 变体 × 3 币）
+    反复调用时触发 pandas C 层递归栈溢出，进程卡死。此处改用纯 numpy，
+    数学口径一致（Pearson IC），避开 pandas rank。
+    """
+    f = np.asarray(factor, dtype=float)
+    r = np.full(len(closes), np.nan)
+    r[:-fwd] = (closes[fwd:] - closes[:-fwd]) / closes[:-fwd]
+    ics = []
+    for i in range(window, len(f)):
+        fs = f[i - window:i]
+        rs = r[i - window:i]
+        m = np.isfinite(fs) & np.isfinite(rs)
+        if int(m.sum()) < 30:
+            ics.append(0.0)
+            continue
+        fs, rs = fs[m], rs[m]
+        if float(np.std(fs)) < 1e-12 or float(np.std(rs)) < 1e-12:
+            ics.append(0.0)
+            continue
+        c = np.corrcoef(fs, rs)[0, 1]
+        ics.append(float(c) if np.isfinite(c) else 0.0)
+    if not ics:
+        return 0.0, 0.0
+    arr = np.asarray(ics, dtype=float)
+    ic_mean = float(np.mean(arr))
+    std = float(np.std(arr))
+    icir = ic_mean / std if std > 1e-12 else 0.0
+    return ic_mean, icir
+
+
 def _score_series(fid: str, vals: np.ndarray, closes: np.ndarray, fwd: int,
                   cost: float, funding_per_hold: float, bars_per_year: int,
                   evaluator) -> Optional[Dict[str, Any]]:
@@ -164,16 +198,9 @@ def _score_series(fid: str, vals: np.ndarray, closes: np.ndarray, fwd: int,
 
     if not np.isfinite(vals).sum() >= 60:
         return None
-    ic = None
-    try:
-        rep = evaluator.evaluate_factor(fid, pd.Series(vals), pd.Series(closes), forward_period=fwd)
-        if rep.data_points >= 30:
-            ic = rep.ic_mean
-            icir = rep.icir
-        else:
-            ic = icir = 0.0
-    except Exception:
-        ic = icir = 0.0
+    # [2026-08-15] IC/ICIR 走 numpy 滚动实现，避开 pandas rank 崩溃；evaluator
+    # 参数保留兼容签名（不再调用）。
+    ic, icir = _robust_rolling_ic(vals, closes, fwd)
     bt = factor_backtest_scorer._walk_forward_backtest(
         vals, closes, fwd, cost,
         funding_per_hold=funding_per_hold, bars_per_year=bars_per_year,
