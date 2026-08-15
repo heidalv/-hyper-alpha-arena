@@ -250,6 +250,12 @@ def factor_route_open(
             logger.debug("[FactorRoute] 持仓检查跳过 %s: %s", sym, _pos_err)
 
         try:
+            # [2026-08-15] 与长线趋势路径同款：注入多周期指标信封，否则 V5 提案闸
+            # [StrictData] tier=mid missing=indicators_1h/4h/1d 会拦下所有因子路由开仓。
+            try:
+                host.inject_midlong_indicators(market_summary or {}, sym)
+            except Exception as _inj_err:
+                logger.debug("[FactorRoute] 指标注入跳过 %s: %s", sym, _inj_err)
             _ok = execute_midlong_open(
                 host=host,
                 db=_db,
