@@ -499,13 +499,21 @@ def analyze_kline_chart(
             logger.error(f"Failed to render prompt: {e}")
             prompt = KLINE_ANALYSIS_PROMPT_TEMPLATE
 
+    # [2026-08-15 LLM 统一重构] 统一配置中心解析（fail-closed，不回退旧字段）
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        _llm = resolve_llm_for_legacy_account(account, usage="kline_analysis", tier="deep")
+        if not (_llm and getattr(_llm, "api_key", None)):
+            logger.error("统一 LLM 配置解析失败 account=%s，拒绝调用", getattr(account, "id", "?"))
+            return {"error": "LLM 配置缺失（统一配置中心解析失败）"}
+
     # Build API request
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {account.api_key}",
+            "Authorization": f"Bearer {_llm.api_key}",
         }
 
-        model_lower = (account.model or "").lower()
+        model_lower = (_llm.model or "").lower()
         is_reasoning_model = any(
             marker in model_lower for marker in [
                 "gpt-5", "o1-preview", "o1-mini", "o1-", "o3-", "o4-",
@@ -520,7 +528,7 @@ def analyze_kline_chart(
         is_new_model = is_reasoning_model or any(marker in model_lower for marker in ["gpt-4o"])
 
         payload = {
-            "model": account.model,
+            "model": _llm.model,
             "messages": [
                 {
                     "role": "user",
@@ -538,7 +546,7 @@ def analyze_kline_chart(
             payload["max_tokens"] = 4000
 
         # Call AI API
-        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        endpoints = build_chat_completion_endpoints(_llm.base_url, _llm.model)
         if not endpoints:
             logger.error(f"No valid API endpoint for account {account.name}")
             return {"error": "Failed to build API endpoint"}
@@ -548,7 +556,7 @@ def analyze_kline_chart(
         success = False
         request_timeout = 600  # 10 minutes for all models (reasoning models can be very slow)
 
-        logger.info(f"[K-line AI API] Starting AI API call: model={account.model}, timeout={request_timeout}s, "
+        logger.info(f"[K-line AI API] Starting AI API call: model={_llm.model}, timeout={request_timeout}s, "
                    f"endpoints={len(endpoints)}, max_retries={max_retries}")
 
         for endpoint_idx, endpoint in enumerate(endpoints):
@@ -636,7 +644,7 @@ def analyze_kline_chart(
                 symbol=symbol,
                 period=period,
                 user_message=user_message,
-                model_used=account.model,
+                model_used=_llm.model,
                 prompt_snapshot=prompt,
                 analysis_result=analysis_text,
             )
@@ -654,7 +662,7 @@ def analyze_kline_chart(
                 "analysis_id": analysis_log.id,
                 "symbol": symbol,
                 "period": period,
-                "model": account.model,
+                "model": _llm.model,
                 "trader_name": account.name,
                 "analysis": analysis_text,
                 "created_at": analysis_log.created_at.isoformat() if analysis_log.created_at else None,

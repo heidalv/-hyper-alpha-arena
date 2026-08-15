@@ -279,14 +279,25 @@ def generate_signal_with_ai(
 
         logger.info(f"[AI Signal Gen {request_id}] Built message context: {len(messages)} messages total")
 
+        # [2026-08-15 LLM 统一重构] 模型/base_url/key 走统一配置中心（fail-closed）
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        _llm = resolve_llm_for_legacy_account(account, usage="assistant", tier="deep")
+        if not (_llm and getattr(_llm, "api_key", None)):
+            logger.error(
+                "[AI Signal Gen %s] 统一 LLM 配置解析失败 account=%s",
+                request_id, getattr(account, "id", "?"),
+            )
+            return {"success": False, "error": "LLM 配置缺失（统一配置中心解析失败）"}
+
         # Call LLM API with Function Calling support
-        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        endpoints = build_chat_completion_endpoints(_llm.base_url, _llm.model)
         if not endpoints:
             return {"success": False, "error": "Invalid base_url configuration"}
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {account.api_key}"
+            "Authorization": f"Bearer {_llm.api_key}"
         }
 
         # Function Calling loop (max 30 rounds, last round forces no tools)
@@ -300,7 +311,7 @@ def generate_signal_with_ai(
             logger.info(f"[AI Signal Gen {request_id}] Tool round {tool_round}/{max_tool_rounds} (last={is_last_round})")
 
             request_payload = {
-                "model": account.model,
+                "model": _llm.model,
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 4096,
@@ -641,7 +652,15 @@ def _tool_backtest_threshold(
 def _tool_get_kline_context(
     db: Session, symbol: str, timestamps: List[int], time_window: str
 ) -> Dict[str, Any]:
-    """Get K-line price data around specific timestamps."""
+    """Get K-line price data around specific timestamps (LLM 工具参数，毫秒)。
+
+    [2026-08-15 P0-2 修复] 原实现引用未定义变量 min_ts/max_ts，DC_ONLY 分支与
+    旧 HL 直连分支必然 NameError，工具从未可用。现改为：
+    - 由传入 timestamps（毫秒）计算查询窗口（最早点前 2 根、最晚点后 1 根）；
+    - DC_ONLY 下走 kline_service.query_klines（crypto_klines 时间戳为秒），
+      数据源取当前决策所（active_exchange），与 purpose=trade 同源；
+    - 毫秒时间戳与秒级 bar 起点按周期对齐匹配。
+    """
     # Map time_window to Hyperliquid interval format
     interval_map = {
         "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m",
@@ -649,25 +668,47 @@ def _tool_get_kline_context(
     }
     interval = interval_map.get(time_window, "5m")
     interval_ms = TIMEFRAME_MS.get(time_window, 300000)
+    interval_s = max(1, int(interval_ms // 1000))
 
-    # Limit to 10 timestamps
-    timestamps = timestamps[:10]
-    if not timestamps:
+    # Limit to 10 timestamps（去重、排序，容忍字符串数字）
+    clean_ts: List[int] = []
+    for t in (timestamps or []):
+        try:
+            v = int(t)
+        except (TypeError, ValueError):
+            continue
+        if v > 0 and v not in clean_ts:
+            clean_ts.append(v)
+    clean_ts = sorted(clean_ts)[:10]
+    if not clean_ts:
         return {"error": "No timestamps provided"}
 
-    # Fetch K-lines from Hyperliquid API
+    min_ts_ms = min(clean_ts) - 2 * interval_ms
+    max_ts_ms = max(clean_ts) + interval_ms
+    min_ts_s = int(min_ts_ms // 1000)
+    max_ts_s = int(max_ts_ms // 1000) + 1
+
+    def _bar_start_s(ts_ms: int) -> int:
+        """毫秒时间戳 → 所属 bar 的秒级起点（与 crypto_klines.timestamp 对齐）。"""
+        return (ts_ms // 1000) // interval_s * interval_s
+
     try:
-        # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止直连 HL
-        # candleSnapshot，改为读数据中心 DB。
+        kline_map: Dict[int, Dict[str, Any]] = {}
         from backend.services.market_data import _dc_only_enabled
         if _dc_only_enabled():
+            # [2026-08-15] 数据中心唯一数据源：DC_ONLY 下读 DB（原硬编码
+            # hyperliquid 已改为当前决策所，避免「交易 A 所、数据 B 所」）。
+            from backend.services.exchange_config import get_active_exchange
             from backend.services.kline_data_service import kline_service
+            query_ex = (get_active_exchange() or "asterdex").strip().lower()
+            if query_ex == "aster":
+                query_ex = "asterdex"
             rows = kline_service.query_klines(
                 symbol, time_window,
-                exchange="hyperliquid",
-                start_ts=min_ts, end_ts=max_ts,
+                exchange=query_ex,
+                start_ts=min_ts_s, end_ts=max_ts_s,
+                order="asc", purpose="research",
             ) or []
-            kline_map = {}
             for k in rows:
                 ts = int(k.get("timestamp", 0))
                 kline_map[ts] = {
@@ -678,48 +719,48 @@ def _tool_get_kline_context(
                     "volume": float(k.get("volume", 0)),
                     "timestamp": ts,
                 }
-            results = []
-            for ts in timestamps:
-                if ts in kline_map:
-                    results.append(kline_map[ts])
-            return {"klines": results}
-
-        url = "https://api.hyperliquid.xyz/info"
-        payload = {
-            "type": "candleSnapshot",
-            "req": {
-                "coin": symbol.upper(),
-                "interval": interval,
-                "startTime": min_ts,
-                "endTime": max_ts
+        else:
+            # 旧 HL 直连分支（仅 MARKET_DATA_DC_ONLY=false 应急排障时可达）
+            url = "https://api.hyperliquid.xyz/info"
+            payload = {
+                "type": "candleSnapshot",
+                "req": {
+                    "coin": symbol.upper(),
+                    "interval": interval,
+                    "startTime": min_ts_ms,
+                    "endTime": max_ts_ms
+                }
             }
-        }
-        resp = requests.post(url, json=payload, timeout=10)
-        if resp.status_code != 200:
-            return {"error": f"Failed to fetch K-lines: HTTP {resp.status_code}"}
-
-        klines = resp.json()
-        if not klines:
-            return {"error": "No K-line data returned"}
-
-        # Build K-line lookup by timestamp
-        kline_map = {}
-        for k in klines:
-            ts = k.get("t", k.get("T", 0))
-            kline_map[ts] = {
-                "open": float(k.get("o", 0)),
-                "high": float(k.get("h", 0)),
-                "low": float(k.get("l", 0)),
-                "close": float(k.get("c", 0)),
-                "volume": float(k.get("v", 0))
-            }
+            resp = requests.post(url, json=payload, timeout=10)
+            if resp.status_code != 200:
+                return {"error": f"Failed to fetch K-lines: HTTP {resp.status_code}"}
+            raw_klines = resp.json()
+            if not raw_klines:
+                return {"error": "No K-line data returned"}
+            for k in raw_klines:
+                ts_ms = int(k.get("t", k.get("T", 0)))
+                if ts_ms > 0:
+                    kline_map[_bar_start_s(ts_ms)] = {
+                        "open": float(k.get("o", 0)),
+                        "high": float(k.get("h", 0)),
+                        "low": float(k.get("l", 0)),
+                        "close": float(k.get("c", 0)),
+                        "volume": float(k.get("v", 0)),
+                        "timestamp": _bar_start_s(ts_ms),
+                    }
 
         # For each trigger timestamp, get context (before, at, after)
         contexts = []
         sorted_kline_ts = sorted(kline_map.keys())
-        for trigger_ts in timestamps:
-            # Find closest K-line
-            closest_ts = min(sorted_kline_ts, key=lambda x: abs(x - trigger_ts))
+        for trigger_ts in clean_ts:
+            target_bar = _bar_start_s(trigger_ts)
+            if not sorted_kline_ts:
+                continue
+            # 命中所在 bar；无精确命中时取最近一根
+            if target_bar in kline_map:
+                closest_ts = target_bar
+            else:
+                closest_ts = min(sorted_kline_ts, key=lambda x: abs(x - target_bar))
             idx = sorted_kline_ts.index(closest_ts)
 
             context = {"trigger_ts": trigger_ts, "klines": []}
@@ -1285,7 +1326,15 @@ def generate_signal_with_ai_stream(
             yield _sse_event("error", {"message": "AI account not found"})
             return
 
-        yield _sse_event("status", {"message": f"Using model: {account.model}"})
+        # [2026-08-15 LLM 统一重构] 统一配置中心解析（fail-closed）
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        _llm = resolve_llm_for_legacy_account(account, usage="assistant", tier="deep")
+        if not (_llm and getattr(_llm, "api_key", None)):
+            yield _sse_event("error", {"message": "LLM 配置缺失（统一配置中心解析失败）"})
+            return
+
+        yield _sse_event("status", {"message": f"Using model: {_llm.model}"})
 
         # Get or create conversation
         conversation = None
@@ -1322,14 +1371,14 @@ def generate_signal_with_ai_stream(
         messages.append({"role": "user", "content": user_message})
 
         # Build endpoints and headers
-        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        endpoints = build_chat_completion_endpoints(_llm.base_url, _llm.model)
         if not endpoints:
             yield _sse_event("error", {"message": "Invalid base_url configuration"})
             return
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {account.api_key}"
+            "Authorization": f"Bearer {_llm.api_key}"
         }
 
         yield _sse_event("status", {"message": "Analyzing your request..."})
@@ -1352,7 +1401,7 @@ def generate_signal_with_ai_stream(
             })
 
             request_payload = {
-                "model": account.model,
+                "model": _llm.model,
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 4096,

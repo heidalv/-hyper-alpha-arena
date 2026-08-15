@@ -150,8 +150,23 @@ def generate_prompt_with_ai(
 
         logger.info(f"[AI Prompt Gen {request_id}] Built message context: {len(messages)} messages total")
 
+        # [2026-08-15 LLM 统一重构] 模型/base_url/key 一律走统一配置中心，
+        # 废弃 Account.model/base_url/api_key 旧字段直读（防绕过统一默认）。
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        _llm = resolve_llm_for_legacy_account(account, usage="assistant", tier="deep")
+        if not (_llm and getattr(_llm, "api_key", None)):
+            logger.error(
+                "[AI Prompt Gen %s] 统一 LLM 配置解析失败（account=%s tenant=%s），拒绝直读旧字段",
+                request_id, getattr(account, "id", "?"), getattr(account, "user_id", None),
+            )
+            return {"success": False, "error": "LLM 配置缺失（统一配置中心解析失败）"}
+        _model = _llm.model
+        _base_url = _llm.base_url
+        _api_key = _llm.api_key
+
         # Call LLM API
-        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        endpoints = build_chat_completion_endpoints(_base_url, _model)
 
         if not endpoints:
             return {
@@ -161,7 +176,7 @@ def generate_prompt_with_ai(
 
         # Prepare request payload
         request_payload = {
-            "model": account.model,
+            "model": _model,
             "messages": messages,
             "temperature": 0.7,
             "max_tokens": 4096,
@@ -169,7 +184,7 @@ def generate_prompt_with_ai(
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {account.api_key}"
+            "Authorization": f"Bearer {_api_key}"
         }
 
         # Try endpoints
@@ -396,20 +411,28 @@ class AiPromptGenerationService:
             if content:
                 api_messages.append({"role": role, "content": content})
 
-        endpoints = build_chat_completion_endpoints(acc.base_url, acc.model)
+        # [2026-08-15 LLM 统一重构] 统一配置中心解析（fail-closed，不回退旧字段）
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        _llm = resolve_llm_for_legacy_account(acc, usage="assistant", tier="deep")
+        if not (_llm and getattr(_llm, "api_key", None)):
+            logger.error("[AiPromptGen] 统一 LLM 配置解析失败 account=%s", getattr(acc, "id", "?"))
+            return None
+
+        endpoints = build_chat_completion_endpoints(_llm.base_url, _llm.model)
         if not endpoints:
             logger.warning("[AiPromptGen] 无法从 base_url 构建 endpoint")
             return None
 
         payload = {
-            "model": acc.model or "gpt-4",
+            "model": _llm.model,
             "messages": api_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {acc.api_key}",
+            "Authorization": f"Bearer {_llm.api_key}",
         }
         response = None
         for endpoint in endpoints:

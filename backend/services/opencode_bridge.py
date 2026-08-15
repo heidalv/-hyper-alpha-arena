@@ -1,4 +1,4 @@
-﻿"""OpenCode Bridge — 通过 Sidecar HTTP Session 调用 plan agent（DeepSeek 在 opencode.json 内配置）。"""
+"""OpenCode Bridge — 通过 Sidecar HTTP Session 调用 plan agent（DeepSeek 在 opencode.json 内配置）。"""
 
 from __future__ import annotations
 
@@ -76,11 +76,9 @@ def _model() -> str:
             return slug
     except Exception as exc:
         logger.debug("[OpenCodeBridge] 默认模型通道读取失败: %s", exc)
-    try:
-        from backend.config.settings import OPENCODE_MODEL
-        return OPENCODE_MODEL or "deepseek/deepseek-v4-flash"
-    except Exception:
-        return "deepseek/deepseek-v4-flash"
+    # [2026-08-15 LLM 统一重构] 删除 OPENCODE_MODEL 环境变量后门：
+    # 模型只由租户默认配置决定，此处为无配置时的静态兜底。
+    return "deepseek/deepseek-v4-flash"
 
 
 def _agent_plan() -> str:

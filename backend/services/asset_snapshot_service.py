@@ -22,6 +22,17 @@ logger = logging.getLogger(__name__)
 SNAPSHOT_RETENTION_HOURS = 24 * 30  # Keep 30 days of asset snapshots
 
 
+def _resolved_account_model(account: Account) -> str:
+    """[2026-08-15 LLM 统一重构] 展示用模型名：统一配置中心解析，失败返回空串。"""
+    try:
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        cfg = resolve_llm_for_legacy_account(account, usage="legacy", tier="quick")
+        return str(cfg.model or "") if cfg else ""
+    except Exception:
+        return ""
+
+
 def _get_active_accounts(db: Session) -> List[Account]:
     # Arena AI + Paper 都需要权益快照；仅排除明确停用账户
     return (
@@ -94,7 +105,8 @@ def handle_price_update(event: Dict[str, Any]) -> None:
                         {
                             "account_id": account.id,
                             "account_name": account.name,
-                            "model": account.model,
+                            # [2026-08-15 LLM 统一重构] 展示模型以统一配置中心解析为准
+                            "model": _resolved_account_model(account),
                             "available_cash": round(available_cash, 2),
                             "frozen_cash": round(frozen_cash, 2),
                             "positions_value": round(positions_value, 2),
@@ -157,7 +169,7 @@ def handle_price_update(event: Dict[str, Any]) -> None:
                     {
                         "account_id": account.id,
                         "account_name": account.name,
-                        "model": account.model,
+                        "model": _resolved_account_model(account),
                         "available_cash": round(available_cash, 2),
                         "frozen_cash": round(frozen_cash, 2),
                         "positions_value": round(positions_value, 2),

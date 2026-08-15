@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Decision Service - Handles AI model API calls for trading decisions
 """
 import logging
@@ -2352,12 +2352,27 @@ def call_ai_for_decision(
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {account.api_key}",
+        "Authorization": f"Bearer {_api_key}",
     }
 
     # Use OpenAI-compatible chat completions format
     # Detect model type for appropriate parameter handling
-    model_lower = (account.model or "").lower()
+    # [2026-08-15 LLM 统一重构] 模型/base_url/key 走统一配置中心，
+    # 废弃 account.model/base_url/api_key 直读（防绕过统一默认）。
+    from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+    _llm = resolve_llm_for_legacy_account(account, usage="trading", tier="deep")
+    if not (_llm and getattr(_llm, "api_key", None)):
+        logger.error(
+            "[ai_decision] 统一 LLM 配置解析失败 account=%s tenant=%s，拒绝调用",
+            getattr(account, "id", "?"), getattr(account, "user_id", None),
+        )
+        return None
+    _model = _llm.model
+    _base_url = _llm.base_url
+    _api_key = _llm.api_key
+
+    model_lower = (_model or "").lower()
 
     # Reasoning models that don't support temperature parameter
     # Support multi-vendor reasoning models: OpenAI, DeepSeek, Qwen, Claude, Gemini, Grok
@@ -2380,7 +2395,7 @@ def call_ai_for_decision(
     )
 
     payload = {
-        "model": account.model,
+        "model": _model,
         "messages": [
             {
                 "role": "user",
@@ -2414,7 +2429,7 @@ def call_ai_for_decision(
             from backend.services.deepseek_thinking import apply_deepseek_thinking_to_payload
             apply_deepseek_thinking_to_payload(
                 payload,
-                model=account.model,
+                model=_model,
                 caller=f"ai_decision:{getattr(account, 'name', '') or account.id}",
             )
         except Exception:
@@ -2422,18 +2437,18 @@ def call_ai_for_decision(
 
     # Enable streaming for deepseek-reasoner to handle high-load scenarios
     # DeepSeek official recommendation: use streaming to avoid 30s timeout during high load
-    use_streaming = (account.model == "deepseek-reasoner")
+    use_streaming = (_model == "deepseek-reasoner")
     if use_streaming:
         payload["stream"] = True
 
     try:
-        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
+        endpoints = build_chat_completion_endpoints(_base_url, _model)
         if not endpoints:
             logger.error("No valid API endpoint built for account %s", account.name)
             system_logger.log_error(
                 "API_ENDPOINT_BUILD_FAILED",
-                f"Failed to build API endpoint for {account.name} (model: {account.model})",
-                {"account": account.name, "model": account.model, "base_url": account.base_url},
+                f"Failed to build API endpoint for {account.name} (model: {_model})",
+                {"account": account.name, "model": _model, "base_url": _base_url},
             )
             return None
 
@@ -2448,7 +2463,7 @@ def call_ai_for_decision(
         _est_tokens = _total_chars // 4
         if _est_tokens > 6000:
             logger.warning(
-                f"[AI Decision] Large prompt: ~{_est_tokens} tokens for {account.model}, "
+                f"[AI Decision] Large prompt: ~{_est_tokens} tokens for {_model}, "
                 f"may cause timeout")
         # 截断超长消息防止超时
         for m in _prompt_messages:
@@ -2538,13 +2553,13 @@ def call_ai_for_decision(
                 break
 
         if not success or not response:
-            logger.error("All API endpoints failed for account %s (%s)", account.name, account.model)
+            logger.error("All API endpoints failed for account %s (%s)", account.name, _model)
             system_logger.log_error(
                 "AI_API_ALL_ENDPOINTS_FAILED",
                 f"All API endpoints failed for {account.name}",
                 {
                     "account": account.name,
-                    "model": account.model,
+                    "model": _model,
                     "endpoints_tried": [str(ep) for ep in endpoints],
                     "max_retries": max_retries,
                 },
@@ -2618,7 +2633,7 @@ def call_ai_for_decision(
                 t_tokens = usage_data.get("total_tokens", p_tokens + c_tokens)
                 r_tokens = usage_data.get("reasoning_tokens") or usage_data.get("completion_tokens_details", {}).get("reasoning_tokens")
                 provider_name = ""
-                base = (account.base_url or "").lower()
+                base = (_base_url or "").lower()
                 if "openai" in base:
                     provider_name = "openai"
                 elif "deepseek" in base:
@@ -2644,12 +2659,12 @@ def call_ai_for_decision(
                         account_id=account.id,
                         llm_config_id=getattr(account, "llm_config_id", None),
                         provider=provider_name,
-                        model=account.model or "unknown",
+                        model=_model or "unknown",
                         reasoning_tokens=r_tokens,
                         call_type="ai_decision",
                         success=True,
                         usage_info=usage_data,
-                        base_url=account.base_url or "",
+                        base_url=_base_url or "",
                     )
                     _usage_db.close()
                 except Exception as _usage_db_err:

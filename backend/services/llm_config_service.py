@@ -169,6 +169,258 @@ def _config_to_dataclass(config: LLMConfiguration, tier: str = "quick") -> LLMCo
     )
 
 
+# ═══════════════════════════════════════════════════════════════
+# [2026-08-15 LLM 统一重构 P0] 唯一权威解析入口 + 模型白名单断言
+# 所有 get_llm_config* 变体收敛为下方 resolve_llm 的薄包装。
+# 新模块接入 LLM：只准 resolve_llm(usage=...) + call_llm_api，
+# 禁止新增配置行 / 硬编码模型名 / 读 *_MODEL 环境变量。
+# ═══════════════════════════════════════════════════════════════
+
+def _normalize_tier(tier: Optional[str]) -> str:
+    t = (tier or "quick").strip().lower()
+    return "deep" if t == "deep" else "quick"
+
+
+def _admin_guc(db) -> None:
+    """LLM 配置解析是权威查询：后台线程无 HTTP 租户上下文，需穿透 RLS。"""
+    try:
+        db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+    except Exception:
+        pass
+
+
+def resolve_llm(
+    *,
+    usage: Optional[str] = None,
+    account_id: Optional[int] = None,
+    tenant_id: Optional[int] = None,
+    tier: str = "quick",
+    config_id: Optional[int] = None,
+    allow_shared: bool = False,
+) -> Optional[LLMConfig]:
+    """**唯一权威 LLM 解析入口**（2026-08-15 统一重构）。
+
+    解析链（固定顺序，调用方不可自定义）：
+      1. 显式 config_id（须属当前租户）；
+      2. usage_scope 绑定（同租户内按用途路由）；
+      3. 账户绑定（Account.llm_config_id / llm_config_id_deep）；
+      4. 租户默认（is_default）；
+      5. 仅 allow_shared=True（运维例外）才走历史全库默认。
+    全部失败 → None（拒绝，不回退公用 Key）。
+
+    约束：无 account_id / tenant_id / config_id 且未显式 allow_shared 时，
+    FORBID_SHARED_PLATFORM_LLM=true 下直接拒绝（禁止公用默认）。
+    """
+    _tier = _normalize_tier(tier)
+    if (
+        config_id is None
+        and tenant_id is None
+        and account_id is None
+        and not allow_shared
+        and _forbid_shared_platform_llm()
+    ):
+        logger.warning("[LLM] resolve_llm 无账户/租户，拒绝公用默认配置")
+        return None
+
+    cache_key = (
+        f"resolve_{config_id or '-'}|{usage or '-'}|{account_id or '-'}|"
+        f"{tenant_id or '-'}|{_tier}|{int(allow_shared)}"
+    )
+    now = time.time()
+    with _config_cache_lock:
+        cached = _config_cache.get(cache_key)
+        if cached and now - cached["ts"] < _CONFIG_CACHE_TTL:
+            return cached["value"]
+
+    # account → tenant 预解析（usage/默认链都要用）
+    resolved_tenant = tenant_id
+    if resolved_tenant is None and account_id is not None:
+        db0 = SessionLocal()
+        try:
+            _admin_guc(db0)
+            acc = db0.query(Account).filter(Account.id == account_id).first()
+            if acc and getattr(acc, "user_id", None):
+                resolved_tenant = int(acc.user_id)
+        except Exception as e:
+            logger.warning("[LLM] resolve tenant for account %s: %s", account_id, e)
+        finally:
+            db0.close()
+
+    db = SessionLocal()
+    try:
+        _admin_guc(db)
+        config: Optional[LLMConfiguration] = None
+
+        # 1. 显式 config_id
+        if config_id is not None:
+            q = db.query(LLMConfiguration).filter(
+                LLMConfiguration.id == config_id,
+                LLMConfiguration.is_active == "true",
+            )
+            if resolved_tenant is not None:
+                q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
+            config = q.first()
+
+        # 2. usage_scope 绑定
+        if config is None and usage:
+            q = db.query(LLMConfiguration).filter(
+                LLMConfiguration.is_active == "true",
+                LLMConfiguration.usage_scope.isnot(None),
+                LLMConfiguration.usage_scope != "",
+                LLMConfiguration.usage_scope.like(f"%{usage}%"),
+            )
+            if resolved_tenant is not None:
+                q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
+            config = q.order_by(
+                LLMConfiguration.is_default.desc(),
+                LLMConfiguration.usage_count.desc(),
+                LLMConfiguration.name,
+            ).first()
+
+        # 3. 账户绑定
+        if config is None and account_id is not None:
+            acc = db.query(Account).filter(Account.id == account_id).first()
+            if acc and getattr(acc, "user_id", None):
+                _ten = int(acc.user_id)
+                _cfg_id = (
+                    getattr(acc, "llm_config_id_deep", None)
+                    if _tier == "deep"
+                    else getattr(acc, "llm_config_id", None)
+                )
+                if _cfg_id:
+                    config = (
+                        db.query(LLMConfiguration)
+                        .filter(
+                            LLMConfiguration.id == _cfg_id,
+                            LLMConfiguration.is_active == "true",
+                            LLMConfiguration.tenant_id == _ten,
+                        )
+                        .first()
+                    )
+
+        # 4. 租户默认
+        if config is None and resolved_tenant is not None:
+            config = (
+                db.query(LLMConfiguration)
+                .filter(
+                    LLMConfiguration.tenant_id == int(resolved_tenant),
+                    LLMConfiguration.is_default == "true",
+                    LLMConfiguration.is_active == "true",
+                )
+                .first()
+            )
+            if not config:
+                config = (
+                    db.query(LLMConfiguration)
+                    .filter(
+                        LLMConfiguration.tenant_id == int(resolved_tenant),
+                        LLMConfiguration.is_active == "true",
+                        LLMConfiguration.api_key != "",
+                        LLMConfiguration.api_key.isnot(None),
+                    )
+                    .first()
+                )
+
+        # 5. 运维例外：历史全库默认
+        if config is None and allow_shared:
+            config = db.query(LLMConfiguration).filter(
+                LLMConfiguration.is_default == "true",
+                LLMConfiguration.is_active == "true",
+            ).first()
+            if not config:
+                config = db.query(LLMConfiguration).filter(
+                    LLMConfiguration.is_active == "true",
+                    LLMConfiguration.api_key != "",
+                    LLMConfiguration.api_key.isnot(None),
+                ).first()
+
+        result = _config_to_dataclass(config, tier=_tier) if config else None
+        with _config_cache_lock:
+            _config_cache[cache_key] = {"value": result, "ts": now}
+        return result
+    except Exception as e:
+        logger.error("[LLM] resolve_llm 失败: %s", e)
+        return None
+    finally:
+        db.close()
+
+
+# ── 模型白名单：防硬编码/绕行断言 ──
+_authorized_models_cache: Dict[str, Any] = {}
+
+
+def _load_authorized_models() -> set:
+    """当前所有激活配置的合法模型名集合（model + model_deep）。"""
+    with _config_cache_lock:
+        cached = _authorized_models_cache.get("models")
+        if cached and time.time() - cached["ts"] < _CONFIG_CACHE_TTL:
+            return cached["value"]
+    db = SessionLocal()
+    try:
+        _admin_guc(db)
+        rows = db.query(LLMConfiguration).filter(
+            LLMConfiguration.is_active == "true"
+        ).all()
+        models = set()
+        for r in rows:
+            for v in (r.model, getattr(r, "model_deep", None)):
+                if v and str(v).strip():
+                    models.add(str(v).strip().lower())
+        with _config_cache_lock:
+            _authorized_models_cache["models"] = {"value": models, "ts": time.time()}
+        return models
+    except Exception as e:
+        logger.warning("[LLM-AUTHORITY] 白名单加载失败: %s", e)
+        return set()
+    finally:
+        db.close()
+
+
+def _assert_model_authorized(config: LLMConfig, caller: Optional[str]) -> None:
+    """payload 模型不在任何激活配置白名单内 → ERROR 告警（先观察后收紧）。
+
+    防止任何人绕过统一配置硬编码模型名（如直接塞 deepseek-v4-pro）。
+    """
+    try:
+        m = (config.model or "").strip().lower()
+        if not m:
+            return
+        authorized = _load_authorized_models()
+        if authorized and m not in authorized:
+            logger.error(
+                "[LLM-AUTHORITY] 模型不在白名单（疑似绕过统一配置）: model=%s "
+                "cfg_id=%s caller=%s",
+                m, getattr(config, "id", None), caller or _detect_caller_module(),
+            )
+    except Exception:
+        pass
+
+
+def resolve_llm_for_legacy_account(
+    account,
+    usage: str = "legacy",
+    tier: str = "quick",
+) -> Optional[LLMConfig]:
+    """旧 `Account.model/base_url/api_key` 直读路径的统一替代（fail-closed）。
+
+    [2026-08-15 LLM 统一重构] 历史上多个服务直接用旧账户字段拼 LLM 请求，
+    绕过统一配置中心。此函数按账户归属租户走 resolve_llm；
+    账户无 user_id 或解析失败 → 返回 None（**绝不回退旧字段**）。
+    """
+    tid = None
+    try:
+        tid = getattr(account, "user_id", None)
+    except Exception:
+        tid = None
+    if not tid:
+        logger.error(
+            "[LLM-AUTHORITY] legacy account 无 user_id（%s），拒绝解析 LLM",
+            getattr(account, "id", "?"),
+        )
+        return None
+    return resolve_llm(usage=usage, tenant_id=int(tid), tier=tier)
+
+
 def _forbid_shared_platform_llm() -> bool:
     try:
         from backend.config.settings import FORBID_SHARED_PLATFORM_LLM
@@ -184,166 +436,24 @@ def get_llm_config(
     tenant_id: Optional[int] = None,
     allow_shared: bool = False,
 ) -> Optional[LLMConfig]:
-    """取 LLM 配置。
-
-    多账户规则（FORBID_SHARED_PLATFORM_LLM=true，默认开启）：
-      - **禁止**无租户的「全库星标默认 / 任意有 Key 配置」——那是公用 LLM。
-      - 传入 ``tenant_id`` 时，只在该租户自己的配置里找默认或指定 id。
-      - ``allow_shared=True`` 仅留给显式运维例外（一般不要用）。
-
-    Args:
-        config_id: 指定配置 ID（须属于 tenant_id，若提供了租户）。
-        tier: "quick" / "deep"。
-        tenant_id: 账户所属用户 id（= 租户）。
-        allow_shared: 是否允许跨租户公用默认（默认否）。
-    """
-    if (
-        config_id is None
-        and tenant_id is None
-        and not allow_shared
-        and _forbid_shared_platform_llm()
-    ):
-        logger.warning(
-            "[LLM] 拒绝公用默认配置：请为账户配置自有 LLM"
-            "（get_llm_config 未传 tenant_id）"
-        )
-        return None
-
-    cache_key = f"llm_config_{config_id or 'default'}_{tier}_t{tenant_id}_s{int(allow_shared)}"
-    now = time.time()
-
-    with _config_cache_lock:
-        cached = _config_cache.get(cache_key)
-        if cached and now - cached["ts"] < _CONFIG_CACHE_TTL:
-            return cached["value"]
-
-    db = SessionLocal()
-    try:
-        # [2026-08-04 修复] 同 get_llm_config_for_account：LLM 配置权威查询穿透 RLS，
-        # 否则后台线程查不到本租户配置，导致 MasterController/TrendAgent/MLTO 规则回退。
-        try:
-            db.connection().exec_driver_sql("SET app.is_admin = 'on'")
-        except Exception:
-            pass
-        if config_id:
-            q = db.query(LLMConfiguration).filter(
-                LLMConfiguration.id == config_id,
-                LLMConfiguration.is_active == "true",
-            )
-            if tenant_id is not None:
-                q = q.filter(LLMConfiguration.tenant_id == int(tenant_id))
-            config = q.first()
-        elif tenant_id is not None:
-            config = (
-                db.query(LLMConfiguration)
-                .filter(
-                    LLMConfiguration.tenant_id == int(tenant_id),
-                    LLMConfiguration.is_default == "true",
-                    LLMConfiguration.is_active == "true",
-                )
-                .first()
-            )
-            if not config:
-                config = (
-                    db.query(LLMConfiguration)
-                    .filter(
-                        LLMConfiguration.tenant_id == int(tenant_id),
-                        LLMConfiguration.is_active == "true",
-                        LLMConfiguration.api_key != "",
-                        LLMConfiguration.api_key.isnot(None),
-                    )
-                    .first()
-                )
-        else:
-            # 仅 allow_shared 或关闭禁止开关时才走历史「全库默认」
-            config = db.query(LLMConfiguration).filter(
-                LLMConfiguration.is_default == "true",
-                LLMConfiguration.is_active == "true",
-            ).first()
-            if not config:
-                config = db.query(LLMConfiguration).filter(
-                    LLMConfiguration.is_active == "true",
-                    LLMConfiguration.api_key != "",
-                    LLMConfiguration.api_key.isnot(None),
-                ).first()
-
-        result = _config_to_dataclass(config, tier=tier) if config else None
-
-        with _config_cache_lock:
-            _config_cache[cache_key] = {"value": result, "ts": now}
-
-        return result
-
-    except Exception as e:
-        logger.error(f"Failed to get LLM config: {e}")
-        return None
-    finally:
-        db.close()
+    """兼容包装 → resolve_llm（唯一权威入口）。"""
+    return resolve_llm(
+        config_id=config_id,
+        tenant_id=tenant_id,
+        tier=tier,
+        allow_shared=allow_shared,
+    )
 
 
 def get_llm_config_for_account(account_id: int, tier: str = "quick") -> Optional[LLMConfig]:
-    """取**本账户租户**的 LLM。未配置则返回 None，绝不串用别人的 Key。
+    """兼容包装 → resolve_llm（唯一权威入口）。
 
-    账户可在「设置」绑定 llm_config_id / llm_config_id_deep；
-    未绑定则用该用户自己的 is_default / 任意自有激活配置。
+    取**本账户租户**的 LLM。未配置则返回 None，绝不串用别人的 Key。
     """
     if not account_id:
         logger.warning("[LLM] get_llm_config_for_account 缺少 account_id，拒绝公用回退")
         return None
-
-    cache_key = f"llm_config_account_{account_id}_{tier}"
-    now = time.time()
-    with _config_cache_lock:
-        cached = _config_cache.get(cache_key)
-        if cached and now - cached["ts"] < _CONFIG_CACHE_TTL:
-            return cached["value"]
-
-    db = SessionLocal()
-    try:
-        # [2026-08-04 修复] LLM 配置解析是权威查询，必须穿透 RLS：
-        # 后台线程（APScheduler / ThreadPoolExecutor / QAA v3 裸线程）无 HTTP 租户上下文，
-        # begin 钩子读不到 ContextVar 身份 → RLS fail-closed 隐藏 accounts 行 →
-        # "无归属用户" → thesis LLM 走规则回退 → direction=neutral / conviction 归零。
-        # 这里自建连接后直接对连接设 admin GUC（不动 ContextVar，避免污染调用线程）。
-        # 查询仍按 account_id + tenant_id 严格过滤，不会串租户。
-        try:
-            db.connection().exec_driver_sql("SET app.is_admin = 'on'")
-        except Exception:
-            pass
-        account = db.query(Account).filter(Account.id == account_id).first()
-        if not account or not getattr(account, "user_id", None):
-            logger.warning("[LLM] account=%s 无归属用户，无法解析自有 LLM", account_id)
-            return None
-
-        tenant_id = int(account.user_id)
-        config_id = (
-            getattr(account, "llm_config_id_deep", None)
-            if tier == "deep"
-            else getattr(account, "llm_config_id", None)
-        )
-        config = None
-        if config_id:
-            config = (
-                db.query(LLMConfiguration)
-                .filter(
-                    LLMConfiguration.id == config_id,
-                    LLMConfiguration.is_active == "true",
-                    LLMConfiguration.tenant_id == tenant_id,
-                )
-                .first()
-            )
-        result = _config_to_dataclass(config, tier=tier) if config else None
-        if result is None:
-            result = get_llm_config(tier=tier, tenant_id=tenant_id)
-
-        with _config_cache_lock:
-            _config_cache[cache_key] = {"value": result, "ts": now}
-        return result
-    except Exception as e:
-        logger.error(f"Failed to get LLM config for account {account_id}: {e}")
-        return None
-    finally:
-        db.close()
+    return resolve_llm(account_id=account_id, tier=tier)
 
 
 # 非交易用途注册表：供「后台指定」LLM 配置使用（设置 → LLM 配置 → 用途分配）。
@@ -367,66 +477,20 @@ def get_llm_config_for_usage(
     *,
     tenant_id: Optional[int] = None,
 ) -> Optional[LLMConfig]:
-    """按用途路由 LLM（**必须**落在某一租户，禁止公用默认）。
+    """兼容包装 → resolve_llm（唯一权威入口）。
 
-    优先级：
-      1. 本租户内 usage_scope 绑定；
-      2. 账户绑定（get_llm_config_for_account）；
-      3. 本租户默认配置。
+    优先级：usage_scope 绑定 → 账户绑定 → 租户默认（resolve_llm 解析链）。
     无 account_id / tenant_id → 返回 None（不再回退全库星标）。
     """
     tier = tier or "quick"
-    resolved_tenant = tenant_id
-    if resolved_tenant is None and account_id is not None:
-        db0 = SessionLocal()
-        try:
-            acc = db0.query(Account).filter(Account.id == account_id).first()
-            if acc and getattr(acc, "user_id", None):
-                resolved_tenant = int(acc.user_id)
-        except Exception as e:
-            logger.warning(f"resolve tenant for account {account_id}: {e}")
-        finally:
-            db0.close()
-
-    if resolved_tenant is None and account_id is None:
-        logger.warning(
-            "[LLM] get_llm_config_for_usage(%s) 无账户/租户，拒绝公用 LLM", usage
-        )
-        return None
-
-    if usage:
-        db = SessionLocal()
-        try:
-            q = db.query(LLMConfiguration).filter(
-                LLMConfiguration.is_active == "true",
-                LLMConfiguration.usage_scope.isnot(None),
-                LLMConfiguration.usage_scope != "",
-                LLMConfiguration.usage_scope.like(f"%{usage}%"),
-            )
-            if resolved_tenant is not None:
-                q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
-            config = q.order_by(
-                LLMConfiguration.is_default.desc(),
-                LLMConfiguration.usage_count.desc(),
-                LLMConfiguration.name,
-            ).first()
-            if config:
-                return _config_to_dataclass(config, tier=tier)
-        except Exception as e:
-            logger.warning(f"Failed to resolve LLM config for usage {usage}: {e}")
-        finally:
-            db.close()
-
-    if account_id is not None:
-        cfg = get_llm_config_for_account(
-            account_id, tier="deep" if usage in ("coin_select", "factor_mining", "journal") else tier
-        )
-        if cfg:
-            return cfg
-
-    if resolved_tenant is not None:
-        return get_llm_config(tier=tier, tenant_id=int(resolved_tenant))
-    return None
+    if account_id is not None and usage in ("coin_select", "factor_mining", "journal"):
+        tier = "deep"
+    return resolve_llm(
+        usage=usage,
+        account_id=account_id,
+        tenant_id=tenant_id,
+        tier=tier,
+    )
 
 
 def _is_deep_analysis_model(model: str) -> bool:
@@ -1249,7 +1313,10 @@ async def call_llm_api(
     if not config:
         logger.error("No LLM configuration provided")
         return None
-    
+
+    # [2026-08-15 统一重构] 白名单断言：非激活配置内的模型名 → ERROR 告警
+    _assert_model_authorized(config, caller)
+
     try:
         base_url = config.base_url.rstrip('/')
         
@@ -1434,6 +1501,9 @@ def call_llm_api_sync(
     if not config:
         logger.error("No LLM configuration provided")
         return None
+
+    # [2026-08-15 统一重构] 白名单断言：非激活配置内的模型名 → ERROR 告警
+    _assert_model_authorized(config, caller)
 
     # ── 整改#13：语义缓存命中 → 直接返回，跳过 API/并发槽（省 token & 延迟）──
     _cache = None if bypass_cache else _maybe_get_llm_cache()

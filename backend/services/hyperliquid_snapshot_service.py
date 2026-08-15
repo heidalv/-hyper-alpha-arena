@@ -13,6 +13,17 @@ from backend.api.ws import broadcast_arena_asset_update, manager
 logger = logging.getLogger(__name__)
 
 
+def _resolved_account_model(account: Account) -> str:
+    """[2026-08-15 LLM 统一重构] 展示用模型名：统一配置中心解析，失败返回空串。"""
+    try:
+        from backend.services.llm_config_service import resolve_llm_for_legacy_account
+
+        cfg = resolve_llm_for_legacy_account(account, usage="legacy", tier="quick")
+        return str(cfg.model or "") if cfg else ""
+    except Exception:
+        return ""
+
+
 class HyperliquidSnapshotService:
     """Service to periodically snapshot Hyperliquid account states"""
 
@@ -79,7 +90,8 @@ class HyperliquidSnapshotService:
                         accounts_payload.append({
                             "account_id": account.id,
                             "account_name": account.name,
-                            "model": account.model,
+                            # [2026-08-15 LLM 统一重构] 展示模型以统一配置中心解析为准
+                            "model": _resolved_account_model(account),
                             "available_cash": round(account_data["available_balance"], 2),
                             "frozen_cash": round(account_data["used_margin"], 2),
                             "positions_value": round(account_data["used_margin"], 2),  # For Hyperliquid, positions_value = used_margin
