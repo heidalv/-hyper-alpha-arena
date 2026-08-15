@@ -161,6 +161,8 @@ def run_scalp_chain_health() -> Dict[str, Any]:
         from backend.services.scalp.scalp_heartbeat import touch
         touch("scalp_chain_health", "ok", {
             "issues": len(report["issues"]),
+            # [2026-08-15] 带问题明细，面板可直接定位（原来只有计数）
+            "issue_list": report["issues"][:5],
             "circuit_breaker": report.get("circuit_breaker", {}),
         })
     except Exception:
