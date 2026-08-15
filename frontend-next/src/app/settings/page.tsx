@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { configApi, accountApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type Tab = "accounts" | "llm" | "pairs" | "keys" | "gates";
 
@@ -28,9 +29,13 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-4xl mx-auto">
-      <h1 className="text-lg font-bold flex items-center gap-2">
-        <Settings className="w-5 h-5 text-primary" />设置
-      </h1>
+      <PageHeader
+        icon={<Settings className="w-4 h-4" />}
+        title="设置"
+        subtitle="账户 · LLM 配置 · 交易对 · API 密钥 · 交易门禁"
+        breadcrumb={[{ label: "系统" }, { label: "设置" }]}
+        refreshHint="本地持久化"
+      />
       <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabs.map((t) => {
           const Icon = t.icon;
@@ -105,7 +110,7 @@ function AccountsTab() {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowCreate(!showCreate)}><Plus className="w-3.5 h-3.5 mr-1" />新建账户</Button>
+        <Button size="sm" onClick={() => setShowCreate(!showCreate)} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新建账户</Button>
       </div>
       {showCreate && (
         <Card className="p-4 border-primary/30">
@@ -135,12 +140,12 @@ function AccountsTab() {
                 {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
               </select>
             </div>
-            <Button size="sm" onClick={handleCreate}>创建</Button>
+            <Button size="sm" onClick={handleCreate} className="btn-glow">创建</Button>
           </div>
         </Card>
       )}
       <Card className="overflow-hidden">
-        <table className="w-full text-xs">
+        <table className="data-table">
           <thead><tr className="text-muted-foreground border-b border-border">
             <th className="text-left py-2 px-3">名称</th><th className="text-left py-2 px-3">类型</th>
             <th className="text-right py-2 px-3">余额</th><th className="text-left py-2 px-3">交易所</th>
@@ -152,7 +157,7 @@ function AccountsTab() {
               <tr key={a.id} className="border-b border-border/30 hover:bg-muted/20">
                 <td className="py-2 px-3 font-medium">{a.name}</td>
                 <td className="py-2 px-3"><Badge variant="secondary" className="text-[9px]">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
-                <td className="py-2 px-3 text-right tabular-nums">${a.current_cash?.toFixed(2)}</td>
+                <td className="py-2 px-3 text-right num">${a.current_cash?.toFixed(2)}</td>
                 <td className="py-2 px-3 text-muted-foreground">{a.selected_exchange || "—"}</td>
                 <td className="py-2 px-3"><Badge variant="secondary" className={cn("text-[9px]", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
                 <td className="py-2 px-3 text-muted-foreground">
@@ -166,6 +171,17 @@ function AccountsTab() {
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t border-border/50 bg-muted/20">
+              <td colSpan={2} className="py-2 px-3 text-[10px] uppercase tracking-wider text-muted-foreground">
+                共 {accounts.length} 个账户
+              </td>
+              <td className="py-2 px-3 text-right num font-bold grad-text">
+                ${accounts.reduce((s, a) => s + (a.current_cash || 0), 0).toFixed(2)}
+              </td>
+              <td colSpan={5} />
+            </tr>
+          </tfoot>
         </table>
       </Card>
       {editing && (
@@ -244,7 +260,7 @@ function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
       </p>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
       </div>
     </Card>
   );
@@ -298,7 +314,7 @@ function LLMTab() {
         <div className="text-[10px] text-muted-foreground">
           星标 = 全局默认通道；未分配用途的配置作为通用后备。交易用途由「账户管理」绑定优先。
         </div>
-        <Button size="sm" onClick={() => setEditing({ name: "", model: "", model_deep: "", base_url: "", provider: "deepseek" })}><Plus className="w-3.5 h-3.5 mr-1" />新增配置</Button>
+        <Button size="sm" onClick={() => setEditing({ name: "", model: "", model_deep: "", base_url: "", provider: "deepseek" })} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新增配置</Button>
       </div>
       {configs.map((c) => (
         <Card key={c.id} className="p-3">
@@ -414,6 +430,32 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
   const handleSave = async () => {
     if (!form.name || !form.model) { alert("请填写配置名称和快模型"); return; }
     if (!config?.id && !form.api_key) { alert("请填写 API Key"); return; }
+    // [2026-08-15 LLM 统一重构] 模型白名单：provider 有预设变体时禁止自由输入绕过
+    if (providerMeta?.model_variants?.length) {
+      const allowed = providerMeta.model_variants.map((v: any) => String(v.value).toLowerCase());
+      const models = [form.model, form.model_deep].filter(Boolean).map((m) => String(m).toLowerCase());
+      const bad = models.find((m) => !allowed.includes(m));
+      if (bad) {
+        alert(`模型「${bad}」不在 ${form.provider} 白名单内（允许：${allowed.join(", ")}）。\n统一默认 deepseek-v4-flash，禁止界面绕过。`);
+        return;
+      }
+    }
+    // 同源去重预检（与后端 400 一致，提前拦截）
+    if (!config?.id) {
+      try {
+        const d = await configApi.llmListAll();
+        const existing = (Array.isArray(d) ? d : d.items || []).find(
+          (x: any) =>
+            x.provider === form.provider &&
+            (x.base_url || "").replace(/\/$/, "") === (form.base_url || "").replace(/\/$/, "") &&
+            x.is_active !== false
+        );
+        if (existing) {
+          alert(`已存在同源配置「${existing.name}」(id=${existing.id})——同一 provider+base_url 不允许重复创建。\n请复用现有配置或先停用旧配置。`);
+          return;
+        }
+      } catch { /* 后端仍会兜底校验 */ }
+    }
     setSaving(true);
     try {
       const data: any = {
@@ -448,9 +490,14 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
             variants={quickVariants} placeholder="如：deepseek-v4-flash" />
         </div>
         <div className="col-span-2">
-          <ModelField label="深模型（可留空；建议也填 deepseek-v4-flash）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
+          <ModelField label="深模型（统一也用 deepseek-v4-flash）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
             variants={deepVariants} placeholder="如：deepseek-v4-flash" />
         </div>
+        {providerMeta?.model_variants?.length ? (
+          <div className="col-span-2 text-[10px] text-muted-foreground -mt-1">
+            模型受白名单约束（{providerMeta.model_variants.map((v: any) => v.value).join(" / ")}）。统一默认 deepseek-v4-flash；换模型须先改后端白名单。
+          </div>
+        ) : null}
         <div><Label className="text-xs">描述</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="text-sm" placeholder="用途说明（可选）" /></div>
         <div><Label className="text-xs">Base URL</Label><Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className="text-sm" placeholder="https://api.deepseek.com" /></div>
         <div><Label className="text-xs">API Key {config?.id ? "(留空不改)" : ""}</Label><Input type="password" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm" placeholder="sk-..." /></div>
@@ -497,7 +544,7 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
       </div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
       </div>
     </Card>
   );
@@ -525,7 +572,7 @@ function PairsTab() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">已配置 {symbols.length} 个交易对</div>
-        <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
       </div>
       <Card className="p-4">
         <div className="text-sm font-medium mb-3">已配置</div>
@@ -581,7 +628,7 @@ function KeysTab() {
               {editingKey === key ? (
                 <div className="flex gap-1">
                   <Input type="password" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="输入密钥..." className="w-40 text-xs h-7" />
-                  <Button size="sm" className="h-7" onClick={() => handleSave(key)} disabled={saving || !editValue}>保存</Button>
+                  <Button size="sm" className="h-7 btn-glow" onClick={() => handleSave(key)} disabled={saving || !editValue}>保存</Button>
                   <Button size="sm" variant="ghost" className="h-7" onClick={() => { setEditingKey(null); setEditValue(""); }}>取消</Button>
                 </div>
               ) : (
@@ -620,7 +667,7 @@ function GatesTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end"><Button size="sm" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存门禁</Button></div>
+      <div className="flex justify-end"><Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存门禁</Button></div>
       {gates.map((g, idx) => (
         <Card key={g.key} className="p-3">
           <div className="flex items-center justify-between mb-1">

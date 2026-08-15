@@ -1,4 +1,4 @@
-﻿"""
+"""
 LLM Configuration Routes
 
 API endpoints for unified LLM configuration management.
@@ -6,7 +6,7 @@ Provides CRUD operations for the centralized model configuration repository.
 """
 import logging
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -123,6 +123,34 @@ def _current_tenant_id(request: Request) -> Optional[int]:
         return int(tid)
     except (TypeError, ValueError):
         return None
+
+
+# [2026-08-15 LLM 统一重构] provider → 允许模型白名单（与 /providers 的
+# model_variants 同源）。未列出的 provider 不限制（local/ollama/custom）。
+_MODEL_WHITELIST: Dict[str, set] = {
+    "deepseek": {"deepseek-v4-flash", "deepseek-chat"},
+    "volcengine": {"deepseek-v4-flash-260425", "deepseek-v3-250624"},
+    "openai": set(),
+    "qwen": set(),
+    "local": set(),
+    "custom": set(),
+}
+
+
+def _validate_model_whitelist(provider: str, model: str) -> Optional[str]:
+    """模型名不在该 provider 白名单内 → 返回错误描述；合法返回 None。"""
+    p = (provider or "").strip().lower()
+    wl = _MODEL_WHITELIST.get(p)
+    if not wl:  # 未列 provider 或白名单为空 → 不限制
+        return None
+    m = (model or "").strip().lower()
+    if m not in wl:
+        allowed = ", ".join(sorted(wl)) or "（无预设，请自定义）"
+        return (
+            f"模型「{model}」不在 provider={p} 的白名单内（允许：{allowed}）。"
+            "统一默认 deepseek-v4-flash；如需换模型请先修改后端白名单，禁止界面绕过。"
+        )
+    return None
 
 
 def _count_profile_refs(db: Session, config_id: int) -> int:
@@ -391,6 +419,10 @@ def create_llm_config(
     BYOK (§6.4): 必须认证 —— 配置归属当前请求租户,新行 stamp tenant_id,
     否则 RLS WITH CHECK 会因 tenant_id 与 GUC 不一致而拒绝(且 NOT NULL 约束
     要求非空)。未认证请求由中间件拦截(401);这里再防御性校验一次。
+
+    [2026-08-15 LLM 统一重构] 权威约束：
+      - 模型白名单：provider 有 model_variants 白名单时必须命中（deepseek 只允许 flash/chat）；
+      - 同源去重：同租户已有 (provider, base_url, is_active) 配置 → 拒绝重复创建。
     """
     tenant_id = _current_tenant_id(request)
     if tenant_id is None:
@@ -400,6 +432,36 @@ def create_llm_config(
             status_code=401,
             detail="Authentication required to create an LLM configuration",
         )
+
+    # 模型白名单（与 /providers 的 model_variants 同源；未列 provider 不限制）
+    _wl_err = _validate_model_whitelist(data.provider, data.model)
+    if _wl_err:
+        raise HTTPException(status_code=400, detail=_wl_err)
+    if data.model_deep:
+        _wl_err_deep = _validate_model_whitelist(data.provider, data.model_deep)
+        if _wl_err_deep:
+            raise HTTPException(status_code=400, detail=_wl_err_deep)
+
+    # 同源去重：同租户同 provider+base_url 的激活配置只允许一条
+    _dup = (
+        db.query(LLMConfiguration)
+        .filter(
+            LLMConfiguration.tenant_id == tenant_id,
+            LLMConfiguration.provider == (data.provider or ""),
+            LLMConfiguration.base_url == ((data.base_url or "").rstrip("/")),
+            LLMConfiguration.is_active == "true",
+        )
+        .first()
+    )
+    if _dup:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"已存在同源配置「{_dup.name}」(id={_dup.id})——同一 provider+base_url "
+                "不允许重复创建。请复用现有配置或先停用旧配置。"
+            ),
+        )
+
     try:
         # If setting as default, unset current default **within same tenant only**
         if data.is_default:
@@ -415,7 +477,7 @@ def create_llm_config(
             model=data.model,
             model_deep=data.model_deep,
             usage_scope=data.usage_scope or None,
-            base_url=data.base_url,
+            base_url=(data.base_url or "").rstrip("/"),
             api_key=encrypt_llm_key(data.api_key),
             is_default="true" if data.is_default else "false",
             is_active="true",
@@ -458,6 +520,38 @@ def update_llm_config(
 
     if not config:
         raise HTTPException(status_code=404, detail=f"LLM configuration {config_id} not found")
+
+    # [2026-08-15 LLM 统一重构] 权威约束（与 create 一致）
+    if data.model is not None:
+        _wl_err = _validate_model_whitelist(config.provider, data.model)
+        if _wl_err:
+            raise HTTPException(status_code=400, detail=_wl_err)
+    if data.model_deep is not None and data.model_deep:
+        _wl_err_deep = _validate_model_whitelist(config.provider, data.model_deep)
+        if _wl_err_deep:
+            raise HTTPException(status_code=400, detail=_wl_err_deep)
+    if data.base_url is not None and (data.base_url or "").rstrip("/") != (config.base_url or ""):
+        _owner = getattr(config, "tenant_id", None)
+        _dup = (
+            db.query(LLMConfiguration)
+            .filter(
+                LLMConfiguration.id != config_id,
+                LLMConfiguration.provider == config.provider,
+                LLMConfiguration.base_url == (data.base_url or "").rstrip("/"),
+                LLMConfiguration.is_active == "true",
+            )
+        )
+        if _owner is not None:
+            _dup = _dup.filter(LLMConfiguration.tenant_id == _owner)
+        _dup_row = _dup.first()
+        if _dup_row:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"已存在同源配置「{_dup_row.name}」(id={_dup_row.id})——"
+                    "同一 provider+base_url 不允许重复配置。"
+                ),
+            )
 
     try:
         # If setting as default, unset current default **within same tenant only**
