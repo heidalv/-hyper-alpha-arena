@@ -415,6 +415,18 @@ class CustomFactorStore:
                     },
                 }
                 self._persist()
+                return {"ok": True, "factor_id": fid, "status": "candidate", "reason": "registered"}
+            # [2026-08-15] 引用记录已存在：rejected → 重开 candidate（评分路径修复后
+            # 需重扫，否则每日扫描永远找不到候选、二次挖矿空转）。
+            if str(existing.get("status")) == "rejected":
+                existing["status"] = "candidate"
+                existing["grade"] = None
+                existing["scores"] = {}
+                existing["updated_at"] = now
+                self._persist()
+                return {"ok": True, "factor_id": fid, "status": "candidate", "reason": "reopened"}
+            return {"ok": True, "factor_id": fid, "status": existing.get("status", "candidate"),
+                    "reason": "exists"}
         return {"ok": True, "factor_id": fid, "status": "candidate", "reason": "registered"}
 
     def get(self, factor_id: str, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:

@@ -112,6 +112,49 @@ def _grade_from_metrics(
     return "D"
 
 
+def _rolling_recompute(
+    calc,
+    registry_factor_id: str,
+    df: pd.DataFrame,
+    symbol: str,
+    timeframe: str,
+    fwd: int,
+    min_hist: int = 80,
+) -> np.ndarray:
+    """快照型（标量）因子 → 历史序列：滑动窗口逐点重算。
+
+    legacy_compat 等因子只返回「序列末值」单点（`_LegacyBase.calculate`），
+    全量计算 900 根只得到 1 个非 NaN，walk-forward 无法进行。
+    本函数以 stride=fwd 在历史每个调仓点对 df[:t+1] 重算一次取末值，
+    构造出可回测的因子序列。仅用 t 时刻前的数据，无未来信息。
+    """
+    n = len(df)
+    out = np.full(n, np.nan)
+    if n < min_hist:
+        return out
+    try:
+        factor = calc.registry.get(registry_factor_id, params=None)
+    except Exception as e:
+        logger.debug("[MidlongRegistry] rolling 取因子失败 %s: %s", registry_factor_id, e)
+        return out
+    stride = max(1, int(fwd))
+    for t in range(min_hist, n, stride):
+        sub = df.iloc[: t + 1]
+        try:
+            factor.validate_data(sub)
+            proc = factor.preprocess_data(sub)
+            res = factor.calculate(proc)
+            res = factor.postprocess_result(res)
+        except Exception:
+            continue
+        if res is None or not len(res):
+            continue
+        v = np.asarray(res, dtype=float)[-1]
+        if np.isfinite(v):
+            out[t] = float(v)
+    return out
+
+
 def _score_one_registry_factor(
     fid: str,
     registry_factor_id: str,
@@ -166,9 +209,16 @@ def _score_one_registry_factor(
             logger.debug("[MidlongRegistry] %s/%s 计算失败: %s", fid, timeframe, e)
             continue
         series = series_map.get(registry_factor_id)
-        if series is None or len(series) < 60:
-            continue
-        vals = np.asarray(series, dtype=float)
+        if series is not None and len(series):
+            _v = np.asarray(series, dtype=float)
+        else:
+            _v = np.zeros(0)
+        # [2026-08-15] 快照型因子回退：全量计算只得到末值单点时（有效值过少），
+        # 改走滑动窗口逐点重算，构造可回测的历史序列。
+        if int(np.isfinite(_v).sum()) < max(60, int(len(df) * 0.05)):
+            vals = _rolling_recompute(calc, registry_factor_id, df, sym, timeframe, fwd)
+        else:
+            vals = _v
         closes = df["close"].astype(float).to_numpy()
         n = min(len(vals), len(closes))
         vals, closes = vals[-n:], closes[-n:]
