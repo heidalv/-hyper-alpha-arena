@@ -181,7 +181,11 @@ def _mine_symbol_keys(dfs: dict) -> list[str]:
 
 
 def _stack_mine_panel(dfs: dict, symbol_keys: list[str]):
-    """多币拼接面板：挖矿适应度不再只绑第一币。"""
+    """多币拼接面板：挖矿适应度不再只绑第一币。
+
+    返回 (eval_fn, target, field_names, panel)；panel = (field_dicts, lens)
+    —— 供 GPU 批量求值上下文直接建 (F,S,B) 面板张量。
+    """
     field_dicts = []
     targets = []
     for s in symbol_keys:
@@ -201,7 +205,8 @@ def _stack_mine_panel(dfs: dict, symbol_keys: list[str]):
         return np.concatenate(parts) if parts else np.array([], dtype=float)
 
     field_names = sorted({k for fd in field_dicts for k in fd.keys()})
-    return eval_fn, target, field_names
+    panel = (field_dicts, [len(t) for t in targets])
+    return eval_fn, target, field_names, panel
 
 
 def _lookback_for_period(period: str | None) -> int:
@@ -786,7 +791,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
 
         shared_pool = AlphaPool(capacity=80)
         sym_keys = _mine_symbol_keys(dfs)
-        _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
+        _eval_fn, target, field_names, _panel = _stack_mine_panel(dfs, sym_keys)
         logger.info(
             "[FactorEvo] 挖矿面板 symbols=%s n=%d shared_pool_cap=%d",
             sym_keys, len(target), shared_pool.capacity,
@@ -803,7 +808,38 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     setattr(gp_config, _attr, int(_v))
                 except (TypeError, ValueError):
                     pass
-        miner = GPMiner(field_names, _eval_fn, target, shared_pool, gp_config)
+        # [2026-08-17 GPU] FACTOR_EVO_GPU_EVAL=1 且 CUDA 可用 → 栈式 GPU 批量求值
+        gpu_ctx = None
+        if _os_gp.getenv("FACTOR_EVO_GPU_EVAL", "0") == "1":
+            try:
+                from backend.services.evolution.gp_gpu_eval import GpuEvalContext
+                from backend.services.evolution.gpu_batch_eval import cuda_available
+                if cuda_available():
+                    _mem_mb = float(_os_gp.getenv("FACTOR_EVO_GPU_MAX_MEM_MB", "1200") or 1200)
+                    _chunk = int(_os_gp.getenv("FACTOR_EVO_GPU_CHUNK", "64") or 64)
+                    gpu_ctx = GpuEvalContext(
+                        factor_value_fn=_eval_fn,
+                        fields_per_symbol=_panel[0],
+                        target=target,
+                        min_samples=gp_config.min_samples,
+                        lambda_complexity=gp_config.lambda_complexity,
+                        lambda_corr=gp_config.lambda_corr,
+                        mem_mb=_mem_mb,
+                        chunk=_chunk,
+                    )
+                    logger.info("[FactorEvo] GPU 批量求值已启用 (mem=%dMB chunk=%d)", _mem_mb, _chunk)
+                else:
+                    logger.info("[FactorEvo] FACTOR_EVO_GPU_EVAL=1 但 CUDA 不可用，走 CPU 路径")
+            except Exception as _gpu_init_err:
+                logger.warning("[FactorEvo] GPU 上下文初始化失败，走 CPU 路径: %s", _gpu_init_err)
+                gpu_ctx = None
+        miner = GPMiner(field_names, _eval_fn, target, shared_pool, gp_config, gpu_ctx=gpu_ctx)
+        if gpu_ctx is not None:
+            # 等价性验收采样：用矿机自身随机树生成器
+            gpu_ctx.sample_fn = lambda n: [
+                a for a in (miner._random_ast(np.random.default_rng(1000 + i), depth=0) for i in range(n))
+                if a is not None
+            ]
         admitted = miner.mine()
         logger.info(f"[FactorEvo] GP 挖掘: {len(admitted)} 命中入池")
         for expr, _contrib in admitted:
@@ -824,7 +860,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             if shared_pool is None:
                 shared_pool = AlphaPool(capacity=80)
                 sym_keys = _mine_symbol_keys(dfs)
-                _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
+                _eval_fn, target, field_names, _panel2 = _stack_mine_panel(dfs, sym_keys)
 
             mcts_pool = shared_pool
             mcts_config = MCTSConfig(scale=scale_for_period(period))
@@ -889,7 +925,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             if shared_pool is None:
                 shared_pool = AlphaPool(capacity=80)
                 sym_keys = _mine_symbol_keys(dfs)
-                _eval_fn, target, field_names = _stack_mine_panel(dfs, sym_keys)
+                _eval_fn, target, field_names, _panel3 = _stack_mine_panel(dfs, sym_keys)
 
             fail_hints = []
             try:

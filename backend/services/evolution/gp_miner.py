@@ -88,12 +88,31 @@ def _fitness_core(ast: dict, state: dict) -> float:
     penalty_c = state["lambda_complexity"] * _count_nodes(ast)
     # 与精英池最大相关惩罚（防同质化）
     corr_pen = 0.0
-    if state.get("elite_ast"):
+    elite_fvs = state.get("elite_fvs") or []
+    if elite_fvs:
+        max_corr = 0.0
+        for e_fv in elite_fvs:
+            e_fv = np.asarray(e_fv, dtype=float)
+            if e_fv.shape != fv.shape:
+                continue
+            m2 = np.isfinite(fv) & np.isfinite(e_fv)
+            if m2.sum() < 10:
+                continue
+            c = abs(float(np.corrcoef(fv[m2], e_fv[m2])[0, 1]))
+            if np.isfinite(c):
+                max_corr = max(max_corr, c)
+        corr_pen = state["lambda_corr"] * max_corr
+    elif state.get("elite_ast"):
+        # 兼容旧路径（无预计算缓存时）
         max_corr = 0.0
         for e_ast in state["elite_ast"]:
             try:
                 e_fv = np.asarray(factor_value_fn({"expr": parse(e_ast)}), dtype=float)
             except Exception:
+                continue
+            if e_fv.ndim == 0:
+                e_fv = np.full_like(fv, float(e_fv))
+            if e_fv.shape != fv.shape:
                 continue
             m2 = np.isfinite(fv) & np.isfinite(e_fv)
             if m2.sum() < 10:
@@ -142,6 +161,7 @@ class GPMiner:
         target: np.ndarray,
         pool: AlphaPool,
         config: Optional[GPConfig] = None,
+        gpu_ctx=None,
     ):
         self.fields = [f for f in fields if f]
         self.factor_value_fn = factor_value_fn
@@ -152,6 +172,9 @@ class GPMiner:
         self._op_names = [n for n in OP_REGISTRY.keys() if n not in LOOKAHEAD_BANNED_OPS]
         # 各代精英（防同质化相关性惩罚的参照系）
         self._elite_ast: List[dict] = []
+        # [2026-08-17 GPU] 精英因子值缓存（每代只算一次；GPU 上下文可选）
+        self._gpu_ctx = gpu_ctx
+        self._elite_fvs: List[np.ndarray] = []
 
     # ─────────────────────────── 对外入口 ───────────────────────────
 
@@ -295,7 +318,7 @@ class GPMiner:
     def _eval_population(
         self, population: List[dict], workers: Optional[int] = None
     ) -> List[float]:
-        """并行评估种群适应度（v6 10.2.2：32 线程并行评估主力）。
+        """评估种群适应度（v6 10.2.2：32 线程并行评估主力）。
 
         实现：joblib loky 进程级并行（计划指定 joblib 优先）。
         - 闭包 factor_value_fn 与 numpy 数据打包为轻量 state 字典，由 loky 的
@@ -303,10 +326,53 @@ class GPMiner:
         - 实测：ThreadPoolExecutor 因 numpy GIL/BLAS 争用为负加速（0.84x），
           弃用线程池；loky 每进程独立解释器，E5-2698B 16C/32T 目标 >=4-6x。
         - 每次评估新建 Parallel 并在 finally 终止，禁止跨种子复用导致 already running。
+        - [2026-08-17 GPU] FACTOR_EVO_GPU_EVAL=1 时走栈式 GPU 批量求值
+          （等价性验收通过后），失败自动回退本路径。
         """
         workers = workers or self.config.max_workers or min(32, os.cpu_count() or 32)
         if len(population) <= 1:
             return [self._fitness(population[0])] if population else []
+        # 精英值缓存刷新（每代一次）：原实现每棵树重算全部精英 → O(N×E) 浪费
+        self._refresh_elite_cache()
+        # ── GPU 路径（GPU 子集向量化 + CPU 子集 loky 并行） ──
+        if self._gpu_ctx is not None and len(population) >= 8:
+            try:
+                vals, gpu_mask = self._gpu_ctx.eval_values(population)
+                if vals is not None:
+                    from backend.services.evolution.gp_gpu_eval import (
+                        compute_fitness_from_values,
+                    )
+                    fits: List[float] = [float("-inf")] * len(population)
+                    gpu_idx = [i for i, m in enumerate(gpu_mask) if m]
+                    cpu_idx = [i for i, m in enumerate(gpu_mask) if not m]
+                    if gpu_idx:
+                        node_counts = [_count_nodes(population[i]) for i in gpu_idx]
+                        fg = compute_fitness_from_values(
+                            vals[gpu_idx], [population[i] for i in gpu_idx],
+                            self.target,
+                            min_samples=self.config.min_samples,
+                            lam_c=self.config.lambda_complexity,
+                            lam_corr=self.config.lambda_corr,
+                            elite_fvs=self._elite_fvs,
+                            node_counts=node_counts,
+                        )
+                        for i, f in zip(gpu_idx, fg):
+                            fits[i] = f
+                    if cpu_idx:
+                        par = Parallel(n_jobs=workers, backend="loky", prefer="processes")
+                        state = self._fitness_state()
+                        try:
+                            fc = par(delayed(_fitness_core)(population[i], state) for i in cpu_idx)
+                        finally:
+                            try:
+                                par._terminate_backend()
+                            except Exception:
+                                pass
+                        for i, f in zip(cpu_idx, fc):
+                            fits[i] = f
+                    return fits
+            except Exception as _gpu_err:
+                logger.warning("[GPMiner GPU] 求值异常，回退 loky: %s", _gpu_err)
         if workers <= 1:
             return [self._fitness(a) for a in population]
         # 每次评估新建 Parallel，禁止跨种子/跨线程复用同一实例
@@ -320,6 +386,27 @@ class GPMiner:
             except Exception:
                 pass
 
+    def _refresh_elite_cache(self) -> None:
+        """每代刷新精英因子值缓存（GPU 可用走 GPU，否则 numpy 一次性算好）。"""
+        if self._gpu_ctx is not None:
+            try:
+                self._gpu_ctx.refresh_elites(self._elite_ast)
+                self._elite_fvs = list(self._gpu_ctx.elite_fvs)
+                return
+            except Exception as _ge:
+                logger.debug("[GPMiner] GPU 精英缓存失败，回退 numpy: %s", _ge)
+        fvs: List[np.ndarray] = []
+        for e_ast in self._elite_ast:
+            try:
+                fv = np.asarray(self.factor_value_fn({"expr": parse(e_ast)}), dtype=float)
+                if fv.ndim == 0:
+                    fv = np.full_like(self.target, float(fv))
+                if fv.shape == self.target.shape:
+                    fvs.append(fv)
+            except Exception:
+                continue
+        self._elite_fvs = fvs
+
     def _fitness_state(self) -> dict:
         """构造 worker 可序列化的适应度求值上下文（含闭包 factor_value_fn）。"""
         return {
@@ -329,6 +416,8 @@ class GPMiner:
             "lambda_complexity": self.config.lambda_complexity,
             "lambda_corr": self.config.lambda_corr,
             "elite_ast": self._elite_ast,
+            # [2026-08-17 GPU] 精英值预计算缓存（每代一次，_fitness_core 优先用）
+            "elite_fvs": list(self._elite_fvs),
         }
 
     # ─────────────────────────── 适应度 ───────────────────────────

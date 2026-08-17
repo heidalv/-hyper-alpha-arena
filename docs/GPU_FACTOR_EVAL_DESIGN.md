@@ -1,7 +1,7 @@
 # GPU 批量因子求值器 — 设计与实施路线
 
-> 状态：**设计 + 原型（本分支）**，未接线热路径，待硬件就位后验证合并
-> 目标硬件：现有 GTX 1070 (8G) 先行验证 → 新主板 + 2× RTX 2080 Ti 22G 投产
+> 状态：**M1.5 栈式执行器 + M2 接线 + M3 验收 已完成并上线**（2026-08-17，main）
+> 目标硬件：现有 GTX 1070 (8G) 已验证投产 → 2× RTX 2080 Ti 22G 属后续吞吐升级（未安装）
 > 对应瓶颈：GP 因子挖掘的种群求值（实测占单轮 2.5h 的 ~40%）
 
 ## 1. 问题定义
@@ -110,3 +110,44 @@ GPU 化收益的重新测算：栈式 + float64 滚动后，求值瓶颈从「�
 - **M2**（不变）：接线 `gp_miner._eval_population`，`FACTOR_EVO_GPU_EVAL=0` 默认关。
 - **M3**（不变）：1070 等价性验收（秩相关口径）。
 - **M4**（不变）：新主板 + 2×2080Ti 投产（此时 GPU 才有相对 CPU 的实际优势）。
+
+## 9. M1.5/M2 实施记录（2026-08-17，已上线 main）
+
+**交付物**：
+- `backend/services/evolution/gpu_batch_eval.py` — 栈式批量执行器（重写）：
+  - 挖矿 AST → 后序编译（op_code/param/const/field 数值表）→ 操作数栈 (P, MAXSTK, S, B)
+    + 指针，按 (步 × 算子) 分组掩码执行，float64 全链路；
+  - 算子覆盖 21/28（ema/scale 及常量操作数滚动走 CPU 兜底；随机树 GPU 覆盖 ~63%）：
+    算术 11 + ref/delta + mean/sum/std/var（float64 cumsum + 全局中心化消除大数消去）+
+    max/min/wma/decay_linear/ts_rank/ts_argmax/ts_argmin（unfold 视图 + NaN 掩码归约，
+    显存预算 `FACTOR_EVO_GPU_MAX_MEM_MB` 超限自动 CPU）+ corr/cov/ts_corr（窗口中心化
+    float64，cov 对齐 np.cov ddof=1）；
+  - 语义对齐踩坑（全部修复并有回归样例）：`torch.sign(nan)=0`（numpy=nan）→ 显式透传；
+    `torch.where` 标量 dtype 提升；int/int→float32；cumsum 缺头部 pad；`np.cov` ddof=1；
+    常量操作数 → numpy 截断 (1,) → 真实路径 -inf，GPU 广播会造假信号 → 整体 CPU 兜底。
+- `backend/services/evolution/gp_gpu_eval.py` — 接线层：
+  - 首次使用等价性验收：4 批 × 24 棵采样，**值保真**（Pearson ≥0.99999 或 Spearman
+    ≥0.999 —— Spearman 对大量并列离散序列的 ulp 噪声过敏，实测 1581/1693 位差 1e-15
+    时 Spearman 掉到 0.989）+ **IC 影响**（GPU 值对目标 IC 偏移 ≤5e-4）双口径；
+    验收失败/无 CUDA/任意异常 → 永久回退 loky（fail-safe）；
+  - 精英因子值缓存每代只算一次（原实现每棵树重算全部精英 = O(N×E) 浪费，这是
+    GP 占时 2.5h 的真正主因）；GPU 子集向量化适应度 + CPU 子集 loky 并行。
+- 开关：`FACTOR_EVO_GPU_EVAL=1`（本机 .env 已开）、`FACTOR_EVO_GPU_MAX_MEM_MB=1200`、
+  `FACTOR_EVO_GPU_CHUNK=64`。
+
+**实测（GTX 1070 8G + torch 2.6 cu124，合成 5 币 × 1712 根面板）**：
+- 单树求值：numpy/DSL 575 ms/树（瓶颈 = formula_ops._rolling 的 Python 逐 bar 循环）
+  → GPU warm **10.4 ms/树 ≈ 55×**；
+- 种群一代（120 树）：GPU 路径稳态 **10.3s vs loky 31.3s（≈3×）**；
+  首次调用含一次性验收 ~48s（含 numpy 参考值 35s）；
+- 适应度等价：GPU vs loky 适应度 Pearson = 1.0000（120 树、47 有效）；
+- 等价性验收：150 树可比 72、值保真失败 0。
+
+**诚实边界**：
+- 覆盖率 ~63%：ema 与「滚动(常量)」树走 CPU（后者在真实 DSL 下本就 -inf，
+  GPU 兜底是为复现该语义而非性能）；
+- 收益大头来自精英缓存 + 批量求值消除 Python 滚动循环；纯 GPU 吞吐优势仍需
+  2000+ 种群或 2080Ti×2（M4）才能拉满；
+- 上板验收口径 = 适应度排序无扰（IC 偏移 ≤5e-4），逐值 isclose 不作为门槛
+  （div 近零分母会放大任何 ulp 差，文档 §8 已预见）。
+
