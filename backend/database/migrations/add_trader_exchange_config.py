@@ -49,8 +49,8 @@ def _table_exists(conn, table: str) -> bool:
 
 
 def upgrade():
-    """Apply the migration — idempotent."""
-    from database.connection import engine
+    """Apply the migration �?idempotent."""
+    from backend.database.connection import engine
     from sqlalchemy import text, inspect
 
     inspector = inspect(engine)

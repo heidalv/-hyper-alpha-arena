@@ -37,6 +37,24 @@ async def get_evolution_status():
         logger.error(f"[Evolution] status error: {e}")
         return {"evolver_running": False, "evolver_progress": {}, "error": str(e)}
 
+@router.get("/v7-memory")
+async def get_v7_memory():
+    """V7 因子进化长期记忆状态（正式上线后可观测）。"""
+    try:
+        from backend.services.evolution.evolution_memory_v7 import memory_report, stats
+        return {"ok": True, **stats(), "recent": memory_report(limit=20)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.post("/v7-memory/maintenance")
+async def run_v7_memory_maintenance():
+    """手动触发 V7 记忆维护（只退役从未被检索且超 30 天的观察态教训）。"""
+    try:
+        from backend.services.evolution.factor_evolution_loop import run_v7_memory_maintenance
+        return {"ok": True, **run_v7_memory_maintenance()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @router.post("/trigger/{trigger_type}")
 async def trigger_evolution(

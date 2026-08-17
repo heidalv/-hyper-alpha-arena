@@ -1,0 +1,2164 @@
+{
+  "methodology_note": "multi_fwd_variant_selection_unadjusted",
+  "scanned": 2099,
+  "loaded": 1115,
+  "passers": 4,
+  "passer_details": [
+    {
+      "factor_id": "ai_gen_uncertainty_vola",
+      "timeframe": "1d",
+      "ic_mean": -0.07101,
+      "icir": -1.1471,
+      "oos_net_return": 1.213873,
+      "oos_sharpe": 1.2003,
+      "oos_win_rate": 0.544,
+      "oos_trades": 2278,
+      "fwd": 2,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.0396015729558781,
+          "icir": -0.8570809381140303,
+          "oos_net_return": 0.301857,
+          "oos_sharpe": 0.615,
+          "oos_win_rate": 0.5631,
+          "oos_trades": 222,
+          "fwd": 1
+        },
+        "BNB": {
+          "ic_mean": 0.042483052117069854,
+          "icir": 0.5105562373796578,
+          "oos_net_return": 0.210378,
+          "oos_sharpe": 0.2427,
+          "oos_win_rate": 0.4775,
+          "oos_trades": 222,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.0595655959411088,
+          "icir": -0.5172458610935424,
+          "oos_net_return": 0.300387,
+          "oos_sharpe": 0.4024,
+          "oos_win_rate": 0.536,
+          "oos_trades": 222,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.052850493475650795,
+          "icir": -0.4152372407640579,
+          "oos_net_return": 1.507598,
+          "oos_sharpe": 1.1954,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 222,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.04177618965520252,
+          "icir": -0.8619652208090783,
+          "oos_net_return": 1.106325,
+          "oos_sharpe": 0.7789,
+          "oos_win_rate": 0.4985,
+          "oos_trades": 666,
+          "fwd": 1
+        },
+        "UNI": {
+          "ic_mean": -0.042672270967135835,
+          "icir": -0.43397195393561205,
+          "oos_net_return": 1.225725,
+          "oos_sharpe": 0.9247,
+          "oos_win_rate": 0.5793,
+          "oos_trades": 164,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.18915833377897148,
+          "icir": -4.549320753936669,
+          "oos_net_return": 1.318688,
+          "oos_sharpe": 2.5939,
+          "oos_win_rate": 0.6149,
+          "oos_trades": 148,
+          "fwd": 1
+        },
+        "XPL": {
+          "ic_mean": -0.09188781969690035,
+          "icir": -1.2736125951427837,
+          "oos_net_return": 1.836983,
+          "oos_sharpe": 1.8729,
+          "oos_win_rate": 0.5696,
+          "oos_trades": 79,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.1640225481374533,
+          "icir": -1.9259548667003694,
+          "oos_net_return": 3.116913,
+          "oos_sharpe": 2.1765,
+          "oos_win_rate": 0.5526,
+          "oos_trades": 333,
+          "fwd": 2
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_volatility_squeeze",
+      "timeframe": "1d",
+      "ic_mean": -0.09934,
+      "icir": -1.856,
+      "oos_net_return": 0.961442,
+      "oos_sharpe": 0.9406,
+      "oos_win_rate": 0.5101,
+      "oos_trades": 1147,
+      "fwd": 2,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.16673565458580358,
+          "icir": -2.7838258367061015,
+          "oos_net_return": 0.00657,
+          "oos_sharpe": 0.0349,
+          "oos_win_rate": 0.4595,
+          "oos_trades": 37,
+          "fwd": 3
+        },
+        "BNB": {
+          "ic_mean": -0.06269970303712323,
+          "icir": -1.2702451653942164,
+          "oos_net_return": 0.547617,
+          "oos_sharpe": 0.6198,
+          "oos_win_rate": 0.5315,
+          "oos_trades": 333,
+          "fwd": 2
+        },
+        "BTC": {
+          "ic_mean": -0.15003840982547548,
+          "icir": -3.0594515759610834,
+          "oos_net_return": 0.495346,
+          "oos_sharpe": 1.2882,
+          "oos_win_rate": 0.5135,
+          "oos_trades": 111,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.017888103882996706,
+          "icir": -0.3103317346012878,
+          "oos_net_return": 2.796235,
+          "oos_sharpe": 1.8195,
+          "oos_win_rate": 0.536,
+          "oos_trades": 666,
+          "fwd": 1
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_lrr",
+      "timeframe": "1d",
+      "ic_mean": 0.06621,
+      "icir": 6.6087,
+      "oos_net_return": 0.542046,
+      "oos_sharpe": 0.9019,
+      "oos_win_rate": 0.5519,
+      "oos_trades": 527,
+      "fwd": 2,
+      "per_symbol": {
+        "ETH": {
+          "ic_mean": 0.07346812759836514,
+          "icir": 2.954069319658682,
+          "oos_net_return": 0.621892,
+          "oos_sharpe": 1.1506,
+          "oos_win_rate": 0.5315,
+          "oos_trades": 111,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.05048429903884729,
+          "icir": 15.943696279256354,
+          "oos_net_return": 0.823493,
+          "oos_sharpe": 1.2805,
+          "oos_win_rate": 0.5389,
+          "oos_trades": 334,
+          "fwd": 1
+        },
+        "UNI": {
+          "ic_mean": 0.07468083662831265,
+          "icir": 0.9283410755744057,
+          "oos_net_return": 0.180752,
+          "oos_sharpe": 0.2747,
+          "oos_win_rate": 0.5854,
+          "oos_trades": 82,
+          "fwd": 3
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_unknown_vol",
+      "timeframe": "1d",
+      "ic_mean": 0.04159,
+      "icir": 0.9335,
+      "oos_net_return": 0.996858,
+      "oos_sharpe": 1.0125,
+      "oos_win_rate": 0.53,
+      "oos_trades": 968,
+      "fwd": 2,
+      "per_symbol": {
+        "ETH": {
+          "ic_mean": 0.04764630179407442,
+          "icir": 0.7964077901446077,
+          "oos_net_return": 1.096816,
+          "oos_sharpe": 0.8657,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 222,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.004635933821797759,
+          "icir": 1.1627086360512606,
+          "oos_net_return": 0.65711,
+          "oos_sharpe": 0.7888,
+          "oos_win_rate": 0.5181,
+          "oos_trades": 332,
+          "fwd": 1
+        },
+        "UNI": {
+          "ic_mean": 0.1151670753955841,
+          "icir": 1.7902998740047,
+          "oos_net_return": 0.180752,
+          "oos_sharpe": 0.2747,
+          "oos_win_rate": 0.5854,
+          "oos_trades": 82,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.0011019764495566761,
+          "icir": -0.01527368619385091,
+          "oos_net_return": 2.052755,
+          "oos_sharpe": 2.1207,
+          "oos_win_rate": 0.512,
+          "oos_trades": 332,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    }
+  ],
+  "timeouts": 0,
+  "errors": 792,
+  "top_by_ic": [
+    {
+      "factor_id": "ai_gen_trend_consensus",
+      "timeframe": "4h",
+      "ic_mean": -0.17634,
+      "icir": -1.1619,
+      "oos_net_return": -0.051049,
+      "oos_sharpe": -0.0581,
+      "oos_win_rate": 0.5094,
+      "oos_trades": 3381,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.2688595486772516,
+          "icir": -1.6963782201712734,
+          "oos_net_return": 0.783186,
+          "oos_sharpe": 1.6296,
+          "oos_win_rate": 0.5586,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.1584838332899707,
+          "icir": -1.2863903088809447,
+          "oos_net_return": -0.158285,
+          "oos_sharpe": -0.4646,
+          "oos_win_rate": 0.492,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.12351940209179069,
+          "icir": -0.9236934054007248,
+          "oos_net_return": -0.692671,
+          "oos_sharpe": -1.9574,
+          "oos_win_rate": 0.4747,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.14248945307597213,
+          "icir": -1.0925924311620472,
+          "oos_net_return": -0.291606,
+          "oos_sharpe": -0.6099,
+          "oos_win_rate": 0.4972,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.19023556810857448,
+          "icir": -0.9374690339486472,
+          "oos_net_return": 0.415351,
+          "oos_sharpe": 0.8306,
+          "oos_win_rate": 0.5206,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.22781110784536102,
+          "icir": -1.1980757223278973,
+          "oos_net_return": 0.239732,
+          "oos_sharpe": 0.3437,
+          "oos_win_rate": 0.5238,
+          "oos_trades": 252,
+          "fwd": 6
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.17306888715417157,
+          "icir": -1.2124402885914434,
+          "oos_net_return": 0.314562,
+          "oos_sharpe": 0.5818,
+          "oos_win_rate": 0.5315,
+          "oos_trades": 222,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": -0.13397345742878464,
+          "icir": -0.9177944137039745,
+          "oos_net_return": -1.234525,
+          "oos_sharpe": -1.22,
+          "oos_win_rate": 0.4705,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.16859417159537735,
+          "icir": -1.1926560847193084,
+          "oos_net_return": 0.164816,
+          "oos_sharpe": 0.3434,
+          "oos_win_rate": 0.516,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_regimeavoid",
+      "timeframe": "4h",
+      "ic_mean": -0.15966,
+      "icir": -1.0225,
+      "oos_net_return": 0.107131,
+      "oos_sharpe": 0.1248,
+      "oos_win_rate": 0.5117,
+      "oos_trades": 3714,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.27094917355216136,
+          "icir": -1.5702034933285862,
+          "oos_net_return": 0.854846,
+          "oos_sharpe": 1.868,
+          "oos_win_rate": 0.5581,
+          "oos_trades": 215,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.15678358293126363,
+          "icir": -1.1322859115013326,
+          "oos_net_return": -0.491361,
+          "oos_sharpe": -1.4176,
+          "oos_win_rate": 0.4765,
+          "oos_trades": 489,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.12489173939057421,
+          "icir": -0.8818374068508381,
+          "oos_net_return": -0.374832,
+          "oos_sharpe": -1.0163,
+          "oos_win_rate": 0.5058,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.13416768856936617,
+          "icir": -0.9408874836316382,
+          "oos_net_return": -0.315358,
+          "oos_sharpe": -0.6163,
+          "oos_win_rate": 0.5038,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.14783993283155175,
+          "icir": -0.8421552579044639,
+          "oos_net_return": 0.47062,
+          "oos_sharpe": 0.8721,
+          "oos_win_rate": 0.5179,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "UNI": {
+          "ic_mean": -0.14772222435279075,
+          "icir": -0.9961543271476241,
+          "oos_net_return": -0.437294,
+          "oos_sharpe": -0.6305,
+          "oos_win_rate": 0.4969,
+          "oos_trades": 489,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.20183236902567864,
+          "icir": -1.186860638666079,
+          "oos_net_return": 0.996502,
+          "oos_sharpe": 1.8082,
+          "oos_win_rate": 0.5775,
+          "oos_trades": 142,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.11497096027118973,
+          "icir": -0.6604627351839162,
+          "oos_net_return": 0.28937,
+          "oos_sharpe": 0.3141,
+          "oos_win_rate": 0.4783,
+          "oos_trades": 460,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.13780976577031676,
+          "icir": -0.9915831911946912,
+          "oos_net_return": -0.028313,
+          "oos_sharpe": -0.0585,
+          "oos_win_rate": 0.4908,
+          "oos_trades": 489,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_trd_str",
+      "timeframe": "4h",
+      "ic_mean": -0.15936,
+      "icir": -0.9947,
+      "oos_net_return": -0.080277,
+      "oos_sharpe": -0.0873,
+      "oos_win_rate": 0.5111,
+      "oos_trades": 3505,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.2471017976017693,
+          "icir": -1.3949762753538513,
+          "oos_net_return": 0.362753,
+          "oos_sharpe": 0.7504,
+          "oos_win_rate": 0.5315,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.15720780487218294,
+          "icir": -1.2222936831293614,
+          "oos_net_return": -0.025498,
+          "oos_sharpe": -0.0748,
+          "oos_win_rate": 0.5,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.12516100377016143,
+          "icir": -0.85787226627954,
+          "oos_net_return": -0.510428,
+          "oos_sharpe": -1.4419,
+          "oos_win_rate": 0.4784,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.12808246951524385,
+          "icir": -0.844466663884244,
+          "oos_net_return": -0.655433,
+          "oos_sharpe": -1.3746,
+          "oos_win_rate": 0.4916,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.17399125933221612,
+          "icir": -0.7739750268316642,
+          "oos_net_return": 0.216846,
+          "oos_sharpe": 0.4328,
+          "oos_win_rate": 0.5243,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.18070089578037865,
+          "icir": -1.0340147288846853,
+          "oos_net_return": 0.523143,
+          "oos_sharpe": 0.7789,
+          "oos_win_rate": 0.5426,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.16107380339255944,
+          "icir": -1.029692838440974,
+          "oos_net_return": 0.609427,
+          "oos_sharpe": 1.1322,
+          "oos_win_rate": 0.527,
+          "oos_trades": 222,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": -0.10028333466488687,
+          "icir": -0.7086991596580612,
+          "oos_net_return": -1.463186,
+          "oos_sharpe": -1.4465,
+          "oos_win_rate": 0.481,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.16065262730486637,
+          "icir": -1.0866260334599556,
+          "oos_net_return": 0.219884,
+          "oos_sharpe": 0.4579,
+          "oos_win_rate": 0.5239,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_micro_profit_risk",
+      "timeframe": "4h",
+      "ic_mean": 0.15834,
+      "icir": 2.2203,
+      "oos_net_return": 0.195966,
+      "oos_sharpe": 0.5246,
+      "oos_win_rate": 0.5169,
+      "oos_trades": 1486,
+      "fwd": 5,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.20094217784288856,
+          "icir": 0.7555090335508965,
+          "oos_net_return": 0.064025,
+          "oos_sharpe": 0.1645,
+          "oos_win_rate": 0.4819,
+          "oos_trades": 166,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": 0.14362262644701534,
+          "icir": 3.4140546163504197,
+          "oos_net_return": 0.33092,
+          "oos_sharpe": 1.1577,
+          "oos_win_rate": 0.5,
+          "oos_trades": 126,
+          "fwd": 6
+        },
+        "BTC": {
+          "ic_mean": -0.07129132099604855,
+          "icir": -0.6000245031540704,
+          "oos_net_return": 0.141824,
+          "oos_sharpe": 0.4956,
+          "oos_win_rate": 0.5188,
+          "oos_trades": 266,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.18825626952780616,
+          "icir": 3.3942097053665368,
+          "oos_net_return": 0.174168,
+          "oos_sharpe": 0.4587,
+          "oos_win_rate": 0.4887,
+          "oos_trades": 133,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": 0.06963075684810367,
+          "icir": 1.1311452499085601,
+          "oos_net_return": 0.332766,
+          "oos_sharpe": 0.8169,
+          "oos_win_rate": 0.5338,
+          "oos_trades": 133,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": 0.28022607167561847,
+          "icir": 4.7113152610376625,
+          "oos_net_return": 0.425958,
+          "oos_sharpe": 0.8383,
+          "oos_win_rate": 0.6111,
+          "oos_trades": 126,
+          "fwd": 6
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.049070733114300914,
+          "icir": 0.8148029117542639,
+          "oos_net_return": 0.033105,
+          "oos_sharpe": 0.0869,
+          "oos_win_rate": 0.4775,
+          "oos_trades": 111,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": 0.1357986900750095,
+          "icir": 0.8506944922740307,
+          "oos_net_return": -0.059033,
+          "oos_sharpe": -0.0864,
+          "oos_win_rate": 0.4979,
+          "oos_trades": 237,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.42878469824790955,
+          "icir": 5.510662934775183,
+          "oos_net_return": 0.319964,
+          "oos_sharpe": 0.7894,
+          "oos_win_rate": 0.5426,
+          "oos_trades": 188,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_trend_weakness",
+      "timeframe": "4h",
+      "ic_mean": 0.14886,
+      "icir": 0.8945,
+      "oos_net_return": 0.156577,
+      "oos_sharpe": 0.4829,
+      "oos_win_rate": 0.5266,
+      "oos_trades": 3511,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.2137939353212998,
+          "icir": 1.2552661742124995,
+          "oos_net_return": 0.389465,
+          "oos_sharpe": 0.8331,
+          "oos_win_rate": 0.5488,
+          "oos_trades": 328,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": 0.20696569450353544,
+          "icir": 1.1799399539449964,
+          "oos_net_return": 0.110478,
+          "oos_sharpe": 0.3172,
+          "oos_win_rate": 0.5121,
+          "oos_trades": 248,
+          "fwd": 6
+        },
+        "BTC": {
+          "ic_mean": 0.11882487327104789,
+          "icir": 0.7618473658677736,
+          "oos_net_return": 0.249809,
+          "oos_sharpe": 0.6781,
+          "oos_win_rate": 0.5152,
+          "oos_trades": 528,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.12205742067444102,
+          "icir": 0.6720846134821342,
+          "oos_net_return": 0.023635,
+          "oos_sharpe": 0.0471,
+          "oos_win_rate": 0.5328,
+          "oos_trades": 396,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": 0.11551925620710211,
+          "icir": 0.7109043452049755,
+          "oos_net_return": 0.5912,
+          "oos_sharpe": 1.0737,
+          "oos_win_rate": 0.5417,
+          "oos_trades": 528,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": 0.1404871292111453,
+          "icir": 0.9500575503575045,
+          "oos_net_return": 0.617494,
+          "oos_sharpe": 0.8741,
+          "oos_win_rate": 0.5312,
+          "oos_trades": 497,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.18474716671539157,
+          "icir": 0.9227126884769559,
+          "oos_net_return": 0.725584,
+          "oos_sharpe": 1.3445,
+          "oos_win_rate": 0.5548,
+          "oos_trades": 146,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": 0.07168478603069052,
+          "icir": 0.5369148825460441,
+          "oos_net_return": -1.648873,
+          "oos_sharpe": -1.5518,
+          "oos_win_rate": 0.4573,
+          "oos_trades": 468,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.16569408247211526,
+          "icir": 1.0604112989374999,
+          "oos_net_return": 0.350403,
+          "oos_sharpe": 0.7304,
+          "oos_win_rate": 0.5457,
+          "oos_trades": 372,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_vol_adjusted_mean_reversion",
+      "timeframe": "4h",
+      "ic_mean": 0.14797,
+      "icir": 0.9538,
+      "oos_net_return": -0.334464,
+      "oos_sharpe": -0.4457,
+      "oos_win_rate": 0.4927,
+      "oos_trades": 3897,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.274815771676308,
+          "icir": 1.5161213032490954,
+          "oos_net_return": 0.182246,
+          "oos_sharpe": 0.3769,
+          "oos_win_rate": 0.4955,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": 0.13377795605234974,
+          "icir": 0.9802080626316795,
+          "oos_net_return": 0.115994,
+          "oos_sharpe": 0.3399,
+          "oos_win_rate": 0.4482,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": 0.11307733289251894,
+          "icir": 0.7468461306565977,
+          "oos_net_return": -0.516245,
+          "oos_sharpe": -1.4572,
+          "oos_win_rate": 0.4841,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.11366829171843872,
+          "icir": 0.7973868902891669,
+          "oos_net_return": -0.601508,
+          "oos_sharpe": -1.2607,
+          "oos_win_rate": 0.4897,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.10889953128098313,
+          "icir": 0.7030592673612742,
+          "oos_net_return": -0.495617,
+          "oos_sharpe": -0.9318,
+          "oos_win_rate": 0.4972,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": 0.142744513202881,
+          "icir": 0.9480859666652016,
+          "oos_net_return": -0.527387,
+          "oos_sharpe": -0.8036,
+          "oos_win_rate": 0.498,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.18345887882843623,
+          "icir": 1.246530620683009,
+          "oos_net_return": 0.791733,
+          "oos_sharpe": 1.4727,
+          "oos_win_rate": 0.536,
+          "oos_trades": 222,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": 0.1306335911259819,
+          "icir": 0.828648801036419,
+          "oos_net_return": -2.137356,
+          "oos_sharpe": -2.1179,
+          "oos_win_rate": 0.4641,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.13069549271364542,
+          "icir": 0.8171254398879152,
+          "oos_net_return": 0.17796,
+          "oos_sharpe": 0.3702,
+          "oos_win_rate": 0.5213,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_volad",
+      "timeframe": "4h",
+      "ic_mean": -0.14398,
+      "icir": -0.9616,
+      "oos_net_return": 0.014817,
+      "oos_sharpe": 0.0793,
+      "oos_win_rate": 0.517,
+      "oos_trades": 3881,
+      "fwd": 3,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.1774700357447704,
+          "icir": -1.2377833498172073,
+          "oos_net_return": 0.628316,
+          "oos_sharpe": 1.3457,
+          "oos_win_rate": 0.5271,
+          "oos_trades": 332,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": -0.1554343989340444,
+          "icir": -1.2313466444146628,
+          "oos_net_return": -0.671568,
+          "oos_sharpe": -1.9628,
+          "oos_win_rate": 0.502,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.12368207663593246,
+          "icir": -0.8226045777538987,
+          "oos_net_return": -0.37854,
+          "oos_sharpe": -1.0692,
+          "oos_win_rate": 0.4991,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.11722144648518382,
+          "icir": -0.7586456680204492,
+          "oos_net_return": -0.596987,
+          "oos_sharpe": -1.2505,
+          "oos_win_rate": 0.4916,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.13028677943085018,
+          "icir": -0.7467986375725078,
+          "oos_net_return": 0.878675,
+          "oos_sharpe": 1.6594,
+          "oos_win_rate": 0.5291,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": -0.1616129209568077,
+          "icir": -1.0456663986728298,
+          "oos_net_return": 0.467879,
+          "oos_sharpe": 0.6972,
+          "oos_win_rate": 0.5426,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.17531822813071984,
+          "icir": -1.0391883133547046,
+          "oos_net_return": 0.86568,
+          "oos_sharpe": 1.6138,
+          "oos_win_rate": 0.527,
+          "oos_trades": 222,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": -0.06532023898231118,
+          "icir": -0.5020397110291536,
+          "oos_net_return": -1.721182,
+          "oos_sharpe": -1.7011,
+          "oos_win_rate": 0.4789,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.1895137994583014,
+          "icir": -1.2705380880333526,
+          "oos_net_return": 0.66108,
+          "oos_sharpe": 1.381,
+          "oos_win_rate": 0.5559,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_meanrev_strength",
+      "timeframe": "4h",
+      "ic_mean": 0.14382,
+      "icir": 0.9735,
+      "oos_net_return": 0.013327,
+      "oos_sharpe": 0.0579,
+      "oos_win_rate": 0.512,
+      "oos_trades": 3515,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.2579274398764673,
+          "icir": 1.2963265626582452,
+          "oos_net_return": 0.537749,
+          "oos_sharpe": 1.1623,
+          "oos_win_rate": 0.5509,
+          "oos_trades": 216,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": 0.13600528141596432,
+          "icir": 1.1576924758065552,
+          "oos_net_return": -0.220159,
+          "oos_sharpe": -0.6322,
+          "oos_win_rate": 0.5285,
+          "oos_trades": 492,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": 0.12138257092245541,
+          "icir": 0.8392788688849477,
+          "oos_net_return": 0.064835,
+          "oos_sharpe": 0.1865,
+          "oos_win_rate": 0.5057,
+          "oos_trades": 522,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.11008892936828986,
+          "icir": 0.874667357877948,
+          "oos_net_return": -0.275101,
+          "oos_sharpe": -0.5817,
+          "oos_win_rate": 0.5077,
+          "oos_trades": 522,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.11477094687214653,
+          "icir": 0.8265533903716152,
+          "oos_net_return": 0.309282,
+          "oos_sharpe": 0.5881,
+          "oos_win_rate": 0.5096,
+          "oos_trades": 522,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": 0.1835936505695321,
+          "icir": 1.2224114037638798,
+          "oos_net_return": 0.332416,
+          "oos_sharpe": 0.559,
+          "oos_win_rate": 0.5366,
+          "oos_trades": 246,
+          "fwd": 6
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.12286521637468005,
+          "icir": 1.0941214951038258,
+          "oos_net_return": -0.740108,
+          "oos_sharpe": -1.3293,
+          "oos_win_rate": 0.472,
+          "oos_trades": 286,
+          "fwd": 3
+        },
+        "XPL": {
+          "ic_mean": 0.05465908669406523,
+          "icir": 0.3922125526740077,
+          "oos_net_return": -0.222411,
+          "oos_sharpe": -0.22,
+          "oos_win_rate": 0.4687,
+          "oos_trades": 463,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.19308155341723815,
+          "icir": 1.058382547689694,
+          "oos_net_return": 0.333441,
+          "oos_sharpe": 0.7884,
+          "oos_win_rate": 0.5285,
+          "oos_trades": 246,
+          "fwd": 6
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "wq_alpha086",
+      "timeframe": "4h",
+      "ic_mean": -0.14362,
+      "icir": -0.9465,
+      "oos_net_return": 0.105038,
+      "oos_sharpe": 0.0901,
+      "oos_win_rate": 0.5166,
+      "oos_trades": 3644,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.17752082241897985,
+          "icir": -1.2875164278559255,
+          "oos_net_return": -0.534682,
+          "oos_sharpe": -1.1821,
+          "oos_win_rate": 0.4796,
+          "oos_trades": 442,
+          "fwd": 3
+        },
+        "BNB": {
+          "ic_mean": -0.15101368918070873,
+          "icir": -1.223005062078027,
+          "oos_net_return": -0.403773,
+          "oos_sharpe": -1.1772,
+          "oos_win_rate": 0.5139,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.11100938708817933,
+          "icir": -0.7292585960310067,
+          "oos_net_return": -0.356756,
+          "oos_sharpe": -1.0059,
+          "oos_win_rate": 0.4878,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.12264022871365499,
+          "icir": -0.7014822161539522,
+          "oos_net_return": 0.098333,
+          "oos_sharpe": 0.1964,
+          "oos_win_rate": 0.5175,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.14991123326869246,
+          "icir": -0.7048380436466393,
+          "oos_net_return": 0.301198,
+          "oos_sharpe": 0.6013,
+          "oos_win_rate": 0.4906,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.14949760753979235,
+          "icir": -1.1585439904542103,
+          "oos_net_return": 0.456313,
+          "oos_sharpe": 0.6965,
+          "oos_win_rate": 0.5378,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.20098985308738906,
+          "icir": -1.0412257741720294,
+          "oos_net_return": 1.073405,
+          "oos_sharpe": 2.0653,
+          "oos_win_rate": 0.5878,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.07522157787270033,
+          "icir": -0.6213727058269823,
+          "oos_net_return": 0.028473,
+          "oos_sharpe": 0.0281,
+          "oos_win_rate": 0.4789,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.15473178360204706,
+          "icir": -1.0514750665402997,
+          "oos_net_return": 0.282831,
+          "oos_sharpe": 0.5883,
+          "oos_win_rate": 0.5559,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_volatility_reversal",
+      "timeframe": "4h",
+      "ic_mean": 0.14099,
+      "icir": 1.376,
+      "oos_net_return": -0.093888,
+      "oos_sharpe": -0.2192,
+      "oos_win_rate": 0.4783,
+      "oos_trades": 2315,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.31977816102323386,
+          "icir": 1.3732799176148367,
+          "oos_net_return": 0.171775,
+          "oos_sharpe": 0.3661,
+          "oos_win_rate": 0.4729,
+          "oos_trades": 332,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": 0.16647054477055204,
+          "icir": 1.5933295276785713,
+          "oos_net_return": -0.422076,
+          "oos_sharpe": -1.5376,
+          "oos_win_rate": 0.4741,
+          "oos_trades": 251,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.33870833611390627,
+          "icir": 5.309374606029257,
+          "oos_net_return": -0.08745,
+          "oos_sharpe": -0.303,
+          "oos_win_rate": 0.5056,
+          "oos_trades": 267,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.007242683634223019,
+          "icir": 0.09852553519425843,
+          "oos_net_return": -0.394248,
+          "oos_sharpe": -0.8994,
+          "oos_win_rate": 0.4361,
+          "oos_trades": 266,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": 0.1613605528384942,
+          "icir": 1.8126560717438263,
+          "oos_net_return": 0.088325,
+          "oos_sharpe": 0.1266,
+          "oos_win_rate": 0.4286,
+          "oos_trades": 252,
+          "fwd": 6
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.10275894034345148,
+          "icir": 0.4926036642329155,
+          "oos_net_return": 0.095864,
+          "oos_sharpe": 0.177,
+          "oos_win_rate": 0.509,
+          "oos_trades": 222,
+          "fwd": 4
+        },
+        "XPL": {
+          "ic_mean": 0.0711193432084927,
+          "icir": 0.4899472601844161,
+          "oos_net_return": -0.357655,
+          "oos_sharpe": -0.3531,
+          "oos_win_rate": 0.4937,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.03951937336049801,
+          "icir": -0.16145029040773176,
+          "oos_net_return": 0.154362,
+          "oos_sharpe": 0.6696,
+          "oos_win_rate": 0.506,
+          "oos_trades": 251,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_mmc",
+      "timeframe": "4h",
+      "ic_mean": -0.13564,
+      "icir": -0.8432,
+      "oos_net_return": -0.016944,
+      "oos_sharpe": -0.041,
+      "oos_win_rate": 0.5148,
+      "oos_trades": 3525,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.15777997665506888,
+          "icir": -1.2305553534315488,
+          "oos_net_return": -0.267041,
+          "oos_sharpe": -0.5922,
+          "oos_win_rate": 0.5,
+          "oos_trades": 442,
+          "fwd": 3
+        },
+        "BNB": {
+          "ic_mean": -0.12507564161886392,
+          "icir": -0.891210644169625,
+          "oos_net_return": 0.211661,
+          "oos_sharpe": 0.5825,
+          "oos_win_rate": 0.4894,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "BTC": {
+          "ic_mean": -0.10018497903887125,
+          "icir": -0.6491038213619225,
+          "oos_net_return": -0.58389,
+          "oos_sharpe": -1.6446,
+          "oos_win_rate": 0.469,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.09668024426703765,
+          "icir": -0.6430078914228847,
+          "oos_net_return": -0.695126,
+          "oos_sharpe": -1.4576,
+          "oos_win_rate": 0.5066,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.1513745696723309,
+          "icir": -0.7935101102776255,
+          "oos_net_return": 0.633704,
+          "oos_sharpe": 1.2693,
+          "oos_win_rate": 0.5468,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.13531274097832316,
+          "icir": -0.7755838430994483,
+          "oos_net_return": 0.3816,
+          "oos_sharpe": 0.5683,
+          "oos_win_rate": 0.5372,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.2161295635274361,
+          "icir": -1.1017593552972473,
+          "oos_net_return": 0.718246,
+          "oos_sharpe": 1.3647,
+          "oos_win_rate": 0.5811,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.09103056769973945,
+          "icir": -0.5814309307536567,
+          "oos_net_return": -0.629799,
+          "oos_sharpe": -0.6218,
+          "oos_win_rate": 0.4789,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.1471897381785739,
+          "icir": -0.922614599401539,
+          "oos_net_return": 0.078145,
+          "oos_sharpe": 0.1624,
+          "oos_win_rate": 0.5239,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_rgmm",
+      "timeframe": "4h",
+      "ic_mean": -0.13138,
+      "icir": -0.8231,
+      "oos_net_return": 0.192291,
+      "oos_sharpe": 0.264,
+      "oos_win_rate": 0.5237,
+      "oos_trades": 3303,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.1776347781501169,
+          "icir": -1.2274563314138711,
+          "oos_net_return": 0.764268,
+          "oos_sharpe": 1.6382,
+          "oos_win_rate": 0.5693,
+          "oos_trades": 332,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": -0.0687779663247655,
+          "icir": -0.5089822193887701,
+          "oos_net_return": -0.007439,
+          "oos_sharpe": -0.0219,
+          "oos_win_rate": 0.4442,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.08540648971145863,
+          "icir": -0.6369002371669596,
+          "oos_net_return": -0.7816,
+          "oos_sharpe": -2.2048,
+          "oos_win_rate": 0.454,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.08318471502020254,
+          "icir": -0.6359041269182933,
+          "oos_net_return": -0.61116,
+          "oos_sharpe": -1.2798,
+          "oos_win_rate": 0.4841,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.15885056025346356,
+          "icir": -0.7832694993030549,
+          "oos_net_return": 0.338836,
+          "oos_sharpe": 0.6752,
+          "oos_win_rate": 0.5393,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.13105508620814849,
+          "icir": -0.8268226045118474,
+          "oos_net_return": 0.013355,
+          "oos_sharpe": 0.0198,
+          "oos_win_rate": 0.5372,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.21995883865603522,
+          "icir": -1.2636719923409578,
+          "oos_net_return": 1.209394,
+          "oos_sharpe": 2.3361,
+          "oos_win_rate": 0.6351,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.1197020573839141,
+          "icir": -0.6216419973959887,
+          "oos_net_return": 0.482686,
+          "oos_sharpe": 0.5414,
+          "oos_win_rate": 0.5127,
+          "oos_trades": 236,
+          "fwd": 6
+        },
+        "XRP": {
+          "ic_mean": -0.13783388000421723,
+          "icir": -0.9029369491459549,
+          "oos_net_return": 0.322277,
+          "oos_sharpe": 0.6714,
+          "oos_win_rate": 0.5372,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_timeout_decay",
+      "timeframe": "4h",
+      "ic_mean": 0.13014,
+      "icir": 0.8314,
+      "oos_net_return": -0.193321,
+      "oos_sharpe": -0.241,
+      "oos_win_rate": 0.5076,
+      "oos_trades": 4097,
+      "fwd": 3,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.24586800887005741,
+          "icir": 1.3153831485869973,
+          "oos_net_return": 0.324429,
+          "oos_sharpe": 0.6697,
+          "oos_win_rate": 0.5541,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": 0.12765654088489295,
+          "icir": 0.902246635296443,
+          "oos_net_return": 0.020794,
+          "oos_sharpe": 0.0609,
+          "oos_win_rate": 0.496,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": 0.11305565085547017,
+          "icir": 0.6769780153324362,
+          "oos_net_return": -0.61366,
+          "oos_sharpe": -1.7282,
+          "oos_win_rate": 0.4803,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.09370434211739048,
+          "icir": 0.5777504360707059,
+          "oos_net_return": -0.325133,
+          "oos_sharpe": -0.6809,
+          "oos_win_rate": 0.5028,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.10862176360049255,
+          "icir": 0.6644271769543857,
+          "oos_net_return": -0.191309,
+          "oos_sharpe": -0.3598,
+          "oos_win_rate": 0.4972,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "UNI": {
+          "ic_mean": 0.13028687959146723,
+          "icir": 0.8223122276314554,
+          "oos_net_return": 0.109286,
+          "oos_sharpe": 0.1668,
+          "oos_win_rate": 0.5259,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.14039227749599856,
+          "icir": 1.0625669192796177,
+          "oos_net_return": 0.75844,
+          "oos_sharpe": 1.3955,
+          "oos_win_rate": 0.5304,
+          "oos_trades": 296,
+          "fwd": 3
+        },
+        "XPL": {
+          "ic_mean": 0.08753081828943965,
+          "icir": 0.6093293871029977,
+          "oos_net_return": -1.924654,
+          "oos_sharpe": -1.9075,
+          "oos_win_rate": 0.4662,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.12416564049961991,
+          "icir": 0.851161270268962,
+          "oos_net_return": 0.10192,
+          "oos_sharpe": 0.2141,
+          "oos_win_rate": 0.5159,
+          "oos_trades": 502,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_momconsensus",
+      "timeframe": "4h",
+      "ic_mean": -0.12996,
+      "icir": -0.8206,
+      "oos_net_return": 0.080235,
+      "oos_sharpe": 0.1804,
+      "oos_win_rate": 0.5082,
+      "oos_trades": 3478,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.22090534278049112,
+          "icir": -1.339520722608098,
+          "oos_net_return": 0.562349,
+          "oos_sharpe": 1.238,
+          "oos_win_rate": 0.5841,
+          "oos_trades": 214,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.07488682260076919,
+          "icir": -0.4728502615991188,
+          "oos_net_return": 0.046298,
+          "oos_sharpe": 0.1298,
+          "oos_win_rate": 0.4208,
+          "oos_trades": 366,
+          "fwd": 4
+        },
+        "BTC": {
+          "ic_mean": -0.08328494869368532,
+          "icir": -0.5535426862372581,
+          "oos_net_return": -0.645464,
+          "oos_sharpe": -1.7719,
+          "oos_win_rate": 0.4788,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.07999160190210779,
+          "icir": -0.5826933320647264,
+          "oos_net_return": -0.586169,
+          "oos_sharpe": -1.1513,
+          "oos_win_rate": 0.4865,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.1742425467989887,
+          "icir": -0.8220548039775599,
+          "oos_net_return": 0.226922,
+          "oos_sharpe": 0.4036,
+          "oos_win_rate": 0.5154,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.13296930551577274,
+          "icir": -0.8586670242934268,
+          "oos_net_return": 0.548272,
+          "oos_sharpe": 0.7838,
+          "oos_win_rate": 0.5399,
+          "oos_trades": 489,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.17326488187621963,
+          "icir": -1.3136657475423654,
+          "oos_net_return": 1.108553,
+          "oos_sharpe": 1.9933,
+          "oos_win_rate": 0.5512,
+          "oos_trades": 283,
+          "fwd": 3
+        },
+        "XPL": {
+          "ic_mean": -0.08647247705589238,
+          "icir": -0.5496533134108417,
+          "oos_net_return": -0.982338,
+          "oos_sharpe": -0.93,
+          "oos_win_rate": 0.4696,
+          "oos_trades": 460,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.14365869211003324,
+          "icir": -0.8927592616422694,
+          "oos_net_return": 0.443691,
+          "oos_sharpe": 0.9282,
+          "oos_win_rate": 0.5273,
+          "oos_trades": 366,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_stop_freq",
+      "timeframe": "4h",
+      "ic_mean": 0.1295,
+      "icir": 0.7979,
+      "oos_net_return": 0.140077,
+      "oos_sharpe": 0.4218,
+      "oos_win_rate": 0.5135,
+      "oos_trades": 3579,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": 0.25066140287098815,
+          "icir": 1.2896071258037265,
+          "oos_net_return": 0.39226,
+          "oos_sharpe": 0.8118,
+          "oos_win_rate": 0.5315,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": 0.1336808659701786,
+          "icir": 0.9686082391519543,
+          "oos_net_return": 0.183694,
+          "oos_sharpe": 0.5396,
+          "oos_win_rate": 0.506,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": 0.1323648912087451,
+          "icir": 0.7492496762908194,
+          "oos_net_return": 0.038929,
+          "oos_sharpe": 0.1049,
+          "oos_win_rate": 0.4975,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": 0.07968207599691943,
+          "icir": 0.5211721251185919,
+          "oos_net_return": 0.119358,
+          "oos_sharpe": 0.2502,
+          "oos_win_rate": 0.5178,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.10451495621586397,
+          "icir": 0.6200481543807631,
+          "oos_net_return": 0.391165,
+          "oos_sharpe": 0.7413,
+          "oos_win_rate": 0.4925,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "UNI": {
+          "ic_mean": 0.12149640828807239,
+          "icir": 0.7191963578469394,
+          "oos_net_return": 0.591845,
+          "oos_sharpe": 0.8811,
+          "oos_win_rate": 0.5266,
+          "oos_trades": 376,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": 0.10539326985106605,
+          "icir": 0.8101815166005483,
+          "oos_net_return": 0.483597,
+          "oos_sharpe": 0.8878,
+          "oos_win_rate": 0.5135,
+          "oos_trades": 296,
+          "fwd": 3
+        },
+        "XPL": {
+          "ic_mean": 0.06585065334851241,
+          "icir": 0.4996261380462599,
+          "oos_net_return": -1.407414,
+          "oos_sharpe": -1.3925,
+          "oos_win_rate": 0.4852,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": 0.1718446838256882,
+          "icir": 1.003725913084255,
+          "oos_net_return": 0.467262,
+          "oos_sharpe": 0.9723,
+          "oos_win_rate": 0.5505,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_eff_trend",
+      "timeframe": "4h",
+      "ic_mean": -0.12691,
+      "icir": -0.7966,
+      "oos_net_return": 0.321383,
+      "oos_sharpe": 0.5812,
+      "oos_win_rate": 0.5267,
+      "oos_trades": 3417,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.16224344600687912,
+          "icir": -1.2614550791779993,
+          "oos_net_return": 0.63459,
+          "oos_sharpe": 1.3571,
+          "oos_win_rate": 0.5211,
+          "oos_trades": 332,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": -0.17434013002551985,
+          "icir": -1.0397352105302013,
+          "oos_net_return": 0.16584,
+          "oos_sharpe": 0.4515,
+          "oos_win_rate": 0.5159,
+          "oos_trades": 252,
+          "fwd": 6
+        },
+        "BTC": {
+          "ic_mean": -0.08633618912150792,
+          "icir": -0.5518866163259364,
+          "oos_net_return": -0.346365,
+          "oos_sharpe": -0.9768,
+          "oos_win_rate": 0.4878,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.10461770353867267,
+          "icir": -0.5946257940357688,
+          "oos_net_return": 0.093101,
+          "oos_sharpe": 0.1859,
+          "oos_win_rate": 0.515,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.10266693452151528,
+          "icir": -0.5917604109421998,
+          "oos_net_return": 0.030908,
+          "oos_sharpe": 0.0586,
+          "oos_win_rate": 0.505,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "UNI": {
+          "ic_mean": -0.13237744824039996,
+          "icir": -0.87854889034476,
+          "oos_net_return": 0.766677,
+          "oos_sharpe": 1.1727,
+          "oos_win_rate": 0.5458,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.1983187675852887,
+          "icir": -1.0110137163309405,
+          "oos_net_return": 1.010397,
+          "oos_sharpe": 1.939,
+          "oos_win_rate": 0.5878,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.06413926472140262,
+          "icir": -0.46456752103024596,
+          "oos_net_return": 0.070155,
+          "oos_sharpe": 0.0693,
+          "oos_win_rate": 0.4958,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.11711195669738993,
+          "icir": -0.7761909130218904,
+          "oos_net_return": 0.467141,
+          "oos_sharpe": 0.9733,
+          "oos_win_rate": 0.5665,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_tcq",
+      "timeframe": "4h",
+      "ic_mean": -0.12636,
+      "icir": -0.8653,
+      "oos_net_return": 0.17874,
+      "oos_sharpe": 0.4012,
+      "oos_win_rate": 0.5159,
+      "oos_trades": 3831,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.18787874403047644,
+          "icir": -1.1482331533804595,
+          "oos_net_return": 0.676611,
+          "oos_sharpe": 1.407,
+          "oos_win_rate": 0.545,
+          "oos_trades": 222,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.14657101533942313,
+          "icir": -1.1267949706194365,
+          "oos_net_return": 0.008383,
+          "oos_sharpe": 0.0245,
+          "oos_win_rate": 0.5279,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.10564370679238731,
+          "icir": -0.6961289060257924,
+          "oos_net_return": 0.315255,
+          "oos_sharpe": 0.8875,
+          "oos_win_rate": 0.5291,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.11198740695582354,
+          "icir": -0.7647334136974578,
+          "oos_net_return": 0.120464,
+          "oos_sharpe": 0.2523,
+          "oos_win_rate": 0.5253,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.1543735257824398,
+          "icir": -0.6519275152849127,
+          "oos_net_return": 0.125798,
+          "oos_sharpe": 0.2506,
+          "oos_win_rate": 0.5019,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.14562121372493433,
+          "icir": -1.232734295737302,
+          "oos_net_return": 1.121793,
+          "oos_sharpe": 1.7188,
+          "oos_win_rate": 0.5418,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.11304652550036438,
+          "icir": -0.832916635275291,
+          "oos_net_return": -1.027073,
+          "oos_sharpe": -1.8903,
+          "oos_win_rate": 0.4493,
+          "oos_trades": 296,
+          "fwd": 3
+        },
+        "XPL": {
+          "ic_mean": -0.0371474705870911,
+          "icir": -0.3446507571842837,
+          "oos_net_return": -0.353698,
+          "oos_sharpe": -0.3493,
+          "oos_win_rate": 0.4852,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.1349880720522185,
+          "icir": -0.989699290911529,
+          "oos_net_return": 0.62113,
+          "oos_sharpe": 1.3096,
+          "oos_win_rate": 0.5378,
+          "oos_trades": 502,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_voladjmom",
+      "timeframe": "4h",
+      "ic_mean": -0.12413,
+      "icir": -0.8423,
+      "oos_net_return": 0.398484,
+      "oos_sharpe": 0.6128,
+      "oos_win_rate": 0.5309,
+      "oos_trades": 3534,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.14801610192097,
+          "icir": -1.230117099107284,
+          "oos_net_return": 0.677145,
+          "oos_sharpe": 1.4497,
+          "oos_win_rate": 0.5301,
+          "oos_trades": 332,
+          "fwd": 4
+        },
+        "BNB": {
+          "ic_mean": -0.12725128960902674,
+          "icir": -0.991280363060139,
+          "oos_net_return": -0.296898,
+          "oos_sharpe": -0.8662,
+          "oos_win_rate": 0.5179,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "BTC": {
+          "ic_mean": -0.09562818759532109,
+          "icir": -0.6550756980780706,
+          "oos_net_return": -0.323811,
+          "oos_sharpe": -0.9128,
+          "oos_win_rate": 0.4972,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.11124198409414275,
+          "icir": -0.6864653144468611,
+          "oos_net_return": 0.233579,
+          "oos_sharpe": 0.4668,
+          "oos_win_rate": 0.5275,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.12940153084522912,
+          "icir": -0.6470213771694359,
+          "oos_net_return": 0.492562,
+          "oos_sharpe": 0.9856,
+          "oos_win_rate": 0.5131,
+          "oos_trades": 267,
+          "fwd": 6
+        },
+        "UNI": {
+          "ic_mean": -0.13908387958037907,
+          "icir": -1.0788151626704519,
+          "oos_net_return": 0.689178,
+          "oos_sharpe": 1.0535,
+          "oos_win_rate": 0.5438,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.18429783419144982,
+          "icir": -0.9577161540638146,
+          "oos_net_return": 1.026686,
+          "oos_sharpe": 1.9711,
+          "oos_win_rate": 0.5878,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.06009208006853197,
+          "icir": -0.48559348846068606,
+          "oos_net_return": 0.820092,
+          "oos_sharpe": 0.8108,
+          "oos_win_rate": 0.5021,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.1221424281049648,
+          "icir": -0.8488999420399932,
+          "oos_net_return": 0.26782,
+          "oos_sharpe": 0.5566,
+          "oos_win_rate": 0.5585,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_vmom",
+      "timeframe": "4h",
+      "ic_mean": -0.12066,
+      "icir": -0.7737,
+      "oos_net_return": 0.122343,
+      "oos_sharpe": 0.1573,
+      "oos_win_rate": 0.5147,
+      "oos_trades": 3660,
+      "fwd": 4,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.14115065373332075,
+          "icir": -1.2071687709707613,
+          "oos_net_return": -0.481514,
+          "oos_sharpe": -1.065,
+          "oos_win_rate": 0.457,
+          "oos_trades": 442,
+          "fwd": 3
+        },
+        "BNB": {
+          "ic_mean": -0.16806326252996934,
+          "icir": -1.0123554600590388,
+          "oos_net_return": 0.117719,
+          "oos_sharpe": 0.3203,
+          "oos_win_rate": 0.5079,
+          "oos_trades": 252,
+          "fwd": 6
+        },
+        "BTC": {
+          "ic_mean": -0.09117017014861305,
+          "icir": -0.5764188310311068,
+          "oos_net_return": -0.346365,
+          "oos_sharpe": -0.9768,
+          "oos_win_rate": 0.4878,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.09009598131291875,
+          "icir": -0.572022773813904,
+          "oos_net_return": -0.361246,
+          "oos_sharpe": -0.7561,
+          "oos_win_rate": 0.4916,
+          "oos_trades": 533,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.10032551930522168,
+          "icir": -0.5871213021593483,
+          "oos_net_return": 0.049427,
+          "oos_sharpe": 0.0936,
+          "oos_win_rate": 0.505,
+          "oos_trades": 400,
+          "fwd": 4
+        },
+        "UNI": {
+          "ic_mean": -0.1302675996242471,
+          "icir": -0.8704125930171543,
+          "oos_net_return": 0.786212,
+          "oos_sharpe": 1.2029,
+          "oos_win_rate": 0.5458,
+          "oos_trades": 502,
+          "fwd": 3
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.1911710646347736,
+          "icir": -0.9779238102644362,
+          "oos_net_return": 1.026686,
+          "oos_sharpe": 1.9711,
+          "oos_win_rate": 0.5878,
+          "oos_trades": 148,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.05917310681549977,
+          "icir": -0.4291505316401755,
+          "oos_net_return": 0.017649,
+          "oos_sharpe": 0.0174,
+          "oos_win_rate": 0.4937,
+          "oos_trades": 474,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.11454289645042472,
+          "icir": -0.7307738257767578,
+          "oos_net_return": 0.292517,
+          "oos_sharpe": 0.6085,
+          "oos_win_rate": 0.5559,
+          "oos_trades": 376,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_ter",
+      "timeframe": "4h",
+      "ic_mean": -0.11838,
+      "icir": -0.7144,
+      "oos_net_return": 0.241989,
+      "oos_sharpe": 0.5823,
+      "oos_win_rate": 0.5335,
+      "oos_trades": 3170,
+      "fwd": 5,
+      "per_symbol": {
+        "ASTER": {
+          "ic_mean": -0.21802877403206852,
+          "icir": -1.2255947459177232,
+          "oos_net_return": 1.428905,
+          "oos_sharpe": 3.1782,
+          "oos_win_rate": 0.6,
+          "oos_trades": 220,
+          "fwd": 6
+        },
+        "BNB": {
+          "ic_mean": -0.15215952831264598,
+          "icir": -0.8867973994298617,
+          "oos_net_return": 0.052411,
+          "oos_sharpe": 0.1515,
+          "oos_win_rate": 0.524,
+          "oos_trades": 250,
+          "fwd": 6
+        },
+        "BTC": {
+          "ic_mean": -0.08162196048068979,
+          "icir": -0.5248198558735202,
+          "oos_net_return": -0.121567,
+          "oos_sharpe": -0.3478,
+          "oos_win_rate": 0.4981,
+          "oos_trades": 530,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.06456267278327056,
+          "icir": -0.4870278661030046,
+          "oos_net_return": -0.331148,
+          "oos_sharpe": -0.6989,
+          "oos_win_rate": 0.5094,
+          "oos_trades": 530,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.09960027779832015,
+          "icir": -0.6024495205246535,
+          "oos_net_return": 0.098846,
+          "oos_sharpe": 0.1762,
+          "oos_win_rate": 0.5427,
+          "oos_trades": 398,
+          "fwd": 4
+        },
+        "UNI": {
+          "ic_mean": -0.15232493866753363,
+          "icir": -0.8752858050714711,
+          "oos_net_return": 1.322465,
+          "oos_sharpe": 1.8825,
+          "oos_win_rate": 0.552,
+          "oos_trades": 375,
+          "fwd": 4
+        },
+        "VIRTUAL": {
+          "ic_mean": -0.10762840110053448,
+          "icir": -0.6780019300891766,
+          "oos_net_return": 0.646937,
+          "oos_sharpe": 1.1661,
+          "oos_win_rate": 0.5753,
+          "oos_trades": 146,
+          "fwd": 6
+        },
+        "XPL": {
+          "ic_mean": -0.0500429502371654,
+          "icir": -0.4087598028240687,
+          "oos_net_return": -1.380461,
+          "oos_sharpe": -1.3556,
+          "oos_win_rate": 0.4756,
+          "oos_trades": 471,
+          "fwd": 3
+        },
+        "XRP": {
+          "ic_mean": -0.13944054210235948,
+          "icir": -0.7406615254678217,
+          "oos_net_return": 0.461517,
+          "oos_sharpe": 1.0884,
+          "oos_win_rate": 0.524,
+          "oos_trades": 250,
+          "fwd": 6
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    }
+  ],
+  "elapsed_sec": 1814.3
+}

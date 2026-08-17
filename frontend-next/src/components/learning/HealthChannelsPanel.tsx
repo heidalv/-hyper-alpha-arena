@@ -157,10 +157,13 @@ export function HealthChannelsPanel() {
         action={null}
       >
         {loopItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">暂无闭环状态</p>
+          <p className="text-sm text-warning py-4 text-center flex items-center justify-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            暂无闭环状态
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="data-table">
               <thead>
                 <tr className="border-b border-border/50 text-left text-muted-foreground">
                   <th className="py-2 pr-3 font-medium">闭环</th>
@@ -181,31 +184,45 @@ export function HealthChannelsPanel() {
                       <td className="py-2 pr-3">
                         <StatusChip status={it.status ?? "dead"} />
                       </td>
-                      <td className="py-2 pr-3 whitespace-nowrap tabular-nums">
+                      <td className="num">
                         {it.last_activity ? fmtTime(it.last_activity) : "—"}
                         {it.age_hours != null && (
                           <span className={cn("ml-1.5 text-[10px]", ageClass(it.status))}>{it.age_hours}h</span>
                         )}
                       </td>
-                      <td className="py-2 pr-3 whitespace-nowrap tabular-nums">
+                      <td className="num">
                         {next ? fmtTime(next) : "—"}
                       </td>
-                      <td className="py-2 pr-3 whitespace-nowrap tabular-nums">
+                      <td className="num">
                         {intervalSec ? `${fmtInterval(intervalSec)}` : it.threshold_hours != null ? `${it.threshold_hours}h` : "—"}
                       </td>
-                      <td className="py-2 text-muted-foreground">{it.detail}</td>
+                      <td className="text-muted-foreground" style={{ whiteSpace: "normal" }}>{it.detail}</td>
                     </tr>
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-border/40">
+                  <td colSpan={2} className="num px-3 py-2 text-xs text-muted-foreground">
+                    共 {loopItems.length} 个闭环
+                  </td>
+                  <td colSpan={4} className="num px-3 py-2 text-xs">
+                    <span className="text-profit">{loopItems.filter((i) => i.status === "ok").length} 正常</span>
+                    <span className="text-muted-foreground"> · </span>
+                    <span className="text-warning">{loopItems.filter((i) => i.status === "warn").length} 迟滞</span>
+                    <span className="text-muted-foreground"> · </span>
+                    <span className="text-loss">{loopItems.filter((i) => i.status === "dead").length} 瘫痪</span>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
 
         <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-profit inline-block" /> ok（阈值内）</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning inline-block" /> warn（1×~2× 阈值）</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-loss inline-block" /> dead（超 2× 阈值）</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-profit text-profit shadow-[0_0_6px_currentColor] inline-block" /> ok（阈值内）</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning text-warning shadow-[0_0_6px_currentColor] inline-block" /> warn（1×~2× 阈值）</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-loss text-loss shadow-[0_0_6px_currentColor] inline-block" /> dead（超 2× 阈值）</span>
         </div>
       </SectionCard>
     </div>
@@ -225,7 +242,7 @@ function ChannelCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border p-3 space-y-2">
+    <div className="glass rounded-lg p-3 space-y-2">
       <div className="flex items-center gap-1.5">
         <span className="text-primary">{icon}</span>
         <span className="text-sm font-medium">{title}</span>
@@ -253,6 +270,15 @@ function ChannelRow({
       <span className="text-muted-foreground shrink-0">{label}</span>
       <span className="flex items-center gap-1.5 min-w-0">
         {time && <Clock className="w-3 h-3 text-muted-foreground shrink-0" />}
+        <span
+          className={cn(
+            "w-1.5 h-1.5 rounded-full shrink-0",
+            t === "good" && "bg-profit text-profit shadow-[0_0_6px_currentColor]",
+            t === "warn" && "bg-warning text-warning shadow-[0_0_6px_currentColor]",
+            t === "bad" && "bg-loss text-loss shadow-[0_0_6px_currentColor]",
+            (!t || t === "default") && "bg-muted-foreground/40"
+          )}
+        />
         <span className={cn("tabular-nums truncate font-medium", t === "good" && "text-profit", t === "warn" && "text-warning", t === "bad" && "text-loss")}>
           {value}
         </span>
@@ -270,6 +296,16 @@ function StatusChip({ status }: { status: string }) {
         : "bg-loss/15 text-loss";
   return (
     <Badge variant="outline" className={cn("font-normal", cls)}>
+      <span
+        className={cn(
+          "w-1.5 h-1.5 rounded-full",
+          status === "ok"
+            ? "bg-profit text-profit shadow-[0_0_6px_currentColor]"
+            : status === "warn"
+              ? "bg-warning text-warning shadow-[0_0_6px_currentColor]"
+              : "bg-loss text-loss shadow-[0_0_6px_currentColor]"
+        )}
+      />
       {status === "ok" ? "正常" : status === "warn" ? "迟滞" : "瘫痪"}
     </Badge>
   );

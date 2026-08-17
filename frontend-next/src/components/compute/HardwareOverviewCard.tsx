@@ -72,7 +72,7 @@ function MetricBar({
         <div
           className={cn(
             "h-full rounded-full transition-all duration-500",
-            danger ? "bg-red-500" : p > 70 ? "bg-amber-500" : "bg-green-500"
+            danger ? "bg-loss" : p > 70 ? "bg-warning" : "bg-profit"
           )}
           style={{ width: `${Math.min(100, p)}%` }}
         />
@@ -129,10 +129,10 @@ function TorchEnvBadge() {
           className={cn(
             "px-1.5 py-0.5 rounded text-[11px] border",
             probe?.available
-              ? "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400"
+              ? "border-green-500/40 bg-profit/10 text-green-600 dark:text-profit"
               : probe?.broken
-                ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
-                : "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                ? "border-red-500/40 bg-loss/10 text-red-600 dark:text-red-400"
+                : "border-amber-500/40 bg-warning/10 text-amber-600 dark:text-amber-400"
           )}
         >
           {loading && !probe

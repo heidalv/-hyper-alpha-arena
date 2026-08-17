@@ -13,6 +13,54 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optional[int] = None) -> Dict[str, Any]:
+    """中线/长线健康视图（[2026-08-17] 替代已删除的 midlong_health_report）。
+
+    直接从 trade_facts（真实交易事件流）按 tier 汇总：笔数/胜率/净 PnL。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import text as _sa_text
+
+    from backend.database.connection import SessionLocal
+
+    since = datetime.now(timezone.utc) - timedelta(days=int(lookback_days))
+    out: Dict[str, Any] = {
+        "lookback_days": int(lookback_days),
+        "source": "trade_facts",
+        "tiers": {},
+        "totals": {"trades": 0, "wins": 0, "pnl": 0.0},
+    }
+    try:
+        with SessionLocal() as db:
+            rows = db.execute(_sa_text(
+                """
+                SELECT tier, COUNT(*) AS n,
+                       SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) AS wins,
+                       SUM(COALESCE(pnl,0)) AS pnl
+                FROM trade_facts
+                WHERE ts >= :since
+                  AND (:acct IS NULL OR account_id = :acct)
+                GROUP BY tier
+                ORDER BY n DESC
+                """
+            ), {"since": since, "acct": account_id}).mappings().all()
+        for r in rows:
+            n = int(r["n"] or 0)
+            w = int(r["wins"] or 0)
+            out["tiers"][str(r["tier"])] = {
+                "trades": n,
+                "win_rate": round(w / n, 4) if n else 0.0,
+                "pnl": round(float(r["pnl"] or 0.0), 4),
+            }
+            out["totals"]["trades"] += n
+            out["totals"]["wins"] += w
+            out["totals"]["pnl"] = round(out["totals"]["pnl"] + float(r["pnl"] or 0.0), 4)
+    except Exception as exc:  # noqa: BLE001
+        out["error"] = str(exc)[:200]
+    return out
+
+
 def _clamp_tp_to_tier_max(tp_pct, tier, symbol, action):
     """[P0-1] TP 上限 clamp：复用 mid_long_structure_stop 的 MLTO_*_MAX_TP（long 20% / mid 10%）。
 

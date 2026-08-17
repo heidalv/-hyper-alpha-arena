@@ -1,10 +1,8 @@
 """
 Migration: widen position_exit_events.exit_channel varchar(40) -> varchar(100).
 
-长 reason（如 mlto_invalidation 长文）曾超过 varchar(40) 触发
-StringDataRightTruncation，导致整笔平仓事务回滚。代码侧已有截断兜底，
-此处把列加宽作双保险。幂等：仅当当前长度 < 100 时执行；SQLite 无长度约束，跳过。
-"""
+�?reason（如 mlto_invalidation 长文）曾超过 varchar(40) 触发
+StringDataRightTruncation，导致整笔平仓事务回滚。代码侧已有截断兜底�?此处把列加宽作双保险。幂等：仅当当前长度 < 100 时执行；SQLite 无长度约束，跳过�?"""
 import logging
 import os
 import sys
@@ -16,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def upgrade():
     from sqlalchemy import text
-    from database.connection import engine
+    from backend.database.connection import engine
 
     with engine.begin() as conn:
         if conn.dialect.name != "postgresql":

@@ -21,6 +21,8 @@ import logging
 import os
 from typing import Any, Dict, List
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 # 中长线 IC 退役阈值（时间框架更长、样本更少 → 门槛略低于短线）
@@ -176,10 +178,11 @@ class MidLongActiveFactorSet:
                 continue
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
             try:
+                from backend.services.factor_engine.factor_backtest_scorer import midlong_lookback_for
                 sr = factor_backtest_scorer.score_formula(
                     fid, formula,
                     interval=tf,
-                    lookback=int(self._cfg("FACTOR_SCORER_MIDLONG_LOOKBACK", 900)),
+                    lookback=midlong_lookback_for(tf),
                     fwd=int(self._cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if tf == "1d"
                         else int(self._cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
                     min_sharpe=float(self._cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
@@ -266,13 +269,20 @@ class MidLongActiveFactorSet:
         # [2026-08-14 弹药扩源] kind=registry 记录用 extra.registry_factor_id 计算
         # （store 键为 f"{fid}@{tf}"，registry 真实 id 另行存放）。
         compute_ids: Dict[str, str] = {}
+        formula_recs: List[Dict[str, Any]] = []
         for rec in active:
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
-            if tf in by_tf:
-                by_tf[tf].append(rec["factor_id"])
-                compute_ids[rec["factor_id"]] = str(
-                    (rec.get("extra") or {}).get("registry_factor_id") or rec["factor_id"]
-                )
+            if tf not in by_tf:
+                continue
+            # [2026-08-16 修复] 公式因子不在 registry：factor_service.compute 会报
+            # "not found in registry" 刷 ERROR；单独走公式计算路径。
+            if str(rec.get("formula") or "").strip():
+                formula_recs.append(rec)
+                continue
+            by_tf[tf].append(rec["factor_id"])
+            compute_ids[rec["factor_id"]] = str(
+                (rec.get("extra") or {}).get("registry_factor_id") or rec["factor_id"]
+            )
         n = 0
         for tf, fids in by_tf.items():
             if not fids:
@@ -281,10 +291,36 @@ class MidLongActiveFactorSet:
                 _real_ids = [compute_ids[f] for f in fids]
                 fv = factor_service.compute(symbol, timeframe=tf, factor_ids=_real_ids)
                 if isinstance(fv, dict):
-                    out[tf] = {k: v for k, v in fv.items() if k in _real_ids}
+                    for k, v in fv.items():
+                        if k not in _real_ids:
+                            continue
+                        # [2026-08-16 修复] FactorValue 对象不可 JSON 序列化，
+                        # 注入 market_summary 后导致交易循环落库崩溃
+                        # （TypeError: Object of type FactorValue is not JSON serializable）。
+                        # 快照只存 float。
+                        _val = getattr(v, "value", None)
+                        if _val is None and isinstance(v, (int, float)):
+                            _val = float(v)
+                        if _val is not None:
+                            out[tf][k] = float(_val)
                     n += len(out[tf])
             except Exception as e:
                 logger.debug(f"[MidLongFactorSet] {symbol} {tf} compute 跳过: {e}")
+        # 公式因子：走 midlong_factor_route 的公式历史路径（同样返回 float）
+        if formula_recs:
+            try:
+                from backend.services.factor_engine.midlong_factor_route import _factor_history
+                for rec in formula_recs:
+                    tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
+                    vals = _factor_history(rec, symbol)
+                    if vals is None:
+                        continue
+                    finite = vals[np.isfinite(vals)]
+                    if len(finite):
+                        out[tf][str(rec["factor_id"])] = float(finite[-1])
+                        n += 1
+            except Exception as e:
+                logger.debug(f"[MidLongFactorSet] {symbol} 公式因子快照失败: {e}")
         out["count"] = n
         return out
 

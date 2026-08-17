@@ -50,18 +50,7 @@ def run_learning_integration(
         logger.warning(f"[FullAuto] P0 集成异常（不影响主循环）: {e}")
 
     # ── P1 层: 叙事/反事实 ──
-    try:
-        # 交易叙事更新（每 30 tick，约 45 分钟）
-        if tick % 30 == 0:
-            from backend.database.connection import SessionLocal
-            _db = SessionLocal()
-            try:
-                from backend.services.trading_narrative_engine import trading_narrative_engine
-                trading_narrative_engine.build_narrative(_db)
-            finally:
-                _db.close()
-    except Exception as e:
-        logger.warning(f"[FullAuto] P1 叙事集成异常: {e}")
+    # [2026-08-17 删除] trading_narrative_engine 已移除（24h 仅 2 条活动、无消费方）
 
     # ── P2 层: 因子发现 + 跨周期挖掘 + Walk-Forward ──
     if is_maintenance or tick % maint_every == 0:

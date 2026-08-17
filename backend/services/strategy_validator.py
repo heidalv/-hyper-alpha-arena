@@ -48,9 +48,11 @@ class PaperTradingMetrics:
     days_running: int = 0
     total_trades: int = 0
     sharpe_ratio: float = 0.0
-    max_drawdown_pct: float = 0.0
-    total_return_pct: float = 0.0    # 模拟盘实际收益
+    max_drawdown_pct: float = 0.0   # [P0-3] 语义=单笔最大亏损%（辅助门槛）
+    total_return_pct: float = 0.0    # 模拟盘实际收益（时间加权占用保证金口径）
     backtest_return_pct: float = 0.0  # 对应的回测预期收益
+    real_sharpe: float = 0.0         # [P0-3] 交易级年化 Sharpe（真 Sharpe）
+    equity_dd_pct: float = 0.0       # [P0-3] 累计收益曲线峰谷回撤（%）
 
 
 @dataclass
@@ -191,18 +193,28 @@ class StrategyValidator:
                 f"模拟盘运行 {paper_metrics.days_running} 天 < {self.GATE2_MIN_DAYS} 天"
             )
 
-        # 2. Sharpe >= 1.0
-        details["sharpe"] = paper_metrics.sharpe_ratio
-        if paper_metrics.sharpe_ratio < self.GATE2_MIN_SHARPE:
+        # 2. [P0-3] 真 Sharpe >= 1.0（交易级年化）。
+        # 旧判定用 StrategyMemory.sharpe_ratio（盈亏符号 EMA，值域 [-1,1]）与 1.0 比较，
+        # 稳健策略永远被拦、近期全胜的运气策略才可能通过——门槛实质失效。
+        details["sharpe"] = paper_metrics.real_sharpe
+        if paper_metrics.real_sharpe < self.GATE2_MIN_SHARPE:
             failed.append(
-                f"模拟盘 Sharpe {paper_metrics.sharpe_ratio:.2f} < {self.GATE2_MIN_SHARPE}"
+                f"模拟盘真实 Sharpe {paper_metrics.real_sharpe:.2f} < {self.GATE2_MIN_SHARPE}"
             )
 
-        # 3. 最大回撤 <= 10%
-        details["max_drawdown"] = paper_metrics.max_drawdown_pct
-        if paper_metrics.max_drawdown_pct > self.GATE2_MAX_DRAWDOWN_PCT:
+        # 3. [P0-3] 累计收益曲线回撤 <= 10%。
+        # 旧判定把 mem.max_drawdown（单笔最大亏损）当回撤比对，无法拦截连续小亏积累。
+        details["equity_dd"] = paper_metrics.equity_dd_pct
+        if paper_metrics.equity_dd_pct > self.GATE2_MAX_DRAWDOWN_PCT:
             failed.append(
-                f"模拟盘最大回撤 {paper_metrics.max_drawdown_pct:.1f}% > {self.GATE2_MAX_DRAWDOWN_PCT}%"
+                f"模拟盘收益曲线回撤 {paper_metrics.equity_dd_pct:.1f}% > {self.GATE2_MAX_DRAWDOWN_PCT}%"
+            )
+
+        # 3b. [P0-3] 单笔最大亏损辅助门槛（≤15%）：防单笔爆仓式亏损（保留旧字段语义）
+        details["max_single_trade_loss"] = paper_metrics.max_drawdown_pct
+        if paper_metrics.max_drawdown_pct > 15.0:
+            failed.append(
+                f"单笔最大亏损 {paper_metrics.max_drawdown_pct:.1f}% > 15%"
             )
 
         # 4. 交易笔数 >= 30
@@ -213,7 +225,13 @@ class StrategyValidator:
             )
 
         # 5. 模拟盘与回测收益偏差 <= 30%
-        if paper_metrics.backtest_return_pct != 0:
+        if paper_metrics.backtest_return_pct == 0:
+            # [2026-08-15 消费端验收] 无回测基准时 fail-closed 显式拦截：
+            # 原 `if != 0` 条件静默跳过 = 该一致性检查形同虚设，任何策略
+            # 都能在无基准时「通过」偏差门槛。
+            details["return_deviation_pct"] = None
+            failed.append("缺少回测收益基准（backtest_return_pct=0），一致性偏差无法校验")
+        else:
             deviation = abs(
                 (paper_metrics.total_return_pct - paper_metrics.backtest_return_pct)
                 / paper_metrics.backtest_return_pct * 100

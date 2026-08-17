@@ -136,14 +136,44 @@ def check_coverage_gate(
         if not ok:
             all_ok = False
         hb = [h for h in heartbeats if h.get("exchange") == ex_n]
+        # [2026-08-15 P2-1] P0 心跳 stale 判定：最新 P0 成功时间距今 >300s 即告警
+        #（只报告，不阻断启动；供 /kline-sync/status 与监控看板使用）。
+        p0_stale = _eval_p0_stale(hb)
         items.append({
             "exchange": ex_n,
             "ok": ok,
             "catalog_trading": cat_n,
             "min_required": min_catalog,
+            "p0_stale": p0_stale,
             "heartbeats": hb,
         })
     return {"ok": all_ok, "exchanges": items, "raw_coverage": coverage}
+
+
+def _eval_p0_stale(heartbeats: List[Dict[str, Any]]) -> Optional[bool]:
+    """P0 心跳最新成功时间距今是否超过 300s（None=无 P0 心跳可判）。"""
+    import time as _time
+    from datetime import datetime as _dt
+
+    p0 = [h for h in (heartbeats or []) if str(h.get("pool", "")).lower() == "p0"]
+    if not p0:
+        return None
+    latest = None
+    for h in p0:
+        v = h.get("last_success_at")
+        if not v:
+            continue
+        try:
+            if isinstance(v, str):
+                ts = _dt.fromisoformat(v.replace("Z", "+00:00")).timestamp()
+            else:
+                ts = float(v)
+            latest = ts if latest is None else max(latest, ts)
+        except Exception:
+            continue
+    if latest is None:
+        return None
+    return (_time.time() - latest) > 300
 
 
 def run_startup_gate(*, block_on_hard_fail: bool = False) -> Dict[str, Any]:

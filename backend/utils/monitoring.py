@@ -60,11 +60,6 @@ def configure_logging():
                 "handlers": ["console", "file", "error_file"],
                 "propagate": False,
             },
-            "backend.services.prompt_training_system": {
-                "level": "DEBUG",
-                "handlers": ["console", "file", "error_file"],
-                "propagate": False,
-            },
             "backend.api.ai_strategy_routes": {
                 "level": "INFO",
                 "handlers": ["console", "file"],

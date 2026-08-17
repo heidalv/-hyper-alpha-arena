@@ -213,12 +213,27 @@ class MemoryDecayService:
     #  衰减判断
     # ══════════════════════════════════════════════════
 
+    @staticmethod
+    def _entry_ts(entry: dict):
+        """[P1-12 时间戳统一] 多写手字段回退：ts→discovered_at→ingested_at→extracted_at→created_at→timestamp。
+
+        原实现只认 ts：trade_memory_miner 写 discovered_at、lesson_utils/opencode 用 ingested_at、
+        pattern_extractor 用 extracted_at、部分同步点不写时间戳 → 这些条目永不衰减。
+        """
+        if not isinstance(entry, dict):
+            return None
+        for _k in ("ts", "discovered_at", "ingested_at", "extracted_at", "created_at", "timestamp"):
+            _v = entry.get(_k)
+            if _v:
+                return _v
+        return None
+
     def _is_time_expired(self, entry: dict, now: datetime) -> bool:
         """检查记忆是否基于时间过期。
 
         考虑 Hebbian 衰减乘数：召回次数越多，有效 TTL 越长。
         """
-        ts_raw = entry.get("ts")
+        ts_raw = self._entry_ts(entry)
         if not ts_raw:
             return False
 
@@ -253,7 +268,7 @@ class MemoryDecayService:
         if not tags:
             return False
 
-        ts_raw = entry.get("ts")
+        ts_raw = self._entry_ts(entry)
         if not ts_raw:
             return False
 

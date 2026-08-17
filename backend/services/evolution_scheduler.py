@@ -678,6 +678,7 @@ class EvolutionScheduler:
                     new_lessons.append({
                         "type": "weekly_low_wr",
                         "severity": "high",
+                        "ts": datetime.now(timezone.utc).isoformat(),  # [P1-12] 统一时间戳
                         "message": f"本周胜率仅{wr:.0%}({total}笔), {worst_regime}行情下亏损最多, 建议减少该行情下的交易",
                     })
 

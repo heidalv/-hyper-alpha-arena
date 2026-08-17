@@ -29,13 +29,13 @@ import {
   FlaskConical,
 } from 'lucide-react';
 
-// ──── 生命周期阶段判定 ────
+// ──── 生命周期阶段判定（Aurora 语义色） ────
 
 const STAGE_LIST = [
-  { min: 75, label: '自治', color: 'text-green-600 bg-green-50 border-green-200' },
-  { min: 50, label: '成熟', color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  { min: 25, label: '成长', color: 'text-amber-600 bg-amber-50 border-amber-200' },
-  { min: 0, label: '萌芽', color: 'text-gray-600 bg-gray-50 border-gray-200' },
+  { min: 75, label: '自治', color: 'text-profit bg-profit/15 border-profit/40' },
+  { min: 50, label: '成熟', color: 'text-cyan-300 bg-cyan-400/15 border-cyan-400/40' },
+  { min: 25, label: '成长', color: 'text-warning bg-warning/15 border-warning/40' },
+  { min: 0, label: '萌芽', color: 'text-muted-foreground bg-white/5 border-border' },
 ];
 
 function stageOf(score: number | null | undefined) {
@@ -51,16 +51,16 @@ const LAYER_META = [
 ];
 
 const LAYER_COLOR: Record<string, string> = {
-  L1: 'text-blue-500',
-  L2: 'text-orange-500',
-  L3: 'text-indigo-500',
-  L4: 'text-teal-500',
+  L1: 'text-cyan-400',
+  L2: 'text-amber-400',
+  L3: 'text-violet-400',
+  L4: 'text-emerald-400',
 };
 
 const STATUS_STYLE: Record<string, { label: string; dot: string; text: string }> = {
-  running: { label: '运行中', dot: 'bg-blue-500 animate-pulse', text: 'text-blue-600' },
-  ok: { label: '正常', dot: 'bg-green-500', text: 'text-green-600' },
-  error: { label: '失败', dot: 'bg-red-500', text: 'text-red-600' },
+  running: { label: '运行中', dot: 'bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]', text: 'text-cyan-300' },
+  ok: { label: '正常', dot: 'bg-profit shadow-[0_0_6px_rgba(52,211,153,0.8)]', text: 'text-profit' },
+  error: { label: '失败', dot: 'bg-loss shadow-[0_0_6px_rgba(251,113,133,0.8)]', text: 'text-loss' },
 };
 
 function fmtClock(iso: string | null): string {
@@ -125,23 +125,23 @@ export function HermesLifecyclePanel() {
         description="成熟度评分 → 阶段判定 → 健康巡检 → 四层调度心跳"
         action={<RefreshButton onClick={refresh} loading={loading} />}
       >
-        {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+        {error && <p className="text-sm text-loss mb-3">{error}</p>}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="rounded-lg border p-3">
+          <div className="rounded-lg border p-3 glass">
             <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-purple-500" /> 成熟度评分
+              <Sparkles className="w-3 h-3 text-violet-400" /> 成熟度评分
             </div>
             <div className="flex items-baseline gap-2">
               <span
                 className={`text-2xl font-bold tabular-nums ${
                   (score ?? 0) >= 75
-                    ? 'text-green-600'
+                    ? 'grad-text-green'
                     : (score ?? 0) >= 50
-                      ? 'text-blue-600'
+                      ? 'grad-text'
                       : (score ?? 0) >= 25
-                        ? 'text-amber-600'
-                        : 'text-gray-500'
+                        ? 'text-warning'
+                        : 'text-muted-foreground'
                 }`}
               >
                 {score != null ? Math.round(score) : '—'}
@@ -182,9 +182,9 @@ export function HermesLifecyclePanel() {
                   {layer.key}
                 </span>
                 <span className="w-24 text-muted-foreground text-xs shrink-0">{layer.label}</span>
-                <div className="flex-1 min-w-0 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 min-w-0 h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-purple-500 rounded-full transition-all"
+                    className="h-full bg-gradient-to-r from-cyan-400 to-violet-500 rounded-full transition-all"
                     style={{ width: `${Math.min(100, (v / 25) * 100)}%` }}
                   />
                 </div>
@@ -265,11 +265,11 @@ export function HermesLifecyclePanel() {
                   const stKey = running ? 'running' : t.last_status || '';
                   const st = STATUS_STYLE[stKey] || {
                     label: t.registered ? '待运行' : '未注册',
-                    dot: 'bg-gray-300',
-                    text: 'text-gray-500',
+                    dot: 'bg-white/25',
+                    text: 'text-muted-foreground',
                   };
                   return (
-                    <tr key={t.job_id} className="border-b last:border-0 hover:bg-gray-50">
+                    <tr key={t.job_id} className="border-b border-border/20 last:border-0 hover:bg-white/[0.03] transition-colors">
                       <td className={`py-2 pr-2 font-mono font-semibold ${LAYER_COLOR[t.layer] ?? ''}`}>
                         {t.layer}
                       </td>
@@ -288,7 +288,7 @@ export function HermesLifecyclePanel() {
                           {st.label}
                         </span>
                         {t.last_error && (
-                          <div className="text-[10px] text-red-500 mt-0.5 break-all leading-snug max-w-[200px]">
+                          <div className="text-[10px] text-loss mt-0.5 break-all leading-snug max-w-[200px]">
                             {t.last_error}
                           </div>
                         )}

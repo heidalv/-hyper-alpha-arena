@@ -604,12 +604,15 @@ _pool_monitor_lock = threading.Lock()
 #      backend.log 里的 "[DB LeakGuard]" 就能看到是哪条 SQL、哪个库卡住的，
 #      不用再像这次一样临时写脚本手工连库排查。
 # ═══════════════════════════════════════════════════════════════
-_LEAK_GUARD_AGE_SECONDS = int(os.environ.get("DB_LEAK_GUARD_AGE_SECONDS", "20"))
+_LEAK_GUARD_AGE_SECONDS = int(os.environ.get("DB_LEAK_GUARD_AGE_SECONDS", "15"))
 # P0 修复（2026-07-20）：LeakGuard 从"只告警"升级为"主动 kill 超时事务"。
 # 原实现只打 WARNING 日志，依赖 PG 服务端 idle_in_transaction_session_timeout 兜底，
 # 但 checkout 时会把超时覆盖为 DB_IDLE_IN_TXN_TIMEOUT_MS，导致 90s 承诺失效。
 # 现在对超过此阈值的事务直接 pg_terminate_backend，立即释放连接和锁。
-_LEAK_GUARD_KILL_SECONDS = int(os.environ.get("DB_LEAK_GUARD_KILL_SECONDS", "120"))
+# [2026-08-16] 120→90s：实测存在批量「开事务→跑 LLM/因子计算→再提交」的泄漏
+# （scalp/midlong 循环等热路径），90s 足以区分「泄漏」与「正常慢写」；
+# 只杀 idle-in-transaction，正在执行的大 INSERT（如 K 线 35k 行回填）不受影响。
+_LEAK_GUARD_KILL_SECONDS = int(os.environ.get("DB_LEAK_GUARD_KILL_SECONDS", "90"))
 
 # [2026-08-11] 同一挂起事务按 pid+SQL 前缀 60s 只告警一次，避免每 2 分钟刷屏数百条。
 _leak_warn_ts: Dict[str, float] = {}

@@ -556,13 +556,9 @@ class UnifiedDataPool:
                 logger.debug(f"预取链上/宏观数据失败: {e}")
 
         # 预取社交情绪数据
+        # [2026-08-17 删除] social_sentiment_collector 已移除（CryptoPanic 403 失效、
+        # token 明文进日志、与 news_intelligence 重复采集）。
         social_data: Dict[str, Dict[str, Any]] = {}
-        if _env_bool("UNIFIED_DATA_POOL_KLINE_SOCIAL_ENRICHMENT", "true"):
-            try:
-                from backend.services.social_sentiment_collector import get_social_sentiment_collector
-                social_data = get_social_sentiment_collector().collect_flat(symbols)
-            except Exception as e:
-                logger.debug(f"预取社交情绪数据失败: {e}")
 
         fear_greed_daily: Dict[int, float] = {}
         if _env_bool("UNIFIED_DATA_POOL_KLINE_AUX_ENRICHMENT", "true"):
@@ -1947,11 +1943,15 @@ class UnifiedDataPool:
                     entry["derivatives_signal"] = "⚠️数据不可用"
                 else:
                     entry["derivatives_signal"] = deriv.get("signal", entry.get("derivatives_signal", "neutral"))
-                entry["oi_total"] = deriv.get("oi_total", 0)
+                # [2026-08-15 消费端验收] degraded 时数值字段不再写占位 0/1.0：
+                # 原 oi_total=0 / long_short_ratio=1.0 / liquidation=0 以真实形态
+                # 流入市场摘要。现改为 None（缺数据），下游据 None 诚实降级。
+                _degraded = deriv.get("data_quality") == "degraded"
+                entry["oi_total"] = None if _degraded else deriv.get("oi_total", 0)
                 entry["oi_change_1h"] = deriv.get("oi_change_1h", 0)
-                entry["liquidation_1h_long"] = deriv.get("liquidation_1h_long", 0)
-                entry["liquidation_1h_short"] = deriv.get("liquidation_1h_short", 0)
-                entry["long_short_ratio"] = deriv.get("long_short_ratio", 1.0)
+                entry["liquidation_1h_long"] = None if _degraded else deriv.get("liquidation_1h_long", 0)
+                entry["liquidation_1h_short"] = None if _degraded else deriv.get("liquidation_1h_short", 0)
+                entry["long_short_ratio"] = None if _degraded else deriv.get("long_short_ratio", 1.0)
                 entry["derivatives_interpretation"] = deriv.get("interpretation", "")
             sent = snapshot.sentiment_index.get(sym, {})
             if sent:
@@ -2067,13 +2067,35 @@ class UnifiedDataPool:
                                 "bearish" if (_taker < 0.5 or (_oi_d < -2 and _cvd is not None and _cvd < 0)) else "neutral"
                             )
                             _strength = min(1.0, abs(_oi_d) / 5.0 + abs(_taker - 1.0))
+                            # [2026-08-15 消费端验收] 原 funding_rate/oi_total/liquidation
+                            # 在此硬编码 0.0 且 data_quality="market_db"（非 degraded）——
+                            # 假 0 以「真实数据」身份流入 market_summary。现改为：
+                            # funding ← data_center 落库（perp_funding 恒可用）；
+                            # OI 绝对值 ← market_asset_metrics 真实值；
+                            # 取不到时显式 None（下游据 None 诚实降级），绝不写 0。
+                            _fr = None
+                            _abs_oi = None
+                            try:
+                                from backend.services.data_center import data_center as _dc
+                                _deriv = _dc.get_derivatives(sym) or {}
+                                _fr = _deriv.get("funding_rate")
+                                _abs_oi = _deriv.get("open_interest")
+                            except Exception:
+                                pass
+                            if _abs_oi is None:
+                                try:
+                                    from backend.services.factor_engine.factor_bridge import fetch_real_oi_pair
+                                    _cur_oi, _prev_oi = fetch_real_oi_pair(sym)
+                                    _abs_oi = _cur_oi
+                                except Exception:
+                                    pass
                             return sym, {
-                                "funding_rate": 0.0,
-                                "oi_total": 0.0,
+                                "funding_rate": float(_fr) if _fr is not None else None,
+                                "oi_total": float(_abs_oi) if _abs_oi is not None else None,
                                 "oi_change_1h": float(_oi_d),
-                                "liquidation_1h_long": 0.0,
-                                "liquidation_1h_short": 0.0,
-                                "long_short_ratio": float(_taker) if _taker else 1.0,
+                                "liquidation_1h_long": None,
+                                "liquidation_1h_short": None,
+                                "long_short_ratio": float(_taker) if _taker else None,
                                 "signal": _signal,
                                 "signal_strength": round(_strength, 3),
                                 "interpretation": f"MarketDB: OI变化={_oi_d:.2f}% CVD={_cvd or 0:.0f} Taker={_taker:.2f} Imb={_imb or 0:.2f}",
@@ -2188,11 +2210,18 @@ class UnifiedDataPool:
         deriv_info = snapshot.derivatives_snapshot.get(symbol, {})
         sent_info = snapshot.sentiment_index.get(symbol, {})
 
+        # [2026-08-15 消费端验收] degraded 穿透：衍生品降级时不再把
+        # "neutral" 当真实信号返回（原 get("signal","neutral") 让
+        # coordinator 把占位中性注入 AI）。degraded → 显式不可用。
+        _deriv_signal = deriv_info.get("signal", "neutral")
+        if deriv_info.get("data_quality") == "degraded":
+            _deriv_signal = "⚠️数据不可用"
+
         return {
             "news_summary": news_summary or "暂无重大新闻",
             "whale_direction": whale_info.get("direction", 0),
             "whale_summary": whale_info.get("summary", "暂无异动"),
-            "derivatives_signal": deriv_info.get("signal", "neutral"),
+            "derivatives_signal": _deriv_signal,
             "derivatives_interpretation": deriv_info.get("interpretation", ""),
             "sentiment_index": sent_info.get("index", 50),
             "sentiment_zone": sent_info.get("zone", "neutral"),

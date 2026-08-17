@@ -306,6 +306,15 @@ def _sync_fetch_ohlcv(exchange_id: str, symbol: str, period: str, limit: int = 1
         # [2026-08-04 修复] 冷所（备选源）进程级限速：各所独立桶 + 独立冷却，
         # 避免 P1 并发 4 + 深回填叠加时触发冷所自身 429 并连累全链。
         _ColdExchangeRateLimiter.wait(exchange_id)
+    elif exchange_id == "hyperliquid":
+        # [2026-08-15 R7 修复] HL 不加速率桶（若用户把 HL 设为主动所，P0 需
+        # ~360 req/min > 冷所桶 180，加桶会压死 P0 导致整轮超时），只做
+        # 429 冷却检查：命中限流冷却 60s 内 fail-fast，防深回填自激撞墙。
+        if _ColdExchangeRateLimiter.banned_remaining(exchange_id) > 0:
+            raise ExchangeRateLimitError(
+                "hyperliquid 限流冷却中（%.0fs 后恢复），本轮不发请求"
+                % _ColdExchangeRateLimiter.banned_remaining(exchange_id)
+            )
     try:
         ex = _make_sync_ccxt(exchange_id)
         ccxt_sym = _resolve_ccxt_symbol(ex, exchange_id, symbol)
@@ -318,8 +327,10 @@ def _sync_fetch_ohlcv(exchange_id: str, symbol: str, period: str, limit: int = 1
             # 冷却期内所有 Asterdex 请求在 wait() 阶段直接 fail-fast（不发请求），
             # 实现「一个组件触发限流 → 全链路同步停手」，杜绝自激循环。
             _AsterdexRateLimiter.note_banned()
-        elif exchange_id in _COLD_EXCHANGES and _is_rate_limited_error(e):
+        elif (exchange_id in _COLD_EXCHANGES or exchange_id == "hyperliquid") \
+                and _is_rate_limited_error(e):
             # 冷所 429：只冷却该所，不连累 Asterdex 主数据源。
+            # [2026-08-15 R7] hyperliquid 同样纳入冷却（仅封禁、不限速）。
             _ColdExchangeRateLimiter.note_banned(exchange_id)
         raise
 

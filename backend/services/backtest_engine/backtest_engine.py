@@ -124,8 +124,10 @@ class BacktestConfig:
         default_factory=lambda: os.getenv("BACKTEST_INTRABAR_RESOLUTION", "false").lower()
         in ("1", "true", "yes", "on")
     )
+    # [P0-5 前视修复] 默认 next_open：信号在 bar i 收盘产生，下一根开盘成交，
+    # 消除"收盘决策按收盘成交"的前视。env BACKTEST_FILL_MODEL=close 仅用于旧口径对比。
     fill_model: str = field(
-        default_factory=lambda: os.getenv("BACKTEST_FILL_MODEL", "close")
+        default_factory=lambda: os.getenv("BACKTEST_FILL_MODEL", "next_open")
     )
     timeframe_detail: Optional[str] = None
 

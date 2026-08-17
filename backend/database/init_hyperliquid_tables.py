@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import inspect
 from backend.database.connection import engine, DATABASE_URL
-from database.models import Base
+from backend.database.models import Base
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +36,7 @@ def init_hyperliquid_tables():
         # - Idempotent - safe to run multiple times
         Base.metadata.create_all(bind=engine)
 
-        logger.info("✓ Tables initialized successfully!")
+        logger.info("�?Tables initialized successfully!")
 
         # Verify tables exist
         inspector = inspect(engine)
@@ -53,25 +53,25 @@ def init_hyperliquid_tables():
         for table in required_tables:
             if table in tables:
                 columns = [col['name'] for col in inspector.get_columns(table)]
-                logger.info(f"  ✓ {table} ({len(columns)} columns)")
+                logger.info(f"  �?{table} ({len(columns)} columns)")
             else:
-                logger.warning(f"  ✗ {table} NOT FOUND")
+                logger.warning(f"  �?{table} NOT FOUND")
 
         # Check key Hyperliquid columns in accounts
         accounts_cols = [col['name'] for col in inspector.get_columns('accounts')]
         if 'hyperliquid_enabled' in accounts_cols:
-            logger.info("\n✓ Hyperliquid fields exist in accounts table")
+            logger.info("\n�?Hyperliquid fields exist in accounts table")
         else:
             logger.warning("\n⚠️  Hyperliquid fields NOT in accounts table")
             logger.warning("   This may be due to SQLite's ALTER TABLE limitations")
             logger.warning("   You may need to use the full migration script")
 
         logger.info("\n" + "=" * 60)
-        logger.info("✓ Initialization complete!")
+        logger.info("�?Initialization complete!")
         logger.info("=" * 60)
 
     except Exception as e:
-        logger.error(f"\n✗ Initialization failed: {e}", exc_info=True)
+        logger.error(f"\n�?Initialization failed: {e}", exc_info=True)
         return 1
 
     return 0

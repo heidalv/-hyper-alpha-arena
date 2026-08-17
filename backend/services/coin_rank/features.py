@@ -131,9 +131,12 @@ def load_dc_ticker_rows() -> Dict[str, Dict[str, Any]]:
         logger.debug("[CoinRank] universe: %s", e)
 
     if not by_sym:
-        logger.error("[CoinRank] 数据中心无行情，使用主流币兜底")
+        # [2026-08-15 消费端验收] 应急兜底不再伪造 volume=1.0（会把
+        # 「无行情」冒充成「有成交额」参与排名）；改用 volume=0 + 显式
+        # emergency_fallback 来源标记，下游据此判断数据缺失。
+        logger.error("[CoinRank] 数据中心无行情，使用主流币兜底（标记 emergency_fallback，无成交额）")
         for s in _LIQUID_PREF[:12]:
-            _upsert(s, volume=1.0, source="emergency_fallback")
+            _upsert(s, volume=0.0, source="emergency_fallback")
 
     return by_sym
 

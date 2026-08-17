@@ -142,7 +142,6 @@ _TARGETS = [
     ("backend/api/account_routes.py", "test_llm_connection", "def"),
     ("backend/api/account_routes.py", "check_builder_authorization", "def"),
     ("backend/api/llm_config_routes.py", "test_llm_config", "def"),
-    ("backend/api/smart_signal_routes.py", "ai_deep_analysis", "def"),
     ("backend/api/hyperliquid_routes.py", "configure_account_wallet", "def"),
 ]
 

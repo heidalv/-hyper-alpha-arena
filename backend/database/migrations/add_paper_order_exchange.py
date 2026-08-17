@@ -47,7 +47,7 @@ def upgrade():
     try:
         from backend.database.connection import engine
     except Exception:
-        from database.connection import engine
+        from backend.database.connection import engine
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)

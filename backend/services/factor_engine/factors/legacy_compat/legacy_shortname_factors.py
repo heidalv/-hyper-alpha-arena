@@ -79,8 +79,40 @@ class _LegacyBase(BaseFactor):
     子类实现 ``_compute(self, df, market_data) -> float``。
     """
 
+    # [2026-08-16] 历史评分路径：market_data dict 缺失时从 df 富化列回退取末值
+    # （registry 因子回测经 midlong_registry_factors._enrich_flow_history 注入
+    # 真实 oi/buy_notional/sell_notional/cvd 历史列）。
+    _MD_DF_KEYS = ("oi", "prev_oi", "buy_notional", "sell_notional",
+                   "cvd", "total_notional", "funding_rate", "oi_delta_pct")
+
+    @classmethod
+    def _md_from_df(cls, data: pd.DataFrame):
+        if data is None or not len(data):
+            return None
+        md = {}
+        for k in cls._MD_DF_KEYS:
+            if k not in data.columns:
+                continue
+            try:
+                last = data[k].iloc[-1]
+            except Exception:  # noqa: BLE001
+                continue
+            if last is None or (isinstance(last, float) and np.isnan(last)):
+                continue
+            try:
+                md[k] = float(last)
+            except (TypeError, ValueError):
+                continue
+        if "oi" in md and "prev_oi" not in md:
+            oi_series = data["oi"].dropna()
+            if len(oi_series) >= 2:
+                md["prev_oi"] = float(oi_series.iloc[-2])
+        return md or None
+
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         market_data = (self.params or {}).get("_market_data")
+        if not market_data:
+            market_data = self._md_from_df(data)
         try:
             val = self._compute(data, market_data)
         except Exception:
@@ -496,19 +528,13 @@ class LegacySupertrendFactor(_LegacyBase):
         )
 
     def _compute(self, df, md):
-        close = df["close"].values
-        high = df["high"].values
-        low = df["low"].values
-        if len(close) < 20:
-            return 0.0
-        atr = _atr14(df)
-        upper_band = (high[-1] + low[-1]) / 2 + 3 * atr
-        lower_band = (high[-1] + low[-1]) / 2 - 3 * atr
-        if close[-1] > upper_band:
-            return 1.0
-        elif close[-1] < lower_band:
-            return -1.0
-        return 0.0
+        # [2026-08-16 修复] 旧实现「当前 bar 中点 ± 3×ATR」判突破，ATR 含当前 bar
+        # 区间，数学上恒不触发（BTC 4h 400 天 0 次 → 注册因子评分恒 F）。
+        # 改用标准跟踪带算法（见 factor_engine/supertrend.py）。
+        from ....factor_engine.supertrend import supertrend_direction
+
+        d = supertrend_direction(df["high"].values, df["low"].values, df["close"].values)
+        return float(d[-1])
 
 
 # ══════════════════════════════════════════════════

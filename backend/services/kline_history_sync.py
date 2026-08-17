@@ -669,8 +669,14 @@ def _depth_targets() -> Dict[str, int]:
     （v6 5.4.3），否则短线进化即使 lookback 正确仍因库深不够无法真 OOS。
     """
     defaults = {
-        "1m": 30, "3m": 30, "5m": 50, "15m": 60,
-        "30m": 90, "1h": 210, "4h": 365, "1d": 730, "1w": 520,
+        # [2026-08-15 修复] 各周期目标必须 ≥ 三段切分需求（train+val+test+50 缓冲）：
+        # - 5m 切分需 (30+10+10)×288+50 = 14,450 根 = 50.17 天 → 原 50 天
+        #   只有 14,400 根，**永久差 50 根** → 5m 进化道 test_set_missing
+        #   fail-closed 永远无法出因子；
+        # - 30m 切分需 (60+20+15)×48+50 = 4,610 根 = 96 天 → 原 90 天不足；
+        # - 1m 切分需 (30+10+10)×1440+50 = 72,050 根 = 50 天 → 原 30 天不足。
+        "1m": 55, "3m": 30, "5m": 55, "15m": 60,
+        "30m": 100, "1h": 210, "4h": 365, "1d": 730, "1w": 520,
         "1M": 60,
     }
     out: Dict[str, int] = {}
@@ -738,9 +744,13 @@ def _depth_symbols(max_symbols: int = 40) -> List[str]:
         except Exception as e:
             logger.warning("[DepthBackfill] catalog 扩展失败，退回热币: %s", e)
 
-    for s in ["BTC", "ETH", "SOL"]:
-        if s not in symbols:
-            symbols.append(s)
+    # [2026-08-16 根因修复] 核心币前置而非追加：回填一轮 4-6 小时，
+    # 符号顺序先到先得；追加到末尾会让 BTC/ETH/SOL 排最后，一轮未跑完
+    # 就中断（DC 崩溃/重启）时核心币短周期永远补不齐。
+    for s in reversed(["BTC", "ETH", "SOL"]):
+        if s in symbols:
+            symbols.remove(s)
+        symbols.insert(0, s)
     return symbols[:max_symbols]
 
 
@@ -804,6 +814,29 @@ class DepthBackfillRunner:
             logger.warning("[DepthBackfill] nudge/start 失败: %s", e)
             return False
 
+    def _round_budget_sec(self) -> float:
+        """单轮回填时间预算（秒，默认 900）。
+
+        [2026-08-16 分时段批式回填] 用户要求「不一次填满，分阶段慢慢弄」：
+        每轮最多干 KLINE_DEPTH_BACKFILL_ROUND_MAX_SEC 秒，到点截断本轮，
+        剩余留给实时采集配额；下一轮从断点自动续传（每币 min/max(timestamp)
+        即断点，已填部分窗口为空、秒跳过）。
+        """
+        try:
+            raw = float(os.getenv("KLINE_DEPTH_BACKFILL_ROUND_MAX_SEC", "900") or 900)
+        except (TypeError, ValueError):
+            raw = 900.0
+        return max(60.0, min(raw, 7200.0))
+
+    def _idle_sec(self) -> float:
+        """轮间休息（秒，默认 1800）——回填占空比 = 预算/(预算+休息)，恒为
+        实时采集让路。"""
+        try:
+            raw = float(os.getenv("KLINE_DEPTH_BACKFILL_IDLE_SEC", "1800") or 1800)
+        except (TypeError, ValueError):
+            raw = 1800.0
+        return max(120.0, min(raw, 43200.0))
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -812,7 +845,7 @@ class DepthBackfillRunner:
                 self._last_error = str(exc)
                 logger.warning("[DepthBackfill] 回填异常: %s", exc)
             self._last_run_ts = time.time()
-            self._stop.wait(6 * 3600)
+            self._stop.wait(self._idle_sec())
 
     async def _run_once(self) -> None:
         # [2026-08-04 修复] 多所深度回填：
@@ -837,6 +870,23 @@ class DepthBackfillRunner:
         if not hot_symbols:
             logger.warning("[DepthBackfill] 无回填币种，跳过本轮")
             return
+        # [2026-08-16 分时段批式回填] 本轮截止时间：到点截断，剩余留待下轮续传，
+        # 实时采集（P0/P1-Watch）的共享限流配额永远优先。
+        _deadline = time.time() + self._round_budget_sec()
+
+        # [2026-08-16 根因修复] 核心币前置：此前 BTC/ETH/SOL 被追加在符号表
+        # 末尾 + 短周期排在周期顺序最后 → 每轮 4-6 小时只有最后几分钟轮到
+        # 核心币短周期；数据中心一旦中途崩溃/重启，整轮从头重排，核心币
+        # 短周期永远补不齐（实锤：5m 55 天目标跑了好几轮直到 22:40 才第一次
+        # 补到）。现在把挖矿依赖币提到列表最前，配合下方短周期优先，
+        # 每轮开头几分钟核心币 1m/5m/15m/30m 即补齐，中断不再致命。
+        _core_first = ["BTC", "ETH", "SOL", "ASTER", "BNB",
+                       "VIRTUAL", "XPL", "UNI", "XRP"]
+        _core = [s for s in _core_first if s in hot_symbols]
+        _rest = [s for s in hot_symbols if s not in _core]
+        hot_symbols = _core + _rest
+        if _core:
+            logger.info("[DepthBackfill] 核心币前置: %s", ",".join(_core))
 
         exchange_jobs = [("asterdex", hot_symbols)]
         if os.getenv("KLINE_DEPTH_BACKFILL_COLD_ENABLED", "true").strip().lower() in (
@@ -845,10 +895,12 @@ class DepthBackfillRunner:
             for ex in ("binance", "okx", "bybit", "hyperliquid"):
                 exchange_jobs.append((ex, cold_symbols))
 
-        # [2026-08-08 修复] 周期顺序：1d/1w 优先——长周期内部空洞是因子长周期依赖的
-        # 主战场且请求量小（每币 1-2 批），关键币几分钟内补齐；1h/4h 其次（规则引擎
-        # 依赖）；1m 大头（30 天≈29 批/币）放最后。
-        ordered_periods = ["1M", "1d", "1w", "1h", "4h", "30m", "15m", "5m", "3m", "1m"]
+        # [2026-08-16 根因修复2] 短周期优先：因子进化深度依赖的 1m/5m/15m/30m
+        # 排最前（1m 缺口 40k 根 ≈ 41 批/币，核心币几分钟完成）；长周期
+        # （1d/1w 规则引擎依赖）紧随其后，仍在核心币首段内完成。
+        # 原顺序 1d/1w 最前是为了「长周期内部空洞优先」，但那是全 catalog
+        # 的慢循环；核心币已前置，长周期延后对核心币影响仅几分钟。
+        ordered_periods = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M", "3m"]
         period_days = {p: targets.get(p, 30) for p in ordered_periods if p in targets}
 
         def _cold_days(period: str, days: int) -> int:
@@ -870,6 +922,19 @@ class DepthBackfillRunner:
         for period, days in period_days.items():
             if self._stop.is_set():
                 return
+            # [2026-08-16 分时段批式回填] 预算到点：本轮截断，剩余周期下轮续传
+            if time.time() >= _deadline:
+                logger.info(
+                    "[DepthBackfill] 本轮时间预算用完（budget=%.0fs），截断于周期 %s，"
+                    "已填部分落库、下轮自动续传",
+                    self._round_budget_sec(), period,
+                )
+                return
+            # [2026-08-15 R3 修复] _depth_targets 的 "1M": 60 语义是「60 根月线」
+            # 而非 60 天；折算成天（×30.44 ≈ 5 年）再用于回填窗口，否则
+            # start_dt=now-60d 只回填约 2 根月线，远低于 60 根意图。
+            if period == "1M":
+                days = max(1, round(int(days) * 30.44))
             # [2026-08-04 修复3] 并行回填：asterdex 与各冷所同时推进。
             # 各所有独立限速器（asterdex=双桶、冷所=按所独立桶），互不抢配额，
             # 并行可在同一窗口期覆盖多所，避免冷所排在 asterdex 之后迟迟不启动。
@@ -887,7 +952,14 @@ class DepthBackfillRunner:
                     continue
                 period_jobs.append((exchange, symbols, job_days))
 
-            async def _job(exchange: str, symbols: list, days: int):
+            async def _job(exchange: str, symbols: list, days: int, deadline: float):
+                # 预算到点：跳过整批（下轮续传）
+                if time.time() >= deadline:
+                    logger.info(
+                        "[DepthBackfill] 预算到点，跳过 %s/%s 整批（下轮续传）",
+                        exchange, period,
+                    )
+                    return
                 # [2026-08-11 修复] 限流冷却期整批跳过，不再对每个 symbol 逐个报错刷屏。
                 try:
                     from backend.services.kline_collectors import (
@@ -922,7 +994,7 @@ class DepthBackfillRunner:
                 )
                 try:
                     ok_n, fail_n = await self._backfill_exchange_period(
-                        exchange, symbols, period, days,
+                        exchange, symbols, period, days, deadline=deadline,
                     )
                     try:
                         from backend.services.kline_sync_meta import record_heartbeat
@@ -945,7 +1017,7 @@ class DepthBackfillRunner:
                     logger.warning("[DepthBackfill] %s/%s 失败: %s", exchange, period, exc)
 
             await asyncio.gather(*[
-                _job(ex, syms, d) for (ex, syms, d) in period_jobs
+                _job(ex, syms, d, _deadline) for (ex, syms, d) in period_jobs
             ])
 
     async def _backfill_exchange_period(
@@ -954,6 +1026,7 @@ class DepthBackfillRunner:
         symbols: list,
         period: str,
         days: int,
+        deadline: Optional[float] = None,
     ) -> tuple:
         """按交易所回填单个周期：断点 = 本地已有 max(timestamp)。
 
@@ -983,10 +1056,12 @@ class DepthBackfillRunner:
         sem = asyncio.Semaphore(_BACKFILL_SYMBOL_CONCURRENCY)
 
         async def _process_symbol(sym: str):
-            """单符号回填：返回 True=成功 / False=失败 / None=被 stop 跳过。"""
+            """单符号回填：返回 True=成功 / False=失败 / None=被 stop 或预算跳过。"""
             async with sem:
                 if self._stop.is_set():
                     return None
+                if deadline and time.time() >= deadline:
+                    return None  # 预算到点：该币下轮续传（DB 内已填部分即断点）
                 try:
                     with MarketSessionLocal() as mdb:
                         row = mdb.execute(_sa_text(
@@ -1045,6 +1120,8 @@ class DepthBackfillRunner:
                     for _ws, _we in windows:
                         if _ws >= _we:
                             continue
+                        if deadline and time.time() >= deadline:
+                            break  # 预算到点：剩余窗口下轮续传
                         bars = await collector.fetch_historical_klines(
                             sym.upper(), _ws, _we, period,
                         )
@@ -1067,72 +1144,10 @@ class DepthBackfillRunner:
         fail_n = sum(1 for r in results if r is False)
         return ok_n, fail_n
 
-    async def _backfill_asterdex_period(
-        self,
-        symbols: list,
-        period: str,
-        days: int,
-    ) -> tuple:
-        """[deprecated] 兼容旧调用：等价于 asterdex 的 _backfill_exchange_period。"""
-        return await self._backfill_exchange_period("asterdex", symbols, period, days)
 
-    async def _backfill_asterdex_period(
-        self,
-        symbols: list,
-        period: str,
-        days: int,
-    ) -> tuple:
-        """用 asterdex ccxt 采集器逐币回填：断点 = 本地已有 max(timestamp)。"""
-        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
-
-        from backend.database.connection import MarketSessionLocal
-        from backend.services.kline_collectors import ExchangeDataSourceFactory
-        from backend.services.kline_data_service import kline_service
-        from sqlalchemy import text as _sa_text
-
-        collector = ExchangeDataSourceFactory.get_collector("asterdex")
-        end_dt = _dt.now(_tz.utc)
-        start_dt = end_dt - _td(days=days)
-        ok_n = 0
-        fail_n = 0
-        for sym in symbols:
-            if self._stop.is_set():
-                break
-            try:
-                with MarketSessionLocal() as mdb:
-                    row = mdb.execute(_sa_text(
-                        "SELECT min(timestamp), max(timestamp) FROM crypto_klines "
-                        "WHERE exchange='asterdex' AND symbol=:s AND period=:p"
-                    ), {"s": sym.upper(), "p": period}).first()
-                total_bars = 0
-                if row and row[0]:
-                    earliest = _dt.fromtimestamp(int(row[0]), tz=_tz.utc)
-                    latest = _dt.fromtimestamp(int(row[1]), tz=_tz.utc)
-                    windows = [
-                        (start_dt, min(earliest - _td(minutes=1), end_dt)),  # 前缀缺口
-                        (latest + _td(minutes=1), end_dt),                    # 后缀缺口
-                    ]
-                else:
-                    windows = [(start_dt, end_dt)]
-                for _ws, _we in windows:
-                    if _ws >= _we:
-                        continue
-                    bars = await collector.fetch_historical_klines(
-                        sym.upper(), _ws, _we, period,
-                    )
-                    if bars:
-                        await kline_service._insert_kline_data(bars)
-                        total_bars += len(bars)
-                if total_bars:
-                    logger.info(
-                        "[DepthBackfill] %s/%s: +%d bars (prefix/suffix 补齐)",
-                        sym.upper(), period, total_bars,
-                    )
-                ok_n += 1
-            except Exception as exc:
-                fail_n += 1
-                logger.warning("[DepthBackfill] %s/%s 失败: %s", sym.upper(), period, str(exc)[:140])
-        return ok_n, fail_n
+# [2026-08-15 R6 清理] 删除两个同名 `_backfill_asterdex_period` 死代码：
+# 前者是兼容包装、后者被覆盖且不做内部空洞检测；实际调用路径只有
+# `_run_once → _backfill_exchange_period`（全所通用，含内部空洞检测）。
 
 
 depth_backfill_runner = DepthBackfillRunner()

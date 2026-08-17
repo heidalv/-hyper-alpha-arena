@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wallet, TrendingUp, PieChart, Banknote } from "lucide-react";
 import {
   useAccounts, usePositions, useSessions, usePaperBalance,
   useTierStatus, useTierActivity,
@@ -112,11 +112,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-2.5 min-w-[1024px]">
-      {/* Page Header */}
+      {/* Page Header（面包屑 + 标题） */}
       <div className="flex items-center justify-between min-h-8">
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="text-base font-semibold tracking-tight">仪表盘</h1>
-          <span className="text-[11px] text-muted-foreground">· 实时账户视图 · {new Date().toLocaleString("zh-CN")}</span>
+        <div>
+          <nav className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-0.5" aria-label="面包屑">
+            <span>交易核心</span><span className="text-slate-700">/</span>
+            <span className="text-slate-300">仪表盘</span>
+          </nav>
+          <div className="flex items-baseline gap-2.5">
+            <h1 className="text-base font-semibold tracking-tight">仪表盘</h1>
+            <span className="text-[11px] text-muted-foreground">· 实时账户视图 · {new Date().toLocaleString("zh-CN")}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {activeSession && <StatusBadge tone="profit" glow>{activeSession.status}</StatusBadge>}
@@ -136,8 +142,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* P&L Attribution */}
-      <div className="bg-card border border-border rounded-md px-3 py-2.5 flex flex-col gap-2">
+      {/* P&L Attribution（玻璃卡） */}
+      <div className="glass rounded-xl px-3 py-2.5 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">今日 P&L 归因</span>
           <div className="flex gap-3 text-[10px] font-mono">
@@ -179,12 +185,14 @@ export default function DashboardPage() {
             ))}
           </div>
         </SectionHeader>
-        {/* 8 KPI Ribbon */}
-        <div className="bg-card border border-border rounded-md overflow-hidden grid grid-cols-8">
-          <KpiCell label="总权益" value={`$${totalEquity.toFixed(2)}`} delta={`${balance?.return_pct ? (balance.return_pct * 100).toFixed(2) : "0"}%`} deltaColor={(balance?.return_pct ?? 0) >= 0 ? "profit" : "loss"} />
-          <KpiCell label="浮动 PnL" value={fmtMoney(totalUnrealizedPnl)} deltaColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} />
-          <KpiCell label="已实现 PnL" value={fmtMoney(realizedPnl)} deltaColor={realizedPnl >= 0 ? "profit" : "loss"} />
-          <KpiCell label="可用余额" value={`$${availableBalance.toFixed(2)}`} />
+        {/* KPI（设计稿布局：4 张主玻璃卡 + 4 张次卡） */}
+        <div className="glass rounded-xl grid grid-cols-2 xl:grid-cols-4">
+          <KpiCell label="总权益" value={`$${totalEquity.toFixed(2)}`} delta={`${balance?.return_pct ? (balance.return_pct * 100).toFixed(2) : "0"}%`} deltaColor={(balance?.return_pct ?? 0) >= 0 ? "profit" : "loss"} grad="cyan" icon={<Wallet className="w-3.5 h-3.5" />} />
+          <KpiCell label="浮动 PnL" value={fmtMoney(totalUnrealizedPnl)} deltaColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} grad={totalUnrealizedPnl >= 0 ? "green" : "red"} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+          <KpiCell label="已实现 PnL" value={fmtMoney(realizedPnl)} deltaColor={realizedPnl >= 0 ? "profit" : "loss"} grad={realizedPnl >= 0 ? "green" : "red"} icon={<PieChart className="w-3.5 h-3.5" />} />
+          <KpiCell label="可用余额" value={`$${availableBalance.toFixed(2)}`} icon={<Banknote className="w-3.5 h-3.5" />} />
+        </div>
+        <div className="glass rounded-xl grid grid-cols-2 xl:grid-cols-4">
           <KpiCell label="持仓" value={String(openPositions.length)} delta={`${longCount}多 ${shortCount}空`} deltaColor="muted" />
           <KpiCell label="手续费" value={`$${feePaid.toFixed(2)}`} deltaColor="loss" />
           <KpiCell label="活跃策略" value={String(activeStrategyCount)} deltaColor="muted" />
@@ -210,7 +218,7 @@ export default function DashboardPage() {
               const acts = tierActivity?.[tierKey] ?? [];
               const lastAct = acts[acts.length - 1];
               return (
-                <Card key={tierKey} className="p-2 border-border flex flex-col gap-1.5">
+                <Card key={tierKey} className="p-2 border-border flex flex-col gap-1.5 glass">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-[13px] font-medium">
                       <span className="w-1.5 h-1.5 rounded-sm" style={{ background: TIER_COLORS[tierKey] }} />{TIER_LABELS[tierKey]}
@@ -337,37 +345,47 @@ export default function DashboardPage() {
             <button className="text-[9px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-foreground">已暂停</button>
           </div>
         </SectionHeader>
-        <Card className="border-border p-0 overflow-hidden">
+        <Card className="border-border p-0 overflow-hidden glass">
           <div className="max-h-[360px] overflow-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead className="sticky top-0 bg-card z-10">
+            <table className="data-table">
+              <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left font-medium text-[9px] text-muted-foreground uppercase tracking-wider px-3 py-1.5">策略</th>
-                  <th className="text-left font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">周期</th>
-                  <th className="text-left font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">标的</th>
-                  <th className="text-left font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">方向</th>
-                  <th className="text-right font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">入场</th>
-                  <th className="text-right font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">杠杆</th>
-                  <th className="text-right font-medium text-[9px] text-muted-foreground uppercase tracking-wider py-1.5">PnL</th>
-                  <th className="text-right font-medium text-[9px] text-muted-foreground uppercase tracking-wider px-3 py-1.5">状态</th>
+                  <th>策略</th>
+                  <th>周期</th>
+                  <th>标的</th>
+                  <th>方向</th>
+                  <th className="text-right">入场</th>
+                  <th className="text-right">杠杆</th>
+                  <th className="text-right">PnL</th>
+                  <th className="text-right pr-3">状态</th>
                 </tr>
               </thead>
               <tbody>
                 {openPositions.length > 0 ? openPositions.map((p) => (
-                  <tr key={p.id} className="border-b border-border/20 hover:bg-muted/20">
+                  <tr key={p.id} className="border-b border-border/20 hover:bg-white/[0.04]">
                     <td className="px-3 py-2 font-mono text-xs">{p.strategy_id?.slice(0, 20) || "—"}</td>
                     <td className="py-2"><span className={p.trade_nature === "scalp" ? "text-primary" : p.trade_nature === "swing" ? "text-profit" : "text-warning"}>{p.trade_nature}</span></td>
                     <td className="py-2 font-mono font-semibold text-xs">{p.symbol}</td>
                     <td className="py-2"><span className={`text-[9px] px-1 py-0.5 rounded ${p.side === "long" ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"}`}>{p.side === "long" ? "多" : "空"}</span></td>
-                    <td className="text-right py-2 font-mono">{p.entry_price?.toFixed(2) || "—"}</td>
-                    <td className="text-right py-2 font-mono">{p.leverage || "—"}x</td>
-                    <td className={`text-right py-2 font-mono ${(p.unrealized_pnl || 0) >= 0 ? "text-profit" : "text-loss"}`}>{fmtMoney(p.unrealized_pnl || 0)}</td>
-                    <td className="px-3 py-2"><StatusBadge tone="profit" glow>running</StatusBadge></td>
+                    <td className="text-right py-2 font-mono num">{p.entry_price?.toFixed(2) || "—"}</td>
+                    <td className="text-right py-2 font-mono num">{p.leverage || "—"}x</td>
+                    <td className={`text-right py-2 font-mono num ${(p.unrealized_pnl || 0) >= 0 ? "text-profit" : "text-loss"}`}>{fmtMoney(p.unrealized_pnl || 0)}</td>
+                    <td className="px-3 py-2 text-right"><StatusBadge tone="profit" glow>running</StatusBadge></td>
                   </tr>
                 )) : (
                   <tr><td colSpan={8} className="text-center text-muted-foreground py-4">暂无活跃策略</td></tr>
                 )}
               </tbody>
+              {openPositions.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td className="px-3 py-2 text-muted-foreground text-xs">合计 {openPositions.length} 笔</td>
+                    <td colSpan={5} />
+                    <td className={`text-right py-2 font-mono font-bold ${totalUnrealizedPnl >= 0 ? "text-profit" : "text-loss"}`}>{fmtMoney(totalUnrealizedPnl)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </Card>
@@ -376,7 +394,7 @@ export default function DashboardPage() {
       {/* Section: Risk Ribbon */}
       <div>
         <SectionHeader title="风险敞口" />
-        <div className="bg-card border border-border rounded-md overflow-hidden grid grid-cols-6">
+        <div className="glass rounded-xl overflow-hidden grid grid-cols-6">
           <RiskCell label="当前敞口" value={`$${(openPositions.reduce((s, p) => s + (p.margin || 0), 0)).toFixed(0)}`} ctx={`/ $${totalEquity.toFixed(0)} 上限`} />
           <RiskCell label="浮动盈亏" value={fmtMoney(totalUnrealizedPnl)} valueColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} ctx={`${openPositions.length} 持仓 · 平均 $${openPositions.length > 0 ? (totalUnrealizedPnl / openPositions.length).toFixed(0) : 0}`} />
           <RiskCell label="已实现 PnL" value={fmtMoney(realizedPnl)} valueColor={realizedPnl >= 0 ? "profit" : "loss"} />

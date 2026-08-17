@@ -139,9 +139,14 @@ class SystemCoordinator:
                 action.trigger_evolution = True
                 action.reasons.append("进化触发条件满足")
 
-            # DRL 已下线（2026-06-11）：不再触发重训。
-            # 历史原因：1722 条影子预测 is_correct 从未回填，准确率统计失真；
-            # 且无已训练模型。历史数据保留在 drl_performance 表。
+            # [P1-3 接线] DRL 重训触发此前从未被赋值 True（2026-06-11 下线后
+            # _should_retrain_drl 与回填链路全部悬空 → learning_loop 的
+            # trigger_drl_retrain 分支是死代码）。回填链路 2026-08-09 已恢复，
+            # 此处接通判定：真实回填统计 + 准确率门槛 + 2h 冷却由 _should_retrain_drl 内部保证；
+            # 消费端仍受 DRL_RETRAIN_AUTO 开关控制。
+            if self._should_retrain_drl(db):
+                action.trigger_drl_retrain = True
+                action.reasons.append("DRL重训条件满足")
 
             # 检查Kelly更新条件
             if self._should_update_kelly(db):

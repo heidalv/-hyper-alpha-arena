@@ -598,7 +598,7 @@ def handle_price_update(symbol: str, price: float, event_time: Optional[datetime
 def _execute_strategy_direct(account_id: int, symbol: str, event_time: datetime, db, is_hyper: bool = False, is_binance: bool = False):
     """Execute strategy directly without going through StrategyManager"""
     try:
-        from database.models import AccountStrategyConfig
+        from backend.database.models import AccountStrategyConfig
 
         # Update last trigger time
         strategy = db.query(AccountStrategyConfig).filter_by(account_id=account_id).first()

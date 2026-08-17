@@ -185,27 +185,85 @@ class LearnedFactorWeighting:
               *, now: Optional[datetime] = None) -> bool:
         """在历史因子矩阵上训练。返回是否训练成功。
 
+        [P1-11 训练卫生]
+        - 时间切分：前 80% fit、后 20% 校验；校验 IC 低于门槛则丢弃新模型（保留旧模型）；
+        - purge_bars（embargo）：训练段末尾剔除 purge_bars 根，防标签重叠泄漏进校验段；
+        - min_ic_to_include：IC 绝对值低于门槛的因子列不进模型（特征筛选生效）。
+
         features_history: index=datetime, columns=factor_id 的因子值历史。
         labels: 对齐的前瞻收益（末尾若干根为 NaN，自动剔除）。
         """
         df = features_history.replace([np.inf, -np.inf], np.nan)
         aligned = df.join(labels.rename("__y__"), how="inner").dropna(subset=["__y__"])
-        if len(aligned) < 20:
-            logger.info("[LearnedWeighting] 训练样本不足(%d)，跳过", len(aligned))
+        if len(aligned) < 40:
+            logger.info("[LearnedWeighting] 训练样本不足(%d<40)，跳过", len(aligned))
             return False
         feat_cols = [c for c in df.columns]
+
+        # [P1-11] min_ic_to_include 生效：低 IC 因子不进模型（此前为死配置）
+        try:
+            _min_ic = float(self.config.min_ic_to_include or 0.0)
+            if _min_ic > 0 and len(aligned) > 30:
+                _keep = []
+                for _c in feat_cols:
+                    _x = aligned[_c].astype(float)
+                    _y = aligned["__y__"].astype(float)
+                    if _x.std() < 1e-12 or _y.std() < 1e-12:
+                        continue
+                    _ic = float(_x.corr(_y))
+                    if abs(_ic) >= _min_ic:
+                        _keep.append(_c)
+                if _keep:
+                    feat_cols = _keep
+        except Exception:
+            pass
+        if not feat_cols:
+            logger.info("[LearnedWeighting] min_ic 筛选后无可用因子，跳过训练")
+            return False
+
+        # [P1-11] 时间切分：前 80% fit（尾部再剔除 purge_bars embargo），后 20% 校验
+        _n = len(aligned)
+        _split = int(_n * 0.8)
+        _purge = max(1, int(self.config.purge_bars or 5))
+        _train_end = max(_split - _purge, 30)
+        if _n - _split < 15:
+            logger.info("[LearnedWeighting] 校验段过短(%d)，跳过训练", _n - _split)
+            return False
+        _tr = aligned.iloc[:_train_end]
+        _va = aligned.iloc[_split:]
+
         self.feature_columns = feat_cols
         # learn 处理器仅在训练集 fit（防前视）
-        self.processor.fit(aligned[feat_cols])
-        X = self.processor.transform(aligned[feat_cols])
-        y = aligned["__y__"]
+        self.processor.fit(_tr[feat_cols])
+        X = self.processor.transform(_tr[feat_cols])
+        y = _tr["__y__"]
         try:
             model = _ML10FactorModel(self.config.model_type)
             model.fit(X, y, feat_cols)
+            # [P1-11] 校验 IC 门槛：样本外相关性不足 → 丢弃新模型
+            try:
+                _va_x = self.processor.transform(_va[feat_cols])
+                _va_pred = model.predict(_va_x, feat_cols).astype(float)
+                _va_y = _va["__y__"].astype(float)
+                if _va_pred.std() > 1e-12 and _va_y.std() > 1e-12:
+                    _val_ic = float(_va_pred.corr(_va_y))
+                else:
+                    _val_ic = 0.0
+            except Exception:
+                _val_ic = 0.0
+            _min_val_ic = 0.02
+            if _val_ic < _min_val_ic:
+                logger.warning(
+                    "[LearnedWeighting] 校验 IC=%.4f < %.2f，丢弃新模型（保留旧模型）",
+                    _val_ic, _min_val_ic,
+                )
+                return False
             self.model = model
             self.last_train_time = now or datetime.now()
-            logger.info("[LearnedWeighting] 训练完成 backend=%s samples=%d features=%d",
-                        model.backend_type, len(X), len(feat_cols))
+            logger.info(
+                "[LearnedWeighting] 训练完成 backend=%s samples=%d features=%d val_ic=%.4f",
+                model.backend_type, len(X), len(feat_cols), _val_ic,
+            )
             return True
         except Exception as e:  # noqa: BLE001
             logger.warning("[LearnedWeighting] 训练失败: %s", e)
@@ -236,6 +294,14 @@ class LearnedFactorWeighting:
         """
         if self._due_for_retrain(now) and historical_data is not None and labels is not None:
             self.train(historical_data, labels, now=now)
+        elif self._due_for_retrain(now):
+            # [P1-11] 到期但缺训练数据：旧模型无限期静默沿用 → 告警（每进程一次）
+            if not getattr(self, "_warned_stale", False):
+                logger.warning(
+                    "[LearnedWeighting] 重训到期但无 historical_data/labels，旧模型继续使用"
+                    "（可能存在静默陈旧）；请检查训练数据链路",
+                )
+                self._warned_stale = True
 
         if self.model is not None and self.feature_columns:
             return self.predict_score(factor_values)

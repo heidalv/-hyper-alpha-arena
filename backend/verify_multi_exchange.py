@@ -16,9 +16,8 @@ from pathlib import Path
 # 添加 backend 目录到 Python 路径
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
-
-from database.connection import MarketSessionLocal
-from database.models import MarketTradesAggregated, MarketOrderbookSnapshots, MarketAssetMetrics
+from backend.database.connection import MarketSessionLocal
+from backend.database.models import MarketTradesAggregated, MarketOrderbookSnapshots, MarketAssetMetrics
 from sqlalchemy import func
 
 

@@ -481,9 +481,9 @@ def get_account_snapshots(
     Returns:
     - Array of snapshot objects with timestamp, equity, balance, and margin data
     """
-    from database.models import Account
-    from database.snapshot_connection import SnapshotSessionLocal
-    from database.snapshot_models import HyperliquidAccountSnapshot
+    from backend.database.models import Account
+    from backend.database.snapshot_connection import SnapshotSessionLocal
+    from backend.database.snapshot_models import HyperliquidAccountSnapshot
 
     # Verify account exists and has Hyperliquid environment configured
     account = db.query(Account).filter(Account.id == account_id).first()
@@ -801,7 +801,7 @@ def get_account_wallet(
 
     Returns both testnet and mainnet wallet configurations with balance information.
     """
-    from database.models import HyperliquidWallet, Account
+    from backend.database.models import HyperliquidWallet, Account
     from services.hyperliquid_environment import get_global_trading_mode
 
     try:
@@ -882,7 +882,7 @@ def configure_account_wallet(
     Creates a new wallet record or updates existing one for the specified environment.
     The private key will be encrypted before storage.
     """
-    from database.models import HyperliquidWallet, Account
+    from backend.database.models import HyperliquidWallet, Account
     from utils.encryption import encrypt_private_key
     from eth_account import Account as EthAccount
 
@@ -1083,7 +1083,7 @@ def delete_account_wallet(
     Query Parameters:
     - environment: Which wallet to delete ('testnet' or 'mainnet')
     """
-    from database.models import HyperliquidWallet, Account
+    from backend.database.models import HyperliquidWallet, Account
 
     try:
         # Check if account exists
@@ -1139,7 +1139,7 @@ def test_wallet_connection(
     Validates that the wallet can connect to the exchange and fetch account state.
     Uses global trading_mode to determine which network to test.
     """
-    from database.models import Account
+    from backend.database.models import Account
     from services.hyperliquid_environment import get_global_trading_mode
 
     try:
@@ -1232,7 +1232,7 @@ def set_trading_mode(
     WARNING: Switching to mainnet will use real funds for all AI Traders.
     This change affects all active AI Traders immediately.
     """
-    from database.models import SystemConfig
+    from backend.database.models import SystemConfig
 
     try:
         # Check if config exists
@@ -1299,7 +1299,7 @@ def get_all_wallets(db: Session = Depends(get_db)):
     Returns:
         List of wallet objects with account information, sorted by account name and environment
     """
-    from database.models import HyperliquidWallet, Account
+    from backend.database.models import HyperliquidWallet, Account
 
     try:
         wallets = db.query(

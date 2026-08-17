@@ -18,7 +18,8 @@ import json
 import logging
 import time
 import urllib.request
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -132,46 +133,75 @@ def _collect_options_summary(currency: str) -> Dict[str, Any]:
     return result
 
 
-def _collect_iv_term_structure(currency: str) -> float:
+def _parse_expiry_ms(instrument: str) -> Optional[int]:
+    """从 Deribit instrument 名解析到期日（毫秒）：'BTC-28JUN25-65000-C'。
+
+    [2026-08-15] 原实现因「无法解析」返回伪造的 1.0（正常期限结构），
+    违反数据真实性铁律。现真正解析到期日，解析失败返回 None。
+    """
+    try:
+        parts = str(instrument or "").split("-")
+        if len(parts) < 4:
+            return None
+        token = parts[1]  # '28JUN25'
+        if len(token) < 7:
+            return None
+        day = int(token[:2])
+        mon_str = token[2:5].upper()
+        yr = 2000 + int(token[5:7])
+        month = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+                 "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}.get(mon_str)
+        if month is None:
+            return None
+        dt = datetime(yr, month, day, 8, 0, 0, tzinfo=timezone.utc)  # Deribit 到期 UTC 08:00
+        return int(dt.timestamp() * 1000)
+    except (ValueError, TypeError):
+        return None
+
+
+def _collect_iv_term_structure(currency: str):
     """近月/远月 ATM IV 比率（期限结构）。
 
     >1 = 近月 IV > 远月 IV = 市场短期焦虑（事件驱动）
     <1 = 正常状态（远月 IV 通常更高）
+
+    [2026-08-15 数据真实性修复] 无法解析/数据缺失时返回 None，
+    绝不返回伪造的 1.0（原实现把「解析失败」伪装成「正常期限结构」）。
     """
     cache_key = f"iv_term_{currency}"
     cached = _get_cached(cache_key)
     if cached is not None:
         return cached
 
-    # 用 get_book_summary_by_currency 的数据近似：
-    # 取近月（7天内）和远月（90天+）的 ATM IV
     url = f"{_DERIBIT_BASE}/get_book_summary_by_currency?currency={currency}&kind=option"
     data = _fetch_json(url)
     if not data or data.get("result") is None:
-        return 1.0
+        return None
 
     summaries = data["result"]
-    near_ivs = []
-    far_ivs = []
     now_ms = time.time() * 1000
-
+    near_ivs: List[float] = []   # 14 天内到期
+    far_ivs: List[float] = []    # 60 天后到期
     for s in summaries:
         instrument = s.get("instrument_name", "")
         iv = float(s.get("mark_iv", 0) or 0)
         if not (10 < iv < 300):
             continue
-        # 解析到期日: BTC-28JUN25-65000-C
-        parts = instrument.split("-")
-        if len(parts) < 4:
+        expiry_ms = _parse_expiry_ms(instrument)
+        if expiry_ms is None:
             continue
-        # 简化：按 instrument 数量分布近似近月/远月
-        # 近月 = 前三分之一的合约，远月 = 后三分之一
-        # 更精确的到期日解析需要 dateutil，这里用 index 近似
+        tte = expiry_ms - now_ms
+        if 0 < tte <= 14 * 86400 * 1000:
+            near_ivs.append(iv)
+        elif tte >= 60 * 86400 * 1000:
+            far_ivs.append(iv)
 
-    # 简化：如果无法精确解析，返回默认 1.0（正常期限结构）
-    ratio = 1.0
+    if not near_ivs or not far_ivs:
+        return None  # 诚实：凑不齐两个期限桶就不给值
+
+    ratio = sum(near_ivs) / len(near_ivs) / (sum(far_ivs) / len(far_ivs))
     _set_cached(cache_key, ratio)
-    return ratio
+    return round(ratio, 4)
 
 
 def collect_options_data(currency: str) -> Dict[str, Any]:

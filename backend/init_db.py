@@ -14,13 +14,13 @@ print(f"Snapshot URL: sqlite:///{SNAPSHOT_DATABASE_URL}")
 main_engine = create_engine(f"sqlite:///{DATABASE_URL}", connect_args={"check_same_thread": False})
 snapshot_engine = create_engine(f"sqlite:///{SNAPSHOT_DATABASE_URL}", connect_args={"check_same_thread": False})
 
-from database.models import Base
+from backend.database.models import Base
 
 print("Creating main database tables...")
 Base.metadata.create_all(bind=main_engine)
 print("Main database tables created!")
 
 print("Creating snapshot database tables...")
-from database.snapshot_models import SnapshotBase
+from backend.database.snapshot_models import SnapshotBase
 SnapshotBase.metadata.create_all(bind=snapshot_engine)
 print("Snapshot database tables created!")

@@ -318,6 +318,13 @@ def freeze_symbol_strategies(db: Session, session, symbol: str, reason: str,
         host.append_event(session, "symbol_loss_freeze",
             f"[PerSymbolRisk] {symbol} 冻结: {reason} (暂停{paused_count}个策略)")
     logger.warning(f"[PerSymbolRisk] {symbol} 冻结: {reason} (暂停{paused_count}个策略)")
+    # [2026-08-15 收敛] 冻结事件统一登记到 FreezeCoordinator 台账（单一可见入口）
+    try:
+        from backend.services.risk_management.freeze_coordinator import register_event
+        register_event("freeze_per_symbol", int(getattr(session, "account_id", 0) or 0),
+                       "per_symbol_risk", symbol, f"{reason} (paused={paused_count})")
+    except Exception as _reg_err:
+        logger.debug("[PerSymbolRisk] 台账登记失败(非致命): %s", _reg_err)
 
 def unfreeze_recovered_symbols(db: Session, session, still_frozen: List[str], host: SymbolRiskHost) -> None:
     from backend.database.models import AIStrategy
@@ -374,6 +381,13 @@ def unfreeze_recovered_symbols(db: Session, session, still_frozen: List[str], ho
             host.append_event(session, "symbol_loss_unfreeze",
                 f"[PerSymbolRisk] {symbol} 解冻: 日亏损已恢复 (恢复{resumed}个策略)")
         logger.info(f"[PerSymbolRisk] {symbol} 解冻: 日亏损已恢复")
+        # [2026-08-15 收敛] 解冻事件统一登记
+        try:
+            from backend.services.risk_management.freeze_coordinator import register_event
+            register_event("unfreeze_per_symbol", int(getattr(session, "account_id", 0) or 0),
+                           "per_symbol_risk", symbol, f"日亏损已恢复 (resumed={resumed})")
+        except Exception:
+            pass
 
     frozen.difference_update(to_unfreeze)
 

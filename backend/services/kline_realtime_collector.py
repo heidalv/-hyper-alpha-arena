@@ -312,7 +312,10 @@ class KlineRealtimeCollector:
         self._rate_limited_ts: float = 0.0
         # [2026-08-04 修复] 限流冷却时长（秒）：429 后全链路暂停足够久让
         # Asterdex 2400 req/min 滑动窗口完全回收，再以低速率恢复。
-        self._rate_backoff_sec = float(os.getenv("ASTERDEX_RATE_BACKOFF_SEC", "120"))
+        # [2026-08-15 口径统一] 默认值与 _AsterdexRateLimiter._ban_backoff（90s）
+        # 对齐——此前这里 120s、限速器 90s，两处不一致会让「本地跳过」与
+        # 「全局封禁」的恢复时刻错开，形成交替撞墙窗口。
+        self._rate_backoff_sec = float(os.getenv("ASTERDEX_RATE_BACKOFF_SEC", "90"))
         # [2026-08-04 修复] 连接级熔断：Asterdex 会「间歇性拒连」（SSL
         # UNEXPECTED_EOF / Connection reset，非 429），表现为 P0 整轮
         # 0ok/Nerr 且反复出现。检测到连续 N 轮全失败 → 暂停采集一段

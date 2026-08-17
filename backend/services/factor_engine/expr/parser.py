@@ -118,11 +118,21 @@ def _eval_node(node: Any, fields: dict[str, np.ndarray]) -> np.ndarray:
 
 
 def _parse_delta_time(s: str) -> int:
-    """将 '5m'/'1h'/'1d' 解析为秒数（占位实现，供下游窗口映射）。"""
+    """将 '5m'/'1h'/'1d'/'1w'/'1M' 解析为秒数（供下游窗口映射）。
+
+    [2026-08-15] 原注释自称「占位实现」且缺 1w/1M；补齐周/月单位并修正注释。
+    未知单位/非法值返回 0（调用方仅作标记使用，不影响求值正确性）。
+    """
     s = s.strip()
-    units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    units = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
     if not s:
         return 0
+    # 月份单独处理（M 与分 m 区分大小写）
+    if s.endswith("M"):
+        try:
+            return int(float(s[:-1]) * 2592000)
+        except ValueError:
+            return 0
     unit = s[-1].lower()
     if unit not in units:
         return 0

@@ -88,7 +88,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   // 等待本地 bootstrap 或正在硬跳登录
   return (
     <div className="flex h-screen items-center justify-center bg-[#070b12] text-slate-400">
-      <Loader2 className="mr-2 h-5 w-5 animate-spin text-emerald-400" />
+      <Loader2 className="mr-2 h-5 w-5 animate-spin text-cyan-400" />
       {!bootstrapped || !hydrated ? "正在恢复登录状态…" : "正在打开登录页…"}
     </div>
   );

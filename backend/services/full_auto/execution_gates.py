@@ -52,20 +52,32 @@ def orchestrator_blocks_open(
 
 
 def decision_price_consistency_ok(sym: str, mkt: dict, proposal: Any, mode: str) -> Tuple[bool, str]:
-    """决策价一致性门禁：放行后、下单前校验决策价与实时价偏离。"""
-    if os.getenv("DECISION_PRICE_GATE_ENABLED", "false").lower() not in ("1", "true", "yes", "on"):
+    """决策价一致性门禁：放行后、下单前校验决策价与实时价偏离。
+
+    [2026-08-15 R3 修复] 原实现默认关闭（DECISION_PRICE_GATE_ENABLED=false）
+    且异常 fail-open（任何异常都放行）。现改为：
+    - 默认开启（与「决策价统一秒级口径」修复配套，防 1m 收盘口径漂移）；
+    - 校验异常 → fail-closed 阻断（带原因），不再静默放行；
+    - 唯一放行的边界情形：调用方未携带决策价字段（无输入可校验，记 debug）。
+    """
+    if os.getenv("DECISION_PRICE_GATE_ENABLED", "true").lower() not in ("0", "false", "no", "off"):
+        pass
+    else:
         return True, ""
     try:
         _mkt = mkt if isinstance(mkt, dict) else {}
         p_dec = float(_mkt.get("current_price") or _mkt.get("price") or 0)
         if p_dec <= 0:
+            # 无决策价输入可校验（旧调用路径），放行但不静默：记 debug
+            logger.debug("[DecisionPriceGate] 无决策价字段，跳过校验: %s", sym)
             return True, ""
         from backend.services.strategy_coordinator import StrategyCoordinator
         from backend.services.exchange_config import get_active_exchange
 
         p_now = float(StrategyCoordinator._get_realtime_price_robust(sym, get_active_exchange()) or 0)
         if p_now <= 0:
-            return True, ""
+            # fail-closed：下单前取不到实时价就不放行（与 STRICT_DATA_GATE 口径一致）
+            return False, "current_price_unavailable"
         dev = abs(p_now - p_dec) / p_dec
         if mode == "live":
             max_dev = float(os.getenv("DECISION_PRICE_MAX_DEVIATION_PCT_LIVE", "0.005") or 0.005)
@@ -78,5 +90,5 @@ def decision_price_consistency_ok(sym: str, mkt: dict, proposal: Any, mode: str)
             )
         return True, ""
     except Exception as _e:
-        logger.debug("[DecisionPriceGate] 校验异常，fail-open: %s", _e)
-        return True, ""
+        # [2026-08-15] 异常 fail-closed：校验机制本身坏了不放行，避免静默绕过
+        return False, f"gate_error:{type(_e).__name__}:{str(_e)[:80]}"

@@ -54,6 +54,8 @@ MIGRATIONS = [
     "create_ai_learning_integration_tables.py",  # AI学习整合：system_coordinator_state 等
     "add_rebate_position_owner_account.py",  # 阶段4.2: rebate_positions 软关联 arbitrage_paper_accounts
     "widen_position_exit_events.py",  # P0: position_exit_events.exit_channel 40 -> 100
+    "add_funding_ledger_tier.py",  # P0-8: paper_funding_ledger.tier 资金费口径审计
+    "add_coordinator_runtime_state.py",  # P1-5: system_coordinator_state.runtime_state_json
 ]
 
 
@@ -70,7 +72,14 @@ def run_migration(migration_file: str) -> bool:
         return False
 
     try:
-        spec = __import__(f"database.migrations.{migration_file[:-3]}", fromlist=["upgrade"])
+        # [2026-08 命名空间统一] 双命名空间（database.* 与 backend.database.*）
+        # 会导致 connection 模块被加载两份、建两套引擎/连接池（日志证据 16.5K vs 16.9K 行）。
+        # 统一走 backend.*；legacy 命名空间仅作回退兼容。
+        _mod_name = f"backend.database.migrations.{migration_file[:-3]}"
+        try:
+            spec = __import__(_mod_name, fromlist=["upgrade"])
+        except ImportError:
+            spec = __import__(f"database.migrations.{migration_file[:-3]}", fromlist=["upgrade"])
         if hasattr(spec, 'upgrade'):
             logger.debug(f"Running migration: {migration_file}")
             spec.upgrade()

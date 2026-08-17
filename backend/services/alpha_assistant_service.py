@@ -1,4 +1,4 @@
-﻿"""Alpha 悬浮助手 — L1/L2 + 会话持久化 + 飞书同步入口。"""
+"""Alpha �������� �� L1/L2 + �Ự�־û� + ����ͬ����ڡ�"""
 
 from __future__ import annotations
 
@@ -46,56 +46,56 @@ def _maybe_answer_locally(user_message: str, ctx: Dict[str, Any]) -> Optional[st
     health = ctx.get("health_apis_snapshot") or {}
     apis = health.get("apis") or {}
 
-    if any(k in text for k in ("报错", "error", "日志", "异常")):
+    if any(k in text for k in ("����", "error", "��־", "�쳣")):
         total = int(digest.get("total_errors") or 0)
         if total <= 0:
-            return "最近 24 小时 **backend.log** 未发现 ERROR/CRITICAL，系统日志看起来正常。"
-        lines = [f"最近 24 小时共有 **{total}** 条 ERROR/CRITICAL。"]
+            return "��� 24 Сʱ **backend.log** δ���� ERROR/CRITICAL��ϵͳ��־������������"
+        lines = [f"��� 24 Сʱ���� **{total}** �� ERROR/CRITICAL��"]
         for item in (digest.get("entries") or [])[:3]:
             hint = item.get("severity_hint", "P2")
             lines.append(
-                f"- [{hint}] `{item.get('logger', '?')}` ×{item.get('count', 0)}："
+                f"- [{hint}] `{item.get('logger', '?')}` ��{item.get('count', 0)}��"
                 f"{item.get('sample', '')[:120]}"
             )
-        lines.append("\n可在 **OpenCode 智能中心 → 系统健康** Tab 查看完整列表。")
+        lines.append("\n���� **OpenCode �������� �� ϵͳ����** Tab �鿴�����б��")
         return "\n".join(lines)
 
-    if any(k in text for k in ("opencode", "在线", "sidecar", "bridge")):
+    if any(k in text for k in ("opencode", "����", "sidecar", "bridge")):
         oc = (apis.get("opencode_status") or {}).get("data") or {}
         bridge = oc.get("bridge") or {}
         sidecar = oc.get("sidecar") or {}
         healthy = bool(oc.get("serve_healthy"))
         lines = [
-            f"OpenCode Bridge：{'**在线**' if bridge.get('enabled') else '未启用'}",
-            f"Sidecar 健康：{'**正常**' if healthy else '异常'}",
+            f"OpenCode Bridge��{'**����**' if bridge.get('enabled') else 'δ����'}",
+            f"Sidecar ������{'**����**' if healthy else '�쳣'}",
         ]
         if sidecar:
-            lines.append(f"Sidecar 端口：{sidecar.get('port', '?')}，模式：{sidecar.get('mode', '?')}")
+            lines.append(f"Sidecar �˿ڣ�{sidecar.get('port', '?')}��ģʽ��{sidecar.get('mode', '?')}")
         if bridge.get("last_error"):
-            lines.append(f"最近错误：{bridge['last_error']}")
+            lines.append(f"�������{bridge['last_error']}")
         return "\n".join(lines)
 
-    if any(k in text for k in ("漏斗", "提案", "进化")):
+    if any(k in text for k in ("©��", "�᰸", "����")):
         funnel = (apis.get("proposal_funnel") or {}).get("data") or {}
         f = funnel.get("funnel") or {}
         pol = funnel.get("validation_policy") or {}
         mode_hint = ""
         if pol.get("mode") == "post_apply_slice":
             mode_hint = (
-                f"\n\n验证模式：**应用后成交切片**（Pace={pol.get('gear', '?')}，"
-                f"最少浸泡 {pol.get('min_age_hours', '?')}h，"
-                f"凑够 5 笔 post-apply 平仓即可评估，不必等满 24h）。"
+                f"\n\n��֤ģʽ��**Ӧ�ú�ɽ���Ƭ**��Pace={pol.get('gear', '?')}��"
+                f"���ٽ��� {pol.get('min_age_hours', '?')}h��"
+                f"�չ� 5 �� post-apply ƽ�ּ������������ص��� 24h����"
             )
         return (
-            f"进化提案漏斗：创建 {f.get('created', 0)} → "
-            f"已应用 {f.get('applied', 0)} → "
-            f"已评估 {f.get('evaluated', 0)} → "
-            f"改善 {f.get('improved', 0)}。"
+            f"�����᰸©�������� {f.get('created', 0)} �� "
+            f"��Ӧ�� {f.get('applied', 0)} �� "
+            f"������ {f.get('evaluated', 0)} �� "
+            f"���� {f.get('improved', 0)}��"
             f"{mode_hint}"
-            "\n\n模拟盘应用参数后即在验证；评估=对比应用前后 + 必要时自动回滚。"
+            "\n\nģ����Ӧ�ò���������֤������=�Ա�Ӧ��ǰ�� + ��Ҫʱ�Զ��ع���"
         )
 
-    if any(k in text for k in ("日报", "总结", "报表", "daily report")):
+    if any(k in text for k in ("�ձ�", "�ܽ�", "����", "daily report")):
         from backend.services.assistant_daily_report_service import build_daily_report_text
 
         return build_daily_report_text()
@@ -105,12 +105,12 @@ def _maybe_answer_locally(user_message: str, ctx: Dict[str, Any]) -> Optional[st
 
 def _is_confirm(text: str) -> bool:
     t = (text or "").strip().lower()
-    return t in ("确认", "confirm", "是的", "好", "ok", "yes", "y")
+    return t in ("ȷ��", "confirm", "�ǵ�", "��", "ok", "yes", "y")
 
 
 def _is_live_confirm(text: str) -> bool:
     t = (text or "").strip().lower()
-    return t in ("确认晋升", "confirm live", "确认 live", "确认上线")
+    return t in ("ȷ�Ͻ���", "confirm live", "ȷ�� live", "ȷ������")
 
 
 def _sse(event: str, payload: Dict[str, Any]) -> str:
@@ -164,7 +164,7 @@ def _process_chat(
     feishu_open_id: Optional[str] = None,
     db=None,
 ) -> Dict[str, Any]:
-    """核心对话逻辑（SSE / 飞书共用）。"""
+    """���ĶԻ��߼���SSE / ���鹲�ã���"""
     from backend.database.connection import SessionLocal
 
     own_db = db is None
@@ -234,12 +234,10 @@ def _process_chat(
         try:
             from backend.config.settings import OPENCODE_AGENT_PLAN
             from backend.services.llm_config_service import get_default_model_slug
-            from backend.services.opencode_sidecar import ensure_sidecar
             from backend.services.opencode_bridge import run_http_agent_message
 
-            ensure_sidecar()
             model_slug = get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-flash"
-            # 与 OpenCode 智能分析一致：plan agent + 星标默认配置 deep 档
+            # �� OpenCode ���ܷ���һ�£�plan agent + �Ǳ�Ĭ������ deep ��
             raw, err = run_http_agent_message(
                 system_prompt=system_prompt,
                 user_text=user_message,
@@ -278,11 +276,11 @@ def _process_chat(
                     "deep_links": None,
                 }
             fallback = (
-                "暂时无法连接 AI Sidecar。"
-                f"\n\n本地摘要：24h ERROR **{int((ctx.get('log_error_digest') or {}).get('total_errors') or 0)}** 条。"
-                "\n\nSidecar 应在后端启动时自动拉起（约 15–30 秒）。"
-                "\n\n可尝试：OpenCode 智能中心 → 快捷控制台 → **启动 Sidecar**，"
-                "或稍等 2 分钟后重试（看门狗会自动重启）。"
+                "��ʱ�޷����� AI Sidecar��"
+                f"\n\n����ժҪ��24h ERROR **{int((ctx.get('log_error_digest') or {}).get('total_errors') or 0)}** ����"
+                "\n\nSidecar Ӧ�ں�����ʱ�Զ�����Լ 15�C30 �룩��"
+                "\n\n�ɳ��ԣ�OpenCode �������� �� ��ݿ���̨ �� **��� Sidecar**��"
+                "���Ե� 2 ���Ӻ����ԣ����Ź����Զ��������"
             )
             history.append({"role": "assistant", "content": fallback})
             _persist_assistant_turn(db, conv, content=fallback)
@@ -335,7 +333,7 @@ def chat_sync(
 
 
 def _stream_text_deltas(text: str, *, chunk_size: int = 16) -> Iterable[str]:
-    """将完整回复切成小块 SSE 输出，本地/L2 路径也能流式展示。"""
+    """�������ظ��г�С�� SSE ���������/L2 ·��Ҳ����ʽչʾ��"""
     if not text:
         return
     for i in range(0, len(text), chunk_size):
@@ -343,7 +341,7 @@ def _stream_text_deltas(text: str, *, chunk_size: int = 16) -> Iterable[str]:
 
 
 def _sse_keepalive() -> str:
-    """防止代理/缓冲把长时间无输出的 SSE 连接掐掉。"""
+    """��ֹ����/����ѳ�ʱ��������� SSE ���������"""
     return ": keepalive\n\n"
 
 
@@ -356,7 +354,7 @@ def chat_stream(
     from backend.database.connection import SessionLocal
 
     sid = session_id or str(uuid.uuid4())
-    yield _sse("status", {"phase": "preparing", "message": "已收到问题，正在准备…", "session_id": sid})
+    yield _sse("status", {"phase": "preparing", "message": "���յ����⣬����׼����", "session_id": sid})
 
     db = SessionLocal()
     try:
@@ -367,7 +365,7 @@ def chat_stream(
             channel="web",
         )
         sid = conv.session_uuid
-        yield _sse("status", {"phase": "preparing", "message": "正在汇总系统日志与健康状态…"})
+        yield _sse("status", {"phase": "preparing", "message": "���ڻ���ϵͳ��־�뽡��״̬��"})
 
         history = _SESSIONS.setdefault(sid, [])
         history.append({"role": "user", "content": user_message})
@@ -403,7 +401,7 @@ def chat_stream(
             )
 
         if l2_reply:
-            yield _sse("status", {"phase": "responding", "message": "正在整理操作结果…"})
+            yield _sse("status", {"phase": "responding", "message": "����������������"})
             if tool_result:
                 ctx["tool_results"] = tool_result
                 if tool_result.get("deep_links"):
@@ -415,7 +413,7 @@ def chat_stream(
 
         local = _maybe_answer_locally(user_message, ctx)
         if local:
-            yield _sse("status", {"phase": "responding", "message": "正在生成本地摘要…"})
+            yield _sse("status", {"phase": "responding", "message": "�������ɱ���ժҪ��"})
             for delta in _stream_text_deltas(local):
                 yield _sse("content", {"delta": delta})
             yield from _finish(local)
@@ -427,7 +425,6 @@ def chat_stream(
         try:
             from backend.config.settings import OPENCODE_AGENT_PLAN
             from backend.services.llm_config_service import get_default_model_slug
-            from backend.services.opencode_sidecar import ensure_sidecar
             from backend.services.opencode_bridge import iter_http_agent_message_stream
 
             model_slug = (get_default_model_slug(tier="deep", usage="assistant") or "deepseek/deepseek-v4-flash").strip()
@@ -437,7 +434,7 @@ def chat_stream(
                 {
                     "phase": "thinking",
                     "message": (
-                        f"正在连接 OpenCode（{model_label}），深度思考通常需要 1-3 分钟，请耐心等待…"
+                        f"�������� OpenCode��{model_label}�������˼��ͨ����Ҫ 1-3 ���ӣ������ĵȴ���"
                     ),
                     "model": model_slug,
                 },
@@ -445,7 +442,7 @@ def chat_stream(
             yield _sse_keepalive()
 
             ensure_sidecar()
-            yield _sse("status", {"phase": "thinking", "message": "Sidecar 已连接，模型生成中…"})
+            yield _sse("status", {"phase": "thinking", "message": "Sidecar �����ӣ�ģ�������С�"})
 
             for event in iter_http_agent_message_stream(
                 system_prompt=system_prompt,
@@ -497,11 +494,11 @@ def chat_stream(
                 yield from _finish(local_retry)
                 return
             fallback = (
-                "暂时无法连接 AI Sidecar。"
-                f"\n\n本地摘要：24h ERROR **{int((ctx.get('log_error_digest') or {}).get('total_errors') or 0)}** 条。"
-                "\n\nSidecar 应在后端启动时自动拉起（约 15–30 秒）。"
-                "\n\n可尝试：OpenCode 智能中心 → 快捷控制台 → **启动 Sidecar**，"
-                "或稍等 2 分钟后重试（看门狗会自动重启）。"
+                "��ʱ�޷����� AI Sidecar��"
+                f"\n\n����ժҪ��24h ERROR **{int((ctx.get('log_error_digest') or {}).get('total_errors') or 0)}** ����"
+                "\n\nSidecar Ӧ�ں�����ʱ�Զ�����Լ 15�C30 �룩��"
+                "\n\n�ɳ��ԣ�OpenCode �������� �� ��ݿ���̨ �� **��� Sidecar**��"
+                "���Ե� 2 ���Ӻ����ԣ����Ź����Զ��������"
             )
             for delta in _stream_text_deltas(fallback):
                 yield _sse("content", {"delta": delta})

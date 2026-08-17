@@ -13,6 +13,7 @@ Author: Hyper-Alpha-Arena
 """
 
 import logging
+import os
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
@@ -640,7 +641,11 @@ class FactorEngine:
             'name': 'OI Delta',
             'description': 'Open Interest Change %',
             'compute': self.compute_oi_delta,
-            'required_keys': ['oi', 'prev_oi'],   # [add]（oi_delta_pct 也算有数据，见 compute_all_factors）
+            # [2026-08-15 注释修正] 实际必需键是 oi/prev_oi（绝对值对）；
+            # 注入侧优先给真实 OI 对，历史不足时用 1.0 基准归一化编码
+            # （输出严格等于真实 oi_delta_pct，非伪造）。oi_delta_pct 本身
+            # 仅是注入的中间值，不直接参与 compute_oi_delta。
+            'required_keys': ['oi', 'prev_oi'],
         }
         self.FACTORS['funding_rate'] = {
             'category': FactorCategory.MARKET_FLOW,
@@ -694,6 +699,37 @@ class FactorEngine:
         if isinstance(market_data, dict):
             _symbol = str(market_data.get("symbol") or "_global")
             _timeframe = str(market_data.get("timeframe") or market_data.get("tf") or "")
+
+        # [P0-9 运行期断言] 实盘信号路径必须显式传 allowlist（有 OOS 证据的精选池）。
+        # 未传时：FACTOR_LIVE_ALLOWLIST_ONLY=true → 自动收敛到 custom_factor_store 的 active 集
+        # （fail-closed：active 集为空则返回空结果，不放无验证因子进信号）；
+        # 默认 false 保持旧行为但打 warning（可见性）。
+        if allowlist is None:
+            try:
+                _restrict = os.getenv("FACTOR_LIVE_ALLOWLIST_ONLY", "false").lower() in (
+                    "1", "true", "yes", "on",
+                )
+                if _restrict:
+                    from .custom_factor_store import custom_factor_store
+                    _recs = custom_factor_store.list_active(tenant_id=_resolve_admin_tenant_id())
+                    _ids = {str(r.get("factor_id")) for r in _recs if r.get("factor_id")}
+                    allowlist = _ids if _ids else set()
+                    logger.info(
+                        "[FactorEngine] FACTOR_LIVE_ALLOWLIST_ONLY=true：%d 个 active 因子生效",
+                        len(_ids),
+                    )
+                else:
+                    _warn_key = ("allowlist_warn", str(market_data.get("symbol") if isinstance(market_data, dict) else "_"))
+                    if _warn_key not in getattr(self, "_allowlist_warned", set()):
+                        logger.warning(
+                            "[FactorEngine] compute_all_factors 未传 allowlist（无验证因子参与信号）。"
+                            "信号路径应显式传 active 集；或设 FACTOR_LIVE_ALLOWLIST_ONLY=true 强制收敛。",
+                        )
+                        _warned = getattr(self, "_allowlist_warned", set())
+                        _warned.add(_warn_key)
+                        self._allowlist_warned = _warned
+            except Exception as _al_err:
+                logger.debug("[FactorEngine] allowlist 断言跳过: %s", _al_err)
 
         # 复制一份遍历，防止热加载因子时 dict changed size during iteration
         for name, config in list(self.FACTORS.items()):
@@ -990,26 +1026,15 @@ class FactorEngine:
         return float(score)
     
     def compute_supertrend(self, klines: pd.DataFrame, market_data: Any = None) -> float:
-        """SuperTrend信号"""
-        close = klines['close'].values
-        high = klines['high'].values
-        low = klines['low'].values
-        
-        if len(close) < 20:
+        """SuperTrend信号（[2026-08-16] 改用标准跟踪带算法，修复恒 0 退化）"""
+        if klines is None or len(klines) < 22:
             return 0.0
-            
-        atr = self.compute_atr(klines, market_data)
-        
-        # 简化的SuperTrend计算
-        upper_band = (high[-1] + low[-1]) / 2 + 3 * atr
-        lower_band = (high[-1] + low[-1]) / 2 - 3 * atr
-        
-        if close[-1] > upper_band:
-            return 1.0  # 多头
-        elif close[-1] < lower_band:
-            return -1.0  # 空头
-        else:
-            return 0.0  # 中性
+        from backend.services.factor_engine.supertrend import supertrend_direction
+
+        d = supertrend_direction(
+            klines['high'].values, klines['low'].values, klines['close'].values
+        )
+        return float(d[-1])
     
     # ========== 市场流向因子 ==========
     

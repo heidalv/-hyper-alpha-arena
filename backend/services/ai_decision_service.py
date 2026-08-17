@@ -1,4 +1,4 @@
-"""
+﻿"""
 AI Decision Service - Handles AI model API calls for trading decisions
 """
 import logging
@@ -24,8 +24,7 @@ from repositories import prompt_repo
 from backend.services.signal_confirmation_engine import SignalConfirmationEngine, ConfirmationResult
 from backend.services.position_sizer import PositionSizer, PositionSizeResult
 from backend.services.rule_based_decision_engine import RuleBasedDecisionEngine, LLMSentimentInput, RuleDecision
-# [refactor] reasoning 提取逻辑提炼为公共 helper，供中长线 agent（swing/trend/direction/
-# trade_risk）统一复用，保持单一真相源。此处仅保留同名别名，内部逻辑不变。
+# [refactor] reasoning 提取逻辑提炼为公共 helper，供中长线 agent（swing/trend/direction/ # trade_risk）统一复用，保持单一真相源。此处仅保留同名别名，内部逻辑不变。
 from backend.services.llm_reasoning_helper import (
     extract_text_from_message,
     extract_reasoning_content_safe,
@@ -463,7 +462,7 @@ OUTPUT_FORMAT_COMPLETE = """请仅使用以下 JSON 模式响应（始终输出 
       "stop_loss_price": <数字, "buy"/"sell" 操作必填, 设置止损触发价格>,
       "reason": "<解释主要信号的字符串>",
       "trading_strategy": "<涵盖交易论点、风控和出场计划的字符串>",
-      "risk_scenario": "<如果判断错了: 最大可能亏损多少? 什么情况下会错? 错了怎么办? buy/sell必填, hold可用空字符串>"
+      "risk_scenario": "<如果判断错了: 最大可能亏损多少 什么情况下会错 错了怎么办 buy/sell必填, hold可用空字符串>"
     }}
   ]
 }}
@@ -1043,7 +1042,7 @@ def _build_prompt_context(
 
             # Get account's Hyperliquid wallet configuration
             with SessionLocal() as db_session:
-                from database.models import HyperliquidWallet
+                from backend.database.models import HyperliquidWallet
                 wallet = db_session.query(HyperliquidWallet).filter(
                     HyperliquidWallet.account_id == account.id,
                     HyperliquidWallet.environment == environment,
@@ -1132,8 +1131,7 @@ def _build_prompt_context(
             logger.warning(f"Failed to get recent trades summary: {e}", exc_info=True)
             recent_trades_summary = f"Error fetching trade history: {str(e)[:100]}"
 
-    # ============================================================================
-    # D7: 决策链记忆 — LLM 获得连贯思维（自己过去判断的对错反思）
+    # ============================================================================ # D7: 决策链记忆 — LLM 获得连贯思维（自己过去判断的对错反思）
     # ============================================================================
     decision_chain_context = ""
     try:
@@ -1166,8 +1164,7 @@ def _build_prompt_context(
     except Exception as _dc_err:
         logger.debug(f"[PromptCtx] 决策链记忆构建跳过: {_dc_err}")
 
-    # ============================================================================
-    # D7: 环境感知 — 时间/周几/宏观提醒
+    # ============================================================================ # D7: 环境感知 — 时间/周几/宏观提醒
     # ============================================================================
     env_awareness = ""
     try:
@@ -1540,7 +1537,7 @@ Regime Types:
         # Get K-line data for factor calculation
         klines_data = {}
         if db:
-            from database.models import CryptoKline
+            from backend.database.models import CryptoKline
             from backend.database.connection import MarketSessionLocal
             from datetime import timedelta
             # Use naive UTC to match SQLite storage (no timezone info)
@@ -1666,8 +1663,7 @@ Regime Types:
         adaptive_context["adaptive_trading_summary"] = "N/A"
         adaptive_context["factor_engine_status"] = f"因子引擎错误: {str(adaptive_err)[:50]}"
 
-    # ══════════════════════════════════════════════════
-    # D7: 量化因子引导 — 因子引擎→LLM 结构化指导
+    # ══════════════════════════════════════════════════ # D7: 量化因子引导 — 因子引擎→LLM 结构化指导
     # ══════════════════════════════════════════════════
     factor_guidance = ""
     try:
@@ -1680,8 +1676,7 @@ Regime Types:
     except Exception as _fg_err:
         logger.warning(f"[PromptCtx] 因子引导构建失败: {_fg_err}")
 
-    # ============================================================================
-    # Intelligence Signal — 情报信号融合（自动注入，无需 trigger_context 传递）
+    # ============================================================================ # Intelligence Signal — 情报信号融合（自动注入，无需 trigger_context 传递）
     # ============================================================================
     intelligence_signal_text = ""
     try:
@@ -1796,12 +1791,10 @@ Regime Types:
         logger.debug(f"[PromptCtx] 性格注入失败: {tp_err}")
         context["trader_personality"] = ""
 
-    # ══════════════════════════════════════════════════
-    # K 线与技术指标数据注入（主动模式，不依赖模板变量）
-    # 为所有监控 symbol 生成 15m/1h/4h K 线摘要 + 关键指标
+    # ══════════════════════════════════════════════════ # K 线与技术指标数据注入（主动模式，不依赖模板变量） # 为所有监控 symbol 生成 15m/1h/4h K 线摘要 + 关键指标
     # ══════════════════════════════════════════════════
     try:
-        from database.models import CryptoKline
+        from backend.database.models import CryptoKline
         from backend.database.connection import MarketSessionLocal
         from services.exchange_config import get_active_exchange, get_exchange_for_account
         import pandas as pd
@@ -1928,10 +1921,7 @@ Regime Types:
         logger.debug(f"[PromptCtx] K线技术分析注入跳过: {_kl_err}")
         context["kline_technical_analysis"] = ""
 
-    # ══════════════════════════════════════════════════
-    # RAG 历史类比注入（ExperienceRetriever → prompt）
-    # 从 ChromaDB 语义检索历史交易决策、策略教训、
-    # 交易智慧、交易记忆和静态知识库，注入AI决策上下文
+    # ══════════════════════════════════════════════════ # RAG 历史类比注入（ExperienceRetriever → prompt） # 从 ChromaDB 语义检索历史交易决策、策略教训、 # 交易智慧、交易记忆和静态知识库，注入AI决策上下文
     # ══════════════════════════════════════════════════
     try:
         from backend.services.experience_retriever import experience_retriever
@@ -1961,8 +1951,7 @@ Regime Types:
         context["historical_analogies"] = ""
 
     # ══════════════════════════════════════════════════
-    # S2: 决策性能历史上下文注入 (DecisionPerformanceContext)
-    # 让 LLM 看到当前 symbol/tier/nature 组合的历史实盘表现
+    # S2: 决策性能历史上下文注入 (DecisionPerformanceContext) # 让 LLM 看到当前 symbol/tier/nature 组合的历史实盘表现
     # ══════════════════════════════════════════════════
     try:
         if db is not None and ordered_symbols:
@@ -1986,9 +1975,7 @@ Regime Types:
         logger.debug(f"[PromptCtx] DecisionPerformanceContext 注入跳过: {perf_err}")
         context["decision_performance_history"] = ""
 
-    # Fix 5: 教训回流闭环 —— 把 StrategyMemory.key_lessons 注入 prompt
-    # 这是"学习→进步"闭环的关键缺失环：
-    # decision_feedback_service 写了 71 条 lessons 到 DB，但开仓时从未读回来。
+    # Fix 5: 教训回流闭环 —— 把 StrategyMemory.key_lessons 注入 prompt # 这是"学习→进步"闭环的关键缺失环： # decision_feedback_service 写了 71 条 lessons 到 DB，但开仓时从未读回来。
     try:
         context["strategy_lessons"] = _load_strategy_lessons(db, ordered_symbols)
     except Exception as lessons_err:
@@ -2114,10 +2101,8 @@ def build_chat_completion_endpoints(base_url: str, model: Optional[str] = None) 
     return deduped
 
 
-# [refactor] _extract_text_from_message / _extract_reasoning_content_safe 已迁移到
-# backend.services.llm_reasoning_helper。本文件顶部已 import 并赋同名别名
-# （_extract_text_from_message = extract_text_from_message），历史调用点直接解析到别名，
-# 不再保留 wrapper，避免两处维护。
+# [refactor] _extract_text_from_message / _extract_reasoning_content_safe 已迁移到 # backend.services.llm_reasoning_helper。本文件顶部已 import 并赋同名别名
+# （_extract_text_from_message = extract_text_from_message），历史调用点直接解析到别名， # 不再保留 wrapper，避免两处维护。
 
 
 def _apply_legacy_injections(tpl_text: str) -> str:
@@ -2239,10 +2224,7 @@ def call_ai_for_decision(
         logger.warning("Failed to fetch latest news: %s", err)
         news_section = "No recent CoinJournal news available."
 
-    # ── Prompt Template Resolution (三层优先级) ──
-    # 1. 策略进化后的 PromptTemplate（通过 trigger_context.ai_strategy_id → AIStrategy.master_prompt_template_id）
-    # 2. 账户绑定的 PromptTemplate（AccountPromptBinding）
-    # 3. 系统默认 PromptTemplate
+    # ── Prompt Template Resolution (三层优先级) ── # 1. 策略进化后的 PromptTemplate（通过 trigger_context.ai_strategy_id → AIStrategy.master_prompt_template_id） # 2. 账户绑定的 PromptTemplate（AccountPromptBinding） # 3. 系统默认 PromptTemplate
     template = None
     _evolved_source = ""
     try:
@@ -2283,7 +2265,7 @@ def call_ai_for_decision(
     _sampling_interval = None
     try:
         from backend.database.connection import SessionLocal
-        from database.models import GlobalSamplingConfig
+        from backend.database.models import GlobalSamplingConfig
         with SessionLocal() as _sdb:
             _scfg = _sdb.query(GlobalSamplingConfig).first()
             if _scfg:
@@ -2352,27 +2334,12 @@ def call_ai_for_decision(
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {_api_key}",
+        "Authorization": f"Bearer {account.api_key}",
     }
 
     # Use OpenAI-compatible chat completions format
     # Detect model type for appropriate parameter handling
-    # [2026-08-15 LLM 统一重构] 模型/base_url/key 走统一配置中心，
-    # 废弃 account.model/base_url/api_key 直读（防绕过统一默认）。
-    from backend.services.llm_config_service import resolve_llm_for_legacy_account
-
-    _llm = resolve_llm_for_legacy_account(account, usage="trading", tier="deep")
-    if not (_llm and getattr(_llm, "api_key", None)):
-        logger.error(
-            "[ai_decision] 统一 LLM 配置解析失败 account=%s tenant=%s，拒绝调用",
-            getattr(account, "id", "?"), getattr(account, "user_id", None),
-        )
-        return None
-    _model = _llm.model
-    _base_url = _llm.base_url
-    _api_key = _llm.api_key
-
-    model_lower = (_model or "").lower()
+    model_lower = (account.model or "").lower()
 
     # Reasoning models that don't support temperature parameter
     # Support multi-vendor reasoning models: OpenAI, DeepSeek, Qwen, Claude, Gemini, Grok
@@ -2395,7 +2362,7 @@ def call_ai_for_decision(
     )
 
     payload = {
-        "model": _model,
+        "model": account.model,
         "messages": [
             {
                 "role": "user",
@@ -2429,7 +2396,7 @@ def call_ai_for_decision(
             from backend.services.deepseek_thinking import apply_deepseek_thinking_to_payload
             apply_deepseek_thinking_to_payload(
                 payload,
-                model=_model,
+                model=account.model,
                 caller=f"ai_decision:{getattr(account, 'name', '') or account.id}",
             )
         except Exception:
@@ -2437,18 +2404,18 @@ def call_ai_for_decision(
 
     # Enable streaming for deepseek-reasoner to handle high-load scenarios
     # DeepSeek official recommendation: use streaming to avoid 30s timeout during high load
-    use_streaming = (_model == "deepseek-reasoner")
+    use_streaming = (account.model == "deepseek-reasoner")
     if use_streaming:
         payload["stream"] = True
 
     try:
-        endpoints = build_chat_completion_endpoints(_base_url, _model)
+        endpoints = build_chat_completion_endpoints(account.base_url, account.model)
         if not endpoints:
             logger.error("No valid API endpoint built for account %s", account.name)
             system_logger.log_error(
                 "API_ENDPOINT_BUILD_FAILED",
-                f"Failed to build API endpoint for {account.name} (model: {_model})",
-                {"account": account.name, "model": _model, "base_url": _base_url},
+                f"Failed to build API endpoint for {account.name} (model: {account.model})",
+                {"account": account.name, "model": account.model, "base_url": account.base_url},
             )
             return None
 
@@ -2463,7 +2430,7 @@ def call_ai_for_decision(
         _est_tokens = _total_chars // 4
         if _est_tokens > 6000:
             logger.warning(
-                f"[AI Decision] Large prompt: ~{_est_tokens} tokens for {_model}, "
+                f"[AI Decision] Large prompt: ~{_est_tokens} tokens for {account.model}, "
                 f"may cause timeout")
         # 截断超长消息防止超时
         for m in _prompt_messages:
@@ -2553,13 +2520,13 @@ def call_ai_for_decision(
                 break
 
         if not success or not response:
-            logger.error("All API endpoints failed for account %s (%s)", account.name, _model)
+            logger.error("All API endpoints failed for account %s (%s)", account.name, account.model)
             system_logger.log_error(
                 "AI_API_ALL_ENDPOINTS_FAILED",
                 f"All API endpoints failed for {account.name}",
                 {
                     "account": account.name,
-                    "model": _model,
+                    "model": account.model,
                     "endpoints_tried": [str(ep) for ep in endpoints],
                     "max_retries": max_retries,
                 },
@@ -2633,7 +2600,7 @@ def call_ai_for_decision(
                 t_tokens = usage_data.get("total_tokens", p_tokens + c_tokens)
                 r_tokens = usage_data.get("reasoning_tokens") or usage_data.get("completion_tokens_details", {}).get("reasoning_tokens")
                 provider_name = ""
-                base = (_base_url or "").lower()
+                base = (account.base_url or "").lower()
                 if "openai" in base:
                     provider_name = "openai"
                 elif "deepseek" in base:
@@ -2659,12 +2626,12 @@ def call_ai_for_decision(
                         account_id=account.id,
                         llm_config_id=getattr(account, "llm_config_id", None),
                         provider=provider_name,
-                        model=_model or "unknown",
+                        model=account.model or "unknown",
                         reasoning_tokens=r_tokens,
                         call_type="ai_decision",
                         success=True,
                         usage_info=usage_data,
-                        base_url=_base_url or "",
+                        base_url=account.base_url or "",
                     )
                     _usage_db.close()
                 except Exception as _usage_db_err:
@@ -2680,9 +2647,7 @@ def call_ai_for_decision(
             reasoning_text = _extract_text_from_message(message.get("reasoning"))
 
             # [refactor] 多厂商 reasoning 提取逻辑已迁移到
-            # backend.services.llm_reasoning_helper.extract_reasoning_content_safe
-            # （文件顶部已 import 为同名 _extract_reasoning_content_safe）。
-            # 原闭包逻辑一字未改地搬过去了，这里直接调用，消除两处维护。
+            # backend.services.llm_reasoning_helper.extract_reasoning_content_safe # （文件顶部已 import 为同名 _extract_reasoning_content_safe）。 # 原闭包逻辑一字未改地搬过去了，这里直接调用，消除两处维护。
             # Extract reasoning content for later merging
             api_reasoning_content = _extract_reasoning_content_safe(result)
 
@@ -2791,9 +2756,7 @@ def call_ai_for_decision(
                 strategy_details = entry.get("trading_strategy")
 
                 # Merge API reasoning content with trading_strategy
-                # Priority: API reasoning (from reasoning models) > trading_strategy (from prompt) > fallback reasoning_text
-                # [refactor] 合并逻辑统一走 llm_reasoning_helper.build_reasoning_snapshot，
-                # 与中长线 agent 保持一致的三级优先级。
+                # Priority: API reasoning (from reasoning models) > trading_strategy (from prompt) > fallback reasoning_text # [refactor] 合并逻辑统一走 llm_reasoning_helper.build_reasoning_snapshot， # 与中长线 agent 保持一致的三级优先级。
                 entry["_prompt_snapshot"] = prompt
                 entry["_reasoning_snapshot"] = build_reasoning_snapshot(
                     api_reasoning_content,
@@ -2862,11 +2825,7 @@ def call_ai_for_decision(
                 logger.error("AI response for %s contained no usable decision entries", account.name)
                 return None
 
-            # ══════════════════════════════════════════════════════════════
-            # Phase 3B 集成：规则引擎决策管道
-            # LLM 输出只作为"情绪输入"，最终决策由规则引擎执行
-            # 调用链：signal_confirmation → position_sizer → rule_engine → 覆盖entry
-            # 编排器方向作为 fallback（当三维确认不足时）
+            # ══════════════════════════════════════════════════════════════ # Phase 3B 集成：规则引擎决策管道 # LLM 输出只作为"情绪输入"，最终决策由规则引擎执行 # 调用链：signal_confirmation → position_sizer → rule_engine → 覆盖entry # 编排器方向作为 fallback（当三维确认不足时）
             # ══════════════════════════════════════════════════════════════
             _orch_dirs = (trigger_context or {}).get("orchestrator_directions", {})
             filtered_decisions = []
@@ -3086,8 +3045,7 @@ def call_ai_for_decision(
                         current_price=current_price,
                     )
 
-                    # 6. 编排器 Fallback：当规则引擎 HOLD 但编排器有明确方向时覆盖
-                    # 编排器中期置信度分布：强信号0.45~0.85，弱信号0.35，中性0.25
+                    # 6. 编排器 Fallback：当规则引擎 HOLD 但编排器有明确方向时覆盖 # 编排器中期置信度分布：强信号0.45~0.85，弱信号0.35，中性0.25
                     # 门槛设为0.30：过滤掉中性(0.25)，保留弱信号(0.35)和强信号
                     if rule_decision.action == "HOLD" and symbol in _orch_dirs:
                         od = _orch_dirs[symbol]
@@ -3233,33 +3191,20 @@ def call_ai_for_decision(
         return None
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# P1-6: LLM 降级路径 — 超时/失败时切到规则引擎决策
+# ═══════════════════════════════════════════════════════════════════════════ # P1-6: LLM 降级路径 — 超时/失败时切到规则引擎决策
 # ═══════════════════════════════════════════════════════════════════════════
 
 _LLM_FALLBACK_TIMEOUT_SECONDS = 15.0  # 历史默认值(未真正生效，见下方修复说明)
 # [2026-07-11 修复] 原来的 15s 从未真正生效：旧代码用 `with ThreadPoolExecutor` 包裹
 # future.result(timeout=15)，即使 15s 后抛出 TimeoutError，`with` 退出时的
-# executor.shutdown(wait=True) 仍会阻塞到 LLM 真正响应完成(reasoning 模型最长 240s+重试)。
-# 修复后 15s 会真正生效——但当前生产账户使用的 deepseek-v4-flash 等推理模型，
-# 正常响应时间本身就可能超过 15s，若直接让 15s 生效，会导致几乎所有决策都被
-# 误判为"超时"而降级成规则引擎/纯观望，交易质量和频率反而变差。
-# 现在 DB 会话已经和 LLM 调用解耦（后台线程用独立连接），不再需要用短超时来
-# "抢救"数据库连接，因此把实际生效的超时放宽到覆盖推理模型真实超时(240s)+
-# 一次重试的余量，只在 LLM 真的失联时才降级，不误伤正常但稍慢的推理调用。
+# executor.shutdown(wait=True) 仍会阻塞到 LLM 真正响应完成(reasoning 模型最长 240s+重试)。 # 修复后 15s 会真正生效——但当前生产账户使用的 deepseek-v4-flash 等推理模型， # 正常响应时间本身就可能超过 15s，若直接让 15s 生效，会导致几乎所有决策都被 # 误判为"超时"而降级成规则引擎/纯观望，交易质量和频率反而变差。 # 现在 DB 会话已经和 LLM 调用解耦（后台线程用独立连接），不再需要用短超时来
+# "抢救"数据库连接，因此把实际生效的超时放宽到覆盖推理模型真实超时(240s)+ # 一次重试的余量，只在 LLM 真的失联时才降级，不误伤正常但稍慢的推理调用。
 _LLM_FALLBACK_TIMEOUT_SECONDS_EFFECTIVE = 260.0
 
 # [2026-07-11 修复#2 - 线程泄漏根因] 上面的修复实现了"真正超时"，但每次调用都
 # `concurrent.futures.ThreadPoolExecutor(max_workers=1)` 现开现用，超时后
-# `shutdown(wait=False)` 意味着这个后台线程被直接"抛弃"——它不属于任何有限大小
-# 的池子，只能靠 LLM 自己在最多 260s 后结束才会退出。本函数每个 tick 会对多个
-# symbol/tier 各调用一次（K线分析师、中长线Agent等），调用频率(每30~45s一轮)
-# 远高于 260s 的线程存活时间，导致后台线程"生成速度 > 死亡速度"，无限堆积。
-# 实测重启后仅约1小时进程线程数就从几十涨到450+，正是本函数的锅——这也是用户反馈
-# "数据库连接越来越慢、总是堵塞卡死"的真正根因：不是数据库慢，是 Python 进程里
-# 堆积的线程在疯狂抢 GIL，导致包括简单 DB 查询接口在内的所有请求都要排队等 CPU。
-# 修复：改用一个模块级、大小固定的共享线程池。超时的调用不再"新开一个线程扔掉"，
-# 而是复用池子里的 worker；池子满时新任务在队列里排队等待，而不是无限开新 OS 线程。
+# `shutdown(wait=False)` 意味着这个后台线程被直接"抛弃"——它不属于任何有限大小 # 的池子，只能靠 LLM 自己在最多 260s 后结束才会退出。本函数每个 tick 会对多个
+# symbol/tier 各调用一次（K线分析师、中长线Agent等），调用频率(每30~45s一轮) # 远高于 260s 的线程存活时间，导致后台线程"生成速度 > 死亡速度"，无限堆积。 # 实测重启后仅约1小时进程线程数就从几十涨到450+，正是本函数的锅——这也是用户反馈 # "数据库连接越来越慢、总是堵塞卡死"的真正根因：不是数据库慢，是 Python 进程里 # 堆积的线程在疯狂抢 GIL，导致包括简单 DB 查询接口在内的所有请求都要排队等 CPU。 # 修复：改用一个模块级、大小固定的共享线程池。超时的调用不再"新开一个线程扔掉"， # 而是复用池子里的 worker；池子满时新任务在队列里排队等待，而不是无限开新 OS 线程。
 _LLM_FALLBACK_POOL_SIZE = 8
 _llm_fallback_pool = None
 
@@ -3302,15 +3247,9 @@ def call_ai_for_decision_with_fallback(
     # [2026-07-11 修复] 根因修复：
     # 1) 原代码用 `with ThreadPoolExecutor(...) as executor:` 包裹 submit+result(timeout=...)。
     #    即使 future.result() 在 fallback_timeout 秒后抛 TimeoutError 被我们捕获，
-    #    `with` 块退出时仍会调用 executor.shutdown(wait=True)，阻塞到后台线程里的
-    #    call_ai_for_decision 真正跑完为止（可长达 90~240s+重试）。这个"超时"从未真正生效，
-    #    导致本函数调用方（run_trading_cycle）传入的 db 会话被一路占用到 LLM 真实响应完成，
-    #    是数据库 idle-in-transaction 堆积、后端periodically卡死的根因。
-    # 2) 后台线程调用 call_ai_for_decision 时复用了调用方的 db（非线程安全的 Session对象），
-    #    一旦真正实现"不等待就返回"，后台线程和主线程会同时使用同一个 db，产生连接损坏风险。
-    # 修复：后台线程使用独立的 DB 会话（重新按 id 查询 account，避免跨线程共享 ORM 对象），
-    # 且 shutdown(wait=False) 让主线程在 fallback_timeout 后立刻真正返回；
-    # 后台线程即使继续跑，也只占用它自己独立的连接，用完自行关闭，不再拖累主流程。
+    #    `with` 块退出时仍会调用 executor.shutdown(wait=True)，阻塞到后台线程里的 #    call_ai_for_decision 真正跑完为止（可长达 90~240s+重试）。这个"超时"从未真正生效， #    导致本函数调用方（run_trading_cycle）传入的 db 会话被一路占用到 LLM 真实响应完成， #    是数据库 idle-in-transaction 堆积、后端periodically卡死的根因。
+    # 2) 后台线程调用 call_ai_for_decision 时复用了调用方的 db（非线程安全的 Session对象）， #    一旦真正实现"不等待就返回"，后台线程和主线程会同时使用同一个 db，产生连接损坏风险。 # 修复：后台线程使用独立的 DB 会话（重新按 id 查询 account，避免跨线程共享 ORM 对象），
+    # 且 shutdown(wait=False) 让主线程在 fallback_timeout 后立刻真正返回； # 后台线程即使继续跑，也只占用它自己独立的连接，用完自行关闭，不再拖累主流程。
     _account_id = getattr(account, "id", None)
 
     def _call_with_isolated_session():
@@ -3339,9 +3278,7 @@ def call_ai_for_decision_with_fallback(
         finally:
             _thread_db.close()
 
-    # ── 尝试 LLM 调用（带超时，超时后真正放行，不阻塞主线程/主db会话）──
-    # [2026-07-11 修复#2] 不再每次 new 一个 executor：改用共享有界池，从根上堵住
-    # "线程生成速度 > 死亡速度"的无限堆积（详见上方 _get_llm_fallback_pool 注释）。
+    # ── 尝试 LLM 调用（带超时，超时后真正放行，不阻塞主线程/主db会话）── # [2026-07-11 修复#2] 不再每次 new 一个 executor：改用共享有界池，从根上堵住 # "线程生成速度 > 死亡速度"的无限堆积（详见上方 _get_llm_fallback_pool 注释）。
     executor = _get_llm_fallback_pool()
     try:
         future = executor.submit(_call_with_isolated_session)
@@ -3368,12 +3305,7 @@ def call_ai_for_decision_with_fallback(
             f"[LLM Fallback] 线程池启动失败: {_outer_err}, "
             f"降级到规则引擎 (symbols={_symbols})"
         )
-    # [2026-07-11 修复#2] 不再调用 executor.shutdown()：executor 现在是模块级共享池，
-    # 生命周期跨越整个进程，不属于本次调用，不能在这里关掉（否则下一次调用会报
-    # "cannot schedule new futures after shutdown"）。超时未完成的任务会继续占用
-    # 该共享池里的一个 worker 直到自然结束，但线程总数被 _LLM_FALLBACK_POOL_SIZE
-    # 硬顶住，不会再无限增长。后台线程用的是独立 db 连接（_call_with_isolated_session
-    # 内自行 close），不会影响本函数调用方持有的 db 会话。
+    # [2026-07-11 修复#2] 不再调用 executor.shutdown()：executor 现在是模块级共享池， # 生命周期跨越整个进程，不属于本次调用，不能在这里关掉（否则下一次调用会报 # "cannot schedule new futures after shutdown"）。超时未完成的任务会继续占用 # 该共享池里的一个 worker 直到自然结束，但线程总数被 _LLM_FALLBACK_POOL_SIZE # 硬顶住，不会再无限增长。后台线程用的是独立 db 连接（_call_with_isolated_session # 内自行 close），不会影响本函数调用方持有的 db 会话。
 
     # ── 降级: 禁止规则引擎伪造开仓，仅 hold（持仓由 SL/TP 管理）──
     from backend.config.settings import BLOCK_FALLBACK_OPENS
@@ -3694,8 +3626,7 @@ def save_ai_decision(
             if extracted_reasoning:
                 reasoning_snapshot = extracted_reasoning
 
-        # Calculate previous portion for the symbol
-        # 计算当前symbol在组合中的仓位占比
+        # Calculate previous portion for the symbol # 计算当前symbol在组合中的仓位占比
         prev_portion = 0.0
         if symbol:  # 所有操作都计算prev_portion，不仅限于sell/hold
             positions = portfolio.get("positions", {})
@@ -4536,8 +4467,7 @@ def _build_klines_and_indicators_context(
     return context
 
 
-# ══════════════════════════════════════════════════════════════
-#  D7: 轻量级 LLM 聊天接口 — 供 trade_planner_agent 等模块直接调用
+# ══════════════════════════════════════════════════════════════ #  D7: 轻量级 LLM 聊天接口 — 供 trade_planner_agent 等模块直接调用
 # ══════════════════════════════════════════════════════════════
 def call_deepseek_chat(
     messages: list,

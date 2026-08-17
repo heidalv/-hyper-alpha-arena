@@ -14,6 +14,7 @@
 """
 import logging
 import json
+import time
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field, asdict
@@ -391,6 +392,13 @@ class StrategyCoordinator:
                             _map = {"breakout":"expansion","continuation":"trending","reversal":"transition","absorption":"accumulation","exhaustion":"distribution","noise":"ranging"}
                             env.market_cycle = _map.get(env.factor_regime, env.market_cycle)
                             env.cycle_confidence = max(env.cycle_confidence, env.factor_regime_confidence)
+                    else:
+                        # [2026-08-15] compute_all_factors 返回空（数据不足/全拦）时
+                        # 显式告警：factor_* 字段保持默认 0 属「因子不可用」，不再静默。
+                        logger.warning(
+                            f"[Coordinator] {symbol} compute_all_factors 返回空，"
+                            f"factor_* 字段保持默认（因子不可用）"
+                        )
         except Exception as _fe_err:
             # 2026-07-06 修正：因子引擎是决策上下文的一路独立输入，导入/计算失败
             # 意味着 AI 少看了一路信号却完全无感知，之前用 debug 级别会被日常
@@ -882,35 +890,42 @@ class StrategyCoordinator:
     def _get_realtime_price_robust(symbol: str, exchange: str) -> float:
         """从交易所获取实时价格 - 多重 fallback 确保拿到真实价格
 
-        尝试顺序：
-        1. Binance USDT 永续合约 ticker
-        2. Binance USDT 现货 ticker
-        3. 统一 market_data 服务（含缓存 + Hyperliquid fallback）
-        4. ccxt 直接 fetch（绕过 markets 缓存）
+        [2026-08-15 P0-3 修复] 口径统一：
+        1. data_center.get_price_with_ts 秒级权威链路（2s ticker 优先），带 5s
+           新鲜度校验——决策价与成交价同源；
+        2. market_data.get_last_price（内部收敛到 data_center，1m 兜底带 stale 门）；
+        3. DC_ONLY 下禁止 ccxt 直连兜底（原第 4 步），失败返回 None。
         """
         methods_tried = []
 
-        # Binance removed (Phase 1) - skip binance branch
+        # ── 秒级权威链路（ticker，5s 新鲜度校验）──
+        try:
+            from backend.services.data_center import TICKER_MAX_AGE_SEC, data_center
+            result = data_center.get_price_with_ts(symbol, purpose="trade")
+            if result:
+                price, ts = result
+                if price and float(price) > 0 and (
+                    time.time() - float(ts or 0)
+                ) <= TICKER_MAX_AGE_SEC:
+                    logger.info(
+                        f"[Coordinator] {symbol} 实时价格(data_center ticker): ${float(price):,.2f}"
+                    )
+                    return float(price)
+        except Exception:
+            pass
+        methods_tried.append("data_center_ticker")
 
-        # ── 统一价格服务 ──
+        # ── 统一价格服务（秒级失败后的 1m 兜底，data_center 内部带 stale 门）──
         try:
             from backend.services.market_data import get_last_price
             price = get_last_price(symbol)
             if price and price > 0:
-                logger.info(f"[Coordinator] {symbol} 实时价格(market_data): ${price:,.2f}")
+                logger.info(f"[Coordinator] {symbol} 实时价格(market_data 兜底): ${price:,.2f}")
                 return float(price)
         except Exception:
             pass
         methods_tried.append("market_data")
 
-        # ── 方法4: HyperLiquid 价格（Binance 已移除）──
-        try:
-            from backend.services.market_data import get_last_price
-            price = get_last_price(symbol)
-            if price and price > 0:
-                return float(price)
-        except Exception:
-            pass
         try:
             # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止临时 ccxt 直连兜底。
             from backend.services.market_data import _dc_only_enabled
@@ -1338,22 +1353,21 @@ class StrategyCoordinator:
                 env.news_top_event = news_summary[:300]
             
             # 解析衍生品信号中的资金费率
-            deriv_interp = summary.get("derivatives_interpretation", "")
-            if "Funding" in deriv_interp:
-                try:
-                    # [2026-07-10 修复] 原 import derivatives_analytics_service（错误名）+
-                    # get_latest(symbol)（不存在的方法）→ ImportError/AttributeError 被下方
-                    # except: pass 吞掉，env.funding_rate 在此路径恒为 0。
-                    # 正确：单例名 derivatives_analytics，方法 get_cached_snapshot。
-                    from backend.services.derivatives_analytics_service import derivatives_analytics
-                    snap = derivatives_analytics.get_cached_snapshot(symbol)
-                    if snap is not None:
-                        env.funding_rate = snap.funding_rate
-                        env.news_impact = snap.signal_strength
-                        if snap.signal in ("bearish", "short"):
-                            env.news_impact = -abs(env.news_impact)
-                except Exception:
-                    pass
+            # [2026-08-15 消费端验收] 原实现依赖 `if "Funding" in deriv_interp` 字符串
+            # 闸门 + derivatives_analytics.get_cached_snapshot（进程内缓存 miss 时
+            # 返回 None，被 except: pass 吞掉）→ env.funding_rate 经常静默为 0，
+            # 下游把 funding=0 当真实费率（成本计算/极费率闸门被绕过）。
+            # 现改为 data_center.get_derivatives 落库直读（perp_funding，
+            # 缓存无关、恒可用）；缺失时保持 0 但由上游 analyst_report_builder
+            # 的 N/A 标记兜底（funding=0 视为占位哨兵）。
+            try:
+                from backend.services.data_center import data_center
+                _deriv = data_center.get_derivatives(symbol) or {}
+                _fr = _deriv.get("funding_rate")
+                if _fr is not None:
+                    env.funding_rate = float(_fr)
+            except Exception as _e:
+                logger.debug(f"[Coordinator] {symbol} funding_rate 落库读取失败: {_e}")
             
             # 用情绪修正周期判断置信度
             if env.sentiment_index < 20 and env.market_cycle == "bull":

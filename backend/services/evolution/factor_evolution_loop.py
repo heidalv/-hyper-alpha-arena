@@ -157,6 +157,20 @@ def _evo_gate_fail_closed() -> bool:
     return raw not in ("0", "false", "no", "off")
 
 
+def _evo_budget_sec() -> float:
+    """单轮进化硬时间预算（秒，默认 1800）。
+
+    [2026-08-16 提速] 加强档曾单轮跑 2.5h+，占满 CPU 把价格接口拖到 7~9s。
+    预算只截断「可选长尾」（阶段7 补挖，剩余 <600s 时跳过）——挖掘/评估/
+    WFO/测试集复评等门禁路径绝不被跳过，不降低任何门禁质量。
+    """
+    try:
+        raw = float(_os_window.getenv("FACTOR_EVO_BUDGET_MAX_SEC", "1800") or 1800)
+    except (TypeError, ValueError):
+        raw = 1800.0
+    return max(300.0, min(raw, 7200.0))
+
+
 def _mine_symbol_keys(dfs: dict) -> list[str]:
     keys = [str(k) for k in dfs.keys()]
     try:
@@ -471,12 +485,15 @@ def _nudge_depth_backfill(symbols, period: str | None) -> None:
         logger.warning("[FactorEvo] depth backfill nudge 失败: %s", e)
 
 
-def _load_data(symbols=None, period=None, lookback=None):
+def _load_data(symbols=None, period=None, lookback=None, use_enrich: bool = True):
     """按周期取足三段切分所需 K 线（v6 5.4.3）。
 
     [2026-08-08 P0-1] 此前 `lookback or DEFAULT_LOOKBACK` 在 period=5m 时仍用
     4h 档 ≈1670 根，远小于 5m 需要的 ≈14450 根 → 三段切分必失败并静默退化。
     现改为 `_lookback_for_period(p)`，并记录 need/got。
+
+    use_enrich=False：跳过 dataset_builder 富化装配（深度预检/仅需根数的
+    轻量场景用；富化是分钟级重活，与深度判断无关）。
     """
     syms = resolve_evolution_symbols(symbols)
     p = period or DEFAULT_PERIOD
@@ -491,6 +508,13 @@ def _load_data(symbols=None, period=None, lookback=None):
 
     dfs = {}
     got_bars: dict[str, int] = {}
+    # [2026-08-15 阶段3 T1 接线] 多源富化开关：把 funding/OI/CVD/清算/链上/事件
+    # 对齐进训练 K 线（dataset_builder 覆盖率门槛保证低覆盖源整列丢弃、不伪造），
+    # 使 DSL 声明字段（funding/oi/liquidation）离线可训练。默认开，可回滚。
+    _enrich = use_enrich and (
+        _os_window.getenv("FACTOR_EVO_ENRICH", "true").strip().lower()
+        not in ("0", "false", "no", "off")
+    )
     for sym in syms:
         try:
             # [2026-08-07 v6 s7 fix] 因子挖掘为研究/回放用途，改用 purpose="research"：
@@ -502,6 +526,20 @@ def _load_data(symbols=None, period=None, lookback=None):
             n = len(df)
             got_bars[sym] = n
             if n >= 100:
+                if _enrich:
+                    try:
+                        from backend.services.factor_engine.dataset_builder import build_enriched_dataset
+                        _edf, _rep = build_enriched_dataset(sym, p, count=lb)
+                        if _edf is not None and len(_edf) == n:
+                            _kept = _rep.get("sources") or {}
+                            df = _edf
+                            logger.debug(
+                                "[FactorEvo] %s/%s 富化完成 dropped=%s",
+                                sym, p, _rep.get("dropped"),
+                            )
+                    except Exception as _enr_err:
+                        logger.debug("[FactorEvo] %s/%s 富化失败（回退纯 OHLCV）: %s",
+                                     sym, p, _enr_err)
                 dfs[sym] = df
         except Exception as e:
             logger.debug(f"[FactorEvo] 取数失败 {sym}/{p}: {e}")
@@ -549,6 +587,35 @@ def _split_train_val(dfs: dict[str, pd.DataFrame], val_bars: int = VAL_BARS):
     return train, val
 
 
+# ── [2026-08-15 停摆防护] 深度不足告警节流（进程内，最小间隔 6 小时） ──
+_DEPTH_NOTIFY_STATE = {"last_ts": 0.0}
+
+
+def _notify_depth_insufficient(promoted_n: int) -> None:
+    """测试集因深度不足缺失时，节流通知飞书/钉钉（每 6h 最多一次）。"""
+    import time as _t
+    _now = _t.time()
+    if _now - _DEPTH_NOTIFY_STATE["last_ts"] < 6 * 3600:
+        return
+    _DEPTH_NOTIFY_STATE["last_ts"] = _now
+    try:
+        from backend.services.openclaw_notify import get_notifier, NotifyLevel
+        notifier = get_notifier()
+        notifier.send_sync(
+            text=(
+                f"因子进化深度不足：测试集缺失，fail-closed 拦截全部晋升"
+                f"（本轮候选 {promoted_n} 个）。请检查对应周期 K 线回填深度"
+                f"（5m 切分需 14,450 根 / 30m 需 4,610 根 / 1m 需 72,050 根）"
+                f"与 db_maintenance 留存是否覆盖回填目标。"
+            ),
+            title="⚠️ 因子进化深度不足告警",
+            level=NotifyLevel.WARNING,
+            event_type="system",
+        )
+    except Exception as e:
+        logger.debug("[FactorEvo] 深度不足通知发送失败（忽略）: %s", e)
+
+
 def _final_test_confirm(promoted: list[dict], eval_results: dict, dfs_test: dict) -> list[dict]:
     """三层切分最终裁判（v6 计划 5.4.3）：测试集 IC 复评。
 
@@ -569,6 +636,10 @@ def _final_test_confirm(promoted: list[dict], eval_results: dict, dfs_test: dict
                     reason="test_set_missing_fail_closed",
                 )
             logger.warning("[FactorEvo] 测试集缺失，fail-closed 拦截全部晋升 (%d)", len(promoted))
+            # [2026-08-15 停摆防护] 深度不足导致测试集缺失时发出节流告警
+            #（8-13~8-15 实况：5m 深度 30 天 < 切分需 50.17 天，进化道长期
+            # 零晋升且无人知晓）。每 6h 最多通知一次。
+            _notify_depth_insufficient(len(promoted))
             return []
         return promoted
     kept = []
@@ -846,12 +917,21 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                 f"net of costs. State expected turnover (bars per flip) and capacity "
                 f"(liquid majors only vs altcoins). "
             )
+            # [V7 长期记忆] 把历史硬指标教训/成功配方注入 Codegen prompt。
+            # 记忆只做假设生成，不做 alpha 评估；评估权仍在回测与门禁。
+            _v7_memory_hint = ""
+            try:
+                from backend.services.evolution.evolution_memory_v7 import build_codegen_context
+                _v7_memory_hint = build_codegen_context(period_tag, limit=8)
+            except Exception as _v7_err:
+                logger.debug("[FactorEvo] V7 记忆注入失败: %s", _v7_err)
             prompt = (
                 f"Generate crypto alpha factor AST for period={period_tag}. "
                 f"{_domain_hint}"
                 f"Prefer complementary hypotheses (momentum/reversal/vol/volume-price/"
                 f"microstructure). Existing weak factors to improve: "
                 f"{fail_hints or ['none']}. "
+                  f"{_v7_memory_hint or ''}"
                 f"Output JSON AST only; do NOT evaluate quality."
             )
             n_llm = int(_os_llm.getenv("FACTOR_CODEGEN_N", "8"))
@@ -1235,8 +1315,17 @@ def _promote_factors(
         n_total_candidates=n_trials,
         sample_len=sample_len,
     )
-    dsr_significant = dsr_pbo.get("dsr_result", {}).get("significant", True)
-    pbo_val = dsr_pbo.get("pbo_result", {}).get("pbo", 0.3)
+    # [P0-1 fail-closed] 原实现用 .get(..., True)/.get(..., 0.3) 放行缺省值：
+    # 空 icir 或缺字段时闸门被静默绕过。现显式读 overall_passes 与 indeterminate，
+    # 任一不可判定即 fail-closed（dsr_significant=False, pbo=1.0）。
+    _pbo_r = dsr_pbo.get("pbo_result") or {}
+    _dsr_r = dsr_pbo.get("dsr_result") or {}
+    if bool(_pbo_r.get("indeterminate")) or _dsr_r is None:
+        dsr_significant = False
+        pbo_val = 1.0
+    else:
+        dsr_significant = bool(_dsr_r.get("significant", False))
+        pbo_val = float(_pbo_r.get("pbo", 1.0))
     logger.info(
         f"[FactorEvo] DSR/PBO: dsr_sig={dsr_significant} pbo={pbo_val:.3f} "
         f"best_icir={dsr_pbo.get('best_icir')} n_factors={dsr_pbo.get('n_factors')} "
@@ -1931,11 +2020,29 @@ def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: st
                     _os_window.environ.pop(_ev, None)
                 else:
                     _os_window.environ[_ev] = _old
+        # [V7 自进化] 每轮结束自动沉淀长期记忆（cron 与手动 runner 共用）。
+        # 记忆只做下一轮 Codegen 假设注入，不参与本轮任何门禁判定。
+        try:
+            if report and report.get("error") != "already_running" and \
+               _os_window.getenv("V7_MEMORY_ENABLED", "1") != "0":
+                from backend.services.evolution.evolution_memory_v7 import record_report
+                report["v7_memory_period"] = period_eff
+                report.setdefault("v7_lessons_recorded", record_report(period_eff, report))
+        except Exception as _v7_mem_err:
+            logger.debug("[FactorEvo] V7 记忆写入失败: %s", _v7_mem_err)
         evo_runtime.mark_end(report=report if isinstance(report, dict) else None, error=err)
 
 
 def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
     """原闭环主体（quick=True 时跳过 WFO 双门禁与测试集复评）。"""
+    # [2026-08-16 硬时间预算] 见 _evo_budget_sec 注释。预算只截断可选长尾，
+    # 门禁（WFO/测试集/DSR/PBO）绝不因预算跳过。
+    _budget = _evo_budget_sec()
+    _budget_deadline = t0 + _budget
+
+    def _budget_left() -> float:
+        return _budget_deadline - time.time()
+
     # 1. 取数
     dfs = _load_data(symbols, period)
     _ensure_governance_columns()
@@ -1989,6 +2096,15 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         }
 
     # 2. 挖掘（只用训练集拟合，不看验证/测试集）
+    if _budget_left() <= 0:
+        logger.error("[FactorEvo] 时间预算已耗尽（%ss），本轮中止", _budget)
+        return {
+            "error": "budget_exhausted",
+            "message": f"时间预算 {_budget}s 已耗尽（取数/深度检查后）",
+            "period": period or DEFAULT_PERIOD,
+            "elapsed_sec": round(time.time() - t0, 1),
+            "budget_max_sec": round(_budget, 1),
+        }
     candidates = _mine_candidates(dfs_train, period, quick=bool(quick))
 
     # 3. 验证（样本外：用训练阶段没见过的验证集算IC，而非在训练集上自证）
@@ -2037,11 +2153,21 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         }
 
     # ── 持久化新晋升的活跃因子 ──
+    _budget_truncated: str | None = None
     if promoted:
-        # [2026-08-07 quick] 快速修复模式（修复流水线）跳过 WFO 双门禁与测试集复评：
         # WFO 全量评估 4 个候选耗时 ~9min，与"止血后 ~10min 内补完"的目标冲突；
         # 修复链路自有 PB_REPAIR_TIMEOUT_SEC 超时兜底，且 DSR/PBO 门已在阶段5 执行。
         # 定时进化链路不受影响，仍走完整门禁。
+        # [2026-08-16 真·硬预算] 预算不足时跳过后续门禁——但**跳过门禁即不晋升**
+        # （fail-closed：promoted 清空）。预算截断只损失吞吐，绝不降低门禁质量。
+        if not quick and _budget_left() < 300.0:
+            logger.warning(
+                "[FactorEvo] 时间预算不足（剩余%.0fs<300s），跳过 WFO/测试集门禁 → "
+                "本轮不晋升（fail-closed，门禁质量不受影响）budget=%ss",
+                _budget_left(), _budget,
+            )
+            _budget_truncated = "gates"
+            promoted = []
         if not quick:
             # M5 WFO 门禁：样本外滚动验证不通过则不晋升
             # 异常默认 fail-closed（FACTOR_EVO_GATE_FAIL_CLOSED=1）
@@ -2233,7 +2359,20 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
 
     # 7. 替换退化因子（返回新落库列表；此前只 return 计数 → 假补挖）
     # quick 止血轮禁止二次完整 GP 补挖（否则又卡 15–25 分钟）
+    # [2026-08-16 硬时间预算] 剩余 <600s 跳过补挖长尾（补挖是可选举措，
+    # WFO/测试集/DSR/PBO 门禁已在前序阶段完整执行，不因预算弱化）。
+    _budget_skip_replace = False
     if quick:
+        replaced_raw = []
+        replaced = 0
+        replaced_list = []
+    elif _budget_left() < 600.0:
+        logger.warning(
+            "[FactorEvo] 时间预算不足（剩余%.0fs<600s），跳过阶段7补挖"
+            "（门禁不受影响）budget=%ss",
+            _budget_left(), _budget,
+        )
+        _budget_skip_replace = True
         replaced_raw = []
         replaced = 0
         replaced_list = []
@@ -2277,6 +2416,9 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         "degraded": len(degraded),
         "replaced": replaced,
         "active_total": len(all_active),
+        "budget_max_sec": round(_budget, 1),
+        "budget_skip_replace": bool(_budget_skip_replace),
+        "budget_truncated": _budget_truncated,
         "promoted_factors": [{"id": p["factor_id"], "source": p["source"]} for p in promoted],
     }
     logger.info(f"[FactorEvo] ═══ 因子进化完成: {report} ═══")
@@ -2317,6 +2459,36 @@ def run_scalp_factor_evolution_loop(symbols=None, source: str | None = None) -> 
     logger.info("[FactorEvo] ═══ 短线 5m 完整进化启动（非 quick）═══")
     return run_factor_evolution_loop(symbols=symbols, period="5m", quick=False, source=source)
 
+def run_mid_factor_evolution_loop(symbols=None, source: str | None = None) -> dict:
+    """中周期 15m 完整进化入口（V7 三周期正式上线）。
+
+    大周期 4h（03:00）、中周期 15m（06:00）、小周期 5m（04:00）三条独立池，
+    各自走完整 WFO/DSR/PBO；V7 记忆在每轮 finally 自动沉淀。
+    """
+    logger.info("[FactorEvo] ═══ 中周期 15m 完整进化启动（V7，非 quick）═══")
+    return run_factor_evolution_loop(symbols=symbols, period="15m", quick=False, source=source or "v7_cron_mid")
+
+
+def run_v7_memory_maintenance() -> dict:
+    """V7 记忆库每日维护：退役长期未被检索且无证据支撑的观察态教训。"""
+    try:
+        from backend.services.evolution.evolution_memory_v7 import maintenance, stats
+        result = maintenance(max_unused_age_days=30)
+        result.update(stats())
+        logger.info("[FactorEvo] V7 记忆维护完成: %s", result)
+        return result
+    except Exception as e:
+        logger.warning("[FactorEvo] V7 记忆维护失败: %s", e)
+        return {"error": str(e)}
+
+
+def run_v7_memory_health() -> dict:
+    """V7 记忆健康巡检（供启动日志 / API / 调度使用）。"""
+    try:
+        from backend.services.evolution.evolution_memory_v7 import stats
+        return stats()
+    except Exception as e:
+        return {"error": str(e)}
 
 def run_online_weight_update(symbols=None) -> dict:
     dfs = _load_data(symbols, period="1h", lookback=500)

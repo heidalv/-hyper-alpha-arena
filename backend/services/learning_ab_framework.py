@@ -195,7 +195,7 @@ class LearningABFramework:
         对实验进行统计分析。
 
         检验内容：
-        1. 配对 t 检验（PNL均值差异）
+        1. 独立样本 Welch t 检验（PNL均值差异）
         2. Sharpe 差异
         3. Win rate 差异
         4. Max drawdown 差异
@@ -228,8 +228,10 @@ class LearningABFramework:
             "analyzed_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # 1. 配对 t 检验
-        t_stat, p_value = stats.ttest_rel(c_pnl, t_pnl)
+        # 1. [P2-6] 独立样本 Welch t 检验。
+        # 原 ttest_rel 按索引强行配对——两臂是独立时序样本（非同一时点配对交易），
+        # 配对检验假设不成立会把随机噪声判为显著差异。Welch 不假设方差齐性，更稳健。
+        t_stat, p_value = stats.ttest_ind(c_pnl, t_pnl, equal_var=False)
         result["ttest_statistic"] = round(float(t_stat), 4)
         result["ttest_pvalue"] = round(float(p_value), 4)
 

@@ -255,6 +255,25 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 logger.info(f"[ScalpRouter独立] {sym} K线仅{_scalp_kline_n}根(<30)，跳过（数据不足不交易）")
                 continue
 
+            # [2026-08-16 冻结数据防护] asterdex 未上线/低流动性币返回平盘假数据
+            # （APT 5m 100根 high==low 99根且 volume 全 0；VIRTUAL 120根全平）。
+            # 这类数据会产生满分垃圾信号（如 APT score=100 short），必须跳过。
+            _kl_df = _md["klines"]
+            try:
+                _vol_sum = float(pd.to_numeric(_kl_df.get("volume"), errors="coerce").fillna(0).sum()) if "volume" in _kl_df.columns else 0.0
+                _hh = pd.to_numeric(_kl_df.get("high"), errors="coerce")
+                _ll = pd.to_numeric(_kl_df.get("low"), errors="coerce")
+                _flat_cnt = int((_hh == _ll).sum())
+                if _vol_sum <= 0 or _flat_cnt >= int(len(_kl_df) * 0.9):
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} K线冻结(volsum={_vol_sum:.1f}, "
+                        f"flat={_flat_cnt}/{len(_kl_df)})，跳过（避免垃圾信号）"
+                    )
+                    _md.pop("klines", None)
+                    continue
+            except Exception:
+                pass
+
             # ── 数据新鲜度硬门（2026-07-31）──
             # 「根数够」不等于「数据新」：AI 选币轮出的币会停止采K线，但只要它还有
             # active 策略就仍留在扫描 universe 里，于是拿冻结的旧K线打分下单——实测
@@ -1076,31 +1095,41 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 logger.debug(f"[ScalpRouter独立] {sym} EV闸门异常(降级放行): {_ev_err}")
 
             # ── 组合级风险预算（v6 计划 阶段1 第4项，下单前最后一道检查）──
-            # 组合日 VaR / 单币集中度 / 策略 3σ 熔断 / 冻结信号。持仓与收益序列在
-            # 模块内 TTL 缓存（不拖热路径）；paper fail-open、live fail-closed。
+            # [2026-08-16 用户反馈] evaluate_open 实测 45s+（日VaR历史模拟+DB），
+            # 是短线热路径的静默卡点：信号在 EV 闸后消失、整轮 hang 190s 被强制重开、
+            # 后段币种永远执行不到。paper 阶段默认跳过本检查（PB_PAPER_SKIP=true），
+            # 账户级累计熔断仍由 position_memory（当日累计亏损5%）兜底。
             try:
-                from backend.services.risk_management.portfolio_budget import (
-                    portfolio_budget as _pb,
+                _pb_skip = os.getenv("PB_PAPER_SKIP", "true").strip().lower() in (
+                    "1", "true", "yes", "on",
                 )
-                _pb_dec = _pb.evaluate_open(
-                    symbol=sym,
-                    action=_side_str,
-                    notional_usd=float(_margin_est or 0),
-                    equity=equity,
-                    strategy="scalp",
-                    mode=_trade_mode,
-                    db=_db,
-                    account_id=account_id,
-                )
-                if not _pb_dec.allowed:
-                    logger.info(
-                        f"[ScalpRouter独立] {sym} 组合预算拦截: "
-                        f"{';'.join(_pb_dec.reasons[:3])} id={_gate.lane_decision_id}"
+            except Exception:
+                _pb_skip = True
+            _mode_pb = (_trade_mode or "paper").strip().lower()
+            if not (_pb_skip and _mode_pb == "paper"):
+                try:
+                    from backend.services.risk_management.portfolio_budget import (
+                        portfolio_budget as _pb,
                     )
-                    _bump_block("portfolio_budget")
-                    continue
-            except Exception as _pb_err:
-                logger.debug(f"[ScalpRouter独立] {sym} 组合预算跳过: {_pb_err}")
+                    _pb_dec = _pb.evaluate_open(
+                        symbol=sym,
+                        action=_side_str,
+                        notional_usd=float(_margin_est or 0),
+                        equity=equity,
+                        strategy="scalp",
+                        mode=_trade_mode,
+                        db=_db,
+                        account_id=account_id,
+                    )
+                    if not _pb_dec.allowed:
+                        logger.info(
+                            f"[ScalpRouter独立] {sym} 组合预算拦截: "
+                            f"{';'.join(_pb_dec.reasons[:3])} id={_gate.lane_decision_id}"
+                        )
+                        _bump_block("portfolio_budget")
+                        continue
+                except Exception as _pb_err:
+                    logger.debug(f"[ScalpRouter独立] {sym} 组合预算跳过: {_pb_err}")
 
             # 直接下单（修复 BUG C：用正确的 place_order kwargs）
             # 2026-06-22: 杠杆改为动态计算（市场 + 本金），不再硬编码 8x。
@@ -1168,6 +1197,24 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 except Exception:
                     _db.rollback()
                     _db.expire_all()
+                # [2026-08-17 仲裁 Gate] 与 master/MT 总控的相反方向冲突时拒绝开仓
+                try:
+                    from backend.services.full_auto.decision_arbitration import (
+                        check_entry as _arb_check,
+                        register_view as _arb_register,
+                    )
+                    _arb_conf = float(_sig.factor_score or 0)
+                    _arb_register(sym, "short", "scalp", side, _arb_conf)
+                    _arb_ok, _arb_why = _arb_check(sym, "short", "scalp", side, _arb_conf)
+                    if not _arb_ok:
+                        logger.info(
+                            "[ArbGate] scalp 独立开仓被仲裁拒绝 %s/%s %s -> hold (%s)",
+                            sym, "short", side, _arb_why,
+                        )
+                        _bump_block("arbitration_gate")
+                        continue
+                except Exception as _arb_err:
+                    logger.debug("[ArbGate] scalp 仲裁跳过: %s", _arb_err)
                 _fill_res = paper_engine.place_order(
                     db=_db,
                     account_id=trading_acct_id,  # [2026-07-10 修复] 原 account_id 未定义→NameError

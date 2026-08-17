@@ -34,6 +34,11 @@ class WhaleSignal:
     activities_count: int = 0
     total_usd: float = 0.0
     summary: str = ""
+    # [2026-08-15 消费端验收] 补 available 语义：docstring 早已声称
+    # 「无数据返回 available=False」，但 dataclass 从未有此字段——
+    # 下游把「无数据」当「真实中性 0」参与汇流。无真实鲸鱼数据时
+    # available=False，消费方据此跳过/标注，不冒充中性。
+    available: bool = True
 
 
 class WhaleTrackerService:
@@ -89,12 +94,16 @@ class WhaleTrackerService:
             r = httpx.get(f"{MEMPOOL_SPACE}/v1/prices", timeout=10)
             if r.status_code == 200:
                 data = r.json()
-                self._btc_price = float(data.get("USD", 70000))
+                self._btc_price = float(data.get("USD", 0) or 0)
                 self._btc_price_ts = now
-                return self._btc_price
+                return self._btc_price if self._btc_price > 0 else 0.0
         except Exception:
             pass
-        return self._btc_price or 70000
+        # [2026-08-15 消费端验收] 原兜底 `return self._btc_price or 70000` 在
+        # 全部价格源失败时伪造 70000 美元单价，链上金额换算全部失真。
+        # 现返回 0.0：调用方见到 price<=0 即跳过本轮鲸鱼采集（诚实无数据），
+        # 绝不编造价格。
+        return self._btc_price if self._btc_price > 0 else 0.0
 
     # ────────────────────────── public ──────────────────────────
 
@@ -169,6 +178,12 @@ class WhaleTrackerService:
         now = time.time()
         if self._txs_cache and now - self._txs_cache_ts < self._txs_cache_ttl:
             return self._txs_cache
+
+        # [2026-08-15 消费端验收] BTC 价格拿不到时无法换算美元金额——
+        # 直接返回空（诚实无数据），不再用伪造价格折算。
+        if self._get_btc_price() <= 0:
+            logger.warning("[WhaleTracker] BTC 价格不可用，本轮跳过链上鲸鱼采集")
+            return []
 
         txs = []
 
@@ -450,7 +465,7 @@ class WhaleTrackerService:
         # 绝不用 BTC 的全局数据冒充其他币种的鲸鱼信号。
         if not activities:
             if symbol.upper() != "BTC":
-                return WhaleSignal(symbol=symbol, summary="暂无该币种链上鲸鱼数据")
+                return WhaleSignal(symbol=symbol, summary="暂无该币种链上鲸鱼数据", available=False)
             txs = self._fetch_whale_transactions()
             if txs:
                 total_usd = sum(t.get("amount_usd", 0) for t in txs)
@@ -473,7 +488,7 @@ class WhaleTrackerService:
                     total_usd=total_usd,
                     summary=f"{len(txs)}笔链上大额 ${total_usd:,.0f} {direction_label}",
                 )
-            return WhaleSignal(symbol=symbol, summary="暂无鲸鱼数据")
+            return WhaleSignal(symbol=symbol, summary="暂无鲸鱼数据", available=False)
 
         total_dir = 0.0
         total_usd = 0.0
@@ -509,11 +524,32 @@ class WhaleTrackerService:
             ai_interpretation=interpretation.get("interpretation", ""),
             signal_direction=interpretation.get("signal_direction", 0),
         )
-        db.add(record)
+        # [2026-08-15 P0-1 修复] WhaleActivity 是 MarketBase 模型，必须写 Market DB
+        # （alpha_market）。此前调用方传入核心库 SessionLocal → commit 静默失败被吞，
+        # 导致 whale_activities 长期 0 行而日志谎报成功。此处改用 MarketSessionLocal，
+        # 与 news_events 修复同源；commit 失败显式告警，不再静默吞错。
+        session_factory = None
+        if db is not None and getattr(db, "bind", None) is not None:
+            try:
+                bind_url = str(db.bind.url)
+                if "alpha_market" in bind_url:
+                    session_factory = lambda: db  # noqa: E731
+            except Exception:
+                pass
+        if session_factory is None:
+            from backend.database.connection import MarketSessionLocal
+            session_factory = MarketSessionLocal
+        _s = session_factory()
         try:
-            db.commit()
-        except Exception:
-            db.rollback()
+            try:
+                _s.add(record)
+                _s.commit()
+            except Exception as e:
+                _s.rollback()
+                logger.error(f"[WhaleTracker] 鲸鱼记录落库失败（Market DB）: {e}")
+        finally:
+            if _s is not db:
+                _s.close()
         return {
             "symbol": record.symbol,
             "type": record.activity_type,

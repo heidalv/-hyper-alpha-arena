@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1440, initial-scale=1" />
+<title>黑曜终端 Obsidian Terminal · Hyper-Alpha-Arena 主题 A 预览</title>
+<!-- 字体：Inter（拉丁）+ Noto Sans SC（汉字）+ JetBrains Mono（数字）；离线自动回退系统字体 -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ═══════════════════════════════════════════════════════════════
+ * 主题 A：黑曜终端 Obsidian Terminal — Token 块（与 tokens-01.css 一致）
+ * 颜色以 HEX 为事实来源；括号内为 oklch 近似值。
+ * ═══════════════════════════════════════════════════════════════ */
+:root{
+  /* 字体 */
+  --font-sans:"Inter","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  /* 背景层（黑曜石：L 值 0.143 → 0.254 递进） */
+  --background:#0A0D12;   /* oklch(0.158 0.012 261) 页面底色 */
+  --card:#10151C;         /* oklch(0.194 0.016 257) 面板/卡片 */
+  --popover:#0C1016;      /* oklch(0.172 0.014 258) 弹层 */
+  --muted:#161D27;        /* oklch(0.229 0.022 257) 静态弱化容器 */
+  --secondary:#131923;    /* oklch(0.212 0.022 261) 次要容器 */
+  --accent:#1A2330;       /* oklch(0.254 0.028 258) hover 高亮容器 */
+  --input:#141A23;        /* oklch(0.216 0.020 258) 输入框 */
+  --border:#1E2631;       /* oklch(0.266 0.024 256) 主边框/网格线 */
+  --sidebar:#070A0E;      /* oklch(0.143 0.010 253) 侧栏（比背景暗一档） */
+  --sidebar-accent:#121823;
+  --sidebar-border:#141B25;
+
+  /* 文字 */
+  --foreground:#E7ECF4;        /* 16.4:1 vs 背景 */
+  --muted-foreground:#7E8AA0;  /* 5.6:1 vs 背景（AA） */
+  --secondary-foreground:#C6CFDD;
+
+  /* 交互 */
+  --primary:#4C8DFF;                    /* 6.1:1 vs 背景 */
+  --primary-soft:#7DA8FF;               /* 主色亮档：正文链接/激活文字 8.3:1 */
+  --ring:rgb(76 141 255 / .35);         /* 焦点环：主蓝 35% */
+  --destructive:#FF5C7A;
+
+  /* 交易语义色（涨绿跌红） */
+  --profit:#00C896;   /* 涨（8.5:1 vs 卡片） */
+  --loss:#FF5C7A;     /* 跌（6.2:1 vs 卡片） */
+  --warning:#F5B83D;  /* 警告（10.9:1 vs 背景） */
+
+  /* 图表序列 */
+  --chart-1:#4C8DFF; --chart-2:#00C896; --chart-3:#FF5C7A; --chart-4:#F5B83D; --chart-5:#A78BFA;
+
+  --radius:0.375rem;  /* 6px */
+}
+
+/* ══════════ 基础 ══════════ */
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{
+  font-family:var(--font-sans);
+  background:var(--background);
+  color:var(--foreground);
+  font-size:13px;line-height:1.5;
+  font-variant-numeric:tabular-nums;   /* 全局等宽数字：不跳动 */
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;height:100vh;
+}
+::selection{background:rgb(76 141 255 / .3)}
+:focus-visible{outline:2px solid var(--ring);outline-offset:1px}
+/* 滚动条：6px 细条，克制的暗色 */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#28313f;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#38435a}
+/* 图标：16px 线性描边 */
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.up{color:var(--profit)}          /* 涨=绿 */
+.down{color:var(--loss)}          /* 跌=红 */
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:var(--primary-soft);text-decoration:none}
+
+/* ══════════ 布局骨架：侧栏 216 | 主区；底部状态栏 28 全宽固定 ══════════ */
+.shell{display:flex;height:calc(100vh - 28px)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ══════════ 侧边栏（216px，5 分组真实导航）══════════ */
+.sidebar{width:216px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-brand{height:44px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid var(--sidebar-border)}
+.sb-logo{width:26px;height:26px;border-radius:6px;background:rgb(76 141 255 / .16);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:14px;flex-shrink:0}
+.sb-name{font-size:13px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-sub{font-size:10px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 0 12px}
+.sb-group{margin-bottom:14px}
+.sb-group:last-child{margin-bottom:0}
+.sb-group-title{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding:8px 16px 4px}
+.sb-item{position:relative;display:flex;align-items:center;gap:10px;height:30px;padding:0 16px;font-size:13px;color:var(--sidebar-foreground);border-left:2px solid transparent;transition:background .15s ease,color .15s ease}
+.sb-item:hover{background:rgb(18 24 35 / .6);color:#E7ECF4}
+.sb-item.active{background:var(--sidebar-accent);color:var(--primary);border-left-color:var(--primary);font-weight:500}
+.sb-item.active .ic{color:var(--primary)}
+.vip-dot{width:4px;height:4px;border-radius:50%;background:var(--warning);margin-left:auto;flex-shrink:0}
+.sb-foot{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-top:1px solid var(--sidebar-border);font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground);letter-spacing:.04em}
+
+/* ══════════ 顶栏（44px）══════════ */
+.topbar{height:44px;flex-shrink:0;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;position:sticky;top:0;z-index:30}
+.search{display:flex;align-items:center;gap:8px;width:264px;height:26px;padding:0 10px;background:var(--input);border:1px solid var(--border);border-radius:6px;color:var(--muted-foreground);font-size:12px;transition:border-color .15s ease,box-shadow .15s ease}
+.search:hover{border-color:#2c3746}
+.search:focus-within{border-color:var(--primary);box-shadow:0 0 0 2px var(--ring)}
+.search .ic{width:14px;height:14px}
+.kbd{font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground);border:1px solid var(--border);background:var(--muted);border-radius:4px;padding:1px 5px;margin-left:auto}
+.tb-sep{width:1px;height:14px;background:var(--border)}
+.ws-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-foreground);padding:3px 8px;border:1px solid var(--border);border-radius:6px}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-green{background:var(--profit);box-shadow:0 0 6px rgb(0 200 150 / .6)}
+.dot-amber{background:var(--warning)}
+.tb-version{font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)}
+.tb-update{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-foreground);height:26px;padding:0 9px;border:1px solid var(--border);border-radius:6px;transition:color .15s ease,border-color .15s ease,background .15s ease}
+.tb-update:hover{color:var(--foreground);border-color:#2c3746;background:var(--accent)}
+.bell{position:relative;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;color:var(--muted-foreground);transition:background .15s ease,color .15s ease}
+.bell:hover{background:var(--accent);color:var(--foreground)}
+.bell-badge{position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;padding:0 3px;border-radius:7px;background:var(--loss);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono)}
+.tb-clock{font-family:var(--font-mono);font-size:12px;color:var(--foreground);letter-spacing:.02em}
+.avatar{width:26px;height:26px;border-radius:50%;background:rgb(76 141 255 / .16);color:var(--primary-soft);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.vip-tag{font-size:10px;font-weight:600;color:var(--warning);border:1px solid rgb(245 184 61 / .45);border-radius:4px;padding:1px 5px;letter-spacing:.03em}
+.tb-logout{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;color:var(--muted-foreground);transition:background .15s ease,color .15s ease}
+.tb-logout:hover{background:rgb(255 92 122 / .12);color:var(--loss)}
+
+/* ══════════ Ticker 行情条（36px，独立细条，视差固定）══════════
+ * 报价按 Bloomberg 式整串着色（涨绿跌红），等宽数字；
+ * 采用 9–9.5px 终端行情带字号，保证 7 币种 + LIVE 在 1224px 内容宽度内完整呈现。 */
+.ticker{height:36px;flex-shrink:0;display:flex;align-items:center;background:var(--card);border-bottom:1px solid var(--border);padding:0 6px;position:sticky;top:44px;z-index:29;overflow:hidden;white-space:nowrap}
+.tick-item{display:inline-flex;align-items:baseline;gap:5px;padding:0 8px;border-right:1px solid var(--border);transition:background .15s ease}
+.tick-item:first-child{padding-left:6px}
+.tick-item:last-of-type{border-right:none}
+.tick-sym{font-size:9.5px;font-weight:600;letter-spacing:.01em}
+.tick-quote,.tick-chg{font-family:var(--font-mono);font-size:9px;color:var(--foreground);border-radius:3px}
+.live-seg{display:inline-flex;align-items:center;gap:6px;padding:0 12px;font-size:10.5px;font-weight:600;color:var(--profit);letter-spacing:.08em;flex-shrink:0}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--profit);box-shadow:0 0 6px rgb(0 200 150 / .7);animation:breathe 2s ease-in-out infinite}
+
+/* ══════════ 内容区（8px 栅格）══════════ */
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px 14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* 页头：标题 + 面包屑 + 右侧状态徽章 */
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}
+.ph-title{font-size:18px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.ph-breadcrumb{font-size:11px;color:var(--muted-foreground);display:flex;align-items:center;gap:6px}
+.ph-breadcrumb b{color:var(--foreground);font-weight:500}
+.ph-breadcrumb .sep{color:#3a4556}
+.ph-right{display:flex;align-items:center;gap:8px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.badge-loss{background:rgb(255 92 122 / .12);color:var(--loss)}
+.badge-profit{background:rgb(0 200 150 / .12);color:var(--profit)}
+.badge-warning{background:rgb(245 184 61 / .12);color:var(--warning)}
+.badge-primary{background:rgb(76 141 255 / .12);color:var(--primary-soft)}
+.badge-outline{border:1px solid var(--border);color:var(--muted-foreground);background:transparent}
+.badge-tiny{padding:0 5px;font-size:10px}
+
+/* 卡片 */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;min-width:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-shrink:0}
+.card-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-note{font-size:11px;color:var(--muted-foreground)}
+
+/* 统计卡：极简边框 + 左 2px 色条 + 右上 sparkline */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex-shrink:0}
+.stat{position:relative;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 14px 12px;overflow:hidden;transition:border-color .15s ease,background .15s ease}
+.stat:hover{border-color:#2c3746;background:#121822}
+.stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px}
+.stat-blue::before{background:var(--primary)}
+.stat-loss::before{background:var(--loss)}
+.stat-warn::before{background:var(--warning)}
+.stat-label{font-size:11px;color:var(--muted-foreground);margin-bottom:4px}
+.stat-value{font-family:var(--font-mono);font-size:21px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.stat-spark{position:absolute;top:12px;right:12px;opacity:.9}
+.stat-hint{font-size:10px;color:var(--muted-foreground);margin-top:6px;font-family:var(--font-mono)}
+
+/* 双栏 */
+.row{display:grid;gap:12px;min-width:0}
+.row-75{grid-template-columns:7fr 5fr}
+.row-66{grid-template-columns:1fr 1fr}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* 数据表：本主题主角（30px 行高 / 细网格 / sticky 大写表头 / hover 主色条） */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead th{position:sticky;top:0;z-index:2;background:var(--card);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);text-align:left;padding:0 12px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table thead th.num{text-align:right}
+.data-table tbody td{padding:0 12px;height:30px;border-bottom:1px solid rgb(30 38 49 / .55);white-space:nowrap}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr{transition:background .15s ease}
+.data-table tbody tr:hover{background:rgb(26 35 48 / .55)}
+.data-table tbody tr:hover td:first-child{box-shadow:inset 2px 0 0 var(--primary)}  /* hover 左 2px 主色条 */
+.data-table .num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.data-table tfoot td{padding:9px 12px 0;border-top:1px solid var(--border);font-weight:600;font-size:12px}
+.data-table tfoot .num{font-family:var(--font-mono)}
+.sym-cell{display:flex;align-items:center;gap:8px}
+.sym-name{font-size:12px;font-weight:600;letter-spacing:.02em}
+.sym-sub{font-size:10px;color:var(--muted-foreground);font-family:var(--font-mono)}
+.chg{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:12px}
+.tri{font-size:8px;line-height:1}
+/* 异常值防御显示：红字 + 红底 + 数据异常徽章 */
+.cell-anomaly{background:rgb(255 92 122 / .07);border-radius:4px}
+.a-val{color:var(--loss);font-weight:600;margin-right:6px}
+.a-flag{background:rgb(255 92 122 / .12);color:var(--loss);border:1px solid rgb(255 92 122 / .35)}
+
+/* 空状态：虚线框 + 图标 + 引导按钮 */
+.empty{border:1px dashed #2c3746;border-radius:6px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;background:rgb(16 21 28 / .4)}
+.empty .ic{width:26px;height:26px;color:var(--muted-foreground);stroke-width:1.5}
+.e-title{font-size:13px;font-weight:500}
+.e-desc{font-size:11px;color:var(--muted-foreground);line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;transition:background .15s ease,color .15s ease,border-color .15s ease,transform .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--primary);color:#fff;font-weight:600}
+.btn-primary:hover{background:#5d9aff}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted-foreground);height:26px;font-size:12px;padding:0 10px}
+.btn-ghost:hover{color:var(--foreground);border-color:#2c3746;background:var(--accent)}
+
+/* AI 决策列表 */
+.decision{display:flex;flex-direction:column;gap:4px;padding:8px 4px;border-bottom:1px solid rgb(30 38 49 / .55);transition:background .15s ease;border-radius:4px}
+.decision:last-child{border-bottom:none}
+.decision:hover{background:rgb(26 35 48 / .5)}
+.d-row{display:flex;align-items:center;gap:8px}
+.d-sym{font-family:var(--font-mono);font-size:13px;font-weight:600}
+.d-time{margin-left:auto;font-size:11px;color:var(--muted-foreground);font-family:var(--font-mono)}
+.d-reason{font-size:11px;color:var(--muted-foreground);line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* 分段控件（图表周期 tab） */
+.seg{display:inline-flex;background:var(--muted);border-radius:6px;padding:2px;gap:2px}
+.seg button{font-size:11px;color:var(--muted-foreground);padding:3px 10px;border-radius:4px;transition:background .15s ease,color .15s ease}
+.seg button.active{background:var(--accent);color:var(--foreground);font-weight:600}
+.seg button:not(.active):hover{color:var(--foreground)}
+
+/* 图表容器 */
+.chart-wrap{flex:1;min-height:0;position:relative}
+.chart-note{position:absolute;top:2px;right:2px;font-size:10px;color:var(--muted-foreground);background:rgb(16 21 28 / .8);padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+
+/* 底部状态栏（28px 全宽固定，仿 Bloomberg 底盘） */
+.statusbar{position:fixed;left:0;right:0;bottom:0;height:28px;background:var(--sidebar);border-top:1px solid var(--sidebar-border);display:flex;align-items:center;padding:0 16px;z-index:40;font-size:11px;gap:18px}
+.sb-left{display:flex;align-items:center;gap:14px;color:var(--sidebar-foreground)}
+.sb-chip{display:inline-flex;align-items:center;gap:6px}
+.sb-sep{width:1px;height:12px;background:var(--sidebar-border)}
+.sb-right{margin-left:auto;display:flex;align-items:center;gap:14px;font-family:var(--font-mono);color:var(--muted-foreground)}
+.sb-clock{color:var(--foreground);letter-spacing:.04em}
+
+/* 微动效：价格变化背景闪烁（0.4s 淡出） */
+@keyframes flash-profit{0%{background-color:rgb(0 200 150 / .22)}100%{background-color:transparent}}
+@keyframes flash-loss{0%{background-color:rgb(255 92 122 / .22)}100%{background-color:transparent}}
+.flash-profit{animation:flash-profit .4s ease-out}
+.flash-loss{animation:flash-loss .4s ease-out}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.4}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ══════════ 侧边栏 216px ══════════ -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">α</div>
+      <div style="min-width:0">
+        <div class="sb-name">Heidalv Alpha</div>
+        <div class="sb-sub">量化交易终端 · Obsidian</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <!-- 交易核心 -->
+      <div class="sb-group">
+        <div class="sb-group-title">交易核心</div>
+        <a class="sb-item active" href="/dashboard"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>仪表盘</a>
+        <a class="sb-item" href="/strategy"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2.5l2.3 5.4 5.7.6-4.3 3.8 1.2 5.6-4.9-3-4.9 3 1.2-5.6L4 8.5l5.7-.6z"/></svg>AI 策略</a>
+        <a class="sb-item" href="/coin-select"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9z"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>VIP AI 选币<i class="vip-dot"></i></a>
+        <a class="sb-item" href="/agent-monitor"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>Agent 监控</a>
+        <a class="sb-item" href="/paper-trading"><svg class="ic" viewBox="0 0 24 24"><path d="M10 3h4M11 3v5.5L6.5 17a2 2 0 0 0 1.8 3h7.4a2 2 0 0 0 1.8-3L13 8.5V3"/><path d="M8 14h8"/></svg>模拟交易</a>
+        <a class="sb-item" href="/live-trading"><svg class="ic" viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L21 6"/><path d="M15 6h6v6"/></svg>实盘交易</a>
+        <a class="sb-item" href="/arbitrage"><svg class="ic" viewBox="0 0 24 24"><path d="M7 4L3 8l4 4"/><path d="M3 8h13"/><path d="M17 20l4-4-4-4"/><path d="M21 12H8"/></svg>套利中心</a>
+      </div>
+      <!-- 策略配置 -->
+      <div class="sb-group">
+        <div class="sb-group-title">策略配置</div>
+        <a class="sb-item" href="/scalp"><svg class="ic" viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11L9.5 22 19 9.5h-6.5z"/></svg>短线配置</a>
+        <a class="sb-item" href="/long"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12h3.5L9 19l5.5-14L17 12h4"/></svg>长线配置</a>
+      </div>
+      <!-- 交易所 -->
+      <div class="sb-group">
+        <div class="sb-group-title">交易所</div>
+        <a class="sb-item" href="/exchange"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/></svg>交易所管理</a>
+      </div>
+      <!-- 市场 & 分析 -->
+      <div class="sb-group">
+        <div class="sb-group-title">市场 &amp; 分析</div>
+        <a class="sb-item" href="/intel"><svg class="ic" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v13c0 1.55 3.58 2.8 8 2.8s8-1.25 8-2.8v-13"/><path d="M4 12c0 1.55 3.58 2.8 8 2.8s8-1.25 8-2.8"/></svg>全市场数据中台</a>
+        <a class="sb-item" href="/factors"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>因子系统</a>
+        <a class="sb-item" href="/intelligent-learning"><svg class="ic" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="12" cy="18" r="2.6"/><path d="M8.6 6h6.8M6 8.6v4.4a4 4 0 0 0 4 4h.4"/><path d="M18 8.6V10a2 2 0 0 1-2 2h-4"/></svg>智能学习</a>
+        <a class="sb-item" href="/compute"><svg class="ic" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 2v3M14.5 2v3M9.5 15v3M14.5 15v3M2 9.5h3M2 14.5h3M15 9.5h3M15 14.5h3"/></svg>算力中心</a>
+      </div>
+      <!-- 系统 -->
+      <div class="sb-group">
+        <div class="sb-group-title">系统</div>
+        <a class="sb-item" href="/risk"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l6.5 2.5v5.2c0 3.9-2.6 6.6-6.5 8.3-3.9-1.7-6.5-4.4-6.5-8.3V5.5z"/></svg>风控监控</a>
+        <a class="sb-item" href="/ops"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12h3.5L9 19l5.5-14L17 12h4"/></svg>运维看板</a>
+        <a class="sb-item" href="/ops#ops-errors"><svg class="ic" viewBox="0 0 24 24"><path d="M6 2.5h8l4 4V21.5H6z"/><path d="M14 2.5v4h4"/><path d="M9.5 12h5M9.5 15.5h5"/></svg>报错中心</a>
+        <a class="sb-item" href="/settings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>设置</a>
+      </div>
+    </nav>
+    <div class="sb-foot"><span>OBSIDIAN</span><span>v0.8.3</span></div>
+  </aside>
+
+  <!-- ══════════ 主区 ══════════ -->
+  <div class="main">
+
+    <!-- 顶栏 44px -->
+    <header class="topbar">
+      <div class="search">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5L16 16"/></svg>
+        <span>搜索页面、命令…</span><span class="kbd">Ctrl K</span>
+      </div>
+      <div style="flex:1"></div>
+      <span class="ws-badge"><span class="dot dot-green"></span>实时</span>
+      <span class="tb-sep"></span>
+      <span class="tb-version">v0.8.3</span>
+      <button class="tb-update" title="检查更新">
+        <svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>检查更新
+      </button>
+      <span class="tb-sep"></span>
+      <button class="bell" title="报错中心（P0/P1）">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M6 9.5a6 6 0 0 1 12 0c0 4.5 1.8 5.5 1.8 5.5H4.2S6 14 6 9.5"/><path d="M10 19a2.1 2.1 0 0 0 4 0"/></svg>
+        <span class="bell-badge">3</span>
+      </button>
+      <span class="tb-sep"></span>
+      <span class="tb-clock" id="top-clock">--:--:--</span>
+      <span class="tb-sep"></span>
+      <div class="avatar">H</div>
+      <span class="vip-tag">VIP 1</span>
+      <button class="tb-logout" title="退出登录">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </header>
+
+    <!-- Ticker 行情条 36px（报价整串着色：涨绿跌红，小三角箭头） -->
+    <div class="ticker">
+      <div class="tick-item"><span class="tick-sym">BTC</span><span class="tick-quote down">$70,905.00</span><span class="tick-chg down">▼-0.75%</span></div>
+      <div class="tick-item"><span class="tick-sym">ETH</span><span class="tick-quote down">$2,188.30</span><span class="tick-chg down">▼-0.69%</span></div>
+      <div class="tick-item"><span class="tick-sym">SOL</span><span class="tick-quote down">$81.81</span><span class="tick-chg down">▼-0.44%</span></div>
+      <div class="tick-item"><span class="tick-sym">BNB</span><span class="tick-quote up">$598.12</span><span class="tick-chg up">▲+0.49%</span></div>
+      <div class="tick-item"><span class="tick-sym">VIRTUAL</span><span class="tick-quote up">$0.6527</span><span class="tick-chg up">▲+0.48%</span></div>
+      <div class="tick-item"><span class="tick-sym">ASTER</span><span class="tick-quote down">$0.6590</span><span class="tick-chg down">▼-0.64%</span></div>
+      <div class="tick-item"><span class="tick-sym">XPL</span><span class="tick-quote down">$0.1257</span><span class="tick-chg down">▼-0.49%</span></div>
+      <span class="live-seg"><span class="live-dot"></span>LIVE</span>
+    </div>
+
+    <!-- 内容区 -->
+    <main class="content">
+
+      <!-- 页头：标题 + 面包屑 + 状态徽章 -->
+      <div class="page-header">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <h1 class="ph-title">仪表盘</h1>
+          <div class="ph-breadcrumb">交易核心 <span class="sep">/</span> <b>仪表盘</b></div>
+        </div>
+        <div class="ph-right">
+          <span class="badge badge-warning"><span class="dot dot-amber"></span>数据延迟 2s</span>
+          <span class="badge badge-profit"><span class="dot dot-green"></span>WS 实时</span>
+        </div>
+      </div>
+
+      <!-- 4 统计卡 -->
+      <section class="stats">
+        <div class="stat stat-blue">
+          <div class="stat-label">总资产</div>
+          <div class="stat-value">$0.00</div>
+          <div class="stat-hint">USDT · 模拟+实盘</div>
+          <svg class="stat-spark" width="64" height="24" viewBox="0 0 64 24" fill="none">
+            <path d="M0 20 8 19 16 20 24 17 32 15 40 16 48 12 56 13 64 10" stroke="#4C8DFF" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M0 20 8 19 16 20 24 17 32 15 40 16 48 12 56 13 64 10V24H0z" fill="rgb(76 141 255 / .1)"/>
+          </svg>
+        </div>
+        <div class="stat stat-loss">
+          <div class="stat-label">总盈亏</div>
+          <div class="stat-value">$0.00</div>
+          <div class="stat-hint">24H · 平仓统计</div>
+          <svg class="stat-spark" width="64" height="24" viewBox="0 0 64 24" fill="none">
+            <path d="M0 12 8 13 16 11 24 16 32 18 40 17 48 20 56 19 64 21" stroke="#FF5C7A" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M0 12 8 13 16 11 24 16 32 18 40 17 48 20 56 19 64 21V24H0z" fill="rgb(255 92 122 / .1)"/>
+          </svg>
+        </div>
+        <div class="stat stat-warn">
+          <div class="stat-label">胜率</div>
+          <div class="stat-value">0.0%</div>
+          <div class="stat-hint">近 100 笔</div>
+          <svg class="stat-spark" width="64" height="24" viewBox="0 0 64 24" fill="none">
+            <path d="M0 20 8 20 16 19 24 20 32 18 40 20 48 19 56 20 64 20" stroke="#F5B83D" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M0 20 8 20 16 19 24 20 32 18 40 20 48 19 56 20 64 20V24H0z" fill="rgb(245 184 61 / .1)"/>
+          </svg>
+        </div>
+        <div class="stat stat-blue">
+          <div class="stat-label">活跃持仓</div>
+          <div class="stat-value">0</div>
+          <div class="stat-hint">BTC · ETH · SOL</div>
+          <svg class="stat-spark" width="64" height="24" viewBox="0 0 64 24" fill="none">
+            <path d="M0 22 64 22" stroke="rgb(76 141 255 / .45)" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </section>
+
+      <!-- 第一行：策略表现表 | 账户状态 + AI 决策 -->
+      <section class="row row-75">
+        <!-- 策略表现表 -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">策略表现</span>
+            <button class="btn btn-ghost">查看详情 →</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>策略</th><th class="num">总盈亏</th><th class="num">活跃策略</th><th class="num">总交易</th><th class="num">胜率</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="sym-cell"><span class="sym-name">短线</span><span class="sym-sub">SCALP</span></span></td>
+                <td class="num down">-$4,820.87</td>
+                <td class="num">0</td>
+                <td class="num">278</td>
+                <td class="num"><span class="cell-anomaly" style="padding:2px 6px" title="胜率超出合理区间 0–100%，疑似数据源异常"><span class="a-val">2518.0%</span><span class="badge badge-loss badge-tiny a-flag">数据异常</span></span></td>
+              </tr>
+              <tr>
+                <td><span class="sym-cell"><span class="sym-name">长线</span><span class="sym-sub">LONG</span></span></td>
+                <td class="num down">-$1,203.55</td>
+                <td class="num">1</td>
+                <td class="num">156</td>
+                <td class="num">42.3%</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr><td>合计</td><td class="num down">-$6,024.42</td><td class="num">1</td><td class="num">434</td><td class="num">41.7%</td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- 右列：账户状态 + AI 决策 -->
+        <div class="col">
+          <div class="card">
+            <div class="card-head"><span class="card-title">账户状态</span><span class="card-note">Hyperliquid</span></div>
+            <div class="empty" style="flex:1;justify-content:center">
+              <svg class="ic" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V9"/><path d="M3 7.5V17a2.5 2.5 0 0 0 2.5 2.5H19A1.5 1.5 0 0 0 20.5 18v-7A1.5 1.5 0 0 0 19 9.5H5.5A2.5 2.5 0 0 1 3 7.5z"/><path d="M16 14.5h.01"/></svg>
+              <div class="e-title">尚未配置交易账户</div>
+              <div class="e-desc">配置交易所 API 后即可开始模拟 / 实盘交易</div>
+              <button class="btn btn-primary" style="margin-top:4px">前往配置</button>
+            </div>
+          </div>
+          <div class="card" style="flex:1.6">
+            <div class="card-head">
+              <span class="card-title">最近 AI 决策</span>
+              <button class="btn btn-ghost">全部</button>
+            </div>
+            <div class="decision">
+              <div class="d-row"><span class="badge badge-loss">SELL</span><span class="d-sym">BNB</span><span class="d-time">6天前</span></div>
+              <p class="d-reason">多周期编排器强烈建议做空：日线趋势转空，量能萎缩确认空头结构。</p>
+            </div>
+            <div class="decision">
+              <div class="d-row"><span class="badge badge-loss">SELL</span><span class="d-sym">BTC</span><span class="d-time">6天前</span></div>
+              <p class="d-reason">[规则引擎覆盖] 编排器 Fallback: bearish(45%)，规则引擎强制覆盖为卖出信号。</p>
+            </div>
+            <div class="decision">
+              <div class="d-row"><span class="badge badge-loss">SELL</span><span class="d-sym">SOL</span><span class="d-time">6天前</span></div>
+              <p class="d-reason">多周期编排器强烈建议做空：4H 跌破关键支撑，空头动能延续。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 第二行：净值曲线 | 市场行情 -->
+      <section class="row row-66">
+        <!-- 净值曲线 -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">净值曲线</span>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="seg">
+                <button class="active">7D</button><button>30D</button><button>全部</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <span class="chart-note">示例数据 · 接入 EquityCurve 后由真实净值驱动</span>
+            <svg width="100%" height="190" viewBox="0 0 640 190" fill="none" preserveAspectRatio="none" style="display:block">
+              <!-- 网格线 -->
+              <g stroke="rgb(30 38 49 / .45)" stroke-width="1">
+                <line x1="56" y1="20" x2="628" y2="20"/><line x1="56" y1="60" x2="628" y2="60"/>
+                <line x1="56" y1="100" x2="628" y2="100"/><line x1="56" y1="140" x2="628" y2="140"/>
+                <line x1="56" y1="180" x2="628" y2="180"/>
+              </g>
+              <!-- Y 轴刻度 -->
+              <g font-family="JetBrains Mono,monospace" font-size="9.5" fill="#7E8AA0">
+                <text x="6" y="23">11.0K</text><text x="6" y="63">10.5K</text>
+                <text x="6" y="103">10.0K</text><text x="6" y="143">9.5K</text><text x="6" y="183">9.0K</text>
+              </g>
+              <!-- X 轴刻度 -->
+              <g font-family="JetBrains Mono,monospace" font-size="9.5" fill="#7E8AA0">
+                <text x="60" y="188">07/01</text><text x="205" y="188">07/08</text>
+                <text x="350" y="188">07/15</text><text x="495" y="188">07/22</text>
+              </g>
+              <!-- 区域渐变填充 -->
+              <defs>
+                <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#4C8DFF" stop-opacity=".16"/>
+                  <stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M56 142 L88 138 L120 141 L152 130 L184 126 L216 130 L248 118 L280 114 L312 118 L344 107 L376 102 L408 106 L440 96 L472 91 L504 95 L536 84 L568 79 L600 74 L628 70 L628 180 L56 180 Z" fill="url(#eqFill)"/>
+              <path d="M56 142 L88 138 L120 141 L152 130 L184 126 L216 130 L248 118 L280 114 L312 118 L344 107 L376 102 L408 106 L440 96 L472 91 L504 95 L536 84 L568 79 L600 74 L628 70" stroke="#4C8DFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- 当前值端点 -->
+              <circle cx="628" cy="70" r="3" fill="#4C8DFF"/>
+              <circle cx="628" cy="70" r="6" fill="rgb(76 141 255 / .2)"/>
+              <text x="608" y="60" font-family="JetBrains Mono,monospace" font-size="10" fill="#E7ECF4" text-anchor="end">$10,842.53</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 市场行情 -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">市场行情</span>
+            <span class="card-note">6 资产 · Hyperliquid</span>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>币种</th><th class="num">价格</th><th class="num">24h</th><th class="num">成交额</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="sym-cell"><span class="sym-name">BTC</span><span class="sym-sub">BTC-USDT</span></span></td><td class="num mkt-price">$70,905.00</td><td class="num"><span class="chg down"><span class="tri">▼</span>-0.75%</span></td><td class="num">$32.4B</td></tr>
+              <tr><td><span class="sym-cell"><span class="sym-name">ETH</span><span class="sym-sub">ETH-USDT</span></span></td><td class="num mkt-price">$2,188.30</td><td class="num"><span class="chg down"><span class="tri">▼</span>-0.69%</span></td><td class="num">$18.1B</td></tr>
+              <tr><td><span class="sym-cell"><span class="sym-name">SOL</span><span class="sym-sub">SOL-USDT</span></span></td><td class="num mkt-price">$81.81</td><td class="num"><span class="chg down"><span class="tri">▼</span>-0.44%</span></td><td class="num">$2.9B</td></tr>
+              <tr><td><span class="sym-cell"><span class="sym-name">BNB</span><span class="sym-sub">BNB-USDT</span></span></td><td class="num mkt-price">$598.12</td><td class="num"><span class="chg up"><span class="tri">▲</span>+0.49%</span></td><td class="num">$1.2B</td></tr>
+              <tr><td><span class="sym-cell"><span class="sym-name">VIRTUAL</span><span class="sym-sub">VIRTUAL-USDT</span></span></td><td class="num mkt-price">$0.6527</td><td class="num"><span class="chg up"><span class="tri">▲</span>+0.48%</span></td><td class="num">$214M</td></tr>
+              <tr><td><span class="sym-cell"><span class="sym-name">ASTER</span><span class="sym-sub">ASTER-USDT</span></span></td><td class="num mkt-price">$0.6590</td><td class="num"><span class="chg down"><span class="tri">▼</span>-0.64%</span></td><td class="num">$89M</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- 底部状态栏 28px（仿 Bloomberg 全宽底盘） -->
+<footer class="statusbar">
+  <div class="sb-left">
+    <span class="sb-chip"><span class="dot dot-green"></span>Hyperliquid 已连接</span>
+    <span class="sb-sep"></span>
+    <span class="sb-chip"><span class="dot dot-amber"></span>系统运行中</span>
+  </div>
+  <div class="sb-right">
+    <span>WS 12ms</span>
+    <span class="sb-clock" id="status-clock">--:--:--</span>
+    <span>UTC+8</span>
+  </div>
+</footer>
+
+<script>
+/* 极小量原生 JS：时钟 + 价格闪烁演示（无外部依赖，双击打开零报错） */
+document.addEventListener('DOMContentLoaded', function () {
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  function tick() {
+    var d = new Date();
+    var s = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    var a = document.getElementById('top-clock');
+    var b = document.getElementById('status-clock');
+    if (a) a.textContent = s;
+    if (b) b.textContent = s;
+  }
+  tick();
+  setInterval(tick, 1000);
+  // 价格闪烁演示：每 4.2s 随机点亮一个行情单元格（涨绿 / 跌红，0.4s 淡出）
+  var cells = Array.prototype.slice.call(document.querySelectorAll('.tick-quote, .mkt-price'));
+  if (cells.length) {
+    setInterval(function () {
+      var c = cells[Math.floor(Math.random() * cells.length)];
+      var up = Math.random() > 0.5;
+      c.classList.remove('flash-profit', 'flash-loss');
+      void c.offsetWidth; /* 重置动画 */
+      c.classList.add(up ? 'flash-profit' : 'flash-loss');
+      setTimeout(function () { c.classList.remove('flash-profit', 'flash-loss'); }, 460);
+    }, 4200);
+  }
+});
+</script>
+</body>
+</html>

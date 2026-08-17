@@ -134,49 +134,40 @@ def compute_pbo_simple(
     icir_values: list[float],
     n_splits: int = 10,
 ) -> dict:
+    """[P0-1 时序 CSCV] PBO 计算（时间轴切分版）。
+
+    icir_values 视为【因子 IC 的时序序列】（按时间先后排列）：沿时间轴切 S 段，
+    C(S, S/2) 组合中 IS 段均值定方向，OOS 段检验方向是否保持。
+    PBO = P(IS 方向在 OOS 段失效)。
+
+    旧实现按 ICIR 值 argsort 分组模拟时序切分——输入无时间维度，IS 最优因子在
+    OOS 恒排前 → PBO≈0 恒通过，时间维度的过拟合完全无法检测。此版本禁止值排序。
+    样本不足时返回 indeterminate，调用方必须 fail-closed（不得当作通过）。
     """
-    简化版 PBO 计算（基于 ICIR 分组的秩方法，不需要完整的 CPCV）。
-
-    思路：
-        1. 将 ICIR 序列按时间切分为 n_splits 段
-        2. 随机选取一半作为 IS，另一半作为 OOS
-        3. 对 IS 最优因子，看它在 OOS 中的排名
-        4. PBO = Prob(OOS 排名 ≤ 中位数)
-
-    Parameters:
-        icir_values: 各因子的 ICIR 值列表（跨品种/时段的均值）
-        n_splits: CSCV 的切分段数
-
-    Returns:
-        {pbo, significant (pbo<0.5), n_splits}
-    """
-    n_factors = len(icir_values)
-    if n_factors < 4 or n_splits < 4:
-        # 样本不足，保守估计。
-        # [2026-08-14 P0-1] 显式标记 indeterminate：调用方不得把 pbo=0.5 当作
-        # 有效概率参与 `pbo < 阈值` 类门槛判定（曾导致晋升闸门恒拒死锁）。
+    n = len(icir_values)
+    if n < 4 or n_splits < 4:
         return {"pbo": 0.5, "significant": False, "n_splits": n_splits,
                 "indeterminate": True,
-                "note": "样本不足，返回保守值"}
+                "note": "样本不足，调用方应 fail-closed"}
 
-    n_splits = min(n_splits, n_factors // 2)
+    n_splits = min(n_splits, n // 2)
     if n_splits < 2:
         return {"pbo": 0.5, "significant": False, "n_splits": n_splits,
                 "indeterminate": True,
-                "note": "因子数太少"}
+                "note": "时间序列太短，无法切分"}
 
-    # 将因子按 ICIR 分为 n_splits 组（模拟时序切分）
-    sorted_idx = np.argsort(icir_values)
-    group_size = n_factors // n_splits
-    groups = [sorted_idx[i * group_size:(i + 1) * group_size] for i in range(n_splits)]
+    # 连续时间切片（顺序保持，绝不排序）
+    seg_len = n // n_splits
+    segments = [
+        icir_values[i * seg_len:(i + 1) * seg_len]
+        for i in range(n_splits)
+    ]
 
-    # CSCV: 所有 C(n_splits, n_splits//2) 种 IS/OOS 划分
     from itertools import combinations
     import random
 
     is_size = n_splits // 2
     all_combos = list(combinations(range(n_splits), is_size))
-    # 如果组合太多，随机采样
     max_combos = 50
     if len(all_combos) > max_combos:
         random.seed(42)
@@ -189,29 +180,23 @@ def compute_pbo_simple(
         is_groups = set(is_combo)
         oos_groups = set(range(n_splits)) - is_groups
 
-        # 合并 IS 组的 ICIR
-        is_factors = np.concatenate([groups[g] for g in is_groups])
-        oos_factors = np.concatenate([groups[g] for g in oos_groups])
-
-        if len(is_factors) < 2 or len(oos_factors) < 2:
+        is_vals = [v for g in is_groups for v in segments[g]]
+        oos_vals = [v for g in oos_groups for v in segments[g]]
+        if len(is_vals) < 2 or len(oos_vals) < 2:
             continue
 
-        # IS 最优因子
-        best_is_idx = is_factors[np.argmax([icir_values[i] for i in is_factors])]
-        best_is_icir = icir_values[best_is_idx]
-
-        # 该因子在 OOS 中的降序排名 r（r=1 表示 OOS 中最高）
-        oos_icirs = [icir_values[i] for i in oos_factors]
-        oos_rank = sum(1 for v in oos_icirs if v > best_is_icir) + 1
-
-        # [2026-08-05 修复 PBO 方向] 学术 CSCV 定义（Bailey et al. 2015）：
-        # PBO = P(R_ω* ≤ N/2)，R 为升序排名（越大越好）。等价于降序排名
-        # r = N-R+1 时 PBO = P(r > N/2)，即 IS 最优因子在 OOS 中排名靠后
-        # （表现差于中位）才算过拟合。此前写成 r ≤ N/2（IS 最优在 OOS 仍
-        # 排名第一反而被判过拟合），方向完全相反，导致真正过拟合的因子
-        # pbo≈0 通过硬门槛、稳定因子 pbo=1.0 被拦。此处按学术定义修正。
-        median_rank = len(oos_factors) / 2.0
-        if oos_rank > median_rank:
+        is_mean = float(np.mean(is_vals))
+        oos_mean = float(np.mean(oos_vals))
+        # 浮点近零（对称混合组合）无方向信息 → 跳过（epsilon 而非 ==0）
+        if abs(is_mean) < 1e-12:
+            continue
+        # IS 方向在 OOS 失效判据（对称、半衰）：
+        #   IS>0 时 OOS 均值衰减到 IS 的一半以下（含翻负）→ 过拟合；
+        #   IS<0 时对称处理。纯符号翻转判据对强翻转序列不够严格
+        #   （混合组合会把 PBO 稀释到 0.48 擦线通过 0.5 门槛）。
+        if is_mean > 0 and oos_mean < is_mean * 0.5:
+            overfit_count += 1
+        elif is_mean < 0 and oos_mean > is_mean * 0.5:
             overfit_count += 1
         total_valid += 1
 
@@ -228,6 +213,7 @@ def compute_pbo_simple(
         "total_combos": total_valid,
         "overfit_combos": overfit_count,
         "indeterminate": False,
+        "method": "temporal_cscv_v2",
     }
 
 
@@ -235,14 +221,20 @@ def compute_dsr_pbo_for_factors(
     icir_list: list[float],
     n_total_candidates: int,
     sample_len: int = 252,
+    ic_series: Optional[list] = None,
 ) -> dict:
     """
     为因子集计算 DSR + PBO，返回合并结果。
+
+    [P0-1] ic_series：因子 IC 的时序序列（跨币对齐后按时间平均）。
+    提供时 PBO 走时序 CSCV（时间维度过拟合检测）；缺失时 PBO 不可判定，
+    调用方必须 fail-closed。
 
     Parameters:
         icir_list: 所有候选因子的 ICIR 值
         n_total_candidates: 总候选因子数（包括已有的活跃因子）
         sample_len: 样本长度（K线根数）
+        ic_series: 可选，因子 IC 时序（P0-1 时序 PBO 用）
 
     Returns:
         {dsr_result, pbo_result, overall_passes}
@@ -263,9 +255,11 @@ def compute_dsr_pbo_for_factors(
         sample_len=sample_len,
     )
 
-    pbo_result = compute_pbo_simple(icir_list)
+    # [P0-1] PBO 必须用 IC 时序（时间维）；仅给标量列表时不可判定 → fail-closed
+    _series = ic_series if ic_series else icir_list
+    pbo_result = compute_pbo_simple(_series)
 
-    # DSR显著 且 PBO<0.5 → 通过
+    # DSR显著 且 PBO<0.5 → 通过（indeterminate 时 significant=False）
     overall_passes = dsr_result.get("significant", False) and pbo_result.get("significant", False)
 
     return {

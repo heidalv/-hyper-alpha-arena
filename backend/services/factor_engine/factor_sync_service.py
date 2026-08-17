@@ -549,6 +549,16 @@ class FactorSyncService:
             from backend.services.factor_engine.factor_registry import registry
             import importlib.util
 
+            # [2026-08-16 修复] 仓库迁移后 localized_path 指向旧路径（/Users/laobao/项目/...），
+            # 文件实际已归档进 factors/_ai_gen_archive。缺失文件是常态（隔离设计：
+            # 归档因子不自动进实盘注册表，须经冷池扫描+闸门晋升），降级为 info 跳过，
+            # 不再刷 ERROR。
+            if not os.path.isfile(filepath):
+                logger.info(
+                    f"[FactorSync] 本地化文件缺失，跳过注册（等待冷池扫描晋升）: {definition.get('factor_id')}"
+                )
+                return False
+
             _safe_mod = re.sub(r"[^a-zA-Z0-9_]", "_", str(definition.get("factor_id") or ""))
             module_name = f"cloud_factor_{_safe_mod or 'anon'}"
             spec = importlib.util.spec_from_file_location(module_name, filepath)

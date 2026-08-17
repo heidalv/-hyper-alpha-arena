@@ -79,6 +79,10 @@ class TradingDirectionSignal:
     risk_level: str = "normal"         # safe / normal / warning / danger
     data_sources: str = ""
     timestamp: float = 0.0
+    # [2026-08-15 消费端验收] 各来源可用性标记：字段仍为 sentinel 默认值
+    #（funding=0/whale=0/news=0/fgi=50/ls=1.0）时标记 False，下游与 LLM
+    # 提示词据此区分「真实中性」与「取数失败的中性」，不再冒充。
+    sources_available: Dict[str, bool] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -96,6 +100,10 @@ class TradingDirectionSignal:
             f"risk_level: {self.risk_level}",
             "",
         ]
+        # [2026-08-15] 不可用来源显式列出（数据缺失 ≠ 真实中性）
+        _unavailable = [k for k, v in (self.sources_available or {}).items() if not v]
+        if _unavailable:
+            lines.append("data_unavailable: " + ", ".join(_unavailable))
         if self.funding:
             lines.append(f"funding_rate: {self.funding.rate:.6f} ({self.funding.regime})")
             lines.append(f"funding_signal: {self.funding.signal} — {self.funding.description}")
@@ -224,6 +232,20 @@ class IntelligenceSignalEngine:
         self._fill_sentiment(signal)
         self._fill_long_short(signal)
 
+        # [2026-08-15] 来源可用性标记：值仍为 sentinel 默认 → unavailable
+        signal.sources_available = {
+            "funding": signal.funding is not None and signal.funding.rate != 0.0,
+            "oi": signal.oi is not None and signal.oi.oi_change_pct != 0.0
+                  and getattr(signal.oi, "quadrant", "") != "unavailable",
+            "liquidation": signal.liquidation is not None and (
+                signal.liquidation.liq_long_1h != 0.0 or signal.liquidation.liq_short_1h != 0.0
+            ),
+            "whale": signal.whale_summary not in ("", "暂无鲸鱼数据", "暂无该币种链上鲸鱼数据"),
+            "news": signal.news_top_event != "" or signal.news_sentiment != 0.0,
+            "sentiment": signal.fear_greed_index != 50.0,
+            "ls_ratio": signal.long_short_ratio != 1.0,
+        }
+
         self._compute_confluence(signal)
 
         self._cache[key] = signal
@@ -277,6 +299,13 @@ class IntelligenceSignalEngine:
 
             price_change = self._get_price_change_1h(symbol)
             regime.price_change_pct = price_change
+            # [2026-08-15] 价格变化取数失败（None）→ 象限无法判定，
+            # 显式标 unavailable 返回（不再把缺失当 0 误判为 consolidation）。
+            if price_change is None:
+                regime.quadrant = "unavailable"
+                regime.signal = "neutral"
+                regime.description = "价格变化数据不可用，OI 象限无法判定"
+                return regime
 
             oi_up = oi_change > OI_SIGNIFICANT_CHANGE
             oi_down = oi_change < -OI_SIGNIFICANT_CHANGE
@@ -308,8 +337,13 @@ class IntelligenceSignalEngine:
             logger.debug(f"[IntelSignal] OI四象限计算失败: {e}")
         return regime
 
-    def _get_price_change_1h(self, symbol: str) -> float:
-        """获取1小时价格变化百分比"""
+    def _get_price_change_1h(self, symbol: str):
+        """获取1小时价格变化百分比；取数失败返回 None。
+
+        [2026-08-15 消费端验收] 原失败返回 0.0，被 OI 四象限当「价格无变化」
+        参与判定——把「取数失败」误判成「震荡整理」。改为 None，调用方
+        显式处理缺失（quadrant=unavailable）。
+        """
         try:
             from backend.database.connection import MarketSessionLocal
             from backend.database.models import MarketAssetMetrics
@@ -337,7 +371,7 @@ class IntelligenceSignalEngine:
                 db.close()
         except Exception as e:
             logger.debug(f"[IntelSignal] 价格变化获取失败: {e}")
-        return 0.0
+        return None
 
     # ────────────────────── 清算分析 ──────────────────────
 

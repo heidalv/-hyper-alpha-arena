@@ -1,4 +1,4 @@
-﻿"""应用程序启动初始化服务"""
+"""应用程序启动初始化服务"""
 
 import logging
 import threading
@@ -127,14 +127,8 @@ def initialize_sync_services():
         except Exception as e:
             logger.error(f"全自动交易服务启动失败: {e}")
 
-        # [2026-07-30] OpenCode 定时任务曾禁用（无用功能 + 资源浪费）
-        # [2026-08-06] 恢复：v6 验证要求 Hermes/OpenCode 调度真实运行
-        try:
-            from backend.services.opencode_scheduler import register_opencode_jobs
-            register_opencode_jobs()
-            logger.info("[Startup] OpenCode/SRR/Training 定时任务已注册（early）")
-        except Exception as _oc_early_err:
-            logger.warning("[Startup] OpenCode 定时任务 early 注册失败: %s", _oc_early_err)
+        # [2026-08-17 删除] OpenCode 调度器整体删除（opencode_scheduler.py 已移除，
+        # 路由与 sidecar 同步退役；opencode_bridge 引擎仍由学习循环按需调用）。
 
         # Set up market-related scheduled tasks
         setup_market_tasks()
@@ -526,14 +520,10 @@ def initialize_sync_services():
 
         # [2026-07-30] 学习进化调度曾禁用（无用功能 + 资源浪费）
         # [2026-08-06] 恢复：v6 验证要求学习进化 + OpenCode 调度真实运行
+        # [2026-08-17] OpenCode 调度器已删除，只保留进化调度。
         try:
             from backend.services.evolution_scheduler import register_evolution_tasks
             register_evolution_tasks()
-            try:
-                from backend.services.opencode_scheduler import register_opencode_jobs
-                register_opencode_jobs()
-            except Exception as _oc_sched_err:
-                logger.warning("[Startup] OpenCode 定时任务注册失败: %s", _oc_sched_err)
             logger.info("[Startup] 学习系统整合 (V2) 已恢复")
         except Exception as e:
             logger.error(f"进化调度任务注册失败: {e}")
@@ -570,9 +560,12 @@ def initialize_sync_services():
         try:
             def _run_news_fetch():
                 import asyncio
-                from backend.database.connection import SessionLocal
+                # [2026-08-15 P0-1 修复] news_events 表在 Market DB（alpha_market），
+                # 必须用 MarketSessionLocal；此前用核心库 SessionLocal 导致落库
+                # 静默失败、news_events 长期 0 行。
+                from backend.database.connection import MarketSessionLocal
                 from backend.services.news_intelligence_service import news_intelligence
-                db = SessionLocal()
+                db = MarketSessionLocal()
                 try:
                     loop = asyncio.new_event_loop()
                     loop.run_until_complete(news_intelligence.fetch_and_analyze(db))
@@ -588,6 +581,12 @@ def initialize_sync_services():
                 task_id="news_intelligence_fetch"
             )
             logger.info("新闻情报定时任务已注册（5分钟间隔）")
+            # [2026-08-15 D7] 突发新闻快通道（CryptoPanic important，90s，≤3条/轮）
+            try:
+                from backend.services.news_intelligence_service import news_intelligence as _ni
+                _ni.start_fast_loop(interval_sec=90)
+            except Exception as _fast_err:
+                logger.warning(f"新闻快通道启动失败（非致命）: {_fast_err}")
         except Exception as e:
             logger.error(f"新闻定时任务注册失败: {e}")
 
@@ -595,9 +594,12 @@ def initialize_sync_services():
         try:
             def _run_whale_fetch():
                 import asyncio
-                from backend.database.connection import SessionLocal
+                # [2026-08-15 P0-1 修复] whale_activities 表在 Market DB（alpha_market），
+                # 必须用 MarketSessionLocal；此前用核心库 SessionLocal 导致落库
+                # 静默失败、whale_activities 长期 0 行。
+                from backend.database.connection import MarketSessionLocal
                 from backend.services.whale_tracker_service import whale_tracker
-                db = SessionLocal()
+                db = MarketSessionLocal()
                 try:
                     loop = asyncio.new_event_loop()
                     loop.run_until_complete(whale_tracker.fetch_and_record(db))
@@ -615,6 +617,14 @@ def initialize_sync_services():
             logger.info("鲸鱼追踪定时任务已注册（2分钟间隔）")
         except Exception as e:
             logger.error(f"鲸鱼定时任务注册失败: {e}")
+
+        # [2026-08-15 D6] 宏观数据采集：FRED 日频序列 + 官方日历（Fed/BLS）+
+        # 发布后 LLM 影响标注。后台线程自循环（每日日历/FRED、每小时标注检查）。
+        try:
+            from backend.services.macro_data_collector import start_macro_collector
+            start_macro_collector()
+        except Exception as e:
+            logger.warning(f"宏观采集器启动失败（非致命）: {e}")
 
         # AI日复盘: 每24小时（UTC 21:00）
         try:
@@ -1367,13 +1377,7 @@ async def shutdown_services():
 
         stop_scheduler()
 
-        # 回收后端托管的 OpenCode sidecar（仅杀自己 spawn 的；收养的外部实例不动）。
-        # atexit 已兜底，这里在 lifespan shutdown 阶段提前优雅回收。
-        try:
-            from backend.services.opencode_sidecar import stop_sidecar
-            stop_sidecar()
-        except Exception as _sc_err:
-            logger.warning("[Shutdown] OpenCode sidecar 回收失败: %s", _sc_err)
+        # [2026-08-17 删除] opencode_sidecar 已退役，无 sidecar 需要回收。
 
         logger.info("All services have been shut down")
 

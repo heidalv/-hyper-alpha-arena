@@ -65,6 +65,7 @@ class WalkForwardValidator:
         is_label: str = "IS",
         oos_label: str = "OOS",
         min_samples: int = 20,
+        periods_per_year: float = 8760.0,  # [P1-9] 年化期数：默认 h1（24×365）
     ) -> Dict[str, Any]:
         """
         执行 Walk-Forward 验证。
@@ -113,9 +114,9 @@ class WalkForwardValidator:
         result["ks_statistic"] = round(float(ks_stat), 4)
         result["ks_pvalue"] = round(float(ks_pvalue), 4)
 
-        # 2. Sharpe计算
-        sharpe_is = self._calc_sharpe(is_arr)
-        sharpe_oos = self._calc_sharpe(oos_arr)
+        # 2. Sharpe计算（[P1-9] 按收益频率年化，默认 h1=8760）
+        sharpe_is = self._calc_sharpe(is_arr, periods_per_year=periods_per_year)
+        sharpe_oos = self._calc_sharpe(oos_arr, periods_per_year=periods_per_year)
         result["sharpe_is"] = round(sharpe_is, 4)
         result["sharpe_oos"] = round(sharpe_oos, 4)
 
@@ -231,16 +232,22 @@ class WalkForwardValidator:
     # ── 内部方法 ──
 
     @staticmethod
-    def _calc_sharpe(returns: np.ndarray) -> float:
-        """计算年化Sharpe（假设h1频率）"""
+    def _calc_sharpe(returns: np.ndarray, periods_per_year: float = 8760.0) -> float:
+        """计算年化Sharpe。
+
+        [P1-9] 年化期数参数化：原硬编码 sqrt(8760)（h1 假设），传入 4h/1d/交易级
+        收益时年化差 sqrt(6)/sqrt(365) 倍。默认仍为 8760 保持兼容。
+        """
         if len(returns) < 2:
             return 0.0
         mu = float(np.mean(returns))
         sigma = float(np.std(returns))
         if sigma < 1e-10:
             return 0.0
-        # 年化：h1 → 24*365 = 8760
-        return mu / sigma * math.sqrt(8760)
+        _ppy = float(periods_per_year or 8760.0)
+        if _ppy <= 0:
+            _ppy = 8760.0
+        return mu / sigma * math.sqrt(_ppy)
 
     @staticmethod
     def _calc_overfit_score(
@@ -287,10 +294,12 @@ class WalkForwardValidator:
         return min(score, 1.0)
 
     @staticmethod
-    def _rolling_sharpe(returns: np.ndarray, window: int = 10) -> List[float]:
-        """计算滚动Sharpe序列"""
+    def _rolling_sharpe(returns: np.ndarray, window: int = 10,
+                        periods_per_year: float = 8760.0) -> List[float]:
+        """计算滚动Sharpe序列（[P1-9] 年化期数参数化）"""
         if len(returns) < window:
             return []
+        _ppy = float(periods_per_year or 8760.0)
         results = []
         for i in range(window, len(returns) + 1):
             w = returns[i - window : i]
@@ -299,7 +308,7 @@ class WalkForwardValidator:
             if sigma < 1e-10:
                 results.append(0.0)
             else:
-                results.append(mu / sigma * math.sqrt(8760))
+                results.append(mu / sigma * math.sqrt(_ppy))
         return results
 
     @staticmethod

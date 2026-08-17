@@ -49,10 +49,14 @@ def get_news(symbol: str = "BTC", hours: int = Query(default=24, le=168)):
 
 
 @router.post("/news/fetch")
-async def trigger_news_fetch(db: Session = Depends(get_db)):
-    """手动触发新闻拉取和分析"""
+async def trigger_news_fetch():
+    """手动触发新闻拉取和分析。
+
+    [2026-08-15 P0-1 修复] news_events 表在 Market DB（alpha_market），
+    服务内部已改用 MarketSessionLocal 落库；此处不再传核心库 session。
+    """
     from backend.services.news_intelligence_service import news_intelligence
-    results = await news_intelligence.fetch_and_analyze(db)
+    results = await news_intelligence.fetch_and_analyze(None)
     return {"fetched": len(results), "events": results}
 
 

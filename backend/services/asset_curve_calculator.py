@@ -13,9 +13,9 @@ from sqlalchemy import cast, func
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.types import Integer
 
-from database.models import Account, AccountAssetSnapshot
-from database.snapshot_connection import SnapshotSessionLocal
-from database.snapshot_models import HyperliquidAccountSnapshot
+from backend.database.models import Account, AccountAssetSnapshot
+from backend.database.snapshot_connection import SnapshotSessionLocal
+from backend.database.snapshot_models import HyperliquidAccountSnapshot
 
 logger = logging.getLogger(__name__)
 

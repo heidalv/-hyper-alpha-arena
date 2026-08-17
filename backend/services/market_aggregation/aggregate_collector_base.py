@@ -129,12 +129,13 @@ class AggregateCollectorBase:
         if cached and now - self._cache_ts < self.CACHE_TTL:
             return cached
 
-        # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止采集器直连
-        # 交易所（聚合采集属数据中心采集层职责，主服务进程内的按需直连视为旁路）。
-        # 直接返回空聚合，由 API 层 _read_*_cache 从数据中心仓库读回。
+        # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止**主服务进程**内
+        # 采集器直连交易所（聚合采集属数据中心采集层职责，主服务进程内按需直连
+        # 视为旁路）。[2026-08-15 D4] 例外：数据中心进程自身（_DC_WORKER_PROCESS
+        # 标记）是采集层本体，允许直连采集；主进程消费方改从数据中心仓库读回。
         try:
             from backend.services.market_data import _dc_only_enabled
-            if _dc_only_enabled():
+            if _dc_only_enabled() and not os.environ.get("_DC_WORKER_PROCESS"):
                 logger.info(
                     f"[{self.SOURCE_NAME}] DC_ONLY：跳过直连采集，改读数据中心仓库"
                 )

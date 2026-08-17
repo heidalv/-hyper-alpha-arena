@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Precisely stop Hyper-Alpha-Arena's own uvicorn backend + vite frontend,
     without killing Cursor / IDE / unrelated python / unrelated node.
@@ -157,24 +157,31 @@ if (Test-Path $pidLock) {
     }
 }
 
-Write-Step "2) stop frontend-next (:5273) + leftover frozen vite (:5173)"
-# 正式前端 Next.js
-$nextFilter = {
-    $_.CommandLine -match 'Hyper-Alpha-Arena' -and (
-        $_.CommandLine -match 'frontend-next' -or
-        ($_.CommandLine -match 'next' -and $_.CommandLine -match '5273')
-    )
+# [2026-08-15] 前端清理改为受 Ports 参数门控：看门狗重启后端时传 -Ports 8000,8001
+# （不含 5273），不得顺手杀掉正在服务的前端 next dev，否则每次后端重启都拖垮前端。
+if ($Ports -contains 5273) {
+    Write-Step "2) stop frontend-next (:5273) + leftover frozen vite (:5173)"
+    # 正式前端 Next.js
+    $nextFilter = {
+        $_.CommandLine -match 'Hyper-Alpha-Arena' -and (
+            $_.CommandLine -match 'frontend-next' -or
+            ($_.CommandLine -match 'next' -and $_.CommandLine -match '5273')
+        )
+    }
+    $n2next = Stop-Matched -Name 'node.exe' -Filter $nextFilter -Label 'frontend-next'
+    # 旧 Vite（已冻结）残留也清掉
+    $viteFilter = {
+        $_.CommandLine -match 'Hyper-Alpha-Arena' -and (
+            $_.CommandLine -match 'vite' -or
+            ($_.CommandLine -match 'npm.*run.*dev' -and $_.CommandLine -match '\\frontend\\')
+        )
+    }
+    $n2vite = Stop-Matched -Name 'node.exe' -Filter $viteFilter -Label 'frozen vite :5173'
+    $n2 = $n2next + $n2vite
+} else {
+    Write-Host "`n==> 2) skip frontend (5273 not in Ports; backend-only stop)" -ForegroundColor DarkGray
+    $n2 = 0
 }
-$n2next = Stop-Matched -Name 'node.exe' -Filter $nextFilter -Label 'frontend-next'
-# 旧 Vite（已冻结）残留也清掉
-$viteFilter = {
-    $_.CommandLine -match 'Hyper-Alpha-Arena' -and (
-        $_.CommandLine -match 'vite' -or
-        ($_.CommandLine -match 'npm.*run.*dev' -and $_.CommandLine -match '\\frontend\\')
-    )
-}
-$n2vite = Stop-Matched -Name 'node.exe' -Filter $viteFilter -Label 'frozen vite :5173'
-$n2 = $n2next + $n2vite
 
 Write-Step "2.5) kill orphan loky / joblib / dead-parent spawn (GP 挖矿残留)"
 # Windows 上父进程死后，loky resource_tracker 与 spawn_main 常仍占 CPU；

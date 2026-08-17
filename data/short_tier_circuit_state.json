@@ -1,27 +1,27 @@
 {
   "BTC": {
-    "consec_losses": 1,
-    "last_loss_at": 1786578970.8763983,
-    "banned_until": 0
+    "consec_losses": 4,
+    "last_loss_at": 1786945707.7760048,
+    "banned_until": 1786967307.7760048
   },
   "ETH": {
-    "consec_losses": 1,
-    "last_loss_at": 1786400747.8386786,
+    "consec_losses": 0,
+    "last_loss_at": 1786937827.5303721,
     "banned_until": 0
   },
   "ASTER": {
-    "consec_losses": 4,
-    "last_loss_at": 1786578820.5574622,
-    "banned_until": 1786600420.5574622
+    "consec_losses": 1,
+    "last_loss_at": 1786955826.1831973,
+    "banned_until": 0
   },
   "SOL": {
-    "consec_losses": 4,
-    "last_loss_at": 1786607579.7417083,
-    "banned_until": 1786629179.7417083
+    "consec_losses": 2,
+    "last_loss_at": 1786954531.283833,
+    "banned_until": 0
   },
   "BNB": {
-    "consec_losses": 2,
-    "last_loss_at": 1786628203.3211632,
+    "consec_losses": 0,
+    "last_loss_at": 1786935144.2007964,
     "banned_until": 0
   },
   "CHIP": {
@@ -30,14 +30,14 @@
     "banned_until": 0
   },
   "VIRTUAL": {
-    "consec_losses": 0,
-    "last_loss_at": 1786568117.3480284,
+    "consec_losses": 3,
+    "last_loss_at": 1786661574.8463805,
     "banned_until": 0
   },
   "LIT": {
-    "consec_losses": 1,
-    "last_loss_at": 1786536858.705956,
-    "banned_until": 0
+    "consec_losses": 4,
+    "last_loss_at": 1786667594.457314,
+    "banned_until": 1786689194.457314
   },
   "CRV": {
     "consec_losses": 0,
@@ -56,8 +56,8 @@
   },
   "FARTCOIN": {
     "consec_losses": 1,
-    "last_loss_at": 1786059821.5170612,
-    "banned_until": 1786080835.8843994
+    "last_loss_at": 1786782673.9568727,
+    "banned_until": 0
   },
   "ONDO": {
     "consec_losses": 1,
@@ -65,13 +65,13 @@
     "banned_until": 0
   },
   "XPL": {
-    "consec_losses": 0,
-    "last_loss_at": 1786607583.5298238,
+    "consec_losses": 3,
+    "last_loss_at": 1786909303.9405396,
     "banned_until": 0
   },
   "ETHFI": {
-    "consec_losses": 2,
-    "last_loss_at": 1784190953.6894045,
+    "consec_losses": 3,
+    "last_loss_at": 1786780326.8878355,
     "banned_until": 0
   },
   "LDO": {
@@ -115,9 +115,9 @@
     "banned_until": 0
   },
   "AAVE": {
-    "consec_losses": 5,
-    "last_loss_at": 1786388053.3285813,
-    "banned_until": 1786409653.3285813
+    "consec_losses": 1,
+    "last_loss_at": 1786936372.759816,
+    "banned_until": 0
   },
   "XMR": {
     "consec_losses": 2,
@@ -126,7 +126,7 @@
   },
   "UNI": {
     "consec_losses": 0,
-    "last_loss_at": 1786584129.544746,
+    "last_loss_at": 1786943022.3109205,
     "banned_until": 0
   },
   "ENA": {
@@ -160,8 +160,8 @@
     "banned_until": 0
   },
   "XRP": {
-    "consec_losses": 0,
-    "last_loss_at": 1786557410.8741546,
+    "consec_losses": 3,
+    "last_loss_at": 1786952217.026261,
     "banned_until": 0
   },
   "BEAT": {
@@ -180,8 +180,8 @@
     "banned_until": 0
   },
   "DOGE": {
-    "consec_losses": 2,
-    "last_loss_at": 1786628440.6061077,
+    "consec_losses": 0,
+    "last_loss_at": 1786653599.4438794,
     "banned_until": 0
   },
   "AAOI": {
@@ -215,8 +215,8 @@
     "banned_until": 0
   },
   "SPCX": {
-    "consec_losses": 2,
-    "last_loss_at": 1786526616.409363,
+    "consec_losses": 3,
+    "last_loss_at": 1786640171.45436,
     "banned_until": 0
   },
   "BULLA": {
@@ -245,9 +245,9 @@
     "banned_until": 1786446102.354862
   },
   "CL": {
-    "consec_losses": 3,
-    "last_loss_at": 1786571657.3791816,
-    "banned_until": 0
+    "consec_losses": 4,
+    "last_loss_at": 1786637615.381671,
+    "banned_until": 1786659215.381671
   },
   "SKYAI": {
     "consec_losses": 0,
@@ -255,9 +255,9 @@
     "banned_until": 0
   },
   "ON": {
-    "consec_losses": 4,
-    "last_loss_at": 1786293229.9017,
-    "banned_until": 1786314829.9017
+    "consec_losses": 0,
+    "last_loss_at": 1786927967.7013688,
+    "banned_until": 0
   },
   "XAU": {
     "consec_losses": 1,
@@ -265,7 +265,7 @@
     "banned_until": 0
   },
   "AKE": {
-    "consec_losses": 2,
+    "consec_losses": 0,
     "last_loss_at": 1786607031.3081145,
     "banned_until": 0
   },
@@ -285,13 +285,13 @@
     "banned_until": 0
   },
   "CASHCAT": {
-    "consec_losses": 4,
-    "last_loss_at": 1786458434.27927,
-    "banned_until": 1786480034.27927
+    "consec_losses": 0,
+    "last_loss_at": 1786916053.315574,
+    "banned_until": 0
   },
   "CXMT": {
-    "consec_losses": 1,
-    "last_loss_at": 1786162875.3570385,
+    "consec_losses": 2,
+    "last_loss_at": 1786949849.4319801,
     "banned_until": 0
   },
   "NOW": {
@@ -355,8 +355,8 @@
     "banned_until": 0
   },
   "CSCO": {
-    "consec_losses": 1,
-    "last_loss_at": 1786352755.4354646,
+    "consec_losses": 2,
+    "last_loss_at": 1786635761.337761,
     "banned_until": 0
   },
   "LTC": {
@@ -370,8 +370,8 @@
     "banned_until": 0
   },
   "CRCL": {
-    "consec_losses": 1,
-    "last_loss_at": 1786607582.3079715,
+    "consec_losses": 2,
+    "last_loss_at": 1786745633.4968443,
     "banned_until": 0
   },
   "GRVT": {
@@ -406,7 +406,7 @@
   },
   "APT": {
     "consec_losses": 0,
-    "last_loss_at": 1786436012.7210789,
+    "last_loss_at": 1786760666.3752081,
     "banned_until": 0
   },
   "SUI": {
@@ -420,8 +420,8 @@
     "banned_until": 0
   },
   "TRX": {
-    "consec_losses": 2,
-    "last_loss_at": 1786616617.1872642,
+    "consec_losses": 1,
+    "last_loss_at": 1786669996.7225296,
     "banned_until": 0
   },
   "AVAX": {
@@ -430,14 +430,14 @@
     "banned_until": 1786555537.4300654
   },
   "VELVET": {
-    "consec_losses": 1,
-    "last_loss_at": 1786494665.7769432,
+    "consec_losses": 3,
+    "last_loss_at": 1786917388.2346952,
     "banned_until": 0
   },
   "1000SHIB": {
-    "consec_losses": 4,
+    "consec_losses": 0,
     "last_loss_at": 1786617594.1227548,
-    "banned_until": 1786639194.1227548
+    "banned_until": 0
   },
   "TST": {
     "consec_losses": 1,
@@ -445,9 +445,9 @@
     "banned_until": 0
   },
   "LINK": {
-    "consec_losses": 4,
-    "last_loss_at": 1786618519.9272153,
-    "banned_until": 1786640119.9272153
+    "consec_losses": 3,
+    "last_loss_at": 1786656048.1939971,
+    "banned_until": 0
   },
   "INTC": {
     "consec_losses": 1,
@@ -505,18 +505,73 @@
     "banned_until": 0
   },
   "CBRS": {
-    "consec_losses": 2,
+    "consec_losses": 0,
     "last_loss_at": 1786620397.803795,
     "banned_until": 0
   },
   "CYS": {
-    "consec_losses": 0,
-    "last_loss_at": 0,
+    "consec_losses": 1,
+    "last_loss_at": 1786646676.1663604,
     "banned_until": 0
   },
   "SKHY": {
     "consec_losses": 0,
     "last_loss_at": 0,
+    "banned_until": 0
+  },
+  "1000NEX": {
+    "consec_losses": 2,
+    "last_loss_at": 1786637625.767709,
+    "banned_until": 0
+  },
+  "1000CHEEMS": {
+    "consec_losses": 3,
+    "last_loss_at": 1786662107.4336188,
+    "banned_until": 0
+  },
+  "ARIA": {
+    "consec_losses": 0,
+    "last_loss_at": 1786651533.025168,
+    "banned_until": 0
+  },
+  "DRAM": {
+    "consec_losses": 0,
+    "last_loss_at": 0,
+    "banned_until": 0
+  },
+  "APR": {
+    "consec_losses": 1,
+    "last_loss_at": 1786733438.6667159,
+    "banned_until": 0
+  },
+  "CC": {
+    "consec_losses": 1,
+    "last_loss_at": 1786902894.62026,
+    "banned_until": 0
+  },
+  "AIA": {
+    "consec_losses": 1,
+    "last_loss_at": 1786911768.347718,
+    "banned_until": 0
+  },
+  "DOLO": {
+    "consec_losses": 0,
+    "last_loss_at": 1786916027.8175879,
+    "banned_until": 0
+  },
+  "GPS": {
+    "consec_losses": 0,
+    "last_loss_at": 0,
+    "banned_until": 0
+  },
+  "STAR": {
+    "consec_losses": 1,
+    "last_loss_at": 1786921288.3627079,
+    "banned_until": 0
+  },
+  "STABLE": {
+    "consec_losses": 1,
+    "last_loss_at": 1786927901.6600041,
     "banned_until": 0
   }
 }

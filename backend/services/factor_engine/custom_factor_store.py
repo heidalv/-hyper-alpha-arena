@@ -152,8 +152,14 @@ class CustomFactorStore:
             self._loaded = True
 
     def _load_locked(self) -> None:
-        try:
-            if os.path.exists(_STORE_FILE):
+        # [2026-08-16 修复] 多进程瞬时撕裂读（另一进程正在 replace 文件）会导致
+        # JSON 解析失败。旧实现直接 self._data = {} —— 空目录随后被 persist 覆写
+        # 回磁盘，抹掉全部因子（曾真实发生）。现在：重试退避读取；全部失败时
+        # 保留内存旧数据，绝不清空。
+        if not os.path.exists(_STORE_FILE):
+            return
+        for attempt in range(4):
+            try:
                 with open(_STORE_FILE, "r", encoding="utf-8") as f:
                     raw = json.load(f)
                 if isinstance(raw, dict):
@@ -161,9 +167,14 @@ class CustomFactorStore:
                 elif isinstance(raw, list):
                     self._data = {r["factor_id"]: r for r in raw if r.get("factor_id")}
                 self._loaded_mtime = os.path.getmtime(_STORE_FILE)
-        except Exception as e:
-            logger.warning(f"[CustomFactorStore] 载入失败(降级空目录): {e}")
-            self._data = {}
+                return
+            except Exception as e:
+                logger.warning(
+                    f"[CustomFactorStore] 载入失败(第{attempt + 1}次, 退避重试): {e}"
+                )
+                time.sleep(0.2 * (attempt + 1))
+        if not self._data:
+            logger.error("[CustomFactorStore] 持久目录多次读取失败且无内存数据，保持空目录")
 
     def _maybe_reload(self) -> None:
         """[2026-08-15 多进程竞态修复] 写前检测文件是否被其它进程更新。
@@ -183,15 +194,37 @@ class CustomFactorStore:
             pass
 
     def _persist(self) -> None:
-        try:
-            os.makedirs(os.path.dirname(_STORE_FILE), exist_ok=True)
-            tmp = _STORE_FILE + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self._data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, _STORE_FILE)
-            self._loaded_mtime = os.path.getmtime(_STORE_FILE)
-        except Exception as e:
-            logger.warning(f"[CustomFactorStore] 持久化失败: {e}")
+        # [2026-08-16 修复三件套]
+        # 1) 空目录防护：内存为空但磁盘已有非空数据 → 拒绝覆写（撕裂读降级保护）。
+        # 2) 每进程独立 tmp 名：多进程共用 ".tmp" 会互相截断对方写入。
+        # 3) WinError 5/32（另一进程短暂持有文件）重试退避，不再丢写。
+        with self._lock:
+            if not self._data:
+                try:
+                    if os.path.exists(_STORE_FILE) and os.path.getsize(_STORE_FILE) > 2:
+                        with open(_STORE_FILE, "r", encoding="utf-8") as f:
+                            _disk = json.loads(f.read())
+                        if _disk:
+                            logger.error(
+                                "[CustomFactorStore] 拒绝以空目录覆写非空文件（撕裂读保护）"
+                            )
+                            return
+                except Exception:
+                    pass
+            tmp = f"{_STORE_FILE}.{os.getpid()}.tmp"
+            _last_err: Exception | None = None
+            for _attempt in range(5):
+                try:
+                    os.makedirs(os.path.dirname(_STORE_FILE), exist_ok=True)
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(self._data, f, ensure_ascii=False, indent=2)
+                    os.replace(tmp, _STORE_FILE)
+                    self._loaded_mtime = os.path.getmtime(_STORE_FILE)
+                    return
+                except Exception as e:
+                    _last_err = e
+                    time.sleep(0.25 * (_attempt + 1))
+            logger.warning(f"[CustomFactorStore] 持久化失败(重试5次): {_last_err}")
 
     def register(
         self,

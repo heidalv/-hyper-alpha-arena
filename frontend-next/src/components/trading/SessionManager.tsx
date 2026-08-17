@@ -136,12 +136,15 @@ export function SessionManager() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">AI 交易会话</h2>
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <span className="w-[3px] h-3.5 rounded-r bg-gradient-to-b from-cyan-400 to-violet-500 shadow-[0_0_6px_rgba(34,211,238,0.5)]" />
+          AI 交易会话
+        </h2>
         <div className="flex items-center gap-2">
           {stoppedSessions.length > 0 && (
-            <Badge variant="secondary" className="text-[10px]">{activeSessions.length} 活跃 · {stoppedSessions.length} 已停用</Badge>
+            <Badge variant="secondary" className="text-[10px] tabular-nums">{activeSessions.length} 活跃 · {stoppedSessions.length} 已停用</Badge>
           )}
-          <Button size="sm" variant="outline" onClick={() => setShowCreate(!showCreate)}>
+          <Button size="sm" variant="outline" className="btn-glow" onClick={() => setShowCreate(!showCreate)}>
             {showCreate ? <X className="w-3.5 h-3.5 mr-1" /> : <Plus className="w-3.5 h-3.5 mr-1" />}
             {showCreate ? "取消" : "创建会话"}
           </Button>
@@ -150,7 +153,7 @@ export function SessionManager() {
 
       {/* 创建会话表单 */}
       {showCreate && (
-        <Card className="p-4 border-primary/30 space-y-3">
+        <Card className="p-4 border-primary/30 space-y-3 glass">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">交易账户</label>
             <select value={selectedAccount ?? ""} onChange={(e) => setSelectedAccount(Number(e.target.value))}
@@ -169,7 +172,7 @@ export function SessionManager() {
               <option value="paper">模拟 (Paper)</option><option value="live">实盘 (Live)</option>
             </select>
           </div>
-          <Button size="sm" className="w-full" onClick={handleCreate} disabled={!selectedAccount || startMut.isPending}>
+          <Button size="sm" className="w-full btn-glow" onClick={handleCreate} disabled={!selectedAccount || startMut.isPending}>
             {startMut.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
             启动会话
           </Button>
@@ -349,11 +352,12 @@ function SessionRow({
   };
 
   return (
-    <Card className="p-3">
+    <Card className="p-3 glass">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Badge variant="secondary" className={cn("text-[10px]",
             isRunning ? "bg-profit/20 text-profit" : isPaused ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground")}>
+            {isRunning && <span className="w-1 h-1 rounded-full bg-profit" style={{ boxShadow: "0 0 6px rgba(52,211,153,0.9)" }} />}
             {status}
           </Badge>
           <Badge variant="outline" className={cn("text-[9px]",
@@ -420,7 +424,7 @@ function SessionRow({
       )}
 
       {/* 关键信息行 */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px] text-muted-foreground tabular-nums">
         <span><Bot className="w-3 h-3 inline mr-1" />交易员: <span className="text-foreground">{session.account_name ?? `#${session.account_id}`}</span></span>
         {session.paper_account_name && (
           <span>模拟账户: <span className="text-foreground">{session.paper_account_name}</span></span>
@@ -936,9 +940,7 @@ function ConfigEditor({
       Number(form.max_total_drawdown_pct) !== Number(baseline.max_total_drawdown_pct) ||
       Number(form.daily_loss_limit_pct) !== Number(baseline.daily_loss_limit_pct) ||
       (form.active_exchange || "") !== (baseline.active_exchange || "") ||
-      Number(form.auto_coin_max_slots) !== Number(baseline.auto_coin_max_slots) ||
-      !!form.auto_coin_mid_enabled !== !!baseline.auto_coin_mid_enabled ||
-      Number(form.auto_coin_mid_max_slots) !== Number(baseline.auto_coin_mid_max_slots)
+      Number(form.auto_coin_max_slots) !== Number(baseline.auto_coin_max_slots)
     );
   }, [form, baseline]);
 
@@ -964,8 +966,11 @@ function ConfigEditor({
       };
       if (canAutoCoin) {
         payload.auto_coin_max_slots = Number(form.auto_coin_max_slots);
-        payload.auto_coin_mid_enabled = !!form.auto_coin_mid_enabled;
         payload.auto_coin_mid_max_slots = Number(form.auto_coin_mid_max_slots);
+        // [2026-08-15 修复] auto_coin_mid_enabled 不在本表单提交：
+        // 中线 AI 选币开关由「中线 AI 选币」区独立入口管理（enable/disable 端点）。
+        // 此前此处用 form 旧值提交，会把独立开关刚开启的中线 AI 选币覆盖回 False——
+        // 表现为"开启后自动关闭"。
       }
       const res = await sessionApi.updateConfig(session.session_id, payload as any);
       setMsg(res.message || "已保存，运行中立即生效");
@@ -1091,15 +1096,9 @@ function ConfigEditor({
         </div>
         <div className={cn(fieldCls, "col-span-2")}>
           <span className="text-muted-foreground">中线 AI 开关</span>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              disabled={!canEdit || !canAutoCoin}
-              checked={!!form.auto_coin_mid_enabled}
-              onChange={(e) => setForm({ ...form, auto_coin_mid_enabled: e.target.checked })}
-            />
-            {form.auto_coin_mid_enabled ? "已开启" : "已关闭"}
-          </label>
+          <span className="text-[11px] text-muted-foreground/80">
+            {session.auto_coin_mid_enabled ? "已开启" : "已关闭"} —— 请在「中线 AI 选币」区操作（单一入口，避免双写冲突）
+          </span>
         </div>
         <div className={cn(fieldCls, "col-span-2")}>
           <span className="text-muted-foreground">

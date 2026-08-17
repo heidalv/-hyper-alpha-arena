@@ -51,7 +51,7 @@ def _index_exists(conn, index_name: str) -> bool:
 
 def upgrade():
     """Apply migration idempotently."""
-    from database.connection import engine
+    from backend.database.connection import engine
     from sqlalchemy import text
 
     with engine.begin() as conn:

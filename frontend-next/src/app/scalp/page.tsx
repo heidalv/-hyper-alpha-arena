@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Settings, Save, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useScalpConfig, useScalpPresets, useUpdateScalpConfig } from "@/hooks/useTradingData";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -61,18 +62,24 @@ export default function ScalpPage() {
   const lev = config.leverage;
 
   return (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto">
+    <div className="p-4 space-y-4">
       {/* 标题 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-primary" />短线策略配置</h1>
-        <div className="flex gap-2">
-          {dirty && <Badge variant="destructive" className="text-xs">未保存</Badge>}
-          <Button size="sm" onClick={handleSave} disabled={!dirty || updateMutation.isPending}>
-            {updateMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-            保存
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Settings className="w-4 h-4" />}
+        title="短线策略配置"
+        subtitle="参数修改后需点击保存生效"
+        breadcrumb={[{ label: "策略配置" }, { label: "短线配置" }]}
+        refreshHint="配置即改即查"
+        actions={
+          <>
+            {dirty && <Badge variant="destructive" className="text-xs">未保存</Badge>}
+            <Button size="sm" onClick={handleSave} disabled={!dirty || updateMutation.isPending} className="btn-glow">
+              {updateMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+              保存
+            </Button>
+          </>
+        }
+      />
 
       {/* 预设 */}
       {presets && (
@@ -87,7 +94,7 @@ export default function ScalpPage() {
 
       {/* EV模拟器 */}
       {ev && (
-        <Card className={cn(ev.ev > 0 ? "border-profit/30" : "border-loss/30")}>
+        <Card className={cn("glass", ev.ev > 0 ? "border-profit/30" : "border-loss/30")}>
           <div className="p-4">
             <div className="text-sm font-medium mb-3">EV 模拟器 ({lev}x杠杆)</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -159,7 +166,7 @@ function Metric({ label, value, positive }: { label: string; value: string; posi
   return (
     <div className={cn("p-2 rounded", positive === undefined ? "bg-muted/50" : positive ? "bg-profit/10" : "bg-loss/10")}>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn("text-sm font-bold tabular-nums", positive === undefined ? "" : positive ? "text-profit" : "text-loss")}>{value}</div>
+      <div className={cn("text-sm font-bold tabular-nums", positive === undefined ? "grad-text" : positive ? "grad-text-green" : "grad-text-red")}>{value}</div>
     </div>
   );
 }

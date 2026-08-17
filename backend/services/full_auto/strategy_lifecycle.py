@@ -141,6 +141,14 @@ def pause_champion_strategy(db: Session, strategy, reason: str) -> None:
     genome["pause_reason"] = reason
     strategy.genome = genome
     db.flush()
+    # [2026-08-15 收敛] 冠军暂停事件统一登记到冻结台账
+    try:
+        from backend.services.risk_management.freeze_coordinator import register_event
+        register_event("freeze_champion", int(getattr(strategy, "account_id", 0) or 0),
+                       str(getattr(strategy, "timeframe_tier", "") or ""),
+                       str(strategy.primary_symbol or ""), reason)
+    except Exception:
+        pass
 
 def snapshot_strategy_genome(db: Session, strategy, memory) -> None:
     import uuid

@@ -89,12 +89,12 @@ export function WisdomLifecyclePanel() {
                 )}
                 <div
                   className={cn(
-                    "relative z-10 rounded-lg border p-3 text-center",
+                    "relative z-10 rounded-lg border p-3 text-center transition-shadow",
                     isZero
                       ? "border-border/60 bg-muted/30"
                       : key === "retire"
                         ? "border-loss/30 bg-loss/5"
-                        : "border-primary/20 bg-primary/5"
+                        : "border-cyan-400/30 bg-primary/5 shadow-[0_0_12px_rgba(34,211,238,0.25)]"
                   )}
                 >
                   <div className="text-[10px] text-muted-foreground mb-1">
@@ -104,10 +104,10 @@ export function WisdomLifecyclePanel() {
                     className={cn(
                       "text-2xl font-bold tabular-nums",
                       isZero
-                        ? "text-muted-foreground"
+                        ? "text-muted-foreground/70"
                         : key === "retire"
-                          ? "text-loss"
-                          : "text-foreground"
+                          ? "grad-text-red"
+                          : "grad-text"
                     )}
                   >
                     {v.toLocaleString()}
@@ -153,15 +153,23 @@ export function WisdomLifecyclePanel() {
 
         {/* slot 预算 + 检索注入子卡 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-lg border p-3">
+          <div className="glass rounded-lg p-3">
             <div className="text-xs font-medium mb-2 flex items-center gap-1.5">
               <PackageOpen className="w-3.5 h-3.5 text-muted-foreground" />
               注入 Slot 预算
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={slot?.enabled ? "default" : "secondary"} className="font-normal">
-                {slot?.enabled ? "已启用" : "未启用"}
-              </Badge>
+              {slot?.enabled ? (
+                <Badge className="font-normal border-profit/40 bg-profit/10 text-profit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-profit shadow-[0_0_6px_currentColor]" />
+                  已启用
+                </Badge>
+              ) : (
+                <Badge className="font-normal border-amber-500/40 bg-amber-500/10 text-warning">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning shadow-[0_0_6px_currentColor]" />
+                  未启用
+                </Badge>
+              )}
               <span className="text-xs text-muted-foreground">
                 {slot?.enabled
                   ? `上限 ${slot.max_slots ?? 0} / 已用 ${slot.used ?? 0}`
@@ -182,7 +190,10 @@ export function WisdomLifecyclePanel() {
             </div>
             {retrieval.ready ? (
               <div className="flex items-center gap-2">
-                <Badge variant="default" className="font-normal">语义检索可用</Badge>
+                <Badge className="font-normal border-profit/40 bg-profit/10 text-profit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-profit shadow-[0_0_6px_currentColor]" />
+                  语义检索可用
+                </Badge>
                 <span className="text-xs text-muted-foreground">
                   trading_wisdom 索引 {retrieval.trading_wisdom_docs ?? 0} 条 ·{" "}
                   {retrieval.embedding_model ?? "—"}
@@ -213,7 +224,8 @@ export function WisdomLifecyclePanel() {
         action={null}
       >
         {ranked.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
+          <p className="text-sm text-warning py-6 text-center flex items-center justify-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             暂无智慧样本（回测产出后自动注入）
           </p>
         ) : (
@@ -249,8 +261,9 @@ export function WisdomLifecyclePanel() {
 function ValidationChartArea({ validated, qualityHit }: { validated: number; qualityHit: number }) {
   if (validated === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-4 mb-4 text-center">
-        <p className="text-sm text-muted-foreground">
+      <div className="rounded-lg border border-dashed border-border/60 p-4 mb-4 text-center">
+        <p className="text-sm text-warning flex items-center justify-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           注入前后命中率 / PF 对照：样本不足（已评估样本 0）——注入环节未启动，无对照数据
         </p>
       </div>

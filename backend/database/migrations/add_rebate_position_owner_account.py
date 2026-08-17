@@ -1,15 +1,11 @@
 """
 Migration: add owner_account_id to rebate_positions for unified account soft-link.
 
-阶段 4.2 账户统一服务层: rebate_positions 表原本无 account FK（仅靠 position_id 标识）。
-本迁移新增 owner_account_id 列（nullable），建立与 arbitrage_paper_accounts.id 的软关联。
-
+阶段 4.2 账户统一服务�? rebate_positions 表原本无 account FK（仅�?position_id 标识）�?本迁移新�?owner_account_id 列（nullable），建立�?arbitrage_paper_accounts.id 的软关联�?
 - nullable: 老数据留空，不影响现有逻辑
-- 新数据由 unified_account_service 或 rebate_arb 引擎写入
-- 可通过 DROP COLUMN 回滚（SQLite 3.35+ / Postgres）
-
-幂等: 检查列是否存在再添加。
-"""
+- 新数据由 unified_account_service �?rebate_arb 引擎写入
+- 可通过 DROP COLUMN 回滚（SQLite 3.35+ / Postgres�?
+幂等: 检查列是否存在再添加�?"""
 import logging
 import os
 import sys
@@ -38,7 +34,7 @@ def _column_exists(conn, table: str, column: str) -> bool:
 
 def upgrade():
     """Apply migration idempotently."""
-    from database.connection import engine
+    from backend.database.connection import engine
     from sqlalchemy import text
 
     with engine.begin() as conn:
@@ -51,10 +47,9 @@ def upgrade():
             conn.execute(text(
                 f"ALTER TABLE rebate_positions ADD COLUMN {col} {col_type}"
             ))
-            logger.info("Added rebate_positions.%s (nullable, 软关联 arbitrage_paper_accounts.id)", col)
+            logger.info("Added rebate_positions.%s (nullable, 软关�?arbitrage_paper_accounts.id)", col)
 
-            # 索引（便于按账户查询套利仓位）
-            idx_name = "idx_rebate_positions_owner_account"
+            # 索引（便于按账户查询套利仓位�?            idx_name = "idx_rebate_positions_owner_account"
             try:
                 conn.execute(text(
                     f"CREATE INDEX IF NOT EXISTS {idx_name} ON rebate_positions({col})"

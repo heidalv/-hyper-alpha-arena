@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════════════════════════════
+   极光引擎 Aurora Engine — 设计令牌（Design Tokens）
+   主题 B：深邃宇宙底色 + 极光涌动 + 玻璃辉光
+   本文件仅含 :root/.dark 变量块，可直接复制替换
+   frontend-next/src/app/globals.css 中的同名变量块（第 54~102 行）。
+   配套设计文档：docs/ui-redesign/02-aurora-engine.md
+   ═══════════════════════════════════════════════════════════════ */
+
+:root, .dark {
+  /* ── 字体 ────────────────────────────────────────────────────
+     汉字回退链包含 Noto Sans SC / PingFang SC / 微软雅黑；
+     数字统一 JetBrains Mono + tabular-nums（见 globals.css body 基础层）。
+     落地时建议把 layout.tsx 中 next/font 的 Geist 换成 Inter 与
+     JetBrains Mono（保持 variable 名不变），或直接依赖本兜底值。 */
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, 'PingFang SC',
+               'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace,
+               SFMono-Regular, Menlo, Consolas, monospace;
+  --font-geist-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace,
+               SFMono-Regular, Menlo, Consolas, monospace; /* 兼容现有 @theme 引用 */
+
+  /* ── 背景层 ──────────────────────────────────────────────────
+     --background 为深空近黑 #070B15，其上叠加极淡极光径向渐变
+     （5~8% 透明度，见设计文档「签名元素 1」与 layout.tsx 极光层）。 */
+  --background: #070B15;                  /* 深空底色（极光渐变叠加于此） */
+  --foreground: #EAF0FA;                  /* 主文字：冷白带蓝 */
+  --card: rgba(255, 255, 255, 0.045);     /* 玻璃卡片：配合 backdrop-blur(14px) */
+  --card-foreground: #EAF0FA;
+  --popover: #0C1120;                     /* 弹出层：实色更稳 */
+  --popover-foreground: #EAF0FA;
+  --muted: rgba(255, 255, 255, 0.05);     /* 静态弱背景 */
+  --muted-foreground: #94A1BC;            /* 次要文字（AA 达标，见文档§8） */
+  --secondary: rgba(255, 255, 255, 0.07); /* 次要容器 */
+  --secondary-foreground: #EAF0FA;
+  --accent: rgba(255, 255, 255, 0.09);    /* 高亮容器 / hover */
+  --accent-foreground: #EAF0FA;
+
+  /* ── 交互色 ──────────────────────────────────────────────────
+     --primary 主按钮使用 135° 渐变 #22D3EE → #8B5CF6 + 微辉光；
+     按钮文字用深色 #041018，保证整条渐变上对比度 ≥ 4.5:1（AA）。 */
+  --primary: #22D3EE;                     /* 极光青 */
+  --primary-foreground: #041018;          /* 渐变按钮深色文字 */
+  --destructive: #FB7185;                 /* 危险/删除：与 --loss 同族 */
+  --destructive-foreground: #2B0A12;
+  --ring: rgba(34, 211, 238, 0.45);       /* 聚焦环：青 45% */
+  --input: rgba(255, 255, 255, 0.08);     /* 输入框底 */
+  --border: rgba(255, 255, 255, 0.09);    /* 通用描边：白 9% */
+
+  /* ── 交易专用语义色（涨绿跌红） ─────────────────────────────── */
+  --profit: #34D399;                      /* 涨：翡翠绿 */
+  --loss: #FB7185;                        /* 跌：玫瑰红 */
+  --warning: #FBBF24;                     /* 警告：琥珀（异常值/数据异常） */
+
+  /* ── 图表色：极光五色 ───────────────────────────────────────── */
+  --chart-1: #22D3EE;                     /* 青（主曲线） */
+  --chart-2: #8B5CF6;                     /* 紫 */
+  --chart-3: #34D399;                     /* 绿 */
+  --chart-4: #FB7185;                     /* 红 */
+  --chart-5: #FBBF24;                     /* 黄 */
+
+  /* ── 侧边栏 ──────────────────────────────────────────────────
+     深蓝玻璃底（92% 不透明，配合自身 backdrop-blur） */
+  --sidebar: rgba(9, 13, 24, 0.92);
+  --sidebar-foreground: #AEB9D0;
+  --sidebar-primary: #22D3EE;
+  --sidebar-primary-foreground: #041018;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);   /* 激活项底 */
+  --sidebar-accent-foreground: #EAF0FA;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-ring: rgba(34, 211, 238, 0.45);
+
+  /* ── 圆角：14px 玻璃大圆角 ─────────────────────────────────── */
+  --radius: 0.875rem;
+}

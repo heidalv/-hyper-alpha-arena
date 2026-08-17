@@ -19,10 +19,11 @@ param(
     [int]$BackendPort = 8000,
     [int]$IntervalSec = 20,
     [int]$FailThresholdDown = 5,
-    [int]$FailThresholdZombie = 3,
+    [int]$FailThresholdZombie = 10,
     [int]$GraceAfterRestartSec = 120,
-    [int]$HealthTimeoutSec = 8,
-    [int]$GracefulWaitSec = 20
+    [int]$HealthTimeoutSec = 12,
+    [int]$GracefulWaitSec = 20,
+    [int]$PostRestartCoolSec = 300
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -160,10 +161,17 @@ function Restart-Backend([string]$reason) {
     }
 }
 
-Write-WdLog "[watchdog] started (port=$BackendPort interval=${IntervalSec}s zombieThreshold=$FailThresholdZombie downThreshold=$FailThresholdDown timeout=${HealthTimeoutSec}s probe=/api/health pid=$PID)"
+Write-WdLog "[watchdog] started (port=$BackendPort interval=${IntervalSec}s zombieThreshold=$FailThresholdZombie downThreshold=$FailThresholdDown timeout=${HealthTimeoutSec}s cooldown=${PostRestartCoolSec}s probe=/api/health pid=$PID)"
 
 $fail = 0
 $failKind = ''
+# [2026-08-16 修复死亡循环] 后端启动后的风暴期（FullAuto 各循环 + 批标注 + 因子
+# 闸门 + LLM 预热同时爆发，GIL 饱和）会让极轻的 /api/health 也偶发 >8s 超时。
+# 此前 3 次僵尸阈值 ≈60s 恰好短于 3~4 分钟的风暴期 → 每次重启都误杀 → 无限循环。
+# 现在：重启后 $PostRestartCoolSec 内 zombie 超时不计数（down 仍计数），冷却期后
+# 需连续 $FailThresholdZombie 次超时（≥200s）才判死——真僵尸永不恢复，晚几分钟
+# 重启无害；健康但繁忙的后端不再被误杀。
+$coolUntil = [datetime]::MinValue
 while ($true) {
     Start-Sleep -Seconds $IntervalSec
     $result = Probe-BackendHealth
@@ -178,6 +186,10 @@ while ($true) {
 
     $listening = Test-PortListening $BackendPort
     $kind = if ($result -eq 'timeout' -or ($listening -and $result -ne 'refused')) { 'zombie' } else { 'down' }
+    if ($kind -eq 'zombie' -and (Get-Date) -lt $coolUntil) {
+        Write-WdLog "[watchdog] zombie timeout during post-restart cooldown — tolerate (probe=$result listen=$listening)"
+        continue
+    }
     if ($failKind -ne $kind) {
         # 失败类型切换时重置计数，避免混合计数误伤
         if ($fail -gt 0) {
@@ -194,5 +206,6 @@ while ($true) {
         Restart-Backend $kind
         $fail = 0
         $failKind = ''
+        $coolUntil = (Get-Date).AddSeconds($PostRestartCoolSec)
     }
 }

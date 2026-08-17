@@ -137,7 +137,7 @@ class BacktestPerformanceService:
         direction = self._determine_signal_direction(condition)
         
         # Calculate time range
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
@@ -231,7 +231,7 @@ class BacktestPerformanceService:
             return {"error": "Pool has no signals"}
         
         # Calculate time range
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
@@ -318,7 +318,7 @@ class BacktestPerformanceService:
         direction = self._determine_signal_direction(trigger_condition)
         
         # Calculate time range
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         end_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
@@ -369,7 +369,7 @@ class BacktestPerformanceService:
         }
     
     def _get_signal_definition(self, db: Session, signal_id: int) -> Optional[Dict]:
-        """Get signal definition from database."""
+        """Get signal definition from backend.database."""
         result = db.execute(
             text("""
                 SELECT id, signal_name, description, trigger_condition, enabled
@@ -397,7 +397,7 @@ class BacktestPerformanceService:
         }
     
     def _get_pool_definition(self, db: Session, pool_id: int) -> Optional[Dict]:
-        """Get signal pool definition from database."""
+        """Get signal pool definition from backend.database."""
         result = db.execute(
             text("""
                 SELECT id, pool_name, enabled, signal_ids, logic,
@@ -460,9 +460,8 @@ class BacktestPerformanceService:
     ) -> List[Dict]:
         """Fetch kline data from Hyperliquid API."""
         try:
-            # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止直连 HL
-            # candleSnapshot，改为读数据中心 DB（query_klines 受 DC_ONLY 保护）。
-            from backend.services.market_data import _dc_only_enabled
+            # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止直�?HL
+            # candleSnapshot，改为读数据中心 DB（query_klines �?DC_ONLY 保护）�?            from backend.services.market_data import _dc_only_enabled
             if _dc_only_enabled():
                 from backend.services.kline_data_service import kline_service
                 rows = kline_service.query_klines(

@@ -1,0 +1,394 @@
+<section class="page" id="page-paper-trading" data-title="模拟交易">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="flask-conical" style="width:15px;height:15px;color:#7DD3FC"></i></span>模拟交易</h1>
+      <p class="page-sub"><span class="badge ok"><span class="bdot"></span>Paper 验证运行中</span> · 模拟撮合不触达真实资金 · 行情 10s 轮询</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="10"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>10</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 1.0s</span>
+        </div>
+    <div class="page-actions">
+      <div class="dd" style="min-width:174px">
+        <button class="dd-btn"><i data-ico="wallet" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">Paper 账户 A · 10K</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+        <div class="dd-menu">
+          <div class="dd-item sel" data-toast='{"type":"info","title":"已切换","msg":"当前账户：Paper A · 10K"}'>Paper 账户 A · 10K</div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"当前账户：Paper B · 50K"}'>Paper 账户 B · 50K</div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"当前账户：Paper C · 100K"}'>Paper 账户 C · 100K</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>重置</button>
+      <button class="btn btn-primary btn-sm" data-modal="m-create-acc"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>创建账户</button>
+    </div>
+  </div>
+
+  <!-- 账户 KPI -->
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">总权益</div>
+      <div class="kpi-value grad">$10,000.00</div>
+      <div class="kpi-change flat">较昨日 +$12.40</div>
+      <div class="kpi-extra num">Paper 初始资金 $10,000.00</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 20 L10 21 L20 18 L30 19 L40 15 L50 16 L60 12 L72 9" stroke="#22D3EE" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="coins" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">可用</div>
+      <div class="kpi-value grad">$9,182.42</div>
+      <div class="kpi-change flat">可用率 91.82%</div>
+      <div class="kpi-extra num">已用保证金 $500.00</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">浮动盈亏</div>
+      <div class="kpi-value grad-green">+$317.58</div>
+      <div class="kpi-change up">▲ +3.18%</div>
+      <div class="kpi-extra num">盈利 4 笔 / 亏损 2 笔</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="shield" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">已用保证金</div>
+      <div class="kpi-value grad">$500.00</div>
+      <div class="kpi-change flat">保证金率 5.00%</div>
+      <div class="kpi-extra num">占用 6 笔持仓</div>
+    </div>
+  </div>
+
+  <!-- 当前持仓表 -->
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>当前持仓</div>
+      <span class="card-hint">共 6 笔 · 更新于 10s 前</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>币种</th><th>方向</th><th>类型</th><th class="r">开仓价</th><th class="r">当前价</th><th class="r">数量</th><th class="r">杠杆</th><th class="r">保证金</th><th class="r">浮盈</th><th class="r">盈亏%</th><th>持仓</th><th>止盈止损</th><th class="c">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">BTC</span><div class="sub num">USDT</div></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">逐仓</span></td>
+            <td class="r">68,920.00</td>
+            <td class="r">71,248.50</td>
+            <td class="r">0.020 <span class="sub">BTC</span></td>
+            <td class="r">5x</td>
+            <td class="r">$275.68</td>
+            <td class="r up">+$46.57</td>
+            <td class="r up">+16.89%</td>
+            <td><span class="mono">3天2小时</span></td>
+            <td class="sub num">TP 72,500 / SL 66,800</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 BTC 0.020 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="sym">ETH</span><div class="sub num">USDT</div></td>
+            <td><span class="badge sell">做空</span></td>
+            <td><span class="tag">逐仓</span></td>
+            <td class="r">3,512.00</td>
+            <td class="r">3,486.20</td>
+            <td class="r">0.350 <span class="sub">ETH</span></td>
+            <td class="r">10x</td>
+            <td class="r">$122.92</td>
+            <td class="r up">+$9.03</td>
+            <td class="r up">+7.34%</td>
+            <td><span class="mono">1天8小时</span></td>
+            <td class="sub num">TP 3,420 / SL 3,610</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 ETH 0.350 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="sym">SOL</span><div class="sub num">USDT</div></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">逐仓</span></td>
+            <td class="r">168.40</td>
+            <td class="r">172.85</td>
+            <td class="r">1.500 <span class="sub">SOL</span></td>
+            <td class="r">10x</td>
+            <td class="r">$25.26</td>
+            <td class="r up">+$6.68</td>
+            <td class="r up">+26.40%</td>
+            <td><span class="mono">12小时</span></td>
+            <td class="sub num">TP 178.00 / SL 161.00</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 SOL 1.500 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="sym">BNB</span><div class="sub num">USDT</div></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">全仓</span></td>
+            <td class="r">592.30</td>
+            <td class="r">588.10</td>
+            <td class="r">0.180 <span class="sub">BNB</span></td>
+            <td class="r">5x</td>
+            <td class="r">$21.32</td>
+            <td class="r down">-$0.76</td>
+            <td class="r down">-3.54%</td>
+            <td><span class="mono">5天6小时</span></td>
+            <td class="sub num">TP 615.00 / SL 575.00</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 BNB 0.180 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="sym">ARB</span><div class="sub num">USDT</div></td>
+            <td><span class="badge sell">做空</span></td>
+            <td><span class="tag">逐仓</span></td>
+            <td class="r">0.9820</td>
+            <td class="r">0.9760</td>
+            <td class="r">400 <span class="sub">ARB</span></td>
+            <td class="r">20x</td>
+            <td class="r">$19.64</td>
+            <td class="r up">+$2.40</td>
+            <td class="r up">+12.22%</td>
+            <td><span class="mono">6小时</span></td>
+            <td class="sub num">TP 0.950 / SL 1.010</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 ARB 400 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="sym">OP</span><div class="sub num">USDT</div></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">逐仓</span></td>
+            <td class="r">2.4120</td>
+            <td class="r">2.5180</td>
+            <td class="r">104 <span class="sub">OP</span></td>
+            <td class="r">10x</td>
+            <td class="r">$25.08</td>
+            <td class="r up">+$11.02</td>
+            <td class="r up">+43.93%</td>
+            <td><span class="mono">2天5小时</span></td>
+            <td class="sub num">TP 2.600 / SL 2.300</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 OP 104 仓位","danger":true}'>平仓</button>
+              <button class="row-btn cyan" data-modal="m-tpsl">止盈/止损</button>
+            </td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 历史记录 + 账户操作 -->
+  <div class="grid-2-1">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="history" style="width:15px;height:15px;color:#7DD3FC"></i>历史记录</div>
+        <div class="row" style="gap:8px">
+          <div class="seg">
+            <button class="seg-item active">已成交</button>
+            <button class="seg-item">全部</button>
+          </div>
+          <button class="row-btn" data-toast='{"type":"info","title":"CSV 导出已开始","msg":"历史记录正在生成 CSV 文件"}'><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>导出</button>
+        </div>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>时间</th><th>币种</th><th>方向</th><th>类型</th><th class="r">价格</th><th class="r">数量</th><th class="r">杠杆</th><th class="r">盈亏</th><th class="r">手续费</th><th>状态</th><th>平仓原因</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">06-21 14:32</span></td>
+              <td><span class="sym">BTC</span><div class="sub num">USDT</div></td>
+              <td><span class="badge buy">做多</span></td>
+              <td><span class="tag">限价</span></td>
+              <td class="r">69,800.00</td>
+              <td class="r">0.010 <span class="sub">BTC</span></td>
+              <td class="r">5x</td>
+              <td class="r up">+$14.23</td>
+              <td class="r">$0.00</td>
+              <td><span class="badge ok">已完成</span></td>
+              <td>止盈触发</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-21 09:05</span></td>
+              <td><span class="sym">ETH</span><div class="sub num">USDT</div></td>
+              <td><span class="badge sell">做空</span></td>
+              <td><span class="tag">市价</span></td>
+              <td class="r">3,540.00</td>
+              <td class="r">0.200 <span class="sub">ETH</span></td>
+              <td class="r">10x</td>
+              <td class="r up">+$3.60</td>
+              <td class="r">$0.00</td>
+              <td><span class="badge ok">已完成</span></td>
+              <td>策略信号</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-20 22:41</span></td>
+              <td><span class="sym">SOL</span><div class="sub num">USDT</div></td>
+              <td><span class="badge buy">做多</span></td>
+              <td><span class="tag">限价</span></td>
+              <td class="r">171.20</td>
+              <td class="r">2.000 <span class="sub">SOL</span></td>
+              <td class="r">10x</td>
+              <td class="r down">-$4.80</td>
+              <td class="r">$0.00</td>
+              <td><span class="badge warn">止损</span></td>
+              <td>止损触发</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-20 11:17</span></td>
+              <td><span class="sym">BNB</span><div class="sub num">USDT</div></td>
+              <td><span class="badge sell">做空</span></td>
+              <td><span class="tag">限价</span></td>
+              <td class="r">598.40</td>
+              <td class="r">0.100 <span class="sub">BNB</span></td>
+              <td class="r">5x</td>
+              <td class="r up">+$2.30</td>
+              <td class="r">$0.00</td>
+              <td><span class="badge info">手动</span></td>
+              <td>手动平仓</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-19 16:03</span></td>
+              <td><span class="sym">OP</span><div class="sub num">USDT</div></td>
+              <td><span class="badge buy">做多</span></td>
+              <td><span class="tag">市价</span></td>
+              <td class="r">2.3100</td>
+              <td class="r">60 <span class="sub">OP</span></td>
+              <td class="r">10x</td>
+              <td class="r down">-$1.14</td>
+              <td class="r">$0.00</td>
+              <td><span class="badge dim">已过期</span></td>
+              <td>时间到期</td>
+            </tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="banknote" style="width:15px;height:15px;color:#7DD3FC"></i>账户操作</div>
+        <span class="card-hint">Paper 账户 A</span>
+      </div>
+      <div class="card-body">
+        <div class="row" style="gap:8px;margin-bottom:8px">
+          <button class="btn btn-primary btn-sm" style="flex:1" data-modal="m-fund"><i data-ico="plus" style="width:13px;height:13px"></i>入金</button>
+          <button class="btn btn-ghost2 btn-sm" style="flex:1" data-modal="m-fund"><i data-ico="upload" style="width:13px;height:13px"></i>出金</button>
+        </div>
+        <div class="kv"><span class="k">账户类型</span><span class="v">Paper A · 10K</span></div>
+        <div class="kv"><span class="k">初始资金</span><span class="v">$10,000.00</span></div>
+        <div class="kv"><span class="k">当前权益</span><span class="v up">$10,317.58</span></div>
+        <div class="kv"><span class="k">累计充值</span><span class="v">$0.00</span></div>
+        <div class="kv"><span class="k">累计提现</span><span class="v">$0.00</span></div>
+        <div class="kv"><span class="k">手续费总计</span><span class="v">$0.00 <span class="small muted">Paper 免</span></span></div>
+        <div class="kv"><span class="k">收益率</span><span class="v up">+3.18%</span></div>
+        <div class="kv"><span class="k">最大回撤</span><span class="v down">-1.24%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：创建账户弹窗 ══ -->
+  <div class="mask" id="m-create-acc">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>创建交易账户</div><div class="modal-sub">添加新的模拟 / 实盘交易账户</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="field"><label class="label">账户名称</label><input class="input" placeholder="如：BTC 趋势"></div>
+        <div class="field"><label class="label">初始资金 (USD)</label><input class="input" placeholder="10,000.00"></div>
+        <div class="form-grid">
+          <div class="field"><label class="label">模式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"模式：模拟"}'>
+            <option>模拟</option>
+            <option>实盘</option>
+          </select></div></div>
+          <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"交易所：Asterdex"}'>
+            <option>Asterdex</option>
+            <option>Hyperliquid</option>
+            <option>币安</option>
+            <option>Bybit</option>
+            <option>OKX</option>
+          </select></div></div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="label">快模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"快模型：DeepSeek-V3-Flash"}'>
+            <option>DeepSeek-V3-Flash</option>
+            <option>GLM-4-Flash</option>
+            <option>GPT-4o-mini</option>
+            <option>Claude Haiku 3.5</option>
+          </select></div></div>
+          <div class="field"><label class="label">深模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"深模型：DeepSeek-V3"}'>
+            <option>DeepSeek-V3</option>
+            <option>GLM-4.5</option>
+            <option>GPT-4.1</option>
+            <option>Claude Sonnet 4.5</option>
+          </select></div></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"账户已创建","msg":"新账户已创建并进入撮合队列"}' >创建账户</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：止盈止损设置弹窗 ══ -->
+  <div class="mask" id="m-tpsl">
+    <div class="modal narrow">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>止盈 / 止损设置</div><div class="modal-sub">BTC · 做多 0.020 · 逐仓 5x</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">止盈价 TP</label><input class="input" placeholder="72,500.00"></div>
+          <div class="field"><label class="label">止损价 SL</label><input class="input" placeholder="66,800.00"></div>
+        </div>
+        <div class="spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="small" style="color:#C9D4E8">移动止盈</span>
+          <span class="switch on"></span>
+        </div>
+        <div class="tiny muted" style="margin-top:8px;line-height:1.6">开启后随价格上升自动上调止盈价，锁定浮盈；价格自高点回落 1.5% 触发。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"止盈止损已更新","msg":"TP 72,500 / SL 66,800 · 移动止盈开启"}' >保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：入金 / 出金弹窗 ══ -->
+  <div class="mask" id="m-fund">
+    <div class="modal narrow">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>账户资金操作</div><div class="modal-sub">Paper 账户 A · 当前权益 $10,317.58</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="label">操作类型</label>
+          <div class="seg" style="display:flex;width:100%">
+            <button class="seg-item active" style="flex:1;justify-content:center">入金</button>
+            <button class="seg-item" style="flex:1;justify-content:center">出金</button>
+          </div>
+        </div>
+        <div class="field"><label class="label">金额 (USD)</label><input class="input" placeholder="1,000.00"></div>
+        <div class="field"><label class="label">方式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"方式：USDT 现货钱包"}'>
+          <option>USDT 现货钱包</option>
+          <option>信用卡 / 借记卡</option>
+          <option>内部转账</option>
+        </select></div></div>
+        <div class="kv"><span class="k">入金后可用</span><span class="v">$10,317.58</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"资金操作已提交","msg":"入金 $1,000.00 处理中，预计 1 分钟内到账"}' >确认</button>
+      </div>
+    </div>
+  </div>
+</section>

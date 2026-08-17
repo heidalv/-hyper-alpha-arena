@@ -9,7 +9,7 @@ import {
   Shield, Settings, Activity, ChevronLeft, Zap,
   Server, ArrowRightLeft,
   FlaskConical as Factor, FileText,
-  Radar, Coins, Workflow, Cpu,
+  Radar, Coins, Workflow, Cpu, Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shouldHandleNavClick, softNavigate } from "@/lib/app-nav";
@@ -45,7 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "策略配置",
     items: [
       { href: "/scalp", label: "短线配置", icon: Zap },
-      // 中线 / 提示词已并入长线配置（/long?tab=prompts）
+      { href: "/mid", label: "中线配置", icon: Boxes },
       { href: "/long", label: "长线配置", icon: Activity },
     ],
   },
@@ -97,14 +97,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   return (
     <aside
       className={cn(
-        "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
+        "relative z-10 flex flex-col bg-sidebar border-r border-sidebar-border backdrop-blur-md transition-all duration-200",
+        collapsed ? "w-16" : "w-[216px]"
       )}
     >
       <div className="flex items-center h-14 px-4 border-b border-sidebar-border flex-shrink-0">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary font-bold text-sm">α</span>
+          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center flex-shrink-0 shadow-[0_0_18px_rgba(34,211,238,0.4),0_0_30px_rgba(139,92,246,0.25)]">
+            <span className="text-[#041018] font-bold text-sm">α</span>
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
@@ -161,7 +161,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-gradient-to-b from-cyan-400 to-violet-500 shadow-[0_0_10px_rgba(34,211,238,0.7)]" />
                   )}
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   {!collapsed && <span className="truncate">{item.label}</span>}

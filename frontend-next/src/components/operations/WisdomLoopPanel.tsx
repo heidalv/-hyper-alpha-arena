@@ -50,7 +50,7 @@ export function WisdomLoopPanel() {
       description="净扣费 tanh(|pnl|/50) 金额加权信号 + 质量闸门（|pnl_pct|≥0.3% 或 |pnl|≥$1）+ 验证强度排序"
       action={<RefreshButton onClick={refresh} loading={loading} />}
     >
-      {data?.error && <p className="text-sm text-red-500 mb-3">{data.error}</p>}
+      {data?.error && <p className="text-sm text-loss mb-3">{data.error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard label="智慧总数" value={report.total ?? 0} />
@@ -116,8 +116,8 @@ export function WisdomLoopPanel() {
 function getScoreClass(v?: number | null) {
   if (v == null) return 'text-muted-foreground';
   if (v >= 0.6) return 'text-green-600 dark:text-green-400 font-semibold';
-  if (v >= 0.35) return 'text-amber-600 dark:text-amber-400 font-semibold';
-  return 'text-red-600 dark:text-red-400 font-semibold';
+  if (v >= 0.35) return 'text-warning font-semibold';
+  return 'text-loss font-semibold';
 }
 
 function fmtPct(v?: number | null) {

@@ -1,11 +1,9 @@
 {
   "session_id": "fa_10d44c724e",
   "symbols": [
-    "AMD",
-    "LINK",
-    "BNB"
+    "BTW"
   ],
-  "updated_at": 1786626665.7322898,
-  "updated_iso": "2026-08-13T13:11:05.732289Z",
-  "reason": "resample age>=10800s from midlong_board min_conf=0.6"
+  "updated_at": 1786952640.1752996,
+  "updated_iso": "2026-08-17T07:44:00.175299Z",
+  "reason": "resample age>=10800s from midlong_board min_conf=0.4"
 }

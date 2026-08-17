@@ -255,7 +255,21 @@ cross_exchange_ws_feed = CrossExchangeWsFeed.get_instance()
 
 
 def start_ws_feed(symbols: Optional[List[str]] = None) -> bool:
-    """启动 WS feed（幂等）"""
+    """启动 WS feed（幂等）。
+
+    [2026-08-15 P0-4] DC_ONLY 唯一数据源模式下，套利多所 WS 属于行情直连旁路，
+    默认禁止；仅当显式配置 ARB_DIRECT_MARKET_FEED=true（套利专用例外）才放行。
+    """
+    try:
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled() and not _arb_direct_feed_allowed():
+            logger.warning(
+                "[CrossExchangeWsFeed] DC_ONLY 下默认禁止套利直连 WS（"
+                "ARB_DIRECT_MARKET_FEED=false）。行情请走数据中心落库数据。"
+            )
+            return False
+    except Exception:
+        pass
     enabled = True
     try:
         from backend.config.arb_config_loader import arb_config
@@ -267,6 +281,17 @@ def start_ws_feed(symbols: Optional[List[str]] = None) -> bool:
     if not enabled:
         return False
     return cross_exchange_ws_feed.start(symbols)
+
+
+def _arb_direct_feed_allowed() -> bool:
+    """套利直连市场行情显式放行开关（默认关）。"""
+    try:
+        import os
+        return str(os.getenv("ARB_DIRECT_MARKET_FEED", "false")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return False
 
 
 def stop_ws_feed() -> None:

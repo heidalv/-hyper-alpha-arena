@@ -16,9 +16,9 @@ sys.path.insert(0, str(backend_path))
 
 from sqlalchemy import text
 from backend.database.connection import engine, SessionLocal
-from database.models import Base
+from backend.database.models import Base
 
-# 定义币安持仓表结构
+# 定义币安持仓表结。
 BINANCE_POSITIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS binance_positions (
     id SERIAL PRIMARY KEY,
@@ -104,14 +104,14 @@ def migrate():
         table_exists = result.scalar()
 
         if table_exists:
-            print("✓ binance_positions table already exists, skipping migration")
+            print("??binance_positions table already exists, skipping migration")
             return
 
         # Create the table
         print("Creating binance_positions table...")
         db.execute(text(BINANCE_POSITIONS_TABLE_SQL))
         db.commit()
-        print("✓ Successfully created binance_positions table")
+        print("??Successfully created binance_positions table")
 
         # Verify table creation
         result = db.execute(text("""
@@ -121,13 +121,13 @@ def migrate():
         """))
         count = result.scalar()
         if count > 0:
-            print("✓ Verification successful: binance_positions table exists")
+            print("??Verification successful: binance_positions table exists")
         else:
-            print("✗ Verification failed: table was not created")
+            print("??Verification failed: table was not created")
 
     except Exception as e:
         db.rollback()
-        print(f"✗ Migration failed: {e}")
+        print(f"??Migration failed: {e}")
         raise
     finally:
         db.close()

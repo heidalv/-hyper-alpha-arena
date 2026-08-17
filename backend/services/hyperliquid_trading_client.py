@@ -321,7 +321,7 @@ class HyperliquidTradingClient:
         Raises:
             ValueError: If account not found or wallet not configured for this environment
         """
-        from database.models import HyperliquidWallet
+        from backend.database.models import HyperliquidWallet
 
         account = db.query(Account).filter(Account.id == self.account_id).first()
         if not account:
@@ -1128,8 +1128,7 @@ class HyperliquidTradingClient:
         if size <= 0:
             raise ValueError(f"Invalid size: {size}. Must be positive")
 
-        # 同币已有仓：adopt 现有杠杆，避免 update_leverage 覆盖交易所统一仓
-        if not reduce_only:
+        # 同币已有仓：adopt 现有杠杆，避�?update_leverage 覆盖交易所统一�?        if not reduce_only:
             try:
                 from backend.services.leverage_authority import extract_existing_symbol_leverage
                 _pos = self.get_positions(db) or []
@@ -1138,7 +1137,7 @@ class HyperliquidTradingClient:
                     _new = max(1, int(round(float(_adopt))))
                     if _new != int(leverage):
                         logger.info(
-                            "[HLAdoptLev] %s %dx→%dx (existing position)",
+                            "[HLAdoptLev] %s %dx�?dx (existing position)",
                             symbol, int(leverage), _new,
                         )
                     leverage = _new
@@ -1701,8 +1700,8 @@ class HyperliquidTradingClient:
         This method:
         1. Gets current TP/SL orders from Hyperliquid API FIRST
         2. Compares existing prices with requested prices
-        3. If prices match (within 0.1%) → SKIP entirely (no duplicate orders)
-        4. If prices differ → Cancel old orders and place new ones
+        3. If prices match (within 0.1%) �?SKIP entirely (no duplicate orders)
+        4. If prices differ �?Cancel old orders and place new ones
         5. Updates in-memory cache after successful operations
 
         Args:
@@ -1771,7 +1770,7 @@ class HyperliquidTradingClient:
             
             # ============================================================
             # STEP 2: Compare existing prices with requested prices
-            # If they match within threshold → SKIP to avoid duplicates
+            # If they match within threshold �?SKIP to avoid duplicates
             # ============================================================
             tp_matches_existing = False
             sl_matches_existing = False
@@ -1781,7 +1780,7 @@ class HyperliquidTradingClient:
                 tp_diff_percent = abs(current_tp_price - new_tp_price) / current_tp_price
                 if tp_diff_percent <= PRICE_CHANGE_THRESHOLD_PERCENT:
                     tp_matches_existing = True
-                    logger.info(f"[TPSL UPDATE] {symbol} TP MATCHES existing: {current_tp_price} ≈ {new_tp_price} (diff={tp_diff_percent:.4%}) - SKIP", file=sys.stderr, flush=True)
+                    logger.info(f"[TPSL UPDATE] {symbol} TP MATCHES existing: {current_tp_price} �?{new_tp_price} (diff={tp_diff_percent:.4%}) - SKIP", file=sys.stderr, flush=True)
                     logger.info(f"[TPSL UPDATE] {symbol} TP matches existing order - SKIPPING to avoid duplicate")
                 else:
                     logger.info(f"[TPSL UPDATE] {symbol} TP DIFFERS: {current_tp_price} vs {new_tp_price} (diff={tp_diff_percent:.4%}) - WILL UPDATE", file=sys.stderr, flush=True)
@@ -1796,7 +1795,7 @@ class HyperliquidTradingClient:
                 sl_diff_percent = abs(current_sl_price - new_sl_price) / current_sl_price
                 if sl_diff_percent <= PRICE_CHANGE_THRESHOLD_PERCENT:
                     sl_matches_existing = True
-                    logger.info(f"[TPSL UPDATE] {symbol} SL MATCHES existing: {current_sl_price} ≈ {new_sl_price} (diff={sl_diff_percent:.4%}) - SKIP", file=sys.stderr, flush=True)
+                    logger.info(f"[TPSL UPDATE] {symbol} SL MATCHES existing: {current_sl_price} �?{new_sl_price} (diff={sl_diff_percent:.4%}) - SKIP", file=sys.stderr, flush=True)
                     logger.info(f"[TPSL UPDATE] {symbol} SL matches existing order - SKIPPING to avoid duplicate")
                 else:
                     logger.info(f"[TPSL UPDATE] {symbol} SL DIFFERS: {current_sl_price} vs {new_sl_price} (diff={sl_diff_percent:.4%}) - WILL UPDATE", file=sys.stderr, flush=True)
@@ -1807,7 +1806,7 @@ class HyperliquidTradingClient:
                 logger.info(f"[TPSL UPDATE] {symbol} No new SL requested - SKIP", file=sys.stderr, flush=True)
             
             # ============================================================
-            # STEP 3: If BOTH match existing orders → SKIP ENTIRELY
+            # STEP 3: If BOTH match existing orders �?SKIP ENTIRELY
             # ============================================================
             if tp_matches_existing and sl_matches_existing:
                 logger.info(f"[TPSL UPDATE] {symbol} - BOTH TP and SL match existing orders - SKIPPING UPDATE ENTIRELY", file=sys.stderr, flush=True)

@@ -2566,13 +2566,24 @@ class AutoCoinSelector:
                 catalog = list_catalog_symbols(ex) or []
                 if not catalog:
                     catalog = refresh_catalog_from_scanner(ex) or []
-                if catalog and sym_u not in set(catalog):
+                # [2026-08-15 fail-open 修复] 原实现 `if catalog and ...`：目录刷新后
+                # 仍为空时该门**放行**（fail-open），等于没验可交易性。现改为：
+                # 目录为空 → 无法验证 → fail-closed 拒绝注入。
+                if not catalog:
+                    logger.warning(
+                        f"[AutoCoinSelector] {ex} 可交易目录为空（刷新后仍无数据），"
+                        f"拒绝注入 {sym_u}（无法验证可交易性）"
+                    )
+                    return False
+                if sym_u not in set(catalog):
                     logger.warning(
                         f"[AutoCoinSelector] {sym_u} 不在 {ex} 可交易目录，拒绝注入"
                     )
                     return False
             except Exception as e:
-                logger.debug(f"[AutoCoinSelector] catalog gate skip: {e}")
+                # 目录查询异常同样 fail-closed（无法验证 = 拒绝）
+                logger.warning(f"[AutoCoinSelector] catalog gate 异常，拒绝注入 {sym_u}: {e}")
+                return False
 
             # 硬门 2：决策同源新鲜度（禁止过期/跨所）
             # Paper 放宽：5m 不新鲜时，只要 15m+1h 新鲜即可（短线新币常缺 5m 热缓存）
@@ -3786,10 +3797,14 @@ class AutoCoinSelector:
         except Exception:
             pass
         # 3) data_center 最近收盘
+        # [2026-08-15 R8 修复] purpose 由 research 改为 trade：
+        # 注入进场参考价同样不该用「略过期」数据——trade 语义下过期返回空
+        #（is_fresh 门槛），且强制 active_exchange 同源，避免 research 降级
+        # 把陈旧 1m 收盘带进成交价参考口径。
         try:
             from backend.services.data_center import data_center
 
-            kr = data_center.get_klines(sym, "1m", count=2, exchange="asterdex", purpose="research")
+            kr = data_center.get_klines(sym, "1m", count=2, exchange="asterdex", purpose="trade")
             if kr and kr.count > 0 and kr.rows:
                 close = kr.rows[-1].get("close") or kr.rows[-1].get("close_price")
                 if close and float(close) > 0:
@@ -3851,7 +3866,22 @@ class AutoCoinSelector:
                 "price_change_4h": None,
                 "volatility_24h": None,
                 "funding_rate": None,
+                "open_interest": None,
             }
+            # [2026-08-15 消费端验收] funding/OI 不再恒 None：
+            # 从 data_center.get_derivatives 读数据中心落库的真实资金费/OI
+            #（funding 全部所均有、OI 仅部分所），缺则保持 None 由下游诚实降级。
+            try:
+                from backend.services.data_center import data_center
+                _deriv = data_center.get_derivatives(sym) or {}
+                _fr = _deriv.get("funding_rate")
+                if _fr is not None:
+                    snap["funding_rate"] = float(_fr)
+                _oi = _deriv.get("open_interest")
+                if _oi is not None:
+                    snap["open_interest"] = float(_oi)
+            except Exception:
+                pass
             # 4h 动量 + 波动率：经 K线统一门面（data_center）
             try:
                 from backend.services.kline_data_service import kline_service
@@ -4060,11 +4090,64 @@ class AutoCoinSelector:
             return None
 
     def _assess_trend(self, symbol: str, exchange: str) -> float:
-        """评估趋势强度，返回 0.0-1.0"""
+        """评估趋势强度，返回 0.0-1.0。
+
+        [2026-08-15 消费端验收] 原非 hyperliquid 所恒返回 0.5 占位（中性），
+        等于让选币趋势维对所有非 HL 币「装死」。现改为统一走数据中心 K 线
+        （data_center 落库，任意所可用）计算同款 MA 趋势分；K 线不足时才
+        回退 0.5（与 HL 路径数据不足行为一致，属诚实中性而非编造）。
+        """
         try:
             if exchange == "hyperliquid":
                 return self._assess_hl_trend(symbol)
+            return self._assess_dc_trend(symbol)
+        except Exception:
             return 0.5
+
+    def _assess_dc_trend(self, symbol: str) -> float:
+        """基于数据中心落库 1h K 线的趋势分（短线 60% + 中线 40%）。
+
+        与 _assess_hl_trend 同公式：短线 1h MA7 vs MA25、中线 4h 等效 MA12 vs MA25。
+        """
+        try:
+            from backend.services.data_center import data_center
+            kr = data_center.get_klines(symbol, "1h", count=100, purpose="research")
+            if kr.count < 20:
+                return 0.5
+            closes = [float(r.get("close") or 0) for r in kr.rows if (r.get("close") or 0) > 0]
+            if len(closes) < 20:
+                return 0.5
+
+            # ── 短线评分 (1h MA7 vs MA25) ──
+            ma7 = sum(closes[-7:]) / 7
+            ma25_window = closes[-25:] if len(closes) >= 25 else closes
+            ma25 = sum(ma25_window) / len(ma25_window) if ma25_window else closes[-1]
+
+            short_score = 0.5
+            if ma7 > ma25 * 1.02:
+                ema = closes[-1]
+                for c in closes[-10:]:
+                    ema = ema * 0.85 + c * 0.15
+                short_score = 0.85 if closes[-1] > ema else 0.70
+            elif ma7 < ma25 * 0.98:
+                short_score = 0.30
+
+            # ── 中线评分 (4h 等效) ──
+            mid_score = 0.5
+            if len(closes) >= 100:
+                h4_closes = []
+                for i in range(4, len(closes) + 1, 4):
+                    chunk = closes[max(0, i - 4):i]
+                    if chunk:
+                        h4_closes.append(sum(chunk) / len(chunk))
+                if len(h4_closes) >= 25:
+                    h4_ma12 = sum(h4_closes[-12:]) / 12
+                    h4_ma25 = sum(h4_closes[-25:]) / 25
+                    if h4_ma12 > h4_ma25 * 1.02:
+                        mid_score = 0.80
+                    elif h4_ma12 < h4_ma25 * 0.98:
+                        mid_score = 0.30
+            return round(short_score * 0.6 + mid_score * 0.4, 3)
         except Exception:
             return 0.5
 
@@ -5468,10 +5551,11 @@ def sanitize_fixed_symbols_column(
             by_tier = _parse_by_tier_map(row[1] if len(row) > 1 else None)
             # 仅剔除当前短线 AI 池 + 当前中线 sticky，绝不按历史扫描表清洗。
             # 历史 auto_coin_selections 几乎含全市场，会把用户勾选的 VIRTUAL/XPL 等洗掉。
-            pollution = set(_parse_symbol_list(row[2] if len(row) > 2 else None))
+            _short_pollution = set(_parse_symbol_list(row[2] if len(row) > 2 else None))
+            _mid_pollution: set = set()
             try:
                 sticky = _load_ai_mid_sticky(session_id)
-                pollution |= {
+                _mid_pollution = {
                     str(s).strip().upper()
                     for s in (sticky.get("symbols") or [])
                     if s
@@ -5479,7 +5563,7 @@ def sanitize_fixed_symbols_column(
             except Exception:
                 pass
 
-            def _clean(lst: List[str]) -> Tuple[List[str], List[str]]:
+            def _clean_tier(lst: List[str], pollution: set) -> Tuple[List[str], List[str]]:
                 kept, removed = [], []
                 for s in lst:
                     u = str(s or "").strip().upper()
@@ -5491,11 +5575,20 @@ def sanitize_fixed_symbols_column(
                         kept.append(u)
                 return kept, removed
 
-            kept, removed = _clean(_symbols)
+            # [2026-08-15 修复] 按 tier 定向清洗：短线只洗短线 AI 池、中线只洗中线 sticky、
+            # 长线不洗（纯固定币，无 AI 注入）。此前用并集污染源清洗所有 tier，
+            # 导致中线 sticky 里的 BNB 把用户主动勾选的「短线 BNB」也删掉——
+            # 保存成功后又被 45s midlong tick 覆盖回写，表现为"固定币保存后刷新恢复原样"。
+            kept, removed = _clean_tier(_symbols, _short_pollution | _mid_pollution)
             cleaned_tier: Dict[str, List[str]] = {}
             tier_removed: List[str] = []
             for k in _FIXED_TIERS:
-                tk, tr = _clean(by_tier.get(k, []))
+                _pol = (
+                    _short_pollution if k == "short"
+                    else _mid_pollution if k == "mid"
+                    else set()
+                )
+                tk, tr = _clean_tier(by_tier.get(k, []), _pol)
                 cleaned_tier[k] = tk
                 tier_removed.extend(tr)
             all_removed = list(dict.fromkeys(removed + tier_removed))

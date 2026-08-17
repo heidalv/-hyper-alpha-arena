@@ -16,7 +16,7 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 sys.path.insert(0, PROJECT_ROOT)
 
 from backend.database.connection import engine  # noqa: E402
-from database.models import HyperliquidExchangeAction  # noqa: E402
+from backend.database.models import HyperliquidExchangeAction  # noqa: E402
 
 
 def main():
@@ -24,11 +24,11 @@ def main():
     tables = inspector.get_table_names()
 
     if "hyperliquid_exchange_actions" in tables:
-        print("✅ hyperliquid_exchange_actions table already exists, skipping")
+        print("�?hyperliquid_exchange_actions table already exists, skipping")
         return
 
     HyperliquidExchangeAction.__table__.create(bind=engine)
-    print("✅ hyperliquid_exchange_actions table created successfully")
+    print("�?hyperliquid_exchange_actions table created successfully")
 
 
 if __name__ == "__main__":

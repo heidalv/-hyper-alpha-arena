@@ -347,6 +347,17 @@ def execute_ai_decisions(
             trading_mode = session.trading_mode or "paper"
             side = "buy" if operation == "buy" else "sell"
             price = prices.get(sym, 0)
+            # [2026-08-15 消费端验收] 取价失败（0/None）→ 跳过该币决策：
+            # 原 price=0 直接送进仓位规划（qty/止损全失真），现 fail-closed。
+            try:
+                if not price or float(price) <= 0:
+                    logger.warning(
+                        f"[AI Decisions] {sym} 取价失败（price={price}），跳过本轮决策"
+                    )
+                    continue
+            except (TypeError, ValueError):
+                logger.warning(f"[AI Decisions] {sym} 价格非法（{price!r}），跳过本轮决策")
+                continue
 
             # 从编排器推断 market_regime
             _orch = orch_directions.get(sym, {})

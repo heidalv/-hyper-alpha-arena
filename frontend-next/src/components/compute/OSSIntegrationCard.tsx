@@ -33,7 +33,7 @@ const STATE_META: Record<
 > = {
   integrated: {
     label: "已集成",
-    cls: "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400",
+    cls: "border-green-500/40 bg-profit/10 text-green-600 dark:text-profit",
     icon: CheckCircle2,
   },
   not: {
@@ -78,7 +78,7 @@ export function OSSIntegrationCard() {
                   <Icon
                     className={cn(
                       "w-3.5 h-3.5 flex-shrink-0",
-                      it.state === "integrated" && "text-green-500"
+                      it.state === "integrated" && "text-profit"
                     )}
                   />
                   {it.name}

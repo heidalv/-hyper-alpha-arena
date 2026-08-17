@@ -19,8 +19,8 @@ def _session(db=None):
     try:
         from backend.database.connection import AnalyticsSessionLocal
     except ImportError:
-        from database.connection import AnalyticsSessionLocal
-    return AnalyticsSessionLocal(), True
+        from backend.database.connection import AnalyticsSessionLocal
+        return AnalyticsSessionLocal(), True
 
 
 def _import_model():

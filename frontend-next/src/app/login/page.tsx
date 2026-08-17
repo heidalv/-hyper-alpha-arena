@@ -260,7 +260,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={busy || !username || !password}
-            className="h-10 w-full bg-emerald-600 text-white hover:bg-emerald-500"
+            className="btn-glow h-10 w-full"
           >
             {busy ? (
               <>

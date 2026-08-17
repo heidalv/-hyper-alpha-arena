@@ -159,38 +159,13 @@ def run_v3_factor_pipeline(
                     _factor_market_data['price'] = float(_cur_price)
 
                 # Fix 13: 从 Market DB 注入衍生品指标（因子策略需要的核心数据）
-                # OI/CVD/TAKER/DEPTH/IMBALANCE 数据在 Market DB 有，但原从未注入因子引擎
-                # 不注入 → cvd_ratio/oi_delta/taker_ratio 因子全部返回 0（形同虚设）
+                # [2026-08-15 消费端验收] 改为直接复用 factor_bridge 的统一注入
+                # （真实 OI 绝对值对 + 真实吃单流 + 落库 funding），与 scalp 路径
+                # 同源同口径——消除此前两条路径 funding 来源不一致、cvd/taker
+                # 合成伪值的分叉。
                 try:
-                    from backend.services.market_flow_indicators import get_indicator_value as _giv
-                    _md_tf = "5m"  # 短线因子用 5m 周期的衍生品指标
-                    _oi_delta = _giv(None, _sym, "OI_DELTA", _md_tf)
-                    if _oi_delta is not None:
-                        # oi_delta 是百分比变化，反推 oi/prev_oi 供因子引擎用
-                        _factor_market_data['oi_delta_pct'] = float(_oi_delta)
-                        _factor_market_data['oi'] = 1.0  # 占位，因子用 oi_delta_pct 更准
-                        _factor_market_data['prev_oi'] = 1.0 / (1 + float(_oi_delta) / 100) if _oi_delta != 0 else 1.0
-                    _cvd = _giv(None, _sym, "CVD", _md_tf)
-                    if _cvd is not None:
-                        _factor_market_data['cvd'] = float(_cvd)
-                        # total_notional 用成交量近似（因子引擎只需比率）
-                        _factor_market_data.setdefault('total_notional', abs(float(_cvd)) * 10 or 1.0)
-                    _taker = _giv(None, _sym, "TAKER", _md_tf)
-                    if _taker is not None:
-                        # taker 是 buy/sell 比率，反推 buy_notional/sell_notional
-                        _taker_f = float(_taker)
-                        if _taker_f > 0:
-                            _factor_market_data['buy_notional'] = _taker_f
-                            _factor_market_data['sell_notional'] = 1.0
-                        elif _taker_f < 0:
-                            _factor_market_data['buy_notional'] = 1.0
-                            _factor_market_data['sell_notional'] = abs(_taker_f)
-                    _depth = _giv(None, _sym, "DEPTH", _md_tf)
-                    if _depth is not None:
-                        _factor_market_data['depth_ratio'] = float(_depth)
-                    _imb = _giv(None, _sym, "IMBALANCE", _md_tf)
-                    if _imb is not None:
-                        _factor_market_data['imbalance'] = float(_imb)
+                    from backend.services.factor_engine.factor_bridge import inject_orderflow_for_factors
+                    inject_orderflow_for_factors(_sym, _factor_market_data, "5m")
                 except Exception as _md_err:
                     logger.debug(f"[FullAuto][V3] {_sym} 衍生品指标注入跳过: {_md_err}")
 
@@ -198,7 +173,11 @@ def run_v3_factor_pipeline(
                 # OnchainDataCollector 已有完整采集器(CoinGecko/Blockchain.info/Mempool/Etherscan)，
                 # 但原从未接入 V3 因子管道 → 链上/宏观因子全返回默认值
                 try:
-                    from services.onchain_data_collector import onchain_collector as _oc_col
+                    # [2026-08-15 修复] 原 `from services.onchain_data_collector` 缺
+                    # backend. 前缀：生产以仓库根启动 uvicorn 时 `services.*` 不可导入，
+                    # 必 ImportError 被 except 吞掉 → 链上/宏观注入从未生效
+                    #（审查 4.5 #24 同类问题残留）。现改为 backend. 前缀。
+                    from backend.services.onchain_data_collector import onchain_collector as _oc_col
                     _oc_data = _oc_col.collect_all([_sym]) if _sym else {}
                     _oc_sym = _oc_data.get(_sym, {}) if isinstance(_oc_data, dict) else {}
                     if isinstance(_oc_sym, dict):
@@ -231,11 +210,23 @@ def run_v3_factor_pipeline(
 
                 # Fix 16a: 把外部数据注入 K线 DataFrame 列（新体系100+因子读 df['col'] 而非 market_data dict）
                 # 不注入 → cloud/external/derivatives 因子全部读空列返回默认值
+                # [2026-08-15 消费端验收] 订单流/衍生品键（oi/prev_oi/cvd/taker/funding/
+                # liquidation 等）**不再**作为常数序列注入 df：常数列会让时间序列因子
+                #（delta(oi,5)/ema(oi,12)）读到恒 0 的误导值。这些键仅经 market_data
+                # dict 供 base_factors 消费；需真实序列的因子由 dataset_builder 离线
+                # 富化提供。仅保留语义为「快照标量上下文」的键（情绪/宏观/期权/社交）。
+                _SNAPSHOT_SCALAR_KEYS = {
+                    'fear_greed', 'btc_dominance', 'social_score', 'news_sentiment',
+                    'discussion_volume', 'tvl', 'options_skew', 'iv_term_structure',
+                    'put_call_ratio',
+                }
                 if _md and hasattr(_kdf, 'assign'):
                     try:
                         _enrich_cols = {}
                         for _col_name, _col_val in _md.items():
                             if _col_name in ('price',):  # price 不注入(与 close 重复)
+                                continue
+                            if _col_name not in _SNAPSHOT_SCALAR_KEYS:
                                 continue
                             if _col_name not in _kdf.columns and isinstance(_col_val, (int, float)):
                                 _enrich_cols[_col_name] = float(_col_val)

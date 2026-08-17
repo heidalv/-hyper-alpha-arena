@@ -49,7 +49,7 @@ export function CoinFeedbackPanel() {
       description="因子 IC 加权（Spearman）→ V3 rescore → 注入命中率回算"
       action={<RefreshButton onClick={refresh} loading={loading} />}
     >
-      {data?.error && <p className="text-sm text-red-500 mb-3">{data.error}</p>}
+      {data?.error && <p className="text-sm text-loss mb-3">{data.error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard

@@ -122,14 +122,18 @@ class PriceCache:
 price_cache = PriceCache(ttl_seconds=60, history_seconds=600)
 
 
-def get_cached_price(symbol: str, market: str = "CRYPTO", environment: str = "mainnet") -> Optional[float]:
-    """Get price from cache if available."""
-    return price_cache.get(symbol, market, environment)
+def get_cached_price(symbol: str, market: str = "CRYPTO", environment: str = "mainnet", exchange: str = "") -> Optional[float]:
+    """Get price from cache if available。
+
+    [P2-1 跨所串价修复] exchange 纳入缓存键：asterdex 写入的价格不再被
+    hyperliquid 读走（此前 legacy 接口 exchange 恒为 ""，所有所共用同一键）。
+    """
+    return price_cache.get(symbol, market, environment, exchange)
 
 
-def cache_price(symbol: str, market: str, price: float, environment: str = "mainnet") -> None:
-    """Legacy API – record price with current timestamp."""
-    price_cache.record(symbol, market, price, environment=environment)
+def cache_price(symbol: str, market: str, price: float, environment: str = "mainnet", exchange: str = "") -> None:
+    """Legacy API – record price with current timestamp（[P2-1] exchange 纳入键）。"""
+    price_cache.record(symbol, market, price, environment=environment, exchange=exchange)
 
 
 def record_price_update(symbol: str, market: str, price: float, timestamp: Optional[float] = None, environment: str = "mainnet") -> None:

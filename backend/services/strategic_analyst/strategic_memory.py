@@ -24,8 +24,7 @@ from .models import StrategicMemory
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# LRU 缓存
+# --------------------------------------------------------------------------- # LRU 缓存
 # ---------------------------------------------------------------------------
 class _LRUCache:
     """简单的 LRU 缓存"""
@@ -58,8 +57,7 @@ class _LRUCache:
         return len(self._cache)
 
 
-# ---------------------------------------------------------------------------
-# 战略记忆系统
+# --------------------------------------------------------------------------- # 战略记忆系统
 # ---------------------------------------------------------------------------
 class StrategicMemorySystem:
     """
@@ -82,7 +80,7 @@ class StrategicMemorySystem:
             self._db_session_factory = AnalyticsSessionLocal
         except ImportError:
             try:
-                from database.connection import AnalyticsSessionLocal
+                from backend.database.connection import AnalyticsSessionLocal
                 self._db_session_factory = AnalyticsSessionLocal
             except Exception:
                 pass
@@ -91,8 +89,7 @@ class StrategicMemorySystem:
         """设置数据库 session 工厂"""
         self._db_session_factory = factory
 
-    # -----------------------------------------------------------------------
-    # 核心 API
+    # ----------------------------------------------------------------------- # 核心 API
     # -----------------------------------------------------------------------
 
     def store_observation(
@@ -284,8 +281,7 @@ class StrategicMemorySystem:
         """获取已提取的规则列表"""
         return list(self._extracted_rules)
 
-    # -----------------------------------------------------------------------
-    # 内部方法
+    # ----------------------------------------------------------------------- # 内部方法
     # -----------------------------------------------------------------------
 
     def _relevance_score(self, memory: StrategicMemory, context_lower: str) -> float:
@@ -320,8 +316,7 @@ class StrategicMemorySystem:
 
         return score
 
-    # -----------------------------------------------------------------------
-    # 数据库操作
+    # ----------------------------------------------------------------------- # 数据库操作
     # -----------------------------------------------------------------------
 
     def _get_session(self):

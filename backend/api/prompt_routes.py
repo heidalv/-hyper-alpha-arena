@@ -257,7 +257,7 @@ def preview_prompt(
     from services.market_data import get_last_price
     from services.news_feed import fetch_latest_news
     from services.sampling_pool import sampling_pool
-    from database.models import Account
+    from backend.database.models import Account
     import logging
     from services.hyperliquid_symbol_service import (
         get_selected_symbols as get_hyperliquid_selected_symbols,
@@ -404,7 +404,7 @@ def preview_prompt(
         # Get actual sampling interval from config
         sampling_interval = None
         try:
-            from database.models import GlobalSamplingConfig
+            from backend.database.models import GlobalSamplingConfig
             config = db.query(GlobalSamplingConfig).first()
             if config:
                 sampling_interval = config.sampling_interval
@@ -634,62 +634,13 @@ def get_variables_reference(lang: str = "en") -> dict:
 
 
 # ============================================================================
-# Smart Prompt Generation APIs (市场感知型智能提示词)
+# 自适应参数 APIs（依赖 market_regime_service，活跃服务）
 # ============================================================================
 
-from backend.services.smart_prompt_generator import SmartPromptGenerator
 from backend.services.market_regime_service import (
     get_adaptive_trading_parameters,
     get_multi_timeframe_regime_consensus,
 )
-
-
-class SmartPromptRequest(BaseModel):
-    """智能提示词生成请求"""
-    account_id: int = Field(..., alias="accountId", description="AI交易账户ID")
-    symbols: List[str] = Field(..., description="交易品种列表")
-    strategy_style: str = Field(
-        "adaptive",
-        alias="strategyStyle", 
-        description="策略风格: trend_following, mean_reversion, breakout, scalping, adaptive"
-    )
-    include_signals: bool = Field(
-        True, 
-        alias="includeSignals",
-        description="是否包含激活的信号信息"
-    )
-    include_patterns: bool = Field(
-        True,
-        alias="includePatterns", 
-        description="是否包含检测到的模式"
-    )
-
-    class Config:
-        populate_by_name = True
-
-
-class SmartPromptResponse(BaseModel):
-    """智能提示词响应"""
-    success: bool
-    prompt_template: Optional[str] = Field(None, alias="promptTemplate")
-    strategy_rules: Optional[str] = Field(None, alias="strategyRules")
-    market_context: Optional[Dict] = Field(None, alias="marketContext")
-    adaptive_parameters: Optional[Dict] = Field(None, alias="adaptiveParameters")
-    detected_patterns: Optional[List[Dict]] = Field(None, alias="detectedPatterns")
-    error: Optional[str] = None
-
-    class Config:
-        populate_by_name = True
-
-
-class SignalLinkedPromptRequest(BaseModel):
-    """信号关联提示词请求"""
-    signal_pool_id: int = Field(..., alias="signalPoolId")
-    account_id: int = Field(..., alias="accountId")
-    include_backtest: bool = Field(True, alias="includeBacktest")
-
-    class Config:
-        populate_by_name = True
 
 
 class AdaptiveParametersResponse(BaseModel):
@@ -701,170 +652,6 @@ class AdaptiveParametersResponse(BaseModel):
     parameters: Dict
     multi_timeframe: Optional[Dict] = None
     recommendations: List[str]
-
-
-@router.post("/generate-smart-prompt", response_model=SmartPromptResponse)
-def generate_smart_prompt(
-    request: SmartPromptRequest,
-    db: Session = Depends(get_db)
-) -> SmartPromptResponse:
-    """
-    生成市场感知型智能提示词
-    
-    基于当前市场状态、技术指标和历史模式，自动生成优化的AI交易提示词。
-    
-    功能:
-    1. 分析各品种当前市场状态
-    2. 根据状态选择合适的策略规则
-    3. 动态插入相关技术指标变量
-    4. 生成针对性的风控规则
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    try:
-        # 验证账户
-        account = db.query(Account).filter(Account.id == request.account_id).first()
-        if not account:
-            raise HTTPException(status_code=404, detail="AI Trader not found")
-        
-        if account.account_type != "AI":
-            raise HTTPException(status_code=400, detail="Selected account is not an AI Trader")
-        
-        # 验证品种
-        if not request.symbols:
-            raise HTTPException(status_code=400, detail="At least one symbol is required")
-        
-        # 初始化智能提示词生成器
-        generator = SmartPromptGenerator()
-        
-        # 生成市场感知型提示词
-        result = generator.generate_market_aware_prompt(
-            db=db,
-            account_id=request.account_id,
-            symbols=request.symbols,
-            strategy_style=request.strategy_style
-        )
-        
-        # 收集市场上下文和检测到的模式
-        market_context = {}
-        detected_patterns = []
-        adaptive_params = {}
-        
-        for symbol in request.symbols:
-            # 获取自适应参数
-            try:
-                params = get_adaptive_trading_parameters(db, symbol)
-                adaptive_params[symbol] = {
-                    "position_size_modifier": params.position_size_modifier,
-                    "stop_loss_atr_multiple": params.stop_loss_atr_multiple,
-                    "take_profit_ratio": params.take_profit_ratio,
-                    "entry_confirmation_count": params.entry_confirmation_count,
-                    "recommended_strategy": params.recommended_strategy,
-                    "regime_type": params.regime_type,
-                    "regime_direction": params.regime_direction,
-                    "regime_confidence": params.regime_confidence,
-                }
-            except Exception as e:
-                logger.warning(f"Failed to get adaptive params for {symbol}: {e}")
-            
-            # 获取多时间周期共识
-            try:
-                consensus = get_multi_timeframe_regime_consensus(db, symbol)
-                market_context[symbol] = {
-                    "consensus": consensus.get("consensus", {}),
-                    "timeframes": consensus.get("timeframes", {}),
-                    "recommendation": consensus.get("recommendation", ""),
-                }
-            except Exception as e:
-                logger.warning(f"Failed to get regime consensus for {symbol}: {e}")
-        
-        # 如果需要模式检测
-        if request.include_patterns:
-            try:
-                from services.pattern_recognition_service import PatternRecognitionService
-                pattern_service = PatternRecognitionService()
-                
-                for symbol in request.symbols:
-                    patterns = pattern_service.detect_current_patterns(db, symbol, "5m")
-                    for p in patterns:
-                        detected_patterns.append({
-                            "symbol": symbol,
-                            "pattern_name": p.get("pattern_name"),
-                            "direction": p.get("direction"),
-                            "confidence": p.get("confidence"),
-                            "historical_win_rate": p.get("historical_win_rate"),
-                            "triggered_conditions": p.get("triggered_conditions", []),
-                        })
-            except Exception as e:
-                logger.warning(f"Pattern detection failed: {e}")
-        
-        return SmartPromptResponse(
-            success=True,
-            prompt_template=result.get("template_text"),
-            strategy_rules=result.get("strategy_rules"),
-            market_context=market_context,
-            adaptive_parameters=adaptive_params,
-            detected_patterns=detected_patterns if detected_patterns else None,
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Smart prompt generation failed: {e}")
-        return SmartPromptResponse(
-            success=False,
-            error=str(e)
-        )
-
-
-@router.post("/generate-signal-linked-prompt", response_model=SmartPromptResponse)
-def generate_signal_linked_prompt(
-    request: SignalLinkedPromptRequest,
-    db: Session = Depends(get_db)
-) -> SmartPromptResponse:
-    """
-    创建与信号关联的提示词
-    
-    当信号触发时:
-    1. 提示词包含触发信号的详细背景
-    2. 包含该信号历史胜率信息
-    3. 提供基于回测的建议仓位和止损
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    try:
-        # 验证账户
-        account = db.query(Account).filter(Account.id == request.account_id).first()
-        if not account:
-            raise HTTPException(status_code=404, detail="AI Trader not found")
-        
-        # 初始化生成器
-        generator = SmartPromptGenerator()
-        
-        # 生成信号关联提示词
-        result = generator.create_signal_linked_prompt(
-            db=db,
-            signal_pool_id=request.signal_pool_id,
-            account_id=request.account_id
-        )
-        
-        return SmartPromptResponse(
-            success=True,
-            prompt_template=result.get("template_text"),
-            strategy_rules=result.get("strategy_rules"),
-            market_context=result.get("signal_context"),
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Signal-linked prompt generation failed: {e}")
-        return SmartPromptResponse(
-            success=False,
-            error=str(e)
-        )
 
 
 @router.get("/adaptive-parameters/{symbol}", response_model=AdaptiveParametersResponse)
@@ -993,51 +780,3 @@ def get_available_strategy_styles() -> Dict:
         ]
     }
 
-
-@router.post("/generate-adaptive-rules/{symbol}")
-def generate_adaptive_strategy_rules(
-    symbol: str,
-    strategy_style: str = "adaptive",
-    db: Session = Depends(get_db)
-) -> Dict:
-    """
-    为指定品种生成自适应策略规则段落
-    
-    生成可直接插入提示词的策略规则文本，包含:
-    - 当前市场状态描述
-    - 建议的仓位大小
-    - 止损止盈距离
-    - 入场确认条件
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    try:
-        symbol = symbol.upper()
-        
-        generator = SmartPromptGenerator()
-        rules_text = generator.generate_adaptive_strategy_rules(db, symbol)
-        
-        # 获取额外的市场上下文
-        params = get_adaptive_trading_parameters(db, symbol)
-        
-        return {
-            "success": True,
-            "symbol": symbol,
-            "strategy_style": strategy_style,
-            "rules_text": rules_text,
-            "regime_summary": {
-                "type": params.regime_type,
-                "direction": params.regime_direction,
-                "confidence": params.regime_confidence,
-            },
-            "key_parameters": {
-                "position_modifier": params.position_size_modifier,
-                "stop_loss_atr": params.stop_loss_atr_multiple,
-                "take_profit_ratio": params.take_profit_ratio,
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to generate adaptive rules for {symbol}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))

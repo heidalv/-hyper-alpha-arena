@@ -216,8 +216,13 @@ async def evolution_abort(body: Dict[str, Any] = Body(default_factory=dict)):
 
 
 @router.post("/evolution/repromote-quarantine")
-async def evolution_repromote_quarantine(body: Dict[str, Any] = Body(default_factory=dict)):
-    """隔离因子复评：达标者回 PAPER。"""
+def evolution_repromote_quarantine(body: Dict[str, Any] = Body(default_factory=dict)):
+    """隔离因子复评：达标者回 PAPER。
+
+    [2026-08-16 根因修复] 与 evolution_preflight 同类：复评含逐因子回测
+    （分钟级同步重活），原 async def 直跑事件循环线程会堵死后端。
+    改为同步 def → FastAPI 线程池执行。
+    """
     from backend.services.evolution.repromote_quarantine import repromote_quarantine_factors
 
     body = body or {}
@@ -351,26 +356,38 @@ async def evolution_trigger(body: Dict[str, Any] = Body(default_factory=dict)):
 
 
 @router.get("/evolution/preflight")
-async def evolution_preflight(period: str = Query("4h")):
-    """挖矿前深度预检：用币 + 是否够 bars。"""
+def evolution_preflight(period: str = Query("4h")):
+    """挖矿前深度预检：用币 + 是否够 bars。
+
+    [2026-08-16 根因修复] 原为 async def：_load_data（多币 × 数千根 K 线 +
+    富化装配，分钟级同步重活）直接跑在事件循环线程里，一点「预检」就堵死
+    整个后端 → /api/health 超时 → 看门狗误判僵尸 → 无限重启。
+    改为同步 def 后 FastAPI 自动放入线程池执行，事件循环不再被占用。
+
+    [2026-08-16 谎报修复] 原实现只统计「≥100 根的币」当 ok，从不与 need_bars
+    比较 → 5m 实际 30 天/8.7k 根却显示 ready=9/9。现在直接复用进化循环的
+    _check_split_depth（同一事实源），面板显示与真实深度闸门完全一致。
+    """
     try:
         from backend.services.evolution.factor_evolution_loop import (
-            _lookback_for_period,
+            _check_split_depth,
             _load_data,
             resolve_evolution_symbols,
         )
         symbols = resolve_evolution_symbols()
-        need = _lookback_for_period(period)
-        dfs = _load_data(symbols, period=period, lookback=need)
-        ok = sorted(dfs.keys()) if dfs else []
-        short = [s for s in symbols if s not in ok]
+        dfs = _load_data(symbols, period=period, use_enrich=False)
+        chk = _check_split_depth(dfs, period)
+        by = chk.get("by_symbol") or {}
+        ok_symbols = [s for s in symbols if (by.get(s) or {}).get("ok")]
         return {
-            "period": period,
+            "period": chk.get("period") or period,
             "symbols": symbols,
-            "need_bars": need,
-            "ok_symbols": ok,
-            "short_symbols": short,
-            "ready": len(short) == 0 and len(ok) > 0,
+            "need_bars": chk["need_bars"],
+            "need_days": chk["need_days"],
+            "by_symbol": by,
+            "ok_symbols": ok_symbols,
+            "short_symbols": list(chk.get("short_symbols") or []),
+            "ready": bool(chk.get("ok")),
         }
     except Exception as e:  # noqa: BLE001
         return {"period": period, "ready": False, "error": str(e)[:300]}

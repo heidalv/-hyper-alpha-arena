@@ -8,6 +8,11 @@ files:
   - package.json
 directories:
   output: dist-electron
+# [2026-08-16] pnpm 幽灵依赖下 node_modules/.pnpm/node_modules/@emnapi/* 是悬空
+# 符号链接，@electron/rebuild 扫描原生依赖时 stat 失败（ENOENT）→ 打包必败。
+# 本项目依赖（electron-log/electron-updater）均为纯 JS，无原生模块，
+# 关闭原生重建是持久修复。
+npmRebuild: false
 # 只打包简体中文与英文 locale，减少安装包体积
 electronLanguages:
   - zh-CN

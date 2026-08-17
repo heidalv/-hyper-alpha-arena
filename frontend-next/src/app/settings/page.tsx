@@ -9,7 +9,7 @@ import {
   Settings, Key, Bot, Coins, Shield,
   Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Loader2, Save,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { configApi, accountApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -28,7 +28,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto">
+    <div className="p-4 space-y-4">
       <PageHeader
         icon={<Settings className="w-4 h-4" />}
         title="设置"
@@ -53,6 +53,32 @@ export default function SettingsPage() {
       {tab === "pairs" && <PairsTab />}
       {tab === "keys" && <KeysTab />}
       {tab === "gates" && <GatesTab />}
+    </div>
+  );
+}
+
+// ═══ 卡片头（Aurora：标题 + 图标 + 徽章 + 提示 + 右侧操作） ═══
+function CardHead({ icon, title, badge, hint, actions }: {
+  icon?: ReactNode;
+  title: ReactNode;
+  badge?: ReactNode;
+  hint?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border/50">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {icon && (
+          <span className="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/25 flex items-center justify-center text-cyan-300">
+            {icon}
+          </span>
+        )}
+        <div className="min-w-0">
+          <div className="text-sm font-semibold flex items-center gap-2 flex-wrap">{title}{badge}</div>
+          {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
+        </div>
+      </div>
+      {actions && <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">{actions}</div>}
     </div>
   );
 }
@@ -108,81 +134,89 @@ function AccountsTab() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowCreate(!showCreate)} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新建账户</Button>
-      </div>
-      {showCreate && (
-        <Card className="p-4 border-primary/30">
-          <div className="flex gap-2 items-end flex-wrap">
-            <div className="flex-1 min-w-32"><Label className="text-xs">账户名称</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="如：测试账户" className="text-sm" /></div>
-            <div className="w-28"><Label className="text-xs">初始资金</Label><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="text-sm" /></div>
-            <div className="w-28"><Label className="text-xs">模式</Label>
-              <select value={newMode} onChange={(e) => setNewMode(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="paper">模拟</option><option value="live">实盘</option>
-              </select>
+    <div className="space-y-4">
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Bot className="w-4 h-4" />}
+          title="账户管理"
+          badge={<Badge variant="secondary">{accounts.length} 个账户</Badge>}
+          hint="新建 · 绑定 LLM · 交易所 · 自动交易开关"
+          actions={
+            <Button size="sm" onClick={() => setShowCreate(!showCreate)} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新建账户</Button>
+          }
+        />
+        {showCreate && (
+          <div className="px-4 py-4 border-b border-border/50 bg-primary/[0.04]">
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex-1 min-w-32"><Label className="text-xs">账户名称</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="如：测试账户" className="text-sm" /></div>
+              <div className="w-28"><Label className="text-xs">初始资金</Label><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="text-sm" /></div>
+              <div className="w-28"><Label className="text-xs">模式</Label>
+                <select value={newMode} onChange={(e) => setNewMode(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="paper">模拟</option><option value="live">实盘</option>
+                </select>
+              </div>
+              <div className="w-28"><Label className="text-xs">交易所</Label>
+                <select value={newExchange} onChange={(e) => setNewExchange(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="asterdex">Asterdex</option><option value="hyperliquid">Hyperliquid</option>
+                  <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-32"><Label className="text-xs">快模型 (Flash)</Label>
+                <select value={newLlm} onChange={(e) => setNewLlm(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
+                  {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-32"><Label className="text-xs">深模型 (Pro)</Label>
+                <select value={newLlmDeep} onChange={(e) => setNewLlmDeep(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
+                  {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
+                </select>
+              </div>
+              <Button size="sm" onClick={handleCreate} className="btn-glow">创建</Button>
             </div>
-            <div className="w-28"><Label className="text-xs">交易所</Label>
-              <select value={newExchange} onChange={(e) => setNewExchange(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="asterdex">Asterdex</option><option value="hyperliquid">Hyperliquid</option>
-                <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
-              </select>
-            </div>
-            <div className="flex-1 min-w-32"><Label className="text-xs">快模型 (Flash)</Label>
-              <select value={newLlm} onChange={(e) => setNewLlm(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-                {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-              </select>
-            </div>
-            <div className="flex-1 min-w-32"><Label className="text-xs">深模型 (Pro)</Label>
-              <select value={newLlmDeep} onChange={(e) => setNewLlmDeep(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-                {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-              </select>
-            </div>
-            <Button size="sm" onClick={handleCreate} className="btn-glow">创建</Button>
           </div>
-        </Card>
-      )}
-      <Card className="overflow-hidden">
-        <table className="data-table">
-          <thead><tr className="text-muted-foreground border-b border-border">
-            <th className="text-left py-2 px-3">名称</th><th className="text-left py-2 px-3">类型</th>
-            <th className="text-right py-2 px-3">余额</th><th className="text-left py-2 px-3">交易所</th>
-            <th className="text-left py-2 px-3">模式</th><th className="text-left py-2 px-3">LLM 快/深</th>
-            <th className="text-center py-2 px-3">自动</th><th className="text-center py-2 px-3">操作</th>
-          </tr></thead>
-          <tbody>
-            {accounts.map((a) => (
-              <tr key={a.id} className="border-b border-border/30 hover:bg-muted/20">
-                <td className="py-2 px-3 font-medium">{a.name}</td>
-                <td className="py-2 px-3"><Badge variant="secondary" className="text-[9px]">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
-                <td className="py-2 px-3 text-right num">${a.current_cash?.toFixed(2)}</td>
-                <td className="py-2 px-3 text-muted-foreground">{a.selected_exchange || "—"}</td>
-                <td className="py-2 px-3"><Badge variant="secondary" className={cn("text-[9px]", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
-                <td className="py-2 px-3 text-muted-foreground">
-                  <div>{a.llm_config_name || "默认"}{a.llm_config_name_deep ? <span className="text-warning"> / {a.llm_config_name_deep}</span> : null}</div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead><tr className="text-muted-foreground border-b border-border">
+              <th className="text-left">名称</th><th className="text-left">类型</th>
+              <th className="text-right">余额</th><th className="text-left">交易所</th>
+              <th className="text-left">模式</th><th className="text-left">LLM 快/深</th>
+              <th className="text-center">自动</th><th className="text-center">操作</th>
+            </tr></thead>
+            <tbody>
+              {accounts.map((a) => (
+                <tr key={a.id} className="border-b border-border/30 hover:bg-muted/20">
+                  <td className="font-medium">{a.name}</td>
+                  <td><Badge variant="secondary" className="text-xs">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
+                  <td className="text-right num">${a.current_cash?.toFixed(2)}</td>
+                  <td className="text-muted-foreground">{a.selected_exchange || "—"}</td>
+                  <td><Badge variant="secondary" className={cn("text-xs", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
+                  <td className="text-muted-foreground">
+                    <div>{a.llm_config_name || "默认"}{a.llm_config_name_deep ? <span className="text-warning"> / {a.llm_config_name_deep}</span> : null}</div>
+                  </td>
+                  <td className="text-center">{a.auto_trading_enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-profit mx-auto" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto" />}</td>
+                  <td className="text-center">
+                    <button onClick={() => setEditing(a)} className="text-primary hover:text-primary/80 mr-2"><Settings className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDelete(a.id)} className="text-loss hover:text-loss/80"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-border/50 bg-muted/20">
+                <td colSpan={2} className="text-xs uppercase tracking-wider text-muted-foreground">
+                  共 {accounts.length} 个账户
                 </td>
-                <td className="py-2 px-3 text-center">{a.auto_trading_enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-profit mx-auto" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto" />}</td>
-                <td className="py-2 px-3 text-center">
-                  <button onClick={() => setEditing(a)} className="text-primary hover:text-primary/80 mr-2"><Settings className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => handleDelete(a.id)} className="text-loss hover:text-loss/80"><Trash2 className="w-3.5 h-3.5" /></button>
+                <td className="text-right num font-bold grad-text">
+                  ${accounts.reduce((s, a) => s + (a.current_cash || 0), 0).toFixed(2)}
                 </td>
+                <td colSpan={5} />
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-border/50 bg-muted/20">
-              <td colSpan={2} className="py-2 px-3 text-[10px] uppercase tracking-wider text-muted-foreground">
-                共 {accounts.length} 个账户
-              </td>
-              <td className="py-2 px-3 text-right num font-bold grad-text">
-                ${accounts.reduce((s, a) => s + (a.current_cash || 0), 0).toFixed(2)}
-              </td>
-              <td colSpan={5} />
-            </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </div>
       </Card>
       {editing && (
         <AccountLlmEditor
@@ -223,44 +257,51 @@ function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
   };
 
   return (
-    <Card className="p-4 border-primary/30 space-y-3">
-      <div className="text-sm font-medium">编辑账户 #{account.id}（LLM 绑定）</div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label className="text-xs">名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="text-sm" /></div>
-        <div><Label className="text-xs">交易所</Label>
-          <select value={form.selected_exchange} onChange={(e) => setForm({ ...form, selected_exchange: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            <option value="asterdex">Asterdex</option><option value="hyperliquid">Hyperliquid</option>
-            <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
-          </select>
-        </div>
-        <div><Label className="text-xs">快模型配置（Flash / 常规决策）</Label>
-          <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-            {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-          </select>
-        </div>
-        <div><Label className="text-xs">深模型配置（Pro / 深度分析）</Label>
-          <select value={form.llm_config_id_deep} onChange={(e) => setForm({ ...form, llm_config_id_deep: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-            {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-          </select>
-        </div>
-        <div><Label className="text-xs">自动交易</Label>
-          <div className="flex items-center gap-2 pt-1">
-            <button onClick={() => setForm({ ...form, auto_trading_enabled: !form.auto_trading_enabled })}
-              className={cn("relative w-11 h-6 rounded-full transition-colors", form.auto_trading_enabled ? "bg-primary" : "bg-muted")}>
-              <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.auto_trading_enabled ? "left-5" : "left-0.5")} />
-            </button>
-            <span className="text-xs">{form.auto_trading_enabled ? "已开启" : "已关闭"}</span>
+    <Card className="p-0 gap-0 border-primary/30">
+      <CardHead
+        icon={<Settings className="w-4 h-4" />}
+        title="编辑账户"
+        badge={<Badge variant="secondary">#{account.id}</Badge>}
+        hint="LLM 绑定 · 交易所 · 自动交易"
+      />
+      <div className="px-4 py-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="text-xs">名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="text-sm" /></div>
+          <div><Label className="text-xs">交易所</Label>
+            <select value={form.selected_exchange} onChange={(e) => setForm({ ...form, selected_exchange: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              <option value="asterdex">Asterdex</option><option value="hyperliquid">Hyperliquid</option>
+              <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
+            </select>
+          </div>
+          <div><Label className="text-xs">快模型配置（Flash / 常规决策）</Label>
+            <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
+              {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
+            </select>
+          </div>
+          <div><Label className="text-xs">深模型配置（Pro / 深度分析）</Label>
+            <select value={form.llm_config_id_deep} onChange={(e) => setForm({ ...form, llm_config_id_deep: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
+              {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
+            </select>
+          </div>
+          <div><Label className="text-xs">自动交易</Label>
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={() => setForm({ ...form, auto_trading_enabled: !form.auto_trading_enabled })}
+                className={cn("relative w-11 h-6 rounded-full transition-colors", form.auto_trading_enabled ? "bg-primary" : "bg-muted")}>
+                <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.auto_trading_enabled ? "left-5" : "left-0.5")} />
+              </button>
+              <span className="text-xs">{form.auto_trading_enabled ? "已开启" : "已关闭"}</span>
+            </div>
           </div>
         </div>
-      </div>
-      <p className="text-[10px] text-muted-foreground">
-        交易决策：快模型用于常规 tick/执行复核，深模型用于策略分析/Master 决策/AI 选币审核。不指定则跟随全局默认配置。
-      </p>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <p className="text-xs text-muted-foreground">
+          交易决策：快模型用于常规 tick/执行复核，深模型用于策略分析/Master 决策/AI 选币审核。不指定则跟随全局默认配置。
+        </p>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        </div>
       </div>
     </Card>
   );
@@ -309,40 +350,43 @@ function LLMTab() {
   if (editing) return <LLMEditor config={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] text-muted-foreground">
-          星标 = 全局默认通道；未分配用途的配置作为通用后备。交易用途由「账户管理」绑定优先。
-        </div>
-        <Button size="sm" onClick={() => setEditing({ name: "", model: "", model_deep: "", base_url: "", provider: "deepseek" })} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新增配置</Button>
-      </div>
-      {configs.map((c) => (
-        <Card key={c.id} className="p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center"><Bot className="w-4 h-4 text-primary" /></div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
-                  {c.name}
-                  {c.is_default && <Badge className="text-[9px] bg-warning/20 text-warning">默认</Badge>}
-                  {!c.is_active && <Badge variant="secondary" className="text-[9px]">已停用</Badge>}
+    <div className="space-y-4">
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Bot className="w-4 h-4" />}
+          title="LLM 配置"
+          badge={<Badge variant="secondary">{configs.length} 个配置</Badge>}
+          hint="星标 = 全局默认通道；交易用途由「账户管理」绑定优先"
+          actions={<Button size="sm" onClick={() => setEditing({ name: "", model: "", model_deep: "", base_url: "", provider: "deepseek" })} className="btn-glow"><Plus className="w-3.5 h-3.5 mr-1" />新增配置</Button>}
+        />
+        <div className="divide-y divide-border/40">
+          {configs.map((c) => (
+            <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center"><Bot className="w-4 h-4 text-primary" /></div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                    {c.name}
+                    {c.is_default && <Badge variant="secondary" className="text-warning">默认</Badge>}
+                    {!c.is_active && <Badge variant="secondary" className="text-muted-foreground">已停用</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {c.provider} · 快:{c.model}{c.model_deep ? ` · 深:${c.model_deep}` : ""}
+                  </div>
+                  {c.usage_scope ? <UsageBadges scope={c.usage_scope} usages={usages} /> : null}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {c.provider} · 快:{c.model}{c.model_deep ? ` · 深:${c.model_deep}` : ""}
-                </div>
-                {c.usage_scope ? <UsageBadges scope={c.usage_scope} usages={usages} /> : null}
+              </div>
+              <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+                {!c.is_default && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleSetDefault(c)}>设默认</Button>}
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleTest(c)}>测试</Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditing(c)}>编辑</Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-loss" onClick={() => handleDelete(c.id)}><Trash2 className="w-3 h-3" /></Button>
               </div>
             </div>
-            <div className="flex gap-1 shrink-0 flex-wrap justify-end">
-              {!c.is_default && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleSetDefault(c)}>设默认</Button>}
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleTest(c)}>测试</Button>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditing(c)}>编辑</Button>
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-loss" onClick={() => handleDelete(c.id)}><Trash2 className="w-3 h-3" /></Button>
-            </div>
-          </div>
-        </Card>
-      ))}
-      {configs.length === 0 && <div className="text-center py-8 text-muted-foreground text-sm">暂无 LLM 配置</div>}
+          ))}
+        </div>
+        {configs.length === 0 && <div className="text-center py-8 text-muted-foreground text-sm">暂无 LLM 配置</div>}
+      </Card>
     </div>
   );
 }
@@ -353,7 +397,7 @@ function UsageBadges({ scope, usages }: { scope: string; usages: any[] }) {
   return (
     <div className="flex flex-wrap gap-1 mt-1">
       {keys.map((k) => (
-        <Badge key={k} variant="outline" className="text-[9px]">{labelOf(k)}</Badge>
+        <Badge key={k} variant="outline" className="text-xs">{labelOf(k)}</Badge>
       ))}
     </div>
   );
@@ -475,76 +519,82 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
     } catch (e: any) { alert(e.message); } finally { setSaving(false); }
   };
   return (
-    <Card className="p-4 border-primary/30 space-y-3">
-      <div className="text-sm font-medium">{config?.id ? `编辑配置 #${config.id}` : "新增 LLM 配置"}</div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label className="text-xs">配置名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="text-sm" placeholder="如：DeepSeek V4 (Flash + Pro)" /></div>
-        <div><Label className="text-xs">Provider</Label>
-          <select value={form.provider} onChange={(e) => handleProvider(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            {providers.length === 0 && <option value="deepseek">DeepSeek</option>}
-            {providers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div className="col-span-2">
-          <ModelField label="快模型（Flash / 常规决策）" value={form.model} onChange={(v) => setForm({ ...form, model: v })}
-            variants={quickVariants} placeholder="如：deepseek-v4-flash" />
-        </div>
-        <div className="col-span-2">
-          <ModelField label="深模型（统一也用 deepseek-v4-flash）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
-            variants={deepVariants} placeholder="如：deepseek-v4-flash" />
-        </div>
-        {providerMeta?.model_variants?.length ? (
-          <div className="col-span-2 text-[10px] text-muted-foreground -mt-1">
-            模型受白名单约束（{providerMeta.model_variants.map((v: any) => v.value).join(" / ")}）。统一默认 deepseek-v4-flash；换模型须先改后端白名单。
+    <Card className="p-0 gap-0 border-primary/30">
+      <CardHead
+        icon={<Settings className="w-4 h-4" />}
+        title={config?.id ? "编辑 LLM 配置" : "新增 LLM 配置"}
+        badge={config?.id ? <Badge variant="secondary">#{config.id}</Badge> : <Badge variant="outline" className="text-warning">新建</Badge>}
+      />
+      <div className="px-4 py-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="text-xs">配置名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="text-sm" placeholder="如：DeepSeek V4 (Flash + Pro)" /></div>
+          <div><Label className="text-xs">Provider</Label>
+            <select value={form.provider} onChange={(e) => handleProvider(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              {providers.length === 0 && <option value="deepseek">DeepSeek</option>}
+              {providers.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
           </div>
-        ) : null}
-        <div><Label className="text-xs">描述</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="text-sm" placeholder="用途说明（可选）" /></div>
-        <div><Label className="text-xs">Base URL</Label><Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className="text-sm" placeholder="https://api.deepseek.com" /></div>
-        <div><Label className="text-xs">API Key {config?.id ? "(留空不改)" : ""}</Label><Input type="password" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm" placeholder="sk-..." /></div>
-        <div><Label className="text-xs">Temperature</Label><Input type="number" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="text-sm" /></div>
-        <div className="col-span-2 grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">设为全局默认</Label>
-            <div className="flex items-center gap-2 pt-1">
-              <button onClick={() => setForm({ ...form, is_default: !form.is_default })}
-                className={cn("relative w-11 h-6 rounded-full transition-colors", form.is_default ? "bg-warning" : "bg-muted")}>
-                <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.is_default ? "left-5" : "left-0.5")} />
-              </button>
-              <span className="text-xs">{form.is_default ? "已设为默认" : "未设默认"}</span>
+          <div className="col-span-2">
+            <ModelField label="快模型（Flash / 常规决策）" value={form.model} onChange={(v) => setForm({ ...form, model: v })}
+              variants={quickVariants} placeholder="如：deepseek-v4-flash" />
+          </div>
+          <div className="col-span-2">
+            <ModelField label="深模型（统一也用 deepseek-v4-flash）" value={form.model_deep} onChange={(v) => setForm({ ...form, model_deep: v })}
+              variants={deepVariants} placeholder="如：deepseek-v4-flash" />
+          </div>
+          {providerMeta?.model_variants?.length ? (
+            <div className="col-span-2 text-xs text-muted-foreground -mt-1">
+              模型受白名单约束（{providerMeta.model_variants.map((v: any) => v.value).join(" / ")}）。统一默认 deepseek-v4-flash；换模型须先改后端白名单。
             </div>
-          </div>
-          {config?.id && (
+          ) : null}
+          <div><Label className="text-xs">描述</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="text-sm" placeholder="用途说明（可选）" /></div>
+          <div><Label className="text-xs">Base URL</Label><Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className="text-sm" placeholder="https://api.deepseek.com" /></div>
+          <div><Label className="text-xs">API Key {config?.id ? "(留空不改)" : ""}</Label><Input type="password" value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm" placeholder="sk-..." /></div>
+          <div><Label className="text-xs">Temperature</Label><Input type="number" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="text-sm" /></div>
+          <div className="col-span-2 grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">启用状态</Label>
+              <Label className="text-xs">设为全局默认</Label>
               <div className="flex items-center gap-2 pt-1">
-                <button onClick={() => setForm({ ...form, is_active: !form.is_active })}
-                  className={cn("relative w-11 h-6 rounded-full transition-colors", form.is_active ? "bg-primary" : "bg-muted")}>
-                  <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.is_active ? "left-5" : "left-0.5")} />
+                <button onClick={() => setForm({ ...form, is_default: !form.is_default })}
+                  className={cn("relative w-11 h-6 rounded-full transition-colors", form.is_default ? "bg-warning" : "bg-muted")}>
+                  <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.is_default ? "left-5" : "left-0.5")} />
                 </button>
-                <span className="text-xs">{form.is_active ? "启用" : "停用"}</span>
+                <span className="text-xs">{form.is_default ? "已设为默认" : "未设默认"}</span>
               </div>
             </div>
-          )}
-        </div>
-        <div className="col-span-2">
-          <Label className="text-xs">用途分配（后台指定非交易 LLM 用途）</Label>
-          <div className="grid grid-cols-2 gap-1 mt-1">
-            {usages.map((u: any) => (
-              <label key={u.key} className="flex items-center gap-1.5 text-xs" title={u.description}>
-                <input type="checkbox" checked={form.usage_scope.includes(u.key)} onChange={() => toggleUsage(u.key)} />
-                <span className="font-medium">{u.label}</span>
-                <span className="text-muted-foreground text-[9px] truncate">{u.key}</span>
-              </label>
-            ))}
+            {config?.id && (
+              <div>
+                <Label className="text-xs">启用状态</Label>
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => setForm({ ...form, is_active: !form.is_active })}
+                    className={cn("relative w-11 h-6 rounded-full transition-colors", form.is_active ? "bg-primary" : "bg-muted")}>
+                    <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.is_active ? "left-5" : "left-0.5")} />
+                  </button>
+                  <span className="text-xs">{form.is_active ? "启用" : "停用"}</span>
+                </div>
+              </div>
+            )}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            不分配 = 通用后备；「交易决策」始终由账户绑定优先。同一配置可分配多个用途。
-          </p>
+          <div className="col-span-2">
+            <Label className="text-xs">用途分配（后台指定非交易 LLM 用途）</Label>
+            <div className="grid grid-cols-2 gap-1 mt-1">
+              {usages.map((u: any) => (
+                <label key={u.key} className="flex items-center gap-1.5 text-xs" title={u.description}>
+                  <input type="checkbox" checked={form.usage_scope.includes(u.key)} onChange={() => toggleUsage(u.key)} />
+                  <span className="font-medium">{u.label}</span>
+                  <span className="text-muted-foreground text-xs truncate">{u.key}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              不分配 = 通用后备；「交易决策」始终由账户绑定优先。同一配置可分配多个用途。
+            </p>
+          </div>
         </div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        </div>
       </div>
     </Card>
   );
@@ -569,31 +619,45 @@ function PairsTab() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">已配置 {symbols.length} 个交易对</div>
-        <Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
-      </div>
-      <Card className="p-4">
-        <div className="text-sm font-medium mb-3">已配置</div>
-        <div className="flex flex-wrap gap-2">
-          {symbols.map((s) => (
-            <div key={s} className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-sm">{s}
-              <button onClick={() => setSymbols(symbols.filter(x => x !== s))} className="text-primary/60 hover:text-loss ml-1"><XCircle className="w-3 h-3" /></button>
+    <div className="space-y-4">
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Coins className="w-4 h-4" />}
+          title="交易对"
+          badge={<Badge variant="secondary">{symbols.length} 个已配置</Badge>}
+          hint="已保存到本地配置，保存后即时生效"
+          actions={<Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>}
+        />
+        <div className="px-4 py-4">
+          {symbols.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {symbols.map((s) => (
+                <span key={s} className="chip-capsule">{s}
+                  <button onClick={() => setSymbols(symbols.filter(x => x !== s))} className="text-muted-foreground hover:text-loss"><XCircle className="w-3.5 h-3.5" /></button>
+                </span>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="text-xs text-muted-foreground">暂无已配置交易对</div>
+          )}
         </div>
       </Card>
-      <Card className="p-4">
-        <div className="text-sm font-medium mb-2">添加</div>
-        <div className="flex gap-2 mb-3"><Input value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd(newSymbol)} placeholder="输入币种" className="text-sm" /><Button size="sm" onClick={() => handleAdd(newSymbol)}><Plus className="w-3.5 h-3.5" /></Button></div>
-        {builtin.length > 0 && (
-          <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
-            {builtin.filter(s => !symbols.includes(s)).slice(0, 100).map(s => (
-              <button key={s} onClick={() => handleAdd(s)} className="px-1.5 py-0.5 rounded bg-muted/50 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary">{s}</button>
-            ))}
-          </div>
-        )}
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Plus className="w-4 h-4" />}
+          title="添加交易对"
+          hint="输入币种后回车或点击 +；下方为交易所内置币种（点击加入）"
+        />
+        <div className="px-4 py-4">
+          <div className="flex gap-2 mb-3"><Input value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd(newSymbol)} placeholder="输入币种" className="text-sm" /><Button size="sm" onClick={() => handleAdd(newSymbol)}><Plus className="w-3.5 h-3.5" /></Button></div>
+          {builtin.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+              {builtin.filter(s => !symbols.includes(s)).slice(0, 100).map(s => (
+                <button key={s} onClick={() => handleAdd(s)} className="chip-capsule hover:text-cyan-300 hover:border-cyan-400/30">{s}</button>
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );
@@ -614,28 +678,47 @@ function KeysTab() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-3">
-      <Card className="p-4"><div className="text-sm font-medium mb-3">必需配置检查</div><RequiredCheck /></Card>
-      <Card className="p-4">
-        <div className="text-sm font-medium mb-3">外部 API 密钥</div>
-        <div className="space-y-2">
-          {Object.entries(keys).map(([key, info]: [string, any]) => (
-            <div key={key} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-              <div className="flex items-center gap-2">
-                <Key className={cn("w-3.5 h-3.5", info.configured ? "text-profit" : "text-muted-foreground")} />
-                <div><div className="text-sm">{info.label || key}</div><div className="text-xs text-muted-foreground font-mono">{info.configured ? info.masked || "已配置" : "未配置"}</div></div>
-              </div>
-              {editingKey === key ? (
-                <div className="flex gap-1">
-                  <Input type="password" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="输入密钥..." className="w-40 text-xs h-7" />
-                  <Button size="sm" className="h-7 btn-glow" onClick={() => handleSave(key)} disabled={saving || !editValue}>保存</Button>
-                  <Button size="sm" variant="ghost" className="h-7" onClick={() => { setEditingKey(null); setEditValue(""); }}>取消</Button>
+    <div className="grid gap-4 md:grid-cols-2 items-start">
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Key className="w-4 h-4" />}
+          title="外部 API 密钥"
+          hint="AES-256 加密存储"
+        />
+        <div className="px-4 py-4">
+          {Object.keys(keys).length === 0 ? (
+            <div className="text-xs text-muted-foreground">暂无外部密钥</div>
+          ) : (
+            <div className="space-y-2">
+              {Object.entries(keys).map(([key, info]: [string, any]) => (
+                <div key={key} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Key className={cn("w-3.5 h-3.5 shrink-0", info.configured ? "text-profit" : "text-muted-foreground")} />
+                    <div className="min-w-0"><div className="text-sm">{info.label || key}</div><div className="text-xs text-muted-foreground font-mono truncate">{info.configured ? info.masked || "已配置" : "未配置"}</div></div>
+                  </div>
+                  {editingKey === key ? (
+                    <div className="flex gap-1 shrink-0">
+                      <Input type="password" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="输入密钥..." className="w-40 text-xs h-7" />
+                      <Button size="sm" className="h-7 btn-glow" onClick={() => handleSave(key)} disabled={saving || !editValue}>保存</Button>
+                      <Button size="sm" variant="ghost" className="h-7" onClick={() => { setEditingKey(null); setEditValue(""); }}>取消</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => { setEditingKey(key); setEditValue(""); }}>{info.configured ? "修改" : "配置"}</Button>
+                  )}
                 </div>
-              ) : (
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditingKey(key); setEditValue(""); }}>{info.configured ? "修改" : "配置"}</Button>
-              )}
+              ))}
             </div>
-          ))}
+          )}
+        </div>
+      </Card>
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          title="必需配置检查"
+          hint="启动前自检"
+        />
+        <div className="px-4 py-4">
+          <RequiredCheck />
         </div>
       </Card>
     </div>
@@ -666,22 +749,32 @@ function GatesTab() {
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end"><Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存门禁</Button></div>
-      {gates.map((g, idx) => (
-        <Card key={g.key} className="p-3">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className={cn("text-[9px]", g.category === "hard" ? "text-loss" : "text-warning")}>{g.category}</Badge>
-              <span className="text-sm font-medium">{g.name}</span><span className="text-[10px] text-muted-foreground">{g.layer}</span>
+    <div className="space-y-4">
+      <Card className="p-0 gap-0 overflow-hidden">
+        <CardHead
+          icon={<Shield className="w-4 h-4" />}
+          title="交易门禁"
+          badge={<Badge variant="secondary">{gates.length} 项</Badge>}
+          hint="生效范围：全部实盘账户"
+          actions={<Button size="sm" onClick={handleSave} disabled={saving} className="btn-glow">{saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存门禁</Button>}
+        />
+        <div className="px-4 py-4 space-y-3">
+          {gates.map((g, idx) => (
+            <div key={g.key} className="rounded-lg bg-white/[0.04] border border-white/10 px-4 py-3">
+              <div className="flex items-center justify-between mb-1 gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <Badge variant="secondary" className={cn("text-xs", g.category === "hard" ? "text-loss" : "text-warning")}>{g.category}</Badge>
+                  <span className="text-sm font-medium">{g.name}</span><span className="text-xs text-muted-foreground">{g.layer}</span>
+                </div>
+                <span className="text-sm font-bold tabular-nums shrink-0">{g.type === "float" ? g.current?.toFixed(2) : g.current}</span>
+              </div>
+              {g.desc && <p className="text-xs text-muted-foreground mb-2">{g.desc}</p>}
+              <input type="range" min={g.min} max={g.max} step={g.type === "float" ? (g.max - g.min) / 100 : 1} value={g.current} onChange={(e) => setGates(gates.map((gg, i) => i === idx ? { ...gg, current: parseFloat(e.target.value) } : gg))} className="w-full" />
+              <div className="flex justify-between text-xs text-muted-foreground"><span>{g.min}</span><span className="text-muted-foreground/60">默认 {g.default}</span><span>{g.max}</span></div>
             </div>
-            <span className="text-sm font-bold tabular-nums">{g.type === "float" ? g.current?.toFixed(2) : g.current}</span>
-          </div>
-          {g.desc && <p className="text-xs text-muted-foreground mb-2">{g.desc}</p>}
-          <input type="range" min={g.min} max={g.max} step={g.type === "float" ? (g.max - g.min) / 100 : 1} value={g.current} onChange={(e) => setGates(gates.map((gg, i) => i === idx ? { ...gg, current: parseFloat(e.target.value) } : gg))} className="w-full" />
-          <div className="flex justify-between text-[10px] text-muted-foreground"><span>{g.min}</span><span className="text-muted-foreground/60">默认 {g.default}</span><span>{g.max}</span></div>
-        </Card>
-      ))}
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

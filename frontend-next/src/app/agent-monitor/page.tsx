@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 import { getAccessToken } from "@/lib/stores/auth";
-import { OpenCodeDisabledCard } from "@/components/learning/OpenCodeDisabledCard";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   LineChart as RLineChart, Line as RLine, BarChart as RBarChart, Bar as RBar,
   PieChart as RPieChart, Pie as RPie, Cell as RCell,
@@ -77,31 +77,34 @@ export default function AgentMonitorPage() {
   ];
 
   return (
-    <div className="p-4 space-y-4 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Radar className="w-5 h-5 text-primary" />
-          Agent 运行监控
-        </h1>
-        <AccountSessionSelector
-          sessions={sessionsList}
-          selectedAccountId={selectedAccountId}
-          selectedSessionId={selectedSessionId}
-          onAccountChange={handleAccountChange}
-          onSessionChange={setSelectedSessionId}
-        />
-      </div>
+    <div className="p-4 space-y-4">
+      <PageHeader
+        icon={<Radar className="w-4 h-4" />}
+        title="Agent 运行监控"
+        subtitle="多周期 Agent 编排 · FullAuto 调度循环"
+        refreshHint="会话状态 15s 轮询"
+        breadcrumb={[{ label: "交易核心" }, { label: "Agent 监控" }]}
+        actions={
+          <AccountSessionSelector
+            sessions={sessionsList}
+            selectedAccountId={selectedAccountId}
+            selectedSessionId={selectedSessionId}
+            onAccountChange={handleAccountChange}
+            onSessionChange={setSelectedSessionId}
+          />
+        }
+      />
 
-      {/* Tab 导航 */}
+      {/* Tab 导航（Aurora 渐变激活态） */}
       <div className="flex items-center gap-1 flex-wrap border-b border-border/50 pb-2">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
+              "relative flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
               tab === t.key
-                ? "bg-primary/15 text-primary font-medium"
+                ? "bg-gradient-to-r from-cyan-400/15 to-violet-500/15 text-cyan-300 font-medium after:absolute after:left-2 after:right-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-gradient-to-r after:from-cyan-400 after:to-violet-500 after:shadow-[0_0_8px_rgba(34,211,238,0.6)]"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
@@ -198,7 +201,7 @@ function AccountSessionSelector({
         </select>
       )}
       {sortedSessions.length === 0 && selectedAccountId != null && (
-        <span className="text-[10px] text-muted-foreground">该账户暂无会话</span>
+        <span className="text-xs text-muted-foreground">该账户暂无会话</span>
       )}
     </div>
   );
@@ -272,6 +275,12 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
   const autoCoinHistory = usePoll<any>(sessionId ? `${BACKEND}/api/auto-coin/${sessionId}/history?limit=10` : null, 30000);
   // 中线因子池状态（因子化新形态的数据源：active/候选/拒绝 + 时间框架分布）
   const midlongFactors = usePoll<any>(`${BACKEND}/api/ops/midlong-factors`, 30000);
+  // 短线因子池状态（scalp_factor_router 数据源）
+  const scalpPool = usePoll<any>(`${BACKEND}/api/ops/factor-pool?view=tradable&limit=1`, 30000);
+  // 组合预算冻结状态（风控止血：全局/账户/策略/交易对四级）
+  const pbState = usePoll<any>(`${BACKEND}/api/full-auto/debug/portfolio-budget`, 15000);
+  // 长线 V2 规则化 L1 状态（无 LLM）：每个固定长线币的 up/down/sideways + score
+  const longV2 = usePoll<any>(sessionId ? `${BACKEND}/api/ops/long-trend-v2?session_id=${sessionId}` : null, 15000);
 
   const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 30, mid: 120, long: 240 };
   const tiers = tierStatus.data?.tiers ?? {};
@@ -281,8 +290,8 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
     .map((s: string) => String(s).toUpperCase())
     .filter(Boolean);
   const longFixedLabel = longFixedSyms.length
-    ? `TrendAgent · MLTO long · 仅 ${longFixedSyms.join("/")}`
-    : "TrendAgent · MLTO long · 未配置固定币";
+    ? `long_trend_v2 · L1 规则化 · 仅 ${longFixedSyms.join("/")}`
+    : "long_trend_v2 · L1 规则化 · 未配置固定币";
   const totalEquity = tierStatus.data?.total_equity ?? 0;
 
   // 统一循环跳过次数
@@ -315,6 +324,20 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       interval: intervals.short, label: "因子引擎 · 5m",
       data: tiers.short,
       job: findJob("scalp"),
+      footer: (
+        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+          <div className="px-1 py-0.5 rounded bg-cyan-400/10 text-cyan-300">
+            执行引擎：短线因子路由 scalp_factor_router · 5m/15m 因子扫描 · 分数过门槛直通（TCP/V5 拦截兜底）
+          </div>
+          <div>
+            因子池：
+            tradable={scalpPool.data?.counts?.tradable ?? "…"}
+            {" · "}隔离={scalpPool.data?.counts?.quarantine ?? "…"}
+            {" · "}全部={scalpPool.data?.counts?.all ?? "…"}
+          </div>
+          <div>节奏：{intervals.short}s/tick 独立调度 · 冷却与门控见「冷却与门禁」区</div>
+        </div>
+      ),
     },
     {
       key: "mid", name: "中线 · 因子化", icon: Boxes, color: "profit",
@@ -328,12 +351,20 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       },
       job: findJob("midlong"),
       footer: (
-        <div className="text-[9px] text-muted-foreground space-y-0.5 pt-1">
+        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
           <div className={cn(
             "px-1 py-0.5 rounded",
-            tickIntervals.data?.mid_mode === "factor_route" ? "bg-profit/10 text-profit" : "bg-warning/10 text-warning",
+            tickIntervals.data?.mid_mode === "factor_route"
+              ? "bg-profit/10 text-profit"
+              : tickIntervals.data?.mid_mode === "mid_paused"
+                ? "bg-loss/10 text-loss"
+                : "bg-warning/10 text-warning",
           )}>
-            执行引擎：{tickIntervals.data?.mid_mode === "factor_route" ? "因子路由（已切换）" : "MLTO 旧AI（过渡期）"}
+            执行引擎：{tickIntervals.data?.mid_mode === "factor_route"
+              ? "因子路由（已切换）"
+              : tickIntervals.data?.mid_mode === "mid_paused"
+                ? "中线已暂停（只跑因子研究，等待弹药达标）"
+                : "因子路由（规则化，无 LLM）"}
             {" · "}切换条件：因子池 active≥5 且 shadow 对照达标
           </div>
           <div>
@@ -349,7 +380,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               : ""}
           </div>
           <div>宇宙 = 固定 ∪ AI≤3；得分高/低直接执行或否决，仅边缘带问 LLM（fail-closed）</div>
-          <div>过渡期：因子研究进行中，MLTO 平行对照；shadow 达标后切因子路由</div>
+          <div>中线已因子化（MIDLONG_MID_VIA_MLTO=false）；因子池 active≥5 且 shadow 达标后全量切换</div>
         </div>
       ),
     },
@@ -359,19 +390,12 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       data: tiers.long,
       job: findJob("midlong"),
       footer: (
-        <div className="text-[9px] text-muted-foreground space-y-0.5 pt-1">
-          <div>MLTO 长线 · 更新 {mltoLastUpdate}</div>
-          <div className="flex gap-1 flex-wrap">
-            {mltoTheses.filter((t: any) => t.tier === "long").map((t: any) => (
-              <span key={`long-${t.symbol}`} className={cn(
-                "px-1 py-0.5 rounded",
-                t.direction === "long" ? "bg-profit/10 text-profit" :
-                t.direction === "short" ? "bg-loss/10 text-loss" : "bg-muted/30 text-muted-foreground"
-              )}>
-                {t.symbol} {t.direction === "long" ? "多" : t.direction === "short" ? "空" : "中性"}
-              </span>
-            ))}
+        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+          <div className="px-1 py-0.5 rounded bg-warning/10 text-warning">
+            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· 无 LLM · 节奏 {intervals.long}s/tick
           </div>
+          <div>入场 = L1=up（score≥+3，多头单边）；退出 = 结构破坏 + Chandelier 止损；无分档 TP / 无 15min 复查</div>
+          <div>规则化判定，零 LLM 延迟；空仓等待 L1=up 确认</div>
         </div>
       ),
     },
@@ -394,7 +418,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       kpiExclude: true,
       showBudget: false,
       footer: (
-        <div className="text-[9px] text-muted-foreground space-y-1 pt-1">
+        <div className="text-xs text-muted-foreground space-y-1 pt-1">
           <div className="flex items-center justify-between gap-2">
             <span>上次同步 {autoLastScan ? new Date(autoLastScan).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}</span>
             <span>池 {Object.keys(autoPool.active ?? {}).length} · 历史 {autoCoinHistory.data?.total ?? 0}</span>
@@ -435,17 +459,18 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
         </Button>
       </div>
 
-      {/* 顶部状态条：OpenCode 路由已注释，禁止 404→假绿灯 */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatusPill label="后端" ok={true} detail=":8000 运行中" />
         <StatusPill label="会话" ok={!!runningSession} detail={runningSession ? `${runningSession.account_name} · ${runningSession.status}${runningSession.active_exchange ? ` · ${runningSession.active_exchange}` : ""}` : "无活跃会话"} />
         <StatusPill label="调度任务" ok={jobs.length > 0} detail={`${jobs.length} 个 job`} />
       </div>
-      <OpenCodeDisabledCard />
+
+      {/* 风控冻结状态（组合预算止血可见性：全局/账户/策略/交易对四级） */}
+      <PortfolioBudgetBanner state={pbState.data} />
 
       {/* 三周期卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {tierCards.map((t) => {
+        {tierCards.filter((t) => t.key !== "auto").map((t) => {
           const d = t.data ?? {};
           const budgetPct = d.budget_max ? (d.margin_used / d.budget_max) * 100 : 0;
           return (
@@ -461,10 +486,10 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
                   </div>
                   <div>
                     <div className="text-sm font-medium">{t.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{t.label}</div>
+                    <div className="text-xs text-muted-foreground">{t.label}</div>
                   </div>
                 </div>
-                <Badge variant="secondary" className="text-[9px] tabular-nums">{t.badge ?? `${t.interval}s/tick`}</Badge>
+                <Badge variant="secondary" className="text-xs tabular-nums">{t.badge ?? `${t.interval}s/tick`}</Badge>
               </div>
 
               {/* 下次 tick 倒计时 */}
@@ -484,7 +509,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               {/* 预算进度 */}
               {t.showBudget !== false && (
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>预算占用</span>
                     <span className="tabular-nums">{budgetPct.toFixed(1)}%</span>
                   </div>
@@ -500,6 +525,34 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
           );
         })}
       </div>
+
+      {/* AI 选币（独立全宽横条，不再挤进三周期网格） */}
+      {(() => {
+        const a = tierCards.find((t: any) => t.key === "auto");
+        if (!a) return null;
+        return (
+          <Card className="p-4 space-y-2 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10 bg-profit" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-profit/10">
+                  <a.icon className="w-4 h-4 text-profit" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{a.name}</div>
+                  <div className="text-xs text-muted-foreground">{a.label}</div>
+                </div>
+              </div>
+              <Badge variant="secondary" className="text-xs tabular-nums">{a.badge ?? `${a.interval}s/tick`}</Badge>
+            </div>
+            <NextTickCountdown job={a.job} interval={a.interval} label={a.countdownLabel} />
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {a.stats ? a.stats.map((s: any) => <Stat key={s.label} label={s.label} value={s.value} />) : null}
+            </div>
+            {a.footer}
+          </Card>
+        );
+      })()}
 
       {/* 全局 KPI */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -519,7 +572,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
           <span className="text-sm font-medium flex items-center gap-1.5">
             <Cpu className="w-4 h-4 text-primary" /> 协调器 / 统一循环
           </span>
-          <Badge variant="secondary" className="text-[10px]">tick 跳过 {skipCount}</Badge>
+          <Badge variant="secondary" className="text-xs">tick 跳过 {skipCount}</Badge>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-xs">
           <Detail label="协调器间隔" value={`${intervals.coordinator}s`} />
@@ -527,114 +580,37 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
         </div>
       </Card>
 
-      {/* 中长线：长线=纯AI（TrendAgent 唯一通道）；中线=因子化（固定∪AI≤3，过渡期 MLTO 对照） */}
+      {/* 中长线：长线=long_trend_v2 规则化 L1（无 LLM）；中线=因子化 */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium flex items-center gap-1.5">
-            <Brain className="w-4 h-4 text-warning" /> 中长线 · 中线因子化（过渡期 MLTO 对照）
+            <Brain className="w-4 h-4 text-warning" /> 中长线 · 长线规则化 / 中线因子化
           </span>
-          <Badge variant="secondary" className="text-[10px]">
-            {mltoThesis.data?.theses?.length ?? 0} 个 thesis
+          <Badge variant="secondary" className="text-xs">
+            {longV2.data?.enabled ? "long_trend_v2 已启用" : "long_trend_v2 未启用"}
           </Badge>
         </div>
-        {(() => {
-          const all = mltoThesis.data?.theses ?? [];
-          const lanes = mltoThesis.data?.lanes ?? {};
-          const longRows = all.filter((t: any) => t.tier === "long");
-          const midRows = all.filter((t: any) => t.tier === "mid");
-          const fixedSet = new Set<string>(
-            (lanes.fixed_in_mid || []).map((s: string) => String(s).toUpperCase()),
-          );
-          const aiMidSet = new Set<string>(
-            (lanes.ai_mid_symbols || []).map((s: string) => String(s).toUpperCase()),
-          );
-          const midFixedRows = midRows.filter((t: any) => fixedSet.has(String(t.symbol || "").toUpperCase()));
-          const midAiRows = midRows.filter((t: any) => {
-            const s = String(t.symbol || "").toUpperCase();
-            return aiMidSet.has(s) && !fixedSet.has(s);
-          });
-          const midOtherRows = midRows.filter((t: any) => {
-            const s = String(t.symbol || "").toUpperCase();
-            return !fixedSet.has(s) && !aiMidSet.has(s);
-          });
-          const renderRow = (t: any, i: number, tag?: string) => (
-            <div key={`${t.tier}-${t.symbol}-${tag || ""}-${i}`} className="grid grid-cols-12 gap-2 items-center text-xs py-1.5 border-b border-border/10 last:border-0">
-              <div className="col-span-2 font-medium">
-                {t.symbol}
-                {tag ? <span className="ml-1 text-[9px] text-muted-foreground">{tag}</span> : null}
-              </div>
-              <div className="col-span-1">
-                <span className={cn("text-[10px] px-1.5 py-0.5 rounded",
-                  t.direction === "long" ? "bg-profit/10 text-profit" :
-                  t.direction === "short" ? "bg-loss/10 text-loss" :
-                  "bg-muted/30 text-muted-foreground")}>
-                  {t.direction === "long" ? "多" : t.direction === "short" ? "空" : "中性"}
-                </span>
-              </div>
-              <div className="col-span-1 text-muted-foreground">{t.tier === "long" ? "长线" : "中线"}</div>
-              <div className="col-span-2 text-muted-foreground tabular-nums">
-                conv={t.llm_conviction ?? 0}
-              </div>
-              <div className="col-span-2 text-muted-foreground tabular-nums">
-                hub={t.hub_adjusted ? (t.hub_adjusted * 100).toFixed(0) : 0}%
-              </div>
-              <div className="col-span-2 text-muted-foreground tabular-nums">
-                ready={t.open_readiness ?? 0}
-              </div>
-              <div className="col-span-2 min-w-0">
-                <span
-                  className={cn("text-[10px] block truncate",
-                    t.gate_status?.can_open ? "text-profit" : "text-muted-foreground")}
-                  title={t.gate_status?.summary ?? ""}
-                >
-                  {(() => {
-                    const gs = t.gate_status;
-                    if (!gs) return t.pending ? "等待调度" : "—";
-                    if (gs.can_open) return "可开仓";
-                    const pending = (gs.checks || [])
-                      .filter((c: any) => !c.ok)
-                      .map((c: any) => c.label)
-                      .filter(Boolean);
-                    if (pending.length) return `还需: ${pending.slice(0, 2).join(" · ")}`;
-                    return gs.summary || "—";
-                  })()}
-                </span>
-              </div>
-            </div>
-          );
-          if (!all.length) {
-            return (
-              <div className="text-xs text-muted-foreground py-4 text-center">
-                {mltoThesis.loading ? "加载中..." : "暂无 MLTO thesis（等待调度）"}
-              </div>
-            );
-          }
-          return (
-            <div className="space-y-3">
-              <div>
-                <div className="text-[10px] text-muted-foreground mb-1">
-                  固定长线 · {longRows.length} · {(lanes.long_symbols || []).join("/") || "未配置"}
-                </div>
-                {longRows.length ? longRows.map((t: any, i: number) => renderRow(t, i)) : (
-                  <div className="text-[10px] text-muted-foreground py-1">暂无长线 thesis</div>
-                )}
-              </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground mb-1">
-                  中线（过渡期 MLTO 对照） · {midRows.length}
-                  {" · 固定 "}{(lanes.fixed_in_mid || []).join("/") || "—"}
-                  {" + AI≤3 "}{(lanes.ai_mid_symbols || []).join("/") || "—"}
-                </div>
-                {midFixedRows.length ? midFixedRows.map((t: any, i: number) => renderRow(t, i, "固定")) : null}
-                {midAiRows.length ? midAiRows.map((t: any, i: number) => renderRow(t, i, "AI")) : null}
-                {midOtherRows.length ? midOtherRows.map((t: any, i: number) => renderRow(t, i, "续管")) : null}
-                {!midRows.length ? (
-                  <div className="text-[10px] text-muted-foreground py-1">暂无中线 thesis</div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })()}
+        <div className="text-xs text-muted-foreground mb-2">
+          长线 · L1 规则化（5 信号投票，score≥+3 才 up；多头单边）
+        </div>
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          {(longV2.data?.symbols ?? []).length === 0 ? (
+            <div className="text-xs text-muted-foreground py-1">暂无固定长线币 / 未配置</div>
+          ) : (
+            (longV2.data?.symbols ?? []).map((s: any) => (
+              <span key={s.symbol} className={cn(
+                "px-1.5 py-0.5 rounded text-xs",
+                s.state === "up" ? "bg-profit/10 text-profit" :
+                s.state === "down" ? "bg-loss/10 text-loss" : "bg-muted/30 text-muted-foreground"
+              )}>
+                {s.symbol} {s.state === "up" ? "多 ↑" : s.state === "down" ? "空 ↓" : "中性"} (score={s.score})
+              </span>
+            ))
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          长线入场 = L1=up 且数据充足；退出 = 结构破坏 + Chandelier；全程无 LLM。中线由因子路由驱动。
+        </div>
       </Card>
     </div>
   );
@@ -680,15 +656,15 @@ function TierActivityColumn({ title, items, color, icon: Icon }: {
           <span className="text-xs font-medium">{title}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Badge variant="secondary" className="text-[9px]">{items.length}</Badge>
+          <Badge variant="secondary" className="text-xs">{items.length}</Badge>
           <button onClick={() => setPaused(!paused)} className="text-muted-foreground hover:text-foreground">
             {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
           </button>
         </div>
       </div>
-      <div ref={scrollRef} className="text-[10px] h-[300px] overflow-y-auto bg-black/20 rounded p-1.5 space-y-0.5">
+      <div ref={scrollRef} className="text-xs h-[300px] overflow-y-auto bg-black/20 rounded p-1.5 space-y-0.5">
         {items.length === 0 ? (
-          <div className="text-muted-foreground text-center py-4 text-[11px]">暂无{title}策略记录</div>
+          <div className="text-muted-foreground text-center py-4 text-xs">暂无{title}策略记录</div>
         ) : (
           items.map((item: any, i: number) => {
             const isAction = item.action !== "观望";
@@ -706,27 +682,27 @@ function TierActivityColumn({ title, items, color, icon: Icon }: {
                 </span>
                 {item.symbol && <span className="shrink-0 font-medium">{item.symbol}</span>}
                 {item.direction && item.direction !== "neutral" && (
-                  <span className={cn("shrink-0 text-[9px]",
+                  <span className={cn("shrink-0 text-xs",
                     item.direction === "long" ? "text-profit" : "text-loss")}>
                     {item.direction === "long" ? "多" : "空"}
                   </span>
                 )}
                 {item.lane_note && (
-                  <span className="text-warning shrink-0 text-[9px]">{item.lane_note}</span>
+                  <span className="text-warning shrink-0 text-xs">{item.lane_note}</span>
                 )}
                 {item.confidence > 0 && (
                   <span className="text-muted-foreground shrink-0 tabular-nums">{item.confidence}%</span>
                 )}
                 {isBlocked && item.block_reason && (
-                  <span className="text-loss text-[9px] truncate" title={item.block_reason}>
+                  <span className="text-loss text-xs truncate" title={item.block_reason}>
                     {item.block_reason}
                   </span>
                 )}
                 {isExecuted && (
-                  <span className="text-profit text-[9px] shrink-0">已执行</span>
+                  <span className="text-profit text-xs shrink-0">已执行</span>
                 )}
                 {item.reasoning && (
-                  <span className="text-muted-foreground text-[9px] truncate ml-auto" title={item.reasoning}>
+                  <span className="text-muted-foreground text-xs truncate ml-auto" title={item.reasoning}>
                     {item.reasoning}
                   </span>
                 )}
@@ -758,7 +734,7 @@ function NextTickCountdown({ job, interval, label = "下次 tick" }: { job: any;
 
   const pct = interval > 0 ? ((interval - remaining) / interval) * 100 : 0;
   return (
-    <div className="flex items-center gap-2 text-[10px]">
+    <div className="flex items-center gap-2 text-xs">
       <Clock className="w-3 h-3 text-muted-foreground" />
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums font-medium text-primary">{remaining}s</span>
@@ -823,15 +799,20 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
       {/* 耗时 + 成功率 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="p-4">
-          <div className="text-sm font-medium mb-3">Tick 耗时分布 (ms)</div>
+          <CardHead
+            icon={<BarChart3 className="w-3.5 h-3.5 text-cyan-300" />}
+            title="Tick 耗时分布"
+            hint="P50 / P95 · ms"
+            className="mb-3"
+          />
           {barData.length === 0 ? (
             <EmptyChart />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <RBarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E2530" />
-                <XAxis dataKey="name" tick={{ fill: "#6B7785", fontSize: 10 }} />
-                <YAxis tick={{ fill: "#6B7785", fontSize: 10 }} />
+                <XAxis dataKey="name" tick={{ fill: "#6B7785", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#6B7785", fontSize: 12 }} />
                 <RTooltip contentStyle={{ background: "#11161D", border: "1px solid #1E2530", borderRadius: 6, fontSize: 12 }} />
                 <RBar dataKey="p50" fill="#5B8DEF" radius={[3, 3, 0, 0]} name="P50" />
                 <RBar dataKey="p95" fill="#FFB938" radius={[3, 3, 0, 0]} name="P95" />
@@ -841,15 +822,20 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
         </Card>
 
         <Card className="p-4">
-          <div className="text-sm font-medium mb-3">成功率 (%)</div>
+          <CardHead
+            icon={<TrendingUp className="w-3.5 h-3.5 text-profit" />}
+            title="执行成功率"
+            hint="近 7 天 · %"
+            className="mb-3"
+          />
           {barData.length === 0 ? (
             <EmptyChart />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <RLineChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E2530" />
-                <XAxis dataKey="name" tick={{ fill: "#6B7785", fontSize: 10 }} />
-                <YAxis domain={[0, 100]} tick={{ fill: "#6B7785", fontSize: 10 }} />
+                <XAxis dataKey="name" tick={{ fill: "#6B7785", fontSize: 12 }} />
+                <YAxis domain={[0, 100]} tick={{ fill: "#6B7785", fontSize: 12 }} />
                 <RTooltip contentStyle={{ background: "#11161D", border: "1px solid #1E2530", borderRadius: 6, fontSize: 12 }} />
                 <RLine type="monotone" dataKey="successRate" stroke="#00C896" strokeWidth={2} dot={{ fill: "#00C896", r: 3 }} />
               </RLineChart>
@@ -861,9 +847,13 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
       {/* 决策分布 + Agent 绩效 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="p-4">
-          <div className="text-sm font-medium mb-3">决策分布 ({allDecisions.length})
-            {selectedAccountId != null && <Badge variant="secondary" className="ml-1.5 text-[9px]">账户 {selectedAccountId}</Badge>}
-          </div>
+          <CardHead
+            icon={<Radio className="w-3.5 h-3.5 text-violet-400" />}
+            title="决策分布"
+            hint={`${allDecisions.length} 条`}
+            badge={selectedAccountId != null ? <Badge variant="secondary" className="ml-1.5">账户 {selectedAccountId}</Badge> : null}
+            className="mb-3"
+          />
           {allDecisions.length === 0 ? (
             <EmptyChart />
           ) : (
@@ -878,7 +868,7 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
           )}
           <div className="flex justify-center gap-3 mt-2">
             {pieData.map((p) => (
-              <div key={p.name} className="flex items-center gap-1 text-[10px]">
+              <div key={p.name} className="flex items-center gap-1 text-xs">
                 <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
                 <span className="text-muted-foreground">{p.name}</span>
                 <span className="tabular-nums font-medium">{p.value}</span>
@@ -888,9 +878,13 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
         </Card>
 
         <Card className="p-4">
-          <div className="text-sm font-medium mb-3">Agent 绩效 (7天)
-            <Badge variant="secondary" className="ml-1.5 text-[9px]">全局</Badge>
-          </div>
+          <CardHead
+            icon={<Gauge className="w-3.5 h-3.5 text-cyan-300" />}
+            title="Agent 绩效"
+            hint="近 7 天"
+            badge={<Badge variant="secondary" className="ml-1.5">全局</Badge>}
+            className="mb-3"
+          />
           <div className="space-y-2">
             {Object.entries(agents).map(([name, a]: [string, any]) => (
               <div key={name} className="p-2 rounded bg-muted/10 text-xs space-y-1">
@@ -900,7 +894,7 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
                     {(a.net_pnl ?? 0) >= 0 ? "+" : ""}${(a.net_pnl ?? 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="flex gap-3 text-[10px] text-muted-foreground">
+                <div className="flex gap-3 text-xs text-muted-foreground">
                   <span>交易 {a.trades ?? 0}</span>
                   <span>胜率 {((a.win_rate ?? 0) * 100).toFixed(0)}%</span>
                   <span>PF {a.profit_factor?.toFixed(2) ?? "—"}</span>
@@ -915,7 +909,13 @@ function StatsTab({ selectedAccountId }: { selectedAccountId: number | null }) {
 
       {/* Tick 指标明细表 */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-4 py-2 border-b border-border/50 text-sm font-medium">Tick 执行明细</div>
+        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-cyan-300" />
+            <span className="text-xs font-semibold">Tick 执行明细</span>
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">10s 循环 · 全任务</span>
+        </div>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-muted-foreground border-b border-border/50">
@@ -965,7 +965,7 @@ function DecisionsTab({ selectedAccountId }: { selectedAccountId: number | null 
   const decisions = data?.decisions ?? (Array.isArray(data) ? data : []);
   const filtered = filter === "all" ? decisions : decisions.filter((d: any) => {
     const r = d.reasoning || "";
-    if (filter === "long") return r.includes("MLTO") || r.includes("TrendAgent") || r.includes("长线") || r.includes("scalp");
+    if (filter === "long") return r.includes("long_trend_v2") || r.includes("L1") || r.includes("长线") || r.includes("tier=long") || r.includes("结构破坏") || r.includes("Chandelier");
     if (filter === "buy") return ["buy", "add"].includes((d.operation || "").toLowerCase());
     if (filter === "sell") return ["sell", "reduce", "close"].includes((d.operation || "").toLowerCase());
     return true;
@@ -984,16 +984,16 @@ function DecisionsTab({ selectedAccountId }: { selectedAccountId: number | null 
         <div className="flex items-center gap-1">
           {["all", "long", "buy", "sell"].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={cn("px-2 py-1 text-[10px] rounded",
+              className={cn("px-2 py-1 text-xs rounded",
                 filter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
               {f === "all" ? "全部" : f === "long" ? "长线" : f === "buy" ? "买入" : "卖出"}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-profit">买 {stats.buy}</span>
-          <span className="text-[10px] text-loss">卖 {stats.sell}</span>
-          <span className="text-[10px] text-muted-foreground">观望 {stats.hold}</span>
+          <span className="text-xs text-profit">买 {stats.buy}</span>
+          <span className="text-xs text-loss">卖 {stats.sell}</span>
+          <span className="text-xs text-muted-foreground">观望 {stats.hold}</span>
           <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
             <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
           </Button>
@@ -1013,22 +1013,22 @@ function DecisionsTab({ selectedAccountId }: { selectedAccountId: number | null 
             return (
               <div key={d.id || i} className="px-4 py-2.5 hover:bg-muted/10">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                     {d.created_at ? new Date(d.created_at).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}
                   </span>
                   <span className="text-xs font-bold shrink-0">{d.symbol}</span>
-                  <Badge className={cn("text-[9px] shrink-0",
+                  <Badge className={cn("text-xs shrink-0",
                     isBuy ? "bg-profit/20 text-profit" : isSell ? "bg-loss/20 text-loss" : "bg-muted text-muted-foreground")}>
                     {isBuy ? "买入" : isSell ? "卖出" : "观望"}
                   </Badge>
                   {d.target_portion > 0 && (
-                    <span className="text-[10px] text-muted-foreground tabular-nums">目标 {(d.target_portion * 100).toFixed(0)}%</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">目标 {(d.target_portion * 100).toFixed(0)}%</span>
                   )}
                   {d.executed ? (
-                    <Badge variant="outline" className="text-[9px] text-profit border-profit/30">已执行</Badge>
+                    <Badge variant="outline" className="text-xs text-profit border-profit/30">已执行</Badge>
                   ) : null}
                 </div>
-                {d.reasoning && <p className="text-[11px] text-muted-foreground line-clamp-2 pl-1">{d.reasoning}</p>}
+                {d.reasoning && <p className="text-xs text-muted-foreground line-clamp-2 pl-1">{d.reasoning}</p>}
               </div>
             );
           })}
@@ -1063,7 +1063,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
         <div className="flex items-center gap-2">
           <Server className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">APScheduler ({jobs.length} 个任务)</span>
-          <Badge variant={running ? "default" : "secondary"} className={cn("text-[10px]", running && "bg-profit/20 text-profit")}>
+          <Badge variant={running ? "default" : "secondary"} className={cn("text-xs", running && "bg-profit/20 text-profit")}>
             {running ? "运行中" : "已停止"}
           </Badge>
         </div>
@@ -1074,11 +1074,16 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
 
       {/* 运行中的会话（多账户，高亮当前所选） */}
       <Card className="p-4">
-        <div className="text-sm font-medium mb-2">运行中的会话 ({runningSessions.length})</div>
+        <CardHead
+          icon={<Server className="w-3.5 h-3.5 text-cyan-300" />}
+          title="运行中的会话"
+          hint={`${runningSessions.length} 个`}
+          className="mb-2"
+        />
         <div className="flex gap-1.5 flex-wrap">
           {runningSessions.length === 0 && <div className="text-xs text-muted-foreground">无</div>}
           {runningSessions.map((sid: string) => (
-            <span key={sid} className={cn("px-2 py-1 rounded text-[10px] font-mono",
+            <span key={sid} className={cn("px-2 py-1 rounded text-xs font-mono",
               sid === selectedSessionId ? "bg-primary/15 text-primary font-medium" : "bg-muted/20 text-muted-foreground")}>
               {sid}
             </span>
@@ -1088,7 +1093,12 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
 
       {/* 两周期 tick 配置 vs 实际 */}
       <Card className="p-4">
-        <div className="text-sm font-medium mb-3">Tick 间隔</div>
+        <CardHead
+          icon={<Clock className="w-3.5 h-3.5 text-cyan-300" />}
+          title="Tick 间隔"
+          hint="秒 / tick"
+          className="mb-3"
+        />
         <div className="grid grid-cols-2 gap-3">
           {[
             { label: "短线", val: intervals.short, color: "text-primary" },
@@ -1096,9 +1106,9 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
             { label: "固定长线", val: intervals.long, color: "text-warning" },
           ].map(t => (
             <div key={t.label} className="text-center p-3 rounded-lg bg-muted/10">
-              <div className="text-[10px] text-muted-foreground mb-1">{t.label}</div>
+              <div className="text-xs text-muted-foreground mb-1">{t.label}</div>
               <div className={cn("text-2xl font-bold tabular-nums", t.color)}>{t.val}</div>
-              <div className="text-[10px] text-muted-foreground">秒/tick</div>
+              <div className="text-xs text-muted-foreground">秒/tick</div>
             </div>
           ))}
         </div>
@@ -1106,7 +1116,13 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
 
       {/* FullAuto 任务 */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-4 py-2 border-b border-border/50 text-sm font-medium">FullAuto 调度任务</div>
+        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <RefreshCw className="w-3.5 h-3.5 text-cyan-300" />
+            <span className="text-xs font-semibold">FullAuto 调度任务</span>
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">{fullAutoJobs.length} 项</span>
+        </div>
         <div className="divide-y divide-border/20">
           {fullAutoJobs.map((j: any) => {
             const nextRun = j.next_run ? new Date(j.next_run) : null;
@@ -1118,7 +1134,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
                 <span className="text-muted-foreground tabular-nums shrink-0">
                   {nextRun ? nextRun.toLocaleTimeString("zh-CN", { hour12: false }) : "—"}
                 </span>
-                {isOverdue && <Badge className="bg-warning/20 text-warning text-[9px]">超时</Badge>}
+                {isOverdue && <Badge className="bg-warning/20 text-warning text-xs">超时</Badge>}
               </div>
             );
           })}
@@ -1128,7 +1144,13 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
 
       {/* 其他系统任务 */}
       <Card className="p-0 overflow-hidden">
-        <div className="px-4 py-2 border-b border-border/50 text-sm font-medium">系统调度任务 ({otherJobs.length})</div>
+        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold">系统调度任务</span>
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">{otherJobs.length} 项</span>
+        </div>
         <div className="divide-y divide-border/20 max-h-60 overflow-y-auto">
           {otherJobs.map((j: any) => {
             const nextRun = j.next_run ? new Date(j.next_run) : null;
@@ -1136,7 +1158,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
               <div key={j.id} className="flex items-center gap-3 px-4 py-1.5 text-xs">
                 <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
                 <span className="font-mono flex-1 truncate text-muted-foreground">{j.id}</span>
-                <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                   {nextRun ? nextRun.toLocaleTimeString("zh-CN", { hour12: false }) : "—"}
                 </span>
               </div>
@@ -1148,7 +1170,12 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
       {/* 统一循环状态 */}
       {data && (
         <Card className="p-4">
-          <div className="text-sm font-medium mb-2">统一循环状态</div>
+          <CardHead
+            icon={<Activity className="w-3.5 h-3.5 text-cyan-300" />}
+            title="统一循环状态"
+            hint="FullAuto Loop"
+            className="mb-2"
+          />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <Detail label="运行中" value={data.unified_loop_running ? "是" : "否"} />
             <Detail label="tick 计数" value={String(Object.values(data.unified_tick_count ?? {})[0] ?? 0)} />
@@ -1200,7 +1227,7 @@ function LogsTab() {
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-        OpenCode 日志接口已停用。此处读取 <code className="text-[10px]">/api/system-logs</code>（系统级日志，跨账户）；完整分级报错见{" "}
+        OpenCode 日志接口已停用。此处读取 <code className="text-xs">/api/system-logs</code>（系统级日志，跨账户）；完整分级报错见{" "}
         <a href="/ops#ops-errors" className="text-primary underline underline-offset-2">运维台 · 报错中心</a>。
       </div>
       <div className="flex items-center justify-between">
@@ -1212,7 +1239,7 @@ function LogsTab() {
           <div className="flex items-center gap-1">
             {["all", "info", "warn", "error"].map(l => (
               <button key={l} onClick={() => setLevelFilter(l)}
-                className={cn("px-2 py-1 text-[10px] rounded",
+                className={cn("px-2 py-1 text-xs rounded",
                   levelFilter === l ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
                 {l === "all" ? "全部" : l === "info" ? "INFO" : l === "warn" ? "WARN" : "ERROR"}
               </button>
@@ -1225,7 +1252,7 @@ function LogsTab() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div ref={logEndRef} className="font-mono text-[10px] h-[500px] overflow-y-auto bg-black/30 p-3 leading-relaxed">
+        <div ref={logEndRef} className="font-mono text-xs h-[500px] overflow-y-auto bg-black/30 p-3 leading-relaxed">
           {lines.length === 0 ? (
             <div className="text-muted-foreground text-center py-8">暂无系统日志（或级别过滤过严）</div>
           ) : (
@@ -1252,6 +1279,22 @@ function LogsTab() {
 // 通用组件
 // ═══════════════════════════════════════════════════════════════════
 
+/** Aurora 卡片头：标题 + 图标 + 可选徽章，右侧可选提示 */
+function CardHead({ icon, title, hint, badge, className }: { icon?: any; title: any; hint?: any; badge?: any; className?: string }) {
+  return (
+    <div className={cn("flex items-center justify-between gap-2", className)}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        {icon}
+        <span className="text-xs font-semibold truncate">{title}</span>
+        {badge}
+      </div>
+      {hint != null && (
+        <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{hint}</span>
+      )}
+    </div>
+  );
+}
+
 function LoadingSpinner() {
   return (
     <div className="flex justify-center py-12">
@@ -1264,12 +1307,58 @@ function EmptyChart() {
   return <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">暂无数据</div>;
 }
 
-function StatusPill({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
+/** 风控冻结状态横幅（统一冻结台账可见性） */
+function PortfolioBudgetBanner({ state }: { state: any }) {
+  if (!state || state.error) return null;
+  const fmt = (v: any) => {
+    const s = Math.max(0, Math.round(Number(v) || 0));
+    if (s >= 3600) return `${Math.floor(s / 3600)}h${Math.floor((s % 3600) / 60)}m`;
+    if (s >= 60) return `${Math.floor(s / 60)}m${s % 60}s`;
+    return `${s}s`;
+  };
+  // 统一台账结构
+  const active = Array.isArray(state.active_freeze) ? state.active_freeze : [];
+  const budget = state.budget ?? {};
+  const globalFrozen = !!budget.global_frozen;
+  const accountFrozen = Object.keys(budget.account_frozen ?? {}).length > 0;
+  const strategyFrozen = Object.keys(budget.strategy_frozen ?? {}).length > 0;
+  const any = active.length > 0 || globalFrozen || accountFrozen || strategyFrozen;
+  if (!any) return null;
   return (
+    <Card className="p-3 border-warning/40 bg-warning/10">
+      <div className="flex items-center gap-2 mb-1.5">
+        <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+        <span className="text-xs font-semibold text-warning">风控冻结（统一台账 · 交易对级）</span>
+        <span className="text-xs text-muted-foreground ml-auto">15s 轮询</span>
+      </div>
+      <div className="text-xs text-muted-foreground space-y-0.5">
+        {globalFrozen && (
+          <div className="text-loss font-medium">全局冻结（历史遗留，设计上不应再自动触发）</div>
+        )}
+        {accountFrozen && (
+          <div className="text-loss font-medium">账户级冻结（历史遗留）</div>
+        )}
+        {strategyFrozen && (
+          <div className="text-loss font-medium">策略级冻结（历史遗留）</div>
+        )}
+        {active.map((f: any) => (
+          <div key={`${f.strategy}-${f.symbol}`} className="text-loss">
+            冻结 {f.symbol}（{f.strategy}）· 剩余 {fmt(f.remaining_s)} · {f.why}
+          </div>
+        ))}
+        {active.length === 0 && (
+          <div className="text-xs opacity-70">冻结台账详情见后端 /api/full-auto/debug/portfolio-budget</div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function StatusPill({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {  return (
     <Card className="p-2.5 flex items-center gap-2">
       {ok ? <CheckCircle2 className="w-4 h-4 text-profit shrink-0" /> : <XCircle className="w-4 h-4 text-loss shrink-0" />}
       <div className="min-w-0">
-        <div className="text-[10px] text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-xs font-medium truncate">{detail}</div>
       </div>
     </Card>
@@ -1280,7 +1369,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="text-center p-1.5 rounded bg-muted/10">
       <div className="text-sm font-bold tabular-nums">{value}</div>
-      <div className="text-[9px] text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -1291,7 +1380,7 @@ function KPICard({ label, value, icon: Icon, color }: { label: string; value: an
       <Icon className={cn("w-4 h-4", color ?? "text-primary")} />
       <div className="min-w-0">
         <div className={cn("text-base font-bold tabular-nums truncate", color)}>{value}</div>
-        <div className="text-[10px] text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
       </div>
     </Card>
   );
@@ -1300,7 +1389,7 @@ function KPICard({ label, value, icon: Icon, color }: { label: string; value: an
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] text-muted-foreground mb-0.5">{label}</div>
+      <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
       <div className="text-xs font-medium truncate">{value}</div>
     </div>
   );

@@ -27,7 +27,7 @@ import threading
 import time
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from backend.services.symbol_normalizer import normalize_symbol
 
@@ -105,6 +105,94 @@ class AsterdexTickerPoller:
         self._last_stats_ts = 0.0
         self._polls = 0
         self._last_poll_at = 0.0
+        # [2026-08-15 D5] 秒级 ticker 落库缓冲（仅数据中心进程开启）
+        self._snap_buffer: List[Tuple[str, float, int]] = []
+        self._snap_flusher: Optional[threading.Thread] = None
+        self._snap_symbols: set = set()
+        self._snap_dropped = 0
+        self._snap_written = 0
+
+    # ── [2026-08-15 D5] ticker 快照持久化 ──────────────────────
+    def _snapshot_enabled(self) -> bool:
+        return os.getenv("TICKER_SNAPSHOT_PERSIST", "false").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+
+    def _snapshot_symbols(self) -> set:
+        """落库符号集：research 热币（≤150）+ BTC/ETH/SOL，控制体积。"""
+        syms = {"BTC", "ETH", "SOL"}
+        try:
+            from backend.services.kline_realtime_collector import get_research_priority_symbols
+            for s in get_research_priority_symbols(limit=150):
+                syms.add(s)
+        except Exception:
+            pass
+        return syms
+
+    def _buffer_snapshot(self, prices: Dict[str, Tuple[float, float]]) -> None:
+        """把本轮 ticker 价格追加到落库缓冲（每 10s 由 flusher 批量写入）。"""
+        if not self._snap_flusher or not self._snap_flusher.is_alive():
+            return
+        now_ms = int(time.time() * 1000)
+        with self._lock:
+            if not self._snap_symbols:
+                self._snap_symbols = self._snapshot_symbols()
+            syms = self._snap_symbols
+            cap = 20000
+            for base, (price, _ts) in prices.items():
+                if base not in syms:
+                    continue
+                if len(self._snap_buffer) >= cap:
+                    self._snap_buffer.pop(0)
+                    self._snap_dropped += 1
+                self._snap_buffer.append((base, float(price), now_ms))
+
+    def _flush_snapshots(self) -> None:
+        """落库线程：每 10s 批量写 ticker_snapshots（失败仅 debug 计数，不阻塞采集）。"""
+        while not self._stop.is_set():
+            self._stop.wait(10.0)
+            with self._lock:
+                if not self._snap_buffer:
+                    continue
+                batch = self._snap_buffer
+                self._snap_buffer = []
+            if not batch:
+                continue
+            try:
+                from sqlalchemy import text as _sa_text
+
+                from backend.database.connection import MarketSessionLocal
+                rows = [
+                    {"exchange": "asterdex", "symbol": s, "price": p, "ts_ms": ts}
+                    for s, p, ts in batch
+                ]
+                with MarketSessionLocal() as db:
+                    db.execute(
+                        _sa_text(
+                            "INSERT INTO ticker_snapshots (exchange, symbol, price, ts_ms) "
+                            "VALUES (:exchange, :symbol, :price, :ts_ms)"
+                        ),
+                        rows,
+                    )
+                    db.commit()
+                self._snap_written += len(rows)
+            except Exception as exc:
+                # 建表未完成（老 DC 进程未重启）等场景：计数并继续
+                logger.debug("[AsterdexTicker] ticker 快照落库失败: %s", exc)
+
+    def start_snapshot_flusher(self) -> None:
+        """在数据中心进程开启 ticker 落库线程（幂等）。"""
+        if self._snap_flusher and self._snap_flusher.is_alive():
+            return
+        if not self._snapshot_enabled():
+            return
+        self._snap_flusher = threading.Thread(
+            target=self._flush_snapshots,
+            name="asterdex-ticker-snapshot-flusher",
+            daemon=True,
+        )
+        self._snap_flusher.start()
+        logger.info("[AsterdexTicker] ticker 快照落库已开启（10s 批量，14 天保留）")
 
     def start(self) -> bool:
         if self._thread and self._thread.is_alive():
@@ -116,6 +204,7 @@ class AsterdexTickerPoller:
             daemon=True,
         )
         self._thread.start()
+        self.start_snapshot_flusher()
         logger.info(
             "[AsterdexTicker] 启动：全市场 ticker 每 %.1fs 轮询", self.interval_seconds
         )
@@ -353,6 +442,8 @@ class AsterdexTickerPoller:
             self._prices = fresh
             self._polls += 1
             self._last_poll_at = now_ts
+
+        self._buffer_snapshot(fresh)
 
         if do_fan_out:
             self._fan_out(fresh, now_ts)

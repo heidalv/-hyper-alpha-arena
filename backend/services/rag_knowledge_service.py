@@ -199,11 +199,20 @@ class RAGKnowledgeService:
         # 增长 + 降低 cu124 CPU 推理段错误概率），此处覆盖会破坏该保护。
         t0 = time.time()
         try:
+            # [2026-08-16 GPU 切换] 旧实现强制 CPU，bge-large 推理吃满全部核心。
+            # 本机有 CUDA 时切 GPU（8G 显存足够 bge-large fp32），不可用时回退 CPU。
+            _device = "cpu"
+            try:
+                import torch as _torch
+                if _torch.cuda.is_available():
+                    _device = "cuda"
+            except Exception:
+                _device = "cpu"
             self._embed_model = SentenceTransformer(
                 EMBEDDING_MODEL_NAME,
-                device="cpu",
+                device=_device,
             )
-            logger.info(f"[RAG] Embedding 模型加载完成: {EMBEDDING_MODEL_NAME} ({time.time()-t0:.1f}s)")
+            logger.info(f"[RAG] Embedding 模型加载完成: {EMBEDDING_MODEL_NAME} device={_device} ({time.time()-t0:.1f}s)")
         except Exception as load_err:
             logger.warning(
                 f"[RAG] Embedding 加载失败（离线模式）: {load_err}"

@@ -4,6 +4,7 @@ ATAS V2 Walk-Forward分析
 提供滚动窗口回测，防止过拟合
 """
 import os
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Callable
@@ -12,6 +13,8 @@ import numpy as np
 
 from .backtest_engine import BacktestEngine, BacktestConfig, BacktestResult, Strategy
 from .loss_functions import get_loss
+
+logger = logging.getLogger(__name__)
 
 
 def _env_int(name: str, default: int) -> int:
@@ -326,7 +329,8 @@ class WalkForwardAnalyzer:
                 return self._optimize_grid(strategy_factory, train_data, param_grid)
         if optimizer == "cma_es":
             # CMA-ES 暂未实现（对应整改#20），回退 grid，保持可用
-            print("[WFO] optimizer=cma_es 暂未实现，回退 grid")
+            # [2026-08-15] print → logger.warning（结构化告警，运维可见）
+            logger.warning("[WFO] optimizer=cma_es 暂未实现，回退 grid（整改#20）")
             return self._optimize_grid(strategy_factory, train_data, param_grid)
         return self._optimize_grid(strategy_factory, train_data, param_grid)
 

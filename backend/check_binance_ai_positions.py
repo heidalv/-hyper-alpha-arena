@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from backend.database.connection import SessionLocal
-from database.models import AIDecisionLog, Account
+from backend.database.models import AIDecisionLog, Account
 from sqlalchemy import desc, or_
 
 

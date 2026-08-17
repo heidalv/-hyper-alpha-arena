@@ -8,7 +8,10 @@
       LUNA崩盘 / 2022-11 FTX崩盘 / 2024-08-05 日元套利平仓闪崩 的本地数据覆盖均为
       0 行——因此无法做"重放当年真实K线"意义上的历史重放。
     - 清算历史同样受限：Coinalyze 免费API仅能查最近4小时窗口，HyperliquidClient
-      无清算历史接口，本地 symbol_aux_timeseries/raw_market_events 均为空表。
+      无清算历史接口。本地 symbol_aux_timeseries 自 2026-08-15 起已有
+      kline_enrichment 落库序列（链上/社交，前向积累中）；liquidation_events
+      自 2026-08-15 起按小时聚合落库（见 services/liquidation_collector.py）；
+      raw_market_events 目前仍只有 kline 类型影子事件。
 
 设计取舍（避免"用假数据自欺欺人的测试"）：
     1. 优先尝试 replay_historical_wicks() 扫描本地已有K线里真实存在的
@@ -312,8 +315,9 @@ class ExtremeScenarioSimulator:
             "cascade_slippage_multiplier": [c.slippage_multiplier for c in cascade_events],
             "cascade_data_limitation_note": (
                 "Coinalyze免费API仅能查最近4小时清算窗口，HyperliquidClient无清算历史接口，"
-                "本地symbol_aux_timeseries/raw_market_events均为空表——此项为近似规则化滑点"
-                "放大系数，非真实价格级清算热图重放（P2阶段数据源到位后升级）"
+                "本地清算/链上历史浅（liquidation_events 2026-08-15 起小时聚合前向积累，"
+                "raw_market_events 仅有kline影子）——此项为近似规则化滑点"
+                "放大系数，非真实价格级清算热图重放（数据源升级后替换实现）"
             ),
             "overall_pass": wick_result["missed_count"] == 0 and exit_result.get("pass", False),
         }

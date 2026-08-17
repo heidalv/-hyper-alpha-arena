@@ -193,8 +193,18 @@ TIER_LONG_ENABLED: bool = os.getenv("TIER_LONG_ENABLED", "true").lower() in (
     "1", "true", "yes", "on",
 )
 
-# 资金费率结算周期（秒），仅 research 模式生效
+# 资金费率结算周期（秒）
 FUNDING_SETTLE_INTERVAL_SEC = int(os.getenv("FUNDING_SETTLE_INTERVAL_SEC", str(8 * 3600)))
+
+# [P0-8] 资金费率结算开关：默认开启，不再与 PAPER_SIMULATION_TIER 绑定。
+# FUNDING_SETTLE_APPLY_PNL=false 时仅写 paper_funding_ledger 不动净值（dry-run 观察期），
+# 观察两周对拍（纸面 vs 实盘资金费）后改 true 计入 realized_pnl。
+FUNDING_SETTLE_ENABLED: bool = os.getenv("FUNDING_SETTLE_ENABLED", "true").lower() in (
+    "1", "true", "yes", "on",
+)
+FUNDING_SETTLE_APPLY_PNL: bool = os.getenv("FUNDING_SETTLE_APPLY_PNL", "false").lower() in (
+    "1", "true", "yes", "on",
+)
 
 # 维持保证金率（简化固定值），仅 research 模式生效
 MAINT_MARGIN_RATIO = float(os.getenv("MAINT_MARGIN_RATIO", "0.005"))
@@ -854,7 +864,10 @@ MIDLONG_FACTOR_RESEARCH_ENABLED: bool = os.getenv("MIDLONG_FACTOR_RESEARCH_ENABL
 # 中长线活跃因子上限（独立于短线 SCALP_ACTIVE_FACTOR_MAX）
 MIDLONG_ACTIVE_FACTOR_MAX: int = int(os.getenv("MIDLONG_ACTIVE_FACTOR_MAX", "30"))
 # 中长线单因子样本外回测超参（时间框架更长 → 回看更多、前向更短、门槛略低）
-FACTOR_SCORER_MIDLONG_LOOKBACK: int = int(os.getenv("FACTOR_SCORER_MIDLONG_LOOKBACK", "900"))
+# [2026-08-16 深度适配] lookback 按周期分档：4h=2400 根（≈400 天，asterdex 4h 现深 2400）；
+# 1d 单独档 FACTOR_SCORER_MIDLONG_LOOKBACK_1D（asterdex 1d 仅 3.1 年≈1126 根，2400 根=6.6 年永远不够）。
+FACTOR_SCORER_MIDLONG_LOOKBACK: int = int(os.getenv("FACTOR_SCORER_MIDLONG_LOOKBACK", "2400"))
+FACTOR_SCORER_MIDLONG_LOOKBACK_1D: int = int(os.getenv("FACTOR_SCORER_MIDLONG_LOOKBACK_1D", "1000"))
 FACTOR_SCORER_MIDLONG_FWD_4H: int = int(os.getenv("FACTOR_SCORER_MIDLONG_FWD_4H", "6"))    # ≈1天
 FACTOR_SCORER_MIDLONG_FWD_1D: int = int(os.getenv("FACTOR_SCORER_MIDLONG_FWD_1D", "3"))    # ≈3天
 FACTOR_SCORER_MIDLONG_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIDLONG_MIN_SHARPE", "0.4"))
@@ -1781,7 +1794,9 @@ RISK_USE_LEVERAGE_CAP_BY_TIER:         bool = os.getenv("RISK_USE_LEVERAGE_CAP_B
 DYNAMIC_LEVERAGE_ENABLED:              bool = os.getenv("DYNAMIC_LEVERAGE_ENABLED", "true").lower() == "true"
 RISK_USE_LONG_TIER_1D_ATR:             bool = os.getenv("RISK_USE_LONG_TIER_1D_ATR", "true").lower() == "true"
 RISK_USE_LONG_TIER_IMMUNE:             bool = os.getenv("RISK_USE_LONG_TIER_IMMUNE", "true").lower() == "true"
-RISK_USE_LONG_TIER_STAGED_TP:          bool = os.getenv("RISK_USE_LONG_TIER_STAGED_TP", "true").lower() == "true"
+# [P0-10 双重减仓收口] 默认 false：RISK_V2_UNIFIED_STAGED_TP=true 时统一分段止盈是唯一权威，
+# long_tier_staged_tp 若同时开，long 仓会被两套引擎各自减仓（_dim_staged_tp 无 v2 门）。
+RISK_USE_LONG_TIER_STAGED_TP:          bool = os.getenv("RISK_USE_LONG_TIER_STAGED_TP", "false").lower() == "true"
 RISK_USE_TIER_PROMPT_HINTS:            bool = os.getenv("RISK_USE_TIER_PROMPT_HINTS", "true").lower() == "true"
 
 # --- B方案：趋势健康分 / 退出编排 / 双Agent ---

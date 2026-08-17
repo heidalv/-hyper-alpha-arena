@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 sys.path.insert(0, PROJECT_ROOT)
 
-from database.snapshot_connection import snapshot_engine  # noqa: E402
+from backend.database.snapshot_connection import snapshot_engine  # noqa: E402
 
 
 def column_exists(inspector, table: str, column: str) -> bool:
@@ -32,7 +32,7 @@ def upgrade():
             conn.execute(
                 text("ALTER TABLE hyperliquid_account_snapshots ADD COLUMN wallet_address VARCHAR(100)")
             )
-            print("✅ Added wallet_address to snapshot hyperliquid_account_snapshots")
+            print("�?Added wallet_address to snapshot hyperliquid_account_snapshots")
         else:
             print("ℹ️  wallet_address already exists on snapshot hyperliquid_account_snapshots")
 

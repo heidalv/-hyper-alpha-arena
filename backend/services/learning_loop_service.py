@@ -45,6 +45,8 @@ JOB_PAPER_OUTCOME_BACKFILL = "learning_loop_paper_outcome_backfill"
 JOB_KELLY_PORTFOLIO = "learning_loop_kelly_portfolio"
 JOB_COORDINATOR = "learning_loop_coordinator"
 JOB_HEARTBEAT = "learning_loop_heartbeat"  # P2-1 WS 心跳
+JOB_FACTOR_DECAY = "learning_loop_factor_decay"  # P0-2 因子衰减评估（接线 factor_decay_monitor）
+JOB_LIVE_OUTCOME_BACKFILL = "learning_loop_live_outcome_backfill"  # P1-4 live 仓位级 7 天补扫
 
 # 默认 tick 周期（秒），可被 .env 覆盖
 DEFAULT_INTERVALS: Dict[str, int] = {
@@ -53,6 +55,8 @@ DEFAULT_INTERVALS: Dict[str, int] = {
     JOB_KELLY_PORTFOLIO: 30 * 60,
     JOB_COORDINATOR: 60 * 60,
     JOB_HEARTBEAT: 30,  # P2-1 每 30s 推一次 coordinator_status
+    JOB_FACTOR_DECAY: 6 * 3600,  # P0-2 每 6h 评估因子衰减（可 env 覆盖）
+    JOB_LIVE_OUTCOME_BACKFILL: 10 * 60,  # P1-4 live 补扫每 10min
 }
 
 _METRIC_HISTORY = 200
@@ -93,6 +97,8 @@ class LearningLoopService:
             JOB_KELLY_PORTFOLIO: None,
             JOB_COORDINATOR: None,
             JOB_HEARTBEAT: None,
+            JOB_FACTOR_DECAY: None,
+            JOB_LIVE_OUTCOME_BACKFILL: None,
         }
         self._last_coord_action: Dict[str, Any] = {}
         logger.info("[LearningLoop] 实例化完成")
@@ -140,6 +146,20 @@ class LearningLoopService:
                 task_func=self._tick_heartbeat,
                 interval_seconds=intervals[JOB_HEARTBEAT],
                 task_id=JOB_HEARTBEAT,
+            )
+            # P0-2 因子衰减评估：evaluate_all_factors 消费 record_ic 累积的 IC 历史，
+            # 产出 DecayStatus 供 get_factor_weight_penalty 在实盘信号加权层生效。
+            task_scheduler.add_interval_task(
+                task_func=self._tick_factor_decay,
+                interval_seconds=intervals[JOB_FACTOR_DECAY],
+                task_id=JOB_FACTOR_DECAY,
+            )
+            # P1-4 live 仓位级补扫：宕机>10min 期间漏掉的 live 平仓反馈（事件级 hook
+            # 失败时连 StrategyTrade 都没有）从 AIDecisionLog 补齐。
+            task_scheduler.add_interval_task(
+                task_func=self._tick_live_outcome_backfill,
+                interval_seconds=intervals[JOB_LIVE_OUTCOME_BACKFILL],
+                task_id=JOB_LIVE_OUTCOME_BACKFILL,
             )
             self._registered = True
             logger.info(
@@ -194,6 +214,14 @@ class LearningLoopService:
                     settings, "LEARNING_LOOP_HEARTBEAT_INTERVAL_S",
                     DEFAULT_INTERVALS[JOB_HEARTBEAT],
                 )),
+                JOB_FACTOR_DECAY: int(getattr(
+                    settings, "LEARNING_LOOP_FACTOR_DECAY_INTERVAL_S",
+                    DEFAULT_INTERVALS[JOB_FACTOR_DECAY],
+                )),
+                JOB_LIVE_OUTCOME_BACKFILL: int(getattr(
+                    settings, "LEARNING_LOOP_LIVE_BACKFILL_INTERVAL_S",
+                    DEFAULT_INTERVALS[JOB_LIVE_OUTCOME_BACKFILL],
+                )),
             }
         except Exception:
             return dict(DEFAULT_INTERVALS)
@@ -213,6 +241,174 @@ class LearningLoopService:
             logger.warning(f"[LearningLoop] heartbeat 失败: {e}")
         finally:
             self._record_tick(job, t0, success, {})
+
+    def _tick_live_outcome_backfill(self) -> None:
+        """P1-4 — live 仓位级 7 天补扫（每 10min）。
+
+        修复：live 平仓若在 close→process_outcome 之间崩溃/宕机（>10min），
+        该笔交易永远不进 UnifiedLearning（原 600s 兜底只扫 StrategyTrade，
+        而 StrategyTrade 恒带 _learning_loop_processed=true，是死路）。
+        本 tick 从 AIDecisionLog（realized_pnl + pnl_updated_at）补齐，
+        按 decision_log_id 去重（process_outcome 幂等 + decision_context 键）。
+        """
+        if self._paused:
+            return
+        job = JOB_LIVE_OUTCOME_BACKFILL
+        t0 = time.time()
+        success = True
+        extra: Dict[str, Any] = {}
+        try:
+            extra = self._do_live_outcome_backfill(days=7)
+        except Exception as e:
+            success = False
+            logger.warning(f"[LearningLoop] live_outcome_backfill 失败: {e}")
+        finally:
+            self._record_tick(job, t0, success, extra)
+
+    def _do_live_outcome_backfill(self, days: int = 7) -> Dict[str, Any]:
+        """从 AIDecisionLog 扫描已平仓 live 决策，补齐未写 StrategyTrade 的学习结果。"""
+        from sqlalchemy import cast
+        from sqlalchemy.types import Text
+        from backend.database.connection import SessionLocal, AnalyticsSessionLocal
+        from backend.database.models import AIDecisionLog, StrategyTrade
+        from backend.services.unified_learning_service import unified_learning, TradeOutcome
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        scanned = backfilled = skipped_existing = skipped_no_strategy = failed = 0
+
+        _ana_db = None
+        rows = []
+        try:
+            _ana_db = AnalyticsSessionLocal()
+            rows = (
+                _ana_db.query(AIDecisionLog)
+                .filter(
+                    AIDecisionLog.executed == "true",
+                    AIDecisionLog.operation.in_(["buy", "sell"]),
+                    AIDecisionLog.realized_pnl.isnot(None),
+                    AIDecisionLog.pnl_updated_at.isnot(None),
+                    AIDecisionLog.pnl_updated_at >= cutoff.replace(tzinfo=None),
+                )
+                .order_by(AIDecisionLog.pnl_updated_at.desc())
+                .limit(500)
+                .all()
+            )
+        except Exception as e:
+            logger.debug("[LearningLoop] live 补扫查询失败: %s", e)
+        finally:
+            if _ana_db is not None:
+                try:
+                    _ana_db.close()
+                except Exception:
+                    pass
+
+        scanned = len(rows)
+        if not rows:
+            return {"scanned": 0, "backfilled": 0, "skipped_existing": 0, "failed": 0}
+
+        db = SessionLocal()
+        try:
+            for log in rows:
+                _sid = (log.ai_strategy_id or "").strip()
+                if not _sid:
+                    skipped_no_strategy += 1
+                    continue
+                existing = (
+                    db.query(StrategyTrade)
+                    .filter(
+                        StrategyTrade.strategy_id == _sid,
+                        cast(StrategyTrade.decision_context, Text).contains(
+                            f'"decision_log_id": {log.id}'
+                        ),
+                    )
+                    .first()
+                )
+                if existing is not None:
+                    skipped_existing += 1
+                    continue
+                try:
+                    _pnl = float(log.realized_pnl or 0)
+                    _side = "long" if (log.operation or "").strip().lower() == "buy" else "short"
+                    _notional = 0.0
+                    try:
+                        _prev = float(log.prev_portion or 0)
+                        _bal = float(log.total_balance or 0)
+                        _notional = _prev * _bal
+                    except Exception:
+                        _notional = 0.0
+                    _pnl_pct = (_pnl / _notional) if _notional > 0 else 0.0
+                    outcome = TradeOutcome(
+                        source="live",
+                        strategy_id=_sid,
+                        symbol=log.symbol or "",
+                        side=_side,
+                        tier="mid",
+                        trade_nature="",
+                        entry_price=0.0,
+                        exit_price=0.0,
+                        pnl=_pnl,
+                        pnl_pct=float(_pnl_pct),
+                        duration_seconds=0,
+                        regime_at_entry="unknown",
+                        regime_at_exit="unknown",
+                        confidence=0.6,
+                        position_size=0.0,
+                        metadata={
+                            "loop_backfill": True,
+                            "close_reason": "live_backfill",
+                            "decision_log_id": log.id,
+                            "data_source": "aiddecisionlog_backfill",
+                            "market_type": "perp",
+                            "leverage": 1.0,
+                        },
+                        persist_trade=True,
+                    )
+                    unified_learning.process_outcome(db, outcome)
+                    backfilled += 1
+                except Exception as e:
+                    failed += 1
+                    logger.warning(
+                        "[LearningLoop] live_outcome_backfill 单笔失败 log=%s: %s",
+                        getattr(log, "id", None), e,
+                    )
+        finally:
+            db.close()
+
+        return {
+            "scanned": scanned,
+            "backfilled": backfilled,
+            "skipped_existing": skipped_existing,
+            "skipped_no_strategy": skipped_no_strategy,
+            "failed": failed,
+        }
+
+    def _tick_factor_decay(self) -> None:
+        """P0-2 — 每 6h 评估全部因子衰减状态。
+
+        修复：factor_decay_monitor.evaluate_all_factors 此前全库无调用点，
+        _decay_status 永不填充 → get_factor_weight_penalty 恒返回 1.0，
+        衰减因子永远满权重参与实盘合成。本 tick 把评估接入调度并持久化状态。
+        """
+        if self._paused:
+            return
+        job = JOB_FACTOR_DECAY
+        t0 = time.time()
+        success = True
+        extra: Dict[str, Any] = {}
+        try:
+            from backend.services.factor_engine.factor_decay_monitor import decay_monitor
+            results = decay_monitor.evaluate_all_factors()
+            extra = {
+                "evaluated": len(results),
+                "retired": sum(1 for s in results.values() if s.recommendation == "retire"),
+                "reduced": sum(1 for s in results.values() if s.recommendation == "reduce"),
+            }
+        except Exception as e:
+            success = False
+            # 衰减评估失败必须可见（因子权重保护失效）
+            logger.warning(f"[LearningLoop] factor_decay 评估失败: {e}")
+        finally:
+            self._record_tick(job, t0, success, extra)
 
     # ─────────────────────────────
     #  外部控制（pause/resume/trigger）
@@ -239,6 +435,8 @@ class LearningLoopService:
             "paper_outcome_backfill": self._tick_paper_outcome_backfill,
             "kelly_portfolio": self._tick_kelly_portfolio,
             "coordinator": self._tick_coordinator,
+            "factor_decay": self._tick_factor_decay,
+            "live_outcome_backfill": self._tick_live_outcome_backfill,
         }
         fn = mapping.get(job)
         if fn is None:
@@ -393,7 +591,9 @@ class LearningLoopService:
                         pnl_pct=float(t.pnl_pct or 0.0),
                         duration_seconds=int(t.holding_period or 0),
                         regime_at_entry=str(ctx.get("regime") or "ranging"),
-                        regime_at_exit=str(ctx.get("regime") or "ranging"),
+                        # [P1-12 标签卫生] 原实现把 entry regime 复制为 exit regime，
+                        # 区制条件学习统计被污染。平仓时真实区制若未记录则诚实标 unknown。
+                        regime_at_exit=str(ctx.get("regime_at_exit") or "unknown"),
                         confidence=float(ctx.get("confidence") or 0.6),
                         metadata={"loop_backfill": True},
                         # 关键修复：回填路径不允许再生成新的 StrategyTrade，
@@ -524,10 +724,20 @@ class LearningLoopService:
 
     @staticmethod
     def _paper_position_pnl(pos) -> float:
+        """closed 仓位已实现盈亏。
+
+        [P0-6 权威口径] paper_trading_engine.close_position 落库时把 unrealized_pnl
+        复用为「全仓已实现盈亏（已含分批 partial_realized_pnl）」，因此 closed 仓位
+        直接取 unrealized_pnl，禁止再叠加 partial_realized_pnl（否则分批止盈仓位双计，
+        小亏会被误判为盈利）。仅当该列缺失时才按价格差兜底重算。
+        """
+        _stored = getattr(pos, "unrealized_pnl", None)
+        if _stored is not None:
+            return float(_stored or 0)
+        partial = float(getattr(pos, "partial_realized_pnl", 0) or 0)
         entry = float(getattr(pos, "entry_price", 0) or 0)
         close = float(getattr(pos, "close_price", 0) or 0)
-        size = float(getattr(pos, "original_size", None) or getattr(pos, "size", 0) or 0)
-        partial = float(getattr(pos, "partial_realized_pnl", 0) or 0)
+        size = float(getattr(pos, "size", 0) or 0)
         if entry <= 0 or close <= 0 or size <= 0:
             return partial
         if str(getattr(pos, "side", "")).lower() == "short":

@@ -45,7 +45,7 @@ class MasterExecutionHost:
     ensure_bound_strategy: Callable = field(repr=False, default=lambda *a, **k: None)
     load_strategy_by_id: Callable = field(repr=False, default=lambda *a, **k: None)
     execute_paper_trade: Callable = field(repr=False, default=lambda *a, **k: False)
-    execute_mlto_lane: Callable = field(repr=False, default=lambda *a, **k: None)
+    # [2026-08-17] execute_mlto_lane 字段已删：旧长线 LLM 分支已移除，Master 不再调用。
     try_execute_independent_agent_open: Callable = field(repr=False, default=lambda *a, **k: False)
     mark_master_decision_executed: Callable = field(repr=False, default=lambda *a, **k: None)
     backfill_dec_confidence_from_orch: Callable = field(repr=False, default=lambda *a, **k: 0)
@@ -122,7 +122,6 @@ def build_master_execution_host(svc) -> MasterExecutionHost:
         ensure_bound_strategy=svc._ensure_bound_strategy,
         load_strategy_by_id=svc._load_strategy_by_id,
         execute_paper_trade=svc._execute_paper_trade,
-        execute_mlto_lane=svc._execute_mlto_lane,
         try_execute_independent_agent_open=svc._try_execute_independent_agent_open,
         mark_master_decision_executed=svc._mark_master_decision_executed,
         backfill_dec_confidence_from_orch=svc._backfill_dec_confidence_from_orch,
@@ -446,6 +445,23 @@ def execute_master_decisions(
         action = dec.get("action", "hold")
         raw_confidence = dec.get("confidence", 50)
         reasoning = dec.get("reasoning", "")
+
+        # [2026-08-17 仲裁 Gate] 多源方向一致性校验（fail-closed）：
+        # 与 scalp 独立循环等来源对同一 (symbol, tier) 的相反观点冲突时拒绝开仓。
+        try:
+            from backend.services.full_auto.decision_arbitration import check_entry, register_view
+            _dec_tier_arb = (dec.get("tier") or dec.get("timeframe_tier") or "short").lower()
+            register_view(sym, _dec_tier_arb, "master", action, raw_confidence)
+            _arb_ok, _arb_why = check_entry(sym, _dec_tier_arb, "master", action, raw_confidence)
+            if not _arb_ok and action in ("buy", "sell", "pyramid", "dca"):
+                logger.info(
+                    "[ArbGate] master 决策被仲裁拒绝 %s/%s %s -> hold (%s)",
+                    sym, _dec_tier_arb, action, _arb_why,
+                )
+                action = "hold"
+                reasoning = f"arb_conflict:{_arb_why}; {reasoning}"[:300]
+        except Exception as _arb_err:
+            logger.debug("[ArbGate] 仲裁跳过: %s", _arb_err)
 
         # [2026-07-30 根源修复] 只处理 session 固定配置的交易对。
         # market_summary 可能包含 scalp 交易的 KAITO/XMR/ZEC 等币，
@@ -851,136 +867,12 @@ def execute_master_decisions(
                             sym,
                         )
                     else:
-                        try:
-                            from backend.services.mid_long_quant_brief import mid_long_quant_brief_builder
-                            from backend.services.trend_agent import derive_trend_side
-                            _t_side = derive_trend_side(sym, market_summary or {})
-                            _orch = (_ms_sym.get("orchestrator") if isinstance(_ms_sym, dict) else {}) or {}
-                            _qb = mid_long_quant_brief_builder.build(
-                                sym, _ms_sym if isinstance(_ms_sym, dict) else {}, _orch, _t_side,
-                            )
-                            dec["_quant_brief"] = _qb.to_dict()
-                        except Exception:
-                            pass
-                        action, reasoning, raw_confidence = host.execute_mlto_lane(
-                            sym=sym, dec=dec, tier="long", agent_source="trend_agent",
-                            market_summary=market_summary, analyst_reports=analyst_reports,
-                            db=db, session=session, mode=mode, portfolio=_portfolio_for_agents,
-                        )
-                elif not _skip_agent_llm:
-                    from backend.services.trend_agent import derive_trend_side
-                    _orch = (_ms_sym.get("orchestrator") if isinstance(_ms_sym, dict) else {}) or {}
-                    _t_side = derive_trend_side(sym, market_summary or {})
-                    _quant_brief = {}
-                    _alignment_ok = True
-                    try:
-                        from backend.config.settings import MIDLONG_QUANT_BRIEF_ENABLED, MIDLONG_QUANT_BRIEF_HARD_GATE, TREND_MIN_ALIGNMENT
-                        from backend.services.mid_long_quant_brief import mid_long_quant_brief_builder
-                        if MIDLONG_QUANT_BRIEF_ENABLED:
-                            _qb = mid_long_quant_brief_builder.build(
-                                sym, _ms_sym if isinstance(_ms_sym, dict) else {}, _orch, _t_side,
-                            )
-                            _quant_brief = _qb.to_dict()
-                            dec["_quant_brief"] = _quant_brief
-                            if MIDLONG_QUANT_BRIEF_HARD_GATE and not MIDLONG_AI_MANDATORY:
-                                _alignment_ok = _qb.alignment_score >= TREND_MIN_ALIGNMENT
-                                if not _alignment_ok:
-                                    action = "hold"
-                                    dec["action"] = "hold"
-                                    reasoning = (
-                                        f"[QuantBrief] alignment={_qb.alignment_score}<{TREND_MIN_ALIGNMENT} 跳过 Trend LLM"
-                                    )
-                                    host.backfill_dec_confidence_from_orch(
-                                        dec, sym=sym, market_summary=market_summary, tier="long",
-                                    )
-                                    raw_confidence = int(dec.get("confidence") or 0)
-                    except Exception as _qb_err:
-                        logger.debug("[QuantBrief] trend 跳过: %s", _qb_err)
-
-                    _trend_result = {}
-                    if _alignment_ok and not MIDLONG_AI_MANDATORY:
-                        try:
-                            from backend.services.signal_pre_screener import SignalPreScreener
-                            _scr = SignalPreScreener().screen_batch(
-                                {sym: _ms_sym if isinstance(_ms_sym, dict) else {}},
-                                tier="long",
-                            )
-                            _ps = (_scr.results or {}).get(sym)
-                            if _ps and not _ps.passed:
-                                action = "hold"
-                                dec["action"] = "hold"
-                                reasoning = f"[PreScreener] long hold: {_ps.trigger_reason or 'no signal'}"
-                                _alignment_ok = False
-                                host.backfill_dec_confidence_from_orch(
-                                    dec, sym=sym, market_summary=market_summary, tier="long",
-                                )
-                                raw_confidence = int(dec.get("confidence") or 0)
-                        except Exception:
-                            pass
-
-                    if _alignment_ok:
-                        _trend_result = trend_agent.analyze_direction(
-                            symbol=sym,
-                            side=_t_side,
-                            reports=analyst_reports or {},
-                            market_envs=market_summary or {},
-                            account_id=account_id,
-                            portfolio=_portfolio_for_agents,
-                            db=db,
-                            trading_mode=mode,
-                        )
-                    _trend_score = _trend_result.get("score", 0)
-                    _trend_dir = _trend_result.get("direction", "neutral")
-                    if _trend_result.get("should_open", False):
-                        action = "buy" if _trend_dir == "long" else "sell" if _trend_dir == "short" else "hold"
-                        dec["action"] = action
-                        if action != "hold":
-                            if _trend_score >= 70:
-                                dec["confidence"] = min(95, _trend_score)
-                            else:
-                                dec["confidence"] = _trend_score
-                            dec["stop_loss_pct"] = _trend_result.get("suggested_sl_pct", 0.08)
-                            dec["_agent_independent"] = True
-                            raw_confidence = int(dec["confidence"] or _trend_score or 0)
-                            reasoning = f"[TrendAgent独立] score={_trend_score} dir={_trend_dir} {_trend_result.get('reasoning','')[:200]}"
-                            logger.info(f"[TrendAgent独立] {sym} {action} score={_trend_score} dir={_trend_dir}")
-                    elif _trend_result:
+                        # [2026-08-17] 删除旧长线 LLM 分支（execute_mlto_lane + trend_agent.analyze_direction）。
+                        # 长线唯一决策源是独立 midlong 循环的 long_trend_v2（规则化 L1 + Chandelier），
+                        # Master 路径不再跑任何长线 LLM。
                         action = "hold"
-                        dec["action"] = "hold"
-                        dec["confidence"] = _trend_score
-                        raw_confidence = int(_trend_score or 0)
-                        reasoning = f"[TrendAgent] hold score={_trend_score} {_trend_result.get('reasoning','')[:200]}"
-                    if _trend_result:
-                        dec["_trend_analysis"] = _trend_result
-                        if _trend_result.get("evidence_audit"):
-                            dec["_agent_evidence_audit"] = _trend_result["evidence_audit"]
-                        try:
-                            from backend.services.mid_long_structure_stop import mid_long_structure_stop
-                            _side = _t_side or _trend_dir
-                            _entry = float(_ms_sym.get("current_price") or _ms_sym.get("price") or 0)
-                            _sl_pct, _tp_pct, _sl_p, _tp_p, _sl_src = mid_long_structure_stop.compute(
-                                symbol=sym,
-                                market_data=_ms_sym if isinstance(_ms_sym, dict) else {},
-                                side=_side,
-                                entry=_entry,
-                                agent_source="trend_agent",
-                            )
-                            if _sl_pct > 0:
-                                dec["stop_loss_pct"] = _sl_pct
-                            host.build_midlong_agent_envelope(
-                                agent_source="trend_agent",
-                                dec=dec,
-                                quant_brief=_quant_brief,
-                                sl_pct=float(dec.get("stop_loss_pct") or _sl_pct),
-                                tp_pct=float(dec.get("take_profit_pct") or _tp_pct),
-                                sl_price=_sl_p,
-                                tp_price=_tp_p,
-                                sl_source=_sl_src,
-                                # [P3-修复] 原 getattr(self,...) 抛 NameError 被吞 → ts 恒 0
-                                orch_snapshot_ts=float(getattr(host, "last_orch_decisions_ts", 0) or 0),
-                            )
-                        except Exception as _env_err:
-                            logger.debug("[Envelope] trend 构建失败: %s", _env_err)
+                        reasoning = f"[MidLong v2] Master 长线 LLM 已下线，由独立循环 long_trend_v2 负责 {sym}"
+                        raw_confidence = int(dec.get("confidence") or 0)
         except Exception as _trend_err:
             logger.debug(f"[TrendAgent] 趋势决策跳过: {_trend_err}")
 

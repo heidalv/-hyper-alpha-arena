@@ -68,32 +68,19 @@ class KlineRepository:
         if not rows:
             return {'inserted': 0, 'updated': 0, 'total': 0}
 
-        # 冲突列 = 唯一约束列；冲突时更新非主键、非冲突列的业务字段。
-        conflict_cols = "exchange, symbol, market, period, timestamp, environment"
-        columns = (
-            "exchange, symbol, market, period, timestamp, datetime_str, environment, "
-            "open_price, high_price, low_price, close_price, volume, amount, change, percent"
-        )
-        placeholders = (
-            ":exchange, :symbol, :market, :period, :timestamp, :datetime_str, :environment, "
-            ":open_price, :high_price, :low_price, :close_price, :volume, :amount, :change, :percent"
-        )
-        update_cols = (
-            "datetime_str, open_price, high_price, low_price, close_price, "
-            "volume, amount, change, percent"
-        )
-        upsert_sql = text(dialect.insert_on_conflict_do_update(
-            "crypto_klines", columns, placeholders, conflict_cols, update_cols,
-        ))
+        # [2026-08-15 P0-5 修复] 统一走 kline_write.upsert_klines：
+        # 与 kline_data_service 同一条写通道（后写者胜 + NaN/时间戳清洗），
+        # 消除此前「仓库 DO UPDATE vs 服务 DO NOTHING」的语义冲突。
+        from backend.services.kline_write import upsert_klines
 
         try:
-            self.db.execute(upsert_sql, rows)
+            stats = upsert_klines(self.db, rows)
             self.db.commit()
         except Exception:
             self.db.rollback()
             raise
 
-        total = len(rows)
+        total = stats.get("written", len(rows))
         # upsert 无法低成本区分 inserted/updated，统一计为 total；保持返回结构兼容旧调用方。
         return {'inserted': 0, 'updated': 0, 'total': total}
 
@@ -245,17 +232,20 @@ class KlineRepository:
         """Convert period string to seconds"""
         period_map = {
             '1m': 60,
+            '3m': 180,
             '5m': 300,
             '15m': 900,
             '30m': 1800,
             '1h': 3600,
             '4h': 14400,
-            '1d': 86400
+            '1d': 86400,
+            '1w': 604800,
+            '1M': 2592000,
         }
         return period_map.get(period)
 
     def _fetch_and_store_range(self, exchange: str, symbol: str, period: str, start_ts: int, end_ts: int, environment: str = "mainnet"):
-        """????? K ????????????????? hyperliquid ???asterdex ???????"""
+        """补齐指定时间范围的 K 线历史：hyperliquid 走其客户端，asterdex/binance/okx 等走数据源工厂。"""
         import asyncio as _asyncio
         from datetime import datetime as _dt, timezone as _tz
         ex = (exchange or "").strip().lower()
@@ -279,7 +269,7 @@ class KlineRepository:
                 print(f"Failed to fetch Hyperliquid data for {symbol}: {e}")
             return
 
-        # asterdex/binance/okx/...????????????????????
+        # asterdex/binance/okx 等其余所：经数据源工厂拉历史并写库
         try:
             from backend.services.kline_collectors import ExchangeDataSourceFactory
             from backend.services.kline_data_service import kline_service

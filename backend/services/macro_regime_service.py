@@ -265,7 +265,7 @@ class MacroRegimeService:
                 try:
                     from backend.database.connection import AnalyticsSessionLocal
                 except ImportError:
-                    from database.connection import AnalyticsSessionLocal
+                    from backend.database.connection import AnalyticsSessionLocal
                 db = AnalyticsSessionLocal()
                 own_session = True
             else:
@@ -327,7 +327,7 @@ class MacroRegimeService:
                 try:
                     from backend.database.connection import AnalyticsSessionLocal
                 except ImportError:
-                    from database.connection import AnalyticsSessionLocal
+                    from backend.database.connection import AnalyticsSessionLocal
                 db = AnalyticsSessionLocal()
                 own_session = True
             else:

@@ -211,7 +211,7 @@ def get_ai_analysis_detail(
     """
     Get a specific K-line AI analysis by ID
     """
-    from database.models import KlineAIAnalysisLog
+    from backend.database.models import KlineAIAnalysisLog
 
     analytics_db = AnalyticsSessionLocal()
     try:

@@ -1,0 +1,270 @@
+<section class="page" id="page-hyperliquid" data-title="Hyperliquid 专页">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="waypoints" style="width:15px;height:15px;color:#7DD3FC"></i></span>Hyperliquid 专页 <span class="badge ok"><span class="bdot"></span>已连接</span></h1>
+      <p class="page-sub">交易所直连 · 实时行情 · WebSocket 推送延迟 38ms</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>3</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 0.4s</span>
+        </div>
+    <div class="page-actions">
+      <button class="btn btn-ghost2 btn-sm" data-drawer="d-orders"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>订单历史</button>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>刷新</button>
+      <button class="btn btn-primary btn-sm"><i data-ico="settings" style="width:13px;height:13px"></i>设置</button>
+    </div>
+  </div>
+
+  <!-- 账户 KPI -->
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">总权益</div>
+      <div class="kpi-value grad">$12,480.52</div>
+      <div class="kpi-change up">▲ +0.78%</div>
+      <div class="kpi-extra num">较昨日 +$96.20</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="coins" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">可用</div>
+      <div class="kpi-value grad">$11,302.18</div>
+      <div class="kpi-change flat">可用率 90.56%</div>
+      <div class="kpi-extra num">已用保证金 $800.00</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="shield" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">已用保证金</div>
+      <div class="kpi-value grad">$800.00</div>
+      <div class="kpi-change flat">保证金率 6.41%</div>
+      <div class="kpi-extra num">5 笔持仓占用</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">未实现盈亏</div>
+      <div class="kpi-value grad-green">+$378.34</div>
+      <div class="kpi-change up">今日盈亏 +$42.10</div>
+      <div class="kpi-extra num">盈利 4 笔 / 亏损 1 笔</div>
+    </div>
+  </div>
+
+  <!-- 持仓表 + 市场概览 -->
+  <div class="grid-2-1">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>持仓</div>
+        <span class="card-hint">共 5 笔 · 实时推送</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>交易所</th><th>币种</th><th>方向</th><th class="r">数量</th><th class="r">入场价</th><th class="r">标记价</th><th class="r">浮盈</th><th class="c">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sub num">Hyperliquid</span></td>
+              <td><span class="sym">BTC</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">0.025 <span class="sub">BTC</span></td>
+              <td class="r">69,050.00</td>
+              <td class="r">71,248.50</td>
+              <td class="r up">+$54.96</td>
+              <td class="c"><button class="row-btn cyan" data-modal="m-pos">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="sub num">Hyperliquid</span></td>
+              <td><span class="sym">ETH</span></td>
+              <td><span class="badge sell">做空</span></td>
+              <td class="r">0.800 <span class="sub">ETH</span></td>
+              <td class="r">3,528.00</td>
+              <td class="r">3,486.20</td>
+              <td class="r up">+$33.44</td>
+              <td class="c"><button class="row-btn cyan" data-modal="m-pos">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="sub num">Hyperliquid</span></td>
+              <td><span class="sym">SOL</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">4.000 <span class="sub">SOL</span></td>
+              <td class="r">169.20</td>
+              <td class="r">172.85</td>
+              <td class="r up">+$14.60</td>
+              <td class="c"><button class="row-btn cyan" data-modal="m-pos">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="sub num">Asterdex</span></td>
+              <td><span class="sym">ARB</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">1,200 <span class="sub">ARB</span></td>
+              <td class="r">0.9850</td>
+              <td class="r">1.0215</td>
+              <td class="r up">+$43.80</td>
+              <td class="c"><button class="row-btn cyan" data-modal="m-pos">详情</button></td>
+            </tr>
+            <tr>
+              <td><span class="sub num">Hyperliquid</span></td>
+              <td><span class="sym">OP</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">300 <span class="sub">OP</span></td>
+              <td class="r">2.4180</td>
+              <td class="r">2.3950</td>
+              <td class="r down">-$6.90</td>
+              <td class="c"><button class="row-btn cyan" data-modal="m-pos">详情</button></td>
+            </tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i>市场概览</div>
+        <div class="row" style="gap:8px">
+          <span class="badge info"><span class="bdot"></span>实时</span>
+          <button class="row-btn cyan" data-modal="m-funding"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>资金费率历史</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">资金费率</span><span class="v">+0.0125%</span></div>
+        <div class="kv"><span class="k">未平仓合约 OI</span><span class="v">$1.84B</span></div>
+        <div class="kv"><span class="k">24h 成交量</span><span class="v">$3.27B</span></div>
+        <div class="kv"><span class="k">24h 最高</span><span class="v">$71,420.00</span></div>
+        <div class="kv"><span class="k">24h 最低</span><span class="v">$68,880.00</span></div>
+        <div class="kv"><span class="k">深度状态</span><span class="v"><span class="badge ok">良好</span></span></div>
+        <div class="kv"><span class="k">WebSocket 延迟</span><span class="v">38 ms</span></div>
+        <div class="small muted num" style="margin:12px 0 6px">7日 OI 趋势</div>
+        <svg class="spark" viewBox="0 0 300 72" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="hlArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(34,211,238,0.28)"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>
+            </linearGradient>
+          </defs>
+          <path d="M0 60 L30 56 L60 58 L90 48 L120 50 L150 40 L180 42 L210 30 L240 34 L270 22 L300 18 L300 72 L0 72 Z" fill="url(#hlArea)"/>
+          <polyline points="0,60 30,56 60,58 90,48 120,50 150,40 180,42 210,30 240,34 270,22 300,18" stroke="#22D3EE"/>
+        </svg>
+        <div class="small muted num" style="margin:10px 0 6px">24h 成交量 · 每 2h</div>
+        <svg class="spark" viewBox="0 0 300 56" style="width:100%;height:auto">
+          <polyline points="0,48 30,44 60,46 90,38 120,40 150,30 180,32 210,24 240,26 270,16 300,18" stroke="#8B5CF6"/>
+        </svg>
+        <div class="status-line" style="padding:10px 0 0;margin-top:10px;border-top:1px dashed rgba(255,255,255,.08)">
+          <span class="si"><span class="dot"></span>HL 主节点 已连接</span>
+          <span class="si"><span class="dot gray"></span>备用节点 就绪</span>
+          <span class="si"><span class="dot pulse"></span>心跳 2s</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：订单历史抽屉 ══ -->
+  <div class="drawer wide" id="d-orders">
+    <div class="drawer-head">
+      <div><div class="drawer-title">订单历史 · Hyperliquid</div><div class="drawer-sub">ast-01 主账户 · 近 24h</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="tab-row">
+        <button class="tab-item active" data-tab="d-orders-tab-orders">订单</button>
+        <button class="tab-item" data-tab="d-orders-tab-fills">成交</button>
+        <button class="tab-item" data-tab="d-orders-tab-funding">资金费率</button>
+      </div>
+      <div class="tab-pane on" id="d-orders-tab-orders">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>时间</th><th>类型</th><th class="r">价格</th><th class="r">数量</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">06-22 14:32</span></td><td><span class="badge buy">限价买入</span></td><td class="r">69,800.00</td><td class="r">0.020 <span class="sub">BTC</span></td><td><span class="badge ok">已完成</span></td></tr>
+            <tr><td><span class="mono">06-22 13:05</span></td><td><span class="badge buy">市价买入</span></td><td class="r">71,240.50</td><td class="r">0.010 <span class="sub">BTC</span></td><td><span class="badge ok">已完成</span></td></tr>
+            <tr><td><span class="mono">06-22 11:48</span></td><td><span class="badge sell">限价卖出</span></td><td class="r">3,420.00</td><td class="r">0.400 <span class="sub">ETH</span></td><td><span class="badge warn">已撤销</span></td></tr>
+            <tr><td><span class="mono">06-22 10:12</span></td><td><span class="badge sell">市价卖出</span></td><td class="r">172.40</td><td class="r">2.000 <span class="sub">SOL</span></td><td><span class="badge ok">已完成</span></td></tr>
+            <tr><td><span class="mono">06-22 09:30</span></td><td><span class="badge buy">限价买入</span></td><td class="r">0.9700</td><td class="r">1,200 <span class="sub">ARB</span></td><td><span class="badge info"><span class="bdot"></span>挂单中</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="tab-pane" id="d-orders-tab-fills">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>时间</th><th class="r">价格</th><th class="r">数量</th><th class="r">手续费</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">06-22 14:32</span></td><td class="r">69,800.00</td><td class="r">0.020 <span class="sub">BTC</span></td><td class="r">$0.70</td></tr>
+            <tr><td><span class="mono">06-22 13:05</span></td><td class="r">71,240.50</td><td class="r">0.010 <span class="sub">BTC</span></td><td class="r">$0.36</td></tr>
+            <tr><td><span class="mono">06-22 10:12</span></td><td class="r">172.40</td><td class="r">2.000 <span class="sub">SOL</span></td><td class="r">$0.52</td></tr>
+            <tr><td><span class="mono">06-21 16:20</span></td><td class="r">2.3180</td><td class="r">300 <span class="sub">OP</span></td><td class="r">$0.11</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="tab-pane" id="d-orders-tab-funding">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>时间</th><th class="r">费率</th><th>持仓</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">06-22 16:00</span></td><td class="r up">+0.0125%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-22 08:00</span></td><td class="r up">+0.0100%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-22 00:00</span></td><td class="r up">+0.0075%</td><td>ETH 0.800 做空</td></tr>
+            <tr><td><span class="mono">06-21 16:00</span></td><td class="r up">+0.0050%</td><td>SOL 4.000 做多</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：持仓详情弹窗 ══ -->
+  <div class="mask" id="m-pos">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>持仓详情 · BTC</div><div class="modal-sub">Hyperliquid · 做多 0.025 BTC · 逐仓 5x</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">入场价</span><span class="v">69,050.00</span></div>
+        <div class="kv"><span class="k">标记价</span><span class="v">71,248.50</span></div>
+        <div class="kv"><span class="k">清算价</span><span class="v warn">63,210.00</span></div>
+        <div class="kv"><span class="k">保证金</span><span class="v">$345.25</span></div>
+        <div class="kv"><span class="k">杠杆</span><span class="v">5x</span></div>
+        <div class="kv"><span class="k">浮动盈亏</span><span class="v up">+$54.96 <span class="small muted">(+31.85%)</span></span></div>
+        <div class="kv"><span class="k">止盈 / 止损</span><span class="v">TP 73,000.00 / SL 67,200.00</span></div>
+        <div class="spread" style="margin:12px 0 4px"><span class="tiny muted">距清算价距离</span><span class="num tiny">11.3%</span></div>
+        <div class="bar"><div class="bar-fill green" style="width:89%"></div></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+        <button class="btn btn-danger" data-confirm='{"title":"确认市价平仓？","msg":"将按市价平掉 BTC 0.025 仓位","danger":true}' data-toast='{"type":"ok","title":"平仓成功","msg":"BTC 0.025 已市价平仓"}' >平仓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：资金费率历史弹窗 ══ -->
+  <div class="mask" id="m-funding">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>资金费率历史 · BTC</div><div class="modal-sub">Hyperliquid · 每 8h 结算 · 当前 +0.0125%</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="small muted num" style="margin-bottom:6px">近 7 日费率走势</div>
+        <svg class="spark" viewBox="0 0 300 72" style="width:100%;height:auto;margin-bottom:14px">
+          <defs>
+            <linearGradient id="hlFundArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(34,211,238,0.28)"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>
+            </linearGradient>
+          </defs>
+          <path d="M0 50 L30 54 L60 46 L90 48 L120 40 L150 44 L180 34 L210 38 L240 28 L270 30 L300 20 L300 72 L0 72 Z" fill="url(#hlFundArea)"/>
+          <polyline points="0,50 30,54 60,46 90,48 120,40 150,44 180,34 210,38 240,28 270,30 300,20" stroke="#22D3EE"/>
+        </svg>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>时间</th><th class="r">费率</th><th>持仓</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">06-22 16:00</span></td><td class="r up">+0.0125%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-22 08:00</span></td><td class="r up">+0.0100%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-22 00:00</span></td><td class="r up">+0.0075%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-21 16:00</span></td><td class="r up">+0.0110%</td><td>BTC 0.025 做多</td></tr>
+            <tr><td><span class="mono">06-21 08:00</span></td><td class="r up">+0.0085%</td><td>BTC 0.025 做多</td></tr>
+          </tbody>
+        </table></div>
+        <div class="kv" style="margin-top:6px"><span class="k">24h 累计支付</span><span class="v down">-$0.42</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

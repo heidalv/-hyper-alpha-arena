@@ -37,9 +37,13 @@ class UnifiedScheduler:
             return {}
 
     def _opencode_status(self) -> Dict[str, Any]:
+        # [2026-08-17] opencode_scheduler 已删除；hermes 调度状态不可用即返回空。
         try:
-            from backend.services.opencode_scheduler import get_hermes_schedule_status
-            return get_hermes_schedule_status()
+            from backend.services.hermes_orchestrator import hermes_orchestrator
+            fn = getattr(hermes_orchestrator, "schedule_status", None)
+            if callable(fn):
+                return fn()
+            return {}
         except Exception as exc:
             logger.debug("[UnifiedScheduler] opencode/hermes 调度状态不可用: %s", exc)
             return {}

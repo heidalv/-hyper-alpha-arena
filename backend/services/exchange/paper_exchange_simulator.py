@@ -268,7 +268,12 @@ def simulate_exchange_order(
             base.trigger_reason = PaperTriggerReason.RESTING_LIMIT
             return base
         trigger = PaperTriggerReason.MARKETABLE_LIMIT
-        maker = bool(resting_limit)
+        # [P2-4] 可市价化限价单 = taker：按对侧盘口价成交、收 taker 费。
+        # 原 maker = bool(resting_limit) 且 paper 引擎对新限价单恒传 resting_limit=True，
+        # 导致所有可市价化限价单被误判 maker（按限价成交 + maker 费）→ 成交价失真、费率低估。
+        # resting 挂单的后续成交（check_pending_orders 路径）仍走 resting 分支之前就 return，
+        # 不受影响；此分支只处理【下单即穿越盘口】的限价单。
+        maker = False
 
     price = _fill_price(order, market, maker=maker)
     notional = price * quantity

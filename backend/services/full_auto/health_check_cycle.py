@@ -1,7 +1,9 @@
 """健康检查循环 — 从 monolith _run_health_check 迁出（整改#8 Phase2）。"""
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1008,6 +1010,15 @@ def run_health_check(
                         session.status = "defensive"
                         session.pause_reason = "circuit_breaker"
                         host.invalidate_session_status_cache(session_id)
+                        # [2026-08-15 收敛] 会话级熔断事件统一登记（真全局风险场景，保留语义）
+                        try:
+                            from backend.services.risk_management.freeze_coordinator import register_event
+                            register_event("freeze_circuit_breaker",
+                                           int(getattr(session, "account_id", 0) or 0),
+                                           "session", str(session_id),
+                                           str(risk_result.global_reason or "")[:160])
+                        except Exception:
+                            pass
             else:
                 # per-symbol 冻结：仅冻结亏损 symbol，其他正常交易
                 for _fz_sym in risk_result.frozen_symbols:
@@ -1181,6 +1192,35 @@ def run_health_check(
                 qaa_bridge.check_grayscale_plans(db)
         except Exception:
             pass
+
+        # ── [2026-08-17 专职退出 Agent] 跨 tier 退出协调与风控诊断 ──
+        # 时间止损/同向叠加预警（默认仅建议，EXIT_AGENT_EXECUTE=true 才执行）。
+        try:
+            from backend.services.full_auto.exit_agent import run_exit_pass as _exit_pass
+            from backend.services.paper_trading_engine import paper_engine
+            _exit_acct_id = host.get_trading_account_id(db, session)
+            _open_pos = paper_engine.get_positions(db, _exit_acct_id, status="open") or []
+            if _open_pos:
+                _exit_pass(db, _open_pos, market_summary)
+        except Exception as _exit_agent_err:
+            logger.debug("[FullAuto] ExitAgent 巡检跳过: %s", _exit_agent_err)
+
+        # ── [2026-08-17 因果回灌闭环] 每小时重建亏损模式约束（文件时间戳节流）──
+        # piggyback 在健康检查上：读 data/causal_constraints.json 的 updated_at，
+        # 超过 1h 才重建，避免每个 tick 全表扫 trade_facts。
+        try:
+            from backend.services.full_auto import causal_feedback as _cf
+            _cf_path = os.path.join(os.getcwd(), _cf.CONSTRAINTS_PATH)
+            _cf_last = 0.0
+            try:
+                with open(_cf_path, "r", encoding="utf-8") as _f:
+                    _cf_last = float(json.load(_f).get("updated_at") or 0)
+            except Exception:
+                pass
+            if time.time() - _cf_last >= 3600:
+                _cf.rebuild(db)
+        except Exception as _cf_err:
+            logger.debug("[FullAuto] CausalFeedback 重建跳过: %s", _cf_err)
 
         # 健康检查结束：把完整 market_summary 写入 DB（供 UI「市场概览」展示）
         # [fix] 如果编排器评估超时，从 _market_scan_cache 回填编排器数据

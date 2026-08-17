@@ -476,7 +476,10 @@ def train_tier(tier: str, klines_list: List[Dict[str, np.ndarray]],
     test_lab: List[np.ndarray] = []
     all_fwd: List[np.ndarray] = []
 
-    # 先扫一遍确定 range 阈值（全样本 |收益| 中位数的一半）
+    # 先扫一遍确定 range 阈值。
+    # [P1-12 泄漏修复] 原实现用 train+test 全部未来收益分布的中位数定义标签
+    # （range_thr 计算在 split 之前）→ 标签定义"偷看"测试期数据，校准质量虚高。
+    # 现只用各币训练段 [:split] 的前向收益计算阈值。
     per_symbol = []
     for k in klines_list:
         if len(k["close"]) < 80:
@@ -487,8 +490,16 @@ def train_tier(tier: str, klines_list: List[Dict[str, np.ndarray]],
         all_fwd.append(fwd)
     if not per_symbol:
         return None
-    fwd_cat = np.concatenate(all_fwd)
-    fwd_valid = fwd_cat[~np.isnan(fwd_cat)]
+    _train_fwd_parts = []
+    for _feats, _fwd, _n in per_symbol:
+        _split = int(_n * (1 - test_frac))
+        _tr_fwd = _fwd[:_split]
+        _tr_fwd = _tr_fwd[~np.isnan(_tr_fwd)]
+        if len(_tr_fwd) > 0:
+            _train_fwd_parts.append(_tr_fwd)
+    if not _train_fwd_parts:
+        return None
+    fwd_valid = np.concatenate(_train_fwd_parts)
     if len(fwd_valid) < 200:
         return None
     range_thr = 0.5 * float(np.median(np.abs(fwd_valid)))

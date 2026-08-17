@@ -42,7 +42,7 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
   for (const r of aiReverse) blockedSymbols.add(r.symbol);
 
   return (
-    <Card className="p-2.5 border-border flex flex-col gap-2">
+    <Card className="p-2.5 border-border flex flex-col gap-2 glass">
       <div className="flex items-center justify-between">
         <h2 className="text-[13px] font-medium flex items-center gap-1.5">
           <Timer className="w-3.5 h-3.5 text-primary" />
@@ -53,7 +53,11 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
             </span>
           )}
         </h2>
-        <span className={cn("text-[9px] font-mono", blockedSymbols.size > 0 ? "text-warning" : "text-profit")}>
+        <span className={cn("inline-flex items-center gap-1 text-[9px] font-mono", blockedSymbols.size > 0 ? "text-warning" : "text-profit")}>
+          <span
+            className={cn("w-1 h-1 rounded-full", blockedSymbols.size > 0 ? "bg-warning" : "bg-profit")}
+            style={{ boxShadow: "0 0 6px currentColor" }}
+          />
           {blockedSymbols.size > 0 ? `${blockedSymbols.size} 处阻挡` : "✅ 全部放行"}
         </span>
       </div>
@@ -67,7 +71,7 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
             const loss = Number(c.loss ?? 0);
             const budget = Number(c.budget ?? 0);
             return (
-              <div key={k} className={cn("rounded px-1.5 py-1 border", c.frozen ? "border-loss/40 bg-loss/10" : "border-border/60 bg-muted/20")}>
+              <div key={k} className={cn("rounded px-1.5 py-1 border transition-colors hover:bg-white/[0.03]", c.frozen ? "border-loss/40 bg-loss/10" : "border-border/60 bg-muted/20")}>
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-mono flex items-center gap-1">
                     <Zap className="w-2.5 h-2.5 text-warning" />{TIER_LABELS[k]}
@@ -93,36 +97,45 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
       ) : (
         <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto">
           {fullClose.map((r, i) => (
-            <div key={`fc-${i}`} className="py-1 border-b border-border/20 last:border-0">
+            <div key={`fc-${i}`} className="py-1 border-b border-border/20 last:border-0 rounded transition-colors hover:bg-white/[0.03]">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium font-mono">
                   {r.symbol} <span className="text-muted-foreground">· {TIER_LABELS[r.tier] ?? r.tier} · 平{r.closed_side === "long" ? "多" : "空"}</span>
                 </span>
-                <span className="text-[10px] font-mono text-warning shrink-0">同向 ⛔ {r.same_dir_remain}</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-warning shrink-0">
+                  <span className="w-1 h-1 rounded-full bg-warning" style={{ boxShadow: "0 0 6px currentColor" }} />
+                  同向 ⛔ {r.same_dir_remain}
+                </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex-1 h-1 rounded-sm overflow-hidden bg-muted/20">
-                  <div className="h-full bg-warning/70" style={{ width: `${Math.min(100, (r.same_dir_remain_sec / (12 * 3600)) * 100)}%` }} />
+                  <div className="h-full bg-warning/70 shadow-[0_0_6px_rgba(251,191,36,0.45)]" style={{ width: `${Math.min(100, (r.same_dir_remain_sec / (12 * 3600)) * 100)}%` }} />
                 </div>
-                <span className="text-[9px] text-muted-foreground font-mono shrink-0">翻转 {r.flip_remain}</span>
+                <span className="text-[9px] text-muted-foreground font-mono shrink-0 tabular-nums">翻转 {r.flip_remain}</span>
               </div>
               <div className="text-[9px] text-muted-foreground mt-0.5">{r.same_dir_reason}</div>
             </div>
           ))}
           {reduce.map((r, i) => (
-            <div key={`rd-${i}`} className="py-1 border-b border-border/20 last:border-0 flex items-center justify-between gap-2">
+            <div key={`rd-${i}`} className="py-1 border-b border-border/20 last:border-0 flex items-center justify-between gap-2 rounded transition-colors hover:bg-white/[0.03]">
               <span className="text-xs font-mono">
                 {r.symbol} <span className="text-muted-foreground">· 减仓</span>
               </span>
-              <span className="text-[10px] font-mono text-warning">重仓 ⛔ {r.remain}</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-warning">
+                <span className="w-1 h-1 rounded-full bg-warning" style={{ boxShadow: "0 0 6px currentColor" }} />
+                重仓 ⛔ {r.remain}
+              </span>
             </div>
           ))}
           {aiReverse.map((r, i) => (
-            <div key={`ar-${i}`} className="py-1 border-b border-border/20 last:border-0 flex items-center justify-between gap-2">
+            <div key={`ar-${i}`} className="py-1 border-b border-border/20 last:border-0 flex items-center justify-between gap-2 rounded transition-colors hover:bg-white/[0.03]">
               <span className="text-xs font-mono">
                 {r.symbol} <span className="text-muted-foreground">· AI反向</span>
               </span>
-              <span className="text-[10px] font-mono text-warning">翻转 ⛔ {r.remain}</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-warning">
+                <span className="w-1 h-1 rounded-full bg-warning" style={{ boxShadow: "0 0 6px currentColor" }} />
+                翻转 ⛔ {r.remain}
+              </span>
             </div>
           ))}
         </div>
@@ -143,7 +156,7 @@ export function BlockEventStream({ sessionId }: { sessionId: string | undefined 
   const events = data?.events ?? [];
 
   return (
-    <Card className="p-2.5 border-border flex flex-col gap-2">
+    <Card className="p-2.5 border-border flex flex-col gap-2 glass">
       <div className="flex items-center justify-between">
         <h2 className="text-[13px] font-medium flex items-center gap-1.5">
           <ShieldAlert className="w-3.5 h-3.5 text-warning" />

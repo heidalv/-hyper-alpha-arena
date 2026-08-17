@@ -23,8 +23,8 @@ export default function Home() {
   }, [hydrated, user, router]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-[#070b12] text-slate-400">
-      <Loader2 className="mr-2 h-5 w-5 animate-spin text-emerald-400" />
+    <div className="flex h-screen items-center justify-center bg-background text-muted-foreground">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin text-cyan-400" />
       正在进入…
     </div>
   );

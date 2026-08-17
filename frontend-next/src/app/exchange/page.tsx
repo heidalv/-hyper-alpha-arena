@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Server, Plus, Trash2, Loader2, CheckCircle2, XCircle, RefreshCw,
   Key, Bot, Settings2, Link2, Save, AlertTriangle,
+  Wallet, Banknote, TrendingUp,
 } from "lucide-react";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
@@ -33,8 +35,14 @@ export default function ExchangePage() {
   ];
 
   return (
-    <div className="p-4 space-y-4 max-w-5xl mx-auto">
-      <h1 className="text-lg font-bold flex items-center gap-2"><Server className="w-5 h-5 text-primary" />交易所管理</h1>
+    <div className="p-4 space-y-4">
+      <PageHeader
+        icon={<Server className="w-4 h-4" />}
+        title="交易所管理"
+        subtitle="多交易所账户 · API 凭证 · 连接监控"
+        refreshHint="连接状态实时"
+        breadcrumb={[{ label: "交易所" }, { label: "交易所管理" }]}
+      />
       <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabs.map(t => {
           const Icon = t.icon;
@@ -91,13 +99,18 @@ function AccountsTab() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowCreate(!showCreate)}><Plus className="w-3.5 h-3.5 mr-1" />新建账户</Button>
-      </div>
-
       {/* 创建表单 */}
       {showCreate && (
-        <Card className="p-4 border-primary/30 space-y-3">
+        <Card className="p-4 border-primary/30 space-y-3 glass">
+          <div className="flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/25 flex items-center justify-center text-cyan-300 flex-shrink-0">
+              <Plus className="w-3.5 h-3.5" />
+            </span>
+            <div>
+              <div className="text-sm font-medium">新建账户</div>
+              <div className="text-xs text-muted-foreground">创建后需在「API 凭证」中补充密钥</div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div><Label className="text-xs">账户名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如：BTC趋势" className="text-sm" /></div>
             <div><Label className="text-xs">模式</Label>
@@ -131,29 +144,48 @@ function AccountsTab() {
               </select>
             </div>
           </div>
-          <Button size="sm" onClick={handleCreate} disabled={createMut.isPending || !form.name.trim()}>
+          <Button size="sm" className="btn-glow" onClick={handleCreate} disabled={createMut.isPending || !form.name.trim()}>
             {createMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "创建"}
           </Button>
         </Card>
       )}
 
       {/* 账户表格 */}
-      <Card className="overflow-hidden">
-        <table className="w-full text-xs">
+      <Card className="overflow-hidden glass p-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/25 flex items-center justify-center text-cyan-300 flex-shrink-0">
+              <Wallet className="w-3.5 h-3.5" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-medium">账户列表</div>
+              <div className="text-xs text-muted-foreground">
+                {accounts?.length ?? 0} 个账户 · {accounts?.filter((a) => a.auto_trading_enabled).length ?? 0} 个已启用自动交易
+              </div>
+            </div>
+          </div>
+          <Button size="sm" className="btn-glow flex-shrink-0" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="w-3.5 h-3.5 mr-1" />新建账户
+          </Button>
+        </div>
+        <table className="data-table">
           <thead><tr className="text-muted-foreground border-b border-border">
             <th className="text-left py-2 px-3">名称</th><th className="text-left py-2 px-3">类型</th>
-            <th className="text-right py-2 px-3">余额</th><th className="text-left py-2 px-3">交易所</th>
+            <th className="text-right py-2 px-3">余额 <span className="text-cyan-300">▲</span></th><th className="text-left py-2 px-3">交易所</th>
             <th className="text-left py-2 px-3">模式</th><th className="text-left py-2 px-3">LLM</th>
             <th className="text-center py-2 px-3">自动</th><th className="text-center py-2 px-3">操作</th>
           </tr></thead>
           <tbody>
+            {(!accounts || accounts.length === 0) && (
+              <tr><td colSpan={8} className="py-8 text-center text-muted-foreground text-xs">暂无账户，点击右上角「新建账户」开始</td></tr>
+            )}
             {accounts?.map((a) => (
               <tr key={a.id} className="border-b border-border/30 hover:bg-muted/20">
                 <td className="py-2 px-3 font-medium">{a.name}</td>
-                <td className="py-2 px-3"><Badge variant="secondary" className="text-[9px]">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
-                <td className="py-2 px-3 text-right tabular-nums">${(a.current_cash || 0).toFixed(2)}</td>
-                <td className="py-2 px-3"><Badge variant="secondary" className="text-[9px] text-primary">{exName(a.selected_exchange || "")}</Badge></td>
-                <td className="py-2 px-3"><Badge variant="secondary" className={cn("text-[9px]", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
+                <td className="py-2 px-3"><Badge variant="secondary" className="text-xs">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
+                <td className="py-2 px-3 text-right num">${(a.current_cash || 0).toFixed(2)}</td>
+                <td className="py-2 px-3"><Badge variant="secondary" className="text-xs text-primary">{exName(a.selected_exchange || "")}</Badge></td>
+                <td className="py-2 px-3"><Badge variant="secondary" className={cn("text-xs", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
                 <td className="py-2 px-3 text-muted-foreground">
                   <div>快:{a.llm_config_name || "默认"}</div>
                   {a.llm_config_name_deep ? <div className="text-warning">深:{a.llm_config_name_deep}</div> : null}
@@ -166,6 +198,17 @@ function AccountsTab() {
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t border-border/50 bg-muted/20">
+              <td colSpan={6} className="px-3 py-2 text-xs text-muted-foreground">
+                合计 <span className="num font-semibold text-foreground">{accounts?.length ?? 0}</span> 账户
+              </td>
+              <td colSpan={2} className="px-3 py-2 text-center text-xs text-muted-foreground">
+                实盘 <span className="num font-semibold text-profit">{accounts?.filter((a) => a.trading_mode === "live").length ?? 0}</span>
+                {" · "}模拟 <span className="num font-semibold text-warning">{accounts?.filter((a) => a.trading_mode === "paper").length ?? 0}</span>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </Card>
 
@@ -210,8 +253,16 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
   };
 
   return (
-    <Card className="p-4 border-primary/30 space-y-3">
-      <div className="text-sm font-medium">编辑账户 #{account.id}</div>
+    <Card className="p-4 border-primary/30 space-y-3 glass">
+      <div className="flex items-center gap-2.5">
+        <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/25 flex items-center justify-center text-cyan-300 flex-shrink-0">
+          <Settings2 className="w-3.5 h-3.5" />
+        </span>
+        <div>
+          <div className="text-sm font-medium">编辑账户 #{account.id}</div>
+          <div className="text-xs text-muted-foreground">修改后保存立即生效</div>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label className="text-xs">名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="text-sm" /></div>
         <div><Label className="text-xs">交易所</Label>
@@ -244,7 +295,7 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
       </div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+        <Button size="sm" className="btn-glow" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
       </div>
     </Card>
   );
@@ -285,8 +336,41 @@ function MonitorTab() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{connectedCount}/{statuses.length} 已连接</span>
+        <span className={cn("chip-capsule", connectedCount > 0 && connectedCount === statuses.length && statuses.length > 0 ? "ws" : "")}>{connectedCount}/{statuses.length} 已连接</span>
         <Button variant="ghost" size="sm" onClick={load}><RefreshCw className="w-3.5 h-3.5" /></Button>
+      </div>
+
+      {/* KPI 卡片化：跨所总权益 / 可用 / 已用保证金 / 持仓 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Card className="relative p-3 glass">
+          <span className="absolute right-3 top-3 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+            <Wallet className="w-3.5 h-3.5" />
+          </span>
+          <div className="text-xs text-muted-foreground">总权益</div>
+          <div className="text-lg font-bold font-mono tabular-nums tracking-tight leading-tight grad-text">${Object.values(balances).reduce((s: number, b: any) => s + (b.total_equity || 0), 0).toFixed(2)}</div>
+        </Card>
+        <Card className="relative p-3 glass">
+          <span className="absolute right-3 top-3 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+            <Banknote className="w-3.5 h-3.5" />
+          </span>
+          <div className="text-xs text-muted-foreground">可用</div>
+          <div className="text-lg font-bold font-mono tabular-nums tracking-tight leading-tight">${Object.values(balances).reduce((s: number, b: any) => s + (b.available_balance || 0), 0).toFixed(2)}</div>
+        </Card>
+        <Card className="relative p-3 glass">
+          <span className="absolute right-3 top-3 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+            <Server className="w-3.5 h-3.5" />
+          </span>
+          <div className="text-xs text-muted-foreground">已用保证金</div>
+          <div className="text-lg font-bold font-mono tabular-nums tracking-tight leading-tight">${Object.values(balances).reduce((s: number, b: any) => s + (b.used_margin || 0), 0).toFixed(2)}</div>
+        </Card>
+        <Card className="relative p-3 glass">
+          <span className="absolute right-3 top-3 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+            <TrendingUp className="w-3.5 h-3.5" />
+          </span>
+          <div className="text-xs text-muted-foreground">持仓</div>
+          <div className="text-lg font-bold font-mono tabular-nums tracking-tight leading-tight">{positions.length}</div>
+          <div className="text-xs text-muted-foreground">{connectedCount}/{statuses.length} 已连接</div>
+        </Card>
       </div>
 
       {/* 交易所卡片 */}
@@ -304,15 +388,15 @@ function MonitorTab() {
                   </div>
                   <div>
                     <div className="text-sm font-medium">{getExName(s.exchange)}</div>
-                    <div className="text-[10px] text-muted-foreground">{s.supports_spot && "现货"} {s.supports_futures && "合约"}</div>
+                    <div className="text-xs text-muted-foreground">{s.supports_spot && "现货"} {s.supports_futures && "合约"}</div>
                   </div>
                 </div>
-                <Badge variant="secondary" className={cn("text-[9px]", connected ? "bg-profit/20 text-profit" : "bg-muted text-muted-foreground")}>{connected ? "已连接" : "未连接"}</Badge>
+                <Badge variant="secondary" className={cn("text-xs", connected ? "bg-profit/20 text-profit" : "bg-muted text-muted-foreground")}>{connected ? "已连接" : "未连接"}</Badge>
               </div>
 
               {connected && bal && (
                 <div className="space-y-1 mb-3">
-                  {bal.total_equity != null && <div className="flex justify-between text-xs"><span className="text-muted-foreground">总权益</span><span className="font-bold tabular-nums">${(bal.total_equity || 0).toFixed(2)}</span></div>}
+                  {bal.total_equity != null && <div className="flex justify-between text-xs"><span className="text-muted-foreground">总权益</span><span className="font-bold tabular-nums grad-text">${(bal.total_equity || 0).toFixed(2)}</span></div>}
                   {bal.available_balance != null && <div className="flex justify-between text-xs"><span className="text-muted-foreground">可用</span><span className="tabular-nums">${(bal.available_balance || 0).toFixed(2)}</span></div>}
                   {bal.used_margin != null && bal.used_margin > 0 && <div className="flex justify-between text-xs"><span className="text-muted-foreground">已用保证金</span><span className="tabular-nums">${(bal.used_margin || 0).toFixed(2)}</span></div>}
                 </div>
@@ -326,10 +410,10 @@ function MonitorTab() {
                       const pnl = p.unrealized_pnl || p.pnl || 0;
                       const isLong = (p.side || p.position_side) === "long" || (p.side || p.position_side) === "buy";
                       return (
-                        <div key={i} className="flex items-center justify-between text-[10px]">
+                        <div key={i} className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-1">
                             <span className="font-medium">{p.symbol || "—"}</span>
-                            <span className={cn("text-[8px] px-0.5 rounded", isLong ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>{isLong ? "多" : "空"}</span>
+                            <span className={cn("text-xs px-1 rounded", isLong ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>{isLong ? "多" : "空"}</span>
                           </div>
                           <span className={cn("tabular-nums", pnl >= 0 ? "text-profit" : "text-loss")}>{pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</span>
                         </div>
@@ -339,7 +423,7 @@ function MonitorTab() {
                 </div>
               )}
 
-              {!connected && <div className="text-center py-2 text-[10px] text-muted-foreground">在「API 凭证」中配置连接</div>}
+              {!connected && <div className="text-center py-2 text-xs text-muted-foreground">在「API 凭证」中配置连接</div>}
             </Card>
           );
         })}
@@ -347,13 +431,24 @@ function MonitorTab() {
 
       {/* 跨所持仓表 */}
       {positions.length > 0 && (
-        <Card className="p-4">
-          <h2 className="text-sm font-medium mb-3">跨所持仓 ({positions.length})</h2>
+        <Card className="overflow-hidden glass p-0">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/25 flex items-center justify-center text-cyan-300 flex-shrink-0">
+                <TrendingUp className="w-3.5 h-3.5" />
+              </span>
+              <div>
+                <div className="text-sm font-medium">跨所持仓</div>
+                <div className="text-xs text-muted-foreground">{positions.length} 个仓位</div>
+              </div>
+            </div>
+            <span className="chip-capsule flex-shrink-0">{positions.length} 持仓</span>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="data-table">
               <thead><tr className="text-muted-foreground border-b border-border">
                 <th className="text-left py-2 px-2">交易所</th><th className="text-left py-2 px-2">币种</th><th className="text-left py-2 px-2">方向</th>
-                <th className="text-right py-2 px-2">数量</th><th className="text-right py-2 px-2">入场价</th><th className="text-right py-2 px-2">浮盈</th>
+                <th className="text-right py-2 px-2">数量 <span className="text-cyan-300">▲</span></th><th className="text-right py-2 px-2">入场价 <span className="text-cyan-300">▲</span></th><th className="text-right py-2 px-2">浮盈 <span className="text-cyan-300">▲</span></th>
               </tr></thead>
               <tbody>
                 {positions.map((p: any, i: number) => {
@@ -361,16 +456,36 @@ function MonitorTab() {
                   const isLong = (p.side || p.position_side) === "long" || (p.side || p.position_side) === "buy";
                   return (
                     <tr key={i} className="border-b border-border/30 hover:bg-muted/20">
-                      <td className="py-2 px-2"><Badge variant="secondary" className="text-[9px]">{getExName(p.exchange)}</Badge></td>
+                      <td className="py-2 px-2"><Badge variant="secondary" className="text-xs">{getExName(p.exchange)}</Badge></td>
                       <td className="py-2 px-2 font-medium">{p.symbol}</td>
-                      <td className="py-2 px-2"><span className={cn("text-[10px] px-1 rounded", isLong ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>{isLong ? "多" : "空"}</span></td>
-                      <td className="py-2 px-2 text-right tabular-nums">{(p.quantity || p.size || 0).toFixed(4)}</td>
-                      <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{(p.entry_price || 0).toLocaleString()}</td>
-                      <td className={cn("py-2 px-2 text-right tabular-nums font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>{pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</td>
+                      <td className="py-2 px-2"><span className={cn("text-xs px-1 rounded", isLong ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>{isLong ? "多" : "空"}</span></td>
+                      <td className="py-2 px-2 text-right num">{(p.quantity || p.size || 0).toFixed(4)}</td>
+                      <td className="py-2 px-2 text-right num text-muted-foreground">{(p.entry_price || 0).toLocaleString()}</td>
+                      <td className={cn("py-2 px-2 text-right num font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>{pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}</td>
                     </tr>
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-border/50 bg-muted/20">
+                  <td colSpan={4} className="px-2 py-2 text-xs text-muted-foreground">
+                    合计 <span className="num font-semibold text-foreground">{positions.length}</span> 持仓
+                  </td>
+                  <td colSpan={2} className="px-2 py-2 text-right text-xs text-muted-foreground">
+                    {(() => {
+                      const total = positions.reduce((s: number, p: any) => s + (p.unrealized_pnl || p.pnl || 0), 0);
+                      return (
+                        <>
+                          浮盈{" "}
+                          <span className={cn("num font-semibold", total >= 0 ? "text-profit" : "text-loss")}>
+                            {total >= 0 ? "+" : ""}${total.toFixed(2)}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </Card>
@@ -430,7 +545,7 @@ function CredentialsTab() {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowAdd(!showAdd)}><Plus className="w-3.5 h-3.5 mr-1" />添加凭证</Button>
+        <Button size="sm" className="btn-glow" onClick={() => setShowAdd(!showAdd)}><Plus className="w-3.5 h-3.5 mr-1" />添加凭证</Button>
       </div>
 
       {showAdd && (
@@ -454,15 +569,17 @@ function CredentialsTab() {
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>取消</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.api_key}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+            <Button size="sm" className="btn-glow" onClick={handleSave} disabled={saving || !form.api_key}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
           </div>
         </Card>
       )}
 
       {/* 凭证列表 */}
       {credentials.length === 0 ? (
-        <Card className="p-8 text-center text-muted-foreground text-sm">
-          <Key className="w-8 h-8 mx-auto mb-2 opacity-40" />
+        <Card className="p-8 text-center text-muted-foreground text-sm glass">
+          <div className="w-11 h-11 mx-auto mb-2 rounded-xl bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/25 flex items-center justify-center">
+            <Key className="w-5 h-5 text-cyan-300" />
+          </div>
           暂无交易所 API 凭证，点击「添加凭证」配置
         </Card>
       ) : (

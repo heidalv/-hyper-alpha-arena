@@ -72,6 +72,8 @@ class NewCoinOpportunity:
     team_background: str = "unknown"           # 知名VC背书/社区驱动/匿名团队
     funding_info: Dict = field(default_factory=dict)  # 融资信息
     estimated_volatility: Optional[float] = None      # 预估波动率
+    # [2026-08-15] 波动率是否为类别默认假设（无 K 线历史时的估计值）
+    volatility_is_estimate: bool = True
     # 策略
     recommended_strategy: str = "wait_and_see"  # scalp_first/wait_and_see/avoid
     recommended_position_pct: float = 0.0       # 建议仓位占比

@@ -1,117 +1,117 @@
 {
-  "ts": 1786610170,
+  "ts": 1786954334,
   "usable": false,
-  "n_settled_raw": 209995,
-  "n_settled": 5168,
+  "n_settled_raw": 277257,
+  "n_settled": 8064,
   "dedup_sec": 1800,
-  "pos": 1904,
-  "neg": 3264,
+  "pos": 2830,
+  "neg": 5234,
   "status": "trained",
-  "features": 23,
-  "oos_auc_lgbm": 0.5042,
-  "oos_auc_linear": 0.4949,
+  "features": 24,
+  "oos_auc_lgbm": 0.5242,
+  "oos_auc_linear": 0.524,
   "baseline": {
-    "win_rate": 0.3684,
-    "net_ret": -0.001959
+    "win_rate": 0.3509,
+    "net_ret": -0.001963
   },
   "filter_top30pct": {
-    "coverage": 0.30002419549963705,
-    "win_rate": 0.38629032258064516,
-    "net_ret": -0.00198246063991258,
-    "n": 1240
+    "coverage": 0.3,
+    "win_rate": 0.3751937984496124,
+    "net_ret": -0.0023533787320264097,
+    "n": 1935
   },
   "filter_top15pct": {
-    "coverage": 0.15001209774981852,
-    "win_rate": 0.36129032258064514,
-    "net_ret": -0.0024819585263369487,
-    "n": 620
+    "coverage": 0.15007751937984495,
+    "win_rate": 0.35640495867768596,
+    "net_ret": -0.0028321773872982264,
+    "n": 968
   },
   "top_importance": [
     {
-      "name": "amplitude_pct",
-      "importance": 0.0908
-    },
-    {
-      "name": "of_oi_delta_pct",
-      "importance": 0.0816
-    },
-    {
-      "name": "of_funding_rate",
-      "importance": 0.0787
-    },
-    {
       "name": "of_buy_notional",
-      "importance": 0.0741
+      "importance": 0.0953
     },
     {
-      "name": "rsi",
-      "importance": 0.066
-    },
-    {
-      "name": "factor_score",
-      "importance": 0.0627
-    },
-    {
-      "name": "rsi_extreme",
-      "importance": 0.0603
-    },
-    {
-      "name": "pos_extreme",
-      "importance": 0.0563
-    },
-    {
-      "name": "range_position",
-      "importance": 0.053
+      "name": "amplitude_pct",
+      "importance": 0.0897
     },
     {
       "name": "of_cvd",
-      "importance": 0.0511
+      "importance": 0.0893
+    },
+    {
+      "name": "of_oi_delta_pct",
+      "importance": 0.0814
     },
     {
       "name": "of_depth_ratio",
-      "importance": 0.0498
+      "importance": 0.0712
     },
     {
-      "name": "raw_dir",
-      "importance": 0.0431
+      "name": "of_funding_rate",
+      "importance": 0.0691
+    },
+    {
+      "name": "pos_extreme",
+      "importance": 0.0622
+    },
+    {
+      "name": "factor_score",
+      "importance": 0.0619
     },
     {
       "name": "of_imbalance",
-      "importance": 0.0413
+      "importance": 0.0584
+    },
+    {
+      "name": "rsi",
+      "importance": 0.0484
+    },
+    {
+      "name": "range_position",
+      "importance": 0.048
     },
     {
       "name": "cycle_prob_up",
-      "importance": 0.0408
+      "importance": 0.0375
     },
     {
-      "name": "cycle_prob_down",
-      "importance": 0.0394
+      "name": "raw_dir",
+      "importance": 0.0355
     },
     {
-      "name": "cycle_prob_confidence",
-      "importance": 0.0346
+      "name": "rsi_extreme",
+      "importance": 0.0329
     },
     {
       "name": "cycle_prob_agreement",
-      "importance": 0.0284
+      "importance": 0.0326
+    },
+    {
+      "name": "cycle_prob_down",
+      "importance": 0.0272
+    },
+    {
+      "name": "cycle_prob_confidence",
+      "importance": 0.0243
     },
     {
       "name": "composite",
-      "importance": 0.0236
+      "importance": 0.0163
     },
     {
       "name": "crypto_alpha",
-      "importance": 0.0181
+      "importance": 0.0094
     },
     {
       "name": "dir_sign",
-      "importance": 0.0059
+      "importance": 0.0048
     }
   ],
   "gate_reasons": [
-    "AUC 0.504 < 门槛 0.53",
-    "过滤后净收益 -0.1982% 未超基线 -0.1959%",
-    "过滤后净收益仍为负 -0.1982%"
+    "AUC 0.524 < 门槛 0.53",
+    "过滤后净收益 -0.2353% 未超基线 -0.1963%",
+    "过滤后净收益仍为负 -0.2353%"
   ],
   "model_path": "D:\\001Alpha\\Hyper-Alpha-Arena\\data\\scalp_meta_model.pkl"
 }

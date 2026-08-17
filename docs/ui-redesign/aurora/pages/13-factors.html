@@ -1,0 +1,193 @@
+<section class="page" id="page-factors" data-title="因子系统">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i></span>因子系统</h1>
+      <p class="page-sub">v6 · 9.1 admission 门槛可视化 · 归一化 0~1 · 阈值线为各因子历史分位基线</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="60"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>60</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 2.4s</span>
+        </div>
+    <div class="page-actions">
+      <div class="dd" style="min-width:120px">
+        <button class="dd-btn"><i data-ico="coins" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">BTC</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+        <div class="dd-menu">
+          <div class="dd-item sel">BTC</div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"ETH"}'>ETH</div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"SOL"}'>SOL</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" data-toast='{"type":"ok","title":"已提交","msg":"评估任务已提交（约 3 分钟）"}'><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>重新评估</button>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>重算</button>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield-check" style="width:15px;height:15px;color:#7DD3FC"></i>admission 门槛可视化</div>
+        <div class="flex"><span class="card-hint">BTC · 更新于 2 分钟前</span><button class="row-btn cyan" data-modal="m-gates"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>查看全部门槛</button></div>
+      </div>
+      <div class="card-body">
+        <div class="flex wrap tiny" style="gap:12px;margin-bottom:2px">
+          <span class="si"><span class="dot"></span>过线（admitted）</span>
+          <span class="si"><span class="dot amber"></span>未过 · 接近</span>
+          <span class="si"><span class="dot red"></span>未过 · 远离</span>
+        </div>
+        <div class="spread" style="margin:12px 0 6px">
+          <span class="flex"><span class="mono bold" style="font-size:12px">MOM_14 动量</span><span class="small muted">raw 0.842</span></span>
+          <span class="badge ok"><span class="bdot"></span>admitted</span>
+        </div>
+        <div style="position:relative">
+          <div class="bar"><div class="bar-fill green" style="width:78%"></div></div>
+          <div style="position:absolute;left:60%;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:#94A1BC"></div>
+        </div>
+        <div class="spread tiny muted" style="margin-top:4px"><span>阈值 0.60</span><span>归一化 0.78 · margin +0.18</span></div>
+        <div class="spread" style="margin:12px 0 6px">
+          <span class="flex"><span class="mono bold" style="font-size:12px">VOL_ATR 波动率</span><span class="small muted">raw 1.28</span></span>
+          <span class="badge warn"><span class="bdot"></span>rejected</span>
+        </div>
+        <div style="position:relative">
+          <div class="bar"><div class="bar-fill amber" style="width:31%"></div></div>
+          <div style="position:absolute;left:55%;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:#94A1BC"></div>
+        </div>
+        <div class="spread tiny muted" style="margin-top:4px"><span>阈值 0.55</span><span>归一化 0.31 · margin -0.24</span></div>
+        <div class="spread" style="margin:12px 0 6px">
+          <span class="flex"><span class="mono bold" style="font-size:12px">LIQ_DEPTH 流动性深度</span><span class="small muted">raw 4.2e7</span></span>
+          <span class="badge ok"><span class="bdot"></span>admitted</span>
+        </div>
+        <div style="position:relative">
+          <div class="bar"><div class="bar-fill green" style="width:87%"></div></div>
+          <div style="position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:#94A1BC"></div>
+        </div>
+        <div class="spread tiny muted" style="margin-top:4px"><span>阈值 0.50</span><span>归一化 0.87 · margin +0.37</span></div>
+        <div class="spread" style="margin:12px 0 6px">
+          <span class="flex"><span class="mono bold" style="font-size:12px">TREND_ADX 趋势强度</span><span class="small muted">raw 24.6</span></span>
+          <span class="badge warn"><span class="bdot"></span>rejected</span>
+        </div>
+        <div style="position:relative">
+          <div class="bar"><div class="bar-fill red" style="width:42%"></div></div>
+          <div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:#94A1BC"></div>
+        </div>
+        <div class="spread tiny muted" style="margin-top:4px"><span>阈值 0.65</span><span>归一化 0.42 · margin -0.23</span></div>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i>因子分布</div>
+        <span class="card-hint">近 30 日 · BTC</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 360 170" style="width:100%;height:auto;margin-top:4px">
+          <rect x="0" y="16" width="213" height="124" fill="rgba(139,92,246,.05)"/>
+          <rect x="213" y="16" width="147" height="124" fill="rgba(52,211,153,.06)"/>
+          <rect x="12" y="125" width="20" height="15" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="40" y="112" width="20" height="28" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="68" y="94" width="20" height="46" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="96" y="72" width="20" height="68" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="124" y="54" width="20" height="86" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="152" y="44" width="20" height="96" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="180" y="66" width="20" height="74" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="208" y="88" width="20" height="52" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="236" y="104" width="20" height="36" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="264" y="116" width="20" height="24" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="292" y="126" width="20" height="14" rx="3" fill="url(#gradCyanViolet)"/>
+          <rect x="320" y="131" width="20" height="9" rx="3" fill="url(#gradCyanViolet)"/>
+          <line x1="213" y1="16" x2="213" y2="140" stroke="#FBBF24" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="218" y="26" fill="#FBBF24" font-size="8">阈值 0.60</text>
+          <text x="8" y="24" fill="#5C6B88" font-size="8">频次</text>
+          <line x1="0" y1="140" x2="360" y2="140" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+          <text x="8" y="156" fill="#5C6B88" font-size="8">0.0</text>
+          <text x="176" y="156" fill="#5C6B88" font-size="8">0.5</text>
+          <text x="344" y="156" fill="#5C6B88" font-size="8">1.0</text>
+        </svg>
+        <div class="spread tiny muted" style="margin-top:6px"><span>紫色区 = 未过线 · 绿色区 = 过线区</span><span>admission 率 41.2%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i>全部因子</div>
+      <span class="card-hint">7 个因子 · 4 admitted / 1 rejected / 2 pending</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>名称</th><th class="r">原始值</th><th class="r">归一化</th><th class="r">权重</th><th>状态</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr><td><span class="sym">MOM_14 动量因子</span><div class="sub">14 日相对动量</div></td><td class="r">0.842</td><td class="r">0.78</td><td class="r">25%</td><td><span class="badge ok"><span class="bdot"></span>admitted</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">VOL_ATR 波动率因子</span><div class="sub">ATR/价格 · 越低越好</div></td><td class="r">1.28</td><td class="r">0.31</td><td class="r">15%</td><td><span class="badge warn"><span class="bdot"></span>rejected</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">LIQ_DEPTH 流动性深度</span><div class="sub">订单簿 2% 深度</div></td><td class="r">4.2e7</td><td class="r">0.87</td><td class="r">20%</td><td><span class="badge ok"><span class="bdot"></span>admitted</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">TREND_ADX 趋势强度</span><div class="sub">14 日 ADX</div></td><td class="r">24.6</td><td class="r">0.42</td><td class="r">10%</td><td><span class="badge warn"><span class="bdot"></span>rejected</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">CORR_BTC 与 BTC 相关性</span><div class="sub">30 日滚动相关</div></td><td class="r">0.18</td><td class="r">0.18</td><td class="r">8%</td><td><span class="badge dim">pending</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">FUNDING 资金费率因子</span><div class="sub">8h 资金费率均值</div></td><td class="r">0.0084</td><td class="r">0.66</td><td class="r">12%</td><td><span class="badge ok"><span class="bdot"></span>admitted</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+            <tr><td><span class="sym">OI_DELTA 未平仓变化</span><div class="sub">24h OI 变动</div></td><td class="r">0.024</td><td class="r">0.55</td><td class="r">10%</td><td><span class="badge dim">pending</span></td><td class="c"><button class="row-btn cyan" data-modal="m-factor">详情</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- ── 二级视图：单因子详情弹窗 ── -->
+  <div class="mask" id="m-factor">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>因子详情 · MOM_14 动量因子</div><div class="modal-sub">14 日相对动量 · raw 0.842 · 权重 25%</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">admission 判定</span><span class="v"><span class="badge ok"><span class="bdot"></span>通过</span></span></div>
+        <div class="kv"><span class="k">|IC|（信息系数）</span><span class="v">0.062</span></div>
+        <div class="kv"><span class="k">ICIR（IC 均值/标准差）</span><span class="v">1.84</span></div>
+        <div class="kv"><span class="k">衰减半衰期</span><span class="v">12 天</span></div>
+        <div class="kv"><span class="k">数据完整率</span><span class="v">98.4%</span></div>
+        <div class="kv" style="border:none"><span class="k">分层回测显著性</span><span class="v">p &lt; 0.01</span></div>
+        <div class="spread tiny muted" style="margin:10px 0 4px"><span>IC 稳定性（近 30 日）</span><span class="num">84%</span></div>
+        <div class="bar" style="margin-bottom:12px"><div class="bar-fill green" style="width:84%"></div></div>
+        <div class="spread tiny muted" style="margin-bottom:4px"><span>门槛对比：归一化 0.78 vs 阈值 0.60</span><span class="num up">margin +0.18</span></div>
+        <div style="position:relative;margin-bottom:12px">
+          <div class="bar"><div class="bar-fill green" style="width:78%"></div></div>
+          <div style="position:absolute;left:60%;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:#94A1BC"></div>
+        </div>
+        <div class="small bold" style="margin-bottom:6px">相关因子</div>
+        <div class="flex wrap" style="gap:6px">
+          <span class="tag cyan">VOL_ATR</span>
+          <span class="tag cyan">OI_DELTA</span>
+          <span class="tag cyan">FUNDING</span>
+          <span class="tag">CORR_BTC</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"已加入观察集","msg":"MOM_14 已加入自定义观察集"}'><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>加入观察集</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：全部门槛弹窗 ── -->
+  <div class="mask" id="m-gates">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>全部门槛</div><div class="modal-sub">BTC · v6 · 阈值线为各因子历史分位基线</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>因子类别</th><th class="r">阈值</th><th class="r">当前值</th><th class="c">状态</th></tr></thead>
+            <tbody>
+              <tr><td class="sym">动量 MOM_14</td><td class="r">0.60</td><td class="r up">0.78</td><td class="c"><span class="badge ok"><span class="bdot"></span>通过</span></td></tr>
+              <tr><td class="sym">波动率 VOL_ATR</td><td class="r">0.55</td><td class="r down">0.31</td><td class="c"><span class="badge warn"><span class="bdot"></span>拒绝</span></td></tr>
+              <tr><td class="sym">流动性 LIQ_DEPTH</td><td class="r">0.50</td><td class="r up">0.87</td><td class="c"><span class="badge ok"><span class="bdot"></span>通过</span></td></tr>
+              <tr><td class="sym">趋势 TREND_ADX</td><td class="r">0.65</td><td class="r down">0.42</td><td class="c"><span class="badge warn"><span class="bdot"></span>拒绝</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tiny muted" style="margin-top:10px;line-height:1.7">归一化值 = 原始值经 30 日滚动分位映射至 0~1；admission 需全部门槛通过。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

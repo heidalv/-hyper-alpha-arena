@@ -1,16 +1,17 @@
 /* 因子运维台 — 单屏高密度控制室（禁止紫光玻璃 / 大圆角卡片堆） */
 
 .ops-scope {
-  --ops-bg: #0b0f14;
-  --ops-panel: #0e141b;
-  --ops-panel-2: #121a22;
-  --ops-fg: #e8eef5;
-  --ops-muted: #8b9aab;
-  --ops-border: #1e2a36;
-  --ops-ok: #2dd4a8;
-  --ops-lag: #e8b84a;
-  --ops-down: #f07178;
-  --ops-info: #5b9fd4;
+  /* Aurora 主题色板（与 globals.css token 对齐） */
+  --ops-bg: #070B15;
+  --ops-panel: #0C1220;
+  --ops-panel-2: #101827;
+  --ops-fg: #EAF0FA;
+  --ops-muted: #94A1BC;
+  --ops-border: rgba(255, 255, 255, 0.09);
+  --ops-ok: #34D399;
+  --ops-lag: #FBBF24;
+  --ops-down: #FB7185;
+  --ops-info: #22D3EE;
   --ops-header-h: 48px;
   --ops-kpi-h: 72px;
 
@@ -40,9 +41,10 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(11, 15, 20, 0.96);
+  background: rgba(7, 11, 21, 0.94);
   border-bottom: 1px solid var(--ops-border);
-  backdrop-filter: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .ops-header {

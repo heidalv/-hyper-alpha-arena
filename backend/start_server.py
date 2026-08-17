@@ -19,6 +19,16 @@ os.chdir(_REPO_ROOT)
 
 import uvicorn  # noqa: E402
 
+# [2026-08-16 CPU 防护] torch CPU 推理默认吃满全部核心（QAA/RAG 嵌入在无 CUDA
+# 降级路径上曾实测 20+ 核 100%）。限制 torch 线程数与 OpenMP，防 CPU 打满。
+# run_uvicorn_dev.py 有同样保护；start_server 此前缺失。
+os.environ.setdefault("OMP_NUM_THREADS", "4")
+try:
+    import torch  # noqa: E402
+    torch.set_num_threads(4)
+except Exception:
+    pass
+
 
 if __name__ == "__main__":
     # [2026-07-09] 默认关闭热重载，避免缓存被频繁清空导致仪表盘卡顿。

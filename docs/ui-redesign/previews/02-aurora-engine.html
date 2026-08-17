@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>极光引擎 Aurora Engine · 仪表盘预览</title>
+<link rel="icon" href="data:,">
+<!-- Google Fonts：Inter + Noto Sans SC + JetBrains Mono（离线时自动回退到系统字体） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   极光引擎 Aurora Engine · 主题 B — 预览样式
+   设计文档：docs/ui-redesign/02-aurora-engine.md
+   Token 文件：docs/ui-redesign/previews/tokens-02.css（可直接替换 globals.css）
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Token 块（与 tokens-02.css 一致，落地时整体复制进 globals.css） ── */
+:root {
+  /* 字体：汉字 Noto Sans SC，数字 JetBrains Mono + tabular-nums */
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 背景层：深空近黑，其上叠加极光径向渐变（见 .aurora-bg） */
+  --background: #070B15;
+  --foreground: #EAF0FA;
+  --card: rgba(255, 255, 255, 0.045);       /* 玻璃卡片：配合 backdrop-blur(14px) */
+  --card-foreground: #EAF0FA;
+  --popover: #0C1120;
+  --popover-foreground: #EAF0FA;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: #94A1BC;
+  --secondary: rgba(255, 255, 255, 0.07);
+  --secondary-foreground: #EAF0FA;
+  --accent: rgba(255, 255, 255, 0.09);
+  --accent-foreground: #EAF0FA;
+
+  /* 交互色：主按钮青→紫渐变，文字用深色保证 AA */
+  --primary: #22D3EE;
+  --primary-foreground: #041018;
+  --destructive: #FB7185;
+  --destructive-foreground: #2B0A12;
+  --ring: rgba(34, 211, 238, 0.45);
+  --input: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.09);
+
+  /* 交易语义色：涨绿跌红 */
+  --profit: #34D399;
+  --loss: #FB7185;
+  --warning: #FBBF24;
+
+  /* 图表色：极光五色 */
+  --chart-1: #22D3EE;
+  --chart-2: #8B5CF6;
+  --chart-3: #34D399;
+  --chart-4: #FB7185;
+  --chart-5: #FBBF24;
+
+  /* 侧边栏 */
+  --sidebar: rgba(9, 13, 24, 0.92);
+  --sidebar-foreground: #AEB9D0;
+  --sidebar-primary: #22D3EE;
+  --sidebar-primary-foreground: #041018;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #EAF0FA;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-ring: rgba(34, 211, 238, 0.45);
+
+  --radius: 0.875rem; /* 14px 玻璃大圆角 */
+}
+
+/* ── 基础 ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  /* 数字等宽——价格/数据不跳动 */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+svg { display: block; }
+svg text { font-family: var(--font-mono); }
+.mono { font-family: var(--font-mono); }
+
+/* 键盘焦点：青辉光描边 */
+:focus-visible { outline: 2px solid rgba(34, 211, 238, 0.6); outline-offset: 2px; border-radius: 4px; }
+
+/* 滚动条（细、暗） */
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+.content::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 1：页面极光背景
+   深空底色 + 3 个 5~8% 透明度径向光斑（青/紫/绿）慢速流动 12s +
+   顶部极淡光带 + 稀疏星点。绝不过曝：光斑透明度封顶 8%。
+   ═══════════════════════════════════════════════════════════════ */
+.aurora-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: #070B15;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* 极光光斑：大半径模糊渐变 + 12s 流动位移动画 */
+.aurora-blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.blob-cyan {
+  width: 560px; height: 560px; top: -180px; left: -100px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 65%);
+  animation: aurora-flow-1 12s ease-in-out infinite alternate;
+}
+.blob-violet {
+  width: 620px; height: 620px; top: -160px; right: -120px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.07) 0%, transparent 65%);
+  animation: aurora-flow-2 12s ease-in-out infinite alternate;
+}
+.blob-emerald {
+  width: 480px; height: 480px; top: 32%; left: 34%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.05) 0%, transparent 60%);
+  animation: aurora-flow-3 12s ease-in-out infinite alternate;
+}
+/* 顶部极淡光带 */
+.aurora-band {
+  position: absolute; top: 0; left: 0; right: 0; height: 46vh;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.05) 0%, rgba(139, 92, 246, 0.03) 45%, transparent 100%);
+}
+/* 稀疏星点 */
+.aurora-stars {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1.2px 1.2px at 18% 22%, rgba(234, 240, 250, 0.5) 0, transparent 100%),
+    radial-gradient(1px 1px at 64% 12%, rgba(234, 240, 250, 0.4) 0, transparent 100%),
+    radial-gradient(1.4px 1.4px at 82% 30%, rgba(125, 211, 252, 0.35) 0, transparent 100%),
+    radial-gradient(1px 1px at 38% 42%, rgba(234, 240, 250, 0.3) 0, transparent 100%),
+    radial-gradient(1.2px 1.2px at 90% 66%, rgba(167, 139, 250, 0.3) 0, transparent 100%);
+}
+@keyframes aurora-flow-1 { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(60px, 36px, 0) scale(1.08); } }
+@keyframes aurora-flow-2 { from { transform: translate3d(0, 0, 0) scale(1.05); } to { transform: translate3d(-54px, 30px, 0) scale(1); } }
+@keyframes aurora-flow-3 { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-30px, 40px, 0) scale(1.1); } }
+
+/* ═══════════════════════════════════════════════════════════════
+   布局骨架：侧边栏 232px ｜ 右侧（顶栏 52px + 内容区 + 底部状态条 34px）
+   ═══════════════════════════════════════════════════════════════ */
+.app { position: relative; z-index: 1; display: flex; height: 100vh; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 8px 20px 16px; /* 顶部 8px 留给 ticker 与顶栏的间距 */
+}
+
+/* ── 签名元素 8：侧边栏（232px 玻璃底，激活项渐变指示条） ── */
+.sidebar {
+  width: 232px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--sidebar);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--sidebar-border);
+}
+/* 品牌区：渐变 α 字标 + 发光 */
+.brand {
+  height: 52px; display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0;
+}
+.brand-logo {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, #22D3EE, #8B5CF6);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.4), 0 0 30px rgba(139, 92, 246, 0.25);
+}
+.brand-logo span { color: #041018; font-size: 19px; font-weight: 800; font-family: Georgia, serif; }
+.brand-name { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: #EAF0FA; }
+.brand-sub { font-size: 10px; color: #7C8AA8; margin-top: 1px; }
+
+/* 导航分组 */
+.nav { flex: 1; overflow-y: auto; padding: 10px 0; }
+.nav::-webkit-scrollbar { width: 0; }
+.nav-group { margin-bottom: 12px; }
+.nav-group-title {
+  padding: 0 16px; margin-bottom: 4px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #6E7B98;
+}
+.nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; margin: 1px 8px; padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px; color: var(--sidebar-foreground);
+  transition: background 150ms ease, color 150ms ease;
+}
+.nav-item:hover { background: rgba(255, 255, 255, 0.045); color: #DCE5F4; }
+/* 激活项：左 3px 渐变竖条 + 玻璃底 + 图标渐变 + 文字提亮 */
+.nav-item.active {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute; left: -8px; top: 6px; bottom: 6px; width: 3px;
+  background: linear-gradient(180deg, #22D3EE, #8B5CF6);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+}
+.nav-ico { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active .nav-ico { stroke: url(#gradActive); filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5)); }
+.nav-item span.txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 角标：Agent 监控 4、报错中心 3 */
+.nav-count {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 6px; border-radius: 999px;
+  background: rgba(34, 211, 238, 0.12); color: #7DD3FC; border: 1px solid rgba(34, 211, 238, 0.25);
+}
+.nav-count.warn { background: rgba(251, 113, 133, 0.12); color: #FB7185; border-color: rgba(251, 113, 133, 0.3); }
+/* 折叠按钮 */
+.sidebar-foot {
+  height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border-top: 1px solid var(--sidebar-border);
+}
+.collapse-btn {
+  width: 100%; height: 100%; font-size: 16px; color: #7C8AA8;
+  transition: color 150ms ease, background 150ms ease;
+}
+.collapse-btn:hover { color: #EAF0FA; background: rgba(255, 255, 255, 0.04); }
+
+/* ── 签名元素：顶栏（52px 玻璃底） ── */
+.topbar {
+  height: 52px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  background: rgba(10, 16, 28, 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+/* 搜索胶囊：聚焦青辉光 */
+.search {
+  display: flex; align-items: center; gap: 8px;
+  width: 300px; height: 30px; padding: 0 12px;
+  border-radius: 999px;
+  background: var(--input); border: 1px solid var(--border);
+  color: #7C8AA8; font-size: 12px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.search:hover { border-color: rgba(34, 211, 238, 0.35); }
+.search:focus-within { border-color: rgba(34, 211, 238, 0.6); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+.search svg { width: 14px; height: 14px; stroke: #7C8AA8; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.search .ph { flex: 1; }
+.search kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 6px; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94A1BC;
+}
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+/* 状态胶囊：实时 / 轮询中 */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px; border-radius: 999px;
+  font-size: 12px; color: #C9D4E8;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);
+}
+.chip.ws { color: #34D399; border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.08); }
+.ver { font-family: var(--font-mono); font-size: 11px; color: #7C8AA8; }
+/* 幽灵按钮：检查更新 */
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px; border-radius: 8px;
+  font-size: 12px; color: #C9D4E8;
+  background: transparent; border: 1px solid var(--border);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(34, 211, 238, 0.35); color: #EAF0FA; }
+.btn-ghost svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* 铃铛：红色报错角标 */
+.icon-btn { position: relative; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 150ms ease; }
+.icon-btn:hover { background: rgba(255, 255, 255, 0.07); }
+.icon-btn svg { width: 17px; height: 17px; fill: none; stroke: #AEB9D0; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn .count {
+  position: absolute; top: 2px; right: 1px; min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px; font-size: 10px; line-height: 15px; text-align: center;
+  font-family: var(--font-mono); font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, #FB7185, #F43F5E);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
+}
+.clock { font-family: var(--font-mono); font-size: 13px; color: #C9D4E8; }
+.tb-sep { width: 1px; height: 22px; background: var(--border); }
+/* 用户区：渐变头像 + 等级 */
+.user { display: flex; align-items: center; gap: 8px; }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, #22D3EE, #8B5CF6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #041018;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+.user-name { font-size: 13px; font-weight: 600; color: #DCE5F4; }
+.lv { font-family: var(--font-mono); font-size: 10px; color: #FBBF24; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.28); padding: 1px 6px; border-radius: 999px; }
+.user svg { width: 15px; height: 15px; fill: none; stroke: #7C8AA8; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 5：ticker 行情条（玻璃悬浮条，与顶栏间距 8px）
+   ═══════════════════════════════════════════════════════════════ */
+.ticker {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center;
+  gap: 0; padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(9, 14, 25, 0.78);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(3, 6, 14, 0.4);
+  animation: rise-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.t-item { display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+.t-item + .t-item { border-left: 1px solid rgba(255, 255, 255, 0.07); }
+.t-sym { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; color: #7C8AA8; text-transform: uppercase; }
+.t-price { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #EAF0FA; }
+.t-chg { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; }
+.t-chg.up { color: var(--profit); }
+.t-chg.down { color: var(--loss); }
+/* 涨跌小三角（CSS 边框三角形，随文字着色） */
+.tri { display: inline-block; width: 0; height: 0; }
+.tri-up { border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; }
+.tri-down { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
+/* LIVE：绿点脉冲 */
+.t-live { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #34D399; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); }
+.dot.pulse { animation: pulse 2s ease-in-out infinite; }
+/* 价格变动闪烁（复用 --profit/--loss 30% 背景，一次性） */
+@keyframes flash-profit { 0% { background-color: rgba(52, 211, 153, 0.3); } 100% { background-color: transparent; } }
+@keyframes flash-loss { 0% { background-color: rgba(251, 113, 133, 0.3); } 100% { background-color: transparent; } }
+.flash-profit { animation: flash-profit 0.4s ease-out; border-radius: 3px; }
+.flash-loss { animation: flash-loss 0.4s ease-out; border-radius: 3px; }
+
+/* ── 页头：仪表盘标题 + 状态徽章 ── */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 16px 2px 14px;
+  animation: rise-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 40ms;
+}
+.page-title { font-size: 20px; font-weight: 700; color: #EAF0FA; }
+.page-sub { margin-top: 3px; font-size: 12px; color: var(--muted-foreground); }
+.page-badges { display: flex; align-items: center; gap: 8px; }
+.chip-live { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; color: #34D399; background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.3); }
+.chip-muted { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; color: #94A1BC; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 2/4：玻璃卡片 + KPI 统计卡
+   ═══════════════════════════════════════════════════════════════ */
+.card {
+  background: var(--card);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(3, 6, 14, 0.35);
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  animation: rise-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both; /* 入场：淡入 + 上移 8px */
+}
+/* hover：轻微上浮 2px + 边框提亮 */
+.card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.16); box-shadow: 0 12px 32px rgba(3, 6, 14, 0.5); }
+
+/* 入场动画：spring 缓动（过冲回弹） */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 渐变文字（KPI 大数字 / 品牌） */
+.grad-text { color: #9BD8F5; }
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .grad-text {
+    background: linear-gradient(120deg, #FFFFFF 5%, #7DD3FC 50%, #A78BFA 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+}
+
+/* 统计卡栅格：4 列 12px 栅格，卡片间距 14px */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-card { position: relative; padding: 16px 18px 40px; overflow: hidden; } /* 底部留白 40px：给迷你面积图让位，避免压住说明文字 */
+.stat-top { display: flex; align-items: center; gap: 10px; }
+/* 小图标徽章：渐变底圆角方块 + 渐变描边图标 */
+.stat-ico {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(139, 92, 246, 0.16));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 12px rgba(34, 211, 238, 0.06);
+}
+.stat-ico svg { width: 17px; height: 17px; fill: none; stroke: url(#gradActive); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.stat-label { font-size: 12px; color: var(--muted-foreground); }
+/* 大号渐变数字：600-700 字重 + 渐变文字 + 等宽 */
+.stat-num { margin-top: 10px; font-family: var(--font-mono); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+.stat-sub { margin-top: 3px; font-size: 11px; color: #7C8AA8; }
+/* 迷你面积图：底部渐变填充 */
+.stat-spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 24px; opacity: 0.8; pointer-events: none; }
+
+/* ── 两栏行（12px 栅格列间距 14px） ── */
+.row { display: grid; gap: 14px; margin-top: 14px; align-items: stretch; }
+.row-2 { grid-template-columns: 1.3fr 1fr; }
+.row-3 { grid-template-columns: 1.5fr 1fr; }
+.col-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.col-right .card:last-child { flex: 1; }
+
+/* 卡片头 */
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.card-title { font-size: 14px; font-weight: 600; color: #EAF0FA; }
+.card-sub { margin-top: 2px; font-size: 11px; color: #7C8AA8; }
+.card-link { font-size: 12px; color: #7DD3FC; transition: color 150ms ease; }
+.card-link:hover { color: #22D3EE; }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 6：表格（圆角外框卡包裹、表头 11px 大写、hover 高亮、异常警告）
+   ═══════════════════════════════════════════════════════════════ */
+.tbl { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.tbl th {
+  text-align: left; font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: #7C8AA8;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tbl td { padding: 9px 10px; font-size: 13px; color: #C9D4E8; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.tbl tbody tr { transition: background 120ms ease; }
+.tbl tbody tr:hover { background: rgba(255, 255, 255, 0.04); }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl th.num, .tbl td.num { text-align: right; font-family: var(--font-mono); }
+.tbl td.num { font-size: 12.5px; }
+.tbl .cell-strat { font-weight: 600; color: #DCE5F4; }
+.tbl .up { color: var(--profit); }
+.tbl .down { color: var(--loss); }
+/* 异常值防御性显示：胜率 2518.0% —— 琥珀色 + 警示底 + 数据异常徽章 */
+.warn-cell { color: var(--warning) !important; background: rgba(251, 191, 36, 0.06); border-radius: 6px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 7：徽章（SELL/BUY 胶囊：半透明底 + 同色边框 + 内发光点）
+   ═══════════════════════════════════════════════════════════════ */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 19px; padding: 0 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+}
+.badge::before {
+  content: ''; width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor; box-shadow: 0 0 6px currentColor; /* 内发光点 */
+}
+.badge.sell { color: var(--loss); background: rgba(251, 113, 133, 0.1); border: 1px solid rgba(251, 113, 133, 0.35); }
+.badge.buy { color: var(--profit); background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.35); }
+.badge.warn { color: var(--warning); background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.35); }
+
+/* ═══════════════════════════════════════════════════════════════
+   签名元素 3：按钮（渐变 + 微辉光）与胶囊 tab
+   ═══════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.btn.primary {
+  background: linear-gradient(135deg, #22D3EE, #8B5CF6);
+  color: #041018; /* 深色文字：整条渐变上对比度 ≥ 4.5:1（AA） */
+  box-shadow: 0 4px 20px rgba(34, 211, 238, 0.2), 0 2px 10px rgba(139, 92, 246, 0.18);
+}
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(34, 211, 238, 0.4), 0 3px 14px rgba(139, 92, 246, 0.35); }
+.btn.sm { height: 28px; padding: 0 12px; font-size: 12px; }
+/* 胶囊 tab：激活 = 渐变底 + 深色文字 + 微辉光 */
+.tabs { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); }
+.tab {
+  height: 24px; padding: 0 12px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 11px; color: #94A1BC;
+  transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.tab:hover { color: #DCE5F4; }
+.tab.active {
+  background: linear-gradient(135deg, #22D3EE, #8B5CF6);
+  color: #041018; font-weight: 600;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.3);
+}
+/* 图例小圆点 */
+.legend { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #94A1BC; }
+.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+/* ── 策略健康度（表格卡底部补充区） ── */
+.divider { height: 1px; background: rgba(255, 255, 255, 0.07); margin: 14px 0 12px; }
+.health { display: flex; flex-direction: column; gap: 8px; }
+.health-row { display: grid; grid-template-columns: 70px 1fr 42px; align-items: center; gap: 10px; font-size: 12px; color: #AEB9D0; }
+.health-row .bar { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.health-row .bar i { display: block; height: 100%; border-radius: 999px; }
+.health-row .num { font-family: var(--font-mono); text-align: right; color: #C9D4E8; }
+
+/* ── 空状态（账户未配置）：玻璃虚线框 + 渐变图标 + 渐变按钮 ── */
+.empty-box {
+  margin-top: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 18px 14px 16px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px;
+}
+.empty-ico {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(139, 92, 246, 0.12));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.12);
+}
+.empty-ico svg { width: 19px; height: 19px; fill: none; stroke: url(#gradActive); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.empty-title { font-size: 13px; font-weight: 600; color: #DCE5F4; }
+.empty-desc { font-size: 12px; color: #7C8AA8; line-height: 1.5; }
+.empty-box .btn { margin-top: 6px; }
+
+/* ── 最近 AI 决策列表 ── */
+.ai-list { margin-top: 10px; display: flex; flex-direction: column; }
+.ai-item {
+  padding: 10px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+.ai-item:hover { background: rgba(255, 255, 255, 0.03); }
+.ai-item:last-child { border-bottom: none; }
+.ai-top { display: flex; align-items: center; gap: 8px; }
+.ai-sym { font-size: 13px; font-weight: 700; color: #EAF0FA; }
+.ai-time { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: #7C8AA8; }
+.ai-desc { margin-top: 5px; font-size: 12px; color: #94A1BC; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-rule { color: #FBBF24; } /* 规则引擎覆盖标记 */
+
+/* ── 净值曲线图表卡 ── */
+.chart-wrap { margin-top: 8px; }
+.chart-wrap svg { width: 100%; height: auto; }
+.axis-label { fill: #7C8AA8; font-size: 9.5px; }
+.grid-line { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
+
+/* ── 市场行情表 ── */
+.coin {
+  display: flex; align-items: center; gap: 8px;
+}
+.coin-ico {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: #041018;
+}
+.ci-1 { background: linear-gradient(135deg, #22D3EE, #67E8F9); }
+.ci-2 { background: linear-gradient(135deg, #8B5CF6, #A78BFA); }
+.ci-3 { background: linear-gradient(135deg, #34D399, #6EE7B7); }
+.ci-4 { background: linear-gradient(135deg, #FBBF24, #FCD34D); }
+.ci-5 { background: linear-gradient(135deg, #FB7185, #FBA4B4); }
+.ci-6 { background: linear-gradient(135deg, #22D3EE, #A78BFA); }
+.coin-name { font-size: 13px; font-weight: 600; color: #DCE5F4; }
+.coin-sub { font-size: 11px; color: #7C8AA8; }
+.chg-chip { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.chg-chip.up { color: var(--profit); }
+.chg-chip.down { color: var(--loss); }
+.spark { width: 72px; height: 22px; margin-left: auto; }
+
+/* ── 底部状态条 ── */
+.statusbar {
+  height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px;
+  font-size: 12px; color: #94A1BC;
+  background: rgba(10, 16, 28, 0.5);
+  border-top: 1px solid var(--border);
+}
+.statusbar .st-item { display: inline-flex; align-items: center; gap: 6px; }
+.statusbar .st-item strong { color: #C9D4E8; font-weight: 500; }
+.statusbar .st-sep { width: 1px; height: 14px; background: var(--border); }
+.statusbar .st-right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); }
+.statusbar .bolt { color: #22D3EE; }
+.statusbar .conn { color: #34D399; }
+
+/* ── 动效降级：尊重系统「减少动态」设置 ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ 极光背景层（签名元素 1） ══ -->
+<div class="aurora-bg" aria-hidden="true">
+  <div class="aurora-blob blob-cyan"></div>
+  <div class="aurora-blob blob-violet"></div>
+  <div class="aurora-blob blob-emerald"></div>
+  <div class="aurora-band"></div>
+  <div class="aurora-stars"></div>
+</div>
+
+<!-- ══ 全局 SVG 渐变定义（图标/图表共用 paint server） ══ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- 激活态图标渐变：青 → 紫 -->
+    <linearGradient id="gradActive" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22D3EE"/><stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <!-- 净值曲线：折线渐变描边 -->
+    <linearGradient id="gradLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22D3EE"/><stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <!-- 净值曲线：面积渐变填充（青 → 紫 → 透明） -->
+    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.32"/>
+      <stop offset="55%" stop-color="#8B5CF6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </linearGradient>
+    <!-- KPI 迷你面积图渐变：青 / 紫 / 绿 / 红 -->
+    <linearGradient id="spark1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.4"/><stop offset="100%" stop-color="#22D3EE" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spark2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.4"/><stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spark3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34D399" stop-opacity="0.4"/><stop offset="100%" stop-color="#34D399" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spark4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FB7185" stop-opacity="0.4"/><stop offset="100%" stop-color="#FB7185" stop-opacity="0"/>
+    </linearGradient>
+    <!-- 成交分布柱状渐变 -->
+    <linearGradient id="gradBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+
+  <!-- ═══════════ 侧边栏（232px，真实导航） ═══════════ -->
+  <aside class="sidebar">
+    <!-- 品牌区：渐变 α 字标 + 发光 -->
+    <div class="brand">
+      <div class="brand-logo"><span>α</span></div>
+      <div>
+        <div class="brand-name">Hyper-Alpha</div>
+        <div class="brand-sub">极光引擎 · 量化交易终端</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="主导航">
+      <!-- 交易核心 -->
+      <div class="nav-group">
+        <div class="nav-group-title">交易核心</div>
+        <a class="nav-item active" href="#dashboard">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="txt">仪表盘</span>
+        </a>
+        <a class="nav-item" href="#strategy">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
+          <span class="txt">AI 策略</span>
+        </a>
+        <a class="nav-item" href="#coin-select">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg>
+          <span class="txt">VIP AI 选币</span>
+        </a>
+        <a class="nav-item" href="#agent-monitor">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+          <span class="txt">Agent 监控</span><span class="nav-count">4</span>
+        </a>
+        <a class="nav-item" href="#paper-trading">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+          <span class="txt">模拟交易</span>
+        </a>
+        <a class="nav-item" href="#live-trading">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="txt">实盘交易</span>
+        </a>
+        <a class="nav-item" href="#arbitrage">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+          <span class="txt">套利中心</span>
+        </a>
+      </div>
+      <!-- 策略配置 -->
+      <div class="nav-group">
+        <div class="nav-group-title">策略配置</div>
+        <a class="nav-item" href="#scalp">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>
+          <span class="txt">短线配置</span>
+        </a>
+        <a class="nav-item" href="#long">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <span class="txt">长线配置</span>
+        </a>
+      </div>
+      <!-- 交易所 -->
+      <div class="nav-group">
+        <div class="nav-group-title">交易所</div>
+        <a class="nav-item" href="#exchange">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
+          <span class="txt">交易所管理</span>
+        </a>
+      </div>
+      <!-- 市场 & 分析 -->
+      <div class="nav-group">
+        <div class="nav-group-title">市场 &amp; 分析</div>
+        <a class="nav-item" href="#intel">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          <span class="txt">全市场数据中台</span>
+        </a>
+        <a class="nav-item" href="#factors">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+          <span class="txt">因子系统</span>
+        </a>
+        <a class="nav-item" href="#intelligent-learning">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/></svg>
+          <span class="txt">智能学习</span>
+        </a>
+        <a class="nav-item" href="#compute">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+          <span class="txt">算力中心</span>
+        </a>
+      </div>
+      <!-- 系统 -->
+      <div class="nav-group">
+        <div class="nav-group-title">系统</div>
+        <a class="nav-item" href="#risk">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <span class="txt">风控监控</span>
+        </a>
+        <a class="nav-item" href="#ops">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <span class="txt">运维看板</span>
+        </a>
+        <a class="nav-item" href="#ops-errors">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          <span class="txt">报错中心</span><span class="nav-count warn">3</span>
+        </a>
+        <a class="nav-item" href="#settings">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
+          <span class="txt">设置</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- 折叠按钮 -->
+    <div class="sidebar-foot">
+      <button class="collapse-btn" aria-label="折叠侧边栏">‹</button>
+    </div>
+  </aside>
+
+  <!-- ═══════════ 右侧主区 ═══════════ -->
+  <div class="main">
+
+    <!-- 顶栏 52px -->
+    <header class="topbar">
+      <div class="search" role="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span class="ph">搜索命令、页面、币种…</span>
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="top-right">
+        <!-- WS 状态：实时 -->
+        <span class="chip ws"><i class="dot"></i>实时</span>
+        <span class="ver">桌面版 v3.8.2</span>
+        <!-- 检查更新 -->
+        <button class="btn-ghost">
+          <svg viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
+          检查更新
+        </button>
+        <!-- 铃铛：报错角标 -->
+        <button class="icon-btn" aria-label="通知">
+          <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="count">3</span>
+        </button>
+        <!-- 时钟 -->
+        <span class="clock" id="clock">--:--:--</span>
+        <span class="tb-sep"></span>
+        <!-- 用户区 -->
+        <div class="user">
+          <span class="avatar" aria-hidden="true">A</span>
+          <span class="user-name">Alpha Trader</span>
+          <span class="lv">Lv.8</span>
+          <svg viewBox="0 0 24 24" aria-label="退出登录"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <!-- 内容区：12px 栅格 -->
+    <div class="content">
+
+      <!-- 签名元素 5：悬浮 ticker 行情条（与顶栏间距 8px，圆角胶囊感） -->
+      <div class="ticker" aria-label="实时行情">
+        <div class="t-item"><span class="t-sym">BTC</span><span class="t-price">$70,905.00</span><span class="t-chg down"><i class="tri tri-down"></i>-0.75%</span></div>
+        <div class="t-item"><span class="t-sym">ETH</span><span class="t-price">$2,188.30</span><span class="t-chg down"><i class="tri tri-down"></i>-0.69%</span></div>
+        <div class="t-item"><span class="t-sym">SOL</span><span class="t-price flash-loss">$81.81</span><span class="t-chg down"><i class="tri tri-down"></i>-0.44%</span></div>
+        <div class="t-item"><span class="t-sym">BNB</span><span class="t-price flash-profit">$598.12</span><span class="t-chg up"><i class="tri tri-up"></i>+0.49%</span></div>
+        <div class="t-item"><span class="t-sym">VIRTUAL</span><span class="t-price">$0.6527</span><span class="t-chg up"><i class="tri tri-up"></i>+0.48%</span></div>
+        <div class="t-item"><span class="t-sym">ASTER</span><span class="t-price">$0.6590</span><span class="t-chg down"><i class="tri tri-down"></i>-0.64%</span></div>
+        <div class="t-item"><span class="t-sym">XPL</span><span class="t-price">$0.1257</span><span class="t-chg down"><i class="tri tri-down"></i>-0.49%</span></div>
+        <div class="t-live"><i class="dot pulse"></i>LIVE</div>
+      </div>
+
+      <!-- 页头：仪表盘标题 + 状态徽章 -->
+      <div class="page-head">
+        <div>
+          <div class="page-title">仪表盘</div>
+          <div class="page-sub">交易核心 · 实时数据总览</div>
+        </div>
+        <div class="page-badges">
+          <span class="chip-live"><i class="dot pulse"></i>数据实时</span>
+          <span class="chip-muted">更新于 2 秒前</span>
+        </div>
+      </div>
+
+      <!-- 签名元素 4：4 张 KPI 统计卡 -->
+      <div class="stats">
+        <!-- 总资产 -->
+        <div class="card stat-card" style="animation-delay:60ms">
+          <div class="stat-top">
+            <span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span>
+            <span class="stat-label">总资产</span>
+          </div>
+          <div class="stat-num grad-text">$0.00</div>
+          <div class="stat-sub">约合 0.00 USDT</div>
+          <svg class="stat-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,24 C20,22 32,20 46,17 S72,10 92,8 110,5 120,4 L120,30 L0,30 Z" fill="url(#spark1)"/>
+            <path d="M0,24 C20,22 32,20 46,17 S72,10 92,8 110,5 120,4" fill="none" stroke="#22D3EE" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- 总盈亏 -->
+        <div class="card stat-card" style="animation-delay:100ms">
+          <div class="stat-top">
+            <span class="stat-ico"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
+            <span class="stat-label">总盈亏</span>
+          </div>
+          <div class="stat-num grad-text">$0.00</div>
+          <div class="stat-sub">今日 +$0.00 · 全部策略</div>
+          <svg class="stat-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,13 C16,11 30,17 44,19 S74,14 92,8 110,5 120,4 L120,30 L0,30 Z" fill="url(#spark2)"/>
+            <path d="M0,13 C16,11 30,17 44,19 S74,14 92,8 110,5 120,4" fill="none" stroke="#8B5CF6" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- 胜率 -->
+        <div class="card stat-card" style="animation-delay:140ms">
+          <div class="stat-top">
+            <span class="stat-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+            <span class="stat-label">胜率</span>
+          </div>
+          <div class="stat-num grad-text">0.0%</div>
+          <div class="stat-sub">近 30 日 · 0 笔已平仓</div>
+          <svg class="stat-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,22 C20,23 34,19 50,15 S82,9 100,10 114,7 120,6 L120,30 L0,30 Z" fill="url(#spark3)"/>
+            <path d="M0,22 C20,23 34,19 50,15 S82,9 100,10 114,7 120,6" fill="none" stroke="#34D399" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <!-- 活跃持仓 -->
+        <div class="card stat-card" style="animation-delay:180ms">
+          <div class="stat-top">
+            <span class="stat-ico"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
+            <span class="stat-label">活跃持仓</span>
+          </div>
+          <div class="stat-num grad-text">0</div>
+          <div class="stat-sub">短线 0 · 长线 0 · 套利 0</div>
+          <svg class="stat-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,17 C18,15 34,13 50,14 S80,16 100,10 114,8 120,7 L120,30 L0,30 Z" fill="url(#spark4)"/>
+            <path d="M0,17 C18,15 34,13 50,14 S80,16 100,10 114,8 120,7" fill="none" stroke="#FB7185" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 第一行两栏：策略表现表 ｜ 账户状态 + AI 决策 -->
+      <div class="row row-2">
+        <!-- 策略表现表（签名元素 6：圆角外框 + 表头大写 + 异常警告） -->
+        <section class="card" style="padding:16px 18px; animation-delay:220ms" aria-label="策略表现">
+          <div class="card-head">
+            <div>
+              <div class="card-title">策略表现</div>
+              <div class="card-sub">按策略汇总 · 含模拟与实盘</div>
+            </div>
+            <span class="chip-muted" style="height:22px; font-size:11px">近 90 天</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>策略</th>
+                <th class="num">总盈亏</th>
+                <th class="num">活跃策略</th>
+                <th class="num">总交易</th>
+                <th class="num">胜率</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 胜率 2518.0% 为异常值：琥珀色 + 警示底 + 数据异常徽章（防御性显示） -->
+              <tr>
+                <td class="cell-strat">短线</td>
+                <td class="num down">-$4,820.87</td>
+                <td class="num">0</td>
+                <td class="num">278</td>
+                <td class="num warn-cell">2518.0% <span class="badge warn">数据异常</span></td>
+              </tr>
+              <tr>
+                <td class="cell-strat">长线</td>
+                <td class="num down">-$1,206.33</td>
+                <td class="num">1</td>
+                <td class="num">64</td>
+                <td class="num">43.8%</td>
+              </tr>
+              <tr>
+                <td class="cell-strat">套利</td>
+                <td class="num up">+$312.40</td>
+                <td class="num">2</td>
+                <td class="num">89</td>
+                <td class="num">51.2%</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="divider"></div>
+          <!-- 策略引擎健康度 -->
+          <div class="health">
+            <div class="health-row"><span>短线策略</span><div class="bar"><i style="width:62%; background:linear-gradient(90deg,#22D3EE,#67E8F9)"></i></div><span class="num">62%</span></div>
+            <div class="health-row"><span>长线策略</span><div class="bar"><i style="width:45%; background:linear-gradient(90deg,#8B5CF6,#A78BFA)"></i></div><span class="num">45%</span></div>
+            <div class="health-row"><span>套利策略</span><div class="bar"><i style="width:78%; background:linear-gradient(90deg,#34D399,#6EE7B7)"></i></div><span class="num">78%</span></div>
+          </div>
+          <!-- 近 7 日成交分布（渐变柱状图） -->
+          <div class="card-sub" style="margin-top:14px">近 7 日成交分布</div>
+          <svg viewBox="0 0 330 56" style="width:100%; height:auto; margin-top:6px" aria-hidden="true">
+            <g fill="url(#gradBar)" rx="3">
+              <rect x="8"  y="34" width="34" height="22" rx="3"/>
+              <rect x="54" y="26" width="34" height="30" rx="3"/>
+              <rect x="100" y="38" width="34" height="18" rx="3"/>
+              <rect x="146" y="20" width="34" height="36" rx="3"/>
+              <rect x="192" y="30" width="34" height="26" rx="3"/>
+              <rect x="238" y="12" width="34" height="44" rx="3"/>
+              <rect x="284" y="24" width="34" height="32" rx="3"/>
+            </g>
+          </svg>
+        </section>
+
+        <!-- 右列：账户状态空状态 + 最近 AI 决策 -->
+        <div class="col-right">
+          <!-- 签名元素 9：空状态（账户未配置） -->
+          <section class="card" style="padding:16px 18px; animation-delay:260ms" aria-label="账户状态">
+            <div class="card-head">
+              <div>
+                <div class="card-title">账户状态</div>
+                <div class="card-sub">交易所 API 连接情况</div>
+              </div>
+              <span class="badge warn">未连接</span>
+            </div>
+            <div class="empty-box">
+              <div class="empty-ico">
+                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <div class="empty-title">未配置账户</div>
+              <div class="empty-desc">连接交易所 API 后即可查看实时资产、持仓与盈亏</div>
+              <!-- 渐变按钮 + 微辉光 -->
+              <button class="btn primary sm">前往配置</button>
+            </div>
+          </section>
+
+          <!-- 最近 AI 决策列表（SELL 徽章 + 时间） -->
+          <section class="card" style="padding:16px 18px; animation-delay:300ms" aria-label="最近 AI 决策">
+            <div class="card-head">
+              <div>
+                <div class="card-title">最近 AI 决策</div>
+                <div class="card-sub">多周期编排器 · 规则引擎 · 因子共振</div>
+              </div>
+              <a class="card-link" href="#decisions">查看全部</a>
+            </div>
+            <div class="ai-list">
+              <div class="ai-item">
+                <div class="ai-top">
+                  <span class="badge sell">SELL</span>
+                  <span class="ai-sym">BNB/USDT</span>
+                  <span class="ai-time">6 天前</span>
+                </div>
+                <p class="ai-desc">多周期编排器强烈建议做空，因子共振确认下行趋势</p>
+              </div>
+              <div class="ai-item">
+                <div class="ai-top">
+                  <span class="badge sell">SELL</span>
+                  <span class="ai-sym">BTC/USDT</span>
+                  <span class="ai-time">6 天前</span>
+                </div>
+                <p class="ai-desc"><span class="ai-rule">[规则引擎覆盖]</span> 编排器 Fallback: bearish(45%)，强卖覆盖</p>
+              </div>
+              <div class="ai-item">
+                <div class="ai-top">
+                  <span class="badge sell">SELL</span>
+                  <span class="ai-sym">SOL/USDT</span>
+                  <span class="ai-time">6 天前</span>
+                </div>
+                <p class="ai-desc">多周期编排器强烈建议做空，趋势背离警示</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 第二行两栏：净值曲线 ｜ 市场行情表 -->
+      <div class="row row-3">
+        <!-- 净值曲线：渐变面积图 -->
+        <section class="card" style="padding:16px 18px; animation-delay:340ms" aria-label="净值曲线">
+          <div class="card-head">
+            <div>
+              <div class="card-title">净值曲线</div>
+              <div class="card-sub">模拟回测 · 近 3 月</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px">
+              <span class="legend"><i style="background:#22D3EE; box-shadow:0 0 6px rgba(34,211,238,.6)"></i>净值</span>
+              <span class="legend"><i style="background:rgba(139,92,246,.5)"></i>基准</span>
+              <!-- 胶囊 tab：激活 = 渐变底 -->
+              <div class="tabs">
+                <button class="tab">1H</button>
+                <button class="tab">1D</button>
+                <button class="tab">1W</button>
+                <button class="tab active">1M</button>
+                <button class="tab">3M</button>
+                <button class="tab">ALL</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 640 190" role="img" aria-label="净值曲线示例：近三个月净值震荡上行">
+              <defs>
+                <!-- 末点发光圆点 -->
+                <radialGradient id="dotGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#22D3EE" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <!-- 网格线（白 6%） -->
+              <line class="grid-line" x1="44" y1="25" x2="632" y2="25"/>
+              <line class="grid-line" x1="44" y1="65" x2="632" y2="65"/>
+              <line class="grid-line" x1="44" y1="105" x2="632" y2="105"/>
+              <line class="grid-line" x1="44" y1="145" x2="632" y2="145"/>
+              <!-- 基准虚线 -->
+              <line x1="44" y1="105" x2="632" y2="105" stroke="rgba(139,92,246,0.35)" stroke-width="1" stroke-dasharray="4 4"/>
+              <!-- Y 轴刻度 -->
+              <text class="axis-label" x="2" y="28">3,400</text>
+              <text class="axis-label" x="2" y="68">3,200</text>
+              <text class="axis-label" x="2" y="108">3,000</text>
+              <text class="axis-label" x="2" y="148">2,800</text>
+              <!-- X 轴刻度 -->
+              <text class="axis-label" x="44" y="182">06-01</text>
+              <text class="axis-label" x="158" y="182">06-15</text>
+              <text class="axis-label" x="272" y="182">07-01</text>
+              <text class="axis-label" x="386" y="182">07-15</text>
+              <text class="axis-label" x="500" y="182">08-01</text>
+              <text class="axis-label" x="600" y="182">08-15</text>
+              <!-- 面积渐变填充：青 → 紫 → 透明 -->
+              <path d="M44,152 C74,144 100,126 130,118 C160,110 184,124 214,130 C244,136 270,148 300,142 C330,136 356,104 386,92 C416,80 442,72 472,76 C502,80 528,94 558,86 C588,78 614,52 636,44 L636,190 L44,190 Z" fill="url(#gradArea)"/>
+              <!-- 折线渐变描边 -->
+              <path d="M44,152 C74,144 100,126 130,118 C160,110 184,124 214,130 C244,136 270,148 300,142 C330,136 356,104 386,92 C416,80 442,72 472,76 C502,80 528,94 558,86 C588,78 614,52 636,44" fill="none" stroke="url(#gradLine)" stroke-width="2" stroke-linecap="round"/>
+              <!-- 末点高亮：辉光 + 圆点 -->
+              <circle cx="636" cy="44" r="10" fill="url(#dotGlow)"/>
+              <circle cx="636" cy="44" r="3.5" fill="#22D3EE"/>
+              <!-- 末点数据标签（玻璃小卡） -->
+              <g>
+                <rect x="530" y="14" width="106" height="20" rx="5" fill="rgba(12,17,32,0.9)" stroke="rgba(255,255,255,0.12)"/>
+                <text x="536" y="28" fill="#7DD3FC" font-size="10" font-family="'JetBrains Mono',monospace">$3,214.50</text>
+                <text x="588" y="28" fill="#94A1BC" font-size="9.5" font-family="'Noto Sans SC',sans-serif">8月14日</text>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <!-- 市场行情表（6 行：BTC/ETH/SOL/BNB/VIRTUAL/ASTER） -->
+        <section class="card" style="padding:16px 18px; animation-delay:380ms" aria-label="市场行情">
+          <div class="card-head">
+            <div>
+              <div class="card-title">市场行情</div>
+              <div class="card-sub">Hyperliquid · 实时报价</div>
+            </div>
+            <a class="card-link" href="#intel">全市场</a>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>币种</th>
+                <th class="num">价格</th>
+                <th class="num">24h 涨跌</th>
+                <th style="text-align:right">近 7 日走势</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-1">B</span><span><span class="coin-name">BTC</span><br><span class="coin-sub">Bitcoin</span></span></span></td>
+                <td class="num">70,905.00</td>
+                <td class="num"><span class="chg-chip down"><i class="tri tri-down"></i>-0.75%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,5 L12,7 L24,5 L36,10 L48,9 L60,13 L72,11 L72,22 L0,22 Z" fill="rgba(251,113,133,0.12)"/><path d="M0,5 L12,7 L24,5 L36,10 L48,9 L60,13 L72,11" fill="none" stroke="#FB7185" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-2">E</span><span><span class="coin-name">ETH</span><br><span class="coin-sub">Ethereum</span></span></span></td>
+                <td class="num">2,188.30</td>
+                <td class="num"><span class="chg-chip down"><i class="tri tri-down"></i>-0.69%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,7 L12,9 L24,8 L36,12 L48,11 L60,14 L72,13 L72,22 L0,22 Z" fill="rgba(251,113,133,0.12)"/><path d="M0,7 L12,9 L24,8 L36,12 L48,11 L60,14 L72,13" fill="none" stroke="#FB7185" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-3">S</span><span><span class="coin-name">SOL</span><br><span class="coin-sub">Solana</span></span></span></td>
+                <td class="num">81.81</td>
+                <td class="num"><span class="chg-chip down"><i class="tri tri-down"></i>-0.44%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,6 L12,10 L24,7 L36,11 L48,13 L60,12 L72,15 L72,22 L0,22 Z" fill="rgba(251,113,133,0.12)"/><path d="M0,6 L12,10 L24,7 L36,11 L48,13 L60,12 L72,15" fill="none" stroke="#FB7185" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-4">B</span><span><span class="coin-name">BNB</span><br><span class="coin-sub">BNB Chain</span></span></span></td>
+                <td class="num">598.12</td>
+                <td class="num"><span class="chg-chip up"><i class="tri tri-up"></i>+0.49%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,13 L12,11 L24,12 L36,8 L48,9 L60,5 L72,6 L72,22 L0,22 Z" fill="rgba(52,211,153,0.12)"/><path d="M0,13 L12,11 L24,12 L36,8 L48,9 L60,5 L72,6" fill="none" stroke="#34D399" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-5">V</span><span><span class="coin-name">VIRTUAL</span><br><span class="coin-sub">Virtuals</span></span></span></td>
+                <td class="num">0.6527</td>
+                <td class="num"><span class="chg-chip up"><i class="tri tri-up"></i>+0.48%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,12 L12,10 L24,11 L36,9 L48,7 L60,8 L72,4 L72,22 L0,22 Z" fill="rgba(52,211,153,0.12)"/><path d="M0,12 L12,10 L24,11 L36,9 L48,7 L60,8 L72,4" fill="none" stroke="#34D399" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="coin"><span class="coin-ico ci-6">A</span><span><span class="coin-name">ASTER</span><br><span class="coin-sub">Aster</span></span></span></td>
+                <td class="num">0.6590</td>
+                <td class="num"><span class="chg-chip down"><i class="tri tri-down"></i>-0.64%</span></td>
+                <td style="text-align:right">
+                  <svg class="spark" viewBox="0 0 72 22" aria-hidden="true"><path d="M0,7 L12,6 L24,10 L36,9 L48,12 L60,11 L72,14 L72,22 L0,22 Z" fill="rgba(251,113,133,0.12)"/><path d="M0,7 L12,6 L24,10 L36,9 L48,12 L60,11 L72,14" fill="none" stroke="#FB7185" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- 底部状态条：连接状态 + 系统状态 + 时钟 -->
+    <footer class="statusbar">
+      <span class="st-item conn"><i class="dot pulse"></i>Hyperliquid 已连接</span>
+      <span class="st-sep"></span>
+      <span class="st-item"><svg class="bolt" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>系统运行中</span>
+      <span class="st-sep"></span>
+      <span class="st-item">WS 实时 · 延迟 42ms</span>
+      <span class="st-right">
+        <span>UTC+8</span>
+        <span id="date">----/--/--</span>
+        <span id="clock2">--:--:--</span>
+      </span>
+    </footer>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- 极少量原生 JS：本地时钟（无依赖、无报错） -->
+<script>
+(function () {
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  function tick() {
+    var d = new Date();
+    var hh = pad(d.getHours()), mm = pad(d.getMinutes()), ss = pad(d.getSeconds());
+    var dateStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    var timeStr = hh + ':' + mm + ':' + ss;
+    var c1 = document.getElementById('clock'), c2 = document.getElementById('clock2'), dt = document.getElementById('date');
+    if (c1) c1.textContent = timeStr;
+    if (c2) c2.textContent = timeStr;
+    if (dt) dt.textContent = dateStr;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

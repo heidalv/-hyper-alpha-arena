@@ -128,7 +128,11 @@ def get_last_price(symbol: str, market: str = "CRYPTO", environment: str = "main
     key = f"{symbol}.{exchange}.{environment}" if exchange == "hyperliquid" else f"{symbol}.{exchange}"
 
     from .price_cache import get_cached_price, cache_price
-    cached_price = get_cached_price(symbol, market, environment)
+    # [P2-1 跨所串价修复] 优先取本所缓存；legacy 空所键仅作二级回退（保持旧写者兼容）。
+    # asterdex 的写入现在带 exchange="asterdex"，不再污染 hyperliquid 的读数。
+    cached_price = get_cached_price(symbol, market, environment, exchange=exchange)
+    if cached_price is None:
+        cached_price = get_cached_price(symbol, market, environment)
     if cached_price is not None and exchange == "hyperliquid":
         return cached_price
 
@@ -145,7 +149,7 @@ def get_last_price(symbol: str, market: str = "CRYPTO", environment: str = "main
                 )
                 if db_data:
                     price = float(db_data[-1]["close"])
-                    cache_price(symbol, market, price, environment)
+                    cache_price(symbol, market, price, environment, exchange=exchange)
                     return price
             except Exception as e:
                 logger.debug(f"[DC_ONLY] HL price DB fallback failed: {e}")
@@ -159,18 +163,30 @@ def get_last_price(symbol: str, market: str = "CRYPTO", environment: str = "main
             price = get_last_price_from_hyperliquid(symbol, environment)
             if price and price > 0:
                 logger.info(f"Got price for {key} from Hyperliquid: {price}")
-                cache_price(symbol, market, price, environment)
+                cache_price(symbol, market, price, environment, exchange=exchange)
                 return price
             raise Exception(f"Hyperliquid returned invalid price: {price}")
         except Exception as hl_err:
             logger.error(f"Price fetch failed for {key}: {hl_err}")
             raise Exception(f"Unable to get real-time price for {key}: {hl_err}")
 
-    from .kline_data_service import kline_service
-    db_data = kline_service.get_klines_from_db(symbol.upper(), "1m", 1, exchange=exchange)
-    if db_data:
-        return float(db_data[-1]["close"])
-    raise Exception(f"Unable to get price for {key}: no DB data")
+    # [2026-08-15 P0-3 修复] 非 hyperliquid 所不再直接取 DB 1m close 当作
+    # 「实时价」；统一走 data_center.get_price_with_ts 权威链路：
+    # 秒级 ticker（跨进程 DC REST 2s 通道 → hub）→ DB 1m close（带 stale 门）。
+    # 决策价与成交价口径一致，避免 1m 收盘价造成的最大 ~60s+ 漂移。
+    try:
+        from backend.services.data_center import data_center
+        result = data_center.get_price_with_ts(symbol, exchange, purpose="trade")
+        if result:
+            price, ts = result
+            if price and float(price) > 0:
+                cache_price(symbol, market, float(price), environment, exchange=exchange)
+                return float(price)
+    except Exception as e:
+        logger.debug(f"[DC_ONLY] data_center price failed for {symbol}.{exchange}: {e}")
+    raise Exception(
+        f"Unable to get price for {key}: 数据中心无可用价格（秒级 ticker 与 1m 兜底均失败）"
+    )
 
 
 def get_kline_data(symbol: str, market: str = "CRYPTO", period: str = "1d", count: int = 100, environment: str = "mainnet") -> List[Dict[str, Any]]:

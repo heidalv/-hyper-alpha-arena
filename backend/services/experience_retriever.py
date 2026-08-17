@@ -198,6 +198,8 @@ class ExperienceRetriever:
                 DecisionSnapshot.symbol == symbol,
                 DecisionSnapshot.timestamp >= cutoff,
                 DecisionSnapshot.pnl.isnot(None),
+                # [P0-4 消费端防御] 经验检索只吃已执行决策，避免错配 pnl 注入提示词
+                DecisionSnapshot.executed == True,  # noqa: E712
             )
 
             if regime:

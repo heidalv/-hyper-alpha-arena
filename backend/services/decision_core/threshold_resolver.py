@@ -140,8 +140,11 @@ def resolve_effective_entry_threshold(
     except Exception as exc:
         logger.debug("[ThresholdResolver] 成熟度松紧读取失败: %s", exc)
 
-    # Paper 中线/长线探索期：禁止成熟度负向收紧（与 Phase0 攒样本目标一致）
-    if (mode or "").lower() == "paper" and nature_l in ("swing", "trend_follow", "position"):
+    # Paper 探索期：禁止成熟度负向收紧（与攒样本目标一致）。
+    # [2026-08-16 用户反馈] 扩展到全部 nature：旧实现仅豁免 swing/trend，
+    # scalp 在 warmup 阶段被成熟度 +20 收紧（实测 ETH 41%<45% 拦截）——
+    # warmup 本应多交易攒数据，负向收紧方向完全相反。
+    if (mode or "").lower() == "paper":
         if maturity_relief < 0:
             maturity_relief = 0.0
 

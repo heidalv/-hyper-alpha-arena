@@ -177,8 +177,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# 桌面端（Electron）连接集合：连接 URL 带 ?client=desktop 才计入。
-# 用于「前端改动自动发布后」只向桌面端广播新版本，不给 web 浏览器客户端推。
+# 桌面端（Electron）连接集合：连接 URL 带 。 client=desktop 才计入。 # 用于「前端改动自动发布后」只向桌面端广播新版本，不给 web 浏览器客户端推。
 _desktop_connections: Set[WebSocket] = set()
 
 
@@ -210,11 +209,7 @@ def notify_desktop_update(version: str, path: str = "") -> None:
     except Exception as exc:  # 后端未启动/事件循环不可用时仅记录
         logger.warning("[WS] desktop_update 广播调度失败: %s", exc)
 
-# 接线 Redis pub/sub 桥(跨 worker WS 广播)。
-# - configure_local_dispatch:让 bridge 收到 Redis 消息时回调 manager._dispatch_local
-#   投递给本地 socket。
-# - start_subscriber:无 REDIS_URL 时 no-op(单 worker dev 行为不变);
-#   有 REDIS_URL 时起后台线程订阅 ws:account:* / ws:broadcast。
+# 接线 Redis pub/sub 桥(跨 worker WS 广播)。 # - configure_local_dispatch:让 bridge 收到 Redis 消息时回调 manager._dispatch_local #   投递给本地 socket。 # - start_subscriber:无 REDIS_URL 时 no-op(单 worker dev 行为不变); #   有 REDIS_URL 时起后台线程订阅 ws:account:* / ws:broadcast。
 try:
     from backend.services import ws_redis_bridge
     ws_redis_bridge.configure_local_dispatch(manager._dispatch_local)
@@ -222,7 +217,6 @@ try:
 except Exception as _bridge_err:
     # 桥接失败不应阻断模块加载(降级为仅本地直发,send_to_account 内部仍会尝试 bridge)。
     logging.warning(f"ws_redis_bridge 初始化失败,退化为本地直发: {_bridge_err}")
-
 HYPERLIQUID_SNAPSHOT_CACHE_TTL = 360  # seconds
 
 # Delta mode switch (set WS_DELTA_MODE=false to disable)
@@ -684,7 +678,7 @@ async def _send_hyperliquid_snapshot(db: Session, account_id: int, environment: 
         return
 
     # Check if wallet exists for this environment (multi-wallet architecture)
-    from database.models import HyperliquidWallet
+    from backend.database.models import HyperliquidWallet
     wallet = db.query(HyperliquidWallet).filter(
         HyperliquidWallet.account_id == account_id,
         HyperliquidWallet.environment == environment
@@ -802,8 +796,7 @@ async def _send_hyperliquid_snapshot(db: Session, account_id: int, environment: 
         ai_decisions = []
         _adb = AnalyticsSessionLocal()
         try:
-            # 修复（2026-07-03）：前端传 account_id=5 但 FullAuto 实际用 paper_account_id=14。
-            # 查 FullAuto session 获取真实 paper_account_id，用它查决策日志。
+            # 修复（2026-07-03）：前端传 account_id=5 但 FullAuto 实际用 paper_account_id=14。 # 查 FullAuto session 获取真实 paper_account_id，用它查决策日志。
             _real_acct_id = account_id
             try:
                 from backend.database.models import FullAutoSession
@@ -1037,15 +1030,11 @@ async def _send_snapshot(db: Session, account_id: int):
 async def websocket_endpoint(websocket: WebSocket):
     client_host = websocket.client.host if websocket.client else "unknown"
     logging.info(f"[WS] New WebSocket connection from {client_host}")
-    # P2 修复（2026-06-23）：accept() 可能因客户端在握手期间断开而抛异常，
-    # 原代码未保护 → 进入 receive 循环后立即报 "WebSocket is not connected.
-    # Need to call accept first"（ERROR 级别触发 P2 告警）。
+    # P2 修复（2026-06-23）：accept() 可能因客户端在握手期间断开而抛异常， # 原代码未保护 → 进入 receive 循环后立即报 "WebSocket is not connected. # Need to call accept first"（ERROR 级别触发 P2 告警）。
     try:
         await websocket.accept()
     except Exception as accept_err:
-        # 握手失败属正常客户端行为（刷新页面/网络抖动），不是服务端错误，
-        # 降级为 INFO，避免每小时刷屏 P2 告警。
-        logging.info(f"[WS] WebSocket accept 失败（客户端可能在握手期间断开）: {accept_err}")
+        # 握手失败属正常客户端行为（刷新页面/网络抖动），不是服务端错误， # 降级为 INFO，避免每小时刷屏 P2 告警。 logging.info(f"[WS] WebSocket accept 失败（客户端可能在握手期间断开）: {accept_err}")
         try:
             await websocket.close()
         except Exception:
@@ -1074,10 +1063,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 logging.info("[WS] client disconnected (WebSocketDisconnect)")
                 break
             except Exception as e:
-                # P2 修复：客户端异常断开（RST/掉线/握手失败）属正常行为，
-                # 原来记 ERROR 触发 P2 告警。降级为 DEBUG（仅保留排查痕迹）。
-                # 常见信息："WebSocket is not connected. Need to call accept first."
-                logging.info(f"[WS] receive_text 异常断开: {type(e).__name__}: {e}")
+                # P2 修复：客户端异常断开（RST/掉线/握手失败）属正常行为， # 原来记 ERROR 触发 P2 告警。降级为 DEBUG（仅保留排查痕迹）。 # 常见信息："WebSocket is not connected. Need to call accept first." logging.info(f"[WS] receive_text 异常断开: {type(e).__name__}: {e}")
                 break
                 
             try:
@@ -1095,11 +1081,7 @@ async def websocket_endpoint(websocket: WebSocket):
             db: Session = SessionLocal()
             try:
                 if kind == "bootstrap":
-                    # [2026-08-06 修复] WS 升级不经过 HTTP 租户中间件，且后台无 ContextVar
-                    # 身份 → RLS fail-closed 拒绝 accounts 插入（InsufficientPrivilege），
-                    # bootstrap 直接崩掉整个 WS 连接（前端卡在 Connecting to trading server）。
-                    # 与 llm_config_service / full_auto 后台线程同款修复：连接级设 admin GUC，
-                    # 不动 ContextVar；后续 get_or_create_user / default account / snapshot 同连接生效。
+                    # [2026-08-06 修复] WS 升级不经过 HTTP 租户中间件，且后台无 ContextVar # 身份 → RLS fail-closed 拒绝 accounts 插入（InsufficientPrivilege）， # bootstrap 直接崩掉整个 WS 连接（前端卡在 Connecting to trading server）。 # 与 llm_config_service / full_auto 后台线程同款修复：连接级设 admin GUC， # 不动 ContextVar；后续 get_or_create_user / default account / snapshot 同连接生效。
                     try:
                         db.connection().exec_driver_sql("SET app.is_admin = 'on'")
                     except Exception:

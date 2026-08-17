@@ -18,13 +18,36 @@ import pandas as pd
 # DB 直连（不依赖 SQLAlchemy session，轻量）
 import psycopg
 
-# 默认连 alpha_market（市场数据所在库）
-DB_URL = "postgresql://db_admin:YOUR_DB_PASSWORD@localhost:5432/alpha_market"
+# [2026-08-15] 移除硬编码占位密码：优先读 .env 的 MARKET_DATABASE_URL；
+# 未配置时再从环境变量拼装；两者皆无则退出并提示，不再用占位连接串。
+import os as _os
+
+
+def _resolve_db_url() -> str:
+    url = _os.environ.get("MARKET_DATABASE_URL", "")
+    if url:
+        return url
+    user = _os.environ.get("PGUSER", "db_admin")
+    pwd = _os.environ.get("PGPASSWORD", "")
+    host = _os.environ.get("PGHOST", "localhost")
+    port = _os.environ.get("PGPORT", "5432")
+    if not pwd:
+        raise RuntimeError(
+            "缺少数据库连接配置：请设置 MARKET_DATABASE_URL 或 PGPASSWORD "
+            "（参考 .env 中 MARKET_DATABASE_URL=postgresql+psycopg://laobao:...@localhost:5432/alpha_market，"
+            "将 +psycopg 前缀去掉即可用于 psycopg 直连）"
+        )
+    return f"postgresql://{user}:{pwd}@{host}:{port}/alpha_market"
+
+
+DB_URL = None  # 惰性解析：见 load_real_klines 入口
 
 
 def load_real_klines(symbol: str = "BTC", period: str = "1d",
-                     exchange: str = "hyperliquid", db_url: str = DB_URL) -> pd.DataFrame:
+                     exchange: str = "hyperliquid", db_url: str = None) -> pd.DataFrame:
     """从 alpha_market.crypto_klines 取真实 K线。"""
+    if db_url is None:
+        db_url = _resolve_db_url()
     conn = psycopg.connect(db_url, connect_timeout=10)
     try:
         cur = conn.cursor()

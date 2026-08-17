@@ -251,16 +251,23 @@ def get_price(symbol: str, exchange: Optional[str] = None) -> Optional[float]:
         pass
     # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止直连兜底，
     # 统一从数据中心 DB 读取（数据由采集器落库，保证唯一数据源）。
+    # [2026-08-15 P0-4 修复] 原实现该分支异常被 except:pass 吞掉后会继续落入
+    # 下方含 ccxt 直连回退的旧路径（hyperliquid 缓存客户端的 fetch_ticker）；
+    # 现重构为 DC_ONLY 下无论成败都在此返回，绝不放行直连回退。
     try:
         from backend.services.market_data import _dc_only_enabled
-        if _dc_only_enabled():
+        _dc = _dc_only_enabled()
+    except Exception:
+        _dc = True  # 拿不到开关按 DC_ONLY 处理（保守 fail-closed）
+    if _dc:
+        try:
             from backend.services.data_center import data_center
             p = data_center.get_price(symbol, exchange or None)
             if p and p > 0:
                 return float(p)
-            return None
-    except Exception:
-        pass
+        except Exception as e:
+            logger.warning("[market_price_service] DC_ONLY data_center 取价失败 %s: %s", symbol, e)
+        return None
     try:
         # [2026-08-07 修复] 移除 ccxt REST 同步兜底：每次请求新建 ccxt 实例 +
         # 8s 无严格超时同步调用是 backend 线程池被占满的阻塞源之一。
@@ -293,6 +300,16 @@ def sync_market_symbols(
 ) -> None:
     """同步 Hub symbol 列表；仅在显式允许时启 Legacy REST 轮询"""
     global _legacy_poller
+
+    # [2026-08-15 P0-4 修复] DC_ONLY 下 LegacyRestPricePoller 的 REST 轮询
+    # 属于直连交易所旁路，禁止启动（数据由数据中心采集器落库）。
+    try:
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled():
+            logger.debug("[MarketPriceService] DC_ONLY：跳过 Legacy REST 轮询启动")
+            return
+    except Exception:
+        pass
 
     try:
         from backend.services.market_data_hub import market_data_hub

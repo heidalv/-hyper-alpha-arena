@@ -269,7 +269,7 @@ class PortfolioBudget:
                 if _strat in ("scalp", "midlong"):
                     # 拒单即可，勿冻结（避免抬仓/探针后每单都冻 30 分钟）
                     return BudgetDecision(False, reasons, metrics, strategy=strategy)
-                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="key")
+                self._freeze_via_coordinator(account_id, strategy, sym, reasons[-1])
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 2. 组合日 VaR（95% 历史模拟，含本单） ──
@@ -278,11 +278,15 @@ class PortfolioBudget:
             max_var = _cfg_float("PB_MAX_DAILY_VAR_PCT", 0.05)
             if var_ratio is not None and var_ratio > max_var:
                 reasons.append(f"daily_var {var_ratio:.1%}>{max_var:.1%}")
-                # 策略级短冷却：只冻触发方（scalp/midlong），不串门冻整账户。
-                # 已有持仓的 TP/SL/减仓管理不受影响；触发即告警（日志 WARNING）
-                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="strategy",
-                             cooldown=_cfg_float("PB_ACCOUNT_FREEZE_COOLDOWN_SEC",
-                                                 PB_ACCOUNT_FREEZE_COOLDOWN_SEC))
+                # [2026-08-15 整改] 设计红线：不能因一个交易对影响全局。
+                # daily_var 超限只冻结「触发本单的交易对」(key 级)，绝不冻结整个策略/账户；
+                # 修复链（快速因子进化）随后接管。此前 scope="strategy" 会把短线全部币种
+                # 一起冻结 900s——这是"全部冻结"的直接来源之一。
+                self._freeze_via_coordinator(
+                    account_id, strategy, sym, reasons[-1],
+                    cooldown=_cfg_float("PB_ACCOUNT_FREEZE_COOLDOWN_SEC",
+                                        PB_ACCOUNT_FREEZE_COOLDOWN_SEC),
+                )
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 3. 单策略回撤 3σ 熔断 ──
@@ -306,14 +310,14 @@ class PortfolioBudget:
                 metrics["drawdown_worst"] = worst
                 if worst:
                     for wsym in worst:
-                        self._freeze(account_id, strategy, wsym,
-                                     why=f"drawdown {dd_sigma:.2f}σ", scope="key")
+                        self._freeze_via_coordinator(account_id, strategy, wsym,
+                                                     why=f"drawdown {dd_sigma:.2f}σ")
                     if sym in worst:
                         return BudgetDecision(False, reasons, metrics, strategy=strategy)
                     # 本单非亏损源：继续后续规则（连亏/集中度等）
                 else:
-                    self._freeze(account_id, strategy, sym,
-                                 why=f"drawdown {dd_sigma:.2f}σ", scope="key")
+                    self._freeze_via_coordinator(account_id, strategy, sym,
+                                                 why=f"drawdown {dd_sigma:.2f}σ")
                     return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 4. 单 (账户,策略,交易对) 连续亏损熔断（最小粒度，止血不杀死）──
@@ -322,7 +326,7 @@ class PortfolioBudget:
             cons_cap = _cfg_int("PB_CONSEC_LOSS_LIMIT", PB_CONSEC_LOSS_LIMIT)
             if cons_losses is not None and cons_losses >= cons_cap:
                 reasons.append(f"{sym} 连续亏损 {cons_losses} 笔>={cons_cap} 笔")
-                self._freeze(account_id, strategy, sym, why=reasons[-1], scope="key")
+                self._freeze_via_coordinator(account_id, strategy, sym, reasons[-1])
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             reasons.append("ok")
@@ -339,6 +343,26 @@ class PortfolioBudget:
             return BudgetDecision(True, ["pb_error_fail_open"], metrics, strategy=strategy)
 
     # ── 冻结信号 ─────────────────────────────────────────────
+
+    def _freeze_via_coordinator(
+        self,
+        account_id: int,
+        strategy: str,
+        symbol: str,
+        why: str,
+        *,
+        cooldown: Optional[float] = None,
+    ) -> None:
+        """统一冻结出口（2026-08-15 整改）：
+        本类内所有自动冻结都必须经此方法 → FreezeCoordinator（单一入口 + 台账）。
+        严禁绕过直接调 self._freeze。"""
+        try:
+            from backend.services.risk_management.freeze_coordinator import freeze as _fz
+            _fz(account_id, strategy, symbol, why=why, cooldown=cooldown)
+        except Exception as _e:
+            # 台账故障不允许破坏风控执行：降级回底层 _freeze（fail-closed 保持止血）
+            logger.error("[PortfolioBudget] coordinator 调用失败，降级底层冻结: %s", _e)
+            self._freeze(account_id, strategy, symbol, why=why, scope="key", cooldown=cooldown)
 
     def _freeze(
         self,
@@ -379,6 +403,18 @@ class PortfolioBudget:
                     "现有冻结剩余%ds key=%r",
                     account_id, strategy, sym, int(_exist - time.time()), key,
                 )
+                return
+            # [2026-08-16 用户指令] 「亏一笔就冻结」机制整体删除。
+            # paper 阶段亏损=训练数据（用户原话：前期就是要亏钱亏出数据）。
+            # 因子/策略的处置走累计口径：累计亏损超限 → 下架 + 重挖 + 替代因子
+            # 继续交易（修复流水线承担），绝不写冻结时间戳阻断其它交易对。
+            if not _cfg_bool("PB_FREEZE_ENABLED", True):
+                logger.info(
+                    "[PortfolioBudget] 冻结已禁用(PB_FREEZE_ENABLED=false)，"
+                    "仅启动修复流水线(下架/重挖/替代): %s %s %s",
+                    account_id, strategy, sym,
+                )
+                self._spawn_repair(account_id, strategy, sym, why, scope)
                 return
             n = self._trigger_count.get(cnt_key, 0) + 1
             self._trigger_count[cnt_key] = n
@@ -447,9 +483,10 @@ class PortfolioBudget:
 
         def _worker() -> None:
             timer = None
-            # 止血后默认不再拉起 quick 进化：quick 常卡 15–25 分钟且 no_survivors，
-            # 占着单飞锁导致运维台「永远运行中」。需要时设 PB_REPAIR_SPAWN_EVO=1。
-            spawn_evo = os.getenv("PB_REPAIR_SPAWN_EVO", "0").strip().lower() in (
+            # 修复链默认开启（原设计：冻结交易对 → 快速因子挖掘/回测/应用 → 完成即解冻）。
+            # 历史版本因 quick 卡顿把默认关掉（spawn_evo=0），导致冻结只有冷却没有修复——
+            # 2026-08-15 整改恢复默认 1；如需临时关闭显式设 PB_REPAIR_SPAWN_EVO=0。
+            spawn_evo = os.getenv("PB_REPAIR_SPAWN_EVO", "1").strip().lower() in (
                 "1", "true", "yes", "on",
             )
             if not spawn_evo:

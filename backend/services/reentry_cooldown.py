@@ -344,16 +344,20 @@ def _durable_reopen_blocked(
         from backend.services.sub_position_manager import NATURE_TO_TIER
 
         _tier = (new_tier or "short").strip().lower() or "short"
+        # [2026-08-16 用户反馈放宽] 旧值 short/mid 4h、long 12h（SL 后 mid 12h、
+        # long 48h）——一笔亏损就把币种+周期冻结半天到两天。改为分钟级：
+        # 短/中 30 分钟、长 1 小时（SL 后 mid 2h、long 4h），避免信号未变重复
+        # 付手续费的同时不再冻结整个盘面。
         if _tier == "short":
-            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_SHORT", "14400"))
+            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_SHORT", "3600"))
         elif _tier == "long":
-            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_LONG", "172800"))
+            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_LONG", "14400"))
         else:
-            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_MID", "43200"))
+            cooldown_sec = int(os.getenv("REENTRY_SL_COOLDOWN_SEC_MID", "7200"))
         # 任意亏损也至少吃 loss cooldown
         loss_floor = int(os.getenv(
             f"REENTRY_LOSS_COOLDOWN_SEC_{_tier.upper()}",
-            {"short": "14400", "mid": "14400", "long": "43200"}.get(_tier, "14400"),
+            {"short": "1800", "mid": "1800", "long": "3600"}.get(_tier, "1800"),
         ))
         lookback = max(cooldown_sec, loss_floor)
         since = datetime.now(timezone.utc) - timedelta(seconds=lookback)
@@ -391,9 +395,10 @@ def _durable_reopen_blocked(
             side = (getattr(pos, "side", None) or "").strip().lower()
             if side != new_position_side:
                 continue
-            pnl = float(getattr(pos, "unrealized_pnl", 0) or 0) + float(
-                getattr(pos, "partial_realized_pnl", 0) or 0
-            )
+            # [P0-6 权威口径] closed 仓位的 unrealized_pnl 已含分批 partial_realized_pnl
+            # （paper_trading_engine.close_position 落库口径）。此前再 +partial 导致双计：
+            # 分段止盈后小亏仓被算成正盈利 → 重启后同向再开跳过亏损冷却。此处只取 unrealized_pnl。
+            pnl = float(getattr(pos, "unrealized_pnl", 0) or 0)
             reason_l = (getattr(pos, "close_reason", None) or "").strip().lower()
             is_hard_sl = reason_l in ("sl", "stop_loss", "stop loss", "liquidation", "margin_call")
             if pnl >= 0 and not is_hard_sl:

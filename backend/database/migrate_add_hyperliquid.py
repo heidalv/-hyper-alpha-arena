@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine, text, inspect
 from backend.database.connection import DATABASE_URL, engine
-from database.models import Base, HyperliquidAccountSnapshot, HyperliquidPosition
+from backend.database.models import Base, HyperliquidAccountSnapshot, HyperliquidPosition
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +44,7 @@ def migrate_accounts_table():
     with engine.connect() as conn:
         # Check if columns already exist
         if check_column_exists(engine, 'accounts', 'hyperliquid_enabled'):
-            logger.info("  ✓ Hyperliquid fields already exist in accounts table, skipping")
+            logger.info("  �?Hyperliquid fields already exist in accounts table, skipping")
             return
 
         # Add Hyperliquid configuration fields
@@ -79,7 +79,7 @@ def migrate_accounts_table():
         ))
 
         conn.commit()
-        logger.info("✓ Accounts table migration completed")
+        logger.info("�?Accounts table migration completed")
 
 
 def migrate_orders_table():
@@ -89,7 +89,7 @@ def migrate_orders_table():
     with engine.connect() as conn:
         # Check if columns already exist
         if check_column_exists(engine, 'orders', 'hyperliquid_environment'):
-            logger.info("  ✓ Hyperliquid fields already exist in orders table, skipping")
+            logger.info("  �?Hyperliquid fields already exist in orders table, skipping")
             return
 
         logger.info("  Adding hyperliquid_environment column...")
@@ -123,7 +123,7 @@ def migrate_orders_table():
         ))
 
         conn.commit()
-        logger.info("✓ Orders table migration completed")
+        logger.info("�?Orders table migration completed")
 
 
 def create_hyperliquid_tables():
@@ -132,20 +132,20 @@ def create_hyperliquid_tables():
 
     # Check if tables already exist
     if check_table_exists(engine, 'hyperliquid_account_snapshots'):
-        logger.info("  ✓ hyperliquid_account_snapshots already exists, skipping")
+        logger.info("  �?hyperliquid_account_snapshots already exists, skipping")
     else:
         logger.info("  Creating hyperliquid_account_snapshots table...")
         HyperliquidAccountSnapshot.__table__.create(engine)
-        logger.info("  ✓ hyperliquid_account_snapshots created")
+        logger.info("  �?hyperliquid_account_snapshots created")
 
     if check_table_exists(engine, 'hyperliquid_positions'):
-        logger.info("  ✓ hyperliquid_positions already exists, skipping")
+        logger.info("  �?hyperliquid_positions already exists, skipping")
     else:
         logger.info("  Creating hyperliquid_positions table...")
         HyperliquidPosition.__table__.create(engine)
-        logger.info("  ✓ hyperliquid_positions created")
+        logger.info("  �?hyperliquid_positions created")
 
-    logger.info("✓ Hyperliquid tables creation completed")
+    logger.info("�?Hyperliquid tables creation completed")
 
 
 def verify_migration():
@@ -167,9 +167,9 @@ def verify_migration():
 
     for col in required_account_columns:
         if col in accounts_columns:
-            logger.info(f"  ✓ accounts.{col} exists")
+            logger.info(f"  �?accounts.{col} exists")
         else:
-            logger.error(f"  ✗ accounts.{col} MISSING")
+            logger.error(f"  �?accounts.{col} MISSING")
             return False
 
     # Check orders table
@@ -185,26 +185,26 @@ def verify_migration():
 
     for col in required_order_columns:
         if col in orders_columns:
-            logger.info(f"  ✓ orders.{col} exists")
+            logger.info(f"  �?orders.{col} exists")
         else:
-            logger.error(f"  ✗ orders.{col} MISSING")
+            logger.error(f"  �?orders.{col} MISSING")
             return False
 
     # Check new tables
     tables = inspector.get_table_names()
     if 'hyperliquid_account_snapshots' in tables:
-        logger.info("  ✓ hyperliquid_account_snapshots table exists")
+        logger.info("  �?hyperliquid_account_snapshots table exists")
     else:
-        logger.error("  ✗ hyperliquid_account_snapshots table MISSING")
+        logger.error("  �?hyperliquid_account_snapshots table MISSING")
         return False
 
     if 'hyperliquid_positions' in tables:
-        logger.info("  ✓ hyperliquid_positions table exists")
+        logger.info("  �?hyperliquid_positions table exists")
     else:
-        logger.error("  ✗ hyperliquid_positions table MISSING")
+        logger.error("  �?hyperliquid_positions table MISSING")
         return False
 
-    logger.info("\n✓ Migration verification passed!")
+    logger.info("\n�?Migration verification passed!")
     return True
 
 
@@ -226,7 +226,7 @@ def main():
         # Step 3: Verify migration
         if verify_migration():
             logger.info("\n" + "=" * 60)
-            logger.info("✓ Migration completed successfully!")
+            logger.info("�?Migration completed successfully!")
             logger.info("=" * 60)
             logger.info("\nNext steps:")
             logger.info("1. Set HYPERLIQUID_ENCRYPTION_KEY environment variable")
@@ -234,11 +234,11 @@ def main():
             logger.info("3. Configure Hyperliquid accounts via API or admin panel")
             return 0
         else:
-            logger.error("\n✗ Migration verification failed!")
+            logger.error("\n�?Migration verification failed!")
             return 1
 
     except Exception as e:
-        logger.error(f"\n✗ Migration failed: {e}", exc_info=True)
+        logger.error(f"\n�?Migration failed: {e}", exc_info=True)
         return 1
 
 

@@ -118,18 +118,22 @@ export function RAGStatusPanel() {
               <div
                 key={name}
                 className={cn(
-                  "rounded-lg border p-3",
-                  !c ? "border-border/60 bg-muted/20" : "border-border"
+                  "glass rounded-lg p-3",
+                  !c && "opacity-70"
                 )}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-mono text-[11px] truncate">{name}</span>
                   {c ? (
-                    <Badge variant="outline" className="text-[9px] font-normal tabular-nums">
+                    <Badge variant="outline" className="text-[9px] font-normal tabular-nums border-profit/40 bg-profit/10 text-profit">
+                      <span className="w-1 h-1 rounded-full bg-profit shadow-[0_0_6px_currentColor]" />
                       {docs.toLocaleString()} 文档
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[9px] font-normal">未挂载</Badge>
+                    <Badge variant="outline" className="text-[9px] font-normal border-amber-500/40 bg-amber-500/10 text-warning">
+                      <AlertTriangle className="w-2.5 h-2.5" />
+                      未挂载
+                    </Badge>
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground">

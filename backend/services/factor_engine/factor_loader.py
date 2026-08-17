@@ -62,6 +62,25 @@ class FactorLoader:
             if py_file.name.startswith('__'):
                 continue
             
+            # [P1-10] 前视审计：源码含负向 shift（引未来数据）的因子禁止加载进注册表，
+            # 变量型 shift 仅标记人工复核（不拦截，避免误杀正常动态窗口因子）。
+            try:
+                with open(py_file, "r", encoding="utf-8", errors="replace") as _f:
+                    _src = _f.read()
+                from backend.services.factor_engine.lookahead_audit import audit_lookahead
+                _verdict, _detail = audit_lookahead(_src)
+                if _verdict == "blocked":
+                    print(
+                        f"[FactorLoader] 前视因子跳过加载: {py_file.name} ({_detail})",
+                    )
+                    continue
+                if _verdict == "review":
+                    print(
+                        f"[FactorLoader] 变量型 shift 待复核: {py_file.name} ({_detail})",
+                    )
+            except Exception:
+                pass  # 审计失败不阻断加载（compile 预筛兜底）
+            
             try:
                 # 构建模块路径
                 module_path = self._get_module_path(py_file)

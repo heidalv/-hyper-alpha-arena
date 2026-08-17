@@ -28,12 +28,8 @@ def _fetch_opencode_status() -> Dict[str, Any]:
     from backend.services.opencode_bridge import get_bridge_status, health_check
     from backend.services.paper_pace_controller import paper_pace_controller
 
+    # [2026-08-17] opencode_sidecar 已删除：sidecar 状态固定为空。
     sidecar: Dict[str, Any] = {}
-    try:
-        from backend.services.opencode_sidecar import sidecar_status
-        sidecar = sidecar_status()
-    except Exception:
-        pass
     return {
         "bridge": get_bridge_status(),
         "serve_healthy": health_check(),

@@ -264,6 +264,12 @@ def _dim_staged_tp(
         from backend.config.settings import RISK_USE_LONG_TIER_STAGED_TP
         if not RISK_USE_LONG_TIER_STAGED_TP:
             return {"action": "hold", "channel": "", "reason": "flag_off"}
+        # [P0-10 双重减仓收口] v2 统一分段止盈开启时本路径必须短路：
+        # paper 引擎 _run_unified_staged_tp（全层级，30s/tick）与 _dim_staged_tp（long 层）
+        # 并行会对同一 long 仓各自减仓。v2 是唯一权威，此处 hold。
+        from backend.config.settings import RISK_V2_UNIFIED_STAGED_TP
+        if RISK_V2_UNIFIED_STAGED_TP:
+            return {"action": "hold", "channel": "", "reason": "v2_unified_staged_tp_on"}
         from backend.services.long_tier_staged_tp import check as _staged_tp_check
         from backend.services.long_tier_staged_tp import StagedTpState
 
@@ -319,11 +325,87 @@ def _dim_staged_tp(
 # ──────────────────────────────────────────────────────────────────────
 # 维度 ① + ③：方向延续性复查 + TP/SL 调整（LLM，节流）
 # ──────────────────────────────────────────────────────────────────────
+def _midlong_review_use_llm() -> bool:
+    """[2026-08-16 用户指令] 热路径去 LLM：默认走确定性规则复查。
+
+    MIDLONG_REVIEW_LLM=true 可回滚到 trend_agent LLM 复查。
+    """
+    try:
+        return os.getenv("MIDLONG_REVIEW_LLM", "false").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return False
+
+
+def _tf_vote(bias: Any, macd: Any, trend: Any) -> str:
+    """单一周期方向投票：bullish / bearish / mixed（多信号多数决）。"""
+    votes = 0
+    b = str(bias or "").strip().lower()
+    if b == "bullish":
+        votes += 1
+    elif b == "bearish":
+        votes -= 1
+    try:
+        m = float(macd or 0)
+        if m > 0:
+            votes += 1
+        elif m < 0:
+            votes -= 1
+    except Exception:
+        pass
+    t = str(trend or "").strip().lower()
+    if t in ("bullish", "up", "多头", "上升"):
+        votes += 1
+    elif t in ("bearish", "down", "空头", "下降"):
+        votes -= 1
+    if votes > 0:
+        return "bullish"
+    if votes < 0:
+        return "bearish"
+    return "mixed"
+
+
+def _rule_direction(symbol: str, position: Dict[str, Any],
+                    market_summary: Dict[str, Any]) -> Dict[str, Any]:
+    """规则版方向复查：确定性多周期共振（替代 trend_agent LLM）。
+
+    与 LLM 版吃同一份数据（orchestrator bias + indicators 4h/1d 的
+    macd/trend）。只在 4h 与 1d **同时反向** 时才判 close（趋势破坏）；
+    单周期反向仅 hold（避免噪声误杀）。
+    """
+    side = _pos_direction(position.get("side")) or "long"
+    pos_dir = 1 if side == "long" else -1
+    md = (market_summary or {}).get(str(symbol).upper()) or (market_summary or {}).get(str(symbol)) or {}
+    if not isinstance(md, dict):
+        md = {}
+    i4 = md.get("indicators_4h") if isinstance(md.get("indicators_4h"), dict) else {}
+    i1 = md.get("indicators_1d") if isinstance(md.get("indicators_1d"), dict) else {}
+    orch = md.get("orchestrator") if isinstance(md.get("orchestrator"), dict) else {}
+    tf4 = _tf_vote(orch.get("mid_bias"), i4.get("macd"), i4.get("trend"))
+    tf1 = _tf_vote(orch.get("long_bias") or orch.get("mid_bias"), i1.get("macd"), i1.get("trend"))
+    opp4 = (tf4 == "bearish" and pos_dir > 0) or (tf4 == "bullish" and pos_dir < 0)
+    opp1 = (tf1 == "bearish" and pos_dir > 0) or (tf1 == "bullish" and pos_dir < 0)
+    if opp4 and opp1:
+        return {
+            "action": "close",
+            "reasoning": f"多周期共振反向：4h={tf4} 1d={tf1} 与{side}相悖（规则复查）",
+        }
+    if opp4 or opp1:
+        return {
+            "action": "hold",
+            "reasoning": f"单周期反向（4h={tf4} 1d={tf1}），继续持有观察",
+        }
+    return {"action": "hold", "reasoning": f"多周期趋势支持（4h={tf4} 1d={tf1}）"}
+
+
 def _dim_direction(
     db, *, account_id, symbol: str, position: Dict[str, Any],
     market_summary: Dict[str, Any], analyst_reports: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """trend_agent.review_position 六维中的①③。返回 review dict。"""
+    """六维中的①③（方向延续性）。默认规则版；MIDLONG_REVIEW_LLM=true 走 LLM。"""
+    if not _midlong_review_use_llm():
+        return _rule_direction(symbol, position, market_summary)
     from backend.services.trend_agent import trend_agent
     entry = float(position.get("entry_price", 0) or 0)
     mark = float(position.get("mark_price", 0) or entry)
@@ -351,7 +433,34 @@ def _dim_pyramid(
     db, *, account_id, symbol: str, position: Dict[str, Any],
     market_summary: Dict[str, Any], analyst_reports: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """判断是否滚仓。返回 {"action": "add"/"wait"/"skip", "ratio", "reasoning"}。"""
+    """判断是否滚仓。返回 {"action": "add"/"wait"/"skip", "ratio", "reasoning"}。
+
+    [2026-08-16] 默认规则版：浮盈 + 多周期同向 才建议加仓（5 层门控仍会复核）；
+    MIDLONG_REVIEW_LLM=true 走 trend_agent LLM。
+    """
+    if not _midlong_review_use_llm():
+        side = _pos_direction(position.get("side")) or "long"
+        pos_dir = 1 if side == "long" else -1
+        md = (market_summary or {}).get(str(symbol).upper()) or (market_summary or {}).get(str(symbol)) or {}
+        if not isinstance(md, dict):
+            md = {}
+        i4 = md.get("indicators_4h") if isinstance(md.get("indicators_4h"), dict) else {}
+        i1 = md.get("indicators_1d") if isinstance(md.get("indicators_1d"), dict) else {}
+        orch = md.get("orchestrator") if isinstance(md.get("orchestrator"), dict) else {}
+        tf4 = _tf_vote(orch.get("mid_bias"), i4.get("macd"), i4.get("trend"))
+        tf1 = _tf_vote(orch.get("long_bias") or orch.get("mid_bias"), i1.get("macd"), i1.get("trend"))
+        pnl_pct = _pnl_pct_of(position)
+        _d4 = 1 if tf4 == "bullish" else (-1 if tf4 == "bearish" else 0)
+        _d1 = 1 if tf1 == "bullish" else (-1 if tf1 == "bearish" else 0)
+        if pnl_pct >= 0.03 and _d4 == pos_dir and _d1 == pos_dir:
+            return {
+                "action": "add", "ratio": 0.25,
+                "reasoning": f"规则滚仓：浮盈{pnl_pct:.1%}且4h/1d同向(4h={tf4},1d={tf1})",
+            }
+        return {
+            "action": "skip",
+            "reasoning": f"规则滚仓跳过：浮盈{pnl_pct:.1%} 4h={tf4} 1d={tf1}",
+        }
     from backend.services.trend_agent import trend_agent
     entry = float(position.get("entry_price", 0) or 0)
     mark = float(position.get("mark_price", 0) or entry)
@@ -598,6 +707,19 @@ def manage_position(
     if not position:
         return _out
 
+    # [2026-08-16 long_trend_v2] 长线仓改由 V2 每日管理器接管（Chandelier/结构退出/
+    # 新高金字塔），跳过本模块的短中线口径（分档TP/保本/15min复查/bias反转）。
+    try:
+        from backend.services.long_trend_v2 import long_v2_enabled
+        _v2 = long_v2_enabled()
+    except Exception:
+        _v2 = False
+    if _v2 and _tier_of(position) == "long":
+        _out["direction"] = "long_trend_v2"
+        _out["hold_reason"] = "long_trend_v2_daily_managed"
+        _out["reasoning"] = "长线仓由 long_trend_v2 每日管理器接管"
+        return _out
+
     # ── 全局节流：MIDLONG_POSITION_MGMT_INTERVAL_SEC（0=随 tick）──
     _interval = _cfg_int("MIDLONG_POSITION_MGMT_INTERVAL_SEC", 0)
     _now = time.time()
@@ -682,6 +804,15 @@ def manage_position(
                 _llm_due = (_now - _last_llm) >= _llm_interval
         except Exception as _e:
             logger.debug("[MidLong] stage=manage %s 读取 exit_state 失败: %s", sym, _e)
+
+        # [2026-08-16 P0 修复]「开仓就被平」根因：新仓在 _last_llm_run_ts 无记录、
+        # exit_state_json 无 last_trend_review_ts → 首个 manage tick 即触发 LLM
+        # 方向复查 → trend_broken 平仓（实测 1~3 分钟内连平 BNB/SOL/VIRTUAL 等）。
+        # 首个复查窗口必须从开仓时间起算：新仓至少持有 _llm_interval 秒
+        # 才有第一次 LLM 复查，给论点一个兑现窗口。
+        _held_sec = _held_hours(position, db) * 3600.0
+        if _last_llm <= 0.0 or _held_sec < _llm_interval:
+            _llm_due = _held_sec >= _llm_interval
 
     if not _llm_due:
         logger.debug("[MidLong] stage=manage %s LLM维度节流中(距上次%.0fs)", sym, _now - _last_llm)

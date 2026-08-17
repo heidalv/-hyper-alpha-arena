@@ -274,18 +274,46 @@ def maintain_mlto_theses_for_session(
                         )
                 except Exception as _mgmt_err:
                     logger.warning("[MidLong] 模式B持仓管理异常 %s: %s", sym_u, _mgmt_err, exc_info=True)
-                _t_side = derive_trend_side(sym_u, market_summary or {})
-                _trend_result = trend_agent.analyze_direction(
-                    symbol=sym_u,
-                    side=_t_side,
-                    reports=analyst_reports or {},
-                    market_envs=market_summary or {},
-                    account_id=getattr(session, "paper_account_id", None),
-                    portfolio=portfolio,
-                    db=_db_t,
-                    trading_mode=_trade_mode,
-                    light_context=light_context,
-                ) or {}
+                # [2026-08-17 long_trend_v2] 长线方向判定由 V2 规则化 L1 接管，
+                # 跳过旧 LLM TrendAgent（trend_agent.analyze_direction）。V2 多头单边，
+                # L1=up 才 buy；否则 hold。返回与 _trend_result 兼容的 dict，后续流程不变。
+                _v2_entry = None
+                try:
+                    from backend.services.long_trend_v2 import (
+                        long_v2_enabled as _v2_on,
+                        entry_signal as _v2_entry_signal,
+                    )
+                    if _v2_on():
+                        _v2_entry = _v2_entry_signal(sym_u, market_summary or {})
+                except Exception as _v2_se:
+                    logger.debug("[TrendAgent][V2] long 信号接管跳过: %s", _v2_se)
+                if _v2_entry is not None:
+                    _trend_result = {
+                        "should_open": bool(_v2_entry.get("should_open")),
+                        "direction": str(_v2_entry.get("direction") or "neutral"),
+                        "score": int(_v2_entry.get("score") or 0),
+                        "hold_reason": str(_v2_entry.get("hold_reason") or ""),
+                        "raw_should_open": bool(_v2_entry.get("should_open")),
+                        "suggested_sl_pct": float(
+                            _v2_entry.get("suggested_sl_pct") or 0.08
+                        ),
+                        "size_hint_mult": 1.0,
+                        "reasoning": str(_v2_entry.get("reason") or ""),
+                        "soft_open": False,
+                    }
+                else:
+                    _t_side = derive_trend_side(sym_u, market_summary or {})
+                    _trend_result = trend_agent.analyze_direction(
+                        symbol=sym_u,
+                        side=_t_side,
+                        reports=analyst_reports or {},
+                        market_envs=market_summary or {},
+                        account_id=getattr(session, "paper_account_id", None),
+                        portfolio=portfolio,
+                        db=_db_t,
+                        trading_mode=_trade_mode,
+                        light_context=light_context,
+                    ) or {}
                 _trend_score = int(_trend_result.get("score", 0) or 0)
                 _trend_dir = (_trend_result.get("direction") or "neutral").lower()
                 # 供 Hub Trend 一致性 bonus（即使本轮 authority≠trend 也写入）
@@ -304,8 +332,10 @@ def maintain_mlto_theses_for_session(
                     _trend_action = "sell"
                 else:
                     _trend_action = "hold"
+                # V2 接管时本路径即长线唯一开仓入口（source=mlto 过 Single Writer 门禁）。
+                _v2_route = _v2_entry is not None
                 if _trend_action in ("buy", "sell"):
-                    if _exec_auth != "trend":
+                    if _exec_auth != "trend" and not _v2_route:
                         # Single Writer=mlto：Trend 只写 hint/证据，不开仓
                         logger.info(
                             "[MidLong] stage=fuse symbol=%s authority=%s source=trend "
@@ -315,9 +345,10 @@ def maintain_mlto_theses_for_session(
                         _trend_action = "hold"
                     else:
                         logger.info(
-                            "[MidLong] stage=fuse symbol=%s authority=trend source=trend "
+                            "[MidLong] stage=fuse symbol=%s authority=%s source=%s "
                             "action=%s score=%d dir=%s soft=%s",
-                            sym_u, _trend_action, _trend_score, _trend_dir,
+                            sym_u, _exec_auth, ("mlto" if _v2_route else "trend"),
+                            _trend_action, _trend_score, _trend_dir,
                             bool(_trend_result.get("soft_open")),
                         )
                 else:
@@ -396,7 +427,7 @@ def maintain_mlto_theses_for_session(
                             host=host,
                             db=_db_t,
                             session=session,
-                            source="trend",
+                            source=("mlto" if _v2_route else "trend"),
                             symbol=sym_u,
                             action=_trend_action,
                             confidence=max(_trend_score, 50),
@@ -635,7 +666,8 @@ def maintain_mlto_theses_for_session(
     _ana_db = None
     try:
         from backend.database.connection import AnalyticsSessionLocal
-        from backend.services.mlto.orchestrator import run_mlto_tick
+        # [2026-08-17] run_mlto_tick 已删（旧 MLTO thesis LLM 下线）。
+        # _thesis_llm_one 因长线/中线 thesis 任务均被跳过而永不执行，此段为空转。
 
         _ana_db = None
 
@@ -667,6 +699,19 @@ def maintain_mlto_theses_for_session(
                 except Exception:
                     pass
 
+        # [2026-08-17 long_trend_v2] V2 接管长线：关闭旧 MLTO thesis LLM。
+        # 长线入场由规则化 L1(entry_signal) 驱动，不再跑 run_mlto_tick 的 LLM thesis。
+        # 副作用：mid_view(中线择时子结构)不再刷新——中线仍靠 FactorRoute + 规则管理。
+        try:
+            from backend.services.long_trend_v2 import long_v2_enabled as _v2_long_on
+            _v2_long_on = bool(_v2_long_on())
+        except Exception:
+            _v2_long_on = False
+        try:
+            from backend.config.settings import MIDLONG_MID_VIA_MLTO as _mid_via_mlto
+        except Exception:
+            _mid_via_mlto = True
+
         _thesis_jobs: list = []
         for sym in symbols:
             sym_u = str(sym).upper()
@@ -681,12 +726,19 @@ def maintain_mlto_theses_for_session(
                     continue
                 # mid：固定币 + AI中线≤3；long：仅固定币
                 if tier == "mid":
+                    if not _mid_via_mlto:
+                        # [2026-08-17] 中线规则驱动：MIDLONG_MID_VIA_MLTO=false 时不再提交
+                        # 中线 thesis LLM 任务（FactorRoute + 规则管理接管，thesis 是空转 no-op）。
+                        continue
                     if not run_mid:
                         continue
                     if sym_u not in _mid_allowed:
                         logger.debug("[MLTO] %s 不在中线宇宙(固定∪AI)，跳过中线 thesis", sym_u)
                         continue
                 else:
+                    if _v2_long_on:
+                        # V2 接管：长线不再提交 LLM thesis 任务（关闭旧逻辑）。
+                        continue
                     if light_context and not run_long:
                         continue
                     if sym_u not in _fixed_symbols:
@@ -750,6 +802,47 @@ def maintain_mlto_theses_for_session(
                     # ── MidLong v2：仅 authority=mlto 时 MLTO 可新开；close 始终允许 ──
                     if _mlto_result and hasattr(_mlto_result, "action"):
                         _mlto_act = (_mlto_result.action or "hold").lower()
+                        # [2026-08-17 long_trend_v2] 长线开/平决策由 V2 规则化 L1 接管：
+                        # 覆盖 LLM thesis 的 buy/sell/close（旧逻辑）。V2 多头单边，L1=up 才 buy，
+                        # 否则 hold；退出只认 V2 结构破坏/Chandelier（manage_long_position），
+                        # 不再让 LLM invalidation 平掉长线仓。
+                        _mlto_v2_sl = None
+                        _mlto_v2_reason = ""
+                        if (tier or "").lower() == "long" and _mlto_act in ("buy", "sell", "close"):
+                            try:
+                                from backend.services.long_trend_v2 import (
+                                    long_v2_enabled,
+                                    entry_signal,
+                                )
+                                if long_v2_enabled():
+                                    if _mlto_act == "close":
+                                        _mlto_act = "hold"
+                                        _v2sig = {
+                                            "should_open": False,
+                                            "hold_reason": "LLM invalidation close 已跳过(V2 结构破坏退出接管)",
+                                        }
+                                    else:
+                                        _v2sig = entry_signal(sym_u, market_summary or {})
+                                    if _v2sig.get("should_open"):
+                                        _mlto_act = "buy"
+                                        _mlto_v2_sl = float(
+                                            _v2sig.get("suggested_sl_pct") or 0.08
+                                        )
+                                        _mlto_v2_reason = str(_v2sig.get("reason") or "")
+                                        logger.info(
+                                            "[MLTO][V2] %s long 规则化 buy: %s",
+                                            sym_u, _mlto_v2_reason,
+                                        )
+                                    else:
+                                        _mlto_act = "hold"
+                                        logger.info(
+                                            "[MLTO][V2] %s long 规则化 hold: %s",
+                                            sym_u, _v2sig.get("hold_reason"),
+                                        )
+                            except Exception as _v2_ov_err:
+                                logger.debug(
+                                    "[MLTO][V2] long 入场覆盖跳过: %s", _v2_ov_err
+                                )
                         if _mlto_act == "close":
                             # [阶段3e] invalidation 驱动 close：直接平掉该 symbol 仓位。
                             try:
@@ -803,7 +896,11 @@ def maintain_mlto_theses_for_session(
                                     ).first()
                                     if not _exec_session:
                                         _exec_session = session
-                                    _mlto_sl = float(getattr(_mlto_result, "sl_pct", 0) or 0.05)
+                                    _mlto_sl = (
+                                        _mlto_v2_sl
+                                        if _mlto_v2_sl is not None
+                                        else float(getattr(_mlto_result, "sl_pct", 0) or 0.05)
+                                    )
                                     _mlto_tp = float(getattr(_mlto_result, "tp_pct", 0) or 0.10)
                                     _mlto_conf = int(getattr(_mlto_result, "confidence", 0) or 50)
                                     _mlto_margin_pct = float(
@@ -875,7 +972,10 @@ def maintain_mlto_theses_for_session(
                                         tier=tier,
                                         trade_nature="trend_follow",
                                         tranche_margin_pct=_mlto_margin_pct,
-                                        reason=(getattr(_mlto_result, "reason", "") or "")[:80],
+                                        reason=(
+                                            (_mlto_v2_reason or "")
+                                            or (getattr(_mlto_result, "reason", "") or "")
+                                        )[:80],
                                         trading_mode=_trade_mode or "paper",
                                         thesis_dir=str(getattr(_th_exec, "direction", "") or ""),
                                         hub_dir=str(getattr(_hub_exec, "direction", "") or ""),
@@ -1039,244 +1139,3 @@ def maintain_mlto_theses_for_session(
             except Exception:
                 pass
 
-def execute_mlto_lane(
-    *,
-    sym: str,
-    dec: dict,
-    tier: str,
-    agent_source: str,
-    market_summary: dict,
-    analyst_reports: dict,
-    db,
-    session,
-    mode: str,
-    portfolio: dict,
-    host: MltoCycleHost,
-) -> tuple:
-    from backend.config.settings import MIDLONG_THESIS_LEDGER_ENABLED
-    if not MIDLONG_THESIS_LEDGER_ENABLED:
-        return dec.get("action", "hold"), dec.get("reasoning", ""), int(dec.get("confidence") or 0)
-
-    # 收敛双入口：先原子占位。已由 midlong_loop maintain 处理过的 symbol:tier 直接跳过。
-    _dup_key = f"{str(sym).upper()}:{tier}"
-    _handled_lock = host.mlto_handled_lock
-    if _handled_lock is None:
-        _handled_lock = threading.Lock()
-        host.mlto_handled_lock = _handled_lock
-    with _handled_lock:
-        _handled_set = host.mlto_handled_keys
-        if _handled_set is None:
-            _handled_set = set()
-            host.mlto_handled_keys = _handled_set
-        if _dup_key in _handled_set:
-            logger.info(
-                "[MLTO] skip duplicate lane %s (already handled by midlong_loop/maintain)",
-                _dup_key,
-            )
-            return (
-                "hold",
-                f"[MLTO] skipped duplicate {_dup_key}",
-                int(dec.get("confidence") or 0),
-            )
-        # 先占位，防止与 maintain 竞态双跑 LLM
-        _handled_set.add(_dup_key)
-
-    session_id = getattr(session, "session_id", "") or ""
-    slot_action = dec.get("_orch_slot_action") or "create"
-    _ana_db = None
-    try:
-        from backend.database.connection import AnalyticsSessionLocal
-        from backend.services.mlto.orchestrator import run_mlto_tick
-
-        _ana_db = AnalyticsSessionLocal()
-        result = run_mlto_tick(
-            session_id=session_id,
-            symbol=sym,
-            tier=tier,
-            market_summary=market_summary or {},
-            analyst_reports=analyst_reports or {},
-            session=session,
-            db=_ana_db,
-            portfolio=portfolio,
-            persistence_state=host.midlong_persistence_state,
-            slot_action=slot_action,
-            trading_mode=mode,
-        )
-    except Exception as _mlto_err:
-        logger.warning("[MLTO] tick fail %s %s: %s", sym, tier, _mlto_err)
-        return "hold", f"[MLTO] error: {_mlto_err}", int(dec.get("confidence") or 0)
-    finally:
-        if _ana_db is not None:
-            try:
-                _ana_db.close()
-            except Exception:
-                pass
-
-    action = result.action
-    reasoning = result.reason
-    raw_conf = int(result.confidence or 0)
-    logger.info(
-        "[MLTO] exec %s %s → action=%s conf=%s | %s",
-        sym, tier, action, raw_conf, (reasoning or "")[:100],
-    )
-    dec["action"] = action
-    dec["reasoning"] = reasoning
-    if raw_conf:
-        dec["confidence"] = raw_conf
-    if result.thesis:
-        dec["_mlto_thesis"] = result.thesis.to_dict()
-    dec["_mlto_handled"] = True
-    # 原代码用 `旧集合 | {key}` 生成新 set 对象再整体替换 host.mlto_handled_keys，
-    # 与 _maintain_mlto_theses_for_session 里持有的旧引用会分叉（各自在自己拿到的
-    # 那份 set 上 add，互相看不到对方的更新）。改为原地 add 到同一个 set 对象上，
-    # 并复用同一把锁，保证跨方法/跨线程操作的是同一份状态。
-    _handled_lock = host.mlto_handled_lock
-    if _handled_lock is None:
-        _handled_lock = threading.Lock()
-        host.mlto_handled_lock = _handled_lock
-    with _handled_lock:
-        _handled_set = host.mlto_handled_keys
-        if _handled_set is None:
-            _handled_set = set()
-            host.mlto_handled_keys = _handled_set
-        _handled_set.add(f"{sym.upper()}:{tier}")
-
-    if action == "close":
-        # [阶段3e] invalidation 驱动 close：直接平掉该 symbol 仓位。
-        # tranche reset 已在 orchestrator 内完成（决策6）。
-        try:
-            from backend.database.connection import SessionLocal as _CloseDB
-            _close_db = _CloseDB()
-            _close_reason = (reasoning or "")[:120] or "mlto_invalidation"
-            _closed = _mlto_close_symbol(
-                db=_close_db, session=session, symbol=sym,
-                thesis=getattr(result, "thesis", None), reason=_close_reason,
-            )
-            if _closed:
-                logger.info("[MLTO] invalidation close 执行 %s %s | %s", sym.upper(), tier, _close_reason)
-        except Exception as _close_err:
-            logger.warning("[MLTO] invalidation close 失败 %s %s: %s", sym.upper(), tier, _close_err, exc_info=True)
-        finally:
-            try:
-                _close_db.close()
-            except Exception:
-                pass
-
-    if action in ("buy", "sell"):
-        dec["_agent_independent"] = True
-        if result.sl_pct:
-            dec["stop_loss_pct"] = result.sl_pct
-        if result.tp_pct:
-            dec["take_profit_pct"] = result.tp_pct
-        if getattr(result, "tranche_margin_pct", 0) > 0:
-            dec["_mlto_tranche_margin_pct"] = result.tranche_margin_pct
-        # MidLong v2：仅 authority=mlto 时由此路径开仓
-        from backend.services.full_auto.midlong_executor import (
-            execute_midlong_open,
-            get_midlong_exec_authority,
-        )
-        if get_midlong_exec_authority() != "mlto":
-            logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=mlto "
-                "action=hold reason=evidence_only (lane path writer≠mlto)",
-                str(sym).upper(), get_midlong_exec_authority(),
-            )
-        else:
-            _exec_db = None
-            try:
-                from backend.database.connection import SessionLocal as _ExecDB
-                _exec_db = _ExecDB()
-                _sl_pct_val = float(dec.get("stop_loss_pct") or result.sl_pct or 0.05)
-                _tp_pct_val = float(dec.get("take_profit_pct") or result.tp_pct or 0.10)
-                _lane_margin_pct = float(getattr(result, "tranche_margin_pct", 0) or 0)
-                _th_lane = getattr(result, "thesis", None)
-                _hub_lane = getattr(result, "hub", None)
-                _rs_lane = (
-                    getattr(_th_lane, "regime_suggestion", None)
-                    if _th_lane is not None else None
-                )
-                _tp_sl_prop_lane = None
-                if isinstance(_rs_lane, dict) and _rs_lane.get("trailing"):
-                    _tp_sl_prop_lane = {"trailing_atr_mult": 2.0}
-                execute_midlong_open(
-                    host=host,
-                    db=_exec_db,
-                    session=session,
-                    source="mlto",
-                    symbol=str(sym).upper(),
-                    action=action,
-                    confidence=max(raw_conf, 50),
-                    sl_pct=_sl_pct_val,
-                    tp_pct=_tp_pct_val,
-                    market_summary=market_summary,
-                    session_mode=getattr(session, "status", "running"),
-                    tier=tier,
-                    trade_nature="trend_follow",
-                    tranche_margin_pct=_lane_margin_pct,
-                    reason=(getattr(result, "reason", "") or "")[:80],
-                    trading_mode=str(
-                        getattr(session, "trading_mode", None)
-                        or ("paper" if getattr(session, "paper_account_id", None) else "live")
-                    ),
-                    thesis_dir=str(getattr(_th_lane, "direction", "") or ""),
-                    hub_dir=str(getattr(_hub_lane, "direction", "") or ""),
-                    hub_mode=str(getattr(_hub_lane, "mode", "") or ""),
-                    dir_src=str(getattr(_hub_lane, "dir_src", "") or ""),
-                    tp_sl_proposal=_tp_sl_prop_lane,
-                )
-            except Exception as _exec_err:
-                logger.warning("[MLTO] 独立开仓失败 %s %s: %s", sym.upper(), tier, _exec_err)
-            finally:
-                if _exec_db is not None:
-                    try:
-                        _exec_db.close()
-                    except Exception:
-                        pass
-
-    _ms_sym = (market_summary or {}).get(sym) or {}
-    _qb = dec.get("_quant_brief") or {}
-    try:
-        from backend.services.mid_long_structure_stop import mid_long_structure_stop
-        _side = "long" if action == "buy" else "short" if action == "sell" else "long"
-        _entry = float(_ms_sym.get("current_price") or _ms_sym.get("price") or 0)
-        _sl_pct, _tp_pct, _sl_p, _tp_p, _sl_src = mid_long_structure_stop.compute(
-            symbol=sym,
-            market_data=_ms_sym if isinstance(_ms_sym, dict) else {},
-            side=_side,
-            entry=_entry,
-            agent_source=agent_source,
-        )
-        if _sl_pct > 0 and not dec.get("stop_loss_pct"):
-            dec["stop_loss_pct"] = _sl_pct
-        if _tp_pct > 0 and not dec.get("take_profit_pct"):
-            dec["take_profit_pct"] = _tp_pct
-        host.build_midlong_agent_envelope(
-            agent_source=agent_source,
-            dec=dec,
-            quant_brief=_qb,
-            sl_pct=float(dec.get("stop_loss_pct") or _sl_pct),
-            tp_pct=float(dec.get("take_profit_pct") or _tp_pct),
-            sl_price=_sl_p,
-            tp_price=_tp_p,
-            sl_source=_sl_src,
-            orch_snapshot_ts=float(host.last_orch_decisions_ts or 0),
-            mlto_result=result,
-        )
-    except Exception as _env_err:
-        logger.debug("[MLTO] envelope fail: %s", _env_err)
-
-    try:
-        if session is not None and result.thesis:
-            _t = result.thesis
-            _lbl = "中线" if tier == "mid" else "长线"
-            host.append_event(
-                session,
-                "thesis_update",
-                f"[{_lbl}][MLTO] {sym} {_t.direction} ready={_t.open_readiness}% "
-                f"hub={_t.hub_adjusted:.2f} reviews={_t.review_count} | "
-                f"{(_t.thesis_summary or reasoning or '')[:100]}",
-            )
-    except Exception:
-        pass
-
-    return action, reasoning, raw_conf

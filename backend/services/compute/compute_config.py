@@ -31,7 +31,7 @@ CONFIG_SPECS: Dict[str, Dict[str, Any]] = {
     "FACTOR_GP_POPULATION":  {"default": 300, "type": int,   "min": 50,   "max": 2000, "group": "gp",    "label": "GP 种群大小",      "desc": "每代种群个体数（GPConfig.population_size）"},
     "FACTOR_GP_GENERATIONS": {"default": 20,  "type": int,   "min": 1,    "max": 200,  "group": "gp",    "label": "GP 进化代数",      "desc": "GPConfig.generations"},
     "FACTOR_GP_SEEDS":       {"default": 6,   "type": int,   "min": 1,    "max": 32,   "group": "gp",    "label": "GP 并行种子数",    "desc": "幻方 6 种子方法论（GPConfig.n_seeds）"},
-    "FACTOR_GP_MAX_WORKERS": {"default": 32,  "type": int,   "min": 1,    "max": 64,   "group": "gp",    "label": "GP 并行评估线程",   "desc": "joblib loky 进程数（GPConfig.max_workers，v6 10.2.2 32 线程主力）"},
+    "FACTOR_GP_MAX_WORKERS": {"default": 8,  "type": int,   "min": 1,    "max": 64,   "group": "gp",    "label": "GP 并行评估线程",   "desc": "joblib loky 进程数（[2026-08-16] 32→8：挖矿不再占满全核导致整机 100%）"},
     # ── MCTS 因子挖掘（factor_evolution_loop → MCTSConfig）──
     "FACTOR_MCTS_ENABLED":   {"default": 1,   "type": bool,  "min": None, "max": None, "group": "mcts",  "label": "MCTS 挖掘开关",    "desc": "FACTOR_MCTS_ENABLED=0 关闭 MCTS 挖掘器"},
     "FACTOR_MCTS_ITERATIONS":{"default": 300, "type": int,   "min": 50,   "max": 5000, "group": "mcts",  "label": "MCTS 迭代预算",    "desc": "每棵树的 UCT 迭代数（MCTSConfig.n_iterations）"},
@@ -237,19 +237,28 @@ def update(updates: Dict[str, Any]) -> Dict[str, Any]:
     return {"ok": True, "applied": applied}
 
 
-# 命名预设：加强挖矿（不降低 DSR/PBO/相关/漂移门禁）
+# 命名预设：加强挖矿（不降低 DSR/PBO/相关/漂移门禁）。
+# [2026-08-16 深度卡死修复] 不再带 FACTOR_EVO_TRAIN/VAL/TEST_DAYS：
+# 旧值 120/40/30 是三层切分按周期分档（_PERIOD_SPLIT_DAYS）之前的残留，
+# env 覆盖会压过所有周期档位 → 15m 需 190 天≈18,290 根、5m 需 54,770 根，
+# 短周期档永远 depth_insufficient（数据中心深度目标 5m=55d/15m=90d）。
+# 加强只加大搜索力度，窗口继续按周期分档（4h 档本身 270 天更深）。
 PRESETS: Dict[str, Dict[str, Any]] = {
     "mining_boost": {
-        "FACTOR_GP_POPULATION": 500,
-        "FACTOR_GP_GENERATIONS": 30,
+        # [2026-08-16 提速校准] 原加强档 population=500/generations=30/codegen=16
+        # 让单轮跑 2.5h+、LLM 流把价格接口拖到 7~9s。校准后：
+        # - GP 回到默认档 300×20×6（实测贡献有限，时间却线性增长）；
+        # - 加强差异保留在 MCTS（500 迭代/5 根 > 默认 300/3）；
+        # - codegen 降到 4 条流（默认 8，原加强 16）——补挖质量略降，
+        #   但不再拖垮 API；硬时间预算见 factor_evolution_loop
+        #   FACTOR_EVO_BUDGET_MAX_SEC（默认 1800s）。
+        "FACTOR_GP_POPULATION": 300,
+        "FACTOR_GP_GENERATIONS": 20,
         "FACTOR_GP_SEEDS": 6,
         "FACTOR_MCTS_ITERATIONS": 500,
         "FACTOR_MCTS_ROOTS": 5,
         "FACTOR_CODEGEN_ENABLED": 1,
-        "FACTOR_CODEGEN_N": 16,
-        "FACTOR_EVO_TRAIN_DAYS": 120,
-        "FACTOR_EVO_VAL_DAYS": 40,
-        "FACTOR_EVO_TEST_DAYS": 30,
+        "FACTOR_CODEGEN_N": 4,
         "FACTOR_MINE_SYMBOLS": 5,
         "FACTOR_EVO_GATE_FAIL_CLOSED": 1,
         "FACTOR_MIN_NET_IC": 0.02,

@@ -1036,8 +1036,7 @@ def place_ai_driven_hyperliquid_order(
                     quantity = round(order_value / price, 6)
 
                     # ========================================
-                    # RISK CONTROL CHECK - Before Order Execution
-                    # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
+                    # RISK CONTROL CHECK - Before Order Execution # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
                     # ========================================
                     try:
                         from backend.services.unified_risk_gate import unified_check as _uc_live
@@ -1194,8 +1193,7 @@ def place_ai_driven_hyperliquid_order(
                     quantity = round(order_value / price, 6)
 
                     # ========================================
-                    # RISK CONTROL CHECK - Before Order Execution
-                    # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
+                    # RISK CONTROL CHECK - Before Order Execution # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
                     # ========================================
                     try:
                         from backend.services.unified_risk_gate import unified_check as _uc_live
@@ -1744,8 +1742,8 @@ def place_ai_driven_hyperliquid_order(
                                 logger.error(f"Failed to trigger close position notification: {e}")
 
                         try:
-                            from database.snapshot_connection import SnapshotSessionLocal
-                            from database.snapshot_models import HyperliquidTrade
+                            from backend.database.snapshot_connection import SnapshotSessionLocal
+                            from backend.database.snapshot_models import HyperliquidTrade
                             from decimal import Decimal
 
                             snapshot_db = SnapshotSessionLocal()
@@ -1791,11 +1789,21 @@ def place_ai_driven_hyperliquid_order(
                                 _trend_dir = "neutral"
                                 _trend_str = "none"
                                 try:
-                                    from backend.services.strategy_coordinator import coordinator
+                                    # [2026-08-17 修复] 原 `from ...strategy_coordinator import
+                                    # coordinator` 单例不存在 → ImportError 被 except 静默吞掉，
+                                    # regime 富化永远 unknown。改为按需构造（用完即关连接）。
+                                    from backend.database.connection import SessionLocal
+                                    from backend.services.strategy_coordinator import StrategyCoordinator
                                     import time as _time
                                     _now_ts = int(_time.time())
                                     _start_ts = _now_ts - 30 * 86400
-                                    _klines = coordinator._query_klines(symbol, "1h", _start_ts, _now_ts, "hyperliquid")
+                                    _cdb = SessionLocal()
+                                    try:
+                                        _klines = StrategyCoordinator(_cdb)._query_klines(
+                                            symbol, "1h", _start_ts, _now_ts, "hyperliquid",
+                                        )
+                                    finally:
+                                        _cdb.close()
                                     if _klines and len(_klines) >= 60:
                                         from backend.services.strategy_fingerprint import compute_fingerprint_from_live
                                         _fp_data = {
@@ -1836,9 +1844,7 @@ def place_ai_driven_hyperliquid_order(
                                 # 获取 decision_log_id（供智慧评估闭环使用）
                                 _decision_log_id = decision_kwargs.get("decision_log_id") or decision.get("_decision_log_id") or ""
 
-                                # 深挖第 1 项修复 (2026-05-08)：
-                                #   live 路径之前 duration_seconds=0、opened_at 取不到 → StrategyTrade 持仓周期不可信。
-                                #   现在按 orders.created_at → HyperliquidPosition.snapshot_time 顺序反推真实开仓时间。
+                                # 深挖第 1 项修复 (2026-05-08)： #   live 路径之前 duration_seconds=0、opened_at 取不到 → StrategyTrade 持仓周期不可信。 #   现在按 orders.created_at → HyperliquidPosition.snapshot_time 顺序反推真实开仓时间。
                                 _live_opened_at = None
                                 _live_duration = 0
                                 _opened_at_source = "unknown"
@@ -1922,9 +1928,7 @@ def place_ai_driven_hyperliquid_order(
                                 unified_learning.process_outcome(db, live_outcome)
                                 logger.info(f"[LEARNING] Live close outcome sent: {symbol} pnl={_pnl_est:.2f} regime={_regime}")
 
-                                # L2 收敛: process_outcome 内部已自动调度全部学习后端
-                                # （含原 LearningBus 的 review/miner/pattern/causal_discovery）。
-                                # 不再手动调用 bus.dispatch，避免双入口顺序契约。
+                                # L2 收敛: process_outcome 内部已自动调度全部学习后端 # （含原 LearningBus 的 review/miner/pattern/causal_discovery）。 # 不再手动调用 bus.dispatch，避免双入口顺序契约。
 
                                 # 反馈信号权重
                                 try:

@@ -1,0 +1,328 @@
+<section class="page" id="page-exchange" data-title="交易所管理">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="server" style="width:15px;height:15px;color:#7DD3FC"></i></span>交易所管理</h1>
+      <p class="page-sub">账户与 API 凭证统一管理 · 密钥经本机加密存储（权限 0600，永不回显）</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="30"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>30</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 1.6s</span>
+        </div>
+    <div class="page-actions">
+      <button class="btn btn-primary btn-sm" data-modal="m-wizard"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建账户</button>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i>账户列表</div>
+      <div class="flex">
+        <span class="card-hint">5 个账户 · 2 个已启用自动交易</span>
+        <div class="dd" style="min-width:132px">
+          <button class="dd-btn"><i data-ico="server" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">全部交易所</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+          <div class="dd-menu">
+            <div class="dd-item sel">全部交易所</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"Asterdex"}'>Asterdex</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"Hyperliquid"}'>Hyperliquid</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"币安"}'>币安</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"Bybit"}'>Bybit</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"OKX"}'>OKX</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"Gate.io"}'>Gate.io</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>名称</th><th>类型</th><th class="r">余额</th><th>交易所</th><th>模式</th><th>LLM</th><th class="c">自动</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sym">Main-Hyperliquid</span><div class="sub">主账户 · 当前选中</div></td>
+              <td>主账户</td>
+              <td class="r">$12,480.52</td>
+              <td><span class="tag cyan">Hyperliquid</span></td>
+              <td><span class="tag">模拟</span></td>
+              <td class="dim">GPT-4o</td>
+              <td class="c"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#34D399;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></td>
+              <td class="c"><button class="row-btn cyan" data-drawer="d-acc"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button><button class="row-btn" data-modal="m-acc-edit"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除账户？","msg":"将删除账户及其全部 API 凭证","danger":true}'><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="sym">Arbitrage-Bybit</span><div class="sub">跨所价差扫描</div></td>
+              <td>套利账户</td>
+              <td class="r">$3,218.10</td>
+              <td><span class="tag">Bybit</span></td>
+              <td><span class="tag">模拟</span></td>
+              <td class="dim">GPT-4o-mini</td>
+              <td class="c"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#64748B;stroke-width:1.8;stroke-linecap:round"><path d="M18 6 6 18M6 6l12 12"/></svg></td>
+              <td class="c"><button class="row-btn cyan" data-drawer="d-acc"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button><button class="row-btn" data-modal="m-acc-edit"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除账户？","msg":"将删除账户及其全部 API 凭证","danger":true}'><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="sym">Alpha-Asterdex</span><div class="sub">AI 选币主执行</div></td>
+              <td>Alpha 账户</td>
+              <td class="r">$8,905.33</td>
+              <td><span class="tag violet">Asterdex</span></td>
+              <td><span class="tag">模拟</span></td>
+              <td class="dim">Claude-3.5</td>
+              <td class="c"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#34D399;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></td>
+              <td class="c"><button class="row-btn cyan" data-drawer="d-acc"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button><button class="row-btn" data-modal="m-acc-edit"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除账户？","msg":"将删除账户及其全部 API 凭证","danger":true}'><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="sym">Live-Binance</span><div class="sub">实盘 · 风控双签</div></td>
+              <td>主账户</td>
+              <td class="r">$45,620.00</td>
+              <td><span class="tag">币安</span></td>
+              <td><span class="tag amber">实盘</span></td>
+              <td class="dim">GPT-4o</td>
+              <td class="c"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#64748B;stroke-width:1.8;stroke-linecap:round"><path d="M18 6 6 18M6 6l12 12"/></svg></td>
+              <td class="c"><button class="row-btn cyan" data-drawer="d-acc"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button><button class="row-btn" data-modal="m-acc-edit"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除账户？","msg":"将删除账户及其全部 API 凭证","danger":true}'><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="sym">OKX-HFT</span><div class="sub">高频 · 待补充凭证</div></td>
+              <td>HFT 账户</td>
+              <td class="r">$2,004.87</td>
+              <td><span class="tag">OKX</span></td>
+              <td><span class="tag">模拟</span></td>
+              <td class="dim">GPT-4o-mini</td>
+              <td class="c"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#34D399;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></td>
+              <td class="c"><button class="row-btn cyan" data-drawer="d-acc"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button><button class="row-btn" data-modal="m-acc-edit"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除账户？","msg":"将删除账户及其全部 API 凭证","danger":true}'><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i>账户详情</div>
+        <span class="badge info">Main-Hyperliquid</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">总权益</span><span class="v">$12,480.52</span></div>
+        <div class="kv"><span class="k">可用</span><span class="v">$11,204.18</span></div>
+        <div class="kv"><span class="k">已用保证金</span><span class="v">$1,276.34</span></div>
+        <div class="bar" style="margin:6px 0 10px"><div class="bar-fill" style="width:10.2%"></div></div>
+        <div class="kv"><span class="k">未实现盈亏</span><span class="v up">+$42.60</span></div>
+        <div class="kv"><span class="k">模式 / 交易所</span><span class="v">模拟 · Hyperliquid</span></div>
+        <div class="kv"><span class="k">LLM / 自动交易</span><span class="v">GPT-4o · 已开启</span></div>
+        <div class="flex spread" style="margin:12px 0 6px"><span class="small bold">持仓明细</span><span class="tiny muted">3 个仓位 · 保证金 $1,276.34</span></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>交易所</th><th>币种</th><th>方向</th><th class="r">数量</th><th class="r">入场价</th><th class="r">浮盈</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag cyan">Hyperliquid</span></td><td class="sym">SOL</td><td><span class="badge buy">做多</span></td><td class="r">12.5</td><td class="r">$142.80</td><td class="r up">+$38.75 · +2.2%</td></tr>
+              <tr><td><span class="tag cyan">Hyperliquid</span></td><td class="sym">VIRTUAL</td><td><span class="badge buy">做多</span></td><td class="r">8,400</td><td class="r">$0.1184</td><td class="r up">+$12.40 · +1.2%</td></tr>
+              <tr><td><span class="tag cyan">Hyperliquid</span></td><td class="sym">BTC</td><td><span class="badge sell">做空</span></td><td class="r">0.05</td><td class="r">$71,020.00</td><td class="r down">-$8.55 · -0.24%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="key-round" style="width:15px;height:15px;color:#7DD3FC"></i>API 凭证</div>
+        <button class="btn btn-ghost2 btn-sm" data-toast='{"type":"info","title":"提示","msg":"请在下方表单填写并保存凭证"}'><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加凭证</button>
+      </div>
+      <div class="card-body">
+        <div class="flex spread" style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:#7C8AA8;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg><span class="tag cyan">Hyperliquid</span><span class="small muted">主账户</span></span>
+          <span class="flex" style="gap:4px"><span class="badge ok"><span class="bdot"></span>正常</span><button class="row-btn" data-modal="m-api-test">测试</button><button class="row-btn" data-modal="m-api-edit">编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除凭证？","msg":"删除后该交易所将无法下单","danger":true}'>删除</button></span>
+        </div>
+        <div class="flex spread" style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:#7C8AA8;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg><span class="tag">币安</span><span class="small muted">套利-B</span></span>
+          <span class="flex" style="gap:4px"><span class="badge ok"><span class="bdot"></span>正常</span><button class="row-btn" data-modal="m-api-test">测试</button><button class="row-btn" data-modal="m-api-edit">编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除凭证？","msg":"删除后该交易所将无法下单","danger":true}'>删除</button></span>
+        </div>
+        <div class="flex spread" style="padding:6px 0">
+          <span class="flex"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:#7C8AA8;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg><span class="tag">OKX</span><span class="small muted">HFT 备用</span></span>
+          <span class="flex" style="gap:4px"><span class="badge dim">未验证</span><button class="row-btn" data-modal="m-api-test">测试</button><button class="row-btn" data-modal="m-api-edit">编辑</button><button class="row-btn red" data-confirm='{"title":"确认删除凭证？","msg":"删除后该交易所将无法下单","danger":true}'>删除</button></span>
+        </div>
+        <div class="tiny muted" style="margin:8px 0 12px;line-height:1.6">密钥加密存储 · 永不回显 · 可随时吊销；新凭证 24h 内自动核验。</div>
+        <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Hyperliquid"}'><option>Asterdex</option><option selected>Hyperliquid</option><option>币安</option><option>Bybit</option><option>OKX</option><option>Gate.io</option></select></div></div>
+        <div class="field"><label class="label">标签</label><input class="input" placeholder="如：主账户 / 套利-B"/></div>
+        <div class="field"><label class="label">API Key</label><input class="input" placeholder="ak-xxxxxxxx"/></div>
+        <div class="field"><label class="label">API Secret</label><input class="input" type="password" placeholder="••••••••••••••••"/></div>
+        <div class="field"><label class="label">Passphrase</label><input class="input" type="password" placeholder="仅 OKX 需要"/><div class="tiny muted" style="margin-top:4px">仅 OKX 需要 · 其余交易所留空</div></div>
+        <div class="flex" style="margin-top:2px">
+          <button class="btn btn-primary btn-sm" data-toast='{"type":"ok","title":"已保存","msg":"凭证已加密存储（权限 0600）"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存凭证</button>
+          <button class="btn btn-ghost2 btn-sm">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="plus" style="width:15px;height:15px;color:#7DD3FC"></i>新建账户</div>
+      <span class="card-hint">创建后需在 API 凭证卡补充密钥</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label class="label">账户名称</label><input class="input" placeholder="如：Alpha-Bybit"/></div>
+        <div class="field"><label class="label">模式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"模拟"}'><option selected>模拟</option><option>实盘</option></select></div></div>
+        <div class="field"><label class="label">初始资金（USDT）</label><input class="input" type="number" value="10000"/></div>
+        <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Bybit"}'><option>Asterdex</option><option>Hyperliquid</option><option>币安</option><option selected>Bybit</option><option>OKX</option><option>Gate.io</option></select></div></div>
+        <div class="field"><label class="label">LLM 快模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"GPT-4o"}'><option selected>GPT-4o</option><option>GPT-4o-mini</option><option>Claude-3.5-Sonnet</option></select></div></div>
+        <div class="field"><label class="label">LLM 深模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Claude-3.5-Sonnet"}'><option>GPT-4o</option><option selected>Claude-3.5-Sonnet</option><option>o1-mini</option></select></div></div>
+        <div class="field span2"><label class="label">交易员人格</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"稳健型"}'><option selected>稳健型</option><option>进攻型</option><option>套利猎手</option><option>网格大师</option></select></div></div>
+      </div>
+      <div class="flex flex-end" style="margin-top:2px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+        <button class="btn btn-ghost2 btn-sm">取消</button>
+        <button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>创建账户</button>
+      </div>
+    </div>
+  </div>
+  <!-- ── 二级视图：新建账户向导弹窗 ── -->
+  <div class="mask" id="m-wizard">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建账户</div><div class="modal-sub">三步创建：基本信息 → LLM 配置 → 风控确认</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="wizard-steps">
+          <div class="w-step done"><span class="w-num">1</span>基本信息</div>
+          <div class="w-line done"></div>
+          <div class="w-step active"><span class="w-num">2</span>LLM 配置</div>
+          <div class="w-line"></div>
+          <div class="w-step"><span class="w-num">3</span>风控确认</div>
+        </div>
+        <div class="tab-pane" id="wiz-step-1" style="display:none">
+          <div class="form-grid">
+            <div class="field"><label class="label">账户名称</label><input class="input" placeholder="如：Alpha-Bybit"/></div>
+            <div class="field"><label class="label">模式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"模拟"}'><option selected>模拟</option><option>实盘</option></select></div></div>
+            <div class="field"><label class="label">初始资金（USDT）</label><input class="input" type="number" value="10000"/></div>
+            <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Bybit"}'><option>Asterdex</option><option>Hyperliquid</option><option>币安</option><option selected>Bybit</option><option>OKX</option><option>Gate.io</option></select></div></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="wiz-step-2" style="display:block">
+          <div class="form-grid">
+            <div class="field"><label class="label">LLM 快模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"GPT-4o"}'><option selected>GPT-4o</option><option>GPT-4o-mini</option><option>Claude-3.5-Sonnet</option></select></div></div>
+            <div class="field"><label class="label">LLM 深模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Claude-3.5-Sonnet"}'><option>GPT-4o</option><option selected>Claude-3.5-Sonnet</option><option>o1-mini</option></select></div></div>
+            <div class="field span2"><label class="label">交易员人格</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"稳健型"}'><option selected>稳健型</option><option>进攻型</option><option>套利猎手</option><option>网格大师</option></select></div></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="wiz-step-3" style="display:none">
+          <div class="spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+            <span class="small">自动交易</span><span class="switch on"></span>
+          </div>
+          <div class="field" style="margin-top:12px"><label class="label">风控模式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"双签确认"}'><option selected>双签确认</option><option>单签</option><option>熔断优先</option></select></div></div>
+          <div class="small bold" style="margin:10px 0 4px">确认摘要</div>
+          <div class="kv"><span class="k">账户名称</span><span class="v">Alpha-Bybit</span></div>
+          <div class="kv"><span class="k">模式 / 交易所</span><span class="v">模拟 · Bybit</span></div>
+          <div class="kv"><span class="k">初始资金</span><span class="v">$10,000</span></div>
+          <div class="kv"><span class="k">LLM 组合</span><span class="v">GPT-4o + Claude-3.5-Sonnet</span></div>
+          <div class="kv" style="border:none"><span class="k">交易员人格</span><span class="v">稳健型</span></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-toast='{"type":"info","title":"提示","msg":"已是第一步"}'><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>上一步</button>
+        <button class="btn btn-primary" data-toast='{"type":"info","title":"下一步","msg":"进入 LLM 配置步骤"}'><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>下一步</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"账户创建成功","msg":"Alpha-Bybit 已创建，请补充 API 凭证"}'><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：账户详情抽屉 ── -->
+  <div class="drawer" id="d-acc">
+    <div class="drawer-head">
+      <div><div class="drawer-title">账户详情 · Main-Hyperliquid</div><div class="drawer-sub">主账户 · 模拟 · 当前选中</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv"><span class="k">总权益</span><span class="v">$12,480.52</span></div>
+      <div class="kv"><span class="k">可用 / 已用保证金</span><span class="v">$11,204.18 / $1,276.34</span></div>
+      <div class="kv"><span class="k">未实现盈亏</span><span class="v up">+$42.60</span></div>
+      <div class="kv"><span class="k">今日 PnL</span><span class="v up">+$86.24 · +0.7%</span></div>
+      <div class="kv" style="border:none"><span class="k">LLM / 自动交易</span><span class="v">GPT-4o · 已开启</span></div>
+      <div class="bar" style="margin:8px 0 14px"><div class="bar-fill" style="width:10.2%"></div></div>
+      <div class="small bold" style="margin-bottom:6px">持仓明细</div>
+      <div class="tbl-wrap" style="margin-bottom:14px">
+        <table class="tbl">
+          <thead><tr><th>币种</th><th>方向</th><th class="r">数量</th><th class="r">浮盈</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">SOL</td><td><span class="badge buy">做多</span></td><td class="r">12.5</td><td class="r up">+$38.75 · +2.2%</td></tr>
+            <tr><td class="sym">VIRTUAL</td><td><span class="badge buy">做多</span></td><td class="r">8,400</td><td class="r up">+$12.40 · +1.2%</td></tr>
+            <tr><td class="sym">BTC</td><td><span class="badge sell">做空</span></td><td class="r">0.05</td><td class="r down">-$8.55 · -0.24%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tiny muted" style="line-height:1.7">自动交易开启 · 风控双签生效 · 单笔风控限额 $500</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-danger" data-close data-toast='{"type":"warn","title":"已停止","msg":"自动交易已暂停（需双签恢复）"}'>暂停自动交易</button>
+      <button class="btn btn-primary" data-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：编辑账户弹窗 ── -->
+  <div class="mask" id="m-acc-edit">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑账户</div><div class="modal-sub">Main-Hyperliquid · 修改后立即生效</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">账户名称</label><input class="input" value="Main-Hyperliquid"/></div>
+          <div class="field"><label class="label">模式</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"模拟"}'><option selected>模拟</option><option>实盘</option></select></div></div>
+          <div class="field"><label class="label">初始资金（USDT）</label><input class="input" type="number" value="12000"/></div>
+          <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Hyperliquid"}'><option>Asterdex</option><option selected>Hyperliquid</option><option>币安</option><option>Bybit</option><option>OKX</option><option>Gate.io</option></select></div></div>
+          <div class="field"><label class="label">LLM 快模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"GPT-4o"}'><option selected>GPT-4o</option><option>GPT-4o-mini</option><option>Claude-3.5-Sonnet</option></select></div></div>
+          <div class="field"><label class="label">LLM 深模型</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Claude-3.5-Sonnet"}'><option>GPT-4o</option><option selected>Claude-3.5-Sonnet</option><option>o1-mini</option></select></div></div>
+          <div class="field span2"><label class="label">交易员人格</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"稳健型"}'><option selected>稳健型</option><option>进攻型</option><option>套利猎手</option><option>网格大师</option></select></div></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"保存成功","msg":"账户配置已更新"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：API 凭证测试弹窗 ── -->
+  <div class="mask" id="m-api-test">
+    <div class="modal narrow">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>API 凭证测试</div><div class="modal-sub">Hyperliquid · 主账户 · 刚刚测试</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">连接状态</span><span class="v"><span class="badge ok"><span class="bdot"></span>正常</span></span></div>
+        <div class="kv"><span class="k">网络延迟</span><span class="v">42ms</span></div>
+        <div class="kv"><span class="k">服务器时间偏差</span><span class="v">±8ms</span></div>
+        <div class="small bold" style="margin:10px 0 4px">权限检查</div>
+        <div class="kv"><span class="k">读取行情</span><span class="v"><span class="badge ok"><span class="bdot"></span>通过</span></span></div>
+        <div class="kv"><span class="k">查询余额</span><span class="v"><span class="badge ok"><span class="bdot"></span>通过</span></span></div>
+        <div class="kv"><span class="k">下单权限</span><span class="v"><span class="badge warn"><span class="bdot"></span>未授权</span></span></div>
+        <div class="kv" style="border:none"><span class="k">撤单权限</span><span class="v"><span class="badge warn"><span class="bdot"></span>未授权</span></span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+        <button class="btn btn-primary" data-toast='{"type":"ok","title":"已重试","msg":"测试完成，延迟 42ms"}'><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>重新测试</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：编辑凭证弹窗 ── -->
+  <div class="mask" id="m-api-edit">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>编辑凭证</div><div class="modal-sub">密钥加密存储 · 永不回显</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="field"><label class="label">交易所</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"Hyperliquid"}'><option>Asterdex</option><option selected>Hyperliquid</option><option>币安</option><option>Bybit</option><option>OKX</option><option>Gate.io</option></select></div></div>
+        <div class="field"><label class="label">标签</label><input class="input" value="主账户"/></div>
+        <div class="field"><label class="label">API Key</label><input class="input" value="ak-xxxx-****（已加密存储）"/></div>
+        <div class="field"><label class="label">API Secret</label><input class="input" type="password" placeholder="留空则不修改"/></div>
+        <div class="field"><label class="label">Passphrase</label><input class="input" type="password" placeholder="仅 OKX 需要"/></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"保存成功","msg":"凭证已更新并加密存储"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -427,6 +427,123 @@ class CryptoPriceTick(MarketBase):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 
+class TickerSnapshot(MarketBase):
+    """秒级 ticker 落库（数据中心 2s 全市场通道的持久化快照）。
+
+    [2026-08-15 D5] 此前秒级价格只存在于数据中心进程内存，price_samples /
+    crypto_price_ticks / crypto_prices 全为空表，无 tick 历史可用于
+    价格真实性审计、点差/波动研究与新鲜度回溯。本表按 2s 通道批量落库，
+    保留 14 天（db_maintenance 清理），每符号每 10s 批次内最多数行。
+    """
+    __tablename__ = "ticker_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    exchange = Column(String(20), nullable=False, default="asterdex", index=True)
+    symbol = Column(String(32), nullable=False, index=True)
+    price = Column(DECIMAL(18, 8), nullable=False)
+    ts_ms = Column(BigInteger, nullable=False, index=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+    __table_args__ = (Index("ix_ticker_snapshots_sym_ts", "symbol", "ts_ms"),)
+
+
+class LiquidationEvent(MarketBase):
+    """清算数据落库（小时级聚合，Coinalyze 免费层）。
+
+    [2026-08-15 D3] 此前清算只存在 DerivativesSnapshot 内存对象里
+    （Coinalyze 查询后即弃），无历史深度、因子无法训练。本表按小时聚合
+    多空清算额（USD），exchange='aggregate'（Coinalyze 跨所聚合口径）、
+    source='coinalyze'；保留 90 天。绝不伪造逐笔清算。
+    """
+    __tablename__ = "liquidation_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    exchange = Column(String(20), nullable=False, default="aggregate", index=True)
+    symbol = Column(String(32), nullable=False, index=True)
+    ts_ms = Column(BigInteger, nullable=False, index=True)
+    long_usd = Column(DECIMAL(20, 2), nullable=False, default=0)
+    short_usd = Column(DECIMAL(20, 2), nullable=False, default=0)
+    source = Column(String(20), nullable=False, default="coinalyze")
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+    __table_args__ = (UniqueConstraint("exchange", "symbol", "ts_ms", name="uq_liquidation_ex_sym_ts"),)
+
+
+class MacroEvent(MarketBase):
+    """宏观经济事件（日历 + 发布结果 + LLM 影响标注）。
+
+    [2026-08-15 D6] 此前系统完全没有宏观经济日历（CPI/FOMC/NFP 等），
+    「重点事件是否有记录」= 没有。本表存未来事件（forecast 已知时）与
+    已发布事件（actual/previous + LLM 标注方向/强度/置信度），与新闻、
+    鲸鱼、清算一起构成统一事件时间轴（见 market_events 视图）。
+    数据源：FRED（免费 key）+ Fed/BLS/ECB 官方免费页面，无付费日历 API。
+    """
+    __tablename__ = "macro_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String(50), nullable=False, default="official")
+    event = Column(String(60), nullable=False, index=True)          # CPI / FOMC / NFP / PPI / GDP ...
+    country = Column(String(10), nullable=False, default="US")
+    importance = Column(Integer, nullable=False, default=3)          # 1~5
+    scheduled_at = Column(TIMESTAMP, nullable=False, index=True)
+    forecast = Column(DECIMAL(18, 4), nullable=True)
+    actual = Column(DECIMAL(18, 4), nullable=True)
+    previous = Column(DECIMAL(18, 4), nullable=True)
+    unit = Column(String(20), nullable=True)
+    title = Column(Text, nullable=True)
+    url = Column(Text, nullable=True)
+    ai_summary = Column(Text, nullable=True)
+    impact_direction = Column(Float, nullable=True)                  # -1~+1
+    impact_strength = Column(Integer, nullable=True)                 # 1~5
+    impact_duration = Column(String(20), nullable=True)              # short/medium/long
+    affected_symbols = Column(JSON, nullable=True)
+    confidence = Column(Float, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+    __table_args__ = (Index("ix_macro_events_scheduled", "scheduled_at"),)
+
+
+class MacroSeries(MarketBase):
+    """宏观日频序列（FRED：联邦基金利率/10Y/DXY/VIX/CPI/失业率/黄金）。"""
+    __tablename__ = "macro_series"
+
+    id = Column(Integer, primary_key=True, index=True)
+    series_id = Column(String(30), nullable=False, index=True)   # FRED series id
+    name = Column(String(80), nullable=True)
+    ts = Column(Date, nullable=False, index=True)
+    value = Column(DECIMAL(18, 4), nullable=True)
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    __table_args__ = (UniqueConstraint("series_id", "ts", name="uq_macro_series_id_ts"),)
+
+
+class FlowArchive5m(MarketBase):
+    """订单流 5m 降采样归档（市场流永久历史，供因子训练/研究）。
+
+    [2026-08-15 D2] market_trades_aggregated 原始 15s 窗口行只保留 30 天
+    （db_maintenance 清理），此前原始行永不清理会无限膨胀；本表按 5 分钟
+    聚合吃单买卖额/笔数/OI/资金费/点差/最大单笔，永久保留，是订单流因子
+    历史深度的长期来源（解决「订单流历史仅 11–29 天」缺口的前向积累通道）。
+    """
+    __tablename__ = "flow_archive_5m"
+
+    id = Column(Integer, primary_key=True, index=True)
+    exchange = Column(String(20), nullable=False, index=True)
+    symbol = Column(String(32), nullable=False, index=True)
+    ts_ms = Column(BigInteger, nullable=False, index=True)   # 5m 桶起点
+    taker_buy_usd = Column(DECIMAL(24, 2), nullable=True)
+    taker_sell_usd = Column(DECIMAL(24, 2), nullable=True)
+    taker_buy_count = Column(Integer, nullable=True)
+    taker_sell_count = Column(Integer, nullable=True)
+    oi = Column(DECIMAL(24, 2), nullable=True)
+    funding_rate = Column(DECIMAL(18, 8), nullable=True)
+    spread_bps = Column(DECIMAL(18, 4), nullable=True)
+    largest_trade_usd = Column(DECIMAL(24, 2), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+    __table_args__ = (UniqueConstraint("exchange", "symbol", "ts_ms", name="uq_flow_archive_5m_ex_sym_ts"),)
+
+
 class AccountAssetSnapshot(Base):
     __tablename__ = "account_asset_snapshots"
 
@@ -1347,6 +1464,9 @@ class MarketTradesAggregated(MarketBase):
     vwap = Column(DECIMAL(18, 6), nullable=True)
     high_price = Column(DECIMAL(18, 6), nullable=True)
     low_price = Column(DECIMAL(18, 6), nullable=True)
+    # [2026-08-15 D4] 窗口内最大单笔（大单检测）：金额与方向
+    largest_trade_usd = Column(DECIMAL(24, 2), nullable=True)
+    largest_trade_side = Column(String(10), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
     __table_args__ = (
@@ -2462,7 +2582,36 @@ class PaperFundingLedger(Base):
     notional = Column(Float, nullable=False)          # 结算时名义价值
     funding_rate = Column(Float, nullable=False)      # 实际费率
     payment = Column(Float, nullable=False)           # 正=收入, 负=支出
+    tier = Column(String(16), nullable=True, index=True)  # [P0-8] 持仓周期档位（口径审计用）
     settled_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+
+# ═══════════════════════════════════════════════════
+# 结构化趋势记忆（长线趋势策略重构 V2 · Phase D）
+# ═══════════════════════════════════════════════════
+
+class TrendCycle(Base):
+    """每轮长线趋势的归档（替代 RAG 文本检索的结构化记忆）。
+
+    用途：下一轮趋势开仓时读取同币种×同 L1 结构的历史 R 分布，
+    做仓位校准与退出耐心参考；周报 LLM 读取本表生成定性总结（非交易路径）。
+    """
+    __tablename__ = "trend_cycles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    direction = Column(String(10), nullable=False, default="long")  # long / short（当前只 long）
+    start_ts = Column(TIMESTAMP, nullable=False, index=True)         # 进场时间
+    end_ts = Column(TIMESTAMP, nullable=True)                        # 出场时间
+    l1_score_at_entry = Column(Integer, nullable=True)               # 入场时 L1 score
+    entry_timing_score = Column(Float, nullable=True)                # 入场时 L2 timing 分
+    batches = Column(JSON, nullable=True)                            # 每批 [{idx,price,r,scale}]
+    total_r = Column(Float, nullable=True)                           # 本轮总 R（相对首仓风险）
+    peak_r = Column(Float, nullable=True)                            # 峰值 R
+    exit_reason = Column(String(100), nullable=True)                 # 结构破坏/chandelier/...
+    hold_days = Column(Float, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 
 # ═══════════════════════════════════════════════════
@@ -3339,6 +3488,8 @@ class SystemCoordinatorState(Base):
     last_loop_tick_at = Column(TIMESTAMP, nullable=True)
     # DRL 模型版本号（P1-2）：PPO save 时写入 timestamp，load 时校验
     drl_model_version = Column(String(64), nullable=True)
+    # [P1-5] 学习运行时状态（连亏 streak/交易计数器），重启恢复
+    runtime_state_json = Column(Text, nullable=True)
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
 
 

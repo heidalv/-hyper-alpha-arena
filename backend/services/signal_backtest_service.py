@@ -483,12 +483,12 @@ class SignalBacktestService:
         Returns a dict mapping bucket_timestamp -> indicator_value
         """
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics, MarketTradesAggregated
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketAssetMetrics, MarketTradesAggregated
+        from backend.database.models import MarketOrderbookSnapshots
         from datetime import datetime, timezone
 
         # Query 7 days of data (same as signal_analysis_service)
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time_ms = current_time_ms - (7 * 24 * 60 * 60 * 1000)
 
@@ -529,7 +529,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute OI delta percentage for each bucket (same as signal_analysis)."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -567,7 +567,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute CVD for each bucket."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         records = db.query(
             MarketTradesAggregated.timestamp,
@@ -601,7 +601,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute depth ratio (bid/ask) for each bucket."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
             MarketOrderbookSnapshots.timestamp,
@@ -634,7 +634,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute order imbalance for each bucket."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
             MarketOrderbookSnapshots.timestamp,
@@ -675,7 +675,7 @@ class SignalBacktestService:
         """
         import math
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         records = db.query(
             MarketTradesAggregated.timestamp,
@@ -712,7 +712,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute funding rate for each bucket."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -739,7 +739,7 @@ class SignalBacktestService:
     ) -> Dict[int, float]:
         """Compute absolute OI for each bucket."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -850,10 +850,10 @@ class SignalBacktestService:
         """
         import math
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
         from datetime import datetime, timezone
 
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time_ms = current_time_ms - (7 * 24 * 60 * 60 * 1000)
 
@@ -1262,7 +1262,7 @@ class SignalBacktestService:
         Load raw 15-second granularity data for a metric.
         Returns list of (timestamp, value1, value2, ...) tuples.
         """
-        from database.models import MarketTradesAggregated, MarketAssetMetrics, MarketOrderbookSnapshots
+        from backend.database.models import MarketTradesAggregated, MarketAssetMetrics, MarketOrderbookSnapshots
 
         logger.warning(f"[Backtest] _load_raw_data_for_metric: symbol={symbol}, metric={metric}, "
                        f"ts_range=[{kline_min_ts}, {kline_max_ts}], interval_ms={interval_ms}")

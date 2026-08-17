@@ -106,35 +106,10 @@ class DualAgentCoordinator:
         strategies: Optional[List[Dict[str, Any]]],
         account_id: Optional[int],
     ) -> Dict[str, Any]:
-        from backend.services.direction_agent import direction_agent
-        from backend.services.trade_risk_agent import trade_risk_agent
-
-        positions = portfolio.get("positions") or []
-        balance = portfolio.get("balance") or {}
-        hold_alerts = balance.get("_hold_timeout_alerts") if isinstance(balance, dict) else None
-
-        direction = direction_agent.decide(
-            reports=reports,
-            symbols=symbols,
-            market_envs=market_envs,
-            portfolio=portfolio,
-            strategies=strategies,
-            account_id=account_id,
-            db=getattr(self, "_db", None),
-        )
-        risk = trade_risk_agent.review(
-            direction_output=direction,
-            reports=reports,
-            positions=positions,
-            symbols=symbols,
-            market_envs=market_envs,
-            portfolio=portfolio,
-            hold_timeout_alerts=hold_alerts,
-            strategies=strategies,
-            account_id=account_id,
-            db=getattr(self, "_db", None),
-        )
-        return self._merge_primary(direction, risk, positions)
+        # [2026-08-17 删除] direction_agent / trade_risk_agent 已移除（DUAL_AGENT_MODE
+        # 默认 off，三层专家 + MasterController 已覆盖该职责）。保留方法骨架返回空，
+        # 由调用方的 fallback 分支接管。
+        return {}
 
     def _merge_primary(self, direction: Dict[str, Any], risk: Dict[str, Any], positions: List[Dict[str, Any]]) -> Dict[str, Any]:
         pos_symbols = {str(p.get("symbol", "")).upper() for p in positions or []}

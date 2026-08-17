@@ -136,9 +136,7 @@ class DeploymentChecker:
         """检查关键文件是否存在"""
         required_files = [
             "backend/services/ai_strategy_engine.py",
-            "backend/services/prompt_training_system.py",
             "backend/api/ai_strategy_routes.py",
-            "backend/api/prompt_training_routes.py",
             "backend/utils/monitoring.py",
             "backend/utils/performance_optimizer.py",
             "backend/tests/test_ai_strategy_integration.py",

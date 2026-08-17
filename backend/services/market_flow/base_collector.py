@@ -308,12 +308,9 @@ class BaseMarketFlowCollector(ABC):
             if isinstance(book_data, dict) and "levels" in book_data:
                 book_data = l2_orderbook_manager.ingest(self.exchange_id, symbol, book_data)
         except Exception as e:
-            logger.debug("[%s] L2OrderBookManager ingest跳过: %s", getattr(self, "exchange_id", "?"), e)
+            logger.debug("[%s] L2OrderBookManager ingest跳过: %s", getattr(self, "exchange_id", ""), e)
         self.latest_orderbook[symbol] = book_data
-        # [v6-S2-1] L2 重建层接线：把清洗后的快照喂给默认重建器（跳变防护 + 深度派生），
-        # flush 时从重建器取末帧计算前5档名义深度落库（见 _current_depth_notional）。
-        # 兼容两种既有快照格式：HL levels（{"levels": [[bids],[asks]]}）与
-        # asterdex 的 bids/asks 数组（[{"px","sz"}, ...]）。
+        # [v6-S2-1] L2 重建层接线：把清洗后的快照喂给默认重建器（跳变防护 + 深度派生）， # flush 时从重建器取末帧计算前5档名义深度落库（见 _current_depth_notional）。 # 兼容两种既有快照格式：HL levels（{"levels": [[bids],[asks]]}）与 # asterdex 的 bids/asks 数组（[{"px","sz"}, ...]）。
         try:
             if isinstance(book_data, dict):
                 from services.market_flow.l2_reconstructor import default_reconstructor
@@ -339,7 +336,7 @@ class BaseMarketFlowCollector(ABC):
                         _pairs(book_data.get("bids")), _pairs(book_data.get("asks")),
                     )
         except Exception as e:
-            logger.warning("[%s] L2Reconstructor ingest跳过: %s", getattr(self, "exchange_id", "?"), e)
+            logger.warning("[%s] L2Reconstructor ingest跳过: %s", getattr(self, "exchange_id", ""), e)
 
     def _on_asset_ctx(self, symbol: str, ctx_data: Any) -> None:
         """子类收到资产上下文（OI/funding）时调用。"""
@@ -398,7 +395,7 @@ class BaseMarketFlowCollector(ABC):
         timestamp_ms = (timestamp_ms // window_ms) * window_ms
 
         flushed = 0
-        from database.connection import MarketSessionLocal
+        from backend.database.connection import MarketSessionLocal
         for symbol in symbols:
             db = MarketSessionLocal()
             try:
@@ -436,7 +433,7 @@ class BaseMarketFlowCollector(ABC):
             if bid_d is not None:
                 return bid_d, ask_d
         except Exception as e:
-            logger.warning("[%s] 深度列读取(实例订单簿)失败: %s", getattr(self, "exchange_id", "?"), e)
+            logger.warning("[%s] 深度列读取(实例订单簿)失败: %s", getattr(self, "exchange_id", ""), e)
         try:
             from services.market_flow.l2_reconstructor import default_reconstructor
             frame = default_reconstructor.latest(self.exchange_id, symbol)
@@ -445,12 +442,12 @@ class BaseMarketFlowCollector(ABC):
             bid_d, ask_d = frame.notional_depth(5)
             return float(bid_d), float(ask_d)
         except Exception as e:
-            logger.warning("[%s] 深度列读取(重建器)失败: %s", getattr(self, "exchange_id", "?"), e)
+            logger.warning("[%s] 深度列读取(重建器)失败: %s", getattr(self, "exchange_id", ""), e)
             return None, None
 
     def _flush_trades(self, db, symbol: str, timestamp_ms: int) -> None:
         """将 symbol 的 trade buffer 落库（upsert）。可被子类覆盖以适配 schema。"""
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         # [v6-S2-1] 当前桶末帧前5档名义深度（无帧时 None，列保持 NULL）
         bid_depth_top5, ask_depth_top5 = self._current_depth_notional(symbol)

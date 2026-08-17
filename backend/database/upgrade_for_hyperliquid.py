@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from backend.database.connection import engine, SessionLocal, DATABASE_URL
-from database.models import Base, Account, User, TradingConfig
+from backend.database.models import Base, Account, User, TradingConfig
 from config.settings import DEFAULT_TRADING_CONFIGS
 import logging
 
@@ -59,7 +59,7 @@ def backup_database():
 
     backup_path = f"{db_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     shutil.copy2(db_path, backup_path)
-    logger.info(f"✓ Database backed up to: {backup_path}")
+    logger.info(f"�?Database backed up to: {backup_path}")
     return backup_path
 
 
@@ -74,7 +74,7 @@ def create_fresh_database():
 
     # Create new database with all tables
     Base.metadata.create_all(bind=engine)
-    logger.info("✓ Created fresh database with Hyperliquid support")
+    logger.info("�?Created fresh database with Hyperliquid support")
 
 
 def restore_trader_configs(db: Session, configs: list):
@@ -110,7 +110,7 @@ def restore_trader_configs(db: Session, configs: list):
         db.add(account)
 
     db.commit()
-    logger.info(f"✓ Restored {len(configs)} trader configurations")
+    logger.info(f"�?Restored {len(configs)} trader configurations")
 
 
 def initialize_trading_configs(db: Session):
@@ -134,7 +134,7 @@ def initialize_trading_configs(db: Session):
             db.add(config)
 
     db.commit()
-    logger.info("✓ Initialized trading configurations")
+    logger.info("�?Initialized trading configurations")
 
 
 def main():
@@ -188,9 +188,9 @@ def main():
         all_ok = True
         for table in required_tables:
             if table in tables:
-                logger.info(f"  ✓ {table}")
+                logger.info(f"  �?{table}")
             else:
-                logger.error(f"  ✗ {table} MISSING")
+                logger.error(f"  �?{table} MISSING")
                 all_ok = False
 
         # Check Hyperliquid fields in accounts
@@ -207,14 +207,14 @@ def main():
         logger.info("\n  Hyperliquid fields in accounts table:")
         for field in hyperliquid_fields:
             if field in accounts_cols:
-                logger.info(f"    ✓ {field}")
+                logger.info(f"    �?{field}")
             else:
-                logger.error(f"    ✗ {field} MISSING")
+                logger.error(f"    �?{field} MISSING")
                 all_ok = False
 
         if all_ok:
             logger.info("\n" + "=" * 70)
-            logger.info("✓ Database upgrade completed successfully!")
+            logger.info("�?Database upgrade completed successfully!")
             logger.info("=" * 70)
             logger.info(f"\nBackup location: {backup_path}")
             logger.info(f"Restored {len(configs)} trader configurations")
@@ -224,11 +224,11 @@ def main():
             logger.info("3. Configure Hyperliquid accounts via API")
             return 0
         else:
-            logger.error("\n✗ Database upgrade verification failed!")
+            logger.error("\n�?Database upgrade verification failed!")
             return 1
 
     except Exception as e:
-        logger.error(f"\n✗ Upgrade failed: {e}", exc_info=True)
+        logger.error(f"\n�?Upgrade failed: {e}", exc_info=True)
         return 1
 
 

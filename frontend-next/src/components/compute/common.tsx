@@ -83,15 +83,15 @@ export const BADGE_MAP: Record<
   { label: string; cls: string }
 > = {
   running: { label: "运行中", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30" },
-  ok: { label: "正常", cls: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30" },
-  idle: { label: "空闲", cls: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30" },
-  error: { label: "异常", cls: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30" },
+  ok: { label: "正常", cls: "bg-profit/15 text-green-600 dark:text-profit border-green-500/30" },
+  idle: { label: "空闲", cls: "bg-profit/15 text-green-600 dark:text-profit border-green-500/30" },
+  error: { label: "异常", cls: "bg-loss/15 text-red-600 dark:text-red-400 border-red-500/30" },
   stopped: { label: "停止", cls: "bg-muted text-muted-foreground border-border" },
-  degraded: { label: "降级", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30" },
+  degraded: { label: "降级", cls: "bg-warning/15 text-amber-600 dark:text-amber-400 border-amber-500/30" },
   disabled: { label: "禁用", cls: "bg-muted text-muted-foreground border-border" },
   off: { label: "已下线", cls: "bg-muted text-muted-foreground border-border" },
-  ready: { label: "可用", cls: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30" },
-  placeholder: { label: "占位", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30" },
+  ready: { label: "可用", cls: "bg-profit/15 text-green-600 dark:text-profit border-green-500/30" },
+  placeholder: { label: "占位", cls: "bg-warning/15 text-amber-600 dark:text-amber-400 border-amber-500/30" },
 };
 
 /** status 由后端字段驱动，未知值一律灰色兜底，禁止前端臆造 */
@@ -304,7 +304,7 @@ export function ProgressBar({
 }) {
   const p = Math.min(100, Math.max(0, percent));
   const color =
-    tone === "bad" ? "bg-red-500" : tone === "warn" ? "bg-amber-500" : "bg-green-500";
+    tone === "bad" ? "bg-loss" : tone === "warn" ? "bg-warning" : "bg-profit";
   return (
     <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
       <div

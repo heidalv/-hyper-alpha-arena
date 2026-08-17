@@ -1,0 +1,631 @@
+<section class="page" id="page-arbitrage" data-title="套利中心">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="arrow-right-left" style="width:15px;height:15px;color:#7DD3FC"></i></span>套利中心</h1>
+      <p class="page-sub">V3 统计套利 + 返佣积分引擎 · 多交易所实时扫描</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="20"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>20</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 1.4s</span>
+        </div>
+    <div class="page-actions">
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>刷新</button>
+      <button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg>立即扫描</button>
+    </div>
+  </div>
+
+  <!-- 引擎状态 -->
+  <div class="grid3">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="zap" style="width:15px;height:15px;color:#7DD3FC"></i>V3 统计套利引擎</div>
+        <div class="row" style="gap:8px">
+          <span class="badge ok"><span class="bdot"></span>运行中</span>
+          <button class="row-btn cyan" data-modal="m-engine-cfg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>配置</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">运行时长</span><span class="v">14天2小时</span></div>
+        <div class="kv"><span class="k">今日套利</span><span class="v">12 笔</span></div>
+        <div class="kv"><span class="k">累计收益</span><span class="v up">+$1,240.30</span></div>
+        <div class="kv"><span class="k">信号延迟</span><span class="v">38 ms</span></div>
+        <div class="bar" style="margin:10px 0 4px"><div class="bar-fill" style="width:62%"></div></div>
+        <div class="small muted num">资金利用率 62%</div>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="star" style="width:15px;height:15px;color:#7DD3FC"></i>返佣积分引擎</div>
+        <span class="badge ok"><span class="bdot"></span>运行中</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">运行时长</span><span class="v">14天2小时</span></div>
+        <div class="kv"><span class="k">今日扫描</span><span class="v">2,840 次</span></div>
+        <div class="kv"><span class="k">累计积分</span><span class="v">3,652</span></div>
+        <div class="kv"><span class="k">返佣累计</span><span class="v up">+$128.40</span></div>
+        <div class="bar" style="margin:10px 0 4px"><div class="bar-fill" style="width:76%"></div></div>
+        <div class="small muted num">扫描覆盖 76%</div>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield-check" style="width:15px;height:15px;color:#7DD3FC"></i>刷量安全</div>
+        <span class="badge ok"><span class="bdot"></span>已启用</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">单笔上限</span><span class="v">$2,000.00</span></div>
+        <div class="kv"><span class="k">频率上限</span><span class="v">12 笔/分钟</span></div>
+        <div class="kv"><span class="k">黑名单数</span><span class="v warn">3</span></div>
+        <div class="bar" style="margin:10px 0 4px"><div class="bar-fill green" style="width:100%"></div></div>
+        <div class="small muted">近 24h 拦截 <span class="num">0</span> 次异常</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 规则闸门 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="filter" style="width:15px;height:15px;color:#7DD3FC"></i>规则闸门</div>
+      <span class="card-hint">同步于 10s 前 · 自动生效</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0 28px">
+        <div class="kv"><span class="k">Rebate 暂停</span><span class="v up">否</span></div>
+        <div class="kv"><span class="k">V3 暂停</span><span class="v up">否</span></div>
+        <div class="kv"><span class="k">暂停策略数</span><span class="v">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 策略分析 -->
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="line-chart" style="width:15px;height:15px;color:#7DD3FC"></i>策略分析</div>
+      <span class="card-hint">今日 · 自动更新</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>策略</th><th class="r">交易数</th><th class="r">胜率</th><th class="r">PnL</th><th class="r">积分</th><th class="c">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">V3 统计套利</span></td>
+            <td class="r">86</td>
+            <td class="r">62.8%</td>
+            <td class="r up">+$1,240.30</td>
+            <td class="r">2,160</td>
+            <td class="c"><button class="row-btn cyan" data-drawer="d-strategy-detail">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">返佣积分引擎</span></td>
+            <td class="r">1,204</td>
+            <td class="r">68.4%</td>
+            <td class="r up">+$128.40</td>
+            <td class="r">1,480</td>
+            <td class="c"><button class="row-btn cyan" data-drawer="d-strategy-detail">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">短线跨所套利</span></td>
+            <td class="r">24</td>
+            <td class="r">58.3%</td>
+            <td class="r up">+$36.80</td>
+            <td class="r">320</td>
+            <td class="c"><button class="row-btn cyan" data-drawer="d-strategy-detail">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">资金费率套利</span></td>
+            <td class="r">12</td>
+            <td class="r">66.7%</td>
+            <td class="r up">+$18.20</td>
+            <td class="r">180</td>
+            <td class="c"><button class="row-btn cyan" data-drawer="d-strategy-detail">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">三角套利</span> <span class="badge warn">已暂停</span></td>
+            <td class="r">8</td>
+            <td class="r warn">37.5%</td>
+            <td class="r down">-$12.40</td>
+            <td class="r">0</td>
+            <td class="c"><button class="row-btn cyan" data-drawer="d-strategy-detail">详情</button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 套利持仓 + 返佣持仓 -->
+  <div class="grid2">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="arrow-right-left" style="width:15px;height:15px;color:#7DD3FC"></i>套利持仓</div>
+        <span class="card-hint">3 笔对冲</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>币种</th><th>策略</th><th>交易所</th><th>方向</th><th class="r">数量</th><th class="r">PnL</th><th>状态</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sym">BTC-USDC</span></td>
+              <td><span class="tag">V3 统计</span></td>
+              <td><span class="sub">HL · 币安</span></td>
+              <td><span class="badge violet">多+空</span></td>
+              <td class="r">0.012 <span class="sub">BTC</span></td>
+              <td class="r up">+$8.42</td>
+              <td><span class="badge ok"><span class="bdot"></span>持仓中</span></td>
+            </tr>
+            <tr>
+              <td><span class="sym">ETH-USDC</span></td>
+              <td><span class="tag">V3 统计</span></td>
+              <td><span class="sub">HL · Asterdex</span></td>
+              <td><span class="badge violet">多+空</span></td>
+              <td class="r">0.080 <span class="sub">ETH</span></td>
+              <td class="r up">+$3.16</td>
+              <td><span class="badge ok"><span class="bdot"></span>持仓中</span></td>
+            </tr>
+            <tr>
+              <td><span class="sym">SOL-USDC</span></td>
+              <td><span class="tag">短线跨所</span></td>
+              <td><span class="sub">HL · 币安</span></td>
+              <td><span class="badge violet">多+空</span></td>
+              <td class="r">1.200 <span class="sub">SOL</span></td>
+              <td class="r down">-$0.94</td>
+              <td><span class="badge warn"><span class="bdot"></span>减仓中</span></td>
+            </tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="star" style="width:15px;height:15px;color:#7DD3FC"></i>返佣持仓</div>
+        <span class="card-hint">3 笔挂单</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>币种</th><th>策略</th><th>交易所</th><th>方向</th><th class="r">数量</th><th class="r">PnL</th><th>状态</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sym">ARB-USDC</span></td>
+              <td><span class="tag">返佣引擎</span></td>
+              <td><span class="sub">Asterdex</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">600 <span class="sub">ARB</span></td>
+              <td class="r up">+$2.40</td>
+              <td><span class="badge ok"><span class="bdot"></span>持仓中</span></td>
+            </tr>
+            <tr>
+              <td><span class="sym">OP-USDC</span></td>
+              <td><span class="tag">返佣引擎</span></td>
+              <td><span class="sub">Asterdex</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">300 <span class="sub">OP</span></td>
+              <td class="r up">+$1.16</td>
+              <td><span class="badge ok"><span class="bdot"></span>持仓中</span></td>
+            </tr>
+            <tr>
+              <td><span class="sym">BNB-USDC</span></td>
+              <td><span class="tag">返佣引擎</span></td>
+              <td><span class="sub">币安</span></td>
+              <td><span class="badge buy">做多</span></td>
+              <td class="r">0.050 <span class="sub">BNB</span></td>
+              <td class="r down">-$0.22</td>
+              <td><span class="badge warn"><span class="bdot"></span>观察中</span></td>
+            </tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 返佣机会 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="badge-check" style="width:15px;height:15px;color:#7DD3FC"></i>返佣机会</div>
+      <span class="card-hint">实时评分 · 每 10s 更新</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>币种</th><th>交易所</th><th class="r">返佣</th><th class="r">分数</th><th class="c">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">ETH-USDC</span></td>
+            <td><span class="sub">Asterdex</span></td>
+            <td class="r warn">0.045% · +$2.84</td>
+            <td class="r">92</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-rebate">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">ARB-USDC</span></td>
+            <td><span class="sub">币安</span></td>
+            <td class="r warn">0.040% · +$1.92</td>
+            <td class="r">87</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-rebate">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">OP-USDC</span></td>
+            <td><span class="sub">Hyperliquid</span></td>
+            <td class="r warn">0.035% · +$1.58</td>
+            <td class="r">78</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-rebate">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">SOL-USDC</span></td>
+            <td><span class="sub">Asterdex</span></td>
+            <td class="r warn">0.030% · +$1.21</td>
+            <td class="r">64</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-rebate">详情</button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 返佣引擎分析 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="pie-chart" style="width:15px;height:15px;color:#7DD3FC"></i>返佣引擎分析</div>
+      <span class="card-hint">按策略分表 · 更新于 1m 前</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:3fr 2fr;gap:16px">
+        <div>
+          <div class="small muted num" style="margin:2px 0 6px">按策略分表</div>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr>
+              <th>策略</th><th class="r">交易</th><th class="r">胜率</th><th class="r">PnL</th><th class="r">积分</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="sym">现货返佣</span></td>
+                <td class="r">640</td>
+                <td class="r">71.2%</td>
+                <td class="r up">+$76.80</td>
+                <td class="r">840</td>
+              </tr>
+              <tr>
+                <td><span class="sym">合约返佣</span></td>
+                <td class="r">420</td>
+                <td class="r">65.8%</td>
+                <td class="r up">+$42.60</td>
+                <td class="r">520</td>
+              </tr>
+              <tr>
+                <td><span class="sym">推荐返佣</span></td>
+                <td class="r">144</td>
+                <td class="r">62.4%</td>
+                <td class="r up">+$9.00</td>
+                <td class="r">120</td>
+              </tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div>
+          <div class="small muted num" style="margin:2px 0 6px">资金池</div>
+          <div class="kv"><span class="k">返佣资金池</span><span class="v">$3,240.50</span></div>
+          <div class="kv"><span class="k">V3 资金池</span><span class="v">$12,840.00</span></div>
+          <div class="kv"><span class="k">总收益</span><span class="v up">+$1,368.70</span></div>
+          <div class="kv"><span class="k">今日积分</span><span class="v up">+960</span></div>
+          <div class="bar" style="margin:10px 0 4px"><div class="bar-fill" style="width:38%"></div></div>
+          <div class="small muted num">返佣池利用率 38%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 各交易所积分 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="smartphone" style="width:15px;height:15px;color:#7DD3FC"></i>各交易所积分</div>
+      <span class="card-hint">Rh 赛季 S2</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>交易所</th><th class="r">积分</th><th class="r">估值</th><th class="r">PnL</th><th class="r">持仓</th><th>风险</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">Hyperliquid</span><div class="sub num">已连接</div></td>
+            <td class="r">8,420</td>
+            <td class="r">$2,105.00</td>
+            <td class="r up">+$1,240.30</td>
+            <td class="r">6 仓位</td>
+            <td><span class="badge ok"><span class="bdot"></span>低</span></td>
+          </tr>
+          <tr>
+            <td><span class="sym">Asterdex</span><div class="sub num">已连接</div></td>
+            <td class="r">3,652</td>
+            <td class="r">$913.00</td>
+            <td class="r up">+$128.40</td>
+            <td class="r">4 仓位</td>
+            <td><span class="badge ok"><span class="bdot"></span>低</span></td>
+          </tr>
+          <tr>
+            <td><span class="sym">币安</span><div class="sub num">已连接</div></td>
+            <td class="r">1,208</td>
+            <td class="r">$302.00</td>
+            <td class="r up">+$42.80</td>
+            <td class="r">2 仓位</td>
+            <td><span class="badge warn"><span class="bdot"></span>中</span></td>
+          </tr>
+          <tr>
+            <td><span class="sym">Bybit</span><div class="sub num">已连接</div></td>
+            <td class="r">486</td>
+            <td class="r">$121.50</td>
+            <td class="r down">-$12.40</td>
+            <td class="r">0 仓位</td>
+            <td><span class="badge dim">无</span></td>
+          </tr>
+          <tr>
+            <td><span class="sym">OKX</span><div class="sub num">未接入</div></td>
+            <td class="r">0</td>
+            <td class="r">$0.00</td>
+            <td class="r">$0.00</td>
+            <td class="r">0 仓位</td>
+            <td><span class="badge dim">未接入</span></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 底部配置 -->
+  <div class="grid2">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i>引擎配置</div>
+        <span class="card-hint">生效中</span>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">最大仓位</label><input class="input" placeholder="0.050 BTC"></div>
+          <div class="field"><label class="label">扫描频率</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"扫描频率：每 5 秒"}'>
+            <option>每 5 秒</option>
+            <option>每 10 秒</option>
+            <option>每 30 秒</option>
+          </select></div></div>
+        </div>
+        <div class="field">
+          <label class="label">已启用交易所</label>
+          <div class="row wrap" style="gap:6px">
+            <span class="tag cyan">Hyperliquid</span>
+            <span class="tag cyan">Asterdex</span>
+            <span class="tag cyan">币安</span>
+            <span class="tag">Bybit</span>
+            <span class="tag">OKX</span>
+          </div>
+        </div>
+        <div class="kv"><span class="k">规则同步调度</span><span class="v">每 5 分钟</span></div>
+        <div class="kv"><span class="k">下次同步时间</span><span class="v">14:30:00</span></div>
+        <button class="btn btn-primary" style="margin-top:8px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>保存配置</button>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield-check" style="width:15px;height:15px;color:#7DD3FC"></i>风控配置</div>
+        <div class="row" style="gap:8px">
+          <span class="badge ok"><span class="bdot"></span>风控在线</span>
+          <button class="row-btn cyan" data-modal="m-risk-cfg"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>编辑</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">最大单笔亏损</label><input class="input" placeholder="5%"></div>
+          <div class="field"><label class="label">日亏阈值</label><input class="input" placeholder="10%"></div>
+          <div class="field"><label class="label">熔断线</label><input class="input" placeholder="$500.00"></div>
+          <div class="field"><label class="label">黑名单冷却</label><input class="input" placeholder="30 分钟"></div>
+        </div>
+        <div class="kv"><span class="k">今日触发熔断</span><span class="v">0 次</span></div>
+        <div class="kv"><span class="k">风控状态</span><span class="v up">正常</span></div>
+        <button class="btn btn-ghost2" style="margin-top:8px"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 策略列表 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>策略列表</div>
+      <span class="card-hint">套利策略开关</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
+          <div class="spread"><span class="bold" style="font-size:12.5px">短线套利</span><div class="row" style="gap:6px"><span class="badge ok"><span class="bdot"></span>ON</span><button class="row-btn cyan" data-modal="m-strategy-edit">编辑</button></div></div>
+          <div class="small muted" style="margin:6px 0 10px">快速价差 · 5-30 分钟持有</div>
+          <div class="kv"><span class="k">今日</span><span class="v">24 笔</span></div>
+          <div class="kv"><span class="k">PnL</span><span class="v up">+$36.80</span></div>
+        </div>
+        <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
+          <div class="spread"><span class="bold" style="font-size:12.5px">中线套利</span><div class="row" style="gap:6px"><span class="badge ok"><span class="bdot"></span>ON</span><button class="row-btn cyan" data-modal="m-strategy-edit">编辑</button></div></div>
+          <div class="small muted" style="margin:6px 0 10px">V3 引擎 · 1-7 天持有</div>
+          <div class="kv"><span class="k">今日</span><span class="v">12 笔</span></div>
+          <div class="kv"><span class="k">PnL</span><span class="v up">+$118.20</span></div>
+        </div>
+        <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
+          <div class="spread"><span class="bold" style="font-size:12.5px">长线套利</span><div class="row" style="gap:6px"><span class="badge dim">OFF</span><button class="row-btn cyan" data-modal="m-strategy-edit">编辑</button></div></div>
+          <div class="small muted" style="margin:6px 0 10px">资金费率收割 · 7-30 天持有</div>
+          <div class="kv"><span class="k">今日</span><span class="v">0 笔</span></div>
+          <div class="kv"><span class="k">PnL</span><span class="v">$0.00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：引擎配置弹窗 ══ -->
+  <div class="mask" id="m-engine-cfg">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>引擎配置 · V3 统计套利</div><div class="modal-sub">修改统计套利引擎运行参数，保存后立即生效</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="spread" style="padding:2px 0 10px">
+          <span class="small" style="color:#C9D4E8">启用 V3 统计套利引擎</span>
+          <span class="switch on"></span>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="label">最大仓位</label><input class="input" placeholder="0.050 BTC"></div>
+          <div class="field"><label class="label">最小价差</label><input class="input" placeholder="0.02%"></div>
+          <div class="field"><label class="label">扫描间隔</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"扫描间隔：每 5 秒"}'>
+            <option>每 1 秒</option>
+            <option selected>每 5 秒</option>
+            <option>每 10 秒</option>
+            <option>每 30 秒</option>
+          </select></div></div>
+          <div class="field"><label class="label">滑点容忍</label><input class="input" placeholder="0.05%"></div>
+        </div>
+        <div class="field">
+          <label class="label">已启用交易所</label>
+          <div class="row wrap" style="gap:6px">
+            <span class="tag cyan">Hyperliquid</span>
+            <span class="tag cyan">Asterdex</span>
+            <span class="tag cyan">币安</span>
+            <span class="tag">Bybit</span>
+          </div>
+        </div>
+        <div class="kv"><span class="k">运行时长</span><span class="v">14天2小时</span></div>
+        <div class="kv"><span class="k">累计收益</span><span class="v up">+$1,240.30</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"引擎配置已保存","msg":"V3 统计套利引擎参数已更新并生效"}' >保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：风控配置弹窗 ══ -->
+  <div class="mask" id="m-risk-cfg">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>风控配置</div><div class="modal-sub">套利引擎风险闸门 · 任一阈值触发即熔断暂停</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">单笔上限</label><input class="input" placeholder="$2,000.00"></div>
+          <div class="field"><label class="label">日亏损限</label><input class="input" placeholder="10%"></div>
+          <div class="field"><label class="label">暂停阈值</label><input class="input" placeholder="日亏损达 8% 暂停"></div>
+          <div class="field"><label class="label">恢复条件</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"恢复条件：次日 00:00 自动恢复"}'>
+            <option>次日 00:00 自动恢复</option>
+            <option>人工复核后恢复</option>
+            <option>恢复至阈值下 3%</option>
+          </select></div></div>
+        </div>
+        <div class="kv"><span class="k">今日触发熔断</span><span class="v">0 次</span></div>
+        <div class="kv"><span class="k">风控状态</span><span class="v up">正常</span></div>
+        <div class="tiny muted" style="margin-top:8px;line-height:1.6">任一阈值触发后，全部套利引擎自动暂停并推送 P0 告警，避免连锁亏损。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"风控配置已保存","msg":"风控阈值已更新并同步至引擎"}' >保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：返佣机会详情弹窗 ══ -->
+  <div class="mask" id="m-rebate">
+    <div class="modal narrow">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>返佣机会 · ETH-USDC</div><div class="modal-sub">Asterdex · 实时评分 92</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">币种 / 交易所</span><span class="v">ETH-USDC · Asterdex</span></div>
+        <div class="kv"><span class="k">预期返佣</span><span class="v up">+$2.84 <span class="small muted">(0.045%)</span></span></div>
+        <div class="kv"><span class="k">评分</span><span class="v">92 <span class="badge ok"><span class="bdot"></span>高</span></span></div>
+        <div class="kv"><span class="k">24h 成交量</span><span class="v">$1.2M</span></div>
+        <div class="kv"><span class="k">预估滑点</span><span class="v">0.02%</span></div>
+        <div class="kv"><span class="k">建议仓位</span><span class="v">$500.00</span></div>
+        <div class="small warn" style="margin-top:10px;padding:9px 12px;border-radius:9px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);line-height:1.6">风险提示：返佣机会依赖挂单撮合，若 30 秒内未成交将自动撤单；深度不足时可能产生滑点损耗。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"返佣机会已开启","msg":"ETH-USDC 返佣策略已加入扫描队列"}' >开启机会</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：策略参数编辑弹窗 ══ -->
+  <div class="mask" id="m-strategy-edit">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>策略参数编辑</div><div class="modal-sub">短线套利 · 快速价差 5-30 分钟持有</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="field"><label class="label">策略</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"策略：短线套利"}'>
+          <option selected>短线套利</option>
+          <option>中线套利</option>
+          <option>长线套利</option>
+        </select></div></div>
+        <div class="spread" style="padding:2px 0 12px">
+          <span class="small" style="color:#C9D4E8">启用策略</span>
+          <span class="switch on"></span>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="label">最大仓位</label><input class="input" placeholder="0.050 BTC"></div>
+          <div class="field"><label class="label">最小价差</label><input class="input" placeholder="0.02%"></div>
+          <div class="field"><label class="label">扫描间隔</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"扫描间隔：每 5 秒"}'>
+            <option selected>每 5 秒</option>
+            <option>每 10 秒</option>
+            <option>每 30 秒</option>
+          </select></div></div>
+          <div class="field"><label class="label">持有周期</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"持有周期：5-30 分钟"}'>
+            <option selected>5-30 分钟</option>
+            <option>1-7 天</option>
+            <option>7-30 天</option>
+          </select></div></div>
+        </div>
+        <div class="kv"><span class="k">今日交易</span><span class="v">24 笔</span></div>
+        <div class="kv"><span class="k">今日 PnL</span><span class="v up">+$36.80</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"策略参数已保存","msg":"短线套利参数已更新并生效"}' >保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：策略详情抽屉 ══ -->
+  <div class="drawer wide" id="d-strategy-detail">
+    <div class="drawer-head">
+      <div><div class="drawer-title">策略详情 · V3 统计套利</div><div class="drawer-sub">今日 · 自动更新</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv"><span class="k">策略类型</span><span class="v">V3 统计套利</span></div>
+      <div class="kv"><span class="k">交易数</span><span class="v">86</span></div>
+      <div class="kv"><span class="k">胜率</span><span class="v up">62.8%</span></div>
+      <div class="kv"><span class="k">PnL</span><span class="v up">+$1,240.30</span></div>
+      <div class="kv"><span class="k">积分</span><span class="v">2,160</span></div>
+      <div class="kv"><span class="k">最大回撤</span><span class="v down">-0.8%</span></div>
+      <div class="kv"><span class="k">资金池</span><span class="v">$12,840.00</span></div>
+      <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">策略参数</div>
+      <div class="kv"><span class="k">最大仓位</span><span class="v">0.050 BTC</span></div>
+      <div class="kv"><span class="k">最小价差</span><span class="v">0.02%</span></div>
+      <div class="kv"><span class="k">扫描间隔</span><span class="v">每 5 秒</span></div>
+      <div class="kv"><span class="k">滑点容忍</span><span class="v">0.05%</span></div>
+      <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">最近交易</div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>时间</th><th>币种</th><th>方向</th><th class="r">PnL</th></tr></thead>
+        <tbody>
+          <tr><td><span class="mono">06-22 14:12</span></td><td><span class="sym">BTC-USDC</span></td><td><span class="badge violet">多+空</span></td><td class="r up">+$8.42</td></tr>
+          <tr><td><span class="mono">06-22 13:47</span></td><td><span class="sym">ETH-USDC</span></td><td><span class="badge violet">多+空</span></td><td class="r up">+$3.16</td></tr>
+          <tr><td><span class="mono">06-22 12:30</span></td><td><span class="sym">SOL-USDC</span></td><td><span class="badge violet">多+空</span></td><td class="r down">-$0.94</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close>关闭</button>
+    </div>
+  </div>
+</section>

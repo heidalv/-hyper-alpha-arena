@@ -60,7 +60,7 @@ class SignalAnalysisService:
                 if period not in TIMEFRAME_MS:
                     raise ValueError(f"Unsupported period: {period}")
                 interval_ms = TIMEFRAME_MS[period]
-                # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+                # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
                 current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
                 start_time_ms = current_time_ms - (days * 24 * 60 * 60 * 1000)
                 return self._analyze_taker_volume(
@@ -122,13 +122,13 @@ class SignalAnalysisService:
     ) -> tuple[List[float], float]:
         """Get historical values for a metric. Returns (values, time_range_hours)."""
         from services.market_flow_indicators import TIMEFRAME_MS, floor_timestamp
-        from database.models import MarketAssetMetrics, MarketTradesAggregated, MarketOrderbookSnapshots
+        from backend.database.models import MarketAssetMetrics, MarketTradesAggregated, MarketOrderbookSnapshots
 
         if period not in TIMEFRAME_MS:
             raise ValueError(f"Unsupported period: {period}")
 
         interval_ms = TIMEFRAME_MS[period]
-        # 修时区 bug：用 UTC-aware 计算 Unix 毫秒
+        # 修时�?bug：用 UTC-aware 计算 Unix 毫秒
         current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         start_time_ms = current_time_ms - (days * 24 * 60 * 60 * 1000)
 
@@ -180,7 +180,7 @@ class SignalAnalysisService:
     def _get_oi_delta_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get OI delta percentage history."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -217,7 +217,7 @@ class SignalAnalysisService:
     def _get_cvd_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get CVD history."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         records = db.query(
             MarketTradesAggregated.timestamp,
@@ -250,7 +250,7 @@ class SignalAnalysisService:
     def _get_depth_ratio_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get depth ratio (bid/ask) history."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
             MarketOrderbookSnapshots.timestamp,
@@ -284,7 +284,7 @@ class SignalAnalysisService:
     def _get_imbalance_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get order imbalance history."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
             MarketOrderbookSnapshots.timestamp,
@@ -326,7 +326,7 @@ class SignalAnalysisService:
         """
         import math
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         records = db.query(
             MarketTradesAggregated.timestamp,
@@ -365,7 +365,7 @@ class SignalAnalysisService:
     def _get_funding_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get funding rate history. Aligned with K-line FUNDING indicator."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -395,7 +395,7 @@ class SignalAnalysisService:
     def _get_oi_history(self, db, symbol, interval_ms, start_time_ms, current_time_ms):
         """Get absolute OI history. Aligned with K-line OI indicator (raw value, no conversion)."""
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         records = db.query(
             MarketAssetMetrics.timestamp,
@@ -478,7 +478,7 @@ class SignalAnalysisService:
         Returns statistics for both ratio and volume dimensions.
         """
         from services.market_flow_indicators import floor_timestamp
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
         import numpy as np
 
         records = db.query(

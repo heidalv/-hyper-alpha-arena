@@ -345,12 +345,8 @@ async def get_evolution_progress():
         except Exception:
             pass
 
-        # 交易叙事状态
-        try:
-            from backend.services.trading_narrative_engine import trading_narrative_engine
-            result["narrative"] = trading_narrative_engine.get_status()
-        except Exception:
-            pass
+        # 交易叙事状态（[2026-08-17] trading_narrative_engine 已删除）
+        result["narrative"] = {"removed": True, "note": "trading_narrative_engine removed 2026-08-17"}
 
     except Exception as exc:
         result["error"] = str(exc)

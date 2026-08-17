@@ -215,6 +215,78 @@ def merge_factor_results(
     return merged
 
 
+def fetch_real_oi_pair(symbol: str) -> tuple:
+    """真实 OI 绝对值对（当前、前值）← market_asset_metrics；不可用返回 (None, None)。
+
+    [2026-08-15 消费端总验收] 替代此前 `oi=1.0` 归一化编码：优先给因子注入
+    真实持仓量绝对值；仅当历史 OI 不足时才退回编码方式（该编码使 oi_delta
+    因子输出严格等于 OI_DELTA 指标的变化率，并非伪造数据）。
+    """
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        with MarketSessionLocal() as db:
+            rows = db.execute(
+                _sa_text(
+                    "SELECT open_interest FROM market_asset_metrics "
+                    "WHERE symbol=:s AND open_interest IS NOT NULL "
+                    "ORDER BY timestamp DESC LIMIT 2"
+                ),
+                {"s": (symbol or "").upper()},
+            ).fetchall()
+        vals = [float(r[0]) for r in rows if r[0] is not None]
+        if len(vals) >= 2 and vals[0] > 0 and vals[1] > 0:
+            return vals[0], vals[1]
+    except Exception as exc:
+        logger.debug("[FactorBridge] fetch_real_oi_pair %s 失败: %s", symbol, exc)
+    return None, None
+
+
+def fetch_real_flow(symbol: str, window_sec: int = 3600) -> tuple:
+    """真实吃单流（taker_buy_usd, taker_sell_usd）← market_trades_aggregated。
+
+    [2026-08-15 消费端总验收] 替代 `total_notional=abs(cvd)*10` 与
+    `sell_notional=1.0` 的合成/伪分解：taker_ratio / cvd_ratio 因子此前
+    只能拿到符号级退化值（cvd_ratio 恒 ±0.1）。现在从 15s 窗口聚合表
+    汇总最近 window_sec 的真实吃单买卖额；不可用返回 (None, None)。
+    """
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        cutoff_ms = int((time.time() - window_sec) * 1000)
+        with MarketSessionLocal() as db:
+            row = db.execute(
+                _sa_text(
+                    "SELECT COALESCE(SUM(taker_buy_notional),0), COALESCE(SUM(taker_sell_notional),0) "
+                    "FROM market_trades_aggregated "
+                    "WHERE symbol=:s AND timestamp >= :c"
+                ),
+                {"s": (symbol or "").upper(), "c": cutoff_ms},
+            ).first()
+        if row:
+            buy = float(row[0] or 0)
+            sell = float(row[1] or 0)
+            if buy > 0 and sell > 0:
+                return buy, sell
+    except Exception as exc:
+        logger.debug("[FactorBridge] fetch_real_flow %s 失败: %s", symbol, exc)
+    return None, None
+
+
+def fetch_real_funding(symbol: str):
+    """真实资金费率 ← data_center 落库（perp_funding，缓存无关，恒可用）。"""
+    try:
+        from backend.services.data_center import data_center
+        _d = data_center.get_derivatives(symbol) or {}
+        _fr = _d.get("funding_rate")
+        return float(_fr) if _fr is not None else None
+    except Exception as exc:
+        logger.debug("[FactorBridge] fetch_real_funding %s 失败: %s", symbol, exc)
+        return None
+
+
 def inject_deribit_into_klines(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
     """opt-in：把 Deribit 期权列注入 K 线 DF（#12 主路径接线）。
 
@@ -290,21 +362,39 @@ def inject_orderflow_for_factors(
         _oi_delta = _giv(None, sym, "OI_DELTA", timeframe)
         if _oi_delta is not None:
             _of["oi_delta_pct"] = float(_oi_delta)
-            _of["oi"] = 1.0  # 占位，因子用 oi_delta_pct 更准
-            _of["prev_oi"] = 1.0 / (1 + float(_oi_delta) / 100) if _oi_delta != 0 else 1.0
-        _cvd = _giv(None, sym, "CVD", timeframe)
-        if _cvd is not None:
-            _of["cvd"] = float(_cvd)
-            _of.setdefault("total_notional", abs(float(_cvd)) * 10 or 1.0)
-        _taker = _giv(None, sym, "TAKER", timeframe)
-        if _taker is not None:
-            _taker_f = float(_taker)
-            if _taker_f > 0:
-                _of["buy_notional"] = _taker_f
-                _of["sell_notional"] = 1.0
-            elif _taker_f < 0:
-                _of["buy_notional"] = 1.0
-                _of["sell_notional"] = abs(_taker_f)
+            # [2026-08-15] 优先注入真实 OI 绝对值对；历史不足时退回归一化编码
+            #（oi=1.0 基准 + 反推 prev_oi，使 oi_delta 因子输出严格等于
+            # OI_DELTA 变化率，非伪造数据——编码语义见 fetch_real_oi_pair 注释）。
+            _abs_oi, _prev_abs_oi = fetch_real_oi_pair(sym)
+            if _abs_oi and _prev_abs_oi:
+                _of["oi"] = _abs_oi
+                _of["prev_oi"] = _prev_abs_oi
+            else:
+                _of["oi"] = 1.0
+                _of["prev_oi"] = 1.0 / (1 + float(_oi_delta) / 100) if _oi_delta != 0 else 1.0
+        # [2026-08-15] 真实吃单流优先：taker/cvd 用 trades_agg 真实买卖额，
+        # 不再用 `abs(cvd)*10` / `sell=1.0` 合成（否则 taker_ratio 退化为伪、
+        # cvd_ratio 恒 ±0.1 符号）。真实流缺失时才回退指标近似。
+        _rb, _rs = fetch_real_flow(sym)
+        if _rb and _rs:
+            _of["buy_notional"] = _rb
+            _of["sell_notional"] = _rs
+            _of["cvd"] = _rb - _rs
+            _of["total_notional"] = _rb + _rs
+        else:
+            _cvd = _giv(None, sym, "CVD", timeframe)
+            if _cvd is not None:
+                _of["cvd"] = float(_cvd)
+                _of.setdefault("total_notional", abs(float(_cvd)) * 10 or 1.0)
+            _taker = _giv(None, sym, "TAKER", timeframe)
+            if _taker is not None:
+                _taker_f = float(_taker)
+                if _taker_f > 0:
+                    _of["buy_notional"] = _taker_f
+                    _of["sell_notional"] = 1.0
+                elif _taker_f < 0:
+                    _of["buy_notional"] = 1.0
+                    _of["sell_notional"] = abs(_taker_f)
         _depth = _giv(None, sym, "DEPTH", timeframe)
         if _depth is not None:
             _of["depth_ratio"] = float(_depth)
@@ -314,18 +404,12 @@ def inject_orderflow_for_factors(
     except Exception as _e:
         logger.debug(f"[FactorBridge] {sym} 订单流指标注入跳过: {_e}")
 
-    # 2. funding_rate ← derivatives_analytics_service（已采集，funding/OI/清算）
-    # 用 get_cached_snapshot（只读缓存 + 后台异步刷新），绝不在 scalp 热路径里同步拉
-    # Hyperliquid/Binance/Coinalyze（原 get_snapshot miss 时串行网络实测 ~12s/币，
-    # 是短线单币扫描 20s+ 的主因）。缓存未命中时返回 None → 本轮跳过 funding 因子，
-    # 后台线程刷新后下轮即命中。
-    try:
-        from backend.services.derivatives_analytics_service import derivatives_analytics
-        _snap = derivatives_analytics.get_cached_snapshot(sym)
-        if _snap is not None and getattr(_snap, "funding_rate", None) is not None:
-            _of["funding_rate"] = float(_snap.funding_rate)
-    except Exception as _e:
-        logger.debug(f"[FactorBridge] {sym} funding_rate 注入跳过: {_e}")
+    # 2. funding_rate ← data_center 落库（perp_funding，缓存无关、恒可用）
+    # [2026-08-15] 原依赖 derivatives_analytics.get_cached_snapshot（进程内
+    # 缓存 + 后台刷新），缓存 miss 时本轮静默无 funding 因子；改为落库直读。
+    _fr = fetch_real_funding(sym)
+    if _fr is not None:
+        _of["funding_rate"] = _fr
 
     # 合并到 md（覆盖，保持与旧行为一致）+ 落缓存（记录蜡烛桶）
     md.update(_of)

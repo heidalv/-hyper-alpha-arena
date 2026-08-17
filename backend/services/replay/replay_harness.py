@@ -73,6 +73,58 @@ class BatchReplayReport:
         }
 
 
+def _replay_rsi(all_bars: List[dict], idx: int, period: int = 14):
+    """真实 RSI（Wilder 平滑）计算，数据不足返回 None。
+
+    [2026-08-15] 供 replay 指标注入使用——用真实序列替代 RSI=50 占位。
+    """
+    try:
+        if idx + 1 < period + 1:
+            return None
+        closes = [float(b.get("close") or 0) for b in all_bars[idx - period: idx + 1]]
+        closes = [c for c in closes if c > 0]
+        if len(closes) < period + 1:
+            return None
+        gains = []
+        losses = []
+        for i in range(1, len(closes)):
+            diff = closes[i] - closes[i - 1]
+            gains.append(max(diff, 0.0))
+            losses.append(max(-diff, 0.0))
+        avg_gain = sum(gains[:period]) / period
+        avg_loss = sum(losses[:period]) / period
+        for i in range(period, len(gains)):
+            avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+            avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return 100.0 - 100.0 / (1.0 + rs)
+    except Exception:
+        return None
+
+
+def _replay_volatility(all_bars: List[dict], idx: int, window: int = 24):
+    """真实收益波动率（对数收益 std，年化 ×√24 近似），数据不足返回 None。"""
+    import math
+    try:
+        if idx + 1 < window + 1:
+            return None
+        closes = [float(b.get("close") or 0) for b in all_bars[idx - window: idx + 1]]
+        closes = [c for c in closes if c > 0]
+        if len(closes) < window:
+            return None
+        rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes)) if closes[i - 1] > 0]
+        if len(rets) < 2:
+            return None
+        mean = sum(rets) / len(rets)
+        var = sum((r - mean) ** 2 for r in rets) / max(1, len(rets) - 1)
+        std = math.sqrt(var)
+        return round(min(2.0, std * math.sqrt(24)), 4)
+    except Exception:
+        return None
+
+
 class ReplayHarness:
     """历史 K 线回放 → Proposal → evaluate_proposal（无 LLM / 无下单）。"""
 
@@ -235,24 +287,40 @@ class ReplayHarness:
         self, symbol: str, bar: dict, tier: str, all_bars: List[dict], idx: int
     ) -> dict:
         close = float(bar.get("close") or 0)
+        # [2026-08-15 消费端验收] volatility 不再硬编码 0.015：有足够历史时
+        # 用真实收益波动率；历史不足时标注估计值（volatility_is_estimate）。
+        _real_vol = _replay_volatility(all_bars, idx)
         mkt: Dict[str, Any] = {
             "symbol": symbol,
             "price": close,
             "current_price": close,
-            "volatility_value": 0.015,
+            "volatility_value": _real_vol if _real_vol is not None else 0.015,
+            "volatility_is_estimate": _real_vol is None,
         }
         if idx >= 14:
             closes = [float(b.get("close") or 0) for b in all_bars[idx - 14 : idx + 1]]
             if closes[0] > 0:
                 mkt["change_1h_pct"] = (closes[-1] - closes[0]) / closes[0] * 100
-        # mid/long 注入占位指标块（replay 简化）
+        # [2026-08-15 消费端验收] mid/long 指标块不再伪造 RSI=50：
+        # 对回放可用的 bar 序列计算真实 RSI；回放只有单一粒度，4h/1d/1w
+        # 数据不存在 → 如实标注 unavailable，不冒充中性 50（原占位会扭曲
+        # 回放 allow_rate 等 API 可见结论）。
         if tier in ("mid", "long"):
-            mkt["indicators_1h"] = {"rsi": 50, "close": close}
-            mkt["indicators_4h"] = {"rsi": 50, "close": close}
-            mkt["indicators_1d"] = {"rsi": 50, "close": close}
+            _rsi = _replay_rsi(all_bars, idx, 14)
+            if _rsi is not None:
+                mkt["indicators_1h"] = {"rsi": round(_rsi, 2), "close": close}
+            else:
+                mkt["indicators_1h"] = {"available": False, "note": "replay 数据不足"}
+            mkt["indicators_4h"] = {"available": False, "note": "replay 单粒度无 4h 数据"}
+            mkt["indicators_1d"] = {"available": False, "note": "replay 单粒度无 1d 数据"}
         if tier == "long":
-            mkt["indicators_1w"] = {"rsi": 50, "close": close}
-        mkt.setdefault("orchestrator", {"mid_bias": "neutral", "long_bias": "neutral"})
+            mkt["indicators_1w"] = {"available": False, "note": "replay 单粒度无 1w 数据"}
+        # MVP 回放无 orchestrator 实算：如实标注，不冒充真实择时视图
+        mkt.setdefault(
+            "orchestrator",
+            {"mid_bias": "neutral", "long_bias": "neutral",
+             "note": "replay_mvp_no_orchestrator"},
+        )
         return mkt
 
     def _rule_propose(self, market_data: dict, tier: str) -> tuple:

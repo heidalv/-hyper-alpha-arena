@@ -187,7 +187,7 @@ export function OpsTpSlTrain() {
         小时会在启动后补训。开仓自动用学习结果。
       </p>
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
-        <span className={status?.enabled ? "text-emerald-600" : "text-amber-600"}>
+        <span className={status?.enabled ? "text-profit" : "text-amber-600"}>
           {status?.enabled ? "开仓已用学习结果" : "开仓未用学习结果"}
         </span>
         <span>{status?.schedule || "每日 05:00"}</span>

@@ -45,13 +45,14 @@ type RejectedItem = {
 type Preflight = {
   symbols?: string[];
   rows?: Record<string, Record<string, number>>;
-  need_bars?: number;
+  need_bars?: number | Record<string, number>;
   ok?: boolean;
   error?: string;
 };
 
 type GateConfig = {
   lookback?: number;
+  lookback_1d?: number;
   fwd_4h?: number;
   fwd_1d?: number;
   min_sharpe?: number;
@@ -233,14 +234,15 @@ export function OpsMidlongFactors() {
             {pf.rows &&
               Object.entries(pf.rows).map(([tf, rows]) => (
                 <div key={tf} className="ops-mono" style={{ fontSize: 10 }}>
-                  {tf}: {Object.entries(rows).map(([s, n]) => `${s}${n}`).join(" ")} /需{pf.need_bars}
+                  {tf}: {Object.entries(rows).map(([s, n]) => `${s}${n}`).join(" ")} /
+                  需{typeof pf.need_bars === "object" && pf.need_bars ? pf.need_bars[tf] ?? "—" : pf.need_bars}
                 </div>
               ))}
           </div>
           <div>
             <div className="ops-muted">闸门参数</div>
             <div className="ops-mono" style={{ fontSize: 10 }}>
-              lookback {gc.lookback ?? "—"} · fwd 4h×{gc.fwd_4h ?? "—"} 1d×{gc.fwd_1d ?? "—"}
+              lookback {gc.lookback ?? "—"}(4h)/{gc.lookback_1d ?? "—"}(1d) · fwd 4h×{gc.fwd_4h ?? "—"} 1d×{gc.fwd_1d ?? "—"}
               <br />
               min_sharpe {gc.min_sharpe ?? "—"} · 上限 {gc.active_max ?? "—"} · 研究{" "}
               {gc.research_enabled ? "开" : "关"}

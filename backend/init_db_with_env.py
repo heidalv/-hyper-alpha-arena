@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Now import and run the initialization script
-from database import init_postgresql
+from backend.database import init_postgresql
 
 if __name__ == "__main__":
     init_postgresql.create_tables()

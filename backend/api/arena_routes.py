@@ -83,7 +83,7 @@ def _get_hyperliquid_positions(db: Session, account_id: Optional[int], environme
     Returns:
         Dict with generated_at, trading_mode, and accounts list
     """
-    from database.models import HyperliquidWallet
+    from backend.database.models import HyperliquidWallet
 
     # Get all AI accounts or specific account
     accounts_query = db.query(Account).filter(
@@ -300,8 +300,7 @@ def _aggregate_account_stats(db: Session, account: Account) -> Dict[str, Optiona
     '''Aggregate trade and decision statistics for a given account.'''
     initial_capital = float(account.initial_capital or 0)
 
-    # paper 模式：从 paper_balances 读取真实余额，而不是账户表的默认 10000
-    is_paper = getattr(account, 'trading_mode', 'paper') == 'paper' or True  # 当前只有 paper 模式
+    # paper 模式：从 paper_balances 读取真实余额，而不是账户表的默认 10000 is_paper = getattr(account, 'trading_mode', 'paper') == 'paper' or True  # 当前只有 paper 模式
     paper_bal = db.query(PaperBalance).filter(PaperBalance.account_id == account.id).first()
     if paper_bal:
         current_cash = float(paper_bal.available_balance or 0)
@@ -730,8 +729,7 @@ def get_model_chat(
         if symbol:
             query = query.filter(AIDecisionLog.symbol == symbol)
         if tier:
-            # tier 存在 decision_snapshot JSON 文本里（无独立列），用 LIKE 匹配
-            # json.dumps(ensure_ascii=False) 产出形如 "tier": "long"
+            # tier 存在 decision_snapshot JSON 文本里（无独立列），用 LIKE 匹配 # json.dumps(ensure_ascii=False) 产出形如 "tier": "long"
             query = query.filter(AIDecisionLog.decision_snapshot.like(f'%"tier": "{tier}"%'))
         if trading_mode:
             if trading_mode == "paper":
@@ -903,12 +901,7 @@ def get_positions_snapshot(
         return _get_hyperliquid_positions(db, account_id, trading_mode)
 
     # For paper mode (or no mode specified), query local database
-    #
-    # 修复（2026-06-23）：原过滤 account_type == "AI" 会漏掉 account_type == "PAPER"
-    # 的模拟盘账户（如"测试001" account_id=5，持有全部 5 个 paper 持仓），
-    # 导致前端请求 /positions?trading_mode=paper 时返回空账户列表 → 显示"数据不刷新"。
-    # 实际数据在正常刷新（updated_at 实时），只是被这个过滤排除了。
-    # 现按 trading_mode 收敛：paper 模式同时包含 AI 和 PAPER 类型账户。
+    # # 修复（2026-06-23）：原过滤 account_type == "AI" 会漏掉 account_type == "PAPER" # 的模拟盘账户（如"测试001" account_id=5，持有全部 5 个 paper 持仓）， # 导致前端请求 /positions。 trading_mode=paper 时返回空账户列表 → 显示"数据不刷新"。 # 实际数据在正常刷新（updated_at 实时），只是被这个过滤排除了。 # 现按 trading_mode 收敛：paper 模式同时包含 AI 和 PAPER 类型账户。
     from sqlalchemy import or_
     accounts_query = db.query(Account).filter(
         Account.is_active == "true",
@@ -1213,7 +1206,7 @@ def update_pnl_data(db: Session = Depends(get_db)):
 
     Returns summary of updated records.
     """
-    from database.models import HyperliquidWallet, AccountPromptBinding
+    from backend.database.models import HyperliquidWallet, AccountPromptBinding
     from services.hyperliquid_environment import get_hyperliquid_client
     from decimal import Decimal
     from collections import defaultdict

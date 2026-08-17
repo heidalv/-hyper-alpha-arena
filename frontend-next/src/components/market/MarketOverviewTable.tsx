@@ -87,6 +87,7 @@ export default function MarketOverviewTable({
   }, [rows, query, sortKey, sortDesc]);
 
   const activeCount = rows.filter((r) => r.active).length;
+  const upCount = filtered.filter((r) => r.change_pct >= 0).length;
   const ageSec = fetchedAt ? Math.max(0, Math.floor(Date.now() / 1000 - fetchedAt)) : null;
   const showExchange = rows.some((r) => r.exchange);
   const columns = showExchange
@@ -134,12 +135,12 @@ export default function MarketOverviewTable({
         </div>
       </div>
 
-      {/* 表格 */}
-      <div className="border border-border rounded-lg overflow-hidden">
+      {/* 表格（Aurora data-table + 汇总行） */}
+      <div className="glass rounded-xl overflow-hidden">
         <div className="max-h-[62vh] overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-card/95 backdrop-blur z-10">
-              <tr className="border-b border-border text-xs text-muted-foreground">
+          <table className="data-table">
+            <thead>
+              <tr className="border-b border-border">
                 {columns.map((c) => (
                   <th
                     key={c.key}
@@ -149,7 +150,7 @@ export default function MarketOverviewTable({
                     <span className="inline-flex items-center gap-1">
                       {c.label}
                       {sortKey === c.key ? (
-                        sortDesc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+                        sortDesc ? <ArrowDown className="w-3 h-3 text-cyan-300" /> : <ArrowUp className="w-3 h-3 text-cyan-300" />
                       ) : (
                         <ArrowUpDown className="w-3 h-3 opacity-40" />
                       )}
@@ -211,6 +212,19 @@ export default function MarketOverviewTable({
                 </tr>
               )}
             </tbody>
+            {filtered.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">合计 {filtered.length} 对</td>
+                  {columns.length > 1 && <td colSpan={columns.length - 1} />}
+                  <td className="px-3 py-2 text-right text-xs">
+                    <span className="text-profit">上涨 {upCount}</span>
+                    <span className="text-muted-foreground"> · </span>
+                    <span className="text-loss">下跌 {filtered.length - upCount}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

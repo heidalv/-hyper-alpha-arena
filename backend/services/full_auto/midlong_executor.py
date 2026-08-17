@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
@@ -345,6 +346,22 @@ def execute_midlong_open(
         )
         _record_fail("margin_zero")
         return False
+
+    # [2026-08-16 long_trend_v2 入场闸] tier=long 时要求 L1=up（多头单边，禁做空）。
+    # 默认 LONG_TREND_V2 关 = 无影响；开=长线开仓只认趋势判定器。
+    if (tier or "").lower() == "long":
+        try:
+            from backend.services.long_trend_v2 import entry_gate
+            _v2_ok, _v2_reason = entry_gate(sym_u, act, market_summary)
+            if not _v2_ok:
+                logger.info(
+                    "[MidLong] stage=fuse symbol=%s tier=long 拦截: %s",
+                    sym_u, _v2_reason,
+                )
+                _record_fail(_v2_reason)
+                return False
+        except Exception as _v2_err:
+            logger.debug("[MidLong] long_trend_v2 入场闸跳过: %s", _v2_err)
 
     regime = ""
     if not skip_regime:

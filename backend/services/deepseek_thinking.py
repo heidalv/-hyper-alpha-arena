@@ -43,7 +43,6 @@ _SHORT_MARKERS = (
     "flash_veto",
     "coin_select",
     "auto_coin",
-    "direction_agent",
     "news_intelligence",
     "whale_tracker",
     "gate_param",

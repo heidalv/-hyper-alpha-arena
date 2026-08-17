@@ -3,9 +3,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   FlaskConical, TrendingUp, TrendingDown, Wallet, Clock,
   Loader2, RefreshCw, Plus, Trash2, DollarSign,
+  Banknote, Shield, Layers, Receipt, Percent, ListOrdered,
+  History, Inbox, PackageOpen,
 } from "lucide-react";
 import { OrderForm } from "@/components/trading/OrderForm";
 import {
@@ -81,31 +84,34 @@ export default function PaperTradingPage() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* 标题 + 账户选择 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <FlaskConical className="w-5 h-5 text-primary" />
-          模拟交易
-        </h1>
-        <div className="flex items-center gap-2">
-          {paperAccounts.length > 0 && (
-            <select
-              value={activeAccountId ?? ""}
-              onChange={(e) => setSelectedAccountId(Number(e.target.value))}
-              className="bg-card border border-border text-sm rounded px-3 py-1.5"
-            >
-              {paperAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} (${a.current_cash?.toFixed(0)})
-                </option>
-              ))}
-            </select>
-          )}
-          <Button size="sm" variant="outline" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="w-3.5 h-3.5 mr-1" />新建
-          </Button>
-        </div>
-      </div>
+      {/* 标题 + 账户选择（Aurora 统一页头） */}
+      <PageHeader
+        icon={<FlaskConical className="w-4 h-4" />}
+        title="模拟交易"
+        subtitle="Paper 验证运行中 · 模拟撮合不触达真实资金"
+        refreshHint="10s 轮询"
+        breadcrumb={[{ label: "交易核心" }, { label: "模拟交易" }]}
+        actions={
+          <>
+            {paperAccounts.length > 0 && (
+              <select
+                value={activeAccountId ?? ""}
+                onChange={(e) => setSelectedAccountId(Number(e.target.value))}
+                className="bg-card border border-border text-sm rounded px-3 py-1.5"
+              >
+                {paperAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} (${a.current_cash?.toFixed(0)})
+                  </option>
+                ))}
+              </select>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setShowCreate(!showCreate)}>
+              <Plus className="w-3.5 h-3.5 mr-1" />新建
+            </Button>
+          </>
+        }
+      />
 
       {/* 创建账户 */}
       {showCreate && (
@@ -130,7 +136,7 @@ export default function PaperTradingPage() {
                 className="w-full bg-card border border-border text-sm rounded px-2 py-1.5"
               />
             </div>
-            <Button size="sm" onClick={handleCreate} disabled={createMut.isPending || !newAccountName.trim()}>
+            <Button size="sm" className="btn-glow" onClick={handleCreate} disabled={createMut.isPending || !newAccountName.trim()}>
               {createMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "创建"}
             </Button>
           </div>
@@ -146,32 +152,34 @@ export default function PaperTradingPage() {
               label="总权益"
               value={balance ? `$${balance.total_equity?.toFixed(2)}` : balanceLoading ? "..." : "未初始化"}
               icon={Wallet}
+              grad
             />
             <StatCard
               label="可用"
               value={balance ? `$${(balance.available_balance ?? balance.available_cash ?? 0).toFixed(2)}` : "—"}
-              icon={DollarSign}
+              icon={Banknote}
             />
             <StatCard
               label="浮动盈亏"
               value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(3)}`}
               icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
               color={totalPnl >= 0 ? "profit" : "loss"}
+              grad
             />
             <StatCard
               label="已用保证金"
               value={`$${totalMargin.toFixed(2)}`}
-              icon={FlaskConical}
+              icon={Shield}
             />
             <StatCard
               label="持仓数"
               value={String(openPositions?.length ?? 0)}
-              icon={Clock}
+              icon={Layers}
             />
             <StatCard
               label="手续费"
               value={balance || summary ? `$${Number(feePaid).toFixed(2)}` : "—"}
-              icon={DollarSign}
+              icon={Receipt}
               color="loss"
             />
             <StatCard
@@ -183,13 +191,14 @@ export default function PaperTradingPage() {
               }
               icon={totalReturn >= 0 ? TrendingUp : TrendingDown}
               color={totalReturn >= 0 ? "profit" : "loss"}
+              grad
             />
           </div>
 
           {/* 统计摘要 */}
           {summary && summaryTrades > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <StatCard label="总交易" value={String(summaryTrades)} icon={Clock} />
+              <StatCard label="总交易" value={String(summaryTrades)} icon={ListOrdered} />
               <StatCard
                 label="胜率"
                 value={`${(summary.win_rate * 100).toFixed(1)}%`}
@@ -206,14 +215,14 @@ export default function PaperTradingPage() {
                 label="累计手续费"
                 value={`$${(summary.total_fees ?? feePaid).toFixed(2)}`}
                 color="loss"
-                icon={DollarSign}
+                icon={Receipt}
               />
               <StatCard label="盈亏比" value={summary.profit_factor?.toFixed(2) ?? "—"} icon={TrendingUp} />
               <StatCard
                 label="收益率"
                 value={`${summary.return_pct?.toFixed(1) ?? 0}%`}
                 color={(summary.return_pct ?? 0) >= 0 ? "profit" : "loss"}
-                icon={TrendingUp}
+                icon={Percent}
               />
             </div>
           )}
@@ -226,25 +235,25 @@ export default function PaperTradingPage() {
 
             {/* 持仓列表 */}
             <div className="lg:col-span-2">
-          <Card className="p-4">
+          <Card className="p-4 glass">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium">当前持仓 ({openPositions?.length ?? 0})</h2>
             </div>
             {openPositions && openPositions.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="data-table">
                   <thead>
                     <tr className="text-muted-foreground border-b border-border">
                       <th className="text-left py-2 px-2">币种</th>
                       <th className="text-left py-2 px-2">方向</th>
                       <th className="text-left py-2 px-2">类型</th>
-                      <th className="text-right py-2 px-2">开仓价</th>
-                      <th className="text-right py-2 px-2">当前价</th>
+                      <th className="sortable text-right py-2 px-2">开仓价 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">当前价 <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-right py-2 px-2">数量</th>
                       <th className="text-right py-2 px-2">杠杆</th>
-                      <th className="text-right py-2 px-2">保证金</th>
-                      <th className="text-right py-2 px-2">浮盈</th>
-                      <th className="text-right py-2 px-2">盈亏%</th>
+                      <th className="sortable text-right py-2 px-2">保证金 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">浮盈 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">盈亏% <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-left py-2 px-2">持仓</th>
                       <th className="text-left py-2 px-2">止盈/止损</th>
                       <th className="text-center py-2 px-2">操作</th>
@@ -273,10 +282,24 @@ export default function PaperTradingPage() {
                       />
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">合计 {openPositions?.length ?? 0} 笔</td>
+                      <td colSpan={6} />
+                      <td className="text-right py-2 num text-muted-foreground">${totalMargin.toFixed(2)}</td>
+                      <td className={cn("text-right py-2 num font-bold", totalPnl >= 0 ? "text-profit" : "text-loss")}>
+                        {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(3)}
+                      </td>
+                      <td colSpan={4} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">暂无持仓</div>
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+                <PackageOpen className="w-6 h-6 opacity-50" />
+                <span className="text-sm">暂无持仓</span>
+              </div>
             )}
           </Card>
 
@@ -284,7 +307,7 @@ export default function PaperTradingPage() {
           </div>
 
           {/* 历史记录 */}
-          <Card className="p-4">
+          <Card className="p-4 glass">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium">历史记录</h2>
               <div className="flex gap-1">
@@ -300,18 +323,18 @@ export default function PaperTradingPage() {
             </div>
             {filteredOrders.length > 0 ? (
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full text-xs">
+                <table className="data-table">
                   <thead className="sticky top-0 bg-card">
                     <tr className="text-muted-foreground border-b border-border">
                       <th className="text-left py-2 px-2">时间</th>
                       <th className="text-left py-2 px-2">币种</th>
                       <th className="text-left py-2 px-2">方向</th>
                       <th className="text-left py-2 px-2">类型</th>
-                      <th className="text-right py-2 px-2">价格</th>
+                      <th className="sortable text-right py-2 px-2">价格 <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-right py-2 px-2">数量</th>
                       <th className="text-right py-2 px-2">杠杆</th>
-                      <th className="text-right py-2 px-2">盈亏</th>
-                      <th className="text-right py-2 px-2">手续费</th>
+                      <th className="sortable text-right py-2 px-2">盈亏 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">手续费 <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-left py-2 px-2">状态</th>
                       <th className="text-left py-2 px-2">平仓原因</th>
                     </tr>
@@ -321,10 +344,25 @@ export default function PaperTradingPage() {
                       <OrderRow key={order.id} order={order} />
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">合计 {filteredOrders.length} 笔</td>
+                      <td colSpan={6} />
+                      <td className={cn("text-right py-2 num font-bold",
+                        filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0) >= 0 ? "text-profit" : "text-loss")}>
+                        {filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0) >= 0 ? "+" : ""}${filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0).toFixed(3)}
+                      </td>
+                      <td className="text-right py-2 num text-muted-foreground">${filteredOrders.reduce((s, o) => s + (o.fee || 0), 0).toFixed(4)}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">暂无历史记录</div>
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+                <History className="w-6 h-6 opacity-50" />
+                <span className="text-sm">暂无历史记录</span>
+              </div>
             )}
           </Card>
 
@@ -392,6 +430,7 @@ export default function PaperTradingPage() {
         <Card className="p-6 text-center border-warning/30">
           <p className="text-sm text-muted-foreground mb-3">此账户尚未初始化模拟交易钱包</p>
           <Button
+            className="btn-glow"
             onClick={async () => {
               await paperApi.initialize(activeAccountId, activeAccount?.initial_capital || 500);
               qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
@@ -418,19 +457,29 @@ export default function PaperTradingPage() {
 // ═══ 组件 ═══
 
 function StatCard({
-  label, value, icon: Icon, color,
+  label, value, icon: Icon, color, grad,
 }: {
   label: string; value: string;
   icon: React.ComponentType<{ className?: string }>;
   color?: string;
+  /** Aurora 渐变数字：grad + color=profit/loss → grad-text-green/red；无 color → grad-text */
+  grad?: boolean;
 }) {
   return (
-    <Card className="p-3">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+    <Card className="relative p-3.5 glass">
+      {/* 右上角图标徽章（设计稿 KPI 卡元素，与 dashboard KpiCell 同款） */}
+      <span className="absolute right-3 top-3 w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400/15 to-violet-500/15 border border-cyan-400/20 flex items-center justify-center text-cyan-300">
+        <Icon className="w-3.5 h-3.5" />
+      </span>
+      <div className="mb-2">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
       </div>
-      <div className={cn("text-lg font-bold tabular-nums", color && `text-${color}`)}>{value}</div>
+      <div className={cn(
+        "text-xl font-bold font-mono tabular-nums tracking-tight",
+        grad
+          ? color === "profit" ? "grad-text-green" : color === "loss" ? "grad-text-red" : "grad-text"
+          : color && `text-${color}`
+      )}>{value}</div>
     </Card>
   );
 }
@@ -470,8 +519,8 @@ function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: Position;
       <td className="py-2 px-2 text-muted-foreground">{
         ({scalp:"短线",swing:"中线",trend_follow:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
       }</td>
-      <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{formatPosPrice(entry)}</td>
-      <td className="py-2 px-2 text-right tabular-nums">
+      <td className="py-2 px-2 text-right tabular-nums num text-muted-foreground">{formatPosPrice(entry)}</td>
+      <td className="py-2 px-2 text-right tabular-nums num">
         <div className={cn(
           "font-medium",
           mark > 0 && entry > 0
@@ -486,13 +535,13 @@ function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: Position;
           </div>
         )}
       </td>
-      <td className="py-2 px-2 text-right tabular-nums">{(pos.size || pos.quantity || 0).toFixed(4)}</td>
-      <td className="py-2 px-2 text-right tabular-nums">{pos.leverage || 1}x</td>
-      <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">${(margin).toFixed(2)}</td>
-      <td className={cn("py-2 px-2 text-right tabular-nums font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
+      <td className="py-2 px-2 text-right tabular-nums num">{(pos.size || pos.quantity || 0).toFixed(4)}</td>
+      <td className="py-2 px-2 text-right tabular-nums num">{pos.leverage || 1}x</td>
+      <td className="py-2 px-2 text-right tabular-nums num text-muted-foreground">${(margin).toFixed(2)}</td>
+      <td className={cn("py-2 px-2 text-right tabular-nums num font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
         {pnl >= 0 ? "+" : ""}${pnl.toFixed(3)}
       </td>
-      <td className={cn("py-2 px-2 text-right tabular-nums", pnlPct >= 0 ? "text-profit" : "text-loss")}>
+      <td className={cn("py-2 px-2 text-right tabular-nums num", pnlPct >= 0 ? "text-profit" : "text-loss")}>
         {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%
       </td>
       <td className="py-2 px-2 text-muted-foreground">
@@ -623,17 +672,17 @@ function OrderRow({ order }: { order: PaperOrder }) {
           ? ({scalp:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[order.trade_nature] || order.trade_nature
           : "—"
       }</td>
-      <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">
+      <td className="py-1.5 px-2 text-right tabular-nums num text-muted-foreground">
         {(order.filled_price || order.entry_price || order.price || 0).toLocaleString()}
       </td>
-      <td className="py-1.5 px-2 text-right tabular-nums">{(order.filled_quantity || order.quantity || 0).toFixed(4)}</td>
-      <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground text-[10px]">
+      <td className="py-1.5 px-2 text-right tabular-nums num">{(order.filled_quantity || order.quantity || 0).toFixed(4)}</td>
+      <td className="py-1.5 px-2 text-right tabular-nums num text-muted-foreground text-[10px]">
         {order.leverage ? `${order.leverage}x` : "—"}
       </td>
-      <td className={cn("py-1.5 px-2 text-right tabular-nums", pnl >= 0 ? "text-profit" : pnl < 0 ? "text-loss" : "text-muted-foreground")}>
+      <td className={cn("py-1.5 px-2 text-right tabular-nums num", pnl >= 0 ? "text-profit" : pnl < 0 ? "text-loss" : "text-muted-foreground")}>
         {pnl !== 0 ? `${pnl >= 0 ? "+" : ""}$${pnl.toFixed(3)}` : "—"}
       </td>
-      <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">
+      <td className="py-1.5 px-2 text-right tabular-nums num text-muted-foreground">
         {order.fee ? `$${order.fee.toFixed(4)}` : "—"}
       </td>
       <td className={cn("py-1.5 px-2 text-[10px]", statusColor)}>{

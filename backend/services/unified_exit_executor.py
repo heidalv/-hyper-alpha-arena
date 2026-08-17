@@ -396,11 +396,21 @@ class UnifiedExitExecutor:
         if entry_p <= 0:
             return
         side = pos.get("side", "long")
+        # [P0-7 杠杆感知] 固定 5% 距离在高杠杆下会越过爆仓价（20x 爆仓≈entry×(1-1/L+mm)），
+        # 导致价格先爆仓、紧急 SL 永不触发。距离按杠杆推导并强制落在爆仓价内侧。
+        _lev = float(pos.get("leverage", 0) or 0)
+        _liq = float(pos.get("liquidation_price", 0) or 0)
         _emerg_sl_dist = 0.05
+        if _lev > 0:
+            _emerg_sl_dist = min(0.05, max(0.5 / _lev, 0.01))
         if side in ("long", "buy"):
             emergency_sl = round(entry_p * (1 - _emerg_sl_dist), 6)
+            if _liq > 0 and emergency_sl <= _liq:
+                emergency_sl = round(_liq + entry_p * 0.005, 6)
         else:
             emergency_sl = round(entry_p * (1 + _emerg_sl_dist), 6)
+            if _liq > 0 and emergency_sl >= _liq:
+                emergency_sl = round(_liq - entry_p * 0.005, 6)
         try:
             from backend.services.paper_trading_engine import paper_engine
             pos_id = pos.get("id")

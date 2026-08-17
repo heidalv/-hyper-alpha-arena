@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 
 const OP_LABEL: Record<string, { text: string; tone: string }> = {
   buy: { text: '买入', tone: 'text-green-600 dark:text-green-400' },
-  sell: { text: '卖出', tone: 'text-red-600 dark:text-red-400' },
+  sell: { text: '卖出', tone: 'text-loss' },
   hold: { text: '持有', tone: 'text-muted-foreground' },
 };
 
@@ -44,7 +44,7 @@ export function DecisionChainPanel() {
       description="AI 决策（wisdom_applied）→ 智慧评分 → 交易结果（realized_pnl）"
       action={<RefreshButton onClick={refresh} loading={loading} />}
     >
-      {data?.error && <p className="text-sm text-red-500 mb-3">{data.error}</p>}
+      {data?.error && <p className="text-sm text-loss mb-3">{data.error}</p>}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         <StatCard label="决策总数" value={data?.total_decisions ?? 0} />
@@ -91,7 +91,7 @@ export function DecisionChainPanel() {
                         : pnl > 0
                           ? 'text-green-600 dark:text-green-400'
                           : pnl < 0
-                            ? 'text-red-600 dark:text-red-400'
+                            ? 'text-loss'
                             : 'text-muted-foreground'
                     }`}
                   >
@@ -113,7 +113,7 @@ export function DecisionChainPanel() {
                           {w.quality_hit_count ?? 0}/{w.evaluation_count ?? 0} 命中
                         </span>
                         {w.is_active === false && (
-                          <span className="text-red-500 font-medium">已停用</span>
+                          <span className="text-loss font-medium">已停用</span>
                         )}
                       </span>
                     ))}
@@ -131,8 +131,8 @@ export function DecisionChainPanel() {
 function scoreCls(v?: number | null) {
   if (v == null) return 'text-muted-foreground';
   if (v >= 0.6) return 'text-green-600 dark:text-green-400 font-medium';
-  if (v >= 0.35) return 'text-amber-600 dark:text-amber-400 font-medium';
-  return 'text-red-600 dark:text-red-400 font-medium';
+  if (v >= 0.35) return 'text-warning font-medium';
+  return 'text-loss font-medium';
 }
 
 function fmtTime(iso?: string | null) {

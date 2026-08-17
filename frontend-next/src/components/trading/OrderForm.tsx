@@ -49,16 +49,21 @@ export function OrderForm({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="p-4">
-      <div className="text-sm font-medium mb-3">手动下单</div>
+    <Card className="p-4 glass">
+      <div className="text-sm font-medium mb-3 flex items-center gap-1.5">
+        <span className="w-[3px] h-3.5 rounded-r bg-gradient-to-b from-cyan-400 to-violet-500 shadow-[0_0_6px_rgba(34,211,238,0.5)]" />
+        手动下单
+      </div>
 
       {/* 方向选择 */}
       <div className="flex gap-2 mb-3">
         <button
           onClick={() => setSide("buy")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-sm font-medium transition-colors",
-            side === "buy" ? "bg-profit/20 text-profit" : "bg-muted/50 text-muted-foreground"
+            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-sm font-medium transition-all border",
+            side === "buy"
+              ? "bg-gradient-to-r from-profit/20 to-profit/10 border-profit/50 text-profit shadow-[0_0_12px_rgba(52,211,153,0.15)]"
+              : "bg-muted/50 text-muted-foreground border-transparent"
           )}
         >
           <TrendingUp className="w-4 h-4" />做多
@@ -66,8 +71,10 @@ export function OrderForm({ accountId }: { accountId: number }) {
         <button
           onClick={() => setSide("sell")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-sm font-medium transition-colors",
-            side === "sell" ? "bg-loss/20 text-loss" : "bg-muted/50 text-muted-foreground"
+            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-sm font-medium transition-all border",
+            side === "sell"
+              ? "bg-gradient-to-r from-loss/20 to-loss/10 border-loss/50 text-loss shadow-[0_0_12px_rgba(251,113,133,0.15)]"
+              : "bg-muted/50 text-muted-foreground border-transparent"
           )}
         >
           <TrendingDown className="w-4 h-4" />做空
@@ -105,7 +112,12 @@ export function OrderForm({ accountId }: { accountId: number }) {
 
       {/* 提交 */}
       <Button
-        className={cn("w-full", side === "buy" ? "bg-profit/80 hover:bg-profit" : "bg-loss/80 hover:bg-loss")}
+        className={cn(
+          "w-full",
+          side === "buy"
+            ? "btn-glow"
+            : "bg-gradient-to-br from-loss to-rose-600 text-white hover:from-loss/90 hover:to-rose-500"
+        )}
         onClick={handleSubmit}
         disabled={submitting || !symbol || !quantity}
       >

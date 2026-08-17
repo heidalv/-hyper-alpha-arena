@@ -275,14 +275,47 @@ class NewCoinScanner:
         opp.hype_score = hype_score
 
         # 估算波动率
-        opp.estimated_volatility = self.DEFAULT_VOLATILITY.get(
-            opp.project_category, 0.35
-        )
+        # [2026-08-15 消费端验收] 有真实 K 线历史时用数据中心落库数据实测
+        # 波动率（1h 收益 std，年化近似）；无历史（真·新币）才用类别默认
+        # 假设值，且标注为假设（volatility_is_estimate=True）。
+        _real_vol = self._volatility_from_klines(opp.symbol)
+        if _real_vol is not None:
+            opp.estimated_volatility = _real_vol
+            opp.volatility_is_estimate = False
+        else:
+            opp.estimated_volatility = self.DEFAULT_VOLATILITY.get(
+                opp.project_category, 0.35
+            )
+            opp.volatility_is_estimate = True
 
         # 计算置信度
         opp.confidence = float(min(1.0, hype_score / 80.0))
 
         return opp
+
+    def _volatility_from_klines(self, symbol: str) -> Optional[float]:
+        """从数据中心 1h K 线实测波动率（收益 std × √24 日年化近似）。
+
+        历史不足（<24 根）返回 None（调用方用类别默认假设并标注 estimate）。
+        """
+        try:
+            from backend.services.data_center import data_center
+            kr = data_center.get_klines(symbol, "1h", count=168, purpose="research")
+            if kr.count < 24:
+                return None
+            import math
+            closes = [float(r.get("close") or 0) for r in kr.rows if (r.get("close") or 0) > 0]
+            if len(closes) < 24:
+                return None
+            rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes)) if closes[i - 1] > 0]
+            if not rets:
+                return None
+            mean = sum(rets) / len(rets)
+            var = sum((r - mean) ** 2 for r in rets) / max(1, len(rets) - 1)
+            std_1h = math.sqrt(var)
+            return round(min(2.0, std_1h * math.sqrt(24)), 4)  # 日年化近似，上限 200%
+        except Exception:
+            return None
 
     def _calculate_hype_score(self, coin_data: Dict) -> float:
         """

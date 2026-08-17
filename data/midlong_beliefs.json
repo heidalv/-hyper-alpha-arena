@@ -155,81 +155,202 @@
       "ts": "2026-08-12T00:48:28.042671+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "CYS",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 54,
       "authority": "mlto",
       "source": "mlto",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T09:22:40.882984+00:00"
+      "ts": "2026-08-13T16:51:06.220033+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "CYS",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 53,
       "authority": "mlto",
       "source": "mlto",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T09:37:10.813804+00:00"
+      "ts": "2026-08-13T17:15:59.800184+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "JPM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 71,
       "authority": "mlto",
-      "source": "mlto",
+      "source": "factor_route",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T09:46:28.959156+00:00"
+      "ts": "2026-08-15T10:56:57.503471+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
       "authority": "mlto",
-      "source": "mlto",
+      "source": "factor_route",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T09:52:06.159245+00:00"
+      "ts": "2026-08-16T11:32:08.489612+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
       "authority": "mlto",
-      "source": "mlto",
+      "source": "factor_route",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T10:02:55.522585+00:00"
+      "ts": "2026-08-16T11:38:17.305778+00:00"
     },
     {
-      "symbol": "SOL",
-      "reason": "margin_zero",
-      "regime": "",
-      "score": 56,
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
       "authority": "mlto",
-      "source": "mlto",
+      "source": "factor_route",
       "session_id": "fa_10d44c724e",
       "noise": false,
-      "ts": "2026-08-13T10:14:05.936209+00:00"
+      "ts": "2026-08-16T11:49:38.945861+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:01:22.134140+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:03:06.822671+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:09:27.574391+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:20:12.570876+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:43:22.913916+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:48:33.673065+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:53:03.051275+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T12:57:43.903941+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T13:02:03.412684+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T13:05:21.939419+00:00"
+    },
+    {
+      "symbol": "ANSEM",
+      "reason": "regime_extreme",
+      "regime": "extreme",
+      "score": 70,
+      "authority": "mlto",
+      "source": "factor_route",
+      "session_id": "fa_10d44c724e",
+      "noise": false,
+      "ts": "2026-08-16T13:06:13.102335+00:00"
     },
     {
       "symbol": "ETH",
-      "reason": "score_low(21<32)",
+      "reason": "L1=sideways(score=0.0) 非 up",
       "regime": "ranging",
-      "score": 21,
+      "score": 0,
       "authority": "mlto",
       "source": "trend",
       "session_id": "fa_10d44c724e",
       "noise": true,
-      "ts": "2026-08-13T15:23:10.479146+00:00"
+      "ts": "2026-08-17T09:06:58.959903+00:00"
     }
   ],
   "beliefs": [
@@ -250,9 +371,9 @@
       "type": "midlong_belief"
     }
   ],
-  "last_review_ts": 1786625231.5275495,
+  "last_review_ts": 1786947706.847168,
   "last_review": {
-    "ts": "2026-08-13T12:47:12.131581+00:00",
+    "ts": "2026-08-17T06:21:48.487310+00:00",
     "ranging_blocks": 0,
     "score_low": 0,
     "authority_blocks": 0,
@@ -263,9 +384,9 @@
     },
     "direction_audit_48h": {
       "path": "D:\\001Alpha\\Hyper-Alpha-Arena\\data\\midlong_direction_audit.jsonl",
-      "n": 4,
-      "comparable": 4,
-      "consistent": 4,
+      "n": 17,
+      "comparable": 1,
+      "consistent": 1,
       "rate": 1.0,
       "flips": 0
     },

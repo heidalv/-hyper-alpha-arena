@@ -10,19 +10,27 @@
 """
 from __future__ import annotations
 
-# 引擎运行时键前缀（进化闭环 AST 因子）
-_ENGINE_PREFIXES = ("evo_",)
+# 引擎运行时键前缀：evo_（进化闭环 AST）、ai_（AI 公式因子）
+_ENGINE_PREFIXES = ("evo_", "ai_")
 
 
 def normalize_engine_key(name: str) -> str:
-    """把 FACTORS 运行时键归一化为裸 factor_id（剥 evo_ 前缀）。
+    """把 FACTORS 运行时键归一化为裸 factor_id。
 
-    裸名（Registry/custom store 因子）原样返回；幂等。
+    [2026-08-15 扩展] 除 evo_ 前缀外，再处理两类键形：
+    - `ai_*`：AI 公式因子运行时键 → 剥前缀为裸 id；
+    - `t{tenant_id}:factor_id`：custom_factor_store 键 → 取冒号后裸 id。
+    裸名（Registry 因子）原样返回；幂等。
     """
     s = str(name or "").strip()
     for prefix in _ENGINE_PREFIXES:
         if s.startswith(prefix):
             return s[len(prefix):]
+    # t{tenant_id}:factor_id → factor_id
+    if s.startswith("t") and ":" in s:
+        head, _, tail = s.partition(":")
+        if head[1:].isdigit() and tail:
+            return tail
     return s
 
 

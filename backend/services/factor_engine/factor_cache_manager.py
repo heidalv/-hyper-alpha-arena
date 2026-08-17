@@ -1,5 +1,5 @@
 """
-ATAS V2 - 因子缓存管理器
+ATAS V2 - 因子缓存管理
 
 提供缓存预热、批量管理、失效策略等高级功能
 """
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class FactorCacheManager:
-    """因子缓存管理器 - 提供缓存预热和批量管理"""
+    """因子缓存管理。提供缓存预热和批量管理、失效策略等高级功能。"""
     
     def __init__(
         self,
@@ -38,15 +38,14 @@ class FactorCacheManager:
         timeframes: List[str] = ['1d'],
         lookback_days: int = 30
     ) -> Dict[str, int]:
-        """
-        批量预热因子缓存
-        
+        """批量预热因子缓存
+
         Args:
             factor_ids: 要预热的因子ID列表
             symbols: 交易对列表
             timeframes: 时间周期列表
             lookback_days: 回溯天数
-            
+
         Returns:
             预热统计 {状态: 数量}
         """
@@ -87,7 +86,8 @@ class FactorCacheManager:
     ) -> int:
         """预热单个交易对的因子"""
         try:
-            # 获取历史数据（实际应从数据库获取）
+            # 获取历史数据（实际应从数据库获取。）
+
             data = await self._fetch_historical_data(symbol, timeframe, lookback_days)
             
             if data is None or len(data) == 0:
@@ -109,7 +109,7 @@ class FactorCacheManager:
             return 0
     
     async def _fetch_historical_data(self, symbol: str, timeframe: str, days: int):
-        """[2026-08-11 修复] 从统一数据中心读取历史 K 线（原实现直接返回 None）。"""
+        """[2026-08-11 修复] 从统一数据中心读取历史 K 线（原实现直接返回空）。"""
         try:
             from backend.services.data_center import PERIOD_SECONDS, data_center
 
@@ -131,11 +131,10 @@ class FactorCacheManager:
             return None
     
     def invalidate_pattern(self, pattern: str):
-        """
-        按模式批量失效缓存
-        
+        """按模式批量失效缓存。
+
         Args:
-            pattern: 缓存键模式，例如 "BTCUSDT_*" 或 "*_rsi_14"
+            pattern: 缓存键模式，例如 "BTCUSDT_*"、"*_rsi_14"
         """
         if not self.cache.enable_redis:
             logger.warning("Redis not enabled, pattern invalidation not supported")
@@ -166,11 +165,11 @@ class FactorCacheManager:
             logger.error(f"Pattern invalidation failed: {str(e)}")
     
     def invalidate_by_symbol(self, symbol: str):
-        """失效指定交易对的所有缓存"""
+        """失效指定交易对的所有缓存。"""
         self.invalidate_pattern(f"{symbol}_*")
     
     def invalidate_by_factor(self, factor_id: str):
-        """失效指定因子的所有缓存"""
+        """失效指定因子的所有缓存。"""
         self.invalidate_pattern(f"*_{factor_id}")
     
     def get_cache_stats(self) -> Dict:
@@ -188,7 +187,8 @@ class FactorCacheManager:
         if self.cache.enable_redis:
             try:
                 info = self.cache.redis_client.info('keyspace')
-                # 解析键空间信息
+                # 解析键空间信息。
+
                 if 'db0' in info:
                     db_info = info['db0']
                     stats['redis_keys'] = db_info.get('keys', 0)
@@ -200,9 +200,8 @@ class FactorCacheManager:
         return stats
     
     def schedule_periodic_cleanup(self, interval_hours: int = 24):
-        """
-        定期清理过期缓存
-        
+        """定期清理过期缓存
+
         Args:
             interval_hours: 清理间隔（小时）
         """
@@ -221,7 +220,7 @@ class FactorCacheManager:
         """清理过期缓存"""
         if self.cache.enable_db:
             try:
-                from database.models import ATASFactorCache
+                from backend.database.models import ATASFactorCache
                 
                 expired_count = self.cache.db_session.query(ATASFactorCache).filter(
                     ATASFactorCache.expires_at < datetime.now()
@@ -235,9 +234,8 @@ class FactorCacheManager:
                 self.cache.db_session.rollback()
     
     def preload_hot_factors(self, hot_factor_ids: List[str], symbols: List[str]):
-        """
-        预加载热门因子
-        
+        """预加载热门因子。
+
         Args:
             hot_factor_ids: 热门因子ID列表
             symbols: 关注的交易对列表
@@ -247,6 +245,7 @@ class FactorCacheManager:
                 factor_ids=hot_factor_ids,
                 symbols=symbols,
                 timeframes=['1h', '4h', '1d'],
-                lookback_days=7  # 热门因子只需要短期数据
+                lookback_days=7  # 热门因子只需要短期数据。
+
             )
         )

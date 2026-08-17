@@ -29,10 +29,10 @@ _MID_PARAMS: Dict[str, Dict[str, Any]] = {
     "max_sl_pct":        {"env": "TIER_MID_MAX_SL",          "default": "0.05",  "type": "float", "min": 0.03,  "max": 0.10,  "label": "SL上限",      "unit": "%"},
     "min_tp_pct":        {"env": "TIER_MID_MIN_TP",          "default": "0.04",  "type": "float", "min": 0.02,  "max": 0.08,  "label": "TP下限",      "unit": "%"},
     "max_tp_pct":        {"env": "TIER_MID_MAX_TP",          "default": "0.09",  "type": "float", "min": 0.05,  "max": 0.20,  "label": "TP上限",      "unit": "%"},
-    "paper_conf":        {"env": "SWING_PAPER_CONF",         "default": "48",    "type": "int",   "min": 30,    "max": 80,    "label": "Paper置信度", "unit": "分"},
-    "live_conf":         {"env": "SWING_LIVE_CONF",          "default": "55",    "type": "int",   "min": 40,    "max": 90,    "label": "Live置信度",  "unit": "分"},
-    "mtf_strong_conf":   {"env": "MIDLONG_MTF_STRONG_CONF",  "default": "0.7",   "type": "float", "min": 0.5,   "max": 1.0,   "label": "MTF强约束",   "unit": ""},
-    "mtf_conflict_mult": {"env": "MIDLONG_MTF_CONFLICT_MULT","default": "0.6",   "type": "float", "min": 0.3,   "max": 1.0,   "label": "MTF冲突折扣", "unit": ""},
+    # 因子路由（中线唯一入场决策，规则化无 LLM）
+    "factor_min_active": {"env": "FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "default": "2",     "type": "int",   "min": 1,     "max": 10,    "label": "最少活跃因子", "unit": "个"},
+    "factor_entry_threshold": {"env": "FACTOR_ROUTE_ENTRY_THRESHOLD", "default": "0.35", "type": "float", "min": 0.1,   "max": 0.8,   "label": "因子入场阈值", "unit": ""},
+    "factor_tranche_margin": {"env": "FACTOR_ROUTE_TRANCHE_MARGIN_PCT", "default": "0.12", "type": "float", "min": 0.05, "max": 0.40, "label": "因子路由单仓保证金", "unit": "%"},
     "budget":            {"env": "TIER_MID_BUDGET",          "default": "0.35",  "type": "float", "min": 0.10,  "max": 0.60,  "label": "中线层预算",  "unit": "%"},
     "max_margin":        {"env": "TIER_MID_MAX_MARGIN",      "default": "0.35",  "type": "float", "min": 0.10,  "max": 0.60,  "label": "最大保证金",  "unit": "%"},
     "analysis_interval": {"env": "TIER_MID_ANALYSIS_INTERVAL","default": "600",  "type": "int",   "min": 120,   "max": 3600,  "label": "分析间隔",    "unit": "秒"},
@@ -52,51 +52,40 @@ _MID_PARAMS: Dict[str, Dict[str, Any]] = {
 # ════════════════════════════════════════
 
 _LONG_PARAMS: Dict[str, Dict[str, Any]] = {
+    # 止损
     "sl_pct":            {"env": "TIER_LONG_SL_PCT",         "default": "0.08",  "type": "float", "min": 0.04,  "max": 0.20,  "label": "初始止损(SL)", "unit": "%"},
     "sl_safety_net":     {"env": "TREND_SL_SAFETY_NET",      "default": "0.04",  "type": "float", "min": 0.02,  "max": 0.10,  "label": "SL安全网",     "unit": "%"},
-    # D14 分批止盈
-    "staged_tp_enabled": {"env": "RISK_USE_LONG_TIER_STAGED_TP","default":"true","type": "bool",  "min": 0,     "max": 1,     "label": "分批止盈",     "unit": ""},
-    "tp1_trigger":       {"env": "LONG_TP1_TRIGGER",         "default": "0.08",  "type": "float", "min": 0.04,  "max": 0.15,  "label": "TP1触发",      "unit": "%"},
-    "tp1_reduce":        {"env": "LONG_TP1_REDUCE",          "default": "0.30",  "type": "float", "min": 0.1,   "max": 0.5,   "label": "TP1减仓",      "unit": "%"},
-    "tp2_trigger":       {"env": "LONG_TP2_TRIGGER",         "default": "0.15",  "type": "float", "min": 0.08,  "max": 0.25,  "label": "TP2触发",      "unit": "%"},
-    "tp2_reduce":        {"env": "LONG_TP2_REDUCE",          "default": "0.30",  "type": "float", "min": 0.1,   "max": 0.5,   "label": "TP2减仓",      "unit": "%"},
-    "tp3_trigger":       {"env": "LONG_TP3_TRIGGER",         "default": "0.25",  "type": "float", "min": 0.15,  "max": 0.40,  "label": "TP3触发",      "unit": "%"},
-    "tp3_reduce":        {"env": "LONG_TP3_REDUCE",          "default": "0.30",  "type": "float", "min": 0.1,   "max": 0.5,   "label": "TP3减仓",      "unit": "%"},
-    "trailing_atr_mult": {"env": "LONG_TRAILING_ATR_MULT",   "default": "2.0",   "type": "float", "min": 1.0,   "max": 4.0,   "label": "Trailing ATR", "unit": "x"},
+    # long_trend_v2 规则化参数（唯一长线决策源，无 LLM）
+    "l1_up_score":       {"env": "LONG_V2_L1_UP_SCORE",      "default": "3",     "type": "int",   "min": 2,     "max": 5,     "label": "L1入场阈值",   "unit": "分"},
+    "chandelier_atr_mult":{"env": "LONG_V2_CHANDELIER_ATR",  "default": "2.0",   "type": "float", "min": 1.5,   "max": 4.0,   "label": "Chandelier ATR倍数", "unit": "x"},
+    "pyramid_enabled":   {"env": "LONG_V2_PYRAMID_ENABLED",  "default": "true",  "type": "bool",  "min": 0,     "max": 1,     "label": "金字塔加仓",   "unit": ""},
+    "pyramid_r_threshold":{"env": "LONG_V2_PYRAMID_R",       "default": "1.0",   "type": "float", "min": 0.5,   "max": 3.0,   "label": "金字塔触发R",  "unit": "R"},
+    "pyramid_ratio":     {"env": "LONG_V2_PYRAMID_RATIO",    "default": "0.25",  "type": "float", "min": 0.1,   "max": 0.5,   "label": "金字塔加仓比例","unit": "%"},
     # 信号门禁
-    "paper_min_score":   {"env": "PAPER_TREND_MIN_SCORE_TO_OPEN","default":"40","type": "int",   "min": 25,    "max": 70,    "label": "Paper最低分",  "unit": "分"},
-    "live_min_score":    {"env": "TREND_MIN_SCORE_TO_OPEN",  "default": "50",    "type": "int",   "min": 35,    "max": 80,    "label": "Live最低分",   "unit": "分"},
     "max_opens_per_week":{"env": "TREND_MAX_OPENS_PER_WEEK", "default": "6",     "type": "int",   "min": 1,     "max": 20,    "label": "每周开单上限","unit": "个"},
     # 仓位与时间
     "budget":            {"env": "TIER_LONG_BUDGET",         "default": "0.40",  "type": "float", "min": 0.15,  "max": 0.70,  "label": "长线层预算",  "unit": "%"},
     "max_margin":        {"env": "TIER_LONG_MAX_MARGIN",     "default": "0.40",  "type": "float", "min": 0.15,  "max": 0.70,  "label": "最大保证金",  "unit": "%"},
     "analysis_interval": {"env": "TIER_LONG_ANALYSIS_INTERVAL","default":"1800", "type": "int",   "min": 600,   "max": 7200,  "label": "分析间隔",    "unit": "秒"},
     "ai_tick":           {"env": "TIER_LONG_AI_TICK_SEC",    "default": "90",    "type": "int",   "min": 60,    "max": 600,   "label": "AI tick",     "unit": "秒"},
-    # [2026-07-17] default/max 随 settings.py TIER_PROTECTION_PARAMS 同步上调
-    # (2h → 72h/3天，"长线至少持仓3天以上"才算长线，与 max_hold=7天 组成合理区间)
     "min_hold":          {"env": "TIER_LONG_MIN_HOLD_SEC",   "default": "259200","type": "int",   "min": 1800,  "max": 345600,"label": "最小持仓",    "unit": "秒"},
     "max_hold":          {"env": "TIER_LONG_MAX_HOLD_SEC",   "default": "604800","type": "int",   "min": 86400, "max": 2592000,"label": "最大持仓",    "unit": "秒"},
-    "review_interval":   {"env": "TREND_REVIEW_INTERVAL_SEC","default": "5400",  "type": "int",   "min": 1800,  "max": 14400, "label": "复查间隔",    "unit": "秒"},
-    "review_max":        {"env": "TREND_REVIEW_MAX_PER_TICK","default": "2",     "type": "int",   "min": 1,     "max": 5,     "label": "每次复查数",  "unit": "个"},
-    # MLTO
-    "thesis_ledger":     {"env": "MIDLONG_THESIS_LEDGER_ENABLED","default":"true","type":"bool",  "min": 0,     "max": 1,     "label": "论点账本",     "unit": ""},
-    "mlto_controls":     {"env": "MIDLONG_MLTO_CONTROLS_EXEC","default": "true","type": "bool",  "min": 0,     "max": 1,     "label": "MLTO控开单",   "unit": ""},
 }
 
 _GROUPS = {
     "tp_sl":     {"title": "止盈/止损", "order": 1},
-    "staged_tp": {"title": "分批止盈(D14)", "order": 2},
-    "signal":    {"title": "信号门禁", "order": 3},
-    "position":  {"title": "仓位与时间", "order": 4},
-    "exit":      {"title": "主动退出", "order": 5},
-    "mlto":      {"title": "MLTO论点账本(高级)", "order": 6},
+    "v2":        {"title": "long_trend_v2 规则化（长线）", "order": 2},
+    "factor":    {"title": "因子路由（中线）", "order": 3},
+    "signal":    {"title": "信号门禁", "order": 4},
+    "position":  {"title": "仓位与时间", "order": 5},
+    "exit":      {"title": "主动退出", "order": 6},
 }
 
 # 分组归属
 _MID_GROUPS = {
     "tp_pct":"tp_sl", "sl_pct":"tp_sl", "min_sl_pct":"tp_sl", "max_sl_pct":"tp_sl",
     "min_tp_pct":"tp_sl", "max_tp_pct":"tp_sl",
-    "paper_conf":"signal", "live_conf":"signal", "mtf_strong_conf":"signal", "mtf_conflict_mult":"signal",
+    "factor_min_active":"factor", "factor_entry_threshold":"factor", "factor_tranche_margin":"factor",
     "budget":"position", "max_margin":"position", "analysis_interval":"position", "ai_tick":"position",
     "min_hold":"position", "max_hold":"position", "scan_batch":"position",
     "active_exit":"exit", "exit_invalidate":"exit", "exit_min_hold":"exit",
@@ -104,14 +93,11 @@ _MID_GROUPS = {
 
 _LONG_GROUPS = {
     "sl_pct":"tp_sl", "sl_safety_net":"tp_sl",
-    "staged_tp_enabled":"staged_tp", "tp1_trigger":"staged_tp", "tp1_reduce":"staged_tp",
-    "tp2_trigger":"staged_tp", "tp2_reduce":"staged_tp",
-    "tp3_trigger":"staged_tp", "tp3_reduce":"staged_tp", "trailing_atr_mult":"staged_tp",
-    "paper_min_score":"signal", "live_min_score":"signal", "max_opens_per_week":"signal",
+    "l1_up_score":"v2", "chandelier_atr_mult":"v2", "pyramid_enabled":"v2",
+    "pyramid_r_threshold":"v2", "pyramid_ratio":"v2",
+    "max_opens_per_week":"signal",
     "budget":"position", "max_margin":"position", "analysis_interval":"position",
     "ai_tick":"position", "min_hold":"position", "max_hold":"position",
-    "review_interval":"position", "review_max":"position",
-    "thesis_ledger":"mlto", "mlto_controls":"mlto",
 }
 
 # 为每个参数补 group 字段

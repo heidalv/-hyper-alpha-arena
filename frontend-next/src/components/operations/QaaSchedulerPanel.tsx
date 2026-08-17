@@ -52,7 +52,7 @@ export function QaaSchedulerPanel() {
       description="域注册表 + 统一心跳：各 QAA 域的最近运行状态与调度间隔"
       action={<RefreshButton onClick={refresh} loading={loading} />}
     >
-      {data?.error && <p className="text-sm text-red-500 mb-3">{data.error}</p>}
+      {data?.error && <p className="text-sm text-loss mb-3">{data.error}</p>}
 
       <div className="flex items-center gap-2 mb-3">
         <Badge variant={data?.enabled ? 'default' : 'secondary'} className="font-normal">
@@ -90,7 +90,7 @@ export function QaaSchedulerPanel() {
                   <span>运行 {hb.run_count} 次</span>
                   <span>最近 {fmtAgo(hb.last_run_at)}</span>
                   {hb.last_status === 'error' && hb.last_error && (
-                    <span className="text-red-500 max-w-[180px] truncate" title={hb.last_error}>
+                    <span className="text-loss max-w-[180px] truncate" title={hb.last_error}>
                       {hb.last_error}
                     </span>
                   )}

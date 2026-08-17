@@ -53,11 +53,31 @@ class KlineFreshnessInspector:
 
     # ── 配置解析 ──────────────────────────────────
     def _symbols(self) -> List[str]:
-        raw = os.getenv("MARKET_DATA_V2_SYMBOLS", "") or os.getenv("KLINE_FRESHNESS_SYMBOLS", "")
-        if not raw or raw == "account_selected":
-            # 兜底：用全交易系统最常见的活跃币种
-            raw = "BTC,ETH,SOL,BNB,ASTER,JTO"
-        return [s.strip().upper() for s in raw.split(",") if s.strip()]
+        # [2026-08-15 P2-1 修复] 原实现 fallback 硬编码 6 币
+        # （BTC,ETH,SOL,BNB,ASTER,JTO），其余实际交易币永不巡检
+        #（历史 JTO 缺行情即此类盲区）。现改为：
+        #   1) resolve_configured_symbols 解析真实交易宇宙（运行中会话+用户配置，
+        #      或 .env 显式列表）；
+        #   2) 解析失败回退 research 热币（P0 优先集）；
+        #   3) 最后才用最小兜底集。
+        try:
+            from backend.services.market_data_symbol_config import resolve_configured_symbols
+            symbols, _meta = resolve_configured_symbols(
+                "MARKET_DATA_V2_SYMBOLS",
+                fallback_env_name="KLINE_FRESHNESS_SYMBOLS",
+            )
+            if symbols:
+                return symbols
+        except Exception as e:
+            logger.debug("[KlineFreshness] resolve_configured_symbols 失败: %s", e)
+        try:
+            from backend.services.kline_realtime_collector import get_research_priority_symbols
+            syms = get_research_priority_symbols(limit=80)
+            if syms:
+                return syms
+        except Exception as e:
+            logger.debug("[KlineFreshness] research symbols 失败: %s", e)
+        return ["BTC", "ETH", "SOL"]
 
     def _exchanges(self) -> List[str]:
         raw = os.getenv("MARKET_DATA_V2_EXCHANGES", "hyperliquid,binance,asterdex")

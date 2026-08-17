@@ -15,7 +15,7 @@ from sqlalchemy.sql import func
 try:
     from backend.database.connection import AnalyticsBase
 except ImportError:
-    from database.connection import AnalyticsBase
+    from backend.database.connection import AnalyticsBase
 
 
 class StrategicMacroSnapshot(AnalyticsBase):
@@ -80,8 +80,7 @@ class StrategicReportRecord(AnalyticsBase):
     # LLM 分析
     llm_analysis = Column(Text, nullable=True)
 
-    # 关联数据
-    macro_snapshot_id = Column(Integer, nullable=True)       # 关联 strategic_macro_snapshots.id
+    # 关联数据 macro_snapshot_id = Column(Integer, nullable=True)       # 关联 strategic_macro_snapshots.id
     new_coin_count = Column(Integer, nullable=False, default=0)
     memory_count = Column(Integer, nullable=False, default=0)
 

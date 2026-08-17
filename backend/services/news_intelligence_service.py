@@ -21,6 +21,15 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+def _try_parse_pub(raw: str) -> bool:
+    """判断 RSS/CryptoPanic 发布时间字符串是否可解析为 datetime。"""
+    try:
+        datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return True
+    except Exception:
+        return False
+
+
 @dataclass
 class NewsImpact:
     direction: float = 0.0      # -1 ~ +1
@@ -85,6 +94,61 @@ class NewsIntelligenceService:
         return ""
 
     # ────────────────────────── public ──────────────────────────
+
+    def start_fast_loop(self, interval_sec: float = 90.0) -> None:
+        """突发新闻快通道：仅 CryptoPanic `filter=important` 高频轮询（默认 90s），
+        每轮最多分析 3 条，LLM 标注后落库。与 5 分钟全量通道共享去重集合。
+
+        [2026-08-15 D7] 原只有 5 分钟全量轮询，突发新闻（黑客/ETF/监管）
+        最坏延迟 ~5 分钟+；快通道把突发新闻入库延迟压到 ~90s。
+        """
+        import threading as _threading
+
+        if not self._cryptopanic_key:
+            logger.info("[NewsIntel] 无 CryptoPanic key，突发快通道跳过")
+            return
+        if getattr(self, "_fast_loop_started", False):
+            return
+        self._fast_loop_started = True
+
+        def _run() -> None:
+            import asyncio as _asyncio
+            while True:
+                try:
+                    _asyncio.run(self._fast_cycle())
+                except Exception as exc:
+                    logger.debug("[NewsIntel] 快通道异常: %s", exc)
+                time.sleep(max(30.0, float(interval_sec)))
+
+        t = _threading.Thread(target=_run, name="news-fast-channel", daemon=True)
+        t.start()
+        logger.info(
+            "[NewsIntel] 突发快通道已启动（%.0fs，CryptoPanic important，每轮≤3条）",
+            interval_sec,
+        )
+
+    async def _fast_cycle(self) -> None:
+        import httpx
+
+        if not self._cryptopanic_key:
+            return
+        proxy = os.environ.get("BINANCE_HTTPS_PROXY") or None
+        try:
+            async with httpx.AsyncClient(timeout=10, proxy=proxy) as client:
+                items = await self._fetch_cryptopanic(client)
+            new_items = self._deduplicate(items)
+            if not new_items:
+                return
+            from backend.database.connection import MarketSessionLocal
+            db = MarketSessionLocal()
+            try:
+                for item in new_items[:3]:
+                    impact = await self._analyze_with_llm(item)
+                    self._save_to_db(db, item, impact)
+            finally:
+                db.close()
+        except Exception as exc:
+            logger.debug("[NewsIntel] 快通道抓取失败: %s", exc)
 
     async def fetch_and_analyze(self, db: Session) -> List[Dict]:
         """主流程: 拉取 → 去重 → LLM分析 → 存DB"""
@@ -408,6 +472,12 @@ class NewsIntelligenceService:
             source=item.get("source", "unknown"),
             title=item.get("title", ""),
             url=item.get("url"),
+            published_at=(
+                datetime.fromisoformat(item["published_at"].replace("Z", "+00:00"))
+                if item.get("published_at") and isinstance(item["published_at"], str)
+                and _try_parse_pub(item["published_at"])
+                else None
+            ),
             impact_direction=impact.direction,
             impact_strength=impact.strength,
             impact_duration=impact.duration,
@@ -417,11 +487,31 @@ class NewsIntelligenceService:
             ai_summary=impact.summary,
             raw_data=item,
         )
-        db.add(event)
+        # [2026-08-15 P0-1 修复] NewsEvent 是 MarketBase 模型，必须写 Market DB
+        # （alpha_market）。此前调用方传入核心库 SessionLocal → commit 静默失败被吞，
+        # 导致 news_events 长期 0 行而日志谎报「分析了 N 条」。此处改用
+        # MarketSessionLocal；commit 失败显式告警，不再静默吞错。
+        session_factory = None
+        if db is not None and getattr(db, "bind", None) is not None:
+            try:
+                if "alpha_market" in str(db.bind.url):
+                    session_factory = lambda: db  # noqa: E731
+            except Exception:
+                pass
+        if session_factory is None:
+            from backend.database.connection import MarketSessionLocal
+            session_factory = MarketSessionLocal
+        _s = session_factory()
         try:
-            db.commit()
-        except Exception:
-            db.rollback()
+            try:
+                _s.add(event)
+                _s.commit()
+            except Exception as e:
+                _s.rollback()
+                logger.error(f"[NewsIntel] 新闻落库失败（Market DB）: {e}")
+        finally:
+            if _s is not db:
+                _s.close()
         return {
             "title": event.title,
             "source": event.source,

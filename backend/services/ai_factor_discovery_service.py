@@ -286,11 +286,29 @@ class {class_name}(BaseFactor):
             result = {"status": "completed", "patterns": len(patterns),
                     "candidates": len(candidates), "injected": injected,
                     "total": self._generated_count}
+            # [P0-9] 闸门修复：AI 生成因子此前直接 hot_reload 进生产 FACTORS，
+            # 绕过 candidate→回测→active 验证链（与 factor_cleanup_service 的
+            # 「validate_and_promote 是唯一晋升入口」口径矛盾）。现默认只落文件
+            # 不激活：AI_FACTOR_AUTO_ACTIVATE=true 才热加载（人工运维场景），
+            # 否则候选需走 factor_backtest_scorer.validate_and_promote 评 A/B 后晋升。
+            result["auto_activated"] = False
             if injected:
                 try:
-                    from backend.services.factor_engine.base_factors import factor_engine
-                    n = factor_engine.hot_reload()
-                    result["hot_reload_added"] = n
+                    _auto_activate = os.getenv("AI_FACTOR_AUTO_ACTIVATE", "false").lower() in (
+                        "1", "true", "yes", "on",
+                    )
+                    if _auto_activate:
+                        from backend.services.factor_engine.base_factors import factor_engine
+                        n = factor_engine.hot_reload()
+                        result["hot_reload_added"] = n
+                        result["auto_activated"] = True
+                    else:
+                        logger.info(
+                            "[AIFactor] 已注入 %d 个候选因子文件（未激活）。"
+                            "需经 validate_and_promote 样本外回测 + DSR/PBO 通过后晋升 active；"
+                            "或运维显式设置 AI_FACTOR_AUTO_ACTIVATE=true 手动激活。",
+                            len(injected),
+                        )
                 except Exception as _hr_err:
                     logger.warning(f"[AIFactor] 热加载失败: {_hr_err}")
             return result

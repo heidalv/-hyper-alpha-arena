@@ -6,7 +6,7 @@ This mimics the WebSocket snapshot data that the frontend receives
 
 import json
 from backend.database.connection import SessionLocal
-from database.models import Trade, User, Position, Order
+from backend.database.models import Trade, User, Position, Order
 from services.asset_calculator import calc_positions_value
 
 def simulate_snapshot_for_user(username: str):
@@ -16,7 +16,7 @@ def simulate_snapshot_for_user(username: str):
         # Get user
         user = db.query(User).filter(User.username == username).first()
         if not user:
-            print(f"❌ User '{username}' not found")
+            print(f"�?User '{username}' not found")
             return
         
         # Get trades (same query as WebSocket)
@@ -53,14 +53,14 @@ def simulate_snapshot_for_user(username: str):
         print(f"\n📈 Positions ({len(positions)}):")
         if positions:
             for p in positions:
-                print(f"  • {p.symbol}.{p.market}: {p.quantity} @ ${p.avg_cost:.4f} avg cost")
+                print(f"  �?{p.symbol}.{p.market}: {p.quantity} @ ${p.avg_cost:.4f} avg cost")
         else:
             print("  No positions")
         
         print(f"\n📋 Orders ({len(orders)}):")
         if orders:
             for o in orders:
-                print(f"  • {o.order_no}: {o.side} {o.quantity} {o.symbol} @ {o.price or 'MARKET'} - {o.status}")
+                print(f"  �?{o.order_no}: {o.side} {o.quantity} {o.symbol} @ {o.price or 'MARKET'} - {o.status}")
         else:
             print("  No orders")
         
@@ -70,7 +70,7 @@ def simulate_snapshot_for_user(username: str):
             for i, t in enumerate(trades[:10], 1):
                 print(f"  {i:2d}. {t.trade_time} | {t.side:4s} {t.quantity:>8} {t.symbol:5s} @ ${t.price:>10.4f} | Fee: ${t.commission:.2f}")
         else:
-            print("  ❌ NO TRADES FOUND - This is the issue!")
+            print("  �?NO TRADES FOUND - This is the issue!")
         
         # Create the JSON structure that would be sent via WebSocket
         snapshot_data = {
@@ -126,12 +126,12 @@ def simulate_snapshot_for_user(username: str):
         }
         
         print(f"\n📤 WebSocket Snapshot Summary:")
-        print(f"  • Trades in payload: {len(snapshot_data['trades'])}")
-        print(f"  • Positions in payload: {len(snapshot_data['positions'])}")
-        print(f"  • Orders in payload: {len(snapshot_data['orders'])}")
+        print(f"  �?Trades in payload: {len(snapshot_data['trades'])}")
+        print(f"  �?Positions in payload: {len(snapshot_data['positions'])}")
+        print(f"  �?Orders in payload: {len(snapshot_data['orders'])}")
         
         if len(snapshot_data['trades']) > 0:
-            print(f"\n✅ SUCCESS: Trades will be visible in the frontend!")
+            print(f"\n�?SUCCESS: Trades will be visible in the frontend!")
         else:
             print(f"\n⚠️  WARNING: No trades in snapshot - frontend will show empty trade list")
         
@@ -152,7 +152,7 @@ def main():
         print("="*60)
         
         if not users:
-            print("\n❌ No users found in database")
+            print("\n�?No users found in database")
             return
         
         for user in users:
@@ -165,7 +165,7 @@ def main():
         print(f"Total trades in database: {total_trades}")
         
         if total_trades > 0:
-            print("\n✅ Trades exist in database and should be visible in frontend")
+            print("\n�?Trades exist in database and should be visible in frontend")
             print("   Make sure the backend server is running with the updated main.py")
         else:
             print("\n⚠️  No trades in database")

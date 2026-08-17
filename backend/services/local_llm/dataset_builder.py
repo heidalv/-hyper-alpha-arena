@@ -93,6 +93,9 @@ def _fetch_snapshots(db, since: datetime) -> List[Any]:
             db.query(DecisionSnapshot)
             .filter(DecisionSnapshot.timestamp >= since)
             .filter(DecisionSnapshot.pnl_pct.isnot(None))
+            # [P0-4 消费端防御] SFT 监督数据只吃已执行决策：未执行快照的 pnl 回填
+            # 来自模糊匹配，错配会把错误标签灌进训练集。
+            .filter(DecisionSnapshot.executed == True)  # noqa: E712
             .order_by(DecisionSnapshot.timestamp.asc())
             .all()
         )

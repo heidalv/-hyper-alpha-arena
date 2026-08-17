@@ -24,6 +24,114 @@ logger = logging.getLogger(__name__)
 
 _REGISTRY_CATEGORIES = ("ai_generated", "legacy_compat")
 _SYMBOLS = ("BTC", "ETH", "SOL")
+# 有 per-bar 历史数据源的流式因子：直接从富化列构造序列（滚动重算只能得到
+# md 缺失下的常数 0）。其余因子走 registry 计算/滚动重算路径。
+_FLOW_FACTOR_IDS = ("oi_delta", "taker_ratio", "cvd_ratio")
+
+
+def _enrich_flow_history(df: pd.DataFrame, symbol: str, timeframe: str) -> pd.DataFrame:
+    """给评分 K 线 DF 注入真实 per-bar 流式列（OI / 吃单买卖额 / CVD）。
+
+    数据源：market_asset_metrics（OI）、market_trades_aggregated（15s 吃单聚合）。
+    口径防未来函数：行时间戳落在 bar [t, t+tf) 内的数据归该 bar——bar 收盘时
+    已知，与 OHLCV 同口径。历史深度受原始表保留期约束（trades_agg 30 天），
+    能覆盖多少根就注入多少根，绝不填假值。
+    """
+    if df is None or not len(df) or "timestamp" not in df.columns:
+        return df
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        from backend.services.market_flow_indicators import TIMEFRAME_MS
+    except Exception:  # noqa: BLE001
+        return df
+
+    tf_ms = int(TIMEFRAME_MS.get(timeframe, 4 * 3600 * 1000))
+    try:
+        bar_starts = pd.to_numeric(df["timestamp"], errors="coerce").astype("int64").to_numpy()
+    except Exception:  # noqa: BLE001
+        return df
+    if not len(bar_starts):
+        return df
+    # crypto_klines.timestamp 是秒；market_* 表是毫秒 → 统一毫秒再分桶
+    if int(bar_starts[-1]) < 1e11:
+        bar_starts = bar_starts * 1000
+    t0, t1 = int(bar_starts[0]), int(bar_starts[-1]) + tf_ms
+    out = df.copy()
+
+    try:
+        with MarketSessionLocal() as db:
+            oi_rows = db.execute(
+                _sa_text(
+                    "SELECT timestamp, open_interest FROM market_asset_metrics "
+                    "WHERE symbol=:s AND timestamp>=:a AND timestamp<=:b AND open_interest IS NOT NULL "
+                    "ORDER BY timestamp"
+                ),
+                {"s": (symbol or "").upper(), "a": t0, "b": t1},
+            ).mappings().all()
+            tr_rows = db.execute(
+                _sa_text(
+                    "SELECT timestamp, taker_buy_notional, taker_sell_notional "
+                    "FROM market_trades_aggregated "
+                    "WHERE symbol=:s AND timestamp>=:a AND timestamp<=:b ORDER BY timestamp"
+                ),
+                {"s": (symbol or "").upper(), "a": t0, "b": t1},
+            ).mappings().all()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[MidlongRegistry] 流式历史加载失败 %s: %s", symbol, exc)
+        return out
+
+    def _assign(rows, col_fn, agg: str, col: str) -> None:
+        if not rows:
+            return
+        ts_arr = np.array([int(r["timestamp"]) for r in rows], dtype="int64")
+        vals = np.array([col_fn(r) for r in rows], dtype=float)
+        idx = np.searchsorted(bar_starts, ts_arr, side="right") - 1
+        idx = np.clip(idx, 0, len(bar_starts) - 1)
+        s = pd.Series(vals, index=idx)
+        g = s.groupby(level=0).sum() if agg == "sum" else s.groupby(level=0).last()
+        arr = np.full(len(out), np.nan)
+        arr[g.index.to_numpy()] = g.to_numpy()
+        out[col] = arr
+
+    _assign(oi_rows, lambda r: float(r["open_interest"] or 0.0), "last", "oi")
+    _assign(tr_rows, lambda r: float(r["taker_buy_notional"] or 0.0), "sum", "buy_notional")
+    _assign(tr_rows, lambda r: float(r["taker_sell_notional"] or 0.0), "sum", "sell_notional")
+    if "buy_notional" in out.columns or "sell_notional" in out.columns:
+        b = pd.to_numeric(out.get("buy_notional"), errors="coerce").fillna(0.0)
+        s = pd.to_numeric(out.get("sell_notional"), errors="coerce").fillna(0.0)
+        out["total_notional"] = b + s
+        out["cvd"] = b - s
+    return out
+
+
+def _flow_series(registry_factor_id: str, df: pd.DataFrame) -> Optional[np.ndarray]:
+    """流式因子直接从富化列构造历史序列（与 legacy 标量算法语义一致）。"""
+    fid = str(registry_factor_id or "")
+    if fid not in _FLOW_FACTOR_IDS:
+        return None
+    try:
+        if fid == "oi_delta":
+            if "oi" not in df.columns:
+                return None
+            oi = pd.to_numeric(df["oi"], errors="coerce")
+            return (oi.pct_change() * 100.0).to_numpy(dtype=float)
+        if fid == "taker_ratio":
+            if "buy_notional" not in df.columns or "sell_notional" not in df.columns:
+                return None
+            buy = pd.to_numeric(df["buy_notional"], errors="coerce")
+            sell = pd.to_numeric(df["sell_notional"], errors="coerce")
+            with np.errstate(divide="ignore", invalid="ignore"):
+                return np.log(buy / sell).astype(float)
+        if "cvd" not in df.columns or "total_notional" not in df.columns:
+            return None
+        cvd = pd.to_numeric(df["cvd"], errors="coerce")
+        total = pd.to_numeric(df["total_notional"], errors="coerce")
+        return (cvd / total.replace(0, np.nan)).to_numpy(dtype=float)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[MidlongRegistry] 流式序列构造失败 %s: %s", fid, exc)
+        return None
 
 
 def _admin_tenant() -> Optional[int]:
@@ -173,11 +281,14 @@ def _score_one_registry_factor(
     fid 为 store 记录 id（如 ai_gen_bsq@4h）；registry_factor_id 为真实 registry id
     （FactorCalculator 计算用）。
     """
-    from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
+    from backend.services.factor_engine.factor_backtest_scorer import (
+        factor_backtest_scorer,
+        midlong_lookback_for,
+    )
     from backend.services.factor_engine.factor_calculator import FactorCalculator
     from backend.services.factor_engine.factor_evaluator import get_factor_evaluator
 
-    lookback = int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK", 900))
+    lookback = midlong_lookback_for(timeframe)
     fwd = int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if timeframe == "1d" \
         else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6))
     min_sharpe = float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4))
@@ -210,22 +321,30 @@ def _score_one_registry_factor(
             df = _pd.DataFrame(klines)
         except Exception:
             continue
-        try:
-            series_map = calc.calculate([registry_factor_id], df, symbol=sym, timeframe=timeframe)
-        except Exception as e:
-            logger.debug("[MidlongRegistry] %s/%s 计算失败: %s", fid, timeframe, e)
-            continue
-        series = series_map.get(registry_factor_id)
-        if series is not None and len(series):
-            _v = np.asarray(series, dtype=float)
+        # [2026-08-16] 流式历史富化：oi/buy_notional/sell_notional/cvd 真实 per-bar 列。
+        # oi_delta/taker_ratio/cvd_ratio 直接由富化列构造序列（md dict 缺失时
+        # legacy 标量实现恒 0 → 滚动重算恒常数 → 恒 F）。
+        df = _enrich_flow_history(df, sym, timeframe)
+        _flow = _flow_series(registry_factor_id, df)
+        if _flow is not None:
+            vals = np.asarray(_flow, dtype=float)
         else:
-            _v = np.zeros(0)
-        # [2026-08-15] 快照型因子回退：全量计算只得到末值单点时（有效值过少），
-        # 改走滑动窗口逐点重算，构造可回测的历史序列。
-        if int(np.isfinite(_v).sum()) < max(60, int(len(df) * 0.05)):
-            vals = _rolling_recompute(calc, registry_factor_id, df, sym, timeframe, fwd)
-        else:
-            vals = _v
+            try:
+                series_map = calc.calculate([registry_factor_id], df, symbol=sym, timeframe=timeframe)
+            except Exception as e:
+                logger.debug("[MidlongRegistry] %s/%s 计算失败: %s", fid, timeframe, e)
+                continue
+            series = series_map.get(registry_factor_id)
+            if series is not None and len(series):
+                _v = np.asarray(series, dtype=float)
+            else:
+                _v = np.zeros(0)
+            # [2026-08-15] 快照型因子回退：全量计算只得到末值单点时（有效值过少），
+            # 改走滑动窗口逐点重算，构造可回测的历史序列。
+            if int(np.isfinite(_v).sum()) < max(60, int(len(df) * 0.05)):
+                vals = _rolling_recompute(calc, registry_factor_id, df, sym, timeframe, fwd)
+            else:
+                vals = _v
         closes = df["close"].astype(float).to_numpy()
         n = min(len(vals), len(closes))
         vals, closes = vals[-n:], closes[-n:]

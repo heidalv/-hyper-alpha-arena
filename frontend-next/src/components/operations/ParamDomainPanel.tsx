@@ -44,7 +44,7 @@ export function ParamDomainPanel() {
       description="Hermes L1 高置信模式 → GA 搜索域动态扩展（智慧证据反哺进化）"
       action={<RefreshButton onClick={refresh} loading={loading} />}
     >
-      {data?.error && <p className="text-sm text-red-500 mb-3">{data.error}</p>}
+      {data?.error && <p className="text-sm text-loss mb-3">{data.error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard label="高置信模式" value={patterns.total ?? 0} />

@@ -18,7 +18,7 @@ sys.path.insert(0, str(backend_dir))
 
 from sqlalchemy import text
 from backend.database.connection import SessionLocal, engine
-from database.models import Base, Account, SystemConfig
+from backend.database.models import Base, Account, SystemConfig
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -30,11 +30,11 @@ def create_hyperliquid_wallets_table():
     logger.info("Creating hyperliquid_wallets table...")
 
     # Import HyperliquidWallet to ensure it's registered with Base
-    from database.models import HyperliquidWallet
+    from backend.database.models import HyperliquidWallet
 
     # Create only the hyperliquid_wallets table
     HyperliquidWallet.__table__.create(bind=engine, checkfirst=True)
-    logger.info("✓ hyperliquid_wallets table created")
+    logger.info("�?hyperliquid_wallets table created")
 
 
 def parse_wallet_address_from_private_key(encrypted_private_key: str) -> str:
@@ -131,7 +131,7 @@ def migrate_account_wallets():
                 }
             )
 
-            logger.info(f"  ✓ Account {account.id} ({account.name}): migrated wallet {wallet_address}")
+            logger.info(f"  �?Account {account.id} ({account.name}): migrated wallet {wallet_address}")
             migrated_count += 1
 
         db.commit()
@@ -167,7 +167,7 @@ def initialize_global_trading_mode():
             )
             db.add(new_config)
             db.commit()
-            logger.info("  ✓ Global trading_mode initialized to 'testnet'")
+            logger.info("  �?Global trading_mode initialized to 'testnet'")
 
     except Exception as e:
         db.rollback()
@@ -209,7 +209,7 @@ def verify_migration():
         for wallet in wallets:
             logger.info(f"    ID: {wallet[0]}, Account: {wallet[2]} (ID: {wallet[1]}), Address: {wallet[3]}, Max Leverage: {wallet[4]}")
 
-        logger.info("✓ Migration verification complete")
+        logger.info("�?Migration verification complete")
 
     except Exception as e:
         logger.error(f"Verification failed: {e}")

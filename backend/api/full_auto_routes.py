@@ -1250,3 +1250,30 @@ def debug_force_register_tick(session_id: str):
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.get("/debug/portfolio-budget")
+def debug_portfolio_budget():
+    """诊断：统一冻结台账（FreezeCoordinator）+ 组合预算原始状态。
+    风控止血后冻结不可见是盲区，此端点让前端/运维直接看到冻结原因与剩余时间。"""
+    try:
+        from backend.services.risk_management.freeze_coordinator import status as _fz_status
+        st = _fz_status()
+        return st
+    except Exception as e:
+        try:
+            from backend.services.risk_management.portfolio_budget import portfolio_budget
+            import time as _t
+            st = portfolio_budget.status()
+            now = _t.time()
+            st["_now"] = now
+            for key in ("global_frozen_until",):
+                v = st.get(key)
+                if isinstance(v, (int, float)) and v > 0:
+                    st[key + "_remaining_s"] = max(0, int(v - now))
+            for grp in ("account_frozen", "strategy_frozen", "key_frozen"):
+                d = st.get(grp) or {}
+                st[grp] = {str(k): {"until": v, "remaining_s": max(0, int(v - now))} for k, v in d.items()}
+            return st
+        except Exception as e2:
+            return {"error": str(e), "fallback_error": str(e2)}

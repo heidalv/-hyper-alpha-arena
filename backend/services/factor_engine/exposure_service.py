@@ -173,32 +173,42 @@ class FactorExposureService:
         return pd.DataFrame.from_dict(data, orient="index")
 
     def snapshot(self, symbols: List[str], periods: List[str]) -> None:
-        """后台快照任务（10min）：写 factor_exposure_snapshots。"""
+        """后台快照任务（10min）：写 factor_exposure_snapshots。
+
+        [2026-08-16 泄漏修复] 原实现先开会话再逐币 _compute（分钟级因子计算），
+        事务挂在 idle-in-transaction >120s 被 LeakGuard 强杀 → 本批全部回滚
+        （日志实锤 INSERT INTO factor_exposure_snapshots 被反复 kill）。
+        改为「先算后写」：全部计算完收集 payload，再一次性短事务插入提交。
+        """
         if not _exposure_enabled():
             return
         try:
             self._ensure_snapshot_table()
-            from backend.database.connection import AnalyticsSessionLocal
-            from sqlalchemy import text as _sa_text
-            with AnalyticsSessionLocal() as db:
-                db.execute(_sa_text("SET LOCAL app.is_admin='on'"))
-                for sym in (symbols or [])[:60]:
-                    for period in (periods or ["5m"])[:4]:
-                        try:
-                            rows = self._compute(sym, period, 200)
-                        except Exception:
-                            continue
-                        for e in rows:
-                            db.execute(_sa_text(
-                                "INSERT INTO factor_exposure_snapshots "
-                                "(ts, symbol, period, factor_id, z_score, expected_alpha, weight) "
-                                "VALUES (now(), :s, :p, :f, :z, :a, :w)"
-                            ), {
-                                "s": str(sym).upper(), "p": period,
-                                "f": e.factor_id, "z": e.z_score,
-                                "a": e.expected_alpha, "w": e.weight,
-                            })
-                db.commit()
+            payload = []
+            for sym in (symbols or [])[:60]:
+                for period in (periods or ["5m"])[:4]:
+                    try:
+                        rows = self._compute(sym, period, 200)
+                    except Exception:
+                        continue
+                    for e in rows:
+                        payload.append({
+                            "s": str(sym).upper(), "p": period,
+                            "f": e.factor_id, "z": e.z_score,
+                            "a": e.expected_alpha, "w": e.weight,
+                        })
+            if payload:
+                from backend.database.connection import AnalyticsSessionLocal
+                from sqlalchemy import text as _sa_text
+                with AnalyticsSessionLocal() as db:
+                    db.execute(_sa_text("SET LOCAL app.is_admin='on'"))
+                    for p in payload:
+                        db.execute(_sa_text(
+                            "INSERT INTO factor_exposure_snapshots "
+                            "(ts, symbol, period, factor_id, z_score, expected_alpha, weight) "
+                            "VALUES (now(), :s, :p, :f, :z, :a, :w)"
+                        ), p)
+                    db.commit()
             self._last_snapshot_ts = time.time()
         except Exception as exc:
             logger.debug("[FactorExposure] snapshot failed: %s", exc)

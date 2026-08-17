@@ -42,6 +42,9 @@ def resolve_hermes_prompt_path(*parts: str) -> str:
 
 # 单连接锁（SQLite 写入串行化）
 _write_lock = threading.Lock()
+# [2026-08-17] 共享连接复用：此前每调用新建连接 + 每文件 500+ 次重复 DDL。
+_conn: Optional[sqlite3.Connection] = None
+_initialized: bool = False
 
 # ═══════════════════════════════════════════════════════════════════
 #  DDL
@@ -232,17 +235,38 @@ def _ensure_dir() -> None:
 
 
 def get_hermes_conn() -> sqlite3.Connection:
-    """获取 Hermes 数据库连接（自动创建目录 + 表）。"""
-    _ensure_dir()
-    conn = sqlite3.connect(HERMES_DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    """获取 Hermes 数据库连接（[2026-08-17] 进程内共享复用）。
+
+    此前每调用新建连接 + 每次 init 重跑 DDL，高频路径实测 500+ 次/文件（性能异味）。
+    现在连接缓存复用、DDL 仅首启执行一次；写入经 _write_lock 串行。
+    """
+    global _conn, _initialized
+    if _conn is None:
+        _ensure_dir()
+        _conn = sqlite3.connect(HERMES_DB_PATH, check_same_thread=False)
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.execute("PRAGMA foreign_keys=ON")
+    if not _initialized:
+        _init_schema(_conn)
+        _initialized = True
+    return _conn
+
+
+def _init_schema(conn: sqlite3.Connection) -> None:
+    """建表 + 前向迁移（只在首启执行一次）。"""
+    for stmt in DDL_STATEMENTS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            logger.warning("[HermesDB] DDL 失败(忽略): %s", e)
+    for table, col, col_ddl in _MIGRATIONS:
+        _ensure_column(conn, table, col, col_ddl)
+    conn.commit()
 
 
 @contextmanager
 def hermes_transaction() -> Iterator[sqlite3.Connection]:
-    """Hermes 数据库事务上下文管理器。"""
+    """Hermes 数据库事务上下文管理器（共享连接）。"""
     conn = get_hermes_conn()
     try:
         yield conn
@@ -250,28 +274,12 @@ def hermes_transaction() -> Iterator[sqlite3.Connection]:
     except Exception:
         conn.rollback()
         raise
-    finally:
-        conn.close()
 
 
 def init_hermes_db() -> None:
-    """初始化 Hermes 数据库：建表（幂等）+ 前向迁移（补缺失列）。"""
+    """初始化 Hermes 数据库（幂等；共享连接已懒初始化，此处仅确保就绪）。"""
     _ensure_dir()
-    with _write_lock:
-        conn = get_hermes_conn()
-        try:
-            for stmt in DDL_STATEMENTS:
-                try:
-                    conn.execute(stmt)
-                except sqlite3.OperationalError as e:
-                    logger.warning("[HermesDB] DDL warning: %s", e)
-            # 前向迁移：对已存在的旧 DB 文件补缺失列（CREATE TABLE IF NOT EXISTS
-            # 不会给旧表加列，ALTER TABLE ADD COLUMN 才能补，且需幂等）。
-            _run_migrations(conn)
-            conn.commit()
-            logger.info("[HermesDB] 数据库初始化完成: %s", HERMES_DB_PATH)
-        finally:
-            conn.close()
+    get_hermes_conn()
 
 
 def _run_migrations(conn: sqlite3.Connection) -> None:
@@ -323,12 +331,9 @@ def hermes_execute(sql: str, params: tuple = ()) -> int:
     _ensure_hermes_ready()
     with _write_lock:
         conn = get_hermes_conn()
-        try:
-            cur = conn.execute(sql, params)
-            conn.commit()
-            return cur.lastrowid
-        finally:
-            conn.close()
+        cur = conn.execute(sql, params)
+        conn.commit()
+        return cur.lastrowid
 
 
 def hermes_executemany(sql: str, params_list: List[tuple]) -> None:
@@ -336,23 +341,17 @@ def hermes_executemany(sql: str, params_list: List[tuple]) -> None:
     _ensure_hermes_ready()
     with _write_lock:
         conn = get_hermes_conn()
-        try:
-            conn.executemany(sql, params_list)
-            conn.commit()
-        finally:
-            conn.close()
+        conn.executemany(sql, params_list)
+        conn.commit()
 
 
 def hermes_fetchall(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
     """执行查询，返回字典列表。"""
     _ensure_hermes_ready()
     conn = get_hermes_conn()
-    try:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(sql, params).fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
 
 
 def hermes_fetchone(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:

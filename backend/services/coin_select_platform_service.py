@@ -233,12 +233,14 @@ def _scan_market_candidates(limit: int = 40) -> List[Dict[str, Any]]:
     )  # noqa: F841 —— 保留为模块级 _LIQUID_PREF 的别名引用，避免大范围改动
 
     if not by_sym:
+        # [2026-08-15 消费端验收] 兜底不再伪造 volume=1.0；用 0 成交额 +
+        # emergency_fallback 来源标记，诚实反映「数据中心无行情」。
         logger.error(
             "[CoinSelectPlatform] 数据中心无可用行情/目录，临时使用主流币兜底。"
             "请检查 ticker poller / catalog 是否在跑。"
         )
         for s in _LIQUID_PREF[:12]:
-            _upsert(s, volume=1.0, source="emergency_fallback")
+            _upsert(s, volume=0.0, source="emergency_fallback")
 
     has_volume = any(float(r.get("volume_24h") or 0) > 0 for r in by_sym.values())
     pref_idx = {s: i for i, s in enumerate(_LIQUID_PREF)}

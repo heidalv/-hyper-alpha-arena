@@ -2295,6 +2295,21 @@ class MasterController:
         except Exception as _fb_err:
             logger.debug(f"[MasterController] 反馈闭环注入跳过: {_fb_err}")
 
+        # [2026-08-17 因果回灌闭环] 亏损模式约束注入（tier 胜率差/币种连亏冷却）
+        try:
+            from backend.services.full_auto import causal_feedback as _cf
+            _cf_text = _cf.constraints_text()
+            if _cf_text:
+                _feedback_constraints_text = (
+                    f"{_feedback_constraints_text}\n\n{_cf_text}"
+                    if _feedback_constraints_text else _cf_text
+                )
+                logger.debug(
+                    f"[MasterController] 因果约束注入: {len(_cf_text)} chars"
+                )
+        except Exception as _cf_err:
+            logger.debug(f"[MasterController] 因果约束注入跳过: {_cf_err}")
+
         # V5 决策核心：费用感知 + 盈亏结构纪律注入（与 Direction/Risk 同一来源）
         _v5_context_text = ""
         try:

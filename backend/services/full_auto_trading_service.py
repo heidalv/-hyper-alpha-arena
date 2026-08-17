@@ -869,13 +869,8 @@ class FullAutoTradingService:
             target=self._run_health_check_safe, args=(session_id,), daemon=True
         ).start()
 
-        # ── [2026-06-21] 启动市场漂移监控（KS+MMD 概念漂移检测 + 自动重训练）──
-        try:
-            from backend.services.drift_monitor import drift_monitor
-            drift_monitor.start()
-            logger.info("[FullAuto] drift_monitor 已注册启动")
-        except Exception as _dme:
-            logger.warning(f"[FullAuto] drift_monitor 启动失败(非致命): {_dme}")
+        # [2026-08-17 删除] drift_monitor：审计实锤 start() 已接线但 24h 零巡检日志
+        #（进程重启后线程失效），且其概念漂移检测已有替代路径。
 
         # ── ScalpExecutionLane Phase 0: 启动编排器后台参谋线程 ──
         try:
@@ -2606,41 +2601,8 @@ class FullAutoTradingService:
         # [Phase 5] 模式 B 分批止盈状态与 analyst 系统共享同一份 svc 状态，需写回
         self._long_tier_staged_tp_state = host.long_tier_staged_tp_state
 
-    def _execute_mlto_lane(
-        self,
-        *,
-        sym: str,
-        dec: dict,
-        tier: str,
-        agent_source: str,
-        market_summary: dict,
-        analyst_reports: dict,
-        db,
-        session,
-        mode: str,
-        portfolio: dict,
-    ) -> tuple:
-        from backend.services.full_auto.mlto_cycle import (
-            build_mlto_cycle_host,
-            execute_mlto_lane,
-        )
-        host = build_mlto_cycle_host(self)
-        result = execute_mlto_lane(
-            sym=sym,
-            dec=dec,
-            tier=tier,
-            agent_source=agent_source,
-            market_summary=market_summary,
-            analyst_reports=analyst_reports,
-            db=db,
-            session=session,
-            mode=mode,
-            portfolio=portfolio,
-            host=host,
-        )
-        self._mlto_handled_keys = host.mlto_handled_keys
-        self._mlto_handled_lock = host.mlto_handled_lock
-        return result
+    # [2026-08-17] _execute_mlto_lane 已删：旧长线 MLTO lane LLM 已下线，
+    # 唯一决策源是独立 midlong 循环的 long_trend_v2。
 
     @staticmethod
     def _build_midlong_agent_envelope(
@@ -3837,6 +3799,48 @@ class FullAutoTradingService:
                 continue
             sym = str(pos.get("symbol") or "").upper()
             md = market_summary.get(sym) if isinstance(market_summary, dict) else None
+
+            # [2026-08-16 long_trend_v2] 长线仓改由 V2 每日管理器（Chandelier/结构退出/
+            # 新高金字塔）接管，跳过本函数的 bias 反转 / no_progress 退出。
+            try:
+                from backend.services.long_trend_v2 import long_v2_enabled, manage_long_position
+                _v2_active = long_v2_enabled()
+            except Exception:
+                _v2_active = False
+            if _v2_active and tier == "long":
+                try:
+                    _v2d = manage_long_position(db, account_id=acct_id, position=pos)
+                    if _v2d.get("action") == "close":
+                        paper_engine.close_position(
+                            db, acct_id, sym, pos.get("side"),
+                            reason=("long_trend_v2:" + str(_v2d.get("reason") or ""))[:120],
+                            strategy_id=pos.get("strategy_id"),
+                        )
+                        logger.info("[MidLongExit][V2] 结构/止损离场 %s: %s", sym, _v2d.get("reason"))
+                    elif _v2d.get("action") == "tighten_sl" and _v2d.get("new_sl"):
+                        paper_engine.update_position_tp_sl(
+                            db, int(pos.get("id") or 0), sl_price=float(_v2d["new_sl"]),
+                        )
+                        logger.info("[MidLongExit][V2] 收紧止损 %s SL→%s", sym, _v2d["new_sl"])
+                    elif _v2d.get("action") == "add":
+                        _pyr_ratio = float(_v2d.get("ratio") or 0.25)
+                        _pyr_qty = float(pos.get("size") or 0) * _pyr_ratio
+                        if _pyr_qty > 0:
+                            paper_engine.place_order(
+                                db, acct_id, sym, "buy",
+                                quantity=_pyr_qty,
+                                leverage=float(pos.get("leverage", 10) or 10),
+                                sl_price=float(pos.get("sl_price") or 0) or None,
+                                strategy_id=pos.get("strategy_id"),
+                                timeframe_tier="long",
+                                trade_nature=pos.get("trade_nature"),
+                                add_type="pyramid",
+                            )
+                            logger.info("[MidLongExit][V2] 金字塔加仓 %s qty=%s: %s", sym, _pyr_qty, _v2d.get("reason"))
+                except Exception as _v2e:
+                    logger.warning("[MidLongExit][V2] 管理异常 %s: %s", sym, _v2e)
+                continue
+
             decision = evaluate_midlong_exit(pos, md)
             exit_source = "bias_reversal"
             if decision.action != "close":
@@ -4379,24 +4383,8 @@ class FullAutoTradingService:
             build_hold_trend_review_host(self),
         )
 
-    def _run_light_trading_cycle(self, session_id: str):
-        from backend.services.full_auto.light_trading_cycle import (
-            build_light_trading_host,
-            run_light_trading_cycle,
-        )
-        host = build_light_trading_host(self)
-        run_light_trading_cycle(session_id, host)
-        self._last_unified_snapshot = host.last_unified_snapshot
-
-    def _run_quick_orchestrator_eval(self, session_id: str):
-        from backend.services.full_auto.quick_orchestrator_eval import (
-            build_quick_orch_host,
-            run_quick_orchestrator_eval,
-        )
-        host = build_quick_orch_host(self)
-        run_quick_orchestrator_eval(session_id, host)
-        self._deadlock_rescue_count = host.deadlock_rescue_count
-
+    # [2026-08-17 删除] _run_light_trading_cycle / _run_quick_orchestrator_eval
+    # 死代码（审计实锤 0 调用，与 trading_cycle_loop / orch_background 功能重叠）。
     # ══════════════════════════════════════════════════
     #  工具
     # ══════════════════════════════════════════════════
@@ -4789,19 +4777,8 @@ class FullAutoTradingService:
         self._last_orch_decisions = host.last_orch_decisions
         self._last_orch_decisions_ts = host.last_orch_decisions_ts
 
-    def _run_qaa_v3_tick(self, session_id: str):
-        from backend.services.full_auto.qaa_v3_tick_cycle import (
-            build_qaa_v3_tick_host,
-            run_qaa_v3_tick,
-        )
-        host = build_qaa_v3_tick_host(self)
-        run_qaa_v3_tick(session_id, host)
-        self._market_scan_cache = host.market_scan_cache
-        self._market_scan_cache_ts = host.market_scan_cache_ts
-        self._active_positions_cache = host.active_positions_cache
-        self._pre_screen_results = host.pre_screen_results
-        self._pre_screen_passed = host.pre_screen_passed
-        self._qaa_ctx = host.qaa_ctx
+    # [2026-08-17 删除] _run_qaa_v3_tick 死代码（qaa_v3_tick_cycle 零调用，QAA v3
+    # 路由断裂，实际跑的是 qaa_legacy + ai_first）。
 
     def _run_analyst_system_v3(
         self,

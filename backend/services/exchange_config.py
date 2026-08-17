@@ -70,8 +70,8 @@ def get_exchange_for_account(account_id: Optional[int] = None) -> str:
     if account_id is None:
         return get_active_exchange()
     try:
-        from database.connection import SessionLocal
-        from database.models import Account
+        from backend.database.connection import SessionLocal
+        from backend.database.models import Account
         db = SessionLocal()
         try:
             account = db.query(Account).filter(Account.id == account_id).first()

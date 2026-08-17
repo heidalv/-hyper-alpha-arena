@@ -24,19 +24,10 @@ from .strategic_memory import StrategicMemorySystem
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# LLM Prompt 模板
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- # LLM Prompt 模板
 STRATEGIC_ANALYSIS_PROMPT = """你是一个专业的加密货币市场战略分析师。基于以下宏观数据，生成一份简洁的战略分析报告。
 
-## 当前宏观环境
-- 宏观体制: {regime} (风险偏好评分: {risk_on_score:.2f})
-- S&P500: {spx_status} (日涨跌: {spx_change}%)
-- 美元指数(DXY): {dxy_status} (日涨跌: {dxy_change}%)
-- 沪深300: {csi300_status} (日涨跌: {csi300_change}%)
-- 恐贪指数: {fear_greed}
-- 联邦基金利率: {fed_rate}%
-- BTC市值占比: {btc_dom}%
+## 当前宏观环境 - 宏观体制: {regime} (风险偏好评分: {risk_on_score:.2f}) - S&P500: {spx_status} (日涨跌: {spx_change}%) - 美元指数(DXY): {dxy_status} (日涨跌: {dxy_change}%) - 沪深300: {csi300_status} (日涨跌: {csi300_change}%) - 恐贪指数: {fear_greed} - 联邦基金利率: {fed_rate}% - BTC市值占比: {btc_dom}%
 
 ## 跨市场相关性
 {correlations_text}
@@ -137,8 +128,7 @@ class ReportGenerator:
 
         return report
 
-    # -----------------------------------------------------------------------
-    # LLM 调用
+    # ----------------------------------------------------------------------- # LLM 调用
     # -----------------------------------------------------------------------
 
     def _call_llm_analysis(
@@ -245,8 +235,7 @@ class ReportGenerator:
         report.regulatory_outlook = result.get("regulatory_outlook", "")
         report.llm_analysis = result.get("strategic_summary", "")
 
-    # -----------------------------------------------------------------------
-    # 规则化回退（LLM 不可用时）
+    # ----------------------------------------------------------------------- # 规则化回退（LLM 不可用时）
     # -----------------------------------------------------------------------
 
     def _rule_based_report(
@@ -286,13 +275,9 @@ class ReportGenerator:
         else:
             report.risk_budget_adjustment = 1.0
 
-        # 美股影响
-        report.sp500_impact_summary = f"SPX日涨跌{self._fmt_pct(snapshot.get('spx_change_pct'))}，" \
-                                       f"对加密市场影响: {macro.spx_impact}"
+        # 美股影响 report.sp500_impact_summary = f"SPX日涨跌{self._fmt_pct(snapshot.get('spx_change_pct'))}，" \ f"对加密市场影响: {macro.spx_impact}"
 
-        # 中国股市影响
-        report.china_market_impact_summary = f"沪深300日涨跌{self._fmt_pct(snapshot.get('csi300_change_pct'))}，" \
-                                              f"对加密市场影响: {macro.china_market_impact}"
+        # 中国股市影响 report.china_market_impact_summary = f"沪深300日涨跌{self._fmt_pct(snapshot.get('csi300_change_pct'))}，" \ f"对加密市场影响: {macro.china_market_impact}"
 
         # 关键洞察
         report.key_insights = macro.key_risks[:5]
@@ -301,8 +286,7 @@ class ReportGenerator:
         report.geopolitical_risks = []
         report.regulatory_outlook = "数据不足，暂无监管展望"
 
-    # -----------------------------------------------------------------------
-    # 持久化
+    # ----------------------------------------------------------------------- # 持久化
     # -----------------------------------------------------------------------
 
     def _persist_report(self, report: StrategicReport, snapshot: dict) -> None:
@@ -312,7 +296,7 @@ class ReportGenerator:
             try:
                 from backend.database.connection import AnalyticsSessionLocal
             except ImportError:
-                from database.connection import AnalyticsSessionLocal
+                from backend.database.connection import AnalyticsSessionLocal
             from .db_models import StrategicReportRecord, StrategicMacroSnapshot
 
             session = AnalyticsSessionLocal()
@@ -369,8 +353,7 @@ class ReportGenerator:
                 except Exception:
                     pass
 
-    # -----------------------------------------------------------------------
-    # 辅助方法
+    # ----------------------------------------------------------------------- # 辅助方法
     # -----------------------------------------------------------------------
 
     def _build_context_string(self, macro: MacroAssessment, snapshot: dict) -> str:

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Deque
 from dataclasses import dataclass, asdict
 import threading
+import queue
 import json
 
 
@@ -39,6 +40,35 @@ class SystemLogCollector:
         self._logs: Deque[LogEntry] = deque(maxlen=max_logs)
         self._lock = threading.Lock()
         self._listeners = []  # WebSocket监听器
+        # [2026-08-16 P0 修复] WS 监听器回调改为异步分发：旧实现同步调用，
+        # 一个死掉的 WebSocket 会阻塞 logging 全局锁 → 全进程日志冻结 →
+        # 调度器/业务线程全部卡死（曾真实发生：19:22 后整个后端无任何输出）。
+        self._notify_queue = queue.Queue()
+        self._notify_thread = threading.Thread(
+            target=self._notify_worker, daemon=True, name="syslog-notify"
+        )
+        self._notify_thread.start()
+
+    def _notify_worker(self) -> None:
+        """后台线程：逐个投递日志给监听器；死监听器就地移除，绝不阻塞日志路径。"""
+        while True:
+            try:
+                item = self._notify_queue.get()
+            except Exception:
+                return
+            if item is None:
+                return
+            entry, callbacks = item
+            for cb in callbacks:
+                try:
+                    cb(entry)
+                except Exception:
+                    # 回调抛异常（WS 关闭/半开）→ 移除该监听器，避免下次再触发
+                    with self._lock:
+                        try:
+                            self._listeners.remove(cb)
+                        except ValueError:
+                            pass
 
     def add_log(self, level: str, category: str, message: str, details: Optional[Dict] = None):
         """
@@ -119,20 +149,26 @@ class SystemLogCollector:
 
     def add_listener(self, callback):
         """添加WebSocket监听器"""
-        self._listeners.append(callback)
+        with self._lock:
+            if callback not in self._listeners:
+                self._listeners.append(callback)
 
     def remove_listener(self, callback):
         """移除WebSocket监听器"""
-        if callback in self._listeners:
-            self._listeners.remove(callback)
+        with self._lock:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
 
     def _notify_listeners(self, entry: LogEntry):
-        """通知所有监听器有新日志"""
-        for callback in self._listeners:
-            try:
-                callback(entry.to_dict())
-            except Exception as e:
-                logging.error(f"Failed to notify log listener: {e}")
+        """通知所有监听器有新日志（异步队列投递，不阻塞日志路径）。"""
+        with self._lock:
+            if not self._listeners:
+                return
+            snapshot = list(self._listeners)
+        try:
+            self._notify_queue.put((entry.to_dict(), snapshot))
+        except Exception:
+            pass
 
     def log_price_update(self, symbol: str, price: float, change_percent: Optional[float] = None):
         """记录价格更新"""

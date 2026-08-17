@@ -1,0 +1,322 @@
+<section class="page" id="page-risk" data-title="风控监控">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="shield-alert" style="width:15px;height:15px;color:#7DD3FC"></i></span>风控监控</h1>
+      <p class="page-sub">多账户统一风控 · 熔断保护</p>
+    </div>
+    <div class="page-actions">
+      <span class="badge ok"><span class="bdot"></span>全部正常</span>
+      <span class="cd cd-auto" data-cd="30"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>巡检 <b>30</b>s</span>
+      <button class="btn btn-ghost2 btn-sm" data-drawer="d-circuit"><svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>熔断历史</button>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>刷新</button>
+    </div>
+  </div>
+
+  <!-- 账户风险摘要 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i>账户风险摘要</div>
+      <div class="flex">
+        <span class="card-hint">更新于 3s 前 · 5 账户</span>
+        <div class="dd" style="min-width:132px">
+          <button class="dd-btn"><i data-ico="users" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">全部账户</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+          <div class="dd-menu">
+            <div class="dd-item sel">全部账户</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"BTC趋势激进"}'>BTC趋势激进</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"ETH套利稳健"}'>ETH套利稳健</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"网格增强"}'>网格增强</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"AI短线激进"}'>AI短线激进</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"多周期对冲"}'>多周期对冲</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>账户</th><th class="r">权益</th><th class="r sortable sorted">日亏损率<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th style="width:120px">保证金使用</th><th class="r">日交易</th><th class="r">连亏</th><th class="c">熔断</th><th class="c">操作</th></tr></thead>
+        <tbody>
+          <tr><td class="sym">BTC趋势激进<div class="tiny muted" style="margin-top:2px;font-weight:400">无冷却</div></td><td class="r"><span class="count-up" data-val="52340.18" data-dec="2" data-pre="$">$52,340.18</span></td><td class="r up">+2.4%</td><td><span class="num">34%</span></td><td class="r">86</td><td class="r">0</td><td class="c">—</td><td class="c"><button class="row-btn cyan" data-modal="m-acc-risk">详情</button></td></tr>
+          <tr><td class="sym">ETH套利稳健<div class="tiny muted" style="margin-top:2px;font-weight:400">无冷却</div></td><td class="r"><span class="count-up" data-val="18920.66" data-dec="2" data-pre="$">$18,920.66</span></td><td class="r up">+1.1%</td><td><span class="num">22%</span></td><td class="r">47</td><td class="r">0</td><td class="c">—</td><td class="c"><button class="row-btn cyan" data-modal="m-acc-risk">详情</button></td></tr>
+          <tr><td class="sym">网格增强<div class="tiny" style="margin-top:2px;font-weight:400"><span class="cd cd-auto" data-cd="600">冷却 <b>600</b>s</span></div></td><td class="r"><span class="count-up" data-val="9480.12" data-dec="2" data-pre="$">$9,480.12</span></td><td class="r down">-8.2%</td><td><span class="num warn">78%</span><div class="bar" style="width:56px;margin:4px 0 0 auto"><div class="bar-fill amber" style="width:78%"></div></div></td><td class="r">58</td><td class="r warn">3</td><td class="c"><span class="badge warn"><span class="bdot"></span>熔断中</span></td><td class="c"><button class="row-btn cyan" data-modal="m-acc-risk">详情</button></td></tr>
+          <tr><td class="sym">AI短线激进<div class="tiny" style="margin-top:2px;font-weight:400"><span class="cd cd-auto" data-cd="8">短线冷却 <b>8</b>s</span></div></td><td class="r"><span class="count-up" data-val="31205.44" data-dec="2" data-pre="$">$31,205.44</span></td><td class="r down">-1.6%</td><td><span class="num">41%</span></td><td class="r">124</td><td class="r warn">2</td><td class="c">—</td><td class="c"><button class="row-btn cyan" data-modal="m-acc-risk">详情</button></td></tr>
+          <tr><td class="sym">多周期对冲<div class="tiny muted" style="margin-top:2px;font-weight:400">无冷却</div></td><td class="r"><span class="count-up" data-val="76840.90" data-dec="2" data-pre="$">$76,840.90</span></td><td class="r up">+0.8%</td><td><span class="num">29%</span></td><td class="r">32</td><td class="r">0</td><td class="c">—</td><td class="c"><button class="row-btn cyan" data-modal="m-acc-risk">详情</button></td></tr>
+        </tbody>
+        <tfoot><tr><td>账户 <b>5</b> · 熔断 <b class="warn">1</b> · 接近阈值 <b class="warn">1</b></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- 持仓风险分布 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i>持仓风险分布</div>
+        <span class="card-hint">按币种敞口</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 260 132" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="gradR15" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+            </linearGradient>
+          </defs>
+          <line x1="16" y1="118" x2="248" y2="118" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+          <line x1="16" y1="78" x2="248" y2="78" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+          <line x1="16" y1="38" x2="248" y2="38" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+          <rect x="12" y="26" width="26" height="92" rx="3" fill="url(#gradR15)" fill-opacity=".85"/>
+          <rect x="58" y="55" width="26" height="63" rx="3" fill="url(#gradR15)" fill-opacity=".68"/>
+          <rect x="104" y="74" width="26" height="44" rx="3" fill="url(#gradR15)" fill-opacity=".5"/>
+          <rect x="150" y="94" width="26" height="24" rx="3" fill="url(#gradR15)" fill-opacity=".38"/>
+          <rect x="196" y="99" width="26" height="19" rx="3" fill="url(#gradR15)" fill-opacity=".3"/>
+          <text x="25" y="20" text-anchor="middle" font-size="9.5" fill="#EAF0FA">38%</text>
+          <text x="71" y="49" text-anchor="middle" font-size="9.5" fill="#EAF0FA">26%</text>
+          <text x="117" y="68" text-anchor="middle" font-size="9.5" fill="#EAF0FA">18%</text>
+          <text x="163" y="88" text-anchor="middle" font-size="9.5" fill="#EAF0FA">10%</text>
+          <text x="209" y="93" text-anchor="middle" font-size="9.5" fill="#EAF0FA">8%</text>
+          <text x="25" y="128" text-anchor="middle" font-size="9" fill="#7C8AA8">BTC</text>
+          <text x="71" y="128" text-anchor="middle" font-size="9" fill="#7C8AA8">ETH</text>
+          <text x="117" y="128" text-anchor="middle" font-size="9" fill="#7C8AA8">SOL</text>
+          <text x="163" y="128" text-anchor="middle" font-size="9" fill="#7C8AA8">BNB</text>
+          <text x="209" y="128" text-anchor="middle" font-size="9" fill="#7C8AA8">XRP</text>
+        </svg>
+        <div class="kv"><span class="k">最大单仓敞口</span><span class="v">BTC 38%</span></div>
+        <div class="kv"><span class="k">总敞口</span><span class="v">$128.6K</span></div>
+        <div class="kv"><span class="k">杠杆中位数</span><span class="v">4.2x</span></div>
+        <div class="kv"><span class="k">预警仓位</span><span class="v warn">2</span></div>
+      </div>
+    </div>
+
+    <!-- 风控参数 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield-check" style="width:15px;height:15px;color:#7DD3FC"></i>风控参数</div>
+        <span class="card-hint">全局生效</span>
+      </div>
+      <div class="card-body">
+        <div style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div class="spread"><span class="k" style="font-size:11.5px;color:#8B98B5">日亏损率 当前/阈值</span><span class="num" style="font-size:12px;color:#FBBF24">9.2% / 10%</span></div>
+          <div class="bar" style="margin:6px 0 0"><div class="bar-fill amber" style="width:92%"></div></div>
+        </div>
+        <div style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div class="spread"><span class="k" style="font-size:11.5px;color:#8B98B5">保证金使用 当前/上限</span><span class="num" style="font-size:12px;color:#FBBF24">78% / 80%</span></div>
+          <div class="bar" style="margin:6px 0 0"><div class="bar-fill amber" style="width:97.5%"></div></div>
+        </div>
+        <div style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div class="spread"><span class="k" style="font-size:11.5px;color:#8B98B5">最大杠杆 当前/上限</span><span class="num" style="font-size:12px;color:#34D399">5x / 10x</span></div>
+          <div class="bar" style="margin:6px 0 0"><div class="bar-fill green" style="width:50%"></div></div>
+        </div>
+        <div class="kv"><span class="k">单笔最大亏损</span><span class="v">2%</span></div>
+        <div class="kv"><span class="k">熔断阈值</span><span class="v warn">15%</span></div>
+        <div class="kv"><span class="k">冷却时间</span><span class="v">30min</span></div>
+        <div class="kv"><span class="k">盘中单账户撤单上限</span><span class="v">120</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 冷却矩阵 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="shield-alert" style="width:15px;height:15px;color:#7DD3FC"></i>冷却矩阵 CooldownMatrix</div>
+      <span class="card-hint">3 周期独立判定 · AI 反向 / 减仓联动</span>
+    </div>
+    <div class="card-body">
+      <div class="grid3" style="margin-bottom:0">
+        <div style="padding:12px 14px;border-radius:10px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.3)">
+          <div class="spread" style="margin-bottom:8px"><span class="bold" style="font-size:12.5px">短线</span><span class="badge warn"><span class="bdot"></span>冷却中</span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">冷却剩余</span><span class="v"><span class="cd cd-auto" data-cd="8"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>8</b>s</span></span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">AI 反向</span><span class="v"><span class="badge warn">禁用</span></span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">减仓</span><span class="v"><span class="badge ok"><span class="bdot"></span>生效</span></span></div>
+        </div>
+        <div style="padding:12px 14px;border-radius:10px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.3)">
+          <div class="spread" style="margin-bottom:8px"><span class="bold" style="font-size:12.5px">中线</span><span class="badge warn"><span class="bdot"></span>冷却中</span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">冷却剩余</span><span class="v"><span class="cd cd-auto" data-cd="600"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>600</b>s</span></span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">AI 反向</span><span class="v"><span class="badge warn">禁用</span></span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">减仓</span><span class="v"><span class="badge ok"><span class="bdot"></span>生效</span></span></div>
+        </div>
+        <div style="padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+          <div class="spread" style="margin-bottom:8px"><span class="bold" style="font-size:12.5px">长线</span><span class="badge ok"><span class="bdot"></span>放行</span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">冷却剩余</span><span class="v muted" style="font-size:11.5px">无冷却</span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">AI 反向</span><span class="v"><span class="badge ok"><span class="bdot"></span>启用</span></span></div>
+          <div class="kv" style="border:none;padding:4px 0"><span class="k">减仓</span><span class="v"><span class="badge ok"><span class="bdot"></span>生效</span></span></div>
+        </div>
+      </div>
+      <div class="tiny muted" style="margin-top:12px">冷却窗口内禁止同周期新开仓；AI 反向与减仓动作随冷却自动切换。下次冷却窗口检查 <span class="cd cd-auto" data-cd="3600"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>3600</b>s</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- 持仓保护 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield-check" style="width:15px;height:15px;color:#7DD3FC"></i>持仓保护</div>
+        <span class="card-hint">保护价 3% 缓冲</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>币种</th><th class="r">入场</th><th class="r">现价</th><th>距保护线</th><th class="c">保护状态</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">BTC</td><td class="r">$66,200</td><td class="r up">$70,905</td><td><div class="flex" style="gap:6px"><span class="num tiny up">+7.1%</span><div class="bar" style="width:54px"><div class="bar-fill green" style="width:30%"></div></div></div></td><td class="c"><span class="badge ok"><span class="bdot"></span>正常</span></td><td class="c"><button class="row-btn cyan" data-modal="m-protect">查看</button></td></tr>
+            <tr><td class="sym">ETH</td><td class="r">$3,320</td><td class="r up">$3,498</td><td><div class="flex" style="gap:6px"><span class="num tiny up">+5.4%</span><div class="bar" style="width:54px"><div class="bar-fill green" style="width:45%"></div></div></div></td><td class="c"><span class="badge ok"><span class="bdot"></span>正常</span></td><td class="c"><button class="row-btn cyan" data-modal="m-protect">查看</button></td></tr>
+            <tr><td class="sym">SOL</td><td class="r">$142.8</td><td class="r up">$148.3</td><td><div class="flex" style="gap:6px"><span class="num tiny" style="color:#FBBF24">+1.2%</span><div class="bar" style="width:54px"><div class="bar-fill amber" style="width:78%"></div></div></div></td><td class="c"><span class="badge warn">即将触发</span></td><td class="c"><button class="row-btn cyan" data-modal="m-protect">查看</button></td></tr>
+            <tr><td class="sym">BNB</td><td class="r">$584.0</td><td class="r down">$569.2</td><td><div class="flex" style="gap:6px"><span class="num tiny down">-0.14%</span><div class="bar" style="width:54px"><div class="bar-fill red" style="width:100%"></div></div></div></td><td class="c"><span class="badge warn"><span class="bdot"></span>保护触发</span></td><td class="c"><button class="row-btn cyan" data-modal="m-protect">查看</button></td></tr>
+          </tbody>
+          <tfoot><tr><td>保护中 <b>2</b> · 即将触发 <b class="warn">1</b> · 正常 <b>1</b></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 告警记录 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="bell" style="width:15px;height:15px;color:#7DD3FC"></i>告警记录</div>
+        <span class="card-hint">今日 · 6 条</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>时间</th><th>级别</th><th>消息</th><th class="c">状态</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="r">10:32:14</td><td><span class="tag amber">P1</span></td><td>BTC趋势激进 保证金使用 78% 接近预警阈值</td><td class="c"><span class="badge warn">处理中</span></td><td class="c"><button class="row-btn cyan" data-modal="m-alert">详情</button></td></tr>
+            <tr><td class="r">10:18:47</td><td><span class="tag" style="color:#FB7185;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.3)">P0</span></td><td>网格增强 日亏损率 -8.2% 触发熔断保护</td><td class="c"><span class="badge warn">处理中</span></td><td class="c"><button class="row-btn cyan" data-modal="m-alert">详情</button></td></tr>
+            <tr><td class="r">09:52:03</td><td><span class="tag cyan">INFO</span></td><td>SOL 持仓保护接近触发，已进入观察名单</td><td class="c"><span class="badge ok"><span class="bdot"></span>已处理</span></td><td class="c"><button class="row-btn cyan" data-modal="m-alert">详情</button></td></tr>
+            <tr><td class="r">09:31:20</td><td><span class="tag amber">P1</span></td><td>AI短线激进 连亏 3 笔，建议降低杠杆</td><td class="c"><span class="badge ok"><span class="bdot"></span>已处理</span></td><td class="c"><button class="row-btn cyan" data-modal="m-alert">详情</button></td></tr>
+          </tbody>
+          <tfoot><tr><td>今日告警 <b>6</b> · P0 <b class="warn">1</b> · P1 <b>3</b></td><td></td><td></td><td></td><td></td></tr></tfoot>
+        </table></div>
+        <div class="pager">
+          <span class="pager-info">共 24 条 · 第 1/6 页</span>
+          <button class="pager-btn dis">‹</button><button class="pager-btn on">1</button><button class="pager-btn">2</button><button class="pager-btn">3</button><span class="pager-btn dis">…</span><button class="pager-btn">6</button><button class="pager-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 单账户风控详情 -->
+  <div class="mask" id="m-acc-risk">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>风控详情 · 网格增强</div><div class="modal-sub">账户 ast-04 · 熔断中</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="row wrap" style="gap:8px;margin-bottom:14px">
+          <div style="flex:1 1 96px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">权益</div><div class="num" style="font-size:15px;font-weight:700;margin-top:4px">$9,480</div>
+          </div>
+          <div style="flex:1 1 96px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(251,113,133,.3)">
+            <div class="tiny muted">日亏损率</div><div class="num down" style="font-size:15px;font-weight:700;margin-top:4px">-8.2%</div>
+          </div>
+          <div style="flex:1 1 96px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(251,191,36,.3)">
+            <div class="tiny muted">保证金使用</div><div class="num warn" style="font-size:15px;font-weight:700;margin-top:4px">78%</div>
+          </div>
+          <div style="flex:1 1 96px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">日交易</div><div class="num" style="font-size:15px;font-weight:700;margin-top:4px">58</div>
+          </div>
+          <div style="flex:1 1 96px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(251,191,36,.3)">
+            <div class="tiny muted">连亏</div><div class="num warn" style="font-size:15px;font-weight:700;margin-top:4px">3</div>
+          </div>
+        </div>
+        <div class="bold" style="font-size:12px;margin-bottom:4px">风控参数（账户级）</div>
+        <div class="kv"><span class="k">单日最大亏损率</span><span class="v">10%</span></div>
+        <div class="kv"><span class="k">熔断阈值</span><span class="v warn">15%</span></div>
+        <div class="kv"><span class="k">冷却时间</span><span class="v">30min</span></div>
+        <div class="kv"><span class="k">单笔最大亏损</span><span class="v">2%</span></div>
+        <div class="kv"><span class="k">盘中撤单上限</span><span class="v">120</span></div>
+        <div class="bold" style="font-size:12px;margin:14px 0 6px">近 7 日 PnL</div>
+        <svg viewBox="0 0 320 90" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="gradR15pnl" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(251,113,133,.24)"/><stop offset="1" stop-color="rgba(251,113,133,0)"/>
+            </linearGradient>
+          </defs>
+          <line x1="10" y1="45" x2="310" y2="45" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+          <text x="6" y="48" text-anchor="end" font-size="8.5" fill="#6E7B98">0%</text>
+          <path d="M10 20 L50 24 L90 32 L130 44 L170 58 L210 68 L250 76 L290 80 L310 82 L310 90 L10 90 Z" fill="url(#gradR15pnl)"/>
+          <path d="M10 20 L50 24 L90 32 L130 44 L170 58 L210 68 L250 76 L290 80 L310 82" fill="none" stroke="#FB7185" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="310" cy="82" r="2.6" fill="#FB7185"/>
+          <text x="310" y="72" text-anchor="end" font-size="8.5" fill="#FB7185">累计 -8.2%</text>
+          <text x="10" y="86" font-size="8.5" fill="#6E7B98">D-6</text>
+          <text x="310" y="86" text-anchor="end" font-size="8.5" fill="#6E7B98">今天</text>
+        </svg>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-drawer="d-circuit">查看熔断历史</button>
+        <button class="btn btn-primary" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 告警详情 -->
+  <div class="mask" id="m-alert">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>告警详情</div><div class="modal-sub">P0 · 熔断保护触发</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">时间</span><span class="v">10:18:47</span></div>
+        <div class="kv"><span class="k">级别</span><span class="v"><span class="tag" style="color:#FB7185;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.3)">P0</span></span></div>
+        <div class="kv"><span class="k">账户</span><span class="v">网格增强</span></div>
+        <div class="kv"><span class="k">消息</span><span class="v">日亏损率 -8.2% 触发熔断保护</span></div>
+        <div class="kv"><span class="k">触发条件</span><span class="v warn">单日亏损率 -8.2% 命中账户级熔断线 -8%</span></div>
+        <div class="bold" style="font-size:12px;margin:14px 0 6px">建议操作</div>
+        <div class="mono" style="background:#0A0F1C;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;font-size:11px;line-height:1.8;color:#AEB9D0">
+          1. 等待 30min 冷却窗口自动恢复<br>
+          2. 冷却期内禁止手动加仓 / 解除熔断<br>
+          3. 复查持仓保证金占用，必要时降低杠杆至 3x 以下
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 熔断历史抽屉 -->
+  <div class="drawer wide" id="d-circuit">
+    <div class="drawer-head">
+      <div><div class="drawer-title">熔断历史</div><div class="drawer-sub">近 30 天 · 共 5 次</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th class="sortable sorted">时间<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th>账户</th><th>触发原因</th><th>恢复时间</th><th>恢复方式</th></tr></thead>
+        <tbody>
+          <tr><td class="r">今天 10:18</td><td class="sym">网格增强</td><td class="warn">日亏损 -8.2% 达熔断线</td><td class="r"><span class="cd cd-auto" data-cd="600">恢复 <b>600</b>s</span></td><td><span class="badge warn"><span class="bdot"></span>熔断中</span></td></tr>
+          <tr><td class="r">07-12 14:02</td><td class="sym">AI短线激进</td><td>连亏 4 笔触发保护</td><td class="r">07-12 14:32</td><td>冷却到期自动恢复</td></tr>
+          <tr><td class="r">07-05 09:41</td><td class="sym">BTC趋势激进</td><td>保证金使用 85% 爆仓预警</td><td class="r">07-05 09:50</td><td>人工手动恢复</td></tr>
+          <tr><td class="r">06-28 22:17</td><td class="sym">网格增强</td><td>单日亏损 -11.3% 超全局阈值</td><td class="r">06-29 00:17</td><td>冷却到期自动恢复</td></tr>
+          <tr><td class="r">06-15 11:30</td><td class="sym">ETH套利稳健</td><td>风控参数误配触发</td><td class="r">06-15 11:45</td><td>人工恢复并复查参数</td></tr>
+        </tbody>
+        <tfoot><tr><td>近 30 天</td><td></td><td></td><td class="r">共 5 次</td><td></td></tr></tfoot>
+      </table></div>
+      <div class="tiny muted" style="margin-top:10px">熔断期间自动撤单并禁止新开仓；恢复方式为「人工」时需风控复核通过。</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- 持仓保护详情 -->
+  <div class="mask" id="m-protect">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>持仓保护详情 · BNB</div><div class="modal-sub">保护线缓冲 3% · 实时监测</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">入场价</span><span class="v">$584.00</span></div>
+        <div class="kv"><span class="k">现价</span><span class="v down">$569.20</span></div>
+        <div class="kv"><span class="k">保护线</span><span class="v warn">$570.00</span></div>
+        <div class="kv"><span class="k">距保护线</span><span class="v down">-0.14% <span class="tiny muted">· 已破保护线</span></span></div>
+        <div class="kv"><span class="k">止盈 TP</span><span class="v up">$620.00</span></div>
+        <div class="kv"><span class="k">止损 SL</span><span class="v">$570.00</span></div>
+        <div class="kv"><span class="k">保护状态</span><span class="v"><span class="badge warn"><span class="bdot"></span>保护触发</span></span></div>
+        <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28)">
+          <div class="flex" style="gap:6px"><span class="badge warn"><span class="bdot"></span>已执行保护动作</span><span style="font-size:11.5px;color:#FBBF24">自动撤单 + 持仓限仓，禁止加仓</span></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

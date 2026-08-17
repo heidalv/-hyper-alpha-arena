@@ -8,6 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PromptEditorPanel } from "@/components/config/PromptEditorPanel";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type Tab = "params" | "prompts";
 
@@ -66,26 +67,29 @@ function LongPageInner() {
   const stats = data.stats;
   const groups = data.groups;
   const params = data.param_defs;
-  const stagedTpEnabled = config.staged_tp_enabled;
+  const hasStats = stats && stats.trades > 0;
 
   return (
-    <div className="p-4 space-y-4 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Activity className="w-5 h-5 text-primary" />
-          长线策略配置
-        </h1>
-        {tab === "params" && (
-          <Button size="sm" onClick={handleSave} disabled={!dirty || updateMutation.isPending}>
-            {updateMutation.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-            ) : (
-              <Save className="w-3.5 h-3.5 mr-1" />
-            )}
-            保存参数
-          </Button>
-        )}
-      </div>
+    <div className="p-4 space-y-4">
+      <PageHeader
+        icon={<Activity className="w-4 h-4" />}
+        title="长线策略配置"
+        subtitle="参数修改后需点击保存生效"
+        breadcrumb={[{ label: "策略配置" }, { label: "长线配置" }]}
+        refreshHint="路线图 D14"
+        actions={
+          tab === "params" && (
+            <Button size="sm" onClick={handleSave} disabled={!dirty || updateMutation.isPending} className="btn-glow">
+              {updateMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5 mr-1" />
+              )}
+              保存参数
+            </Button>
+          )
+        }
+      />
 
       {/* 参数 / 提示词 */}
       <div className="flex gap-1 border-b border-border pb-0">
@@ -118,83 +122,98 @@ function LongPageInner() {
       {tab === "prompts" ? (
         <PromptEditorPanel defaultTier="long" />
       ) : (
-        <>
-          {stats && stats.trades > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Stat label="近7天" value={`${stats.trades}笔`} />
-              <Stat
-                label="胜率"
-                value={`${(stats.win_rate * 100).toFixed(0)}%`}
-                positive={stats.win_rate >= 0.5}
-              />
-              <Stat
-                label="净PnL"
-                value={`${stats.net_pnl > 0 ? "+" : ""}${stats.net_pnl.toFixed(1)}`}
-                positive={stats.net_pnl > 0}
-              />
-              <Stat
-                label="盈亏比"
-                value={stats.profit_factor.toFixed(2)}
-                positive={stats.profit_factor >= 1}
-              />
-              <Stat label="持仓" value={`${stats.avg_hold_hours}h`} />
+        <div className={cn("grid grid-cols-1 gap-4 items-start", hasStats && "lg:grid-cols-[2fr_1fr]")}>
+          {/* 左列：long_trend_v2 规则化参数 */}
+          <div className="space-y-4 min-w-0">
+
+            {Object.entries(groups)
+              .sort(([, a]: any, [, b]: any) => a.order - b.order)
+              .map(([gKey, gDef]: [string, any]) => {
+                const keys = Object.entries(params)
+                  .filter(([, d]: any) => d.group === gKey)
+                  .map(([k]) => k);
+                if (!keys.length) return null;
+                return (
+                  <Card key={gKey} className="glass p-0 [--card-spacing:0px]">
+                    <CardHead
+                      icon={<SlidersHorizontal className="w-[15px] h-[15px] text-cyan-300" />}
+                      title={gDef.title}
+                      hint="保存后生效"
+                    />
+                    <div className="px-4 py-3 space-y-4">
+                      {keys.map((key) => (
+                        <ParamRow
+                          key={key}
+                          k={key}
+                          def={params[key]}
+                          val={config[key]}
+                          onChange={updateParam}
+                        />
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+          </div>
+
+          {/* 右列：战绩统计 */}
+          {hasStats && (
+            <div className="space-y-4 min-w-0">
+              <Card className="glass p-0 [--card-spacing:0px]">
+                <CardHead
+                  icon={<Activity className="w-[15px] h-[15px] text-cyan-300" />}
+                  title="战绩统计"
+                  hint="近7天"
+                />
+                <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                  <Stat label="近7天" value={`${stats.trades}笔`} />
+                  <Stat
+                    label="胜率"
+                    value={`${(stats.win_rate * 100).toFixed(0)}%`}
+                    positive={stats.win_rate >= 0.5}
+                  />
+                  <Stat
+                    label="净PnL"
+                    value={`${stats.net_pnl > 0 ? "+" : ""}${stats.net_pnl.toFixed(1)}`}
+                    positive={stats.net_pnl > 0}
+                  />
+                  <Stat
+                    label="盈亏比"
+                    value={stats.profit_factor.toFixed(2)}
+                    positive={stats.profit_factor >= 1}
+                  />
+                  <Stat label="持仓" value={`${stats.avg_hold_hours}h`} />
+                </div>
+              </Card>
             </div>
           )}
-
-          {stagedTpEnabled && (
-            <Card className="border-primary/20 p-4">
-              <div className="text-sm font-medium mb-2">分批止盈路线图 (D14)</div>
-              <div className="flex items-center gap-2 text-xs flex-wrap">
-                <span className="px-2 py-1 bg-muted/50 rounded">持仓</span>
-                <span>→</span>
-                <span className="px-2 py-1 bg-profit/10 text-profit rounded">
-                  +{((config.tp1_trigger as number) * 100).toFixed(0)}% 减
-                  {((config.tp1_reduce as number) * 100).toFixed(0)}%
-                </span>
-                <span>→</span>
-                <span className="px-2 py-1 bg-profit/10 text-profit rounded">
-                  +{((config.tp2_trigger as number) * 100).toFixed(0)}% 减
-                  {((config.tp2_reduce as number) * 100).toFixed(0)}%
-                </span>
-                <span>→</span>
-                <span className="px-2 py-1 bg-profit/10 text-profit rounded">
-                  +{((config.tp3_trigger as number) * 100).toFixed(0)}% 减
-                  {((config.tp3_reduce as number) * 100).toFixed(0)}%
-                </span>
-                <span>→</span>
-                <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                  ATR trailing {config.trailing_atr_mult}x
-                </span>
-              </div>
-            </Card>
-          )}
-
-          {Object.entries(groups)
-            .sort(([, a]: any, [, b]: any) => a.order - b.order)
-            .map(([gKey, gDef]: [string, any]) => {
-              const keys = Object.entries(params)
-                .filter(([, d]: any) => d.group === gKey)
-                .map(([k]) => k);
-              if (!keys.length) return null;
-              return (
-                <Card key={gKey} className="p-4">
-                  <h2 className="text-sm font-medium mb-3">{gDef.title}</h2>
-                  <div className="space-y-3">
-                    {keys.map((key) => (
-                      <ParamRow
-                        key={key}
-                        k={key}
-                        def={params[key]}
-                        val={config[key]}
-                        onChange={updateParam}
-                      />
-                    ))}
-                  </div>
-                </Card>
-              );
-            })}
-        </>
+        </div>
       )}
+    </div>
+  );
+}
+
+function CardHead({
+  icon,
+  title,
+  hint,
+  right,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  hint?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2.5 border-b border-white/5">
+      <div className="flex items-center gap-2 text-sm font-semibold min-w-0">
+        {icon}
+        <span className="truncate">{title}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {hint && <span className="text-xs font-mono text-slate-500">{hint}</span>}
+        {right}
+      </div>
     </div>
   );
 }
@@ -209,14 +228,9 @@ function Stat({
   positive?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "p-2 rounded bg-muted/30",
-        positive !== undefined && (positive ? "text-profit" : "text-loss")
-      )}
-    >
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm font-bold tabular-nums">{value}</div>
+    <div className="bg-muted/40 rounded-lg p-2">
+      <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
+      <div className={cn("text-sm font-bold tabular-nums", positive === undefined ? "grad-text" : positive ? "text-profit" : "text-loss")}>{value}</div>
     </div>
   );
 }
@@ -235,7 +249,7 @@ function ParamRow({
   if (def.type === "bool") {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-sm">{def.label}</span>
+        <span className="text-xs text-muted-foreground">{def.label}</span>
         <button
           onClick={() => onChange(k, !val)}
           className={cn(
@@ -255,9 +269,9 @@ function ParamRow({
   }
   return (
     <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span>{def.label}</span>
-        <span className="font-bold tabular-nums">
+      <div className="flex justify-between text-xs mb-1.5">
+        <span className="text-muted-foreground">{def.label}</span>
+        <span className="text-sm font-bold tabular-nums">
           {def.unit === "%" ? (val * 100).toFixed(1) + "%" : val}
         </span>
       </div>

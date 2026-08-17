@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Bell, Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
+import { Search, Bell, LogOut, RefreshCw } from "lucide-react";
 import { hardNavigate } from "@/lib/app-nav";
 import { isElectronRuntime } from "@/lib/auth-storage";
 import { getWs } from "@/lib/ws";
@@ -22,6 +22,7 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
   const [updBusy, setUpdBusy] = useState(false);
   const [updHint, setUpdHint] = useState("");
   const [alertCount, setAlertCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   // R5-1：搜索框接命令面板（focus 即打开、输入即过滤）
@@ -114,9 +115,9 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
   }
 
   return (
-    <header className="flex items-center justify-between h-12 px-4 border-b border-border bg-card flex-shrink-0">
+    <header className="relative flex items-center justify-between h-12 px-4 border-b border-border bg-card/60 backdrop-blur-md flex-shrink-0">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1 rounded bg-muted/50 text-muted-foreground text-xs w-64">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border text-muted-foreground text-xs w-64 focus-within:border-cyan-400/60 focus-within:ring-3 focus-within:ring-cyan-400/15 transition-all">
           <Search className="w-3.5 h-3.5" />
           <input
             type="text"
@@ -138,15 +139,9 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 text-xs">
           {wsConnected ? (
-            <>
-              <Wifi className="w-3.5 h-3.5 text-profit" />
-              <span className="text-profit">实时</span>
-            </>
+            <span className="chip-capsule ws"><span className="w-1.5 h-1.5 rounded-full bg-profit shadow-[0_0_6px_rgba(52,211,153,0.8)]" />实时</span>
           ) : (
-            <>
-              <WifiOff className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground">轮询中</span>
-            </>
+            <span className="chip-capsule"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />轮询中</span>
           )}
         </div>
 
@@ -158,7 +153,7 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
               onClick={() => void onCheckUpdate()}
               disabled={updBusy}
               title="检查桌面端更新"
-              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[11px] hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-cyan-300 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`w-3 h-3 ${updBusy ? "animate-spin" : ""}`} />
               {updHint || "检查更新"}
@@ -166,31 +161,81 @@ export function TopBar({ wsConnected }: { wsConnected: boolean }) {
           </div>
         ) : null}
 
-        <a
-          href="/ops#ops-errors"
-          aria-label="运维报错中心"
-          title={alertCount > 0 ? `P0/P1 报错 ${alertCount}` : "运维报错中心"}
-          className="text-muted-foreground hover:text-foreground transition-colors relative"
-        >
-          <Bell className="w-4 h-4" />
-          {alertCount > 0 ? (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-loss text-[9px] leading-[14px] text-center text-white">
-              {alertCount > 99 ? "99+" : alertCount}
-            </span>
-          ) : null}
-        </a>
+        {/* 通知中心（Aurora 设计稿组件：铃铛下拉面板） */}
+        <div className="relative">
+          <a
+            href="/ops#ops-errors"
+            aria-label="运维报错中心"
+            title={alertCount > 0 ? `P0/P1 报错 ${alertCount}` : "通知中心"}
+            className="text-muted-foreground hover:text-foreground transition-colors relative"
+            onClick={(e) => {
+              e.preventDefault();
+              setNotifOpen((v) => !v);
+            }}
+          >
+            <Bell className="w-4 h-4" />
+            {alertCount > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-loss text-[9px] leading-[14px] text-center text-white">
+                {alertCount > 99 ? "99+" : alertCount}
+              </span>
+            ) : null}
+          </a>
+          {notifOpen && (
+            <div className="absolute right-0 top-8 z-50 w-[360px] overflow-hidden rounded-xl border border-border bg-popover shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+                <span className="text-[13px] font-bold">通知中心</span>
+                <button
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setNotifOpen(false)}
+                >
+                  关闭
+                </button>
+              </div>
+              {alertCount > 0 ? (
+                <a
+                  href="/ops#ops-errors"
+                  onClick={() => setNotifOpen(false)}
+                  className="flex gap-3 px-4 py-3 border-b border-border/40 hover:bg-white/[0.04] transition-colors"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-loss/15 text-loss flex items-center justify-center flex-shrink-0">
+                    <Bell className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold">运维报错 {alertCount} 条</span>
+                    <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">
+                      P0/P1 级错误待处理，点击前往报错中心
+                    </span>
+                  </span>
+                </a>
+              ) : (
+                <div className="px-4 py-8 text-center text-xs text-muted-foreground">暂无新通知</div>
+              )}
+              {updHint && (
+                <div className="flex gap-3 px-4 py-3 border-b border-border/40 hover:bg-white/[0.04] transition-colors">
+                  <span className="w-7 h-7 rounded-lg bg-cyan-400/15 text-cyan-300 flex items-center justify-center flex-shrink-0">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold">桌面端更新</span>
+                    <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{updHint}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="text-xs font-mono text-muted-foreground tabular-nums">{time}</div>
         <div className="w-px h-5 bg-border" />
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <span className="text-emerald-400 text-[10px] font-bold">{initial}</span>
+          <div className="w-6 h-6 rounded-full bg-cyan-400/20 flex items-center justify-center">
+            <span className="text-cyan-300 text-[10px] font-bold">{initial}</span>
           </div>
           <span className="text-xs text-muted-foreground hidden sm:block max-w-[100px] truncate">
             {user?.username || "—"}
           </span>
           {user?.tier && (
-            <span className="hidden md:inline text-[10px] uppercase tracking-wide text-emerald-500/80">
+            <span className="hidden md:inline text-[10px] uppercase tracking-wide text-cyan-400/80">
               {user.tier}
             </span>
           )}

@@ -46,6 +46,18 @@ def _cfg(name: str, default):
     return getattr(_s, name, default)
 
 
+def midlong_lookback_for(timeframe: str) -> int:
+    """中线打分回看根数按周期分档（2026-08-16 深度适配）。
+
+    4h=2400 根≈400 天（asterdex 4h 现深 2400）；1d 单独档（asterdex 1d
+    仅 3.1 年≈1126 根，2400 根=6.6 年永远不够，预检永远 ✗）。
+    """
+    tf = str(timeframe or "").strip().lower()
+    if tf in ("1d", "1w", "1M"):
+        return int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK_1D", 1000))
+    return int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK", 2400))
+
+
 def _resolve_admin_tenant():
     """[2026-08-13 P1-9] 管理员租户 id。
 
@@ -63,12 +75,18 @@ def _resolve_admin_tenant():
 _PERIOD_HOURS = {
     "1m": 1 / 60, "3m": 3 / 60, "5m": 5 / 60, "15m": 0.25,
     "30m": 0.5, "1h": 1.0, "2h": 2.0, "4h": 4.0, "8h": 8.0, "1d": 24.0,
+    # [2026-08-16 修复] 1w 此前未登记 → _period_hours 返回默认 1.0（1 小时），
+    # funding 与年化全按小时线算（funding 低估 168 倍、bars_per_year 8760 而非 52）。
+    # 注意：不登记 "1M"（月线）——本表查询时 .lower()，1M 会与 1m(分钟) 碰撞。
+    "1w": 168.0,
 }
 
 # [2026-08-13 P1-5] 打分前瞻期与进化侧分档对齐（scalp ATR 持仓节奏）。
 _PERIOD_FWD_BARS = {
     "1m": 12, "3m": 12, "5m": 12, "15m": 6, "30m": 4,
     "1h": 2, "2h": 1, "4h": 1, "8h": 1, "1d": 1,
+    # [2026-08-16] 周线前瞻 1 根（一根周线本身就是一个持仓周期）。
+    "1w": 1,
 }
 
 
@@ -92,24 +110,49 @@ class FactorBacktestScorer:
 
     # ── 数据加载 ──
     @staticmethod
+    def _backtest_exchange() -> str:
+        """回测/打分数据源交易所。
+
+        [2026-08-16] 默认 binance：其日线深度 8-9 年（BTC 自 2017），比实盘
+        交易所 asterdex 的 3 年多 3 倍样本，回测结论可信度翻倍。因子发现/扫描/
+        晋升（score_formula / validate_and_promote / cold_pool / gpu_mine）全走
+        此数据源；实盘成交仍走实盘交易所，互不干扰。
+        """
+        try:
+            import os as _os
+            return _os.getenv("FACTOR_BACKTEST_KLINE_EXCHANGE", "binance").strip().lower() or "binance"
+        except Exception:
+            return "binance"
+
+    @staticmethod
     def _load_klines(symbol: str, interval: str, limit: int):
-        """优先 UnifiedDataPool（进程内实时快照），回退 DB（离线/独立进程可用）。"""
+        """回测数据源加载：指定交易所 DB（默认 binance 8 年深度）。
+
+        [2026-08-16] 走 data_center 的 purpose="research"（honor 传入 exchange），
+        而非 get_klines_from_db 的 purpose="trade"（后者强制 active_exchange，
+        会把 binance 覆盖回 asterdex）。closed_only=True 剔除未收盘 forming bar，
+        避免因子/信号吃未来数据（与 M1 前视隔离口径一致）。
+        """
+        _ex = FactorBacktestScorer._backtest_exchange()
+        try:
+            from backend.services.data_center import data_center
+            res = data_center.get_klines(
+                symbol.upper(), interval, count=limit,
+                exchange=_ex, purpose="research", closed_only=True,
+            )
+            rows = getattr(res, "rows", None)
+            if rows and len(rows) >= 120:
+                return rows
+        except Exception as e:
+            logger.debug(f"[FactorScorer] {symbol} {interval} DB({_ex}) research 加载失败，回退UDP: {e}")
         try:
             from backend.services.unified_data_pool import UnifiedDataPool
             k = UnifiedDataPool().get_kline_series(symbol, interval=interval, limit=limit)
             if k and len(k) >= 120:
                 return k
         except Exception as e:
-            logger.debug(f"[FactorScorer] {symbol} UDP K线加载失败，回退DB: {e}")
-        # [2026-08-13 P0-3] 不再固定 hyperliquid：与实盘同源（active_exchange，
-        # 当前 asterdex）。因子在 A 所打分、在 B 所成交是短线因子失真的根源之一。
-        try:
-            from backend.services.kline_data_service import kline_service
-            rows = kline_service.get_klines_from_db(symbol.upper(), interval, limit)
-            return rows or None
-        except Exception as e:
-            logger.debug(f"[FactorScorer] {symbol} DB K线加载失败: {e}")
-            return None
+            logger.debug(f"[FactorScorer] {symbol} UDP K线加载失败: {e}")
+        return None
 
     @staticmethod
     def _kline_field(k, field: str):
@@ -236,6 +279,39 @@ class FactorBacktestScorer:
             "n": len(idx),
         }
 
+    @staticmethod
+    def _rolling_ic_series(factor_vals: np.ndarray, closes: np.ndarray, fwd: int,
+                           window: int = 30) -> np.ndarray:
+        """[P0-1] 计算因子滚动 IC 时序（每根 bar 一个 IC，窗口 30，返回含 NaN 的完整序列）。
+
+        供 compute_pbo_simple 时序 CSCV 使用：PBO 需要因子 IC 的【时间序列】
+        检测时间维度过拟合，禁止对跨币标量按值排序分组。
+        """
+        f = np.asarray(factor_vals, dtype=float).ravel()
+        c = np.asarray(closes, dtype=float).ravel()
+        n = min(len(f), len(c))
+        if n < window + fwd:
+            return np.full(n, np.nan)
+        f, c = f[:n], c[:n]
+        r = np.full(n, np.nan)
+        r[:-fwd] = (c[fwd:] - c[:-fwd]) / c[:-fwd]
+        ics = np.full(n, np.nan)
+        for i in range(window, n):
+            fs = f[i - window:i]
+            rs = r[i - window:i]
+            m = np.isfinite(fs) & np.isfinite(rs)
+            if int(m.sum()) < 20:
+                continue
+            xs = fs[m] - np.mean(fs[m])
+            ys = rs[m] - np.mean(rs[m])
+            denom = float(np.sqrt(np.sum(xs * xs)) * np.sqrt(np.sum(ys * ys)))
+            if denom < 1e-12:
+                continue
+            ic = float(np.sum(xs * ys) / denom)
+            if np.isfinite(ic):
+                ics[i] = ic
+        return ics
+
     def _active_factor_series(
         self,
         arrays_by_symbol: Dict[str, Dict[str, np.ndarray]],
@@ -319,6 +395,7 @@ class FactorBacktestScorer:
         arrays_by_symbol: Dict[str, Dict[str, np.ndarray]] = {}
         ic_list: List[float] = []
         icir_list: List[float] = []
+        ic_series_list: List[np.ndarray] = []  # [P0-1] 每币滚动 IC 时序（PBO 时序 CSCV 用）
         decay_list: List[int] = []
         mono_list: List[float] = []
         net_list: List[float] = []
@@ -371,9 +448,28 @@ class FactorBacktestScorer:
                 net_total += bt["net_return"]
                 result.per_symbol[sym] = bt
 
+            # [P0-1] 滚动 IC 时序（供 PBO 时序 CSCV，检测时间维度过拟合）
+            try:
+                _ics = self._rolling_ic_series(factor_vals, arrays["close"], fwd)
+                if int(np.isfinite(_ics).sum()) >= 30:
+                    ic_series_list.append(_ics)
+            except Exception:
+                pass
+
         if not net_list or not ic_list:
             result.reason = "有效样本不足（无法在核心币种上完成回测/IC）"
             return result
+
+        # [P0-1] 跨币对齐后取平均 → 因子 IC 时序（供 PBO 时序 CSCV）
+        ic_series_avg: Optional[List[float]] = None
+        if ic_series_list:
+            _min_n = min(int(len(s)) for s in ic_series_list)
+            if _min_n >= 8:
+                _stack = np.vstack([np.asarray(s[: _min_n], dtype=float) for s in ic_series_list])
+                _avg = np.nanmean(_stack, axis=0)
+                _avg = _avg[np.isfinite(_avg)]
+                if len(_avg) >= 8:
+                    ic_series_avg = [float(v) for v in _avg]
 
         result.ic_mean = round(float(np.mean(ic_list)), 4)
         result.icir = round(float(np.mean(icir_list)), 4)
@@ -406,11 +502,19 @@ class FactorBacktestScorer:
         except Exception as e:
             logger.debug(f"[FactorScorer] 正交检验跳过: {e}")
 
-        # ── [2026-08-13 P1-7] DSR/PBO 多重检验闸门 ──
+        # ── [2026-08-13 P1-7] DSR/PBO 多重检验闸门（[P0-1] n_trials 动态 + 时序 PBO）──
         dsr_ok, pbo_val = True, 0.0
         if dsr_required:
-            _n_trials = int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40))
-            dsr_ok, pbo_val = self._dsr_pbo_gate(icir_list, lookback, _n_trials)
+            # [P0-1] n_trials 动态化：多重检验校正按真实候选规模（active 数 + 1），
+            # 固定 40 与数百候选池脱节会导致 E[max SR] 被系统性低估、闸门过松。
+            try:
+                _active_n = len(custom_factor_store.list_active(tenant_id=_resolve_admin_tenant()))
+            except Exception:
+                _active_n = 0
+            _n_trials = max(int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40)), _active_n + 1)
+            dsr_ok, pbo_val = self._dsr_pbo_gate(
+                icir_list, lookback, _n_trials, ic_series=ic_series_avg,
+            )
 
         # ── 综合评级 ──
         # 用 |IC|/|ICIR|：回测已按训练窗口 IC 符号自动定方向，负 IC 因子（反向可交易）
@@ -434,7 +538,11 @@ class FactorBacktestScorer:
             result.reason = f"与 active 因子 {result.redundant_with} 冗余（corr≥{redun_corr}）"
         elif not dsr_ok:
             result.grade = "C"
-            result.reason = f"DSR/PBO 未通过（pbo={pbo_val:.3f}）——多重检验下无显著预测力"
+            # [2026-08-16 修复] fail-closed 返回 pbo=None（跨币样本不足/时序缺失），
+            # f-string {pbo_val:.3f} 直接抛 unsupported format string，
+            # 导致每个候选因子打分异常中断（validate job 全程空转）。
+            _pbo_txt = f"{pbo_val:.3f}" if pbo_val is not None else "N/A"
+            result.reason = f"DSR/PBO 未通过（pbo={_pbo_txt}）——多重检验下无显著预测力"
         elif abs_ic >= 0.05 and abs_icir > 0.5 and perf_ok:
             result.grade = "A"
         elif abs_ic >= 0.03 and abs_icir > 0.3 and perf_ok:
@@ -451,50 +559,55 @@ class FactorBacktestScorer:
                 f"OOS_sharpe={result.oos_sharpe} OOS_net={result.oos_net_return} "
                 f"win={result.oos_win_rate} trades={result.oos_trades}"
             )
-        # [2026-08-14 P0-1] DSR 跳过的可见性：reason 落库供运维台确认跳过原因
+        # [P0-1] DSR 跳过的可见性：reason 落库供运维台确认跳过原因（现为 fail-closed）
         if pbo_val is None:
-            result.reason += " | DSR/PBO 跳过（跨币样本不足 fail-open）"
+            result.reason += " | DSR/PBO fail-closed（跨币样本不足或 IC 时序缺失）"
         return result
 
     @staticmethod
-    def _dsr_pbo_gate(icir_list: List[float], sample_len: int, n_trials: int):
-        """[2026-08-13 P1-7] DSR/PBO 多重检验闸门。
+    def _dsr_pbo_gate(icir_list: List[float], sample_len: int, n_trials: int,
+                      ic_series: Optional[List[float]] = None):
+        """[P0-1] DSR/PBO 多重检验闸门（fail-closed）。
 
         返回 (dsr_ok, pbo)：
-        - pbo 为 None 表示「跨币样本不足，显式 fail-open 跳过」（单币/2~3 币一致化），
-          由 OOS Sharpe/净收益/冗余等其它门槛兜底；
-        - 跨币样本充足（>=FACTOR_SCORER_DSR_MIN_SYMBOLS）时才正常计算；
-        - 计算工具异常时仍 fail-closed（宁可误拒，不放无验证因子入实盘）。
-
-        [2026-08-14 P0-1 修复] 此前 3 币场景 pbo 恒 0.5 且门槛 `pbo < 0.5` 恒假 →
-        所有因子机械性拒绝（晋升管道死锁）；单币场景又 fail-open，语义不对称。
-        现统一为样本不足一律显式跳过并告警。
+        - 跨币样本不足（<FACTOR_SCORER_DSR_MIN_SYMBOLS，默认 3）→ fail-closed（False, None），
+          显式记录 skipped_reason。旧行为 fail-open（return True, None）使多重检验闸门
+          在默认 3 币（BTC/ETH/SOL）部署下形同虚设。
+        - PBO 必须基于 IC 时序（ic_series，时序 CSCV）；时序缺失/过短或 indeterminate → fail-closed。
+        - 计算工具异常 → fail-closed（宁可误拒，不放无验证因子入实盘）。
         """
-        _min_symbols = max(1, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 4)))
+        _min_symbols = max(2, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 3)))
         if len(icir_list) < _min_symbols:
             logger.warning(
-                "[FactorScorer] DSR/PBO 跳过（跨币样本 %d < %d，fail-open）"
-                "——多重检验无法估计，由 OOS/净收益/冗余门槛兜底",
+                "[FactorScorer] DSR/PBO fail-closed（跨币样本 %d < %d）"
+                "——多重检验无法估计，拒绝晋升",
                 len(icir_list), _min_symbols,
             )
-            return True, None
+            return False, None
+        if not ic_series or len(ic_series) < 8:
+            logger.warning(
+                "[FactorScorer] DSR/PBO fail-closed（IC 时序缺失/过短 n=%d）"
+                "——无法做时间维度过拟合检测，拒绝晋升",
+                len(ic_series or []),
+            )
+            return False, None
         try:
             from backend.services.factor_engine.dsr_pbo import compute_dsr_pbo_for_factors
             r = compute_dsr_pbo_for_factors(
                 icir_list=list(icir_list),
                 n_total_candidates=max(int(n_trials), 1),
                 sample_len=max(int(sample_len), 50),
+                ic_series=list(ic_series),
             )
             _pbo_r = r.get("pbo_result") or {}
             if bool(_pbo_r.get("indeterminate")):
                 logger.warning(
-                    "[FactorScorer] DSR/PBO 不可判定（PBO 组合无效），fail-open 跳过"
+                    "[FactorScorer] DSR/PBO 不可判定（时序 PBO 组合无效），fail-closed"
                 )
-                return True, None
+                return False, float(_pbo_r.get("pbo", 0.5))
             dsr_sig = bool((r.get("dsr_result") or {}).get("significant", False))
             pbo = float(_pbo_r.get("pbo", 1.0))
             _max_pbo = float(_cfg("FACTOR_SCORER_MAX_PBO", 0.5))
-            # [2026-08-14 P0-1] pbo<=阈值（0.5=无证据，不应成为硬阻断边界陷阱）
             return bool(dsr_sig and pbo <= _max_pbo), pbo
         except Exception as e:
             logger.warning("[FactorScorer] DSR/PBO 计算失败，fail-closed: %s", e)
@@ -519,7 +632,7 @@ class FactorBacktestScorer:
             result = self.score_formula(
                 factor_id, formula,
                 interval=_tf,
-                lookback=int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK", 900)),
+                lookback=midlong_lookback_for(_tf),
                 fwd=int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if _tf == "1d"
                     else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
                 min_sharpe=float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),

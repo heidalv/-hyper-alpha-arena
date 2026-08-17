@@ -42,7 +42,7 @@ def try_connect_postgres():
             engine = create_engine(conn_string, isolation_level="AUTOCOMMIT")
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            logger.info(f"✓ Connected successfully with {method}")
+            logger.info(f"�?Connected successfully with {method}")
             return engine
         except OperationalError as e:
             logger.debug(f"Failed with {method}: {e}")
@@ -74,9 +74,9 @@ def create_postgres_user_and_databases():
                 conn.execute(text(
                     f"CREATE USER {DB_USER} WITH PASSWORD '{DB_PASSWORD}'"
                 ))
-                logger.info(f"✓ User {DB_USER} created successfully")
+                logger.info(f"�?User {DB_USER} created successfully")
             else:
-                logger.info(f"✓ User {DB_USER} already exists")
+                logger.info(f"�?User {DB_USER} already exists")
 
             # Create main database
             result = conn.execute(text(
@@ -87,9 +87,9 @@ def create_postgres_user_and_databases():
             if not main_db_exists:
                 logger.info(f"Creating database: {MAIN_DB_NAME}")
                 conn.execute(text(f"CREATE DATABASE {MAIN_DB_NAME} OWNER {DB_USER}"))
-                logger.info(f"✓ Database {MAIN_DB_NAME} created successfully")
+                logger.info(f"�?Database {MAIN_DB_NAME} created successfully")
             else:
-                logger.info(f"✓ Database {MAIN_DB_NAME} already exists")
+                logger.info(f"�?Database {MAIN_DB_NAME} already exists")
 
             # Create snapshot database
             result = conn.execute(text(
@@ -100,28 +100,28 @@ def create_postgres_user_and_databases():
             if not snapshot_db_exists:
                 logger.info(f"Creating database: {SNAPSHOT_DB_NAME}")
                 conn.execute(text(f"CREATE DATABASE {SNAPSHOT_DB_NAME} OWNER {DB_USER}"))
-                logger.info(f"✓ Database {SNAPSHOT_DB_NAME} created successfully")
+                logger.info(f"�?Database {SNAPSHOT_DB_NAME} created successfully")
             else:
-                logger.info(f"✓ Database {SNAPSHOT_DB_NAME} already exists")
+                logger.info(f"�?Database {SNAPSHOT_DB_NAME} already exists")
 
         return True
 
     except OperationalError as e:
         if "could not connect to server" in str(e):
-            logger.error("❌ PostgreSQL is not running. Please start PostgreSQL service.")
+            logger.error("�?PostgreSQL is not running. Please start PostgreSQL service.")
             logger.error("   Ubuntu/Debian: sudo systemctl start postgresql")
             logger.error("   macOS: brew services start postgresql")
             return False
         elif "peer authentication failed" in str(e):
-            logger.error("❌ PostgreSQL authentication failed.")
+            logger.error("�?PostgreSQL authentication failed.")
             logger.error("   You may need to configure PostgreSQL to allow local connections.")
             logger.error("   Edit /etc/postgresql/*/main/pg_hba.conf and change 'peer' to 'trust' for local connections.")
             return False
         else:
-            logger.error(f"❌ Failed to connect to PostgreSQL: {e}")
+            logger.error(f"�?Failed to connect to PostgreSQL: {e}")
             return False
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+        logger.error(f"�?Unexpected error: {e}")
         return False
 
 
@@ -147,7 +147,7 @@ def apply_required_migrations():
                 logger.info("Detected missing 'exchange' column in crypto_klines table")
                 migrations_needed = True
             else:
-                logger.info("✓ crypto_klines table has required 'exchange' column")
+                logger.info("�?crypto_klines table has required 'exchange' column")
         else:
             logger.info("crypto_klines table not found, migrations will be needed after table creation")
             migrations_needed = True
@@ -178,22 +178,22 @@ def apply_required_migrations():
                         spec.loader.exec_module(migration_module)
                         migration_module.upgrade()
 
-                        logger.info(f"✓ Migration {migration_file} completed successfully")
+                        logger.info(f"�?Migration {migration_file} completed successfully")
                     except Exception as e:
-                        logger.error(f"❌ Migration {migration_file} failed: {e}")
+                        logger.error(f"�?Migration {migration_file} failed: {e}")
                         # Continue with other migrations instead of failing completely
                         continue
                 else:
                     logger.warning(f"Migration file not found: {migration_file}")
 
-            logger.info("✓ Database migration process completed")
+            logger.info("�?Database migration process completed")
         else:
-            logger.info("✓ Database schema is up to date")
+            logger.info("�?Database schema is up to date")
 
         return True
 
     except Exception as e:
-        logger.error(f"❌ Failed to apply migrations: {e}")
+        logger.error(f"�?Failed to apply migrations: {e}")
         return False
 
 
@@ -202,14 +202,14 @@ def create_tables():
     try:
         # Import models to register them with SQLAlchemy
         from backend.database.connection import engine, Base
-        from database.snapshot_connection import snapshot_engine, SnapshotBase
-        from database import models  # This imports all model definitions
-        from database import snapshot_models  # This imports snapshot model definitions
+        from backend.database.snapshot_connection import snapshot_engine, SnapshotBase
+        from backend.database import models  # This imports all model definitions
+        from backend.database import snapshot_models  # This imports snapshot model definitions
 
         # Create main database tables
         logger.info("Creating main database tables...")
         Base.metadata.create_all(bind=engine)
-        logger.info("✓ Main database tables created successfully")
+        logger.info("�?Main database tables created successfully")
 
         # Apply required migrations for new installations
         if not apply_required_migrations():
@@ -218,12 +218,12 @@ def create_tables():
         # Create snapshot database tables
         logger.info("Creating snapshot database tables...")
         SnapshotBase.metadata.create_all(bind=snapshot_engine)
-        logger.info("✓ Snapshot database tables created successfully")
+        logger.info("�?Snapshot database tables created successfully")
 
         return True
 
     except Exception as e:
-        logger.error(f"❌ Failed to create tables: {e}")
+        logger.error(f"�?Failed to create tables: {e}")
         return False
 
 
@@ -231,27 +231,27 @@ def verify_setup():
     """Verify that the setup is complete"""
     try:
         from backend.database.connection import engine
-        from database.snapshot_connection import snapshot_engine
+        from backend.database.snapshot_connection import snapshot_engine
 
         # Check main database
         inspector = inspect(engine)
         main_tables = inspector.get_table_names()
-        logger.info(f"✓ Main database has {len(main_tables)} tables")
+        logger.info(f"�?Main database has {len(main_tables)} tables")
 
         # Check snapshot database
         inspector = inspect(snapshot_engine)
         snapshot_tables = inspector.get_table_names()
-        logger.info(f"✓ Snapshot database has {len(snapshot_tables)} tables")
+        logger.info(f"�?Snapshot database has {len(snapshot_tables)} tables")
 
         if len(main_tables) > 0 and len(snapshot_tables) > 0:
-            logger.info("✅ PostgreSQL setup completed successfully!")
+            logger.info("�?PostgreSQL setup completed successfully!")
             return True
         else:
-            logger.error("❌ Setup incomplete: some tables are missing")
+            logger.error("�?Setup incomplete: some tables are missing")
             return False
 
     except Exception as e:
-        logger.error(f"❌ Verification failed: {e}")
+        logger.error(f"�?Verification failed: {e}")
         return False
 
 
@@ -263,22 +263,22 @@ def main():
 
     # Step 1: Create user and databases
     if not create_postgres_user_and_databases():
-        logger.error("\n❌ Database initialization failed!")
+        logger.error("\n�?Database initialization failed!")
         logger.error("Please ensure PostgreSQL is installed and running.")
         return 1
 
     # Step 2: Create tables
     if not create_tables():
-        logger.error("\n❌ Table creation failed!")
+        logger.error("\n�?Table creation failed!")
         return 1
 
     # Step 3: Verify setup
     if not verify_setup():
-        logger.error("\n❌ Setup verification failed!")
+        logger.error("\n�?Setup verification failed!")
         return 1
 
     logger.info("\n" + "=" * 60)
-    logger.info("✅ All database initialization tasks completed!")
+    logger.info("�?All database initialization tasks completed!")
     logger.info("=" * 60)
     return 0
 

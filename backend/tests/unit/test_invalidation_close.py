@@ -403,79 +403,11 @@ class TestResetTranche:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# G. mlto_cycle.execute_mlto_lane 消费 close 调 _mlto_close_symbol
+# [2026-08-17] TestExecuteLaneCloseDispatch 已删：
+# execute_mlto_lane 函数已删除（旧长线 MLTO lane LLM 下线）。
+# _mlto_close_symbol 本身仍被 _maintain_mlto_theses_for_session 的 close 分支使用，
+# 相关测试保留于本文文件其它处。
 # ═══════════════════════════════════════════════════════════════════
-class TestExecuteLaneCloseDispatch:
-    def test_close_action_invokes_close_symbol(self, monkeypatch):
-        """execute_mlto_lane 收到 action=close → 调 _mlto_close_symbol, 不走开仓。"""
-        from backend.services.full_auto import mlto_cycle
-        from backend.services.mlto.types import MltoTickResult, ThesisDTO
-
-        dispatched = {"close": None, "open": 0}
-
-        def _fake_close(*, db, session, symbol, thesis, reason):
-            dispatched["close"] = (symbol, reason)
-            return True
-
-        class _Host:
-            mlto_handled_keys = set()
-            mlto_handled_lock = __import__("threading").Lock()
-            midlong_persistence_state = {}
-            current_ai_tiers = ["mid", "long"]
-            last_orch_decisions = {}
-            last_orch_decisions_ts = 0.0
-            def inject_midlong_indicators(self, *a, **k): return None
-            def append_event(self, *a, **k): return None
-            def format_agent_event_detail(self, *a, **k): return ""
-            def try_execute_independent_agent_open(self, *a, **k):
-                dispatched["open"] += 1
-                return True
-            def persist_independent_scan_log(self, *a, **k): return None
-            def build_midlong_agent_envelope(self, *a, **k): return {}
-
-        monkeypatch.setattr(mlto_cycle, "_mlto_close_symbol", _fake_close, raising=False)
-        # SessionLocal 不应被触碰(close 路径里用到), stub 掉以防真连 DB
-        class _FakeExecDB:
-            def close(self): pass
-        monkeypatch.setattr(
-            "backend.database.connection.SessionLocal", lambda: _FakeExecDB(), raising=False,
-        )
-
-        dec = {"action": "close", "reasoning": "invalidation", "confidence": 60}
-        t = ThesisDTO(thesis_id="t1", session_id="s1", symbol="BTC", tier="long", direction="long")
-        # 直接调 execute_mlto_lane 的 close 分支需要先有 result; 这里通过手动复现分支逻辑验证:
-        # 我们改用直接验证 _mlto_close_symbol 的接线, 因为完整 execute_mlto_lane 还会
-        # 跑 envelope/structure_stop, 这些需要更多市场数据。下面的 assert 验证 close 被
-        # 正确分发而 open 没被调。
-        # 由于 execute_mlto_lane 内部从 run_mlto_tick 拿 result, 这里构造一个能注入的入口:
-        def _fake_run_mlto_tick(*a, **k):
-            return MltoTickResult(
-                action="close", reason="[MLTO] invalidation_triggered: 跌破支撑",
-                thesis=t, confidence=60,
-            )
-        monkeypatch.setattr(
-            "backend.services.mlto.orchestrator.run_mlto_tick",
-            _fake_run_mlto_tick, raising=False,
-        )
-        monkeypatch.setattr(
-            "backend.services.mid_long_structure_stop.mid_long_structure_stop.compute",
-            lambda **k: (0.08, 0.16, 0.0, 0.0, "stub"), raising=False,
-        )
-
-        try:
-            action, reason, conf = mlto_cycle.execute_mlto_lane(
-                sym="BTC", dec=dec, tier="long", agent_source="trend_agent",
-                market_summary={}, analyst_reports={}, db=None,
-                session=SimpleNamespace(paper_account_id=42, status="running"),
-                portfolio={}, host=_Host(), mode="paper",
-            )
-        except Exception:
-            # execute_mlto_lane 末尾的 envelope/event 可能抛, 我们只关心 close 分发
-            pass
-
-        assert dispatched["close"] is not None
-        assert dispatched["close"][0] == "BTC"
-        assert dispatched["open"] == 0  # close 不应触发开仓
 
 
 if __name__ == "__main__":

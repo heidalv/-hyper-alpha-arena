@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>极光引擎 Aurora Engine · 全站设计预览</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script>{{ICONS}}</script>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<!-- 极光背景 -->
+<div class="aurora-bg">
+  <div class="aurora-blob blob-cyan"></div>
+  <div class="aurora-blob blob-violet"></div>
+  <div class="aurora-blob blob-emerald"></div>
+  <div class="aurora-band"></div>
+  <div class="aurora-stars"></div>
+</div>
+<!-- 科技感：透视网格 + 扫描光带 -->
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+
+<!-- SVG 渐变定义（导航激活图标 / 主按钮） -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="gradActive" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="gradCyanViolet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(34,211,238,0.28)"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo"><span>α</span></div>
+      <div>
+        <div class="brand-name">Heidalv Alpha</div>
+        <div class="brand-sub">量化交易终端 · Aurora</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-group">
+        <div class="nav-group-title">交易核心</div>
+        <a class="nav-item" data-page="dashboard"><i data-ico="layout-dashboard" class="nav-ico"></i><span class="txt">仪表盘</span></a>
+        <a class="nav-item" data-page="strategy"><i data-ico="brain" class="nav-ico"></i><span class="txt">AI 策略</span></a>
+        <a class="nav-item" data-page="coin-select"><i data-ico="coins" class="nav-ico"></i><span class="txt">VIP AI 选币</span></a>
+        <a class="nav-item" data-page="agent-monitor"><i data-ico="radar" class="nav-ico"></i><span class="txt">Agent 监控</span><span class="nav-count">4</span></a>
+        <a class="nav-item" data-page="paper-trading"><i data-ico="flask-conical" class="nav-ico"></i><span class="txt">模拟交易</span></a>
+        <a class="nav-item" data-page="live-trading"><i data-ico="trending-up" class="nav-ico"></i><span class="txt">实盘交易</span></a>
+        <a class="nav-item" data-page="arbitrage"><i data-ico="arrow-right-left" class="nav-ico"></i><span class="txt">套利中心</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">策略配置</div>
+        <a class="nav-item" data-page="scalp"><i data-ico="zap" class="nav-ico"></i><span class="txt">短线配置</span></a>
+        <a class="nav-item" data-page="long"><i data-ico="activity" class="nav-ico"></i><span class="txt">长线配置</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">交易所</div>
+        <a class="nav-item" data-page="exchange"><i data-ico="server" class="nav-ico"></i><span class="txt">交易所管理</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">市场 &amp; 分析</div>
+        <a class="nav-item" data-page="intel"><i data-ico="database" class="nav-ico"></i><span class="txt">全市场数据中台</span></a>
+        <a class="nav-item" data-page="factors"><i data-ico="bar-chart-3" class="nav-ico"></i><span class="txt">因子系统</span></a>
+        <a class="nav-item" data-page="intelligent-learning"><i data-ico="workflow" class="nav-ico"></i><span class="txt">智能学习</span></a>
+        <a class="nav-item" data-page="compute"><i data-ico="cpu" class="nav-ico"></i><span class="txt">算力中心</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">系统</div>
+        <a class="nav-item" data-page="risk"><i data-ico="shield-alert" class="nav-ico"></i><span class="txt">风控监控</span></a>
+        <a class="nav-item" data-page="ops"><i data-ico="heart-pulse" class="nav-ico"></i><span class="txt">运维看板</span></a>
+        <a class="nav-item" data-page="settings"><i data-ico="settings" class="nav-ico"></i><span class="txt">设置</span></a>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="collapse-btn" id="collapseBtn" title="折叠/展开侧边栏">⟨⟨</button>
+    </div>
+  </aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <i data-ico="search" style="width:14px;height:14px;color:#7C8AA8"></i>
+        <span class="ph">搜索功能…</span><kbd>Ctrl K</kbd>
+      </div>
+      <div class="top-right">
+        <span class="chip ws"><span class="dot"></span>实时</span>
+        <span class="ver">v2.4.1</span>
+        <button class="btn-ghost" data-toast='{"type":"info","title":"检查更新","msg":"v2.4.1 已是最新版本"}'><i data-ico="refresh-cw" style="width:13px;height:13px"></i>检查更新</button>
+        <div style="position:relative">
+          <button class="icon-btn" id="notifBtn" title="通知中心"><i data-ico="bell" style="width:17px;height:17px;color:#AEB9D0"></i><span class="count">3</span></button>
+          <div class="notif-panel" id="notifPanel">
+            <div class="notif-head"><span class="notif-title">通知中心</span><button class="row-btn" data-toast='{"type":"info","title":"已全部标记已读","msg":"3 条通知已清除"}' style="border:none">全部已读</button></div>
+            <div class="notif-item err" data-toast='{"type":"err","title":"P0 报错","msg":"Binance 账户 sync 连续失败 5 次"}'><div class="n-ico"><i data-ico="alert-triangle" style="width:15px;height:15px"></i></div><div class="n-body"><div class="n-t">P0 报错 · rate-limit 429</div><div class="n-m">Binance 账户 sync 连续失败 5 次，请检查 API 配额</div><div class="n-time">2 分钟前</div></div></div>
+            <div class="notif-item warn" data-toast='{"type":"warn","title":"风控预警","msg":"ast-01 日亏损率 9.2%，接近熔断"}'><div class="n-ico"><i data-ico="timer" style="width:15px;height:15px"></i></div><div class="n-body"><div class="n-t">风控预警 · 接近熔断</div><div class="n-m">ast-01 日亏损率 9.2% / 阈值 10%</div><div class="n-time">18 分钟前</div></div></div>
+            <div class="notif-item info" data-toast='{"type":"info","title":"系统更新","msg":"桌面端 v2.4.2 已就绪"}'><div class="n-ico"><i data-ico="refresh-cw" style="width:15px;height:15px"></i></div><div class="n-body"><div class="n-t">桌面端更新可用</div><div class="n-m">v2.4.2 已下载完成，重启后生效</div><div class="n-time">1 小时前</div></div></div>
+          </div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="user">
+          <div class="avatar">H</div>
+          <span class="user-name">heidalv</span>
+          <span class="lv">VIP</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+{{PAGES}}
+    </div>
+
+    <footer class="statusbar">
+      <span class="si"><span class="dot"></span>Hyperliquid 已连接</span>
+      <span class="si"><span class="dot amber" style="animation:pulse 2s ease-in-out infinite"></span>系统运行中</span>
+      <span class="si" style="margin-left:auto"><span class="mono" id="sbClock">--:--:--</span></span>
+    </footer>
+  </div>
+</div>
+
+<!-- 全局 Toast 容器 -->
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- 命令面板 -->
+<div class="mask" id="cmdMask" style="align-items:flex-start;padding-top:14vh">
+  <div class="cmd-panel" id="cmdPanel">
+    <div class="cmd-input-row">
+      <i data-ico="search" style="width:17px;height:17px;color:#7DD3FC"></i>
+      <input class="cmd-input" id="cmdInput" placeholder="搜索页面 / 功能…">
+      <span class="cmd-kbd">ESC</span>
+    </div>
+    <div class="cmd-list" id="cmdList"></div>
+    <div class="cmd-foot"><span>↑↓ 导航</span><span>↵ 选择</span><span style="margin-left:auto">Heidalv Alpha Arena · Aurora</span></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ═══════════════════════════════════════════════
+  // AuroraUI 全局交互层：图标渲染 / Modal / Drawer / Toast /
+  // 命令面板 / 通知中心 / 全局 Tab / 自定义下拉 / 丝滑刷新
+  // ═══════════════════════════════════════════════
+  var UI = window.AURORA = window.AURORA || {};
+
+  // ── 图标渲染：<i data-ico> → lucide SVG ──
+  function paintIcons(root) {
+    (root || document).querySelectorAll('i[data-ico]').forEach(function (el) {
+      if (el.dataset.painted) return;
+      el.dataset.painted = '1';
+      var html = UI.renderIco(el.dataset.ico);
+      if (html) el.innerHTML = html;
+    });
+  }
+  paintIcons();
+  UI.paintIcons = paintIcons;
+
+  // ── 页面路由：hash 驱动 + View Transitions 平滑切换 ──
+  var pages = document.querySelectorAll('.page');
+  var navs = document.querySelectorAll('.nav-item');
+  function show(name) {
+    var found = false;
+    pages.forEach(function (p) {
+      var on = p.id === 'page-' + name;
+      p.classList.toggle('active', on);
+      if (on) found = true;
+    });
+    navs.forEach(function (n) {
+      n.classList.toggle('active', n.dataset.page === name);
+    });
+    var c = document.getElementById('content');
+    if (c) c.scrollTop = 0;
+    closeAllOverlays();
+  }
+  function route() {
+    var h = location.hash.replace(/^#\/?/, '') || 'dashboard';
+    var go = function () { show(h); };
+    if (document.startViewTransition) {
+      try { document.startViewTransition(go); } catch (e) { go(); }
+    } else go();
+  }
+  window.addEventListener('hashchange', route);
+  navs.forEach(function (n) {
+    n.addEventListener('click', function () { location.hash = '/' + n.dataset.page; });
+  });
+
+  // ── 侧边栏折叠 ──
+  document.getElementById('collapseBtn').addEventListener('click', function () {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  });
+
+  // ── 时钟 ──
+  function tick() {
+    var t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    var c = document.getElementById('sbClock');
+    if (c) c.textContent = t;
+  }
+  tick(); setInterval(tick, 1000);
+
+  // ── 顶部渐变进度条（丝滑刷新 / 页面切换指示） ──
+  var progEl = null;
+  function progress(ms) {
+    if (!progEl) {
+      progEl = document.createElement('div');
+      progEl.className = 'progress-top';
+      progEl.innerHTML = '<div class="bar"></div>';
+      document.body.appendChild(progEl);
+    }
+    progEl.classList.remove('done');
+    progEl.classList.add('on');
+    progEl.querySelector('.bar').style.width = '0';
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { progEl.querySelector('.bar').style.width = '82%'; });
+    });
+    var id = setTimeout(function () {
+      progEl.classList.add('done');
+      setTimeout(function () { progEl.classList.remove('on'); }, 500);
+    }, ms || 900);
+    return function () { clearTimeout(id); };
+  }
+  UI.progress = progress;
+
+  // ── 丝滑刷新：data-refresh 按钮 → 进度条 + 表格行闪烁模拟数据更新 ──
+  document.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-refresh]');
+    if (!r) return;
+    var scope = r.dataset.refresh === 'page' ? document.querySelector('.page.active') : r.closest('.page');
+    progress(1100);
+    var rows = (scope || document).querySelectorAll('.tbl tbody tr');
+    var flashCount = Math.min(rows.length, 6);
+    var shown = new Set();
+    while (shown.size < flashCount) {
+      var i = Math.floor(Math.random() * rows.length);
+      if (!shown.has(i)) shown.add(i);
+    }
+    shown.forEach(function (i) {
+      var tr = rows[i];
+      var cls = Math.random() > 0.4 ? 'flash-up' : 'flash-dn';
+      tr.classList.remove('flash-up', 'flash-dn');
+      void tr.offsetWidth;
+      tr.classList.add(cls);
+      setTimeout(function () { tr.classList.remove('flash-up', 'flash-dn'); }, 600);
+    });
+    if (r.dataset.toast) {
+      setTimeout(function () {
+        try { UI.toast(JSON.parse(r.dataset.toast)); } catch (err) {}
+      }, 1150);
+    }
+  });
+
+  // ── 搜索：过滤导航 ──
+  var searchBox = document.querySelector('.search');
+  var groups = document.querySelectorAll('.nav-group');
+  searchBox.addEventListener('click', function () {
+    var ph = searchBox.querySelector('.ph');
+    if (ph) ph.textContent = '';
+    var inp = document.createElement('input');
+    inp.style.cssText = 'flex:1;background:transparent;border:none;outline:none;color:#EAF0FA;font-size:12px;font-family:inherit;';
+    inp.placeholder = '输入过滤…';
+    inp.addEventListener('input', function () {
+      var q = inp.value.trim().toLowerCase();
+      groups.forEach(function (g) {
+        var items = g.querySelectorAll('.nav-item');
+        var any = false;
+        items.forEach(function (it) {
+          var t = (it.textContent || '').toLowerCase();
+          var on = !q || t.indexOf(q) >= 0;
+          it.style.display = on ? '' : 'none';
+          if (on) any = true;
+        });
+        g.style.display = any ? '' : 'none';
+      });
+    });
+    searchBox.replaceChild(inp, searchBox.querySelector('.ph'));
+    if (searchBox.querySelector('kbd')) searchBox.querySelector('kbd').remove();
+    inp.focus();
+  });
+
+  // ── Modal / Drawer / 遮罩 ──
+  var openMasks = [];
+  function openModal(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    closeDrawers();
+    el.classList.add('open');
+    openMasks.push(el);
+    paintIcons(el);
+  }
+  function closeModal(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('open');
+    var i = openMasks.indexOf(el);
+    if (i >= 0) openMasks.splice(i, 1);
+  }
+  function openDrawer(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    closeModals();
+    el.classList.add('open');
+    openMasks.push(el);
+    paintIcons(el);
+  }
+  function closeDrawer(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('open');
+    var i = openMasks.indexOf(el);
+    if (i >= 0) openMasks.splice(i, 1);
+  }
+  function closeAllOverlays() {
+    openMasks.forEach(function (el) { el.classList.remove('open'); });
+    openMasks = [];
+    document.getElementById('notifPanel').classList.remove('open');
+    document.getElementById('cmdMask').classList.remove('open');
+    document.querySelectorAll('.menu.open, .dd.open').forEach(function (m) { m.classList.remove('open'); });
+  }
+  UI.openModal = openModal; UI.closeModal = closeModal;
+  UI.openDrawer = openDrawer; UI.closeDrawer = closeDrawer;
+
+  // ── 事件委托：modal / drawer / close / tab / confirm / toast / dd / menu / nav ──
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-modal]');
+    if (t) { openModal(t.dataset.modal); return; }
+    t = e.target.closest('[data-drawer]');
+    if (t) { openDrawer(t.dataset.drawer); return; }
+    t = e.target.closest('[data-close]');
+    if (t) {
+      var m = t.closest('.mask, .drawer');
+      if (m) m.classList.remove('open');
+      var i = openMasks.indexOf(m);
+      if (i >= 0) openMasks.splice(i, 1);
+      // 不 return：允许同按钮带 data-toast
+    }
+    // 全局 tab 切换：data-tab="paneId"（pane 在最近的 .page/.drawer/.modal 内切换；激活态限定同一 .tab-row）
+    t = e.target.closest('[data-tab]');
+    if (t) {
+      var container = t.closest('.page, .drawer, .modal') || document;
+      container.querySelectorAll('.tab-pane').forEach(function (p) {
+        p.classList.toggle('on', p.id === t.dataset.tab);
+      });
+      var row = t.closest('.tab-row');
+      (row || container).querySelectorAll('[data-tab]').forEach(function (b) {
+        b.classList.toggle('active', b === t);
+      });
+      return;
+    }
+    // 确认框优先于 toast
+    t = e.target.closest('[data-confirm]');
+    if (t) {
+      var ccfg = {};
+      try { ccfg = JSON.parse(t.dataset.confirm); } catch (err) {}
+      UI.confirm(ccfg, function () {
+        if (t.dataset.toast) {
+          try { UI.toast(JSON.parse(t.dataset.toast)); } catch (err2) {}
+        }
+      });
+      return;
+    }
+    t = e.target.closest('[data-toast]');
+    if (t) {
+      var cfg = t.dataset.toast;
+      try { cfg = JSON.parse(cfg); } catch (err) { cfg = { type: 'info', title: cfg, msg: '' }; }
+      UI.toast(cfg);
+    }
+    // 自定义下拉选择器 .dd
+    t = e.target.closest('.dd-btn');
+    if (t) {
+      var dd = t.closest('.dd');
+      var wasOpen = dd.classList.contains('open');
+      document.querySelectorAll('.dd.open').forEach(function (x) { x.classList.remove('open'); });
+      if (!wasOpen) dd.classList.add('open');
+      return;
+    }
+    t = e.target.closest('.dd-item');
+    if (t) {
+      var ddp = t.closest('.dd');
+      ddp.querySelectorAll('.dd-item').forEach(function (x) { x.classList.remove('sel'); });
+      t.classList.add('sel');
+      var label = ddp.querySelector('.dd-btn .lbl');
+      if (label) label.textContent = t.textContent.replace(/\s+/g, ' ').trim();
+      ddp.classList.remove('open');
+      if (t.dataset.nav) location.hash = '/' + t.dataset.nav;
+      if (t.dataset.toast) { try { UI.toast(JSON.parse(t.dataset.toast)); } catch (err) {} }
+      return;
+    }
+    // 下拉菜单开关：fixed 定位到按钮下方（修复 absolute 定位不可靠问题）
+    t = e.target.closest('[data-menu]');
+    if (t) {
+      var menu = document.getElementById(t.dataset.menu);
+      if (menu) {
+        var isOpen = menu.classList.contains('open');
+        document.querySelectorAll('.menu.open').forEach(function (m) { m.classList.remove('open'); });
+        if (!isOpen) {
+          var btnRect = t.getBoundingClientRect();
+          menu.style.position = 'fixed';
+          menu.style.top = (btnRect.bottom + 6) + 'px';
+          var left = btnRect.left + (t.dataset.align === 'right' ? btnRect.width - 200 : 0);
+          menu.style.left = Math.max(8, Math.min(left, window.innerWidth - 210)) + 'px';
+          menu.classList.add('open');
+        }
+      }
+      return;
+    }
+    // 菜单项：点击跳转/提示后关闭
+    t = e.target.closest('.menu-item');
+    if (t) {
+      var mm = t.closest('.menu');
+      if (t.dataset.nav) location.hash = '/' + t.dataset.nav;
+      if (t.dataset.toast) { try { UI.toast(JSON.parse(t.dataset.toast)); } catch (err) {} }
+      if (mm) mm.classList.remove('open');
+      return;
+    }
+    // 点击遮罩空白关闭
+    if (e.target.classList && e.target.classList.contains('mask') && !e.target.closest('.modal, .cmd-panel')) {
+      e.target.classList.remove('open');
+      var i2 = openMasks.indexOf(e.target);
+      if (i2 >= 0) openMasks.splice(i2, 1);
+    }
+  });
+  // 点击任意空白关闭菜单/自定义下拉
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.menu, .dd, [data-menu]')) {
+      document.querySelectorAll('.menu.open, .dd.open').forEach(function (m) { m.classList.remove('open'); });
+    }
+  });
+  // 原生 select：data-nav 跳转 / data-toast 反馈（选择后必有响应）
+  document.addEventListener('change', function (e) {
+    if (e.target.matches && e.target.matches('select[data-nav]')) { location.hash = '/' + e.target.dataset.nav; }
+    if (e.target.matches && e.target.matches('select[data-toast]')) {
+      var cfg = {};
+      try { cfg = JSON.parse(e.target.dataset.toast); } catch (err) { cfg = { type: 'info', title: cfg, msg: '' }; }
+      UI.toast(cfg);
+    }
+  });
+
+  // ── Toast ──
+  UI.toast = function (cfg) {
+    var stack = document.getElementById('toastStack');
+    var el = document.createElement('div');
+    el.className = 'toast ' + (cfg.type || 'info');
+    var ico = { ok: 'M20 6 9 17l-5-5', err: 'M18 6 6 18M6 6l12 12', warn: 'M12 9v4M12 17v.01', info: 'M12 8v4.5M12 16v.01' }[cfg.type || 'info'] || 'M12 8v4.5M12 16v.01';
+    el.innerHTML = '<div class="t-ico"><svg viewBox="0 0 24 24"><path d="' + ico + '"/></svg></div><div class="t-msg"><b>' + (cfg.title || '') + '</b>' + (cfg.msg || '') + '</div>';
+    stack.appendChild(el);
+    setTimeout(function () {
+      el.classList.add('out');
+      setTimeout(function () { el.remove(); }, 260);
+    }, 3200);
+  };
+
+  // ── 确认框 ──
+  UI.confirm = function (cfg, onOk) {
+    cfg = cfg || {};
+    var mask = document.createElement('div');
+    mask.className = 'mask';
+    var ico = { danger: { p: 'M12 3 2.5 20h19L12 3zM12 10v4.5M12 17.5v.01', cls: 'danger' }, warn: { p: 'M12 9v4M12 17v.01', cls: 'warn' } }[cfg.danger ? 'danger' : 'warn'];
+    mask.innerHTML =
+      '<div class="modal narrow" style="text-align:center">' +
+        '<div class="modal-body" style="padding:26px 24px 18px">' +
+          '<div class="confirm-ico ' + ico.cls + '"><svg viewBox="0 0 24 24"><path d="' + ico.p + '"/></svg></div>' +
+          '<div class="confirm-t">' + (cfg.title || '确认操作？') + '</div>' +
+          '<div class="confirm-s">' + (cfg.msg || '') + '</div>' +
+        '</div>' +
+        '<div class="modal-foot" style="justify-content:center;border:none;padding-bottom:22px">' +
+          '<button class="btn btn-ghost2">取消</button>' +
+          '<button class="btn ' + (cfg.danger ? 'btn-danger' : 'btn-primary') + '">' + (cfg.okText || (cfg.danger ? '确认' : '确定')) + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('open'); });
+    function close() {
+      mask.classList.remove('open');
+      setTimeout(function () { mask.remove(); }, 180);
+    }
+    mask.querySelector('.btn-ghost2').addEventListener('click', close);
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) close();
+    });
+    mask.querySelector('.btn-primary, .btn-danger').addEventListener('click', function () {
+      close();
+      if (onOk) onOk();
+    });
+  };
+
+  // ── 命令面板 ──
+  var CMDS = [
+    { g: '页面', items: [
+      { label: '仪表盘', page: 'dashboard', k: '⌘1' },
+      { label: 'AI 策略', page: 'strategy', k: '' },
+      { label: 'VIP AI 选币', page: 'coin-select', k: '' },
+      { label: 'Agent 监控', page: 'agent-monitor', k: '' },
+      { label: '模拟交易', page: 'paper-trading', k: '' },
+      { label: '实盘交易', page: 'live-trading', k: '' },
+      { label: '套利中心', page: 'arbitrage', k: '' },
+      { label: '短线配置', page: 'scalp', k: '' },
+      { label: '长线配置', page: 'long', k: '' },
+      { label: '交易所管理', page: 'exchange', k: '' },
+      { label: '全市场数据中台', page: 'intel', k: '' },
+      { label: '因子系统', page: 'factors', k: '' },
+      { label: '智能学习', page: 'intelligent-learning', k: '' },
+      { label: '算力中心', page: 'compute', k: '' },
+      { label: '风控监控', page: 'risk', k: '' },
+      { label: '运维看板', page: 'ops', k: '' },
+      { label: '设置', page: 'settings', k: '' },
+      { label: '系统日志', page: 'logs', k: '' },
+      { label: '图表中心', page: 'charts', k: '' }
+    ]},
+    { g: '快捷动作', items: [
+      { label: '打开命令面板', action: 'cmd', k: 'Ctrl K' },
+      { label: '查看通知中心', action: 'notif', k: '' },
+      { label: '折叠 / 展开侧边栏', action: 'collapse', k: '' },
+      { label: '登录页面（演示）', page: 'login', k: '' }
+    ]}
+  ];
+  var cmdMask = document.getElementById('cmdMask');
+  var cmdInput = document.getElementById('cmdInput');
+  var cmdList = document.getElementById('cmdList');
+  var cmdSel = 0, cmdItems = [];
+  function renderCmd(q) {
+    q = (q || '').trim().toLowerCase();
+    cmdList.innerHTML = '';
+    cmdItems = [];
+    var any = false;
+    CMDS.forEach(function (grp) {
+      var hits = grp.items.filter(function (it) {
+        if (!q) return true;
+        return (it.label || '').toLowerCase().indexOf(q) >= 0 || (it.page || '').indexOf(q) >= 0;
+      });
+      if (!hits.length) return;
+      any = true;
+      var gt = document.createElement('div');
+      gt.className = 'cmd-group-title'; gt.textContent = grp.g;
+      cmdList.appendChild(gt);
+      hits.forEach(function (it) {
+        var el = document.createElement('div');
+        el.className = 'cmd-item';
+        el.innerHTML = AURORA.renderIco('activity', '') + '<span>' + it.label + '</span>' + (it.k ? '<span class="k">' + it.k + '</span>' : '');
+        el.addEventListener('click', function () { execCmd(it); });
+        cmdList.appendChild(el);
+        cmdItems.push({ el: el, it: it });
+      });
+    });
+    if (!any) {
+      var e = document.createElement('div');
+      e.className = 'cmd-empty'; e.textContent = '无匹配结果';
+      cmdList.appendChild(e);
+    }
+    cmdSel = 0;
+    markCmd();
+  }
+  function markCmd() {
+    cmdItems.forEach(function (c, i) { c.el.classList.toggle('sel', i === cmdSel); });
+    var cur = cmdItems[cmdSel];
+    if (cur && cur.el.scrollIntoView) cur.el.scrollIntoView({ block: 'nearest' });
+  }
+  function execCmd(it) {
+    closeCmd();
+    if (it.page) { location.hash = '/' + it.page; }
+    else if (it.action === 'cmd') { openCmd(); }
+    else if (it.action === 'notif') { toggleNotif(); }
+    else if (it.action === 'collapse') { document.getElementById('sidebar').classList.toggle('collapsed'); }
+  }
+  function openCmd() {
+    cmdMask.classList.add('open');
+    cmdInput.value = '';
+    renderCmd('');
+    setTimeout(function () { cmdInput.focus(); }, 30);
+  }
+  function closeCmd() { cmdMask.classList.remove('open'); }
+  UI.openCmd = openCmd;
+  cmdInput.addEventListener('input', function () { renderCmd(cmdInput.value); });
+  cmdInput.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); cmdSel = Math.min(cmdSel + 1, cmdItems.length - 1); markCmd(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); cmdSel = Math.max(cmdSel - 1, 0); markCmd(); }
+    else if (e.key === 'Enter') { if (cmdItems[cmdSel]) execCmd(cmdItems[cmdSel].it); }
+  });
+
+  // ── 通知中心 ──
+  var notifPanel = document.getElementById('notifPanel');
+  function toggleNotif() {
+    var open = notifPanel.classList.toggle('open');
+    if (open) { document.getElementById('notifBtn').querySelector('.count').style.display = 'none'; }
+  }
+  UI.toggleNotif = toggleNotif;
+  document.getElementById('notifBtn').addEventListener('click', toggleNotif);
+
+  // ── 全局快捷键 ──
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCmd(); }
+    if (e.key === 'Escape') {
+      if (cmdMask.classList.contains('open')) { closeCmd(); return; }
+      if (notifPanel.classList.contains('open')) { notifPanel.classList.remove('open'); return; }
+      closeAllOverlays();
+    }
+  });
+
+  // ═══════════════════════════════════════════════
+  // 实时模拟机制：ticker 跳动 / 数字滚动 / 倒计时 / 骨架屏
+  // ═══════════════════════════════════════════════
+  // 1) ticker 实时跳动（每 2.2s 随机微调价格，闪烁+变色）
+  var tickerPrices = [
+    { el: null, base: 70905.00, dec: 2 },
+    { el: null, base: 2188.30, dec: 2 },
+    { el: null, base: 81.81, dec: 2 },
+    { el: null, base: 598.12, dec: 2 },
+    { el: null, base: 0.6527, dec: 4 },
+    { el: null, base: 0.6590, dec: 4 },
+    { el: null, base: 0.1257, dec: 4 }
+  ];
+  function fmt(n, dec) { return '$' + n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  var tEls = document.querySelectorAll('.t-price');
+  tickerPrices.forEach(function (p, i) { p.el = tEls[i] || null; });
+  setInterval(function () {
+    tickerPrices.forEach(function (p) {
+      if (!p.el) return;
+      var drift = (Math.random() - 0.5) * p.base * 0.0008;
+      p.base = Math.max(p.base + drift, 0);
+      var oldTxt = p.el.textContent;
+      var newTxt = fmt(p.base, p.dec);
+      if (oldTxt !== newTxt) {
+        p.el.textContent = newTxt;
+        var up = newTxt > oldTxt;
+        p.el.classList.remove('flash-up', 'flash-dn');
+        void p.el.offsetWidth;
+        p.el.classList.add(up ? 'flash-up' : 'flash-dn');
+      }
+    });
+  }, 2200);
+
+  // 2) 数字滚动 count-up（.count-up 元素 data-val=目标值 data-dec=小数位）
+  function runCountUp() {
+    document.querySelectorAll('.count-up').forEach(function (el) {
+      if (el.dataset.done) return;
+      el.dataset.done = '1';
+      var target = parseFloat(el.dataset.val || '0');
+      var dec = parseInt(el.dataset.dec || '0', 10);
+      var pre = el.dataset.pre || '';
+      var suf = el.dataset.suf || '';
+      var t0 = null, dur = 900;
+      function step(ts) {
+        if (!t0) t0 = ts;
+        var k = Math.min((ts - t0) / dur, 1);
+        var e = 1 - Math.pow(1 - k, 3);
+        var v = target * e;
+        el.textContent = pre + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf;
+        if (k < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+  runCountUp();
+
+  // 3) 自动倒计时（.cd-auto data-cd=秒数，到 0 后从 data-cd 重置循环）
+  setInterval(function () {
+    document.querySelectorAll('.cd-auto').forEach(function (el) {
+      var max = parseInt(el.dataset.cd || '30', 10);
+      var v = (parseInt(el.dataset.v || '0', 10) || 0) - 1;
+      if (v < 0) v = max;
+      el.dataset.v = String(v);
+      var span = el.querySelector('b');
+      if (span) span.textContent = String(v);
+      el.classList.toggle('warn', v <= 10);
+      el.classList.toggle('danger', v <= 5);
+    });
+  }, 1000);
+
+  // 4) 页面切换指示：顶部进度条（柔和，不闪整块骨架屏）+ 内容淡入
+  var _origShow = show;
+  show = function (name) {
+    _origShow(name);
+    progress(600);
+    var active = document.querySelector('.page.active');
+    if (active) {
+      active.style.animation = 'none';
+      void active.offsetWidth;
+      active.style.animation = '';
+    }
+    runCountUp();
+  };
+
+  route();
+})();
+</script>
+</body>
+</html>

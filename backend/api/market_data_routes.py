@@ -4,13 +4,13 @@ Provides RESTful API interfaces for crypto market data
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 import logging
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from backend.services.market_data import get_last_price, get_kline_data, get_market_status, get_ticker_data
 from backend.services.market_data_metrics import market_data_metrics
@@ -39,6 +39,72 @@ _EXCHANGE_TICKER_TTL = 30
 _OVERVIEW_WARMUP_INTERVAL = 15
 _warmup_thread: Optional[threading.Thread] = None
 _warmup_stop = threading.Event()
+
+# [2026-08-15] 24h 统计跨进程通道缓存：standalone 模式下 24hr ticker 统计只
+# 存在于数据中心进程（:9100）的 poller 内存，主 API 进程经 /ticker/stats 拉取。
+_DC_STATS_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_DC_STATS_TTL_SEC = 3.0
+
+
+def _dc_ticker_stats() -> Dict[str, Dict[str, Any]]:
+    """从数据中心进程拉全市场 24h 统计（3s 缓存 + 2s 硬超时，失败降级旧值）。
+
+    standalone 模式下主 API 进程的 asterdex_ticker_poller 未启动（_stats 恒空），
+    必须走数据中心进程；内嵌模式下本函数仅作兜底。
+    """
+    import json
+    import urllib.request
+
+    now = time.time()
+    if _DC_STATS_CACHE["ts"] and now - _DC_STATS_CACHE["ts"] <= _DC_STATS_TTL_SEC:
+        return _DC_STATS_CACHE["data"]
+    try:
+        base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        req = urllib.request.Request(
+            f"{base}/ticker/stats", headers={"Accept": "application/json"}
+        )
+        with opener.open(req, timeout=2.0) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        data = payload.get("stats") or {}
+        if isinstance(data, dict):
+            _DC_STATS_CACHE["data"] = data
+            _DC_STATS_CACHE["ts"] = now
+            return data
+    except Exception:
+        pass
+    return _DC_STATS_CACHE["data"]
+
+
+# 全市场价格快照缓存（/ticker/all 单次返回 542 币，供 ticker-bar 秒级轮询）
+_DC_ALL_PRICES_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_DC_ALL_PRICES_TTL_SEC = 1.0
+
+
+def _dc_all_prices() -> Dict[str, float]:
+    """从数据中心进程 /ticker/all 拉全市场价格（1s 缓存 + 1.5s 硬超时）。"""
+    import json
+    import urllib.request
+
+    now = time.time()
+    if _DC_ALL_PRICES_CACHE["ts"] and now - _DC_ALL_PRICES_CACHE["ts"] <= _DC_ALL_PRICES_TTL_SEC:
+        return _DC_ALL_PRICES_CACHE["data"]
+    try:
+        base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        req = urllib.request.Request(
+            f"{base}/ticker/all", headers={"Accept": "application/json"}
+        )
+        with opener.open(req, timeout=1.5) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        data = payload.get("prices") or {}
+        if isinstance(data, dict):
+            _DC_ALL_PRICES_CACHE["data"] = data
+            _DC_ALL_PRICES_CACHE["ts"] = now
+            return data
+    except Exception:
+        pass
+    return _DC_ALL_PRICES_CACHE["data"]
 
 
 def _fetch_exchange_rows(exchange: str) -> list:
@@ -419,6 +485,56 @@ def get_crypto_price(symbol: str, market: str = None):
         raise HTTPException(status_code=500, detail=f"Failed to get crypto price: {str(e)}")
 
 
+@router.get("/ticker-bar")
+def get_ticker_bar(symbols: str = Query("BTC,ETH,SOL", description="逗号分隔 symbol 列表")):
+    """极轻量 ticker 条数据（前端 1s 轮询专用）。
+
+    standalone 模式下主 API 进程被 AI 推理/采集循环占用（GIL 竞争导致
+    /prices 接口 0.6~5s 抖动），本接口只做两次数据中心进程内存读合并
+    （/ticker/all 全市场价格 + /ticker/stats 24h 统计），不碰 DB / Hub /
+    模型，确保秒级稳定返回。
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()][:30]
+    if not symbol_list:
+        raise HTTPException(status_code=400, detail="crypto symbol list cannot be empty")
+
+    all_prices = _dc_all_prices()
+    all_stats = _dc_ticker_stats()
+
+    # 内嵌模式（无数据中心进程）降级：走 data_center 秒级 ticker
+    if not all_prices:
+        try:
+            from backend.services.data_center import data_center
+            for _s in symbol_list:
+                _r = data_center.get_price_with_ts(_s, purpose="trade")
+                if _r and _r[0] and float(_r[0]) > 0:
+                    all_prices[_s] = float(_r[0])
+        except Exception:
+            pass
+
+    ts_now = int(time.time() * 1000)
+    results = []
+    for sym in symbol_list:
+        price = float(all_prices.get(sym) or 0)
+        st = all_stats.get(sym) or {}
+        pct = float(st.get("change_pct") or 0)
+        if price <= 0 and pct:
+            # 24h 统计自带最新价（同源官方 ticker），价格缺失时兜底
+            price = float(st.get("price") or 0)
+        if price <= 0:
+            continue
+        results.append({
+            "symbol": sym,
+            "price": price,
+            "percentage24h": pct,
+            "volume24h": float(st.get("volume_24h") or 0),
+            "high_24h": float(st.get("high_24h") or 0),
+            "low_24h": float(st.get("low_24h") or 0),
+            "timestamp": ts_now,
+        })
+    return results
+
+
 @router.get("/prices", response_model=List[PriceResponse])
 def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
     """
@@ -453,6 +569,27 @@ def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
                     dc_vals[_symbol] = float(_r[0])
         except Exception:
             pass
+        # [2026-08-15 修复] 24h 涨跌：优先交易所官方 24hr ticker（poller 内存），
+        # 否则 hub 快照；此前两者都缺导致 ticker 百分比恒 0。
+        # standalone 模式下本进程 poller 不启动 → _stats 恒空，需走数据中心进程。
+        _poll_stats: Dict[str, Any] = {}
+        try:
+            from backend.services.asterdex_ticker_poller import asterdex_ticker_poller
+            for _symbol in symbol_list:
+                _st = asterdex_ticker_poller.get_stats(_symbol)
+                if _st:
+                    _poll_stats[_symbol] = _st
+        except Exception:
+            pass
+        if not _poll_stats:
+            try:
+                _dc_all = _dc_ticker_stats()
+                for _symbol in symbol_list:
+                    _st = _dc_all.get(_symbol)
+                    if _st:
+                        _poll_stats[_symbol] = _st
+            except Exception:
+                pass
 
         results: List[PriceResponse] = []
         missing: List[str] = []
@@ -461,15 +598,31 @@ def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
             price = dc_vals.get(symbol)
             if price is None:
                 price = float(snap.get("price", 0) or 0)
+            _pct = float(
+                _poll_stats.get(symbol, {}).get("change_pct")
+                or snap.get("price_24h_change_pct", 0) or 0
+            )
+            _hi = float(
+                _poll_stats.get(symbol, {}).get("high_24h")
+                or snap.get("high_24h", 0) or 0
+            )
+            _lo = float(
+                _poll_stats.get(symbol, {}).get("low_24h")
+                or snap.get("low_24h", 0) or 0
+            )
+            _vol = float(
+                _poll_stats.get(symbol, {}).get("volume_24h")
+                or snap.get("volume_24h", 0) or 0
+            )
             if price > 0:
                 results.append(PriceResponse(
                     symbol=symbol,
                     market=market,
                     price=price,
                     oracle_price=float(snap.get("mark_price", 0) or 0),
-                    change24h=0,
-                    volume24h=float(snap.get("volume_24h", 0) or 0),
-                    percentage24h=float(snap.get("price_24h_change_pct", 0) or 0),
+                    change24h=_pct,
+                    volume24h=_vol,
+                    percentage24h=_pct,
                     open_interest=float(snap.get("open_interest", 0) or 0),
                     funding_rate=float(snap.get("funding_rate", 0) or 0),
                     timestamp=current_timestamp,
@@ -507,8 +660,14 @@ def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
                     continue
                 results.append(PriceResponse(
                     symbol=symbol, market=market, price=round(price, 8),
-                    oracle_price=round(price, 8), change24h=0,
-                    volume24h=0, percentage24h=0,
+                    oracle_price=round(price, 8),
+                    change24h=float(
+                        _poll_stats.get(symbol, {}).get("change_pct") or 0
+                    ),
+                    volume24h=0,
+                    percentage24h=float(
+                        _poll_stats.get(symbol, {}).get("change_pct") or 0
+                    ),
                     open_interest=0, funding_rate=0,
                     timestamp=current_timestamp,
                 ))
@@ -1586,3 +1745,251 @@ def update_scan_config(top_n: Optional[int] = None, min_volume: Optional[float] 
     if anomaly_enabled is not None:
         _scan_config["anomaly_enabled"] = anomaly_enabled
     return _scan_config
+
+
+# ═══════════════════════════════════════════════════════════════
+# [2026-08-15 D8] 统一事件时间轴 — 新闻/宏观/鲸鱼/清算对齐到一条时间轴
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/data-center/events")
+def get_market_events(
+    symbol: Optional[str] = Query(default=None),
+    hours: int = Query(default=24, le=720),
+    limit: int = Query(default=100, le=500),
+):
+    """统一事件流：news_events + macro_events + whale_activities + liquidation_events，
+    按时间倒序合并，供决策提示词注入与「事件 ↔ K线」对照。
+
+    返回 [{type, ts, symbol, summary, extra}]；type ∈ news/macro/whale/liquidation。
+    """
+    from sqlalchemy import text as _sa_text
+
+    from backend.database.connection import MarketSessionLocal
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=int(hours))
+    sym = (symbol or "").upper().split("-")[0].split("/")[0]
+    events: List[Dict[str, Any]] = []
+
+    try:
+        with MarketSessionLocal() as db:
+            # 1) 新闻（LLM 标注）
+            news_rows = db.execute(_sa_text(
+                "SELECT title, published_at, created_at, impact_direction, "
+                "impact_strength, event_category, affected_symbols, ai_summary, source "
+                "FROM news_events WHERE created_at >= :cutoff ORDER BY created_at DESC LIMIT :lim"
+            ), {"cutoff": cutoff, "lim": limit}).fetchall()
+            for r in news_rows:
+                title, pub, created, direction, strength, category, affected, summary, source = r
+                if sym and not _event_hits_symbol(affected, title, summary, sym):
+                    continue
+                events.append({
+                    "type": "news",
+                    "ts": _iso(pub or created),
+                    "symbol": sym or None,
+                    "summary": (summary or title or "")[:200],
+                    "extra": {
+                        "title": (title or "")[:200],
+                        "direction": direction,
+                        "strength": strength,
+                        "category": category,
+                        "source": source,
+                        "affected_symbols": _parse_syms(affected),
+                    },
+                })
+
+            # 2) 宏观事件（近 hours 小时 + 未来 24h 内即将发生的）
+            macro_rows = db.execute(_sa_text(
+                "SELECT event, scheduled_at, forecast, actual, previous, unit, "
+                "ai_summary, impact_direction, impact_strength, importance, country, source "
+                "FROM macro_events WHERE scheduled_at >= :cutoff AND scheduled_at <= :horizon "
+                "ORDER BY scheduled_at DESC LIMIT :lim"
+            ), {"cutoff": cutoff, "horizon": now + timedelta(hours=24), "lim": limit}).fetchall()
+            for r in macro_rows:
+                (event, sched, forecast, actual, previous, unit, summary,
+                 direction, strength, importance, country, source) = r
+                surprise = None
+                if actual is not None and forecast is not None and float(forecast) != 0:
+                    surprise = round((float(actual) - float(forecast)) / abs(float(forecast)) * 100, 2)
+                events.append({
+                    "type": "macro",
+                    "ts": _iso(sched),
+                    "symbol": None,
+                    "summary": (summary or str(event))[:200],
+                    "extra": {
+                        "event": event, "country": country, "importance": importance,
+                        "forecast": forecast, "actual": actual, "previous": previous,
+                        "unit": unit, "surprise_pct": surprise,
+                        "direction": direction, "strength": strength, "source": source,
+                    },
+                })
+
+            # 3) 鲸鱼/大单
+            whale_rows = db.execute(_sa_text(
+                "SELECT activity_type, symbol, direction, amount_usd, signal_direction, "
+                "ai_interpretation, timestamp, from_entity, blockchain "
+                "FROM whale_activities WHERE timestamp >= :cutoff ORDER BY timestamp DESC LIMIT :lim"
+            ), {"cutoff": cutoff, "lim": limit}).fetchall()
+            for r in whale_rows:
+                (atype, wsym, wdir, amt, sig, interp, ts, fr, chain) = r
+                if sym and wsym and wsym.upper() != sym:
+                    continue
+                events.append({
+                    "type": "whale",
+                    "ts": _iso(ts),
+                    "symbol": (wsym or "").upper(),
+                    "summary": (interp or f"{atype} {wdir} ${(amt or 0):,.0f}")[:200],
+                    "extra": {
+                        "activity_type": atype, "direction": wdir,
+                        "amount_usd": amt, "signal_direction": sig,
+                        "from": fr, "blockchain": chain,
+                    },
+                })
+
+            # 4) 清算（小时聚合，取近 24h 总和与最近小时）
+            liq_rows = db.execute(_sa_text(
+                "SELECT symbol, ts_ms, long_usd, short_usd FROM liquidation_events "
+                "WHERE ts_ms >= :cutoff_ms ORDER BY ts_ms DESC LIMIT :lim"
+            ), {"cutoff_ms": int(cutoff.timestamp() * 1000), "lim": limit * 10}).fetchall()
+            by_hour: Dict[Tuple[str, int], Dict[str, Any]] = {}
+            for r in liq_rows:
+                lsym, ts_ms, long_u, short_u = r
+                if sym and lsym.upper() != sym:
+                    continue
+                hour_key = int(ts_ms) // 3600000 * 3600000
+                key = (lsym, hour_key)
+                if key not in by_hour:
+                    by_hour[key] = {"long": 0.0, "short": 0.0, "ts_ms": hour_key}
+                by_hour[key]["long"] += float(long_u or 0)
+                by_hour[key]["short"] += float(short_u or 0)
+            for (_lsym, _h), v in sorted(by_hour.items(), key=lambda kv: -kv[0][1]):
+                events.append({
+                    "type": "liquidation",
+                    "ts": datetime.fromtimestamp(v["ts_ms"] / 1000, tz=timezone.utc).isoformat(),
+                    "symbol": _lsym.upper(),
+                    "summary": f"清算 ${(v['long'] + v['short']):,.0f}（多 ${v['long']:,.0f} / 空 ${v['short']:,.0f}）",
+                    "extra": {"long_usd": round(v["long"], 2), "short_usd": round(v["short"], 2)},
+                })
+    except Exception as e:
+        logger.warning("[MarketEvents] 聚合查询失败: %s", e)
+
+    events.sort(key=lambda x: x["ts"] or "", reverse=True)
+    return {
+        "symbol": sym or None,
+        "hours": hours,
+        "count": len(events[:limit]),
+        "events": events[:limit],
+    }
+
+
+def _iso(v) -> Optional[str]:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.astimezone(timezone.utc).isoformat()
+    return str(v)
+
+
+@router.get("/data-center/quality")
+def get_data_center_quality():
+    """[2026-08-15 阶段4] 数据中心质量看板：每源最新时间戳/新鲜度/行数。
+
+    一次只读聚合 alpha_market 各数据源（K线/资金费/OI/成交/盘口/ticker/
+    清算/新闻/宏观/鲸鱼），返回 {source: {rows, latest_ts, age_sec, stale}}，
+    供监控看板与验收核对。全部数据来自数据中心落库，不直连交易所。
+    """
+    from sqlalchemy import text as _sa_text
+
+    from backend.database.connection import MarketSessionLocal
+    now_s = time.time()
+    out: Dict[str, Any] = {"ts": now_s, "sources": {}}
+
+    # (source_key, table, ts_col, kind, stale_sec)
+    # kind: 'epoch_s'=整型 epoch 秒；'epoch_ms'=整型 epoch 毫秒；'naive_ts'=naive TIMESTAMP（本地时间）
+    checks = [
+        ("klines_1m", "crypto_klines", "timestamp", "epoch_s", 300),
+        ("funding", "perp_funding", "timestamp", "epoch_ms", 900),
+        ("oi", "market_asset_metrics", "timestamp", "epoch_ms", 900),
+        ("trades_cvd", "market_trades_aggregated", "timestamp", "epoch_ms", 300),
+        ("orderbook", "market_orderbook_snapshots", "timestamp", "epoch_ms", 600),
+        ("ticker_2s", "ticker_snapshots", "ts_ms", "epoch_ms", 60),
+        ("liquidation", "liquidation_events", "ts_ms", "epoch_ms", 7200),
+        ("news", "news_events", "created_at", "naive_ts", 3600),
+        ("macro", "macro_events", "scheduled_at", "naive_ts", 2 * 86400),
+        ("whale", "whale_activities", "timestamp", "naive_ts", 1800),
+        ("aux", "symbol_aux_timeseries", "timestamp_ms", "epoch_ms", 1800),
+    ]
+    try:
+        with MarketSessionLocal() as db:
+            # 行数用 pg_class 估算（crypto_klines 66M+ 行，COUNT(*) 会全表扫描导致超时）
+            rel_map = {}
+            try:
+                rel_rows = db.execute(_sa_text(
+                    "SELECT c.relname, c.reltuples::bigint FROM pg_class c "
+                    "WHERE c.relname IN ('crypto_klines','perp_funding','market_asset_metrics',"
+                    "'market_trades_aggregated','market_orderbook_snapshots','ticker_snapshots',"
+                    "'liquidation_events','news_events','macro_events','whale_activities',"
+                    "'symbol_aux_timeseries')"
+                )).fetchall()
+                rel_map = {r[0]: int(r[1] or 0) for r in rel_rows}
+            except Exception:
+                pass
+            for key, table, col, kind, stale_sec in checks:
+                try:
+                    if kind == "epoch_s":
+                        row = db.execute(_sa_text(f"SELECT MAX({col}) FROM {table}")).first()
+                        n, latest_s = rel_map.get(table, 0), (float(row[0]) if row and row[0] is not None else None)
+                    elif kind == "epoch_ms":
+                        row = db.execute(_sa_text(f"SELECT MAX({col}) FROM {table}")).first()
+                        mx = float(row[0]) if row and row[0] is not None else None
+                        n, latest_s = rel_map.get(table, 0), (mx / 1000.0) if mx else None
+                    else:  # naive_ts：库中按服务器本地时间（+08）存储，Python 按系统本地时区取 epoch
+                        row = db.execute(_sa_text(f"SELECT MAX({col}) FROM {table}")).first()
+                        n = rel_map.get(table, 0)
+                        latest_s = None
+                        if row and row[0] is not None:
+                            try:
+                                latest_s = row[0].timestamp()  # naive → 系统本地时区 → epoch
+                            except Exception:
+                                latest_s = None
+                    age = (now_s - latest_s) if latest_s else None
+                    out["sources"][key] = {
+                        "rows": n,
+                        "latest_ts": latest_s,
+                        "age_sec": round(age, 1) if age is not None else None,
+                        "stale": bool(age is not None and age > stale_sec),
+                    }
+                except Exception as exc:
+                    # 单源失败不影响其余源（回滚隔离坏事务）
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                    out["sources"][key] = {"rows": None, "error": str(exc)[:120], "stale": None}
+    except Exception as exc:
+        out["error"] = str(exc)[:200]
+    out["stale_sources"] = [
+        k for k, v in out["sources"].items() if v.get("stale")
+    ]
+    return out
+
+
+def _parse_syms(affected) -> List[str]:
+    if isinstance(affected, list):
+        return [str(s).upper() for s in affected][:10]
+    if isinstance(affected, str):
+        try:
+            import json as _json
+            parsed = _json.loads(affected)
+            if isinstance(parsed, list):
+                return [str(s).upper() for s in parsed][:10]
+        except Exception:
+            pass
+    return []
+
+
+def _event_hits_symbol(affected, title, summary, sym: str) -> bool:
+    syms = _parse_syms(affected)
+    if syms and sym in syms:
+        return True
+    haystack = f"{(title or '')} {(summary or '')}".upper()
+    return sym in haystack

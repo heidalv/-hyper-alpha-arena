@@ -78,6 +78,7 @@ class KlineResult:
     last_ts: Optional[int] = None
     stale_sec: Optional[float] = None  # 最新一根相对现在的滞后秒数
     purpose: str = "research"          # trade | research
+    closed_only: bool = False          # [P0-5] True=已剔除未收盘 forming bar
 
     def __post_init__(self):
         self.count = len(self.rows)
@@ -177,6 +178,7 @@ class UnifiedMarketDataCenter:
         end: str | int | datetime | None = None,
         exchange: str | None = None,
         purpose: str = "trade",
+        closed_only: Optional[bool] = None,
     ) -> KlineResult:
         """
         K线查询 — 唯一业务读入口。
@@ -186,6 +188,11 @@ class UnifiedMarketDataCenter:
                 DEFAULT_EXCHANGE）。调用方传入的其他 exchange **无效**，禁止
                 「交易 A 所、数据 B 所」；也不再按「行数最多」跨所择优。
             "research" — 允许指定 exchange；未指定时才多所择优（仅研究/对比）。
+
+        closed_only:
+            [P0-5 前视隔离] None（默认）→ trade 用途 True / research 用途 False；
+            True 时剔除当前未收盘的 forming bar（timestamp+period > now），
+            避免指标/因子/信号基于仍在跳动的 close 计算（实盘侧活前视）。
         """
         symbol = symbol.upper().split("-")[0].split("/")[0]  # BTC-PERP → BTC
         start_ts = self._to_ts(start) if start else 0
@@ -193,6 +200,10 @@ class UnifiedMarketDataCenter:
         purpose_l = (purpose or "trade").strip().lower()
         if purpose_l not in ("trade", "research"):
             purpose_l = "trade"
+
+        # [P0-5] closed_only 默认按用途：trade→True（决策不吃未收盘 bar），research→False
+        if closed_only is None:
+            closed_only = (purpose_l == "trade")
 
         if purpose_l == "trade":
             from backend.services.exchange_config import get_active_exchange
@@ -209,15 +220,15 @@ class UnifiedMarketDataCenter:
                 )
             exchange = decision_ex
 
-        # 缓存：trade 带交易所键，避免串源
-        cache_key = ("klines", purpose_l, exchange or "", symbol, period, count, start_ts, end_ts)
+        # 缓存：trade 带交易所键，避免串源；closed_only 纳入键（口径不同不可混用缓存）
+        cache_key = ("klines", purpose_l, exchange or "", symbol, period, count, start_ts, end_ts, closed_only)
         cached = self._get_cache(cache_key, self._ttl_kline_history if start_ts else self._ttl_kline)
         if cached is not None:
             return cached
 
         if purpose_l == "trade":
             exchanges = [exchange] if exchange else ["asterdex"]
-            best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges)
+            best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges, closed_only=closed_only)
             best.purpose = "trade"
             # 交易用途：过期不静默换所，返回空结果（调用方应拒开仓）
             if best.count > 0 and not best.is_fresh:
@@ -228,7 +239,7 @@ class UnifiedMarketDataCenter:
                 best = KlineResult(symbol=symbol, period=period, exchange=exchange or "", rows=[], purpose="trade")
         else:
             exchanges = [exchange] if exchange else ALL_EXCHANGES
-            best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges)
+            best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges, closed_only=closed_only)
             best.purpose = "research"
 
         if best.count > 0:
@@ -262,11 +273,19 @@ class UnifiedMarketDataCenter:
     def _query_best_exchange(
         self, symbol: str, period: str, count: int,
         start_ts: int, end_ts: int, exchanges: list[str],
+        closed_only: bool = False,
     ) -> KlineResult:
-        """遍历交易所，取数据最深的。"""
+        """遍历交易所，取数据最深的。
+
+        [P0-5] closed_only=True 时剔除未收盘 forming bar：
+        该 bar 的 close 仍在跳动，指标/因子/信号消费它 = 实盘侧活前视，
+        与回测（只吃已收盘 bar）口径不一致。
+        """
         best_rows: list[dict] = []
         best_exchange = ""
         best_count = 0
+        _now = int(time.time())
+        _period_sec = PERIOD_SECONDS.get(period, 300)
 
         try:
             from sqlalchemy import text as sa_text
@@ -304,6 +323,12 @@ class UnifiedMarketDataCenter:
                             # count 模式是 DESC → 反转
                             if count:
                                 rows = list(reversed(rows))
+                            if closed_only:
+                                # [P0-5] 剔除 forming bar：开K时间 + 周期 > 当前时刻 = 未收盘
+                                rows = [
+                                    r for r in rows
+                                    if r[0] is not None and int(r[0]) + _period_sec <= _now
+                                ]
                             best_rows = [{
                                 "timestamp": r[0],
                                 "datetime": datetime.fromtimestamp(int(r[0]), tz=timezone.utc).isoformat(),
@@ -319,8 +344,8 @@ class UnifiedMarketDataCenter:
             logger.debug(f"[DataCenter] kline query error: {e}")
 
         if best_count > 0:
-            logger.debug(f"[DataCenter] {symbol}/{period}: best={best_exchange} ({best_count} roots)")
-        return KlineResult(symbol=symbol, period=period, exchange=best_exchange, rows=best_rows)
+            logger.debug(f"[DataCenter] {symbol}/{period}: best={best_exchange} ({best_count} roots, closed_only={closed_only})")
+        return KlineResult(symbol=symbol, period=period, exchange=best_exchange, rows=best_rows, closed_only=closed_only)
 
     # ================================================================
     #  实时价格（多交易所对比）
@@ -438,7 +463,11 @@ class UnifiedMarketDataCenter:
         return (None, None)
 
     def _db_1m_price_with_ts(self, base: str, ex: str) -> tuple:
-        """DB 最新 1m close 兜底（分钟级），返回 (close, timestamp)。"""
+        """DB 最新 1m close 兜底（分钟级），返回 (close, timestamp)。
+
+        [2026-08-15 P0-3 修复] 增加 stale 门：1m bar 开盘时间距今超过
+        3 根周期 + 30s 缓冲即视为过期返回 None，防止采集停摆时静默用旧价。
+        """
         try:
             from sqlalchemy import text as sa_text
             from backend.database.connection import MarketSessionLocal
@@ -454,10 +483,187 @@ class UnifiedMarketDataCenter:
                     {"ex": ex, "sym": base},
                 ).first()
             if row and row[0] and float(row[0]) > 0:
-                return (float(row[0]), float(row[1] or 0))
+                ts = float(row[1] or 0)
+                age_sec = time.time() - ts
+                if age_sec > (3 * 60 + 30):
+                    logger.warning(
+                        "[DataCenter] %s 1m close 兜底过期 age=%.0fs，拒绝返回", base, age_sec,
+                    )
+                    return (None, None)
+                return (float(row[0]), ts)
         except Exception:
             pass
         return (None, None)
+
+    # ================================================================
+    #  衍生品 / 盘口 / 统一快照（[2026-08-15 E5] 补齐 docstring 声明）
+    # ================================================================
+
+    def get_derivatives(self, symbol: str, exchange: str | None = None) -> dict:
+        """衍生品快照（funding/OI/mark/oracle/mid/premium/24h 名义量）。
+
+        数据源：market_asset_metrics 最新行（毫秒时间戳）；缺行时用
+        perp_funding 补 funding_rate。purpose=trade 语义下强制 active_exchange。
+        缓存 30s（衍生品慢变量）。无数据返回空 dict（诚实，不造数）。
+        """
+        from sqlalchemy import text as sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        from backend.services.exchange_config import get_active_exchange
+
+        base = normalize_symbol(symbol)
+        if not base:
+            return {}
+        ex = (exchange or get_active_exchange() or "asterdex").strip().lower()
+        if ex == "aster":
+            ex = "asterdex"
+        cache_key = ("derivatives", base, ex)
+        cached = self._get_cache(cache_key, 30.0)
+        if cached is not None:
+            return cached
+
+        out: dict = {}
+        try:
+            with MarketSessionLocal() as db:
+                row = db.execute(
+                    sa_text(
+                        "SELECT open_interest, funding_rate, mark_price, oracle_price, "
+                        "mid_price, premium, day_notional_volume "
+                        "FROM market_asset_metrics "
+                        "WHERE exchange=:ex AND symbol=:sym "
+                        "ORDER BY timestamp DESC LIMIT 1"
+                    ),
+                    {"ex": ex, "sym": base},
+                ).first()
+            if row:
+                out = {
+                    "exchange": ex,
+                    "symbol": base,
+                    "open_interest": float(row[0]) if row[0] is not None else None,
+                    "funding_rate": float(row[1]) if row[1] is not None else None,
+                    "mark_price": float(row[2]) if row[2] is not None else None,
+                    "oracle_price": float(row[3]) if row[3] is not None else None,
+                    "mid_price": float(row[4]) if row[4] is not None else None,
+                    "premium": float(row[5]) if row[5] is not None else None,
+                    "day_notional_volume": float(row[6]) if row[6] is not None else None,
+                }
+            if out.get("funding_rate") is None:
+                try:
+                    with MarketSessionLocal() as db:
+                        fr = db.execute(
+                            sa_text(
+                                "SELECT funding_rate FROM perp_funding "
+                                "WHERE exchange=:ex AND symbol=:sym "
+                                "ORDER BY timestamp DESC LIMIT 1"
+                            ),
+                            {"ex": ex, "sym": base},
+                        ).scalar()
+                    if fr is not None:
+                        out["funding_rate"] = float(fr)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"[DataCenter] get_derivatives {base}@{ex} 失败: {e}")
+        if out:
+            self._set_cache(cache_key, out)
+        return out
+
+    def get_orderbook(self, symbol: str, exchange: str | None = None) -> dict:
+        """盘口快照（best bid/ask、spread、5/10 档深度、挂单数、raw_levels）。
+
+        数据源：market_orderbook_snapshots 最新行（毫秒时间戳）。缓存 5s。
+        无数据返回空 dict。"""
+        from sqlalchemy import text as sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        from backend.services.exchange_config import get_active_exchange
+
+        base = normalize_symbol(symbol)
+        if not base:
+            return {}
+        ex = (exchange or get_active_exchange() or "asterdex").strip().lower()
+        if ex == "aster":
+            ex = "asterdex"
+        cache_key = ("orderbook", base, ex)
+        cached = self._get_cache(cache_key, 5.0)
+        if cached is not None:
+            return cached
+
+        out: dict = {}
+        try:
+            with MarketSessionLocal() as db:
+                row = db.execute(
+                    sa_text(
+                        "SELECT best_bid, best_ask, spread, bid_depth_5, ask_depth_5, "
+                        "bid_depth_10, ask_depth_10, bid_orders_count, ask_orders_count, "
+                        "raw_levels, timestamp "
+                        "FROM market_orderbook_snapshots "
+                        "WHERE exchange=:ex AND symbol=:sym "
+                        "ORDER BY timestamp DESC LIMIT 1"
+                    ),
+                    {"ex": ex, "sym": base},
+                ).first()
+            if row and row[0] is not None:
+                out = {
+                    "exchange": ex,
+                    "symbol": base,
+                    "best_bid": float(row[0]),
+                    "best_ask": float(row[1]) if row[1] is not None else None,
+                    "spread": float(row[2]) if row[2] is not None else None,
+                    "bid_depth_5": float(row[3]) if row[3] is not None else None,
+                    "ask_depth_5": float(row[4]) if row[4] is not None else None,
+                    "bid_depth_10": float(row[5]) if row[5] is not None else None,
+                    "ask_depth_10": float(row[6]) if row[6] is not None else None,
+                    "bid_orders_count": int(row[7] or 0),
+                    "ask_orders_count": int(row[8] or 0),
+                    "raw_levels": row[9],
+                    "ts_ms": int(row[10] or 0),
+                }
+        except Exception as e:
+            logger.debug(f"[DataCenter] get_orderbook {base}@{ex} 失败: {e}")
+        if out:
+            self._set_cache(cache_key, out)
+        return out
+
+    def get_snapshot(self, symbol: str, exchange: str | None = None) -> dict:
+        """统一快照：价格(秒级 ticker→1m 兜底) + 衍生品 + 盘口 + 最新 1d K 线。
+
+        一次调用取全量，供研究/仪表盘；缓存 5s。各子块缺失时对应键为 None/空，
+        绝不造数。"""
+        base = normalize_symbol(symbol)
+        if not base:
+            return {}
+        ex = (exchange or "asterdex").strip().lower()
+        if ex == "aster":
+            ex = "asterdex"
+        cache_key = ("snapshot", base, ex)
+        cached = self._get_cache(cache_key, 5.0)
+        if cached is not None:
+            return cached
+
+        price_result = self.get_price_with_ts(base, ex, purpose="research")
+        snap: dict = {
+            "symbol": base,
+            "exchange": ex,
+            "price": float(price_result[0]) if price_result else None,
+            "price_ts": float(price_result[1]) if price_result else None,
+            "derivatives": self.get_derivatives(base, ex),
+            "orderbook": self.get_orderbook(base, ex),
+            "klines_1d": {},
+        }
+        try:
+            kr = self.get_klines(base, "1d", count=2, exchange=ex, purpose="research")
+            if kr.rows:
+                last = kr.rows[-1]
+                snap["klines_1d"] = {
+                    "close": float(last.get("close") or 0),
+                    "volume": float(last.get("volume") or 0),
+                    "timestamp": last.get("timestamp"),
+                }
+        except Exception:
+            pass
+        self._set_cache(cache_key, snap)
+        return snap
 
     # ================================================================
     #  数据覆盖报告

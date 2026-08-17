@@ -5,7 +5,9 @@ D7: Factor Decay Monitor — 因子衰减监控 + 自动淘汰
 配合 FactorSelector 的 IC 计算和 genetic_optimizer 的权重进化使用。
 """
 
+import json
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
@@ -43,6 +45,9 @@ class FactorDecayMonitor:
             cls._instance._initialized = False
         return cls._instance
     
+    # [P0-2] 状态持久化路径：重启后恢复 penalty，避免重启清零导致衰减因子满权重复活
+    STATUS_PATH = os.path.join("data", "factor_decay_status.json")
+
     def __init__(self):
         if self._initialized:
             return
@@ -50,6 +55,7 @@ class FactorDecayMonitor:
         self._ic_history: Dict[str, List[float]] = {}  # factor_id → [ic1, ic2, ...]
         self._decay_status: Dict[str, DecayStatus] = {}
         self._last_full_check: Optional[datetime] = None
+        self._load_status()
         logger.info("[DecayMonitor] 因子衰减监控初始化")
     
     def record_ic(self, factor_id: str, ic: float):
@@ -123,29 +129,76 @@ class FactorDecayMonitor:
         for fid in self._ic_history:
             results[fid] = self.evaluate_factor(fid)
         self._last_full_check = datetime.now(timezone.utc)
-        
+
         retired = [fid for fid, s in results.items() if s.recommendation == "retire"]
         reduced = [fid for fid, s in results.items() if s.recommendation == "reduce"]
-        
+
         if retired:
             logger.warning(f"[DecayMonitor] {len(retired)}个因子建议退役: {retired}")
         if reduced:
             logger.info(f"[DecayMonitor] {len(reduced)}个因子建议降权: {reduced}")
-        
+
+        # [P0-2] 持久化：重启后 penalty 不归零（此前 _decay_status 仅内存态）
+        self._save_status()
         return results
-    
+
     def get_factor_weight_penalty(self, factor_id: str) -> float:
         """返回因子权重惩罚系数 (1.0=无惩罚, 0.0=完全淘汰)"""
         status = self._decay_status.get(factor_id)
         if not status:
             return 1.0
-        
+
         if status.recommendation == "retire":
-            return 0.0
+            # [P0-2 双确认] recent 与 historical 同时低于退役阈值才归零；
+            # 防止单次误评（噪声窗口）把因子权重直接打到 0。
+            if status.historical_ic < self.DECAY_THRESHOLDS["retire_ic"]:
+                return 0.0
+            return 0.3
         elif status.recommendation == "reduce":
             return max(0.3, status.current_ic / max(status.historical_ic, 0.001))
         else:
             return 1.0
+
+    # ── [P0-2] 状态持久化（data/factor_decay_status.json）──
+
+    def _load_status(self) -> None:
+        try:
+            with open(self.STATUS_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            for fid, d in (raw or {}).items():
+                self._decay_status[fid] = DecayStatus(
+                    factor_id=fid,
+                    current_ic=float(d.get("current_ic", 0) or 0),
+                    historical_ic=float(d.get("historical_ic", 0) or 0),
+                    decay_rate=float(d.get("decay_rate", 0) or 0),
+                    half_life_days=float(d.get("half_life_days", 999) or 999),
+                    trend=str(d.get("trend", "stable")),
+                    recommendation=str(d.get("recommendation", "keep")),
+                )
+            logger.info("[DecayMonitor] 恢复 %d 个因子衰减状态", len(self._decay_status))
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            logger.debug("[DecayMonitor] 状态加载失败: %s", e)
+
+    def _save_status(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(self.STATUS_PATH) or ".", exist_ok=True)
+            payload = {
+                fid: {
+                    "current_ic": s.current_ic,
+                    "historical_ic": s.historical_ic,
+                    "decay_rate": s.decay_rate,
+                    "half_life_days": s.half_life_days,
+                    "trend": s.trend,
+                    "recommendation": s.recommendation,
+                }
+                for fid, s in self._decay_status.items()
+            }
+            with open(self.STATUS_PATH, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.debug("[DecayMonitor] 状态保存失败: %s", e)
 
 
 # 全局单例

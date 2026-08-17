@@ -22,9 +22,7 @@ from hyperliquid.info import Info
 
 logger = logging.getLogger(__name__)
 
-# 本采集器的数据源固定为 Hyperliquid WebSocket
-# 如果用户主要使用 Binance 交易，此处采集的市场流数据仍来自 Hyperliquid
-# 未来需要实现 BinanceFlowCollector 来支持 Binance 的市场流数据
+# 本采集器的数据源固定为 Hyperliquid WebSocket # 如果用户主要使用 Binance 交易，此处采集的市场流数据仍来自 Hyperliquid # 未来需要实现 BinanceFlowCollector 来支持 Binance 的市场流数据
 FLOW_DATA_SOURCE = "hyperliquid"
 
 # Aggregation window in seconds (increased from 15 to 60 to reduce SQLite write contention)
@@ -168,7 +166,7 @@ class MarketFlowCollector:
                     if has_multi_marker:
                         logger.info("Signal pool uses MULTI marker, loading symbols from enabled exchanges...")
                         try:
-                            from database.models import Account
+                            from backend.database.models import Account
 
                             # Reuse outer db session instead of opening a new one
                             try:
@@ -472,8 +470,7 @@ class MarketFlowCollector:
             data = msg.get("data", {})
             if data:
                 self.latest_orderbook[symbol] = data
-                # [v6-S2-1] L2 重建层接线：把 HL l2Book 快照喂给默认重建器
-                # （跳变防护 + 深度派生），flush 时取末帧前5档名义深度落库。
+                # [v6-S2-1] L2 重建层接线：把 HL l2Book 快照喂给默认重建器 # （跳变防护 + 深度派生），flush 时取末帧前5档名义深度落库。
                 try:
                     if data.get("levels"):
                         from services.market_flow.l2_reconstructor import default_reconstructor
@@ -808,7 +805,7 @@ class MarketFlowCollector:
 
     def _flush_trades(self, db, symbol: str, timestamp_ms: int):
         """Flush trade buffer for a symbol"""
-        from database.models import MarketTradesAggregated
+        from backend.database.models import MarketTradesAggregated
 
         # [v6-S2-1] 当前末帧前5档名义深度（无帧时 None，列保持 NULL）
         bid_depth_top5, ask_depth_top5 = self._current_depth_notional(symbol)
@@ -865,7 +862,7 @@ class MarketFlowCollector:
 
     def _flush_orderbook(self, db, symbol: str, timestamp_ms: int):
         """Flush orderbook snapshot for a symbol"""
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         # Skip if data is stale (WebSocket disconnected)
         l2book_age = time.time() - self.last_update_time["l2book"]
@@ -937,7 +934,7 @@ class MarketFlowCollector:
 
     def _flush_asset_metrics(self, db, symbol: str, timestamp_ms: int):
         """Flush asset metrics for a symbol"""
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         # Skip if data is stale (WebSocket disconnected)
         asset_ctx_age = time.time() - self.last_update_time["asset_ctx"]
@@ -992,7 +989,7 @@ class MarketFlowCollector:
     def _save_perp_funding(self, db, symbol: str, timestamp_ms: int, ctx: dict):
         """将资金费率写入 perp_funding 历史表"""
         try:
-            from database.models import PerpFunding
+            from backend.database.models import PerpFunding
             funding_val = Decimal(ctx["funding"])
             mark_price = Decimal(ctx["markPx"]) if ctx.get("markPx") else None
 
@@ -1029,10 +1026,10 @@ def cleanup_old_market_flow_data():
     """
     import time
     from backend.database.connection import MarketSessionLocal
-    from database.models import (
-        MarketTradesAggregated,
-        MarketOrderbookSnapshots,
-        MarketAssetMetrics,
+    from backend.database.models import (
+    MarketTradesAggregated,
+    MarketOrderbookSnapshots,
+    MarketAssetMetrics,
     )
 
     cutoff_ms = int((time.time() - DATA_RETENTION_DAYS * 86400) * 1000)

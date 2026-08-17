@@ -239,13 +239,15 @@ EXCHANGE_MIN_MARGIN = 10.0          # 交易所单笔最低保证金 $10
 # 当日交易亏损时摩擦力更大，盈利时摩擦力更小
 TRADE_FREQUENCY_TIERS = [
     # (交易笔数阈值, 基础置信度加成)
-    (5,  0.05),   # 第 6 笔起，置信度门槛 +5%
-    (10, 0.10),   # 第 11 笔起，再 +10%（累计 +15%）
-    (20, 0.15),   # 第 21 笔起，再 +15%（累计 +30%）
-    (30, 0.20),   # 第 31 笔起，再 +20%（累计 +50%）— 极端安全网
+    # [2026-08-16 用户反馈放宽] 旧档位 5/10/20/30 笔就 +5%~20%，400 笔交易日
+    # 置信度门槛被抬到 +50%（亏损日 ×1.5 = +75%）→ 全天信号全部卡死。
+    # 改为大档位、小加成：300 笔才 +10%，亏损日最多 +12%。
+    (30,  0.03),   # 第 31 笔起 +3%
+    (100, 0.06),   # 第 101 笔起 累计 +9%
+    (300, 0.10),   # 第 301 笔起 累计 +19%？不——取最大值 +10%
 ]
 # 当日亏损时的额外摩擦倍数
-LOSING_DAY_FRICTION_MULT = 1.5
+LOSING_DAY_FRICTION_MULT = 1.2
 # 当日盈利时的摩擦折扣
 WINNING_DAY_FRICTION_MULT = 0.6
 
@@ -611,21 +613,20 @@ class PositionMemoryManager:
             if mental.daily_trades >= tier_count:
                 freq_penalty = tier_add
         if freq_penalty > 0:
+            # [2026-08-16 用户反馈] 频率摩擦降级为「仅提示」：不再硬性拦截。
+            # 原实现按 mental.daily_trades 硬性抬门槛——该计数器把套利腿/研究腿
+            # 也计入（今日实际开仓仅 8 笔，计数器却是 400），400 笔 → 置信度
+            # 门槛 +50%~75% → 全天信号全部被卡死（用户看到的「跑起来就卡死」）。
+            # 现在只把摩擦信息写进上下文供 LLM 参考，绝不阻断交易。
             day_pnl_factor = (
                 LOSING_DAY_FRICTION_MULT if mental.daily_pnl < 0
                 else WINNING_DAY_FRICTION_MULT
             )
             effective_penalty = freq_penalty * day_pnl_factor
             required_conf = _effective_min_conf + effective_penalty
-            if ai_confidence < required_conf:
-                return self._skip_plan(symbol, side,
-                    f"今日已{mental.daily_trades}笔，"
-                    f"{'亏损' if mental.daily_pnl < 0 else '盈利'}日需置信度"
-                    f"{required_conf:.0%}(当前{ai_confidence:.0%})，"
-                    f"策略建议暂缓低质量信号")
             reasons.append(
-                f"频率摩擦: 今日{mental.daily_trades}笔,"
-                f"门槛+{effective_penalty:.0%}→需{required_conf:.0%}"
+                f"频率摩擦(仅提示): 今日{mental.daily_trades}笔,"
+                f"参考门槛+{effective_penalty:.0%}→{required_conf:.0%}"
             )
 
         daily_loss_pct = abs(mental.daily_pnl / equity) if equity > 0 and mental.daily_pnl < 0 else 0
@@ -1084,7 +1085,13 @@ class PositionMemoryManager:
             mental.consecutive_wins = 0
 
         mental.streak_pnl += pnl
-        mental.daily_trades += 1
+        # [2026-08-16 修复] 套利/研究腿（pair_research/rebate_arb 等）2 秒级
+        # 高速开平不应计入「今日交易笔数」——旧实现把套利腿全部累计进来，
+        # 一晚上 400 笔 → 频率摩擦把真实交易信号全部卡死。仅统计真实交易。
+        _ss = str(signal_source or "").lower()
+        _is_arb_like = any(k in _ss for k in ("arb", "pair", "research", "rebate"))
+        if not _is_arb_like:
+            mental.daily_trades += 1
         mental.daily_pnl += (pnl - fee)
         mental.last_trade_at = datetime.now(timezone.utc)
 

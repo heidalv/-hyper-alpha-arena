@@ -60,21 +60,15 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
             "enableRateLimit": True,
             "options": {
                 "defaultType": "future",
-                # [2026-08-04 修复] ccxt binance fetch_markets 默认加载
-                # ['spot','linear','inverse'] 三类市场；其中 spot 走 public URL
-                # （fapi.asterdex.com/api/v3 实测 404），inverse 走 dapi URL（不存在）。
-                # 只加载 linear（fapi 合约）即可，避免 load_markets 因现货 404 整体失败。
+                # [2026-08-04 修复] ccxt binance fetch_markets 默认加载 # ['spot','linear','inverse'] 三类市场；其中 spot 走 public URL # （fapi.asterdex.com/api/v3 实测 404），inverse 走 dapi URL（不存在）。 # 只加载 linear（fapi 合约）即可，避免 load_markets 因现货 404 整体失败。
                 "fetchMarkets": {"types": ["linear"]},
             },
             "timeout": 15000,  # 15s 超时（[2026-08-06] 10s→15s：容忍代理链路抖动，减少 SSL EOF 误判；容量收缩后单批任务数已下降，15s 不拖慢整轮）
             "apiKey": "",  # Aster DEX 公共端点不需要 API key
             "secret": "",
         })
-        # 覆盖为 asterdex 端点（与 AsterdexAdapter 一致）。
-        # [2026-08-04 修复] 此前 public/private 指向 https://api.asterdex.com/api/v3，
-        # 该域名 DNS 不可解析 → ccxt 惰性 load_markets() 拉 exchangeInfo 100% 失败 →
-        # fetch_trades/fetch_order_book 全部异常。Asterdex 全部端点都在
-        # fapi.asterdex.com（实测 fapi/v1/exchangeInfo、fapi/v1/premiumIndex 均 200）。
+        # 覆盖为 asterdex 端点（与 AsterdexAdapter 一致）。 # [2026-08-04 修复] 此前 public/private 指向 https://api.asterdex.com/api/v3，
+        # 该域名 DNS 不可解析 → ccxt 惰性 load_markets() 拉 exchangeInfo 100% 失败 → # fetch_trades/fetch_order_book 全部异常。Asterdex 全部端点都在 # fapi.asterdex.com（实测 fapi/v1/exchangeInfo、fapi/v1/premiumIndex 均 200）。
         ex.urls["api"] = {
             "fapiPublic": ASTERDEX_FUTURES_URL + "/fapi/v1",
             "fapiPrivate": ASTERDEX_FUTURES_URL + "/fapi/v1",
@@ -87,10 +81,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
         # 对于永续合约，override 完整的 URLs 结构
         ex.urls["www"] = "https://www.asterdex.com"
 
-        # [2026-08-04 修复] 注入行情代理（与 CcxtBaseAdapter 一致）。
-        # 实测：Python 直连 fapi.asterdex.com 被远端 TLS 重置（WinError 10054），
-        # 经 127.0.0.1:1080 代理 200 可达 → 必须走代理。BINANCE_HTTPS_PROXY/HTTPS_PROXY
-        # 来自 .env（行情侧代理），与 LLM 直连（LLM_HTTP_PROXY）完全隔离。
+        # [2026-08-04 修复] 注入行情代理（与 CcxtBaseAdapter 一致）。 # 实测：Python 直连 fapi.asterdex.com 被远端 TLS 重置（WinError 10054）， # 经 127.0.0.1:1080 代理 200 可达 → 必须走代理。BINANCE_HTTPS_PROXY/HTTPS_PROXY # 来自 .env（行情侧代理），与 LLM 直连（LLM_HTTP_PROXY）完全隔离。
         _proxy = os.environ.get("BINANCE_HTTPS_PROXY") or os.environ.get("HTTPS_PROXY")
         if _proxy:
             ex.proxies = {"http": _proxy, "https": _proxy}
@@ -138,9 +129,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
             logger.error("[asterdex] 创建 ccxt 实例失败: %s", e, exc_info=True)
             return
 
-        # [2026-08-04 修复] 预热 load_markets：
-        # fetch_trades/fetch_order_book 首次调用都会惰性 load_markets（拉 exchangeInfo），
-        # 30 个并发任务同时触发会串行等待。这里先主动加载一次，让轮询循环立即就绪。
+        # [2026-08-04 修复] 预热 load_markets： # fetch_trades/fetch_order_book 首次调用都会惰性 load_markets（拉 exchangeInfo）， # 30 个并发任务同时触发会串行等待。这里先主动加载一次，让轮询循环立即就绪。
         try:
             await self._exchange.load_markets()
             _mc = len(getattr(self._exchange, "markets", {}) or {})
@@ -153,11 +142,8 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
         for s in symbols:
             self.trade_buffers.setdefault(s, self._new_buffer())
 
-        # [2026-08-04 修复] 全站并发限流：
-        # 全部 asterdex REST 请求共享同一出口 IP（Shadowsocks 代理 126.227.100.196），
-        # 30 symbol × 3 任务 = 90 个协程启动瞬间齐发 + P0/P1/P2 + ticker 轮询并发，
-        # 会在几秒内触发 Asterdex WAF 418 封禁（实测 ban 到 16:00，全员 418）。
-        # 方案：全局信号量限 4 并发 + 每任务随机错峰起步，把瞬时速率压回可接受范围。
+        # [2026-08-04 修复] 全站并发限流： # 全部 asterdex REST 请求共享同一出口 IP（Shadowsocks 代理 126.227.100.196），
+        # 30 symbol × 3 任务 = 90 个协程启动瞬间齐发 + P0/P1/P2 + ticker 轮询并发， # 会在几秒内触发 Asterdex WAF 418 封禁（实测 ban 到 16:00，全员 418）。 # 方案：全局信号量限 4 并发 + 每任务随机错峰起步，把瞬时速率压回可接受范围。
         self._poll_sem = asyncio.Semaphore(4)
 
         self._source_started.set()
@@ -166,8 +152,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
         # 每个 symbol 三个并发任务：trades + orderbook + asset_metrics (全部使用 REST 轮询)
         tasks = []
         for idx, sym in enumerate(symbols):
-            # 启动错峰：同一 symbol 的三个任务依次错开，symbol 间再错开，
-            # 避免 gather 后 90 个任务同时发出第一批请求。
+            # 启动错峰：同一 symbol 的三个任务依次错开，symbol 间再错开， # 避免 gather 后 90 个任务同时发出第一批请求。
             stagger = (idx % 6) * 0.8 + random.random() * 0.6
             tasks.append(asyncio.create_task(self._staggered(self._poll_trades_loop, sym, stagger)))
             tasks.append(asyncio.create_task(self._staggered(self._poll_orderbook_loop, sym, stagger + 1.0)))
@@ -268,8 +253,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
                         if trade_id:
                             last_trade_id = trade_id
                 
-                # 30 秒轮询间隔（原 15s，进一步降频：全站共享 2400 req/min 上限，
-                # market_flow 三通道合计需让出配额给 P0/P1/P2）
+                # 30 秒轮询间隔（原 15s，进一步降频：全站共享 2400 req/min 上限， # market_flow 三通道合计需让出配额给 P0/P1/P2）
                 await asyncio.sleep(30)
                 
             except asyncio.CancelledError:
@@ -322,19 +306,14 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
     async def _poll_asset_metrics_loop(self, symbol: str) -> None:
         """每 30 秒轮询一次资产指标（funding rate / mark price）"""
         ccxt_symbol = self._normalize_symbol(symbol)
-        # [2026-08-04 修复] 此前 ccxt_symbol.replace("/","").replace(":","") 把
-        # "BTC/USDT:USDT" 变成 "BTCUSDTUSDT"（USDT 重复）→ 交易所返回 Invalid symbol。
-        # 正确做法：取基础币 + USDT（如 BTC → BTCUSDT）。
+        # [2026-08-04 修复] 此前 ccxt_symbol.replace("/","").replace(":","") 把 # "BTC/USDT:USDT" 变成 "BTCUSDTUSDT"（USDT 重复）→ 交易所返回 Invalid symbol。 # 正确做法：取基础币 + USDT（如 BTC → BTCUSDT）。
         binance_symbol = symbol.replace("-", "").replace("_", "").replace("/", "").upper() + "USDT"
         
         while self.running:
             try:
                 # 全局冷却检查（429/418 后全链路停手）
                 await self._wait_global_ban()
-                # 通过 REST API 获取 funding rate / mark price
-                # Aster DEX 兼容 Binance API: GET /fapi/v1/premiumIndex
-                # [2026-08-04 修复] fapiPrivateGetPremiumIndex 不存在（ccxt binance 只有
-                # fapiPublicGetPremiumIndex），premiumIndex 是公开端点。此前 100% AttributeError。
+                # 通过 REST API 获取 funding rate / mark price # Aster DEX 兼容 Binance API: GET /fapi/v1/premiumIndex # [2026-08-04 修复] fapiPrivateGetPremiumIndex 不存在（ccxt binance 只有 # fapiPublicGetPremiumIndex），premiumIndex 是公开端点。此前 100% AttributeError。
                 async with self._poll_sem:
                     response = await self._exchange.fapiPublicGetPremiumIndex({"symbol": binance_symbol})
 
@@ -371,7 +350,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
 
     def _flush_orderbook(self, db, symbol: str, timestamp_ms: int) -> None:
         """复用 hyperliquid 的实现逻辑，适配 Aster DEX 数据格式"""
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         l2book_age = time.time() - self.last_update_time["l2book"]
         if self.last_update_time["l2book"] > 0 and l2book_age > 30:
@@ -433,7 +412,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
 
     def _flush_asset_metrics(self, db, symbol: str, timestamp_ms: int) -> None:
         """复用 hyperliquid 的逻辑，适配 Aster DEX 数据格式"""
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         asset_ctx_age = time.time() - self.last_update_time["asset_ctx"]
         if self.last_update_time["asset_ctx"] > 0 and asset_ctx_age > 30:

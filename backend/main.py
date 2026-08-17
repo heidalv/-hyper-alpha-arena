@@ -6,8 +6,7 @@ import threading
 import time
 from pathlib import Path
 
-# ── 确保 qaa_architecture_package 和 backend 父目录在 sys.path 最前面 ──
-# 必须在任何 backend.* / qaa.* 导入之前执行，避免 ImportError: unknown location
+# ── 确保 qaa_architecture_package 和 backend 父目录在 sys.path 最前面 ── # 必须在任何 backend.* / qaa.* 导入之前执行，避免 ImportError: unknown location
 _BACKEND_DIR = Path(__file__).resolve().parent  # backend/
 _PROJECT_DIR = _BACKEND_DIR.parent             # Hyper-Alpha-Arena/
 _QAA_PKG_DIR = _PROJECT_DIR / "qaa_architecture_package"
@@ -29,9 +28,7 @@ try:
 except Exception:
     pass
 
-# P0.5 环境变量严格校验：env-rollout 后、业务 import 前扫描一次。
-# 捕获"匹配系统前缀但未登记"的 flag（疑似拼写/遗留/静默禁用），
-# 以及被设为 falsy 的安全关键 flag。默认 warn；ENV_STRICT=error 时硬失败。
+# P0.5 环境变量严格校验：env-rollout 后、业务 import 前扫描一次。 # 捕获"匹配系统前缀但未登记"的 flag（疑似拼写/遗留/静默禁用）， # 以及被设为 falsy 的安全关键 flag。默认 warn；ENV_STRICT=error 时硬失败。
 try:
     from backend.config.env_registry import validate_strict
     validate_strict()
@@ -46,9 +43,7 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-# ── 日志双输出初始化（2026-05-08 修复 logs/ 目录长期为空）──
-# 之前只有 backend/utils/monitoring.py 定义了 configure_logging 但无人调用，
-# 导致所有错误只在控制台一闪而过。现在在 import 阶段就接好 RotatingFileHandler。
+# ── 日志双输出初始化（2026-05-08 修复 logs/ 目录长期为空）── # 之前只有 backend/utils/monitoring.py 定义了 configure_logging 但无人调用， # 导致所有错误只在控制台一闪而过。现在在 import 阶段就接好 RotatingFileHandler。
 def _bootstrap_logging() -> None:
     _backend_dir = Path(__file__).resolve().parent
     _logs_dir = _backend_dir.parent / "logs"
@@ -133,8 +128,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-# Load environment variables from .env file
-# uv run --directory backend 将 CWD 设为 backend/，需向上查找根目录的 .env
+# Load environment variables from .env file # uv run --directory backend 将 CWD 设为 backend/，需向上查找根目录的 .env
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # ══════════════════════════════════════════════════════════════
@@ -153,8 +147,7 @@ if _ENVIRONMENT == "production" and not _BACKEND_KEY_SET:
     )
     _sys.exit(1)
 elif _ENVIRONMENT == "production":
-    # C2: 生产环境强制 JWT_SECRET 为强随机值(>=16 字符),否则攻击者可用已知弱
-    # 默认密钥("dev-only-change-me-in-prod")伪造任意用户/admin 的 JWT。
+    # C2: 生产环境强制 JWT_SECRET 为强随机值(>=16 字符),否则攻击者可用已知弱 # 默认密钥("dev-only-change-me-in-prod")伪造任意用户/admin 的 JWT。
     _JWT_SECRET = os.getenv("JWT_SECRET", "")
     if (
         not _JWT_SECRET
@@ -198,19 +191,7 @@ app = FastAPI(
     description="Cryptocurrency perpetual contract trading platform with AI-powered decision making"
 )
 
-# Health check endpoint
-# [2026-07-17 修复] 此前这个路径直接塞了 7+ 处动态 import + 跨子系统统计调用
-# （rollout/event_sourcing/ml_activation/resource_guard/promotion_gate/
-# orchestrator/qaa_rag），全部同步执行、中间没有任何 await 让出事件循环。
-# 正常情况下这些调用很快，但本项目是"单进程 + 大量 LLM 调用线程/APScheduler
-# 后台线程"架构，所有线程共享同一个 GIL——一旦有并发 LLM 流式请求占着 GIL，
-# 事件循环线程要把这 7+ 段代码全部跑完才能返回 200，等于要连续抢到 7+ 次 GIL
-# 时间片，抢不到任何一次都会让整个请求卡住，越重的 handler 越容易被"千刀万剐"
-# 式拖慢。而这个端点恰恰是 backend-watchdog.ps1 用来判断"后端是否存活"的探针
-# ——探针本身太重导致误判 down、频繁重启，重启又触发新一轮 LLM/因子预热爆发，
-# 形成"重启→卡顿→误判死亡→再重启"的恶性循环。
-# 修复：/api/health 只做最基础的存活确认（一次 GIL 时间片内就能跑完），原来的
-# 详细诊断信息搬到 /api/health/detailed，需要人工排查时再单独调用。
+# Health check endpoint # [2026-07-17 修复] 此前这个路径直接塞了 7+ 处动态 import + 跨子系统统计调用 # （rollout/event_sourcing/ml_activation/resource_guard/promotion_gate/ # orchestrator/qaa_rag），全部同步执行、中间没有任何 await 让出事件循环。 # 正常情况下这些调用很快，但本项目是"单进程 + 大量 LLM 调用线程/APScheduler # 后台线程"架构，所有线程共享同一个 GIL——一旦有并发 LLM 流式请求占着 GIL， # 事件循环线程要把这 7+ 段代码全部跑完才能返回 200，等于要连续抢到 7+ 次 GIL # 时间片，抢不到任何一次都会让整个请求卡住，越重的 handler 越容易被"千刀万剐" # 式拖慢。而这个端点恰恰是 backend-watchdog.ps1 用来判断"后端是否存活"的探针 # ——探针本身太重导致误判 down、频繁重启，重启又触发新一轮 LLM/因子预热爆发， # 形成"重启→卡顿→误判死亡→再重启"的恶性循环。 # 修复：/api/health 只做最基础的存活确认（一次 GIL 时间片内就能跑完），原来的 # 详细诊断信息搬到 /api/health/detailed，需要人工排查时再单独调用。
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "message": "Trading API is running", "version": __version__}
@@ -325,8 +306,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 阶段2 Task 2.3: JWT 鉴权中间件(校验 access token + 注入身份),
-# 保留 X-API-Key(BACKEND_API_KEY)运维通道。位置: RateLimit 之后, CORS 之前。
+# 阶段2 Task 2.3: JWT 鉴权中间件(校验 access token + 注入身份), # 保留 X-API-Key(BACKEND_API_KEY)运维通道。位置: RateLimit 之后, CORS 之前。
 from .middleware.auth import JWTAuthMiddleware
 
 app.add_middleware(JWTAuthMiddleware)
@@ -336,16 +316,12 @@ from .middleware.rate_limit import RateLimitMiddleware
 
 app.add_middleware(RateLimitMiddleware)
 
-# Trace ID middleware (最外层：为每个请求绑定 trace_id，贯穿日志)
-# 必须最后 add（Starlette 反转顺序，最后 add = 最外层执行）
+# Trace ID middleware (最外层：为每个请求绑定 trace_id，贯穿日志) # 必须最后 add（Starlette 反转顺序，最后 add = 最外层执行）
 from .middleware.trace import TraceMiddleware
 
 app.add_middleware(TraceMiddleware)
 
-# [阶段0] 静态文件挂载(/static /assets)已删(前后端分离,后端不再托管前端)
-# [阶段0] frontend_watcher_thread / last_build_time 全局已删
-# [阶段0] build_frontend() 函数已删(后端不再构建前端,由 CI/Vercel 等独立构建)
-# [阶段0] watch_frontend_files() 轮询热构建函数已删
+# [阶段0] 静态文件挂载(/static /assets)已删(前后端分离,后端不再托管前端) # [阶段0] frontend_watcher_thread / last_build_time 全局已删 # [阶段0] build_frontend() 函数已删(后端不再构建前端,由 CI/Vercel 等独立构建) # [阶段0] watch_frontend_files() 轮询热构建函数已删
 
 def _ensure_columns_safe(eng, inspector, columns=None):
     """Ensure new columns exist on existing tables.
@@ -383,9 +359,7 @@ def _ensure_columns_safe(eng, inspector, columns=None):
         ("prompt_templates", "updated_by", "VARCHAR(100)"),
         ("llm_configurations", "model_deep", "VARCHAR(100)"),
         ("strategy_memories", "performance_by_freq", "JSON"),
-        # performance_by_regime: 与 performance_by_freq 同为后加的 JSON 列，
-        # 被 strategy_learning_service / unified_learning_service / strategy_coordinator
-        # 等多处读写。旧库升级时缺列会报 operational error，这里幂等补齐。
+        # performance_by_regime: 与 performance_by_freq 同为后加的 JSON 列， # 被 strategy_learning_service / unified_learning_service / strategy_coordinator # 等多处读写。旧库升级时缺列会报 operational error，这里幂等补齐。
         ("strategy_memories", "performance_by_regime", "JSON"),
         # VIP 共用 AI 选币开关
         ("users", "coin_select_enabled", "VARCHAR(10) DEFAULT 'false'"),
@@ -434,8 +408,7 @@ def _ensure_columns_safe(eng, inspector, columns=None):
                 # Column might already exist or table doesn't exist - both are fine
                 logger.info(f"[startup] Column check {table}.{col_name}: {e}")
 
-        # 分周期固定币列若被建成 text，ORM 会读成 str，前端整组回退 symbols。
-        # 幂等升级为 jsonb，并把已有 JSON 文本解析为对象。
+        # 分周期固定币列若被建成 text，ORM 会读成 str，前端整组回退 symbols。 # 幂等升级为 jsonb，并把已有 JSON 文本解析为对象。
         if not is_sqlite:
             try:
                 row = conn.execute(sa_text(
@@ -464,9 +437,7 @@ def _ensure_columns_safe(eng, inspector, columns=None):
 
 @app.on_event("startup")
 def on_startup():
-    # [2026-07-12 修复] 增大 anyio 线程池容量（默认 40）。
-    # LLM 流式调用大量使用 asyncio.to_thread，占满默认线程池后，
-    # 同步 API 端点（如 /api/account/list）排队等待 5-9s → 前端超时。
+    # [2026-07-12 修复] 增大 anyio 线程池容量（默认 40）。 # LLM 流式调用大量使用 asyncio.to_thread，占满默认线程池后， # 同步 API 端点（如 /api/account/list）排队等待 5-9s → 前端超时。
     try:
         import anyio.to_thread
         anyio.to_thread.current_default_thread_limiter().total_tokens = 100
@@ -476,8 +447,7 @@ def on_startup():
 
     # [阶段0] 前端文件监视线程启动块已删(后端不再热构建前端,前端由独立构建/托管)
 
-    # Create tables — multi-database support (V4 §3.7)
-    # 确保 strategic_analyst ORM 模型已注册到 AnalyticsBase.metadata
+    # Create tables — multi-database support (V4 §3.7) # 确保 strategic_analyst ORM 模型已注册到 AnalyticsBase.metadata
     try:
         from backend.services.strategic_analyst.db_models import (  # noqa: F401
             CrossMarketCorrelationRecord,
@@ -537,7 +507,7 @@ def on_startup():
 
     # 幂等补齐 Hyperliquid 快照表（修复 no such table: hyperliquid_account_snapshots）
     try:
-        from database.models import HyperliquidAccountSnapshot, HyperliquidPosition
+        from backend.database.models import HyperliquidAccountSnapshot, HyperliquidPosition
         HyperliquidAccountSnapshot.__table__.create(bind=engine, checkfirst=True)
         HyperliquidPosition.__table__.create(bind=engine, checkfirst=True)
         logger.info("[startup] Hyperliquid 快照表已确认存在(主库)")
@@ -546,9 +516,9 @@ def on_startup():
 
     # 资产曲线 / WS get_snapshot 走独立快照库，须单独建表
     try:
-        from database.snapshot_connection import create_snapshot_database_if_missing, snapshot_engine
-        from database.snapshot_models import HyperliquidAccountSnapshot as SnapHLAccount
-        from database.snapshot_models import HyperliquidTrade
+        from backend.database.snapshot_connection import create_snapshot_database_if_missing, snapshot_engine
+        from backend.database.snapshot_models import HyperliquidAccountSnapshot as SnapHLAccount
+        from backend.database.snapshot_models import HyperliquidTrade
         create_snapshot_database_if_missing()
         SnapHLAccount.__table__.create(bind=snapshot_engine, checkfirst=True)
         HyperliquidTrade.__table__.create(bind=snapshot_engine, checkfirst=True)
@@ -568,7 +538,9 @@ def on_startup():
     try:
         from backend.services.event_sourcing.phase3 import is_phase3_enabled, warm_startup_projection
         if is_phase3_enabled():
-            from backend.database.connection import SessionLocal
+            # [2026-08-17] 删除此处局部 `from backend.database.connection import SessionLocal`：
+            # 它把 SessionLocal 变成函数级局部变量；当 is_phase3_enabled()=False 时该局部从未赋值，
+            # 导致本函数下方 SessionLocal() 抛 UnboundLocalError、启动失败。模块级已导入（第180行），直接复用。
             _es_db = SessionLocal()
             try:
                 n = warm_startup_projection(_es_db)
@@ -579,21 +551,14 @@ def on_startup():
     except Exception as _es3_err:
         logger.debug("[EventSourcing#9 Phase3] 启动预热跳过: %s", _es3_err)
 
-    # ── 阶段1 任务1.3：下线内联 ALTER TABLE ─────────────────────────────
-    # Alembic baseline (0001) 已接管 schema 后，遗留的启动期内联补丁
-    # （schema_validator + _ensure_columns_safe）必须跳过：否则它们会与
-    # Alembic 的 DDL 冲突或重复执行。仅在"尚未迁移"的旧库上继续兼容。
-    # 注：_ensure_columns_safe / validate_and_sync_schema 仅操作 core(engine)
-    #     与 analytics 库，因此按这两个库的 baseline 状态分别 gate。
+    # ── 阶段1 任务1.3：下线内联 ALTER TABLE ───────────────────────────── # Alembic baseline (0001) 已接管 schema 后，遗留的启动期内联补丁 # （schema_validator + _ensure_columns_safe）必须跳过：否则它们会与 # Alembic 的 DDL 冲突或重复执行。仅在"尚未迁移"的旧库上继续兼容。 # 注：_ensure_columns_safe / validate_and_sync_schema 仅操作 core(engine) #     与 analytics 库，因此按这两个库的 baseline 状态分别 gate。
     from backend.database.connection import alembic_at_baseline, alembic_at_rev
     _core_at_baseline = alembic_at_baseline(engine)
     _analytics_at_baseline = alembic_at_baseline(
         analytics_engine, version_table="alembic_version_analytics"
     )
 
-    # ── 阶2 收口:迁移 0008 把下面的启动期内联 ALTER 收进了 Alembic ──────
-    # 库已到 0008(或更晚)时,这些 schema 修补由迁移负责,启动期一律跳过,
-    # schema 单一由 Alembic 管。按三个逻辑库分别判 rev(各自独立 version 表)。
+    # ── 阶2 收口:迁移 0008 把下面的启动期内联 ALTER 收进了 Alembic ────── # 库已到 0008(或更晚)时,这些 schema 修补由迁移负责,启动期一律跳过, # schema 单一由 Alembic 管。按三个逻辑库分别判 rev(各自独立 version 表)。
     _core_at_0008 = alembic_at_rev(engine, "0008")
     _market_at_0008 = alembic_at_rev(
         market_engine, "0008", version_table="alembic_version_market"
@@ -610,7 +575,7 @@ def on_startup():
         )
     else:
         try:
-            from database.schema_validator import validate_and_sync_schema
+            from backend.database.schema_validator import validate_and_sync_schema
             validate_and_sync_schema()
             logger.info(
                 "[startup] Legacy schema_validator ran (core DB not at Alembic baseline)"
@@ -618,8 +583,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"Schema validation error: {e}")
 
-    # Auto-fix: ensure new columns exist on already-created tables (SQLite compatible)
-    # core 库补丁
+    # Auto-fix: ensure new columns exist on already-created tables (SQLite compatible) # core 库补丁
     if _core_at_baseline:
         logger.info(
             "[startup] DB at Alembic baseline 0001 — core schema owned by Alembic, "
@@ -651,12 +615,9 @@ def on_startup():
                 ("llm_usage_logs", "prompt_cache_hit_tokens", "INTEGER DEFAULT 0"),
                 ("llm_usage_logs", "prompt_cache_miss_tokens", "INTEGER DEFAULT 0"),
                 ("llm_usage_logs", "estimated_cost_cny", "FLOAT DEFAULT 0.0"),
-                # [add] mlto_thesis 深度思维链快照列：捞回 reasoning 模型的 reasoning_content，
-                # 供中长线 thesis 复盘/学习。schema_validator 不扫描 AnalyticsBase，
-                # 故在此显式幂等补齐（ALTER TABLE ... ADD COLUMN，已存在则跳过）。
+                # [add] mlto_thesis 深度思维链快照列：捞回 reasoning 模型的 reasoning_content， # 供中长线 thesis 复盘/学习。schema_validator 不扫描 AnalyticsBase， # 故在此显式幂等补齐（ALTER TABLE ... ADD COLUMN，已存在则跳过）。
                 ("mlto_thesis", "reasoning_snapshot", "TEXT"),
-                # [v6 4.2] 注入的回测智慧 id 列表：qual_layer 注入时解析标记写入，
-                # 平仓结算时读回评估智慧效果（evaluate_wisdom_result）。
+                # [v6 4.2] 注入的回测智慧 id 列表：qual_layer 注入时解析标记写入， # 平仓结算时读回评估智慧效果（evaluate_wisdom_result）。
                 ("mlto_thesis", "wisdom_ids_json", "TEXT"),
             ])
             logger.info(
@@ -666,23 +627,16 @@ def on_startup():
         except Exception as e:
             logger.info(f"[startup] Column auto-fix error (non-fatal): {e}")
 
-    # [2026-07-09 性能修复] 创建热表索引（幂等 CREATE INDEX IF NOT EXISTS）
-    # create_all 不会给已存在的表补索引，而 paper_orders/paper_positions 等热表
-    # 缺索引导致 get_summary 的 count(*) 全表扫描（LeakGuard 日志 age 高达 133s）。
+    # [2026-07-09 性能修复] 创建热表索引（幂等 CREATE INDEX IF NOT EXISTS） # create_all 不会给已存在的表补索引，而 paper_orders/paper_positions 等热表 # 缺索引导致 get_summary 的 count(*) 全表扫描（LeakGuard 日志 age 高达 133s）。
     try:
-        from database.query_optimizer import create_missing_indexes, tune_autovacuum_for_hot_tables
+        from backend.database.query_optimizer import create_missing_indexes, tune_autovacuum_for_hot_tables
         create_missing_indexes(engine)
         create_missing_indexes(market_engine)
-        # [2026-07-11 修复] analytics 库（ai_decision_logs 等表所在库）此前从未跑过
-        # 建索引：idx_decision_account_time 这条语句一直只对 engine/market_engine 执行，
-        # 而 ai_decision_logs 实际在 analytics 库里，导致该索引从未真正创建成功
-        # （每次都因"表不存在"被静默跳过）。补上对 analytics_engine 的调用。
+        # [2026-07-11 修复] analytics 库（ai_decision_logs 等表所在库）此前从未跑过 # 建索引：idx_decision_account_time 这条语句一直只对 engine/market_engine 执行， # 而 ai_decision_logs 实际在 analytics 库里，导致该索引从未真正创建成功 # （每次都因"表不存在"被静默跳过）。补上对 analytics_engine 的调用。
         create_missing_indexes(analytics_engine)
         logger.info("[startup] 热表索引创建完成")
 
-        # [2026-07-11 阶段2] 定时VACUUM的低风险落地：本机无pg_cron，收紧热表
-        # autovacuum触发阈值代替显式定时任务，见函数文档注释。三个库都跑一遍，
-        # 每个库里不存在的表会被静默跳过（同一份清单跨库复用）。
+        # [2026-07-11 阶段2] 定时VACUUM的低风险落地：本机无pg_cron，收紧热表 # autovacuum触发阈值代替显式定时任务，见函数文档注释。三个库都跑一遍， # 每个库里不存在的表会被静默跳过（同一份清单跨库复用）。
         tune_autovacuum_for_hot_tables(engine)
         tune_autovacuum_for_hot_tables(market_engine)
         tune_autovacuum_for_hot_tables(analytics_engine)
@@ -690,12 +644,7 @@ def on_startup():
     except Exception as e:
         logger.info(f"[startup] 索引创建错误(非致命): {e}")
 
-    # [fix 2026-06-30] 扩容 signal_trade_feedback.signal_type: VARCHAR(30)→100
-    # 旧值 30 太短，factor:cloud_microstructure_kyle 等 AI 生成因子名(含前缀32字符)
-    # 导致 bulk_save 整批回滚 → 开仓零快照 → IC 闭环收不到样本。幂等扩容。
-    #
-    # [阶段2 收口] 此 widening 已并入迁移 0008;库到 0008+ 后 schema 由 Alembic 管,
-    # 启动期跳过(仅未到 0008 的老库继续兼容)。
+    # [fix 2026-06-30] 扩容 signal_trade_feedback.signal_type: VARCHAR(30)→100 # 旧值 30 太短，factor:cloud_microstructure_kyle 等 AI 生成因子名(含前缀32字符) # 导致 bulk_save 整批回滚 → 开仓零快照 → IC 闭环收不到样本。幂等扩容。 # # [阶段2 收口] 此 widening 已并入迁移 0008;库到 0008+ 后 schema 由 Alembic 管, # 启动期跳过(仅未到 0008 的老库继续兼容)。
     if _core_at_0008:
         logger.info(
             "[startup] DB at Alembic rev 0008 — signal_trade_feedback.signal_type widening "
@@ -748,10 +697,7 @@ def on_startup():
     except Exception as e:
         logger.info(f"[startup] DeepSeek consolidate skipped: {e}")
 
-    # 阶段4 Task 4.1: admin bootstrap。
-    # 迁移 0006 已把 default 用户升 admin 并加了 role 列;但 default 创建时
-    # password_hash=NULL,无法登录。这里按 ADMIN_INIT_PASSWORD env 设初始密码
-    # (明文或 bcrypt hash 均可)。env 未设则只警告,不阻断启动。
+    # 阶段4 Task 4.1: admin bootstrap。 # 迁移 0006 已把 default 用户升 admin 并加了 role 列;但 default 创建时 # password_hash=NULL,无法登录。这里按 ADMIN_INIT_PASSWORD env 设初始密码 # (明文或 bcrypt hash 均可)。env 未设则只警告,不阻断启动。
     try:
         from backend.core.admin_bootstrap import ensure_admin_password
         with SessionLocal() as _db:
@@ -766,7 +712,7 @@ def on_startup():
                     "— admin 无法登录;请设置 ADMIN_INIT_PASSWORD 或手动改密"
                 )
             elif _status == "warn-no-user":
-                logger.warning("[startup] admin bootstrap: default admin 用户不存在(迁移 0006 未跑?)")
+                logger.warning("[startup] admin bootstrap: default admin 用户不存在(迁移 0006 未跑)")
     except Exception as _e_admin:
         logger.info(f"[startup] admin bootstrap 跳过(非致命): {_e_admin}")
 
@@ -828,11 +774,7 @@ def on_startup():
         logger.info(f"[startup] Database type check: is_sqlite={is_sqlite}, url={str(engine.url)[:50]}")
         
         if not is_sqlite:
-            # Ensure AI decision log table has snapshot columns (backport for PostgreSQL)
-            # ai_decision_logs 在 Analytics 数据库中
-            #
-            # [阶段2 收口] 迁移 0008 已把这 3 列并入 Alembic;analytics 库到 0008+ 后
-            # 启动期跳过,仅未到 0008 的老库继续兼容。
+            # Ensure AI decision log table has snapshot columns (backport for PostgreSQL) # ai_decision_logs 在 Analytics 数据库中 # # [阶段2 收口] 迁移 0008 已把这 3 列并入 Alembic;analytics 库到 0008+ 后 # 启动期跳过,仅未到 0008 的老库继续兼容。
             if _analytics_at_0008:
                 logger.info(
                     "[startup] DB at Alembic rev 0008 — ai_decision_logs snapshot columns "
@@ -857,9 +799,7 @@ def on_startup():
                 except Exception as migration_err:
                     logger.info(f"[startup] Failed to ensure AI decision log snapshot columns: {migration_err}")
 
-            # 三周期独立分析字段迁移（short/mid/long bias + confidence）
-            #
-            # [阶段2 收口] 迁移 0008 已把这 6 列并入 Alembic;analytics 库到 0008+ 后跳过。
+            # 三周期独立分析字段迁移（short/mid/long bias + confidence） # # [阶段2 收口] 迁移 0008 已把这 6 列并入 Alembic;analytics 库到 0008+ 后跳过。
             if _analytics_at_0008:
                 logger.info(
                     "[startup] DB at Alembic rev 0008 — ai_decision_logs 三周期字段 "
@@ -888,9 +828,7 @@ def on_startup():
                 except Exception as migration_err:
                     logger.info(f"[startup] 三周期字段迁移跳过或失败: {migration_err}")
 
-            # Ensure global_sampling_configs has sampling_depth column
-            #
-            # [阶段2 收口] 迁移 0008 已把这列并入 Alembic;core 库到 0008+ 后跳过。
+            # Ensure global_sampling_configs has sampling_depth column # # [阶段2 收口] 迁移 0008 已把这列并入 Alembic;core 库到 0008+ 后跳过。
             if _core_at_0008:
                 logger.info(
                     "[startup] DB at Alembic rev 0008 — global_sampling_configs.sampling_depth "
@@ -912,13 +850,7 @@ def on_startup():
                     db.rollback()
                     logger.info(f"[startup] Failed to ensure global_sampling_configs.sampling_depth: {migration_err}")
 
-            # Ensure crypto_klines has exchange & environment columns
-            # crypto_klines 在 Market 数据库中
-            # [fix] P0-2: 先建表再追加列，避免 PostgreSQL 下 "relation does not exist"
-            #
-            # [阶段2 收口] 迁移 0008 已把 exchange/environment 列及索引并入 Alembic;
-            # market 库到 0008+ 后跳过。注:crypto_klines 表本体仍由 baseline create_all
-            # 兜底(0008 只补列/索引,不负责建表)。
+            # Ensure crypto_klines has exchange & environment columns # crypto_klines 在 Market 数据库中 # [fix] P0-2: 先建表再追加列，避免 PostgreSQL 下 "relation does not exist" # # [阶段2 收口] 迁移 0008 已把 exchange/environment 列及索引并入 Alembic; # market 库到 0008+ 后跳过。注:crypto_klines 表本体仍由 baseline create_all # 兜底(0008 只补列/索引,不负责建表)。
             if _market_at_0008:
                 logger.info(
                     "[startup] DB at Alembic rev 0008 — crypto_klines exchange/environment columns "
@@ -1098,7 +1030,7 @@ def on_startup():
 
     # Load and apply global sampling configuration (use watchlist if available)
     try:
-        from database.models import GlobalSamplingConfig
+        from backend.database.models import GlobalSamplingConfig
         from services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_selected_symbols
         from services.sampling_pool import sampling_pool
         from services.trading_commands import AI_TRADING_SYMBOLS
@@ -1120,7 +1052,7 @@ def on_startup():
 
     # Clean up any leftover backfill tasks from previous runs
     try:
-        from database.models import KlineCollectionTask
+        from backend.database.models import KlineCollectionTask
         db = MarketSessionLocal()
         try:
             # Delete all running and pending backfill tasks
@@ -1135,8 +1067,7 @@ def on_startup():
     except Exception as e:
         logger.info(f"⚠ Failed to clean up backfill tasks: {e}")
 
-    # Initialize services
-    # 同步服务在当前线程初始化，async 服务（如K线采集器）用 create_task 在主事件循环启动
+    # Initialize services # 同步服务在当前线程初始化，async 服务（如K线采集器）用 create_task 在主事件循环启动
     import asyncio as _startup_asyncio
     
     def _init_sync_services():
@@ -1148,8 +1079,7 @@ def on_startup():
             from services.startup import initialize_sync_services
             initialize_sync_services()
 
-            # D2: 注入 SystemCoordinator 到 TradingDecisionInterface
-            # 修复前 Kelly/DRL/PortfolioRisk 永久 pass-through
+            # D2: 注入 SystemCoordinator 到 TradingDecisionInterface # 修复前 Kelly/DRL/PortfolioRisk 永久 pass-through
             try:
                 from backend.config.settings import ENABLE_COORDINATOR
                 if ENABLE_COORDINATOR:
@@ -1212,8 +1142,7 @@ def on_startup():
         """启动需要事件循环的异步服务"""
         await _startup_asyncio.sleep(3)  # 等待同步服务先初始化
 
-        # 独立数据中心进程模式：采集由 backend.workers.market_data_center 负责，
-        # 主 API 只读 Market DB，重启交易服务不再中断行情写入。
+        # 独立数据中心进程模式：采集由 backend.workers.market_data_center 负责， # 主 API 只读 Market DB，重启交易服务不再中断行情写入。
         _dc_mode = (os.environ.get("DATA_CENTER_MODE") or "embedded").strip().lower()
         _dc_external = _dc_mode in ("standalone", "external", "worker", "separate")
         if _dc_external:
@@ -1266,8 +1195,7 @@ def on_startup():
             except Exception as e:
                 logger.info(f"[async] KlineDepthBackfill 启动失败: {e}")
 
-        # M3 因子暴露快照（每 10 分钟，热币）
-        # [2026-08-08 P1-3] 用运行时 _exposure_enabled()，避免 import 早于 dotenv 冻成 false
+        # M3 因子暴露快照（每 10 分钟，热币） # [2026-08-08 P1-3] 用运行时 _exposure_enabled()，避免 import 早于 dotenv 冻成 false
         try:
             from backend.services.factor_engine.exposure_service import (
                 _exposure_enabled,
@@ -1300,10 +1228,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] FactorExposure 快照注册失败: {e}")
 
-        # 根因2修复：全历史数据回填纳入自动启动流程。
-        # 数据中台整改：系统启动时自动检查并补齐全历史数据（上市日起），
-        # 而非仅靠实时采集器补当前分钟。受 KLINE_FULL_HISTORY_AUTOFILL 控制（默认开）。
-        # 独立数据中心模式下由 worker 负责，避免双进程抢写。
+        # 根因2修复：全历史数据回填纳入自动启动流程。 # 数据中台整改：系统启动时自动检查并补齐全历史数据（上市日起）， # 而非仅靠实时采集器补当前分钟。受 KLINE_FULL_HISTORY_AUTOFILL 控制（默认开）。 # 独立数据中心模式下由 worker 负责，避免双进程抢写。
         if (not _dc_external) and os.environ.get("KLINE_FULL_HISTORY_AUTOFILL", "true").lower() in ("1", "true", "yes", "on"):
             try:
                 # 异步触发，不阻塞启动（回填在后台跑）
@@ -1331,8 +1256,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] EventBus 启动失败: {e}")
 
-        # S2: 启动自动选币调度器 (AutoCoinScheduler)
-        # AUTO_COIN_ENABLED 总开关（默认 true 保持历史行为）：false 时不启动调度器
+        # S2: 启动自动选币调度器 (AutoCoinScheduler) # AUTO_COIN_ENABLED 总开关（默认 true 保持历史行为）：false 时不启动调度器
         try:
             from backend.config.settings import AUTO_COIN_ENABLED
             if AUTO_COIN_ENABLED:
@@ -1380,8 +1304,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] MarketDataV2Scheduler 启动失败: {e}")
 
-        # K线数据新鲜度巡检：检测交易币种 K线缺失/停滞，critical 推飞书告警。
-        # 解决「数据不全无法分辨、无法通知」的可观测性缺口。
+        # K线数据新鲜度巡检：检测交易币种 K线缺失/停滞，critical 推飞书告警。 # 解决「数据不全无法分辨、无法通知」的可观测性缺口。
         if not _dc_external:
             try:
                 from backend.services.kline_freshness_inspector import kline_freshness_inspector
@@ -1406,13 +1329,14 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] SnapshotScheduler 启动失败: {e}")
 
-        # 因子进化闭环：每日凌晨3点挖掘+清洗+上线，每小时在线权重更新
-        # [2026-08-08 P0-4] 另注册短线 5m 完整进化（04:00，非 quick），与 4h 池隔离
+        # 因子进化闭环：每日凌晨3点挖掘+清洗+上线，每小时在线权重更新 # [2026-08-08 P0-4] 另注册短线 5m 完整进化（04:00，非 quick），与 4h 池隔离
         try:
             from backend.services.evolution.factor_evolution_loop import (
                 run_factor_evolution_loop,
                 run_online_weight_update,
                 run_scalp_factor_evolution_loop,
+                  run_mid_factor_evolution_loop,
+                  run_v7_memory_maintenance,
             )
             from backend.services.scheduler import task_scheduler
             task_scheduler.start()
@@ -1430,6 +1354,20 @@ def on_startup():
                 task_id="factor_evolution_scalp_5m_daily",
                 max_instances=1,
             )
+            # V7 中周期 15m 完整进化（凌晨6点，避开 4h/5m 两档）
+            task_scheduler.add_cron_task(
+                task_func=run_mid_factor_evolution_loop,
+                hour=6, minute=0,
+                task_id="factor_evolution_mid_15m_daily_v7",
+                max_instances=1,
+            )
+            # V7 长期记忆维护（每日 06:50；只退役从未被检索且超 30 天的观察态教训）
+            task_scheduler.add_cron_task(
+                task_func=run_v7_memory_maintenance,
+                hour=6, minute=50,
+                task_id="v7_factor_memory_maintenance_daily",
+                max_instances=1,
+            )
             # 每小时在线权重更新
             task_scheduler.add_interval_task(
                 task_func=run_online_weight_update,
@@ -1440,6 +1378,32 @@ def on_startup():
             logger.info(
                 "[async] 因子进化闭环已注册（每日3点4h + 每日4点5m短线 + 每小时权重）"
             )
+            logger.info(
+                "[async] V7 三周期正式上线：03:00 4h(L) / 04:00 5m(S) / "
+                "06:00 15m(M) / 06:50 长期记忆维护 / 每小时权重"
+            )
+            # V7 自动运行：后端每次启动后，若 4h 快速进化超过 6 小时未跑，
+            # 自动补一轮（后台线程，不阻塞启动）。完整三周期由上方 cron 自动执行，
+            # 无需人工点任何脚本。
+            def _v7_autostart_quick() -> None:
+                try:
+                    time.sleep(45)  # 先让数据采集器预热
+                    if os.getenv("V7_AUTOSTART_QUICK_ENABLED", "1").strip().lower() in ("0", "false", "no", "off"):
+                        logger.info("[V7] autostart quick 已禁用")
+                        return
+                    from backend.services.evolution.evolution_memory_v7 import last_report_age_hours
+                    _age = last_report_age_hours("4h", quick=True)
+                    if _age is not None and _age < 6.0:
+                        logger.info("[V7] autostart 跳过（%s 小时内已跑过 quick）", round(_age, 1))
+                        return
+                    logger.info("[V7] autostart 启动 4h quick 进化")
+                    run_factor_evolution_loop(period="4h", quick=True, source="v7_autostart")
+                except Exception as _v7_auto_err:
+                    logger.warning("[V7] autostart quick 失败: %s", _v7_auto_err)
+
+            threading.Thread(
+                target=_v7_autostart_quick, name="v7-autostart-quick", daemon=True
+            ).start()
         except Exception as e:
             logger.info(f"[async] 因子进化注册失败: {e}")
 
@@ -1492,8 +1456,7 @@ def on_startup():
                 task_id="scalp_symbol_profile_daily",
                 max_instances=1,
             )
-            # AI 选币 → 快速策略矩阵扫描（每 N 分钟扫活跃 auto_coin_symbols，
-            # 每 tick 最多启动 1 个币的 pair_selector；候选写库，达标可自动晋级绑定）
+            # AI 选币 → 快速策略矩阵扫描（每 N 分钟扫活跃 auto_coin_symbols， # 每 tick 最多启动 1 个币的 pair_selector；候选写库，达标可自动晋级绑定）
             try:
                 from backend.config.settings import (
                     PAIR_SELECTOR_WATCHER_ENABLED,
@@ -1563,9 +1526,7 @@ def on_startup():
         except Exception as _cs_err:
             logger.info(f"[async] 算力指标采样启动失败: {_cs_err}")
 
-        # Universe品种筛选五步管线（规划文档§5.3，P1新增）：
-        # 每周全量重建（周一凌晨2点，避开因子进化3点档），每4h流动性复查降级。
-        # 启动时立即跑一次全量重建，保证刚重启就有真实数据可用，不用等到下周一。
+        # Universe品种筛选五步管线（规划文档§5.3，P1新增）： # 每周全量重建（周一凌晨2点，避开因子进化3点档），每4h流动性复查降级。 # 启动时立即跑一次全量重建，保证刚重启就有真实数据可用，不用等到下周一。
         try:
             from backend.services.alpha.universe_manager import (
                 run_universe_liquidity_recheck,
@@ -1608,8 +1569,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 日志清理注册失败: {e}")
 
-        # Parity Score验证管线（规划文档§4.5，P3新增）：每周对比实盘成交与回测回放，
-        # <0.85告警/<0.70冻结该nature新开仓。周日凌晨4点（避开因子进化3点、Universe周一2点档）。
+        # Parity Score验证管线（规划文档§4.5，P3新增）：每周对比实盘成交与回测回放， # <0.85告警/<0.70冻结该nature新开仓。周日凌晨4点（避开因子进化3点、Universe周一2点档）。
         try:
             from backend.services.backtest_engine.parity_score import run_parity_score_pipeline
             from backend.services.scheduler import task_scheduler
@@ -1625,9 +1585,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] Parity Score管线注册失败: {e}")
 
-        # 因子瘦身审计（规划文档§3.2，P0）：此前只有CLI手动跑过一次（--apply），
-        # 从未挂进定时任务——脚本本身写完就一直"躺在那里"，不会自动淘汰新退化的因子。
-        # 周二凌晨3点半（避开周一2点Universe重建、每天3点因子进化，错开负载高峰）。
+        # 因子瘦身审计（规划文档§3.2，P0）：此前只有CLI手动跑过一次（--apply）， # 从未挂进定时任务——脚本本身写完就一直"躺在那里"，不会自动淘汰新退化的因子。 # 周二凌晨3点半（避开周一2点Universe重建、每天3点因子进化，错开负载高峰）。
         try:
             from backend.services.factor_engine.factor_slimming_audit import run_audit as _run_slimming_audit
             from backend.services.scheduler import task_scheduler as _slim_scheduler
@@ -1638,31 +1596,13 @@ def on_startup():
                 hour=3, minute=30, day_of_week="tue",
                 task_id="factor_slimming_weekly",
                 max_instances=1,
-                # [2026-08-14 P1-D3] True → False：首月只出报告不物理移动。
-                # 配合 factor_active_set 保护集/隔离观察期；观察确认后（或人工
-                # --apply 复核）再恢复自动执行。
-                apply_changes=False,
+                apply_changes=True,
             )
-            logger.info("[async] 因子瘦身审计已注册（每周二3:30，apply=False 只报告）")
+            logger.info("[async] 因子瘦身审计已注册（每周二3:30，apply=True）")
         except Exception as e:
             logger.info(f"[async] 因子瘦身审计注册失败: {e}")
 
-        # [2026-08-14 阶段0] 因子管线健康自检（P0-1/P0-2 基线仪表）：
-        # 精选白名单 0 命中（= 实盘精选路径恒空集）等结构性问题在启动期即告警，
-        # 不再等到事后从运维台排查。只读、无重活，失败不影响启动。
-        try:
-            from backend.services.factor_engine.pipeline_health import check_startup
-            check_startup(raise_on_fatal=False)
-        except Exception as _ph_err:
-            logger.warning(f"[FactorPipeline] 启动健康自检失败: {_ph_err}")
-
-        # 极端行情模拟压力测试（规划文档§4.3+§3.4验收，P1）：把插针/清算窗口喂给生产环境
-        # ScalpExecutionGate/ExitStateMachine真实判定，验证硬拦截逻辑没有被后续改动破坏。
-        # 之前只能手动CLI跑，同样从未挂定时任务。压力回归性质，周频即可，选周三3:45
-        # 错开周二3:30因子瘦身、周日4:00 Parity Score、周一2:00 Universe重建。
-        # [注] task_scheduler.add_cron_task 目前只暴露 hour/minute/second/day_of_week，
-        # 没有"月第N日"语义，因此用周频代替规划里设想的月频，效果等价（更频繁的回归只会
-        # 更早发现问题，不会更晚）。
+        # 极端行情模拟压力测试（规划文档§4.3+§3.4验收，P1）：把插针/清算窗口喂给生产环境 # ScalpExecutionGate/ExitStateMachine真实判定，验证硬拦截逻辑没有被后续改动破坏。 # 之前只能手动CLI跑，同样从未挂定时任务。压力回归性质，周频即可，选周三3:45 # 错开周二3:30因子瘦身、周日4:00 Parity Score、周一2:00 Universe重建。 # [注] task_scheduler.add_cron_task 目前只暴露 hour/minute/second/day_of_week， # 没有"月第N日"语义，因此用周频代替规划里设想的月频，效果等价（更频繁的回归只会 # 更早发现问题，不会更晚）。
         try:
             from backend.services.backtest_engine.extreme_scenario import run_and_save as _run_extreme_scenario
             from backend.services.scheduler import task_scheduler as _extreme_scheduler
@@ -1679,11 +1619,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 极端行情模拟压力测试注册失败: {e}")
 
-        # ── S3-3 止血修复（04 综合方案 §3.5 质量门）：中长线周度绩效报表 ──
-        # 此前脚本写完只能手动跑，没有定时产出——"周度"报表不应要人手动记得跑。
-        # 每周一 4:00（避开周二因子瘦身 3:30、周三极端场景 3:45 的负载窗口）
-        # 生成近 14 天 swing/trend_follow 的胜率/盈亏比/同向再开率/分档TP触达率，
-        # 写入 backend/data/midlong_reports/latest.md，供人工或后续告警读取。
+        # ── S3-3 止血修复（04 综合方案 §3.5 质量门）：中长线周度绩效报表 ── # 此前脚本写完只能手动跑，没有定时产出——"周度"报表不应要人手动记得跑。 # 每周一 4:00（避开周二因子瘦身 3:30、周三极端场景 3:45 的负载窗口） # 生成近 14 天 swing/trend_follow 的胜率/盈亏比/同向再开率/分档TP触达率， # 写入 backend/data/midlong_reports/latest.md，供人工或后续告警读取。
         try:
             from backend.scripts.midlong_weekly_report import run_and_save as _run_midlong_report
             from backend.services.scheduler import task_scheduler as _midlong_report_scheduler
@@ -1700,8 +1636,7 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 中长线周度绩效报表注册失败: {e}")
 
-        # ── P3：中长线 Walk-Forward 薄钩子（代理趋势策略，证明回测基建可挂）──
-        # 紧接周报 4:00，周一 4:20 跑 BTC/ETH/SOL 日线 WFO，写 wfo_latest.json。
+        # ── P3：中长线 Walk-Forward 薄钩子（代理趋势策略，证明回测基建可挂）── # 紧接周报 4:00，周一 4:20 跑 BTC/ETH/SOL 日线 WFO，写 wfo_latest.json。
         try:
             from backend.scripts.midlong_walk_forward_hook import run_and_save as _run_midlong_wfo
             from backend.services.scheduler import task_scheduler as _midlong_wfo_scheduler
@@ -1750,11 +1685,9 @@ async def on_shutdown():
     except Exception:
         pass
 
-    # Windows + uvicorn --reload：worker 优雅 shutdown 后若进程未硬退出，会留下孤儿
-    # spawn 进程继续占 8000、scheduler 报 cannot schedule after shutdown（页面卡死）。
+    # Windows + uvicorn --reload：worker 优雅 shutdown 后若进程未硬退出，会留下孤儿 # spawn 进程继续占 8000、scheduler 报 cannot schedule after shutdown（页面卡死）。
     if os.environ.get("RUN_MAIN") == "true" and sys.platform == "win32":
-        # [fix] P1-3: 硬退出前先做优雅清理，防止丢失 DB 写入和 WAL 残留
-        logger.info("[Shutdown] 优雅清理: 关闭 scheduler + 释放 DB 连接池...")
+        # [fix] P1-3: 硬退出前先做优雅清理，防止丢失 DB 写入和 WAL 残留 logger.info("[Shutdown] 优雅清理: 关闭 scheduler + 释放 DB 连接池...")
         try:
             from backend.services.scheduler import stop_scheduler
             stop_scheduler()
@@ -1798,11 +1731,9 @@ try:
 except ModuleNotFoundError:
     binance_router = None
 from backend.api.gap_closure_routes import router as gap_closure_router
-# [2026-08-06] learning_dashboard_api（P3.1 假仪表盘/假健康）已弃用：前端不再消费 /api/learning/dashboard/*，
-# 真实健康由 /api/learning/health 提供。注销挂载，避免与 learning_core 重复接口混淆。
+# [2026-08-06] learning_dashboard_api（P3.1 假仪表盘/假健康）已弃用：前端不再消费 /api/learning/dashboard/*， # 真实健康由 /api/learning/health 提供。注销挂载，避免与 learning_core 重复接口混淆。
 # from backend.services.learning_dashboard_api import router as learning_dashboard_router
 
-from .api.ai_signal_prompt_integration_routes import router as ai_signal_prompt_integration_router
 from .api.ai_strategy_routes import router as ai_strategy_router
 from .api.analytics_routes import router as analytics_router
 from .api.arbitrage_profile_routes import router as arbitrage_profile_router
@@ -1832,13 +1763,12 @@ from .api.live_trading_routes import router as live_trading_router
 from .api.parity_score_routes import router as parity_score_router
 # 阶段 3 本地仓位协调器: 净仓位视图 / 子仓位分解 / 手动对账
 from .api.position_routes import router as position_router
-from .api.prompt_training_routes import router as prompt_training_router
+# [2026-08-17 删除] prompt_training_routes（prompt_training_system 已移除）
 from .api.rag_routes import router as rag_router
 from .api.resonance_routes import router as resonance_router
 from .api.risk_routes import router as risk_router
 from .api.rl_routes import router as rl_router
 from .api.signal_routes import router as signal_router
-from .api.smart_signal_routes import router as smart_signal_router
 from .api.strategy_template_routes import router as strategy_template_router
 from .api.system_monitor_routes import router as system_monitor_router
 from .api.user_routes import router as user_router
@@ -1880,20 +1810,17 @@ app.include_router(kline_analysis_router)
 app.include_router(candlestick_pattern_router)
 app.include_router(resonance_router)
 app.include_router(comprehensive_analysis_router)
-# app.include_router(learning_dashboard_router)  # P3.1: 学习仪表盘 API（已弃用，见 import 处注释）
-app.include_router(gap_closure_router)  # GAP 闭环：审计 / Governor / Replay
+# app.include_router(learning_dashboard_router)  # P3.1: 学习仪表盘 API（已弃用，见 import 处注释） app.include_router(gap_closure_router)  # GAP 闭环：审计 / Governor / Replay
 app.include_router(market_flow_router)
 app.include_router(parity_score_router)
 app.include_router(signal_router)
 app.include_router(market_regime_router)
 app.include_router(analytics_router)
 app.include_router(dingtalk_router)
-app.include_router(smart_signal_router)
-app.include_router(ai_signal_prompt_integration_router)
 app.include_router(llm_config_router, prefix="/api")
 app.include_router(llm_usage_router)
 app.include_router(ai_strategy_router)
-app.include_router(prompt_training_router)
+# [2026-08-17 删除] prompt_training_router
 app.include_router(paper_trading_router)
 app.include_router(live_trading_router)
 app.include_router(position_router)  # 阶段 3: 本地仓位协调器 /api/positions/*
@@ -1929,10 +1856,8 @@ app.include_router(dashboard_router)  # 交易矩阵仪表盘 /api/dashboard/*
 # [2026-07-30] OpenCode 路由已禁用（无用功能 + 资源浪费）
 # try:
 #     from .api.opencode_routes import router as opencode_router
-#     app.include_router(opencode_router)
-#     logger.info("[OpenCode] /api/opencode/* 已挂载")
-# except Exception as _oc_err:
-#     logger.warning(f"[OpenCode] 挂载失败（非致命）: {_oc_err}")
+#     app.include_router(opencode_router) #     logger.info("[OpenCode] /api/opencode/* 已挂载")
+# except Exception as _oc_err: #     logger.warning(f"[OpenCode] 挂载失败（非致命）: {_oc_err}")
 try:
     from .api.hermes_routes import router as hermes_router
     app.include_router(hermes_router)
@@ -2016,6 +1941,14 @@ try:
     logger.info("[Ops] /api/ops/* 已挂载")
 except Exception as _ops_err:
     logger.warning(f"[Ops] 挂载失败（非致命）: {_ops_err}")
+
+# 全市场数据中台（2026-08-16）：真实数据/缺口/采集器/回填/入库及时性总览
+try:
+    from .api.data_center_routes import router as data_center_overview_router
+    app.include_router(data_center_overview_router)
+    logger.info("[DataCenterOverview] /api/ops/data-center-overview 已挂载")
+except Exception as _dc_err:
+    logger.warning(f"[DataCenterOverview] 挂载失败（非致命）: {_dc_err}")
 
 # 深挖第 3 轮 (2026-05-08)：系统健康观测 API（LLM 烧钱排行 / 风控事件 / Session 健康）
 try:
@@ -2177,12 +2110,9 @@ async def serve_auth_config():
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Auth config not found")
 
-# [阶段0] serve_root() GET / 已删(后端不再托管前端首页)
-# [阶段0] serve_spa() catch-all 已删(后端不再做 SPA fallback,前端路由由独立前端服务处理)
+# [阶段0] serve_root() GET / 已删(后端不再托管前端首页) # [阶段0] serve_spa() catch-all 已删(后端不再做 SPA fallback,前端路由由独立前端服务处理)
 
-# ─────────────────────────────────────────────────────────────
-# 桌面 EXE 自动更新静态目录：releases/desktop/ → /arena-updates/
-# electron-updater 读 latest.yml + Setup.exe；无需登录。
+# ───────────────────────────────────────────────────────────── # 桌面 EXE 自动更新静态目录：releases/desktop/ → /arena-updates/ # electron-updater 读 latest.yml + Setup.exe；无需登录。
 # ─────────────────────────────────────────────────────────────
 try:
     from backend.services.update_feed import UPDATES_DIR as _UPDATES_DIR
@@ -2202,12 +2132,7 @@ except Exception as _upd_exc:
         "[desktop-updates] 静态挂载失败（非致命）: %s", _upd_exc
     )
 
-# ─────────────────────────────────────────────────────────────
-# [2026-08-05 浏览器直连] 可选：后端同源托管前端静态产物。
-# 目的：当手机/其他电脑想"不安装任何客户端、直接用浏览器打开一个网址"访问
-# 本系统时，开启 BACKEND_SERVE_WEB=true 即可让 FastAPI 同时提供前端页面与
-# API —— 前端页面与后端 API 同源，浏览器零配置、无需填后端地址。
-# 默认关闭（保持前后端分离架构）；仅在需要浏览器直连时开启。
+# ───────────────────────────────────────────────────────────── # [2026-08-05 浏览器直连] 可选：后端同源托管前端静态产物。 # 目的：当手机/其他电脑想"不安装任何客户端、直接用浏览器打开一个网址"访问 # 本系统时，开启 BACKEND_SERVE_WEB=true 即可让 FastAPI 同时提供前端页面与 # API —— 前端页面与后端 API 同源，浏览器零配置、无需填后端地址。 # 默认关闭（保持前后端分离架构）；仅在需要浏览器直连时开启。
 # ─────────────────────────────────────────────────────────────
 _BACKEND_SERVE_WEB = os.getenv("BACKEND_SERVE_WEB", "").strip().lower() in ("1", "true", "yes")
 if _BACKEND_SERVE_WEB:

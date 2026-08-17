@@ -51,10 +51,13 @@ export function DecisionTimeline({
   const rows = flatten(activity);
 
   return (
-    <Card className="p-2.5 border-border flex flex-col gap-2">
+    <Card className="p-2.5 border-border flex flex-col gap-2 glass">
       <div className="flex items-center justify-between">
-        <h2 className="text-[13px] font-medium">AI 决策时间线</h2>
-        <span className="text-[9px] text-muted-foreground font-mono">{rows.length} 条</span>
+        <h2 className="text-[13px] font-medium flex items-center gap-1.5">
+          <span className="w-[3px] h-3.5 rounded-r bg-gradient-to-b from-cyan-400 to-violet-500 shadow-[0_0_6px_rgba(34,211,238,0.5)]" />
+          AI 决策时间线
+        </h2>
+        <span className="text-[9px] text-muted-foreground font-mono tabular-nums">{rows.length} 条</span>
       </div>
       <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[280px]">
         {loading && <div className="text-center text-muted-foreground text-xs py-4">加载中...</div>}
@@ -70,19 +73,19 @@ export function DecisionTimeline({
               key={row.key}
               type="button"
               onClick={() => setExpandedKey(expanded ? null : row.key)}
-              className="w-full text-left py-1.5 px-1 rounded hover:bg-muted/30 transition-colors"
+              className="w-full text-left py-1.5 px-1 rounded hover:bg-white/[0.04] transition-colors"
               aria-expanded={expanded}
             >
               <div className="flex items-center justify-between mb-0.5 gap-1">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[9px] font-mono text-muted-foreground shrink-0">{row.item.time}</span>
+                  <span className="text-[9px] font-mono text-muted-foreground shrink-0 tabular-nums">{row.item.time}</span>
                   <span
                     className="text-[9px] px-1 py-0.5 rounded font-medium shrink-0"
-                    style={{ color: meta.color, background: meta.bg }}
+                    style={{ color: meta.color, background: meta.bg, boxShadow: "0 0 8px " + meta.color }}
                   >
                     {meta.label}
                   </span>
-                  <span className="text-[10px] font-semibold font-mono shrink-0">{row.item.symbol}</span>
+                  <span className="text-[10px] font-semibold font-mono shrink-0 tabular-nums">{row.item.symbol}</span>
                 </div>
                 <span className={cn("text-[9px] px-1 py-0.5 rounded font-medium shrink-0", actionTone(row.item.action))}>
                   {row.item.action}

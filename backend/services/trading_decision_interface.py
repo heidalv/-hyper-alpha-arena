@@ -162,23 +162,29 @@ class TradingDecisionInterface:
                 if ENABLE_RL_POSITION_SIZER:
                     rl_sizer = self._coordinator._get_rl_position_sizer()
                     if rl_sizer is not None:
-                        # 构建 RL 状态并获取动作
-                        rl_state = rl_sizer._discretize_state(
-                            market_regime=getattr(context, 'market_regime', 'unknown'),
-                            volatility_ratio=getattr(context, 'volatility', 1.0),
-                            drawdown_pct=0.0,  # 由 RL sizer 内部跟踪
+                        # [P1-6 集成修复] 原代码调用不存在的 _discretize_state +
+                        # select_action 单参数传 StateTuple → 每次抛 AttributeError/TypeError，
+                        # 且 RLActionResult 被当标量除 → RL 仓位建议从未生效（静默 no-op）。
+                        # 现按真实接口调用：select_action(regime, vol_ratio, dd, losses, streak, greedy)。
+                        rl_result = rl_sizer.select_action(
+                            regime=str(getattr(context, "market_regime", "ranging") or "ranging"),
+                            volatility_ratio=float(getattr(context, "volatility", 1.0) or 1.0),
+                            drawdown_pct=0.0,
                             consecutive_losses=0,
                             win_streak=0,
+                            use_greedy=True,  # 决策路径贪心；在线微调由 trainer 驱动
                         )
-                        rl_action = rl_sizer.select_action(rl_state)
-                        rl_adjustment = rl_action / max(base_pct, 0.01)
-                        rl_adjustment = max(0.3, min(1.5, rl_adjustment))
-                        logger.debug(
-                            f"[TDI] RL仓位调整: action={rl_action:.3f} "
-                            f"adjustment={rl_adjustment:.2f}x"
-                        )
+                        rl_pct = float(getattr(rl_result, "position_pct", 0.0) or 0.0)
+                        if rl_pct > 0:
+                            rl_adjustment = rl_pct / max(base_pct, 0.01)
+                            rl_adjustment = max(0.3, min(1.5, rl_adjustment))
+                            logger.info(
+                                f"[TDI] RL仓位建议: pct={rl_pct:.3f} "
+                                f"adjustment={rl_adjustment:.2f}x",
+                            )
             except Exception as _rl_err:
-                logger.debug(f"[TDI] RL仓位调整跳过: {_rl_err}")
+                # [P1-6] 异常必须可见（升级 warning），否则集成再次静默断裂无人察觉
+                logger.warning(f"[TDI] RL仓位调整失败（已跳过）: {_rl_err}")
 
             final_pct = final_pct * rl_adjustment
             return PositionAdvice(

@@ -3,10 +3,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Brain, Zap, Activity, TrendingUp, Clock,
   Signal, Bot, AlertCircle, CheckCircle2,
   Loader2, RefreshCw,
+  Layers, TrendingDown, Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { useSessions, usePositions, useAccounts } from "@/hooks/useTradingData";
@@ -53,41 +55,36 @@ export default function StrategyPage() {
   const swingPos = openPositions.filter((p) => p.trade_nature === "swing");
   const trendPos = openPositions.filter((p) => p.trade_nature === "trend_follow" || p.trade_nature === "position");
 
+  // KPI 汇总（对齐原型 kpi-grid）
+  const winPositions = openPositions.filter((p) => (p.unrealized_pnl || 0) > 0);
+  const lossPositions = openPositions.filter((p) => (p.unrealized_pnl || 0) < 0);
+  const totalOpenPnl = openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+  const winOpenPnl = winPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+  const lossOpenPnl = lossPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+
   return (
     <div className="p-4 space-y-4">
-      {/* 标题 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Brain className="w-5 h-5 text-primary" />
-          AI 策略
-        </h1>
-        <div className="flex items-center gap-2">
-          {activeSession ? (
-            <Badge variant="default" className="bg-profit/20 text-profit">
-              {activeSession.status} · {activeSession.active_count} 活跃
-            </Badge>
-          ) : (
-            <Badge variant="secondary">无活跃会话</Badge>
-          )}
-        </div>
-      </div>
+      {/* 标题（Aurora 统一页头） */}
+      <PageHeader
+        icon={<Brain className="w-4 h-4" />}
+        title="AI 策略"
+        subtitle="多周期 AI 决策引擎 · 编排器驱动实盘执行"
+        refreshHint="决策流实时"
+        breadcrumb={[{ label: "策略中心" }, { label: "AI 策略" }]}
+        actions={
+          <>
+            {activeSession ? (
+              <Badge variant="default" className="bg-profit/20 text-profit">
+                {activeSession.status} · {activeSession.active_count} 活跃
+              </Badge>
+            ) : (
+              <Badge variant="secondary">无活跃会话</Badge>
+            )}
+          </>
+        }
+      />
 
-      {/* LLM 关联信息 */}
-      {llmAccount && (
-        <Card className="p-3">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span className="flex items-center gap-1.5 font-medium"><Brain className="w-3.5 h-3.5 text-primary" />LLM 关联</span>
-            <span className="text-muted-foreground">账户: {llmAccount.name}</span>
-            <span>快模型: <span className="text-primary">{llmAccount.llm_config_name || "全局默认"}</span></span>
-            <span>深模型: <span className="text-warning">{llmAccount.llm_config_name_deep || "全局默认"}</span></span>
-            <span className="text-muted-foreground text-[10px] w-full">
-              策略生成/深度分析使用深模型；关联顺序：策略指定 → 账户绑定 → 全局默认
-            </span>
-          </div>
-        </Card>
-      )}
-
-      {/* Tab 切换 */}
+      {/* Tab 切换（分区导航） */}
       <div className="flex gap-1 border-b border-border">
         <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={Activity} label="三周期总览" />
         <TabButton active={activeTab === "session"} onClick={() => setActiveTab("session")} icon={Bot} label="会话管理" />
@@ -98,7 +95,96 @@ export default function StrategyPage() {
       {/* ── Tab: 三周期总览 ── */}
       {activeTab === "overview" && (
         <div className="space-y-4">
-          {/* 双周期状态卡片 */}
+          {/* AI 决策会话（LLM 关联 + 会话详情） */}
+          <Card className="glass overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-medium">AI 决策会话</h2>
+              </div>
+              <span className="text-xs text-muted-foreground">LLM 关联 · 自动路由</span>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {/* LLM 关联 */}
+              {llmAccount && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-muted-foreground shrink-0">账户</span>
+                    <span className="font-medium truncate">{llmAccount.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-muted-foreground shrink-0">快模型</span>
+                    <span className="text-primary truncate">{llmAccount.llm_config_name || "全局默认"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-muted-foreground shrink-0">深模型</span>
+                    <span className="text-warning truncate">{llmAccount.llm_config_name_deep || "全局默认"}</span>
+                  </div>
+                  <div className="text-muted-foreground col-span-full">
+                    策略生成/深度分析使用深模型；关联顺序：策略指定 → 账户绑定 → 全局默认
+                  </div>
+                </div>
+              )}
+
+              {/* 会话详情 */}
+              {activeSession ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-1">
+                    <Detail label="会话ID" value={activeSession.session_id.slice(0, 20) + "..."} />
+                    <Detail label="状态" value={activeSession.status} />
+                    <Detail label="模式" value={activeSession.trading_mode} />
+                    <Detail label="活跃策略" value={String(activeSession.active_count)} />
+                  </div>
+                  <div className="pt-2 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">交易对 ({activeSession.symbols?.length ?? 0}):</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {activeSession.symbols?.map((s: string) => (
+                        <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                  <Inbox className="w-4 h-4 opacity-60" />无活跃会话
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* KPI 汇总（对齐原型 kpi-grid） */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard
+              icon={Layers}
+              label="持仓数"
+              value={String(openPositions.length)}
+              tone="grad-text"
+              extra={`短线 ${scalpPos.length} · 中线 ${swingPos.length} · 长线 ${trendPos.length}`}
+            />
+            <KpiCard
+              icon={TrendingUp}
+              label="盈利持仓"
+              value={String(winPositions.length)}
+              tone="grad-text-green"
+              extra={`合计浮动 +$${winOpenPnl.toFixed(2)}`}
+            />
+            <KpiCard
+              icon={TrendingDown}
+              label="亏损持仓"
+              value={String(lossPositions.length)}
+              tone="grad-text-red"
+              extra={`合计浮动 −$${Math.abs(lossOpenPnl).toFixed(2)}`}
+            />
+            <KpiCard
+              icon={Activity}
+              label="总浮动"
+              value={`${totalOpenPnl >= 0 ? "+" : ""}$${totalOpenPnl.toFixed(2)}`}
+              tone={totalOpenPnl >= 0 ? "grad-text-green" : "grad-text-red"}
+              extra="实时未实现盈亏"
+            />
+          </div>
+
+          {/* 双周期策略卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <StrategyTierCard
               name="短线 Scalp"
@@ -122,58 +208,56 @@ export default function StrategyPage() {
             />
           </div>
 
-          {/* 全部持仓表 */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium">全部持仓 ({openPositions.length})</h2>
-              <Link href="/paper-trading" className="text-xs text-primary hover:underline ml-auto">详细管理 →</Link>
+          {/* 当前持仓表 */}
+          <Card className="glass overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-medium">当前持仓</h2>
+                <Badge variant="secondary" className="text-xs">{openPositions.length} 个持仓</Badge>
+              </div>
+              <Link href="/paper-trading" className="text-xs text-primary hover:underline shrink-0">详细管理 →</Link>
             </div>
             {openPositions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">暂无持仓</div>
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Inbox className="w-6 h-6 opacity-50" />
+                <span className="text-sm">暂无持仓</span>
+              </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="data-table">
                   <thead>
                     <tr className="text-muted-foreground border-b border-border">
                       <th className="text-left py-2 px-2">币种</th>
                       <th className="text-left py-2 px-2">方向</th>
                       <th className="text-left py-2 px-2">周期</th>
-                      <th className="text-right py-2 px-2">开仓价</th>
+                      <th className="sortable text-right py-2 px-2">开仓价 <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-right py-2 px-2">杠杆</th>
-                      <th className="text-right py-2 px-2">保证金</th>
-                      <th className="text-right py-2 px-2">浮盈</th>
-                      <th className="text-right py-2 px-2">盈亏%</th>
+                      <th className="sortable text-right py-2 px-2">保证金 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">浮盈 <span className="sort-ico text-cyan-300">▲</span></th>
+                      <th className="sortable text-right py-2 px-2">盈亏% <span className="sort-ico text-cyan-300">▲</span></th>
                       <th className="text-left py-2 px-2">持仓</th>
                     </tr>
                   </thead>
                   <tbody>
                     {openPositions.map((pos: Position) => <PosRow key={pos.id} pos={pos} />)}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">合计 {openPositions.length} 笔</td>
+                      <td colSpan={4} />
+                      <td className="text-right py-2 num text-muted-foreground">${openPositions.reduce((s, p) => s + (p.margin || 0), 0).toFixed(2)}</td>
+                      <td className={cn("text-right py-2 num font-bold",
+                        openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0) >= 0 ? "text-profit" : "text-loss")}>
+                        {openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0) >= 0 ? "+" : ""}${openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0).toFixed(3)}
+                      </td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
           </Card>
-
-          {/* 会话详情 */}
-          {activeSession && (
-            <Card className="p-4">
-              <h2 className="text-sm font-medium mb-3">会话详情</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                <Detail label="会话ID" value={activeSession.session_id.slice(0, 20) + "..."} />
-                <Detail label="状态" value={activeSession.status} />
-                <Detail label="模式" value={activeSession.trading_mode} />
-                <Detail label="活跃策略" value={String(activeSession.active_count)} />
-              </div>
-              <div className="mt-3 pt-3 border-t border-border/50">
-                <span className="text-xs text-muted-foreground">交易对 ({activeSession.symbols?.length ?? 0}):</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {activeSession.symbols?.map((s: string) => (
-                    <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
         </div>
       )}
 
@@ -186,6 +270,26 @@ export default function StrategyPage() {
       {/* ── Tab: AI 决策日志 ── */}
       {activeTab === "decisions" && <DecisionLog accountId={tradingAccountId} />}
     </div>
+  );
+}
+
+// ═══ KPI 卡片（对齐原型 kpi-grid） ═══
+function KpiCard({ icon: Icon, label, value, tone, extra }: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  tone: "grad-text" | "grad-text-green" | "grad-text-red";
+  extra: string;
+}) {
+  return (
+    <Card className="glass p-3">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="w-3.5 h-3.5 text-primary" />
+        <span>{label}</span>
+      </div>
+      <div className={cn("mt-1.5 text-xl font-bold tabular-nums", tone)}>{value}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{extra}</div>
+    </Card>
   );
 }
 
@@ -207,73 +311,81 @@ function StrategyTierCard({
   const losses = positions.filter((p) => (p.unrealized_pnl || 0) < 0).length;
 
   return (
-    <Card className="p-4">
-      {/* 标题行 */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-8 h-8 rounded flex items-center justify-center", `bg-${color}/10`)}>
+    <Card className="glass overflow-hidden">
+      {/* 卡片头：标题 + 图标 + 徽章/提示 */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", `bg-${color}/10`)}>
             <Icon className={cn("w-4 h-4", `text-${color}`)} />
           </div>
-          <div>
-            <div className="text-sm font-medium">{name}</div>
-            <div className="text-[10px] text-muted-foreground">{description}</div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium truncate">{name}</div>
+            <div className="text-xs text-muted-foreground truncate">{description}</div>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-0.5">
-          <Badge variant="secondary" className="text-[10px]">分析 {tickInterval}</Badge>
-          <span className="text-[9px] text-muted-foreground">持仓 {holdRange}</span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <Badge variant="secondary" className="text-xs">分析 {tickInterval}</Badge>
+          <span className="text-xs text-muted-foreground">持仓 {holdRange}</span>
         </div>
       </div>
 
-      {/* 持仓统计 */}
-      <div className="grid grid-cols-3 gap-2 my-3">
-        <div className="text-center p-1.5 rounded bg-muted/30">
-          <div className="text-lg font-bold tabular-nums">{positions.length}</div>
-          <div className="text-[10px] text-muted-foreground">持仓</div>
+      {/* 卡片体：数据 */}
+      <div className="px-4 py-3 space-y-3">
+        {/* 持仓统计 */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center p-2 rounded bg-muted/30">
+            <Layers className="w-3.5 h-3.5 mx-auto mb-1 text-cyan-300/70" />
+            <div className="text-lg font-bold tabular-nums">{positions.length}</div>
+            <div className="text-xs text-muted-foreground">持仓</div>
+          </div>
+          <div className="text-center p-2 rounded bg-muted/30">
+            <TrendingUp className="w-3.5 h-3.5 mx-auto mb-1 text-profit/80" />
+            <div className="text-lg font-bold tabular-nums text-profit">{wins}</div>
+            <div className="text-xs text-muted-foreground">盈利</div>
+          </div>
+          <div className="text-center p-2 rounded bg-muted/30">
+            <TrendingDown className="w-3.5 h-3.5 mx-auto mb-1 text-loss/80" />
+            <div className="text-lg font-bold tabular-nums text-loss">{losses}</div>
+            <div className="text-xs text-muted-foreground">亏损</div>
+          </div>
         </div>
-        <div className="text-center p-1.5 rounded bg-muted/30">
-          <div className="text-lg font-bold tabular-nums text-profit">{wins}</div>
-          <div className="text-[10px] text-muted-foreground">盈利</div>
-        </div>
-        <div className="text-center p-1.5 rounded bg-muted/30">
-          <div className="text-lg font-bold tabular-nums text-loss">{losses}</div>
-          <div className="text-[10px] text-muted-foreground">亏损</div>
-        </div>
-      </div>
 
-      {/* 浮动 PnL */}
-      <div className="flex justify-between items-center mb-2 text-xs">
-        <span className="text-muted-foreground">总浮动</span>
-        <span className={cn("tabular-nums font-bold", totalPnl >= 0 ? "text-profit" : "text-loss")}>
-          {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(3)}
-        </span>
-      </div>
+        {/* 浮动 PnL */}
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-muted-foreground">总浮动</span>
+          <span className={cn("tabular-nums font-bold", totalPnl >= 0 ? "grad-text-green" : "grad-text-red")}>
+            {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(3)}
+          </span>
+        </div>
 
-      {/* 持仓列表 */}
-      {positions.length > 0 ? (
-        <div className="space-y-1 mb-3 max-h-32 overflow-y-auto">
-          {positions.map((p) => (
-            <div key={p.id} className="flex items-center justify-between text-xs py-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="font-medium">{p.symbol}</span>
-                <span className={cn("text-[9px] px-1 rounded", p.side === "long" ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>
-                  {p.side === "long" ? "多" : "空"} {(p.leverage || 1)}x
+        {/* 持仓列表 */}
+        {positions.length > 0 ? (
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {positions.map((p) => (
+              <div key={p.id} className="flex items-center justify-between text-xs py-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-medium">{p.symbol}</span>
+                  <span className={cn("text-xs px-1.5 py-0.5 rounded", p.side === "long" ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>
+                    {p.side === "long" ? "多" : "空"} {(p.leverage || 1)}x
+                  </span>
+                </div>
+                <span className={cn("tabular-nums", (p.unrealized_pnl || 0) >= 0 ? "text-profit" : "text-loss")}>
+                  {(p.unrealized_pnl || 0) >= 0 ? "+" : ""}${(p.unrealized_pnl || 0).toFixed(3)}
                 </span>
               </div>
-              <span className={cn("tabular-nums", (p.unrealized_pnl || 0) >= 0 ? "text-profit" : "text-loss")}>
-                {(p.unrealized_pnl || 0) >= 0 ? "+" : ""}${(p.unrealized_pnl || 0).toFixed(3)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-3 text-muted-foreground text-xs mb-3">无持仓</div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 py-3 text-muted-foreground text-xs">
+            <Inbox className="w-3.5 h-3.5 opacity-60" />无持仓
+          </div>
+        )}
 
-      {/* 操作按钮 */}
-      <div className="flex gap-2 pt-2 border-t border-border/30">
-        <Link href={configPath} className="flex-1 text-xs h-7 flex items-center justify-center rounded border border-border hover:bg-muted/50 transition-colors">配置</Link>
-        <button className="text-xs h-7 px-3 text-muted-foreground hover:text-foreground">历史</button>
+        {/* 操作按钮 */}
+        <div className="flex gap-2 pt-2 border-t border-border/30">
+          <Link href={configPath} className="flex-1 text-xs h-7 flex items-center justify-center rounded border border-border hover:bg-muted/50 transition-colors">配置</Link>
+          <button className="text-xs h-7 px-3 text-muted-foreground hover:text-foreground">历史</button>
+        </div>
       </div>
     </Card>
   );
@@ -307,27 +419,40 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
   return (
     <div className="space-y-3">
       {/* 统计栏 */}
-      <Card className="p-3 flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
-          <Signal className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium">AI 决策流</span>
+      <Card className="glass overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Signal className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-medium">AI 决策流</h2>
+            <Badge variant="secondary" className="text-xs">本轮 {stats.total} 条</Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
         </div>
-        <div className="flex items-center gap-3 text-xs ml-auto">
-          <span className="text-profit">买入 {stats.buy}</span>
-          <span className="text-loss">卖出 {stats.sell}</span>
-          <span className="text-muted-foreground">观望 {stats.hold}</span>
-          <Badge variant="secondary" className="text-[10px]">已执行 {stats.executed}</Badge>
+        <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="text-profit tabular-nums">买入 {stats.buy}</span>
+          <span className="text-loss tabular-nums">卖出 {stats.sell}</span>
+          <span className="text-muted-foreground tabular-nums">观望 {stats.hold}</span>
+          <span className="text-muted-foreground tabular-nums">已执行 {stats.executed}</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => refetch()}>
-          <RefreshCw className="w-3.5 h-3.5" />
-        </Button>
       </Card>
 
-      <Card className="p-0 overflow-hidden">
+      <Card className="glass overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-medium">决策记录</h2>
+          </div>
+          <span className="text-xs text-muted-foreground">最近 {decisions.length} 条</span>
+        </div>
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : decisions.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">暂无决策记录</div>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+            <Inbox className="w-6 h-6 opacity-50" />
+            <span className="text-sm">暂无决策记录</span>
+          </div>
         ) : (
           <div className="max-h-[600px] overflow-y-auto divide-y divide-border/20">
             {decisions.map((d: AtasDecision, i: number) => {
@@ -338,34 +463,34 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
                 <div key={d.id || i} className="px-4 py-2.5 hover:bg-muted/10">
                   <div className="flex items-center gap-2 mb-1">
                     {/* 时间 */}
-                    <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
+                    <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                       {d.created_at ? new Date(d.created_at).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}
                     </span>
                     {/* 币种 */}
                     <span className="text-xs font-bold shrink-0">{d.symbol}</span>
                     {/* 操作 */}
                     <Badge className={cn(
-                      "text-[9px] shrink-0",
+                      "text-xs shrink-0",
                       isBuy ? "bg-profit/20 text-profit" : isSell ? "bg-loss/20 text-loss" : "bg-muted text-muted-foreground"
                     )}>
                       {isBuy ? "买入" : isSell ? "卖出" : "观望"}
                     </Badge>
                     {/* 仓位 */}
                     {d.target_portion != null && d.target_portion > 0 && (
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                         目标 {(d.target_portion * 100).toFixed(0)}%
                       </span>
                     )}
                     {/* 执行状态 */}
                     {d.executed ? (
-                      <Badge variant="outline" className="text-[9px] text-profit border-profit/30 shrink-0">已执行</Badge>
+                      <Badge variant="outline" className="text-xs text-profit border-profit/30 shrink-0">已执行</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0">未执行</Badge>
+                      <Badge variant="outline" className="text-xs text-muted-foreground shrink-0">未执行</Badge>
                     )}
                   </div>
                   {/* 推理过程 */}
                   {d.reasoning && (
-                    <p className="text-[11px] text-muted-foreground leading-relaxed pl-1 line-clamp-2">{d.reasoning}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed pl-1 line-clamp-2">{d.reasoning}</p>
                   )}
                 </div>
               );
@@ -390,9 +515,13 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
   const decisions = data?.entries ?? [];
 
   return (
-    <Card className="p-0 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-        <h2 className="text-sm font-medium flex items-center gap-2"><Bot className="w-4 h-4 text-primary" />AI 决策日志</h2>
+    <Card className="glass overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <Bot className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-medium">AI 决策日志</h2>
+          <Badge variant="secondary" className="text-xs">{decisions.length} 条</Badge>
+        </div>
         <Button variant="ghost" size="sm" onClick={() => refetch()}>
           <RefreshCw className="w-3.5 h-3.5" />
         </Button>
@@ -401,7 +530,10 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : decisions.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">暂无 AI 决策记录</div>
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+          <Inbox className="w-6 h-6 opacity-50" />
+          <span className="text-sm">暂无 AI 决策记录</span>
+        </div>
       ) : (
         <div className="max-h-[600px] overflow-y-auto divide-y divide-border/20">
           {decisions.map((dec: AiDecisionEntry, i: number) => {
@@ -415,7 +547,7 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
               <div key={dec.id || i} className="px-4 py-2.5 hover:bg-muted/10">
                 {/* 第一行：时间 + 币种 + 操作 + 标签 */}
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
+                  <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                     {dec.decision_time || dec.created_at
                       ? new Date(dec.decision_time ?? dec.created_at ?? "").toLocaleTimeString("zh-CN", { hour12: false })
                       : "--"}
@@ -425,20 +557,20 @@ function DecisionLog({ accountId }: { accountId: number | null }) {
                     {isBuy ? "买入" : isSell ? "卖出" : "观望"}
                   </span>
                   {conf != null && (
-                    <Badge variant="outline" className={cn("text-[9px]", conf >= 0.7 ? "text-profit border-profit/30" : conf >= 0.5 ? "text-warning border-warning/30" : "text-muted-foreground")}>
+                    <Badge variant="outline" className={cn("text-xs", conf >= 0.7 ? "text-profit border-profit/30" : conf >= 0.5 ? "text-warning border-warning/30" : "text-muted-foreground")}>
                       置信 {(conf >= 1 ? conf : conf * 100).toFixed(0)}%
                     </Badge>
                   )}
-                  {tier && <Badge variant="secondary" className="text-[9px]">{tier}</Badge>}
-                  {agent && <Badge variant="outline" className="text-[9px] text-muted-foreground">{agent}</Badge>}
-                  {dec.executed && <Badge className="bg-profit/20 text-profit text-[9px]">已执行</Badge>}
+                  {tier && <Badge variant="secondary" className="text-xs">{tier}</Badge>}
+                  {agent && <Badge variant="outline" className="text-xs text-muted-foreground">{agent}</Badge>}
+                  {dec.executed && <Badge className="bg-profit/20 text-profit text-xs">已执行</Badge>}
                 </div>
                 {/* 推理 */}
                 {dec.reasoning && (
-                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mb-1">{dec.reasoning}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-1">{dec.reasoning}</p>
                 )}
                 {/* SL/TP/杠杆/价格 */}
-                <div className="flex gap-3 text-[10px] text-muted-foreground tabular-nums">
+                <div className="flex gap-3 text-xs text-muted-foreground tabular-nums">
                   {dec.stop_loss_price != null && <span>SL ${Number(dec.stop_loss_price).toFixed(2)}</span>}
                   {dec.take_profit_price != null && <span>TP ${Number(dec.take_profit_price).toFixed(2)}</span>}
                   {dec.leverage != null && Number(dec.leverage) > 0 && <span>{dec.leverage}x</span>}
@@ -492,20 +624,20 @@ function PosRow({ pos }: { pos: Position }) {
     <tr className="border-b border-border/30 hover:bg-muted/20">
       <td className="py-2 px-2 font-medium">{pos.symbol}</td>
       <td className="py-2 px-2">
-        <span className={cn("text-[10px] px-1 rounded", pos.side === "long" ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>
+        <span className={cn("text-xs px-1.5 py-0.5 rounded", pos.side === "long" ? "text-profit bg-profit/10" : "text-loss bg-loss/10")}>
           {pos.side === "long" ? "多" : "空"}
         </span>
       </td>
       <td className="py-2 px-2 text-muted-foreground">{
         ({scalp:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
       }</td>
-      <td className="py-2 px-2 text-right tabular-nums">{(pos.entry_price || 0).toLocaleString()}</td>
-      <td className="py-2 px-2 text-right tabular-nums">{pos.leverage || 1}x</td>
-      <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">${(margin).toFixed(2)}</td>
-      <td className={cn("py-2 px-2 text-right tabular-nums font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
+      <td className="py-2 px-2 text-right tabular-nums num">{(pos.entry_price || 0).toLocaleString()}</td>
+      <td className="py-2 px-2 text-right tabular-nums num">{pos.leverage || 1}x</td>
+      <td className="py-2 px-2 text-right tabular-nums num text-muted-foreground">${(margin).toFixed(2)}</td>
+      <td className={cn("py-2 px-2 text-right tabular-nums num font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
         {pnl >= 0 ? "+" : ""}${pnl.toFixed(3)}
       </td>
-      <td className={cn("py-2 px-2 text-right tabular-nums", pnlPct >= 0 ? "text-profit" : "text-loss")}>
+      <td className={cn("py-2 px-2 text-right tabular-nums num", pnlPct >= 0 ? "text-profit" : "text-loss")}>
         {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%
       </td>
       <td className="py-2 px-2 text-muted-foreground">

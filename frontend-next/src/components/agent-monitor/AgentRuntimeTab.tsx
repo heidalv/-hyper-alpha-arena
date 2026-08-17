@@ -245,7 +245,7 @@ export function AgentRuntimeTab() {
 // ═══════════════════════════════════════════════════════════════════
 
 function AgentCard({ agent, onReset }: { agent: AgentOverview; onReset: () => void }) {
-  const color = AGENT_COLORS[agent.agent_id] ?? "#6B7785";
+  const color = AGENT_COLORS[agent.agent_id] ?? "#94A1BC";
   const statusColor =
     agent.status === "running" ? "text-primary" :
     agent.status === "error" ? "text-loss" :
@@ -290,7 +290,7 @@ function AgentCard({ agent, onReset }: { agent: AgentOverview; onReset: () => vo
         {/* 健康度环 */}
         <div className="relative w-10 h-10 flex-shrink-0">
           <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
-            <circle cx="20" cy="20" r={ringRadius} fill="none" stroke="#1E2530" strokeWidth="3" />
+            <circle cx="20" cy="20" r={ringRadius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
             <circle
               cx="20" cy="20" r={ringRadius} fill="none" stroke={healthColor}
               strokeWidth="3" strokeLinecap="round"
@@ -435,12 +435,12 @@ function FrequencyChart({
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <RBarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E2530" />
-            <XAxis dataKey="hour" tick={{ fill: "#6B7785", fontSize: 9 }} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#6B7785", fontSize: 10 }} allowDecimals={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="hour" tick={{ fill: "#94A1BC", fontSize: 9 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: "#94A1BC", fontSize: 10 }} allowDecimals={false} />
             <RTooltip
-              contentStyle={{ background: "#11161D", border: "1px solid #1E2530", borderRadius: 6, fontSize: 11 }}
-              cursor={{ fill: "#1E253040" }}
+              contentStyle={{ background: "#0C1120", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, fontSize: 11 }}
+              cursor={{ fill: "rgba(255,255,255,0.08)40" }}
             />
             {selectedAgent ? (
               <RBar dataKey={selectedAgent} fill={AGENT_COLORS[selectedAgent] ?? "#5B8DEF"} radius={[2, 2, 0, 0]} />
@@ -450,7 +450,7 @@ function FrequencyChart({
                   key={id}
                   dataKey={id}
                   stackId="agents"
-                  fill={AGENT_COLORS[id] ?? "#6B7785"}
+                  fill={AGENT_COLORS[id] ?? "#94A1BC"}
                   radius={id === agentIds[agentIds.length - 1] ? [2, 2, 0, 0] : [0, 0, 0, 0]}
                 />
               ))
@@ -560,7 +560,7 @@ function AgentLogsPanel({
           logs.map((log, i) => {
             const isErr = log.level === "ERROR";
             const isWarn = log.level === "WARN";
-            const agentColor = AGENT_COLORS[log.agent_id] ?? "#6B7785";
+            const agentColor = AGENT_COLORS[log.agent_id] ?? "#94A1BC";
 
             return (
               <div

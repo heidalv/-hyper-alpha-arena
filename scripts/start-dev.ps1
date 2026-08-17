@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     One-shot dev launcher: Data Center → backend (uvicorn) → frontend-next (:5273).
 
@@ -95,7 +95,12 @@ function Test-DataCenterHealthy {
 
 Write-Host "`n[1/4] cleaning old API/frontend (keep data-center unless -StopDataCenter)..." -ForegroundColor Yellow
 # 顺带清掉误起的旧 Vite 5173
-$stopArgs = @{ Ports = @($BackendPort, ($BackendPort + 1), $FrontendPort, 5173, 5174, 5175) }
+# [2026-08-15] -NoFrontend 时不得清理 5273：看门狗只重启后端，不能拖垮正在服务的前端。
+if ($NoFrontend) {
+    $stopArgs = @{ Ports = @($BackendPort, ($BackendPort + 1)) }
+} else {
+    $stopArgs = @{ Ports = @($BackendPort, ($BackendPort + 1), $FrontendPort, 5173, 5174, 5175) }
+}
 if ($StopDataCenter) { $stopArgs['StopDataCenter'] = $true }
 & (Join-Path $PSScriptRoot 'stop-dev.ps1') @stopArgs | Out-Host
 

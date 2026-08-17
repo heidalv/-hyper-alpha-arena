@@ -130,10 +130,17 @@ def hermes_genesis() -> Dict[str, Any]:
 
 @router.get("/schedule")
 def hermes_schedule() -> Dict[str, Any]:
-    """四层(L1-L4)定时任务时间轴。"""
-    from backend.services.opencode_scheduler import get_hermes_schedule_status
+    """四层(L1-L4)定时任务时间轴。
+
+    [2026-08-17] opencode_scheduler 已删除：Hermes 调度状态改由
+    hermes_orchestrator 自身报告（无 opencode 定时链后为静态时间轴）。
+    """
     try:
-        return {"tasks": get_hermes_schedule_status()}
+        from backend.services.hermes_orchestrator import hermes_orchestrator
+        fn = getattr(hermes_orchestrator, "schedule_status", None)
+        if callable(fn):
+            return {"tasks": fn()}
+        return {"tasks": [], "note": "opencode_scheduler removed"}
     except Exception as e:
         return {"error": str(e), "tasks": []}
 
@@ -271,9 +278,10 @@ def hermes_dashboard() -> Dict[str, Any]:
         maturity = orch.compute_maturity_score()
 
         # 时间轴：四层「上次/下次运行时间、是否运行中」
-        from backend.services.opencode_scheduler import get_hermes_schedule_status
+        # [2026-08-17] opencode_scheduler 已删除 → 时间轴由 orchestrator 报告。
         try:
-            schedule = get_hermes_schedule_status()
+            _sch_fn = getattr(orch, "schedule_status", None)
+            schedule = _sch_fn() if callable(_sch_fn) else []
         except Exception as se:
             schedule = []
 

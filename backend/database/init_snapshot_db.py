@@ -1,8 +1,8 @@
 """
 Initialize snapshot database tables
 """
-from database.snapshot_connection import snapshot_engine
-from database.snapshot_models import SnapshotBase
+from backend.database.snapshot_connection import snapshot_engine
+from backend.database.snapshot_models import SnapshotBase
 
 def init_snapshot_database():
     """Create all snapshot database tables"""

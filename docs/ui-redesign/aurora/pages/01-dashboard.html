@@ -1,0 +1,418 @@
+<section class="page" id="page-dashboard" data-title="仪表盘">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></span>仪表盘 <span class="tag cyan">LIVE</span></h1>
+      <p class="page-sub">AI 驱动的多周期加密量化交易终端 · 数据 10s 轮询</p>
+      <div style="margin-top:6px"><span class="cd cd-auto" data-cd="10"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>10</b>s</span></div>
+    </div>
+    <div class="page-actions">
+      <div class="dd" style="min-width:172px">
+        <button class="dd-btn"><i data-ico="user" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">ast-01 主账户</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+        <div class="dd-menu">
+          <div class="dd-item sel" data-toast='{"type":"ok","title":"已切换账户","msg":"当前账户：ast-01 主账户（实盘）"}'>ast-01 主账户 <span class="sub">$12,480.52</span></div>
+          <div class="dd-item" data-toast='{"type":"ok","title":"已切换账户","msg":"当前账户：ast-02 模拟账户"}'>ast-02 模拟 <span class="sub">$10,000.00</span></div>
+          <div class="dd-item" data-toast='{"type":"ok","title":"已切换账户","msg":"当前账户：ast-03 测试账户"}'>ast-03 测试 <span class="sub">$5,000.00</span></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>导出</button>
+      <button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>刷新</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">总资产</div>
+      <div class="kpi-value grad count-up" data-val="12480.52" data-dec="2" data-pre="$">$0.00</div>
+      <div class="kpi-change up">▲ +2.4%</div>
+      <div class="kpi-extra">较昨日 +$291.4</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 22 L10 18 L20 20 L30 12 L40 14 L50 8 L60 10 L72 4" stroke="#22D3EE" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">总盈亏</div>
+      <div class="kpi-value grad-green count-up" data-val="1204.18" data-dec="2" data-pre="+$">+$0.00</div>
+      <div class="kpi-change up">▲ +18.2%</div>
+      <div class="kpi-extra">今日已实现 +$972.02</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 24 L10 20 L20 22 L30 16 L40 18 L50 12 L60 14 L72 6" stroke="#34D399" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="target" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">胜率</div>
+      <div class="kpi-value count-up" data-val="62.4" data-dec="1" data-suf="%">0.0%</div>
+      <div class="kpi-change up">▲ +3.1pt</div>
+      <div class="kpi-extra">近 30 日样本 1,284 笔</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 18 L10 20 L20 16 L30 18 L40 12 L50 14 L60 10 L72 12" stroke="#A78BFA" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">活跃持仓</div>
+      <div class="kpi-value grad count-up" data-val="6">0</div>
+      <div class="kpi-change up">▲ +1 今日开仓</div>
+      <div class="kpi-extra">短线 3 · 中线 2 · 长线 1</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 20 L10 22 L20 18 L30 20 L40 16 L50 18 L60 14 L72 16" stroke="#FBBF24" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i>今日 P&amp;L 归因</div>
+        <span class="card-hint">更新于 10:24:02</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div>
+            <div class="tiny muted">毛收益</div>
+            <div class="num up count-up" style="font-size:18px;font-weight:700" data-val="1482.30" data-dec="2" data-pre="+$">+$0.00</div>
+          </div>
+          <div>
+            <div class="tiny muted">手续费</div>
+            <div class="num down count-up" style="font-size:18px;font-weight:700" data-val="278.12" data-dec="2" data-pre="−$">−$0.00</div>
+          </div>
+          <div>
+            <div class="tiny muted">净 P&amp;L</div>
+            <div class="num count-up" style="font-size:18px;font-weight:700;background:linear-gradient(120deg,#F8FAFC,#6EE7B7 60%,#34D399);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent" data-val="1204.18" data-dec="2" data-pre="+$">+$0.00</div>
+          </div>
+        </div>
+        <div style="height:1px;background:rgba(255,255,255,.07);margin:12px 0 4px"></div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="dot cyan"></span><span class="small">短线 scalp</span></span>
+          <span class="num small up">+$612.40</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="dot"></span><span class="small">中线 swing</span></span>
+          <span class="num small up">+$432.88</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="dot amber"></span><span class="small">长线 trend</span></span>
+          <span class="num small up">+$437.02</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0">
+          <span class="flex"><span class="dot gray"></span><span class="small">手续费</span></span>
+          <span class="num small down">−$278.12</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>三周期状态</div>
+        <span class="flex"><span class="card-hint">预算 · 放行/拦截</span><button class="row-btn cyan" data-modal="m-cycle"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>详情</button></span>
+      </div>
+      <div class="card-body">
+        <div class="seg" style="margin-bottom:4px">
+          <button class="seg-item active">预算分配</button>
+          <button class="seg-item">风险敞口</button>
+        </div>
+        <div style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div class="spread"><span class="small" style="color:#C9D4E8">短线 scalp</span><span class="num tiny muted">$4,320 / $6,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill" style="width:72%"></div></div>
+          <div class="spread"><span class="tiny muted">预算占用 72% · 今日已放行 9 次</span><span class="badge ok"><span class="bdot"></span>✓放行</span></div>
+        </div>
+        <div style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div class="spread"><span class="small" style="color:#C9D4E8">中线 swing</span><span class="num tiny muted">$2,900 / $5,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill green" style="width:58%"></div></div>
+          <div class="spread"><span class="tiny muted">预算占用 58% · 今日已放行 6 次</span><span class="badge ok"><span class="bdot"></span>✓放行</span></div>
+        </div>
+        <div style="padding:8px 0">
+          <div class="spread"><span class="small" style="color:#C9D4E8">长线 trend</span><span class="num tiny muted">$2,460 / $6,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill amber" style="width:41%"></div></div>
+          <div class="spread"><span class="tiny muted">预算占用 41% · 08:41 请求被拦截</span><span class="badge warn"><span class="bdot"></span>⛔拦截</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield" style="width:15px;height:15px;color:#7DD3FC"></i>冷却与门禁透明化</div>
+        <span class="card-hint">门禁 P0-D · 只读</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">全局冷却 · 剩余</span><span class="v warn">02:14</span></div>
+        <div class="kv"><span class="k">单标的冷却 · 剩余</span><span class="v">00:45</span></div>
+        <div class="kv"><span class="k">门禁开关状态</span><span class="v">P0-D · 只读 <span class="badge ok"><span class="bdot"></span>已启用</span></span></div>
+        <div class="kv"><span class="k">轮询间隔</span><span class="v">10s</span></div>
+        <div class="kv"><span class="k">今日门禁拦截</span><span class="v warn">3 次</span></div>
+        <div class="kv"><span class="k">最近放行</span><span class="v">10:23:05</span></div>
+        <div class="tiny muted" style="margin-top:8px">冷却期内交易请求自动跳过；只读模式下仅记录不执行，等待人工复核。</div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="gauge" style="width:15px;height:15px;color:#7DD3FC"></i>风险敞口</div>
+        <span class="card-hint">熔断阈值 10%</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">当前总敞口</span><span class="v">42.6%</span></div>
+        <div class="kv"><span class="k">单币最大敞口</span><span class="v">12.3%（BTC）</span></div>
+        <div class="kv"><span class="k">杠杆上限</span><span class="v">3.0x</span></div>
+        <div class="kv"><span class="k">日亏损率</span><span class="v">4.8%</span></div>
+        <div style="margin-top:6px">
+          <div class="spread"><span class="tiny muted">总敞口使用</span><span class="num tiny">42.6%</span></div>
+          <div class="bar" style="margin:5px 0 10px"><div class="bar-fill" style="width:43%"></div></div>
+          <div class="spread"><span class="tiny muted">日亏损预算消耗</span><span class="num tiny">48%</span></div>
+          <div class="bar" style="margin:5px 0 10px"><div class="bar-fill green" style="width:48%"></div></div>
+          <div class="spread"><span class="tiny muted">距熔断线剩余空间</span><span class="num tiny">5.2%</span></div>
+          <div class="bar" style="margin:5px 0 0"><div class="bar-fill amber" style="width:52%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i>权益曲线</div>
+        <span class="flex"><span class="lag"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 1.8s</span><span class="card-hint">近 30 日 · 每 10s 采样</span>
+          <div class="seg">
+            <button class="seg-item active" data-toast='{"type":"info","title":"区间已切换","msg":"权益曲线：1M"}' >1M</button>
+            <button class="seg-item" data-toast='{"type":"info","title":"区间已切换","msg":"权益曲线：3M"}' >3M</button>
+            <button class="seg-item" data-toast='{"type":"info","title":"区间已切换","msg":"权益曲线：6M"}' >6M</button>
+          </div>
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="chart-card">
+          <div class="kwrap">
+            <div class="kline-hint"><span>07-04 10:24</span><span>权益 12,480.52</span><span class="up">+1.02%</span></div>
+          <svg viewBox="0 0 660 220" style="display:block;width:100%;height:auto">
+            <defs>
+              <linearGradient id="dashEqLine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#22D3EE"/>
+                <stop offset="100%" stop-color="#8B5CF6"/>
+              </linearGradient>
+              <linearGradient id="dashEqFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#22D3EE" stop-opacity=".26"/>
+                <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="45" x2="660" y2="45" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 5"/>
+            <line x1="0" y1="95" x2="660" y2="95" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 5"/>
+            <line x1="0" y1="145" x2="660" y2="145" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 5"/>
+            <line x1="0" y1="195" x2="660" y2="195" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 5"/>
+            <path d="M0 178 C50 170 80 186 130 168 C180 150 215 158 275 140 C335 122 375 130 435 110 C495 90 540 98 600 74 C622 66 642 60 660 54 L660 220 L0 220 Z" fill="url(#dashEqFill)"/>
+            <path d="M0 178 C50 170 80 186 130 168 C180 150 215 158 275 140 C335 122 375 130 435 110 C495 90 540 98 600 74 C622 66 642 60 660 54" fill="none" stroke="url(#dashEqLine)" stroke-width="2" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(34,211,238,.5))"/>
+            <circle cx="660" cy="54" r="3.5" fill="#22D3EE" style="filter:drop-shadow(0 0 6px rgba(34,211,238,.9))"/>
+            <text x="8" y="20" fill="#94A1BC" font-size="10">权益 · USD</text>
+            <text x="500" y="46" fill="#34D399" font-size="11">今日 +$1,204.18</text>
+          </svg>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
+          <div>
+            <div class="tiny muted">当前权益</div>
+            <div class="num" style="font-size:14px;font-weight:700">$12,480.52</div>
+          </div>
+          <div>
+            <div class="tiny muted">浮动盈亏</div>
+            <div class="num up" style="font-size:14px;font-weight:700">+$510.28</div>
+          </div>
+          <div>
+            <div class="tiny muted">已实现</div>
+            <div class="num up" style="font-size:14px;font-weight:700">+$972.02</div>
+          </div>
+          <div>
+            <div class="tiny muted">手续费</div>
+            <div class="num down" style="font-size:14px;font-weight:700">−$278.12</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>当前持仓</div>
+        <span class="card-hint">浮动合计</span>
+      </div>
+      <div class="card-body">
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="sym small">BTC</span><span class="badge buy">做多</span></span>
+          <span class="num small up">+$286.40</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="sym small">SOL</span><span class="badge buy">做多</span></span>
+          <span class="num small up">+$124.92</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="sym small">BNB</span><span class="badge sell">做空</span></span>
+          <span class="num small up">+$88.05</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="sym small">ETH</span><span class="badge buy">做多</span></span>
+          <span class="num small up">+$42.17</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="flex"><span class="sym small">DOGE</span><span class="badge buy">做多</span></span>
+          <span class="num small down">−$31.26</span>
+        </div>
+        <div class="flex spread" style="padding:10px 0 2px">
+          <span class="small bold">浮动合计</span>
+          <span class="num up" style="font-weight:700">+$510.28</span>
+        </div>
+        <div class="flex-end" style="padding-top:10px;margin-top:8px;border-top:1px dashed rgba(255,255,255,.06)">
+          <button class="btn btn-danger btn-sm" data-confirm='{"title":"确认全部平仓？","msg":"将以市价平掉全部 6 个持仓（BTC/SOL/BNB/ETH/DOGE 等），此操作不可撤销","danger":true}'><svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>全部平仓</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="list" style="width:15px;height:15px;color:#7DD3FC"></i>活跃策略</div>
+      <span class="card-hint">5 个策略在线 · 1 个暂停</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>策略</th><th>周期</th><th>标的</th><th>方向</th><th class="r">入场</th><th class="r">杠杆</th><th class="r sortable sorted">PnL<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th class="c">状态</th><th class="c">操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">多周期编排器 v3</span></td><td>全部</td><td>BTC</td><td><span class="badge buy">做多</span></td><td class="r">$68,240</td><td class="r">3x</td><td class="r up">+$286.40</td><td class="c"><span class="badge ok"><span class="bdot"></span>running</span></td><td class="c"><button class="row-btn cyan" data-drawer="d-strategy">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">动量因子轮动</span></td><td>短线</td><td>ETH</td><td><span class="badge buy">做多</span></td><td class="r">$3,412</td><td class="r">5x</td><td class="r up">+$42.17</td><td class="c"><span class="badge ok"><span class="bdot"></span>running</span></td><td class="c"><button class="row-btn cyan" data-drawer="d-strategy">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">均值回归增强</span></td><td>中线</td><td>SOL</td><td><span class="badge buy">做多</span></td><td class="r">$128.40</td><td class="r">2x</td><td class="r up">+$124.92</td><td class="c"><span class="badge ok"><span class="bdot"></span>running</span></td><td class="c"><button class="row-btn cyan" data-drawer="d-strategy">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">趋势跟踪 TP-SL</span></td><td>长线</td><td>BNB</td><td><span class="badge sell">做空</span></td><td class="r">$612.30</td><td class="r">2x</td><td class="r up">+$88.05</td><td class="c"><span class="badge dim">paused</span></td><td class="c"><button class="row-btn cyan" data-drawer="d-strategy">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">网格突破 v2</span></td><td>短线</td><td>DOGE</td><td><span class="badge buy">做多</span></td><td class="r">$0.4120</td><td class="r">10x</td><td class="r down">−$31.26</td><td class="c"><span class="badge ok"><span class="bdot"></span>running</span></td><td class="c"><button class="row-btn cyan" data-drawer="d-strategy">详情</button></td>
+          </tr>
+        </tbody>
+        <tfoot><tr><td colspan="6">总 PnL</td><td class="r up">+$510.28</td><td colspan="2"></td></tr></tfoot>
+      </table></div>
+      <div class="pager">
+        <span class="pager-info">共 12 条 · 第 1/1 页</span>
+        <button class="pager-btn dis">‹</button><button class="pager-btn on">1</button><button class="pager-btn dis">›</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="alert-triangle" style="width:15px;height:15px;color:#7DD3FC"></i>数据质量 · 防御性显示示例</div>
+      <span class="card-hint">异常数据不隐藏 · 显式标注</span>
+    </div>
+    <div class="card-body">
+      <div class="kv">
+        <span class="k">策略胜率（原始计算）</span>
+        <span class="v"><span class="num warn">2518.0%</span>&nbsp;<span class="badge warn"><span class="bdot"></span>数据异常</span></span>
+      </div>
+      <div class="kv">
+        <span class="k">修正口径（获利 ÷ 总笔数）</span>
+        <span class="v up">62.4%</span>
+      </div>
+      <div class="tiny muted" style="margin-top:8px">当算法产出明显越界数值时，系统原样展示并附带「数据异常」徽章，同时给出修正口径供人工复核，避免静默清洗掩盖缺陷。</div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：三周期状态详情弹窗 ══ -->
+  <div class="mask" id="m-cycle">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>三周期状态详情</div><div class="modal-sub">预算分配 · 上次决策 · 冷却 · 风控敞口</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="tab-row">
+          <button class="tab-item active" data-tab="m-cycle-scalp">短线 scalp</button>
+          <button class="tab-item" data-tab="m-cycle-swing">中线 swing</button>
+          <button class="tab-item" data-tab="m-cycle-trend">长线 trend</button>
+          <button class="tab-item" data-tab="m-cycle-risk">风控敞口</button>
+        </div>
+        <div class="tab-pane on" id="m-cycle-scalp">
+          <div class="spread" style="padding:6px 0 2px"><span class="small" style="color:#C9D4E8">短线预算</span><span class="num">$4,320 / $6,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill" style="width:72%"></div></div>
+          <div class="kv"><span class="k">预算占用率</span><span class="v">72%</span></div>
+          <div class="kv"><span class="k">今日已放行</span><span class="v up">9 次</span></div>
+          <div class="kv"><span class="k">上次决策</span><span class="v">10:18:32 · BTC 减仓 1/3（SELL）</span></div>
+          <div class="kv"><span class="k">决策结果</span><span class="v"><span class="badge ok"><span class="bdot"></span>✓放行 · 已成交</span></span></div>
+          <div class="kv"><span class="k">冷却剩余</span><span class="v">00:45</span></div>
+        </div>
+        <div class="tab-pane" id="m-cycle-swing">
+          <div class="spread" style="padding:6px 0 2px"><span class="small" style="color:#C9D4E8">中线预算</span><span class="num">$2,900 / $5,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill green" style="width:58%"></div></div>
+          <div class="kv"><span class="k">预算占用率</span><span class="v">58%</span></div>
+          <div class="kv"><span class="k">今日已放行</span><span class="v up">6 次</span></div>
+          <div class="kv"><span class="k">上次决策</span><span class="v">10:14:09 · SOL 观察单（BUY 置信 78%）</span></div>
+          <div class="kv"><span class="k">决策结果</span><span class="v"><span class="badge dim">未执行 · 置信未达 85%</span></span></div>
+          <div class="kv"><span class="k">冷却剩余</span><span class="v">无冷却</span></div>
+        </div>
+        <div class="tab-pane" id="m-cycle-trend">
+          <div class="spread" style="padding:6px 0 2px"><span class="small" style="color:#C9D4E8">长线预算</span><span class="num">$2,460 / $6,000</span></div>
+          <div class="bar" style="margin:6px 0"><div class="bar-fill amber" style="width:41%"></div></div>
+          <div class="kv"><span class="k">预算占用率</span><span class="v">41%</span></div>
+          <div class="kv"><span class="k">今日已放行</span><span class="v up">4 次</span></div>
+          <div class="kv"><span class="k">上次决策</span><span class="v">08:41 · ETH 加仓请求被拦截</span></div>
+          <div class="kv"><span class="k">决策结果</span><span class="v"><span class="badge warn"><span class="bdot"></span>⛔拦截 · 冷却期内</span></span></div>
+          <div class="kv"><span class="k">冷却剩余</span><span class="v warn">02:14</span></div>
+        </div>
+        <div class="tab-pane" id="m-cycle-risk">
+          <div class="kv"><span class="k">总敞口</span><span class="v">42.6% <span class="badge ok"><span class="bdot"></span>安全</span></span></div>
+          <div style="margin:10px 0">
+            <div class="spread"><span class="tiny muted">短线 scalp</span><span class="num tiny">18.4%</span></div>
+            <div class="bar" style="margin:5px 0 10px"><div class="bar-fill" style="width:18.4%"></div></div>
+            <div class="spread"><span class="tiny muted">中线 swing</span><span class="num tiny">14.2%</span></div>
+            <div class="bar" style="margin:5px 0 10px"><div class="bar-fill green" style="width:14.2%"></div></div>
+            <div class="spread"><span class="tiny muted">长线 trend</span><span class="num tiny">10.0%</span></div>
+            <div class="bar" style="margin:5px 0 10px"><div class="bar-fill amber" style="width:10%"></div></div>
+            <div class="spread"><span class="tiny muted">总敞口使用</span><span class="num tiny">42.6%</span></div>
+            <div class="bar" style="margin:5px 0 0"><div class="bar-fill" style="width:43%"></div></div>
+          </div>
+          <div class="tiny muted" style="margin-top:8px">熔断阈值 10%（日亏损）· 当前距熔断线剩余空间 5.2%。</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：策略详情抽屉 ══ -->
+  <div class="drawer wide" id="d-strategy">
+    <div class="drawer-head">
+      <div><div class="drawer-title">策略详情 · 多周期编排器 v3</div><div class="drawer-sub">BTC · 全部周期 · running</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv"><span class="k">参数 · 标的</span><span class="v">BTC</span></div>
+      <div class="kv"><span class="k">参数 · 周期</span><span class="v">全部（scalp / swing / trend）</span></div>
+      <div class="kv"><span class="k">参数 · 方向</span><span class="v"><span class="badge buy">做多</span></span></div>
+      <div class="kv"><span class="k">参数 · 杠杆</span><span class="v">3.0x</span></div>
+      <div class="kv"><span class="k">参数 · 入场</span><span class="v">$68,240</span></div>
+      <div class="kv"><span class="k">参数 · TP / SL</span><span class="v">$74,900 / $64,100</span></div>
+      <div class="kv"><span class="k">参数 · 保证金</span><span class="v">$1,024</span></div>
+      <div class="kv"><span class="k">门禁状态</span><span class="v"><span class="badge ok"><span class="bdot"></span>放行</span></span></div>
+      <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">当前持仓</div>
+      <div class="flex spread" style="padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="flex"><span class="sym small">BTC</span><span class="badge buy">做多</span><span class="tiny muted">0.150</span></span>
+        <span class="num small up">+$286.40</span>
+      </div>
+      <div class="flex spread" style="padding:7px 0">
+        <span class="flex"><span class="sym small">DOGE</span><span class="badge buy">做多</span><span class="tiny muted">1,200</span></span>
+        <span class="num small down">−$31.26</span>
+      </div>
+      <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">最近决策</div>
+      <div class="timeline" style="padding-left:20px">
+        <div class="tl-item sell">
+          <div class="tl-head"><span class="badge sell">SELL</span><span class="tl-sym">BTC</span><span class="tl-time">10:18:32</span></div>
+          <div class="tl-reason">多周期编排器建议减仓 1/3（中线看跌置信度 87%），门禁放行后已成交 @ $68,240。</div>
+        </div>
+        <div class="tl-item buy">
+          <div class="tl-head"><span class="badge buy">BUY</span><span class="tl-sym">BTC</span><span class="tl-time">09:31:44</span></div>
+          <div class="tl-reason">日线突破箱体 + 15m 动量共振，深模型「强确认」，开多 0.15 @ $66,890。</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close data-toast='{"type":"ok","title":"已恢复","msg":"多周期编排器 v3 已恢复运行"}' ><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7-11-7z"/></svg>恢复</button>
+      <button class="btn btn-primary" data-close data-toast='{"type":"info","title":"已暂停","msg":"多周期编排器 v3 已暂停，持仓保持不动"}' ><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>暂停</button>
+    </div>
+  </div>
+</section>

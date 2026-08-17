@@ -68,8 +68,7 @@ MODULE_LABELS: Dict[str, str] = {
     "ai_decision": "AI 交易决策",
     "full_auto_trading_service": "全自动交易",
     "trade_planner_agent": "交易规划器",
-    "direction_agent": "方向 Agent",
-    "trade_risk_agent": "风控 Agent",
+    # [2026-08-17 删除] direction_agent / trade_risk_agent 已移除
     "strategy_hypothesis_engine": "策略假设引擎",
     "strategy_evolver": "策略进化",
     "news_intelligence_service": "新闻情报",

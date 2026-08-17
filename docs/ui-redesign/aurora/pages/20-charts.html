@@ -1,0 +1,260 @@
+<section class="page" id="page-charts" data-title="图表中心">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>图表中心</h1>
+      <p class="page-sub">权益曲线 · K 线 · 因子分布 · 相关性 —— Aurora 图表语言展示</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="60"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>60</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 1.8s</span>
+        </div>
+    <div class="page-actions">
+      <div class="seg">
+        <button class="seg-item active" data-toast='{"type":"info","title":"周期已切换","msg":"日线视图"}'>日线</button>
+        <button class="seg-item" data-toast='{"type":"info","title":"周期已切换","msg":"周线视图"}'>周线</button>
+        <button class="seg-item" data-toast='{"type":"info","title":"周期已切换","msg":"月线视图"}'>月线</button>
+      </div>
+      <div style="position:relative">
+        <button class="btn btn-ghost2 btn-sm" data-menu="m-indicators"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>叠加指标 ▾</button>
+        <div class="menu" id="m-indicators" style="top:32px;right:0">
+          <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>MA5 / MA10 / MA20</div>
+          <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>EMA12 / EMA26</div>
+          <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>布林带 BOLL</div>
+          <div class="menu-sep"></div>
+          <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>成交量副图</div>
+          <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>MACD 副图</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" data-confirm='{"title":"导出当前图表？","msg":"将导出 760×240 PNG 到本地","danger":false,"okText":"导出"}'><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>导出 PNG</button>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>权益曲线</div>
+        <span class="card-hint">近 90 天 · 模拟账户</span>
+      </div>
+      <div class="card-body">
+        <div class="row" style="margin-bottom:12px">
+          <div><div class="kpi-label">当前权益</div><div class="num bold" style="font-size:20px">$12,480.52</div></div>
+          <div style="margin-left:24px"><div class="kpi-label">区间收益</div><div class="num bold up" style="font-size:20px">+24.8%</div></div>
+          <div style="margin-left:24px"><div class="kpi-label">最大回撤</div><div class="num bold down" style="font-size:20px">-6.2%</div></div>
+          <div style="margin-left:24px"><div class="kpi-label">夏普比率</div><div class="num bold" style="font-size:20px">1.86</div></div>
+        </div>
+        <svg viewBox="0 0 760 240" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(34,211,238,0.30)"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>
+            </linearGradient>
+          </defs>
+          <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+            <line x1="0" y1="40" x2="760" y2="40"/><line x1="0" y1="90" x2="760" y2="90"/>
+            <line x1="0" y1="140" x2="760" y2="140"/><line x1="0" y1="190" x2="760" y2="190"/>
+          </g>
+          <path d="M0 205 L30 200 L60 196 L90 199 L120 188 L150 184 L180 176 L210 180 L240 168 L270 160 L300 164 L330 152 L360 148 L390 154 L420 142 L450 136 L480 128 L510 132 L540 118 L570 110 L600 116 L630 98 L660 90 L690 84 L720 72 L760 58 L760 240 L0 240 Z" fill="url(#eqFill)"/>
+          <path d="M0 205 L30 200 L60 196 L90 199 L120 188 L150 184 L180 176 L210 180 L240 168 L270 160 L300 164 L330 152 L360 148 L390 154 L420 142 L450 136 L480 128 L510 132 L540 118 L570 110 L600 116 L630 98 L660 90 L690 84 L720 72 L760 58" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="760" cy="58" r="4" fill="#22D3EE" opacity="0.9"/>
+          <circle cx="760" cy="58" r="9" fill="none" stroke="#22D3EE" opacity="0.3"/>
+          <g font-size="10" fill="#6E7B98" font-family="JetBrains Mono, monospace">
+            <text x="6" y="30">$13,000</text><text x="6" y="80">$12,500</text>
+            <text x="6" y="130">$12,000</text><text x="6" y="180">$11,500</text>
+            <text x="6" y="230">$11,000</text>
+            <text x="690" y="228">今日</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/></svg>月度 P&amp;L</div>
+        <span class="card-hint">近 6 月</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 320 220" style="width:100%;height:auto">
+          <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+            <line x1="0" y1="40" x2="320" y2="40"/><line x1="0" y1="110" x2="320" y2="110"/><line x1="0" y1="180" x2="320" y2="180"/>
+          </g>
+          <rect x="22" y="120" width="32" height="70" rx="4" fill="rgba(52,211,153,0.55)"/>
+          <rect x="68" y="150" width="32" height="40" rx="4" fill="rgba(251,113,133,0.55)"/>
+          <rect x="114" y="100" width="32" height="90" rx="4" fill="rgba(52,211,153,0.65)"/>
+          <rect x="160" y="128" width="32" height="62" rx="4" fill="rgba(52,211,153,0.75)"/>
+          <rect x="206" y="88" width="32" height="102" rx="4" fill="rgba(34,211,238,0.6)"/>
+          <rect x="252" y="70" width="32" height="120" rx="4" fill="url(#gradCyanViolet)" opacity="0.75"/>
+          <g font-size="10" fill="#6E7B98" font-family="JetBrains Mono, monospace">
+            <text x="16" y="230">3月</text><text x="62" y="230">4月</text><text x="108" y="230">5月</text>
+            <text x="154" y="230">6月</text><text x="200" y="230">7月</text><text x="246" y="230">8月</text>
+          </g>
+        </svg>
+        <div class="kv" style="margin-top:8px"><span class="k">盈利月 / 亏损月</span><span class="v up">5 / 1</span></div>
+        <div class="kv"><span class="k">累计净 P&amp;L</span><span class="v up">+$2,406.18</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3-2">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>BTC-USD K 线</div>
+        <div class="flex">
+          <span class="card-hint">4h · 极光烛台</span>
+          <span class="tag cyan">现货</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 640 260" style="width:100%;height:auto">
+          <g stroke="rgba(255,255,255,0.06)" stroke-width="1">
+            <line x1="0" y1="52" x2="640" y2="52"/><line x1="0" y1="104" x2="640" y2="104"/>
+            <line x1="0" y1="156" x2="640" y2="156"/><line x1="0" y1="208" x2="640" y2="208"/>
+          </g>
+          <!-- 16 根蜡烛：涨绿跌红 -->
+          <g stroke-linecap="round">
+            <line x1="20" y1="120" x2="20" y2="150" stroke="#FB7185" stroke-width="1"/><rect x="13" y="126" width="14" height="14" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="60" y1="110" x2="60" y2="142" stroke="#FB7185" stroke-width="1"/><rect x="53" y="118" width="14" height="12" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="100" y1="100" x2="100" y2="136" stroke="#34D399" stroke-width="1"/><rect x="93" y="104" width="14" height="24" rx="2" fill="rgba(52,211,153,0.7)"/>
+            <line x1="140" y1="96" x2="140" y2="128" stroke="#34D399" stroke-width="1"/><rect x="133" y="100" width="14" height="18" rx="2" fill="rgba(52,211,153,0.7)"/>
+            <line x1="180" y1="90" x2="180" y2="126" stroke="#FB7185" stroke-width="1"/><rect x="173" y="96" width="14" height="16" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="220" y1="84" x2="220" y2="120" stroke="#FB7185" stroke-width="1"/><rect x="213" y="92" width="14" height="14" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="260" y1="78" x2="260" y2="116" stroke="#34D399" stroke-width="1"/><rect x="253" y="82" width="14" height="26" rx="2" fill="rgba(52,211,153,0.7)"/>
+            <line x1="300" y1="70" x2="300" y2="104" stroke="#34D399" stroke-width="1"/><rect x="293" y="74" width="14" height="22" rx="2" fill="rgba(52,211,153,0.75)"/>
+            <line x1="340" y1="66" x2="340" y2="102" stroke="#FB7185" stroke-width="1"/><rect x="333" y="72" width="14" height="18" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="380" y1="58" x2="380" y2="96" stroke="#34D399" stroke-width="1"/><rect x="373" y="62" width="14" height="26" rx="2" fill="rgba(52,211,153,0.75)"/>
+            <line x1="420" y1="50" x2="420" y2="88" stroke="#FB7185" stroke-width="1"/><rect x="413" y="56" width="14" height="18" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="460" y1="44" x2="460" y2="82" stroke="#34D399" stroke-width="1"/><rect x="453" y="48" width="14" height="26" rx="2" fill="rgba(52,211,153,0.75)"/>
+            <line x1="500" y1="38" x2="500" y2="74" stroke="#34D399" stroke-width="1"/><rect x="493" y="42" width="14" height="22" rx="2" fill="rgba(52,211,153,0.8)"/>
+            <line x1="540" y1="32" x2="540" y2="70" stroke="#FB7185" stroke-width="1"/><rect x="533" y="38" width="14" height="18" rx="2" fill="rgba(251,113,133,0.7)"/>
+            <line x1="580" y1="28" x2="580" y2="64" stroke="#34D399" stroke-width="1"/><rect x="573" y="32" width="14" height="24" rx="2" fill="rgba(52,211,153,0.8)"/>
+            <line x1="620" y1="20" x2="620" y2="58" stroke="#34D399" stroke-width="1"/><rect x="613" y="24" width="14" height="28" rx="2" fill="rgba(52,211,153,0.9)"/>
+          </g>
+          <path d="M0 96 L40 90 L80 84 L120 88 L160 76 L200 70 L240 66 L280 60 L320 54 L360 50 L400 44 L440 40 L480 34 L520 30 L560 26 L600 22 L640 18" fill="none" stroke="#22D3EE" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/>
+          <g font-size="10" fill="#6E7B98" font-family="JetBrains Mono, monospace">
+            <text x="6" y="30">$71.2k</text><text x="6" y="86">$70.6k</text><text x="6" y="142">$70.0k</text><text x="6" y="198">$69.4k</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3v18M3 12h18"/></svg>因子相关性</div>
+        <span class="card-hint">top 6 因子</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 300 260" style="width:100%;height:auto">
+          <!-- 6x6 相关性热力网格 -->
+          <g>
+            <rect x="40" y="10" width="36" height="36" rx="4" fill="rgba(34,211,238,0.8)"/>
+            <rect x="80" y="10" width="36" height="36" rx="4" fill="rgba(139,92,246,0.45)"/>
+            <rect x="120" y="10" width="36" height="36" rx="4" fill="rgba(139,92,246,0.2)"/>
+            <rect x="160" y="10" width="36" height="36" rx="4" fill="rgba(52,211,153,0.25)"/>
+            <rect x="200" y="10" width="36" height="36" rx="4" fill="rgba(52,211,153,0.55)"/>
+            <rect x="240" y="10" width="36" height="36" rx="4" fill="rgba(34,211,238,0.35)"/>
+            <rect x="40" y="50" width="36" height="36" rx="4" fill="rgba(139,92,246,0.45)"/>
+            <rect x="80" y="50" width="36" height="36" rx="4" fill="rgba(34,211,238,0.75)"/>
+            <rect x="120" y="50" width="36" height="36" rx="4" fill="rgba(52,211,153,0.4)"/>
+            <rect x="160" y="50" width="36" height="36" rx="4" fill="rgba(251,113,133,0.3)"/>
+            <rect x="200" y="50" width="36" height="36" rx="4" fill="rgba(139,92,246,0.3)"/>
+            <rect x="240" y="50" width="36" height="36" rx="4" fill="rgba(251,191,36,0.35)"/>
+            <rect x="40" y="90" width="36" height="36" rx="4" fill="rgba(139,92,246,0.2)"/>
+            <rect x="80" y="90" width="36" height="36" rx="4" fill="rgba(52,211,153,0.4)"/>
+            <rect x="120" y="90" width="36" height="36" rx="4" fill="rgba(34,211,238,0.7)"/>
+            <rect x="160" y="90" width="36" height="36" rx="4" fill="rgba(251,191,36,0.3)"/>
+            <rect x="200" y="90" width="36" height="36" rx="4" fill="rgba(251,113,133,0.25)"/>
+            <rect x="240" y="90" width="36" height="36" rx="4" fill="rgba(52,211,153,0.5)"/>
+            <rect x="40" y="130" width="36" height="36" rx="4" fill="rgba(52,211,153,0.25)"/>
+            <rect x="80" y="130" width="36" height="36" rx="4" fill="rgba(251,113,133,0.3)"/>
+            <rect x="120" y="130" width="36" height="36" rx="4" fill="rgba(251,191,36,0.3)"/>
+            <rect x="160" y="130" width="36" height="36" rx="4" fill="rgba(34,211,238,0.6)"/>
+            <rect x="200" y="130" width="36" height="36" rx="4" fill="rgba(52,211,153,0.35)"/>
+            <rect x="240" y="130" width="36" height="36" rx="4" fill="rgba(139,92,246,0.45)"/>
+            <rect x="40" y="170" width="36" height="36" rx="4" fill="rgba(52,211,153,0.55)"/>
+            <rect x="80" y="170" width="36" height="36" rx="4" fill="rgba(139,92,246,0.3)"/>
+            <rect x="120" y="170" width="36" height="36" rx="4" fill="rgba(251,113,133,0.25)"/>
+            <rect x="160" y="170" width="36" height="36" rx="4" fill="rgba(52,211,153,0.35)"/>
+            <rect x="200" y="170" width="36" height="36" rx="4" fill="rgba(34,211,238,0.55)"/>
+            <rect x="240" y="170" width="36" height="36" rx="4" fill="rgba(251,113,133,0.2)"/>
+            <rect x="40" y="210" width="36" height="36" rx="4" fill="rgba(34,211,238,0.35)"/>
+            <rect x="80" y="210" width="36" height="36" rx="4" fill="rgba(251,191,36,0.35)"/>
+            <rect x="120" y="210" width="36" height="36" rx="4" fill="rgba(52,211,153,0.5)"/>
+            <rect x="160" y="210" width="36" height="36" rx="4" fill="rgba(139,92,246,0.45)"/>
+            <rect x="200" y="210" width="36" height="36" rx="4" fill="rgba(251,113,133,0.2)"/>
+            <rect x="240" y="210" width="36" height="36" rx="4" fill="rgba(34,211,238,0.7)"/>
+          </g>
+          <g font-size="9" fill="#6E7B98" font-family="JetBrains Mono, monospace">
+            <text x="42" y="238">mom</text><text x="82" y="238">ic</text><text x="120" y="238">vol</text>
+            <text x="162" y="238">liq</text><text x="202" y="238">snt</text><text x="240" y="238">fun</text>
+            <text x="8" y="30">mom</text><text x="8" y="70">ic</text><text x="8" y="110">vol</text>
+            <text x="8" y="150">liq</text><text x="8" y="190">snt</text><text x="8" y="230">fun</text>
+          </g>
+        </svg>
+        <div class="kv" style="margin-top:6px"><span class="k">最大正相关</span><span class="v">mom ↔ fun · 0.82</span></div>
+        <div class="kv"><span class="k">最大负相关</span><span class="v">vol ↔ liq · -0.47</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/></svg>因子 IC 分布</div>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 340 150" style="width:100%;height:auto">
+          <g stroke="rgba(255,255,255,0.06)"><line x1="0" y1="30" x2="340" y2="30"/><line x1="0" y1="75" x2="340" y2="75"/><line x1="0" y1="120" x2="340" y2="120"/></g>
+          <rect x="20" y="95" width="18" height="45" rx="3" fill="rgba(139,92,246,0.4)"/>
+          <rect x="44" y="80" width="18" height="60" rx="3" fill="rgba(139,92,246,0.55)"/>
+          <rect x="68" y="60" width="18" height="80" rx="3" fill="rgba(139,92,246,0.7)"/>
+          <rect x="92" y="40" width="18" height="100" rx="3" fill="rgba(34,211,238,0.75)"/>
+          <rect x="116" y="55" width="18" height="85" rx="3" fill="rgba(34,211,238,0.6)"/>
+          <rect x="140" y="70" width="18" height="70" rx="3" fill="rgba(34,211,238,0.45)"/>
+          <rect x="164" y="88" width="18" height="52" rx="3" fill="rgba(52,211,153,0.5)"/>
+          <rect x="188" y="78" width="18" height="62" rx="3" fill="rgba(52,211,153,0.65)"/>
+          <rect x="212" y="98" width="18" height="42" rx="3" fill="rgba(52,211,153,0.5)"/>
+          <rect x="236" y="108" width="18" height="32" rx="3" fill="rgba(251,191,36,0.45)"/>
+          <rect x="260" y="115" width="18" height="25" rx="3" fill="rgba(251,191,36,0.4)"/>
+          <rect x="284" y="120" width="18" height="20" rx="3" fill="rgba(251,191,36,0.35)"/>
+          <line x1="0" y1="80" x2="340" y2="80" stroke="#22D3EE" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
+          <text x="8" y="145" fill="#6E7B98" font-size="9" font-family="JetBrains Mono, monospace">IC=0</text>
+        </svg>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></svg>策略分配</div>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 340 150" style="width:100%;height:auto">
+          <circle cx="120" cy="75" r="52" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="14"/>
+          <circle cx="120" cy="75" r="52" fill="none" stroke="url(#gradCyanViolet)" stroke-width="14" stroke-dasharray="190 327" transform="rotate(-90 120 75)" stroke-linecap="round"/>
+          <circle cx="120" cy="75" r="52" fill="none" stroke="#34D399" stroke-width="14" stroke-dasharray="82 327" stroke-dashoffset="-190" transform="rotate(-90 120 75)" stroke-linecap="round"/>
+          <circle cx="120" cy="75" r="52" fill="none" stroke="#FBBF24" stroke-width="14" stroke-dasharray="41 327" stroke-dashoffset="-272" transform="rotate(-90 120 75)" stroke-linecap="round"/>
+          <text x="104" y="72" fill="#EAF0FA" font-size="16" font-weight="700" font-family="JetBrains Mono, monospace">58%</text>
+          <text x="98" y="88" fill="#6E7B98" font-size="9">短线</text>
+          <g font-size="11">
+            <rect x="230" y="40" width="10" height="10" rx="3" fill="url(#gradCyanViolet)"/><text x="246" y="49" fill="#C9D4E8">短线 58%</text>
+            <rect x="230" y="62" width="10" height="10" rx="3" fill="#34D399"/><text x="246" y="71" fill="#C9D4E8">中线 25%</text>
+            <rect x="230" y="84" width="10" height="10" rx="3" fill="#FBBF24"/><text x="246" y="93" fill="#C9D4E8">长线 12%</text>
+            <rect x="230" y="106" width="10" height="10" rx="3" fill="rgba(255,255,255,0.2)"/><text x="246" y="115" fill="#C9D4E8">预留 5%</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3.5"/></svg>回撤带</div>
+        <span class="card-hint">近 30 日</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 340 150" style="width:100%;height:auto">
+          <path d="M0 40 L28 38 L56 42 L84 34 L112 36 L140 30 L168 34 L196 28 L224 30 L252 26 L280 28 L308 22 L340 24" fill="none" stroke="#34D399" stroke-width="1.5" opacity="0.8"/>
+          <path d="M0 40 L28 52 L56 48 L84 62 L112 70 L140 78 L168 74 L196 88 L224 84 L252 92 L280 96 L308 104 L340 100" fill="none" stroke="#FB7185" stroke-width="1.5"/>
+          <path d="M0 40 L28 52 L56 48 L84 62 L112 70 L140 78 L168 74 L196 88 L224 84 L252 92 L280 96 L308 104 L340 100 L340 150 L0 150 Z" fill="rgba(251,113,133,0.08)"/>
+          <g font-size="10" fill="#6E7B98" font-family="JetBrains Mono, monospace">
+            <text x="8" y="32">0%</text><text x="8" y="108">-6.2%</text>
+          </g>
+        </svg>
+        <div class="kv" style="margin-top:6px"><span class="k">最大回撤</span><span class="v down">-6.2%</span></div>
+        <div class="kv"><span class="k">恢复天数</span><span class="v">11 天</span></div>
+      </div>
+    </div>
+  </div>
+</section>

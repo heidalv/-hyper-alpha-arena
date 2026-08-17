@@ -1,0 +1,208 @@
+<section class="page" id="page-scalp" data-title="短线策略配置">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="zap" style="width:15px;height:15px;color:#7DD3FC"></i></span>短线策略配置 <span class="badge warn"><span class="bdot"></span>未保存</span></h1>
+      <p class="page-sub">秒级 tick 抢跑 · AI 信号入场 · 高频风控熔断 · 参数修改后需点击「保存配置」生效</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="15"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>15</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 0.9s</span>
+        </div>
+    <div class="page-actions">
+      <div class="dd" style="min-width:128px">
+        <button class="dd-btn"><i data-ico="sliders-horizontal" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">稳健</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+        <div class="dd-menu">
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"保守"}'>保守</div>
+          <div class="dd-item sel">稳健</div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"激进"}'>激进</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>重置默认</button>
+      <button class="btn btn-primary btn-sm" data-toast='{"type":"ok","title":"保存成功","msg":"配置已保存"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存配置</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="zap" style="width:12px;height:12px;color:#8B98B5"></i>回测胜率</div>
+      <div class="kpi-value grad">54.8%</div>
+      <div class="kpi-change up">▲ +1.2pt</div>
+      <div class="kpi-extra">近 500 笔样本 · 置信 95%</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 20 L10 16 L20 18 L30 12 L40 14 L50 8 L60 10 L72 5" stroke="#34D399" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="activity" style="width:12px;height:12px;color:#8B98B5"></i>盈亏比</div>
+      <div class="kpi-value">2.0</div>
+      <div class="kpi-change flat">目标 ≥ 1.5</div>
+      <div class="kpi-extra">止盈 1.2% / 止损 0.8%</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 14 L72 14" stroke="#8B98B5" fill="none" stroke-width="1" stroke-dasharray="3 3"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="trending-up" style="width:12px;height:12px;color:#8B98B5"></i>今日模拟盈亏</div>
+      <div class="kpi-value grad-green">+$86.24</div>
+      <div class="kpi-change up">▲ +3.4%</div>
+      <div class="kpi-extra">5 笔平仓 · 4 盈 1 亏</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 20 L12 17 L24 19 L36 13 L48 15 L60 9 L72 6" stroke="#34D399" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="activity" style="width:12px;height:12px;color:#8B98B5"></i>运行中信号</div>
+      <div class="kpi-value grad">3</div>
+      <div class="kpi-change flat">tick 级待确认</div>
+      <div class="kpi-extra">SOL / VIRTUAL / XPL</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 24 L18 20 L36 22 L54 12 L72 14" stroke="#8B5CF6" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="sliders-horizontal" style="width:15px;height:15px;color:#7DD3FC"></i>参数配置</div>
+      <span class="card-hint">草稿未保存 · 当前生效版本 v3.2.1</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label class="label">胜率假设（%）</label><input class="input" type="number" min="0" max="100" value="55"/></div>
+        <div class="field"><label class="label">盈亏比</label><input class="input" type="number" step="0.1" value="2.0"/></div>
+        <div class="field"><label class="label">止盈（%）</label><input class="input" type="number" step="0.1" value="1.2"/></div>
+        <div class="field"><label class="label">止损（%）</label><input class="input" type="number" step="0.1" value="0.8"/></div>
+        <div class="field"><label class="label">最大持仓（个）</label><input class="input" type="number" value="5"/></div>
+        <div class="field"><label class="label">冷却时间（秒）</label><input class="input" type="number" value="30"/></div>
+        <div class="field"><label class="label">tick 间隔（秒）</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"1"}'><option>0.5</option><option selected>1</option><option>2</option><option>5</option></select></div></div>
+        <div class="field"><label class="label">预算上限（USDT）</label><input class="input" type="number" value="2000"/></div>
+        <div class="field"><label class="label">预算占用上限（%）</label><input class="input" type="number" value="30"/></div>
+        <div class="field"><label class="label">最大单笔亏损（%）</label><input class="input" type="number" step="0.1" value="1.5"/></div>
+      </div>
+      <div class="flex" style="gap:8px;margin-top:14px">
+        <button class="btn btn-ghost2 btn-sm" data-modal="m-adv"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>高级参数</button>
+        <button class="btn btn-ghost2 btn-sm" data-drawer="d-backtest"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17V9"/><path d="M13 17V5"/><path d="M18 17v-7"/></svg>最近回测</button>
+        <button class="btn btn-primary btn-sm" data-modal="m-backtest"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>运行回测</button>
+      </div>
+      <div class="flex flex-end" style="margin-top:2px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+        <button class="btn btn-ghost2 btn-sm">放弃修改</button>
+        <button class="btn btn-primary btn-sm" data-toast='{"type":"ok","title":"保存成功","msg":"配置已保存"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存生效</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="shield" style="width:15px;height:15px;color:#7DD3FC"></i>当前生效配置摘要</div>
+        <span class="card-hint">v3.2.1 · 2025-01-08 14:32 保存</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">胜率假设</span><span class="v">55%</span></div>
+        <div class="kv"><span class="k">盈亏比</span><span class="v">2.0</span></div>
+        <div class="kv"><span class="k">止盈 / 止损</span><span class="v">1.2% / 0.8%</span></div>
+        <div class="kv"><span class="k">最大持仓</span><span class="v">5 个</span></div>
+        <div class="kv"><span class="k">冷却时间</span><span class="v">30s</span></div>
+        <div class="kv"><span class="k">tick 间隔</span><span class="v">1s</span></div>
+        <div class="kv"><span class="k">预算上限</span><span class="v">$2,000</span></div>
+        <div class="kv"><span class="k">预算占用上限</span><span class="v">30%</span></div>
+        <div class="kv"><span class="k">最大单笔亏损</span><span class="v">1.5%</span></div>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="clock" style="width:15px;height:15px;color:#7DD3FC"></i>保存记录与预算</div>
+        <span class="card-hint">最近 1 次</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">上次保存时间</span><span class="v">2025-01-08 14:32:11</span></div>
+        <div class="kv"><span class="k">生效版本</span><span class="v">v3.2.1</span></div>
+        <div class="kv"><span class="k">操作人</span><span class="v">heidalv</span></div>
+        <div class="kv"><span class="k">变更备注</span><span class="v">胜率 53→55 · 冷却 45→30s</span></div>
+        <div class="kv"><span class="k">预算当前占用</span><span class="v">$361.20 · 18%</span></div>
+        <div class="bar" style="margin:6px 0"><div class="bar-fill" style="width:18%"></div></div>
+        <div class="spread tiny muted"><span>已用 $361.20</span><span>上限 $2,000</span></div>
+        <div class="tiny muted" style="margin-top:10px;line-height:1.7">下次保存将生成 v3.2.2 并重新回测近 500 笔 tick 样本，预计耗时 12s。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：高级参数弹窗 ── -->
+  <div class="mask" id="m-adv">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>高级参数</div><div class="modal-sub">仅资深用户 · 默认值与当前生效配置 v3.2.1 一致</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">最小置信度（%）</label><input class="input" type="number" step="0.5" value="72"/></div>
+          <div class="field"><label class="label">ATR 倍数（止损参考）</label><input class="input" type="number" step="0.1" value="1.5"/></div>
+          <div class="field"><label class="label">时间窗口（分钟）</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"30 分钟"}'><option>5</option><option>15</option><option selected>30</option><option>60</option></select></div></div>
+          <div class="field"><label class="label">单币最大仓位（%）</label><input class="input" type="number" step="1" value="20"/></div>
+          <div class="field span2"><label class="label">滑点容忍（bps）</label><input class="input" type="number" step="0.5" value="5"/><div class="tiny muted" style="margin-top:4px">超出容忍范围将跳过该信号，防止插针成交。</div></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"已保存","msg":"高级参数已保存"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：回测参数弹窗 ── -->
+  <div class="mask" id="m-backtest">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>运行回测</div><div class="modal-sub">基于最近 500 笔 tick 样本 · 预计 12s</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label class="label">回测周期</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"1s tick 级"}'><option selected>1s tick 级</option><option>1m</option><option>5m</option><option>15m</option></select></div></div>
+          <div class="field"><label class="label">回测天数</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已切换","msg":"7 天"}'><option selected>7 天</option><option>14 天</option><option>30 天</option></select></div></div>
+          <div class="field"><label class="label">初始资金（USDT）</label><input class="input" type="number" value="2000"/></div>
+          <div class="field"><label class="label">手续费率（%）</label><input class="input" type="number" step="0.001" value="0.05"/></div>
+        </div>
+        <div class="tiny muted" style="line-height:1.7;margin-top:4px">回测使用历史 tick 数据重放，含滑点模型与延迟模拟；结果可在「最近回测」抽屉查看。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"回测已启动","msg":"回测已启动，完成后将弹出通知"}'><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>开始回测</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 二级视图：回测结果抽屉 ── -->
+  <div class="drawer wide" id="d-backtest">
+    <div class="drawer-head">
+      <div><div class="drawer-title">回测结果 · 短线策略</div><div class="drawer-sub">1s tick 级 · 500 笔样本 · 2025-01-08 14:33 完成</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+        <div class="glass kpi" style="padding:12px 14px"><div class="kpi-label">总收益</div><div class="kpi-value grad-green" style="font-size:20px">+$86.24</div><div class="kpi-extra">+4.3% · 500 笔</div></div>
+        <div class="glass kpi" style="padding:12px 14px"><div class="kpi-label">胜率</div><div class="kpi-value" style="font-size:20px">54.8%</div><div class="kpi-extra">置信 95%</div></div>
+        <div class="glass kpi" style="padding:12px 14px"><div class="kpi-label">最大回撤</div><div class="kpi-value grad-red" style="font-size:20px">-2.6%</div><div class="kpi-extra">第 3 日出现</div></div>
+        <div class="glass kpi" style="padding:12px 14px"><div class="kpi-label">盈亏比</div><div class="kpi-value" style="font-size:20px">2.0</div><div class="kpi-extra">止盈 1.2 / 止损 0.8</div></div>
+      </div>
+      <div class="small bold" style="margin-bottom:6px">净值曲线</div>
+      <svg viewBox="0 0 560 120" style="width:100%;height:auto">
+        <line x1="0" y1="95" x2="560" y2="95" stroke="rgba(255,255,255,.08)" stroke-width="1" stroke-dasharray="2 4"/>
+        <line x1="0" y1="60" x2="560" y2="60" stroke="rgba(255,255,255,.08)" stroke-width="1" stroke-dasharray="2 4"/>
+        <path d="M0 96 L40 92 L80 94 L120 84 L160 86 L200 74 L240 78 L280 66 L320 70 L360 58 L400 62 L440 46 L480 50 L520 36 L560 28" stroke="#22D3EE" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M0 96 L40 92 L80 94 L120 84 L160 86 L200 74 L240 78 L280 66 L320 70 L360 58 L400 62 L440 46 L480 50 L520 36 L560 28 L560 120 L0 120 Z" fill="url(#gradArea)" opacity=".35"/>
+        <circle cx="560" cy="28" r="3" fill="#22D3EE"/>
+        <text x="548" y="22" fill="#5C6B88" font-size="8" text-anchor="end">终值 2,086</text>
+      </svg>
+      <div class="spread tiny muted" style="margin:6px 0 12px"><span>初始资金 $2,000</span><span>峰值 $2,128 · 回撤 -2.6%</span></div>
+      <div class="small bold" style="margin-bottom:6px">交易明细（最近 3 笔）</div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>时间</th><th>币种</th><th>方向</th><th class="r">价格</th><th class="r">PnL</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">14:32:11</td><td class="sym">SOL</td><td><span class="badge buy">做多</span></td><td class="r">$142.80</td><td class="r up">+$38.75</td></tr>
+            <tr><td class="mono">14:31:02</td><td class="sym">VIRTUAL</td><td><span class="badge buy">做多</span></td><td class="r">$0.1184</td><td class="r up">+$12.40</td></tr>
+            <tr><td class="mono">14:29:47</td><td class="sym">BNB</td><td><span class="badge sell">做空</span></td><td class="r">$598.20</td><td class="r down">-$5.12</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close>关闭</button>
+      <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"已应用","msg":"回测参数已应用到当前配置"}'><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>应用参数</button>
+    </div>
+  </div>
+</section>

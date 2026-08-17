@@ -80,7 +80,7 @@ function GpMinerPanel({
       title="GP 挖掘器"
       icon={<ListTree className="w-3.5 h-3.5 text-muted-foreground" />}
       badge={
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-profit/10 text-green-600 dark:text-profit border border-green-500/20">
           joblib 并行
         </span>
       }
@@ -199,7 +199,7 @@ function ThreadConfig({ configs }: { configs: ConfigItem[] }) {
         </span>
       </div>
       {msg && (
-        <p className={cn("text-[11px]", msg.ok ? "text-green-600 dark:text-green-400" : "text-red-500")}>
+        <p className={cn("text-[11px]", msg.ok ? "text-green-600 dark:text-profit" : "text-red-500")}>
           {msg.text}
         </p>
       )}

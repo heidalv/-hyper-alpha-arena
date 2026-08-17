@@ -208,6 +208,15 @@ def run_trend_review(
         if p.get("status") != "open":
             continue
 
+        # [2026-08-16 long_trend_v2] 长线仓由 V2 每日管理器接管，跳过本超时复查。
+        try:
+            from backend.services.long_trend_v2 import long_v2_enabled
+            _v2_on = long_v2_enabled()
+        except Exception:
+            _v2_on = False
+        if _v2_on and str(p.get("timeframe_tier") or "").lower() == "long":
+            continue
+
         sym = p.get("symbol", "")
         pid = p.get("id")
         if not sym or not pid:
@@ -244,14 +253,25 @@ def run_trend_review(
             "hold_hours": hold_hours, "leverage": lev,
         }
 
-        # 调 TrendAgent 复查
-        _review = trend_agent.review_position(
-            symbol=sym, side=side, position=_pos_ctx,
-            reports=host.last_analyst_reports or {},
-            market_envs=market_summary or {},
-            account_id=account_id,
-            db=db,
-        )
+        # 复查：[2026-08-16] 默认走确定性规则（与模式 B 管理同一 _rule_direction），
+        # MIDLONG_REVIEW_LLM=true 回滚 trend_agent LLM。
+        try:
+            _use_llm = os.getenv("MIDLONG_REVIEW_LLM", "false").strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+        except Exception:
+            _use_llm = False
+        if _use_llm:
+            _review = trend_agent.review_position(
+                symbol=sym, side=side, position=_pos_ctx,
+                reports=host.last_analyst_reports or {},
+                market_envs=market_summary or {},
+                account_id=account_id,
+                db=db,
+            )
+        else:
+            from backend.services.full_auto.midlong_position_manager import _rule_direction
+            _review = _rule_direction(sym, p, market_summary)
         _action = _review.get("action", "hold")
         _reasoning = _review.get("reasoning", "")[:120]
 

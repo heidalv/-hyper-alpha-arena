@@ -654,6 +654,12 @@ def _midlong_horizon(r: Dict[str, Any]) -> bool:
     return str((r.get("extra") or {}).get("horizon") or "scalp").lower() == "midlong"
 
 
+# [2026-08-16] K 线预检缓存：GUI 高频轮询本端点，每次 18 次全量 K 线查询
+# （9 币 × 4h/1d × ~2400 根）对 DB 池压力大且结果分钟级不变。
+_MIDLONG_PREFLIGHT_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
+_MIDLONG_PREFLIGHT_TTL_SEC = 60.0
+
+
 @router.get("/midlong-factors")
 def ops_midlong_factors() -> Dict[str, Any]:
     """中线因子概况：活跃/候选/拒绝计数、按时间框架、Top 活跃、最近回测证据、
@@ -701,32 +707,46 @@ def ops_midlong_factors() -> Dict[str, Any]:
     ]
 
     # K 线预检：与打分器同源（get_klines_from_db），确保「能挖」判断真实
-    preflight: Dict[str, Any] = {"symbols": [], "rows": {}}
-    try:
-        _syms = [
-            s.strip().upper()
-            for s in str(_s.FACTOR_SCORER_SYMBOLS if hasattr(_s, "FACTOR_SCORER_SYMBOLS")
-                         else "BTC,ETH,SOL").split(",")
-            if s.strip()
-        ]
-        _lookback = int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 900))
-        from backend.services.kline_data_service import kline_service
+    # [2026-08-16] 60s TTL 缓存，避免 GUI 高频轮询重复触发 18 次全量 K 线查询。
+    preflight: Dict[str, Any]
+    _now = time.time()
+    if (
+        _MIDLONG_PREFLIGHT_CACHE["data"] is not None
+        and (_now - _MIDLONG_PREFLIGHT_CACHE["ts"]) < _MIDLONG_PREFLIGHT_TTL_SEC
+    ):
+        preflight = dict(_MIDLONG_PREFLIGHT_CACHE["data"])
+    else:
+        preflight = {"symbols": [], "rows": {}}
+        try:
+            _syms = [
+                s.strip().upper()
+                for s in str(_s.FACTOR_SCORER_SYMBOLS if hasattr(_s, "FACTOR_SCORER_SYMBOLS")
+                             else "BTC,ETH,SOL").split(",")
+                if s.strip()
+            ]
+            from backend.services.factor_engine.factor_backtest_scorer import midlong_lookback_for
+            from backend.services.kline_data_service import kline_service
 
-        preflight["symbols"] = _syms
-        for tf in ("4h", "1d"):
-            preflight["rows"][tf] = {}
-            for sym in _syms:
-                try:
-                    rows = kline_service.get_klines_from_db(sym, tf, _lookback) or []
-                    preflight["rows"][tf][sym] = len(rows)
-                except Exception:
-                    preflight["rows"][tf][sym] = -1
-        preflight["need_bars"] = _lookback
-        preflight["ok"] = all(
-            (n or 0) >= 120 for tf in preflight["rows"] for n in preflight["rows"][tf].values()
-        )
-    except Exception as e:
-        preflight["error"] = str(e)[:150]
+            preflight["symbols"] = _syms
+            preflight["need_bars"] = {}
+            for tf in ("4h", "1d"):
+                lb = midlong_lookback_for(tf)
+                preflight["need_bars"][tf] = lb
+                preflight["rows"][tf] = {}
+                for sym in _syms:
+                    try:
+                        rows = kline_service.get_klines_from_db(sym, tf, lb) or []
+                        preflight["rows"][tf][sym] = len(rows)
+                    except Exception:
+                        preflight["rows"][tf][sym] = -1
+            preflight["ok"] = all(
+                (n or 0) >= preflight["need_bars"][tf]
+                for tf in preflight["rows"] for n in preflight["rows"][tf].values()
+            )
+        except Exception as e:
+            preflight["error"] = str(e)[:150]
+        _MIDLONG_PREFLIGHT_CACHE["ts"] = time.time()
+        _MIDLONG_PREFLIGHT_CACHE["data"] = dict(preflight)
 
     return {
         "health": health,
@@ -736,7 +756,8 @@ def ops_midlong_factors() -> Dict[str, Any]:
         "rejected_count": len(rejected),
         "preflight": preflight,
         "gate_config": {
-            "lookback": int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 900)),
+            "lookback": int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK", 2400)),
+            "lookback_1d": int(getattr(_s, "FACTOR_SCORER_MIDLONG_LOOKBACK_1D", 1000)),
             "fwd_4h": int(getattr(_s, "FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
             "fwd_1d": int(getattr(_s, "FACTOR_SCORER_MIDLONG_FWD_1D", 3)),
             "min_sharpe": float(getattr(_s, "FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
@@ -745,6 +766,66 @@ def ops_midlong_factors() -> Dict[str, Any]:
         },
     }
 
+
+@router.get("/long-trend-v2")
+def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]:
+    """长线 V2 规则化状态：每个固定长线币的 L1 状态/score/strength（无 LLM）。只读。"""
+    from backend.services.long_trend_v2 import long_v2_enabled
+    from backend.services.trend_layer import classify
+    from backend.services.kline_data_service import kline_service
+    import pandas as pd
+
+    enabled = long_v2_enabled()
+    symbols: list = []
+    try:
+        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+        if session_id:
+            symbols = list(get_fixed_symbols_for_session(session_id, tier="long") or [])
+    except Exception:
+        symbols = []
+    if not symbols:
+        try:
+            from backend.database.connection import SessionLocal
+            from backend.database.models import FullAutoSession
+            db = SessionLocal()
+            try:
+                db.execute(text("SET app.tenant_id='326'"))
+                db.execute(text("SET app.is_admin='on'"))
+                sess = db.query(FullAutoSession).filter(
+                    FullAutoSession.status.in_(["running", "defensive"])
+                ).order_by(FullAutoSession.id.desc()).first()
+                if sess:
+                    by_tier = getattr(sess, "fixed_symbols_by_tier", None) or {}
+                    if isinstance(by_tier, dict):
+                        symbols = list(by_tier.get("long") or [])
+            finally:
+                db.close()
+        except Exception:
+            symbols = []
+
+    out: list = []
+    for s in symbols:
+        sym = str(s).upper()
+        row = {"symbol": sym, "state": "sideways", "score": 0, "strength": 0.0, "close": None, "note": ""}
+        try:
+            rows = kline_service.get_klines_from_db(sym, "1d", 1200)
+            if not rows or len(rows) < 260:
+                row["note"] = "1d 数据不足(<260根)"
+            else:
+                df = pd.DataFrame(rows)
+                for c in ("open", "high", "low", "close"):
+                    df[c] = pd.to_numeric(df[c], errors="coerce")
+                df = df.dropna(subset=["close", "high", "low"]).reset_index(drop=True)
+                c = classify(df)
+                row["state"] = c.get("state", "sideways")
+                row["score"] = c.get("score", 0)
+                row["strength"] = c.get("strength", 0.0)
+                row["close"] = c.get("close")
+        except Exception as e:
+            row["note"] = f"判定异常: {type(e).__name__}"
+        out.append(row)
+
+    return {"enabled": enabled, "symbols": out}
 
 @router.post("/midlong-factors/mine")
 def ops_midlong_mine(validate: bool = Query(True, description="灌库后立即排队样本外回测")):

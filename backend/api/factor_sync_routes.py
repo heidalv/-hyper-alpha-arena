@@ -415,9 +415,12 @@ def midlong_health(
 
     每 tier（mid=中线 / long=长线）滚动胜率/净期望/笔数与开仓活跃度、长线周开单 vs
     上限、各层预算利用率、当前生效的开仓门槛、以及中长线激活开关状态。
+
+    [2026-08-17] midlong_health_report 已删除（24h 零活动）：本端点改为从
+    trade_facts 实时汇总，不再依赖已删除的报告模块。
     """
-    from backend.services.midlong_health_report import build_midlong_health
-    return build_midlong_health(lookback_days=lookback_days, account_id=account_id)
+    from backend.services.full_auto.midlong_helpers import build_midlong_health_from_facts
+    return build_midlong_health_from_facts(lookback_days=lookback_days, account_id=account_id)
 
 
 @router.post("/alpha101/seed")

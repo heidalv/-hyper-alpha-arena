@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 SOURCE_WEIGHTS = {"live": 1.0, "paper": 0.6, "backtest": 0.3}
 
-TIER_TO_NATURE = {"short": "scalp", "mid": "swing", "long": "position"}
+# [P1-7 单一权威] tier→nature 映射唯一来源 tp_sl_authority（此前本模块另存一份
+# long→position，与交易侧 long→trend_follow 分叉 → 学习归因口径不一致）。
+from backend.services.tp_sl_authority import TIER_TO_NATURE
 
 # EMA 更新平滑因子基数（乘以 source weight）
 # Increased from 0.1 to 0.15 for faster adaptation to market regime changes
@@ -214,7 +216,7 @@ class UnifiedLearningService:
                 self._persist_strategy_trade(db, outcome)
             self._update_regime_score(db, outcome, weight)
             self._update_strategy_memory(db, outcome)
-            self._track_loss_streak(outcome)
+            self._track_loss_streak(outcome, db)  # [P1-5] 落库，重启恢复
             self._check_adaptation_needed(db, outcome)
             self._check_divergence(db, outcome)
             self._check_prompt_evolution_trigger(db, outcome)
@@ -552,6 +554,7 @@ class UnifiedLearningService:
             for _key in (
                 "paper_position_id",
                 "paper_order_id",
+                "decision_log_id",  # [P1-4] live 补扫去重键
                 "closed_at",
                 "close_reason",
                 "exchange",
@@ -1025,8 +1028,51 @@ class UnifiedLearningService:
     #  亏损追踪 & 自适应
     # ══════════════════════════════════════════════════
 
-    def _track_loss_streak(self, outcome: TradeOutcome):
-        """追踪连续亏损"""
+    def _restore_runtime_state(self, db) -> bool:
+        """[P1-5] 从 SystemCoordinatorState 恢复连亏 streak/计数器（重启后）。"""
+        if getattr(self, "_runtime_restored", False):
+            return True
+        try:
+            import json as _json
+            from backend.database.models import SystemCoordinatorState
+            _row = db.query(SystemCoordinatorState).first()
+            if _row and _row.runtime_state_json:
+                _state = _json.loads(_row.runtime_state_json) or {}
+                self._loss_streaks.update(_state.get("loss_streaks") or {})
+                self._trade_counters.update(_state.get("trade_counters") or {})
+                logger.info(
+                    "[UnifiedLearning] 恢复运行时状态: streaks=%d counters=%d",
+                    len(self._loss_streaks), len(self._trade_counters),
+                )
+            self._runtime_restored = True
+            return True
+        except Exception as e:
+            logger.debug("[UnifiedLearning] 运行时状态恢复失败: %s", e)
+            return False
+
+    def _persist_runtime_state(self, db) -> None:
+        """[P1-5] 把 streak/计数器写入 SystemCoordinatorState（幂等 upsert）。"""
+        try:
+            import json as _json
+            from backend.database.models import SystemCoordinatorState
+            _row = db.query(SystemCoordinatorState).first()
+            _payload = _json.dumps({
+                "loss_streaks": dict(self._loss_streaks),
+                "trade_counters": dict(self._trade_counters),
+            })
+            if _row is None:
+                _row = SystemCoordinatorState(runtime_state_json=_payload)
+                db.add(_row)
+            else:
+                _row.runtime_state_json = _payload
+            db.flush()
+        except Exception as e:
+            logger.debug("[UnifiedLearning] 运行时状态持久化失败: %s", e)
+
+    def _track_loss_streak(self, outcome: TradeOutcome, db=None):
+        """追踪连续亏损（[P1-5] 落库，重启恢复）"""
+        if db is not None:
+            self._restore_runtime_state(db)
         key = outcome.strategy_id or outcome.template_id
         if not key:
             return
@@ -1034,6 +1080,8 @@ class UnifiedLearningService:
             self._loss_streaks[key] = self._loss_streaks.get(key, 0) + 1
         else:
             self._loss_streaks[key] = 0
+        if db is not None:
+            self._persist_runtime_state(db)
 
     def _permanently_disable_strategy(self, db, outcome, streak: int):
         """永久禁用极端亏损策略（≥50次连亏）。"""
@@ -1296,8 +1344,10 @@ class UnifiedLearningService:
         if not key:
             return
 
+        self._restore_runtime_state(db)  # [P1-5] 重启恢复
         self._trade_counters[key] = self._trade_counters.get(key, 0) + 1
         streak = self._loss_streaks.get(key, 0)
+        self._persist_runtime_state(db)
         trigger_interval = self._prompt_evo_interval
         if outcome.source == "paper":
             # paper 也参与复盘，但门槛高于 live，避免模拟样本过快改写策略判断。

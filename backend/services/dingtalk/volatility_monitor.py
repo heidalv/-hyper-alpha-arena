@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from backend.database.connection import SessionLocal
-from database.models import DingTalkBot
+from backend.database.models import DingTalkBot
 from services.dingtalk.notification_service import get_notification_service
 
 logger = logging.getLogger(__name__)

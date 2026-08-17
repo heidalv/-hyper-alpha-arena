@@ -1,0 +1,584 @@
+<section class="page" id="page-live-trading" data-title="实盘交易">
+  <!-- 页头 -->
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></span>实盘交易 <span class="tag cyan">LIVE</span></h1>
+      <p class="page-sub">Hyperliquid · Asterdex 多交易所 · 实时推送 2s 刷新</p>
+    </div>
+    <div class="page-actions">
+      <div style="position:relative">
+        <button class="btn btn-ghost2 btn-sm" data-menu="m-acc-live"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>账户 ast-01<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div class="menu" id="m-acc-live" style="top:34px;right:0">
+          <div class="menu-item" data-toast='{"type":"ok","title":"已切换账户","msg":"当前账户：ast-01 主账户 · Hyperliquid"}'><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>ast-01 主账户</span><span class="tiny muted" style="margin-left:auto">$12,480.52</span></div>
+          <div class="menu-item" data-toast='{"type":"ok","title":"已切换账户","msg":"当前账户：ast-02 备用账户 · Asterdex"}'><span style="width:14px"></span><span>ast-02 备用</span><span class="tiny muted" style="margin-left:auto">$8,214.30</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-item" data-toast='{"type":"info","title":"账户管理","msg":"请前往「交易所」页管理 API 凭证"}'><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>账户管理…</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost2 btn-sm"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>刷新</button>
+      <button class="btn btn-primary btn-sm"><i data-ico="monitor" style="width:13px;height:13px"></i>跟单机器人</button>
+    </div>
+  </div>
+
+  <!-- 账户 KPI 6 张 + 持仓风险巡检倒计时 -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="wallet" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">总权益</div>
+      <div class="kpi-value grad count-up" data-val="12480.52" data-dec="2" data-pre="$" style="font-size:24px">$0.00</div>
+      <div class="kpi-change up">▲ +0.78%</div>
+      <div class="kpi-extra num">较昨日 +$96.20</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="coins" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">可用</div>
+      <div class="kpi-value grad count-up" data-val="11302.18" data-dec="2" data-pre="$" style="font-size:24px">$0.00</div>
+      <div class="kpi-change flat">可用率 90.56%</div>
+      <div class="kpi-extra num">已用保证金 $800.00</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="trending-up" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">浮动盈亏</div>
+      <div class="kpi-value grad-green count-up" data-val="378.34" data-dec="2" data-pre="+$">+$0.00</div>
+      <div class="kpi-change up">▲ +3.03%</div>
+      <div class="kpi-extra num">盈利 5 笔 / 亏损 1 笔</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="shield" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">已用保证金</div>
+      <div class="kpi-value grad">$800.00</div>
+      <div class="kpi-change flat">保证金率 6.41%</div>
+      <div class="kpi-extra num">2 个交易所占用</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">持仓数</div>
+      <div class="kpi-value grad">6</div>
+      <div class="kpi-change up">今日盈亏 +$42.10</div>
+      <div class="kpi-extra num">交易对 6 个</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-ico"><i data-ico="alert-triangle" style="width:15px;height:15px;color:#7DD3FC"></i></div>
+      <div class="kpi-label">持仓风险</div>
+      <div class="kpi-value" style="font-size:22px;color:#34D399">正常</div>
+      <div style="margin-top:8px"><span class="cd cd-auto" data-cd="15"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>风控巡检 <b>15</b>s</span></div>
+      <div class="kpi-extra num" style="margin-top:4px">熔断阈值 10% · 当前 9.2%</div>
+    </div>
+  </div>
+
+  <!-- 手动交易表单 + Asterdex 积分 -->
+  <div class="grid-1-2">
+    <div class="glass">
+      <div class="card-head" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div class="spread">
+          <div class="card-title"><i data-ico="zap" style="width:15px;height:15px;color:#7DD3FC"></i>手动交易</div>
+          <span class="card-hint">Hyperliquid 主账户</span>
+        </div>
+        <div class="row" style="justify-content:space-between;padding-top:7px;border-top:1px dashed rgba(255,255,255,.08)">
+          <div class="row" style="gap:6px;font-size:11px;color:#8B98B5">实时报价 <span class="mono" style="color:#C9D4E8">BTC-USD</span> <span class="num up" style="font-weight:700;font-size:12px">$70,905.00</span> <span class="num up" style="font-size:10px">+0.62%</span></div>
+          <span class="lag">行情延迟 0.4s</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="seg" style="display:flex;width:100%;margin-bottom:12px">
+          <button class="seg-item active" style="flex:1;justify-content:center;background:linear-gradient(135deg,#34D399,#6EE7B7);color:#041018;font-weight:700">做多</button>
+          <button class="seg-item" style="flex:1;justify-content:center;background:rgba(251,113,133,.14);color:#FB7185;border:1px solid rgba(251,113,133,.35);font-weight:700">做空</button>
+        </div>
+        <div class="field">
+          <label class="label">交易对<span class="req">*</span></label>
+          <div class="row" style="gap:8px;align-items:center">
+            <div class="dd" style="flex:1;min-width:0">
+              <button class="dd-btn"><i data-ico="coins" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">BTC-USD</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+              <div class="dd-menu">
+                <div class="dd-item sel" data-toast='{"type":"info","title":"已切换","msg":"交易对：BTC-USD"}'>BTC-USD</div>
+                <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"交易对：ETH-USD"}'>ETH-USD</div>
+                <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"交易对：SOL-USD"}'>SOL-USD</div>
+                <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"交易对：BNB-USD"}'>BNB-USD</div>
+              </div>
+            </div>
+            <span class="badge ok"><span class="bdot"></span>已验证</span>
+          </div>
+          <div class="field-hint">Asterdex 深度校验通过 · 流动性充足</div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label class="label">数量<span class="req">*</span></label>
+            <div class="stepper" style="border-color:rgba(251,113,133,.55);box-shadow:0 0 0 3px rgba(251,113,133,.12)">
+              <button>−</button>
+              <input class="err" value="0.020" style="color:#FB7185">
+              <button>+</button>
+            </div>
+            <div class="field-err"><svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>输入数量超出可用余额 · 最大可开 0.012 BTC</div>
+          </div>
+          <div class="field">
+            <label class="label">杠杆<span class="req">*</span></label>
+            <div class="range-row"><input class="range" type="range" min="1" max="20" value="5"><span class="range-val">5x</span></div>
+            <div class="range-ticks"><span>1x</span><span>5x</span><span>10x</span><span>15x</span><span>20x</span></div>
+          </div>
+        </div>
+        <div class="field"><label class="label">限价</label>
+          <div class="input-group"><span class="pre">$</span><input class="input" value="69,200.00"><span class="post">USD</span></div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="label">止盈 TP</label><input class="input" placeholder="71,500.00"></div>
+          <div class="field"><label class="label">止损 SL</label><input class="input" placeholder="66,900.00"></div>
+        </div>
+        <div class="field">
+          <div class="spread" style="margin-bottom:6px"><label class="label" style="margin-bottom:0">仓位快捷填充</label><span class="tiny muted">按可用余额比例</span></div>
+          <div class="chip-row">
+            <button class="chip-btn">25%</button>
+            <button class="chip-btn on">50%</button>
+            <button class="chip-btn">75%</button>
+            <button class="chip-btn">100%</button>
+          </div>
+        </div>
+        <div class="kv" style="padding:5px 0"><span class="k">预估保证金</span><span class="v">$276.80</span></div>
+        <div class="kv" style="padding:5px 0"><span class="k">预估滑点</span><span class="v muted">$0.42</span></div>
+        <div class="kv" style="padding:5px 0"><span class="k">盈亏比</span><span class="v">1 : 1.68</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+          <div style="padding:7px 4px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);text-align:center">
+            <div class="tiny muted">保证金</div>
+            <div class="num" style="font-size:11.5px;font-weight:600;color:#EAF0FA;margin-top:2px">$276.80</div>
+          </div>
+          <div style="padding:7px 4px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);text-align:center">
+            <div class="tiny muted">手续费</div>
+            <div class="num" style="font-size:11.5px;font-weight:600;color:#EAF0FA;margin-top:2px">$0.14</div>
+          </div>
+          <div style="padding:7px 4px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);text-align:center">
+            <div class="tiny muted">强平价</div>
+            <div class="num" style="font-size:11.5px;font-weight:600;color:#FBBF24;margin-top:2px">$63,420</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:10px" data-confirm='{"title":"确认下单？","msg":"做多 BTC-USD 0.020 × 5x · 预估保证金 $276.80\nTP 71,500.00 / SL 66,900.00","danger":false}' data-toast='{"type":"ok","title":"订单已提交","msg":"BTC-USD 做多 0.020 已发送至 Hyperliquid 主账户"}'><i data-ico="zap" style="width:13px;height:13px"></i>开仓</button>
+      </div>
+    </div>
+
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="star" style="width:15px;height:15px;color:#7DD3FC"></i>Asterdex 积分</div>
+        <div class="row" style="gap:8px">
+          <span class="badge violet">Rh 赛季 S2</span>
+          <span class="card-hint">更新于 30s 前</span>
+          <button class="row-btn cyan" data-drawer="d-points"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>查看积分明细</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">当前 Rh 积分</div>
+            <div class="kpi-value grad" style="font-size:22px;margin-top:5px"><span class="count-up" data-val="1284" data-dec="0">0</span></div>
+            <div class="kpi-change up">今日 +96</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">赛季阶段</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">S2</div>
+            <div class="kpi-extra num">第 7 周 / 共 12 周</div>
+            <div style="margin-top:6px"><span class="cd cd-auto" data-cd="45"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>赛季剩余 <b>45</b> 天</span></div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">空投预估价值</div>
+            <div class="kpi-value grad" style="font-size:22px;margin-top:5px">$312.50</div>
+            <div class="kpi-extra num">1 Rh ≈ $0.2434</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">预计月价值</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">$86.20</div>
+            <div class="kpi-change up">近 30 天均值</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">7日交易量</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">$24,580</div>
+            <div class="kpi-change up">较上周 +12.4%</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">返佣率</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">0.03%</div>
+            <div class="kpi-extra num">VIP 加成 +0.005%</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">预计返佣</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">$7.40</div>
+            <div class="kpi-change up">7 日累计</div>
+          </div>
+          <div class="kpi" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px 14px">
+            <div class="kpi-label">预计积分</div>
+            <div class="kpi-value" style="font-size:22px;margin-top:5px">960</div>
+            <div class="kpi-extra num">下一结算 06-25 08:00</div>
+          </div>
+        </div>
+        <div class="card-head" style="padding:0 0 8px">
+          <div class="card-title" style="font-size:12px">积分历史</div>
+          <span class="card-hint">近 4 日</span>
+        </div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>时间</th><th class="r">积分</th><th class="r">乘数</th><th class="r">空投预估</th><th class="r">7日交易量</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">06-22 今日</span></td>
+              <td class="r up">+96</td>
+              <td class="r">1.0x</td>
+              <td class="r">$312.50</td>
+              <td class="r">$24,580</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-21</span></td>
+              <td class="r up">+142</td>
+              <td class="r">1.0x</td>
+              <td class="r">$305.80</td>
+              <td class="r">$22,140</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-20</span></td>
+              <td class="r up">+118</td>
+              <td class="r">0.8x</td>
+              <td class="r">$288.40</td>
+              <td class="r">$19,760</td>
+            </tr>
+            <tr>
+              <td><span class="mono">06-19</span></td>
+              <td class="r up">+164</td>
+              <td class="r">0.8x</td>
+              <td class="r">$271.20</td>
+              <td class="r">$18,020</td>
+            </tr>
+          </tbody>
+        </table></div>
+        <div class="pager">
+          <span class="pager-info">共 48 条 · 第 1/4 页</span>
+          <button class="pager-btn dis">‹</button><button class="pager-btn on">1</button><button class="pager-btn">2</button><button class="pager-btn">3</button><button class="pager-btn">4</button><button class="pager-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 当前持仓表 -->
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>当前持仓</div>
+      <span class="card-hint">共 6 笔 · 更新于 2s 前</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="row" style="justify-content:space-between;gap:10px;margin:6px 8px 10px;padding:8px 12px;border-radius:9px;background:rgba(251,113,133,.07);border:1px solid rgba(251,113,133,.22)">
+        <span class="small" style="color:#FECDD3">已选 <b class="num" style="color:#FB7185">2</b> 仓 · BTC-USD / ETH-USD</span>
+        <button class="btn btn-danger btn-sm" data-confirm='{"title":"批量平仓？","msg":"将按市价平掉已选 2 个仓位（BTC-USD / ETH-USD）","danger":true}'><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>批量平仓</button>
+      </div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th style="width:34px"><label class="ck on"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></th>
+          <th>币种</th><th>方向</th><th class="r">开仓价</th><th class="r">当前价</th><th class="r">数量</th><th class="r">杠杆</th><th class="r">保证金</th><th class="r sortable sorted">浮盈<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th class="r">盈亏%</th><th class="c">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><label class="ck on"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">BTC-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td class="r">69,050.00</td>
+            <td class="r">71,248.50</td>
+            <td class="r">0.025 <span class="sub">BTC</span></td>
+            <td class="r">5x</td>
+            <td class="r">$345.25</td>
+            <td class="r up"><span class="count-up" data-val="54.96" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+31.85%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 BTC-USD 0.025 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+          <tr>
+            <td><label class="ck on"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">ETH-USD</span></td>
+            <td><span class="badge sell">做空</span></td>
+            <td class="r">3,528.00</td>
+            <td class="r">3,486.20</td>
+            <td class="r">0.800 <span class="sub">ETH</span></td>
+            <td class="r">10x</td>
+            <td class="r">$282.24</td>
+            <td class="r up"><span class="count-up" data-val="33.44" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+11.85%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 ETH-USD 0.800 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+          <tr>
+            <td><label class="ck"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">SOL-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td class="r">169.20</td>
+            <td class="r">172.85</td>
+            <td class="r">4.000 <span class="sub">SOL</span></td>
+            <td class="r">10x</td>
+            <td class="r">$67.68</td>
+            <td class="r up"><span class="count-up" data-val="14.60" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+21.57%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 SOL-USD 4.000 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+          <tr>
+            <td><label class="ck"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">ARB-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td class="r">0.9850</td>
+            <td class="r">1.0215</td>
+            <td class="r">1,200 <span class="sub">ARB</span></td>
+            <td class="r">20x</td>
+            <td class="r">$59.10</td>
+            <td class="r up"><span class="count-up" data-val="43.80" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+74.11%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 ARB-USD 1,200 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+          <tr>
+            <td><label class="ck"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">BNB-USD</span></td>
+            <td><span class="badge sell">做空</span></td>
+            <td class="r">601.20</td>
+            <td class="r">588.10</td>
+            <td class="r">0.300 <span class="sub">BNB</span></td>
+            <td class="r">5x</td>
+            <td class="r">$36.07</td>
+            <td class="r up"><span class="count-up" data-val="3.93" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+10.90%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 BNB-USD 0.300 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+          <tr>
+            <td><label class="ck"><span class="ck-box"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></label></td>
+            <td><span class="sym">OP-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td class="r">2.4180</td>
+            <td class="r">2.5180</td>
+            <td class="r">300 <span class="sub">OP</span></td>
+            <td class="r">10x</td>
+            <td class="r">$72.54</td>
+            <td class="r up"><span class="count-up" data-val="30.00" data-dec="2" data-pre="+$">+$0.00</span></td>
+            <td class="r up">+41.36%</td>
+            <td class="c">
+              <button class="row-btn red" data-confirm='{"title":"确认平仓？","msg":"将按市价平掉 OP-USD 300 仓位","danger":true}'>平仓</button>
+              <button class="row-btn green" data-modal="m-adjust">加仓</button>
+              <button class="row-btn cyan" data-modal="m-adjust">减仓</button>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot><tr>
+          <td colspan="7">合计 <span class="tiny muted">6 笔持仓</span></td>
+          <td class="r">$800.00</td>
+          <td class="r up">+$378.34</td>
+          <td class="r up">+47.29%</td>
+          <td></td>
+        </tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 挂单表 + 最近成交 -->
+  <div class="grid-2-1">
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="arrow-down" style="width:15px;height:15px;color:#7DD3FC"></i>挂单</div>
+      <span class="card-hint">共 5 笔 · 全部市场</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>交易对</th><th>方向</th><th>类型</th><th class="r">价格</th><th class="r">数量</th><th class="r">已成交</th><th>状态</th><th class="c">操作</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">BTC-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">限价单</span></td>
+            <td class="r">68,500.00</td>
+            <td class="r">0.020 <span class="sub">BTC</span></td>
+            <td class="r">0.000 <span class="sub">/ 0.020</span></td>
+            <td><span class="ord-flow"><span class="st on">挂单</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">部分成交</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">成交中</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">完成</span></span></td>
+            <td class="c"><button class="row-btn red" data-confirm='{"title":"撤除此挂单？","msg":"限价单 BTC-USD 0.020 @ 68,500","danger":true}'>撤单</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">SOL-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">限价单</span></td>
+            <td class="r">168.00</td>
+            <td class="r">4.000 <span class="sub">SOL</span></td>
+            <td class="r">1.500 <span class="sub">/ 4.000</span></td>
+            <td><span class="ord-flow"><span class="st done">挂单</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st done">部分成交 38%</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st on">成交中</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">完成</span></span></td>
+            <td class="c"><button class="row-btn red" data-confirm='{"title":"撤除此挂单？","msg":"限价单 SOL-USD 4.000 @ 168.00","danger":true}'>撤单</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">ETH-USD</span></td>
+            <td><span class="badge sell">做空</span></td>
+            <td><span class="tag">止盈单</span></td>
+            <td class="r">3,420.00</td>
+            <td class="r">0.400 <span class="sub">ETH</span></td>
+            <td class="r">0.400 <span class="sub">/ 0.400</span></td>
+            <td><span class="ord-flow"><span class="st done">挂单</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st done">部分成交</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st done">成交中</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st done">完成</span></span></td>
+            <td class="c"><span class="sub">已完成</span></td>
+          </tr>
+          <tr>
+            <td><span class="sym">ARB-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">限价单</span></td>
+            <td class="r">0.9700</td>
+            <td class="r">1,200 <span class="sub">ARB</span></td>
+            <td class="r">0.000 <span class="sub">/ 1,200</span></td>
+            <td><span class="ord-flow"><span class="st on">挂单</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">部分成交</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">成交中</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st">完成</span></span></td>
+            <td class="c"><button class="row-btn red" data-confirm='{"title":"撤除此挂单？","msg":"限价单 ARB-USD 1,200 @ 0.9700","danger":true}'>撤单</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">OP-USD</span></td>
+            <td><span class="badge buy">做多</span></td>
+            <td><span class="tag">限价单</span></td>
+            <td class="r">2.4500</td>
+            <td class="r">200 <span class="sub">OP</span></td>
+            <td class="r">0.000 <span class="sub">/ 200</span></td>
+            <td><span class="ord-flow"><span class="st done">挂单</span><span class="arrow" style="font-size:8px;opacity:.55;color:#5C6B88">→</span><span class="st" style="color:#FB7185">已撤单</span></span></td>
+            <td class="c"><span class="sub">已撤单</span></td>
+          </tr>
+        </tbody>
+        <tfoot><tr>
+          <td colspan="6">活跃 <b class="up">3</b> · 已成交 <b class="up">1</b> · 已撤单 <b>1</b></td>
+          <td class="c"><span class="badge info"><span class="bdot"></span>3 笔在途</span></td>
+          <td></td>
+        </tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="zap" style="width:15px;height:15px;color:#7DD3FC"></i>最近成交<span class="row" style="gap:4px;margin-left:2px;font-size:9.5px;font-weight:700;letter-spacing:.08em;color:#34D399"><span class="dot pulse" style="width:6px;height:6px"></span>LIVE</span></div>
+      <span class="lag ok">延迟 0.4s</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>时间</th><th class="r">价格</th><th class="r">数量</th><th class="c">方向</th>
+        </tr></thead>
+        <tbody>
+          <tr class="flash-up">
+            <td class="mono" style="color:#7C8AA8">14:32:08</td>
+            <td class="r up">70,905.00</td>
+            <td class="r">0.0042 <span class="sub">BTC</span></td>
+            <td class="c"><span class="badge buy">买入</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:31:55</td>
+            <td class="r down">3,486.20</td>
+            <td class="r">0.320 <span class="sub">ETH</span></td>
+            <td class="c"><span class="badge sell">卖出</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:31:40</td>
+            <td class="r up">172.85</td>
+            <td class="r">1.500 <span class="sub">SOL</span></td>
+            <td class="c"><span class="badge buy">买入</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:31:22</td>
+            <td class="r down">588.10</td>
+            <td class="r">0.050 <span class="sub">BNB</span></td>
+            <td class="c"><span class="badge sell">卖出</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:31:03</td>
+            <td class="r up">1.0215</td>
+            <td class="r">300 <span class="sub">ARB</span></td>
+            <td class="c"><span class="badge buy">买入</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:30:41</td>
+            <td class="r down">70,898.00</td>
+            <td class="r">0.0010 <span class="sub">BTC</span></td>
+            <td class="c"><span class="badge sell">卖出</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="color:#7C8AA8">14:30:17</td>
+            <td class="r up">2.5180</td>
+            <td class="r">80 <span class="sub">OP</span></td>
+            <td class="c"><span class="badge buy">买入</span></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ══ 二级视图：Asterdex 积分明细抽屉 ══ -->
+  <div class="drawer wide" id="d-points">
+    <div class="drawer-head">
+      <div><div class="drawer-title">积分明细 · Asterdex</div><div class="drawer-sub">Rh 赛季 S2 · 更新于 30s 前</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv"><span class="k">当前 Rh 积分</span><span class="v">1,284</span></div>
+      <div class="kv"><span class="k">赛季阶段</span><span class="v">S2 · 第 7 周 / 共 12 周</span></div>
+      <div class="kv"><span class="k">空投预估价值</span><span class="v">$312.50 <span class="small muted">1 Rh ≈ $0.2434</span></span></div>
+      <div class="kv"><span class="k">返佣率</span><span class="v">0.03% <span class="small muted">VIP 加成 +0.005%</span></span></div>
+      <div class="kv"><span class="k">预计积分</span><span class="v up">+960 <span class="small muted">下一结算 06-25 08:00</span></span></div>
+      <div class="spread" style="margin:14px 0 4px"><span class="small muted">赛季进度 · 第 7 周</span><span class="num tiny">58%</span></div>
+      <div class="bar" style="margin:4px 0 14px"><div class="bar-fill" style="width:58%"></div></div>
+      <div class="small bold" style="margin-bottom:6px;color:#C9D4E8">积分历史</div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr>
+          <th>时间</th><th class="r">积分</th><th class="r">乘数</th><th class="r">空投预估</th><th class="r">7日交易量</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="mono">06-22 今日</span></td><td class="r up">+96</td><td class="r">1.0x</td><td class="r">$312.50</td><td class="r">$24,580</td></tr>
+          <tr><td><span class="mono">06-21</span></td><td class="r up">+142</td><td class="r">1.0x</td><td class="r">$305.80</td><td class="r">$22,140</td></tr>
+          <tr><td><span class="mono">06-20</span></td><td class="r up">+118</td><td class="r">0.8x</td><td class="r">$288.40</td><td class="r">$19,760</td></tr>
+          <tr><td><span class="mono">06-19</span></td><td class="r up">+164</td><td class="r">0.8x</td><td class="r">$271.20</td><td class="r">$18,020</td></tr>
+          <tr><td><span class="mono">06-18</span></td><td class="r up">+88</td><td class="r">0.6x</td><td class="r">$259.40</td><td class="r">$16,880</td></tr>
+          <tr><td><span class="mono">06-17</span></td><td class="r up">+84</td><td class="r">0.6x</td><td class="r">$247.10</td><td class="r">$15,240</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：加仓 / 减仓弹窗 ══ -->
+  <div class="mask" id="m-adjust">
+    <div class="modal narrow">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>调整仓位</div><div class="modal-sub">BTC-USD · 做多 0.025 · Hyperliquid 主账户</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="label">方向（自动带出）</label>
+          <div class="seg" style="display:flex;width:100%">
+            <button class="seg-item active" style="flex:1;justify-content:center;background:linear-gradient(135deg,#34D399,#6EE7B7);color:#041018;font-weight:700">加仓</button>
+            <button class="seg-item" style="flex:1;justify-content:center;background:rgba(251,113,133,.14);color:#FB7185;border:1px solid rgba(251,113,133,.35);font-weight:700">减仓</button>
+          </div>
+        </div>
+        <div class="field"><label class="label">数量</label><input class="input" placeholder="0.010"></div>
+        <div class="field"><label class="label">杠杆</label><div class="select-wrap"><select class="select" data-toast='{"type":"info","title":"已选择","msg":"杠杆：5x"}'>
+          <option>5x</option>
+          <option>10x</option>
+          <option>20x</option>
+          <option>25x</option>
+        </select></div></div>
+        <div class="kv"><span class="k">当前仓位</span><span class="v">BTC-USD 0.025 做多</span></div>
+        <div class="kv"><span class="k">调整后预估</span><span class="v">BTC-USD 0.035 做多</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>取消</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"仓位已调整","msg":"BTC-USD 已加仓 0.010，委托已提交"}' >确认调整</button>
+      </div>
+    </div>
+  </div>
+</section>

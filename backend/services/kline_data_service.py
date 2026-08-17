@@ -158,52 +158,41 @@ class KlineDataService:
         )
 
     def _insert_kline_data_sync(self, klines_data: List[KlineData], db_session: Session = None) -> bool:
-        """同步版：在线程池中执行，不阻塞事件循环"""
+        """同步版：在线程池中执行，不阻塞事件循环。
+
+        [2026-08-15 P0-5 修复] 改走统一写入口 kline_write.upsert_klines：
+        - 语义统一为「后写者胜」（成形 bar 滚动校正 / kline_quality_repair
+          收盘后校正都需要覆盖语义，与 kline_repo 一致）；
+        - 写前清洗 NaN / 非法时间戳（毫秒/负数/未来值直接拒绝并计数告警）；
+        - 写失败显式上抛，不再静默丢数据（原 DO NOTHING + except 吞错）。
+        """
         db = db_session if db_session else MarketSessionLocal()
         should_close = not db_session
 
-        BATCH_SIZE = 500
-
         try:
-            for batch_start in range(0, len(klines_data), BATCH_SIZE):
-                batch = klines_data[batch_start:batch_start + BATCH_SIZE]
-                params_list = []
-                for kline in batch:
-                    datetime_str = datetime.utcfromtimestamp(kline.timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                    # [2026-08-07 写入端归一化] 所有写入统一 normalize_symbol，
-                    # 杜绝 BTC / BTC-PERP / BTCUSDT 并存（symbol 全局唯一）。
-                    sym = normalize_symbol(kline.symbol) or str(kline.symbol or "").upper()
-                    params_list.append({
-                        'exchange': kline.exchange,
-                        'symbol': sym,
-                        'market': 'CRYPTO',
-                        'timestamp': kline.timestamp,
-                        'period': kline.period,
-                        'datetime_str': datetime_str,
-                        'open_price': kline.open_price,
-                        'high_price': kline.high_price,
-                        'low_price': kline.low_price,
-                        'close_price': kline.close_price,
-                        'volume': kline.volume,
-                    })
+            from backend.services.kline_write import upsert_klines
 
-                insert_sql = text(dialect.insert_on_conflict_do_nothing(
-                    "crypto_klines",
-                    "exchange, symbol, market, timestamp, period, datetime_str, "
-                    "open_price, high_price, low_price, close_price, volume, "
-                    "environment, created_at",
-                    ":exchange, :symbol, :market, :timestamp, :period, :datetime_str, "
-                    ":open_price, :high_price, :low_price, :close_price, :volume, "
-                    "'mainnet', CURRENT_TIMESTAMP",
-                    conflict_cols="exchange, symbol, market, period, timestamp, environment",
-                ))
+            rows = []
+            for kline in klines_data:
+                # [2026-08-07 写入端归一化] 所有写入统一 normalize_symbol，
+                # 杜绝 BTC / BTC-PERP / BTCUSDT 并存（symbol 全局唯一）。
+                sym = normalize_symbol(kline.symbol) or str(kline.symbol or "").upper()
+                rows.append({
+                    'exchange': kline.exchange,
+                    'symbol': sym,
+                    'market': 'CRYPTO',
+                    'timestamp': kline.timestamp,
+                    'period': kline.period,
+                    'open_price': kline.open_price,
+                    'high_price': kline.high_price,
+                    'low_price': kline.low_price,
+                    'close_price': kline.close_price,
+                    'volume': kline.volume,
+                })
 
-                for params in params_list:
-                    db.execute(insert_sql, params)
-
-                db.commit()
-
-            logger.debug(f"Inserted {len(klines_data)} klines for {klines_data[0].symbol}")
+            stats = upsert_klines(db, rows)
+            db.commit()
+            logger.debug("Inserted klines via upsert_klines: %s", stats)
             return True
 
         except Exception as e:
@@ -247,8 +236,21 @@ class KlineDataService:
         end_time: datetime,
         period: str = "1m"
     ) -> List[tuple]:
-        """检测缺失的数据时间段"""
+        """检测缺失的数据时间段。
+
+        [2026-08-15 R5 修复] 原实现期望序列硬编码 1 分钟步长，仅对 1m 正确；
+        复用给其它周期会误判（例如把 5m/1h 正常间隔判为缺失）。现按周期取
+        PERIOD_SECONDS 步长；未识别周期回退 60s（旧行为）。
+        """
         self._ensure_initialized()
+
+        # 周期 → 秒步长（与 data_center.PERIOD_SECONDS 对齐）
+        _PERIOD_STEP = {
+            "1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
+            "1h": 3600, "2h": 7200, "4h": 14400, "8h": 28800,
+            "12h": 43200, "1d": 86400, "1w": 604800, "1M": 2592000,
+        }
+        step_sec = _PERIOD_STEP.get(str(period or "1m").strip().lower(), 60)
 
         try:
             with MarketSessionLocal() as db:
@@ -268,12 +270,13 @@ class KlineDataService:
 
                 existing_timestamps = {row[0] for row in result}
 
-                # 生成期望的时间戳序列（1分钟间隔）
+                # 生成期望的时间戳序列（按周期步长）
                 expected_timestamps = []
-                current = start_time
-                while current <= end_time:
-                    expected_timestamps.append(int(current.timestamp()))
-                    current += timedelta(minutes=1)
+                current = int(start_time.timestamp())
+                end_ts_i = int(end_time.timestamp())
+                while current <= end_ts_i:
+                    expected_timestamps.append(current)
+                    current += step_sec
 
                 # 找出缺失的时间段
                 missing_ranges = []
@@ -287,7 +290,7 @@ class KlineDataService:
                         if range_start is not None:
                             missing_ranges.append((
                                 datetime.utcfromtimestamp(range_start),
-                                datetime.utcfromtimestamp(ts - 60)
+                                datetime.utcfromtimestamp(ts - step_sec)
                             ))
                             range_start = None
 
@@ -354,6 +357,30 @@ class KlineDataService:
         if not _kline_agg_enabled():
             return self.get_klines_from_db(symbol, period, count=count)
 
+        # [2026-08-15 R4 修复] 本函数此前直查 DB + 缓存、无新鲜度拒绝，
+        # 与 midlong_helpers 注释「决策热路径只走 data_center(purpose=trade)」
+        # 矛盾——冻结币种的陈旧 K 线会继续喂给中长线指标。现按 data_center
+        # is_fresh 同口径（stale ≤ period_sec*2+60）校验基准所最新 bar，
+        # 过期返回空（调用方跳过该周期指标注入，fail-closed）。
+        # 开关：KLINE_AGG_FRESHNESS_GATE_ENABLED（默认 true；单元测试可用 false 关闭）。
+        _fresh_gate_on = os.getenv(
+            "KLINE_AGG_FRESHNESS_GATE_ENABLED", "true"
+        ).strip().lower() not in ("0", "false", "no", "off")
+        from backend.services.data_center import PERIOD_SECONDS as _PS
+        period_sec = float(_PS.get(period, 3600))
+        fresh_window = period_sec * 2 + 60
+
+        def _fresh(rows: List[Dict[str, Any]]) -> bool:
+            if not _fresh_gate_on:
+                return True
+            if not rows:
+                return False
+            try:
+                latest = max(int(r.get("timestamp") or 0) for r in rows)
+                return (time.time() - latest) <= fresh_window
+            except (TypeError, ValueError):
+                return False
+
         base_ex = get_active_exchange()
         exs = [
             e for e in (exchanges or _kline_agg_exchanges())
@@ -367,10 +394,21 @@ class KlineDataService:
                 _KLINE_AGG_CACHE.pop(cache_key, None)
                 hit = None
         if hit and now - float(hit[0]) < _KLINE_AGG_TTL_SEC:
+            if not _fresh(hit[1]):
+                with _KLINE_AGG_LOCK:
+                    _KLINE_AGG_CACHE.pop(cache_key, None)
+                logger.warning("[KlineAgg] %s/%s 缓存已过期（%.0fs），拒绝返回", symbol, period, fresh_window)
+                return []
             return [dict(r) for r in hit[1]]
 
         base_rows = self._query_klines_from_db(symbol, period, count, base_ex)
         if not base_rows:
+            return []
+        if not _fresh(base_rows):
+            logger.warning(
+                "[KlineAgg] %s/%s@%s 基准所 K 线过期（阈值 %.0fs），拒绝聚合返回",
+                symbol, period, base_ex, fresh_window,
+            )
             return []
         merged: Dict[int, Dict[str, Any]] = {}
         for row in base_rows:

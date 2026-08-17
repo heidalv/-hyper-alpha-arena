@@ -173,7 +173,7 @@ class StrategyLearningService:
         多指标综合评估：
         - total_trades >= 15
         - win_rate >= 0.50
-        - sharpe_ratio >= 0.5 OR (win_rate >= 0.55 AND max_drawdown <= 0.15)
+        - real_sharpe >= 0.5 OR (win_rate >= 0.55 AND max_drawdown <= 0.15)
         """
         import uuid
         promoted = []
@@ -184,7 +184,17 @@ class StrategyLearningService:
             ).all()
 
             for memory in memories:
-                sharpe_ok = (memory.sharpe_ratio or 0) >= 0.5
+                # [P0-3 口径修复] 用交易级真实年化 Sharpe 替代盈亏符号 EMA
+                # （mem.sharpe_ratio 值域 [-1,1]，与 0.5 阈值量纲不符）。
+                _real_sharpe = 0.0
+                try:
+                    from backend.services.training_live_promote_service import compute_real_trade_metrics
+                    _real_sharpe = float(
+                        compute_real_trade_metrics(db, memory.strategy_id).get("real_sharpe") or 0.0
+                    )
+                except Exception:
+                    _real_sharpe = 0.0
+                sharpe_ok = _real_sharpe >= 0.5
                 alt_ok = (memory.win_rate or 0) >= 0.55 and (memory.max_drawdown or 1) <= 0.15
                 if not sharpe_ok and not alt_ok:
                     continue

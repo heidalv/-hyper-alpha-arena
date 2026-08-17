@@ -291,9 +291,15 @@ class JWTAuthMiddleware:
                 state["user_id"] = str(_LOCAL_TENANT)
                 state["tenant_id"] = _LOCAL_TENANT
                 state["tier"] = "local"
-                state["role"] = "user"
+                # [2026-08-17] 本地单租户模式以 admin 身份放行：单用户部署下该用户拥有全部
+                # 数据，后台自动交易循环写盘时 ContextVar 无租户、落 tenant_id=1（见
+                # connection.py _auto_fill_tenant_id 默认值），而 HTTP 请求落 tenant_id=该用户，
+                # 导致同一账户持仓被拆到多个 tenant_id。若本地模式按 role=user 只透传单一
+                # tenant_id，RLS 会把后台循环写的那部分持仓全部隐藏 → 前端持仓面板空/冻结。
+                # 设 is_admin=True 走 RLS 短路，保证单用户能看到自己账户下的全部持仓。
+                state["role"] = "admin"
                 state["auth_method"] = "local"
-                set_request_identity(tenant_id=_LOCAL_TENANT, role="user")
+                set_request_identity(tenant_id=_LOCAL_TENANT, role="admin")
                 await self.app(scope, receive, send)
                 return
 

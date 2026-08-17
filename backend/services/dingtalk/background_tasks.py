@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from backend.database.connection import SessionLocal
-from database.models import DingTalkBot
+from backend.database.models import DingTalkBot
 from services.dingtalk.notification_service import get_notification_service
 from services.dingtalk.volatility_monitor import get_volatility_monitor
 from services.dingtalk.rate_limiter import rate_limiter
@@ -128,8 +128,7 @@ class DingTalkBackgroundTasks:
                             if elapsed >= bot.position_schedule_interval:
                                 await self._send_position_summary_for_bot(bot.id, db)
 
-                    # 等待一段时间后再次检查
-                    # 等待时间是最小间隔的1/10，最少10秒，最多1分钟
+                    # 等待一段时间后再次检查 # 等待时间是最小间隔的1/10，最少10秒，最多1分钟
                     sleep_time = max(10, min(60, min_interval / 10))
                     await asyncio.sleep(sleep_time)
 
@@ -216,7 +215,7 @@ class DingTalkBackgroundTasks:
 
                 db = SessionLocal()
                 try:
-                    from database.models import DingTalkNotification
+                    from backend.database.models import DingTalkNotification
                     from datetime import timedelta
 
                     # 删除30天前的记录

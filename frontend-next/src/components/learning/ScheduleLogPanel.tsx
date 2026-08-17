@@ -155,7 +155,7 @@ export default function ScheduleLogPanel() {
         description="定时批处理中枢最近运行记录（/api/learning/loop/status），30s 轮询"
       >
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="data-table">
             <thead>
               <tr className="text-left text-muted-foreground border-b border-border/50">
                 <th className="py-1.5 pr-2 font-medium">闭环</th>
@@ -172,21 +172,38 @@ export default function ScheduleLogPanel() {
                   <tr key={job.key} className="border-b border-border/20">
                     <td className="py-1.5 pr-2">{job.label}</td>
                     <td className="py-1.5 pr-2 text-muted-foreground">{job.interval}</td>
-                    <td className="py-1.5 pr-2">
+                    <td className="num">
                       {last ? (
                         <span className="flex items-center gap-1 text-profit">
                           <HeartPulse className="w-3 h-3" />
                           {fmtTime(last)}
                         </span>
                       ) : (
-                        <span className="text-loss">从未 tick</span>
+                        <span className="flex items-center gap-1 text-loss">
+                          <AlertTriangle className="w-3 h-3" />
+                          从未 tick
+                        </span>
                       )}
                     </td>
-                    <td className="py-1.5 pr-2 text-muted-foreground">{next ? fmtTime(next) : "—"}</td>
+                    <td className="num text-muted-foreground">{next ? fmtTime(next) : "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-border/40">
+                <td colSpan={2} className="num px-3 py-2 text-xs text-muted-foreground">
+                  共 {loopJobs.length} 个 job
+                </td>
+                <td colSpan={2} className="num px-3 py-2 text-xs">
+                  <span className="text-profit">{loopJobs.filter(j => loop.last_tick_at?.[j.key]).length} 已 tick</span>
+                  <span className="text-muted-foreground"> · </span>
+                  <span className={loopJobs.filter(j => !loop.last_tick_at?.[j.key]).length > 0 ? "text-loss" : "text-profit"}>
+                    {loopJobs.filter(j => !loop.last_tick_at?.[j.key]).length} 从未 tick
+                  </span>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </SectionCard>

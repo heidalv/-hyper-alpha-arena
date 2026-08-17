@@ -49,7 +49,7 @@ class ATASV2Executor:
         获取账户统一快照 - 一次性获取所有数据
         避免多次调用交易所API
         """
-        from database.models import Account, Position, AccountAssetSnapshot
+        from backend.database.models import Account, Position, AccountAssetSnapshot
         from sqlalchemy import desc
 
         if not self.db:

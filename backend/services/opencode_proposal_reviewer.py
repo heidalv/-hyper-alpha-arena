@@ -1,4 +1,4 @@
-﻿"""OpenCode 提案评审 — 硬规则校验 + Review Agent + 自动 apply/reject。"""
+"""OpenCode �᰸���� �� Ӳ����У�� + Review Agent + �Զ� apply/reject��"""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 WHITELIST_TUNING_KEYS = {
     "master_reduce_min_loss_pct",
-    # tier_max_hold_sec 已锁定 — 见 HOLD_TIME_TUNING_LOCKED；数据归因完成前禁止 OpenCode 改持仓时限
+    # tier_max_hold_sec ������ �� �� HOLD_TIME_TUNING_LOCKED�����ݹ������ǰ��ֹ OpenCode �ĳֲ�ʱ��
     "master_close_min_loss_pct_by_tier",
     "max_daily_trades",
-    # OpenCode 慢循环只调 MaturityController 高层旋钮（松紧系数/阶段阈值），
-    # 而非直接各处改硬阈值，保证「单一旋钮源」。
+    # OpenCode ��ѭ��ֻ�� MaturityController �߲���ť���ɽ�ϵ��/�׶���ֵ����
+    # ����ֱ�Ӹ�����Ӳ��ֵ����֤����һ��ťԴ����
     "maturity_max_warmup_relief",
     "maturity_global_n1",
     "maturity_global_n2",
@@ -103,7 +103,7 @@ def _current_tuning_value(key: str) -> Optional[float]:
 
 
 def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
-    """不调用 LLM 的硬门禁。"""
+    """������ LLM ��Ӳ�Ž���"""
     errors: List[str] = []
     max_delta = _max_delta_pct()
 
@@ -117,11 +117,11 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
         val = p.get("value")
 
         if ptype == "shadow_py":
-            # 仅允许在 OPENCODE_SHADOW_ENABLED=true 且非 live 环境下
+            # �������� OPENCODE_SHADOW_ENABLED=true �ҷ� live ������
             _shadow_ok = os.getenv("OPENCODE_SHADOW_ENABLED", "").lower() == "true"
             if not _shadow_ok:
                 errors.append(f"patch[{i}] shadow disabled (OPENCODE_SHADOW_ENABLED not true)")
-            # 否则放行到 shadow 环境验证
+            # ������е� shadow ������֤
             continue
         if ptype in ("python", "py", "source") or key.endswith(".py"):
             errors.append(f"patch[{i}] python source modification forbidden")
@@ -140,7 +140,7 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
             if not rule_id:
                 errors.append(f"patch[{i}] policy_yaml requires rule id")
                 continue
-            # 允许两种合法写法：rule_id.field（标量）或 整 rule（dict value 多字段）
+            # �������ֺϷ�д����rule_id.field���������� �� rule��dict value ���ֶΣ�
             if field is None and not isinstance(val, dict):
                 errors.append(
                     f"patch[{i}] policy_yaml requires field key or dict value"
@@ -152,11 +152,11 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
             errors.append(f"patch[{i}] key '{key}' not in whitelist")
             continue
 
-        # [2026-07-11 修复] 原逻辑只在 val 已经是 int/float 时才做 ±20% delta 校验，
-        # 若 val 是字符串占位符（如 "<need baseline>"/"TBD"），既不报错也不校验，
-        # 直接放行成"合法"提案——这类"废提案"会一路混进审核队列，甚至被写进
-        # runtime_tuning.json 污染数值型配置。这里对 WHITELIST_TUNING_KEYS 显式要求
-        # 数值类型：非 bool 的 int/float 直接放行；数字字符串尝试转换；其它一律硬拒绝。
+        # [2026-07-11 �޸�] ԭ�߼�ֻ�� val �Ѿ��� int/float ʱ���� ��20% delta У�飬
+        # �� val ���ַ���ռλ������ "<need baseline>"/"TBD"�����Ȳ�����Ҳ��У�飬
+        # ֱ�ӷ��г�"�Ϸ�"�᰸��������"���᰸"��һ·�����˶��У�������д��
+        # runtime_tuning.json ��Ⱦ��ֵ�����á������ WHITELIST_TUNING_KEYS ��ʽҪ��
+        # ��ֵ���ͣ��� bool �� int/float ֱ�ӷ��У������ַ�������ת��������һ��Ӳ�ܾ���
         if isinstance(val, bool):
             errors.append(f"patch[{i}] {key} value must be numeric, got bool")
             continue
@@ -165,12 +165,12 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
                 val = float(val)
             except (TypeError, ValueError):
                 errors.append(
-                    f"patch[{i}] {key} value '{val[:40]}' 不是合法数值"
-                    f"（禁止占位符/自然语言描述，需从 tuning_baseline 算出具体数字）"
+                    f"patch[{i}] {key} value '{val[:40]}' ���ǺϷ���ֵ"
+                    f"����ֹռλ��/��Ȼ������������� tuning_baseline ����������֣�"
                 )
                 continue
         if not isinstance(val, (int, float)):
-            errors.append(f"patch[{i}] {key} value type {type(val).__name__} 非数值")
+            errors.append(f"patch[{i}] {key} value type {type(val).__name__} ����ֵ")
             continue
 
         cur = _current_tuning_value(key)
@@ -178,7 +178,7 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
             delta = abs(float(val) - cur) / abs(cur)
             if delta > max_delta:
                 errors.append(
-                    f"patch[{i}] {key} delta {delta:.1%} exceeds ±{max_delta:.0%}"
+                    f"patch[{i}] {key} delta {delta:.1%} exceeds ��{max_delta:.0%}"
                 )
 
     return len(errors) == 0, errors
@@ -189,7 +189,7 @@ def run_review_agent(
     proposal_row: Any,
     context_pack: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """调用 Review Sidecar agent。"""
+    """���� Review Sidecar agent��"""
     from backend.services.opencode_bridge import (
         _extract_json,
         load_review_system_prompt,
@@ -277,7 +277,7 @@ def _emit_proposal_rejected_alert(db, proposal_row: Any, review: Dict[str, Any])
 
 
 def review_and_apply_proposal(db, proposal_id: int) -> Dict[str, Any]:
-    """硬规则 → LLM 评审 → apply / reject / defer。"""
+    """Ӳ���� �� LLM ���� �� apply / reject / defer��"""
     from backend.database.models import OpenCodeEvolutionProposalDB
     from backend.services.opencode_context_pack import build_context_pack
     from backend.services.opencode_proposal_applier import apply_proposal, reject_proposal
@@ -337,13 +337,13 @@ def review_and_apply_proposal(db, proposal_id: int) -> Dict[str, Any]:
     context_pack = build_context_pack(db, window="24h", domain="ai")
     review = run_review_agent(db, row, context_pack)
 
-    # P2-9: 高严重度提案(major/critical)启用多轮推理链增强审慎性
+    # P2-9: �����ض��᰸(major/critical)���ö�����������ǿ������
     if (row.severity or "").lower() in ("major", "critical") and not review.get("error"):
         try:
             from backend.services.opencode_bridge import run_multi_round_analysis
-            # 提取提案涉及的关键 symbol
+            # ��ȡ�᰸�漰�Ĺؼ� symbol
             _patches = payload.get("patches") or []
-            _symbol = "BTC"  # 默认
+            _symbol = "BTC"  # Ĭ��
             for p in _patches:
                 if isinstance(p, dict):
                     sym = p.get("symbol") or p.get("key", "").split(".")[0]
@@ -370,7 +370,7 @@ def review_and_apply_proposal(db, proposal_id: int) -> Dict[str, Any]:
                     "rounds_completed": multi_round.get("rounds_completed", 0),
                 }
                 logger.info(
-                    "[ProposalReviewer] P2-9 多轮推理 #%d: consensus=%.1f rounds=%d",
+                    "[ProposalReviewer] P2-9 �������� #%d: consensus=%.1f rounds=%d",
                     row.id,
                     multi_round.get("consensus_score", 0),
                     multi_round.get("rounds_completed", 0),
@@ -426,8 +426,8 @@ def _should_retry_defer(review: Optional[Dict[str, Any]]) -> bool:
     if not review:
         return True
     decision = str(review.get("decision") or "").lower()
-    # 兼容旧格式：早期 Sidecar/API 错误会写入 defer_at/defer_count/error，
-    # 但没有 decision=defer，导致 pending 提案永久跳过。
+    # ���ݾɸ�ʽ������ Sidecar/API �����д�� defer_at/defer_count/error��
+    # ��û�� decision=defer������ pending �᰸����������
     if decision != "defer" and not (
         review.get("defer_at")
         or review.get("defer_count")
@@ -448,7 +448,7 @@ def _should_retry_defer(review: Optional[Dict[str, Any]]) -> bool:
 
 
 def review_pending_proposals(db, limit: int = 10) -> Dict[str, Any]:
-    """扫描 pending 提案并评审。"""
+    """ɨ�� pending �᰸������"""
     if not _auto_review_enabled():
         return {"reviewed": 0, "skipped": "OPENCODE_AUTO_REVIEW=false"}
 
@@ -475,7 +475,7 @@ def review_pending_proposals(db, limit: int = 10) -> Dict[str, Any]:
             continue
         results.append(review_and_apply_proposal(db, row.id))
 
-    # P1-4: 评审后记录质量指标
+    # P1-4: ������¼����ָ��
     _log_quality_summary(results)
 
     return {
@@ -485,7 +485,7 @@ def review_pending_proposals(db, limit: int = 10) -> Dict[str, Any]:
 
 
 def drain_pending_proposals(db, *, limit: int = 30, max_rounds: int = 3) -> Dict[str, Any]:
-    """多轮批量评审 pending 提案（启动扫尾 / 手动 drain）。"""
+    """������������ pending �᰸�����ɨβ / �ֶ� drain����"""
     if not _auto_review_enabled():
         return {"drained": 0, "skipped": "OPENCODE_AUTO_REVIEW=false"}
 
@@ -505,12 +505,12 @@ def drain_pending_proposals(db, *, limit: int = 30, max_rounds: int = 3) -> Dict
     return {"drained": total, "rounds": rounds, "results": all_results[-20:]}
 
 
-# ══════════════════════════════════════════════════════
-#  P1-4: 提案质量监控
-# ══════════════════════════════════════════════════════
+# �T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T
+#  P1-4: �᰸�������
+# �T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T�T
 
 def _log_quality_summary(results: List[Dict[str, Any]]) -> None:
-    """记录本轮评审的质量摘要（通过率、拒绝原因分布）。"""
+    """��¼�������������ժҪ��ͨ���ʡ��ܾ�ԭ��ֲ�����"""
     if not results:
         return
     approved = sum(1 for r in results if r.get("status") == "paper_applying")
@@ -521,27 +521,27 @@ def _log_quality_summary(results: List[Dict[str, Any]]) -> None:
         if (r.get("review") or {}).get("source") == "hard_validation"
     )
     logger.info(
-        "[ProposalQuality] 本轮评审: total=%d approved=%d rejected=%d(hard=%d) deferred=%d "
-        "通过率=%.0f%%",
+        "[ProposalQuality] ��������: total=%d approved=%d rejected=%d(hard=%d) deferred=%d "
+        "ͨ����=%.0f%%",
         len(results), approved, rejected, hard_rejected, deferred,
         approved / max(len(results), 1) * 100,
     )
 
 
 def get_proposal_quality_metrics(db) -> Dict[str, Any]:
-    """获取提案质量的全景指标，供前端监控面板消费。
+    """��ȡ�᰸������ȫ��ָ�꣬��ǰ�˼��������ѡ�
 
     Returns:
         {
-            "whitelist_pass_rate": 0.0-1.0,    # 白名单校验通过率
-            "hard_reject_rate": 0.0-1.0,       # 硬门禁拒绝率
-            "llm_review_pass_rate": 0.0-1.0,   # LLM 评审通过率
-            "avg_time_to_validate_h": float,   # 平均验证时长
-            "stale_pending_count": int,        # 超24h未处理的 pending 数
-            # ── PnL 导向成果指标（衡量提案是否真的改善盈利）──
-            "improved_avg_pnl_boost": float,    # improved 提案的每笔 PnL 平均提升($)
-            "degraded_rate": 0.0-1.0,          # 验证后退化比例（越低越好）
-            "total_pnl_impact": float,          # 所有 validated 提案累计 PnL 影响
+            "whitelist_pass_rate": 0.0-1.0,    # ������У��ͨ����
+            "hard_reject_rate": 0.0-1.0,       # Ӳ�Ž��ܾ���
+            "llm_review_pass_rate": 0.0-1.0,   # LLM ����ͨ����
+            "avg_time_to_validate_h": float,   # ƽ����֤ʱ��
+            "stale_pending_count": int,        # ��24hδ����� pending ��
+            # ���� PnL ����ɹ�ָ�꣨�����᰸�Ƿ���ĸ���ӯ��������
+            "improved_avg_pnl_boost": float,    # improved �᰸��ÿ�� PnL ƽ������($)
+            "degraded_rate": 0.0-1.0,          # ��֤���˻�������Խ��Խ�ã�
+            "total_pnl_impact": float,          # ���� validated �᰸�ۼ� PnL Ӱ��
         }
     """
     from backend.database.models import OpenCodeEvolutionProposalDB
@@ -557,7 +557,7 @@ def get_proposal_quality_metrics(db) -> Dict[str, Any]:
                 "stale_pending_count": 0,
                 "improved_avg_pnl_boost": 0, "degraded_rate": 0, "total_pnl_impact": 0}
 
-    # 统计硬门禁拒绝（review source == hard_validation）
+    # ͳ��Ӳ�Ž��ܾ���review source == hard_validation��
     hard_rejected = 0
     llm_approved = 0
     llm_total = 0
@@ -565,7 +565,7 @@ def get_proposal_quality_metrics(db) -> Dict[str, Any]:
     validate_durations_h: List[float] = []
     stale_pending = 0
 
-    # PnL 导向成果统计
+    # PnL ����ɹ�ͳ��
     pnl_boosts: List[float] = []
     degraded_count = 0
     validated_evaluated = 0
@@ -600,7 +600,7 @@ def get_proposal_quality_metrics(db) -> Dict[str, Any]:
             if decision == "approve":
                 llm_approved += 1
 
-        # 验证时长
+        # ��֤ʱ��
         if st in ("paper_validated", "rolled_back", "inconclusive") and row.applied_at:
             applied = row.applied_at
             if applied.tzinfo is not None:
@@ -612,7 +612,7 @@ def get_proposal_quality_metrics(db) -> Dict[str, Any]:
                 (validated - applied).total_seconds() / 3600
             )
 
-        # PnL 导向：统计每个可评估提案的 PnL 变化
+        # PnL ����ͳ��ÿ���������᰸�� PnL �仯
         if st in ("paper_validated", "rolled_back") and row.after_json:
             try:
                 after = json.loads(row.after_json or "{}")
@@ -644,7 +644,7 @@ def get_proposal_quality_metrics(db) -> Dict[str, Any]:
         "stale_pending_count": stale_pending,
         "pending_total": sum(1 for r in all_proposals if (r.status or "") == "pending"),
         "paper_validated_total": sum(1 for r in all_proposals if (r.status or "") == "paper_validated"),
-        # PnL 成果指标
+        # PnL �ɹ�ָ��
         "improved_avg_pnl_boost": round(
             sum(pnl_boosts) / max(len(pnl_boosts), 1), 2
         ),

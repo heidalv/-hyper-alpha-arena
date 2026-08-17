@@ -242,7 +242,7 @@ export function KlineChartPanel({
     })));
     volSeriesRef.current?.setData(rows.map((k: any) => ({
       time: toTime(k), value: k.volume || 0,
-      color: k.close >= k.open ? "#00C89633" : "#FF4D6D33",
+      color: k.close >= k.open ? "#34D39933" : "#FB718533",
     })));
     [7, 25, 99].forEach((p) => {
       const s = maSeriesRef.current[p];
@@ -272,7 +272,7 @@ export function KlineChartPanel({
       macdSeriesRef.current.dea?.setData(times.map((t, j) => ({ time: t, value: m.dea[j] })).filter((d: any) => d.value != null));
       macdSeriesRef.current.hist?.setData(times.map((t, j) => ({
         time: t, value: m.hist[j],
-        color: (m.hist[j] ?? 0) >= 0 ? "#00C89666" : "#FF4D6D66",
+        color: (m.hist[j] ?? 0) >= 0 ? "#34D39966" : "#FB718566",
       })).filter((d: any) => d.value != null));
     }
   }, []);
@@ -400,22 +400,22 @@ export function KlineChartPanel({
         const chart = createChart(chartRef.current, {
           width: chartW,
           height: chartH,
-          layout: { background: { color: "transparent" }, textColor: "#6B7785", fontSize: 11 },
+          layout: { background: { color: "transparent" }, textColor: "#94A1BC", fontSize: 11 },
           grid: { vertLines: { color: "rgba(30,37,48,0.3)" }, horzLines: { color: "rgba(30,37,48,0.3)" } },
           crosshair: { mode: 1 },
-          rightPriceScale: { borderColor: "#1E2530" },
-          timeScale: { borderColor: "#1E2530", timeVisible: true, secondsVisible: false },
+          rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+          timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
         });
         chartInstance.current = chart;
 
         const candleSeries = chart.addSeries(CandlestickSeries, {
-          upColor: "#00C896", downColor: "#FF4D6D", borderUpColor: "#00C896", borderDownColor: "#FF4D6D",
-          wickUpColor: "#00C896", wickDownColor: "#FF4D6D",
+          upColor: "#34D399", downColor: "#FB7185", borderUpColor: "#34D399", borderDownColor: "#FB7185",
+          wickUpColor: "#34D399", wickDownColor: "#FB7185",
         });
         candleSeriesRef.current = candleSeries;
 
         const volSeries = chart.addSeries(HistogramSeries, {
-          color: "#5B8DEF44", priceFormat: { type: "volume" }, priceScaleId: "vol",
+          color: "#22D3EE44", priceFormat: { type: "volume" }, priceScaleId: "vol",
         });
         volSeriesRef.current = volSeries;
         chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
@@ -426,7 +426,7 @@ export function KlineChartPanel({
         if (showMA) {
           [7, 25, 99].forEach((p, i) => {
             const series = chart.addSeries(LineSeries, {
-              color: ["#5B8DEF", "#FFB938", "#9D5BFF"][i], lineWidth: 1,
+              color: ["#22D3EE", "#FBBF24", "#8B5CF6"][i], lineWidth: 1,
               priceLineVisible: false, lastValueVisible: false,
             });
             maSeriesRef.current[p] = series;
@@ -435,7 +435,7 @@ export function KlineChartPanel({
         if (showEMA) {
           [12, 26].forEach((p, i) => {
             const series = chart.addSeries(LineSeries, {
-              color: ["#00C896", "#FF4D6D"][i], lineWidth: 1, lineStyle: 2,
+              color: ["#34D399", "#FB7185"][i], lineWidth: 1, lineStyle: 2,
               priceLineVisible: false, lastValueVisible: false,
             });
             emaSeriesRef.current[p] = series;
@@ -443,26 +443,26 @@ export function KlineChartPanel({
         }
         if (showBOLL) {
           bollSeriesRef.current.mid = chart.addSeries(LineSeries, {
-            color: "#FFB938", lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
+            color: "#FBBF24", lineWidth: 1, priceLineVisible: false, lastValueVisible: false,
           });
           bollSeriesRef.current.upper = chart.addSeries(LineSeries, {
-            color: "#5B8DEF88", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
+            color: "#22D3EE88", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
           });
           bollSeriesRef.current.lower = chart.addSeries(LineSeries, {
-            color: "#5B8DEF88", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
+            color: "#22D3EE88", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
           });
         }
 
         if (showRSI && rsiRef.current) {
           const rsiChart = createChart(rsiRef.current, {
             width: rsiRef.current.clientWidth || chartW, height: 110,
-            layout: { background: { color: "transparent" }, textColor: "#6B7785", fontSize: 10 },
+            layout: { background: { color: "transparent" }, textColor: "#94A1BC", fontSize: 10 },
             grid: { vertLines: { color: "rgba(30,37,48,0.2)" }, horzLines: { color: "rgba(30,37,48,0.2)" } },
-            rightPriceScale: { borderColor: "#1E2530" },
+            rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
             timeScale: { visible: false },
           });
           rsiInstance.current = rsiChart;
-          rsiSeriesRef.current = rsiChart.addSeries(LineSeries, { color: "#9D5BFF", lineWidth: 2 });
+          rsiSeriesRef.current = rsiChart.addSeries(LineSeries, { color: "#8B5CF6", lineWidth: 2 });
           chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
             if (!range || !rsiInstance.current) return;
             try { rsiInstance.current.timeScale().setVisibleLogicalRange(range); } catch {}
@@ -472,15 +472,15 @@ export function KlineChartPanel({
         if (showMACD && macdRef.current) {
           const macdChart = createChart(macdRef.current, {
             width: macdRef.current.clientWidth || chartW, height: 120,
-            layout: { background: { color: "transparent" }, textColor: "#6B7785", fontSize: 10 },
+            layout: { background: { color: "transparent" }, textColor: "#94A1BC", fontSize: 10 },
             grid: { vertLines: { color: "rgba(30,37,48,0.2)" }, horzLines: { color: "rgba(30,37,48,0.2)" } },
-            rightPriceScale: { borderColor: "#1E2530" },
+            rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
             timeScale: { visible: false },
           });
           macdInstance.current = macdChart;
           macdSeriesRef.current.hist = macdChart.addSeries(HistogramSeries, { priceFormat: { type: "price", precision: 4 } });
-          macdSeriesRef.current.dif = macdChart.addSeries(LineSeries, { color: "#5B8DEF", lineWidth: 1 });
-          macdSeriesRef.current.dea = macdChart.addSeries(LineSeries, { color: "#FFB938", lineWidth: 1 });
+          macdSeriesRef.current.dif = macdChart.addSeries(LineSeries, { color: "#22D3EE", lineWidth: 1 });
+          macdSeriesRef.current.dea = macdChart.addSeries(LineSeries, { color: "#FBBF24", lineWidth: 1 });
           chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
             if (!range || !macdInstance.current) return;
             try { macdInstance.current.timeScale().setVisibleLogicalRange(range); } catch {}
@@ -577,7 +577,7 @@ export function KlineChartPanel({
       });
       volSeriesRef.current?.update({
         time: t, value: bar.volume || 0,
-        color: bar.close >= bar.open ? "#00C89633" : "#FF4D6D33",
+        color: bar.close >= bar.open ? "#34D39933" : "#FB718533",
       });
       // 指标轻量刷新（全量重算，数据量可控）
       paintAllSeries(rows);
@@ -739,11 +739,11 @@ export function KlineChartPanel({
           </div>
           <div className="flex gap-1 ml-2 border-l border-border pl-2 flex-wrap">
             {[
-              { key: "MA", val: showMA, set: setShowMA, color: "#5B8DEF" },
-              { key: "EMA", val: showEMA, set: setShowEMA, color: "#00C896" },
-              { key: "BOLL", val: showBOLL, set: setShowBOLL, color: "#FFB938" },
-              { key: "RSI", val: showRSI, set: setShowRSI, color: "#9D5BFF" },
-              { key: "MACD", val: showMACD, set: setShowMACD, color: "#FF4D6D" },
+              { key: "MA", val: showMA, set: setShowMA, color: "#22D3EE" },
+              { key: "EMA", val: showEMA, set: setShowEMA, color: "#34D399" },
+              { key: "BOLL", val: showBOLL, set: setShowBOLL, color: "#FBBF24" },
+              { key: "RSI", val: showRSI, set: setShowRSI, color: "#8B5CF6" },
+              { key: "MACD", val: showMACD, set: setShowMACD, color: "#FB7185" },
             ].map(({ key, val, set, color }) => (
               <button key={key} onClick={() => set(!val)}
                 className={cn("px-2 py-1 text-xs rounded transition-colors border",

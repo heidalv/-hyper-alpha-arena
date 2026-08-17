@@ -1,7 +1,7 @@
-﻿"""Hermes Layer 3: 系统架构进化引擎
+"""Hermes Layer 3: ϵͳ�ܹ���������
 
-从跨提案模式中发现系统架构缺口，生成新模块/新配置/重构建议。
-通过 LLM 分析参数变动热力图 + 提案智慧摘要，产出系统级升级方案。
+�ӿ��᰸ģʽ�з���ϵͳ�ܹ�ȱ�ڣ�������ģ��/������/�ع����顣
+ͨ�� LLM ���������䶯����ͼ + �᰸�ǻ�ժҪ������ϵͳ������������
 """
 
 from __future__ import annotations
@@ -24,16 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 class ArchitectureEvolutionEngine:
-    """Layer 3: 系统架构进化引擎。
+    """Layer 3: ϵͳ�ܹ��������档
 
-    发现：
-    - 哪些参数被反复调整但改善率低 → 需要新模块
-    - 哪些参数组合存在交互效应 → 需要组合配置
-    - 哪些问题无对应参数可调 → 需要新配置项
+    ���֣�
+    - ��Щ���������������������ʵ� �� ��Ҫ��ģ��
+    - ��Щ������ϴ��ڽ���ЧӦ �� ��Ҫ�������
+    - ��Щ�����޶�Ӧ�����ɵ� �� ��Ҫ��������
     """
 
     def analyze_parameter_churn(self) -> Dict[str, Any]:
-        """分析参数变动的频次和效果。"""
+        """���������䶯��Ƶ�κ�Ч����"""
         records = hermes_fetchall(
             """SELECT param_key, COUNT(*) as total,
                       SUM(CASE WHEN outcome='improved' THEN 1 ELSE 0 END) as improved,
@@ -56,43 +56,43 @@ class ArchitectureEvolutionEngine:
                 "total_adjustments": total,
                 "improved_rate": round(imp_rate, 3),
                 "avg_pnl_impact": round(float(r["avg_pnl"] or 0), 2),
-                "churn_score": round(total * (1 - imp_rate), 1),  # 高变动低改善 = 高 churn
+                "churn_score": round(total * (1 - imp_rate), 1),  # �߱䶯�͸��� = �� churn
                 "needs_rethink": imp_rate < 0.35 and total >= 5,
             })
 
         return {"heatmap": heatmap, "total_params": len(heatmap)}
 
     def discover_architecture_gaps(self) -> List[Dict[str, Any]]:
-        """发现系统架构缺口，调用 LLM 分析。"""
+        """����ϵͳ�ܹ�ȱ�ڣ����� LLM ������"""
         churn = self.analyze_parameter_churn()
         wisdom_ctx = proposal_wisdom.build_wisdom_context(limit=20)
         top_patterns = proposal_wisdom.get_top_patterns(min_samples=2)
 
-        # 构建分析输入
+        # ������������
         churn_summary = "\n".join(
-            f"- `{h['param_key']}`: 调整 {h['total_adjustments']} 次，改善率 {h['improved_rate']:.0%}"
-            + (" ⚠️ 高变动低改善" if h.get("needs_rethink") else "")
+            f"- `{h['param_key']}`: ���� {h['total_adjustments']} �Σ������� {h['improved_rate']:.0%}"
+            + (" ?? �߱䶯�͸���" if h.get("needs_rethink") else "")
             for h in churn["heatmap"][:15]
         )
 
         pattern_summary = "\n".join(
             f"- [{p['outcome']}] {p.get('direction','')} `{p['param_key']}` "
-            f"({p.get('market_condition','')}): ${p.get('avg_pnl_impact',0):+.2f}/笔, "
-            f"样本={p.get('sample_count',0)}, 置信度={p.get('confidence_avg',0):.0%}"
+            f"({p.get('market_condition','')}): ${p.get('avg_pnl_impact',0):+.2f}/��, "
+            f"����={p.get('sample_count',0)}, ���Ŷ�={p.get('confidence_avg',0):.0%}"
             for p in top_patterns[:10]
         )
 
         system_prompt = self._load_l3_system_prompt()
         user_text = (
-            f"## 系统架构进化分析\n\n"
-            f"### 参数变动热力图\n{churn_summary}\n\n"
-            f"### 高置信度模式\n{pattern_summary}\n\n"
-            f"### 历史提案智慧\n{wisdom_ctx[:3000]}\n\n"
-            f"### 当前白名单参数\n"
+            f"## ϵͳ�ܹ���������\n\n"
+            f"### �����䶯����ͼ\n{churn_summary}\n\n"
+            f"### �����Ŷ�ģʽ\n{pattern_summary}\n\n"
+            f"### ��ʷ�᰸�ǻ�\n{wisdom_ctx[:3000]}\n\n"
+            f"### ��ǰ����������\n"
             f"master_reduce_min_loss_pct, tier_max_hold_sec, "
             f"master_close_min_loss_pct_by_tier, max_daily_trades, "
             f"maturity_max_warmup_relief, maturity_global_n1, maturity_global_n2\n\n"
-            f"请发现系统架构缺口并给出升级建议。"
+            f"�뷢��ϵͳ�ܹ�ȱ�ڲ������������顣"
         )
 
         result = self._call_llm(system_prompt, user_text)
@@ -100,10 +100,10 @@ class ArchitectureEvolutionEngine:
         priority = result.get("priority_ranking") or []
         llm_error = result.get("error")
 
-        # 持久化（7 天内同标题去重，避免每次定时任务重复插入）
+        # �־û���7 ����ͬ����ȥ�أ�����ÿ�ζ�ʱ�����ظ����룩
         inserted = 0
         for p in proposals:
-            title = p.get("title", "未命名")
+            title = p.get("title", "δ����")
             dup = hermes_fetchone(
                 """SELECT id FROM architecture_evolution_proposals
                    WHERE title=? AND created_at >= datetime('now', '-7 days') LIMIT 1""",
@@ -117,7 +117,7 @@ class ArchitectureEvolutionEngine:
                     feasibility, expected_impact, implementation_notes, status, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))""",
                 (
-                    p.get("title", "未命名"),
+                    p.get("title", "δ����"),
                     p.get("category", "new_module"),
                     p.get("rationale", ""),
                     json.dumps(p.get("evidence", []), ensure_ascii=False),
@@ -131,7 +131,7 @@ class ArchitectureEvolutionEngine:
             inserted += 1
 
         logger.info(
-            "[Hermes:L3] 架构进化分析: %d 条升级建议（新写入 %d）",
+            "[Hermes:L3] �ܹ���������: %d ���������飨��д�� %d��",
             len(proposals),
             inserted,
         )
@@ -144,13 +144,13 @@ class ArchitectureEvolutionEngine:
         }
 
     def get_pending_proposals(self) -> List[Dict[str, Any]]:
-        """获取待处理的架构提案。"""
+        """��ȡ������ļܹ��᰸��"""
         return hermes_fetchall(
             "SELECT * FROM architecture_evolution_proposals WHERE status='pending' ORDER BY id DESC"
         )
 
     def get_stats(self) -> Dict[str, int]:
-        """获取架构进化统计。"""
+        """��ȡ�ܹ�����ͳ�ơ�"""
         total = hermes_fetchall("SELECT status, COUNT(*) as cnt FROM architecture_evolution_proposals GROUP BY status")
         stats = {"total": 0, "pending": 0, "accepted": 0, "rejected": 0, "implemented": 0}
         for r in total:
@@ -159,16 +159,16 @@ class ArchitectureEvolutionEngine:
         return stats
 
     def accept_proposal(self, proposal_id: int) -> Dict[str, Any]:
-        """接受 L3 提案 → RuntimeGovernor patch 待审批。"""
+        """���� L3 �᰸ �� RuntimeGovernor patch ��������"""
         from backend.services.hermes_db import hermes_fetchone, hermes_execute
         row = hermes_fetchone(
             "SELECT * FROM architecture_evolution_proposals WHERE id=?",
             (proposal_id,),
         )
         if not row:
-            return {"ok": False, "error": "提案不存在"}
+            return {"ok": False, "error": "�᰸������"}
         if row.get("status") not in ("pending", "accepted"):
-            return {"ok": False, "error": f"状态不可接受: {row.get('status')}"}
+            return {"ok": False, "error": f"״̬���ɽ���: {row.get('status')}"}
 
         patch_keys: Dict[str, Any] = {
             "_patch_type": "runtime_tuning",
@@ -223,13 +223,13 @@ class ArchitectureEvolutionEngine:
         governor_patch_id: Optional[str] = None,
         executable: bool = False,
     ) -> Dict[str, Any]:
-        """Governor patch 已落地 → 标记 L3 提案为 implemented。"""
+        """Governor patch ����� �� ��� L3 �᰸Ϊ implemented��"""
         row = hermes_fetchone(
             "SELECT id, status FROM architecture_evolution_proposals WHERE id=?",
             (proposal_id,),
         )
         if not row:
-            return {"ok": False, "error": "提案不存在"}
+            return {"ok": False, "error": "�᰸������"}
         if row.get("status") == "implemented":
             return {"ok": True, "proposal_id": proposal_id, "already": True}
         hermes_execute(
@@ -249,7 +249,7 @@ class ArchitectureEvolutionEngine:
         }
 
     def reconcile_implemented_paper(self, *, limit: Optional[int] = 100) -> Dict[str, Any]:
-        """Paper：将已 accept 且 Governor 已批准的 L3 提案批量标记 implemented。"""
+        """Paper������ accept �� Governor ����׼�� L3 �᰸������� implemented��"""
         if not self._paper_auto_accept_enabled():
             return {"skipped": "not paper", "implemented": 0}
 
@@ -268,7 +268,7 @@ class ArchitectureEvolutionEngine:
                 done.append(pid)
         stats = self.get_stats()
         logger.info(
-            "[Hermes:L3] reconcile_implemented: %d → implemented, stats=%s",
+            "[Hermes:L3] reconcile_implemented: %d �� implemented, stats=%s",
             len(done), stats,
         )
         return {
@@ -289,7 +289,7 @@ class ArchitectureEvolutionEngine:
             return False
 
     def auto_accept_pending_paper(self, *, limit: Optional[int] = None) -> Dict[str, Any]:
-        """Paper 模式批量 accept pending L3 提案 → Governor（Paper 自动 approve）。"""
+        """Paper ģʽ���� accept pending L3 �᰸ �� Governor��Paper �Զ� approve����"""
         if not self._paper_auto_accept_enabled():
             return {"skipped": "HERMES_L3_AUTO_ACCEPT_PAPER=false or not paper", "accepted": 0}
 
@@ -339,7 +339,7 @@ class ArchitectureEvolutionEngine:
         )
         return {"ok": True, "proposal_id": proposal_id, "reason": reason}
 
-    # ──── 私有辅助 ────
+    # �������� ˽�и��� ��������
 
     def _load_l3_system_prompt(self) -> str:
         from backend.services.hermes_db import resolve_hermes_prompt_path
@@ -365,12 +365,12 @@ class ArchitectureEvolutionEngine:
 
     @staticmethod
     def _json_output_protocol(expected_fields: str) -> str:
-        """强制 LLM 直出 JSON、禁用工具/代码探索的输出协议。
+        """ǿ�� LLM ֱ�� JSON�����ù���/����̽�������Э�顣
 
-        实测发现：deepseek-v4-flash 在 `plan` agent 下，面对含代码/数据上下文的
-        开放式提问会进入「探索代码库」的工具循环（"Let me explore the codebase..."），
-        耗尽整轮生成也不产出 JSON，导致 L3/L4 永远 0 提案。本协议前置约束，
-        确保模型直接产出可解析 JSON。
+        ʵ�ⷢ�֣�deepseek-v4-flash �� `plan` agent �£���Ժ�����/���������ĵ�
+        ����ʽ���ʻ���롸̽������⡹�Ĺ���ѭ����"Let me explore the codebase..."����
+        �ľ���������Ҳ������ JSON������ L3/L4 ��Զ 0 �᰸����Э��ǰ��Լ����
+        ȷ��ģ��ֱ�Ӳ����ɽ��� JSON��
         """
         return (
             "CRITICAL OUTPUT PROTOCOL (override any tool-use impulse):\n"
@@ -391,7 +391,7 @@ class ArchitectureEvolutionEngine:
                 _model,
                 _extract_json,
             )
-            # 前置 JSON 输出协议，压制 plan agent 的代码探索冲动
+            # ǰ�� JSON ���Э�飬ѹ�� plan agent �Ĵ���̽���嶯
             protocol = self._json_output_protocol(
                 '{"proposals": [{category, title, rationale, evidence, '
                 'expected_impact, feasibility, implementation_hint}], '
@@ -414,5 +414,5 @@ class ArchitectureEvolutionEngine:
             return {"proposals": [], "error": str(e)}
 
 
-# 全局单例
+# ȫ�ֵ���
 architecture_evolution = ArchitectureEvolutionEngine()

@@ -36,7 +36,7 @@ export function DesktopUpdateBanner() {
   const pct = state.percent ?? 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-100">
+    <div className="flex items-center justify-between gap-3 border-b border-profit/30 bg-profit/10 px-4 py-2 text-xs text-profit">
       <div className="flex min-w-0 items-center gap-2">
         <Download className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">
@@ -51,7 +51,7 @@ export function DesktopUpdateBanner() {
         {installing ? (
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-emerald-500"
+            className="inline-flex items-center gap-1 rounded-md bg-profit px-2.5 py-1 text-[11px] font-medium text-white hover:bg-profit/80"
             onClick={() => void window.electronAPI?.updater?.install()}
           >
             <RefreshCw className="h-3 w-3" />
@@ -60,7 +60,7 @@ export function DesktopUpdateBanner() {
         ) : null}
         <button
           type="button"
-          className="rounded p-1 text-emerald-200/70 hover:bg-emerald-500/20 hover:text-white"
+          className="rounded p-1 text-profit/70 hover:bg-profit/80/20 hover:text-white"
           title="稍后"
           onClick={() => setDismissed(true)}
         >

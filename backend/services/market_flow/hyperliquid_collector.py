@@ -131,7 +131,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
             pass
 
         try:
-            from database.connection import SessionLocal
+            from backend.database.connection import SessionLocal
             from sqlalchemy import text
             db = SessionLocal()
             try:
@@ -169,11 +169,8 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
         logger.info("[hyperliquid] 连接 API: %s", base_url)
         try:
             # [2026-07-18 修复] Info() 默认会调用 self.spot_meta() 拉取现货市场元数据，
-            # 逐个 universe 条目用 base,quote = spot_info["tokens"] 去索引 spot_meta["tokens"]
-            # 列表——一旦 Hyperliquid 线上新增/调整了某个现货对而 tokens 列表暂时不同步
-            # （官方接口自身的数据一致性问题，不是本项目代码bug），任何客户端在这个窗口期
-            # 构造 Info() 都会 100% 复现 IndexError，且是确定性的、重试也不会自愈（不是网络
-            # 抖动）——这正是此前"重试5次全部失败、WS连不上、L2/trades全断"的根因。本项目只做
+            # 逐个 universe 条目用 base,quote = spot_info["tokens"] 去索引 spot_meta["tokens"] # 列表——一旦 Hyperliquid 线上新增/调整了某个现货对而 tokens 列表暂时不同步 # （官方接口自身的数据一致性问题，不是本项目代码bug），任何客户端在这个窗口期
+            # 构造 Info() 都会 100% 复现 IndexError，且是确定性的、重试也不会自愈（不是网络 # 抖动）——这正是此前"重试5次全部失败、WS连不上、L2/trades全断"的根因。本项目只做
             # 永续合约(perp)交易，完全不需要现货元数据，因此传入空 spot_meta 跳过这段有问题的
             # 现货解析逻辑（Info 支持显式传入 spot_meta 来跳过内部的 self.spot_meta() 拉取）。
             self.info = Info(
@@ -481,7 +478,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
     # ── 订单簿 / 资产指标落库（HL 特有，覆盖基类空实现）──
 
     def _flush_orderbook(self, db, symbol: str, timestamp_ms: int) -> None:
-        from database.models import MarketOrderbookSnapshots
+        from backend.database.models import MarketOrderbookSnapshots
 
         l2book_age = time.time() - self.last_update_time["l2book"]
         if self.last_update_time["l2book"] > 0 and l2book_age > DATA_STALE_THRESHOLD_SECONDS:
@@ -532,7 +529,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
             logger.error("[hyperliquid] orderbook flush %s 异常: %s", symbol, e)
 
     def _flush_asset_metrics(self, db, symbol: str, timestamp_ms: int) -> None:
-        from database.models import MarketAssetMetrics
+        from backend.database.models import MarketAssetMetrics
 
         asset_ctx_age = time.time() - self.last_update_time["asset_ctx"]
         if self.last_update_time["asset_ctx"] > 0 and asset_ctx_age > DATA_STALE_THRESHOLD_SECONDS:
@@ -575,7 +572,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
 
     def _save_perp_funding(self, db, symbol: str, timestamp_ms: int, ctx: dict) -> None:
         try:
-            from database.models import PerpFunding
+            from backend.database.models import PerpFunding
             funding_val = Decimal(ctx["funding"])
             mark_price = Decimal(ctx["markPx"]) if ctx.get("markPx") else None
             existing = db.query(PerpFunding).filter(

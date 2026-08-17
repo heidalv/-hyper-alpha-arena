@@ -53,14 +53,9 @@ class HermesOrchestrator:
             logger.warning("[Hermes] L2 recover_stuck 失败: %s", e)
         try:
             from backend.database.connection import SessionLocal
-            from backend.services.prompt_training_system import PromptTrainingSystem
-            db = SessionLocal()
-            try:
-                pt_rec = PromptTrainingSystem(db).recover_stuck_ab_tests()
-                if pt_rec.get("recovered"):
-                    logger.info("[Hermes] PromptTraining 已恢复卡住记录: %s", pt_rec.get("ids"))
-            finally:
-                db.close()
+            # [2026-08-17 删除] prompt_training_system 已移除；卡住 A/B 记录由
+            # prompt_opt.recover_stuck_versions 覆盖（上方已调用）。
+            logger.debug("[Hermes] prompt_training_system removed; skip recover_stuck_ab_tests")
         except Exception as e:
             # [2026-08-05 v6 8.3 阶段1] 静默→告警：恢复失败必须可见
             logger.warning("[Hermes] PromptTraining recover_stuck: %s", e)

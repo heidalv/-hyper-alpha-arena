@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { Sparkles, GitBranch, ListTree, Coins, ServerCog, Workflow, Layers, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { WisdomLifecyclePanel } from "@/components/learning/WisdomLifecyclePanel";
 import { HealthChannelsPanel } from "@/components/learning/HealthChannelsPanel";
 import { RAGStatusPanel } from "@/components/learning/RAGStatusPanel";
@@ -42,13 +43,14 @@ export default function IntelligentLearningPage() {
   const [tab, setTab] = useState<Tab>("lifecycle");
 
   return (
-    <div className="p-4 space-y-4 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold flex items-center gap-2">
-          <Workflow className="w-5 h-5 text-primary" />
-          智能学习中心
-        </h1>
-      </div>
+    <div className="p-4 space-y-4">
+      <PageHeader
+        icon={<Workflow className="w-4 h-4" />}
+        title="智能学习中心"
+        subtitle="唯一学习进化前端入口 · 只对接后端真实接口"
+        breadcrumb={[{ label: "市场 & 分析" }, { label: "智能学习" }]}
+        refreshHint="学习闭环 30s tick"
+      />
 
       {/* Tab 导航 */}
       <div className="flex items-center gap-1 flex-wrap border-b border-border/50 pb-2">
@@ -57,9 +59,9 @@ export default function IntelligentLearningPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-transparent transition-colors",
               tab === t.key
-                ? "bg-primary/15 text-primary font-medium"
+                ? "bg-gradient-to-r from-cyan-400/15 to-violet-500/15 border-cyan-400/30 text-cyan-300 font-medium"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >

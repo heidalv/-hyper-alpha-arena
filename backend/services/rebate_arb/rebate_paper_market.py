@@ -213,6 +213,18 @@ def resolve_paper_market(symbol: str, exchange: str = "") -> Optional[PaperMarke
         return q
 
     # 4) ccxt REST
+    # [2026-08-15 P0-4 修复] DC_ONLY 唯一数据源模式下禁止直连交易所：
+    # 上面三层（hub / price_cache / K线DB）都失败时直接返回 None，不再 ccxt 兜底。
+    try:
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled():
+            logger.warning(
+                "[RebatePaperMarket] DC_ONLY 下数据中心无 %s@%s 行情（禁止 ccxt 直连）",
+                symbol, exchange,
+            )
+            return None
+    except Exception:
+        pass
     for ex_id in ("binance", "hyperliquid"):
         q = _fetch_ccxt_ticker(ex_id, base)
         if q:

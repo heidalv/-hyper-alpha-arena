@@ -171,6 +171,15 @@ class AggregateWhaleCollector(AggregateCollectorBase):
                 break
 
         if not hit:
+            # [2026-08-15 D4] 采集在数据中心进程（本进程缓存为空），主进程消费方
+            # 回退读取数据中心仓库 whale_activities（activity_type='aggregate_whale'），
+            # 保证选币器能拿到 DC 落库的大单数据。
+            try:
+                fallback = self._summary_from_db(sym)
+                if fallback:
+                    return fallback
+            except Exception as exc:
+                logger.debug("[AggregateWhale] DB 回退读取失败 %s: %s", sym, exc)
             return empty
 
         direction = hit.get("direction")
@@ -196,6 +205,53 @@ class AggregateWhaleCollector(AggregateCollectorBase):
             "net_usd": round(net_usd, 2),
             "whale_count": int(hit.get("whale_count") or 0),
             "confidence": float(hit.get("confidence") or 0.0),
+            "available": True,
+        }
+
+    def _summary_from_db(self, sym: str, hours: int = 2) -> Optional[Dict[str, Any]]:
+        """从 whale_activities 聚合近 N 小时大单摘要（DC 进程采集的落库数据）。"""
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import MarketSessionLocal
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            with MarketSessionLocal() as db:
+                rows = db.execute(
+                    _sa_text(
+                        "SELECT direction, amount_usd, signal_direction, timestamp "
+                        "FROM whale_activities "
+                        "WHERE activity_type='aggregate_whale' AND symbol=:sym "
+                        "AND timestamp >= :cutoff ORDER BY timestamp DESC LIMIT 40"
+                    ),
+                    {"sym": sym, "cutoff": cutoff},
+                ).fetchall()
+        except Exception:
+            return None
+        if not rows:
+            return None
+        buy = sum(float(r[1] or 0) for r in rows if r[0] == "buy")
+        sell = sum(float(r[1] or 0) for r in rows if r[0] == "sell")
+        total = buy + sell
+        if total <= 0:
+            return None
+        net = buy - sell
+        thr = float(os.getenv("AUTO_COIN_WHALE_DIR_THRESHOLD", "0.15"))
+        direction = net / total
+        if direction > thr:
+            net_dir = "buy"
+        elif direction < -thr:
+            net_dir = "sell"
+        else:
+            net_dir = "neutral"
+        return {
+            "net_direction": net_dir,
+            "buy_volume": round(buy, 2),
+            "sell_volume": round(sell, 2),
+            "net_usd": round(net, 2),
+            "whale_count": len(rows),
+            "confidence": round(min(1.0, len(rows) / 10.0), 2),
             "available": True,
         }
 

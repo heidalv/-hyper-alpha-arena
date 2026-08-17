@@ -590,16 +590,17 @@ class PaperTradingEngine:
         # 4) 最后才直接调用配置交易所的 ccxt，且加 timeout，避免定时任务卡死
         # [2026-08-04 DC_ONLY] 数据中心唯一数据源：DC_ONLY 下禁止 ccxt 直连兜底
         #（纸交易盯市价格必须来自数据中心，避免绕过唯一数据源）。
-        try:
-            from backend.services.market_data import _dc_only_enabled
-            if _dc_only_enabled():
-                from backend.services.data_center import data_center
-                price = data_center.get_price(symbol, exchange)
-                if price and price > 0:
-                    return float(price)
-                raise RuntimeError(f"DC_ONLY 下数据中心无 {symbol} 价格")
-        except Exception:
-            pass
+        # [2026-08-15 P0-4 修复] 原实现守卫 raise 被 except:pass 吞掉后仍会落入
+        # 下方 ccxt 直连；现重构为 DC_ONLY 下失败直接抛错，绝不回退直连。
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled():
+            from backend.services.data_center import data_center
+            price = data_center.get_price(symbol, exchange)
+            if price and price > 0:
+                return float(price)
+            raise RuntimeError(
+                f"DC_ONLY 下数据中心无 {symbol} 价格（禁止 ccxt 直连兜底）"
+            )
         try:
             import ccxt
             ccxt_exchange = "gateio" if exchange == "gate" else exchange
@@ -1052,7 +1053,9 @@ class PaperTradingEngine:
             PaperMarketState,
             simulate_exchange_order,
         )
-        force_maker = bool(str(order.order_type or "").lower() == "limit")
+        # [P2-4] 新限价单不再强制 maker（模拟器按盘口穿越判定 taker/maker）；
+        # resting_limit 仅用于挂单后触发路径（check_pending_orders 传 True）。
+        force_maker = False
 
         sim_order_type = OrderType.LIMIT if str(order.order_type or "").lower() == "limit" else OrderType.MARKET
         sim_result = simulate_exchange_order(
@@ -1527,7 +1530,10 @@ class PaperTradingEngine:
         pos.close_price = fill_price
         pos.close_reason = actual_reason
         pos.closed_at = datetime.now(timezone.utc)
-        # 将已实现盈亏写入 unrealized_pnl 字段（closed 状态下复用为 realized_pnl 存档）
+        # [P0-6 权威口径] 将已实现盈亏写入 unrealized_pnl 字段（closed 状态下复用为
+        # realized_pnl 存档），且【已含分批 partial_realized_pnl】（total_pnl = final + partial）。
+        # 消费方（learning_loop._paper_position_pnl / reentry_cooldown._durable_reopen_blocked）
+        # 读取 closed 仓位 unrealized_pnl 时禁止再叠加 partial_realized_pnl，否则双计。
         # _recalc_balance 只查 open 仓位，不影响余额计算
         pos.unrealized_pnl = total_pnl
 
@@ -2448,29 +2454,42 @@ class PaperTradingEngine:
             )
             return True
 
-        # ── 分段止盈 (按 TP3→TP2→TP1 顺序检查, 单 tick 只触发最高一档, 防双触发) ──
+        # ── 分段止盈 (按 TP3→TP2→TP1 顺序检查; [P0-7e] 跳档补齐) ──
+        # [P0-7e 跳档修复] 价格一跳穿多档时，按未触发的档位累计减仓比例一次执行，
+        # 避免只减最高档而 TP1/TP2 的 25%+25% 永久丢失（此前 70% 仓位暴露给反转）。
         if (not _tp3_done) and _price_change_atr >= _params["tp3_mult"]:
-            # TP3: 平 30%, 启动追踪止损 (peak - ATR价格距×trail_mult)
-            _closed = self._partial_close_by_pct(db, pos, 0.30, "staged_tp3")
+            _missing_ratio = 0.30  # TP3 档
+            if not _tp2_done:
+                _missing_ratio += 0.25  # 补齐 TP2
+            if not _tp1_done:
+                _missing_ratio += 0.25  # 补齐 TP1
+            _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp3")
             if _closed and _closed.get("closed_fully"):
                 return True
-            pos.tp_level_reached = max(_level, 3)
-            _new_sl = _peak_price - _atr_price * _params["trail_mult"]
+            pos.tp_level_reached = 3
+            # [P0-7 方向修复] 空单必须乘 _side_dir：short 的 peak 在入场价下方，
+            # 追踪止损应位于 peak 上方（朝 entry 方向），漏乘会把 SL 放到现价下方 →
+            # 下一次判定立即触发并以低于市价成交，虚增空单浮盈。
+            _new_sl = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
             self._tighten_sl_unified(pos, _new_sl, "staged_tp3")
             logger.info(
                 f"[Paper][v2-Unified] TP3 触发: {pos.symbol} {_side} "
-                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp3_mult']}, 平30%, 启动追踪 SL→{pos.sl_price}")
+                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp3_mult']}, "
+                f"跳档补齐减仓{_missing_ratio:.0%}, 启动追踪 SL→{pos.sl_price}")
         elif (not _tp2_done) and _price_change_atr >= _params["tp2_mult"]:
-            # TP2: 平 25%, SL → TP1 价 + ATR价格距×0.5
-            _closed = self._partial_close_by_pct(db, pos, 0.25, "staged_tp2")
+            _missing_ratio = 0.25  # TP2 档
+            if not _tp1_done:
+                _missing_ratio += 0.25  # 补齐 TP1
+            _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp2")
             if _closed and _closed.get("closed_fully"):
                 return True
-            pos.tp_level_reached = max(_level, 2)
+            pos.tp_level_reached = 2
             _tp1_price = _entry + _atr_price * _params["tp1_mult"] * _side_dir
             self._tighten_sl_unified(pos, _tp1_price + _atr_price * 0.5 * _side_dir, "staged_tp2")
             logger.info(
                 f"[Paper][v2-Unified] TP2 触发: {pos.symbol} {_side} "
-                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}, 平25%")
+                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}, "
+                f"跳档补齐减仓{_missing_ratio:.0%}")
         elif (not _tp1_done) and _price_change_atr >= _params["tp1_mult"]:
             # TP1: 平 25%, SL → entry + ATR价格距×0.8 (保本+给呼吸空间)
             # [2026-07-30 crypto-native] 0.3×ATR≈0.15% 太紧，加密5m正常波动0.5-1%轻松击穿
@@ -2478,7 +2497,7 @@ class PaperTradingEngine:
             _closed = self._partial_close_by_pct(db, pos, 0.25, "staged_tp1")
             if _closed and _closed.get("closed_fully"):
                 return True
-            pos.tp_level_reached = max(_level, 1)
+            pos.tp_level_reached = 1
             self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
             logger.info(
                 f"[Paper][v2-Unified] TP1 触发: {pos.symbol} {_side} "
@@ -2515,7 +2534,8 @@ class PaperTradingEngine:
 
         # ── 追踪止损 (TP3 后, 单调收紧) ──
         if _tp3_done and _peak_price > 0:
-            _new_trail = _peak_price - _atr_price * _params["trail_mult"]
+            # [P0-7 方向修复] 同 TP3：空单追踪止损须乘 _side_dir，避免 SL 落在现价下方。
+            _new_trail = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
             self._tighten_sl_unified(pos, _new_trail, "unified_trailing")
 
         return False
@@ -2710,7 +2730,9 @@ class PaperTradingEngine:
                         _PPD6.status == "open",
                     ).first()
                     if _remaining and _dd_action.get("new_sl"):
-                        _remaining.sl_price = _dd_action["new_sl"]
+                        # [P0-7 单调] 走 _tighten_sl_unified（long 只升/short 只降），
+                        # 直接赋值会把回撤后的更低 SL 反向放宽已锁利润位。
+                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_drawdown_partial")
                         db.commit()
                         logger.info(
                             f"[Paper][D6] 剩余仓位 SL 收紧: {pos.symbol} {pos.side} "
@@ -2756,7 +2778,8 @@ class PaperTradingEngine:
                         _PPD7.status == "open",
                     ).first()
                     if _remaining and _dd_action.get("new_sl"):
-                        _remaining.sl_price = _dd_action["new_sl"]
+                        # [P0-7 单调] 同 partial_close：单调收紧，不直接赋值。
+                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_stage_close")
                         _remaining.peak_unrealized_pnl = self._calc_unrealized_pnl(
                             float(_remaining.entry_price), float(current_price),
                             float(_remaining.size or 0), _remaining.side
@@ -2769,7 +2792,8 @@ class PaperTradingEngine:
                     # D7: 浮盈达标后将 SL 推到成本附近，避免从盈利仓变亏损仓
                     _new_sl = _dd_action.get("new_sl")
                     if _new_sl:
-                        pos.sl_price = float(_new_sl)
+                        # [P0-7 单调] 保本 SL 同样只朝有利方向推进。
+                        self._tighten_sl_unified(pos, float(_new_sl), "breakeven_sl")
                         logger.info(
                             f"[Paper][D7] 保本SL推进: {pos.symbol} {pos.side} "
                             f"SL→{pos.sl_price:.6f} reason={_dd_action.get('reason')}")
@@ -2780,7 +2804,8 @@ class PaperTradingEngine:
                     # 仅在最短持仓已过或利润显著时执行（避免刚开仓就锁死）
                     if _min_hold_ok or peak > position_value * 0.03:
                         if _dd_action.get("new_sl"):
-                            pos.sl_price = _dd_action["new_sl"]
+                            # [P0-7 单调] 收紧 SL 走单调守卫，防止回撤时把锁利位往下调。
+                            self._tighten_sl_unified(pos, _dd_action["new_sl"], "profit_drawdown_tighten")
                             logger.info(
                                 f"[Paper][D6] 盈利回撤-锁利: {pos.symbol} {pos.side} "
                                 f"peak=${peak:.2f} → upnl=${current_upnl:.2f}, "
@@ -3341,6 +3366,9 @@ class PaperTradingEngine:
                 "trend_strength": trend_strength,
                 "leverage": float(pos.leverage or 1.0),
                 "paper_position_id": getattr(pos, "id", None),
+                # [P0-4] 快照关联：unified_learning 已有 snapshot_id 拷贝键（decision_context），
+                # 平仓回写匹配到 DecisionSnapshot 后把唯一键带进学习数据，三方关联闭环。
+                "snapshot_id": getattr(pos, "_matched_snapshot_id", None),
                 "peak_pnl": peak_pnl,
                 "peak_pnl_pct": peak_pnl_pct,
                 "exit_pnl_pct": pnl_pct,
@@ -3465,26 +3493,58 @@ class PaperTradingEngine:
             _snap = None
             _cutoff = datetime.now(timezone.utc) - timedelta(hours=48)  # 扩大到48小时，覆盖long tier持仓
 
-            # 策略 1: 精确匹配 strategy_id + symbol + 时间窗口
+            # [P0-4] 方向一致性 + 唯一性：同币种 48h 内多策略/重入场时，
+            # 模糊匹配会把盈亏挂到错误决策。候选不唯一 → 记 ambiguous 并跳过（宁缺勿错）。
+            _pos_side = str(getattr(pos, "side", "") or "").lower()
+            _want_dir = (
+                "buy" if _pos_side in ("long", "buy")
+                else ("sell" if _pos_side in ("short", "sell") else None)
+            )
+
+            # 策略 1: 精确匹配 strategy_id + symbol + 方向 + 时间窗口（要求唯一）
             _strategy_id_for_match = strategy_id if strategy_id else ""
             if _strategy_id_for_match:
-                _snap = _ana_db.query(DecisionSnapshot).filter(
+                _cands = _ana_db.query(DecisionSnapshot).filter(
                     DecisionSnapshot.strategy_id == _strategy_id_for_match,
                     DecisionSnapshot.symbol == pos.symbol,
                     DecisionSnapshot.pnl.is_(None),
                     DecisionSnapshot.timestamp >= _cutoff,
-                ).order_by(DecisionSnapshot.timestamp.desc()).first()
+                ).order_by(DecisionSnapshot.timestamp.desc()).limit(2).all()
+                if _want_dir:
+                    _cands = [c for c in _cands if (getattr(c, "direction", "") or "") == _want_dir]
+                if len(_cands) == 1:
+                    _snap = _cands[0]
+                elif len(_cands) > 1:
+                    logger.warning(
+                        "[Paper] DecisionSnapshot 回写 ambiguous（%d 候选），跳过以防归因错配: %s %s",
+                        len(_cands), pos.symbol, _pos_side,
+                    )
 
-            # 策略 2: 模糊回退 — 按 symbol + action 方向一致 + 时间窗口
+            # 策略 2: 模糊回退 — 同样要求方向一致且唯一
             if not _snap:
-                _snap = _ana_db.query(DecisionSnapshot).filter(
+                _cands = _ana_db.query(DecisionSnapshot).filter(
                     DecisionSnapshot.symbol == pos.symbol,
                     DecisionSnapshot.action.isnot(None),
                     DecisionSnapshot.pnl.is_(None),
                     DecisionSnapshot.timestamp >= _cutoff,
-                ).order_by(DecisionSnapshot.timestamp.desc()).first()
+                ).order_by(DecisionSnapshot.timestamp.desc()).limit(2).all()
+                if _want_dir:
+                    _cands = [c for c in _cands if (getattr(c, "direction", "") or "") == _want_dir]
+                if len(_cands) == 1:
+                    _snap = _cands[0]
+                elif len(_cands) > 1:
+                    logger.warning(
+                        "[Paper] DecisionSnapshot 回退回写 ambiguous（%d 候选），跳过: %s %s",
+                        len(_cands), pos.symbol, _pos_side,
+                    )
 
             if _snap:
+                # [P0-4] 学习侧关联：记录匹配到的快照唯一键，供 TradeOutcome metadata 传递
+                pos._matched_snapshot_id = (
+                    getattr(_snap, "trace_id", None)
+                    or getattr(_snap, "proposal_id", None)
+                    or getattr(_snap, "id", None)
+                )
                 _snap.exit_price = float(fill_price)
                 _snap.pnl = float(pnl)
                 _snap.pnl_pct = pnl_pct
@@ -3559,10 +3619,12 @@ class PaperTradingEngine:
     def get_positions(self, db: Session, account_id: int, status: str = "open") -> List[Dict]:
         from backend.database.models import PaperPosition
         with db.no_autoflush:
+            # [2026-08-17] 固定排序：原查询无 ORDER BY，PostgreSQL 返回堆序，
+            # 持仓行每次刷新(3s 轮询)顺序都会乱跳。按 id DESC(新开仓在前)固定行序。
             positions = db.query(PaperPosition).filter(
                 PaperPosition.account_id == account_id,
                 PaperPosition.status == status,
-            ).all()
+            ).order_by(PaperPosition.id.desc()).all()
             exchange = self._resolve_account_exchange(db, account_id)
 
             if status == "open":
@@ -3936,9 +3998,15 @@ class PaperTradingEngine:
         if sl_price is not None:
             old_sl = pos.sl_price
             pos.sl_price = sl_price
+            # [P0-7 结构性加固] 所有 AI/紧急 SL 调整必须位于爆仓价内侧（含紧急 SL 路径），
+            # 否则高杠杆下 SL 永不先触发。_ensure_sl_inside_liq 会自动把越界 SL 钳回 liq 内侧。
+            try:
+                self._ensure_sl_inside_liq(pos)
+            except Exception as _liq_err:
+                logger.debug(f"[Paper] update_tp_sl liq 守卫跳过: {_liq_err}")
             changed = True
             logger.info(f"[Paper] AI调整SL: {pos.symbol} {pos.side} "
-                        f"SL {old_sl}→{sl_price}")
+                        f"SL {old_sl}→{pos.sl_price}")
 
         if changed:
             self._sync_attached_orders(db, pos)
@@ -4254,8 +4322,11 @@ class PaperTradingEngine:
         - funding_rate > 0 时多头付费给空头，反之亦然
         - payment = notional * rate，直接计入 PaperBalance.realized_pnl
         """
-        from backend.config.settings import PAPER_SIMULATION_TIER, FUNDING_SETTLE_INTERVAL_SEC
-        if PAPER_SIMULATION_TIER != "research":
+        # [P0-8] 默认档也结算资金费（不再绑定 research 档）：
+        # 中期持仓跨 8h 结算点，此前 demo 档 PnL 从不含资金费，与
+        # funding_net_rr_ok 入场闸门的成本假设脱节，学习闭环在无资金费偏置的 PnL 上自训。
+        from backend.config.settings import FUNDING_SETTLE_ENABLED, FUNDING_SETTLE_INTERVAL_SEC
+        if not FUNDING_SETTLE_ENABLED:
             return
 
         from backend.database.models import PaperFundingLedger
@@ -4290,7 +4361,7 @@ class PaperTradingEngine:
         else:
             payment = notional * funding_rate    # 正费率时空头收入
 
-        # 写入 ledger
+        # 写入 ledger（[P0-8] 带 timeframe_tier 供口径审计）
         entry = PaperFundingLedger(
             account_id=pos.account_id,
             position_id=pos.id,
@@ -4299,14 +4370,16 @@ class PaperTradingEngine:
             notional=notional,
             funding_rate=funding_rate,
             payment=payment,
+            tier=getattr(pos, "timeframe_tier", None) or None,
             settled_at=now,
         )
         db.add(entry)
 
-        # 更新余额
+        # 更新余额（[P0-8] dry-run 观察期：FUNDING_SETTLE_APPLY_PNL=false 时仅记账不动净值）
+        from backend.config.settings import FUNDING_SETTLE_APPLY_PNL
         from backend.database.models import PaperBalance
         bal = db.query(PaperBalance).filter(PaperBalance.account_id == pos.account_id).first()
-        if bal:
+        if bal and FUNDING_SETTLE_APPLY_PNL:
             bal.realized_pnl = float(bal.realized_pnl or 0) + payment
             bal.available_balance = float(bal.available_balance or 0) + payment
 
@@ -4469,11 +4542,24 @@ class PaperTradingEngine:
     # ── 计算工具 ──────────────────────────────────
 
     @staticmethod
-    def _calc_liquidation_price(entry_price: float, side: str, leverage: float) -> float:
-        """估算爆仓价（简化版逐仓）"""
+    def _calc_liquidation_price(entry_price: float, side: str, leverage: float,
+                                exchange: Optional[str] = None) -> float:
+        """估算爆仓价（简化版逐仓）。
+
+        [P2-3] 维持保证金率按交易所取值（原全局 MAINTENANCE_MARGIN_RATE 0.005，
+        与 fee_schedule_service 的 per-exchange 真相源矛盾，各所爆仓价偏移 ~0.1%）。
+        """
         if leverage <= 1:
             return 0.0
         mm = MAINTENANCE_MARGIN_RATE
+        if exchange:
+            try:
+                from backend.services.fee_schedule_service import get_maint_margin_rate
+                _ex_mm = get_maint_margin_rate(exchange)
+                if _ex_mm and _ex_mm > 0:
+                    mm = float(_ex_mm)
+            except Exception:
+                pass
         if side == "long":
             return entry_price * (1 - (1 / leverage) + mm)
         else:

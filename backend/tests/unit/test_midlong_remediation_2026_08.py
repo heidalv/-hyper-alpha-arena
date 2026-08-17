@@ -260,15 +260,6 @@ def test_missing_section_factor_three_states():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# P1 mlto_cycle：execute_mlto_lane 不再把 tier 写死为 long
+# [2026-08-17] test_execute_mlto_lane_passes_through_tier 已删：
+# execute_mlto_lane 函数已删除（旧长线 MLTO lane LLM 下线）。
 # ──────────────────────────────────────────────────────────────────────
-
-
-def test_execute_mlto_lane_passes_through_tier():
-    from backend.services.full_auto import mlto_cycle
-    src = inspect.getsource(mlto_cycle.execute_mlto_lane)
-    assert "tier=tier," in src
-    # 确保调用发生在 execute_midlong_open 参数块内，而非别处
-    call_idx = src.index("execute_midlong_open(")
-    tier_idx = src.index("tier=tier,", call_idx)
-    assert tier_idx < src.index("trade_nature=", call_idx)

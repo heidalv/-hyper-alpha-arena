@@ -1,0 +1,72 @@
+/* ═══════════════════════════════════════════════════════════════════
+ * 曙光研究院 Dawn Research — 浅色主题 Token 文件 (Theme C)
+ * 角色名与 frontend-next/src/app/globals.css 现有 token 完全一致，
+ * 可直接整块复制进 globals.css 的 :root（替换深色块即可，无需改组件）。
+ * 约定：涨=绿(--profit) / 跌=红(--loss) / 警示=琥珀(--warning)
+ * ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── 字体 ─── */
+  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+    system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono",
+    Consolas, monospace;
+
+  /* ─── 背景层：纸白研究桌面 ─── */
+  --background: #F5F6F8;        /* 页面底 · 纸白带一丝灰蓝 */
+  --card: #FFFFFF;              /* 卡片/面板 · 纯白浮起 */
+  --card-foreground: #182230;
+  --popover: #FFFFFF;           /* 弹出层/下拉 */
+  --popover-foreground: #182230;
+
+  /* ─── 文字 ─── */
+  --foreground: #182230;        /* 墨色主文字（页头条带同色） */
+  --muted-foreground: #5E6B82;  /* 次要文字 · 石板灰蓝 */
+  --muted: #F0F2F6;             /* 静态弱背景（表头替代色等） */
+  --secondary: #EDF0F5;         /* 次要容器（次级按钮/胶囊底） */
+  --secondary-foreground: #182230;
+  --accent: #E8EDF8;            /* 高亮容器（选中/悬浮的浅靛蓝） */
+  --accent-foreground: #182230;
+
+  /* ─── 交互色 ─── */
+  --primary: #3456D9;           /* 靛蓝 · 信赖感（品牌主色） */
+  --primary-foreground: #FFFFFF;
+  --destructive: #DC2626;       /* 危险操作（与 --loss 同源） */
+  --destructive-foreground: #FFFFFF;
+  --ring: rgba(52, 86, 217, 0.35);   /* 聚焦环 · 靛蓝半透明 */
+  --input: #E8EBF1;             /* 输入框底 */
+  --border: #E3E7EE;            /* 分隔线/卡片描边 */
+
+  /* ─── 交易专用语义色 ─── */
+  --profit: #059669;            /* 涨 · 翡翠绿 */
+  --loss: #DC2626;              /* 跌 · 朱红 */
+  --warning: #D97706;           /* 警示 · 琥珀 */
+
+  /* ─── 图表色板 ─── */
+  --chart-1: #3456D9;           /* 靛蓝 · 主序列 */
+  --chart-2: #059669;           /* 绿 */
+  --chart-3: #DC2626;           /* 红 */
+  --chart-4: #D97706;           /* 琥珀 */
+  --chart-5: #7C3AED;           /* 紫 */
+
+  /* ─── 侧边栏 ─── */
+  --sidebar: #EEF0F4;           /* 浅灰底 · 与纸白区分 */
+  --sidebar-foreground: #3A4558;/* 导航文字 · 墨灰蓝 */
+  --sidebar-primary: #3456D9;   /* 激活态靛蓝文字 */
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E2E7F2;    /* 激活项白色卡片浮起底 */
+  --sidebar-accent-foreground: #182230;
+  --sidebar-border: #E0E4EC;
+  --sidebar-ring: rgba(52, 86, 217, 0.35);
+
+  /* ─── 圆角：8px · 机构级略圆 ─── */
+  --radius: 0.5rem;
+
+  /* ─── 扩展 token（可选，供新组件使用） ─── */
+  /* --table-header: #F8F9FB;      表格表头底 */
+  /* --row-hover: #F5F7FB;         表格 hover 行 */
+  /* --zebra: #FAFBFC;             斑马纹 */
+  /* --header-band: #182230;       页头墨色条带 */
+  /* --shadow-card: 0 1px 2px rgba(16,24,40,0.05); */
+  /* --shadow-card-hover: 0 4px 12px rgba(16,24,40,0.08); */
+}

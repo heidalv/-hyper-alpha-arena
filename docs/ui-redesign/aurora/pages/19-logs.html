@@ -1,0 +1,172 @@
+<section class="page" id="page-logs" data-title="系统日志">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>系统日志</h1>
+      <p class="page-sub">跨账户系统级日志 · 完整分级报错见「运维看板 → 报错中心」</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>3</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 0.5s</span>
+        </div>
+    <div class="page-actions">
+      <div class="seg">
+        <button class="seg-item active">全部</button>
+        <button class="seg-item">INFO</button>
+        <button class="seg-item">WARN</button>
+        <button class="seg-item">ERROR</button>
+        <button class="seg-item">P0</button>
+      </div>
+      <div class="seg" style="margin-left:4px">
+        <button class="seg-item active">24h</button>
+        <button class="seg-item">7d</button>
+        <button class="seg-item" data-toast='{"type":"info","title":"自定义范围","msg":"暂不支持自定义，请选择预设范围"}' >自定义</button>
+      </div>
+      <button class="btn btn-ghost2 btn-sm" data-toast='{"type":"ok","title":"日志已导出","msg":"logs_20260814.csv 已下载"}'><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>导出 CSV</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-label">今日日志</div>
+      <div class="kpi-value">2,847</div>
+      <div class="kpi-change flat">过去 24h</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label">ERROR</div>
+      <div class="kpi-value grad-red">18</div>
+      <div class="kpi-change down">▼ 较昨日 -6</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label">WARN</div>
+      <div class="kpi-value grad">63</div>
+      <div class="kpi-change up">▲ 较昨日 +12</div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label">P0 紧急</div>
+      <div class="kpi-value grad-red">2</div>
+      <div class="kpi-change down">需立即处理</div>
+    </div>
+  </div>
+
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>日志流</div>
+      <span class="card-hint">实时滚动 · 级别过滤</span>
+    </div>
+    <div class="card-body pad0">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th style="width:150px">时间</th><th style="width:90px">级别</th><th style="width:160px">来源</th><th>消息</th><th style="width:90px" class="c">操作</th></tr></thead>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+        <tbody>
+          <tr>
+            <td class="num">19:51:22.418</td>
+            <td><span class="badge warn"><span class="bdot"></span>ERROR</span></td>
+            <td><span class="mono">hermes.lifecycle</span></td>
+            <td class="down">决策链路心跳超时 3 次，已自动重启编排器 tick</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:51:20.101</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td><span class="mono">ws.gateway</span></td>
+            <td>Hyperliquid 行情通道重连成功（attempt 2, 412ms）</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:51:15.882</td>
+            <td><span class="badge dim">WARN</span></td>
+            <td><span class="mono">factor.pool</span></td>
+            <td class="warn">因子 momentum_5m 归一化值 3.42 超出 [0,1] 域，已截断并标记可疑</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:51:12.336</td>
+            <td><span class="badge sell"><span class="bdot"></span>P0</span></td>
+            <td><span class="mono">risk.circuit</span></td>
+            <td class="down">账户 ast-01 日亏损率达 9.2%，接近熔断阈值 10%</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:51:08.904</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td><span class="mono">learning.wisdom</span></td>
+            <td>新假设已入列：ic_improved_midlow → 参数域建议 {hold: [4, 12]}</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:51:02.775</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td><span class="mono">exec.asterdex</span></td>
+            <td>挂单 AST-USD 0.42 @ 0.6590 已部分成交 0.18（42.8%）</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:50:58.310</td>
+            <td><span class="badge dim">WARN</span></td>
+            <td><span class="mono">data.ohlcv</span></td>
+            <td class="warn">SOL-USD 15m K 线延迟 8.2s，已切换备用数据源</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:50:51.664</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td><span class="mono">ops.scheduler</span></td>
+            <td>规则同步完成（5 条规则，耗时 214ms）</td>
+          </tr>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          <tr>
+            <td class="num">19:50:44.220</td>
+            <td><span class="badge dim">WARN</span></td>
+            <td><span class="mono">llm.router</span></td>
+            <td class="warn">深模型 API 延迟 3.1s 超阈值（2.5s），已降级快模型兜底</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          </tr>
+          <tr>
+            <td class="num">19:50:36.951</td>
+            <td><span class="badge sell"><span class="bdot"></span>P0</span></td>
+            <td><span class="mono">ops.errors</span></td>
+            <td class="down">rate-limit 429：Binance 账户 sync 连续失败 5 次</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log-detail">详情</button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 日志详情弹窗 -->
+  <div class="mask" id="m-log-detail">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>日志详情</div><div class="modal-sub">hermes.lifecycle · 2026-08-14 19:51:22.418</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
+          <span class="badge warn"><span class="bdot"></span>ERROR</span>
+          <span class="tag">来源 <span class="mono">hermes.lifecycle</span></span>
+          <span class="tag">进程 <span class="mono">scheduler#3</span></span>
+          <span class="tag">trace <span class="mono">8f2a1c9e</span></span>
+        </div>
+        <div class="kv"><span class="k">消息</span><span class="v" style="font-family:var(--font-sans);font-weight:500">决策链路心跳超时 3 次，已自动重启编排器 tick</span></div>
+        <div class="kv"><span class="k">触发条件</span><span class="v">心跳间隔 &gt; 30s × 3</span></div>
+        <div class="kv"><span class="k">自动处理</span><span class="v up">编排器已重启（tick#4812）</span></div>
+        <div style="margin:12px 0 6px;font-size:11px;color:#8B98B5">堆栈 / 上下文</div>
+        <div style="background:rgba(4,7,14,.6);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;font-family:var(--font-mono);font-size:11px;line-height:1.8;color:#94A1BC;white-space:pre-wrap">{
+  "job": "learning_loop_heartbeat",
+  "timeout_ms": 30000,
+  "missed": 3,
+  "action": "restart_orchestrator",
+  "tick": 4812,
+  "recovered_at": "2026-08-14T19:51:20.101Z",
+  "candidates": ["hermes.lifecycle", "ws.gateway"]
+}</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"已标记处理","msg":"该日志已加入已处理列表"}'>标记已处理</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 import logging
 
 from backend.database.connection import SessionLocal
-from database.models import Account
+from backend.database.models import Account
 
 logger = logging.getLogger(__name__)
 

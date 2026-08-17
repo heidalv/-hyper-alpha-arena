@@ -1,7 +1,7 @@
 """
 ATAS V2 因子计算引擎 - 因子缓存
 
-提供Redis和内存两级缓存
+提供Redis和内存两级缓
 """
 import json
 import pickle
@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 class FactorCache:
     """
-    因子缓存管理器
+    因子缓存管理
     
     支持:
-    - 内存缓存(快速)
-    - Redis缓存(持久化)
-    - 数据库缓存(长期存储)
+    - 内存缓存(快
+    - Redis缓存(持久
+    - 数据库缓长期存储)
     """
     
     def __init__(
@@ -38,12 +38,12 @@ class FactorCache:
         初始化缓存管理器
         
         Args:
-            redis_client: Redis客户端
-            db_session: 数据库会话
+            redis_client: Redis客户
+            db_session: 数据库会
             memory_max_size: 内存缓存最大条目数
             enable_memory: 是否启用内存缓存
             enable_redis: 是否启用Redis缓存
-            enable_db: 是否启用数据库缓存
+            enable_db: 是否启用数据库缓
         """
         self.redis_client = redis_client
         self.db_session = db_session
@@ -64,16 +64,17 @@ class FactorCache:
     
     def _serialize_value(self, value: Any) -> bytes:
         """
-        序列化值
+        序列化
         
         Args:
-            value: 要序列化的值
+            value: 要序列化的
             
         Returns:
-            序列化后的字节数据
+            序列化后的字节数
         """
         if isinstance(value, pd.Series):
-            # 序列化为JSON（更通用）
+            # 序列化为JSON（更通用。
+
             data = {
                 'type': 'series',
                 'data': value.to_dict(),
@@ -90,18 +91,19 @@ class FactorCache:
             }
             return json.dumps(data).encode('utf-8')
         else:
-            # 使用pickle序列化其他类型
+            # 使用pickle序列化其他类。
+
             return pickle.dumps(value)
     
     def _deserialize_value(self, data: bytes) -> Any:
         """
-        反序列化值
+        反序列化
         
         Args:
             data: 序列化的字节数据
             
         Returns:
-            反序列化后的值
+            反序列化后的
         """
         try:
             # 尝试JSON反序列化
@@ -127,7 +129,8 @@ class FactorCache:
             return pickle.loads(data)
     
     def _evict_memory_cache(self):
-        """清理内存缓存（LRU）"""
+        """清理内存缓存（LRU）。
+        """
         if len(self._memory_cache) >= self.memory_max_size:
             # 找出最久未访问的键
             oldest_key = min(self._access_times, key=self._access_times.get)
@@ -136,10 +139,11 @@ class FactorCache:
     
     def get(self, cache_key: str) -> Optional[Any]:
         """
-        获取缓存值
+        获取缓存。
         
         Args:
-            cache_key: 缓存键
+            cache_key: 缓存。
+
             
         Returns:
             缓存的值，如果不存在返回None
@@ -168,10 +172,11 @@ class FactorCache:
             except Exception as e:
                 logger.warning(f"Redis cache get failed: {e}")
         
-        # 3. 尝试数据库缓存
+        # 3. 尝试数据库缓。
+
         if self.enable_db:
             try:
-                from database.models import ATASFactorCache
+                from backend.database.models import ATASFactorCache
                 
                 record = self.db_session.query(ATASFactorCache).filter(
                     ATASFactorCache.cache_key == cache_key,
@@ -201,12 +206,16 @@ class FactorCache:
         save_to_db: bool = False
     ) -> bool:
         """
-        设置缓存值
+        设置缓存。
+
         
         Args:
-            cache_key: 缓存键
-            value: 要缓存的值
-            ttl: 过期时间(秒)
+            cache_key: 缓存。
+
+            value: 要缓存的。
+
+            ttl: 过期时间(。
+
             save_to_db: 是否同时保存到数据库
             
         Returns:
@@ -219,7 +228,8 @@ class FactorCache:
                 self._memory_cache[cache_key] = value
                 self._access_times[cache_key] = datetime.now()
             
-            # 序列化
+            # 序列。
+
             data = self._serialize_value(value)
             
             # 2. 设置Redis缓存
@@ -233,10 +243,11 @@ class FactorCache:
                 except Exception as e:
                     logger.warning(f"Redis cache set failed: {e}")
             
-            # 3. 设置数据库缓存
+            # 3. 设置数据库缓。
+
             if self.enable_db and save_to_db:
                 try:
-                    from database.models import ATASFactorCache
+                    from backend.database.models import ATASFactorCache
                     
                     record = ATASFactorCache(
                         cache_key=cache_key,
@@ -266,7 +277,8 @@ class FactorCache:
         删除缓存
         
         Args:
-            cache_key: 缓存键
+            cache_key: 缓存。
+
             
         Returns:
             是否成功
@@ -287,10 +299,11 @@ class FactorCache:
             except Exception as e:
                 logger.warning(f"Redis cache delete failed: {e}")
         
-        # 删除数据库缓存
+        # 删除数据库缓。
+
         if self.enable_db:
             try:
-                from database.models import ATASFactorCache
+                from backend.database.models import ATASFactorCache
                 
                 self.db_session.query(ATASFactorCache).filter(
                     ATASFactorCache.cache_key == cache_key
@@ -345,7 +358,8 @@ class FactorCache:
         return count
     
     def _match_pattern(self, key: str, pattern: str) -> bool:
-        """简单的通配符匹配"""
+        """简单的通配符匹配。
+        """
         import re
         regex = pattern.replace('*', '.*').replace('?', '.')
         return re.match(regex, key) is not None

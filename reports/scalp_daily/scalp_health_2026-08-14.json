@@ -1,0 +1,473 @@
+{
+  "date": "2026-08-14",
+  "generated_at": "2026-08-14T21:30:01.143106+00:00",
+  "days": 30,
+  "signal": {
+    "days": 30,
+    "buckets": [
+      {
+        "bucket": "<30",
+        "n": 19973,
+        "win_rate": 0.3643,
+        "avg_net_ret": -0.000877
+      },
+      {
+        "bucket": "30-40",
+        "n": 25117,
+        "win_rate": 0.3562,
+        "avg_net_ret": -0.001063
+      },
+      {
+        "bucket": "40-50",
+        "n": 18196,
+        "win_rate": 0.3771,
+        "avg_net_ret": -0.000779
+      },
+      {
+        "bucket": "50-60",
+        "n": 22857,
+        "win_rate": 0.3899,
+        "avg_net_ret": -0.001236
+      },
+      {
+        "bucket": ">=60",
+        "n": 181022,
+        "win_rate": 0.3667,
+        "avg_net_ret": -0.002477
+      }
+    ],
+    "monotonicity": {
+      "win_rate_rho": 0.6,
+      "win_rate_p": 0.28476,
+      "net_ret_rho": -0.7,
+      "net_ret_p": 0.18812
+    },
+    "total": 275685,
+    "settled": 267165,
+    "win_rate": 0.3682,
+    "avg_net_ret": -0.002002
+  },
+  "paper": {
+    "trades": 1571,
+    "win_rate": 0.4208,
+    "profit_factor": 0.9555,
+    "net_pnl": -12.4548,
+    "avg_hold_hours": 0.355,
+    "fee_sum": 3.9683,
+    "cost_bps": 0.4976,
+    "by_close_reason": [
+      {
+        "reason": "sl",
+        "n": 165,
+        "net_pnl": -106.0883,
+        "avg_pnl": -0.643
+      },
+      {
+        "reason": "master_running_reduce",
+        "n": 175,
+        "net_pnl": -21.1232,
+        "avg_pnl": -0.1207
+      },
+      {
+        "reason": "master_running_close",
+        "n": 70,
+        "net_pnl": -18.3354,
+        "avg_pnl": -0.2619
+      },
+      {
+        "reason": "symbol_removed",
+        "n": 222,
+        "net_pnl": -15.0071,
+        "avg_pnl": -0.0676
+      },
+      {
+        "reason": "ai_reverse",
+        "n": 7,
+        "net_pnl": -2.2058,
+        "avg_pnl": -0.3151
+      },
+      {
+        "reason": "profit_drawdown_full",
+        "n": 16,
+        "net_pnl": -1.7567,
+        "avg_pnl": -0.1098
+      },
+      {
+        "reason": "max_hold_timeout",
+        "n": 323,
+        "net_pnl": -1.5872,
+        "avg_pnl": -0.0049
+      },
+      {
+        "reason": "manual",
+        "n": 1,
+        "net_pnl": -0.5747,
+        "avg_pnl": -0.5747
+      },
+      {
+        "reason": "dust_cleanup",
+        "n": 62,
+        "net_pnl": -0.4633,
+        "avg_pnl": -0.0075
+      },
+      {
+        "reason": "profit_drawdown_partial",
+        "n": 7,
+        "net_pnl": 0.0327,
+        "avg_pnl": 0.0047
+      },
+      {
+        "reason": "staged_tp1",
+        "n": 1,
+        "net_pnl": 0.4396,
+        "avg_pnl": 0.4396
+      },
+      {
+        "reason": "hold_timeout_review",
+        "n": 266,
+        "net_pnl": 2.9781,
+        "avg_pnl": 0.0112
+      },
+      {
+        "reason": "tp",
+        "n": 158,
+        "net_pnl": 70.8952,
+        "avg_pnl": 0.4487
+      },
+      {
+        "reason": "breakeven_tp",
+        "n": 98,
+        "net_pnl": 80.3412,
+        "avg_pnl": 0.8198
+      }
+    ],
+    "by_symbol": [
+      {
+        "symbol": "ZEC",
+        "n": 65,
+        "net_pnl": -8.6754,
+        "avg_pnl": -0.1335
+      },
+      {
+        "symbol": "AAVE",
+        "n": 58,
+        "net_pnl": -7.9001,
+        "avg_pnl": -0.1362
+      },
+      {
+        "symbol": "KAITO",
+        "n": 58,
+        "net_pnl": -6.3955,
+        "avg_pnl": -0.1103
+      },
+      {
+        "symbol": "CASHCAT",
+        "n": 9,
+        "net_pnl": -5.2018,
+        "avg_pnl": -0.578
+      },
+      {
+        "symbol": "BTC",
+        "n": 119,
+        "net_pnl": -5.198,
+        "avg_pnl": -0.0437
+      },
+      {
+        "symbol": "LIT",
+        "n": 40,
+        "net_pnl": -4.8471,
+        "avg_pnl": -0.1212
+      },
+      {
+        "symbol": "HEI",
+        "n": 4,
+        "net_pnl": -4.2797,
+        "avg_pnl": -1.0699
+      },
+      {
+        "symbol": "BNB",
+        "n": 32,
+        "net_pnl": -3.8891,
+        "avg_pnl": -0.1215
+      },
+      {
+        "symbol": "ATOM",
+        "n": 4,
+        "net_pnl": -3.1854,
+        "avg_pnl": -0.7963
+      },
+      {
+        "symbol": "BLUAI",
+        "n": 3,
+        "net_pnl": -2.7216,
+        "avg_pnl": -0.9072
+      },
+      {
+        "symbol": "VELVET",
+        "n": 1,
+        "net_pnl": -2.6288,
+        "avg_pnl": -2.6288
+      },
+      {
+        "symbol": "AVAX",
+        "n": 5,
+        "net_pnl": -2.3466,
+        "avg_pnl": -0.4693
+      },
+      {
+        "symbol": "DOGE",
+        "n": 16,
+        "net_pnl": -2.3172,
+        "avg_pnl": -0.1448
+      },
+      {
+        "symbol": "NEAR",
+        "n": 51,
+        "net_pnl": -2.3027,
+        "avg_pnl": -0.0452
+      },
+      {
+        "symbol": "INTC",
+        "n": 4,
+        "net_pnl": -2.2382,
+        "avg_pnl": -0.5595
+      },
+      {
+        "symbol": "1000CHEEMS",
+        "n": 3,
+        "net_pnl": -2.1819,
+        "avg_pnl": -0.7273
+      },
+      {
+        "symbol": "APT",
+        "n": 3,
+        "net_pnl": -2.0867,
+        "avg_pnl": -0.6956
+      },
+      {
+        "symbol": "BULLA",
+        "n": 6,
+        "net_pnl": -1.97,
+        "avg_pnl": -0.3283
+      },
+      {
+        "symbol": "TST",
+        "n": 1,
+        "net_pnl": -1.9634,
+        "avg_pnl": -1.9634
+      },
+      {
+        "symbol": "APR",
+        "n": 1,
+        "net_pnl": -1.9314,
+        "avg_pnl": -1.9314
+      }
+    ],
+    "by_hour": [
+      {
+        "hour_utc": 0,
+        "n": 72,
+        "net_pnl": -1.1999
+      },
+      {
+        "hour_utc": 1,
+        "n": 59,
+        "net_pnl": 14.0185
+      },
+      {
+        "hour_utc": 2,
+        "n": 67,
+        "net_pnl": -4.1627
+      },
+      {
+        "hour_utc": 3,
+        "n": 54,
+        "net_pnl": -7.071
+      },
+      {
+        "hour_utc": 4,
+        "n": 58,
+        "net_pnl": 6.3331
+      },
+      {
+        "hour_utc": 5,
+        "n": 64,
+        "net_pnl": 2.3358
+      },
+      {
+        "hour_utc": 6,
+        "n": 50,
+        "net_pnl": -12.5827
+      },
+      {
+        "hour_utc": 7,
+        "n": 51,
+        "net_pnl": -0.9723
+      },
+      {
+        "hour_utc": 8,
+        "n": 53,
+        "net_pnl": -4.884
+      },
+      {
+        "hour_utc": 9,
+        "n": 60,
+        "net_pnl": 0.2378
+      },
+      {
+        "hour_utc": 10,
+        "n": 60,
+        "net_pnl": -3.348
+      },
+      {
+        "hour_utc": 11,
+        "n": 60,
+        "net_pnl": -3.7611
+      },
+      {
+        "hour_utc": 12,
+        "n": 66,
+        "net_pnl": 1.9227
+      },
+      {
+        "hour_utc": 13,
+        "n": 96,
+        "net_pnl": 2.3157
+      },
+      {
+        "hour_utc": 14,
+        "n": 90,
+        "net_pnl": 2.6768
+      },
+      {
+        "hour_utc": 15,
+        "n": 89,
+        "net_pnl": 7.2238
+      },
+      {
+        "hour_utc": 16,
+        "n": 67,
+        "net_pnl": -9.4744
+      },
+      {
+        "hour_utc": 17,
+        "n": 65,
+        "net_pnl": -1.4527
+      },
+      {
+        "hour_utc": 18,
+        "n": 94,
+        "net_pnl": -0.0202
+      },
+      {
+        "hour_utc": 19,
+        "n": 74,
+        "net_pnl": -9.9148
+      },
+      {
+        "hour_utc": 20,
+        "n": 41,
+        "net_pnl": -0.3871
+      },
+      {
+        "hour_utc": 21,
+        "n": 70,
+        "net_pnl": 3.768
+      },
+      {
+        "hour_utc": 22,
+        "n": 61,
+        "net_pnl": 3.6034
+      },
+      {
+        "hour_utc": 23,
+        "n": 50,
+        "net_pnl": 2.3404
+      }
+    ]
+  },
+  "weights": {
+    "available": true,
+    "updated_at": "2026-08-14T01:42:40.857907+00:00",
+    "n_weights": 975,
+    "p25": 1.0,
+    "p50": 1.0,
+    "p75": 1.0,
+    "p90": 1.0,
+    "n_in_05_10": 943,
+    "n_above_10": 13,
+    "gini": 0.0457
+  },
+  "meta": {
+    "available": true,
+    "usable": false,
+    "oos_auc_lgbm": 0.5035,
+    "oos_auc_linear": 0.4983,
+    "baseline_win_rate": 0.3625,
+    "baseline_net_ret": -0.001993,
+    "filter_top30_win_rate": 0.3727,
+    "filter_top30_net_ret": -0.001891,
+    "gate_reasons": [
+      "AUC 0.503 < 门槛 0.53",
+      "过滤后净收益仍为负 -0.1891%"
+    ]
+  },
+  "kline": {
+    "period": "5m",
+    "by_symbol": {
+      "BTC": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 60240
+      },
+      "ETH": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 58560
+      },
+      "SOL": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 35853
+      },
+      "KAITO": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 34224
+      },
+      "ZEC": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 59715
+      },
+      "NEAR": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 32578
+      },
+      "AAVE": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 46408
+      },
+      "ONDO": {
+        "max_ts": 1786718400,
+        "freshness_sec": 24604,
+        "count": 34793
+      },
+      "HYPE": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 33469
+      },
+      "ENA": {
+        "max_ts": 1786742700,
+        "freshness_sec": 304,
+        "count": 36318
+      }
+    },
+    "global_max_ts": 1786742700,
+    "global_count": 9464668,
+    "freshness_sec": 304
+  }
+}

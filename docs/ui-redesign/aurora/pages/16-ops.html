@@ -1,0 +1,417 @@
+<section class="page" id="page-ops" data-title="运维看板">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i></span>运维看板</h1>
+      <p class="page-sub">15s 自动刷新 · 全链路自检</p>
+    </div>
+    <div class="page-actions">
+      <span class="lag"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>采集延迟 0.8s</span>
+      <span class="cd cd-auto" data-cd="15"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>自动刷新 <b>15</b>s</span>
+      <span class="card-hint" style="align-self:center">上次刷新 12s 前</span>
+      <button class="btn btn-primary btn-sm" data-toast='{"type":"ok","title":"刷新完成","msg":"数据已同步"}'><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>立即刷新</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="activity" style="width:12px;height:12px;color:#8B98B5"></i>管线健康</div>
+      <div class="kpi-value grad-green count-up" data-val="98.2" data-dec="1" data-suf="%">0.0%</div>
+      <div class="kpi-change up">▲ +0.3%</div>
+      <div class="kpi-extra">过去 24h 全链路自检</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 20 L10 16 L20 18 L30 10 L40 12 L50 6 L60 8 L72 4" stroke="#34D399" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="activity" style="width:12px;height:12px;color:#8B98B5"></i>心跳在线</div>
+      <div class="kpi-value grad count-up" data-val="12" data-suf="/13">0/13</div>
+      <div class="kpi-change down">1 服务离线</div>
+      <div class="kpi-extra">13 个核心服务</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 6 L10 6 L14 10 L20 22 L26 8 L30 6 L40 6 L44 12 L50 20 L58 10 L72 6" stroke="#FB7185" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="layers" style="width:12px;height:12px;color:#8B98B5"></i>因子池</div>
+      <div class="kpi-value grad count-up" data-val="86">0</div>
+      <div class="kpi-change flat">本月 +12</div>
+      <div class="kpi-extra">可交易 24 · 隔离 9</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 24 L8 22 L16 20 L24 18 L32 16 L40 14 L48 12 L56 10 L64 8 L72 6" stroke="#8B5CF6" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="glass kpi">
+      <div class="kpi-label"><i data-ico="bell" style="width:12px;height:12px;color:#8B98B5"></i>报错 P0+P1</div>
+      <div class="kpi-value grad-red count-up" data-val="3">0</div>
+      <div class="kpi-change down">P0 1 · P1 2</div>
+      <div class="kpi-extra">待处理 2 · 已修复 1</div>
+      <div class="kpi-spark"><svg width="72" height="28" viewBox="0 0 72 28"><path d="M0 6 L10 8 L20 6 L30 12 L40 10 L50 18 L60 16 L72 22" stroke="#FB7185" fill="none" stroke-width="1.5"/></svg></div>
+    </div>
+  </div>
+
+  <!-- 管线进度 -->
+  <div class="glass">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="workflow" style="width:15px;height:15px;color:#7DD3FC"></i>交易管线进度</div>
+      <span class="card-hint">当前阶段：决策 · 已运行 1.2s</span>
+    </div>
+    <div class="card-body">
+      <div class="flex" style="gap:10px;align-items:stretch">
+        <div style="flex:1;min-width:0;text-align:center">
+          <div style="width:36px;height:36px;margin:0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(139,92,246,.16));border:1px solid rgba(34,211,238,.28)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#7DD3FC;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></div>
+          <div class="bold" style="font-size:12px;margin-top:7px">数据</div>
+          <div style="margin-top:5px"><span class="badge ok"><span class="bdot"></span>完成</span></div>
+          <div class="tiny muted" style="margin-top:6px">耗时 <span class="num">1.2s</span></div>
+          <div style="margin-top:7px"><button class="row-btn cyan" data-modal="m-pipe">查看</button></div>
+        </div>
+        <div style="flex:0 0 30px;display:flex;align-items:center;justify-content:center;margin-top:17px"><svg viewBox="0 0 30 10" style="width:30px;height:10px;flex-shrink:0"><line x1="0" y1="5" x2="23" y2="5" stroke="rgba(34,211,238,.5)" stroke-width="2" stroke-linecap="round"/><path d="M21 2 28 5 21 8" fill="none" stroke="rgba(139,92,246,.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div style="flex:1;min-width:0;text-align:center">
+          <div style="width:36px;height:36px;margin:0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(34,211,238,.16),rgba(139,92,246,.16));border:1px solid rgba(34,211,238,.28)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#7DD3FC;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></div>
+          <div class="bold" style="font-size:12px;margin-top:7px">因子</div>
+          <div style="margin-top:5px"><span class="badge ok"><span class="bdot"></span>完成</span></div>
+          <div class="tiny muted" style="margin-top:6px">耗时 <span class="num">0.8s</span></div>
+          <div style="margin-top:7px"><button class="row-btn cyan" data-modal="m-pipe">查看</button></div>
+        </div>
+        <div style="flex:0 0 30px;display:flex;align-items:center;justify-content:center;margin-top:17px"><svg viewBox="0 0 30 10" style="width:30px;height:10px;flex-shrink:0"><line x1="0" y1="5" x2="23" y2="5" stroke="rgba(34,211,238,.5)" stroke-width="2" stroke-linecap="round"/><path d="M21 2 28 5 21 8" fill="none" stroke="rgba(139,92,246,.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div style="flex:1;min-width:0;text-align:center">
+          <div style="width:36px;height:36px;margin:0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(139,92,246,.22));border:1px solid rgba(34,211,238,.5);box-shadow:0 0 14px rgba(34,211,238,.4)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#7DD3FC;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M12 4a3 3 0 0 0-3 3v10a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3z"/><path d="M9 8H6a3 3 0 0 0 0 6h3M15 8h3a3 3 0 0 1 0 6h-3"/></svg></div>
+          <div class="bold" style="font-size:12px;margin-top:7px">决策</div>
+          <div style="margin-top:5px"><span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>运行中</span></div>
+          <div class="tiny muted" style="margin-top:6px">耗时 <span class="num">2.4s</span></div>
+          <div style="margin-top:7px"><button class="row-btn cyan" data-modal="m-pipe">查看</button></div>
+        </div>
+        <div style="flex:0 0 30px;display:flex;align-items:center;justify-content:center;margin-top:17px"><svg viewBox="0 0 30 10" style="width:30px;height:10px;flex-shrink:0"><line x1="0" y1="5" x2="23" y2="5" stroke="rgba(255,255,255,.14)" stroke-width="2" stroke-linecap="round"/><path d="M21 2 28 5 21 8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div style="flex:1;min-width:0;text-align:center;opacity:.65">
+          <div style="width:36px;height:36px;margin:0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#8B98B5;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="bold" style="font-size:12px;margin-top:7px">风控</div>
+          <div style="margin-top:5px"><span class="badge dim">待执行</span></div>
+          <div class="tiny muted" style="margin-top:6px">耗时 <span class="num">0.4s</span></div>
+          <div style="margin-top:7px"><button class="row-btn cyan" data-modal="m-pipe">查看</button></div>
+        </div>
+        <div style="flex:0 0 30px;display:flex;align-items:center;justify-content:center;margin-top:17px"><svg viewBox="0 0 30 10" style="width:30px;height:10px;flex-shrink:0"><line x1="0" y1="5" x2="23" y2="5" stroke="rgba(255,255,255,.14)" stroke-width="2" stroke-linecap="round"/><path d="M21 2 28 5 21 8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div style="flex:1;min-width:0;text-align:center;opacity:.65">
+          <div style="width:36px;height:36px;margin:0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:#8B98B5;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+          <div class="bold" style="font-size:12px;margin-top:7px">执行</div>
+          <div style="margin-top:5px"><span class="badge dim">待执行</span></div>
+          <div class="tiny muted" style="margin-top:6px">耗时 <span class="num">0.9s</span></div>
+          <div style="margin-top:7px"><button class="row-btn cyan" data-modal="m-pipe">查看</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- 心跳矩阵 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i>服务心跳矩阵</div>
+        <span class="card-hint">13 服务 · 2s 探测</span>
+      </div>
+      <div class="card-body">
+        <div class="row wrap" style="gap:8px">
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(251,113,133,.35)">
+            <span class="cd cd-auto warn" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="12"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>重试中 <b>12</b>s</span>
+            <div class="row" style="margin-right:76px"><span class="dot red" style="animation:pulse 1.6s ease-in-out infinite"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Hyperliquid 行情网关</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny" style="padding-left:12px;color:#FB7185">延迟 <span class="num">超时</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Hyperliquid 交易 API</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">24ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Binance 行情镜像</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">38ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Bybit 行情镜像</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">41ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">WebSocket 推送</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">12ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">因子计算引擎</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">18ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">决策编排器</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">9ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">风控引擎</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">6ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">执行撮合器</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">15ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">RAG 检索服务</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">21ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">本地推理 GPU</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">33ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Hermes 调度器</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">5ms</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+          <div style="position:relative;flex:1 1 168px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <span class="cd cd-auto" style="position:absolute;top:6px;right:8px;font-size:9.5px" data-cd="2"><svg viewBox="0 0 24 24" style="width:9px;height:9px"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>2</b>s</span>
+            <div class="row" style="margin-right:26px"><span class="dot gray"></span><span style="font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">数据落库 Postgres</span></div>
+            <div class="spread" style="margin-top:6px"><span class="tiny muted" style="padding-left:12px">延迟 <span class="num">维护中</span></span><button class="row-btn cyan" data-modal="m-heartbeat">详情</button></div>
+          </div>
+        </div>
+        <div class="spread" style="margin-top:10px;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)">
+          <span class="flex"><span class="dot"></span><span class="small" style="color:#C9D4E8">在线 <b class="num">12/13</b></span></span>
+          <span class="flex"><span class="small muted">平均延迟 <span class="num">86ms</span></span><span class="badge warn"><span class="bdot"></span>1 服务超时</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 演化漏斗 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="filter" style="width:15px;height:15px;color:#7DD3FC"></i>因子演化漏斗</div>
+        <span class="card-hint">近 30 天</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 220 176" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="gradO16" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+            </linearGradient>
+          </defs>
+          <polygon points="10,4 210,4 196,40 24,40" fill="url(#gradO16)" fill-opacity=".55" stroke="rgba(34,211,238,.5)" stroke-width="1"/>
+          <polygon points="24,44 196,44 182,80 38,80" fill="url(#gradO16)" fill-opacity=".44" stroke="rgba(34,211,238,.45)" stroke-width="1"/>
+          <polygon points="38,84 182,84 168,120 52,120" fill="url(#gradO16)" fill-opacity=".33" stroke="rgba(139,92,246,.45)" stroke-width="1"/>
+          <polygon points="52,124 168,124 154,160 66,160" fill="url(#gradO16)" fill-opacity=".24" stroke="rgba(139,92,246,.45)" stroke-width="1"/>
+          <text x="110" y="26" text-anchor="middle" font-size="11" fill="#C9D4E8">候选 <tspan fill="#7DD3FC" font-weight="700">86</tspan></text>
+          <text x="110" y="66" text-anchor="middle" font-size="11" fill="#C9D4E8">可交易 <tspan fill="#7DD3FC" font-weight="700">24</tspan></text>
+          <text x="110" y="106" text-anchor="middle" font-size="11" fill="#C9D4E8">已验证 <tspan fill="#C4B5FD" font-weight="700">12</tspan></text>
+          <text x="110" y="146" text-anchor="middle" font-size="11" fill="#C9D4E8">上线 <tspan fill="#C4B5FD" font-weight="700">6</tspan></text>
+        </svg>
+        <div style="margin-top:12px">
+          <div class="spread"><span class="tiny muted">候选 → 可交易</span><span class="num tiny">27.9%</span></div>
+          <div class="bar" style="margin:5px 0 10px"><div class="bar-fill" style="width:27.9%"></div></div>
+          <div class="spread"><span class="tiny muted">可交易 → 已验证</span><span class="num tiny">50.0%</span></div>
+          <div class="bar" style="margin:5px 0 10px"><div class="bar-fill green" style="width:50%"></div></div>
+          <div class="spread"><span class="tiny muted">已验证 → 上线</span><span class="num tiny">50.0%</span></div>
+          <div class="bar" style="margin:5px 0 0"><div class="bar-fill amber" style="width:50%"></div></div>
+        </div>
+        <div class="kv"><span class="k">上线 / 候选 转化率</span><span class="v up">7.0%</span></div>
+        <div class="kv"><span class="k">平均验证周期</span><span class="v">11.4 天</span></div>
+        <div class="flex-end" style="margin-top:10px"><button class="row-btn cyan" data-modal="m-funnel"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>查看详情</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3-2">
+    <!-- 因子池 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="filter" style="width:15px;height:15px;color:#7DD3FC"></i>因子池</div>
+        <div class="seg">
+          <button class="seg-item active">可交易 <span class="num" style="font-size:10px;opacity:.8">24</span></button>
+          <button class="seg-item">隔离 <span class="num" style="font-size:10px;opacity:.8">9</span></button>
+          <button class="seg-item">全部 <span class="num" style="font-size:10px;opacity:.8">86</span></button>
+        </div>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>因子名</th><th>方向</th><th class="r sortable sorted">IC<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th class="r">换手</th><th class="c">状态</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">动量突破_M5</td><td>多</td><td class="r up">0.042</td><td class="r">1.8</td><td class="c"><span class="badge ok"><span class="bdot"></span>active</span></td><td class="c"><button class="row-btn red" data-confirm='{"title":"确认隔离该因子？","msg":"隔离后立即停止上线使用，保留历史表现数据供复盘","danger":true}' >隔离</button></td></tr>
+            <tr><td class="sym">波动率压缩_ETH</td><td>多</td><td class="r up">0.038</td><td class="r">2.4</td><td class="c"><span class="badge ok"><span class="bdot"></span>active</span></td><td class="c"><button class="row-btn red" data-confirm='{"title":"确认隔离该因子？","msg":"隔离后立即停止上线使用，保留历史表现数据供复盘","danger":true}' >隔离</button></td></tr>
+            <tr><td class="sym">资金费率反转</td><td>空</td><td class="r up">0.031</td><td class="r">3.1</td><td class="c"><span class="badge warn">quarantine</span></td><td class="c"><button class="row-btn green" data-toast='{"type":"ok","title":"已解除隔离","msg":"资金费率反转 已重新进入可交易池"}' >解除隔离</button></td></tr>
+            <tr><td class="sym">成交量失衡</td><td>多</td><td class="r up">0.027</td><td class="r">2.2</td><td class="c"><span class="badge ok"><span class="bdot"></span>active</span></td><td class="c"><button class="row-btn red" data-confirm='{"title":"确认隔离该因子？","msg":"隔离后立即停止上线使用，保留历史表现数据供复盘","danger":true}' >隔离</button></td></tr>
+            <tr><td class="sym">跨期基差动量</td><td>空</td><td class="r down">0.019</td><td class="r">4.6</td><td class="c"><span class="badge warn">quarantine</span></td><td class="c"><button class="row-btn green" data-toast='{"type":"ok","title":"已解除隔离","msg":"跨期基差动量 已重新进入可交易池"}' >解除隔离</button></td></tr>
+          </tbody>
+          <tfoot><tr><td>平均 IC <span class="tiny muted">· 24 项</span></td><td></td><td class="r up">0.058</td><td></td><td class="c"></td><td class="c"></td></tr></tfoot>
+        </table></div>
+      <div class="pager">
+        <span class="pager-info">共 86 条 · 第 1/6 页</span>
+        <button class="pager-btn dis">‹</button><button class="pager-btn on">1</button><button class="pager-btn">2</button><button class="pager-btn">3</button><span class="pager-btn dis">…</span><button class="pager-btn">6</button><button class="pager-btn dis">›</button>
+      </div>
+      </div>
+    </div>
+
+    <!-- 训练 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>当前训练</div>
+        <span class="card-hint">GPU 占用 84%</span>
+      </div>
+      <div class="card-body">
+        <div class="spread">
+          <span class="bold" style="font-size:12.5px">多周期择时蒸馏 v2</span>
+          <span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>运行中</span>
+        </div>
+        <div class="spread" style="margin-top:10px">
+          <span class="tiny muted">epoch <span class="num">118/200</span></span>
+          <span class="tiny muted">损失 <span class="num up">0.0231</span></span>
+        </div>
+        <div class="spread" style="margin:7px 0 2px">
+          <div class="bar" style="flex:1"><div class="bar-fill" style="width:59%"></div></div>
+          <span class="num tiny" style="margin-left:8px;color:#7DD3FC;font-weight:700">59%</span>
+        </div>
+        <div style="margin-top:8px"><span class="cd cd-auto" data-cd="300"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>预计剩余 <b>300</b>s</span><span class="tiny muted" style="margin-left:8px">约 5 分钟</span></div>
+        <div class="tbl-wrap" style="margin-top:8px"><table class="tbl">
+          <thead><tr><th>任务</th><th class="r">epoch</th><th class="r">损失</th><th class="r">耗时</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">多周期择时蒸馏 v2</td><td class="r">118/200</td><td class="r up">0.0231</td><td class="r">6h42m</td></tr>
+            <tr><td class="sym">因子合成 GBDT</td><td class="r">42/100</td><td class="r up">0.0517</td><td class="r">2h15m</td></tr>
+            <tr><td class="sym">选币偏好对齐</td><td class="r">7/50</td><td class="r">0.0862</td><td class="r">48m</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 报错中心 -->
+  <div class="glass" id="ops-errors">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="alert-triangle" style="width:15px;height:15px;color:#7DD3FC"></i>报错中心</div>
+      <div class="flex">
+        <span class="badge sell"><span class="bdot"></span>2 待处理</span>
+        <div class="dd" style="min-width:120px">
+          <button class="dd-btn"><i data-ico="filter" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">全部级别</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+          <div class="dd-menu">
+            <div class="dd-item sel">全部级别</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"P0"}'>P0</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"P1"}'>P1</div>
+            <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"INFO"}'>INFO</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>级别</th><th class="r sortable sorted">时间<span class="sort-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span></th><th>来源</th><th>消息</th><th class="c">状态</th><th class="c">操作</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag" style="color:#FB7185;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.3)">P0</span></td><td class="r">10:32:17</td><td class="sym">hyperliquid-gateway</td><td>行情 WebSocket 连接超时，自动重连 3 次失败</td><td class="c"><span class="badge warn"><span class="bdot"></span>处理中</span></td><td class="c"><button class="row-btn cyan" data-modal="m-err">详情</button> <button class="row-btn green" data-toast='{"type":"ok","title":"已标记修复","msg":"hyperliquid-gateway 的 P0 报错已标记为已修复，进入复盘队列"}' >标记已修复</button></td></tr>
+          <tr><td><span class="tag amber">P1</span></td><td class="r">09:47:02</td><td class="sym">factor-engine</td><td>因子缓存写入失败，已降级为实时计算</td><td class="c"><span class="badge warn"><span class="bdot"></span>处理中</span></td><td class="c"><button class="row-btn cyan" data-modal="m-err">详情</button> <button class="row-btn green" data-toast='{"type":"ok","title":"已标记修复","msg":"factor-engine 的 P1 报错已标记为已修复，进入复盘队列"}' >标记已修复</button></td></tr>
+          <tr><td><span class="tag" style="color:#FB7185;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.3)">P0</span></td><td class="r">08:15:44</td><td class="sym">executor</td><td>订单回报超时（ID 884120），已转入人工复核</td><td class="c"><span class="badge ok"><span class="bdot"></span>已修复</span></td><td class="c"><button class="row-btn cyan" data-modal="m-err">详情</button> <button class="row-btn green" style="opacity:.35;pointer-events:none">标记已修复</button></td></tr>
+          <tr><td><span class="tag amber">P1</span></td><td class="r">23:04:31</td><td class="sym">rag-service</td><td>向量索引分片 3 同步延迟 40s，已追平</td><td class="c"><span class="badge ok"><span class="bdot"></span>已修复</span></td><td class="c"><button class="row-btn cyan" data-modal="m-err">详情</button> <button class="row-btn green" style="opacity:.35;pointer-events:none">标记已修复</button></td></tr>
+        </tbody>
+        <tfoot><tr><td>P0: 2 · P1: 3</td><td colspan="2"></td><td>已修复 <span class="num">5/8</span></td><td colspan="2"></td></tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+  <!-- 服务心跳详情 -->
+  <div class="mask" id="m-heartbeat">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>服务心跳详情</div><div class="modal-sub">hyperliquid-gateway · 离线</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">名称</span><span class="v">Hyperliquid 行情网关</span></div>
+        <div class="kv"><span class="k">状态</span><span class="v"><span class="badge sell"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>超时</span></span></div>
+        <div class="kv"><span class="k">延迟</span><span class="v down">超时 <span class="tiny muted">· 正常 &lt; 2s</span></span></div>
+        <div class="kv"><span class="k">成功率</span><span class="v warn">96.2%</span></div>
+        <div class="kv"><span class="k">上次心跳</span><span class="v">10:32:14</span></div>
+        <div class="kv"><span class="k">连续失败</span><span class="v down">3 次</span></div>
+        <div class="kv"><span class="k">端点</span><span class="v mono" style="font-size:11px">wss://api.hyperliquid.xyz/ws</span></div>
+        <div class="spread" style="margin-top:10px"><span class="k" style="font-size:11.5px;color:#8B98B5">最近 24h 可用率</span><span class="num" style="font-size:12px">99.2%</span></div>
+        <div class="bar" style="margin:6px 0 0"><div class="bar-fill green" style="width:99.2%"></div></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-toast='{"type":"info","title":"已触发重连","msg":"attempt 4 已发起，等待网关响应"}' >立即重连</button>
+        <button class="btn btn-primary" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 报错详情 -->
+  <div class="mask" id="m-err">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4M12 17h.01"/></svg>报错详情</div><div class="modal-sub">P0 · hyperliquid-gateway</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="row" style="margin-bottom:12px">
+          <span class="tag" style="color:#FB7185;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.3)">P0</span>
+          <span class="tiny muted">时间 10:32:17</span>
+          <span class="tiny muted">· 来源 hyperliquid-gateway</span>
+          <span class="badge warn" style="margin-left:auto"><span class="bdot"></span>处理中</span>
+        </div>
+        <div class="bold" style="font-size:12px;margin-bottom:6px">消息全文</div>
+        <div style="padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:12px;color:#C9D4E8;margin-bottom:12px">行情 WebSocket 连接超时，自动重连 3 次失败</div>
+        <div class="bold" style="font-size:12px;margin-bottom:6px">堆栈</div>
+        <div class="mono" style="background:#0A0F1C;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;font-size:11px;line-height:1.8;color:#AEB9D0;overflow-x:auto;white-space:pre">Traceback (most recent call last):
+  File "gateway/ws_client.py", line 182, in _reconnect
+    await self._open_socket()
+  File "gateway/ws_client.py", line 96, in _open_socket
+    raise WebSocketTimeoutError(f"connect timeout after {timeout}s")
+WebSocketTimeoutError: connect timeout after 10.0s (attempt 3/5)</div>
+        <div class="bold" style="font-size:12px;margin:14px 0 4px">上下文</div>
+        <div class="kv"><span class="k">会话 ID</span><span class="v mono" style="font-size:11px">ws-88412</span></div>
+        <div class="kv"><span class="k">端点</span><span class="v mono" style="font-size:11px">wss://api.hyperliquid.xyz/ws</span></div>
+        <div class="kv"><span class="k">重连次数</span><span class="v down">3 / 5</span></div>
+        <div class="kv"><span class="k">上次心跳</span><span class="v">10:31:58</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" data-close data-toast='{"type":"ok","title":"已标记修复","msg":"P0 报错已标记为已修复，进入复盘队列"}' >标记已修复</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管线步骤详情 -->
+  <div class="mask" id="m-pipe">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4M6.5 10v4"/></svg>管线步骤详情 · 决策</div><div class="modal-sub">当前阶段 · 交易管线</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">步骤名</span><span class="v">决策</span></div>
+        <div class="kv"><span class="k">状态</span><span class="v"><span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>运行中</span></span></div>
+        <div class="kv"><span class="k">耗时</span><span class="v">1.2s</span></div>
+        <div class="kv"><span class="k">最近执行时间</span><span class="v">10:32:16</span></div>
+        <div class="bold" style="font-size:12px;margin:14px 0 6px">相关日志（2 条）</div>
+        <div class="mono" style="background:#0A0F1C;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 14px;font-size:11px;line-height:1.8;color:#AEB9D0;white-space:pre">10:32:16.102 [decision] 多周期信号汇聚完成，候选 6 → 决策 2
+10:32:16.089 [decision] 规则引擎命中 3 条规则（放行 2 / 拦截 1）</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 演化漏斗明细 -->
+  <div class="mask" id="m-funnel">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>因子演化漏斗明细</div><div class="modal-sub">近 30 天 · 候选 86 → 上线 6</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>层级</th><th class="r">数量</th><th class="r">通过率</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">候选</td><td class="r">86</td><td class="r">—</td><td>本月新增 12：因子挖掘 9 + 开源复现 3</td></tr>
+            <tr><td class="sym">可交易</td><td class="r">24</td><td class="r">27.9%</td><td>IC ≥ 0.03 且换手 ≤ 3 通过预筛</td></tr>
+            <tr><td class="sym">已验证</td><td class="r">12</td><td class="r">50.0%</td><td>paper 实盘验证 ≥ 7 天且正收益</td></tr>
+            <tr><td class="sym">上线</td><td class="r up">6</td><td class="r">50.0%</td><td>通过风控审查 + 容量评估后上线</td></tr>
+          </tbody>
+        </table></div>
+        <div class="kv" style="margin-top:12px"><span class="k">总转化率</span><span class="v up">7.0%</span></div>
+        <div class="kv"><span class="k">平均验证周期</span><span class="v">11.4 天</span></div>
+        <div class="kv"><span class="k">隔离中因子</span><span class="v warn">9</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

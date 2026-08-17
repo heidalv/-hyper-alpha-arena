@@ -179,7 +179,17 @@ def funding_net_rr_ok(
     min_rr = _cfg_float("MIDLONG_MIN_NET_RR", 2.0)
     hold_h = float(hold_hours if hold_hours is not None else _cfg_float("MIDLONG_FUNDING_HOLD_HOURS", 72.0))
     periods = max(1.0, hold_h / 8.0)
-    fr = float(funding_rate or 0.0)
+    # [2026-08-15 消费端验收] funding_rate 缺失（None）时原按 0 处理 → 成本 0
+    # → 净 RR 闸门被静默绕过（0 成本开仓）。现改为保守估计费率
+    #（MIDLONG_FUNDING_UNKNOWN_RATE，默认 0.01%/8h，可配）并在原因中显式
+    # 标注「估计口径」，绝不把缺失伪装成 0 成本。
+    _funding_unknown = False
+    if funding_rate is None:
+        fr = _cfg_float("MIDLONG_FUNDING_UNKNOWN_RATE", 0.0001)
+        _funding_unknown = True
+    else:
+        fr = float(funding_rate or 0.0)
+    _unknown_tag = f"（funding 缺失，按保守估计 {fr:.4%}/8h）" if _funding_unknown else ""
     act = (action or "").lower()
     if act in ("buy", "long"):
         cost = fr * periods
@@ -194,11 +204,11 @@ def funding_net_rr_ok(
 
     net_tp = tp - max(0.0, cost)
     if net_tp <= 0:
-        return False, 0.0, f"funding_eats_tp cost={cost:.4%} tp={tp:.2%}"
+        return False, 0.0, f"funding_eats_tp cost={cost:.4%} tp={tp:.2%}{_unknown_tag}"
     net_rr = net_tp / sl
     if net_rr < eff_min:
-        return False, net_rr, f"net_rr={net_rr:.2f}<{eff_min:.2f} (funding_cost={cost:.4%})"
-    return True, net_rr, f"net_rr={net_rr:.2f}"
+        return False, net_rr, f"net_rr={net_rr:.2f}<{eff_min:.2f} (funding_cost={cost:.4%}){_unknown_tag}"
+    return True, net_rr, f"net_rr={net_rr:.2f}{_unknown_tag}"
 
 
 def atr_size_multiplier(

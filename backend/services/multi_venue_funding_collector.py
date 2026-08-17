@@ -625,6 +625,184 @@ def collect_once(
     return summary
 
 
+# [2026-08-15 D1] 资金费率历史回填：支持历史接口的场所（binance/bybit/okx/gateio）；
+# asterdex premiumIndex 无历史接口，诚实跳过（只前向积累）。
+BACKFILL_VENUES: List[str] = ["binance", "bybit", "okx", "gateio"]
+
+
+def _fetch_funding_history_for_symbol(ex, base: str, since_ms: int) -> List[Dict]:
+    """ccxt fetch_funding_rate_history 分页拉取，返回 [{ts_ms, rate}]（升序）。"""
+    import ccxt  # noqa: F401  # 仅用于异常类型判断
+
+    out: List[Dict] = []
+    until_ms: Optional[int] = None
+    guard = 0
+    while guard < 60:  # 每符号最多 60 页
+        guard += 1
+        params: Dict[str, object] = {"limit": 500}
+        if until_ms is not None:
+            params["until"] = until_ms - 1
+        try:
+            rows = ex.fetch_funding_rate_history(f"{base}/USDT:USDT", since=since_ms, params=params)
+        except Exception as exc:
+            logger.debug("[MultiVenueFunding] 回填 %s/%s 页失败: %s", ex.id, base, exc)
+            break
+        if not rows:
+            break
+        parsed = []
+        for r in rows:
+            ts = r.get("timestamp") or r.get("fundingTimestamp")
+            rate = r.get("fundingRate")
+            if ts is None or rate is None:
+                continue
+            try:
+                parsed.append({"ts_ms": int(ts), "rate": float(rate)})
+            except (TypeError, ValueError):
+                continue
+        if not parsed:
+            break
+        out.extend(parsed)
+        oldest = min(p["ts_ms"] for p in parsed)
+        if oldest <= since_ms:
+            break
+        until_ms = oldest
+        if len(parsed) < 500:
+            break
+    # 去重（同一结算时刻可能跨页出现）并按时间升序
+    dedup: Dict[int, float] = {}
+    for p in out:
+        dedup[p["ts_ms"]] = p["rate"]
+    return [{"ts_ms": ts, "rate": r} for ts, r in sorted(dedup.items())]
+
+
+def backfill_funding_history(
+    symbols: Optional[List[str]] = None,
+    days: int = 90,
+    venues: Optional[List[str]] = None,
+    max_symbols: int = 40,
+) -> Dict[str, Any]:
+    """回填多场所资金费率历史 → perp_funding（幂等：已存在的不重写）。
+
+    - 场所：BACKFILL_VENUES（asterdex 无历史接口，自动跳过）；
+    - 符号：默认 DEFAULT_SYMBOLS + 成交额热币（经 get_research_priority_symbols 扩展，
+      上限 max_symbols），只用 ccxt 公共接口，无 API key；
+    - 写语义：只补缺失（timestamp 毫秒 = 结算时刻），与实时采集同表同口径。
+    """
+    import threading
+
+    from backend.services.market_aggregation.aggregate_collector_base import _create_ccxt_public
+
+    venues = venues or BACKFILL_VENUES
+    symbols = symbols if symbols is not None else list(DEFAULT_SYMBOLS)
+    if not symbols:
+        return {"ok": False, "reason": "no symbols"}
+    syms = list(dict.fromkeys(s.upper() for s in symbols))[:max_symbols]
+
+    since_ms = int((time.time() - days * 86400) * 1000)
+    summary: Dict[str, Any] = {"venues": {}, "total_written": 0, "ok": True}
+
+    try:
+        from backend.database.connection import MarketSessionLocal, sqlite_write_commit
+        from backend.database.models import PerpFunding
+    except Exception as exc:
+        return {"ok": False, "reason": f"db unavailable: {exc}"}
+
+    for venue in venues:
+        v_summary: Dict[str, Any] = {"status": "skip", "written": 0, "error": None}
+        try:
+            ex = _create_ccxt_public(venue, timeout=30000)
+            if ex is None:
+                v_summary["status"] = "error"
+                v_summary["error"] = "create client failed"
+                summary["venues"][venue] = v_summary
+                continue
+            if venue in ("bybit", "gateio", "okx"):
+                try:
+                    ex.options["defaultType"] = "swap"
+                except Exception:
+                    pass
+            db = MarketSessionLocal()
+            try:
+                for base in syms:
+                    try:
+                        hist = _fetch_funding_history_for_symbol(ex, base, since_ms)
+                    except Exception as exc:
+                        logger.debug("[MultiVenueFunding] 回填 %s/%s 失败: %s", venue, base, exc)
+                        continue
+                    if not hist:
+                        continue
+                    # 幂等：查已有结算时刻
+                    ts_list = [h["ts_ms"] for h in hist]
+                    existing = {
+                        r[0]
+                        for r in db.query(PerpFunding.timestamp)
+                        .filter(
+                            PerpFunding.exchange == venue,
+                            PerpFunding.symbol == base,
+                            PerpFunding.timestamp.in_(ts_list),
+                        )
+                        .all()
+                    }
+                    added = 0
+                    for h in hist:
+                        if h["ts_ms"] in existing:
+                            continue
+                        db.add(
+                            PerpFunding(
+                                exchange=venue,
+                                symbol=base,
+                                timestamp=h["ts_ms"],
+                                funding_rate=h["rate"],
+                                mark_price=None,
+                            )
+                        )
+                        added += 1
+                    if added:
+                        sqlite_write_commit(db, label="multi_venue_funding_backfill")
+                        v_summary["written"] += added
+                    if added > 0:
+                        logger.info(
+                            "[MultiVenueFunding] 回填 %s/%s +%d 行（%d 天）",
+                            venue, base, added, days,
+                        )
+            finally:
+                db.close()
+            try:
+                ex.close()
+            except Exception:
+                pass
+            v_summary["status"] = "ok"
+        except Exception as exc:
+            v_summary["status"] = "error"
+            v_summary["error"] = str(exc)[:200]
+            logger.warning("[MultiVenueFunding] 回填场所 %s 失败: %s", venue, exc)
+        summary["venues"][venue] = v_summary
+        summary["total_written"] += v_summary["written"]
+
+    summary["ok"] = summary["total_written"] > 0
+    logger.info(
+        "[MultiVenueFunding] 历史回填完成: %s",
+        {v: s["written"] for v, s in summary["venues"].items()},
+    )
+    return summary
+
+
+def start_funding_backfill_thread(days: int = 90) -> None:
+    """数据中心进程启动时后台回填一次资金费历史（每周重跑一次补齐缺口）。"""
+    import threading
+
+    def _run() -> None:
+        while True:
+            try:
+                backfill_funding_history(days=days)
+            except Exception as exc:
+                logger.warning("[MultiVenueFunding] 回填线程异常: %s", exc)
+            time.sleep(7 * 86400)
+
+    t = threading.Thread(target=_run, name="multi-venue-funding-backfill", daemon=True)
+    t.start()
+
+
 def _main() -> None:
     import argparse
 

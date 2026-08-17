@@ -9,8 +9,7 @@ from datetime import datetime, date
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
-
-from database.models import DingTalkBot, DingTalkNotification, DingTalkNotificationStats, Account
+from backend.database.models import DingTalkBot, DingTalkNotification, DingTalkNotificationStats, Account
 from services.dingtalk.dingtalk_bot_client import DingTalkBotClientSync
 from services.dingtalk.message_formatter import MessageFormatter
 from services.dingtalk.rate_limiter import rate_limiter
@@ -289,8 +288,7 @@ class NotificationService:
                         ).all()
 
                     for account in accounts:
-                        # 获取账户的持仓（这里需要根据实际情况获取）
-                        # TODO: 从实际的数据源获取持仓
+                        # 获取账户的持仓（这里需要根据实际情况获取） # TODO: 从实际的数据源获取持仓
                         position_data = self._get_account_positions(account.id)
 
                         if not position_data:
@@ -334,7 +332,7 @@ class NotificationService:
             持仓数据
         """
         try:
-            from database.models import Account
+            from backend.database.models import Account
 
             # 获取账户信息
             account = self.db.query(Account).get(account_id)
@@ -397,7 +395,7 @@ class NotificationService:
             # Binance removed (Phase 1) - skip Binance branch; fall through to DB
 
             # 从本地数据库获取
-            from database.models import Position
+            from backend.database.models import Position
 
             total_balance = float(account.current_cash) + float(account.frozen_cash)
 
@@ -496,13 +494,7 @@ class NotificationService:
 
             start_time = datetime.now()
 
-            # [2026-07-11 修复] DingTalkBotClientSync 内部用同步 requests.post
-            # （最长 10s 超时）。这里原来是在 async def 方法里直接同步调用，
-            # 会整整冻住 asyncio 事件循环最多 10s——冻住期间，全进程里其他
-            # 协程已经打开但还没来得及 commit/close 的数据库会话，都会被
-            # DB LeakGuard 误判为"泄漏"（其实只是排不上队），这正是观测到
-            # 多张毫不相关的表（strategy_memories/paper_orders/...）同时
-            # 报警的根因之一。改为丢到线程池执行，不阻塞事件循环。
+            # [2026-07-11 修复] DingTalkBotClientSync 内部用同步 requests.post # （最长 10s 超时）。这里原来是在 async def 方法里直接同步调用， # 会整整冻住 asyncio 事件循环最多 10s——冻住期间，全进程里其他 # 协程已经打开但还没来得及 commit/close 的数据库会话，都会被 # DB LeakGuard 误判为"泄漏"（其实只是排不上队），这正是观测到 # 多张毫不相关的表（strategy_memories/paper_orders/...）同时 # 报警的根因之一。改为丢到线程池执行，不阻塞事件循环。
             if message['message_type'] == 'text':
                 response = await asyncio.to_thread(client.send_text, message['content'])
             elif message['message_type'] == 'markdown':
@@ -713,12 +705,9 @@ class NotificationService:
                 )
             ).limit(100).all()
 
-            # [2026-07-17 修复] .all() 已把结果整批取到内存，上面这条只读 SELECT
-            # 打开的事务不再需要占着连接——下面循环里每条记录都要
+            # [2026-07-17 修复] .all() 已把结果整批取到内存，上面这条只读 SELECT # 打开的事务不再需要占着连接——下面循环里每条记录都要
             # `await asyncio.sleep(retry_delay_seconds)`，如果这里不先提交/结束掉，
-            # 这个事务会一直挂着陪跑整个循环（最多 100 条 × 60s = 慢慢累积到几千秒的
-            # idle-in-transaction，正是 DB LeakGuard 报警里 dingtalk_notifications/
-            # dingtalk_bots 查询挂 2 小时+ 的根因）。
+            # 这个事务会一直挂着陪跑整个循环（最多 100 条 × 60s = 慢慢累积到几千秒的 # idle-in-transaction，正是 DB LeakGuard 报警里 dingtalk_notifications/ # dingtalk_bots 查询挂 2 小时+ 的根因）。
             self.db.commit()
 
             for notification in failed_notifications:
@@ -729,10 +718,7 @@ class NotificationService:
                     # 获取机器人配置
                     bot = self.db.query(DingTalkBot).get(notification.bot_id)
                     if not bot or not bot.enabled:
-                        # [2026-07-17 修复] 之前这里直接 continue，会把上面 get()
-                        # 打开的事务原样带进下一轮 sleep；如果连续多条记录都命中这个
-                        # 分支（比如机器人被禁用/删除），事务会跨越 N×60s 一直挂在
-                        # "idle in transaction"。这里提交掉这条只读事务再继续。
+                        # [2026-07-17 修复] 之前这里直接 continue，会把上面 get() # 打开的事务原样带进下一轮 sleep；如果连续多条记录都命中这个 # 分支（比如机器人被禁用/删除），事务会跨越 N×60s 一直挂在 # "idle in transaction"。这里提交掉这条只读事务再继续。
                         self.db.commit()
                         continue
 
@@ -759,8 +745,7 @@ class NotificationService:
 
                 except Exception as e:
                     logger.error(f"重试推送失败 (notification_id={notification.id}): {e}")
-                    # [2026-07-17 修复] 异常路径同样要清掉事务状态，否则下一轮
-                    # sleep 又会带着一个悬空/中止的事务继续挂着。
+                    # [2026-07-17 修复] 异常路径同样要清掉事务状态，否则下一轮 # sleep 又会带着一个悬空/中止的事务继续挂着。
                     try:
                         self.db.rollback()
                     except Exception:

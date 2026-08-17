@@ -1,0 +1,44 @@
+<section class="page" id="page-login" data-title="登录">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 160px)">
+    <div class="glass login-card" style="width:400px;padding:36px 34px 30px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#22D3EE,#8B5CF6,#34D399)"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+        <div class="brand-logo"><span>α</span></div>
+        <div>
+          <div class="login-title">Heidalv Alpha Arena</div>
+          <div class="login-sub">AI 驱动的加密量化交易终端</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label">邮箱</label>
+        <input class="input" type="email" placeholder="you@example.com" value="heidalv@alpha.dev">
+      </div>
+      <div class="field">
+        <label class="label">密码</label>
+        <div class="row">
+          <input class="input" type="password" placeholder="••••••••" value="alpha-arena-2026" style="flex:1">
+          <button class="btn btn-ghost2 btn-sm" style="height:32px;flex-shrink:0">显示</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;height:38px;font-size:13.5px;margin-top:6px" data-confirm='{"title":"登录校验失败","msg":"密码错误或账户已锁定（剩余尝试 2 次）","danger":false,"okText":"重新输入"}'>
+        <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        登录系统
+      </button>
+
+      <div style="margin-top:12px;padding:9px 12px;border-radius:9px;background:rgba(251,113,133,.07);border:1px solid rgba(251,113,133,.22);font-size:11px;color:#FDA4AF;display:flex;gap:8px;align-items:flex-start">
+        <svg viewBox="0 0 24 24" style="width:13px;height:13px;flex-shrink:0;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>
+        <span>上次登录失败：密码错误（2026-08-14 19:42）。连续失败 3 次将锁定 15 分钟。</span>
+      </div>
+
+      <div class="login-tip">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4.5M12 16v.01"/></svg>
+        <span>后端服务：<span class="mono">http://100.x.x.x:8000</span> · 状态正常</span>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <span class="tiny muted">忘记密码？联系管理员</span>
+        <span class="tiny muted">v2.4.1 · Aurora</span>
+      </div>
+    </div>
+  </div>
+</section>

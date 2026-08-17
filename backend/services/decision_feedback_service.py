@@ -343,7 +343,9 @@ class DecisionFeedbackService:
                 logger.warning("[Feedback] 净扣费归因无DB: %s", err)
                 return result
         def _compute(_db):
-            from backend.database.models import PaperOrder
+            # [2026-08-17 修复] 原读 PaperOrder（已退役空表，反复报 UndefinedTable），
+            # 改读 trade_facts 事件流（真实交易事实：pnl/fees/close_reason/tier）。
+            from sqlalchemy import text as _sa_text
 
             # 重置累加器，保证"全新连接重试"时不会在上次半成品结果上叠加。
             result["by_close_reason"] = {}
@@ -352,15 +354,13 @@ class DecisionFeedbackService:
             result["summary"] = {}
 
             cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
-            rows = (
-                _db.query(PaperOrder)
-                .filter(
-                    PaperOrder.status == "filled",
-                    PaperOrder.close_reason.isnot(None),
-                    PaperOrder.created_at >= cutoff,
-                )
-                .all()
-            )
+            rows = _db.execute(_sa_text(
+                """
+                SELECT symbol, tier, pnl, fees, close_reason
+                FROM trade_facts
+                WHERE ts >= :cutoff AND pnl IS NOT NULL
+                """
+            ), {"cutoff": cutoff}).mappings().all()
 
             def _bucket(store: Dict[str, Dict], key: str, pnl: float, fee: float):
                 b = store.setdefault(key, {
@@ -380,12 +380,12 @@ class DecisionFeedbackService:
 
             total: Dict[str, Dict] = {}
             for o in rows:
-                pnl = float(o.pnl or 0)
-                fee = float(o.fee or 0)
+                pnl = float(o["pnl"] or 0)
+                fee = float(o["fees"] or 0)
                 _bucket(total, "all", pnl, fee)
-                _bucket(result["by_close_reason"], str(o.close_reason or "unknown"), pnl, fee)
-                _bucket(result["by_nature"], str(o.trade_nature or "unknown"), pnl, fee)
-                _bucket(result["by_symbol"], str(o.symbol or "unknown"), pnl, fee)
+                _bucket(result["by_close_reason"], str(o["close_reason"] or "unknown"), pnl, fee)
+                _bucket(result["by_nature"], str(o["tier"] or "unknown"), pnl, fee)
+                _bucket(result["by_symbol"], str(o["symbol"] or "unknown"), pnl, fee)
 
             def _finalize(store: Dict[str, Dict]):
                 for b in store.values():
@@ -888,6 +888,7 @@ class DecisionFeedbackService:
             lessons = list(mem.key_lessons or [])
             entry = {
                 "type": "loss_analysis" if was_correct == "no" else "win_pattern",
+                "ts": datetime.now(timezone.utc).isoformat(),  # [P1-12] 统一时间戳
                 "symbol": symbol,
                 "tier": tier or "mid",
                 "trade_nature": trade_nature or "swing",

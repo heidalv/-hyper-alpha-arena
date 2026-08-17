@@ -325,6 +325,7 @@ def inject_patterns_to_memory(
         for p in result["profitable_patterns"][:3]:
             lessons.append({
                 "type": "profitable_pattern",
+                "ts": datetime.now(timezone.utc).isoformat(),  # [P1-12] 统一时间戳（decay 主键）
                 "discovered_at": datetime.now(timezone.utc).isoformat(),
                 "side": p["side"],
                 "regime": p["regime"],
@@ -338,6 +339,7 @@ def inject_patterns_to_memory(
         for p in result["losing_patterns"][:3]:
             lessons.append({
                 "type": "pattern_to_avoid",
+                "ts": datetime.now(timezone.utc).isoformat(),  # [P1-12] 统一时间戳
                 "discovered_at": datetime.now(timezone.utc).isoformat(),
                 "side": p["side"],
                 "regime": p["regime"],

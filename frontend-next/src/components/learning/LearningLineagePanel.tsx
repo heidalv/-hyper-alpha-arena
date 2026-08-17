@@ -29,12 +29,12 @@ function MetricCard({
   color?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-3">
+    <div className="glass rounded-lg p-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className={cn("w-3.5 h-3.5", color)} />
         {label}
       </div>
-      <div className={cn("mt-1 text-xl font-bold tabular-nums", color)}>{value}</div>
+      <div className={cn("mt-1 text-xl font-bold tabular-nums", color === "text-profit" ? "grad-text-green" : color || "grad-text")}>{value}</div>
     </div>
   );
 }
@@ -104,7 +104,7 @@ export default function LearningLineagePanel() {
 
       <SectionCard title="特性开关" description="内核特性开关（仅内存生效，重启后恢复默认/.env）">
         {flagEntries.length === 0 ? (
-          <EmptyState message="开关数据加载失败或为空" />
+          <p className="text-sm text-warning py-8 text-center">开关数据加载失败或为空</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {flagEntries.map(([key, val]) => (
@@ -115,7 +115,7 @@ export default function LearningLineagePanel() {
                   disabled={toggling === key}
                   className={cn(
                     "w-10 h-5 rounded-full transition-colors relative shrink-0",
-                    val ? "bg-profit/60" : "bg-muted/50",
+                    val ? "bg-profit/60 shadow-[0_0_8px_rgba(52,211,153,0.35)]" : "bg-muted/50",
                     toggling === key && "opacity-60"
                   )}
                 >

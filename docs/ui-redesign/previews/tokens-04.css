@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * 主题 D：简一 Zen Mono —— Token 变量块
+ * 用法：整块复制进 frontend-next/src/app/globals.css，替换原「:root, .dark { … }」
+ *      变量块（保留上方 @theme inline 与下方 @layer base 不动）。
+ * 说明：唯一强调色 --primary 为翡翠绿 #10B981，只用于关键数字 / 主行动 /
+ *      激活指示 / LIVE 状态点；其余全部中性灰阶。涨跌色降低饱和：
+ *      --profit #34D399 / --loss #F87171。默认仅深色（交易终端不需要浅色）。
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+:root, .dark {
+  /* ── 字体：Manrope（西文/数字标题）+ Noto Sans SC（中文）+ JetBrains Mono（数字/代码/时间）── */
+  --font-sans: "Manrope", "Noto Sans SC", -apple-system, "PingFang SC",
+               "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono",
+               "Courier New", monospace;
+
+  /* ── 背景层：炭黑底，卡片仅靠亮度分层，无边框 ── */
+  --background: #0E0F11;          /* 页面底（炭黑） */
+  --card: #141518;                /* 卡片/面板（比页面亮一档） */
+  --popover: #16181C;             /* 弹出层 / 浮层 */
+  --muted: #17181B;               /* 静态底 / 表格 hover 行 */
+  --secondary: #1A1C1F;           /* 次级容器（segmented 控件底等） */
+  --accent: #1F2126;              /* 高亮容器（按钮/选中底） */
+  --input: #1B1D21;               /* 输入框底 */
+  --border: #232529;              /* 发丝线 / 卡片 hover 时的极淡边 */
+
+  /* ── 文字：白为主，灰为辅，数字一律走 mono + tabular-nums ── */
+  --foreground: #F2F3F5;          /* 主文字（近白） */
+  --muted-foreground: #9CA0A8;    /* 次要文字（深底上 7.3:1，AA/AAA 达标） */
+
+  /* ── 交互色：翡翠绿是唯一强调色，绝不滥用 ── */
+  --primary: #10B981;             /* 翡翠绿：总盈亏数字 / 主按钮 / 激活指示 / LIVE 点 */
+  --primary-foreground: #FFFFFF;  /* 主按钮文字 */
+  --destructive: #F87171;         /* 危险操作（与 --loss 同族红，降饱和） */
+  --destructive-foreground: #FFFFFF;
+  --ring: #10B98152;              /* 焦点环：翡翠绿 32% 透明 */
+
+  /* ── 交易专用色：涨绿跌红（降饱和），警告琥珀 ── */
+  --profit: #34D399;              /* 涨 */
+  --loss: #F87171;                /* 跌 */
+  --warning: #FBBF24;             /* 异常值 / 警告（如胜率 2518% 数据异常） */
+
+  /* ── 图表色：翡翠主色 + 同族亮绿 + 降饱和红 + 中性灰 ── */
+  --chart-1: #10B981;             /* 主序列（净值曲线等） */
+  --chart-2: #34D399;             /* 涨 */
+  --chart-3: #6EE7B7;             /* 亮翡翠（辅助序列） */
+  --chart-4: #F87171;             /* 跌 */
+  --chart-5: #9CA0A8;             /* 中性灰（对比序列） */
+
+  /* ── 侧边栏：比页面再暗一档，形成"纸页浮在炭黑台上"的层次 ── */
+  --sidebar: #0B0C0E;
+  --sidebar-foreground: #C9CDD4;  /* 侧栏文字（12.3:1） */
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #18191D;      /* hover 底 */
+  --sidebar-accent-foreground: #E8EAEE;
+  --sidebar-border: #1E2024;
+  --sidebar-ring: #10B98152;
+
+  /* ── 圆角：10px（10px=0.625rem）——比原 6px 更柔，配合无边框风格 ── */
+  --radius: 0.625rem;
+}

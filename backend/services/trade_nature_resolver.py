@@ -21,11 +21,10 @@ logger = logging.getLogger(__name__)
 # 3. genome.trade_nature（遗传优化结果，可能过时）
 # 4. timeframe_tier 推断（最低优先级默认值）
 
-TIER_TO_NATURE_MAP = {
-    'short': 'scalp',
-    'mid': 'intraday',
-    'long': 'swing',
-}
+# [P1-7 单一权威] 对齐 tp_sl_authority（此前 mid→intraday / long→swing 为第三份分叉）
+from backend.services.tp_sl_authority import TIER_TO_NATURE as _AUTHORITY
+
+TIER_TO_NATURE_MAP = dict(_AUTHORITY)
 
 VALID_NATURES = {'scalp', 'intraday', 'swing', 'position', 'trend_follow'}
 

@@ -9,6 +9,7 @@
 """
 import logging
 import math
+import os
 import time
 import uuid
 import numpy as np
@@ -314,8 +315,10 @@ class LivePipelineBacktestEngine:
 
             # 持仓管理
             if position:
-                # 资金费率
-                if i % bars_per_8h == 0:
+                # 资金费率（[P0-5 相位修复] 按 8h UTC 边界 00/08/16 结算：跨边界即结算一次。
+                # 原 i % bars_per_8h 相对序列起点对齐，结算相位与交易所真实时刻脱钩。）
+                _prev_ts = bars[i - 1].timestamp if i > 0 else bar.timestamp
+                if (bar.timestamp // 28800) != (_prev_ts // 28800):
                     fr = self._get_funding_rate(bar.timestamp, funding_rates)
                     fee_usd = position.quantity * bar.c * fr
                     if position.side == "long":
@@ -423,25 +426,37 @@ class LivePipelineBacktestEngine:
                 signal = self._pipeline_signal(i, bars, rsi_arr, macd_line, p, funding_rates, fgi_map)
 
                 if signal in ("long", "short"):
+                    # [P0-5 前视修复] 信号在 bar i 收盘产生，默认按【下一根开盘】成交
+                    # （next_open）；原实现按 bar i 收盘成交 = 收盘决策按收盘成交的前视，
+                    # 系统性高估回测收益并误导 GA/晋升。env BACKTEST_LP_FILL_MODEL=close
+                    # 仅用于旧口径对比。
+                    _fill_model = os.getenv("BACKTEST_LP_FILL_MODEL", "next_open").lower()
+                    if _fill_model == "next_open" and i + 1 < len(bars):
+                        _fill_bar = bars[i + 1]
+                        _entry_bar = i + 1
+                    else:
+                        _fill_bar = bar
+                        _entry_bar = i
+                    _fill_price = float(getattr(_fill_bar, "o", _fill_bar.c) or _fill_bar.c)
                     pos_size_usd = equity * max_pos_pct * lev
-                    qty = pos_size_usd / bar.c
+                    qty = pos_size_usd / _fill_price
                     open_fee = pos_size_usd * TAKER_FEE
                     equity -= open_fee
 
                     if signal == "long":
-                        entry = bar.c * (1 + SLIPPAGE)
+                        entry = _fill_price * (1 + SLIPPAGE)
                         sl = entry * (1 - sl_pct)
                         tp = entry * (1 + tp_pct)
                     else:
-                        entry = bar.c * (1 - SLIPPAGE)
+                        entry = _fill_price * (1 - SLIPPAGE)
                         sl = entry * (1 + sl_pct)
                         tp = entry * (1 - tp_pct)
 
                     position = Position(
                         side=signal, entry_price=entry, quantity=qty,
-                        leverage=lev, entry_bar=i, entry_time=bar.dt_str,
+                        leverage=lev, entry_bar=_entry_bar, entry_time=_fill_bar.dt_str,
                         sl_price=sl, tp_price=tp,
-                        highest_since_entry=bar.h, lowest_since_entry=bar.l,
+                        highest_since_entry=_fill_bar.h, lowest_since_entry=_fill_bar.l,
                     )
 
             equity_curve.append(self._mark_equity(equity, position, bar))
@@ -653,19 +668,31 @@ class LivePipelineBacktestEngine:
 
     @staticmethod
     def _get_funding_rate(ts: int, rates: Dict[int, float]) -> float:
+        """[P0-5 前视修复] 只取 ≤ ts 的最近历史样本（backward）。
+
+        原实现 min(abs(t-ts)) 会命中决策点之后的未来样本（±1 天），
+        回放引擎因此系统性高估收益、与实盘不一致。未来样本一律不可用。
+        """
         if not rates:
             return 0.0
-        closest = min(rates.keys(), key=lambda t: abs(t - ts), default=0)
-        if closest and abs(closest - ts) < 86400:
+        past = [t for t in rates.keys() if t <= ts]
+        if not past:
+            return 0.0
+        closest = max(past)
+        if ts - closest < 86400:
             return rates[closest]
         return 0.0
 
     @staticmethod
     def _get_fgi(ts: int, fgi_map: Dict[int, float]) -> float:
+        """[P0-5 前视修复] 同 funding：只取 ≤ ts 的最近样本。"""
         if not fgi_map:
             return 50.0
-        closest = min(fgi_map.keys(), key=lambda t: abs(t - ts), default=0)
-        if closest and abs(closest - ts) < 86400 * 2:
+        past = [t for t in fgi_map.keys() if t <= ts]
+        if not past:
+            return 50.0
+        closest = max(past)
+        if ts - closest < 86400 * 2:
             return fgi_map[closest]
         return 50.0
 

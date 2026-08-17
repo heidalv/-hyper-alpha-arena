@@ -1,0 +1,368 @@
+<section class="page" id="page-compute" data-title="算力中心">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="cpu" style="width:15px;height:15px;color:#7DD3FC"></i></span>算力中心</h1>
+      <p class="page-sub">本地推理 · 训练进化 · 向量检索</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="10"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>10</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 0.7s</span>
+        </div>
+    <div class="page-actions">
+      <span class="badge ok"><span class="bdot"></span>引擎在线</span>
+      <button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>刷新</button>
+    </div>
+  </div>
+
+  <!-- 实时硬件 -->
+  <div class="kpi-grid">
+    <div class="glass" style="padding:14px 16px">
+      <div class="spread">
+        <span class="kpi-label"><i data-ico="cpu" style="width:12px;height:12px;color:#8B98B5"></i>GPU 利用率</span>
+        <span class="tag cyan">RTX 4090 ×2</span>
+      </div>
+      <div class="num" style="font-size:24px;font-weight:700;margin:10px 0 8px">62<span style="font-size:13px;color:#7C8AA8">%</span></div>
+      <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+      <div class="tiny muted" style="margin-top:7px">核心 16,384 · 显存 48GB · 42°C</div>
+      <div class="flex-end" style="margin-top:8px"><button class="row-btn cyan" data-modal="m-gpu"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>详情</button></div>
+    </div>
+    <div class="glass" style="padding:14px 16px">
+      <div class="spread">
+        <span class="kpi-label"><i data-ico="cpu" style="width:12px;height:12px;color:#8B98B5"></i>CPU 利用率</span>
+        <span class="tag">24 核</span>
+      </div>
+      <div class="num" style="font-size:24px;font-weight:700;margin:10px 0 8px">38<span style="font-size:13px;color:#7C8AA8">%</span></div>
+      <div class="bar"><div class="bar-fill" style="width:38%"></div></div>
+      <div class="tiny muted" style="margin-top:7px">负载 9.1 / 24 核 · 3.4GHz</div>
+    </div>
+    <div class="glass" style="padding:14px 16px">
+      <div class="spread">
+        <span class="kpi-label"><i data-ico="memory-stick" style="width:12px;height:12px;color:#8B98B5"></i>内存</span>
+        <span class="tag">DDR5</span>
+      </div>
+      <div class="num" style="font-size:24px;font-weight:700;margin:10px 0 8px">24.6<span style="font-size:13px;color:#7C8AA8">/64 GB</span></div>
+      <div class="bar"><div class="bar-fill" style="width:38%"></div></div>
+      <div class="tiny muted" style="margin-top:7px">已用 24.6 GB · 可用 39.4 GB</div>
+    </div>
+    <div class="glass" style="padding:14px 16px">
+      <div class="spread">
+        <span class="kpi-label"><i data-ico="hard-drive" style="width:12px;height:12px;color:#8B98B5"></i>磁盘</span>
+        <span class="tag">NVMe</span>
+      </div>
+      <div class="num" style="font-size:24px;font-weight:700;margin:10px 0 8px">1.2<span style="font-size:13px;color:#7C8AA8">/4.0 TB</span></div>
+      <div class="bar"><div class="bar-fill" style="width:30%"></div></div>
+      <div class="tiny muted" style="margin-top:7px">数据盘 · 向量库占用 28GB</div>
+    </div>
+  </div>
+  <div class="row wrap" style="margin:-2px 0 14px">
+    <span class="tag cyan">CUDA 12.4</span><span class="badge ok"><span class="bdot"></span>就绪</span>
+    <span class="tag">cuDNN 9.2</span>
+    <span class="tag">PyTorch 2.4</span>
+    <span class="tag">TensorRT 10.1</span>
+    <span class="tag amber">风扇 2,400rpm</span>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- 训练与进化 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="layers" style="width:15px;height:15px;color:#7DD3FC"></i>训练与进化</div>
+        <span class="card-hint">GPU 队列 · 2 任务等待</span>
+      </div>
+      <div class="card-body tbl-body">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>任务名</th><th>类型</th><th style="width:130px">进度</th><th class="r">耗时</th><th class="r">成功率</th><th class="c">操作</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">网格因子增强 v3</td><td><span class="tag cyan">训练</span></td><td><div class="bar" style="width:74px;display:inline-block;vertical-align:middle"><div class="bar-fill" style="width:72%"></div></div><span class="num" style="margin-left:6px">72%</span></td><td class="r">2h14m</td><td class="r up">86.4%</td><td class="c"><button class="row-btn cyan" data-drawer="d-train">详情</button></td></tr>
+            <tr><td class="sym">多周期风控蒸馏</td><td><span class="tag">蒸馏</span></td><td><div class="bar" style="width:74px;display:inline-block;vertical-align:middle"><div class="bar-fill" style="width:45%"></div></div><span class="num" style="margin-left:6px">45%</span></td><td class="r">1h02m</td><td class="r up">92.1%</td><td class="c"><button class="row-btn cyan" data-drawer="d-train">详情</button></td></tr>
+            <tr><td class="sym">选币策略进化</td><td><span class="tag green">进化</span></td><td><div class="bar" style="width:74px;display:inline-block;vertical-align:middle"><div class="bar-fill" style="width:18%"></div></div><span class="num" style="margin-left:6px">18%</span></td><td class="r">24m</td><td class="r">78.5%</td><td class="c"><button class="row-btn cyan" data-drawer="d-train">详情</button></td></tr>
+          </tbody>
+        </table></div>
+        <div class="kv"><span class="k">并行回测数</span><span class="v">8</span></div>
+        <div class="kv"><span class="k">GPU 峰值占用</span><span class="v warn">96%</span></div>
+        <div class="kv"><span class="k">本周训练轮次</span><span class="v">27</span></div>
+      </div>
+    </div>
+
+    <!-- 服务与检索 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="database" style="width:15px;height:15px;color:#7DD3FC"></i>服务与检索</div>
+        <span class="card-hint">自检通过</span>
+      </div>
+      <div class="card-body">
+        <div class="row" style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="kpi-ico" style="position:static"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">RAG 服务</div>
+            <div class="tiny muted" style="margin-top:2px">索引 12,480 chunks · 检索延迟 86ms</div>
+          </div>
+          <span class="badge ok"><span class="bdot"></span>运行中</span>
+          <button class="row-btn cyan" data-modal="m-service">详情</button>
+        </div>
+        <div class="row" style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="kpi-ico" style="position:static"><svg viewBox="0 0 24 24"><path d="m12 2 8.5 4.5L12 11 3.5 6.5 12 2z"/><path d="m3.5 12 8.5 4.5 8.5-4.5"/><path d="m3.5 17.5 8.5 4.5 8.5-4.5"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">向量库 <span class="tag cyan">chromadb</span></div>
+            <div class="tiny muted" style="margin-top:2px">12,480 chunks · 分片 4/4 已同步</div>
+          </div>
+          <span class="badge ok">正常</span>
+          <button class="row-btn cyan" data-modal="m-vector">详情</button>
+        </div>
+        <div class="row" style="padding:9px 0">
+          <span class="kpi-ico" style="position:static"><svg viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v10a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3z"/><path d="M9 8H6a3 3 0 0 0 0 6h3M15 8h3a3 3 0 0 1 0 6h-3"/></svg></span>
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">本地模型 Qwen-7B</div>
+            <div class="tiny muted" style="margin-top:2px">INT4 量化 · VRAM 6.2GB · 温度 42°C</div>
+          </div>
+          <span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>加载中</span>
+          <button class="row-btn cyan" data-modal="m-model">详情</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <!-- 历史趋势 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i>历史趋势 · 资源占用率 24h</div>
+        <span class="card-hint">采样 288 点</span>
+      </div>
+      <div class="card-body">
+        <svg viewBox="0 0 560 150" style="width:100%;height:auto">
+          <defs>
+            <linearGradient id="gradC14line" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+            </linearGradient>
+            <linearGradient id="gradC14area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(34,211,238,.26)"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>
+            </linearGradient>
+          </defs>
+          <line x1="30" y1="142" x2="552" y2="142" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+          <line x1="30" y1="73" x2="552" y2="73" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+          <text x="26" y="146" text-anchor="end" font-size="9" fill="#6E7B98">0%</text>
+          <text x="26" y="77" text-anchor="end" font-size="9" fill="#6E7B98">50%</text>
+          <text x="26" y="18" text-anchor="end" font-size="9" fill="#6E7B98">100%</text>
+          <path d="M30 25.2 L67 29.6 L104 23 L141 42.8 L178 36.2 L215 56 L252 49.4 L289 69.2 L326 60.4 L363 78 L400 64.8 L437 84.6 L474 73.6 L511 93.4 L548 89 L548 142 L30 142 Z" fill="url(#gradC14area)"/>
+          <path d="M30 25.2 L67 29.6 L104 23 L141 42.8 L178 36.2 L215 56 L252 49.4 L289 69.2 L326 60.4 L363 78 L400 64.8 L437 84.6 L474 73.6 L511 93.4 L548 89" fill="none" stroke="url(#gradC14line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="548" cy="89" r="3.5" fill="#22D3EE" stroke="#EAF0FA" stroke-width="1.2"/>
+          <text x="548" y="108" text-anchor="middle" font-size="9" fill="#7DD3FC">现在 62%</text>
+          <text x="30" y="158" font-size="9" fill="#6E7B98">00:00</text>
+          <text x="160" y="158" font-size="9" fill="#6E7B98">06:00</text>
+          <text x="290" y="158" font-size="9" fill="#6E7B98">12:00</text>
+          <text x="420" y="158" font-size="9" fill="#6E7B98">18:00</text>
+        </svg>
+        <div class="grid3" style="margin:6px 0 0">
+          <div class="kv" style="border:none"><span class="k">峰值</span><span class="v">92%</span></div>
+          <div class="kv" style="border:none"><span class="k">均值</span><span class="v">61%</span></div>
+          <div class="kv" style="border:none"><span class="k">当前</span><span class="v">62%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 开源框架 -->
+    <div class="glass">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="package-open" style="width:15px;height:15px;color:#7DD3FC"></i>开源框架集成</div>
+        <span class="card-hint">OSS · MIT</span>
+      </div>
+      <div class="card-body">
+        <div class="row" style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">Qlib <span class="tiny muted">· microsoft 因子挖掘</span></div>
+          </div>
+          <span class="badge ok"><span class="bdot"></span>已集成</span>
+        </div>
+        <div class="row" style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">Backtrader <span class="tiny muted">· 回测引擎</span></div>
+          </div>
+          <span class="badge ok"><span class="bdot"></span>已集成</span>
+        </div>
+        <div class="row" style="padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">TA-Lib <span class="tiny muted">· 技术指标 158 个</span></div>
+          </div>
+          <span class="badge ok"><span class="bdot"></span>已集成</span>
+        </div>
+        <div class="row" style="padding:9px 0">
+          <div style="flex:1;min-width:0">
+            <div class="bold" style="font-size:12.5px">vn.py <span class="tiny muted">· 交易框架</span></div>
+          </div>
+          <span class="badge info">可选装</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- GPU 详情 -->
+  <div class="mask" id="m-gpu">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg>GPU 详情 · RTX 4090 ×2</div><div class="modal-sub">NVIDIA Ada Lovelace · PCIe 5.0</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="row wrap" style="gap:8px;margin-bottom:14px">
+          <div style="flex:1 1 118px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">利用率</div><div class="num" style="font-size:18px;font-weight:700;margin-top:4px">62%</div>
+            <div class="bar" style="margin-top:6px"><div class="bar-fill" style="width:62%"></div></div>
+          </div>
+          <div style="flex:1 1 118px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">显存</div><div class="num" style="font-size:18px;font-weight:700;margin-top:4px">29.8<span style="font-size:11px;color:#7C8AA8">/48 GB</span></div>
+            <div class="bar" style="margin-top:6px"><div class="bar-fill" style="width:62%"></div></div>
+          </div>
+          <div style="flex:1 1 118px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">温度</div><div class="num" style="font-size:18px;font-weight:700;margin-top:4px">42°C</div>
+            <div class="tiny muted" style="margin-top:6px">风扇 2,400rpm</div>
+          </div>
+          <div style="flex:1 1 118px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+            <div class="tiny muted">功耗</div><div class="num" style="font-size:18px;font-weight:700;margin-top:4px">248<span style="font-size:11px;color:#7C8AA8">/450W</span></div>
+            <div class="bar" style="margin-top:6px"><div class="bar-fill amber" style="width:55%"></div></div>
+          </div>
+        </div>
+        <div class="kv"><span class="k">型号</span><span class="v">NVIDIA RTX 4090 ×2</span></div>
+        <div class="kv"><span class="k">CUDA 版本</span><span class="v">12.4</span></div>
+        <div class="kv"><span class="k">cuDNN</span><span class="v">9.2</span></div>
+        <div class="kv"><span class="k">驱动版本</span><span class="v">560.94</span></div>
+        <div class="bold" style="font-size:12px;margin:14px 0 6px">GPU 进程</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>PID</th><th>进程</th><th class="r">显存</th><th class="r">利用率</th></tr></thead>
+          <tbody>
+            <tr><td class="num">18421</td><td class="sym">wisdom-distill</td><td class="r">12.4GB</td><td class="r">38%</td></tr>
+            <tr><td class="num">18455</td><td class="sym">rag-embed</td><td class="r">8.2GB</td><td class="r">14%</td></tr>
+            <tr><td class="num">18502</td><td class="sym">backtest-8</td><td class="r">9.2GB</td><td class="r">10%</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 训练任务详情抽屉 -->
+  <div class="drawer wide" id="d-train">
+    <div class="drawer-head">
+      <div><div class="drawer-title">训练任务详情 · 网格因子增强 v3</div><div class="drawer-sub">任务 #T-1042 · GPU 队列 slot 1</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="spread" style="margin-bottom:8px">
+        <span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>训练中</span>
+        <span class="num" style="font-size:12px;color:#7C8AA8">进度 72% · epoch 144/200</span>
+      </div>
+      <div class="bar" style="margin-bottom:14px"><div class="bar-fill" style="width:72%"></div></div>
+      <div class="bold" style="font-size:12px;margin-bottom:6px">损失曲线 · 最近 50 epoch</div>
+      <svg viewBox="0 0 320 86" style="width:100%;height:auto;margin-bottom:14px">
+        <defs>
+          <linearGradient id="gradC14loss" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/>
+          </linearGradient>
+        </defs>
+        <line x1="10" y1="78" x2="310" y2="78" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+        <line x1="10" y1="20" x2="310" y2="20" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 4"/>
+        <path d="M10 30 L46 42 L82 38 L118 52 L154 47 L190 60 L226 56 L262 66 L298 62" fill="none" stroke="url(#gradC14loss)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="298" cy="62" r="2.6" fill="#22D3EE"/>
+        <text x="298" y="74" text-anchor="middle" font-size="8.5" fill="#7DD3FC">0.0231</text>
+        <text x="10" y="86" font-size="8.5" fill="#6E7B98">epoch 150</text>
+        <text x="310" y="86" text-anchor="end" font-size="8.5" fill="#6E7B98">epoch 200</text>
+      </svg>
+      <div class="grid2" style="margin-bottom:4px">
+        <div class="kv" style="border:none"><span class="k">样本外 AUC</span><span class="v warn">0.617</span></div>
+        <div class="kv" style="border:none"><span class="k">有效样本</span><span class="v">12,480</span></div>
+        <div class="kv" style="border:none"><span class="k">是否可用</span><span class="v"><span class="badge warn"><span class="bdot"></span>未达验收</span></span></div>
+        <div class="kv" style="border:none"><span class="k">绑定车道</span><span class="v"><span class="tag cyan">grid_m5_hl</span></span></div>
+      </div>
+      <div class="bold" style="font-size:12px;margin:12px 0 6px">重要特征 Top5</div>
+      <div class="row" style="padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="num" style="width:22px;font-size:11px;color:#7C8AA8">1</span><span style="flex:1;font-size:12px">动量突破_M5</span><span class="num" style="font-size:11.5px;color:#7DD3FC">gain 0.214</span>
+      </div>
+      <div class="row" style="padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="num" style="width:22px;font-size:11px;color:#7C8AA8">2</span><span style="flex:1;font-size:12px">波动率压缩_ETH</span><span class="num" style="font-size:11.5px;color:#7DD3FC">gain 0.168</span>
+      </div>
+      <div class="row" style="padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="num" style="width:22px;font-size:11px;color:#7C8AA8">3</span><span style="flex:1;font-size:12px">成交量失衡</span><span class="num" style="font-size:11.5px;color:#7DD3FC">gain 0.121</span>
+      </div>
+      <div class="row" style="padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="num" style="width:22px;font-size:11px;color:#7C8AA8">4</span><span style="flex:1;font-size:12px">资金费率反转</span><span class="num" style="font-size:11.5px;color:#7DD3FC">gain 0.094</span>
+      </div>
+      <div class="row" style="padding:7px 0">
+        <span class="num" style="width:22px;font-size:11px;color:#7C8AA8">5</span><span style="flex:1;font-size:12px">跨期基差动量</span><span class="num" style="font-size:11.5px;color:#7DD3FC">gain 0.061</span>
+      </div>
+      <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28)">
+        <div class="flex" style="gap:6px"><span class="badge warn"><span class="bdot"></span>未达标原因</span><span style="font-size:11.5px;color:#FBBF24">样本外 AUC 暂估 0.617 &lt; 验收线 0.620，需继续训练 2-4 epoch</span></div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-toast='{"type":"info","title":"已暂停训练","msg":"任务将进入暂停队列"}' >暂停训练</button>
+      <button class="btn btn-primary" data-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- RAG 服务详情 -->
+  <div class="mask" id="m-service">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>RAG 服务详情</div><div class="modal-sub">rag-service · 运行中</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">索引 chunks</span><span class="v">12,480</span></div>
+        <div class="kv"><span class="k">检索延迟</span><span class="v">86ms <span class="tiny muted">· P95 142ms</span></span></div>
+        <div class="kv"><span class="k">命中率</span><span class="v up">92.4%</span></div>
+        <div class="bar" style="margin:4px 0 10px"><div class="bar-fill green" style="width:92.4%"></div></div>
+        <div class="kv"><span class="k">向量库状态</span><span class="v"><span class="badge ok"><span class="bdot"></span>已同步</span></span></div>
+        <div class="kv"><span class="k">检索 Top-K</span><span class="v">5</span></div>
+        <div class="kv"><span class="k">重排模型</span><span class="v">bge-reranker-base</span></div>
+        <div class="kv"><span class="k">索引版本</span><span class="v">v42</span></div>
+        <div class="kv"><span class="k">最近重建</span><span class="v">07-31 02:00</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 向量库详情 -->
+  <div class="mask" id="m-vector">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="m12 2 8.5 4.5L12 11 3.5 6.5 12 2z"/><path d="m3.5 12 8.5 4.5 8.5-4.5"/><path d="m3.5 17.5 8.5 4.5 8.5-4.5"/></svg>向量库详情 · chromadb</div><div class="modal-sub">本地向量存储 · 数据盘占用 28GB</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">状态</span><span class="v"><span class="badge ok"><span class="bdot"></span>正常</span></span></div>
+        <div class="kv"><span class="k">分片同步</span><span class="v">4 / 4</span></div>
+        <div class="kv"><span class="k">向量维度</span><span class="v">1536</span></div>
+        <div class="kv"><span class="k">距离度量</span><span class="v">cosine</span></div>
+        <div class="kv"><span class="k">占用空间</span><span class="v">28GB</span></div>
+        <div class="kv"><span class="k">最近写入</span><span class="v">10:31:58</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 本地模型详情 -->
+  <div class="mask" id="m-model">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v10a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3z"/><path d="M9 8H6a3 3 0 0 0 0 6h3M15 8h3a3 3 0 0 1 0 6h-3"/></svg>本地模型详情 · Qwen-7B</div><div class="modal-sub">INT4 量化 · Ollama 运行时</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">加载状态</span><span class="v"><span class="badge info"><span class="bdot" style="animation:pulse 1.6s ease-in-out infinite"></span>加载中</span></span></div>
+        <div class="kv"><span class="k">显存占用</span><span class="v">6.2 / 24 GB</span></div>
+        <div class="kv"><span class="k">温度</span><span class="v">42°C</span></div>
+        <div class="kv"><span class="k">推理吞吐</span><span class="v up">32 tok/s</span></div>
+        <div class="kv"><span class="k">并行评估</span><span class="v">4 路</span></div>
+        <div class="kv"><span class="k">平均评估时长</span><span class="v">6.2s</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -329,7 +329,8 @@ class HyperliquidClient:
                     # 同步更新简单价格缓存，确保 get_positions / get_last_price 取到最新值
                     try:
                         from services.price_cache import cache_price
-                        cache_price(symbol.upper(), "CRYPTO", ticker['price'], "mainnet")
+                        # [P2-1] 写入带交易所键，防止与其他所缓存串价
+                        cache_price(symbol.upper(), "CRYPTO", ticker['price'], "mainnet", exchange="hyperliquid")
                     except Exception:
                         pass
                 else:
@@ -340,7 +341,7 @@ class HyperliquidClient:
                             results[symbol.upper()] = fallback
                             try:
                                 from services.price_cache import cache_price
-                                cache_price(symbol.upper(), "CRYPTO", fallback['price'], "mainnet")
+                                cache_price(symbol.upper(), "CRYPTO", fallback['price'], "mainnet", exchange="hyperliquid")
                             except Exception:
                                 pass
                     except Exception:

@@ -1,0 +1,455 @@
+<section class="page" id="page-agent-monitor" data-title="Agent 监控">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title"><span class="t-ico"><i data-ico="monitor" style="width:15px;height:15px;color:#7DD3FC"></i></span>Agent 监控</h1>
+      <p class="page-sub">多周期 Agent 编排 · FullAuto 调度循环</p>
+    </div>
+    
+        <div class="row" style="margin-top:7px;gap:14px;flex-wrap:wrap"><span class="cd cd-auto" data-cd="5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>下次刷新 <b>5</b>s</span>
+          <span class="lag "><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17v.01"/></svg>数据延迟 0.6s</span>
+        </div>
+    <div class="page-actions">
+      <div class="dd" style="min-width:200px">
+        <button class="dd-btn"><i data-ico="radar" style="width:14px;height:14px;color:#7DD3FC"></i><span class="lbl">全部 Agent</span><i data-ico="chevron-down" class="arrow" style="width:12px;height:12px"></i></button>
+        <div class="dd-menu">
+          <div class="dd-item sel">全部 Agent<span class="sub">ast-01 · $12,480.52</span></div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"视图：短线 Tier"}'>短线 Tier<span class="sub">余额 $4,320.00</span></div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"视图：中线因子化"}'>中线因子化<span class="sub">余额 $2,900.00</span></div>
+          <div class="dd-item" data-toast='{"type":"info","title":"已切换","msg":"视图：固定长线"}'>固定长线<span class="sub">余额 $2,460.00</span></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost2" data-drawer="d-agent-session"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>会话详情</button>
+      <button class="btn btn-ghost2"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>暂停</button>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="zap" style="width:15px;height:15px;color:#7DD3FC"></i>短线 Tier <span class="tag cyan">Zap</span></div>
+        <span class="card-hint">今日 12 笔</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot cyan" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">开仓 SOL 做多 0.42 @ $128.42</div>
+            <div class="num tiny muted">10:23:58</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$12.40</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot red" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">平仓 DOGE 触发止损 @ $0.3784</div>
+            <div class="num tiny muted">10:21:33</div>
+          </div>
+          <span class="num small down" style="flex-shrink:0">−$31.26</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot cyan" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">减仓 BTC 1/3 已成交 @ $68,240</div>
+            <div class="num tiny muted">10:19:47</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$96.80</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0 2px">
+          <span class="dot gray" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">tick #4821 完成 · 420ms</div>
+            <div class="num tiny muted">10:15:02</div>
+          </div>
+          <span class="num tiny muted" style="flex-shrink:0">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="activity" style="width:15px;height:15px;color:#7DD3FC"></i>中线因子化 <span class="tag green">Factor</span></div>
+        <span class="card-hint">今日 8 笔</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">因子 momentum_5m 更新 → +0.42</div>
+            <div class="num tiny muted">10:20:11</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$9.87</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">开仓 OP 做空 0.8x @ $2.148</div>
+            <div class="num tiny muted">10:16:40</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$3.20</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot amber" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">因子归一化越界 → 已截断并标记</div>
+            <div class="num tiny muted">10:08:26</div>
+          </div>
+          <span class="num tiny muted" style="flex-shrink:0">warn</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0 2px">
+          <span class="dot" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">平仓 ETH 中线 · 落袋</div>
+            <div class="num tiny muted">09:58:03</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$42.17</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="clock" style="width:15px;height:15px;color:#7DD3FC"></i>固定长线 <span class="tag amber">Long</span></div>
+        <span class="card-hint">今日 5 笔</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot amber" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">持仓复核 BNB · 状态正常</div>
+            <div class="num tiny muted">10:22:30</div>
+          </div>
+          <span class="num small up" style="flex-shrink:0">+$88.05</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot gray" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TP 距离 4.2% · 保持持有</div>
+            <div class="num tiny muted">10:06:12</div>
+          </div>
+          <span class="num tiny muted" style="flex-shrink:0">—</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="dot gray" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">再平衡信号 → 偏离 &lt;1% 忽略</div>
+            <div class="num tiny muted">09:44:18</div>
+          </div>
+          <span class="num tiny muted" style="flex-shrink:0">—</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0 2px">
+          <span class="dot gray" style="flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div class="small" style="color:#C9D4E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">tick 心跳 · 无操作</div>
+            <div class="num tiny muted">09:12:05</div>
+          </div>
+          <span class="num tiny muted" style="flex-shrink:0">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="bar-chart-3" style="width:15px;height:15px;color:#7DD3FC"></i>Tick 耗时分布</div>
+        <span class="card-hint">近 30 tick · 单位 ms</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-card">
+          <svg viewBox="0 0 300 132" style="display:block;width:100%;height:auto">
+            <defs>
+              <linearGradient id="agentTickGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#22D3EE"/>
+                <stop offset="100%" stop-color="#8B5CF6"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(251,191,36,.5)" stroke-dasharray="3 5"/>
+            <text x="214" y="24" fill="#FBBF24" font-size="10">P95 1.24s</text>
+            <rect x="6" y="72" width="14" height="46" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="30.5" y="60" width="14" height="58" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="55" y="78" width="14" height="40" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="79.5" y="54" width="14" height="64" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="104" y="68" width="14" height="50" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="128.5" y="46" width="14" height="72" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="153" y="62" width="14" height="56" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="177.5" y="34" width="14" height="84" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="202" y="52" width="14" height="66" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="226.5" y="64" width="14" height="54" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="251" y="42" width="14" height="76" rx="3" fill="url(#agentTickGrad)"/>
+            <rect x="275.5" y="56" width="14" height="62" rx="3" fill="url(#agentTickGrad)"/>
+            <text x="6" y="127" fill="#6E7B98" font-size="9">0ms</text>
+            <text x="240" y="127" fill="#6E7B98" font-size="9">最近 →</text>
+          </svg>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
+          <div>
+            <div class="tiny muted">P50</div>
+            <div class="num" style="font-size:14px;font-weight:700">412ms</div>
+          </div>
+          <div>
+            <div class="tiny muted">P95</div>
+            <div class="num warn" style="font-size:14px;font-weight:700">1.24s</div>
+          </div>
+          <div>
+            <div class="tiny muted">最大</div>
+            <div class="num down" style="font-size:14px;font-weight:700">2.10s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="badge-check" style="width:15px;height:15px;color:#7DD3FC"></i>执行成功率</div>
+        <span class="card-hint">近 24h · 全 Agent</span>
+      </div>
+      <div class="card-body">
+        <div class="num" style="font-size:44px;font-weight:800;color:var(--profit)">98.4%</div>
+        <div class="bar" style="margin:10px 0 14px"><div class="bar-fill green" style="width:98.4%"></div></div>
+        <div class="kv"><span class="k">成功 tick</span><span class="v">4,912</span></div>
+        <div class="kv"><span class="k">失败 / 超时</span><span class="v down">81 / 12</span></div>
+        <div class="kv"><span class="k">目标阈值</span><span class="v">≥ 97%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="list" style="width:15px;height:15px;color:#7DD3FC"></i>Tick 执行明细</div>
+      <span class="card-hint">10s 循环 · 全任务</span>
+    </div>
+    <div class="card-body tbl-body">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>任务</th><th class="r">次数</th><th class="r">P50</th><th class="r">P95</th><th class="r">成功率</th><th class="r">上次耗时</th><th class="c">操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sym">行情快照 sync</span></td><td class="r">1,204</td><td class="r">182ms</td><td class="r">610ms</td><td class="r up">99.8%</td><td class="r">214ms</td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">因子计算 factor.pool</span></td><td class="r">1,204</td><td class="r">96ms</td><td class="r">340ms</td><td class="r up">99.6%</td><td class="r">128ms</td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">信号生成 signal.gen</span></td><td class="r">1,203</td><td class="r">210ms</td><td class="r">890ms</td><td class="r up">99.3%</td><td class="r">356ms</td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">门禁校验 risk.gate</span></td><td class="r">1,203</td><td class="r">44ms</td><td class="r">150ms</td><td class="r up">100%</td><td class="r">52ms</td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">AI 决策编排 orchestrator</span></td><td class="r">611</td><td class="r warn">1.24s</td><td class="r warn">4.8s</td><td class="r">92.1%</td><td class="r warn">2.10s</td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+          <tr>
+            <td><span class="sym">深模型审核 llm.deep</span></td><td class="r">87</td><td class="r warn">3.1s</td><td class="r warn">8.4s</td><td class="r warn">71.3%</td><td class="r warn">8.10s <span class="badge warn"><span class="bdot"></span>超时</span></td><td class="c"><button class="row-btn cyan" data-modal="m-tick">详情</button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="workflow" style="width:15px;height:15px;color:#7DD3FC"></i>FullAuto 调度任务</div>
+        <span class="card-hint">自动循环 · 4 项</span>
+      </div>
+      <div class="card-body">
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="small" style="color:#C9D4E8">tick 主循环</span>
+          <span class="num tiny muted">10:24:02</span>
+          <button class="row-btn cyan" data-modal="m-fullauto">查看</button>
+          <span class="badge ok"><span class="bdot"></span>正常</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="small" style="color:#C9D4E8">因子重算</span>
+          <span class="num tiny muted">10:18:00</span>
+          <button class="row-btn cyan" data-modal="m-fullauto">查看</button>
+          <span class="badge ok"><span class="bdot"></span>正常</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+          <span class="small" style="color:#C9D4E8">深模型审核</span>
+          <span class="num tiny muted">10:12:45</span>
+          <button class="row-btn cyan" data-modal="m-fullauto">查看</button>
+          <span class="badge warn"><span class="bdot"></span>超时</span>
+        </div>
+        <div class="flex spread" style="padding:8px 0 2px">
+          <span class="small" style="color:#C9D4E8">权益快照</span>
+          <span class="num tiny muted">10:00:00</span>
+          <button class="row-btn cyan" data-modal="m-fullauto">查看</button>
+          <span class="badge ok"><span class="bdot"></span>正常</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass hover">
+      <div class="card-head">
+        <div class="card-title"><i data-ico="refresh-cw" style="width:15px;height:15px;color:#7DD3FC"></i>统一循环状态</div>
+        <span class="card-hint">FullAuto Loop</span>
+      </div>
+      <div class="card-body">
+        <div class="kv"><span class="k">tick 间隔</span><span class="v">10s</span></div>
+        <div class="kv"><span class="k">运行时长</span><span class="v">12h 34m 18s</span></div>
+        <div class="kv"><span class="k">心跳</span><span class="v">tick #4821</span></div>
+        <div class="kv"><span class="k">队列积压</span><span class="v">0</span></div>
+        <div class="kv"><span class="k">上次异常</span><span class="v up">2h 前 · 已自动恢复</span></div>
+        <div class="kv"><span class="k">内存占用</span><span class="v">184 MB</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass hover">
+    <div class="card-head">
+      <div class="card-title"><i data-ico="list" style="width:15px;height:15px;color:#7DD3FC"></i>系统日志</div>
+      <span class="card-hint">最近 5 条</span>
+    </div>
+    <div class="card-body pad0">
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th style="width:140px">时间</th><th style="width:90px">级别</th><th>消息</th><th style="width:80px" class="c">操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="num">10:24:02</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td>tick 循环 #4821 完成 · 420ms</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log">详情</button></td>
+          </tr>
+          <tr>
+            <td class="num">10:21:36</td>
+            <td><span class="badge dim">WARN</span></td>
+            <td class="warn">DOGE 止损触发 −$31.26 · 冷却 45s 已启用</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log">详情</button></td>
+          </tr>
+          <tr>
+            <td class="num">10:19:47</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td>BTC 减仓指令已下发至交易所</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log">详情</button></td>
+          </tr>
+          <tr>
+            <td class="num">10:12:45</td>
+            <td><span class="badge warn"><span class="bdot"></span>ERROR</span></td>
+            <td class="down">深模型审核超时 8.1s → 已降级快模型重审</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log">详情</button></td>
+          </tr>
+          <tr>
+            <td class="num">10:00:00</td>
+            <td><span class="badge info"><span class="bdot"></span>INFO</span></td>
+            <td>权益快照已归档（12 个账户）</td>
+            <td class="c"><button class="row-btn cyan" data-modal="m-log">详情</button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：会话详情抽屉 ══ -->
+  <div class="drawer wide" id="d-agent-session">
+    <div class="drawer-head">
+      <div><div class="drawer-title">Agent 会话信息</div><div class="drawer-sub">session #12 · 主会话 ast-01 · FullAuto</div></div>
+      <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="kv"><span class="k">账户</span><span class="v">ast-01 主账户</span></div>
+      <div class="kv"><span class="k">交易员</span><span class="v">多周期编排器 v3</span></div>
+      <div class="kv"><span class="k">状态</span><span class="v"><span class="badge ok"><span class="bdot"></span>运行中</span></span></div>
+      <div class="kv"><span class="k">上线时长</span><span class="v">12h 34m 18s</span></div>
+      <div class="kv"><span class="k">AI 槽位</span><span class="v">2 / 5</span></div>
+      <div class="kv"><span class="k">风险等级</span><span class="v"><span class="badge info">稳健</span></span></div>
+      <div class="kv"><span class="k">模式</span><span class="v">实盘 Live</span></div>
+      <div class="kv"><span class="k">LLM 路由</span><span class="v">信号 → 快 · 复核 → 深</span></div>
+      <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">Agent 槽位占用</div>
+      <div class="flex spread" style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="small" style="color:#C9D4E8">短线 Tier <span class="tag cyan">Zap</span></span><span class="badge ok"><span class="bdot"></span>占用</span>
+      </div>
+      <div class="flex spread" style="padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+        <span class="small" style="color:#C9D4E8">中线因子化 <span class="tag green">Factor</span></span><span class="badge ok"><span class="bdot"></span>占用</span>
+      </div>
+      <div class="flex spread" style="padding:6px 0">
+        <span class="small" style="color:#C9D4E8">固定长线 <span class="tag amber">Long</span></span><span class="badge dim">空闲</span>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost2" data-close data-toast='{"type":"ok","title":"已恢复","msg":"Agent 会话已恢复调度"}' ><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7-11-7z"/></svg>恢复</button>
+      <button class="btn btn-primary" data-close data-toast='{"type":"info","title":"已暂停","msg":"Agent 会话已暂停，持仓保持不动"}' ><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>暂停</button>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：Tick 任务详情弹窗 ══ -->
+  <div class="mask" id="m-tick">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Tick 任务详情</div><div class="modal-sub">10s 循环 · 全任务</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="spread" style="margin-bottom:8px">
+          <span class="sym" style="font-size:15px;font-weight:700">AI 决策编排 orchestrator</span>
+          <span class="badge warn"><span class="bdot"></span>偏慢</span>
+        </div>
+        <div class="kv"><span class="k">执行次数</span><span class="v">611</span></div>
+        <div class="kv"><span class="k">P50</span><span class="v warn">1.24s</span></div>
+        <div class="kv"><span class="k">P95</span><span class="v warn">4.8s</span></div>
+        <div class="kv"><span class="k">成功率</span><span class="v">92.1%</span></div>
+        <div class="spread" style="padding:7px 0"><span class="tiny muted">成功率进度</span><span class="num tiny">92.1%</span></div>
+        <div class="bar" style="margin:4px 0 10px"><div class="bar-fill amber" style="width:92.1%"></div></div>
+        <div class="kv"><span class="k">上次耗时</span><span class="v warn">2.10s</span></div>
+        <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">最近 5 次耗时（ms）</div>
+        <div style="display:flex;align-items:flex-end;gap:8px;height:64px;padding:6px 2px 0">
+          <div style="flex:1;background:linear-gradient(180deg,#22D3EE,#8B5CF6);border-radius:4px 4px 2px 2px;height:38%" title="1280ms"></div>
+          <div style="flex:1;background:linear-gradient(180deg,#22D3EE,#8B5CF6);border-radius:4px 4px 2px 2px;height:62%" title="2100ms"></div>
+          <div style="flex:1;background:linear-gradient(180deg,#22D3EE,#8B5CF6);border-radius:4px 4px 2px 2px;height:45%" title="1530ms"></div>
+          <div style="flex:1;background:linear-gradient(180deg,#22D3EE,#8B5CF6);border-radius:4px 4px 2px 2px;height:54%" title="1810ms"></div>
+          <div style="flex:1;background:linear-gradient(180deg,#FB7185,#F43F5E);border-radius:4px 4px 2px 2px;height:86%" title="2860ms"></div>
+        </div>
+        <div class="spread tiny muted" style="margin-top:4px"><span>1,280</span><span>2,100</span><span>1,530</span><span>1,810</span><span class="warn">2,860（最近）</span></div>
+        <div class="tiny muted" style="margin-top:10px">编排器需要串行等待深模型（llm.deep）返回，耗时随 API 延迟波动；P95 超过 3s 时自动降级快模型兜底。</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：日志详情弹窗 ══ -->
+  <div class="mask" id="m-log">
+    <div class="modal wide">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>日志详情</div><div class="modal-sub">log-241018-1042 · ERROR</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="kv"><span class="k">时间</span><span class="v">2026-08-14 10:12:45.211</span></div>
+        <div class="kv"><span class="k">级别</span><span class="v"><span class="badge warn"><span class="bdot"></span>ERROR</span></span></div>
+        <div class="kv"><span class="k">来源</span><span class="v mono">llm.deep</span></div>
+        <div class="kv"><span class="k">完整消息</span><span class="v" style="white-space:normal">深模型审核超时 8.1s → 已降级快模型重审</span></div>
+        <div class="small bold" style="margin:14px 0 6px;color:#C9D4E8">上下文</div>
+        <div class="mono" style="font-size:11.5px;line-height:1.8;color:#8B98B5;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;white-space:pre-wrap;word-break:break-all">{ "tick": 4821, "task": "llm.deep", "model": "deepseek-v4-pro", "timeout_ms": 8000, "elapsed_ms": 8104, "fallback": "deepseek-v4-flash", "decision_ids": [ "dec-241018-01" ], "retry": 1 }</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 二级视图：FullAuto 调度任务弹窗 ══ -->
+  <div class="mask" id="m-fullauto">
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="modal-title"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>FullAuto 调度任务</div><div class="modal-sub">auto-loop · 4 项</div></div>
+        <button class="modal-x" data-close><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="spread" style="margin-bottom:8px">
+          <span class="sym" style="font-size:15px;font-weight:700">深模型审核</span>
+          <span class="badge warn"><span class="bdot"></span>超时</span>
+        </div>
+        <div class="kv"><span class="k">名称</span><span class="v">深模型审核 llm.deep</span></div>
+        <div class="kv"><span class="k">周期</span><span class="v">每 5 min（决策挂起时）</span></div>
+        <div class="kv"><span class="k">上次运行</span><span class="v">10:12:45</span></div>
+        <div class="kv"><span class="k">下次运行</span><span class="v warn">10:17:45</span></div>
+        <div class="kv"><span class="k">状态</span><span class="v"><span class="badge warn"><span class="bdot"></span>超时 · 已降级</span></span></div>
+        <div class="kv"><span class="k">触发规则</span><span class="v" style="white-space:normal">当编排器产出高置信信号（≥85%）且挂起决策队列非空时触发；超时 8s 自动降级快模型重审并记录告警。</span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost2" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+</section>

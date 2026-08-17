@@ -85,7 +85,7 @@ function LocalLlmBlock() {
                     <span
                       className={cn(
                         "w-2 h-2 rounded-full",
-                        s.ok ? "bg-green-500" : "bg-red-500"
+                        s.ok ? "bg-profit" : "bg-loss"
                       )}
                     />
                     {s.name}

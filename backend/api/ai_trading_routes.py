@@ -361,12 +361,10 @@ def get_positions_with_plans(
             except Exception as e:
                 logger.error(f"Error getting Hyperliquid positions: {e}", exc_info=True)
 
-        # ============ 处理 Binance 持仓 ============
-        # 🔥 为每个独立的AI决策创建单独的持仓记录，不合并
-        # 每笔AI交易决策都有独立的持仓记录，包含完整的交易信息
+        # ============ 处理 Binance 持仓 ============ # 🔥 为每个独立的AI决策创建单独的持仓记录，不合并 # 每笔AI交易决策都有独立的持仓记录，包含完整的交易信息
         if account.binance_enabled == "true":
             try:
-                from database.models import Order
+                from backend.database.models import Order
                 from services.market_data import get_last_price
 
                 logger.info(f"[DEBUG] Getting individual AI decision positions for account {account_id}")
@@ -421,10 +419,7 @@ def get_positions_with_plans(
                         logger.info(f"[DEBUG] Skipping decision {decision.id}: {decision_symbol} {decision_side} not in actual positions")
                         continue
 
-                    # 检查这个开仓决策后是否有对应的平仓决策
-                    # 🔥 修复：平仓记录的reason中包含side信息，需要匹配
-                    # 例如 "同步平仓: BNB short 在交易所已平仓" 或 "Orphaned Fix ID xxx"
-                    # 为了简化，我们检查close记录的reason是否包含当前持仓的side
+                    # 检查这个开仓决策后是否有对应的平仓决策 # 🔥 修复：平仓记录的reason中包含side信息，需要匹配 # 例如 "同步平仓: BNB short 在交易所已平仓" 或 "Orphaned Fix ID xxx" # 为了简化，我们检查close记录的reason是否包含当前持仓的side
                     analytics_db2 = AnalyticsSessionLocal()
                     try:
                         close_records = analytics_db2.query(AIDecisionLog).filter(
@@ -440,11 +435,9 @@ def get_positions_with_plans(
                     # 检查是否有匹配当前side的close记录
                     close_exists = False
                     for close_rec in close_records:
-                        # 检查reason中是否包含当前持仓的side
-                        # 如果reason不包含side信息（老的记录），则认为是匹配的
+                        # 检查reason中是否包含当前持仓的side # 如果reason不包含side信息（老的记录），则认为是匹配的
                         if close_rec.reason:
-                            # 新格式: "同步平仓: BNB short 在交易所已平仓"
-                            # 检查是否包含不同side的关键词
+                            # 新格式: "同步平仓: BNB short 在交易所已平仓" # 检查是否包含不同side的关键词
                             opposite_side = 'short' if decision_side == 'long' else 'long'
                             if opposite_side in close_rec.reason.lower():
                                 # 这个close是针对另一个side的，跳过
@@ -624,9 +617,7 @@ def close_position(
                 # 创建客户端
                 client = create_binance_client(account.id, api_key, api_secret, market_type, testnet)
 
-                # 🔥 支持两种position_id格式：
-                # 1. "decision_{id}" - 从前端传来的决策ID格式
-                # 2. 原始的Binance position_id格式
+                # 🔥 支持两种position_id格式： # 1. "decision_{id}" - 从前端传来的决策ID格式 # 2. 原始的Binance position_id格式
                 if request.position_id:
                     # 检查是否是decision格式
                     if request.position_id.startswith("decision_"):
@@ -649,7 +640,7 @@ def close_position(
 
                         # 从决策记录的order_id获取订单信息
                         if decision.order_id:
-                            from database.models import Order
+                            from backend.database.models import Order
                             order = db.query(Order).filter(Order.id == decision.order_id).first()
                             if order:
                                 close_amount = float(order.quantity)
@@ -688,8 +679,7 @@ def close_position(
                     close_amount = abs(position_to_close.get('size', 0))
                     logger.info(f"[BINANCE] Closing all positions for {request.symbol} with amount {close_amount}")
 
-                # 执行平仓
-                # 🔥 如果是decision格式，直接使用之前获取的close_amount
+                # 执行平仓 # 🔥 如果是decision格式，直接使用之前获取的close_amount
                 if request.position_id and request.position_id.startswith("decision_"):
                     # 已经在前面获取了close_amount
                     result = client.close_position(db, request.symbol, close_amount)
@@ -732,7 +722,7 @@ def close_position(
             # 🔥 更新BinancePosition状态（对于币安平仓）
             if exchange == "binance":
                 try:
-                    from database.models import BinancePosition
+                    from backend.database.models import BinancePosition
 
                     # 如果提供了position_id，更新特定的持仓
                     if request.position_id:
@@ -884,8 +874,7 @@ def sync_positions(
                 exchange_pos_set = set()
 
                 for pos in exchange_positions:
-                    # 🔥 全面兼容格式：移除所有可能的分隔符和后缀，只保留基础币种
-                    # 例如: "BTC/USDT" -> "BTC", "BTCUSDT" -> "BTC", "BTC-USDT" -> "BTC"
+                    # 🔥 全面兼容格式：移除所有可能的分隔符和后缀，只保留基础币种 # 例如: "BTC/USDT" -> "BTC", "BTCUSDT" -> "BTC", "BTC-USDT" -> "BTC"
                     raw_symbol = pos.get('symbol', '')
                     symbol = raw_symbol.replace('/', '').replace('-', '').replace(':USDT', '').replace('USDT', '')
                     
@@ -901,7 +890,7 @@ def sync_positions(
                 logger.info(f"[BINANCE] 交易所实际持仓 (normalized_symbol, side): {exchange_pos_set}")
 
                 # 查询项目中所有open状态的持仓
-                from database.models import BinancePosition
+                from backend.database.models import BinancePosition
                 open_positions = db.query(BinancePosition).filter(
                     BinancePosition.account_id == account_id,
                     BinancePosition.status == 'open'
@@ -909,8 +898,7 @@ def sync_positions(
 
                 logger.info(f"[BINANCE] 项目中open持仓: {len(open_positions)} 个")
 
-                # 🔥 改进：添加缺失的持仓（用户手动开的）
-                # 构建现有数据库持仓的符号集合
+                # 🔥 改进：添加缺失的持仓（用户手动开的） # 构建现有数据库持仓的符号集合
                 existing_symbols = set()
                 for binance_pos in open_positions:
                     symbol = binance_pos.symbol.replace('/', '').replace('-', '').replace(':USDT', '').replace('USDT', '')
@@ -957,9 +945,7 @@ def sync_positions(
                         binance_pos.status = 'closed'
                         binance_pos.closed_at = func.now()
 
-                        # 🔥 创建平仓决策记录，这样前端就会过滤掉这个持仓
-                        # 查找该symbol最近的开仓决策
-                        # 兼容处理：支持 "ETH" 和 "ETH/USDT" 两种格式
+                        # 🔥 创建平仓决策记录，这样前端就会过滤掉这个持仓 # 查找该symbol最近的开仓决策 # 兼容处理：支持 "ETH" 和 "ETH/USDT" 两种格式
                         simple_symbol = binance_pos.symbol.replace('/USDT', '').replace('USDT', '')
                         
                         latest_open = analytics_db.query(AIDecisionLog).filter(
@@ -986,8 +972,7 @@ def sync_positions(
                             ).first()
 
                             if not existing_close:
-                                # 创建平仓记录
-                                # 使用原始决策中的symbol格式，保持一致性
+                                # 创建平仓记录 # 使用原始决策中的symbol格式，保持一致性
                                 target_symbol = latest_open.symbol
                                 
                                 close_decision = AIDecisionLog(
@@ -1154,14 +1139,13 @@ def close_all_positions(
                 # 创建客户端
                 client = create_binance_client(account.id, api_key, api_secret, market_type, testnet)
 
-                # 🔥 核心修复：先执行一次强制同步，确保数据库是最新的
-                # 这样可以避免数据库漏掉用户手动开的仓位，导致无法平仓
+                # 🔥 核心修复：先执行一次强制同步，确保数据库是最新的 # 这样可以避免数据库漏掉用户手动开的仓位，导致无法平仓
                 try:
                     logger.info("[BINANCE] Pre-close sync started...")
                     exchange_positions = client.get_positions(db)
                     
                     # 快速更新数据库状态
-                    from database.models import BinancePosition
+                    from backend.database.models import BinancePosition
                     
                     # 1. 获取所有交易所持仓符号
                     exchange_pos_map = {}

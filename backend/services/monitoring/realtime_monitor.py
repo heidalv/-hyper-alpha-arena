@@ -192,7 +192,7 @@ class RealtimeMonitor:
         """检查所有账户"""
         try:
             from backend.database.connection import SessionLocal
-            from database.models import Account
+            from backend.database.models import Account
             
             db = SessionLocal()
             try:

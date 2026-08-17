@@ -69,7 +69,11 @@ class MarketDataV2Scheduler:
         return {"stopped": True, "status": self.status()}
 
     async def tick_once(self) -> dict[str, Any]:
-        cfg = self.config()
+        # [2026-08-16 修复] config() 内含同步 SQLAlchemy DB 查询
+        # （resolve_configured_symbols），直接在事件循环线程执行会阻塞整个
+        # ASGI 主循环（py-spy 实锤 MainThread 卡在 psycopg _execute_send）。
+        # 改经线程池执行，事件循环永不因 DB 阻塞。
+        cfg = await asyncio.to_thread(self.config)
         submitted = 0
         for exchange in cfg["exchanges"]:
             for symbol in cfg["symbols"]:
@@ -88,12 +92,16 @@ class MarketDataV2Scheduler:
 
     async def _loop(self) -> None:
         while self._running:
-            cfg = self.config()
             try:
                 await self.tick_once()
             except Exception as exc:
                 self._last_error = f"{type(exc).__name__}: {exc}"
-            await asyncio.sleep(cfg["interval_seconds"])
+            # [2026-08-16 修复] 同 tick_once：config() 同步 DB 查询移出事件循环线程。
+            try:
+                _interval = float((await asyncio.to_thread(self.config))["interval_seconds"])
+            except Exception:
+                _interval = 60.0
+            await asyncio.sleep(max(10.0, _interval))
 
     def status(self) -> dict[str, Any]:
         return {

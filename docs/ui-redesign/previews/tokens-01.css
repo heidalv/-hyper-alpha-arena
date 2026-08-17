@@ -1,0 +1,71 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * 主题 A：黑曜终端 Obsidian Terminal — 设计令牌（Design Tokens）
+ * 文件用途：直接复制进 frontend-next/src/app/globals.css，
+ *          替换原 `:root, .dark { ... }` 变量块即可完成配色/字体换肤。
+ * 说明：
+ *   1) 变量名与项目现有 token 完全一致（--background / --card / ...），
+ *      @theme inline 映射层无需改动，组件类名零成本继承新值。
+ *   2) 颜色以 HEX 为唯一事实来源；括号内为 oklch 近似值（供参考/换算）。
+ *   3) 背景层 L 值递进 0.143 → 0.158 → 0.194，保证层级对比与 AA 对比度。
+ *   4) 字体：Inter（拉丁）+ Noto Sans SC（汉字）+ JetBrains Mono（数字）。
+ *      若 layout.tsx 已用 next/font 注入字体变量，请保留注入并改为此处的引用。
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+:root, .dark {
+  /* ── 字体（--font-mono 承接价格/表格数字，配合 tabular-nums）── */
+  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+               system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono",
+               Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ── 背景层（黑曜石材：由深到浅 4 级，冷蓝黑底）── */
+  --background: #0A0D12;      /* oklch(0.158 0.012 261) 页面底色：黑曜岩 */
+  --card: #10151C;            /* oklch(0.194 0.016 257) 面板/卡片 */
+  --popover: #0C1016;         /* oklch(0.172 0.014 258) 弹层/下拉，略亮于背景 */
+  --muted: #161D27;           /* oklch(0.229 0.022 257) 静态弱化容器 */
+  --secondary: #131923;       /* oklch(0.212 0.022 261) 次要容器 */
+  --accent: #1A2330;          /* oklch(0.254 0.028 258) 高亮容器/hover */
+  --input: #141A23;           /* oklch(0.216 0.020 258) 输入框底色 */
+
+  /* ── 边框与分割线 ── */
+  --border: #1E2631;          /* oklch(0.266 0.024 256) 主边框：细而克制的石缝 */
+
+  /* ── 文字 ── */
+  --foreground: #E7ECF4;      /* oklch(0.942 0.012 260) 主文字（vs 背景 16.4:1） */
+  --muted-foreground: #7E8AA0;/* oklch(0.631 0.036 263) 次要文字（vs 背景 5.6:1，AA） */
+  --secondary-foreground: #C6CFDD; /* oklch(0.852 0.022 259) 次要容器文字 */
+  --accent-foreground: #E7ECF4;     /* oklch(0.942 0.012 260) 高亮容器文字 */
+  --card-foreground: #E7ECF4;       /* oklch(0.942 0.012 260) 卡片文字 */
+  --popover-foreground: #E7ECF4;    /* oklch(0.942 0.012 260) 弹层文字 */
+
+  /* ── 交互色 ── */
+  --primary: #4C8DFF;         /* oklch(0.658 0.182 261) 主品牌蓝（vs 背景 6.1:1） */
+  --primary-foreground: #FFFFFF;
+  --destructive: #FF5C7A;     /* oklch(0.697 0.198 13)  危险/止损（与 loss 同族） */
+  --ring: rgb(76 141 255 / 0.35);   /* oklch(0.658 0.182 261 / 0.35) 焦点环：主蓝半透明 */
+
+  /* ── 交易语义色（涨绿跌红，全站唯一事实来源）── */
+  --profit: #00C896;          /* oklch(0.739 0.152 167) 涨（vs 卡片 8.5:1） */
+  --loss: #FF5C7A;            /* oklch(0.697 0.198 13)  跌（vs 卡片 6.2:1） */
+  --warning: #F5B83D;         /* oklch(0.819 0.150 81)  警告/异常（vs 背景 10.9:1） */
+
+  /* ── 图表色（顺序即图表默认取色顺序）── */
+  --chart-1: #4C8DFF;         /* 蓝  主序列 */
+  --chart-2: #00C896;         /* 绿  盈利序列 */
+  --chart-3: #FF5C7A;         /* 红  亏损序列 */
+  --chart-4: #F5B83D;         /* 琥珀 警告序列 */
+  --chart-5: #A78BFA;         /* 紫  扩展序列（oklch 0.709 0.159 294） */
+
+  /* ── 侧边栏（比背景更暗一档，压出主区层次）── */
+  --sidebar: #070A0E;                 /* oklch(0.143 0.010 253) 侧栏底色 */
+  --sidebar-foreground: #C6CFDD;      /* oklch(0.852 0.022 259)（vs 侧栏 12.6:1） */
+  --sidebar-primary: #4C8DFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #121823;          /* oklch(0.208 0.024 262) 选中项底色 */
+  --sidebar-accent-foreground: #E7ECF4;
+  --sidebar-border: #141B25;          /* oklch(0.220 0.022 257) 侧栏分割线 */
+  --sidebar-ring: rgb(76 141 255 / 0.35);
+
+  /* ── 圆角（6px：交易终端的小圆角，克制不圆润）── */
+  --radius: 0.375rem;
+}

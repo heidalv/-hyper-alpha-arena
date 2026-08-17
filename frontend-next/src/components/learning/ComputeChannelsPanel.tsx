@@ -76,9 +76,15 @@ export function ComputeChannelsPanel() {
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">因子进化运行中</span>
           {evo?.running ? (
-            <Badge variant="default" className="font-normal">运行中</Badge>
+            <Badge className="font-normal border-profit/40 bg-profit/10 text-profit">
+              <span className="w-1.5 h-1.5 rounded-full bg-profit shadow-[0_0_6px_currentColor]" />
+              运行中
+            </Badge>
           ) : (
-            <Badge variant="secondary" className="font-normal">空闲</Badge>
+            <Badge className="font-normal border-border/60 bg-muted/30 text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+              空闲
+            </Badge>
           )}
         </div>
         {evo?.last_error && (
@@ -123,7 +129,7 @@ export function ComputeChannelsPanel() {
           </div>
 
           {/* 本地 LLM 网关 */}
-          <div className="rounded-lg border p-3 space-y-2">
+          <div className="glass rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-1.5">
               <Cpu className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">LLM 网关（compute）</span>
@@ -137,15 +143,15 @@ export function ComputeChannelsPanel() {
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="font-medium">未启用</span>
+                    <XCircle className="w-3.5 h-3.5 text-warning" />
+                    <span className="text-warning font-medium">未启用</span>
                   </>
                 )}
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs">
-                <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="font-medium">未配置</span>
+                <XCircle className="w-3.5 h-3.5 text-warning" />
+                <span className="text-warning font-medium">未配置</span>
               </div>
             )}
             <p className="text-[10px] text-muted-foreground truncate" title={llm?.note ?? "—"}>

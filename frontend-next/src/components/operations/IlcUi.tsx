@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** 与 Analytics / NetPerformance 对齐的 KPI 卡片 */
+/** 与 Analytics / NetPerformance 对齐的 KPI 卡片（Aurora 玻璃 + 渐变数字） */
 export function StatCard({
   label,
   value,
@@ -25,15 +25,15 @@ export function StatCard({
 }) {
   const valueClass =
     tone === 'good'
-      ? 'text-green-600 dark:text-green-400'
+      ? 'grad-text-green'
       : tone === 'warn'
-        ? 'text-amber-600 dark:text-amber-400'
+        ? 'text-warning'
         : tone === 'bad'
-          ? 'text-red-600 dark:text-red-400'
-          : undefined
+          ? 'grad-text-red'
+          : 'grad-text'
 
   return (
-    <Card>
+    <Card className="glass">
       <CardContent className="pt-5">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         <p className={cn('text-2xl font-bold tabular-nums mt-1', valueClass)}>{value}</p>
@@ -59,11 +59,16 @@ export function SectionCard({
   className?: string
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn('glass', className)}>
       {(title || description || action) && (
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
           <div className="space-y-1">
-            {title && <CardTitle className="text-base">{title}</CardTitle>}
+            {title && (
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="w-[3px] h-3.5 rounded-r bg-gradient-to-b from-cyan-400 to-violet-500 shadow-[0_0_6px_rgba(34,211,238,0.5)]" />
+                {title}
+              </CardTitle>
+            )}
             {description && <CardDescription>{description}</CardDescription>}
           </div>
           {action}

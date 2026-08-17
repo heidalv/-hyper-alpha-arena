@@ -59,8 +59,14 @@ def get_scalp_factor_allowlist() -> Optional[Set[str]]:
             fid = rec.get("factor_id")
             if fid:
                 allow.add(str(fid))
-    except Exception:
-        pass
+    except Exception as _safs_err:
+        # [2026-08-15] 原 except: pass 静默吞异常；现显式告警（第二源
+        # factor_active_set 仍会兜底，但异常可见便于排查）。
+        import logging as _lg2
+        _lg2.getLogger(__name__).warning(
+            "[ScalpFactorExclude] scalp_active_factor_set 读取失败（回退 "
+            "factor_active_set 兜底）: %s", _safs_err,
+        )
     try:
         # [2026-08-14 P0-2 根因修复] FactorActiveSet 位于 Analytics 库
         # （models.FactorActiveSet(AnalyticsBase)），此前误用 Market 库的

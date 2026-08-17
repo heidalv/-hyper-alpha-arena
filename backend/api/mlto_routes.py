@@ -15,8 +15,7 @@ try:
     from backend.database.connection import AnalyticsSessionLocal, get_db
 
 except ImportError:
-
-    from database.connection import AnalyticsSessionLocal, get_db
+    from backend.database.connection import AnalyticsSessionLocal, get_db
 
 
 
@@ -253,9 +252,7 @@ def thesis_summary(
 
     enriched = [_enrich_thesis_row(row, session_id, db) for row in items]
 
-    # [2026-08-10] 中线/长线双通道展示：
-    #   long → 仅固定交易对
-    #   mid  → 固定交易对 ∪ AI中线≤3（固定币中线不能丢）
+    # [2026-08-10] 中线/长线双通道展示： #   long → 仅固定交易对 #   mid  → 固定交易对 ∪ AI中线≤3（固定币中线不能丢）
     from backend.config.settings import MIDLONG_MID_VIA_MLTO as _MID_VIA_MLTO
     from backend.services.auto_coin_selector import (
         get_ai_mid_candidates_for_session as _get_ai_mid,

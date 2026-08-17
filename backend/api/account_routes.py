@@ -129,8 +129,7 @@ def list_all_accounts(trading_mode: Optional[str] = None, db: Session = Depends(
             if hyperliquid_environment in ["testnet", "mainnet"]:
                 try:
                     # [2026-07-09 性能修复] 列表接口不应阻塞调交易所 REST（单账户 10-12s）。
-                    # 接受最长 60s 内的缓存（max_age_seconds=60）；缓存完全未命中（冷启动）
-                    # 时回退数据库已有值快速返回，实时余额由后台同步任务定期刷新缓存。
+                    # 接受最长 60s 内的缓存（max_age_seconds=60）；缓存完全未命中（冷启动） # 时回退数据库已有值快速返回，实时余额由后台同步任务定期刷新缓存。
                     cached_entry = get_cached_account_state(
                         account.id, hyperliquid_environment, max_age_seconds=60
                     )
@@ -285,8 +284,7 @@ def get_specific_account_overview(account_id: int, db: Session = Depends(get_db)
             Position.account_id == account.id,
             Position.quantity > 0
         ).count()
-        
-        from database.models import Order
+        from backend.database.models import Order
         pending_orders = db.query(Order).filter(
             Order.account_id == account.id,
             Order.status == "PENDING"
@@ -465,8 +463,7 @@ def get_account_overview(db: Session = Depends(get_db)):
             Position.account_id == account.id,
             Position.quantity > 0
         ).count()
-        
-        from database.models import Order
+        from backend.database.models import Order
         pending_orders = db.query(Order).filter(
             Order.account_id == account.id,
             Order.status == "PENDING"
@@ -498,7 +495,7 @@ def get_account_overview(db: Session = Depends(get_db)):
 def create_new_account(payload: dict, db: Session = Depends(get_db)):
     """Create a new account for the default user (for paper trading demo)"""
     try:
-        from database.models import User
+        from backend.database.models import User
         from backend.config.settings import DEFAULT_EXCHANGE
         
         # Get the default user (or first user)
