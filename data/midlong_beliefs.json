@@ -342,15 +342,15 @@
       "ts": "2026-08-16T13:06:13.102335+00:00"
     },
     {
-      "symbol": "ETH",
-      "reason": "L1=sideways(score=0.0) 非 up",
+      "symbol": "BTC",
+      "reason": "L1=down(score=-3.0) 非 up",
       "regime": "ranging",
       "score": 0,
       "authority": "mlto",
       "source": "trend",
       "session_id": "fa_10d44c724e",
       "noise": true,
-      "ts": "2026-08-17T09:06:58.959903+00:00"
+      "ts": "2026-08-17T09:08:49.985959+00:00"
     }
   ],
   "beliefs": [
