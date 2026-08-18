@@ -418,6 +418,7 @@ class FactorBacktestScorer:
         tail_exclude: int = 0,
         skip_dsr: bool = False,
         count_trial: bool = True,
+        max_pbo_override: Optional[float] = None,
     ) -> FactorScoreResult:
         """对一个公式因子做样本外回测 + 打分。
 
@@ -753,7 +754,10 @@ class FactorBacktestScorer:
                 return False, float(_pbo_r.get("pbo", 0.5))
             dsr_sig = bool((r.get("dsr_result") or {}).get("significant", False))
             pbo = float(_pbo_r.get("pbo", 1.0))
-            _max_pbo = float(_cfg("FACTOR_SCORER_MAX_PBO", 0.5))
+            _max_pbo = float(
+                max_pbo_override if max_pbo_override is not None
+                else _cfg("FACTOR_SCORER_MAX_PBO", 0.5)
+            )
             return bool(dsr_sig and pbo <= _max_pbo), pbo
         except Exception as e:
             logger.warning("[FactorScorer] DSR/PBO 计算失败，fail-closed: %s", e)
@@ -781,6 +785,11 @@ class FactorBacktestScorer:
         # 中长线因子（extra.horizon=="midlong"）按其时间框架(4h/1d)样本外打分
         _extra = rec.get("extra") or {}
         _horizon = str(_extra.get("horizon") or "scalp").lower()
+        # [M6/P4] llm 源额外收紧：min_sharpe +0.1、max_pbo 0.4、符号反作弊
+        _source = str(rec.get("source") or "").strip().lower()
+        _llm_strict = _source == "llm"
+        _llm_min_sharpe_bump = 0.1 if _llm_strict else 0.0
+        _llm_max_pbo = 0.4 if _llm_strict else None
         # [M3 held-out] 判决段根数（两周期各自独立；env 一键回滚）
         _heldout_on = bool(_cfg("FACTOR_HELDOUT_ENABLED", True))
         _ho_ratio = float(_cfg("FACTOR_HELDOUT_RATIO", 0.2))
@@ -805,12 +814,29 @@ class FactorBacktestScorer:
                 lookback=midlong_lookback_for(_tf),
                 fwd=int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if _tf == "1d"
                     else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
-                min_sharpe=float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
+                min_sharpe=float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)) + _llm_min_sharpe_bump,
                 redundancy_pool=_midlong_pool,
                 tail_exclude=_verdict_bars,
+                max_pbo_override=_llm_max_pbo,
             )
         else:
-            result = self.score_formula(factor_id, formula, tail_exclude=_verdict_bars)
+            result = self.score_formula(
+                factor_id, formula, tail_exclude=_verdict_bars,
+                min_sharpe=float(_cfg("FACTOR_SCORER_MIN_SHARPE", 0.5)) + _llm_min_sharpe_bump,
+                max_pbo_override=_llm_max_pbo,
+            )
+
+        # [M6/P4 符号反作弊] 实际 IC 符号与 LLM 预期相反 → 直接 rejected
+        _exp_sign = _extra.get("expected_ic_sign")
+        if _llm_strict and _exp_sign in (1, -1) and result.admitted:
+            _actual_positive = result.ic_mean >= 0
+            if _actual_positive != (_exp_sign >= 0):
+                result.admitted = False
+                result.grade = "D"
+                result.reason += (
+                    f" | llm 符号反作弊：实际 IC 符号({result.ic_mean:+.4f})与预期({_exp_sign:+d})相反"
+                )
+                logger.info("[FactorScorer] %s llm 符号反作弊拒绝", factor_id)
 
         # [M3 held-out] 两段判决：训练段 A/B 才进判决段；判决段独立复验通过才允许 active
         _heldout_rec = dict((_extra.get("heldout") or {}) if isinstance(_extra.get("heldout"), dict) else {})

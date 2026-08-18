@@ -847,6 +847,13 @@ def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]
 
     return {"enabled": enabled, "symbols": out}
 
+@router.post("/factors/llm-propose")
+def ops_factor_llm_propose(tier: str = Query("midlong", description="midlong|scalp"), k: int = Query(8, ge=1, le=10)):
+    """[M6/P4] LLM 提案层：生成 numpy 公式候选并注册（source=llm，同门禁+更严参数）。"""
+    from backend.services.factor_engine.llm_proposal import propose_and_register
+    return propose_and_register(tier=tier, k=k)
+
+
 @router.post("/factors/quick-score")
 def ops_factor_quick_score(payload: Dict[str, Any]):
     """[R4 因子工厂] 公式 AST → 秒级诊断 + 门禁预览（只读，不注册不晋升）。

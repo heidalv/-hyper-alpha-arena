@@ -491,6 +491,15 @@ class EvolutionScheduler:
             except Exception as _decay_err:
                 logger.debug(f"[EvoScheduler] 衰减触发检查跳过: {_decay_err}")
 
+            # [M6/P4 升级] LLM 提案层周频任务（节流 6 天；同门禁+更严参数）
+            try:
+                from backend.services.factor_engine.llm_proposal import propose_with_throttle
+                _llm_res = propose_with_throttle("midlong", k=8)
+                if _llm_res.get("registered"):
+                    logger.info("[EvoScheduler] LLM 提案注册: %d 个", _llm_res["registered"])
+            except Exception as _llm_err:
+                logger.debug(f"[EvoScheduler] LLM 提案跳过: {_llm_err}")
+
             # S4-C：中长线 AI 辅助因子挖掘（OpenCode 受控生成，4h），
             # 由 factor_backtest_scorer 在对应时间框架样本外打分晋升（内部 23h 节流）。
             try:
