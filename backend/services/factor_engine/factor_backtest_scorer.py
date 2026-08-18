@@ -122,6 +122,40 @@ def _resolve_admin_tenant():
         return None
 
 
+# ── [2026-08-19 DSR 修复] 周期档位与同档候选计数 ──────────────────────────
+_SCALP_TFS = {"1m", "3m", "5m", "15m", "30m", "1h"}
+
+
+def _tf_class(tf: str) -> str:
+    return "scalp" if tf in _SCALP_TFS else "midlong"
+
+
+def _dsr_pool_trial_count(interval: str) -> int:
+    """多重检验 N = 同周期档候选池内【不同假设】的数量。
+
+    [2026-08-19 修复] 旧实现 N = max(40, active+1, 累计重试计数)。重试是对同一
+    假设的重复评估，进入 N 会让闸门随时间单调收紧（棘轮），最终任何因子都无法
+    晋升——中线因子池 0 活跃的直接根因之一。改为只计不同候选（extra.timeframe
+    同档），不计重复评分次数。
+    """
+    try:
+        from backend.services.factor_engine.custom_factor_store import custom_factor_store
+        _tid = _resolve_admin_tenant()
+        _records = custom_factor_store.list(tenant_id=_tid) if _tid else []
+    except Exception:
+        _records = []
+    _target = _tf_class(str(interval))
+    _n = 0
+    for r in _records:
+        try:
+            _tf = str((r.get("extra") or {}).get("timeframe") or "")
+            if _tf and _tf_class(_tf) == _target:
+                _n += 1
+        except Exception:
+            continue
+    return _n
+
+
 # [2026-08-13 短线因子根因修复 P0-3] 周期→小时映射（用于 funding 持仓时长估算）。
 _PERIOD_HOURS = {
     "1m": 1 / 60, "3m": 3 / 60, "5m": 5 / 60, "15m": 0.25,
@@ -640,27 +674,28 @@ class FactorBacktestScorer:
         # ── [2026-08-13 P1-7] DSR/PBO 多重检验闸门（[P0-1] n_trials 动态 + 时序 PBO）──
         dsr_ok, pbo_val = True, 0.0
         if dsr_required and not skip_dsr:
-            # [P0-1] n_trials 动态化：多重检验校正按真实候选规模（active 数 + 1），
-            # 固定 40 与数百候选池脱节会导致 E[max SR] 被系统性低估、闸门过松。
-            # [P0-A 升级] 叠加历史累计试验数（trials_counter），统一短线+中线同池。
+            # [P0-1] n_trials 动态化：多重检验校正按真实候选规模（active 数 + 1）。
+            # [2026-08-19 修复] 去掉 trials_counter 棘轮：累计重试计数是同一假设的
+            # 重复评估，进入 N 会让闸门随时间单调收紧，最终任何因子都无法晋升
+            # （中线 0 活跃因子的根因之一）。N 改为同档候选池的不同假设数。
             try:
                 _active_n = len(custom_factor_store.list_active(tenant_id=_resolve_admin_tenant()))
             except Exception:
                 _active_n = 0
             try:
-                from backend.services.factor_engine.trials_counter import total as _trials_total
-                _trials_n = int(_trials_total())
+                _pool_n = _dsr_pool_trial_count(interval)
             except Exception:
-                _trials_n = 0
+                _pool_n = 0
             _n_trials = max(
-                int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40)), _active_n + 1, _trials_n + 1,
+                int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40)), _active_n + 1, _pool_n,
             )
             logger.info(
-                "[FactorScorer] DSR 多重检验 n_trials=%d (cfg=%s active=%d counter=%d)",
-                _n_trials, _cfg("FACTOR_SCORER_DSR_N_TRIALS", 40), _active_n, _trials_n,
+                "[FactorScorer] DSR 多重检验 n_trials=%d (cfg=%s active=%d pool=%d)",
+                _n_trials, _cfg("FACTOR_SCORER_DSR_N_TRIALS", 40), _active_n, _pool_n,
             )
             dsr_ok, pbo_val = self._dsr_pbo_gate(
                 icir_list, lookback, _n_trials, ic_series=ic_series_avg,
+                max_pbo_override=max_pbo_override,
             )
 
         # ── 综合评级 ──
@@ -713,15 +748,27 @@ class FactorBacktestScorer:
 
     @staticmethod
     def _dsr_pbo_gate(icir_list: List[float], sample_len: int, n_trials: int,
-                      ic_series: Optional[List[float]] = None):
+                      ic_series: Optional[List[float]] = None,
+                      max_pbo_override: Optional[float] = None):
         """[P0-1] DSR/PBO 多重检验闸门（fail-closed）。
 
         返回 (dsr_ok, pbo)：
-        - 跨币样本不足（<FACTOR_SCORER_DSR_MIN_SYMBOLS，默认 3）→ fail-closed（False, None），
-          显式记录 skipped_reason。旧行为 fail-open（return True, None）使多重检验闸门
-          在默认 3 币（BTC/ETH/SOL）部署下形同虚设。
+        - 跨币样本不足（<FACTOR_SCORER_DSR_MIN_SYMBOLS，默认 3）→ fail-closed（False, None）。
         - PBO 必须基于 IC 时序（ic_series，时序 CSCV）；时序缺失/过短或 indeterminate → fail-closed。
         - 计算工具异常 → fail-closed（宁可误拒，不放无验证因子入实盘）。
+
+        [2026-08-19 修复] DSR 口径重写（旧实现是「结构性 0 晋升」的根因）：
+        旧实现把【每币 ICIR 样本】(5~9 个值) 当作试验分布，observed 取样本最大值、
+        sr_std 取样本标准差、N 接累计重试棘轮 → 统计口径错乱，p 值恒接近 1，
+        任何因子（包括 OOS Sharpe 0.51、PBO=0 的真因子）都过不了闸。
+        新口径：
+          - observed = 聚合 |ICIR|（与评级一致）；
+          - 零预测力基准（mean=0），标准误按 IC 序列长度估计
+            se(ICIR) ≈ sqrt((1+ICIR²/2) / T)，T = 回看根数 × 币数；
+          - 多重检验用 Bonferroni（N = 同档候选数，不再棘轮）；
+          - DSR 通过 = Bonferroni 校正后仍显著（p<0.05）。
+        经济门槛（|IC|≥0.05 / |ICIR|≥0.5 / OOS Sharpe≥min_sharpe / 净收益）与
+        时序 PBO、冗余检查保持原样——DSR 只做「真实预测力 vs 噪声地板」的底线。
         """
         _min_symbols = max(2, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 3)))
         if len(icir_list) < _min_symbols:
@@ -739,20 +786,32 @@ class FactorBacktestScorer:
             )
             return False, None
         try:
-            from backend.services.factor_engine.dsr_pbo import compute_dsr_pbo_for_factors
-            r = compute_dsr_pbo_for_factors(
-                icir_list=list(icir_list),
-                n_total_candidates=max(int(n_trials), 1),
-                sample_len=max(int(sample_len), 50),
-                ic_series=list(ic_series),
+            from backend.services.factor_engine.dsr_pbo import (
+                _standard_normal_cdf,
+                compute_pbo_simple,
             )
-            _pbo_r = r.get("pbo_result") or {}
+
+            # ── DSR：聚合 |ICIR| 对零预测力基准的显著性（Bonferroni）──
+            _obs = abs(float(np.mean([float(v) for v in icir_list])))
+            _T = max(float(sample_len), 50.0) * max(len(icir_list), 1)
+            _se = float(np.sqrt((1.0 + 0.5 * _obs * _obs) / max(_T, 1.0)))
+            _t = _obs / max(_se, 1e-9)
+            _p = max(0.0, 1.0 - _standard_normal_cdf(_t))
+            _p_bonf = min(1.0, max(1, int(n_trials)) * _p)
+            dsr_sig = bool(_p_bonf < 0.05)
+            logger.info(
+                "[FactorScorer] DSR |ICIR|=%.4f se=%.5f t=%.1f p_bonf=%.2e → %s (N=%d)",
+                _obs, _se, _t, _p_bonf, "significant" if dsr_sig else "insignificant",
+                max(int(n_trials), 1),
+            )
+
+            # ── PBO：时序 CSCV（时间维过拟合）──
+            _pbo_r = compute_pbo_simple(list(ic_series))
             if bool(_pbo_r.get("indeterminate")):
                 logger.warning(
                     "[FactorScorer] DSR/PBO 不可判定（时序 PBO 组合无效），fail-closed"
                 )
                 return False, float(_pbo_r.get("pbo", 0.5))
-            dsr_sig = bool((r.get("dsr_result") or {}).get("significant", False))
             pbo = float(_pbo_r.get("pbo", 1.0))
             _max_pbo = float(
                 max_pbo_override if max_pbo_override is not None
