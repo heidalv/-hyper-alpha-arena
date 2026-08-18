@@ -213,7 +213,8 @@ class FactorBacktestScorer:
         return getattr(k, field, None)
 
     @classmethod
-    def _to_arrays(cls, klines) -> Optional[Dict[str, np.ndarray]]:
+    def _to_arrays(cls, klines):
+        """→ (arrays, ts)。arrays 不含 ts（避免进入公式命名空间）；ts 供池化中性化对齐。"""
         try:
             closes = np.array([float(cls._kline_field(k, "close")) for k in klines])
             highs = np.array([float(cls._kline_field(k, "high") or cls._kline_field(k, "close")) for k in klines])
@@ -225,9 +226,16 @@ class FactorBacktestScorer:
                 float(cls._kline_field(k, "open") or cls._kline_field(k, "close"))
                 for k in klines
             ])
-            return {"close": closes, "high": highs, "low": lows, "volume": vols, "open": opens}
+            ts = np.array([
+                float(cls._kline_field(k, "timestamp") or cls._kline_field(k, "ts") or 0)
+                for k in klines
+            ])
+            return (
+                {"close": closes, "high": highs, "low": lows, "volume": vols, "open": opens},
+                ts,
+            )
         except Exception:
-            return None
+            return None, None
 
     @staticmethod
     def _eval_formula(formula: str, arrays: Dict[str, np.ndarray]) -> Optional[np.ndarray]:
@@ -466,6 +474,9 @@ class FactorBacktestScorer:
 
         # [P0-C] 短线回看自适应：1h 档按每币可用根数取 min(目标, 可用)，下限 500
         _is_scalp = interval in ("1h",)
+        # ── 第一遍：数据加载 + 公式求值（收集面板供中性化） ──
+        panels: Dict[str, tuple] = {}
+        factor_vals_by_symbol: Dict[str, np.ndarray] = {}
         for sym in syms:
             _lb = scalp_lookback_for(sym) if _is_scalp else lookback
             if _lb <= 0:
@@ -477,15 +488,40 @@ class FactorBacktestScorer:
             klines = self._load_klines(sym, interval, _lb)
             if not klines or len(klines) < 120:
                 continue
-            arrays = self._to_arrays(klines)
+            arrays, ts_arr = self._to_arrays(klines)
             if arrays is None:
                 continue
             factor_vals = self._eval_formula(formula, arrays)
             if factor_vals is None or np.isfinite(factor_vals).sum() < 60:
                 continue
             arrays_by_symbol[sym] = arrays
+            factor_vals_by_symbol[sym] = factor_vals
+            panels[sym] = (ts_arr, arrays["close"])
 
-            # IC/ICIR/衰减/单调性（复用 FactorEvaluator）
+        # [M2 收益中性化] 池化风格残差（市场beta/动量/波动）；env 可一键回滚
+        _neutralize_on = bool(_cfg("FACTOR_SCORER_NEUTRALIZE", True))
+        neutral_returns: Dict[str, np.ndarray] = {}
+        if _neutralize_on and len(panels) >= 3:
+            try:
+                from backend.services.factor_engine.neutralization import build_neutralized_returns
+                neutral_returns = build_neutralized_returns(panels, fwd)
+                if neutral_returns:
+                    logger.info(
+                        "[FactorScorer] %s 中性化就绪（%d/%d 币残差收益）",
+                        factor_id, len(neutral_returns), len(panels),
+                    )
+            except Exception as _neu_err:
+                logger.warning("[FactorScorer] 中性化失败，回退原始收益口径: %s", _neu_err)
+                neutral_returns = {}
+
+        # ── 第二遍：逐币评估（IC 用中性化收益，回测用原始收益） ──
+        for sym in arrays_by_symbol:
+            arrays = arrays_by_symbol[sym]
+            factor_vals = factor_vals_by_symbol[sym]
+            _nr = neutral_returns.get(sym)
+            _nr_s = pd.Series(_nr, index=np.arange(len(factor_vals))) if _nr is not None else None
+
+            # IC/ICIR/衰减/单调性（复用 FactorEvaluator；[M2] 主口径=中性化收益）
             try:
                 rep = evaluator.evaluate_factor(
                     factor_id,
@@ -493,6 +529,7 @@ class FactorBacktestScorer:
                     pd.Series(arrays["close"]),
                     # [2026-08-14 P1-A1] 显式传前瞻期，与单例 forward_period 同步更新双保险
                     forward_period=fwd,
+                    neutral_returns=_nr_s,
                 )
                 if rep.data_points >= 30:
                     ic_list.append(rep.ic_mean)
@@ -502,7 +539,7 @@ class FactorBacktestScorer:
             except Exception as e:
                 logger.debug(f"[FactorScorer] {sym} evaluate_factor 失败: {e}")
 
-            # 样本外回测（含 funding 持仓成本 + 年化尺度）
+            # 样本外回测（含 funding 持仓成本 + 年化尺度）——绩效用真实 P&L，不中性化
             bt = self._walk_forward_backtest(
                 factor_vals, arrays["close"], fwd, cost,
                 funding_per_hold=funding_per_hold, bars_per_year=bars_per_year,
@@ -516,8 +553,13 @@ class FactorBacktestScorer:
                 result.per_symbol[sym] = bt
 
             # [P0-1] 滚动 IC 时序（供 PBO 时序 CSCV，检测时间维度过拟合）
+            # [M2] 使用中性化收益口径（与主 IC 口径一致）
             try:
-                _ics = self._rolling_ic_series(factor_vals, arrays["close"], fwd)
+                if _nr is not None:
+                    from backend.services.factor_engine.neutralization import neutralize_ic_series
+                    _ics = neutralize_ic_series(factor_vals, _nr, window=30)
+                else:
+                    _ics = self._rolling_ic_series(factor_vals, arrays["close"], fwd)
                 if int(np.isfinite(_ics).sum()) >= 30:
                     ic_series_list.append(_ics)
             except Exception:

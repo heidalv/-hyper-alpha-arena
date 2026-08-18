@@ -38,6 +38,10 @@ class FactorEvalReport:
     tail_risk: float = 0.0         # 极端因子值时的收益波动
     data_points: int = 0
     grade: str = "F"               # A/B/C/D/F
+    # [M2 中性化] 双轨输出：raw = 原始收益口径，主字段 = 中性化口径
+    raw_ic_mean: float = 0.0
+    raw_icir: float = 0.0
+    neutralized: bool = False
 
 
 @dataclass
@@ -82,6 +86,7 @@ class FactorEvaluator:
         factor_values: pd.Series,
         close_prices: pd.Series,
         forward_period: Optional[int] = None,
+        neutral_returns: Optional[pd.Series] = None,
     ) -> FactorEvalReport:
         """
         评估单个因子。
@@ -91,6 +96,9 @@ class FactorEvaluator:
             factor_values: 因子值 Series (index aligned with close)
             close_prices: 收盘价 Series
             forward_period: 前瞻期 (默认 self.forward_period)
+            neutral_returns: [M2 中性化] 已风格残差化的前瞻收益 Series（与
+                close 等长按位置对齐）；提供时主 IC 口径用残差收益，原始收益
+                保留 raw_ic_* 双轨输出。None → 主口径即原始收益。
 
         Returns:
             FactorEvalReport
@@ -106,7 +114,14 @@ class FactorEvaluator:
 
         # 前瞻收益
         df["fwd_return"] = df["close"].pct_change(fwd).shift(-fwd)
-        df = df.dropna()
+        if neutral_returns is not None:
+            # 按索引对齐（df 经 dropna 行偏移后位置截取会错位）
+            nr = pd.Series(neutral_returns)
+            df["fwd_return_neutral"] = nr.reindex(df.index).to_numpy(dtype=float)
+            report.neutralized = True
+        else:
+            df["fwd_return_neutral"] = df["fwd_return"]
+        df = df.dropna(subset=["fwd_return"])
         report.data_points = len(df)
 
         if len(df) < 30:
@@ -114,11 +129,18 @@ class FactorEvaluator:
 
         # ── 1. Rolling IC (Spearman rank correlation) ──
         window = max(20, len(df) // 10)
-        ic_series = self._rolling_ic(df["factor"], df["fwd_return"], window)
+        ic_series = self._rolling_ic(df["factor"], df["fwd_return_neutral"], window)
         valid_ic = ic_series.dropna()
 
         if len(valid_ic) < 5:
             return report
+
+        # [M2 中性化] 双轨：raw 口径滚动 IC 保留
+        if neutral_returns is not None:
+            raw_ic = self._rolling_ic(df["factor"], df["fwd_return"], window).dropna()
+            if len(raw_ic) >= 5:
+                report.raw_ic_mean = float(raw_ic.mean())
+                report.raw_icir = float(raw_ic.mean() / (raw_ic.std() + 1e-10))
 
         report.ic_mean = float(valid_ic.mean())
         report.ic_std = float(valid_ic.std())
@@ -139,11 +161,11 @@ class FactorEvaluator:
         # ── 3. 换手率 (rank autocorrelation) ──
         report.turnover = self._compute_turnover(df["factor"])
 
-        # ── 4. 分位收益单调性 ──
-        report.monotonicity = self._compute_monotonicity(df["factor"], df["fwd_return"])
+        # ── 4. 分位收益单调性（中性化口径）──
+        report.monotonicity = self._compute_monotonicity(df["factor"], df["fwd_return_neutral"])
 
-        # ── 5. 尾部风险 ──
-        report.tail_risk = self._compute_tail_risk(df["factor"], df["fwd_return"])
+        # ── 5. 尾部风险（中性化口径）──
+        report.tail_risk = self._compute_tail_risk(df["factor"], df["fwd_return_neutral"])
 
         # ── 6. 评级 ──
         abs_ic = abs(report.ic_mean)
