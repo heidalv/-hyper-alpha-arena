@@ -452,13 +452,24 @@ def _active_trading_symbols() -> set:
 
 
 @router.get("/overview/all")
-def get_market_overview_all(exchange: str = Query("asterdex")):
+def get_market_overview_all(exchange: Optional[str] = Query(None)):
     """全市场交易对总览（交易所风格列表）：
     全部交易对 + 24h 统计 + 「正在交易」标记，默认交易中优先、成交额降序。
+
+    exchange 缺省时跟随当前活跃交易所（full_auto 会话 active_exchange /
+    DEFAULT_EXCHANGE，2026-08-18 已切到 binance）。
     """
-    ex = (exchange or "asterdex").strip().lower()
+    ex = (exchange or "").strip().lower()
     if ex == "aster":
         ex = "asterdex"
+    if not ex:
+        try:
+            from backend.services.exchange_config import get_active_exchange
+            ex = (get_active_exchange() or "asterdex").strip().lower()
+            if ex == "aster":
+                ex = "asterdex"
+        except Exception:
+            ex = "asterdex"
     if ex not in ("asterdex", "binance", "okx", "hyperliquid", "all"):
         ex = "asterdex"
 

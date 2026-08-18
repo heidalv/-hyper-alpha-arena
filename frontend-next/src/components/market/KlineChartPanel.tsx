@@ -174,7 +174,7 @@ export function KlineChartPanel({
   const [symbol, setSymbol] = useState(() => normalizeSymbol(initialSymbol) || "BTC");
   const [period, setPeriod] = useState("15m");
   const [exchange, setExchange] = useState(
-    initialExchange && initialExchange !== "all" ? initialExchange : "asterdex"
+    initialExchange && initialExchange !== "all" ? initialExchange : "binance"
   );
   const [symbolQuery, setSymbolQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);

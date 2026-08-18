@@ -51,7 +51,7 @@ function IntelPageInner() {
 
   const [tab, setTab] = useState<Tab>(() => readTab(searchParams));
   const [symbols] = useState(["BTC", "ETH", "SOL"]);
-  const [exchange, setExchange] = useState("asterdex");
+  const [exchange, setExchange] = useState("binance");
   const [klineReady, setKlineReady] = useState(() => readTab(searchParams) === "kline" || !!searchParams.get("symbol"));
   const [klineFocus, setKlineFocus] = useState<{
     symbol: string;
@@ -62,7 +62,7 @@ function IntelPageInner() {
     if (!sym) return null;
     return {
       symbol: sym,
-      exchange: searchParams.get("exchange") || "asterdex",
+      exchange: searchParams.get("exchange") || "binance",
       key: Date.now(),
     };
   });
@@ -79,7 +79,7 @@ function IntelPageInner() {
     if (!sym) return;
     setKlineFocus((prev) => {
       if (prev && prev.symbol === sym && prev.exchange === (ex || prev.exchange)) return prev;
-      return { symbol: sym, exchange: ex || "asterdex", key: Date.now() };
+      return { symbol: sym, exchange: ex || "binance", key: Date.now() };
     });
     setKlineReady(true);
   }, [searchParams]);
@@ -100,7 +100,7 @@ function IntelPageInner() {
   const openKline = (row: { symbol: string; exchange?: string }) => {
     const ex =
       row.exchange ||
-      (exchange && exchange !== "all" ? exchange : "asterdex");
+      (exchange && exchange !== "all" ? exchange : "binance");
     const focus = { symbol: row.symbol, exchange: ex, key: Date.now() };
     setKlineFocus(focus);
     setKlineReady(true);

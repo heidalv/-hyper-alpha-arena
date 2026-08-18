@@ -46,8 +46,8 @@ export function usePaperBalance(accountId: number | null) {
     queryKey: QK.balance(accountId || 0),
     queryFn: () => paperApi.getBalance(accountId!),
     enabled: !!accountId,
-    staleTime: 10_000,
-    refetchInterval: 3_000,
+    staleTime: 2_000,
+    refetchInterval: 2_000,
     retry: 1, // balance 404 = 未初始化，不要疯狂重试
   });
 }
@@ -57,8 +57,8 @@ export function usePositions(accountId: number | null, status?: "open" | "closed
     queryKey: QK.positions(accountId || 0, status),
     queryFn: () => paperApi.getPositions(accountId!, status),
     enabled: !!accountId,
-    staleTime: 10_000,
-    refetchInterval: 3_000,
+    staleTime: 2_000,
+    refetchInterval: 2_000,
   });
 }
 
@@ -67,8 +67,8 @@ export function useOrders(accountId: number | null, limit: number = 50) {
     queryKey: QK.orders(accountId || 0),
     queryFn: () => paperApi.getOrders(accountId!, limit),
     enabled: !!accountId,
-    staleTime: 15_000,
-    refetchInterval: 10_000,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -77,8 +77,8 @@ export function usePaperSummary(accountId: number | null) {
     queryKey: QK.summary(accountId || 0),
     queryFn: () => paperApi.getSummary(accountId!),
     enabled: !!accountId,
-    staleTime: 30_000,
-    refetchInterval: 15_000,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -223,8 +223,8 @@ export function useMarketHealth() {
 
 export function useMarketOverviewAll(exchange?: string) {
   return useQuery({
-    queryKey: ["market-overview-all", exchange || "asterdex"] as const,
-    queryFn: () => api.getMarketOverviewAll(exchange || "asterdex"),
+    queryKey: ["market-overview-all", exchange || "auto"] as const,
+    queryFn: () => api.getMarketOverviewAll(exchange),
     staleTime: 1_500,
     refetchInterval: 2_000,
   });
