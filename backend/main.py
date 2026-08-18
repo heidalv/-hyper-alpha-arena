@@ -1397,11 +1397,18 @@ def on_startup():
                 max_instances=1,
             )
             # 每小时在线权重更新
+            # [perf 2026-08-18] 首跑对齐下一个整点，避免每次重启 +60s 触发
+            # BERT 嵌入 + 数据集构建风暴（GIL 饿死 HTTP API）。
+            from datetime import datetime as _dt_h, timedelta as _td_h
+            _nxt_hour = _dt_h.now().replace(minute=5, second=0, microsecond=0)
+            if _nxt_hour <= _dt_h.now():
+                _nxt_hour += _td_h(hours=1)
             task_scheduler.add_interval_task(
                 task_func=run_online_weight_update,
                 interval_seconds=3600,
                 task_id="factor_online_weight_hourly",
                 max_instances=1,
+                next_run_time=_nxt_hour,
             )
             logger.info(
                 "[async] 因子进化闭环已注册（每日3点4h + 每日4点5m短线 + 每小时权重）"
@@ -1418,6 +1425,12 @@ def on_startup():
                     time.sleep(45)  # 先让数据采集器预热
                     if os.getenv("V7_AUTOSTART_QUICK_ENABLED", "1").strip().lower() in ("0", "false", "no", "off"):
                         logger.info("[V7] autostart quick 已禁用")
+                        return
+                    # [perf 2026-08-18] 仅凌晨静默窗立即补跑；白天重启不触发
+                    # quick 进化（03:00 cron 的完整 4h 进化会覆盖），避免风暴。
+                    from datetime import datetime as _dt_v7
+                    if not (0 <= _dt_v7.now().hour < 6):
+                        logger.info("[V7] autostart 跳过（非凌晨静默窗，由 03:00 cron 覆盖）")
                         return
                     from backend.services.evolution.evolution_memory_v7 import last_report_age_hours
                     _age = last_report_age_hours("4h", quick=True)

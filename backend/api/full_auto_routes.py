@@ -1247,6 +1247,16 @@ def debug_scheduler_state(
     session_id 可选：传入时按该会话读取 DB 状态；缺省时取内存 running_sessions
     的第一个（或 DB 中最新 running/defensive 会话），无任何活跃会话时 db_session 相关字段为 null。
     """
+    # [perf 2026-08-18] 诊断页轮询：5s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"fullauto_scheduler_state:{session_id or ''}", 5.0,
+        lambda: _scheduler_state_impl(session_id, db),
+    )
+
+
+def _scheduler_state_impl(session_id: Optional[str], db: Session):
     try:
         from backend.services.scheduler import task_scheduler
         running = task_scheduler.is_running()

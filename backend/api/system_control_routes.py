@@ -68,8 +68,10 @@ async def get_health_overview() -> Dict[str, Any]:
     ops 页健康卡片每 60s 轮询本端点。
     """
     try:
+        # [perf 2026-08-18] 60s 轮询的健康聚合（多子源串行），20s TTL。
+        from backend.utils.ttl_cache import ttl_cached
         from backend.services.health_overview_service import build_health_overview
-        return build_health_overview()
+        return ttl_cached("system_health_overview", 20.0, lambda: build_health_overview())
     except Exception as exc:  # pragma: no cover
         logger.warning("health-overview failed: %s", exc)
         return {"ok": False, "error": str(exc)[:200]}

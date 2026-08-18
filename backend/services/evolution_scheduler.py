@@ -1305,6 +1305,22 @@ class EvolutionScheduler:
 evolution_scheduler = EvolutionScheduler()
 
 
+def _next_daily_run(hour: int, minute: int = 0):
+    """下一个 hh:mm（本地时区）；已过则明天。
+
+    [perf 2026-08-18] 重任务（进化/蒸馏/回测/索引）首跑对齐凌晨静默窗：
+    此前所有 interval 任务首跑 = 进程启动 +60s，每次重启都触发一轮数十分钟
+    的 CPU/LLM 风暴，把 HTTP API 饿死（页面 2~3 分钟才加载）。改为夜间错峰。
+    """
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
+    nxt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if nxt <= now:
+        nxt += timedelta(days=1)
+    return nxt
+
+
 def register_evolution_tasks():
     """注册进化相关的定时任务到全局调度器"""
     try:
@@ -1320,6 +1336,8 @@ def register_evolution_tasks():
         # regime 切换快于因子更新，3 天周期跟不上；中长线保持 3 天 CYCLE_SECONDS。
         # 5m 已由 main.py cron 每日 04:00 注册（task_id=factor_evolution_scalp_5m_daily），
         # 这里补 1m/15m；env FACTOR_EVO_SCALP_PERIODS 可配（空串 = 全部关闭）。
+        # [perf 2026-08-18] 由 boot+60s 的 interval 首跑改为凌晨 cron（04:10/04:20），
+        # 避免每次重启触发 BERT 嵌入 + 数据集构建风暴。
         try:
             from backend.services.evolution.factor_evolution_loop import (
                 run_factor_evolution_loop as _run_factor_evo,
@@ -1329,6 +1347,7 @@ def register_evolution_tasks():
                 (_os.getenv("FACTOR_EVO_SCALP_PERIODS", "1m,15m") or "").split(",")
                 if _s.strip()
             ]
+            _evo_minutes = {"1m": 10, "15m": 20, "5m": 0, "4h": 30}
             for _per in _scalp_periods:
                 def _run_scalp_evo(_per=_per):
                     try:
@@ -1336,13 +1355,13 @@ def register_evolution_tasks():
                     except Exception as _e:
                         logger.warning("[EvoScheduler] 短线 %s 每日进化失败: %s", _per, _e)
                         return {"error": str(_e)[:150]}
-                task_scheduler.add_interval_task(
+                task_scheduler.add_cron_task(
                     task_func=_run_scalp_evo,
-                    interval_seconds=DAY_SECONDS,
                     task_id=f"factor_evolution_scalp_{_per}_daily_evo",
+                    hour=4, minute=_evo_minutes.get(_per, 15),
                     max_instances=1,
                 )
-                logger.info("[EvoScheduler] 已注册短线 %s 每日进化任务", _per)
+                logger.info("[EvoScheduler] 已注册短线 %s 每日进化任务（04:%02d）", _per, _evo_minutes.get(_per, 15))
         except Exception as _e:
             logger.warning("[EvoScheduler] 短线周期每日进化注册失败: %s", _e)
 
@@ -1350,15 +1369,17 @@ def register_evolution_tasks():
             task_func=evolution_scheduler.weekly_evolution,
             interval_seconds=CYCLE_SECONDS,
             task_id="evolution_cycle_auto",
+            next_run_time=_next_daily_run(4, 0),
         )
-        logger.info("[EvoScheduler] 已注册每3天自动进化任务")
+        logger.info("[EvoScheduler] 已注册每3天自动进化任务（首跑 04:00）")
 
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.daily_wisdom_refresh,
             interval_seconds=DAY_SECONDS,
             task_id="evolution_daily_wisdom",
+            next_run_time=_next_daily_run(4, 30),
         )
-        logger.info("[EvoScheduler] 已注册每日智慧刷新任务")
+        logger.info("[EvoScheduler] 已注册每日智慧刷新任务（04:30）")
 
         # weekly_prompt_review 已移交 OpenCode strategy_deep_dive（V1 双轨已移除，强制 V2）
         logger.info(
@@ -1369,15 +1390,17 @@ def register_evolution_tasks():
             task_func=evolution_scheduler.weekly_data_decay,
             interval_seconds=CYCLE_SECONDS,
             task_id="evolution_cycle_decay",
+            next_run_time=_next_daily_run(5, 0),
         )
-        logger.info("[EvoScheduler] 已注册每3天数据衰减任务")
+        logger.info("[EvoScheduler] 已注册每3天数据衰减任务（05:00）")
 
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.daily_signal_weight_update,
             interval_seconds=DAY_SECONDS,
             task_id="signal_weight_daily_update",
+            next_run_time=_next_daily_run(5, 10),
         )
-        logger.info("[EvoScheduler] 已注册每日信号权重更新任务")
+        logger.info("[EvoScheduler] 已注册每日信号权重更新任务（05:10）")
 
         # 短线信号日志结算（元标签数据采集）：每 5 分钟回填到期信号的输赢
         def _settle_scalp_signals():
@@ -1406,23 +1429,26 @@ def register_evolution_tasks():
             task_func=_train_scalp_meta,
             interval_seconds=DAY_SECONDS,
             task_id="scalp_meta_train_daily",
+            next_run_time=_next_daily_run(6, 30),
         )
-        logger.info("[EvoScheduler] 已注册短线元标签每日训练任务")
+        logger.info("[EvoScheduler] 已注册短线元标签每日训练任务（06:30）")
 
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.weekly_experience_distill,
             interval_seconds=CYCLE_SECONDS,
             task_id="cycle_experience_distill",
+            next_run_time=_next_daily_run(5, 30),
         )
-        logger.info("[EvoScheduler] 已注册每3天经验提炼任务")
+        logger.info("[EvoScheduler] 已注册每3天经验提炼任务（05:30）")
 
         HYPOTHESIS_SECONDS = 6 * 3600  # 每6小时
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.hypothesis_scan,
             interval_seconds=HYPOTHESIS_SECONDS,
             task_id="hypothesis_scan_6h",
+            next_run_time=_next_daily_run(2, 0),
         )
-        logger.info("[EvoScheduler] 已注册每6小时假设扫描任务")
+        logger.info("[EvoScheduler] 已注册每6小时假设扫描任务（02:00 起）")
 
         CROSS_ARB_SECONDS = 5 * 60  # 每5分钟
         task_scheduler.add_interval_task(
@@ -1437,8 +1463,9 @@ def register_evolution_tasks():
             task_func=evolution_scheduler.weekly_rag_full_reindex,
             interval_seconds=WEEK_SECONDS,
             task_id="rag_weekly_reindex",
+            next_run_time=_next_daily_run(4, 40),
         )
-        logger.info("[EvoScheduler] 已注册每周 RAG 全量重建任务")
+        logger.info("[EvoScheduler] 已注册每周 RAG 全量重建任务（04:40）")
 
         # ══════════════════════════════════════════════════
         #  AI学习系统整合: DRL表现归档 + 协调器检查
@@ -1462,8 +1489,9 @@ def register_evolution_tasks():
             task_func=_daily_drl_archive,
             interval_seconds=DAY_SECONDS,
             task_id="drl_performance_daily_archive",
+            next_run_time=_next_daily_run(6, 0),
         )
-        logger.info("[EvoScheduler] 已注册每日DRL表现归档任务")
+        logger.info("[EvoScheduler] 已注册每日DRL表现归档任务（06:00）")
 
         # ══════════════════════════════════════════════════
         #  QAA 进化系统集成: 灰度计划评估 + 指标聚合
@@ -1520,8 +1548,9 @@ def register_evolution_tasks():
             task_func=_daily_memory_decay,
             interval_seconds=DAY_SECONDS,
             task_id="memory_decay_daily",
+            next_run_time=_next_daily_run(6, 20),
         )
-        logger.info("[EvoScheduler] 已注册每日分层记忆衰减任务")
+        logger.info("[EvoScheduler] 已注册每日分层记忆衰减任务（06:20）")
 
         # 每日交易叙事构建已由 OpenCode regime_journal 接管（V1 双轨已移除）
         logger.info("[EvoScheduler] 每日交易叙事由 OpenCode regime_journal 构建")
@@ -1536,10 +1565,21 @@ def register_evolution_tasks():
 
         # 启动时立即在后台线程执行一次关键学习任务
         # 避免频繁重启导致定时任务永远等不到首次执行
+        # [perf 2026-08-18] 仅凌晨静默窗(00:00-05:59)立即执行；白天重启只注册
+        # 夜间错峰的定时任务，避免每次重启都触发数十分钟的进化/蒸馏/LLM 风暴
+        # 把 HTTP API 饿死（页面 2~3 分钟才加载）。
         import threading
         def _run_startup_learning():
             import time as _t
             _t.sleep(60)  # 等待 60s 让系统完全就绪
+            from datetime import datetime as _dt_now
+            _hour = _dt_now.now().hour
+            if not (0 <= _hour < 6):
+                logger.info(
+                    "[EvoScheduler] 非凌晨静默窗(当前 %s 点)，跳过启动首次学习任务；"
+                    "重任务已改为夜间错峰 cron", _hour,
+                )
+                return
             logger.info("[EvoScheduler] 启动后首次学习任务开始执行...")
             for task_name, task_func in [
                 ("daily_wisdom_refresh", evolution_scheduler.daily_wisdom_refresh),

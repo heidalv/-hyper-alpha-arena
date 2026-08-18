@@ -168,6 +168,16 @@ def _load_persisted_auto_symbols(db: Session, session_id: str) -> List[str]:
 @router.get("/active-symbols")
 def get_active_auto_symbols(db: Session = Depends(get_db)):
     """汇总所有运行中会话的 AI 选币（不依赖内存调度器）。"""
+    # [perf 2026-08-18] 每会话文件读取 + 高频轮询：10s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        "auto_coin_active_symbols", 10.0,
+        lambda: _active_auto_symbols_impl(db),
+    )
+
+
+def _active_auto_symbols_impl(db: Session) -> dict:
     sessions = (
         db.query(FullAutoSession)
         .filter(FullAutoSession.status.in_(["running", "defensive", "paused"]))

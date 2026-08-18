@@ -45,6 +45,13 @@ _warmup_stop = threading.Event()
 _DC_STATS_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
 _DC_STATS_TTL_SEC = 3.0
 
+# [perf 2026-08-18] 复用直连 opener：build_opener 每次都会加载 Windows 证书库
+# （ssl.load_default_certs，持 GIL ~百毫秒级），ticker-bar 保温线程每秒调用 2 次，
+# 反复重建会持续占用 GIL。改为模块级单例。
+import urllib.request as _urllib
+
+_DC_NO_PROXY_OPENER = _urllib.build_opener(_urllib.ProxyHandler({}))
+
 
 def _dc_ticker_stats() -> Dict[str, Dict[str, Any]]:
     """从数据中心进程拉全市场 24h 统计（3s 缓存 + 2s 硬超时，失败降级旧值）。
@@ -60,11 +67,10 @@ def _dc_ticker_stats() -> Dict[str, Dict[str, Any]]:
         return _DC_STATS_CACHE["data"]
     try:
         base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        req = urllib.request.Request(
+        req = _urllib.Request(
             f"{base}/ticker/stats", headers={"Accept": "application/json"}
         )
-        with opener.open(req, timeout=2.0) as resp:
+        with _DC_NO_PROXY_OPENER.open(req, timeout=2.0) as resp:
             payload = json.loads(resp.read().decode("utf-8", errors="replace"))
         data = payload.get("stats") or {}
         if isinstance(data, dict):
@@ -91,11 +97,10 @@ def _dc_all_prices() -> Dict[str, float]:
         return _DC_ALL_PRICES_CACHE["data"]
     try:
         base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        req = urllib.request.Request(
+        req = _urllib.Request(
             f"{base}/ticker/all", headers={"Accept": "application/json"}
         )
-        with opener.open(req, timeout=1.5) as resp:
+        with _DC_NO_PROXY_OPENER.open(req, timeout=1.5) as resp:
             payload = json.loads(resp.read().decode("utf-8", errors="replace"))
         data = payload.get("prices") or {}
         if isinstance(data, dict):

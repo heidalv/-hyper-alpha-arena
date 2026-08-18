@@ -62,6 +62,22 @@ def _make_opener() -> urllib.request.OpenerDirector:
     )
 
 
+# [perf 2026-08-18] opener 复用：build_opener 每次都会加载 Windows 证书库
+# （ssl.load_default_certs，持 GIL ~百毫秒级）；ensure_snapshot 在 API 请求
+# 路径上被高频调用，改为模块级单例。
+_shared_opener: Optional[urllib.request.OpenerDirector] = None
+_opener_lock = threading.Lock()
+
+
+def _get_opener() -> urllib.request.OpenerDirector:
+    global _shared_opener
+    if _shared_opener is None:
+        with _opener_lock:
+            if _shared_opener is None:
+                _shared_opener = _make_opener()
+    return _shared_opener
+
+
 def _wait_rate(bucket: str = "live") -> bool:
     """走 Asterdex 全局限速器；冷却中返回 False（调用方跳过本轮请求）。"""
     try:
@@ -291,7 +307,7 @@ class AsterdexTickerPoller:
             if not need_price and not need_stats:
                 return n
 
-            opener = _make_opener()
+            opener = _get_opener()
             if need_price:
                 if _wait_rate("live"):
                     self._fetch_once(opener, do_fan_out=fan_out)

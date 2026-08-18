@@ -435,6 +435,13 @@ def _ai_scan_digest() -> Dict[str, Any]:
 @router.get("/pipeline")
 def ops_pipeline() -> Dict[str, Any]:
     """挖矿→池→选币→绑定→训练 一页脉搏摘要。"""
+    # [perf 2026-08-18] 内部串行调 7 个子摘要，GIL 竞争下实测 7~22s。10s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached("ops_pipeline", 10.0, lambda: _ops_pipeline_impl())
+
+
+def _ops_pipeline_impl() -> Dict[str, Any]:
     hb = ops_heartbeats()
     pool = ops_factor_pool(view="tradable", limit=5)
     funnel = ops_evolution_funnel(days=7)
@@ -481,6 +488,13 @@ def ops_pipeline() -> Dict[str, Any]:
 
 @router.get("/heartbeats")
 def ops_heartbeats() -> Dict[str, Any]:
+    # [perf 2026-08-18] 高频轮询 + JSON 详情解析：5s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached("ops_heartbeats", 5.0, lambda: _ops_heartbeats_impl())
+
+
+def _ops_heartbeats_impl() -> Dict[str, Any]:
     from backend.services.scalp.scalp_heartbeat import get_heartbeats
 
     raw = get_heartbeats() or {}
@@ -528,6 +542,16 @@ def ops_factor_pool(
     view: str = Query("tradable", description="tradable|research|shadow|quarantine"),
     limit: int = Query(50, ge=1, le=200),
 ) -> Dict[str, Any]:
+    # [perf 2026-08-18] 高频轮询 + 多组 SQL 聚合：5s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"ops_factor_pool:{view}:{limit}", 5.0,
+        lambda: _ops_factor_pool_impl(view, limit),
+    )
+
+
+def _ops_factor_pool_impl(view: str, limit: int) -> Dict[str, Any]:
     from backend.database.connection import AnalyticsSessionLocal
     from backend.services.factor_engine.active_set_policy import (
         ActiveSetRole,
@@ -929,6 +953,13 @@ def ops_midlong_prune():
 
 @router.get("/evolution-funnel")
 def ops_evolution_funnel(days: int = Query(7, ge=1, le=90)) -> Dict[str, Any]:
+    # [perf 2026-08-18] 轮询端点：10s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(f"ops_evolution_funnel:{days}", 10.0, lambda: _ops_evolution_funnel_impl(days))
+
+
+def _ops_evolution_funnel_impl(days: int) -> Dict[str, Any]:
     from backend.database.connection import AnalyticsSessionLocal
 
     counts: Dict[str, int] = {}
@@ -971,6 +1002,13 @@ def ops_evolution_funnel(days: int = Query(7, ge=1, le=90)) -> Dict[str, Any]:
 @router.get("/candidates")
 def ops_candidates(limit: int = Query(50, ge=1, le=200)) -> Dict[str, Any]:
     """候选列表：按币汇总 + 全表 pass + 门禁中文原因；避免「只看见最近一币」。"""
+    # [perf 2026-08-18] 高频轮询 + 多组 SQL 聚合：5s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(f"ops_candidates:{limit}", 5.0, lambda: _ops_candidates_impl(limit))
+
+
+def _ops_candidates_impl(limit: int) -> Dict[str, Any]:
     from backend.core.tenant import system_identity
     from backend.database.connection import SessionLocal
     from backend.services.scalp.pair_selector import ensure_table
@@ -1135,6 +1173,13 @@ def ops_candidates(limit: int = Query(50, ge=1, le=200)) -> Dict[str, Any]:
 
 @router.get("/bindings")
 def ops_bindings(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
+    # [perf 2026-08-18] 高频轮询 + 全表读取：5s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(f"ops_bindings:{limit}", 5.0, lambda: _ops_bindings_impl(limit))
+
+
+def _ops_bindings_impl(limit: int) -> Dict[str, Any]:
     from backend.services.scalp.scalp_bindings import ensure_tables, list_bindings
 
     ensure_tables()
@@ -1199,6 +1244,13 @@ def ops_bindings(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
 @router.get("/training")
 def ops_training() -> Dict[str, Any]:
     """元标签 + 固定池进化进度 + AI 快速扫描进度（一眼分清三条链）。"""
+    # [perf 2026-08-18] 3 个子摘要串行，GIL 竞争下实测 8.2s。10s TTL。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached("ops_training", 10.0, lambda: _ops_training_impl())
+
+
+def _ops_training_impl() -> Dict[str, Any]:
     meta = _meta_train_digest()
     return {
         **meta,

@@ -14,6 +14,9 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+# [perf 2026-08-18] 直连 :9100 的 opener 复用（见 _dc_components）。
+_DC_OPENER: Any = None
+
 from fastapi import APIRouter, Query
 
 logger = logging.getLogger(__name__)
@@ -166,8 +169,11 @@ def _dc_components() -> Dict[str, Any]:
 
     try:
         # 绕过进程内 HTTP(S)_PROXY（.env 注入的 127.0.0.1:1080），localhost 直连
-        _opener = _ur.build_opener(_ur.ProxyHandler({}))
-        with _opener.open("http://127.0.0.1:9100/health", timeout=2) as resp:
+        # [perf 2026-08-18] opener 复用，避免每次请求重载 Windows 证书库。
+        global _DC_OPENER
+        if _DC_OPENER is None:
+            _DC_OPENER = _ur.build_opener(_ur.ProxyHandler({}))
+        with _DC_OPENER.open("http://127.0.0.1:9100/health", timeout=2) as resp:
             data = _json.loads(resp.read().decode("utf-8", "replace"))
             return {
                 "ok": bool(data.get("ok")),

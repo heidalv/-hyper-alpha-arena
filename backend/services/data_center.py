@@ -47,6 +47,23 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# [perf 2026-08-18] 复用直连 opener：build_opener 每次都会构造 HTTPSHandler 并
+# 加载 Windows 证书库（ssl.load_default_certs，持 GIL ~百毫秒级）。交易热路径
+# （mark price / ticker，每 1~3s 多次）反复重建会显著加剧 GIL 饥饿。
+_NO_PROXY_OPENER: Any = None
+_NO_PROXY_OPENER_LOCK = threading.Lock()
+
+
+def _get_no_proxy_opener() -> Any:
+    global _NO_PROXY_OPENER
+    if _NO_PROXY_OPENER is None:
+        with _NO_PROXY_OPENER_LOCK:
+            if _NO_PROXY_OPENER is None:
+                _NO_PROXY_OPENER = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({})
+                )
+    return _NO_PROXY_OPENER
+
 # 所有已知交易所（择优时遍历）
 ALL_EXCHANGES: list[str] = ["hyperliquid", "asterdex", "binance", "bybit", "okx"]
 
@@ -64,6 +81,10 @@ TICKER_MAX_AGE_SEC: float = 5.0
 _DC_TICKER_CACHE: dict = {}
 _DC_TICKER_CACHE_TTL_SEC: float = 1.0
 _DC_TICKER_URL_BASE: str = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
+
+# 跨进程 DC Binance 实时参考价缓存（TTL 1s）
+_DC_BINANCE_CACHE: dict = {}
+_DC_BINANCE_CACHE_TTL_SEC: float = 1.0
 
 
 @dataclass
@@ -310,7 +331,9 @@ class UnifiedMarketDataCenter:
 
                         order = "ORDER BY timestamp DESC LIMIT :limit" if count else "ORDER BY timestamp"
                         if count:
-                            params["limit"] = count
+                            # [fix] closed_only 会剔除 1 根 forming bar；多取 1 根，
+                            # 保证最终返回 count 根已收盘 bar（否则预检/回测恒差 1 根）。
+                            params["limit"] = (count + 1) if closed_only else count
 
                         rows = db.execute(sa_text(
                             f"SELECT timestamp, open_price, high_price, low_price, close_price, volume "
@@ -413,6 +436,55 @@ class UnifiedMarketDataCenter:
         self._set_cache(cache_key, result)
         return result
 
+    def get_reference_price_with_ts(self, symbol: str, exchange: str | None = None, purpose: str = "trade") -> Optional[tuple]:
+        """盯市参考价（实时跳动）：Binance 永续实时价优先，缺失回退 Asterdex 秒级 ticker。
+
+        用途：纸交易盯市/展示（mark_price/unrealized_pnl）。成交仍走 Asterdex
+        （get_price_with_ts / _get_current_price），两者口径分离，避免基差污染成交。
+        Binance 无该交易对（如 Asterdex 独占小币）时自动回退，不报错。
+        """
+        base = normalize_symbol(symbol)
+        if not base:
+            return None
+        try:
+            price, ts = self._dc_binance_price_with_ts(base)
+            if price and price > 0 and ts and time.time() - float(ts) <= TICKER_MAX_AGE_SEC:
+                return (float(price), float(ts))
+        except Exception:
+            pass
+        return self.get_price_with_ts(symbol, exchange, purpose)
+
+    def get_reference_price(self, symbol: str, exchange: str | None = None, purpose: str = "trade") -> float:
+        r = self.get_reference_price_with_ts(symbol, exchange, purpose)
+        if r and r[0] and float(r[0]) > 0:
+            return float(r[0])
+        return self.get_price(symbol, exchange, purpose)
+
+    def _dc_binance_price_with_ts(self, base: str) -> tuple:
+        """跨进程 Binance 实时参考价：从数据中心进程 /ticker/binance/{base} 拉 1s 全市场价。
+
+        带 1s TTL 内存缓存与 1.5s 硬超时，DC 不可达时静默降级（调用方回退 Asterdex）。
+        """
+        try:
+            now = time.time()
+            cached = _DC_BINANCE_CACHE.get(base)
+            if cached and now - cached[2] <= _DC_BINANCE_CACHE_TTL_SEC:
+                return (float(cached[0]), float(cached[1]))
+            url = f"{_DC_TICKER_URL_BASE}/ticker/binance/{base}"
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            # 本机回环直连：绕过 .env 注入的 HTTP(S)_PROXY
+            opener = _get_no_proxy_opener()
+            with opener.open(req, timeout=1.5) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+            price = float(data.get("price") or 0)
+            ts = float(data.get("ts") or 0)
+            if price > 0 and ts > 0:
+                _DC_BINANCE_CACHE[base] = (price, ts, now)
+                return (float(price), float(ts))
+        except Exception:
+            pass
+        return (None, None)
+
     def _dc_ticker_price_with_ts(self, base: str) -> tuple:
         """跨进程秒级 ticker：从数据中心进程 :9100 拉 2s 全市场最新价。
 
@@ -426,7 +498,7 @@ class UnifiedMarketDataCenter:
             url = f"{_DC_TICKER_URL_BASE}/ticker/{base}"
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
             # 本机回环直连：绕过 .env 注入的 HTTP(S)_PROXY（1080 代理不转发 127.0.0.1）
-            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            opener = _get_no_proxy_opener()
             with opener.open(req, timeout=1.5) as resp:
                 data = json.loads(resp.read().decode("utf-8", errors="replace"))
             price = float(data.get("price") or 0)
@@ -453,6 +525,11 @@ class UnifiedMarketDataCenter:
                         return (float(entry[0]), float(entry[1]))
             except Exception:
                 pass
+        if ex == "binance":
+            # 0) 跨进程 DC binance ticker（1s 全市场通道，实时参考价）
+            price, ts = self._dc_binance_price_with_ts(base)
+            if price and price > 0 and ts and time.time() - float(ts) <= TICKER_MAX_AGE_SEC:
+                return (float(price), float(ts))
         try:
             from backend.services.market_data_hub import market_data_hub
             entry = market_data_hub.get_ticker_with_ts(ex, base)
