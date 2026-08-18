@@ -415,17 +415,24 @@ class FactorBacktestScorer:
         redundancy_pool: Optional[List[Dict[str, Any]]] = None,
         funding_rate: Optional[float] = None,
         dsr_required: Optional[bool] = None,
+        tail_exclude: int = 0,
+        skip_dsr: bool = False,
+        count_trial: bool = True,
     ) -> FactorScoreResult:
         """对一个公式因子做样本外回测 + 打分。
 
         全部超参默认取 `FACTOR_SCORER_*` 配置（短线 1h）；中长线因子科研（S4）传入
         `interval='4h'/'1d'` 等覆盖值即可复用同一套 walk-forward 引擎。
         `redundancy_pool` 可限定正交去冗余的对照集（如仅中长线活跃因子），None 时取全部 active。
+        [M3 held-out] `tail_exclude` 剔除每币末尾 N 根（训练段打分用）；
+        `skip_dsr` 判决段轻量评估（只 IC + WF 回测，不做 DSR/PBO）；
+        `count_trial` False 时不登记多重检验计数（判决段属同一试验）。
         """
         import pandas as pd
         from backend.services.factor_engine.factor_evaluator import get_factor_evaluator
 
         interval = str(interval if interval is not None else _cfg("FACTOR_SCORER_INTERVAL", "1h"))
+        _explicit_lookback = lookback is not None
         lookback = int(lookback if lookback is not None else _cfg("FACTOR_SCORER_LOOKBACK_BARS", 720))
         # [2026-08-13 P1-5] 前瞻期按周期分档对齐实盘：显式传参 > FACTOR_SCORER_FWD_PERIOD
         # env（>0）> 周期分档表（1h→2 根等）。旧全局 5 根（1h=5h 前瞻）与 scalp
@@ -466,14 +473,16 @@ class FactorBacktestScorer:
         evaluator = get_factor_evaluator(forward_period=fwd)
 
         # [P0-A] 多重检验试验计数：每次打分（无论晋升/拒绝）登记一次
-        try:
-            from backend.services.factor_engine.trials_counter import bump as _trial_bump
-            _trial_bump()
-        except Exception as _tb_err:
-            logger.debug(f"[FactorScorer] trials_counter 登记跳过: {_tb_err}")
+        if count_trial:
+            try:
+                from backend.services.factor_engine.trials_counter import bump as _trial_bump
+                _trial_bump()
+            except Exception as _tb_err:
+                logger.debug(f"[FactorScorer] trials_counter 登记跳过: {_tb_err}")
 
         # [P0-C] 短线回看自适应：1h 档按每币可用根数取 min(目标, 可用)，下限 500
-        _is_scalp = interval in ("1h",)
+        # [P0-C] 短线回看自适应（仅未显式指定 lookback 时；held-out 判决段显式传小窗口需尊重）
+        _is_scalp = interval in ("1h",) and not _explicit_lookback
         # ── 第一遍：数据加载 + 公式求值（收集面板供中性化） ──
         panels: Dict[str, tuple] = {}
         factor_vals_by_symbol: Dict[str, np.ndarray] = {}
@@ -496,6 +505,13 @@ class FactorBacktestScorer:
             if arrays is None:
                 logger.warning("[FactorScorer] %s@%s _to_arrays 失败", sym, interval)
                 continue
+            # [M3 held-out] 训练段打分：剔除末尾判决段根数
+            if tail_exclude > 0:
+                _cut = max(0, len(arrays["close"]) - int(tail_exclude))
+                if _cut < 120:
+                    continue
+                arrays = {k: v[:_cut] for k, v in arrays.items()}
+                ts_arr = ts_arr[:_cut]
             factor_vals = self._eval_formula(formula, arrays)
             if factor_vals is None or np.isfinite(factor_vals).sum() < 60:
                 logger.warning(
@@ -622,7 +638,7 @@ class FactorBacktestScorer:
 
         # ── [2026-08-13 P1-7] DSR/PBO 多重检验闸门（[P0-1] n_trials 动态 + 时序 PBO）──
         dsr_ok, pbo_val = True, 0.0
-        if dsr_required:
+        if dsr_required and not skip_dsr:
             # [P0-1] n_trials 动态化：多重检验校正按真实候选规模（active 数 + 1），
             # 固定 40 与数百候选池脱节会导致 E[max SR] 被系统性低估、闸门过松。
             # [P0-A 升级] 叠加历史累计试验数（trials_counter），统一短线+中线同池。
@@ -765,8 +781,24 @@ class FactorBacktestScorer:
         # 中长线因子（extra.horizon=="midlong"）按其时间框架(4h/1d)样本外打分
         _extra = rec.get("extra") or {}
         _horizon = str(_extra.get("horizon") or "scalp").lower()
+        # [M3 held-out] 判决段根数（两周期各自独立；env 一键回滚）
+        _heldout_on = bool(_cfg("FACTOR_HELDOUT_ENABLED", True))
+        _ho_ratio = float(_cfg("FACTOR_HELDOUT_RATIO", 0.2))
+        _verdict_bars = 0
+        if _heldout_on:
+            if _horizon == "midlong":
+                _tf_v = str(_extra.get("timeframe") or "4h").lower()
+                _verdict_bars = max(30, int(midlong_min_bars_for(_tf_v) * _ho_ratio))
+            else:
+                _verdict_bars = max(
+                    30, int(int(_cfg("FACTOR_SCORER_LOOKBACK_BARS", 720)) * _ho_ratio),
+                )
         if _horizon == "midlong":
             _tf = str(_extra.get("timeframe") or "4h").lower()
+            _midlong_pool = [
+                r for r in custom_factor_store.list_active(tenant_id=_resolve_admin_tenant())
+                if str((r.get("extra") or {}).get("horizon") or "scalp").lower() == "midlong"
+            ]
             result = self.score_formula(
                 factor_id, formula,
                 interval=_tf,
@@ -774,16 +806,72 @@ class FactorBacktestScorer:
                 fwd=int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if _tf == "1d"
                     else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
                 min_sharpe=float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
-                redundancy_pool=[
-                    r for r in custom_factor_store.list_active(tenant_id=_resolve_admin_tenant())
-                    if str((r.get("extra") or {}).get("horizon") or "scalp").lower() == "midlong"
-                ],
+                redundancy_pool=_midlong_pool,
+                tail_exclude=_verdict_bars,
             )
         else:
-            result = self.score_formula(factor_id, formula)
+            result = self.score_formula(factor_id, formula, tail_exclude=_verdict_bars)
+
+        # [M3 held-out] 两段判决：训练段 A/B 才进判决段；判决段独立复验通过才允许 active
+        _heldout_rec = dict((_extra.get("heldout") or {}) if isinstance(_extra.get("heldout"), dict) else {})
+        if result.admitted and _verdict_bars > 0:
+            try:
+                import time as _time
+                if _horizon == "midlong":
+                    _tf_v = str(_extra.get("timeframe") or "4h").lower()
+                    r_v = self.score_formula(
+                        factor_id, formula,
+                        interval=_tf_v,
+                        lookback=_verdict_bars,
+                        fwd=int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if _tf_v == "1d"
+                            else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6)),
+                        min_sharpe=float(_cfg("FACTOR_SCORER_MIDLONG_MIN_SHARPE", 0.4)),
+                        redundancy_pool=[],
+                        skip_dsr=True,
+                        count_trial=False,
+                    )
+                else:
+                    r_v = self.score_formula(
+                        factor_id, formula,
+                        lookback=_verdict_bars, skip_dsr=True, count_trial=False,
+                    )
+                _sign_ok = (
+                    (result.ic_mean >= 0 and r_v.ic_mean >= 0)
+                    or (result.ic_mean < 0 and r_v.ic_mean <= 0)
+                )
+                _v_ok = (
+                    r_v.ic_mean is not None and abs(r_v.ic_mean) >= 0.03
+                    and r_v.oos_sharpe >= 0.3
+                    and _sign_ok
+                    and r_v.oos_trades >= 5
+                )
+                _heldout_rec = {
+                    "cutoff_ts": int(_time.time()),
+                    "verdict": "pass" if _v_ok else "reject",
+                    "ic_mean": round(float(r_v.ic_mean or 0), 4),
+                    "sharpe": round(float(r_v.oos_sharpe or 0), 4),
+                    "verdict_bars": int(_verdict_bars),
+                }
+                if not _v_ok:
+                    result.admitted = False
+                    result.reason += (
+                        f" | held-out 判决未通过（verdict IC={_heldout_rec['ic_mean']} "
+                        f"Sharpe={_heldout_rec['sharpe']}）——待更多判决段数据复验"
+                    )
+                    logger.info(
+                        "[FactorScorer] %s held-out 判决拒绝: %s",
+                        factor_id, _heldout_rec,
+                    )
+                else:
+                    logger.info("[FactorScorer] %s held-out 判决通过: %s", factor_id, _heldout_rec)
+            except Exception as _ho_err:
+                logger.warning("[FactorScorer] %s held-out 判决异常，放行训练段结果: %s", factor_id, _ho_err)
+                _heldout_rec = {"verdict": "error", "note": str(_ho_err)[:100]}
 
         # active 因子集上限保护（按 horizon 分别计数）
         status = "active" if result.admitted else "rejected"
+        if not result.admitted and _heldout_rec.get("verdict") == "reject":
+            status = "candidate"  # held-out 拒绝 → 留在候选池等待更多数据，而非直接淘汰
         if result.admitted:
             try:
                 if _horizon == "midlong":
@@ -824,6 +912,7 @@ class FactorBacktestScorer:
             },
             status=status,
             tenant_id=_resolve_admin_tenant(),
+            extra_update={"heldout": _heldout_rec} if _heldout_rec else None,
         )
         # 晋升后热加载，让 active 公式因子进入 compute_all_factors
         if status == "active":

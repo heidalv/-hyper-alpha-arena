@@ -339,8 +339,9 @@ class CustomFactorStore:
         scores: Dict[str, Any],
         status: Optional[str] = None,
         tenant_id: Optional[int] = None,
+        extra_update: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        """回测打分器写回评级/明细/状态。"""
+        """回测打分器写回评级/明细/状态；extra_update 合并进记录 extra（[M3] held-out 判决）。"""
         self._ensure_loaded()
         self._maybe_reload()
         with self._lock:
@@ -357,6 +358,10 @@ class CustomFactorStore:
             rec["scored_at"] = time.time()
             if status:
                 rec["status"] = status
+            if extra_update:
+                _extra = rec.get("extra") if isinstance(rec.get("extra"), dict) else {}
+                _extra.update(extra_update)
+                rec["extra"] = _extra
             rec["updated_at"] = time.time()
             self._persist()
         return True

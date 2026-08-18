@@ -1073,6 +1073,11 @@ FACTOR_SCORER_SCALP_MIN_BARS: int = int(os.getenv("FACTOR_SCORER_SCALP_MIN_BARS"
 FACTOR_SCORER_NEUTRALIZE: bool = os.getenv("FACTOR_SCORER_NEUTRALIZE", "true").lower() in (
     "true", "1", "yes", "on",
 )
+# [M3 升级] held-out 判决集：训练段 A/B 后须在末尾判决段独立复验（判决段对挖掘/LLM 不可见）
+FACTOR_HELDOUT_ENABLED: bool = os.getenv("FACTOR_HELDOUT_ENABLED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FACTOR_HELDOUT_RATIO: float = float(os.getenv("FACTOR_HELDOUT_RATIO", "0.2"))
 # [2026-08-13 短线因子根因修复 P1-7] 打分闸门成本/防过拟合升级：
 # funding 费率（永续 8h 结算，短线过夜持仓真实成本）、DSR/PBO 多重检验闸门、
 # 每笔平均净收益须覆盖往返成本 + NET_BUFFER 缓冲、PBO 上限。
