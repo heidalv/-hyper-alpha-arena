@@ -808,6 +808,20 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     setattr(gp_config, _attr, int(_v))
                 except (TypeError, ValueError):
                     pass
+        # [R0/R1] 字符串/浮点配置
+        for _env, _attr in (("FACTOR_GP_SELECTION", "selection"),
+                            ("FACTOR_GP_OBJECTIVE", "objective")):
+            _v = _os_gp.getenv(_env)
+            if _v:
+                setattr(gp_config, _attr, str(_v).strip().lower())
+        for _env, _attr in (("FACTOR_GP_LEXICASE_EPS", "lexicase_eps"),
+                            ("FACTOR_GP_LAMBDA_HOF", "lambda_hof")):
+            _v = _os_gp.getenv(_env)
+            if _v:
+                try:
+                    setattr(gp_config, _attr, float(_v))
+                except (TypeError, ValueError):
+                    pass
         # [2026-08-17 GPU] FACTOR_EVO_GPU_EVAL=1 且 CUDA 可用 → 栈式 GPU 批量求值
         gpu_ctx = None
         if _os_gp.getenv("FACTOR_EVO_GPU_EVAL", "0") == "1":
@@ -817,6 +831,17 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                 if cuda_available():
                     _mem_mb = float(_os_gp.getenv("FACTOR_EVO_GPU_MAX_MEM_MB", "1200") or 1200)
                     _chunk = int(_os_gp.getenv("FACTOR_EVO_GPU_CHUNK", "64") or 64)
+                    # [M2 口径同一律] 面板时间戳（df 索引）+ 前瞻期 → 挖掘目标中性化
+                    _ts_per_symbol = None
+                    try:
+                        _ts_per_symbol = [
+                            np.asarray([int(pd.Timestamp(i).timestamp()) for i in dfs[k].index], dtype=float)
+                            for k in sym_keys if k in dfs
+                        ]
+                        if len(_ts_per_symbol) != len(_panel[0]):
+                            _ts_per_symbol = None
+                    except Exception:
+                        _ts_per_symbol = None
                     gpu_ctx = GpuEvalContext(
                         factor_value_fn=_eval_fn,
                         fields_per_symbol=_panel[0],
@@ -826,8 +851,13 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                         lambda_corr=gp_config.lambda_corr,
                         mem_mb=_mem_mb,
                         chunk=_chunk,
+                        ts_per_symbol=_ts_per_symbol,
+                        fwd=_fwd_bars_for_period(period),
                     )
-                    logger.info("[FactorEvo] GPU 批量求值已启用 (mem=%dMB chunk=%d)", _mem_mb, _chunk)
+                    logger.info(
+                        "[FactorEvo] GPU 批量求值已启用 (mem=%dMB chunk=%d neutralized=%s)",
+                        _mem_mb, _chunk, gpu_ctx._neutralized,
+                    )
                 else:
                     logger.info("[FactorEvo] FACTOR_EVO_GPU_EVAL=1 但 CUDA 不可用，走 CPU 路径")
             except Exception as _gpu_init_err:

@@ -143,6 +143,12 @@ class GPConfig:
     min_samples: int = 50                # 有效样本下限
     seed_values: Optional[List[int]] = None   # 显式种子列表（测试用）
     max_workers: int = 0                 # 0 = min(32, cpu) 线程并行（v6 10.2.2：32 线程并行评估是本地算力主力）
+    # [R0 升级] ε-lexicase 选择（GPU 路径自动生效；loky 回退锦标赛）
+    selection: str = "lexicase"          # tournament | lexicase
+    lexicase_eps: float = 1e-4           # 案例 IC 容差
+    # [R1 升级] 目标与协同奖励
+    objective: str = "ic"                # ic | icir（M2 中性化后建议 icir）
+    lambda_hof: float = 0.1              # 名人堂协同惩罚系数（低冗余因子集）
 
 
 class GPMiner:
@@ -175,6 +181,11 @@ class GPMiner:
         # [2026-08-17 GPU] 精英因子值缓存（每代只算一次；GPU 上下文可选）
         self._gpu_ctx = gpu_ctx
         self._elite_fvs: List[np.ndarray] = []
+        # [R0/R1 升级] 案例得分缓存（str(ast) → (S,) 案例 IC）与名人堂（ast, values, fitness）
+        self._case_cache: dict = {}
+        self._hof: List[Tuple[dict, np.ndarray, float]] = []
+        self._last_vals = None
+        self._last_population: List[dict] = []
 
     # ─────────────────────────── 对外入口 ───────────────────────────
 
@@ -222,6 +233,10 @@ class GPMiner:
         self.close()
 
         # 池感知准入（复用 AlphaPool.try_admit 现有逻辑）
+        # [M2 口径同一律] 准入目标与挖掘适应度同口径（GPU 中性化目标优先）
+        _adm_target = self.target
+        if self._gpu_ctx is not None and getattr(self._gpu_ctx, "_neutralized", False):
+            _adm_target = self._gpu_ctx._target
         admitted: List[Tuple[FactorExpr, float]] = []
         for ast, _fit in top:
             try:
@@ -229,9 +244,9 @@ class GPMiner:
                 fv = self.factor_value_fn({"expr": expr})
                 fv_arr = np.asarray(fv, dtype=float)
                 if fv_arr.ndim == 0:
-                    fv_arr = np.full_like(self.target, float(fv_arr))
+                    fv_arr = np.full_like(_adm_target, float(fv_arr))
                 ok, contribution = self.pool.try_admit(
-                    expr, fv_arr, self.target, pool_factor_matrix=pool_factor_matrix,
+                    expr, fv_arr, _adm_target, pool_factor_matrix=pool_factor_matrix,
                 )
             except Exception:
                 continue
@@ -276,6 +291,18 @@ class GPMiner:
             n_elite = max(1, int(len(scored) * self.config.elite_ratio))
             self._elite_ast = [copy.deepcopy(a) for a, _ in scored[:n_elite]]
 
+            # [R1] 名人堂更新：本代 top-k（值取自 GPU 求值矩阵，协同奖励参照系）
+            if getattr(self, "_last_vals", None) is not None and getattr(self, "_last_population", None):
+                _order = sorted(
+                    range(len(fits)),
+                    key=lambda i: fits[i] if np.isfinite(fits[i]) else _NEG_INF,
+                    reverse=True,
+                )
+                self._hof = [
+                    (copy.deepcopy(self._last_population[i]), self._last_vals[i].copy(), fits[i])
+                    for i in _order[:10] if np.isfinite(fits[i])
+                ]
+
             # 早停
             if gen_best > global_best + 1e-9:
                 global_best = gen_best
@@ -291,8 +318,8 @@ class GPMiner:
             n_offspring = self.config.population_size - len(elites)
             offspring: List[dict] = []
             while len(offspring) < n_offspring:
-                p1 = self._tournament_select(scored, rng)
-                p2 = self._tournament_select(scored, rng)
+                p1 = self._select_parent(scored, rng)
+                p2 = self._select_parent(scored, rng)
                 child = copy.deepcopy(p1)
                 if rng.random() < self.config.crossover_rate:
                     child = self._crossover(p1, p2, rng)
@@ -347,17 +374,27 @@ class GPMiner:
                     cpu_idx = [i for i, m in enumerate(gpu_mask) if not m]
                     if gpu_idx:
                         node_counts = [_count_nodes(population[i]) for i in gpu_idx]
-                        fg = compute_fitness_from_values(
+                        # [M2 口径同一律] 适应度目标 = GPU 上下文的中性化目标（若启用）
+                        _fit_target = getattr(self._gpu_ctx, "_target", self.target)
+                        # [R0/R1] 案例 IC + ICIR 目标 + 名人堂协同奖励
+                        fg, case_ics = compute_fitness_from_values(
                             vals[gpu_idx], [population[i] for i in gpu_idx],
-                            self.target,
+                            _fit_target,
                             min_samples=self.config.min_samples,
                             lam_c=self.config.lambda_complexity,
                             lam_corr=self.config.lambda_corr,
                             elite_fvs=self._elite_fvs,
                             node_counts=node_counts,
+                            lens=getattr(self._gpu_ctx, "lens", None),
+                            objective=self.config.objective,
+                            lam_hof=self.config.lambda_hof,
+                            hof_values=[v for _, v, _ in self._hof],
                         )
                         for i, f in zip(gpu_idx, fg):
                             fits[i] = f
+                        # 案例缓存（ε-lexicase 用）
+                        for j, i in enumerate(gpu_idx):
+                            self._case_cache[str(population[i])] = case_ics[j]
                     if cpu_idx:
                         par = Parallel(n_jobs=workers, backend="loky", prefer="processes")
                         state = self._fitness_state()
@@ -370,6 +407,9 @@ class GPMiner:
                                 pass
                         for i, f in zip(cpu_idx, fc):
                             fits[i] = f
+                    # [R0/R1] 保存值矩阵供名人堂/案例缓存消费
+                    self._last_vals = vals
+                    self._last_population = [copy.deepcopy(a) for a in population]
                     return fits
             except Exception as _gpu_err:
                 logger.warning("[GPMiner GPU] 求值异常，回退 loky: %s", _gpu_err)
@@ -485,6 +525,38 @@ class GPMiner:
         contenders = rng.choice(len(scored), size=k, replace=False)
         best = max(contenders, key=lambda i: scored[i][1])
         return scored[best][0]
+
+    # [R0 升级] ε-lexicase 选择：按案例序列 + ε 容差筛选，抗噪声、保多样性
+    def _select_parent(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
+        if self.config.selection == "lexicase" and self._case_cache:
+            return self._lexicase_select(scored, rng)
+        return self._tournament_select(scored, rng)
+
+    def _lexicase_select(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
+        """ε-lexicase：洗牌案例顺序，逐案例保留「与最优差距 ≤ ε」的个体。"""
+        eps = float(self.config.lexicase_eps)
+        pool = list(range(len(scored)))
+        cases = list(range(len(next(iter(self._case_cache.values()))))) if self._case_cache else []
+        if not cases:
+            return self._tournament_select(scored, rng)
+        order = rng.permutation(cases)
+        for c in order:
+            if len(pool) == 1:
+                break
+            # 该案例上的得分（缺失 → 该案例不参与筛选，视作 -inf）
+            vals = []
+            for i in pool:
+                cv = self._case_cache.get(str(scored[i][0]))
+                v = float(cv[c]) if cv is not None and np.isfinite(cv[c]) else float("-inf")
+                vals.append(v)
+            best_v = max(vals)
+            pool = [i for i, v in zip(pool, vals) if v >= best_v - eps]
+            if not pool:
+                pool = [max(range(len(scored)), key=lambda i: scored[i][1])]
+                break
+        if not pool:
+            return scored[0][0]
+        return scored[int(pool[rng.integers(0, len(pool))])][0]
 
     def _crossover(self, p1: dict, p2: dict, rng: np.random.Generator) -> dict:
         """子树交叉：p1 的随机节点替换为 p2 的随机子树（深度约束，超限保留原样）。"""

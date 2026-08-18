@@ -44,7 +44,7 @@ def _panel_frames(
         if n < fwd + _VOL_WINDOW + 2:
             continue
         try:
-            t = pd.to_datetime(ts[:n], unit="ms", errors="coerce").astype("int64")
+            t = pd.to_datetime(ts[:n], unit="s", errors="coerce").astype("int64")
         except Exception:
             t = pd.to_numeric(pd.Series(ts[:n]), errors="coerce").astype("int64")
         f = pd.DataFrame({"ts": t.values, "sym": sym, "close": close[:n]})
@@ -101,7 +101,7 @@ def build_neutralized_returns(
         close_a = np.asarray(close, dtype=float).ravel()
         n = min(len(ts_a), len(close_a))
         try:
-            t = pd.to_datetime(ts_a[:n], unit="ms", errors="coerce").astype("int64")
+            t = pd.to_datetime(ts_a[:n], unit="s", errors="coerce").astype("int64")
         except Exception:
             t = pd.to_numeric(pd.Series(ts_a[:n]), errors="coerce").astype("int64")
         res = np.array([res_map.get((tv, sym), np.nan) for tv in t.values], dtype=float)

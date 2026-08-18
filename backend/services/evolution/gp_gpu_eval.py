@@ -11,8 +11,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -47,10 +48,40 @@ class GpuEvalContext:
         mem_mb: float = 1200.0,
         chunk: int = 64,
         verify_trees: int = 12,
+        ts_per_symbol: Optional[Sequence[np.ndarray]] = None,
+        fwd: Optional[int] = None,
     ):
         self._fn = factor_value_fn
         self._fields = list(fields_per_symbol)
-        self._target = np.asarray(target, dtype=float)
+        self.raw_target = np.asarray(target, dtype=float)
+        self._target = self.raw_target
+        self._neutralized = False
+        # 面板分段长度（按币案例 IC / ε-lexicase 用）
+        self.lens: List[int] = [
+            int(len(next(iter(fd.values())))) if fd else 0 for fd in self._fields
+        ]
+        # [M2 口径同一律] 中性化目标：挖掘适应度与门禁同口径（风格残差收益）
+        try:
+            _neu_on = str(os.environ.get("FACTOR_SCORER_NEUTRALIZE", "true")).strip().lower() in (
+                "true", "1", "yes", "on",
+            )
+            if _neu_on and ts_per_symbol and fwd and len(ts_per_symbol) == len(self._fields) >= 3:
+                from backend.services.factor_engine.neutralization import build_neutralized_returns
+                panels = {}
+                for i, fd in enumerate(self._fields):
+                    if "close" not in fd:
+                        panels = {}
+                        break
+                    panels[i] = (np.asarray(ts_per_symbol[i], dtype=float), fd["close"])
+                if panels:
+                    neu = build_neutralized_returns(panels, int(fwd))
+                    if len(neu) == len(panels):
+                        segs = [np.asarray(neu[i], dtype=float)[: self.lens[i]] for i in range(len(self._fields))]
+                        self._target = np.concatenate(segs)
+                        self._neutralized = True
+                        logger.info("[GpuEval] 挖掘目标已中性化（与门禁同口径）")
+        except Exception as _neu_err:
+            logger.warning("[GpuEval] 中性化目标构建失败，回退原始收益: %s", _neu_err)
         self._min_samples = int(min_samples)
         self._lam_c = float(lambda_complexity)
         self._lam_corr = float(lambda_corr)
@@ -260,18 +291,33 @@ def compute_fitness_from_values(
     lam_corr: float,
     elite_fvs: Sequence[np.ndarray],
     node_counts: Optional[Sequence[int]] = None,
-) -> List[float]:
+    lens: Optional[Sequence[int]] = None,
+    objective: str = "ic",
+    lam_hof: float = 0.0,
+    hof_values: Optional[Sequence[np.ndarray]] = None,
+):
     """向量化适应度组装 —— 与 gp_miner._fitness_core 语义逐项对齐。
 
-    返回 fitness 列表；无效个体 -inf。
+    返回 (fits, case_ics)：
+    - fits: 适应度列表；无效个体 -inf；
+    - case_ics: (P, S) 按币段案例 IC（ε-lexicase 用；无效段为 NaN）；
+    - objective="ic" → 全面板 |IC|；"icir" → 案例 IC 的 mean/std；
+    - hof_values: 名人堂因子值（协同奖励：与名人堂最大相关惩罚 lam_hof）。
     """
     from backend.services.evolution.gp_miner import _count_nodes as _cn
 
     P = vals.shape[0]
     t = np.asarray(target, dtype=float)
-    n = t.shape[0]
-    out = [float("-inf")] * P
+    fits = [float("-inf")] * P
+    case_ics = np.full((P, max(1, len(lens or []))), np.nan)
     t_fin = np.isfinite(t)
+    # 分段边界（按币段案例）
+    seg_bounds: List[Tuple[int, int]] = []
+    if lens:
+        _off = 0
+        for ln in lens:
+            seg_bounds.append((_off, _off + int(ln)))
+            _off += int(ln)
     for i in range(P):
         fv = np.asarray(vals[i], dtype=float)
         if fv.ndim == 0:
@@ -286,14 +332,37 @@ def compute_fitness_from_values(
         tm = t[mask]
         if np.std(fvm) < 1e-12:
             continue  # 常数因子
-        ic = abs(float(np.corrcoef(fvm, tm)[0, 1]))
-        if not np.isfinite(ic):
+        # 案例 IC（按币段）
+        case_list: List[float] = []
+        for s, (a, b) in enumerate(seg_bounds):
+            if b <= a:
+                continue
+            mseg = mask[a:b]
+            if int(mseg.sum()) < 20:
+                continue
+            fs, ts = fv[a:b][mseg], t[a:b][mseg]
+            if np.std(fs) < 1e-12 or np.std(ts) < 1e-12:
+                continue
+            cseg = float(np.corrcoef(fs, ts)[0, 1])
+            if np.isfinite(cseg):
+                case_ics[i, s] = cseg
+                case_list.append(cseg)
+        if not case_list:
             continue
+        ic_full = abs(float(np.corrcoef(fvm, tm)[0, 1]))
+        if not np.isfinite(ic_full):
+            continue
+        _case_arr = np.asarray(case_list)
+        if objective == "icir":
+            obj = abs(float(_case_arr.mean() / (_case_arr.std() + 1e-10)))
+        else:
+            obj = ic_full
         penalty_c = lam_c * (node_counts[i] if node_counts is not None else _cn(population[i]))
         corr_pen = 0.0
-        if elite_fvs:
+        refs = list(elite_fvs or [])
+        if refs:
             max_corr = 0.0
-            for e_fv in elite_fvs:
+            for e_fv in refs:
                 e_fv = np.asarray(e_fv, dtype=float)
                 if e_fv.shape != t.shape:
                     continue
@@ -304,5 +373,20 @@ def compute_fitness_from_values(
                 if np.isfinite(c):
                     max_corr = max(max_corr, c)
             corr_pen = lam_corr * max_corr
-        out[i] = float(ic - penalty_c - corr_pen)
-    return out
+        # 名人堂协同惩罚（低冗余因子集：与已选好因子相关性受罚）
+        hof_pen = 0.0
+        if lam_hof > 0 and hof_values:
+            max_h = 0.0
+            for e_fv in hof_values:
+                e_fv = np.asarray(e_fv, dtype=float)
+                if e_fv.shape != t.shape:
+                    continue
+                m2 = mask & np.isfinite(e_fv)
+                if m2.sum() < 10:
+                    continue
+                c = abs(float(np.corrcoef(fv[m2], e_fv[m2])[0, 1]))
+                if np.isfinite(c):
+                    max_h = max(max_h, c)
+            hof_pen = lam_hof * max_h
+        fits[i] = float(obj - penalty_c - corr_pen - hof_pen)
+    return fits, case_ics
