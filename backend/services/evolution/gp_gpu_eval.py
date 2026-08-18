@@ -196,9 +196,16 @@ class GpuEvalContext:
         vals (P, n) float64（非 GPU 程序为 0 占位）；gpu_mask (P,) bool。
         失败返回 (None, None)（调用方整体回退 loky）。
         """
-        from backend.services.evolution.gpu_batch_eval import eval_panel_batch
+        from backend.services.evolution.gpu_batch_eval import eval_panel_batch, gpu_mem_ok
 
         if self._failed:
+            return None, None
+        # [R9] 显存预算检查：低于阈值自动回退 CPU（研究/桌面进程占用时防 OOM）
+        _min_free = float(os.environ.get("FACTOR_EVO_GPU_MIN_FREE_MB", "1500") or 1500)
+        if not gpu_mem_ok(_min_free):
+            logger.warning(
+                "[GpuEval] 显存不足(<%dMB 空闲)，本轮回退 CPU 路径", int(_min_free),
+            )
             return None, None
         if not self.ready:
             self.ready = self._verify()

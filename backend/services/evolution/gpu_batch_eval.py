@@ -720,6 +720,19 @@ def cuda_available() -> bool:
         return False
 
 
+def gpu_mem_ok(min_free_mb: float) -> bool:
+    """[R9] 显存预算检查：空闲显存 >= min_free_mb 才允许 GPU 求值。"""
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return False
+        free, _total = torch.cuda.mem_get_info()
+        return float(free) >= float(min_free_mb) * 1e6
+    except Exception:
+        return False
+
+
 if __name__ == "__main__":
     # 自检：合成面板 + 随机 AST（挖矿形状）
     import random as _r
