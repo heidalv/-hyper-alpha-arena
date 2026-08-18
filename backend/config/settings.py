@@ -1063,7 +1063,12 @@ FACTOR_SCORER_COST: float = float(os.getenv("FACTOR_SCORER_COST", "0.0021"))
 # 准入门槛：样本外 Sharpe 与净收益需同时达标，且非冗余。
 FACTOR_SCORER_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIN_SHARPE", "0.5"))
 FACTOR_SCORER_MIN_NET_RETURN: float = float(os.getenv("FACTOR_SCORER_MIN_NET_RETURN", "0.0"))
-FACTOR_SCORER_REDUNDANCY_CORR: float = float(os.getenv("FACTOR_SCORER_REDUNDANCY_CORR", "0.8"))
+# [P0-B 升级] 准入冗余阈值统一为 0.7（factor_evaluator/score_formula 同读此值）
+FACTOR_SCORER_REDUNDANCY_CORR: float = float(os.getenv("FACTOR_SCORER_REDUNDANCY_CORR", "0.7"))
+# [P0-B 升级] 退役冗余阈值（factor_slimming_audit 专属，与准入阈值语义分离）
+FACTOR_SLIMMING_POOL_MAX_CORR: float = float(os.getenv("FACTOR_SLIMMING_POOL_MAX_CORR", "0.5"))
+# [P0-C 升级] 短线打分回看下限根数（1h≈3 周；低于此值的币在短线档跳过）
+FACTOR_SCORER_SCALP_MIN_BARS: int = int(os.getenv("FACTOR_SCORER_SCALP_MIN_BARS", "500"))
 # [2026-08-13 短线因子根因修复 P1-7] 打分闸门成本/防过拟合升级：
 # funding 费率（永续 8h 结算，短线过夜持仓真实成本）、DSR/PBO 多重检验闸门、
 # 每笔平均净收益须覆盖往返成本 + NET_BUFFER 缓冲、PBO 上限。

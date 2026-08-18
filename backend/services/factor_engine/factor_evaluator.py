@@ -57,7 +57,15 @@ class FactorEvaluator:
     IC_GRADE_B = 0.03   # IC > 3%
     IC_GRADE_C = 0.015  # IC > 1.5%
     IC_GRADE_D = 0.005  # IC > 0.5%
-    REDUNDANCY_THRESHOLD = 0.7  # |corr| > 70% 视为冗余
+    REDUNDANCY_THRESHOLD = 0.7  # 兼容旧引用；[P0-B] 统一读 _redundancy_threshold()
+
+    def _redundancy_threshold(self) -> float:
+        """准入冗余阈值（|corr| 超过视为冗余）——统一读 FACTOR_SCORER_REDUNDANCY_CORR。"""
+        try:
+            from backend.config import settings as _s
+            return float(getattr(_s, "FACTOR_SCORER_REDUNDANCY_CORR", 0.7) or 0.7)
+        except Exception:
+            return 0.7
 
     def __init__(self, forward_period: int = 5):
         """
@@ -217,7 +225,7 @@ class FactorEvaluator:
                 pairs.append((ids[i], ids[j], c))
                 total_corr += abs(c)
                 count += 1
-                if abs(c) > self.REDUNDANCY_THRESHOLD:
+                if abs(c) > self._redundancy_threshold():
                     redundant.append((ids[i], ids[j], c))
 
         report.factor_pairs = sorted(pairs, key=lambda x: abs(x[2]), reverse=True)[:20]

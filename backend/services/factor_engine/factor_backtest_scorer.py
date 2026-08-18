@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -46,16 +47,66 @@ def _cfg(name: str, default):
     return getattr(_s, name, default)
 
 
-def midlong_lookback_for(timeframe: str) -> int:
-    """中线打分回看根数按周期分档（2026-08-16 深度适配）。
+def scalp_lookback_for(symbol: str) -> int:
+    """短线打分「目标」回看根数自适应（P0-C）。
 
-    4h=2400 根≈400 天（asterdex 4h 现深 2400）；1d 单独档（asterdex 1d
-    仅 3.1 年≈1126 根，2400 根=6.6 年永远不够，预检永远 ✗）。
+    min(FACTOR_SCORER_LOOKBACK_BARS, 该币可用根数)，下限 FACTOR_SCORER_SCALP_MIN_BARS
+    （默认 500，1h≈3 周）；可用根数 < 下限返回 0（该币跳过，宁缺毋滥）；
+    数据积累自动加长（每次打分现查可用量，60s 缓存）。
+    """
+    _lb = int(_cfg("FACTOR_SCORER_LOOKBACK_BARS", 720))
+    _min_bars = int(_cfg("FACTOR_SCORER_SCALP_MIN_BARS", 500))
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return _lb
+    _now = time.time()
+    _c = _SCALP_AVAIL_CACHE.get(sym)
+    if _c and _now - _c[0] < 60:
+        _avail = _c[1]
+    else:
+        _avail = 0
+        try:
+            rows = FactorBacktestScorer._load_klines(
+                sym, str(_cfg("FACTOR_SCORER_INTERVAL", "1h")), _lb,
+            )
+            _avail = len(rows) if rows else 0
+        except Exception:
+            _avail = 0
+        _SCALP_AVAIL_CACHE[sym] = (_now, _avail)
+    if _avail <= 0:
+        return _lb  # 查询失败：按原目标请求，交给下游 120 根门槛
+    if _avail < _min_bars:
+        return 0  # 数据薄于下限：跳过该币（不硬缺，随积累自动进入）
+    return max(_min_bars, min(_lb, _avail))
+
+
+_SCALP_AVAIL_CACHE: Dict[str, tuple] = {}
+
+
+def midlong_lookback_for(timeframe: str) -> int:
+    """中线打分「目标」回看根数按周期分档（理想上限，非硬门）。
+
+    [2026-08-18 自适应] 实际每币按 min(目标, 可用根数) 打分，币数据不足时
+    用其现有最大值，随数据积累自动加长（累计）。预检只按 min_bars 判「能否挖」。
     """
     tf = str(timeframe or "").strip().lower()
     if tf in ("1d", "1w", "1M"):
-        return int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK_1D", 1000))
+        return int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK_1D", 3000))
     return int(_cfg("FACTOR_SCORER_MIDLONG_LOOKBACK", 2400))
+
+
+def midlong_min_bars_for(timeframe: str) -> int:
+    """中线因子「最小可用根数」（低于此值的币在该周期跳过，宁缺毋滥）。
+
+    [2026-08-18] 新币上线不足一年也能挖，但不吃薄到噪声级的数据：
+    4h≥500 根（约 83 天）；1d≥250 根（约 1 年）；其它周期 ≥120。
+    """
+    tf = str(timeframe or "").strip().lower()
+    if tf in ("1d", "1w", "1M"):
+        return int(_cfg("FACTOR_SCORER_MIDLONG_MIN_BARS_1D", 250))
+    if tf == "4h":
+        return int(_cfg("FACTOR_SCORER_MIDLONG_MIN_BARS_4H", 500))
+    return 120
 
 
 def _resolve_admin_tenant():
@@ -379,7 +430,7 @@ class FactorBacktestScorer:
         cost = float(cost if cost is not None else _cfg("FACTOR_SCORER_COST", 0.0021))
         min_sharpe = float(min_sharpe if min_sharpe is not None else _cfg("FACTOR_SCORER_MIN_SHARPE", 0.5))
         min_net = float(min_net if min_net is not None else _cfg("FACTOR_SCORER_MIN_NET_RETURN", 0.0))
-        redun_corr = float(redun_corr if redun_corr is not None else _cfg("FACTOR_SCORER_REDUNDANCY_CORR", 0.8))
+        redun_corr = float(redun_corr if redun_corr is not None else _cfg("FACTOR_SCORER_REDUNDANCY_CORR", 0.7))
         funding_rate = float(funding_rate if funding_rate is not None else _cfg("FACTOR_SCORER_FUNDING_RATE", 0.0001))
         dsr_required = bool(dsr_required if dsr_required is not None else _cfg("FACTOR_SCORER_DSR_REQUIRED", True))
         # [2026-08-13 P1-7] 每笔持仓 fwd 根跨过的 8h funding 结算次数 × 费率
@@ -406,8 +457,24 @@ class FactorBacktestScorer:
 
         evaluator = get_factor_evaluator(forward_period=fwd)
 
+        # [P0-A] 多重检验试验计数：每次打分（无论晋升/拒绝）登记一次
+        try:
+            from backend.services.factor_engine.trials_counter import bump as _trial_bump
+            _trial_bump()
+        except Exception as _tb_err:
+            logger.debug(f"[FactorScorer] trials_counter 登记跳过: {_tb_err}")
+
+        # [P0-C] 短线回看自适应：1h 档按每币可用根数取 min(目标, 可用)，下限 500
+        _is_scalp = interval in ("1h",)
         for sym in syms:
-            klines = self._load_klines(sym, interval, lookback)
+            _lb = scalp_lookback_for(sym) if _is_scalp else lookback
+            if _lb <= 0:
+                logger.info(
+                    "[FactorScorer] %s 短线数据薄于下限(%d)跳过——随数据积累自动进入",
+                    sym, int(_cfg("FACTOR_SCORER_SCALP_MIN_BARS", 500)),
+                )
+                continue
+            klines = self._load_klines(sym, interval, _lb)
             if not klines or len(klines) < 120:
                 continue
             arrays = self._to_arrays(klines)
@@ -507,11 +574,23 @@ class FactorBacktestScorer:
         if dsr_required:
             # [P0-1] n_trials 动态化：多重检验校正按真实候选规模（active 数 + 1），
             # 固定 40 与数百候选池脱节会导致 E[max SR] 被系统性低估、闸门过松。
+            # [P0-A 升级] 叠加历史累计试验数（trials_counter），统一短线+中线同池。
             try:
                 _active_n = len(custom_factor_store.list_active(tenant_id=_resolve_admin_tenant()))
             except Exception:
                 _active_n = 0
-            _n_trials = max(int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40)), _active_n + 1)
+            try:
+                from backend.services.factor_engine.trials_counter import total as _trials_total
+                _trials_n = int(_trials_total())
+            except Exception:
+                _trials_n = 0
+            _n_trials = max(
+                int(_cfg("FACTOR_SCORER_DSR_N_TRIALS", 40)), _active_n + 1, _trials_n + 1,
+            )
+            logger.info(
+                "[FactorScorer] DSR 多重检验 n_trials=%d (cfg=%s active=%d counter=%d)",
+                _n_trials, _cfg("FACTOR_SCORER_DSR_N_TRIALS", 40), _active_n, _trials_n,
+            )
             dsr_ok, pbo_val = self._dsr_pbo_gate(
                 icir_list, lookback, _n_trials, ic_series=ic_series_avg,
             )

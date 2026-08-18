@@ -68,7 +68,10 @@ QUARANTINE_RECHECK_DAYS = 60
 IC_MIN_ABS = 0.02
 ICIR_ACTIVE_MIN = 0.30
 ICIR_WEAK_MIN = 0.15       # < 此值直接淘汰候选；[0.15, 0.30) 之间为隔离候选
-POOL_MAX_CORR = 0.50
+# [P0-B 升级] 退役冗余阈值统一读 env（准入阈值 FACTOR_SCORER_REDUNDANCY_CORR 与其语义分离）
+POOL_MAX_CORR = float(
+    __import__("os").environ.get("FACTOR_SLIMMING_POOL_MAX_CORR", "0.5") or "0.5"
+)
 
 STATE_PATH = os.path.join("data", "factor_slimming_state.json")
 WEIGHTS_PATH = os.path.join("data", "factor_runtime_weights.json")
