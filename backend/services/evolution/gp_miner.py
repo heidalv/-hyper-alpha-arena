@@ -149,6 +149,9 @@ class GPConfig:
     # [R1 升级] 目标与协同奖励
     objective: str = "ic"                # ic | icir（M2 中性化后建议 icir）
     lambda_hof: float = 0.1              # 名人堂协同惩罚系数（低冗余因子集）
+    # [R2 升级] ALPS 年龄分层（防早熟保创新）
+    alps: bool = True
+    alps_max_age: int = 12               # 超龄个体重播为随机新生（创新注入）
 
 
 class GPMiner:
@@ -260,14 +263,16 @@ class GPMiner:
     def _run_seed(self, seed: int) -> List[Tuple[dict, float]]:
         """单种子完整进化过程，返回 (ast, fitness) 列表（全代精英合并）。"""
         rng = np.random.default_rng(seed)
-        # 初始种群（audit 过滤）
+        # 初始种群（audit 过滤）；[R2 ALPS] 并行年龄
         population: List[dict] = []
+        ages: List[int] = []
         while len(population) < self.config.population_size:
             ast = self._random_ast(rng, depth=0)
             if ast is None:
                 continue
             if audit(ast).ok:
                 population.append(ast)
+                ages.append(1)
 
         best_history: List[Tuple[dict, float]] = []
         global_best = _NEG_INF
@@ -278,7 +283,7 @@ class GPMiner:
             # 适应度评估（并行）
             fits = self._eval_population(population, workers)
             scored = sorted(
-                [(ast, f) for ast, f in zip(population, fits) if np.isfinite(f)],
+                [(ast, f, ages[i]) for i, (ast, f) in enumerate(zip(population, fits)) if np.isfinite(f)],
                 key=lambda x: x[1], reverse=True,
             )
             if not scored:
@@ -286,10 +291,10 @@ class GPMiner:
                 break
 
             gen_best = scored[0][1]
-            best_history.append(scored[0])
+            best_history.append((scored[0][0], scored[0][1]))
             # 精英存档（防同质化参照系，取前 5%）
             n_elite = max(1, int(len(scored) * self.config.elite_ratio))
-            self._elite_ast = [copy.deepcopy(a) for a, _ in scored[:n_elite]]
+            self._elite_ast = [copy.deepcopy(a) for a, _, _ in scored[:n_elite]]
 
             # [R1] 名人堂更新：本代 top-k（值取自 GPU 求值矩阵，协同奖励参照系）
             if getattr(self, "_last_vals", None) is not None and getattr(self, "_last_population", None):
@@ -313,21 +318,31 @@ class GPMiner:
                     logger.info(f"[GPMiner] 种子{seed} 第{gen}代早停 (best={gen_best:.4f})")
                     break
 
-            # 精英保留 + 生成下一代
-            elites = [copy.deepcopy(a) for a, _ in scored[:n_elite]]
+            # 精英保留 + 生成下一代（[R2] 年龄随代数增长，超龄重播新生）
+            elites = [(copy.deepcopy(a), _age) for a, _, _age in scored[:n_elite]]
             n_offspring = self.config.population_size - len(elites)
-            offspring: List[dict] = []
+            offspring: List[Tuple[dict, int]] = []
             while len(offspring) < n_offspring:
-                p1 = self._select_parent(scored, rng)
-                p2 = self._select_parent(scored, rng)
+                p1, a1 = self._select_parent(scored, rng)
+                p2, a2 = self._select_parent(scored, rng)
                 child = copy.deepcopy(p1)
                 if rng.random() < self.config.crossover_rate:
                     child = self._crossover(p1, p2, rng)
                 if rng.random() < self.config.mutation_rate:
                     child = self._mutate(child, rng)
-                if child is not None and audit(child).ok:
-                    offspring.append(child)
-            population = elites + offspring
+                if child is None or not audit(child).ok:
+                    continue
+                child_age = max(int(a1), int(a2)) + 1
+                # [R2] 超龄重播：年龄上限以上的个体替换为随机新生（创新注入）
+                if self.config.alps and child_age > int(self.config.alps_max_age):
+                    _fresh = self._random_ast(rng, depth=0)
+                    if _fresh is None or not audit(_fresh).ok:
+                        continue
+                    child = _fresh
+                    child_age = 1
+                offspring.append((child, child_age))
+            population = [a for a, _ in elites] + [a for a, _ in offspring]
+            ages = [_a for _, _a in elites] + [_a for _, _a in offspring]
             if not population:
                 break
 
@@ -520,17 +535,56 @@ class GPMiner:
             node = node["args"][i]
         node["args"][path[-1]] = new_node
 
-    def _tournament_select(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
+    def _tournament_index(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> int:
         k = min(self.config.tournament_size, len(scored))
         contenders = rng.choice(len(scored), size=k, replace=False)
-        best = max(contenders, key=lambda i: scored[i][1])
-        return scored[best][0]
+        return int(max(contenders, key=lambda i: scored[i][1]))
+
+    def _tournament_select(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
+        return scored[self._tournament_index(scored, rng)][0]
 
     # [R0 升级] ε-lexicase 选择：按案例序列 + ε 容差筛选，抗噪声、保多样性
-    def _select_parent(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
+    def _select_any(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
         if self.config.selection == "lexicase" and self._case_cache:
             return self._lexicase_select(scored, rng)
         return self._tournament_select(scored, rng)
+
+    # [R2 升级] ALPS 年龄分层选择：同层竞争，年轻层保护，超龄重播
+    @staticmethod
+    def _layer_of(age: int) -> int:
+        if age <= 1:
+            return 0
+        if age <= 2:
+            return 1
+        if age <= 4:
+            return 2
+        if age <= 9:
+            return 3
+        return 4
+
+    def _select_parent(self, scored: List[Tuple[dict, float, int]], rng: np.random.Generator):
+        """层内选择 → (ast, age)。scored = [(ast, fitness, age), ...]。"""
+        _two = [(a, f) for a, f, _ in scored]
+        if not self.config.alps or len(scored) < 8:
+            idx = self._tournament_index(_two, rng)
+            return scored[idx][0], scored[idx][2]
+        layers: dict = {}
+        for i, (_, _, age) in enumerate(scored):
+            layers.setdefault(self._layer_of(int(age)), []).append(i)
+        if not layers:
+            return scored[0][0], scored[0][2]
+        keys = sorted(layers.keys())
+        lyr = keys[int(rng.integers(0, len(keys)))]
+        idxs = layers[lyr]
+        if self.config.selection == "lexicase" and self._case_cache:
+            sub = [scored[i] for i in idxs]
+            ast = self._lexicase_select([(a, f) for a, f, _ in sub], rng)
+            for i in idxs:
+                if str(scored[i][0]) == str(ast):
+                    return scored[i][0], scored[i][2]
+            return ast, scored[idxs[0]][2]
+        idx = int(idxs[rng.integers(0, len(idxs))])
+        return scored[idx][0], scored[idx][2]
 
     def _lexicase_select(self, scored: List[Tuple[dict, float]], rng: np.random.Generator) -> dict:
         """ε-lexicase：洗牌案例顺序，逐案例保留「与最优差距 ≤ ε」的个体。"""

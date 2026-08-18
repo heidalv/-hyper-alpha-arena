@@ -822,6 +822,13 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     setattr(gp_config, _attr, float(_v))
                 except (TypeError, ValueError):
                     pass
+        # [R2] ALPS 开关与年龄上限
+        _alps_v = _os_gp.getenv("FACTOR_GP_ALPS", "1")
+        gp_config.alps = str(_alps_v).strip().lower() not in ("0", "false", "no", "off")
+        try:
+            gp_config.alps_max_age = int(_os_gp.getenv("FACTOR_GP_ALPS_MAX_AGE", "12") or 12)
+        except (TypeError, ValueError):
+            pass
         # [2026-08-17 GPU] FACTOR_EVO_GPU_EVAL=1 且 CUDA 可用 → 栈式 GPU 批量求值
         gpu_ctx = None
         if _os_gp.getenv("FACTOR_EVO_GPU_EVAL", "0") == "1":
