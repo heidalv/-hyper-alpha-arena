@@ -311,6 +311,7 @@ def _score_one_registry_factor(
     net_total = 0.0
     per_symbol: Dict[str, Any] = {}
     data_points = 0
+    missing_impl = False  # [2026-08-18] 因子实现缺失（归档/隔离后候选残留）
 
     for sym in symbols:
         klines = factor_backtest_scorer._load_klines(sym, timeframe, lookback)
@@ -333,6 +334,16 @@ def _score_one_registry_factor(
                 series_map = calc.calculate([registry_factor_id], df, symbol=sym, timeframe=timeframe)
             except Exception as e:
                 logger.debug("[MidlongRegistry] %s/%s 计算失败: %s", fid, timeframe, e)
+                continue
+            # [2026-08-18] 实现缺失检测：因子 .py 被归档/隔离（移出 ai_generated/）
+            # 后候选记录残留，calculate 返回的 map 里根本没有这个 key。此时不应
+            # 落进「有效样本不足」误导口径，直接标记实现缺失。
+            if registry_factor_id not in series_map:
+                logger.warning(
+                    "[MidlongRegistry] %s/%s 因子实现缺失（registry 无此 id，疑似已归档）",
+                    fid, timeframe,
+                )
+                missing_impl = True
                 continue
             series = series_map.get(registry_factor_id)
             if series is not None and len(series):
@@ -379,6 +390,13 @@ def _score_one_registry_factor(
             per_symbol[sym] = bt
 
     if not net_list or not ic_list:
+        # [2026-08-18] 实现缺失与真实样本不足分开表述，避免误导运营
+        if missing_impl:
+            return {
+                "factor_id": fid, "timeframe": timeframe,
+                "reason": "因子实现缺失（已归档/隔离，registry 无法解析）",
+                "grade": "F", "admitted": False,
+            }
         return {"factor_id": fid, "timeframe": timeframe, "reason": "有效样本不足",
                 "grade": "F", "admitted": False}
 

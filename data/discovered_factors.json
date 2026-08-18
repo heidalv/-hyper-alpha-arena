@@ -88,7 +88,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.483756,
-    "updated_at": 1786954493.7913356,
+    "updated_at": 1787070170.4607537,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -185,7 +185,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5335042,
-    "updated_at": 1786954494.122738,
+    "updated_at": 1787070172.1912284,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -282,7 +282,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5410678,
-    "updated_at": 1786954494.9805558,
+    "updated_at": 1787070173.5876718,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -379,7 +379,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.551731,
-    "updated_at": 1786954495.559772,
+    "updated_at": 1787070174.238477,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -476,7 +476,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5587711,
-    "updated_at": 1786954497.202062,
+    "updated_at": 1787070174.581879,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -573,7 +573,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5632856,
-    "updated_at": 1786954501.7062225,
+    "updated_at": 1787070174.8416488,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -670,7 +670,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5679865,
-    "updated_at": 1786954503.257452,
+    "updated_at": 1787070175.0907927,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -767,7 +767,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.280）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5885825,
-    "updated_at": 1786954503.9724696,
+    "updated_at": 1787070175.3390942,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -864,7 +864,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.5928302,
-    "updated_at": 1786954504.2565696,
+    "updated_at": 1787070175.720872,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -961,7 +961,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.020）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6098788,
-    "updated_at": 1786954504.7945516,
+    "updated_at": 1787070176.2167957,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1058,7 +1058,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.080）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6270156,
-    "updated_at": 1786954505.130052,
+    "updated_at": 1787070176.4222257,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -1155,7 +1155,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6341784,
-    "updated_at": 1786954506.1970906,
+    "updated_at": 1787070176.7518458,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1252,7 +1252,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6391795,
-    "updated_at": 1786954506.829908,
+    "updated_at": 1787070176.9246788,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1349,7 +1349,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.645237,
-    "updated_at": 1786954507.0912025,
+    "updated_at": 1787070177.1538382,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1446,7 +1446,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6509278,
-    "updated_at": 1786954510.440445,
+    "updated_at": 1787070177.473424,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1543,7 +1543,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.080）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.656036,
-    "updated_at": 1786954515.7762332,
+    "updated_at": 1787070177.7369668,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -1640,7 +1640,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.980）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6625652,
-    "updated_at": 1786954517.0452292,
+    "updated_at": 1787070177.891259,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -1737,7 +1737,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.580）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6670892,
-    "updated_at": 1786954519.0054839,
+    "updated_at": 1787070178.6942773,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1834,7 +1834,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.860）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6716383,
-    "updated_at": 1786954519.6876323,
+    "updated_at": 1787070178.970458,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -1931,7 +1931,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6767726,
-    "updated_at": 1786954521.8284595,
+    "updated_at": 1787070179.4325306,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -2028,7 +2028,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6832676,
-    "updated_at": 1786954523.1163347,
+    "updated_at": 1787070179.6791499,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -2125,7 +2125,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.688786,
-    "updated_at": 1786954527.955392,
+    "updated_at": 1787070179.8969889,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -2222,7 +2222,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.040）——多重检验下无显著预测力"
     },
     "created_at": 1786692056.6948235,
-    "updated_at": 1786954529.2461288,
+    "updated_at": 1787070180.2878156,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -2239,30 +2239,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.476998,
-    "updated_at": 1786954582.3730943,
+    "updated_at": 1787040014.6124682,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_bsq"
     },
-    "scored_at": 1786954582.3730943
+    "scored_at": 1787039639.4994624
   },
   "t326:ai_gen_bsq@1d": {
     "factor_id": "ai_gen_bsq@1d",
@@ -2273,30 +2261,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.4821074,
-    "updated_at": 1786954586.7913015,
+    "updated_at": 1787040015.2009473,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_bsq"
     },
-    "scored_at": 1786954586.7913015
+    "scored_at": 1787039648.7131624
   },
   "t326:ai_gen_corr_break@4h": {
     "factor_id": "ai_gen_corr_break@4h",
@@ -2307,30 +2283,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.4876459,
-    "updated_at": 1786954587.0014958,
+    "updated_at": 1787040015.6104708,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_corr_break"
     },
-    "scored_at": 1786954587.0014958
+    "scored_at": 1787039653.329127
   },
   "t326:ai_gen_corr_break@1d": {
     "factor_id": "ai_gen_corr_break@1d",
@@ -2341,30 +2305,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.492185,
-    "updated_at": 1786954587.1576972,
+    "updated_at": 1787040016.8081973,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_corr_break"
     },
-    "scored_at": 1786954587.1576972
+    "scored_at": 1787039654.8881123
   },
   "t326:ai_gen_dust_squeeze@4h": {
     "factor_id": "ai_gen_dust_squeeze@4h",
@@ -2375,30 +2327,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.497705,
-    "updated_at": 1786954587.3357275,
+    "updated_at": 1787040017.4240162,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_dust_squeeze"
     },
-    "scored_at": 1786954587.3357275
+    "scored_at": 1787039657.8551357
   },
   "t326:ai_gen_dust_squeeze@1d": {
     "factor_id": "ai_gen_dust_squeeze@1d",
@@ -2409,30 +2349,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5027354,
-    "updated_at": 1786954587.5024033,
+    "updated_at": 1787040017.694912,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_dust_squeeze"
     },
-    "scored_at": 1786954587.5024033
+    "scored_at": 1787039660.3167017
   },
   "t326:ai_gen_extreme_reversal@4h": {
     "factor_id": "ai_gen_extreme_reversal@4h",
@@ -2443,30 +2371,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5077724,
-    "updated_at": 1786954587.6414,
+    "updated_at": 1787040017.962277,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_extreme_reversal"
     },
-    "scored_at": 1786954587.6414
+    "scored_at": 1787039662.3641164
   },
   "t326:ai_gen_extreme_reversal@1d": {
     "factor_id": "ai_gen_extreme_reversal@1d",
@@ -2477,30 +2393,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5128515,
-    "updated_at": 1786954587.8300114,
+    "updated_at": 1787040018.2893195,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_extreme_reversal"
     },
-    "scored_at": 1786954587.8300114
+    "scored_at": 1787039663.5735967
   },
   "t326:ai_gen_liquidity_squeeze@4h": {
     "factor_id": "ai_gen_liquidity_squeeze@4h",
@@ -2511,30 +2415,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5183852,
-    "updated_at": 1786954588.1156752,
+    "updated_at": 1787040018.584562,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_liquidity_squeeze"
     },
-    "scored_at": 1786954588.1156752
+    "scored_at": 1787039665.2656658
   },
   "t326:ai_gen_liquidity_squeeze@1d": {
     "factor_id": "ai_gen_liquidity_squeeze@1d",
@@ -2545,30 +2437,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.523427,
-    "updated_at": 1786954589.179614,
+    "updated_at": 1787040018.8307908,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_liquidity_squeeze"
     },
-    "scored_at": 1786954589.179614
+    "scored_at": 1787039666.764858
   },
   "t326:ai_gen_liq_quality@4h": {
     "factor_id": "ai_gen_liq_quality@4h",
@@ -2579,30 +2459,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5295255,
-    "updated_at": 1786954589.3265507,
+    "updated_at": 1787040019.5632453,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_liq_quality"
     },
-    "scored_at": 1786954589.3265507
+    "scored_at": 1787039667.4012396
   },
   "t326:ai_gen_liq_quality@1d": {
     "factor_id": "ai_gen_liq_quality@1d",
@@ -2613,30 +2481,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5350366,
-    "updated_at": 1786954589.4931293,
+    "updated_at": 1787040019.701089,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_liq_quality"
     },
-    "scored_at": 1786954589.4931293
+    "scored_at": 1787039668.7619035
   },
   "t326:ai_gen_low_vol_momentum@4h": {
     "factor_id": "ai_gen_low_vol_momentum@4h",
@@ -2647,30 +2503,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.54062,
-    "updated_at": 1786954589.781419,
+    "updated_at": 1787040019.973372,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_low_vol_momentum"
     },
-    "scored_at": 1786954589.781419
+    "scored_at": 1787039671.353806
   },
   "t326:ai_gen_low_vol_momentum@1d": {
     "factor_id": "ai_gen_low_vol_momentum@1d",
@@ -2681,30 +2525,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5471394,
-    "updated_at": 1786954590.0612137,
+    "updated_at": 1787040020.7571504,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_low_vol_momentum"
     },
-    "scored_at": 1786954590.0612137
+    "scored_at": 1787039675.1932049
   },
   "t326:ai_gen_mr@4h": {
     "factor_id": "ai_gen_mr@4h",
@@ -2715,30 +2547,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.553246,
-    "updated_at": 1786954590.2498114,
+    "updated_at": 1787040020.949735,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_mr"
     },
-    "scored_at": 1786954590.2498114
+    "scored_at": 1787039677.4605517
   },
   "t326:ai_gen_mr@1d": {
     "factor_id": "ai_gen_mr@1d",
@@ -2749,30 +2569,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5592656,
-    "updated_at": 1786954590.3985815,
+    "updated_at": 1787040021.122108,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_mr"
     },
-    "scored_at": 1786954590.3985815
+    "scored_at": 1787039679.4183614
   },
   "t326:ai_gen_mrext@4h": {
     "factor_id": "ai_gen_mrext@4h",
@@ -2783,30 +2591,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.565345,
-    "updated_at": 1786954590.5335202,
+    "updated_at": 1787040021.4528456,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_mrext"
     },
-    "scored_at": 1786954590.5335202
+    "scored_at": 1787039681.8206646
   },
   "t326:ai_gen_mrext@1d": {
     "factor_id": "ai_gen_mrext@1d",
@@ -2817,23 +2613,11 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5715919,
-    "updated_at": 1786954591.5078104,
+    "updated_at": 1787040021.6640615,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -2841,7 +2625,7 @@
       "registry_factor_id": "ai_gen_mrext",
       "recheck_fails": 2
     },
-    "scored_at": 1786954591.5078104
+    "scored_at": 1787039682.769832
   },
   "t326:ai_gen_price_position@4h": {
     "factor_id": "ai_gen_price_position@4h",
@@ -2852,30 +2636,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5771103,
-    "updated_at": 1786954592.122732,
+    "updated_at": 1787040021.9200404,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_price_position"
     },
-    "scored_at": 1786954592.122732
+    "scored_at": 1787039683.2590294
   },
   "t326:ai_gen_price_position@1d": {
     "factor_id": "ai_gen_price_position@1d",
@@ -2886,30 +2658,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.58337,
-    "updated_at": 1786954592.6185374,
+    "updated_at": 1787040024.1955445,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_price_position"
     },
-    "scored_at": 1786954592.6185374
+    "scored_at": 1787039683.5745986
   },
   "t326:ai_gen_regime_clarity@4h": {
     "factor_id": "ai_gen_regime_clarity@4h",
@@ -2920,30 +2680,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.5899076,
-    "updated_at": 1786954592.831088,
+    "updated_at": 1787040025.0744302,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_regime_clarity"
     },
-    "scored_at": 1786954592.831088
+    "scored_at": 1787039685.0061965
   },
   "t326:ai_gen_regime_clarity@1d": {
     "factor_id": "ai_gen_regime_clarity@1d",
@@ -2954,30 +2702,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.595999,
-    "updated_at": 1786954593.866879,
+    "updated_at": 1787040025.3650067,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_regime_clarity"
     },
-    "scored_at": 1786954593.866879
+    "scored_at": 1787039685.3691797
   },
   "t326:ai_gen_slrisk@4h": {
     "factor_id": "ai_gen_slrisk@4h",
@@ -2988,30 +2724,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6020293,
-    "updated_at": 1786954596.3597653,
+    "updated_at": 1787040025.6470444,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_slrisk"
     },
-    "scored_at": 1786954596.3597653
+    "scored_at": 1787039687.11028
   },
   "t326:ai_gen_slrisk@1d": {
     "factor_id": "ai_gen_slrisk@1d",
@@ -3022,30 +2746,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.608665,
-    "updated_at": 1786954596.5579104,
+    "updated_at": 1787040025.9128695,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_slrisk"
     },
-    "scored_at": 1786954596.5579104
+    "scored_at": 1787039687.9675848
   },
   "t326:ai_gen_stability@4h": {
     "factor_id": "ai_gen_stability@4h",
@@ -3056,30 +2768,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6147041,
-    "updated_at": 1786954596.7810843,
+    "updated_at": 1787040026.2382057,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_stability"
     },
-    "scored_at": 1786954596.7810843
+    "scored_at": 1787039689.811528
   },
   "t326:ai_gen_stability@1d": {
     "factor_id": "ai_gen_stability@1d",
@@ -3090,30 +2790,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.621723,
-    "updated_at": 1786954597.4014661,
+    "updated_at": 1787040026.5272408,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_stability"
     },
-    "scored_at": 1786954597.4014661
+    "scored_at": 1787039691.2506623
   },
   "t326:ai_gen_trend_conf@4h": {
     "factor_id": "ai_gen_trend_conf@4h",
@@ -3124,30 +2812,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6277888,
-    "updated_at": 1786954597.8081448,
+    "updated_at": 1787040027.2559128,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_trend_conf"
     },
-    "scored_at": 1786954597.8081448
+    "scored_at": 1787039691.8789434
   },
   "t326:ai_gen_trend_conf@1d": {
     "factor_id": "ai_gen_trend_conf@1d",
@@ -3158,30 +2834,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6348457,
-    "updated_at": 1786954598.487914,
+    "updated_at": 1787040027.872987,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_trend_conf"
     },
-    "scored_at": 1786954598.487914
+    "scored_at": 1787039692.1691008
   },
   "t326:ai_gen_voladj_momentum@4h": {
     "factor_id": "ai_gen_voladj_momentum@4h",
@@ -3192,30 +2856,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.641361,
-    "updated_at": 1786954598.9073453,
+    "updated_at": 1787040028.6507432,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_voladj_momentum"
     },
-    "scored_at": 1786954598.9073453
+    "scored_at": 1787039692.6071472
   },
   "t326:ai_gen_voladj_momentum@1d": {
     "factor_id": "ai_gen_voladj_momentum@1d",
@@ -3226,30 +2878,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.647423,
-    "updated_at": 1786954599.2439618,
+    "updated_at": 1787040029.0417151,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_voladj_momentum"
     },
-    "scored_at": 1786954599.2439618
+    "scored_at": 1787039692.7832217
   },
   "t326:ai_gen_voltrend@4h": {
     "factor_id": "ai_gen_voltrend@4h",
@@ -3260,30 +2900,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6545238,
-    "updated_at": 1786954599.7797318,
+    "updated_at": 1787040029.3631148,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_voltrend"
     },
-    "scored_at": 1786954599.7797318
+    "scored_at": 1787039693.2228146
   },
   "t326:ai_gen_voltrend@1d": {
     "factor_id": "ai_gen_voltrend@1d",
@@ -3294,30 +2922,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6616397,
-    "updated_at": 1786954600.1573424,
+    "updated_at": 1787040029.6705868,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_voltrend"
     },
-    "scored_at": 1786954600.1573424
+    "scored_at": 1787039693.601491
   },
   "t326:ai_gen_volumereg@4h": {
     "factor_id": "ai_gen_volumereg@4h",
@@ -3328,30 +2944,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6672266,
-    "updated_at": 1786954600.5284781,
+    "updated_at": 1787040029.9932694,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_volumereg"
     },
-    "scored_at": 1786954600.5284781
+    "scored_at": 1787039694.0442894
   },
   "t326:ai_gen_volumereg@1d": {
     "factor_id": "ai_gen_volumereg@1d",
@@ -3362,30 +2966,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.6743548,
-    "updated_at": 1786954601.896718,
+    "updated_at": 1787040030.1937056,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_volumereg"
     },
-    "scored_at": 1786954601.896718
+    "scored_at": 1787039697.3048837
   },
   "t326:ai_gen_volume_flow@4h": {
     "factor_id": "ai_gen_volume_flow@4h",
@@ -3396,30 +2988,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.680328,
-    "updated_at": 1786954602.626133,
+    "updated_at": 1787040030.402425,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_volume_flow"
     },
-    "scored_at": 1786954602.626133
+    "scored_at": 1787039698.404391
   },
   "t326:ai_gen_volume_flow@1d": {
     "factor_id": "ai_gen_volume_flow@1d",
@@ -3430,30 +3010,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.687486,
-    "updated_at": 1786954603.0826638,
+    "updated_at": 1787040030.6104326,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_volume_flow"
     },
-    "scored_at": 1786954603.0826638
+    "scored_at": 1787039699.337578
   },
   "t326:ai_gen_vol_div@4h": {
     "factor_id": "ai_gen_vol_div@4h",
@@ -3464,30 +3032,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.695019,
-    "updated_at": 1786954603.5411792,
+    "updated_at": 1787040031.0386207,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vol_div"
     },
-    "scored_at": 1786954603.5411792
+    "scored_at": 1787039701.5393362
   },
   "t326:ai_gen_vol_div@1d": {
     "factor_id": "ai_gen_vol_div@1d",
@@ -3498,30 +3054,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7011979,
-    "updated_at": 1786954604.0794957,
+    "updated_at": 1787040031.262048,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vol_div"
     },
-    "scored_at": 1786954604.0794957
+    "scored_at": 1787039708.5189545
   },
   "t326:ai_gen_vol_rev@4h": {
     "factor_id": "ai_gen_vol_rev@4h",
@@ -3532,23 +3076,11 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7103753,
-    "updated_at": 1786954604.7876763,
+    "updated_at": 1787040031.462994,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -3556,7 +3088,7 @@
       "registry_factor_id": "ai_gen_vol_rev",
       "recheck_fails": 2
     },
-    "scored_at": 1786954604.7876763
+    "scored_at": 1787039712.116306
   },
   "t326:ai_gen_vol_rev@1d": {
     "factor_id": "ai_gen_vol_rev@1d",
@@ -3567,30 +3099,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.716898,
-    "updated_at": 1786954605.3962617,
+    "updated_at": 1787040032.3237724,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vol_rev"
     },
-    "scored_at": 1786954605.3962617
+    "scored_at": 1787039715.143925
   },
   "t326:ai_gen_vpr@4h": {
     "factor_id": "ai_gen_vpr@4h",
@@ -3601,30 +3121,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7249599,
-    "updated_at": 1786954606.0123549,
+    "updated_at": 1787040032.5786033,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vpr"
     },
-    "scored_at": 1786954606.0123549
+    "scored_at": 1787039717.3136764
   },
   "t326:ai_gen_vpr@1d": {
     "factor_id": "ai_gen_vpr@1d",
@@ -3635,30 +3143,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7310538,
-    "updated_at": 1786954606.6347861,
+    "updated_at": 1787040032.8683376,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vpr"
     },
-    "scored_at": 1786954606.6347861
+    "scored_at": 1787039719.240143
   },
   "t326:ai_gen_vqc@4h": {
     "factor_id": "ai_gen_vqc@4h",
@@ -3669,30 +3165,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7376401,
-    "updated_at": 1786954607.740331,
+    "updated_at": 1787040033.4874244,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vqc"
     },
-    "scored_at": 1786954607.740331
+    "scored_at": 1787039721.9370437
   },
   "t326:ai_gen_vqc@1d": {
     "factor_id": "ai_gen_vqc@1d",
@@ -3703,30 +3187,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7451284,
-    "updated_at": 1786954608.8956537,
+    "updated_at": 1787040034.2748072,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_vqc"
     },
-    "scored_at": 1786954608.8956537
+    "scored_at": 1787039723.7085166
   },
   "t326:rsi@4h": {
     "factor_id": "rsi@4h",
@@ -3737,23 +3209,11 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7526739,
-    "updated_at": 1786954609.5974593,
+    "updated_at": 1787040034.5583558,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -3761,7 +3221,7 @@
       "registry_factor_id": "rsi",
       "recheck_fails": 2
     },
-    "scored_at": 1786954609.5974593
+    "scored_at": 1787039725.012632
   },
   "t326:rsi@1d": {
     "factor_id": "rsi@1d",
@@ -3772,30 +3232,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7591922,
-    "updated_at": 1786954610.297867,
+    "updated_at": 1787040035.0184467,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "rsi"
     },
-    "scored_at": 1786954610.297867
+    "scored_at": 1787039726.6982973
   },
   "t326:macd@4h": {
     "factor_id": "macd@4h",
@@ -3806,30 +3254,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7667096,
-    "updated_at": 1786954611.164602,
+    "updated_at": 1787040035.0927515,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "macd"
     },
-    "scored_at": 1786954611.164602
+    "scored_at": 1787039727.2801344
   },
   "t326:macd@1d": {
     "factor_id": "macd@1d",
@@ -3840,30 +3276,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7739525,
-    "updated_at": 1786954612.0010781,
+    "updated_at": 1787040035.2488132,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "macd"
     },
-    "scored_at": 1786954612.0010781
+    "scored_at": 1787039727.8495398
   },
   "t326:momentum@4h": {
     "factor_id": "momentum@4h",
@@ -3874,30 +3298,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7814817,
-    "updated_at": 1786954612.708138,
+    "updated_at": 1787040035.7910585,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "momentum"
     },
-    "scored_at": 1786954612.708138
+    "scored_at": 1787039728.3433945
   },
   "t326:momentum@1d": {
     "factor_id": "momentum@1d",
@@ -3908,30 +3320,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.7895126,
-    "updated_at": 1786954613.347278,
+    "updated_at": 1787040037.2282112,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "momentum"
     },
-    "scored_at": 1786954613.347278
+    "scored_at": 1787039728.6342506
   },
   "t326:roc@4h": {
     "factor_id": "roc@4h",
@@ -3942,30 +3342,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.796423,
-    "updated_at": 1786954614.271871,
+    "updated_at": 1787040038.2664223,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "roc"
     },
-    "scored_at": 1786954614.271871
+    "scored_at": 1787039729.0440197
   },
   "t326:roc@1d": {
     "factor_id": "roc@1d",
@@ -3976,30 +3364,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8045285,
-    "updated_at": 1786954615.2424085,
+    "updated_at": 1787040038.5550652,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "roc"
     },
-    "scored_at": 1786954615.2424085
+    "scored_at": 1787039730.4303575
   },
   "t326:adx@4h": {
     "factor_id": "adx@4h",
@@ -4010,30 +3386,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8121212,
-    "updated_at": 1786954615.6000926,
+    "updated_at": 1787040038.6362798,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "adx"
     },
-    "scored_at": 1786954615.6000926
+    "scored_at": 1787039731.3700244
   },
   "t326:adx@1d": {
     "factor_id": "adx@1d",
@@ -4044,30 +3408,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8207014,
-    "updated_at": 1786954616.308208,
+    "updated_at": 1787040038.7276955,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "adx"
     },
-    "scored_at": 1786954616.308208
+    "scored_at": 1787039731.8844619
   },
   "t326:bb_width@4h": {
     "factor_id": "bb_width@4h",
@@ -4078,30 +3430,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8282506,
-    "updated_at": 1786954617.7684546,
+    "updated_at": 1787040039.1283412,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "bb_width"
     },
-    "scored_at": 1786954617.7684546
+    "scored_at": 1787039732.689673
   },
   "t326:bb_width@1d": {
     "factor_id": "bb_width@1d",
@@ -4112,30 +3452,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8357806,
-    "updated_at": 1786954618.3577898,
+    "updated_at": 1787040039.5307975,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "bb_width"
     },
-    "scored_at": 1786954618.3577898
+    "scored_at": 1787039733.0647101
   },
   "t326:zscore@4h": {
     "factor_id": "zscore@4h",
@@ -4146,30 +3474,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8448188,
-    "updated_at": 1786954618.6445115,
+    "updated_at": 1787040040.9536862,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "zscore"
     },
-    "scored_at": 1786954618.6445115
+    "scored_at": 1787039734.0272574
   },
   "t326:zscore@1d": {
     "factor_id": "zscore@1d",
@@ -4180,30 +3496,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.853028,
-    "updated_at": 1786954618.9362695,
+    "updated_at": 1787040041.0717986,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "zscore"
     },
-    "scored_at": 1786954618.9362695
+    "scored_at": 1787039735.0692742
   },
   "t326:atr_ratio@4h": {
     "factor_id": "atr_ratio@4h",
@@ -4214,30 +3518,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.8604558,
-    "updated_at": 1786954619.2261117,
+    "updated_at": 1787040041.2261732,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "atr_ratio"
     },
-    "scored_at": 1786954619.2261117
+    "scored_at": 1787039737.7884881
   },
   "t326:atr_ratio@1d": {
     "factor_id": "atr_ratio@1d",
@@ -4248,30 +3540,18 @@
     "source": "registry",
     "discovery_ic": null,
     "discovery_rank_ic": null,
-    "status": "rejected",
-    "grade": "F",
-    "scores": {
-      "ic_mean": 0.0,
-      "icir": 0.0,
-      "ic_decay_halflife": 0,
-      "monotonicity": 0.0,
-      "oos_net_return": 0.0,
-      "oos_sharpe": 0.0,
-      "oos_win_rate": 0.0,
-      "oos_trades": 0,
-      "redundant_with": null,
-      "per_symbol": {},
-      "reason": "有效样本不足（无法在核心币种上完成回测/IC）"
-    },
+    "status": "candidate",
+    "grade": null,
+    "scores": {},
     "created_at": 1786692122.868993,
-    "updated_at": 1786954619.4873426,
+    "updated_at": 1787040041.4459014,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "atr_ratio"
     },
-    "scored_at": 1786954619.4873426
+    "scored_at": 1787039740.6941442
   },
   "t326:atr@4h": {
     "factor_id": "atr@4h",
@@ -4286,14 +3566,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.8765404,
-    "updated_at": 1786953324.6162622,
+    "updated_at": 1787039605.6866806,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "atr"
     },
-    "scored_at": 1786952900.8552089
+    "scored_at": 1787037004.046219
   },
   "t326:atr@1d": {
     "factor_id": "atr@1d",
@@ -4308,14 +3588,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.8847723,
-    "updated_at": 1786953325.6618261,
+    "updated_at": 1787039606.6747296,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "atr"
     },
-    "scored_at": 1786952904.4259875
+    "scored_at": 1787037005.2230885
   },
   "t326:hv@4h": {
     "factor_id": "hv@4h",
@@ -4330,14 +3610,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.8924024,
-    "updated_at": 1786953326.1126866,
+    "updated_at": 1787039607.2221642,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "hv"
     },
-    "scored_at": 1786952904.6578624
+    "scored_at": 1787037117.5444384
   },
   "t326:hv@1d": {
     "factor_id": "hv@1d",
@@ -4352,14 +3632,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9005988,
-    "updated_at": 1786953326.8528984,
+    "updated_at": 1787039607.7616305,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "hv"
     },
-    "scored_at": 1786952904.9301124
+    "scored_at": 1787037130.239335
   },
   "t326:parkinson_vol@4h": {
     "factor_id": "parkinson_vol@4h",
@@ -4374,14 +3654,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9087582,
-    "updated_at": 1786953327.6141546,
+    "updated_at": 1787039609.1121354,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "parkinson_vol"
     },
-    "scored_at": 1786952905.287064
+    "scored_at": 1787037130.7886832
   },
   "t326:parkinson_vol@1d": {
     "factor_id": "parkinson_vol@1d",
@@ -4396,14 +3676,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9173357,
-    "updated_at": 1786953328.1190815,
+    "updated_at": 1787039609.8125532,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "parkinson_vol"
     },
-    "scored_at": 1786952905.521723
+    "scored_at": 1787037131.271903
   },
   "t326:obv@4h": {
     "factor_id": "obv@4h",
@@ -4418,14 +3698,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9254234,
-    "updated_at": 1786953328.8417838,
+    "updated_at": 1787039610.5963323,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "obv"
     },
-    "scored_at": 1786952905.8648407
+    "scored_at": 1787037131.8543336
   },
   "t326:obv@1d": {
     "factor_id": "obv@1d",
@@ -4440,14 +3720,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9336154,
-    "updated_at": 1786953329.1370747,
+    "updated_at": 1787039610.9173095,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "obv"
     },
-    "scored_at": 1786952906.3905928
+    "scored_at": 1787037132.6472278
   },
   "t326:vwap@4h": {
     "factor_id": "vwap@4h",
@@ -4462,14 +3742,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9433677,
-    "updated_at": 1786953329.5900545,
+    "updated_at": 1787039611.2506654,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "vwap"
     },
-    "scored_at": 1786952906.8107538
+    "scored_at": 1787037133.0722167
   },
   "t326:vwap@1d": {
     "factor_id": "vwap@1d",
@@ -4484,14 +3764,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.951953,
-    "updated_at": 1786953330.0367477,
+    "updated_at": 1787039611.6320422,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "vwap"
     },
-    "scored_at": 1786952907.3439455
+    "scored_at": 1787037133.7793448
   },
   "t326:volume_zscore@4h": {
     "factor_id": "volume_zscore@4h",
@@ -4506,14 +3786,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.961083,
-    "updated_at": 1786953330.6183825,
+    "updated_at": 1787039611.9180958,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "volume_zscore"
     },
-    "scored_at": 1786952907.7928867
+    "scored_at": 1787037134.1620877
   },
   "t326:volume_zscore@1d": {
     "factor_id": "volume_zscore@1d",
@@ -4528,14 +3808,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9697733,
-    "updated_at": 1786953331.0598202,
+    "updated_at": 1787039612.2343595,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "volume_zscore"
     },
-    "scored_at": 1786952908.892885
+    "scored_at": 1787037134.6067986
   },
   "t326:cvd_ratio@4h": {
     "factor_id": "cvd_ratio@4h",
@@ -4550,14 +3830,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9799643,
-    "updated_at": 1786953331.3685696,
+    "updated_at": 1787039612.6431248,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "cvd_ratio"
     },
-    "scored_at": 1786952909.3021934
+    "scored_at": 1787037135.340867
   },
   "t326:cvd_ratio@1d": {
     "factor_id": "cvd_ratio@1d",
@@ -4572,14 +3852,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.9890525,
-    "updated_at": 1786953331.5980642,
+    "updated_at": 1787039612.9382036,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "cvd_ratio"
     },
-    "scored_at": 1786952909.811594
+    "scored_at": 1787037136.33151
   },
   "t326:sma_cross@4h": {
     "factor_id": "sma_cross@4h",
@@ -4594,14 +3874,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692122.997668,
-    "updated_at": 1786953331.8409224,
+    "updated_at": 1787039613.2020454,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "sma_cross"
     },
-    "scored_at": 1786952911.8157852
+    "scored_at": 1787037136.911465
   },
   "t326:sma_cross@1d": {
     "factor_id": "sma_cross@1d",
@@ -4616,7 +3896,7 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.0077937,
-    "updated_at": 1786953332.118148,
+    "updated_at": 1787039613.4070258,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -4624,7 +3904,7 @@
       "registry_factor_id": "sma_cross",
       "recheck_fails": 2
     },
-    "scored_at": 1786952912.2035632
+    "scored_at": 1787037137.2664704
   },
   "t326:ema_trend@4h": {
     "factor_id": "ema_trend@4h",
@@ -4639,14 +3919,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.0158176,
-    "updated_at": 1786953332.3941095,
+    "updated_at": 1787039613.9526665,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ema_trend"
     },
-    "scored_at": 1786952912.614318
+    "scored_at": 1787037137.6167436
   },
   "t326:ema_trend@1d": {
     "factor_id": "ema_trend@1d",
@@ -4661,14 +3941,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.025338,
-    "updated_at": 1786953332.7331445,
+    "updated_at": 1787039614.5130537,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ema_trend"
     },
-    "scored_at": 1786952916.4413059
+    "scored_at": 1787037138.071548
   },
   "t326:supertrend@4h": {
     "factor_id": "supertrend@4h",
@@ -4683,14 +3963,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.0334876,
-    "updated_at": 1786953332.959035,
+    "updated_at": 1787039614.896466,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "supertrend"
     },
-    "scored_at": 1786952922.9587798
+    "scored_at": 1787037138.8733213
   },
   "t326:supertrend@1d": {
     "factor_id": "supertrend@1d",
@@ -4705,14 +3985,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.043018,
-    "updated_at": 1786953333.2707932,
+    "updated_at": 1787039617.3589175,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "supertrend"
     },
-    "scored_at": 1786952923.2110996
+    "scored_at": 1787037139.2410624
   },
   "t326:taker_ratio@4h": {
     "factor_id": "taker_ratio@4h",
@@ -4727,14 +4007,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.053211,
-    "updated_at": 1786953333.5520957,
+    "updated_at": 1787039619.389311,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "taker_ratio"
     },
-    "scored_at": 1786952923.5550706
+    "scored_at": 1787037139.5964546
   },
   "t326:taker_ratio@1d": {
     "factor_id": "taker_ratio@1d",
@@ -4749,14 +4029,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.063296,
-    "updated_at": 1786953333.9168482,
+    "updated_at": 1787039620.2419364,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "taker_ratio"
     },
-    "scored_at": 1786952924.074395
+    "scored_at": 1787037140.2870986
   },
   "t326:oi_delta@4h": {
     "factor_id": "oi_delta@4h",
@@ -4771,14 +4051,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.0730848,
-    "updated_at": 1786953334.0875971,
+    "updated_at": 1787039620.4820027,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "oi_delta"
     },
-    "scored_at": 1786952924.447805
+    "scored_at": 1787037140.8517957
   },
   "t326:oi_delta@1d": {
     "factor_id": "oi_delta@1d",
@@ -4793,14 +4073,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786692123.0831513,
-    "updated_at": 1786953334.3210251,
+    "updated_at": 1787039620.7019897,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "oi_delta"
     },
-    "scored_at": 1786952924.8299863
+    "scored_at": 1787037141.4424462
   },
   "t326:ai_a101_mom10_4h": {
     "factor_id": "ai_a101_mom10_4h",
@@ -4891,7 +4171,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.5901868,
-    "updated_at": 1786954529.7768989,
+    "updated_at": 1787070180.5209095,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -4988,7 +4268,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.6066246,
-    "updated_at": 1786954530.202236,
+    "updated_at": 1787070180.6846828,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -5085,7 +4365,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.6223722,
-    "updated_at": 1786954530.8649166,
+    "updated_at": 1787070180.8046553,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5182,7 +4462,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.6375854,
-    "updated_at": 1786954531.3862717,
+    "updated_at": 1787070181.1308358,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -5279,7 +4559,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.659244,
-    "updated_at": 1786954532.8839197,
+    "updated_at": 1787070181.541682,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5376,7 +4656,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.6773906,
-    "updated_at": 1786954534.78585,
+    "updated_at": 1787070181.8012614,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -5473,7 +4753,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.694522,
-    "updated_at": 1786954537.0267797,
+    "updated_at": 1787070181.982302,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5570,7 +4850,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.7116315,
-    "updated_at": 1786954540.0390413,
+    "updated_at": 1787070182.3400831,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -5667,7 +4947,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.7312796,
-    "updated_at": 1786954541.0904927,
+    "updated_at": 1787070182.4774835,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5764,7 +5044,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.7494917,
-    "updated_at": 1786954543.4809265,
+    "updated_at": 1787070182.610866,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5861,7 +5141,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.7690156,
-    "updated_at": 1786954544.4717686,
+    "updated_at": 1787070182.699879,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -5958,7 +5238,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.080）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.7901518,
-    "updated_at": 1786954545.3656695,
+    "updated_at": 1787070182.777412,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -6055,7 +5335,7 @@
       "reason": "grade=C IC=-0.0708 ICIR=-0.5365 OOS_sharpe=0.2626 OOS_net=0.099123 win=0.4899 trades=2169"
     },
     "created_at": 1786692669.8097842,
-    "updated_at": 1786954546.6664934,
+    "updated_at": 1787070182.8806925,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6153,7 +5433,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.8334138,
-    "updated_at": 1786954547.0669792,
+    "updated_at": 1787070183.0444279,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6250,7 +5530,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.8547177,
-    "updated_at": 1786954547.6541538,
+    "updated_at": 1787070183.2427404,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6347,7 +5627,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.8738267,
-    "updated_at": 1786954550.265279,
+    "updated_at": 1787070183.461027,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -6444,7 +5724,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.893942,
-    "updated_at": 1786954550.7209244,
+    "updated_at": 1787070183.6301444,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6541,7 +5821,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.700）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.9171317,
-    "updated_at": 1786954551.2748184,
+    "updated_at": 1787070183.762005,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6638,7 +5918,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.600）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.9387712,
-    "updated_at": 1786954552.7967954,
+    "updated_at": 1787070183.8778827,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -6735,7 +6015,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.9563663,
-    "updated_at": 1786954553.6737568,
+    "updated_at": 1787070183.9788234,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -6832,7 +6112,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.9736893,
-    "updated_at": 1786954554.0868008,
+    "updated_at": 1787070184.08525,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -6929,7 +6209,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.580）——多重检验下无显著预测力"
     },
     "created_at": 1786692669.9897842,
-    "updated_at": 1786954554.355673,
+    "updated_at": 1787070184.2072394,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7026,7 +6306,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.180）——多重检验下无显著预测力"
     },
     "created_at": 1786692670.0154462,
-    "updated_at": 1786954555.220665,
+    "updated_at": 1787070184.3370967,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7123,7 +6403,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786692670.038369,
-    "updated_at": 1786954555.850604,
+    "updated_at": 1787070184.4126477,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7220,7 +6500,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771680.4756324,
-    "updated_at": 1786954556.6688302,
+    "updated_at": 1787070184.5051136,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7317,7 +6597,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771680.617396,
-    "updated_at": 1786954559.0942774,
+    "updated_at": 1787070184.6395667,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -7414,7 +6694,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771680.7759523,
-    "updated_at": 1786954560.3629282,
+    "updated_at": 1787070184.7410302,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7511,7 +6791,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771680.9261923,
-    "updated_at": 1786954560.8922768,
+    "updated_at": 1787070184.842731,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -7608,7 +6888,7 @@
       "reason": "grade=C IC=0.0926 ICIR=0.7223 OOS_sharpe=-0.3891 OOS_net=-0.268322 win=0.4976 trades=2143"
     },
     "created_at": 1786771681.4611244,
-    "updated_at": 1786954561.410589,
+    "updated_at": 1787070184.949149,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7705,7 +6985,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771681.777538,
-    "updated_at": 1786954562.1100004,
+    "updated_at": 1787070185.040179,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -7802,7 +7082,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771682.2205095,
-    "updated_at": 1786954563.8034115,
+    "updated_at": 1787070185.1604228,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -7899,7 +7179,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.020）——多重检验下无显著预测力"
     },
     "created_at": 1786771682.4295557,
-    "updated_at": 1786954564.2483277,
+    "updated_at": 1787070185.2473624,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -7996,7 +7276,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771682.527407,
-    "updated_at": 1786954565.2296975,
+    "updated_at": 1787070185.3460937,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -8093,7 +7373,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.000）——多重检验下无显著预测力"
     },
     "created_at": 1786771682.656256,
-    "updated_at": 1786954565.5720477,
+    "updated_at": 1787070185.4548855,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
@@ -8190,7 +7470,7 @@
       "reason": "DSR/PBO 未通过（pbo=0.060）——多重检验下无显著预测力"
     },
     "created_at": 1786771682.820712,
-    "updated_at": 1786954565.752949,
+    "updated_at": 1787070185.5815077,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -8211,7 +7491,7 @@
     "grade": null,
     "scores": {},
     "created_at": 1786879027.6131709,
-    "updated_at": 1786953300.520447,
+    "updated_at": 1787039562.948654,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
@@ -8219,29 +7499,7 @@
       "registry_factor_id": "ai_gen_uncertainty_vola",
       "recheck_fails": 2
     },
-    "scored_at": 1786952925.2074997
-  },
-  "t326:ai_gen_volatility_squeeze@1d": {
-    "factor_id": "ai_gen_volatility_squeeze@1d",
-    "tenant_id": 326,
-    "name": "ai_gen_volatility_squeeze",
-    "category": "registry",
-    "formula": null,
-    "source": "cold_pool",
-    "discovery_ic": null,
-    "discovery_rank_ic": null,
-    "status": "candidate",
-    "grade": null,
-    "scores": {},
-    "created_at": 1786879027.6486516,
-    "updated_at": 1786953302.1970553,
-    "extra": {
-      "horizon": "midlong",
-      "timeframe": "1d",
-      "kind": "registry",
-      "registry_factor_id": "ai_gen_volatility_squeeze"
-    },
-    "scored_at": 1786952925.6769867
+    "scored_at": 1787037141.7217333
   },
   "t326:ai_gen_lrr@1d": {
     "factor_id": "ai_gen_lrr@1d",
@@ -8256,36 +7514,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786879027.6854022,
-    "updated_at": 1786953283.0446656,
+    "updated_at": 1787039530.2900457,
     "extra": {
       "horizon": "midlong",
       "timeframe": "1d",
       "kind": "registry",
       "registry_factor_id": "ai_gen_lrr"
     },
-    "scored_at": 1786952926.3367012
-  },
-  "t326:ai_gen_unknown_vol@1d": {
-    "factor_id": "ai_gen_unknown_vol@1d",
-    "tenant_id": 326,
-    "name": "ai_gen_unknown_vol",
-    "category": "registry",
-    "formula": null,
-    "source": "cold_pool",
-    "discovery_ic": null,
-    "discovery_rank_ic": null,
-    "status": "candidate",
-    "grade": null,
-    "scores": {},
-    "created_at": 1786879027.7221165,
-    "updated_at": 1786953300.9656134,
-    "extra": {
-      "horizon": "midlong",
-      "timeframe": "1d",
-      "kind": "registry",
-      "registry_factor_id": "ai_gen_unknown_vol"
-    },
-    "scored_at": 1786952926.722596
+    "scored_at": 1787037142.0412939
   },
   "t326:ai_gen_lrr@4h": {
     "factor_id": "ai_gen_lrr@4h",
@@ -8300,14 +7536,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786880014.6899269,
-    "updated_at": 1786953281.651284,
+    "updated_at": 1787039525.9565852,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_lrr"
     },
-    "scored_at": 1786952927.195027
+    "scored_at": 1787037142.5587766
   },
   "t326:ai_gen_uncertainty_vola@4h": {
     "factor_id": "ai_gen_uncertainty_vola@4h",
@@ -8322,58 +7558,14 @@
     "grade": null,
     "scores": {},
     "created_at": 1786880017.0282469,
-    "updated_at": 1786953299.7013626,
+    "updated_at": 1787039560.3150516,
     "extra": {
       "horizon": "midlong",
       "timeframe": "4h",
       "kind": "registry",
       "registry_factor_id": "ai_gen_uncertainty_vola"
     },
-    "scored_at": 1786952927.5674958
-  },
-  "t326:ai_gen_unknown_vol@4h": {
-    "factor_id": "ai_gen_unknown_vol@4h",
-    "tenant_id": 326,
-    "name": "ai_gen_unknown_vol",
-    "category": "registry",
-    "formula": null,
-    "source": "registry",
-    "discovery_ic": null,
-    "discovery_rank_ic": null,
-    "status": "candidate",
-    "grade": null,
-    "scores": {},
-    "created_at": 1786880017.7097633,
-    "updated_at": 1786953300.728478,
-    "extra": {
-      "horizon": "midlong",
-      "timeframe": "4h",
-      "kind": "registry",
-      "registry_factor_id": "ai_gen_unknown_vol"
-    },
-    "scored_at": 1786952928.1874168
-  },
-  "t326:ai_gen_volatility_squeeze@4h": {
-    "factor_id": "ai_gen_volatility_squeeze@4h",
-    "tenant_id": 326,
-    "name": "ai_gen_volatility_squeeze",
-    "category": "registry",
-    "formula": null,
-    "source": "registry",
-    "discovery_ic": null,
-    "discovery_rank_ic": null,
-    "status": "candidate",
-    "grade": null,
-    "scores": {},
-    "created_at": 1786880021.8179812,
-    "updated_at": 1786953301.906913,
-    "extra": {
-      "horizon": "midlong",
-      "timeframe": "4h",
-      "kind": "registry",
-      "registry_factor_id": "ai_gen_volatility_squeeze"
-    },
-    "scored_at": 1786952928.4917157
+    "scored_at": 1787037145.9814067
   },
   "t326:ai_a101s_mom_1h": {
     "factor_id": "ai_a101s_mom_1h",
