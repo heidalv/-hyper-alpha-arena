@@ -46,6 +46,9 @@ type Preflight = {
   symbols?: string[];
   rows?: Record<string, Record<string, number>>;
   need_bars?: number | Record<string, number>;
+  min_bars?: Record<string, number>;
+  effective?: Record<string, Record<string, number>>;
+  insufficient?: Record<string, string[]>;
   ok?: boolean;
   error?: string;
 };
@@ -134,6 +137,32 @@ export function OpsMidlongFactors() {
     return () => window.clearInterval(id);
   }, [job?.job_id, job?.status, load]);
 
+  const [labAst, setLabAst] = useState(
+    '{"op":"sub","args":[{"op":"div","args":[{"f":"close"},{"op":"mean","args":[{"f":"close"},{"c":20}]}]},{"c":1.0}]}',
+  );
+  const [labRes, setLabRes] = useState<any>(null);
+  const [labBusy, setLabBusy] = useState(false);
+
+  async function quickScore() {
+    setLabBusy(true);
+    setLabRes(null);
+    try {
+      let ast: any;
+      try {
+        ast = JSON.parse(labAst);
+      } catch {
+        setLabRes({ ok: false, error: "AST JSON 解析失败" });
+        return;
+      }
+      const r = await apiRequest("/ops/factors/quick-score", { method: "POST", body: JSON.stringify({ ast, tier: "midlong" }) });
+      setLabRes(r);
+    } catch (e: any) {
+      setLabRes({ ok: false, error: e?.message || String(e) });
+    } finally {
+      setLabBusy(false);
+    }
+  }
+
   async function mine() {
     if (!window.confirm("一键快速挖掘：灌库 Alpha101 候选（幂等）→ 后台样本外回测（约1-2分钟）。确认？")) return;
     setBusy("mine");
@@ -169,6 +198,12 @@ export function OpsMidlongFactors() {
   const pf = data?.preflight || {};
   const gc = data?.gate_config || {};
   const running = job?.status === "pending" || job?.status === "running";
+  const insuffText = pf.insufficient
+    ? Object.entries(pf.insufficient)
+        .filter(([, syms]) => syms.length > 0)
+        .map(([tf, syms]) => `${tf}:${syms.join(",")}`)
+        .join(" ")
+    : "";
 
   return (
     <section className="ops-panel ops-area-mining" id="ops-midlong-factors">
@@ -211,6 +246,44 @@ export function OpsMidlongFactors() {
           </div>
         ) : null}
 
+        {/* [R4 因子工厂] 公式实验室：写公式 → 秒级诊断 + 门禁预览 */}
+        <div style={{ marginTop: 12, border: "1px solid var(--border, #333)", borderRadius: 6, padding: 8 }}>
+          <div className="ops-muted" style={{ fontSize: 11, marginBottom: 6 }}>
+            🧪 公式实验室（对标 WorldQuant WebSim：写公式 → 秒级 IC/ICIR/换手 + 门禁预览；只读不晋升）
+          </div>
+          <textarea
+            value={labAst}
+            onChange={(e) => setLabAst(e.target.value)}
+            rows={3}
+            spellCheck={false}
+            style={{ width: "100%", fontFamily: "monospace", fontSize: 11, background: "var(--bg, #111)", color: "var(--fg, #eee)", border: "1px solid var(--border, #333)", borderRadius: 4, padding: 6 }}
+          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+            <button type="button" className="ops-link-btn" disabled={labBusy} onClick={() => void quickScore()}>
+              {labBusy ? "评估中…（首次约30s，后续秒级）" : "秒级评估"}
+            </button>
+          </div>
+          {labRes ? (
+            <div className="ops-mono" style={{ fontSize: 11, marginTop: 8 }}>
+              {labRes.ok === false ? (
+                <span className="ops-lag">✗ {labRes.error}</span>
+              ) : (
+                <>
+                  <div>
+                    IC <b>{labRes.ic_mean}</b> · ICIR <b>{labRes.icir}</b> · 衰减半衰 {labRes.ic_decay_halflife} 根 · 换手 {labRes.turnover}
+                    {" · "}与活跃集最大|corr| {labRes.max_corr_with_active}（{labRes.n_symbols} 币）
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    门禁预览：IC {labRes.preview?.ic_ok ? "✅" : "✗"} · ICIR {labRes.preview?.icir_ok ? "✅" : "✗"} · 冗余 {labRes.preview?.redundant ? "⚠" : "✅"}
+                    <span className="ops-muted"> · {labRes.preview?.note}</span>
+                  </div>
+                  <div className="ops-muted" style={{ marginTop: 2 }}>耗时 {labRes.elapsed_ms}ms</div>
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
+
         {/* K线预检 + 闸门参数 */}
         <div
           style={{
@@ -227,15 +300,19 @@ export function OpsMidlongFactors() {
               {pf.error
                 ? `异常 ${pf.error}`
                 : pf.ok
-                  ? "✅ 数据充足"
+                  ? "✅ 可挖（按每币可用根数自适应）"
                   : "⚠ 数据不足"}
-              {pf.symbols?.length ? ` · ${pf.symbols.join(",")}` : ""}
+              {insuffText ? ` · ${insuffText}` : ""}
             </div>
             {pf.rows &&
               Object.entries(pf.rows).map(([tf, rows]) => (
                 <div key={tf} className="ops-mono" style={{ fontSize: 10 }}>
-                  {tf}: {Object.entries(rows).map(([s, n]) => `${s}${n}`).join(" ")} /
-                  需{typeof pf.need_bars === "object" && pf.need_bars ? pf.need_bars[tf] ?? "—" : pf.need_bars}
+                  {tf}: {Object.entries(rows).map(([s, n]) => {
+                    const eff = pf.effective?.[tf]?.[s] ?? n;
+                    const low = (n ?? 0) < (pf.min_bars?.[tf] ?? 0);
+                    return `${s}${eff}${low ? "⚠" : ""}`;
+                  }).join(" ")}
+                  {" / 最低" + (pf.min_bars?.[tf] ?? "—") + "根"}
                 </div>
               ))}
           </div>
