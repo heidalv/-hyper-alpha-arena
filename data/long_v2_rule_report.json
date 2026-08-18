@@ -1,0 +1,142 @@
+{
+  "updated_at": 1787044946.182395,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "results": [
+    {
+      "l1_threshold": 2,
+      "fwd_bars": 1,
+      "ic_mean": 0.024,
+      "icir": 0.0,
+      "oos_sharpe": 0.3282,
+      "oos_trades": 5465,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 2,
+      "fwd_bars": 2,
+      "ic_mean": 0.0376,
+      "icir": 0.0,
+      "oos_sharpe": 0.5051,
+      "oos_trades": 2732,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 2,
+      "fwd_bars": 3,
+      "ic_mean": 0.0483,
+      "icir": 0.0,
+      "oos_sharpe": 0.485,
+      "oos_trades": 1821,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 3,
+      "fwd_bars": 1,
+      "ic_mean": 0.0255,
+      "icir": 0.0,
+      "oos_sharpe": -0.3483,
+      "oos_trades": 5465,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 3,
+      "fwd_bars": 2,
+      "ic_mean": 0.0381,
+      "icir": 0.0,
+      "oos_sharpe": -0.2824,
+      "oos_trades": 2732,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 3,
+      "fwd_bars": 3,
+      "ic_mean": 0.046,
+      "icir": 0.0,
+      "oos_sharpe": -0.4931,
+      "oos_trades": 1821,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 4,
+      "fwd_bars": 1,
+      "ic_mean": 0.0239,
+      "icir": 0.0,
+      "oos_sharpe": -0.3053,
+      "oos_trades": 5465,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 4,
+      "fwd_bars": 2,
+      "ic_mean": 0.042,
+      "icir": 0.0,
+      "oos_sharpe": 0.0334,
+      "oos_trades": 2732,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 4,
+      "fwd_bars": 3,
+      "ic_mean": 0.0545,
+      "icir": 0.0,
+      "oos_sharpe": -0.0235,
+      "oos_trades": 1821,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 5,
+      "fwd_bars": 1,
+      "ic_mean": 0.0177,
+      "icir": 0.0,
+      "oos_sharpe": -0.3603,
+      "oos_trades": 5465,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 5,
+      "fwd_bars": 2,
+      "ic_mean": 0.0261,
+      "icir": 0.0,
+      "oos_sharpe": 0.0174,
+      "oos_trades": 2732,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    },
+    {
+      "l1_threshold": 5,
+      "fwd_bars": 3,
+      "ic_mean": 0.0347,
+      "icir": 0.0,
+      "oos_sharpe": -0.3084,
+      "oos_trades": 1821,
+      "dsr_ok": false,
+      "pbo": 1.0,
+      "n_symbols": 3
+    }
+  ]
+}
