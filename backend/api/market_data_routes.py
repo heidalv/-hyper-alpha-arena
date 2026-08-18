@@ -151,11 +151,45 @@ def _fetch_exchange_rows(exchange: str) -> list:
     if cached and now - cached[0] < _EXCHANGE_TICKER_TTL:
         return cached[1]
 
+    # [2026-08-18 修复] 默认 asterdex 视图优先走数据中心 24h 统计通道（秒级刷新）。
+    # 此前统一从 crypto_klines 1d bar 聚合：forming 1d bar 只在开盘播种一次、
+    # 收盘前不再刷新，导致总览价格/涨跌幅冻结数小时（用户报「底部交易对价格不更新」）。
+    # 统计通道与顶部 TickerBar 同源（asterdex 官方 24hr ticker，543 币），字段齐全。
+    if exchange == "asterdex":
+        try:
+            stats = _dc_ticker_stats() or {}
+            if stats:
+                _rows: list = []
+                for sym, st in stats.items():
+                    try:
+                        price = float(st.get("price") or 0)
+                        if price <= 0:
+                            continue
+                        _rows.append({
+                            "symbol": str(sym).upper(),
+                            "price": round(price, 8),
+                            "change_pct": float(st.get("change_pct") or 0),
+                            "high_24h": float(st.get("high_24h") or 0),
+                            "low_24h": float(st.get("low_24h") or 0),
+                            "volume_24h": float(st.get("volume_24h") or 0),
+                            "quote_volume_24h": float(st.get("quote_volume_24h") or 0),
+                            "trades_24h": int(st.get("trades_24h") or 0),
+                        })
+                    except Exception:
+                        continue
+                if _rows:
+                    _exchange_ticker_cache[exchange] = (time.time(), _rows)
+                    return _rows
+        except Exception as exc:
+            logger.warning("[OverviewAll] asterdex 24h 统计通道失败，回退 DB: %s", str(exc)[:150])
+
     def _fetch_once() -> list:
         rows: list = []
         # [2026-08-06 修复] 统一数据源从数据中心 DB 聚合全市场 24h ticker。
         # 单条窗口函数 SQL 一次取全（每 symbol 最新 1d 行 + LAG 前收盘），
         # 消除原实现 N+1 次查询（1790 万行表上单次请求 38s 卡死 backend 线程池的根因）。
+        # [2026-08-18] 附加 1m 最新 close 叠加：1d forming bar 不刷新，价格用
+        # 1m 最新收盘修正，保证非 asterdex 交易所视图价格也是秒级鲜活。
         from sqlalchemy import text as sa_text
 
         from backend.database.connection import MarketSessionLocal
@@ -168,7 +202,9 @@ def _fetch_exchange_rows(exchange: str) -> list:
                                ROW_NUMBER() OVER (
                                    PARTITION BY symbol ORDER BY "timestamp" DESC
                                ) AS rn,
-                               LAG(close_price) OVER (
+                               -- [2026-08-18 修复] 原 LAG+DESC 对最新行取到的是「更新的行」
+                               -- （恒 NULL）→ 涨跌幅恒 0.0。改为 LEAD 取「更旧的前一日收盘」。
+                               LEAD(close_price) OVER (
                                    PARTITION BY symbol ORDER BY "timestamp" DESC
                                ) AS prev_close
                         FROM crypto_klines
@@ -182,6 +218,7 @@ def _fetch_exchange_rows(exchange: str) -> list:
             # 归一化去重：历史残留格式（BTC-PERP 等）与标准格式（BTC）映射到同一
             # base，保留时间戳最新的一行，杜绝「同一交易对多条目/多价格」展示。
             seen: set = set()
+            prev_map: dict = {}
             for sym, close, vol, high, low, qv, prev_c in qrows:
                 base = normalize_symbol(sym)
                 if not base or len(base) < 2 or close is None or float(close) <= 0:
@@ -191,9 +228,10 @@ def _fetch_exchange_rows(exchange: str) -> list:
                 seen.add(base)
                 price = float(close)
                 quote_vol = float(qv) if qv is not None else (float(vol or 0) * price)
+                prev_map[base] = float(prev_c) if prev_c and float(prev_c) > 0 else 0.0
                 change_pct = 0.0
-                if prev_c and float(prev_c) > 0:
-                    change_pct = round((price - float(prev_c)) / float(prev_c) * 100, 4)
+                if prev_map[base]:
+                    change_pct = round((price - prev_map[base]) / prev_map[base] * 100, 4)
                 rows.append({
                     "symbol": base,
                     "price": round(price, 8),
@@ -204,6 +242,30 @@ def _fetch_exchange_rows(exchange: str) -> list:
                     "quote_volume_24h": quote_vol,
                     "trades_24h": 0,
                 })
+            # [2026-08-18] 1m 最新收盘叠加：1d forming bar 只播种不刷新，
+            # 用最新 1m close 修正每个交易对价格，保证非 asterdex 视图同样秒级鲜活。
+            if rows:
+                try:
+                    live = db.execute(sa_text("""
+                        SELECT DISTINCT ON (symbol) symbol, close_price
+                        FROM crypto_klines
+                        WHERE exchange = :ex AND period = '1m' AND close_price > 0
+                        ORDER BY symbol, "timestamp" DESC
+                    """), {"ex": exchange}).fetchall()
+                    live_map = {
+                        normalize_symbol(s): float(c)
+                        for s, c in live if normalize_symbol(s) and c
+                    }
+                    for r in rows:
+                        lp = live_map.get(r["symbol"])
+                        if lp and lp > 0:
+                            r["price"] = round(lp, 8)
+                            # 涨跌幅改用鲜活价 vs 前一日收盘（1d forming bar 收盘不刷新）
+                            _pc = prev_map.get(r["symbol"], 0.0)
+                            if _pc > 0:
+                                r["change_pct"] = round((lp - _pc) / _pc * 100, 4)
+                except Exception as _live_exc:
+                    logger.warning("[OverviewAll] %s 1m 最新价叠加失败: %s", exchange, str(_live_exc)[:150])
         except Exception as exc:
             logger.warning("[OverviewAll] %s DB 聚合失败: %s", exchange, str(exc)[:200])
         return rows
