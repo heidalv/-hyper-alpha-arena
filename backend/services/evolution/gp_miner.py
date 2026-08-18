@@ -206,12 +206,14 @@ class GPMiner:
         self,
         pool_factor_matrix: Optional[np.ndarray] = None,
         max_workers: Optional[int] = None,
+        warm_start_seeds: Optional[List[dict]] = None,
     ) -> List[Tuple[FactorExpr, float]]:
         """
         多种子并行进化 → 合并 top 候选 → AlphaPool.try_admit 池感知准入。
 
         返回被接纳的 (expr, contribution) 列表（与 AlphaMiner.mine_random 同构，
         可无缝替换接入 _mine_candidates）。
+        [R3] warm_start_seeds：LLM 生成的种子注入每个种子的初始种群（探索+开采双引擎）。
         """
         seeds = self.config.seed_values or list(range(self.config.n_seeds))
         workers = max_workers or self.config.max_workers or min(32, os.cpu_count() or 32)
@@ -221,7 +223,7 @@ class GPMiner:
         best_by_seed: List[Tuple[dict, float]] = []
         for _s in seeds:
             try:
-                best_by_seed.extend(self._run_seed(_s))
+                best_by_seed.extend(self._run_seed(_s, warm_start_seeds=warm_start_seeds))
             except Exception as e:
                 logger.warning(f"[GPMiner] 种子挖掘异常: {e}")
 
@@ -260,12 +262,27 @@ class GPMiner:
 
     # ─────────────────────────── 单种子进化 ───────────────────────────
 
-    def _run_seed(self, seed: int) -> List[Tuple[dict, float]]:
+    def _run_seed(
+        self,
+        seed: int,
+        warm_start_seeds: Optional[List[dict]] = None,
+    ) -> List[Tuple[dict, float]]:
         """单种子完整进化过程，返回 (ast, fitness) 列表（全代精英合并）。"""
         rng = np.random.default_rng(seed)
-        # 初始种群（audit 过滤）；[R2 ALPS] 并行年龄
+        # 初始种群（audit 过滤）；[R2 ALPS] 并行年龄；[R3] LLM 热启动种子优先
         population: List[dict] = []
         ages: List[int] = []
+        for _w in (warm_start_seeds or []):
+            if len(population) >= self.config.population_size:
+                break
+            if _w is None:
+                continue
+            try:
+                if audit(_w).ok:
+                    population.append(copy.deepcopy(_w))
+                    ages.append(1)
+            except Exception:
+                continue
         while len(population) < self.config.population_size:
             ast = self._random_ast(rng, depth=0)
             if ast is None:

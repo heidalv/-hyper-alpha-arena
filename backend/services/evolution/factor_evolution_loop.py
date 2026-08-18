@@ -877,7 +877,34 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                 a for a in (miner._random_ast(np.random.default_rng(1000 + i), depth=0) for i in range(n))
                 if a is not None
             ]
-        admitted = miner.mine()
+        # [R3 LLM 热启动] 用 CodegenCritic 生成 K 个种子注入 GP 初始种群（探索+开采双引擎）
+        _warm_seeds: List[dict] = []
+        if _os_gp.getenv("FACTOR_GP_LLM_WARM_START", "0") == "1":
+            try:
+                from backend.services.evolution.alpha_miner import CodegenCritic
+                _warm_n = int(_os_gp.getenv("FACTOR_GP_LLM_WARM_N", "6") or 6)
+                _critic = CodegenCritic()
+                _warm_prompt = (
+                    f"Generate {_warm_n} diverse crypto alpha factor AST seeds for genetic-programming "
+                    f"warm start at period={period}. Cover distinct hypotheses "
+                    f"(momentum/reversal/vol/volume-price/microstructure). "
+                    f"Output each as a JSON AST with keys op/args/f/c ONLY; do NOT evaluate quality."
+                )
+                for _ in range(_warm_n):
+                    try:
+                        _res = _critic.generate_and_audit(_warm_prompt, existing_pool_exprs=[])
+                        if _res.audit_passed and _res.expr_ast:
+                            parse(_res.expr_ast)  # 解析即校验
+                            _warm_seeds.append(_res.expr_ast)
+                    except Exception:
+                        continue
+                if _warm_seeds:
+                    logger.info("[FactorEvo] LLM 热启动种子: %d 个", len(_warm_seeds))
+                else:
+                    logger.warning("[FactorEvo] LLM 热启动种子生成失败，GP 用纯随机初始种群")
+            except Exception as _ws_err:
+                logger.warning("[FactorEvo] LLM 热启动不可用: %s", _ws_err)
+        admitted = miner.mine(warm_start_seeds=_warm_seeds or None)
         logger.info(f"[FactorEvo] GP 挖掘: {len(admitted)} 命中入池")
         for expr, _contrib in admitted:
             candidates.append((expr, f"gp_{expr.expr_id[:8]}"))
