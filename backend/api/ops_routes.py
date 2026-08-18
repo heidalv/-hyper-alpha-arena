@@ -656,8 +656,9 @@ def _midlong_horizon(r: Dict[str, Any]) -> bool:
 
 # [2026-08-16] K 线预检缓存：GUI 高频轮询本端点，每次 18 次全量 K 线查询
 # （9 币 × 4h/1d × ~2400 根）对 DB 池压力大且结果分钟级不变。
+# [perf] TTL 60→300s + 批量 COUNT（一次 SQL），预检从 ~5s 降到毫秒级。
 _MIDLONG_PREFLIGHT_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
-_MIDLONG_PREFLIGHT_TTL_SEC = 60.0
+_MIDLONG_PREFLIGHT_TTL_SEC = 300.0
 
 
 @router.get("/midlong-factors")
@@ -734,6 +735,10 @@ def ops_midlong_factors() -> Dict[str, Any]:
             preflight["need_bars"] = {}
             preflight["min_bars"] = {}
             preflight["effective"] = {}
+            # [perf] 批量 COUNT 替代 18 次全量 K 线拉取（单次 SQL，索引直查）。
+            _counts = kline_service.count_klines_from_db(
+                [(s, tf) for tf in ("4h", "1d") for s in _syms]
+            )
             for tf in ("4h", "1d"):
                 lb = midlong_lookback_for(tf)
                 minb = midlong_min_bars_for(tf)
@@ -743,8 +748,7 @@ def ops_midlong_factors() -> Dict[str, Any]:
                 preflight["effective"][tf] = {}
                 for sym in _syms:
                     try:
-                        rows = kline_service.get_klines_from_db(sym, tf, lb) or []
-                        n = len(rows)
+                        n = _counts.get(f"{sym}:{tf}", 0)
                         preflight["rows"][tf][sym] = n
                         # 有效回看 = min(目标, 可用)；不足目标时按现有最大值打分
                         preflight["effective"][tf][sym] = min(lb, n) if n > 0 else 0
@@ -790,6 +794,17 @@ def ops_midlong_factors() -> Dict[str, Any]:
 @router.get("/long-trend-v2")
 def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]:
     """长线 V2 规则化状态：每个固定长线币的 L1 状态/score/strength（无 LLM）。只读。"""
+    # [perf 2026-08-18] 每币拉 1200 根 1d K 线 + pandas 分类，GIL 竞争下实测 4.5s。
+    # 长线状态分钟级稳定：15s TTL 缓存。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"ops_long_trend_v2:{session_id or ''}", 15.0,
+        lambda: _ops_long_trend_v2_impl(session_id),
+    )
+
+
+def _ops_long_trend_v2_impl(session_id: Optional[str]) -> Dict[str, Any]:
     from backend.services.long_trend_v2 import long_v2_enabled
     from backend.services.trend_layer import classify
     from backend.services.kline_data_service import kline_service
@@ -1195,6 +1210,13 @@ def ops_training() -> Dict[str, Any]:
 @router.get("/errors")
 def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
     """中文分级报错中心：系统日志 + 心跳中断 + 车道配置谎言。"""
+    # [perf 2026-08-18] GUI 高频轮询：5s TTL 缓存（GIL 竞争下命中≈0ms）。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(f"ops_errors:{limit}", 10.0, lambda: _ops_errors_impl(limit))
+
+
+def _ops_errors_impl(limit: int) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     try:
         from backend.services.system_logger import system_logger

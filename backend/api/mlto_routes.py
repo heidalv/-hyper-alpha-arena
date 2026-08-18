@@ -241,6 +241,18 @@ def thesis_summary(
     db: Session = Depends(_analytics_db),
 
 ):
+    # [perf 2026-08-18] 每行 thesis 丰富化 + learning metrics 多查询，GIL 竞争下
+    # 实测 4.7s。thesis 分钟级稳定：10s TTL 缓存。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"mlto_thesis_summary:{session_id}:{symbols}",
+        10.0,
+        lambda: _thesis_summary_impl(session_id, symbols, db),
+    )
+
+
+def _thesis_summary_impl(session_id: str, symbols: str, db: Session) -> dict:
 
     from backend.services.mlto import thesis_store
 

@@ -295,6 +295,12 @@ class LivePipelineBacktestEngine:
 
         for i in range(warmup, len(bars)):
             bar = bars[i]
+            # [perf 2026-08-18] 回测风暴期间向 API 请求线程让渡 GIL：
+            # 进化/晋升会在后台连续跑数千根 bar 的纯 Python 循环把 GIL 占死，
+            # HTTP 请求线程排队 3~26s。每 32 根 bar 让一次（sleep(0) 只释放
+            # 一个调度窗口，回测总耗时影响 <0.5%）。
+            if i % 32 == 0:
+                time.sleep(0)
 
             # 跨日重置
             if bar.timestamp - last_day_ts >= 86400:

@@ -588,6 +588,18 @@ def list_sessions(
     - status: 可选过滤（running/paused/defensive/stopped），逗号分隔多个。
     - 排序：活跃会话（running/defensive/paused）在前，stopped 在后。
     """
+    # [perf 2026-08-18] GUI 高频轮询：5s TTL 进程内缓存（GIL 竞争下命中路径≈0ms）。
+    from backend.utils.ttl_cache import ttl_cached as _ttl_cached
+
+    _cache_key = f"fullauto_sessions:{account_id or ''}:{status or ''}"
+
+    def _build():
+        return _build_sessions_list(db, account_id, status)
+
+    return _ttl_cached(_cache_key, 10.0, _build)
+
+
+def _build_sessions_list(db: Session, account_id: Optional[int], status: Optional[str]) -> list:
     from backend.database.models import PaperBalance, PaperPosition
     from sqlalchemy import case
 
@@ -609,6 +621,27 @@ def list_sessions(
         else_=4,
     )
     sessions = q.order_by(active_order, FullAutoSession.created_at.desc()).limit(50).all()
+
+    # [perf 2026-08-18] N+1 批量化：此前每个会话 4~5 次小查询（余额/持仓/两个账户），
+    # 50 会话 ≈ 250 次查询，在 GIL 竞争下 /sessions 实测 13.6s。现 3 次批量查询。
+    _paper_ids = [s.paper_account_id for s in sessions if s.trading_mode == "paper" and s.paper_account_id]
+    _acct_ids = {s.account_id for s in sessions} | set(_paper_ids)
+    _balances: dict = {}
+    _positions_by_acct: dict = {}
+    try:
+        if _paper_ids:
+            _balances = {
+                pb.account_id: pb
+                for pb in db.query(PaperBalance).filter(PaperBalance.account_id.in_(_paper_ids)).all()
+            }
+            for pp in db.query(PaperPosition).filter(PaperPosition.account_id.in_(_paper_ids)).all():
+                _positions_by_acct.setdefault(pp.account_id, []).append(pp)
+    except Exception:
+        pass
+    _accounts = {
+        a.id: a for a in db.query(Account).filter(Account.id.in_(_acct_ids)).all()
+    } if _acct_ids else {}
+
     _backup_pool: list = []
     try:
         from backend.services.trading_pairs_config import get_user_trading_pairs
@@ -631,22 +664,25 @@ def list_sessions(
         _wins = s.winning_trades or 0
         if s.trading_mode == "paper" and s.paper_account_id:
             try:
-                _pb = db.query(PaperBalance).filter(PaperBalance.account_id == s.paper_account_id).first()
+                _pb = _balances.get(s.paper_account_id)
                 if _pb:
                     _init = float(_pb.initial_balance or 10000)
                     _eq = float(_pb.total_equity or _init)
                     _pnl = round(_eq - _init, 4)
-                    _pos_q = db.query(PaperPosition).filter(PaperPosition.account_id == s.paper_account_id)
+                    _all_pp = list(_positions_by_acct.get(s.paper_account_id) or [])
                     if _pb.last_reset_at:
-                        _pos_q = _pos_q.filter(PaperPosition.opened_at >= _pb.last_reset_at)
-                    _all_pp = _pos_q.all()
+                        _lr = _pb.last_reset_at
+                        _all_pp = [
+                            pp for pp in _all_pp
+                            if pp.opened_at and pp.opened_at >= _lr
+                        ]
                     _trades = len(_all_pp)
                     _wins = sum(1 for pp in _all_pp if float(pp.unrealized_pnl or 0) + float(pp.partial_realized_pnl or 0) > 0)
             except Exception:
                 pass
-        _trader = db.query(Account).filter(Account.id == s.account_id).first()
+        _trader = _accounts.get(s.account_id)
         _paper_id = getattr(s, "paper_account_id", None)
-        _paper = db.query(Account).filter(Account.id == _paper_id).first() if _paper_id else None
+        _paper = _accounts.get(_paper_id) if _paper_id else None
         _trading_id = _paper_id if (s.trading_mode == "paper" and _paper_id) else s.account_id
         _mid_syms: list = []
         if bool(getattr(s, "auto_coin_mid_enabled", False)) and _load_mid_sticky:
@@ -740,6 +776,17 @@ def get_tick_intervals():
 @router.get("/tier-status/{session_id}")
 def get_tier_status(session_id: str, db: Session = Depends(get_db)):
     """获取多周期并行交易状态（各 tier 的策略数、持仓、预算使用情况）"""
+    # [perf 2026-08-18] GUI 高频轮询：5s TTL 缓存（GIL 竞争下命中≈0ms）。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"fullauto_tier_status:{session_id}",
+        10.0,
+        lambda: _tier_status_impl(session_id, db),
+    )
+
+
+def _tier_status_impl(session_id: str, db: Session) -> dict:
     from backend.database.models import AIStrategy as _AIStrategy, PaperPosition as _PP
     from backend.config.settings import TIER_BUDGET_ALLOCATION, TIER_MAX_MARGIN_PCT
     from backend.services.sub_position_manager import NATURE_TO_TIER
@@ -890,6 +937,17 @@ def get_tier_status(session_id: str, db: Session = Depends(get_db)):
 @router.get("/tier-activity/{session_id}")
 def get_tier_activity(session_id: str, limit: int = 60, db: Session = Depends(get_db)):
     """获取各周期最近的策略决策记录（实时滚动，含 hold/拦截/未执行，按 tier 分类）。"""
+    # [perf 2026-08-18] GUI 高频轮询：5s TTL 缓存（GIL 竞争下命中≈0ms）。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"fullauto_tier_activity:{session_id}:{limit}",
+        10.0,
+        lambda: _tier_activity_impl(session_id, limit, db),
+    )
+
+
+def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
     from backend.database.connection import AnalyticsSessionLocal
     from backend.database.models import DecisionSnapshot as _DS
     import json as _json

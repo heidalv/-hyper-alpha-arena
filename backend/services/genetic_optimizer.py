@@ -440,6 +440,8 @@ class NSGAIIOptimizer(GeneticOptimizer):
         fitness_fn: Callable,
     ) -> List[MultiObjectiveIndividual]:
         """评估多目标种群"""
+        import time as _time
+
         for ind in population:
             try:
                 result = fitness_fn(ind.genome)
@@ -461,6 +463,9 @@ class NSGAIIOptimizer(GeneticOptimizer):
                 logger.debug(f"[NSGA-II] fitness eval failed: {e}")
                 ind.fitness = -99.0
                 ind.objectives = {k: -99.0 for k in self.OBJECTIVE_NAMES}
+            # [perf 2026-08-18] 每个个体回测后让渡一次 GIL，避免进化风暴期间
+            # HTTP 请求线程被连续数十分钟饿死（sleep(0) 对进化总时长影响可忽略）。
+            _time.sleep(0)
         return population
 
     def _non_dominated_sort(self, population: List) -> List[List]:

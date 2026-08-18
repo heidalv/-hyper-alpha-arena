@@ -107,6 +107,38 @@ def _dc_all_prices() -> Dict[str, float]:
     return _DC_ALL_PRICES_CACHE["data"]
 
 
+# [perf 2026-08-18] ticker-bar 是前端 1s 轮询端点，此前每次 cache miss 都在
+# 请求线程里同步跨进程拉 :9100（GIL 竞争下实测 3~5s）。改为后台守护线程
+# 主动保温两个缓存，请求路径永远只读内存 dict（≈0ms，不抢 GIL、不碰网络）。
+_TICKER_REFRESH_STOP = threading.Event()
+_ticker_refresh_thread: Optional[threading.Thread] = None
+
+
+def _start_ticker_cache_refresher() -> None:
+    global _ticker_refresh_thread
+    if _ticker_refresh_thread and _ticker_refresh_thread.is_alive():
+        return
+    _TICKER_REFRESH_STOP.clear()
+
+    def _loop() -> None:
+        while not _TICKER_REFRESH_STOP.is_set():
+            try:
+                _dc_all_prices()
+            except Exception:
+                pass
+            try:
+                _dc_ticker_stats()
+            except Exception:
+                pass
+            _TICKER_REFRESH_STOP.wait(1.0)
+
+    _ticker_refresh_thread = threading.Thread(
+        target=_loop, name="ticker-bar-refresher", daemon=True
+    )
+    _ticker_refresh_thread.start()
+    logger.info("[perf] ticker-bar 缓存保温线程已启动")
+
+
 def _fetch_exchange_rows(exchange: str) -> list:
     """按交易所拉全市场 24h ticker（10s 缓存），返回统一行结构。"""
     now = time.time()
@@ -498,6 +530,7 @@ def get_ticker_bar(symbols: str = Query("BTC,ETH,SOL", description="逗号分隔
     if not symbol_list:
         raise HTTPException(status_code=400, detail="crypto symbol list cannot be empty")
 
+    _start_ticker_cache_refresher()
     all_prices = _dc_all_prices()
     all_stats = _dc_ticker_stats()
 

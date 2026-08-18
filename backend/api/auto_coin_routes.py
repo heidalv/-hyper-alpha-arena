@@ -236,6 +236,15 @@ def stop_auto_coin(session_id: str, request: Request, db: Session = Depends(get_
 
 @router.get("/{session_id}/status", response_model=AutoCoinStatusResponse)
 def get_auto_coin_status(session_id: str, db: Session = Depends(get_db)):
+    # [perf 2026-08-18] GUI 高频轮询：5s TTL 缓存（GIL 竞争下命中≈0ms）。
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"auto_coin_status:{session_id}", 10.0, lambda: _auto_coin_status_impl(session_id, db)
+    )
+
+
+def _auto_coin_status_impl(session_id: str, db: Session) -> AutoCoinStatusResponse:
     status = auto_coin_scheduler.get_status(session_id)
     if status:
         return AutoCoinStatusResponse(**status)

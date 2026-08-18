@@ -338,6 +338,59 @@ class KlineDataService:
         klines = self._query_klines_from_db(symbol, period, count, exchange)
         return klines[-count:] if klines and len(klines) > count else (klines or [])
 
+    def count_klines_from_db(
+        self,
+        symbol_periods: List[tuple],
+        exchange: str = None,
+    ) -> Dict[str, int]:
+        """批量统计 K 线行数（预检/健康检查等只看数量的场景）。
+
+        一次 SQL 完成多 (symbol, period) 的 COUNT，避免逐对全量拉取再 len()。
+        只统计 OHLCV 全非空的有效行，与 _query_klines_from_db 跳过空值行同口径。
+        返回 {f"{symbol}:{period}": count}，查询失败或缺行的键回退 0。
+        """
+        from sqlalchemy import and_, func, tuple_
+
+        from backend.database.models import CryptoKline
+
+        pairs = []
+        for sp in (symbol_periods or []):
+            sym = str(sp[0]).strip().upper().split("-")[0].split("/")[0]
+            tf = str(sp[1]).strip().lower()
+            if sym and tf and (sym, tf) not in pairs:
+                pairs.append((sym, tf))
+
+        result: Dict[str, int] = {f"{s}:{p}": 0 for s, p in pairs}
+        if not pairs:
+            return result
+
+        if exchange is None:
+            exchange = get_active_exchange()
+
+        try:
+            with MarketSessionLocal() as db:
+                rows = (
+                    db.query(CryptoKline.symbol, CryptoKline.period, func.count())
+                    .filter(
+                        CryptoKline.exchange == exchange,
+                        and_(
+                            CryptoKline.open_price.isnot(None),
+                            CryptoKline.high_price.isnot(None),
+                            CryptoKline.low_price.isnot(None),
+                            CryptoKline.close_price.isnot(None),
+                            CryptoKline.volume.isnot(None),
+                        ),
+                        tuple_(CryptoKline.symbol, CryptoKline.period).in_(pairs),
+                    )
+                    .group_by(CryptoKline.symbol, CryptoKline.period)
+                    .all()
+                )
+            for sym, tf, cnt in rows:
+                result[f"{sym}:{tf}"] = int(cnt or 0)
+        except Exception as e:
+            logger.error(f"count_klines_from_db failed: {e}")
+        return result
+
     def get_aggregated_klines(
         self,
         symbol: str,

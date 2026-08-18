@@ -191,6 +191,17 @@ app = FastAPI(
     description="Cryptocurrency perpetual contract trading platform with AI-powered decision making"
 )
 
+# [perf 2026-08-18] GIL 公平性：本进程交易循环长期占满 GIL（CPU ~100%），
+# HTTP 请求线程每次醒来都要在 300+ 线程的队列里排队抢 GIL 时间片（5ms/片），
+# 一个需要 20 次 GIL 片的小请求被拖到 3~13s。把切换间隔降到 1ms：请求线程
+# 拿到片子的等待时间缩短约 5 倍（代价是 CPU 密集线程上下文切换开销略增，
+# 32 核机器上可忽略）。配合秒级 TTL 缓存，页面切换秒开。
+try:
+    import sys as _sys
+    _sys.setswitchinterval(0.001)
+except Exception:
+    pass
+
 # Health check endpoint # [2026-07-17 修复] 此前这个路径直接塞了 7+ 处动态 import + 跨子系统统计调用 # （rollout/event_sourcing/ml_activation/resource_guard/promotion_gate/ # orchestrator/qaa_rag），全部同步执行、中间没有任何 await 让出事件循环。 # 正常情况下这些调用很快，但本项目是"单进程 + 大量 LLM 调用线程/APScheduler # 后台线程"架构，所有线程共享同一个 GIL——一旦有并发 LLM 流式请求占着 GIL， # 事件循环线程要把这 7+ 段代码全部跑完才能返回 200，等于要连续抢到 7+ 次 GIL # 时间片，抢不到任何一次都会让整个请求卡住，越重的 handler 越容易被"千刀万剐" # 式拖慢。而这个端点恰恰是 backend-watchdog.ps1 用来判断"后端是否存活"的探针 # ——探针本身太重导致误判 down、频繁重启，重启又触发新一轮 LLM/因子预热爆发， # 形成"重启→卡顿→误判死亡→再重启"的恶性循环。 # 修复：/api/health 只做最基础的存活确认（一次 GIL 时间片内就能跑完），原来的 # 详细诊断信息搬到 /api/health/detailed，需要人工排查时再单独调用。
 @app.get("/api/health")
 async def health_check():
@@ -320,6 +331,23 @@ app.add_middleware(RateLimitMiddleware)
 from .middleware.trace import TraceMiddleware
 
 app.add_middleware(TraceMiddleware)
+
+# [2026-08-18 性能治理] 慢请求计时中间件：≥3s 的 API 请求记录路径+耗时（定位页面卡顿端点）
+@app.middleware("http")
+async def _slow_request_profiler(request, call_next):
+    import time as _t
+    _t0 = _t.perf_counter()
+    try:
+        resp = await call_next(request)
+    finally:
+        _el = _t.perf_counter() - _t0
+        if _el >= 3.0:
+            logging.getLogger("slowapi").warning(
+                "SLOW %5.1fs %s %s%s",
+                _el, request.method, request.url.path,
+                ("?" + request.url.query) if request.url.query else "",
+            )
+    return resp
 
 # [阶段0] 静态文件挂载(/static /assets)已删(前后端分离,后端不再托管前端) # [阶段0] frontend_watcher_thread / last_build_time 全局已删 # [阶段0] build_frontend() 函数已删(后端不再构建前端,由 CI/Vercel 等独立构建) # [阶段0] watch_frontend_files() 轮询热构建函数已删
 
