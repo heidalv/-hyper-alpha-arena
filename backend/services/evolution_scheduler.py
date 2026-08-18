@@ -482,6 +482,15 @@ class EvolutionScheduler:
             except Exception as _seg_err:
                 logger.debug(f"[EvoScheduler] 因子IC分流评估跳过: {_seg_err}")
 
+            # [R7 升级] 衰减触发的持续挖掘：active 平均|icir| 跌破阈值 → 自动补挖
+            try:
+                from backend.services.factor_engine.decay_trigger import maybe_trigger_decay_evolution
+                _dres = maybe_trigger_decay_evolution()
+                if _dres.get("triggered"):
+                    logger.info("[EvoScheduler] 衰减触发补挖: %s", _dres["triggered"])
+            except Exception as _decay_err:
+                logger.debug(f"[EvoScheduler] 衰减触发检查跳过: {_decay_err}")
+
             # S4-C：中长线 AI 辅助因子挖掘（OpenCode 受控生成，4h），
             # 由 factor_backtest_scorer 在对应时间框架样本外打分晋升（内部 23h 节流）。
             try:
