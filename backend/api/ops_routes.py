@@ -724,25 +724,45 @@ def ops_midlong_factors() -> Dict[str, Any]:
                              else "BTC,ETH,SOL").split(",")
                 if s.strip()
             ]
-            from backend.services.factor_engine.factor_backtest_scorer import midlong_lookback_for
+            from backend.services.factor_engine.factor_backtest_scorer import (
+                midlong_lookback_for,
+                midlong_min_bars_for,
+            )
             from backend.services.kline_data_service import kline_service
 
             preflight["symbols"] = _syms
             preflight["need_bars"] = {}
+            preflight["min_bars"] = {}
+            preflight["effective"] = {}
             for tf in ("4h", "1d"):
                 lb = midlong_lookback_for(tf)
+                minb = midlong_min_bars_for(tf)
                 preflight["need_bars"][tf] = lb
+                preflight["min_bars"][tf] = minb
                 preflight["rows"][tf] = {}
+                preflight["effective"][tf] = {}
                 for sym in _syms:
                     try:
                         rows = kline_service.get_klines_from_db(sym, tf, lb) or []
-                        preflight["rows"][tf][sym] = len(rows)
+                        n = len(rows)
+                        preflight["rows"][tf][sym] = n
+                        # 有效回看 = min(目标, 可用)；不足目标时按现有最大值打分
+                        preflight["effective"][tf][sym] = min(lb, n) if n > 0 else 0
                     except Exception:
                         preflight["rows"][tf][sym] = -1
+                        preflight["effective"][tf][sym] = 0
+            # 「能否挖」只看最小可用根数（min_bars），不再被目标 lookback 卡死
             preflight["ok"] = all(
-                (n or 0) >= preflight["need_bars"][tf]
-                for tf in preflight["rows"] for n in preflight["rows"][tf].values()
+                (preflight["rows"][tf].get(s) or 0) >= preflight["min_bars"][tf]
+                for tf in ("4h", "1d") for s in _syms
             )
+            preflight["insufficient"] = {
+                tf: [
+                    s for s in _syms
+                    if (preflight["rows"][tf].get(s) or 0) < preflight["min_bars"][tf]
+                ]
+                for tf in ("4h", "1d")
+            }
         except Exception as e:
             preflight["error"] = str(e)[:150]
         _MIDLONG_PREFLIGHT_CACHE["ts"] = time.time()
@@ -826,6 +846,25 @@ def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]
         out.append(row)
 
     return {"enabled": enabled, "symbols": out}
+
+@router.post("/factors/quick-score")
+def ops_factor_quick_score(payload: Dict[str, Any]):
+    """[R4 因子工厂] 公式 AST → 秒级诊断 + 门禁预览（只读，不注册不晋升）。
+
+    body = {"ast": {...}, "tier": "midlong"|"scalp"}；响应含 IC/ICIR/衰减/换手/
+    与 active 集最大相关 + 门禁阈值预览。口径与正式 score_formula 同一评分函数。
+    """
+    from backend.services.factor_engine.quick_score import quick_score
+
+    ast = payload.get("ast") if isinstance(payload, dict) else None
+    if not isinstance(ast, dict):
+        return {"ok": False, "error": "ast 必须为表达式 dict"}
+    tier = str(payload.get("tier") or "midlong")
+    try:
+        return quick_score(ast, tier=tier)
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"[:200]}
+
 
 @router.post("/midlong-factors/mine")
 def ops_midlong_mine(validate: bool = Query(True, description="灌库后立即排队样本外回测")):
