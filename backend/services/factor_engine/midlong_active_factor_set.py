@@ -57,15 +57,20 @@ class MidLongActiveFactorSet:
 
     # ── 查询 ──
     def get_active_factors(self) -> List[Dict[str, Any]]:
-        """返回中长线活跃因子 + 运行时 IC 动态权重。"""
+        """返回中长线活跃因子 + 运行时权重（[M4] FACTOR_COMBO_MODE=icir → ICIR 加权）。"""
         try:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return []
         active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
         weights = self._runtime_weights()
+        try:
+            from backend.services.factor_engine.combo_weights import resolve_combo_weights
+            wmap = resolve_combo_weights(active, weights)
+        except Exception:
+            wmap = {str(r.get("factor_id") or ""): weights.get(r.get("factor_id"), 1.0) for r in active}
         for rec in active:
-            rec["runtime_weight"] = weights.get(rec["factor_id"], 1.0)
+            rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 1.0)
         return active
 
     @staticmethod
