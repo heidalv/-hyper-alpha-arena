@@ -274,13 +274,20 @@
 **现状**: 栈式求值器 21/28 算子覆盖、55× 单树加速，但种群 300 时 GPU 利用率低；子表达式重复计算无消除；算子仍是 torch 高层 API。
 
 **设计（三步，按序）**:
-1. **R6-a 公共子表达式消除（SSE）**: compile_ast_batch 编译期对同程序内重复子树做 memo 化（后序序列中重复子序列 → 单次计算 + 结果复用），实现"树→CGP 式 DAG"的轻量版，不改挖掘器结构。预期深度 5 树有 10~30% 算子减少。
-2. **R6-b 种群扩容**: R0/R1/R2 上线后，GPU 启用时默认种群 300 → 1200（env FACTOR_GP_POPULATION 已支持；新增 FACTOR_EVO_GPU_POP_BOOST=1 自动档），代际预算由 1800s 硬预算兜底——"扩大种群"与"硬预算"不冲突（预算截断保门禁质量）。
-3. **R6-c 算子级 CUDA kernel（可选，量力）**: 对滚动 cumsum 族（mean/sum/std/var）与 unfold 族写融合 kernel（当前逐算子 kernel 启动数 ×18），目标把单步 12~18 次小 kernel 融合为 3~4 次；参照 EvoGP。
+1. **R6-a 公共子表达式消除（SSE）**：✅ **已实现并上线**——编译期对同程序内重复子树
+   （canonical JSON 键）做 memo 化：首次求值后 `st` 存入槽位、复用点 `ld` 取出
+   （树→DAG 轻量版，槽位上限 24/程序，显存 O(P×24×S×B)）；等价性验收通过
+   （重复子树用例 maxdiff 1.7e-12；生产验收 Gate + 挖掘器单测全过）。
+2. **R6-b 种群扩容**：✅ **已实现并上线**——GPU 启用时默认种群 300→1200
+   （`FACTOR_EVO_GPU_POP_BOOST=1`，未显式设 FACTOR_GP_POPULATION 时生效），
+   1800s 硬预算兜底。
+3. **R6-c 算子级 CUDA kernel**：⏸ **暂缓（设计标注"可选·量力"）**——当前每步
+   12~18 次小 kernel 的启动开销在 53× 总加速下已非瓶颈；2080Ti 到位或 2000+ 种群
+   成为常态时再融合 cumsum/unfold 族 kernel。重启条件写入本条款。
 4. 验收口径: 每代求值耗时（1200 种群）< 10s；SSE 后同树求值与逐树 numpy 等价（复用等价性 Gate）。
 5. **→R0 依赖**: 先有 lexicase 的案例矩阵（GPU 路径已算），扩容才有的放矢；**→R7**: 持续循环的吞吐基础。
-6. 影响文件: gpu_batch_eval.py（compile + 可选 kernel）、.env（POP_BOOST）。
-7. **回滚**: POP_BOOST=0 回 300；SSE 与 kernel 均为编译期变换，等价性 Gate 兜底。
+6. 影响文件: gpu_batch_eval.py（compile + 执行器 st/ld + gpu_mem_ok）、.env（POP_BOOST）。
+7. **回滚**: POP_BOOST=0 回 300；SSE 为编译期变换，等价性 Gate 兜底。
 
 ### R7 衰减触发的持续挖掘循环（G15，调研路线图 P2-9）
 

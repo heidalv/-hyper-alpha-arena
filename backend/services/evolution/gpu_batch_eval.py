@@ -58,6 +58,13 @@ for _i, _n in enumerate(
     _OP_CODES[_n] = _i
 _OP_CODE_NAMES = {v: k for k, v in _OP_CODES.items()}
 _CODE_NOP = 0
+# [R6-a SSE] 槽位存/取（param = 槽位号；st 复制栈顶入槽，ld 压槽入栈）
+_CODE_ST = 97
+_CODE_LD = 98
+_OP_CODES["st"] = _CODE_ST
+_OP_CODES["ld"] = _CODE_LD
+_OP_CODE_NAMES[_CODE_ST] = "st"
+_OP_CODE_NAMES[_CODE_LD] = "ld"
 
 _FINITE_MIN_COUNT = lambda w: max(2, int(w) // 2)  # noqa: E731
 
@@ -75,8 +82,12 @@ def _is_pure_const(node: Any) -> bool:
     return all(_is_pure_const(a) for a in node.get("args", []))
 
 
-def _ast_to_postfix(node: Any, tokens: List[Tuple[Any, ...]]) -> bool:
-    """DFS 后序展开；返回 False 表示含 GPU 不支持算子（整体走 CPU）。"""
+def _ast_to_postfix(node: Any, tokens: List[Tuple[Any, ...]], memo: Optional[dict] = None, _max_slots: int = 24) -> bool:
+    """DFS 后序展开；返回 False 表示含 GPU 不支持算子（整体走 CPU）。
+
+    [R6-a SSE] 同程序内重复子树（canonical JSON 键）→ 首次求值后 ("st", slot)，
+    复用点 ("ld", slot)——树变 DAG，消除公共子表达式重复计算。槽位上限 _max_slots。
+    """
     if not isinstance(node, dict):
         return False
     if "f" in node:
@@ -90,6 +101,16 @@ def _ast_to_postfix(node: Any, tokens: List[Tuple[Any, ...]]) -> bool:
     op = str(node["op"])
     if op in _CPU_ONLY_OPS:
         return False
+    # [SSE] 可共享子树（≥2 节点）查重
+    if memo is not None:
+        import json as _json
+        try:
+            _key = _json.dumps(node, sort_keys=True, ensure_ascii=True)
+        except Exception:
+            _key = None
+        if _key and _key in memo:
+            tokens.append(("ld", int(memo[_key])))
+            return True
     args = list(node.get("args") or [])
     if op in _PARAM_OPS:
         n_data = 3 if op in _PAIR_OPS else 2
@@ -104,15 +125,30 @@ def _ast_to_postfix(node: Any, tokens: List[Tuple[Any, ...]]) -> bool:
             return False
         ok = True
         for a in data_args:
-            ok = _ast_to_postfix(a, tokens) and ok
+            ok = _ast_to_postfix(a, tokens, memo, _max_slots) and ok
         tokens.append(("op", op, param))
-        return ok
-    # 普通算子（一元/二元），所有参数都是数据操作数
-    ok = True
-    for a in args:
-        ok = _ast_to_postfix(a, tokens) and ok
-    tokens.append(("op", op, None))
-    return ok
+        if not ok:
+            return False
+    else:
+        # 普通算子（一元/二元），所有参数都是数据操作数
+        ok = True
+        for a in args:
+            ok = _ast_to_postfix(a, tokens, memo, _max_slots) and ok
+        tokens.append(("op", op, None))
+        if not ok:
+            return False
+    # [SSE] 记录本子树槽位（后续重复走 ld）
+    if memo is not None:
+        try:
+            import json as _json
+            _key = _json.dumps(node, sort_keys=True, ensure_ascii=True)
+        except Exception:
+            _key = None
+        if _key and len(memo) < int(_max_slots):
+            _slot = len(memo)
+            memo[_key] = _slot
+            tokens.append(("st", _slot))
+    return True
 
 
 def compile_ast_batch(
@@ -130,12 +166,14 @@ def compile_ast_batch(
       gpu_ok  (P,) bool     False=需 CPU 兜底
     """
     field_map = {f: i for i, f in enumerate(field_order)}
-    programs: List[Optional[Tuple[List[Tuple[Any, ...]], int]]] = []
+    programs: List[Optional[Tuple[List[Tuple[Any, ...]], int, int]]] = []
     max_len = 0
     max_stack = 0
+    max_slots = 0
     for ast in asts:
         tokens: List[Tuple[Any, ...]] = []
-        ok = _ast_to_postfix(ast, tokens)
+        memo: dict = {}
+        ok = _ast_to_postfix(ast, tokens, memo=memo)
         if not ok:
             programs.append(None)
             continue
@@ -143,21 +181,27 @@ def compile_ast_batch(
         if any(t[0] == "field" and t[1] not in field_map for t in tokens):
             programs.append(None)
             continue
-        # 计算栈深需求（模拟后序执行）
+        # 计算栈深需求（模拟后序执行；st 不改变深度，ld 压栈）
         depth = 0
         need = 0
         for t in tokens:
             if t[0] in ("const", "field"):
                 depth += 1
                 need = max(need, depth)
+            elif t[0] == "ld":
+                depth += 1
+                need = max(need, depth)
+            elif t[0] == "st":
+                continue
             else:
                 _, op, _p = t
                 arity = 2 if op in (_BINARY_OPS | _PAIR_OPS) else 1
                 depth = depth - arity + 1
                 need = max(need, depth)
-        programs.append((tokens, need))
+        programs.append((tokens, need, len(memo)))
         max_len = max(max_len, len(tokens))
         max_stack = max(max_stack, need)
+        max_slots = max(max_slots, len(memo))
     if not any(p for p in programs):
         return None
     if max_len == 0 or max_stack == 0:
@@ -180,7 +224,7 @@ def compile_ast_batch(
         if prog is None:
             gpu_ok[p] = False
             continue
-        tokens, need = prog
+        tokens, need, _nslots = prog
         stack_need[p] = need
         gpu_ok[p] = True
         for s, t in enumerate(tokens):
@@ -190,6 +234,9 @@ def compile_ast_batch(
             elif t[0] == "const":
                 op_code[p, s] = 1
                 const[p, s] = t[1]
+            elif t[0] in ("st", "ld"):
+                op_code[p, s] = _OP_CODES[t[0]]
+                param[p, s] = max(0, int(t[1]))
             else:
                 _, op, prm = t
                 op_code[p, s] = _OP_CODES[op]
@@ -208,6 +255,7 @@ def compile_ast_batch(
         "unfold_params": unfold_params,
         "max_stack": int(max_stack),
         "max_len": L,
+        "max_slots": int(max_slots),
     }
 
 
@@ -598,12 +646,17 @@ def stack_eval_batch(
         idxs = idx_all[c0: c0 + int(chunk)]
         Pc = len(idxs)
         ok = torch.as_tensor(op_code[idxs], device=device)
-        prm = torch.as_tensor(param[idxs], device=device)
+        prm = torch.as_tensor(param[idxs], device=device).long()
         ct = torch.as_tensor(const[idxs], device=device).double()
         fd = torch.as_tensor(field[idxs], device=device).long()
         stack = torch.full(
             (Pc, max_stack + 1, S, B), float("nan"),
             dtype=torch.float64, device=device,
+        )
+        # [R6-a SSE] 槽位表（st 存 / ld 取；max_slots 由编译期 memo 决定）
+        n_slots = max(1, int(compiled.get("max_slots") or 0))
+        slots = torch.full(
+            (Pc, n_slots, S, B), float("nan"), dtype=torch.float64, device=device,
         )
         ptr = torch.zeros(Pc, dtype=torch.long, device=device)
         rows_all = torch.arange(Pc, device=device)
@@ -614,6 +667,17 @@ def stack_eval_batch(
             if not active.any():
                 continue
             rows = rows_all[active]
+
+            # [SSE] ld：压槽入栈 / st：栈顶存入槽
+            m = oc == _CODE_LD
+            if m.any():
+                r = rows_all[m]
+                stack[r, ptr[r]] = slots[r, prm[r, s]]
+                ptr[r] += 1
+            m = oc == _CODE_ST
+            if m.any():
+                r = rows_all[m]
+                slots[r, prm[r, s]] = stack[r, ptr[r] - 1]
 
             # const
             m = oc == 1
