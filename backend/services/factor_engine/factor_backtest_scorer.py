@@ -487,12 +487,21 @@ class FactorBacktestScorer:
                 continue
             klines = self._load_klines(sym, interval, _lb)
             if not klines or len(klines) < 120:
+                logger.warning(
+                    "[FactorScorer] %s@%s K线加载不足: rows=%d",
+                    sym, interval, len(klines) if klines else 0,
+                )
                 continue
             arrays, ts_arr = self._to_arrays(klines)
             if arrays is None:
+                logger.warning("[FactorScorer] %s@%s _to_arrays 失败", sym, interval)
                 continue
             factor_vals = self._eval_formula(formula, arrays)
             if factor_vals is None or np.isfinite(factor_vals).sum() < 60:
+                logger.warning(
+                    "[FactorScorer] %s@%s 公式求值失败/样本不足: %r",
+                    sym, interval, formula[:80],
+                )
                 continue
             arrays_by_symbol[sym] = arrays
             factor_vals_by_symbol[sym] = factor_vals
@@ -744,6 +753,14 @@ class FactorBacktestScorer:
             r.reason = "因子不存在于目录"
             return r
         formula = rec.get("formula") or ""
+        # [2026-08-18 修复] registry 因子（formula=None，Python 类计算）不走公式闸门：
+        # 其评分由 midlong_registry_factors 的 registry 路径负责；此前被空公式
+        # 送进 score_formula → 全部「有效样本不足」，掩盖真实公式候选的打分日志。
+        if not formula:
+            r = FactorScoreResult(factor_id=factor_id)
+            r.grade = "F"
+            r.reason = "registry 因子无公式，跳过公式闸门（走 registry 评分路径）"
+            return r
 
         # 中长线因子（extra.horizon=="midlong"）按其时间框架(4h/1d)样本外打分
         _extra = rec.get("extra") or {}
