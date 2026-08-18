@@ -66,6 +66,7 @@ _STATE: Dict[str, Any] = {
 _COMP_STALE_SEC = {
     "kline_realtime_collector": 300,   # P0 每分钟一轮，>5min 视为停摆
     "asterdex_ticker_poller": 30,      # 2s 通道，>30s 视为停摆
+    "binance_ticker_poller": 30,       # 1s 通道，>30s 视为停摆
     "market_flow": 300,                # trades/orderbook 30s 轮询
     "multi_venue_funding": 900,        # 300s 轮询
     "depth_backfill": 6 * 3600,        # 每 6h 调度
@@ -131,23 +132,39 @@ def _compute_component_health() -> Dict[str, Any]:
     except Exception:
         add("asterdex_ticker_poller", None, "poller_error")
 
-    # K 线（DB 最新 1m bar，秒）
+    # Binance 实时参考价（内存价，含时间戳）
+    try:
+        from backend.services.binance_ticker_poller import binance_ticker_poller
+        entry = binance_ticker_poller.get_price_with_ts("BTC")
+        add("binance_ticker_poller", float(entry[1]) if entry and entry[1] else None, "poller_memory")
+    except Exception:
+        add("binance_ticker_poller", None, "poller_error")
+
+    # K 线（DB 最新 1m bar，秒）— 跟随 active_exchange（binance/asterdex）
+    _active_ex = "asterdex"
+    try:
+        from backend.services.exchange_config import get_active_exchange
+        _active_ex = (get_active_exchange() or "asterdex").strip().lower()
+        if _active_ex == "aster":
+            _active_ex = "asterdex"
+    except Exception:
+        pass
     add(
         "kline_realtime_collector",
         _db_max_ts(
             "crypto_klines", "timestamp",
-            "WHERE exchange='asterdex' AND symbol='BTC' AND period='1m'",
+            f"WHERE exchange='{_active_ex}' AND symbol='BTC' AND period='1m'",
             is_ms=False,
         ),
         "crypto_klines",
     )
 
-    # 市场流（trades 聚合，毫秒）
+    # 市场流（trades 聚合，毫秒）— 跟随 active_exchange
     add(
         "market_flow",
         _db_max_ts(
             "market_trades_aggregated", "timestamp",
-            "WHERE exchange='asterdex'", is_ms=True,
+            f"WHERE exchange='{_active_ex}'", is_ms=True,
         ),
         "market_trades_aggregated",
     )
@@ -199,6 +216,13 @@ class _HealthHandler(BaseHTTPRequestHandler):
         if path == "/ticker/stats":
             self._handle_ticker_stats()
             return
+        # [2026-08-18] Binance 全市场参考价批量出口（1s 通道，主 API 总览秒级叠加用）
+        if path == "/ticker/binance/all":
+            self._handle_ticker_binance_all()
+            return
+        if path.startswith("/ticker/binance/"):
+            self._handle_ticker_binance(path[len("/ticker/binance/"):])
+            return
         if path.startswith("/ticker/"):
             self._handle_ticker(path[len("/ticker/"):])
             return
@@ -241,6 +265,31 @@ class _HealthHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _handle_ticker_binance(self, raw_symbol: str) -> None:
+        """GET /ticker/binance/{symbol} → Binance 永续实时参考价（1s 通道）。"""
+        import json
+        from urllib.parse import unquote
+
+        try:
+            from backend.services.binance_ticker_poller import binance_ticker_poller
+            entry = binance_ticker_poller.get_price_with_ts(unquote(raw_symbol))
+            if entry:
+                payload = {
+                    "symbol": unquote(raw_symbol).upper(),
+                    "price": float(entry[0]),
+                    "ts": float(entry[1]),
+                }
+            else:
+                payload = {"symbol": unquote(raw_symbol).upper(), "price": None, "ts": None}
+        except Exception as exc:
+            payload = {"symbol": unquote(raw_symbol).upper(), "price": None, "ts": None, "error": str(exc)}
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _handle_ticker_all(self) -> None:
         """GET /ticker/all → 全市场价格快照 {symbol: price}。"""
         import json
@@ -251,6 +300,26 @@ class _HealthHandler(BaseHTTPRequestHandler):
         except Exception as exc:
             prices = {}
             logger.debug("[DataCenter] /ticker/all error: %s", exc)
+        body = json.dumps(
+            {"count": len(prices), "ts": time.time(), "prices": prices},
+            ensure_ascii=False,
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_ticker_binance_all(self) -> None:
+        """GET /ticker/binance/all → 全市场 Binance 实时参考价快照 {symbol: price}。"""
+        import json
+
+        try:
+            from backend.services.binance_ticker_poller import binance_ticker_poller
+            prices = binance_ticker_poller.get_all_prices()
+        except Exception as exc:
+            prices = {}
+            logger.debug("[DataCenter] /ticker/binance/all error: %s", exc)
         body = json.dumps(
             {"count": len(prices), "ts": time.time(), "prices": prices},
             ensure_ascii=False,
@@ -335,6 +404,17 @@ async def _run_collectors(stop: asyncio.Event) -> None:
         comps["asterdex_ticker_poller"] = f"fail:{e}"
         logger.warning("[DataCenter] ticker poller: %s", e)
 
+    # 2b) Binance 实时参考价（1s 通道，仅供盯市/展示，不参与成交）
+    try:
+        from backend.services.binance_ticker_poller import binance_ticker_poller
+
+        binance_ticker_poller.start()
+        comps["binance_ticker_poller"] = "up"
+        logger.info("[DataCenter] binance_ticker_poller started")
+    except Exception as e:
+        comps["binance_ticker_poller"] = f"fail:{e}"
+        logger.warning("[DataCenter] binance ticker poller: %s", e)
+
     # 3) 当前 forming K 线
     try:
         from backend.services.live_kline_engine import live_kline_engine
@@ -384,7 +464,7 @@ async def _run_collectors(stop: asyncio.Event) -> None:
         cvd_window = getattr(_settings, "CVD_AGGREGATION_WINDOW_SECONDS", 15)
         symbols_map = {}
         for ex in active_exchanges:
-            if ex == "asterdex":
+            if ex in ("asterdex", "binance"):
                 symbols_map[ex] = ["BTC", "ETH", "SOL", "ADA", "BNB", "XRP", "DOGE", "AVAX", "LINK", "UNI"]
             else:
                 symbols_map[ex] = None

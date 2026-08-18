@@ -52,6 +52,34 @@ import urllib.request as _urllib
 
 _DC_NO_PROXY_OPENER = _urllib.build_opener(_urllib.ProxyHandler({}))
 
+# [2026-08-18] Binance 全市场参考价跨进程缓存：DC 1s 通道，总览价格列秒级叠加。
+_DC_BINANCE_ALL_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_DC_BINANCE_ALL_TTL_SEC = 1.0
+
+
+def _dc_binance_all_prices() -> Dict[str, float]:
+    """从数据中心 /ticker/binance/all 拉全市场 Binance 参考价（1s 缓存 + 1.5s 超时）。"""
+    import json
+
+    now = time.time()
+    if _DC_BINANCE_ALL_CACHE["ts"] and now - _DC_BINANCE_ALL_CACHE["ts"] <= _DC_BINANCE_ALL_TTL_SEC:
+        return _DC_BINANCE_ALL_CACHE["data"]
+    try:
+        base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
+        req = _urllib.Request(
+            f"{base}/ticker/binance/all", headers={"Accept": "application/json"}
+        )
+        with _DC_NO_PROXY_OPENER.open(req, timeout=1.5) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        data = payload.get("prices") or {}
+        if isinstance(data, dict):
+            _DC_BINANCE_ALL_CACHE["data"] = data
+            _DC_BINANCE_ALL_CACHE["ts"] = now
+            return data
+    except Exception:
+        pass
+    return _DC_BINANCE_ALL_CACHE["data"]
+
 
 def _dc_ticker_stats() -> Dict[str, Dict[str, Any]]:
     """从数据中心进程拉全市场 24h 统计（3s 缓存 + 2s 硬超时，失败降级旧值）。
@@ -133,6 +161,10 @@ def _start_ticker_cache_refresher() -> None:
                 pass
             try:
                 _dc_ticker_stats()
+            except Exception:
+                pass
+            try:
+                _dc_binance_all_prices()
             except Exception:
                 pass
             _TICKER_REFRESH_STOP.wait(1.0)
@@ -491,6 +523,22 @@ def get_market_overview_all(exchange: Optional[str] = Query(None)):
                 "active": r["symbol"] in active,
             })
     rows.sort(key=lambda r: (not r["active"], -float(r["quote_volume_24h"] or 0)))
+    # [2026-08-18] 秒级价格叠加：行缓存 10s，直接返回会让价格列每 10s 才动一下。
+    # 用 1s 保温的跨进程价格快照覆盖 price 字段 → 价格列与顶部 TickerBar 一样
+    # 秒级跳动（binance=1s 通道 / asterdex=2s 通道）。
+    try:
+        _live: Dict[str, float] = {}
+        if ex == "binance":
+            _live = {str(k).upper(): float(v) for k, v in _dc_binance_all_prices().items() if v}
+        elif ex == "asterdex":
+            _live = {str(k).upper(): float(v) for k, v in _dc_all_prices().items() if v}
+        if _live:
+            for r in rows:
+                _p = _live.get(r["symbol"])
+                if _p and _p > 0:
+                    r["price"] = round(_p, 8)
+    except Exception:
+        pass
     return {
         "total": len(rows),
         "active_count": len(active),
