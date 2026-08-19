@@ -213,6 +213,14 @@ def register_defaults() -> None:
     except Exception as e:
         logger.warning("[MarketFlowRegistry] 注册 asterdex collector 失败: %s", e)
 
+    try:
+        from services.market_flow.binance_collector import (
+            BinanceMarketFlowCollector,
+        )
+        market_flow_registry.register("binance", BinanceMarketFlowCollector)
+    except Exception as e:
+        logger.warning("[MarketFlowRegistry] 注册 binance collector 失败: %s", e)
+
     market_flow_registry._defaults_registered = True
     logger.info(
         "[MarketFlowRegistry] 默认采集器已注册: %s",

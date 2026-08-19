@@ -560,6 +560,17 @@ class PaperTradingEngine:
             except Exception:
                 exchange = "asterdex"
         exchange = exchange.strip().lower() or "asterdex"
+        # 0) 数据中心唯一数据源（DC_ONLY）：秒级 ticker，1.5s TTL，最新鲜。
+        #    必须优先于下方的 60s price_cache 兜底，否则持仓盯市价会滞后数十秒。
+        try:
+            from backend.services.market_data import _dc_only_enabled
+            if _dc_only_enabled():
+                from backend.services.data_center import data_center
+                price = data_center.get_price(symbol, exchange)
+                if price and price > 0:
+                    return float(price)
+        except Exception:
+            pass
         # 1) 统一行情服务：Hub → price_cache → 交易所 REST 单次
         try:
             from backend.services.market_price_service import get_price
@@ -617,6 +628,32 @@ class PaperTradingEngine:
             pass
 
         raise RuntimeError(f"无法获取 {symbol} 的实时价格")
+
+    @staticmethod
+    def _mark_binance_enabled() -> bool:
+        """盯市参考价开关：true 时 mark_price/unrealized 用 Binance 实时价（成交仍 Asterdex）。"""
+        import os
+        return os.getenv("MARK_PRICE_BINANCE_REFERENCE", "true").strip().lower() not in (
+            "0", "false", "no", "off",
+        )
+
+    @staticmethod
+    def _get_mark_price(symbol: str, exchange: Optional[str] = None) -> float:
+        """盯市参考价（实时跳动）：Binance 实时价优先，缺失回退 Asterdex。
+
+        与 _get_current_price 分离：后者是「成交价」（Asterdex），本方法是「盯市价」
+        （Binance，用于 mark_price/unrealized/TP-SL 触发）。Binance 无该交易对时自动
+        回退 Asterdex，不改变成交口径。
+        """
+        if PaperTradingEngine._mark_binance_enabled():
+            try:
+                from backend.services.data_center import data_center
+                price = data_center.get_reference_price(symbol, exchange, "trade")
+                if price and price > 0:
+                    return float(price)
+            except Exception:
+                pass
+        return PaperTradingEngine._get_current_price(symbol, exchange)
 
     # ── 初始化 / 重置 ────────────────────────────
 
@@ -3598,7 +3635,7 @@ class PaperTradingEngine:
                 total_unrealized = 0.0
                 for pos in open_positions:
                     try:
-                        live = self._get_current_price(pos.symbol, exchange)
+                        live = self._get_mark_price(pos.symbol, exchange)
                         if live and live > 0:
                             pos.mark_price = live
                             pos.unrealized_pnl = self._calc_unrealized_pnl(
@@ -3630,7 +3667,7 @@ class PaperTradingEngine:
             if status == "open":
                 for pos in positions:
                     try:
-                        live_price = self._get_current_price(pos.symbol, exchange)
+                        live_price = self._get_mark_price(pos.symbol, exchange)
                         if live_price and live_price > 0:
                             pos.mark_price = live_price
                             pos.unrealized_pnl = self._calc_unrealized_pnl(
@@ -4025,7 +4062,7 @@ class PaperTradingEngine:
 
         try:
             exchange = self._resolve_account_exchange(db, pos.account_id)
-            current_price = self._get_current_price(pos.symbol, exchange)
+            current_price = self._get_mark_price(pos.symbol, exchange)
         except RuntimeError:
             return
 
@@ -4114,7 +4151,7 @@ class PaperTradingEngine:
         from backend.database.models import PaperBalance
         try:
             exchange = self._resolve_account_exchange(db, pos.account_id)
-            current_price = self._get_current_price(pos.symbol, exchange)
+            current_price = self._get_mark_price(pos.symbol, exchange)
         except RuntimeError:
             return
 
@@ -4221,7 +4258,7 @@ class PaperTradingEngine:
         for pos in open_positions:
             try:
                 exchange = self._resolve_account_exchange(db, pos.account_id)
-                current_price = self._get_current_price(pos.symbol, exchange)
+                current_price = self._get_mark_price(pos.symbol, exchange)
             except RuntimeError:
                 continue
 
