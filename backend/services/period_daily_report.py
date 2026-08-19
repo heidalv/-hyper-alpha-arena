@@ -94,6 +94,7 @@ def _trades_since(db, account_id: int, horizon: str, hours: int = 24) -> Dict[st
 
 
 def _group_pnl(rows) -> List[Dict[str, Any]]:
+    from backend.services.pnl_authority import realized_pnl
     d: Dict[str, float] = {}
     for r in rows:
         s = str(r.symbol or "?").upper()
@@ -296,6 +297,10 @@ def run_daily_reports() -> Dict[str, Any]:
     """cron 入口：遍历活跃会话生成日报。表缺失/异常静默降级。"""
     out = {"sessions": 0, "saved": 0, "error": None}
     try:
+        # [2026-08-19] cron 后台线程无 HTTP 上下文，RLS fail-closed 会让日报全空
+        # （trades/loss_attribution/symbol_daily 全部 0 行）→ 设管理员级身份穿透 RLS。
+        from backend.core.tenant import set_system_identity
+        set_system_identity()
         from backend.database.connection import SessionLocal
         from backend.database.models import FullAutoSession
         db = SessionLocal()

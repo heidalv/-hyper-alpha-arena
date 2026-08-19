@@ -71,6 +71,9 @@ def run_weekly_reports() -> Dict[str, Any]:
     """周 cron 入口：遍历活跃会话生成周报（内存缓存，API 读取）。"""
     out = {"sessions": 0, "built": 0, "error": None}
     try:
+        # [2026-08-19] cron 后台线程无 HTTP 上下文，设管理员级身份穿透 RLS（同日报）。
+        from backend.core.tenant import set_system_identity
+        set_system_identity()
         from backend.database.connection import SessionLocal
         from backend.database.models import FullAutoSession
         db = SessionLocal()
