@@ -518,7 +518,7 @@ function ConfigTab() {
   const toggleStrategy = async (id: string, enabled: boolean) => {
     setSaving(`strat-${id}`);
     try {
-      await fetch(`/api/rebate/config/strategies/${id}`, {
+      await fetch(`${BACKEND}/api/rebate/config/strategies/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });

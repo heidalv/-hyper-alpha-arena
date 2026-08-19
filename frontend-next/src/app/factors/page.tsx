@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FlaskConical, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchPublic } from "@/lib/api";
 // [2026-08-05 v6 9.1] 因子报告卡雏形：admission 徽章 + 显著性 + 衰减 + 数据完整率
 import FactorOverviewPanel from "@/components/factors/FactorOverviewPanel";
 
@@ -33,9 +34,7 @@ export default function FactorsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/factors/values/${sym}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const json = await fetchPublic<{ factors?: Factor[] }>(`/factors/values/${sym}`);
       setFactors(Array.isArray(json?.factors) ? json.factors : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -54,9 +53,7 @@ export default function FactorsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/ops/training");
-        if (!res.ok) return;
-        const json = await res.json();
+        const json = await fetchPublic<{ fixed_pool?: { symbols?: unknown[] } }>("/ops/training");
         const pool: string[] = (json?.fixed_pool?.symbols || [])
           .map((s: unknown) => String(s).toUpperCase())
           .filter(Boolean);

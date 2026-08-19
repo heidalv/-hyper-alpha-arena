@@ -319,7 +319,7 @@ function MonitorTab() {
       setPositions(Array.isArray(allPos) ? allPos : (allPos?.positions || []));
       const balResults: Record<string, any> = {};
       await Promise.all(sts.filter((s: any) => s.connected).map(async (s: any) => {
-        try { balResults[s.exchange] = await fetch(`/api/exchange/${s.exchange}/balance`).then(r => r.json()); } catch {}
+        try { balResults[s.exchange] = await fetch(`${BACKEND}/api/exchange/${s.exchange}/balance`).then(r => r.json()); } catch {}
       }));
       setBalances(balResults);
     } catch {} finally { setLoading(false); }
@@ -528,7 +528,7 @@ function CredentialsTab() {
   const handleTest = async (id: number) => {
     setTesting(id);
     try {
-      const result = await fetch(`/api/exchange/credentials/${id}/test`, { method: "POST" }).then(r => r.json());
+      const result = await fetch(`${BACKEND}/api/exchange/credentials/${id}/test`, { method: "POST" }).then(r => r.json());
       alert(result.connected ? "✅ 连接成功" : `❌ ${result.error || "连接失败"}`);
     } catch (e: any) { alert(e.message); }
     setTesting(null);
@@ -536,7 +536,7 @@ function CredentialsTab() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("确认删除此凭证？")) return;
-    try { await fetch(`/api/exchange/credentials/${id}`, { method: "DELETE" }); load(); }
+    try { await fetch(`${BACKEND}/api/exchange/credentials/${id}`, { method: "DELETE" }); load(); }
     catch (e: any) { alert(e.message); }
   };
 

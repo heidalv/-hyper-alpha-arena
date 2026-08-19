@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getBackendUrl } from "@/lib/backend-config";
 
 type DCPeriod = {
   exchange: string; period: string; symbols: number; bars: number; days: number;
@@ -52,7 +53,7 @@ export function DataCenterOverviewPanel() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch("/api/ops/data-center-overview", { cache: "no-store" });
+        const res = await fetch(`${getBackendUrl()}/api/ops/data-center-overview`, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as Overview;
         if (!cancelled) { setData(json); setErr(null); }

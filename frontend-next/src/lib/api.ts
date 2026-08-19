@@ -180,6 +180,33 @@ export async function apiRequest<T = any>(
   return resp.json() as Promise<T>;
 }
 
+/**
+ * 公共端点直连：走运行时配置的后端地址（getBackendUrl），不挂鉴权、不抛业务错误。
+ *
+ * 桌面端 / 远端（Tailscale）必须用本函数或 apiRequest——裸 fetch("/api/...")
+ * 相对路径会打到本地静态壳自身（Next 静态导出无 rewrites），导致头部行情条、
+ * 因子页等「一直是空的」。语义与旧裸 fetch(...).then(r=>r.json()) 对齐：
+ * 非 JSON / 网络失败抛错，HTTP 错误状态只返回体不抛。
+ */
+export async function fetchPublic<T = any>(
+  endpoint: string,
+  init?: RequestInit & { timeout?: number }
+): Promise<T> {
+  const { timeout, ...rest } = init ?? {};
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout ?? 15000);
+  try {
+    const resp = await fetch(`${apiBase()}${endpoint}`, {
+      ...rest,
+      signal: ctrl.signal,
+      headers: { "X-Client-Version": CLIENT_VERSION, ...(rest.headers as Record<string, string> | undefined) },
+    });
+    return (await resp.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ═══ 类型定义 ═══
 // ═══ 类型定义（已迁至 src/types/api.ts，此处保持重导出兼容） ═══
 

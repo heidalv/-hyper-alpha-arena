@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Activity, CandlestickChart, Waves, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getBackendUrl } from "@/lib/backend-config";
 
 interface SourceHealth {
   total_calls: number;
@@ -164,8 +165,7 @@ export default function DataQualityPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/monitor/data-quality");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`${getBackendUrl()}/api/monitor/data-quality`);      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as DataQualityResponse;
       if (json.error) throw new Error(json.error);
       setData(json);

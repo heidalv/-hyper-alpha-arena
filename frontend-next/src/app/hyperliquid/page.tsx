@@ -45,7 +45,7 @@ export default function HyperliquidPage() {
       const balResults: Record<string, any> = {};
       await Promise.all(sts.filter((s: any) => s.connected).map(async (s: any) => {
         try {
-          const b = await fetch(`/api/exchange/${s.exchange}/balance`).then(r => r.json());
+          const b = await fetch(`${BACKEND}/api/exchange/${s.exchange}/balance`).then(r => r.json());
           balResults[s.exchange] = b;
         } catch {}
       }));

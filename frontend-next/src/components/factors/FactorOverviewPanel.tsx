@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getBackendUrl } from "@/lib/backend-config";
 import {
   BarChart,
   Bar,
@@ -103,7 +104,7 @@ export default function FactorOverviewPanel({ symbol }: { symbol: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/monitor/factor-eval/${encodeURIComponent(symbol)}`);
+      const res = await fetch(`${getBackendUrl()}/api/monitor/factor-eval/${encodeURIComponent(symbol)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as EvalResponse;
       if (json.error) throw new Error(json.error);

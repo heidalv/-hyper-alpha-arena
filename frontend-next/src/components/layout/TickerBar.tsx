@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMarketStore } from "@/lib/stores/market";
 import { cn } from "@/lib/utils";
+import { fetchPublic } from "@/lib/api";
 
 /** 固定币备选池（常驻显示） */
 const FIXED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "VIRTUAL", "ASTER", "XPL"] as const;
@@ -40,9 +41,7 @@ export function TickerBar() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch("/api/auto-coin/active-symbols");
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchPublic<{ auto_symbols?: string[] }>("/auto-coin/active-symbols");
         if (cancelled || !Array.isArray(data?.auto_symbols)) return;
         setAutoSymbols(
           data.auto_symbols
@@ -63,9 +62,7 @@ export function TickerBar() {
       const all = [...new Set([...FIXED_SYMBOLS, ...autoSymbols])];
       if (!all.length) return;
       try {
-        const res = await fetch(`/api/market/ticker-bar?symbols=${all.join(",")}`);
-        if (!res.ok) return;
-        const rows = await res.json();
+        const rows = await fetchPublic<any[]>(`/market/ticker-bar?symbols=${all.join(",")}`);
         if (cancelled || !Array.isArray(rows)) return;
         const next: Record<string, PriceEntry> = {};
         const flashNext: Record<string, "up" | "down"> = {};

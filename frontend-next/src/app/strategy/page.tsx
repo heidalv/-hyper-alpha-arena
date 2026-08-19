@@ -396,7 +396,7 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["atas-decisions", accountId],
     queryFn: async () => {
-      const res = await fetch(`/api/atas/decisions?limit=50`);
+      const res = await fetch(`${BACKEND}/api/atas/decisions?limit=50`);
       if (!res.ok) return [];
       const json = await res.json();
       return Array.isArray(json) ? json : (json.decisions ?? json.items ?? []);

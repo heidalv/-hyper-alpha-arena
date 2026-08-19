@@ -236,7 +236,11 @@ function usePoll<T>(url: string | null, interval: number): { data: T | null; loa
         const token = getAccessToken();
         const headers: Record<string, string> = { Accept: "application/json" };
         if (token) headers.Authorization = `Bearer ${token}`;
-        const res = await fetch(url, { signal: ac.signal, headers });
+        // 相对 /api 路径解析到配置的后端地址（桌面端/远端静态壳无 rewrites）
+        const target = url.startsWith("/api")
+          ? `${getBackendUrl()}${url}`
+          : url;
+        const res = await fetch(target, { signal: ac.signal, headers });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) { setData(json); setError(null); }

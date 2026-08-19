@@ -21,6 +21,7 @@ import {
   XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { getAccessToken } from "@/lib/stores/auth";
+import { getBackendUrl } from "@/lib/backend-config";
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -102,7 +103,11 @@ function usePoll<T>(
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(url, { headers: authHeaders() });
+        // 相对 /api 路径解析到配置的后端地址（桌面端/远端静态壳无 rewrites）
+        const target = url.startsWith("/api")
+          ? `${getBackendUrl()}${url}`
+          : url;
+        const res = await fetch(target, { headers: authHeaders() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!cancelled) {
@@ -148,7 +153,7 @@ export function AgentRuntimeTab() {
 
   const handleReset = async (agentId: string) => {
     try {
-      await fetch(`/api/monitor/agents/${agentId}/reset`, {
+      await fetch(`${getBackendUrl()}/api/monitor/agents/${agentId}/reset`, {
         method: "POST",
         headers: authHeaders(),
       });
