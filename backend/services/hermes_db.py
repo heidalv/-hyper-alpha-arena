@@ -239,8 +239,18 @@ def get_hermes_conn() -> sqlite3.Connection:
 
     此前每调用新建连接 + 每次 init 重跑 DDL，高频路径实测 500+ 次/文件（性能异味）。
     现在连接缓存复用、DDL 仅首启执行一次；写入经 _write_lock 串行。
+
+    [2026-08-19 修复] 共享连接被外部误 close 后（曾导致整个进程 hermes 通道
+    报 "Cannot operate on a closed database"、平仓沉淀写入全部失败），此处
+    探测失效并自动重建连接，不再返回已关闭的僵尸连接。
     """
     global _conn, _initialized
+    if _conn is not None:
+        try:
+            _conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            logger.warning("[HermesDB] 共享连接被外部关闭，重建连接")
+            _conn = None
     if _conn is None:
         _ensure_dir()
         _conn = sqlite3.connect(HERMES_DB_PATH, check_same_thread=False)

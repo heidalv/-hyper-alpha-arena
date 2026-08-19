@@ -53,19 +53,20 @@ def _extract_stats() -> Dict[str, Any]:
     try:
         from backend.services.hermes_db import get_hermes_conn
 
+        # [2026-08-19 修复] get_hermes_conn 返回的是进程内共享连接——
+        # 这里 close 会毒化整个进程的 hermes 通道（后续所有调用报
+        # "Cannot operate on a closed database"，提取/闸门计数归零、
+        # 平仓沉淀写入全部失败）。共享连接由进程生命周期管理，绝不 close。
         conn = get_hermes_conn()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT count(*) FROM agent_decision_wisdom")
-            total = int(cur.fetchone()[0] or 0)
-            cur.execute(
-                "SELECT outcome, count(*) FROM agent_decision_wisdom GROUP BY outcome"
-            )
-            by_outcome = {str(r[0]): int(r[1]) for r in cur.fetchall()}
-            cur.execute("SELECT max(created_at) FROM agent_decision_wisdom")
-            latest = cur.fetchone()[0]
-        finally:
-            conn.close()
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM agent_decision_wisdom")
+        total = int(cur.fetchone()[0] or 0)
+        cur.execute(
+            "SELECT outcome, count(*) FROM agent_decision_wisdom GROUP BY outcome"
+        )
+        by_outcome = {str(r[0]): int(r[1]) for r in cur.fetchall()}
+        cur.execute("SELECT max(created_at) FROM agent_decision_wisdom")
+        latest = cur.fetchone()[0]
         return {"total": total, "by_outcome": by_outcome, "latest": latest}
     except Exception as exc:
         logger.warning("[wisdom/stats] extract failed: %s", exc)
@@ -77,15 +78,13 @@ def _gate_stats() -> Dict[str, Any]:
     try:
         from backend.services.hermes_db import get_hermes_conn
 
+        # [2026-08-19 修复] 同 _extract_stats：共享连接，禁止 close。
         conn = get_hermes_conn()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT count(*) FROM proposal_wisdom_records")
-            total = int(cur.fetchone()[0] or 0)
-            cur.execute("SELECT max(created_at) FROM proposal_wisdom_records")
-            latest = cur.fetchone()[0]
-        finally:
-            conn.close()
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM proposal_wisdom_records")
+        total = int(cur.fetchone()[0] or 0)
+        cur.execute("SELECT max(created_at) FROM proposal_wisdom_records")
+        latest = cur.fetchone()[0]
         return {"total": total, "latest": latest}
     except Exception as exc:
         logger.warning("[wisdom/stats] gate failed: %s", exc)
