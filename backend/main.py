@@ -1367,24 +1367,27 @@ def on_startup():
                   run_v7_memory_maintenance,
             )
             from backend.services.scheduler import task_scheduler
+            # [FIX-4 2026-08-19] 重挖掘可出进程运行（FACTOR_EVO_SUBPROCESS=1 时），
+            # 隔离 GIL/GPU/DB，避免拖慢 /api/health 与重启腰斩。
+            from backend.services.evolution.evo_subprocess import make_subprocess_task
             task_scheduler.start()
             # 每日因子进化（凌晨3点，默认 4h）
             task_scheduler.add_cron_task(
-                task_func=run_factor_evolution_loop,
+                task_func=make_subprocess_task("4h", run_factor_evolution_loop),
                 hour=3, minute=0,
                 task_id="factor_evolution_daily",
                 max_instances=1,
             )
             # 短线 5m 完整进化（凌晨4点，走 WFO/测试集终审，非 PB quick）
             task_scheduler.add_cron_task(
-                task_func=run_scalp_factor_evolution_loop,
+                task_func=make_subprocess_task("5m", run_scalp_factor_evolution_loop),
                 hour=4, minute=0,
                 task_id="factor_evolution_scalp_5m_daily",
                 max_instances=1,
             )
             # V7 中周期 15m 完整进化（凌晨6点，避开 4h/5m 两档）
             task_scheduler.add_cron_task(
-                task_func=run_mid_factor_evolution_loop,
+                task_func=make_subprocess_task("15m", run_mid_factor_evolution_loop),
                 hour=6, minute=0,
                 task_id="factor_evolution_mid_15m_daily_v7",
                 max_instances=1,

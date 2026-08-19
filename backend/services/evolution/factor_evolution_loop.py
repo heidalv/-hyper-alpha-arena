@@ -917,7 +917,11 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     logger.warning("[FactorEvo] LLM 热启动种子生成失败，GP 用纯随机初始种群")
             except Exception as _ws_err:
                 logger.warning("[FactorEvo] LLM 热启动不可用: %s", _ws_err)
-        admitted = miner.mine(warm_start_seeds=_warm_seeds or None)
+        # [FIX-6 2026-08-19] 挖掘断点续训：按周期落盘，重启后跳过已完成种子
+        _progress_path = None
+        if period and _os_gp.getenv("FACTOR_GP_CHECKPOINT", "1") != "0":
+            _progress_path = os.path.join("data", f"gp_mine_progress_{period}.json")
+        admitted = miner.mine(warm_start_seeds=_warm_seeds or None, progress_path=_progress_path)
         logger.info(f"[FactorEvo] GP 挖掘: {len(admitted)} 命中入池")
         for expr, _contrib in admitted:
             candidates.append((expr, f"gp_{expr.expr_id[:8]}"))
@@ -2087,10 +2091,17 @@ def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: st
     src = source or ("quick" if quick else "cron")
     owned = evo_runtime.mark_start(period=str(period_eff), quick=bool(quick), source=src)
     if not owned:
+        # [FIX-5 2026-08-19] 单飞跳过从静默改为可见：记录阻塞方，便于运维排查
+        # 「5m/15m 日轮被 4h 长轮次吞掉」类问题（时长根因已由 FIX-3 预算约束）。
+        _snap = evo_runtime.snapshot()
+        logger.warning(
+            "[FactorEvo] 单飞跳过本轮（period=%s source=%s）：已在运行 period=%s source=%s started_at=%s",
+            period_eff, src, _snap.get("period"), _snap.get("source"), _snap.get("started_at"),
+        )
         return {
             "error": "already_running",
             "message": "因子进化已在运行",
-            "runtime": evo_runtime.snapshot(),
+            "runtime": _snap,
         }
 
     logger.info(

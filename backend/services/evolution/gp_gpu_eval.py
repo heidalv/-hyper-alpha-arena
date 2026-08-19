@@ -360,8 +360,15 @@ def compute_fitness_from_values(
         if not np.isfinite(ic_full):
             continue
         _case_arr = np.asarray(case_list)
-        if objective == "icir":
-            obj = abs(float(_case_arr.mean() / (_case_arr.std() + 1e-10)))
+        if objective == "icir" and _case_arr.size >= 2:
+            # [FIX-1 2026-08-19] ICIR = |mean|/std 仅在 >=2 个有效币段且 std 非退化时定义。
+            # 单币段（std 精确为 0）时 mean/1e-10 会爆炸到 1e8~1e9，碾压正常因子、
+            # 使复杂度/相关性惩罚失效、选择退化为「选单币噪声」。此时回退全面板 |IC|。
+            _std = float(_case_arr.std())
+            if _std > 1e-3:
+                obj = abs(float(_case_arr.mean() / _std))
+            else:
+                obj = ic_full
         else:
             obj = ic_full
         penalty_c = lam_c * (node_counts[i] if node_counts is not None else _cn(population[i]))

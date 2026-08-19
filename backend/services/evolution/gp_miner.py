@@ -17,6 +17,7 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import time
 
 # [2026-08-05 v6 10.2.2] loky worker 内限制 BLAS/OpenMP 线程数为 1：
 # 32 个 worker 进程 × 默认多线程 BLAS = O(N^2) 原生线程竞争，
@@ -84,6 +85,36 @@ def _fitness_core(ast: dict, state: dict) -> float:
     ic = abs(float(np.corrcoef(fv[mask], target[mask])[0, 1]))
     if not np.isfinite(ic):
         return _NEG_INF
+    # [FIX-2 2026-08-19] objective="icir" 时与 GPU 路径同口径：
+    # ICIR = |mean|/std 仅在 >=2 个有效币段且 std 非退化时定义，否则回退 |IC|。
+    obj = ic
+    _objective = state.get("objective") or "ic"
+    if _objective == "icir":
+        _lens = state.get("lens")
+        if _lens:
+            _case_list = []
+            _off = 0
+            for _ln in _lens:
+                _ln = int(_ln)
+                if _ln <= 0:
+                    continue
+                _mseg = mask[_off:_off + _ln]
+                if int(_mseg.sum()) < 20:
+                    _off += _ln
+                    continue
+                _fs = fv[_off:_off + _ln][_mseg]
+                _ts = target[_off:_off + _ln][_mseg]
+                _off += _ln
+                if np.std(_fs) < 1e-12 or np.std(_ts) < 1e-12:
+                    continue
+                _cseg = float(np.corrcoef(_fs, _ts)[0, 1])
+                if np.isfinite(_cseg):
+                    _case_list.append(_cseg)
+            if len(_case_list) >= 2:
+                _arr = np.asarray(_case_list)
+                _std = float(_arr.std())
+                if _std > 1e-3:
+                    obj = abs(float(_arr.mean() / _std))
     # 复杂度惩罚（节点数）
     penalty_c = state["lambda_complexity"] * _count_nodes(ast)
     # 与精英池最大相关惩罚（防同质化）
@@ -121,7 +152,7 @@ def _fitness_core(ast: dict, state: dict) -> float:
             if np.isfinite(c):
                 max_corr = max(max_corr, c)
         corr_pen = state["lambda_corr"] * max_corr
-    return float(ic - penalty_c - corr_pen)
+    return float(obj - penalty_c - corr_pen)
 
 
 @dataclass
@@ -152,6 +183,44 @@ class GPConfig:
     # [R2 升级] ALPS 年龄分层（防早熟保创新）
     alps: bool = True
     alps_max_age: int = 12               # 超龄个体重播为随机新生（创新注入）
+
+
+# ── [FIX-6 2026-08-19] 挖掘断点续训：已完成种子的候选原子落盘，重启后跳过续跑 ──
+def _save_mine_progress(path: str, done_seeds, best_by_seed) -> None:
+    import json as _json
+
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        payload = {
+            "done_seeds": sorted(int(s) for s in done_seeds),
+            "candidates": [{"ast": a, "fitness": float(f)} for a, f in best_by_seed],
+        }
+        _tmp = path + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as f:
+            _json.dump(payload, f, ensure_ascii=False)
+        os.replace(_tmp, path)
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[GPMiner] checkpoint 落盘失败: %s", e)
+
+
+def _load_mine_progress(path: str):
+    import json as _json
+
+    try:
+        if not os.path.exists(path):
+            return set(), []
+        with open(path, "r", encoding="utf-8") as f:
+            payload = _json.load(f)
+        done = set(int(s) for s in (payload.get("done_seeds") or []))
+        cands = [
+            (c["ast"], float(c["fitness"]))
+            for c in (payload.get("candidates") or [])
+            if isinstance(c, dict) and "ast" in c
+        ]
+        return done, cands
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[GPMiner] checkpoint 读取失败: %s", e)
+        return set(), []
 
 
 class GPMiner:
@@ -207,6 +276,8 @@ class GPMiner:
         pool_factor_matrix: Optional[np.ndarray] = None,
         max_workers: Optional[int] = None,
         warm_start_seeds: Optional[List[dict]] = None,
+        budget_deadline: Optional[float] = None,
+        progress_path: Optional[str] = None,
     ) -> List[Tuple[FactorExpr, float]]:
         """
         多种子并行进化 → 合并 top 候选 → AlphaPool.try_admit 池感知准入。
@@ -214,16 +285,44 @@ class GPMiner:
         返回被接纳的 (expr, contribution) 列表（与 AlphaMiner.mine_random 同构，
         可无缝替换接入 _mine_candidates）。
         [R3] warm_start_seeds：LLM 生成的种子注入每个种子的初始种群（探索+开采双引擎）。
+        [FIX-3 2026-08-19] budget_deadline：绝对截止时间（time.time()）。种子串行+代循环
+        每步检查，耗尽即停（保留已完成种子候选），避免 6 种子串行跑 9~15h 阻塞后续周期。
+        未显式传入时按 FACTOR_GP_BUDGET_SEC（默认 1800）自算。
+        [FIX-6 2026-08-19] progress_path：断点续训文件；每种子完成后落盘，重启后跳过已完成种子。
         """
+        if budget_deadline is None:
+            _budget_sec = float(os.getenv("FACTOR_GP_BUDGET_SEC", "1800") or 1800)
+            _budget_sec = max(60.0, min(_budget_sec, 7200.0))
+            budget_deadline = time.time() + _budget_sec
         seeds = self.config.seed_values or list(range(self.config.n_seeds))
         workers = max_workers or self.config.max_workers or min(32, os.cpu_count() or 32)
 
         # 种子串行（共享 self 状态非线程安全）；种群评估每次新建 Parallel，
         # 根因修复：禁止跨种子复用同一 Parallel 实例导致 already running。
+        # [FIX-6 2026-08-19] 断点续训：加载已完成种子候选、跳过已完成种子、每种子完成后落盘。
+        done_seeds: set = set()
         best_by_seed: List[Tuple[dict, float]] = []
+        if progress_path:
+            done_seeds, best_by_seed = _load_mine_progress(progress_path)
+            if done_seeds:
+                logger.info(
+                    "[GPMiner] 断点续训：跳过已完成种子 %s，恢复候选 %d",
+                    sorted(done_seeds), len(best_by_seed),
+                )
         for _s in seeds:
+            if int(_s) in done_seeds:
+                continue
+            if time.time() > budget_deadline:
+                logger.warning(
+                    "[GPMiner] 挖掘预算耗尽，停止剩余种子（已累计 %d 个候选，种子 %d/%d）",
+                    len(best_by_seed), seeds.index(_s), len(seeds),
+                )
+                break
             try:
-                best_by_seed.extend(self._run_seed(_s, warm_start_seeds=warm_start_seeds))
+                best_by_seed.extend(self._run_seed(_s, warm_start_seeds=warm_start_seeds, budget_deadline=budget_deadline))
+                if progress_path:
+                    done_seeds.add(int(_s))
+                    _save_mine_progress(progress_path, done_seeds, best_by_seed)
             except Exception as e:
                 logger.warning(f"[GPMiner] 种子挖掘异常: {e}")
 
@@ -266,6 +365,7 @@ class GPMiner:
         self,
         seed: int,
         warm_start_seeds: Optional[List[dict]] = None,
+        budget_deadline: Optional[float] = None,
     ) -> List[Tuple[dict, float]]:
         """单种子完整进化过程，返回 (ast, fitness) 列表（全代精英合并）。"""
         rng = np.random.default_rng(seed)
@@ -297,6 +397,10 @@ class GPMiner:
         workers = self.config.max_workers or min(32, os.cpu_count() or 32)
 
         for gen in range(self.config.generations):
+            # [FIX-3 2026-08-19] 预算截止：单种子也可能跑多代（每代数分钟），代级检查
+            if budget_deadline is not None and time.time() > budget_deadline:
+                logger.warning("[GPMiner] 种子%d 第%d代前预算耗尽，提前终止", seed, gen)
+                break
             # 适应度评估（并行）
             fits = self._eval_population(population, workers)
             scored = sorted(
@@ -481,12 +585,19 @@ class GPMiner:
 
     def _fitness_state(self) -> dict:
         """构造 worker 可序列化的适应度求值上下文（含闭包 factor_value_fn）。"""
+        # [FIX-2 2026-08-19] 携带 objective + lens，使 CPU 兜底路径与 GPU 路径
+        # 适应度口径一致（objective="icir" 时按币段算 ICIR）。
+        _lens = None
+        if self._gpu_ctx is not None:
+            _lens = list(getattr(self._gpu_ctx, "lens", None) or [])
         return {
             "factor_value_fn": self.factor_value_fn,
             "target": self.target,
             "min_samples": self.config.min_samples,
             "lambda_complexity": self.config.lambda_complexity,
             "lambda_corr": self.config.lambda_corr,
+            "objective": self.config.objective,
+            "lens": _lens or None,
             "elite_ast": self._elite_ast,
             # [2026-08-17 GPU] 精英值预计算缓存（每代一次，_fitness_core 优先用）
             "elite_fvs": list(self._elite_fvs),
