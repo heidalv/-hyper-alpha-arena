@@ -54,14 +54,17 @@ export default function PaperTradingPage() {
 
   const handleCreate = async () => {
     if (!newAccountName.trim()) return;
-    await createMut.mutateAsync({
+    const created = await createMut.mutateAsync({
       name: newAccountName.trim(),
       trading_mode: "paper",
       account_type: "PAPER",
       initial_capital: parseFloat(newAccountBalance) || 500,
     });
-    // 初始化
-    await new Promise((r) => setTimeout(r, 500));
+    // 初始化模拟资金（否则 balance 404 → 账户未初始化，无法交易）
+    const accountId = (created as any)?.id;
+    if (accountId) {
+      await paperApi.initialize(accountId, parseFloat(newAccountBalance) || 500);
+    }
     setShowCreate(false);
     setNewAccountName("");
   };
@@ -89,7 +92,7 @@ export default function PaperTradingPage() {
         icon={<FlaskConical className="w-4 h-4" />}
         title="模拟交易"
         subtitle="Paper 验证运行中 · 模拟撮合不触达真实资金"
-        refreshHint="10s 轮询"
+        refreshHint="2s 轮询"
         breadcrumb={[{ label: "交易核心" }, { label: "模拟交易" }]}
         actions={
           <>

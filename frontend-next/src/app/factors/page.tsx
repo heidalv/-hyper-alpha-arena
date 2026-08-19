@@ -19,17 +19,17 @@ type Factor = {
   category: string;
 };
 
-const SYMBOLS = ["BTC", "ETH", "SOL", "BNB"] as const;
-type Symbol = (typeof SYMBOLS)[number];
+const FALLBACK_SYMBOLS = ["BTC", "ETH", "SOL", "BNB"];
 
 export default function FactorsPage() {
-  const [symbol, setSymbol] = useState<Symbol>("BTC");
+  const [symbols, setSymbols] = useState<string[]>(FALLBACK_SYMBOLS);
+  const [symbol, setSymbol] = useState<string>("BTC");
   const [tab, setTab] = useState<Tab>("values");
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async (sym: Symbol) => {
+  const load = async (sym: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -48,6 +48,29 @@ export default function FactorsPage() {
   useEffect(() => {
     load(symbol);
   }, [symbol]);
+
+  // 固定币候选池：会话固定币（无 AI 选币也全量出现）；失败回退 BTC/ETH/SOL/BNB
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/ops/training");
+        if (!res.ok) return;
+        const json = await res.json();
+        const pool: string[] = (json?.fixed_pool?.symbols || [])
+          .map((s: unknown) => String(s).toUpperCase())
+          .filter(Boolean);
+        if (cancelled || pool.length === 0) return;
+        setSymbols(pool);
+        setSymbol((prev) => (pool.includes(prev) ? prev : pool[0]));
+      } catch {
+        // 保持回退币种
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 按类别分组
   const grouped = useMemo(() => {
@@ -101,7 +124,7 @@ export default function FactorsPage() {
       <Card className="p-3 glass">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground mr-1">币种</span>
-          {SYMBOLS.map((s) => (
+          {symbols.map((s) => (
             <Button
               key={s}
               variant={symbol === s ? "default" : "outline"}

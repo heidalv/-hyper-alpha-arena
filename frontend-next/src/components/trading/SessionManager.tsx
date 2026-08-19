@@ -111,6 +111,8 @@ export function SessionManager() {
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [symbols, setSymbols] = useState("BTC,ETH,SOL");
   const [mode, setMode] = useState("paper");
+  const [riskLevel, setRiskLevel] = useState("moderate");
+  const [autoCoin, setAutoCoin] = useState(false);
   const [showStopped, setShowStopped] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -124,7 +126,14 @@ export function SessionManager() {
   const handleCreate = async () => {
     if (!selectedAccount) return;
     const symList = symbols.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
-    await startMut.mutateAsync({ account_id: selectedAccount, symbols: symList, mode });
+    await startMut.mutateAsync({
+      account_id: selectedAccount,
+      paper_account_id: mode === "paper" ? selectedAccount : undefined,
+      symbols: symList,
+      trading_mode: mode,
+      risk_level: riskLevel,
+      auto_coin_enabled: autoCoin,
+    });
     setShowCreate(false);
   };
 
@@ -171,6 +180,18 @@ export function SessionManager() {
             <select value={mode} onChange={(e) => setMode(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
               <option value="paper">模拟 (Paper)</option><option value="live">实盘 (Live)</option>
             </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">风险等级</label>
+            <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              <option value="conservative">保守</option><option value="moderate">均衡</option><option value="aggressive">激进</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground">会话内 AI 选币 (VIP)</label>
+            <button type="button" onClick={() => setAutoCoin(!autoCoin)} className={cn("relative w-11 h-6 rounded-full transition-colors", autoCoin ? "bg-primary" : "bg-muted")}>
+              <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", autoCoin ? "left-5" : "left-0.5")} />
+            </button>
           </div>
           <Button size="sm" className="w-full btn-glow" onClick={handleCreate} disabled={!selectedAccount || startMut.isPending}>
             {startMut.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}

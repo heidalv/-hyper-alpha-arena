@@ -282,7 +282,16 @@ export const accountApi = {
 
 export const sessionApi = {
   list: () => apiRequest<SessionStatus[]>("/full-auto/sessions"),
-  start: (data: { account_id: number; symbols: string[]; mode?: string }) =>
+  start: (data: {
+    account_id: number;
+    paper_account_id?: number;
+    symbols: string[];
+    trading_mode?: string;
+    risk_level?: string;
+    risk_mode?: string;
+    active_exchange?: string;
+    auto_coin_enabled?: boolean;
+  }) =>
     apiRequest<any>("/full-auto/start", { method: "POST", body: JSON.stringify(data) }),
   stop: (sessionId: string) =>
     apiRequest<any>(`/full-auto/stop/${sessionId}`, { method: "POST" }),
@@ -537,7 +546,7 @@ export const api = {
 
   // 会话
   getSessions: () => sessionApi.list(),
-  startSession: (data: { account_id: number; symbols: string[]; mode?: string }) => sessionApi.start(data),
+  startSession: (data: { account_id: number; paper_account_id?: number; symbols: string[]; trading_mode?: string; risk_level?: string; risk_mode?: string; active_exchange?: string; auto_coin_enabled?: boolean }) => sessionApi.start(data),
   stopSession: (sessionId: string) => sessionApi.stop(sessionId),
   pauseSession: (sessionId: string) => sessionApi.pause(sessionId),
   resumeSession: (sessionId: string) => sessionApi.resume(sessionId),
