@@ -65,16 +65,19 @@ def chandelier_long_stop(
     atr_w: pd.Series,
     mult: float = _CHANDELIER_MULT,
     entry_idx: int = 0,
+    entry_price: Optional[float] = None,
 ) -> pd.Series:
     """多头 Chandelier 追踪止损序列（从 entry_idx 起，只上移不下移）。
 
     止损 = max(历史最高收盘 - mult×ATR(1w), 初始止损)；初始止损 = entry_close - mult×ATR(1w)。
+    [A2 同核] entry_price：实盘传真实入场价（回测不传=用开仓日收盘价），同一函数两端复用。
     """
     n = len(close)
     stop = pd.Series(np.nan, index=close.index)
     if entry_idx >= n:
         return stop
-    init = close.iloc[entry_idx] - mult * atr_w.iloc[entry_idx]
+    _entry_base = float(entry_price) if entry_price is not None else float(close.iloc[entry_idx])
+    init = _entry_base - mult * float(atr_w.iloc[entry_idx])
     highest = -np.inf
     cur = init
     for i in range(entry_idx, n):
@@ -96,12 +99,18 @@ def decide_long(
     *,
     l1_state: str,
     close: float,
-    stop: float,
+    stop: Optional[float],
     new_high: bool,
     r_multiple: float,
-    in_position: bool,
+    in_position: bool = True,
+    cur_sl: Optional[float] = None,
+    peak_r: Optional[float] = None,
+    hold_days: Optional[float] = None,
+    drawdown_pct: Optional[float] = None,
+    pyr_batch: int = 0,
+    max_batches: int = 3,
 ) -> Dict[str, Any]:
-    """长线持仓单日决策（纯规则）。
+    """长线持仓单日决策（纯规则，回测/实盘同核的唯一决策函数）。
 
     l1_state: trend_layer.classify 的 state（up/down/sideways）
     close: 当日收盘
@@ -109,8 +118,14 @@ def decide_long(
     new_high: 是否创 60 日新高
     r_multiple: 当前浮盈 R（相对首仓风险）
     in_position: 是否持仓
+    cur_sl: 当前仓位 SL 价（收紧止损判定用）
+    peak_r: 持仓峰值 R（no_progress 判定用）
+    hold_days: 持有天数（no_progress 判定用）
+    drawdown_pct: 相对峰值的持仓回撤（极端回撤保护用，0~1）
+    pyr_batch: 已完成的金字塔加仓批次数（capped 3 档 0.5/0.35/0.25）
+    max_batches: 金字塔批次上限
 
-    返回 {"action": hold/add/close, "reason": ...}
+    返回 {"action": hold/add/reduce/close/tighten_sl, "reason", "ratio"?, "new_sl"?}
     """
     if not in_position:
         return {"action": "hold", "reason": "无持仓"}
@@ -120,7 +135,25 @@ def decide_long(
     # Chandelier 打穿 → 被动退出
     if stop is not None and close < stop:
         return {"action": "close", "reason": f"Chandelier止损(close={close:.2f}<stop={stop:.2f})"}
-    # 金字塔：新高 + 浮盈 ≥ 1R
-    if new_high and r_multiple >= _PYRAMID_R:
-        return {"action": "add", "reason": f"新高加仓(r={r_multiple:.2f}R)"}
+    # [A3] 极端回撤（紧急保护，优先于加仓/持有）：>=80% 全平、>=60% 减半
+    if drawdown_pct is not None:
+        if drawdown_pct >= 0.8:
+            return {"action": "close", "reason": f"极端回撤≥80%({drawdown_pct:.0%})"}
+        if drawdown_pct >= 0.6:
+            return {"action": "reduce", "ratio": 0.5,
+                    "reason": f"极端回撤≥60%({drawdown_pct:.0%})减半"}
+    # [A3] no_progress 兜底：hold>=30 天且峰值从未达到 1R → 离场
+    if hold_days is not None and peak_r is not None and hold_days >= 30.0 and peak_r < 1.0:
+        return {"action": "close",
+                "reason": f"no_progress(hold={hold_days:.0f}天, peak_r={peak_r:.2f})"}
+    # 金字塔：新高 + 浮盈 >= 1R，capped 批次序列 0.5/0.35/0.25（Phase C/E 口径）
+    if new_high and r_multiple >= _PYRAMID_R and int(pyr_batch) < max_batches:
+        _ratios = [0.5, 0.35, 0.25][:max_batches]
+        _ratio = _ratios[min(int(pyr_batch), len(_ratios) - 1)]
+        return {"action": "add", "ratio": _ratio,
+                "reason": f"新高加仓(r={r_multiple:.2f}R, 第{int(pyr_batch) + 1}批)"}
+    # Chandelier 上移 → 收紧 SL（只上移）
+    if cur_sl is not None and stop is not None and stop > cur_sl:
+        return {"action": "tighten_sl", "new_sl": round(float(stop), 6),
+                "reason": f"Chandelier上移 SL→{stop:.4f}"}
     return {"action": "hold", "reason": "持有"}

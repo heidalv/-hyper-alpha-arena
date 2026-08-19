@@ -56,8 +56,40 @@ def _l1_up(c: Dict[str, Any]) -> bool:
     return float(c.get("score") or 0.0) >= _cfg_int("LONG_V2_L1_UP_SCORE", 3)
 
 
+def _today_utc_midnight_ts() -> float:
+    """今天 00:00 UTC 的 epoch 秒（判断最后一根 1d bar 是否已收盘用）。"""
+    import datetime
+    try:
+        t = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        return float(t.timestamp())
+    except Exception:
+        return 0.0
+
+
+def _bar_epoch_ts(v) -> Optional[float]:
+    """bar 时间戳统一转 epoch 秒（兼容数字/字符串/日期格式）。"""
+    if v is None:
+        return None
+    try:
+        if isinstance(v, (int, float)):
+            f = float(v)
+            return f if f > 1e9 else f  # 秒级 epoch
+        s = str(v)
+        import datetime
+        if s.isdigit() and len(s) >= 10:
+            return float(s)
+        return float(pd.Timestamp(s).timestamp())
+    except Exception:
+        return None
+
+
 def _live_1d(symbol: str, limit: int = 1200) -> Optional[pd.DataFrame]:
-    """实盘交易所 1d K 线（决策用途，active_exchange 同源）。"""
+    """实盘交易所 1d K 线（决策用途，active_exchange 同源）。
+
+    [A1 2026-08-19 日频修复] 丢弃最后一根未收盘 bar（ts >= 今天 00:00 UTC 的 bar
+    仍在盘中实时跳动）——classify/Chandelier 只用已收盘数据，盘中价格不改变决策，
+    只在新的已收盘 bar 出现后更新（配合 _get_l1_classification 缓存）。
+    """
     try:
         from backend.services.kline_data_service import kline_service
         rows = kline_service.get_klines_from_db(symbol.upper(), "1d", limit)
@@ -66,10 +98,69 @@ def _live_1d(symbol: str, limit: int = 1200) -> Optional[pd.DataFrame]:
         df = pd.DataFrame(rows)
         for c in ("open", "high", "low", "close"):
             df[c] = pd.to_numeric(df[c], errors="coerce")
-        return df.dropna(subset=["close", "high", "low"]).reset_index(drop=True)
+        df = df.dropna(subset=["close", "high", "low"]).reset_index(drop=True)
+        # 丢弃未收盘 bar：最后一根的 ts >= 今天 00:00 UTC
+        if "timestamp" in df.columns and len(df) > 0:
+            last_ts = _bar_epoch_ts(df["timestamp"].iloc[-1])
+            today = _today_utc_midnight_ts()
+            if last_ts is not None and today > 0 and last_ts >= today:
+                df = df.iloc[:-1].reset_index(drop=True)
+        if len(df) < 260:
+            return None
+        return df
     except Exception as e:
         logger.debug("[LongTrendV2] 1d 加载失败 %s: %s", symbol, e)
         return None
+
+
+# [A1 日频缓存] 键=symbol，值=(最后一根已收盘 bar ts, classify 结果)。
+# 同一已收盘 bar 内（240s tick 反复调用）直接返回缓存，不重算。
+_L1_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
+
+def _get_l1_classification(symbol: str):
+    """取「已收盘 1d 数据 + L1 分类（带缓存）」：返回 (df, classification) 或 (None, None)。"""
+    sym = str(symbol or "").upper()
+    df = _live_1d(sym)
+    if df is None:
+        return None, None
+    last_ts = _bar_epoch_ts(df["timestamp"].iloc[-1]) if "timestamp" in df.columns else 0.0
+    hit = _L1_CACHE.get(sym)
+    if hit is not None and hit[0] == last_ts:
+        return df, hit[1]
+    c = classify(df)
+    _L1_CACHE[sym] = (last_ts or 0.0, c)
+    return df, c
+
+
+def _entry_idx_for(df: pd.DataFrame, opened_at) -> int:
+    """从已收盘 1d 序列定位入场 bar 索引（第一个 ts >= 开仓日 00:00 的 bar）。"""
+    try:
+        if opened_at is None or "timestamp" not in df.columns or len(df) == 0:
+            return 0
+        _day0 = float(pd.Timestamp(opened_at).replace(
+            hour=0, minute=0, second=0, microsecond=0).timestamp())
+        for i, v in enumerate(df["timestamp"]):
+            t = _bar_epoch_ts(v)
+            if t is not None and t >= _day0:
+                return int(i)
+        return len(df) - 1
+    except Exception:
+        return 0
+
+
+def _pyramid_batch(position: Dict[str, Any]) -> int:
+    """已完成的 pyramid 加仓批次数（存于 exit_state_json.pyramid_batch，add 成功后由执行方写入）。"""
+    try:
+        import json as _json
+        st = position.get("exit_state_json")
+        if isinstance(st, str) and st:
+            d = _json.loads(st)
+            if isinstance(d, dict):
+                return max(0, int(d.get("pyramid_batch") or 0))
+    except Exception:
+        pass
+    return 0
 
 
 def entry_gate(symbol: str, action: str, market_summary: Optional[dict] = None) -> Tuple[bool, str]:
@@ -84,10 +175,9 @@ def entry_gate(symbol: str, action: str, market_summary: Optional[dict] = None) 
         return False, "long_trend_v2 多头单边：禁做空"
     if act != "buy":
         return False, f"long_trend_v2 非买信号({act})"
-    df = _live_1d(symbol)
-    if df is None:
+    df, c = _get_l1_classification(symbol)
+    if df is None or c is None:
         return False, "long_trend_v2 1d 数据不足(<260根)"
-    c = classify(df)
     if not _l1_up(c):
         return False, f"long_trend_v2 L1={c['state']}(score={c['score']})，非 up 禁开"
     return True, f"long_trend_v2 L1=up(score={c['score']}) 放行"
@@ -106,12 +196,11 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
         return {"should_open": False, "action": "hold", "direction": "neutral",
                 "score": 0, "hold_reason": "v2_disabled", "suggested_sl_pct": 0.08,
                 "reason": ""}
-    df = _live_1d(sym)
-    if df is None:
+    df, c = _get_l1_classification(sym)
+    if df is None or c is None:
         return {"should_open": False, "action": "hold", "direction": "neutral",
                 "score": 0, "hold_reason": "1d 数据不足(<260根)",
                 "suggested_sl_pct": 0.08, "reason": ""}
-    c = classify(df)
     score_raw = float(c.get("score") or 0.0)
     if not _l1_up(c):
         return {"should_open": False, "action": "hold", "direction": "neutral",
@@ -160,60 +249,72 @@ def manage_long_position(
     if side != "long":
         return {"action": "close", "reason": "long_trend_v2 多头单边：空仓平掉"}
 
-    df = _live_1d(sym)
-    if df is None:
+    df, c = _get_l1_classification(sym)
+    if df is None or c is None:
         return {"action": "hold", "reason": "1d 数据不足，跳过"}
-
-    c = classify(df)
-    atr_w = weekly_atr(df).iloc[-1]
-    if atr_w is None or float(atr_w) <= 0:
+    atr_series = weekly_atr(df)
+    atr_w = float(atr_series.iloc[-1])
+    if not atr_w or atr_w <= 0:
         return {"action": "hold", "reason": "ATR(1w) 不可用"}
 
     close_now = float(df["close"].iloc[-1])
     entry = float(position.get("entry_price") or 0)
+    if entry <= 0:
+        return {"action": "hold", "reason": "入场价缺失"}
     mult = _cfg_float("LONG_V2_CHANDELIER_ATR", 2.0)
-    init_stop = entry - mult * float(atr_w)
 
-    # 结构破坏（唯一主动退出）
-    if not _l1_up(c):
-        return {"action": "close", "reason": f"结构破坏(L1={c['state']},score={c['score']})"}
+    # [A2 同核] Chandelier 用回测同款 chandelier_long_stop（全序列、从入场 bar 起、真实入场价），
+    # 删除原 opened_at 截断近似实现。决策统一走 decide_long（回测/实盘同核唯一函数）。
+    from backend.services.long_tier_manager import chandelier_long_stop, decide_long
+    _entry_idx = _entry_idx_for(df, position.get("opened_at"))
+    _stops = chandelier_long_stop(
+        df["close"].astype(float), atr_series,
+        mult=mult, entry_idx=_entry_idx, entry_price=entry,
+    )
+    stop = float(_stops.iloc[-1]) if (_stops is not None and pd.notna(_stops.iloc[-1])) else None
 
-    # Chandelier：入场后最高收盘 - mult×ATR(1w)
-    # 近似：用 1d 序列里自开仓以来的最高收盘（opened_at 截断），再与 entry 取大。
-    opened = position.get("opened_at")
-    closes = df["close"].astype(float)
-    highest = entry
-    if opened is not None:
-        try:
-            ts = pd.Timestamp(opened)
-            if "timestamp" in df.columns:
-                closes_since = closes[df["timestamp"].astype(str) >= str(ts.date())]
-            else:
-                closes_since = closes
-            if len(closes_since):
-                highest = max(entry, float(closes_since.max()))
-        except Exception:
-            highest = max(entry, float(closes.max()))
-    chand_stop = max(init_stop, highest - mult * float(atr_w))
-
-    if close_now < chand_stop:
-        return {"action": "close", "reason": f"Chandelier止损(close={close_now:.2f}<stop={chand_stop:.2f})"}
-
-    # 新高金字塔（创 60 日新高且浮盈 ≥1R）
+    _cur_sl = float(position.get("sl_price") or 0)
+    cur_sl = _cur_sl if _cur_sl > 0 else None
+    r_mult = (close_now - entry) / (mult * atr_w)
+    # [修复] is_new_high 期望 high 序列；原实现误传整个 df 使新高判定异常回退 False，
+    # 导致实盘金字塔加仓从未触发。改为传 high 列。
     try:
-        _new_high = bool(is_new_high(df).iloc[-1])
+        _new_high = bool(is_new_high(df["high"].astype(float)).iloc[-1])
     except Exception:
         _new_high = False
-    r_mult = (close_now - entry) / (mult * float(atr_w)) if entry > 0 else 0.0
-    _pyr_on = _cfg_bool("LONG_V2_PYRAMID_ENABLED", True)
-    _pyr_r = _cfg_float("LONG_V2_PYRAMID_R", 1.0)
-    if _pyr_on and _new_high and r_mult >= _pyr_r:
-        return {"action": "add", "ratio": _cfg_float("LONG_V2_PYRAMID_RATIO", 0.25), "reason": f"新高加仓(r={r_mult:.2f}R)"}
 
-    # 止损上移：当前 SL 低于 Chandelier 则收紧
-    cur_sl = float(position.get("sl_price") or 0)
-    if cur_sl > 0 and chand_stop > cur_sl:
-        return {"action": "tighten_sl", "reason": f"Chandelier上移 SL→{chand_stop:.4f}",
-                "new_sl": round(chand_stop, 6)}
+    # [A3] 峰值 R / 持有天数 / 相对峰值回撤（供 decide_long 兜底判定）
+    peak_r = None
+    try:
+        _risk_pct = (mult * atr_w) / entry
+        if _risk_pct > 0:
+            peak_r = float(position.get("peak_pnl_pct") or 0) / _risk_pct
+    except Exception:
+        pass
+    hold_days = None
+    try:
+        _opened = position.get("opened_at")
+        if _opened is not None:
+            hold_days = float((pd.Timestamp.utcnow() - pd.Timestamp(_opened)).total_seconds()) / 86400.0
+    except Exception:
+        pass
+    drawdown = None
+    try:
+        _margin = float(position.get("margin") or 0)
+        _upnl = float(position.get("unrealized_pnl") or 0)
+        _cur_pct = (_upnl / _margin) if _margin > 0 else 0.0
+        _peak_pct = float(position.get("peak_pnl_pct") or 0) or 0.0
+        if _peak_pct > -1.0:
+            drawdown = max(0.0, 1.0 - (1.0 + _cur_pct) / (1.0 + _peak_pct))
+    except Exception:
+        pass
+    pyr_batch = _pyramid_batch(position)
+    if not _cfg_bool("LONG_V2_PYRAMID_ENABLED", True):
+        pyr_batch = 99  # 金字塔禁用：批次打满禁止 add
 
-    return {"action": "hold", "reason": f"持有(L1=up, chand_stop={chand_stop:.4f})"}
+    return decide_long(
+        l1_state=str(c.get("state") or "sideways"),
+        close=close_now, stop=stop, new_high=_new_high, r_multiple=r_mult,
+        in_position=True, cur_sl=cur_sl, peak_r=peak_r, hold_days=hold_days,
+        drawdown_pct=drawdown, pyr_batch=pyr_batch,
+    )

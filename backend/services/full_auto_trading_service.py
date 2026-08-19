@@ -3837,6 +3837,36 @@ class FullAutoTradingService:
                                 add_type="pyramid",
                             )
                             logger.info("[MidLongExit][V2] 金字塔加仓 %s qty=%s: %s", sym, _pyr_qty, _v2d.get("reason"))
+                            # [A2 同核] 加仓成功后批次计数 +1（exit_state_json.pyramid_batch，供下次决策读）
+                            try:
+                                import json as _json_p
+                                from backend.database.models import PaperPosition as _PP
+                                _row = db.query(_PP).filter(_PP.id == int(pos.get("id") or 0)).first()
+                                if _row is not None:
+                                    _st = _row.exit_state_json or "{}"
+                                    try:
+                                        _d = _json_p.loads(_st) if isinstance(_st, str) else {}
+                                    except Exception:
+                                        _d = {}
+                                    if not isinstance(_d, dict):
+                                        _d = {}
+                                    _d["pyramid_batch"] = int(_d.get("pyramid_batch") or 0) + 1
+                                    _row.exit_state_json = _json_p.dumps(_d, ensure_ascii=False)
+                                    db.commit()
+                            except Exception as _be:
+                                logger.debug("[MidLongExit][V2] pyramid_batch 写入失败: %s", _be)
+                    elif _v2d.get("action") == "reduce":
+                        # [A3 兜底] 部分减仓（极端回撤减半；A4 结构目标减仓复用此分支）
+                        _red_ratio = float(_v2d.get("ratio") or 0.5)
+                        _red_qty = float(pos.get("size") or 0) * _red_ratio
+                        if _red_qty > 0:
+                            paper_engine.close_position(
+                                db, acct_id, sym, pos.get("side"),
+                                reason=("long_trend_v2:" + str(_v2d.get("reason") or ""))[:120],
+                                quantity=_red_qty,
+                                strategy_id=pos.get("strategy_id"),
+                            )
+                            logger.info("[MidLongExit][V2] 部分减仓 %s qty=%s: %s", sym, _red_qty, _v2d.get("reason"))
                 except Exception as _v2e:
                     logger.warning("[MidLongExit][V2] 管理异常 %s: %s", sym, _v2e)
                 continue
