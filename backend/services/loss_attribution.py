@@ -52,14 +52,17 @@ def _tier_of_trade(trade_nature: Optional[str], timeframe_tier: Optional[str]) -
 
 def build_loss_attribution(db, account_id: int, horizon: str, days: int = 1) -> Dict[str, Any]:
     """生成某周期的亏损归因块。盈利/无样本时返回 {active: False, note}。"""
+    # [D3 2026-08-19] 数据源改 PaperPosition（closed）：PaperOrder.pnl 多数路径不落库，
+    # 平仓权威记录在 PaperPosition（close_price 价差 + partial_realized_pnl），口径统一走 pnl_authority。
     from datetime import datetime, timedelta
-    from backend.database.models import PaperOrder
+    from backend.database.models import PaperPosition
+    from backend.services.pnl_authority import realized_pnl
 
     cutoff = datetime.utcnow() - timedelta(days=days)
-    q = db.query(PaperOrder).filter(
-        PaperOrder.account_id == int(account_id),
-        PaperOrder.close_reason.isnot(None),
-        PaperOrder.filled_at >= cutoff,
+    q = db.query(PaperPosition).filter(
+        PaperPosition.account_id == int(account_id),
+        PaperPosition.status.in_(["closed", "liquidated"]),
+        PaperPosition.closed_at >= cutoff,
     )
     rows = []
     for r in q.all():
@@ -67,24 +70,31 @@ def build_loss_attribution(db, account_id: int, horizon: str, days: int = 1) -> 
             continue
         rows.append(r)
 
-    pnls = [float(r.pnl or 0.0) for r in rows]
+    pnls = [realized_pnl(r) for r in rows]
     if not pnls:
         return {"active": False, "note": f"{horizon} 近 {days} 天无平仓样本"}
     total = sum(pnls)
     if total >= 0:
         return {"active": False, "note": f"{horizon} 近 {days} 天盈利 +{total:.2f}，无亏损归因", "total_pnl": round(total, 2)}
-    losses = [r for r in rows if float(r.pnl or 0.0) < 0]
+    losses = [r for r in rows if realized_pnl(r) < 0]
     # 分桶
     by_symbol: Dict[str, float] = {}
     by_reason: Dict[str, float] = {}
     by_nature: Dict[str, float] = {}
     for r in losses:
         s = str(r.symbol or "?").upper()
-        by_symbol[s] = by_symbol.get(s, 0.0) + float(r.pnl or 0.0)
+        by_symbol[s] = by_symbol.get(s, 0.0) + realized_pnl(r)
         k = str(getattr(r, "close_reason", None) or "unknown")
-        by_reason[k] = by_reason.get(k, 0.0) + float(r.pnl or 0.0)
+        by_reason[k] = by_reason.get(k, 0.0) + realized_pnl(r)
         n = str(getattr(r, "trade_nature", None) or "unknown")
-        by_nature[n] = by_nature.get(n, 0.0) + float(r.pnl or 0.0)
+        by_nature[n] = by_nature.get(n, 0.0) + realized_pnl(r)
+
+    by_sym_all: Dict[str, Dict[str, float]] = {}
+    for r in rows:
+        s = str(r.symbol or "?").upper()
+        d = by_sym_all.setdefault(s, {"pnl": 0.0, "n": 0})
+        d["pnl"] += realized_pnl(r)
+        d["n"] += 1
 
     def _top3(d: Dict[str, float]):
         items = sorted(d.items(), key=lambda x: x[1])[:3]  # 亏损最多（最负）在前
@@ -97,6 +107,10 @@ def build_loss_attribution(db, account_id: int, horizon: str, days: int = 1) -> 
         "n_trades": len(rows),
         "n_losses": len(losses),
         "by_symbol": _top3(by_symbol),
+        "by_symbol_all": [
+            {"key": k, "pnl": round(v["pnl"], 2), "n": int(v["n"])}
+            for k, v in sorted(by_sym_all.items(), key=lambda x: x[1]["pnl"])
+        ],
         "by_exit_reason": _top3(by_reason),
         "by_trade_nature": _top3(by_nature),
     }

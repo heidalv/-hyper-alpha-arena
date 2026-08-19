@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
@@ -84,6 +84,21 @@ def amplitude_in_band(amp: Optional[float]) -> bool:
     if amp is None:
         return False
     return SCALP_MR_MIN_RANGE_PCT <= amp <= SCALP_MR_MAX_RANGE_PCT
+
+
+def apply_learned_mr(tp_pct: float, sl_pct: float) -> Tuple[float, float]:
+    """[D1] learned TP/SL 覆盖：网格训练最优 (tp,sl) 覆盖贴区间结构值；缺失时原样返回。"""
+    try:
+        from backend.services.risk.tp_sl_grid_trainer import get_learned_pct
+        _learned_mr = get_learned_pct("short", band="mr")
+        if _learned_mr:
+            _ltp = float(_learned_mr.get("tp_pct") or 0)
+            _lsl = float(_learned_mr.get("sl_pct") or 0)
+            if _ltp > 0 and _lsl > 0:
+                return max(_ltp, SCALP_MR_MIN_TP), _clip(_lsl, _MR_SL_FLOOR, _MR_SL_CAP)
+    except Exception:
+        pass
+    return tp_pct, sl_pct
 
 
 def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal:
@@ -167,6 +182,11 @@ def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal
     # 止盈强制盖过手续费；止损夹在合理区间（防过紧被噪声扫、防过松变趋势大亏）
     tp_pct = max(tp_pct, SCALP_MR_MIN_TP)
     sl_pct = _clip(sl_pct, _MR_SL_FLOOR, _MR_SL_CAP)
+
+    # [D1 2026-08-19] learned TP/SL 覆盖（与 tp_sl_prices 同口径）：网格训练的最优
+    # (tp,sl) 覆盖贴区间结构值。背景：ScalpMR 自算 rr=1.0 的宽 TP/SL 导致 37% 仓位
+    # 磨到 max_hold_timeout 退出（既不到 TP 也碰不到 SL）。learned 缺失时保持原口径。
+    tp_pct, sl_pct = apply_learned_mr(tp_pct, sl_pct)
 
     # 自洽盈亏比：贴边缘算出的止损有时略大于止盈(rr<1)，会被下游 min_rr 冤杀。
     # 优先收紧止损（不低于硬下限）；若仍不足则【抬止盈】到 sl×MIN_RR，

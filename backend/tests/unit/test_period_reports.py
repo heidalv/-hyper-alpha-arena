@@ -9,17 +9,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirna
 from backend.services.loss_attribution import build_loss_attribution, _tier_of_trade
 
 
-def _mk_order(symbol="BTC", pnl=-10.0, reason="chandelier", nature="trend_follow", tf="long"):
-    o = MagicMock()
-    o.symbol = symbol
-    o.side = "long"
-    o.pnl = pnl
-    o.close_reason = reason
-    o.entry_price = 100.0
-    o.filled_price = 99.0
-    o.trade_nature = nature
-    o.timeframe_tier = tf
-    return o
+def _mk_pos(symbol="BTC", pnl=-10.0, reason="chandelier", nature="trend_follow", tf="long"):
+    """D3 口径：PaperPosition 风格 mock，pnl 经 entry/close 价差复原。"""
+    p = MagicMock()
+    p.symbol = symbol
+    p.side = "long"
+    p.partial_realized_pnl = 0.0
+    p.close_reason = reason
+    p.entry_price = 100.0
+    p.size = 1.0
+    p.close_price = 100.0 + pnl  # long: realized = (close-entry)*size
+    p.trade_nature = nature
+    p.timeframe_tier = tf
+    return p
 
 
 def _mk_db(rows):
@@ -38,9 +40,9 @@ def test_tier_of_trade():
 
 
 def test_loss_attribution_triggers_on_loss():
-    db = _mk_db([_mk_order("BTC", -20.0, "chandelier"),
-                 _mk_order("ETH", -5.0, "structure_break"),
-                 _mk_order("BTC", -8.0, "chandelier")])
+    db = _mk_db([_mk_pos("BTC", -20.0, "chandelier"),
+                 _mk_pos("ETH", -5.0, "structure_break"),
+                 _mk_pos("BTC", -8.0, "chandelier")])
     out = build_loss_attribution(db, 1, "long", days=1)
     assert out["active"] is True
     assert out["total_pnl"] == -33.0
@@ -49,7 +51,7 @@ def test_loss_attribution_triggers_on_loss():
 
 
 def test_loss_attribution_inactive_on_profit():
-    db = _mk_db([_mk_order("BTC", 20.0, "chandelier")])
+    db = _mk_db([_mk_pos("BTC", 20.0, "chandelier")])
     out = build_loss_attribution(db, 1, "long", days=1)
     assert out["active"] is False and "盈利" in out["note"]
 

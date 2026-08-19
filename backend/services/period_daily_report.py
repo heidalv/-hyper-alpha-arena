@@ -50,19 +50,40 @@ def _horizon_of(order) -> str:
     return "scalp"
 
 
+def _exit_stats(db, account_id: int, horizon: str, hours: int = 24) -> Dict[str, Any]:
+    # D1: exit channel stats (max_hold_timeout ratio monitoring)
+    from datetime import datetime, timedelta
+    from collections import Counter
+    try:
+        from backend.database.models import PositionExitEvent
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        rows = db.query(PositionExitEvent).filter(
+            PositionExitEvent.account_id == int(account_id),
+            PositionExitEvent.created_at >= cutoff,
+        ).all()
+        dist = Counter(str(getattr(r, "exit_channel", None) or "unknown") for r in rows)
+        return {"total_exits": len(rows), "max_hold_timeout": int(dist.get("max_hold_timeout", 0)),
+                "by_channel": dict(dist.most_common(8))}
+    except Exception as e:
+        logger.debug("[PeriodDaily] exit_stats failed: %s", e)
+        return {"total_exits": 0, "max_hold_timeout": 0, "by_channel": {}}
+
+
 def _trades_since(db, account_id: int, horizon: str, hours: int = 24) -> Dict[str, Any]:
     """近 hours 小时该周期的平仓单统计。"""
+    # [D3] 数据源 PaperPosition（closed）+ pnl_authority 统一口径
     from datetime import datetime, timedelta
-    from backend.database.models import PaperOrder
+    from backend.database.models import PaperPosition
+    from backend.services.pnl_authority import realized_pnl
 
     cutoff = datetime.utcnow() - timedelta(hours=hours)
-    q = db.query(PaperOrder).filter(
-        PaperOrder.account_id == int(account_id),
-        PaperOrder.close_reason.isnot(None),
-        PaperOrder.filled_at >= cutoff,
+    q = db.query(PaperPosition).filter(
+        PaperPosition.account_id == int(account_id),
+        PaperPosition.status.in_(["closed", "liquidated"]),
+        PaperPosition.closed_at >= cutoff,
     )
     rows = [r for r in q.all() if _horizon_of(r) == horizon]
-    pnls = [float(r.pnl or 0.0) for r in rows]
+    pnls = [realized_pnl(r) for r in rows]
     wins = [p for p in pnls if p > 0]
     return {
         "n_closed": len(rows),
@@ -76,9 +97,33 @@ def _group_pnl(rows) -> List[Dict[str, Any]]:
     d: Dict[str, float] = {}
     for r in rows:
         s = str(r.symbol or "?").upper()
-        d[s] = d.get(s, 0.0) + float(r.pnl or 0.0)
+        d[s] = d.get(s, 0.0) + realized_pnl(r)
     items = sorted(d.items(), key=lambda x: -x[1])[:5]
     return [{"symbol": k, "pnl": round(v, 2)} for k, v in items]
+
+
+def _symbol_daily(db, account_id: int, horizon: str, hours: int = 24) -> List[Dict[str, Any]]:
+    """D2 feed: 近 hours 小时该周期每币种的已实现 PnL 与平仓笔数（驱动 symbol_penalty 状态机）。"""
+    from datetime import datetime, timedelta
+    from backend.database.models import PaperPosition
+    from backend.services.pnl_authority import realized_pnl
+
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    q = db.query(PaperPosition).filter(
+        PaperPosition.account_id == int(account_id),
+        PaperPosition.status.in_(["closed", "liquidated"]),
+        PaperPosition.closed_at >= cutoff,
+    )
+    agg: Dict[str, Dict[str, float]] = {}
+    for r in q.all():
+        if _horizon_of(r) != horizon:
+            continue
+        s = str(r.symbol or "?").upper()
+        d = agg.setdefault(s, {"pnl": 0.0, "n": 0})
+        d["pnl"] += realized_pnl(r)
+        d["n"] += 1
+    return [{"symbol": k, "pnl": round(v["pnl"], 4), "n": int(v["n"])}
+            for k, v in sorted(agg.items(), key=lambda x: x[1]["pnl"])]
 
 
 def _open_positions(db, account_id: int, horizon: str) -> List[Dict[str, Any]]:
@@ -152,7 +197,10 @@ def build_daily_report(db, account_id: int, symbols=None,
             "trades_24h": _trades_since(db, account_id, horizon),
             "open_positions": _open_positions(db, account_id, horizon),
             "loss_attribution": build_loss_attribution(db, account_id, horizon, days=1),
+            "symbol_daily": _symbol_daily(db, account_id, horizon),
         }
+        if horizon == "scalp":
+            sec["exit_stats"] = _exit_stats(db, account_id, horizon)
         if horizon == "long":
             sec["l1_panel"] = _l1_panel(symbols)
             sec["actions_24h"] = _drain_actions(day0)
@@ -198,6 +246,13 @@ def save_daily_report(db, account_id: int, symbols=None, date: Optional[str] = N
 
     report = build_daily_report(db, account_id, symbols=symbols, date=date)
     rdate = report["report_date"]
+    # report directives: D1 timeout retrain / D2 losing-symbol penalty
+    _directives = None
+    try:
+        from backend.services.report_directives import analyze_directives
+        _directives = analyze_directives(report)
+    except Exception as _de:
+        logger.debug("[PeriodDaily] directives failed: %s", _de)
     # 防御：build 阶段各段查询失败被吞时可能留 aborted 事务——rollback 后再落库
     try:
         db.rollback()
@@ -210,6 +265,8 @@ def save_daily_report(db, account_id: int, symbols=None, date: Optional[str] = N
             PeriodDailyReport.report_date == rdate,
             PeriodDailyReport.horizon == horizon,
         ).first()
+        if _directives:
+            sec["directives"] = _directives
         payload = json.dumps(sec, ensure_ascii=False, default=str)
         if row is None:
             row = PeriodDailyReport(account_id=int(account_id), report_date=rdate, horizon=horizon)

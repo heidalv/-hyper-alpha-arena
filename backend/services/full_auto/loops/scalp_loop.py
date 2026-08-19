@@ -764,6 +764,27 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 f"id={_gate.lane_decision_id}"
             )
 
+            # ── 亏损币惩罚（设计 D2：日报 symbol_penalty 状态机驱动）──
+            # watchlisted → 禁开该币（待复审恢复）；penalty<1.0 → 信号强度打折
+            _pen_score = float(getattr(_gate, "effective_score", 0) or 0)
+            try:
+                from backend.services.symbol_penalty import get_penalty, is_watchlisted
+                _pen = float(get_penalty(sym) or 1.0)
+                if is_watchlisted(sym) or _pen <= 0.0:
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} 在亏损币观察名单(penalty=0)，禁开待复审"
+                    )
+                    _bump_block("symbol_watchlist")
+                    continue
+                if _pen < 1.0:
+                    _pen_score = _pen_score * _pen
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} 亏损币惩罚 penalty={_pen}: "
+                        f"信号强度 {float(getattr(_gate, 'effective_score', 0) or 0):.3f} -> {_pen_score:.3f}"
+                    )
+            except Exception as _pen_err:
+                logger.debug(f"[ScalpRouter独立] {sym} symbol_penalty 检查跳过: {_pen_err}")
+
             # ── 开仓冷却检查（2026-06-22 修复短线频繁开单） ──
             # 这是之前唯一缺失的门：平仓冷却有(reentry_cooldown)，开仓冷却没有。
             # 没有 → turbo 档 45s/tick 下每 tick 都能开，同 symbol 每小时 80 次。
@@ -832,7 +853,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     symbol=sym,
                     side=_side_str,
                     action=_side_str,
-                    confidence=float(_gate.effective_score or _sig.confidence or _sig.factor_score or 0),
+                    confidence=float(_pen_score or _sig.confidence or _sig.factor_score or 0),
                     tier="short",
                     trade_nature="scalp",
                 )
@@ -858,7 +879,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             )
             _dyn_lev = 10
             _conf_raw = float(
-                getattr(_gate, "effective_score", 0)
+                _pen_score
                 or getattr(_sig, "confidence", 0)
                 or getattr(_sig, "factor_score", 0)
                 or 0
