@@ -38,6 +38,11 @@ CONFIG_SPECS: Dict[str, Dict[str, Any]] = {
     "FACTOR_MCTS_ROOTS":     {"default": 3,   "type": int,   "min": 1,    "max": 16,   "group": "mcts",  "label": "MCTS 树根数",      "desc": "MCTSConfig.n_roots（短板种子+随机根补齐）"},
     "FACTOR_MCTS_CHILDREN":  {"default": 5,   "type": int,   "min": 2,    "max": 32,   "group": "mcts",  "label": "MCTS 扩展子节点",  "desc": "MCTSConfig.n_children"},
     "FACTOR_MCTS_MAX_WORKERS":{"default": 8,  "type": int,   "min": 1,    "max": 64,   "group": "mcts",  "label": "MCTS 并行线程",     "desc": "MCTSConfig.max_workers（0=min(8,cpu)）"},
+    # ── GPU 批量求值（factor_evolution_loop → GpuEvalContext；GTX 1070 8G）──
+    "FACTOR_EVO_GPU_EVAL": {"default": 0, "type": bool, "min": None, "max": None, "group": "gpu", "label": "GPU 批量求值开关", "desc": "FACTOR_EVO_GPU_EVAL=1 且 CUDA 可用 → GP/MCTS 栈式 GPU 批量求值（等价性验证失败自动回退 loky CPU）"},
+    "FACTOR_EVO_GPU_MAX_MEM_MB": {"default": 1200, "type": int, "min": 128, "max": 7000, "group": "gpu", "label": "GPU 显存预算(MB)", "desc": "批量求值显存预算（WDDM 桌面模式实际可用 ~6.4GB）"},
+    "FACTOR_EVO_GPU_CHUNK": {"default": 64, "type": int, "min": 8, "max": 512, "group": "gpu", "label": "GPU 批量块大小", "desc": "每批求值个体数（GpuEvalContext.chunk）"},
+    "FACTOR_EVO_GPU_POP_BOOST": {"default": 1, "type": bool, "min": None, "max": None, "group": "gpu", "label": "GPU 种群扩容", "desc": "未显式设 FACTOR_GP_POPULATION 时自动 300→1200"},
     # ── 元标签模型（scalp_meta_trainer）──
     "SCALP_META_MIN_SAMPLES":   {"default": 800,  "type": int,   "min": 200,  "max": 100000, "group": "meta", "label": "元标签最小样本",   "desc": "去重后独立样本门槛（不足优雅跳过）"},
     "SCALP_META_MIN_PER_CLASS": {"default": 200,  "type": int,   "min": 50,   "max": 20000,  "group": "meta", "label": "每类最小样本",     "desc": "赢/亏类各需 ≥ 此数"},

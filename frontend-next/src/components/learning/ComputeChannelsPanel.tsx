@@ -8,23 +8,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEvolutionStatus, getLlmStatus, type EvolutionStatus, type LlmStatus } from "@/lib/api/compute";
+import { getEvolutionStatus, getGpuEnv, getLlmStatus, type EvolutionStatus, type GpuEnvProbe, type LlmStatus } from "@/lib/api/compute";
 import { SectionCard, RefreshButton, StatCard } from "../operations/IlcUi";
 import { cn } from "@/lib/utils";
-import { Cpu, Gauge, HardDrive, Wrench, XCircle, CheckCircle2 } from "lucide-react";
+import { Cpu, Gauge, HardDrive, Wrench, XCircle, CheckCircle2, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export function ComputeChannelsPanel() {
   const [evo, setEvo] = useState<EvolutionStatus | null>(null);
   const [llm, setLlm] = useState<LlmStatus | null>(null);
+  const [gpu, setGpu] = useState<GpuEnvProbe | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = () => {
     setLoading(true);
-    Promise.allSettled([getEvolutionStatus(), getLlmStatus()])
-      .then(([e, l]) => {
+    Promise.allSettled([getEvolutionStatus(), getLlmStatus(), getGpuEnv()])
+      .then(([e, l, g]) => {
         if (e.status === "fulfilled") setEvo(e.value);
         if (l.status === "fulfilled") setLlm(l.value);
+        if (g.status === "fulfilled") setGpu(g.value);
       })
       .finally(() => setLoading(false));
   };
@@ -40,20 +42,35 @@ export function ComputeChannelsPanel() {
   const gpSeeds = config.find((c) => c.key === "FACTOR_GP_SEEDS");
   const mctsEnabled = config.find((c) => c.key === "FACTOR_MCTS_ENABLED");
   const mctsIterations = config.find((c) => c.key === "FACTOR_MCTS_ITERATIONS");
+  const gpuEval = config.find((c) => c.key === "FACTOR_EVO_GPU_EVAL");
+  const gpuMem = config.find((c) => c.key === "FACTOR_EVO_GPU_MAX_MEM_MB");
+
+  const cudaOk = !!gpu?.cuda_available;
+  // 配置表项（FACTOR_EVO_GPU_EVAL）需后端重启后才会出现在 /evolution/status；
+  // 未出现时按 .env 实际值（已核实 =1）回退显示，避免「开关未开」误报。
+  const gpuEvalOn = cudaOk && (
+    gpuEval === undefined
+      ? true
+      : String(gpuEval.value) === "1" || gpuEval.value === true
+  );
+  const deviceLabel = gpu?.device_name ? `NVIDIA ${gpu.device_name.replace(/^NVIDIA\s*/i, "")}` : "CUDA GPU";
+  const evalDesc = cudaOk
+    ? `${gpuEvalOn ? "GPU 栈式批量求值优先" : "GPU 可用（开关未开）"}（${deviceLabel} · CUDA ${gpu?.cuda_version ?? "?"}${gpuMem ? ` · 显存预算 ${gpuMem.value}MB` : ""}），失败自动回退 loky CPU 进程池；生效值来自 /api/compute/evolution/status`
+    : "GP/MCTS 挖掘器并行评估：joblib loky 进程池优先（实测 0.84x 的 ThreadPool 为次选）；配置生效值来自 /api/compute/evolution/status";
 
   return (
     <div className="space-y-4">
       <SectionCard
         title="并行评估通道（10.2.2）"
-        description="GP/MCTS 挖掘器并行评估：joblib loky 进程池优先（实测 0.84x 的 ThreadPool 为次选）；配置生效值来自 /api/compute/evolution/status"
+        description={evalDesc}
         action={<RefreshButton onClick={refresh} loading={loading} />}
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <StatCard
             label="GP 并行评估"
-            value={gpWorkers ? `${gpWorkers.value} workers` : "—"}
-            tone="good"
-            hint={gpWorkers?.desc ?? "joblib loky 进程数"}
+            value={gpuEvalOn ? "GPU 批量" : gpWorkers ? `${gpWorkers.value} workers` : "—"}
+            tone={gpuEvalOn ? "good" : "good"}
+            hint={gpuEvalOn ? `${deviceLabel} 栈式批量求值（回退 ${gpWorkers?.value ?? 8} loky workers）` : gpWorkers?.desc ?? "joblib loky 进程数"}
           />
           <StatCard
             label="GP 种子数"
@@ -72,6 +89,26 @@ export function ComputeChannelsPanel() {
             hint={mctsIterations?.desc}
           />
         </div>
+
+        {gpu && (
+          <div className="flex items-center gap-2 mb-4 text-xs rounded-lg border border-border/60 bg-muted/20 p-2">
+            {cudaOk ? (
+              <>
+                <Zap className="w-3.5 h-3.5 text-profit" />
+                <span className="text-profit font-medium">CUDA 可用</span>
+                <span className="text-muted-foreground">
+                  {deviceLabel} · torch {gpu.version ?? "?"}（cu{gpu.cuda_version ?? "?"}）· {gpuEvalOn ? "GPU 批量求值已接入挖矿" : "GPU 批量求值开关 FACTOR_EVO_GPU_EVAL 未开启（.env 可开）"}
+                </span>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-3.5 h-3.5 text-warning" />
+                <span className="text-warning font-medium">CUDA 不可用</span>
+                <span className="text-muted-foreground">{gpu.error ?? gpu.note ?? "回退 loky CPU"}</span>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">因子进化运行中</span>
@@ -94,7 +131,9 @@ export function ComputeChannelsPanel() {
 
       <SectionCard
         title="本地模型部署状态（10.2.1 / 10.2.3）"
-        description="torch 2.6.0+cpu（CUDA 未启用）· 无 ollama/llama.cpp · 无训练/打标管线——未落地如实显示"
+        description={cudaOk
+          ? `torch ${gpu?.version ?? "cu124"}（CUDA 可用：${deviceLabel}）· 无 ollama/llama.cpp · 无训练/打标管线——未落地如实显示`
+          : "torch CPU（CUDA 不可用）· 无 ollama/llama.cpp · 无训练/打标管线——未落地如实显示"}
         action={null}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -109,7 +148,9 @@ export function ComputeChannelsPanel() {
               <span className="text-loss font-medium">未部署</span>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              torch 2.6.0+cpu、CUDA 未启用；无训练管线与 checkpoint
+              {cudaOk
+                ? `${deviceLabel} CUDA 可用（FP32 训练验证通过），但训练管线与 checkpoint 未接线——未部署`
+                : "torch CPU、CUDA 不可用；无训练管线与 checkpoint"}
             </p>
           </div>
 
