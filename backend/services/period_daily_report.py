@@ -123,6 +123,17 @@ def _l1_panel(symbols=None) -> Dict[str, Any]:
                 "strength": c.get("strength"), "signals": c.get("signals", {}),
                 "target": c.get("target"), "close": c.get("close"),
             }
+            # [B1/B2] 趋势起始点（BOCPD 变点）与 Wyckoff 相位（报告观测字段）
+            try:
+                from backend.services.trend_inception import inception_check
+                panel[s]["inception"] = inception_check(df)
+            except Exception:
+                pass
+            try:
+                from backend.services.wyckoff_phase import classify_phase as _wp
+                panel[s]["wyckoff"] = _wp(df)
+            except Exception:
+                pass
         except Exception as e:
             panel[s] = {"state": "error", "reason": str(e)[:80]}
     return panel

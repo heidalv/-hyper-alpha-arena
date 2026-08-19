@@ -252,6 +252,13 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
     if atr_w and atr_w > 0 and close > 0:
         sl_pct = max(0.02, min(0.20, (_cfg_float("LONG_V2_CHANDELIER_ATR", 2.0) * atr_w) / close))
     conf = max(50, min(95, 50 + int(round(score_raw * 10))))
+    # [B1] 趋势起始点（BOCPD 变点 + 确认）——先写字段灰度（不改闸），证据积累后再评估上闸
+    _inception = None
+    try:
+        from backend.services.trend_inception import inception_check
+        _inception = inception_check(df)
+    except Exception:
+        pass
     return {
         "should_open": True,
         "action": "buy",
@@ -261,6 +268,7 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
         "suggested_sl_pct": round(sl_pct, 4),
         # [A4] 首仓 50%：试探仓，满 24h 且 L1 仍 up 未触止损由 manage 补足
         "size_hint_mult": _initial_fill(),
+        "inception": _inception,
         "reason": f"L1=up(score={score_raw}) 规则化入场，SL=2×1wATR({sl_pct * 100:.1f}%)，首仓{_initial_fill() * 100:.0f}%",
     }
 
