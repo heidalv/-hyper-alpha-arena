@@ -761,6 +761,15 @@ def get_tick_intervals():
             _mid_label = "中线暂停(因子研究)"
     except Exception:
         pass
+    # [2026-08-19] 长线真实节奏澄清：midlong 独立循环（mid+long 共用）的实际频率
+    # 由 orchestrator 注册为 max(45, TIER_MID_AI_TICK_SEC)；intervals["long"]=TIER_LONG_AI_TICK_SEC
+    # 只是「入场分析 due 节流」，不是循环频率。前端曾把 240 标成 tick 频率（误导）。
+    _long_loop_sec = intervals.get("long", 240)
+    try:
+        from backend.config.settings import TIER_MID_AI_TICK_SEC as _mid_tick
+        _long_loop_sec = max(45, int(_mid_tick or 45))
+    except Exception:
+        pass
     return {
         "intervals": intervals,
         "labels": {
@@ -770,6 +779,10 @@ def get_tick_intervals():
             "long": "长线AI",
         },
         "mid_mode": _mid_mode,
+        # 长线三层节奏：循环(实际扫描) / 入场节流 / 决策
+        "long_loop_sec": _long_loop_sec,
+        "long_entry_sec": int(intervals.get("long", 240)),
+        "long_decision": "daily_closed_bar",
     }
 
 

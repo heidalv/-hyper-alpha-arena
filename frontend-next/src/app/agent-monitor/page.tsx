@@ -391,13 +391,13 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
     {
       key: "long", name: "固定长线", icon: Boxes, color: "warning",
       interval: intervals.long, label: longFixedLabel,
-      badge: `${intervals.long}s tick · 日频决策`,
+      badge: `${tickIntervals.data?.long_loop_sec ?? 45}s 循环 · 日频决策`,
       data: tiers.long,
       job: findJob("midlong"),
       footer: (
         <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
           <div className="px-1 py-0.5 rounded bg-warning/10 text-warning">
-            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· 无 LLM · tick {intervals.long}s 调度 · 决策日频（仅已收盘 1d bar 更新）
+            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· 无 LLM · 循环 {tickIntervals.data?.long_loop_sec ?? 45}s（持仓管理每循环检查）· 入场分析 {tickIntervals.data?.long_entry_sec ?? intervals.long}s 节流 · 决策日频（仅已收盘 1d bar 更新）
           </div>
           <div>入场 = L1=up（score≥+3，多头单边，首仓 50%）；退出 = 结构破坏 + Chandelier 止损 + no_progress/极端回撤兜底；新高金字塔；无分档 TP / 无 15min 复查</div>
           <div>盘中价格波动不触发决策（未收盘 bar 已丢弃 + 分类缓存）；空仓等待 L1=up 确认</div>
