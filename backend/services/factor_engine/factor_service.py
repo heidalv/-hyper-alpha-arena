@@ -178,52 +178,72 @@ class FactorService:
         top_n: int = 30,
         forward_period: int = 5,
     ) -> Dict[str, Any]:
-        """对该标的所有已注册因子做 IC/ICIR/衰减/评级批量评估。"""
+        """对该标的因子做 IC/ICIR/衰减/评级批量评估。
+
+        [2026-08-19 修复] 此前对 380+ 全注册因子全量重算（calc 无缓存），
+        接口 60s+ 超时导致因子报告卡恒空白。现改为：
+        ① 与 /values 同口径的可用因子集（self.compute 带 60s TTL 缓存）；
+        ② calc.calculate 开 use_cache；
+        ③ 报告结果加 60s TTL 缓存（同 compute 防 stampede 模式）。
+        """
         from backend.services.factor_engine.factor_calculator import FactorCalculator
         from backend.services.factor_engine.factor_evaluator import FactorEvaluator
-        from backend.services.factor_engine.factor_registry import registry
 
-        df, used_tf = self._load_klines(symbol, timeframe)
-        if df is None or df.empty:
-            return {"symbol": symbol, "reports": [], "error": "insufficient kline data"}
-        if "close" not in df.columns:
-            return {"symbol": symbol, "reports": [], "error": "kline missing close column"}
+        cache_key = f"ic:{symbol}:{timeframe}:{forward_period}"
+        lock = _get_compute_lock(cache_key)
+        with lock:
+            hit = _compute_cache.get(cache_key)
+            if hit and (time.time() - hit["ts"]) < _COMPUTE_TTL_SECONDS:
+                return hit["data"]
 
-        self._ensure_registry_loaded()
-        try:
-            factor_ids = list(registry._factors.keys())  # 全部已注册因子
-        except Exception:
-            factor_ids = []
-        if not factor_ids:
-            return {"symbol": symbol, "reports": [], "error": "no registered factors"}
+            df, used_tf = self._load_klines(symbol, timeframe)
+            if df is None or df.empty:
+                return {"symbol": symbol, "reports": [], "error": "insufficient kline data"}
+            if "close" not in df.columns:
+                return {"symbol": symbol, "reports": [], "error": "kline missing close column"}
 
-        calc = FactorCalculator()
-        try:
-            series_map = calc.calculate(factor_ids, df, symbol=symbol, timeframe=used_tf or timeframe)
-        except Exception as exc:
-            logger.warning("[FactorService] IC 计算因子序列失败: %s", exc)
-            return {"symbol": symbol, "reports": [], "error": str(exc)[:200]}
+            self._ensure_registry_loaded()
+            # 与 /values 同口径的可用因子集（已含 60s 缓存），避免全注册因子重算
+            try:
+                fv_map = self.compute(symbol, timeframe)
+                factor_ids = [k for k in (fv_map or {}) if fv_map[k] is not None]
+            except Exception:
+                factor_ids = []
+            if not factor_ids:
+                return {"symbol": symbol, "reports": [], "error": "no registered factors"}
 
-        evaluator = FactorEvaluator(forward_period=forward_period)
-        reports = evaluator.evaluate_batch(series_map, df["close"], top_n=top_n)
-        return {
-            "symbol": symbol,
-            "timeframe": used_tf or timeframe,
-            "reports": [
-                {
-                    "factor_id": r.factor_id,
-                    "ic_mean": round(r.ic_mean, 5),
-                    "icir": round(r.icir, 4),
-                    "ic_positive_pct": round(r.ic_positive_pct, 4),
-                    "ic_decay_halflife": r.ic_decay_halflife,
-                    "turnover": round(r.turnover, 4),
-                    "monotonicity": round(r.monotonicity, 4),
-                    "grade": r.grade,
-                    "data_points": r.data_points,
-                }
-                for r in reports
-            ],
-        }
+            calc = FactorCalculator()
+            try:
+                series_map = calc.calculate(
+                    factor_ids, df, symbol=symbol, timeframe=used_tf or timeframe,
+                    use_cache=True,
+                )
+            except Exception as exc:
+                logger.warning("[FactorService] IC 计算因子序列失败: %s", exc)
+                return {"symbol": symbol, "reports": [], "error": str(exc)[:200]}
+
+            evaluator = FactorEvaluator(forward_period=forward_period)
+            reports = evaluator.evaluate_batch(series_map, df["close"], top_n=top_n)
+            result = {
+                "symbol": symbol,
+                "timeframe": used_tf or timeframe,
+                "reports": [
+                    {
+                        "factor_id": r.factor_id,
+                        "ic_mean": round(r.ic_mean, 5),
+                        "icir": round(r.icir, 4),
+                        "ic_positive_pct": round(r.ic_positive_pct, 4),
+                        "ic_decay_halflife": r.ic_decay_halflife,
+                        "turnover": round(r.turnover, 4),
+                        "monotonicity": round(r.monotonicity, 4),
+                        "grade": r.grade,
+                        "data_points": r.data_points,
+                    }
+                    for r in reports
+                ],
+            }
+            _compute_cache[cache_key] = {"ts": time.time(), "data": result}
+            return result
 
     # ── 注册表访问 ──
 
