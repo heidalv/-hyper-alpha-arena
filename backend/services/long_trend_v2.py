@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from backend.services.trend_layer import classify
-from backend.services.long_tier_manager import weekly_atr, is_new_high
+from backend.services.long_tier_manager import weekly_atr, weekly_atr_causal, is_new_high
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +245,7 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
         close = float(df["close"].iloc[-1])
     atr_w = 0.0
     try:
-        atr_w = float(weekly_atr(df).iloc[-1])
+        atr_w = float(weekly_atr_causal(df).iloc[-1])
     except Exception:
         atr_w = 0.0
     sl_pct = 0.08
@@ -287,7 +287,7 @@ def manage_long_position(
     df, c = _get_l1_classification(sym)
     if df is None or c is None:
         return {"action": "hold", "reason": "1d 数据不足，跳过"}
-    atr_series = weekly_atr(df)
+    atr_series = weekly_atr_causal(df)  # [A7] 因果版（上一完整周 ATR，无前视）
     atr_w = float(atr_series.iloc[-1])
     if not atr_w or atr_w <= 0:
         return {"action": "hold", "reason": "ATR(1w) 不可用"}

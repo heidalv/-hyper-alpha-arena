@@ -60,6 +60,43 @@ def weekly_atr(df_1d: pd.DataFrame, period: int = _ATR_PERIOD) -> pd.Series:
     return pd.Series(atr_daily, index=df_1d.index)
 
 
+def weekly_atr_causal(df_1d: pd.DataFrame, period: int = _ATR_PERIOD) -> pd.Series:
+    """[A7 因果修复] 严格因果的周线 ATR：bar i 的值 = 截至「上一个完整周」的 Wilder ATR。
+
+    旧 weekly_atr 把第 k 周整周数据算出的 ATR 前向填充到该周 7 根日线——回测里
+    周一的 bar 就用到周二~周日的数据（前视 6 天）。本版本当前周数据完全不参与
+    （周内只用已完成周的波动尺度），回测/实盘同核且无前视。
+    """
+    n = len(df_1d)
+    if n < 14:
+        return pd.Series(np.nan, index=df_1d.index)
+    high = df_1d["high"].astype(float).to_numpy()
+    low = df_1d["low"].astype(float).to_numpy()
+    close = df_1d["close"].astype(float).to_numpy()
+
+    nw = n // 7  # 完整周数
+    wh = np.array([high[k * 7:(k + 1) * 7].max() for k in range(nw)])
+    wl = np.array([low[k * 7:(k + 1) * 7].min() for k in range(nw)])
+    wc = np.array([close[(k + 1) * 7 - 1] for k in range(nw)])
+    tr = np.zeros(nw)
+    for k in range(nw):
+        if k == 0:
+            tr[k] = wh[k] - wl[k]
+        else:
+            tr[k] = max(wh[k] - wl[k], abs(wh[k] - wc[k - 1]), abs(wl[k] - wc[k - 1]))
+    atr = np.zeros(nw)
+    atr[0] = tr[0]
+    for k in range(1, nw):
+        atr[k] = (atr[k - 1] * (period - 1) + tr[k]) / period
+
+    out = np.full(n, np.nan)
+    for i in range(n):
+        wk = i // 7
+        if wk >= 1:
+            out[i] = atr[wk - 1]
+    return pd.Series(out, index=df_1d.index)
+
+
 def chandelier_long_stop(
     close: pd.Series,
     atr_w: pd.Series,
