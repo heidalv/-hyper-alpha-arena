@@ -254,6 +254,27 @@ export async function getRagHealth(): Promise<RagHealthResponse> {
   return apiRequest<RagHealthResponse>("/rag/health");
 }
 
+/** QAA 实时沉淀库统计（/api/rag/qaa-stats，平仓教训实时写入的 ChromaDB） */
+export interface QaaRagStatsResponse {
+  configured?: {
+    embedding_backend?: string;
+    embedding_model?: string;
+    knowledge_backend?: string;
+    scope?: string;
+  };
+  path?: string;
+  exists?: boolean;
+  file_size_mb?: number | null;
+  last_write_at?: string | null;
+  total_docs?: number;
+  collections?: Record<string, number>;
+  error?: string | null;
+}
+
+export async function getQaaRagStats(): Promise<QaaRagStatsResponse> {
+  return apiRequest<QaaRagStatsResponse>("/rag/qaa-stats");
+}
+
 /** LearningLoop 5 job 状态（/api/learning/loop/status，实测结构） */
 export interface LoopStatusResponse {
   enabled?: boolean;

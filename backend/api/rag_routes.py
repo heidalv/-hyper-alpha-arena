@@ -80,6 +80,70 @@ def rag_health():
         return {"status": "error", "error": str(e)}
 
 
+@router.get("/qaa-stats")
+def rag_qaa_stats():
+    """QAA 实时沉淀库统计（平仓教训实时写入的那套 ChromaDB）。
+
+    与 /stats 展示的 reindex 库（backend/data/rag_chromadb，bge-large）不同：
+    本库由 paper_trading_engine 每笔平仓经 qaa_trade_memory_bridge 实时写入。
+    直接只读 sqlite 统计（不初始化 embedding 管线），轻量且不抢内存。
+    """
+    import os
+    import sqlite3
+    from datetime import datetime, timezone
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    _env_dir = (os.getenv("QAA_CHROMA_DIR") or "").strip()
+    if _env_dir:
+        # 相对路径（如 ./qaa_chromadb）相对项目根解析，与后端进程 cwd 无关
+        chroma_dir = _env_dir if os.path.isabs(_env_dir) else os.path.join(root, _env_dir.lstrip(".\/").lstrip("./"))
+        chroma_dir = os.path.normpath(chroma_dir)
+    else:
+        chroma_dir = os.path.join(root, "qaa_chromadb")
+    db_path = os.path.join(chroma_dir, "chroma.sqlite3")
+    out = {
+        "configured": {
+            "embedding_backend": os.getenv("QAA_EMBEDDING_BACKEND", "hash").strip().lower(),
+            "embedding_model": os.getenv("QAA_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5"),
+            "knowledge_backend": os.getenv("QAA_KNOWLEDGE_BACKEND", "jsonl").strip().lower(),
+            "scope": os.getenv("QAA_KNOWLEDGE_SCOPE", "alpha-arena"),
+        },
+        "path": db_path,
+        "exists": os.path.exists(db_path),
+        "file_size_mb": None,
+        "last_write_at": None,
+        "total_docs": 0,
+        "collections": {},
+        "error": None,
+    }
+    if not os.path.exists(db_path):
+        return out
+    try:
+        st = os.stat(db_path)
+        out["file_size_mb"] = round(st.st_size / 1048576.0, 1)
+        out["last_write_at"] = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat()
+    except Exception as e:
+        out["error"] = str(e)[:200]
+        return out
+    try:
+        con = sqlite3.connect(db_path, timeout=5)
+        try:
+            n = con.execute("SELECT COUNT(*) FROM embeddings").fetchone()
+            out["total_docs"] = int(n[0]) if n else 0
+            rows = con.execute(
+                "SELECT c.name, COUNT(e.id) FROM collections c "
+                "LEFT JOIN segments s ON s.collection = c.id "
+                "LEFT JOIN embeddings e ON e.segment_id = s.id "
+                "GROUP BY c.name ORDER BY COUNT(e.id) DESC"
+            ).fetchall()
+            out["collections"] = {str(name): int(cnt) for name, cnt in rows}
+        finally:
+            con.close()
+    except Exception as e:
+        out["error"] = str(e)[:200]
+    return out
+
+
 @router.post("/search")
 def rag_search(req: RAGSearchRequest):
     """手动测试语义检索"""
