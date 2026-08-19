@@ -834,47 +834,12 @@ def execute_master_decisions(
         # 中线性质决策在主循环这里直接保持 hold/既定 action，由独立 midlong_loop + MLTO
         # 长线 thesis（含 mid_view）统一处理。
 
-        # ── 趋势层：默认 TrendAgent LLM；仅 MIDLONG_MLTO_CONTROLS_EXEC 时由 MLTO 控开单 ──
-        # 2026-07-20：AI 选币币种不做长线分析（TrendAgent/MLTO 长线段都跳过）。
-        # 只有会话固定配置的交易对才走长线，避免 AI 选的币被长线套住。
-        # [阶段0 修复] 改用正向白名单 fresh DB 查询，避免 ORM 快照在长 tick 内漏入
-        # 新注入的 auto-coin（getattr(session,"auto_coin_symbols") 是 stale 快照）。
-        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
-        _fixed_symbols = get_fixed_symbols_for_session(session.session_id, db, tier="long")
-        # 不在固定白名单 = auto-coin 或非会话币 → 都不应进长线
-        _sym_is_auto_coin = sym.upper() not in _fixed_symbols
-        try:
-            if _sym_is_auto_coin:
-                logger.debug("[TrendAgent] %s 为 AI 选币币种，跳过长线分析", sym)
-            elif trend_agent.is_trend_nature(_dec_nature_raw):
-                from backend.config.settings import (
-                    MIDLONG_THESIS_LEDGER_ENABLED,
-                    MIDLONG_MLTO_CONTROLS_EXEC,
-                    MIDLONG_AI_MANDATORY,
-                )
-                _ms_sym = (market_summary or {}).get(sym) or {}
-                if MIDLONG_THESIS_LEDGER_ENABLED and MIDLONG_MLTO_CONTROLS_EXEC:
-                    # MidLong v2 Phase3：summary 模式不在 Master 路径重跑 MLTO 深度 LLM
-                    if _skip_agent_llm or str(MASTER_MIDLONG_LLM_MODE or "summary").lower() == "summary":
-                        action = "hold"
-                        reasoning = (
-                            f"[MidLong summary] Master 跳过 MLTO 深度路径，"
-                            f"由独立循环负责 {sym} long"
-                        )
-                        raw_confidence = int(dec.get("confidence") or 0)
-                        logger.debug(
-                            "[FullAuto][MidLongLane] summary skip execute_mlto_lane %s",
-                            sym,
-                        )
-                    else:
-                        # [2026-08-17] 删除旧长线 LLM 分支（execute_mlto_lane + trend_agent.analyze_direction）。
-                        # 长线唯一决策源是独立 midlong 循环的 long_trend_v2（规则化 L1 + Chandelier），
-                        # Master 路径不再跑任何长线 LLM。
-                        action = "hold"
-                        reasoning = f"[MidLong v2] Master 长线 LLM 已下线，由独立循环 long_trend_v2 负责 {sym}"
-                        raw_confidence = int(dec.get("confidence") or 0)
-        except Exception as _trend_err:
-            logger.debug(f"[TrendAgent] 趋势决策跳过: {_trend_err}")
+        # ── [2026-08-19 根除] Master 路径长线趋势层已整体删除 ──
+        # 旧实现先删 LLM 分支、再补 summary 跳过门禁，留下一个「两个分支都只设 hold」的
+        # 空壳：仍在判断 MIDLONG_MLTO_CONTROLS_EXEC / MASTER_MIDLONG_LLM_MODE 并输出跳过文案，
+        # 对决策零作用，却让日志持续出现「跳过 MLTO 深度路径」的误导记录。
+        # 长线唯一决策源 = 独立 midlong 循环的 long_trend_v2（规则化 L1 + Chandelier），
+        # Master 不再对 trend_nature 做任何决策/判断；AI 选币过滤由独立循环白名单负责。
 
         if trend_agent.is_trend_nature(_dec_nature_raw) and int(raw_confidence or 0) <= 0:
             raw_confidence = host.backfill_dec_confidence_from_orch(
