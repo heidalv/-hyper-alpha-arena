@@ -60,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/intel", label: "全市场数据中台", icon: DBIcon },
       { href: "/factors", label: "因子系统", icon: Factor },
+      { href: "/reports", label: "周期报告", icon: TrendingUp },
       { href: "/intelligent-learning", label: "智能学习", icon: Workflow },
       { href: "/compute", label: "算力中心", icon: Cpu },
     ],
