@@ -476,3 +476,5 @@ reports/coverage/
 /reports/scalp_daily/
 /data/extreme_scenario_report_*.json
 /data/factor_slimming_report_*.json
+# 短线亏损币状态机运行时状态（日报每日推进）
+data/symbol_penalty_state.json
