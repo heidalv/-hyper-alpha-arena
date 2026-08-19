@@ -156,6 +156,17 @@ def build_daily_report(db, account_id: int, symbols=None,
         if horizon == "long":
             sec["l1_panel"] = _l1_panel(symbols)
             sec["actions_24h"] = _drain_actions(day0)
+            # [B3/B4] 宏观顺逆风 + 减半周期相位（月频慢变量，写报告观测）
+            try:
+                from backend.services.macro_tailwind import compute_macro_tailwind
+                sec["macro_tailwind"] = compute_macro_tailwind(db)
+            except Exception:
+                pass
+            try:
+                from backend.services.halving_phase import compute_halving_phase
+                sec["halving_phase"] = compute_halving_phase()
+            except Exception:
+                pass
         sections[horizon] = sec
     return {"report_date": report_date, "account_id": int(account_id), "sections": sections}
 
