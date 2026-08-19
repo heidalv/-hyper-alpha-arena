@@ -69,7 +69,7 @@ def bocpd_change_prob(x: np.ndarray, hazard: float = _HZ_DEFAULT,
     return change
 
 
-def inception_check(df, l1_states=None) -> Dict[str, Any]:
+def inception_check(df, l1_states=None, leg3: Optional[bool] = None) -> Dict[str, Any]:
     """趋势起始点检测：返回各腿状态与确认结果。
 
     df: 已收盘 1d K 线（含 open/high/low/close）
@@ -95,12 +95,21 @@ def inception_check(df, l1_states=None) -> Dict[str, Any]:
             l1_states = cls["state"].values
         if len(l1_states) >= 2:
             out["leg1_l1_flip"] = bool(l1_states[-1] == "up" and l1_states[-2] != "up")
-        # 腿3 未接线（B5 就绪后接入）
-        # 确认：腿1 且 腿2（腿3 就绪后改三选二）
-        out["confirmed"] = bool(out["leg1_l1_flip"] and out["leg2_bocpd"])
-        _legs = [1.0 if out["leg1_l1_flip"] else 0.0,
-                 1.0 if out["leg2_bocpd"] else 0.0]
-        out["score"] = round(float(np.mean(_legs)), 2)
+        # [B5] 腿3 微观博弈确认（microstructure_gauge.gauge.confirmed 传入）
+        out["leg3_micro"] = leg3
+        if leg3 is None:
+            # 腿3 未接线：确认 = 腿1 且 腿2
+            out["confirmed"] = bool(out["leg1_l1_flip"] and out["leg2_bocpd"])
+            _legs = [1.0 if out["leg1_l1_flip"] else 0.0,
+                     1.0 if out["leg2_bocpd"] else 0.0]
+            out["score"] = round(float(np.mean(_legs)), 2)
+        else:
+            # 三选二确认
+            _legs = [1.0 if out["leg1_l1_flip"] else 0.0,
+                     1.0 if out["leg2_bocpd"] else 0.0,
+                     1.0 if leg3 else 0.0]
+            out["confirmed"] = bool(sum(_legs) >= 2)
+            out["score"] = round(float(sum(_legs) / 3.0), 2)
     except Exception as e:
         logger.debug("[TrendInception] 检测失败: %s", e)
     return out
