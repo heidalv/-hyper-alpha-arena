@@ -104,7 +104,9 @@ export default function FactorOverviewPanel({ symbol }: { symbol: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${getBackendUrl()}/api/monitor/factor-eval/${encodeURIComponent(symbol)}`);
+      // [2026-08-19] 报告卡数据源改为统一因子服务 IC 评估（原 /monitor/factor-eval
+      // 走 unified_data_pool 在 DC_ONLY 下恒空 → Insufficient kline data）
+      const res = await fetch(`${getBackendUrl()}/api/factors/ic/${encodeURIComponent(symbol)}?timeframe=1h&top_n=20`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as EvalResponse;
       if (json.error) throw new Error(json.error);
