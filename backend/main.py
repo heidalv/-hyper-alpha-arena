@@ -1680,6 +1680,29 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 中长线周度绩效报表注册失败: {e}")
 
+        # ── 2026-08-19 三周期报告观测体系：每日日报 + 每周周报 ──
+        try:
+            from backend.services.period_daily_report import run_daily_reports as _run_daily_reports
+            from backend.services.period_weekly_report import run_weekly_reports as _run_weekly_reports
+            from backend.services.scheduler import task_scheduler as _period_report_scheduler
+
+            _period_report_scheduler.start()
+            _period_report_scheduler.add_cron_task(
+                task_func=_run_daily_reports,
+                hour=8, minute=5,
+                task_id="period_daily_report",
+                max_instances=1,
+            )
+            _period_report_scheduler.add_cron_task(
+                task_func=_run_weekly_reports,
+                hour=8, minute=30, day_of_week="mon",
+                task_id="period_weekly_report",
+                max_instances=1,
+            )
+            logger.info("[async] 三周期日报(每日08:05)/周报(周一08:30)已注册")
+        except Exception as e:
+            logger.info(f"[async] 三周期日报/周报注册失败: {e}")
+
         # ── P3：中长线 Walk-Forward 薄钩子（代理趋势策略，证明回测基建可挂）── # 紧接周报 4:00，周一 4:20 跑 BTC/ETH/SOL 日线 WFO，写 wfo_latest.json。
         try:
             from backend.scripts.midlong_walk_forward_hook import run_and_save as _run_midlong_wfo
@@ -1762,6 +1785,7 @@ from .api.crypto_routes import router as crypto_router
 from .api.hyperliquid_action_routes import router as hyperliquid_action_router
 from .api.hyperliquid_routes import router as hyperliquid_router
 from .api.market_data_routes import router as market_data_router
+from .api.period_reports_routes import router as period_reports_router
 from .api.market_data_v2_routes import router as market_data_v2_router
 from .api.order_routes import router as order_router
 from .api.prompt_routes import router as prompt_router
@@ -1825,6 +1849,7 @@ from backend.api.admin_routes import router as admin_router
 # Removed: AI account routes merged into account_routes (unified AI trader accounts)
 
 app.include_router(market_data_router)
+app.include_router(period_reports_router)  # 2026-08-19 三周期报告观测 API
 app.include_router(market_data_v2_router)
 app.include_router(order_router)
 app.include_router(account_router)
@@ -1914,18 +1939,8 @@ try:
     logger.info("[TrainingPhase] /api/training-phase/* 已挂载")
 except Exception as _tp_err:
     logger.warning(f"[TrainingPhase] 挂载失败（非致命）: {_tp_err}")
-try:
-    from .api.assistant_routes import router as assistant_router
-    app.include_router(assistant_router)
-    logger.info("[AlphaAssistant] /api/assistant/* 已挂载")
-except Exception as _as_err:
-    logger.warning(f"[AlphaAssistant] 挂载失败（非致命）: {_as_err}")
-try:
-    from .api.feishu_assistant_routes import router as feishu_assistant_router
-    app.include_router(feishu_assistant_router)
-    logger.info("[FeishuAssistant] /api/feishu/* 已挂载")
-except Exception as _fs_err:
-    logger.warning(f"[FeishuAssistant] 挂载失败（非致命）: {_fs_err}")
+# [2026-08-19 下线] alpha_assistant（Web 聊天助手）与 feishu_assistant 已归档
+# （最后消息 37.7 天前；文件移至 backend/_archive/alpha_assistant/）
 app.include_router(rag_router)
 app.include_router(risk_router)
 app.include_router(system_monitor_router)

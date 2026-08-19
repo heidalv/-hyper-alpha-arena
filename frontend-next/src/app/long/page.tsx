@@ -8,9 +8,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PromptEditorPanel } from "@/components/config/PromptEditorPanel";
+import { LongReportsPanel } from "@/components/long/LongReportsPanel";
 import { PageHeader } from "@/components/layout/PageHeader";
 
-type Tab = "params" | "prompts";
+type Tab = "params" | "prompts" | "reports";
 
 export default function LongPage() {
   return (
@@ -40,6 +41,9 @@ function LongPageInner() {
     const t = (searchParams.get("tab") || "").toLowerCase();
     if (t === "prompts" || t === "prompt" || t === "提示词") {
       setTab("prompts");
+    }
+    if (t === "reports" || t === "report" || t === "报告") {
+      setTab("reports");
     }
   }, [searchParams]);
 
@@ -117,9 +121,23 @@ function LongPageInner() {
           <BookOpen className="w-3.5 h-3.5" />
           提示词
         </button>
+        <button
+          onClick={() => setTab("reports")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 text-xs border-b-2 -mb-px transition-colors",
+            tab === "reports"
+              ? "border-primary text-primary font-medium"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          报告观测
+        </button>
       </div>
 
-      {tab === "prompts" ? (
+      {tab === "reports" ? (
+        <LongReportsPanel />
+      ) : tab === "prompts" ? (
         <PromptEditorPanel defaultTier="long" />
       ) : (
         <div className={cn("grid grid-cols-1 gap-4 items-start", hasStats && "lg:grid-cols-[2fr_1fr]")}>

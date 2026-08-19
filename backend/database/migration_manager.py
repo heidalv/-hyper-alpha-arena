@@ -56,6 +56,7 @@ MIGRATIONS = [
     "widen_position_exit_events.py",  # P0: position_exit_events.exit_channel 40 -> 100
     "add_funding_ledger_tier.py",  # P0-8: paper_funding_ledger.tier 资金费口径审计
     "add_coordinator_runtime_state.py",  # P1-5: system_coordinator_state.runtime_state_json
+    "add_period_daily_reports.py",  # 2026-08-19 三周期统一日报表
 ]
 
 

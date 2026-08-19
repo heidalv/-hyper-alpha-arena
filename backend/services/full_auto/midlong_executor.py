@@ -358,6 +358,11 @@ def execute_midlong_open(
                     "[MidLong] stage=fuse symbol=%s tier=long 拦截: %s",
                     sym_u, _v2_reason,
                 )
+                try:
+                    from backend.services.period_daily_report import log_long_action
+                    log_long_action(sym_u, "entry_blocked", _v2_reason)
+                except Exception:
+                    pass
                 _record_fail(_v2_reason)
                 return False
         except Exception as _v2_err:

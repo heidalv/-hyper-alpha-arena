@@ -2614,6 +2614,23 @@ class TrendCycle(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 
+class PeriodDailyReport(Base):
+    """三周期统一日报（2026-08-19 报告观测体系）。
+
+    每 (report_date, account_id, horizon) 一行；horizon=scalp/midlong/long。
+    payload_json 存规则统计（交易/持仓/动作/亏损归因），llm_summary 存 LLM 定性分析（可选）。
+    """
+    __tablename__ = "period_daily_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    report_date = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD
+    horizon = Column(String(16), nullable=False, index=True)       # scalp / midlong / long
+    payload_json = Column(Text, nullable=True)
+    llm_summary = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+
 # ═══════════════════════════════════════════════════
 # 策略模板库
 # ═══════════════════════════════════════════════════

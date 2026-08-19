@@ -3804,6 +3804,7 @@ class FullAutoTradingService:
             # 新高金字塔）接管，跳过本函数的 bias 反转 / no_progress 退出。
             try:
                 from backend.services.long_trend_v2 import long_v2_enabled, manage_long_position
+                from backend.services.period_daily_report import log_long_action
                 _v2_active = long_v2_enabled()
             except Exception:
                 _v2_active = False
@@ -3817,11 +3818,30 @@ class FullAutoTradingService:
                             strategy_id=pos.get("strategy_id"),
                         )
                         logger.info("[MidLongExit][V2] 结构/止损离场 %s: %s", sym, _v2d.get("reason"))
+                        log_long_action(sym, "close", str(_v2d.get("reason") or ""))
+                        # [A5.4] 平仓后归档本轮趋势（结构化记忆，周报数据源）
+                        try:
+                            from backend.services.trend_cycle_archive import archive_trend_cycle
+                            archive_trend_cycle(
+                                db, account_id=int(acct_id), symbol=sym, direction="long",
+                                start_ts=getattr(pos, "opened_at", None),
+                                end_ts=None,
+                                l1_score_at_entry=None,
+                                entry_timing_score=None,
+                                batches=None,
+                                total_r=None,
+                                peak_r=None,
+                                exit_reason=str(_v2d.get("reason") or "")[:100],
+                                hold_days=None,
+                            )
+                        except Exception as _ar_e:
+                            logger.debug("[MidLongExit][V2] 趋势归档失败 %s: %s", sym, _ar_e)
                     elif _v2d.get("action") == "tighten_sl" and _v2d.get("new_sl"):
                         paper_engine.update_position_tp_sl(
                             db, int(pos.get("id") or 0), sl_price=float(_v2d["new_sl"]),
                         )
                         logger.info("[MidLongExit][V2] 收紧止损 %s SL→%s", sym, _v2d["new_sl"])
+                        log_long_action(sym, "tighten_sl", f"SL→{_v2d['new_sl']}")
                     elif _v2d.get("action") == "add":
                         _pyr_ratio = float(_v2d.get("ratio") or 0.25)
                         _pyr_qty = float(pos.get("size") or 0) * _pyr_ratio
@@ -3837,6 +3857,7 @@ class FullAutoTradingService:
                                 add_type="pyramid",
                             )
                             logger.info("[MidLongExit][V2] 金字塔加仓 %s qty=%s: %s", sym, _pyr_qty, _v2d.get("reason"))
+                            log_long_action(sym, "add" if not _v2d.get("topup") else "topup", str(_v2d.get("reason") or ""))
                             # [A4] 首仓补足（topup）成功后写 topup_done 标记
                             if bool(_v2d.get("topup")):
                                 try:
@@ -3886,6 +3907,7 @@ class FullAutoTradingService:
                                 strategy_id=pos.get("strategy_id"),
                             )
                             logger.info("[MidLongExit][V2] 部分减仓 %s qty=%s: %s", sym, _red_qty, _v2d.get("reason"))
+                            log_long_action(sym, "reduce", str(_v2d.get("reason") or ""))
                 except Exception as _v2e:
                     logger.warning("[MidLongExit][V2] 管理异常 %s: %s", sym, _v2e)
                 continue
