@@ -1,9 +1,0 @@
-{
-  "session_id": "fa_10d44c724e",
-  "symbols": [
-    "BTW"
-  ],
-  "updated_at": 1786952640.1752996,
-  "updated_iso": "2026-08-17T07:44:00.175299Z",
-  "reason": "resample age>=10800s from midlong_board min_conf=0.4"
-}

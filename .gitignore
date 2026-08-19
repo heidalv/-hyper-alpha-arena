@@ -437,3 +437,42 @@ _cleanup_archive/
 reports/scalp_chain/
 reports/scalp_symbols/
 reports/coverage/
+
+# ===== 2026-08-19 hygiene: runtime state files + root scratch scripts =====
+# 根目录一次性诊断/临时脚本与输出（历史排障遗留，do NOT commit）
+/_*.py
+/_*.txt
+/_*.log
+/_*.err
+
+# 运行时状态：原子写残留
+/data/*.tmp
+
+# 运行时状态文件（系统自动写入，反复 churn，移出版本控制）
+/data/causal_constraints.json
+/data/close_guard_runtime.json
+/data/discovered_factors.json
+/data/exit_audit_report.json
+/data/factor_runtime_weights.json
+/data/factor_slimming_state.json
+/data/factor_trials_counter.json
+/data/llm_proposal_state.json
+/data/midlong_beliefs.json
+/data/midlong_scan_markers.json
+/data/promotion_gate_registry.json
+/data/scalp_calibration.json
+/data/scalp_meta_model.pkl
+/data/scalp_meta_report.json
+/data/short_tier_circuit_state.json
+/data/threshold_tune_report.json
+/data/universe_state.json
+
+# 运行时状态（目录级）
+/backend/config/compute_overrides.env
+/backend/data/ai_mid_sticky/
+/backend/data/tp_sl_learned/
+
+# 运行时报告快照（带时间戳，do NOT commit）
+/reports/scalp_daily/
+/data/extreme_scenario_report_*.json
+/data/factor_slimming_report_*.json
