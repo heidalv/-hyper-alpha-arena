@@ -93,26 +93,8 @@ def run_learning_integration(
 
             threading.Thread(target=_run_discovery, daemon=True).start()
 
-            # 跨周期挖掘（每个 symbol 每天最多一次）
-            def _run_pattern_mining():
-                try:
-                    # [C1] 线程不继承 ContextVar,后台挖掘线程需自己设 system_identity。
-                    from backend.core.tenant import set_system_identity as _set_sys_id
-                    _set_sys_id()
-                    from backend.database.connection import SessionLocal
-                    _db3 = SessionLocal()
-                    try:
-                        from backend.services.opencode_bridge import (
-                            run_cross_cycle_pattern_mining,
-                        )
-                        for sym in ["BTC", "ETH", "SOL"]:
-                            run_cross_cycle_pattern_mining(_db3, symbol=sym)
-                    finally:
-                        _db3.close()
-                except Exception as exc:
-                    logger.warning(f"[FullAuto] 跨周期挖掘异常: {exc}")
-
-            threading.Thread(target=_run_pattern_mining, daemon=True).start()
+            # [2026-08-19 删除] OpenCode 跨周期挖掘已移除（OpenCode 桥整体下线，
+            # 该线程每维护 tick 阻塞 180s+ LLM 深度思考，是 API 假挂的根因）
 
         except Exception as e:
             logger.warning(f"[FullAuto] P2 集成异常: {e}")
