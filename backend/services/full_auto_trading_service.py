@@ -3837,6 +3837,25 @@ class FullAutoTradingService:
                                 add_type="pyramid",
                             )
                             logger.info("[MidLongExit][V2] 金字塔加仓 %s qty=%s: %s", sym, _pyr_qty, _v2d.get("reason"))
+                            # [A4] 首仓补足（topup）成功后写 topup_done 标记
+                            if bool(_v2d.get("topup")):
+                                try:
+                                    import json as _json_t
+                                    from backend.database.models import PaperPosition as _PP2
+                                    _row = db.query(_PP2).filter(_PP2.id == int(pos.get("id") or 0)).first()
+                                    if _row is not None:
+                                        _st = _row.exit_state_json or "{}"
+                                        try:
+                                            _d = _json_t.loads(_st) if isinstance(_st, str) else {}
+                                        except Exception:
+                                            _d = {}
+                                        if not isinstance(_d, dict):
+                                            _d = {}
+                                        _d["topup_done"] = True
+                                        _row.exit_state_json = _json_t.dumps(_d, ensure_ascii=False)
+                                        db.commit()
+                                except Exception as _te:
+                                    logger.debug("[MidLongExit][V2] topup_done 写入失败: %s", _te)
                             # [A2 同核] 加仓成功后批次计数 +1（exit_state_json.pyramid_batch，供下次决策读）
                             try:
                                 import json as _json_p

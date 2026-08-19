@@ -109,6 +109,9 @@ def decide_long(
     drawdown_pct: Optional[float] = None,
     pyr_batch: int = 0,
     max_batches: int = 3,
+    target: Optional[float] = None,
+    needs_topup: bool = False,
+    topup_ratio: float = 0.5,
 ) -> Dict[str, Any]:
     """长线持仓单日决策（纯规则，回测/实盘同核的唯一决策函数）。
 
@@ -146,6 +149,14 @@ def decide_long(
     if hold_days is not None and peak_r is not None and hold_days >= 30.0 and peak_r < 1.0:
         return {"action": "close",
                 "reason": f"no_progress(hold={hold_days:.0f}天, peak_r={peak_r:.2f})"}
+    # [A4] 结构目标减仓：收盘达 L1 结构目标（h60+ATR 投影）→ 减 50%，其余交给追踪
+    if target is not None and close >= target:
+        return {"action": "reduce", "ratio": 0.5,
+                "reason": f"结构目标达成减半(close={close:.2f}≥target={target:.2f})"}
+    # [A4] 首仓补足：满 24h 且未补足 → 补到 100%（试探仓 50% 的补足腿）
+    if needs_topup and hold_days is not None and hold_days >= 1.0:
+        return {"action": "add", "ratio": round(float(topup_ratio), 4), "topup": True,
+                "reason": f"首仓补足(hold={hold_days:.2f}天, +{float(topup_ratio) * 100:.0f}%)"}
     # 金字塔：新高 + 浮盈 >= 1R，capped 批次序列 0.5/0.35/0.25（Phase C/E 口径）
     if new_high and r_multiple >= _PYRAMID_R and int(pyr_batch) < max_batches:
         _ratios = [0.5, 0.35, 0.25][:max_batches]

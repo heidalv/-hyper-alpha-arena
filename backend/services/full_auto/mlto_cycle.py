@@ -297,7 +297,8 @@ def maintain_mlto_theses_for_session(
                         "suggested_sl_pct": float(
                             _v2_entry.get("suggested_sl_pct") or 0.08
                         ),
-                        "size_hint_mult": 1.0,
+                        # [A4] 首仓比例由 entry_signal 下发（默认 50% 试探仓）
+                        "size_hint_mult": float(_v2_entry.get("size_hint_mult") or 1.0),
                         "reasoning": str(_v2_entry.get("reason") or ""),
                         "soft_open": False,
                     }
@@ -670,34 +671,8 @@ def maintain_mlto_theses_for_session(
         # _thesis_llm_one 因长线/中线 thesis 任务均被跳过而永不执行，此段为空转。
 
         _ana_db = None
-
-        def _thesis_llm_one(sym_u, slot_action, tier):
-            # 每符号独立连接 + 独立 run_mlto_tick（LLM 60-90s），线程内自闭环。
-            from backend.core.tenant import set_system_identity
-            # [2026-08-04 修复] 同 _trend_one：worker 线程无 HTTP/主线程 ContextVar，
-            # 不设身份则 SessionLocal 查询受 RLS fail-closed → thesis LLM 配置解析失败
-            # → 规则回退 → direction=neutral / conviction 归零 → 中长线永不开仓。
-            set_system_identity()
-            _db = AnalyticsSessionLocal()
-            try:
-                return run_mlto_tick(
-                    session_id=session_id,
-                    symbol=sym_u,
-                    tier=tier,
-                    market_summary=market_summary or {},
-                    analyst_reports=analyst_reports or {},
-                    session=session,
-                    db=_db,
-                    portfolio=portfolio,
-                    persistence_state=host.midlong_persistence_state,
-                    slot_action=slot_action,
-                    trading_mode=mode,
-                )
-            finally:
-                try:
-                    _db.close()
-                except Exception:
-                    pass
+        # [2026-08-19 清尸] _thesis_llm_one 已删除：run_mlto_tick（旧 MLTO thesis LLM）早已下线，
+        # 且当前配置下 thesis 任务永不提交（mid→factor_route / long→long_trend_v2）。
 
         # [2026-08-17 long_trend_v2] V2 接管长线：关闭旧 MLTO thesis LLM。
         # 长线入场由规则化 L1(entry_signal) 驱动，不再跑 run_mlto_tick 的 LLM thesis。
@@ -759,17 +734,9 @@ def maintain_mlto_theses_for_session(
                         slot_action = "observe"
                 _thesis_jobs.append((sym_u, slot_action, tier))
 
-        # [中长线合并] thesis 更新并行（用户要求不设并发上限）：
-        # 每符号独立线程 + 独立 DB 连接，run_mlto_tick（LLM 60-90s）并发执行。
+        # [2026-08-19 清尸] thesis LLM 提交块已删：当前配置下 _thesis_jobs 恒空
+        # （mid→factor_route / long→long_trend_v2），旧 run_mlto_tick 线程池永不启动。
         _thesis_futs: dict = {}
-        if _thesis_jobs:
-            with ThreadPoolExecutor(max_workers=max(1, len(_thesis_jobs))) as _pool:
-                for _sym_u, _slot_action, _tier in _thesis_jobs:
-                    _thesis_futs[(_sym_u, _tier)] = (
-                        _pool.submit(_thesis_llm_one, _sym_u, _slot_action, _tier),
-                        _slot_action,
-                        _tier,
-                    )
 
         for (sym_u, tier), (_fut, slot_action, _tier) in _thesis_futs.items():
                 try:

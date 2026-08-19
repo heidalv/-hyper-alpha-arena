@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional, Tuple
 
+import numpy as np
+
 import pandas as pd
 
 from backend.services.trend_layer import classify
@@ -54,6 +56,12 @@ def _cfg_bool(key: str, default: bool) -> bool:
 def _l1_up(c: Dict[str, Any]) -> bool:
     """L1 是否 up（用可配置阈值 LONG_V2_L1_UP_SCORE，默认 3，替代硬编码 ±3）。"""
     return float(c.get("score") or 0.0) >= _cfg_int("LONG_V2_L1_UP_SCORE", 3)
+
+
+def _initial_fill() -> float:
+    """[A4] 首仓比例（设计 §4.3.1：试探仓 50%，24h 内补足到 100%）。"""
+    _f = _cfg_float("LONG_V2_INITIAL_FILL", 0.5)
+    return max(0.2, min(1.0, _f))
 
 
 def _today_utc_midnight_ts() -> float:
@@ -149,6 +157,20 @@ def _entry_idx_for(df: pd.DataFrame, opened_at) -> int:
         return 0
 
 
+def _topup_done(position: Dict[str, Any]) -> bool:
+    """首仓补足是否已完成（exit_state_json.topup_done 标记）。"""
+    try:
+        import json as _json
+        st = position.get("exit_state_json")
+        if isinstance(st, str) and st:
+            d = _json.loads(st)
+            if isinstance(d, dict):
+                return bool(d.get("topup_done"))
+    except Exception:
+        pass
+    return False
+
+
 def _pyramid_batch(position: Dict[str, Any]) -> int:
     """已完成的 pyramid 加仓批次数（存于 exit_state_json.pyramid_batch，add 成功后由执行方写入）。"""
     try:
@@ -195,17 +217,28 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
     if not long_v2_enabled():
         return {"should_open": False, "action": "hold", "direction": "neutral",
                 "score": 0, "hold_reason": "v2_disabled", "suggested_sl_pct": 0.08,
-                "reason": ""}
+                "size_hint_mult": _initial_fill(), "reason": ""}
     df, c = _get_l1_classification(sym)
     if df is None or c is None:
         return {"should_open": False, "action": "hold", "direction": "neutral",
                 "score": 0, "hold_reason": "1d 数据不足(<260根)",
-                "suggested_sl_pct": 0.08, "reason": ""}
+                "suggested_sl_pct": 0.08, "size_hint_mult": _initial_fill(), "reason": ""}
     score_raw = float(c.get("score") or 0.0)
     if not _l1_up(c):
         return {"should_open": False, "action": "hold", "direction": "neutral",
                 "score": 0, "hold_reason": f"L1={c['state']}(score={score_raw}) 非 up",
-                "suggested_sl_pct": 0.08, "reason": ""}
+                "suggested_sl_pct": 0.08, "size_hint_mult": _initial_fill(), "reason": ""}
+    # [A4] 尖峰过滤：pullback_z |z|>3σ 的单日暴涨 bar 不追（设计 §4.2）
+    try:
+        from backend.services.entry_timing import timing_features
+        _feat = timing_features(df)
+        _pz = float(_feat["pullback_z"].iloc[-1])
+        if np.isfinite(_pz) and abs(_pz) > 3.0:
+            return {"should_open": False, "action": "hold", "direction": "neutral",
+                    "score": 0, "hold_reason": f"尖峰过滤(pullback_z={_pz:.1f}σ)不追",
+                    "suggested_sl_pct": 0.08, "size_hint_mult": _initial_fill(), "reason": ""}
+    except Exception:
+        pass
     # L1=up → 规则化 buy（多头单边）。SL 用 Chandelier 初值：entry - 2×1w ATR。
     close = float(c.get("close") or 0.0)
     if close <= 0:
@@ -226,7 +259,9 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
         "score": conf,
         "hold_reason": "",
         "suggested_sl_pct": round(sl_pct, 4),
-        "reason": f"L1=up(score={score_raw}) 规则化入场，SL=2×1wATR({sl_pct * 100:.1f}%)",
+        # [A4] 首仓 50%：试探仓，满 24h 且 L1 仍 up 未触止损由 manage 补足
+        "size_hint_mult": _initial_fill(),
+        "reason": f"L1=up(score={score_raw}) 规则化入场，SL=2×1wATR({sl_pct * 100:.1f}%)，首仓{_initial_fill() * 100:.0f}%",
     }
 
 
@@ -312,9 +347,22 @@ def manage_long_position(
     if not _cfg_bool("LONG_V2_PYRAMID_ENABLED", True):
         pyr_batch = 99  # 金字塔禁用：批次打满禁止 add
 
+    # [A4] 结构目标（trend_layer.classify 的 target：h60+ATR 投影）
+    _target = None
+    try:
+        _t = c.get("target")
+        _target = float(_t) if _t is not None else None
+    except Exception:
+        pass
+    # [A4] 首仓补足判定：env 首仓比例 <1 且未补足（exit_state_json.topup_done 标记）
+    _fill = _initial_fill()
+    needs_topup = (_fill < 1.0) and not _topup_done(position)
+    topup_ratio = 1.0 - _fill
+
     return decide_long(
         l1_state=str(c.get("state") or "sideways"),
         close=close_now, stop=stop, new_high=_new_high, r_multiple=r_mult,
         in_position=True, cur_sl=cur_sl, peak_r=peak_r, hold_days=hold_days,
         drawdown_pct=drawdown, pyr_batch=pyr_batch,
+        target=_target, needs_topup=needs_topup, topup_ratio=topup_ratio,
     )
