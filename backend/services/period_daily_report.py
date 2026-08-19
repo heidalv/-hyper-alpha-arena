@@ -198,6 +198,11 @@ def save_daily_report(db, account_id: int, symbols=None, date: Optional[str] = N
 
     report = build_daily_report(db, account_id, symbols=symbols, date=date)
     rdate = report["report_date"]
+    # 防御：build 阶段各段查询失败被吞时可能留 aborted 事务——rollback 后再落库
+    try:
+        db.rollback()
+    except Exception:
+        pass
     n = 0
     for horizon, sec in report["sections"].items():
         row = db.query(PeriodDailyReport).filter(

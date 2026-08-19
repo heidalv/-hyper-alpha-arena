@@ -30,13 +30,18 @@ _LAGS = 10
 
 def _load_macro(db, series_id: str, days: int = 500) -> Optional[pd.Series]:
     try:
+        from backend.database.connection import MarketSessionLocal
         from backend.database.models import MacroSeries
-        rows = db.query(MacroSeries).filter(MacroSeries.series_id == series_id) \
+        _mdb = MarketSessionLocal()
+        try:
+            rows = _mdb.query(MacroSeries).filter(MacroSeries.series_id == series_id) \
             .order_by(MacroSeries.ts.desc()).limit(days).all()
-        if len(rows) < 60:
-            return None
-        df = pd.DataFrame([{"ts": r.ts, "v": float(r.value)} for r in rows]).sort_values("ts")
-        return pd.Series(df["v"].values, index=df["ts"])
+            if len(rows) < 60:
+                return None
+            df = pd.DataFrame([{"ts": r.ts, "v": float(r.value)} for r in rows]).sort_values("ts")
+            return pd.Series(df["v"].values, index=df["ts"])
+        finally:
+            _mdb.close()
     except Exception as e:
         logger.debug("[MacroTailwind] %s 加载失败: %s", series_id, e)
         return None
