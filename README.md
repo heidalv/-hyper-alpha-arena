@@ -634,6 +634,17 @@ Phase 0（止血：引擎可加载 + 停刷死项目 + 掐断自污染）→ Pha
   `unified_learning.process_outcome` 被调用，不再期待引擎直接 `learning_bus.dispatch`）。相关 S8/宏观
   单测 **全绿**。
 
+## 短线 / 中线现码审查（2026-08-20）
+
+以 **2026-08-19 仓库代码** 为准，不要拿 8 月中旬 SwingAgent 设计稿当现状。
+
+| 文档 | 用途 |
+|------|------|
+| [`docs/短线中线合并审查报告_20260820.md`](docs/短线中线合并审查报告_20260820.md) | 短线 `scalp_loop` + 中线因子路由：现码缺陷、带日期的体检/周报怎么用 |
+| [`docs/短线中线修复升级设计_20260820.md`](docs/短线中线修复升级设计_20260820.md) | 对应缺陷的修复顺序与验收（设计稿，尚未改交易代码） |
+
+代码默认：`MIDLONG_MID_VIA_FACTOR_ROUTE=false`（中线暂停）、`SCALP_EV_GATE_ENABLED=true`。某日事实清单里的开关值不能当成此刻 `.env`。
+
 ## AI 全自动策略运行逻辑
 
 全自动策略的核心后台循环在 `backend/services/full_auto_trading_service.py`。
