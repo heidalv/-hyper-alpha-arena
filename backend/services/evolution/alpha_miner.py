@@ -359,6 +359,36 @@ class CodegenCritic:
         self._config_loaded = False
 
     # ── LLM 配置（惰性加载，每次调用重试，配置后即生效） ──
+    def _load_configs(self) -> tuple:
+        """[模型刀 2026-08-21] 两段式解析：本地优先（provider=ollama），云端降级。
+
+        设计 §6.3 契约：Codegen 优先本地 14B（白天档常驻），本地超时/挂掉时
+        降级云端（factor_mining 绑定的非 ollama 配置）。返回 (primary, fallback)，
+        fallback 可为 None。
+        """
+        generic = self._load_config()  # 内部已 set_request_identity 穿透 RLS
+        local = None
+        try:
+            from backend.services.llm_config_service import get_llm_config_for_usage
+            local = get_llm_config_for_usage(
+                "factor_mining", tenant_id=self._admin_tid(), tier="deep", provider="ollama",
+            )
+        except Exception as e:
+            logger.debug(f"[CodegenCritic] 本地配置解析跳过: {e}")
+        if local is not None and getattr(local, "api_key", None):
+            if generic is not None and getattr(generic, "id", None) != getattr(local, "id", None):
+                return local, generic
+            return local, None
+        return generic, None
+
+    @staticmethod
+    def _admin_tid():
+        try:
+            from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+            return resolve_admin_tenant_id()
+        except Exception:
+            return None
+
     def _load_config(self):
         """取 factor_mining 用途的 LLM 配置。
 
@@ -393,6 +423,89 @@ class CodegenCritic:
         except Exception as e:
             logger.warning(f"[CodegenCritic] LLM 配置解析失败: {e}")
             return None
+
+    def critique(self, scorecard: dict) -> tuple:
+        """[模型刀 15 2026-08-21] 批评家：吃成绩单 JSON，输出 (ok, reason)。
+
+        设计 §6.1 契约：驳回必须引用成绩单字段（fwd_bars/kline_exchange/
+        ic/oos_sharpe/trades...），禁止「感觉分」。**增益型闸**：LLM 不可用/
+        解析失败 → (True, "critic_unavailable")（fail-open，同概率闸先例）；
+        开关 FACTOR_CRITIC_ENABLED（默认 false）。
+        """
+        import os as _os
+        if not _os.getenv("FACTOR_CRITIC_ENABLED", "0").lower() in ("1", "true", "yes", "on"):
+            return True, "critic_disabled"
+        primary, fallback = self._load_configs()
+        if not primary:
+            return True, "critic_unavailable"
+        try:
+            import json as _json
+            from backend.services.llm_config_service import call_llm_api_sync
+            messages = [
+                {"role": "system", "content": (
+                    "你是量化因子批评家。输入是某候选因子的成绩单 JSON。"
+                    "判断它是否值得进入因子池，输出 JSON："
+                    '{"verdict": "pass"|"reject", "reason": "一句话，必须引用成绩单中的具体字段名和数值"}。'
+                    "重点检查：|ic| 与 |icir| 是否量级合理、oos_sharpe 是否为正、"
+                    "oos_trades 样本是否足够、fwd_bars 与持有期是否匹配、"
+                    "redundant_with 是否已与池内因子冗余。只输出 JSON。"
+                )},
+                {"role": "user", "content": _json.dumps(scorecard, ensure_ascii=False, default=str)},
+            ]
+            for cfg in (primary, fallback):
+                if not cfg or not getattr(cfg, "api_key", None):
+                    continue
+                try:
+                    resp_data = call_llm_api_sync(
+                        cfg, messages=messages,
+                        response_format={"type": "json_object"},
+                        max_tokens=300, temperature=0.2, caller="factor_critic",
+                        # [模型刀] 批评家必须逐份独立判断——同 schema 成绩单语义
+                        # 相似会被语义缓存命中（同病态/健康单返回同一理由的根因）
+                        bypass_cache=True,
+                    )
+                except Exception:
+                    continue
+                resp = ""
+                choices = (resp_data or {}).get("choices") or []
+                if choices:
+                    resp = (choices[0].get("message") or {}).get("content") or ""
+                if not resp:
+                    continue
+                parsed = self._parse_json_obj(resp) or {}
+                verdict = str(parsed.get("verdict") or "").lower()
+                reason = str(parsed.get("reason") or "")[:200]
+                if verdict in ("pass", "reject"):
+                    return (verdict == "pass"), reason or f"verdict={verdict}"
+            return True, "critic_unavailable"
+        except Exception as e:
+            logger.debug("[CodegenCritic] 批评家异常(fail-open): %s", e)
+            return True, f"critic_error: {e}"
+
+    @staticmethod
+    def _parse_json_obj(raw: str) -> Optional[dict]:
+        """[模型刀] 通用 JSON 对象解析（容错 markdown 围栏/前后缀文字）。"""
+        if not raw:
+            return None
+        text = str(raw).strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if lines and lines[0].strip().lower().startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            s, e = text.find("{"), text.rfind("}")
+            if s < 0 or e <= s:
+                return None
+            try:
+                data = json.loads(text[s:e + 1])
+            except json.JSONDecodeError:
+                return None
+        return data if isinstance(data, dict) else None
 
     @staticmethod
     def _parse_ast(raw: str) -> Optional[dict]:
@@ -436,7 +549,7 @@ class CodegenCritic:
         返回的 audit_passed=True 的表达式才进 DRAFT（P1.3 生命周期）。
         LLM 不可用/输出不合法 → audit_passed=False + reason（显式降级）。
         """
-        config = self._load_config()
+        config, fallback_cfg = self._load_configs()
         if not config or not getattr(config, "api_key", None):
             return CodegenResult(
                 expr_ast=None, audit_passed=False,
@@ -456,35 +569,63 @@ class CodegenCritic:
                 )
             except Exception:
                 pool_hint = ""
+        # [模型刀 2026-08-21] 附可用算子/字段清单：本地 14B 不知道 OP_REGISTRY，
+        # 会自造算子名（如 rate_of_change）被 audit 拒——给出白名单后命中率显著提升
+        try:
+            from backend.services.factor_engine.expr.ops import OP_REGISTRY, LOOKAHEAD_BANNED_OPS, ALLOWED_FIELDS
+            _ops = sorted(k for k in OP_REGISTRY if k not in LOOKAHEAD_BANNED_OPS)
+            _ops_hint = (
+                f"可用算子（只能从中选择）：{', '.join(_ops)}。"
+                f"可用字段：{', '.join(sorted(ALLOWED_FIELDS))}。"
+            )
+        except Exception:
+            _ops_hint = ""
         messages = [
             {"role": "system", "content": (
                 "你是量化因子表达式生成器。输出一个 JSON 因子表达式 AST，"
                 "节点格式：{\"f\": \"字段名\"} 或 {\"c\": 数值} 或 "
                 "{\"op\": \"算子名\", \"args\": [子节点...]}。"
                 "可参考的 ref 算子：{\"op\": \"ref\", \"args\": [{\"f\": \"close\"}, {\"c\": 5}]}。"
+                f"{_ops_hint}"
                 "禁止使用未来数据（look-ahead）：不得引用未实现的字段或"
                 "跨越当前 bar 的窗口计算。只输出 JSON，不要解释。"
             )},
             {"role": "user", "content": f"{prompt}{pool_hint}"},
         ]
-        try:
-            resp_data = call_llm_api_sync(
-                config,
-                messages=messages,
-                response_format={"type": "json_object"},
-                max_tokens=1500,
-                temperature=0.6,
-                caller="codegen_critic",
-            )
-        except Exception as e:
-            return CodegenResult(expr_ast=None, audit_passed=False, reason=f"llm_error: {e}")
+        # [模型刀 2026-08-21] 本地优先 + 云端降级：本地（ollama）异常/空响应时
+        # 用云端配置重试一次（设计 §6.3；本地不参与时不影响原路径）
+        channels = [("local", config)]
+        if fallback_cfg is not None and getattr(fallback_cfg, "api_key", None):
+            channels.append(("cloud_fallback", fallback_cfg))
         resp = None
-        if resp_data:
-            choices = resp_data.get("choices") or []
-            if choices:
-                resp = (choices[0].get("message") or {}).get("content")
+        last_reason = ""
+        for chan, cfg in channels:
+            try:
+                resp_data = call_llm_api_sync(
+                    cfg,
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    max_tokens=1500,
+                    temperature=0.6,
+                    caller="codegen_critic",
+                )
+            except Exception as e:
+                last_reason = f"llm_error[{chan}]: {e}"
+                resp_data = None
+            resp = None
+            if resp_data:
+                choices = resp_data.get("choices") or []
+                if choices:
+                    resp = (choices[0].get("message") or {}).get("content")
+            if resp:
+                if chan == "cloud_fallback":
+                    logger.info("[CodegenCritic] 本地失败已降级云端: %s", last_reason[:120])
+                break
+            if not last_reason:
+                last_reason = f"llm_empty_response[{chan}]"
         if not resp:
-            return CodegenResult(expr_ast=None, audit_passed=False, reason="llm_empty_response")
+            return CodegenResult(expr_ast=None, audit_passed=False,
+                                 reason=last_reason or "llm_empty_response")
         ast = self._parse_ast(resp)
         if ast is None:
             return CodegenResult(expr_ast=None, audit_passed=False, reason="llm_invalid_ast")

@@ -366,6 +366,7 @@ def get_llm_config_for_usage(
     tier: Optional[str] = None,
     *,
     tenant_id: Optional[int] = None,
+    provider: Optional[str] = None,
 ) -> Optional[LLMConfig]:
     """按用途路由 LLM（**必须**落在某一租户，禁止公用默认）。
 
@@ -374,6 +375,9 @@ def get_llm_config_for_usage(
       2. 账户绑定（get_llm_config_for_account）；
       3. 本租户默认配置。
     无 account_id / tenant_id → 返回 None（不再回退全库星标）。
+
+    [模型刀 2026-08-21] provider：精确过滤 provider（如 "ollama"）——只作用于
+    第 1 级 scope 绑定查询，供「本地优先/云端降级」两段式解析使用；不传行为不变。
     """
     tier = tier or "quick"
     resolved_tenant = tenant_id
@@ -405,6 +409,8 @@ def get_llm_config_for_usage(
             )
             if resolved_tenant is not None:
                 q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
+            if provider:
+                q = q.filter(LLMConfiguration.provider == str(provider).strip().lower())
             config = q.order_by(
                 LLMConfiguration.is_default.desc(),
                 LLMConfiguration.usage_count.desc(),
