@@ -294,7 +294,9 @@ class StrategyLearningService:
             ).first()
             if not memory:
                 return None
-            sharpe_ok = (memory.sharpe_ratio or 0) >= 0.5
+            # [2026-08-22 M1-4] 伪 Sharpe(sign-EMA) 不再作为晋升条件；改用期望值判据
+            from backend.services.memory_ev_gate import memory_ev_ok
+            sharpe_ok = memory_ev_ok(memory, min_trades=15)
             alt_ok = (memory.win_rate or 0) >= 0.55 and (memory.max_drawdown or 1) <= 0.15
             if not sharpe_ok and not alt_ok:
                 return None
@@ -768,13 +770,20 @@ class StrategyLearningService:
         由于 pnl_pct 基于交易级别（非日频），使用简化因子 sqrt(252) 与股票对齐。
         """
         pnl_pcts = StrategyLearningService._get_recent_pnl_pcts(db, strategy_id, 100)
-        if len(pnl_pcts) >= 5:
+        # [2026-08-22 M1-4] 样本守卫：<20 笔的 std 极小，mean/std 会爆出 ±数十的
+        # 伪 Sharpe（历史 -14.56/-23.83 均源于此）。样本不足时不写该字段。
+        if len(pnl_pcts) >= 20:
             import statistics
             mean_pnl = statistics.mean(pnl_pcts)
             std_pnl = statistics.stdev(pnl_pcts) if len(pnl_pcts) > 1 else 0.001
             # 使用 sqrt(252) 年化因子，与 strategy_coordinator.py 统一
             import math
             memory.sharpe_ratio = round(mean_pnl / max(std_pnl, 0.0001) * (252 ** 0.5), 4)
+        else:
+            logger.debug(
+                "[Promote] _recompute_sharpe 跳过: 样本 %d < 20（防小样本伪 Sharpe 爆值）",
+                len(pnl_pcts),
+            )
 
     @staticmethod
     def _get_recent_pnl_pcts(db: Session, strategy_id: str, limit: int = 100) -> List[float]:

@@ -542,11 +542,23 @@ def _exec_close(db, *, account_id, position, reason: str, host, session) -> Opti
     side = _pos_direction(position.get("side"))
     if not sym or not side:
         return None
+    # [2026-08-22 M0-6] 跨层防护：持仓管理只允许平 mid/long 性质仓（swing/trend_follow/
+    # position），禁止平 scalp 仓；传 position_id 精确定位，杜绝"平错腿"。
+    _nature = str(position.get("trade_nature") or "").lower()
+    _tier = str(position.get("timeframe_tier") or "").lower()
+    if _nature not in ("swing", "trend_follow", "position") and _tier not in ("mid", "long"):
+        logger.warning(
+            "[MidLong] stage=manage %s[%s] nature=%s tier=%s 非中长线仓，拒绝平仓 (M0-6 跨层防护)",
+            sym, side, _nature or "?", _tier or "?",
+        )
+        return None
     try:
         from backend.services.paper_trading_engine import paper_engine
         res = paper_engine.close_position(
             db, account_id, sym, side, reason=str(reason)[:120],
             strategy_id=position.get("strategy_id"),
+            position_id=position.get("id"),
+            trade_nature=_nature or None,
         )
         if res:
             _pnl = res.get("pnl", 0) if isinstance(res, dict) else 0
@@ -583,6 +595,15 @@ def _exec_reduce(db, *, account_id, position, ratio: float, reason: str, host, s
     side = _pos_direction(position.get("side"))
     if not sym or not side:
         return None
+    # [2026-08-22 M0-6] 跨层防护：只减 mid/long 仓（同 _exec_close）
+    _nature = str(position.get("trade_nature") or "").lower()
+    _tier = str(position.get("timeframe_tier") or "").lower()
+    if _nature not in ("swing", "trend_follow", "position") and _tier not in ("mid", "long"):
+        logger.warning(
+            "[MidLong] stage=manage %s[%s] nature=%s tier=%s 非中长线仓，拒绝减仓 (M0-6 跨层防护)",
+            sym, side, _nature or "?", _tier or "?",
+        )
+        return None
     qty = float(position.get("size", 0) or position.get("quantity", 0) or 0)
     _qty = round(qty * ratio, 8)
     if _qty <= 0:
@@ -592,6 +613,8 @@ def _exec_reduce(db, *, account_id, position, ratio: float, reason: str, host, s
         res = paper_engine.close_position(
             db, account_id, sym, side, reason=str(reason)[:100],
             quantity=_qty, strategy_id=position.get("strategy_id"),
+            position_id=position.get("id"),
+            trade_nature=_nature or None,
         )
         if res:
             _pnl = res.get("pnl", 0) if isinstance(res, dict) else 0

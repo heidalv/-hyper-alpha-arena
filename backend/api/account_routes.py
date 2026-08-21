@@ -2,7 +2,7 @@
 Account and Asset Curve API Routes (Cleaned)
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -103,14 +103,20 @@ def _serialize_personality(tp) -> dict:
 
 
 @router.get("/list")
-def list_all_accounts(trading_mode: Optional[str] = None, db: Session = Depends(get_db)):
+def list_all_accounts(trading_mode: Optional[str] = None, request: Request = None, db: Session = Depends(get_db)):
     """Get all active accounts, optionally filtered by trading_mode ('paper' or 'live')"""
     try:
         from backend.database.models import User
         from eth_account import Account as EthAccount
         from backend.services.hyperliquid_environment import decrypt_private_key
+        from backend.core.request_identity import current_user_id, current_role
 
+        # [2026-08-22 M0-2b] 账户列表按当前用户隔离（RLS 之外的显式过滤，
+        # 防止无 GUC 上下文时读到全量/错位账户列表）。admin 可看全部。
         q = db.query(Account).filter(Account.is_active == "true")
+        _uid = current_user_id(request, required=False) if request is not None else None
+        if _uid is not None and (current_role(request) if request is not None else "user") != "admin":
+            q = q.filter(Account.user_id == _uid)
         if trading_mode:
             q = q.filter(Account.trading_mode == trading_mode)
         accounts = q.all()
@@ -492,17 +498,30 @@ def get_account_overview(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def create_new_account(payload: dict, db: Session = Depends(get_db)):
+def create_new_account(payload: dict, request: Request, db: Session = Depends(get_db)):
     """Create a new account for the default user (for paper trading demo)"""
     try:
         from backend.database.models import User
         from backend.config.settings import DEFAULT_EXCHANGE
-        
-        # Get the default user (or first user)
-        user = db.query(User).filter(User.username == "default").first()
-        if not user:
-            user = db.query(User).first()
-        
+        from backend.core.request_identity import current_user_id
+
+        # [2026-08-22 M0-2b] 账户必须归属当前登录用户：多用户下绑定 "default"/第一个
+        # 用户会导致账户挂错 user_id，被 RLS 隐藏、无法与模拟账户关联。
+        # 无 JWT 的白名单/测试调用回退到 default 用户并留痕。
+        user = None
+        _uid = current_user_id(request, required=False)
+        if _uid is not None:
+            user = db.query(User).filter(User.id == _uid).first()
+            if not user:
+                raise HTTPException(status_code=404, detail=f"登录用户 #{_uid} 不存在")
+        else:
+            logger.warning(
+                "[Account] create_new_account 无认证上下文，回退 default 用户（legacy 路径）"
+            )
+            user = db.query(User).filter(User.username == "default").first()
+            if not user:
+                user = db.query(User).first()
+
         if not user:
             raise HTTPException(status_code=404, detail="No user found")
         

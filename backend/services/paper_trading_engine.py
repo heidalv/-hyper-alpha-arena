@@ -776,6 +776,23 @@ class PaperTradingEngine:
         except Exception as _es_err:
             logger.debug(f"[EventSourcing#9] 记录失败（忽略）: {_es_err}")
 
+    def _set_tenant_from_account(self, db: Session, account_id: int) -> None:
+        """[2026-08-22 M1-1] 把租户上下文设为该账户所有者的 user_id。
+
+        背景：后台交易循环以 is_admin 穿透 RLS 写仓，tenant_id_var 为 None →
+        自动填钩子落 DEFAULT 1 → 属主（RLS 按 user_id 过滤）看不到仓位。
+        account.user_id 是行所有权的权威（0004 迁移：tenant_id=accounts.user_id），
+        在交易引擎写点统一设置，保证新行落正确租户。
+        """
+        try:
+            from backend.core.tenant import tenant_id_var
+            from backend.database.models import Account as _A
+            _acct = db.query(_A).filter(_A.id == account_id).first()
+            if _acct is not None and _acct.user_id:
+                tenant_id_var.set(int(_acct.user_id))
+        except Exception as _tid_err:
+            logger.debug(f"[PaperEngine] 设置租户上下文失败: {_tid_err}")
+
     def place_order(
         self,
         db: Session,
@@ -820,6 +837,8 @@ class PaperTradingEngine:
             bal = db.query(PaperBalance).filter(PaperBalance.account_id == account_id).first()
             if not bal:
                 raise ValueError(f"PaperBalance not found for account {account_id}. Please initialize the paper account first.")
+            # [2026-08-22 M1-1] 行所有权=账户 user_id：下单前设置租户上下文
+            self._set_tenant_from_account(db, account_id)
             exchange = self._resolve_account_exchange(db, account_id)
 
             # ── 整改#5：引擎层硬风控（最外层、业务无关的最后一道防线）──
@@ -1453,13 +1472,23 @@ class PaperTradingEngine:
         strategy_id: Optional[str] = None,
         fill_price_override: Optional[float] = None,
         trigger_order_id: Optional[int] = None,
+        position_id: Optional[int] = None,
+        trade_nature: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """平掉指定持仓，支持部分平仓 (quantity=None 表示全部平仓)
 
         按 strategy_id 精确匹配子仓位；不传则匹配任意同币种同方向仓位。
         子仓系统靠 trade_nature 隔离，平仓时需要 strategy_id 精确定位。
+
+        [2026-08-22 M0-8] 新增 position_id / trade_nature 定位键：
+        多周期同 symbol 同 side 并存（scalp+swing+trend_follow）时，调用方必须
+        传 position_id（或 strategy_id+trade_nature），否则 .first() 会平到
+        错误的那条腿（"平错腿"）。position_id 优先于其它过滤条件。
         """
         from backend.database.models import PaperPosition, PaperBalance, PaperOrder
+
+        # [2026-08-22 M1-1] 行所有权=账户 user_id：写仓位前设置租户上下文
+        self._set_tenant_from_account(db, account_id)
 
         pos_query = db.query(PaperPosition).filter(
             PaperPosition.account_id == account_id,
@@ -1467,6 +1496,10 @@ class PaperTradingEngine:
             PaperPosition.side == side,
             PaperPosition.status == "open",
         )
+        if position_id is not None:
+            pos_query = pos_query.filter(PaperPosition.id == position_id)
+        elif trade_nature:
+            pos_query = pos_query.filter(PaperPosition.trade_nature == trade_nature)
         if strategy_id:
             pos_query = pos_query.filter(PaperPosition.strategy_id == strategy_id)
         pos = pos_query.first()
@@ -1883,7 +1916,25 @@ class PaperTradingEngine:
             return 0.0, 0.0
 
         if fill_price_override is not None and float(fill_price_override) > 0:
-            bid = ask = mark = float(fill_price_override)
+            # [2026-08-22 M0-7] SL/追踪/爆仓按止损价成交是乐观假设（快市滑点被绕过）。
+            # 对止损类平仓按 _calc_slip(is_sl=True) 施加反向滑点，亏损口径才真实。
+            mark = float(fill_price_override)
+            _stop_ov = reason in (
+                "stop_loss", "sl", "liquidation", "force_close",
+                "trailing_stop", "trailing", "emergency_drawdown",
+            )
+            if _stop_ov:
+                _ov_notional = qty * mark
+                _ov_nature = getattr(pos, "trade_nature", None) or "swing"
+                _ov_slip = _calc_slip(_ov_notional, _ov_nature, is_sl=True)
+                if close_side == "sell":       # 平多：按 bid 成交（比止损价更差）
+                    bid = mark * (1 - _ov_slip)
+                    ask = mark
+                else:                          # 平空：按 ask 成交
+                    ask = mark * (1 + _ov_slip)
+                    bid = mark
+            else:
+                bid = ask = mark
         else:
             close_is_sl = reason in (
                 "stop_loss", "sl", "liquidation", "force_close",
@@ -2649,7 +2700,12 @@ class PaperTradingEngine:
             _min_hold_sec = _tier_cfg["min_hold_sec"]
             if pos.opened_at and _min_hold_sec > 0:
                 from datetime import timezone as _tz
-                opened = pos.opened_at
+                # [2026-08-22 M1-3] opened_at 是北京钟面 naive（PG 会话 tz=Asia/Shanghai），
+                # 原来按 UTC 解读会让保护期判定偏差 8h（保护实际延迟 8 小时）。
+                from backend.utils.db_datetime import parse_db_naive_to_utc as _norm_ts
+                opened = _norm_ts(pos.opened_at)
+                if opened is None:
+                    opened = pos.opened_at
                 if opened.tzinfo is None:
                     opened = opened.replace(tzinfo=_tz.utc)
                 elapsed_sec = (datetime.now(_tz.utc) - opened).total_seconds()
@@ -2997,6 +3053,11 @@ class PaperTradingEngine:
             _v2_unified_on, _tp_cap = True, 0.80
 
         if _v2_unified_on:
+            # [2026-08-22 M0-10] stale-decision 防护：profit_manager/DSM 的 result
+            # 在 tick 开头基于旧尺寸/状态计算，而统一分段止盈可能在本 tick 已减仓/平仓；
+            # 尺寸变化后继续应用旧 result 会造成同 tick 双重减仓。此处先记尺寸，
+            # 统一块之后校验：仓位已平 → 直接返回；尺寸已变 → 丢弃 stale result。
+            _size_before = float(getattr(pos, "size", 0) or 0)
             _closed_by_unified = self._run_unified_staged_tp(
                 db, pos, entry, current_price, profit_pct,
                 atr_pct=None, tp_cap=float(_tp_cap),
@@ -3009,6 +3070,16 @@ class PaperTradingEngine:
             except Exception:
                 try: db.rollback()
                 except Exception: pass
+            if str(getattr(pos, "status", "") or "").lower() != "open":
+                self._peak_profit_cache.pop(pos_id, None)
+                return True
+            _size_after = float(getattr(pos, "size", 0) or 0)
+            if _size_after != _size_before:
+                logger.info(
+                    f"[Paper][v2] {pos.symbol} 尺寸已由统一分段止盈变更 "
+                    f"{_size_before:.6f}->{_size_after:.6f}，丢弃 stale profit_manager 结果 (M0-10)"
+                )
+                return False
 
         # v3 简化：不再用趋势分析覆盖 profit_manager 的平仓决策
         # profit_manager 的 TP 进度保护已经足够，不需要额外的回调判定层
@@ -3046,8 +3117,23 @@ class PaperTradingEngine:
             if hasattr(pos, "tp_level_reached"):
                 pos.tp_level_reached = level_reached + 1
             # 更新 SL
+            # [2026-08-22 M1-6] 单调守卫：锁利 SL 只许收紧（long 升 / short 降），
+            # 回撤时不得反向放宽已锁利润位（原直接赋值 → 可能回摆）。
             if result.sl_price:
-                pos.sl_price = result.sl_price
+                _new_sl = float(result.sl_price)
+                _old_sl = float(getattr(pos, "sl_price", 0) or 0)
+                _is_long = str(getattr(pos, "side", "long") or "long").lower() == "long"
+                if _old_sl <= 0:
+                    pos.sl_price = _new_sl
+                elif _is_long and _new_sl > _old_sl:
+                    pos.sl_price = _new_sl
+                elif (not _is_long) and _new_sl < _old_sl:
+                    pos.sl_price = _new_sl
+                else:
+                    logger.info(
+                        f"[Paper][v2] {pos.symbol} partial_close 锁利 SL 回摆被单调守卫拦截 "
+                        f"({_old_sl:.6f}→{_new_sl:.6f})"
+                    )
             return False
 
         if result.action == "close":
@@ -4616,14 +4702,25 @@ class PaperTradingEngine:
         - 默认值从 $100 调整为 $10,000，更贴近真实模拟交易需求
         - 优先从 accounts.initial_capital 读取（如有），否则用 PAPER_DEFAULT_BALANCE 环境变量
         - 加大 warning，提示这是异常路径（正常应通过 init_account 显式初始化）
+
+        [2026-08-22 M0-2] 账户存在性校验：accounts 无此 id 时拒绝自动建余额
+        （历史上该机制允许"幽灵账户"凭空获得资金池并开仓）。
         """
         from backend.database.models import PaperBalance, Account
+        # [2026-08-22 M1-1] 行所有权=账户 user_id：创建余额前设置租户上下文
+        self._set_tenant_from_account(db, account_id)
         bal = db.query(PaperBalance).filter(PaperBalance.account_id == account_id).first()
         if not bal:
+            acct = db.query(Account).filter(Account.id == account_id).first()
+            if not acct:
+                logger.error(
+                    f"[PaperEngine] 拒绝为不存在的账户 {account_id} 自动创建余额 "
+                    f"(资金池必须有对应的 accounts.id)"
+                )
+                return None
             import os, traceback
             default_balance = float(os.getenv("PAPER_DEFAULT_BALANCE", "10000"))
             try:
-                acct = db.query(Account).filter(Account.id == account_id).first()
                 if acct and acct.initial_capital:
                     initial_cap = float(acct.initial_capital)
                     if initial_cap > 0:
@@ -4728,11 +4825,28 @@ class PaperTradingEngine:
             PaperOrder.fee.isnot(None),
         ).scalar() or 0)
 
-        bal.realized_pnl = order_rpnl
+        # [2026-08-22 M1-2] funding 覆盖竞争修复：_maybe_settle_funding 会把资金费
+        # 计入 realized_pnl，但此处 _recalc_balance 无条件把它重置回 SUM(order.pnl)
+        # → 资金费盈亏在"orders-only 与 orders+funding"间震荡。
+        # 修复：funding 收支独立从 paper_funding_ledger 读取，再并入 realized/equity。
+        _funding_pnl = 0.0
+        try:
+            from backend.config.settings import FUNDING_SETTLE_APPLY_PNL as _apply_pnl
+            if _apply_pnl:
+                from backend.database.models import PaperFundingLedger
+                _funding_pnl = float(
+                    db.query(func.coalesce(func.sum(PaperFundingLedger.payment), 0))
+                    .filter(PaperFundingLedger.account_id == bal.account_id)
+                    .scalar() or 0
+                )
+        except Exception as _fund_err:
+            logger.debug(f"[Paper] funding 并入 recalc 跳过: {_fund_err}")
+
+        bal.realized_pnl = order_rpnl + _funding_pnl
         bal.total_fee_paid = order_fees
         bal.frozen_margin = total_margin
         bal.unrealized_pnl = total_upnl
-        bal.available_balance = bal.initial_balance + order_rpnl - order_fees - total_margin
+        bal.available_balance = bal.initial_balance + order_rpnl + _funding_pnl - order_fees - total_margin
         bal.total_equity = bal.available_balance + total_margin + total_upnl
 
     # ── 序列化 ────────────────────────────────────

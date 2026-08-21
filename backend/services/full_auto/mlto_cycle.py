@@ -93,7 +93,12 @@ def _mlto_close_symbol(*, db, session, symbol: str, thesis=None, reason: str = "
 
     # ── [Phase A 修复 Bug3] 主路径：查 DB 的实际 open 仓位 side ──
     # 不从 thesis.direction 推断（thesis 失效后方向可能已翻转，导致 side 不匹配 → 平仓失败）。
+    # [2026-08-22 M0-6] 跨层防护：MLTO invalidation 只允许平 mid/long 性质仓
+    # （swing/trend_follow/position），禁止平 scalp 仓；且必须传 position_id
+    # 精确定位，避免同 symbol 多腿时"平错腿"。
     db_side: Optional[str] = None
+    db_pos_id: Optional[int] = None
+    db_nature: Optional[str] = None
     if db is not None:
         try:
             from backend.database.models import PaperPosition
@@ -101,28 +106,43 @@ def _mlto_close_symbol(*, db, session, symbol: str, thesis=None, reason: str = "
                 PaperPosition.account_id == acct_id,
                 PaperPosition.symbol == sym_u,
                 PaperPosition.status == "open",
-            ).first()
+                PaperPosition.trade_nature.in_(("swing", "trend_follow", "position")),
+            ).order_by(PaperPosition.id.desc()).first()
             if pos is not None:
                 db_side = str(pos.side or "").lower()
+                db_pos_id = pos.id
+                db_nature = pos.trade_nature
         except Exception as _db_err:
             logger.debug("[MLTO] close 查 DB side 失败 %s, 退回 thesis 兜底: %s", sym_u, _db_err)
 
     closed_any = False
     if db_side in ("long", "short"):
-        closed_any = paper_engine.close_position(db, acct_id, sym_u, db_side, reason=reason[:120]) is not None
+        closed_any = paper_engine.close_position(
+            db, acct_id, sym_u, db_side, reason=reason[:120],
+            position_id=db_pos_id, trade_nature=db_nature,
+        ) is not None
         return closed_any
 
-    # ── 兜底1：DB 查不到（无持仓或查询失败）→ 用 thesis.direction ──
+    # ── 兜底1：DB 查不到（无中长线持仓或查询失败）→ 用 thesis.direction ──
     direction = str(getattr(thesis, "direction", "") or "").lower()
     if direction == "long":
-        closed_any = paper_engine.close_position(db, acct_id, sym_u, "long", reason=reason[:120]) is not None
+        closed_any = paper_engine.close_position(
+            db, acct_id, sym_u, "long", reason=reason[:120],
+            trade_nature="swing",
+        ) is not None
     elif direction == "short":
-        closed_any = paper_engine.close_position(db, acct_id, sym_u, "short", reason=reason[:120]) is not None
+        closed_any = paper_engine.close_position(
+            db, acct_id, sym_u, "short", reason=reason[:120],
+            trade_nature="swing",
+        ) is not None
     else:
         # 兜底2：方向未知 → 尝试两边（只会平掉实际存在的那一边）
         for _side in ("long", "short"):
             try:
-                if paper_engine.close_position(db, acct_id, sym_u, _side, reason=reason[:120]) is not None:
+                if paper_engine.close_position(
+                    db, acct_id, sym_u, _side, reason=reason[:120],
+                    trade_nature="swing",
+                ) is not None:
                     closed_any = True
             except Exception:
                 pass

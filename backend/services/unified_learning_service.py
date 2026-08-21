@@ -520,8 +520,19 @@ class UnifiedLearningService:
             # ── Bug C 修复：opened_at 用真实开仓时间（按调用方 → duration 反推 → now-1s 兜底） ──
             #   原默认值 server_default=current_timestamp 会把 opened_at 写成"插入瞬间"，
             #   导致 168/168 笔 opened_at==closed_at。
-            _closed_at_dt = datetime.now(timezone.utc)
+            # [2026-08-22 M1-3] 时区归一：PaperPosition 读回的 opened_at 是北京钟面 naive
+            # （PG 会话 tz=Asia/Shanghai），必须先经 parse_db_naive_to_utc 归一为 UTC，
+            # 否则与 naive UTC 的 closed_at 混写导致 closed_at < opened_at（历史 64/75 笔）。
+            _closed_at_dt = datetime.now(timezone.utc).replace(tzinfo=None)
             _opened_at_dt = getattr(outcome, "opened_at", None)
+            if _opened_at_dt is not None:
+                try:
+                    from backend.utils.db_datetime import parse_db_naive_to_utc as _norm_ts
+                    _norm = _norm_ts(_opened_at_dt)
+                    if _norm is not None:
+                        _opened_at_dt = _norm.replace(tzinfo=None)
+                except Exception:
+                    pass
             if _opened_at_dt is None and outcome.duration_seconds:
                 from datetime import timedelta as _td
                 _opened_at_dt = _closed_at_dt - _td(seconds=int(outcome.duration_seconds))

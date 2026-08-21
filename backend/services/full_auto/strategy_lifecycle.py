@@ -51,10 +51,12 @@ def build_strategy_lifecycle_host(svc) -> StrategyLifecycleHost:
 def is_champion_strategy(mem) -> bool:
     if not mem:
         return False
+    # [2026-08-22 M1-4] 伪 Sharpe 不再参与冠军判定，改用期望值判据 + 保留胜率/回撤门
+    from backend.services.memory_ev_gate import memory_ev_ok
     return (
         (mem.total_trades or 0) >= 15
         and (mem.win_rate or 0) >= 0.55
-        and (mem.sharpe_ratio or 0) >= 0.5
+        and memory_ev_ok(mem, min_trades=15)
         and (mem.max_drawdown or 1.0) <= 0.15
     )
 

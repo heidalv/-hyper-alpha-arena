@@ -565,9 +565,11 @@ TIER_TP_SL_DEFAULTS = {
         "atr_sl_mult": float(os.getenv("TIER_SHORT_ATR_SL_MULT", "1.5")),   # SL = 1.5×ATR%（币圈常用≥1.5×）
         "atr_tp_mult": float(os.getenv("TIER_SHORT_ATR_TP_MULT", "2.0")),  # TP = 2.0×ATR%
         "min_sl_pct": float(os.getenv("TIER_SHORT_MIN_SL", "0.010")),  # SL 最小 1.0%（平静市 ATR 地板）
-        "max_sl_pct": float(os.getenv("TIER_SHORT_MAX_SL", "0.020")),  # SL 最大 2%（避开死亡区间）
+        # [2026-08-22 M0-7] max_sl 2%→4.5%（原 2% 是"死亡区间"：高波动币 ATR×1.5
+        # 超 2% 时被压回 2%，SL 落在 5m 噪音带内被反复扫损；RR 仍由 V5 闸把守）
+        "max_sl_pct": float(os.getenv("TIER_SHORT_MAX_SL", "0.045")),  # SL 最大 4.5%
         "min_tp_pct": float(os.getenv("TIER_SHORT_MIN_TP", "0.015")),  # TP 最小 1.5%
-        "max_tp_pct": float(os.getenv("TIER_SHORT_MAX_TP", "0.025")),  # TP 最大 2.5%
+        "max_tp_pct": float(os.getenv("TIER_SHORT_MAX_TP", "0.060")),  # [M0-7] 2.5%→6% 与 SL 放宽对齐
     },
     "mid": {
         "tp_pct": float(os.getenv("TIER_MID_TP_PCT", "0.07")),      # 7% TP

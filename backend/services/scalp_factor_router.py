@@ -719,9 +719,12 @@ class ScalpFactorRouter:
             )
             return sl_pct, tp_pct
         except Exception:
+            # [2026-08-22 M0-7] 兜底滑点夹幅放宽 [1.2%,3.5%]→[0.8%,6%]，与
+            # structure_stop_calculator 的 6% sanity 对齐（该兜底仅在所有路径
+            # 都异常时命中，原 3.5% 上沿会把高波动币 SL 压进噪音带）。
             atr_pct = float(market_data.get("volatility_value", 0) or
                             market_data.get("atr_pct", 0.015) or 0.015)
-            sl_pct = max(0.012, min(0.035, atr_pct * 1.5))
+            sl_pct = max(0.008, min(0.06, atr_pct * 1.5))
             tp_pct = max(0.015, min(0.06, atr_pct * 2.5))
             return sl_pct, tp_pct
 

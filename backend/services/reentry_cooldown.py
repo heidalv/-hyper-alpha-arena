@@ -60,9 +60,18 @@ def _get_cooldown_sec(tier: str) -> int:
         return _FALLBACK_COOLDOWN_SEC
 
 
-def _get_loss_multiplier(account_id: int, symbol: str) -> float:
-    """根据近期连续亏损次数计算冷却倍率"""
-    key = f"{account_id}_{(symbol or '').strip().upper()}"
+def _loss_key(account_id: int, symbol: str, tier: str = "mid") -> str:
+    """[2026-08-22 M1-7] 连续亏损历史 key 纳入 tier（跨周期互锁修复）：
+    短线连续亏损不应把 mid/long 的冷却倍率一起放大。"""
+    _t = (tier or "").strip().lower() or "mid"
+    if _t not in ("short", "mid", "long", "default"):
+        _t = "mid"
+    return f"{account_id}_{(symbol or '').strip().upper()}_{_t}"
+
+
+def _get_loss_multiplier(account_id: int, symbol: str, tier: str = "mid") -> float:
+    """根据近期连续亏损次数计算冷却倍率（[M1-7] 按 tier 隔离）。"""
+    key = _loss_key(account_id, symbol, tier)
     now = time.time()
 
     with _lock:
@@ -90,9 +99,9 @@ def _get_loss_multiplier(account_id: int, symbol: str) -> float:
     return 1.0
 
 
-def record_close_pnl(account_id: int, symbol: str, pnl: float) -> None:
-    """记录一次平仓的盈亏，用于连续亏损检测。"""
-    key = f"{account_id}_{(symbol or '').strip().upper()}"
+def record_close_pnl(account_id: int, symbol: str, pnl: float, tier: str = "mid") -> None:
+    """记录一次平仓的盈亏，用于连续亏损检测（[M1-7] 按 tier 隔离）。"""
+    key = _loss_key(account_id, symbol, tier)
     now = time.time()
     with _lock:
         if key not in _loss_history:
@@ -126,7 +135,7 @@ def record_full_close(
 
     # 记录盈亏用于连续亏损检测
     if close_pnl != 0:
-        record_close_pnl(account_id, symbol, close_pnl)
+        record_close_pnl(account_id, symbol, close_pnl, tier=_norm_tier)
 
     _norm_tier = (tier or "").strip().lower() or "mid"
     if _norm_tier not in ("short", "mid", "long"):
@@ -692,12 +701,15 @@ def record_partial_close(
     if not symbol or side not in ("long", "short"):
         return
 
-    key = f"{account_id}_{symbol}_{side}"
-    multiplier = _get_loss_multiplier(account_id, symbol)
+    # [2026-08-22 M1-7] 减仓冷却 key 补 tier：原 key 无 tier，short 减仓会锁死
+    # 同 symbol 同 side 的 mid/long 减仓（反之亦然）；与 full-close 的 tier 隔离对齐。
+    _norm_tier = (tier or "").strip().lower() or "mid"
+    key = f"{account_id}_{(symbol or '').strip().upper()}_{side}_{_norm_tier}"
+    multiplier = _get_loss_multiplier(account_id, symbol, tier=_norm_tier)
 
     # 记录盈亏用于连续亏损检测
     if close_pnl != 0:
-        record_close_pnl(account_id, symbol, close_pnl)
+        record_close_pnl(account_id, symbol, close_pnl, tier=_norm_tier)
 
     with _reduce_lock:
         _reduce_cooldowns[key] = {
@@ -794,7 +806,9 @@ def is_reduce_cooling_down(
     Returns:
         (is_cooling: bool, reason: str)
     """
-    key = f"{account_id}_{symbol}_{side}"
+    # [2026-08-22 M1-7] 读取 key 与写入 key 一致（含 tier）
+    _norm_tier = (tier or "").strip().lower() or "mid"
+    key = f"{account_id}_{(symbol or '').strip().upper()}_{side}_{_norm_tier}"
     with _reduce_lock:
         entry = _reduce_cooldowns.get(key)
     if not entry:

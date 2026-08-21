@@ -919,6 +919,24 @@ class FullAutoTradingService:
             (session.terminated_strategy_ids or [])
         ))
         deleted_count = 0
+        # [2026-08-22 M0-1] FK 顺序修复：strategy_memories/strategy_trades/
+        # prompt_training_records/signal_performance_history 均以 strategy_id 外键
+        # 引用 ai_strategies —— 必须先删子行再删策略，否则 IntegrityError 500。
+        try:
+            from backend.database.models import (
+                StrategyMemory, StrategyTrade, PromptTrainingRecord,
+                SignalPerformanceHistory,
+            )
+            for _m in (
+                StrategyMemory, StrategyTrade, PromptTrainingRecord,
+                SignalPerformanceHistory,
+            ):
+                db.query(_m).filter(_m.strategy_id.in_(all_strategy_ids)).delete(
+                    synchronize_session=False
+                )
+        except Exception as _fk_err:
+            logger.warning("[stop_session] 子表清理失败（尝试逐条）: %s", _fk_err)
+            db.rollback()
         for sid in all_strategy_ids:
             strat = db.query(AIStrategy).filter(AIStrategy.strategy_id == sid).first()
             if strat:
@@ -1648,6 +1666,26 @@ class FullAutoTradingService:
                     if pos_pnl > 0:
                         wins += 1
 
+                # [2026-08-22 M1-2] 漏扣全平费修复：最后一笔全平的 fee 不落在
+                # PaperPosition，原实现只扣分批费、对"单策略视角 PnL"系统性偏乐观。
+                # 这里按策略汇总扣掉全部平仓类订单（close_reason 非空且非 rejected）的手续费。
+                try:
+                    from backend.database.models import PaperOrder as _PO
+                    _close_fees = float(
+                        db.query(sa_func.coalesce(sa_func.sum(_PO.fee), 0))
+                        .filter(
+                            _PO.strategy_id == strategy_id,
+                            _PO.fee.isnot(None),
+                            _PO.close_reason.isnot(None),
+                            _PO.close_reason.notin_(
+                                ("", "rejected", "cancelled", "pending"),
+                            ),
+                        ).scalar() or 0
+                    )
+                    total_pnl -= _close_fees
+                except Exception as _cf_err:
+                    logger.debug(f"[FullAuto] 全平费扣除跳过 {strategy_id}: {_cf_err}")
+
             win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
             return {
                 "total_trades": total_trades,
@@ -1979,12 +2017,42 @@ class FullAutoTradingService:
             sessions = db.query(FullAutoSession).filter(
                 FullAutoSession.status.in_(["running", "defensive", "paused"])
             ).all()
+            # [2026-08-22 M2-5] 恢复去重 + 账户有效性校验：
+            # 同一 (trading_account, universe哈希) 只恢复一个会话（镜像开仓的根治）；
+            # paper 会话绑定的 paper_account_id 必须真实存在且 PAPER 类型，否则跳过。
+            _restored_universe_seen = set()
             for s in sessions:
                 pause_reason = getattr(s, "pause_reason", None)
                 if s.status == "paused" and pause_reason == "manual":
                     logger.info(f"[FullAuto] 跳过手动暂停的会话 {s.session_id}")
                     continue
                 _trading_acct = s.paper_account_id if (s.trading_mode == "paper" and getattr(s, "paper_account_id", None)) else s.account_id
+                try:
+                    from backend.database.models import Account as _Acct
+                    _acc_row = db.query(_Acct).filter(_Acct.id == _trading_acct).first()
+                    if _acc_row is None:
+                        logger.error(
+                            f"[FullAuto] 恢复跳过 {s.session_id}: 交易账户 #{_trading_acct} 不存在"
+                        )
+                        continue
+                    if (s.trading_mode or "paper").lower() == "paper" and (
+                        _acc_row.account_type or ""
+                    ).upper() != "PAPER":
+                        logger.error(
+                            f"[FullAuto] 恢复跳过 {s.session_id}: 账户 #{_trading_acct} "
+                            f"({_acc_row.name}) 不是 PAPER 类型"
+                        )
+                        continue
+                except Exception as _acc_err:
+                    logger.warning(f"[FullAuto] 恢复时账户校验失败 {s.session_id}: {_acc_err}")
+                _uniq_sig = (int(_trading_acct or 0), tuple(sorted([str(x).upper() for x in (s.symbols or [])])))
+                if _uniq_sig in _restored_universe_seen:
+                    logger.warning(
+                        f"[FullAuto] 恢复跳过重复会话 {s.session_id}（账户#{_trading_acct} "
+                        f"universe 已恢复：{_uniq_sig[1]}）——多会话镜像开仓防护 (M2-5)"
+                    )
+                    continue
+                _restored_universe_seen.add(_uniq_sig)
                 self._running_sessions[s.session_id] = {
                     "account_id": s.account_id,
                     "trading_account_id": _trading_acct,

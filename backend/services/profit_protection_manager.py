@@ -156,6 +156,12 @@ class ProfitProtectionManager:
         }
 
         if margin <= 0 or peak_profit <= 0:
+            # [2026-08-22 M0-9] 语义修复：原实现 peak_profit<=0 直接 return "none"，
+            # 使 emergency_drawdown 只在浮盈时触发（盈利落袋），浮亏时永远无"紧急止损"。
+            # 现在补上浮亏侧的真实紧急止损：亏损超过保证金的 emergency 倍率 → emergency。
+            _emergency_pct = float(_tp.get("drawdown_emergency", 0.2) or 0.2)
+            if margin > 0 and current_profit <= -(margin * _emergency_pct):
+                return "emergency"
             return "none"
         if current_profit <= 0:
             return "none"

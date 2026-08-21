@@ -540,12 +540,26 @@ from sqlalchemy import event as _sa_event
 
 @_sa_event.listens_for(SessionLocal, "before_flush")
 def _auto_fill_tenant_id(session, _flushcontext, _instances):
-    """对所有有 tenant_id 属性但值为 None 的 pending 对象,自动填默认值。"""
+    """对所有有 tenant_id 列但值为 None 的 pending 对象,自动填默认值。
+
+    [2026-08-22 M1-1] 修复：原实现用 hasattr(obj,'tenant_id') 判断——对 ORM
+    未声明 tenant_id 列（DB 列由 DDL 添加）的模型恒为 False，钩子永远不生效，
+    所有行落 DB DEFAULT 1，配合 FORCE RLS 造成"仓位写入错误租户、属主被静默
+    屏蔽"。改用 SQLAlchemy 映射检查（mapper.column_attrs），只要模型声明了
+    列就生效。
+    """
     from backend.core.tenant import tenant_id_var
     _default_tid = tenant_id_var.get() or 1
     for obj in session.new:
-        if hasattr(obj, 'tenant_id') and obj.tenant_id is None:
-            obj.tenant_id = _default_tid
+        try:
+            _mapper = obj.__mapper__
+        except Exception:
+            continue
+        if "tenant_id" not in _mapper.column_attrs.keys():
+            continue
+        if getattr(obj, "tenant_id", None) is not None:
+            continue
+        obj.tenant_id = _default_tid
 
 
 # 注册到三个 engine(core / market / analytics)。

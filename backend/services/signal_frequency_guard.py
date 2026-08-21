@@ -93,57 +93,16 @@ class SignalFrequencyGuard:
         market_summary: Dict[str, Dict],
     ) -> List[str]:
         """
-        如果当日信号数远低于目标，返回最有潜力的标的强制进入 LLM
+        [2026-08-22 M0-4] 已退役：该"频率保障器"实为加频器——信号不足时强制注入
+        标的，只会推高负期望通道的开仓量（与"限制高频刷单"的需求相反）。
 
-        选择逻辑：RSI 离 50 最远的、价格变化最大的
+        返回空列表（不再注入任何标的）。保留签名兼容消费端。
         """
-        with self._lock:
-            state = self._get_state(tier)
-            self._check_date_reset(state)
-
-            min_target = self._min_daily.get(tier, 1)
-            if state.signal_count_today >= min_target * 0.3:
-                return []
-
-            # 需要 2-3 个保障标的
-            needed = max(1, min(3, min_target - state.signal_count_today))
-
-        # 按"潜力"排序：RSI 离 50 最远 + 价格变化最大
-        scored: List[tuple] = []
-        for symbol in symbols:
-            sym_data = market_summary.get(symbol, {})
-            score = 0.0
-
-            # 利用已有价格数据计算简单评分
-            price = sym_data.get("current_price", 0)
-            # 兼容两种字段名
-            change_pct = (
-                sym_data.get("change_24h_pct")
-                or sym_data.get("price_change_24h_pct")
-                or sym_data.get("price_change_1h_pct")
-                or 0
-            )
-            if change_pct:
-                score += abs(float(change_pct))
-
-            # 如果有 RSI 数据
-            rsi = sym_data.get("rsi")
-            if rsi is not None:
-                score += abs(float(rsi) - 50) / 10  # RSI 离50越远越好
-
-            if score > 0:
-                scored.append((score, symbol))
-
-        scored.sort(reverse=True)
-        guaranteed = [s[1] for s in scored[:needed]]
-
-        if guaranteed:
-            logger.info(
-                f"[SignalFrequencyGuard] {tier} tier: 频率保障注入 {guaranteed} "
-                f"(今日仅 {state.signal_count_today}/{min_target})"
-            )
-
-        return guaranteed
+        logger.warning(
+            "[SignalFreqGuard] get_guaranteed_symbols 已退役（M0-4）："
+            "不再强制注入信号标的，避免负期望通道被'保底'推高频率"
+        )
+        return []
 
     def get_status(self) -> Dict[str, Any]:
         """获取各 tier 频率状态（用于调试/日志）"""

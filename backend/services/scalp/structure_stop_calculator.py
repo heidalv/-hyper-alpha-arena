@@ -110,7 +110,12 @@ class StructureStopCalculator:
         else:
             _rr_mult = 2.0; _sl_min, _sl_max = 0.012, 0.018  # 默认(含volatile/crash/unknown)
 
-        sl_pct = max(_sl_min, min(_sl_max, abs(sl_pct)))
+        # [2026-08-22 M0-7] 去掉上沿死区间：原实现 max(_sl_min, min(_sl_max, ...))
+        # 把 ATR/结构自适应止损压进固定 [1.2%,1.8%]（trending 段），高波动币被
+        # 噪声反复扫损。现在只保下限（防过小止损），上限放宽到 6% 硬 sanity
+        # （避免真正的结构崩溃行情给出超大 SL）；RR 一致性由 tp_sl_gates / V5
+        # SCALP_MIN_RR 闸把守，不由本函数压死。
+        sl_pct = max(_sl_min, min(0.06, abs(sl_pct)))
         if side_l in ("buy", "long"):
             sl_price = price * (1 - sl_pct)
         else:

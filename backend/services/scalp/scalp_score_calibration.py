@@ -182,8 +182,18 @@ def load_calibration() -> Dict[str, Any]:
     return {}
 
 
+# [2026-08-22 M0-3] 校准判定"无盈利分桶"时的封禁门槛（等效禁止开仓）
+CALIBRATION_BLOCKED_THRESHOLD = 999
+
+
 def effective_threshold(confirm: int) -> int:
-    """校准后的生效门槛 = max(静态 CONFIRM, 校准建议门槛)。"""
+    """校准后的生效门槛 = max(静态 CONFIRM, 校准建议门槛)。
+
+    [2026-08-22 M0-3 fail-closed] 校准输出"无解"（threshold=None，即没有任何
+    分数段的单调化胜率达到盈亏平衡线）时，必须关断短线开仓，而不是回退到静态
+    CONFIRM 继续刷单。返回 CALIBRATION_BLOCKED_THRESHOLD(999) 等效禁止开仓；
+    仅当管理员显式设置 SCALP_CALIBRATED_THRESHOLD>0 时允许人工覆盖。
+    """
     thr = confirm
     try:
         static_thr = float(os.getenv("SCALP_CALIBRATED_THRESHOLD", "0") or 0)
@@ -193,9 +203,17 @@ def effective_threshold(confirm: int) -> int:
         pass
     try:
         calib = load_calibration()
+        if not calib:
+            return thr  # 校准数据缺/未启用：按静态门槛（冷启动保守放行，观察期）
         t = calib.get("threshold")
-        if isinstance(t, (int, float)) and t > 0:
-            thr = max(int(confirm), int(t))
+        if t is None or not isinstance(t, (int, float)) or float(t) <= 0:
+            # 校准结论明确：没有任何分数段可覆盖盈亏平衡 → 关闸
+            logger.warning(
+                "[ScalpCalib] 校准无盈利分桶(threshold=None)，短线开仓按 fail-closed 拦截 "
+                "(请人工复核后设置 SCALP_CALIBRATED_THRESHOLD 显式覆盖)"
+            )
+            return CALIBRATION_BLOCKED_THRESHOLD
+        thr = max(int(confirm), int(t))
     except Exception:
         pass
     return thr

@@ -1428,10 +1428,11 @@ class KlineAnalyst:
             if flow.get("flow_data_ok"):
                 flow_block = (
                     f"\n## 订单流（{normalize_flow_symbol(symbol)}，来自 Hyperliquid 成交聚合）\n"
-                    f"- 1h CVD累计: {flow.get('cvd_cumulative_1h', 0):,.0f} | "
-                    f"当期Δ: {flow.get('cvd_delta_1h', 0):,.0f}\n"
+                    # [2026-08-22 M0-5] None 兜底，防格式崩溃（同 2457 修复）
+                    f"- 1h CVD累计: {(flow.get('cvd_cumulative_1h') or 0):,.0f} | "
+                    f"当期Δ: {(flow.get('cvd_delta_1h') or 0):,.0f}\n"
                     f"- 1h Taker买/卖比: {flow.get('taker_ratio_1h', 1):.3f} "
-                    f"(买${flow.get('taker_buy_1h', 0):,.0f} / 卖${flow.get('taker_sell_1h', 0):,.0f})\n"
+                    f"(买${(flow.get('taker_buy_1h') or 0):,.0f} / 卖${(flow.get('taker_sell_1h') or 0):,.0f})\n"
                     f"- 15m Taker比: {flow.get('taker_ratio_15m', 1):.3f}\n"
                 )
             else:
@@ -2454,8 +2455,11 @@ class MasterController:
                 if info.get("oi_change_1h") is not None:
                     env_lines.append(
                         f"  OI1h={info.get('oi_change_1h', 0):+.2f}% "
-                        f"清算L/S=${info.get('liquidation_1h_long', 0):,.0f}/"
-                        f"${info.get('liquidation_1h_short', 0):,.0f} "
+                        # [2026-08-22 M0-5] .get(key,0) 在 key 存在但值为 None 时仍会
+                        # 命中 None 而崩溃（unsupported format string passed to NoneType），
+                        # 用 `or 0` 兜底，恢复 Master 主决策链（此前连续 375+ 次失败降级 hold）。
+                        f"清算L/S=${(info.get('liquidation_1h_long') or 0):,.0f}/"
+                        f"${(info.get('liquidation_1h_short') or 0):,.0f} "
                         f"多空比={info.get('long_short_ratio', 1):.2f}"
                     )
 

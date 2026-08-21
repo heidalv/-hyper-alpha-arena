@@ -103,6 +103,11 @@ def _fetch_event_log_midlong(days: int) -> tuple:
                 pl = ev.get("payload") or ev.get("data") or {}
                 if not isinstance(pl, dict):
                     continue
+                # [2026-08-22 M1-5] 过滤 reconcile_sync 自愈假事件
+                # （realized_pnl=0 的假平仓会覆盖真实盈亏、污染学习与报表样本）
+                if str(pl.get("_source") or "").lower() == "reconcile_sync":
+                    continue
+                    continue
                 tn = str(
                     pl.get("trade_nature")
                     or pl.get("nature")

@@ -185,6 +185,36 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
         for _p in _all_scalp_positions:
             _scalp_pos_by_key.setdefault((_p.symbol, _p.side), []).append(_p)
 
+        # [2026-08-22 M0-4] 每日开仓上限接线（SCALP_DAILY_OPEN_CAP 原是死配置，
+        # 无任何消费点）。按账户统计今日已开 scalp 仓，超限后本 tick 及后续 tick
+        # 不再开新仓（计数在每个成功开仓后 +1）。
+        _scalp_daily_cap = 0
+        _scalp_opened_today = 0
+        try:
+            from backend.config.settings import SCALP_DAILY_OPEN_CAP as _cap_ov
+            _scalp_daily_cap = int(_cap_ov or 0)
+        except Exception:
+            _scalp_daily_cap = 0
+        if _scalp_daily_cap > 0:
+            try:
+                from datetime import datetime as _dt_cap, timezone as _tz_cap
+                from backend.database.models import PaperPosition as _PP_cap
+                _day_start = _dt_cap.now(_tz_cap.utc).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                _scalp_opened_today = int(
+                    _db.query(_PP_cap)
+                    .filter(
+                        _PP_cap.account_id == account_id,
+                        _PP_cap.trade_nature == "scalp",
+                        _PP_cap.opened_at >= _day_start,
+                    )
+                    .count() or 0
+                )
+            except Exception as _cap_err:
+                logger.debug(f"[ScalpRouter独立] 每日开仓计数失败: {_cap_err}")
+                _scalp_daily_cap = 0  # 计数失败不拦截开仓（避免误杀），仅本 tick 失效
+
         # [2026-07-11 性能修复] 同理，5m K线此前逐 symbol 单独查询（未命中快照/缓存
         # 时每个 symbol 一次 DB round-trip）。这里对本 tick 全部 symbol 一次性批量
         # 预取（缓存命中的直接复用，未命中的合并成一次 IN(...) 查询），循环内先查
@@ -588,14 +618,10 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             _snap["meta_p_win"] = round(float(_mp), 6)
                     except Exception:
                         pass
-                    _log_sig(
-                        symbol=sym, direction=str(_sig.direction),
-                        action=str(_sig.action or "hold"),
-                        factor_score=float(_sig.factor_score or 0),
-                        threshold=float(_thresh),
-                        entry_price=float(_md.get("price") or _md.get("mark_price") or 0),
-                        features=_snap, session_id=session_id, account_id=account_id,
-                    )
+                    # [2026-08-22 M1-8] 信号日志移到门槛之后：原来在信号评估段就写
+                    # （当日 18350 条 vs 154 个仓位），大量"触发但被闸拦截"的样本
+                    # 污染下游校准/元模型胜率统计。现在仅当信号通过全部闸门、
+                    # 真正要下单时才记录（见下方 place_order 前的 _log_sig）。
             except Exception as _log_err:
                 logger.debug(f"[ScalpRouter独立] {sym} 信号日志跳过: {_log_err}")
 
@@ -860,7 +886,11 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 continue
 
             # 通用冷却（同 symbol 任意方向）
-            _last_open_any = self._scalp_open_ts.get(sym, 0.0)
+            # [2026-08-22 M2-2] 冷却键纳入账户维度：原 key 无 account，多会话
+            # 同一 symbol 互相共享冷却（或竞态绕开），也是双账户镜像开仓的
+            # 放大器之一。
+            _acct_key = f"a{account_id}:{sym}"
+            _last_open_any = self._scalp_open_ts.get(_acct_key, 0.0)
             if _now - _last_open_any < SCALP_OPEN_COOLDOWN_SEC:
                 logger.info(
                     f"[ScalpRouter独立] {sym} 开仓冷却中（距上次开仓 "
@@ -869,7 +899,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 _bump_block("open_cooldown")
                 continue
             # 同向冷却（同 symbol 同方向，更严）
-            _side_key = f"{sym}:{_side_str}"
+            _side_key = f"a{account_id}:{sym}:{_side_str}"
             _last_open_side = self._scalp_open_ts_side.get(_side_key, 0.0)
             if _now - _last_open_side < SCALP_OPEN_SAME_SIDE_COOLDOWN_SEC:
                 logger.info(
@@ -1320,6 +1350,26 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                     _bump_block("arbitration_error")
                     continue
+                # [2026-08-22 M0-4] 每日开仓上限
+                if _scalp_daily_cap > 0 and _scalp_opened_today >= _scalp_daily_cap:
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} 今日已开 {_scalp_opened_today}/"
+                        f"{_scalp_daily_cap}，达到每日开仓上限，跳过 (M0-4)"
+                    )
+                    _bump_block("daily_open_cap")
+                    continue
+                # [2026-08-22 M1-8] 信号日志在全部闸门通过、即将下单时写入
+                try:
+                    _log_sig(
+                        symbol=sym, direction=str(_sig.direction),
+                        action=str(_sig.action or "buy"),
+                        factor_score=float(_sig.factor_score or 0),
+                        threshold=float(_thresh),
+                        entry_price=float(_md.get("price") or _md.get("mark_price") or 0),
+                        features=_snap, session_id=session_id, account_id=account_id,
+                    )
+                except Exception as _log_err:
+                    logger.debug(f"[ScalpRouter独立] {sym} 信号日志跳过: {_log_err}")
                 _fill_res = paper_engine.place_order(
                     db=_db,
                     account_id=trading_acct_id,  # [2026-07-10 修复] 原 account_id 未定义→NameError
@@ -1351,6 +1401,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                     _bump_block("order_not_filled")
                     continue
+                _scalp_opened_today += 1  # [M0-4] 成功开仓后计数 +1
 
                 # ── 记录因子分快照供置信度校准（阶段一 1.2）──
                 # 写入一条 scalp_composite 反馈行，trade_id=持仓id、signal_value=因子分。
@@ -1384,8 +1435,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     "opened_at": time.time(),
                 }
                 # 记录开仓时间戳（2026-06-22 开仓冷却用）
-                self._scalp_open_ts[sym] = time.time()
-                self._scalp_open_ts_side[_side_key] = self._scalp_open_ts[sym]
+            # [M2-2] 冷却写入键与读取键一致（含账户维度）
+                self._scalp_open_ts[f"a{account_id}:{sym}"] = time.time()
+                self._scalp_open_ts_side[f"a{account_id}:{sym}:{_side_str}"] = self._scalp_open_ts[f"a{account_id}:{sym}"]
                 _scalp_opens_this_tick += 1
                 # 修复5: 发布短线 Insight 到 AlphaBus（供中线/长线 overlay）
                 try:

@@ -167,7 +167,9 @@ def reconcile_db_vs_projection(
         proj_open = {
             pid: pos for pid, pos in proj_all.items()
             if pos.get("status") == "open"
-            and int(pos.get("account_id") or 0) in (0, int(account_id))
+            # [2026-08-22 M1-5] 原 `in (0, int(account_id))` 把 account_id=0 的行
+            # 通配匹配任意账户 → 不同账户的投影互相污染、对拍误判（关→开震荡）。
+            and int(pos.get("account_id") or -1) == int(account_id)
         }
         proj_ids = set(proj_open.keys())
     except Exception as exc:

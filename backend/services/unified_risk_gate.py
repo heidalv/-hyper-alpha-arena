@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -129,6 +130,16 @@ def unified_check(
             f"[UnifiedRiskGate] DeterministicRiskGate 异常（放行该层）: {e}",
             exc_info=True,
         )
+        if _gate_exception_policy() == "block":
+            # [2026-08-22 M0-9] fail-closed：风控无法评估时拒绝放行（默认 block）
+            res.passed = False
+            res.blocked_layer = "deterministic"
+            res.blocked_rule = "gate_exception"
+            res.reason_text = f"DeterministicRiskGate 异常，fail-closed: {str(e)[:120]}"
+            res.reason_code = "gate_exception"
+            if write_event:
+                _persist_event(db, account_id, symbol, side, op_source, res)
+            return res
 
     # ────────────── Layer 2: 带状态规则 ──────────────
     try:
@@ -210,8 +221,23 @@ def unified_check(
             f"[UnifiedRiskGate] RiskControlService 异常（放行该层）: {e}",
             exc_info=True,
         )
+        if _gate_exception_policy() == "block":
+            # [2026-08-22 M0-9] fail-closed：风控无法评估时拒绝放行（默认 block）
+            res.passed = False
+            res.blocked_layer = "stateful"
+            res.blocked_rule = "gate_exception"
+            res.reason_text = f"RiskControlService 异常，fail-closed: {str(e)[:120]}"
+            res.reason_code = "gate_exception"
+            if write_event:
+                _persist_event(db, account_id, symbol, side, op_source, res)
+            return res
 
     return res
+
+
+def _gate_exception_policy() -> str:
+    """[2026-08-22 M0-9] 风控异常策略：默认 block（fail-closed）；RISK_GATE_EXCEPTION_POLICY=allow 可临时放开（运维排障期）。"""
+    return os.environ.get("RISK_GATE_EXCEPTION_POLICY", "block").strip().lower()
 
 
 def record_guard_block(

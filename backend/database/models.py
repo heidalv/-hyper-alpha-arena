@@ -928,6 +928,8 @@ class StrategyMemory(Base):
     last_reduce_at = Column(DateTime, nullable=True)                  # 最后一次减仓时间
 
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
+    tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
 
 
 class StrategyTrade(Base):
@@ -961,9 +963,11 @@ class StrategyTrade(Base):
     execution_quality_score = Column(Float, nullable=True)
 
     # 状态
-    status = Column(String(20), nullable=False, default="open")
+    status = Column(String(20), nullable=False, default="closed")
     opened_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     closed_at = Column(TIMESTAMP, nullable=True)
+    # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
+    tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
 
 
 class PromptTrainingRecord(Base):
@@ -2407,6 +2411,8 @@ class PaperBalance(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     last_reset_at = Column(TIMESTAMP, nullable=True)
+    # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
+    tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
 
     account = relationship("Account", back_populates="paper_balance")
 
@@ -2469,6 +2475,8 @@ class PaperPosition(Base):
     opened_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     closed_at = Column(TIMESTAMP, nullable=True)
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
+    tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
 
     # No unique constraint — multiple positions (open or closed) can coexist
 
@@ -2532,6 +2540,8 @@ class PositionExitEvent(Base):
     metadata_json = Column(Text, nullable=True)
 
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
+    # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
+    tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
 
 
 class PaperOrder(Base):

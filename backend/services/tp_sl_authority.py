@@ -16,10 +16,14 @@ TIER_TO_NATURE: dict[str, str] = {
 # 唯一 nature→(tp_pct, sl_pct) 权威表
 # [2026-07-30 crypto-native] scalp TP 2.5%→2%（与 paper_tp_sl.py DEFAULT 对齐，
 # RR=1.67 适合 crypto 5m scalp，避免 breakeven_tp 微利刷手续费）
+# [2026-08-22 M2-4] position 键：多周期编排对强共振 long 输出 "position"（而非
+# trend_follow），此前 resolve 回退 scalp 参数 → 长线仓被按 2%/1.2% 剥头皮止盈止损。
+# 现在 position 与 trend_follow 同参数（长线档）。
 NATURE_TP_SL: dict[str, tuple[float, float]] = {
     "scalp":       (0.020, 0.012),   # tp 2%, sl 1.2% (RR=1.67)
     "swing":       (0.060, 0.025),   # tp 6%,  sl 2.5%
     "trend_follow": (0.120, 0.040),  # tp 12%, sl 4%
+    "position":    (0.120, 0.040),   # tp 12%, sl 4%（long 层同 trend_follow）
 }
 
 def resolve_tp_sl_pct(tier: str | None) -> tuple[float, float]:
