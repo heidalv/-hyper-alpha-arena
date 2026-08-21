@@ -652,6 +652,12 @@ def get_scalp_veto_fail_open(trading_mode: str = "paper") -> bool:
 SCALP_MASTER_HARD_BLOCK: bool = os.getenv("SCALP_MASTER_HARD_BLOCK", "true").lower() in (
     "true", "1", "yes", "on",
 )
+# [S8 2026-08-21] 总控对短线持仓 close/reduce 的白名单例外（逗号分隔关键字，
+# 对决策 reason/reasoning 小写做包含匹配）。默认仅风控/强平类理由可越权动
+# 短线仓（防守权归短线自己的 SL/TP/超时出场链）；置空 = 总控永不碰短线仓。
+MASTER_SCALP_EXIT_WHITELIST: str = os.getenv(
+    "MASTER_SCALP_EXIT_WHITELIST", "risk_engine,liquidation,margin_call,emergency"
+)
 ORCH_BG_INTERVAL_SEC: int = int(os.getenv("ORCH_BG_INTERVAL_SEC", "600"))
 SCALP_STRUCTURE_SL_BUFFER_PCT: float = float(os.getenv("SCALP_STRUCTURE_SL_BUFFER_PCT", "0.008"))
 SCALP_RANGE_MAX_LONG: float = float(os.getenv("SCALP_RANGE_MAX_LONG", "0.72"))
@@ -1088,7 +1094,9 @@ FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true
 FACTOR_SCORER_DSR_N_TRIALS: int = int(os.getenv("FACTOR_SCORER_DSR_N_TRIALS", "40"))
 FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
 # [2026-08-14 P0-1] DSR/PBO 跨币样本下限：单因子打分的 ICIR 样本数（币种数）
-# 低于该值时多重检验无法估计，闸门显式 fail-open 跳过并告警（由 OOS/净收益/冗余兜底）。
+# [D10 2026-08-21 对齐] 低于该值时多重检验无法估计，闸门 **fail-closed 拒绝晋升**
+# （原注释写 fail-open 与现码相反；打分币池 FACTOR_SCORER_SYMBOLS 必须 ≥ 此值，
+# 否则结构性 0 晋升——.env 现配 9 币满足）。
 # 默认 4 对应 PBO 简化实现的最小样本要求；可用 env 覆盖。
 FACTOR_SCORER_DSR_MIN_SYMBOLS: int = int(os.getenv("FACTOR_SCORER_DSR_MIN_SYMBOLS", "4"))
 FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0005"))
@@ -2074,8 +2082,11 @@ MIDLONG_HUB_TREND_SIGNAL_BONUS: float = float(
     os.getenv("MIDLONG_HUB_TREND_SIGNAL_BONUS", "0.05")
 )
 # Paper 震荡市允许缩仓试探；Live 默认禁止 ranging 新开
+# [M6 2026-08-21] 代码默认改 false（原 true）：震荡探针在活跃因子不足/IC 不稳时
+# 净亏（周报证据）。若运维要开，除 env 置 true 外还须满足 midlong_executor 的
+# 活跃因子数 ≥ FACTOR_ROUTE_MIN_ACTIVE_FACTORS 条件。
 MIDLONG_ALLOW_RANGE_PROBE: bool = os.getenv(
-    "MIDLONG_ALLOW_RANGE_PROBE", "true"
+    "MIDLONG_ALLOW_RANGE_PROBE", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
 # WAIT 时是否 Paper 探针开仓（默认关，避免 WAIT 被静默改成成交）
 MIDLONG_PAPER_PROBE_ON_WAIT: bool = os.getenv(
@@ -2112,10 +2123,25 @@ MIDLONG_MID_VIA_FACTOR_ROUTE: bool = os.getenv(
     "MIDLONG_MID_VIA_FACTOR_ROUTE", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
 # 因子路由入场参数：最少活跃因子数 / 合成分数阈值 / 止损止盈 / 权重衰减
-FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "2") or "2")
+# [M8 2026-08-21] 默认 2→3：活跃因子掉到门槛以下应暂停而不是硬开。
+# 顺序依赖已满足（item14 AST 桥接中线落地，中线弹药=公式+registry+AST 三源）。
+FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "3") or "3")
+# [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
+MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
+# [M3 2026-08-21] 运行时因子路由 K 线源：默认 "active"（与成交同所，trade 用途
+# 强制 active_exchange + closed_only）；active 所数据不足时路由 hold、不回退
+# binance。回测/晋升数据源 FACTOR_BACKTEST_KLINE_EXCHANGE（默认 binance 深历史）
+# 不受此开关影响——运行时与回测分离。
+FACTOR_ROUTE_KLINE_EXCHANGE: str = (os.getenv("FACTOR_ROUTE_KLINE_EXCHANGE", "active") or "active").strip()
 FACTOR_ROUTE_ENTRY_THRESHOLD: float = float(os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD", "0.35") or "0.35")
 FACTOR_ROUTE_SL_PCT: float = float(os.getenv("FACTOR_ROUTE_SL_PCT", "0.05") or "0.05")
 FACTOR_ROUTE_TP_PCT: float = float(os.getenv("FACTOR_ROUTE_TP_PCT", "0.10") or "0.10")
+# [M4 2026-08-21] 因子仓动态 SL/TP：max(结构摆动, k×ATR@4h)，静态值只作上限夹幅。
+FACTOR_ROUTE_SL_ATR_MULT: float = float(os.getenv("FACTOR_ROUTE_SL_ATR_MULT", "1.5") or "1.5")
+FACTOR_ROUTE_TP_ATR_MULT: float = float(os.getenv("FACTOR_ROUTE_TP_ATR_MULT", "3.0") or "3.0")
+# [M9 2026-08-21] 弱 IC 不反手：|ic_mean| 低于该值的活跃因子跳过（orient=0），
+# 不再按 sign(ic) 反手——弱负 IC 反手是碎信号的放大器。
+FACTOR_ROUTE_IC_ABS_MIN: float = float(os.getenv("FACTOR_ROUTE_IC_ABS_MIN", "0.02") or "0.02")
 # 因子路由单笔保证金比例（占权益）：小资金账户（权益~400）在 10x 杠杆口径下，
 # 默认 1.0 档会估出 4000 名义 → 净敞口 1000% 被组合风控永久拦截。
 # 0.12 → 480 名义 = 120% 敞口，在 MIDLONG_MAX_NET_EXPOSURE_PCT(1.5) 之内。
@@ -2709,6 +2735,16 @@ V5_SCALP_MIN_RR_PAPER: float = float(os.getenv("V5_SCALP_MIN_RR_PAPER", "1.3"))
 V5_SCALP_MIN_TP_PCT_PAPER: float = float(os.getenv("V5_SCALP_MIN_TP_PCT_PAPER", "0.005"))
 V5_TREND_MIN_RR: float = float(os.getenv("V5_TREND_MIN_RR", "1.8"))
 V5_TREND_MIN_RR_PAPER: float = float(os.getenv("V5_TREND_MIN_RR_PAPER", "1.6"))
+# [M5 2026-08-21] swing/factor_mid 独立门槛口径：不再被迫吃 trend_follow 的
+# 置信度/RR（swing 持有期更短，口径应介于 scalp 与 trend 之间）。
+# 初值待回测量化后校准（设计：实施时用回测量，不锁死）。
+V5_SWING_MIN_CONFIDENCE: int = int(os.getenv("V5_SWING_MIN_CONFIDENCE", "45"))
+V5_SWING_MIN_RR: float = float(os.getenv("V5_SWING_MIN_RR", "1.5"))
+V5_SWING_MIN_RR_PAPER: float = float(os.getenv("V5_SWING_MIN_RR_PAPER", "1.4"))
+
+# [S10 2026-08-21] 震荡缩仓地板：取消原 0.70 灰尘仓保护（强缩仓可到 0.35），
+# 灰尘仓由保证金下限兜底。
+SCALP_RANGING_SIZE_FLOOR: float = float(os.getenv("SCALP_RANGING_SIZE_FLOOR", "0.35") or "0.35")
 
 # 开仓最低止盈距离（中长线/全局；短线用 V5_SCALP_MIN_TP_*）
 V5_MIN_TP_PCT: float = float(os.getenv("V5_MIN_TP_PCT", "0.012"))
