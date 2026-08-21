@@ -222,9 +222,14 @@ def run_exit_audit(lookback_days: int = 30) -> Dict[str, Any]:
             ch = str(ev.exit_channel or "unknown")
             agg = channels.setdefault(ch, {
                 "n": 0, "total_pnl": 0.0, "wins": 0,
-                "retention_sum": 0.0, "retention_n": 0,
+                "retention_sum": 0.0, "retention_n": 0, "n_partial": 0,
             })
-            pnl = float(ev.pnl or 0)
+            # [2026-08-22 M1-2] 分批 PnL 双计修复：final_trade_outcome 的 pnl 已含
+            # 全部 partial，只有 final 参与 total_pnl 求和；partial 单条仅计件数。
+            is_final = (ev.event_type == "final_trade_outcome")
+            pnl = float(ev.pnl or 0) if is_final else 0.0
+            if not is_final:
+                agg["n_partial"] += 1
             agg["n"] += 1
             agg["total_pnl"] += pnl
             if pnl > 0:
