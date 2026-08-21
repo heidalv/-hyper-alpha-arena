@@ -192,6 +192,9 @@ def try_execute_independent_agent_open(
     hub_mode: str = "",
     dir_src: str = "",
     authority: str = "",
+    # [M1-A 2026-08-21] 入场来源（trend/mlto/factor_route），透传到
+    # TradeProposal.extra → 持仓 exit_state_json["entry_source"]，出场分流用。
+    entry_source: str = "",
 ) -> bool:
     from backend.services.decision_core.proposal import TradeProposal
 
@@ -660,6 +663,8 @@ def try_execute_independent_agent_open(
         "invalidation_condition": invalidation_condition or "",
         "expected_hold_hours": float(expected_hold_hours or 0),
         "tranche_margin_pct": _tranche_mult,
+        # [M1-A] entry_source 只在非空时下发（历史调用方不受影响）
+        **({"entry_source": entry_source} if entry_source else {}),
     }
 
     if not _sl_source and float(sl_pct or 0) > 0:

@@ -258,9 +258,12 @@ def evaluate_midlong_open(
     )
 
     # Paper Agent 独立路径：Agent 已 should_open → 置信度达 base 则缩仓放行（block→scale，非新 gate）
+    # [M11 2026-08-21] 因子路由提案排除：因子仓置信度是因子合成分的映射，
+    # 不是 LLM 置信度，不足即 skip（与 live 一致）——不参与 Paper 探针缩仓放行。
     if (
         not allowed
         and dec.get("_agent_independent")
+        and str(dec.get("entry_source") or "").lower() != "factor_route"
         and (mode or "").lower() == "paper"
     ):
         from backend.services.decision_core.threshold_resolver import normalize_confidence_pct

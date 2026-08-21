@@ -88,6 +88,7 @@ def resolve_effective_entry_threshold(
     side: Optional[str] = None,
     scalp_gate: Optional[float] = None,
     trend_gate: Optional[float] = None,
+    swing_gate: Optional[float] = None,
     is_auto_coin: bool = False,
     high_conviction: bool = False,
     auto_relief: float = 0.0,
@@ -119,6 +120,12 @@ def resolve_effective_entry_threshold(
         if float(trend_gate) > strict:
             strict = float(trend_gate)
             governing = "trend"
+    # [M5 2026-08-21] swing/factor_mid 独立口径：不再被迫吃 trend_follow 门槛
+    if nature_l == "swing" and swing_gate is not None:
+        comps["swing"] = float(swing_gate)
+        if float(swing_gate) > strict:
+            strict = float(swing_gate)
+            governing = "swing"
 
     auto_penalty_applied = float(auto_penalty) if is_auto_coin else 0.0
     auto_relief_applied = float(auto_relief) if is_auto_coin else 0.0

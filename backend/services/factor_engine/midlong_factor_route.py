@@ -36,14 +36,66 @@ def _cfg(name: str, default):
     return getattr(_s, name, default)
 
 
+def _route_kline_exchange() -> str:
+    """[M3 2026-08-21] 运行时因子路由的 K 线源。
+
+    默认 "active" = 与成交同所（data_center trade 用途强制 active_exchange、
+    closed_only 剔未收盘 bar）——因子在 A 所打分、在 B 所成交是中线因子失真
+    根源之一（设计 M3）。可显式配置其它交易所（走 research 用途）。
+    注意：**不改** `FACTOR_BACKTEST_KLINE_EXCHANGE`（回测/晋升默认 binance
+    深历史），运行时与回测分离，两边语义都不污染。
+    """
+    try:
+        raw = str(_cfg("FACTOR_ROUTE_KLINE_EXCHANGE", "active") or "active")
+    except Exception:
+        raw = "active"
+    return raw.strip().lower() or "active"
+
+
 def _load_df(symbol: str, timeframe: str, lookback: int) -> Optional[pd.DataFrame]:
-    from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
-    klines = factor_backtest_scorer._load_klines(symbol, timeframe, lookback)
-    if not klines or len(klines) < 60:
-        return None
+    """[M3 2026-08-21] 路由专用加载：active 所优先，不足 60 根 → None（hold）。
+
+    active 所数据不足时**禁止静默回退 binance**——回退会把「成交所上因子读数」
+    悄悄换成「另一所的历史」，与 M3 同所原则相反；正确行为是 hold 并留日志，
+    由覆盖率报告暴露问题（切换所后需重算 IC/活跃池）。
+    """
+    _ex = _route_kline_exchange()
+    klines = None
+    if _ex == "active":
+        try:
+            from backend.services.kline_data_service import kline_service
+            klines = kline_service.get_klines_from_db(
+                symbol.upper(), timeframe, lookback,
+            ) or None
+        except Exception as e:
+            logger.warning("[FactorRoute] %s/%s active所 K线加载失败: %s", symbol, timeframe, e)
+            klines = None
+        if not klines or len(klines) < 60:
+            logger.info(
+                "[FactorRoute] %s/%s active所 K线不足(%s根<60) → hold（不回退 binance）",
+                symbol, timeframe, len(klines) if klines else 0,
+            )
+            return None
+    else:
+        from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
+        klines = factor_backtest_scorer._load_klines(symbol, timeframe, lookback)
+        if not klines or len(klines) < 60:
+            return None
     try:
         return pd.DataFrame(klines)
     except Exception:
+        return None
+
+
+def _eval_ast_on_df(ast: dict, df) -> Optional[np.ndarray]:
+    """[item14 2026-08-21] 进化仓 DSL AST 在 K 线 DataFrame 上求值（复用 parser 审计）。"""
+    try:
+        from backend.services.factor_engine.expr.parser import parse as _parse_dsl
+        from backend.services.alpha.factor_compute import kline_df_to_fields
+        expr = _parse_dsl(ast)
+        return np.asarray(expr.evaluate(kline_df_to_fields(df)), dtype=float)
+    except Exception as e:
+        logger.debug("[FactorRoute] AST 求值失败: %s", e)
         return None
 
 
@@ -72,6 +124,12 @@ def _factor_history(
             )
             vals = factor_backtest_scorer._eval_formula(formula, arrays)
             return np.asarray(vals, dtype=float)
+        # [item14 2026-08-21] AST 桥接：进化仓 DSL 表达式在路由 K 线上求值
+        if str(extra.get("kind") or "") == "ast" and extra.get("expr_ast"):
+            vals = _eval_ast_on_df(extra["expr_ast"], df)
+            if vals is not None and int(np.isfinite(vals).sum()) >= 60:
+                return vals
+            return None
         registry_id = str(extra.get("registry_factor_id") or rec.get("factor_id") or "")
         calc = FactorCalculator()
         series_map = calc.calculate([registry_id], df, symbol=symbol, timeframe=tf)
@@ -100,6 +158,47 @@ def _zscore_last(vals: np.ndarray) -> Optional[float]:
     return float((float(finite[-1]) - float(np.mean(tail))) / std)
 
 
+def _dynamic_sl_tp(symbol: str) -> "tuple[float, float, str]":
+    """[M4 2026-08-21] 因子仓动态 SL/TP。
+
+    SL = clamp(max(20根结构摆动, SL_ATR_MULT×ATR14) , 0.01, SL_PCT 上限)
+    TP = clamp(max(摆动, TP_ATR_MULT×ATR) 且 ≥ SL×1.8(V5 trend RR 门槛), …, TP_PCT 上限)
+    ATR/摆动取自 4h K 线（路由主周期）。数据不足 → 回退静态 SL_PCT/TP_PCT。
+    执行层另有 apply_structure_atr_floor(ATR_1d×1.5) 作二次下限，互不冲突。
+    """
+    sl_cap = float(_cfg("FACTOR_ROUTE_SL_PCT", 0.05))
+    tp_cap = float(_cfg("FACTOR_ROUTE_TP_PCT", 0.10))
+    sl_k = float(_cfg("FACTOR_ROUTE_SL_ATR_MULT", 1.5))
+    tp_k = float(_cfg("FACTOR_ROUTE_TP_ATR_MULT", 3.0))
+    try:
+        df = _load_df(symbol, "4h", 120)
+        if df is None or len(df) < 40:
+            return sl_cap, tp_cap, "no_klines_static_fallback"
+        high = df["high"].astype(float).to_numpy()
+        low = df["low"].astype(float).to_numpy()
+        close = df["close"].astype(float).to_numpy()
+        price = float(close[-1]) or 0.0
+        if price <= 0:
+            return sl_cap, tp_cap, "no_price_static_fallback"
+        prev_close = np.concatenate(([np.nan], close[:-1]))
+        tr = np.maximum.reduce([
+            high - low,
+            np.abs(high - prev_close),
+            np.abs(low - prev_close),
+        ])
+        atr_pct = float(np.nanmean(tr[-14:])) / price
+        win = 20
+        swing_pct = float(high[-win:].max() - low[-win:].min()) / price
+        sl = max(swing_pct, sl_k * atr_pct)
+        sl = float(np.clip(sl, 0.01, sl_cap))
+        tp = max(swing_pct, tp_k * atr_pct, sl * 1.8)  # RR 不低于 V5 trend 门槛
+        tp = float(np.clip(tp, sl * 1.2, tp_cap))
+        return round(sl, 5), round(tp, 5), f"swing={swing_pct:.3f} atr={atr_pct:.3f}"
+    except Exception as e:
+        logger.debug("[FactorRoute] %s 动态SL/TP计算失败(回退静态): %s", symbol, e)
+        return sl_cap, tp_cap, "calc_error_static_fallback"
+
+
 def factor_route_decide(
     symbol: str,
     market_summary: Optional[dict] = None,
@@ -117,6 +216,8 @@ def factor_route_decide(
         "confidence": 0,
         "sl_pct": float(_cfg("FACTOR_ROUTE_SL_PCT", 0.05)),
         "tp_pct": float(_cfg("FACTOR_ROUTE_TP_PCT", 0.10)),
+        # [M3 2026-08-21] 决策日志携带 K 线源，与成交所不一致时可见
+        "kline_exchange": _route_kline_exchange(),
     }
 
     # 数据可靠性：与中长线循环同口径（data_reliable / stale）
@@ -151,12 +252,22 @@ def factor_route_decide(
     weight_sum = 0.0
     usable = 0
     votes: Dict[str, Dict[str, Any]] = {}
+    # [M9 2026-08-21] 弱 IC 不反手：|ic| < FACTOR_ROUTE_IC_ABS_MIN(默认0.02) 的
+    # 因子跳过（orient=0），不再按 sign(ic) 反手——弱负 IC 反手是碎信号放大器。
+    _ic_abs_min = float(_cfg("FACTOR_ROUTE_IC_ABS_MIN", 0.02))
+    _neg_ic_n = 0
     for rec in active:
         fid = str(rec.get("factor_id") or "")
         scores = rec.get("scores") or {}
         ic = float(scores.get("ic_mean") or 0.0)
-        if abs(ic) < 1e-6:
+        if abs(ic) < _ic_abs_min:
+            votes[fid] = {
+                "z": None, "vote": None, "ic": round(ic, 4),
+                "skip": "weak_ic" if abs(ic) >= 1e-6 else "zero_ic",
+            }
             continue
+        if ic < 0:
+            _neg_ic_n += 1
         w = abs(ic) * float(rec.get("runtime_weight") or 1.0)
         vals = _factor_history(rec, sym)
         if vals is None:
@@ -166,7 +277,9 @@ def factor_route_decide(
         if z is None:
             votes[fid] = {"z": None, "vote": None, "skip": "dormant_or_thin"}
             continue
-        orient = 1.0 if ic >= 0 else -1.0
+        # [item13 2026-08-21] orient 以晋升时锁定的 expected_sign 为准（无则回退
+        # 当前 ic 符号）——与 combo_weights 权重同一套符号规则，防两处漂移。
+        orient = float(scores.get("expected_sign") or (1 if ic >= 0 else -1))
         vote = orient * float(np.clip(z, -2.0, 2.0))
         votes[fid] = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4)}
         weighted += w * vote
@@ -187,6 +300,13 @@ def factor_route_decide(
     score = float(np.clip(composite / 2.0, -1.0, 1.0))
     out["score"] = round(score, 4)
     out["votes"] = votes
+    # [M9] 多因子 IC 同为负 → 告警（不自动加仓/反向），周报跟踪
+    if _neg_ic_n >= 3:
+        logger.warning(
+            "[FactorRoute] %s %d 个活跃因子 IC 为负——因子池方向一致性恶化，"
+            "建议复检（不自动反向）", sym, _neg_ic_n,
+        )
+        out["neg_ic_warning"] = _neg_ic_n
 
     if score >= threshold:
         out["action"] = "buy"
@@ -194,6 +314,13 @@ def factor_route_decide(
         out["action"] = "sell"
     else:
         out["action"] = "hold"
+    # [M4 2026-08-21] 动态 SL/TP：max(结构摆动, k×ATR@4h)，静态值只作上限夹幅。
+    # 原死 5%/10% 与因子持有期/波动完全脱钩（适应度也不含 SL/TP 路径）。
+    if out["action"] in ("buy", "sell"):
+        _sl, _tp, _note = _dynamic_sl_tp(sym)
+        out["sl_pct"] = _sl
+        out["tp_pct"] = _tp
+        out["sltp_note"] = _note
     out["confidence"] = int(np.clip(50 + abs(score) * 30, 0, 80))
     _vote_str = " ".join(
         "%s:%s" % (k, v.get("vote")) for k, v in votes.items() if v.get("vote") is not None
@@ -241,9 +368,11 @@ def factor_route_open(
     try:
         try:
             from backend.services.full_auto.midlong_position_manager import (
-                has_open_midlong_position,
+                has_open_position_of_nature,
             )
-            if _acct and has_open_midlong_position(_db, _acct, sym):
+            # [M2 2026-08-21] 互锁改同 nature：中线开仓只被已有 mid 仓（swing/
+            # tier=mid）拦截——long 仓不再锁死 mid；同币 scalp 不参与判定。
+            if _acct and has_open_position_of_nature(_db, _acct, sym, "mid"):
                 dec["gate"] = "position_exists"
                 return dec
         except Exception as _pos_err:

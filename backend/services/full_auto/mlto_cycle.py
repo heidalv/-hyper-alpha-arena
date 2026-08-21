@@ -524,7 +524,7 @@ def maintain_mlto_theses_for_session(
         from concurrent.futures import ThreadPoolExecutor as _MTPE, as_completed as _MAC
         from backend.services.auto_coin_selector import get_fixed_symbols_for_session as _gfs_long
         from backend.services.full_auto.midlong_position_manager import (
-            has_open_midlong_position as _has_midlong_pos,
+            has_open_position_of_nature as _has_midlong_pos,
             manage_position as _manage_pos,
         )
         _fixed_long_now = set(
@@ -548,7 +548,9 @@ def maintain_mlto_theses_for_session(
                     host.inject_midlong_indicators(
                         market_summary, sym_u, include_weekly=False
                     )
-                    if not _has_midlong_pos(_db_m, _mgmt_acct, sym_u):
+                    # [M2 2026-08-21] 中线管理只针对 mid 组持仓（long 仓由
+                    # 长线链路管理，不再被这里当 mid 仓重复接管）
+                    if not _has_midlong_pos(_db_m, _mgmt_acct, sym_u, "mid"):
                         return None
                     _dec = _manage_pos(
                         _db_m,

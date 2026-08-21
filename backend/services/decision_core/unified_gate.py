@@ -202,6 +202,9 @@ def evaluate_entry(
         V5_SCALP_MIN_RR_PAPER,
         V5_SCALP_MIN_TP_PCT,
         V5_SCALP_MIN_TP_PCT_PAPER,
+        V5_SWING_MIN_CONFIDENCE,
+        V5_SWING_MIN_RR,
+        V5_SWING_MIN_RR_PAPER,
         V5_TREND_FOLLOW_MIN_CONFIDENCE,
         V5_TREND_MIN_RR,
         V5_TREND_MIN_RR_PAPER,
@@ -260,6 +263,12 @@ def evaluate_entry(
         max(30, int(V5_TREND_FOLLOW_MIN_CONFIDENCE) - 12) if _is_paper
         else int(V5_TREND_FOLLOW_MIN_CONFIDENCE)
     )
+    # [M5 2026-08-21] swing/factor_mid 独立置信度口径：不再复用 trend_follow 门槛。
+    # swing 持有期更短，口径应介于 scalp 与 trend 之间（初值 45，待回测量化校准）。
+    _paper_swing_gate = (
+        max(30, int(V5_SWING_MIN_CONFIDENCE) - 12) if _is_paper
+        else int(V5_SWING_MIN_CONFIDENCE)
+    )
     # Paper/Live × nature：短线用更低 RR/TP（加密剥头皮）；中长线一体用 trend 标准。
     # runtime min_risk_reward 仅作中长线/全局上调，不再用 1.5 地板压死短线。
     _is_scalp_like = nature_l in ("scalp", "intraday")
@@ -267,6 +276,16 @@ def evaluate_entry(
     if _is_scalp_like:
         _paper_min_rr = float(V5_SCALP_MIN_RR_PAPER if _is_paper else V5_SCALP_MIN_RR)
         _paper_min_tp = float(V5_SCALP_MIN_TP_PCT_PAPER if _is_paper else V5_SCALP_MIN_TP_PCT)
+    elif nature_l == "swing":
+        # [M5 2026-08-21] swing 独立 RR 口径（1.5/1.4，介于 scalp 1.4 与 trend
+        # 1.8 之间）；runtime min_risk_reward 语义与 trend 分支一致（仅显式上调）。
+        _runtime_rr_raw = overrides.get("min_risk_reward")
+        _swing_base_rr = float(V5_SWING_MIN_RR_PAPER if _is_paper else V5_SWING_MIN_RR)
+        if _runtime_rr_raw is None:
+            _paper_min_rr = _swing_base_rr
+        else:
+            _paper_min_rr = max(_swing_base_rr, float(_runtime_rr_raw))
+        _paper_min_tp = 0.008 if _is_paper else float(V5_MIN_TP_PCT)
     elif _is_midlong:
         # ── P1-2 修复：Paper RR 公式 ──
         # 原公式把 env 默认值 V5_MIN_RISK_REWARD(=1.8) 当 runtime override 参与计算：
@@ -307,8 +326,10 @@ def evaluate_entry(
         _paper_min_tp = _mr_min_tp
     if nature_cfg.get("min_score"):
         _paper_trend_gate = max(_paper_trend_gate, int(nature_cfg["min_score"]))
+        _paper_swing_gate = max(_paper_swing_gate, int(nature_cfg["min_score"]))
     if nature_cfg.get("min_confidence") and raw_nature_l == "swing":
-        _paper_trend_gate = max(_paper_trend_gate, int(nature_cfg["min_confidence"]))
+        # [M5] swing 的 by_nature 运行时上调改作用于 swing 自己的门槛
+        _paper_swing_gate = max(_paper_swing_gate, int(nature_cfg["min_confidence"]))
     # by_nature.min_risk_reward：短线允许下调到 nature 表；中长线只上调
     if nature_cfg.get("min_risk_reward") and not _is_ranging_mr:
         _nrr = float(nature_cfg["min_risk_reward"])
@@ -409,6 +430,7 @@ def evaluate_entry(
         side=action_l,
         scalp_gate=_paper_scalp_gate,  # paper: 50, live: 70
         trend_gate=_paper_trend_gate,   # paper: 55, live: 72
+        swing_gate=_paper_swing_gate,   # [M5] swing 独立口径（paper: 33, live: 45 初值）
         is_auto_coin=is_auto_coin,
         high_conviction=high_conviction,
         auto_relief=AUTO_COIN_V5_CONF_RELIEF,

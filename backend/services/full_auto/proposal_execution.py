@@ -299,6 +299,12 @@ def evaluate_and_execute_proposal(
                         if _exp_hold > 0:
                             _exit_state["expected_hold_hours"] = _exp_hold
                         _exit_state["lifecycle_state"] = "initial"
+                        # [M1-A 2026-08-21] 落库 entry_source：出场分流据此识别
+                        # 因子仓（factor_route 仓禁方向复查碎平）。历史仓无键
+                        # → unknown，保持现有复查行为不变。
+                        _entry_src = str(_extra.get("entry_source") or "").strip().lower()
+                        if _entry_src:
+                            _exit_state["entry_source"] = _entry_src
 
                         _pos.exit_state_json = _json.dumps(_exit_state, ensure_ascii=False)
                         if _exp_hold > 0 and not getattr(_pos, "expected_hold_hours", None):

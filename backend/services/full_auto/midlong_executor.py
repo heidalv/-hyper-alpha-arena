@@ -198,6 +198,23 @@ def apply_regime_to_open(
     try:
         from backend.config.settings import MIDLONG_ALLOW_RANGE_PROBE, PAPER_FAST_TRIAL
         allow_range = bool(MIDLONG_ALLOW_RANGE_PROBE) and (is_paper or PAPER_FAST_TRIAL)
+        # [M6 2026-08-21] 探针即便显式开启也要求因子弹药充足：活跃因子数低于
+        # FACTOR_ROUTE_MIN_ACTIVE_FACTORS 时 ranging 禁开（原只要 env 开就放）。
+        if allow_range:
+            try:
+                from backend.services.factor_engine.midlong_active_factor_set import (
+                    midlong_active_factor_set,
+                )
+                from backend.config.settings import FACTOR_ROUTE_MIN_ACTIVE_FACTORS
+                _af_n = len(midlong_active_factor_set.get_active_factors())
+                if _af_n < int(FACTOR_ROUTE_MIN_ACTIVE_FACTORS):
+                    allow_range = False
+                    logger.info(
+                        "[MidLong] stage=fuse symbol=%s 探针关闭：活跃因子%d<%d",
+                        sym_u, _af_n, int(FACTOR_ROUTE_MIN_ACTIVE_FACTORS),
+                    )
+            except Exception as _af_err:
+                logger.debug("[MidLong] 探针因子数检查跳过: %s", _af_err)
     except Exception:
         allow_range = is_paper
 
@@ -434,5 +451,8 @@ def execute_midlong_open(
             hub_mode=hub_mode,
             dir_src=dir_src,
             authority=auth,
+            # [M1-A 2026-08-21] 入场来源落库（factor_route/trend/mlto），
+            # 写入持仓 exit_state_json["entry_source"]，出场分流据此识别因子仓。
+            entry_source=str(source or ""),
         )
     )

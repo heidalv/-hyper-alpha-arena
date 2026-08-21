@@ -81,25 +81,82 @@ def has_open_midlong_position(db, account_id, symbol: str) -> bool:
 
     判定依据：`PaperPosition.status=open`，且 tier∈(mid,long)
     或 trade_nature∈(trend_follow,swing,position)。
+
+    [M2 2026-08-21] 内部改为 exists() 扫全行匹配（原实现 .first() 取任意
+    一行再判 tier/nature——同币先扫到 scalp 行时中长线仓会被漏检）。
+    开仓互锁请改用 has_open_position_of_nature（同 nature 才拦截）。
+    """
+    return any(
+        has_open_position_of_nature(db, account_id, symbol, g)
+        for g in ("mid", "long")
+    )
+
+
+# [M2 2026-08-21] nature 分组：mid=swing/tier-mid；long=trend_follow/position/tier-long。
+# 中线与长线互锁改为「同 nature 才拦截」：有 long 不再锁死 mid 开仓（各自
+# 受 portfolio_budget / 单币集中度约束），同币 scalp 也不参与任何组判定。
+_MIDLONG_NATURE_GROUPS: Dict[str, frozenset] = {
+    "mid": frozenset({"swing"}),
+    "long": frozenset({"trend_follow", "position"}),
+}
+
+
+def has_open_position_of_nature(db, account_id, symbol: str, nature_group: str) -> bool:
+    """[M2 2026-08-21] 该交易对是否已有指定 nature 组的未平仓仓（exists() 判定）。
+
+    nature_group: "mid"（swing / tier=mid）或 "long"（trend_follow/position / tier=long）。
+    开仓互锁语义：中线开仓只被 mid 组拦截，长线开仓只被 long 组拦截。
     """
     if not account_id or db is None:
         return False
     sym_u = str(symbol or "").upper()
+    group = str(nature_group or "").lower()
+    natures = _MIDLONG_NATURE_GROUPS.get(group)
+    if not natures:
+        return False
     try:
         from backend.database.models import PaperPosition
-        pos = db.query(PaperPosition).filter(
-            PaperPosition.account_id == account_id,
-            PaperPosition.symbol == sym_u,
-            PaperPosition.status == "open",
-        ).first()
-        if pos is None:
-            return False
-        tier = str(getattr(pos, "timeframe_tier", "") or "").lower()
-        nature = str(getattr(pos, "trade_nature", "") or "").lower()
-        return tier in ("mid", "long") or nature in ("trend_follow", "swing", "position")
-    except Exception as e:
-        logger.warning("[MidLong] 模式切换持仓判定异常 %s: %s", sym_u, e)
+        rows = (
+            db.query(PaperPosition)
+            .filter(
+                PaperPosition.account_id == account_id,
+                PaperPosition.symbol == sym_u,
+                PaperPosition.status == "open",
+            )
+            .all()
+        )
+        for pos in rows:
+            tier = str(getattr(pos, "timeframe_tier", "") or "").lower()
+            nature = str(getattr(pos, "trade_nature", "") or "").lower()
+            if nature in natures or tier == group:
+                return True
         return False
+    except Exception as e:
+        logger.warning("[MidLong] 持仓互锁判定异常 %s(%s): %s", sym_u, group, e)
+        return False
+
+
+def _factor_invalidated_reason() -> "str | None":
+    """[M1-B 2026-08-21] 因子失效最小判定：路由活跃因子数跌破 FACTOR_ROUTE_MIN_ACTIVE_FACTORS。
+
+    过渡期实现（设计 §4.2 同 PR 约束的「最小 factor_invalidated」）：
+    开仓来源系统（factor_route）整体失效即视为入场论点失效——活跃集不足
+    门槛时路由自身也会 hold 停新开，存量因子仓据此离场，避免「路由停摆、
+    旧仓无人管」。判定不可用（读不到活跃集）时返回 None 不动仓
+    （SL/TP/时间离场仍在）。
+    """
+    try:
+        from backend.services.factor_engine.midlong_active_factor_set import (
+            midlong_active_factor_set,
+        )
+        n = len(midlong_active_factor_set.get_active_factors())
+    except Exception as e:
+        logger.debug("[MidLong] factor_invalidated 活跃集读取失败(不动仓): %s", e)
+        return None
+    _min = _cfg_int("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", 2)
+    if n < _min:
+        return f"活跃因子{n}<{_min}，因子路由信号系统失效"
+    return None
 
 
 def _open_midlong_positions(db, account_id) -> List[Dict[str, Any]]:
@@ -735,6 +792,27 @@ def manage_position(
     hold_hours = _held_hours(position, db)
     pos_tier = _tier_of(position)
 
+    # [M1-B 2026-08-21] 入场来源（出场分流）：提前加载 exit_state_json，
+    # factor_route 仓禁方向复查/叙事平仓（防碎平），仅 SL/TP/时间/因子失效离场。
+    # 历史仓无键 → unknown，行为与现码一致。此处加载的 _db_pos/_state 供
+    # 下方 LLM 节流块复用，不再重复查库。
+    _db_pos = None
+    _state: Dict[str, Any] = {}
+    pid = position.get("id")
+    if pid and db is not None:
+        try:
+            from backend.database.models import PaperPosition
+            _db_pos = db.query(PaperPosition).filter(PaperPosition.id == int(pid)).first()
+            if _db_pos is not None:
+                try:
+                    _state = json.loads(getattr(_db_pos, "exit_state_json", None) or "{}")
+                except Exception:
+                    _state = {}
+        except Exception as _es_err:
+            logger.debug("[MidLong] stage=manage %s 读取 exit_state 失败: %s", sym, _es_err)
+    _entry_source = str(_state.get("entry_source") or "unknown").strip().lower()
+    _is_factor_pos = _entry_source == "factor_route"
+
     # 日志/事件：六维信号摘要（§7.7）
     _sig = {
         "direction": "pending", "pyramid": "pending", "review": "pending",
@@ -751,7 +829,27 @@ def manage_position(
     # ═══ ⑥ 反转 / 无进展离场（规则，每 tick）═══
     rev = _dim_reversal(position, market_summary)
     _sig["exit"] = rev["channel"] or "no"
-    if rev["action"] == "close":
+    if _is_factor_pos:
+        # [M1-B] 因子仓不执行 bias_reversal/no_progress 叙事平仓。
+        # 唯一因子侧主动离场 = factor_invalidated（最小实现）：路由活跃因子
+        # 数跌破 FACTOR_ROUTE_MIN_ACTIVE_FACTORS——开出本仓的信号系统整体
+        # 失效（此时路由自身也 hold 停新开），存量仓据此离场。
+        _fi_reason = _factor_invalidated_reason()
+        if _fi_reason:
+            _exec_close(db, account_id=account_id, position=position,
+                        reason=f"factor_invalidated: {_fi_reason}", host=host, session=session)
+            logger.info(
+                "[MidLong] stage=manage symbol=%s 因子仓 factor_invalidated 离场: %s",
+                sym, _fi_reason,
+            )
+            return _summary(f"因子失效离场: {_fi_reason}", action="manage_close")
+        if rev["action"] == "close":
+            logger.info(
+                "[MidLong] stage=manage symbol=%s 因子仓跳过叙事平仓(%s): %s",
+                sym, rev["channel"], rev["reason"],
+            )
+            _sig["exit"] = f"skip_{rev['channel']}_factor_pos"
+    elif rev["action"] == "close":
         _exec_close(db, account_id=account_id, position=position,
                     reason=rev["reason"], host=host, session=session)
         logger.info(
@@ -787,23 +885,12 @@ def manage_position(
     _llm_interval = _cfg_int("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", 900)
     _last_llm = _last_llm_run_ts.get(_key, 0.0)
     _llm_due = (_now - _last_llm) >= _llm_interval
-    _db_pos = None
-    _state: Dict[str, Any] = {}
-    pid = position.get("id")
-    if pid and db is not None:
-        try:
-            from backend.database.models import PaperPosition
-            _db_pos = db.query(PaperPosition).filter(PaperPosition.id == int(pid)).first()
-            if _db_pos is not None:
-                try:
-                    _state = json.loads(getattr(_db_pos, "exit_state_json", None) or "{}")
-                except Exception:
-                    _state = {}
-                # 与 run_trend_review 同 key：模式 B 接管后 90min 兜底自动休眠
-                _last_llm = max(_last_llm, float(_state.get("last_trend_review_ts", 0) or 0))
-                _llm_due = (_now - _last_llm) >= _llm_interval
-        except Exception as _e:
-            logger.debug("[MidLong] stage=manage %s 读取 exit_state 失败: %s", sym, _e)
+    # [M1-B] _db_pos/_state 已在出场分流处提前加载，此处只做节流合并
+    try:
+        _last_llm = max(_last_llm, float(_state.get("last_trend_review_ts", 0) or 0))
+        _llm_due = (_now - _last_llm) >= _llm_interval
+    except Exception as _e:
+        logger.debug("[MidLong] stage=manage %s 节流合并失败: %s", sym, _e)
 
         # [2026-08-16 P0 修复]「开仓就被平」根因：新仓在 _last_llm_run_ts 无记录、
         # exit_state_json 无 last_trend_review_ts → 首个 manage tick 即触发 LLM
@@ -819,18 +906,27 @@ def manage_position(
         return _summary(f"规则维度已检查({_sig['exit']}/{_sig['staged_tp']})，LLM维度节流中", action="manage_hold")
 
     # ═══ ① + ③ 方向延续性复查 + TP/SL 调整（LLM）═══
-    try:
-        review = _dim_direction(
-            db, account_id=account_id, symbol=sym, position=position,
-            market_summary=market_summary, analyst_reports=analyst_reports,
-        )
-        _review_action = str(review.get("action") or "hold").lower()
-        _sig["review"] = _review_action
-        _sig["direction"] = "valid" if _review_action in ("hold", "tighten_trailing") else _review_action
-    except Exception as e:
-        logger.warning("[MidLong] stage=manage %s 方向复查异常: %s", sym, e)
-        review = {"action": "hold", "reasoning": f"err:{e}"}
+    if _is_factor_pos:
+        # [M1-B] 因子仓跳过方向复查（规则 _rule_direction 与 LLM 均不执行）：
+        # 复查产生的 trend_broken/trend_weaken 平仓是因子仓碎平主因；因子仓
+        # 只认 SL/TP/时间/因子失效。trend_adjustment 的收紧追踪由 staged TP
+        # 与既有 trailing 机制承担。
+        review = {"action": "hold", "reasoning": "因子仓跳过方向复查(M1)"}
         _review_action = "hold"
+        _sig["review"] = "skip_factor_pos"
+    else:
+        try:
+            review = _dim_direction(
+                db, account_id=account_id, symbol=sym, position=position,
+                market_summary=market_summary, analyst_reports=analyst_reports,
+            )
+            _review_action = str(review.get("action") or "hold").lower()
+            _sig["review"] = _review_action
+            _sig["direction"] = "valid" if _review_action in ("hold", "tighten_trailing") else _review_action
+        except Exception as e:
+            logger.warning("[MidLong] stage=manage %s 方向复查异常: %s", sym, e)
+            review = {"action": "hold", "reasoning": f"err:{e}"}
+            _review_action = "hold"
 
     # ═══ ② 滚仓（LLM，随①同轮执行）═══
     try:
