@@ -780,6 +780,20 @@ python -m pytest tests/backend/unit/test_prompt_registry_agent_tasks.py ^
 - `logs/backend.error.log`：告警和错误日志。
 - `logs/frontend_dev.log`：前端开发服务日志。
 
+## 中线因子路由开关（M7，2026-08-21）
+
+- **代码默认关**：`MIDLONG_MID_VIA_FACTOR_ROUTE` 代码默认 `false`；中线入场由因子路由驱动需显式在 `.env` 置 `true`。两开关（含 `MIDLONG_MID_VIA_MLTO`）都 false 时前端显示 `mid_paused`——**这是现状不是故障**。
+- `MIDLONG_MID_VIA_MLTO=true` 时前端「中线AI(过渡)」卡片可能**假阳性**（显示运行但开仓仍可能被跳过）；以 `/api/full-auto/status` 与 `factor_route` 日志为准。
+- 运行时路由 K 线源：`FACTOR_ROUTE_KLINE_EXCHANGE`（默认 `active`，与成交同所；数据不足 hold、不回退 binance）。回测/晋升数据源 `FACTOR_BACKTEST_KLINE_EXCHANGE`（默认 binance 深历史）**是另一回事**，互不影响。
+- 相关 2026-08-21 P0/P1 修复（S1-S11 / M1-M9 / D6-D12）明细见《短线中线修复升级设计_20260820.md》与《因子挖掘算法升级与双卡本地LLM设计_20260820.md》。
+
+## 证据与验收产物（2026-08-21 实施收尾）
+
+- 日检/周报（当日重跑）：`reports/scalp_daily/scalp_health_2026-08-21.{json,md}`、`backend/data/midlong_reports/latest.md`（归档 `20260821_114305.md`）。
+- GPU 因子求值（单卡 2080Ti，等价验收 + 墙钟 2.24× 加速 PASS）：
+  `backend/scripts/validate_gpu_equivalence.py`、`backend/scripts/bench_gpu_wallclock.py`。
+- 本地 LLM 常驻（Ollama 已装、模型拉取与接线步骤）：`docs/本地LLM常驻运维手册_20260821.md`。
+
 ## 常用验证
 
 检查后端语法：
