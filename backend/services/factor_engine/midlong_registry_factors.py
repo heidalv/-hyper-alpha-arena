@@ -312,6 +312,8 @@ def _score_one_registry_factor(
     per_symbol: Dict[str, Any] = {}
     data_points = 0
     missing_impl = False  # [2026-08-18] 因子实现缺失（归档/隔离后候选残留）
+    # [D11 2026-08-21] 首个有效币种的值/收盘序列（供扫描层 held-out 终审与去同质）
+    probe: Optional[Dict[str, Any]] = None
 
     for sym in symbols:
         klines = factor_backtest_scorer._load_klines(sym, timeframe, lookback)
@@ -361,6 +363,12 @@ def _score_one_registry_factor(
         vals, closes = vals[-n:], closes[-n:]
         if not np.isfinite(vals).sum() >= 60:
             continue
+        if probe is None:
+            probe = {
+                "vals": np.asarray(vals, dtype=float).copy(),
+                "closes": np.asarray(closes, dtype=float).copy(),
+                "sym": sym,
+            }
         # IC/ICIR/衰减/单调性（与 score_formula 同款）
         try:
             rep = evaluator.evaluate_factor(
@@ -424,11 +432,73 @@ def _score_one_registry_factor(
         "oos_trades": trades_total,
         "per_symbol": per_symbol,
         "data_points": data_points,
+        "_probe": probe,
     }
 
 
+def _series_corr(a, b) -> "float | None":
+    """[D11 2026-08-21] 两条因子值序列的皮尔逊相关（尾部对齐，无效样本<60 → None）。"""
+    try:
+        a = np.asarray(a, dtype=float)
+        b = np.asarray(b, dtype=float)
+        n = min(len(a), len(b))
+        if n < 60:
+            return None
+        a, b = a[-n:], b[-n:]
+        m = np.isfinite(a) & np.isfinite(b)
+        if int(m.sum()) < 60 or np.std(a[m]) < 1e-12 or np.std(b[m]) < 1e-12:
+            return None
+        return float(np.corrcoef(a[m], b[m])[0, 1])
+    except Exception:
+        return None
+
+
+def _registry_heldout_verdict(probe: Optional[Dict[str, Any]], timeframe: str) -> "tuple[bool, str]":
+    """[D11 2026-08-21] registry 因子末段（20%）held-out 终审。
+
+    复用与公式闸门同一 walk-forward 引擎在判决段上跑 OOS：方向由判决段内部
+    训练折决定（无前视），要求 Sharpe≥0.3 且笔数≥5（与 scorer held-out
+    判决口径一致）。样本不足/计算异常 → fail-closed（不过）。
+    """
+    from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
+
+    vals = np.asarray((probe or {}).get("vals") or [], dtype=float)
+    closes = np.asarray((probe or {}).get("closes") or [], dtype=float)
+    n = min(len(vals), len(closes))
+    if n < 300:
+        return False, f"探针样本不足({n})"
+    vals, closes = vals[-n:], closes[-n:]
+    cut = int(n * 0.8)
+    test_vals, test_closes = vals[cut:], closes[cut:]
+    if len(test_closes) < 60:
+        return False, f"判决段过短({len(test_closes)})"
+    fwd = int(_cfg("FACTOR_SCORER_MIDLONG_FWD_1D", 3)) if timeframe == "1d" \
+        else int(_cfg("FACTOR_SCORER_MIDLONG_FWD_4H", 6))
+    _ph = {"4h": 4.0, "1d": 24.0}.get(timeframe, 4.0)
+    try:
+        bt = factor_backtest_scorer._walk_forward_backtest(
+            test_vals, test_closes, fwd,
+            float(_cfg("FACTOR_SCORER_COST", 0.0021)),
+            funding_per_hold=float(_cfg("FACTOR_SCORER_FUNDING_RATE", 0.0001)) * (fwd * _ph / 8.0),
+            bars_per_year=int(round(365.0 * 24.0 / _ph)),
+        )
+    except Exception as e:
+        return False, f"判决段计算异常({e})"
+    if int(bt.get("trades", 0) or 0) < 5:
+        return False, f"判决段笔数不足({bt.get('trades', 0)}<5)"
+    if float(bt.get("sharpe", 0.0) or 0.0) < 0.3:
+        return False, f"判决段Sharpe={float(bt.get('sharpe', 0.0) or 0.0):.2f}<0.3"
+    return True, f"Sharpe={float(bt.get('sharpe', 0.0) or 0.0):.2f}"
+
+
 def scan_registry_midlong(limit: int = 200) -> Dict[str, Any]:
-    """对 registry 引用候选逐个打分并回写 store（candidate → active/rejected）。"""
+    """对 registry 引用候选逐个打分并回写 store（candidate → active/candidate/rejected）。
+
+    [D11 2026-08-21] A/B 不再直通 active：晋升前必须过（与公式闸门同口径的）
+    ① 末段 held-out 终审 ② 与本次已晋升因子的去同质（|corr|≥阈值拒）
+    ③ 活跃上限（MIDLONG_ACTIVE_FACTOR_MAX，按 horizon=midlong 全量计数）。
+    终审/去同质未过 → 保持 candidate 待复验；grade F → rejected。
+    """
     from backend.services.factor_engine.custom_factor_store import custom_factor_store
 
     _tid = _admin_tenant()
@@ -436,7 +506,10 @@ def scan_registry_midlong(limit: int = 200) -> Dict[str, Any]:
         r for r in custom_factor_store.list_candidates(tenant_id=_tid)
         if str((r.get("extra") or {}).get("kind") or "") == "registry"
     ][:limit]
+    _redun_corr = float(_cfg("FACTOR_SCORER_REDUNDANCY_CORR", 0.8))
+    _cap = int(_cfg("MIDLONG_ACTIVE_FACTOR_MAX", 30))
     results: List[Dict[str, Any]] = []
+    _promoted_probes: List[Dict[str, Any]] = []  # 本次扫描已晋升 {fid, vals}
     for rec in cands:
         fid = rec.get("factor_id")
         _extra = rec.get("extra") or {}
@@ -445,11 +518,43 @@ def scan_registry_midlong(limit: int = 200) -> Dict[str, Any]:
         try:
             r = _score_one_registry_factor(fid, registry_fid, tf)
         except Exception as e:
-            logger.warning("[MidlongRegistry] %s/%s 打分异常: %s", fid, tf, e)
+            logger.warning("[MidlongRegistry] %s/%s 打分异常(保持candidate): %s", fid, tf, e)
             continue
         if not r:
             continue
-        status = "active" if r["admitted"] else "rejected"
+        probe = r.pop("_probe", None)
+        admitted = bool(r.get("admitted"))
+        gate_note = ""
+        if admitted:
+            _v_ok, _v_note = _registry_heldout_verdict(probe, tf)
+            if not _v_ok:
+                admitted = False
+                gate_note = f" | held-out 终审未过({_v_note})"
+            else:
+                for _pp in _promoted_probes:
+                    _corr = _series_corr((probe or {}).get("vals"), _pp.get("vals"))
+                    if _corr is not None and abs(_corr) >= _redun_corr:
+                        admitted = False
+                        gate_note = f" | 与 {_pp['fid']} 冗余(corr={_corr:.2f})"
+                        break
+            if admitted:
+                try:
+                    _active_mid = [
+                        x for x in custom_factor_store.list_active(tenant_id=_tid)
+                        if str((x.get("extra") or {}).get("horizon") or "scalp").lower() == "midlong"
+                    ]
+                except Exception:
+                    _active_mid = []
+                if len(_active_mid) >= _cap:
+                    admitted = False
+                    gate_note = f" | 活跃因子已满({len(_active_mid)}/{_cap})"
+        if gate_note:
+            r["reason"] = (str(r.get("reason") or "") + gate_note)[:200]
+        status = "active" if admitted else (
+            "rejected" if str(r.get("grade")) == "F" else "candidate"
+        )
+        if admitted:
+            _promoted_probes.append({"fid": fid, "vals": (probe or {}).get("vals")})
         custom_factor_store.update_scores(
             fid,
             grade=r.get("grade", "F"),
@@ -463,6 +568,8 @@ def scan_registry_midlong(limit: int = 200) -> Dict[str, Any]:
                 "oos_win_rate": r.get("oos_win_rate", 0.0),
                 "oos_trades": r.get("oos_trades", 0),
                 "per_symbol": r.get("per_symbol") or {},
+                # [item13 2026-08-21] registry 晋升同样锁定方向
+                "expected_sign": 1 if float(r.get("ic_mean") or 0) >= 0 else -1,
                 "reason": r.get("reason", ""),
             },
             status=status,
@@ -470,7 +577,8 @@ def scan_registry_midlong(limit: int = 200) -> Dict[str, Any]:
         )
         results.append({
             "factor_id": fid, "timeframe": tf, "grade": r.get("grade"),
-            "admitted": r.get("admitted", False), "ic": r.get("ic_mean"),
+            "admitted": admitted, "status": status,
+            "ic": r.get("ic_mean"),
             "oos_sharpe": r.get("oos_sharpe"),
         })
     promoted = [r for r in results if r["admitted"]]

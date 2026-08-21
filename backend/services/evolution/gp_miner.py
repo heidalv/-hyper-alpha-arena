@@ -60,6 +60,20 @@ def _count_nodes(ast: dict) -> int:
     return 1 + sum(_count_nodes(a) for a in ast["args"])
 
 
+def _turnover_flip_rate(fv: np.ndarray) -> float:
+    """[item11 2026-08-21] 信号方向平均翻转率（0=恒向，2=逐bar反转），换手成本代理。
+
+    NaN 相邻差剔除后取均值；CPU/GPU 两条适应度路径共用（gp_gpu_eval 同款 import）。
+    """
+    try:
+        sgn = np.sign(np.asarray(fv, dtype=float))
+        d = np.diff(sgn)
+        d = d[np.isfinite(d)]
+        return float(np.mean(np.abs(d))) if d.size else 0.0
+    except Exception:
+        return 0.0
+
+
 def _fitness_core(ast: dict, state: dict) -> float:
     """模块级适应度核心：fitness = |IC_rank| − λ1×复杂度 − λ2×与精英池最大相关。
 
@@ -151,8 +165,11 @@ def _fitness_core(ast: dict, state: dict) -> float:
             c = abs(float(np.corrcoef(fv[m2], e_fv[m2])[0, 1]))
             if np.isfinite(c):
                 max_corr = max(max_corr, c)
-        corr_pen = state["lambda_corr"] * max_corr
-    return float(obj - penalty_c - corr_pen)
+            corr_pen = state["lambda_corr"] * max_corr
+    # [item11 2026-08-21] 换手成本惩罚：与 GPU 路径同口径
+    _lam_to = float(state.get("lambda_turnover") or 0.0)
+    turnover_pen = _lam_to * _turnover_flip_rate(fv) if _lam_to > 0 else 0.0
+    return float(obj - penalty_c - corr_pen - turnover_pen)
 
 
 @dataclass
@@ -180,6 +197,11 @@ class GPConfig:
     # [R1 升级] 目标与协同奖励
     objective: str = "ic"                # ic | icir（M2 中性化后建议 icir）
     lambda_hof: float = 0.1              # 名人堂协同惩罚系数（低冗余因子集）
+    # [item11 2026-08-21] 换手成本惩罚系数：适应度 − λ_to×方向翻转率。
+    # 原实现只在最终闸门扣成本，挖掘期高换手（逐bar翻转）因子与打分口径脱节。
+    # 翻转率∈[0,2]（0=恒向，2=逐bar反转）；λ=0.01 时逐bar反转者被扣 0.02
+    # （≈半个 |IC| 量级），普通低频因子（<0.1 翻转）几乎无感。
+    lambda_turnover: float = 0.01
     # [R2 升级] ALPS 年龄分层（防早熟保创新）
     alps: bool = True
     alps_max_age: int = 12               # 超龄个体重播为随机新生（创新注入）
@@ -525,6 +547,7 @@ class GPMiner:
                             objective=self.config.objective,
                             lam_hof=self.config.lambda_hof,
                             hof_values=[v for _, v, _ in self._hof],
+                            lam_to=self.config.lambda_turnover,  # [item11] 换手惩罚同口径
                         )
                         for i, f in zip(gpu_idx, fg):
                             fits[i] = f
@@ -596,6 +619,8 @@ class GPMiner:
             "min_samples": self.config.min_samples,
             "lambda_complexity": self.config.lambda_complexity,
             "lambda_corr": self.config.lambda_corr,
+            # [item11] 换手成本惩罚（CPU 兜底路径与 GPU 同口径）
+            "lambda_turnover": self.config.lambda_turnover,
             "objective": self.config.objective,
             "lens": _lens or None,
             "elite_ast": self._elite_ast,

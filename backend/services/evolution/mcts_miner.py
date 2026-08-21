@@ -48,9 +48,21 @@ _WINDOW_OPS = frozenset({
     "corr", "cov", "ts_corr",
 })
 # 单目算子（arity=1，可用于根包装/算子替换）
-_UNARY_OPS = [op for op, (a, _) in OP_REGISTRY.items() if a == 1]
-_BINARY_OPS = [op for op, (a, _) in OP_REGISTRY.items() if a == 2]
-_TERNARY_OPS = [op for op, (a, _) in OP_REGISTRY.items() if a == 3]
+# [D12 2026-08-21] 三个池全部剔除 LOOKAHEAD_BANNED_OPS（rank/cs_rank/scale——
+# 注意 scale 是 arity=2）——原实现只在 _random_ast 过滤，_wrap_root/_op_replace
+# 从本池抽算子仍会生成必被 audit 拒绝的子节点，白烧迭代。
+_UNARY_OPS = [
+    op for op, (a, _) in OP_REGISTRY.items()
+    if a == 1 and op not in LOOKAHEAD_BANNED_OPS
+]
+_BINARY_OPS = [
+    op for op, (a, _) in OP_REGISTRY.items()
+    if a == 2 and op not in LOOKAHEAD_BANNED_OPS
+]
+_TERNARY_OPS = [
+    op for op, (a, _) in OP_REGISTRY.items()
+    if a == 3 and op not in LOOKAHEAD_BANNED_OPS
+]
 
 # ─────────────────────────────────────────────
 #  宏微分离：按周期档位选择窗口值/深度/惩罚

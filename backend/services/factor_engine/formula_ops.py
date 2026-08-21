@@ -84,16 +84,30 @@ def ts_rank(x, w: int = 5) -> np.ndarray:
     return _rolling(x, w, _rank_last)
 
 
+def _argext_tolerant_first(v: np.ndarray, is_max: bool) -> int:
+    """[算力刀 2026-08-21] 容差内取**首个**极值位置（CPU/GPU 跨设备确定性）。
+
+    并列极值（量化输入常见：ts_rank/std 产出离散级）在跨设备求和顺序的
+    ~1e-15 差异下会翻转 argmin/argmax 位置。容差 |极值|×1e-9+1e-12 内取
+    首个出现，两侧同规则 → 选择确定（gpu_batch_eval._roll_argmaxmin 镜像）。
+    """
+    if is_max:
+        m = float(np.max(v))
+        return int(np.argmax(v >= m - (abs(m) * 1e-9 + 1e-12)))
+    m = float(np.min(v))
+    return int(np.argmax(v <= m + (abs(m) * 1e-9 + 1e-12)))
+
+
 def ts_argmax(x, w: int = 5) -> np.ndarray:
     """窗口内最大值距当前的位置（0=当前, w-1=最早），归一化到 0..1。"""
     def _am(v):
-        return float(len(v) - 1 - int(np.argmax(v))) / float(max(1, len(v) - 1))
+        return float(len(v) - 1 - _argext_tolerant_first(v, True)) / float(max(1, len(v) - 1))
     return _rolling(x, w, _am)
 
 
 def ts_argmin(x, w: int = 5) -> np.ndarray:
     def _am(v):
-        return float(len(v) - 1 - int(np.argmin(v))) / float(max(1, len(v) - 1))
+        return float(len(v) - 1 - _argext_tolerant_first(v, False)) / float(max(1, len(v) - 1))
     return _rolling(x, w, _am)
 
 

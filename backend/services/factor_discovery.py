@@ -416,18 +416,22 @@ class FactorDiscoveryEngine:
 
         for sym in symbols:
             try:
-                from backend.services.unified_data_pool import UnifiedDataPool
-                _lim = 700 if interval in ("4h", "1d") else 24 * 30
-                klines = UnifiedDataPool().get_kline_series(
-                    sym, interval=interval, limit=_lim
+                # [D6 2026-08-21] 与正式闸门同源（research/binance 深历史），
+                # 不再用 UnifiedDataPool——预筛与闸门两套 K 线源是口径分裂之一。
+                from backend.services.factor_engine.factor_backtest_scorer import (
+                    factor_backtest_scorer as _fbs,
+                    _period_fwd_bars,
                 )
+                _lim = 700 if interval in ("4h", "1d") else 24 * 30
+                klines = _fbs._load_klines(sym, interval, _lim)
                 if not klines or len(klines) < 100:
                     continue
 
-                closes = np.array([float(k.close) for k in klines])
-                highs = np.array([float(k.high) for k in klines])
-                lows = np.array([float(k.low) for k in klines])
-                volumes = np.array([float(k.volume or 0) for k in klines])
+                closes = np.array([float(k.get("close")) for k in klines])
+                highs = np.array([float(k.get("high") or 0) for k in klines])
+                lows = np.array([float(k.get("low") or 0) for k in klines])
+                volumes = np.array([float(k.get("volume") or 0) for k in klines])
+                opens = np.array([float(k.get("open") or 0) for k in klines])
 
                 # 尝试计算公式（注入 formula_ops 时间序列算子，支持 Alpha101 风格公式）
                 local_ns = {
@@ -436,7 +440,8 @@ class FactorDiscoveryEngine:
                     "high": highs,
                     "low": lows,
                     "volume": volumes,
-                    "open": np.roll(closes, 1),
+                    # [D6] 真实 open：原 np.roll(closes,1) 把最后一根收盘环绕到首根
+                    "open": opens,
                 }
                 try:
                     from backend.services.factor_engine.formula_ops import FORMULA_OPS
@@ -450,8 +455,12 @@ class FactorDiscoveryEngine:
                 except Exception:
                     continue
 
-                # 前向收益（未来1h收益率）
-                forward_returns = (np.roll(closes, -1) - closes) / closes
+                # [D6] 前瞻与正式闸门同表（1h→2 / 4h→6 / 1d→3），并废除
+                # np.roll(closes,-1) 环绕——原实现最后一根的前向收益接到第一根，
+                # 典型未来函数；尾部 fwd 根置 NaN 不参与统计。
+                _fwd = int(_period_fwd_bars(interval))
+                forward_returns = np.full_like(closes, np.nan)
+                forward_returns[:-_fwd] = (closes[_fwd:] - closes[:-_fwd]) / closes[:-_fwd]
 
                 # 对齐长度
                 min_len = min(len(factor_vals), len(forward_returns))
@@ -479,7 +488,12 @@ class FactorDiscoveryEngine:
         # ICIR = mean_IC / std_IC
         icir = mean_ic / std_ic if std_ic > 0 else 0
 
-        passed = abs(mean_ic) > 0.05 and abs(mean_rank_ic) > 0.05
+        # [D6 2026-08-21] 预筛不再「自己宣布 IC」：原双门槛 |IC|>0.05 且
+        # |RankIC|>0.05 是全样本 in-sample 指标，与正式闸门（walk-forward +
+        # DSR/PBO）口径不同——预筛过松/过严都会误导。预筛只负责「公式可求值
+        # 且样本足够」，是否有效一律交给 validate_and_promote；IC/RankIC 仍
+        # 计算并随返回值落日志观察。
+        passed = len(all_ics) >= 2
 
         return {
             "passed": passed,
@@ -487,7 +501,7 @@ class FactorDiscoveryEngine:
             "rank_ic": round(mean_rank_ic, 4),
             "icir": round(icir, 4),
             "sample_count": len(all_ics),
-            "reason": "通过" if passed else f"|IC|={abs(mean_ic):.3f}<0.05 或 |RankIC|={abs(mean_rank_ic):.3f}<0.05",
+            "reason": "可求值（有效性由正式闸门判定）" if passed else "样本不足",
         }
 
 

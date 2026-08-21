@@ -379,7 +379,13 @@ def _roll_max_min(x: "torch.Tensor", w: int, is_max: bool) -> "torch.Tensor":
 
 
 def _roll_wma(x: "torch.Tensor", w: int) -> "torch.Tensor":
-    """decay_linear/wma：按窗口内有效值的先后线性加权（近者权重高），与 formula_ops 一致。"""
+    """decay_linear/wma：按窗口内有效值的先后线性加权（近者权重高），与 formula_ops 一致。
+
+    [算力刀 2026-08-21] 部分窗口（含 NaN，嵌套滚动算子的头部常见）权重对齐
+    CPU：formula_ops.decay_linear 取完整权重向量 1..w 的**尾部**（最新有效值
+    恒为权重 w，即 weight = 序号 + (w − 有效数)）；原 GPU 实现从 1 重新起算，
+    部分窗口与 CPU 系统性偏差（嵌套 decay_linear pearson 0.999 的根因）。
+    """
     import torch
 
     if w > x.shape[-1]:
@@ -387,7 +393,12 @@ def _roll_wma(x: "torch.Tensor", w: int) -> "torch.Tensor":
     xu, M, cnt, valid = _unfold_finite(x, w)
     # r = 有效值在其窗口内的序号（最老=1 起）
     r = torch.cumsum(M.float(), dim=-1)
-    wsum = (M.float() * xu * r).sum(dim=-1)
+    r = r + float(w) - cnt.unsqueeze(-1).float()
+    # [算力刀 2026-08-21] 0×NaN=NaN：无效槽必须先置 0 再乘（原实现任何含
+    # NaN 的窗口 wsum 必为 NaN——GPU wma 实际只支持满窗，与 CPU 部分窗口
+    # 语义分歧的真正根因，嵌套滚动算子头部 pearson 0.999 的来源）
+    xz = torch.where(M, xu, torch.zeros((), dtype=torch.float64, device=x.device))
+    wsum = (xz * r).sum(dim=-1)
     wnorm = (M.float() * r).sum(dim=-1)
     out = torch.where(valid, wsum / wnorm.clamp(min=1), torch.full((), float("nan"), dtype=torch.float64, device=x.device))
     return _roll_head_nan(out, w)
@@ -411,7 +422,12 @@ def _roll_ts_rank(x: "torch.Tensor", w: int) -> "torch.Tensor":
 
 
 def _roll_argmaxmin(x: "torch.Tensor", w: int, is_max: bool) -> "torch.Tensor":
-    """ts_argmax/ts_argmin：窗口内极值距当前的位置（0=当前），按有效值数归一化。"""
+    """ts_argmax/ts_argmin：窗口内极值距当前的位置（0=当前），按有效值数归一化。
+
+    [算力刀 2026-08-21] 容差内取**首个**极值（|极值|×1e-9+1e-12），与
+    formula_ops._argext_tolerant_first 同规则——并列极值位置不再被跨设备
+    求和顺序的 ~1e-15 差异翻转（GPU/CPU 等价性验收前提）。
+    """
     import torch
 
     if w > x.shape[-1]:
@@ -419,7 +435,14 @@ def _roll_argmaxmin(x: "torch.Tensor", w: int, is_max: bool) -> "torch.Tensor":
     xu, M, cnt, valid = _unfold_finite(x, w)
     fill = float("-inf") if is_max else float("inf")
     xm = torch.where(M, xu, torch.full((), fill, dtype=torch.float64, device=x.device))
-    idx = xm.argmax(dim=-1) if is_max else xm.argmin(dim=-1)
+    if is_max:
+        best = xm.max(dim=-1, keepdim=True).values
+        tol = best.abs() * 1e-9 + 1e-12
+        idx = (xm >= best - tol).to(torch.float32).argmax(dim=-1)
+    else:
+        best = xm.min(dim=-1, keepdim=True).values
+        tol = best.abs() * 1e-9 + 1e-12
+        idx = (xm <= best + tol).to(torch.float32).argmax(dim=-1)
     # idx 是未压缩窗口内的位置 → 换算为该位置前的有效值个数（压缩索引）
     cs = torch.cumsum(M.float(), dim=-1)
     compact_idx = torch.gather(cs, -1, idx.unsqueeze(-1)).squeeze(-1) - 1.0

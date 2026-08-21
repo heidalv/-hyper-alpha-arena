@@ -35,8 +35,16 @@ def resolve_combo_weights(records: List[Dict], manual: Dict[str, float]) -> Dict
         if fid in manual:
             base[fid] = float(manual[fid] or 0.0)
         else:
-            _icir = float((r.get("scores") or {}).get("icir") or 0.0)
-            base[fid] = max(_icir, 0.0)
+            _scores = r.get("scores") or {}
+            _icir = float(_scores.get("icir") or 0.0)
+            # [item13 2026-08-21] 与路由同一套符号规则：以晋升时锁定的
+            # expected_sign 为准，权重幅度 = max(expected_sign × icir, 0)。
+            # ① 一致的反向因子（sign=-1, icir<0）获得正常权重（路由按
+            #    expected_sign 反手使用它）；② 符号不一致（icir 与锁定方向
+            #    相反）的因子不信任 → 权重 0。旧记录无 expected_sign 时
+            #    默认 +1，行为与原 max(icir, 0) 完全一致（向后兼容）。
+            _sign = float(_scores.get("expected_sign") or 1.0)
+            base[fid] = max(_sign * _icir, 0.0)
     tot = sum(base.values())
     if tot <= 0:
         n = max(len(base), 1)

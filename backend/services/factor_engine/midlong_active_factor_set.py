@@ -57,12 +57,22 @@ class MidLongActiveFactorSet:
 
     # ── 查询 ──
     def get_active_factors(self) -> List[Dict[str, Any]]:
-        """返回中长线活跃因子 + 运行时权重（[M4] FACTOR_COMBO_MODE=icir → ICIR 加权）。"""
+        """返回中长线活跃因子 + 运行时权重（[M4] FACTOR_COMBO_MODE=icir → ICIR 加权）。
+
+        [item14 2026-08-21] AST 桥接：合并进化仓 TRADABLE 的 4h AST 因子
+        （factor_active_set，短线 s5m_ 前缀/horizon=scalp 标记排除）为
+        kind="ast" 记录——GP 挖出的中线弹药此前只喂短线 evo_*，中线
+        活跃数永远靠公式/registry 两条旁路（M8 提门槛的前置）。
+        方向以 icir 符号锁定 expected_sign；权重幅度用 |icir|（AST 仓无
+        ic_mean，ICIR 是更稳的稳定性度量；与公式因子在 combo_weights 归一
+        后可比）。
+        """
         try:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return []
         active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_midlong(r)]
+        active.extend(self._tradable_ast_bridge())
         weights = self._runtime_weights()
         try:
             from backend.services.factor_engine.combo_weights import resolve_combo_weights
@@ -72,6 +82,52 @@ class MidLongActiveFactorSet:
         for rec in active:
             rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 1.0)
         return active
+
+    @staticmethod
+    def _tradable_ast_bridge() -> List[Dict[str, Any]]:
+        """[item14] 进化仓 TRADABLE AST → 中线 kind="ast" 记录（上限可配）。"""
+        try:
+            from backend.services.factor_engine.active_set_policy import (
+                ActiveSetRole,
+                load_factor_active_rows,
+            )
+            rows = load_factor_active_rows(ActiveSetRole.TRADABLE, parse_expr=True, limit=50)
+        except Exception:
+            return []
+        try:
+            from backend.config.settings import MIDLONG_AST_BRIDGE_MAX
+            _cap = max(0, int(MIDLONG_AST_BRIDGE_MAX))
+        except Exception:
+            _cap = 10
+        out: List[Dict[str, Any]] = []
+        for r in rows or []:
+            fid = str(r.get("factor_id") or "")
+            ast = r.get("expr_ast")
+            if not fid or not ast:
+                continue
+            # 短线档排除：s5m_ 前缀（短周期标记）或 source 带 horizon=scalp
+            src = str(r.get("source") or "")
+            if fid.startswith("s5m_") or "horizon=scalp" in src:
+                continue
+            icir = float(r.get("icir") or 0.0)
+            out.append({
+                "factor_id": f"evo_{fid}",
+                "formula": None,
+                "extra": {
+                    "horizon": "midlong",
+                    "timeframe": "4h",
+                    "kind": "ast",
+                    "expr_ast": ast,
+                },
+                "scores": {
+                    "ic_mean": icir,   # 权重幅度代理（见 docstring）
+                    "icir": icir,
+                    "expected_sign": 1 if icir >= 0 else -1,
+                },
+            })
+            if len(out) >= _cap:
+                break
+        return out
 
     @staticmethod
     def _runtime_weights() -> Dict[str, float]:
@@ -341,6 +397,8 @@ class MidLongActiveFactorSet:
             "ic_decay_halflife": sr.ic_decay_halflife,
             "oos_net_return": sr.oos_net_return, "oos_sharpe": sr.oos_sharpe,
             "oos_win_rate": sr.oos_win_rate, "oos_trades": sr.oos_trades,
+            # [item13 2026-08-21] 复检同样锁定 expected_sign（与晋升口径一致）
+            "expected_sign": 1 if float(sr.ic_mean or 0) >= 0 else -1,
         }
 
     @staticmethod

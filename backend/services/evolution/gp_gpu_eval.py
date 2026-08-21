@@ -302,6 +302,7 @@ def compute_fitness_from_values(
     objective: str = "ic",
     lam_hof: float = 0.0,
     hof_values: Optional[Sequence[np.ndarray]] = None,
+    lam_to: float = 0.0,
 ):
     """向量化适应度组装 —— 与 gp_miner._fitness_core 语义逐项对齐。
 
@@ -309,9 +310,13 @@ def compute_fitness_from_values(
     - fits: 适应度列表；无效个体 -inf；
     - case_ics: (P, S) 按币段案例 IC（ε-lexicase 用；无效段为 NaN）；
     - objective="ic" → 全面板 |IC|；"icir" → 案例 IC 的 mean/std；
-    - hof_values: 名人堂因子值（协同奖励：与名人堂最大相关惩罚 lam_hof）。
+    - hof_values: 名人堂因子值（协同奖励：与名人堂最大相关惩罚 lam_hof）；
+    - lam_to: [item11 2026-08-21] 换手成本惩罚（信号方向翻转率），CPU 同口径。
     """
-    from backend.services.evolution.gp_miner import _count_nodes as _cn
+    from backend.services.evolution.gp_miner import (
+        _count_nodes as _cn,
+        _turnover_flip_rate as _tfr,
+    )
 
     P = vals.shape[0]
     t = np.asarray(target, dtype=float)
@@ -402,5 +407,7 @@ def compute_fitness_from_values(
                 if np.isfinite(c):
                     max_h = max(max_h, c)
             hof_pen = lam_hof * max_h
-        fits[i] = float(obj - penalty_c - corr_pen - hof_pen)
+        # [item11 2026-08-21] 换手成本惩罚（与 gp_miner._fitness_core 同口径）
+        to_pen = lam_to * _tfr(fv) if lam_to > 0 else 0.0
+        fits[i] = float(obj - penalty_c - corr_pen - hof_pen - to_pen)
     return fits, case_ics

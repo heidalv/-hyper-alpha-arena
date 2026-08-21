@@ -40,6 +40,11 @@ class FactorScoreResult:
     redundant_with: Optional[str] = None
     reason: str = ""
     per_symbol: Dict[str, Any] = field(default_factory=dict)
+    # [模型刀 2026-08-21] 成绩单字段（设计 L1 §4.1）：打分口径随因子落库，
+    # 供批评家/复盘引用——禁止只写裸 ic（挖/验/闸不同口径不可辨）
+    fwd_bars: int = 0                 # 打分前瞻根数
+    kline_exchange: str = ""          # 打分 K 线源
+    purpose: str = "research"         # research（晋升打分）/ runtime（路由）
 
 
 def _cfg(name: str, default):
@@ -492,6 +497,13 @@ class FactorBacktestScorer:
         syms = symbols or [s.strip().upper() for s in str(_cfg("FACTOR_SCORER_SYMBOLS", "BTC,ETH,SOL")).split(",") if s.strip()]
 
         result = FactorScoreResult(factor_id=factor_id)
+        # [模型刀] 成绩单口径字段随结果落库
+        result.fwd_bars = int(fwd)
+        try:
+            result.kline_exchange = str(FactorBacktestScorer._backtest_exchange())
+        except Exception:
+            result.kline_exchange = ""
+        result.purpose = "research"
 
         arrays_by_symbol: Dict[str, Dict[str, np.ndarray]] = {}
         ic_list: List[float] = []
@@ -753,7 +765,7 @@ class FactorBacktestScorer:
         """[P0-1] DSR/PBO 多重检验闸门（fail-closed）。
 
         返回 (dsr_ok, pbo)：
-        - 跨币样本不足（<FACTOR_SCORER_DSR_MIN_SYMBOLS，默认 3）→ fail-closed（False, None）。
+        - 跨币样本不足（<FACTOR_SCORER_DSR_MIN_SYMBOLS，默认 4）→ fail-closed（False, None）。
         - PBO 必须基于 IC 时序（ic_series，时序 CSCV）；时序缺失/过短或 indeterminate → fail-closed。
         - 计算工具异常 → fail-closed（宁可误拒，不放无验证因子入实盘）。
 
@@ -770,7 +782,9 @@ class FactorBacktestScorer:
         经济门槛（|IC|≥0.05 / |ICIR|≥0.5 / OOS Sharpe≥min_sharpe / 净收益）与
         时序 PBO、冗余检查保持原样——DSR 只做「真实预测力 vs 噪声地板」的底线。
         """
-        _min_symbols = max(2, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 3)))
+        # [D10 2026-08-21] fallback 与 settings 默认对齐为 4（原 3 与 settings 4、
+        # docstring 3 三处不一致——默认 3 币打分 + 下限 4 = 结构性自锁 0 晋升）
+        _min_symbols = max(2, int(_cfg("FACTOR_SCORER_DSR_MIN_SYMBOLS", 4)))
         if len(icir_list) < _min_symbols:
             logger.warning(
                 "[FactorScorer] DSR/PBO fail-closed（跨币样本 %d < %d）"
@@ -950,13 +964,22 @@ class FactorBacktestScorer:
                 else:
                     logger.info("[FactorScorer] %s held-out 判决通过: %s", factor_id, _heldout_rec)
             except Exception as _ho_err:
-                logger.warning("[FactorScorer] %s held-out 判决异常，放行训练段结果: %s", factor_id, _ho_err)
+                # [D10 2026-08-21] 判决段异常 fail-closed：本闸门体系整体 fail-closed，
+                # 异常放行训练段结果是体系中唯一的 fail-open 漏洞—— held-out 不可判
+                # 即不可信，宁可留候选复验。
+                logger.warning(
+                    "[FactorScorer] %s held-out 判决异常，fail-closed 不放行: %s",
+                    factor_id, _ho_err,
+                )
+                result.admitted = False
+                result.reason += f" | held-out 判决异常 fail-closed: {str(_ho_err)[:80]}"
                 _heldout_rec = {"verdict": "error", "note": str(_ho_err)[:100]}
 
         # active 因子集上限保护（按 horizon 分别计数）
         status = "active" if result.admitted else "rejected"
-        if not result.admitted and _heldout_rec.get("verdict") == "reject":
-            status = "candidate"  # held-out 拒绝 → 留在候选池等待更多数据，而非直接淘汰
+        if not result.admitted and _heldout_rec.get("verdict") in ("reject", "error"):
+            # held-out 拒绝/异常 → 留在候选池等待更多数据复验，而非直接淘汰
+            status = "candidate"
         if result.admitted:
             try:
                 if _horizon == "midlong":
@@ -992,6 +1015,13 @@ class FactorBacktestScorer:
                 "oos_trades": result.oos_trades,
                 "redundant_with": result.redundant_with,
                 "per_symbol": result.per_symbol,
+                # [item13 2026-08-21] 晋升时锁定方向：路由 orient 与 combo_weights
+                # 权重幅度都以此为准（与挖掘期 |IC| 符号解耦，防两套符号规则漂移）
+                "expected_sign": 1 if float(result.ic_mean or 0) >= 0 else -1,
+                # [模型刀] 成绩单口径字段（批评家/复盘引用）
+                "fwd_bars": int(result.fwd_bars or 0),
+                "kline_exchange": str(result.kline_exchange or ""),
+                "purpose": str(result.purpose or "research"),
                 # [2026-08-14 阶段2] 运维台可见性：拒绝原因落库，供中线因子面板展示
                 "reason": (result.reason or "")[:200],
             },

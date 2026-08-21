@@ -230,11 +230,13 @@ DEFAULT_LOOKBACK = _lookback_for_period(DEFAULT_PERIOD)
 _ACTIVE_EVO_PERIOD: str | None = None
 
 # [2026-08-13 P1-5] 标签前瞻期按周期对齐实盘 scalp ATR 持仓节奏：
-# 1m/3m/5m 持仓分钟~小时级 → 12 根；15m → 6 根；30m → 4 根；
-# 1h → 2 根（2h 持仓）；2h/4h/8h/1d → 1 根（随 bar 拉长）。
+# 1m/3m/5m 持仓分钟~小时级 → 12 根；15m → 6 根；30m → 4 根；1h → 2 根（2h 持仓）。
+# [item12 2026-08-21] 中线挖掘前瞻与正式闸门对齐（原 4h/1d=1 根 vs 闸门
+# FACTOR_SCORER_MIDLONG_FWD_4H=6 / FWD_1D=3——同一"中线因子"两套持有期，
+# 挖掘标签与晋升打分不同构）：4h→6（≈1天）、8h→6、1d→3（≈3天）。
 _PERIOD_FWD_BARS: dict[str, int] = {
     "1m": 12, "3m": 12, "5m": 12, "15m": 6, "30m": 4,
-    "1h": 2, "2h": 1, "4h": 1, "8h": 1, "1d": 1,
+    "1h": 2, "2h": 1, "4h": 6, "8h": 6, "1d": 3,
 }
 
 
@@ -740,8 +742,10 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
 
     for window in [10, 20]:
         try:
-            vp_ast = {"op": "rank", "args": [
-                {"op": "corr", "args": [{"f": "close"}, {"f": "volume"}, {"c": window}]}
+            # [D12 2026-08-21] 去掉被禁的 rank 外壳（rank ∈ LOOKAHEAD_BANNED_OPS，
+            # audit 必拒）——原种子段生成的 AST 全部白做；直接用滚动 corr。
+            vp_ast = {"op": "corr", "args": [
+                {"f": "close"}, {"f": "volume"}, {"c": window}
             ]}
             candidates.append((parse(vp_ast), f"vp_corr{window}"))
         except Exception:
