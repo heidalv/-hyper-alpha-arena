@@ -176,7 +176,7 @@ def test_apply_learned_mr_sl_floor_clip(monkeypatch):
                         lambda tier, band=None, morph=None: {"tp_pct": 0.010, "sl_pct": 0.002})
     tp, sl = apply_learned_mr(0.012, 0.015)
     assert tp == 0.010  # 0.010 >= MIN_TP 0.006
-    assert sl == 0.012  # 0.002 被夹到 _MR_SL_FLOOR
+    assert sl == 0.006  # 0.002 被夹到 _MR_SL_FLOOR（[S6 2026-08-21] 地板 1.2%→0.6%）
 
 
 def test_apply_learned_mr_fallback_when_missing(monkeypatch):

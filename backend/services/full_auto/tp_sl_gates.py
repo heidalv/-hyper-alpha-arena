@@ -160,7 +160,9 @@ def validate_tp_sl_by_nature(
     _LIMITS = {
         # [2026-07-31 research] scalp min_tp/min_sl 0.8%→1.2%，对齐 TIER_SHORT + MR floor
         # scalp: max_tp 4%, max_sl 2.5%（限制大亏）
-        "scalp":        (0.012, 0.04,  0.012, 0.025),
+        # [S6 2026-08-21] max_sl 2.5%→3.0% 对齐学习值新夹幅上限；max_tp 4%→4.5%
+        #   保证 SL=3% 时 RR=1.5 ≥ V5_SCALP_MIN_RR(1.4)，夹幅与 RR 门不互斥
+        "scalp":        (0.012, 0.045, 0.012, 0.030),
         "intraday":     (0.01,  0.12,  0.018, 0.08),
         "swing":        (0.02,  0.30,  0.025, 0.12),
         "position":     (0.05,  0.50,  0.030, 0.18),

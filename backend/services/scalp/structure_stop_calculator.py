@@ -41,7 +41,8 @@ class StructureStopCalculator:
             or 0.015
         )
         # [2026-07-31 research] 下限 0.8%→1.2%，与 ranging_mr / TIER_SHORT_SL 对齐
-        return max(0.012, min(0.020, atr_pct * 1.0))
+        # [S6 2026-08-21] 夹幅放宽 [0.6%, 3.0%]（原 [1.2%, 2.0%] 压平学习值）
+        return max(0.006, min(0.030, atr_pct * 1.0))
 
     def compute_sl_tp(
         self,
@@ -99,7 +100,10 @@ class StructureStopCalculator:
             pass
 
         if _regime == "ranging":
-            _rr_mult = 1.5; _sl_min, _sl_max = 0.012, 0.020
+            # [S6 2026-08-21] 震荡夹幅放宽 [1.2%,2.0%]→[0.6%,3.0%]：让学习值 SL
+            # 可落地；RR 一致性由 tp_sl_gates（max_tp 4.5%/max_sl 3.0%→RR≥1.5）
+            # 与 V5 SCALP_MIN_RR 闸把守
+            _rr_mult = 1.5; _sl_min, _sl_max = 0.006, 0.030
         elif _regime == "trending":
             # [2026-07-31 research] trending SL 下限 0.8%→1.2%（对齐 TIER_SHORT_SL）
             _rr_mult = 2.5; _sl_min, _sl_max = 0.012, 0.018

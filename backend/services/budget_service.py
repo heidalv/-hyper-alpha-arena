@@ -99,22 +99,27 @@ class BudgetService:
 
     # ── 已用保证金（DB 聚合，唯一实现处）──────────────────
     def _query_layer_used_margin(
-        self, layer: str, account_id: Optional[int] = None
+        self, layer: str, account_id: Optional[int] = None, mode: str = "paper"
     ) -> float:
         """查询该层当前已用保证金：聚合 open 仓位、按 trade_nature 归到 layer。
 
+        [S3 2026-08-21] 按 mode 分源：paper → PaperPosition；live → LiveSubPosition
+        （live 子仓账本由 LivePositionManager/live_executor 维护，架构上与
+        paper 账本分离）。此前 mode 形参被完全忽略、恒读 PaperPosition——
+        live 模式的预算闸实际由 paper 持仓决定。
+
         account_id 提供时只统计该账户（会话资金池）的仓位；None 时保持全局聚合
         （供监控接口使用）。未知 nature 的仓位不计入任何交易层。
-
-        （原 LayerBudgetManager._get_layer_used_margin 迁入，为本类唯一实现。）
         """
+        _is_live = str(mode or "paper").strip().lower() == "live"
         try:
             from backend.database.connection import SessionLocal
-            from backend.database.models import PaperPosition
+            from backend.database.models import LiveSubPosition, PaperPosition
+            _model = LiveSubPosition if _is_live else PaperPosition
             _db = SessionLocal()
             try:
-                positions = _db.query(PaperPosition).filter(
-                    PaperPosition.status == "open"
+                positions = _db.query(_model).filter(
+                    _model.status == "open"
                 ).all()
                 total = 0.0
                 for p in positions:
@@ -127,7 +132,11 @@ class BudgetService:
                 return total
             finally:
                 _db.close()
-        except Exception:
+        except Exception as _bm_err:
+            logger.warning(
+                "[BudgetService] %s/%s used_margin 查询失败(按 0 计): %s",
+                layer, mode, _bm_err,
+            )
             return 0.0
 
     def get_used_margin(
@@ -136,7 +145,7 @@ class BudgetService:
         mode: str = "paper",
         account_id: Optional[int] = None,
     ) -> float:
-        return self._query_layer_used_margin(layer, account_id=account_id)
+        return self._query_layer_used_margin(layer, account_id=account_id, mode=mode)
 
     # ── 额度 / 预算 ────────────────────────────────────────
     def get_layer_cap(self, layer: str, total_equity: float) -> float:

@@ -82,13 +82,16 @@ def _symbol_universe_allowed(symbol: str) -> tuple:
     try:
         from backend.database.connection import SessionLocal
         from backend.database.models import ScalpSignalLog
-        from sqlalchemy import func as _sa_func
+        from sqlalchemy import func as _sa_func, case as _sa_case
         _db = SessionLocal()
         try:
-            _n = _db.query(_sa_func.count(ScalpSignalLog.id)).filter(
+            _settle_filter = (
                 ScalpSignalLog.symbol == sym,
                 ScalpSignalLog.settled == True,  # noqa: E712
                 ScalpSignalLog.win.isnot(None),
+            )
+            _n = _db.query(_sa_func.count(ScalpSignalLog.id)).filter(
+                *_settle_filter,
             ).scalar() or 0
             if _n < _min_n:
                 result = (False, f"altcoin_no_oos_evidence:{_n}<{_min_n}")
@@ -99,10 +102,25 @@ def _symbol_universe_allowed(symbol: str) -> tuple:
                     ScalpSignalLog.win == True,  # noqa: E712
                 ).scalar() or 0
                 _wr = _wins / _n if _n else 0.0
-                if _wr >= _min_wr:
-                    result = (True, f"altcoin_oos_wr:{_wr:.2f}")
-                else:
+                # [S12 2026-08-21] 净期望门槛：胜率达标但净亏（高胜率小赚大亏）
+                # 的币对仍须被滤——expectancy = avg(net_ret) > 0 或 PF≥1（样本≥N 已保证）。
+                _exp_raw = _db.query(_sa_func.avg(ScalpSignalLog.net_ret)).filter(
+                    *_settle_filter,
+                ).scalar()
+                _exp = float(_exp_raw) if _exp_raw is not None else 0.0
+                _sum_w = float(_db.query(_sa_func.sum(_sa_case(
+                    (ScalpSignalLog.net_ret > 0, ScalpSignalLog.net_ret), else_=0.0,
+                ))).filter(*_settle_filter).scalar() or 0.0)
+                _sum_l = float(_db.query(_sa_func.sum(_sa_case(
+                    (ScalpSignalLog.net_ret < 0, -ScalpSignalLog.net_ret), else_=0.0,
+                ))).filter(*_settle_filter).scalar() or 0.0)
+                _pf = (_sum_w / _sum_l) if _sum_l > 0 else (99.0 if _sum_w > 0 else 0.0)
+                if _wr < _min_wr:
                     result = (False, f"altcoin_wr_too_low:{_wr:.2f}<{_min_wr}")
+                elif not (_exp > 0 or _pf >= 1.0):
+                    result = (False, f"altcoin_neg_expectancy:exp={_exp:.5f} pf={_pf:.2f}")
+                else:
+                    result = (True, f"altcoin_oos_wr:{_wr:.2f} exp={_exp:.5f} pf={_pf:.2f}")
         finally:
             _db.close()
     except Exception as exc:

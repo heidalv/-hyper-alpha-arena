@@ -19,6 +19,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _pct_missing(v) -> bool:
+    """[S1 2026-08-21] 涨跌幅缺失判定：仅 None/NaN 算缺失。
+
+    0（横盘）与负值（下跌）都是合法观测，不得触发重算——原实现 `<= 0`
+    会把下跌样本改写成「按 DF 重算的值」，污染 regime 判定。
+    """
+    if v is None:
+        return True
+    try:
+        import math
+        return math.isnan(float(v))
+    except (TypeError, ValueError):
+        return False
+
+
+def _kline_close_at(kl, pos_from_end: int):
+    """[S1 2026-08-21] 取倒数第 N 根收盘价，兼容 DataFrame 与 list[dict]。
+
+    原实现 `_klines[-1].get("close")` 对 DataFrame 取列名 -1 必然 KeyError，
+    被裸 except 吞掉——补数从未生效。DataFrame 必须走 iloc。
+    返回 None 表示取不到（调用方跳过补数）。
+    """
+    try:
+        if hasattr(kl, "iloc"):  # pandas DataFrame / Series
+            v = kl.iloc[-pos_from_end]["close"]
+            return float(v) if v is not None else None
+        idx = len(kl) - pos_from_end
+        if 0 <= idx < len(kl):
+            row = kl[idx]
+            if isinstance(row, dict):
+                v = float(row.get("close") or 0)
+                return v or None
+            if isinstance(row, (list, tuple)) and len(row) > 4:
+                v = float(row[4])
+                return v or None
+    except Exception:
+        return None
+    return None
+
+
 def run_scalp_independent(svc: "FullAutoTradingService", session_id: str, tick: int) -> None:
     """短线因子独立交易（2026-06-18 三层架构）。"""
     from backend.services.resource_guard import hot_path_context
@@ -106,16 +146,14 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             PaperBalance.account_id == trading_acct_id
         ).first()
         equity = float(getattr(_bal_row, "total_equity", 0) or getattr(_bal_row, "equity", 0) or 0) if _bal_row else 0.0
-        # 如果 DB 没余额记录，用持仓反推（有持仓说明有资金）
+        # [S5 2026-08-21] 无余额快照 → 本轮不开仓（equity_unavailable）。
+        # 原实现用 sum(margin)*3 反推权益：只有已有持仓才估得出、且估值失真
+        # 会直接污染 sizing/层预算/风险上限等全部下游计算。
         if equity <= 0:
-            from backend.database.models import PaperPosition
-            _pos_margin = _db.query(PaperPosition).filter(
-                PaperPosition.account_id == trading_acct_id,
-                PaperPosition.status == "open",
-            ).all()
-            equity = sum(float(getattr(p, "margin", 0) or 0) for p in _pos_margin) * 3  # 粗估：保证金×3≈权益
-        logger.info(f"[ScalpRouter独立] equity={equity:.0f}")
-        if equity <= 0:
+            logger.warning(
+                "[ScalpRouter独立] equity_unavailable：账户 %s 无余额快照，本轮跳过开仓",
+                trading_acct_id,
+            )
             return
         account_id = trading_acct_id
 
@@ -320,27 +358,29 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     f"[ScalpRouter独立] {sym} volatility_value 兜底失败: {_vol_err}"
                 )
 
-            # [修复] 补全 classify_regime 所需字段(否则永远判 ranging → 缩仓0.5x)
+            # [S1 2026-08-21 修复] 补全 classify_regime 所需字段。
+            # 原实现两处错误：① 触发条件 `<= 0` 把横盘 0 和真实负值也当缺失重算；
+            # ② `_klines[-1].get("close")` 对 DataFrame 必然 KeyError、被裸
+            # except 吞掉 → 补数从未生效。现改为：仅缺失(None/NaN)才补，iloc 取值。
             try:
-                if float(_md.get("price_change_1h_pct") or 0) <= 0 and _md.get("klines"):
-                    _klines = _md["klines"]
-                    if len(_klines) >= 12:
-                        _last_close = float(_klines[-1].get("close", 0) or (_klines[-1][4] if isinstance(_klines[-1], (list, tuple)) and len(_klines[-1]) > 4 else 0))
-                        _prev_close = float(_klines[-12].get("close", 0) or (_klines[-12][4] if isinstance(_klines[-12], (list, tuple)) and len(_klines[-12]) > 4 else 0))
-                        if _prev_close > 0 and _last_close > 0:
-                            _md["price_change_1h_pct"] = round((_last_close - _prev_close) / _prev_close * 100, 4)
-                if float(_md.get("price_change_24h_pct") or 0) <= 0 and _md.get("klines"):
-                    _klines = _md["klines"]
-                    _n24 = min(288, len(_klines))  # 24h = 288×5m
-                    if _n24 >= 24:
-                        _last_close = float(_klines[-1].get("close", 0) or (_klines[-1][4] if isinstance(_klines[-1], (list, tuple)) and len(_klines[-1]) > 4 else 0))
-                        _prev_close = float(_klines[-_n24].get("close", 0) or (_klines[-_n24][4] if isinstance(_klines[-_n24], (list, tuple)) and len(_klines[-_n24]) > 4 else 0))
-                        if _prev_close > 0 and _last_close > 0:
-                            _md["price_change_24h_pct"] = round((_last_close - _prev_close) / _prev_close * 100, 4)
+                _kl_bf = _md.get("klines")
+                if _kl_bf is not None and len(_kl_bf) >= 12:
+                    if _pct_missing(_md.get("price_change_1h_pct")):
+                        _c_now = _kline_close_at(_kl_bf, 1)
+                        _c_prev = _kline_close_at(_kl_bf, 12)
+                        if _c_now and _c_prev and _c_prev > 0:
+                            _md["price_change_1h_pct"] = round((_c_now - _c_prev) / _c_prev * 100, 4)
+                    if _pct_missing(_md.get("price_change_24h_pct")):
+                        _n24 = min(288, len(_kl_bf))  # 24h = 288×5m
+                        if _n24 >= 24:
+                            _c_now = _kline_close_at(_kl_bf, 1)
+                            _c_prev = _kline_close_at(_kl_bf, _n24)
+                            if _c_now and _c_prev and _c_prev > 0:
+                                _md["price_change_24h_pct"] = round((_c_now - _c_prev) / _c_prev * 100, 4)
                 if float(_md.get("volatility_pct") or 0) <= 0:
                     _md["volatility_pct"] = _md.get("volatility_value", 0)
-            except Exception:
-                pass
+            except Exception as _bf_err:
+                logger.debug(f"[ScalpRouter独立] {sym} regime 字段补数失败: {_bf_err}")
 
             # 修复 BUG B：优先读 factor_v3（V3 流水线的实际键名）
             _factor_v3 = (market_summary.get(sym) or {}).get("factor_v3")
@@ -724,7 +764,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                     _bump_block("flash_veto")
                     continue
-                _size_mult = _veto.size_multiplier if _veto.verdict == "downsize" else 1.0
+                # [S2 2026-08-21 修复] veto 未否决时不得把周末/薄时段缩仓重置回 1.0。
+                # 原实现 `= ... else 1.0` 是赋值：accept 即抹掉 _liquidity_mult。
+                _size_mult *= (_veto.size_multiplier if _veto.verdict == "downsize" else 1.0)
 
             if not _scalp_verdict.allowed:
                 logger.info(
@@ -784,6 +826,18 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
             except Exception as _pen_err:
                 logger.debug(f"[ScalpRouter独立] {sym} symbol_penalty 检查跳过: {_pen_err}")
+
+            # [S7 2026-08-21] 单一决策分贯穿：EV 闸 / 校准快照 / TCP 审计 /
+            # AlphaBus 全部改用惩罚后的 _pen_score——原实现只有 short_tier 闸
+            # 与 sizing 用惩罚分，EV/校准/审计跟 raw 分，同一笔单在不同环节
+            # 呈现两个强度（校准器学到的是"没被打折的分"，高分更亏的口径
+            # 之一即源于此）。无校准文件时 high_score_cap 不封顶（router 侧
+            # 显式回退，本处不再二次处理）。
+            _score_for_trade = float(_pen_score or _sig.factor_score or 0)
+            try:
+                _scalp_prop.confidence = float(_score_for_trade)
+            except Exception:
+                pass
 
             # ── 开仓冷却检查（2026-06-22 修复短线频繁开单） ──
             # 这是之前唯一缺失的门：平仓冷却有(reentry_cooldown)，开仓冷却没有。
@@ -856,6 +910,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     confidence=float(_pen_score or _sig.confidence or _sig.factor_score or 0),
                     tier="short",
                     trade_nature="scalp",
+                    mode=_trade_mode,  # [S4 2026-08-21] 真实模式：冷却时长 paper/live 分档
                 )
                 if not _gate_ok:
                     logger.info(
@@ -864,7 +919,13 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _bump_block("short_tier")
                     continue
             except Exception as _gate_err:
-                logger.debug(f"[ScalpRouter独立] short_tier_gate 检查跳过: {_gate_err}")
+                # [S9 2026-08-21] fail-closed：门槛检查异常不得放行下单
+                # （对齐 unified_gate 同闸的 fail-closed 语义）
+                logger.warning(
+                    f"[ScalpRouter独立] {sym} short_tier_gate 异常，拒绝开仓: {_gate_err}"
+                )
+                _bump_block("short_tier_error")
+                continue
 
             # ── 短线动态仓位（公共函数单源，禁止与 scalp_sizing 双份漂移）──
             from backend.services.full_auto.scalp_sizing import compute_scalp_dynamic_notional
@@ -946,10 +1007,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 f"{' capped' if _dyn.get('capped') else ''}"
             )
 
-            # ── 震荡市缩仓（最多砍到 0.7，避免灰尘仓）──
+            # ── 震荡市缩仓（[S10 2026-08-21] 取消 0.70 灰尘仓地板，深缩可到
+            #     SCALP_RANGING_SIZE_FLOOR=0.35；灰尘仓由保证金下限兜底）──
             _regime_size_mult = float(getattr(_gate, "size_multiplier", 1.0) or 1.0)
             if _regime_size_mult < 0.999:
-                _regime_size_mult = max(0.70, _regime_size_mult)
+                _rg_floor = float(os.getenv("SCALP_RANGING_SIZE_FLOOR", "0.35") or 0.35)
+                _regime_size_mult = max(_rg_floor, _regime_size_mult)
                 logger.info(
                     f"[ScalpRouter独立] {sym} regime 缩仓生效: notional "
                     f"{_margin_est:.0f}->{_margin_est * _regime_size_mult:.0f} "
@@ -992,8 +1055,10 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     continue
 
             # 预算闸门放在最终名义之后，避免「先过预算再被下限抬高」超配
+            # [S3 2026-08-21] 传本轮真实 mode：原硬编码 "paper" 使 live 模式
+            # 读到的是 paper 持仓的已用保证金——live 超限与否被 paper 侧决定。
             _bf = budget_service.scale_factor_for_layer(
-                "short", equity, "paper", account_id=account_id
+                "short", equity, _trade_mode, account_id=account_id
             )
             if _bf <= 0:
                 logger.info(f"[ScalpRouter独立] {sym} 短线层预算已满，跳过")
@@ -1002,7 +1067,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 _margin_est *= _bf
             _scalp_req_margin = _margin_est / max(int(_dyn_lev or 1), 1)
             if not budget_service.can_open(
-                "short", _scalp_req_margin, equity, "paper",
+                "short", _scalp_req_margin, equity, _trade_mode,
                 account_id=account_id,
             ):
                 logger.info(
@@ -1080,7 +1145,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 )
                 _ev = scalp_ev_gate.evaluate(
                     symbol=sym,
-                    factor_score=float(_sig.factor_score or 0),
+                    factor_score=_score_for_trade,  # [S7] 惩罚后决策分（原 raw）
                     direction=str(_sig.direction or "neutral"),
                     tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
                     sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
@@ -1150,7 +1215,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _bump_block("portfolio_budget")
                         continue
                 except Exception as _pb_err:
-                    logger.debug(f"[ScalpRouter独立] {sym} 组合预算跳过: {_pb_err}")
+                    # [S9 2026-08-21] fail-closed：组合预算闸异常不得放行下单
+                    logger.warning(
+                        f"[ScalpRouter独立] {sym} 组合预算异常，拒绝开仓: {_pb_err}"
+                    )
+                    _bump_block("portfolio_budget_error")
+                    continue
 
             # 直接下单（修复 BUG C：用正确的 place_order kwargs）
             # 2026-06-22: 杠杆改为动态计算（市场 + 本金），不再硬编码 8x。
@@ -1163,7 +1233,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             # scalp_loop 之前直接传 _sig.sl_price / _sig.tp_price 给 place_order，
             # 当 entry_price=0（行情拉取失败）时 SL=0.0 透传落库 → 无止损裸奔。
             # 对齐 master_execution 路径（paper_execution.py L425）补 finalize_open_tp_sl。
-            _scalp_entry = float(_sig.entry_price or 0)
+            # [S11 2026-08-21] 入场价统一回退 _md.price；仍取不到则不开仓——
+            # 原实现 quantity=_margin_est/0=0 仍会下单，落库 0 价裸奔仓位。
+            _scalp_entry = float(_sig.entry_price or _md.get("price") or 0)
             _scalp_sl = float(_sig.sl_price or 0)
             _scalp_tp = float(_sig.tp_price or 0)
             if _scalp_entry > 0 and (_scalp_sl <= 0 or _scalp_tp <= 0):
@@ -1210,6 +1282,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             except Exception as _exit_ov_err:
                 logger.debug(f"[ScalpRouter独立] {sym} 退出参数覆盖跳过: {_exit_ov_err}")
 
+            # [S11 2026-08-21] 无有效入场价不开仓（原实现会下 quantity=0 的废单）
+            if _scalp_entry <= 0:
+                logger.info(f"[ScalpRouter独立] {sym} 入场价无效({_scalp_entry})，跳过开仓")
+                _bump_block("no_entry_price")
+                continue
+
             try:
                 # [修复] place_order 前刷新 DB 连接(防 600s factor 计算后连接失效)
                 try:
@@ -1235,7 +1313,13 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _bump_block("arbitration_gate")
                         continue
                 except Exception as _arb_err:
-                    logger.debug("[ArbGate] scalp 仲裁跳过: %s", _arb_err)
+                    # [S9 2026-08-21] fail-closed：仲裁闸异常不得放行下单
+                    # （仲裁正是防对冲冲突的，异常放行等于无仲裁裸开）
+                    logger.warning(
+                        "[ArbGate] scalp 仲裁异常，拒绝开仓 %s: %s", sym, _arb_err
+                    )
+                    _bump_block("arbitration_error")
+                    continue
                 _fill_res = paper_engine.place_order(
                     db=_db,
                     account_id=trading_acct_id,  # [2026-07-10 修复] 原 account_id 未定义→NameError
@@ -1251,6 +1335,22 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     strategy_id=_scalp_strategy_id,
                 )
                 _db.commit()
+
+                # [S11 2026-08-21] 拒单/未成交不写任何成交副作用
+                # （假冷却、假 _scalp_opens_this_tick、假 TCP executed=True、
+                #   假校准快照都会污染后续门槛判断与日检对账）。
+                _fill_ok = bool(
+                    isinstance(_fill_res, dict)
+                    and (int(_fill_res.get("position_id") or 0) > 0
+                         or str(_fill_res.get("status") or "").lower() == "filled")
+                )
+                if not _fill_ok:
+                    logger.warning(
+                        "[ScalpRouter独立] %s %s 下单未成交(res=%s)，跳过冷却/计数/TCP 快照",
+                        sym, side, _fill_res,
+                    )
+                    _bump_block("order_not_filled")
+                    continue
 
                 # ── 记录因子分快照供置信度校准（阶段一 1.2）──
                 # 写入一条 scalp_composite 反馈行，trade_id=持仓id、signal_value=因子分。
@@ -1268,7 +1368,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             trade_id=int(_pos_id_for_cal),
                             symbol=sym,
                             side=side,
-                            factor_score=float(_sig.factor_score or 0),
+                            factor_score=_score_for_trade,  # [S7] 校准学到驱动决策的分
                             direction=str(_sig.direction or "neutral"),
                             # [2026-07-11] 分开记录战绩，MR 自己攒自己的胜率曲线。
                             strategy_tag=_ev_strategy_tag,
@@ -1297,7 +1397,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         instrument=__import__("backend.services.contracts.types", fromlist=["Instrument"]).Instrument(
                             symbol=sym, venue="paper", kind="perp"),
                         direction=Direction.LONG if side == "buy" else Direction.SHORT,
-                        confidence=float(_sig.factor_score or 50) / 100.0,
+                        confidence=float(_score_for_trade or 50) / 100.0,  # [S7] 决策分
                         magnitude=0.0, period_ns=3600_000_000_000,
                         horizon=Horizon.SCALP, source="scalp_router",
                         expiry_ns=int((time.time() + 7200) * 1e9),
@@ -1316,7 +1416,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         source_lane="scalp_lane",
                         proposal_id=_scalp_prop.proposal_id,
                         executed=True,
-                        execution_channel="paper",
+                        execution_channel=_mode_pb,  # [S3] 按真实 mode 写，live 不再标 paper
                         strategy_id=_scalp_strategy_id,
                     )
                 logger.info(

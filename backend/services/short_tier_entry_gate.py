@@ -238,8 +238,13 @@ def apply_short_tier_gate(
     tier: str,
     trade_nature: str,
     base_entry_threshold: int = 50,
+    mode: str = "paper",
 ) -> Tuple[bool, str]:
-    """便捷接口：返回 (allowed, reason)。"""
+    """便捷接口：返回 (allowed, reason)。
+
+    [S4 2026-08-21] 增加 mode 透传（对齐 unified_gate 调用方式）：
+    同向冷却时长 paper/live 分档，混用会把 live 开仓记到 paper 冷却键上。
+    """
     result = check_short_tier_entry(
         account_id=account_id,
         symbol=symbol,
@@ -249,6 +254,7 @@ def apply_short_tier_gate(
         tier=tier,
         trade_nature=trade_nature,
         base_entry_threshold=base_entry_threshold,
+        mode=mode,
     )
     if not result.allowed:
         logger.info(
