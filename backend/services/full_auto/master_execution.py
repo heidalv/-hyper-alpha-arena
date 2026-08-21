@@ -12,6 +12,29 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+def _is_scalp_position(pos: Optional[Dict[str, Any]]) -> bool:
+    """[S8 2026-08-21] 持仓是否短线（按 trade_nature/timeframe_tier，不看决策 nature）。"""
+    p = pos or {}
+    return (
+        str(p.get("trade_nature") or "").lower() in ("scalp", "intraday")
+        or str(p.get("timeframe_tier") or "").lower() == "short"
+    )
+
+
+def _master_scalp_exit_whitelist() -> tuple:
+    """[S8 2026-08-21] 总控动短线仓 close/reduce 的白名单关键字（小写包含匹配）。
+
+    默认 risk_engine/liquidation/margin_call/emergency；env 置空 = 永不放行
+    （总控永不碰短线仓）。
+    """
+    try:
+        from backend.config.settings import MASTER_SCALP_EXIT_WHITELIST
+        raw = str(MASTER_SCALP_EXIT_WHITELIST or "")
+    except Exception:
+        raw = "risk_engine,liquidation,margin_call,emergency"
+    return tuple(t.strip().lower() for t in raw.split(",") if t.strip())
+
+
 def _hub_mode_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     """[v6 S2-6] 决策快照注入 hub 模式/灰度权重（失败不改动，供灰度对比）。"""
     try:
@@ -561,13 +584,44 @@ def execute_master_decisions(
         except Exception:
             pass
 
+        # ── [S8 2026-08-21] 短线仓的 close/reduce 也按持仓拦截 ──
+        # 原实现只拦新开（buy/sell/pyramid/dca），close/reduce 落穿到下方
+        # master_running_close/reduce 与统一出场 fast close——8/16 日检里
+        # 禁开窗口短线仓仍被总控平掉的主因。按**持仓** trade_nature/tier 判定
+        # （不看决策 nature：auto-coin/标记错时会误拦/漏拦）；白名单内
+        # （risk_engine/liquidation/保证金强平）显式风控理由才放行。
+        if action in ("close", "reduce"):
+            _sym_pos_list = (
+                symbol_positions.get(sym.upper())
+                or symbol_positions.get(sym)
+                or []
+            )
+            _pos_is_scalp = any(_is_scalp_position(_p) for _p in _sym_pos_list)
+            if _pos_is_scalp:
+                _wl_tokens = _master_scalp_exit_whitelist()
+                _reason_txt = " ".join(
+                    str(x or "") for x in (
+                        dec.get("reason"), dec.get("reasoning"), reasoning,
+                    )
+                ).lower()
+                if not any(t in _reason_txt for t in _wl_tokens):
+                    logger.info(
+                        "[FullAuto][ScalpLane] Master 跳过 %s %s（短线仓防守归短线出场链：SL/TP/超时）",
+                        sym, action,
+                    )
+                    continue
+
         # ── 短线层：已被 _run_scalp_independent 处理，这里跳过 ──
         try:
             if scalp_factor_router.is_scalp_nature(_dec_nature_raw):
                 if sym.upper() in getattr(host, "scalp_traded_this_tick", set()):
-                    action = "hold"
-                    dec["action"] = "hold"
-                    reasoning = f"[ScalpRouter去重] {sym} 本tick已独立交易"
+                    if action not in ("close", "reduce"):
+                        # [S8 2026-08-21] close/reduce 不因「本tick已独立交易」被
+                        # 静默改 hold——短线仓的防守结局不应取决于 scalped-this-tick；
+                        # 新开类动作的去重 hold 保持不变。
+                        action = "hold"
+                        dec["action"] = "hold"
+                        reasoning = f"[ScalpRouter去重] {sym} 本tick已独立交易"
                 # scalp 未被独立交易的也跳过（由独立路径处理），不在这里决策
         except Exception:
             pass
