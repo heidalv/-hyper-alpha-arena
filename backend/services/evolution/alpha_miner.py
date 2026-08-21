@@ -424,6 +424,17 @@ class CodegenCritic:
             logger.warning(f"[CodegenCritic] LLM 配置解析失败: {e}")
             return None
 
+    @staticmethod
+    def _no_think_suffix(model: str) -> str:
+        """[模型刀 2026-08-21] qwen3 系思考模型软开关：追加 " /no_think" 关闭思维链。
+
+        qwen3/3.x 的 chat 模板识别该软开关；qwen2.5 等无思考模型不识别（当普通
+        文本忽略，不影响输出）。关思考后仍会消耗 ~500 隐形模板 token——
+        max_tokens 需 ≥800（本类调用已用 1500/1200）。
+        """
+        m = str(model or "").lower()
+        return " /no_think" if ("qwen3" in m or "qwen3.5" in m or "qwen3.6" in m or "qwen3.8" in m) else ""
+
     def critique(self, scorecard: dict) -> tuple:
         """[模型刀 15 2026-08-21] 批评家：吃成绩单 JSON，输出 (ok, reason)。
 
@@ -441,25 +452,36 @@ class CodegenCritic:
         try:
             import json as _json
             from backend.services.llm_config_service import call_llm_api_sync
+            # [模型刀] /no_think 软开关按**主配置**模型名决定（qwen3 系思考模型）
+            _nt_primary = self._no_think_suffix(getattr(primary, "model", ""))
+            _nt_fallback = self._no_think_suffix(getattr(fallback, "model", ""))
             messages = [
                 {"role": "system", "content": (
                     "你是量化因子批评家。输入是某候选因子的成绩单 JSON。"
                     "判断它是否值得进入因子池，输出 JSON："
                     '{"verdict": "pass"|"reject", "reason": "一句话，必须引用成绩单中的具体字段名和数值"}。'
-                    "重点检查：|ic| 与 |icir| 是否量级合理、oos_sharpe 是否为正、"
-                    "oos_trades 样本是否足够、fwd_bars 与持有期是否匹配、"
-                    "redundant_with 是否已与池内因子冗余。只输出 JSON。"
+                    "**只按本系统闸门标准评判，不要用外部行业经验**："
+                    "A级=|ic_mean|≥0.05 且 |icir|>0.5 且 oos_sharpe≥0.3 且 oos_trades≥5；"
+                    "B级=|ic_mean|≥0.03 且 |icir|>0.3 且同上绩效；"
+                    "达到 B 级即 pass。oos_sharpe<0 或 oos_trades<5 或 |ic_mean|<0.03 才 reject。"
+                    "redundant_with 非空（已与池内因子冗余）才以冗余为由 reject。只输出 JSON。"
                 )},
-                {"role": "user", "content": _json.dumps(scorecard, ensure_ascii=False, default=str)},
+                {"role": "user", "content": _json.dumps(scorecard, ensure_ascii=False, default=str)
+                 + _nt_primary},
             ]
-            for cfg in (primary, fallback):
+            for cfg, _nt in ((primary, _nt_primary), (fallback, _nt_fallback)):
                 if not cfg or not getattr(cfg, "api_key", None):
                     continue
+                _msgs = messages if not _nt else [
+                    {**m, "content": str(m["content"]) + _nt} for m in messages
+                ]
                 try:
                     resp_data = call_llm_api_sync(
-                        cfg, messages=messages,
+                        cfg, messages=_msgs,
                         response_format={"type": "json_object"},
-                        max_tokens=300, temperature=0.2, caller="factor_critic",
+                        # [模型刀] 1200：qwen3 系关思考后仍耗 ~500 隐形 token，good 侧
+                        # 长理由在 800 会被截断致 JSON 解析失败（critic_unavailable）
+                        max_tokens=1200, temperature=0.2, caller="factor_critic",
                         # [模型刀] 批评家必须逐份独立判断——同 schema 成绩单语义
                         # 相似会被语义缓存命中（同病态/健康单返回同一理由的根因）
                         bypass_cache=True,
@@ -590,7 +612,8 @@ class CodegenCritic:
                 "禁止使用未来数据（look-ahead）：不得引用未实现的字段或"
                 "跨越当前 bar 的窗口计算。只输出 JSON，不要解释。"
             )},
-            {"role": "user", "content": f"{prompt}{pool_hint}"},
+            {"role": "user", "content": f"{prompt}{pool_hint}"
+             + self._no_think_suffix(getattr(config, "model", ""))},
         ]
         # [模型刀 2026-08-21] 本地优先 + 云端降级：本地（ollama）异常/空响应时
         # 用云端配置重试一次（设计 §6.3；本地不参与时不影响原路径）
