@@ -183,12 +183,24 @@ def test_c3_scalp_reopen_cooldown_blocks_before_budget(monkeypatch):
 
 # ============================ C4：预算单位（名义 vs 保证金）====================
 
-def test_c4_scalp_nominal_converted_to_margin_before_can_open():
-    """2026-07-09 修复：名义 3000 ÷ 杠杆 10 = 保证金 300，应通过 short 层预算。"""
+def test_c4_scalp_nominal_converted_to_margin_before_can_open(monkeypatch):
+    """2026-07-09 修复：名义 3000 ÷ 杠杆 10 = 保证金 300，应通过 short 层预算。
+
+    [2026-08-21 测试债修复] BudgetService() 返回**单例**——原实现直接
+    `bs.get_used_margin = lambda...` 会永久污染单例，毒害同进程后续所有
+    调用 get_used_margin 的测试（且旧 lambda 缺 account_id 形参，与现行
+    调用方式不兼容，本测试自身也因此失败）。改用 monkeypatch 自动还原。
+    """
     from backend.services.budget_service import BudgetService
 
     bs = BudgetService()
-    bs.get_used_margin = lambda layer, mode="paper": 0.0  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        bs, "get_used_margin",
+        lambda layer, mode="paper", account_id=None: 0.0,
+    )
+    # [2026-08-21 测试债] repo .env 把 LAYER_BUDGET_SCALP 调到 0.35（10000×0.35=3500
+    # > 名义 3000，第二断言失效）；layer_allocations 实时读 env，钉回代码默认 0.25。
+    monkeypatch.setenv("LAYER_BUDGET_SCALP", "0.25")
 
     equity = 10000.0
     scalp_size_pct = 0.30
@@ -267,7 +279,9 @@ def test_c6_fee_context_uses_fresh_short_session(monkeypatch):
     stale_db.query = MagicMock(side_effect=AssertionError("must not query stale db"))
     used = {"stale": False, "fresh": False}
 
-    def _query_fee_stats(db, account_id):
+    def _query_fee_stats(db, account_id, trade_nature=None):
+        # [2026-08-21 测试债] _query_fee_stats 增加 trade_nature 形参
+        # （per-tier 日配额），stub 签名同步
         if db is stale_db:
             used["stale"] = True
         else:
@@ -309,7 +323,9 @@ def test_c6_feedback_retries_with_fresh_session_on_reconnect_error(monkeypatch):
     monkeypatch.setattr("backend.database.connection.SessionLocal", _session_local)
 
     stale = MagicMock()
-    stale.query.side_effect = Exception("Can't reconnect until invalid transaction is rolled back")
+    # [2026-08-21 测试债] 2026-08-17 起 _compute 改走 trade_facts 裸 SQL
+    # （db.execute），不再 ORM db.query——毒化 execute 才能触发 reconnect 重试
+    stale.execute.side_effect = Exception("Can't reconnect until invalid transaction is rolled back")
 
     svc = DecisionFeedbackService()
     result = svc.build_net_attribution(stale, days=7)

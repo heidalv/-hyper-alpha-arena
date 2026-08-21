@@ -37,34 +37,42 @@ def test_pbo_simple_not_indeterminate_for_large_sample():
 
 
 def test_dsr_gate_skips_open_for_three_symbols(caplog):
-    """3 币 ICIR 场景：必须 fail-open 跳过（修复前恒 False 锁死晋升）。"""
+    """3 币 ICIR 场景：< FACTOR_SCORER_DSR_MIN_SYMBOLS(默认4) → fail-closed 拒绝。
+
+    [2026-08-21 测试债] 旧断言期望 fail-open（True, None）——2026-08-19 起
+    闸门改为 fail-closed（样本不足时多重检验无法估计，宁拒不放；D10 对齐），
+    旧 fail-open 正是「结构性 0 晋升」根因的反面：放行未校验因子。
+    """
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
     with caplog.at_level(logging.WARNING):
         dsr_ok, pbo = factor_backtest_scorer._dsr_pbo_gate([0.1, 0.2, 0.3], 900, 40)
-    assert dsr_ok is True
-    assert pbo is None                          # None = 显式跳过标记
-    assert any("跳过" in m for m in caplog.messages) or any(
-        "DSR/PBO" in m for m in caplog.messages
-    )
+    assert dsr_ok is False
+    assert pbo is None                          # None = 样本不足 fail-closed
+    assert any("fail-closed" in m for m in caplog.messages)
 
 
 def test_dsr_gate_single_symbol_same_semantics(caplog):
-    """单币与 3 币行为一致化（同为 fail-open 跳过，不再走两套分支）。"""
+    """单币与 3 币一致：同为 fail-closed 拒绝（不再有两套分支）。"""
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
     with caplog.at_level(logging.WARNING):
         dsr_ok, pbo = factor_backtest_scorer._dsr_pbo_gate([0.2], 900, 40)
-    assert dsr_ok is True
+    assert dsr_ok is False
     assert pbo is None
 
 
 def test_dsr_gate_runs_with_sufficient_symbols():
-    """样本充足（>=4 币）时正常走 DSR/PBO 判定，pbo 为数值而非 None。"""
+    """样本充足（≥4 币 + IC 时序 ≥8）时正常走 DSR/PBO 判定，pbo 为数值。
+
+    [2026-08-21 测试债] 时序 PBO 重写后 ic_series 为必经输入（时序缺失
+    fail-closed），补齐时序参量。
+    """
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
     dsr_ok, pbo = factor_backtest_scorer._dsr_pbo_gate(
         [0.10, 0.22, 0.31, 0.44, 0.53], 900, 40,
+        ic_series=[0.1] * 20,
     )
     assert isinstance(dsr_ok, bool)
     assert pbo is not None
@@ -80,7 +88,8 @@ def test_normalize_engine_key():
 
     assert normalize_engine_key("evo_d6f82d364676127e") == "d6f82d364676127e"
     assert normalize_engine_key("d6f82d364676127e") == "d6f82d364676127e"
-    assert normalize_engine_key("ai_a101_mom_4h") == "ai_a101_mom_4h"
+    # [2026-08-21 测试债] 2026-08-15 扩展：ai_* 运行时键剥前缀为裸 id
+    assert normalize_engine_key("ai_a101_mom_4h") == "a101_mom_4h"
     assert normalize_engine_key("s5m_abc") == "s5m_abc"
 
 

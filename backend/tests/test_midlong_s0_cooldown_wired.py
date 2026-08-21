@@ -122,14 +122,31 @@ class TestS08ReentryCooldownCloseReason:
     ACCT = 999001
     SYMBOL = "TESTCOIN"
 
+    # [2026-08-21 测试债] repo .env 按「2026-08-16 用户反馈放宽」把 SL/亏损
+    # 冷却地板置 0（reentry_cooldown.py §347 注释）；本组测试针对**代码默认档**，
+    # 钉住 env 使地板按默认生效（运行时的放宽配置不受影响）。
+    _ENV_PIN = (
+        "REENTRY_SL_COOLDOWN_SEC_MID", "REENTRY_SL_COOLDOWN_SEC_LONG",
+        "REENTRY_SL_COOLDOWN_SEC_SHORT", "REENTRY_LOSS_COOLDOWN_SEC_MID",
+        "REENTRY_LOSS_COOLDOWN_SEC_LONG", "REENTRY_LOSS_COOLDOWN_SEC_SHORT",
+    )
+
     def setup_method(self):
-        """每个测试前清理状态。"""
+        """每个测试前清理状态 + 钉住冷却地板为代码默认档。"""
         from backend.services import reentry_cooldown
         reentry_cooldown.clear_state(self.ACCT, self.SYMBOL)
+        self._saved_env = {k: os.environ.get(k) for k in self._ENV_PIN}
+        for k in self._ENV_PIN:
+            os.environ.pop(k, None)
 
     def teardown_method(self):
         from backend.services import reentry_cooldown
         reentry_cooldown.clear_state(self.ACCT, self.SYMBOL)
+        for k, v in getattr(self, "_saved_env", {}).items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
     def test_sl_mid_cooldown_12h(self):
         """mid tier sl 后冷却应为 12 小时（720 分钟）。"""
@@ -600,34 +617,45 @@ class TestS05PromptNoForceOpenDirective:
     """验证 swing_agent 的 inline prompt 不再包含强制开仓指令。"""
 
     def test_inline_prompt_no_must_buy_sell(self):
-        """inline fallback prompt 不应包含"必须 output buy/sell"指令。"""
+        """inline fallback prompt 不应包含"必须 output buy/sell"指令。
+
+        [2026-08-21 测试债] 阶段3c 重写后的 prompt 含 reasoning 完整性说明
+        （"必须包含趋势判断…"），旧的宽泛"必须"断言误伤——改为断言真正的
+        强制开仓类指令不存在。
+        """
         from backend.services.swing_agent import swing_agent
         prompt = swing_agent._build_prompt_inline(
             "TESTCOIN", "context", "deep_ctx", {}, "evidence",
         )
-        # 旧的强制开仓指令已被删除
-        assert "必须" not in prompt or "必须遵守" in prompt, \
-            "prompt 不应含'必须 output buy/sell'类强制开仓指令"
-        assert "禁止 hold+高分" not in prompt, \
+        assert "必须 output" not in prompt
+        assert "必须买" not in prompt and "必须卖" not in prompt
+        assert "禁止 hold" not in prompt, \
             "prompt 不应含'禁止 hold+高分'指令"
 
     def test_inline_prompt_contains_respect_hold(self):
-        """inline prompt 应包含'尊重 hold 决策'说明。"""
+        """inline prompt 应保留自主决策措辞（hold 尊重的现行等价标记）。
+
+        [2026-08-21 测试债] 阶段3c 重写删除了"尊重你的 hold 决策"原句，
+        现行措辞为"均由你自主决定"；hold 尊重行为由 _normalize 兜底闸
+        （action != hold 才可开）保证，TestS03 行为测试仍覆盖。
+        """
         from backend.services.swing_agent import swing_agent
         prompt = swing_agent._build_prompt_inline(
             "TESTCOIN", "context", "deep_ctx", {}, "evidence",
         )
-        assert "尊重你的 hold 决策" in prompt, \
-            "prompt 应明示尊重 LLM 的 hold 决策"
+        assert "均由你自主决定" in prompt, \
+            "prompt 应明示方向/节奏由 LLM 自主决定（含 hold）"
 
     def test_inline_prompt_paper_threshold_52_16(self):
-        """inline prompt 应反映新门槛 52/1.6。"""
+        """[2026-08-21 测试债] 阶段3c 有意删除了 prompt 内的 52/1.6 硬门槛文案
+        （闸门移到 _normalize 代码层：_conf_min=52/_rr_min=1.6 paper）。
+        现断言 prompt 不再携带硬门槛文本，防止口径回流 prompt。"""
         from backend.services.swing_agent import swing_agent
         prompt = swing_agent._build_prompt_inline(
             "TESTCOIN", "context", "deep_ctx", {}, "evidence",
         )
-        assert "52" in prompt, "prompt 应含新门槛 confidence≥52"
-        assert "1.6" in prompt, "prompt 应含新门槛 RR≥1.6"
+        assert "52" not in prompt, "硬门槛已移入代码层，prompt 不应回流"
+        assert "1.6" not in prompt, "硬门槛已移入代码层，prompt 不应回流"
 
 
 if __name__ == "__main__":

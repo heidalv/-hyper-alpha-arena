@@ -42,6 +42,10 @@ def test_explicit_trend_authority_honored(monkeypatch):
 def test_open_gate_recommend_false_soft_on_nibble_probe(monkeypatch):
     monkeypatch.setattr(settings, "MIDLONG_THESIS_OPEN_GATE", True)
     monkeypatch.setattr(settings, "MIDLONG_NIBBLE_PROBE_ENABLED", True, raising=False)
+    # [2026-08-21 测试债] 2026-08-15 新增 funding 净 RR 硬底线（P1 底线 7）会
+    # 在本测试的裸 packet 上触发（无 ATR/费率数据 → 保守估算 net_rr<2.0）。
+    # 本测试的单元是 nibble/chop 软放行逻辑，关闭 funding 闸以隔离。
+    monkeypatch.setattr(settings, "MIDLONG_FUNDING_GATE_ENABLED", False, raising=False)
     thesis = ThesisDTO(
         thesis_id="t", session_id="s", symbol="BTC", tier="long",
         direction="long", open_readiness=80, review_count=3,
