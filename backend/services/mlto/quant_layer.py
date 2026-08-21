@@ -70,6 +70,8 @@ def compute(packet: PerceptionPacket, thesis: ThesisDTO, db=None) -> List[Signal
     # [阶段2] 中周期择时信号（来自长线 thesis 嵌入的 mid_view 子结构）。
     # 仅当 mid_view 存在且 timing_score>0 时产出；权重在阶段3 decision_hub 配置。
     # backward-compatible: mid_view=None → 不产出此信号（现状）。
+    # [M13 2026-08-21] DEPRECATED：mid_view 生产端停用后此信号不再新增产出，
+    # 仅为存量 thesis 数据保留读取路径。
     if thesis.mid_view and thesis.mid_view.timing_score:
         signals.append(
             Signal(

@@ -1,12 +1,14 @@
 """
-长线独立循环（含 mid_view）— 整改#8 midlong_loop 拆分 + 阶段4 中-并入-长。
+长线独立循环（含中线因子路由调度）— 整改#8 midlong_loop 拆分。
 
 从 full_auto_trading_service._run_midlong_independent 迁出；
 monolith 保留 thin shim 转发。
 
-[阶段4] 原"中线 SwingAgent 独立分析"路径已废弃——中线分析能力由长线 thesis 的
-mid_view 子结构提供（Phase 2 起 qual_layer prompt 同时产出 long + mid_view）。
-本循环现仅处理 long（其 thesis 内嵌 mid_view），不再单独调度 SwingAgent。
+[M12 2026-08-21] 现行分工：long 由 long_trend_v2 日频管理（规则化 L1 + Chandelier，
+本循环维护 thesis/入场）；mid 在 MIDLONG_MID_VIA_FACTOR_ROUTE=true 时由因子路由
+（factor_route_*，经 execute_midlong_open(source=factor_route)）驱动，
+_run_mid = ("mid" in due) and 中线宇宙非空。原「阶段4 仅处理 long」描述作废；
+SwingAgent 独立分析已废弃，mid_view 子结构仅剩兼容读取（M13 deprecated）。
 """
 from __future__ import annotations
 

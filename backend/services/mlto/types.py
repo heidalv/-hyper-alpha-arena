@@ -136,6 +136,9 @@ class ThesisDTO:
     missing_evidence: List[str] = field(default_factory=list)
     owm_weights: Dict[str, float] = field(default_factory=dict)
     # [阶段2] 中周期子视图（仅长线 thesis 使用；None=向后兼容退化为现状）。
+    # [M13 2026-08-21] DEPRECATED：中线决策已由 factor_route 驱动，mid_view 生产端
+    # （thesis LLM）停用；本字段仅保留兼容读取（quant_layer/decision_hub/thesis_store
+    # 仍消费），禁止新增消费方，待引用清零后整族删除。
     mid_view: Optional[MidViewDTO] = None
     # [2026-08-05 v6 6.3 第3项] LLM exit_plan 止损参数直通：开仓优先用
     # thesis.sl_pct/tp_pct（LLM 提供，ATR 下限硬校验），structure_stops 降级兜底。

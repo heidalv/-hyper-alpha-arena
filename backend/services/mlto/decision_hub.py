@@ -94,12 +94,14 @@ WEIGHTS_MID: Dict[str, float] = {
     "llm_qual": _LLM_WEIGHT_MID,  # was 0.03（AI 主导方向）
     "debate": 0.02,
     # mid_timing 在中周期不适用（mid 不再有子 mid_view），权重=0 即忽略。
+    # [M13 2026-08-21] DEPRECATED：mid_view/mid_timing 族标记废弃（中线由
+    # factor_route 驱动）；下列权重仅为存量 long thesis 数据保留。
     "mid_timing": 0.0,
 }
 
 WEIGHTS_LONG: Dict[str, float] = {
     "llm_qual": _LLM_WEIGHT_LONG,         # was 0.04（10x → AI 驱动方向；生产 0.30，灰度可降至 0.20）
-    "mid_timing": 0.15,                   # NEW（中周期择时，来自 mid_view）
+    "mid_timing": 0.15,                   # NEW（中周期择时，来自 mid_view）[M13 deprecated]
     "orch_long_bias": 0.12,               # was 0.24（规则权威降级）
     "quant_alignment": 0.12,
     "entry_timing": 0.08,

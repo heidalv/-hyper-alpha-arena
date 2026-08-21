@@ -87,10 +87,15 @@ def test_mlto_cycle_no_swing_one_function():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 3. master_execution 中线 SwingAgent 分支已删除（长线分支仍在）
+# 3. master_execution 中线 SwingAgent 分支已删除（长线走 long_trend_v2）
 # ═══════════════════════════════════════════════════════════════════
 def test_master_execution_mid_swing_branch_removed_long_kept():
-    """master_execution 删除中线 SwingAgent.analyze 调用，但保留长线 TrendAgent 分支。"""
+    """master_execution 无 SwingAgent.analyze 调用；长线决策源为独立循环的 long_trend_v2。
+
+    [M12 2026-08-21] 重写：原断言「必须保留 trend_agent.analyze_direction」已过时——
+    Master 路径长线 LLM 空壳已根除（commit 4b2f2be），长线由 midlong 循环的
+    long_trend_v2（规则化 L1 + Chandelier）提供决策。
+    """
     from backend.services.full_auto import master_execution
 
     src_path = os.path.join(
@@ -108,10 +113,9 @@ def test_master_execution_mid_swing_branch_removed_long_kept():
         "master_execution.py 不应再引用 MIDLONG_MID_VIA_MLTO（中线分支已删除）"
     )
 
-    # 长线 TrendAgent 分支必须保留
-    assert "trend_agent.analyze_direction(" in src, (
-        "master_execution.py 必须保留 trend_agent.analyze_direction（长线分支）"
-    )
+    # 长线决策源 = 独立 midlong 循环的 long_trend_v2（规则化 L1），
+    # master 不再直接调 trend_agent.analyze_direction
+    assert "long_trend_v2" in src, "长线决策源 long_trend_v2 的引用必须保留"
     assert "is_trend_nature" in src, "长线 tier 检测必须保留"
 
     # MidLongExecutionLane delegate 路由检测仍依赖 is_swing_nature（mid 仍要被识别为
@@ -122,10 +126,14 @@ def test_master_execution_mid_swing_branch_removed_long_kept():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 4. midlong_loop 仅处理 long（_run_mid 恒 False，无 SwingAgent 调度）
+# 4. midlong_loop：中线经因子路由调度（_run_mid 接回，非恒 False）
 # ═══════════════════════════════════════════════════════════════════
 def test_midlong_loop_long_only_no_mid_dispatch():
-    """midlong_loop 不再调度 SwingAgent；_run_mid 强制 False。"""
+    """midlong_loop 不调度 SwingAgent；中线由因子路由驱动（_run_mid 按 due+宇宙）。
+
+    [M12 2026-08-21] 重写：原断言「_run_mid 恒 False」已过时——中线已接回
+    factor_route（MIDLONG_MID_VIA_FACTOR_ROUTE=true 时按 due 调度 factor_route_*）。
+    """
     from backend.services.full_auto.loops import midlong_loop
 
     src_path = os.path.join(
@@ -134,14 +142,12 @@ def test_midlong_loop_long_only_no_mid_dispatch():
     with open(src_path, "r", encoding="utf-8") as fh:
         src = fh.read()
 
-    # 不应再读取 due 里的 mid 来决定是否跑 LLM
-    assert '_run_mid = "mid" in due' not in src, (
-        "midlong_loop 不应再用 'mid' in due 决定是否跑中线 LLM"
+    # 中线按 due + 宇宙调度（不再恒 False，也不再用裸 "mid" in due 决定 LLM）
+    assert '_run_mid = ("mid" in due)' in src, (
+        "midlong_loop 应按 ('mid' in due) and 中线宇宙 调度因子路由"
     )
-    # _run_mid 强制 False
-    assert "_run_mid = False" in src, (
-        "midlong_loop 应将 _run_mid 强制为 False（中线并入 long）"
-    )
+    assert "_run_mid = False" not in src, "「_run_mid 恒 False」旧形态不应回归"
+    assert '_run_mid = "mid" in due' not in src, "旧 LLM 调度形态不应回归"
     # 不应再调 swing_agent.analyze
     assert "swing_agent.analyze(" not in src, (
         "midlong_loop 不应再调用 swing_agent.analyze"
