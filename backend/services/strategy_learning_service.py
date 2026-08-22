@@ -822,8 +822,35 @@ class StrategyLearningService:
                     PromptTemplate.id == strategy.master_prompt_template_id
                 ).first()
 
+            # [2026-08-22 M0-L3] 无绑定模板不再直接跳过：历史上 0/1416 策略绑定模板，
+            # 导致 prompt_training_records 永远为 0、进化链全死。现回退到系统默认
+            # 模板（key='default' 优先，其次任意未删除模板）作为进化基线——进化成功
+            # 后会新建版本并绑定到策略（下方 new_prompt + master_prompt_template_id），
+            # 与 ai_decision_service 三层解析（策略→账户→系统默认）自然衔接。
             if not prompt_tpl:
-                logger.info(f"[Learning] {strategy.strategy_id} 无绑定提示词模板，跳过进化")
+                from backend.database.models import PromptTemplate
+                prompt_tpl = (
+                    db.query(PromptTemplate)
+                    .filter(
+                        PromptTemplate.key == "default",
+                        PromptTemplate.is_deleted != "true",
+                    )
+                    .first()
+                )
+                if prompt_tpl is None:
+                    prompt_tpl = (
+                        db.query(PromptTemplate)
+                        .filter(PromptTemplate.is_deleted != "true")
+                        .first()
+                    )
+                if prompt_tpl:
+                    logger.info(
+                        f"[Learning] {strategy.strategy_id} 无绑定模板，回退默认模板 "
+                        f"#{prompt_tpl.id}({prompt_tpl.key}) 作为进化基线"
+                    )
+
+            if not prompt_tpl:
+                logger.info(f"[Learning] {strategy.strategy_id} 无可用提示词模板，跳过进化")
                 return False
 
             lesson_text = "\n".join(
@@ -902,9 +929,22 @@ class StrategyLearningService:
 
             _min_len = 120
             _resp_len = len(optimized_text) if optimized_text else 0
-            if not optimized_text or _resp_len < _min_len:
+            # [2026-08-22 M0-L3] 占位符保全校验：进化后的文本必须保留原模板全部
+            # {placeholder}（如 {trading_environment}），否则渲染层 format 会崩、
+            # 决策链退化。缺占位符 → 视为本次进化失败（落库留痕，回退旧模板），
+            # 这不算收紧门禁——只保证"进化不损坏决策提示词"。
+            _missing_ph = []
+            if optimized_text and _resp_len >= _min_len:
+                try:
+                    import re as _re
+                    _ph = set(_re.findall(r"\{[a-zA-Z_][a-zA-Z0-9_]*\}", prompt_tpl.template_text or ""))
+                    _missing_ph = sorted(p for p in _ph if p not in optimized_text)
+                except Exception:
+                    _missing_ph = []
+            if not optimized_text or _resp_len < _min_len or _missing_ph:
                 _fail_reason = "llm_returned_none" if optimized_text is None else (
-                    "response_too_short" if _resp_len < _min_len else "unknown")
+                    "response_too_short" if _resp_len < _min_len else (
+                        f"placeholder_lost:{','.join(_missing_ph[:5])}"))
                 logger.warning(
                     f"[Learning] prompt 进化失败 strategy={strategy.strategy_id} "
                     f"reason={_fail_reason} len={_resp_len} debug={_evo_debug}"
