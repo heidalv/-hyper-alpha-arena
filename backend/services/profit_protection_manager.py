@@ -40,7 +40,9 @@ _DRAWDOWN_ACTIVATION_MARGIN_PCT = 1.00
 # 保本止损激活：浮盈达到保证金的 50%
 # [2026-07-30 crypto-native] 35% 太低，5m crypto 微利就推保本→SL 太紧→被波动击穿
 # → breakeven_tp 100% 微利出场。提升到 50% 延迟激活。
-_BREAKEVEN_ACTIVATION_MARGIN_PCT = 0.50
+# [2026-08-22 PROFIT-1] 提升到 100%（保证金级）：让 TP1 后的峰值追踪（peak-1.5%）
+# 先跑，保本只是保底；微利阶段不进场（数据：峰值保留率 scalp -701%，利润几乎全回吐）。
+_BREAKEVEN_ACTIVATION_MARGIN_PCT = 1.00
 
 # 分批锁利最低浮盈：达到保证金的 X% 才执行
 _LOCK_MIN_PROFIT_MARGIN_PCT = {

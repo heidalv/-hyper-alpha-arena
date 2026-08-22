@@ -3091,18 +3091,39 @@ class PaperTradingEngine:
         if result.action == "breakeven":
             if result.sl_price is not None:
                 old_sl = float(pos.sl_price or 0)
-                if pos.side == "long" and result.sl_price > old_sl:
-                    pos.sl_price = result.sl_price
+                # [2026-08-22 PROFIT-1 底层出场改良] 保本推进升级为「峰值追踪优先」：
+                # 有历史峰值时，SL = 保本线 与 峰值价±1.5% 的较优点（long 取更高 / short 取更低），
+                # 让盈利单随峰值抬升而跑远，避免在微利处被固定保本线扫掉
+                # （历史峰值保留率：scalp -701% / trend_follow 6.2% —— 利润几乎全回吐）。
+                _sl = float(result.sl_price)
+                _peak_price = self._peak_price_from_pos(pos, entry)
+                if _peak_price > 0:
+                    try:
+                        _trail_pct = float(os.getenv("PAPER_PEAK_TRAIL_PCT", "0.015") or 0.015)
+                    except Exception:
+                        _trail_pct = 0.015
+                    if str(getattr(pos, "side", "")).lower() == "long":
+                        _cand = max(_sl, _peak_price * (1 - _trail_pct))
+                    else:
+                        _cand = min(_sl, _peak_price * (1 + _trail_pct))
+                    if abs(_cand - _sl) > 1e-9:
+                        logger.info(
+                            f"[Paper][v2] 峰值追踪融合: {pos.symbol} {pos.side} "
+                            f"保本→{_sl:.6f} 峰值追踪→{_cand:.6f} (PROFIT-1)"
+                        )
+                        _sl = _cand
+                if pos.side == "long" and _sl > old_sl:
+                    pos.sl_price = _sl
                     pos.trailing_stop_price = None
                     logger.info(
                         f"[Paper][v2] 保本推进: {pos.symbol} {pos.side} "
-                        f"SL→{result.sl_price:.6f}")
-                elif pos.side == "short" and (old_sl == 0 or result.sl_price < old_sl):
-                    pos.sl_price = result.sl_price
+                        f"SL→{_sl:.6f}")
+                elif pos.side == "short" and (old_sl == 0 or _sl < old_sl):
+                    pos.sl_price = _sl
                     pos.trailing_stop_price = None
                     logger.info(
                         f"[Paper][v2] 保本推进: {pos.symbol} {pos.side} "
-                        f"SL→{result.sl_price:.6f}")
+                        f"SL→{_sl:.6f}")
             return False
 
         if result.action == "partial_close":
