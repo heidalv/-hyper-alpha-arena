@@ -238,6 +238,10 @@ class FactorEvaluationPipeline:
         # [2026-08-14 P1-C4] PAPER 影子因子权重上限（拍板：PAPER 可交易但权重受限）。
         # factor_active_set.state=PAPER 的因子在线权重强制 min(w, cap)，避免未经
         # SMALL_LIVE/ACTIVE 审批的影子因子占据过大合成份额。
+        # [2026-08-23 M0-C1b] 扩展：custom_factor_store 中 extra.role=paper 的
+        # 公式因子（held-out/条件口径影子晋升）同样封顶——此前只认
+        # factor_active_set 表，公式影子因子在 SCALP_USE_VETTED_FACTORS_ONLY=false
+        # 全量计算路径下权重不受限。
         try:
             from backend.config import settings as _s_cfg
             _paper_cap = float(getattr(_s_cfg, "PAPER_FACTOR_WEIGHT_CAP", 0.5) or 0.5)
@@ -245,6 +249,17 @@ class FactorEvaluationPipeline:
                 from backend.services.scalp.scalp_factor_exclude import get_paper_factor_ids
                 from backend.services.factor_engine.key_utils import normalize_engine_key
                 _paper_ids = get_paper_factor_ids()
+                try:
+                    from backend.services.factor_engine.custom_factor_store import custom_factor_store
+                    from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+                    _tid = resolve_admin_tenant_id()
+                    for _rec in custom_factor_store.list_active(tenant_id=_tid):
+                        if str((_rec.get("extra") or {}).get("role") or "") == "paper":
+                            _fid = str(_rec.get("factor_id") or "")
+                            if _fid:
+                                _paper_ids.add(normalize_engine_key(_fid))
+                except Exception as _cs_err:
+                    logger.debug("[FactorPipeline] 公式影子因子封顶集合扩展跳过: %s", _cs_err)
                 if _paper_ids:
                     for name in factor_names:
                         if normalize_engine_key(name) in _paper_ids:
