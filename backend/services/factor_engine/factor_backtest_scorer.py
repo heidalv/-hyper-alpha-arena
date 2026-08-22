@@ -45,6 +45,11 @@ class FactorScoreResult:
     fwd_bars: int = 0                 # 打分前瞻根数
     kline_exchange: str = ""          # 打分 K 线源
     purpose: str = "research"         # research（晋升打分）/ runtime（路由）
+    # [2026-08-23 M0-C1] 条件信号评价模式字段：eval_mode="conditional" 时表示
+    # 该因子按「超阈值当根触发、持有 fwd 根离场」评价（与 MR/反转类实际执行
+    # 逻辑一致），与 eval_mode="continuous" 的单边连续持仓口径区分。
+    eval_mode: str = "continuous"
+    conditional: Dict[str, Any] = field(default_factory=dict)
 
 
 def _cfg(name: str, default):
@@ -377,6 +382,112 @@ class FactorBacktestScorer:
             "n": len(idx),
         }
 
+    def _conditional_walk_forward_backtest(
+        self,
+        factor_vals: np.ndarray,
+        closes: np.ndarray,
+        fwd: int,
+        cost: float,
+        funding_per_hold: float = 0.0,
+        bars_per_year: Optional[int] = None,
+        *,
+        z_threshold: float = 2.0,
+        direction: str = "auto",
+    ) -> Dict[str, Any]:
+        """[2026-08-23 M0-C1] 条件信号 walk-forward 回测（MR/反转类因子的正确尺子）。
+
+        与 `_walk_forward_backtest`（单边连续持仓）的区别：
+        - **只在因子极端时触发**：rolling z 超过 ±z_threshold 当根开仓；
+        - 持有固定 fwd 根后离场（与 MR 引擎「超卖开多、拿 N 根」的执行逻辑一致）；
+        - 触发后 fwd 根内不再重复开仓（避免重叠收益）；
+        - direction="auto"：训练段按触发后条件收益符号自动定向（超卖→涨=做多）；
+          direction="reversal"：极端值反向下注（z<-thr 做多 / z>+thr 做空）；
+          direction="momentum"：极端值顺势下注。
+        成本/资金费口径与连续模式一致。
+        """
+        n = len(closes)
+        fwd_ret = np.full(n, np.nan)
+        fwd_ret[:-fwd] = (closes[fwd:] - closes[:-fwd]) / closes[:-fwd]
+
+        f = factor_vals.copy()
+        mask = np.isfinite(f) & np.isfinite(fwd_ret)
+        idx = np.where(mask)[0]
+        if len(idx) < 120:
+            return {"net_return": 0.0, "sharpe": 0.0, "win_rate": 0.0, "trades": 0, "n": len(idx)}
+
+        # walk-forward 3 折：训练段定滚动 z 的均/标差与方向；测试段逐根触发。
+        folds = 3
+        seg = len(idx) // folds
+        oos_returns: List[float] = []
+        triggered = 0
+        for k in range(1, folds):
+            train_idx = idx[(k - 1) * seg: k * seg]
+            test_idx = idx[k * seg: (k + 1) * seg] if k < folds - 1 else idx[k * seg:]
+            if len(train_idx) < 30 or len(test_idx) < 10:
+                continue
+            tf = f[train_idx]
+            tr = fwd_ret[train_idx]
+            if np.std(tf) < 1e-12 or np.std(tr) < 1e-12:
+                continue
+            mu, sd = float(np.mean(tf)), float(np.std(tf))
+            if sd < 1e-12:
+                continue
+            # 训练段方向标定：观察训练段极端触发后的平均条件收益符号
+            _train_z = (tf - mu) / sd
+            _dir_sign = 0
+            if direction == "auto":
+                _lo = float(np.mean(tr[_train_z <= -z_threshold])) if int((_train_z <= -z_threshold).sum()) >= 5 else 0.0
+                _hi = float(np.mean(tr[_train_z >= z_threshold])) if int((_train_z >= z_threshold).sum()) >= 5 else 0.0
+                # 超卖后涨 / 超买后跌 → reversal（-1 意味着 z<-thr 做多）
+                _dir_sign = -1.0 if (_lo - _hi) > 0 else 1.0
+            elif direction == "reversal":
+                _dir_sign = -1.0
+            elif direction == "momentum":
+                _dir_sign = 1.0
+            # 测试段逐根扫描：触发开仓、持有 fwd 根、期间不再触发
+            t_ptr = 0
+            t_len = len(test_idx)
+            while t_ptr < t_len:
+                t = test_idx[t_ptr]
+                z = (f[t] - mu) / sd
+                if abs(z) >= z_threshold:
+                    pos = float(np.sign(z) * _dir_sign)
+                    if pos == 0.0:
+                        pos = -1.0  # reversal 缺省
+                    r = fwd_ret[t]
+                    if np.isfinite(r):
+                        gross = pos * r
+                        trade_cost = cost  # 开+平往返
+                        oos_returns.append(float(gross - trade_cost - funding_per_hold))
+                        triggered += 1
+                    t_ptr += fwd  # 持有 fwd 根，跳过重叠窗口
+                    continue
+                t_ptr += 1
+
+        if not oos_returns:
+            return {"net_return": 0.0, "sharpe": 0.0, "win_rate": 0.0, "trades": 0, "n": len(idx)}
+
+        arr = np.array(oos_returns)
+        net_return = float(np.sum(arr))
+        mean_r = float(np.mean(arr))
+        std_r = float(np.std(arr))
+        if std_r > 0:
+            annual = (float(bars_per_year) / max(fwd, 1)) if bars_per_year else 0.0
+            scale = float(np.sqrt(min(annual, len(arr)))) if annual > 0 else float(np.sqrt(len(arr)))
+            sharpe = float(mean_r / (std_r + 1e-12) * scale)
+        else:
+            sharpe = 0.0
+        win_rate = float(np.mean(arr > 0))
+        return {
+            "net_return": round(net_return, 6),
+            "sharpe": round(sharpe, 4),
+            "win_rate": round(win_rate, 4),
+            "trades": len(arr),
+            "n": len(idx),
+            "triggered": triggered,
+            "dir_sign": round(float(_dir_sign), 1),
+        }
+
     @staticmethod
     def _rolling_ic_series(factor_vals: np.ndarray, closes: np.ndarray, fwd: int,
                            window: int = 30) -> np.ndarray:
@@ -458,6 +569,7 @@ class FactorBacktestScorer:
         skip_dsr: bool = False,
         count_trial: bool = True,
         max_pbo_override: Optional[float] = None,
+        with_conditional: bool = False,
     ) -> FactorScoreResult:
         """对一个公式因子做样本外回测 + 打分。
 
@@ -756,6 +868,71 @@ class FactorBacktestScorer:
         # [P0-1] DSR 跳过的可见性：reason 落库供运维台确认跳过原因（现为 fail-closed）
         if pbo_val is None:
             result.reason += " | DSR/PBO fail-closed（跨币样本不足或 IC 时序缺失）"
+
+        # ── [2026-08-23 M0-C1] 条件信号评价第二意见 ──
+        # 反转/MR 类因子在「单边连续持仓」口径下必亏（评价尺度错配，见
+        # _门禁盘点与因子诊断_20260822.md §B2），但它们的真实执行逻辑是
+        # 「超阈值当根触发 + 持有 N 根」。连续口径 C/D 级时补跑条件口径：
+        # 条件口径达标（每笔净利>缓冲、胜率≥保本、样本≥30）→ 升级为 B 级 +
+        # eval_mode=conditional + role=paper（影子，权重≤PAPER_FACTOR_WEIGHT_CAP），
+        # 由衰减复检兜底——让好反转因子能进、能被消费、用实盘数据继续学习。
+        if with_conditional and not result.admitted and not result.redundant_with and dsr_ok:
+            try:
+                _z_thr = float(_cfg("FACTOR_CONDITIONAL_Z_THRESHOLD", 2.0))
+                _cond_dir = str(_cfg("FACTOR_CONDITIONAL_DIRECTION", "auto"))
+                cond_by_sym: Dict[str, Any] = {}
+                cond_net: List[float] = []
+                cond_wr: List[float] = []
+                cond_trades = 0
+                for sym in arrays_by_symbol:
+                    _bt2 = self._conditional_walk_forward_backtest(
+                        factor_vals_by_symbol[sym], arrays_by_symbol[sym]["close"],
+                        fwd, cost, funding_per_hold=funding_per_hold,
+                        bars_per_year=bars_per_year,
+                        z_threshold=_z_thr, direction=_cond_dir,
+                    )
+                    if _bt2.get("trades", 0) >= 10:
+                        cond_by_sym[sym] = _bt2
+                        cond_net.append(_bt2["net_return"])
+                        cond_wr.append(_bt2["win_rate"])
+                        cond_trades += _bt2["trades"]
+                if len(cond_net) >= max(2, int(_cfg("FACTOR_CONDITIONAL_MIN_SYMBOLS", 3))) and cond_trades >= 30:
+                    _cond_avg_net = float(np.mean([b["net_return"] / max(b["trades"], 1) for b in cond_by_sym.values()]))
+                    _cond_wr = float(np.mean(cond_wr))
+                    _cond_sharpe = float(np.mean([b["sharpe"] for b in cond_by_sym.values()]))
+                    # 方向以多数币的标定符号为准（reversal=-1 / momentum=+1）
+                    _dirs = [float(b.get("dir_sign") or 0) for b in cond_by_sym.values() if b.get("dir_sign")]
+                    _dir_sign = float(np.sign(np.mean(_dirs))) if _dirs else 0.0
+                    result.conditional = {
+                        "z_threshold": _z_thr,
+                        "direction": _cond_dir,
+                        "dir_sign": round(_dir_sign, 1),
+                        "trades": cond_trades,
+                        "avg_net_per_trade": round(_cond_avg_net, 6),
+                        "win_rate": round(_cond_wr, 4),
+                        "sharpe": round(_cond_sharpe, 4),
+                        "per_symbol": {k: {kk: vv for kk, vv in v.items() if kk != "per_symbol"}
+                                       for k, v in cond_by_sym.items()},
+                    }
+                    _cond_ok = (
+                        _cond_avg_net > _net_buffer
+                        and _cond_wr >= float(_cfg("FACTOR_CONDITIONAL_MIN_WINRATE", 0.45))
+                    )
+                    if _cond_ok:
+                        result.grade = "B"
+                        result.admitted = True
+                        result.eval_mode = "conditional"
+                        result.reason += (
+                            f" | 条件信号口径通过(触发{cond_trades}笔/avg_net={_cond_avg_net:.5f}"
+                            f"/wr={_cond_wr:.2f}/z>{_z_thr})→B级影子晋升"
+                        )
+                        logger.info(
+                            "[FactorScorer] %s 连续口径未过 → 条件口径通过（z>%.1f, %d笔, avg_net=%.5f, wr=%.2f）",
+                            factor_id, _z_thr, cond_trades, _cond_avg_net, _cond_wr,
+                        )
+            except Exception as _cond_err:
+                logger.debug("[FactorScorer] %s 条件口径评估失败: %s", factor_id, _cond_err)
+
         return result
 
     @staticmethod
@@ -891,12 +1068,15 @@ class FactorBacktestScorer:
                 redundancy_pool=_midlong_pool,
                 tail_exclude=_verdict_bars,
                 max_pbo_override=_llm_max_pbo,
+                # [M0-C1] 条件信号评价第二意见（反转类因子正确尺子）
+                with_conditional=bool(_cfg("FACTOR_CONDITIONAL_EVAL_ENABLED", True)),
             )
         else:
             result = self.score_formula(
                 factor_id, formula, tail_exclude=_verdict_bars,
                 min_sharpe=float(_cfg("FACTOR_SCORER_MIN_SHARPE", 0.5)) + _llm_min_sharpe_bump,
                 max_pbo_override=_llm_max_pbo,
+                with_conditional=bool(_cfg("FACTOR_CONDITIONAL_EVAL_ENABLED", True)),
             )
 
         # [M6/P4 符号反作弊] 实际 IC 符号与 LLM 预期相反 → 直接 rejected
@@ -1001,6 +1181,15 @@ class FactorBacktestScorer:
                 )
             else:
                 status = "candidate"
+        # [M0-C1] 条件口径晋升的因子同样按 paper 影子管理（权重封顶）：
+        # 它们通过了条件信号回测但未通过连续口径/完整 DSR 链，给一半权重学习。
+        if result.admitted and str(result.eval_mode or "") == "conditional":
+            _paper_shadow = True
+            if not status == "active":
+                status = "active"
+            result.reason += (
+                f" | 条件口径晋升 → role=paper（权重≤{_cfg('PAPER_FACTOR_WEIGHT_CAP', 0.5)}）"
+            )
         if result.admitted:
             try:
                 if _horizon == "midlong":
@@ -1038,18 +1227,30 @@ class FactorBacktestScorer:
                 "per_symbol": result.per_symbol,
                 # [item13 2026-08-21] 晋升时锁定方向：路由 orient 与 combo_weights
                 # 权重幅度都以此为准（与挖掘期 |IC| 符号解耦，防两套符号规则漂移）
-                "expected_sign": 1 if float(result.ic_mean or 0) >= 0 else -1,
+                # [M0-C1] 条件口径因子：方向以条件回测标定的 dir_sign 为准
+                # （reversal=-1 → 路由里 z 越负越做多），连续 IC 符号只作回退。
+                "expected_sign": (
+                    int(float(result.conditional.get("dir_sign")) or 0)
+                    if str(result.eval_mode or "") == "conditional"
+                    and result.conditional.get("dir_sign")
+                    else (1 if float(result.ic_mean or 0) >= 0 else -1)
+                ),
                 # [模型刀] 成绩单口径字段（批评家/复盘引用）
                 "fwd_bars": int(result.fwd_bars or 0),
                 "kline_exchange": str(result.kline_exchange or ""),
                 "purpose": str(result.purpose or "research"),
                 # [2026-08-14 阶段2] 运维台可见性：拒绝原因落库，供中线因子面板展示
                 "reason": (result.reason or "")[:200],
+                # [M0-C1] 条件信号评价口径落库（成绩单透明化）
+                "eval_mode": str(result.eval_mode or "continuous"),
+                "conditional": result.conditional or {},
             },
             status=status,
             tenant_id=_resolve_admin_tenant(),
             extra_update=(
-                {"heldout": _heldout_rec, "role": "paper"} if _paper_shadow
+                # [M0-F1/M0-C1] paper 影子：role=paper 恒写；heldout 判决非空才带
+                ({"heldout": _heldout_rec, "role": "paper"} if _heldout_rec
+                 else {"role": "paper"}) if _paper_shadow
                 else ({"heldout": _heldout_rec} if _heldout_rec else None)
             ),
         )
