@@ -51,6 +51,10 @@ class AITradeJournalService:
         Args:
             target_date: "YYYY-MM-DD"，默认昨天
         """
+        # [2026-08-23 M0-F4] 调度线程无 HTTP 身份：RLS fail-closed 会令
+        # _collect_trades 读 0 行（永远"无交易记录"），LLM 解析也被"拒绝公用"。
+        # 系统任务按 set_system_identity 穿透；HTTP 手动触发已有身份则不动。
+        self._ensure_system_identity()
         from backend.database.connection import SessionLocal
         db = SessionLocal()
         try:
@@ -92,6 +96,8 @@ class AITradeJournalService:
     # ════════════════════════ 周总结 ════════════════════════
 
     async def weekly_summary(self, target_date: Optional[str] = None) -> Dict[str, Any]:
+        # [M0-F4] 与 daily_review 同款：调度线程穿透 RLS。
+        self._ensure_system_identity()
         from backend.database.connection import SessionLocal
         db = SessionLocal()
         try:
@@ -143,6 +149,8 @@ class AITradeJournalService:
     # ════════════════════════ 月报告 ════════════════════════
 
     async def monthly_report(self, target_date: Optional[str] = None) -> Dict[str, Any]:
+        # [M0-F4] 与 daily_review 同款：调度线程穿透 RLS。
+        self._ensure_system_identity()
         from backend.database.connection import SessionLocal
         db = SessionLocal()
         try:
@@ -324,10 +332,31 @@ class AITradeJournalService:
 
     # ════════════════════════ LLM分析 ════════════════════════
 
+    @staticmethod
+    def _ensure_system_identity() -> None:
+        """[M0-F4] 调度线程无 HTTP 身份时设系统级身份穿透 RLS；
+        已有请求身份（手动触发路径）则保持不变。"""
+        try:
+            from backend.core.tenant import tenant_id_var, is_admin_var, set_system_identity
+            if tenant_id_var.get() is None and not is_admin_var.get():
+                set_system_identity()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _resolve_admin_tenant() -> "int | None":
+        try:
+            from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+            return resolve_admin_tenant_id()
+        except Exception:
+            return None
+
     async def _llm_analyze(self, trades: List[Dict], stats: Dict, period: str, date: str) -> Dict:
         try:
             from backend.services.llm_config_service import call_llm_api_sync as call_llm_api, get_llm_config_for_usage
-            config = get_llm_config_for_usage("journal")
+            # [M0-F4] 原调用无 tenant/account → 调度线程场景永远返回 None，
+            # 日复盘 LLM 分析静默退化为占位文本。补管理员租户。
+            config = get_llm_config_for_usage("journal", tenant_id=self._resolve_admin_tenant())
             if not config:
                 return {
                     "analysis": f"{period}复盘: {stats['total_trades']}笔交易, PnL={stats['total_pnl']:.2f}",
