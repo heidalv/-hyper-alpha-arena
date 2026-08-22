@@ -129,6 +129,12 @@ class MidLongActiveFactorSet:
                     "timeframe": "4h",
                     "kind": "ast",
                     "expr_ast": ast,
+                    # [2026-08-23 M0-F2] P1-C4 设计契约：TRADABLE 含 PAPER 状态，
+                    # 补偿机制①（PAPER 因子在线权重 ≤ PAPER_FACTOR_WEIGHT_CAP）
+                    # 必须同样作用于 AST 桥接因子——此前漏标 role 导致
+                    # get_active_factors 的封顶循环跳过它们（公式因子路径
+                    # 在 factor_evaluation_pipeline 强制，AST 路径无此保护）。
+                    **({"role": "paper"} if str(r.get("state") or "") == "PAPER" else {}),
                 },
                 "scores": {
                     "ic_mean": icir,   # 权重幅度代理（见 docstring）
