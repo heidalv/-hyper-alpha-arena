@@ -130,7 +130,41 @@ class StrategyEvolver:
                 "run_id": f"champ_{_uuid.uuid4().hex[:8]}",
             }
             # 写 BacktestRun，标注 parent_run_id（P1-1）
-            self._save_champion_with_lineage(db, tpl, champion, parent_run_id)
+            # [2026-08-23 M0-E1] 长进化（~70min）期间原 db 会话被 PG 掐断
+            # （server closed the connection unexpectedly）→ 冠军保存失败、
+            # 整个 NSGA-II 结果作废。此处捕获连接失效并换全新会话重试：
+            # 回测分数已在内存，重试只重做落库（幂等 run_id 去重由 BacktestRun
+            # 的 run_id 唯一性保证，重试不会写两份）。
+            _retry_tpl = None   # 重试会话上的模板引用（晋升阶段用）
+            try:
+                self._save_champion_with_lineage(db, tpl, champion, parent_run_id)
+            except Exception as _save_err:
+                _e_txt = str(_save_err)
+                if "server closed the connection" in _e_txt or "connection" in _e_txt.lower():
+                    logger.warning(
+                        "[Evolver] 冠军落库连接失效，换新会话重试: %s",
+                        _e_txt[:120],
+                    )
+                    from backend.database.connection import SessionLocal as _SL2
+                    from backend.database.models import StrategyTemplate as _ST2
+                    _db2 = _SL2()
+                    try:
+                        _tpl2 = _db2.query(_ST2).filter(
+                            _ST2.template_id == tpl.template_id
+                        ).first()
+                        if _tpl2 is None:
+                            raise ValueError("template not found on retry session")
+                        self._save_champion_with_lineage(_db2, _tpl2, champion, parent_run_id)
+                        _db2.commit()
+                        _retry_tpl = _tpl2
+                        logger.info("[Evolver] 冠军落库重试成功 run_id=%s", champion["run_id"])
+                    finally:
+                        try:
+                            _db2.close()
+                        except Exception:
+                            pass
+                else:
+                    raise
 
             # ── 整改#19：写入 MAP-Elites 多样性冠军库（按 regime×tier×vol 行为格）──
             try:
@@ -163,8 +197,28 @@ class StrategyEvolver:
             try:
                 promoted = False
                 if self._should_promote(champion, tier):
-                    self._promote_template_with_lineage(db, tpl, champion)
-                    promoted = True
+                    # [M0-E1] 原会话已死时晋升也要换新会话，否则 promote 静默失败
+                    # 冠军参数永远到不了模板/gates（进化白跑）。
+                    if _retry_tpl is not None:
+                        from backend.database.connection import SessionLocal as _SL3
+                        from backend.database.models import StrategyTemplate as _ST3
+                        _db3 = _SL3()
+                        try:
+                            _tpl3 = _db3.query(_ST3).filter(
+                                _ST3.template_id == tpl.template_id
+                            ).first()
+                            if _tpl3 is not None:
+                                self._promote_template_with_lineage(_db3, _tpl3, champion)
+                                _db3.commit()
+                                promoted = True
+                        finally:
+                            try:
+                                _db3.close()
+                            except Exception:
+                                pass
+                    else:
+                        self._promote_template_with_lineage(db, tpl, champion)
+                        promoted = True
                 champion["promoted"] = promoted
             except Exception as e:
                 logger.warning(f"[Evolver] promote 失败（不影响保存）: {e}")
