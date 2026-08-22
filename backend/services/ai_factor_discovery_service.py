@@ -100,18 +100,32 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
                 get_llm_config_for_usage,
                 call_llm_api_sync,
             )
-            config = get_llm_config_for_usage("factor_mining")
-            if not config or not config.api_key:
-                logger.warning("[AIFactor] 无可用 LLM 配置（factor_mining），跳过本轮")
-                return []
-            resp_data = call_llm_api_sync(
-                config,
-                messages=[{"role": "user", "content": self.build_discovery_prompt(patterns)}],
-                response_format={"type": "json_object"},
-                max_tokens=3000,
-                temperature=0.5,
-                caller="ai_factor_discovery",
-            )
+            # [2026-08-23 M0-F3] 调度器线程无 HTTP 身份：此前调用不带 tenant/account，
+            # get_llm_config_for_usage 直接返回 None（"拒绝公用 LLM"）→ 因子挖掘链
+            # 每 10 分钟空转（日志实测 "[AIFactor] 无可用 LLM 配置（factor_mining）"）。
+            # 租户326 已配置专用 factor_mining 模型（id=84 Ollama Qwen3-14B 本地 /
+            # id=85 DeepSeek 云端降级）。修复：system_identity() 穿透 RLS +
+            # 显式 tenant_id，与 get_admin_coin_select_llm 同款模式。
+            _tid = None
+            try:
+                from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+                _tid = resolve_admin_tenant_id()
+            except Exception:
+                _tid = None
+            from backend.core.tenant import system_identity
+            with system_identity():
+                config = get_llm_config_for_usage("factor_mining", tenant_id=_tid)
+                if not config or not config.api_key:
+                    logger.warning("[AIFactor] 无可用 LLM 配置（factor_mining），跳过本轮")
+                    return []
+                resp_data = call_llm_api_sync(
+                    config,
+                    messages=[{"role": "user", "content": self.build_discovery_prompt(patterns)}],
+                    response_format={"type": "json_object"},
+                    max_tokens=3000,
+                    temperature=0.5,
+                    caller="ai_factor_discovery",
+                )
             resp = None
             if resp_data:
                 choices = resp_data.get("choices") or []
