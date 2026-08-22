@@ -1433,6 +1433,38 @@ def register_evolution_tasks():
         )
         logger.info("[EvoScheduler] 已注册短线元标签每日训练任务（06:30）")
 
+        # [2026-08-23 M0-L5] 隔离因子自动复评晋升：GP 进化产出被判 QUARANTINE 后，
+        # 此前只有手工 API（/api/compute/evolution/repromote-quarantine）能拉回 PAPER，
+        # 生产环境从未调用 → 进化仓 AST 因子永远进不了中线投票（_tradable_ast_bridge 恒空）。
+        # 挂每日定时任务：仍有表达式、近期净 IC 达标的因子回 PAPER（影子交易，权重封顶），
+        # 不直接 ACTIVE——与「让因子能进、能被消费、用实盘数据学习」方向一致。
+        try:
+            def _repromote_quarantine():
+                from backend.services.evolution.repromote_quarantine import (
+                    repromote_quarantine_factors,
+                )
+                res = repromote_quarantine_factors(period="4h", limit=40)
+                if res.get("promoted"):
+                    logger.info(
+                        "[EvoScheduler] 隔离因子复评晋升: promoted=%s",
+                        [p["factor_id"] for p in res.get("promoted", [])],
+                    )
+                elif res.get("scanned"):
+                    logger.info(
+                        "[EvoScheduler] 隔离因子复评: scanned=%d promoted=0",
+                        res.get("scanned"),
+                    )
+
+            task_scheduler.add_interval_task(
+                task_func=_repromote_quarantine,
+                interval_seconds=DAY_SECONDS,
+                task_id="factor_quarantine_repromote_daily",
+                next_run_time=_next_daily_run(4, 15),
+            )
+            logger.info("[EvoScheduler] 已注册隔离因子每日复评晋升任务（04:15）")
+        except Exception as _rq_err:
+            logger.warning(f"[EvoScheduler] 隔离因子复评晋升注册失败（非致命）: {_rq_err}")
+
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.weekly_experience_distill,
             interval_seconds=CYCLE_SECONDS,
