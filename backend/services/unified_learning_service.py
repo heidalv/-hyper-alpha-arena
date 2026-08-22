@@ -429,6 +429,23 @@ class UnifiedLearningService:
                 logger.info("[UnifiedLearning] 为系统策略 %s 创建占位父行（首次出现）", sid[:20])
                 return sid
             except Exception as e:
+                # [2026-08-23 M0-L5c] 占位父行创建竞态（paper backfill 与 mlto 学习
+                # tick 并发同策略）：flush 抛唯一冲突后回滚并重查——若已被对方建好
+                # 直接返回 sid，本会话事务不会带毒进入后续写入。
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                try:
+                    _again = (
+                        db.query(AIStrategy.strategy_id)
+                        .filter(AIStrategy.strategy_id == sid)
+                        .first()
+                    )
+                    if _again:
+                        return str(_again[0])
+                except Exception:
+                    pass
                 logger.debug("[UnifiedLearning] 占位父行创建失败 %s: %s", sid[:20], str(e)[:60])
                 return None
 
