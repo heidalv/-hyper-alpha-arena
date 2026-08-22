@@ -11,6 +11,7 @@
 import logging
 import os as _os
 import threading
+import time
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
@@ -1693,6 +1694,19 @@ def register_evolution_tasks():
                 finally:
                     _mdb.close()
                 if _should_backfill:
+                    # [2026-08-23 M0-E1d] 紧急进化（all_new 条件常在重启后立即
+                    # 满足，见 unified_learning_service / strategy_learning_service）
+                    # 会抢占 _running_evolution，导致启动补跑被静默跳过。此处最多
+                    # 等 6 小时（每 5 分钟探测一次），让快速进化先跑完再补跑
+                    # weekly 主进化——该线程为 daemon，等待不阻塞交易主循环。
+                    for _wait in range(72):
+                        if not evolution_scheduler._running_evolution:
+                            break
+                        logger.info(
+                            "[EvoScheduler] 其他进化运行中，启动补跑等待 %d/72 (5min/次)...",
+                            _wait + 1,
+                        )
+                        time.sleep(300)
                     logger.info("[EvoScheduler] 24h 内无 GA 主进化记录，启动补跑 weekly_evolution")
                     evolution_scheduler.weekly_evolution()
                     logger.info("[EvoScheduler] 启动补跑 weekly_evolution 完成")
