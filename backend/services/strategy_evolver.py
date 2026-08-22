@@ -343,12 +343,31 @@ class StrategyEvolver:
                       generations: int = 12, population_size: int = 16) -> Optional[Dict]:
         """对指定模板运行一轮完整进化（供 evolution_scheduler 降级调用）"""
         from backend.database.models import StrategyTemplate
+        # [2026-08-23 M0-E1b] 调用方（紧急进化 GA 阶段）的 db 会话连接可能已被
+        # PG 2min / LeakGuard 强杀且事务失效：先 rollback 复位，让后续查询从
+        # 连接池拿全新连接，避免 "Can't reconnect until invalid transaction..."。
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        # 模板查询后不再 expire 属性：commit/rollback 后 tpl 字段仍缓存可用，
+        # 长进化期间不会为读取属性重开事务（重开即被强杀）。
+        try:
+            db.expire_on_commit = False
+        except Exception:
+            pass
         tpl = db.query(StrategyTemplate).filter(
             StrategyTemplate.template_id == template_id
         ).first()
         if not tpl:
             logger.warning(f"[Evolver] run_evolution: 模板 {template_id} 不存在")
             return None
+        # [M0-E1b] 立即结束查询事务：_evolve_pipeline_template 的数十分钟回测
+        # 循环不使用 db，事务挂着只会被 PG/LeakGuard 强杀。
+        try:
+            db.commit()
+        except Exception:
+            pass
 
         tier = getattr(tpl, "tier", None) or "mid"
         cfg = {
@@ -362,6 +381,16 @@ class StrategyEvolver:
             champion = self._evolve_pipeline_template(db, tpl, cfg)
             if champion and self._should_promote(champion, tier):
                 self._promote_template(db, tpl, champion)
+                # [M0-E1b] 旧代码晋升后从不 commit，模板参数/评级从未落地；
+                # 且长回测后原连接大概率已死——换短事务提交并容忍失败。
+                try:
+                    db.commit()
+                except Exception as _pe:
+                    logger.warning(f"[Evolver] run_evolution 晋升提交失败(已尽力): {_pe}")
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
                 logger.info(f"[Evolver] run_evolution: {tpl.name} 已晋升 Sharpe={champion.get('sharpe', 0):.2f}")
             return champion
         except Exception as e:

@@ -1054,6 +1054,10 @@ class EvolutionScheduler:
 
         # strategy_templates 在主库（同 weekly_evolution 的会话修复）
         db = SessionLocal()
+        # [2026-08-23 M0-E1b] 紧急进化 GA（10代×10种群）也长达数十分钟：
+        # 与 weekly_evolution 同款事务纪律——查询后立即 commit/rollback，
+        # 回测期间零 open transaction，杜绝 PG 2min / LeakGuard 强杀。
+        db.expire_on_commit = False
         try:
             from backend.database.models import StrategyTemplate
             from backend.services.genetic_optimizer import GeneticOptimizer, Individual
@@ -1067,6 +1071,11 @@ class EvolutionScheduler:
                 target_ids = [t.template_id for t in targets]
             else:
                 target_ids = [template_id]
+
+            try:
+                db.commit()   # [M0-E1b] 结束目标列表查询事务
+            except Exception:
+                pass
 
             if not target_ids:
                 logger.info("[EvoScheduler] 无新晋升模板需要紧急进化")
@@ -1094,12 +1103,21 @@ class EvolutionScheduler:
                     except Exception as _seed_err:
                         logger.debug(f"[EvoScheduler] seed_genome 提取失败(放行) {tid}: {_seed_err}")
 
+                    # [M0-E1b] 结束 seed 提取事务：随后 GA 数十分钟不使用 db。
+                    try:
+                        db.commit()
+                    except Exception:
+                        pass
+
                     def _make_fitness(tpl_id, _evolver, _db):
                         def fitness_fn(genome: dict) -> Individual:
                             try:
                                 tpl = _db.query(StrategyTemplate).filter(
                                     StrategyTemplate.template_id == tpl_id
                                 ).first()
+                                # [M0-E1b] 查询后立即结束事务：单次回测（可达数十秒）
+                                # 期间不持有 idle-in-transaction。
+                                _db.commit()
                                 if tpl:
                                     result = _evolver._run_single_backtest_for_genome(
                                         template=tpl, genome=genome, db=_db
@@ -1113,7 +1131,12 @@ class EvolutionScheduler:
                                             total_trades=int(result.get("total_trades", 0)),
                                         )
                             except Exception:
-                                pass
+                                # [M0-E1b] 复位失效事务，下一次 fitness 查询才能
+                                # 从连接池拿全新连接（否则整轮 GA 全零分）。
+                                try:
+                                    _db.rollback()
+                                except Exception:
+                                    pass
                             return Individual(
                                 genome=genome, fitness=0, sharpe=-1,
                                 max_drawdown=1, total_trades=0,
@@ -1132,6 +1155,12 @@ class EvolutionScheduler:
                         tpl_obj = db.query(StrategyTemplate).filter(
                             StrategyTemplate.template_id == tid
                         ).first()
+                        # [M0-E1b] 结束查询事务：persist_genetic_result 内部走全新
+                        # 短会话，本事务不 commit 只会白挂到下一模板被强杀。
+                        try:
+                            db.commit()
+                        except Exception:
+                            pass
                         champion = None
                         if tpl_obj is not None:
                             champion = evolver.persist_genetic_result(
