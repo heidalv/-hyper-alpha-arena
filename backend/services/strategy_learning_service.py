@@ -983,6 +983,11 @@ class StrategyLearningService:
                 template_text=optimized_text,
                 system_template_text=prompt_tpl.system_template_text,
                 is_system="false",
+                # [2026-08-22 M0-L3] 继承基线模板的渲染语义：is_legacy/required_placeholders
+                # 一并复制，避免进化版掉进 legacy 渲染路径（否则 format_map 语义与基线
+                # 不一致、决策链退化）。
+                is_legacy=getattr(prompt_tpl, "is_legacy", "true"),
+                required_placeholders=getattr(prompt_tpl, "required_placeholders", None),
                 created_by="prompt_evolution",
             )
             db.add(new_prompt)

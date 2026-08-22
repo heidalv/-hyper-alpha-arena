@@ -346,6 +346,45 @@ def get_llm_config_for_account(account_id: int, tier: str = "quick") -> Optional
         db.close()
 
 
+def resolve_llm_for_legacy_account(
+    account,
+    usage: str = "legacy",
+    tier: str = "quick",
+) -> Optional[LLMConfig]:
+    """[2026-08-23 M0-L4] 旧签名兼容垫片——2026-08-15 LLM 统一重构时函数被删
+    但 5 个调用方未同步（ai_prompt_generation / ai_signal_generation /
+    kline_ai_analysis / asset_snapshot / hyperliquid_snapshot），导致
+    prompt 进化等链路 ImportError 死链。语义与旧实现一致（fail-closed）：
+    按账户归属租户走统一解析，账户绑定优先、其次用途绑定，绝不回退旧字段/公用 Key。
+    """
+    if account is None:
+        logger.warning("[LLM] resolve_llm_for_legacy_account: account=None，拒绝解析")
+        return None
+    aid = None
+    tid = None
+    try:
+        aid = getattr(account, "id", None)
+        tid = getattr(account, "user_id", None)
+    except Exception:
+        pass
+    if not aid and not tid:
+        logger.error("[LLM-AUTHORITY] legacy account 无 id/user_id，拒绝解析 LLM")
+        return None
+    if aid:
+        cfg = get_llm_config_for_account(int(aid), tier=tier)
+        if cfg is not None:
+            return cfg
+    if tid:
+        cfg = get_llm_config_for_usage(usage, tenant_id=int(tid), tier=tier)
+        if cfg is not None:
+            return cfg
+    logger.warning(
+        "[LLM-AUTHORITY] legacy account=%s usage=%s tier=%s 统一解析失败（fail-closed）",
+        aid, usage, tier,
+    )
+    return None
+
+
 # 非交易用途注册表：供「后台指定」LLM 配置使用（设置 → LLM 配置 → 用途分配）。
 # key 与 llm_configurations.usage_scope 中逗号分隔的值对应。
 LLM_USAGE_REGISTRY = {
