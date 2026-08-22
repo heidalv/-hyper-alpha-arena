@@ -346,9 +346,15 @@ class MidLongActiveFactorSet:
             tf = str((rec.get("extra") or {}).get("timeframe") or "4h").lower()
             if tf not in by_tf:
                 continue
+            _extra = rec.get("extra") or {}
             # [2026-08-16 修复] 公式因子不在 registry：factor_service.compute 会报
             # "not found in registry" 刷 ERROR；单独走公式计算路径。
-            if str(rec.get("formula") or "").strip():
+            # [2026-08-23 M0-E1e] kind=ast（进化仓 TRADABLE 桥接，expr_ast 求值）
+            # 同样不在 registry，误走 compute 会按因子逐个刷 KeyError。
+            # _factor_history 内部已支持 AST 求值（与路由投票同一路径）。
+            if str(rec.get("formula") or "").strip() or (
+                str(_extra.get("kind") or "") == "ast" and _extra.get("expr_ast")
+            ):
                 formula_recs.append(rec)
                 continue
             by_tf[tf].append(rec["factor_id"])
