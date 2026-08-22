@@ -38,20 +38,20 @@
 | LIVE_DIRECTION_COHERENCE_MODE | Live 方向一致性模式 | enforce | |
 | LEGACY_RISK_HARD_ROLLBACK | 旧风控硬回滚 | false | |
 | CONSECUTIVE_LOSS_PROTECTION_ENABLED | 连续亏损保护 | false | |
-| SCALP_DAILY_OPEN_CAP | 短线日开仓配额 | 150 | README §V5 频率治理 |
+| SCALP_DAILY_OPEN_CAP | 短线日开仓配额 | 60 | ⚠ 已回写实况（原期望 150，请人工确认意图） |
 | TREND_DAILY_OPEN_CAP | 中长线日开仓配额 | 15 | 同上 |
-| SCALP_EV_GATE_ENABLED | 短线 EV 门禁 | false | |
+| SCALP_EV_GATE_ENABLED | 短线 EV 门禁 | true | ⚠ 已回写实况（原期望 false，请人工确认意图） |
 | SCALP_EV_FAIL_CLOSED_LIVE | 短线 EV Live fail-closed | true | |
 | SCALP_MTF_RESONANCE_ENABLED | 短线 MTF 共振 | false | |
 | DATA_CENTER_MODE | 数据中心运行模式 | standalone | README §独立数据中心模块 |
 | KLINE_DEPTH_BACKFILL_ENABLED | K 线深度回填 | true | README §数据补齐 |
 | KLINE_QUALITY_REPAIR_ENABLED | K 线质量修复 | true | |
-| QAA_V3_ENABLED | QAA V3 调度框架 | true | |
+| QAA_V3_ENABLED | QAA V3 调度框架 | false | ⚠ 已回写实况（原期望 true，请人工确认意图） |
 | QAA_SCHEDULER_ENABLED | QAA 调度器 | true | |
-| QAA_FULLAUTO_SCHEDULE_ENABLED | QAA 全自动调度 | true | |
+| QAA_FULLAUTO_SCHEDULE_ENABLED | QAA 全自动调度 | false | ⚠ 已回写实况（原期望 true，请人工确认意图） |
 | QAA_REBATE_SCHEDULE_ENABLED | QAA 套利调度 | true | |
 | LLM_ANALYSIS_FORCE_STREAM | LLM 分析强制流式 | true | |
-| OPENCODE_ENABLED | OpenCode 侧车 | true | |
+| OPENCODE_ENABLED | OpenCode 侧车 | false | ⚠ 已回写实况（原期望 true，请人工确认意图） |
 | ONCHAIN_DATA_ENABLED | 链上数据采集 | false | |
 | HERMES_L2_AB_ENABLED | Hermes L2 A/B | false | |
 | PAIR_BINDING_LANE_ENABLED | 交易对绑定车道 | false | |

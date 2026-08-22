@@ -69,8 +69,16 @@ class ScalpActiveFactorSet:
             wmap = resolve_combo_weights(active, weights)
         except Exception:
             wmap = {str(r.get("factor_id") or ""): weights.get(r.get("factor_id"), 1.0) for r in active}
+        # [M0-F1 2026-08-22] role=paper 影子因子权重封顶（与中线同一口径）。
+        try:
+            from backend.config.settings import PAPER_FACTOR_WEIGHT_CAP as _PWC
+            _paper_cap = float(_PWC or 0.5)
+        except Exception:
+            _paper_cap = 0.5
         for rec in active:
             rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 1.0)
+            if str((rec.get("extra") or {}).get("role") or "") == "paper":
+                rec["runtime_weight"] = min(float(rec["runtime_weight"] or 1.0), _paper_cap)
         return active
 
     @staticmethod

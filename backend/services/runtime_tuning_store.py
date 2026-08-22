@@ -322,16 +322,52 @@ def rollback_snapshot(proposal_id: int) -> bool:
 
 
 def runtime_gates_compat() -> Dict[str, Any]:
-    """供 unified_gate 向后兼容。"""
+    """供 unified_gate 向后兼容。
+
+    [2026-08-22 M0-G1] 只有**偏离 schema 默认值**的受管键才作为运行时 override
+    返回——此前 get_all_tuning() 总是把 _DEFAULT_SCHEMA 默认值合并进来，导致
+    "从未显式调参"时 min_risk_reward=1.8 等默认值被当成运维显式 override，把
+    .env 的 paper 基准（V5_TREND_MIN_RR_PAPER=1.6 / SWING 1.5）向上顶到 1.8，
+    与 unified_gate P1-2 注释"runtime 仅当运维显式写入时才作上调"的语义矛盾
+    （用户方向：不收紧门禁）。apply_patches 会把完整 schema 写回文件，所以
+    "键存在于文件"不能作为显式判据；以"文件值与默认值不同"为准。
+    """
     data = get_all_tuning()
     out: Dict[str, Any] = {}
     for k in ("max_daily_trades", "scalp_min_confidence", "min_risk_reward",
               "daily_cap_base"):
-        v = get_tuning(k)
-        if v is not None:
-            out[k] = v
+        _schema = _DEFAULT_SCHEMA.get(k)
+        _file_val = get_tuning(k)
+        if _file_val is None:
+            continue
+        _default_val = _schema.get("value") if isinstance(_schema, dict) else _schema
+        try:
+            _deviates = abs(float(_file_val) - float(_default_val)) > 1e-9
+        except (TypeError, ValueError):
+            _deviates = _file_val != _default_val
+        if _deviates:
+            out[k] = _file_val
     if "disabled_natures" in data:
         out["disabled_natures"] = data["disabled_natures"]
+    # [2026-08-22 M0-G1b] by_nature 只返回**偏离 schema 默认值**的条目——
+    # 与顶层键同口径：schema 默认（swing conf 55 / trend min_score 68 /
+    # trend RR 1.8 等）曾被无条件当"运行时上调"注入 unified_gate，把 .env
+    # 声明的 paper 基准（swing gate 33 / trend conf 50 / paper RR 1.6）系统性
+    # 顶高。默认值不再作为 override，运维/进化显式写入的偏离值仍生效。
     if "by_nature" in data and isinstance(data["by_nature"], dict):
-        out["by_nature"] = data["by_nature"]
+        _default_bn = _DEFAULT_SCHEMA.get("by_nature") or {}
+        _bn_out: Dict[str, Any] = {}
+        for _nature, _fields in data["by_nature"].items():
+            if not isinstance(_fields, dict):
+                continue
+            _base = _default_bn.get(_nature)
+            _base = _base if isinstance(_base, dict) else {}
+            _dev: Dict[str, Any] = {}
+            for _k, _v in _fields.items():
+                if _v != _base.get(_k):
+                    _dev[_k] = _v
+            if _dev:
+                _bn_out[_nature] = _dev
+        if _bn_out:
+            out["by_nature"] = _bn_out
     return out

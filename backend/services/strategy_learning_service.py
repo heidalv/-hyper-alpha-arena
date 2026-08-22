@@ -811,7 +811,7 @@ class StrategyLearningService:
         except ImportError:
             pass
 
-        if not lessons and not patterns.get("failure_patterns"):
+        if not lessons and not patterns.get("failure_patterns") and not patterns.get("success_patterns"):
             return False
 
         try:

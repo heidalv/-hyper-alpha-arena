@@ -79,8 +79,19 @@ class MidLongActiveFactorSet:
             wmap = resolve_combo_weights(active, weights)
         except Exception:
             wmap = {str(r.get("factor_id") or ""): weights.get(r.get("factor_id"), 1.0) for r in active}
+        # [M0-F1 2026-08-22] role=paper 因子（held-out 未过但 A/B 级晋升的影子因子）
+        # 权重封顶 PAPER_FACTOR_WEIGHT_CAP，与短线 PAPER 因子同一上限口径，
+        # 让影子因子参与投票但不主导决策。
+        try:
+            from backend.config.settings import PAPER_FACTOR_WEIGHT_CAP as _PWC
+            _paper_cap = float(_PWC or 0.5)
+        except Exception:
+            _paper_cap = 0.5
         for rec in active:
-            rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 1.0)
+            _fid = str(rec.get("factor_id") or "")
+            rec["runtime_weight"] = wmap.get(_fid, 1.0)
+            if str((rec.get("extra") or {}).get("role") or "") == "paper":
+                rec["runtime_weight"] = min(float(rec["runtime_weight"] or 1.0), _paper_cap)
         return active
 
     @staticmethod

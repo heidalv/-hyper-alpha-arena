@@ -977,9 +977,30 @@ class FactorBacktestScorer:
 
         # active 因子集上限保护（按 horizon 分别计数）
         status = "active" if result.admitted else "rejected"
+        _paper_shadow = False
         if not result.admitted and _heldout_rec.get("verdict") in ("reject", "error"):
-            # held-out 拒绝/异常 → 留在候选池等待更多数据复验，而非直接淘汰
-            status = "candidate"
+            # [2026-08-22 M0-F1] held-out 判决拒绝不再永久滞留候选池：
+            # 训练段 A/B 级因子因判决段样本/口径问题被拒（如 verdict IC=0.0 的
+            # 反转类因子），此前 status=candidate 且判决窗口固定 → "待更多数据
+            # 复验"实际永不满足 → 挖掘产出 0 晋升。现改为：A/B 级 → 晋升为
+            # active 但打标 extra.role=paper（纸面影子，权重受
+            # PAPER_FACTOR_WEIGHT_CAP 上限），由衰减复检(recheck_and_prune)
+            # 与真实成交 IC 反馈兜底——符合"让因子能进、能被消费、用实盘数据
+            # 学习"的方向（前期允许亏损，不收紧门禁）；C/D/F 级仍留候选。
+            if str(result.grade or "").upper() in ("A", "B"):
+                status = "active"
+                _paper_shadow = True
+                result.admitted = True
+                result.reason += (
+                    f" | held-out 判决未过 → 纸面影子晋升(role=paper，权重≤"
+                    f"{_cfg('PAPER_FACTOR_WEIGHT_CAP', 0.5)})，以实盘 IC 反馈继续学习"
+                )
+                logger.info(
+                    "[FactorScorer] %s held-out 拒绝但 A/B 级 → 纸面影子晋升: %s",
+                    factor_id, _heldout_rec,
+                )
+            else:
+                status = "candidate"
         if result.admitted:
             try:
                 if _horizon == "midlong":
@@ -1027,7 +1048,10 @@ class FactorBacktestScorer:
             },
             status=status,
             tenant_id=_resolve_admin_tenant(),
-            extra_update={"heldout": _heldout_rec} if _heldout_rec else None,
+            extra_update=(
+                {"heldout": _heldout_rec, "role": "paper"} if _paper_shadow
+                else ({"heldout": _heldout_rec} if _heldout_rec else None)
+            ),
         )
         # 晋升后热加载，让 active 公式因子进入 compute_all_factors
         if status == "active":

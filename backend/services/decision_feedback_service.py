@@ -476,8 +476,11 @@ class DecisionFeedbackService:
                 applied["disabled_natures"] = disabled[:3]
 
             # 规则2：整体手续费吃掉毛利 >30% → 收紧当日额度（仅额度开关开启时）
+            # [2026-08-22 M0-F2] paper 训练期同样跳过——用户明确"前期不怕亏钱、
+            # 不要收紧门禁"，模拟盘目的是开单攒样本，自动收紧与训练目标矛盾；
+            # live 模式保留（真实资金保护）。规则4 反向放松不受影响。
             fee_ratio = summary.get("fee_gross_ratio")
-            if fee_ratio is not None and fee_ratio > 0.30:
+            if fee_ratio is not None and fee_ratio > 0.30 and _trading_mode != "paper":
                 try:
                     from backend.config.settings import V5_DAILY_TRADE_CAP_ENABLED
                     if V5_DAILY_TRADE_CAP_ENABLED:
@@ -486,9 +489,10 @@ class DecisionFeedbackService:
                     pass
 
             # 规则3：平均亏损仍 > 平均盈利 → 盈亏比门槛 1.8→2.0
+            # [2026-08-22 M0-F2] paper 训练期跳过（同上：训练期不自动收紧）。
             avg_win = summary.get("avg_win", 0) or 0
             avg_loss = summary.get("avg_loss", 0) or 0
-            if avg_loss > 0 and avg_win > 0 and avg_loss > avg_win:
+            if avg_loss > 0 and avg_win > 0 and avg_loss > avg_win and _trading_mode != "paper":
                 applied["min_risk_reward"] = 2.0
 
             # 规则4（反向放松，闭环双向化）：胜率持续向好 + 赚多亏少 + 未触发任何收紧

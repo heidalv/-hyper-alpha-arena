@@ -518,6 +518,18 @@ def initialize_sync_services():
         except Exception as e:
             logger.error(f"衰减任务注册失败: {e}")
 
+        # [2026-08-22 M0-L1] 多频率训练复评调度：register_training_jobs() 定义了
+        # 12 个学习任务（15m/1h/4h 周期复评、概念漂移检测、组合再平衡、晋升扫描、
+        # 冠军恢复等），此前全仓唯一调用点是单测文件 → 生产环境多频率复盘与漂移
+        # 检测整体从未运行（学习进化"半通"根因之一）。此处挂进启动流程，
+        # 任何任务异常都在其内部被吞并记日志，不影响主循环。
+        try:
+            from backend.services.training_orchestrator import register_training_jobs
+            register_training_jobs()
+            logger.info("[Startup] 多频率训练复评任务已注册（training_orchestrator）")
+        except Exception as e:
+            logger.error(f"多频率训练复评任务注册失败（非致命）: {e}")
+
         # [2026-07-30] 学习进化调度曾禁用（无用功能 + 资源浪费）
         # [2026-08-06] 恢复：v6 验证要求学习进化 + OpenCode 调度真实运行
         # [2026-08-17] OpenCode 调度器已删除，只保留进化调度。

@@ -547,9 +547,23 @@ def _auto_fill_tenant_id(session, _flushcontext, _instances):
     所有行落 DB DEFAULT 1，配合 FORCE RLS 造成"仓位写入错误租户、属主被静默
     屏蔽"。改用 SQLAlchemy 映射检查（mapper.column_attrs），只要模型声明了
     列就生效。
+    [2026-08-22 M1-1b] 修复：兜底租户与 _set_tenant_guc 对齐——原实现
+    `tenant_id_var.get() or 1` 在后台线程(ContextVar 为 None)时填 1，而事务
+    GUC 兜底是 AUTH_LOCAL_TENANT(326) → 新行 tenant_id=1 与 RLS 会话变量
+    326 不符，被 FORCE RLS 拒绝（strategy_trades 平仓学习落库 16 次
+    InsufficientPrivilege，11:10 后全部断裂）。兜底统一取 AUTH_LOCAL_TENANT，
+    彻底消除"行属主与 GUC 身份分叉"这一类错误。
     """
+    import os as _os_tenant
     from backend.core.tenant import tenant_id_var
-    _default_tid = tenant_id_var.get() or 1
+    _local_tid_fallback = 1
+    _raw_local = _os_tenant.environ.get("AUTH_LOCAL_TENANT", "").strip()
+    if _raw_local:
+        try:
+            _local_tid_fallback = int(_raw_local)
+        except ValueError:
+            _local_tid_fallback = 1
+    _default_tid = tenant_id_var.get() or _local_tid_fallback
     for obj in session.new:
         try:
             _mapper = obj.__mapper__

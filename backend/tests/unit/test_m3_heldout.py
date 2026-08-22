@@ -61,9 +61,13 @@ def test_heldout_pass_then_verdict_reject(monkeypatch):
     monkeypatch.setattr("backend.services.factor_engine.custom_factor_store.custom_factor_store", store)
     r = scorer.validate_and_promote("ai_test_f")
     assert calls["n"] == 2, "应跑训练段+判决段两次打分"
-    assert r.admitted is False
-    assert store.status_written == "candidate", "held-out 拒绝应留候选池（而非 rejected）"
+    # [2026-08-22 M0-F1] 语义升级：训练段 A/B 级被 held-out 拒绝时不再永久滞留
+    # 候选池，而是晋升为 role=paper 纸面影子（权重受 PAPER_FACTOR_WEIGHT_CAP 上限），
+    # 由衰减复检与实盘 IC 反馈兜底——"让因子能进、能被消费、用实盘数据学习"。
+    assert r.admitted is True
+    assert store.status_written == "active", "A/B 级 held-out 拒绝 → 纸面影子晋升 active(role=paper)"
     assert store.extra_written and store.extra_written["heldout"]["verdict"] == "reject"
+    assert store.extra_written.get("role") == "paper"
 
 
 def test_heldout_verdict_pass(monkeypatch):

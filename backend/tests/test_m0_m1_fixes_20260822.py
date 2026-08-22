@@ -151,6 +151,14 @@ def test_auto_fill_tenant_hook_sees_declared_column():
         _auto_fill_tenant_id(fs, None, None)
     finally:
         tenant_id_var.set(None)
-    assert fs.new[0].tenant_id == 1  # 声明列 → 填充默认 1
+    # [2026-08-22 M1-1b] 兜底与事务 GUC 对齐：AUTH_LOCAL_TENANT 优先，否则 1。
+    # 旧行为恒填 1 与 RLS GUC(326) 分叉 → strategy_trades 后台写入被 RLS 拒绝。
+    import os as _os
+    _expected = 1
+    try:
+        _expected = int(str(_os.environ.get("AUTH_LOCAL_TENANT", "1") or "1"))
+    except ValueError:
+        _expected = 1
+    assert fs.new[0].tenant_id == _expected  # 声明列 → 填充与 GUC 一致的兜底租户
     assert getattr(fs.new[1], "tenant_id", None) is None  # 未声明 → 不填（保持 None）
     assert not hasattr(fs.new[2], "tenant_id")
