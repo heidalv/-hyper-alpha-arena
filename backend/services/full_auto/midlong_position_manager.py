@@ -204,6 +204,44 @@ def _tier_of(position: Dict[str, Any]) -> str:
     return "mid"
 
 
+def _review_min_hold_check(db, *, position, pos_tier: str, pnl_pct: float,
+                           hold_hours: float, side: str, sym: str) -> Dict[str, Any]:
+    """[2026-08-22 M0-11] 复查平仓 min_hold 保护。
+
+    规则版/LLM 版方向复查的 "close" 决策，只有满足下述之一才放行：
+      - 持仓已超过该 tier 的 min_hold_sec（mid 12h / long 72h，取自
+        TIER_PROTECTION_PARAMS，与 master_close_guard 同契约）；
+      - 保证金口径亏损 ≥ min_hold_emergency_loss_pct（默认 6%，紧急豁免）；
+      - tier 配置缺失/无法读取（fail-open，不改变旧行为）。
+    返回 {"ok": bool, "detail": str}。
+    """
+    try:
+        from backend.config.settings import TIER_PROTECTION_PARAMS as _TPP
+        tier_norm = (pos_tier or "mid").strip().lower()
+        if tier_norm not in ("mid", "long"):
+            return {"ok": True, "detail": f"tier={tier_norm} 非 mid/long，放行"}
+        _tier_cfg = _TPP.get(tier_norm, _TPP.get("mid", {}))
+        _min_hold_sec = float(_tier_cfg.get("min_hold_sec") or 0)
+        if _min_hold_sec <= 0:
+            return {"ok": True, "detail": f"tier={tier_norm} min_hold_sec 未配置，放行"}
+        if hold_hours * 3600.0 >= _min_hold_sec:
+            return {"ok": True, "detail": f"held {hold_hours:.1f}h ≥ min_hold {_min_hold_sec/3600:.1f}h"}
+        # 紧急亏损豁免：margin 口径亏损超过阈值（与 master_close_guard 同口径：
+        # min_hold_emergency_loss_pct = 保证金口径 6%）
+        _emerg_pct = float(_tier_cfg.get("min_hold_emergency_loss_pct") or 6) / 100.0
+        _margin_pct = abs(pnl_pct)
+        if _margin_pct >= _emerg_pct:
+            return {"ok": True, "detail": f"emergency loss {_margin_pct:.1%}≥{_emerg_pct:.1%}，豁免"}
+        return {
+            "ok": False,
+            "detail": (f"{side} {sym} held {hold_hours:.1f}h < min_hold "
+                       f"{_min_hold_sec/3600:.1f}h，仓位兑现窗口未到（M0-11）"),
+        }
+    except Exception as _e:
+        logger.debug("[MidLong] stage=manage %s review_min_hold 检查异常(放行): %s", sym, _e)
+        return {"ok": True, "detail": f"检查异常放行: {_e}"}
+
+
 def _held_hours(position: Dict[str, Any], db=None) -> float:
     """持仓时长（小时）。优先 ORM 的 opened_at；dict 兜底。"""
     pid = position.get("id")
@@ -969,6 +1007,25 @@ def manage_position(
 
     # ═══ 决策合并（单一优先级：close > pyramid(add) > tighten > reduce[仅浮亏] > hold）═══
     if _review_action == "close":
+        # [2026-08-22 M0-11] 复查平仓必须尊重 tier min_hold（mid 12h / long 72h，
+        # TIER_PROTECTION_PARAMS 契约），否则 1-4h 内被规则复查碎平。
+        # 实测证据（_audit_exit_channels）：swing 的 trend_broken 58 笔均持 1.0h
+        # 合计 -13.5、master_running_close 30 笔均持 4.0h 合计 -12.4 —— 全部碎平；
+        # 而活到 6h+ 的通道全部为正（dust_cleanup 8.8h +14.2 / breakeven 6h +4.8 /
+        # max_hold_timeout 35.4h +4.1 / emergency 19.3h +5.9 / trend_follow 54.4h +29.3）。
+        # 设计结构（TP 8.9%/SL 4.6% ⇔ RR≈1.94；trend TP16.5%/SL6.8% ⇔ RR≈2.4）需要
+        # 兑现窗口；1-4h 的 4h/1d 指标复查只是开仓噪声，不是论点破坏。
+        # 紧急亏损（min_hold_emergency_loss_pct：保证金口径 6%）仍可提前离场。
+        _mh_res = _review_min_hold_check(db, position=position, pos_tier=pos_tier,
+                                         pnl_pct=pnl_pct, hold_hours=hold_hours,
+                                         side=side, sym=sym)
+        if not _mh_res.get("ok", True):
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s 复查平仓被 min_hold 保护拦截: %s",
+                sym, position.get("id"), _mh_res.get("detail", ""),
+            )
+            return _summary(f"min_hold 保护: {_mh_res.get('detail', '')}", action="manage_hold")
+
         _exec_close(db, account_id=account_id, position=position,
                     reason=f"trend_broken: {_reason_base}", host=host, session=session)
         logger.info(
