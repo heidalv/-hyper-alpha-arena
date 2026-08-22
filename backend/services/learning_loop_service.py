@@ -371,6 +371,12 @@ class LearningLoopService:
                         "[LearningLoop] live_outcome_backfill 单笔失败 log=%s: %s",
                         getattr(log, "id", None), e,
                     )
+                    # [2026-08-23 M0-L5b] 同 paper backfill：单笔失败后回滚，
+                    # 防止 PendingRollback 状态连锁毒化后续所有笔。
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
         finally:
             db.close()
 
@@ -862,6 +868,13 @@ class LearningLoopService:
                         f"[LearningLoop] paper_outcome_backfill 单笔失败: "
                         f"pos={pos_id} strategy={strategy_id} err={e}"
                     )
+                    # [2026-08-23 M0-L5b] 单笔失败后回滚本事务：process_outcome 内部
+                    # 异常（如策略删除竞态）会让 session 进入 PendingRollback 状态，
+                    # 若不 rollback，后续所有笔全部连锁失败（一笔毒一笔整轮）。
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
         finally:
             db.close()
