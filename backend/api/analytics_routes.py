@@ -1709,15 +1709,11 @@ def get_net_performance(
         from backend.services.decision_feedback_service import decision_feedback_service
         attribution = decision_feedback_service.build_net_attribution(db, days=days)
 
-        # 当前生效的 V5 运行时门槛
+        # 当前生效的 V5 运行时门槛（RuntimeGovernor → runtime_tuning.json）
         runtime_gates = {}
         try:
-            import json as _json
-            import os as _os
-            gates_file = _os.path.join("data", "v5_runtime_gates.json")
-            if _os.path.exists(gates_file):
-                with open(gates_file, "r", encoding="utf-8") as f:
-                    runtime_gates = _json.load(f)
+            from backend.services.runtime_tuning_store import runtime_gates_compat
+            runtime_gates = runtime_gates_compat() or {}
         except Exception:
             pass
 

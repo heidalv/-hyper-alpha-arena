@@ -436,10 +436,12 @@ class DecisionFeedbackService:
     _V5_GATES_FUSE = os.path.join("data", "v5_gates_rollback.flag")
 
     def apply_gate_adjustments(self, attribution: Dict[str, Any]) -> Dict[str, Any]:
-        """把归因结论闭环写入 V5 运行时门槛（unified_gate 每 60s 重读）。
+        """把归因结论闭环写入运行时门槛（RuntimeGovernor → runtime_tuning.json，
+        决策核心 60s 缓存生效）。
 
-        保险丝：存在 data/v5_gates_rollback.flag 时不再调整并清空运行时覆盖，
-        恢复 .env 基准值（建议人工排查后删除 flag 再恢复闭环）。
+        保险丝：存在 data/v5_gates_rollback.flag 时不再调整并撤销本来源意图，
+        恢复基准值（建议人工排查后删除 flag 再恢复闭环）。残留的旧
+        v5_runtime_gates.json 文件一并清理（legacy 兼容）。
         """
         applied: Dict[str, Any] = {}
         try:

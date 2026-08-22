@@ -5,8 +5,9 @@
 
     [V5Gate] BLOCK symbol=SOL rule=daily_cap detail=...
 
-运行时可调参数从 data/v5_runtime_gates.json 读取（反馈闭环 M3 写入），
-环境变量为基准默认值。
+运行时可调参数统一经 RuntimeGovernor → data/runtime_tuning.json 下发
+（runtime_tuning_store.runtime_gates_compat，决策核心 60s 缓存生效），
+环境变量为基准默认值。旧 v5_runtime_gates.json 直读路径已退役。
 """
 
 from __future__ import annotations
@@ -19,46 +20,20 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_RUNTIME_GATES_FILE = os.path.join("data", "v5_runtime_gates.json")
+# [2026-08-23 M0-B7] 退役：v5_runtime_gates.json 不再作为门槛写入口/读入口，
+# 唯一权威是 RuntimeGovernor → runtime_tuning.json。此处的文件直读回退
+# （含 60s 缓存）全部删除，杜绝「改了文件不生效」的假开关误读。
 _runtime_cache: dict = {"ts": 0.0, "data": {}}
 
 
 def _runtime_overrides() -> dict:
-    """读取反馈闭环写入的运行时门槛（带 60s 缓存与边界保护）。"""
+    """读取 RuntimeGovernor 下发的运行时门槛（偏离 schema 默认值才算 override）。"""
     try:
         from backend.services.runtime_tuning_store import runtime_gates_compat
         return runtime_gates_compat()
-    except Exception:
-        pass
-    import time
-
-    now = time.time()
-    if now - _runtime_cache["ts"] < 60:
-        return _runtime_cache["data"]
-    data: dict = {}
-    try:
-        if os.path.exists(_RUNTIME_GATES_FILE):
-            with open(_RUNTIME_GATES_FILE, "r", encoding="utf-8") as f:
-                raw = json.load(f) or {}
-            # 边界保护：反馈闭环只能在安全区间内调整
-            if "max_daily_trades" in raw:
-                data["max_daily_trades"] = max(3, min(20, int(raw["max_daily_trades"])))
-            if "scalp_min_confidence" in raw:
-                data["scalp_min_confidence"] = max(60, min(90, int(raw["scalp_min_confidence"])))
-            if "min_risk_reward" in raw:
-                try:
-                    from backend.config.settings import V5_MAX_RUNTIME_MIN_RR
-                    _rr_cap = float(V5_MAX_RUNTIME_MIN_RR)
-                except Exception:
-                    _rr_cap = 2.5
-                data["min_risk_reward"] = max(1.2, min(_rr_cap, float(raw["min_risk_reward"])))
-            if "disabled_natures" in raw and isinstance(raw["disabled_natures"], list):
-                data["disabled_natures"] = [str(n).lower() for n in raw["disabled_natures"]][:3]
     except Exception as err:
-        logger.warning("[V5Gate] runtime gates 读取失败: %s", err)
-    _runtime_cache["ts"] = now
-    _runtime_cache["data"] = data
-    return data
+        logger.warning("[V5Gate] runtime_tuning 读取失败（使用基准默认值）: %s", err)
+        return {}
 
 
 @dataclass
