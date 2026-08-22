@@ -1635,7 +1635,12 @@ class StrategyEvolver:
                     f"[Evolver] Gate1 未通过，不予晋升: {'; '.join(gate1_result.failed_checks)}"
                 )
                 return False
-            logger.info(f"[Evolver] Gate1 通过（{len(gate1_result.passed_checks)} 项检查通过）")
+            # [2026-08-23 M0-E1g] ValidationResult 只有 failed_checks/warnings，
+            # 无 passed_checks——旧代码在此抛 AttributeError 被 except 吞掉、
+            # Gate1 形同虚设（实测 07:22 "ValidationResult object has no
+            # attribute 'passed_checks'"）。
+            _warn = len(getattr(gate1_result, "warnings", []) or [])
+            logger.info(f"[Evolver] Gate1 通过（warnings={_warn}）")
         except Exception as e:
             logger.warning(f"[Evolver] Gate1 验证异常（使用旧版门槛）: {e}")
 
