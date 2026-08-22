@@ -113,11 +113,23 @@ def run_retirement_sync(db, *, account_id: Optional[int] = None) -> Dict[str, in
 
     if is_phase2_reconcile_enabled():
         rec = get_reconcile_stats()
+        # [2026-08-22 M3-1] 自锁修复：原实现在 last_ok==0 时永久 skip DB 镜像同步，
+        # 与 C7 对拍互为死锁（漂移→last_ok=0→永不同步→漂移不修复）。
+        # 改为：跳过仍记录，但每 24 次强制同步一次打破死循环。
         if rec.get("last_ok", 1) == 0:
-            result["skipped"] = 1
-            _phase4_stats["sync_skipped"] += 1
-            logger.debug("[EventSourcing#9 Phase4] 对拍未通过，跳过 DB 镜像同步")
-            return result
+            _phase4_stats["sync_skipped"] = _phase4_stats.get("sync_skipped", 0) + 1
+            if _phase4_stats.get("sync_skipped", 0) % 24 != 0:
+                logger.warning(
+                    "[EventSourcing#9 Phase4] 对拍未通过，本次跳过 DB 镜像同步 "
+                    "(已连续 %d 次，每 24 次强制同步一次防死锁)",
+                    _phase4_stats.get("sync_skipped", 0),
+                )
+                result["skipped"] = 1
+                return result
+            logger.warning(
+                "[EventSourcing#9 Phase4] 对拍未通过但已连续跳过 24 次，强制同步一次 "
+                "(打破 漂移→跳过 死循环)"
+            )
 
     _phase4_stats["sync_runs"] = _phase4_stats.get("sync_runs", 0) + 1
     try:

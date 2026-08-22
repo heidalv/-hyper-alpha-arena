@@ -155,7 +155,34 @@ def calibrate() -> Dict[str, Any]:
         "high_score_ok": high_ok,
         "high_score_band": high_band,
         "buckets": bucket_table,
+        # [2026-08-22 M3-5] 无边际观察态：threshold=None（任何分数段都到不了盈亏
+        # 平衡）时记录继续天数，供停摆条件/告警使用；连续 3 天触发 CRITICAL 提示
+        # （短线应人工决议：继续观察 or 永久停用）。
+        "no_edge": threshold is None and high_ok is False,
     }
+
+    # M3-5：无边际天数滚动计数
+    if result.get("no_edge"):
+        _prev = load_calibration()
+        _since = float((_prev or {}).get("no_edge_since") or 0.0)
+        if _since <= 0:
+            _since = time.time()
+            logger.warning(
+                "[ScalpCalib] 校准进入「无盈利分桶」观察态：短线开仓已由 fail-closed 拦截"
+            )
+        else:
+            _days = int((time.time() - _since) / 86400) + 1
+            if _days >= 3:
+                logger.critical(
+                    "[ScalpCalib] 无盈利分桶已持续 %d 天（自 %s）：短线应人工决议——"
+                    "继续观察 or 永久停用（当前所有开仓已被 fail-closed 拦截）",
+                    _days, time.strftime("%Y-%m-%d", time.localtime(_since)),
+                )
+        result["no_edge_since"] = _since
+    else:
+        result["no_edge_since"] = 0.0
+        logger.info("[ScalpCalib] 校准出现可盈利分桶（threshold=%s），短线观察态解除",
+                    result.get("threshold"))
 
     try:
         os.makedirs(os.path.dirname(_CALIB_FILE) or ".", exist_ok=True)

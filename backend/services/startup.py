@@ -1448,3 +1448,67 @@ def schedule_auto_trading(interval_seconds: int = 300, max_ratio: float = 0.2, u
     # Execute the first trade immediately in a separate thread to avoid blocking
     initial_trade = threading.Thread(target=execute_trade, daemon=True)
     initial_trade.start()
+
+
+# ─────────────────────────────────────────────────────────────
+# [2026-08-22 M3-3] 每日对账/退出审计（凌晨 01:05 本地时间）
+# 三类不变量任一失败 → 记录 CRITICAL（供告警/人工复核）：
+#   ① orders_pnl==realized  ② orders_fee==fee  ③ equity==initial+realized-fee+unrealized
+# 同时刷新 exit_audit_report.json（分批 PnL 双计已修复后的口径）。
+# ─────────────────────────────────────────────────────────────
+try:
+    def _daily_reconcile_tick() -> None:
+        try:
+            from backend.database.connection import SessionLocal
+            from sqlalchemy import text as _t
+            db = SessionLocal()
+            try:
+                from backend.core.tenant import set_system_identity
+                set_system_identity()
+                rows = db.execute(_t("""
+                    SELECT pb.account_id,
+                           pb.initial_balance, pb.total_equity, pb.realized_pnl,
+                           pb.total_fee_paid, pb.unrealized_pnl,
+                           (SELECT coalesce(sum(o.pnl),0) FROM paper_orders o
+                             WHERE o.account_id=pb.account_id AND o.pnl IS NOT NULL) AS order_pnl,
+                           (SELECT coalesce(sum(o.fee),0) FROM paper_orders o
+                             WHERE o.account_id=pb.account_id AND o.fee IS NOT NULL) AS order_fee
+                    FROM paper_balances pb
+                """)).fetchall()
+                for r in rows:
+                    ok = (
+                        abs(float(r.realized_pnl or 0) - float(r.order_pnl or 0)) < 0.05
+                        and abs(float(r.total_fee_paid or 0) - float(r.order_fee or 0)) < 0.05
+                        and abs(float(r.total_equity) - (
+                            float(r.initial_balance) + float(r.realized_pnl or 0)
+                            - float(r.total_fee_paid or 0) + float(r.unrealized_pnl or 0)
+                        )) < 0.05
+                    )
+                    if not ok:
+                        logger.error(
+                            "[Reconcile] 对账失败 account=%s equity=%.2f realized=%.2f "
+                            "orders_pnl=%.2f fee=%.2f orders_fee=%.2f",
+                            r.account_id, float(r.total_equity), float(r.realized_pnl or 0),
+                            float(r.order_pnl or 0), float(r.total_fee_paid or 0),
+                            float(r.order_fee or 0),
+                        )
+                logger.info("[Reconcile] 每日对账完成（账户数=%d）", len(rows))
+            finally:
+                db.close()
+        except Exception as _re_e:
+            logger.error("[Reconcile] 每日对账任务异常: %s", _re_e, exc_info=True)
+        try:
+            from backend.services.close_guard_calibrator import run_exit_audit
+            report = run_exit_audit(lookback_days=30)
+            logger.info("[Reconcile] exit_audit 刷新: channels=%d", len(report or {}))
+        except Exception as _ea_e:
+            logger.warning("[Reconcile] exit_audit 刷新失败: %s", _ea_e)
+
+    task_scheduler.add_cron_task(
+        task_func=_daily_reconcile_tick,
+        task_id="daily_pnl_reconcile",
+        hour=1, minute=5, second=0,
+    )
+    logger.info("[Startup] 每日对账任务已注册 (00:05 UTC / 08:05 北京)")
+except Exception as _re_reg_err:
+    logger.warning("[Startup] 每日对账任务注册失败: %s", _re_reg_err)
