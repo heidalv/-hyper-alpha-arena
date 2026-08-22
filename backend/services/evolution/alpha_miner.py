@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Callable, Optional
 
 import numpy as np
@@ -442,11 +442,19 @@ class CodegenCritic:
         ic/oos_sharpe/trades...），禁止「感觉分」。**增益型闸**：LLM 不可用/
         解析失败 → (True, "critic_unavailable")（fail-open，同概率闸先例）；
         开关 FACTOR_CRITIC_ENABLED（默认 false）。
+
+        [35B-A3B 分工 2026-08-21] FACTOR_CRITIC_MODEL 可指定批评家专用模型
+        （如 batiai/qwen3.6-35b:q3——判定质量好且 57.5 tok/s），不影响
+        Codegen 用的主模型（qwen3:14b AST 生成更稳）。
         """
         import os as _os
         if not _os.getenv("FACTOR_CRITIC_ENABLED", "0").lower() in ("1", "true", "yes", "on"):
             return True, "critic_disabled"
         primary, fallback = self._load_configs()
+        # [35B-A3B] 批评家专用模型覆盖
+        _critic_model = _os.getenv("FACTOR_CRITIC_MODEL", "").strip()
+        if _critic_model and primary is not None:
+            primary = replace(primary, model=_critic_model)
         if not primary:
             return True, "critic_unavailable"
         try:
@@ -455,30 +463,29 @@ class CodegenCritic:
             # [模型刀] /no_think 软开关按**主配置**模型名决定（qwen3 系思考模型）
             _nt_primary = self._no_think_suffix(getattr(primary, "model", ""))
             _nt_fallback = self._no_think_suffix(getattr(fallback, "model", ""))
-            messages = [
-                {"role": "system", "content": (
-                    "你是量化因子批评家。输入是某候选因子的成绩单 JSON。"
-                    "判断它是否值得进入因子池，输出 JSON："
-                    '{"verdict": "pass"|"reject", "reason": "一句话，必须引用成绩单中的具体字段名和数值"}。'
-                    "**只按本系统闸门标准评判，不要用外部行业经验**："
-                    "A级=|ic_mean|≥0.05 且 |icir|>0.5 且 oos_sharpe≥0.3 且 oos_trades≥5；"
-                    "B级=|ic_mean|≥0.03 且 |icir|>0.3 且同上绩效；"
-                    "达到 B 级即 pass。oos_sharpe<0 或 oos_trades<5 或 |ic_mean|<0.03 才 reject。"
-                    "redundant_with 非空（已与池内因子冗余）才以冗余为由 reject。只输出 JSON。"
-                )},
-                {"role": "user", "content": _json.dumps(scorecard, ensure_ascii=False, default=str)
-                 + _nt_primary},
-            ]
+            # [35B-A3B 适配 2026-08-21] 该 MoE 模型的 chat template 收到 system prompt
+            # 会触发思考模式，把 token 上限全部吃光（finish=length, content 空）——
+            # 修复：不用 system 角色，指令合并进 user message
+            _critic_instr = (
+                "你是量化因子批评家。输入是某候选因子的成绩单 JSON。"
+                "判断它是否值得进入因子池，输出 JSON："
+                '{"verdict": "pass"|"reject", "reason": "一句话，必须引用成绩单中的具体字段名和数值"}。'
+                "**只按本系统闸门标准评判，不要用外部行业经验**："
+                "A级=|ic_mean|≥0.05 且 |icir|>0.5 且 oos_sharpe≥0.3 且 oos_trades≥5；"
+                "B级=|ic_mean|≥0.03 且 |icir|>0.3 且同上绩效；"
+                "达到 B 级即 pass。oos_sharpe<0 或 oos_trades<5 或 |ic_mean|<0.03 才 reject。"
+                "redundant_with 非空（已与池内因子冗余）才以冗余为由 reject。只输出 JSON。\n"
+                "成绩单："
+            )
             for cfg, _nt in ((primary, _nt_primary), (fallback, _nt_fallback)):
                 if not cfg or not getattr(cfg, "api_key", None):
                     continue
-                _msgs = messages if not _nt else [
-                    {**m, "content": str(m["content"]) + _nt} for m in messages
-                ]
+                _msgs = [{"role": "user", "content": _critic_instr
+                          + _json.dumps(scorecard, ensure_ascii=False, default=str) + _nt}]
                 try:
                     resp_data = call_llm_api_sync(
                         cfg, messages=_msgs,
-                        response_format={"type": "json_object"},
+                        # [35B-A3B] response_format 与 MoE 语法约束冲突致空输出，靠 prompt+解析器兜底
                         # [模型刀] 1200：qwen3 系关思考后仍耗 ~500 隐形 token，good 侧
                         # 长理由在 800 会被截断致 JSON 解析失败（critic_unavailable）
                         max_tokens=1200, temperature=0.2, caller="factor_critic",
@@ -506,10 +513,17 @@ class CodegenCritic:
 
     @staticmethod
     def _parse_json_obj(raw: str) -> Optional[dict]:
-        """[模型刀] 通用 JSON 对象解析（容错 markdown 围栏/前后缀文字）。"""
+        """[模型刀] 通用 JSON 对象解析（容错 markdown 围栏/前后缀文字/缺花括号）。
+
+        [2026-08-21 35B-A3B 适配] 社区量化 template 可能：
+        ① 输出 `"verdict": ...` 而缺外层花括号 → 自动补 {};
+        ② JSON 嵌在思考/解释文字里 → 取 { 到 } 之间的内容;
+        ③ 完全没有花括号但有 "key": "value" 对 → 正则提取构造 dict。
+        """
         if not raw:
             return None
         text = str(raw).strip()
+        # 去掉 ```json ... ``` 代码块围栏
         if text.startswith("```"):
             lines = text.splitlines()
             if lines and lines[0].strip().lower().startswith("```"):
@@ -519,15 +533,31 @@ class CodegenCritic:
             text = "\n".join(lines).strip()
         try:
             data = json.loads(text)
+            return data if isinstance(data, dict) else None
         except json.JSONDecodeError:
-            s, e = text.find("{"), text.rfind("}")
-            if s < 0 or e <= s:
-                return None
+            pass
+        # 截取 { 到 }
+        s, e = text.find("{"), text.rfind("}")
+        if s >= 0 and e > s:
             try:
                 data = json.loads(text[s:e + 1])
+                return data if isinstance(data, dict) else None
             except json.JSONDecodeError:
-                return None
-        return data if isinstance(data, dict) else None
+                pass
+        # [35B-A3B] 缺花括号但内容像 JSON 对象 → 补 {}
+        if '"verdict"' in text or '"reason"' in text:
+            wrapped = "{" + text.rstrip().rstrip(",") + "}"
+            try:
+                data = json.loads(wrapped)
+                return data if isinstance(data, dict) else None
+            except json.JSONDecodeError:
+                pass
+        # [兜底] 正则提取 key-value 对
+        import re
+        pairs = re.findall(r'"(\w+)"\s*:\s*"([^"]*)"', text)
+        if pairs:
+            return {k: v for k, v in pairs}
+        return None
 
     @staticmethod
     def _parse_ast(raw: str) -> Optional[dict]:
@@ -602,6 +632,8 @@ class CodegenCritic:
             )
         except Exception:
             _ops_hint = ""
+        # [35B-A3B 适配] Codegen 需要 system prompt 保持 JSON 模式（实测去掉后 0/3），
+        # 批评家不用 system（会触发思考吃光 token）。维持 system+user 双消息。
         messages = [
             {"role": "system", "content": (
                 "你是量化因子表达式生成器。输出一个 JSON 因子表达式 AST，"
@@ -627,7 +659,7 @@ class CodegenCritic:
                 resp_data = call_llm_api_sync(
                     cfg,
                     messages=messages,
-                    response_format={"type": "json_object"},
+                    # [35B-A3B] response_format 与 MoE 语法约束冲突致空输出，靠 prompt+解析器兜底
                     max_tokens=1500,
                     temperature=0.6,
                     caller="codegen_critic",
