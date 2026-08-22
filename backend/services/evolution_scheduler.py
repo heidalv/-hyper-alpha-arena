@@ -679,6 +679,14 @@ class EvolutionScheduler:
                 DecisionSnapshot.timestamp >= cutoff,
                 DecisionSnapshot.pnl.isnot(None),
             ).all()
+            # [2026-08-23 M0-E1f] 快照加载后立即结束事务：随后的分组提炼耗时
+            # 数分钟（本任务实测 ~10min），ana_db 若持 open transaction 会被
+            # PG 2min / LeakGuard 强杀，尾部 _trigger_rag_index(ana_db, ...)
+            # 与 close() 直接报 "server closed"。
+            try:
+                ana_db.commit()
+            except Exception:
+                pass
 
             if len(snapshots) < 5:
                 logger.info("[EvoScheduler] 本周决策快照不足5条，跳过经验提炼")
@@ -786,8 +794,15 @@ class EvolutionScheduler:
                 logger.info("[EvoScheduler] 每周经验提炼: 无需更新")
 
             # 经验提炼后触发 RAG 增量索引（决策快照在 analytics 库，策略教训在主库）
-            self._trigger_rag_index(ana_db, "trade_decisions")
-            self._trigger_rag_index(db, "strategy_lessons")
+            # [2026-08-23 M0-E1f] 连接可能已死：RAG 触发失败不应连坐整个任务。
+            try:
+                self._trigger_rag_index(ana_db, "trade_decisions")
+            except Exception as _rag_err:
+                logger.debug("[EvoScheduler] trade_decisions RAG 索引触发失败: %s", _rag_err)
+            try:
+                self._trigger_rag_index(db, "strategy_lessons")
+            except Exception as _rag_err:
+                logger.debug("[EvoScheduler] strategy_lessons RAG 索引触发失败: %s", _rag_err)
 
             # S7: 批量提取成功模式模板（PatternExtractor.extract_all_eligible）
             try:
@@ -816,10 +831,18 @@ class EvolutionScheduler:
 
         except Exception as e:
             logger.error(f"[EvoScheduler] 每周经验提炼异常: {e}", exc_info=True)
-            db.rollback()
+            try:
+                db.rollback()
+            except Exception:
+                pass
         finally:
-            ana_db.close()
-            db.close()
+            # [2026-08-23 M0-E1f] 长任务后连接可能已被强杀：close 时 rollback
+            # 死连接会再抛 OperationalError 并覆盖正常返回，宽容关闭。
+            for _s in (ana_db, db):
+                try:
+                    _s.close()
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------------
     #  RAG 增量索引触发（嵌入已有定时任务链）
