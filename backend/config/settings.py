@@ -1067,9 +1067,14 @@ FACTOR_SCORER_LOOKBACK_BARS: int = int(os.getenv("FACTOR_SCORER_LOOKBACK_BARS", 
 # 显式 >0 时覆盖（回滚：设回 5 即恢复旧全局 5 根前瞻）。
 FACTOR_SCORER_FWD_PERIOD: int = int(os.getenv("FACTOR_SCORER_FWD_PERIOD", "0") or 0)
 # 单因子回测每次持仓的往返成本（手续费+滑点，价格变动比例口径）。
-FACTOR_SCORER_COST: float = float(os.getenv("FACTOR_SCORER_COST", "0.0021"))
-# 准入门槛：样本外 Sharpe 与净收益需同时达标，且非冗余。
-FACTOR_SCORER_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIN_SHARPE", "0.5"))
+# [2026-08-22 FACTOR-1 修复] 21bps 是统计高频因子的"死亡税率"：15m/1h 逐笔毛利仅
+# ~5-15bps，21bps 会把几乎所有小阿尔法因子（含 IC=0.10/ICIR=0.63 的 bias30_rev）
+# 全部枪毙（冷池 2099 扫描仅 4 通过的主因之一）。实际：taker 3.5bps×2 + 滑点 ~2bps
+# ≈ 9bps 上限；maker 场景更低。按交易所真实费率估计成本。
+FACTOR_SCORER_COST: float = float(os.getenv("FACTOR_SCORER_COST", "0.0009"))
+# [2026-08-22 FACTOR-1] 准入门槛：Sharpe 0.5→0.2（高频档年化口径本来就应更低）；
+# 配合成本修正，让"真实存在的微弱 alpha"先进入观察，由 EV governor 按实盘结果收紧。
+FACTOR_SCORER_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIN_SHARPE", "0.2"))
 FACTOR_SCORER_MIN_NET_RETURN: float = float(os.getenv("FACTOR_SCORER_MIN_NET_RETURN", "0.0"))
 # [P0-B 升级] 准入冗余阈值统一为 0.7（factor_evaluator/score_formula 同读此值）
 FACTOR_SCORER_REDUNDANCY_CORR: float = float(os.getenv("FACTOR_SCORER_REDUNDANCY_CORR", "0.7"))
@@ -1090,8 +1095,7 @@ FACTOR_HELDOUT_RATIO: float = float(os.getenv("FACTOR_HELDOUT_RATIO", "0.2"))
 # funding 费率（永续 8h 结算，短线过夜持仓真实成本）、DSR/PBO 多重检验闸门、
 # 每笔平均净收益须覆盖往返成本 + NET_BUFFER 缓冲、PBO 上限。
 FACTOR_SCORER_FUNDING_RATE: float = float(os.getenv("FACTOR_SCORER_FUNDING_RATE", "0.0001"))
-FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true").lower() in (
-    "true", "1", "yes", "on",
+FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true").lower() in (    "true", "1", "yes", "on",
 )
 FACTOR_SCORER_DSR_N_TRIALS: int = int(os.getenv("FACTOR_SCORER_DSR_N_TRIALS", "40"))
 FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
@@ -1101,7 +1105,7 @@ FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
 # 否则结构性 0 晋升——.env 现配 9 币满足）。
 # 默认 4 对应 PBO 简化实现的最小样本要求；可用 env 覆盖。
 FACTOR_SCORER_DSR_MIN_SYMBOLS: int = int(os.getenv("FACTOR_SCORER_DSR_MIN_SYMBOLS", "4"))
-FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0005"))
+FACTOR_SCORER_NET_BUFFER: float = float(os.getenv("FACTOR_SCORER_NET_BUFFER", "0.0002"))  # [FACTOR-1] 5bp→2bp
 # [2026-08-14 阶段2 P1-E1/E2/E3/P2-8] 信号融合方向/权重修复的灰度回退开关。
 # 默认全部开启（修复生效）；出问题时设 false 一键回退旧行为（无需改代码）。
 FACTOR_FUNDING_DIRECTION_FIX: bool = os.getenv("FACTOR_FUNDING_DIRECTION_FIX", "true").lower() in (
