@@ -145,6 +145,13 @@ class EvolutionScheduler:
         # strategy_templates / backtest_runs 都在主库（曾误用 Analytics 会话，
         # PG 双库下 UndefinedTable 导致进化自 5/21 起静默停摆）
         db = SessionLocal()
+        # [2026-08-23 M0-E1b] 每模板进化 ~70min、整轮数小时。期间若 db 会话持有
+        # open transaction，PG idle_in_transaction_session_timeout（2min）或
+        # DB LeakGuard（120s）会强杀连接 → 冠军落库 "server closed"、整轮作废。
+        # 1) expire_on_commit=False：rollback/commit 后 ORM 属性仍缓存可用，
+        #    不会为读取属性重开事务/惰性刷新；
+        # 2) 模板加载后立即 commit 结束事务，此后 db 全程零事务零连接占用。
+        db.expire_on_commit = False
         try:
             from backend.database.models import StrategyTemplate
             from backend.services.genetic_optimizer import (
@@ -161,6 +168,9 @@ class EvolutionScheduler:
             templates = db.query(StrategyTemplate).filter(
                 StrategyTemplate.is_active == True
             ).order_by(StrategyTemplate.rating.desc()).limit(8).all()
+
+            # [M0-E1b] 结束模板加载事务：长进化期间不再持有 idle-in-transaction。
+            db.commit()
 
             logger.info(f"[EvoScheduler] 开始自动进化（NSGA-II 多目标）: {len(templates)} 个模板（按评分 Top8）")
 

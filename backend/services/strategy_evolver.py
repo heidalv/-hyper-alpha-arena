@@ -115,9 +115,20 @@ class StrategyEvolver:
             champion dict 或 None
         """
         try:
+            # [2026-08-23 M0-E1b] 长进化（每模板 ~70min）期间，调用方传入的 db
+            # 会话连接早已被 PG idle_in_transaction_session_timeout（2min）或
+            # DB LeakGuard（120s）强杀：冠军落库会报 "server closed"，且失败
+            # 后该会话所有 ORM 属性被 expire，任何属性访问都会触发对死连接的
+            # 惰性刷新 → PendingRollbackError。根治方案：冠军落库 / 晋升 /
+            # last_evolution_at 全部改走"全新短会话 + 最多3次重试"，绝不碰长会话。
+            # 先快照 tpl 关键字段为普通局部变量，避免后续任何惰性刷新。
+            _tpl_id = tpl.template_id
+            _tpl_name = tpl.name
+            _tier = getattr(tpl, "tier", None) or "mid"
+
             result = self._run_single_backtest_for_genome(tpl, best_genome, db)
             if not result:
-                logger.warning(f"[Evolver] persist_genetic_result: best_genome 回测失败 {tpl.template_id}")
+                logger.warning(f"[Evolver] persist_genetic_result: best_genome 回测失败 {_tpl_id}")
                 return None
 
             import uuid as _uuid
@@ -129,48 +140,11 @@ class StrategyEvolver:
                 "final_equity": float(result.get("total_return", 0) or 0) * 10000 + 10000,
                 "run_id": f"champ_{_uuid.uuid4().hex[:8]}",
             }
-            # 写 BacktestRun，标注 parent_run_id（P1-1）
-            # [2026-08-23 M0-E1] 长进化（~70min）期间原 db 会话被 PG 掐断
-            # （server closed the connection unexpectedly）→ 冠军保存失败、
-            # 整个 NSGA-II 结果作废。此处捕获连接失效并换全新会话重试：
-            # 回测分数已在内存，重试只重做落库（幂等 run_id 去重由 BacktestRun
-            # 的 run_id 唯一性保证，重试不会写两份）。
-            _retry_tpl = None   # 重试会话上的模板引用（晋升阶段用）
-            try:
-                self._save_champion_with_lineage(db, tpl, champion, parent_run_id)
-            except Exception as _save_err:
-                _e_txt = str(_save_err)
-                if "server closed the connection" in _e_txt or "connection" in _e_txt.lower():
-                    logger.warning(
-                        "[Evolver] 冠军落库连接失效，换新会话重试: %s",
-                        _e_txt[:120],
-                    )
-                    from backend.database.connection import SessionLocal as _SL2
-                    from backend.database.models import StrategyTemplate as _ST2
-                    _db2 = _SL2()
-                    try:
-                        _tpl2 = _db2.query(_ST2).filter(
-                            _ST2.template_id == tpl.template_id
-                        ).first()
-                        if _tpl2 is None:
-                            raise ValueError("template not found on retry session")
-                        self._save_champion_with_lineage(_db2, _tpl2, champion, parent_run_id)
-                        _db2.commit()
-                        _retry_tpl = _tpl2
-                        logger.info("[Evolver] 冠军落库重试成功 run_id=%s", champion["run_id"])
-                    finally:
-                        try:
-                            _db2.close()
-                        except Exception:
-                            pass
-                else:
-                    raise
 
             # ── 整改#19：写入 MAP-Elites 多样性冠军库（按 regime×tier×vol 行为格）──
             try:
                 from backend.services.learning_core import map_elites_archive as _me
                 if _me.is_enabled():
-                    _tier = getattr(tpl, "tier", None) or "mid"
                     _tf = {"scalp": "short", "short": "short", "mid": "mid", "long": "long"}.get(str(_tier).lower(), "mid")
                     _regime = str(result.get("regime") or (result.get("best_regimes") or ["ranging"])[0] or "ranging")
                     _beh = _me.BehaviorDescriptor.from_market(_regime, _tf,
@@ -192,50 +166,84 @@ class StrategyEvolver:
             except Exception as _me_err:
                 logger.debug("[Evolver][MAP-Elites#19] 写入失败（忽略）: %s", _me_err)
 
-            # 达到晋升门槛 → 晋升模板（含 parent_template_id）
-            tier = getattr(tpl, "tier", None) or "mid"
+            # ── 冠军落库：全新短会话，最多 3 次尝试 ──
+            from backend.database.connection import SessionLocal as _SL
+            from backend.database.models import StrategyTemplate as _ST
+            from backend.database.models import SystemCoordinatorState as _SCS
+
+            _saved_session = None
+            for _attempt in range(1, 4):
+                _s = _SL()
+                try:
+                    _t = _s.query(_ST).filter(_ST.template_id == _tpl_id).first()
+                    if _t is None:
+                        raise ValueError(f"template not found: {_tpl_id}")
+                    self._save_champion_with_lineage(_s, _t, champion, parent_run_id)
+                    _saved_session = _s
+                    logger.info("[Evolver] 冠军落库成功(尝试%d) run_id=%s", _attempt, champion["run_id"])
+                    break
+                except Exception as _save_err:
+                    _e_txt = str(_save_err)
+                    try:
+                        _s.rollback()
+                    except Exception:
+                        pass
+                    # 上次尝试可能已在服务端提交、但连接在 ACK 前被掐断：
+                    # run_id 幂等，唯一约束冲突视作已保存成功。
+                    if "unique" in _e_txt.lower() or "duplicate" in _e_txt.lower():
+                        logger.warning("[Evolver] 冠军落库命中 run_id 幂等去重（视为已保存）: %s", _e_txt[:120])
+                        _saved_session = _s
+                        break
+                    logger.warning("[Evolver] 冠军落库尝试 %d/3 失败: %s", _attempt, _e_txt[:160])
+                    try:
+                        _s.close()
+                    except Exception:
+                        pass
+                    _s = None
+                    if _attempt < 3:
+                        time.sleep(0.5)
+
+            if _saved_session is None:
+                logger.error("[Evolver] 冠军落库 3 次尝试均失败，跳过晋升与 last_evolution_at: %s", _tpl_id)
+                return None
+
+            # ── 达到晋升门槛 → 晋升模板（含 parent_template_id），同短会话 ──
+            promoted = False
             try:
-                promoted = False
-                if self._should_promote(champion, tier):
-                    # [M0-E1] 原会话已死时晋升也要换新会话，否则 promote 静默失败
-                    # 冠军参数永远到不了模板/gates（进化白跑）。
-                    if _retry_tpl is not None:
-                        from backend.database.connection import SessionLocal as _SL3
-                        from backend.database.models import StrategyTemplate as _ST3
-                        _db3 = _SL3()
-                        try:
-                            _tpl3 = _db3.query(_ST3).filter(
-                                _ST3.template_id == tpl.template_id
-                            ).first()
-                            if _tpl3 is not None:
-                                self._promote_template_with_lineage(_db3, _tpl3, champion)
-                                _db3.commit()
-                                promoted = True
-                        finally:
-                            try:
-                                _db3.close()
-                            except Exception:
-                                pass
-                    else:
-                        self._promote_template_with_lineage(db, tpl, champion)
-                        promoted = True
-                champion["promoted"] = promoted
+                _t_promote = _saved_session.query(_ST).filter(_ST.template_id == _tpl_id).first()
+                if _t_promote is not None and self._should_promote(champion, _tier):
+                    self._promote_template_with_lineage(_saved_session, _t_promote, champion)
+                    _saved_session.commit()
+                    promoted = True
+                    logger.info("[Evolver] 模板晋升成功 %s", _tpl_id)
             except Exception as e:
                 logger.warning(f"[Evolver] promote 失败（不影响保存）: {e}")
+                try:
+                    _saved_session.rollback()
+                except Exception:
+                    pass
+            champion["promoted"] = promoted
 
-            # 写 last_evolution_at（P1-1）
+            # ── 写 last_evolution_at（P1-1），同短会话 ──
             try:
-                from backend.database.models import SystemCoordinatorState
-                state = db.query(SystemCoordinatorState).first()
+                state = _saved_session.query(_SCS).first()
                 if state is None:
-                    state = SystemCoordinatorState(last_evolution_at=datetime.now(timezone.utc))
-                    db.add(state)
+                    state = _SCS(last_evolution_at=datetime.now(timezone.utc))
+                    _saved_session.add(state)
                 else:
                     state.last_evolution_at = datetime.now(timezone.utc)
-                db.commit()
+                _saved_session.commit()
             except Exception as e:
                 logger.debug(f"[Evolver] last_evolution_at 写入失败: {e}")
-                db.rollback()
+                try:
+                    _saved_session.rollback()
+                except Exception:
+                    pass
+            finally:
+                try:
+                    _saved_session.close()
+                except Exception:
+                    pass
 
             return champion
         except Exception as e:
