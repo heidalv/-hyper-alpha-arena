@@ -2159,6 +2159,13 @@ def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: st
         except Exception as _v7_mem_err:
             logger.debug("[FactorEvo] V7 记忆写入失败: %s", _v7_mem_err)
         evo_runtime.mark_end(report=report if isinstance(report, dict) else None, error=err)
+        # [GPU 显存释放 2026-08-21] 挖矿窗结束后归还 PyTorch 缓存的显存给系统——
+        # 不释放则白天 LLM 常驻没有足够 VRAM（PyTorch caching allocator 不自动归还）
+        try:
+            from backend.services.gpu_memory import release_gpu_memory
+            release_gpu_memory()
+        except Exception:
+            pass
 
 
 def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:

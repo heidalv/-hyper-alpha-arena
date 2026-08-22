@@ -583,4 +583,10 @@ def scan_cold_pool_midlong(
             logger.info("[ColdPool] 通过因子登记候选: %s@%s grade=%s", fid, tf, p["grade"])
     logger.info("[ColdPool] 扫描完成: 评分%d 通过%d 超时%d 异常%d 用时%.1fs",
                 len(report_rows), len(passers), timeouts, errors, report["elapsed_sec"])
+    # [GPU 显存释放 2026-08-21] 冷池批量 IC 走 GPU 时结束后归还显存
+    try:
+        from backend.services.gpu_memory import release_gpu_memory
+        release_gpu_memory()
+    except Exception:
+        pass
     return report

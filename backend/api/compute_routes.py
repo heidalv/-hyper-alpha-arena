@@ -78,6 +78,9 @@ async def get_gpu_env():
             cuda_ok = bool(torch.cuda.is_available())
             if cuda_ok:
                 device_name = torch.cuda.get_device_name(0)
+                # [GPU 显存释放 2026-08-21] 探活只查可用性，不分配张量——
+                # 但 CUDA 上下文初始化本身也占 ~300MB，探完立即释放
+                torch.cuda.empty_cache()
         except Exception as e:  # noqa: BLE001
             logger.debug("[Compute] cuda probe: %s", e)
         probe.update({
