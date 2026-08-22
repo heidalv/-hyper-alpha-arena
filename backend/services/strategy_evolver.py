@@ -37,6 +37,15 @@ from backend.services.strategy_params_registry import (
 
 logger = logging.getLogger(__name__)
 
+# [2026-08-23 M0-P1] 进化回测输入缓存（进程级，TTL 30min）：
+# NSGA-II 一轮 = 8 模板 × 20 代 × 24 个体 ≈ 数千次 fitness 调用，每次都
+# 全量重载 K 线（5m×365d≈6.5 万根）、资金费率、恐贪指数（外部 HTTP）。
+# 短线模板因此每代数十分钟。缓存后历史窗口滑动边界误差可忽略。
+_BARS_CACHE: Dict[tuple, tuple] = {}
+_FUNDING_CACHE: Dict[tuple, tuple] = {}
+_FGI_CACHE: Dict[int, tuple] = {}
+_INPUT_CACHE_TTL = 1800
+
 
 class StrategyEvolver:
     """策略进化器（单例）"""
@@ -1046,6 +1055,16 @@ class StrategyEvolver:
     @staticmethod
     def _load_funding_rates(db: Session, symbols: list) -> Dict[int, float]:
         """从数据库加载历史资金费率（使用 Market DB 会话）"""
+        # [2026-08-23 M0-P1] 进化输入缓存：NSGA-II 一轮 24×20 次 fitness 反复
+        # 全量加载同一批输入。5m×365d≈6.5万根 + FGI HTTP(10s超时) + 费率查询
+        # 每次重来，白白拖慢整轮（短线模板每代数十分钟）。TTL 30min，历史
+        # 窗口滑动边界误差可忽略。
+        import time as _time
+        _key = tuple(str(s).upper() for s in (symbols or []))
+        _now = _time.time()
+        _hit = _FUNDING_CACHE.get(_key)
+        if _hit and (_now - _hit[0]) < _INPUT_CACHE_TTL:
+            return _hit[1]
         rates = {}
         try:
             from backend.database.models import MarketAssetMetrics
@@ -1065,11 +1084,19 @@ class StrategyEvolver:
                 market_db.close()
         except Exception as e:
             logger.debug(f"[Evolver] 加载资金费率失败: {e}")
+        if rates:
+            _FUNDING_CACHE[_key] = (_now, rates)
         return rates
 
     @staticmethod
     def _load_fgi_series(db: Session, lookback_days: int = 730) -> Dict[int, float]:
         """加载历史恐贪指数"""
+        # [M0-P1] 同上：FGI 每次 fitness 都打外部 HTTP（超时 10s），30min 缓存。
+        import time as _time
+        _now = _time.time()
+        _hit = _FGI_CACHE.get(int(lookback_days))
+        if _hit and (_now - _hit[0]) < _INPUT_CACHE_TTL:
+            return _hit[1]
         fgi = {}
         try:
             import httpx
@@ -1083,6 +1110,8 @@ class StrategyEvolver:
                         fgi[ts] = val
         except Exception as e:
             logger.debug(f"[Evolver] 加载恐贪指数失败: {e}")
+        if fgi:
+            _FGI_CACHE[int(lookback_days)] = (_now, fgi)
         return fgi
 
     def _run_generation_backtests(self, population, base_config, category,
@@ -1980,7 +2009,14 @@ class StrategyEvolver:
         from backend.database.connection import MarketSessionLocal
         import time as _time
 
-        cutoff = int(_time.time()) - days * 86400
+        # [M0-P1] 输入缓存：同一轮进化反复加载同一批历史 K 线。
+        _key = (str(symbol).upper(), str(timeframe), int(days))
+        _now = _time.time()
+        _hit = _BARS_CACHE.get(_key)
+        if _hit and (_now - _hit[0]) < _INPUT_CACHE_TTL:
+            return _hit[1]
+
+        cutoff = int(_now) - days * 86400
 
         market_db = MarketSessionLocal()
         try:
@@ -2004,6 +2040,8 @@ class StrategyEvolver:
                 v=float(r.volume or 0),
                 idx=idx,
             ))
+        if bars:
+            _BARS_CACHE[_key] = (_now, bars)
         return bars
 
     @staticmethod
