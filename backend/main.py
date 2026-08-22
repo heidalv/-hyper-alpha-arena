@@ -205,7 +205,18 @@ except Exception:
 # Health check endpoint # [2026-07-17 修复] 此前这个路径直接塞了 7+ 处动态 import + 跨子系统统计调用 # （rollout/event_sourcing/ml_activation/resource_guard/promotion_gate/ # orchestrator/qaa_rag），全部同步执行、中间没有任何 await 让出事件循环。 # 正常情况下这些调用很快，但本项目是"单进程 + 大量 LLM 调用线程/APScheduler # 后台线程"架构，所有线程共享同一个 GIL——一旦有并发 LLM 流式请求占着 GIL， # 事件循环线程要把这 7+ 段代码全部跑完才能返回 200，等于要连续抢到 7+ 次 GIL # 时间片，抢不到任何一次都会让整个请求卡住，越重的 handler 越容易被"千刀万剐" # 式拖慢。而这个端点恰恰是 backend-watchdog.ps1 用来判断"后端是否存活"的探针 # ——探针本身太重导致误判 down、频繁重启，重启又触发新一轮 LLM/因子预热爆发， # 形成"重启→卡顿→误判死亡→再重启"的恶性循环。 # 修复：/api/health 只做最基础的存活确认（一次 GIL 时间片内就能跑完），原来的 # 详细诊断信息搬到 /api/health/detailed，需要人工排查时再单独调用。
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "message": "Trading API is running", "version": __version__}
+    # [2026-08-22] 启动指纹：证明运行中的代码 = 最新提交（改动不生效问题的可观测化）
+    try:
+        from backend.boot_fingerprint import boot_fingerprint
+        _fp = boot_fingerprint()
+    except Exception:
+        _fp = {}
+    return {
+        "status": "healthy",
+        "message": "Trading API is running",
+        "version": __version__,
+        "boot_fingerprint": _fp,
+    }
 
 
 @app.get("/api/health/detailed")
