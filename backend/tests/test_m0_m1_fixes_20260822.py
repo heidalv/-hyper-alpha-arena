@@ -41,11 +41,13 @@ class _FakeCalib:
 
 
 def test_effective_threshold_blocks_when_no_profitable_bucket(monkeypatch):
-    """校准 threshold=None（无盈利分桶）→ 关闸 999；有门槛 → 正常取 max。"""
+    """校准 threshold=None（无盈利分桶）→ trend 关闸 999 / ranging_mr 分类放行；有门槛 → 正常取 max。"""
     from backend.services.scalp import scalp_score_calibration as m
     monkeypatch.delenv("SCALP_CALIBRATED_THRESHOLD", raising=False)
     with _FakeCalib({"enabled": True, "threshold": None, "high_score_ok": False}):
-        assert m.effective_threshold(30) == m.CALIBRATION_BLOCKED_THRESHOLD
+        assert m.effective_threshold(30) == m.CALIBRATION_BLOCKED_THRESHOLD       # trend 默认
+        assert m.effective_threshold(30, kind="trend") == m.CALIBRATION_BLOCKED_THRESHOLD
+        assert m.effective_threshold(30, kind="ranging_mr") == 30                 # MR 分类放行 (PROFIT-2)
     with _FakeCalib({"enabled": True, "threshold": 62, "high_score_ok": True}):
         assert m.effective_threshold(30) == 62
         assert m.effective_threshold(70) == 70

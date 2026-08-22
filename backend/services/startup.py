@@ -1493,6 +1493,15 @@ try:
                             float(r.order_fee or 0),
                         )
                 logger.info("[Reconcile] 每日对账完成（账户数=%d）", len(rows))
+                # [2026-08-22 PROFIT-3] EV 反馈审计：真实结果 → 自动放大正期望簇 /
+                # 收缩负期望簇（不做开单门禁，做资金分配）
+                try:
+                    from backend.core.tenant import set_system_identity
+                    set_system_identity()
+                    from backend.services.ev_governor import audit_and_write
+                    audit_and_write(db)
+                except Exception as _ev_err:
+                    logger.warning("[EvGovernor] 每日审计失败: %s", _ev_err)
             finally:
                 db.close()
         except Exception as _re_e:

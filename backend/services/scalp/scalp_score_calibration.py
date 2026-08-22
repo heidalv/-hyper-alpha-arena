@@ -213,13 +213,19 @@ def load_calibration() -> Dict[str, Any]:
 CALIBRATION_BLOCKED_THRESHOLD = 999
 
 
-def effective_threshold(confirm: int) -> int:
+def effective_threshold(confirm: int, kind: str = "trend") -> int:
     """校准后的生效门槛 = max(静态 CONFIRM, 校准建议门槛)。
 
     [2026-08-22 M0-3 fail-closed] 校准输出"无解"（threshold=None，即没有任何
-    分数段的单调化胜率达到盈亏平衡线）时，必须关断短线开仓，而不是回退到静态
-    CONFIRM 继续刷单。返回 CALIBRATION_BLOCKED_THRESHOLD(999) 等效禁止开仓；
-    仅当管理员显式设置 SCALP_CALIBRATED_THRESHOLD>0 时允许人工覆盖。
+    分数段的单调化胜率达到盈亏平衡线）时，trend(LANE) 必须关断短线开仓，
+    而不是回退到静态 CONFIRM 继续刷单。返回 CALIBRATION_BLOCKED_THRESHOLD(999)
+    等效禁止开仓；仅当管理员显式设置 SCALP_CALIBRATED_THRESHOLD>0 时允许人工覆盖。
+
+    [2026-08-22 PROFIT-2 盈利实验] 分类放行：ranging_mr（震荡均值回归）历史胜率
+    44.8% > 盈亏平衡 37.5%（TP2%/SL1.2%），是短线里唯一有胜率证据的子类——
+    即便全桶校准仍为 None，也允许 MR 按基础门槛放行（配合 EV 闸门按 MR 独立的
+    0.85 实现率折扣 + 冷启动豁免做最后把关 + 峰值追踪改善盈亏比）。
+    学习错误由 EV 门与后续 daily EV governor 收紧，而非入门禁。
     """
     thr = confirm
     try:
@@ -234,10 +240,16 @@ def effective_threshold(confirm: int) -> int:
             return thr  # 校准数据缺/未启用：按静态门槛（冷启动保守放行，观察期）
         t = calib.get("threshold")
         if t is None or not isinstance(t, (int, float)) or float(t) <= 0:
-            # 校准结论明确：没有任何分数段可覆盖盈亏平衡 → 关闸
+            if str(kind).lower() == "ranging_mr":
+                # MR：唯一有胜率证据的短线子类（44.8% vs 保本 37.5%），允许实验放行
+                logger.info(
+                    "[ScalpCalib] 校准无盈利分桶，但 ranging_mr 历史胜率≥保本线："
+                    "按基础门槛放行（EV 闸门 + 峰值追踪兜底） (PROFIT-2)"
+                )
+                return thr
             logger.warning(
-                "[ScalpCalib] 校准无盈利分桶(threshold=None)，短线开仓按 fail-closed 拦截 "
-                "(请人工复核后设置 SCALP_CALIBRATED_THRESHOLD 显式覆盖)"
+                "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 开仓按 "
+                "fail-closed 拦截 (请人工复核后设置 SCALP_CALIBRATED_THRESHOLD 显式覆盖)"
             )
             return CALIBRATION_BLOCKED_THRESHOLD
         thr = max(int(confirm), int(t))

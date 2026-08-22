@@ -570,7 +570,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         f"[ScalpRouter独立] {sym} 磁吸反转退出检查跳过: {_lm_exit_err}"
                     )
             try:
-                _thresh = scalp_factor_router._get_adaptive_threshold(sym)
+                _thresh = scalp_factor_router._get_adaptive_threshold(
+                    sym, kind=("ranging_mr" if _mr_active else "trend"),
+                )
             except Exception:
                 _thresh = 25
             _breakdown = getattr(_sig, "factor_breakdown", None) or {}
@@ -1095,6 +1097,20 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 continue
             if _bf < 1.0:
                 _margin_est *= _bf
+            # [2026-08-22 PROFIT-3] EV Governor 资金分配：正期望簇放大 / 负期望簇收缩
+            # （由每日真实结果自动更新，不做开单门禁）
+            try:
+                from backend.services.ev_governor import cluster_mult as _ev_mult
+                _evc = "scalp_ranging_mr" if _mr_active else "scalp_trend"
+                _evm = _ev_mult(_evc)
+                if abs(_evm - 1.0) > 1e-9:
+                    logger.info(
+                        f"[ScalpRouter独立] {sym} EV Governor 资金乘数 {_evm:.2f}({_evc}) → "
+                        f"名义{_margin_est:.0f}->{_margin_est * _evm:.0f}"
+                    )
+                    _margin_est *= _evm
+            except Exception as _evg_err:
+                logger.debug(f"[ScalpRouter独立] {sym} EV 乘数读取失败: {_evg_err}")
             _scalp_req_margin = _margin_est / max(int(_dyn_lev or 1), 1)
             if not budget_service.can_open(
                 "short", _scalp_req_margin, equity, _trade_mode,

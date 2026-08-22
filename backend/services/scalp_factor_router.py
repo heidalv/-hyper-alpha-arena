@@ -540,13 +540,16 @@ class ScalpFactorRouter:
             pass
         return 0
 
-    def _get_adaptive_threshold(self, symbol: str, is_paper: bool = True) -> int:
-        """动态胜率门槛：按币种近期胜率自适应 + 分数-胜率校准门槛上提（P0-2）。"""
+    def _get_adaptive_threshold(self, symbol: str, is_paper: bool = True, kind: str = "trend") -> int:
+        """动态胜率门槛：按币种近期胜率自适应 + 分数-胜率校准门槛上提（P0-2）。
+
+        [2026-08-22 PROFIT-2] kind 透传：ranging_mr 走分类放行（MR 历史胜率有证据）。
+        """
         base = self._adaptive_threshold_inner(symbol, is_paper)
         # [2026-08-13 P0-2] 校准门槛只升不降：历史分桶胜率决定的保本门槛优先
         try:
             from backend.services.scalp.scalp_score_calibration import effective_threshold
-            return int(effective_threshold(base))
+            return int(effective_threshold(base, kind=kind))
         except Exception:
             return base
 
