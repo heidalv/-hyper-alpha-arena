@@ -77,8 +77,12 @@ def build_learning_health() -> Dict[str, Any]:
 
         db = SessionLocal()
         try:
+            # [2026-08-23 M0-H1] 进化健康口径修复：NSGA-II weekly_evolution 写的是
+            # evolution_events 表，backtest_runs 自 2026-07-08 起再无写入 →
+            # 「进化」指标恒 dead 假阳性。改为以 evolution_events 的
+            # created_at 为准（与每周进化/隔离复评等真实活动同源）。
             row = db.execute(
-                text("SELECT count(*), max(created_at) FROM backtest_runs")
+                text("SELECT count(*), max(created_at) FROM evolution_events")
             ).fetchone()
             cnt, last = (row[0], row[1]) if row else (0, None)
         finally:
@@ -86,7 +90,7 @@ def build_learning_health() -> Dict[str, Any]:
         items.append(
             _health_item(
                 "evolution", "参数进化(NSGA-II)", last, threshold_hours=96,
-                detail=f"累计 {cnt} 次进化回测",
+                detail=f"累计 {cnt} 次进化事件（evolution_events）",
             )
         )
     except Exception as exc:
