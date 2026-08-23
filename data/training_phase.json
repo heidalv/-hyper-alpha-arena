@@ -132,8 +132,8 @@
     },
     "tpl_mid_reversion_1bdb6c": {
       "status": "graduated",
-      "trades": 141,
-      "wr": 0.7021276595744681,
+      "trades": 144,
+      "wr": 0.701388888888889,
       "dd": 0.004380354960505589
     },
     "tpl_long_swing_ef3858": {
@@ -144,21 +144,21 @@
     },
     "tpl_mid_range_4a7068": {
       "status": "graduated",
-      "trades": 171,
-      "wr": 0.5614035087719298,
+      "trades": 175,
+      "wr": 0.5599999999999999,
       "dd": 0.03153390380268444
     }
   },
   "champion_windows": {
-    "tpl_pro_075b93de_926c4c": 177,
+    "tpl_pro_075b93de_926c4c": 178,
     "tpl_mid_swing_44f4c7": 24,
-    "gen_swing_alt_high_beta_mid_v1_334": 116,
-    "tpl_mid_reversion_290af6": 45,
-    "tpl_mid_reversion_ee142d": 45,
-    "gen_mean_reversion_multi_mid_ranging_313": 45,
-    "gen_swing_eth_sol_mid_v2_322": 45,
+    "gen_swing_alt_high_beta_mid_v1_334": 117,
+    "tpl_mid_reversion_290af6": 46,
+    "tpl_mid_reversion_ee142d": 46,
+    "gen_mean_reversion_multi_mid_ranging_313": 46,
+    "gen_swing_eth_sol_mid_v2_322": 46,
     "tpl_mid_range_89e53b": 9,
-    "tpl_mid_reversion_1bdb6c": 16
+    "tpl_mid_reversion_1bdb6c": 17
   },
   "live_cooldown_until": {},
   "started_at": "2026-07-29T09:52:16.126995+00:00"

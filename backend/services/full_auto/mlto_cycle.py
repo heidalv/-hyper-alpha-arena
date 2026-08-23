@@ -268,18 +268,29 @@ def maintain_mlto_theses_for_session(
             _db_t = _SwingDB()
             try:
                 host.inject_midlong_indicators(market_summary, sym_u, include_weekly=True)
-                # [Phase 5] 模式切换（§7.2）：该交易对已有未平仓中长线仓位
+                # [Phase 5] 模式切换（§7.2）：该交易对已有未平仓【长线】仓位
                 # → 进入模式 B 持仓管理分析（六维发展分析），不再重复做入场分析。
+                # [2026-08-23 融合改造·用户决定] 同币允许 mid+long 并存：仅已有 mid（swing）
+                # 仓时不再短路，继续走下方长线入场分析；开仓后的集中度由组合预算兜底。
                 try:
                     from backend.services.full_auto.midlong_position_manager import (
-                        has_open_midlong_position,
+                        has_open_position_of_nature as _has_nature_pos,
+                        _open_midlong_positions as _open_ml_pos,
                         manage_position,
                     )
                     _mgmt_acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
-                    if has_open_midlong_position(_db_t, _mgmt_acct, sym_u):
+                    if _has_nature_pos(_db_t, _mgmt_acct, sym_u, "long"):
+                        # 精确管理【long】仓（同币可能有并存 mid 仓，勿误管）
+                        _long_pos = next(
+                            (p for p in _open_ml_pos(_db_t, _mgmt_acct)
+                             if str(p.get("symbol") or "").upper() == sym_u
+                             and (str(p.get("trade_nature") or "").lower() in ("trend_follow", "position")
+                                  or str(p.get("timeframe_tier") or "").lower() == "long")),
+                            {},
+                        )
                         _mgmt_dec = manage_position(
                             _db_t, host=host, session=session, account_id=_mgmt_acct,
-                            symbol=sym_u, position={},
+                            symbol=sym_u, position=_long_pos,
                             market_summary=market_summary or {},
                             analyst_reports=analyst_reports or {},
                             trading_mode=_trade_mode,
