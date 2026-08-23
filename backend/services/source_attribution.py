@@ -84,6 +84,25 @@ class SourceAttribution:
                     "breaker": dict(self._breaker),
                     "breaker_shadow": dict(self._breaker_shadow),
                 }
+                empty = not (self._tags or self._stats or self._breaker
+                             or self._shadow or self._breaker_shadow)
+            # 空覆写防护（M4 custom_factor_store 同款教训）：内存空且磁盘已有非空数据
+            # → 拒绝覆盖，并把磁盘内容合并回内存（防多进程/重启窗口清空历史归因）。
+            if empty and os.path.exists(_STATE_PATH):
+                try:
+                    with open(_STATE_PATH, "r", encoding="utf-8") as f:
+                        disk = json.load(f)
+                    if disk.get("tags") or disk.get("stats") or disk.get("breaker"):
+                        logger.warning("[SourceAttr] 拒绝空态覆盖磁盘非空状态（多进程防护）→ 合并磁盘内容")
+                        with self._lock:
+                            self._tags = dict(disk.get("tags", {}) or {})
+                            self._stats = dict(disk.get("stats", {}) or {})
+                            self._shadow = dict(disk.get("shadow", {}) or {})
+                            self._breaker = dict(disk.get("breaker", {}) or {})
+                            self._breaker_shadow = dict(disk.get("breaker_shadow", {}) or {})
+                        return
+                except Exception:
+                    pass
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False)
             os.replace(tmp, _STATE_PATH)
