@@ -128,12 +128,25 @@ class ScalpExecutionGate:
                 _funding = 0.0
             _funding_min = float(self._cfg("SCALP_SHORT_MIN_FUNDING", 0.0001) or 0.0001)
             _bias_ok = _mid_bias == "bearish"
+            _bias_src = "thesis"
+            if not _bias_ok and _mid_bias in ("neutral", "", "none"):
+                # 阶段4：thesis 信封（mid_bias）因 MLTO thesis 下线常恒 neutral——
+                # 确定性回退：近 24h 下跌动能(-2%) 且 1h 无反弹 → 规则版 trending-down，
+                # 与资金费极端条件共同构成"下行 + 逼空挤压"空头场景（B 改造原意）。
+                try:
+                    _chg24 = float(market_data.get("price_change_24h_pct") or 0)
+                    _chg1 = float(market_data.get("price_change_1h_pct") or 0)
+                except Exception:
+                    _chg24 = _chg1 = 0.0
+                if _chg24 <= -0.02 and _chg1 <= 0.0:
+                    _bias_ok = True
+                    _bias_src = "rule_fallback"
             _fund_ok = _funding >= _funding_min
             _trend_ok = _regime_name == "trending"
             if not (_bias_ok and _fund_ok):
                 return GateDecision(
                     False, lane_id, "hold",
-                    f"空头条件未齐(mid_bias={_mid_bias},funding={_funding:.5f}≥"
+                    f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
                     f"{_funding_min:.5f})——上行周期空头结构性逆风",
                     effective_score=effective_score,
                     advisory=advisory,
