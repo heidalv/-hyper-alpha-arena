@@ -245,6 +245,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
 
         # 扫描每个 symbol
         for sym in symbols:
+            # [2026-08-24 M0-H2] 每币迭代让渡 GIL：单进程内 scalp 循环（每 10s ×
+            # 多币）连续 Python 计算（K线处理/因子/评估）会把事件循环饿死数秒，
+            # /api/health 实测 1-8.7s → 前端超时误报"后端挂了"、平台监管按慢响应
+            # 误杀重启（重启风暴的另一半根因）。sleep(0) 只释放一个调度窗口，
+            # 对总耗时影响 <0.5%，让 HTTP 处理及时排上队。
+            time.sleep(0)
             # [P1-2 2026-07-30] 周末/低流动性时段过滤
             # 加密24/7但周末流动性低40-60%，UTC 22-00最薄，插针频繁
             from datetime import datetime, timezone as _tz
@@ -502,6 +508,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             except Exception as _of_err:
                 logger.debug(f"[ScalpRouter独立] {sym} 订单流注入跳过: {_of_err}")
             _prof["orderflow"] = time.perf_counter() - _pf_ts; _pf_ts = time.perf_counter()
+            # [M0-H2] 评估阶段（scalp_factor_router.evaluate / ranging_mr，纯 Python
+            # 单币最长 ~1s+）前再让渡一次 GIL（同每币迭代处注释）。
+            time.sleep(0)
 
             # ── 震荡均值回归模式分流（2026-07-09）──
             # 仅当 regime==ranging 且 48×5m 振幅落在[MIN,MAX]区间时，改走独立的
@@ -1364,6 +1373,15 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             # XPL 3885 教训：gate/信号按 24s 前的价格(0.0900)算出 TP=0.09135/SL=0.08897，
             # 但市价单以 0.0954 成交（期间暴涨6%）→ long 仓 TP 落在入场价之下，
             # 开仓即触发「亏损型止盈」。用原百分比结构重算价格、锚定真实入场价。
+            # [2026-08-24 短线深挖 E] 锚点优先级加固：原实现 data_center.get_price
+            # 失败时回退 _scalp_entry（=信号旧价），导致 8/24 XPL 再现假止盈
+            # （TP 0.09135 < 成交 0.0954）。新优先级：数据中枢实时价 → _md 最新价
+            # → 信号价；并把锚点回写为入场价，保证下单量/日志与 SL/TP 同锚。
+            # [2026-08-24 深挖 E2] 关键修复：旧重锚逻辑用"新锚点反推距离百分比再重建"
+            # 在数学上是恒等变换（重建出的仍是旧绝对价），真实成交价滑离信号价后
+            # RR 结构被扭曲（8/24 VIRTUAL：成交 0.7162 vs 信号 0.72 → SL 距 1.69%、
+            # TP 距 0.98% 倒挂）。正确做法：直接复用信号/gate 已算好的 sl_pct/tp_pct
+            # 百分比（含猎杀区加宽与 RR 修复后的最终值），围绕真实成交价重建价格。
             if _scalp_entry > 0 and _scalp_tp > 0 and _scalp_sl > 0:
                 _side_is_long_ra = str(side).lower() in ("long", "buy")
                 try:
@@ -1371,9 +1389,26 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _live_px = float(_dc_ra.get_price(sym, purpose="trade") or 0)
                 except Exception:
                     _live_px = 0.0
+                if _live_px <= 0 and isinstance(_md, dict):
+                    try:
+                        _live_px = float(_md.get("price") or _md.get("mark_price") or 0)
+                    except Exception:
+                        _live_px = 0.0
                 _anchor = _live_px if _live_px > 0 else _scalp_entry
-                _sl_pct_ra = abs(_anchor - _scalp_sl) / _anchor if _anchor > 0 else 0.0
-                _tp_pct_ra = abs(_scalp_tp - _anchor) / _anchor if _anchor > 0 else 0.0
+                # E2：优先用信号最终百分比（gate 输出已含猎杀区加宽 + RR 修复），
+                # 缺失时才用旧绝对价距离反推（仅兜底，同样不是恒等重建）。
+                try:
+                    _sig_sl_pct = float(getattr(_sig, "sl_pct", 0) or 0)
+                    _sig_tp_pct = float(getattr(_sig, "tp_pct", 0) or 0)
+                except Exception:
+                    _sig_sl_pct = _sig_tp_pct = 0.0
+                if 0.0005 < _sig_sl_pct <= 0.08 and 0.0005 < _sig_tp_pct <= 0.08:
+                    _sl_pct_ra, _tp_pct_ra = _sig_sl_pct, _sig_tp_pct
+                    _pct_src = "signal_pct"
+                else:
+                    _sl_pct_ra = abs(_anchor - _scalp_sl) / _anchor if _anchor > 0 else 0.0
+                    _tp_pct_ra = abs(_scalp_tp - _anchor) / _anchor if _anchor > 0 else 0.0
+                    _pct_src = "distance_fallback"
                 if _sl_pct_ra > 0 and _tp_pct_ra > 0:
                     _scalp_sl = (_anchor * (1 - _sl_pct_ra) if _side_is_long_ra
                                  else _anchor * (1 + _sl_pct_ra))
@@ -1389,11 +1424,18 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         )
                         _bump_block("tp_sl_direction_guard")
                         continue
+                    if abs(_anchor - _scalp_entry) > 1e-12:
+                        logger.info(
+                            "[ScalpRouter独立] %s 入场价重锚: signal=%.5f -> live=%.5f "
+                            "(sl=%.5f tp=%.5f pct_src=%s)",
+                            sym, _scalp_entry, _anchor, _scalp_sl, _scalp_tp, _pct_src,
+                        )
+                        _scalp_entry = _anchor  # 下单量/日志与 SL/TP 同锚
                     if abs(_scalp_tp - float(_sig.tp_price or 0)) > 1e-9 or abs(_scalp_sl - float(_sig.sl_price or 0)) > 1e-9:
                         logger.info(
-                            "[ScalpRouter独立] %s TP/SL 重锚: sl=%.5f->%.5f tp=%.5f->%.5f (signal_price=%.5f live=%.5f)",
+                            "[ScalpRouter独立] %s TP/SL 重锚: sl=%.5f->%.5f tp=%.5f->%.5f (signal_price=%.5f live=%.5f pct_src=%s)",
                             sym, float(_sig.sl_price or 0), _scalp_sl, float(_sig.tp_price or 0), _scalp_tp,
-                            _scalp_entry, _anchor,
+                            float(_sig.entry_price or 0), _anchor, _pct_src,
                         )
 
             # [S11 2026-08-21] 无有效入场价不开仓（原实现会下 quantity=0 的废单）
@@ -1526,10 +1568,46 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         }
                         logger.warning("[FusionArbiter] %s 异常 fail-open: %s", sym, _fus_err)
 
+                # [2026-08-24 短线深挖 I] 本地 LLM 确认层：全部规则闸门通过后、
+                # 下单前用本地 Ollama 做一次 JSON 裁决。fail-open（任何异常放行），
+                # 裁决结果写进 _snap（features_json.llm_confirm）供信号结算后
+                # 对比 confirm/reject 两组胜率，LLM 边际可测量。
+                # 关闭：SCALP_LLM_CONFIRM_ENABLED=0。
+                _llm_confirm: Dict[str, Any] = {}
+                try:
+                    _llm_cfg_on = str(os.getenv("SCALP_LLM_CONFIRM_ENABLED", "true") or "").strip().lower()
+                    if _llm_cfg_on in ("1", "true", "yes", "on"):
+                        from backend.services.scalp.scalp_llm_confirm import scalp_llm_confirm
+                        _llm_confirm = scalp_llm_confirm(
+                            symbol=sym,
+                            side=_pos_side,
+                            score=float(_score_for_trade or 0),
+                            sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
+                            tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
+                            is_mr=bool(_mr_active),
+                            regime=(_md.get("regime") or "unknown") if isinstance(_md, dict) else "unknown",
+                            funding=float(_md.get("funding_rate", 0) or 0) if isinstance(_md, dict) else 0.0,
+                            market_data=_md if isinstance(_md, dict) else None,
+                            account_id=account_id,
+                        )
+                        if not _llm_confirm.get("confirmed", True):
+                            logger.info(
+                                "[ScalpRouter独立] %s LLM确认层拒绝: %s (source=%s)",
+                                sym, _llm_confirm.get("reason", ""), _llm_confirm.get("source", "?"),
+                            )
+                            _bump_block("llm_confirm_reject")
+                            continue
+                except Exception as _llm_cf_err:
+                    logger.debug("[ScalpRouter独立] %s LLM确认层异常(fail-open): %s", sym, _llm_cf_err)
+                    _llm_confirm = {"confirmed": True, "source": "error_fail_open",
+                                    "reason": str(_llm_cf_err)[:60]}
+
                 # [2026-08-22 M1-8] 信号日志在全部闸门通过、即将下单时写入
                 try:
                     if _fusion_decision:
                         _snap["fusion"] = _fusion_decision
+                    if _llm_confirm:
+                        _snap["llm_confirm"] = _llm_confirm
                     _log_sig(
                         symbol=sym, direction=str(_sig.direction),
                         action=str(_sig.action or "buy"),
