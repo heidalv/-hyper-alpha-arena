@@ -307,20 +307,50 @@ class LivePipelineBacktestEngine:
         # [M0-P2v2] 预取/预计算因子方向序列：整轮 NSGA-II 数千次 fitness 共用
         # 同一批 K 线窗口。方向只依赖 K 线（与 genome 无关），一次性算好冻结，
         # 后续查表（见模块级注释：性能 + fitness 确定化）。
+        # [2026-08-23 M0-P2v3] 前缀扩展：bars 窗口随数据更新向右滑动（尾部新增
+        # K 线、首时间戳不变），此前按 (len,首尾ts) 精确指纹命中失败会触发整段
+        # 重算——预计算耗时（生产 ~2h）> bars 缓存 TTL（30min）时，每轮评估都
+        # 重载出新窗口 → 新指纹 → 无限重算（实测整轮进化卡死于此）。
+        # 现按首时间戳锚定：同前缀的缓存序列只补算新增尾部窗口。
         self._factor_dir_series = None
         if float(p.get("factor_signal_weight", 0.3)) > 0 and len(bars) > warmup:
-            _dkey = (len(bars), int(bars[0].timestamp), int(bars[-1].timestamp))
-            _cd = _FACTOR_DIR_CACHE.get(_dkey)
-            if _cd is None or (time.time() - _cd[0]) > _FACTOR_DIR_TTL:
+            _ts0 = int(bars[0].timestamp)
+            _best_ln, _best_series = -1, None
+            for _k, (_kt, _ks) in list(_FACTOR_DIR_CACHE.items()):
+                try:
+                    _k0, _kln = _k
+                except (TypeError, ValueError):
+                    continue  # 兼容旧三元组键格式（仅存在于旧进程内存）
+                if _k0 == _ts0 and _kln <= len(bars) and _kln > _best_ln and (time.time() - _kt) <= _FACTOR_DIR_TTL:
+                    _best_ln, _best_series = _kln, _ks
+            if _best_series is not None:
+                _series = list(_best_series)
+                _start_i = max(len(_series), warmup)
+                if _start_i < len(bars):
+                    logger.info(
+                        "[PipelineBT] 因子方向序列前缀扩展 +%d 窗口 (cached=%d, bars=%d)",
+                        len(bars) - _start_i, len(_series), len(bars),
+                    )
+                    for _i in range(_start_i, len(bars)):
+                        _series.append(self._compute_factor_direction_windowed(_i, bars))
+                self._factor_dir_series = _series
+                _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
+            else:
                 logger.info(
-                    "[PipelineBT] 预计算因子方向序列 bars=%d（首次 1-3 分钟，之后全部复用）",
+                    "[PipelineBT] 预计算因子方向序列 bars=%d（一次性，之后复用/前缀扩展）",
                     len(bars),
                 )
                 _series = [0] * warmup
                 for _i in range(warmup, len(bars)):
+                    if (_i - warmup) % 5000 == 0:
+                        logger.info(
+                            "[PipelineBT] 预计算进度 %d/%d (%.0f%%)",
+                            _i - warmup, len(bars) - warmup,
+                            100.0 * (_i - warmup) / max(len(bars) - warmup, 1),
+                        )
                     _series.append(self._compute_factor_direction_windowed(_i, bars))
-                _FACTOR_DIR_CACHE[_dkey] = (time.time(), _series)
-            self._factor_dir_series = _FACTOR_DIR_CACHE[_dkey][1]
+                _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
+                self._factor_dir_series = _series
 
         for i in range(warmup, len(bars)):
             bar = bars[i]
