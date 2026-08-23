@@ -1,6 +1,6 @@
 """每周 pwin 分桶验证（衰减监控，阶段2）。
 
-用法：Hyper-Alpha-Arena\.venv\Scripts\python.exe scripts\_fusion_weekly_validation.py [days]
+用法：Hyper-Alpha-Arena/.venv/Scripts/python.exe scripts/_fusion_weekly_validation.py [days]
 判据：pwin>=0.55 桶最近 N 天已结算信号 wr>=55% 且样本>=100 → OK；
 不达标 → 人工决定 FUSION_SCALP_PWIN_MIN 上移或 FUSION_MODE=factor。
 """
