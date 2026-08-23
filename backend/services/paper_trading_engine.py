@@ -1630,8 +1630,8 @@ class PaperTradingEngine:
             from backend.services.source_attribution import attribution as _attr
             _attr.record_close(
                 int(getattr(pos, "id", 0) or 0),
-                pnl=float(total_pnl or 0),
-                fee=float(total_fee or 0),
+                pnl=float(final_pnl or 0),   # 只记 final 腿（partial 腿已在 _partial_close 单独入账）
+                fee=float(final_fee or 0),
                 close_reason=actual_reason,
                 tier=str(getattr(pos, "timeframe_tier", None) or ""),
                 symbol=str(getattr(pos, "symbol", "") or ""),
@@ -1884,6 +1884,21 @@ class PaperTradingEngine:
         self._sync_attached_orders(db, pos)
         self._recalc_balance(db, bal)
         db.commit()
+
+        # ── 融合归因（阶段4）：部分平仓腿同样入账（每腿记一次；全平时只记 final 腿，不重叠）──
+        try:
+            from backend.services.source_attribution import attribution as _attr_p
+            _attr_p.record_close(
+                int(getattr(pos, "id", 0) or 0),
+                pnl=float(partial_pnl or 0),
+                fee=float(partial_fee or 0),
+                close_reason=actual_reason,
+                tier=str(getattr(pos, "timeframe_tier", None) or ""),
+                symbol=str(getattr(pos, "symbol", "") or ""),
+                nature=str(getattr(pos, "trade_nature", "") or ""),
+            )
+        except Exception as _attr_p_err:
+            logger.debug("[FusionAttr] 部分平仓归因失败: %s", _attr_p_err)
 
         try:
             self._notify_learning_on_close(
