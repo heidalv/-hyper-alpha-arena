@@ -759,6 +759,28 @@ def try_execute_independent_agent_open(
             )
         except Exception as _aud_err:
             logger.debug("[MidLongAudit] open record skip: %s", _aud_err)
+        # ── 融合归因（阶段4）：中长线开仓统一来源标签（覆盖 factor_route/trend/mlto/master 全部入口）──
+        try:
+            from backend.services.source_attribution import attribution as _attr_mh
+            from sqlalchemy import text as _sa_text_mh
+            _acct_mh = host.get_trading_account_id(db, session)
+            if _acct_mh:
+                _prow = db.execute(
+                    _sa_text_mh(
+                        "SELECT id FROM paper_positions WHERE account_id=:a AND symbol=:s "
+                        "AND opened_at > now() - interval '120 seconds' ORDER BY id DESC LIMIT 1"
+                    ),
+                    {"a": int(_acct_mh), "s": _sym_u},
+                ).first()
+                if _prow:
+                    _attr_mh.tag_position(
+                        int(_prow[0]),
+                        source=str(entry_source or "midlong"),
+                        nature=str(trade_nature or ""),
+                        symbol=_sym_u,
+                    )
+        except Exception as _tagmh_err:
+            logger.debug("[FusionAttr] 中长线标签绑定失败: %s", _tagmh_err)
     elif not _ok and _act in ("buy", "sell"):
         try:
             from backend.services.mlto.midlong_direction_audit import record_decision_audit
