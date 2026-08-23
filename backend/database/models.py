@@ -980,6 +980,10 @@ class PromptTrainingRecord(Base):
     base_prompt_id = Column(Integer, ForeignKey("prompt_templates.id"), nullable=False)
     optimized_prompt_id = Column(Integer, ForeignKey("prompt_templates.id"), nullable=True)
     training_metrics = Column(JSON, nullable=True)
+    # [2026-08-23 M1-1c] 补映射 tenant_id：DB 列存在但 ORM 未声明 → before_flush
+    # 钩子跳过填充 → 行落 DB DEFAULT 1，与 GUC 租户(326)不符 → RLS
+    # InsufficientPrivilege（实测 09:29 三条 prompt 进化记录写入全部被拒）。
+    tenant_id = Column(Integer, nullable=True, index=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 
@@ -1004,6 +1008,8 @@ class SignalPerformanceHistory(Base):
     market_regime = Column(String(50), nullable=True)
     regime_confidence = Column(Float, nullable=True)
 
+    # [2026-08-23 M1-1c] 与 DB DDL 对齐声明 tenant_id（RLS 写入断裂同类修复）
+    tenant_id = Column(Integer, nullable=True, index=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 
@@ -2330,6 +2336,8 @@ class StrategyExecution(Base):
     max_drawdown = Column(Float, nullable=True)
     
     # 时间戳
+    # [2026-08-23 M1-1c] 与 DB DDL 对齐声明 tenant_id（RLS 写入断裂同类修复）
+    tenant_id = Column(Integer, nullable=True, index=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp()
@@ -2996,6 +3004,8 @@ class TradeMemoryRecord(Base):
 
     close_reason = Column(String(100), nullable=True)     # tp/sl/trailing/ai_reverse/manual/liquidation
 
+    # [2026-08-23 M1-1c] 与 DB DDL 对齐声明 tenant_id（RLS 写入断裂同类修复）
+    tenant_id = Column(Integer, nullable=True, index=True)
     opened_at = Column(TIMESTAMP, nullable=False)
     closed_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
