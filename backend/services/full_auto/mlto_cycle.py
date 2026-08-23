@@ -307,6 +307,37 @@ def maintain_mlto_theses_for_session(
                         _v2_entry = _v2_entry_signal(sym_u, market_summary or {})
                 except Exception as _v2_se:
                     logger.debug("[TrendAgent][V2] long 信号接管跳过: %s", _v2_se)
+                # ── 融合仲裁（阶段1：long_trend_v2 × LLM thesis 否决）──
+                # LLM thesis=standdown（strong bearish 且 conf>=0.6）→ 暂停新开；
+                # 无 thesis / 弱反对 → L1 规则自决（fail-open）。
+                try:
+                    from backend.services.decision_fusion_arbiter import decide_long
+                    _ms_ls = (market_summary or {}).get(sym_u) if isinstance(market_summary, dict) else {}
+                    if not isinstance(_ms_ls, dict):
+                        _ms_ls = {}
+                    _orch_ls = _ms_ls.get("orchestrator") if isinstance(_ms_ls.get("orchestrator"), dict) else {}
+                    _lb_raw = str(_orch_ls.get("long_bias") or "").strip().lower()
+                    try:
+                        _lb_conf = float(_orch_ls.get("long_confidence") or 0)
+                    except Exception:
+                        _lb_conf = 0.0
+                    _thesis_state = None
+                    if _lb_raw in ("bearish", "short") and _lb_conf >= 0.6:
+                        _thesis_state = "standdown"
+                    _fusion_long = decide_long(
+                        thesis_state=_thesis_state,
+                        l1_state="up" if (_v2_entry or {}).get("should_open") else "sideways",
+                    )
+                    if not _fusion_long.allowed and _v2_entry is not None:
+                        _v2_entry["should_open"] = False
+                        _v2_entry["hold_reason"] = "fusion_thesis_standdown"
+                        _v2_entry["fusion"] = _fusion_long.to_dict()
+                        logger.info(
+                            "[FusionLong] %s thesis 否决: %s (long_bias=%s conf=%.2f)",
+                            sym_u, _fusion_long.reason, _lb_raw, _lb_conf,
+                        )
+                except Exception as _fl_err:
+                    logger.debug("[TrendAgent][V2] 融合仲裁跳过: %s", _fl_err)
                 if _v2_entry is not None:
                     _trend_result = {
                         "should_open": bool(_v2_entry.get("should_open")),

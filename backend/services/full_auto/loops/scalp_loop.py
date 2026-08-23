@@ -634,8 +634,11 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _mp = predict_win_prob(_meta_feats, require_usable=False)
                         if _mp is not None:
                             _snap["meta_p_win"] = round(float(_mp), 6)
-                        # 阶段0：usable 模型才是仲裁输入（回放证据基于 usable 模型的 meta_p_win）
-                        _meta_pwin = predict_win_prob(_meta_feats, require_usable=True)
+                        # 阶段1修正：仲裁输入与回放证据同源（回放的 meta_p_win 全部由
+                        # require_usable=False 的影子模型产出，315k 笔分桶 wr 单调、
+                        # pwin>=0.55 桶净 +5.09）。usable 门控（top30% 过滤仍为负即否）
+                        # 与 0.55 高桶不匹配，故不以其为准；模型文件缺失仍 hold（见 arbiter）。
+                        _meta_pwin = predict_win_prob(_meta_feats, require_usable=False)
                     except Exception:
                         pass
                     # [2026-08-22 M1-8] 信号日志移到门槛之后：原来在信号评估段就写
@@ -1400,13 +1403,37 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 if _fusion_mode != "factor":
                     try:
                         from backend.services.decision_fusion_arbiter import decide_scalp
+                        # ── LLM thesis（阶段1）：orchestrator 信封方向 + 置信度 ──
+                        _orch_f = _md.get("orchestrator") if isinstance(_md, dict) else {}
+                        if not isinstance(_orch_f, dict):
+                            _orch_f = {}
+                        _dir_l = str(_sig.direction or "").strip().lower()
+                        _tdir_raw = (
+                            _orch_f.get("long_bias") if _dir_l == "long"
+                            else _orch_f.get("short_bias")
+                        ) or ""
+                        _tdir = {"bullish": "long", "bearish": "short"}.get(
+                            str(_tdir_raw).strip().lower()
+                        )
+                        _tconf_key = "long_confidence" if _dir_l == "long" else "short_confidence"
+                        try:
+                            _tconf = float(_orch_f.get(_tconf_key) or 0)
+                        except Exception:
+                            _tconf = 0.0
                         _fus = decide_scalp(
                             pwin=_meta_pwin,
                             factor_score=float(_score_for_trade or 0),
                             direction=str(_sig.direction or "long"),
+                            thesis_dir=_tdir,
+                            thesis_conf=_tconf,
                             tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
                             sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
                         )
+                        # 阶段1 MVP：thesis 强反向冲突且无 LLM 窄调用仲裁 → 保守 hold
+                        # （阶段2 接入窄 JSON LLM 仲裁后再把 arbitrate 变成真实调用）
+                        if _fus.action == "arbitrate":
+                            _fus = type(_fus)("hold", 0.0, "llm", "thesis_conflict_hold_no_arbiter",
+                                             {"thesis_dir": _tdir, "thesis_conf": _tconf})
                         _fusion_decision = _fus.to_dict()
                         if not _fus.allowed:
                             logger.info(

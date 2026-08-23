@@ -351,6 +351,35 @@ def factor_route_open(
     if dec.get("action") not in ("buy", "sell"):
         return dec
 
+    # ── 融合仲裁（阶段1：FactorRoute × LLM thesis 对齐闸）──
+    # 冲突→skip（不冻结）；LLM 无意见/弱反对→因子自决（fail-open）。
+    try:
+        from backend.services.decision_fusion_arbiter import decide_mid
+        _ms_sym = (market_summary or {}).get(sym) or {}
+        if not isinstance(_ms_sym, dict):
+            _ms_sym = {}
+        _orch_m = _ms_sym.get("orchestrator") if isinstance(_ms_sym.get("orchestrator"), dict) else {}
+        _mdir_raw = str(_orch_m.get("mid_bias") or "").strip().lower()
+        _mdir = {"bullish": "long", "bearish": "short"}.get(_mdir_raw)
+        try:
+            _mconf = float(_orch_m.get("mid_confidence") or 0)
+        except Exception:
+            _mconf = 0.0
+        _fmid = decide_mid(
+            True,
+            "long" if str(dec["action"]) == "buy" else "short",
+            thesis_dir=_mdir,
+            thesis_conf=_mconf,
+        )
+        dec["fusion"] = _fmid.to_dict()
+        if not _fmid.allowed:
+            dec["gate"] = f"fusion_thesis_{_fmid.reason}"
+            logger.info("[FusionMid] %s %s 对齐闸拦截: %s", sym, dec["action"], _fmid.reason)
+            return dec
+    except Exception as _fm_err:
+        # 仲裁异常 → fail-open（不因新代码 bug 停摆中线）
+        logger.debug("[FusionMid] %s 仲裁异常(放行): %s", sym, _fm_err)
+
     from backend.config import settings as _s
     _acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
 

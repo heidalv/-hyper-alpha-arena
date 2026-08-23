@@ -629,7 +629,15 @@ class PositionMemoryManager:
                 f"参考门槛+{effective_penalty:.0%}→{required_conf:.0%}"
             )
 
-        daily_loss_pct = abs(mental.daily_pnl / equity) if equity > 0 and mental.daily_pnl < 0 else 0
+        # [2026-08-23 口径修复] 日亏熔断改读 DB 真实已实现盈亏：
+        # mental.daily_pnl 是内存累计的杠杆放大口径（实测 -232 vs DB 当日已实现
+        # 仅 -2.39，虚高 100 倍），73.6%≥8% 误触冻结把中长线开仓全冻。
+        try:
+            from backend.services.full_auto.paper_risk_helpers import get_today_realized_pnl
+            _real_daily_pnl = get_today_realized_pnl(db, account_id)
+        except Exception:
+            _real_daily_pnl = mental.daily_pnl
+        daily_loss_pct = abs(_real_daily_pnl / equity) if equity > 0 and _real_daily_pnl < 0 else 0
         if daily_loss_pct >= MAX_DAILY_LOSS_PCT:
             self._transition_state(db, mental, "daily_loss_5pct", personality)
             return self._skip_plan(symbol, side,
