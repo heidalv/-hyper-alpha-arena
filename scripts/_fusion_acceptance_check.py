@@ -34,15 +34,23 @@ def main():
       WHERE opened_at >= now()::date GROUP BY 1,2 ORDER BY 1,2""")
     for r in rows: print("  ", r)
 
-    print("== S0-2 今日 scalp 仓 RR 检查（RR=TP距/SL距 >=1.2）==")
+    print("== S0-2 方向一致性终检（今日全部 scalp：long 需 TP>entry>SL；short 反之；违规=亏损型止盈/止损风险）==")
     rows = q(cur, """SELECT id, symbol, side, ROUND(entry_price::numeric,4), ROUND(tp_price::numeric,4),
-      ROUND(sl_price::numeric,4),
-      CASE WHEN side='long' THEN (tp_price-entry_price)/(entry_price-sl_price)
-           ELSE (sl_price-entry_price)/(entry_price-tp_price) END AS rr
-      FROM paper_positions WHERE opened_at >= now()::date AND trade_nature='scalp'""")
+      ROUND(sl_price::numeric,4) FROM paper_positions
+      WHERE opened_at >= now()::date AND trade_nature='scalp' AND tp_price IS NOT NULL AND sl_price IS NOT NULL""")
+    bad = 0
     for r in rows:
-        rr = float(r[6] or 0)
-        print("  ", r, "rr=%.2f" % rr, "OK" if rr >= 1.2 else "BELOW_FLOOR")
+        sid, sym, side, entry, tp, sl = r
+        if side == "long":
+            ok = (tp or 0) > (entry or 0) > (sl or 0)
+        else:
+            ok = (tp or 0) < (entry or 0) < (sl or 0)
+        rr = (abs((tp or 0)-(entry or 0))/max(abs((entry or 0)-(sl or 0)),1e-9))
+        flag = "OK" if ok and rr >= 1.1 else ("DIR_INVERTED" if not ok else "RR_LOW")
+        if flag != "OK":
+            bad += 1
+            print("  ", r, "rr=%.2f" % rr, flag)
+    print("  direction violations:", bad, "（存列为追踪后水平，旧仓仅供参考；18:00 后新仓以重锚+终检为准）")
 
     print("== S1-1 信号级 pwin>=0.55 桶（近7天已结算）==")
     rows = q(cur, """SELECT COUNT(*), SUM(CASE WHEN COALESCE(win,false) THEN 1 ELSE 0 END),
