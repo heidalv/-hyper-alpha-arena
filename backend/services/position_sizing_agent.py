@@ -9,10 +9,38 @@ or reject the plan.
 from __future__ import annotations
 
 import logging
+import time as _time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+_LIQ_CACHE: Dict[str, tuple] = {}
+
+
+def _liquidity_lev_cap(symbol: str) -> Optional[int]:
+    """R1 小币流动性分档杠杆上限（阶段3）：24h 成交额 <$500万→3x；<$1000万→5x；
+    取数失败 → 10x 保守兜底（不阻塞，但绝不放小币进高杠杆档）。15min 缓存。"""
+    s = (symbol or "").upper()
+    now = _time.time()
+    hit = _LIQ_CACHE.get(s)
+    if hit and now - hit[0] < 900:
+        return hit[1]
+    cap: Optional[int] = 10
+    try:
+        from backend.services.data_center import data_center
+        vol = 0.0
+        tickers = data_center.get_all_market_tickers() or {}
+        for sym, data in tickers.items():
+            if str(sym).upper() == s:
+                vol = float(data.get("volume_24h", 0) or 0)
+                break
+        if vol > 0:
+            cap = 3 if vol < 5_000_000 else (5 if vol < 10_000_000 else None)
+    except Exception:
+        cap = cap if cap is not None else 10
+    _LIQ_CACHE[s] = (now, cap)
+    return cap
 
 
 def clamp_position_by_risk_cap(
@@ -391,6 +419,15 @@ class PositionSizingAgent:
             if lev > max_by_sl:
                 reasons.append(f"sl_cap {lev}->{max_by_sl}")
                 lev = max_by_sl
+
+        # 6) R1 小币流动性分档杠杆上限（风控诊断 R1/R4：XPL/LDO/KAITO 类 0% 胜率小币敞口）
+        try:
+            _liq_cap = _liquidity_lev_cap(ctx.symbol)
+            if _liq_cap is not None and lev > _liq_cap:
+                reasons.append(f"liq_lev_cap {lev}->{_liq_cap}")
+                lev = _liq_cap
+        except Exception:
+            pass
 
         return max(2, min(20, lev))
 

@@ -1395,6 +1395,17 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                     _bump_block("daily_open_cap")
                     continue
+                # ── R2 风控禁开（阶段3）：该币 24h 内单笔已实现亏损 >1.5% 权益 → 禁开 ──
+                try:
+                    if os.getenv("FUSION_RISK_EVENT_BAN", "true").strip().lower() not in ("0", "false", "off"):
+                        from backend.services.symbol_penalty import is_risk_banned as _risk_banned
+                        if _risk_banned(sym):
+                            logger.info("[FusionArbiter] %s 24h 风控禁开（单笔已实现亏损>1.5%%权益）", sym)
+                            _bump_block("fusion_risk_ban")
+                            continue
+                except Exception as _rb_err:
+                    logger.debug("[FusionArbiter] %s 风控禁开检查失败: %s", sym, _rb_err)
+
                 # ── 融合仲裁器（阶段0 v2：pwin 主轴 + RR 下限；FUSION_MODE=factor 整体关闭）──
                 try:
                     _fusion_mode = os.getenv("FUSION_MODE", "hybrid").strip().lower()

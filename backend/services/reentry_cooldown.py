@@ -202,6 +202,15 @@ def record_full_close(
     if is_master_close:
         base_cd = max(base_cd, _MASTER_CLOSE_MIN_COOLDOWN)
 
+    # B4 冷却按亏损归因分层（阶段3）：软平仓（系统自己的砍仓通道）冷却减半——
+    # 惩罚的对象应是"真信号亏损"（sl/穿仓），不是被错误纪律拖累的标的（风控诊断 B4）。
+    _soft_close_keys = (
+        "master_running", "trend_review", "trend_broken", "hold_timeout",
+        "max_hold", "symbol_removed", "ai_reverse", "profit_drawdown",
+    )
+    if any(k in (_reason_l or "") for k in _soft_close_keys) and base_cd > 60:
+        base_cd = max(60, int(base_cd * 0.5))
+
     # 连续亏损倍率
     multiplier = _get_loss_multiplier(account_id, symbol)
     # S0-8 修复:把 effective_cd 也存入 state,供 reopen_blocked 读取

@@ -380,6 +380,18 @@ def factor_route_open(
         # 仲裁异常 → fail-open（不因新代码 bug 停摆中线）
         logger.debug("[FusionMid] %s 仲裁异常(放行): %s", sym, _fm_err)
 
+    # ── R2 风控禁开（阶段3）：该币 24h 内单笔已实现亏损 >1.5% 权益 → 禁开 ──
+    try:
+        import os as _os_rb
+        if _os_rb.getenv("FUSION_RISK_EVENT_BAN", "true").strip().lower() not in ("0", "false", "off"):
+            from backend.services.symbol_penalty import is_risk_banned as _risk_banned_m
+            if _risk_banned_m(sym):
+                dec["gate"] = "fusion_risk_ban"
+                logger.info("[FusionMid] %s 24h 风控禁开（单笔已实现亏损>1.5%%权益）", sym)
+                return dec
+    except Exception as _rb_err_m:
+        logger.debug("[FusionMid] %s 风控禁开检查失败: %s", sym, _rb_err_m)
+
     from backend.config import settings as _s
     _acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
 

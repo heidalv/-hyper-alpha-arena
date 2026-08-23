@@ -100,5 +100,31 @@ def is_watchlisted(symbol: str) -> bool:
     return bool(s.get("watchlisted")) if s else False
 
 
+def flag_symbol_risk_event(symbol: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """R2 已实现亏损风控事件（阶段3）：单笔亏损 >1.5% 权益 → 该币 24h 禁开 + 事件留档。"""
+    import time
+    state = _load()
+    syms = state.setdefault("symbols", {})
+    s = syms.setdefault((symbol or "").upper(), {})
+    s.setdefault("penalty", 1.0)
+    s.setdefault("watchlisted", False)
+    s["risk_ban_until_ts"] = time.time() + 86400
+    s.setdefault("risk_events", []).append({"ts": time.time(), "detail": detail or {}})
+    s["risk_events"] = s["risk_events"][-20:]
+    state["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    _save(state)
+    logger.warning("[SymbolPenalty] 风控事件：%s 单笔已实现亏损超线 → 24h 禁开", symbol)
+    return dict(s)
+
+
+def is_risk_banned(symbol: str) -> bool:
+    import time
+    state = _load()
+    s = state.get("symbols", {}).get((symbol or "").upper())
+    if not s:
+        return False
+    return float(s.get("risk_ban_until_ts", 0) or 0) > time.time()
+
+
 def snapshot() -> Dict[str, Any]:
     return _load()

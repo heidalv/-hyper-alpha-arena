@@ -1607,6 +1607,24 @@ class PaperTradingEngine:
         # _recalc_balance 只查 open 仓位，不影响余额计算
         pos.unrealized_pnl = total_pnl
 
+        # ── R2 已实现亏损风控事件（阶段3）：单笔亏损 >1.5% 权益 → RiskEvent + 币种 24h 禁开 ──
+        try:
+            _eq = float(getattr(bal, "total_equity", 0) or 0)
+            if _eq > 0 and float(total_pnl or 0) < 0 and abs(float(total_pnl or 0)) > _eq * 0.015:
+                from backend.services.symbol_penalty import flag_symbol_risk_event
+                flag_symbol_risk_event(
+                    str(getattr(pos, "symbol", "") or ""),
+                    {"pnl": round(float(total_pnl or 0), 2), "equity": round(_eq, 2),
+                     "pct": round(float(total_pnl or 0) / _eq * 100, 2),
+                     "close_reason": actual_reason},
+                )
+                logger.warning(
+                    "[RiskEvent] %s 单笔已实现亏损 %.2f (%.2f%% 权益) → 24h 禁开该币",
+                    pos.symbol, float(total_pnl or 0), float(total_pnl or 0) / _eq * 100,
+                )
+        except Exception as _re_err:
+            logger.debug("[RiskEvent] 记录失败: %s", _re_err)
+
         # ── 融合归因（阶段2）：来源标签 + 出场通道熔断数据（close 钩子，仅内存字典 + 节流落盘）──
         try:
             from backend.services.source_attribution import attribution as _attr

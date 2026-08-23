@@ -324,6 +324,18 @@ def maintain_mlto_theses_for_session(
                     _thesis_state = None
                     if _lb_raw in ("bearish", "short") and _lb_conf >= 0.6:
                         _thesis_state = "standdown"
+                    # ── R2 风控禁开（阶段3）──
+                    try:
+                        if os.getenv("FUSION_RISK_EVENT_BAN", "true").strip().lower() not in ("0", "false", "off"):
+                            from backend.services.symbol_penalty import is_risk_banned as _risk_banned_l
+                            if _risk_banned_l(sym_u):
+                                if _v2_entry is not None:
+                                    _v2_entry["should_open"] = False
+                                    _v2_entry["hold_reason"] = "fusion_risk_ban"
+                                logger.info("[FusionLong] %s 24h 风控禁开（单笔已实现亏损>1.5%%权益）", sym_u)
+                    except Exception as _rb_err_l:
+                        logger.debug("[FusionLong] %s 风控禁开检查失败: %s", sym_u, _rb_err_l)
+
                     _fusion_long = decide_long(
                         thesis_state=_thesis_state,
                         l1_state="up" if (_v2_entry or {}).get("should_open") else "sideways",
