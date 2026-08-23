@@ -951,7 +951,12 @@ class StrategyLearningService:
                 )
                 record = PromptTrainingRecord(
                     strategy_id=strategy.strategy_id,
-                    base_prompt_id=strategy.master_prompt_template_id or 0,
+                    # [2026-08-23 M1-1d] 原实现 `strategy.master_prompt_template_id or 0`：
+                    # 策略未绑定模板（0/1416 常态）时 base_prompt_id=0 违反
+                    # prompt_templates.id 外键（M1-1c 修好 RLS 后此错误浮出水面，
+                    # 实测 09:42 ForeignKeyViolation）。改用上方已解析的基线
+                    # prompt_tpl.id（与成功路径第 1028 行同一口径）。
+                    base_prompt_id=prompt_tpl.id,
                     training_metrics=json.dumps({
                         "lessons": lessons,
                         "failure_patterns": patterns.get("failure_patterns", []),
