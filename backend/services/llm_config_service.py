@@ -22,7 +22,7 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Optional, Dict, Any, List, Callable
+from typing import Optional, Dict, Any, List, Callable, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -334,7 +334,21 @@ def get_llm_config_for_account(account_id: int, tier: str = "quick") -> Optional
             )
         result = _config_to_dataclass(config, tier=tier) if config else None
         if result is None:
-            result = get_llm_config(tier=tier, tenant_id=tenant_id)
+            # [2026-08-23 本地LLM最大化] 分层语义：tier=quick（批量低延迟敏感：
+            # KlineAnalyst/flash_veto/复盘等）→ 本地 14B 优先、云端兜底；
+            # tier=deep（决策主链路）→ 保持租户默认云端（质量优先）。
+            # 账户显式绑定（llm_config_id）优先级最高，不受此分层影响。
+            if tier == "quick":
+                try:
+                    _qf_local, _qf_cloud = get_llm_config_local_first(
+                        "trading", account_id=account_id, tier="quick",
+                    )
+                    result = _qf_local or _qf_cloud
+                except Exception as _qf_err:
+                    logger.debug("[LLM] quick 本地优先解析失败: %s", _qf_err)
+                    result = None
+            if result is None:
+                result = get_llm_config(tier=tier, tenant_id=tenant_id)
 
         with _config_cache_lock:
             _config_cache[cache_key] = {"value": result, "ts": now}
@@ -450,8 +464,13 @@ def get_llm_config_for_usage(
                 q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
             if provider:
                 q = q.filter(LLMConfiguration.provider == str(provider).strip().lower())
+            # [2026-08-23 本地LLM最大化] 非默认专属绑定优先于默认兜底：
+            # 旧排序 is_default desc 使 id=17(默认,scope=全部) 恒胜出，任何 usage 的
+            # 专属本地绑定（如 factor_mining→id84 ollama）都被压死——实测 factor_mining
+            # 24h 调用 100% 落 DeepSeek。语义修正：usage 匹配时「非默认专属绑定」意图
+            # 强于「默认配置的宽 scope 兜底」。
             config = q.order_by(
-                LLMConfiguration.is_default.desc(),
+                LLMConfiguration.is_default.asc(),
                 LLMConfiguration.usage_count.desc(),
                 LLMConfiguration.name,
             ).first()
@@ -704,7 +723,8 @@ def _parse_sse_chat_completion(
                             "choices": [{
                                 "message": {
                                     "content": _c_msg.get("content") or "",
-                                    "reasoning_content": _c_msg.get("reasoning_content") or "",
+                                    "reasoning_content": _c_msg.get("reasoning_content")
+                                    or _c_msg.get("reasoning") or "",
                                 },
                                 "finish_reason": "stop",
                             }],
@@ -748,7 +768,9 @@ def _parse_sse_chat_completion(
             if _chunk_content is None:
                 _chunk_content = _delta_msg.get("content")
             full_content += _chunk_content or ""
-            reasoning_content += delta.get("reasoning_content") or ""
+            # [2026-08-23 本地LLM最大化] Ollama qwen3 流式思维链字段名是
+            # delta.reasoning（DeepSeek 是 delta.reasoning_content）——两字段都取。
+            reasoning_content += delta.get("reasoning_content") or delta.get("reasoning") or ""
             # [P0-A] 首个 chunk 无内容时记录形状，便于定位网关/模型字段差异
             if chunk_count == 1 and not _chunk_content and not delta.get("reasoning_content"):
                 logger.debug(
@@ -907,7 +929,8 @@ async def _parse_sse_chat_completion_async(
                             "choices": [{
                                 "message": {
                                     "content": _c_msg.get("content") or "",
-                                    "reasoning_content": _c_msg.get("reasoning_content") or "",
+                                    "reasoning_content": _c_msg.get("reasoning_content")
+                                    or _c_msg.get("reasoning") or "",
                                 },
                                 "finish_reason": "stop",
                             }],
@@ -944,7 +967,9 @@ async def _parse_sse_chat_completion_async(
             if _chunk_content is None:
                 _chunk_content = _delta_msg.get("content")
             full_content += _chunk_content or ""
-            reasoning_content += delta.get("reasoning_content") or ""
+            # [2026-08-23 本地LLM最大化] Ollama qwen3 流式思维链字段名是
+            # delta.reasoning（DeepSeek 是 delta.reasoning_content）——两字段都取。
+            reasoning_content += delta.get("reasoning_content") or delta.get("reasoning") or ""
 
             elapsed_now = _time.time() - started_at
             if safety_cap > 0 and elapsed_now >= safety_cap:
@@ -1005,6 +1030,62 @@ def get_llm_config_for_analysis(
         logger.warning("[LLM] get_llm_config_for_analysis 无 account_id")
         return None
     return get_llm_config_for_account(account_id, tier=tier)
+
+
+def get_llm_config_local_first(
+    usage: str,
+    account_id: Optional[int] = None,
+    tier: str = "quick",
+    *,
+    tenant_id: Optional[int] = None,
+) -> Tuple[Optional[LLMConfig], Optional[LLMConfig]]:
+    """[2026-08-23 本地LLM最大化] 两段式解析：本地 Ollama 优先 + 云端降级。
+
+    Returns:
+        (primary, fallback)：primary = 本地 ollama 配置（无则 None）；
+        fallback = 同 usage 的云端配置/租户默认（与 primary 不同才返回）。
+
+    用法（调用点零成本切换）：
+        local, cloud = get_llm_config_local_first("kline_analysis", account_id=aid)
+        cfg = local or cloud                     # 或传 cloud 作 call_llm_api 的
+        # fallback_config=cloud 实现「本地失败自动云端重试」
+    """
+    resolved_tenant = tenant_id
+    if resolved_tenant is None and account_id is not None:
+        db0 = SessionLocal()
+        try:
+            acc = db0.query(Account).filter(Account.id == account_id).first()
+            if acc and getattr(acc, "user_id", None):
+                resolved_tenant = int(acc.user_id)
+        except Exception as e:
+            logger.warning(f"resolve tenant for account {account_id}: {e}")
+        finally:
+            db0.close()
+
+    local: Optional[LLMConfig] = None
+    try:
+        local = get_llm_config_for_usage(
+            usage, account_id=None, tier=tier,
+            tenant_id=resolved_tenant, provider="ollama",
+        )
+    except Exception as e:
+        logger.debug("[LLM] local_first ollama 解析失败: %s", e)
+
+    cloud: Optional[LLMConfig] = None
+    try:
+        cloud = get_llm_config_for_usage(
+            usage, account_id=None, tier=tier, tenant_id=resolved_tenant,
+        )
+    except Exception as e:
+        logger.debug("[LLM] local_first cloud 解析失败: %s", e)
+
+    # 本地不可用（未绑定/无 key）→ 直接云端单段
+    if local is None or not getattr(local, "api_key", None):
+        return None, cloud
+    # primary==fallback（usage 只绑了 ollama 且无云端）→ 无降级
+    if cloud is not None and getattr(cloud, "id", None) == getattr(local, "id", None):
+        return local, None
+    return local, cloud
 
 
 def get_all_active_configs() -> List[LLMConfig]:
@@ -1286,14 +1367,36 @@ async def call_llm_api(
     *,
     caller: Optional[str] = None,
     account_id: Optional[int] = None,
+    fallback_config: Optional[LLMConfig] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Call the LLM API with the given configuration.
     复用 httpx 连接池，异步记录用量，减少 I/O 开销。
+
+    [2026-08-23 本地LLM最大化] fallback_config：主配置失败自动降级云端重试一次。
     """
     if not config:
         logger.error("No LLM configuration provided")
         return None
+
+    async def _fallback(reason: str) -> Optional[Dict[str, Any]]:
+        if fallback_config is None:
+            return None
+        _fb_caller = caller or _detect_caller_module()
+        logger.warning(
+            "[LLM async] 主配置(%s %s)失败(%s) → 降级云端 %s 重试 caller=%s",
+            getattr(config, "provider", "?"), getattr(config, "model", "?"),
+            reason, getattr(fallback_config, "model", "?"), _fb_caller,
+        )
+        try:
+            return await call_llm_api(
+                fallback_config, messages, temperature, max_tokens, stream,
+                response_format,
+                caller=caller, account_id=account_id, fallback_config=None,
+            )
+        except Exception as _fb_err:
+            logger.warning("[LLM async] 云端降级重试异常: %s", _fb_err)
+            return None
     
     try:
         base_url = config.base_url.rstrip('/')
@@ -1317,12 +1420,16 @@ async def call_llm_api(
             "messages": messages,
             "stream": use_streaming,
         }
-        
+
+        # [2026-08-23 本地LLM最大化] qwen3 GGUF 强制思维链且 OpenAI 兼容端点不接受
+        # /no_think 后缀（400 invalid model name）；改为 max_tokens 自动放大 +
+        # reasoning 归一化兜底（见 _effective_max_tokens/_normalize_ollama_response）。
+
         if is_reasoning:
-            payload["max_completion_tokens"] = max_tokens
+            payload["max_completion_tokens"] = _effective_max_tokens(config, max_tokens)
         else:
             payload["temperature"] = temperature
-            payload["max_tokens"] = max_tokens
+            payload["max_tokens"] = _effective_max_tokens(config, max_tokens)
 
         # DeepSeek V4：按 caller 分层注入思考模式（短线关 / 决策 high / 重任务 max）
         try:
@@ -1361,7 +1468,7 @@ async def call_llm_api(
                         response.status_code,
                         body.decode("utf-8", errors="replace")[:500],
                     )
-                    return None
+                    return await _fallback(f"http_{response.status_code}")
                 resp_data = await _parse_sse_chat_completion_async(
                     response,
                     progress_observer=progress_observer,
@@ -1375,28 +1482,32 @@ async def call_llm_api(
             )
             if response.status_code != 200:
                 logger.error(f"LLM API error: {response.status_code} - {response.text}")
-                return None
+                return await _fallback(f"http_{response.status_code}")
             resp_data = response.json()
 
         if resp_data:
+            resp_data = _normalize_ollama_response(resp_data)
             increment_usage(config.id)
             try:
                 usage_info = resp_data.get("usage", {})
-                if usage_info:
+                # [2026-08-23 本地LLM最大化] Ollama 流式响应不带 usage 字段 →
+                # 用量日志静默缺失（成本为 0 但调用不可观测）。用空 usage 记录
+                # 保底（provider/model/call_type/success 仍落库）。
+                if usage_info or _is_ollama_qwen3(config):
                     _enqueue_usage_record(
                         config,
-                        usage_info,
+                        usage_info or {},
                         f"async:{_resolved_caller}",
                         account_id=account_id,
                     )
             except Exception:
                 pass
             return resp_data
-        return None
+        return await _fallback("empty_response")
                 
     except Exception as e:
         logger.error(f"LLM API call failed: {e}")
-        return None
+        return await _fallback(f"exception_{type(e).__name__}")
 
 
 def _detect_caller_module() -> str:
@@ -1418,6 +1529,43 @@ def _detect_caller_module() -> str:
     except Exception:
         pass
     return "unknown"
+
+
+def _is_ollama_qwen3(config: LLMConfig) -> bool:
+    try:
+        return (
+            str(getattr(config, "provider", "") or "").lower() == "ollama"
+            and "qwen3" in str(getattr(config, "model", "") or "").lower()
+        )
+    except Exception:
+        return False
+
+
+def _effective_max_tokens(config: LLMConfig, max_tokens: int) -> int:
+    """[2026-08-23 本地LLM最大化] qwen3 强制思维链（/no_think、think=false、
+    chat_template_kwargs 实测均无法在该 GGUF 上关闭）：reasoning 会吃掉大半
+    token 额度导致 content 为空。自动把额度放大保证答案能生成。"""
+    if _is_ollama_qwen3(config) and max_tokens < 1024:
+        return 1024
+    return max_tokens
+
+
+def _normalize_ollama_response(resp_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """qwen3 思维链模型的 content 可能为空、答案在 reasoning 字段——归一化：
+    content 为空时把 reasoning 提升为 content（调用方统一读 content）。"""
+    if not resp_data:
+        return resp_data
+    try:
+        choices = resp_data.get("choices") or []
+        for ch in choices:
+            msg = ch.get("message") or {}
+            if isinstance(msg, dict) and not (msg.get("content") or "").strip():
+                _reasoning = (msg.get("reasoning") or "").strip()
+                if _reasoning:
+                    msg["content"] = _reasoning
+    except Exception:
+        pass
+    return resp_data
 
 
 # ── 整改#13：LLM 语义缓存（默认关；LLM_SEMANTIC_CACHE_ENABLED=true 生效）──
@@ -1466,6 +1614,7 @@ def call_llm_api_sync(
     account_id: Optional[int] = None,
     progress_observer: Optional[Callable[[Dict[str, Any]], None]] = None,
     bypass_cache: bool = False,
+    fallback_config: Optional[LLMConfig] = None,
 ) -> Optional[Dict[str, Any]]:
     """同步版 LLM API 调用，供 APScheduler 线程等同步上下文使用。
     避免 async event loop 管理问题（Event loop is closed）。
@@ -1502,6 +1651,28 @@ def call_llm_api_sync(
         )
         return None
 
+    def _fallback(reason: str) -> Optional[Dict[str, Any]]:
+        """[2026-08-23 本地LLM最大化] 主配置失败 → 自动降级云端重试一次。"""
+        if fallback_config is None:
+            return None
+        logger.warning(
+            "[LLM sync] 主配置(%s %s)失败(%s) → 降级云端 %s 重试 caller=%s",
+            getattr(config, "provider", "?"), getattr(config, "model", "?"),
+            reason, getattr(fallback_config, "model", "?"), _resolved_caller,
+        )
+        try:
+            return call_llm_api_sync(
+                fallback_config, messages, temperature, max_tokens,
+                response_format, timeout,
+                caller=caller, account_id=account_id,
+                progress_observer=progress_observer,
+                bypass_cache=bypass_cache,
+                fallback_config=None,
+            )
+        except Exception as _fb_err:
+            logger.warning("[LLM sync] 云端降级重试异常: %s", _fb_err)
+            return None
+
     try:
         base_url = config.base_url.rstrip('/')
 
@@ -1524,11 +1695,15 @@ def call_llm_api_sync(
             "stream": use_streaming,
         }
 
+        # [2026-08-23 本地LLM最大化] qwen3 GGUF 强制思维链且 OpenAI 兼容端点不接受
+        # /no_think 后缀（400 invalid model name）；改为 max_tokens 自动放大 +
+        # reasoning 归一化兜底（见 _effective_max_tokens/_normalize_ollama_response）。
+
         if is_reasoning:
-            payload["max_completion_tokens"] = max_tokens
+            payload["max_completion_tokens"] = _effective_max_tokens(config, max_tokens)
         else:
             payload["temperature"] = temperature
-            payload["max_tokens"] = max_tokens
+            payload["max_tokens"] = _effective_max_tokens(config, max_tokens)
 
         # DeepSeek V4：按 caller 分层注入思考模式（短线关 / 决策 high / 重任务 max）
         try:
@@ -1577,7 +1752,7 @@ def call_llm_api_sync(
                             "status_code": response.status_code,
                             "body": body[:500],
                         })
-                    return None
+                    return _fallback(f"http_{response.status_code}")
                 resp_data = _parse_sse_chat_completion(response, progress_observer=progress_observer)
         else:
             response = client.post(
@@ -1588,18 +1763,21 @@ def call_llm_api_sync(
             )
             if response.status_code != 200:
                 logger.error(f"LLM API error (sync): {response.status_code} - {response.text}")
-                return None
+                return _fallback(f"http_{response.status_code}")
             resp_data = response.json()
 
         if resp_data:
+            resp_data = _normalize_ollama_response(resp_data)
             increment_usage(config.id)
             try:
                 usage_info = resp_data.get("usage", {})
-                if usage_info:
+                # [2026-08-23 本地LLM最大化] Ollama 流式响应不带 usage 字段 →
+                # 用量日志静默缺失。空 usage 保底记录（可观测性）。
+                if usage_info or _is_ollama_qwen3(config):
                     _resolved_caller = caller or _detect_caller_module()
                     _enqueue_usage_record(
                         config,
-                        usage_info,
+                        usage_info or {},
                         f"sync:{_resolved_caller}",
                         account_id=account_id,
                     )
@@ -1613,11 +1791,11 @@ def call_llm_api_sync(
                 except Exception:
                     pass
             return resp_data
-        return None
+        return _fallback("empty_response")
 
     except Exception as e:
         logger.error(f"LLM API call failed (sync): {e}")
-        return None
+        return _fallback(f"exception_{type(e).__name__}")
     finally:
         try:
             _sem = _get_llm_semaphore()

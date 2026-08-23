@@ -112,6 +112,39 @@ class ScalpExecutionGate:
                 symbol, regime.regime, regime.detail,
             )
 
+        # [2026-08-23 短线赚钱改造 B] 空头条件化：全历史 short 1250 笔 WR 23.8%
+        # 净亏 -104 vs long 1122 笔 +50——市场上行周期空头是结构性逆风（研究⑧同
+        # 结论）。空头分两档开放：
+        #   - 三条件齐备（trending + 4h偏空 + 资金费极端正）→ 正常仓位；
+        #   - 两条件（4h偏空 + 资金费极端正）但 regime 非 trending → 半仓参与
+        #     （不过度阻止、让样本积累）；其余场景拦截。
+        # 多头不受任何影响。这是方向 alpha 的结构化使用。
+        if side == "short" and bool(self._cfg("SCALP_SHORT_REQUIRES_TREND_DOWN", True)):
+            _regime_name = (regime.regime or "").lower()
+            _mid_bias = str((orch or {}).get("mid_bias") or "neutral").lower()
+            try:
+                _funding = float(market_data.get("funding_rate") or 0)
+            except Exception:
+                _funding = 0.0
+            _funding_min = float(self._cfg("SCALP_SHORT_MIN_FUNDING", 0.0001) or 0.0001)
+            _bias_ok = _mid_bias == "bearish"
+            _fund_ok = _funding >= _funding_min
+            _trend_ok = _regime_name == "trending"
+            if not (_bias_ok and _fund_ok):
+                return GateDecision(
+                    False, lane_id, "hold",
+                    f"空头条件未齐(mid_bias={_mid_bias},funding={_funding:.5f}≥"
+                    f"{_funding_min:.5f})——上行周期空头结构性逆风",
+                    effective_score=effective_score,
+                    advisory=advisory,
+                )
+            if not _trend_ok:
+                size_mult *= 0.5
+                logger.info(
+                    "[ScalpGate] %s 空头两条件齐但 regime=%s（非trending）→ 半仓参与",
+                    symbol, _regime_name,
+                )
+
         # Universe动态降级：Live 硬拦新开；Paper 样本期默认缩仓软放行
         # （2026-08-02：PUMP/ZEC/KAITO 降级硬拦是开仓断崖主因之一）。
         try:

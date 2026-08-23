@@ -57,12 +57,52 @@ class ScalpEvGate:
             # 按策略标签("trend"/"ranging_mr")分开计数，方便观察 MR 独立口径
             # 生效后放行率是否真的动起来了（2026-07-11）。
             cls._instance._by_tag: Dict[str, Dict[str, int]] = {}
+            # [2026-08-23] 新参数探索期样本计数缓存（tag -> {"ts", "ok"}）
+            cls._instance._explore_cache: Dict[str, dict] = {}
         return cls._instance
 
     @staticmethod
     def _cfg(name: str, default):
         from backend.config import settings as _s
         return getattr(_s, name, default)
+
+    def _new_param_explore_ok(self, strategy_tag: str) -> bool:
+        """[2026-08-23] 新参数探索期判定：8/23 之后该 tag 的已结算样本 < N 笔。
+
+        进程级缓存 30min（EV 闸是热路径，每 tick 多币调用，不能逐次查库）。
+        """
+        import time as _t
+        _now = _t.time()
+        _c = self._explore_cache.get(strategy_tag)
+        if _c and (_now - _c["ts"]) < 1800:
+            return bool(_c["ok"])
+        try:
+            _epoch = float(self._cfg("SCALP_NEW_PARAM_EPOCH_TS", "1785000000") or 1785000000)
+            _min_n = int(self._cfg("SCALP_NEW_PARAM_MIN_SAMPLES", "50") or 50)
+            from backend.database.connection import SessionLocal
+            from sqlalchemy import text as _text
+            db = SessionLocal()
+            try:
+                # scalp_signal_log 无 strategy_tag 列：按整体短线信号统计
+                # （探索期是全局参数纪元问题，不分 tag）。
+                row = db.execute(_text(
+                    "SELECT count(*) FROM scalp_signal_log "
+                    "WHERE settled = true AND win IS NOT NULL "
+                    "AND signal_ts >= :epoch"
+                ), {"epoch": _epoch}).fetchone()
+                n = int(row[0]) if row else 0
+            finally:
+                db.close()
+            ok = n < _min_n
+            self._explore_cache[strategy_tag] = {"ts": _now, "ok": ok}
+            logger.info(
+                "[ScalpEvGate] 新参数探索期检查 tag=%s 新样本=%d/%d → %s",
+                strategy_tag, n, _min_n, "软放行" if ok else "常规EV判定",
+            )
+            return ok
+        except Exception as e:
+            logger.debug("[ScalpEvGate] 探索期样本计数失败（默认放行以打破死锁）: %s", e)
+            return True
 
     def get_stats(self) -> Dict[str, Any]:
         """EV 闸门放行率快照（供健康视图/验收使用）。"""
@@ -187,6 +227,9 @@ class ScalpEvGate:
         # [2026-08-13 P1-6] meta 硬过滤：usable 模型存在且预测「会赢」概率低于
         # 门槛 → 直接拒绝开仓（SCALP_META_HARD_FILTER 默认开，可回滚）。
         # 与上方软接入互补：软接入只压低 p_win，硬过滤直接一票否决。
+        # [2026-08-23 过度阻止修复] paper 模拟盘硬过滤降级为纯软接入（只压 p_win
+        # 不否决）：模拟盘的本职是积累元模型训练样本，一票否决会切断样本来源；
+        # live 保留硬过滤。
         try:
             _meta_hard = (_os.getenv("SCALP_META_HARD_FILTER", "1") or "1").strip().lower() in (
                 "1", "true", "yes", "on",
@@ -201,7 +244,8 @@ class ScalpEvGate:
                     require_usable=True,
                 )
                 _min_pwin = float(self._cfg("SCALP_META_MIN_PWIN", 0.5) or 0.5)
-                if _meta_hp is not None and float(_meta_hp) < _min_pwin:
+                _is_paper_ev = (mode or "paper").strip().lower() == "paper"
+                if _meta_hp is not None and float(_meta_hp) < _min_pwin and not _is_paper_ev:
                     return EvDecision(
                         allowed=False, tp_pct=tp, sl_pct=sl,
                         reason=(
@@ -209,6 +253,12 @@ class ScalpEvGate:
                             f"< 门槛 {_min_pwin}"
                         ),
                         ev_min=ev_min,
+                    )
+                if _meta_hp is not None and float(_meta_hp) < _min_pwin and _is_paper_ev:
+                    logger.info(
+                        "[ScalpEvGate] paper meta 硬过滤降级软接入：p_win=%.3f<%.2f "
+                        "仅压分不否决（样本积累优先）",
+                        float(_meta_hp), _min_pwin,
                     )
         except Exception as _mh:
             logger.debug(f"[ScalpEvGate] {symbol} meta 硬过滤跳过: {_mh}")
@@ -255,6 +305,26 @@ class ScalpEvGate:
         effective_ev_min = ev_min - allowance
 
         allowed = ev_pct >= effective_ev_min
+
+        # ── [2026-08-23 短线赚钱改造] 新参数探索期软放行 ──
+        # EV 闸用旧参数时代（TP≈2.5% 摸不到）的校准胜率（如 33.3%）评价 8/23 新
+        # 参数（TP≤1.5%/45min 超时/scalp 免疫 master 软退出）的信号 → 新参数下
+        # 的真实胜率必然高于旧口径，但校准桶里没有新样本 → 旧尺子把新参数
+        # 全拦 → 零开单死锁。探索期（8/23 后新样本不足 N 笔）paper 软放行，
+        # 仓位已由 EV Governor ×0.2 与风控硬顶兜底；攒够新样本自动失效。
+        try:
+            if (mode or "paper").strip().lower() == "paper" and not allowed \
+                    and bool(self._cfg("SCALP_EV_NEW_PARAM_EXPLORE", True)):
+                if self._new_param_explore_ok(strategy_tag):
+                    logger.info(
+                        "[ScalpEvGate] %s 新参数探索期软放行（旧校准口径样本不足，"
+                        "仓位由 EV Governor 控制）原EV=%+.4f%%",
+                        symbol, ev_pct * 100,
+                    )
+                    allowed = True
+                    effective_ev_min = -10.0
+        except Exception as _ex_err:
+            logger.debug("[ScalpEvGate] 新参数探索豁免检查跳过: %s", _ex_err)
         reason = (
             f"EV={ev_pct:+.4%} {'≥' if allowed else '<'} 门槛{effective_ev_min:+.4%}"
             f"{f'(基准{ev_min:+.4%}-冷启动豁免{allowance:.4%})' if allowance else ''} | "

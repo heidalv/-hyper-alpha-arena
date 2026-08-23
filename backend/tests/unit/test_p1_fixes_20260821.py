@@ -54,9 +54,11 @@ class TestScalpP1:
 # ── S6：学习值 SL 夹幅 ─────────────────────────────────
 class TestS6LearnedSlClamp:
     def test_mr_clamps_widened(self):
+        """[2026-08-23 改造A 更新] 夹幅 [0.6%,3.0%]→[0.7%,1.15%]：对齐信号 30-45min
+        边际（±0.3%）——旧 3% 上限让 MR 单在趋势转换日扛趋势级止损。"""
         from backend.services.scalp import scalp_ranging_mr as mr
-        assert mr._MR_SL_FLOOR == pytest.approx(0.006)
-        assert mr._MR_SL_CAP == pytest.approx(0.030)
+        assert mr._MR_SL_FLOOR == pytest.approx(0.007)
+        assert mr._MR_SL_CAP == pytest.approx(0.0115)
 
     def test_learned_sl_survives(self, monkeypatch):
         from backend.services.risk import tp_sl_grid_trainer as tgt
@@ -66,8 +68,8 @@ class TestS6LearnedSlClamp:
             lambda tier, band: {"tp_pct": 0.025, "sl_pct": 0.027},
         )
         tp, sl = mr.apply_learned_mr(0.02, 0.012)
-        assert sl == pytest.approx(0.027)  # 旧夹幅会压成 0.020
-        assert tp >= 0.02
+        assert sl == pytest.approx(0.0115)  # 新夹幅封顶 1.15%
+        assert tp == pytest.approx(0.015)   # TP cap 1.5%
 
     def test_structure_atr_clamp_widened(self):
         from backend.services.scalp.structure_stop_calculator import StructureStopCalculator
@@ -76,10 +78,13 @@ class TestS6LearnedSlClamp:
         assert c.compute_atr_pct({"volatility_value": 0.05}) == pytest.approx(0.030)
 
     def test_tp_sl_gates_rr_coherent(self):
+        """[2026-08-23 改造A 更新] scalp 夹幅对齐新 TP/SL 口径（0.9-1.5%/0.7-1.2%）。"""
         src = _src("services", "full_auto", "tp_sl_gates.py")
-        assert '"scalp":        (0.012, 0.045, 0.012, 0.030)' in src
+        assert '"scalp":        (0.009, 0.015, 0.007, 0.012)' in src
         from backend.config.settings import V5_SCALP_MIN_RR
-        assert 0.045 / 0.030 >= float(V5_SCALP_MIN_RR)  # 夹幅与 RR 门不互斥
+        assert 0.015 / 0.012 >= 1.2  # 新夹幅 RR 下限 1.25
+        assert 0.015 / 0.009 >= 1.5  # 典型 RR 1.5 ≥ V5 闸
+        assert float(V5_SCALP_MIN_RR) <= 1.5
 
 
 # ── M4：动态 SL/TP ─────────────────────────────────────

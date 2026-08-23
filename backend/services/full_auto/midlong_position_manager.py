@@ -911,14 +911,28 @@ def manage_position(
             )
             _sig["exit"] = f"skip_{rev['channel']}_factor_pos"
     elif rev["action"] == "close":
-        _exec_close(db, account_id=account_id, position=position,
-                    reason=rev["reason"], host=host, session=session)
-        logger.info(
-            "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
-            "direction=skipped pyramid=skipped review=skipped staged_tp=skipped exit=%s reason=%s",
-            sym, side, pnl_pct * 100, hold_hours, rev["channel"], rev["reason"],
-        )
-        return _summary(f"反转离场: {rev['reason']}", action="manage_close")
+        # [2026-08-23 过度阻止修复] bias_reversal/no_progress 也须尊重 tier
+        # min_hold（近 7 天实测 5 笔 -17.31、单笔 -3.46，与 trend_broken 碎平同源：
+        # 论点来不及兑现就被叙事平仓）。与 review-close 同一保护口径，
+        # 紧急亏损（保证金口径）仍可提前离场。
+        _mh_res_rev = _review_min_hold_check(db, position=position, pos_tier=pos_tier,
+                                             pnl_pct=pnl_pct, hold_hours=hold_hours,
+                                             side=side, sym=sym)
+        if not _mh_res_rev.get("ok", True):
+            logger.info(
+                "[MidLong] stage=manage symbol=%s 反转离场被 min_hold 保护拦截(channel=%s): %s",
+                sym, rev["channel"], _mh_res_rev.get("detail", ""),
+            )
+            _sig["exit"] = f"min_hold_block_{rev['channel']}"
+        else:
+            _exec_close(db, account_id=account_id, position=position,
+                        reason=rev["reason"], host=host, session=session)
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
+                "direction=skipped pyramid=skipped review=skipped staged_tp=skipped exit=%s reason=%s",
+                sym, side, pnl_pct * 100, hold_hours, rev["channel"], rev["reason"],
+            )
+            return _summary(f"反转离场: {rev['reason']}", action="manage_close")
 
     # ═══ ⑤ 分批止盈（规则，每 tick）═══
     staged = _dim_staged_tp(db, host=host, session=session, account_id=account_id,

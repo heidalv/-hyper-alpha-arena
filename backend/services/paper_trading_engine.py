@@ -2198,6 +2198,55 @@ class PaperTradingEngine:
             if _is_short_tier:
                 expired, status = is_position_hold_expired(pos)
                 if expired:
+                    # [2026-08-23 短线赚钱改造 A] 浮盈续命：45min 超时时浮盈仓推
+                    # 保本 SL 再给 15min（数据实证：持仓 >2h 的仓 50-67% 胜率，
+                    # 0-1h 才 33.5%——赢家要让它跑，输家立即平）。
+                    _ext_until = 0.0
+                    try:
+                        import json as _json_ext
+                        _raw_ext = getattr(pos, "exit_state_json", None) or {}
+                        if isinstance(_raw_ext, str):
+                            _ext = _json_ext.loads(_raw_ext or "{}") or {}
+                        else:
+                            _ext = dict(_raw_ext or {})
+                        _ext_until = float(_ext.get("max_hold_ext_until") or 0)
+                    except Exception:
+                        _ext_until = 0.0
+                    if _ext_until and time.time() < _ext_until:
+                        return False
+                    _mark = float(getattr(pos, "mark_price", 0) or 0)
+                    _entry = float(getattr(pos, "entry_price", 0) or 0)
+                    _side_ab = (getattr(pos, "side", "") or "").lower()
+                    if _mark > 0 and _entry > 0:
+                        _profit_pct = (_mark - _entry) / _entry if _side_ab == "long" else (_entry - _mark) / _entry
+                    else:
+                        _profit_pct = 0.0
+                    if not _ext_until and _profit_pct > 0:
+                        try:
+                            import json as _json_ext2
+                            _new_sl = (_entry * (1 + 0.0015) if _side_ab == "long"
+                                       else _entry * (1 - 0.0015))
+                            pos.sl_price = round(_new_sl, 8)
+                            _raw_ext2 = getattr(pos, "exit_state_json", None) or {}
+                            if isinstance(_raw_ext2, str):
+                                _ext2 = _json_ext2.loads(_raw_ext2 or "{}") or {}
+                            else:
+                                _ext2 = dict(_raw_ext2 or {})
+                            _ext2["max_hold_ext_until"] = time.time() + 900.0
+                            pos.exit_state_json = _json_ext2.dumps(_ext2, ensure_ascii=False)
+                            db.flush()
+                            try:
+                                db.commit()
+                            except Exception:
+                                db.rollback()
+                            logger.info(
+                                "[Paper] ⏰ 短线超时浮盈续命: %s %s 浮盈%.3f%% → SL推保本%+.4f%% 再给15min",
+                                pos.symbol, _side_ab, _profit_pct * 100,
+                                (1 + 0.0015) * 100 - 100 if _side_ab == "long" else -(1 - 0.0015) * 100 + 100,
+                            )
+                            return False
+                        except Exception as _ext_err:
+                            logger.debug("[Paper] 浮盈续命失败，走强平: %s", _ext_err)
                     logger.warning(
                         f"[Paper] ⏰ 短线持仓硬超时强平: {pos.symbol} {pos.side} "
                         f"{format_hold_timeout_reason(status, pos.symbol)}"

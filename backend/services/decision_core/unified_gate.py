@@ -229,8 +229,13 @@ def evaluate_entry(
 
     # ── 2026-07-04: paper 门槛与 Agent/Swing 代码对齐（不再硬编码 68/50）──
     _is_paper = (mode or "paper").strip().lower() == "paper"
-    _paper_floor = 45 if _is_paper else 40
-    _paper_scalp_gate = 65 if _is_paper else int(overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE))
+    # [2026-08-23 过度阻止修复] 原 `45 if _is_paper else 40` 是笔误：paper 反而比
+    # live 高 5 分，与 L406 注释「paper:30/live:40」矛盾。恢复 paper 30 下限。
+    _paper_floor = 30 if _is_paper else 40
+    # [2026-08-23 过度阻止修复] paper 短线置信度 65→50：ScalpRouter 分数分布
+    # 25-85 中位 ~50，且实证「分数与胜率无强单调关系」（诊断 15/17）；65 硬门槛
+    # 配合 warmup 放宽后仍 45，把 40-45 分的真实信号全拦（实测 XPL 36<45 冻结）。
+    _paper_scalp_gate = 50 if _is_paper else int(overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE))
     # 修正死三元表达式（此前 paper/live 两分支完全相同，paper 未获得任何放宽，
     # 与 3 天 long tier 零成交现象方向吻合）：paper 比 live 低 12 分，但不低于 30 的
     # 合理下限，避免长线置信度门槛在 paper 模式下被压到毫无意义的水平。
@@ -496,10 +501,15 @@ def evaluate_entry(
         if not st.allowed:
             return _block(symbol, action_l, "short_tier", st.reason)
     except Exception as err:
-        # fail-closed：short_tier 门存在的理由就是堵短线裸奔漏洞，异常时"跳过放行"
-        # 等价于把这道闸变成可被任何异常绕过的旁路，与主路径 fail-closed 纪律不一致。
-        logger.warning("[V5Gate] short_tier 检查异常，fail-closed 拦截: %s", err)
-        return _block(symbol, action_l, "short_tier_error", f"short_tier 检查异常: {err}")
+        # [2026-08-23 过度阻止修复] paper 模拟盘异常 fail-open（模拟盘的价值是
+        # 跑数据，检查异常跳过放行，由风控硬顶兜底）；live 保持 fail-closed。
+        if _is_paper:
+            logger.warning(
+                "[V5Gate] short_tier 检查异常，paper fail-open 放行（live 仍拦截）: %s", err
+            )
+        else:
+            logger.warning("[V5Gate] short_tier 检查异常，fail-closed 拦截: %s", err)
+            return _block(symbol, action_l, "short_tier_error", f"short_tier 检查异常: {err}")
 
     # ── 5. 盈亏比与最小止盈距离（经济学核心）──
     # 2026-06-18: paper 模式放宽 min_tp（0.6%），live 保持严格

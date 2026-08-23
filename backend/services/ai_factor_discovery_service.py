@@ -98,6 +98,7 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
         try:
             from backend.services.llm_config_service import (
                 get_llm_config_for_usage,
+                get_llm_config_local_first,
                 call_llm_api_sync,
             )
             # [2026-08-23 M0-F3] 调度器线程无 HTTP 身份：此前调用不带 tenant/account，
@@ -114,10 +115,16 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
                 _tid = None
             from backend.core.tenant import system_identity
             with system_identity():
-                config = get_llm_config_for_usage("factor_mining", tenant_id=_tid)
+                # [2026-08-23 本地LLM最大化] 排序修复后 usage 解析非默认优先，此调用
+                # 将命中 id=84 本地 14B；显式两段式保证本地优先 + 云端兜底语义稳定。
+                _fm_local, _fm_cloud = get_llm_config_local_first(
+                    "factor_mining", tenant_id=_tid, tier="deep",
+                )
+                config = _fm_local or _fm_cloud or get_llm_config_for_usage("factor_mining", tenant_id=_tid)
                 if not config or not config.api_key:
                     logger.warning("[AIFactor] 无可用 LLM 配置（factor_mining），跳过本轮")
                     return []
+                _fm_fallback = _fm_cloud if (_fm_local is not None and _fm_cloud is not None) else None
                 resp_data = call_llm_api_sync(
                     config,
                     messages=[{"role": "user", "content": self.build_discovery_prompt(patterns)}],
@@ -125,6 +132,7 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
                     max_tokens=3000,
                     temperature=0.5,
                     caller="ai_factor_discovery",
+                    fallback_config=_fm_fallback,
                 )
             resp = None
             if resp_data:

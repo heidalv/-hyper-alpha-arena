@@ -232,18 +232,28 @@ def is_close_reason_blocked_for_long(close_reason: str) -> bool:
 # 本函数同时覆盖 mid 和 long，供 master_execution.py 在 close/reduce 前调用。
 # ════════════════════════════════════════════════════════════════════
 def is_close_reason_blocked_for_midlong(close_reason: str, tier: str) -> bool:
-    """S0-6: 判断某个 close_reason 是否被 mid/long tier 屏蔽（当 flag on 时）。
+    """S0-6: 判断某个 close_reason 是否被 short/mid/long tier 屏蔽（当 flag on 时）。
 
     Args:
         close_reason: 平仓原因（master_running_close / ai_reverse / sl / tp 等）
-        tier: 持仓周期（short/mid/long）—— short 不屏蔽，mid/long 按 flag 屏蔽软退出
+        tier: 持仓周期（short/mid/long）—— short/scalp 与 mid/long 一样按 flag 屏蔽软退出
 
     Returns:
         True 表示该 close_reason 应被拦截（不允许此原因平仓）
+
+    [S0-6-scalp 2026-08-23] 扩展 short/scalp tier 支持：
+      - 历史证据：master_running_close 全历史 152 笔 -31.92、近14天 16 笔单笔平均
+        -24%/保证金，scalp 层同样被 Master 微亏越权砍仓伤害。
+      - short tier 复用 mid 的屏蔽清单（MID_TIER_PROTECTED_FROM）与开关
+        （RISK_USE_MID_TIER_IMMUNE），不新增 flag。
+      - 硬退出（sl/tp/emergency_drawdown/manual/liquidation 等）不在屏蔽清单里，
+        本函数天然不会拦截它们；unified_exit_executor 接线处另有硬退出兜底。
     """
     _tier = (tier or "").strip().lower()
-    if _tier not in ("mid", "long"):
-        return False  # short tier 不屏蔽
+    if _tier == "scalp":  # [S0-6-scalp] scalp 是 short tier 的口语别名
+        _tier = "short"
+    if _tier not in ("short", "mid", "long"):
+        return False
 
     _reason = (close_reason or "").strip().lower()
     if not _reason:
@@ -260,10 +270,15 @@ def is_close_reason_blocked_for_midlong(close_reason: str, tier: str) -> bool:
         if not RISK_USE_LONG_TIER_IMMUNE:
             return False
         return _reason in LONG_TIER_PROTECTED_FROM
-    else:  # mid
+    # [S0-6-scalp] short/scalp 复用 S0-6 的 mid flag 与 mid 屏蔽清单，不新增开关
+    if _tier == "short":
         if not RISK_USE_MID_TIER_IMMUNE:
             return False
         return _reason in MID_TIER_PROTECTED_FROM
+    # mid
+    if not RISK_USE_MID_TIER_IMMUNE:
+        return False
+    return _reason in MID_TIER_PROTECTED_FROM
 
 
 # ════════════════════════════════════════════════════════════════════

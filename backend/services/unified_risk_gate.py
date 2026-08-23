@@ -130,7 +130,7 @@ def unified_check(
             f"[UnifiedRiskGate] DeterministicRiskGate 异常（放行该层）: {e}",
             exc_info=True,
         )
-        if _gate_exception_policy() == "block":
+        if _gate_exception_policy(op_source) == "block":
             # [2026-08-22 M0-9] fail-closed：风控无法评估时拒绝放行（默认 block）
             res.passed = False
             res.blocked_layer = "deterministic"
@@ -221,7 +221,7 @@ def unified_check(
             f"[UnifiedRiskGate] RiskControlService 异常（放行该层）: {e}",
             exc_info=True,
         )
-        if _gate_exception_policy() == "block":
+        if _gate_exception_policy(op_source) == "block":
             # [2026-08-22 M0-9] fail-closed：风控无法评估时拒绝放行（默认 block）
             res.passed = False
             res.blocked_layer = "stateful"
@@ -235,8 +235,16 @@ def unified_check(
     return res
 
 
-def _gate_exception_policy() -> str:
-    """[2026-08-22 M0-9] 风控异常策略：默认 block（fail-closed）；RISK_GATE_EXCEPTION_POLICY=allow 可临时放开（运维排障期）。"""
+def _gate_exception_policy(op_source: str = "unknown") -> str:
+    """[2026-08-22 M0-9] 风控异常策略。
+
+    [2026-08-23 过度阻止修复] paper 模拟盘默认 fail-open（模拟盘价值在跑数据，
+    风控异常不该阻断交易学习）；live/full_auto 默认 block（fail-closed），
+    运维排障期可用 RISK_GATE_EXCEPTION_POLICY=allow 临时放开。
+    """
+    _src = (op_source or "unknown").strip().lower()
+    if _src == "paper":
+        return os.environ.get("RISK_GATE_EXCEPTION_POLICY_PAPER", "allow").strip().lower()
     return os.environ.get("RISK_GATE_EXCEPTION_POLICY", "block").strip().lower()
 
 

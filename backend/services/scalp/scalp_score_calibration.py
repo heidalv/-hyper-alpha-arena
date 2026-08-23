@@ -247,11 +247,26 @@ def effective_threshold(confirm: int, kind: str = "trend") -> int:
                     "按基础门槛放行（EV 闸门 + 峰值追踪兜底） (PROFIT-2)"
                 )
                 return thr
+            # [2026-08-23 短线赚钱改造] 无盈利分桶不再 999 全拦趋势打法：
+            # ①旧校准口径建立在旧 TP/SL 参数（TP≈2.5% 摸不到）之上，与 8/23 新
+            #   参数（TP≤1.5%/SL≤1.15%/45min 超时）不对应，用旧尺子把新参数锁死
+            #   只会让新参数永远得不到样本验证；
+            # ②模拟盘的本职是积累学习数据，全拦=零数据=永远无法校准；
+            # ③回退静态 CONFIRM 门槛放行，由 EV 闸门/仓位乘数/风控硬顶兜底。
+            # 回滚：SCALP_CALIB_NOEDGE_BLOCK=1 恢复旧 fail-closed 行为。
+            if os.getenv("SCALP_CALIB_NOEDGE_BLOCK", "0") in ("1", "true", "yes", "on"):
+                logger.warning(
+                    "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 开仓按 "
+                    "fail-closed 拦截 (SCALP_CALIB_NOEDGE_BLOCK=1)"
+                )
+                return CALIBRATION_BLOCKED_THRESHOLD
             logger.warning(
-                "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 开仓按 "
-                "fail-closed 拦截 (请人工复核后设置 SCALP_CALIBRATED_THRESHOLD 显式覆盖)"
+                "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 回退静态门槛 "
+                "%s 放行观察（新 TP/SL 参数需要新样本；EV 闸门/风控兜底）——"
+                "SCALP_CALIB_NOEDGE_BLOCK=1 可回滚全拦",
+                thr,
             )
-            return CALIBRATION_BLOCKED_THRESHOLD
+            return thr
         thr = max(int(confirm), int(t))
     except Exception:
         pass

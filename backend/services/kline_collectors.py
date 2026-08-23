@@ -32,6 +32,52 @@ def _is_rate_limited_error(exc: Exception) -> bool:
     )
 
 
+# ── [2026-08-23 交易冻结根因修复] 坏 symbol 缓存 ──
+# binance 采集池混入交易所不存在的币（CASHCAT/CATE/乱码 symbol）→ 每轮 P0
+# 对每个坏币发 3 次请求拖满 90s 超时 → 整批 0ok/315err → 连接熔断 →
+# 好币（BTC/ETH）的 K 线也停更 → 因子分数全 0 → 交易全部冻结。
+# 修复：交易所明确报 "does not have market symbol"（BadSymbol）时记入进程级
+# 坏币缓存（TTL 默认 6h），缓存期内直接返回 None 不发网络请求，
+# 让 P0 批次预算只花在有效币上。
+_BAD_SYMBOL_CACHE: Dict[str, float] = {}       # f"{exchange}:{symbol}" -> 失效时间戳
+_BAD_SYMBOL_CACHE_LOCK = threading.Lock()
+_BAD_SYMBOL_TTL_SEC = float(os.getenv("KLINE_BAD_SYMBOL_TTL_SEC", "21600"))
+
+
+def _is_bad_symbol(exchange: str, symbol: str) -> bool:
+    key = f"{exchange}:{symbol.upper()}"
+    with _BAD_SYMBOL_CACHE_LOCK:
+        until = _BAD_SYMBOL_CACHE.get(key, 0.0)
+        if until and time.time() < until:
+            return True
+        if until:
+            _BAD_SYMBOL_CACHE.pop(key, None)
+    return False
+
+
+def _mark_bad_symbol(exchange: str, symbol: str) -> None:
+    key = f"{exchange}:{symbol.upper()}"
+    with _BAD_SYMBOL_CACHE_LOCK:
+        if len(_BAD_SYMBOL_CACHE) > 500:
+            # 防膨胀：清掉已过期的
+            _now = time.time()
+            for k in list(_BAD_SYMBOL_CACHE.keys()):
+                if _BAD_SYMBOL_CACHE[k] < _now:
+                    _BAD_SYMBOL_CACHE.pop(k, None)
+        _BAD_SYMBOL_CACHE[key] = time.time() + _BAD_SYMBOL_TTL_SEC
+
+
+def _is_bad_symbol_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(
+        k in msg
+        for k in (
+            "does not have market symbol", "bad symbol", "market symbol",
+            "invalid symbol", "symbol not found",
+        )
+    )
+
+
 class _AsterdexRateLimiter:
     """[2026-08-04 修复] Asterdex 进程级滑动窗口限速（双桶 + 全局封禁）。
 
@@ -112,6 +158,19 @@ class _ColdExchangeRateLimiter:
     _min_interval = max(0.2, float(os.getenv("KLINE_REQUEST_INTERVAL_SEC", "0.3")))
 
     def _max_per_min(exchange: str) -> int:
+        # [2026-08-23 交易冻结根因修复] binance 作为 active exchange 时不能按
+        # 冷所 180 req/min 限速：P0 每轮 ~315 请求 → wait 拖满 90s 超时 → 0ok/315err
+        # → 连接熔断 → 全币 K 线停更 → 交易冻结。active 所按交易所实测容量放宽
+        # （binance fapi 权重 2400/min，315 请求/轮绰绰有余）。
+        try:
+            from backend.services.exchange_config import get_active_exchange
+            _active = (get_active_exchange() or "asterdex").strip().lower()
+            if _active == "aster":
+                _active = "asterdex"
+            if exchange.lower() == _active and exchange.lower() in ("binance", "hyperliquid", "asterdex"):
+                return int(os.getenv("ACTIVE_EXCHANGE_MAX_REQ_PER_MIN", "1200"))
+        except Exception:
+            pass
         try:
             v = int(os.getenv(
                 f"COLD_EXCHANGE_MAX_REQ_PER_MIN_{exchange.upper()}",
@@ -154,8 +213,21 @@ class _ColdExchangeRateLimiter:
                 time.sleep(wait_s)
                 now = time.time()
             # 在锁内做最小间隔排队：并发任务不会同一瞬间全部放行。
+            # [2026-08-23 交易冻结根因修复] active 交易所（binance 主数据源）的
+            # 最小间隔 0.3s→0.02s：0.3s 间隔把 315 个 P0 请求强制串行成
+            # 315×0.3=94.5s > P0 90s 超时 → 每轮 0ok/315err → 熔断 → 交易冻结。
             last_ts = cls._req_ts[exchange][-1] if cls._req_ts[exchange] else 0.0
-            gap = cls._min_interval - (now - last_ts)
+            _min_gap = cls._min_interval
+            try:
+                from backend.services.exchange_config import get_active_exchange
+                _act_ex = (get_active_exchange() or "asterdex").strip().lower()
+                if _act_ex == "aster":
+                    _act_ex = "asterdex"
+                if exchange.lower() == _act_ex and exchange.lower() in ("binance", "hyperliquid"):
+                    _min_gap = float(os.getenv("KLINE_ACTIVE_MIN_INTERVAL_SEC", "0.02"))
+            except Exception:
+                pass
+            gap = _min_gap - (now - last_ts)
             if gap > 0:
                 time.sleep(gap)
             cls._req_ts.setdefault(exchange, []).append(time.time())
@@ -209,7 +281,30 @@ def _create_sync_ccxt(exchange_id: str):
     if exchange_id == "okx":
         return _ccxt.okx({**kwargs, "options": {"defaultType": "swap"}})
     if exchange_id == "binance":
-        return _ccxt.binanceusdm(kwargs)
+        # [2026-08-23 交易冻结根因修复] api.binance.com 在此网络环境被地域
+        # 封锁（403），实测 fapi.binance.com 走代理可用（200）。把全部 fapi
+        # 段 URL 覆盖到 fapi.binance.com；代理经 BINANCE_HTTPS_PROXY env 注入。
+        _ex = _ccxt.binanceusdm(kwargs)
+        try:
+            _ex.urls["api"] = {
+                **(_ex.urls.get("api") or {}),
+                "fapiPublic": "https://fapi.binance.com/fapi/v1",
+                "fapiPrivate": "https://fapi.binance.com/fapi/v1",
+                "fapiPublicV2": "https://fapi.binance.com/fapi/v2",
+                "fapiPrivateV2": "https://fapi.binance.com/fapi/v2",
+                "fapiPublicV3": "https://fapi.binance.com/fapi/v3",
+                "fapiPrivateV3": "https://fapi.binance.com/fapi/v3",
+                "fapiData": "https://fapi.binance.com/futures/data",
+                "public": "https://fapi.binance.com/api/v3",
+                "private": "https://fapi.binance.com/api/v3",
+                "dapiPublic": "https://dapi.binance.com/dapi/v1",
+                "dapiPrivate": "https://dapi.binance.com/dapi/v1",
+                "dapiPublicV2": "https://dapi.binance.com/dapi/v2",
+                "dapiPrivateV2": "https://dapi.binance.com/dapi/v2",
+            }
+        except Exception as _bin_url_err:
+            logger.warning("[kline_collectors] binance URL 覆盖失败: %s", _bin_url_err)
+        return _ex
     if exchange_id == "bybit":
         return _ccxt.bybit({**kwargs, "options": {"defaultType": "linear"}})
     if exchange_id == "gateio":
@@ -558,8 +653,26 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
         await asyncio.sleep(self._REQUEST_INTERVAL_SEC)
 
     async def fetch_current_kline(self, symbol: str, period: str = "1m") -> Optional[KlineData]:
+        # [2026-08-23 交易冻结根因修复] 坏币缓存：交易所明确不支持的 symbol
+        # 直接快速失败，不占 P0 批次超时预算（此前每轮对每个坏币重试拖满 90s）。
+        if _is_bad_symbol(self.exchange_id, symbol):
+            return None
+        # [2026-08-23 交易冻结根因修复] active 交易所（binance/asterdex 主数据源）
+        # 的 throttle 降到 0.05s：P0 每轮 315 请求 × 0.3s throttle / 6 线程 ≈ 16s
+        # 纯空转，叠加 24 并发抢 6 线程后极易拖满 90s 超时 → 0ok 熔断。冷所
+        # （备选源）保持 0.3s 保守节奏。
         try:
+            from backend.services.exchange_config import get_active_exchange
+            _act_ex = (get_active_exchange() or "asterdex").strip().lower()
+            if _act_ex == "aster":
+                _act_ex = "asterdex"
+            if str(self.exchange_id or "").lower() == _act_ex:
+                await asyncio.sleep(float(os.getenv("KLINE_ACTIVE_THROTTLE_SEC", "0.05")))
+            else:
+                await self._throttle()
+        except Exception:
             await self._throttle()
+        try:
             ohlcv = await run_kline_io(
                 _sync_fetch_ohlcv, self.exchange_id, symbol.upper(), period, 2,
             )
@@ -584,6 +697,14 @@ class CcxtCompatibleKlineCollector(BaseKlineCollector):
                 raise ExchangeRateLimitError(
                     f"[{self.exchange_id}] {symbol}/{period} 限流/封禁: {e}"
                 ) from e
+            if _is_bad_symbol_error(e):
+                # 交易所不存在的币：记坏币缓存，本轮及未来 6h 直接跳过
+                _mark_bad_symbol(self.exchange_id, symbol)
+                self.logger.warning(
+                    f"Bad symbol cached for {self.exchange_id}: {symbol} "
+                    f"(TTL {_BAD_SYMBOL_TTL_SEC:.0f}s, 后续轮次跳过请求)"
+                )
+                return None
             self.logger.error(f"Failed to fetch current kline for {symbol} on {self.exchange_id}: {e}")
             return None
 

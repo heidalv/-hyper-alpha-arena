@@ -353,10 +353,21 @@ class AITradeJournalService:
 
     async def _llm_analyze(self, trades: List[Dict], stats: Dict, period: str, date: str) -> Dict:
         try:
-            from backend.services.llm_config_service import call_llm_api_sync as call_llm_api, get_llm_config_for_usage
+            from backend.services.llm_config_service import (
+                call_llm_api_sync as call_llm_api,
+                get_llm_config_for_usage,
+                get_llm_config_local_first,
+            )
             # [M0-F4] 原调用无 tenant/account → 调度线程场景永远返回 None，
             # 日复盘 LLM 分析静默退化为占位文本。补管理员租户。
-            config = get_llm_config_for_usage("journal", tenant_id=self._resolve_admin_tenant())
+            # [2026-08-23 本地LLM最大化] 复盘是批量低延迟敏感任务 → 本地 14B 优先、
+            # 云端自动降级（fallback 由 get_llm_config_local_first 提供）。
+            _jid_tid = self._resolve_admin_tenant()
+            _jid_local, _jid_cloud = get_llm_config_local_first(
+                "journal", tenant_id=_jid_tid, tier="quick",
+            )
+            config = _jid_local or _jid_cloud
+            _jid_fallback = _jid_cloud if _jid_local is not None and _jid_cloud is not None else None
             if not config:
                 return {
                     "analysis": f"{period}复盘: {stats['total_trades']}笔交易, PnL={stats['total_pnl']:.2f}",
@@ -387,7 +398,7 @@ class AITradeJournalService:
                 )},
             ]
 
-            resp = call_llm_api(config, messages=messages)
+            resp = call_llm_api(config, messages=messages, fallback_config=_jid_fallback)
             content = resp["choices"][0]["message"]["content"]
             m = re.search(r'\{.*\}', content, re.DOTALL)
             if m:

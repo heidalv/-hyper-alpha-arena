@@ -994,10 +994,15 @@ class KlineAnalyst:
 
         from backend.config.settings import KLINE_ANALYST_MAX_PARALLEL
         from backend.services.llm_config_service import (
-            get_llm_config_for_analysis,
+            get_llm_config_local_first,
             should_use_llm_streaming,
         )
-        _llm_cfg = get_llm_config_for_analysis(getattr(KlineAnalyst, "_account_id", None), tier="quick")
+        _llm_cfg_local, _llm_cfg_cloud = get_llm_config_local_first(
+            "kline_analysis",
+            account_id=getattr(KlineAnalyst, "_account_id", None),
+            tier="quick",
+        )
+        _llm_cfg = _llm_cfg_local or _llm_cfg_cloud
         _stream_mode = should_use_llm_streaming(_llm_cfg)
         _workers = min(max(len(llm_symbols), 1), KLINE_ANALYST_MAX_PARALLEL)
         _as_completed_kw: dict = {}
@@ -1405,7 +1410,15 @@ class KlineAnalyst:
         except Exception:
             pass
 
-        llm_config = get_llm_config_for_analysis(getattr(KlineAnalyst, "_account_id", None), tier="quick")
+        # [2026-08-23 本地LLM最大化] kline 分析是最大批量调用点（~800 次/天），
+        # 本地 14B 优先 + 云端自动降级（fallback 传给 call_llm_api_sync）。
+        from backend.services.llm_config_service import get_llm_config_local_first
+        llm_config, _llm_fallback_cfg = get_llm_config_local_first(
+            "kline_analysis",
+            account_id=getattr(KlineAnalyst, "_account_id", None),
+            tier="quick",
+        )
+        llm_config = llm_config or _llm_fallback_cfg
         if not llm_config:
             return None
         if should_use_llm_streaming(llm_config):
@@ -1488,6 +1501,7 @@ class KlineAnalyst:
                 progress_observer=build_stream_progress_observer(
                     f"KlineAnalyst:{symbol}",
                 ),
+                fallback_config=_llm_fallback_cfg,
             )
 
             if not response:
@@ -3477,6 +3491,7 @@ class MasterController:
         from backend.services.llm_config_service import (
             build_stream_progress_observer,
             get_llm_config_for_analysis,
+            get_llm_config_local_first,
             call_llm_api_sync,
             should_use_llm_streaming,
         )
@@ -3484,6 +3499,21 @@ class MasterController:
         self._llm_call_stats["total_calls"] += 1
 
         llm_config = get_llm_config_for_analysis(getattr(self, "_account_id", None))
+        # [2026-08-23 本地LLM最大化] Master 决策主链路保持云端质量优先，
+        # 本地 14B 作为云端故障时的自动兜底（call_llm_api_sync 的 fallback_config）。
+        _master_local_cfg = None
+        try:
+            _ml_local, _ml_cloud = get_llm_config_local_first(
+                "trading", account_id=getattr(self, "_account_id", None), tier="deep",
+            )
+            # 只取本地作兜底：与主配置不同才使用
+            if _ml_local is not None and (
+                llm_config is None
+                or getattr(_ml_local, "id", None) != getattr(llm_config, "id", None)
+            ):
+                _master_local_cfg = _ml_local
+        except Exception:
+            _master_local_cfg = None
         if not llm_config:
             err = "无可用LLM配置(API Key/Base URL 未设置)"
             logger.warning(f"[MasterController] {err}")
@@ -3568,6 +3598,7 @@ class MasterController:
                     llm_config, messages, temperature=0.3, max_tokens=_max_tokens,
                     response_format={"type": "json_object"},
                     account_id=getattr(self, "_account_id", None),
+                    fallback_config=_master_local_cfg,
                     caller="MasterController:synthesize",
                     progress_observer=build_stream_progress_observer(
                         "MasterController:synthesize",

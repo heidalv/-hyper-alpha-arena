@@ -662,6 +662,11 @@ MASTER_SCALP_EXIT_WHITELIST: str = os.getenv(
 )
 ORCH_BG_INTERVAL_SEC: int = int(os.getenv("ORCH_BG_INTERVAL_SEC", "600"))
 SCALP_STRUCTURE_SL_BUFFER_PCT: float = float(os.getenv("SCALP_STRUCTURE_SL_BUFFER_PCT", "0.008"))
+# [2026-08-23 短线赚钱改造 B] 空头条件化：short 全历史 WR 23.8% 净亏 -104（vs long +50），
+# 上行周期空头结构性逆风。默认 true = 空头需 trending+4h偏空+资金费极端三条件齐备；
+# 置 0/false 回滚到旧行为（空头与多头对等开放）。
+SCALP_SHORT_REQUIRES_TREND_DOWN: bool = os.getenv("SCALP_SHORT_REQUIRES_TREND_DOWN", "true").strip().lower() in ("1", "true", "yes", "on")
+SCALP_SHORT_MIN_FUNDING: float = float(os.getenv("SCALP_SHORT_MIN_FUNDING", "0.0001"))
 SCALP_RANGE_MAX_LONG: float = float(os.getenv("SCALP_RANGE_MAX_LONG", "0.72"))
 SCALP_RANGE_MIN_SHORT: float = float(os.getenv("SCALP_RANGE_MIN_SHORT", "0.28"))
 # 编排器方向与因子方向冲突时，long/short 最低 effective_score（ScalpExecutionGate）
@@ -687,7 +692,17 @@ SCALP_EV_FAIL_CLOSED_LIVE: bool = os.getenv(
 ).lower() in ("true", "1", "yes", "on")
 # TP/SL 实现率：真实交易很少吃满计划 TP（分批/追踪/超时），亏损往往吃满甚至更多。
 # EV 用 tp_pct×TP实现率 作为期望盈利幅度、sl_pct×SL实现率 作为期望亏损幅度，更贴近实盘。
-SCALP_EV_TP_REALIZATION: float = float(os.getenv("SCALP_EV_TP_REALIZATION", "0.55"))
+# [2026-08-23 短线赚钱改造] TP 实现率 0.55→0.75：旧 0.55 校准于旧参数时代
+# （TP 2.5% + master_running_reduce 中途砍仓，57 笔实测）；新口径 TP≤1.5% +
+# 45min 超时 + scalp 已免疫 master 软退出（改造 D）→ 实现率显著提升。
+SCALP_EV_TP_REALIZATION: float = float(os.getenv("SCALP_EV_TP_REALIZATION", "0.75"))
+# [2026-08-23 短线赚钱改造] 新参数探索期软放行：EV 闸用旧参数时代校准胜率
+# 评价新参数信号（旧尺子锁死新参数 → 零开单死锁）。paper 模式 + 8/23 epoch
+# 后的已结算信号 < SCALP_NEW_PARAM_MIN_SAMPLES 时软放行（仓位由 EV Governor
+# ×0.2 与风控硬顶兜底），攒够新样本后自动失效。
+SCALP_EV_NEW_PARAM_EXPLORE: bool = os.getenv("SCALP_EV_NEW_PARAM_EXPLORE", "true").strip().lower() in ("1", "true", "yes", "on")
+SCALP_NEW_PARAM_EPOCH_TS: float = float(os.getenv("SCALP_NEW_PARAM_EPOCH_TS", "1787428800"))  # 2026-08-23 00:00 CST
+SCALP_NEW_PARAM_MIN_SAMPLES: int = int(os.getenv("SCALP_NEW_PARAM_MIN_SAMPLES", "50"))
 SCALP_EV_SL_REALIZATION: float = float(os.getenv("SCALP_EV_SL_REALIZATION", "1.0"))
 # 置信度校准器：用历史 scalp_composite 反馈把因子分映射成校准胜率 p_win。
 SCALP_CALIBRATOR_ENABLED: bool = os.getenv("SCALP_CALIBRATOR_ENABLED", "true").lower() in (

@@ -41,13 +41,18 @@ class _FakeCalib:
 
 
 def test_effective_threshold_blocks_when_no_profitable_bucket(monkeypatch):
-    """校准 threshold=None（无盈利分桶）→ trend 关闸 999 / ranging_mr 分类放行；有门槛 → 正常取 max。"""
+    """[2026-08-23 改造更新] 校准 threshold=None（无盈利分桶）→ trend 回退静态门槛
+    放行观察（新 TP/SL 参数需要新样本）；SCALP_CALIB_NOEDGE_BLOCK=1 回滚 999 全拦；
+    ranging_mr 分类放行；有门槛 → 正常取 max。"""
     from backend.services.scalp import scalp_score_calibration as m
     monkeypatch.delenv("SCALP_CALIBRATED_THRESHOLD", raising=False)
+    monkeypatch.delenv("SCALP_CALIB_NOEDGE_BLOCK", raising=False)
     with _FakeCalib({"enabled": True, "threshold": None, "high_score_ok": False}):
-        assert m.effective_threshold(30) == m.CALIBRATION_BLOCKED_THRESHOLD       # trend 默认
-        assert m.effective_threshold(30, kind="trend") == m.CALIBRATION_BLOCKED_THRESHOLD
-        assert m.effective_threshold(30, kind="ranging_mr") == 30                 # MR 分类放行 (PROFIT-2)
+        assert m.effective_threshold(30) == 30                          # trend 回退静态门槛
+        assert m.effective_threshold(30, kind="trend") == 30
+        assert m.effective_threshold(30, kind="ranging_mr") == 30        # MR 分类放行 (PROFIT-2)
+        monkeypatch.setenv("SCALP_CALIB_NOEDGE_BLOCK", "1")
+        assert m.effective_threshold(30, kind="trend") == m.CALIBRATION_BLOCKED_THRESHOLD  # 回滚全拦
     with _FakeCalib({"enabled": True, "threshold": 62, "high_score_ok": True}):
         assert m.effective_threshold(30) == 62
         assert m.effective_threshold(70) == 70
@@ -62,7 +67,11 @@ def test_effective_threshold_static_override(monkeypatch):
 
 
 def test_structure_stop_sl_adaptive_not_capped(monkeypatch):
-    """高波动（atr 2.4%）时 SL 应约为 2.4%（原实现被 1.8% 夹幅压死）。"""
+    """[2026-08-23 改造A 更新] 高波动（atr 2.4%）时 SL 封顶 1.2%、TP=1.5×SL=1.5%。
+
+    旧断言（M0-7：SL≈2.4% 不被压死）已随「TP/SL 对齐信号边际分布」改造作废：
+    2.4% 止损对 30-45min 边际 ±0.3% 的信号是错配（SL 通道全历史 -197 最大出血）。
+    """
     from backend.services.scalp.structure_stop_calculator import structure_stop_calculator
     md = {
         "price": 100.0,
@@ -74,9 +83,8 @@ def test_structure_stop_sl_adaptive_not_capped(monkeypatch):
     sl_pct, tp_pct, sl_price, tp_price = structure_stop_calculator.compute_sl_tp(
         md, side="long", entry=100.0,
     )
-    # 下限 1.2% 成立；上限不再压到 1.8%（M0-7 放宽到 6% sanity）
-    assert abs(sl_pct - 0.024) < 1e-6, f"sl_pct={sl_pct} 应保持 ATR 自适应 ≈2.4%"
-    assert tp_pct > sl_pct * 1.5
+    assert abs(sl_pct - 0.0115) < 1e-6, f"sl_pct={sl_pct} 应封顶 1.15%（对齐信号边际）"
+    assert abs(tp_pct - 0.015) < 1e-6, f"tp_pct={tp_pct} 应为 1.5%（RR≈1.30 过 V5 闸）"
 
 
 class _FakeMem:

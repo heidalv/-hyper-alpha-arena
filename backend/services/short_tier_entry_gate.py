@@ -26,9 +26,13 @@ _same_dir_short_opens: Dict[str, List[float]] = {}
 _symbol_loss_tracker: Dict[str, dict] = {}
 
 # 熔断阈值：连续亏损 N 笔 → 进入冷却
-CIRCUIT_BREAKER_CONSEC_LOSSES = 4
-# 熔断冷却时长（秒）：默认 6 小时
-CIRCUIT_BREAKER_COOLDOWN_S = 6 * 3600
+# [2026-08-23 过度阻止修复] 阈值 4→8、冷却 6h→2h 且 env 可配：
+# 旧值 4 笔连亏即锁 6 小时，实测 BTC 连续亏损 239 笔期间全 symbol 锁死——
+# 阈值过紧把"熔断保护"变成了"币种禁开"。8 笔连亏仍能拦恶性循环，
+# 2h 冷却足以打断节奏，同时不再冻死盘面。
+CIRCUIT_BREAKER_CONSEC_LOSSES = int(os.getenv("SHORT_TIER_CONSEC_LOSSES", "8") or 8)
+# 熔断冷却时长（秒）：默认 2 小时
+CIRCUIT_BREAKER_COOLDOWN_S = int(os.getenv("SHORT_TIER_CIRCUIT_COOLDOWN_S", "7200") or 7200)
 
 # ── 2026-07-06 整改（审查报告 4.6/发现C）──────────────────────────────────
 # 此前 _symbol_loss_tracker 是纯进程内存字典：后端热更新/崩溃重启后所有连续

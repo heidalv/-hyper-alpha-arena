@@ -9,8 +9,11 @@ logger = logging.getLogger(__name__)
 # [2026-07-30 crypto-native] scalp 默认 TP 1.2%/SL 2.5% → TP<SL 完全反了!
 # 这导致 MIN_TP_SL_RATIO=2.5 强制把 TP 拉远到 SL×2.5=6.25%，不切实际。
 # 修正为 TP 2%/SL 1.2%（TP>SL，RR=1.67，适合 crypto 5m scalp）。
+# [2026-08-23 改造A] scalp 兜底对齐新口径 TP 1.5%/SL 1.0%（信号 30-45min 边际
+# ±0.3% 的兑现尺度），且 MIN_TP_SL_RATIO 1.8→1.3：旧比率会把新参数 TP(SL×1.5)
+# 强制拉远到 SL×1.8，重新制造"够不到的 TP"。
 DEFAULT_TP_SL_BY_NATURE = {
-    "scalp": (0.020, 0.012),
+    "scalp": (0.015, 0.010),
     "intraday": (0.018, 0.040),
     "swing": (0.025, 0.060),
     "trend_follow": (0.040, 0.120),
@@ -19,7 +22,9 @@ DEFAULT_TP_SL_BY_NATURE = {
 
 # [2026-07-30 crypto-native] 2.5 太高，强制拉远 TP 导致 breakeven 频繁触发。
 # crypto scalp RR 1.5-2.0 即可正期望。
-MIN_TP_SL_RATIO = 1.8
+# [2026-08-23 改造A] →1.3：与 V5_SCALP_MIN_RR_PAPER(1.3) 对齐，避免与新
+# TP/SL 口径（RR 1.3-1.5）互相拉扯。
+MIN_TP_SL_RATIO = 1.3
 
 
 def finalize_open_tp_sl(

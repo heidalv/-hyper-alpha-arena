@@ -159,10 +159,12 @@ def validate_tp_sl_by_nature(
 
     _LIMITS = {
         # [2026-07-31 research] scalp min_tp/min_sl 0.8%→1.2%，对齐 TIER_SHORT + MR floor
-        # scalp: max_tp 4%, max_sl 2.5%（限制大亏）
         # [S6 2026-08-21] max_sl 2.5%→3.0% 对齐学习值新夹幅上限；max_tp 4%→4.5%
-        #   保证 SL=3% 时 RR=1.5 ≥ V5_SCALP_MIN_RR(1.4)，夹幅与 RR 门不互斥
-        "scalp":        (0.012, 0.045, 0.012, 0.030),
+        # [2026-08-23 改造A] 全夹幅对齐信号 30-45min 边际（±0.3%）与 1h ATR 尺度：
+        #   min_tp 0.9% / max_tp 1.5% / min_sl 0.7% / max_sl 1.2%。
+        #   旧夹幅会把新 TP/SL 强制拉回 1.2%/1.2%（RR=1.0）→ V5 min_rr=1.3 冤杀，
+        #   或把 SL 拉回 1.4-3% 噪音带（SL 通道全历史 -197 的出血源）。
+        "scalp":        (0.009, 0.015, 0.007, 0.012),
         "intraday":     (0.01,  0.12,  0.018, 0.08),
         "swing":        (0.02,  0.30,  0.025, 0.12),
         "position":     (0.05,  0.50,  0.030, 0.18),

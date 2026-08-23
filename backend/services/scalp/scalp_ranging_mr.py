@@ -47,12 +47,17 @@ _EDGE_BUFFER_PCT = 0.008
 # [2026-07-31 crypto-native] 0.4%→0.8%：5m crypto ATR 0.5-1%，SL 0.3-0.4% 100%被扫。
 # [2026-07-31 research] 0.8%→1.2%：近7天26% scalp SL贴≤0.85%；行业 RR≥1.5 且禁固定过紧%；
 #   典型币合约 taker 往返≈0.08–0.12%，0.8%/1.0% 盈亏比仅1.25，盈亏平衡胜率≈50%偏脆。
-# [S6 2026-08-21] 夹幅 [1.2%,2.0%]→[0.6%,3.0%]：原夹幅把网格训练最优 SL 压平，
-# 学习值从未落地；下限放低允许低波动市贴紧，上限放宽让高 ATR 市况不被噪音扫。
-_MR_SL_FLOOR = 0.006
+# [S6 2026-08-21] 夹幅 [1.2%,2.0%]→[0.6%,3.0%]：原夹幅把网格训练最优 SL 压平。
+# [2026-08-23 短线赚钱改造 A] 夹幅 [0.6%,3.0%]→[0.7%,1.2%]：对齐信号 30-45min 边际
+#   分布（±0.3%）与 1h ATR 尺度——旧 3% 上限让 MR 单在趋势转换日扛趋势级止损。
+_MR_SL_FLOOR = 0.007
 # 止损硬上限：MR 单不该扛过大止损，否则退化成趋势单的大亏。
-# [2026-07-31] 1.2%→1.5%→2.0%：给 SL 空间同时仍可控（单笔风险靠仓位，不靠把 SL 压进噪音）。
-_MR_SL_CAP = 0.030
+# [2026-07-31] 1.2%→1.5%→2.0%；[2026-08-23 改造 A] →1.15%（与趋势打法
+# structure_stop 同口径：TP cap 1.5% 时 RR≥1.30 过 V5 闸，防 min_rr 冤杀）。
+_MR_SL_CAP = 0.0115
+# TP 硬上限（2026-08-23 改造 A）：旧口径 TP=对沿×0.55 可达 2.7%+，方向对的仓
+# 摸不到 → 37% 磨到超时。新口径 TP ≤1.5%，与 SL(≤1.2%) 组成 RR≥1.2 结构。
+_MR_TP_CAP = 0.015
 
 _calc = StructureStopCalculator()
 
@@ -97,7 +102,9 @@ def apply_learned_mr(tp_pct: float, sl_pct: float) -> Tuple[float, float]:
             _ltp = float(_learned_mr.get("tp_pct") or 0)
             _lsl = float(_learned_mr.get("sl_pct") or 0)
             if _ltp > 0 and _lsl > 0:
-                return max(_ltp, SCALP_MR_MIN_TP), _clip(_lsl, _MR_SL_FLOOR, _MR_SL_CAP)
+                # [2026-08-23 改造 A] 学习值也受 TP/SL 夹幅约束（旧口径可把学习值
+                # 放宽到 3%+，与信号边际错配的根因之一）。
+                return min(max(_ltp, SCALP_MR_MIN_TP), _MR_TP_CAP), _clip(_lsl, _MR_SL_FLOOR, _MR_SL_CAP)
     except Exception:
         pass
     return tp_pct, sl_pct
@@ -184,6 +191,9 @@ def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal
     # 止盈强制盖过手续费；止损夹在合理区间（防过紧被噪声扫、防过松变趋势大亏）
     tp_pct = max(tp_pct, SCALP_MR_MIN_TP)
     sl_pct = _clip(sl_pct, _MR_SL_FLOOR, _MR_SL_CAP)
+    # [2026-08-23 改造 A] TP 硬上限 1.5%：旧口径对沿×0.55 可达 2.7%+，方向对的仓
+    # 摸不到 TP → 37% 磨到超时白交费。新口径 TP≤1.5% 且 RR≥1.2（SL≤1.2%）。
+    tp_pct = min(tp_pct, _MR_TP_CAP)
 
     # [D1 2026-08-19] learned TP/SL 覆盖（与 tp_sl_prices 同口径）：网格训练的最优
     # (tp,sl) 覆盖贴区间结构值。背景：ScalpMR 自算 rr=1.0 的宽 TP/SL 导致 37% 仓位

@@ -28,6 +28,41 @@ def _hardfat_shadow_enabled() -> bool:
     return os.getenv("RISK_P3_HARDFAT_SHADOW", "false").lower() in ("1", "true", "yes")
 
 
+# ─────────────────────────────────────────────────────────────────────
+# [S0-6-scalp 2026-08-23] 软退出免疫的硬退出兜底。
+# 软退出免疫只拦 Master 软退出（master_running* / master_defensive_reduce /
+# ai_reverse 等）；hardfact / emergency / 日亏 / liquidation 等硬退出绝不免疫。
+# 命中任一关键字 → 判定为硬退出，跳过软退出免疫。
+# ─────────────────────────────────────────────────────────────────────
+_SOFT_EXIT_IMMUNE_HARD_KEYWORDS = (
+    "hardfact", "hard_fact", "emergency", "drawdown", "liquidation",
+    "manual", "profit_lock", "trailing", "breakeven", "margin_call",
+    "daily_loss", "day_loss", "日亏", "爆仓", "强平",
+    "max_hold_timeout", "liq_magnet_reversal",
+)
+
+
+def _is_hard_exit(reason: str, exit_channel: str) -> bool:
+    """判定是否硬退出（软退出免疫须跳过，硬退出绝不免疫）。
+
+    ① exit_channel 命中 route_exit_tier 的 Tier0 规则直通（sl/tp/liquidation/
+       emergency_drawdown/manual/profit_lock/trailing/breakeven/...）；
+    ② reason/channel 含 hardfact / emergency / 日亏(daily_loss) / liquidation 等关键字。
+    """
+    ch = (exit_channel or "").strip().lower()
+    r = (reason or "").strip().lower()
+    try:
+        from backend.services.master_close_guard import route_exit_tier
+        if route_exit_tier(ch) == 0:
+            return True
+    except Exception:
+        pass
+    blob = f"{r} {ch}".strip()
+    if not blob:
+        return False
+    return any(kw in blob for kw in _SOFT_EXIT_IMMUNE_HARD_KEYWORDS)
+
+
 @dataclass
 class ExitGateResult:
     blocked: bool
@@ -307,6 +342,8 @@ class UnifiedExitExecutor:
 
     def should_block(self, req: ExitExecuteRequest) -> ExitGateResult:
         # S0-6：mid/long 对 Master 软退出免疫（此前函数写了但未接线）
+        # [S0-6-scalp 2026-08-23] 扩展 short/scalp tier，并加硬退出兜底：
+        #   hardfact / emergency / 日亏 / liquidation 等硬退出绝不免疫。
         try:
             _pos_tier = (
                 (req.pos or {}).get("timeframe_tier")
@@ -314,32 +351,42 @@ class UnifiedExitExecutor:
                 or ""
             )
             _pos_tier = str(_pos_tier).strip().lower()
-            if _pos_tier in ("mid", "long"):
-                from backend.services.risk_band_resolver import (
-                    is_close_reason_blocked_for_midlong,
-                )
-                _candidates = [
-                    str(req.exit_channel or "").strip().lower(),
-                    str(req.reason or "").strip().lower(),
-                ]
-                if req.action == "close":
-                    _candidates.append("master_running_close")
-                    _candidates.append("master_running")
-                if req.action == "reduce":
-                    _candidates.append("master_running_reduce")
-                    _candidates.append("master_defensive_reduce")
-                for _r in _candidates:
-                    if not _r:
-                        continue
-                    if is_close_reason_blocked_for_midlong(_r, _pos_tier):
-                        return ExitGateResult(
-                            blocked=True,
-                            event_type="midlong_soft_exit_immune",
-                            detail=(
-                                f"🛡️ {_pos_tier} 免疫软退出 channel={req.exit_channel} "
-                                f"reason={_r}"
-                            ),
-                        )
+            if _pos_tier in ("short", "mid", "long"):
+                if _is_hard_exit(req.reason or "", req.exit_channel or ""):
+                    logger.info(
+                        "[S0-6-scalp] %s[%s] channel=%s reason=%r 硬退出，跳过软退出免疫",
+                        req.symbol, _pos_tier, req.exit_channel, req.reason,
+                    )
+                else:
+                    from backend.services.risk_band_resolver import (
+                        is_close_reason_blocked_for_midlong,
+                    )
+                    _candidates = [
+                        str(req.exit_channel or "").strip().lower(),
+                        str(req.reason or "").strip().lower(),
+                    ]
+                    if req.action == "close":
+                        _candidates.append("master_running_close")
+                        _candidates.append("master_running")
+                    if req.action == "reduce":
+                        _candidates.append("master_running_reduce")
+                        _candidates.append("master_defensive_reduce")
+                    for _r in _candidates:
+                        if not _r:
+                            continue
+                        if is_close_reason_blocked_for_midlong(_r, _pos_tier):
+                            logger.info(
+                                "[S0-6-scalp] %s[%s] 免疫软退出 channel=%s reason=%s",
+                                req.symbol, _pos_tier, req.exit_channel, _r,
+                            )
+                            return ExitGateResult(
+                                blocked=True,
+                                event_type="midlong_soft_exit_immune",
+                                detail=(
+                                    f"🛡️ {_pos_tier} 免疫软退出 channel={req.exit_channel} "
+                                    f"reason={_r}"
+                                ),
+                            )
         except Exception as _imm_err:
             logger.debug("[UnifiedExit] midlong immune check skip: %s", _imm_err)
 

@@ -165,6 +165,90 @@ _hl_candles_cache: Optional[Tuple[float, Dict[str, list]]] = None
 _HL_CACHE_TTL = 60.0
 AUTO_COIN_INJECTED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "auto_coin_injected")
 
+# ═══════════════════════════════════════════════════════════════════
+# S0-7：选币轮换最小持有期（2026-08-23）
+#
+# 背景：symbol_removed（选币轮换撤币）331 笔平均持有 0.5h 碎平，伤害 scalp 层。
+# 同一 symbol 加入选币 universe 后至少保持 AUTO_COIN_MIN_HOLD_SEC 秒才允许被
+# 轮换移除；未满期则跳过本轮轮换（币留在 universe）。
+# 数据失效/退市移除（_sync_active_pool_from_db 的交易所目录兜底过滤）不走本门，
+# 保持立即执行。
+# ═══════════════════════════════════════════════════════════════════
+AUTO_COIN_MIN_HOLD_SEC = int(os.getenv("AUTO_COIN_MIN_HOLD_SEC", "21600"))  # 默认 6h
+
+# symbol → 加入 universe 的 epoch 秒（进程重启丢失可接受；模块级 dict）
+_universe_added_at: Dict[str, float] = {}
+
+
+def _norm_universe_symbol(symbol: str) -> str:
+    """归一 universe symbol（大写去空格）。"""
+    return str(symbol or "").strip().upper()
+
+
+def record_universe_added(symbol: str, ts=None) -> None:
+    """记录 symbol 加入选币 universe 的时间（S0-7）。
+
+    ts 可为 epoch 秒（float/int）或 datetime；None 用当前时间。
+    """
+    sym = _norm_universe_symbol(symbol)
+    if not sym:
+        return
+    if ts is None:
+        _universe_added_at[sym] = time.time()
+        return
+    try:
+        _ts = ts.timestamp()  # datetime 对象
+    except AttributeError:
+        try:
+            _ts = float(ts)
+        except (TypeError, ValueError):
+            _ts = time.time()
+    except Exception:
+        _ts = time.time()
+    _universe_added_at[sym] = _ts
+
+
+def record_universe_added_if_absent(symbol: str, ts=None) -> None:
+    """仅在无记录时回填（恢复路径用，避免覆盖更晚的注入时间）。"""
+    sym = _norm_universe_symbol(symbol)
+    if sym and sym not in _universe_added_at:
+        record_universe_added(sym, ts)
+
+
+def get_universe_added_at(symbol: str) -> Optional[float]:
+    """返回 symbol 加入 universe 的 epoch 秒；无记录返回 None（单测/调试用）。"""
+    return _universe_added_at.get(_norm_universe_symbol(symbol))
+
+
+def clear_universe_added_state() -> None:
+    """清空加入记录（单测用）。"""
+    _universe_added_at.clear()
+
+
+def rotation_remove_allowed(
+    symbol: str,
+    now: Optional[float] = None,
+    min_hold_sec: Optional[int] = None,
+) -> bool:
+    """S0-7：轮换撤币最小持有期门（纯函数，供 evaluate_auto_symbols 与单测调用）。
+
+    - 仅用于轮换驱动的移除；数据失效/退市移除不得调用本函数（保持立即执行）。
+    - 无加入记录（如进程重启后状态丢失）时放行，避免轮换永久卡死。
+    - 已满最小持有期返回 True（允许轮换移除），否则 False（本轮跳过，币留在 universe）。
+
+    Returns:
+        True = 允许被轮换移除；False = 未满最小持有期，本轮跳过。
+    """
+    sym = _norm_universe_symbol(symbol)
+    if not sym:
+        return True
+    added = _universe_added_at.get(sym)
+    if added is None:
+        return True
+    _now = now if now is not None else time.time()
+    _min = min_hold_sec if min_hold_sec is not None else AUTO_COIN_MIN_HOLD_SEC
+    return (_now - added) >= _min
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 阶段B 评分重构：方向性动量 + regime 自适应权重 + 缺数据默认 0.3
 # ═══════════════════════════════════════════════════════════════════════════
@@ -358,6 +442,8 @@ class AutoCoinSelector:
                 injected_at=injected_map.get(sym),
                 session_id=self.session_id,
             ))
+            # S0-7：恢复时回填 universe 加入时间（不覆盖已记录的更晚时间）
+            record_universe_added_if_absent(sym, injected_map.get(sym))
 
     def _sync_active_pool_from_db(self, db: Session):
         """以 DB 中的 session.symbols / auto_coin_symbols 为准恢复自动选币池。
@@ -448,6 +534,10 @@ class AutoCoinSelector:
         self._pool.active = new_pool
 
         self._hydrate_injected_times(db)
+        # S0-7：从 DB/文件回填 universe 加入时间（不覆盖已记录的更晚时间）
+        for _sym, _entry in self._pool.active.items():
+            if _entry.injected_at is not None:
+                record_universe_added_if_absent(_sym, _entry.injected_at)
         session.auto_coin_symbols = sorted(active_auto)
         db.commit()
         self._save_injected()
@@ -2228,6 +2318,8 @@ class AutoCoinSelector:
                         self._pool.active[sym] = c
                         self._auto_symbols.add(sym)
                         self._evaluation_count[sym] = 0
+                        # S0-7：记录加入 universe 时间
+                        record_universe_added(sym, now)
                         self._write_audit_record(
                             db,
                             sym,
@@ -2342,6 +2434,8 @@ class AutoCoinSelector:
                     self._pool.active[c.symbol] = c
                     self._auto_symbols.add(c.symbol)
                     self._evaluation_count[c.symbol] = 0
+                    # S0-7：记录加入 universe 时间
+                    record_universe_added(c.symbol, now)
                     self._write_audit_record(db, c.symbol, "injected",
                         scanner_score=c.score, ai_confidence=c.ai_confidence,
                         ai_reason=c.ai_reason, factor_snapshot=c.scores_detail)
@@ -2490,6 +2584,8 @@ class AutoCoinSelector:
                     self._auto_symbols.add(c.symbol)
                     self._evaluation_count[c.symbol] = 0
                     existing_auto.add(c.symbol)
+                    # S0-7：记录加入 universe 时间
+                    record_universe_added(c.symbol, now)
                     self._write_audit_record(db, c.symbol, "injected",
                         scanner_score=c.score, ai_confidence=c.ai_confidence,
                         ai_reason=c.ai_reason, factor_snapshot=c.scores_detail)
@@ -3080,6 +3176,12 @@ class AutoCoinSelector:
             if should_remove and eval_count < AUTO_COIN_GRACE_CYCLES:
                 should_remove = False
                 reason = f"保护期(cycle {eval_count}/{AUTO_COIN_GRACE_CYCLES})"
+
+            # S0-7：轮换撤币最小持有期（数据失效/退市移除不走此处，保持立即执行）
+            if should_remove and not rotation_remove_allowed(symbol):
+                should_remove = False
+                reason = f"轮换最小持有期未满({AUTO_COIN_MIN_HOLD_SEC // 3600}h)"
+                cooling_tier = "short"
 
             cycle_report = {
                 "symbol": symbol,

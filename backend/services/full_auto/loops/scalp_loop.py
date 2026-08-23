@@ -523,11 +523,23 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     from backend.services.scalp.scalp_ranging_mr import (
                         range_amplitude_pct as _mr_amp,
                     )
+                    from backend.services.scalp.mr_regime_breakout_guard import (
+                        mr_breakout_danger as _mr_guard,
+                    )
                     _regime_mr = _cls_reg_mr(_md)
                     if _regime_mr.regime == "ranging" and _mr_amp_ok(_mr_amp(_md)):
-                        _sig = _mr_eval(sym, _md)
-                        _md["ranging_mr"] = True
-                        _mr_active = True
+                        # [2026-08-23] regime 突变实时守卫：趋势转换日 MR 仍按震荡
+                        # 接飞刀 → 用实时波动率/ADX 突变检测拦截，本 tick 改走趋势打法。
+                        _mr_danger, _mr_danger_reason = _mr_guard(_md)
+                        if _mr_danger:
+                            logger.info(
+                                "[ScalpMR] %s regime突变守卫: %s（本tick改走趋势打法）",
+                                sym, _mr_danger_reason,
+                            )
+                        else:
+                            _sig = _mr_eval(sym, _md)
+                            _md["ranging_mr"] = True
+                            _mr_active = True
             except Exception as _mr_err:
                 logger.debug(f"[ScalpMR] {sym} 均值回归分流跳过: {_mr_err}")
             if not _mr_active:

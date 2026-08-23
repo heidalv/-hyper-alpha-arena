@@ -89,38 +89,30 @@ class StructureStopCalculator:
             sl_price = max(atr_sl, struct_sl) if struct_sl > 0 else atr_sl
             sl_pct = (sl_price - price) / price if price > 0 else atr_pct
 
-        # ── 短线 TP/SL：regime 自适应 ──
-        # [P1-1 2026-07-30] 固定RR=2.5改为随regime切换
-        # 震荡市薄利多开(RR=1.5, SL宽)，趋势市追势(RR=2.5, SL紧)，崩盘不开
-        _regime = ""
-        try:
-            _regime_data = market_data.get("regime") or {}
-            _regime = (_regime_data.get("name") or _regime_data.get("regime") or "").lower() if isinstance(_regime_data, dict) else str(_regime_data or "").lower()
-        except Exception:
-            pass
+        # ── 短线 TP/SL：对齐信号真实边际分布（2026-08-23 短线赚钱改造 A）──
+        # 数据实证（账户14 近14天 + 8.1万笔信号）：
+        #  - 信号 30min 前向边际峰值 ±0.3%，1h ATR ≈ 0.5-1%；
+        #  - 旧参数 TP≈2.5%（信号边际 8 倍）→ 47.5% 仓位磨到 2h 超时白交费、
+        #    SL 1.4-3% 落噪音带被扫（SL 通道全历史 -197 最大出血）。
+        # 新口径：TP/SL 对齐 1h 波动尺度，让方向对的仓真正摸得到 TP。
+        #  - SL = 1.2×ATR，夹幅 [0.7%, 1.15%]（低波动给 0.7% 底；高波动不扩——
+        #    短线不扛趋势级止损；上限 1.15% 保证 TP cap 1.5% 时 RR≥1.30 过 V5 闸）
+        #  - TP = 1.5×SL，夹幅 [0.9%, 1.5%]（RR 恒 1.5，盖过 8bp 往返成本）
+        #  env 回滚：SCALP_SL_MIN_PCT / SCALP_SL_MAX_PCT / SCALP_TP_MIN_PCT /
+        #  SCALP_TP_MAX_PCT / SCALP_TP_SL_RR
+        import os as _os_ab
+        _sl_min_p = float(_os_ab.getenv("SCALP_SL_MIN_PCT", "0.007") or 0.007)
+        _sl_max_p = float(_os_ab.getenv("SCALP_SL_MAX_PCT", "0.0115") or 0.0115)
+        _tp_min_p = float(_os_ab.getenv("SCALP_TP_MIN_PCT", "0.009") or 0.009)
+        _tp_max_p = float(_os_ab.getenv("SCALP_TP_MAX_PCT", "0.015") or 0.015)
+        _rr_p = float(_os_ab.getenv("SCALP_TP_SL_RR", "1.5") or 1.5)
 
-        if _regime == "ranging":
-            # [S6 2026-08-21] 震荡夹幅放宽 [1.2%,2.0%]→[0.6%,3.0%]：让学习值 SL
-            # 可落地；RR 一致性由 tp_sl_gates（max_tp 4.5%/max_sl 3.0%→RR≥1.5）
-            # 与 V5 SCALP_MIN_RR 闸把守
-            _rr_mult = 1.5; _sl_min, _sl_max = 0.006, 0.030
-        elif _regime == "trending":
-            # [2026-07-31 research] trending SL 下限 0.8%→1.2%（对齐 TIER_SHORT_SL）
-            _rr_mult = 2.5; _sl_min, _sl_max = 0.012, 0.018
-        else:
-            _rr_mult = 2.0; _sl_min, _sl_max = 0.012, 0.018  # 默认(含volatile/crash/unknown)
-
-        # [2026-08-22 M0-7] 去掉上沿死区间：原实现 max(_sl_min, min(_sl_max, ...))
-        # 把 ATR/结构自适应止损压进固定 [1.2%,1.8%]（trending 段），高波动币被
-        # 噪声反复扫损。现在只保下限（防过小止损），上限放宽到 6% 硬 sanity
-        # （避免真正的结构崩溃行情给出超大 SL）；RR 一致性由 tp_sl_gates / V5
-        # SCALP_MIN_RR 闸把守，不由本函数压死。
-        sl_pct = max(_sl_min, min(0.06, abs(sl_pct)))
+        sl_pct = max(_sl_min_p, min(_sl_max_p, abs(sl_pct)))
         if side_l in ("buy", "long"):
             sl_price = price * (1 - sl_pct)
         else:
             sl_price = price * (1 + sl_pct)
-        tp_pct = max(0.015, min(0.04, sl_pct * _rr_mult))
+        tp_pct = max(_tp_min_p, min(_tp_max_p, sl_pct * _rr_p))
         tp_price = price * (1 + tp_pct) if side_l in ("buy", "long") else price * (1 - tp_pct)
         return sl_pct, tp_pct, sl_price, tp_price
 

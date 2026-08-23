@@ -1,0 +1,1839 @@
+[
+ {
+  "factor_id": "ai_a101s_atr_mom_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0717,
+   "icir": -0.3499,
+   "ic_decay_halflife": 15,
+   "oos_net_return": -0.116144,
+   "oos_sharpe": -0.6748,
+   "oos_win_rate": 0.4701,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 11.3
+ },
+ {
+  "factor_id": "ai_a101s_bb_fade_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0702,
+   "icir": 0.3177,
+   "ic_decay_halflife": 14,
+   "oos_net_return": -0.128791,
+   "oos_sharpe": -0.7184,
+   "oos_win_rate": 0.48,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.5
+ },
+ {
+  "factor_id": "ai_a101s_bias30_rev_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0879,
+   "icir": 0.4179,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.091308,
+   "oos_sharpe": -0.6081,
+   "oos_win_rate": 0.4733,
+   "oos_trades": 693
+  },
+  "conditional": {},
+  "elapsed_s": 10.9
+ },
+ {
+  "factor_id": "ai_a101s_gap_rev_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=0.0268 ICIR=0.1928 OOS_sharpe=-0.4776 OOS_net=-0.062091 win=0.4528 trades=720",
+  "scores": {
+   "ic_mean": 0.0268,
+   "icir": 0.1928,
+   "ic_decay_halflife": 6,
+   "oos_net_return": -0.062091,
+   "oos_sharpe": -0.4776,
+   "oos_win_rate": 0.4528,
+   "oos_trades": 720
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": 1.0,
+   "trades": 362,
+   "avg_net_per_trade": -0.001599,
+   "win_rate": 0.4117,
+   "sharpe": -0.4267,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.310205,
+     "sharpe": -1.7855,
+     "win_rate": 0.4412,
+     "trades": 34,
+     "n": 714,
+     "triggered": 34,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": -0.150413,
+     "sharpe": -1.7994,
+     "win_rate": 0.3125,
+     "trades": 32,
+     "n": 714,
+     "triggered": 32,
+     "dir_sign": 1.0
+    },
+    "BTC": {
+     "net_return": 0.031227,
+     "sharpe": 0.3827,
+     "win_rate": 0.2683,
+     "trades": 41,
+     "n": 714,
+     "triggered": 41,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": 0.119194,
+     "sharpe": 0.7853,
+     "win_rate": 0.3529,
+     "trades": 34,
+     "n": 714,
+     "triggered": 34,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.01664,
+     "sharpe": -0.172,
+     "win_rate": 0.4839,
+     "trades": 31,
+     "n": 714,
+     "triggered": 31,
+     "dir_sign": 1.0
+    },
+    "UNI": {
+     "net_return": -0.195335,
+     "sharpe": -1.4775,
+     "win_rate": 0.3673,
+     "trades": 49,
+     "n": 714,
+     "triggered": 49,
+     "dir_sign": 1.0
+    },
+    "VIRTUAL": {
+     "net_return": 0.017532,
+     "sharpe": 0.1171,
+     "win_rate": 0.3793,
+     "trades": 58,
+     "n": 714,
+     "triggered": 58,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.213672,
+     "sharpe": -1.0762,
+     "win_rate": 0.5806,
+     "trades": 31,
+     "n": 714,
+     "triggered": 31,
+     "dir_sign": 1.0
+    },
+    "XRP": {
+     "net_return": 0.326432,
+     "sharpe": 1.1851,
+     "win_rate": 0.5192,
+     "trades": 52,
+     "n": 714,
+     "triggered": 52,
+     "dir_sign": -1.0
+    }
+   }
+  },
+  "elapsed_s": 10.9
+ },
+ {
+  "factor_id": "ai_a101s_hl_pos_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0258 ICIR=-0.2398 OOS_sharpe=-0.4844 OOS_net=-0.068665 win=0.4431 trades=720",
+  "scores": {
+   "ic_mean": -0.0258,
+   "icir": -0.2398,
+   "ic_decay_halflife": 4,
+   "oos_net_return": -0.068665,
+   "oos_sharpe": -0.4844,
+   "oos_win_rate": 0.4431,
+   "oos_trades": 720
+  },
+  "conditional": {},
+  "elapsed_s": 10.5
+ },
+ {
+  "factor_id": "ai_a101s_ma_gap_rev_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0679,
+   "icir": 0.2974,
+   "ic_decay_halflife": 13,
+   "oos_net_return": -0.147728,
+   "oos_sharpe": -0.8886,
+   "oos_win_rate": 0.4786,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 11.3
+ },
+ {
+  "factor_id": "ai_a101s_macd_like_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0581 ICIR=-0.2713 OOS_sharpe=0.0332 OOS_net=-0.006913 win=0.4715 trades=702",
+  "scores": {
+   "ic_mean": -0.0581,
+   "icir": -0.2713,
+   "ic_decay_halflife": 14,
+   "oos_net_return": -0.006913,
+   "oos_sharpe": 0.0332,
+   "oos_win_rate": 0.4715,
+   "oos_trades": 702
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": 1.0,
+   "trades": 302,
+   "avg_net_per_trade": -0.000335,
+   "win_rate": 0.4222,
+   "sharpe": -0.1605,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": 0.074267,
+     "sharpe": 0.4314,
+     "win_rate": 0.5143,
+     "trades": 35,
+     "n": 689,
+     "triggered": 35,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": -0.063955,
+     "sharpe": -0.7833,
+     "win_rate": 0.3333,
+     "trades": 33,
+     "n": 689,
+     "triggered": 33,
+     "dir_sign": 1.0
+    },
+    "BTC": {
+     "net_return": -0.090609,
+     "sharpe": -0.7735,
+     "win_rate": 0.425,
+     "trades": 40,
+     "n": 689,
+     "triggered": 40,
+     "dir_sign": 1.0
+    },
+    "ETH": {
+     "net_return": 0.136547,
+     "sharpe": 0.9331,
+     "win_rate": 0.475,
+     "trades": 40,
+     "n": 689,
+     "triggered": 40,
+     "dir_sign": 1.0
+    },
+    "SOL": {
+     "net_return": -0.127617,
+     "sharpe": -1.0888,
+     "win_rate": 0.2812,
+     "trades": 32,
+     "n": 689,
+     "triggered": 32,
+     "dir_sign": 1.0
+    },
+    "UNI": {
+     "net_return": 0.04208,
+     "sharpe": 0.2785,
+     "win_rate": 0.5625,
+     "trades": 32,
+     "n": 689,
+     "triggered": 32,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": 0.094735,
+     "sharpe": 0.9556,
+     "win_rate": 0.4762,
+     "trades": 21,
+     "n": 689,
+     "triggered": 21,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.18051,
+     "sharpe": -1.3077,
+     "win_rate": 0.4545,
+     "trades": 33,
+     "n": 689,
+     "triggered": 33,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.025832,
+     "sharpe": -0.0894,
+     "win_rate": 0.2778,
+     "trades": 36,
+     "n": 689,
+     "triggered": 36,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_macd_sig_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0215 ICIR=-0.091 OOS_sharpe=-0.001 OOS_net=0.0026 win=0.4531 trades=693",
+  "scores": {
+   "ic_mean": -0.0215,
+   "icir": -0.091,
+   "ic_decay_halflife": 11,
+   "oos_net_return": 0.0026,
+   "oos_sharpe": -0.001,
+   "oos_win_rate": 0.4531,
+   "oos_trades": 693
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": 1.0,
+   "trades": 263,
+   "avg_net_per_trade": -0.001794,
+   "win_rate": 0.4262,
+   "sharpe": -0.4247,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.016583,
+     "sharpe": -0.0917,
+     "win_rate": 0.5,
+     "trades": 34,
+     "n": 686,
+     "triggered": 34,
+     "dir_sign": -1.0
+    },
+    "BNB": {
+     "net_return": -0.014216,
+     "sharpe": -0.1871,
+     "win_rate": 0.2963,
+     "trades": 27,
+     "n": 686,
+     "triggered": 27,
+     "dir_sign": 1.0
+    },
+    "BTC": {
+     "net_return": 0.018576,
+     "sharpe": 0.184,
+     "win_rate": 0.3235,
+     "trades": 34,
+     "n": 686,
+     "triggered": 34,
+     "dir_sign": 1.0
+    },
+    "ETH": {
+     "net_return": -0.16686,
+     "sharpe": -1.1091,
+     "win_rate": 0.5,
+     "trades": 34,
+     "n": 686,
+     "triggered": 34,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.108327,
+     "sharpe": -1.1198,
+     "win_rate": 0.3333,
+     "trades": 27,
+     "n": 686,
+     "triggered": 27,
+     "dir_sign": 1.0
+    },
+    "UNI": {
+     "net_return": -0.13329,
+     "sharpe": -0.9591,
+     "win_rate": 0.3846,
+     "trades": 26,
+     "n": 686,
+     "triggered": 26,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.045184,
+     "sharpe": -0.6129,
+     "win_rate": 0.5294,
+     "trades": 17,
+     "n": 686,
+     "triggered": 17,
+     "dir_sign": -1.0
+    },
+    "XPL": {
+     "net_return": -0.026693,
+     "sharpe": -0.1673,
+     "win_rate": 0.4839,
+     "trades": 31,
+     "n": 686,
+     "triggered": 31,
+     "dir_sign": 1.0
+    },
+    "XRP": {
+     "net_return": 0.062351,
+     "sharpe": 0.2404,
+     "win_rate": 0.4848,
+     "trades": 33,
+     "n": 686,
+     "triggered": 33,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_mom10_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.082 ICIR=-0.3929 OOS_sharpe=-0.7614 OOS_net=-0.131171 win=0.4694 trades=720",
+  "scores": {
+   "ic_mean": -0.082,
+   "icir": -0.3929,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.131171,
+   "oos_sharpe": -0.7614,
+   "oos_win_rate": 0.4694,
+   "oos_trades": 720
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 278,
+   "avg_net_per_trade": -0.001783,
+   "win_rate": 0.4579,
+   "sharpe": -0.3242,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.137121,
+     "sharpe": -0.7679,
+     "win_rate": 0.5143,
+     "trades": 35,
+     "n": 705,
+     "triggered": 35,
+     "dir_sign": -1.0
+    },
+    "BNB": {
+     "net_return": -0.09863,
+     "sharpe": -1.1758,
+     "win_rate": 0.375,
+     "trades": 32,
+     "n": 705,
+     "triggered": 32,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": -0.002392,
+     "sharpe": -0.017,
+     "win_rate": 0.3529,
+     "trades": 34,
+     "n": 705,
+     "triggered": 34,
+     "dir_sign": 1.0
+    },
+    "ETH": {
+     "net_return": 0.193463,
+     "sharpe": 1.3527,
+     "win_rate": 0.5152,
+     "trades": 33,
+     "n": 705,
+     "triggered": 33,
+     "dir_sign": 1.0
+    },
+    "SOL": {
+     "net_return": 0.010049,
+     "sharpe": 0.0779,
+     "win_rate": 0.5,
+     "trades": 30,
+     "n": 705,
+     "triggered": 30,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": -0.067879,
+     "sharpe": -0.4733,
+     "win_rate": 0.4483,
+     "trades": 29,
+     "n": 705,
+     "triggered": 29,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.075391,
+     "sharpe": -0.5586,
+     "win_rate": 0.3913,
+     "trades": 23,
+     "n": 705,
+     "triggered": 23,
+     "dir_sign": -1.0
+    },
+    "XPL": {
+     "net_return": -0.082671,
+     "sharpe": -0.3983,
+     "win_rate": 0.4815,
+     "trades": 27,
+     "n": 705,
+     "triggered": 27,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.227353,
+     "sharpe": -0.9573,
+     "win_rate": 0.5429,
+     "trades": 35,
+     "n": 705,
+     "triggered": 35,
+     "dir_sign": -1.0
+    }
+   }
+  },
+  "elapsed_s": 11.0
+ },
+ {
+  "factor_id": "ai_a101s_mom3_fade_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0385,
+   "icir": 0.245,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.074136,
+   "oos_sharpe": -0.3301,
+   "oos_win_rate": 0.4388,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.2
+ },
+ {
+  "factor_id": "ai_a101s_mom_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0748,
+   "icir": -0.3612,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.111357,
+   "oos_sharpe": -0.6097,
+   "oos_win_rate": 0.4957,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.3
+ },
+ {
+  "factor_id": "ai_a101s_mom_fast_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0359 ICIR=-0.1576 OOS_sharpe=-0.7241 OOS_net=-0.124342 win=0.4847 trades=720",
+  "scores": {
+   "ic_mean": -0.0359,
+   "icir": -0.1576,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.124342,
+   "oos_sharpe": -0.7241,
+   "oos_win_rate": 0.4847,
+   "oos_trades": 720
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 270,
+   "avg_net_per_trade": -0.000854,
+   "win_rate": 0.4586,
+   "sharpe": -0.1503,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.276902,
+     "sharpe": -1.579,
+     "win_rate": 0.4571,
+     "trades": 35,
+     "n": 709,
+     "triggered": 35,
+     "dir_sign": -1.0
+    },
+    "BNB": {
+     "net_return": -0.07626,
+     "sharpe": -0.8838,
+     "win_rate": 0.4545,
+     "trades": 33,
+     "n": 709,
+     "triggered": 33,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": 0.091565,
+     "sharpe": 1.0969,
+     "win_rate": 0.3333,
+     "trades": 33,
+     "n": 709,
+     "triggered": 33,
+     "dir_sign": 1.0
+    },
+    "ETH": {
+     "net_return": 0.203802,
+     "sharpe": 1.3996,
+     "win_rate": 0.4839,
+     "trades": 31,
+     "n": 709,
+     "triggered": 31,
+     "dir_sign": 1.0
+    },
+    "SOL": {
+     "net_return": -0.164429,
+     "sharpe": -1.1808,
+     "win_rate": 0.3929,
+     "trades": 28,
+     "n": 709,
+     "triggered": 28,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": 0.161394,
+     "sharpe": 0.7702,
+     "win_rate": 0.5185,
+     "trades": 27,
+     "n": 709,
+     "triggered": 27,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.012125,
+     "sharpe": -0.0909,
+     "win_rate": 0.5789,
+     "trades": 19,
+     "n": 709,
+     "triggered": 19,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.029637,
+     "sharpe": -0.1556,
+     "win_rate": 0.4667,
+     "trades": 30,
+     "n": 709,
+     "triggered": 30,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.17982,
+     "sharpe": -0.7294,
+     "win_rate": 0.4412,
+     "trades": 34,
+     "n": 709,
+     "triggered": 34,
+     "dir_sign": -1.0
+    }
+   }
+  },
+  "elapsed_s": 11.0
+ },
+ {
+  "factor_id": "ai_a101s_range_pos_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0647,
+   "icir": -0.2692,
+   "ic_decay_halflife": 14,
+   "oos_net_return": -0.092971,
+   "oos_sharpe": -0.5617,
+   "oos_win_rate": 0.4929,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_rev_z_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0702,
+   "icir": 0.3177,
+   "ic_decay_halflife": 14,
+   "oos_net_return": -0.128791,
+   "oos_sharpe": -0.7184,
+   "oos_win_rate": 0.48,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 11.3
+ },
+ {
+  "factor_id": "ai_a101s_rsi_fade_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0944,
+   "icir": 0.4381,
+   "ic_decay_halflife": 15,
+   "oos_net_return": -0.120892,
+   "oos_sharpe": -0.7278,
+   "oos_win_rate": 0.4786,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.9
+ },
+ {
+  "factor_id": "ai_a101s_rsi_like_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0944,
+   "icir": -0.4381,
+   "ic_decay_halflife": 15,
+   "oos_net_return": -0.120892,
+   "oos_sharpe": -0.7278,
+   "oos_win_rate": 0.4786,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 11.4
+ },
+ {
+  "factor_id": "ai_a101s_vol_mom10_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0697,
+   "icir": -0.3322,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.097025,
+   "oos_sharpe": -0.5634,
+   "oos_win_rate": 0.4786,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_vol_mom_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.027,
+   "icir": -0.1329,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.065109,
+   "oos_sharpe": -0.3661,
+   "oos_win_rate": 0.4786,
+   "oos_trades": 702
+  },
+  "conditional": {},
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_vol_spike_rev_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=0.0473 ICIR=0.437 OOS_sharpe=-0.7993 OOS_net=-0.128679 win=0.4359 trades=702",
+  "scores": {
+   "ic_mean": 0.0473,
+   "icir": 0.437,
+   "ic_decay_halflife": 9,
+   "oos_net_return": -0.128679,
+   "oos_sharpe": -0.7993,
+   "oos_win_rate": 0.4359,
+   "oos_trades": 702
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 152,
+   "avg_net_per_trade": 0.001083,
+   "win_rate": 0.4283,
+   "sharpe": 0.139,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.089593,
+     "sharpe": -0.895,
+     "win_rate": 0.4444,
+     "trades": 18,
+     "n": 696,
+     "triggered": 18,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": 0.067415,
+     "sharpe": 0.9775,
+     "win_rate": 0.5625,
+     "trades": 16,
+     "n": 696,
+     "triggered": 16,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": 0.200916,
+     "sharpe": 1.7068,
+     "win_rate": 0.5,
+     "trades": 14,
+     "n": 695,
+     "triggered": 14,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": 0.167235,
+     "sharpe": 1.245,
+     "win_rate": 0.5333,
+     "trades": 15,
+     "n": 696,
+     "triggered": 15,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.024813,
+     "sharpe": -0.2445,
+     "win_rate": 0.5294,
+     "trades": 17,
+     "n": 696,
+     "triggered": 17,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": 0.011664,
+     "sharpe": 0.0972,
+     "win_rate": 0.2353,
+     "trades": 17,
+     "n": 696,
+     "triggered": 17,
+     "dir_sign": 1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.021666,
+     "sharpe": -0.2288,
+     "win_rate": 0.2941,
+     "trades": 17,
+     "n": 696,
+     "triggered": 17,
+     "dir_sign": -1.0
+    },
+    "XPL": {
+     "net_return": -0.06827,
+     "sharpe": -0.575,
+     "win_rate": 0.4375,
+     "trades": 16,
+     "n": 696,
+     "triggered": 16,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.190776,
+     "sharpe": -0.8326,
+     "win_rate": 0.3182,
+     "trades": 22,
+     "n": 696,
+     "triggered": 22,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.4
+ },
+ {
+  "factor_id": "ai_a101s_vp_trend_15m",
+  "interval": "15m",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0481 ICIR=-0.2381 OOS_sharpe=-0.637 OOS_net=-0.113986 win=0.4784 trades=719",
+  "scores": {
+   "ic_mean": -0.0481,
+   "icir": -0.2381,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.113986,
+   "oos_sharpe": -0.637,
+   "oos_win_rate": 0.4784,
+   "oos_trades": 719
+  },
+  "conditional": {},
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_atr_mom_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0744,
+   "icir": -0.6033,
+   "ic_decay_halflife": 14,
+   "oos_net_return": -0.148867,
+   "oos_sharpe": -1.0152,
+   "oos_win_rate": 0.5055,
+   "oos_trades": 2097
+  },
+  "conditional": {},
+  "elapsed_s": 11.1
+ },
+ {
+  "factor_id": "ai_a101s_bb_fade_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0687,
+   "icir": 0.4688,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.152703,
+   "oos_sharpe": -1.0522,
+   "oos_win_rate": 0.5047,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_bias30_rev_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.1017,
+   "icir": 0.7435,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.195101,
+   "oos_sharpe": -1.3524,
+   "oos_win_rate": 0.5031,
+   "oos_trades": 2079
+  },
+  "conditional": {},
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_close_open_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_close_open_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0242,
+   "icir": -0.2602,
+   "ic_decay_halflife": 6,
+   "oos_net_return": 0.01158,
+   "oos_sharpe": 0.008,
+   "oos_win_rate": 0.4801,
+   "oos_trades": 2160
+  },
+  "conditional": {},
+  "elapsed_s": 11.1
+ },
+ {
+  "factor_id": "ai_a101s_gap_rev_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=0.0362 ICIR=0.3459 OOS_sharpe=-0.4166 OOS_net=-0.088469 win=0.4611 trades=2160",
+  "scores": {
+   "ic_mean": 0.0362,
+   "icir": 0.3459,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.088469,
+   "oos_sharpe": -0.4166,
+   "oos_win_rate": 0.4611,
+   "oos_trades": 2160
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": 1.0,
+   "trades": 564,
+   "avg_net_per_trade": -0.001202,
+   "win_rate": 0.4137,
+   "sharpe": -0.9968,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.068482,
+     "sharpe": -0.6002,
+     "win_rate": 0.375,
+     "trades": 64,
+     "n": 717,
+     "triggered": 64,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": -0.06063,
+     "sharpe": -2.067,
+     "win_rate": 0.4219,
+     "trades": 64,
+     "n": 717,
+     "triggered": 64,
+     "dir_sign": 1.0
+    },
+    "BTC": {
+     "net_return": -0.068511,
+     "sharpe": -1.9992,
+     "win_rate": 0.3231,
+     "trades": 65,
+     "n": 717,
+     "triggered": 65,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": 0.010848,
+     "sharpe": 0.1637,
+     "win_rate": 0.3387,
+     "trades": 62,
+     "n": 717,
+     "triggered": 62,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.024219,
+     "sharpe": -0.425,
+     "win_rate": 0.4516,
+     "trades": 62,
+     "n": 717,
+     "triggered": 62,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": -0.179318,
+     "sharpe": -1.576,
+     "win_rate": 0.4737,
+     "trades": 57,
+     "n": 717,
+     "triggered": 57,
+     "dir_sign": 1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.156519,
+     "sharpe": -1.1518,
+     "win_rate": 0.4444,
+     "trades": 72,
+     "n": 717,
+     "triggered": 72,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.273734,
+     "sharpe": -1.7404,
+     "win_rate": 0.4167,
+     "trades": 72,
+     "n": 717,
+     "triggered": 72,
+     "dir_sign": 1.0
+    },
+    "XRP": {
+     "net_return": 0.073314,
+     "sharpe": 0.4247,
+     "win_rate": 0.4783,
+     "trades": 46,
+     "n": 717,
+     "triggered": 46,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.5
+ },
+ {
+  "factor_id": "ai_a101s_hl_corr_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "DSR/PBO 未通过（pbo=0.740）——多重检验下无显著预测力",
+  "scores": {
+   "ic_mean": -0.0031,
+   "icir": -0.0366,
+   "ic_decay_halflife": 17,
+   "oos_net_return": -0.027392,
+   "oos_sharpe": -0.3253,
+   "oos_win_rate": 0.4915,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 12.0
+ },
+ {
+  "factor_id": "ai_a101s_hl_pos_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.025 ICIR=-0.2649 OOS_sharpe=-0.7516 OOS_net=-0.121778 win=0.4722 trades=2160",
+  "scores": {
+   "ic_mean": -0.025,
+   "icir": -0.2649,
+   "ic_decay_halflife": 6,
+   "oos_net_return": -0.121778,
+   "oos_sharpe": -0.7516,
+   "oos_win_rate": 0.4722,
+   "oos_trades": 2160
+  },
+  "conditional": {},
+  "elapsed_s": 11.1
+ },
+ {
+  "factor_id": "ai_a101s_ma_gap_rev_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0577,
+   "icir": 0.4131,
+   "ic_decay_halflife": 15,
+   "oos_net_return": -0.114654,
+   "oos_sharpe": -0.8635,
+   "oos_win_rate": 0.5081,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 11.0
+ },
+ {
+  "factor_id": "ai_a101s_macd_like_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0214 ICIR=-0.161 OOS_sharpe=0.1455 OOS_net=0.019316 win=0.4901 trades=2079",
+  "scores": {
+   "ic_mean": -0.0214,
+   "icir": -0.161,
+   "ic_decay_halflife": 17,
+   "oos_net_return": 0.019316,
+   "oos_sharpe": 0.1455,
+   "oos_win_rate": 0.4901,
+   "oos_trades": 2079
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 244,
+   "avg_net_per_trade": -0.000626,
+   "win_rate": 0.5,
+   "sharpe": -0.0094,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": 0.024792,
+     "sharpe": 0.147,
+     "win_rate": 0.4359,
+     "trades": 39,
+     "n": 692,
+     "triggered": 39,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": 0.047245,
+     "sharpe": 0.9592,
+     "win_rate": 0.5882,
+     "trades": 17,
+     "n": 692,
+     "triggered": 17,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": 0.039383,
+     "sharpe": 0.8789,
+     "win_rate": 0.6129,
+     "trades": 31,
+     "n": 692,
+     "triggered": 31,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": -0.023141,
+     "sharpe": -0.2023,
+     "win_rate": 0.5333,
+     "trades": 30,
+     "n": 692,
+     "triggered": 30,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": 0.050208,
+     "sharpe": 0.6426,
+     "win_rate": 0.6154,
+     "trades": 26,
+     "n": 692,
+     "triggered": 26,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": -0.014192,
+     "sharpe": -0.4262,
+     "win_rate": 0.4286,
+     "trades": 14,
+     "n": 692,
+     "triggered": 14,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.037849,
+     "sharpe": -0.3596,
+     "win_rate": 0.4194,
+     "trades": 31,
+     "n": 692,
+     "triggered": 31,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.095755,
+     "sharpe": -0.6308,
+     "win_rate": 0.5556,
+     "trades": 27,
+     "n": 692,
+     "triggered": 27,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.165169,
+     "sharpe": -1.0937,
+     "win_rate": 0.3103,
+     "trades": 29,
+     "n": 692,
+     "triggered": 29,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_macd_sig_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0182 ICIR=-0.1029 OOS_sharpe=0.1576 OOS_net=0.03844 win=0.4752 trades=2079",
+  "scores": {
+   "ic_mean": -0.0182,
+   "icir": -0.1029,
+   "ic_decay_halflife": 11,
+   "oos_net_return": 0.03844,
+   "oos_sharpe": 0.1576,
+   "oos_win_rate": 0.4752,
+   "oos_trades": 2079
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": 1.0,
+   "trades": 229,
+   "avg_net_per_trade": -0.000801,
+   "win_rate": 0.4927,
+   "sharpe": -0.1461,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.06209,
+     "sharpe": -0.4046,
+     "win_rate": 0.4865,
+     "trades": 37,
+     "n": 689,
+     "triggered": 37,
+     "dir_sign": -1.0
+    },
+    "BNB": {
+     "net_return": -0.002718,
+     "sharpe": -0.0983,
+     "win_rate": 0.5385,
+     "trades": 13,
+     "n": 689,
+     "triggered": 13,
+     "dir_sign": 1.0
+    },
+    "BTC": {
+     "net_return": -0.056098,
+     "sharpe": -1.541,
+     "win_rate": 0.3571,
+     "trades": 28,
+     "n": 689,
+     "triggered": 28,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": -0.052064,
+     "sharpe": -0.4975,
+     "win_rate": 0.5185,
+     "trades": 27,
+     "n": 689,
+     "triggered": 27,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.004142,
+     "sharpe": -0.0559,
+     "win_rate": 0.4,
+     "trades": 25,
+     "n": 689,
+     "triggered": 25,
+     "dir_sign": 1.0
+    },
+    "UNI": {
+     "net_return": 0.056938,
+     "sharpe": 1.6907,
+     "win_rate": 0.6667,
+     "trades": 18,
+     "n": 689,
+     "triggered": 18,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": 0.078778,
+     "sharpe": 0.7931,
+     "win_rate": 0.4333,
+     "trades": 30,
+     "n": 689,
+     "triggered": 30,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": 0.03866,
+     "sharpe": 0.3222,
+     "win_rate": 0.55,
+     "trades": 20,
+     "n": 689,
+     "triggered": 20,
+     "dir_sign": 1.0
+    },
+    "XRP": {
+     "net_return": -0.277306,
+     "sharpe": -1.5232,
+     "win_rate": 0.4839,
+     "trades": 31,
+     "n": 689,
+     "triggered": 31,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 11.2
+ },
+ {
+  "factor_id": "ai_a101s_mom10_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.064,
+   "icir": -0.5199,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.155063,
+   "oos_sharpe": -0.9501,
+   "oos_win_rate": 0.5014,
+   "oos_trades": 2124
+  },
+  "conditional": {},
+  "elapsed_s": 10.4
+ },
+ {
+  "factor_id": "ai_a101s_mom3_fade_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=0.0396 ICIR=0.3298 OOS_sharpe=-0.8402 OOS_net=-0.121102 win=0.4772 trades=2106",
+  "scores": {
+   "ic_mean": 0.0396,
+   "icir": 0.3298,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.121102,
+   "oos_sharpe": -0.8402,
+   "oos_win_rate": 0.4772,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 10.3
+ },
+ {
+  "factor_id": "ai_a101s_mom_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0843,
+   "icir": -0.6676,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.175063,
+   "oos_sharpe": -1.1355,
+   "oos_win_rate": 0.4983,
+   "oos_trades": 2097
+  },
+  "conditional": {},
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_mom_fast_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.0657 ICIR=-0.4367 OOS_sharpe=-0.6883 OOS_net=-0.106352 win=0.4897 trades=2142",
+  "scores": {
+   "ic_mean": -0.0657,
+   "icir": -0.4367,
+   "ic_decay_halflife": 8,
+   "oos_net_return": -0.106352,
+   "oos_sharpe": -0.6883,
+   "oos_win_rate": 0.4897,
+   "oos_trades": 2142
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 265,
+   "avg_net_per_trade": -0.002756,
+   "win_rate": 0.4589,
+   "sharpe": -0.8659,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": 0.017573,
+     "sharpe": 0.1097,
+     "win_rate": 0.6316,
+     "trades": 38,
+     "n": 712,
+     "triggered": 38,
+     "dir_sign": -1.0
+    },
+    "BNB": {
+     "net_return": -0.090052,
+     "sharpe": -1.3302,
+     "win_rate": 0.3929,
+     "trades": 28,
+     "n": 712,
+     "triggered": 28,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": -0.114742,
+     "sharpe": -2.0038,
+     "win_rate": 0.4375,
+     "trades": 32,
+     "n": 712,
+     "triggered": 32,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": -0.182781,
+     "sharpe": -1.7255,
+     "win_rate": 0.3793,
+     "trades": 29,
+     "n": 712,
+     "triggered": 29,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": -0.064319,
+     "sharpe": -0.8737,
+     "win_rate": 0.4483,
+     "trades": 29,
+     "n": 712,
+     "triggered": 29,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": 0.001843,
+     "sharpe": 0.0171,
+     "win_rate": 0.4545,
+     "trades": 22,
+     "n": 712,
+     "triggered": 22,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": -0.039542,
+     "sharpe": -0.2976,
+     "win_rate": 0.5185,
+     "trades": 27,
+     "n": 712,
+     "triggered": 27,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.03968,
+     "sharpe": -0.2731,
+     "win_rate": 0.4348,
+     "trades": 23,
+     "n": 712,
+     "triggered": 23,
+     "dir_sign": -1.0
+    },
+    "XRP": {
+     "net_return": -0.25297,
+     "sharpe": -1.4162,
+     "win_rate": 0.4324,
+     "trades": 37,
+     "n": 712,
+     "triggered": 37,
+     "dir_sign": -1.0
+    }
+   }
+  },
+  "elapsed_s": 10.9
+ },
+ {
+  "factor_id": "ai_a101s_mom_rank_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0633,
+   "icir": -0.4428,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.119851,
+   "oos_sharpe": -0.9494,
+   "oos_win_rate": 0.4726,
+   "oos_trades": 1989
+  },
+  "conditional": {},
+  "elapsed_s": 9.9
+ },
+ {
+  "factor_id": "ai_a101s_range_pos_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0759,
+   "icir": -0.5316,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.176273,
+   "oos_sharpe": -1.3304,
+   "oos_win_rate": 0.491,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 10.8
+ },
+ {
+  "factor_id": "ai_a101s_rev_z_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0687,
+   "icir": 0.4688,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.152703,
+   "oos_sharpe": -1.0522,
+   "oos_win_rate": 0.5047,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 11.3
+ },
+ {
+  "factor_id": "ai_a101s_rsi_fade_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": 0.0597,
+   "icir": 0.4251,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.146812,
+   "oos_sharpe": -1.1234,
+   "oos_win_rate": 0.4779,
+   "oos_trades": 2124
+  },
+  "conditional": {},
+  "elapsed_s": 10.7
+ },
+ {
+  "factor_id": "ai_a101s_rsi_like_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0597,
+   "icir": -0.4251,
+   "ic_decay_halflife": 12,
+   "oos_net_return": -0.146812,
+   "oos_sharpe": -1.1234,
+   "oos_win_rate": 0.4779,
+   "oos_trades": 2124
+  },
+  "conditional": {},
+  "elapsed_s": 11.1
+ },
+ {
+  "factor_id": "ai_a101s_vol_expand_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "DSR/PBO 未通过（pbo=0.540）——多重检验下无显著预测力",
+  "scores": {
+   "ic_mean": -0.02,
+   "icir": -0.1389,
+   "ic_decay_halflife": 19,
+   "oos_net_return": 0.004698,
+   "oos_sharpe": 0.147,
+   "oos_win_rate": 0.4807,
+   "oos_trades": 2043
+  },
+  "conditional": {},
+  "elapsed_s": 11.3
+ },
+ {
+  "factor_id": "ai_a101s_vol_mom10_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_rev_long_1d 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0407,
+   "icir": -0.3113,
+   "ic_decay_halflife": 13,
+   "oos_net_return": -0.12126,
+   "oos_sharpe": -0.8289,
+   "oos_win_rate": 0.5005,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 10.4
+ },
+ {
+  "factor_id": "ai_a101s_vol_mom_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "与 active 因子 ai_a101_vol_mom_4h 冗余（corr≥0.7）",
+  "scores": {
+   "ic_mean": -0.0472,
+   "icir": -0.3101,
+   "ic_decay_halflife": 11,
+   "oos_net_return": -0.133165,
+   "oos_sharpe": -0.8657,
+   "oos_win_rate": 0.4976,
+   "oos_trades": 2106
+  },
+  "conditional": {},
+  "elapsed_s": 10.8
+ },
+ {
+  "factor_id": "ai_a101s_vol_spike_rev_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=0.0179 ICIR=0.1289 OOS_sharpe=-1.6813 OOS_net=-0.241633 win=0.4497 trades=2106",
+  "scores": {
+   "ic_mean": 0.0179,
+   "icir": 0.1289,
+   "ic_decay_halflife": 6,
+   "oos_net_return": -0.241633,
+   "oos_sharpe": -1.6813,
+   "oos_win_rate": 0.4497,
+   "oos_trades": 2106
+  },
+  "conditional": {
+   "z_threshold": 2.0,
+   "direction": "auto",
+   "dir_sign": -1.0,
+   "trades": 202,
+   "avg_net_per_trade": -0.000329,
+   "win_rate": 0.4352,
+   "sharpe": -0.1871,
+   "per_symbol": {
+    "ASTER": {
+     "net_return": -0.034468,
+     "sharpe": -0.8909,
+     "win_rate": 0.4138,
+     "trades": 29,
+     "n": 699,
+     "triggered": 29,
+     "dir_sign": 1.0
+    },
+    "BNB": {
+     "net_return": -0.026129,
+     "sharpe": -0.8328,
+     "win_rate": 0.3913,
+     "trades": 23,
+     "n": 699,
+     "triggered": 23,
+     "dir_sign": -1.0
+    },
+    "BTC": {
+     "net_return": 0.07645,
+     "sharpe": 1.5485,
+     "win_rate": 0.3913,
+     "trades": 23,
+     "n": 699,
+     "triggered": 23,
+     "dir_sign": -1.0
+    },
+    "ETH": {
+     "net_return": 0.021011,
+     "sharpe": 0.4838,
+     "win_rate": 0.4583,
+     "trades": 24,
+     "n": 699,
+     "triggered": 24,
+     "dir_sign": -1.0
+    },
+    "SOL": {
+     "net_return": 0.004234,
+     "sharpe": 0.0651,
+     "win_rate": 0.4167,
+     "trades": 24,
+     "n": 699,
+     "triggered": 24,
+     "dir_sign": -1.0
+    },
+    "UNI": {
+     "net_return": -0.127632,
+     "sharpe": -2.0143,
+     "win_rate": 0.1765,
+     "trades": 17,
+     "n": 699,
+     "triggered": 17,
+     "dir_sign": -1.0
+    },
+    "VIRTUAL": {
+     "net_return": 0.06383,
+     "sharpe": 0.7262,
+     "win_rate": 0.625,
+     "trades": 16,
+     "n": 699,
+     "triggered": 16,
+     "dir_sign": 1.0
+    },
+    "XPL": {
+     "net_return": -0.074629,
+     "sharpe": -1.2204,
+     "win_rate": 0.52,
+     "trades": 25,
+     "n": 699,
+     "triggered": 25,
+     "dir_sign": 1.0
+    },
+    "XRP": {
+     "net_return": 0.031249,
+     "sharpe": 0.4508,
+     "win_rate": 0.5238,
+     "trades": 21,
+     "n": 699,
+     "triggered": 21,
+     "dir_sign": 1.0
+    }
+   }
+  },
+  "elapsed_s": 10.6
+ },
+ {
+  "factor_id": "ai_a101s_vp_trend_1h",
+  "interval": "1h",
+  "grade": "C",
+  "admitted": false,
+  "eval_mode": "continuous",
+  "reason": "grade=C IC=-0.027 ICIR=-0.193 OOS_sharpe=-0.9973 OOS_net=-0.171914 win=0.4887 trades=2124",
+  "scores": {
+   "ic_mean": -0.027,
+   "icir": -0.193,
+   "ic_decay_halflife": 10,
+   "oos_net_return": -0.171914,
+   "oos_sharpe": -0.9973,
+   "oos_win_rate": 0.4887,
+   "oos_trades": 2124
+  },
+  "conditional": {},
+  "elapsed_s": 10.4
+ }
+]

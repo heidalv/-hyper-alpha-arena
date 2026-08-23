@@ -103,9 +103,14 @@ class TestS06MidlongImmune:
         assert is_close_reason_blocked_for_midlong("emergency_drawdown", "mid") is False
 
     def test_short_not_blocked(self):
-        """short tier 不应被免疫规则拦截（短线快进快出）。"""
+        """[2026-08-23 改造D 更新] short tier 现在对 master 软退出免疫（全历史
+        master_running_close 152 笔 -31.92）；硬退出（sl/tp/emergency）仍不拦截。"""
         from backend.services.risk_band_resolver import is_close_reason_blocked_for_midlong
-        assert is_close_reason_blocked_for_midlong("master_running_close", "short") is False
+        assert is_close_reason_blocked_for_midlong("master_running_close", "short") is True
+        assert is_close_reason_blocked_for_midlong("sl", "short") is False
+        assert is_close_reason_blocked_for_midlong("tp", "short") is False
+        assert is_close_reason_blocked_for_midlong("emergency_drawdown", "short") is False
+        assert is_close_reason_blocked_for_midlong("liquidation", "short") is False
 
     def test_empty_close_reason_not_blocked(self):
         from backend.services.risk_band_resolver import is_close_reason_blocked_for_midlong

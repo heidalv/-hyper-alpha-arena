@@ -27,7 +27,7 @@ _DEFAULT_SCHEMA: Dict[str, Any] = {
     "master_close_min_loss_pct_by_tier": {
         "short": 0.02, "mid": 0.04, "long": 0.07,
     },
-    "tier_max_hold_sec": {"short": 7200, "mid": 172800, "long": 604800},
+    "tier_max_hold_sec": {"short": 2700, "mid": 172800, "long": 604800},  # [2026-08-23 改造A] short 7200→2700（45min，对齐信号边际，浮盈续命见 paper_trading_engine）
     "max_daily_trades": {"value": 12, "min": 3, "max": 20},
     # 日开仓总基数（旧版共享基数，已被 scalp/trend 独立配额取代，保留键供回退/兼容）
     "daily_cap_base": {"value": 120, "min": 10, "max": 300},

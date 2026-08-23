@@ -166,7 +166,8 @@ def test_apply_learned_mr_override(monkeypatch):
     monkeypatch.setattr(trainer, "get_learned_pct",
                         lambda tier, band=None, morph=None: {"tp_pct": 0.025, "sl_pct": 0.015})
     tp, sl = apply_learned_mr(0.012, 0.012)
-    assert tp == 0.025 and sl == 0.015
+    # [2026-08-23 改造A] learned 值也受新夹幅约束：TP cap 1.5%、SL cap 1.15%
+    assert tp == 0.015 and sl == 0.0115
 
 
 def test_apply_learned_mr_sl_floor_clip(monkeypatch):
@@ -176,7 +177,7 @@ def test_apply_learned_mr_sl_floor_clip(monkeypatch):
                         lambda tier, band=None, morph=None: {"tp_pct": 0.010, "sl_pct": 0.002})
     tp, sl = apply_learned_mr(0.012, 0.015)
     assert tp == 0.010  # 0.010 >= MIN_TP 0.006
-    assert sl == 0.006  # 0.002 被夹到 _MR_SL_FLOOR（[S6 2026-08-21] 地板 1.2%→0.6%）
+    assert sl == 0.007  # 0.002 被夹到 _MR_SL_FLOOR（[2026-08-23 改造A] 地板 0.7%）
 
 
 def test_apply_learned_mr_fallback_when_missing(monkeypatch):

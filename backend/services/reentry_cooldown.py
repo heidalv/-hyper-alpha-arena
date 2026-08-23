@@ -133,13 +133,16 @@ def record_full_close(
     if not symbol or position_side not in ("long", "short"):
         return
 
+    # [2026-08-23 修复] _norm_tier 原在 140 行赋值，但 138 行 record_close_pnl 已引用
+    # → UnboundLocalError，全平盈亏从未进入连续亏损检测（补亏冷却失效）。
+    _norm_tier = (tier or "").strip().lower() or "mid"
+    if _norm_tier not in ("short", "mid", "long"):
+        _norm_tier = "mid"
+
     # 记录盈亏用于连续亏损检测
     if close_pnl != 0:
         record_close_pnl(account_id, symbol, close_pnl, tier=_norm_tier)
 
-    _norm_tier = (tier or "").strip().lower() or "mid"
-    if _norm_tier not in ("short", "mid", "long"):
-        _norm_tier = "mid"
     key = _state_key(account_id, symbol, _norm_tier)
     base_cd = _get_cooldown_sec(_norm_tier)
 
@@ -458,6 +461,11 @@ def clear_state(account_id: int, symbol: str, tier: str = "") -> None:
                 _state.pop(_state_key(account_id, symbol, _t), None)
             # 也清理 v4 残留 key
             _state.pop(loss_key, None)
+        # [2026-08-23 修复] M1-7 后 loss key 带 tier 后缀（_loss_key），
+        # 原实现只清无后缀旧 key → 连续亏损历史跨场景/跨测试残留，
+        # 冷却倍率被错误放大。此处同步清理全部 tier 后缀 key。
+        for _t in ("short", "mid", "long", "default"):
+            _loss_history.pop(_loss_key(account_id, symbol, _t), None)
         _loss_history.pop(loss_key, None)
 
 
