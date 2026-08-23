@@ -1607,6 +1607,21 @@ class PaperTradingEngine:
         # _recalc_balance 只查 open 仓位，不影响余额计算
         pos.unrealized_pnl = total_pnl
 
+        # ── 融合归因（阶段2）：来源标签 + 出场通道熔断数据（close 钩子，仅内存字典 + 节流落盘）──
+        try:
+            from backend.services.source_attribution import attribution as _attr
+            _attr.record_close(
+                int(getattr(pos, "id", 0) or 0),
+                pnl=float(total_pnl or 0),
+                fee=float(total_fee or 0),
+                close_reason=actual_reason,
+                tier=str(getattr(pos, "timeframe_tier", None) or ""),
+                symbol=str(getattr(pos, "symbol", "") or ""),
+                nature=str(getattr(pos, "trade_nature", "") or ""),
+            )
+        except Exception as _attr_err:
+            logger.debug("[FusionAttr] 归因记录失败: %s", _attr_err)
+
         # ── 整改#9 Phase4：event-first 平仓事件（commit 前）──
         self._record_es_event(
             "PositionClosed", str(getattr(pos, "id", "")),

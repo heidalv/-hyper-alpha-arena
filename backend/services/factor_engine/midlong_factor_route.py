@@ -433,6 +433,27 @@ def factor_route_open(
                 trading_mode=trading_mode,
             )
             dec["opened"] = bool(_ok)
+            if _ok:
+                # ── 融合归因（阶段2）：来源标签绑定新开仓位 ──
+                try:
+                    from backend.services.source_attribution import attribution as _attr_m
+                    from sqlalchemy import text as _sa_text_m
+                    _prow = _db.execute(
+                        _sa_text_m(
+                            "SELECT id FROM paper_positions WHERE account_id=:a AND symbol=:s "
+                            "AND opened_at > now() - interval '120 seconds' ORDER BY id DESC LIMIT 1"
+                        ),
+                        {"a": int(_acct or 0), "s": sym},
+                    ).first()
+                    if _prow:
+                        _attr_m.tag_position(
+                            int(_prow[0]),
+                            source=str((dec.get("fusion") or {}).get("source") or "factor"),
+                            nature="swing", symbol=sym,
+                            meta={"fusion": dec.get("fusion") or {}},
+                        )
+                except Exception as _tagm_err:
+                    logger.debug("[FactorRoute] 归因标签绑定失败: %s", _tagm_err)
         except Exception as _open_err:
             logger.warning("[FactorRoute] 开仓异常 %s: %s", sym, _open_err, exc_info=True)
             dec["gate"] = f"open_error:{type(_open_err).__name__}"

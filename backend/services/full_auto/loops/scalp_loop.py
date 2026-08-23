@@ -1429,11 +1429,28 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
                             sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
                         )
-                        # 阶段1 MVP：thesis 强反向冲突且无 LLM 窄调用仲裁 → 保守 hold
-                        # （阶段2 接入窄 JSON LLM 仲裁后再把 arbitrate 变成真实调用）
+                        # 阶段2：thesis 强反向冲突 → 1 次窄 JSON LLM 仲裁；
+                        # 放行=0.25x 试探仓；失败/否决 → 保守 hold。
                         if _fus.action == "arbitrate":
-                            _fus = type(_fus)("hold", 0.0, "llm", "thesis_conflict_hold_no_arbiter",
-                                             {"thesis_dir": _tdir, "thesis_conf": _tconf})
+                            try:
+                                from backend.services.source_attribution import llm_arbitrate_conflict
+                                _arb_res = llm_arbitrate_conflict(
+                                    symbol=sym, direction=str(_sig.direction or "long"),
+                                    thesis_dir=_tdir or "", thesis_conf=_tconf,
+                                    pwin=float(_meta_pwin or 0),
+                                    factor_score=float(_score_for_trade or 0),
+                                    account_id=account_id,
+                                    trading_mode=(_trade_mode or "paper"),
+                                )
+                            except Exception as _arb_call_err:
+                                logger.debug("[FusionArbiter] %s LLM 仲裁异常: %s", sym, _arb_call_err)
+                                _arb_res = None
+                            if _arb_res is True:
+                                _fus = type(_fus)("trade", 0.25, "hybrid", "thesis_conflict_llm_allowed",
+                                                 {"thesis_dir": _tdir, "thesis_conf": _tconf})
+                            else:
+                                _fus = type(_fus)("hold", 0.0, "llm", "thesis_conflict_hold",
+                                                 {"thesis_dir": _tdir, "thesis_conf": _tconf, "llm": _arb_res})
                         _fusion_decision = _fus.to_dict()
                         if not _fus.allowed:
                             logger.info(
@@ -1497,6 +1514,19 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _bump_block("order_not_filled")
                     continue
                 _scalp_opened_today += 1  # [M0-4] 成功开仓后计数 +1
+
+                # ── 融合归因（阶段2）：来源标签绑定仓位 ──
+                try:
+                    from backend.services.source_attribution import attribution as _attr_s
+                    _pid_tag = (_fill_res or {}).get("position_id") if isinstance(_fill_res, dict) else None
+                    _attr_s.tag_position(
+                        int(_pid_tag or 0),
+                        source=str((_fusion_decision or {}).get("source") or "factor"),
+                        nature="scalp", symbol=sym,
+                        meta={"fusion": _fusion_decision or {}},
+                    )
+                except Exception as _tag_err:
+                    logger.debug("[FusionAttr] 标签绑定失败: %s", _tag_err)
 
                 # ── 记录因子分快照供置信度校准（阶段一 1.2）──
                 # 写入一条 scalp_composite 反馈行，trade_id=持仓id、signal_value=因子分。

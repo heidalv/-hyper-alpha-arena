@@ -417,6 +417,19 @@ def _dim_staged_tp(
         return {"action": "hold", "channel": "", "reason": f"err:{e}"}
 
 
+def _channel_shadowed(reason: Any, tier: str) -> bool:
+    """出场通道熔断（阶段2，风控诊断 B3）：close_reason×tier 近 30 笔 wr<40% → shadow。
+
+    历史 0% 通道（trend_review_close 12 笔 -44.90、master_running_close 148 笔 -35.42）
+    属于"系统自己的砍仓通道"——shadow 后只记录不执行，防继续出血。
+    """
+    try:
+        from backend.services.source_attribution import attribution as _attr2
+        return bool(_attr2.exit_channel_shadow(str(reason or ""), tier or ""))
+    except Exception:
+        return False
+
+
 # ──────────────────────────────────────────────────────────────────────
 # 维度 ① + ③：方向延续性复查 + TP/SL 调整（LLM，节流）
 # ──────────────────────────────────────────────────────────────────────
@@ -924,6 +937,13 @@ def manage_position(
                 sym, rev["channel"], _mh_res_rev.get("detail", ""),
             )
             _sig["exit"] = f"min_hold_block_{rev['channel']}"
+        elif _channel_shadowed(rev["reason"], pos_tier):
+            # 通道熔断 shadow：该离场通道近 30 笔 wr<40%，只记录不执行
+            logger.info(
+                "[MidLong] stage=manage symbol=%s 反转离场被通道熔断拦截(channel=%s): %s",
+                sym, rev["channel"], rev["reason"],
+            )
+            _sig["exit"] = f"breaker_shadow_{rev['channel']}"
         else:
             _exec_close(db, account_id=account_id, position=position,
                         reason=rev["reason"], host=host, session=session)
@@ -1039,6 +1059,14 @@ def manage_position(
                 sym, position.get("id"), _mh_res.get("detail", ""),
             )
             return _summary(f"min_hold 保护: {_mh_res.get('detail', '')}", action="manage_hold")
+
+        if _channel_shadowed("trend_broken", pos_tier):
+            # 通道熔断 shadow：trend_broken 通道近 30 笔 wr<40%，只记录不执行
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s 方向破坏离场被通道熔断拦截: %s",
+                sym, position.get("id"), _reason_base,
+            )
+            return _summary(f"通道熔断 shadow(trend_broken): {_reason_base}", action="manage_hold")
 
         _exec_close(db, account_id=account_id, position=position,
                     reason=f"trend_broken: {_reason_base}", host=host, session=session)
