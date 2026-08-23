@@ -29,6 +29,17 @@ from backend.services.strategy_params_registry import (
 
 logger = logging.getLogger(__name__)
 
+# [2026-08-23 M0-P2v2] 因子方向序列缓存（进程级，TTL 30min，key=K线窗口指纹）。
+# 背景：回测每根 bar 对 30 根窗口跑全因子引擎；factor_engine 的
+# _factor_normalizer 是进程级历史缓冲，fitness 随调用历史漂移（跨 eval 不可比）。
+# 本缓存在首个回测中按 interval=1 密度预计算整条方向序列并冻结——
+# 1) 后续全部 fitness 复用，短线模板每代从 ~50-90min 降至 ~2-3min；
+# 2) fitness 确定化：同一窗口内所有 genome 在同一方向序列上比较（对 NSGA-II
+#    更公平——旧行为下 genome 间比较被归一化漂移污染）。
+# 方向序列只依赖 K 线窗口（与 genome 无关），按 (len,首尾时间戳) 指纹复用。
+_FACTOR_DIR_CACHE: Dict[tuple, tuple] = {}
+_FACTOR_DIR_TTL = 1800
+
 
 # ═══════════════════ 默认管线参数（从注册表导入） ═══════════════════
 
@@ -292,6 +303,24 @@ class LivePipelineBacktestEngine:
             bars_per_8h = 8
 
         data_dims_used = {"rsi_macd": True, "funding": bool(funding_rates), "fgi": bool(fgi_map), "factor_signal": float(p.get("factor_signal_weight", 0.3)) > 0}
+
+        # [M0-P2v2] 预取/预计算因子方向序列：整轮 NSGA-II 数千次 fitness 共用
+        # 同一批 K 线窗口。方向只依赖 K 线（与 genome 无关），一次性算好冻结，
+        # 后续查表（见模块级注释：性能 + fitness 确定化）。
+        self._factor_dir_series = None
+        if float(p.get("factor_signal_weight", 0.3)) > 0 and len(bars) > warmup:
+            _dkey = (len(bars), int(bars[0].timestamp), int(bars[-1].timestamp))
+            _cd = _FACTOR_DIR_CACHE.get(_dkey)
+            if _cd is None or (time.time() - _cd[0]) > _FACTOR_DIR_TTL:
+                logger.info(
+                    "[PipelineBT] 预计算因子方向序列 bars=%d（首次 1-3 分钟，之后全部复用）",
+                    len(bars),
+                )
+                _series = [0] * warmup
+                for _i in range(warmup, len(bars)):
+                    _series.append(self._compute_factor_direction_windowed(_i, bars))
+                _FACTOR_DIR_CACHE[_dkey] = (time.time(), _series)
+            self._factor_dir_series = _FACTOR_DIR_CACHE[_dkey][1]
 
         for i in range(warmup, len(bars)):
             bar = bars[i]
@@ -608,7 +637,9 @@ class LivePipelineBacktestEngine:
         """
         V3 整合：使用因子引擎计算当前 bar 的因子信号方向。
         
-        使用滑动窗口 K 线数据计算因子值，通过 FactorSignalGenerator 生成合成信号。
+        [M0-P2v2] 因子方向序列已由 run() 预计算并冻结（与 genome 无关），
+        interval 步进时直接查表。相比旧行为（逐窗口现算、归一化漂移），
+        fitness 变得确定且可跨 genome 公平比较。
         当 factor_signal_weight == 0 时跳过（完全关闭因子信号）。
         
         Returns:
@@ -627,6 +658,19 @@ class LivePipelineBacktestEngine:
             cached = getattr(self, '_cached_factor_dir', 0)
             return cached
 
+        # [M0-P2v2] 命中冻结序列 → 查表（序列与窗口计算同构，但结果确定）
+        _series = getattr(self, '_factor_dir_series', None)
+        if _series is not None and i < len(_series):
+            _d = int(_series[i])
+            self._cached_factor_dir = _d
+            return _d
+
+        _d = self._compute_factor_direction_windowed(i, bars)
+        self._cached_factor_dir = _d
+        return _d
+
+    def _compute_factor_direction_windowed(self, i: int, bars: List[Bar]) -> int:
+        """原慢路径：对以 i 结尾的 30 根窗口跑全因子引擎并合成方向。"""
         try:
             from services.factor_engine import factor_engine, FactorSignalGenerator
 
@@ -656,16 +700,11 @@ class LivePipelineBacktestEngine:
             # 根据合成信号方向返回
             threshold = 0.3
             if composite.direction > threshold and composite.strength > 0.3:
-                factor_dir = 1
+                return 1
             elif composite.direction < -threshold and composite.strength > 0.3:
-                factor_dir = -1
+                return -1
             else:
-                factor_dir = 0
-
-            # 缓存结果
-            self._cached_factor_dir = factor_dir
-            return factor_dir
-
+                return 0
         except Exception as e:
             # 因子计算失败时静默降级，不影响原有信号管线
             return 0
