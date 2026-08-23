@@ -332,6 +332,9 @@ class LivePipelineBacktestEngine:
                         len(bars) - _start_i, len(_series), len(bars),
                     )
                     for _i in range(_start_i, len(bars)):
+                        # [M0-P2v4] 同款 GIL 让渡（见全量预计算循环）。
+                        if _i % 32 == 0:
+                            time.sleep(0)
                         _series.append(self._compute_factor_direction_windowed(_i, bars))
                 self._factor_dir_series = _series
                 _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
@@ -348,6 +351,13 @@ class LivePipelineBacktestEngine:
                             _i - warmup, len(bars) - warmup,
                             100.0 * (_i - warmup) / max(len(bars) - warmup, 1),
                         )
+                    # [2026-08-23 M0-P2v4] 定期让渡 GIL：预计算是长达数十分钟的
+                    # 纯 Python 循环，不让渡会饿死同进程的 HTTP 健康探测
+                    # （/api/health 超时）→ 外部进程监管（DSH web）误判宕机并
+                    # 反复重启后端，整轮进化随进程死亡。与主循环每 32 根 bar
+                    # 让渡同款模式（实测开销 <1%）。
+                    if _i % 32 == 0:
+                        time.sleep(0)
                     _series.append(self._compute_factor_direction_windowed(_i, bars))
                 _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
                 self._factor_dir_series = _series
