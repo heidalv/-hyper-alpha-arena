@@ -442,9 +442,19 @@ def try_execute_independent_agent_open(
         except Exception as _ss_err:
             logger.debug("[MidLongStructureSL] %s 结构 SL 跳过: %s", _sym_u, _ss_err)
 
-    # [P0-1] LLM 给的 tp_pct 上限 clamp（mid 10% / long 20%）：防 LLM 拍脑袋设 20%+ 目标
+    # [P0-1] LLM 给的 tp_pct 上限 clamp（mid 10% / long 20%）：防 LLM 拍脑袋设 20%+ 目标。
+    # [2026-08-23 融合改造] 例外：long_trend_v2（Chandelier 退出、无固定 TP 目标）的 TP 是
+    # 2×Chandelier SL 的合成值——被钳到 20% 会 TP=SL → V5 盈亏比 1.0 必拒。V2 时保留 2×SL。
+    try:
+        from backend.services.long_trend_v2 import long_v2_enabled as _lv2c
+        _v2_tp_unclamped = bool(_lv2c()) and (tier or "").lower() == "long"
+    except Exception:
+        _v2_tp_unclamped = False
     if float(tp_pct or 0) > 0:
-        tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
+        if _v2_tp_unclamped:
+            tp_pct = max(float(tp_pct or 0), float(sl_pct or 0) * 2.0)
+        else:
+            tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
 
     # ── P1：ATR 止损地板 + funding 净 RR + ATR 仓位；chop 仅缩仓不否决 ──
     _atr_size_mult = 1.0
@@ -494,8 +504,12 @@ def try_execute_independent_agent_open(
             # TP 至少满足净 RR（粗：2×SL）；若原 TP 更宽则保留
             if float(tp_pct or 0) < float(sl_pct or 0) * 2.0:
                 tp_pct = float(sl_pct or 0) * 2.0
-            # [P0-1] RR 地板可能把 TP 抬过 tier 上限 → 再 clamp 回 max（20%/10%）
-            tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
+            # [P0-1] RR 地板可能把 TP 抬过 tier 上限 → 再 clamp 回 max（20%/10%）；
+            # V2 长线（Chandelier 管理）豁免钳制，保留 2×SL 合成目标（见上方 2026-08-23 注）。
+            if _v2_tp_unclamped:
+                tp_pct = max(float(tp_pct or 0), float(sl_pct or 0) * 2.0)
+            else:
+                tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
             _fr_ok, _nrr, _fr_why = funding_net_rr_ok(
                 action=_act,
                 tp_pct=float(tp_pct or 0),
