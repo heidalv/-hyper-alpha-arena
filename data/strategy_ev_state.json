@@ -5,7 +5,7 @@
       "wins": 242,
       "net_pnl": -53.249565,
       "avg_net": -0.093257,
-      "mult": 0.2,
+      "mult": 0.5,
       "decision": "pause",
       "ev_per_trade": -0.093257,
       "updated_at": 1787418300.095858
@@ -15,7 +15,7 @@
       "wins": 152,
       "net_pnl": -44.918369,
       "avg_net": -0.093192,
-      "mult": 0.2,
+      "mult": 0.5,
       "decision": "pause",
       "ev_per_trade": -0.093192,
       "updated_at": 1787418300.1065483

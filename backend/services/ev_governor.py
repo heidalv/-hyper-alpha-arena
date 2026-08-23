@@ -104,10 +104,15 @@ def _val(x, key, default=0.0):
 def _decide(audit) -> Dict[str, Any]:
     n = int(_val(audit, "n", 0) or 0)
     ev = float(_val(audit, "avg_net", 0.0) or 0.0)
+    # [2026-08-23 用户指示] pause/reduce 乘数提高（0.2→0.5 / 0.5→0.75）：
+    # ×0.2 把单仓名义压到 ~5% 权益，手续费占比吞噬盈利、仓位无统计意义
+    # （"基本就是刷手续费"）。模拟盘的最小有意义仓位 ≈ ×0.5；env 可调。
+    _pause_mult = float(os.getenv("EV_GOVERNOR_PAUSE_MULT", "0.5") or 0.5)
+    _reduce_mult = float(os.getenv("EV_GOVERNOR_REDUCE_MULT", "0.75") or 0.75)
     if n >= 50 and ev < 0:
-        mult, decision = 0.2, "pause"
+        mult, decision = _pause_mult, "pause"
     elif n >= 30 and ev < 0:
-        mult, decision = 0.5, "reduce"
+        mult, decision = _reduce_mult, "reduce"
     elif n >= 10 and ev > 0:
         mult, decision = 1.2, "premium"
     else:

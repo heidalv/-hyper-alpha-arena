@@ -503,10 +503,26 @@ def try_execute_independent_agent_open(
                 funding_rate=_ms_td.get("funding_rate"),
             )
             if not _fr_ok:
-                logger.info("[MidLongFunding] BLOCK %s %s: %s", _sym_u, _act, _fr_why)
-                host.append_event(session, "midlong_funding_block", f"[费率RR] {_sym_u}: {_fr_why}")
-                _audit_skip(f"midlong_funding_block:{_fr_why}")
-                return False
+                # [2026-08-23 融合改造] long_trend_v2 的 Chandelier 止损很宽（1w ATR×2，
+                # 可达 20%），而 TP 被钳到 tier 上限 20% → TP=SL → 固定 TP 口径的 RR≈1，
+                # 费率闸必然误杀。V2 长线退出 = Chandelier + 结构破坏（无固定 TP 目标），
+                # 固定 TP 的净 RR 口径不适用 → 跳过本闸（费率成本 72h 仅 ~0.09%，
+                # 相对 20% 级止损可忽略）。
+                try:
+                    from backend.services.long_trend_v2 import long_v2_enabled as _lv2_en
+                    _v2_managed = bool(_lv2_en())
+                except Exception:
+                    _v2_managed = False
+                if _v2_managed:
+                    logger.info(
+                        "[MidLongFunding] SKIP %s %s (long_trend_v2 Chandelier 管理,无固定TP口径): %s",
+                        _sym_u, _act, _fr_why,
+                    )
+                else:
+                    logger.info("[MidLongFunding] BLOCK %s %s: %s", _sym_u, _act, _fr_why)
+                    host.append_event(session, "midlong_funding_block", f"[费率RR] {_sym_u}: {_fr_why}")
+                    _audit_skip(f"midlong_funding_block:{_fr_why}")
+                    return False
             _atr_sz, _atr_sz_why = atr_size_multiplier(
                 sl_pct=float(sl_pct or 0), atr_1d_pct=_atr,
             )
