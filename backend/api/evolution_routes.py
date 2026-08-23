@@ -71,6 +71,21 @@ async def trigger_evolution(
             )
             return {"success": True, "message": f"紧急进化已触发: {template_id}"}
 
+        elif trigger_type == "weekly":
+            # [2026-08-23 M0-E1h] 运维通道：手动启动 weekly 主进化（NSGA-II 8模板）。
+            # 场景：重启后启动补跑因 24h 内已有成功记录被跳过、或需立即重跑。
+            # 后台线程执行，与调度器共用 _running_evolution 互斥。
+            from backend.services.evolution_scheduler import evolution_scheduler
+            if evolution_scheduler._running_evolution:
+                return {"success": False, "message": "进化已在运行中"}
+            import threading
+            threading.Thread(
+                target=evolution_scheduler.weekly_evolution,
+                daemon=True,
+                name="manual-weekly-evo",
+            ).start()
+            return {"success": True, "message": "weekly 主进化已启动（后台线程）"}
+
         elif trigger_type in ("manual", "auto"):
             from backend.services.strategy_evolver import StrategyEvolver
             evolver = StrategyEvolver()
