@@ -1264,23 +1264,34 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     from backend.services.risk_management.portfolio_budget import (
                         portfolio_budget as _pb,
                     )
-                    _pb_dec = _pb.evaluate_open(
-                        symbol=sym,
-                        action=_side_str,
-                        notional_usd=float(_margin_est or 0),
-                        equity=equity,
-                        strategy="scalp",
-                        mode=_trade_mode,
-                        db=_db,
+                    from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
+                    # 阶段3：evaluate_open 历史 45s+ 挂起修复——独立线程 + 超时降级。
+                    # 超时→本次放行（不阻塞热路径，下 tick 重试）；正常→按结果拦截。
+                    _pb_tmo = float(os.getenv("PB_CHECK_TIMEOUT_S", "6") or 6)
+                    _pb_exec = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pbcheck")
+                    _pb_fut = _pb_exec.submit(
+                        _pb.evaluate_open,
+                        symbol=sym, action=_side_str, notional_usd=float(_margin_est or 0),
+                        equity=equity, strategy="scalp", mode=_trade_mode, db=_db,
                         account_id=account_id,
                     )
-                    if not _pb_dec.allowed:
-                        logger.info(
-                            f"[ScalpRouter独立] {sym} 组合预算拦截: "
-                            f"{';'.join(_pb_dec.reasons[:3])} id={_gate.lane_decision_id}"
+                    try:
+                        _pb_dec = _pb_fut.result(timeout=_pb_tmo)
+                    except _FutTimeout:
+                        _pb_exec.shutdown(wait=False)
+                        logger.warning(
+                            f"[ScalpRouter独立] {sym} 组合预算检查超时(>{_pb_tmo:.0f}s)，本次放行"
                         )
-                        _bump_block("portfolio_budget")
-                        continue
+                        _bump_block("portfolio_budget_timeout")
+                    else:
+                        _pb_exec.shutdown(wait=False)
+                        if not _pb_dec.allowed:
+                            logger.info(
+                                f"[ScalpRouter独立] {sym} 组合预算拦截: "
+                                f"{';'.join(_pb_dec.reasons[:3])} id={_gate.lane_decision_id}"
+                            )
+                            _bump_block("portfolio_budget")
+                            continue
                 except Exception as _pb_err:
                     # [S9 2026-08-21] fail-closed：组合预算闸异常不得放行下单
                     logger.warning(
