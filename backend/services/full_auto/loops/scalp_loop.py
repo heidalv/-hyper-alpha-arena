@@ -591,6 +591,10 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             if not isinstance(_breakdown, dict):
                 _breakdown = {}
 
+            # ── 融合仲裁器输入初始化（阶段0：pwin 主轴）──
+            _meta_pwin = None
+            _fusion_decision = None
+
             # ── 真实信号日志（元标签数据采集，2026-07-08）──
             # 把"触发的"短线信号 + 因子快照落库，事后结算输赢，供元标签模型训练。
             # 安全降级：任何异常都不影响交易；flag SCALP_SIGNAL_LOG_ENABLED 可关。
@@ -630,6 +634,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _mp = predict_win_prob(_meta_feats, require_usable=False)
                         if _mp is not None:
                             _snap["meta_p_win"] = round(float(_mp), 6)
+                        # 阶段0：usable 模型才是仲裁输入（回放证据基于 usable 模型的 meta_p_win）
+                        _meta_pwin = predict_win_prob(_meta_feats, require_usable=True)
                     except Exception:
                         pass
                     # [2026-08-22 M1-8] 信号日志移到门槛之后：原来在信号评估段就写
@@ -1386,8 +1392,42 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                     _bump_block("daily_open_cap")
                     continue
+                # ── 融合仲裁器（阶段0 v2：pwin 主轴 + RR 下限；FUSION_MODE=factor 整体关闭）──
+                try:
+                    _fusion_mode = os.getenv("FUSION_MODE", "hybrid").strip().lower()
+                except Exception:
+                    _fusion_mode = "hybrid"
+                if _fusion_mode != "factor":
+                    try:
+                        from backend.services.decision_fusion_arbiter import decide_scalp
+                        _fus = decide_scalp(
+                            pwin=_meta_pwin,
+                            factor_score=float(_score_for_trade or 0),
+                            direction=str(_sig.direction or "long"),
+                            tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
+                            sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
+                        )
+                        _fusion_decision = _fus.to_dict()
+                        if not _fus.allowed:
+                            logger.info(
+                                "[FusionArbiter] %s %s 拦截: %s tags=%s",
+                                sym, str(_sig.direction), _fus.reason, _fus.tags,
+                            )
+                            _bump_block("fusion_arbiter")
+                            continue
+                    except Exception as _fus_err:
+                        # 仲裁器代码异常 → fail-open（不因新代码 bug 停摆短线）
+                        _fusion_decision = {
+                            "action": "trade", "source": "rule",
+                            "reason": "arbiter_error_fail_open",
+                            "error": str(_fus_err)[:120],
+                        }
+                        logger.warning("[FusionArbiter] %s 异常 fail-open: %s", sym, _fus_err)
+
                 # [2026-08-22 M1-8] 信号日志在全部闸门通过、即将下单时写入
                 try:
+                    if _fusion_decision:
+                        _snap["fusion"] = _fusion_decision
                     _log_sig(
                         symbol=sym, direction=str(_sig.direction),
                         action=str(_sig.action or "buy"),
