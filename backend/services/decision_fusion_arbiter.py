@@ -42,6 +42,18 @@ RR_FLOOR: float = _f("FUSION_RR_FLOOR", 1.2)              # TP/SL 下限
 THESIS_CONF_MIN: float = _f("FUSION_THESIS_CONF_MIN", 0.6)  # thesis 反向才仲裁的置信线
 PWIN_MISSING_MODE: str = _s("FUSION_PWIN_MISSING_MODE", "hold")  # hold | pass
 
+# 运行期地板覆盖：pwin 桶验证连续失败 → 自动上提（衰减熔断）；恢复后回落。
+_pwin_floor_override: Optional[float] = None
+
+
+def set_pwin_floor_override(value: Optional[float]) -> None:
+    global _pwin_floor_override
+    _pwin_floor_override = value
+
+
+def effective_pwin_floor() -> float:
+    return float(_pwin_floor_override or PWIN_MIN)
+
 
 @dataclass
 class FusionDecision:
@@ -111,9 +123,12 @@ def decide_scalp(
         size = SIZE_STRONG if pwin >= PWIN_STRONG else SIZE_OBSERVE
         src = "hybrid" if thesis_dir else "factor"
 
-    # 5. pwin 主阈值（回放：<0.55 桶全部负期望，不交易、也不浪费 LLM 确认）
-    if pwin < PWIN_MIN:
-        return FusionDecision("hold", 0.0, "rule", "pwin_below_min", {"pwin": pwin})
+    # 5. pwin 主阈值（回放：<0.55 桶全部负期望，不交易、也不浪费 LLM 确认）；
+    #    运行期地板覆盖 = 桶验证失败时的自动衰减熔断（effective_pwin_floor）。
+    _floor = effective_pwin_floor()
+    if pwin < _floor:
+        return FusionDecision("hold", 0.0, "rule", "pwin_below_min",
+                              {"pwin": pwin, "floor": _floor})
 
     # 6. RR 下限：TP/SL < 1.2 的结构必亏（历史 RR=0.9/0.32 类），LLM 特批除外
     if tp_pct and sl_pct and sl_pct > 0:

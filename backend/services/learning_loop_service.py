@@ -47,6 +47,7 @@ JOB_COORDINATOR = "learning_loop_coordinator"
 JOB_HEARTBEAT = "learning_loop_heartbeat"  # P2-1 WS 心跳
 JOB_FACTOR_DECAY = "learning_loop_factor_decay"  # P0-2 因子衰减评估（接线 factor_decay_monitor）
 JOB_LIVE_OUTCOME_BACKFILL = "learning_loop_live_outcome_backfill"  # P1-4 live 仓位级 7 天补扫
+JOB_FUSION_MAINTENANCE = "fusion_maintenance"  # 阶段4：pwin 桶衰减验证 + 归因状态落盘（自动地板熔断）
 
 # 默认 tick 周期（秒），可被 .env 覆盖
 DEFAULT_INTERVALS: Dict[str, int] = {
@@ -57,6 +58,7 @@ DEFAULT_INTERVALS: Dict[str, int] = {
     JOB_HEARTBEAT: 30,  # P2-1 每 30s 推一次 coordinator_status
     JOB_FACTOR_DECAY: 6 * 3600,  # P0-2 每 6h 评估因子衰减（可 env 覆盖）
     JOB_LIVE_OUTCOME_BACKFILL: 10 * 60,  # P1-4 live 补扫每 10min
+    JOB_FUSION_MAINTENANCE: 6 * 3600,  # 阶段4：每 6h 桶验证（可 env 覆盖）
 }
 
 _METRIC_HISTORY = 200
@@ -161,6 +163,13 @@ class LearningLoopService:
                 interval_seconds=intervals[JOB_LIVE_OUTCOME_BACKFILL],
                 task_id=JOB_LIVE_OUTCOME_BACKFILL,
             )
+            # 阶段4：融合维护——pwin≥0.55 桶每日衰减验证；连续失败自动上提地板（衰减熔断），
+            # 连续 3 次恢复自动回落；同时强制落盘归因/熔断状态。
+            task_scheduler.add_interval_task(
+                task_func=self._tick_fusion_maintenance,
+                interval_seconds=intervals[JOB_FUSION_MAINTENANCE],
+                task_id=JOB_FUSION_MAINTENANCE,
+            )
             self._registered = True
             logger.info(
                 f"[LearningLoop] tick 已注册：outcome={intervals[JOB_OUTCOME_BATCH]}s "
@@ -221,6 +230,10 @@ class LearningLoopService:
                 JOB_LIVE_OUTCOME_BACKFILL: int(getattr(
                     settings, "LEARNING_LOOP_LIVE_BACKFILL_INTERVAL_S",
                     DEFAULT_INTERVALS[JOB_LIVE_OUTCOME_BACKFILL],
+                )),
+                JOB_FUSION_MAINTENANCE: int(getattr(
+                    settings, "FUSION_MAINTENANCE_INTERVAL_S",
+                    DEFAULT_INTERVALS[JOB_FUSION_MAINTENANCE],
                 )),
             }
         except Exception:
@@ -387,6 +400,48 @@ class LearningLoopService:
             "skipped_no_strategy": skipped_no_strategy,
             "failed": failed,
         }
+
+    def _tick_fusion_maintenance(self) -> None:
+        """阶段4 — 每 6h：pwin≥0.55 桶近 24h 衰减验证 + 归因/熔断状态落盘。
+
+        桶验证连续失败（wr<55% 且 n≥100）→ 自动把仲裁地板提到 0.60（衰减熔断）；
+        连续 3 次恢复（wr≥55%）→ 地板回落 0.55。全部动作打日志可审计。
+        """
+        if self._paused:
+            return
+        try:
+            from backend.services.source_attribution import (
+                weekly_pwin_validation as _pwin_val, attribution as _attr,
+            )
+            from backend.services.decision_fusion_arbiter import (
+                set_pwin_floor_override as _set_floor,
+                effective_pwin_floor as _floor_now,
+            )
+            res = _pwin_val(days=1)
+            n, wr = int(res.get("n") or 0), float(res.get("wr") or 0)
+            ok = bool(n >= 100 and wr >= 0.55)
+            _ok_streak = getattr(self, "_fusion_ok_streak", 0)
+            if ok:
+                _ok_streak += 1
+                if _floor_now() > 0.55 and _ok_streak >= 3:
+                    _set_floor(None)
+                    logger.info("[FusionMaint] pwin 桶连续 %d 次恢复 → 地板回落 0.55", _ok_streak)
+            else:
+                _ok_streak = 0
+                if n >= 100:
+                    _set_floor(0.60)
+                    logger.warning(
+                        "[FusionMaint] pwin≥0.55 桶衰减告警: 24h n=%d wr=%.1f%% <55%% → 仲裁地板临时上提 0.60",
+                        n, wr * 100,
+                    )
+            setattr(self, "_fusion_ok_streak", _ok_streak)
+            _attr._maybe_save(force=True)
+            logger.info(
+                "[FusionMaint] pwin桶24h n=%d wr=%.1f%% net=%s floor=%.2f | 归因/熔断状态已落盘",
+                n, wr * 100, res.get("net"), _floor_now(),
+            )
+        except Exception as e:
+            logger.warning("[FusionMaint] 维护 tick 失败: %s", e)
 
     def _tick_factor_decay(self) -> None:
         """P0-2 — 每 6h 评估全部因子衰减状态。
