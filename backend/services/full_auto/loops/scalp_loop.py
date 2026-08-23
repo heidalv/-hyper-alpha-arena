@@ -1360,6 +1360,42 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             except Exception as _exit_ov_err:
                 logger.debug(f"[ScalpRouter独立] {sym} 退出参数覆盖跳过: {_exit_ov_err}")
 
+            # ── 阶段4修复：TP/SL 价格按【实际入场价】重锚 ──
+            # XPL 3885 教训：gate/信号按 24s 前的价格(0.0900)算出 TP=0.09135/SL=0.08897，
+            # 但市价单以 0.0954 成交（期间暴涨6%）→ long 仓 TP 落在入场价之下，
+            # 开仓即触发「亏损型止盈」。用原百分比结构重算价格、锚定真实入场价。
+            if _scalp_entry > 0 and _scalp_tp > 0 and _scalp_sl > 0:
+                _side_is_long_ra = str(side).lower() in ("long", "buy")
+                try:
+                    from backend.services.data_center import data_center as _dc_ra
+                    _live_px = float(_dc_ra.get_price(sym, purpose="trade") or 0)
+                except Exception:
+                    _live_px = 0.0
+                _anchor = _live_px if _live_px > 0 else _scalp_entry
+                _sl_pct_ra = abs(_anchor - _scalp_sl) / _anchor if _anchor > 0 else 0.0
+                _tp_pct_ra = abs(_scalp_tp - _anchor) / _anchor if _anchor > 0 else 0.0
+                if _sl_pct_ra > 0 and _tp_pct_ra > 0:
+                    _scalp_sl = (_anchor * (1 - _sl_pct_ra) if _side_is_long_ra
+                                 else _anchor * (1 + _sl_pct_ra))
+                    _scalp_tp = (_anchor * (1 + _tp_pct_ra) if _side_is_long_ra
+                                 else _anchor * (1 - _tp_pct_ra))
+                    # 方向一致性终检：long 的 TP 必须 > 入场价、SL < 入场价（short 反之）
+                    _tp_ok_ra = (_scalp_tp > _anchor) if _side_is_long_ra else (_scalp_tp < _anchor)
+                    _sl_ok_ra = (_scalp_sl < _anchor) if _side_is_long_ra else (_scalp_sl > _anchor)
+                    if not (_tp_ok_ra and _sl_ok_ra):
+                        logger.warning(
+                            "[ScalpRouter独立] %s %s TP/SL 方向异常(tp=%.5f sl=%.5f anchor=%.5f)，拒绝开仓",
+                            sym, side, _scalp_tp, _scalp_sl, _anchor,
+                        )
+                        _bump_block("tp_sl_direction_guard")
+                        continue
+                    if abs(_scalp_tp - float(_sig.tp_price or 0)) > 1e-9 or abs(_scalp_sl - float(_sig.sl_price or 0)) > 1e-9:
+                        logger.info(
+                            "[ScalpRouter独立] %s TP/SL 重锚: sl=%.5f->%.5f tp=%.5f->%.5f (signal_price=%.5f live=%.5f)",
+                            sym, float(_sig.sl_price or 0), _scalp_sl, float(_sig.tp_price or 0), _scalp_tp,
+                            _scalp_entry, _anchor,
+                        )
+
             # [S11 2026-08-21] 无有效入场价不开仓（原实现会下 quantity=0 的废单）
             if _scalp_entry <= 0:
                 logger.info(f"[ScalpRouter独立] {sym} 入场价无效({_scalp_entry})，跳过开仓")
