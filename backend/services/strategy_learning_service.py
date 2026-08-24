@@ -8,6 +8,7 @@ Phase 2 说明：
 
 import logging
 import json
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
@@ -119,7 +120,17 @@ class StrategyLearningService:
                 db, strategy_id, trade_analysis, patterns, lessons, regime_perf
             )
 
-            prompt_updated = self._evolve_prompt(db, strategy, lessons, patterns)
+            # [2026-08-25 成本治理] <5 笔交易（7 天）的样本不足以支撑提示词进化，
+            # 但历史上仍对每策略发起一次 DeepSeek 调用（全量复盘 120 策略/次重启，
+            # 且不落用量日志）。加最小样本门槛，默认 5，env 可调。
+            try:
+                _min_review_trades = int(float(os.environ.get("PROMPT_EVO_MIN_TRADES", "5") or 5))
+            except Exception:
+                _min_review_trades = 5
+            if len(trades) >= _min_review_trades:
+                prompt_updated = self._evolve_prompt(db, strategy, lessons, patterns)
+            else:
+                prompt_updated = False
             report.prompt_evolved = prompt_updated
 
             params_updated = self._adapt_parameters(db, strategy, trade_analysis, regime_perf)
