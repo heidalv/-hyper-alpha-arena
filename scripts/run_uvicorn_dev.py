@@ -5,6 +5,24 @@ from __future__ import annotations
 import os
 import sys
 
+# [2026-08-24 M0-H4] 无声死亡诊断：后端约 13h 一次无 traceback 死亡
+# （日志戛然而止、无 WER 转储）。开启 faulthandler——发生段错误/栈溢出/
+# 异常中止等原生级崩溃时，把当前线程栈打到 stderr（随 2>&1 进日志），
+# 下一次死亡即可拿到第一手崩溃现场。正常路径零开销。
+try:
+    import faulthandler
+    _fd = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "logs", "backend.faulthandler.log",
+    )
+    _fh = open(_fd, "a", encoding="utf-8", buffering=1)
+    faulthandler.enable(file=_fh, all_threads=True)
+except Exception:
+    try:
+        faulthandler.enable(all_threads=True)
+    except Exception:
+        pass
+
 # [2026-07-11 修复 - 原生线程无限增长根因] 必须在任何 numpy/torch/pandas 等 BLAS/OpenMP
 # 依赖库被 import 之前设置这些环境变量，否则不生效。
 # 实测现象：QAA_EMBEDDING_BACKEND=neural(sentence-transformers/PyTorch CPU 推理) 打开时，
