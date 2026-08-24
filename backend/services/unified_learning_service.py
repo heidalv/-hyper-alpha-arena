@@ -1428,7 +1428,9 @@ class UnifiedLearningService:
         try:
             from backend.database.models import AIStrategy as _AIS_T
             _st_t = db.query(_AIS_T).filter(_AIS_T.strategy_id == key).first()
-            if _st_t is not None and bool((getattr(_st_t, "genome", None) or {}).get("permanently_disabled")):
+            _st_disabled = bool((getattr(_st_t, "genome", None) or {}).get("permanently_disabled")) \
+                or str(getattr(_st_t, "status", "") or "").lower() == "archived"
+            if _st_t is not None and _st_disabled:
                 self._loss_streaks.pop(key, None)
                 return
         except Exception:
