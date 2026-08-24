@@ -1915,6 +1915,20 @@ class MasterController:
         except Exception as _ext_err:
             logger.debug(f"[MasterController] 长上下文扩展跳过: {_ext_err}")
 
+        # [2026-08-25 成本治理] report_text 硬上限：8/24 实测 260-274K 字符/次
+        # （单次 prompt_tokens 最高 155K），是 DeepSeek 日费 $0.66→$3.08 的主因。
+        # 截断只作用于报告/市场数据段；决策框架、教训、反馈约束保持完整。
+        try:
+            _max_report_chars = int(float(os.getenv("MASTER_REPORT_MAX_CHARS", "80000") or 80000))
+        except Exception:
+            _max_report_chars = 80000
+        if len(report_text) > _max_report_chars:
+            logger.warning(
+                "[MasterController] report_text 超限截断: %d -> %d chars",
+                len(report_text), _max_report_chars,
+            )
+            report_text = report_text[:_max_report_chars] + "\n\n[report_text 已截断]"
+
         symbols_text = ", ".join(symbols)
 
         # 多空辩论层：从分析师报告提取对立论点
@@ -2362,6 +2376,15 @@ class MasterController:
                 f"[MasterController] calling LLM with prompt_len={len(prompt)}, "
                 f"elapsed_before_llm={time.time() - _synth_t0:.2f}s"
             )
+            # [2026-08-25 成本排查] prompt 组件级长度（定位 DeepSeek 消费增长来源）
+            logger.info(
+                "[MasterController] prompt_components report=%d debate=%d symbols=%d "
+                "tier=%d hold=%d lessons=%d feedback=%d v5=%d",
+                len(report_text or ""), len(debate_text or ""), len(symbols_text or ""),
+                len(_tier_context_text or ""), len(_hold_timeout_text or ""),
+                len(_recent_lessons_text or ""), len(_feedback_constraints_text or ""),
+                len(_v5_context_text or ""),
+            )
             result = self._call_llm(prompt)
             if result:
                 logger.info(
@@ -2390,11 +2413,14 @@ class MasterController:
                 continue
             r = report if isinstance(report, dict) else report.to_dict()
             header = f"### {r.get('analyst', name)} (风险评分: {r.get('risk_score', 50)}/100)"
-            summary = f"**结论**: {r.get('summary', '')} | **建议**: {r.get('recommendation', '')}"
+            summary = f"**结论**: {str(r.get('summary', ''))[:600]} | **建议**: {str(r.get('recommendation', ''))[:300]}"
             details = []
             for sig in r.get("signals", [])[:8]:
                 icon = {"danger": "🔴", "warning": "🟡", "neutral": "⚪", "bullish": "🟢"}.get(sig.get("signal", ""), "⚪")
-                details.append(f"  {icon} {sig.get('detail', '')}")
+                # [2026-08-25 成本治理] 信号 detail 截断至 1200 字符：KlineAnalyst 本地
+                # 长文本（reasoning 2000+ 字符/币 × 8 币）曾把 MasterController prompt
+                # 顶到 260K+ 字符、单次 155K tokens（DeepSeek 日费 $2.85 的主因）。
+                details.append(f"  {icon} {str(sig.get('detail', ''))[:1200]}")
             parts.append(f"{header}\n{summary}\n" + "\n".join(details))
 
         # 注入每个 symbol 的核心市场硬数据 + 数据质量标记
@@ -2465,7 +2491,7 @@ class MasterController:
                 # 衍生品/鲸鱼/新闻等外部数据抓取；否则 LLM 调用前就可能被慢 API 拖死。
                 _intel_txt = (info.get("intelligence_prompt") or "").strip()
                 if _intel_txt:
-                    env_lines.append(f"  ```\n{_intel_txt}\n  ```")
+                    env_lines.append(f"  ```\n{_intel_txt[:800]}\n  ```")
                 if info.get("oi_change_1h") is not None:
                     env_lines.append(
                         f"  OI1h={info.get('oi_change_1h', 0):+.2f}% "
