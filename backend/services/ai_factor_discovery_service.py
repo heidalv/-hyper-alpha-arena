@@ -72,6 +72,16 @@ class AIFactorDiscoveryService:
 每个因子用 Python pandas/numpy，输入 pd.DataFrame(open/high/low/close/volume)，返回 pd.Series 值域[-1,+1]。
 因子ID: ai_gen_<缩写>
 
+【代码硬性约束（不满足会被 AST 白名单直接拒绝）】
+1. 禁止 import 任何模块；禁止 dunder（__开头）属性。
+2. 只能访问 data['open'/'high'/'low'/'close'/'volume'] 列及它们的 pandas 链式方法
+   （如 data['close'].rolling(20).mean()、data['close'].pct_change()、data['volume'].rolling(50).median()）。
+3. 禁止调用任何自定义或未定义的函数（sl_loss、timeout_loss、drawdown_loss、factor_xxx 等一律禁止）；
+   全局函数只能用 len/abs/min/max/round/sum/float/int/any/all/sorted。
+4. 变量名只用 data/result/series 等简单名；表达式为纯 pandas/numpy 运算。
+
+正确示例: "def calculate(self, data):\n    ret = data['close'].pct_change(20)\n    vol = data['close'].pct_change().rolling(20).std()\n    result = (ret / (vol + 1e-9)).clip(-1, 1)\n    return result"
+
 JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_name":"中文","description":"逻辑","category":"technical/composite/behavioral/sentiment/derivatives","subcategory":"momentum/trend/volatility/volume/mean_reversion/contrarian","python_code":"def calculate(self, data):\\n    ...\\n    return result","confidence":0.6}}]}}
 只输出JSON。"""
 

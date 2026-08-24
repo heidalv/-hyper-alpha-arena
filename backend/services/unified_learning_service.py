@@ -1421,6 +1421,23 @@ class UnifiedLearningService:
         self._trade_counters[key] = 0
         reason = "定期" if streak < ADAPT_LOSS_STREAK else f"连亏{streak}次紧急"
 
+        # [2026-08-25 复盘防刷屏] 已永久禁用（genome.permanently_disabled）的策略
+        # 不再触发复盘/提示词进化：其历史信号仍持续结算流入，但策略已归档，
+        # 复盘无意义且会每 tick 刷一次 LLM 调用（实测 scalp_lane_scalp_f9
+        # 连亏 1222+ 次每 90s 重复触发）。短接内存连亏计数并跳过。
+        try:
+            from backend.database.models import AIStrategy as _AIS_T
+            _st_t = db.query(_AIS_T).filter(_AIS_T.strategy_id == key).first()
+            if _st_t is not None and bool((getattr(_st_t, "genome", None) or {}).get("permanently_disabled")):
+                self._loss_streaks.pop(key, None)
+                return
+        except Exception:
+            pass
+
+        # 紧急触发后消费连亏计数：避免 streak 恒≥阈值导致每个新 outcome 重复触发
+        if streak >= ADAPT_LOSS_STREAK:
+            self._loss_streaks[key] = 0
+
         try:
             from backend.config.settings import PROMPT_EVOLUTION_ENABLED
             if not PROMPT_EVOLUTION_ENABLED:
