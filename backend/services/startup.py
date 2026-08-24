@@ -4,6 +4,7 @@ import logging
 import threading
 import asyncio
 import os
+import time
 
 from backend.services.trading_commands import (
     place_ai_driven_crypto_order,
@@ -479,10 +480,34 @@ def initialize_sync_services():
 
         # 注册每日自学习复盘任务（每24小时）
         try:
+            _daily_learning_marker = os.path.join("data", "daily_learning_last_run.json")
+
+            def _daily_sweep_recently_ran() -> bool:
+                # [2026-08-25 成本治理] 后端每次重启都会立即触发全量复盘（每策略一次
+                # DeepSeek 调用、无用量记录），一晚三次重启 = 三遍全量烧钱。持久化
+                # 最近一次运行时间：20 小时内已跑过则跳过（重启不再重复烧）。
+                try:
+                    import json as _json_dl
+                    if os.path.exists(_daily_learning_marker):
+                        _ts = _json_dl.load(open(_daily_learning_marker, encoding="utf-8")).get("ts", 0)
+                        return (time.time() - float(_ts)) < 20 * 3600
+                except Exception:
+                    pass
+                return False
+
             def _run_daily_learning():
                 from backend.services.strategy_learning_service import strategy_learning
                 try:
+                    if _daily_sweep_recently_ran():
+                        logger.info("每日学习复盘跳过（20h 内已运行过，避免重启重复烧钱）")
+                        return
                     results = strategy_learning.run_all_reviews(days=7)
+                    try:
+                        import json as _json_dl
+                        with open(_daily_learning_marker, "w", encoding="utf-8") as _fh_dl:
+                            _json_dl.dump({"ts": time.time()}, _fh_dl)
+                    except Exception:
+                        pass
                     logger.info(f"每日学习复盘完成: {len(results)} 个策略")
                 except Exception as e:
                     logger.error(f"每日学习复盘失败: {e}")

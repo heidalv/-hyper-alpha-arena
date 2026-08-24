@@ -457,12 +457,26 @@ class AiPromptGenerationService:
         if not response or response.status_code != 200:
             return None
         try:
+            _resp_json = response.json()
             assistant_content = _extract_text_from_message(
-                response.json()["choices"][0]["message"]["content"]
+                _resp_json["choices"][0]["message"]["content"]
             )
         except Exception as e:
             logger.error("[AiPromptGen] 解析模型输出失败: %s", e)
             return None
+
+        # [2026-08-25 成本治理] 本路径用裸 requests 直连 DeepSeek，此前从不记录用量，
+        # 导致平台账单与 llm_usage_logs 对不上（每日学习复盘每策略一次调用完全不可见）。
+        # 这里补记 usage（与 call_llm_api_sync 同队列），失败静默。
+        try:
+            from backend.services.llm_config_service import _enqueue_usage_record
+            _usage = _resp_json.get("usage") or {}
+            _enqueue_usage_record(
+                _llm, _usage, "sync:AiPromptGenerationService",
+                account_id=account_id,
+            )
+        except Exception:
+            pass
 
         extracted = extract_prompt_from_response(assistant_content)
         text = (extracted or assistant_content or "").strip()
