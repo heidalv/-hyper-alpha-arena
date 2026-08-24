@@ -1121,14 +1121,32 @@ class UnifiedLearningService:
         ).first()
         if not strategy:
             return
-        strategy.is_active = "false"
-        genome = getattr(strategy, "genome", None) or {}
+        _old_genome = dict(getattr(strategy, "genome", None) or {})
+        # [2026-08-24 短线深挖 G2] 关键修复：AIStrategy 模型【没有 is_active 列】
+        # （真实列为 status/archived_at）——旧代码 `strategy.is_active="false"` 是
+        # 未映射的普通属性，从不落库；幂等守卫读它也永远 False → 同一策略
+        # 每 10-30s 重复"永久禁用"630+ 次（ERROR 刷屏 + 死锁写库循环）。
+        # 现在：以 genome.permanently_disabled（真实落库的 JSON）为幂等标志，
+        # 并写真实列 status/archived_at。
+        if bool(_old_genome.get("permanently_disabled")):
+            self._loss_streaks.pop(outcome.strategy_id, None)
+            return
+        genome = _old_genome
         genome["permanently_disabled"] = True
         genome["disable_reason"] = f"连续亏损{streak}次永久禁用"
-        strategy.genome = dict(genome)
+        strategy.genome = genome
+        strategy.status = "archived"
+        strategy.archive_reason = f"连续亏损{streak}次永久禁用"
+        from datetime import datetime, timezone as _tz
+        strategy.archived_at = datetime.now(_tz.utc)
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(strategy, "genome")
-        db.flush()
+        try:
+            db.flush()
+        except Exception as _f_err:
+            # 事务可能已被并发死锁回滚：至少已短接内存连亏计数，下次评估会重试
+            logger.warning("[UnifiedLearning] 永久禁用落库失败(下次重试): %s", str(_f_err)[:80])
+            db.rollback()
         self._loss_streaks.pop(outcome.strategy_id, None)
 
     def _check_adaptation_needed(self, db: Session, outcome: TradeOutcome):
@@ -1148,6 +1166,18 @@ class UnifiedLearningService:
 
         # 极端连亏（≥50次）：永久禁用，策略本身无价值
         if streak >= 50:
+            # [2026-08-24 深挖 G2] 幂等守卫只依赖 genome.permanently_disabled
+            # （真实落库 JSON）——模型无 is_active 列，旧守卫永不生效。
+            _already = False
+            try:
+                from backend.database.models import AIStrategy as _AIS
+                _st = db.query(_AIS).filter(_AIS.strategy_id == outcome.strategy_id).first()
+                _already = bool((getattr(_st, "genome", None) or {}).get("permanently_disabled"))
+            except Exception:
+                _already = False
+            if _already:
+                self._loss_streaks.pop(outcome.strategy_id, None)
+                return
             logger.error(
                 f"[UnifiedLearning] {key} 连续亏损 {streak} 次，永久禁用（策略失效）"
             )

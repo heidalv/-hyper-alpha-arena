@@ -82,6 +82,9 @@ class ScalpExecutionGate:
         side = "long" if action == "buy" else "short"
         entry = float(getattr(signal, "entry_price", 0) or market_data.get("price", 0) or 0)
         orch = (market_data or {}).get("orchestrator") or {}
+        _is_mr_signal = bool((market_data or {}).get("ranging_mr")) or str(
+            getattr(signal, "source", "") or ""
+        ) == "ranging_mr"
         advisory = scalp_advisory_cache.get(symbol)
         if advisory is None or (time.time() - advisory.updated_at) > 900:
             advisory = scalp_structure_scanner.scan(symbol, market_data, orch)
@@ -119,6 +122,13 @@ class ScalpExecutionGate:
         #   - 两条件（4h偏空 + 资金费极端正）但 regime 非 trending → 半仓参与
         #     （不过度阻止、让样本积累）；其余场景拦截。
         # 多头不受任何影响。这是方向 alpha 的结构化使用。
+        #
+        # [2026-08-24 短线深挖 C] MR 豁免 + Paper 按分数分档：
+        #   - MR 空头是"区间高位高抛"的均值回归，不参与趋势方向博弈——
+        #     结构性逆风结论不适用，豁免（今日 28 笔 MR 空 +0.17 是全短线唯一正收益边）；
+        #   - Paper 模式对 trend/lane 空头按分数分档放行（0.25/0.5/1.0x），
+        #     让模拟盘在强信号空头上积累样本，而不是 7950 次/日整片拦截；
+        #   - Live 保持原三条件/两条件硬规则不变。
         if side == "short" and bool(self._cfg("SCALP_SHORT_REQUIRES_TREND_DOWN", True)):
             _regime_name = (regime.regime or "").lower()
             _mid_bias = str((orch or {}).get("mid_bias") or "neutral").lower()
@@ -143,15 +153,45 @@ class ScalpExecutionGate:
                     _bias_src = "rule_fallback"
             _fund_ok = _funding >= _funding_min
             _trend_ok = _regime_name == "trending"
-            if not (_bias_ok and _fund_ok):
-                return GateDecision(
-                    False, lane_id, "hold",
-                    f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
-                    f"{_funding_min:.5f})——上行周期空头结构性逆风",
-                    effective_score=effective_score,
-                    advisory=advisory,
-                )
-            if not _trend_ok:
+            _conds_met = _bias_ok and _fund_ok
+            if not _conds_met:
+                if _is_mr_signal:
+                    # MR 空头豁免：区间高位高抛不属于趋势逆风（深挖 C）
+                    logger.info(
+                        "[ScalpGate] %s MR空头豁免空头条件化（区间高抛不参与趋势博弈）",
+                        symbol,
+                    )
+                elif is_paper:
+                    # Paper 分档放行：强信号空头继续积累样本（0.25/0.5/1.0x），
+                    # 弱信号(<40)与旧规则一致拦截。Live 不受影响。
+                    _short_esc = int(self._cfg("SCALP_SHORT_PAPER_EXEMPT_MIN", 40) or 40)
+                    _short_full = int(self._cfg("SCALP_SHORT_PAPER_FULL_MIN", 55) or 55)
+                    if effective_score >= _short_full:
+                        logger.info(
+                            "[ScalpGate] %s Paper空头高分放行 score=%d≥%d → 全仓",
+                            symbol, effective_score, _short_full,
+                        )
+                    elif effective_score >= _short_esc:
+                        size_mult *= 0.5
+                        logger.info(
+                            "[ScalpGate] %s Paper空头中分放行 score=%d∈[%d,%d) → 半仓样本",
+                            symbol, effective_score, _short_esc, _short_full,
+                        )
+                    else:
+                        size_mult *= 0.25
+                        logger.info(
+                            "[ScalpGate] %s Paper空头低分放行 score=%d<%d → 0.25x 样本",
+                            symbol, effective_score, _short_esc,
+                        )
+                else:
+                    return GateDecision(
+                        False, lane_id, "hold",
+                        f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
+                        f"{_funding_min:.5f})——上行周期空头结构性逆风",
+                        effective_score=effective_score,
+                        advisory=advisory,
+                    )
+            if _trend_ok is False and _conds_met and not _is_mr_signal:
                 size_mult *= 0.5
                 logger.info(
                     "[ScalpGate] %s 空头两条件齐但 regime=%s（非trending）→ 半仓参与",
@@ -187,7 +227,10 @@ class ScalpExecutionGate:
         # 环节——那个是"已经开仓后怎么放SL避免被刺",这个是"这根K线本身就不可信,
         # 直接不开"。放在因子层只是一个权重项会被其他1000+因子稀释到不起作用，
         # 必须在执行门做专用硬拦截。
-        wick_block = self._check_wick_manipulation(market_data)
+        # [2026-08-24 短线深挖 D] MR 豁免：高插针密度正是震荡均值回归的主场
+        # （长影线=边界被反复试探=高抛低吸机会），且 MR 宽 SL(≥1.2%) 天然免疫
+        # 短插针。趋势打法保留原硬拦截。
+        wick_block = self._check_wick_manipulation(market_data, is_mr=_is_mr_signal)
         if wick_block:
             return GateDecision(
                 False, lane_id, "block", wick_block,
@@ -370,7 +413,7 @@ class ScalpExecutionGate:
         )
         return new_tp, new_tp_price
 
-    def _check_wick_manipulation(self, market_data: Dict[str, Any]) -> str:
+    def _check_wick_manipulation(self, market_data: Dict[str, Any], is_mr: bool = False) -> str:
         """插针/操纵防护硬拦截（规划文档§2.3.5 + §3.4 公式原文）。
 
         wick_ratio(单根K线) = max(upper_wick, lower_wick) / (body + eps)
@@ -387,6 +430,8 @@ class ScalpExecutionGate:
         enabled = bool(self._cfg("SCALP_WICK_MANIPULATION_GUARD_ENABLED", True))
         if not enabled:
             return ""
+        if is_mr:
+            return ""  # [2026-08-24 深挖 D] MR 豁免：插针密度环境正是 MR 主场
         threshold = float(self._cfg("SCALP_WICK_DENSITY_BLOCK_THRESHOLD", 0.30) or 0.30)
         try:
             klines = (market_data or {}).get("klines")

@@ -574,6 +574,10 @@ def should_use_llm_streaming(
     force_stream = os.getenv("LLM_ANALYSIS_FORCE_STREAM", "true").lower() in (
         "1", "true", "yes", "on",
     )
+    # [2026-08-23 35B MoE 适配] Ollama 一律非流式：/api/generate + think=False
+    # 快速通道（流式端点强制思维链且无法关闭，实测 84.5s 超时）。
+    if str(getattr(config, "provider", "") or "").lower() == "ollama":
+        return False
     model_lower = (config.model or "").lower()
     if force_stream and is_reasoning_model(config.model):
         return True
@@ -1061,6 +1065,15 @@ def get_llm_config_local_first(
             logger.warning(f"resolve tenant for account {account_id}: {e}")
         finally:
             db0.close()
+    if resolved_tenant is None:
+        # [2026-08-23 修复] 后台线程（KlineAnalyst 在 _account_id 赋值前的预热、
+        # 各类调度任务）无账户上下文 → 管理员租户兜底（与 journal/factor_mining
+        # 同款模式），否则 usage 解析拒绝 → 本地 LLM 断供。
+        try:
+            from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+            resolved_tenant = resolve_admin_tenant_id()
+        except Exception:
+            resolved_tenant = None
 
     local: Optional[LLMConfig] = None
     try:
@@ -1332,7 +1345,10 @@ def _enqueue_usage_record(
     success: bool = True,
 ) -> None:
     """统一写入用量队列（DeepSeek 缓存 hit/miss + 模块 call_type）。"""
-    if not usage_info:
+    # [2026-08-23 修复] 原 `if not usage_info: return` 把 Ollama 空 usage 保底
+    # 记录（usage_info={}）也拒掉 → 本地调用永远不落 llm_usage_logs（不可观测）。
+    # 空 dict 放行：parse_deepseek_usage 对空 dict 解析为 0 tokens，记录仍有效。
+    if usage_info is None:
         return
     try:
         from backend.services.llm_usage_service import build_usage_record_kwargs
@@ -1407,6 +1423,16 @@ async def call_llm_api(
         }
         
         _resolved_caller = caller or _detect_caller_module()
+        # [2026-08-23 35B MoE 适配] Ollama 走 /api/generate 快速通道（think=False，
+        # 实测 63 tok/s）；失败自动降级 fallback_config（云端）。
+        if str(getattr(config, "provider", "") or "").lower() == "ollama":
+            _ollama_resp = _call_ollama_generate(
+                config, messages, temperature, max_tokens, response_format,
+                caller=_resolved_caller, account_id=account_id,
+            )
+            if _ollama_resp is not None:
+                return _ollama_resp
+            return await _fallback("ollama_generate_failed")
         is_reasoning = is_reasoning_model(config.model)
         use_streaming = bool(stream) or should_use_llm_streaming(
             config,
@@ -1571,6 +1597,143 @@ def _normalize_ollama_response(resp_data: Optional[Dict[str, Any]]) -> Optional[
 # ── 整改#13：LLM 语义缓存（默认关；LLM_SEMANTIC_CACHE_ENABLED=true 生效）──
 _llm_semantic_cache = None
 _llm_cache_lock = threading.Lock()
+# [2026-08-23] Ollama generate 并发闸（单模型串行推理，多币并行排队会挤爆线程池）
+_ollama_sem = None
+# [2026-08-24 槽位治理] 重负载批量调用方（KlineAnalyst 多币并行）单调用方限 1 槽，
+# 防止其把全局槽全部占满 → scalp_confirm / ai_factor_discovery 永远拿不到槽。
+_ollama_caller_sems: Dict[str, Any] = {}
+_ollama_caller_sems_lock = threading.Lock()
+_OLLAMA_HEAVY_CALLER_MARKERS = ("klineanalyst", "mastercontroller")
+
+
+def _heavy_caller_sem(caller: str):
+    _c = str(caller or "").lower()
+    if not any(_m in _c for _m in _OLLAMA_HEAVY_CALLER_MARKERS):
+        return None
+    with _ollama_caller_sems_lock:
+        _sem = _ollama_caller_sems.get(_c)
+        if _sem is None:
+            _sem = threading.BoundedSemaphore(1)
+            _ollama_caller_sems[_c] = _sem
+        return _sem
+
+
+def _call_ollama_generate(
+    config: LLMConfig,
+    messages: List[Dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    response_format: Optional[Dict[str, Any]],
+    *,
+    caller: str,
+    account_id: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """[2026-08-23 35B MoE 适配] Ollama 快速通道：/api/generate + think=False。
+
+    背景：qwen3.6-35b:q3（MoE）在 OpenAI 兼容端点强制思维链且无法关闭
+    （/no_think 后缀 400、think=false 无效、chat_template_kwargs 无效），
+    一次调用 84.5s 超时；而 /api/generate 原生端点 think=False 生效，
+    实测纯生成 63 tok/s（比 qwen3:14b 快 51%）。本函数把 messages 合并为
+    prompt 走 generate，返回 OpenAI 兼容结构，usage 用原生计数字段。
+
+    [2026-08-23 并发闸] Ollama 单模型推理串行，KlineAnalyst 多币并行会排队
+    挤爆线程池（DSH 监管连杀根因）。信号量限 2 并发，10s 拿不到槽即放弃
+    （调用方自动降级云端）；单请求超时 30s（35B 热调用 4s/冷 17s 足够）。
+    """
+    global _ollama_sem
+    if _ollama_sem is None:
+        _ollama_sem = threading.BoundedSemaphore(
+            int(os.getenv("OLLAMA_MAX_CONCURRENT", "1") or 1)
+        )
+    _csem = _heavy_caller_sem(caller)
+    if _csem is not None and not _csem.acquire(timeout=3):
+        logger.warning("[LLM ollama] %s 调用方槽占满，降级云端", caller)
+        return None
+    try:
+        if not _ollama_sem.acquire(timeout=3):
+            logger.warning("[LLM ollama] %s 并发槽占满，降级云端", caller)
+            return None
+        try:
+            import json as _json
+            import urllib.request as _urlreq
+
+            # messages → prompt：system 前置 + user 合并
+            parts: List[str] = []
+            for m in messages or []:
+                role = str(m.get("role") or "")
+                content = str(m.get("content") or "")
+                if not content:
+                    continue
+                if role == "system":
+                    parts.append(content)
+                else:
+                    parts.append(content)
+            prompt = "\n\n".join(parts)
+            if response_format and str(response_format.get("type", "")).endswith("json"):
+                prompt = prompt + "\n\n（必须只返回合法JSON，不要其他文字）"
+
+            base = (config.base_url or "http://127.0.0.1:11434/v1").rstrip("/")
+            # 去 /v1 得根地址
+            if base.endswith("/v1"):
+                base = base[:-3]
+            payload = {
+                "model": config.model,
+                "prompt": prompt,
+                "stream": False,
+                "think": False,
+                "options": {
+                    "num_predict": int(max_tokens or 1024),
+                    "temperature": float(temperature or 0.7),
+                },
+            }
+            req = _urlreq.Request(
+                base + "/api/generate",
+                data=_json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            _ollama_timeout = min(
+                float(resolve_llm_call_timeout(config) or 90),
+                float(os.getenv("OLLAMA_CALL_TIMEOUT_SEC", "8") or 8),
+            )
+            # 本地 Ollama 直连，禁用任何代理（否则走系统代理报 Privoxy 500）
+            _opener = _urlreq.build_opener(_urlreq.ProxyHandler({}))
+            with _opener.open(req, timeout=_ollama_timeout) as r:
+                raw = _json.loads(r.read().decode("utf-8"))
+            content = str(raw.get("response") or "").strip()
+            if not content:
+                logger.warning("[LLM ollama] %s 空响应 model=%s", caller, config.model)
+                return None
+            usage = {
+                "prompt_tokens": int(raw.get("prompt_eval_count") or 0),
+                "completion_tokens": int(raw.get("eval_count") or 0),
+            }
+            increment_usage(config.id)
+            _enqueue_usage_record(
+                config, usage, f"sync:{caller}", account_id=account_id,
+                duration_ms=int((raw.get("total_duration") or 0) / 1e6),
+            )
+            return {
+                "choices": [{
+                    "message": {"content": content, "reasoning": ""},
+                    "finish_reason": "stop",
+                }],
+                "usage": usage,
+            }
+        except Exception as e:
+            logger.warning("[LLM ollama] %s generate 调用失败: %s", caller, e)
+            return None
+        finally:
+            try:
+                _ollama_sem.release()
+            except Exception:
+                pass
+    finally:
+        if _csem is not None:
+            try:
+                _csem.release()
+            except Exception:
+                pass
+
 
 
 def _maybe_get_llm_cache():
@@ -1674,6 +1837,16 @@ def call_llm_api_sync(
             return None
 
     try:
+        # [2026-08-23 35B MoE 适配] Ollama 走 /api/generate 快速通道（think=False）；
+        # 失败自动降级 fallback_config（云端）。
+        if str(getattr(config, "provider", "") or "").lower() == "ollama":
+            _ollama_resp = _call_ollama_generate(
+                config, messages, temperature, max_tokens, response_format,
+                caller=_resolved_caller, account_id=account_id,
+            )
+            if _ollama_resp is not None:
+                return _ollama_resp
+            return _fallback("ollama_generate_failed")
         base_url = config.base_url.rstrip('/')
 
         headers = {

@@ -1,0 +1,167 @@
+[1] scalp_signal_log 7d settled: factor_score 分桶 × 方向 (wr / sum_net_ret)
+    桶 3(20-30) long    n= 5986 wr=42.0% net=-9.134
+    桶 3(20-30) short   n= 4807 wr=26.9% net=-4.644
+    桶 4(30-40) long    n= 5944 wr=44.5% net=0.490
+    桶 4(30-40) short   n= 4810 wr=24.8% net=-7.104
+    桶 5(40-50) long    n= 3884 wr=40.4% net=-2.561
+    桶 5(40-50) short   n= 2792 wr=25.9% net=-2.809
+    桶 6(50-60) long    n= 3555 wr=45.5% net=-4.322
+    桶 6(50-60) short   n= 3697 wr=33.1% net=-1.992
+    桶 7(60-70) long    n= 7433 wr=47.3% net=-17.475
+    桶 7(60-70) short   n=10921 wr=33.0% net=-17.877
+    桶 8(70-80) long    n= 3519 wr=51.5% net=-3.452
+    桶 8(70-80) short   n= 7905 wr=39.7% net=-13.697
+    桶 9(80-90) long    n= 2381 wr=52.2% net=-2.045
+    桶 9(80-90) short   n= 6746 wr=39.3% net=-15.949
+    桶10(90-100) long    n= 1124 wr=44.3% net=-11.092
+    桶10(90-100) short   n= 4244 wr=40.4% net=-4.821
+    桶11(100-110) long    n=   84 wr=81.0% net=0.572
+    桶11(100-110) short   n=  366 wr=51.1% net=1.098
+
+[2] 同: threshold 分桶 (阈值分布)
+    threshold= 30.0 n=71760 wr=38.8%
+    threshold= 25.0 n= 8434 wr=40.1%
+    threshold=999.0 n=    4 wr=75.0%
+
+[3] 今日信号 factor_score 分布 (全部, 未settled也算) × 方向
+
+[3b] 今日信号: 按小时 × 方向
+
+[4] 今日开仓匹配信号 (symbol+side+entry_price 匹配, 1min 内):
+
+[5] 今日开仓 expected_hold_hours / margin / leverage:
+    n=0 avg_exp_hrs=None avg_margin=None avg_lev=None sum_margin=None
+
+[6] 今日 scalp 平仓: 实际持仓分钟 vs pnl (前20):
+
+[7] 近7天 scalp 平仓按 close_reason (盈亏/胜率):
+    max_hold_timeout   n= 355 pnl=   18.48 wr=47.6% avg_min=139.3
+    sl                 n= 141 pnl= -132.16 wr=0.0% avg_min=122.8
+    symbol_removed     n= 107 pnl=    7.17 wr=46.7% avg_min=24.0
+    tp                 n=  59 pnl=   24.68 wr=67.8% avg_min=126.5
+    breakeven_tp       n=  31 pnl=   36.80 wr=93.5% avg_min=4.9
+    ai_reverse         n=   3 pnl=   -0.28 wr=0.0% avg_min=17.3
+    master_running_close n=   2 pnl=   -2.44 wr=0.0% avg_min=15.0
+
+[8] 近7天 scalp 平仓: 持仓分钟分桶 vs pnl
+      0- 20min n= 164 pnl=  -12.11 wr=35.4%
+     20- 40min n=  57 pnl=  -26.25 wr=26.3%
+     40- 60min n=  51 pnl=  -20.79 wr=29.4%
+     60- 80min n=  24 pnl=   -8.30 wr=37.5%
+     80-100min n=  26 pnl=   13.04 wr=53.8%
+    100-120min n=  12 pnl=   -1.59 wr=41.7%
+    120-140min n= 336 pnl=   21.18 wr=48.8%
+    140-160min n=   2 pnl=   -0.62 wr=0.0%
+    180-200min n=  26 pnl=  -12.32 wr=30.8%
+
+[9] 校准 no-edge 每小时计数 (今日日志):
+    15h calib= 2878 noedge= 2878 ev_waiver=0
+    16h calib= 3689 noedge= 3689 ev_waiver=0
+    17h calib= 4555 noedge= 4549 ev_waiver=13
+    18h calib= 4914 noedge= 4913 ev_waiver=3
+    19h calib=  777 noedge=  772 ev_waiver=6
+    20h calib=  588 noedge=  574 ev_waiver=14
+    21h calib= 3621 noedge= 3618 ev_waiver=9
+    22h calib= 2705 noedge= 2700 ev_waiver=0
+    23h calib= 4072 noedge= 4070 ev_waiver=0
+
+[10] .env SCALP/短线相关配置:
+    V5_DECISION_CORE_ENABLED=true
+    V5_DAILY_TRADE_CAP_ENABLED=true
+    V5_MAX_DAILY_TRADES=20
+    V5_MAX_SYMBOL_TRADES_PER_DAY=6
+    V5_MAX_DAILY_TRADES_LIVE=12
+    V5_MAX_SYMBOL_TRADES_PER_DAY_LIVE=4
+    V5_MAX_DAILY_TRADES_PAPER=60
+    V5_MAX_SYMBOL_TRADES_PER_DAY_PAPER=12
+    LIVE_SCALP_VETO_FAIL_OPEN=false
+    V5_MIN_RISK_REWARD=1.8
+    V5_MIN_TP_PCT=0.012
+    V5_SCALP_MIN_CONFIDENCE=55
+    V5_MAX_TRADE_PCT=0.015
+    SCALP_FACTOR_INDEPENDENT_SCHEDULER=true
+    SCALP_FACTOR_CONFIRM_THRESHOLD=30
+    SCALP_FACTOR_EXECUTE_THRESHOLD=35
+    SCALP_DIRECT_THRESHOLD=30
+    SCALP_VETO_BAND_LOW=25
+    SCALP_SIZE_PCT=0.50
+    SCALP_MIN_MARGIN_PCT=0.05
+    SCALP_MAX_TRADE_RISK_PCT=0.03
+    SCALP_EXCLUDE_PATTERN=1
+    SCALP_META_IN_EV=0
+    SCALP_META_EV_BLEND=0.35
+    PB_SCALP_MAX_SYMBOL_EXPOSURE_PCT=1.5
+    SCALP_FACTOR_IC_EVAL_EVERY_N_TICKS=80
+    SCALP_TARGET_TP_PCT=0.018
+    SCALP_TARGET_SL_PCT=0.012
+    SCALP_MIN_RR_NEW=1.3
+    SCALP_MAX_HOLD_SEC=1200
+    SCALP_AI_REVERSE_DISABLED=true
+    SCALP_LIQ_MAGNET_OPEN_DISABLED=true
+    SCALP_REDUCE_MIN_LOSS_PCT=0.2
+    SCALP_LIQUIDITY_FILTER_ENABLED=true
+    SCALP_MIN_VOLUME_USD=20000000
+    SCALP_MR_SIZE_MULTIPLIER=1.5
+    SCALP_CALIBRATOR_MIN_SAMPLES=20
+    LLM_BUDGET_SCALP=0
+    V5_TREND_FOLLOW_MIN_CONFIDENCE=50
+    SCALP_OPEN_COOLDOWN_SEC=120
+    SCALP_FACTOR_SCAN_INTERVAL_SEC=10
+    SCALP_FACTOR_CANDLE_SEC=300
+    SCALP_PROFILE_LOG=true
+    SCALP_SIGNAL_LOG_ENABLED=true
+    SCALP_SIGNAL_LOG_MIN_SCORE=25
+    SCALP_META_HORIZON_SEC=1800
+    SCALP_META_COST=0.0008
+    SCALP_META_MIN_SAMPLES=800
+    SCALP_META_MIN_PER_CLASS=200
+    SCALP_META_DEDUP_SEC=1800
+    SCALP_META_GATE_AUC=0.53
+    LAYER_BUDGET_SCALP=0.35
+    MIDLONG_EXIT_MIN_HOLD_SEC=86400
+    LLM_CACHE_THRESHOLD=0.95
+    PBO_REJECT_THRESHOLD=0.5
+    SCALP_MR_RSI_OS=40.0
+    SCALP_DEFAULT_LEVERAGE=10
+    SCALP_ROI_T1=600
+    SCALP_EV_TP_REALIZATION=0.55
+    SCALP_MR_RSI_OB=60.0
+    SCALP_EV_MIN_PCT=0.0003
+    SCALP_RANGING_MR_ENABLED=true
+    SCALP_ROI_T2=1200
+    SCALP_ROI_T3=1800
+    SCALP_EV_GATE_ENABLED=true
+    SCALP_MAX_OPENS_PER_TICK=2
+    SCALP_MR_MIN_RANGE_PCT=0.015
+    SCALP_MR_MAX_RANGE_PCT=0.06
+    SCALP_MR_MIN_TP=0.006
+    SCALP_MR_MIN_RR=1.0
+    MIDLONG_FUNDING_HOLD_HOURS=72
+    SCALP_MTF_RESONANCE_ENABLED=false
+    AUTO_COIN_V5_MIN_RR=1.8
+    PAPER_AUTO_COIN_V5_MIN_RR=1.4
+    SCALP_DAILY_OPEN_CAP=150
+    SCALP_EV_FAIL_CLOSED_LIVE=true
+    SCALP_GATE_DEFER_REGIME_TO_V5=true
+    SCALP_MTF_HARD_ONLY_ANCHOR=true
+    V5_SCALP_MIN_RR=1.4
+    V5_SCALP_MIN_RR_PAPER=1.3
+    V5_SCALP_MIN_TP_PCT=0.006
+    V5_SCALP_MIN_TP_PCT_PAPER=0.005
+    V5_TREND_MIN_RR=1.8
+    V5_TREND_MIN_RR_PAPER=1.6
+    PAPER_SCALP_UNIVERSE_DEGRADED_SOFT=true
+    PAPER_SCALP_UNIVERSE_DEGRADED_SIZE_MULT=0.35
+    SCALP_OPEN_SAME_SIDE_COOLDOWN_SEC=600
+    PAPER_SCALP_MICRO_SOFT=true
+    PAPER_SCALP_MICRO_SOFT_PENALTY=8
+    PAPER_SCALP_ADAPTIVE_LOSS_CEILING=30
+    PAPER_SCALP_ADVISORY_PENALTY_MULT=0.5
+    AUTO_COIN_CORR_DEDUP_THRESHOLD=0.85
+    FACTOR_EVO_SCALP_PERIODS=
+    FACTOR_SCORER_SCALP_MIN_BARS=500
+    SCALP_USE_VETTED_FACTORS_ONLY=false
+    FUSION_SCALP_PWIN_MIN=0.55
+    FUSION_SCALP_PWIN_STRONG=0.60
+    PB_SCALP_FREEZE_COOLDOWN_SEC=180
+    SCALP_VETO_MODE=off

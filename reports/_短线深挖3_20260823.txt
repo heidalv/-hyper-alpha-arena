@@ -1,0 +1,170 @@
+[1] 8-23 信号: 按小时 × 方向
+    08h short   n=3
+    09h long    n=1
+    09h short   n=1
+    10h long    n=7
+    11h long    n=7
+    15h long    n=1
+    17h long    n=3
+    18h long    n=1
+    21h long    n=2
+
+[2] 8-23 开仓 × strategy_id 前缀 (mr vs lane) 盈亏:
+    lane/other long  n=  6 pnl=0.721 wr=50.0%
+    MR         long  n= 40 pnl=-3.504 wr=35.0%
+    MR         short n= 28 pnl=0.168 wr=39.3%
+
+[3] 8-23 开仓明细 (时间/symbol/side/strategy/margin/close/pnl):
+    00:25 VIRTUAL  short MR mg=  1.58 max_hold_timeout pnl=-0.189
+    00:44 UNI      short MR mg=  1.58 max_hold_timeout pnl=0.151
+    00:45 AVAX     short MR mg=  1.58 symbol_removed   pnl=0.009
+    00:50 SOXL     long  MR mg=  1.58 symbol_removed   pnl=0.026
+    00:51 XPL      long  MR mg=  1.66 tp               pnl=-0.449
+    00:55 AAVE     short MR mg=  1.57 symbol_removed   pnl=-0.103
+    01:05 XPL      long  MR mg=  1.65 tp               pnl=-0.349
+    01:10 SOL      short MR mg=  1.58 max_hold_timeout pnl=-0.036
+    01:11 ASTER    short MR mg=  1.58 max_hold_timeout pnl=0.119
+    01:15 XPL      long  MR mg=  1.58 max_hold_timeout pnl=-0.068
+    01:18 DOGE     short MR mg=  1.58 sl               pnl=-0.078
+    01:54 TAO      short MR mg=  1.57 symbol_removed   pnl=-0.009
+    02:05 ENA      long  MR mg=  1.57 tp               pnl=0.189
+    02:07 XRP      short MR mg=  1.57 max_hold_timeout pnl=-0.192
+    02:25 TAO      short MR mg=  1.57 symbol_removed   pnl=0.023
+    02:27 SOXL     long  MR mg=  1.58 symbol_removed   pnl=-0.039
+    02:35 BNB      short MR mg=  1.57 max_hold_timeout pnl=-0.021
+    02:45 VIRTUAL  short MR mg=  1.56 max_hold_timeout pnl=-0.030
+    02:56 SOXL     long  MR mg=  1.58 symbol_removed   pnl=-0.008
+    03:20 SOL      short MR mg=  1.57 max_hold_timeout pnl=0.079
+    03:50 ENA      short MR mg=  1.58 sl               pnl=-0.206
+    03:55 UNI      short MR mg=  1.58 sl               pnl=-0.206
+    03:56 XPL      long  MR mg=  1.57 max_hold_timeout pnl=-0.251
+    04:00 HYPE     short MR mg=  1.57 symbol_removed   pnl=0.080
+    04:01 ENA      short MR mg=  1.58 sl               pnl=-0.205
+    04:07 XRP      short MR mg=  1.58 max_hold_timeout pnl=0.415
+    04:09 ARB      short MR mg=  1.58 symbol_removed   pnl=0.296
+    04:13 ENA      short MR mg=  1.58 symbol_removed   pnl=-0.014
+    04:30 LIT      short MR mg=  1.57 symbol_removed   pnl=-0.084
+    04:43 UNI      short MR mg=  1.57 max_hold_timeout pnl=0.215
+    04:54 BTW      long  MR mg=  1.56 symbol_removed   pnl=0.100
+    05:00 XMR      short MR mg=  1.57 symbol_removed   pnl=-0.044
+    05:03 ORDI     long  MR mg=  1.56 symbol_removed   pnl=-0.016
+    05:08 ZEC      long  MR mg=  1.57 sl               pnl=-0.236
+    05:15 ASTER    long  MR mg=  1.58 max_hold_timeout pnl=-0.139
+    05:24 ORDI     long  MR mg=  1.58 symbol_removed   pnl=-0.198
+    05:24 ARB      long  MR mg=  1.58 symbol_removed   pnl=-0.162
+    05:32 ZEC      long  MR mg=  1.56 sl               pnl=-0.204
+    05:36 SOL      long  MR mg=  1.57 max_hold_timeout pnl=0.034
+    05:38 DOT      long  MR mg=  1.56 max_hold_timeout pnl=0.069
+    05:42 ARB      long  MR mg=  1.57 symbol_removed   pnl=0.071
+    05:55 ETH      long  MR mg=  1.56 max_hold_timeout pnl=0.114
+    06:55 ARB      short MR mg=  1.57 symbol_removed   pnl=-0.022
+    07:15 UNI      long  MR mg=  1.54 breakeven_tp     pnl=0.078
+    07:16 ASTER    long  MR mg=  1.57 max_hold_timeout pnl=0.108
+    07:25 UNI      long  MR mg=  1.54 breakeven_tp     pnl=0.112
+    07:36 UNI      long  MR mg=  1.57 max_hold_timeout pnl=0.103
+    07:46 ONDO     long  MR mg=  1.57 max_hold_timeout pnl=0.070
+    08:30 DOT      short MR mg=  1.57 max_hold_timeout pnl=0.335
+    08:36 SOL      short MR mg=  1.58 sl               pnl=-0.205
+    08:55 BNB      short MR mg=  1.57 max_hold_timeout pnl=0.134
+    09:03 DOGE     short MR mg=  1.56 symbol_removed   pnl=-0.042
+    09:46 AAVE     long  MR mg=  1.59 sl               pnl=-0.364
+    10:00 ASTER    long  MR mg=  1.57 sl               pnl=-0.207
+    10:06 UNI      long  MR mg=  1.56 sl               pnl=-0.203
+    10:14 AAVE     long  MR mg=  1.55 max_hold_timeout pnl=-0.022
+    10:19 ONDO     long  MR mg=  1.57 sl               pnl=-0.216
+    10:23 ASTER    long  MR mg=  1.57 max_hold_timeout pnl=-0.059
+    10:34 ONDO     long  MR mg=  1.58 sl               pnl=-0.255
+    10:35 DOT      long  MR mg=  1.57 sl               pnl=-0.250
+    11:10 BNB      long  MR mg=  1.56 max_hold_timeout pnl=-0.100
+    11:11 UNI      long  MR mg=  1.56 sl               pnl=-0.203
+    11:16 ONDO     long  MR mg=  1.56 max_hold_timeout pnl=-0.143
+    11:24 DOT      long  MR mg=  1.55 sl               pnl=-0.202
+    11:29 ASTER    long  MR mg=  1.56 sl               pnl=-0.202
+    11:29 AAVE     long  MR mg=  1.56 breakeven_tp     pnl=0.008
+    11:31 UNI      long  MR mg=  1.55 breakeven_tp     pnl=0.019
+    15:15 SOL      long  MR mg=  1.57 max_hold_timeout pnl=-0.062
+    17:06 XPL      long  ln mg=  1.64 tp               pnl=-0.697
+    17:18 ASTER    long  ln mg=  1.55 max_hold_timeout pnl=-0.078
+    17:45 XPL      long  ln mg=  1.61 tp               pnl=-0.402
+    17:59 XPL      long  ln mg=  1.64 max_hold_timeout pnl=0.249
+    21:23 UNI      long  ln mg=  8.81 tp               pnl=1.531
+    21:35 ETH      long  ln mg=  8.79 breakeven_tp     pnl=0.118
+
+[4] 8-23 SL 命中明细:
+    DOGE     short 01:18 sl=0.39% tp=3.08%   0.5min mg=  1.58 pnl=-0.078
+    ENA      short 03:50 sl=1.20% tp=2.79%   4.2min mg=  1.58 pnl=-0.206
+    UNI      short 03:55 sl=1.20% tp=4.50%  48.0min mg=  1.58 pnl=-0.206
+    ENA      short 04:01 sl=1.20% tp=2.68%  12.2min mg=  1.58 pnl=-0.205
+    ZEC      long  05:08 sl=1.40% tp=2.30%  23.6min mg=  1.57 pnl=-0.236
+    ZEC      long  05:32 sl=1.20% tp=2.73%   8.2min mg=  1.56 pnl=-0.204
+    SOL      short 08:36 sl=1.20% tp=2.84%   2.0min mg=  1.58 pnl=-0.205
+    AAVE     long  09:46 sl=2.19% tp=1.47%  28.0min mg=  1.59 pnl=-0.364
+    ASTER    long  10:00 sl=1.22% tp=2.48%  21.9min mg=  1.57 pnl=-0.207
+    UNI      long  10:06 sl=1.20% tp=2.91%  62.1min mg=  1.56 pnl=-0.203
+    ONDO     long  10:19 sl=1.28% tp=2.42%   3.4min mg=  1.57 pnl=-0.216
+    ONDO     long  10:34 sl=1.52% tp=2.17%  35.9min mg=  1.58 pnl=-0.255
+    DOT      long  10:35 sl=1.49% tp=2.20%  47.9min mg=  1.57 pnl=-0.250
+    UNI      long  11:11 sl=1.20% tp=2.57%  20.1min mg=  1.56 pnl=-0.203
+    DOT      long  11:24 sl=1.20% tp=3.09%  19.0min mg=  1.55 pnl=-0.202
+    ASTER    long  11:29 sl=1.20% tp=2.83%  35.7min mg=  1.56 pnl=-0.202
+
+[5] 近7天 scalp 平仓: SL距离分桶 vs 命中率:
+    sl%桶0 n=  20 sl_hit=  8 (40.0%) pnl=0.02
+    sl%桶1 n=   2 sl_hit=  0 (0.0%) pnl=4.64
+    sl%桶2 n=   2 sl_hit=  0 (0.0%) pnl=0.19
+    sl%桶3 n=   1 sl_hit=  0 (0.0%) pnl=0.72
+    sl%桶4 n=  76 sl_hit= 28 (36.8%) pnl=-7.05
+    sl%桶5 n= 262 sl_hit= 74 (28.2%) pnl=-35.18
+    sl%桶6 n=  74 sl_hit=  9 (12.2%) pnl=-8.02
+    sl%桶7 n=  87 sl_hit=  7 (8.0%) pnl=1.77
+    sl%桶8 n= 173 sl_hit= 15 (8.7%) pnl=-4.42
+
+[6] 近7天 scalp 平仓: TP距离分桶 vs 命中率:
+    tp%桶0 n=   2 tp_hit=  2 be_hit=  0 pnl=0.68
+    tp%桶1 n=   1 tp_hit=  1 be_hit=  0 pnl=0.77
+    tp%桶2 n=   5 tp_hit=  1 be_hit=  0 pnl=-2.35
+    tp%桶3 n=  12 tp_hit=  2 be_hit=  0 pnl=-2.03
+    tp%桶4 n=  51 tp_hit=  8 be_hit=  0 pnl=6.14
+    tp%桶5 n=  34 tp_hit=  2 be_hit=  0 pnl=0.46
+    tp%桶6 n=  14 tp_hit=  0 be_hit=  1 pnl=-4.55
+    tp%桶7 n=  21 tp_hit=  5 be_hit=  0 pnl=-0.56
+    tp%桶8 n=  24 tp_hit=  2 be_hit=  0 pnl=-5.64
+    tp%桶9 n=  37 tp_hit= 11 be_hit=  0 pnl=-6.72
+    tp%桶10 n= 496 tp_hit= 25 be_hit= 30 pnl=-33.54
+
+[7] 近7天 settled 信号 settle_note 分布:
+    ok                                       n=78273 wr=39.8% net=-116.844
+    no_price                                 n= 1898 wr=0.0% net=None
+
+[8] 近7天 settled: net_ret 分布 (是否对称/成本吞噬):
+     -2.2~ -2.0% n= 6829 avg=-3.956
+     -2.0~ -1.8% n=  405 avg=-1.881
+     -1.8~ -1.6% n=  437 avg=-1.709
+     -1.6~ -1.4% n=  898 avg=-1.490
+     -1.4~ -1.2% n= 1482 avg=-1.288
+     -1.2~ -1.0% n= 1757 avg=-1.105
+     -1.0~ -0.8% n= 2126 avg=-0.886
+     -0.8~ -0.6% n= 2910 avg=-0.689
+     -0.6~ -0.4% n= 5035 avg=-0.482
+     -0.4~ -0.2% n= 9926 avg=-0.287
+     -0.2~  0.0% n=17180 avg=-0.099
+      0.0~  0.2% n=10767 avg=0.087
+      0.2~  0.4% n= 6022 avg=0.292
+      0.4~  0.6% n= 3645 avg=0.495
+      0.6~  0.8% n= 2399 avg=0.688
+      0.8~  1.0% n= 2060 avg=0.888
+      1.0~  1.2% n= 1129 avg=1.091
+      1.2~  1.4% n=  688 avg=1.297
+      1.4~  1.6% n=  706 avg=1.498
+      1.6~  1.8% n=  600 avg=1.698
+      1.8~  2.0% n=  351 avg=1.900
+      2.0~  2.2% n= 2819 avg=4.445
+
+[9] 8-23 XPL 全部信号日志 (settled):
+    17:06 long  score=51.0 thr=30.0 win=True ret%=4.431 ok
+    17:45 long  score=35.0 thr=30.0 win=True ret%=6.631 ok
+    18:00 long  score=35.0 thr=30.0 win=True ret%=6.564 ok
+
+[10] 8-23 日志: 自适应门槛提高 (近N笔胜率<30%) 按 symbol 计数:
+    XRP        1804
+    SOL        1505

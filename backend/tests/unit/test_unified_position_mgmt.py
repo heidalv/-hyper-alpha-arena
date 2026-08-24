@@ -161,6 +161,22 @@ def test_trailing_only_tightens_after_tp3():
 
 # ────────────────────────── 利润回撤 ──────────────────────────
 
+def test_hard_drawdown_below_entry_does_not_close():
+    """[2026-08-24] 价格已穿越入场价(亏损侧)时, 利润硬回撤不触发——交给 SL/thesis 退出。
+
+    背景: UNI trend/swing 两仓在 -5.8%/-6.0% 亏损区被 profit_drawdown_hard 提前砍掉,
+    破坏了 SL/结构退出语义。此后 dd_hard 仅在仍处盈利侧(_price_change_atr>0)触发。
+    """
+    eng = _make_engine()
+    # 先把 peak 抬高: entry=100, peak_pnl_pct=10% → peak_price=110
+    pos = _make_pos(entry=100.0, peak_pnl_pct=0.10, health_regime="trending")
+    # 当前价 98 < entry: dd=(110-98)/100/0.02=6×ATR 远超 dd_hard, 但已入亏损侧 → 不平
+    closed = _run(eng, pos, price=98.0, atr_pct=0.02)
+    assert closed is False, "亏损侧不应触发利润硬回撤"
+    hard = [c for c in eng._calls if c["reason"] == "profit_drawdown_hard"]
+    assert len(hard) == 0, "亏损侧不应有 profit_drawdown_hard 全平"
+
+
 def test_hard_drawdown_closes_all():
     """利润硬回撤 > 4×ATR (任何阶段) → 全平 (profit_drawdown_hard)."""
     eng = _make_engine()

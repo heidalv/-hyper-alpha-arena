@@ -306,6 +306,29 @@ class ScalpEvGate:
 
         allowed = ev_pct >= effective_ev_min
 
+        # ── [2026-08-24 短线深挖 H] Paper EV 地板 ──
+        # 校准器 p_win 建立在旧 TP/SL 参数历史（TP≈2.5% 摸不到 → 胜率被系统性
+        # 低估，如 UNI long p_win=0.342 → EV=-0.69% 恒拦）。探索期豁免攒够 50
+        # 样本即失效，之后 lane 信号重新陷入"旧尺子全拦→无新样本→校准永不上修"
+        # 死锁。Paper 模拟盘的本职是积累新参数样本：EV 不低于 paper 地板
+        # （默认 -0.30%）即放行，由 EV Governor 缩仓 + 风控硬顶 + 日亏损熔断兜底；
+        # Live 不受影响。回滚：SCALP_EV_MIN_PCT_PAPER=0.0003。
+        try:
+            if (mode or "paper").strip().lower() == "paper" and not allowed:
+                _paper_ev_min = float(
+                    self._cfg("SCALP_EV_MIN_PCT_PAPER", "-0.0060") or -0.0060
+                )
+                if ev_pct >= _paper_ev_min:
+                    logger.info(
+                        "[ScalpEvGate] %s paper EV 地板放行: EV=%+.4f%% ≥ %+.4f%% "
+                        "(旧校准口径样本期，EV Governor/风控兜底) p_win=%.3f(%s)",
+                        symbol, ev_pct * 100, _paper_ev_min * 100, p_win, p_src,
+                    )
+                    allowed = True
+                    effective_ev_min = _paper_ev_min
+        except Exception as _pe_err:
+            logger.debug("[ScalpEvGate] paper EV 地板检查跳过: %s", _pe_err)
+
         # ── [2026-08-23 短线赚钱改造] 新参数探索期软放行 ──
         # EV 闸用旧参数时代（TP≈2.5% 摸不到）的校准胜率（如 33.3%）评价 8/23 新
         # 参数（TP≤1.5%/45min 超时/scalp 免疫 master 软退出）的信号 → 新参数下

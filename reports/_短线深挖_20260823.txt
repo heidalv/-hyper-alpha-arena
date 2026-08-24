@@ -1,0 +1,131 @@
+[日志文件] 39 个今日文件: backend.log, backend.pid12164.log, backend.pid12312.log, backend.pid12448.log, backend.pid12800.log, backend.pid13328.log, backend.pid13432.log, backend.pid16656.log, backend.pid17476.log, backend.pid18936.log, backend.pid20696.log, backend.pid21692.log
+
+[1] 今日日志类别计数:
+   calib            63371
+   gate             9140
+   micro_block      666
+   lane_ban         384
+   ev_waiver        92
+
+[2] Gate拦截 reason TOP20:
+    7950  空头条件未齐
+     917  (未解析)
+      53  score=24<30
+      47  score=23<30
+      40  score=25<30
+      39  score=22<30
+      35  score=29<30
+      34  score=26<30
+      14  score=28<30
+       7  score=27<30
+       2  score=23<25
+       1  score=24<25
+       1  score=22<25
+
+[3] 每小时: 信号数 / gate+micro拦截 / 开仓
+   00h  sig= 462  block=  63  open=  0
+   01h  sig= 557  block=   4  open=  0
+   02h  sig= 452  block=  98  open=  0
+   03h  sig= 297  block=  35  open=  0
+   04h  sig= 439  block=  17  open=  0
+   05h  sig=  20  block=   0  open=  0
+   06h  sig=   0  block=   0  open=  0
+   07h  sig= 224  block=   0  open=  0
+   08h  sig= 331  block=  34  open=  0
+   09h  sig= 169  block=  21  open=  0
+   10h  sig= 463  block=  86  open=  0
+   11h  sig= 357  block=  15  open=  0
+   12h  sig=   0  block=   0  open=  0
+   13h  sig=   0  block=   0  open=  0
+   14h  sig=   0  block=   0  open=  0
+   15h  sig= 621  block= 621  open=  0
+   16h  sig=2687  block=2641  open=  0
+   17h  sig=1770  block=1528  open=  0
+   18h  sig=2530  block=2632  open=  0
+   19h  sig= 168  block= 164  open=  0
+   20h  sig=  83  block=  68  open=  0
+   21h  sig= 743  block= 713  open=  0
+   22h  sig= 389  block= 359  open=  0
+   23h  sig= 656  block= 707  open=  0
+
+[4] 样例行:
+   -- lane_ban (384条, 显示前3):
+      2026-08-23 15:27:49 [ERROR] [tr=-] backend.services.unified_learning_service:1151 - [UnifiedLearning] scalp_lane_scalp_f9 连续亏损 352 次，永久禁用（策略失效）
+      2026-08-23 15:28:12 [ERROR] [tr=-] backend.services.unified_learning_service:1151 - [UnifiedLearning] scalp_lane_scalp_f9 连续亏损 353 次，永久禁用（策略失效）
+      2026-08-23 15:29:50 [ERROR] [tr=-] backend.services.unified_learning_service:1151 - [UnifiedLearning] scalp_lane_scalp_f9 连续亏损 354 次，永久禁用（策略失效）
+   -- ev_waiver (92条, 显示前3):
+      2026-08-23 17:06:37 [INFO] [tr=-] backend.services.scalp.scalp_ev_gate:98 - [ScalpEvGate] 新参数探索期检查 tag=trend 新样本=45/50 → 软放行
+      2026-08-23 17:06:37 [INFO] [tr=-] backend.services.scalp.scalp_ev_gate:319 - [ScalpEvGate] XPL 新参数探索期软放行（旧校准口径样本不足，仓位由 EV Governor 控制）原EV=-0.6969%
+      2026-08-23 17:19:07 [INFO] [tr=-] backend.services.scalp.scalp_ev_gate:319 - [ScalpEvGate] ASTER 新参数探索期软放行（旧校准口径样本不足，仓位由 EV Governor 控制）原EV=-0.6981%
+   -- gate_unparsed (917条, 显示前3):
+      2026-08-23 17:20:57 [INFO] [tr=-] backend.services.full_auto.loops.scalp_loop:738 - [ScalpRouter独立] XPL Gate拦截 tier=block reason=高插针密度环境 high_wick_density=0.35>
+      2026-08-23 17:21:07 [INFO] [tr=-] backend.services.full_auto.loops.scalp_loop:738 - [ScalpRouter独立] XPL Gate拦截 tier=block reason=高插针密度环境 high_wick_density=0.35>
+      2026-08-23 17:21:19 [INFO] [tr=-] backend.services.full_auto.loops.scalp_loop:738 - [ScalpRouter独立] XPL Gate拦截 tier=block reason=高插针密度环境 high_wick_density=0.35>
+   -- micro (666条, 显示前3):
+      2026-08-23 17:18:56 [INFO] [tr=-] backend.services.scalp_factor_router:298 - [ScalpRouter] ASTER Paper微结构软放行 -8: 挂单失衡强对立
+      2026-08-23 17:19:27 [INFO] [tr=-] backend.services.scalp_factor_router:298 - [ScalpRouter] ASTER Paper微结构软放行 -8: 挂单失衡强对立
+      2026-08-23 17:19:36 [INFO] [tr=-] backend.services.scalp_factor_router:298 - [ScalpRouter] ASTER Paper微结构软放行 -8: 挂单失衡强对立
+
+[5] paper_positions 列名:
+   id, id, account_id, account_id, strategy_id, strategy_id, symbol, symbol, side, side, size, size, entry_price, entry_price, mark_price, mark_price, leverage, leverage, margin, margin, unrealized_pnl, unrealized_pnl, liquidation_price, liquidation_price, tp_price, tp_price, sl_price, sl_price, trailing_stop_price, trailing_stop_price, status, status, close_price, close_price, close_reason, close_reason, partial_realized_pnl, partial_realized_pnl, partial_fee_paid, partial_fee_paid, original_size, original_size, tp_level_reached, tp_level_reached, timeframe_tier, timeframe_tier, add_count, add_count, original_margin, original_margin, last_add_at, last_add_at, dca_count, dca_count, dca_total_added, dca_total_added, trade_nature, trade_nature, expected_hold_hours, expected_hold_hours, reduce_count, reduce_count, last_reduce_at, last_reduce_at, opened_at, opened_at, closed_at, closed_at, updated_at, updated_at, peak_unrealized_pnl, peak_unrealized_pnl, peak_pnl_pct, peak_pnl_pct, health_score, health_score, health_regime, health_regime, exit_state_json, exit_state_json, exchange, exchange, tenant_id, tenant_id
+   scalp_signal_log: id, created_at, symbol, signal_ts, direction, action, factor_score, threshold, entry_price, session_id, account_id, features_json, horizon_sec, settled, settle_ts, exit_price, fwd_ret, net_ret, win, settle_note, tenant_id
+
+[6] 今日 scalp 开仓: side_col='side' score_col=None strategy_col='strategy_id'
+
+[7] 今日 scalp close_reason 结构:
+     max_hold_timeout   n= 28 pnl=   0.804 avg_fee= 0.000 avg_min= 104.0
+     symbol_removed     n= 19 pnl=  -0.134 avg_fee= 0.000 avg_min=  20.4
+     sl                 n= 16 pnl=  -3.442 avg_fee= 0.000 avg_min=  23.3
+     tp                 n=  6 pnl=  -0.177 avg_fee= 0.000 avg_min=  20.0
+     breakeven_tp       n=  5 pnl=   0.334 avg_fee= 0.000 avg_min=  28.3
+
+[8] 今日 scalp 按方向:
+     short  n=28 pnl=0.168 wr=39.3%
+     long   n=46 pnl=-2.783 wr=37.0%
+
+[10] 今日 scalp 按 symbol TOP15 (盈亏):
+     XPL          n=  7 pnl=  -1.967 wr=14.3%
+     ONDO         n=  4 pnl=  -0.545 wr=25.0%
+     AAVE         n=  4 pnl=  -0.480 wr=25.0%
+     ASTER        n=  7 pnl=  -0.458 wr=28.6%
+     ZEC          n=  2 pnl=  -0.440 wr=0.0%
+     ENA          n=  4 pnl=  -0.236 wr=25.0%
+     VIRTUAL      n=  2 pnl=  -0.219 wr=0.0%
+     ORDI         n=  2 pnl=  -0.214 wr=0.0%
+     SOL          n=  5 pnl=  -0.191 wr=40.0%
+     DOGE         n=  2 pnl=  -0.121 wr=0.0%
+     LIT          n=  1 pnl=  -0.084 wr=0.0%
+     DOT          n=  4 pnl=  -0.047 wr=50.0%
+     XMR          n=  1 pnl=  -0.044 wr=0.0%
+     SOXL         n=  3 pnl=  -0.021 wr=33.3%
+     AVAX         n=  1 pnl=   0.009 wr=100.0%
+
+[11] symbol_removed 平仓明细 (今日):
+     SOXL         long   n=3 avg_min=10.8 pnl=-0.021
+     TAO          short  n=2 avg_min=9.5 pnl=0.014
+     ORDI         long   n=2 avg_min=7.3 pnl=-0.214
+     ARB          long   n=2 avg_min=21.3 pnl=-0.090
+     ARB          short  n=2 avg_min=45.2 pnl=0.274
+     HYPE         short  n=1 avg_min=67.1 pnl=0.080
+     AAVE         short  n=1 avg_min=22.5 pnl=-0.103
+     ENA          short  n=1 avg_min=54.2 pnl=-0.014
+     LIT          short  n=1 avg_min=7.8 pnl=-0.084
+     AVAX         short  n=1 avg_min=4.9 pnl=0.009
+     BTW          long   n=1 avg_min=14.3 pnl=0.100
+     XMR          short  n=1 avg_min=2.6 pnl=-0.044
+     DOGE         short  n=1 avg_min=15.3 pnl=-0.042
+
+[12] 近7天 scalp_signal_log settled 全景:
+     n=80211 wr=38.9% sum_net_ret=-116.794 avg_net_ret%=-0.149
+   按 horizon_sec:
+     horizon= 1800 n=80211 wr=38.9% sum_ret=-116.794
+   按 strategy:
+     (无 strategy 类列; 列=['id', 'created_at', 'symbol', 'signal_ts', 'direction', 'action', 'factor_score', 'threshold', 'entry_price', 'session_id', 'account_id', 'features_json', 'horizon_sec', 'settled', 'settle_ts', 'exit_price', 'fwd_ret', 'net_ret', 'win', 'settle_note', 'tenant_id'])
+
+[13] AIStrategy 永久禁用/失效:
+     !! only '%s', '%b', '%t' are allowed as placeholders, got '%p'
+
+[14] 今日 paper_positions 全部 trade_nature 分布:
+     scalp        n=74 pnl=-2.615
+     swing        n=11 pnl=14.896
+     trend_follow n=1 pnl=25.256

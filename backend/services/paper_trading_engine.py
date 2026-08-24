@@ -2694,8 +2694,12 @@ class PaperTradingEngine:
         if _peak_atr > 0 and _peak_price > 0:
             # 回撤 ATR 数 (正数=从峰值回吐). 方向无关: long 价跌/short 价涨都为正。
             _dd_atr = ((_price - _peak_price) / _entry) * (-_side_dir) / _atr
-            if _dd_atr > _params["dd_hard"]:
+            if _dd_atr > _params["dd_hard"] and _price_change_atr > 0:
                 # 硬回撤 (>4×ATR): 任何阶段都全平 (防还利)
+                # [2026-08-24 退出语义修复] 仅在"仍处盈利侧"(_price_change_atr>0)触发：
+                # 价格已穿越入场价（亏损侧）时没有可保护的利润，该区域由 SL/论题失效
+                # 退出负责。此前 UNI trend/swing 两仓在 -5.8%/-6.0% 亏损区被
+                # profit_drawdown_hard 提前砍掉，破坏了 SL/结构退出语义。
                 logger.warning(
                     f"[Paper][v2-Unified] 利润硬回撤全平: {pos.symbol} {_side} "
                     f"peak={_peak_price:.6f} → price={_price:.6f}, dd={_dd_atr:.2f}ATR > {_params['dd_hard']}")
@@ -2705,6 +2709,11 @@ class PaperTradingEngine:
                     strategy_id=getattr(pos, "strategy_id", None),
                 )
                 return True
+            if _dd_atr > _params["dd_hard"]:
+                logger.info(
+                    f"[Paper][v2-Unified] 利润硬回撤跳过(已入亏损侧): {pos.symbol} {_side} "
+                    f"peak={_peak_price:.6f} → price={_price:.6f}, dd={_dd_atr:.2f}ATR, "
+                    f"交给 SL/thesis 退出")
             if _tp1_done and _dd_atr > 2.0:
                 # 软回撤 (>2×ATR 且 TP1 已触发): 全平锁利
                 logger.warning(

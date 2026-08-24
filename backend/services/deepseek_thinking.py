@@ -110,6 +110,21 @@ def resolve_thinking_policy(
     effort_override = (os.getenv("DEEPSEEK_REASONING_EFFORT", "auto") or "auto").strip().lower()
     tier = classify_thinking_tier(caller)
 
+    # [2026-08-23 修复] Flash 是快速档模型：默认关闭思考。
+    # 原逻辑对 MasterController(deep 档) 注入 thinking=high → Flash 单次调用
+    # 111s+/1.1万字符 reasoning → DSH 平台"响应慢"判定 → 杀后端重启循环 →
+    # 短线停摆+黑框连环弹的根源。Flash 的定位就是快，思考交给 pro/reasoner。
+    # DEEPSEEK_THINKING_MODE=enabled 可显式强制恢复。
+    _is_flash = "flash" in (model or "").lower()
+    if _is_flash and mode not in ("enabled", "on", "1", "true", "yes"):
+        return {
+            "apply": True,
+            "thinking_enabled": False,
+            "reasoning_effort": None,
+            "tier": "flash_fast",
+            "bump_max_tokens": False,
+        }
+
     if mode in ("disabled", "off", "0", "false", "no"):
         return {
             "apply": True,

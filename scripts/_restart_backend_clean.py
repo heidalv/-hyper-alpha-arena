@@ -12,7 +12,7 @@ import time
 
 ROOT = r"D:\001Alpha\Hyper-Alpha-Arena"
 PY = os.path.join(ROOT, "backend", ".venv", "Scripts", "python.exe")
-BREAKAWAY = 0x00000008 | 0x00000200 | 0x00000080  # BREAKAWAY | NEW_GROUP | NO_WINDOW
+BREAKAWAY = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | CREATE_NO_WINDOW（不弹黑框）
 
 # 1) 清理 8000 占用者
 import socket as _sk

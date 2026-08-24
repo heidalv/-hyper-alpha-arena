@@ -245,6 +245,54 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             db, session, account_id, symbol, plan,
         )
 
+        # ── [2026-08-24 敞口封顶] 中长线单币名义敞口 ≤ 权益×cap ──
+        # 确定性检查，不依赖 PB 组合预算（PB_PAPER_SKIP=true 时同样生效）。
+        # 背景：UNI swing+trend 同币并存合计名义≈权益2.5x，单日 -43.5。
+        # 只拒单不冻结；0 = 关闭。
+        try:
+            _cap_nature = str(_pre_nature or timeframe_tier or "").lower()
+            if _cap_nature in ("swing", "trend_follow", "position", "mid", "long")                     and plan.action in ("open", "close_and_open"):
+                from backend.config.settings import MIDLONG_SYMBOL_EXPOSURE_CAP_PCT
+                _cap_pct = float(MIDLONG_SYMBOL_EXPOSURE_CAP_PCT or 0)
+                if _cap_pct > 0:
+                    from backend.database.models import PaperBalance
+                    _cap_bal = db.query(PaperBalance).filter(
+                        PaperBalance.account_id == account_id
+                    ).first()
+                    _cap_equity = float(_cap_bal.total_equity) if _cap_bal else 0.0
+                    if _cap_equity > 0:
+                        _cap_cur_notional = 0.0
+                        for _cap_pos in paper_engine.get_positions(db, account_id) or []:
+                            _cap_pn = str(_cap_pos.get("trade_nature") or "").lower()
+                            if (_cap_pos.get("symbol") == symbol
+                                    and _cap_pos.get("status") == "open"
+                                    and _cap_pn in ("swing", "trend_follow", "position")):
+                                try:
+                                    _cap_cur_notional += (
+                                        float(_cap_pos.get("entry_price") or 0)
+                                        * float(_cap_pos.get("size") or 0)
+                                    )
+                                except Exception:
+                                    pass
+                        _cap_new_notional = float(getattr(plan, "notional_usd", 0) or 0)
+                        _cap_total = _cap_cur_notional + _cap_new_notional
+                        if _cap_total > _cap_equity * _cap_pct:
+                            logger.warning(
+                                "[MidLongExposureCap] BLOCK %s %s: 现有名义=%.1f + 新单=%.1f "
+                                "= %.1f > 权益%.1f×%.0f%% (tier=%s)",
+                                symbol, side, _cap_cur_notional, _cap_new_notional,
+                                _cap_total, _cap_equity, _cap_pct * 100, timeframe_tier,
+                            )
+                            host.append_event(
+                                session, "midlong_exposure_cap_block",
+                                f"⛔ 单币敞口封顶 {symbol} {side}: 名义 {_cap_total:.1f} "
+                                f"> 权益 {_cap_equity:.1f}×{_cap_pct:.0%}，已拒绝开仓",
+                            )
+                            return False
+        except Exception as _cap_err:
+            # 检查本身异常不得阻断开仓（容错优先）；记录后继续。
+            logger.debug("[MidLongExposureCap] 检查跳过: %s", _cap_err)
+
         # ── 执行计划 ──
         if plan.action == "skip":
             _skip_detail = (plan.reasoning or "未知原因")[:200]

@@ -703,6 +703,11 @@ SCALP_EV_TP_REALIZATION: float = float(os.getenv("SCALP_EV_TP_REALIZATION", "0.7
 SCALP_EV_NEW_PARAM_EXPLORE: bool = os.getenv("SCALP_EV_NEW_PARAM_EXPLORE", "true").strip().lower() in ("1", "true", "yes", "on")
 SCALP_NEW_PARAM_EPOCH_TS: float = float(os.getenv("SCALP_NEW_PARAM_EPOCH_TS", "1787428800"))  # 2026-08-23 00:00 CST
 SCALP_NEW_PARAM_MIN_SAMPLES: int = int(os.getenv("SCALP_NEW_PARAM_MIN_SAMPLES", "50"))
+# [2026-08-24 短线深挖 H] Paper EV 地板：探索期豁免失效后（新样本 ≥ MIN_SAMPLES），
+# paper 模式下 EV 不低于该地板（默认 -0.60%）仍放行攒样本——旧参数校准 p_win
+# 系统性低估新参数胜率（如 KAITO MR p_win=0.450→EV=-0.42% 被恒拦），EV Governor
+# 缩仓 + 风控硬顶 + 日亏损熔断兜底。Live 不受影响。
+SCALP_EV_MIN_PCT_PAPER: float = float(os.getenv("SCALP_EV_MIN_PCT_PAPER", "-0.0060"))
 SCALP_EV_SL_REALIZATION: float = float(os.getenv("SCALP_EV_SL_REALIZATION", "1.0"))
 # 置信度校准器：用历史 scalp_composite 反馈把因子分映射成校准胜率 p_win。
 SCALP_CALIBRATOR_ENABLED: bool = os.getenv("SCALP_CALIBRATOR_ENABLED", "true").lower() in (
@@ -831,6 +836,13 @@ MIDLONG_INDEPENDENT_COOLDOWN_ENFORCE: bool = os.getenv(
 MIDLONG_STRUCTURE_STOP_ON_INDEPENDENT: bool = os.getenv(
     "MIDLONG_STRUCTURE_STOP_ON_INDEPENDENT", "true"
 ).lower() in ("true", "1", "yes", "on")
+# [2026-08-24 敞口封顶] 中长线单币名义敞口上限（名义/权益，同币 mid+long 并存合计）。
+# 背景：UNI swing(≈0.94x) + trend(≈1.54x) 同币并存，单日 -43.5 打穿账户。
+# 确定性检查（不依赖 PB 组合预算，PB_PAPER_SKIP=true 时同样生效），只拒单不冻结。
+# 0 = 关闭检查。
+MIDLONG_SYMBOL_EXPOSURE_CAP_PCT: float = float(
+    os.getenv("MIDLONG_SYMBOL_EXPOSURE_CAP_PCT", "0.6")
+)
 
 # ── P1 虚拟币中长线交易设计（2026-07-31）──
 MIDLONG_CHOP_GATE_ENABLED: bool = os.getenv("MIDLONG_CHOP_GATE_ENABLED", "true").lower() in (

@@ -41,6 +41,12 @@ _SCALP_UNIVERSE_ONLY = (os.getenv("SCALP_SCORE_UNIVERSE_ONLY", "1") or "1").stri
 _UNIVERSE_CACHE_SEC = 60.0   # 每币过滤结果缓存秒数（避免每 tick 查库）
 _universe_cache: Dict[str, tuple] = {}
 
+# [2026-08-24 短线深挖 F] 自适应胜率门槛 TTL 缓存：原实现每 tick 每 symbol 都开
+# SessionLocal 查 3 天胜率（8/23 实测 XRP 1804 次 / SOL 1505 次 DB 往返 + 刷屏），
+# 属短线热路径上的静默卡点。胜率本身是慢变量，10 分钟缓存完全够用。
+_ADAPTIVE_CACHE_SEC = 600.0
+_adaptive_cache: Dict[str, tuple] = {}
+
 
 def _symbol_universe_allowed(symbol: str) -> tuple:
     """返回 (allowed, note)：山寨币宇宙过滤判定（TTL 缓存）。"""
@@ -563,6 +569,15 @@ class ScalpFactorRouter:
         Returns:
             该 symbol 的开仓门槛
         """
+        # [2026-08-24 短线深挖 F] TTL 缓存：3天胜率是慢变量，10分钟内复用结果，
+        # 消除每 tick 每 symbol 的 SessionLocal 查询（8/23 实测 XRP 1804/SOL 1505 次）。
+        try:
+            _ck = (symbol.upper(), bool(is_paper))
+            _cached = _adaptive_cache.get(_ck)
+            if _cached and (time.time() - _cached[0]) < _ADAPTIVE_CACHE_SEC:
+                return int(_cached[1])
+        except Exception:
+            pass
         try:
             from backend.database.connection import SessionLocal
             from sqlalchemy import text
@@ -579,31 +594,38 @@ class ScalpFactorRouter:
                 n = int(row[0] or 0)
                 if n < 5:
                     # 样本不足 → 用默认阈值
-                    return _SCALP_CONFIRM_THRESHOLD
-                wins = int(row[1] or 0)
-                wr = wins / n
-                if wr < 0.30:
-                    _loss_th = 50
-                    if is_paper:
-                        try:
-                            from backend.config.settings import PAPER_SCALP_ADAPTIVE_LOSS_CEILING
-                            # Paper 样本期：不抬到 50，避免 36–49 分整批饿死
-                            _loss_th = max(
-                                int(_SCALP_CONFIRM_THRESHOLD),
-                                min(50, int(PAPER_SCALP_ADAPTIVE_LOSS_CEILING or 38)),
-                            )
-                        except Exception:
-                            _loss_th = 38
-                    logger.info(
-                        f"[ScalpRouter] {symbol} 近{n}笔胜率{wr:.0%}<30% → 门槛{_loss_th}"
-                        f"{'(paper)' if is_paper else '(live)'}"
-                    )
-                    return _loss_th
-                elif wr > 0.60:
-                    _lo = max(25, _SCALP_CONFIRM_THRESHOLD - 5)
-                    logger.debug(f"[ScalpRouter] {symbol} 近{n}笔胜率{wr:.0%}>60% → 门槛降低到{_lo}")
-                    return _lo
-                return _SCALP_CONFIRM_THRESHOLD
+                    _thr = _SCALP_CONFIRM_THRESHOLD
+                else:
+                    wins = int(row[1] or 0)
+                    wr = wins / n
+                    if wr < 0.30:
+                        _loss_th = 50
+                        if is_paper:
+                            try:
+                                from backend.config.settings import PAPER_SCALP_ADAPTIVE_LOSS_CEILING
+                                # Paper 样本期：不抬到 50，避免 36–49 分整批饿死
+                                _loss_th = max(
+                                    int(_SCALP_CONFIRM_THRESHOLD),
+                                    min(50, int(PAPER_SCALP_ADAPTIVE_LOSS_CEILING or 38)),
+                                )
+                            except Exception:
+                                _loss_th = 38
+                        logger.info(
+                            f"[ScalpRouter] {symbol} 近{n}笔胜率{wr:.0%}<30% → 门槛{_loss_th}"
+                            f"{'(paper)' if is_paper else '(live)'}"
+                        )
+                        _thr = _loss_th
+                    elif wr > 0.60:
+                        _lo = max(25, _SCALP_CONFIRM_THRESHOLD - 5)
+                        logger.debug(f"[ScalpRouter] {symbol} 近{n}笔胜率{wr:.0%}>60% → 门槛降低到{_lo}")
+                        _thr = _lo
+                    else:
+                        _thr = _SCALP_CONFIRM_THRESHOLD
+                try:
+                    _adaptive_cache[(symbol.upper(), bool(is_paper))] = (time.time(), int(_thr))
+                except Exception:
+                    pass
+                return int(_thr)
             finally:
                 db.close()
         except Exception:
