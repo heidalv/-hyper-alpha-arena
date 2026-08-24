@@ -33,7 +33,7 @@ SYSTEM_PREFIXES: tuple[str, ...] = (
     "MARKET_DATA_", "ADVERSARIAL_", "LLM_", "V5_", "AUTO_COIN_", "AGENT_",
     "AI_", "ANALYST_", "ASSISTANT_", "ARBITRAGE_", "REBATE_", "HYPERLIQUID_",
     "BINANCE_", "BYBIT_", "OKX_", "FULLAUTO_", "SCALP_", "MIDLONG_", "PAIR_",
-    "WFO_", "BACKTEST_", "FEE_", "ENV_", "LIVE_", "PAPER_",
+    "WFO_", "BACKTEST_", "FEE_", "ENV_", "LIVE_", "PAPER_", "LONG_V2_", "LONG_TREND_",
 )
 
 # 风控/安全关键 flag —— 被设为 falsy 时必须显式日志，禁止静默关闭。
@@ -539,6 +539,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MULTI_VENUE_FUNDING_SYMBOLS",
     "MULTI_VENUE_FUNDING_VENUES",
     "NSGA2_ENABLED",
+    # [2026-08-24 槽位治理] 本地 Ollama 全局并发槽数（重负载调用方每调用方另限 1 槽）
+    "OLLAMA_MAX_CONCURRENT",
     "OPENAI_API_KEY",
     "OPENCODE_AGENT_BUILD",
     "OPENCODE_AGENT_PLAN",

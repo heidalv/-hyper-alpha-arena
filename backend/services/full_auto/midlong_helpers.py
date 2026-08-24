@@ -505,9 +505,16 @@ def try_execute_independent_agent_open(
             if float(tp_pct or 0) < float(sl_pct or 0) * 2.0:
                 tp_pct = float(sl_pct or 0) * 2.0
             # [P0-1] RR 地板可能把 TP 抬过 tier 上限 → 再 clamp 回 max（20%/10%）；
-            # V2 长线（Chandelier 管理）豁免钳制，保留 2×SL 合成目标（见上方 2026-08-23 注）。
+            # V2 长线（Chandelier 管理）豁免钳制。[2026-08-24] 合成 TP 从 2×SL 放宽到
+            # LONG_V2_SYNTH_TP_MULT×SL（默认 4.0）——只作 Layer-0 极端行情 failsafe，
+            # 正常止盈 = 结构目标减半 + Chandelier 追踪（设计 V2 §4.3.4 不设固定 TP）。
             if _v2_tp_unclamped:
-                tp_pct = max(float(tp_pct or 0), float(sl_pct or 0) * 2.0)
+                try:
+                    _v2_tp_mult = float(os.environ.get("LONG_V2_SYNTH_TP_MULT", "4.0") or 4.0)
+                except Exception:
+                    _v2_tp_mult = 4.0
+                _v2_tp_mult = max(1.5, min(8.0, _v2_tp_mult))
+                tp_pct = max(float(tp_pct or 0), float(sl_pct or 0) * _v2_tp_mult)
             else:
                 tp_pct = _clamp_tp_to_tier_max(tp_pct, tier, _sym_u, _act)
             _fr_ok, _nrr, _fr_why = funding_net_rr_ok(

@@ -118,7 +118,7 @@
       "dd": 0.0
     },
     "tpl_mid_reversion_b10856": {
-      "status": "candidate",
+      "status": "graduated",
       "trades": 458,
       "wr": 0.5131004366812232,
       "dd": 0.003261901055955667
@@ -149,13 +149,13 @@
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_1bdb6c": 37,
-    "tpl_mid_reversion_ee142d": 37,
-    "tpl_mid_reversion_290af6": 37,
-    "gen_mean_reversion_multi_mid_ranging_313": 37,
-    "tpl_pro_075b93de_926c4c": 37,
-    "gen_swing_alt_high_beta_mid_v1_334": 37,
-    "gen_swing_eth_sol_mid_v2_322": 37,
+    "tpl_mid_reversion_1bdb6c": 38,
+    "tpl_mid_reversion_ee142d": 38,
+    "tpl_mid_reversion_290af6": 38,
+    "gen_mean_reversion_multi_mid_ranging_313": 38,
+    "tpl_pro_075b93de_926c4c": 38,
+    "gen_swing_alt_high_beta_mid_v1_334": 38,
+    "gen_swing_eth_sol_mid_v2_322": 38,
     "tpl_mid_range_89e53b": 16
   },
   "live_cooldown_until": {},

@@ -2822,7 +2822,21 @@ class PaperTradingEngine:
             try: db.rollback()
             except Exception: pass
 
-        if _min_hold_ok:
+        # [2026-08-24 long_trend_v2 全接管] V2 长线仓唯一退出 = manage_long_position
+        # 的 decide_long（结构破坏/周线 Chandelier/极端回撤60-80%/30d no_progress/
+        # 结构目标减半）。本函数内所有短中线口径的止盈/保本/追踪/回撤保护一律跳过，
+        # 只保留 _enforce_max_hold_timeout 的 SL/TP(failsafe)/liq 硬层。
+        _v2_long_managed = False
+        try:
+            from backend.services.long_trend_v2 import long_v2_enabled as _lv2_enabled_fn
+            _v2_long_managed = bool(_lv2_enabled_fn()) and (
+                str(_pos_nature or "").lower() in ("trend_follow", "position")
+                or str(_pos_tier or "").lower() == "long"
+            )
+        except Exception:
+            pass
+
+        if _min_hold_ok and not _v2_long_managed:
             result = manager.get_protection_action(
                 entry=float(entry),
                 current=float(current_price),
@@ -2837,7 +2851,7 @@ class PaperTradingEngine:
                 tier=_pos_tier,
             )
         else:
-            # 最短持仓未达标 → 跳过保护动作，仅保留爆仓/SL/TP
+            # 最短持仓未达标 或 V2 长线仓 → 跳过保护动作，仅保留爆仓/SL/TP
             result = None
 
         # ══════════════════════════════════════════════════════════════
@@ -2852,20 +2866,25 @@ class PaperTradingEngine:
         #   L3 (full_close):   翻转为亏损，全平止损
         # ══════════════════════════════════════════════════════════════
         try:
-            from backend.services.profit_drawdown_guard import get_profit_drawdown_guard
-            _dd_guard = get_profit_drawdown_guard()
-            _dd_action = _dd_guard.evaluate(
-                symbol=pos.symbol,
-                side=pos.side,
-                nature=_nature,
-                entry_price=float(entry),
-                current_price=float(current_price),
-                peak_profit=peak,
-                current_upnl=current_upnl,
-                current_sl=float(pos.sl_price) if pos.sl_price else None,
-                position_size=float(pos.size),
-                tier=_pos_tier,
-            )
+            if _v2_long_managed:
+                # [2026-08-24 long_trend_v2] V2 长线仓跳过 D6 盈利回撤保护（中短线口径）；
+                # 极端回撤 60%减半/80%全平由 manage_long_position 的 decide_long 兜底。
+                _dd_action = None
+            else:
+                from backend.services.profit_drawdown_guard import get_profit_drawdown_guard
+                _dd_guard = get_profit_drawdown_guard()
+                _dd_action = _dd_guard.evaluate(
+                    symbol=pos.symbol,
+                    side=pos.side,
+                    nature=_nature,
+                    entry_price=float(entry),
+                    current_price=float(current_price),
+                    peak_profit=peak,
+                    current_upnl=current_upnl,
+                    current_sl=float(pos.sl_price) if pos.sl_price else None,
+                    position_size=float(pos.size),
+                    tier=_pos_tier,
+                )
             if _dd_action:
                 _dd_type = _dd_action["type"]
                 # 深挖第 3 轮 (2026-05-08)：盈利回撤保护动作统一落盘
@@ -3067,7 +3086,10 @@ class PaperTradingEngine:
                 return True
 
         # ── TP 直接检查 ──
-        if pos.tp_price:
+        # [2026-08-24 long_trend_v2] V2 长线仓跳过本层固定 TP 关闭（让利润奔跑）：
+        # 合成 TP 仅作为 Layer-0 failsafe 由 _enforce_max_hold_timeout 兜底，
+        # 正常止盈 = decide_long 的结构目标减半 + Chandelier 追踪。
+        if pos.tp_price and not _v2_long_managed:
             hit_tp = (pos.side == "long" and current_price >= pos.tp_price) or \
                      (pos.side == "short" and current_price <= pos.tp_price)
             if hit_tp:
@@ -3082,12 +3104,14 @@ class PaperTradingEngine:
                 return True
 
         # ── DynamicStopManager 运行时追踪止损调整（按 tier 分化 ATR 倍数） ──
+        # [2026-08-24 long_trend_v2] V2 长线仓跳过 DSM（4h/短周期 ATR 追踪会震出周线趋势），
+        # 追踪只认 decide_long 的周线 Chandelier 上移。
         try:
             try:
                 from backend.config.settings import RISK_USE_NATURE_EXIT_ORCHESTRATOR as _use_peo
             except Exception:
                 _use_peo = False
-            if not _use_peo:
+            if not _use_peo and not _v2_long_managed:
                 from backend.services.adaptive_executor.dynamic_sl_tp import get_stop_manager
                 dsm = get_stop_manager()
                 pid_str = str(pos_id)
@@ -3158,7 +3182,9 @@ class PaperTradingEngine:
         except Exception:
             _v2_unified_on, _tp_cap = True, 0.80
 
-        if _v2_unified_on:
+        if _v2_unified_on and not _v2_long_managed:
+            # [2026-08-24 long_trend_v2] V2 长线仓跳过统一分段止盈/保本/硬软回撤/追踪
+            # （中短线口径；设计 V2 §4.3.3-4.3.5 废除长线的 50% 进度推保本与分档 TP）。
             # [2026-08-22 M0-10] stale-decision 防护：profit_manager/DSM 的 result
             # 在 tick 开头基于旧尺寸/状态计算，而统一分段止盈可能在本 tick 已减仓/平仓；
             # 尺寸变化后继续应用旧 result 会造成同 tick 双重减仓。此处先记尺寸，

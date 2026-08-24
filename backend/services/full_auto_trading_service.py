@@ -3914,6 +3914,35 @@ class FullAutoTradingService:
                         _pyr_ratio = float(_v2d.get("ratio") or 0.25)
                         _pyr_qty = float(pos.get("size") or 0) * _pyr_ratio
                         if _pyr_qty > 0:
+                            # [2026-08-24 敞口封顶] V2 金字塔/补足加仓同样受单币名义上限约束
+                            # （与 paper_execution 开仓检查同口径：同币 mid+long 合计名义 ≤ 权益×cap）。
+                            try:
+                                from backend.config.settings import MIDLONG_SYMBOL_EXPOSURE_CAP_PCT
+                                _cap_pct = float(MIDLONG_SYMBOL_EXPOSURE_CAP_PCT or 0)
+                                if _cap_pct > 0:
+                                    from backend.database.models import PaperBalance
+                                    _bal_row = db.query(PaperBalance).filter(
+                                        PaperBalance.account_id == int(acct_id)
+                                    ).first()
+                                    _eq = float(_bal_row.total_equity) if _bal_row else 0.0
+                                    if _eq > 0:
+                                        _cur_n = 0.0
+                                        for _pp in positions:
+                                            if (_pp.get("symbol") or "").upper() == sym                                                     and _pp.get("status") == "open":
+                                                try:
+                                                    _cur_n += float(_pp.get("entry_price") or 0)                                                         * float(_pp.get("size") or 0)
+                                                except Exception:
+                                                    pass
+                                        _add_n = float(pos.get("entry_price") or 0) * _pyr_qty
+                                        if _cur_n + _add_n > _eq * _cap_pct:
+                                            logger.warning(
+                                                "[MidLongExposureCap] SKIP V2加仓 %s: 名义 %.1f "
+                                                "> 权益 %.1f×%.0f%%",
+                                                sym, _cur_n + _add_n, _eq, _cap_pct * 100,
+                                            )
+                                            continue
+                            except Exception as _cap_e:
+                                logger.debug("[MidLongExposureCap] 加仓检查跳过: %s", _cap_e)
                             paper_engine.place_order(
                                 db, acct_id, sym, "buy",
                                 quantity=_pyr_qty,
