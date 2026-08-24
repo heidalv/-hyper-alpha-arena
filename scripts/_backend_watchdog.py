@@ -17,16 +17,27 @@ import urllib.request
 
 ROOT = r"D:\001Alpha\Hyper-Alpha-Arena"
 PY = os.path.join(ROOT, "backend", ".venv", "Scripts", "python.exe")
-BREAKAWAY = 0x00000008 | 0x00000200 | 0x00000080  # BREAKAWAY | NEW_GROUP | NO_WINDOW
+BREAKAWAY = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | CREATE_NO_WINDOW（不弹黑框）
 
-_logf = open(os.path.join(ROOT, "logs", "backend_watchdog.log"), "a", encoding="utf-8", buffering=1)
+_logf = None
+try:
+    _logf = open(os.path.join(ROOT, "logs", "backend_watchdog.log"), "a", encoding="utf-8", buffering=1)
+except Exception as _log_err:
+    # [2026-08-24 M0-H3] DSH 平台以沙箱 ACL 拉起本脚本时，对 logs/ 的写入可能被
+    # 拒绝（PermissionError → 脚本秒死 → 后端永远无人拉起）。日志失败不致命：
+    # 退化为 stdout-only（重定向由拉起方处理），watchdog 功能照常。
+    print(f"[watchdog] 日志文件打开失败(退化为stdout): {_log_err}", flush=True)
 
 
 def log(msg: str) -> None:
     line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} [watchdog] {msg}"
     print(line, flush=True)
-    _logf.write(line + "\n")
-    _logf.flush()
+    if _logf is not None:
+        try:
+            _logf.write(line + "\n")
+            _logf.flush()
+        except Exception:
+            pass
 
 
 def healthy() -> bool:
@@ -61,7 +72,7 @@ def spawn_backend() -> None:
 
 
 def main() -> None:
-    log("watchdog started")
+    log("watchdog started (v2: 不杀端口、60s 判定，与 DSH 平台监管共存)")
     fail_streak = 0
     last_spawn = 0.0
     while True:
@@ -73,28 +84,32 @@ def main() -> None:
         else:
             fail_streak += 1
             log(f"backend down (streak={fail_streak})")
-            if fail_streak >= 2 and time.time() - last_spawn > 60:
-                # 清理可能残留的 8000 占用者
+            # [2026-08-23 双守护互杀修复] 连续 4 次失败（60s）才动作，且
+            # **绝不 kill 8000 的 LISTEN 进程**——那可能是 DSH 平台自己刚拉起的
+            # backend；互杀是 90 秒重启死循环+黑框的根因。仅在端口确实无 LISTEN
+            # 时 spawn（60 秒冷却防重复）。
+            if fail_streak >= 4 and time.time() - last_spawn > 60:
+                import socket as _sk
+                port_busy = False
                 try:
-                    import psutil
-                    for conn in psutil.net_connections(kind="tcp"):
-                        if conn.laddr and conn.laddr.port == 8000 and conn.status == "LISTEN":
-                            try:
-                                psutil.Process(conn.pid).kill()
-                                log(f"killed stale pid={conn.pid}")
-                            except Exception as e:
-                                log(f"kill {conn.pid} err: {e}")
-                except Exception:
-                    pass
-                time.sleep(3)
-                spawn_backend()
-                last_spawn = time.time()
-                # 给启动留 60s 宽限
-                for _ in range(20):
-                    time.sleep(3)
-                    if healthy():
-                        break
-                fail_streak = 0
+                    _s = _sk.socket()
+                    _s.settimeout(3)
+                    _s.connect(("127.0.0.1", 8000))
+                    _s.close()
+                    port_busy = True
+                except OSError:
+                    port_busy = False
+                if port_busy:
+                    log("端口有进程但 health 失败——交给 DSH 平台处理，本 watchdog 不杀")
+                    fail_streak = 0
+                else:
+                    spawn_backend()
+                    last_spawn = time.time()
+                    for _ in range(20):
+                        time.sleep(3)
+                        if healthy():
+                            break
+                    fail_streak = 0
         time.sleep(15)
 
 
