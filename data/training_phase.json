@@ -149,13 +149,13 @@
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_1bdb6c": 51,
-    "tpl_mid_reversion_ee142d": 51,
-    "tpl_mid_reversion_290af6": 51,
-    "gen_mean_reversion_multi_mid_ranging_313": 51,
-    "tpl_pro_075b93de_926c4c": 51,
-    "gen_swing_alt_high_beta_mid_v1_334": 51,
-    "gen_swing_eth_sol_mid_v2_322": 51,
+    "tpl_mid_reversion_1bdb6c": 52,
+    "tpl_mid_reversion_ee142d": 52,
+    "tpl_mid_reversion_290af6": 52,
+    "gen_mean_reversion_multi_mid_ranging_313": 52,
+    "tpl_pro_075b93de_926c4c": 52,
+    "gen_swing_alt_high_beta_mid_v1_334": 52,
+    "gen_swing_eth_sol_mid_v2_322": 52,
     "tpl_mid_range_89e53b": 21
   },
   "live_cooldown_until": {},

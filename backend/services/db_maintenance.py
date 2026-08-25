@@ -290,6 +290,37 @@ def run_db_maintenance():
                 total_deleted += result.rowcount
                 logger.info(f"[Maintenance] 清理策略日志: {result.rowcount:,} 行")
 
+            # 7. [2026-08-25 垃圾数据治理] 高增长事件表（实测 decision_snapshots 曾达
+            # 4.4GB/49万行、factor_performance_logs 84万行）。分批删除防长锁。
+            _analytics_retention = [
+                ("decision_snapshots", "timestamp", 7),
+                ("ai_decision_logs", "created_at", 14),
+                ("factor_exposure_snapshots", "ts", 14),
+                ("factor_performance_logs", "recorded_at", 30),
+            ]
+            for _tbl, _tscol, _days in _analytics_retention:
+                try:
+                    _cut = datetime.fromtimestamp(now_ts - _days * 86400).strftime("%Y-%m-%d %H:%M:%S")
+                    _tbl_deleted = 0
+                    while True:
+                        _res = analytics_db.execute(
+                            text(
+                                f"DELETE FROM {_tbl} WHERE id IN "
+                                f"(SELECT id FROM {_tbl} WHERE {_tscol} < :cut ORDER BY id LIMIT 5000)"
+                            ),
+                            {"cut": _cut},
+                        )
+                        _n = _res.rowcount or 0
+                        _tbl_deleted += _n
+                        if _n == 0:
+                            break
+                    if _tbl_deleted > 0:
+                        total_deleted += _tbl_deleted
+                        logger.info(f"[Maintenance] 清理{_tbl}: {_tbl_deleted:,} 行")
+                except Exception as _an_err:
+                    logger.warning(f"[Maintenance] 清理{_tbl}失败: {_an_err}")
+                    analytics_db.rollback()
+
             analytics_db.commit()
         except Exception as e:
             analytics_db.rollback()
