@@ -1411,6 +1411,13 @@ def register_evolution_tasks():
                 if _s.strip()
             ]
             _evo_minutes = {"1m": 10, "15m": 20, "5m": 0, "4h": 30}
+            # [2026-08-25 挂机根治] 与 main.py 的 4h/5m/15m cron 对齐：同样走
+            # make_subprocess_task——FACTOR_EVO_SUBPROCESS=1 时出进程（独立 GIL/DB/
+            # CUDA，不拖累 /api/health），0 时回退进程内原函数。
+            try:
+                from backend.services.evolution.evo_subprocess import make_subprocess_task as _mst
+            except Exception:
+                _mst = None
             for _per in _scalp_periods:
                 def _run_scalp_evo(_per=_per):
                     try:
@@ -1419,7 +1426,7 @@ def register_evolution_tasks():
                         logger.warning("[EvoScheduler] 短线 %s 每日进化失败: %s", _per, _e)
                         return {"error": str(_e)[:150]}
                 task_scheduler.add_cron_task(
-                    task_func=_run_scalp_evo,
+                    task_func=_mst(_per, _run_scalp_evo) if _mst is not None else _run_scalp_evo,
                     task_id=f"factor_evolution_scalp_{_per}_daily_evo",
                     hour=4, minute=_evo_minutes.get(_per, 15),
                     max_instances=1,
