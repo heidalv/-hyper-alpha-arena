@@ -632,7 +632,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         ]
                     except Exception:
                         pass
-                    # P0-4A：meta 影子概率（usable 与否都记，决策仍不读）
+                    # P0-4A：meta 概率（影子 + 仲裁同源，v3 含 K线趋势特征）
                     try:
                         from backend.services.scalp_meta_trainer import predict_win_prob
                         _meta_feats = {
@@ -641,24 +641,26 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             "symbol": str(sym or ""),
                             **{k: v for k, v in _snap.items() if not isinstance(v, (dict, list))},
                         }
-                        _mp = predict_win_prob(_meta_feats, require_usable=False)
-                        if _mp is not None:
-                            _snap["meta_p_win"] = round(float(_mp), 6)
-                        # 阶段1修正：仲裁输入与回放证据同源（回放的 meta_p_win 全部由
-                        # require_usable=False 的影子模型产出，315k 笔分桶 wr 单调、
-                        # pwin>=0.55 桶净 +5.09）。usable 门控（top30% 过滤仍为负即否）
-                        # 与 0.55 高桶不匹配，故不以其为准；模型文件缺失仍 hold（见 arbiter）。
-                        # v3: 合并 15m K线趋势特征(入场时刻可得,零 DB 开销;
-                        # 训练同源: scalp_meta_trainer.compute_kline_feats)
+                        # v3: 15m K线趋势特征。优先 _md(实时);数据中心判过期返回空时
+                        # 直查 alpha_market DB 兜底(120s 缓存,与训练同源)。
                         _kline_feats = {}
                         try:
                             from backend.services.scalp_meta_trainer import compute_kline_feats
                             _kline_feats = compute_kline_feats(_md.get("klines_15m"))
                         except Exception:
                             pass
-                        _meta_pwin = predict_win_prob(
+                        if not _kline_feats:
+                            try:
+                                from backend.services.scalp_meta_trainer import kline_feats_from_db_cached
+                                _kline_feats = kline_feats_from_db_cached(sym)
+                            except Exception:
+                                pass
+                        _mp = predict_win_prob(
                             _meta_feats, require_usable=False, kline_feats=_kline_feats,
                         )
+                        if _mp is not None:
+                            _snap["meta_p_win"] = round(float(_mp), 6)
+                        _meta_pwin = _mp
                     except Exception:
                         pass
                     # [2026-08-22 M1-8] 信号日志移到门槛之后：原来在信号评估段就写
@@ -706,8 +708,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _scalp_factor["pwin_arbiter"] = _arb.to_dict()
                     if not _arb.allowed:
                         logger.info(
-                            "[ScalpRouter独立] %s pwin仲裁%s: %s",
-                            sym, _arb.action, _arb.reason,
+                            "[ScalpRouter独立] %s pwin仲裁%s: %s (pwin=%s)",
+                            sym, _arb.action, _arb.reason, _arb.tags.get("pwin"),
                         )
                         _bump_block("pwin_arbiter")
                         continue

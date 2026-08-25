@@ -193,6 +193,44 @@ def _feat_float(feats: Dict[str, Any], keys: Tuple[str, ...]) -> Optional[float]
     return None
 
 
+_KLINE_DB_CACHE: Dict[str, Any] = {}
+
+
+def kline_feats_from_db_cached(symbol: str, ttl: int = 120) -> Dict[str, float]:
+    """实盘兜底: market_data 无 15m K线(数据中心判过期返回空)时直查
+    alpha_market.crypto_klines。120s 缓存(15m bar 粒度足够),避免热路径逐笔查库。
+    与训练同源: 同一张表、同样的多交易所合并口径。"""
+    try:
+        import time as _time
+        key = str(symbol).upper()
+        ent = _KLINE_DB_CACHE.get(key)
+        if ent and (_time.time() - ent[0]) < ttl:
+            return ent[1]
+        import psycopg
+        import pandas as pd
+        with psycopg.connect(
+            "postgresql://laobao:alpha_pass@localhost:5432/alpha_market"
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT timestamp, open_price, high_price, low_price, close_price, volume "
+                    "FROM crypto_klines WHERE period='15m' AND symbol=%s "
+                    "ORDER BY timestamp DESC LIMIT 80", (key,))
+                rows = cur.fetchall()
+        if not rows:
+            _KLINE_DB_CACHE[key] = (_time.time(), {})
+            return {}
+        df = pd.DataFrame(
+            rows, columns=["ts", "open", "high", "low", "close", "volume"]
+        ).iloc[::-1].reset_index(drop=True)
+        feats = compute_kline_feats(df)
+        _KLINE_DB_CACHE[key] = (_time.time(), feats)
+        return feats
+    except Exception as e:
+        logger.debug(f"[ScalpMeta] kline DB 兜底失败: {e}")
+        return {}
+
+
 def compute_kline_feats(klines_df: Any) -> Dict[str, float]:
     """从 15m K线 DataFrame(需 high/low/close 列,≥40 根)计算趋势特征。
 
