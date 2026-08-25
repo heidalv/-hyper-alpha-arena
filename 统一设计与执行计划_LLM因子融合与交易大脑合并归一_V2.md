@@ -335,3 +335,7 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **复盘官最小实现（✅）**：新模块 `backend/services/mlto/trade_review_officer.py`——在事实归因之上做认知归因（运气vs技能/原因标签/反事实/教训），JSON 输出经本地 14B（usage=journal 复用 84 绑定）；钩子挂在 unified_learning.process_outcome 的 MLTO 块之后（静默失败）；预算 scope review=50/天 + 300s/币限频；落库 brain_episodes（归因 JSON）+ brain_lessons（教训文本，U2 表已建）。验证：py_compile+import ✓。生效需下次重启（无副作用）。
 - **U3-2b 委员会影子（⏳ 下轮）**：研判会（独立观点+红队+决策卡只写日志）将以复盘官/影子 thesis 的产出为输入实现。
 - 观察项更新：ThesisShadow 持续产出中（每轮 3 个、4h 限频）；brain_attribution/复盘官写穿等首笔平仓验证。
+
+### U3-2b 落地记录（2026-08-25，本轮）
+- **委员会影子研判会（✅）**：新模块 `backend/services/mlto/committee_shadow.py`——单模型红队（bull 最强论点→bear 最强论点→裁决 JSON：共识方向/置信度/red_flag/决策卡{预算倾向,倾斜,最大未知}）；挂在 thesis shadow 成功落库后（同 4h 节奏）；预算 scope committee=20/天；落库 brain_theses(source=committee_shadow，含当前 thesis_id 关联)；**只写日志与 brain 表，绝不写控制面**。验证：py_compile+import ✓，生效需下次重启。
+- 校准对拍基础数据自此积累：决策卡方向 vs thesis 方向 vs 事后因子路由方向，供"各 agent 校准度显著优于随机才转正"验收。

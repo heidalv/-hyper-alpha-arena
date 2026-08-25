@@ -257,6 +257,17 @@ def run_thesis_shadow(
             "[ThesisShadow] %s/%s: %s conv=%d recommend=%s (shadow, 不落单)",
             sym_u, tier, direction, conviction, recommend_open,
         )
+        # [U3-2b 2026-08-25] 委员会影子研判会（bull/bear 红队 + 决策卡只写日志）
+        try:
+            from backend.services.mlto.committee_shadow import run_committee
+            run_committee(
+                session_id=session_id, symbol=sym_u, tier=tier,
+                market_summary=market_summary, analyst_reports=analyst_reports,
+                thesis_direction=direction, thesis_conviction=conviction,
+                thesis_id=(getattr(thesis, "thesis_id", "") if thesis is not None else ""),
+            )
+        except Exception as _cm_err:
+            logger.debug("[CommitteeShadow] 钩子异常(已吞): %s", _cm_err)
         return result
     except Exception as e:  # noqa: BLE001 — 影子层任何异常都不许外溢
         logger.warning("[ThesisShadow] %s 异常(已吞): %s", symbol, e)
