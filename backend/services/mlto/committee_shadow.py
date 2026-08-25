@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 def _enabled() -> bool:
-    return os.getenv("COMMITTEE_SHADOW_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+    return os.getenv("COMMITTEE_CONTROL_ENABLED",
+                     os.getenv("COMMITTEE_SHADOW_ENABLED", "true")).strip().lower() in ("1", "true", "yes", "on")
 
 
 def _build_prompt(symbol: str, tier: str, regime_ctx: str, factor_ctx: str,

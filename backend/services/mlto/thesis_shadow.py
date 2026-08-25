@@ -28,10 +28,14 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_ENABLED = lambda: os.getenv("THESIS_SHADOW_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
-_MIN_INTERVAL = lambda: float(os.getenv("THESIS_SHADOW_MIN_INTERVAL_S", "14400") or 14400)
-_MAX_PER_DAY = lambda: int(os.getenv("THESIS_SHADOW_MAX_PER_DAY", "200") or 200)
-_MAX_PER_CYCLE = lambda: int(os.getenv("THESIS_SHADOW_MAX_PER_CYCLE", "3") or 3)
+def _env(new: str, old: str, default: str) -> str:
+    """新名优先、旧名兼容（2026-08-25 影子清理：thesis 已转正为方向门）。"""
+    return os.getenv(new, os.getenv(old, default))
+
+_ENABLED = lambda: _env("THESIS_LLM_ENABLED", "THESIS_SHADOW_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+_MIN_INTERVAL = lambda: float(_env("THESIS_LLM_MIN_INTERVAL_S", "THESIS_SHADOW_MIN_INTERVAL_S", "14400") or 14400)
+_MAX_PER_DAY = lambda: int(_env("THESIS_LLM_MAX_PER_DAY", "THESIS_SHADOW_MAX_PER_DAY", "200") or 200)
+_MAX_PER_CYCLE = lambda: int(_env("THESIS_LLM_MAX_PER_CYCLE", "THESIS_SHADOW_MAX_PER_CYCLE", "3") or 3)
 
 _lock = threading.Lock()
 _last_run: Dict[str, float] = {}      # "SYMBOL:tier" -> last ts
@@ -142,7 +146,7 @@ def run_thesis_shadow(
     if not _ENABLED():
         return None
     if str(mode or "paper").strip().lower() != "paper":
-        if not os.getenv("THESIS_SHADOW_ON_LIVE", "false").strip().lower() in ("1", "true", "yes", "on"):
+        if not _env("THESIS_LLM_ON_LIVE", "THESIS_SHADOW_ON_LIVE", "false").strip().lower() in ("1", "true", "yes", "on"):
             return None
     sym_u = str(symbol or "").upper()
     if not sym_u or not session_id:

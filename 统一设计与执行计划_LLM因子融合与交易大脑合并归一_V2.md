@@ -368,3 +368,15 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - U3-1b AI 复审（SCALP_AI_REVERSE_DISABLED=true 保持）：正反证据冲突，等 veto tiered 一周对拍数据再定；
 - E21 RR 按打法分层（MR 0.75 / trend 1.2）未实现，FUSION_RR_FLOOR=0.9 保持；
 - ROAS 完整问责（decision 绑定回填）待复盘官数据积累后接入 llm_budget_governor。
+
+
+## 附录 D：影子遗留清理专项（2026-08-25，用户指示）
+| 机制 | 处置 | 说明 |
+|---|---|---|
+| THESIS_SHADOW_*（5 项） | **转正+改名**：THESIS_LLM_ENABLED/MIN_INTERVAL/MAX_PER_DAY/MAX_PER_CYCLE/ON_LIVE（旧名兼容读取） | thesis 已是真实方向门（mid 冲突否决/long standdown，conviction≥60） |
+| COMMITTEE_SHADOW_ENABLED | **转正+改名**：COMMITTEE_CONTROL_ENABLED（旧名兼容） | 决策卡 budget_hint/tilt 已进真实控制面（pause 拦开仓/减半/加仓） |
+| DRL_SHADOW_MODE=true | **废弃置 false** | DRL 无训练模型长期下线，影子无观察对象 |
+| RISK_P3_HARDFAT_SHADOW=false | 保留（已 false） | hardfact 底线并行是风险兜底开关，非空转 A/B |
+| source_attribution 信用分 shadow / breaker_shadow | 保留（真实生效） | 来源信用 0/1 直接拒单、出场通道熔断——非 A/B 观察 |
+| opencode_shadow_worker / rl_core/shadow / drift_watcher 等 | 保留（独立域） | 属 OpenCode/RL 子系统，未发现"跑几天再执行"空转链 |
+**清理原则（此后所有新机制）**：默认直连真实控制面（fail-open/可回滚开关），需要观察期时必须带**到期自动转正或自动废弃**的时间戳，杜绝"不了了之"。
