@@ -344,3 +344,27 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **U5 仓位官折扣层（✅ 计算层）**：新模块 `backend/services/mlto/sizing_overlay.py`——V2 §7 公式纯函数实现（final = kelly × 共识折扣 × 信用分 × regime适配 × 相关性惩罚 × 波动率缩放 × 委员会hint），7 项单测全绿（test_sizing_overlay.py）。**热路径接线待下一批谨慎接入**（multi_symbol_kelly/midlong tranche/scalp size，开关 SIZING_OVERLAY_ENABLED）。
 - **U6 元学习最小闭环（✅）**：复盘官教训原因 → 研究任务种子（regime_misjudge→regime_recalibration / factor_decay→factor_recheck / execution_slippage→execution_tuning / liquidity→liquidity_guard / discipline→discipline_review），去重后落 brain_research_tasks（pending）——"该学什么"由亏损归因驱动的研究队列自此有真实来源；下一步由调度器消费接 evolution_scheduler 算力。
 - 验证：py_compile ✓；sizing 7 单测 ✓。生效需下次重启（无副作用）。
+
+---
+
+## 附录 C：执行收尾交接（2026-08-25，U0-U6 代码主体完成）
+
+### 交付总览（10 个 commit，分支 fusion-20260823）
+891135a U0 → fc97467/cfaef25/df93b2e U1 → 3fa5a22 U2 → c330469/96b1c51 U3 → 4ffb53f U4 → 79af7d9 U3-2b → 3d28536 U5/U6
+
+### 剩余三项（按顺序执行，均需重启后运行时数据）
+1. **重启加载**：受控重启后 boot_git_hash 应为 3d28536（当前进程为 c330469 之前批次）。重启后验收（日志关键词）：`[ThesisShadow]`、`[CommitteeShadow] 决策卡`、`[ReviewOfficer]`、`[ReviewOfficer] 研究任务种子`、`[LLM2预算]`（超限时）、KlineAnalyst detail `regime=`、`[FusionAttr] thesis 绑定`。
+2. **U5 热路径接线**（审慎，先影子）：消费点 = multi_symbol_kelly 聚合输出、midlong_helpers tranche_margin_pct、scalp size 三处；统一乘 `compute_final_multiplier()`（sizing_overlay.py），开关 SIZING_OVERLAY_ENABLED 默认 false → 影子对拍 1 周后转正。验收：账户周回撤≤5%、MDD/波动率下降。
+3. **U6 调度消费**：brain_research_tasks(pending) → evolution_scheduler 竞价分配算力（与固定调度基线对比完成率/晋升率）；学习 ROI 仪表盘接 llm2_report + 研究任务 ROI 回填。
+
+### 运行时验收指标（重启后 1-4 周滚动）
+- thesis 方向一致率 >55%（1 周 rolling，U1 验收）；LLM 调用 ≤ 旧时代 20%（llm2_report）；
+- 复盘官归因覆盖率 100%（brain_episodes/平仓数）；委员会决策卡与事后方向对拍（校准转正前提）；
+- 短线台阶1：TP 命中≥45%、超时≤25%（当前 9.5%/39.6%，退出结构继续调）；
+- 终局判据：3 个月滚动、成本后、样本外，混合系统 > frozen baseline。
+
+### 已知未修/遗留（诚实清单）
+- U2-1b factor_backtest_scorer 连续口径 fwd_ret close-to-close（改前先影子对拍）；
+- U3-1b AI 复审（SCALP_AI_REVERSE_DISABLED=true 保持）：正反证据冲突，等 veto tiered 一周对拍数据再定；
+- E21 RR 按打法分层（MR 0.75 / trend 1.2）未实现，FUSION_RR_FLOOR=0.9 保持；
+- ROAS 完整问责（decision 绑定回填）待复盘官数据积累后接入 llm_budget_governor。
