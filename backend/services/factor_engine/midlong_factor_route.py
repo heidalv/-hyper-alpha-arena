@@ -351,6 +351,18 @@ def factor_route_open(
     if dec.get("action") not in ("buy", "sell"):
         return dec
 
+    # ── [U2-1 2026-08-25] 资金流一致性门：CVD/Taker 双背离 → hold（fail-open）──
+    try:
+        from backend.services.factor_engine.midlong_flow_gate import mid_flow_consistency_gate
+        _fg_ok, _fg_reason = mid_flow_consistency_gate(sym, dec["action"], market_summary)
+        if not _fg_ok:
+            dec["action"] = "hold"
+            dec["gate"] = f"flow_consistency:{_fg_reason}"
+            logger.info("[FactorRoute] %s 资金流一致性门拦截: %s", sym, _fg_reason)
+            return dec
+    except Exception as _fg_err:
+        logger.debug("[FactorRoute] 资金流门跳过(fail-open): %s", _fg_err)
+
     # ── 融合仲裁（阶段1：FactorRoute × LLM thesis 对齐闸）──
     # 冲突→skip（不冻结）；LLM 无意见/弱反对→因子自决（fail-open）。
     try:

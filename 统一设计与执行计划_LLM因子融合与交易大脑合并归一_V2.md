@@ -309,3 +309,13 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **U1-3 LLM2 每日预算治理**：新模块 `backend/services/llm_budget_governor.py`（scope 级硬上限：kline 400/thesis 200/scalp_confirm 100/master 60/other 150，全局 800；超限当日暂停该 scope=自动降级规则；状态落盘 data/llm2_budget_state.json 重启存活，UTC 日期自动清零）。钩子接入 3 个调用点（KlineAnalyst/thesis_shadow/scalp_llm_confirm，try/except fail-open）。报表脚本 scripts/_llm2_budget_report.py。冒烟实测：cap=3 时第 4 次拒绝+paused ✓。
 - 验证：py_compile 全部通过；解析冒烟 84/85 双段正确。生效需后端重启。
 - 遗留：ROAS 完整问责（decision 绑定回填 + 滚动报表 + 按 ROAS 自动降频）待 U4 复盘官落地后接入本模块。
+
+### U2 落地记录（2026-08-25，本轮）
+- **U2-2 大脑 M0 数据层（✅）**：
+  1. 迁移 `backend/database/migrations/add_brain_m0_tables.py`（幂等）：brain_theses/brain_episodes/brain_attribution/brain_lessons/brain_agent_calibration/brain_research_tasks 六表已建；
+  2. strategy_trades 新增可空列 `thesis_id` + `decision_source`（information_schema 守卫幂等）；
+  3. source_attribution.record_close 写穿 brain_attribution（归因事实 JSON→DB 收编第一步，失败静默不影响主链路）。
+- **U2-1a 中线资金流一致性门（✅）**：新模块 `backend/services/factor_engine/midlong_flow_gate.py`——CVD/Taker **双背离**才拦（fail-open，证据不齐绝不拦）；数据源=market_summary 内嵌 flow 优先，60s TTL 回退 capture_flow_indicators_for_symbol；接线 factor_route_open（融合仲裁前）；开关 FACTOR_ROUTE_FLOW_GATE。修复《混合决策》L0"mid 只吃 OHLCV"缺口。
+- **U2-1b fwd_ret 口径复核（⏳ 未动）**：factor_backtest_scorer 连续口径 close-to-close 残留，涉及因子晋升尺子，风险较高——下轮单独处理（先影子对拍）。
+- **U2-3 台阶1 追踪（数据基线）**：8/24 日报（8/25 生成）：已平 1910 笔、WR 41.15%（目标≥42%）、净 -84.93、TP 命中 9.5%（目标≥45%）、SL 11.8%（✓≤20%）、超时 39.6%（目标≤25%）、breakeven_tp 110 笔 +96.7。**结论：SL 与胜率接近达标，TP 命中与超时仍是主缺口——退出结构继续调（U2-1b 联动：超时通道已被 breaker shadow）**。
+- 验证：py_compile 全过；建表+新列已实库验证（information_schema 查询确认）。

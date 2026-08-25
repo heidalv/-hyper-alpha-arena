@@ -36,6 +36,32 @@ def normalize_reason(reason: str) -> str:
     return r
 
 
+def _record_attribution_row(*, position_id: int, src: str, nature: str, symbol: str,
+                            pnl: float, fee: float, net: float, win: bool,
+                            close_reason: str, tier: str) -> None:
+    """[U2-2] 归因事实行写入 brain_attribution（幂等表；异常静默）。"""
+    from datetime import datetime as _dt, timezone as _tz
+    from backend.database.connection import SessionLocal
+    db = SessionLocal()
+    try:
+        from sqlalchemy import text
+        db.execute(text(
+            "INSERT INTO brain_attribution "
+            "(position_id, src, nature, symbol, pnl, fee, net, win, close_reason, tier, created_at) "
+            "VALUES (:pid, :src, :nat, :sym, :pnl, :fee, :net, :win, :reason, :tier, :ts)"
+        ), {
+            "pid": position_id, "src": (src or "unknown")[:32], "nat": (nature or "")[:32],
+            "sym": (symbol or "")[:32], "pnl": pnl, "fee": fee, "net": net,
+            "win": bool(win), "reason": close_reason, "tier": tier,
+            "ts": _dt.now(_tz.utc),
+        })
+        db.commit()
+    except Exception as e:
+        logger.debug("[SourceAttr] DB 写穿跳过: %s", e)
+    finally:
+        db.close()
+
+
 class SourceAttribution:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -156,6 +182,15 @@ class SourceAttribution:
                       "shadow": bool(self._shadow.get(key)), "bkey": bkey,
                       "breaker_shadow": bool(self._breaker_shadow.get(bkey))}
         self._maybe_save()
+        # [U2-2 2026-08-25] M0 写穿：归因事实落 DB（brain_attribution；失败不影响 JSON 主链路）
+        try:
+            _record_attribution_row(
+                position_id=int(position_id), src=src, nature=nat, symbol=sym,
+                pnl=float(pnl or 0), fee=float(fee or 0), net=net, win=win,
+                close_reason=(close_reason or "")[:120], tier=(tier or "")[:16],
+            )
+        except Exception:
+            pass
         return result
 
     # ── 查询接口 ──
