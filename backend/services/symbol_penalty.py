@@ -108,12 +108,18 @@ def flag_symbol_risk_event(symbol: str, detail: Optional[Dict[str, Any]] = None)
     s = syms.setdefault((symbol or "").upper(), {})
     s.setdefault("penalty", 1.0)
     s.setdefault("watchlisted", False)
-    s["risk_ban_until_ts"] = time.time() + 86400
+    import os as _os
+    try:
+        _ban_hours = float(_os.getenv("SYMBOL_RISK_BAN_HOURS", "6") or 6)
+    except ValueError:
+        _ban_hours = 6.0
+    _ban_hours = max(0.5, min(168.0, _ban_hours))
+    s["risk_ban_until_ts"] = time.time() + _ban_hours * 3600
     s.setdefault("risk_events", []).append({"ts": time.time(), "detail": detail or {}})
     s["risk_events"] = s["risk_events"][-20:]
     state["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     _save(state)
-    logger.warning("[SymbolPenalty] 风控事件：%s 单笔已实现亏损超线 → 24h 禁开", symbol)
+    logger.warning("[SymbolPenalty] 风控事件：%s 单笔已实现亏损超线 → %.0fh 禁开", symbol, _ban_hours)
     return dict(s)
 
 

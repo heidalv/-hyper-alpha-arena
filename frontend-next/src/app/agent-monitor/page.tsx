@@ -614,7 +614,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
           )}
         </div>
         <div className="text-xs text-muted-foreground">
-          长线入场 = L1=up 且数据充足；退出 = 结构破坏 + Chandelier；全程无 LLM。中线由因子路由驱动。
+          长线入场 = L1=up 且数据充足；退出 = 结构破坏 + Chandelier。LLM thesis 影子观察中（只记录不拦截）。中线由因子路由驱动。
         </div>
       </Card>
     </div>

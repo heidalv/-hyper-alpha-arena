@@ -344,6 +344,10 @@ def maintain_mlto_theses_for_session(
                                     _v2_entry["should_open"] = False
                                     _v2_entry["hold_reason"] = "fusion_risk_ban"
                                 logger.info("[FusionLong] %s 24h 风控禁开（单笔已实现亏损>1.5%%权益）", sym_u)
+                                host.append_event(
+                                    session, "fusion_risk_ban",
+                                    f"⛔ 风控禁开 {sym_u}: 单笔已实现亏损>1.5%%权益（禁开期自动恢复）",
+                                )
                     except Exception as _rb_err_l:
                         logger.debug("[FusionLong] %s 风控禁开检查失败: %s", sym_u, _rb_err_l)
 
