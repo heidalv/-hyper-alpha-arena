@@ -813,8 +813,27 @@ def maintain_mlto_theses_for_session(
                         slot_action = "observe"
                 _thesis_jobs.append((sym_u, slot_action, tier))
 
-        # [2026-08-19 清尸] thesis LLM 提交块已删：当前配置下 _thesis_jobs 恒空
-        # （mid→factor_route / long→long_trend_v2），旧 run_mlto_tick 线程池永不启动。
+        # [U1-2 LLM 2.0, 2026-08-25] thesis shadow 恢复：只写论点、绝不落单。
+        # 旧 thesis LLM 提交块 8/19 清尸后为空；现由 thesis_shadow 以 4h 限频 +
+        # 每日预算消费 _thesis_jobs（零交易副作用，THESIS_SHADOW_ENABLED=false 即回滚）。
+        try:
+            from backend.services.mlto.thesis_shadow import run_shadow_batch
+            _shadow_jobs = list(_thesis_jobs)
+            if os.getenv("THESIS_SHADOW_INCLUDE_LONG", "false").strip().lower() in ("1", "true", "yes", "on"):
+                for _ls in sorted(set(_fixed_symbols or [])):
+                    _shadow_jobs.append((_ls, "shadow", "long"))
+            _shadow_done = run_shadow_batch(
+                session_id=session_id,
+                jobs=_shadow_jobs,
+                market_summary=market_summary,
+                analyst_reports=analyst_reports,
+                mode=_trade_mode,
+                session=session,
+            )
+            if _shadow_done:
+                logger.info("[ThesisShadow] 本轮处理 %d 个", _shadow_done)
+        except Exception as _ts_err:
+            logger.warning("[ThesisShadow] 提交异常: %s", _ts_err)
         _thesis_futs: dict = {}
 
         for (sym_u, tier), (_fut, slot_action, _tier) in _thesis_futs.items():

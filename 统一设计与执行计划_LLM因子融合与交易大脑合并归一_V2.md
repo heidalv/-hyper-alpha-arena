@@ -292,3 +292,13 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
   4. 信号 `data` 暴露新字段供 L2 Regime Governor / L4 仲裁消费；detail 显示 regime+失效条件。
 - **重要发现（修正 U1-1 范围）**：交易链 KlineAnalyst 的 prompt 本就要求严格 JSON（非自由 Markdown——自由文本是前端用户路径 `kline_ai_analysis_service.py`）；本次是**增量补 regime 字段**，非推倒重写。tier=quick 本地 14B 优先 + 每轮 KLINE_LLM_MAX_PER_CYCLE 预算 + 哈希缓存三层成本机制已存在且保持。
 - 验证：py_compile OK、模块 import OK；无 KlineAnalyst 专测文件（git grep 零命中），由运行时日志观察首轮 regime 字段产出。
+
+### U1-2 落地记录（2026-08-25）
+- **thesis shadow 恢复（只写论点、绝不落单）**：
+  1. 新模块 `backend/services/mlto/thesis_shadow.py`：JSON 结构化 thesis（direction/llm_conviction/invalidation/missing_evidence/thesis_summary/recommend_open/should_close），本地 14B 优先（usage=thesis, tier=quick）云端兜底；
+  2. 成本纪律：每(symbol,tier) 4h 限频（THESIS_SHADOW_MIN_INTERVAL_S=14400）+ 每日 200 次硬上限 + 每轮最多 3 个（防阻塞主循环）；
+  3. 落库：thesis_store.get_or_create(db=..) + _persist（**注意：thesis_store 无 save()，8/19 清尸后无提交块——本次在 mlto_cycle.py 空提交块处接线 run_shadow_batch**）；
+  4. 与 FactorRoute 方向冲突仅记日志（双轨对拍原料）；任何异常吞掉不外溢（影子层零交易副作用）；
+  5. 开关：MIDLONG_MID_VIA_MLTO=false→true（仅解锁 _thesis_jobs 收集，无其他引用点）；新增 THESIS_SHADOW_* 5 项（含 THESIS_SHADOW_INCLUDE_LONG=true 让长线 fixed 币种也进影子，绕过 V2 的 long 跳过）。
+- 验证：py_compile + import + 冒烟（ENABLED=false→None；prompt 构建含 JSON 字段）；**生效需下次后端重启**（MIDLONG_MID_VIA_MLTO 非动态门槛）。
+- 消费链预告：thesis 落库后，L4 decide_mid/decide_long 的 thesis 门（U3）与 mlto_signal_weights owm 调权（被 thesis_id 门控 dormant）即可吃真数据。
