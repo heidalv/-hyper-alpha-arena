@@ -330,3 +330,8 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **受控重启完成**：boot=c330469、matches_disk=True（隧道误杀事故后经用户重连远端完成；后端全程在远端操作）。
 - **U1-U3 验收清单**：① ✅ ThesisShadow 活体产出——17:05:09 UNI/mid、17:05:27-35 BTC/ETH/UNI long（每轮 3 个上限生效），落库验证：analytics 库 mlto_thesis 最新 5 行 = shadow 产出（mlto_thesis 属 analytics 库，主库无此表属正常）；② ⏳ KlineAnalyst regime 字段（XPL 流式已跑，待下轮观察解析输出）；③ ✅ LLM2 预算（成功调用不打日志、仅超限告警，设计如此）；④ ⏳ FlashVeto tiered（等 25-29 分信号）；⑤ ⏳ brain_attribution（等平仓写穿）；⑥ ✅ thesis 行按 4h 限频增长。无关异常：ai_trade_journal 日复盘两条 PG 连接中断 Traceback = 重启后旧连接残留，服务自愈重连，非本次改动引入。
 - **U3-2a thesis_id 开仓绑定（✅ 代码完成）**：三处补丁——① midlong_helpers.py 阶段4统一标签点（开仓成功后）读 thesis_store.get 把 thesis_id 挂进 tag_position meta；② source_attribution 新增 tag_meta() 回查；③ unified_learning_service.process_outcome 在 meta.thesis_id 缺失时从归因标签兜底回查 → 学习桥（learning_bridge + mlto_signal_weights owm 调权）在 shadow thesis 产出后即可吃真数据。冒烟 roundtrip 通过；**需下一次重启生效**（本轮后端已运行）。
+
+### U4 落地记录（2026-08-25，本轮）
+- **复盘官最小实现（✅）**：新模块 `backend/services/mlto/trade_review_officer.py`——在事实归因之上做认知归因（运气vs技能/原因标签/反事实/教训），JSON 输出经本地 14B（usage=journal 复用 84 绑定）；钩子挂在 unified_learning.process_outcome 的 MLTO 块之后（静默失败）；预算 scope review=50/天 + 300s/币限频；落库 brain_episodes（归因 JSON）+ brain_lessons（教训文本，U2 表已建）。验证：py_compile+import ✓。生效需下次重启（无副作用）。
+- **U3-2b 委员会影子（⏳ 下轮）**：研判会（独立观点+红队+决策卡只写日志）将以复盘官/影子 thesis 的产出为输入实现。
+- 观察项更新：ThesisShadow 持续产出中（每轮 3 个、4h 限频）；brain_attribution/复盘官写穿等首笔平仓验证。

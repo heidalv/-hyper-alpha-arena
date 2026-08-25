@@ -252,6 +252,13 @@ class UnifiedLearningService:
             except Exception as _mlto_le:
                 logger.debug("[UnifiedLearning] MLTO outcome skip: %s", _mlto_le)
 
+            # [U4 2026-08-25] 复盘官：认知归因+反事实+教训蒸馏（事实归因之上，静默失败）
+            try:
+                from backend.services.mlto.trade_review_officer import review_close
+                review_close(db, outcome)
+            except Exception as _ro_err:
+                logger.debug("[ReviewOfficer] 钩子异常(已吞): %s", _ro_err)
+
             db.commit()
 
             # Fix 7: 短线平仓记录币种熔断追踪（在短线硬闸门生效前提下）

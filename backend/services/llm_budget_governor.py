@@ -33,6 +33,7 @@ DEFAULT_CAPS: Dict[str, int] = {
     "thesis": 200,
     "scalp_confirm": 100,
     "master": 60,
+    "review": 50,
     "other": 150,
 }
 
