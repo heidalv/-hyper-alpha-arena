@@ -100,6 +100,13 @@ def scalp_llm_confirm(
     if not _enabled():
         return {"confirmed": True, "source": "disabled", "reason": "", "elapsed": 0.0}
     try:
+        try:
+            from backend.services.llm_budget_governor import llm2_allow
+            if not llm2_allow("scalp_confirm"):
+                return None
+        except Exception:
+            pass
+
         from backend.services.llm_config_service import (
             get_llm_config_local_first,
             call_llm_api_sync,

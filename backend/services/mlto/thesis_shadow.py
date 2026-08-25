@@ -152,6 +152,13 @@ def run_thesis_shadow(
         return None
 
     try:
+        try:
+            from backend.services.llm_budget_governor import llm2_allow
+            if not llm2_allow("thesis"):
+                return None
+        except Exception:
+            pass
+
         from backend.services.llm_config_service import get_llm_config_local_first, call_llm_api_sync
         llm_config, fallback_cfg = get_llm_config_local_first(
             "thesis", account_id=None, tier="quick",

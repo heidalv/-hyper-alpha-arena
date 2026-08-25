@@ -302,3 +302,10 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
   5. 开关：MIDLONG_MID_VIA_MLTO=false→true（仅解锁 _thesis_jobs 收集，无其他引用点）；新增 THESIS_SHADOW_* 5 项（含 THESIS_SHADOW_INCLUDE_LONG=true 让长线 fixed 币种也进影子，绕过 V2 的 long 跳过）。
 - 验证：py_compile + import + 冒烟（ENABLED=false→None；prompt 构建含 JSON 字段）；**生效需下次后端重启**（MIDLONG_MID_VIA_MLTO 非动态门槛）。
 - 消费链预告：thesis 落库后，L4 decide_mid/decide_long 的 thesis 门（U3）与 mlto_signal_weights owm 调权（被 thesis_id 门控 dormant）即可吃真数据。
+
+### U1-3 + U1-4 落地记录（2026-08-25）
+- **U1-4 84/85 绑定核查【定论】**：`scripts/_check_llm_configs.py` 实锤——id=84(Ollama-Qwen3-14B) 与 id=85(DeepSeek) 的 usage_scope **本就含 scalp_confirm**（B 复查时"0 行"是 RLS 遮蔽误判）。真实缺口=LLM_USAGE_REGISTRY 无该条目（UI 无法分配）→ 已补 `scalp_confirm` 与 `thesis` 两条注册；并为 84/85 的 scope 补 `thesis`（否则 thesis 影子落到云端默认 17）。
+- **E22（新发现并修复）**：`get_llm_config_local_first` 的云端兜底恒断——非默认 ollama 绑定(84)在云端查询同样排第一 → cloud==local → fallback=None。修复：`get_llm_config_for_usage` 增 `exclude_provider` 参数，云端查询排除 ollama。实测修复后：scalp_confirm/thesis/kline_analysis 全部 local=84 + cloud=85（本地失败可自动降级云端）。
+- **U1-3 LLM2 每日预算治理**：新模块 `backend/services/llm_budget_governor.py`（scope 级硬上限：kline 400/thesis 200/scalp_confirm 100/master 60/other 150，全局 800；超限当日暂停该 scope=自动降级规则；状态落盘 data/llm2_budget_state.json 重启存活，UTC 日期自动清零）。钩子接入 3 个调用点（KlineAnalyst/thesis_shadow/scalp_llm_confirm，try/except fail-open）。报表脚本 scripts/_llm2_budget_report.py。冒烟实测：cap=3 时第 4 次拒绝+paused ✓。
+- 验证：py_compile 全部通过；解析冒烟 84/85 双段正确。生效需后端重启。
+- 遗留：ROAS 完整问责（decision 绑定回填 + 滚动报表 + 按 ROAS 自动降频）待 U4 复盘官落地后接入本模块。

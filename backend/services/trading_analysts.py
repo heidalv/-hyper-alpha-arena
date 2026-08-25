@@ -1410,6 +1410,15 @@ class KlineAnalyst:
         except Exception:
             pass
 
+        # [U1-3 LLM 2.0] 每日预算（scope 级硬上限；超限当日暂停该 scope）
+        try:
+            from backend.services.llm_budget_governor import llm2_allow
+            if not llm2_allow("kline_analysis"):
+                logger.warning("[LLM2预算] kline_analysis 当日额度耗尽, %s 跳过", symbol)
+                return None
+        except Exception:
+            pass
+
         # [2026-08-23 本地LLM最大化] kline 分析是最大批量调用点（~800 次/天），
         # 本地 14B 优先 + 云端自动降级（fallback 传给 call_llm_api_sync）。
         from backend.services.llm_config_service import get_llm_config_local_first

@@ -410,6 +410,10 @@ LLM_USAGE_REGISTRY = {
     "kline_analysis": ("K线 AI 分析", "K线形态/趋势 AI 解读"),
     "evolution": ("学习进化", "策略进化、遗传优化、回测洞察"),
     "news_intel": ("新闻/情报辅助", "新闻情报、鲸鱼追踪等低优先级辅助分析"),
+    # [U1-4/U1-2 2026-08-25] 补注册：scalp_confirm(深挖I) 与 thesis(影子) 的 84/85 绑定
+    # 已存在于 DB usage_scope，仅补注册表条目（UI 用途分配列表可见）。
+    "scalp_confirm": ("短线LLM确认层", "下单前本地LLM裁决（fail-open，84本地/85云端）"),
+    "thesis": ("中长线thesis", "方向论题影子研判（U1-2，本地14B优先/云端兜底）"),
 }
 
 
@@ -420,6 +424,7 @@ def get_llm_config_for_usage(
     *,
     tenant_id: Optional[int] = None,
     provider: Optional[str] = None,
+    exclude_provider: Optional[str] = None,
 ) -> Optional[LLMConfig]:
     """按用途路由 LLM（**必须**落在某一租户，禁止公用默认）。
 
@@ -464,6 +469,10 @@ def get_llm_config_for_usage(
                 q = q.filter(LLMConfiguration.tenant_id == int(resolved_tenant))
             if provider:
                 q = q.filter(LLMConfiguration.provider == str(provider).strip().lower())
+            if exclude_provider:
+                # [E22 2026-08-25] 本地优先的云端兜底查询排除 ollama：
+                # 否则非默认 ollama 绑定(84)在云端查询同样排第一 → cloud==local → 降级失效
+                q = q.filter(LLMConfiguration.provider != str(exclude_provider).strip().lower())
             # [2026-08-23 本地LLM最大化] 非默认专属绑定优先于默认兜底：
             # 旧排序 is_default desc 使 id=17(默认,scope=全部) 恒胜出，任何 usage 的
             # 专属本地绑定（如 factor_mining→id84 ollama）都被压死——实测 factor_mining
@@ -1088,6 +1097,7 @@ def get_llm_config_local_first(
     try:
         cloud = get_llm_config_for_usage(
             usage, account_id=None, tier=tier, tenant_id=resolved_tenant,
+            exclude_provider="ollama",
         )
     except Exception as e:
         logger.debug("[LLM] local_first cloud 解析失败: %s", e)
