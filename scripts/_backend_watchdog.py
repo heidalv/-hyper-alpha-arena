@@ -48,7 +48,47 @@ def healthy() -> bool:
         return False
 
 
+_SPAWN_LOCK = os.path.join(ROOT, "logs", ".backend_spawn.lock")
+
+
+def _try_acquire_spawn_lock() -> bool:
+    """[2026-08-25 M0-H6] 多看门狗并存时的拉起互斥：DSH 会在端口掉线时
+    同时拉起多个 watchdog 实例，端口恢复后全部同时触发 spawn → 5 个后端
+    抢端口互杀。用独占锁文件串行化：只允许一个实例执行 spawn。
+    锁文件带 5 分钟陈旧阈值，异常残留可被抢占。"""
+    try:
+        if os.path.exists(_SPAWN_LOCK):
+            age = time.time() - os.path.getmtime(_SPAWN_LOCK)
+            if age < 300:
+                return False
+        with open(_SPAWN_LOCK, "w", encoding="utf-8") as _f:
+            _f.write(f"pid={os.getpid()} ts={time.time()}\n")
+        return True
+    except Exception:
+        return False
+
+
+def _release_spawn_lock() -> None:
+    try:
+        if os.path.exists(_SPAWN_LOCK):
+            os.remove(_SPAWN_LOCK)
+    except Exception:
+        pass
+
+
 def spawn_backend() -> None:
+    if not _try_acquire_spawn_lock():
+        log("spawn 互斥跳过（另一 watchdog 正在拉起）")
+        return
+    try:
+        _spawn_backend_inner()
+    finally:
+        # [M0-H6] 启动成功后保留锁 60s（防止其他实例在启动窗口内重复拉起），
+        # 之后释放；启动失败立即释放。
+        threading.Timer(60.0, _release_spawn_lock).start()
+
+
+def _spawn_backend_inner() -> None:
     env = dict(os.environ)
     env.update({
         "BACKEND_PORT": "8000",
