@@ -339,3 +339,8 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 ### U3-2b 落地记录（2026-08-25，本轮）
 - **委员会影子研判会（✅）**：新模块 `backend/services/mlto/committee_shadow.py`——单模型红队（bull 最强论点→bear 最强论点→裁决 JSON：共识方向/置信度/red_flag/决策卡{预算倾向,倾斜,最大未知}）；挂在 thesis shadow 成功落库后（同 4h 节奏）；预算 scope committee=20/天；落库 brain_theses(source=committee_shadow，含当前 thesis_id 关联)；**只写日志与 brain 表，绝不写控制面**。验证：py_compile+import ✓，生效需下次重启。
 - 校准对拍基础数据自此积累：决策卡方向 vs thesis 方向 vs 事后因子路由方向，供"各 agent 校准度显著优于随机才转正"验收。
+
+### U5 + U6 落地记录（2026-08-25，本轮）
+- **U5 仓位官折扣层（✅ 计算层）**：新模块 `backend/services/mlto/sizing_overlay.py`——V2 §7 公式纯函数实现（final = kelly × 共识折扣 × 信用分 × regime适配 × 相关性惩罚 × 波动率缩放 × 委员会hint），7 项单测全绿（test_sizing_overlay.py）。**热路径接线待下一批谨慎接入**（multi_symbol_kelly/midlong tranche/scalp size，开关 SIZING_OVERLAY_ENABLED）。
+- **U6 元学习最小闭环（✅）**：复盘官教训原因 → 研究任务种子（regime_misjudge→regime_recalibration / factor_decay→factor_recheck / execution_slippage→execution_tuning / liquidity→liquidity_guard / discipline→discipline_review），去重后落 brain_research_tasks（pending）——"该学什么"由亏损归因驱动的研究队列自此有真实来源；下一步由调度器消费接 evolution_scheduler 算力。
+- 验证：py_compile ✓；sizing 7 单测 ✓。生效需下次重启（无副作用）。

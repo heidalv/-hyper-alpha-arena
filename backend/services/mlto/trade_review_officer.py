@@ -138,6 +138,30 @@ def review_close(db, outcome) -> Optional[Dict]:
                     "VALUES (:lt, :er, :seid, 0, 0, 'active', :ts, :ts)"
                 ), {"lt": lesson, "er": None,
                     "seid": int(_pid) if str(_pid or "").isdigit() else None, "ts": _ts})
+            # [U6 2026-08-25] 元学习最小闭环：教训原因 → 研究任务种子（去重）
+            try:
+                _task_map = {
+                    "regime_misjudge": "regime_recalibration",
+                    "factor_decay": "factor_recheck",
+                    "execution_slippage": "execution_tuning",
+                    "liquidity": "liquidity_guard",
+                    "discipline": "discipline_review",
+                }
+                _task_type = _task_map.get(cause)
+                if _task_type:
+                    _sig = f"lesson:{_task_type}"
+                    _dup = db.execute(text(
+                        "SELECT 1 FROM brain_research_tasks WHERE source_signal=:s AND status='pending' LIMIT 1"
+                    ), {"s": _sig}).first()
+                    if _dup is None:
+                        db.execute(text(
+                            "INSERT INTO brain_research_tasks (task_type, source_signal, symbol, "
+                            "status, budget, created_at, updated_at) "
+                            "VALUES (:tt, :sg, :sym, 'pending', 0, :ts, :ts)"
+                        ), {"tt": _task_type, "sg": _sig, "sym": sym, "ts": _ts})
+                        logger.info("[ReviewOfficer] 研究任务种子: %s (%s)", _task_type, sym)
+            except Exception as _seed_err:
+                logger.debug("[ReviewOfficer] 研究任务种子跳过: %s", _seed_err)
         except Exception as _db_err:
             logger.debug("[ReviewOfficer] 落库跳过: %s", _db_err)
 
