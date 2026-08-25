@@ -1,7 +1,7 @@
 """midlong_factor_route — 中线因子路由（2026-08-15）。
 
 把「通过 4h/1d 样本外闸门（A/B 级）的中长线活跃因子」直接变成中线入场决策，
-替代已停用的旧 AI 中线（MIDLONG_MID_VIA_MLTO=false）。
+替代已停用的旧 AI 中线开仓职责（MIDLONG_MID_VIA_MLTO=true 时 thesis 影子并行观察）。
 
 信号合成
 ========

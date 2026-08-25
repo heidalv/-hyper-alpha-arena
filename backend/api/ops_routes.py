@@ -817,7 +817,7 @@ def ops_midlong_factors() -> Dict[str, Any]:
 
 @router.get("/long-trend-v2")
 def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]:
-    """长线 V2 规则化状态：每个固定长线币的 L1 状态/score/strength（无 LLM）。只读。"""
+    """长线 V2 规则化状态：每个固定长线币的 L1 状态/score/strength（LLM thesis 影子观察中）。只读。"""
     # [perf 2026-08-18] 每币拉 1200 根 1d K 线 + pandas 分类，GIL 竞争下实测 4.5s。
     # 长线状态分钟级稳定：15s TTL 缓存。
     from backend.utils.ttl_cache import ttl_cached

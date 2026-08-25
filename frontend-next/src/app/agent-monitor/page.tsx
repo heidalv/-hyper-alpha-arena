@@ -283,7 +283,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
   const scalpPool = usePoll<any>(`${BACKEND}/api/ops/factor-pool?view=tradable&limit=1`, 30000);
   // 组合预算冻结状态（风控止血：全局/账户/策略/交易对四级）
   const pbState = usePoll<any>(`${BACKEND}/api/full-auto/debug/portfolio-budget`, 15000);
-  // 长线 V2 规则化 L1 状态（无 LLM）：每个固定长线币的 up/down/sideways + score
+  // 长线 V2 规则化 L1 状态（LLM thesis 影子观察中）：每个固定长线币的 up/down/sideways + score
   const longV2 = usePoll<any>(sessionId ? `${BACKEND}/api/ops/long-trend-v2?session_id=${sessionId}` : null, 15000);
 
   const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 30, mid: 120, long: 240 };
@@ -368,7 +368,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               ? "因子路由（已切换）"
               : tickIntervals.data?.mid_mode === "mid_paused"
                 ? "中线已暂停（只跑因子研究，等待弹药达标）"
-                : "因子路由（规则化，无 LLM）"}
+                : "因子路由（规则化 + LLM thesis 影子观察）"}
             {" · "}切换条件：因子池 active≥5 且 shadow 对照达标
           </div>
           <div>
@@ -384,7 +384,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               : ""}
           </div>
           <div>宇宙 = 固定 ∪ AI≤3；得分高/低直接执行或否决，仅边缘带问 LLM（fail-closed）</div>
-          <div>中线已因子化（MIDLONG_MID_VIA_MLTO=false）；因子池 active≥5 且 shadow 达标后全量切换</div>
+          <div>中线 = 因子路由入场 + LLM thesis 影子观察（MIDLONG_MID_VIA_MLTO=true，只记录不拦截）；影子校准达标后升级为方向门</div>
         </div>
       ),
     },
@@ -397,7 +397,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       footer: (
         <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
           <div className="px-1 py-0.5 rounded bg-warning/10 text-warning">
-            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· 无 LLM · 循环 {tickIntervals.data?.long_loop_sec ?? 45}s（持仓管理每循环检查）· 入场分析 {tickIntervals.data?.long_entry_sec ?? intervals.long}s 节流 · 决策日频（仅已收盘 1d bar 更新）
+            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· LLM thesis 影子观察（只记录不拦截）· 循环 {tickIntervals.data?.long_loop_sec ?? 45}s（持仓管理每循环检查）· 入场分析 {tickIntervals.data?.long_entry_sec ?? intervals.long}s 节流 · 决策日频（仅已收盘 1d bar 更新）
           </div>
           <div>入场 = L1=up（score≥+3，多头单边，首仓 50%）；退出 = 结构破坏 + Chandelier 止损 + no_progress/极端回撤兜底；新高金字塔；无分档 TP / 无 15min 复查</div>
           <div>盘中价格波动不触发决策（未收盘 bar 已丢弃 + 分类缓存）；空仓等待 L1=up 确认</div>
