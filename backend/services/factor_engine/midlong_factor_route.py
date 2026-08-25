@@ -18,7 +18,9 @@
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -371,12 +373,25 @@ def factor_route_open(
         if not isinstance(_ms_sym, dict):
             _ms_sym = {}
         _orch_m = _ms_sym.get("orchestrator") if isinstance(_ms_sym.get("orchestrator"), dict) else {}
-        _mdir_raw = str(_orch_m.get("mid_bias") or "").strip().lower()
-        _mdir = {"bullish": "long", "bearish": "short"}.get(_mdir_raw)
+        # [2026-08-25 转正] thesis 方向门：优先用真实 mlto thesis（影子产出的方向论题），
+        # conviction>=60 时否决冲突方向（THESIS_CONF_MIN=0.6）；无 thesis 回退 orchestrator。
+        _mdir = None
+        _mconf = 0.0
         try:
-            _mconf = float(_orch_m.get("mid_confidence") or 0)
+            from backend.services.mlto.thesis_store import get as _th_get
+            _th = _th_get(str(getattr(session, "session_id", "") or ""), sym, "mid")
+            if _th is not None and str(getattr(_th, "direction", "") or "").lower() in ("long", "short"):
+                _mdir = str(_th.direction).lower()
+                _mconf = float(getattr(_th, "llm_conviction", 0) or 0) / 100.0
         except Exception:
-            _mconf = 0.0
+            pass
+        if not _mdir:
+            _mdir_raw = str(_orch_m.get("mid_bias") or "").strip().lower()
+            _mdir = {"bullish": "long", "bearish": "short"}.get(_mdir_raw)
+            try:
+                _mconf = float(_orch_m.get("mid_confidence") or 0)
+            except Exception:
+                _mconf = 0.0
         _fmid = decide_mid(
             True,
             "long" if str(dec["action"]) == "buy" else "short",
@@ -438,6 +453,34 @@ def factor_route_open(
                 host.inject_midlong_indicators(market_summary or {}, sym)
             except Exception as _inj_err:
                 logger.debug("[FactorRoute] 指标注入跳过 %s: %s", sym, _inj_err)
+            # [2026-08-25 转正] 委员会预算 hint → 真实控制面（pause 直接跳过开仓）
+            _cm_mult = 1.0
+            try:
+                if os.getenv("COMMITTEE_CONTROL_ENABLED", "true").strip().lower() not in ("0", "false", "off"):
+                    from sqlalchemy import text as _ct
+                    from backend.database.connection import SessionLocal as _CSL
+                    _cdb = _CSL()
+                    try:
+                        _crow = _cdb.execute(_ct(
+                            "SELECT invalidation_json FROM brain_theses WHERE source='committee_shadow' "
+                            "AND symbol=:s AND tier='mid' ORDER BY id DESC LIMIT 1"), {"s": sym}).first()
+                        if _crow:
+                            _card = json.loads(_crow[0] or "{}")
+                            _hint = str(_card.get("budget_hint") or "keep").lower()
+                            _tilt = str(_card.get("tilt") or "none").lower()
+                            _cm_mult = {"increase": 1.2, "keep": 1.0, "reduce": 0.5, "pause": 0.0}.get(_hint, 1.0)
+                            if _tilt in ("long", "short") and _tilt != ("long" if str(dec["action"]) == "buy" else "short"):
+                                _cm_mult = min(_cm_mult, 0.5)
+                            logger.info("[CommitteeControl] %s hint=%s tilt=%s -> mult=%.2f", sym, _hint, _tilt, _cm_mult)
+                            if _cm_mult <= 0.0:
+                                dec["action"] = "hold"
+                                dec["gate"] = "committee_pause"
+                                return dec
+                    finally:
+                        _cdb.close()
+            except Exception as _cc_err:
+                logger.debug("[CommitteeControl] 跳过: %s", _cc_err)
+
             _ok = execute_midlong_open(
                 host=host,
                 db=_db,
@@ -452,7 +495,7 @@ def factor_route_open(
                 session_mode=str(getattr(session, "status", "running") or "running"),
                 tier="mid",
                 trade_nature="swing",
-                tranche_margin_pct=float(_s.FACTOR_ROUTE_TRANCHE_MARGIN_PCT),
+                tranche_margin_pct=float(_s.FACTOR_ROUTE_TRANCHE_MARGIN_PCT) * _cm_mult,
                 reason=(str(dec.get("reason") or ""))[:80],
                 trading_mode=trading_mode,
             )

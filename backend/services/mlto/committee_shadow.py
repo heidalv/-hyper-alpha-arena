@@ -127,7 +127,9 @@ def run_committee(
                     "dir": direction, "conv": conf,
                     "summ": f"bull={parsed.get('bull_case', '')} | bear={parsed.get('bear_case', '')}"[:500],
                     "inv": json.dumps({"red_flag": parsed.get("red_flag", ""),
-                                       "known_unknown": card.get("known_unknown", "")}, ensure_ascii=False),
+                                       "known_unknown": card.get("known_unknown", ""),
+                                       "budget_hint": card.get("budget_hint", "keep"),
+                                       "tilt": card.get("tilt", "none")}, ensure_ascii=False),
                     "me": "[]", "ro": False, "sc": False, "src": "committee_shadow",
                     "ts": datetime.now(timezone.utc),
                 })

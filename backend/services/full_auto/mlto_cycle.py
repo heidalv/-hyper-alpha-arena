@@ -333,7 +333,17 @@ def maintain_mlto_theses_for_session(
                     except Exception:
                         _lb_conf = 0.0
                     _thesis_state = None
-                    if _lb_raw in ("bearish", "short") and _lb_conf >= 0.6:
+                    # [2026-08-25 转正] 优先用真实 long thesis（影子产出）：short 且 conv>=60 → standdown
+                    try:
+                        from backend.services.mlto.thesis_store import get as _thl_get
+                        _thl = _thl_get(str(getattr(session, "session_id", "") or ""), sym_u, "long")
+                        if _thl is not None and str(getattr(_thl, "direction", "") or "").lower() == "short"                                 and int(getattr(_thl, "llm_conviction", 0) or 0) >= 60:
+                            _thesis_state = "standdown"
+                            logger.info("[FusionLong] %s LLM thesis standdown(conv=%d)",
+                                        sym_u, getattr(_thl, "llm_conviction", 0))
+                    except Exception:
+                        pass
+                    if _thesis_state is None and _lb_raw in ("bearish", "short") and _lb_conf >= 0.6:
                         _thesis_state = "standdown"
                     # ── R2 风控禁开（阶段3）──
                     try:
