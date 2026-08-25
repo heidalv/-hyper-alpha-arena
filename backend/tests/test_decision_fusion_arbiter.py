@@ -1,6 +1,6 @@
-"""决策融合仲裁器单测（阶段0）：v2 决策矩阵全行覆盖 + 出场通道熔断器。"""
+"""决策融合仲裁器单测（阶段0）：v2 决策矩阵全行覆盖。"""
 from backend.services.decision_fusion_arbiter import (
-    FusionDecision, decide_scalp, decide_mid, decide_long, ExitChannelBreaker,
+    FusionDecision, decide_scalp, decide_mid, decide_long,
 )
 
 # ── decide_scalp 决策矩阵 ──
@@ -94,39 +94,3 @@ def test_long_l1_up_trades():
 
 def test_long_l1_sideways_holds():
     assert decide_long(l1_state="sideways").action == "hold"
-
-# ── ExitChannelBreaker ──
-
-def test_breaker_key_format():
-    assert ExitChannelBreaker.key("trend_review_close", "long") == "long|trend_review_close"
-
-def test_breaker_shadows_only_after_30_samples_below_threshold():
-    b = ExitChannelBreaker()
-    for i in range(29):
-        b.feed("bad_channel", "mid", win=False)
-    assert not b.is_shadow("bad_channel", "mid")
-    b.feed("bad_channel", "mid", win=False)  # 第30笔，wr=0 < 0.40
-    assert b.is_shadow("bad_channel", "mid")
-
-def test_breaker_no_shadow_when_wr_ok():
-    b = ExitChannelBreaker()
-    for i in range(30):
-        b.feed("good_channel", "mid", win=(i % 2 == 0))  # wr≈0.5
-    assert not b.is_shadow("good_channel", "mid")
-
-def test_breaker_recovers_after_improvement():
-    b = ExitChannelBreaker()
-    for _ in range(30):
-        b.feed("recover", "mid", win=False)
-    assert b.is_shadow("recover", "mid")
-    for _ in range(30):
-        b.feed("recover", "mid", win=True)
-    assert not b.is_shadow("recover", "mid")
-
-def test_breaker_export_load_roundtrip():
-    b = ExitChannelBreaker()
-    for _ in range(30):
-        b.feed("rt", "mid", win=False)
-    b2 = ExitChannelBreaker()
-    b2.load(b.export())
-    assert b2.is_shadow("rt", "mid")

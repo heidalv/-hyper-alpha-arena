@@ -199,46 +199,5 @@ def decide_long(thesis_state: Optional[str] = None, l1_state: str = "") -> Fusio
     return FusionDecision("hold", 0.0, "factor", "long_l1_not_up", {"l1_state": l1_state})
 
 
-class ExitChannelBreaker:
-    """出场通道熔断器（风控诊断 B3）：close_reason×tier 滚动 30 笔胜率 <40% → shadow。
-
-    语义：某出场通道长期 0% 胜率（如 trend_review_close 12 笔 -44.90）时，
-    该通道只记录不执行，防"系统自己的砍仓通道"继续出血。非 A/B 实验，是安全熔断。
-    """
-
-    MIN_SAMPLES = 30
-    WR_THRESHOLD = 0.40
-
-    def __init__(self) -> None:
-        self._stats: Dict[str, Dict[str, int]] = {}   # key -> {n, wins}
-        self._shadow: Dict[str, bool] = {}
-
-    @staticmethod
-    def key(close_reason: str, tier: str) -> str:
-        return f"{tier or '?'}|{close_reason or '?'}"
-
-    def feed(self, close_reason: str, tier: str, win: bool) -> Dict[str, Any]:
-        k = self.key(close_reason, tier)
-        st = self._stats.setdefault(k, {"n": 0, "wins": 0})
-        st["n"] += 1
-        st["wins"] += int(bool(win))
-        wr = st["wins"] / st["n"] if st["n"] else 0.0
-        if st["n"] >= self.MIN_SAMPLES and wr < self.WR_THRESHOLD:
-            self._shadow[k] = True
-        elif self._shadow.get(k) and st["n"] >= self.MIN_SAMPLES and wr >= self.WR_THRESHOLD:
-            self._shadow[k] = False  # 恢复：样本回正才解除
-        return {"key": k, "n": st["n"], "wins": st["wins"], "wr": round(wr, 4),
-                "shadow": bool(self._shadow.get(k))}
-
-    def is_shadow(self, close_reason: str, tier: str) -> bool:
-        return bool(self._shadow.get(self.key(close_reason, tier)))
-
-    def export(self) -> Dict[str, Any]:
-        return {"stats": self._stats, "shadow": self._shadow}
-
-    def load(self, data: Dict[str, Any]) -> None:
-        self._stats = data.get("stats", {})
-        self._shadow = data.get("shadow", {})
-
-
-exit_channel_breaker = ExitChannelBreaker()
+# [U0 2026-08-25] ExitChannelBreaker 已删除（统一计划 E20）：出场通道熔断双实现归一，
+# 唯一实现 = source_attribution.record_close 内建 breaker（持久化到 data/fusion_attribution.json）。
