@@ -291,33 +291,42 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                             )
                             return False
                         if _cap_total > _cap_equity * _cap_pct:
-                            # [2026-08-25 用户指示] 按比例适配：不随意拦截，
-                            # 通过等比下调杠杆让名义落回 cap 内（保证金/数量口径不变）。
+                            # [2026-08-25 用户指示] 按比例适配（杠杆不变，等比缩保证金/名义/仓位）：
+                            # scale = 剩余敞口 / 新单名义；只动 margin/notional/size 三个口径。
                             try:
-                                _plan_margin = float(getattr(plan, "margin", 0) or 0)
-                                if _plan_margin > 0:
-                                    _eff_lev = _cap_room / _plan_margin
-                                    _orig_lev = float(getattr(plan, "leverage", 0) or 0)
-                                    plan.leverage = max(1.0, min(_orig_lev, _eff_lev))
-                                    logger.info(
-                                        "[MidLongExposureCap] DOWNSIZE %s %s: 杠杆 %.1f→%.1f "
-                                        "使名义 %.1f→%.1f（权益%.1f×%.0f%% cap）",
-                                        symbol, side, _orig_lev, plan.leverage,
-                                        _cap_new_notional, _plan_margin * plan.leverage,
-                                        _cap_equity, _cap_pct * 100,
+                                _s = (_cap_room / _cap_new_notional) if _cap_new_notional > 0 else 0.0
+                                _s = max(0.0, min(1.0, _s))
+                                if _s <= 0.01:
+                                    logger.warning(
+                                        "[MidLongExposureCap] BLOCK %s %s: 剩余敞口=%.1f 过小 "
+                                        "(新单=%.1f)", symbol, side, _cap_room, _cap_new_notional,
                                     )
                                     host.append_event(
-                                        session, "midlong_exposure_cap_downsize",
-                                        f"📏 单币敞口按比例适配 {symbol} {side}: 杠杆 "
-                                        f"{_orig_lev:.1f}x→{plan.leverage:.1f}x（cap 内）",
-                                    )
-                                else:
-                                    logger.warning(
-                                        "[MidLongExposureCap] BLOCK %s %s: 无保证金口径可适配 "
-                                        "(新单=%.1f > 剩余=%.1f)", symbol, side,
-                                        _cap_new_notional, _cap_room,
+                                        session, "midlong_exposure_cap_block",
+                                        f"⛔ 单币敞口剩余过小 {symbol} {side}: 剩余 {_cap_room:.1f} "
+                                        f"< 新单 {_cap_new_notional:.1f}×1%，已拒绝",
                                     )
                                     return False
+                                _orig_margin = float(getattr(plan, "margin_usd", 0) or 0)
+                                _orig_notional = float(getattr(plan, "notional_usd", 0) or 0)
+                                _orig_size = float(getattr(plan, "size_pct", 0) or 0)
+                                plan.margin_usd = _orig_margin * _s
+                                plan.notional_usd = _orig_notional * _s
+                                plan.size_pct = _orig_size * _s
+                                logger.info(
+                                    "[MidLongExposureCap] DOWNSIZE %s %s: 杠杆 %dx 不变，"
+                                    "保证金 %.2f→%.2f / 名义 %.1f→%.1f / 仓位 %.1f%%→%.1f%%（cap %.1f）",
+                                    symbol, side, int(getattr(plan, "leverage", 0) or 0),
+                                    _orig_margin, plan.margin_usd, _orig_notional,
+                                    plan.notional_usd, _orig_size * 100, plan.size_pct * 100,
+                                    _cap_room,
+                                )
+                                host.append_event(
+                                    session, "midlong_exposure_cap_downsize",
+                                    f"📏 单币敞口按比例适配 {symbol} {side}: 保证金 "
+                                    f"{_orig_margin:.2f}→{plan.margin_usd:.2f}（杠杆 "
+                                    f"{int(getattr(plan, 'leverage', 0) or 0)}x 不变）",
+                                )
                             except Exception as _cap_adj_err:
                                 logger.warning(
                                     "[MidLongExposureCap] BLOCK %s %s: 适配失败 %s",
