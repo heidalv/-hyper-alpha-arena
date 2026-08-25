@@ -638,6 +638,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _meta_feats = {
                             "factor_score": float(_sig.factor_score or 0),
                             "direction": str(_sig.direction or ""),
+                            "symbol": str(sym or ""),
                             **{k: v for k, v in _snap.items() if not isinstance(v, (dict, list))},
                         }
                         _mp = predict_win_prob(_meta_feats, require_usable=False)
@@ -647,7 +648,17 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         # require_usable=False 的影子模型产出，315k 笔分桶 wr 单调、
                         # pwin>=0.55 桶净 +5.09）。usable 门控（top30% 过滤仍为负即否）
                         # 与 0.55 高桶不匹配，故不以其为准；模型文件缺失仍 hold（见 arbiter）。
-                        _meta_pwin = predict_win_prob(_meta_feats, require_usable=False)
+                        # v3: 合并 15m K线趋势特征(入场时刻可得,零 DB 开销;
+                        # 训练同源: scalp_meta_trainer.compute_kline_feats)
+                        _kline_feats = {}
+                        try:
+                            from backend.services.scalp_meta_trainer import compute_kline_feats
+                            _kline_feats = compute_kline_feats(_md.get("klines_15m"))
+                        except Exception:
+                            pass
+                        _meta_pwin = predict_win_prob(
+                            _meta_feats, require_usable=False, kline_feats=_kline_feats,
+                        )
                     except Exception:
                         pass
                     # [2026-08-22 M1-8] 信号日志移到门槛之后：原来在信号评估段就写
@@ -673,6 +684,39 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             _scalp_tick_results.append((_sym_u, _scalp_factor))
             if _sig.action not in ("buy", "sell"):
                 continue
+
+            # ── pwin 主轴仲裁(2026-08-25 接线,decision_fusion_arbiter)──
+            # 依据: 回放 pwin>=0.55 桶 59.2% 胜率净 +5.09;factor_score>=70 桶
+            # 净 -332.55 全场最差。v3 元模型(OOS AUC 0.623, usable=true)为 pwin
+            # 唯一来源;factor_score 仅并列参考,不再单独决定入场/仓位。
+            # FUSION_MODE=factor 时本块不生效(行为等价 8/23 前)。
+            _pwin_size_mult = 1.0
+            try:
+                from backend.services.decision_fusion_arbiter import (
+                    decide_scalp, FUSION_MODE as _FM,
+                )
+                if _FM != "factor":
+                    _arb = decide_scalp(
+                        pwin=_meta_pwin,
+                        factor_score=float(_sig.factor_score or 0),
+                        direction=str(_sig.direction or "neutral"),
+                        tp_pct=float(_sig.tp_pct or 0),
+                        sl_pct=float(_sig.sl_pct or 0),
+                    )
+                    _scalp_factor["pwin_arbiter"] = _arb.to_dict()
+                    if not _arb.allowed:
+                        logger.info(
+                            "[ScalpRouter独立] %s pwin仲裁%s: %s",
+                            sym, _arb.action, _arb.reason,
+                        )
+                        _bump_block("pwin_arbiter")
+                        continue
+                    if _arb.size_mult > 0:
+                        _pwin_size_mult = float(_arb.size_mult)
+            except Exception as _arb_err:
+                logger.debug(
+                    "[ScalpRouter独立] %s pwin仲裁跳过(降级放行): %s", sym, _arb_err,
+                )
 
             # ── ScalpExecutionGate 统一规则门 ──
             from backend.services.scalp.scalp_execution_gate import scalp_execution_gate
@@ -760,7 +804,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             # [2026-08-10 问题二修复] 同源双乘导致仓位被平方压缩：
             # 实测 SKHYNIX gate.size_multiplier=0.25 被乘两次 →
             # 444u 权益 x1.5 名义 x0.25x0.25/10x = 4.16u 保证金（应 16.65u）
-            _size_mult = _liquidity_mult
+            _size_mult = _liquidity_mult * _pwin_size_mult
 
             if _gate.needs_veto and scalp_flash_veto.should_invoke(_gate.tier, _gate.needs_veto):
                 _ohlc = []

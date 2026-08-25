@@ -230,64 +230,54 @@ class AITradeJournalService:
     # ════════════════════════ 数据收集 ════════════════════════
 
     def _collect_trades(self, db: Session, date_str: str, period: str) -> List[Dict]:
-        """收集指定日期的交易记录"""
+        """收集指定日期的交易记录,数据源 trade_facts(paper_orders 已被清空)。"""
         try:
-            from backend.database.models import PaperOrder
-            rows = (
-                db.query(PaperOrder)
-                .filter(PaperOrder.status == "filled")
-                .order_by(PaperOrder.created_at.desc())
-                .limit(200)
-                .all()
-            )
+            from sqlalchemy import text as _sa_text
+            rows = db.execute(_sa_text(
+                "SELECT ts, symbol, tier, side, entry_price, exit_price, fees, pnl, "
+                "outcome, close_reason, position_id, strategy_id "
+                "FROM trade_facts WHERE ts::date = :d ORDER BY ts"
+            ), {"d": date_str}).fetchall()
             trades = []
             for r in rows:
-                created = str(r.created_at) if r.created_at else ""
-                if date_str in created:
-                    trades.append({
-                        "symbol": r.symbol,
-                        "side": r.side,
-                        "quantity": r.quantity,
-                        "price": r.filled_price or r.price,
-                        "pnl": getattr(r, "pnl", 0) or 0,
-                        "strategy_id": getattr(r, "strategy_id", ""),
-                        "created_at": created,
-                    })
+                trades.append({
+                    "symbol": r.symbol,
+                    "side": r.side,
+                    "tier": r.tier,
+                    "quantity": 0,
+                    "price": r.exit_price,
+                    "pnl": float(r.pnl or 0),
+                    "strategy_id": getattr(r, "strategy_id", "") or "",
+                    "close_reason": r.close_reason or "",
+                    "created_at": str(r.ts),
+                })
             return trades
         except Exception as e:
             logger.debug(f"[TradeJournal] 收集交易记录异常: {e}")
             return []
 
     def _collect_trades_range(self, db: Session, start: str, end: str) -> List[Dict]:
+        """收集日期范围内的交易记录,数据源 trade_facts。"""
         try:
-            from backend.database.models import PaperOrder
-            rows = (
-                db.query(PaperOrder)
-                .filter(PaperOrder.status == "filled")
-                .order_by(PaperOrder.created_at.desc())
-                .limit(1000)
-                .all()
-            )
-            trades = []
-            for r in rows:
-                created = str(r.created_at) if r.created_at else ""
-                date_part = created[:10]
-                if start <= date_part <= end:
-                    trades.append({
-                        "symbol": r.symbol,
-                        "side": r.side,
-                        "quantity": r.quantity,
-                        "price": r.filled_price or r.price,
-                        "pnl": getattr(r, "pnl", 0) or 0,
-                        "strategy_id": getattr(r, "strategy_id", ""),
-                        "created_at": created,
-                    })
-            return trades
-        except Exception:
+            from sqlalchemy import text as _sa_text
+            rows = db.execute(_sa_text(
+                "SELECT ts, symbol, tier, side, entry_price, exit_price, fees, pnl, "
+                "outcome, close_reason, position_id, strategy_id "
+                "FROM trade_facts WHERE ts >= :s AND ts < :e ORDER BY ts"
+            ), {"s": start, "e": end}).fetchall()
+            return [
+                {
+                    "symbol": r.symbol, "side": r.side, "tier": r.tier,
+                    "quantity": 0, "price": r.exit_price,
+                    "pnl": float(r.pnl or 0),
+                    "strategy_id": getattr(r, "strategy_id", "") or "",
+                    "close_reason": r.close_reason or "", "created_at": str(r.ts),
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.debug(f"[TradeJournal] 收集范围交易异常: {e}")
             return []
-
-    # ════════════════════════ 统计分析 ════════════════════════
-
     def _calculate_stats(self, trades: List[Dict]) -> Dict[str, Any]:
         total_trades = len(trades)
         wins = [t for t in trades if (t.get("pnl") or 0) > 0]
@@ -477,9 +467,15 @@ class AITradeJournalService:
 
     def _save_journal(self, db: Session, result: Dict):
         from backend.database.models import TradeJournal
+        _pt = result.get("period_type", "daily")
+        _pd = result.get("period_date", "")
+        db.query(TradeJournal).filter(
+            TradeJournal.period_type == _pt,
+            TradeJournal.period_date == _pd,
+        ).delete(synchronize_session=False)
         journal = TradeJournal(
-            period_type=result.get("period_type", "daily"),
-            period_date=result.get("period_date", ""),
+            period_type=_pt,
+            period_date=_pd,
             total_trades=result.get("total_trades", 0),
             total_pnl=result.get("total_pnl", 0),
             win_rate=result.get("win_rate", 0),

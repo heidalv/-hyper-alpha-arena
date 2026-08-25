@@ -1497,6 +1497,22 @@ def register_evolution_tasks():
         )
         logger.info("[EvoScheduler] 已注册短线信号结算任务(5min)")
 
+        # v3(2026-08-25): 币种级滚动 regime 状态刷新(推理特征,1h 一次;
+        # 基于 settle_ts 无前视;元模型 predict_win_prob 读该状态文件)
+        def _refresh_scalp_regime():
+            try:
+                from backend.services.scalp_meta_trainer import refresh_regime_state
+                refresh_regime_state()
+            except Exception as _e:
+                logger.debug(f"[EvoScheduler] scalp regime 刷新跳过: {_e}")
+
+        task_scheduler.add_interval_task(
+            task_func=_refresh_scalp_regime,
+            interval_seconds=3600,
+            task_id="scalp_regime_refresh_hourly",
+        )
+        logger.info("[EvoScheduler] 已注册短线regime状态刷新任务(1h)")
+
         # 短线元标签模型自动训练+验证：每天一次；样本不足自动跳过，达标才标记 usable
         def _train_scalp_meta():
             try:

@@ -1,34 +1,30 @@
-"""ScalpMetaTrainer — 短线信号"真假过滤器"（元标签）自动训练 + 验证例程。
+"""ScalpMetaTrainer v2 — 短线信号"真假过滤器"（元标签）自动训练 + 验证例程。
 
-定位
-====
-在 `scalp_signal_log` 累积的【真实信号 + 真实结果】上，训练一个 LightGBM 元模型：
-输入=信号发生时的因子快照，输出=这一单"会不会赢"的概率。用于将来给 scalp EV 闸门
-做真假过滤。
+v2 变更（2026-08-25,依据 tools/scalp_signal_edge_audit.py 实证）
+=====================================================================
+实证发现（35 万已结算信号, tools/scalp_signal_edge_audit.py）:
+- factor_score 与胜率零相关（校准 no_edge,任何分数桶 <42% 保本;
+  仅用 v1 特征集训练:OOS AUC 0.519,≈抛硬币）;
+- 币种级滚动状态是全流最强预测器:roll_fwd20>0 桶胜率 67.4% 净 +0.35%,
+  roll_fwd20<0 桶胜率 12.9% 净 -0.66%;加滞后后仍保持 50.6% vs 27.6% 的分化;
+- v1 训练(OOS AUC 0.533,usable=false)缺少 regime 上下文,无法自证可用。
 
-核心纪律（防自欺）
-------------------
-1. 样本量不足 → 优雅跳过（记录 need/have），绝不硬训。
-2. 只看【样本外】walk-forward 成绩；同时训逻辑回归做"树 vs 线性"对比。
-3. 关键指标不是 AUC，而是【严格过滤后胜率/净收益 vs 照单全收基线】的提升。
-4. usable 门控：只有样本外达标（AUC + 过滤净收益提升且转正）才标记"可用"；
-   否则只训练、存报告，保持"影子"状态，绝不自动接入实盘决策。
-
-产出（data/ 目录）
-------------------
-- scalp_meta_model.pkl   : joblib 保存 {model, feature_cols, meta}
-- scalp_meta_report.json : 人类可读的验证报告（含 usable、AUC、过滤效果、因子重要性）
-
-对外接口
---------
-- train_and_validate() -> dict : 训练+验证，返回报告（调度调用）。
-- get_report() -> dict          : 读取最近一次报告（供前端/日志）。
-- predict_win_prob(features)     : 用已保存且 usable 的模型给单个信号打分（未接入决策）。
+v2 关键改动:
+1. 新增币种级滚动 regime 特征(用 settle_ts 做"成熟期过滤",严格无前视):
+   roll_wr20 / roll_fwd20 / roll_rsi10 / roll_cvd10 / sec_since_sig + hour/weekday。
+   行 i 只纳入 j<i 且 settle_ts[j] <= signal_ts[i] 的前序信号(结果在行 i 时刻
+   必然已结算)。训练时在全流上计算滚动特征,再对训练行去重;推理时读
+   data/scalp_regime_state.json(小时级刷新),predict_win_prob 自动合并。
+2. 去重窗口默认放宽到 300s(原 1800s,过激压缩 35 万 → 9583)。
+3. 标签可选:SCALP_META_LABEL=fwd 用 fwd_ret>0 替代 TP/SL win 二值。
+4. usable 门控与报告格式保持不变(前端/arbiter 兼容)。
+回滚:SCALP_META_REGIME_FEATURES=false 即回退 v1 特征集。
 """
 from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,57 +36,84 @@ logger = logging.getLogger(__name__)
 _DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
 _MODEL_PATH = os.path.join(_DATA_DIR, "scalp_meta_model.pkl")
 _REPORT_PATH = os.path.join(_DATA_DIR, "scalp_meta_report.json")
+_REGIME_STATE_PATH = os.path.join(_DATA_DIR, "scalp_regime_state.json")
 
 
-# ── 可调参数（env 门控）──
+def _truthy(name: str, default: str) -> bool:
+    return (os.getenv(name, default) or default).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _regime_features_enabled() -> bool:
+    return _truthy("SCALP_META_REGIME_FEATURES", "true")
+
+
+def _label_mode() -> str:
+    return (os.getenv("SCALP_META_LABEL", "win") or "win").strip().lower()
+
+
 def _min_samples() -> int:
     try:
-        return max(200, int(os.getenv("SCALP_META_MIN_SAMPLES", "800") or 800))
+        return int(os.getenv("SCALP_META_MIN_SAMPLES", "5000") or 5000)
     except Exception:
-        return 800
+        return 5000
 
 
 def _min_per_class() -> int:
     try:
-        return max(50, int(os.getenv("SCALP_META_MIN_PER_CLASS", "200") or 200))
+        return int(os.getenv("SCALP_META_MIN_PER_CLASS", "1500") or 1500)
     except Exception:
-        return 200
+        return 1500
 
 
 def _n_folds() -> int:
     try:
-        return max(3, int(os.getenv("SCALP_META_FOLDS", "4") or 4))
+        return int(os.getenv("SCALP_META_N_FOLDS", "5") or 5)
     except Exception:
-        return 4
+        return 5
 
 
 def _gate_min_auc() -> float:
     try:
-        return float(os.getenv("SCALP_META_GATE_AUC", "0.53") or 0.53)
+        return float(os.getenv("SCALP_META_GATE_AUC", "0.60") or 0.60)
     except Exception:
-        return 0.53
+        return 0.60
 
 
 def _feature_freq_min() -> float:
-    """特征列入选门槛：在样本中出现频率 ≥ 此值才作为特征（缺失填0）。"""
     try:
-        return float(os.getenv("SCALP_META_FEATURE_FREQ", "0.2") or 0.2)
+        return float(os.getenv("SCALP_META_FEATURE_FREQ_MIN", "0.3") or 0.3)
     except Exception:
-        return 0.2
+        return 0.3
 
 
-# ============================================================
-# 数据加载 + 特征矩阵构造
-# ============================================================
+def _dedup_sec() -> int:
+    try:
+        v = int(os.getenv("SCALP_META_DEDUP_SEC", "0") or 0)
+        if v > 0:
+            return v
+    except Exception:
+        pass
+    return 300  # v2: 放宽到 300s(原 max(300,horizon)=1800)
+
+
+def _regime_win_span() -> int:
+    try:
+        return int(os.getenv("SCALP_META_REGIME_WIN_SPAN", "20") or 20)
+    except Exception:
+        return 20
+
+
 def _load_settled_rows() -> List[Dict[str, Any]]:
+    from sqlalchemy import text as _text
     from backend.database.connection import SessionLocal
-    from backend.database.models import ScalpSignalLog
     db = SessionLocal()
     try:
-        rows = (db.query(ScalpSignalLog)
-                .filter(ScalpSignalLog.settled == True,  # noqa: E712
-                        ScalpSignalLog.win.isnot(None))
-                .order_by(ScalpSignalLog.signal_ts.asc()).all())
+        rows = db.execute(_text(
+            "SELECT id, signal_ts, settle_ts, created_at, symbol, direction, factor_score, win, "
+            "fwd_ret, net_ret, horizon_sec, features_json "
+            "FROM scalp_signal_log WHERE settled = true AND win IS NOT NULL "
+            "AND created_at >= NOW() - INTERVAL '60 days' ORDER BY created_at"
+        )).fetchall()
         out = []
         for r in rows:
             try:
@@ -99,38 +122,27 @@ def _load_settled_rows() -> List[Dict[str, Any]]:
                 feats = {}
             if not isinstance(feats, dict):
                 feats = {}
+            # signal_ts/settle_ts 为 UTC epoch 秒(created_at 为北京时间,相差 8h)
+            sts = int(r.signal_ts or 0)
+            if sts <= 0:
+                sts = int(r.created_at.timestamp())
+            settle = int(r.settle_ts or 0)
+            if settle <= 0:
+                settle = sts + int(r.horizon_sec or 1800)
             out.append({
-                "ts": int(r.signal_ts or 0),
-                "symbol": r.symbol,
-                "dir_sign": 1.0 if r.direction == "long" else -1.0,
-                "factor_score": float(r.factor_score or 0),
-                "threshold": float(r.threshold or 0),
-                "win": 1 if r.win else 0,
-                "net_ret": float(r.net_ret if r.net_ret is not None else 0.0),
-                "feats": feats,
+                "ts": sts, "settle": settle, "created_at": r.created_at,
+                "symbol": str(r.symbol or ""), "direction": str(r.direction or ""),
+                "factor_score": float(r.factor_score or 0), "win": 1 if r.win else 0,
+                "fwd_ret": float(r.fwd_ret or 0), "net_ret": float(r.net_ret or 0),
+                "horizon": int(r.horizon_sec or 1800), "feats": feats,
             })
         return out
     finally:
         db.close()
 
 
-def _dedup_sec() -> int:
-    """去重窗口（秒）：同一币在此窗口内只保留一条信号，避免"同一setup每30s重记 +
-    标签窗口重叠"造成的样本非独立 → 样本外成绩虚高。默认=结算周期(1800s)。"""
-    try:
-        v = int(os.getenv("SCALP_META_DEDUP_SEC", "0") or 0)
-        if v > 0:
-            return v
-    except Exception:
-        pass
-    try:
-        return max(300, int(os.getenv("SCALP_META_HORIZON_SEC", "1800") or 1800))
-    except Exception:
-        return 1800
-
-
 def _dedup_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """按币贪心去重：只保留与上一条保留信号间隔 ≥ 去重窗口的样本（近似非重叠）。"""
+    """按币贪心去重:只保留与上一条保留信号间隔 ≥ 去重窗口的样本(近似非重叠)。"""
     win = _dedup_sec()
     if win <= 0:
         return rows
@@ -148,17 +160,242 @@ def _dedup_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def _numeric(v: Any) -> Optional[float]:
     try:
         f = float(v)
-        if np.isnan(f) or np.isinf(f):
+        if math.isnan(f) or math.isinf(f):
             return None
         return f
     except Exception:
         return None
 
 
-def _build_matrix(rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str]]:
-    """把不定键的因子快照对齐成统一特征矩阵。返回 X, y, ts, net, feature_cols。"""
+# ─────────────────────────────────────────────────────────────
+# 币种级滚动 regime 特征(严格无前视:settle_ts[j] <= signal_ts[i])
+# ─────────────────────────────────────────────────────────────
+REGIME_COLS = ("roll_wr20", "roll_fwd20", "roll_rsi10", "roll_cvd10",
+               "sec_since_sig", "hour", "weekday")
+
+# 15m K线趋势特征(审计实证: base+kline OOS AUC 0.527→0.606,top30% 净收益转正)
+KLINE_COLS = ("ret_15m", "ret_1h", "ret_4h", "ema_slope", "rsi15m",
+              "atr_pct", "vol_1h", "below_ema20")
+
+# 方向×趋势交互(规则实证: 顺势多头 49.4% vs 逆势 33.4%;顺势空头 43.7% vs 逆势 31.2%)
+KLINE_INTER_COLS = ("dir_x_ema", "dir_x_ret1h", "dir_x_ret4h")
+
+_RSI_KEYS = ("rsi",)
+_CVD_KEYS = ("of_cvd", "cvd")
+
+
+def _feat_float(feats: Dict[str, Any], keys: Tuple[str, ...]) -> Optional[float]:
+    for k in keys:
+        v = feats.get(k)
+        f = _numeric(v)
+        if f is not None:
+            return f
+    return None
+
+
+def compute_kline_feats(klines_df: Any) -> Dict[str, float]:
+    """从 15m K线 DataFrame(需 high/low/close 列,≥40 根)计算趋势特征。
+
+    推理侧调用:scalp_loop 已有 market_data["klines_15m"],零 DB 开销。
+    返回特征字典;数据不足时返回空 dict(对应特征置 0,与训练缺省一致)。
+    """
+    try:
+        import pandas as pd
+        if klines_df is None:
+            return {}
+        df = klines_df if isinstance(klines_df, pd.DataFrame) else pd.DataFrame(klines_df)
+        if len(df) < 40 or not {"high", "low", "close"}.issubset(df.columns):
+            return {}
+        closes = df["close"].astype(float).values
+        highs = df["high"].astype(float).values
+        lows = df["low"].astype(float).values
+        n = len(closes)
+        c = closes[-1]
+        if c <= 0:
+            return {}
+        # 1h/4h 收益
+        ret_15m = c / closes[-2] - 1 if n >= 2 else 0.0
+        ret_1h = c / closes[-5] - 1 if n >= 5 else 0.0
+        ret_4h = c / closes[-17] - 1 if n >= 17 else 0.0
+        # EMA20 斜率
+        ema20 = float(pd.Series(closes).ewm(span=20, adjust=False).mean().iloc[-1])
+        ema_slope = (c - ema20) / ema20 if ema20 > 0 else 0.0
+        # RSI(14)
+        d = pd.Series(closes).diff()
+        up = d.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
+        dn = (-d).clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
+        rsi15m = float((100 - 100 / (1 + up.iloc[-1] / max(dn.iloc[-1], 1e-9))))
+        # ATR(14) / close
+        tr = np.maximum(highs[1:] - lows[1:],
+                        np.maximum(np.abs(highs[1:] - closes[:-1]), np.abs(lows[1:] - closes[:-1])))
+        atr_pct = float(pd.Series(tr).rolling(14).mean().iloc[-1] / c) if len(tr) >= 14 else 0.0
+        # 1h 波动率
+        seg = closes[-5:]
+        vol_1h = float(np.std(np.diff(seg)) / c) if len(seg) >= 2 else 0.0
+        return {
+            "ret_15m": float(ret_15m), "ret_1h": float(ret_1h), "ret_4h": float(ret_4h),
+            "ema_slope": float(ema_slope), "rsi15m": float(rsi15m),
+            "atr_pct": float(atr_pct), "vol_1h": float(vol_1h),
+            "below_ema20": 1.0 if c < ema20 else 0.0,
+        }
+    except Exception as e:
+        logger.debug(f"[ScalpMeta] kline 特征计算失败: {e}")
+        return {}
+
+
+def _load_kline_frame(symbols: List[str]) -> Dict[str, Any]:
+    """从 alpha_market.crypto_klines 加载各币 15m K线(供训练期特征构建)。"""
+    import psycopg
+    try:
+        with psycopg.connect(
+            "postgresql://laobao:alpha_pass@localhost:5432/alpha_market"
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT symbol, timestamp, open_price, high_price, low_price, close_price, volume "
+                    "FROM crypto_klines WHERE period='15m' AND symbol = ANY(%s) "
+                    "ORDER BY symbol, timestamp",
+                    (list(symbols),))
+                out: Dict[str, List] = {}
+                for sym, ts, o, h, l, c, v in cur.fetchall():
+                    out.setdefault(sym, []).append(
+                        (int(ts), float(o or 0), float(h or 0), float(l or 0), float(c or 0), float(v or 0)))
+        for sym in out:
+            out[sym] = np.array(out[sym], dtype=np.float64)
+        return out
+    except Exception as e:
+        logger.warning(f"[ScalpMeta] kline 帧加载失败: {e}")
+        return {}
+
+
+def _build_kline_frame(rows: List[Dict[str, Any]], kl: Dict[str, Any]) -> Dict[int, Dict[str, float]]:
+    """按信号 ts 从 15m K线取入场时刻趋势特征(仅用 ts 之前的 bar,无前视)。"""
+    import pandas as pd
+    out: Dict[int, Dict[str, float]] = {}
+    if not kl:
+        return out
+    by_sym: Dict[str, List[int]] = {}
+    for i, r in enumerate(rows):
+        by_sym.setdefault(r["symbol"], []).append(i)
+    for sym, idxs in by_sym.items():
+        arr = kl.get(sym)
+        if arr is None or len(arr) < 40:
+            continue
+        kts = arr[:, 0]
+        closes_all = arr[:, 4]
+        ema20_all = pd.Series(closes_all).ewm(span=20, adjust=False).mean().values
+        d = pd.Series(closes_all).diff()
+        up = d.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean().values
+        dn = (-d).clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean().values
+        rsi_all = 100 - 100 / (1 + up / np.where(dn <= 0, 1e-9, dn))
+        tr_all = np.maximum(arr[1:, 2] - arr[1:, 3],
+                            np.maximum(np.abs(arr[1:, 2] - arr[:-1, 4]),
+                                       np.abs(arr[1:, 3] - arr[:-1, 4])))
+        atr_all = np.concatenate([[np.nan], pd.Series(tr_all).rolling(14).mean().values])
+        for i in idxs:
+            ts_i = rows[i]["ts"]
+            j = int(np.searchsorted(kts, ts_i, side="right")) - 1
+            if j < 39:
+                continue
+            c = closes_all[j]
+            if c <= 0:
+                continue
+            seg = closes_all[j - 4:j + 1]
+            out[i] = {
+                "ret_15m": float(c / closes_all[j - 1] - 1),
+                "ret_1h": float(c / closes_all[j - 4] - 1),
+                "ret_4h": float(c / closes_all[j - 16] - 1),
+                "ema_slope": float((c - ema20_all[j]) / ema20_all[j]) if ema20_all[j] > 0 else 0.0,
+                "rsi15m": float(rsi_all[j]),
+                "atr_pct": float(atr_all[j] / c) if not np.isnan(atr_all[j]) else 0.0,
+                "vol_1h": float(np.std(np.diff(seg)) / c),
+                "below_ema20": 1.0 if c < ema20_all[j] else 0.0,
+            }
+    return out
+
+
+def _build_regime_frame(rows: List[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, float]]]:
+    """全流逐币计算滚动状态(按 rows 的当前下标索引输出)。
+
+    无前视约束:行 i 只纳入 j<i 且 settle[j] <= ts[i] 的前序信号。
+    复杂度 O(n log n)(searchsorted),35 万行 ~ 秒级。
+    """
+    if not rows:
+        return None
+    order = sorted(range(len(rows)), key=lambda i: (rows[i]["symbol"], rows[i]["ts"]))
+    out: Dict[int, Dict[str, float]] = {}
+    span = _regime_win_span()
+
+    for sym in sorted({r["symbol"] for r in rows}):
+        idx = [i for i in order if rows[i]["symbol"] == sym]
+        ts = np.array([rows[i]["ts"] for i in idx], dtype=np.float64)
+        settle = np.array([rows[i]["settle"] for i in idx], dtype=np.float64)
+        wins = np.array([rows[i]["win"] for i in idx], dtype=np.float64)
+        fwd = np.array([rows[i]["fwd_ret"] for i in idx], dtype=np.float64)
+        rsi = np.array([_feat_float(rows[i]["feats"], _RSI_KEYS) for i in idx], dtype=np.float64)
+        cvd = np.array([_feat_float(rows[i]["feats"], _CVD_KEYS) for i in idx], dtype=np.float64)
+        # settle_ts 非单调(快止盈单结算早于更早开仓的亏损单),不能用 searchsorted。
+        # 改为有界回溯 + 布尔掩码:只看最近 K 条前序信号中已结算者,取其中最近 span 条。
+        _lookback = int(os.getenv("SCALP_META_REGIME_LOOKBACK", "400") or 400)
+        for i in range(len(idx)):
+            if i == 0:
+                continue
+            lo_i = max(0, i - _lookback)
+            mature_mask = settle[lo_i:i] <= ts[i]
+            n_mature = int(mature_mask.sum())
+            if n_mature < 5:
+                continue
+            win_slice = wins[lo_i:i][mature_mask][-span:]
+            fwd_slice = fwd[lo_i:i][mature_mask][-span:]
+            rsi_slice = rsi[lo_i:i][mature_mask]
+            cvd_slice = cvd[lo_i:i][mature_mask]
+            rsi_slice = rsi_slice[~np.isnan(rsi_slice)][-10:]
+            cvd_slice = cvd_slice[~np.isnan(cvd_slice)][-10:]
+            feats: Dict[str, float] = {
+                "roll_wr20": float(win_slice.mean()),
+                "roll_fwd20": float(fwd_slice.mean()),
+            }
+            if len(rsi_slice) >= 5:
+                feats["roll_rsi10"] = float(rsi_slice.mean())
+            if len(cvd_slice) >= 5:
+                feats["roll_cvd10"] = float(cvd_slice.mean())
+            feats["sec_since_sig"] = float(ts[i] - ts[i - 1])
+            out[idx[i]] = feats
+    return out
+
+
+def _refresh_regime_state() -> Dict[str, Any]:
+    """轻量任务:从 DB 刷新币种级最新滚动状态,写 data/scalp_regime_state.json。
+
+    供 predict_win_prob 在推理时合并 regime 特征(文件读取,零 DB 开销)。
+    运行频次由调度方控制(建议小时级;状态基于 settle_ts,天然无前视)。
+    """
+    rows = _load_settled_rows()
+    frame = _build_regime_frame(rows)
+    state: Dict[str, Any] = {"updated_ts": int(time.time()), "symbols": {}}
+    if frame:
+        for i, feats in frame.items():
+            sym = rows[i]["symbol"]
+            state["symbols"][sym] = {
+                k: round(float(v), 6) for k, v in feats.items()
+                if k in ("roll_wr20", "roll_fwd20", "roll_rsi10", "roll_cvd10")
+            }
+    try:
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        with open(_REGIME_STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"[ScalpMeta] regime 状态写入失败: {e}")
+    return state
+
+
+def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str, float]]],
+                   kline_frame: Optional[Dict[int, Dict[str, float]]] = None) -> Tuple:
+    """把不定键的因子快照对齐成统一特征矩阵。返回 X, y, ts, net, feature_cols。
+
+    rows 已去重;frame/kline_frame 按 rows 当前下标索引(由调用方重映射)。
+    """
     n = len(rows)
-    # 统计每个快照键的出现频率（只保留数值型）
     key_count: Dict[str, int] = {}
     for r in rows:
         seen = set()
@@ -168,8 +405,11 @@ def _build_matrix(rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, np.ndarray, n
                 seen.add(k)
     freq_min = _feature_freq_min()
     snap_cols = sorted([k for k, c in key_count.items() if c / n >= freq_min])
-    # 附加两个强特征：信号自身分数、方向
     feature_cols = ["factor_score", "dir_sign"] + snap_cols
+    if _regime_features_enabled():
+        feature_cols = feature_cols + list(REGIME_COLS)
+    feature_cols = feature_cols + list(KLINE_COLS)
+    feature_cols = feature_cols + list(KLINE_INTER_COLS)
 
     X = np.zeros((n, len(feature_cols)), dtype=np.float64)
     y = np.zeros(n, dtype=int)
@@ -177,11 +417,35 @@ def _build_matrix(rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, np.ndarray, n
     net = np.zeros(n, dtype=np.float64)
     for i, r in enumerate(rows):
         X[i, 0] = r["factor_score"]
-        X[i, 1] = r["dir_sign"]
+        X[i, 1] = 1.0 if r["direction"] == "long" else (-1.0 if r["direction"] == "short" else 0.0)
         for j, k in enumerate(snap_cols, start=2):
             fv = _numeric(r["feats"].get(k))
             X[i, j] = fv if fv is not None else 0.0
-        y[i] = r["win"]
+        if _regime_features_enabled() and frame and i in frame:
+            for k, v in frame[i].items():
+                if k in REGIME_COLS:
+                    X[i, feature_cols.index(k)] = v
+        if kline_frame and i in kline_frame:
+            for k, v in kline_frame[i].items():
+                if k in KLINE_COLS:
+                    X[i, feature_cols.index(k)] = v
+            _kf = kline_frame[i]
+            if "dir_x_ema" in feature_cols:
+                X[i, feature_cols.index("dir_x_ema")] = X[i, 1] * _kf.get("ema_slope", 0.0)
+            if "dir_x_ret1h" in feature_cols:
+                X[i, feature_cols.index("dir_x_ret1h")] = X[i, 1] * _kf.get("ret_1h", 0.0)
+            if "dir_x_ret4h" in feature_cols:
+                X[i, feature_cols.index("dir_x_ret4h")] = X[i, 1] * _kf.get("ret_4h", 0.0)
+        ca = r.get("created_at")
+        if ca is not None:
+            if "hour" in feature_cols:
+                X[i, feature_cols.index("hour")] = float(ca.hour)
+            if "weekday" in feature_cols:
+                X[i, feature_cols.index("weekday")] = float(ca.weekday())
+        if _label_mode() == "fwd":
+            y[i] = 1 if r["fwd_ret"] > 0 else 0
+        else:
+            y[i] = r["win"]
         ts[i] = r["ts"]
         net[i] = r["net_ret"]
     return X, y, ts, net, feature_cols
@@ -191,7 +455,10 @@ def _build_matrix(rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, np.ndarray, n
 # 训练 + 样本外验证
 # ============================================================
 def train_and_validate() -> Dict[str, Any]:
-    report: Dict[str, Any] = {"ts": int(time.time()), "usable": False}
+    report: Dict[str, Any] = {
+        "ts": int(time.time()), "usable": False,
+        "v2_regime_features": _regime_features_enabled(), "label": _label_mode(),
+    }
     try:
         rows = _load_settled_rows()
     except Exception as e:
@@ -201,7 +468,25 @@ def train_and_validate() -> Dict[str, Any]:
         return report
 
     n_raw = len(rows)
-    rows = _dedup_rows(rows)          # 去重：非重叠独立样本，避免样本外虚高
+    # v2: 先在全流上计算 regime 帧(滚动上下文完整),再对训练行去重并重映射下标
+    try:
+        full_frame = _build_regime_frame(rows) if _regime_features_enabled() else None
+    except Exception as e:
+        logger.warning(f"[ScalpMeta] regime 帧计算失败(降级为 v1 特征): {e}")
+        full_frame = None
+    if full_frame is not None:
+        for i, r in enumerate(rows):
+            r["_orig_idx"] = i
+        rows = _dedup_rows(rows)
+        frame: Optional[Dict[int, Dict[str, float]]] = {}
+        for new_i, r in enumerate(rows):
+            oi = r.get("_orig_idx")
+            if oi is not None and oi in full_frame:
+                frame[new_i] = full_frame[oi]
+    else:
+        rows = _dedup_rows(rows)
+        frame = None
+
     n = len(rows)
     report["n_settled_raw"] = n_raw
     report["n_settled"] = n
@@ -214,7 +499,14 @@ def train_and_validate() -> Dict[str, Any]:
         _write_report(report)
         return report
 
-    X, y, ts, net, feature_cols = _build_matrix(rows)
+    # v3: 加载 15m K线趋势帧(入场时刻,无前视)
+    try:
+        kline_frame = _build_kline_frame(rows, _load_kline_frame(sorted({r["symbol"] for r in rows})))
+    except Exception as e:
+        logger.warning(f"[ScalpMeta] kline 帧构建失败(降级): {e}")
+        kline_frame = None
+
+    X, y, ts, net, feature_cols = _build_matrix(rows, frame, kline_frame=kline_frame)
     pos, neg = int(y.sum()), int((1 - y).sum())
     report["pos"], report["neg"] = pos, neg
     mpc = _min_per_class()
@@ -279,7 +571,6 @@ def train_and_validate() -> Dict[str, Any]:
     oos_auc = float(np.mean(lgb_aucs))
     lin_auc = float(np.mean(log_aucs)) if log_aucs else None
 
-    # 过滤效果（严格：取概率前 30%）
     def _filt(q):
         thr = np.quantile(p, q)
         m = p >= thr
@@ -288,10 +579,9 @@ def train_and_validate() -> Dict[str, Any]:
         return {"coverage": float(m.mean()), "win_rate": float(yy[m].mean()),
                 "net_ret": float(nn[m].mean()), "n": int(m.sum())}
 
-    filt30 = _filt(0.70)  # 前30%
-    filt15 = _filt(0.85)  # 前15%
+    filt30 = _filt(0.70)
+    filt15 = _filt(0.85)
 
-    # 因子重要性
     fis = sorted(zip(feature_cols, (fi / max(1, len(oos_p))).tolist()), key=lambda x: -x[1])
     tot = sum(v for _, v in fis) + 1e-12
     top_importance = [{"name": nm, "importance": round(v / tot, 4)} for nm, v in fis[:20]]
@@ -299,6 +589,7 @@ def train_and_validate() -> Dict[str, Any]:
     report.update({
         "status": "trained",
         "features": len(feature_cols),
+        "feature_cols": feature_cols,
         "oos_auc_lgbm": round(oos_auc, 4),
         "oos_auc_linear": round(lin_auc, 4) if lin_auc is not None else None,
         "baseline": {"win_rate": round(base_wr, 4), "net_ret": round(base_ev, 6)},
@@ -307,7 +598,6 @@ def train_and_validate() -> Dict[str, Any]:
         "top_importance": top_importance,
     })
 
-    # ── usable 门控：样本外 AUC 达标 且 严格过滤净收益 > 基线 且 转正 ──
     gate_auc = _gate_min_auc()
     usable = False
     reasons = []
@@ -326,7 +616,6 @@ def train_and_validate() -> Dict[str, Any]:
     report["usable"] = usable
     report["gate_reasons"] = reasons
 
-    # ── 训练"最终模型"（全量数据）并保存 ──
     try:
         import joblib
         final = _mk().fit(X, y)
@@ -334,12 +623,21 @@ def train_and_validate() -> Dict[str, Any]:
         joblib.dump({
             "model": final, "feature_cols": feature_cols,
             "meta": {"trained_ts": report["ts"], "n": n, "usable": usable,
-                     "oos_auc": oos_auc, "gate_reasons": reasons},
+                     "oos_auc": oos_auc, "gate_reasons": reasons,
+                     "regime_features": _regime_features_enabled()},
         }, _MODEL_PATH)
         report["model_path"] = _MODEL_PATH
     except Exception as e:
         logger.warning(f"[ScalpMeta] 保存模型失败: {e}")
         report["model_save_error"] = str(e)
+
+    # v2: 训练完成后顺手刷新 regime 状态文件(推理用)
+    if _regime_features_enabled():
+        try:
+            _refresh_regime_state()
+            report["regime_state_updated"] = True
+        except Exception as e:
+            logger.warning(f"[ScalpMeta] regime 状态刷新失败: {e}")
 
     _write_report(report)
     if filt30:
@@ -376,13 +674,8 @@ def sample_progress() -> Dict[str, Any]:
     neg = have - pos
     need = _min_samples()
     return {
-        "raw": raw,
-        "have": have,
-        "need": need,
-        "pos": pos,
-        "neg": neg,
-        "need_per_class": _min_per_class(),
-        "dedup_sec": _dedup_sec(),
+        "raw": raw, "have": have, "need": need, "pos": pos, "neg": neg,
+        "need_per_class": _min_per_class(), "dedup_sec": _dedup_sec(),
         "percent": round(min(100.0, 100.0 * have / need), 1) if need else None,
         "ready": have >= need and pos >= _min_per_class() and neg >= _min_per_class(),
     }
@@ -399,22 +692,43 @@ def get_report() -> Dict[str, Any]:
 
 
 # ============================================================
-# 推理接口（为将来接入 EV 闸门准备，当前不接入决策）
+# 推理接口
 # ============================================================
 _MODEL_CACHE: Dict[str, Any] = {"mtime": 0, "obj": None}
+_REGIME_CACHE: Dict[str, Any] = {"mtime": 0, "obj": {}}
+
+
+def _regime_features_for_symbol(symbol: str) -> Dict[str, float]:
+    """读取 regime 状态文件,返回该币的滚动特征(无则空)。"""
+    try:
+        if not os.path.exists(_REGIME_STATE_PATH):
+            return {}
+        mt = os.path.getmtime(_REGIME_STATE_PATH)
+        if _REGIME_CACHE["obj"] and mt == _REGIME_CACHE["mtime"]:
+            state = _REGIME_CACHE["obj"]
+        else:
+            with open(_REGIME_STATE_PATH, "r", encoding="utf-8") as f:
+                state = json.load(f)
+            _REGIME_CACHE["obj"] = state
+            _REGIME_CACHE["mtime"] = mt
+        syms = state.get("symbols") or {}
+        if time.time() - float(state.get("updated_ts") or 0) > 7200:
+            return {}  # 状态过期,不注入(安全降级)
+        return {k: float(v) for k, v in (syms.get(str(symbol).upper()) or {}).items()}
+    except Exception:
+        return {}
 
 
 def predict_win_prob(
     features: Dict[str, Any],
     *,
     require_usable: bool = True,
+    kline_feats: Optional[Dict[str, float]] = None,
 ) -> Optional[float]:
     """给单个信号的因子快照打"会赢"概率。模型不存在/不可用则返回 None。
 
-    Args:
-        features: 特征字典（与训练列对齐）。
-        require_usable: True（默认）时仅 usable 模型返回概率，供 EV 软接入；
-            False 时影子日志仍可拿到概率（即使 usable=false），不用于决策。
+    v2: 若模型特征集包含 regime 特征,自动从状态文件合并币种滚动特征;
+    状态缺失时对应特征置 0(与训练缺省一致)。
     """
     try:
         if not os.path.exists(_MODEL_PATH):
@@ -429,6 +743,9 @@ def predict_win_prob(
         if require_usable and not bool(meta.get("usable")):
             return None
         cols = bundle["feature_cols"]
+        symbol = str(features.get("symbol") or "")
+        reg_feats = _regime_features_for_symbol(symbol) if meta.get("regime_features") else {}
+        kf = kline_feats if isinstance(kline_feats, dict) else {}
         x = np.zeros((1, len(cols)), dtype=np.float64)
         for j, c in enumerate(cols):
             if c == "factor_score":
@@ -436,9 +753,24 @@ def predict_win_prob(
             elif c == "dir_sign":
                 d = str(features.get("direction") or "")
                 x[0, j] = 1.0 if d == "long" else (-1.0 if d == "short" else 0.0)
+            elif c in reg_feats:
+                x[0, j] = reg_feats[c]
+            elif c in kf:
+                x[0, j] = _numeric(kf.get(c)) or 0.0
+            elif c == "dir_x_ema":
+                x[0, j] = x[0, 1] * (_numeric(kf.get("ema_slope")) or 0.0)
+            elif c == "dir_x_ret1h":
+                x[0, j] = x[0, 1] * (_numeric(kf.get("ret_1h")) or 0.0)
+            elif c == "dir_x_ret4h":
+                x[0, j] = x[0, 1] * (_numeric(kf.get("ret_4h")) or 0.0)
             else:
                 x[0, j] = _numeric(features.get(c)) or 0.0
         return float(bundle["model"].predict_proba(x)[0, 1])
     except Exception as e:
         logger.debug(f"[ScalpMeta] predict 跳过: {e}")
         return None
+
+
+def refresh_regime_state() -> Dict[str, Any]:
+    """对外刷新接口:供调度任务小时级调用。"""
+    return _refresh_regime_state()
