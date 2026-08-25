@@ -1428,13 +1428,23 @@ def register_evolution_tasks():
         except Exception as _e:
             logger.warning("[EvoScheduler] 短线周期每日进化注册失败: %s", _e)
 
-        task_scheduler.add_interval_task(
-            task_func=evolution_scheduler.weekly_evolution,
-            interval_seconds=CYCLE_SECONDS,
-            task_id="evolution_cycle_auto",
-            next_run_time=_next_daily_run(4, 0),
-        )
-        logger.info("[EvoScheduler] 已注册每3天自动进化任务（首跑 04:00）")
+        # [2026-08-25 挂机根治] NSGA-II 每周进化（8 模板×每模板数小时、CPU 满载 +
+        # 391 线程）在交易后端进程内跑会把事件循环饿死（/api/health 4-10s → 前端
+        # 判挂）。默认禁用进程内调度：每周进化走独立进程
+        # scripts/run_weekly_evolution_standalone.py（M0-E1i 设计，无端口不受监管，
+        # 冠军/晋升/事件全持久化）或 /api/evolution/trigger/weekly 手动通道。
+        # env WEEKLY_EVOLUTION_IN_PROCESS=1 恢复旧行为（仅供调试）。
+        _weekly_in_process = _os.getenv("WEEKLY_EVOLUTION_IN_PROCESS", "0").strip().lower() in ("1", "true", "yes", "on")
+        if _weekly_in_process:
+            task_scheduler.add_interval_task(
+                task_func=evolution_scheduler.weekly_evolution,
+                interval_seconds=CYCLE_SECONDS,
+                task_id="evolution_cycle_auto",
+                next_run_time=_next_daily_run(4, 0),
+            )
+            logger.info("[EvoScheduler] 已注册每3天自动进化任务（首跑 04:00）")
+        else:
+            logger.info("[EvoScheduler] 进程内 weekly_evolution 已禁用（WEEKLY_EVOLUTION_IN_PROCESS=0），请走独立进程/手动触发通道")
 
         task_scheduler.add_interval_task(
             task_func=evolution_scheduler.daily_wisdom_refresh,
@@ -1716,6 +1726,10 @@ def register_evolution_tasks():
                         _should_backfill = (_dt.now(_tz.utc) - _last).total_seconds() > BACKFILL_SECONDS
                 finally:
                     _mdb.close()
+                # [2026-08-25 挂机根治] 启动补跑同样受进程内开关约束
+                _weekly_in_process_bf = _os.getenv("WEEKLY_EVOLUTION_IN_PROCESS", "0").strip().lower() in ("1", "true", "yes", "on")
+                if not _weekly_in_process_bf:
+                    _should_backfill = False
                 if _should_backfill:
                     # [2026-08-23 M0-E1d] 紧急进化（all_new 条件常在重启后立即
                     # 满足，见 unified_learning_service / strategy_learning_service）
