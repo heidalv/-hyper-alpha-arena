@@ -69,6 +69,20 @@ def spawn_backend() -> None:
         close_fds=True,
     )
     log(f"backend spawned pid={p.pid}")
+    # [2026-08-25 M0-H5] 死亡取证：monitor 子进程直到退出，记录退出码。
+    # 无声死亡（无 traceback、无 faulthandler 输出）→ 大概率外部 TerminateProcess
+    # 硬杀。Windows 下 returncode 可区分：None=异常中止(杀)、1=自身异常退出、
+    # 0=优雅退出。后台线程 monitor，不阻塞健康探测循环。
+    def _monitor():
+        rc = p.wait()
+        log(f"backend pid={p.pid} EXITED returncode={rc} (0=优雅退出, 1=自身退出, 其他=外部终止码)")
+        try:
+            out.close()
+            err.close()
+        except Exception:
+            pass
+
+    threading.Thread(target=_monitor, daemon=True).start()
 
 
 def main() -> None:
