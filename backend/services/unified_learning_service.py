@@ -225,6 +225,17 @@ class UnifiedLearningService:
             # MLTO thesis 归因学习
             try:
                 meta = outcome.metadata if isinstance(outcome.metadata, dict) else {}
+                # [U3-2a 2026-08-25] 开仓时未直接携带 thesis_id → 从归因标签回查兜底
+                if not meta.get("thesis_id"):
+                    _pid_fb = meta.get("paper_position_id")
+                    if _pid_fb:
+                        try:
+                            from backend.services.source_attribution import attribution as _attr_fb
+                            _t_fb = _attr_fb.tag_meta(int(_pid_fb))
+                            if _t_fb and _t_fb.get("thesis_id"):
+                                meta["thesis_id"] = str(_t_fb["thesis_id"])
+                        except Exception:
+                            pass
                 if meta.get("thesis_id"):
                     from backend.database.connection import AnalyticsSessionLocal
                     from backend.services.mlto.learning_bridge import record_outcome as mlto_record

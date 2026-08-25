@@ -810,11 +810,24 @@ def try_execute_independent_agent_open(
                     {"a": int(_acct_mh), "s": _sym_u},
                 ).first()
                 if _prow:
+                    # [U3-2a 2026-08-25] thesis 绑定：把当前活跃 thesis_id 挂进归因标签 meta，
+                    # 供平仓学习桥（unified_learning meta.thesis_id 兜底回查）解锁 owm 调权。
+                    _t_meta: Dict[str, Any] = {}
+                    try:
+                        from backend.services.mlto.thesis_store import get as _thesis_get
+                        _t_dto = _thesis_get(
+                            str(getattr(session, "session_id", "") or ""), _sym_u, _tier_l,
+                        )
+                        if _t_dto is not None and getattr(_t_dto, "thesis_id", ""):
+                            _t_meta["thesis_id"] = str(_t_dto.thesis_id)
+                    except Exception as _tb_err:
+                        logger.debug("[FusionAttr] thesis 绑定跳过: %s", _tb_err)
                     _attr_mh.tag_position(
                         int(_prow[0]),
                         source=str(entry_source or "midlong"),
                         nature=str(trade_nature or ""),
                         symbol=_sym_u,
+                        meta=_t_meta or None,
                     )
         except Exception as _tagmh_err:
             logger.debug("[FusionAttr] 中长线标签绑定失败: %s", _tagmh_err)

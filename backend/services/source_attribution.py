@@ -148,6 +148,15 @@ class SourceAttribution:
             }
 
     # ── 平仓归因 + 通道熔断（close 钩子）──
+    def tag_meta(self, position_id: int) -> Optional[Dict[str, Any]]:
+        """[U3-2a] 回查仓位标签 meta（含 thesis_id），供学习桥兜底。"""
+        self._ensure_loaded()
+        with self._lock:
+            t = self._tags.get(str(int(position_id)))
+            if not t:
+                return None
+            return dict(t.get("meta") or {})
+
     def record_close(self, position_id: int, *, pnl: float, fee: float = 0.0,
                      close_reason: str = "", tier: str = "", symbol: str = "",
                      nature: str = "", source: Optional[str] = None) -> Dict[str, Any]:

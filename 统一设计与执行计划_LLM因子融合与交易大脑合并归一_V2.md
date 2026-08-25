@@ -325,3 +325,8 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **U3-1b AI 复审恢复（⏳ 暂缓，证据冲突）**：根因报告 reverse_netting +1.51 vs 深挖记录 ai_reverse -2.41 证据矛盾，按 V2「先影子对拍」原则暂不直接翻转 SCALP_AI_REVERSE_DISABLED，待 veto tiered 跑一周后对比边缘单否决净差再定。
 - **U3-2a owm 调权解锁【接线点已定位，待下一块】**(`unified_learning_service.py:225-240`)：thesis 归因学习已被 `meta.thesis_id` 门控——thesis shadow（U1-2）落库后仍需**开仓时把活跃 thesis_id 写入 trade meta**（factor_route_open/execute_midlong_open 处读 thesis_store.get 绑定），下轮实现该绑定后学习桥即吃真数据。
 - **重启后观察清单（累积 U1-U3）**：① `[ThesisShadow] ... (shadow, 不落单)` 日志；② KlineAnalyst detail 出现 `regime=xxx(nn%)`；③ `[LLM2预算]` 记账；④ FlashVeto tiered 的 veto 计数与 25-29 分带净差；⑤ brain_attribution 行随平仓增长；⑥ thesis 表行随 4h 限频增长。
+
+### 重启验收 + U3-2a 落地记录（2026-08-25 17:06）
+- **受控重启完成**：boot=c330469、matches_disk=True（隧道误杀事故后经用户重连远端完成；后端全程在远端操作）。
+- **U1-U3 验收清单**：① ✅ ThesisShadow 活体产出——17:05:09 UNI/mid、17:05:27-35 BTC/ETH/UNI long（每轮 3 个上限生效），落库验证：analytics 库 mlto_thesis 最新 5 行 = shadow 产出（mlto_thesis 属 analytics 库，主库无此表属正常）；② ⏳ KlineAnalyst regime 字段（XPL 流式已跑，待下轮观察解析输出）；③ ✅ LLM2 预算（成功调用不打日志、仅超限告警，设计如此）；④ ⏳ FlashVeto tiered（等 25-29 分信号）；⑤ ⏳ brain_attribution（等平仓写穿）；⑥ ✅ thesis 行按 4h 限频增长。无关异常：ai_trade_journal 日复盘两条 PG 连接中断 Traceback = 重启后旧连接残留，服务自愈重连，非本次改动引入。
+- **U3-2a thesis_id 开仓绑定（✅ 代码完成）**：三处补丁——① midlong_helpers.py 阶段4统一标签点（开仓成功后）读 thesis_store.get 把 thesis_id 挂进 tag_position meta；② source_attribution 新增 tag_meta() 回查；③ unified_learning_service.process_outcome 在 meta.thesis_id 缺失时从归因标签兜底回查 → 学习桥（learning_bridge + mlto_signal_weights owm 调权）在 shadow thesis 产出后即可吃真数据。冒烟 roundtrip 通过；**需下一次重启生效**（本轮后端已运行）。
