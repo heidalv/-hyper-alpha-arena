@@ -319,3 +319,9 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - **U2-1b fwd_ret 口径复核（⏳ 未动）**：factor_backtest_scorer 连续口径 close-to-close 残留，涉及因子晋升尺子，风险较高——下轮单独处理（先影子对拍）。
 - **U2-3 台阶1 追踪（数据基线）**：8/24 日报（8/25 生成）：已平 1910 笔、WR 41.15%（目标≥42%）、净 -84.93、TP 命中 9.5%（目标≥45%）、SL 11.8%（✓≤20%）、超时 39.6%（目标≤25%）、breakeven_tp 110 笔 +96.7。**结论：SL 与胜率接近达标，TP 命中与超时仍是主缺口——退出结构继续调（U2-1b 联动：超时通道已被 breaker shadow）**。
 - 验证：py_compile 全过；建表+新列已实库验证（information_schema 查询确认）。
+
+### U3 落地记录（2026-08-25，本轮）
+- **U3-1a FlashVeto tiered 恢复（✅）**：.env `SCALP_VETO_MODE=off→tiered`（代码默认本就 tiered；paper fail-open=true / live fail-closed 语义完好）。生效后 veto 带=[25,30)（SCALP_VETO_BAND_LOW=25，与 SCALP_FACTOR_CONFIRM_THRESHOLD=25 对齐：25-29 分边缘单过 LLM 否决层）。需重启生效。
+- **U3-1b AI 复审恢复（⏳ 暂缓，证据冲突）**：根因报告 reverse_netting +1.51 vs 深挖记录 ai_reverse -2.41 证据矛盾，按 V2「先影子对拍」原则暂不直接翻转 SCALP_AI_REVERSE_DISABLED，待 veto tiered 跑一周后对比边缘单否决净差再定。
+- **U3-2a owm 调权解锁【接线点已定位，待下一块】**(`unified_learning_service.py:225-240`)：thesis 归因学习已被 `meta.thesis_id` 门控——thesis shadow（U1-2）落库后仍需**开仓时把活跃 thesis_id 写入 trade meta**（factor_route_open/execute_midlong_open 处读 thesis_store.get 绑定），下轮实现该绑定后学习桥即吃真数据。
+- **重启后观察清单（累积 U1-U3）**：① `[ThesisShadow] ... (shadow, 不落单)` 日志；② KlineAnalyst detail 出现 `regime=xxx(nn%)`；③ `[LLM2预算]` 记账；④ FlashVeto tiered 的 veto 计数与 25-29 分带净差；⑤ brain_attribution 行随平仓增长；⑥ thesis 表行随 4h 限频增长。
