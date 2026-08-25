@@ -283,3 +283,12 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 - U1-2 thesis shadow（MIDLONG_MID_VIA_MLTO=true + JSON 模板 + 4h 限频；复用 mlto thesis_store）
 - U1-3 token 预算 + 调用级 ROAS（llm_budget 是并发信号量且关闭，需新建每日计数预算）
 - U1-4 usage_scope scalp_confirm 84/85 真实绑定核查（E18 残留）
+
+### U1-1 落地记录（2026-08-25）
+- **KlineAnalyst 结构化 regime 升级**（trading_analysts.py，+21/-4，py_compile+import 验证通过）：
+  1. prompt 新增第 6 维"市场状态(regime)判定"（trending_up/trending_down/ranging/high_vol/transition）；
+  2. JSON 模板新增 `regime` / `regime_confidence` / `invalidation` 三个字段（原有 10 字段不动，向后兼容）；
+  3. 解析段带默认值兜底：旧缓存/旧模型缺字段 → regime 留空（display "regime=?"），由规则快照兜底，缓存 TTL 到期自然刷新；
+  4. 信号 `data` 暴露新字段供 L2 Regime Governor / L4 仲裁消费；detail 显示 regime+失效条件。
+- **重要发现（修正 U1-1 范围）**：交易链 KlineAnalyst 的 prompt 本就要求严格 JSON（非自由 Markdown——自由文本是前端用户路径 `kline_ai_analysis_service.py`）；本次是**增量补 regime 字段**，非推倒重写。tier=quick 本地 14B 优先 + 每轮 KLINE_LLM_MAX_PER_CYCLE 预算 + 哈希缓存三层成本机制已存在且保持。
+- 验证：py_compile OK、模块 import OK；无 KlineAnalyst 专测文件（git grep 零命中），由运行时日志观察首轮 regime 字段产出。

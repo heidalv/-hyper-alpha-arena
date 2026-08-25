@@ -1472,7 +1472,8 @@ class KlineAnalyst:
 3. **K线形态识别**：最近K线是否有吞没、十字星、锤子线等经典形态
 4. **成交量异动**：量比>1.5代表放量，<0.5代表缩量
 5. **RSI超买超卖**：RSI>70超买，<30超卖
-6. **综合判断**：多周期加权结论
+6. **市场状态(regime)判定**：当前属于 trending_up(趋势上行)/trending_down(趋势下行)/ranging(震荡)/high_vol(高波动)/transition(转换中) 中的哪一种
+7. **综合判断**：多周期加权结论
 
 请返回以下JSON（不要包含其他文本）：
 {{
@@ -1485,7 +1486,10 @@ class KlineAnalyst:
   "trend_resonance": "5周期中有几个方向一致",
   "volume_signal": "放量/缩量/正常",
   "risk_warning": "需要注意的风险点",
-  "recommendation": "做多/做空/观望 的具体建议"
+  "recommendation": "做多/做空/观望 的具体建议",
+  "regime": "trending_up 或 trending_down 或 ranging 或 high_vol 或 transition",
+  "regime_confidence": 0到100的整数,
+  "invalidation": "什么价格/条件出现时，本结论失效"
 }}"""
 
         try:
@@ -1528,6 +1532,15 @@ class KlineAnalyst:
             vol_signal = parsed.get("volume_signal", "")
             risk_warning = parsed.get("risk_warning", "")
             recommendation = parsed.get("recommendation", "")
+            # [U1-1 LLM 2.0] regime 结构化：旧模型/旧缓存无此字段 -> 留空，由规则快照兜底
+            regime = str(parsed.get("regime", "") or "").strip().lower()
+            if regime not in ("trending_up", "trending_down", "ranging", "high_vol", "transition"):
+                regime = ""
+            try:
+                regime_confidence = min(100, max(0, int(parsed.get("regime_confidence", 50))))
+            except (TypeError, ValueError):
+                regime_confidence = 50
+            invalidation = str(parsed.get("invalidation", "") or "")[:200]
 
             # 映射方向到信号
             signal_map = {"bullish": "bullish", "bearish": "bearish"}
@@ -1536,12 +1549,13 @@ class KlineAnalyst:
             # 风险评分：bearish=高风险，bullish=低风险
             risk_score = 80 if direction == "bearish" else 25 if direction == "bullish" else 50
 
+            _regime_txt = f"regime={regime}({regime_confidence}%)" if regime else "regime=?"
             detail = (
-                f"{symbol} {direction}({confidence}%) | "
+                f"{symbol} {direction}({confidence}%) | {_regime_txt}\n"
                 f"共振={resonance} 量={vol_signal}\n"
                 f"支撑={supports} 阻力={resistances}\n"
                 f"形态={patterns}\n"
-                f"风险={risk_warning} | 建议={recommendation}"
+                f"风险={risk_warning} | 失效={invalidation or '无'} | 建议={recommendation}"
             )
 
             return {
@@ -1561,6 +1575,9 @@ class KlineAnalyst:
                         "vol_signal": vol_signal,
                         "risk_warning": risk_warning,
                         "recommendation": recommendation,
+                        "regime": regime,
+                        "regime_confidence": regime_confidence,
+                        "invalidation": invalidation,
                         "snapshot": snapshot,
                     },
                 },
