@@ -591,7 +591,13 @@ class MctsMiner:
             par = Parallel(n_jobs=workers, backend="loky", prefer="processes")
             self._par = par
         state = self._fitness_state()
-        return par(delayed(_mcts_fitness_core)(a, state) for a in asts)
+        try:
+            return par(delayed(_mcts_fitness_core)(a, state) for a in asts)
+        except Exception as _par_err:
+            # [2026-08-27 挖掘根治] 并行评估偶发 shape 广播异常(5400,5)/挂起——
+            # 回退串行评估保底（正确性优先于速度），并保留异常日志可审计。
+            logger.warning("[MctsMiner] 并行评估失败(%s)，回退串行", _par_err)
+            return [self._eval_ast(a) for a in asts]
 
     def _fitness_state(self) -> dict:
         """构造 worker 可序列化求值上下文（含闭包 factor_value_fn 与短板根参照）。"""

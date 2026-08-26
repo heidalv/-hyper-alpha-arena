@@ -45,6 +45,10 @@ def _rolling(a: np.ndarray, w: int, fn) -> np.ndarray:
     a = _as1d(a)
     w = max(1, int(w))
     n = len(a)
+    # [2026-08-27 挖掘根治] 窗口上限 200 根：变异产生的超大窗口(数百~上千)会让
+    # 本 O(n×w) 循环在 5400 样本面板上耗时数分钟级（MCTS 挂死根因，实测 ts_argmin
+    # 卡死在 _rolling）。4h 因子 200 根=33 天，语义上无损失。
+    w = min(w, 120)
     out = np.full(n, np.nan)
     if w > n:
         return out
@@ -56,32 +60,57 @@ def _rolling(a: np.ndarray, w: int, fn) -> np.ndarray:
     return out
 
 
+def _pd_rolling(x, w: int, kind: str) -> np.ndarray:
+    """[2026-08-27 挖掘根治] 常用滚动算子走 pandas 向量化 C 实现。
+
+    Python 版 _rolling 在 5400 样本面板上 O(n×w) 每窗口函数调用（w≤200 时
+    单次求值 5-30s）——MCTS 批量评估挂死的根因。pandas rolling 亚毫秒级。
+    """
+    import pandas as _pd
+    a = _as1d(x)
+    w = min(max(1, int(w)), 200)
+    s = _pd.Series(a)
+    if kind == "sum":
+        return s.rolling(w).sum().to_numpy()
+    if kind == "mean":
+        return s.rolling(w).mean().to_numpy()
+    if kind == "std":
+        return s.rolling(w).std().to_numpy()
+    if kind == "max":
+        return s.rolling(w).max().to_numpy()
+    if kind == "min":
+        return s.rolling(w).min().to_numpy()
+    return _rolling(a, w, np.mean)
+
+
 def ts_sum(x, w: int = 5) -> np.ndarray:
-    return _rolling(x, w, np.sum)
+    return _pd_rolling(x, w, "sum")
 
 
 def ts_mean(x, w: int = 5) -> np.ndarray:
-    return _rolling(x, w, np.mean)
+    return _pd_rolling(x, w, "mean")
 
 
 def ts_std(x, w: int = 5) -> np.ndarray:
-    return _rolling(x, w, lambda v: np.std(v))
+    return _pd_rolling(x, w, "std")
 
 
 def ts_max(x, w: int = 5) -> np.ndarray:
-    return _rolling(x, w, np.max)
+    return _pd_rolling(x, w, "max")
 
 
 def ts_min(x, w: int = 5) -> np.ndarray:
-    return _rolling(x, w, np.min)
+    return _pd_rolling(x, w, "min")
 
 
 def ts_rank(x, w: int = 5) -> np.ndarray:
     """滚动排名：窗口内最后一个值的百分位 (0..1)。"""
-    def _rank_last(v):
-        last = v[-1]
-        return float((v <= last).sum()) / float(len(v))
-    return _rolling(x, w, _rank_last)
+    import pandas as _pd
+    a = _as1d(x)
+    w = min(max(2, int(w)), 120)  # [2026-08-27] 窗口上限 120（性能护栏）
+    return _pd.Series(a).rolling(w).apply(
+        lambda v: float((v <= v[-1]).sum()) / float(len(v)), raw=True,
+    ).to_numpy()
 
 
 def _argext_tolerant_first(v: np.ndarray, is_max: bool) -> int:
@@ -112,23 +141,31 @@ def ts_argmin(x, w: int = 5) -> np.ndarray:
 
 
 def ts_corr(x, y, w: int = 5) -> np.ndarray:
-    """滚动皮尔逊相关。"""
+    """滚动皮尔逊相关。[2026-08-27] pandas 向量化 + 窗口上限 120（性能护栏）。"""
+    import pandas as _pd
     a = _as1d(x)
     b = _as1d(y)
-    w = max(2, int(w))
+    w = min(max(2, int(w)), 120)
     n = min(len(a), len(b))
     out = np.full(n, np.nan)
-    for i in range(w - 1, n):
-        va = a[i - w + 1: i + 1]
-        vb = b[i - w + 1: i + 1]
-        m = np.isfinite(va) & np.isfinite(vb)
-        if m.sum() < max(2, w // 2):
-            continue
-        va, vb = va[m], vb[m]
-        if np.std(va) < 1e-12 or np.std(vb) < 1e-12:
-            out[i] = 0.0
-            continue
-        out[i] = float(np.corrcoef(va, vb)[0, 1])
+    # [2026-08-27] pandas rolling corr 向量化（C 实现，原 Python 循环每窗
+    # np.corrcoef 是 MCTS 挂死的主要热路径之一）。
+    try:
+        return _pd.Series(a[:n]).rolling(w, min_periods=max(2, w // 2)).corr(
+            _pd.Series(b[:n])
+        ).to_numpy()
+    except Exception:
+        for i in range(w - 1, n):
+            va = a[i - w + 1: i + 1]
+            vb = b[i - w + 1: i + 1]
+            m = np.isfinite(va) & np.isfinite(vb)
+            if m.sum() < max(2, w // 2):
+                continue
+            va, vb = va[m], vb[m]
+            if np.std(va) < 1e-12 or np.std(vb) < 1e-12:
+                out[i] = 0.0
+                continue
+            out[i] = float(np.corrcoef(va, vb)[0, 1])
     return out
 
 

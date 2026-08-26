@@ -21,7 +21,8 @@
     "gen_swing_eth_sol_mid_v2_322",
     "tpl_mid_reversion_3fe51b",
     "tpl_mid_reversion_ee142d",
-    "gen_swing_sol_btc_mid_v3_331"
+    "gen_swing_sol_btc_mid_v3_331",
+    "tpl_mid_reversion_1bdb6c"
   ],
   "strategy_graduation": {
     "tpl_long_mean_reversion_e0c9c1": {
@@ -113,17 +114,23 @@
       "trades": 46,
       "wr": 1.0,
       "dd": 0.0
+    },
+    "tpl_mid_reversion_1bdb6c": {
+      "status": "graduated",
+      "trades": 234,
+      "wr": 0.7905982905982905,
+      "dd": 0.004380354960505589
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_ee142d": 4,
-    "tpl_mid_reversion_1bdb6c": 4,
-    "tpl_mid_reversion_290af6": 4,
-    "gen_mean_reversion_multi_mid_ranging_313": 4,
-    "tpl_pro_075b93de_926c4c": 4,
-    "gen_swing_alt_high_beta_mid_v1_334": 4,
-    "gen_swing_eth_sol_mid_v2_322": 4,
-    "tpl_mid_range_89e53b": 1
+    "tpl_mid_reversion_ee142d": 9,
+    "tpl_mid_reversion_1bdb6c": 9,
+    "tpl_mid_reversion_290af6": 9,
+    "gen_mean_reversion_multi_mid_ranging_313": 9,
+    "tpl_pro_075b93de_926c4c": 9,
+    "gen_swing_alt_high_beta_mid_v1_334": 9,
+    "gen_swing_eth_sol_mid_v2_322": 9,
+    "tpl_mid_range_89e53b": 3
   },
   "live_cooldown_until": {},
   "started_at": "2026-08-26T15:48:21.140979+00:00"
