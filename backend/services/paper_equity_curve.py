@@ -101,7 +101,23 @@ def build_paper_equity_curve(
                     "value": round(float(s.total_assets or 0), 4),
                 }
             )
-    else:
+        # [2026-08-26 修复] 快照可信度校验 + 末点锚定 live 权益（文档承诺但从未实现）：
+        # 快照(total_assets)与 current(total_equity) 量级偏差>2x → 快照不可信（旧 Arena
+        # 口径/单位漂移，曾致曲线显示 ~780 而 KPI 109），整体回退订单重建。
+        if points and current_equity > 0:
+            _last_snap = float(points[-1]["value"] or 0)
+            if abs(_last_snap - current_equity) > 2.0 * current_equity:
+                logger.warning(
+                    "[PaperEquityCurve] 快照不可信: last=%.2f vs current=%.2f → 回退订单重建",
+                    _last_snap, current_equity,
+                )
+                points, source = [], "orders"
+            else:
+                if int(now.timestamp()) - points[-1]["time"] > 300:
+                    points.append({"time": int(now.timestamp()), "value": round(current_equity, 4)})
+                else:
+                    points[-1]["value"] = round(current_equity, 4)
+    if not points:
         # 2) 订单重建：equity ≈ initial + Σpnl − Σfee（末点再叠当前浮动）
         source = "orders"
         oq = (
