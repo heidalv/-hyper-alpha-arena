@@ -71,6 +71,7 @@ def _load() -> None:
             data = json.load(f)
         if isinstance(data, dict):
             _state = {k: v for k, v in data.items() if isinstance(v, dict)}
+            _paused.update(data.get("__paused__", {}) or {})
     except Exception:
         _state = {}
 
@@ -79,7 +80,7 @@ def _save() -> None:
     try:
         os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
         with open(_STATE_PATH, "w", encoding="utf-8") as f:
-            json.dump(_state, f, ensure_ascii=False)
+            json.dump({**_state, "__paused__": dict(_paused)}, f, ensure_ascii=False)
     except Exception as e:
         logger.debug("[LLM2预算] 状态落盘失败: %s", e)
 
@@ -100,6 +101,7 @@ def llm2_allow(scope: str) -> bool:
         day[scope] = int(day.get(scope, 0)) + 1
         day["__global__"] = int(day.get("__global__", 0)) + 1
         if day[scope] > _cap(scope):
+            # 持久化暂停标记（重启不重置），告警只打一次
             _paused[scope] = today
             logger.warning(
                 "[LLM2预算] scope=%s 当日额度耗尽(%d/%d)，暂停至明日（自动降级）",
