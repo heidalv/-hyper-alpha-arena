@@ -76,13 +76,16 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
                   <span className="text-[9px] font-mono flex items-center gap-1">
                     <Zap className="w-2.5 h-2.5 text-warning" />{TIER_LABELS[k]}
                   </span>
-                  <span className={cn("text-[9px] font-mono", c.frozen ? "text-loss" : "text-profit")}>
+                  <span className={cn("text-[9px] font-mono", c.frozen ? "text-loss" : ((c.loss != null && c.budget > 0 && c.loss < 0 && Math.abs(c.loss) >= c.budget) ? "text-warning" : "text-profit"))}>
                     {c.frozen
                       ? "⛔熔断"
                       : (c.loss != null && c.budget > 0 && c.loss < 0 && Math.abs(c.loss) >= c.budget)
                         ? "⚠️预算触线"
                         : "✅正常"}
                   </span>
+                  {!c.frozen && c.loss != null && c.budget > 0 && c.loss < 0 && Math.abs(c.loss) >= c.budget && (
+                    <div className="text-[9px] text-warning leading-snug mt-0.5">⚠️ 日亏预算已超但冻结机制运维停用（PB_FREEZE_ENABLED=false）</div>
+                  )}
                 </div>
                 <div className="text-[9px] font-mono text-muted-foreground">
                   {c.loss != null ? `日 ${loss >= 0 ? "+" : ""}$${loss.toFixed(2)} / $${budget.toFixed(0)}` : "未巡检"}
