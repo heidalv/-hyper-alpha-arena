@@ -48,8 +48,17 @@ def resolve_combo_weights(records: List[Dict], manual: Dict[str, float]) -> Dict
             # OOS Sharpe 1.06/净收益+0.33）权重算成 0，静默踢出投票=中线无信号弹药。
             _sign = float(_scores.get("expected_sign") or (1.0 if _icir >= 0 else -1.0))
             base[fid] = max(_sign * _icir, 0.0)
+            # [2026-08-26 防静默断点] 任何因子权重归零必须显式告警并给出原因
+            if base[fid] <= 0.0 and abs(_icir) > 0.01:
+                _why = ("icir符号与锁定expected_sign不一致(不信任)" if _scores.get("expected_sign")
+                        else "icir<=0且无符号锁定")
+                logger.warning(
+                    "[ComboWeights] 因子权重归零: %s icir=%.4f expected_sign=%s -> %s",
+                    fid, _icir, _scores.get("expected_sign"), _why,
+                )
     tot = sum(base.values())
     if tot <= 0:
+        logger.warning("[ComboWeights] 全部因子权重归零，回退均权(1/%d)兜底", max(len(base), 1))
         n = max(len(base), 1)
         return {fid: 1.0 / n for fid in base}
     return {fid: v / tot for fid, v in base.items()}
