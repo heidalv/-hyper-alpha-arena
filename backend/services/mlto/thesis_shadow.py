@@ -113,12 +113,20 @@ def _build_prompt(symbol: str, tier: str, market_summary: Dict, analyst_reports:
     tier_label = "中线(4h/1d 波段)" if tier == "mid" else "长线(1d/1w 结构)"
     _ms = (market_summary or {}).get(symbol.upper())
     _price = (_ms or {}).get("price", "?") if isinstance(_ms, dict) else "?"
+    _lessons_block = ""
+    try:
+        from backend.services.mlto.trade_review_officer import lessons_prompt_block
+        _lessons_block = lessons_prompt_block(3)
+    except Exception:
+        pass
     return f"""你是资深加密货币{tier_label}交易员。基于以下证据，输出你的方向论题（thesis）。
 
 币种: {symbol} | tier: {tier}
 - {regime_ctx}
 - {factor_ctx}
 - 当前价: {_price}
+
+{_lessons_block}
 
 只输出 JSON（不要其他文本）：
 {{

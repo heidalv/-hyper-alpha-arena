@@ -173,3 +173,38 @@ def review_close(db, outcome) -> Optional[Dict]:
     except Exception as e:  # noqa: BLE001
         logger.debug("[ReviewOfficer] 异常(已吞): %s", e)
         return None
+
+
+
+
+def recent_lessons(limit: int = 5) -> list:
+    """[2026-08-26 学习闭环接通] 读取最近/最常确认的教训，供决策 prompt 注入（Reflexion 式 verbal RL）。"""
+    try:
+        from sqlalchemy import text
+        from backend.database.connection import SessionLocal
+        db = SessionLocal()
+        try:
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+            rows = db.execute(text(
+                "SELECT lesson_text FROM brain_lessons WHERE status='active' "
+                "ORDER BY confirm_count DESC, id DESC LIMIT :n"
+            ), {"n": int(limit)}).fetchall()
+            return [str(r[0]) for r in rows if r and r[0]]
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("[ReviewOfficer] lessons 读取跳过: %s", e)
+        return []
+
+
+
+def lessons_prompt_block(limit: int = 5) -> str:
+    """把教训格式化为 prompt 注入块（空则返回空串）。"""
+    ls = recent_lessons(limit=limit)
+    if not ls:
+        return ""
+    lines = [bsn + "- " + x[:120] for x in ls]
+    return (bsn + "## 近期教训（复盘官产出——必须引用/权衡，不得忽略）" + bsn + "".join(lines))
