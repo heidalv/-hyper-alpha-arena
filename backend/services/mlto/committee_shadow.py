@@ -40,7 +40,7 @@ def _build_prompt(symbol: str, tier: str, regime_ctx: str, factor_ctx: str,
         '{"bull_case": "多方最强论点", "bear_case": "空方最强论点", '
         '"consensus_direction": "long|short|neutral", "consensus_confidence": 0到100的整数, '
         '"red_flag": "最需要警惕的风险（或none）", '
-        '"decision_card": {"budget_hint": "increase|keep|reduce|pause", "tilt": "long|short|none", '
+        '"decision_card": {"budget_hint": "increase|reduce|pause（必须三选一：无观点给reduce、方向不明给pause，禁止keep默认）", "tilt": "long|short|none", '
         '"known_unknown": "最大未知"}}'
     )
 
