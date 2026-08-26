@@ -77,7 +77,11 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
                     <Zap className="w-2.5 h-2.5 text-warning" />{TIER_LABELS[k]}
                   </span>
                   <span className={cn("text-[9px] font-mono", c.frozen ? "text-loss" : "text-profit")}>
-                    {c.frozen ? "⛔熔断" : "✅正常"}
+                    {c.frozen
+                      ? "⛔熔断"
+                      : (c.loss != null && c.budget > 0 && c.loss < 0 && Math.abs(c.loss) >= c.budget)
+                        ? "⚠️预算触线"
+                        : "✅正常"}
                   </span>
                 </div>
                 <div className="text-[9px] font-mono text-muted-foreground">
