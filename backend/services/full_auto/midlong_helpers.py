@@ -553,6 +553,22 @@ def try_execute_independent_agent_open(
         except Exception as _td_err:
             logger.debug("[MidLongTradeDesign] %s 跳过: %s", _sym_u, _td_err)
 
+    # [2026-08-26 亏损复盘] 中线(swing)盈亏比下限：结构止损可达 -9%(1w ATR) 而
+    # LLM TP 可能只有 +5-6%，形成 RR 0.6 倒挂仓（VIRTUAL 8/26 实测单仓浮亏
+    # -9.94）。强制 tp_pct >= MIDLONG_SWING_MIN_RR × sl_pct（默认 1.0，0=关闭）。
+    if (tier or "").strip().lower() != "long" and _act in ("buy", "sell")             and float(sl_pct or 0) > 0 and float(tp_pct or 0) > 0:
+        try:
+            _swing_min_rr = float(os.environ.get("MIDLONG_SWING_MIN_RR", "1.0") or 1.0)
+        except Exception:
+            _swing_min_rr = 1.0
+        if _swing_min_rr > 0 and float(tp_pct) < float(sl_pct) * _swing_min_rr:
+            logger.warning(
+                "[MidLongRR] %s %s tier=%s RR倒挂修复: tp %.2f%% < sl %.2f%%×%.1f → tp 抬到 %.2f%%",
+                _sym_u, _act, tier, float(tp_pct) * 100, float(sl_pct) * 100,
+                _swing_min_rr, float(sl_pct) * _swing_min_rr * 100,
+            )
+            tp_pct = float(sl_pct) * _swing_min_rr
+
     # [Phase D 修复 Bug1] 把 tranche 分档保证金比例夹紧到 [0,1]，传给 proposal。
     # proposal_execution 会把它作为 size 乘子叠加到 budget/V5Gate/MTF 之后。
     try:

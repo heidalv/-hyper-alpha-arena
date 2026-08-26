@@ -1068,6 +1068,41 @@ def manage_position(
             )
             return _summary(f"通道熔断 shadow(trend_broken): {_reason_base}", action="manage_hold")
 
+        # [2026-08-26 亏损复盘] "转 mixed" 类复查平仓缓冲：震荡日里 4h 转 mixed
+        # 并非结构破坏，浮亏 <2% 时先 hold 观察一档（每仓每天最多 1 次），
+        # 避免被反复砍小亏损（8/26 XPL 09:08/09:19 两笔 -3.5 同源）。
+        _rb_l = str(_reason_base or "").lower()
+        if "mixed" in _rb_l and float(pnl_pct or 0) > -0.02:
+            try:
+                import json as _json_mb
+                from backend.database.models import PaperPosition as _PP_mb
+                _row_mb = db.query(_PP_mb).filter(_PP_mb.id == int(position.get("id") or 0)).first()
+                _st_mb = {}
+                if _row_mb is not None:
+                    try:
+                        _st_mb = _json_mb.loads(getattr(_row_mb, "exit_state_json", None) or "{}") or {}
+                    except Exception:
+                        _st_mb = {}
+                _skips_mb = int((_st_mb or {}).get("mixed_review_skips") or 0)
+                if _skips_mb < 1:
+                    _st_mb["mixed_review_skips"] = _skips_mb + 1
+                    if _row_mb is not None:
+                        _row_mb.exit_state_json = _json_mb.dumps(_st_mb, ensure_ascii=False)
+                        try:
+                            db.commit()
+                        except Exception:
+                            try:
+                                db.rollback()
+                            except Exception:
+                                pass
+                    logger.info(
+                        "[MidLong] stage=manage %s mixed复查缓冲 hold一档(pnl=%+.1f%%): %s",
+                        sym, float(pnl_pct or 0) * 100, _reason_base,
+                    )
+                    return _summary("mixed复查缓冲 hold一档", action="manage_hold")
+            except Exception as _mb_err:
+                logger.debug("[MidLong] mixed缓冲检查跳过: %s", _mb_err)
+
         _exec_close(db, account_id=account_id, position=position,
                     reason=f"trend_broken: {_reason_base}", host=host, session=session)
         logger.info(

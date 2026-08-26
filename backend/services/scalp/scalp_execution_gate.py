@@ -176,34 +176,86 @@ class ScalpExecutionGate:
             _fund_ok = _funding >= _funding_min
             _trend_ok = _regime_name == "trending"
             _conds_met = _bias_ok and _fund_ok
+            # [2026-08-26 亏损复盘] 凌晨时段空头收紧：04:00-08:00 无趋势下行证据时，
+            # MR 豁免仅限区间极高位(pos≥0.90)，Paper 分档再乘 0.5。
+            # 实测 8/26 凌晨五连 SL（APT/UNI/XRP/SOL/ASTER，单笔 -1.4~-1.65）
+            # 全部发生在该时段——反弹时段开空样本质量差。
+            _em_active = False
+            _em_extra = 1.0
+            _em_min_pos = 1.01  # >1 永不满足 = 不限制
+            try:
+                if bool(self._cfg("SCALP_SHORT_EARLY_MORNING_GATE", True)):
+                    import time as _time_em
+                    _hh = int(_time_em.localtime().tm_hour)
+                    _em_start = int(self._cfg("SCALP_SHORT_EM_START_HOUR", 4) or 4)
+                    _em_end = int(self._cfg("SCALP_SHORT_EM_END_HOUR", 8) or 8)
+                    if _em_start <= _hh < _em_end:
+                        _em_active = True
+                        _em_extra = float(self._cfg("SCALP_SHORT_EM_EXTRA_MULT", 0.5) or 0.5)
+                        _em_min_pos = float(self._cfg("SCALP_SHORT_EM_MIN_RANGE_POS", 0.90) or 0.90)
+            except Exception:
+                pass
             if not _conds_met:
                 if _is_mr_signal:
-                    # MR 空头豁免：区间高位高抛不属于趋势逆风（深挖 C）
-                    logger.info(
-                        "[ScalpGate] %s MR空头豁免空头条件化（区间高抛不参与趋势博弈）",
-                        symbol,
-                    )
+                    _mr_pos = None
+                    try:
+                        _mr_pos = float(getattr(advisory, "range_position_5m", None) or -1)
+                    except Exception:
+                        _mr_pos = None
+                    _mr_em_ok = (not _em_active) or (_mr_pos is not None and _mr_pos >= _em_min_pos)
+                    if _mr_em_ok:
+                        # MR 空头豁免：区间高位高抛不属于趋势逆风（深挖 C）
+                        logger.info(
+                            "[ScalpGate] %s MR空头豁免空头条件化（区间高抛不参与趋势博弈）",
+                            symbol,
+                        )
+                    elif is_paper:
+                        size_mult *= _em_extra
+                        logger.info(
+                            "[ScalpGate] %s MR空头凌晨收紧 pos=%.2f<%.2f → 缩仓×%.2f",
+                            symbol, _mr_pos or -1, _em_min_pos, _em_extra,
+                        )
+                    else:
+                        return GateDecision(
+                            False, lane_id, "hold",
+                            f"凌晨时段({_em_start}:00-{_em_end}:00)空头无趋势证据且区间位不足 → 拦截",
+                            effective_score=effective_score,
+                            advisory=advisory,
+                        )
                 elif is_paper:
                     # Paper 分档放行：强信号空头继续积累样本（0.25/0.5/1.0x），
                     # 弱信号(<40)与旧规则一致拦截。Live 不受影响。
                     _short_esc = int(self._cfg("SCALP_SHORT_PAPER_EXEMPT_MIN", 40) or 40)
                     _short_full = int(self._cfg("SCALP_SHORT_PAPER_FULL_MIN", 55) or 55)
                     if effective_score >= _short_full:
-                        logger.info(
-                            "[ScalpGate] %s Paper空头高分放行 score=%d≥%d → 全仓",
-                            symbol, effective_score, _short_full,
-                        )
+                        if _em_active:
+                            size_mult *= _em_extra
+                            logger.info(
+                                "[ScalpGate] %s Paper空头高分凌晨收紧 → 半仓样本",
+                                symbol,
+                            )
+                        else:
+                            logger.info(
+                                "[ScalpGate] %s Paper空头高分放行 score=%d≥%d → 全仓",
+                                symbol, effective_score, _short_full,
+                            )
                     elif effective_score >= _short_esc:
                         size_mult *= 0.5
+                        if _em_active:
+                            size_mult *= _em_extra
                         logger.info(
-                            "[ScalpGate] %s Paper空头中分放行 score=%d∈[%d,%d) → 半仓样本",
+                            "[ScalpGate] %s Paper空头中分放行 score=%d∈[%d,%d) → %s样本",
                             symbol, effective_score, _short_esc, _short_full,
+                            f"0.25x(凌晨)" if _em_active else "半仓",
                         )
                     else:
                         size_mult *= 0.25
+                        if _em_active:
+                            size_mult *= _em_extra
                         logger.info(
-                            "[ScalpGate] %s Paper空头低分放行 score=%d<%d → 0.25x 样本",
+                            "[ScalpGate] %s Paper空头低分放行 score=%d<%d → %s样本",
                             symbol, effective_score, _short_esc,
+                            f"0.125x(凌晨)" if _em_active else "0.25x",
                         )
                 else:
                     return GateDecision(

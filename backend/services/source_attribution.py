@@ -184,9 +184,16 @@ class SourceAttribution:
             bst = self._breaker.setdefault(bkey, {"n": 0, "wins": 0})
             bst["n"] += 1
             bst["wins"] += int(win)
-            if bst["n"] >= 30:
+            # [2026-08-26 亏损复盘] 熔断阈值环境化：默认 30 笔/40%；震荡市里出血通道
+            # 应更早 shadow（8/26 mid|trend_weaken 5 笔 0 胜仍在砍仓）。
+            try:
+                _shadow_min_n = int(float(os.environ.get("EXIT_CHANNEL_SHADOW_MIN_N", "30") or 30))
+                _shadow_max_wr = float(os.environ.get("EXIT_CHANNEL_SHADOW_MAX_WR", "0.40") or 0.40)
+            except Exception:
+                _shadow_min_n, _shadow_max_wr = 30, 0.40
+            if bst["n"] >= _shadow_min_n:
                 wr = bst["wins"] / bst["n"]
-                self._breaker_shadow[bkey] = wr < 0.40
+                self._breaker_shadow[bkey] = wr < _shadow_max_wr
             result = {"key": key, "n": st["n"], "net": round(st["gross"] - st["fee"], 4),
                       "shadow": bool(self._shadow.get(key)), "bkey": bkey,
                       "breaker_shadow": bool(self._breaker_shadow.get(bkey))}

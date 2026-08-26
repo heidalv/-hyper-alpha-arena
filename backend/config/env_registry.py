@@ -34,7 +34,7 @@ SYSTEM_PREFIXES: tuple[str, ...] = (
     "AI_", "ANALYST_", "ASSISTANT_", "ARBITRAGE_", "REBATE_", "HYPERLIQUID_",
     "BINANCE_", "BYBIT_", "OKX_", "FULLAUTO_", "SCALP_", "MIDLONG_", "PAIR_",
     "WFO_", "BACKTEST_", "FEE_", "ENV_", "LIVE_", "PAPER_", "LONG_V2_", "LONG_TREND_",
-    "MASTER_",
+    "MASTER_", "EXIT_",
 )
 
 # 风控/安全关键 flag —— 被设为 falsy 时必须显式日志，禁止静默关闭。
