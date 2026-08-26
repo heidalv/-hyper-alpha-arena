@@ -80,6 +80,28 @@ class ScalpExecutionGate:
             )
 
         side = "long" if action == "buy" else "short"
+        # [2026-08-26 数据驱动·用户指示] RSI 动量区禁反转：
+        # 昨晚实证 RSI 55-70 强势动量区做空 = 胜率30.8%/均-83bp（全场最差桶）；
+        # 对称禁 30-45 弱势动量区做多（-18.8bp）。极端区(>70/<30)保留给 MR 主逻辑。
+        if bool(self._cfg("SCALP_MOMENTUM_ZONE_GATE", True)):
+            _rsi = 0.0
+            for _src in (getattr(signal, "rsi", None),
+                         (market_data or {}).get("rsi"),
+                         (market_data or {}).get("rsi_14")):
+                try:
+                    _rsi = float(_src or 0)
+                    if _rsi > 0:
+                        break
+                except (TypeError, ValueError):
+                    continue
+            if 55.0 <= _rsi <= 70.0 and action == "sell":
+                return GateDecision(False, lane_id, "block",
+                                    f"momentum_zone_reversal: rsi={_rsi:.0f} 强势动量区禁做空",
+                                    effective_score=score)
+            if 30.0 <= _rsi <= 45.0 and action == "buy":
+                return GateDecision(False, lane_id, "block",
+                                    f"momentum_zone_reversal: rsi={_rsi:.0f} 弱势动量区禁做多",
+                                    effective_score=score)
         entry = float(getattr(signal, "entry_price", 0) or market_data.get("price", 0) or 0)
         orch = (market_data or {}).get("orchestrator") or {}
         _is_mr_signal = bool((market_data or {}).get("ranging_mr")) or str(

@@ -53,7 +53,8 @@ def _build_prompt(
         f"因子分={score:.0f} 止损={sl_pct:.2%} 止盈={tp_pct:.2%} 资金费率={funding:.5f}\n"
         f"近{_MAX_PROMPT_KLINE_ROWS}根K线收盘价序列:\n{kline_summary}\n"
         'JSON 格式：{"confirm": true/false, "reason": "<=20字"}\n'
-        "规则：价格结构/动量与方向明显矛盾→false；证据不足→true（模拟盘以积累样本优先）。"
+        "规则：①近10根K线呈连续同向动量（多数同向/连涨连跌）且信号方向逆动量→必须false；"
+        "②价格结构/动量与方向明显矛盾→false；③其余证据不足→true（模拟盘以积累样本优先）。"
     )
 
 
