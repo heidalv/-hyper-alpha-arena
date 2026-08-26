@@ -56,7 +56,11 @@ export default function DashboardPage() {
 
   const { data: balance } = usePaperBalance(activeAccountId);
   const { data: positions } = usePositions(activeAccountId, "open");
-  const activeSession = (sessions ?? []).find((s) => s.status === "running");
+  // [2026-08-26 账户一致性修复] 会话必须与选中账户联动：此前取"第一个 running 会话"
+  //（可能属于其它 paper 账户），导致 tick 状态/活动数据与 KPI 口径不一致。
+  const activeSession = (sessions ?? []).find(
+    (s) => s.status === "running" && (activeAccountId == null || s.account_id === activeAccountId),
+  ) ?? (sessions ?? []).find((s) => s.status === "running");
 
   const { data: tierStatus } = useTierStatus(activeSession?.session_id);
   const { data: tierActivity } = useTierActivity(activeSession?.session_id);
