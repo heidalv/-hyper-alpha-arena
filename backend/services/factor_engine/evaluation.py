@@ -238,7 +238,10 @@ DEFAULT_GATE_CONFIG: Dict[str, float] = {
     # 全部门槛可配置（crypto 波动率缩放），默认值对标 WorldQuant BRAIN 并放宽到 crypto 口径
     "min_top_quantile_sharpe": 0.3,    # 多头组最小年化夏普
     "benchmark_coeff": 1.0,            # 多头夏普须 > benchmark_coeff × 基准夏普（无基准时忽略）
-    "min_fitness": 1.0,                # Fitness > 1.0
+    # [2026-08-27 挖掘根治] fitness 输入是 ICIR（factor_card 265 行），原阈值 1.0
+    # = 要求 ICIR>1.0——世界级因子才配当"及格线"，实测 rev_5(IC 0.23, ICIR 0.75,
+    # p=1.2e-6, 9/9 币正)被拒 → 挖掘恒 0 晋升。降到 0.4 与 Lifecycle 对齐。
+    "min_fitness": 0.4,                # Fitness(=ICIR) > 0.4
     "min_turnover": 0.0,               # Turnover 下限（WorldQuant 1%）
     "max_turnover": 0.7,               # Turnover 上限（WorldQuant 70%）
     "max_pool_corr": 0.7,              # 与池内最大相关 |ρ| < 0.7

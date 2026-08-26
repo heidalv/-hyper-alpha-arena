@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 
@@ -1190,12 +1191,14 @@ def _purge_and_select(eval_results, dfs):
         ))
 
     def factor_series_fn(c: CandidateFactor) -> pd.Series:
+        # [2026-08-27 挖掘根治] 修复跨币错配：此前用 best_sym 的因子值 + return_series
+        # 用 first_df 的收益，RangeIndex 按位置对齐 → 因子与收益来自不同币种 → IC 纯噪声
+        # → 初筛把所有候选全拒（实测每日 14/14 拒）。现在因子与收益同源 first_df。
         from backend.services.factor_engine.expr.parser import parse as _parse
         info = eval_results.get(c.factor_id)
         if not info:
             return pd.Series()
-        best_sym = info.get("best_sym")
-        df = dfs.get(best_sym) if best_sym and best_sym in dfs else list(dfs.values())[0]
+        df = list(dfs.values())[0]
         try:
             fields = _kline_to_fields(df)
             expr = _parse(c.expr_ast)
@@ -1220,13 +1223,20 @@ def _purge_and_select(eval_results, dfs):
     return_series = pd.Series(fwd, index=first_df.index)
     sample_len = max(50, len(return_series))
 
+    # [2026-08-27 挖掘根治] 初筛半衰期门槛环境化：BTC 上 rev_5 的 IC 半衰期仅 3 根
+    # (4h)，固定阈值 5 会把强反转因子全拒（实测 13/14 死于初筛）。默认降到 3。
+    _thr = LifecycleThresholds()
+    try:
+        _thr.min_halflife_bars = int(float(os.environ.get("FACTOR_EVO_MIN_HALFLIFE_BARS", "3") or 3))
+    except Exception:
+        pass
     survivors, report = run_purge_pipeline(
         candidates,
         factor_series_fn=factor_series_fn,
         return_series=return_series,
         factor_matrix_fn=factor_matrix_fn,
         config=PurgeConfig(max_active_factors=50),
-        thresholds=LifecycleThresholds(),
+        thresholds=_thr,
         dsr_pbo_gate=None,  # 走内置 default_dsr_pbo_gate
         sample_len=sample_len,
         n_total_candidates=len(candidates),

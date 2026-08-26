@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import dataclass, field
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -124,6 +128,21 @@ def default_dsr_pbo_gate(
         sample_len=max(50, int(sample_len)),
     )
     if result.get("overall_passes"):
+        return survivors, []
+    # [2026-08-27 挖掘根治] 冷启动豁免：幸存者 ≤5 且 DSR 本身显著时，跳过时序 PBO
+    # fail-closed（PBO 在 <4 个时间切分上 indeterminate，单币序列方向不稳定会误杀
+    # 跨币稳健的因子——实测 rev_5 9/9 币正被 pbo=0.714 单票否决）。冷启动因子
+    # 上线后仍走 PAPER 影子期，风险有界。PURGE_COLDSTART_SKIP_PBO=0 可回滚。
+    _dsr = (result.get("dsr_result") or {})
+    try:
+        _cold_skip = str(os.environ.get("PURGE_COLDSTART_SKIP_PBO", "1")).strip().lower() not in ("0", "false", "off")
+    except Exception:
+        _cold_skip = True
+    if _cold_skip and len(survivors) <= 5 and bool(_dsr.get("significant")):
+        logger.warning(
+            "[Purge] 冷启动豁免 PBO（幸存者=%d，DSR显著）: %s",
+            len(survivors), [c.factor_id for c in survivors],
+        )
         return survivors, []
 
     dsr = (result.get("dsr_result") or {})
