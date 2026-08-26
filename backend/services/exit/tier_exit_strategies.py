@@ -15,6 +15,7 @@ S2 修复（对应 04 综合方案 §3.4 / 审计 R6）：
 """
 from __future__ import annotations
 
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -149,15 +150,32 @@ class ShortTierExit(TierExitStrategy):
         StagedTP(trigger_pnl_pct=7.0, reduce_ratio=0.35),
     ]
     TRAILING_ATR_MULT = 1.0
-    # [2026-07-30 crypto-native] 2% 浮盈推保本太早，加 0.5% offset 太紧，
-    # 被 5m 正常波动击穿→breakeven_tp 100% 微利出场。提升阈值和 buffer。
-    BREAKEVEN_TRIGGER_PCT = 3.0   # 3% 浮盈才推保本
-    BREAKEVEN_OFFSET_PCT = 0.008  # SL→entry+0.8% (≥1×ATR)
-    TRAILING_ACTIVATE_LEVEL = 2   # TP2 触发后启动 trailing
+    # [2026-08-26 三阶段设计·证据最优] 保本触发 3.0%→0.3%（信号边际下沿即保本，
+    # breakeven_tp 117笔+0.83/笔 全场最优）；buffer 0.8%→2bp 只垫成本。
+    # 旧值 3.0% 对 ±0.3% 边际的信号几乎永不触发=保本结构形同虚设。
+    BREAKEVEN_TRIGGER_PCT = 0.3
+    BREAKEVEN_OFFSET_PCT = 0.0002
+    TRAILING_ACTIVATE_LEVEL = 1   # 保本后即可启动追踪（原 TP2 才启动）
 
     def evaluate(self, ctx: PositionContext, *, tp_level_reached: int = 0,
                  breakeven_active: bool = False, trailing_active: bool = False,
                  ) -> Optional[ExitDecision]:
+        # [2026-08-26 三阶段设计·A] 快速认错：N分钟无浮盈(从未触保本线)→小亏出清，
+        # 替代"拿错方向磨到超时"（max_hold_timeout 曾占 40%）。
+        try:
+            if os.getenv("SCALP_EXIT_FAST_CUT_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"):
+                _fc_min = float(os.getenv("SCALP_EXIT_FAST_CUT_MIN", "15") or 15)
+                if (ctx.hold_seconds or 0) >= _fc_min * 60                         and (ctx.peak_pnl_pct or 0) < 0.003                         and (ctx.unrealized_pnl_pct or 0) < 0.003:
+                    return ExitDecision(
+                        position_id=ctx.position_id,
+                        action=ExitAction.CLOSE.value, qty_ratio=1.0,
+                        reason="fast_cut: %.0fmin无浮盈认错出清(peak=%.3f%%)" % (_fc_min, (ctx.peak_pnl_pct or 0) * 100),
+                        source=getattr(ExitSource, "TIME_DECAY", ExitSource.TRAILING).value,
+                        ts_ns=int(time.time() * 1e9),
+                    )
+        except Exception:
+            pass
+
         # 1. 分批 TP
         tp_decision = self._evaluate_staged_tp(ctx, tp_level_reached)
         if tp_decision:
