@@ -206,5 +206,6 @@ def lessons_prompt_block(limit: int = 5) -> str:
     ls = recent_lessons(limit=limit)
     if not ls:
         return ""
+    bsn = chr(92) + "n"
     lines = [bsn + "- " + x[:120] for x in ls]
     return (bsn + "## 近期教训（复盘官产出——必须引用/权衡，不得忽略）" + bsn + "".join(lines))
