@@ -41,9 +41,12 @@ def resolve_combo_weights(records: List[Dict], manual: Dict[str, float]) -> Dict
             # expected_sign 为准，权重幅度 = max(expected_sign × icir, 0)。
             # ① 一致的反向因子（sign=-1, icir<0）获得正常权重（路由按
             #    expected_sign 反手使用它）；② 符号不一致（icir 与锁定方向
-            #    相反）的因子不信任 → 权重 0。旧记录无 expected_sign 时
-            #    默认 +1，行为与原 max(icir, 0) 完全一致（向后兼容）。
-            _sign = float(_scores.get("expected_sign") or 1.0)
+            #    相反）的因子不信任 → 权重 0。
+            # [2026-08-26 修复] 旧记录无 expected_sign 时按 sign(icir) 锁定
+            #（与路由 orient=expected_sign or sign(ic) 同规则），而不是恒 +1——
+            # 恒 +1 会把负 ICIR 的 A/B 级反向因子（如 obv@4h/-0.489、obv@1d/-0.812，
+            # OOS Sharpe 1.06/净收益+0.33）权重算成 0，静默踢出投票=中线无信号弹药。
+            _sign = float(_scores.get("expected_sign") or (1.0 if _icir >= 0 else -1.0))
             base[fid] = max(_sign * _icir, 0.0)
     tot = sum(base.values())
     if tot <= 0:
