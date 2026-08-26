@@ -131,3 +131,14 @@ def llm2_report() -> Dict:
     for scope in sorted(set(list(DEFAULT_CAPS.keys()) + [k for k in day.keys() if k != "__global__"])):
         out[scope] = {"used": day.get(scope, 0), "cap": _cap(scope), "paused": _paused.get(scope) == today}
     return out
+
+
+def roas_adjust_caps() -> dict:
+    """[2026-08-26 学习闭环#5] ROAS→预算：按各组近7天净收益给出 scope 配额建议。
+
+    数据源：brain_episodes(复盘官归因含 source 标签) + llm2 用量。
+    当前为建议输出（不自动改 env，防误调）；周报任务将读取本函数，
+    连续 2 周建议一致时由人工落 .env。"""
+    import datetime as _dt
+    today = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+    return {"date": today, "note": "ROAS 骨架就位；自动调整待 brain_episodes 分组数据≥2周后激活"}

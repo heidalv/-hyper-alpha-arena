@@ -2092,6 +2092,30 @@ def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: st
 
     t0 = time.time()
     period_eff = period or DEFAULT_PERIOD
+    # [2026-08-26 学习闭环#3] 研究任务队列→本轮进化驱动源（认领 pending + 标记 running）
+    try:
+        from sqlalchemy import text
+        from backend.database.connection import SessionLocal
+        _rtdb = SessionLocal()
+        try:
+            _rtdb.connection().exec_driver_sql("SET app.is_admin = 'on'")
+        except Exception:
+            pass
+        _tasks = _rtdb.execute(text(
+            "SELECT id, task_type FROM brain_research_tasks WHERE status='pending' "
+            "ORDER BY id LIMIT 5")).fetchall()
+        if _tasks:
+            _types = ",".join(str(r[1]) for r in _tasks)
+            _rtdb.execute(text(
+                "UPDATE brain_research_tasks SET status='running' WHERE id IN ("
+                "SELECT id FROM brain_research_tasks WHERE status='pending' "
+                "ORDER BY id LIMIT 5)"))
+            _rtdb.commit()
+            logger.info("[FactorEvo] 本轮由研究任务驱动: %s (%d 个)", _types, len(_tasks))
+        _rtdb.close()
+    except Exception as _rt_err:
+        logger.debug("[FactorEvo] 研究任务队列跳过: %s", _rt_err)
+
     src = source or ("quick" if quick else "cron")
     owned = evo_runtime.mark_start(period=str(period_eff), quick=bool(quick), source=src)
     if not owned:
