@@ -4299,16 +4299,39 @@ class PaperTradingEngine:
                         f"TP {old_tp}→{tp_price}")
         if sl_price is not None:
             old_sl = pos.sl_price
-            pos.sl_price = sl_price
-            # [P0-7 结构性加固] 所有 AI/紧急 SL 调整必须位于爆仓价内侧（含紧急 SL 路径），
-            # 否则高杠杆下 SL 永不先触发。_ensure_sl_inside_liq 会自动把越界 SL 钳回 liq 内侧。
+            # [2026-08-27 止损失效修复] SL 只收紧不放宽：8/26-27 实测 UNI swing 的 SL
+            # 被复查路径从 -4.5% 放宽到 -9%（4.1285→3.9359），行情急跌时越走越远，
+            # 用户感知"止损失效"。默认拒绝放宽（MIDLONG_ALLOW_SL_WIDEN=true 回滚）。
             try:
-                self._ensure_sl_inside_liq(pos)
-            except Exception as _liq_err:
-                logger.debug(f"[Paper] update_tp_sl liq 守卫跳过: {_liq_err}")
-            changed = True
-            logger.info(f"[Paper] AI调整SL: {pos.symbol} {pos.side} "
-                        f"SL {old_sl}→{pos.sl_price}")
+                _allow_widen = str(os.environ.get("MIDLONG_ALLOW_SL_WIDEN", "false")).strip().lower() in ("1", "true", "yes", "on")
+            except Exception:
+                _allow_widen = False
+            _cur_sl = float(old_sl or 0)
+            _new_sl = float(sl_price or 0)
+            _side_sl = str(getattr(pos, "side", "long") or "long").lower()
+            _would_widen = (
+                _cur_sl > 0 and _new_sl > 0 and (
+                    (_side_sl in ("long", "buy") and _new_sl < _cur_sl)
+                    or (_side_sl in ("short", "sell") and _new_sl > _cur_sl)
+                )
+            )
+            if _would_widen and not _allow_widen:
+                logger.warning(
+                    "[Paper] 拒绝放宽SL: %s %s SL %.6f→%.6f（只收紧不放宽；"
+                    "MIDLONG_ALLOW_SL_WIDEN=true 回滚）",
+                    pos.symbol, pos.side, _cur_sl, _new_sl,
+                )
+            else:
+                pos.sl_price = sl_price
+                # [P0-7 结构性加固] 所有 AI/紧急 SL 调整必须位于爆仓价内侧（含紧急 SL 路径），
+                # 否则高杠杆下 SL 永不先触发。_ensure_sl_inside_liq 会自动把越界 SL 钳回 liq 内侧。
+                try:
+                    self._ensure_sl_inside_liq(pos)
+                except Exception as _liq_err:
+                    logger.debug(f"[Paper] update_tp_sl liq 守卫跳过: {_liq_err}")
+                changed = True
+                logger.info(f"[Paper] AI调整SL: {pos.symbol} {pos.side} "
+                            f"SL {old_sl}→{pos.sl_price}")
 
         if changed:
             self._sync_attached_orders(db, pos)
