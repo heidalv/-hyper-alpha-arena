@@ -757,6 +757,23 @@ def _regime_features_for_symbol(symbol: str) -> Dict[str, float]:
         return {}
 
 
+def meta_model_usable() -> Optional[bool]:
+    """模型自评是否可用（OOS AUC/净利润门槛），供仲裁层决策。
+    复用 _MODEL_CACHE（mtime 失效重载）；模型不存在返回 None。"""
+    try:
+        if not os.path.exists(_MODEL_PATH):
+            return None
+        mt = os.path.getmtime(_MODEL_PATH)
+        if _MODEL_CACHE["obj"] is None or mt != _MODEL_CACHE["mtime"]:
+            import joblib
+            _MODEL_CACHE["obj"] = joblib.load(_MODEL_PATH)
+            _MODEL_CACHE["mtime"] = mt
+        _meta = (_MODEL_CACHE["obj"].get("meta") or {}) if isinstance(_MODEL_CACHE["obj"], dict) else {}
+        return bool(_meta.get("usable"))
+    except Exception:
+        return None
+
+
 def predict_win_prob(
     features: Dict[str, Any],
     *,

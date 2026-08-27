@@ -72,6 +72,35 @@ def _maybe_reload_env() -> None:
         pass
 
 
+_EXPLORE_QUOTA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "fusion_pwin_explore_quota.json")
+
+
+def _explore_quota_used() -> int:
+    """今日已用探索配额（文件按日期重置，读写容错）。"""
+    import json as _json
+    import time as _time
+    try:
+        _today = _time.strftime("%Y-%m-%d")
+        if os.path.exists(_EXPLORE_QUOTA_PATH):
+            _d = _json.load(open(_EXPLORE_QUOTA_PATH, "r", encoding="utf-8"))
+            if isinstance(_d, dict) and _d.get("date") == _today:
+                return int(_d.get("used", 0) or 0)
+    except Exception:
+        pass
+    return 0
+
+
+def _explore_quota_bump() -> None:
+    import json as _json
+    import time as _time
+    try:
+        _today = _time.strftime("%Y-%m-%d")
+        _json.dump({"date": _today, "used": _explore_quota_used() + 1},
+                   open(_EXPLORE_QUOTA_PATH, "w", encoding="utf-8"))
+    except Exception:
+        pass
+
+
 def effective_pwin_floor() -> float:
     if _pwin_floor_override:
         return float(_pwin_floor_override)
@@ -148,6 +177,45 @@ def decide_scalp(
     else:
         size = SIZE_STRONG if pwin >= PWIN_STRONG else SIZE_OBSERVE
         src = "hybrid" if thesis_dir else "factor"
+
+    # 4.5 [2026-08-27] 元模型不可用（自评 AUC<门槛/净利为负）时的探索配额：
+    # 实证 08:34 训练的 v3 模型 usable=False（OOS AUC 0.522<0.53，验证净利
+    # -0.24%）→ 其 pwin 输出是掷硬币噪声，再用 pwin 地板卡它 = 对噪声设闸、
+    # 短线永久零成交、且永远攒不到新结构样本重训（死锁）。探索模式：
+    # 模型不可用期间，信号通过其余闸门（分数≥执行门槛、RR≥地板）后以最小仓
+    # 放行，每日配额上限（默认5笔/天，文件计数按日期重置）→ 攒样本。
+    # 模型恢复 usable 后自动回到严格 pwin 地板。legacy 行为=hold。
+    try:
+        from backend.services.scalp_meta_trainer import meta_model_usable as _m_usable
+    except Exception:
+        _m_usable = None
+    _mu = bool(_m_usable()) if _m_usable is not None else None
+    _unusable_mode = os.getenv("FUSION_PWIN_UNUSABLE_MODE", "explore_quota").strip().lower()
+    if _mu is False and _unusable_mode != "hold":
+        try:
+            _quota = int(os.getenv("FUSION_PWIN_EXPLORE_DAILY_QUOTA", "5") or 5)
+        except (TypeError, ValueError):
+            _quota = 5
+        _used = _explore_quota_used()
+        if _used < _quota:
+            try:
+                _ex_thr = float(os.getenv("SCALP_FACTOR_EXECUTE_THRESHOLD", "35") or 35)
+            except (TypeError, ValueError):
+                _ex_thr = 35.0
+            _rr_ok = True
+            if tp_pct and sl_pct and sl_pct > 0:
+                _rr_ok = (float(tp_pct) / float(sl_pct)) >= _f("FUSION_RR_FLOOR", RR_FLOOR)
+            if factor_score >= _ex_thr and _rr_ok:
+                _explore_quota_bump()
+                return FusionDecision(
+                    "trade", SIZE_OBSERVE, "factor", "pwin_model_unusable_explore",
+                    {
+                        "pwin": pwin, "quota_used": _used + 1, "quota": _quota,
+                        "model_usable": False, "note": "元模型不可用期探索样本",
+                    },
+                )
+        return FusionDecision("hold", 0.0, "rule", "pwin_model_unusable_quota",
+                              {"pwin": pwin, "quota_used": _used, "quota": _quota})
 
     # 5. pwin 主阈值（回放：<0.55 桶全部负期望，不交易、也不浪费 LLM 确认）；
     #    运行期地板覆盖 = 桶验证失败时的自动衰减熔断（effective_pwin_floor）。
