@@ -123,14 +123,14 @@
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_ee142d": 10,
-    "tpl_mid_reversion_1bdb6c": 10,
-    "tpl_mid_reversion_290af6": 10,
-    "gen_mean_reversion_multi_mid_ranging_313": 10,
-    "tpl_pro_075b93de_926c4c": 10,
-    "gen_swing_alt_high_beta_mid_v1_334": 10,
-    "gen_swing_eth_sol_mid_v2_322": 10,
-    "tpl_mid_range_89e53b": 4
+    "tpl_mid_reversion_ee142d": 11,
+    "tpl_mid_reversion_1bdb6c": 11,
+    "tpl_mid_reversion_290af6": 11,
+    "gen_mean_reversion_multi_mid_ranging_313": 11,
+    "tpl_pro_075b93de_926c4c": 11,
+    "gen_swing_alt_high_beta_mid_v1_334": 11,
+    "gen_swing_eth_sol_mid_v2_322": 11,
+    "tpl_mid_range_89e53b": 5
   },
   "live_cooldown_until": {},
   "started_at": "2026-08-26T15:48:21.140979+00:00"

@@ -914,8 +914,10 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                         if _res.audit_passed and _res.expr_ast:
                             parse(_res.expr_ast)  # 解析即校验
                             _warm_seeds.append(_res.expr_ast)
-                    except Exception:
-                        continue
+                    except Exception as _ws_one_err:
+                        # [2026-08-27] 逐种子失败原因可见化（此前静默 continue 导致
+                        # "热启动种子生成失败"无诊断信息）
+                        logger.warning("[FactorEvo] LLM 热启动单种子失败: %s", _ws_one_err)
                 if _warm_seeds:
                     logger.info("[FactorEvo] LLM 热启动种子: %d 个", len(_warm_seeds))
                 else:
@@ -999,7 +1001,8 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                 except Exception:
                     continue
     except Exception as e:
-        logger.warning(f"[FactorEvo] MCTS 挖掘异常: {e}")
+        # [2026-08-27] 广播异常(5400,5)等根因可见化：带完整堆栈，供下次运行定位
+        logger.warning(f"[FactorEvo] MCTS 挖掘异常: {e}", exc_info=True)
 
     # [2026-08-08 P1-1] Codegen LLM — 复用 shared_pool
     try:
