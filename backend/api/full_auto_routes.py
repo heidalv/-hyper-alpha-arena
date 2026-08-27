@@ -1087,6 +1087,7 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
 
     # [2026-08-27] 时间线去重：同一 (symbol, action, block_reason) 在窗口内
     # 只保留最新一条 + 重复计数（此前每 tick 一条把时间线刷屏，且不带结局）。
+    # 按 key 分组而非相邻合并：各币种 tick 交错写入，相邻合并会漏。
     import os as _os_dedup
     try:
         _dedup_sec = int(_os_dedup.getenv("TIER_ACTIVITY_DEDUP_SEC", "600") or 600)
@@ -1095,32 +1096,27 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
     for _k, _rows in result.items():
         if not _rows:
             continue
-        _collapsed = []
+        _kept: dict = {}
+        _order: list = []
         for _row in _rows:
-            if _collapsed:
-                _prev = _collapsed[-1]
-                _gap = 0.0
+            _key = (_row["symbol"], _row["action"], _row["block_reason"])
+            _hit = _kept.get(_key)
+            _gap = 0.0
+            if _hit is not None:
                 try:
-                    _gap = abs((_row["_ts_raw"] - _prev["_ts_raw"]).total_seconds())
+                    _gap = abs((_hit["_ts_raw"] - _row["_ts_raw"]).total_seconds())
                 except Exception:
                     _gap = _dedup_sec + 1
-                if (
-                    _row["symbol"] == _prev["symbol"]
-                    and _row["action"] == _prev["action"]
-                    and _row["block_reason"] == _prev["block_reason"]
-                    and _gap <= _dedup_sec
-                ):
-                    _prev["repeat"] = int(_prev.get("repeat", 1)) + 1
-                    _prev["id"] = _row["id"]
-                    _prev["time"] = _row["time"]
-                    _prev["confidence"] = _row["confidence"]
-                    _prev["reasoning"] = _row["reasoning"]
-                    _prev["_ts_raw"] = _row["_ts_raw"]
-                    continue
-            _row.pop("_ts_raw", None)
+            if _hit is not None and _gap <= _dedup_sec:
+                # _rows 为最新在前：_hit 已是更新的一条，只累计计数
+                _hit["repeat"] = int(_hit.get("repeat", 1)) + 1
+                continue
             _row.setdefault("repeat", 1)
-            _collapsed.append(_row)
-        result[_k] = _collapsed
+            _kept[_key] = _row
+            _order.append(_row)
+        for _r in _order:
+            _r.pop("_ts_raw", None)
+        result[_k] = _order
 
     for t in result:
         result[t] = result[t][:limit]
