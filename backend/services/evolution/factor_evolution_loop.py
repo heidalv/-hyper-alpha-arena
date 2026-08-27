@@ -1374,8 +1374,54 @@ def _estimate_capacity_usd_from_dfs(dfs, factor_turnover: float) -> float:
 
 def _promoted_rows_for_save(promoted: list[dict], period=None) -> list[dict]:
     """晋升通过门禁后的落库行（缺 expr_ast 的跳过，避免假晋升）。"""
+    # [2026-08-27] 隔离冷却：隔离后 N 天内禁止同 id 再晋升，杜绝
+    # 「08:34 隔离 → 当天下午再晋升 PAPER → 次日再隔离」churn
+    # （实证 d6f82d364676127e: 08-27 08:34 quarantine → 16:07 复晋升 PAPER）。
+    try:
+        _q_cool_d = float(_os_window.getenv("FACTOR_QUARANTINE_COOLDOWN_DAYS", "7") or 7)
+    except (TypeError, ValueError):
+        _q_cool_d = 7.0
+    _q_rows: dict = {}
+    if promoted and _q_cool_d > 0:
+        try:
+            from backend.database.connection import AnalyticsSessionLocal
+            from backend.database.models import FactorActiveSet
+            _ids = [str(p.get("factor_id")) for p in promoted]
+            _qdb = AnalyticsSessionLocal()
+            try:
+                for _row in _qdb.query(FactorActiveSet).filter(
+                    FactorActiveSet.factor_id.in_(_ids),
+                    FactorActiveSet.state == "QUARANTINE",
+                ).all():
+                    _q_rows[str(_row.factor_id)] = _row.deactivated_at
+            finally:
+                _qdb.close()
+        except Exception as _q_err:
+            logger.debug("[FactorEvo] 隔离冷却查询失败(放行): %s", _q_err)
+
     rows = []
+    _now_q = datetime.now(timezone.utc)
     for p in promoted or []:
+        _q_deact = _q_rows.get(str(p.get("factor_id")))
+        if _q_deact is not None:
+            try:
+                if _q_deact.tzinfo is None:
+                    _q_deact = _q_deact.replace(tzinfo=timezone.utc)
+                _q_age_d = (_now_q - _q_deact).total_seconds() / 86400.0
+            except Exception:
+                _q_age_d = 0.0
+            if _q_age_d < _q_cool_d:
+                logger.warning(
+                    "[FactorEvo] 隔离冷却中跳过晋升 %s: 隔离 %.1f 天前（冷却 %.1f 天）",
+                    p.get("factor_id"), _q_age_d, _q_cool_d,
+                )
+                _log_evolution(
+                    p["factor_id"], "promote",
+                    source=p.get("source"),
+                    action="quarantine_cooldown_skip",
+                    reason=f"隔离 {_q_age_d:.1f} 天 < 冷却 {_q_cool_d:.1f} 天",
+                )
+                continue
         ast = p.get("expr_ast")
         if not ast:
             # 兜底：从 eval_result / expr 取
@@ -1508,6 +1554,9 @@ def _promote_factors(
         f"sample_len={sample_len} n_trials={n_trials} (search_breadth={n_total})"
     )
 
+    from backend.services.factor_engine.evaluation import information_coefficient
+    from backend.services.evolution.factor_labels import net_ic as _nic, turnover as _turn
+
     judge = ShadowJudge()
     promoted = []
     reject_reasons: list[dict] = []
@@ -1525,6 +1574,54 @@ def _promote_factors(
                 s["factor_id"], info.get("net_ic", 0),
             )
             continue
+        # [2026-08-27 晋升/M2同口径预检] 验证窗 net_ic 过门但全窗 net_ic≈0 时
+        # 会出现「晋升PAPER → M2同轮全窗隔离」churn（实证 d6f82d364676127e:
+        # 08-27 08:34:10 promote → 08:34:10.174 quarantine, 全窗 net_ic=0.0002）。
+        # 晋升前按 M2 同口径（全窗 IC 均值 + 平均换手 + 成本 0.001）预检，
+        # 不达标直接拒 → 晋升即隔离不再发生，池内状态从此真实。
+        _expr_full = (
+            s.get("expr")
+            or getattr(s.get("eval_result"), "expr", None)
+            or info.get("expr")
+        )
+        if _expr_full is not None and dfs:
+            _f_ic = 0.0
+            _f_n = 0
+            _f_t = 0.0
+            for _sym, _df in dfs.items():
+                try:
+                    _f_fields = _kline_to_fields(_df)
+                    _f_vals = _expr_full.evaluate(_f_fields)
+                    _f_fwd = _forward_returns(_df)
+                    _f_ic_v = information_coefficient(_f_vals, _f_fwd)
+                    if _f_ic_v is not None:
+                        _f_ic += float(_f_ic_v)
+                        _f_n += 1
+                    _f_t += _turn(pd.Series(_f_vals))
+                except Exception:
+                    continue
+            if _f_n > 0:
+                _f_ic /= _f_n
+                _f_t = _f_t / max(len(dfs), 1)
+                _f_net = _nic(_f_ic, _f_t)
+                if _f_net < _min_net_ic_threshold():
+                    reject_reasons.append({
+                        "factor_id": s["factor_id"],
+                        "reason": "net_ic_full_window",
+                        "detail": {
+                            "val_net_ic": float(info.get("net_ic", 0) or 0),
+                            "full_net_ic": round(_f_net, 6),
+                            "full_ic_mean": round(_f_ic, 6),
+                            "full_turnover": round(_f_t, 6),
+                        },
+                    })
+                    logger.warning(
+                        "[FactorEvo] 全窗净IC预检拒绝 %s: full_net_ic=%.4f "
+                        "val_net_ic=%.4f (阈值 %.3f)",
+                        s["factor_id"], _f_net, info.get("net_ic", 0),
+                        _min_net_ic_threshold(),
+                    )
+                    continue
         eval_result = s.get("eval_result")
         if not eval_result:
             reject_reasons.append({"factor_id": s["factor_id"], "reason": "no_eval_result"})
