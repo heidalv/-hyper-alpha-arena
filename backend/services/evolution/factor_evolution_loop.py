@@ -1585,38 +1585,22 @@ def _promote_factors(
             or info.get("expr")
         )
         if _expr_full is not None and dfs:
-            _f_ic = 0.0
-            _f_n = 0
-            _f_t = 0.0
-            for _sym, _df in dfs.items():
-                try:
-                    _f_fields = _kline_to_fields(_df)
-                    _f_vals = _expr_full.evaluate(_f_fields)
-                    _f_fwd = _forward_returns(_df)
-                    _f_ic_v = information_coefficient(_f_vals, _f_fwd)
-                    if _f_ic_v is not None:
-                        _f_ic += float(_f_ic_v)
-                        _f_n += 1
-                    _f_t += _turn(pd.Series(_f_vals))
-                except Exception:
-                    continue
-            if _f_n > 0:
-                _f_ic /= _f_n
-                _f_t = _f_t / max(len(dfs), 1)
-                _f_net = _nic(_f_ic, _f_t)
+            _f_tr = _trailing_net_ic(_expr_full, dfs)
+            if _f_tr is not None:
+                _f_net = float(_f_tr["net_ic"])
                 if _f_net < _min_net_ic_threshold():
                     reject_reasons.append({
                         "factor_id": s["factor_id"],
-                        "reason": "net_ic_full_window",
+                        "reason": "net_ic_trailing",
                         "detail": {
                             "val_net_ic": float(info.get("net_ic", 0) or 0),
-                            "full_net_ic": round(_f_net, 6),
-                            "full_ic_mean": round(_f_ic, 6),
-                            "full_turnover": round(_f_t, 6),
+                            "trailing_net_ic": round(_f_net, 6),
+                            "trailing_ic_mean": round(float(_f_tr["ic_mean"]), 6),
+                            "trailing_turnover": round(float(_f_tr["turnover"]), 6),
                         },
                     })
                     logger.warning(
-                        "[FactorEvo] 全窗净IC预检拒绝 %s: full_net_ic=%.4f "
+                        "[FactorEvo] 尾部净IC预检拒绝 %s: trailing_net_ic=%.4f "
                         "val_net_ic=%.4f (阈值 %.3f)",
                         s["factor_id"], _f_net, info.get("net_ic", 0),
                         _min_net_ic_threshold(),
@@ -2144,6 +2128,62 @@ def _ensure_governance_columns() -> None:
         pass
 
 
+def _m2_tail_len(df) -> int:
+    """按 K 线索引推算尾部窗口根数（默认 15 天，env FACTOR_NET_IC_TRAILING_DAYS）。"""
+    try:
+        _td = float(_os_window.getenv("FACTOR_NET_IC_TRAILING_DAYS", "15") or 15)
+    except (TypeError, ValueError):
+        _td = 15.0
+    _bpd = 24.0
+    try:
+        _idx = df.index
+        _d = pd.Series(_idx).diff().dropna().median()
+        if pd.notna(_d):
+            _sec = float(pd.Timedelta(_d).total_seconds())
+            if _sec > 0:
+                _bpd = 86400.0 / _sec
+    except Exception:
+        pass
+    return max(20, min(len(df), int(_td * _bpd)))
+
+
+def _trailing_net_ic(expr, dfs: dict) -> "dict | None":
+    """[2026-08-27 M2口径对齐WFO] 尾部窗口净 IC：与 WFO-IC 滚动 OOS 同构。
+
+    实证 d6f82d364676127e（4h）：全窗 Pearson 均值≈0.0005（被 M2 误隔离），
+    但近15天尾部 IC=0.091~0.194（ASTER 0.194/BTC 0.091/ETH 0.134/XRP 0.134）
+    且 WFO-IC 滚动 OOS 0.14~0.19 p=0.000 通过——全窗口径把旧 regime 历史
+    拖尾算进衰减判据，误杀近期有边因子，是因子池长期为空的机制级根因。
+    """
+    from backend.services.factor_engine.evaluation import information_coefficient
+    from backend.services.evolution.factor_labels import net_ic as _nic, turnover as _turn
+    ic_sum = 0.0
+    n = 0
+    t_sum = 0.0
+    for _df in (dfs or {}).values():
+        try:
+            _fields = _kline_to_fields(_df)
+            _vals = np.asarray(expr.evaluate(_fields), dtype=float)
+            _fwd = np.asarray(_forward_returns(_df), dtype=float)
+            _tail = _m2_tail_len(_df)
+            _ic = information_coefficient(_vals[-_tail:], _fwd[-_tail:])
+            ic_sum += float(_ic)
+            n += 1
+            t_sum += _turn(pd.Series(_vals[-_tail:]))
+        except Exception:
+            continue
+    if n == 0:
+        return None
+    ic_mean = ic_sum / n
+    turnover = t_sum / max(len(dfs), 1)
+    return {
+        "ic_mean": ic_mean,
+        "turnover": turnover,
+        "net_ic": _nic(ic_mean, turnover),
+        "n_symbols": n,
+    }
+
+
 def _review_active_factors(active_factors: list[dict], dfs, fresh_ids: "set | None" = None) -> tuple[list[dict], list[dict]]:
     """M2 治理：全量 ACTIVE 复评 净IC/换手/容量；返回 (保留, 退化)。
 
@@ -2165,25 +2205,18 @@ def _review_active_factors(active_factors: list[dict], dfs, fresh_ids: "set | No
         if not expr:
             kept.append(f)
             continue
+        # [2026-08-27] 尾部窗口口径（对齐 WFO-IC 滚动 OOS）：全窗口径把旧 regime
+        # 历史拖尾算进衰减判据，误杀近期有边因子（d6f82d36 实证：全窗 0.0005 vs
+        # 尾部15天 0.09~0.19）。n==0（全部 symbol 求值异常）时保持原失败语义。
+        _tr = _trailing_net_ic(expr, dfs)
         t = 0.0
         ic_mean = 0.0
         n = 0
-        for _sym, df in dfs.items():
-            try:
-                fields = _kline_to_fields(df)
-                vals = expr.evaluate(fields)
-                fwd = _forward_returns(df)
-                ic = information_coefficient(vals, fwd)
-                if ic is not None:
-                    ic_mean += float(ic)
-                    n += 1
-                t += _turn(pd.Series(vals))
-            except Exception:
-                continue
-        if n > 0:
-            ic_mean /= n
-        t = t / n_dfs
-        net = _nic(ic_mean, t)
+        if _tr is not None:
+            ic_mean = float(_tr["ic_mean"])
+            t = float(_tr["turnover"])
+            n = int(_tr["n_symbols"])
+        net = _nic(ic_mean, t) if _tr is not None else 0.0
         f["last_net_ic"] = round(net, 6)
         f["turnover"] = round(t, 6)
         f["capacity_usd"] = _cap(vol_usd, t)
