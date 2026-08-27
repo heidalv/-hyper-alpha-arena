@@ -952,14 +952,29 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
 
             mcts_pool = shared_pool
             mcts_config = MCTSConfig(scale=scale_for_period(period))
+            # [2026-08-27 5m实跑诊断] MCTS 无墙钟预算且单进程评估：5m 面板
+            # (14450 根)实测 4.5h 未出结果（4h/15m 从未暴露——15m 秒挂广播异常、
+            # 4h 面板小 2.7 倍且 macro 档成功过）。micro 档削减迭代/根数并强制
+            # 时间预算；env 显式覆盖优先（预算先于 env 循环设置，可被后者覆盖）。
+            _mcts_scale = scale_for_period(period)
+            if _mcts_scale == "micro":
+                mcts_config.n_iterations = min(mcts_config.n_iterations, 80)
+                mcts_config.n_roots = min(mcts_config.n_roots, 2)
+                mcts_config.time_budget_sec = float(
+                    _os_mcts.getenv("FACTOR_MCTS_TIME_BUDGET_SEC", "1200") or 1200
+                )
             for _env, _attr in (("FACTOR_MCTS_ITERATIONS", "n_iterations"),
                                 ("FACTOR_MCTS_ROOTS", "n_roots"),
                                 ("FACTOR_MCTS_CHILDREN", "n_children"),
-                                ("FACTOR_MCTS_MAX_WORKERS", "max_workers")):
+                                ("FACTOR_MCTS_MAX_WORKERS", "max_workers"),
+                                ("FACTOR_MCTS_TIME_BUDGET_SEC", "time_budget_sec")):
                 _v = _os_mcts.getenv(_env)
                 if _v:
                     try:
-                        setattr(mcts_config, _attr, int(_v))
+                        if _attr == "time_budget_sec":
+                            setattr(mcts_config, _attr, float(_v))
+                        else:
+                            setattr(mcts_config, _attr, int(_v))
                     except (TypeError, ValueError):
                         pass
             weak_seeds: list[dict] = []

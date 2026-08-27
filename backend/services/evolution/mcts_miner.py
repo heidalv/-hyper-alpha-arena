@@ -21,6 +21,7 @@ import copy
 import logging
 import math
 import os
+import time
 
 # 与 gp_miner 相同的 loky worker 单线程 BLAS 约束（32 进程并行评估前提）
 for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
@@ -119,6 +120,9 @@ class MCTSConfig:
     lambda_corr: float = 0.05        # 与短板根最大相关惩罚
     min_samples: int = 50            # 有效样本下限
     fsa_reject_threshold: float = 0.8  # FSA 敏感度阈值：超此值视为参数不稳拒绝
+    time_budget_sec: float = 0.0      # [2026-08-27] 墙钟预算（秒）；0=不限制。
+    # 5m 实跑诊断：MCTS 单进程滚动评估无预算，5m 面板(14450根)实测 4.5h 未出结果；
+    # micro 档由调用方设 1200，env FACTOR_MCTS_TIME_BUDGET_SEC 可覆盖。
     fsa_scan_weights: Tuple[float, ...] = (0.5, 1.0, 1.5)  # 窗口扫描倍数
     windows: Tuple[int, ...] = (3, 5, 10, 20, 50)  # 窗口档位（宏微分离 profile 覆盖）
     max_workers: int = 0             # 0 = min(8, cpu)（扩展批量评估用）
@@ -364,10 +368,20 @@ class MctsMiner:
             str(r): abs(self._eval_ast(r)[0]) for r in roots
         }
 
+        # [2026-08-27] 墙钟预算：micro 档强制（默认1200s），0=不限制
+        _tb = float(getattr(self.config, "time_budget_sec", 0.0) or 0.0)
+        _deadline = (time.monotonic() + _tb) if _tb > 0 else None
+
         all_nodes: List[MctsNode] = []
         all_chains: List[dict] = []
-        for root_ast in roots:
-            nodes, chains = self._run_tree(root_ast)
+        for _ri, root_ast in enumerate(roots):
+            if _deadline is not None and time.monotonic() >= _deadline:
+                logger.warning(
+                    "[MctsMiner] 时间预算耗尽（%ss），停止剩余树根（已完成 %d/%d）",
+                    _tb, _ri, len(roots),
+                )
+                break
+            nodes, chains = self._run_tree(root_ast, deadline=_deadline)
             all_nodes.extend(nodes)
             all_chains.extend(chains)
 
@@ -457,7 +471,9 @@ class MctsMiner:
 
     # ─────────────────────────── 单树 UCT 迭代 ───────────────────────────
 
-    def _run_tree(self, root_ast: dict) -> Tuple[List[MctsNode], List[dict]]:
+    def _run_tree(
+        self, root_ast: dict, deadline: Optional[float] = None,
+    ) -> Tuple[List[MctsNode], List[dict]]:
         """单根完整 UCT 搜索。返回 (全部节点, 改进进化链)。"""
         root = MctsNode(ast=root_ast, depth=0)
         root.ic, root.fitness = self._eval_ast(root_ast)
@@ -465,7 +481,13 @@ class MctsMiner:
         rng = np.random.default_rng()
         self._seen_ast.add(str(root_ast))
 
-        for _ in range(self.config.n_iterations):
+        for _i in range(self.config.n_iterations):
+            if deadline is not None and time.monotonic() >= deadline:
+                logger.warning(
+                    "[MctsMiner] UCT 单树迭代预算耗尽：提前停止（迭代 %d/%d）",
+                    _i, self.config.n_iterations,
+                )
+                break
             node = self._uct_select(root, rng)
             if not node.children and node.depth < self.config.max_depth:
                 self._expand(node, rng)
