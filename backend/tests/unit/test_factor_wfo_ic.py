@@ -97,21 +97,23 @@ class TestRunFactorWfoIc:
         assert res["skipped"] is False
         assert res["passed"] is False
 
-    def test_insufficient_data_fail_open(self):
-        """数据不足 → fail-open skipped。"""
+    def test_insufficient_data_fail_closed(self):
+        """数据不足 → fail-closed skipped（对齐 FACTOR_EVO_GATE_FAIL_CLOSED 默认 1）。"""
         from backend.services.evolution.factor_wfo import run_factor_wfo_ic
         expr = _make_momentum_expr()
         df = _make_klines(rows=100, seed=8)
         res = run_factor_wfo_ic(expr, df, "test_f3", freq="1d")
-        assert res["passed"] is True
+        assert res["passed"] is False
         assert res["skipped"] is True
+        assert res.get("reason") == "insufficient_data"
 
-    def test_unknown_freq_fail_open(self):
+    def test_unknown_freq_fail_closed(self):
         from backend.services.evolution.factor_wfo import run_factor_wfo_ic
         expr = _make_momentum_expr()
         df = _make_klines(rows=400, seed=9)
         res = run_factor_wfo_ic(expr, df, "test_f4", freq="quarterly")
-        assert res["passed"] is True and res["skipped"] is True
+        assert res["passed"] is False and res["skipped"] is True
+        assert "unknown_freq" in res.get("reason", "")
 
     def test_series_structure(self):
         """OOS IC 序列输出：长度 = n_windows，逐窗口有 train/oos IC。"""
@@ -126,8 +128,8 @@ class TestRunFactorWfoIc:
         assert -1.0 <= res["decay_rate"] <= 1.0
         assert res["oos_ic_p"] is not None
 
-    def test_exception_fail_open(self):
-        """表达式求值异常 → fail-open 不炸。"""
+    def test_exception_fail_closed(self):
+        """表达式求值异常 → fail-closed skipped（不炸、不放行）。"""
         from backend.services.evolution.factor_wfo import run_factor_wfo_ic
         df = _make_klines(rows=400, seed=12)
 
@@ -136,8 +138,10 @@ class TestRunFactorWfoIc:
             def evaluate(self, fields):
                 raise RuntimeError("boom")
         res = run_factor_wfo_ic(BoomExpr(), df, "test_f6", freq="1d")
-        assert res["passed"] is True
+        # 单窗求值异常被吞并跳过 → 无有效窗口 → fail-closed（不炸、不放行）
+        assert res["passed"] is False
         assert res["skipped"] is True
+        assert str(res.get("reason", "")).startswith("insufficient_windows")
 
 
 # ════════════════════════════════════════════════════════
@@ -151,7 +155,7 @@ class TestEvolutionLoopIcWfo:
 
         ast = {"op": "mean", "args": [{"f": "returns"}, {"c": 5}]}
         expr = parse(ast)
-        dfs = {"BTC": _make_klines(rows=300, seed=21)}
+        dfs = {"BTC": _make_klines(rows=500, seed=21)}
 
         logged = []
 

@@ -68,18 +68,21 @@ def _pd_rolling(x, w: int, kind: str) -> np.ndarray:
     """
     import pandas as _pd
     a = _as1d(x)
-    w = min(max(1, int(w)), 200)
+    w = min(max(1, int(w)), 120)
+    # min_periods 对齐旧 Python 实现语义: 窗口内有效值 >= max(2, w//2) 才算
     s = _pd.Series(a)
+    _mp = max(2, w // 2)
     if kind == "sum":
-        return s.rolling(w).sum().to_numpy()
+        return s.rolling(w, min_periods=_mp).sum().to_numpy()
     if kind == "mean":
-        return s.rolling(w).mean().to_numpy()
+        return s.rolling(w, min_periods=_mp).mean().to_numpy()
     if kind == "std":
-        return s.rolling(w).std().to_numpy()
+        # ddof=0 对齐旧实现 np.std 语义(pandas 默认 ddof=1)
+        return s.rolling(w, min_periods=_mp).std(ddof=0).to_numpy()
     if kind == "max":
-        return s.rolling(w).max().to_numpy()
+        return s.rolling(w, min_periods=_mp).max().to_numpy()
     if kind == "min":
-        return s.rolling(w).min().to_numpy()
+        return s.rolling(w, min_periods=_mp).min().to_numpy()
     return _rolling(a, w, np.mean)
 
 

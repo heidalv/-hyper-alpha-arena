@@ -2396,6 +2396,7 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                     _n_fail = 0
                     _fail_reasons: list[str] = []
                     _factor_err: Exception | None = None
+                    _ic_reject_reason: str | None = None
                     for _sym in _wfo_symbols:
                         _df = (dfs or {}).get(_sym)
                         if _df is None or len(_df) == 0:
@@ -2438,6 +2439,11 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                                 f"{_sym}:wfo_ic_reject:oos_ic={_ic_res.get('oos_ic_mean')}"
                                 f"/p={_ic_res.get('oos_ic_p')}/decay={_ic_res.get('decay_rate')}"
                             )
+                            _ic_reject_reason = (
+                                f"OOS IC 均值 {_ic_res.get('oos_ic_mean')} / "
+                                f"p {_ic_res.get('oos_ic_p')} / "
+                                f"衰退率 {_ic_res.get('decay_rate')}"
+                            )
                             continue
                         _n_pass += 1
                     if _wfo_require_all:
@@ -2445,14 +2451,21 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                     else:
                         _passed_ok = _n_pass / max(1, len(_wfo_symbols)) >= _wfo_min_ratio
                     if not _passed_ok:
+                        _ic_only = _ic_reject_reason is not None and _n_fail == 1
+                        _action = (
+                            "wfo_ic_reject" if _ic_only else (
+                                ("wfo_error_fail_closed" if _fail_closed else "wfo_error_fail_open")
+                                if _factor_err is not None else "wfo_reject"
+                            )
+                        )
                         _log_evolution(
                             p["factor_id"], "wfo",
                             source=p.get("source"),
-                            action=(
-                                ("wfo_error_fail_closed" if _fail_closed else "wfo_error_fail_open")
-                                if _factor_err is not None else "wfo_reject"
+                            action=_action,
+                            reason=(
+                                _ic_reject_reason if _ic_only
+                                else ("; ".join(_fail_reasons) or "多币验证未通过")[:300]
                             ),
-                            reason=("; ".join(_fail_reasons) or "多币验证未通过")[:300],
                             metrics={
                                 "pass": _n_pass, "fail": _n_fail,
                                 "symbols": len(_wfo_symbols),
