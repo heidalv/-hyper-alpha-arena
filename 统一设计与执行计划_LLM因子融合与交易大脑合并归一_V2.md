@@ -405,3 +405,20 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
   GPU+LLM 挖掘（deepseek Codegen + GpuEval 0.998 等价性验收），factor_evolution_log
   出现 chain_step/card_generated/llm_admit 记录——5m 历史上第一次真正挖掘。
 - 后端重启 boot_git_hash==HEAD，4h/5m/15m cron 重注册，交易会话恢复。
+
+### 第二道墙：MCTS 无墙钟预算（commit 3fc42b7）
+- 实跑证据：首次 5m 挖掘 MCTS 单进程滚动评估无时间预算，14450 根面板实测
+  **4.5 小时未出结果**（15m 秒挂广播异常、4h 面板小 2.7 倍 → 病理从未暴露）。
+  GP 有预算而 MCTS 无 = 5m 永远跑不完。
+- 修复：micro(1m/5m/15m) 档 n_iterations 300→80、n_roots 3→2、
+  time_budget_sec=1200（env `FACTOR_MCTS_TIME_BUDGET_SEC` 可覆盖、显式优先）；
+  `_run_tree` 每迭代查墙钟提前停止并保留已收集节点。
+- 已知遗留（非本次引入，失败快速不悬挂）：MCTS 根求值广播异常
+  `(N,)(5,)` 家族（15m/4h 同款，`_mcts_fitness_core` 根 AST 与面板形状不对齐），
+  被 `MCTS 挖掘异常` 捕获后挖掘继续；触发性非确定（随机根/活跃集相关）。
+
+### 最终验收（2026-08-27 16:03，修复后重跑）
+5m 轮次端到端完成：elapsed 2841s，candidates=36 / evaluated=31 / survivors=1 /
+promoted=0（PBO 0.36 池筛选拒绝，门禁尽职），report 含
+`dropped_symbols=['VIRTUAL','XPL']`。GP 断点续训生效（跳过已完种子 0-3）。
+5m 通道自此可自动跑完：明日 04:00 cron 无需人工干预。
