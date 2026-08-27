@@ -101,6 +101,11 @@ def _explore_quota_bump() -> None:
         pass
 
 
+def explore_quota_bump() -> None:
+    """成交后扣减探索配额（公开入口，scalp_loop 真实成交时调用）。"""
+    _explore_quota_bump()
+
+
 def effective_pwin_floor() -> float:
     if _pwin_floor_override:
         return float(_pwin_floor_override)
@@ -206,12 +211,15 @@ def decide_scalp(
             if tp_pct and sl_pct and sl_pct > 0:
                 _rr_ok = (float(tp_pct) / float(sl_pct)) >= _f("FUSION_RR_FLOOR", RR_FLOOR)
             if factor_score >= _ex_thr and _rr_ok:
-                _explore_quota_bump()
+                # [2026-08-27 修正] 决策时不扣配额——后续闸门（仓位/执行门/veto）
+                # 可能拦掉，预扣导致配额被浪费（实测5/5只成交1笔）。只打标签，
+                # 由 scalp_loop 在真实成交后调 explore_quota_bump() 扣减。
                 return FusionDecision(
                     "trade", SIZE_OBSERVE, "factor", "pwin_model_unusable_explore",
                     {
-                        "pwin": pwin, "quota_used": _used + 1, "quota": _quota,
+                        "pwin": pwin, "quota_used": _used, "quota": _quota,
                         "model_usable": False, "note": "元模型不可用期探索样本",
+                        "explore_quota": True,
                     },
                 )
         return FusionDecision("hold", 0.0, "rule", "pwin_model_unusable_quota",

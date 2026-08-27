@@ -1766,6 +1766,15 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 self._scalp_open_ts[f"a{account_id}:{sym}"] = time.time()
                 self._scalp_open_ts_side[f"a{account_id}:{sym}:{_side_str}"] = self._scalp_open_ts[f"a{account_id}:{sym}"]
                 _scalp_opens_this_tick += 1
+                # [2026-08-27] 探索配额成交后扣减（决策时只打标签，避免被
+                # 后续闸门拦掉仍占配额——实测预扣 5/5 只成交 1 笔）
+                try:
+                    _pa = (_scalp_factor or {}).get("pwin_arbiter") or {}
+                    if _pa.get("tags", {}).get("explore_quota"):
+                        from backend.services.decision_fusion_arbiter import explore_quota_bump
+                        explore_quota_bump()
+                except Exception:
+                    pass
                 # 修复5: 发布短线 Insight 到 AlphaBus（供中线/长线 overlay）
                 try:
                     from backend.services.bus.alpha_bus import get_default_alpha_bus
