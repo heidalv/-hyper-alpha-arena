@@ -24,15 +24,13 @@ def repromote_quarantine_factors(
         _log_evolution,
         _min_net_ic_threshold,
         _save_active_factors,
+        _trailing_net_ic,
         resolve_evolution_symbols,
     )
-    from backend.services.evolution.factor_labels import net_ic as _nic
-    from backend.services.evolution.factor_labels import turnover as _turn
     from backend.services.factor_engine.active_set_policy import (
         ActiveSetRole,
         load_factor_active_rows,
     )
-    from backend.services.factor_engine.evaluation import information_coefficient
 
     thr = float(min_net_ic) if min_net_ic is not None else float(_min_net_ic_threshold())
     rows = load_factor_active_rows(ActiveSetRole.QUARANTINE, parse_expr=True, limit=limit)
@@ -53,27 +51,15 @@ def repromote_quarantine_factors(
         if not expr or not f.get("expr_ast"):
             skipped.append({"factor_id": fid, "reason": "无表达式"})
             continue
-        ic_mean = 0.0
-        t = 0.0
-        n = 0
-        for _sym, df in dfs.items():
-            try:
-                fields = _kline_to_fields(df)
-                vals = expr.evaluate(fields)
-                fwd = _forward_returns(df)
-                ic = information_coefficient(vals, fwd)
-                if ic is not None and np.isfinite(ic):
-                    ic_mean += float(ic)
-                    n += 1
-                t += _turn(pd.Series(vals))
-            except Exception:
-                continue
-        if n <= 0:
+        # [2026-08-27] 与 M2 复评同口径：尾部窗口净 IC（全窗口径把旧 regime
+        # 拖尾算进衰减判据，误杀近期有边因子——d6f82d36 全窗 0.0095 vs 尾部 0.138）。
+        _tr = _trailing_net_ic(expr, dfs)
+        if _tr is None:
             skipped.append({"factor_id": fid, "reason": "求值失败"})
             continue
-        ic_mean /= n
-        t = t / max(len(dfs), 1)
-        net = float(_nic(ic_mean, t))
+        ic_mean = float(_tr["ic_mean"])
+        t = float(_tr["turnover"])
+        net = float(_tr["net_ic"])
         if net < thr:
             skipped.append({
                 "factor_id": fid,
