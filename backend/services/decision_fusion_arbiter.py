@@ -222,6 +222,14 @@ def decide_scalp(
                         "explore_quota": True,
                     },
                 )
+            # 配额有余但分数/RR 未达探索门槛：诚实标注真实拦截原因
+            return FusionDecision(
+                "hold", 0.0, "rule", "pwin_model_unusable_explore_bar",
+                {
+                    "pwin": pwin, "factor_score": factor_score, "ex_thr": _ex_thr,
+                    "rr_ok": _rr_ok, "quota_used": _used, "quota": _quota,
+                },
+            )
         return FusionDecision("hold", 0.0, "rule", "pwin_model_unusable_quota",
                               {"pwin": pwin, "quota_used": _used, "quota": _quota})
 
