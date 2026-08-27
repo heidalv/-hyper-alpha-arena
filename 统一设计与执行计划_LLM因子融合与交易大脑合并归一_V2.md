@@ -380,3 +380,28 @@ L0 数据成本：真实手续费+尺子(PBO/DSR/fill)
 | source_attribution 信用分 shadow / breaker_shadow | 保留（真实生效） | 来源信用 0/1 直接拒单、出场通道熔断——非 A/B 观察 |
 | opencode_shadow_worker / rl_core/shadow / drift_watcher 等 | 保留（独立域） | 属 OpenCode/RL 子系统，未发现"跑几天再执行"空转链 |
 **清理原则（此后所有新机制）**：默认直连真实控制面（fail-open/可回滚开关），需要观察期时必须带**到期自动转正或自动废弃**的时间戳，杜绝"不了了之"。
+
+## 附录 E：5m 因子进化根治（2026-08-27，用户问"5分钟为什么没自动运行"）
+
+### 真相（cron 实跑证据，修正此前"单飞锁吞 5m"误判）
+- 5m cron **每天 04:00 照常触发**（子进程，`FACTOR_EVO_SUBPROCESS=1`），08-26/08-27 连续两天
+  2.5 分钟后死在**深度墙**：VIRTUAL/XPL 的 5m 历史不足 50 天三段切分要求（14450 根）。
+- 根因链：两个币在各交易所的 5m 历史**全部 <50 天**（asterdex 最深 14146 根且为源窗口封顶，
+  不随天数增长）→ 深度墙判定整轮 `depth_insufficient` 中止 → 5m 从未进入过挖掘。
+- 单飞锁只约束同进程（cron 子进程不受其限），非本次阻塞方；`FACTOR_EVO_SCALP_PERIODS=` 空串
+  使 1m/15m 的 04:10/04:20 日轮按设计关闭（1m 需 72k 根，源头不可能），5m 是短线唯一进化通道。
+
+### 修复（commit 3f8a2d7）
+1. **深度墙剔除式容错**（factor_evolution_loop）：不足品种剔除后剩余 ≥
+   `FACTOR_EVO_MIN_SYMBOLS`（默认5）即继续；被剔除品种不入本轮挖掘（不产生假 OOS），
+   nudge 回填、下轮自动回归；报告新增 `dropped_symbols`。
+2. **分周期单飞锁**（evo_runtime）：按 period 单飞 + 全局并发上限
+   `FACTOR_EVO_MAX_CONCURRENT`（默认2，1~6）；快照新增 `periods` 明细（兼容旧字段）；
+   `mark_end`/`force_abort` 支持指定 period；quick 看门狗只释放自己。
+
+### 验证
+- 锁语义冒烟 14/14；py_compile 通过。
+- 手动 5m 轮次 10:34:39 越过深度门槛（剔除 VIRTUAL/XPL 剩 7/9）→ 10:34:51 进入
+  GPU+LLM 挖掘（deepseek Codegen + GpuEval 0.998 等价性验收），factor_evolution_log
+  出现 chain_step/card_generated/llm_admit 记录——5m 历史上第一次真正挖掘。
+- 后端重启 boot_git_hash==HEAD，4h/5m/15m cron 重注册，交易会话恢复。
