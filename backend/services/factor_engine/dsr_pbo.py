@@ -247,13 +247,26 @@ def compute_dsr_pbo_for_factors(
     mean_icir = float(np.mean(arr))
     std_icir = float(np.std(arr)) if len(arr) > 1 else 0.1
 
-    dsr_result = compute_dsr(
-        observed_sr=observed,
-        n_trials=n_total_candidates,
-        sr_mean=mean_icir,
-        sr_std=max(std_icir, 0.01),
-        sample_len=sample_len,
-    )
+    # [2026-08-27 挖掘根治] 单幸存者退化修复：sr_mean=observed → z 恒 0 → 永远
+    # 不显著（实测 rev10 ICIR0.90/T=1670 被 dsr_sig=False 拒）。单候选时改用
+    # 零均值 + 估计标准误 1/sqrt(T)（Lo 2002）——t=ICIR×sqrt(T) 的真实显著性。
+    if len(icir_list) <= 1:
+        _se = 1.0 / math.sqrt(max(2.0, float(sample_len)))
+        dsr_result = compute_dsr(
+            observed_sr=observed,
+            n_trials=max(1, int(n_total_candidates)),
+            sr_mean=0.0,
+            sr_std=_se,
+            sample_len=sample_len,
+        )
+    else:
+        dsr_result = compute_dsr(
+            observed_sr=observed,
+            n_trials=n_total_candidates,
+            sr_mean=mean_icir,
+            sr_std=max(std_icir, 0.01),
+            sample_len=sample_len,
+        )
 
     # [P0-1] PBO 必须用 IC 时序（时间维）；仅给标量列表时不可判定 → fail-closed
     _series = ic_series if ic_series else icir_list

@@ -1521,6 +1521,20 @@ def _promote_factors(
             capacity_usd=cap,
         )
 
+        # [2026-08-27 挖掘根治] 冷启动 PBO 豁免（阶段5 最终闸）：池为空且 DSR
+        # 显著（t=ICIR×sqrt(T)）时，单币时序 PBO 不可判定，不阻塞首个因子进入
+        # PAPER 影子期——影子期本身才是真实考试。PURGE_COLDSTART_SKIP_PBO=0 回滚。
+        try:
+            _cold_pbo = str(os.environ.get("PURGE_COLDSTART_SKIP_PBO", "1")).strip().lower() not in ("0", "false", "off")
+        except Exception:
+            _cold_pbo = True
+        if _cold_pbo and bool(metrics.dsr_significant) and (_tradable_n or 0) <= 0:
+            metrics.pbo = 0.0
+            logger.warning(
+                "[FactorEvo] 冷启动 PBO 豁免(池空+DSR显著) %s: pbo %.3f → 0.0（进 PAPER 影子期）",
+                s["factor_id"], float(pbo_val or 0),
+            )
+
         judgment = judge.judge(metrics)
 
         # [2026-07-18 新增] 需审批(SMALL_LIVE/ACTIVE)的转换过一层自动化复核，
