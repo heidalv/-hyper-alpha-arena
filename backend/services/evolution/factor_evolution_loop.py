@@ -1626,7 +1626,9 @@ def _promote_factors(
 #  阶段 6：监控（drift_watcher IC 衰减检测）
 # ═══════════════════════════════════════════════════════════════
 
-def _monitor_active(active_factors, dfs):
+def _monitor_active(active_factors, dfs, fresh_ids: "set | None" = None):
+    """阶段6 漂移监控。fresh_ids=本轮刚晋升因子：监控宽限一轮（阶段5/IC-WFO
+    本轮刚在验证集上评过，避免同轮“晋升即隔离”）。"""
     from backend.services.evolution.drift_watcher import DriftWatcher
     from backend.services.factor_engine.evaluation import information_coefficient
 
@@ -1636,6 +1638,8 @@ def _monitor_active(active_factors, dfs):
     for f in active_factors:
         expr = f.get("expr")
         if not expr:
+            continue
+        if fresh_ids and f.get("factor_id") in fresh_ids:
             continue
 
         drifts = 0
@@ -2001,8 +2005,11 @@ def _ensure_governance_columns() -> None:
         pass
 
 
-def _review_active_factors(active_factors: list[dict], dfs) -> tuple[list[dict], list[dict]]:
-    """M2 治理：全量 ACTIVE 复评 净IC/换手/容量；返回 (保留, 退化)。"""
+def _review_active_factors(active_factors: list[dict], dfs, fresh_ids: "set | None" = None) -> tuple[list[dict], list[dict]]:
+    """M2 治理：全量 ACTIVE 复评 净IC/换手/容量；返回 (保留, 退化)。
+
+    fresh_ids=本轮刚晋升因子：复评宽限一轮（门禁刚用验证集+IC-WFO 评过，
+    全窗 IC 与验证窗 IC 口径不同，同轮判退化会造成“晋升即隔离”）。"""
     from backend.services.factor_engine.evaluation import information_coefficient
     from backend.services.evolution.factor_labels import (
         capacity_usd as _cap,
@@ -2058,6 +2065,15 @@ def _review_active_factors(active_factors: list[dict], dfs) -> tuple[list[dict],
                 reason="全部symbol求值异常，跳过退化判定(保留现状)",
             )
             kept.append(f)
+        elif fresh_ids and f.get("factor_id") in fresh_ids:
+            # 本轮刚晋升：宽限一轮，不按全窗 net_ic 判退化（晋升即隔离修复）
+            kept.append(f)
+            _log_evolution(
+                f["factor_id"], "review",
+                source=f.get("source"),
+                action="promote_grace",
+                reason=f"本轮新晋升，M2复评宽限一轮 net_ic={net:.4f}",
+            )
         elif net < _min_net_ic_threshold():
             degraded.append(f)
             _deactivate_factor(f["factor_id"])
@@ -2209,7 +2225,11 @@ def run_factor_evolution_loop(symbols=None, period=None, quick=False, source: st
                 report.setdefault("v7_lessons_recorded", record_report(period_eff, report))
         except Exception as _v7_mem_err:
             logger.debug("[FactorEvo] V7 记忆写入失败: %s", _v7_mem_err)
-        evo_runtime.mark_end(report=report if isinstance(report, dict) else None, error=err)
+        evo_runtime.mark_end(
+            period=str(period_eff),
+            report=report if isinstance(report, dict) else None,
+            error=err,
+        )
         # [GPU 显存释放 2026-08-21] 挖矿窗结束后归还 PyTorch 缓存的显存给系统——
         # 不释放则白天 LLM 常驻没有足够 VRAM（PyTorch caching allocator 不自动归还）
         try:
@@ -2236,26 +2256,52 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         return {"error": "取数失败，无可用数据"}
 
     # 1.4 P0-2 深度门槛：不足则催促回填并中止（禁止假 OOS）
+    # [2026-08-27 剔除式容错] 个别品种（新上市，源滚动窗口不足50天）差几根K线
+    # 就让整轮中止——cron 实跑证据：5m 每日 04:00 都死在 VIRTUAL/XPL 上
+    # （08-26/08-27 连续两日 depth_insufficient）。改为剔除不足品种后继续，
+    # 剩余数 < FACTOR_EVO_MIN_SYMBOLS（默认5）才中止。被剔除品种不入本轮挖掘，
+    # 不产生假 OOS（其数据量本就撑不起三段切分），并 nudge 回填下轮自动回归。
     depth = _check_split_depth(dfs, period)
+    dropped_symbols: list[str] = []
     if not depth.get("ok"):
-        _nudge_depth_backfill(list(dfs.keys()), period)
-        msg = (
-            f"数据深度不足 period={depth.get('period')} "
-            f"need_days>={depth.get('need_days')} need_bars>={depth.get('need_bars')} "
-            f"short={depth.get('short_symbols')} detail={depth.get('by_symbol')}"
-        )
-        logger.error(f"[FactorEvo] {msg} — 已 nudge 深度回填，本轮中止")
-        return {
-            "error": "depth_insufficient",
-            "message": msg,
-            "period": depth.get("period"),
-            "need_days": depth.get("need_days"),
-            "need_bars": depth.get("need_bars"),
-            "by_symbol": depth.get("by_symbol"),
-            "short_symbols": depth.get("short_symbols"),
-            "quick": bool(quick),
-            "elapsed_sec": round(time.time() - t0, 1),
-        }
+        _short = [str(s) for s in (depth.get("short_symbols") or [])]
+        _nudge_depth_backfill(_short or list(dfs.keys()), period)
+        _keep = {s: df for s, df in dfs.items() if s not in set(_short)}
+        try:
+            _min_keep = int(_os_window.getenv("FACTOR_EVO_MIN_SYMBOLS", "5") or 5)
+        except (TypeError, ValueError):
+            _min_keep = 5
+        _min_keep = max(1, _min_keep)
+        if len(_keep) >= _min_keep:
+            logger.warning(
+                "[FactorEvo] 深度门槛: 剔除深度不足品种 %s 后继续（剩 %d/%d，门槛≥%d）"
+                " — 已 nudge 回填，被剔除品种下轮自动回归",
+                _short, len(_keep), len(dfs), _min_keep,
+            )
+            dfs = _keep
+            dropped_symbols = _short
+            depth["ok"] = True
+            depth["dropped_symbols"] = _short
+        else:
+            msg = (
+                f"数据深度不足 period={depth.get('period')} "
+                f"need_days>={depth.get('need_days')} need_bars>={depth.get('need_bars')} "
+                f"short={depth.get('short_symbols')} detail={depth.get('by_symbol')}"
+            )
+            logger.error(
+                f"[FactorEvo] {msg} — 剔除后剩余 {len(_keep)} 个不足门槛 {_min_keep}，本轮中止"
+            )
+            return {
+                "error": "depth_insufficient",
+                "message": msg,
+                "period": depth.get("period"),
+                "need_days": depth.get("need_days"),
+                "need_bars": depth.get("need_bars"),
+                "by_symbol": depth.get("by_symbol"),
+                "short_symbols": depth.get("short_symbols"),
+                "quick": bool(quick),
+                "elapsed_sec": round(time.time() - t0, 1),
+            }
 
     # 1.5 训练/验证/测试三段切分（v6 计划 5.4.3：周期分档窗口，测试集绝不参与挖掘与选因）
     # [2026-08-08 P0-1] 禁止静默退化为 train=val=全窗（假 OOS）。数据不足直接失败，
@@ -2524,8 +2570,9 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
 
     # 6. 监控已有活跃因子
     all_active = existing_active + promoted
+    _fresh_ids = {str(p.get("factor_id")) for p in promoted}
     if all_active:
-        degraded = _monitor_active(all_active, dfs)
+        degraded = _monitor_active(all_active, dfs, fresh_ids=_fresh_ids)
     else:
         degraded = []
 
@@ -2536,7 +2583,7 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
 
     # M2 治理：全量 ACTIVE 复评（净IC/换手/容量）+ 上限强制
     if all_active:
-        kept, degraded_review = _review_active_factors(all_active, dfs)
+        kept, degraded_review = _review_active_factors(all_active, dfs, fresh_ids=_fresh_ids)
         all_active = kept
         _seen = set()
         _merged = list(degraded) + list(degraded_review)
@@ -2605,6 +2652,7 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
     report = {
         "elapsed_sec": round(elapsed, 1),
         "symbols": list(dfs.keys()),
+        "dropped_symbols": dropped_symbols,
         "period": period or DEFAULT_PERIOD,
         "quick": bool(quick),
         "candidates": len(candidates),
