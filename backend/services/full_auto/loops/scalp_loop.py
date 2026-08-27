@@ -712,6 +712,26 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             sym, _arb.action, _arb.reason, _arb.tags.get("pwin"),
                         )
                         _bump_block("pwin_arbiter")
+                        # [2026-08-27] 拦截可见性：此前 pwin 拦掉的信号不写快照，
+                        # 时间线对短线完全哑掉（瞎子）。现在带拦截理由落快照，
+                        # 配合 tier-activity 读侧去重（600s 窗口聚合）显示结局。
+                        if session_row:
+                            self._persist_tcp_snapshot(
+                                session_row,
+                                symbol=sym.upper(),
+                                tier="short",
+                                action=str(_sig.action or "hold"),
+                                confidence=float(_sig.factor_score or 0),
+                                reasoning=(getattr(_sig, "reasoning", None) or "")[:160],
+                                evaluate_verdict={
+                                    "allowed": False,
+                                    "reason": f"{_arb.reason} (pwin={_arb.tags.get('pwin')})",
+                                    "layer": "pwin_arbiter",
+                                    "rule": "decision_fusion_arbiter",
+                                },
+                                source_lane="scalp_lane",
+                                executed=False,
+                            )
                         continue
                     if _arb.size_mult > 0:
                         _pwin_size_mult = float(_arb.size_mult)

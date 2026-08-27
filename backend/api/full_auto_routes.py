@@ -1082,7 +1082,45 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
                     or (_bucket == "mid" and _sym_u in _open_mid and _sym_u not in _ai_mid_syms)
                 ) else ""
             ),
+            "_ts_raw": _ts,
         })
+
+    # [2026-08-27] 时间线去重：同一 (symbol, action, block_reason) 在窗口内
+    # 只保留最新一条 + 重复计数（此前每 tick 一条把时间线刷屏，且不带结局）。
+    import os as _os_dedup
+    try:
+        _dedup_sec = int(_os_dedup.getenv("TIER_ACTIVITY_DEDUP_SEC", "600") or 600)
+    except (TypeError, ValueError):
+        _dedup_sec = 600
+    for _k, _rows in result.items():
+        if not _rows:
+            continue
+        _collapsed = []
+        for _row in _rows:
+            if _collapsed:
+                _prev = _collapsed[-1]
+                _gap = 0.0
+                try:
+                    _gap = abs((_row["_ts_raw"] - _prev["_ts_raw"]).total_seconds())
+                except Exception:
+                    _gap = _dedup_sec + 1
+                if (
+                    _row["symbol"] == _prev["symbol"]
+                    and _row["action"] == _prev["action"]
+                    and _row["block_reason"] == _prev["block_reason"]
+                    and _gap <= _dedup_sec
+                ):
+                    _prev["repeat"] = int(_prev.get("repeat", 1)) + 1
+                    _prev["id"] = _row["id"]
+                    _prev["time"] = _row["time"]
+                    _prev["confidence"] = _row["confidence"]
+                    _prev["reasoning"] = _row["reasoning"]
+                    _prev["_ts_raw"] = _row["_ts_raw"]
+                    continue
+            _row.pop("_ts_raw", None)
+            _row.setdefault("repeat", 1)
+            _collapsed.append(_row)
+        result[_k] = _collapsed
 
     for t in result:
         result[t] = result[t][:limit]

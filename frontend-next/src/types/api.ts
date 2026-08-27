@@ -225,6 +225,8 @@ export interface TierActivityItem {
   direction?: string;
   tier_tag?: string;
   lane_note?: string;
+  /** 去重窗口内相同决策的重复次数（后端聚合） */
+  repeat?: number;
 }
 
 export interface TierActivity {

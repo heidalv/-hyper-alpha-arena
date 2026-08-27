@@ -89,8 +89,18 @@ export function DecisionTimeline({
                 </div>
                 <span className={cn("text-[9px] px-1 py-0.5 rounded font-medium shrink-0", actionTone(row.item.action))}>
                   {row.item.action}
+                  {typeof row.item.repeat === "number" && row.item.repeat > 1 && (
+                    <span className="text-muted-foreground ml-0.5">×{row.item.repeat}</span>
+                  )}
                 </span>
               </div>
+              {row.item.allowed === false && row.item.block_reason && (
+                <div className="flex items-start gap-1 pl-1 mb-0.5">
+                  <p className="text-[10px] leading-snug text-loss/90 line-clamp-1">
+                    🚫 被拦: {row.item.block_reason}
+                  </p>
+                </div>
+              )}
               {reasoning && (
                 <div className="flex items-start gap-1 pl-1">
                   <p

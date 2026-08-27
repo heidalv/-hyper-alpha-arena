@@ -151,10 +151,27 @@ def decide_scalp(
 
     # 5. pwin 主阈值（回放：<0.55 桶全部负期望，不交易、也不浪费 LLM 确认）；
     #    运行期地板覆盖 = 桶验证失败时的自动衰减熔断（effective_pwin_floor）。
+    # [2026-08-27 RR感知地板] 旧 0.55 地板建立在旧 TP/SL 结构（TP≈2.5% 摸不到、
+    # RR 差）的回放上；新结构 TP1.5/SL1.15 → RR≈1.30 → 保本 pwin=1/(1+RR)=0.435。
+    # 实测 SOL 因子直通 pwin=0.4716 被 0.55 全拦 → 短线零成交。改为：
+    #   floor = max(保本×安全系数(默认1.05), 绝对下限(默认0.45))
+    # legacy 模式（FUSION_PWIN_FLOOR_MODE=legacy）恢复旧行为。
     _floor = effective_pwin_floor()
+    _floor_mode = os.getenv("FUSION_PWIN_FLOOR_MODE", "rr_aware").strip().lower()
+    if _floor_mode != "legacy" and tp_pct and sl_pct and sl_pct > 0:
+        try:
+            _rr_now = float(tp_pct) / float(sl_pct)
+            _be = 1.0 / (1.0 + _rr_now) if _rr_now > 0 else 1.0
+            _safety = float(os.getenv("FUSION_PWIN_SAFETY_MULT", "1.05") or 1.05)
+            _abs_min = float(os.getenv("FUSION_PWIN_ABSOLUTE_MIN", "0.45") or 0.45)
+            _floor_rr = max(_be * _safety, _abs_min)
+            if _floor_rr < _floor:
+                _floor = _floor_rr
+        except (TypeError, ValueError):
+            pass
     if pwin < _floor:
         return FusionDecision("hold", 0.0, "rule", "pwin_below_min",
-                              {"pwin": pwin, "floor": _floor})
+                              {"pwin": pwin, "floor": _floor, "floor_mode": _floor_mode})
 
     # 6. RR 下限：TP/SL < 1.2 的结构必亏（历史 RR=0.9/0.32 类），LLM 特批除外
     if tp_pct and sl_pct and sl_pct > 0:
