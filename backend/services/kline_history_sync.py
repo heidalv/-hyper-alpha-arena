@@ -762,6 +762,11 @@ class DepthBackfillRunner:
         self._thread: Optional[threading.Thread] = None
         self._last_run_ts = 0.0
         self._last_error = ""
+        # [2026-08-27] 定向补差：nudge 请求的币种×周期范围 + 单轮即止标记。
+        # 此前 nudge 忽略范围直接启动全市场 5 所马拉松（900s×无限轮），
+        # 把实时采集打限流、交易数据源 15m 落后 40 分钟、数据门控误拦。
+        self._nudge_scope: Optional[Dict[str, List[str]]] = None
+        self._nudge_only = False
 
     def start(self) -> bool:
         if os.getenv("KLINE_DEPTH_BACKFILL_ENABLED", "false").lower() not in (
@@ -808,6 +813,11 @@ class DepthBackfillRunner:
             syms or "*", pers or "*",
             bool(self._thread and self._thread.is_alive()),
         )
+        # [2026-08-27] 定向补差：带范围时只补该范围（主动所单轮），跑完即退出，
+        # 绝不进入全市场多所马拉松（全量回填仅由常规调度路径执行）。
+        if syms and pers:
+            self._nudge_scope = {"symbols": syms, "periods": pers}
+            self._nudge_only = True
         try:
             return bool(self.start())
         except Exception as e:
@@ -845,9 +855,64 @@ class DepthBackfillRunner:
                 self._last_error = str(exc)
                 logger.warning("[DepthBackfill] 回填异常: %s", exc)
             self._last_run_ts = time.time()
+            if self._nudge_only:
+                logger.info(
+                    "[DepthBackfill] 定向补差单轮完成，线程退出（不进入全市场回填）"
+                )
+                self._nudge_only = False
+                self._stop.set()
+                return
             self._stop.wait(self._idle_sec())
 
+    async def _run_scoped_once(self, scope: Dict[str, List[str]]) -> None:
+        """nudge 定向补差：只回填请求的币种×周期，仅主动所（asterdex）单轮。
+
+        [2026-08-27] 深度墙容错的配套修复：进化侧 nudge 此前被忽略范围、
+        直接启动全市场 5 所马拉松回填（900s×无限轮），与实时采集抢配额，
+        把交易数据源（binance 15m/1h）打落后 40 分钟、触发数据门控误拦。
+        现在：范围严格收敛 + 单轮预算 + 只补主动所（研究取数择深源）。
+        """
+        syms = [str(s).upper() for s in (scope.get("symbols") or []) if s][:20]
+        pers = [str(p) for p in (scope.get("periods") or []) if p in _depth_targets()]
+        if not syms or not pers:
+            logger.info("[DepthBackfill] 定向补差范围为空，跳过")
+            return
+        _deadline = time.time() + self._round_budget_sec()
+        for period in pers:
+            if self._stop.is_set() or time.time() >= _deadline:
+                logger.info(
+                    "[DepthBackfill] 定向补差预算到点（period=%s），本轮截断",
+                    period,
+                )
+                return
+            days = _depth_targets().get(period, 30)
+            if period == "1M":
+                days = max(1, round(int(days) * 30.44))
+            logger.info(
+                "[DepthBackfill] 定向补差 asterdex %s × %d 天, symbols=%s",
+                period, days, ",".join(syms),
+            )
+            try:
+                ok_n, fail_n = await self._backfill_exchange_period(
+                    "asterdex", syms, period, days, deadline=_deadline,
+                )
+                logger.info(
+                    "[DepthBackfill] 定向补差 asterdex/%s 完成: ok=%d fail=%d",
+                    period, ok_n, fail_n,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[DepthBackfill] 定向补差 asterdex/%s 异常: %s", period, exc,
+                )
+
     async def _run_once(self) -> None:
+        _scope = self._nudge_scope
+        if _scope:
+            try:
+                await self._run_scoped_once(_scope)
+            finally:
+                self._nudge_scope = None
+            return
         # [2026-08-04 修复] 多所深度回填：
         # - asterdex（主动所）：全 catalog 全周期深回填（KLINE_DEPTH_BACKFILL_SYMBOLS=all）；
         # - 冷所（binance/okx/bybit/hyperliquid）：只回填热币 + 交易宇宙（冷所是备选源，

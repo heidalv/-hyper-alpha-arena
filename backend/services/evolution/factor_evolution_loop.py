@@ -484,11 +484,38 @@ def _check_split_depth(dfs: dict[str, pd.DataFrame], period: str | None) -> dict
 
 
 def _nudge_depth_backfill(symbols, period: str | None) -> None:
-    """数据不足时催促 DepthBackfillRunner（失败不影响主流程返回）。"""
+    """数据不足时催促 DepthBackfillRunner（失败不影响主流程返回）。
+
+    [2026-08-27] 冷却：文件标记 data/depth_nudge_<period>.json，冷却期（默认6h）
+    内不重复 nudge。此前 4h/5m/15m 每天各 nudge 一次，每次拉起全市场 5 所回填
+    马拉松（900s×无限轮），把交易数据源（binance 15m/1h）打落后 40 分钟、
+    触发数据门控误拦 SOL/UNI/XPL。与 kline_history_sync 的定向补差双保险。
+    """
+    p = period or DEFAULT_PERIOD
+    try:
+        _cooldown = float(
+            _os_window.getenv("FACTOR_EVO_DEPTH_NUDGE_COOLDOWN_SEC", "21600") or 21600
+        )
+    except (TypeError, ValueError):
+        _cooldown = 21600.0
+    _marker = os.path.join("data", f"depth_nudge_{p}.json")
+    try:
+        if os.path.exists(_marker):
+            _age = time.time() - float(os.path.getmtime(_marker))
+            if _age < _cooldown:
+                logger.info(
+                    "[FactorEvo] depth nudge 冷却中（period=%s，%.0fs 前已 nudge，冷却 %.0fs），跳过",
+                    p, _age, _cooldown,
+                )
+                return
+        with open(_marker, "w", encoding="utf-8") as _f:
+            _f.write('{"period": "%s", "nudged_at": %s}' % (p, time.time()))
+    except Exception as _m_err:
+        logger.debug("[FactorEvo] depth nudge 冷却标记失败: %s", _m_err)
     try:
         from backend.services.kline_history_sync import depth_backfill_runner
         syms = resolve_evolution_symbols(symbols)
-        depth_backfill_runner.nudge(symbols=syms, periods=[period or DEFAULT_PERIOD])
+        depth_backfill_runner.nudge(symbols=syms, periods=[p])
     except Exception as e:
         logger.warning("[FactorEvo] depth backfill nudge 失败: %s", e)
 

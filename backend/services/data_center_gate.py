@@ -92,10 +92,12 @@ def check_default_exchange() -> Dict[str, Any]:
         default = (os.getenv("DEFAULT_EXCHANGE") or "asterdex").strip().lower()
     if default == "aster":
         default = "asterdex"
+    # [2026-08-27] 用户定调「全币安」：有效默认所 = asterdex 或 binance。
+    # 此前硬编码 asterdex，与 .env DEFAULT_EXCHANGE=binance 冲突 → 每次启动误报 ERROR。
     return {
-        "ok": default == "asterdex",
+        "ok": default in ("asterdex", "binance"),
         "DEFAULT_EXCHANGE": default,
-        "detail": "默认所应为 asterdex（可被会话覆盖）",
+        "detail": "默认所应为 asterdex/binance（可被会话覆盖）",
     }
 
 
