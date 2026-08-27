@@ -141,3 +141,62 @@ def test_purge_factor_series_same_source():
     fn_src = src.split("def factor_series_fn")[1].split("def factor_matrix_fn")[0]
     assert "dfs.get(best_sym)" not in fn_src
     assert "df = list(dfs.values())[0]" in fn_src
+
+
+# ── 8. 晋升即隔离修复: M2 复评/漂移监控对本轮新晋升宽限一轮 ──
+def test_review_promote_grace_skips_quarantine():
+    """fresh_ids 内因子即使全窗 net_ic<阈值也不在同轮被隔离。"""
+    from unittest.mock import patch
+    from backend.services.evolution import factor_evolution_loop as L
+    expr = MagicMock()
+    expr.evaluate.return_value = np.ones(400) * 1e-6  # 近零序列 → net_ic≈0
+    f = {"factor_id": "fresh_x", "source": "t", "expr": expr, "state": "PAPER"}
+    idx = pd.date_range("2026-01-01", periods=400, freq="1d")
+    closes = 100.0 * np.cumprod(1.0 + np.full(400, 0.001))
+    df = pd.DataFrame({"open": closes, "high": closes * 1.001, "low": closes * 0.999,
+                       "close": closes, "volume": np.full(400, 1e5)}, index=idx)
+    with patch.object(L, "_deactivate_factor") as deact:
+        kept, degraded = L._review_active_factors([f], {"BTC": df}, fresh_ids={"fresh_x"})
+    assert degraded == []
+    assert kept == [f]
+    assert not deact.called
+
+
+def test_monitor_promote_grace_skips_drift():
+    """fresh_ids 内因子跳过本轮漂移监控(不给 DriftWatcher 喂样本)。"""
+    from unittest.mock import patch, MagicMock as MM
+    from backend.services.evolution import factor_evolution_loop as L
+    expr = MM()
+    expr.evaluate.return_value = np.arange(400, dtype=float)
+    f = {"factor_id": "fresh_x", "source": "t", "expr": expr}
+    idx = pd.date_range("2026-01-01", periods=400, freq="1d")
+    closes = 100.0 * np.cumprod(1.0 + np.full(400, 0.001))
+    df = pd.DataFrame({"open": closes, "high": closes * 1.001, "low": closes * 0.999,
+                       "close": closes, "volume": np.full(400, 1e5)}, index=idx)
+
+    class BoomWatcher:
+        def observe_error(self, *a, **k):
+            raise AssertionError("fresh 因子不应进入漂移监控")
+        def should_rollback(self, *a, **k):
+            return True
+    with patch("backend.services.evolution.drift_watcher.DriftWatcher", BoomWatcher):
+        degraded = L._monitor_active([f], {"BTC": df}, fresh_ids={"fresh_x"})
+    assert degraded == []
+
+
+def test_review_without_grace_still_quarantines():
+    """无宽限时(非本轮晋升)近零 net_ic 仍被隔离——保证宽限没有弱化门禁。"""
+    from unittest.mock import patch
+    from backend.services.evolution import factor_evolution_loop as L
+    expr = MagicMock()
+    expr.evaluate.return_value = np.ones(400) * 1e-6
+    f = {"factor_id": "old_x", "source": "t", "expr": expr, "state": "ACTIVE"}
+    idx = pd.date_range("2026-01-01", periods=400, freq="1d")
+    closes = 100.0 * np.cumprod(1.0 + np.full(400, 0.001))
+    df = pd.DataFrame({"open": closes, "high": closes * 1.001, "low": closes * 0.999,
+                       "close": closes, "volume": np.full(400, 1e5)}, index=idx)
+    with patch.object(L, "_deactivate_factor") as deact:
+        kept, degraded = L._review_active_factors([f], {"BTC": df})
+    assert degraded == [f]
+    assert kept == []
+    assert deact.called

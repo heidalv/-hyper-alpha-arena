@@ -80,8 +80,9 @@ def test_quick_promote_rejected_early_return():
     ), patch(
         "backend.services.evolution.factor_evolution_loop._monitor_active",
     ) as mon:
+        import time
         report = _run_evolution_loop_impl(
-            symbols=["BTC"], period="5m", quick=True, t0=0.0,
+            symbols=["BTC"], period="5m", quick=True, t0=time.time(),
         )
     assert report.get("error") == "promote_rejected"
     assert report.get("promoted") == 0

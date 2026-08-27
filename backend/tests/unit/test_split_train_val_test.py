@@ -107,10 +107,18 @@ def test_final_test_confirm_intercepts_negative_ic():
     assert kept[0].get("test_ic") is not None
 
 
-def test_final_test_confirm_fail_open_without_test():
-    """测试集为空时 fail-open 不拦截。"""
+def test_final_test_confirm_fail_closed_without_test():
+    """测试集为空时默认 fail-closed 拦截（对齐 FACTOR_EVO_GATE_FAIL_CLOSED=1）。"""
     p = {"factor_id": "x", "expr": None, "source": "test"}
     kept = _final_test_confirm([p], {}, {})
+    assert kept == []
+
+
+def test_final_test_confirm_fail_open_without_test_env():
+    """FACTOR_EVO_GATE_FAIL_CLOSED=0 时测试集为空 fail-open 放行。"""
+    p = {"factor_id": "x", "expr": None, "source": "test"}
+    with patch.dict(os.environ, {"FACTOR_EVO_GATE_FAIL_CLOSED": "0"}):
+        kept = _final_test_confirm([p], {}, {})
     assert len(kept) == 1
 
 
@@ -182,7 +190,8 @@ def test_depth_insufficient_aborts_no_silent_degrade():
     ), patch(
         "backend.services.evolution.factor_evolution_loop._nudge_depth_backfill",
     ):
+        import time
         report = _run_evolution_loop_impl(
-            symbols=["BTC"], period="5m", quick=True, t0=0.0,
+            symbols=["BTC"], period="5m", quick=True, t0=time.time(),
         )
     assert report.get("error") in ("depth_insufficient", "split_insufficient_data")

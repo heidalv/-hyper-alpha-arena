@@ -22,6 +22,16 @@ import pytest
 from unittest.mock import patch
 
 
+@pytest.fixture(autouse=True)
+def _pin_immune_flags_on(monkeypatch):
+    """生产 .env 已把 RISK_USE_MID_TIER_IMMUNE=false（止血四项，2026-08-24），
+    本文件验证的是免疫逻辑本身——测试期固定 flag=on；flag-off 行为由
+    test_short_immune_follows_mid_flag_off 专门覆盖。"""
+    import backend.config.settings as st
+    monkeypatch.setattr(st, "RISK_USE_MID_TIER_IMMUNE", True)
+    monkeypatch.setattr(st, "RISK_USE_LONG_TIER_IMMUNE", True)
+
+
 # ════════════════════════════════════════════════════════════════════
 # 1. risk_band_resolver: short/scalp tier 软退出免疫
 # ════════════════════════════════════════════════════════════════════

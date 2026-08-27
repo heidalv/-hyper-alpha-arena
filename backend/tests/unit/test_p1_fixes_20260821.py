@@ -39,7 +39,9 @@ class TestScalpP1:
         # 旧 fail-open 文案必须消失
         assert "short_tier_gate 检查跳过" not in src
         assert "组合预算跳过" not in src
-        assert "仲裁跳过" not in src
+        # [aa7e0dd 信号准确率根治] pwin 仲裁异常改为「降级放行+日志」——
+        # 不再静默跳过，也不再一刀切拦截；与 S9 三闸 fail-closed 并存。
+        assert "pwin仲裁跳过(降级放行)" in src
         # 已 fail-closed 的 reentry_cooldown 语义保留
         assert "reentry_cooldown 异常，拒绝开仓" in src
 
@@ -54,11 +56,11 @@ class TestScalpP1:
 # ── S6：学习值 SL 夹幅 ─────────────────────────────────
 class TestS6LearnedSlClamp:
     def test_mr_clamps_widened(self):
-        """[2026-08-23 改造A 更新] 夹幅 [0.6%,3.0%]→[0.7%,1.15%]：对齐信号 30-45min
-        边际（±0.3%）——旧 3% 上限让 MR 单在趋势转换日扛趋势级止损。"""
+        """[2026-08-24 深挖B 更新] 夹幅 →[1.2%,1.6%]：7 天实证 SL 猎杀带在
+        [0.6%,1.2%]，宽 SL 才是 MR 活命结构；1.6-1.8% 带每笔 pnl 为正。"""
         from backend.services.scalp import scalp_ranging_mr as mr
-        assert mr._MR_SL_FLOOR == pytest.approx(0.007)
-        assert mr._MR_SL_CAP == pytest.approx(0.0115)
+        assert mr._MR_SL_FLOOR == pytest.approx(0.012)
+        assert mr._MR_SL_CAP == pytest.approx(0.016)
 
     def test_learned_sl_survives(self, monkeypatch):
         from backend.services.risk import tp_sl_grid_trainer as tgt
@@ -68,8 +70,8 @@ class TestS6LearnedSlClamp:
             lambda tier, band: {"tp_pct": 0.025, "sl_pct": 0.027},
         )
         tp, sl = mr.apply_learned_mr(0.02, 0.012)
-        assert sl == pytest.approx(0.0115)  # 新夹幅封顶 1.15%
-        assert tp == pytest.approx(0.015)   # TP cap 1.5%
+        assert sl == pytest.approx(0.016)  # 夹幅封顶 1.6%（深挖B）
+        assert tp == pytest.approx(0.009)  # TP cap 0.9%（2026-08-26 MFE 峰值带）
 
     def test_structure_atr_clamp_widened(self):
         from backend.services.scalp.structure_stop_calculator import StructureStopCalculator

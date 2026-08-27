@@ -108,9 +108,11 @@ def test_mr_tp_sl_capped_20260823(monkeypatch):
 
     sig = mr.evaluate_ranging_mr("BTC", md)
     assert sig.action == "sell", f"应触发空头 MR: {sig.action} {sig.reasoning}"
-    assert 0.007 <= sig.sl_pct <= 0.012 + 1e-9, f"MR SL∈[0.7%,1.2%]: {sig.sl_pct}"
-    assert sig.tp_pct <= 0.015 + 1e-9, f"MR TP≤1.5%: {sig.tp_pct}"
-    assert sig.tp_pct / sig.sl_pct >= 1.0, f"MR RR≥1: {sig.tp_pct/sig.sl_pct:.3f}"
+    # [2026-08-24 深挖B] SL 夹幅 0.7-1.15%→1.2-1.6%（猎杀带数据实证）；
+    # [2026-08-26] TP 硬上限 1.2%→0.9%，RR 自洽抬升后 TP 可到 1.6%。
+    assert 0.012 - 1e-9 <= sig.sl_pct <= 0.016 + 1e-9, f"MR SL∈[1.2%,1.6%]: {sig.sl_pct}"
+    assert 0.009 - 1e-9 <= sig.tp_pct <= 0.016 + 1e-9, f"MR TP∈[0.9%,1.6%]: {sig.tp_pct}"
+    assert sig.tp_pct / sig.sl_pct >= 0.75 - 1e-9, f"MR RR≥0.75: {sig.tp_pct/sig.sl_pct:.3f}"
 
 
 # ────────────────────────── B: 空头条件化 ──────────────────────────
@@ -191,9 +193,10 @@ def test_gate_short_two_conditions_half_size_when_ranging(monkeypatch):
 
 
 def test_gate_short_blocked_when_4h_bullish(monkeypatch):
+    # [2026-08-26 亏损复盘] Paper 模式按分数分档放行积累样本；硬规则只在 live 生效。
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0003, mid_bias="bullish")
-    dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="paper")
+    dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
     assert not dec.allowed
     assert "空头条件未齐" in dec.reason
 
@@ -201,7 +204,7 @@ def test_gate_short_blocked_when_4h_bullish(monkeypatch):
 def test_gate_short_blocked_when_funding_low(monkeypatch):
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0, mid_bias="bearish")
-    dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="paper")
+    dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
     assert not dec.allowed
     assert "空头条件未齐" in dec.reason
 
