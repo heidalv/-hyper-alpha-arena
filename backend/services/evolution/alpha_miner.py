@@ -375,6 +375,30 @@ class CodegenCritic:
             )
         except Exception as e:
             logger.debug(f"[CodegenCritic] 本地配置解析跳过: {e}")
+        # [2026-08-27 用户指令] 挖掘期优先在线大模型：本地 ollama 槽在 GP/交易并发时
+        # 被占满（实测 GP 热启动种子全灭、因子挖掘空响应）。默认云端优先（DeepSeek），
+        # 本地只作故障兜底。FACTOR_CODEGEN_PREFER_CLOUD=0 恢复旧"本地优先"。
+        try:
+            _prefer_cloud = os.getenv("FACTOR_CODEGEN_PREFER_CLOUD", "1").strip().lower() not in ("0", "false", "no", "off")
+        except Exception:
+            _prefer_cloud = True
+        if _prefer_cloud:
+            cloud = None
+            try:
+                from backend.services.llm_config_service import get_llm_config_for_usage as _gfcu_c
+                cloud = _gfcu_c(
+                    "factor_mining", tenant_id=self._admin_tid(), tier="deep",
+                    provider="deepseek",
+                )
+            except Exception as _c_err:
+                logger.debug(f"[CodegenCritic] 云端配置解析跳过: {_c_err}")
+            if cloud is not None and getattr(cloud, "api_key", None):
+                if local is not None and getattr(local, "id", None) != getattr(cloud, "id", None):
+                    logger.info("[CodegenCritic] 云端优先: %s (本地 %s 作兜底)",
+                                getattr(cloud, "model", "?"), getattr(local, "model", "?"))
+                    return cloud, local
+                return cloud, None
+            logger.warning("[CodegenCritic] 云端配置不可用，回退本地优先")
         if local is not None and getattr(local, "api_key", None):
             if generic is not None and getattr(generic, "id", None) != getattr(local, "id", None):
                 return local, generic
