@@ -1206,6 +1206,26 @@ class ExchangeCredential(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class ExchangeProxyConfig(Base):
+    """[2026-08-28] Socks5/HTTP 代理配置 —— 专供交易所 API 使用(币安需 IP 白名单)。
+
+    出口 IP 需加进交易所(如币安)API Key 的 IP 白名单;在「设置→Socks5代理」
+    维护,在「API凭证」添加凭证时下拉选择。全局配置(同 SystemConfig)。
+    """
+    __tablename__ = "exchange_proxy_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    proxy_url = Column(String(512), nullable=False, index=True)
+    egress_ip = Column(String(64), nullable=True)
+    note = Column(String(255), default="")
+    enabled = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(
+        TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )
+
+
 class KlineCollectionTask(MarketBase):
     """Store K-line data collection task status"""
     __tablename__ = "kline_collection_tasks"

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount, useSessions } from "@/hooks/useTradingData";
 import { useDefaultExchange } from "@/hooks/useDefaultExchange";
-import { accountApi, sessionApi } from "@/lib/api";
+import { accountApi, sessionApi, proxyConfigApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 const BACKEND = getBackendUrl().replace(/\/$/, "");
@@ -752,16 +752,23 @@ function MonitorTab() {
 function CredentialsTab() {
   const { data: accounts } = useAccounts();
   const [credentials, setCredentials] = useState<any[]>([]);
+  const [proxyCfgs, setProxyCfgs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_url: "" });
+  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "" });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setCredentials(await fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).catch(() => [])); }
-    catch {} finally { setLoading(false); }
+    try {
+      const [creds, proxys] = await Promise.all([
+        fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).catch(() => []),
+        proxyConfigApi.list().catch(() => []),
+      ]);
+      setCredentials(creds);
+      setProxyCfgs(proxys || []);
+    } catch {} finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -771,10 +778,10 @@ function CredentialsTab() {
     try {
       await fetch(`${BACKEND}/api/exchange/credentials`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null, proxy_url: (form.proxy_url || "").trim() || null }),
+        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null, proxy_url: form.proxy_id ? ((proxyCfgs || []).find((p: any) => p.id === parseInt(form.proxy_id))?.proxy_url || null) : null }),
       });
       setShowAdd(false);
-      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_url: "" });
+      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "" });
       load();
     } catch (e: any) { alert(e.message); }
     setSaving(false);
@@ -844,10 +851,15 @@ function CredentialsTab() {
                 <option value="testnet">测试网</option>
               </select>
             </div>
-            <div className="col-span-2"><Label className="text-xs">代理地址（可选）</Label>
-              <Input value={form.proxy_url} onChange={(e) => setForm({ ...form, proxy_url: e.target.value })} placeholder="留空=用后端全局代理；如 http://127.0.0.1:7890 或 socks5://1.2.3.4:1080" className="text-sm font-mono" />
+            <div className="col-span-2"><Label className="text-xs">代理（交易所 IP 白名单出口）</Label>
+              <select value={form.proxy_id} onChange={(e) => setForm({ ...form, proxy_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="">不指定（用后端环境默认代理）</option>
+                {(proxyCfgs || []).map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name} · {p.proxy_url}{p.egress_ip ? ` · 出口IP ${p.egress_ip}` : ""}</option>
+                ))}
+              </select>
               <div className="text-[10px] text-muted-foreground mt-1">
-                币安 API 需 IP 白名单：请确保本系统出口 IP（或上方代理的出口 IP）已在币安后台加入白名单，否则请求返回 -2015 错误。
+                代理在「设置 → Socks5 代理」中维护（增删/测试出口IP）。币安 API 需把出口 IP 加入 API Key 的 IP 白名单，否则请求返回 -2015 错误。
               </div>
             </div>
             <div><Label className="text-xs">API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm font-mono" placeholder="输入 API Key" /></div>

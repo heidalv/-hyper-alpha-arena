@@ -22,6 +22,7 @@ Exchange Hub & Cross-Exchange API Routes
 """
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -318,6 +319,129 @@ async def bind_credential(cred_id: int, body: CredentialBind, request: Request):
         raise
     except Exception as e:
         logger.error("[Exchange] bind_credential error: %s", e)
+        raise HTTPException(500, str(e))
+
+
+class ProxyConfigCreate(BaseModel):
+    name: str
+    proxy_url: str
+    note: str = ""
+
+
+def _probe_egress(proxy_url: str) -> str:
+    """经指定代理探测公网出口 IP(3s超时,含socks5需PySocks);失败返回空串。"""
+    import urllib.request as _urllib
+
+    try:
+        opener = _urllib.build_opener(_urllib.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+        with opener.open("https://api.ipify.org?format=json", timeout=3) as r:
+            return json.loads(r.read().decode("utf-8", "replace")).get("ip") or ""
+    except Exception:
+        return ""
+
+
+@router.get("/proxy-configs")
+def list_proxy_configs():
+    """列出已配置的代理(设置→Socks5代理)。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ExchangeProxyConfig
+        db = SessionLocal()
+        try:
+            return [
+                {
+                    "id": c.id, "name": c.name, "proxy_url": c.proxy_url,
+                    "egress_ip": c.egress_ip, "note": c.note, "enabled": c.enabled,
+                    "created_at": str(c.created_at) if c.created_at else None,
+                }
+                for c in db.query(ExchangeProxyConfig).order_by(ExchangeProxyConfig.id).all()
+            ]
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("[Exchange] list_proxy_configs error: %s", e)
+        return []
+
+
+@router.post("/proxy-configs")
+def save_proxy_config(body: ProxyConfigCreate):
+    """添加代理配置(同 URL 去重更新)。"""
+    name = (body.name or "").strip()
+    url = (body.proxy_url or "").strip()
+    if not name or not url:
+        raise HTTPException(400, "需要 name 和 proxy_url")
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ExchangeProxyConfig
+        db = SessionLocal()
+        try:
+            row = db.query(ExchangeProxyConfig).filter(
+                ExchangeProxyConfig.proxy_url == url,
+            ).first()
+            if row:
+                row.name = name
+                row.note = (body.note or "")[:255]
+                db.commit()
+                return {"id": row.id, "status": "updated"}
+            row = ExchangeProxyConfig(name=name, proxy_url=url, note=(body.note or "")[:255])
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return {"id": row.id, "status": "created"}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Exchange] save_proxy_config error: %s", e)
+        raise HTTPException(500, str(e))
+
+
+@router.delete("/proxy-configs/{cfg_id}")
+def delete_proxy_config(cfg_id: int):
+    """删除代理配置。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ExchangeProxyConfig
+        db = SessionLocal()
+        try:
+            row = db.query(ExchangeProxyConfig).filter(ExchangeProxyConfig.id == cfg_id).first()
+            if not row:
+                raise HTTPException(404, "Proxy config not found")
+            db.delete(row)
+            db.commit()
+            return {"status": "deleted", "id": cfg_id}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Exchange] delete_proxy_config error: %s", e)
+        raise HTTPException(500, str(e))
+
+
+@router.post("/proxy-configs/{cfg_id}/test")
+def test_proxy_config(cfg_id: int):
+    """探测该代理的出口 IP 并回写(供币安 IP 白名单)。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ExchangeProxyConfig
+        db = SessionLocal()
+        try:
+            row = db.query(ExchangeProxyConfig).filter(ExchangeProxyConfig.id == cfg_id).first()
+            if not row:
+                raise HTTPException(404, "Proxy config not found")
+            ip = _probe_egress(row.proxy_url)
+            if ip:
+                row.egress_ip = ip
+                db.commit()
+            return {"ok": bool(ip), "egress_ip": ip or None, "proxy_url": row.proxy_url}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Exchange] test_proxy_config error: %s", e)
         raise HTTPException(500, str(e))
 
 

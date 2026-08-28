@@ -305,6 +305,17 @@ export const accountApi = {
     apiRequest<any>(`/account/${id}${opts?.hard ? "?hard=true" : ""}`, { method: "DELETE" }),
 };
 
+// [2026-08-28] Socks5 代理配置(交易所API IP白名单出口; 设置页维护, 凭证表单下拉选择)
+export const proxyConfigApi = {
+  list: () => apiRequest<any[]>("/exchange/proxy-configs"),
+  create: (data: { name: string; proxy_url: string; note?: string }) =>
+    apiRequest<any>("/exchange/proxy-configs", { method: "POST", body: JSON.stringify(data) }),
+  remove: (id: number) =>
+    apiRequest<any>(`/exchange/proxy-configs/${id}`, { method: "DELETE" }),
+  test: (id: number) =>
+    apiRequest<any>(`/exchange/proxy-configs/${id}/test`, { method: "POST" }),
+};
+
 // ═══ AI 会话 ═══
 
 export const sessionApi = {

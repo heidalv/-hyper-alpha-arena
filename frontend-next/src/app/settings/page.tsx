@@ -6,16 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Settings, Key, Bot, Coins, Shield,
+  Settings, Key, Bot, Coins, Shield, Network,
   Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Loader2, Save,
 } from "lucide-react";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
-import { configApi, accountApi } from "@/lib/api";
+import { configApi, accountApi, proxyConfigApi } from "@/lib/api";
 import { useDefaultExchange } from "@/hooks/useDefaultExchange";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 
-type Tab = "accounts" | "llm" | "pairs" | "keys" | "gates";
+type Tab = "accounts" | "llm" | "pairs" | "keys" | "gates" | "proxy";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("accounts");
@@ -26,6 +26,7 @@ export default function SettingsPage() {
     { key: "pairs", label: "交易对", icon: Coins },
     { key: "keys", label: "API 密钥", icon: Key },
     { key: "gates", label: "交易门禁", icon: Shield },
+    { key: "proxy", label: "Socks5 代理", icon: Network },
   ];
 
   return (
@@ -54,6 +55,7 @@ export default function SettingsPage() {
       {tab === "pairs" && <PairsTab />}
       {tab === "keys" && <KeysTab />}
       {tab === "gates" && <GatesTab />}
+      {tab === "proxy" && <ProxyConfigsTab />}
     </div>
   );
 }
@@ -94,6 +96,107 @@ function AccountsRedirect() {
         <a href="/exchange" className="text-primary underline ml-1">交易所管理 → 账户管理</a>
         中操作（2026-08-28 账户体系统一重设计）。
       </p>
+    </Card>
+  );
+}
+
+// ═══ Socks5 代理配置（交易所 API IP 白名单出口）═══
+function ProxyConfigsTab() {
+  const [cfgs, setCfgs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: "", proxy_url: "", note: "" });
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setCfgs(await proxyConfigApi.list().catch(() => [])); }
+    catch {} finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.proxy_url.trim()) return;
+    setSaving(true);
+    try {
+      await proxyConfigApi.create(form);
+      setShowAdd(false);
+      setForm({ name: "", proxy_url: "", note: "" });
+      load();
+    } catch (e: any) { alert(e?.message || String(e)); }
+    setSaving(false);
+  };
+
+  const handleTest = async (id: number) => {
+    setTesting(id);
+    try {
+      const r: any = await proxyConfigApi.test(id);
+      alert(r?.ok ? `✅ 出口 IP: ${r.egress_ip}（请把该 IP 加入交易所 API Key 白名单）` : "❌ 探测失败（请确认代理可用）");
+      load();
+    } catch (e: any) { alert(e?.message || String(e)); }
+    setTesting(null);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("确认删除此代理配置？")) return;
+    try { await proxyConfigApi.remove(id); load(); }
+    catch (e: any) { alert(e?.message || String(e)); }
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <Card className="p-0 overflow-hidden glass">
+      <CardHead
+        icon={<Network className="w-4 h-4" />}
+        title="Socks5 代理配置"
+        hint="专供交易所 API 使用：币安要求 API Key 绑定 IP 白名单，出口 IP 即代理的公网 IP。在「交易所管理 → API 凭证」添加凭证时下拉选择。"
+        actions={<Button size="sm" className="btn-glow" onClick={() => setShowAdd(!showAdd)}><Plus className="w-3.5 h-3.5 mr-1" />添加代理</Button>}
+      />
+
+      <div className="p-4 space-y-3">
+        {showAdd && (
+          <div className="border border-primary/30 rounded p-3 space-y-2">
+            <div className="text-sm font-medium">添加代理配置</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-xs">名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如：币安白名单出口" className="text-sm" /></div>
+              <div><Label className="text-xs">代理地址</Label><Input value={form.proxy_url} onChange={(e) => setForm({ ...form, proxy_url: e.target.value })} placeholder="http://127.0.0.1:18080 或 socks5://user:pass@host:port" className="text-sm font-mono" /></div>
+              <div className="col-span-2"><Label className="text-xs">备注（可选）</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="text-sm" /></div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>取消</Button>
+              <Button size="sm" className="btn-glow" onClick={handleSave} disabled={saving || !form.name.trim() || !form.proxy_url.trim()}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+            </div>
+          </div>
+        )}
+
+        {cfgs.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground text-xs">暂无代理配置，点击「添加代理」创建</div>
+        ) : (
+          <div className="space-y-2">
+            {cfgs.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 border border-border/50 rounded p-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                    {c.name}
+                    {c.egress_ip && <Badge variant="secondary" className="text-[10px]">出口IP {c.egress_ip}</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">{c.proxy_url}{c.note ? ` · ${c.note}` : ""}</div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleTest(c.id)} disabled={testing === c.id}>
+                    {testing === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "测试出口IP"}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-loss" onClick={() => handleDelete(c.id)}><Trash2 className="w-3 h-3" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
