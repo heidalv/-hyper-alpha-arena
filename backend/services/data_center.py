@@ -235,7 +235,10 @@ class UnifiedMarketDataCenter:
             if req == "aster":
                 req = "asterdex"
             if req and req != decision_ex:
-                logger.warning(
+                # [2026-08-29 日志洪峰根治] 该提示每币每周期都打一次，error.log
+                # 曾以 ~40MB/h 膨胀并连带轮转 PermissionError 风暴；降级 debug
+                #（跨所强制本身仍生效，只是不再刷屏）。
+                logger.debug(
                     "[DataCenter] purpose=trade 拒绝跨所读取 %s→%s，强制 %s (%s/%s)",
                     req, decision_ex, decision_ex, symbol, period,
                 )

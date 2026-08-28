@@ -52,8 +52,11 @@ env.update({
     "DATA_CENTER_MODE": "standalone",
     "PYTHONUNBUFFERED": "1",
 })
-out = open(os.path.join(ROOT, "logs", "backend.log"), "a", encoding="utf-8", buffering=1)
-err = open(os.path.join(ROOT, "logs", "backend.error.log"), "a", encoding="utf-8", buffering=1)
+# [2026-08-29 日志轮转根治] 此前把 stdout/stderr 重定向到 backend.log/error.log，
+# 与进程内 RotatingFileHandler 抢同一文件（重定向句柄无 FILE_SHARE_DELETE）→
+# 轮转 rename 永久 PermissionError、error.log 无限膨胀。改写到独立 console 文件。
+out = open(os.path.join(ROOT, "logs", "backend-console.log"), "a", encoding="utf-8", buffering=1)
+err = open(os.path.join(ROOT, "logs", "backend-console.err.log"), "a", encoding="utf-8", buffering=1)
 p = subprocess.Popen(
     [PY, os.path.join(ROOT, "scripts", "run_uvicorn_dev.py")],
     cwd=ROOT,
