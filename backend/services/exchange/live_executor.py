@@ -332,12 +332,60 @@ class LiveExecutor(ExecutionChannel):
         self, db, account_id: int, symbol: str, side: str,
         reason: str = "manual", quantity: Optional[float] = None,
         strategy_id: Optional[str] = None,
+        trade_nature: Optional[str] = None,
     ) -> OrderResult:
         """平仓 —— 通过 place_ai_driven_order 发反向 reduce_only 单。
 
-        实盘平仓: 对 long 仓位发 sell（reduce_only），对 short 发 buy（reduce_only）。
-        place_ai_driven_order 内部处理 reduce_only 标记。
+        [2026-08-28 实盘接线GAP-4] LIVE_SUB_POSITION_TRACKING=true 时路由到
+        LPM：trade_nature 给定时按层平该层子仓(qty=部分平仓数量)；未给定
+        （紧急/全平场景）平掉该 symbol 全周期子仓。账本与交易所实仓同步，
+        杜绝"发原始 reduce_only 单但 LPM 账本不动"的漂移。
         """
+        if _live_sub_position_tracking_enabled():
+            try:
+                from backend.services.live_position_manager import live_position_manager
+
+                def _cb(_db, _symbol, _order_side, _qty, _lev):
+                    close_ctx = OrderContext(
+                        account_id=account_id,
+                        symbol=_symbol,
+                        side=_order_side,
+                        quantity=float(_qty),
+                        order_type="market",
+                        leverage=float(_lev),
+                        reduce_only=True,
+                        strategy_id=strategy_id,
+                        trigger_context={"close_reason": reason, "close_position_side": side},
+                    )
+                    self._send_raw_order(_db, close_ctx)
+                    return {"order_id": None, "fill_price": 0.0}
+
+                _close_qty = quantity if quantity and quantity > 0 else None
+                if trade_nature:
+                    res = live_position_manager.close_sub_position(
+                        db, account_id, symbol, trade_nature, _cb,
+                        qty=_close_qty,
+                    )
+                else:
+                    res = live_position_manager.close_all_symbol(
+                        db, account_id, symbol, _cb, qty=_close_qty,
+                    )
+                return OrderResult(
+                    status="filled" if res.get("closed") else "no_position",
+                    symbol=symbol,
+                    side="sell" if side == "long" else "buy",
+                    filled_quantity=float(res.get("closed_size") or 0.0),
+                    leverage=1.0,
+                    channel="live",
+                    exchange=self._exchange,
+                    raw={"lpm_close": res},
+                )
+            except Exception as lpm_err:
+                logger.error(
+                    "[LiveExecutor] LPM 平仓路由异常(降级直连reduce_only): %s", lpm_err,
+                    exc_info=True,
+                )
+
         close_side = "sell" if side == "long" else "buy"
         ctx = OrderContext(
             account_id=account_id,

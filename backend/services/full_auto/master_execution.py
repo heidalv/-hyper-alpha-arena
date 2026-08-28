@@ -1593,10 +1593,23 @@ def execute_master_decisions(
 
                     _min_notional = max(5, total_equity * 0.05)
                     if remaining_notional < _min_notional or pct >= 95:
-                        result = paper_engine.close_position(
-                            db, account_id, sym, side,
-                            reason="ai_take_profit",
-                            strategy_id=pos_strategy_id)
+                        # [2026-08-28 实盘接线GAP-5] live 走 LiveExecutor(经LPM账本),
+                        # paper 维持原路径。
+                        if mode == "live":
+                            from backend.services.exchange.live_executor import LiveExecutor
+                            _lclose = LiveExecutor().close_position(
+                                db, account_id, sym, side,
+                                reason="ai_take_profit",
+                                strategy_id=pos_strategy_id,
+                            )
+                            result = {
+                                "status": str(getattr(_lclose, "status", "error") or "error"),
+                            }
+                        else:
+                            result = paper_engine.close_position(
+                                db, account_id, sym, side,
+                                reason="ai_take_profit",
+                                strategy_id=pos_strategy_id)
                         if result:
                             pnl = result.get("pnl", 0)
                             _reason = "ai_take_profit" if pnl >= 0 else "ai_cut_loss"

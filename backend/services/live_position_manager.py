@@ -182,8 +182,9 @@ class LivePositionManager:
         symbol: str,
         trade_nature: str,
         exchange_callback,
+        qty: "float | None" = None,
     ) -> dict:
-        """关闭指定 tier(trade_nature)的子仓位。
+        """关闭指定 tier(trade_nature)的子仓位（qty 给定时部分平仓该数量）。
 
         流程:
         1. 查该 nature 的所有 open 子仓位。
@@ -215,30 +216,90 @@ class LivePositionManager:
 
         # 该 nature 的 signed size
         sub_signed = sum((p.size if p.side == "long" else -p.size) for p in subs)
+        total_size = sum(p.size for p in subs)
+        close_qty = min(total_size, float(qty)) if qty is not None else total_size
+        full_close = (qty is None) or (close_qty >= total_size - 1e-8)
 
         # 向交易所发反向差额单(净额)
-        if abs(sub_signed) < 1e-8:
+        if abs(close_qty) < 1e-8:
             order_id = None
             fill_price = 0.0
         else:
             order_side = "sell" if sub_signed > 0 else "buy"
             result = exchange_callback(
-                db, symbol, order_side, abs(sub_signed),
+                db, symbol, order_side, close_qty,
                 min(p.leverage for p in subs),
             )
             order_id = result.get("order_id")
             fill_price = result.get("fill_price", 0.0)
 
-        # 标记关闭
+        # 标记关闭/按比例缩减
+        remain_ratio = 0.0 if full_close else (1.0 - close_qty / total_size)
         for p in subs:
-            p.status = "closed"
+            if full_close:
+                p.status = "closed"
+                p.size = 0.0
+                p.margin = 0.0
+            else:
+                p.size = p.size * remain_ratio
+                p.margin = p.size / max(p.leverage, 1.0)
         db.commit()
 
         return {
-            "closed": True,
+            "closed": full_close,
             "order_id": order_id,
             "fill_price": fill_price,
-            "closed_size": abs(sub_signed),
+            "closed_size": close_qty,
+        }
+
+    def close_all_symbol(
+        self,
+        db,
+        account_id: int,
+        symbol: str,
+        exchange_callback,
+        qty: "float | None" = None,
+    ) -> dict:
+        """平掉该 symbol 全周期 open 子仓（紧急/全平场景），交易所发净额反向单。
+        qty 给定时按比例跨层部分平仓（如 master 的部分止盈）。"""
+        from backend.database.models import LiveSubPosition
+
+        subs = db.query(LiveSubPosition).filter(
+            LiveSubPosition.account_id == account_id,
+            LiveSubPosition.symbol == symbol,
+            LiveSubPosition.status == "open",
+        ).all()
+        if not subs:
+            return {"closed": False, "reason": "no open sub-position"}
+        sub_signed = sum((p.size if p.side == "long" else -p.size) for p in subs)
+        total_size = sum(p.size for p in subs)
+        close_qty = min(total_size, float(qty)) if qty is not None else total_size
+        full_close = (qty is None) or (close_qty >= total_size - 1e-8)
+        order_id = None
+        fill_price = 0.0
+        if close_qty >= 1e-8:
+            order_side = "sell" if sub_signed > 0 else "buy"
+            result = exchange_callback(
+                db, symbol, order_side, close_qty,
+                min(p.leverage for p in subs),
+            )
+            order_id = result.get("order_id")
+            fill_price = result.get("fill_price", 0.0)
+        remain_ratio = 0.0 if full_close else (1.0 - close_qty / total_size)
+        for p in subs:
+            if full_close:
+                p.status = "closed"
+                p.size = 0.0
+                p.margin = 0.0
+            else:
+                p.size = p.size * remain_ratio
+                p.margin = p.size / max(p.leverage, 1.0)
+        db.commit()
+        return {
+            "closed": full_close,
+            "order_id": order_id,
+            "fill_price": fill_price,
+            "closed_size": close_qty,
         }
 
     def reduce_sub_position(

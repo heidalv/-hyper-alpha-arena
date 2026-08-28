@@ -1684,20 +1684,51 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     )
                 except Exception as _log_err:
                     logger.debug(f"[ScalpRouter独立] {sym} 信号日志跳过: {_log_err}")
-                _fill_res = paper_engine.place_order(
-                    db=_db,
-                    account_id=trading_acct_id,  # [2026-07-10 修复] 原 account_id 未定义→NameError
-                    symbol=sym,
-                    side=side,
-                    quantity=_margin_est / _scalp_entry if _scalp_entry > 0 else 0,
-                    order_type="market",
-                    leverage=_dyn_lev,  # 动态杠杆（市场 + 本金），异常兜底 8x
-                    trade_nature="scalp",
-                    timeframe_tier="short",
-                    tp_price=_scalp_tp,  # 兜底后的 TP
-                    sl_price=_scalp_sl,  # 兜底后的 SL
-                    strategy_id=_scalp_strategy_id,
-                )
+                # [2026-08-28 实盘接线GAP-1] live 会话走 LiveExecutor（LPM 合并账本
+                # 由 LIVE_SUB_POSITION_TRACKING 控制）；paper 维持原路径。
+                if (_trade_mode or "").lower() == "live":
+                    try:
+                        from backend.services.exchange.executors import OrderContext
+                        from backend.services.exchange.live_executor import LiveExecutor
+                        _ores = LiveExecutor().place_order(_db, OrderContext(
+                            account_id=int(trading_acct_id),
+                            symbol=sym,
+                            side=side,
+                            quantity=_margin_est / _scalp_entry if _scalp_entry > 0 else 0,
+                            order_type="market",
+                            leverage=_dyn_lev,
+                            tp_price=_scalp_tp,
+                            sl_price=_scalp_sl,
+                            strategy_id=_scalp_strategy_id,
+                            timeframe_tier="short",
+                            trade_nature="scalp",
+                        ))
+                        _fill_res = {
+                            "status": str(getattr(_ores, "status", "error") or "error"),
+                            "position_id": getattr(_ores, "position_id", None),
+                        }
+                    except Exception as _live_err:
+                        logger.error(
+                            "[ScalpRouter独立] live 下单异常 %s: %s", sym, _live_err,
+                            exc_info=True,
+                        )
+                        _bump_block("live_order_error")
+                        continue
+                else:
+                    _fill_res = paper_engine.place_order(
+                        db=_db,
+                        account_id=trading_acct_id,  # [2026-07-10 修复] 原 account_id 未定义→NameError
+                        symbol=sym,
+                        side=side,
+                        quantity=_margin_est / _scalp_entry if _scalp_entry > 0 else 0,
+                        order_type="market",
+                        leverage=_dyn_lev,  # 动态杠杆（市场 + 本金），异常兜底 8x
+                        trade_nature="scalp",
+                        timeframe_tier="short",
+                        tp_price=_scalp_tp,  # 兜底后的 TP
+                        sl_price=_scalp_sl,  # 兜底后的 SL
+                        strategy_id=_scalp_strategy_id,
+                    )
                 _db.commit()
 
                 # [S11 2026-08-21] 拒单/未成交不写任何成交副作用

@@ -4679,6 +4679,16 @@ class FullAutoTradingService:
                 pass
 
     def _execute_paper_trade(self, db: Session, session, strat, decision: dict) -> bool:
+        # [2026-08-28 实盘接线GAP-3] 兜底委托：live 会话任何入口（编排器覆盖/
+        # master决策等仍直连本方法的调用点）一律转发 live 执行，杜绝实盘订单
+        # 错落纸面引擎。paper 会话维持原路径。
+        try:
+            if self._is_live_trading_session(session):
+                return bool(self._execute_live_trade(db, session, strat, decision))
+        except Exception as _dispatch_err:
+            logger.warning(
+                "[FullAuto] live 委托分流异常(降级直连): %s", _dispatch_err,
+            )
         from backend.services.full_auto.paper_execution import (
             build_paper_execution_host,
             execute_paper_trade,
