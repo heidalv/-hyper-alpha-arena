@@ -339,6 +339,14 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: (id: number) => accountApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.accounts }),
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      const authHint =
+        /401|Not authenticated|登录|过期/i.test(msg)
+          ? "（登录态已失效：请重新登录，或刷新页面后重试）"
+          : "";
+      alert(`账户删除失败：${msg}${authHint}`);
+    },
   });
 }
 

@@ -119,6 +119,27 @@ def _requires_auth(path: str, method: str) -> bool:
     return False
 
 
+def _client_is_loopback(scope) -> bool:
+    """客户端是否为回环地址(本机)。"""
+    client = scope.get("client")
+    host = client[0] if client else ""
+    return host in ("127.0.0.1", "::1")
+
+
+def _local_tenant_fallback_ok(scope) -> bool:
+    """本地单租户部署下,回环请求是否允许按"无凭证"继续(落入通道 2.5)。
+
+    背景(2026-08-28 修复):AUTH_LOCAL_TENANT 模式下,回环请求不带任何凭证
+    会被本地租户通道以 admin 放行(部署设计意图:本地单用户无需登录)。但若
+    前端残留过期/失效 JWT(登录一次后 refresh 过期),写操作会被通道 1 直接
+    401,而读全部开放 → UI 完全正常、写操作静默失败,毫无报错(账户删除
+    "点完没有任何反应"即此问题)。信任边界上,回环+本地租户模式本就对
+    无凭证请求放行 admin,对"无效凭证"请求同样放行不扩大攻击面;非回环
+    客户端仍严格 401。
+    """
+    return _LOCAL_TENANT is not None and _client_is_loopback(scope)
+
+
 class JWTAuthMiddleware:
     """纯 ASGI 中间件: JWT 校验 + 身份注入,保留 X-API-Key 运维通道。
 
@@ -210,21 +231,30 @@ class JWTAuthMiddleware:
                 # 需鉴权的请求(写操作 / 危险读 GET)直接 401;
                 # 普通读 GET 静默放行(无效 token 不阻断读,phase3 收紧)。
                 if _requires_auth(path, method):
-                    logger.warning(
-                        "[Auth] Invalid/expired JWT on protected route: method=%s path=%s",
-                        method, path,
-                    )
-                    response = JSONResponse(
-                        status_code=401,
-                        content={"detail": "Not authenticated"},
-                    )
-                    await response(scope, receive, send)
-                    return
+                    if _local_tenant_fallback_ok(scope):
+                        # 本地单租户+回环: 无效 JWT 按"无凭证"继续,
+                        # 由下方通道 2.5 以本地租户 admin 放行。
+                        logger.info(
+                            "[Auth] 本地单租户回环请求携带无效JWT,按无凭证放行: "
+                            "method=%s path=%s",
+                            method, path,
+                        )
+                    else:
+                        logger.warning(
+                            "[Auth] Invalid/expired JWT on protected route: method=%s path=%s",
+                            method, path,
+                        )
+                        response = JSONResponse(
+                            status_code=401,
+                            content={"detail": "Not authenticated"},
+                        )
+                        await response(scope, receive, send)
+                        return
                 # 普通 GET: 无效 token 视同没带 token,读路径放行。
             except Exception as _e:
                 # decode_token 自身异常(理论上不应发生,JWTError 已覆盖)。
                 logger.debug("[Auth] decode_token unexpected error: %s", _e)
-                if _requires_auth(path, method):
+                if _requires_auth(path, method) and not _local_tenant_fallback_ok(scope):
                     response = JSONResponse(
                         status_code=401,
                         content={"detail": "Not authenticated"},
@@ -259,7 +289,7 @@ class JWTAuthMiddleware:
                     return
                 # type != "access"(例如误用 refresh token 做 Bearer):
                 # 需鉴权则拒,普通 GET 放行(同无效 token 策略)。
-                if _requires_auth(path, method):
+                if _requires_auth(path, method) and not _local_tenant_fallback_ok(scope):
                     response = JSONResponse(
                         status_code=401,
                         content={"detail": "Not authenticated"},
