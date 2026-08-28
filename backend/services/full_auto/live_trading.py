@@ -45,6 +45,30 @@ def live_constitutional_enabled(session, host: LiveTradingHost) -> bool:
         return True
 
 def fetch_live_account_snapshot(db: Session, account_id: int) -> dict:
+    # [2026-08-29 实盘权益可用性] 先读用户流快照（本地文件零交易所调用，
+    # 120s 内有效），失败/过期再走 REST——此前直连 REST 偶发失败导致
+    # 「无法获取权益，拒绝新开」误杀。
+    try:
+        import json as _json
+        import os as _os
+        import time as _time
+        _repo = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))))
+        _sp = _os.path.join(_repo, "data", "live_user_stream_snapshot.json")
+        if _os.path.exists(_sp) and _time.time() - _os.path.getmtime(_sp) <= 120.0:
+            with open(_sp, encoding="utf-8") as f:
+                snap = _json.load(f) or {}
+            if int(snap.get("account_id") or 0) == int(account_id):
+                _usdt = (snap.get("balances") or {}).get("USDT") or {}
+                _eq = float(_usdt.get("cw") or 0) or float(_usdt.get("wb") or 0)
+                if _eq > 0:
+                    return {
+                        "total_equity": _eq,
+                        "available_balance": _eq,
+                        "margin_usage_percent": 0.0,
+                        "positions": [],
+                    }
+    except Exception as _snap_err:
+        logger.debug("[LiveConstitutional] 用户流快照读取跳过: %s", _snap_err)
     try:
         from backend.services.exchange.live_executor import LiveExecutor
         ex = LiveExecutor()
