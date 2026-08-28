@@ -164,6 +164,27 @@ def live_scalp_ev_meta_hard_filter_off() -> bool:
     )
 
 
+def live_scalp_meta_min_pwin() -> float:
+    """实盘 EV 闸 meta 硬过滤门槛（独立于 paper 的 SCALP_META_MIN_PWIN=0.5）。
+
+    [2026-08-29 实盘收紧+可达性] 默认 0.45：拦住底部 0.28-0.44 噪声带，
+    放行 0.45+ 质量带；0.5 全拦口径在当前 meta pwin 分布下不可达。
+    """
+    try:
+        return max(0.35, min(0.6, float(os.getenv("LIVE_SCALP_META_MIN_PWIN", "0.45") or 0.45)))
+    except (TypeError, ValueError):
+        return 0.45
+
+
+def live_scalp_ev_min_tight() -> float:
+    """实盘 EV 地板（收紧但可达）：默认 -0.6%，严于 paper 的 -1.0%，
+    又低于 +0.03% 的数学不可达口径。"""
+    try:
+        return float(os.getenv("LIVE_SCALP_EV_MIN_PCT_TIGHT", "-0.0060") or -0.0060)
+    except (TypeError, ValueError):
+        return -0.0060
+
+
 def live_pwin_extra() -> float:
     """实盘 pwin 地板加严量（在"不低于 paper 有效地板"基础上叠加）。
 

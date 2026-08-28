@@ -158,6 +158,18 @@ class ScalpEvGate:
         """
         enabled = bool(self._cfg("SCALP_EV_GATE_ENABLED", True))
         ev_min = float(self._cfg("SCALP_EV_MIN_PCT", 0.0) or 0.0)
+        # [2026-08-29 实盘收紧+可达性] 实盘 EV 地板 = LIVE_SCALP_EV_MIN_PCT_TIGHT
+        # （默认 -0.6%）：严于 paper(-1.0%)、低于旧 +0.03% 不可达口径；
+        # EV Governor 缩仓 + 每日开单上限 + 风控硬顶兜底。
+        try:
+            _mode_ev0 = (mode or "paper").strip().lower()
+            if _mode_ev0 == "live":
+                from backend.services.full_auto.live_gate_policy import (
+                    live_scalp_ev_min_tight,
+                )
+                ev_min = float(live_scalp_ev_min_tight())
+        except Exception:
+            pass
         # [2026-07-10 校准] 基于真实57笔数据：
         # TP 实现率从 0.75 降到 0.55（大量盈利单被 master_running_reduce 中途砍仓，实际只吃到 TP 的~55%）
         # SL 实现率保持 1.0（亏损单基本吃满 SL）
@@ -245,6 +257,18 @@ class ScalpEvGate:
                     require_usable=True,
                 )
                 _min_pwin = float(self._cfg("SCALP_META_MIN_PWIN", 0.5) or 0.5)
+                # [2026-08-29 实盘收紧+可达性] 实盘用独立 meta 硬门槛：
+                # 默认 0.45（严于放任、低于 0.5 全拦），让 pwin 0.45+ 的
+                # 质量带信号可过，0.28-0.44 底部仍被拦。
+                try:
+                    _mode_ev_h = (mode or "paper").strip().lower()
+                    if _mode_ev_h == "live":
+                        from backend.services.full_auto.live_gate_policy import (
+                            live_scalp_meta_min_pwin,
+                        )
+                        _min_pwin = float(live_scalp_meta_min_pwin())
+                except Exception:
+                    pass
                 _is_paper_ev = (mode or "paper").strip().lower() == "paper"
                 # [2026-08-28 实盘零成交修复] 实盘引导期把 meta 硬过滤降级为软接入
                 # （与 paper 同款）：live 此前要求 usable 模型 pwin≥0.5，实测实盘
