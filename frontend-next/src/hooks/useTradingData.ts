@@ -337,7 +337,7 @@ export function useCreateAccount() {
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: accountApi.delete,
+    mutationFn: (id: number) => accountApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.accounts }),
   });
 }
