@@ -180,6 +180,41 @@ class LiveExecutor(ExecutionChannel):
         )
         return trigger_ctx
 
+    def _apply_leverage(self, db, account_id: int, symbol: str, leverage: float) -> None:
+        """[2026-08-28 方案2·G6] 下单前把交易所仓位杠杆对齐到统一档位
+        （LPM 已取 min=最保守）。失败只告警不阻塞——不一致由对账任务兜底。"""
+        try:
+            from backend.database.models import Account
+            account = db.query(Account).filter(Account.id == account_id).first()
+            ex = (
+                getattr(account, "selected_exchange", None)
+                or self._exchange or _default_exchange()
+            ).lower()
+            if ex == "hyperliquid":
+                from backend.services.hyperliquid_environment import get_hyperliquid_client
+                client = get_hyperliquid_client(db, account_id)
+                if client is not None:
+                    try:
+                        client.set_leverage(db, symbol, int(round(leverage)))
+                    except Exception as e:
+                        logger.warning("[LiveExecutor] HL set_leverage 失败: %s", e)
+                return
+            from backend.services.exchange.exchange_manager import ExchangeManager
+            client = ExchangeManager().get_or_create_global_client(ex)
+            if client is None:
+                logger.debug("[LiveExecutor] %s 无全局客户端, set_leverage 跳过", ex)
+                return
+            import asyncio
+            ok = asyncio.run(client.set_leverage(symbol, int(round(leverage))))
+            if not ok:
+                logger.warning(
+                    "[LiveExecutor] ccxt set_leverage 未确认 %s %sx", symbol, leverage,
+                )
+        except Exception as e:
+            logger.warning(
+                "[LiveExecutor] set_leverage 应用失败(%s %sx): %s", symbol, leverage, e,
+            )
+
     def _place_order_via_lpm(self, db, ctx: OrderContext) -> OrderResult:
         """通过 LivePositionManager 下单（子仓位跟踪路径）。
 
@@ -223,6 +258,13 @@ class LiveExecutor(ExecutionChannel):
                 position_metadata=ctx.position_metadata,
             )
             try:
+                # G6: 差额单前对齐交易所杠杆到统一档位(最保守 min)
+                try:
+                    executor_self._apply_leverage(_db, ctx.account_id, symbol, leverage)
+                except Exception as _lev_err:
+                    logger.warning(
+                        "[LiveExecutor] 杠杆对齐异常 %s: %s", symbol, _lev_err,
+                    )
                 executor_self._send_raw_order(_db, sub_ctx)
             except Exception as cb_err:
                 logger.error(

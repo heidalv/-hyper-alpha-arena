@@ -152,6 +152,24 @@ class CcxtBaseAdapter(BaseExchangeClient):
 
     # ── Orders ────────────────────────────────────
 
+    async def set_leverage(self, symbol: str, leverage: int) -> bool:
+        """[2026-08-28 方案2·G6] 设置合约杠杆（binance /fapi/v1/leverage；
+        bybit/okx 同构）。stub/失败返回 False 不抛——杠杆不一致由对账兜底。"""
+        if self._exchange is None:
+            logger.warning(
+                "[CcxtAdapter] %s stub 模式, set_leverage 跳过", self._ccxt_id
+            )
+            return False
+        try:
+            params: Dict[str, Any] = {"defaultType": "future"}
+            await self._exchange.set_leverage(int(leverage), symbol, params=params)
+            return True
+        except Exception as e:
+            logger.warning(
+                "[CcxtAdapter] set_leverage %s %dx 失败: %s", symbol, leverage, e
+            )
+            return False
+
     async def place_order(self, order: ExchangeOrder) -> Dict:
         if self._exchange is None:
             return {"status": "error", "message": "ccxt not available"}
