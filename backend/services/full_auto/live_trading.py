@@ -191,6 +191,31 @@ def execute_live_trade(
     db: Session, session, strat, decision: dict, host: LiveTradingHost,
 ) -> None:
     try:
+        # [2026-08-29 实盘收紧+可达性] 宪法单笔上限 20% 权益是硬墙；
+        # sizing 与宪法口径不一致 → 提议超额被拒 → 实盘永远开不了仓
+        # （实测 BNB $22.27/权益$64.7=34% 被 live_risk_block 拦）。
+        # 此处把敞口等比缩到 18% 权益（留余量）再送检，而非直接拒绝。
+        try:
+            _ov0 = float(decision.get("order_value") or decision.get("notional") or 0)
+            if _ov0 > 0:
+                _snap0 = fetch_live_account_snapshot(
+                    db, int(getattr(strat, "account_id", None) or session.account_id or 0)
+                )
+                _eq0 = float(_snap0.get("total_equity") or 0)
+                if _eq0 > 0 and _ov0 > _eq0 * 0.20:
+                    _cap_ov = _eq0 * 0.18
+                    _ratio = _cap_ov / _ov0
+                    decision["order_value"] = _cap_ov
+                    decision["notional"] = _cap_ov
+                    if decision.get("quantity"):
+                        decision["quantity"] = float(decision["quantity"]) * _ratio
+                    logger.info(
+                        "[LiveCap] %s 单笔敞口 %.2f→%.2f (18%%权益, 宪法20%%上限内)",
+                        decision.get("symbol", "?"), _ov0, _cap_ov,
+                    )
+        except Exception as _cap_err:
+            logger.debug("[LiveCap] 敞口预对齐跳过: %s", _cap_err)
+
         _allowed, _risk_msg = live_constitutional_pre_trade_check(
             db, session, strat, decision, host
         )
