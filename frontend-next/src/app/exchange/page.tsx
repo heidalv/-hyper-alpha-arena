@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import {
   Server, Plus, Trash2, Loader2, CheckCircle2, XCircle, RefreshCw,
   Key, Bot, Settings2, Link2, Save, AlertTriangle,
-  Wallet, Banknote, TrendingUp,
+  Wallet, Banknote, TrendingUp, Play, StopCircle, Activity,
 } from "lucide-react";
-import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from "@/hooks/useTradingData";
+import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount, useSessions } from "@/hooks/useTradingData";
+import { accountApi, sessionApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 const BACKEND = getBackendUrl().replace(/\/$/, "");
@@ -72,6 +73,34 @@ function AccountsTab() {
   const [editing, setEditing] = useState<any | null>(null);
   const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
   const [personalities, setPersonalities] = useState<any[]>([]);
+  // [2026-08-28 重设计P2] 账户↔会话关联：会话列表 + 卡片内启动会话向导
+  const { data: sessions, refetch: refetchSessions } = useSessions();
+  const [wizardAcct, setWizardAcct] = useState<any | null>(null);
+  const [wz, setWz] = useState({ mode: "paper", paperAccountId: "", symbols: "BTC,ETH,SOL", risk: "moderate" });
+  const [wzBusy, setWzBusy] = useState(false);
+
+  const startWizard = async () => {
+    if (!wizardAcct) return;
+    setWzBusy(true);
+    try {
+      await sessionApi.start({
+        account_id: wizardAcct.id,
+        paper_account_id: wz.mode === "paper" ? (parseInt(wz.paperAccountId) || undefined) : undefined,
+        symbols: wz.symbols.split(",").map((s: string) => s.trim().toUpperCase()).filter(Boolean),
+        trading_mode: wz.mode,
+        risk_level: wz.risk,
+        active_exchange: wizardAcct.selected_exchange || undefined,
+      });
+      setWizardAcct(null);
+      refetchSessions();
+    } catch (e: any) {
+      alert(e?.message || String(e));
+    } finally {
+      setWzBusy(false);
+    }
+  };
+  const accountSessions = (acctId: number) =>
+    (sessions || []).filter((s: any) => s.account_id === acctId || s.paper_account_id === acctId);
 
   useEffect(() => {
     fetch(`${BACKEND}/api/llm-configs`).then(r => r.json()).then(d => setLlmConfigs(d.items || [])).catch(() => {});
@@ -150,6 +179,47 @@ function AccountsTab() {
         </Card>
       )}
 
+      {/* [重设计P2] 启动会话向导 */}
+      {wizardAcct && (
+        <Card className="p-4 border-cyan-400/30 space-y-3 glass">
+          <div className="flex items-center gap-2">
+            <Play className="w-4 h-4 text-cyan-300" />
+            <div className="text-sm font-medium">为「{wizardAcct.name}」启动 AI 策略会话</div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div><Label className="text-xs">模式</Label>
+              <select value={wz.mode} onChange={(e) => setWz({ ...wz, mode: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="paper">模拟</option><option value="live">实盘</option>
+              </select>
+            </div>
+            {wz.mode === "paper" && (
+              <div><Label className="text-xs">模拟资金池</Label>
+                <select value={wz.paperAccountId} onChange={(e) => setWz({ ...wz, paperAccountId: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="">自动选择</option>
+                  {(accounts || []).filter((a: any) => a.trading_mode === "paper").map((a: any) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="col-span-2"><Label className="text-xs">交易对（逗号分隔）</Label>
+              <Input value={wz.symbols} onChange={(e) => setWz({ ...wz, symbols: e.target.value })} className="text-sm" />
+            </div>
+            <div><Label className="text-xs">风险档</Label>
+              <select value={wz.risk} onChange={(e) => setWz({ ...wz, risk: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="conservative">保守</option><option value="moderate">均衡</option><option value="aggressive">激进</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="btn-glow" onClick={startWizard} disabled={wzBusy || !wz.symbols.trim()}>
+              {wzBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}启动会话
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setWizardAcct(null)}>取消</Button>
+          </div>
+        </Card>
+      )}
+
       {/* 账户表格 */}
       <Card className="overflow-hidden glass p-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
@@ -164,6 +234,7 @@ function AccountsTab() {
               </div>
             </div>
           </div>
+          <LiveGuardBadge />
           <Button size="sm" className="btn-glow flex-shrink-0" onClick={() => setShowCreate(!showCreate)}>
             <Plus className="w-3.5 h-3.5 mr-1" />新建账户
           </Button>
@@ -192,8 +263,41 @@ function AccountsTab() {
                 </td>
                 <td className="py-2 px-3 text-center">{a.auto_trading_enabled ? <CheckCircle2 className="w-3.5 h-3.5 text-profit mx-auto" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto" />}</td>
                 <td className="py-2 px-3 text-center">
+                  {(() => {
+                    const ss = accountSessions(a.id);
+                    const running = ss.filter((s: any) => s.status === "running");
+                    return (
+                      <span className="inline-flex items-center gap-1 mr-1 text-[10px] text-muted-foreground">
+                        <Activity className="w-3 h-3" />
+                        {running.length > 0 ? `${running.length}会话运行中` : `${ss.length}会话`}
+                        {running.length > 0 && (
+                          <button title="停止该账户全部会话" className="text-loss ml-1"
+                            onClick={() => {
+                              if (confirm("停止该账户的全部运行中会话？")) {
+                                running.forEach((s: any) => sessionApi.stop(s.session_id).catch(() => {}));
+                                setTimeout(() => refetchSessions(), 1500);
+                              }
+                            }}>
+                            <StopCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </span>
+                    );
+                  })()}
+                  <button title="启动会话" onClick={() => { setWizardAcct(a); setWz({ mode: a.trading_mode || "paper", paperAccountId: "", symbols: "BTC,ETH,SOL", risk: "moderate" }); }} className="text-cyan-300 hover:text-cyan-200 mr-1"><Play className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setEditing(a)} className="text-primary hover:text-primary/80 mr-1"><Settings2 className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => { if (confirm("删除？")) deleteMut.mutate(a.id); }} className="text-loss hover:text-loss/80"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => {
+                    if (confirm("停用账户？（将自动停止其全部会话，历史保留）
+取消后再选「彻底删除」")) {
+                      deleteMut.mutate(a.id);
+                    } else if (confirm("彻底删除账户？
+（仅当无持仓无会话；历史一并清除，不可恢复）")) {
+                      accountApi.delete(a.id, { hard: true })
+                        .then((r: any) => alert(r?.message || "已彻底删除"))
+                        .catch((e: any) => alert(e?.message || String(e)))
+                        .finally(() => window.location.reload());
+                    }
+                  }} className="text-loss hover:text-loss/80"><Trash2 className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -236,6 +340,15 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
     llm_config_id: account.llm_config_id || "",
     llm_config_id_deep: account.llm_config_id_deep || "",
     auto_trading_enabled: account.auto_trading_enabled,
+    max_leverage: account.max_leverage || 10,
+    default_leverage: account.default_leverage || 10,
+    binance_enabled: String(account.binance_enabled || "").toLowerCase() === "true",
+    binance_testnet: String(account.binance_testnet || "").toLowerCase() === "true",
+    tier_lev: {
+      short: account.tier_overrides?.short?.leverage || "",
+      mid: account.tier_overrides?.mid?.leverage || "",
+      long: account.tier_overrides?.long?.leverage || "",
+    },
   });
   const [saving, setSaving] = useState(false);
   const defaultCfg = (llmConfigs || []).find((c: any) => c.is_default);
@@ -248,7 +361,23 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
       llm_config_id: form.llm_config_id ? parseInt(form.llm_config_id) : null,
       llm_config_id_deep: form.llm_config_id_deep ? parseInt(form.llm_config_id_deep) : null,
       auto_trading_enabled: form.auto_trading_enabled,
+      max_leverage: parseFloat(String(form.max_leverage)) || 10,
+      default_leverage: parseFloat(String(form.default_leverage)) || 10,
+      binance_enabled: form.binance_enabled,
+      binance_testnet: form.binance_testnet,
     });
+    const to: any = {};
+    (["short", "mid", "long"] as const).forEach((t) => {
+      const v = parseFloat(String(form.tier_lev[t]));
+      if (!Number.isNaN(v) && v > 0) to[t] = { leverage: v };
+    });
+    try {
+      await fetch(`${BACKEND}/api/unified-account/${account.id}/tier-overrides`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier_overrides: to }),
+      });
+    } catch {}
     setSaving(false);
   };
 
@@ -291,6 +420,43 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
             </button>
             <span className="text-xs">{form.auto_trading_enabled ? "已开启" : "已关闭"}</span>
           </div>
+        </div>
+        <div><Label className="text-xs">最大杠杆</Label>
+          <Input type="number" value={form.max_leverage} onChange={(e) => setForm({ ...form, max_leverage: e.target.value })} className="text-sm" />
+        </div>
+        <div><Label className="text-xs">默认杠杆</Label>
+          <Input type="number" value={form.default_leverage} onChange={(e) => setForm({ ...form, default_leverage: e.target.value })} className="text-sm" />
+        </div>
+        <div><Label className="text-xs">币安实盘</Label>
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={() => setForm({ ...form, binance_enabled: !form.binance_enabled })}
+              className={cn("relative w-11 h-6 rounded-full transition-colors", form.binance_enabled ? "bg-primary" : "bg-muted")}>
+              <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.binance_enabled ? "left-5" : "left-0.5")} />
+            </button>
+            <span className="text-xs">{form.binance_enabled ? "已启用" : "未启用"}</span>
+          </div>
+        </div>
+        <div><Label className="text-xs">币安测试网</Label>
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={() => setForm({ ...form, binance_testnet: !form.binance_testnet })}
+              className={cn("relative w-11 h-6 rounded-full transition-colors", form.binance_testnet ? "bg-primary" : "bg-muted")}>
+              <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", form.binance_testnet ? "left-5" : "left-0.5")} />
+            </button>
+            <span className="text-xs">{form.binance_testnet ? "测试网" : "主网"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-border/40 pt-2">
+        <div className="text-xs font-medium mb-1">三周期杠杆覆盖（留空=跟随全局模板）</div>
+        <div className="grid grid-cols-3 gap-2">
+          {(["short", "mid", "long"] as const).map((t) => (
+            <div key={t}>
+              <Label className="text-xs">{t === "short" ? "短线" : t === "mid" ? "中线" : "长线"}</Label>
+              <Input type="number" placeholder="如 10" value={form.tier_lev[t]}
+                onChange={(e) => setForm({ ...form, tier_lev: { ...form.tier_lev, [t]: e.target.value } })}
+                className="text-sm" />
+            </div>
+          ))}
         </div>
       </div>
       <div className="flex gap-2 justify-end">
@@ -609,6 +775,30 @@ function CredentialsTab() {
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+
+// ═══ [重设计P3] 实盘执行健康灯 ═══
+function LiveGuardBadge() {
+  const [st, setSt] = useState<any>(null);
+  useEffect(() => {
+    fetch(`${BACKEND}/api/unified-account/live-guard-status`)
+      .then((r) => r.json()).then(setSt).catch(() => {});
+  }, []);
+  if (!st) return null;
+  return (
+    <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-shrink-0">
+      <span className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded", st.sub_position_tracking ? "bg-profit/10 text-profit" : "bg-muted text-muted-foreground")}>
+        <Activity className="w-3 h-3" />LPM合并账本 {st.sub_position_tracking ? "ON" : "OFF"}
+      </span>
+      <span className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded", st.reconcile_enabled ? "bg-profit/10 text-profit" : "bg-muted text-muted-foreground")}>
+        对账 {st.reconcile_enabled ? "ON" : "OFF"}
+      </span>
+      {st.live_accounts > 0 && (
+        <span className="px-1.5 py-0.5 rounded bg-cyan-400/10 text-cyan-300">实盘账户 {st.live_accounts} · 子仓 {st.sub_positions}</span>
       )}
     </div>
   );

@@ -91,6 +91,8 @@ class Account(Base):
 
     # VIP AI 选币：账户级开关（与用户级开关同时满足才可采纳）
     ai_coin_select_enabled = Column(String(10), nullable=False, server_default="false")
+    # [2026-08-28 重设计P4] 账户级三周期覆盖 {tier: {leverage, risk, symbols...}}
+    tier_overrides = Column(JSON, nullable=True)
 
     # 交易员绑定的交易所 (asterdex/binance/hyperliquid/bybit/okx/gateio)
     # 默认 asterdex（首选，返利/积分生态）；老账户不批量改，仅新账户生效

@@ -601,6 +601,13 @@ class FullAutoTradingService:
         account = db.query(Account).filter(Account.id == account_id).first()
         if not account:
             return {"success": False, "error": "账户不存在"}
+        # [2026-08-28 重设计P1] 已停用(软删)账户禁止开会话
+        if str(account.is_active or "").lower() in ("false", "0"):
+            return {"success": False, "error": "账户已停用，无法启动会话"}
+        if paper_account_id:
+            _pa = db.query(Account).filter(Account.id == paper_account_id).first()
+            if not _pa or str(_pa.is_active or "").lower() in ("false", "0"):
+                return {"success": False, "error": "模拟资金账户不存在或已停用"}
 
         profile_snapshot: Dict[str, Any] = {}
         if arbitrage_profile_id or profile_override:

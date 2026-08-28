@@ -40,6 +40,95 @@ class TransferRequest(BaseModel):
 #  静态路由（必须先定义，避免被 /{scope}/{account_id} 吞掉）
 # ════════════════════════════════════════════════════════
 
+@router.get("/live-guard-status")
+def live_guard_status():
+    """[重设计P3] 实盘执行健康灯：LPM 合并账本开关 + 对账状态 + 子仓账本规模。"""
+    import json
+    import os as _os
+
+    status = {
+        "sub_position_tracking": _os.getenv("LIVE_SUB_POSITION_TRACKING", "false")
+        .strip().lower() in ("true", "1", "yes", "on"),
+        "reconcile_enabled": _os.getenv("LIVE_RECONCILE_ENABLED", "true")
+        .strip().lower() not in ("0", "false", "no", "off"),
+        "reconcile_state": None,
+        "sub_positions": 0,
+        "live_accounts": 0,
+    }
+    try:
+        _rp = _os.path.join(
+            _os.path.dirname(_os.path.abspath(__file__)), "..", "..", "data",
+            "live_reconcile_state.json",
+        )
+        if _os.path.exists(_rp):
+            with open(_rp, "r", encoding="utf-8") as f:
+                status["reconcile_state"] = json.load(f)
+    except Exception:
+        pass
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import Account, LiveSubPosition
+        db = SessionLocal()
+        try:
+            status["live_accounts"] = db.query(Account).filter(
+                Account.trading_mode == "live",
+                Account.is_active == "true",
+            ).count()
+            status["sub_positions"] = db.query(LiveSubPosition).filter(
+                LiveSubPosition.status == "open",
+            ).count()
+        finally:
+            db.close()
+    except Exception:
+        pass
+    return status
+
+
+@router.get("/{account_id}/tier-overrides")
+def get_tier_overrides(account_id: int):
+    """[重设计P4] 读取账户级三周期覆盖配置。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import Account
+        db = SessionLocal()
+        try:
+            acc = db.query(Account).filter(Account.id == account_id).first()
+            if not acc:
+                raise HTTPException(status_code=404, detail="账户不存在")
+            return {"account_id": account_id, "tier_overrides": acc.tier_overrides or {}}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{account_id}/tier-overrides")
+def put_tier_overrides(account_id: int, payload: dict):
+    """[重设计P4] 写入账户级三周期覆盖配置（short/mid/long 各自字段）。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import Account
+        db = SessionLocal()
+        try:
+            acc = db.query(Account).filter(Account.id == account_id).first()
+            if not acc:
+                raise HTTPException(status_code=404, detail="账户不存在")
+            data = payload.get("tier_overrides")
+            if not isinstance(data, dict):
+                raise HTTPException(status_code=400, detail="tier_overrides 必须是对象")
+            acc.tier_overrides = data
+            db.commit()
+            return {"account_id": account_id, "tier_overrides": acc.tier_overrides or {}}
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/list")
 def list_paper_accounts(
     scope: Optional[str] = Query(None, description="过滤: ai/arbitrage/None=全部"),

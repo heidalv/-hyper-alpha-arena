@@ -301,8 +301,8 @@ export const accountApi = {
     apiRequest<Account>("/account/", { method: "POST", body: JSON.stringify(data) }),
   update: (id: number, data: Partial<Account>) =>
     apiRequest<Account>(`/account/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  delete: (id: number) =>
-    apiRequest<any>(`/account/${id}`, { method: "DELETE" }),
+  delete: (id: number, opts?: { hard?: boolean }) =>
+    apiRequest<any>(`/account/${id}${opts?.hard ? "?hard=true" : ""}`, { method: "DELETE" }),
 };
 
 // ═══ AI 会话 ═══

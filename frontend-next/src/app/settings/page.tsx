@@ -48,7 +48,7 @@ export default function SettingsPage() {
           );
         })}
       </div>
-      {tab === "accounts" && <AccountsTab />}
+      {tab === "accounts" && <AccountsRedirect />}
       {tab === "llm" && <LLMTab />}
       {tab === "pairs" && <PairsTab />}
       {tab === "keys" && <KeysTab />}
@@ -83,7 +83,21 @@ function CardHead({ icon, title, badge, hint, actions }: {
   );
 }
 
-// ═══ 账户管理 ═══
+// ═══ 账户管理（已归口 /exchange）═══
+function AccountsRedirect() {
+  return (
+    <Card className="p-6 gap-4">
+      <h3 className="text-base font-semibold">账户管理已归口到「交易所管理」</h3>
+      <p className="text-sm text-muted-foreground">
+        账户的创建、凭证绑定、杠杆/风险、会话关联与删除，统一在
+        <a href="/exchange" className="text-primary underline ml-1">交易所管理 → 账户管理</a>
+        中操作（2026-08-28 账户体系统一重设计）。
+      </p>
+    </Card>
+  );
+}
+
+// ═══ 旧账户管理（保留兼容，入口已重定向）═══
 function AccountsTab() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

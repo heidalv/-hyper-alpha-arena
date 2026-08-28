@@ -744,6 +744,17 @@ def update_account_settings(account_id: int, payload: dict, db: Session = Depend
             auto_trading_enabled = _normalize_bool(payload.get("auto_trading_enabled"))
             account.auto_trading_enabled = "true" if auto_trading_enabled else "false"
             logger.info(f"Updated auto_trading_enabled to: {account.auto_trading_enabled}")
+
+        # [2026-08-28 重设计P3] 实盘字段暴露：杠杆上限/默认杠杆/币安开关/测试网
+        for _f in ("max_leverage", "default_leverage", "binance_max_leverage"):
+            if _f in payload and payload[_f] is not None:
+                try:
+                    setattr(account, _f, float(payload[_f]))
+                except (TypeError, ValueError):
+                    pass
+        for _f in ("binance_enabled", "binance_testnet", "hyperliquid_enabled"):
+            if _f in payload:
+                setattr(account, _f, "true" if _normalize_bool(payload[_f]) else "false")
         
         db.commit()
         db.refresh(account)
@@ -1801,55 +1812,102 @@ def disable_trading(
 
 
 @router.delete("/{account_id}")
-def delete_account(account_id: int, db: Session = Depends(get_db)):
-    """
-    Delete (soft delete) a trading account
-    
-    This endpoint marks the account as inactive (is_active = 'false').
-    The account data is preserved in the database for historical purposes.
-    
-    Args:
-        account_id: The account ID to delete
-        
-    Returns:
-        {
-            "success": bool,
-            "message": str,
-            "account_id": int,
-            "account_name": str
-        }
+def delete_account(
+    account_id: int,
+    hard: bool = False,
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """删除账户（分级语义，2026-08-28 重设计 P1）。
+
+    - 默认（软删/停用）：先停止该账户绑定的全部 running 会话，再
+      is_active='false' + auto_trading_enabled='false'（历史数据保留）；
+    - hard=true（彻底删除）：仅当无 running 会话且无 open 持仓时允许，
+      硬删账户行（子仓账本 live_sub_positions 一并清理）。
     """
     try:
-        # Get account
+        from backend.database.models import FullAutoSession, PaperPosition
+
         account = db.query(Account).filter(
             Account.id == account_id,
             Account.is_active == "true"
         ).first()
-        
         if not account:
             raise HTTPException(
                 status_code=404,
-                detail=f"Account {account_id} not found or already deleted"
+                detail=f"Account {account_id} not found or already deleted",
             )
-        
         account_name = account.name
-        
-        # Soft delete - mark as inactive
-        account.is_active = "false"
-        account.auto_trading_enabled = "false"  # Also disable trading
+
+        # 停掉绑定该账户的全部 running 会话（account 或 paper_account 维度）
+        sessions = db.query(FullAutoSession).filter(
+            FullAutoSession.status == "running",
+            ((FullAutoSession.account_id == account_id)
+             | (FullAutoSession.paper_account_id == account_id)),
+        ).all()
+        stopped = []
+        for s in sessions:
+            try:
+                from backend.services.full_auto_trading_service import full_auto_service
+                full_auto_service.stop_session(db, s.session_id)
+            except Exception:
+                pass
+            s.status = "stopped"
+            stopped.append(s.session_id)
         db.commit()
-        
+
+        if hard:
+            # 彻底删除：有 open 持仓则拒绝
+            open_pos = db.query(PaperPosition).filter(
+                PaperPosition.account_id == account_id,
+                PaperPosition.status == "open",
+            ).count()
+            if open_pos > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"账户仍有 {open_pos} 个 open 持仓，禁止彻底删除（可先平仓或改软删）",
+                )
+            db.query(PaperPosition).filter(
+                PaperPosition.account_id == account_id,
+            ).delete(synchronize_session=False)
+            try:
+                from backend.database.models import LiveSubPosition
+                db.query(LiveSubPosition).filter(
+                    LiveSubPosition.account_id == account_id,
+                ).delete(synchronize_session=False)
+            except Exception:
+                pass
+            db.delete(account)
+            db.commit()
+            logger.info(
+                f"Account {account_id} ({account_name}) hard deleted "
+                f"(stopped sessions={stopped})"
+            )
+            return {
+                "success": True,
+                "deleted": True,
+                "stopped_sessions": stopped,
+                "message": f"Account '{account_name}' hard deleted",
+                "account_id": account_id,
+                "account_name": account_name,
+            }
+
+        account.is_active = "false"
+        account.auto_trading_enabled = "false"
+        db.commit()
         logger.info(
-            f"Account {account_id} ({account_name}) soft deleted (marked as inactive)"
+            f"Account {account_id} ({account_name}) soft deleted "
+            f"(stopped sessions={stopped})"
         )
-        
         return {
             "success": True,
-            "message": f"Account '{account_name}' deleted successfully",
+            "deleted": False,
+            "stopped_sessions": stopped,
+            "message": f"Account '{account_name}' deactivated (sessions stopped)",
             "account_id": account_id,
-            "account_name": account_name
+            "account_name": account_name,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
