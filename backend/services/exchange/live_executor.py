@@ -200,7 +200,7 @@ class LiveExecutor(ExecutionChannel):
                         logger.warning("[LiveExecutor] HL set_leverage 失败: %s", e)
                 return
             from backend.services.exchange.exchange_manager import ExchangeManager
-            client = ExchangeManager().get_or_create_global_client(ex)
+            client = ExchangeManager().get_or_create_global_client(ex, account_id=account_id)
             if client is None:
                 logger.debug("[LiveExecutor] %s 无全局客户端, set_leverage 跳过", ex)
                 return
@@ -467,9 +467,9 @@ class LiveExecutor(ExecutionChannel):
             return []
         mgr = get_exchange_manager()
         user_id = account.user_id or 1
-        client = mgr.get_or_create_global_client(exchange, user_id=user_id)
+        client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account_id)
         if not client:
-            logger.warning(f"[LiveExecutor] CCXT 客户端未配置: exchange={exchange} user={user_id}")
+            logger.warning(f"[LiveExecutor] CCXT 客户端未配置: exchange={exchange} user={user_id} account={account_id}")
             return []
         try:
             positions = asyncio.run(client.get_positions())
@@ -547,7 +547,7 @@ class LiveExecutor(ExecutionChannel):
             return None
         mgr = get_exchange_manager()
         user_id = account.user_id or 1
-        client = mgr.get_or_create_global_client(exchange, user_id=user_id)
+        client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account_id)
         if not client:
             return None
         try:

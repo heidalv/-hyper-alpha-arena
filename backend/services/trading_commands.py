@@ -2224,9 +2224,9 @@ def _execute_ccxt_ai_trade(
 
     # ── 2. Get exchange client ──
     mgr = get_exchange_manager()
-    # CCXT exchanges use global credentials (user-level)
+    # [2026-08-28] 账户绑定凭证优先,无绑定则回退全局凭证(user-level)
     user_id = account.user_id or 1
-    client = mgr.get_or_create_global_client(exchange, user_id=user_id)
+    client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account.id)
     if client is None:
         logger.warning(
             "AI交易员 '%s': %s 交易所未配置全局API凭证，请先在「交易所配置」中添加",

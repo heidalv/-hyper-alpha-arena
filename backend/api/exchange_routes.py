@@ -75,6 +75,20 @@ class CredentialCreate(BaseModel):
     enabled: bool = True
 
 
+def _mask_key(enc) -> Optional[str]:
+    """脱敏展示 API Key 前6后4,无密钥返回 None。"""
+    if not enc:
+        return None
+    try:
+        from backend.utils.encryption import decrypt_private_key
+        raw = decrypt_private_key(enc) or ""
+    except Exception:
+        return None
+    if len(raw) <= 10:
+        return raw[:2] + "***"
+    return f"{raw[:6]}...{raw[-4:]}"
+
+
 @router.get("/credentials")
 async def list_credentials(
     request: Request,
@@ -105,6 +119,7 @@ async def list_credentials(
                     "has_key": bool(c.api_key_encrypted),
                     "has_secret": bool(c.api_secret_encrypted),
                     "has_passphrase": bool(c.passphrase_encrypted),
+                    "api_key_masked": _mask_key(c.api_key_encrypted),
                     "created_at": str(c.created_at) if c.created_at else None,
                 }
                 for c in creds
@@ -147,6 +162,7 @@ async def save_credential(body: CredentialCreate, request: Request):
             enc_pass = encrypt_private_key(body.passphrase) if body.passphrase else ""
 
             if existing:
+                old_account_id = existing.account_id or 0
                 existing.label = body.label
                 existing.api_key_encrypted = enc_key
                 existing.api_secret_encrypted = enc_secret
@@ -154,6 +170,9 @@ async def save_credential(body: CredentialCreate, request: Request):
                 existing.testnet = body.testnet
                 existing.enabled = body.enabled
                 existing.user_id = uid
+                # [2026-08-28] 允许 POST 重新绑定账户(等效 /bind 端点)
+                if body.account_id is not None:
+                    existing.account_id = body.account_id
                 # DB 列 tenant_id（迁移 0004）若存在则 stamp，避免 NULL=全局可见
                 if hasattr(existing, "tenant_id"):
                     existing.tenant_id = tid
@@ -179,12 +198,15 @@ async def save_credential(body: CredentialCreate, request: Request):
                 db.refresh(cred)
                 cred_id = cred.id
 
+            # 缓存刷新: 移除旧绑定键,按最终绑定重建客户端
+            final_account_id = (existing.account_id if existing else body.account_id) or 0
             mgr = _get_manager()
+            if existing is not None and old_account_id != final_account_id:
+                mgr.remove_client(body.exchange, old_account_id)
             if body.enabled:
-                cache_account_id = body.account_id or 0
                 mgr.create_client(
                     exchange=body.exchange,
-                    account_id=cache_account_id,
+                    account_id=final_account_id,
                     api_key=body.api_key,
                     secret=body.api_secret,
                     password=body.passphrase,
@@ -229,6 +251,66 @@ async def delete_credential(cred_id: int, request: Request):
         raise
     except Exception as e:
         logger.error("[Exchange] delete_credential error: %s", e)
+        raise HTTPException(500, str(e))
+
+
+class CredentialBind(BaseModel):
+    account_id: Optional[int] = None
+
+
+@router.put("/credentials/{cred_id}/bind")
+async def bind_credential(cred_id: int, body: CredentialBind, request: Request):
+    """绑定/解绑凭证到账户(account_id=None 解绑为全局凭证)。
+
+    [2026-08-28] 账户↔API凭证关联: 实盘执行按 account_id 优先选择凭证
+    (exchange_manager.get_or_create_global_client)。
+    """
+    from backend.core.request_identity import require_user_tenant
+
+    uid, _tid = require_user_tenant(request)
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import ExchangeCredential
+        from backend.utils.encryption import decrypt_private_key
+
+        db = SessionLocal()
+        try:
+            cred = db.query(ExchangeCredential).filter(
+                ExchangeCredential.id == cred_id,
+                ExchangeCredential.user_id == uid,
+            ).first()
+            if not cred:
+                raise HTTPException(404, "Credential not found")
+            old_account_id = cred.account_id or 0
+            cred.account_id = body.account_id
+            db.commit()
+
+            mgr = _get_manager()
+            mgr.remove_client(cred.exchange, old_account_id)
+            if cred.enabled:
+                api_key = decrypt_private_key(cred.api_key_encrypted) if cred.api_key_encrypted else ""
+                api_secret = decrypt_private_key(cred.api_secret_encrypted) if cred.api_secret_encrypted else ""
+                passphrase = decrypt_private_key(cred.passphrase_encrypted) if cred.passphrase_encrypted else ""
+                mgr.create_client(
+                    exchange=cred.exchange,
+                    account_id=cred.account_id or 0,
+                    api_key=api_key,
+                    secret=api_secret,
+                    password=passphrase,
+                    testnet=cred.testnet,
+                )
+            return {
+                "status": "bound",
+                "id": cred.id,
+                "account_id": cred.account_id,
+                "exchange": cred.exchange,
+            }
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Exchange] bind_credential error: %s", e)
         raise HTTPException(500, str(e))
 
 

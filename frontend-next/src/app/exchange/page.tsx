@@ -13,6 +13,7 @@ import {
   Wallet, Banknote, TrendingUp, Play, StopCircle, Activity,
 } from "lucide-react";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount, useSessions } from "@/hooks/useTradingData";
+import { useDefaultExchange } from "@/hooks/useDefaultExchange";
 import { accountApi, sessionApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
@@ -68,11 +69,14 @@ function AccountsTab() {
   const { data: accounts, isLoading } = useAccounts();
   const createMut = useCreateAccount();
   const deleteMut = useDeleteAccount();
+  // [2026-08-28 全币安] 新建账户默认交易所跟随后端 settings.DEFAULT_EXCHANGE
+  const defaultEx = useDefaultExchange();
   const updateMut = useUpdateAccount();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
   const [personalities, setPersonalities] = useState<any[]>([]);
+  const [creds, setCreds] = useState<any[]>([]);
   // [2026-08-28 重设计P2] 账户↔会话关联：会话列表 + 卡片内启动会话向导
   const { data: sessions, refetch: refetchSessions } = useSessions();
   const [wizardAcct, setWizardAcct] = useState<any | null>(null);
@@ -105,21 +109,31 @@ function AccountsTab() {
   useEffect(() => {
     fetch(`${BACKEND}/api/llm-configs`).then(r => r.json()).then(d => setLlmConfigs(d.items || [])).catch(() => {});
     fetch(`${BACKEND}/api/account/personality-presets`).then(r => r.json()).then(setPersonalities).catch(() => {});
+    fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).then(d => setCreds(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
-  const [form, setForm] = useState({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: "asterdex", llm_config_id: "", llm_config_id_deep: "", personality_id: "" });
+  const [form, setForm] = useState({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, llm_config_id: "", llm_config_id_deep: "", personality_id: "", credential_id: "" });
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
-    await createMut.mutateAsync({
+    const created: any = await createMut.mutateAsync({
       name: form.name.trim(), trading_mode: form.trading_mode,
       account_type: form.trading_mode === "paper" ? "PAPER" : "AI",
-      initial_capital: parseFloat(form.initial_capital) || 500,
+      initial_capital: form.trading_mode === "paper" ? (parseFloat(form.initial_capital) || 500) : undefined,
       selected_exchange: form.selected_exchange,
       llm_config_id: form.llm_config_id ? parseInt(form.llm_config_id) : null,
       llm_config_id_deep: form.llm_config_id_deep ? parseInt(form.llm_config_id_deep) : null,
     } as any);
-    setForm({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: "asterdex", llm_config_id: "", llm_config_id_deep: "", personality_id: "" });
+    // [2026-08-28] 实盘账户创建时可顺带绑定 API 凭证
+    if (form.trading_mode === "live" && form.credential_id && created?.id) {
+      try {
+        await fetch(`${BACKEND}/api/exchange/credentials/${form.credential_id}/bind`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account_id: created.id }),
+        });
+      } catch {}
+    }
+    setForm({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, llm_config_id: "", llm_config_id_deep: "", personality_id: "", credential_id: "" });
     setShowCreate(false);
   };
   const defaultCfg = llmConfigs.find((c: any) => c.is_default);
@@ -147,13 +161,31 @@ function AccountsTab() {
                 <option value="paper">模拟</option><option value="live">实盘</option>
               </select>
             </div>
-            <div><Label className="text-xs">初始资金</Label><Input type="number" value={form.initial_capital} onChange={(e) => setForm({ ...form, initial_capital: e.target.value })} className="text-sm" /></div>
+            {form.trading_mode === "paper" ? (
+              <div><Label className="text-xs">初始资金</Label><Input type="number" value={form.initial_capital} onChange={(e) => setForm({ ...form, initial_capital: e.target.value })} className="text-sm" /></div>
+            ) : (
+              <div><Label className="text-xs">实盘资金</Label><div className="text-xs text-muted-foreground pt-1.5">以交易所真实余额为准，无需初始资金</div></div>
+            )}
             <div><Label className="text-xs">交易所</Label>
               <select value={form.selected_exchange} onChange={(e) => setForm({ ...form, selected_exchange: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
                 <option value="asterdex">Asterdex</option><option value="hyperliquid">Hyperliquid</option>
                 <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
               </select>
             </div>
+            {form.trading_mode === "live" && (
+              <div><Label className="text-xs">绑定 API 凭证（可选）</Label>
+                <select value={form.credential_id} onChange={(e) => setForm({ ...form, credential_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="">暂不绑定（创建后在编辑里绑定）</option>
+                  {(creds || []).map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {EX_NAMES[c.exchange] || c.exchange} · {c.api_key_masked || `#${c.id}`}
+                      {c.testnet ? " · 测试网" : " · 主网"}
+                      {c.account_id ? ` · 已绑账户#${c.account_id}` : " · 全局"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div><Label className="text-xs">LLM 配置</Label>
               <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
                 <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
@@ -332,9 +364,10 @@ function AccountsTab() {
 }
 
 function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: any) {
+  const defaultExEditor = useDefaultExchange();
   const [form, setForm] = useState({
     name: account.name,
-    selected_exchange: account.selected_exchange || "asterdex",
+    selected_exchange: account.selected_exchange || defaultExEditor,
     llm_config_id: account.llm_config_id || "",
     llm_config_id_deep: account.llm_config_id_deep || "",
     auto_trading_enabled: account.auto_trading_enabled,
@@ -349,7 +382,38 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
     },
   });
   const [saving, setSaving] = useState(false);
+  const [creds, setCreds] = useState<any[]>([]);
+  const [boundCred, setBoundCred] = useState<any | null>(null);
   const defaultCfg = (llmConfigs || []).find((c: any) => c.is_default);
+
+  useEffect(() => {
+    fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).then((d) => {
+      const list = Array.isArray(d) ? d : [];
+      setCreds(list);
+      setBoundCred(list.find((c: any) => c.account_id === account.id) || null);
+    }).catch(() => {});
+  }, [account.id]);
+
+  const handleBindCred = async (credId: string) => {
+    try {
+      if (boundCred && boundCred.id !== parseInt(credId || "0")) {
+        await fetch(`${BACKEND}/api/exchange/credentials/${boundCred.id}/bind`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account_id: null }),
+        });
+      }
+      if (credId) {
+        await fetch(`${BACKEND}/api/exchange/credentials/${credId}/bind`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account_id: account.id }),
+        });
+      }
+      const fresh = await fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).catch(() => []);
+      const list = Array.isArray(fresh) ? fresh : [];
+      setCreds(list);
+      setBoundCred(list.find((c: any) => c.account_id === account.id) || null);
+    } catch (e: any) { alert(e?.message || String(e)); }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -455,6 +519,32 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
                 className="text-sm" />
             </div>
           ))}
+        </div>
+      </div>
+      <div className="border-t border-border/40 pt-2 space-y-2">
+        <div className="text-xs font-medium">交易所 API 凭证（实盘执行按账户绑定凭证优先）</div>
+        {String(account.trading_mode) === "live" && !boundCred && (
+          <div className="text-[11px] text-warning flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />实盘账户未绑定 API 凭证，实盘下单将回退全局凭证（可能失败）
+          </div>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={boundCred?.id || ""} onChange={(e) => handleBindCred(e.target.value)}
+            className="bg-card border border-border text-sm rounded px-2 py-1.5">
+            <option value="">不绑定（使用全局凭证）</option>
+            {(creds || []).map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {EX_NAMES[c.exchange] || c.exchange} · {c.api_key_masked || `#${c.id}`}
+                {c.testnet ? " · 测试网" : " · 主网"}
+                {c.account_id && c.account_id !== account.id ? ` · 已绑账户#${c.account_id}` : ""}
+              </option>
+            ))}
+          </select>
+          {boundCred && (
+            <span className="text-[11px] text-muted-foreground">
+              当前绑定: {EX_NAMES[boundCred.exchange] || boundCred.exchange} {boundCred.api_key_masked || ""}（{boundCred.testnet ? "测试网" : "主网"}）
+            </span>
+          )}
         </div>
       </div>
       <div className="flex gap-2 justify-end">
@@ -660,10 +750,11 @@ function MonitorTab() {
 
 // ═══ API 凭证管理 ═══
 function CredentialsTab() {
+  const { data: accounts } = useAccounts();
   const [credentials, setCredentials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "" });
+  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
 
@@ -680,10 +771,10 @@ function CredentialsTab() {
     try {
       await fetch(`${BACKEND}/api/exchange/credentials`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null }),
       });
       setShowAdd(false);
-      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "" });
+      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false });
       load();
     } catch (e: any) { alert(e.message); }
     setSaving(false);
@@ -702,6 +793,22 @@ function CredentialsTab() {
     if (!confirm("确认删除此凭证？")) return;
     try { await fetch(`${BACKEND}/api/exchange/credentials/${id}`, { method: "DELETE" }); load(); }
     catch (e: any) { alert(e.message); }
+  };
+
+  const handleBind = async (id: number, accountId: string) => {
+    try {
+      await fetch(`${BACKEND}/api/exchange/credentials/${id}/bind`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId ? parseInt(accountId) : null }),
+      });
+      load();
+    } catch (e: any) { alert(e?.message || String(e)); }
+  };
+
+  const acctName = (id: number | null | undefined) => {
+    if (!id) return null;
+    const a = (accounts || []).find((x: any) => x.id === id);
+    return a ? a.name : `账户#${id}`;
   };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -725,6 +832,18 @@ function CredentialsTab() {
               </select>
             </div>
             <div><Label className="text-xs">标签 (可选)</Label><Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="如：主账户" className="text-sm" /></div>
+            <div><Label className="text-xs">绑定账户（可选）</Label>
+              <select value={form.account_id} onChange={(e) => setForm({ ...form, account_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="">全局凭证（不绑定）</option>
+                {(accounts || []).map((a: any) => <option key={a.id} value={a.id}>{a.name}（{a.trading_mode === "live" ? "实盘" : "模拟"}）</option>)}
+              </select>
+            </div>
+            <div><Label className="text-xs">网络</Label>
+              <select value={form.testnet ? "testnet" : "mainnet"} onChange={(e) => setForm({ ...form, testnet: e.target.value === "testnet" })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="mainnet">主网（真实交易）</option>
+                <option value="testnet">测试网</option>
+              </select>
+            </div>
             <div><Label className="text-xs">API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm font-mono" placeholder="输入 API Key" /></div>
             <div><Label className="text-xs">API Secret</Label><Input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} className="text-sm font-mono" placeholder="输入 Secret" /></div>
             {form.exchange === "okx" && (
@@ -750,20 +869,28 @@ function CredentialsTab() {
         <div className="space-y-2">
           {credentials.map((cred) => (
             <Card key={cred.id} className="p-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
                     <Key className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium">{cred.exchange_name || cred.exchange} {cred.label && `· ${cred.label}`}</div>
+                    <div className="text-sm font-medium flex items-center gap-1.5">
+                      {EX_NAMES[cred.exchange] || cred.exchange} {cred.label && `· ${cred.label}`}
+                      <Badge variant="secondary" className="text-[10px]">{cred.testnet ? "测试网" : "主网"}</Badge>
+                    </div>
                     <div className="text-xs text-muted-foreground font-mono">
-                      {cred.api_key_masked || `${cred.api_key?.slice(0, 6)}...`}
-                      {cred.account_id && ` · 账户 #${cred.account_id}`}
+                      {cred.api_key_masked || (cred.has_key ? "已配置" : "未配置密钥")}
+                      {acctName(cred.account_id) && ` · 绑定: ${acctName(cred.account_id)}`}
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1.5">
+                  <select value={cred.account_id || ""} onChange={(e) => handleBind(cred.id, e.target.value)}
+                    className="bg-card border border-border text-xs rounded px-1.5 py-1">
+                    <option value="">全局</option>
+                    {(accounts || []).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleTest(cred.id)} disabled={testing === cred.id}>
                     {testing === cred.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "测试"}
                   </Button>

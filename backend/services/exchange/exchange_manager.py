@@ -126,7 +126,7 @@ class ExchangeManager:
 
                     self.create_client(
                         exchange=cred.exchange,
-                        account_id=cred.account_id,
+                        account_id=cred.account_id or 0,
                         api_key=api_key,
                         secret=api_secret,
                         password=passphrase,
@@ -152,23 +152,34 @@ class ExchangeManager:
         return list({k.split(":")[0] for k in self._clients})
 
     def get_or_create_global_client(
-        self, exchange: str, user_id: int = 1
+        self, exchange: str, user_id: int = 1, account_id: int = 0
     ) -> Optional[BaseExchangeClient]:
         """
-        获取或创建全局交易所客户端（按 user_id + exchange 查找凭证）。
-        用于 AI 交易员统一执行 — 凭证在交易所配置中全局管理。
+        获取或创建交易所客户端,解析顺序(2026-08-28 账户↔凭证关联):
+          1) 账户级凭证: ExchangeCredential.account_id == account_id
+             (命中则缓存于 "exchange:{account_id}",与 get_client 一致);
+          2) 全局凭证: 该 user+exchange 的全局凭证(account_id 为空/0),
+             缓存于 "exchange:global:{user_id}";
+          3) 兜底: 该 user+exchange 的任意第一条 enabled 凭证(旧行为)。
+        用于 AI 交易员执行 — 账户绑定凭证优先,保证实盘按账户凭证执行。
         Hyperliquid 不适用此方法（使用独立的 HyperliquidWallet 系统）。
         """
         if exchange == "hyperliquid":
             logger.warning("Hyperliquid uses per-account wallets, not global credentials")
             return None
 
-        # 先查缓存
+        # 1) 账户级缓存
+        if account_id > 0:
+            acct_key = f"{exchange}:{account_id}"
+            if acct_key in self._clients:
+                return self._clients[acct_key]
+
+        # 2) 全局缓存
         cache_key = f"{exchange}:global:{user_id}"
         if cache_key in self._clients:
             return self._clients[cache_key]
 
-        # 从 DB 查全局凭证
+        # 从 DB 查凭证(账户级优先,全局其次,任意兜底)
         try:
             from backend.database.connection import SessionLocal
             from backend.database.models import ExchangeCredential
@@ -176,14 +187,33 @@ class ExchangeManager:
 
             db = SessionLocal()
             try:
-                cred = db.query(ExchangeCredential).filter(
+                q = db.query(ExchangeCredential).filter(
                     ExchangeCredential.user_id == user_id,
                     ExchangeCredential.exchange == exchange,
                     ExchangeCredential.enabled == True,  # noqa: E712
-                ).first()
+                )
+                cred = None
+                if account_id > 0:
+                    cred = q.filter(ExchangeCredential.account_id == account_id).first()
+                    if cred:
+                        logger.info(
+                            "[Exchange] 账户级凭证命中: %s account_id=%d", exchange, account_id,
+                        )
+                if cred is None:
+                    cred = q.filter(
+                        (ExchangeCredential.account_id.is_(None))
+                        | (ExchangeCredential.account_id == 0)
+                    ).first()
+                    if cred:
+                        logger.info("[Exchange] 全局凭证命中: %s user_id=%d", exchange, user_id)
+                if cred is None:
+                    cred = q.first()  # 旧行为兜底: 任意一条 enabled 凭证
 
                 if not cred:
-                    logger.debug("No global credential found for %s user_id=%d", exchange, user_id)
+                    logger.debug(
+                        "No credential found for %s user_id=%d account_id=%d",
+                        exchange, user_id, account_id,
+                    )
                     return None
 
                 api_key = decrypt_private_key(cred.api_key_encrypted) if cred.api_key_encrypted else ""
@@ -198,19 +228,29 @@ class ExchangeManager:
                     testnet=cred.testnet,
                 )
 
-                self._clients[cache_key] = client
-                self._health[cache_key] = {
+                # 账户级凭证 → 账户级缓存键;全局/兜底 → 全局缓存键
+                store_key = (
+                    f"{exchange}:{account_id}"
+                    if (cred.account_id or 0) == account_id and account_id > 0
+                    else cache_key
+                )
+                self._clients[store_key] = client
+                self._health[store_key] = {
                     "exchange": exchange,
                     "user_id": user_id,
+                    "account_id": cred.account_id,
                     "status": "created",
                     "last_check": 0,
                 }
-                logger.info("Created global %s client for user_id=%d", exchange, user_id)
+                logger.info(
+                    "Created %s client for user_id=%d account_id=%s",
+                    exchange, user_id, cred.account_id,
+                )
                 return client
             finally:
                 db.close()
         except Exception as e:
-            logger.error("Failed to create global %s client: %s", exchange, e)
+            logger.error("Failed to create %s client: %s", exchange, e)
             return None
 
     # ── Health Check ──────────────────────────────
