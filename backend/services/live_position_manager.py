@@ -9,7 +9,8 @@
    per-symbol per-account 只有一个净仓 + 一个杠杆档位。
 2. 本地按 trade_nature 分仓跟踪 scalp / trend_follow —— 不同周期策略独立决策。
 3. 下单时计算差额(净变化),只发一笔给交易所 —— 避免对冲腿互相抵消后多走流量。
-4. 杠杆取 max(各 tier) —— 交易所端共享档位,取最大值确保保证金足够。
+4. 杠杆取 min(各 tier) —— 交易所端共享档位,取最保守值:低位档层的
+   保证金按低杠杆计(超保证金=安全方向),高杠杆层自动沿用低位档。
 
 与 PositionCoordinator(paper 侧)的关系
 ----------------------------------------
@@ -25,6 +26,18 @@ from dataclasses import dataclass, field
 from typing import List
 
 _log = logging.getLogger(__name__)
+
+# [2026-08-28 方案2·G4] 层→trade_nature 映射（三周期本地分割 → 交易所子仓口径）
+TIER_NATURE_MAP = {
+    "short": "scalp",
+    "mid": "swing",
+    "long": "trend_follow",
+}
+
+
+def tier_to_nature(tier: str) -> str:
+    """周期档位 → 账本 trade_nature（未识别档位按原值透传，不吞错）。"""
+    return TIER_NATURE_MAP.get((tier or "").lower(), (tier or "scalp"))
 
 
 @dataclass
@@ -117,9 +130,11 @@ class LivePositionManager:
             order_id = None
         else:
             order_side = "buy" if delta > 0 else "sell"
-            # 统一杠杆 = max(现有所有子仓杠杆, 新请求杠杆)
+            # [2026-08-28 方案2·G1] 统一杠杆 = min(现有所有子仓杠杆, 新请求杠杆):
+            # 取最保守值——高杠杆层自动沿用低位档(超保证金=安全方向),
+            # 绝不让低位层按高杠杆计保证金(旧 max 逻辑放大风险)。
             all_levs = [p.leverage for p in existing] + [leverage]
-            unified_lev = max(all_levs) if all_levs else leverage
+            unified_lev = min(all_levs) if all_levs else leverage
             # 发给交易所
             result = exchange_callback(db, symbol, order_side, abs(delta), unified_lev)
             order_id = result.get("order_id")
@@ -209,7 +224,7 @@ class LivePositionManager:
             order_side = "sell" if sub_signed > 0 else "buy"
             result = exchange_callback(
                 db, symbol, order_side, abs(sub_signed),
-                max(p.leverage for p in subs),
+                min(p.leverage for p in subs),
             )
             order_id = result.get("order_id")
             fill_price = result.get("fill_price", 0.0)
@@ -224,6 +239,70 @@ class LivePositionManager:
             "order_id": order_id,
             "fill_price": fill_price,
             "closed_size": abs(sub_signed),
+        }
+
+    def reduce_sub_position(
+        self,
+        db,
+        account_id: int,
+        symbol: str,
+        trade_nature: str,
+        qty_ratio: float,
+        exchange_callback,
+    ) -> dict:
+        """部分平仓指定 tier 的子仓位（G3：分层分批止盈 35%/35% 的映射）。
+
+        qty_ratio ∈ (0,1]: 平掉该 nature 子仓合计名义的比例。
+        流程:
+        1. 查该 nature open 子仓, 计算 signed size 与平仓量。
+        2. 交易所发反向差额单(平仓量)。
+        3. 按比例缩减本地各子仓 size/margin; 剩余低于最小名义的子仓直接关。
+        """
+        from backend.database.models import LiveSubPosition
+
+        ratio = max(0.0, min(1.0, float(qty_ratio)))
+        if ratio <= 0:
+            return {"reduced": False, "reason": "qty_ratio<=0"}
+
+        subs = db.query(LiveSubPosition).filter(
+            LiveSubPosition.account_id == account_id,
+            LiveSubPosition.symbol == symbol,
+            LiveSubPosition.trade_nature == trade_nature,
+            LiveSubPosition.status == "open",
+        ).all()
+        if not subs:
+            return {"reduced": False, "reason": "no open sub-position"}
+
+        total_size = sum(p.size for p in subs)
+        reduce_qty = total_size * ratio
+        if reduce_qty < 1e-8:
+            return {"reduced": False, "reason": "reduce_qty≈0"}
+
+        # 交易所减仓单：方向 = 子仓反向
+        sub_signed = sum((p.size if p.side == "long" else -p.size) for p in subs)
+        order_side = "sell" if sub_signed > 0 else "buy"
+        lev = min(p.leverage for p in subs)
+        result = exchange_callback(db, symbol, order_side, abs(reduce_qty), lev)
+
+        # 本地按比例缩减（保留最小名义兜底：剩余 < 1e-6 直接关）
+        remain_ratio = 1.0 - ratio
+        for p in subs:
+            new_size = p.size * remain_ratio
+            if new_size < 1e-6:
+                p.status = "closed"
+                p.size = 0.0
+                p.margin = 0.0
+            else:
+                p.size = new_size
+                p.margin = new_size / max(p.leverage, 1.0)
+        db.commit()
+
+        return {
+            "reduced": True,
+            "order_id": result.get("order_id") if isinstance(result, dict) else None,
+            "fill_price": result.get("fill_price", 0.0) if isinstance(result, dict) else 0.0,
+            "reduced_qty": reduce_qty,
+            "remain_qty": total_size - reduce_qty,
         }
 
     def get_net_position(self, db, account_id: int, symbol: str) -> NetPositionView:
@@ -241,7 +320,7 @@ class LivePositionManager:
         ).all()
 
         net = sum((p.size if p.side == "long" else -p.size) for p in subs)
-        unified_lev = max((p.leverage for p in subs), default=1.0)
+        unified_lev = min((p.leverage for p in subs), default=1.0)
 
         return NetPositionView(
             symbol=symbol,
