@@ -81,6 +81,54 @@ def _dc_binance_all_prices() -> Dict[str, float]:
     return _DC_BINANCE_ALL_CACHE["data"]
 
 
+# [2026-08-28 全币安] Binance 永续 24h 统计跨进程通道（顶部条/总览涨跌幅）。
+_DC_BINANCE_STATS_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_DC_BINANCE_STATS_TTL_SEC = 3.0
+
+
+def _dc_binance_stats() -> Dict[str, Dict[str, Any]]:
+    """从数据中心进程 /ticker/binance/stats 拉 Binance 永续 24h 统计（3s 缓存 + 2s 超时）。"""
+    import json
+
+    now = time.time()
+    if _DC_BINANCE_STATS_CACHE["ts"] and now - _DC_BINANCE_STATS_CACHE["ts"] <= _DC_BINANCE_STATS_TTL_SEC:
+        return _DC_BINANCE_STATS_CACHE["data"]
+    try:
+        base = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1:9100").rstrip("/")
+        req = _urllib.Request(
+            f"{base}/ticker/binance/stats", headers={"Accept": "application/json"}
+        )
+        with _DC_NO_PROXY_OPENER.open(req, timeout=2.0) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        data = payload.get("stats") or {}
+        if isinstance(data, dict):
+            _DC_BINANCE_STATS_CACHE["data"] = data
+            _DC_BINANCE_STATS_CACHE["ts"] = now
+            return data
+    except Exception:
+        pass
+    return _DC_BINANCE_STATS_CACHE["data"]
+
+
+# [2026-08-28] 顶部条跟随当前决策交易所：1s 轮询每请求查活跃所代价高，模块级 2s 缓存。
+_ACTIVE_EX_CACHE: Dict[str, Any] = {"ex": "", "ts": 0.0}
+_ACTIVE_EX_TTL_SEC = 2.0
+
+
+def _active_exchange_cached() -> str:
+    now = time.time()
+    if now - _ACTIVE_EX_CACHE["ts"] <= _ACTIVE_EX_TTL_SEC:
+        return _ACTIVE_EX_CACHE["ex"]
+    try:
+        from backend.services.exchange_config import get_active_exchange
+        ex = (get_active_exchange() or "").strip().lower()
+    except Exception:
+        ex = ""
+    _ACTIVE_EX_CACHE["ex"] = ex
+    _ACTIVE_EX_CACHE["ts"] = now
+    return ex
+
+
 def _dc_ticker_stats() -> Dict[str, Dict[str, Any]]:
     """从数据中心进程拉全市场 24h 统计（3s 缓存 + 2s 硬超时，失败降级旧值）。
 
@@ -165,6 +213,10 @@ def _start_ticker_cache_refresher() -> None:
                 pass
             try:
                 _dc_binance_all_prices()
+            except Exception:
+                pass
+            try:
+                _dc_binance_stats()
             except Exception:
                 pass
             _TICKER_REFRESH_STOP.wait(1.0)
@@ -657,8 +709,14 @@ def get_ticker_bar(symbols: str = Query("BTC,ETH,SOL", description="逗号分隔
         raise HTTPException(status_code=400, detail="crypto symbol list cannot be empty")
 
     _start_ticker_cache_refresher()
-    all_prices = _dc_all_prices()
-    all_stats = _dc_ticker_stats()
+    # [2026-08-28 全币安] 顶部条跟随当前决策交易所：active=binance 时价格/涨跌幅
+    # 全量走币安永续（1s 价格通道 + 24hr 统计通道），否则维持 asterdex 通道。
+    if _active_exchange_cached() == "binance":
+        all_prices = _dc_binance_all_prices()
+        all_stats = _dc_binance_stats()
+    else:
+        all_prices = _dc_all_prices()
+        all_stats = _dc_ticker_stats()
 
     # 内嵌模式（无数据中心进程）降级：走 data_center 秒级 ticker
     if not all_prices:

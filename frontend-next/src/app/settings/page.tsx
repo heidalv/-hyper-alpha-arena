@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { configApi, accountApi } from "@/lib/api";
+import { useDefaultExchange } from "@/hooks/useDefaultExchange";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 
@@ -105,7 +106,9 @@ function AccountsTab() {
   const [newName, setNewName] = useState("");
   const [newBalance, setNewBalance] = useState("500");
   const [newMode, setNewMode] = useState("paper");
-  const [newExchange, setNewExchange] = useState("asterdex");
+  // [2026-08-28 全币安] 默认交易所跟随后端 settings.DEFAULT_EXCHANGE
+  const defaultEx = useDefaultExchange();
+  const [newExchange, setNewExchange] = useState(defaultEx);
   const [newLlm, setNewLlm] = useState("");
   const [newLlmDeep, setNewLlmDeep] = useState("");
   const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
@@ -247,9 +250,10 @@ function AccountsTab() {
 function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
   account: any; llmConfigs: any[]; onClose: () => void; onSave: (data: any) => Promise<void>;
 }) {
+  const defaultExEditor = useDefaultExchange();
   const [form, setForm] = useState({
     name: account.name || "",
-    selected_exchange: account.selected_exchange || "asterdex",
+    selected_exchange: account.selected_exchange || defaultExEditor,
     llm_config_id: account.llm_config_id || "",
     llm_config_id_deep: account.llm_config_id_deep || "",
     auto_trading_enabled: !!account.auto_trading_enabled,

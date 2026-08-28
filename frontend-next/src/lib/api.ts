@@ -538,6 +538,9 @@ export const configApi = {
   // 必需配置检查
   checkRequired: () => apiRequest<any>("/config/check-required"),
 
+  // 全局默认交易所（新建账户表单默认值）
+  defaultExchange: () => apiRequest<any>("/config/default-exchange"),
+
   // 外部 API 密钥
   externalKeys: () => apiRequest<any>("/config/external-keys"),
   saveExternalKey: (key: string, value: string) =>

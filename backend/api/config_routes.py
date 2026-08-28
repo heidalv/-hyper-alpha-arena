@@ -93,6 +93,16 @@ async def set_margin_mode(body: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/default-exchange")
+async def get_default_exchange():
+    """全局默认交易所（新建账户表单默认值用；顶部条随 active_exchange 同源）。"""
+    try:
+        from backend.config.settings import DEFAULT_EXCHANGE
+        return {"default_exchange": (DEFAULT_EXCHANGE or "asterdex").strip().lower()}
+    except Exception:
+        return {"default_exchange": "asterdex"}
+
+
 @router.get("/check-required")
 async def check_required_configs(db: Session = Depends(get_db)):
     """Check if required configs are set"""

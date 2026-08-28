@@ -220,6 +220,10 @@ class _HealthHandler(BaseHTTPRequestHandler):
         if path == "/ticker/binance/all":
             self._handle_ticker_binance_all()
             return
+        # [2026-08-28] Binance 24h 统计通道（顶部条/总览涨跌幅），必须先于 "/ticker/binance/{sym}" 前缀匹配
+        if path == "/ticker/binance/stats":
+            self._handle_ticker_binance_stats()
+            return
         if path.startswith("/ticker/binance/"):
             self._handle_ticker_binance(path[len("/ticker/binance/"):])
             return
@@ -322,6 +326,26 @@ class _HealthHandler(BaseHTTPRequestHandler):
             logger.debug("[DataCenter] /ticker/binance/all error: %s", exc)
         body = json.dumps(
             {"count": len(prices), "ts": time.time(), "prices": prices},
+            ensure_ascii=False,
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_ticker_binance_stats(self) -> None:
+        """GET /ticker/binance/stats → Binance 永续全市场 24h 统计（涨跌幅/高低/量）。"""
+        import json
+
+        try:
+            from backend.services.binance_ticker_poller import binance_ticker_poller
+            stats = binance_ticker_poller.get_all_stats()
+        except Exception as exc:
+            stats = {}
+            logger.debug("[DataCenter] /ticker/binance/stats error: %s", exc)
+        body = json.dumps(
+            {"count": len(stats), "ts": time.time(), "stats": stats},
             ensure_ascii=False,
         ).encode("utf-8")
         self.send_response(200)

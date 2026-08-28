@@ -103,7 +103,8 @@ def _serialize_personality(tp) -> dict:
 
 
 @router.get("/list")
-def list_all_accounts(trading_mode: Optional[str] = None, request: Request = None, db: Session = Depends(get_db)):
+def list_all_accounts(trading_mode: Optional[str] = None, include_inactive: bool = False,
+                       request: Request = None, db: Session = Depends(get_db)):
     """Get all active accounts, optionally filtered by trading_mode ('paper' or 'live')"""
     try:
         from backend.database.models import User
@@ -113,7 +114,9 @@ def list_all_accounts(trading_mode: Optional[str] = None, request: Request = Non
 
         # [2026-08-22 M0-2b] 账户列表按当前用户隔离（RLS 之外的显式过滤，
         # 防止无 GUC 上下文时读到全量/错位账户列表）。admin 可看全部。
-        q = db.query(Account).filter(Account.is_active == "true")
+        q = db.query(Account)
+        if not include_inactive:
+            q = q.filter(Account.is_active == "true")
         _uid = current_user_id(request, required=False) if request is not None else None
         if _uid is not None and (current_role(request) if request is not None else "user") != "admin":
             q = q.filter(Account.user_id == _uid)
@@ -700,10 +703,9 @@ def update_account_settings(account_id: int, payload: dict, db: Session = Depend
     try:
         logger.info(f"Updating account {account_id} with payload: {payload}")
         
-        account = db.query(Account).filter(
-            Account.id == account_id,
-            Account.is_active == "true"
-        ).first()
+        # [2026-08-28 修复] 停用/沉睡账户也必须可编辑（恢复激活、改交易所等）；
+        # 此前 is_active=='true' 过滤导致停用账户 PUT 直接 404，界面改配置静默失败。
+        account = db.query(Account).filter(Account.id == account_id).first()
         
         if not account:
             raise HTTPException(status_code=404, detail="Account not found")
@@ -755,6 +757,9 @@ def update_account_settings(account_id: int, payload: dict, db: Session = Depend
         for _f in ("binance_enabled", "binance_testnet", "hyperliquid_enabled"):
             if _f in payload:
                 setattr(account, _f, "true" if _normalize_bool(payload[_f]) else "false")
+        if "is_active" in payload:
+            account.is_active = "true" if _normalize_bool(payload["is_active"]) else "false"
+            logger.info(f"Updated is_active to: {account.is_active}")
         
         db.commit()
         db.refresh(account)

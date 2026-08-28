@@ -72,8 +72,14 @@ class CcxtBaseAdapter(BaseExchangeClient):
             # 不配代理 → ccxt 直连全部超时 → 多所聚合数据全空。
             _proxy = os.environ.get("BINANCE_HTTPS_PROXY") or os.environ.get("HTTPS_PROXY")
             if _proxy:
-                config["proxies"] = {"http": _proxy, "https": _proxy}
-                config["aiohttp_proxy"] = _proxy  # async WS (watch_order_book)
+                _pl = _proxy.strip().lower()
+                if _pl.startswith("socks5") or _pl.startswith("socks4"):
+                    # [2026-08-28 修复] ccxt async 的 SOCKS 必须走 socksProxy（ProxyConnector）；
+                    # aiohttp_proxy 会被当作 HTTP 代理直传 -> ExchangeNotAvailable。
+                    config["socksProxy"] = _proxy
+                else:
+                    config["proxies"] = {"http": _proxy, "https": _proxy}
+                    config["aiohttp_proxy"] = _proxy  # async WS (watch_order_book)
             if password:
                 config["password"] = password
             config.update(self._extra_ccxt_config)

@@ -1,4 +1,4 @@
-"""AI因子: 空头超时压力 | 置信:45% | 亏损以空头为主且多为max_hold_timeout，说明在弱势中逆势做空被套。该因子捕捉短期冲高后快速回落的形态，在反弹乏力时做空。"""
+"""AI因子: 空头超时压力 | 置信:55% | 识别空头持仓超时导致的亏损模式：当价格处于短期均线下方但近期波动收窄，且成交量萎缩时，空头容易因长时间无进展而被迫平仓。该因子通过价格相对位置与波动收缩的交互捕捉此状态。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,14 +7,14 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class Shorttimeoutpressure(BaseFactor):
-    """亏损以空头为主且多为max_hold_timeout，说明在弱势中逆势做空被套。该因子捕捉短期冲高后快速回落的形态，在反弹乏力时做空。"""
+    """识别空头持仓超时导致的亏损模式：当价格处于短期均线下方但近期波动收窄，且成交量萎缩时，空头容易因长时间无进展而被迫平仓。该因子通过价格相对位置与波动收缩的交互捕捉此状态。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_short_timeout",
             name="ShortTimeoutPressure",
             display_name="空头超时压力",
-            description="亏损以空头为主且多为max_hold_timeout，说明在弱势中逆势做空被套。该因子捕捉短期冲高后快速回落的形态，在反弹乏力时做空。",
+            description="识别空头持仓超时导致的亏损模式：当价格处于短期均线下方但近期波动收窄，且成交量萎缩时，空头容易因长时间无进展而被迫平仓。该因子通过价格相对位置与波动收缩的交互捕捉此状态。",
             category="technical",
             subcategory="mean_reversion",
             version="1.0.0-ai",
@@ -22,9 +22,10 @@ class Shorttimeoutpressure(BaseFactor):
         )
 
     def calculate(self, data):
-        high_ret = data['high'].pct_change(3)
-        low_ret = data['low'].pct_change(3)
-        spread = (high_ret - low_ret).rolling(10).mean()
-        close_pos = (data['close'] - data['low']) / (data['high'] - data['low'] + 1e-9)
-        result = (-spread * close_pos).clip(-1, 1)
+        ret = data['close'].pct_change(5)
+        vol = data['close'].pct_change().rolling(10).std()
+        ma = data['close'].rolling(20).mean()
+        pos = (data['close'] - ma) / (data['close'].rolling(20).std() + 1e-9)
+        vol_ratio = vol / (data['close'].pct_change().rolling(50).std() + 1e-9)
+        result = (-pos * (1 - vol_ratio).clip(0, 1)).clip(-1, 1)
         return result
