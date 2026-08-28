@@ -1828,14 +1828,15 @@ def delete_account(
     try:
         from backend.database.models import FullAutoSession, PaperPosition
 
+        # [2026-08-28] 硬删是软删后的进阶操作：查询不过滤 is_active，
+        # 否则软删后无法再彻底删除（404 假象）。
         account = db.query(Account).filter(
-            Account.id == account_id,
-            Account.is_active == "true"
+            Account.id == account_id
         ).first()
         if not account:
             raise HTTPException(
                 status_code=404,
-                detail=f"Account {account_id} not found or already deleted",
+                detail=f"Account {account_id} not found",
             )
         account_name = account.name
 
@@ -1857,7 +1858,9 @@ def delete_account(
         db.commit()
 
         if hard:
-            # 彻底删除：有 open 持仓则拒绝
+            # 彻底删除 = 配置级清除（2026-08-28 修订）：账户行保留以满足
+            # 30+ 张历史表（trades/orders/快照/记忆）的外键归属审计；
+            # 清除账户级凭证/覆盖配置并匿名化，名字释放可复用。
             open_pos = db.query(PaperPosition).filter(
                 PaperPosition.account_id == account_id,
                 PaperPosition.status == "open",
@@ -1867,27 +1870,27 @@ def delete_account(
                     status_code=409,
                     detail=f"账户仍有 {open_pos} 个 open 持仓，禁止彻底删除（可先平仓或改软删）",
                 )
-            db.query(PaperPosition).filter(
-                PaperPosition.account_id == account_id,
-            ).delete(synchronize_session=False)
             try:
-                from backend.database.models import LiveSubPosition
-                db.query(LiveSubPosition).filter(
-                    LiveSubPosition.account_id == account_id,
+                from backend.database.models import ExchangeCredential
+                db.query(ExchangeCredential).filter(
+                    ExchangeCredential.account_id == account_id,
                 ).delete(synchronize_session=False)
             except Exception:
                 pass
-            db.delete(account)
+            account.tier_overrides = None
+            account.is_active = "false"
+            account.auto_trading_enabled = "false"
+            account.name = f"_deleted_{account_id}_{account_name}"[:60]
             db.commit()
             logger.info(
                 f"Account {account_id} ({account_name}) hard deleted "
-                f"(stopped sessions={stopped})"
+                f"(configs cleared, stopped sessions={stopped})"
             )
             return {
                 "success": True,
                 "deleted": True,
                 "stopped_sessions": stopped,
-                "message": f"Account '{account_name}' hard deleted",
+                "message": f"Account '{account_name}' hard deleted (configs cleared)",
                 "account_id": account_id,
                 "account_name": account_name,
             }
