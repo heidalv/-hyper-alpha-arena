@@ -558,6 +558,7 @@ class AutoCoinSelector:
         session.auto_coin_symbols = sorted(active_auto)
         db.commit()
         self._save_injected()
+        _mirror_unified_short(self.session_id, sorted(active_auto))
         return session
 
     def _has_unfinished_auto_work(self, db: Session, symbols: Set[str]) -> Tuple[bool, str]:
@@ -2339,6 +2340,7 @@ class AutoCoinSelector:
             try:
                 session.auto_coin_symbols = sorted(self._pool.active.keys())
                 db.commit()
+                _mirror_unified_short(self.session_id, sorted(self._pool.active.keys()))
             except Exception:
                 pass
             return added
@@ -2632,6 +2634,7 @@ class AutoCoinSelector:
             if session_obj:
                 session_obj.auto_coin_symbols = sorted(self._pool.active.keys())
                 db.commit()
+                _mirror_unified_short(self.session_id, sorted(self._pool.active.keys()))
         except Exception:
             pass
 
@@ -5334,6 +5337,22 @@ def _ai_mid_sticky_path(session_id: str) -> str:
 
 
 def _load_ai_mid_sticky(session_id: str) -> Dict[str, Any]:
+    """[归一 2026-08-28] 中线 sticky 读统一状态层（旧 ai_mid_sticky 文件自动迁移）。
+
+    返回结构保持旧契约 {symbols, updated_at, reason}，调用方零改动。
+    """
+    try:
+        from backend.services.ai_coin_unified import get_tier_state
+        _s = get_tier_state(session_id, "mid")
+        if _s and _s.get("symbols"):
+            return {
+                "symbols": _s.get("symbols") or [],
+                "updated_at": float(_s.get("updated_at") or 0),
+                "reason": str(_s.get("reason") or ""),
+            }
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] unified mid state read fail %s: %s", session_id, e)
+    # 兜底：旧文件（迁移发生在 ai_coin_unified._migrate_legacy，这里仅兜底读取）
     path = _ai_mid_sticky_path(session_id)
     try:
         if os.path.exists(path):
@@ -5347,6 +5366,10 @@ def _load_ai_mid_sticky(session_id: str) -> Dict[str, Any]:
 
 
 def _save_ai_mid_sticky(session_id: str, symbols: List[str], *, reason: str) -> None:
+    """[归一 2026-08-28] 中线 sticky 写入统一状态层（旧文件仅作兼容镜像）。"""
+    from backend.services.ai_coin_unified import set_tier_symbols
+    set_tier_symbols(session_id, "mid", symbols, reason=reason)
+    # 兼容镜像：旧读方（尚未切换的路径）仍能读到
     path = _ai_mid_sticky_path(session_id)
     payload = {
         "session_id": session_id,
@@ -5360,6 +5383,15 @@ def _save_ai_mid_sticky(session_id: str, symbols: List[str], *, reason: str) -> 
             json.dump(payload, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.warning("[AutoCoinSelector] save ai_mid sticky fail %s: %s", session_id, e)
+
+
+def _mirror_unified_short(session_id: str, symbols: List[str]) -> None:
+    """[归一 2026-08-28] 短线 AI 池写入统一状态层（DB 列保持镜像）。"""
+    try:
+        from backend.services.ai_coin_unified import set_tier_symbols
+        set_tier_symbols(session_id, "short", symbols or [], reason="selector_inject")
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] mirror unified short fail %s: %s", session_id, e)
 
 
 def _midlong_board_approve_candidates(

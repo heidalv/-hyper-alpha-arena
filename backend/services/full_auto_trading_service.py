@@ -1086,7 +1086,7 @@ class FullAutoTradingService:
         ).first()
         if not session:
             return {"success": False, "error": "会话不存在"}
-        if session.status not in ("running", "defensive", "paused"):
+        if session.status not in ("running", "defensive", "paused", "stopped"):
             return {"success": False, "error": f"会话状态为 {session.status}，运行/防守/暂停中可添加"}
 
         current = _parse_symbol_list(session.symbols)
@@ -1329,7 +1329,7 @@ class FullAutoTradingService:
         if not session:
             return {"success": False, "error": "会话不存在"}
         # 2026-07-20：与 add_symbols 一致，running/defensive/paused 都允许移除交易对
-        if session.status not in ("running", "defensive", "paused"):
+        if session.status not in ("running", "defensive", "paused", "stopped"):
             return {"success": False, "error": f"会话状态为 {session.status}，运行/防守/暂停中可移除"}
 
         # 两张表独立：固定 symbols / AI auto_coin_symbols，互不占对方名额
@@ -4478,10 +4478,14 @@ class FullAutoTradingService:
             for s in (getattr(session, "symbols", None) or []):
                 _add(s)
 
-        # 短线 AI 选币：开关开启时并入；关闭时仅靠持仓/策略续管
-        if getattr(session, "auto_coin_enabled", False):
-            for s in (getattr(session, "auto_coin_symbols", None) or []):
+        # [2026-08-28 AI选币归一] 短线+中线 AI 选币统一入口（单状态存储）：
+        # 一般宇宙（scalp/编排器/健康检查）并入两档；开关关闭时对应档自然为空。
+        try:
+            from backend.services.ai_coin_unified import get_ai_coin_symbols
+            for s in get_ai_coin_symbols(session.session_id, db=db, tier=None):
                 _add(s)
+        except Exception:
+            pass
 
         # 兼容兜底：固定+AI 都空时回退旧 symbols 并集
         if not merged:

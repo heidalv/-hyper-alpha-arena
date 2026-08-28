@@ -849,15 +849,18 @@ def _tier_status_impl(session_id: str, db: Session) -> dict:
             pass
 
     # 三通道拆分：短线固定 / AI中线 / 固定长线
+    # [2026-08-28 AI选币归一] 短/中 AI 选币统一状态层；中线档在选择器刷新
+    # （get_ai_mid_candidates_for_session，现读写统一状态）后直接可用。
     from backend.services.auto_coin_selector import (
         _parse_by_tier_map,
         get_ai_mid_candidates_for_session as _get_ai_mid,
         get_fixed_symbols_for_session as _get_fixed,
         get_session_mid_ai_config,
     )
+    from backend.services.ai_coin_unified import get_ai_coin_symbols
     _auto_coin_set = {
         str(s).strip().upper()
-        for s in (getattr(session, "auto_coin_symbols", None) or [])
+        for s in get_ai_coin_symbols(session_id, db=db, tier="short")
         if s
     }
     _session_symbol_set = {

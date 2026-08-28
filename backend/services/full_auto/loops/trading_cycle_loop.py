@@ -182,22 +182,16 @@ def run_trading_cycle(
         
         _t0 = time.time()
         symbols = list(session.symbols or [])
-        # [2026-08-28 实盘AI选币接线] 决策宇宙此前只含固定币(session.symbols)，
-        # AI 中线候选(平台看板 sticky)与短线 AI 选币(auto_coin_symbols)选出来
-        # 却从不进 master 分析 → 无分析无交易。此处并入（与 scalp 循环
-        # _resolve_session_trade_symbols 同口径）。
+        # [2026-08-28 AI选币归一] 决策宇宙并入 AI 选币统一状态（短+中），
+        # 单一入口 get_ai_coin_symbols——选币层与因子层同构：一处存储、
+        # 所有消费方同读。此前 master 只读固定币 → 有选无析无交易。
         try:
-            from backend.services.auto_coin_selector import (
-                get_ai_mid_candidates_for_session,
-            )
-            _ai_mid_syms = list(
-                get_ai_mid_candidates_for_session(session_id, db=db) or []
-            )
+            from backend.services.ai_coin_unified import get_ai_coin_symbols
+            _ai_syms = get_ai_coin_symbols(session_id, db=db, tier=None)
         except Exception:
-            _ai_mid_syms = []
-        _auto_syms = list(getattr(session, "auto_coin_symbols", None) or [])
+            _ai_syms = []
         _seen_syms = {str(s).upper() for s in symbols}
-        for _s in (*_ai_mid_syms, *_auto_syms):
+        for _s in _ai_syms:
             _u = str(_s).upper()
             if _u and _u not in _seen_syms:
                 _seen_syms.add(_u)
