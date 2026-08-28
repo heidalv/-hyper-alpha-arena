@@ -1427,6 +1427,33 @@ def on_startup():
             logger.info(
                 "[async] 因子进化闭环已注册（每日3点4h + 每日4点5m短线 + 每小时权重）"
             )
+            # [2026-08-28 方案2·P2] 实盘虚拟子仓周期对账任务（120s）：
+            # 本地 live_sub_positions Σ vs 交易所实仓，mismatch 连续2轮自动对齐。
+            # 无 live 账户时 no-op（纸面盘零影响）。LIVE_RECONCILE_ENABLED=false 可关。
+            try:
+                from backend.services.live_position_reconciler import (
+                    reconcile_all_live_accounts,
+                )
+                if os.getenv("LIVE_RECONCILE_ENABLED", "true").strip().lower() not in (
+                    "0", "false", "no", "off",
+                ):
+                    def _reconcile_tick():
+                        try:
+                            reconcile_all_live_accounts()
+                        except Exception as _rc_err:
+                            logger.warning("[LiveReconciler] tick 异常: %s", _rc_err)
+                    task_scheduler.add_interval_task(
+                        task_func=_reconcile_tick,
+                        interval_seconds=120,
+                        task_id="live_position_reconcile",
+                        max_instances=1,
+                        next_run_time=_dt_h.now() + _td_h(seconds=60),
+                    )
+                    logger.info("[async] 实盘子仓对账任务已注册（120s）")
+                else:
+                    logger.info("[async] 实盘子仓对账任务已关闭（LIVE_RECONCILE_ENABLED=false）")
+            except Exception as _reg_err:
+                logger.warning("[async] 实盘子仓对账任务注册失败(非致命): %s", _reg_err)
             logger.info(
                 "[async] V7 三周期正式上线：03:00 4h(L) / 04:00 5m(S) / "
                 "06:00 15m(M) / 06:50 长期记忆维护 / 每小时权重"
