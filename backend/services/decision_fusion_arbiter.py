@@ -246,11 +246,16 @@ def decide_scalp(
         try:
             _rr_now = float(tp_pct) / float(sl_pct)
             _be = 1.0 / (1.0 + _rr_now) if _rr_now > 0 else 1.0
-            _safety = float(os.getenv("FUSION_PWIN_SAFETY_MULT", "1.05") or 1.05)
+            _safety = float(os.getenv("FUSION_PWIN_SAFETY_MULT", "1.15") or 1.15)
             _abs_min = float(os.getenv("FUSION_PWIN_ABSOLUTE_MIN", "0.45") or 0.45)
+            # [2026-08-28 修正] 此前只在 rr 地板低于旧地板时下调——MR(RR=0.75,
+            # 保本0.571)的地板应上调到0.657, 却停在0.55, 导致低于保本线的
+            # 信号成交(实测实现胜率38.5% vs 保本57.1%, 净亏-0.18%/笔)。
+            # 改为 rr_aware 模式下地板 = max(保本×安全系数, 绝对下限),
+            # 完全替代旧结构定标的旧地板; 安全系数默认1.15(元模型pwin
+            # 偏乐观, 均值0.464实现胜率仅38.5% → 留15%校准余量)。
             _floor_rr = max(_be * _safety, _abs_min)
-            if _floor_rr < _floor:
-                _floor = _floor_rr
+            _floor = _floor_rr
         except (TypeError, ValueError):
             pass
     if pwin < _floor:
