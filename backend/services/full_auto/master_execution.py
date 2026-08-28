@@ -3500,13 +3500,15 @@ def execute_master_decisions(
                             _effective_entry_threshold = min(90, entry_threshold + 8)
 
                     # 成熟度松紧：warmup 期放宽执行层置信门，避免与 V5 门重复收紧
-                    # （live 模式 resolve_relief 强制返回 0，保持严格）
+                    # [2026-08-28 实盘收紧] 传真实 mode：live 由 resolve_relief 强制
+                    # 返回 0（保持严格），paper 维持 warmup 放宽。
                     _mat_stage = "mature"
                     try:
                         from backend.services.maturity_controller import resolve_relief
                         _mat = resolve_relief(
                             symbol=sym, side=action,
-                            nature=trade_nature, tier=tier, mode="paper",
+                            nature=trade_nature, tier=tier,
+                            mode=(mode or "paper"),
                         )
                         _mat_relief = float(_mat.get("relief", 0) or 0)
                         _mat_stage = str(_mat.get("stage", "mature"))
@@ -3517,7 +3519,38 @@ def execute_master_decisions(
                     except Exception:
                         pass
 
+                    # [2026-08-28 实盘收紧] 实盘 master 置信门槛 + LIVE_CONF_EXTRA：
+                    # 模拟盘可以粗放，实盘决策置信口径更严。
+                    if (mode or "paper").strip().lower() == "live":
+                        try:
+                            from backend.services.full_auto.live_gate_policy import (
+                                master_conf_extra,
+                            )
+                            _effective_entry_threshold = min(
+                                95, int(_effective_entry_threshold) + int(master_conf_extra())
+                            )
+                        except Exception:
+                            pass
+
                     if price > 0 and confidence >= _effective_entry_threshold:
+                        # [2026-08-28 实盘收紧] 实盘每日开单总量上限（中线/长线
+                        # 开仓同样计入 LIVE_DAILY_OPEN_CAP，与短线共享配额）。
+                        if (mode or "paper").strip().lower() == "live" and (action or "").lower() == "buy":
+                            try:
+                                from backend.services.full_auto.live_gate_policy import (
+                                    live_enforce_daily_open_cap,
+                                )
+                                _q_ok, _q_used, _q_cap = live_enforce_daily_open_cap(
+                                    str(getattr(session, "session_id", "") or "")
+                                )
+                                if not _q_ok:
+                                    logger.info(
+                                        "[FullAuto] %s 实盘每日开单上限已达 %d/%d，跳过",
+                                        sym, _q_used, _q_cap,
+                                    )
+                                    continue
+                            except Exception as _q_err:
+                                logger.debug("[FullAuto] 实盘配额检查跳过: %s", _q_err)
                         # 多周期预算感知：从 dec 中提取 tier 预算信息
                         _tier_budget_pct = float(dec.get("_tier_max_margin_pct", 0) or 0)
                         # 统一仓位规划：AI建议 → SizingAgent 风险预算约束 → 执行层保真

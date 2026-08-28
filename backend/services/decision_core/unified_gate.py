@@ -235,7 +235,30 @@ def evaluate_entry(
     # [2026-08-23 过度阻止修复] paper 短线置信度 65→50：ScalpRouter 分数分布
     # 25-85 中位 ~50，且实证「分数与胜率无强单调关系」（诊断 15/17）；65 硬门槛
     # 配合 warmup 放宽后仍 45，把 40-45 分的真实信号全拦（实测 XPL 36<45 冻结）。
-    _paper_scalp_gate = 50 if _is_paper else int(overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE))
+    # [2026-08-28 实盘收紧] live 置信门 = max(governor/基准, 引导期下限) +
+    # 实盘加严量（LIVE_V5_CONF_EXTRA 默认 +5）——实盘永远不低于模拟盘，再加严。
+    # 此前引导期直接把 live 门槛换成 45（低于 paper governor 的 55~70），
+    # 违反「实盘≥模拟」原则，已改。
+    _live_scalp_gate = int(overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE))
+    _live_boot_flag = False
+    if not _is_paper:
+        try:
+            from backend.services.full_auto.live_gate_policy import (
+                live_bootstrap_active,
+                live_scalp_v5_confidence,
+                live_v5_conf_extra,
+            )
+            if live_bootstrap_active(account_id):
+                _live_boot_flag = True
+                _live_scalp_gate = max(int(_live_scalp_gate), int(live_scalp_v5_confidence()))
+            _live_scalp_gate = min(95, int(_live_scalp_gate) + int(live_v5_conf_extra()))
+        except Exception as _lb_err:
+            logger.debug("[V5Gate] 实盘门槛策略读取失败(沿用默认): %s", _lb_err)
+    # resolver 取 max(base+regime, scalp_gate)：实盘生效门 = 两者取大（收紧），
+    # paper 维持原有放宽逻辑不变。
+    if not _is_paper and nature_l in ("scalp", "intraday"):
+        base_entry_threshold = max(int(base_entry_threshold), int(_live_scalp_gate))
+    _paper_scalp_gate = 50 if _is_paper else _live_scalp_gate
     # 修正死三元表达式（此前 paper/live 两分支完全相同，paper 未获得任何放宽，
     # 与 3 天 long tier 零成交现象方向吻合）：paper 比 live 低 12 分，但不低于 30 的
     # 合理下限，避免长线置信度门槛在 paper 模式下被压到毫无意义的水平。
@@ -255,6 +278,8 @@ def evaluate_entry(
     _is_midlong = nature_l in ("trend_follow", "position", "swing")
     if _is_scalp_like:
         _paper_min_rr = float(V5_SCALP_MIN_RR_PAPER if _is_paper else V5_SCALP_MIN_RR)
+        # [2026-08-28 实盘收紧] live RR 保持 V5_SCALP_MIN_RR(1.4) 硬口径，
+        # 不再回落 paper 档（1.3）——实盘盈亏比不得低于模拟盘基准。
         _paper_min_tp = float(V5_SCALP_MIN_TP_PCT_PAPER if _is_paper else V5_SCALP_MIN_TP_PCT)
     elif nature_l == "swing":
         # [M5 2026-08-21] swing 独立 RR 口径（1.5/1.4，介于 scalp 1.4 与 trend
@@ -392,7 +417,12 @@ def evaluate_entry(
 
     conf = normalize_confidence_pct(confidence)
     high_conviction = conf >= V5_HIGH_CONF_THRESHOLD
-    _scalp_gate = int(overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE))
+    # [2026-08-28 实盘零成交修复] 与上方 _paper_scalp_gate 同源（实盘引导期用
+    # LIVE_SCALP_V5_MIN_CONFIDENCE），保持一致性；当前 resolver 实际取
+    # scalp_gate=_paper_scalp_gate，此变量仅作记录。
+    _scalp_gate = _paper_scalp_gate if not _is_paper else int(
+        overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE)
+    )
 
     mode_l = (mode or "paper").strip().lower()
     _auto_penalty = AUTO_COIN_V5_CONF_PENALTY

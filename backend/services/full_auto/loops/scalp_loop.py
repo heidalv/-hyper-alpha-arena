@@ -140,12 +140,18 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
         if not account:
             return
         # 从 DB 直接查余额（get_balance 可能返回 None——依赖内存状态）
-        from backend.database.models import PaperBalance
-        from backend.services.paper_trading_engine import paper_engine
-        _bal_row = _db.query(PaperBalance).filter(
-            PaperBalance.account_id == trading_acct_id
-        ).first()
-        equity = float(getattr(_bal_row, "total_equity", 0) or getattr(_bal_row, "equity", 0) or 0) if _bal_row else 0.0
+        _is_live_session = (getattr(session_row, "trading_mode", "paper") or "paper").strip().lower() == "live"
+        if _is_live_session:
+            # [2026-08-28 实盘打通] live 会话权益 = 币安真实余额（用户流快照→REST）
+            from backend.services.full_auto.live_equity import get_live_equity
+            equity = get_live_equity(account, trading_acct_id)
+        else:
+            from backend.database.models import PaperBalance
+            from backend.services.paper_trading_engine import paper_engine
+            _bal_row = _db.query(PaperBalance).filter(
+                PaperBalance.account_id == trading_acct_id
+            ).first()
+            equity = float(getattr(_bal_row, "total_equity", 0) or getattr(_bal_row, "equity", 0) or 0) if _bal_row else 0.0
         # [S5 2026-08-21] 无余额快照 → 本轮不开仓（equity_unavailable）。
         # 原实现用 sum(margin)*3 反推权益：只有已有持仓才估得出、且估值失真
         # 会直接污染 sizing/层预算/风险上限等全部下游计算。
@@ -195,6 +201,21 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             _scalp_daily_cap = int(_cap_ov or 0)
         except Exception:
             _scalp_daily_cap = 0
+        # [2026-08-28 实盘零成交修复] 实盘引导期每日开仓上限（默认 5 笔）：
+        # 引导期门槛放宽后必须有每日硬顶兜底（配合风控硬顶/日亏熔断）。
+        # 引导期满或 LIVE_SCALP_BOOTSTRAP_ENABLED=false 时退回 SCALP_DAILY_OPEN_CAP。
+        try:
+            if _is_live_session:
+                from backend.services.full_auto.live_gate_policy import (
+                    live_bootstrap_active,
+                    live_scalp_daily_open_cap,
+                )
+                if live_bootstrap_active(account_id):
+                    _live_cap = int(live_scalp_daily_open_cap())
+                    if _live_cap > 0:
+                        _scalp_daily_cap = min(_scalp_daily_cap or _live_cap, _live_cap)
+        except Exception as _live_cap_err:
+            logger.debug("[ScalpRouter独立] 实盘引导期每日上限读取失败: %s", _live_cap_err)
         if _scalp_daily_cap > 0:
             try:
                 from datetime import datetime as _dt_cap, timezone as _tz_cap
@@ -555,6 +576,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 _sig = scalp_factor_router.evaluate(
                     sym, _md,
                     mode=(getattr(session_row, "trading_mode", None) or "paper"),
+                    # [2026-08-28 实盘零成交修复] 实盘自适应门槛按账户自身样本统计
+                    account_id=account_id,
                 )
             _prof["evaluate"] = time.perf_counter() - _pf_ts
             _prof["total"] = sum(_prof.values())
@@ -593,7 +616,15 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             try:
                 _thresh = scalp_factor_router._get_adaptive_threshold(
                     sym, kind=("ranging_mr" if _mr_active else "trend"),
+                    # [2026-08-28] 实盘按账户自身样本（显示口径与 evaluate 一致）
+                    is_paper=not _is_live_session,
+                    account_id=account_id,
                 )
+                # [2026-08-28 实盘收紧] 实盘因子评分门槛上浮 LIVE_SCORE_EXTRA：
+                # 模拟盘验证可以粗放，实盘评分口径更严。
+                if _is_live_session:
+                    from backend.services.full_auto.live_gate_policy import live_score_extra
+                    _thresh = int(_thresh) + int(live_score_extra())
             except Exception:
                 _thresh = 25
             _breakdown = getattr(_sig, "factor_breakdown", None) or {}
@@ -704,6 +735,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         direction=str(_sig.direction or "neutral"),
                         tp_pct=float(_sig.tp_pct or 0),
                         sl_pct=float(_sig.sl_pct or 0),
+                        mode=_trade_mode,
+                        account_id=account_id,
                     )
                     _scalp_factor["pwin_arbiter"] = _arb.to_dict()
                     if not _arb.allowed:
@@ -766,6 +799,25 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 source_lane="scalp_lane",
                 reasoning=(getattr(_sig, "reasoning", None) or "")[:200],
             )
+            # [2026-08-28 实盘收紧] 实盘每日开单总量上限（全部 tier 合计，
+            # LIVE_DAILY_OPEN_CAP 默认 6）；模拟盘不限。
+            if _is_live_session:
+                try:
+                    from backend.services.full_auto.live_gate_policy import (
+                        live_enforce_daily_open_cap,
+                    )
+                    _q_ok, _q_used, _q_cap = live_enforce_daily_open_cap(
+                        str(getattr(session_row, "session_id", "") or "")
+                    )
+                    if not _q_ok:
+                        logger.info(
+                            "[ScalpRouter独立] %s 实盘每日开单上限已达 %d/%d，跳过",
+                            sym, _q_used, _q_cap,
+                        )
+                        _bump_block("live_daily_open_cap")
+                        continue
+                except Exception as _q_err:
+                    logger.debug("[ScalpRouter独立] 实盘配额检查跳过: %s", _q_err)
             # M8 周期共振层：发布短线信号 + 评估（PRL_ENABLED=false 时直通）
             try:
                 from backend.services.portfolio.resonance_layer import (
@@ -932,21 +984,40 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
 
             # ── 亏损币惩罚（设计 D2：日报 symbol_penalty 状态机驱动）──
             # watchlisted → 禁开该币（待复审恢复）；penalty<1.0 → 信号强度打折
+            # [2026-08-28 实盘零成交修复] 状态机由 paper 日报驱动（全局 symbol
+            # key），实盘 0 样本却被 paper 连亏观察名单禁开（实测 XRP 被 paper
+            # 5 连亏日 watchlisted → 实盘恒禁）。引导期内实盘豁免该状态机
+            # （R2 单笔已实现亏损 24h 禁开仍保留，见下方 FUSION_RISK_EVENT_BAN）；
+            # 引导期满自动恢复全局惩罚（此时状态机也会吃到实盘自身结果）。
             _pen_score = float(getattr(_gate, "effective_score", 0) or 0)
+            _live_pen_exempt = False
+            if _is_live_session:
+                try:
+                    from backend.services.full_auto.live_gate_policy import (
+                        live_bootstrap_active,
+                    )
+                    _live_pen_exempt = live_bootstrap_active(account_id)
+                except Exception:
+                    _live_pen_exempt = False
             try:
                 from backend.services.symbol_penalty import get_penalty, is_watchlisted
                 _pen = float(get_penalty(sym) or 1.0)
-                if is_watchlisted(sym) or _pen <= 0.0:
+                if not _live_pen_exempt and (is_watchlisted(sym) or _pen <= 0.0):
                     logger.info(
                         f"[ScalpRouter独立] {sym} 在亏损币观察名单(penalty=0)，禁开待复审"
                     )
                     _bump_block("symbol_watchlist")
                     continue
-                if _pen < 1.0:
+                if not _live_pen_exempt and _pen < 1.0:
                     _pen_score = _pen_score * _pen
                     logger.info(
                         f"[ScalpRouter独立] {sym} 亏损币惩罚 penalty={_pen}: "
                         f"信号强度 {float(getattr(_gate, 'effective_score', 0) or 0):.3f} -> {_pen_score:.3f}"
+                    )
+                elif _live_pen_exempt and _pen < 1.0:
+                    logger.info(
+                        "[ScalpRouter独立] %s 实盘引导期豁免 paper 亏损惩罚(penalty=%.2f)",
+                        sym, _pen,
                     )
             except Exception as _pen_err:
                 logger.debug(f"[ScalpRouter独立] {sym} symbol_penalty 检查跳过: {_pen_err}")
@@ -1067,6 +1138,12 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 min(0.08, float(os.getenv("SCALP_MAX_TRADE_RISK_PCT", "0.03") or 0.03)),
             )
             _dyn_lev = 10
+            # [2026-08-28 P2] 账户级三周期杠杆覆盖（short），只收紧不放大
+            try:
+                from backend.services.leverage_authority import account_tier_leverage_override
+                _tier_lev_scalp = account_tier_leverage_override(account, "short")
+            except Exception:
+                _tier_lev_scalp = None
             _conf_raw = float(
                 _pen_score
                 or getattr(_sig, "confidence", 0)
@@ -1102,9 +1179,9 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     position_cap_override=_scalp_size_pct,
                     size_multiplier=1.0,
                     alignment_scale=1.0,
-                    leverage_cap=10,
+                    leverage_cap=_tier_lev_scalp or 10,
                 ))
-                _dyn_lev = max(5, min(10, int(_scalp_plan.leverage or 10)))
+                _dyn_lev = max(5, min(_tier_lev_scalp or 10, int(_scalp_plan.leverage or 10)))
             except Exception as _sizing_err:
                 logger.warning(
                     f"[ScalpRouter独立] {sym} 杠杆解析失败，固定10x继续: {_sizing_err}"
@@ -1296,6 +1373,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     strategy_tag=_ev_strategy_tag,
                     mode=(getattr(session_row, "trading_mode", None) or "paper"),
                     funding_rate=float(_md.get("funding_rate", 0) or 0) if isinstance(_md, dict) else 0.0,
+                    # [2026-08-28 实盘零成交修复] 实盘引导期 EV 地板按账户判定
+                    account_id=account_id,
                 )
                 _ev_pwin = _ev.p_win
                 _ev_pwin_src = _ev.p_win_source
@@ -1594,6 +1673,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             thesis_conf=_tconf,
                             tp_pct=float(getattr(_sig, "tp_pct", 0) or 0),
                             sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
+                            mode=_trade_mode,
+                            account_id=account_id,
                         )
                         # 阶段2：thesis 强反向冲突 → 1 次窄 JSON LLM 仲裁；
                         # 放行=0.25x 试探仓；失败/否决 → 保守 hold。

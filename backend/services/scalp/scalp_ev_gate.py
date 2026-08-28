@@ -133,6 +133,7 @@ class ScalpEvGate:
         strategy_tag: str = "trend",
         mode: str = "paper",
         funding_rate: float = 0.0,
+        account_id: Optional[int] = None,
     ) -> EvDecision:
         """计算并裁决本次开仓的期望值。
 
@@ -245,7 +246,24 @@ class ScalpEvGate:
                 )
                 _min_pwin = float(self._cfg("SCALP_META_MIN_PWIN", 0.5) or 0.5)
                 _is_paper_ev = (mode or "paper").strip().lower() == "paper"
-                if _meta_hp is not None and float(_meta_hp) < _min_pwin and not _is_paper_ev:
+                # [2026-08-28 实盘零成交修复] 实盘引导期把 meta 硬过滤降级为软接入
+                # （与 paper 同款）：live 此前要求 usable 模型 pwin≥0.5，实测实盘
+                # 信号 meta pwin 0.28~0.47 恒不达标 → 与 EV≥+0.03% 叠加后数学上
+                # 不可能开仓。引导期只压分不否决；期满自动恢复硬过滤。
+                _live_soft = False
+                if not _is_paper_ev:
+                    try:
+                        from backend.services.full_auto.live_gate_policy import (
+                            live_bootstrap_active,
+                            live_scalp_ev_meta_hard_filter_off,
+                        )
+                        _live_soft = (
+                            live_scalp_ev_meta_hard_filter_off()
+                            and live_bootstrap_active(account_id)
+                        )
+                    except Exception as _lb2_err:
+                        logger.debug("[ScalpEvGate] 实盘引导期读取失败(沿用硬过滤): %s", _lb2_err)
+                if _meta_hp is not None and float(_meta_hp) < _min_pwin and not _is_paper_ev and not _live_soft:
                     return EvDecision(
                         allowed=False, tp_pct=tp, sl_pct=sl,
                         reason=(
@@ -254,11 +272,11 @@ class ScalpEvGate:
                         ),
                         ev_min=ev_min,
                     )
-                if _meta_hp is not None and float(_meta_hp) < _min_pwin and _is_paper_ev:
+                if _meta_hp is not None and float(_meta_hp) < _min_pwin and (_is_paper_ev or _live_soft):
                     logger.info(
-                        "[ScalpEvGate] paper meta 硬过滤降级软接入：p_win=%.3f<%.2f "
+                        "[ScalpEvGate] %s meta 硬过滤降级软接入：p_win=%.3f<%.2f "
                         "仅压分不否决（样本积累优先）",
-                        float(_meta_hp), _min_pwin,
+                        symbol, float(_meta_hp), _min_pwin,
                     )
         except Exception as _mh:
             logger.debug(f"[ScalpEvGate] {symbol} meta 硬过滤跳过: {_mh}")
@@ -328,6 +346,11 @@ class ScalpEvGate:
                     effective_ev_min = _paper_ev_min
         except Exception as _pe_err:
             logger.debug("[ScalpEvGate] paper EV 地板检查跳过: %s", _pe_err)
+
+        # ── [2026-08-28 实盘收紧] live EV 地板 ──
+        # 用户指令：实盘是真金白银，EV 门保持硬口径 SCALP_EV_MIN_PCT(+0.03%)，
+        # 不再与 paper 样本期同档放宽（此前引导期 -1.0% 放行已移除）。
+        # 回滚（恢复引导期放宽）：LIVE_SCALP_EV_BOOTSTRAP_ALLOW=true。
 
         # ── [2026-08-23 短线赚钱改造] 新参数探索期软放行 ──
         # EV 闸用旧参数时代（TP≈2.5% 摸不到）的校准胜率（如 33.3%）评价 8/23 新

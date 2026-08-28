@@ -147,8 +147,17 @@ def decide_scalp(
     credit: float = 1.0,
     tp_pct: Optional[float] = None,
     sl_pct: Optional[float] = None,
+    mode: str = "paper",
+    account_id: Optional[int] = None,
 ) -> FusionDecision:
-    """短线入场仲裁（v2 矩阵，pwin 主轴）。"""
+    """短线入场仲裁（v2 矩阵，pwin 主轴）。
+
+    [2026-08-28 实盘零成交修复] mode/account_id：实盘引导期
+    （live_gate_policy.live_bootstrap_active）内，pwin 地板改用
+    FUSION_SCALP_PWIN_MIN_LIVE（绝对下限，不叠加 RR 安全系数），让实盘在自身
+    零样本时不被「模拟盘标定的旧地板」锁死；引导期满自动回落到严格地板。
+    paper 行为完全不变。
+    """
     # 0. 每次决策前重载 .env(门槛调整免重启生效)
     _maybe_reload_env()
     # 1. LLM 硬否决（清算簇/黑天鹅/流动性告警）→ 因子不可覆盖
@@ -242,7 +251,24 @@ def decide_scalp(
     # legacy 模式（FUSION_PWIN_FLOOR_MODE=legacy）恢复旧行为。
     _floor = effective_pwin_floor()
     _floor_mode = os.getenv("FUSION_PWIN_FLOOR_MODE", "rr_aware").strip().lower()
-    if _floor_mode != "legacy" and tp_pct and sl_pct and sl_pct > 0:
+    # [2026-08-28 实盘收紧] 实盘地板 = max(rr感知地板, 引导期下限) + 实盘加严量。
+    # 此前引导期直接换成 0.45 绝对下限（可能低于 paper 的 rr 感知地板），
+    # 违反「实盘≥模拟」原则；现改为实盘永远不低于模拟盘地板再加严。
+    _mode_ds = (mode or "paper").strip().lower()
+    _live_tight = _mode_ds == "live"
+    _live_boot = False
+    if _live_tight:
+        try:
+            from backend.services.full_auto.live_gate_policy import (
+                live_bootstrap_active,
+                live_pwin_extra,
+                live_scalp_pwin_floor,
+            )
+            _live_boot = bool(live_bootstrap_active(account_id))
+            _floor_mode = "live_tight"
+        except Exception as _live_boot_err:
+            logger.debug("[FusionArbiter] 实盘地板策略读取失败(沿用默认): %s", _live_boot_err)
+    if _floor_mode not in ("legacy",) and tp_pct and sl_pct and sl_pct > 0:
         try:
             _rr_now = float(tp_pct) / float(sl_pct)
             _be = 1.0 / (1.0 + _rr_now) if _rr_now > 0 else 1.0
@@ -258,6 +284,18 @@ def decide_scalp(
             _floor = _floor_rr
         except (TypeError, ValueError):
             pass
+    if _live_tight:
+        try:
+            from backend.services.full_auto.live_gate_policy import (
+                live_pwin_extra,
+                live_scalp_pwin_floor,
+            )
+            # 引导期下限只托底、不放宽：实盘地板 ≥ max(rr地板, 0.45) + extra
+            if _live_boot:
+                _floor = max(float(_floor), float(live_scalp_pwin_floor()))
+            _floor = min(0.95, float(_floor) + float(live_pwin_extra()))
+        except Exception as _live_extra_err:
+            logger.debug("[FusionArbiter] 实盘 pwin 加严失败(沿用当前地板): %s", _live_extra_err)
     if pwin < _floor:
         return FusionDecision("hold", 0.0, "rule", "pwin_below_min",
                               {"pwin": pwin, "floor": _floor, "floor_mode": _floor_mode})

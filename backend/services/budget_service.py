@@ -185,6 +185,14 @@ class BudgetService:
         account_id: Optional[int] = None,
     ) -> float:
         allocated = self.get_layer_cap(layer, total_equity)
+        # [2026-08-28 实盘收紧] 实盘层预算 × LIVE_BUDGET_MULT（默认 0.6），
+        # 模拟盘保持原口径（验证/攒样本可以粗放，实盘资金分配收紧）。
+        if (mode or "paper").strip().lower() == "live":
+            try:
+                from backend.services.full_auto.live_gate_policy import live_budget_mult
+                allocated *= float(live_budget_mult())
+            except Exception:
+                pass
         used = self.get_used_margin(layer, mode, account_id=account_id)
         return max(0.0, allocated - used)
 
