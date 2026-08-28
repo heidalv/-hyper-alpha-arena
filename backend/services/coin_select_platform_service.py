@@ -1107,10 +1107,26 @@ class CoinSelectPlatformScheduler:
         await asyncio.sleep(45)
         while self._running:
             try:
-                await run_platform_scan(force=False)
+                # [2026-08-28 挂机根治] 扫描内部是同步 DB/因子计算（psycopg
+                # 阻塞等待 crypto_klines 查询），直接在主事件循环上跑会把整个
+                # HTTP 服务冻结 10-35s（hang_dump MainThread 卡在 wait_select
+                # 实锤）。改到独立线程 + 独立事件循环执行。
+                await asyncio.to_thread(_run_scan_in_thread)
             except Exception as e:
                 logger.warning("[CoinSelectPlatform] loop: %s", e)
             await asyncio.sleep(max(300, int(COIN_SELECT_SCAN_INTERVAL_SEC)))
+
+
+def _run_scan_in_thread():
+    """在线程里跑一轮平台扫描（独立事件循环，避免阻塞 uvicorn 主循环）。"""
+    import asyncio as _asyncio
+    _loop = _asyncio.new_event_loop()
+    try:
+        _asyncio.set_event_loop(_loop)
+        return _loop.run_until_complete(run_platform_scan(force=False))
+    finally:
+        _loop.close()
+        _asyncio.set_event_loop(None)
 
 
 coin_select_platform_scheduler = CoinSelectPlatformScheduler()
