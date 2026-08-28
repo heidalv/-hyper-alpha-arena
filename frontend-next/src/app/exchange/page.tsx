@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Server, Plus, Trash2, Loader2, CheckCircle2, XCircle, RefreshCw,
-  Key, Bot, Settings2, Link2, Save, AlertTriangle,
+  Key, Bot, Settings2, Link2, Save, AlertTriangle, Pencil,
   Wallet, Banknote, TrendingUp, Play, StopCircle, Activity,
 } from "lucide-react";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount, useSessions } from "@/hooks/useTradingData";
@@ -24,6 +24,11 @@ const EX_NAMES: Record<string, string> = {
   okx: "OKX", gateio: "Gate.io", asterdex: "Asterdex",
 };
 const exName = (id: string) => EX_NAMES[id] || id;
+
+const ENV_NAMES: Record<string, string> = {
+  usdt_m: "永续U", coin_m: "币本位", margin: "杠杆M", spot: "现货", futures: "永续U",
+};
+const envName = (id: string) => ENV_NAMES[id] || id;
 
 type Tab = "accounts" | "credentials" | "monitor";
 
@@ -112,7 +117,7 @@ function AccountsTab() {
     fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).then(d => setCreds(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
-  const [form, setForm] = useState({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, llm_config_id: "", llm_config_id_deep: "", personality_id: "", credential_id: "" });
+  const [form, setForm] = useState({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, binance_market_type: "usdt_m", credential_id: "" });
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
@@ -121,8 +126,7 @@ function AccountsTab() {
       account_type: form.trading_mode === "paper" ? "PAPER" : "AI",
       initial_capital: form.trading_mode === "paper" ? (parseFloat(form.initial_capital) || 500) : undefined,
       selected_exchange: form.selected_exchange,
-      llm_config_id: form.llm_config_id ? parseInt(form.llm_config_id) : null,
-      llm_config_id_deep: form.llm_config_id_deep ? parseInt(form.llm_config_id_deep) : null,
+      binance_market_type: form.binance_market_type,
     } as any);
     // [2026-08-28] 实盘账户创建时可顺带绑定 API 凭证
     if (form.trading_mode === "live" && form.credential_id && created?.id) {
@@ -133,7 +137,7 @@ function AccountsTab() {
         });
       } catch {}
     }
-    setForm({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, llm_config_id: "", llm_config_id_deep: "", personality_id: "", credential_id: "" });
+    setForm({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, binance_market_type: "usdt_m", credential_id: "" });
     setShowCreate(false);
   };
   const defaultCfg = llmConfigs.find((c: any) => c.is_default);
@@ -186,23 +190,16 @@ function AccountsTab() {
                 </select>
               </div>
             )}
+            {form.selected_exchange === "binance" && (
+              <div><Label className="text-xs">交易所环境（币安）</Label>
+                <select value={form.binance_market_type} onChange={(e) => setForm({ ...form, binance_market_type: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                  <option value="usdt_m">永续合约 (USDT-M)</option><option value="coin_m">币本位 (COIN-M)</option><option value="margin">实盘杠杆 (Margin)</option>
+                </select>
+                <div className="text-[10px] text-muted-foreground mt-0.5">币安账户交易环境；其他交易所忽略</div>
+              </div>
+            )}
             <div><Label className="text-xs">LLM 配置</Label>
-              <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-                {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-              </select>
-            </div>
-            <div><Label className="text-xs">深模型 LLM 配置 (Pro)</Label>
-              <select value={form.llm_config_id_deep} onChange={(e) => setForm({ ...form, llm_config_id_deep: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-                {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-              </select>
-            </div>
-            <div><Label className="text-xs">交易员人格</Label>
-              <select value={form.personality_id} onChange={(e) => setForm({ ...form, personality_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                <option value="">默认</option>
-                {personalities.map((p: any) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-              </select>
+              <div className="text-xs text-muted-foreground pt-1.5">跟随系统默认配置</div>
             </div>
           </div>
           <Button size="sm" className="btn-glow" onClick={handleCreate} disabled={createMut.isPending || !form.name.trim()}>
@@ -287,7 +284,7 @@ function AccountsTab() {
                 <td className="py-2 px-3 font-medium">{a.name}</td>
                 <td className="py-2 px-3"><Badge variant="secondary" className="text-xs">{a.account_type === "PAPER" ? "模拟" : a.account_type === "AI" ? "AI" : a.account_type}</Badge></td>
                 <td className="py-2 px-3 text-right num">${(a.current_cash || 0).toFixed(2)}</td>
-                <td className="py-2 px-3"><Badge variant="secondary" className="text-xs text-primary">{exName(a.selected_exchange || "")}</Badge></td>
+                <td className="py-2 px-3"><Badge variant="secondary" className="text-xs text-primary">{exName(a.selected_exchange || "")}{a.selected_exchange === "binance" && a.binance_market_type ? ` · ${envName(a.binance_market_type)}` : ""}</Badge></td>
                 <td className="py-2 px-3"><Badge variant="secondary" className={cn("text-xs", a.trading_mode === "paper" ? "text-warning" : "text-profit")}>{a.trading_mode === "paper" ? "模拟" : "实盘"}</Badge></td>
                 <td className="py-2 px-3 text-muted-foreground">
                   <div>快:{a.llm_config_name || "默认"}</div>
@@ -368,8 +365,7 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
   const [form, setForm] = useState({
     name: account.name,
     selected_exchange: account.selected_exchange || defaultExEditor,
-    llm_config_id: account.llm_config_id || "",
-    llm_config_id_deep: account.llm_config_id_deep || "",
+    binance_market_type: account.binance_market_type || "usdt_m",
     auto_trading_enabled: account.auto_trading_enabled,
     max_leverage: account.max_leverage || 10,
     default_leverage: account.default_leverage || 10,
@@ -420,8 +416,7 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
     await onSave({
       name: form.name,
       selected_exchange: form.selected_exchange,
-      llm_config_id: form.llm_config_id ? parseInt(form.llm_config_id) : null,
-      llm_config_id_deep: form.llm_config_id_deep ? parseInt(form.llm_config_id_deep) : null,
+      binance_market_type: form.binance_market_type,
       auto_trading_enabled: form.auto_trading_enabled,
       max_leverage: parseFloat(String(form.max_leverage)) || 10,
       default_leverage: parseFloat(String(form.default_leverage)) || 10,
@@ -462,17 +457,15 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
             <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
           </select>
         </div>
+        {form.selected_exchange === "binance" && (
+          <div><Label className="text-xs">交易所环境（币安）</Label>
+            <select value={form.binance_market_type} onChange={(e) => setForm({ ...form, binance_market_type: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+              <option value="usdt_m">永续合约 (USDT-M)</option><option value="coin_m">币本位 (COIN-M)</option><option value="margin">实盘杠杆 (Margin)</option>
+            </select>
+          </div>
+        )}
         <div><Label className="text-xs">LLM 配置</Label>
-          <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-            {llmConfigs.map((c: any) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-          </select>
-        </div>
-        <div><Label className="text-xs">深模型 LLM 配置 (Pro)</Label>
-          <select value={form.llm_config_id_deep} onChange={(e) => setForm({ ...form, llm_config_id_deep: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-            <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-            {llmConfigs.map((c: any) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-          </select>
+          <div className="text-xs text-muted-foreground pt-1.5">跟随系统默认配置</div>
         </div>
         <div><Label className="text-xs">自动交易</Label>
           <div className="flex items-center gap-2 pt-1">
@@ -753,9 +746,10 @@ function CredentialsTab() {
   const { data: accounts } = useAccounts();
   const [credentials, setCredentials] = useState<any[]>([]);
   const [proxyCfgs, setProxyCfgs] = useState<any[]>([]);
+  const [editing, setEditing] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "" });
+  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "" });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
 
@@ -776,15 +770,43 @@ function CredentialsTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      let proxyValue: string | null = null;
+      if (form.proxy_id === "__current__") proxyValue = form.proxy_current || null;
+      else if (form.proxy_id) proxyValue = (proxyCfgs || []).find((p: any) => p.id === parseInt(form.proxy_id))?.proxy_url || null;
       await fetch(`${BACKEND}/api/exchange/credentials`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null, proxy_url: form.proxy_id ? ((proxyCfgs || []).find((p: any) => p.id === parseInt(form.proxy_id))?.proxy_url || null) : null }),
+        body: JSON.stringify({
+          id: editing ? editing.id : undefined,
+          exchange: form.exchange,
+          label: form.label,
+          api_key: (form.api_key || "").trim(),
+          api_secret: (form.api_secret || "").trim(),
+          passphrase: (form.passphrase || "").trim(),
+          account_id: form.account_id ? parseInt(form.account_id) : null,
+          testnet: form.testnet,
+          proxy_url: proxyValue,
+        }),
       });
       setShowAdd(false);
-      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "" });
+      setEditing(null);
+      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "" });
       load();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { alert(e?.message || String(e)); }
     setSaving(false);
+  };
+
+  const openEdit = (cred: any) => {
+    const match = (proxyCfgs || []).find((p: any) => p.proxy_url === cred.proxy_url);
+    setEditing(cred);
+    setForm({
+      exchange: cred.exchange,
+      api_key: "", api_secret: "", passphrase: "",
+      label: cred.label || "", account_id: cred.account_id || "",
+      testnet: !!cred.testnet,
+      proxy_id: match ? String(match.id) : (cred.proxy_url ? "__current__" : ""),
+      proxy_current: cred.proxy_url || "",
+    });
+    setShowAdd(true);
   };
 
   const handleTest = async (id: number) => {
@@ -828,10 +850,10 @@ function CredentialsTab() {
 
       {showAdd && (
         <Card className="p-4 border-primary/30 space-y-3">
-          <div className="text-sm font-medium">添加交易所 API 凭证</div>
+          <div className="text-sm font-medium">{editing ? `编辑 API 凭证（${EX_NAMES[editing.exchange] || editing.exchange}）` : "添加交易所 API 凭证"}</div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label className="text-xs">交易所</Label>
-              <select value={form.exchange} onChange={(e) => setForm({ ...form, exchange: e.target.value })}
+              <select value={form.exchange} onChange={(e) => setForm({ ...form, exchange: e.target.value })} disabled={!!editing}
                 className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
                 <option value="binance">币安</option><option value="bybit">Bybit</option>
                 <option value="okx">OKX</option><option value="gateio">Gate.io</option>
@@ -854,6 +876,9 @@ function CredentialsTab() {
             <div className="col-span-2"><Label className="text-xs">代理（交易所 IP 白名单出口）</Label>
               <select value={form.proxy_id} onChange={(e) => setForm({ ...form, proxy_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
                 <option value="">不指定（用后端环境默认代理）</option>
+                {form.proxy_current && !(proxyCfgs || []).some((p: any) => p.proxy_url === form.proxy_current) && (
+                  <option value="__current__">保持当前: {form.proxy_current}</option>
+                )}
                 {(proxyCfgs || []).map((p: any) => (
                   <option key={p.id} value={p.id}>{p.name} · {p.proxy_url}{p.egress_ip ? ` · 出口IP ${p.egress_ip}` : ""}</option>
                 ))}
@@ -862,15 +887,15 @@ function CredentialsTab() {
                 代理在「设置 → Socks5 代理」中维护（增删/测试出口IP）。币安 API 需把出口 IP 加入 API Key 的 IP 白名单，否则请求返回 -2015 错误。
               </div>
             </div>
-            <div><Label className="text-xs">API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm font-mono" placeholder="输入 API Key" /></div>
-            <div><Label className="text-xs">API Secret</Label><Input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} className="text-sm font-mono" placeholder="输入 Secret" /></div>
+            <div><Label className="text-xs">API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm font-mono" placeholder={editing ? "留空=保持不变" : "输入 API Key"} /></div>
+            <div><Label className="text-xs">API Secret</Label><Input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} className="text-sm font-mono" placeholder={editing ? "留空=保持不变" : "输入 Secret"} /></div>
             {form.exchange === "okx" && (
               <div className="col-span-2"><Label className="text-xs">Passphrase (仅 OKX)</Label><Input type="password" value={form.passphrase} onChange={(e) => setForm({ ...form, passphrase: e.target.value })} className="text-sm font-mono" /></div>
             )}
           </div>
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>取消</Button>
-            <Button size="sm" className="btn-glow" onClick={handleSave} disabled={saving || !form.api_key}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}保存</Button>
+            <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); setEditing(null); }}>取消</Button>
+            <Button size="sm" className="btn-glow" onClick={handleSave} disabled={saving || (!editing && !form.api_key.trim())}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}{editing ? "保存变更" : "保存"}</Button>
           </div>
         </Card>
       )}
@@ -910,6 +935,7 @@ function CredentialsTab() {
                     <option value="">全局</option>
                     {(accounts || []).map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEdit(cred)} title="编辑"><Pencil className="w-3 h-3" /></Button>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleTest(cred.id)} disabled={testing === cred.id}>
                     {testing === cred.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "测试"}
                   </Button>

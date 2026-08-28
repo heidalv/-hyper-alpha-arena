@@ -65,6 +65,8 @@ async def get_supported_exchanges():
 
 class CredentialCreate(BaseModel):
     account_id: Optional[int] = None
+    # [2026-08-28] 编辑语义: 携带 id 时精确更新该凭证(多API场景)
+    id: Optional[int] = None
     # user_id 已废弃：一律绑定 JWT 当前用户，忽略客户端传入
     user_id: Optional[int] = None
     exchange: str
@@ -147,13 +149,21 @@ async def save_credential(body: CredentialCreate, request: Request):
     try:
         from backend.database.connection import SessionLocal
         from backend.database.models import ExchangeCredential
-        from backend.utils.encryption import encrypt_private_key
+        from backend.utils.encryption import encrypt_private_key, decrypt_private_key
         db = SessionLocal()
         try:
-            existing = db.query(ExchangeCredential).filter(
-                ExchangeCredential.user_id == uid,
-                ExchangeCredential.exchange == body.exchange,
-            ).first()
+            existing = None
+            # [2026-08-28] 编辑语义: 携带 id 时精确命中该凭证(多API场景)
+            if body.id:
+                existing = db.query(ExchangeCredential).filter(
+                    ExchangeCredential.id == body.id,
+                    ExchangeCredential.user_id == uid,
+                ).first()
+            if existing is None:
+                existing = db.query(ExchangeCredential).filter(
+                    ExchangeCredential.user_id == uid,
+                    ExchangeCredential.exchange == body.exchange,
+                ).first()
             if not existing and body.account_id:
                 existing = db.query(ExchangeCredential).filter(
                     ExchangeCredential.user_id == uid,
@@ -169,9 +179,13 @@ async def save_credential(body: CredentialCreate, request: Request):
                 old_account_id = existing.account_id or 0
                 existing.label = body.label
                 existing.proxy_url = (body.proxy_url or "").strip() or None
-                existing.api_key_encrypted = enc_key
-                existing.api_secret_encrypted = enc_secret
-                existing.passphrase_encrypted = enc_pass
+                # [2026-08-28] 编辑语义: 密钥字段留空=保持不变(不清空已有密钥)
+                if body.api_key:
+                    existing.api_key_encrypted = enc_key
+                if body.api_secret:
+                    existing.api_secret_encrypted = enc_secret
+                if body.passphrase:
+                    existing.passphrase_encrypted = enc_pass
                 existing.testnet = body.testnet
                 existing.enabled = body.enabled
                 existing.user_id = uid
@@ -210,12 +224,18 @@ async def save_credential(body: CredentialCreate, request: Request):
             if existing is not None and old_account_id != final_account_id:
                 mgr.remove_client(body.exchange, old_account_id)
             if body.enabled:
+                # 编辑场景: 空密钥=沿用已存密钥(解密回填,避免清空客户端缓存)
+                _ak, _sk, _pp = body.api_key, body.api_secret, body.passphrase
+                if existing is not None and (not _ak or not _sk):
+                    _ak = _ak or (decrypt_private_key(existing.api_key_encrypted) if existing.api_key_encrypted else "")
+                    _sk = _sk or (decrypt_private_key(existing.api_secret_encrypted) if existing.api_secret_encrypted else "")
+                    _pp = _pp or (decrypt_private_key(existing.passphrase_encrypted) if existing.passphrase_encrypted else "")
                 mgr.create_client(
                     exchange=body.exchange,
                     account_id=final_account_id,
-                    api_key=body.api_key,
-                    secret=body.api_secret,
-                    password=body.passphrase,
+                    api_key=_ak,
+                    secret=_sk,
+                    password=_pp,
                     testnet=body.testnet,
                     proxy_url=body.proxy_url or "",
                 )
