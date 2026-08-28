@@ -182,6 +182,26 @@ def run_trading_cycle(
         
         _t0 = time.time()
         symbols = list(session.symbols or [])
+        # [2026-08-28 实盘AI选币接线] 决策宇宙此前只含固定币(session.symbols)，
+        # AI 中线候选(平台看板 sticky)与短线 AI 选币(auto_coin_symbols)选出来
+        # 却从不进 master 分析 → 无分析无交易。此处并入（与 scalp 循环
+        # _resolve_session_trade_symbols 同口径）。
+        try:
+            from backend.services.auto_coin_selector import (
+                get_ai_mid_candidates_for_session,
+            )
+            _ai_mid_syms = list(
+                get_ai_mid_candidates_for_session(session_id, db=db) or []
+            )
+        except Exception:
+            _ai_mid_syms = []
+        _auto_syms = list(getattr(session, "auto_coin_symbols", None) or [])
+        _seen_syms = {str(s).upper() for s in symbols}
+        for _s in (*_ai_mid_syms, *_auto_syms):
+            _u = str(_s).upper()
+            if _u and _u not in _seen_syms:
+                _seen_syms.add(_u)
+                symbols.append(_u)
         if _full_symbol_coverage:
             symbols = list(dict.fromkeys(symbols))
             self._tick_symbol_subset[session_id] = {str(s).upper() for s in symbols}
