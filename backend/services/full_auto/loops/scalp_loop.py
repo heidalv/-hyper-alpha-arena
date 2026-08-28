@@ -799,25 +799,6 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 source_lane="scalp_lane",
                 reasoning=(getattr(_sig, "reasoning", None) or "")[:200],
             )
-            # [2026-08-28 实盘收紧] 实盘每日开单总量上限（全部 tier 合计，
-            # LIVE_DAILY_OPEN_CAP 默认 6）；模拟盘不限。
-            if _is_live_session:
-                try:
-                    from backend.services.full_auto.live_gate_policy import (
-                        live_enforce_daily_open_cap,
-                    )
-                    _q_ok, _q_used, _q_cap = live_enforce_daily_open_cap(
-                        str(getattr(session_row, "session_id", "") or "")
-                    )
-                    if not _q_ok:
-                        logger.info(
-                            "[ScalpRouter独立] %s 实盘每日开单上限已达 %d/%d，跳过",
-                            sym, _q_used, _q_cap,
-                        )
-                        _bump_block("live_daily_open_cap")
-                        continue
-                except Exception as _q_err:
-                    logger.debug("[ScalpRouter独立] 实盘配额检查跳过: %s", _q_err)
             # M8 周期共振层：发布短线信号 + 评估（PRL_ENABLED=false 时直通）
             try:
                 from backend.services.portfolio.resonance_layer import (
@@ -1768,6 +1749,25 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                 # [2026-08-28 实盘接线GAP-1] live 会话走 LiveExecutor（LPM 合并账本
                 # 由 LIVE_SUB_POSITION_TRACKING 控制）；paper 维持原路径。
                 if (_trade_mode or "").lower() == "live":
+                    # [2026-08-28 实盘收紧] 每日开单总量上限：所有闸门都过了、
+                    # 真正下单前最后校验（只检查不扣减，成交后才 bump——
+                    # 此前预扣导致被拦信号白白消耗配额）。
+                    try:
+                        from backend.services.full_auto.live_gate_policy import (
+                            live_enforce_daily_open_cap,
+                        )
+                        _q_ok, _q_used, _q_cap = live_enforce_daily_open_cap(
+                            str(getattr(session_row, "session_id", "") or "")
+                        )
+                        if not _q_ok:
+                            logger.info(
+                                "[ScalpRouter独立] %s 实盘每日开单上限已达 %d/%d，跳过",
+                                sym, _q_used, _q_cap,
+                            )
+                            _bump_block("live_daily_open_cap")
+                            continue
+                    except Exception as _q_err:
+                        logger.debug("[ScalpRouter独立] 实盘配额检查跳过: %s", _q_err)
                     try:
                         from backend.services.exchange.executors import OrderContext
                         from backend.services.exchange.live_executor import LiveExecutor
@@ -1828,6 +1828,17 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _bump_block("order_not_filled")
                     continue
                 _scalp_opened_today += 1  # [M0-4] 成功开仓后计数 +1
+                # [2026-08-28 实盘收紧] 真实成交后扣减每日开单配额
+                if (_trade_mode or "").lower() == "live":
+                    try:
+                        from backend.services.full_auto.live_gate_policy import (
+                            live_daily_open_bump,
+                        )
+                        live_daily_open_bump(
+                            str(getattr(session_row, "session_id", "") or "")
+                        )
+                    except Exception:
+                        pass
 
                 # ── 融合归因（阶段2）：来源标签绑定仓位 ──
                 try:

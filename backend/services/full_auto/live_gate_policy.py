@@ -258,15 +258,18 @@ def live_daily_open_bump(session_id: str) -> int:
 
 
 def live_enforce_daily_open_cap(session_id: str) -> tuple:
-    """实盘开单前校验每日总配额。返回 (allowed, used, cap)。"""
+    """实盘开单前校验每日总配额（只检查不扣减；成交后再 live_daily_open_bump）。
+
+    [2026-08-29 修复] 此前在校验点直接预扣，被后续闸门拦掉的信号也消耗配额
+    （实测 6/6 用尽、0 成交）。改为：检查不下单前不扣，真实成交后显式 bump。
+    """
     cap = live_daily_open_cap()
     if cap <= 0:
         return (True, live_daily_open_used(session_id), 0)
     used = live_daily_open_used(session_id)
     if used >= cap:
         return (False, used, cap)
-    live_daily_open_bump(session_id)
-    return (True, used + 1, cap)
+    return (True, used, cap)
 
 
 def live_scalp_daily_open_cap() -> int:

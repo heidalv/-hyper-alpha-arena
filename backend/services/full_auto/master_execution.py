@@ -236,6 +236,16 @@ def execute_master_decisions(
                 _precomputed_orch_state[_psym.upper()] = _poch_action
                 _precomputed_orch_state[f"{_psym.upper()}_reason"] = str(_poch.get("reasoning", "") or _poch_action)[:120]
 
+    def _bump_live_open_quota():
+        """[2026-08-29 实盘收紧] 真实成交后扣减每日开单配额（只在 live）。"""
+        if (mode or "paper").strip().lower() != "live":
+            return
+        try:
+            from backend.services.full_auto.live_gate_policy import live_daily_open_bump
+            live_daily_open_bump(str(getattr(session, "session_id", "") or ""))
+        except Exception:
+            pass
+
     # 防御性 rollback：分析阶段可能有查询失败导致 session 事务污染
     # [fix] rollback 后 merge session 避免 "not persistent" 错误
     try:
@@ -1017,6 +1027,7 @@ def execute_master_decisions(
             logger.info("[AgentFastLane] %s tier=%s %s ok=%s", sym, tier, action, _fast_ok)
             if _fast_ok:
                 session.total_trades = (session.total_trades or 0) + 1
+                _bump_live_open_quota()
                 try:
                     host.safe_commit(db, "agent_fast_lane_open", session=session)
                 except Exception:
@@ -1617,6 +1628,7 @@ def execute_master_decisions(
                             _label = "AI止盈全平" if pnl >= 0 else "AI止损全平"
                             result["close_reason"] = _reason
                             session.total_trades = (session.total_trades or 0) + 1
+                            _bump_live_open_quota()
                             host.append_event(session, _reason,
                                 f"{_emoji} {_label} {sym}[{pos_log_scope}] {side} "
                                 f"PnL=${pnl:+.2f} | {reasoning}")
@@ -1636,6 +1648,7 @@ def execute_master_decisions(
                             _label = f"AI止盈{pct}%" if pnl >= 0 else f"AI止损{pct}%"
                             result["close_reason"] = _reason
                             session.total_trades = (session.total_trades or 0) + 1
+                            _bump_live_open_quota()
                             host.append_event(session, _reason,
                                 f"{_emoji} {_label} {sym}[{pos_log_scope}] {side} "
                                 f"PnL=${pnl:+.2f} | {reasoning}")
@@ -1919,6 +1932,7 @@ def execute_master_decisions(
                                     if _ov_ok:
                                         _position_dirty = True
                                         session.total_trades = (session.total_trades or 0) + 1
+                                        _bump_live_open_quota()
                                         host.mark_master_decision_executed(
                                             _snap_entry, _dec_log_entry, db,
                                             operation=_override_action,
@@ -2119,6 +2133,7 @@ def execute_master_decisions(
                     if _ux_result is not None:
                         pnl = _ux_result.get("pnl", 0)
                         session.total_trades = (session.total_trades or 0) + 1
+                        _bump_live_open_quota()
                         _pos_tier_close = pos.get("timeframe_tier", "mid")
                         _pls = host.event_scope_label(None, _pos_tier_close)
                         event_type = "defensive_close" if mode == "defensive" else "trade_executed"
@@ -2313,6 +2328,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
+                    _bump_live_open_quota()
                     event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                     _tier_label = {"short":"短线","mid":"中线","long":"长线"}.get(_pos_tier_close, _pos_tier_close)
                     host.append_event(session, event_type,
@@ -2413,6 +2429,7 @@ def execute_master_decisions(
             if result:
                 pnl = result.get("pnl", 0)
                 session.total_trades = (session.total_trades or 0) + 1
+                _bump_live_open_quota()
                 event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                 _tier_label = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
                 host.append_event(session, event_type,
@@ -2505,6 +2522,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
+                    _bump_live_open_quota()
                     event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                     _tier_label_ct = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
                     host.append_event(session, event_type,
@@ -2568,6 +2586,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
+                    _bump_live_open_quota()
                     closed_fully = result.get("closed_fully", False)
                     event_type = "defensive_reduce" if mode == "defensive" else "trade_executed"
                     _tier_label_rd = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
@@ -2692,6 +2711,7 @@ def execute_master_decisions(
                             )
                             if result and result.get("status") == "filled":
                                 session.total_trades = (session.total_trades or 0) + 1
+                                _bump_live_open_quota()
                                 host.append_event(session, "pyramid_executed",
                                     f"📈 顺势加仓 {sym}[{pos_log_scope}] +${plan.margin_usd:.0f} | {reasoning}")
                                 _position_dirty = True
@@ -2764,6 +2784,7 @@ def execute_master_decisions(
                         )
                         if result and result.get("status") == "filled":
                             session.total_trades = (session.total_trades or 0) + 1
+                            _bump_live_open_quota()
                             host.append_event(session, "dca_executed",
                                 f"📉 逆势补仓 {sym}[{pos_log_scope}] +${plan.margin_usd:.0f} | {reasoning}")
                             _position_dirty = True
@@ -2958,6 +2979,7 @@ def execute_master_decisions(
                                 )
                                 if result and result.get("status") == "filled":
                                     session.total_trades = (session.total_trades or 0) + 1
+                                    _bump_live_open_quota()
                                     host.append_event(session, "pyramid_executed",
                                         f"📈 顺势加仓 {sym}[{pos_log_scope}] +${plan.margin_usd:.0f} | {reasoning}")
                                     _position_dirty = True
@@ -3038,6 +3060,7 @@ def execute_master_decisions(
                             )
                             if result and result.get("status") == "filled":
                                 session.total_trades = (session.total_trades or 0) + 1
+                                _bump_live_open_quota()
                                 host.append_event(session, "dca_executed",
                                     f"📉 逆势补仓 {sym}[{pos_log_scope}] +${plan.margin_usd:.0f} | {reasoning}")
                                 _position_dirty = True
