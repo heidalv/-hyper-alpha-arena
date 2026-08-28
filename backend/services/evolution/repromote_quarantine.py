@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, List
 
 import numpy as np
@@ -45,8 +46,32 @@ def repromote_quarantine_factors(
     promoted: List[Dict[str, Any]] = []
     skipped: List[Dict[str, Any]] = []
 
+    # [2026-08-28] 隔离冷却：隔离后 N 天内不复评（与晋升冷却同口径）。
+    # 实证：seed_vol10 03:07 被 4h 轮隔离 → 04:15 复评任务拉回(0.0272) →
+    # 06:12 被 15m 轮再隔离(-0.0241)——同夜横跳，阈值附近 flapping。
+    try:
+        _cool_d = float(os.getenv("FACTOR_QUARANTINE_COOLDOWN_DAYS", "7") or 7)
+    except (TypeError, ValueError):
+        _cool_d = 7.0
+    from datetime import datetime as _dt, timezone as _tz
+    _now = _dt.now(_tz.utc)
+
     for f in rows:
         fid = f.get("factor_id")
+        _deact = f.get("deactivated_at")
+        if _deact is not None and _cool_d > 0:
+            try:
+                if _deact.tzinfo is None:
+                    _deact = _deact.replace(tzinfo=_tz.utc)
+                _age_d = (_now - _deact).total_seconds() / 86400.0
+            except Exception:
+                _age_d = 0.0
+            if _age_d < _cool_d:
+                skipped.append({
+                    "factor_id": fid,
+                    "reason": f"隔离冷却中（{_age_d:.1f}天 < {_cool_d:.1f}天）",
+                })
+                continue
         expr = f.get("expr")
         if not expr or not f.get("expr_ast"):
             skipped.append({"factor_id": fid, "reason": "无表达式"})
@@ -76,6 +101,7 @@ def repromote_quarantine_factors(
             "expr_id": f.get("expr_id"),
             "source": f.get("source") or "repromote",
             "state": "PAPER",
+            "period": period,
             "icir": float(f.get("icir") or ic_mean),
             "last_net_ic": round(net, 6),
             "turnover": round(t, 6),

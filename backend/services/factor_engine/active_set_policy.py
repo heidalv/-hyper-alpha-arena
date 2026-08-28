@@ -83,6 +83,7 @@ def load_factor_active_rows(
                 "incremental_corr": r.incremental_corr,
                 "capacity_usd": r.capacity_usd,
                 "last_net_ic": getattr(r, "last_net_ic", None),
+                "period": getattr(r, "period", None),
                 "turnover": getattr(r, "turnover", None),
                 "evaluated_cycles": getattr(r, "evaluated_cycles", None),
                 "current_weight": r.current_weight or {},

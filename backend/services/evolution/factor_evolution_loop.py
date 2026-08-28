@@ -372,6 +372,8 @@ def _save_active_factors(factors: list[dict]):
                     existing.last_net_ic = f.get("last_net_ic")
                     existing.turnover = f.get("turnover")
                     existing.evaluated_cycles = f.get("evaluated_cycles")
+                    if f.get("period") is not None:
+                        existing.period = str(f.get("period"))[:16]
                     existing.current_weight = f.get("current_weight")
                     existing.last_evaluated_at = now
                     # 重新进入可交易/影子态时清停用戳
@@ -392,6 +394,7 @@ def _save_active_factors(factors: list[dict]):
                         last_net_ic=f.get("last_net_ic"),
                         turnover=f.get("turnover"),
                         evaluated_cycles=f.get("evaluated_cycles"),
+                        period=(str(f.get("period"))[:16] if f.get("period") else None),
                         current_weight=f.get("current_weight"),
                         activated_at=now,
                         last_evaluated_at=now,
@@ -1440,6 +1443,7 @@ def _promoted_rows_for_save(promoted: list[dict], period=None) -> list[dict]:
             "expr_id": p.get("expr_id") or p["factor_id"],
             "source": p.get("source"),
             "state": p.get("_to_state", "PAPER"),
+            "period": period or DEFAULT_PERIOD,
             "icir": eval_result.icir if eval_result else p.get("icir"),
             "incremental_corr": p.get("incremental_corr"),
             "capacity_usd": p.get("capacity_usd"),
@@ -1749,7 +1753,9 @@ def _promote_factors(
 #  阶段 6：监控（drift_watcher IC 衰减检测）
 # ═══════════════════════════════════════════════════════════════
 
-def _monitor_active(active_factors, dfs, fresh_ids: "set | None" = None):
+def _monitor_active(
+    active_factors, dfs, fresh_ids: "set | None" = None, period: str | None = None,
+):
     """阶段6 漂移监控。fresh_ids=本轮刚晋升因子：监控宽限一轮（阶段5/IC-WFO
     本轮刚在验证集上评过，避免同轮“晋升即隔离”）。"""
     from backend.services.evolution.drift_watcher import DriftWatcher
@@ -1758,7 +1764,15 @@ def _monitor_active(active_factors, dfs, fresh_ids: "set | None" = None):
     watcher = DriftWatcher()
     degraded = []
 
+    _mon_period = str(period or DEFAULT_PERIOD)
     for f in active_factors:
+        # [2026-08-28] 与 M2 复评同口径：漂移监控只评本周期因子，
+        # 避免 5m/15m 轮在错误周期数据上误判 4h 因子漂移。
+        _f_period = f.get("period")
+        if _f_period and str(_f_period) != _mon_period:
+            continue
+        if not _f_period and _mon_period != DEFAULT_PERIOD:
+            continue
         expr = f.get("expr")
         if not expr:
             continue
@@ -2117,6 +2131,7 @@ def _ensure_governance_columns() -> None:
                 ("last_net_ic", "DOUBLE PRECISION"),
                 ("turnover", "DOUBLE PRECISION"),
                 ("evaluated_cycles", "INTEGER"),
+                ("period", "VARCHAR(16)"),
             ):
                 db.execute(_sa_text(
                     f"ALTER TABLE factor_active_set ADD COLUMN IF NOT EXISTS {col} {typ}"
@@ -2184,7 +2199,9 @@ def _trailing_net_ic(expr, dfs: dict) -> "dict | None":
     }
 
 
-def _review_active_factors(active_factors: list[dict], dfs, fresh_ids: "set | None" = None) -> tuple[list[dict], list[dict]]:
+def _review_active_factors(
+    active_factors: list[dict], dfs, fresh_ids: "set | None" = None, period: str | None = None,
+) -> tuple[list[dict], list[dict]]:
     """M2 治理：全量 ACTIVE 复评 净IC/换手/容量；返回 (保留, 退化)。
 
     fresh_ids=本轮刚晋升因子：复评宽限一轮（门禁刚用验证集+IC-WFO 评过，
@@ -2200,7 +2217,19 @@ def _review_active_factors(active_factors: list[dict], dfs, fresh_ids: "set | No
     degraded: list[dict] = []
     vol_usd = _estimate_volume_usd(next(iter(dfs.values())) if dfs else None)
     n_dfs = max(len(dfs), 1)
+    _rev_period = str(period or DEFAULT_PERIOD)
     for f in active_factors:
+        # [2026-08-28 跨周期误杀修复] 只复评归属本周期（或无归属且本轮为默认4h）的
+        # 因子。实证：8个4h因子 04:31 被 5m 轮在 5m 数据上复评 net_ic 0.01~-0.04
+        # 全灭，而 03:07 在 4h 数据上刚通过——同一因子三周期数据反复横跳。
+        _f_period = f.get("period")
+        if _f_period and str(_f_period) != _rev_period:
+            kept.append(f)
+            continue
+        if not _f_period and _rev_period != DEFAULT_PERIOD:
+            # 无归属的历史因子只在默认周期轮复评，避免跨周期误杀
+            kept.append(f)
+            continue
         expr = f.get("expr")
         if not expr:
             kept.append(f)
@@ -2744,7 +2773,7 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
     all_active = existing_active + promoted
     _fresh_ids = {str(p.get("factor_id")) for p in promoted}
     if all_active:
-        degraded = _monitor_active(all_active, dfs, fresh_ids=_fresh_ids)
+        degraded = _monitor_active(all_active, dfs, fresh_ids=_fresh_ids, period=period)
     else:
         degraded = []
 
@@ -2755,7 +2784,9 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
 
     # M2 治理：全量 ACTIVE 复评（净IC/换手/容量）+ 上限强制
     if all_active:
-        kept, degraded_review = _review_active_factors(all_active, dfs, fresh_ids=_fresh_ids)
+        kept, degraded_review = _review_active_factors(
+            all_active, dfs, fresh_ids=_fresh_ids, period=period,
+        )
         all_active = kept
         _seen = set()
         _merged = list(degraded) + list(degraded_review)

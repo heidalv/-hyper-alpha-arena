@@ -3353,6 +3353,7 @@ class FactorActiveSet(AnalyticsBase):
     last_net_ic = Column(Float, nullable=True)           # M2: 净 IC（扣费后）
     turnover = Column(Float, nullable=True)              # M2: 换手率
     evaluated_cycles = Column(Integer, nullable=True, default=0)  # M2: 已评估轮数
+    period = Column(String(16), nullable=True)               # 因子归属周期(4h/5m/15m)
     activated_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     deactivated_at = Column(TIMESTAMP, nullable=True)
     last_evaluated_at = Column(TIMESTAMP, nullable=True)
