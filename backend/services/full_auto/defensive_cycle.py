@@ -17,6 +17,7 @@ class DefensiveHost:
     default_protection: Dict[str, Any]
     get_trading_account_id: Callable = field(repr=False, default=lambda *a, **k: 0)
     append_event: Callable = field(repr=False, default=lambda *a, **k: None)
+    close_position: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
 def build_defensive_host(svc) -> DefensiveHost:
@@ -26,6 +27,7 @@ def build_defensive_host(svc) -> DefensiveHost:
         default_protection=FullAutoTradingService.DEFAULT_PROTECTION,
         get_trading_account_id=svc._get_trading_account_id,
         append_event=svc._append_event,
+        close_position=svc._close_position_live_aware,
     )
 
 
@@ -282,8 +284,9 @@ def run_defensive_verdicts(
 
         if action == "close":
             def_strategy_id = pos.get("strategy_id")
-            result = paper_engine.close_position(db, account_id, sym, side,
-                reason="defensive_close", strategy_id=def_strategy_id)
+            result = host.close_position(db, session, account_id, sym, side,
+                reason="defensive_close", strategy_id=def_strategy_id,
+                trade_nature=pos.get("trade_nature"))
             if result:
                 pnl = result.get("pnl", 0)
                 host.append_event(session, "defensive_close",
@@ -302,9 +305,9 @@ def run_defensive_verdicts(
 
             _min_notional = max(5, total_equity * 0.05)
             if notional < _min_notional:
-                result = paper_engine.close_position(
-                    db, account_id, sym, side, reason="defensive_close_tiny",
-                    strategy_id=def_strategy_id)
+                result = host.close_position(
+                    db, session, account_id, sym, side, reason="defensive_close_tiny",
+                    strategy_id=def_strategy_id, trade_nature=pos.get("trade_nature"))
             else:
                 # 整改项2: 中度亏损(-2%~-5%)时限制减仓比例为25%
                 _d_margin = float(pos.get("margin", 0))
@@ -314,13 +317,14 @@ def run_defensive_verdicts(
                 reduce_qty = size * _d_ratio
                 remaining_notional = (size - reduce_qty) * float(mark)
                 if remaining_notional < _min_notional:
-                    result = paper_engine.close_position(
-                        db, account_id, sym, side, reason="defensive_close_tiny",
-                        strategy_id=def_strategy_id)
+                    result = host.close_position(
+                        db, session, account_id, sym, side, reason="defensive_close_tiny",
+                        strategy_id=def_strategy_id, trade_nature=pos.get("trade_nature"))
                 else:
-                    result = paper_engine.close_position(
-                        db, account_id, sym, side, quantity=reduce_qty,
-                        reason="defensive_reduce", strategy_id=def_strategy_id)
+                    result = host.close_position(
+                        db, session, account_id, sym, side, quantity=reduce_qty,
+                        reason="defensive_reduce", strategy_id=def_strategy_id,
+                        trade_nature=pos.get("trade_nature"))
 
             if result:
                 pnl = result.get("pnl", 0)

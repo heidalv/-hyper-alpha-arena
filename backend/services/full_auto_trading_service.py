@@ -4678,6 +4678,32 @@ class FullAutoTradingService:
             except Exception:
                 pass
 
+    def _close_position_live_aware(
+        self, db: Session, session, account_id: int, symbol: str, side: str,
+        reason: str = "manual", strategy_id: Optional[str] = None,
+        quantity: Optional[float] = None, trade_nature: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """平仓/减仓统一入口：live 会话走 LiveExecutor（经 LPM 账本），
+        paper 走 paper_engine。返回与 paper_engine 兼容的 dict（pnl live 侧
+        由交易所回填，此处 0）。"""
+        if self._is_live_trading_session(session):
+            from backend.services.exchange.live_executor import LiveExecutor
+            res = LiveExecutor().close_position(
+                db, account_id, symbol, side,
+                reason=reason, quantity=quantity,
+                strategy_id=strategy_id, trade_nature=trade_nature,
+            )
+            return {
+                "status": str(getattr(res, "status", "error") or "error"),
+                "pnl": 0.0,
+                "closed_fully": quantity is None,
+            }
+        from backend.services.paper_trading_engine import paper_engine
+        return paper_engine.close_position(
+            db, account_id, symbol, side,
+            reason=reason, strategy_id=strategy_id, quantity=quantity,
+        )
+
     def _execute_paper_trade(self, db: Session, session, strat, decision: dict) -> bool:
         # [2026-08-28 实盘接线GAP-3] 兜底委托：live 会话任何入口（编排器覆盖/
         # master决策等仍直连本方法的调用点）一律转发 live 执行，杜绝实盘订单

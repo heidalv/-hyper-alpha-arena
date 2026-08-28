@@ -100,6 +100,9 @@ def run_exit_pass(db, positions: List[Dict[str, Any]], market_summary: Dict[str,
         _stats["last_run_ts"] = now
 
     # 3) 执行（默认关）：时间止损走现有 close 路径
+    # [2026-08-28] 实盘遗留：本执行路径基于 paper position_id；live 下需
+    # 经 LPM 子仓账本映射 trade_nature 后才能按层平仓（合并仓位不能整仓平）。
+    # 在映射落地前 live 会话的时间止损仅建议不执行（EXIT_AGENT_EXECUTE 语义不变）。
     executed = 0
     if _execute_enabled():
         from backend.services.paper_trading_engine import paper_engine

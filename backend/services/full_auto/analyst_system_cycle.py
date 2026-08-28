@@ -34,6 +34,7 @@ class AnalystSystemHost:
     maintain_mlto_theses_for_session: Callable = field(repr=False, default=lambda *a, **k: None)
     execute_ai_decisions: Callable = field(repr=False, default=lambda *a, **k: None)
     execute_defensive_analysis: Callable = field(repr=False, default=lambda *a, **k: None)
+    close_position: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
 def build_analyst_system_host(svc) -> AnalystSystemHost:
@@ -64,6 +65,7 @@ def build_analyst_system_host(svc) -> AnalystSystemHost:
         maintain_mlto_theses_for_session=svc._maintain_mlto_theses_for_session,
         execute_ai_decisions=svc._execute_ai_decisions,
         execute_defensive_analysis=svc._execute_defensive_analysis,
+        close_position=svc._close_position_live_aware,
     )
 
 
@@ -249,10 +251,11 @@ def run_analyst_system_unified(
                         if _qty > 0:
                             _reason = f"tp_staged_{(_decision.stage_idx or 0) + 1}"
                             try:
-                                _res = paper_engine.close_position(
-                                    db, _eff_acct.id, _sym_lp, _side_lp,
+                                _res = host.close_position(
+                                    db, session, _eff_acct.id, _sym_lp, _side_lp,
                                     reason=_reason, quantity=_qty,
                                     strategy_id=_lp.get("strategy_id"),
+                                    trade_nature=_lp.get("trade_nature"),
                                 )
                                 if _res:
                                     _staged_changes += 1
@@ -273,10 +276,11 @@ def run_analyst_system_unified(
 
                     elif _decision.action == "trailing_hit":
                         try:
-                            _res = paper_engine.close_position(
-                                db, _eff_acct.id, _sym_lp, _side_lp,
+                            _res = host.close_position(
+                                db, session, _eff_acct.id, _sym_lp, _side_lp,
                                 reason="trailing_hit",
                                 strategy_id=_lp.get("strategy_id"),
+                                trade_nature=_lp.get("trade_nature"),
                             )
                             if _res:
                                 _staged_changes += 1
