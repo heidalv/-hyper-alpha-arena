@@ -116,6 +116,15 @@ def stop_full_auto(session_id: str, db: Session = Depends(get_db)):
 @router.delete("/{session_id}")
 def delete_full_auto(session_id: str, db: Session = Depends(get_db)):
     """删除全自动交易会话（先停止再删除记录）"""
+    # [2026-08-28 安全网] 运行/防守/暂停中的会话禁止直接删除，必须先 stop。
+    _sess = db.query(FullAutoSession).filter(
+        FullAutoSession.session_id == session_id
+    ).first()
+    if _sess and _sess.status in ("running", "defensive", "paused"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"会话状态为 {_sess.status}，不能直接删除。请先调用 POST /api/full-auto/stop/{session_id} 停止后再删除。",
+        )
     return full_auto_service.delete_session(db, session_id)
 
 
@@ -185,7 +194,7 @@ def put_fixed_symbols_by_tier(
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
-    if session.status not in ("running", "defensive", "paused"):
+    if session.status not in ("running", "defensive", "paused", "stopped"):
         raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}")
 
     from backend.services.auto_coin_selector import (
@@ -250,7 +259,7 @@ def _set_auto_coin_mid(session_id: str, enabled: bool, http_request: Request, db
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
-    if session.status not in ("running", "defensive", "paused"):
+    if session.status not in ("running", "defensive", "paused", "stopped"):
         raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}")
     from backend.api.auto_coin_routes import _assert_vip_session_auto_coin
     _assert_vip_session_auto_coin(http_request, db, session)
@@ -308,7 +317,7 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
-    if session.status not in ("running", "defensive", "paused"):
+    if session.status not in ("running", "defensive", "paused", "stopped"):
         raise HTTPException(status_code=400, detail=f"会话状态为 {session.status}，运行/防守/暂停中可更新配置")
 
     if (
@@ -822,12 +831,22 @@ def _tier_status_impl(session_id: str, db: Session) -> dict:
         else session.account_id
     )
     total_equity = 0
-    try:
-        from backend.services.paper_trading_engine import paper_engine
-        bal = paper_engine.get_balance(db, _trading_acct) or {}
-        total_equity = float(bal.get("total_equity", 0))
-    except Exception:
-        pass
+    # [2026-08-28 实盘监控修复] live 会话此前走 paper_engine.get_balance
+    # → 无纸面余额记录 → equity 恒 0 → tier 预算=0 且 UI 显示 0。改用
+    # 用户流快照(USDT cross wallet)读真实余额。
+    if session.trading_mode == "live":
+        try:
+            from backend.services.full_auto.live_equity import get_live_equity
+            total_equity = get_live_equity(session, _trading_acct)
+        except Exception:
+            pass
+    else:
+        try:
+            from backend.services.paper_trading_engine import paper_engine
+            bal = paper_engine.get_balance(db, _trading_acct) or {}
+            total_equity = float(bal.get("total_equity", 0))
+        except Exception:
+            pass
 
     # 三通道拆分：短线固定 / AI中线 / 固定长线
     from backend.services.auto_coin_selector import (
