@@ -542,7 +542,7 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
           </select>
           {boundCred && (
             <span className="text-[11px] text-muted-foreground">
-              当前绑定: {EX_NAMES[boundCred.exchange] || boundCred.exchange} {boundCred.api_key_masked || ""}（{boundCred.testnet ? "测试网" : "主网"}）
+              当前绑定: {EX_NAMES[boundCred.exchange] || boundCred.exchange} {boundCred.api_key_masked || ""}（{boundCred.testnet ? "测试网" : "主网"}{boundCred.proxy_url ? ` · 代理:${boundCred.proxy_url}` : ""}）
             </span>
           )}
         </div>
@@ -754,7 +754,7 @@ function CredentialsTab() {
   const [credentials, setCredentials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false });
+  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_url: "" });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
 
@@ -771,10 +771,10 @@ function CredentialsTab() {
     try {
       await fetch(`${BACKEND}/api/exchange/credentials`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null }),
+        body: JSON.stringify({ ...form, account_id: form.account_id ? parseInt(form.account_id) : null, proxy_url: (form.proxy_url || "").trim() || null }),
       });
       setShowAdd(false);
-      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false });
+      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_url: "" });
       load();
     } catch (e: any) { alert(e.message); }
     setSaving(false);
@@ -844,6 +844,12 @@ function CredentialsTab() {
                 <option value="testnet">测试网</option>
               </select>
             </div>
+            <div className="col-span-2"><Label className="text-xs">代理地址（可选）</Label>
+              <Input value={form.proxy_url} onChange={(e) => setForm({ ...form, proxy_url: e.target.value })} placeholder="留空=用后端全局代理；如 http://127.0.0.1:7890 或 socks5://1.2.3.4:1080" className="text-sm font-mono" />
+              <div className="text-[10px] text-muted-foreground mt-1">
+                币安 API 需 IP 白名单：请确保本系统出口 IP（或上方代理的出口 IP）已在币安后台加入白名单，否则请求返回 -2015 错误。
+              </div>
+            </div>
             <div><Label className="text-xs">API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="text-sm font-mono" placeholder="输入 API Key" /></div>
             <div><Label className="text-xs">API Secret</Label><Input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} className="text-sm font-mono" placeholder="输入 Secret" /></div>
             {form.exchange === "okx" && (
@@ -881,6 +887,7 @@ function CredentialsTab() {
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
                       {cred.api_key_masked || (cred.has_key ? "已配置" : "未配置密钥")}
+                      {cred.proxy_url && ` · 代理: ${cred.proxy_url}`}
                       {acctName(cred.account_id) && ` · 绑定: ${acctName(cred.account_id)}`}
                     </div>
                   </div>

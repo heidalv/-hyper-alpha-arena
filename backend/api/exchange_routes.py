@@ -68,6 +68,8 @@ class CredentialCreate(BaseModel):
     user_id: Optional[int] = None
     exchange: str
     label: str = ""
+    # [2026-08-28] 凭证级代理(币安API IP白名单出口);空=用环境变量
+    proxy_url: Optional[str] = None
     api_key: str = ""
     api_secret: str = ""
     passphrase: str = ""
@@ -119,6 +121,7 @@ async def list_credentials(
                     "has_key": bool(c.api_key_encrypted),
                     "has_secret": bool(c.api_secret_encrypted),
                     "has_passphrase": bool(c.passphrase_encrypted),
+                    "proxy_url": c.proxy_url,
                     "api_key_masked": _mask_key(c.api_key_encrypted),
                     "created_at": str(c.created_at) if c.created_at else None,
                 }
@@ -164,6 +167,7 @@ async def save_credential(body: CredentialCreate, request: Request):
             if existing:
                 old_account_id = existing.account_id or 0
                 existing.label = body.label
+                existing.proxy_url = (body.proxy_url or "").strip() or None
                 existing.api_key_encrypted = enc_key
                 existing.api_secret_encrypted = enc_secret
                 existing.passphrase_encrypted = enc_pass
@@ -184,6 +188,7 @@ async def save_credential(body: CredentialCreate, request: Request):
                     user_id=uid,
                     exchange=body.exchange,
                     label=body.label,
+                    proxy_url=(body.proxy_url or "").strip() or None,
                     api_key_encrypted=enc_key,
                     api_secret_encrypted=enc_secret,
                     passphrase_encrypted=enc_pass,
@@ -211,6 +216,7 @@ async def save_credential(body: CredentialCreate, request: Request):
                     secret=body.api_secret,
                     password=body.passphrase,
                     testnet=body.testnet,
+                    proxy_url=body.proxy_url or "",
                 )
 
             return {"id": cred_id, "status": "saved", "exchange": body.exchange, "user_id": uid}
@@ -298,6 +304,7 @@ async def bind_credential(cred_id: int, body: CredentialBind, request: Request):
                     secret=api_secret,
                     password=passphrase,
                     testnet=cred.testnet,
+                    proxy_url=cred.proxy_url or "",
                 )
             return {
                 "status": "bound",

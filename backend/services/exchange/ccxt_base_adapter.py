@@ -49,6 +49,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
         secret: str = "",
         password: str = "",
         testnet: bool = False,
+        proxy_url: str = "",
     ):
         self._exchange = None
         try:
@@ -70,7 +71,8 @@ class CcxtBaseAdapter(BaseExchangeClient):
             }
             # [2026-07-10 Phase0] 代理透传：国内环境访问 Binance/Bybit/OKX 必须走代理。
             # 不配代理 → ccxt 直连全部超时 → 多所聚合数据全空。
-            _proxy = os.environ.get("BINANCE_HTTPS_PROXY") or os.environ.get("HTTPS_PROXY")
+            # [2026-08-28] 凭证级代理优先(API凭证表单可配,币安IP白名单出口),否则环境变量。
+            _proxy = proxy_url or os.environ.get("BINANCE_HTTPS_PROXY") or os.environ.get("HTTPS_PROXY")
             if _proxy:
                 _pl = _proxy.strip().lower()
                 if _pl.startswith("socks5") or _pl.startswith("socks4"):

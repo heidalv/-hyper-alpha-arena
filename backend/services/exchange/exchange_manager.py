@@ -48,6 +48,7 @@ class ExchangeManager:
         secret: str = "",
         password: str = "",
         testnet: bool = False,
+        proxy_url: str = "",
     ) -> BaseExchangeClient:
         """创建适配器并缓存。"""
         key = f"{exchange}:{account_id}"
@@ -61,6 +62,7 @@ class ExchangeManager:
                 secret=secret,
                 password=password,
                 testnet=testnet,
+                proxy_url=proxy_url or None,
             )
 
         self._clients[key] = client
@@ -131,6 +133,7 @@ class ExchangeManager:
                         secret=api_secret,
                         password=passphrase,
                         testnet=cred.testnet,
+                        proxy_url=cred.proxy_url or "",
                     )
                     logger.info(
                         "Loaded %s client for account %d", cred.exchange, cred.account_id
@@ -226,6 +229,7 @@ class ExchangeManager:
                     secret=api_secret,
                     password=passphrase,
                     testnet=cred.testnet,
+                    proxy_url=cred.proxy_url or None,
                 )
 
                 # 账户级凭证 → 账户级缓存键;全局/兜底 → 全局缓存键

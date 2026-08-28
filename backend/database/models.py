@@ -1189,6 +1189,9 @@ class ExchangeCredential(Base):
     tenant_id = Column(Integer, nullable=True, index=True)
     exchange = Column(String(32), nullable=False, index=True)
     label = Column(String(100), default="")
+    # [2026-08-28] 凭证级代理出口(币安API需IP白名单,不同凭证可走不同代理IP);
+    # 空 = 用环境变量 BINANCE_HTTPS_PROXY/HTTPS_PROXY
+    proxy_url = Column(String(512), nullable=True)
     api_key_encrypted = Column(Text, default="")
     api_secret_encrypted = Column(Text, default="")
     passphrase_encrypted = Column(Text, default="")
