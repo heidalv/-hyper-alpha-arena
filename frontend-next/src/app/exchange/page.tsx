@@ -287,11 +287,9 @@ function AccountsTab() {
                   <button title="启动会话" onClick={() => { setWizardAcct(a); setWz({ mode: a.trading_mode || "paper", paperAccountId: "", symbols: "BTC,ETH,SOL", risk: "moderate" }); }} className="text-cyan-300 hover:text-cyan-200 mr-1"><Play className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setEditing(a)} className="text-primary hover:text-primary/80 mr-1"><Settings2 className="w-3.5 h-3.5" /></button>
                   <button onClick={() => {
-                    if (confirm("停用账户？（将自动停止其全部会话，历史保留）
-取消后再选「彻底删除」")) {
+                    if (confirm("停用账户？（将自动停止其全部会话，历史保留）。再确认一次可选择彻底删除")) {
                       deleteMut.mutate(a.id);
-                    } else if (confirm("彻底删除账户？
-（仅当无持仓无会话；历史一并清除，不可恢复）")) {
+                    } else if (confirm("彻底删除账户？（仅当无持仓无会话；历史一并清除，不可恢复）")) {
                       accountApi.delete(a.id, { hard: true })
                         .then((r: any) => alert(r?.message || "已彻底删除"))
                         .catch((e: any) => alert(e?.message || String(e)))
