@@ -330,11 +330,22 @@ def _fetch_exchange_rows(exchange: str) -> list:
             # 用最新 1m close 修正每个交易对价格，保证非 asterdex 视图同样秒级鲜活。
             if rows:
                 try:
+                    # [2026-08-28 挂机根治] PG15 无 DISTINCT ON 索引跳跃扫描，
+                    # 原写法在 81M 行表上全表扫+排序 25s（DataFileRead 拖垮 DB）。
+                    # 改 LATERAL：先取 symbol 集合，再按 (exchange,period,symbol,ts) 索引
+                    # 逐币取最新 1m close（毫秒级）。
                     live = db.execute(sa_text("""
-                        SELECT DISTINCT ON (symbol) symbol, close_price
-                        FROM crypto_klines
-                        WHERE exchange = :ex AND period = '1m' AND close_price > 0
-                        ORDER BY symbol, "timestamp" DESC
+                        SELECT s.symbol, k.close_price
+                        FROM (
+                            SELECT DISTINCT symbol FROM crypto_klines
+                            WHERE exchange = :ex AND period = '1m' AND close_price > 0
+                        ) s
+                        CROSS JOIN LATERAL (
+                            SELECT close_price FROM crypto_klines
+                            WHERE exchange = :ex AND period = '1m' AND close_price > 0
+                              AND symbol = s.symbol
+                            ORDER BY "timestamp" DESC LIMIT 1
+                        ) k
                     """), {"ex": exchange}).fetchall()
                     live_map = {
                         normalize_symbol(s): float(c)
