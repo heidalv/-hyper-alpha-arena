@@ -2359,10 +2359,13 @@ AUTO_COIN_MID_RESAMPLE_SEC: int = int(os.getenv("AUTO_COIN_MID_RESAMPLE_SEC", "1
 AUTO_COIN_MID_MAX_SLOTS: int = int(os.getenv("AUTO_COIN_MID_MAX_SLOTS", "3") or "3")
 # P2 调优（2026-07-14）：池容量 5→8，降低门槛让更多候选通过，趋势维度修复后评分更准
 AUTO_COIN_MAX_COUNT: int = int(os.getenv("AUTO_COIN_MAX_COUNT", "7"))
-AUTO_COIN_MIN_SCORE: float = float(os.getenv("AUTO_COIN_MIN_SCORE", "0.50"))
+# [2026-08-28 选币重设计①] 门槛 0.50→0.65：0.5 假中性是评分断链的根源，
+# 注入必须过真实打分（LLM）且分数≥0.65。
+AUTO_COIN_MIN_SCORE: float = float(os.getenv("AUTO_COIN_MIN_SCORE", "0.65"))
 # 阶段C：AI 审核最低置信度 0.60→0.50。配合三层渐进 prompt，LAYER 2 候选
 # （试仓）在 0.50-0.59 区间也能通过，把通过率从 <8% 拉到 20-40%。
-AUTO_COIN_MIN_AI_CONFIDENCE: float = float(os.getenv("AUTO_COIN_MIN_AI_CONFIDENCE", "0.50"))
+# [2026-08-28 选币重设计①] 置信度门槛 0.50→0.65，与分数门槛对齐。
+AUTO_COIN_MIN_AI_CONFIDENCE: float = float(os.getenv("AUTO_COIN_MIN_AI_CONFIDENCE", "0.65"))
 AUTO_COIN_CANDIDATE_TOP_N: int = int(os.getenv("AUTO_COIN_CANDIDATE_TOP_N", "30"))
 AUTO_COIN_COOLING_HOURS: int = int(os.getenv("AUTO_COIN_COOLING_HOURS", "1"))
 AUTO_COIN_BLACKLIST_SCORE: float = float(os.getenv("AUTO_COIN_BLACKLIST_SCORE", "0.35"))

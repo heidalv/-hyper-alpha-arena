@@ -1454,6 +1454,24 @@ def on_startup():
                     logger.info("[async] 实盘子仓对账任务已关闭（LIVE_RECONCILE_ENABLED=false）")
             except Exception as _reg_err:
                 logger.warning("[async] 实盘子仓对账任务注册失败(非致命): %s", _reg_err)
+            # [2026-08-28 选币重设计④] 选币ROI周报（周一08:00）：回填removed盈亏、
+            # AI币vs固定币周对比，连续2周负ROI自动降级关闭选币退回固定宇宙。
+            try:
+                from backend.services.auto_coin_roi import run_weekly_roi_report
+                def _roi_weekly_tick():
+                    try:
+                        run_weekly_roi_report()
+                    except Exception as _roi_err:
+                        logger.warning("[AutoCoinROI] 周报异常: %s", _roi_err)
+                task_scheduler.add_cron_task(
+                    task_func=_roi_weekly_tick,
+                    hour=8, minute=0, day_of_week=0,
+                    task_id="auto_coin_roi_weekly",
+                    max_instances=1,
+                )
+                logger.info("[async] 选币ROI周报任务已注册（周一08:00）")
+            except Exception as _roi_reg_err:
+                logger.warning("[async] 选币ROI周报注册失败(非致命): %s", _roi_reg_err)
             logger.info(
                 "[async] V7 三周期正式上线：03:00 4h(L) / 04:00 5m(S) / "
                 "06:00 15m(M) / 06:50 长期记忆维护 / 每小时权重"

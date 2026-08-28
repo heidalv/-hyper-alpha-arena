@@ -104,8 +104,9 @@ COOLING_DURATIONS: Dict[str, int] = {
 class CandidatePool:
     """候选池管理：active / cooling / blacklist"""
     active: Dict[str, CandidateCoin] = field(default_factory=dict)
-    cooling: Dict[str, Tuple[datetime, str]] = field(default_factory=dict)  # (start_time, tier)
+    cooling: Dict[str, Tuple[datetime, str]] = field(default_factory=dict)  # (start_time, tier[, eff_sec])
     blacklist: Dict[str, datetime] = field(default_factory=dict)
+    cool_counts: Dict[str, int] = field(default_factory=dict)  # [重设计③] exp衰减计数
     max_active: int = 5
     cooling_period: int = 3600
 
@@ -358,10 +359,14 @@ class AutoCoinSelector:
                             if isinstance(meta, dict):
                                 start = datetime.fromisoformat(str(meta.get("start")))
                                 tier = str(meta.get("tier") or "short")
+                                eff = meta.get("eff_sec")
+                                self._pool.cooling[str(sym).upper()] = (
+                                    start, tier, float(eff),
+                                ) if eff else (start, tier)
                             else:
                                 start = datetime.fromisoformat(str(meta))
                                 tier = "short"
-                            self._pool.cooling[str(sym).upper()] = (start, tier)
+                                self._pool.cooling[str(sym).upper()] = (start, tier)
                         except Exception:
                             pass
                     for sym, ts in (data.get("blacklist") or {}).items():
@@ -369,6 +374,10 @@ class AutoCoinSelector:
                             self._pool.blacklist[str(sym).upper()] = datetime.fromisoformat(str(ts))
                         except Exception:
                             pass
+                    # [重设计③] 冷却 exp 衰减计数恢复
+                    _cc = (data.get("cool_counts") or {})
+                    if isinstance(_cc, dict):
+                        self._pool.cool_counts = {str(s).upper(): int(v) for s, v in _cc.items()}
                     logger.info(
                         f"[AutoCoinSelector] Loaded {len(self._auto_symbols)} persisted auto symbols, "
                         f"cooling={len(self._pool.cooling)}, blacklist={len(self._pool.blacklist)}"
@@ -385,10 +394,15 @@ class AutoCoinSelector:
             for sym, entry in self._pool.active.items():
                 if entry.injected_at:
                     symbol_times[sym] = entry.injected_at.isoformat()
-            cooling = {
-                sym: {"start": start.isoformat(), "tier": tier}
-                for sym, (start, tier) in self._pool.cooling.items()
-            }
+            cooling = {}
+            for sym, entry in self._pool.cooling.items():
+                if len(entry) >= 3:
+                    start, tier, eff = entry
+                    cooling[sym] = {"start": start.isoformat(), "tier": tier, "eff_sec": float(eff)}
+                else:
+                    start, tier = entry
+                    cooling[sym] = {"start": start.isoformat(), "tier": tier}
+            _cool_counts = getattr(self._pool, "cool_counts", {}) or {}
             blacklist = {
                 sym: ts.isoformat() for sym, ts in self._pool.blacklist.items()
             }
@@ -397,6 +411,7 @@ class AutoCoinSelector:
                     "symbols": sorted(self._auto_symbols),
                     "symbol_times": symbol_times,
                     "cooling": cooling,
+                    "cool_counts": _cool_counts,
                     "blacklist": blacklist,
                     "updated_at": datetime.now().isoformat(),
                     "audit_only_file": True,  # 文件不作 DB 空池回灌源，仅审计/冷却/黑名单
@@ -438,7 +453,8 @@ class AutoCoinSelector:
                 symbol=sym,
                 score=0.5,
                 ai_approved=True,
-                ai_confidence=0.5,
+                # [2026-08-28 选币重设计①] 恢复池不再伪造 0.5 置信度（待重评）
+                ai_confidence=0.0,
                 injected_at=injected_map.get(sym),
                 session_id=self.session_id,
             ))
@@ -527,7 +543,8 @@ class AutoCoinSelector:
                     symbol=sym,
                     score=0.5,
                     ai_approved=True,
-                    ai_confidence=0.5,
+                    # [2026-08-28 选币重设计①] 恢复池不再伪造 0.5 置信度（待重评）
+                ai_confidence=0.0,
                     injected_at=getattr(self, "_injected_times", {}).get(sym),
                     session_id=self.session_id,
                 )
@@ -1534,11 +1551,13 @@ class AutoCoinSelector:
                 "[AutoCoinSelector] Phase 3: AI review throttled "
                 f"({int(_now - _last)}s < {int(_review_interval)}s), score-only approval"
             )
+            # [2026-08-28 选币重设计①] LLM 限流不再用分数伪装批准：
+            # 降级 = 拒绝注入（confidence=0），杜绝 0.5 假中性链。
             for c in top_candidates:
-                if c.score >= AUTO_COIN_MIN_SCORE and c.score >= AUTO_COIN_MIN_AI_CONFIDENCE:
-                    c.ai_approved = True
-                    c.ai_reason = "Score auto-approve (AI throttled, V5 M4)"
-                    c.ai_confidence = c.score
+                c.ai_approved = False
+                c.ai_reason = "degraded:ai_throttled_no_approve"
+                c.ai_confidence = 0.0
+            self._last_degraded = "ai_throttled"
             return candidates
         AutoCoinSelector._last_ai_review_ts = _now
 
@@ -1561,15 +1580,12 @@ class AutoCoinSelector:
                         c.ai_confidence = 0.0
                     self._last_degraded = "no_llm_live_block"
                     return candidates
-                logger.warning("[AutoCoinSelector] Paper 无 API key，score-only（degraded=score_only）")
+                logger.warning("[AutoCoinSelector] Paper 无 API key → 拒绝注入（重设计①: 降级不伪装）")
                 for c in top_candidates:
-                    if c.score >= AUTO_COIN_MIN_SCORE:
-                        c.ai_approved = True
-                        c.ai_reason = "Score auto-approve (degraded=score_only)"
-                        c.ai_confidence = c.score
-                        if (c.scores_detail or {}).get("force_test_position"):
-                            c.test_position = True
-                self._last_degraded = "score_only"
+                    c.ai_approved = False
+                    c.ai_reason = "degraded:no_llm_paper_block"
+                    c.ai_confidence = 0.0
+                self._last_degraded = "no_llm_paper_block"
                 return candidates
         except Exception:
             api_key = None
@@ -1584,13 +1600,12 @@ class AutoCoinSelector:
                     c.ai_reason = "degraded:no_llm_live_block"
                 self._last_degraded = "no_llm_live_block"
                 return candidates
-            logger.warning("[AutoCoinSelector] No API key，Paper score-only")
+            logger.warning("[AutoCoinSelector] No API key → 拒绝注入（重设计①）")
             for c in top_candidates:
-                if c.score >= AUTO_COIN_MIN_SCORE and c.score >= AUTO_COIN_MIN_AI_CONFIDENCE:
-                    c.ai_approved = True
-                    c.ai_reason = "Score auto-approve (degraded=score_only)"
-                    c.ai_confidence = c.score
-            self._last_degraded = "score_only"
+                c.ai_approved = False
+                c.ai_reason = "degraded:no_llm_block"
+                c.ai_confidence = 0.0
+            self._last_degraded = "no_llm_block"
             return candidates
 
         approved_count = 0
@@ -1616,10 +1631,10 @@ class AutoCoinSelector:
                 _review_pool.append(_c)
                 continue
             if _fm >= _llm_high:
-                _c.ai_approved = True
-                _c.ai_reason = "factor_match_high"
-                _c.ai_confidence = max(float(_c.score or 0), 0.80)
-                logger.info(f"[AutoCoinSelector] 因子高分直放: {_c.symbol} fm={_fm:.2f}")
+                # [2026-08-28 选币重设计①] 不再伪造 0.80 置信度直放：
+                # 高分因子候选也进 LLM 真审（注入必须过真实打分）。
+                _review_pool.append(_c)
+                logger.info(f"[AutoCoinSelector] 因子高分进LLM真审: {_c.symbol} fm={_fm:.2f}")
             elif _fm <= _llm_low:
                 _c.ai_approved = False
                 _c.ai_reason = "factor_match_low"
@@ -1645,25 +1660,10 @@ class AutoCoinSelector:
                 )
                 # LLM 空响应/报错：Paper 按分数直批，避免整轮 0 approve 假死
                 if _ai_broken:
-                    _use_soft_fb = bool(_paper)
-                    _fb_thr = AUTO_COIN_MIN_SCORE if _use_soft_fb else max(0.80, AUTO_COIN_MIN_SCORE + 0.15)
-                    if float(candidate.score or 0) >= _fb_thr:
-                        candidate.ai_approved = True
-                        candidate.ai_reason = f"Score fallback (AI error: {_reason[:40]})"
-                        candidate.ai_confidence = max(
-                            float(candidate.score or 0) * (0.9 if _use_soft_fb else 0.85),
-                            AUTO_COIN_MIN_AI_CONFIDENCE,
-                        )
-                        candidate.test_position = bool(_use_soft_fb)
-                        candidate.ai_layer = "D" if _use_soft_fb else ""
-                        approved_count += 1
-                        logger.info(
-                            f"[AutoCoinSelector] Score fallback: {candidate.symbol} "
-                            f"score={candidate.score:.3f} soft={_use_soft_fb}"
-                        )
-                    else:
-                        candidate.ai_approved = False
-                        candidate.ai_reason = f"AI error, score too low ({candidate.score:.3f})"
+                    # [2026-08-28 选币重设计①] LLM 失败 = 拒绝注入，不再分数兜底伪装。
+                    candidate.ai_approved = False
+                    candidate.ai_reason = f"degraded:ai_broken ({_reason[:40]})"
+                    candidate.ai_confidence = 0.0
                     continue
 
                 ai_conf = float(response.get("confidence", 0) or 0)
@@ -1687,17 +1687,11 @@ class AutoCoinSelector:
                         candidate.ai_reason = response.get("reason", "AI declined")
                     logger.debug(f"[AutoCoinSelector] AI declined: {candidate.symbol} - {candidate.ai_reason[:60]}")
             except Exception as e:
+                # [2026-08-28 选币重设计①] 异常 = 拒绝注入。
                 logger.warning(f"[AutoCoinSelector] AI review failed for {candidate.symbol}: {e}")
-                _fb_thr = AUTO_COIN_MIN_SCORE if _paper else max(0.80, AUTO_COIN_MIN_SCORE + 0.15)
-                if candidate.score >= _fb_thr:
-                    candidate.ai_approved = True
-                    candidate.ai_reason = "Score fallback (AI error)"
-                    candidate.ai_confidence = max(
-                        float(candidate.score or 0) * (0.9 if _paper else 0.85),
-                        AUTO_COIN_MIN_AI_CONFIDENCE,
-                    )
-                    candidate.test_position = bool(_paper)
-                    approved_count += 1
+                candidate.ai_approved = False
+                candidate.ai_reason = "degraded:ai_exception"
+                candidate.ai_confidence = 0.0
 
         approved = [
             c for c in candidates
@@ -3474,14 +3468,51 @@ class AutoCoinSelector:
             del self._pool.blacklist[symbol]
         return False
 
+    _top20_cache: Optional[Tuple[float, set]] = None
+
+    def _top20_liquid(self) -> set:
+        """[重设计③] top20 高流动币集合（冷却豁免），1h 缓存。"""
+        import time as _time
+        _now = _time.time()
+        if self._top20_cache and _now - self._top20_cache[0] < 3600:
+            return self._top20_cache[1]
+        try:
+            from backend.services.coin_rank.features import list_universe_symbols
+            _syms = {str(s).upper() for s in list_universe_symbols(limit=20)}
+        except Exception:
+            _syms = set()
+        self._top20_cache = (_now, _syms)
+        return _syms
+
     def _is_cooling(self, symbol: str, now: datetime) -> bool:
         if symbol in self._pool.cooling:
-            start_time, tier = self._pool.cooling[symbol]
-            duration = COOLING_DURATIONS.get(tier, COOLING_SHORT_S)
+            _entry = self._pool.cooling[symbol]
+            start_time = _entry[0]
+            if len(_entry) >= 3 and _entry[2]:
+                duration = float(_entry[2])
+            else:
+                duration = float(COOLING_DURATIONS.get(_entry[1], COOLING_SHORT_S))
             if (now - start_time).total_seconds() < duration:
+                # [重设计③] top20 高流动币豁免：冷却不得锁死整个宇宙
+                if symbol in self._top20_liquid():
+                    del self._pool.cooling[symbol]
+                    return False
                 return True
             del self._pool.cooling[symbol]
         return False
+
+    def cleanup_expired_cooling(self, now: Optional[datetime] = None) -> int:
+        """[重设计③] 每日清理过期冷却项（扫积压 83 项类问题）。返回清理数。"""
+        _now = now or datetime.now()
+        _expired = [
+            s for s, e in list(self._pool.cooling.items())
+            if (_now - e[0]).total_seconds() >= float(e[2] if len(e) >= 3 and e[2] else COOLING_DURATIONS.get(e[1], COOLING_SHORT_S))
+        ]
+        for s in _expired:
+            self._pool.cooling.pop(s, None)
+        if _expired:
+            self._save_injected()
+        return len(_expired)
 
     # [2026-08-14 F2 整改] 移除后 24h 禁止重新注入（防 injected/removed 闪烁循环）
     _REINJECT_COOLDOWN_SEC = 86400
@@ -3522,8 +3553,17 @@ class AutoCoinSelector:
             return False
 
     def _add_cooling(self, symbol: str, tier: str = "short"):
-        """将币种加入冷却池（分级冷却）并持久化。"""
-        self._pool.cooling[symbol] = (datetime.now(), tier)
+        """将币种加入冷却池（分级冷却 + exp 衰减）并持久化。
+
+        [重设计③] 时长 = 基准 × exp(−0.5 × 历史冷却次数)，下限 30 分钟——
+        重复劣币不再被 24h 锁死，宇宙可恢复流动。
+        """
+        import math as _m
+        _base = float(COOLING_DURATIONS.get(tier, COOLING_SHORT_S))
+        _cnt = int((getattr(self._pool, "cool_counts", {}) or {}).get(symbol, 0))
+        _eff = max(_base * _m.exp(-0.5 * _cnt), 1800.0)
+        self._pool.cooling[symbol] = (datetime.now(), tier, _eff)
+        self._pool.cool_counts[symbol] = _cnt + 1
         try:
             self._save_injected()
         except Exception:

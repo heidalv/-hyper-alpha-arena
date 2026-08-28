@@ -154,6 +154,27 @@ def factor_soft(symbol: str) -> tuple[Optional[float], Dict[str, Any]]:
 
 def list_universe_symbols(limit: int = 200) -> List[str]:
     rows = load_dc_ticker_rows()
+    # [2026-08-28 选币重设计②] 宇宙输入白名单：只保留 crypto catalog 内的币种，
+    # 杜绝股票行情（SKHYNIX/DRAM/TAC 类）进入评分与排名（输入侧清洗，
+    # 不只是输出 fail-closed）。
+    try:
+        from backend.services.kline_sync_meta import list_catalog_symbols
+        _allowed = set()
+        for _ex in ("asterdex", "binance"):
+            try:
+                _allowed |= {str(s).upper() for s in (list_catalog_symbols(_ex) or [])}
+            except Exception:
+                pass
+        if _allowed:
+            _before = len(rows)
+            rows = {s: r for s, r in rows.items() if str(s).upper() in _allowed}
+            if len(rows) < _before:
+                logger.info(
+                    "[CoinRank] 宇宙白名单过滤: %d → %d（剔除非crypto行情）",
+                    _before, len(rows),
+                )
+    except Exception as e:
+        logger.debug("[CoinRank] catalog 白名单跳过: %s", e)
     has_vol = any(float(r.get("volume_24h") or 0) > 0 for r in rows.values())
     if has_vol:
         ranked = sorted(rows.values(), key=lambda x: float(x.get("volume_24h") or 0), reverse=True)
