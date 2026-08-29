@@ -258,16 +258,21 @@ class ScalpExecutionGate:
                             f"0.125x(凌晨)" if _em_active else "0.25x",
                         )
                 else:
-                    # [2026-08-29 门禁放宽] 实盘空头单条件降级：全条件未齐但满足
-                    # 其一（4h偏空 或 funding≥门槛）且 score≥45 → 0.25x 试探仓；
-                    # 均不满足仍硬拦。比 paper（无条件分档放行）严格一档。
+                    # [2026-08-29 门禁放宽] 实盘空头分档降级（仍比 paper 严格）：
+                    # ① 满足其一条件(4h偏空 或 funding≥门槛) 且 score≥45 → 0.25x；
+                    # ② 零条件但 score≥50 → 0.125x 最小试探（FlashVeto 仍兜底）；
+                    # ③ 零条件且低分 → 硬拦。
                     _live_half_ok = bool(_bias_ok or _fund_ok)
                     try:
                         _live_half_min = float(
                             self._cfg("SCALP_SHORT_LIVE_HALF_MIN_SCORE", 45) or 45
                         )
+                        _live_probe_min = float(
+                            self._cfg("SCALP_SHORT_LIVE_PROBE_MIN_SCORE", 50) or 50
+                        )
                     except Exception:
                         _live_half_min = 45.0
+                        _live_probe_min = 50.0
                     if _live_half_ok and effective_score >= _live_half_min:
                         size_mult *= 0.25
                         logger.info(
@@ -275,6 +280,12 @@ class ScalpExecutionGate:
                             "(bias=%s funding_ok=%s) → 0.25x试探",
                             symbol, effective_score, _live_half_min,
                             _bias_ok, _fund_ok,
+                        )
+                    elif effective_score >= _live_probe_min:
+                        size_mult *= 0.125
+                        logger.info(
+                            "[ScalpGate] %s 实盘空头零条件高分试探 score=%d≥%.0f → 0.125x",
+                            symbol, effective_score, _live_probe_min,
                         )
                     else:
                         return GateDecision(
