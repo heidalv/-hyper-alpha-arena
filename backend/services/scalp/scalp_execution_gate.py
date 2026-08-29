@@ -258,13 +258,32 @@ class ScalpExecutionGate:
                             f"0.125x(凌晨)" if _em_active else "0.25x",
                         )
                 else:
-                    return GateDecision(
-                        False, lane_id, "hold",
-                        f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
-                        f"{_funding_min:.5f})——上行周期空头结构性逆风",
-                        effective_score=effective_score,
-                        advisory=advisory,
-                    )
+                    # [2026-08-29 门禁放宽] 实盘空头单条件降级：全条件未齐但满足
+                    # 其一（4h偏空 或 funding≥门槛）且 score≥45 → 0.25x 试探仓；
+                    # 均不满足仍硬拦。比 paper（无条件分档放行）严格一档。
+                    _live_half_ok = bool(_bias_ok or _fund_ok)
+                    try:
+                        _live_half_min = float(
+                            self._cfg("SCALP_SHORT_LIVE_HALF_MIN_SCORE", 45) or 45
+                        )
+                    except Exception:
+                        _live_half_min = 45.0
+                    if _live_half_ok and effective_score >= _live_half_min:
+                        size_mult *= 0.25
+                        logger.info(
+                            "[ScalpGate] %s 实盘空头单条件降级放行 score=%d≥%.0f "
+                            "(bias=%s funding_ok=%s) → 0.25x试探",
+                            symbol, effective_score, _live_half_min,
+                            _bias_ok, _fund_ok,
+                        )
+                    else:
+                        return GateDecision(
+                            False, lane_id, "hold",
+                            f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
+                            f"{_funding_min:.5f})——上行周期空头结构性逆风",
+                            effective_score=effective_score,
+                            advisory=advisory,
+                        )
             if _trend_ok is False and _conds_met and not _is_mr_signal:
                 size_mult *= 0.5
                 logger.info(

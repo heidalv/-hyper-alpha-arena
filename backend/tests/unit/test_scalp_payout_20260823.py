@@ -192,18 +192,28 @@ def test_gate_short_two_conditions_half_size_when_ranging(monkeypatch):
     assert abs(dec.size_multiplier - 0.5) < 1e-9, f"size×0.5: {dec.size_multiplier}"
 
 
-def test_gate_short_blocked_when_4h_bullish(monkeypatch):
-    # [2026-08-26 亏损复盘] Paper 模式按分数分档放行积累样本；硬规则只在 live 生效。
+def test_gate_short_one_condition_probe_when_4h_bullish(monkeypatch):
+    # [2026-08-29 门禁放宽] live 空头单条件降级：满足其一(此处 funding 极端正)
+    # 且 score≥45 → 0.25x 试探仓（比 paper 无条件分档严格一档）。
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0003, mid_bias="bullish")
     dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
-    assert not dec.allowed
-    assert "空头条件未齐" in dec.reason
+    assert dec.allowed
+    assert abs(dec.size_multiplier - 0.25) < 1e-9
 
 
-def test_gate_short_blocked_when_funding_low(monkeypatch):
+def test_gate_short_one_condition_probe_when_funding_low(monkeypatch):
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0, mid_bias="bearish")
+    dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
+    assert dec.allowed
+    assert abs(dec.size_multiplier - 0.25) < 1e-9
+
+
+def test_gate_short_zero_condition_still_blocked(monkeypatch):
+    """两条件都不满足时 live 仍硬拦。"""
+    gate = _patch_gate_deps(monkeypatch, "trending")
+    md = _gate_md(funding=0.0, mid_bias="bullish")
     dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
     assert not dec.allowed
     assert "空头条件未齐" in dec.reason
