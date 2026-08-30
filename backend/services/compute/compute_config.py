@@ -253,15 +253,17 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         # [2026-08-16 提速校准] 原加强档 population=500/generations=30/codegen=16
         # 让单轮跑 2.5h+、LLM 流把价格接口拖到 7~9s。校准后：
         # - GP 回到默认档 300×20×6（实测贡献有限，时间却线性增长）；
-        # - 加强差异保留在 MCTS（500 迭代/5 根 > 默认 300/3）；
+        # - 加强差异保留在 MCTS；[2026-08-31 实测] 500×5 让单轮 MCTS 跑了
+        #   56+ 分钟仍无产出日志（.env 里还压着 10×1 的保守档被覆盖），
+        #   回落到 150×3：向量化后仍显著强于默认，但单轮 MCTS 可控在 ~20min。
         # - codegen 降到 4 条流（默认 8，原加强 16）——补挖质量略降，
         #   但不再拖垮 API；硬时间预算见 factor_evolution_loop
         #   FACTOR_EVO_BUDGET_MAX_SEC（默认 1800s）。
         "FACTOR_GP_POPULATION": 300,
         "FACTOR_GP_GENERATIONS": 20,
         "FACTOR_GP_SEEDS": 6,
-        "FACTOR_MCTS_ITERATIONS": 500,
-        "FACTOR_MCTS_ROOTS": 5,
+        "FACTOR_MCTS_ITERATIONS": 150,
+        "FACTOR_MCTS_ROOTS": 3,
         "FACTOR_CODEGEN_ENABLED": 1,
         "FACTOR_CODEGEN_N": 4,
         "FACTOR_MINE_SYMBOLS": 5,
