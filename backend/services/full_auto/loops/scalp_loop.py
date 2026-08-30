@@ -395,6 +395,33 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             except Exception as _fresh_err:
                 logger.debug(f"[ScalpRouter独立] {sym} K线新鲜度检查跳过: {_fresh_err}")
 
+            # ── [PostFill Agent 2026-08-30] 持仓模式切换 ──
+            # 该币已有 open scalp 仓 → 跳过入场分析重路径（因子/融合/门禁全套），
+            # 改为轻量持仓监视：状态机复审（认错fast_cut/保本/ATR尾随/翻脸收紧）
+            # 并执行。分批止盈仍统一归 paper 引擎 3s/30s 保护块（含可行性门）。
+            # 历史注释"本循环不负责平仓"自本块起修正：本循环开始负责 scalp 仓的
+            # 主动管理（平仓经 _close_position_live_aware，live/paper 双分流）。
+            _pf_positions = (
+                (_scalp_pos_by_key.get((sym, "long")) or [])
+                + (_scalp_pos_by_key.get((sym, "short")) or [])
+            )
+            if _pf_positions:
+                try:
+                    from backend.services.full_auto.scalp_position_review import (
+                        run_scalp_position_review,
+                    )
+                    _pf_out = run_scalp_position_review(
+                        self, _db, session_row, account_id, sym, _pf_positions, _md,
+                    )
+                    if _pf_out.get("actions"):
+                        logger.info(
+                            "[PostFill][ScalpRouter] %s 持仓复审动作: %s",
+                            sym, _pf_out["actions"],
+                        )
+                except Exception as _pf_err:
+                    logger.warning("[PostFill][ScalpRouter] %s 持仓复审异常: %s", sym, _pf_err)
+                continue  # 已持仓：本 tick 不做入场分析
+
             # ── 数据契约兜底：补全 volatility_value（2026-07-09 方案A）──
             # 短线严格数据校验（STRICT_DATA_GATE）要求 tier=short 必带 volatility_value，
             # 而 market_summary 对部分币未提供该字段 → 所有短线单（趋势打法 + 震荡MR）
@@ -729,6 +756,18 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     decide_scalp, FUSION_MODE as _FM,
                 )
                 if _FM != "factor":
+                    # [2026-08-29 全面修复 P2.4] 来源信用接线：fusion_attribution
+                    # 该(source,nature,symbol)滚动 n>=20 且净期望<0 → credit=0 →
+                    # 仲裁器 standdown。此前 credit 恒默认 1.0，影子统计从不闸门
+                    # 交易（死参数）。异常 fail-open（credit=1.0）。
+                    _credit_val = 1.0
+                    try:
+                        from backend.services.source_attribution import attribution as _attr_credit
+                        _credit_val = _attr_credit.credit(
+                            "factor", "scalp", str(sym).upper(),
+                        )
+                    except Exception:
+                        _credit_val = 1.0
                     _arb = decide_scalp(
                         pwin=_meta_pwin,
                         factor_score=float(_sig.factor_score or 0),
@@ -737,6 +776,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         sl_pct=float(_sig.sl_pct or 0),
                         mode=_trade_mode,
                         account_id=account_id,
+                        credit=_credit_val,
+                        is_mr=bool(_md.get("ranging_mr")) if isinstance(_md, dict) else False,
                     )
                     _scalp_factor["pwin_arbiter"] = _arb.to_dict()
                     if not _arb.allowed:
@@ -1646,6 +1687,20 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             _tconf = float(_orch_f.get(_tconf_key) or 0)
                         except Exception:
                             _tconf = 0.0
+                        # [2026-08-29 全面修复 P2.4] 来源信用接线：该信号将由
+                        # hybrid(有thesis)/factor 来源裁决，按其滚动净期望决定
+                        # 是否 standdown。异常 fail-open（credit=1.0）。
+                        _credit_fus = 1.0
+                        try:
+                            from backend.services.source_attribution import (
+                                attribution as _attr_credit_f,
+                            )
+                            _credit_fus = _attr_credit_f.credit(
+                                "hybrid" if _tdir else "factor",
+                                "scalp", str(sym).upper(),
+                            )
+                        except Exception:
+                            _credit_fus = 1.0
                         _fus = decide_scalp(
                             pwin=_meta_pwin,
                             factor_score=float(_score_for_trade or 0),
@@ -1656,6 +1711,8 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             sl_pct=float(getattr(_sig, "sl_pct", 0) or 0),
                             mode=_trade_mode,
                             account_id=account_id,
+                            credit=_credit_fus,
+                            is_mr=bool(_md.get("ranging_mr")) if isinstance(_md, dict) else False,
                         )
                         # 阶段2：thesis 强反向冲突 → 1 次窄 JSON LLM 仲裁；
                         # 放行=0.25x 试探仓；失败/否决 → 保守 hold。
@@ -1736,6 +1793,19 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _snap["fusion"] = _fusion_decision
                     if _llm_confirm:
                         _snap["llm_confirm"] = _llm_confirm
+                    # [2026-08-29 P2.6] 出场结构特征入快照（tp/sl/rr）：诊断显示
+                    # 分数无信息而结构决定盈亏（SL avg -4.52 vs TP ≈0），meta
+                    # 模型重训需要这些特征。最终结构由执行门算出（_gate），此处
+                    # 在落信号前采集。
+                    try:
+                        _final_sl = float(getattr(_gate, "sl_pct", 0) or 0)
+                        _final_tp = float(getattr(_gate, "tp_pct", 0) or 0)
+                        if _final_sl > 0:
+                            _snap["struct_sl_pct"] = round(_final_sl, 6)
+                            _snap["struct_tp_pct"] = round(_final_tp, 6)
+                            _snap["struct_rr"] = round(_final_tp / _final_sl, 4)
+                    except Exception:
+                        pass
                     _log_sig(
                         symbol=sym, direction=str(_sig.direction),
                         action=str(_sig.action or "buy"),
@@ -1768,6 +1838,62 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             continue
                     except Exception as _q_err:
                         logger.debug("[ScalpRouter独立] 实盘配额检查跳过: %s", _q_err)
+                    # [2026-08-29 符号校验] 信号池是多所数据；不在当前交易所
+                    # 上市的币直接跳过（实测 XPL 不在币安永续，首单被拒）。
+                    try:
+                        from backend.services.full_auto.live_trading import (
+                            live_symbol_tradable,
+                        )
+                        if not live_symbol_tradable(sym, "binance"):
+                            _bump_block("symbol_not_on_exchange")
+                            continue
+                    except Exception:
+                        pass
+                    # [2026-08-29 门禁对齐] scalp 实盘车道接入与 master 同一
+                    # 宪法检查 + 18% 敞口封顶。此前 scalp 直连 LiveExecutor
+                    # 完全绕过宪法（实测 6×$44 VIRTUAL → $230 敞口/权益$67
+                    # =340%），而 master 车道却被同一宪法拦死——两条车道口径
+                    # 必须一致。
+                    try:
+                        from backend.services.full_auto.live_trading import (
+                            fetch_live_account_snapshot,
+                            live_constitutional_check_raw,
+                        )
+                        # [2026-08-29 快照原子性] 封顶与检查共用同一次快照：
+                        # 此前两次独立获取，快照偶发失败时出现"未封顶却检查"
+                        # 错位（实测 13:02 $32.74 未缩放被拦，同 tick 快照一败
+                        # 一成）。快照失败 → 本 tick 跳过（fail-closed），
+                        # 下一 tick（约10s）重试。
+                        _lc_snap = fetch_live_account_snapshot(_db, int(trading_acct_id))
+                        _lc_eq = float(_lc_snap.get("total_equity") or 0)
+                        if _lc_eq <= 0:
+                            logger.info(
+                                "[ScalpRouter独立] %s 实盘快照不可用，本tick跳过",
+                                sym,
+                            )
+                            _bump_block("live_snapshot_unavailable")
+                            continue
+                        _notional_live = float(_margin_est or 0)
+                        if _notional_live > _lc_eq * 0.20:
+                            _capped = _lc_eq * 0.18
+                            logger.info(
+                                "[LiveCap] %s 名义敞口 %.2f→%.2f (18%%权益)",
+                                sym, _notional_live, _capped,
+                            )
+                            _notional_live = _capped
+                        _lc_ok, _lc_msg = live_constitutional_check_raw(
+                            _db, int(trading_acct_id), sym, side, _notional_live,
+                            snapshot=_lc_snap,
+                        )
+                        if not _lc_ok:
+                            logger.info(
+                                "[ScalpRouter独立] %s 实盘宪法拦截: %s", sym, _lc_msg,
+                            )
+                            _bump_block("live_constitutional")
+                            continue
+                        _margin_est = _notional_live
+                    except Exception as _lc_err:
+                        logger.debug("[ScalpRouter独立] 宪法检查异常(放行): %s", _lc_err)
                     try:
                         from backend.services.exchange.executors import OrderContext
                         from backend.services.exchange.live_executor import LiveExecutor
@@ -1895,7 +2021,13 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     _pa = (_scalp_factor or {}).get("pwin_arbiter") or {}
                     if _pa.get("tags", {}).get("explore_quota"):
                         from backend.services.decision_fusion_arbiter import explore_quota_bump
-                        explore_quota_bump()
+                        # [2026-08-29] 按账户扣减：paper/live 配额独立
+                        explore_quota_bump(account_id)
+                    # [2026-08-29 v2] 保底流量探针配额成交后扣减（同探索模式：
+                    # 决策时只打标签，真实成交才计数）
+                    if _pa.get("reason") == "pwin_probe_quota":
+                        from backend.services.decision_fusion_arbiter import probe_quota_bump
+                        probe_quota_bump(account_id)
                 except Exception:
                     pass
                 # 修复5: 发布短线 Insight 到 AlphaBus（供中线/长线 overlay）
@@ -1930,11 +2062,21 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         execution_channel=_mode_pb,  # [S3] 按真实 mode 写，live 不再标 paper
                         strategy_id=_scalp_strategy_id,
                     )
+                _plan = (_md.get("_tpsl_plan") if isinstance(_md, dict) else None) or {}
+                if not _plan and isinstance(getattr(_gate, "audit", None), dict):
+                    _plan = _gate.audit.get("tpsl_plan") or {}
+                _plan_bit = ""
+                if isinstance(_plan, dict) and (_plan.get("reason") or _plan.get("playbook")):
+                    _plan_bit = (
+                        f" play={_plan.get('playbook') or getattr(_sig, 'tpsl_playbook', '')}"
+                        f" regime={_plan.get('regime', '')}"
+                        f" why={str(_plan.get('reason') or getattr(_sig, 'tpsl_reason', '') or '')[:80]}"
+                    )
                 logger.info(
                     f"[ScalpRouter独立]{'[ScalpMR]' if _mr_active else ''} {sym} {side} 成交! lev={_dyn_lev}x "
                     f"score={_sig.factor_score} eff={_gate.effective_score} "
                     f"entry={_sig.entry_price:.2f} sl={_sig.sl_pct:.2%} tp={_sig.tp_pct:.2%} "
-                    f"lane={_gate.lane_decision_id}"
+                    f"lane={_gate.lane_decision_id}{_plan_bit}"
                 )
 
                 # ── 开单后 AI 即时复审（2026-06-22）──

@@ -4171,7 +4171,10 @@ class FullAutoTradingService:
                 close_qty = None if exit_decision.qty_ratio >= 0.95 else exit_decision.qty_ratio * float(getattr(opp_pos, "quantity", 0) or 0)
                 result = paper_engine.close_position(
                     db, account_id, symbol, opp_side,
-                    reason=exit_decision.reason[:120] if exit_decision.reason else "liq_magnet_reversal",
+                    # [2026-08-31 修复] close_reason 必须是通道标签（事件流/归因按
+                    # 通道聚合）——此前用 SM 决策的动态 reason（如 fast_cut 文案），
+                    # 磁吸通道的平仓被错误归因。决策理由进日志即可。
+                    reason="liq_magnet_reversal",
                     strategy_id=getattr(opp_pos, "strategy_id", None),
                     quantity=close_qty,
                 )
@@ -4179,7 +4182,7 @@ class FullAutoTradingService:
                 if result:
                     logger.warning(
                         f"[ScalpRouter][清算磁吸反转] {symbol} {opp_side}仓位经状态机仲裁 "
-                        f"action={exit_decision.action} ({lm.note})"
+                        f"action={exit_decision.action} reason={exit_decision.reason} ({lm.note})"
                     )
         except Exception as _exit_err:
             logger.warning(f"[ScalpRouter] liq_magnet 状态机异常 {symbol}: {_exit_err}")
@@ -4716,6 +4719,33 @@ class FullAutoTradingService:
         )
 
     def _execute_paper_trade(self, db: Session, session, strat, decision: dict) -> bool:
+        # [2026-08-29 全面修复 P1.4/P1.5] master AI 策略的 mid/long 开仓同样过
+        # mid 层熔断闸（连亏熔断 + 单 symbol 日亏上限 + mid 空头停开）。master
+        # lane 不走 execute_midlong_open，需在此独立设闸；live 委托分流在闸后，
+        # 实盘同样受保护。scalp nature 已被 SCALP_MASTER_HARD_BLOCK 拦在 upstream。
+        try:
+            _op = str((decision or {}).get("operation") or "").lower()
+            if _op in ("buy", "sell", "pyramid", "dca"):
+                from backend.services.full_auto.midlong_circuit_gate import (
+                    check_midlong_entry,
+                )
+                _mc_acct = getattr(session, "paper_account_id", None) or getattr(
+                    session, "account_id", None
+                )
+                _mc_ok, _mc_reason = check_midlong_entry(
+                    _mc_acct,
+                    str((decision or {}).get("symbol") or ""),
+                    side=("short" if _op == "sell" else "long"),
+                    tier=str((decision or {}).get("timeframe_tier") or "mid"),
+                )
+                if not _mc_ok:
+                    logger.info(
+                        "[FullAuto] master 开仓被 mid 熔断闸拦截: %s %s (%s)",
+                        (decision or {}).get("symbol"), _op, _mc_reason,
+                    )
+                    return False
+        except Exception as _mc_err:
+            logger.debug("[FullAuto] mid 熔断闸检查跳过(fail-open): %s", _mc_err)
         # [2026-08-28 实盘接线GAP-3] 兜底委托：live 会话任何入口（编排器覆盖/
         # master决策等仍直连本方法的调用点）一律转发 live 执行，杜绝实盘订单
         # 错落纸面引擎。paper 会话维持原路径。
@@ -4835,8 +4865,19 @@ class FullAutoTradingService:
                       severity: str = "info"):
         """向会话追加事件日志
         severity: info / warning / critical
+
+        [2026-08-29 防崩] 事件追加绝不允许打断交易主流程：session 懒加载
+        event_log 时若底层事务已失败（InFailedSqlTransaction），会抛异常并
+        连带炸掉 execute_live_trade 等调用方。此处整体兜底，失败只记日志。
         """
-        log = list(session.event_log or [])
+        try:
+            log = list(session.event_log or [])
+        except Exception as _ev_load_err:
+            logger.warning(
+                "[AppendEvent] event_log 读取失败(event=%s): %s",
+                event_type, _ev_load_err,
+            )
+            return
         entry = {
             "time": datetime.now(timezone.utc).isoformat(),
             "event": event_type,

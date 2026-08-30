@@ -2501,6 +2501,11 @@ class PaperPosition(Base):
     # B 方案退出防护状态：重启后也能恢复峰值利润、健康分和分批/追踪状态
     peak_unrealized_pnl = Column(Float, nullable=False, default=0.0)
     peak_pnl_pct = Column(Float, nullable=False, default=0.0)
+    # [PostFill P1-2 2026-08-30] MAE 谷值（与 peak 对称）：平仓遥测/因子进化闭环
+    # 用它区分"止损太紧"(MAE浅仍被扫出) vs "方向错"(MAE深)。资金费累计不入列，
+    # 由 paper_funding_ledger 按 position_id 聚合（engine._funding_accrued_total）。
+    trough_unrealized_pnl = Column(Float, nullable=False, default=0.0)
+    trough_pnl_pct = Column(Float, nullable=False, default=0.0)
     health_score = Column(Float, nullable=True)
     health_regime = Column(String(30), nullable=True)
     exit_state_json = Column(Text, nullable=True)

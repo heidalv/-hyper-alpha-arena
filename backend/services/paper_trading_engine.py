@@ -62,6 +62,18 @@ MAINTENANCE_MARGIN_RATE = _get_mm_rate()
 
 MIN_POSITION_NOTIONAL = 5.0  # 持仓名义价值低于 $5 时直接全平
 
+
+def _paper_default_exchange() -> str:
+    """[2026-08-31] 引擎默认交易所 = 币安（.env DEFAULT_EXCHANGE=binance）。
+
+    历史硬编码 asterdex 已退役；账户配置/active_exchange 都取不到时的最后一
+    层回退统一走这里。PAPER_EXCHANGE_RULES_FALLBACK 可覆盖（与 paper 仿真
+    规则表同一开关）。
+    """
+    import os as _os_px
+    _v = str(_os_px.getenv("PAPER_EXCHANGE_RULES_FALLBACK", "binance") or "binance").strip().lower()
+    return _v or "binance"
+
 # tier→nature 唯一权威(阶段 C §2:消除本类与 position_memory_manager 双映射分歧)
 # 模块级别名供 from-import 测试与跨模块一致性校验引用。
 from backend.services.tp_sl_authority import TIER_TO_NATURE as _TIER_TO_NATURE  # noqa: E402
@@ -98,18 +110,13 @@ class PaperTradingEngine:
     # 绑定到模块级 _TIER_TO_NATURE(同对象),保留类属性访问 self._TIER_TO_NATURE。
     _TIER_TO_NATURE = _TIER_TO_NATURE
 
-    # ── 止盈安全网（AI 遗漏时的最终保护）──
-    #    { nature: { vol_class: pct } }
-    #    [DEPRECATED Phase B+C] 利润上限安全网已统一收敛进 _run_v2_protection 的
-    #    统一块 (RISK_V2_TP_SAFETY_NET_CAP, 默认 80%)。下表仅供 _run_v1_protection
-    #    回退路径使用, Phase E 将随 v1 一起删除。新代码请勿读取此表。
-    _TP_SAFETY_NET_BY_NATURE = {
-        "scalp":        {"low": 0.04, "mid": 0.06, "high": 0.10},
-        "intraday":     {"low": 0.08, "mid": 0.12, "high": 0.20},
-        "swing":        {"low": 0.15, "mid": 0.25, "high": 0.40},
-        "position":     {"low": 0.25, "mid": 0.40, "high": 0.60},
-        "trend_follow": {"low": 0.35, "mid": 0.55, "high": 0.80},
-    }
+    # [Phase E 2026-08-30] v1 三张参数表已删除：
+    #   _TP_SAFETY_NET_BY_NATURE / _BREAKEVEN_BY_NATURE / _TRAILING_BY_NATURE
+    # 及兼容别名 _TP_SAFETY_NET/_BREAKEVEN_ACTIVATION/_BREAKEVEN_BUFFER/_TRAILING_BY_VOL。
+    # 现行保护统一走 _run_v2_protection（profit_manager）+ 统一分段止盈块。
+    _VALID_NATURES = frozenset({
+        "scalp", "intraday", "swing", "position", "trend_follow",
+    })
 
     # ── 硬性 SL 最小距离：任何机制都不能将 SL 推得比这更紧 ──
     # v5: 加密市场波动大，BTC日波2-3%、小币6-15%，SL必须给足空间
@@ -124,57 +131,6 @@ class PaperTradingEngine:
         "position": 0.055, "trend_follow": 0.065,
     }
 
-    # ── 保本止损参数（盈利时自动推进 SL 到开仓价附近）──
-    # v6: buffer 提高到至少 1x ATR (2.5-3%)，避免微利就触发保本SL被正常回调扫出
-    #    [DEPRECATED Phase B+C] 保本推进已由统一块的 staged TP1 (SL→entry+ATR×0.3)
-    #    接管。此表仅供 _run_v1_protection 回退使用, Phase E 随 v1 删除。
-    _BREAKEVEN_BY_NATURE = {
-        "scalp":        {"activation": 0.035, "buffer": 0.025},
-        "intraday":     {"activation": 0.055, "buffer": 0.030},
-        "swing":        {"activation": 0.08,  "buffer": 0.035},
-        "position":     {"activation": 0.10,  "buffer": 0.040},
-        "trend_follow": {"activation": 0.15,  "buffer": 0.050},
-    }
-
-    # ── 渐进式追踪止损 ──
-    #    { nature: { vol_class: {activation, distance, tight_above, tight_dist} } }
-    # v6: tight_dist 提高，避免盈利仓位被正常波动扫出
-    #    [DEPRECATED Phase B+C] 追踪止损已由统一块的 TP3 后 ATR×trail_mult 追踪
-    #    (REGIME_TP_PARAMS[*].trail_mult) 接管。此表仅供 _run_v1_protection 回退
-    #    使用, Phase E 随 v1 删除。
-    _TRAILING_BY_NATURE = {
-        "scalp": {
-            "low":  {"activation": 0.025, "distance": 0.015, "tight_above": 0.045, "tight_dist": 0.018},
-            "mid":  {"activation": 0.030, "distance": 0.018, "tight_above": 0.050, "tight_dist": 0.022},
-            "high": {"activation": 0.035, "distance": 0.022, "tight_above": 0.055, "tight_dist": 0.025},
-        },
-        "intraday": {
-            "low":  {"activation": 0.025, "distance": 0.016, "tight_above": 0.050, "tight_dist": 0.018},
-            "mid":  {"activation": 0.030, "distance": 0.022, "tight_above": 0.065, "tight_dist": 0.022},
-            "high": {"activation": 0.038, "distance": 0.028, "tight_above": 0.080, "tight_dist": 0.025},
-        },
-        "swing": {
-            "low":  {"activation": 0.045, "distance": 0.030, "tight_above": 0.10, "tight_dist": 0.020},
-            "mid":  {"activation": 0.055, "distance": 0.038, "tight_above": 0.13, "tight_dist": 0.025},
-            "high": {"activation": 0.070, "distance": 0.050, "tight_above": 0.16, "tight_dist": 0.032},
-        },
-        "position": {
-            "low":  {"activation": 0.070, "distance": 0.045, "tight_above": 0.18, "tight_dist": 0.030},
-            "mid":  {"activation": 0.090, "distance": 0.060, "tight_above": 0.25, "tight_dist": 0.040},
-            "high": {"activation": 0.110, "distance": 0.080, "tight_above": 0.30, "tight_dist": 0.050},
-        },
-        "trend_follow": {
-            "low":  {"activation": 0.100, "distance": 0.065, "tight_above": 0.25, "tight_dist": 0.040},
-            "mid":  {"activation": 0.130, "distance": 0.090, "tight_above": 0.35, "tight_dist": 0.060},
-            "high": {"activation": 0.160, "distance": 0.110, "tight_above": 0.45, "tight_dist": 0.075},
-        },
-    }
-
-    # 向后兼容：无 nature / tier 时的默认值
-    _TP_SAFETY_NET = _TP_SAFETY_NET_BY_NATURE["swing"]
-    _BREAKEVEN_ACTIVATION = _BREAKEVEN_BY_NATURE["swing"]["activation"]
-    _BREAKEVEN_BUFFER = _BREAKEVEN_BY_NATURE["swing"]["buffer"]
-    _TRAILING_BY_VOL = _TRAILING_BY_NATURE["swing"]
     # 低波动币种（日波动通常 < 2%）
     _LOW_VOL_SYMBOLS = {"BTC", "ETH"}
     # 高波动币种（日波动通常 > 4%）
@@ -199,6 +155,9 @@ class PaperTradingEngine:
     def __init__(self):
         self._tp_levels_cache: Dict[int, int] = {}
         self._peak_profit_cache: Dict[int, float] = {}  # pos_id -> peak unrealized PnL
+        # [PostFill P1-2] MAE 谷值缓存（与 peak 对称）：价格% 与美元口径
+        self._trough_pct_cache: Dict[int, float] = {}
+        self._trough_usd_cache: Dict[int, float] = {}
         self._last_partial_close_at: Dict[int, datetime] = {}  # pos_id -> last partial close time
         try:
             from backend.services.profit_protection_manager import profit_manager
@@ -241,7 +200,12 @@ class PaperTradingEngine:
         return (entry - mark) / entry
 
     def _sync_peak_state(self, pos, current_upnl: float, current_price: Optional[float] = None) -> float:
-        """把峰值利润写入内存和 DB 字段，避免服务重启后保护状态丢失。"""
+        """把峰值利润写入内存和 DB 字段，避免服务重启后保护状态丢失。
+
+        [PostFill P1-2] 同时对称维护 MAE 谷值（trough_pnl_pct / trough_unrealized_pnl）：
+        平仓后供遥测与因子进化闭环区分"止损太紧"(MAE 浅但被 SL 扫出) vs
+        "方向错"(MAE 深)。谷值只下探不上抬，与 peak 只上推对称。
+        """
         pos_id = int(getattr(pos, "id", 0) or 0)
         cached_peak = float(self._peak_profit_cache.get(pos_id, 0.0) or 0.0)
         db_peak = float(getattr(pos, "peak_unrealized_pnl", 0.0) or 0.0)
@@ -254,6 +218,26 @@ class PaperTradingEngine:
                 float(getattr(pos, "peak_pnl_pct", 0.0) or 0.0),
                 self._position_pnl_pct(pos, current_price),
             )
+        except Exception:
+            pass
+        # ── MAE 谷值同步（失败不影响交易）──
+        try:
+            _cur_pct = self._position_pnl_pct(pos, current_price)
+            trough_pct = min(
+                float(self._trough_pct_cache.get(pos_id, 0.0) or 0.0),
+                float(getattr(pos, "trough_pnl_pct", 0.0) or 0.0),
+                _cur_pct,
+            )
+            trough_usd = min(
+                float(self._trough_usd_cache.get(pos_id, 0.0) or 0.0),
+                float(getattr(pos, "trough_unrealized_pnl", 0.0) or 0.0),
+                float(current_upnl or 0.0),
+            )
+            if pos_id:
+                self._trough_pct_cache[pos_id] = trough_pct
+                self._trough_usd_cache[pos_id] = trough_usd
+            pos.trough_pnl_pct = trough_pct
+            pos.trough_unrealized_pnl = trough_usd
         except Exception:
             pass
         return peak
@@ -382,6 +366,55 @@ class PaperTradingEngine:
             db.add(event)
         except Exception as event_err:
             logger.debug(f"[Paper] 退出事件记录失败(非致命): {event_err}")
+
+    def _record_hard_line_exit_source(self, db, pos, reason: str) -> None:
+        """[PostFill §3.5 2026-08-31] 硬线直调全平补登 ExitSource 事件。
+
+        硬线（SL/TP/爆仓/超时）绕过状态机直调 close_position，此前不留
+        ExitSource 痕迹（枚举 STOP_LOSS/TAKE_PROFIT/LIQUIDATION/TIME_DECAY
+        生产路径 0 构造）→ 事件流账实分离。失败不影响交易。
+        """
+        try:
+            from backend.services.exit.exit_types import ExitSource
+            _map = {
+                "sl": ExitSource.STOP_LOSS.value,
+                "tp": ExitSource.TAKE_PROFIT.value,
+                "liquidation": ExitSource.LIQUIDATION.value,
+                "max_hold_timeout": ExitSource.TIME_DECAY.value,
+            }
+            _src = _map.get(str(reason or "").lower())
+            if not _src:
+                return
+            self._record_exit_event(
+                db, pos,
+                event_type="hard_line_close",
+                exit_channel=reason,
+                metadata={"exit_source": _src, "channel": "hard_line_direct"},
+            )
+        except Exception:
+            pass
+
+    def _record_postfill_telemetry(
+        self, db, pos, kind: str, metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """[PostFill §3.7 2026-08-31] observe_only / 假设 PnL 影子遥测。
+
+        无 A/B 直接全开后的补位机制：把"旧实现会怎么做"（counterfactual）与
+        "被硬门拒绝的提案"落进 position_exit_events 事件流
+        （event_type=postfill_telemetry_<kind>），供事后对比单档 vs 三档、
+        延长 vs 拒绝的假设 PnL。只写事件，绝不影响执行路径；db 缺失时静默跳过。
+        """
+        try:
+            if db is None or pos is None:
+                return
+            self._record_exit_event(
+                db, pos,
+                event_type=f"postfill_telemetry_{kind}"[:40],
+                exit_channel="postfill_telemetry",
+                metadata={"kind": kind, **(metadata or {})},
+            )
+        except Exception:
+            pass
 
     @staticmethod
     def _enforce_min_sl(pos, entry: float, nature: str) -> None:
@@ -519,7 +552,8 @@ class PaperTradingEngine:
     @staticmethod
     def _normalize_exchange(exchange: Optional[str]) -> str:
         from backend.services.exchange_config import get_active_exchange
-        fallback = get_active_exchange() or "asterdex"
+        # [2026-08-31] 历史硬编码 asterdex → 币安（当前主力交易所）
+        fallback = get_active_exchange() or _paper_default_exchange()
         return (exchange or fallback).strip().lower() or fallback
 
     def _resolve_account_exchange(self, db: Session, account_id: Optional[int] = None) -> str:
@@ -537,7 +571,8 @@ class PaperTradingEngine:
             from backend.services.exchange_config import get_active_exchange
             return self._normalize_exchange(get_active_exchange())
         except Exception:
-            return "asterdex"
+            # [2026-08-31] 历史硬编码 asterdex → 币安（当前主力交易所）
+            return _paper_default_exchange()
 
     def _resolve_order_exchange(self, db: Session, order) -> str:
         """Resolve exchange locked on the order, falling back to account config."""
@@ -556,10 +591,10 @@ class PaperTradingEngine:
         if not exchange:
             try:
                 from backend.services.exchange_config import get_active_exchange
-                exchange = get_active_exchange() or "asterdex"
+                exchange = get_active_exchange() or _paper_default_exchange()
             except Exception:
-                exchange = "asterdex"
-        exchange = exchange.strip().lower() or "asterdex"
+                exchange = _paper_default_exchange()
+        exchange = exchange.strip().lower() or _paper_default_exchange()
         # 0) 数据中心唯一数据源（DC_ONLY）：秒级 ticker，1.5s TTL，最新鲜。
         #    必须优先于下方的 60s price_cache 兜底，否则持仓盯市价会滞后数十秒。
         try:
@@ -1526,6 +1561,40 @@ class PaperTradingEngine:
         remaining_size = float(pos.size)
         is_partial = quantity is not None and 0 < quantity < float(pos.size)
         close_qty = float(quantity) if is_partial else remaining_size
+
+        # ── [PostFill P1-1 2026-08-30] minNotional 双边可行性门 ──
+        # 决策层不得发出交易所会拒的部分平仓单：平仓份额与平后剩余份额都
+        # 必须达到交易所最小名义。份额不达标 → 放弃本次部分平仓（返回 None，
+        # 档位不消费）；剩余不达标 → 升级为全平（防尘仓死等 SL）。
+        if is_partial:
+            try:
+                from backend.services.exit.feasibility_gate import check_partial_close_notional
+                _verdict, _vdetail = check_partial_close_notional(
+                    exchange=exchange, chunk_qty=close_qty, pos_qty=remaining_size,
+                    price=float(current_price or 0),
+                )
+                if _verdict == "reject":
+                    logger.info(
+                        f"[Paper] 部分平仓拒绝(minNotional): {symbol} {side} "
+                        f"reason={reason} {_vdetail}"
+                    )
+                    self._record_exit_event(
+                        db, pos, event_type="partial_exit_rejected",
+                        exit_channel=reason,
+                        metadata={"gate": "min_notional", "detail": _vdetail, "reason": reason},
+                    )
+                    db.commit()
+                    return None
+                if _verdict == "escalate_full":
+                    logger.info(
+                        f"[Paper] 部分平仓→全平(剩余低于minNotional): {symbol} {side} "
+                        f"reason={reason} {_vdetail}"
+                    )
+                    is_partial = False
+                    close_qty = remaining_size
+            except Exception as _mn_err:
+                logger.debug(f"[Paper] minNotional门跳过({symbol}): {_mn_err}")
+
         fill_price, close_fee = self._simulate_reduce_fill(
             exchange=exchange,
             pos=pos,
@@ -1659,7 +1728,15 @@ class PaperTradingEngine:
             fee=total_fee,
             close_ratio=1.0,
             exit_channel=actual_reason,
-            metadata={"reason": actual_reason, "final_pnl": final_pnl, "partial_pnl": partial_pnl_sum},
+            metadata={
+                "reason": actual_reason, "final_pnl": final_pnl, "partial_pnl": partial_pnl_sum,
+                # [PostFill P3] 平仓遥测：MFE/MAE/funding 一并入事件流，供因子
+                # 进化闭环区分"止损太紧 vs 方向错"与资金费偏置归因。
+                "mfe_pnl_pct": float(getattr(pos, "peak_pnl_pct", 0.0) or 0.0),
+                "mae_pnl_pct": float(getattr(pos, "trough_pnl_pct", 0.0) or 0.0),
+                "mae_usd": float(getattr(pos, "trough_unrealized_pnl", 0.0) or 0.0),
+                "funding_accrued": self._funding_accrued_total(db, pos),
+            },
         )
 
         self._recalc_balance(db, bal)
@@ -1671,6 +1748,16 @@ class PaperTradingEngine:
 
         self._tp_levels_cache.pop(pos.id, None)
         self._peak_profit_cache.pop(pos.id, None)
+        self._trough_pct_cache.pop(pos.id, None)
+        self._trough_usd_cache.pop(pos.id, None)
+        # [2026-08-31] 平仓后清理统一离场状态机的 per-position 追踪状态：
+        # 此前 reset_position 无人调用，状态随历史仓位无限累积（内存）且
+        # position_id 复用时会继承旧仓的 reduce_count/breakeven 标记。
+        try:
+            from backend.services.exit.unified_exit_state_machine import exit_state_machine
+            exit_state_machine.reset_position(int(pos.id))
+        except Exception:
+            pass
 
         # ── 记录再开仓冷却（防追踪止盈后立即同向重开）──
         try:
@@ -1745,8 +1832,11 @@ class PaperTradingEngine:
                 exit_price=float(fill_price or 0),
                 fees=float(total_fee or 0),
                 pnl=float(total_pnl or 0),
-                outcome=("win" if (total_pnl or 0) > 0
-                         else ("loss" if (total_pnl or 0) < 0 else "scratch")),
+                # [2026-08-29 全面修复 P1.6] outcome 按净盈亏(毛-费)判定：
+                # 旧毛口径下费拖型小赢被标 win（30 天费 -58.6 全被学习层
+                # 当盈利样本）。pnl 列保持毛口径，净额 = pnl - fees 可推导。
+                outcome=("win" if ((total_pnl or 0) - (total_fee or 0)) > 0
+                         else ("loss" if ((total_pnl or 0) - (total_fee or 0)) < 0 else "scratch")),
                 close_reason=actual_reason,
                 factor_exposures=_fx,
                 strategy_id=str(getattr(pos, "strategy_id", "") or ""),
@@ -1789,8 +1879,12 @@ class PaperTradingEngine:
             logger.debug(f"[Paper] 平仓通知发送失败(非致命): {_nf_err}")
 
         # 学习系统和仓位记忆使用完整的 total_pnl（含分批利润）
+        # [2026-08-29 全面修复 P1.6] 透传平仓费，学习标签按净盈亏（毛-费）判定
+        # ——旧口径费拖型小赢被标 win，学习信号系统性偏乐观（30 天费 -58.6）。
         try:
-            self._notify_learning_on_close(db, pos, fill_price, total_pnl, reason)
+            self._notify_learning_on_close(
+                db, pos, fill_price, total_pnl, reason, close_fee=float(total_fee or 0),
+            )
         except Exception as learn_err:
             # [fix] rollback 避免 InFailedSqlTransaction 污染后续操作
             try:
@@ -1960,6 +2054,36 @@ class PaperTradingEngine:
         close_qty = round(float(pos.size) * pct, 8)
         if close_qty < 1e-8:
             return None
+        # ── [PostFill P1-1 2026-08-30] 手续费预算门 ──
+        # 微操腿费用占比（已付分批费用+本腿预估）/当前名义 超预算 → 放弃
+        # 本次减仓（返回 None，TP 档位不消费），防止小仓被费用吃成负期望。
+        try:
+            from backend.services.exit.feasibility_gate import fee_budget_exceeded
+            _px = float(getattr(pos, "mark_price", 0) or 0) or float(pos.entry_price or 0)
+            # [2026-08-31 PostFill] 预估腿费按账户交易所实际 taker 费率。
+            # 原硬编码 0.0005 与 asterdex 0.005% 差 10 倍、hyperliquid 0.035%
+            # 差 1.4 倍 → 预算门系统性误判（asterdex 永远拦不住 / HL 过度拦截）。
+            try:
+                from backend.services.fee_schedule_service import get_fee_rate
+                _est_rate = float(get_fee_rate(
+                    self._resolve_account_exchange(db, pos.account_id),
+                    is_maker=False,
+                ))
+            except Exception:
+                _est_rate = TAKER_FEE_RATE
+            _exceeded, _fdetail = fee_budget_exceeded(
+                fees_paid=float(getattr(pos, "partial_fee_paid", 0) or 0),
+                est_leg_fee=close_qty * _px * _est_rate,
+                notional_now=float(pos.size or 0) * _px,
+            )
+            if _exceeded:
+                logger.info(
+                    f"[Paper] 分批平仓被费用预算门拦截: {pos.symbol} {pos.side} "
+                    f"reason={reason} {_fdetail}"
+                )
+                return None
+        except Exception:
+            pass
         return self.close_position(
             db, pos.account_id, pos.symbol, pos.side,
             reason=reason, quantity=close_qty,
@@ -2244,6 +2368,8 @@ class PaperTradingEngine:
                             strategy_id=getattr(pos, "strategy_id", None),
                             fill_price_override=liq_price,
                         )
+                        # [PostFill §3.5] 爆仓硬线补登 ExitSource.LIQUIDATION
+                        self._record_hard_line_exit_source(db, pos, "liquidation")
                         return True
 
             from backend.services.hold_timeout_review_queue import (
@@ -2333,6 +2459,8 @@ class PaperTradingEngine:
                         reason="max_hold_timeout",
                         strategy_id=getattr(pos, "strategy_id", None),
                     )
+                    # [PostFill §3.5] 超时强平补登 ExitSource.TIME_DECAY
+                    self._record_hard_line_exit_source(db, pos, "max_hold_timeout")
                     self._tp_levels_cache.pop(pos.id, None)
                     self._peak_profit_cache.pop(pos.id, None)
                     return True
@@ -2384,6 +2512,8 @@ class PaperTradingEngine:
                     strategy_id=getattr(pos, "strategy_id", None),
                 )
                 clear_position(pos.id)
+                # [PostFill §3.5] 超时兜底强平补登 ExitSource.TIME_DECAY
+                self._record_hard_line_exit_source(db, pos, "max_hold_timeout")
                 self._tp_levels_cache.pop(pos.id, None)
                 self._peak_profit_cache.pop(pos.id, None)
                 return True
@@ -2392,208 +2522,10 @@ class PaperTradingEngine:
             logger.debug(f"[Paper] max_hold 检查跳过: {e}")
             return False
 
-    def _run_v1_protection(self, db, pos, entry, current_price, profit_pct, _nature):
-        """v1 旧保护逻辑（保本推进 + 追踪止损 + SL + TP + 安全网）
-
-        返回 True 表示持仓已平，调用方应 continue。
-
-        [DEPRECATED Phase B+C — Phase E 已加运行期 warn] 默认配置
-        (PROFIT_PROTECTION_VERSION=v2) 下本方法不会执行; 仅当 PROFIT_PROTECTION_VERSION
-        被显式设为非 v2 或 _profit_manager 未初始化时才会作为兜底命中。Phase B+C 已将
-        分段止盈/利润回撤/追踪/止盈安全网统一收敛进 _run_v2_protection._run_unified_staged_tp
-        (ATR 自适应)。Phase E 在所有 dispatch 点加了 logger.warning 以监控意外触发;
-        后续清理 PR 将删除本方法及其依赖的 _TP_SAFETY_NET_BY_NATURE /
-        _BREAKEVEN_BY_NATURE / _TRAILING_BY_NATURE 三张表。请勿在新代码中调用本方法。
-        """
-        if self._enforce_max_hold_timeout(db, pos):
-            return True
-
-        _be_cfg = self._BREAKEVEN_BY_NATURE.get(_nature, self._BREAKEVEN_BY_NATURE["swing"])
-        _be_activation = _be_cfg["activation"]
-        _be_buffer = _be_cfg["buffer"]
-
-        # ── 1. 保本止损自动推进 ──
-        if entry > 0 and profit_pct >= _be_activation:
-            if pos.side == "long":
-                breakeven_sl = round(entry * (1 + _be_buffer), 6)
-                current_sl = float(pos.sl_price) if pos.sl_price else 0
-                if current_sl < breakeven_sl:
-                    logger.info(
-                        f"[Paper] 保本止损推进[{_nature}]: {pos.symbol} long "
-                        f"SL {current_sl:.6f}→{breakeven_sl:.6f} "
-                        f"(profit={profit_pct:.1%})")
-                    pos.sl_price = breakeven_sl
-            else:
-                breakeven_sl = round(entry * (1 - _be_buffer), 6)
-                current_sl = float(pos.sl_price) if pos.sl_price else float('inf')
-                if current_sl > breakeven_sl:
-                    logger.info(
-                        f"[Paper] 保本止损推进[{_nature}]: {pos.symbol} short "
-                        f"SL {current_sl:.6f}→{breakeven_sl:.6f} "
-                        f"(profit={profit_pct:.1%})")
-                    pos.sl_price = breakeven_sl
-
-        # ── 2. 渐进式追踪止损 ──
-        try:
-            from backend.config.settings import RISK_USE_NATURE_EXIT_ORCHESTRATOR as _use_peo
-        except Exception:
-            _use_peo = False
-        _trail_vol = self._classify_volatility(pos.symbol)
-        _nature_trailing = self._TRAILING_BY_NATURE.get(_nature, self._TRAILING_BY_NATURE["swing"])
-        _trail_cfg = _nature_trailing.get(_trail_vol, _nature_trailing.get("mid", {}))
-        trail_activation = _trail_cfg["activation"]
-        trail_distance = _trail_cfg["distance"]
-        trail_tight_above = _trail_cfg["tight_above"]
-        trail_tight_dist = _trail_cfg["tight_dist"]
-
-        # ── TP 进度保护 ──
-        # 2026-04-27: Pyramid 加仓后 entry 抬高 → profit_pct 下降，
-        # 不应因此清除追踪止损（仓位已加大，追踪保护更需要保留）
-        _tp_progress_ok = True
-        _has_pyramid = (getattr(pos, 'add_count', None) or 0) > 0
-        if pos.tp_price and pos.entry_price:
-            _entry = float(pos.entry_price)
-            _tp = float(pos.tp_price)
-            _tp_dist = abs(_tp - _entry) / _entry if _entry > 0 else 0
-            if _tp_dist > 0.005 and profit_pct < _tp_dist * 0.50 and not _has_pyramid:
-                _tp_progress_ok = False
-                if pos.trailing_stop_price:
-                    logger.info(
-                        f"[Paper] TP保护清除追踪价: {pos.symbol} {pos.side} "
-                        f"profit={profit_pct:.2%} < TP进度50%({_tp_dist*0.5:.2%}), "
-                        f"清除 trail={pos.trailing_stop_price}")
-                    pos.trailing_stop_price = None
-
-        if (not _use_peo) and profit_pct >= trail_activation and _tp_progress_ok:
-            effective_dist = trail_tight_dist if profit_pct >= trail_tight_above else trail_distance
-            if pos.side == "long":
-                new_trail = round(current_price * (1 - effective_dist), 6)
-                if not pos.trailing_stop_price or new_trail > pos.trailing_stop_price:
-                    pos.trailing_stop_price = new_trail
-            else:
-                new_trail = round(current_price * (1 + effective_dist), 6)
-                if not pos.trailing_stop_price or new_trail < pos.trailing_stop_price:
-                    pos.trailing_stop_price = new_trail
-
-        # ── 2.5 无保护持仓安全网：没有 SL 且已浮亏超 8% → 自动设置紧急止损 ──
-        _NO_SL_EMERGENCY_PCT = {
-            "scalp": -0.03, "intraday": -0.05, "swing": -0.08,
-            "position": -0.10, "trend_follow": -0.12,
-        }
-        if (not pos.sl_price or float(pos.sl_price) <= 0) and profit_pct < 0:
-            _emergency_threshold = _NO_SL_EMERGENCY_PCT.get(_nature, -0.08)
-            if profit_pct <= _emergency_threshold:
-                _sl_dist = abs(_emergency_threshold) * 1.2
-                if pos.side == "long":
-                    emergency_sl = round(entry * (1 - _sl_dist), 6)
-                else:
-                    emergency_sl = round(entry * (1 + _sl_dist), 6)
-                pos.sl_price = emergency_sl
-                logger.warning(
-                    f"[Paper] 无SL紧急保护[{_nature}]: {pos.symbol} {pos.side} "
-                    f"profit={profit_pct:.1%}≤{_emergency_threshold:.0%}，"
-                    f"设置紧急SL=${emergency_sl:.4f}")
-
-        # ── 2.9 硬性 SL 最小距离保护 ──
-        self._enforce_min_sl(pos, entry, _nature)
-
-        # ── 2.95 SL ↔ liq 安全边距保护（2026-04-22 爆仓事故修复） ──
-        # 若 SL 紧贴 liq，价格跳到 liq 线时爆仓反而先于 SL 触发。
-        # 把 SL 向 entry 方向拉 0.5% × entry，保证 SL 永远先于 liq。
-        self._ensure_sl_inside_liq(pos)
-
-        # ── 3. 检查止损 ──
-        if pos.sl_price:
-            hit_sl = (pos.side == "long" and current_price <= pos.sl_price) or \
-                     (pos.side == "short" and current_price >= pos.sl_price)
-            if hit_sl:
-                reason = "breakeven_sl" if profit_pct >= 0 else "sl"
-                logger.info(
-                    f"[Paper] {'保本止损' if reason == 'breakeven_sl' else 'SL'} 触发: "
-                    f"{pos.symbol} {pos.side} @{current_price} SL={pos.sl_price}")
-                self.close_position(
-                    db, pos.account_id, pos.symbol, pos.side,
-                    reason=reason,
-                    strategy_id=getattr(pos, "strategy_id", None),
-                    fill_price_override=float(pos.sl_price),
-                )
-                return True
-
-        # ── 4. 检查 TP ──
-        if pos.tp_price:
-            hit_tp = (pos.side == "long" and current_price >= pos.tp_price) or \
-                     (pos.side == "short" and current_price <= pos.tp_price)
-            if hit_tp:
-                logger.info(f"[Paper] TP 触发: {pos.symbol} {pos.side} @{current_price} TP={pos.tp_price}")
-                self.close_position(
-                    db, pos.account_id, pos.symbol, pos.side,
-                    reason="tp",
-                    strategy_id=getattr(pos, "strategy_id", None),
-                    fill_price_override=float(pos.tp_price),
-                )
-                self._tp_levels_cache.pop(pos.id, None)
-                return True
-
-        # ── 5. 追踪止损触发 ──
-        if (not _use_peo) and pos.trailing_stop_price and pos.trailing_stop_price > 0:
-            hit_trail = (pos.side == "long" and current_price <= pos.trailing_stop_price) or \
-                        (pos.side == "short" and current_price >= pos.trailing_stop_price)
-            if hit_trail:
-                _allow_trail_trigger = True
-                if pos.tp_price and pos.entry_price:
-                    _entry = float(pos.entry_price)
-                    _tp = float(pos.tp_price)
-                    _tp_dist = abs(_tp - _entry) / _entry if _entry > 0 else 0
-                    if _tp_dist > 0.005 and profit_pct < _tp_dist * 0.30:
-                        _allow_trail_trigger = False
-                        logger.info(
-                            f"[Paper] 追踪止损被TP保护阻止: {pos.symbol} {pos.side} "
-                            f"profit={profit_pct:.2%} < TP进度30%({_tp_dist*0.3:.2%}), "
-                            f"清除trail={pos.trailing_stop_price}")
-                        pos.trailing_stop_price = None
-
-                if _allow_trail_trigger:
-                    logger.info(
-                        f"[Paper] Trailing Stop 触发: {pos.symbol} {pos.side} "
-                        f"@{current_price} trail={pos.trailing_stop_price} profit={profit_pct:.2%}")
-                    self.close_position(
-                        db, pos.account_id, pos.symbol, pos.side,
-                        reason="trailing",
-                        strategy_id=getattr(pos, "strategy_id", None),
-                        fill_price_override=float(pos.trailing_stop_price),
-                    )
-                    return True
-
-        # ── 6. 爆仓检查 ──
-        if pos.liquidation_price and pos.liquidation_price > 0:
-            hit_liq = (pos.side == "long" and current_price <= pos.liquidation_price) or \
-                      (pos.side == "short" and current_price >= pos.liquidation_price)
-            if hit_liq:
-                logger.warning(
-                    f"[Paper] 爆仓! {pos.symbol} {pos.side} "
-                    f"@{current_price} liq={pos.liquidation_price}")
-                self.close_position(
-                    db, pos.account_id, pos.symbol, pos.side,
-                    reason="liquidation",
-                    strategy_id=getattr(pos, "strategy_id", None),
-                    fill_price_override=float(pos.liquidation_price),
-                )
-                return True
-
-        # ── 7. 止盈安全网 ──
-        if entry > 0:
-            vol_tier = self._classify_volatility(pos.symbol)
-            _nature_tp_net = self._TP_SAFETY_NET_BY_NATURE.get(_nature, self._TP_SAFETY_NET_BY_NATURE["swing"])
-            safety_pct = _nature_tp_net.get(vol_tier, 0.25)
-            if profit_pct >= safety_pct:
-                logger.info(
-                    f"[Paper] 止盈安全网[{_nature}]触发: {pos.symbol} {pos.side} "
-                    f"profit={profit_pct:.1%} >= {safety_pct:.0%}")
-                self.close_position(db, pos.account_id, pos.symbol, pos.side, reason="safety_tp")
-                self._tp_levels_cache.pop(pos.id, None)
-                return True
-
-        return False
+    # [Phase E 2026-08-30] _run_v1_protection 及其三张参数表
+    # (_TP_SAFETY_NET_BY_NATURE/_BREAKEVEN_BY_NATURE/_TRAILING_BY_NATURE) 已整体删除。
+    # 默认 PROFIT_PROTECTION_VERSION=v2 下该路径自 Phase B+C 起就从未执行；
+    # 历史兜底调用点已全部改为 warn+跳过（不提供 v1 回退）。
 
     def _run_unified_staged_tp(
         self, db, pos, entry, current_price, profit_pct,
@@ -2665,54 +2597,140 @@ class PaperTradingEngine:
             )
             return True
 
-        # ── 分段止盈 (按 TP3→TP2→TP1 顺序检查; [P0-7e] 跳档补齐) ──
-        # [P0-7e 跳档修复] 价格一跳穿多档时，按未触发的档位累计减仓比例一次执行，
-        # 避免只减最高档而 TP1/TP2 的 25%+25% 永久丢失（此前 70% 仓位暴露给反转）。
-        if (not _tp3_done) and _price_change_atr >= _params["tp3_mult"]:
-            _missing_ratio = 0.30  # TP3 档
-            if not _tp2_done:
-                _missing_ratio += 0.25  # 补齐 TP2
-            if not _tp1_done:
-                _missing_ratio += 0.25  # 补齐 TP1
-            _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp3")
-            if _closed and _closed.get("closed_fully"):
+        # ── [PostFill P3 2026-08-30] 分批档数按当前名义自动降档 ──
+        # 期望值研究（Quantified Strategies / Bulkowski）：分批止盈系统性截断
+        # 右尾，小仓拆档后每档贴着 minNotional 下限、费用占比放大，数学劣势
+        # 被进一步放大。故名义额不足时自动降档：
+        #   名义 < TP_LADDER_SINGLE_MAX_NOTIONAL_USD(默认$30) → 单档：TP1 全平
+        #   名义 < TP_LADDER_TWO_MAX_NOTIONAL_USD(默认$100)   → 两档：TP1平40% + TP2清仓
+        #   否则 → 原三档 TP1/TP2/TP3（25/25/30+跳档补齐）
+        try:
+            from backend.config.settings import (
+                TP_LADDER_SINGLE_MAX_NOTIONAL_USD as _SINGLE_MAX,
+                TP_LADDER_TWO_MAX_NOTIONAL_USD as _TWO_MAX,
+            )
+        except Exception:
+            _SINGLE_MAX, _TWO_MAX = 30.0, 100.0
+        _notional_now = _price * float(getattr(pos, "size", 0) or 0)
+
+        if 0 < _notional_now < _SINGLE_MAX:
+            # ── 单档模式：TP1 触发即全平（不拆档）──
+            if (not _tp1_done) and _price_change_atr >= _params["tp1_mult"]:
+                logger.info(
+                    f"[Paper][v2-Unified] 单档TP全平(名义${_notional_now:.1f}<${_SINGLE_MAX:.0f}): "
+                    f"{pos.symbol} {_side} Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}"
+                )
+                # [PostFill §3.7] 假设 PnL 影子：旧三档实现此刻会平 25% 继续持有，
+                # 降档实现实际全平。记下 counterfactual 供事后对比右尾截断效应。
+                # kind 需短：event_type 列 VARCHAR(40)。
+                self._record_postfill_telemetry(
+                    db, pos, "staged_tp_cf",
+                    {
+                        "mode": "single",
+                        "legacy_close_pct": 0.25,
+                        "actual": "full_close",
+                        "notional": round(_notional_now, 2),
+                        "atr_change": round(_price_change_atr, 4),
+                    },
+                )
+                self.close_position(
+                    db, pos.account_id, pos.symbol, pos.side,
+                    reason="staged_tp1_single",
+                    strategy_id=getattr(pos, "strategy_id", None),
+                )
                 return True
-            pos.tp_level_reached = 3
-            # [P0-7 方向修复] 空单必须乘 _side_dir：short 的 peak 在入场价下方，
-            # 追踪止损应位于 peak 上方（朝 entry 方向），漏乘会把 SL 放到现价下方 →
-            # 下一次判定立即触发并以低于市价成交，虚增空单浮盈。
-            _new_sl = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
-            self._tighten_sl_unified(pos, _new_sl, "staged_tp3")
-            logger.info(
-                f"[Paper][v2-Unified] TP3 触发: {pos.symbol} {_side} "
-                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp3_mult']}, "
-                f"跳档补齐减仓{_missing_ratio:.0%}, 启动追踪 SL→{pos.sl_price}")
-        elif (not _tp2_done) and _price_change_atr >= _params["tp2_mult"]:
-            _missing_ratio = 0.25  # TP2 档
-            if not _tp1_done:
-                _missing_ratio += 0.25  # 补齐 TP1
-            _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp2")
-            if _closed and _closed.get("closed_fully"):
+        elif _notional_now < _TWO_MAX:
+            # ── 两档模式：TP1 平 40% + 保本，TP2 清仓 ──
+            if (not _tp2_done) and _price_change_atr >= _params["tp2_mult"]:
+                logger.info(
+                    f"[Paper][v2-Unified] 两档模式TP2清仓(名义${_notional_now:.1f}): "
+                    f"{pos.symbol} {_side} Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}"
+                )
+                self.close_position(
+                    db, pos.account_id, pos.symbol, pos.side,
+                    reason="staged_tp2_clear",
+                    strategy_id=getattr(pos, "strategy_id", None),
+                )
                 return True
-            pos.tp_level_reached = 2
-            _tp1_price = _entry + _atr_price * _params["tp1_mult"] * _side_dir
-            self._tighten_sl_unified(pos, _tp1_price + _atr_price * 0.5 * _side_dir, "staged_tp2")
-            logger.info(
-                f"[Paper][v2-Unified] TP2 触发: {pos.symbol} {_side} "
-                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}, "
-                f"跳档补齐减仓{_missing_ratio:.0%}")
-        elif (not _tp1_done) and _price_change_atr >= _params["tp1_mult"]:
-            # TP1: 平 25%, SL → entry + ATR价格距×0.8 (保本+给呼吸空间)
-            # [2026-07-30 crypto-native] 0.3×ATR≈0.15% 太紧，加密5m正常波动0.5-1%轻松击穿
-            # → breakeven_tp 100% 微利出场。提升到 0.8×ATR 给足够缓冲。
-            _closed = self._partial_close_by_pct(db, pos, 0.25, "staged_tp1")
-            if _closed and _closed.get("closed_fully"):
-                return True
-            pos.tp_level_reached = 1
-            self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
-            logger.info(
-                f"[Paper][v2-Unified] TP1 触发: {pos.symbol} {_side} "
-                f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}, 平25%, SL→保本")
+            if (not _tp1_done) and _price_change_atr >= _params["tp1_mult"]:
+                # [PostFill §3.7] 假设 PnL 影子：旧三档实现此刻平 25%，两档实现平 40%。
+                self._record_postfill_telemetry(
+                    db, pos, "staged_tp_cf",
+                    {
+                        "mode": "two_tier",
+                        "legacy_close_pct": 0.25,
+                        "actual_close_pct": 0.40,
+                        "notional": round(_notional_now, 2),
+                        "atr_change": round(_price_change_atr, 4),
+                    },
+                )
+                _closed = self._partial_close_by_pct(db, pos, 0.40, "staged_tp1")
+                if _closed and _closed.get("closed_fully"):
+                    return True
+                if _closed is None:
+                    # 可行性门拦截（minNotional/费用预算）：档位不消费，下 tick 重试
+                    return False
+                pos.tp_level_reached = 1
+                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
+                logger.info(
+                    f"[Paper][v2-Unified] 两档模式TP1: {pos.symbol} {_side} "
+                    f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}, 平40%, SL→保本"
+                )
+        else:
+            # ── 三档模式（原路径，名义充足时）──
+            # [P0-7e 跳档修复] 价格一跳穿多档时，按未触发的档位累计减仓比例一次执行，
+            # 避免只减最高档而 TP1/TP2 的 25%+25% 永久丢失（此前 70% 仓位暴露给反转）。
+            if (not _tp3_done) and _price_change_atr >= _params["tp3_mult"]:
+                _missing_ratio = 0.30  # TP3 档
+                if not _tp2_done:
+                    _missing_ratio += 0.25  # 补齐 TP2
+                if not _tp1_done:
+                    _missing_ratio += 0.25  # 补齐 TP1
+                _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp3")
+                if _closed and _closed.get("closed_fully"):
+                    return True
+                if _closed is None:
+                    return False  # 可行性门拦截：档位不消费，下 tick 重试
+                pos.tp_level_reached = 3
+                # [P0-7 方向修复] 空单必须乘 _side_dir：short 的 peak 在入场价下方，
+                # 追踪止损应位于 peak 上方（朝 entry 方向），漏乘会把 SL 放到现价下方 →
+                # 下一次判定立即触发并以低于市价成交，虚增空单浮盈。
+                _new_sl = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
+                self._tighten_sl_unified(pos, _new_sl, "staged_tp3")
+                logger.info(
+                    f"[Paper][v2-Unified] TP3 触发: {pos.symbol} {_side} "
+                    f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp3_mult']}, "
+                    f"跳档补齐减仓{_missing_ratio:.0%}, 启动追踪 SL→{pos.sl_price}")
+            elif (not _tp2_done) and _price_change_atr >= _params["tp2_mult"]:
+                _missing_ratio = 0.25  # TP2 档
+                if not _tp1_done:
+                    _missing_ratio += 0.25  # 补齐 TP1
+                _closed = self._partial_close_by_pct(db, pos, _missing_ratio, "staged_tp2")
+                if _closed and _closed.get("closed_fully"):
+                    return True
+                if _closed is None:
+                    return False  # 可行性门拦截：档位不消费，下 tick 重试
+                pos.tp_level_reached = 2
+                _tp1_price = _entry + _atr_price * _params["tp1_mult"] * _side_dir
+                self._tighten_sl_unified(pos, _tp1_price + _atr_price * 0.5 * _side_dir, "staged_tp2")
+                logger.info(
+                    f"[Paper][v2-Unified] TP2 触发: {pos.symbol} {_side} "
+                    f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}, "
+                    f"跳档补齐减仓{_missing_ratio:.0%}")
+            elif (not _tp1_done) and _price_change_atr >= _params["tp1_mult"]:
+                # TP1: 平 25%, SL → entry + ATR价格距×0.8 (保本+给呼吸空间)
+                # [2026-07-30 crypto-native] 0.3×ATR≈0.15% 太紧，加密5m正常波动0.5-1%轻松击穿
+                # → breakeven_tp 100% 微利出场。提升到 0.8×ATR 给足够缓冲。
+                _closed = self._partial_close_by_pct(db, pos, 0.25, "staged_tp1")
+                if _closed and _closed.get("closed_fully"):
+                    return True
+                if _closed is None:
+                    return False  # 可行性门拦截：档位不消费，下 tick 重试
+                pos.tp_level_reached = 1
+                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
+                logger.info(
+                    f"[Paper][v2-Unified] TP1 触发: {pos.symbol} {_side} "
+                    f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}, 平25%, SL→保本")
 
         # ── 利润回撤保护 (peak 回撤, 以 ATR 为单位) ──
         # 仅当已有浮盈峰值时计算 (peak_price 在盈利方向超过 entry)
@@ -2793,13 +2811,14 @@ class PaperTradingEngine:
 
         manager = self._profit_manager
         if not manager:
-            # [Phase E] _profit_manager 未初始化时回退到 v1 兜底。
-            # 正常路径 manager 必然存在; 命中此分支说明初始化顺序异常, warn 以便定位。
+            # [Phase E 2026-08-30] v1 兜底已删除：manager 未初始化属异常初始化
+            # 顺序，本 tick 跳过利润保护（硬 SL/TP/超时仍由 reprice/max_hold 兜底），
+            # warn 以便定位。
             logger.warning(
-                "[DEPRECATED Phase E] _run_v2_protection 在 _profit_manager 未初始化时"
-                "回退到 _run_v1_protection — 检查引擎初始化顺序。"
+                "[Paper] _run_v2_protection 在 _profit_manager 未初始化时跳过保护 "
+                "— 检查引擎初始化顺序。"
             )
-            return self._run_v1_protection(db, pos, entry, current_price, profit_pct, _nature)
+            return False
 
         # 获取账户权益
         bal = db.query(PaperBalance).filter(
@@ -2991,8 +3010,20 @@ class PaperTradingEngine:
                         _remaining.peak_unrealized_pnl = _remaining_upnl
                         _remaining.peak_pnl_pct = self._position_pnl_pct(_remaining, current_price)
                         if _dd_action.get("new_sl"):
-                            _remaining.exit_state_json = (
-                                f'{{"last_guard":"profit_drawdown_partial","new_sl":{float(_dd_action["new_sl"]):.8f}}}'
+                            # [2026-08-31 PostFill] 合并更新而非整覆盖：exit_state_json
+                            # 是 SM/PEO/trend_agent 的共享状态库（nature_staged_tp 等键），
+                            # 整覆盖会把其他模块写入的状态 clobber 掉。
+                            try:
+                                import json as _json_dd
+                                _st_dd = _json_dd.loads(_remaining.exit_state_json or "{}")
+                            except Exception:
+                                _st_dd = {}
+                            if not isinstance(_st_dd, dict):
+                                _st_dd = {}
+                            _st_dd["last_guard"] = "profit_drawdown_partial"
+                            _st_dd["new_sl"] = float(_dd_action["new_sl"])
+                            _remaining.exit_state_json = _json_dd.dumps(
+                                _st_dd, ensure_ascii=False
                             )
                         db.commit()
                     self._last_partial_close_at[pos_id] = datetime.now(tz=timezone.utc)
@@ -3425,7 +3456,13 @@ class PaperTradingEngine:
             decision_snapshot=(
                 f"tier={getattr(pos, 'timeframe_tier', '')} "
                 f"nature={getattr(pos, 'trade_nature', '')} "
-                f"lev={getattr(pos, 'leverage', '')}"
+                f"lev={getattr(pos, 'leverage', '')} "
+                # [PostFill P3 2026-08-30] MFE/MAE/资金费入回顾负载：因子进化
+                # 闭环据此区分"止损太紧"(MAE 浅仍被扫出) vs "方向错"(MAE 深)
+                # 与资金费偏置归因。
+                f"mfe={float(getattr(pos, 'peak_pnl_pct', 0) or 0):+.4f} "
+                f"mae={float(getattr(pos, 'trough_pnl_pct', 0) or 0):+.4f} "
+                f"funding_acc={self._funding_accrued_total(db, pos):+.4f}"
             ),
         )
         try:
@@ -3500,6 +3537,7 @@ class PaperTradingEngine:
     def _notify_learning_on_close(
         self, db, pos, fill_price, pnl, reason,
         *, is_partial: bool = False, learning_weight: float = 1.0,
+        close_fee: float = 0.0,
     ):
         """持仓关闭（全平/部分平）时通知统一学习系统"""
         from backend.services.unified_learning_service import unified_learning, TradeOutcome
@@ -3663,6 +3701,12 @@ class PaperTradingEngine:
             metadata={
                 "close_reason": reason,
                 "tier": tier,
+                # [2026-08-28 实盘零成交修复] 熔断/学习按账户隔离所需
+                "account_id": getattr(pos, "account_id", None),
+                # [2026-08-29 全面修复 P1.6] 净盈亏口径：pnl(毛) - close_fee。
+                # 下游（mid 熔断/复盘/胜率统计）按 net 判定，费拖型小赢不再算赢。
+                "close_fee": float(close_fee or 0),
+                "net_pnl": float(pnl or 0) - float(close_fee or 0),
                 "adx_at_entry": round(adx_at_entry, 1),
                 "trend_direction": trend_direction,
                 "trend_strength": trend_strength,
@@ -4240,6 +4284,30 @@ class PaperTradingEngine:
             )
             return None
 
+        # ── [PostFill §3.4.c 2026-08-31] 延长持仓硬条件补齐 ──
+        # 设计原承诺：peak≥1R / 未破追踪线 / regime 未翻转 / 预计剩余持仓期
+        # funding 成本 < 剩余浮盈 20%。此前只落地了短线禁令 + 3× 上限。
+        # POSTFILL_EXTEND_HARD_GATE=false 可整体回滚（默认 true）。
+        # 注：本模块无顶层 import os，须局部导入（否则 NameError 被吞 → 门恒开）。
+        try:
+            import os as _os_pf
+            _hard_gate = str(_os_pf.getenv("POSTFILL_EXTEND_HARD_GATE", "true")).strip().lower() in (
+                "1", "true", "yes", "on",
+            )
+        except Exception:
+            _hard_gate = True
+        if _hard_gate:
+            _reject = self._postfill_extend_precondition(db, pos, additional_hours)
+            if _reject:
+                logger.info(f"[Paper] 延长持仓拒绝 {pos.symbol}: {_reject}")
+                # [PostFill §3.7] 影子遥测：被硬条件拒绝的延长提案落事件流，
+                # 事后对比"若放行"的假设 PnL（无 A/B 直接全开的补位）。
+                self._record_postfill_telemetry(
+                    db, pos, "extend_rejected",
+                    {"reason": _reject, "additional_hours": float(additional_hours)},
+                )
+                return None
+
         before = get_position_hold_status(pos)
         before_max_h = float(before.get("max_hold_hours") or 0)
         abs_cap_h = resolve_tier_absolute_cap_seconds(pos) / 3600.0
@@ -4252,6 +4320,17 @@ class PaperTradingEngine:
 
         pos.expected_hold_hours = round(new_h, 2)
         db.commit()
+
+        # [PostFill §3.7] 影子遥测：放行的延长一并落事件流，与 extend_rejected
+        # 配对统计通过率与假设 PnL。
+        self._record_postfill_telemetry(
+            db, pos, "extend_granted",
+            {
+                "added_hours": round(new_h - before_max_h, 2),
+                "after_max_hours": round(new_h, 2),
+                "reason": reason,
+            },
+        )
 
         after = get_position_hold_status(pos)
         try:
@@ -4273,6 +4352,100 @@ class PaperTradingEngine:
             "reason": reason,
             "hold_status": after,
         }
+
+    def _postfill_extend_precondition(
+        self, db: Session, pos, additional_hours: float,
+    ) -> Optional[str]:
+        """[PostFill §3.4.c 2026-08-31] 延长持仓的 4 条硬条件，返回拒绝原因或 None。
+
+        1. peak ≥ 1R：峰值浮盈 ≥ 单仓风险（|entry−SL|×size；无 SL 用 ATR 兜底）
+        2. 未破追踪线：trailing_stop_price（无则 sl_price）未被现价击穿
+        3. regime 未翻转：exit_state_json.regime（开仓时）≠ 当前快照 regime 即拒
+        4. funding：预计延长段成本 |rate|×notional×h/8 < 剩余浮盈 20%
+
+        缺数据（价格/费率/regime）时 fail-open（放行 + 跳过该条），有数据硬执行；
+        任何异常不影响延长主链（返回 None 放行）。
+        """
+        try:
+            try:
+                _exchange = self._resolve_account_exchange(db, pos.account_id)
+                _price = float(self._get_current_price(pos.symbol, _exchange) or 0)
+            except Exception:
+                _price = float(getattr(pos, "mark_price", 0) or 0)
+            _side = str(getattr(pos, "side", "long") or "long").lower()
+            _entry = float(getattr(pos, "entry_price", 0) or 0)
+            _size = float(getattr(pos, "size", 0) or 0)
+            _peak = float(getattr(pos, "peak_unrealized_pnl", 0) or 0)
+            _upnl = float(getattr(pos, "unrealized_pnl", 0) or 0)
+
+            # ── 1) peak ≥ 1R ──
+            _sl = float(getattr(pos, "sl_price", 0) or 0)
+            if _sl > 0 and _entry > 0:
+                _risk = abs(_entry - _sl) * _size
+            elif _entry > 0 and _size > 0:
+                _atr = max(float(self._resolve_atr_pct(pos, _entry, _price) or 0), 0.005)
+                _risk = _entry * _atr * _size
+            else:
+                _risk = 0.0
+            if _risk > 0 and _peak < _risk:
+                return f"peak ${_peak:.2f} < 1R ${_risk:.2f}"
+
+            # ── 2) 未破追踪线 ──
+            if _price > 0:
+                _trail = float(getattr(pos, "trailing_stop_price", 0) or 0) or _sl
+                if _trail > 0:
+                    _broken = (
+                        (_side in ("long", "buy") and _price <= _trail)
+                        or (_side in ("short", "sell") and _price >= _trail)
+                    )
+                    if _broken:
+                        return f"追踪线已破 (price={_price} trail={_trail})"
+
+            # ── 3) regime 未翻转 ──
+            try:
+                import json as _json_pf
+                _entry_regime = None
+                _st = _json_pf.loads(getattr(pos, "exit_state_json", None) or "{}")
+                if isinstance(_st, dict):
+                    _entry_regime = _st.get("regime")
+                _cur_regime = None
+                try:
+                    from backend.services.unified_data_pool import UnifiedDataPool
+                    _snap = UnifiedDataPool().get_snapshot(max_age=300)
+                    if _snap and pos.symbol in _snap.indicators:
+                        _cur_regime = _snap.indicators[pos.symbol].get("regime")
+                except Exception:
+                    pass
+                if _entry_regime and _cur_regime and str(_entry_regime) != str(_cur_regime):
+                    return f"regime 翻转 {_entry_regime}→{_cur_regime}"
+            except Exception:
+                pass
+
+            # ── 4) 预计剩余持仓期 funding 成本 < 剩余浮盈 20% ──
+            try:
+                _rate = 0.0
+                try:
+                    from backend.services.unified_data_pool import UnifiedDataPool
+                    _snap = UnifiedDataPool().get_snapshot(max_age=300)
+                    if _snap and pos.symbol in _snap.indicators:
+                        _rate = float(_snap.indicators[pos.symbol].get("funding_rate", 0) or 0)
+                except Exception:
+                    pass
+                if _rate != 0 and _price > 0 and _size > 0:
+                    _est_cost = abs(_rate) * _price * _size * float(additional_hours) / 8.0
+                    if _upnl <= 0:
+                        return f"无剩余浮盈覆盖预计funding成本 ${_est_cost:.4f}"
+                    if _est_cost >= 0.2 * _upnl:
+                        return (
+                            f"预计funding成本 ${_est_cost:.4f} ≥ 剩余浮盈20% "
+                            f"(${0.2 * _upnl:.4f})"
+                        )
+            except Exception:
+                pass
+        except Exception as _pf_err:
+            logger.debug(f"[Paper] 延长持仓前置条件检查异常(放行): {_pf_err}")
+            return None
+        return None
 
     def update_position_tp_sl(
         self, db: Session, position_id: int,
@@ -4303,7 +4476,11 @@ class PaperTradingEngine:
             # 被复查路径从 -4.5% 放宽到 -9%（4.1285→3.9359），行情急跌时越走越远，
             # 用户感知"止损失效"。默认拒绝放宽（MIDLONG_ALLOW_SL_WIDEN=true 回滚）。
             try:
-                _allow_widen = str(os.environ.get("MIDLONG_ALLOW_SL_WIDEN", "false")).strip().lower() in ("1", "true", "yes", "on")
+                # [2026-08-31] 本模块无顶层 import os：原 os.environ 在此作用域
+                # NameError 被 except 吞掉 → 回滚开关 MIDLONG_ALLOW_SL_WIDEN 形同虚设。
+                # 局部导入恢复开关可用性（默认行为不变：拒绝放宽）。
+                import os as _os_widen
+                _allow_widen = str(_os_widen.environ.get("MIDLONG_ALLOW_SL_WIDEN", "false")).strip().lower() in ("1", "true", "yes", "on")
             except Exception:
                 _allow_widen = False
             _cur_sl = float(old_sl or 0)
@@ -4336,6 +4513,11 @@ class PaperTradingEngine:
         if changed:
             self._sync_attached_orders(db, pos)
             db.commit()
+            try:
+                from backend.services.exchange.live_tpsl_sync import maybe_sync_live_tpsl
+                maybe_sync_live_tpsl(db, pos, force=True)
+            except Exception as _sync_err:
+                logger.debug("[Paper] live tpsl sync skip: %s", _sync_err)
         return changed
 
     # ── 定时更新（供 scheduler 调用）────────────────
@@ -4348,6 +4530,8 @@ class PaperTradingEngine:
         """
         from backend.database.models import PaperBalance
 
+        _sl0 = float(getattr(pos, "sl_price", 0) or 0)
+        _tp0 = float(getattr(pos, "tp_price", 0) or 0)
         try:
             exchange = self._resolve_account_exchange(db, pos.account_id)
             current_price = self._get_mark_price(pos.symbol, exchange)
@@ -4386,29 +4570,25 @@ class PaperTradingEngine:
                 profit_pct = (entry - current_price) / entry
 
         # ── 获取 trade_nature（优先用新字段，兼容旧 tier 值）──
+        # [Phase E 2026-08-30] v1 三张参数表已删除，nature 合法性改用显式集合。
         _explicit_nature = getattr(pos, "trade_nature", None)
-        if _explicit_nature and _explicit_nature in self._BREAKEVEN_BY_NATURE:
+        if _explicit_nature and _explicit_nature in self._VALID_NATURES:
             _nature = _explicit_nature
         else:
             _raw_tier = getattr(pos, "timeframe_tier", None) or "swing"
             _nature = self._TIER_TO_NATURE.get(_raw_tier, _raw_tier)
-            if _nature not in self._BREAKEVEN_BY_NATURE:
+            if _nature not in self._VALID_NATURES:
                 _nature = "swing"
-        _be_cfg = self._BREAKEVEN_BY_NATURE.get(_nature, self._BREAKEVEN_BY_NATURE["swing"])
 
-        # ── 利润保护（v1/v2 分支）──
+        # ── 利润保护（v2 唯一路径；v1 已于 Phase E 删除，显式回退只告警跳过）──
         from backend.config.settings import PROFIT_PROTECTION_VERSION
         if PROFIT_PROTECTION_VERSION == "v2":
             should_continue = self._run_v2_protection(db, pos, entry, current_price, profit_pct, _nature)
         else:
-            # [Phase E] v1 路径在默认配置下已死 (PROFIT_PROTECTION_VERSION=v2)。
-            # 仅当显式回退时才会命中,保留兜底但在每次激活时打 warning,
-            # 便于监控是否还有意外路径触发 v1。Phase E 之后将彻底删除。
             logger.warning(
-                "[DEPRECATED Phase E] _run_v1_protection 已弃用 "
-                "(B+C 统一 TP/trailing)。建议设置 PROFIT_PROTECTION_VERSION=v2。"
+                "[Paper] PROFIT_PROTECTION_VERSION!=v2：v1 已删除(Phase E)，本 tick 跳过利润保护"
             )
-            should_continue = self._run_v1_protection(db, pos, entry, current_price, profit_pct, _nature)
+            should_continue = False
 
         # 修复（2026-06-23）：_run_v1/v2_protection 内部异常路径会调 db.rollback()
         # （见 line ~2000/~2069），导致本函数开头设置的 pos.mark_price /
@@ -4424,6 +4604,10 @@ class PaperTradingEngine:
             db.commit()
             return
         self._sync_attached_orders(db, pos)
+        _changed = (
+            abs(float(getattr(pos, "sl_price", 0) or 0) - _sl0) > 1e-12
+            or abs(float(getattr(pos, "tp_price", 0) or 0) - _tp0) > 1e-12
+        )
 
         # 更新余额
         bal = db.query(PaperBalance).filter(PaperBalance.account_id == pos.account_id).first()
@@ -4431,6 +4615,11 @@ class PaperTradingEngine:
             self._recalc_balance(db, bal)
 
         db.commit()
+        try:
+            from backend.services.exchange.live_tpsl_sync import maybe_sync_live_tpsl
+            maybe_sync_live_tpsl(db, pos, force=_changed)
+        except Exception as _sync_err:
+            logger.debug("[Paper] live tpsl sync skip: %s", _sync_err)
 
     def reprice_position(self, db: Session, pos) -> None:
         """秒级快速定价：只更新 mark_price/unrealized + 硬性 TP/SL 触发，
@@ -4468,6 +4657,8 @@ class PaperTradingEngine:
                 strategy_id=getattr(pos, "strategy_id", None),
                 fill_price_override=float(getattr(pos, reason + "_price")),
             )
+            # ── [PostFill §3.5 2026-08-31] 硬线全平补登 ExitSource 事件 ──
+            self._record_hard_line_exit_source(db, pos, reason)
             self._tp_levels_cache.pop(pos.id, None)
             self._peak_profit_cache.pop(pos.id, None)
 
@@ -4601,28 +4792,25 @@ class PaperTradingEngine:
                     profit_pct = (entry - current_price) / entry
 
             # ── 获取 trade_nature（优先用新字段，兼容旧 tier 值）──
+            # [Phase E 2026-08-30] v1 三张参数表已删除，nature 合法性改用显式集合。
             _explicit_nature = getattr(pos, "trade_nature", None)
-            if _explicit_nature and _explicit_nature in self._BREAKEVEN_BY_NATURE:
+            if _explicit_nature and _explicit_nature in self._VALID_NATURES:
                 _nature = _explicit_nature
             else:
                 _raw_tier = getattr(pos, "timeframe_tier", None) or "swing"
                 _nature = self._TIER_TO_NATURE.get(_raw_tier, _raw_tier)
-                if _nature not in self._BREAKEVEN_BY_NATURE:
+                if _nature not in self._VALID_NATURES:
                     _nature = "swing"
-            _be_cfg = self._BREAKEVEN_BY_NATURE.get(_nature, self._BREAKEVEN_BY_NATURE["swing"])
 
-            # ── 利润保护（v1/v2 分支）──
+            # ── 利润保护（v2 唯一路径；v1 已于 Phase E 删除，显式回退只告警跳过）──
             from backend.config.settings import PROFIT_PROTECTION_VERSION
             if PROFIT_PROTECTION_VERSION == "v2":
                 should_continue = self._run_v2_protection(db, pos, entry, current_price, profit_pct, _nature)
             else:
-                # [Phase E] v1 路径在默认配置下已死 (PROFIT_PROTECTION_VERSION=v2)。
-                # 同 update_position 内的 dispatch, 保留兜底但每次激活 warn。
                 logger.warning(
-                    "[DEPRECATED Phase E] _run_v1_protection 已弃用 "
-                    "(B+C 统一 TP/trailing)。建议设置 PROFIT_PROTECTION_VERSION=v2。"
+                    "[Paper] PROFIT_PROTECTION_VERSION!=v2：v1 已删除(Phase E)，本 tick 跳过利润保护"
                 )
-                should_continue = self._run_v1_protection(db, pos, entry, current_price, profit_pct, _nature)
+                should_continue = False
             if should_continue:
                 continue
             self._sync_attached_orders(db, pos)
@@ -4658,6 +4846,25 @@ class PaperTradingEngine:
                 "[PaperEngine] 孤立缓存清理: peak=%d, tp=%d",
                 len(stale_peak), len(stale_tp),
             )
+
+    @staticmethod
+    def _funding_accrued_total(db: Session, pos) -> float:
+        """[PostFill P1-2] 该持仓累计资金费（正=收入, 负=支出）。
+
+        从 PaperFundingLedger 按 position_id 聚合；无结算记录返回 0。
+        持仓监视/延长持仓决策用它扣除资金费成本。
+        """
+        try:
+            from backend.database.models import PaperFundingLedger
+            pid = int(getattr(pos, "id", 0) or 0)
+            if not pid:
+                return 0.0
+            rows = db.query(PaperFundingLedger.payment).filter(
+                PaperFundingLedger.position_id == pid,
+            ).all()
+            return float(sum(float(r[0] or 0) for r in rows))
+        except Exception:
+            return 0.0
 
     def _maybe_settle_funding(self, db: Session, pos, current_price: float) -> None:
         """Research 模式下按周期结算资金费率。仅 demo/research 有意义时调用。

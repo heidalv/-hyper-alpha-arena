@@ -175,9 +175,29 @@ class UnifiedExitStateMachine:
         state = self._get_state(req.position_id)
 
         # 2a: min_hold 保护期内拦截非紧急退出
+        # 短线：只挡 AI 随手全平；认错/保本/追踪/分批/行情翻脸必须能在 1h 内执行。
+        # 回滚：SCALP_DYNAMIC_HOLD_TPSL=false → 恢复「1 小时内非 CRITICAL 一律拦截」。
+        _scalp_bypass = frozenset({
+            ExitSource.HOLD_REVIEW.value,
+            ExitSource.TIME_DECAY.value,
+            ExitSource.BREAKEVEN.value,
+            ExitSource.TRAILING.value,
+            ExitSource.STAGED_TP.value,
+            ExitSource.REGIME_FLIP.value,
+        })
         if ctx.hold_seconds < protection.min_hold_sec and req.urgency != ExitUrgency.CRITICAL.value:
-            logger.info(f"[ExitSM] 保护期拦截: pos={req.position_id} hold={ctx.hold_seconds}s < min={protection.min_hold_sec}s")
-            return make_hold(req.position_id, f"保护期内(hold={ctx.hold_seconds}s<{protection.min_hold_sec}s)")
+            _dyn_on = True
+            try:
+                from backend.services.exit.market_aware_tpsl import hold_dynamic_enabled
+                _dyn_on = hold_dynamic_enabled()
+            except Exception:
+                _dyn_on = True
+            _allow_scalp_dyn = (
+                _dyn_on and req.tier == "short" and req.source in _scalp_bypass
+            )
+            if not _allow_scalp_dyn:
+                logger.info(f"[ExitSM] 保护期拦截: pos={req.position_id} hold={ctx.hold_seconds}s < min={protection.min_hold_sec}s")
+                return make_hold(req.position_id, f"保护期内(hold={ctx.hold_seconds}s<{protection.min_hold_sec}s)")
 
         # 2b: 微盈利禁止 reduce（核心修复：防"微盈利即减仓"）
         if req.proposed_action == ExitAction.REDUCE.value:
@@ -252,7 +272,16 @@ class UnifiedExitStateMachine:
             logger.debug("[ExitSM] tier strategy 调用失败 pos=%s: %s", req.position_id, _strat_err)
 
         # ── 保留 profit_drawdown 兜底（TierExitStrategy 没覆盖时的安全网）──
-        if ctx.peak_pnl_pct > 2.0 and ctx.unrealized_pnl_pct > 0:
+        # [PostFill P3 2026-08-30] 回撤阶梯收口：盈利回撤的唯一实现是引擎侧
+        # profit_drawdown_guard(D6) + 统一块 ATR 回撤（profit_drawdown_stage/hard）。
+        # 此处 % 口径兜底与其重叠（参数还更松），默认停用，避免双重触发；
+        # EXIT_DRAWDOWN_SINGLE_IMPL=false 可恢复旧行为。
+        try:
+            import os as _os
+            _dd_single = _os.getenv("EXIT_DRAWDOWN_SINGLE_IMPL", "true").strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            _dd_single = True
+        if not _dd_single and ctx.peak_pnl_pct > 2.0 and ctx.unrealized_pnl_pct > 0:
             drawdown_pct = (ctx.peak_pnl_pct - ctx.unrealized_pnl_pct) / max(ctx.peak_pnl_pct, 0.01) * 100
             dd_threshold = {"short": 55, "mid": 50, "long": 40}.get(req.tier, 50)
             if drawdown_pct >= dd_threshold:
@@ -334,6 +363,28 @@ class UnifiedExitStateMachine:
         # S2: TP2 触发后标记 trailing_active
         if state.tp_level_reached >= 2:
             state.trailing_active = True
+
+    def sync_position_state(
+        self, position_id: int, *, tp_level_reached: int = 0,
+        breakeven_active: bool = False, trailing_active: bool = False,
+        peak_pnl_pct: float = 0.0,
+    ) -> None:
+        """[PostFill 2026-08-30] 用引擎侧真实状态对齐内部追踪状态。
+
+        状态机的 tp_level_reached/breakeven_active 与 paper 引擎的
+        pos.tp_level_reached/sl_price 各自维护，跨入口调用（scalp 持仓复审、
+        PEO）时若不对齐会出现"引擎已 TP1 而状态机还想推 breakeven"之类的
+        重复动作。调用方在 submit 前用本方法同步一次。
+        """
+        with self._global_lock:
+            state = self._position_states.get(position_id)
+            if state is None:
+                state = PositionExitState(position_id=position_id)
+                self._position_states[position_id] = state
+        state.tp_level_reached = max(int(tp_level_reached or 0), state.tp_level_reached)
+        state.breakeven_active = bool(breakeven_active or state.breakeven_active)
+        state.trailing_active = bool(trailing_active or state.trailing_active)
+        state.peak_pnl_pct = max(float(peak_pnl_pct or 0.0), state.peak_pnl_pct)
 
     def reset_position(self, position_id: int):
         """持仓关闭后清理状态。"""

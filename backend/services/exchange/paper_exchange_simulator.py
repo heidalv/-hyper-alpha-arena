@@ -13,6 +13,7 @@ paper exchange would accept, trigger and fill that order.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, Optional
@@ -152,10 +153,22 @@ EXCHANGE_ALIASES: Dict[str, str] = {
 }
 
 
+def _fallback_exchange_key() -> str:
+    """规则表回退交易所（2026-08-31 起用币安）。
+
+    历史默认：未知→hyperliquid（$10 门槛，已停用该所）、空串→asterdex。
+    当前主力交易所为 binance（.env DEFAULT_EXCHANGE=binance），未知/缺失
+    交易所一律回退币安规则；PAPER_EXCHANGE_RULES_FALLBACK 可覆盖。
+    """
+    _v = str(os.getenv("PAPER_EXCHANGE_RULES_FALLBACK", "binance") or "binance").strip().lower()
+    return _v if _v in DEFAULT_EXCHANGE_RULES else "binance"
+
+
 def get_paper_exchange_rules(exchange: str) -> PaperExchangeRules:
-    key = (exchange or "asterdex").lower().strip()
+    _fb = _fallback_exchange_key()
+    key = (exchange or _fb).lower().strip()
     key = EXCHANGE_ALIASES.get(key, key)
-    return DEFAULT_EXCHANGE_RULES.get(key, DEFAULT_EXCHANGE_RULES["hyperliquid"])
+    return DEFAULT_EXCHANGE_RULES.get(key, DEFAULT_EXCHANGE_RULES[_fb])
 
 
 def liquidation_price(entry_price: float, side: str, leverage: float, maintenance_margin_rate: float = 0.005) -> float:
@@ -268,12 +281,19 @@ def simulate_exchange_order(
             base.trigger_reason = PaperTriggerReason.RESTING_LIMIT
             return base
         trigger = PaperTriggerReason.MARKETABLE_LIMIT
+        # [2026-08-31 修复] 挂单复查路径（resting_limit=True，paper 引擎对
+        # 已挂限价单的后续 check_pending_orders 复查）价格穿越挂单价时应按
+        # 挂单价 maker 成交——挂单方提供了流动性且保留价格改善。P2-4 的
+        # "可市价化限价单=taker" 只适用于【新下】即穿越的限价单。
+        if resting_limit and order.price and float(order.price) > 0:
+            maker = True
         # [P2-4] 可市价化限价单 = taker：按对侧盘口价成交、收 taker 费。
         # 原 maker = bool(resting_limit) 且 paper 引擎对新限价单恒传 resting_limit=True，
         # 导致所有可市价化限价单被误判 maker（按限价成交 + maker 费）→ 成交价失真、费率低估。
         # resting 挂单的后续成交（check_pending_orders 路径）仍走 resting 分支之前就 return，
-        # 不受影响；此分支只处理【下单即穿越盘口】的限价单。
-        maker = False
+        # 不受本分支影响。
+        else:
+            maker = False
 
     price = _fill_price(order, market, maker=maker)
     notional = price * quantity

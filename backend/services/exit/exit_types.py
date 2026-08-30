@@ -40,6 +40,7 @@ class ExitSource(str, Enum):
     NO_PROGRESS = "no_progress"
     PROFIT_DRAWDOWN = "profit_drawdown"
     BREAKEVEN = "breakeven"
+    REGIME_FLIP = "regime_flip"
     # AI 决策层
     MASTER_REDUCE = "master_reduce"
     MASTER_CLOSE = "master_close"
@@ -95,6 +96,10 @@ class PositionContext:
     tp_stages: list[dict] = field(default_factory=list)  # LLM 的 exit_plan.tp_stages
     expected_hold_hours: float = 0.0    # LLM 建议持仓时长（用于 time_stop）
     invalidation_condition: str = ""    # LLM 的论点失效条件（用于 invalidation 退出）
+    # 行情快照（可选；短线动态出场 / 行情翻脸用）
+    regime: str = ""                    # trend / ranging / extreme / unknown
+    funding_rate: float = 0.0
+    oi_delta: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -142,56 +142,121 @@ class TierExitStrategy(ABC):
         return None
 
 
+def _atr_as_pct(atr: float) -> float:
+    """ctx.atr_pct 有时是小数(0.012)、有时是百分数(1.2)。统一成百分数。"""
+    a = float(atr or 0)
+    if a <= 0:
+        return 0.8
+    return a * 100.0 if a < 0.2 else a
+
+
 class ShortTierExit(TierExitStrategy):
-    """短线：快进快出，紧 trailing(1.0×ATR)，分批 TP。"""
+    """短线三阶段：认错 → 保本 → ATR 追踪。分批按 ATR，不再写死 4%/7%。"""
 
     STAGED_TPS = [
-        StagedTP(trigger_pnl_pct=4.0, reduce_ratio=0.35),
-        StagedTP(trigger_pnl_pct=7.0, reduce_ratio=0.35),
+        StagedTP(trigger_pnl_pct=0.8, reduce_ratio=0.25),
+        StagedTP(trigger_pnl_pct=1.5, reduce_ratio=0.25),
     ]
     TRAILING_ATR_MULT = 1.0
-    # [2026-08-26 三阶段设计·证据最优] 保本触发 3.0%→0.3%（信号边际下沿即保本，
-    # breakeven_tp 117笔+0.83/笔 全场最优）；buffer 0.8%→2bp 只垫成本。
-    # 旧值 3.0% 对 ±0.3% 边际的信号几乎永不触发=保本结构形同虚设。
     BREAKEVEN_TRIGGER_PCT = 0.3
     BREAKEVEN_OFFSET_PCT = 0.0002
-    TRAILING_ACTIVATE_LEVEL = 1   # 保本后即可启动追踪（原 TP2 才启动）
+    TRAILING_ACTIVATE_LEVEL = 1   # 保本或已分批后才追踪，避免微浮盈来回打脸
+
+    def _get_stages(self, ctx: PositionContext) -> list[StagedTP]:
+        if ctx.tp_stages:
+            return super()._get_stages(ctx)
+        atr = _atr_as_pct(ctx.atr_pct)
+        tp1 = max(0.50, min(1.20, 0.8 * atr))
+        tp2 = max(0.80, min(2.20, 1.5 * atr))
+        if tp2 <= tp1:
+            tp2 = min(2.20, tp1 + 0.40)
+        return [
+            StagedTP(trigger_pnl_pct=tp1, reduce_ratio=0.25),
+            StagedTP(trigger_pnl_pct=tp2, reduce_ratio=0.25),
+        ]
 
     def evaluate(self, ctx: PositionContext, *, tp_level_reached: int = 0,
                  breakeven_active: bool = False, trailing_active: bool = False,
                  ) -> Optional[ExitDecision]:
-        # [2026-08-26 三阶段设计·A] 快速认错：N分钟无浮盈(从未触保本线)→小亏出清，
-        # 替代"拿错方向磨到超时"（max_hold_timeout 曾占 40%）。
         try:
             if os.getenv("SCALP_EXIT_FAST_CUT_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"):
                 _fc_min = float(os.getenv("SCALP_EXIT_FAST_CUT_MIN", "15") or 15)
-                if (ctx.hold_seconds or 0) >= _fc_min * 60                         and (ctx.peak_pnl_pct or 0) < 0.003                         and (ctx.unrealized_pnl_pct or 0) < 0.003:
+                # 浮盈口径是百分数：0.3 = 0.3%（旧代码误写成 0.003）
+                if (ctx.hold_seconds or 0) >= _fc_min * 60 and (ctx.peak_pnl_pct or 0) < 0.3 and (ctx.unrealized_pnl_pct or 0) < 0.3:
                     return ExitDecision(
                         position_id=ctx.position_id,
                         action=ExitAction.CLOSE.value, qty_ratio=1.0,
-                        reason="fast_cut: %.0fmin无浮盈认错出清(peak=%.3f%%)" % (_fc_min, (ctx.peak_pnl_pct or 0) * 100),
-                        source=getattr(ExitSource, "TIME_DECAY", ExitSource.TRAILING).value,
+                        reason="fast_cut: %.0fmin无浮盈认错出清(peak=%.3f%%)" % (_fc_min, ctx.peak_pnl_pct or 0),
+                        source=ExitSource.TIME_DECAY.value,
                         ts_ns=int(time.time() * 1e9),
                     )
         except Exception:
             pass
 
-        # 1. 分批 TP
-        tp_decision = self._evaluate_staged_tp(ctx, tp_level_reached)
-        if tp_decision:
-            return tp_decision
+        flip = self._evaluate_regime_flip(ctx, breakeven_active)
+        if flip:
+            return flip
 
-        # 2. breakeven
+        # 先锁本金，再谈分批——PEO 在 v2 开启时会忽略 REDUCE，保本必须先落地。
         be_decision = self._evaluate_breakeven(ctx, breakeven_active)
         if be_decision:
             return be_decision
 
-        # 3. trailing（S2 修复：typo drawback → drawdown，原 bug 导致永不触发）
-        trail_decision = self._evaluate_trailing(ctx, tp_level_reached, trailing_active)
-        if trail_decision:
-            return trail_decision
+        tp_decision = self._evaluate_staged_tp(ctx, tp_level_reached)
+        if tp_decision:
+            return tp_decision
+
+        if breakeven_active or tp_level_reached >= 1:
+            trail_decision = self._evaluate_trailing(
+                ctx, max(tp_level_reached, 1), trailing_active,
+            )
+            if trail_decision:
+                return trail_decision
 
         return None
+
+    def _evaluate_regime_flip(self, ctx: PositionContext, breakeven_active: bool,
+                              ) -> Optional[ExitDecision]:
+        """趋势变震荡/极端：收紧止损，只上移不放宽。"""
+        try:
+            from backend.services.exit.market_aware_tpsl import hold_dynamic_enabled
+            if not hold_dynamic_enabled():
+                return None
+        except Exception:
+            pass
+        regime = str(getattr(ctx, "regime", "") or "").lower()
+        if regime not in ("ranging", "extreme"):
+            return None
+        if regime == "extreme" and (ctx.unrealized_pnl_pct or 0) <= 0:
+            return None
+        if regime == "ranging" and (ctx.peak_pnl_pct or 0) < 0.3 and not breakeven_active:
+            return None
+        if not ctx.entry_price or ctx.entry_price <= 0:
+            return None
+        atr = _atr_as_pct(ctx.atr_pct)
+        side_mult = 1 if ctx.side == "long" else -1
+        # 极端：锁到成本+垫；震荡：峰值回撤 0.7×ATR
+        if regime == "extreme":
+            new_sl = ctx.entry_price * (1 + side_mult * max(self.BREAKEVEN_OFFSET_PCT, 0.0002))
+            why = "行情极端，止损收到成本附近锁利"
+        else:
+            peak_frac = max(ctx.peak_pnl_pct or 0, ctx.unrealized_pnl_pct or 0) / 100.0
+            trail = max(0.004, (atr / 100.0) * 0.7)
+            new_sl = ctx.entry_price * (1 + side_mult * max(peak_frac - trail, self.BREAKEVEN_OFFSET_PCT))
+            why = "趋势转震荡，收紧追踪"
+        if ctx.sl_price:
+            if side_mult == 1 and new_sl <= ctx.sl_price:
+                return None
+            if side_mult == -1 and new_sl >= ctx.sl_price:
+                return None
+        return ExitDecision(
+            position_id=ctx.position_id,
+            action=ExitAction.TIGHTEN_SL.value,
+            reason=why,
+            source=ExitSource.REGIME_FLIP.value,
+            new_sl_price=new_sl,
+            ts_ns=int(time.time() * 1e9),
+        )
 
 
 class MidTierExit(TierExitStrategy):

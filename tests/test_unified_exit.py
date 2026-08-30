@@ -6,19 +6,17 @@
 2. 保护层：min_hold 内拦截、微盈利禁止减仓、减仓冷却
 3. 动态离场层：分批 TP、trailing、bias 反向、time_decay
 4. AI 决策层：小盈利禁止全平
-5. 跨周期协同：趋势保护降级、对冲保护
-6. per-position 锁串行化
+5. per-position 锁串行化
+
+[2026-08-30 Phase E] cross_tier_arbitration 死模块已删除，对应测试一并移除。
 """
 from __future__ import annotations
 
 import pytest
 
-from backend.services.exit.cross_tier_arbitration import cross_tier_arbitrate
 from backend.services.exit.exit_types import (
-    ExitDecision,
     ExitRequest,
     PositionContext,
-    make_hold,
 )
 from backend.services.exit.tier_exit_strategies import (
     LongTierExit,
@@ -77,13 +75,28 @@ class TestHardFactLayer:
 class TestProtectionLayer:
     """Layer 2: 保护层。"""
 
-    def test_min_hold_blocks_non_critical(self):
-        """保护期内非紧急退出被拦。"""
+    def test_min_hold_blocks_non_critical(self, monkeypatch):
+        """保护期内非紧急退出被拦。[契约更新 2026-08-30] 动态出场默认开启时
+        短线 trailing/breakeven 等白名单来源可穿过 min_hold；关闭动态出场
+        恢复旧的严格拦截。直接 patch 判定函数，避免 settings/env 顺序污染。"""
+        monkeypatch.setattr(
+            "backend.services.exit.market_aware_tpsl.hold_dynamic_enabled", lambda: False)
         sm = UnifiedExitStateMachine()
         ctx = _ctx(hold_seconds=60)  # 只持 1 分钟 < min_hold 3600
         d = sm.submit(_req(source="trailing", action="close"), ctx)
         assert d.action == "hold"
         assert "保护期" in d.reason
+
+    def test_min_hold_dynamic_bypass_default(self, monkeypatch):
+        """[契约更新 2026-08-30] 默认（动态出场开）：短线保护期内 trailing
+        不再被 min_hold 一刀切拦截，交给动态层（此处 breakeven → tighten_sl）。"""
+        monkeypatch.setattr(
+            "backend.services.exit.market_aware_tpsl.hold_dynamic_enabled", lambda: True)
+        sm = UnifiedExitStateMachine()
+        ctx = _ctx(pid=771, hold_seconds=60, pnl=1.0)
+        d = sm.submit(_req(pid=771, source="trailing", action="close"), ctx)
+        assert d.action != "hold"  # 穿过保护期进入动态层
+        sm.reset_position(771)
 
     def test_min_hold_allows_critical(self):
         """保护期内紧急退出放行。"""
@@ -109,9 +122,10 @@ class TestProtectionLayer:
         assert d.action in ("reduce", "tighten_sl")  # breakeven 先触发也算正确
 
     def test_reduce_cooldown(self):
-        """减仓冷却。"""
+        """减仓冷却。[契约更新 2026-08-30] SL 置于盈利侧使动态层 breakeven
+        不再抢先降级，冷却语义才能测到。"""
         sm = UnifiedExitStateMachine()
-        ctx = _ctx(pid=999, tier="short", pnl=5.0, hold_seconds=7200)
+        ctx = _ctx(pid=999, tier="short", pnl=5.0, hold_seconds=7200, sl_price=100.5)
         # 第一次减仓：pnl 5% > 1.5%，过保护层，但 master_reduce 走 AI 层
         # AI 层对 master_reduce 不做 close 的盈利保护，直接放行
         d1 = sm.submit(_req(pid=999, source="master_reduce", action="reduce", tier="short"), ctx)
@@ -126,12 +140,20 @@ class TestDynamicExitLayer:
     """Layer 3: 动态离场。"""
 
     def test_short_staged_tp(self):
-        """短线分批 TP。"""
+        """短线分批 TP（保本已推过时才轮到分批——2026-08-24 起"先锁本金再谈分批"）。"""
         strategy = ShortTierExit()
         ctx = _ctx(tier="short", pnl=5.0)  # 浮盈 5% >= 4%
-        d = strategy.evaluate(ctx)
+        d = strategy.evaluate(ctx, breakeven_active=True)
         assert d is not None
         assert d.action == "reduce"
+
+    def test_short_breakeven_precedes_staged_tp(self):
+        """[契约更新 2026-08-30] 保本优先：浮盈过触发线且 SL 未推 → 先 tighten_sl。"""
+        strategy = ShortTierExit()
+        ctx = _ctx(tier="short", pnl=5.0)
+        d = strategy.evaluate(ctx)  # breakeven_active 默认 False
+        assert d is not None
+        assert d.action == "tighten_sl"
 
     def test_mid_staged_tp(self):
         strategy = MidTierExit()
@@ -164,13 +186,23 @@ class TestDynamicExitLayer:
         assert d.action == "tighten_sl"
         assert d.new_sl_price > 95  # SL 上移
 
-    def test_profit_drawdown_reduce(self):
-        """盈利回撤保护。"""
+    def test_profit_drawdown_reduce(self, monkeypatch):
+        """盈利回撤保护（SM % 口径兜底）。[契约更新 2026-08-30] 回撤阶梯已收口到
+        引擎侧 D6/统一块，SM 兜底默认停用（EXIT_DRAWDOWN_SINGLE_IMPL=true）；
+        此处以 env 恢复旧路径验证其仍可用，并需 hold ≥ long min_hold(72h)。"""
+        monkeypatch.setenv("EXIT_DRAWDOWN_SINGLE_IMPL", "false")
         sm = UnifiedExitStateMachine()
-        ctx = _ctx(tier="long", pnl=3.0, peak_pnl_pct=10.0)  # 峰值 10%，现在 3%，回撤 70%
+        ctx = _ctx(tier="long", pnl=3.0, peak_pnl_pct=10.0, hold_seconds=999999)  # 回撤 70%
         d = sm.submit(_req(source="trailing", action="close", tier="long"), ctx)
         assert d.action == "reduce"
         assert "回撤" in d.reason
+
+    def test_profit_drawdown_fallback_gated_by_default(self):
+        """[PostFill P3] 默认单实现：SM 的 % 口径回撤兜底不再触发。"""
+        sm = UnifiedExitStateMachine()
+        ctx = _ctx(pid=987655, tier="long", pnl=3.0, peak_pnl_pct=10.0, hold_seconds=999999)
+        d = sm.submit(_req(pid=987655, source="trailing", action="close", tier="long"), ctx)
+        assert d.source != "profit_drawdown"
 
 
 class TestAIExitLayer:
@@ -184,36 +216,14 @@ class TestAIExitLayer:
         assert d.action == "tighten_sl"  # 降级
 
     def test_large_profit_allows_close(self):
-        """大盈利允许 AI 全平。"""
+        """大盈利允许 AI 全平。[契约更新 2026-08-30] SL 已在盈利侧时不再被
+        动态层 breakeven 降级为 tighten_sl，动态层走 staged reduce 或 AI 层 close。"""
         sm = UnifiedExitStateMachine()
-        ctx = _ctx(pid=601, tier="short", pnl=5.0, hold_seconds=7200, peak_pnl_pct=5.0)
+        ctx = _ctx(pid=601, tier="short", pnl=5.0, hold_seconds=7200, peak_pnl_pct=5.0,
+                   sl_price=100.5)  # SL 已推到盈利侧 → breakeven 不再触发
         d = sm.submit(_req(pid=601, source="master_close", action="close", tier="short"), ctx)
-        # 大盈利可能被动态层(trailing/bias)先截获为 reduce，也可能到 AI 层 close
+        # 大盈利可能被动态层(staged TP/bias)先截获为 reduce，也可能到 AI 层 close
         assert d.action in ("close", "reduce")  # 都是离场动作
-
-
-class TestCrossTierArbitration:
-    """跨周期协同。"""
-
-    def test_trend_protection_downgrade(self):
-        """long 持有 → short 的 reduce 降级。"""
-        decisions = {
-            "long": make_hold(1, "趋势完好"),
-            "short": ExitDecision(position_id=2, action="reduce", source="master_reduce"),
-        }
-        result = cross_tier_arbitrate(decisions, [{"side": "long"}, {"side": "long"}])
-        assert result["short"].action == "tighten_sl"
-        assert result["long"].action == "hold"
-
-    def test_hedge_protection(self):
-        """对冲持仓 → bias_reversal 被抑制。"""
-        decisions = {
-            "long": ExitDecision(position_id=1, action="reduce", source="bias_reversal"),
-        }
-        positions = [{"side": "long"}, {"side": "short"}]  # 对冲
-        result = cross_tier_arbitrate(decisions, positions)
-        assert result["long"].action == "hold"
-        assert "对冲" in result["long"].reason
 
 
 class TestTierStrategies:

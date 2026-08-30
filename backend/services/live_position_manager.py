@@ -25,6 +25,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import List
 
+logger = logging.getLogger(__name__)
+
 _log = logging.getLogger(__name__)
 
 # [2026-08-28 方案2·G4] 层→trade_nature 映射（三周期本地分割 → 交易所子仓口径）
@@ -38,6 +40,62 @@ TIER_NATURE_MAP = {
 def tier_to_nature(tier: str) -> str:
     """周期档位 → 账本 trade_nature（未识别档位按原值透传，不吞错）。"""
     return TIER_NATURE_MAP.get((tier or "").lower(), (tier or "scalp"))
+
+
+def _partial_close_viability(
+    db,
+    account_id: int,
+    symbol: str,
+    subs: list,
+    total_size: float,
+    close_qty: float,
+) -> "tuple[str, str]":
+    """[PostFill 2026-08-31] live 部分平仓 minNotional 双边可行性门。
+
+    close_sub_position / close_all_symbol 的部分平仓（qty 给定且未全平）发单前
+    必须过门——此前门只挂在无调用方的 reduce_sub_position 上，真实 live 减仓
+    路径（LiveExecutor.close_position → LPM）完全无门。
+
+    返回 (verdict, detail)：
+      "ok"            — 放行
+      "reject"        — 平仓份额低于最小名义 → 放弃本次减仓（不发单）
+      "escalate_full" — 平后剩余低于最小名义 → 升级全平
+      "unknown"       — 价格缺失等 → fail-open 放行（交易所端兜底）
+    价格优先 UnifiedDataPool 快照，缺失按子仓加权开仓价。
+    """
+    if close_qty >= total_size - 1e-8:
+        return "ok", "full_close"
+    try:
+        from backend.services.exit.feasibility_gate import check_partial_close_notional
+        from backend.services.unified_data_pool import UnifiedDataPool
+        _px = 0.0
+        try:
+            _snap = UnifiedDataPool().get_snapshot(max_age=180)
+            if _snap and symbol in _snap.indicators:
+                _px = float(
+                    _snap.indicators[symbol].get("last_price", 0)
+                    or _snap.indicators[symbol].get("close", 0) or 0
+                )
+        except Exception:
+            _px = 0.0
+        if _px <= 0 and total_size > 0:
+            _notional = sum(float(p.size or 0) * float(p.entry_price or 0) for p in subs)
+            _px = _notional / total_size
+        if _px <= 0:
+            return "unknown", "price_unavailable"
+        _ex = None
+        try:
+            from backend.database.models import Account
+            _acct = db.query(Account).filter(Account.id == account_id).first()
+            _ex = getattr(_acct, "selected_exchange", None) or getattr(_acct, "exchange", None)
+        except Exception:
+            _ex = None
+        return check_partial_close_notional(
+            exchange=_ex, chunk_qty=close_qty, pos_qty=total_size, price=_px,
+        )
+    except Exception as _err:
+        logger.debug("[LPM] 部分平仓可行性门跳过: %s", _err)
+        return "unknown", str(_err)
 
 
 @dataclass
@@ -220,6 +278,25 @@ class LivePositionManager:
         close_qty = min(total_size, float(qty)) if qty is not None else total_size
         full_close = (qty is None) or (close_qty >= total_size - 1e-8)
 
+        # ── [PostFill 2026-08-31] minNotional 双边门（真实 live 减仓路径）──
+        if not full_close:
+            _verdict, _vdetail = _partial_close_viability(
+                db, account_id, symbol, subs, total_size, close_qty,
+            )
+            if _verdict == "reject":
+                logger.info(
+                    "[LPM] 部分平仓拒绝(minNotional): %s %s %s",
+                    symbol, trade_nature, _vdetail,
+                )
+                return {"closed": False, "reason": f"min_notional:{_vdetail}"}
+            if _verdict == "escalate_full":
+                logger.info(
+                    "[LPM] 部分平仓→全平(剩余低于minNotional): %s %s %s",
+                    symbol, trade_nature, _vdetail,
+                )
+                close_qty = total_size
+                full_close = True
+
         # 向交易所发反向差额单(净额)
         if abs(close_qty) < 1e-8:
             order_id = None
@@ -235,6 +312,8 @@ class LivePositionManager:
 
         # 标记关闭/按比例缩减
         remain_ratio = 0.0 if full_close else (1.0 - close_qty / total_size)
+        # [2026-08-29 P2.3] 平仓前快照子仓（落 trade_facts 需要开仓价/方向）
+        _close_snap = list(subs)
         for p in subs:
             if full_close:
                 p.status = "closed"
@@ -244,6 +323,18 @@ class LivePositionManager:
                 p.size = p.size * remain_ratio
                 p.margin = p.size / max(p.leverage, 1.0)
         db.commit()
+
+        # [2026-08-29 P2.3] 实盘平仓落 trade_facts（source='live'，先落账后回填）
+        try:
+            from backend.services.live_trade_facts import record_live_close_trade_fact
+            record_live_close_trade_fact(
+                account_id=account_id, symbol=symbol, subs=_close_snap,
+                closed_size=close_qty, fill_price=fill_price,
+                close_reason=f"lpm_close:{trade_nature}", trade_nature=trade_nature,
+                full_close=full_close,
+            )
+        except Exception as _ltf_err:
+            logger.debug("[LPM] 实盘平仓落账跳过: %s", _ltf_err)
 
         return {
             "closed": full_close,
@@ -277,6 +368,26 @@ class LivePositionManager:
         full_close = (qty is None) or (close_qty >= total_size - 1e-8)
         order_id = None
         fill_price = 0.0
+
+        # ── [PostFill 2026-08-31] minNotional 双边门（跨层部分平仓路径）──
+        if not full_close:
+            _verdict, _vdetail = _partial_close_viability(
+                db, account_id, symbol, subs, total_size, close_qty,
+            )
+            if _verdict == "reject":
+                logger.info(
+                    "[LPM] 跨层部分平仓拒绝(minNotional): %s %s",
+                    symbol, _vdetail,
+                )
+                return {"closed": False, "reason": f"min_notional:{_vdetail}"}
+            if _verdict == "escalate_full":
+                logger.info(
+                    "[LPM] 跨层部分平仓→全平(剩余低于minNotional): %s %s",
+                    symbol, _vdetail,
+                )
+                close_qty = total_size
+                full_close = True
+
         if close_qty >= 1e-8:
             order_side = "sell" if sub_signed > 0 else "buy"
             result = exchange_callback(
@@ -286,6 +397,7 @@ class LivePositionManager:
             order_id = result.get("order_id")
             fill_price = result.get("fill_price", 0.0)
         remain_ratio = 0.0 if full_close else (1.0 - close_qty / total_size)
+        _close_snap2 = list(subs)
         for p in subs:
             if full_close:
                 p.status = "closed"
@@ -295,6 +407,22 @@ class LivePositionManager:
                 p.size = p.size * remain_ratio
                 p.margin = p.size / max(p.leverage, 1.0)
         db.commit()
+
+        # [2026-08-29 P2.3] 实盘平仓落 trade_facts（紧急/全平场景，tier 取主导 nature）
+        try:
+            from backend.services.live_trade_facts import record_live_close_trade_fact
+            _dom_nature = max(
+                {p.trade_nature for p in _close_snap2},
+                key=lambda n: sum(p.size for p in _close_snap2 if p.trade_nature == n),
+            ) if _close_snap2 else ""
+            record_live_close_trade_fact(
+                account_id=account_id, symbol=symbol, subs=_close_snap2,
+                closed_size=close_qty, fill_price=fill_price,
+                close_reason="lpm_close_all", trade_nature=_dom_nature,
+                full_close=full_close,
+            )
+        except Exception as _ltf_err2:
+            logger.debug("[LPM] 实盘全平落账跳过: %s", _ltf_err2)
         return {
             "closed": full_close,
             "order_id": order_id,
@@ -338,6 +466,57 @@ class LivePositionManager:
         reduce_qty = total_size * ratio
         if reduce_qty < 1e-8:
             return {"reduced": False, "reason": "reduce_qty≈0"}
+
+        # ── [PostFill P1-1 2026-08-30] minNotional 双边可行性门（live 分批止盈前置）──
+        # 决策层不得发出交易所会拒的减仓单：平仓份额与平后剩余份额都必须达到
+        # 交易所最小名义。价格优先取 UnifiedDataPool 快照，缺失时按子仓加权开仓价。
+        try:
+            from backend.services.exit.feasibility_gate import (
+                check_partial_close_notional,
+                resolve_min_notional_usd,
+            )
+            _px = 0.0
+            try:
+                from backend.services.unified_data_pool import UnifiedDataPool
+                _snap = UnifiedDataPool().get_snapshot(max_age=180)
+                if _snap and symbol in _snap.indicators:
+                    _px = float(
+                        _snap.indicators[symbol].get("last_price", 0)
+                        or _snap.indicators[symbol].get("close", 0) or 0
+                    )
+            except Exception:
+                _px = 0.0
+            if _px <= 0 and total_size > 0:
+                _notional_sum = sum(p.size * float(p.entry_price or 0) for p in subs)
+                _px = _notional_sum / total_size
+            if _px > 0:
+                _ex = None
+                try:
+                    from backend.database.models import Account
+                    _acct = db.query(Account).filter(Account.id == account_id).first()
+                    _ex = getattr(_acct, "selected_exchange", None) or getattr(_acct, "exchange", None)
+                except Exception:
+                    _ex = None
+                _verdict, _vdetail = check_partial_close_notional(
+                    exchange=_ex,
+                    chunk_qty=reduce_qty, pos_qty=total_size, price=_px,
+                )
+                if _verdict == "reject":
+                    logger.info(
+                        "[LPM] reduce 拒绝(minNotional): %s %s ratio=%.0f %s",
+                        symbol, trade_nature, ratio, _vdetail,
+                    )
+                    return {"reduced": False, "reason": f"min_notional:{_vdetail}"}
+                if _verdict == "escalate_full":
+                    # 剩余将低于最小名义 → 直接清掉该 nature 全部子仓（防尘仓死等 SL）
+                    logger.info(
+                        "[LPM] reduce→全平(剩余低于minNotional): %s %s %s",
+                        symbol, trade_nature, _vdetail,
+                    )
+                    reduce_qty = total_size
+                    ratio = 1.0
+        except Exception as _mn_err:
+            logger.debug("[LPM] minNotional 门跳过(%s %s): %s", symbol, trade_nature, _mn_err)
 
         # 交易所减仓单：方向 = 子仓反向
         sub_signed = sum((p.size if p.side == "long" else -p.size) for p in subs)

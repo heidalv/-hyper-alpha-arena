@@ -662,11 +662,32 @@ MASTER_SCALP_EXIT_WHITELIST: str = os.getenv(
 )
 ORCH_BG_INTERVAL_SEC: int = int(os.getenv("ORCH_BG_INTERVAL_SEC", "600"))
 SCALP_STRUCTURE_SL_BUFFER_PCT: float = float(os.getenv("SCALP_STRUCTURE_SL_BUFFER_PCT", "0.008"))
+# [2026-08-29] 短线开仓止盈止损走行情管家；false 回滚 8/23 窄夹幅。
+SCALP_MARKET_AWARE_TPSL: bool = os.getenv("SCALP_MARKET_AWARE_TPSL", "true").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+SCALP_MA_SL_MIN_PCT: float = float(os.getenv("SCALP_MA_SL_MIN_PCT", "0.005"))
+SCALP_MA_SL_MAX_PCT: float = float(os.getenv("SCALP_MA_SL_MAX_PCT", "0.030"))
+SCALP_MA_TP_MIN_PCT: float = float(os.getenv("SCALP_MA_TP_MIN_PCT", "0.006"))
+SCALP_MA_TP_MAX_PCT: float = float(os.getenv("SCALP_MA_TP_MAX_PCT", "0.040"))
+SCALP_MA_MIN_RR: float = float(os.getenv("SCALP_MA_MIN_RR", "1.3"))
+# [2026-08-29] 短线持仓三阶段 + 行情翻脸；false 则 1h min_hold 仍拦截非紧急出场。
+SCALP_DYNAMIC_HOLD_TPSL: bool = os.getenv("SCALP_DYNAMIC_HOLD_TPSL", "true").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# [2026-08-29] 纸盘改止盈止损后同步交易所挂单；false 只改本地账本。
+LIVE_TPSL_SYNC: bool = os.getenv("LIVE_TPSL_SYNC", "true").strip().lower() in (
+    "1", "true", "yes", "on",
+)
 # [2026-08-23 短线赚钱改造 B] 空头条件化：short 全历史 WR 23.8% 净亏 -104（vs long +50），
 # 上行周期空头结构性逆风。默认 true = 空头需 trending+4h偏空+资金费极端三条件齐备；
 # 置 0/false 回滚到旧行为（空头与多头对等开放）。
 SCALP_SHORT_REQUIRES_TREND_DOWN: bool = os.getenv("SCALP_SHORT_REQUIRES_TREND_DOWN", "true").strip().lower() in ("1", "true", "yes", "on")
 SCALP_SHORT_MIN_FUNDING: float = float(os.getenv("SCALP_SHORT_MIN_FUNDING", "0.0001"))
+# [2026-08-29 全面修复] 实盘空头恢复全条件硬拦（撤回 8fea911/2e7469a 的
+# 单条件0.25x/零条件0.125x试探仓——30天空头全亏-824/盈亏比1.10）。
+# false = 回滚到 8/29 上午的分档试探行为。
+SCALP_SHORT_LIVE_STRICT: bool = os.getenv("SCALP_SHORT_LIVE_STRICT", "true").strip().lower() in ("1", "true", "yes", "on")
 SCALP_RANGE_MAX_LONG: float = float(os.getenv("SCALP_RANGE_MAX_LONG", "0.72"))
 SCALP_RANGE_MIN_SHORT: float = float(os.getenv("SCALP_RANGE_MIN_SHORT", "0.28"))
 # 编排器方向与因子方向冲突时，long/short 最低 effective_score（ScalpExecutionGate）
@@ -1883,6 +1904,18 @@ RISK_USE_NATURE_EXIT_ORCHESTRATOR: bool = os.getenv("RISK_USE_NATURE_EXIT_ORCHES
 RISK_V2_UNIFIED_STAGED_TP: bool = os.getenv("RISK_V2_UNIFIED_STAGED_TP", "true").lower() == "true"
 # TP 安全网利润上限(未杠杆 PnL%); 超过即全平。从 v1 的 _TP_SAFETY_NET_BY_NATURE 复活为统一硬上限。
 RISK_V2_TP_SAFETY_NET_CAP: float = float(os.getenv("RISK_V2_TP_SAFETY_NET_CAP", "0.80") or "0.80")
+
+# [PostFill P3 2026-08-30] 分批止盈按当前名义自动降档（期望值研究：小仓拆档
+# 被 minNotional/手续费吃成负期望）：
+#   名义 < TP_LADDER_SINGLE_MAX_NOTIONAL_USD → 单档：TP1 触发即全平
+#   名义 < TP_LADDER_TWO_MAX_NOTIONAL_USD    → 两档：TP1 平 40% + TP2 清仓
+#   否则 → 原三档 TP1/TP2/TP3
+TP_LADDER_SINGLE_MAX_NOTIONAL_USD: float = float(
+    os.getenv("TP_LADDER_SINGLE_MAX_NOTIONAL_USD", "30") or "30"
+)
+TP_LADDER_TWO_MAX_NOTIONAL_USD: float = float(
+    os.getenv("TP_LADDER_TWO_MAX_NOTIONAL_USD", "100") or "100"
+)
 
 NATURE_HEALTH_PROFILES = {
     "trend_follow": {"review_threshold": 45.0, "chandelier_atr_mult": 3.0},
