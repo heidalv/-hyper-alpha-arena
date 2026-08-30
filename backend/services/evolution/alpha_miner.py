@@ -687,6 +687,10 @@ class CodegenCritic:
                     max_tokens=1500,
                     temperature=0.6,
                     caller="codegen_critic",
+                    # [2026-08-31 挖掘种子失败根因] 语义缓存会把首个失败/空响应缓存
+                    # 60s，后续 5 个种子全命中同一空响应 → 热启动 6/6 失败、退化
+                    # 纯随机种群。codegen 每份必须独立生成（同 factor_critic）。
+                    bypass_cache=True,
                 )
             except Exception as e:
                 last_reason = f"llm_error[{chan}]: {e}"

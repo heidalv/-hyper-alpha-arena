@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -128,10 +129,14 @@ VAL_DAYS = int(_os_window.getenv("FACTOR_EVO_VAL_DAYS", "30"))
 # [2026-08-05 三层切分 v6 计划 5.4.3] 按周期分档的训练/验证/测试窗口（天）：
 #   1m/5m/15m 短窗 30/10/10；30m 60/20/15；1h 中窗 90/30/15；2h 120/45/30；
 #   4h/8h/1d 长窗 180/60/30（测试集绝不参与挖掘与选因）。
+# [2026-08-30 挖矿升级 M1] 窗口按 DB 实际覆盖拉长（BTC: 4h≈400d/1h≈240d/
+# 15m≈90d/5m≈55d）。此前 4h 验证段仅 360 根（60 天），DSR×27 试验下统计
+# 功效不足（实测 ICIR 1.31 仍不显著）。面板拼接后 T=验证根数×币数。
+# 4h train 1800 根为最大杠杆；5m 受覆盖限制保持。
 _PERIOD_SPLIT_DAYS: dict[str, tuple[int, int, int]] = {
-    "1m": (30, 10, 10), "5m": (30, 10, 10), "15m": (30, 10, 10),
-    "30m": (60, 20, 15), "1h": (90, 30, 15), "2h": (120, 45, 30),
-    "4h": (180, 60, 30), "8h": (180, 60, 30), "1d": (180, 60, 30),
+    "1m": (30, 10, 10), "5m": (30, 10, 10), "15m": (45, 15, 10),
+    "30m": (90, 30, 20), "1h": (150, 45, 30), "2h": (200, 60, 30),
+    "4h": (300, 60, 30), "8h": (300, 60, 30), "1d": (300, 60, 30),
 }
 _BARS_PER_DAY = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
                  "1h": 24, "2h": 12, "4h": 6, "8h": 3, "1d": 1}
@@ -789,6 +794,94 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
         except Exception:
             pass
 
+    # [2026-08-30 挖矿升级 M3] 候选多样化：新增 6 族非 rev/mom 同族模板。
+    # 此前种子集 14 个里 rev(4)+mom(3) 互为镜像同族，信息高度冗余；
+    # 新族覆盖 均值回归距离/区间突破/K线实体/区间位置/量价确认/EMA 动能。
+    _eps = {"c": 1e-9}
+    _new_families = [
+        # vwapdev: 均值回归距离 (close - MA(vwap,w)) / std(close,w)
+        *[(
+            {"op": "div", "args": [
+                {"op": "sub", "args": [
+                    {"f": "close"},
+                    {"op": "mean", "args": [{"f": "vwap"}, {"c": w}]},
+                ]},
+                {"op": "add", "args": [
+                    {"op": "std", "args": [{"f": "close"}, {"c": w}]},
+                    {"c": 1e-9},
+                ]},
+            ]},
+            f"vwapdev{w}",
+        ) for w in (20, 50)],
+        # brk: 区间突破强度 (close - min(low,w)) / (max(high,w)-min(low,w)+eps)
+        *[(
+            {"op": "div", "args": [
+                {"op": "sub", "args": [{"f": "close"}, {"op": "min", "args": [{"f": "low"}, {"c": w}]}]},
+                {"op": "add", "args": [
+                    {"op": "sub", "args": [
+                        {"op": "max", "args": [{"f": "high"}, {"c": w}]},
+                        {"op": "min", "args": [{"f": "low"}, {"c": w}]},
+                    ]},
+                    {"c": 1e-9},
+                ]},
+            ]},
+            f"brk{w}",
+        ) for w in (20, 50)],
+        # body: K线实体压力 mean((close-open)/(high-low+eps), w)
+        *[(
+            {"op": "mean", "args": [
+                {"op": "div", "args": [
+                    {"op": "sub", "args": [{"f": "close"}, {"f": "open"}]},
+                    {"op": "add", "args": [
+                        {"op": "sub", "args": [{"f": "high"}, {"f": "low"}]},
+                        {"c": 1e-9},
+                    ]},
+                ]},
+                {"c": w},
+            ]},
+            f"body{w}",
+        ) for w in (10, 20)],
+        # rngpos: 收盘在日内区间位置 mean((close-low)/(high-low+eps), w)
+        *[(
+            {"op": "mean", "args": [
+                {"op": "div", "args": [
+                    {"op": "sub", "args": [{"f": "close"}, {"f": "low"}]},
+                    {"op": "add", "args": [
+                        {"op": "sub", "args": [{"f": "high"}, {"f": "low"}]},
+                        {"c": 1e-9},
+                    ]},
+                ]},
+                {"c": w},
+            ]},
+            f"rngpos{w}",
+        ) for w in (10, 20)],
+        # vshake: 量能-波动确认 corr(volume, |returns|, w)
+        *[(
+            {"op": "corr", "args": [
+                {"f": "volume"},
+                {"op": "abs", "args": [{"f": "returns"}]},
+                {"c": w},
+            ]},
+            f"vshake{w}",
+        ) for w in (10, 20)],
+        # ema_gap: EMA 动能比 (close-ema12)/ema26
+        (
+            {"op": "div", "args": [
+                {"op": "sub", "args": [
+                    {"f": "close"},
+                    {"op": "ema", "args": [{"f": "close"}, {"c": 12}]},
+                ]},
+                {"op": "ema", "args": [{"f": "close"}, {"c": 26}]},
+            ]},
+            "ema_gap12_26",
+        ),
+    ]
+    for _ast_d, _name in _new_families:
+        try:
+            candidates.append((parse(_ast_d), _name))
+        except Exception:
+            pass
+
     try:
         from backend.services.factor_engine.perp_factors import PERP_FACTOR_EXPRS
         first_df = list(dfs.values())[0]
@@ -1238,22 +1331,173 @@ def _purge_and_select(eval_results, dfs):
             expr_ast=info["expr"].ast,
         ))
 
+    # [2026-08-30 挖矿升级 M2] 初筛面板口径（根治单币一票否决）。
+    # 此前 factor_series_fn 只用第一个币（BNB）的 360 根做 ICIR≥0.4 初筛，
+    # 挖掘阶段 9 币面板看到的有效因子在单币 regime 下被整批误杀
+    # （实测 08-30 03:00 4h 档 20/20 全灭于初筛）。改为逐币标准化后拼接的
+    # pooled 面板：T = 验证根数×币数（4h: 360×9≈3240），DSR 检验力同步提升。
+    # purge_pipeline/evaluate_factor 接口零改动。
+    from backend.services.factor_engine.expr.parser import parse as _parse
+
+    def _panel_factor_series(expr_ast) -> tuple[pd.Series, dict]:
+        """逐币评估因子 → z-score 标准化 → 拼接 pooled 序列。
+
+        返回 (pooled_series, diag)；diag 含逐币 IC 正负计数（审计用）。
+        """
+        parts_f, parts_r, diag = [], [], {"symbols_ok": 0, "symbols_fail": 0, "ic_pos": 0, "ic_neg": 0}
+        expr = _parse(expr_ast)
+        for _sym, df in dfs.items():
+            try:
+                fields = _kline_to_fields(df)
+                vals = np.asarray(expr.evaluate(fields), dtype=float)
+                if len(vals) != len(df) or np.all(~np.isfinite(vals)):
+                    raise ValueError("empty/short factor values")
+                f = pd.Series(vals, index=df.index)
+                f = (f - f.mean()) / (f.std() + 1e-12)  # 逐币 z-score 等权
+                r = pd.Series(_forward_returns(df), index=df.index)
+                parts_f.append(f)
+                parts_r.append(r)
+                diag["symbols_ok"] += 1
+                # 逐币 IC 符号（诊断）
+                _m = f.notna() & r.notna()
+                if _m.sum() >= 30:
+                    _ic = float(f[_m].corr(r[_m], method="spearman"))
+                    if _ic > 0:
+                        diag["ic_pos"] += 1
+                    elif _ic < 0:
+                        diag["ic_neg"] += 1
+            except Exception:
+                diag["symbols_fail"] += 1
+                continue
+        if not parts_f:
+            return pd.Series(), diag
+        return pd.concat(parts_f, ignore_index=True), diag
+
     def factor_series_fn(c: CandidateFactor) -> pd.Series:
-        # [2026-08-27 挖掘根治] 修复跨币错配：此前用 best_sym 的因子值 + return_series
-        # 用 first_df 的收益，RangeIndex 按位置对齐 → 因子与收益来自不同币种 → IC 纯噪声
-        # → 初筛把所有候选全拒（实测每日 14/14 拒）。现在因子与收益同源 first_df。
-        from backend.services.factor_engine.expr.parser import parse as _parse
         info = eval_results.get(c.factor_id)
         if not info:
             return pd.Series()
-        df = list(dfs.values())[0]
+        s, diag = _panel_factor_series(c.expr_ast)
+        if s.empty:
+            return s
+        logger.info(
+            "[FactorEvo][PanelPurge] %s symbols_ok=%d fail=%d ic_pos=%d ic_neg=%d",
+            c.factor_id[:14], diag["symbols_ok"], diag["symbols_fail"],
+            diag["ic_pos"], diag["ic_neg"],
+        )
+        return s
+
+    # [2026-08-30 M2c 面板 IC 聚合] 初筛统计量在"IC 空间"聚合：
+    # 逐币滚动 IC 序列 → 拼接后 mean/std = 面板 ICIR。此前 pooled 原始值
+    # 拼接会让 1 个强币扛 N 个反向币（实测 rev5 1/7 正却存活），而
+    # 7/7 币弱正的一致因子反被观测噪声拖死。单调性取中位数、换手取均值、
+    # 半衰期取中位数（跨币稳健统计量）。
+    from backend.services.factor_engine.evaluation import (
+        FactorEvalResult as _FER,
+        time_series_ic as _ts_ic,
+        compute_monotonicity as _mono,
+        compute_turnover as _turn,
+        compute_halflife as _hl,
+    )
+
+    def _panel_eval_fn(factor_id, _fs, _rs, c=None):
+        """面板口径评估（M2c 最终版）：
+        - IC/ICIR：逐币滚动 IC 序列 → 拼接 → mean/std（IC 空间，每币等权，
+          消除单强币主导）
+        - 单调性：合并观测空间单次检验（z-scored 面板 ~2520 样本，检验功效
+          足够；median-of-7 币的 p 值因小样本每币检验功效不足而系统性偏大）
+        - 换手：逐币均值；半衰期：逐币中位数
+        """
+        expr_ast = getattr(c, "expr_ast", None) if c is not None else None
+        if not expr_ast:
+            return _FER(factor_id=factor_id)
         try:
-            fields = _kline_to_fields(df)
-            expr = _parse(c.expr_ast)
-            vals = expr.evaluate(fields)
-            return pd.Series(vals, index=df.index)
+            expr = _parse(expr_ast)
         except Exception:
-            return pd.Series()
+            return _FER(factor_id=factor_id)
+        ic_parts, tos, hls = [], [], []
+        diag = {"ok": 0, "fail": 0, "pos": 0, "neg": 0}
+        for _sym, df in dfs.items():
+            try:
+                fields = _kline_to_fields(df)
+                vals = np.asarray(expr.evaluate(fields), dtype=float)
+                f = pd.Series(vals, index=df.index)
+                r = pd.Series(_forward_returns(df), index=df.index)
+                m = f.notna() & r.notna()
+                if m.sum() < 30:
+                    continue
+                ic_s = _ts_ic(f[m], r[m], method="spearman")
+                ic_s = ic_s[np.isfinite(ic_s)]
+                if len(ic_s) == 0:
+                    continue
+                ic_parts.append(ic_s)
+                tos.append(float(_turn(f[m])))
+                _h = _hl(ic_s)
+                if np.isfinite(_h):
+                    hls.append(float(_h))
+                diag["ok"] += 1
+                _icm = float(np.mean(ic_s))
+                if _icm > 0:
+                    diag["pos"] += 1
+                elif _icm < 0:
+                    diag["neg"] += 1
+            except Exception:
+                diag["fail"] += 1
+        if not ic_parts:
+            return _FER(factor_id=factor_id)
+        pooled_ic = np.concatenate(ic_parts)
+        ic_mean = float(np.mean(pooled_ic))
+        icir = float(np.mean(pooled_ic) / (np.std(pooled_ic) + 1e-12))
+        if c is not None:
+            try:
+                c.pooled_ic = pooled_ic  # [M2e] 时序 PBO 用（P0-1 真 IC 序列）
+            except Exception:
+                pass
+        # 单调性：合并观测空间（z-scored 因子 vs 同源收益，全样本功效）
+        mono_p = 1.0
+        tail_t = 0.0
+        try:
+            # pf=逐币 z-scored 拼接因子; _rs=调用方传入的 pooled 收益序列
+            # （二者同源同长，RangeIndex 位置对齐）
+            pf = _panel_factor_series(expr_ast)[0]
+            if not pf.empty and len(_rs) == len(pf):
+                _m2 = pf.notna() & _rs.notna()
+                if _m2.sum() >= 50:
+                    mono_p = float(_mono(pf[_m2].values, _rs[_m2].values))
+                    # [M2d] 尾部价差 t：top20% 与 bottom20% 分位收益差的 Welch t
+                    _a, _b = pf[_m2].values, _rs[_m2].values
+                    _q20, _q80 = np.quantile(_a, [0.2, 0.8])
+                    _bot = _b[_a <= _q20]
+                    _top = _b[_a >= _q80]
+                    if len(_bot) >= 20 and len(_top) >= 20:
+                        _se = math.sqrt(
+                            float(np.var(_top) / len(_top))
+                            + float(np.var(_bot) / len(_bot)))
+                        if _se > 1e-12:
+                            tail_t = float((np.mean(_top) - np.mean(_bot)) / _se)
+        except Exception:
+            pass
+        logger.info(
+            "[FactorEvo][PanelEval] %s syms_ok=%d ic=%+.4f icir=%.3f "
+            "mono_p=%.3f to=%.3f hl=%.1f ic_pos=%d ic_neg=%d",
+            factor_id[:14], diag["ok"], ic_mean, icir,
+            mono_p,
+            (float(np.mean(tos)) if tos else 1.0),
+            (float(np.median(hls)) if hls else 0.0),
+            diag["pos"], diag["neg"],
+        )
+        return _FER(
+            factor_id=factor_id,
+            ic_mean=ic_mean,
+            ic_std=float(np.std(pooled_ic)),
+            rank_ic_mean=ic_mean,
+            icir=icir,
+            monotonicity_p=mono_p,
+            turnover=(float(np.mean(tos)) if tos else 1.0),
+            halflife_bars=(float(np.median(hls)) if hls else 0),
+            n_samples=int(len(pooled_ic)),
+            tail_spread_t=tail_t,
+        )
 
     def factor_matrix_fn(cs: list) -> np.ndarray:
         cols = []
@@ -1266,9 +1510,11 @@ def _purge_and_select(eval_results, dfs):
         m = min(len(x) for x in cols)
         return np.column_stack([x[-m:] for x in cols])
 
-    first_df = list(dfs.values())[0]
-    fwd = _forward_returns(first_df)
-    return_series = pd.Series(fwd, index=first_df.index)
+    # pooled 收益序列：与因子逐币同源拼接（同一币的因子对同一币的收益）
+    _parts_r = []
+    for _sym, df in dfs.items():
+        _parts_r.append(pd.Series(_forward_returns(df), index=df.index))
+    return_series = pd.concat(_parts_r, ignore_index=True) if _parts_r else pd.Series(dtype=float)
     sample_len = max(50, len(return_series))
 
     # [2026-08-27 挖掘根治] 初筛半衰期门槛环境化：BTC 上 rev_5 的 IC 半衰期仅 3 根
@@ -1288,6 +1534,7 @@ def _purge_and_select(eval_results, dfs):
         dsr_pbo_gate=None,  # 走内置 default_dsr_pbo_gate
         sample_len=sample_len,
         n_total_candidates=len(candidates),
+        eval_fn=_panel_eval_fn,
     )
 
     enriched = []
@@ -1297,9 +1544,13 @@ def _purge_and_select(eval_results, dfs):
             "expr": info.get("expr"), "source": s.source_name,
             "factor_id": s.factor_id, "eval_result": info.get("best_result"),
             "incremental_corr": s.incremental_corr, "expr_ast": s.expr_ast,
+            "pooled_ic": getattr(s, "pooled_ic", None),
         })
 
     logger.info(f"[FactorEvo] 阶段4 清洗: {report.summary()}")
+    # [2026-08-30 挖矿升级 M2] 初筛拒因可审计（样本最多 20 条）
+    for _rs in (report.reject_reason_samples or [])[:10]:
+        logger.info(f"[FactorEvo] 清洗拒因: {_rs}")
     return enriched
 
 
@@ -1327,6 +1578,20 @@ def _auto_oversight_approve(metrics, judgment) -> bool:
         return False
     to_state = judgment.decision.to_state
     if to_state == FactorState.SMALL_LIVE:
+        # [2026-08-30 挖矿升级 M4] 影子期统计达标提前毕业：
+        #   常规路径  sharpe≥1.5×门槛 且 影子≥2×paper_min_days(20天)
+        #   早毕业    sharpe≥2.0×门槛 且 影子≥paper_min_days(10天)
+        # 语义：表现越强允许越短影子，但统计标准更严（2.0 倍），
+        # 不放水；解决"晋升后卡 20 天见不到实盘"的结构性延迟。
+        if (metrics.paper_sharpe >= t.min_paper_sharpe * 2.0
+                and metrics.paper_days >= t.paper_min_days):
+            logger.info(
+                "[Oversight] %s 影子早毕业: sharpe=%.2f(≥%.2f) days=%d(≥%d)",
+                getattr(metrics, "factor_id", "?"),
+                metrics.paper_sharpe, t.min_paper_sharpe * 2.0,
+                metrics.paper_days, t.paper_min_days,
+            )
+            return True
         return (
             metrics.paper_sharpe >= t.min_paper_sharpe * 1.5
             and metrics.paper_days >= t.paper_min_days * 2
@@ -1514,9 +1779,13 @@ def _promote_factors(
     )
 
     # ── DSR/PBO 全局评估（P0-3：sample_len 用验证窗根数，对齐真 OOS）──
+    # [2026-08-30 挖矿升级 M2b] 与面板初筛口径对齐：因子序列已是逐币拼接
+    # pooled（T = 验证根数 × 币数），DSR 的样本长度必须用同一口径，否则
+    # 显著性被系统性低估（T 少算 7 倍）。
     _td, _vd, _ted = _split_days_for_period(period)
     _bpd = _BARS_PER_DAY.get(period or DEFAULT_PERIOD, 6)
-    sample_len = max(50, int(_vd * _bpd))
+    _panel_syms = max(1, len(dfs or {})) if isinstance(dfs, dict) else 1
+    sample_len = max(50, int(_vd * _bpd) * _panel_syms)
     # n_trials = 实际参与 IC 评估的因子数（含池内已有），不用未评估模板虚增
     n_trials = max(len(all_icir_values), 1)
     # 空可交易池冷启动：全量搜索 breadth 会把 DSR 期望最大 SR 抬到天文数字，
@@ -1536,10 +1805,19 @@ def _promote_factors(
             "[FactorEvo] 空 TRADABLE 冷启动：DSR n_trials=%d（原搜索广度=%d）",
             n_trials, n_total,
         )
+    # [2026-08-31 M2e] PBO 用真 IC 时序（P0-1）：最佳幸存者的面板 IC 序列。
+    # 此前只传标量 ICIR 列表被当"伪时序"切分 → 数值无时间含义 → pbo 偏高。
+    _best_surv = max(
+        (s for s in (survivors or []) if getattr(s, "pooled_ic", None) is not None),
+        key=lambda s: abs(float(getattr(s, "pooled_ic").mean())),
+        default=None,
+    )
+    _ic_series = getattr(_best_surv, "pooled_ic", None) if _best_surv is not None else None
     dsr_pbo = compute_dsr_pbo_for_factors(
         icir_list=all_icir_values,
         n_total_candidates=n_trials,
         sample_len=sample_len,
+        ic_series=(list(_ic_series) if _ic_series is not None else None),
     )
     # [P0-1 fail-closed] 原实现用 .get(..., True)/.get(..., 0.3) 放行缺省值：
     # 空 icir 或缺字段时闸门被静默绕过。现显式读 overall_passes 与 indeterminate，
@@ -2941,7 +3219,13 @@ def run_v7_memory_health() -> dict:
         return {"error": str(e)}
 
 def run_online_weight_update(symbols=None) -> dict:
-    dfs = _load_data(symbols, period="1h", lookback=500)
+    # [2026-08-31 修复] lookback=500 触发深度门槛告警(need=5450)且权重口径过短；
+    # 改用按周期取数(1h 需 ~3290+ 根)，不足时由 _load_data 容错降级。
+    try:
+        _lb = int(os.environ.get("ONLINE_WEIGHT_LOOKBACK", "")) if os.environ.get("ONLINE_WEIGHT_LOOKBACK") else _lookback_for_period("1h")
+    except Exception:
+        _lb = _lookback_for_period("1h")
+    dfs = _load_data(symbols, period="1h", lookback=_lb)
     if not dfs:
         return {"error": "取数失败"}
 
