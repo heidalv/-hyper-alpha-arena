@@ -117,9 +117,16 @@ def _load_settled_rows() -> List[Dict[str, Any]]:
         out = []
         for r in rows:
             try:
-                feats = json.loads(r.features_json) if r.features_json else {}
+                # [2026-08-31 perf] orjson 解码释放 GIL（std json C 解码全程持 GIL，
+                # 大块 features_json 会在调度线程里堵住所有 HTTP 请求数百 ms）；
+                # 失败回退 std json，语义等价（均产出 dict/str 键）。
+                import orjson as _oj
+                feats = _oj.loads(r.features_json) if r.features_json else {}
             except Exception:
-                feats = {}
+                try:
+                    feats = json.loads(r.features_json) if r.features_json else {}
+                except Exception:
+                    feats = {}
             if not isinstance(feats, dict):
                 feats = {}
             # signal_ts/settle_ts 为 UTC epoch 秒(created_at 为北京时间,相差 8h)
@@ -442,8 +449,17 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
                 key_count[k] = key_count.get(k, 0) + 1
                 seen.add(k)
     freq_min = _feature_freq_min()
-    snap_cols = sorted([k for k, c in key_count.items() if c / n >= freq_min])
-    feature_cols = ["factor_score", "dir_sign"] + snap_cols
+    # [2026-08-29 P2.6] 噪声特征剔除：30 天 29.3 万已结算信号校准证明
+    # factor_score/composite 对费后净收益无区分力（全桶负、无单调性），
+    # 且 importance 榜首全是市场状态特征。默认从特征集中移除，防止模型
+    # 把噪声当信号。SCALP_META_KEEP_NOISE_FEATURES=true 回滚（保留旧特征集）。
+    _keep_noise = (os.getenv("SCALP_META_KEEP_NOISE_FEATURES", "false") or "").strip().lower() in (
+        "1", "true", "yes", "on")
+    _drop = set() if _keep_noise else {"factor_score", "composite"}
+    snap_cols = sorted([k for k, c in key_count.items() if c / n >= freq_min and k not in _drop])
+    feature_cols = (
+        (["factor_score"] if "factor_score" not in _drop else []) + ["dir_sign"] + snap_cols
+    )
     if _regime_features_enabled():
         feature_cols = feature_cols + list(REGIME_COLS)
     feature_cols = feature_cols + list(KLINE_COLS)
@@ -453,10 +469,14 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
     y = np.zeros(n, dtype=int)
     ts = np.zeros(n, dtype=np.int64)
     net = np.zeros(n, dtype=np.float64)
+    _idx_score = feature_cols.index("factor_score") if "factor_score" in feature_cols else None
+    _idx_dir = feature_cols.index("dir_sign")
+    _snap_idx = {k: feature_cols.index(k) for k in snap_cols}
     for i, r in enumerate(rows):
-        X[i, 0] = r["factor_score"]
-        X[i, 1] = 1.0 if r["direction"] == "long" else (-1.0 if r["direction"] == "short" else 0.0)
-        for j, k in enumerate(snap_cols, start=2):
+        if _idx_score is not None:
+            X[i, _idx_score] = r["factor_score"]
+        X[i, _idx_dir] = 1.0 if r["direction"] == "long" else (-1.0 if r["direction"] == "short" else 0.0)
+        for k, j in _snap_idx.items():
             fv = _numeric(r["feats"].get(k))
             X[i, j] = fv if fv is not None else 0.0
         if _regime_features_enabled() and frame and i in frame:
@@ -469,11 +489,11 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
                     X[i, feature_cols.index(k)] = v
             _kf = kline_frame[i]
             if "dir_x_ema" in feature_cols:
-                X[i, feature_cols.index("dir_x_ema")] = X[i, 1] * _kf.get("ema_slope", 0.0)
+                X[i, feature_cols.index("dir_x_ema")] = X[i, _idx_dir] * _kf.get("ema_slope", 0.0)
             if "dir_x_ret1h" in feature_cols:
-                X[i, feature_cols.index("dir_x_ret1h")] = X[i, 1] * _kf.get("ret_1h", 0.0)
+                X[i, feature_cols.index("dir_x_ret1h")] = X[i, _idx_dir] * _kf.get("ret_1h", 0.0)
             if "dir_x_ret4h" in feature_cols:
-                X[i, feature_cols.index("dir_x_ret4h")] = X[i, 1] * _kf.get("ret_4h", 0.0)
+                X[i, feature_cols.index("dir_x_ret4h")] = X[i, _idx_dir] * _kf.get("ret_4h", 0.0)
         ca = r.get("created_at")
         if ca is not None:
             if "hour" in feature_cols:
@@ -802,6 +822,9 @@ def predict_win_prob(
         reg_feats = _regime_features_for_symbol(symbol) if meta.get("regime_features") else {}
         kf = kline_feats if isinstance(kline_feats, dict) else {}
         x = np.zeros((1, len(cols)), dtype=np.float64)
+        # [2026-08-29 P2.6] dir_sign 下标命名化：噪声特征剔除后 factor_score
+        # 可能不在列首，旧的 x[0,1] 硬编码会错位。
+        _dir_j = cols.index("dir_sign") if "dir_sign" in cols else None
         for j, c in enumerate(cols):
             if c == "factor_score":
                 x[0, j] = _numeric(features.get("factor_score")) or 0.0
@@ -813,11 +836,11 @@ def predict_win_prob(
             elif c in kf:
                 x[0, j] = _numeric(kf.get(c)) or 0.0
             elif c == "dir_x_ema":
-                x[0, j] = x[0, 1] * (_numeric(kf.get("ema_slope")) or 0.0)
+                x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * (_numeric(kf.get("ema_slope")) or 0.0)
             elif c == "dir_x_ret1h":
-                x[0, j] = x[0, 1] * (_numeric(kf.get("ret_1h")) or 0.0)
+                x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * (_numeric(kf.get("ret_1h")) or 0.0)
             elif c == "dir_x_ret4h":
-                x[0, j] = x[0, 1] * (_numeric(kf.get("ret_4h")) or 0.0)
+                x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * (_numeric(kf.get("ret_4h")) or 0.0)
             else:
                 x[0, j] = _numeric(features.get(c)) or 0.0
         return float(bundle["model"].predict_proba(x)[0, 1])

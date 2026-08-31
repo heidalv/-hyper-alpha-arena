@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     One-shot dev launcher: Data Center → backend (uvicorn) → frontend-next (:5273).
 
@@ -134,6 +134,25 @@ if ($useStandaloneDc) {
     Write-Host "`n[2/4] Data Center skipped (-NoDataCenter) → embedded collectors" -ForegroundColor DarkGray
 }
 
+# P3 试点：Kronos 区间情景微服务（:8999）——与数据中心同模式：健康即跳过，否则拉起
+$ScenarioHealthPort = 8999
+$scenarioOk = $false
+try {
+    $sr = Invoke-WebRequest -Uri "http://127.0.0.1:$ScenarioHealthPort/health" -UseBasicParsing -TimeoutSec 3
+    $scenarioOk = ($sr.StatusCode -eq 200)
+} catch { $scenarioOk = $false }
+if ($scenarioOk) {
+    Write-Host "   [kronos-scenario] already healthy on :$ScenarioHealthPort" -ForegroundColor Green
+} else {
+    $scCmd = Join-Path $PSScriptRoot 'start-kronos-scenario.cmd'
+    if (Test-Path $scCmd) {
+        & cmd.exe /c "`"$scCmd`"" | Out-Null
+        Write-Host "   [kronos-scenario] launcher invoked (:${ScenarioHealthPort}, venv-gpu, D 盘)" -ForegroundColor Green
+    } else {
+        Write-Host "   [kronos-scenario] launcher missing: $scCmd" -ForegroundColor Yellow
+    }
+}
+
 if (-not $NoBackend) {
     $reloadTag = if ($NoReload) { '(no reload)' } else { '(reload via run_uvicorn_dev.py)' }
     Write-Host "`n[3/4] starting uvicorn on :$BackendPort $reloadTag ..." -ForegroundColor Yellow
@@ -217,6 +236,16 @@ if ($useStandaloneDc) {
         Write-Host "  [WAIT] data-center -> check $DataCenterLog" -ForegroundColor Yellow
     }
 }
+try {
+    $sr2 = Invoke-WebRequest -Uri "http://127.0.0.1:${ScenarioHealthPort}/health" -UseBasicParsing -TimeoutSec 3
+    if ($sr2.StatusCode -eq 200) {
+        Write-Host "  [OK  ] kronos-scenario -> http://127.0.0.1:$ScenarioHealthPort/health" -ForegroundColor Green
+    } else {
+        Write-Host "  [WAIT] kronos-scenario -> :$ScenarioHealthPort not healthy" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  [WAIT] kronos-scenario -> :$ScenarioHealthPort not responding" -ForegroundColor Yellow
+}
 if (-not $NoBackend) {
     $pidB = Test-Port $BackendPort
     $healthOk = $false
@@ -278,7 +307,11 @@ if (-not $NoWatchdog) {
             -ArgumentList @(
                 '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-File', $wdScript,
-                '-BackendPort', "$BackendPort"
+                # [2026-08-31 修复] 参数名必须与 backend-watchdog.ps1 的 param 块一致：
+                # 该脚本只有 -HealthPort。此前传 -BackendPort → 看门狗启动即抛
+                # NamedParameterNotFound 瞬间死亡（隐藏窗口、无日志），后端从此
+                # 无人看护——静默死亡后不会被自动拉起。
+                '-HealthPort', "$BackendPort"
             ) `
             -WorkingDirectory $RepoRoot `
             -WindowStyle Hidden | Out-Null
