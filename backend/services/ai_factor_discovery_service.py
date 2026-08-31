@@ -58,26 +58,57 @@ class AIFactorDiscoveryService:
                     lesson=r.lesson_learned or "", frequency=1)
         return sorted(patterns.values(), key=lambda x: x.frequency, reverse=True)[:10]
 
+    def extract_winning_patterns(self, db) -> List[ErrorPattern]:
+        """[2026-09-01 质量根治] 提取盈利交易环境（与亏损模式对称，供提示词
+        提供"什么样的市场状态该赚钱"的正样本语境，避免 LLM 只盯着亏损做风控因子）。"""
+        from backend.database.models import DecisionRetrospective
+        retros = db.query(DecisionRetrospective).filter(
+            DecisionRetrospective.was_correct == "yes"
+        ).order_by(DecisionRetrospective.created_at.desc()).limit(50).all()
+        patterns: Dict[Tuple, ErrorPattern] = {}
+        for r in retros:
+            key = (r.symbol, r.market_regime_at_exit or "unknown", r.side or "")
+            if key in patterns:
+                patterns[key].frequency += 1
+                patterns[key].pnl += float(r.realized_pnl or 0)
+            else:
+                patterns[key] = ErrorPattern(
+                    symbol=r.symbol, side=r.side, exit_reason=r.exit_reason,
+                    pnl=float(r.realized_pnl or 0), pnl_pct=float(r.pnl_pct or 0),
+                    market_regime=r.market_regime_at_exit or "unknown",
+                    lesson=r.lesson_learned or "", frequency=1)
+        return sorted(patterns.values(), key=lambda x: x.frequency, reverse=True)[:10]
+
     def build_discovery_prompt(self, patterns: List[ErrorPattern]) -> str:
         ptext = "\n".join([
             f"- {p.symbol} {p.side}: {p.exit_reason} 亏{p.pnl:.0f}({p.pnl_pct:+.2f}%) "
             f"regime={p.market_regime} x{p.frequency}"
             for p in patterns
         ])
-        return f"""你是一个量化交易因子挖掘专家。基于以下实盘亏损模式，生成1-3个新因子。
+        return f"""你是一个量化 alpha 因子挖掘专家。你的目标只有一个：**生成能预测未来收益方向的因子**
+（高因子值 → 未来上涨概率更高或更低；因子 IC 会被系统用于打分，IC 越强晋升越快）。
 
-错误模式:
-{ptext}
+【2026-09-01 质量根治 — 明确禁止】
+- **禁止**生成以止损/超时/回撤/亏损模式为目标的因子（如"止损频繁""超时停滞""滑点风险"类）——
+  那些属于风控层职责，不参与 alpha IC 评估，会全部被打 F 淘汰。
+- **禁止**围绕下方市场环境写"规避"类因子；环境只是帮助你理解当前市场结构。
 
+近期市场环境（仅供理解语境，不要据此写风控因子）:
+{ptext or "- （无）"}
+
+【推荐的 alpha 因子家族（任选 1-3 个）】
+1. 动量类：多周期收益率/EMA 斜率/动量加速度（如 close.pct_change(5) - close.pct_change(20)）
+2. 反转类：短期超买超卖/偏离均值程度/RSI 类极值
+3. 波动率聚集：波动率突变/高低波动切换/已实现波动率与收益的交互
+4. 量价关系：量价背离/放量突破确认/缩量整理
+5. 微观结构代理：振幅位置/收盘位置/上下影线不对称
 每个因子用 Python pandas/numpy，输入 pd.DataFrame(open/high/low/close/volume)，返回 pd.Series 值域[-1,+1]。
-因子ID: ai_gen_<缩写>
 
 【代码硬性约束（不满足会被 AST 白名单直接拒绝）】
 1. 禁止 import 任何模块；禁止 dunder（__开头）属性。
 2. 只能访问 data['open'/'high'/'low'/'close'/'volume'] 列及它们的 pandas 链式方法
    （如 data['close'].rolling(20).mean()、data['close'].pct_change()、data['volume'].rolling(50).median()）。
-3. 禁止调用任何自定义或未定义的函数（sl_loss、timeout_loss、drawdown_loss、factor_xxx 等一律禁止）；
-   全局函数只能用 len/abs/min/max/round/sum/float/int/any/all/sorted。
+3. 禁止调用任何自定义或未定义的函数；全局函数只能用 len/abs/min/max/round/sum/float/int/any/all/sorted。
 4. 变量名只用 data/result/series 等简单名；表达式为纯 pandas/numpy 运算。
 
 正确示例: "def calculate(self, data):\n    ret = data['close'].pct_change(20)\n    vol = data['close'].pct_change().rolling(20).std()\n    result = (ret / (vol + 1e-9)).clip(-1, 1)\n    return result"
@@ -299,7 +330,14 @@ class {class_name}(BaseFactor):
             if not self.should_discover(cnt):
                 return {"status": "skipped", "reason": f"条件不足(复盘={cnt})"}
             patterns = self.extract_error_patterns(db)
-            if not patterns: return {"status": "skipped", "reason": "无模式"}
+            if not patterns:
+                return {"status": "skipped", "reason": "无模式"}
+            # [2026-09-01 质量根治] 环境语境加入盈利模式（正样本），避免 LLM 只围绕
+            # 亏损写风控因子（实测 136 个 ai_gen 因子几乎全是 sl/timeout 启发式，
+            # 对前向收益 IC 天然弱，全部 C/D 淘汰）。
+            _wins = self.extract_winning_patterns(db)
+            if _wins:
+                patterns = list(_wins) + list(patterns)
             candidates = self.call_llm_for_factor_discovery(patterns)
             if not candidates: return {"status": "failed", "reason": "无候选"}
             # 2026-06-18 修复：目录对齐到 services/factor_engine/factors/ai_generated/
