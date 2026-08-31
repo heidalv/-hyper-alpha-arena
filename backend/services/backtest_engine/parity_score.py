@@ -41,6 +41,7 @@ import json
 import logging
 import math
 import os
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -69,7 +70,14 @@ FREEZE_THRESHOLD = 0.70
 # 但这是结构性 bug 而非随机噪声，每周都会稳定复现，安全阀形同虚设，长期会把所有 nature
 # 逐个冻死。修复：冻结动作额外要求"核心可比指标"(下方 CORE_FREEZE_METRICS)自身也跌破
 # 阈值才生效；score 本身与告警口径不变，保证仪表盘/历史趋势不受影响，只收紧冻结判据。
-CORE_FREEZE_METRICS = {"win_rate", "profit_factor", "max_drawdown", "sharpe"}
+# [2026-08-31 根因修复] sharpe 移出 CORE_FREEZE_METRICS：
+# 7 天窗口内 sharpe 对微仓高换手 nature 完全由费/滑点模型主导（scalp 451 笔
+# live sharpe=-17.7 vs bt=+4.04，符号翻转即触发 dev 截断上限 5.0），单指标
+# 权重 0.10×dev5.0=0.5 ≥ core_weight_total(0.5) 直接打穿 core_score=0——
+# 相当于"只要 7 天内不赚钱就冻结"，冻结判据退化为纯盈亏判定。冻结判据应基于
+# 与回测同口径可比的 win_rate/profit_factor/max_drawdown（方向性恶化才计入），
+# sharpe 保留在 score/告警口径（仪表盘如实上报），不再参与冻结。
+CORE_FREEZE_METRICS = {"win_rate", "profit_factor", "max_drawdown"}
 # 核心指标的"更优"方向：win_rate/profit_factor/sharpe 越高越好；max_drawdown 是跌幅
 # 幅度，越低越好。冻结判据只应惩罚"live 比 bt 差"的方向——原 dev 公式是纯幅度差
 # (|lv-bv|/bv)，不分方向，导致 live 明明表现更好(如 profit_factor live 0.91 > bt 0.50)
@@ -106,6 +114,15 @@ FREEZE_STATE_PATH = os.path.join("data", "parity_score_freeze_state.json")
 # 冻结门槛才真正提交disabled_natures——分数/告警仍按文档公式如实上报，只是防止单次噪声就
 # 一刀切停掉整条nature的实盘开仓。
 FREEZE_CONSECUTIVE_REQUIRED = 2
+
+# [2026-08-31 根因修复] 冻结最大存续天数（TTL）。
+# 冻结管线每周日才全量重扫一次；而"冻结期间无新成交 → 回看窗口样本老化 → 下周
+# available=False → 自动解冻"的自我修复路径在最坏情况下要等近 2 周，期间 nature
+# 完全停摆（实测 scalp 8/29 冻结后短线圈 0 开仓）。TTL 由 unified_gate 热路径的
+# parity_prune_expired() 强制过期：冻结到期自动解除，除非新一周的扫描用新数据
+# 再次确认 breach（连续 2 次要求不变，安全网保留）。
+FREEZE_MAX_DAYS = float(os.getenv("PARITY_FREEZE_MAX_DAYS", "4") or 4)
+_freezee_cache: Dict[str, Any] = {"ts": 0.0, "expired": []}
 
 
 def _cfg(name: str, default: Any) -> Any:
@@ -366,29 +383,54 @@ def _run_backtest_side(
     return stats
 
 
-def _record_freeze_breach(nature: str, breached: bool) -> int:
-    """记录该 nature 是否本轮触发了 FREEZE_THRESHOLD，返回当前连续触发次数（未触发则清零并返回0）。"""
-    state: Dict[str, int] = {}
+def _load_freeze_state() -> Dict[str, Dict[str, Any]]:
+    """读取冻结状态并归一化到 {nature: {count:int, frozen_at:iso}}。
+
+    兼容旧格式 {nature: int}（迁移为 count=frozen_at 空 = 视为当前冻结）。"""
+    state: Dict[str, Dict[str, Any]] = {}
     try:
         if os.path.exists(FREEZE_STATE_PATH):
             with open(FREEZE_STATE_PATH, "r", encoding="utf-8") as f:
-                state = json.load(f) or {}
+                raw = json.load(f) or {}
+            for k, v in raw.items():
+                if isinstance(v, dict):
+                    state[str(k)] = {
+                        "count": int(v.get("count", 0)),
+                        "frozen_at": str(v.get("frozen_at") or ""),
+                    }
+                else:
+                    # 旧格式纯计数：迁移为已冻结（frozen_at=now，交由 TTL 处理）
+                    state[str(k)] = {"count": int(v or 0),
+                                     "frozen_at": datetime.now(timezone.utc).isoformat()}
     except Exception:
         state = {}
+    return state
 
-    if breached:
-        state[nature] = int(state.get(nature, 0)) + 1
-    else:
-        state[nature] = 0
 
+def _save_freeze_state(state: Dict[str, Dict[str, Any]]) -> None:
     try:
         os.makedirs(os.path.dirname(FREEZE_STATE_PATH) or ".", exist_ok=True)
         with open(FREEZE_STATE_PATH, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.warning(f"[ParityScore] 冻结连续计数持久化失败: {e}")
+        logger.warning(f"[ParityScore] 冻结状态持久化失败: {e}")
 
-    return state[nature]
+
+def _record_freeze_breach(nature: str, breached: bool) -> int:
+    """记录该 nature 是否本轮触发了 FREEZE_THRESHOLD，返回当前连续触发次数（未触发则清零并返回0）。
+
+    状态格式：{nature: {count, frozen_at}}——frozen_at 供 FREEZE_MAX_DAYS TTL 判过期。"""
+    state = _load_freeze_state()
+    entry = state.setdefault(nature, {"count": 0, "frozen_at": ""})
+    if breached:
+        entry["count"] = int(entry.get("count", 0)) + 1
+        if entry["count"] >= FREEZE_CONSECUTIVE_REQUIRED:
+            entry["frozen_at"] = datetime.now(timezone.utc).isoformat()
+    else:
+        entry["count"] = 0
+        entry["frozen_at"] = ""
+    _save_freeze_state(state)
+    return entry["count"]
 
 
 def _apply_freeze(nature: str, score: float) -> bool:
@@ -563,6 +605,12 @@ def run_parity_score_pipeline(
         logger.info("[ParityScore] PARITY_SCORE_ENABLED=false，跳过本轮")
         return {}
 
+    # [2026-08-31] 每轮先清理 TTL 到期的冻结（包括手动触发的单 nature 重扫）
+    try:
+        parity_prune_expired()
+    except Exception:
+        pass
+
     full_sweep = natures is None
     natures = natures or list(NATURE_TIER_MAP.keys())
     results: Dict[str, Dict[str, Any]] = {}
@@ -615,6 +663,13 @@ def _sync_full_frozen_set(checked_natures: List[str], results: Dict[str, Dict[st
     from backend.services.runtime_governor import runtime_governor as gov
     from backend.services.runtime_tuning_store import get_tuning
 
+    # [2026-08-31] 先做 TTL 过期清理，再基于本轮真实冻结集合同步（过期项在
+    # available=False（样本不足）的 nature 身上也能正确解除，不依赖其本轮是否可算）。
+    try:
+        parity_prune_expired(get_tuning("disabled_natures", []) or [])
+    except Exception:
+        pass
+
     current = get_tuning("disabled_natures", []) or []
     if not isinstance(current, list):
         current = []
@@ -639,6 +694,76 @@ def _sync_full_frozen_set(checked_natures: List[str], results: Dict[str, Dict[st
         ),
     )
     logger.info(f"[ParityScore] disabled_natures 全量同步 -> {merged} (解冻: {sorted(recovered)})")
+
+
+def parity_prune_expired(disabled: Optional[List[str]] = None) -> List[str]:
+    """TTL 过期清理：冻结超过 FREEZE_MAX_DAYS 的 nature 自动解除。
+
+    unified_gate 热路径在读取 disabled_natures 后调用本函数（60s 结果缓存），
+    保证冻结在周扫描之间也能到期解除；解除时通过 RuntimeGovernor 持久化，
+    使 get_tuning 缓存刷新后生效值一致。
+
+    Args:
+        disabled: 当前生效的 disabled_natures 列表；None 时从 tuning store 读取。
+
+    Returns:
+        剔除已过期项后的生效禁用列表。
+    """
+    now_ts = time.time()
+    if disabled is not None and now_ts - float(_freezee_cache.get("ts", 0.0)) < 60:
+        # 缓存的是"过期集合"，用它对传入列表做过滤（列表本身可能已变化）
+        expired = set(_freezee_cache.get("expired") or [])
+        if expired:
+            return [n for n in disabled if str(n).lower() not in expired]
+        return list(disabled)
+
+    from backend.services.runtime_governor import runtime_governor as gov
+    from backend.services.runtime_tuning_store import get_tuning
+
+    current = disabled
+    if current is None:
+        current = get_tuning("disabled_natures", []) or []
+    if not isinstance(current, list):
+        current = []
+    current = [str(n).lower() for n in current]
+    if not current:
+        _freezee_cache.update({"ts": now_ts, "expired": []})
+        return list(current)
+
+    state = _load_freeze_state()
+    expired: List[str] = []
+    for n in current:
+        entry = state.get(n)
+        frozen_at = (entry or {}).get("frozen_at") or ""
+        if not frozen_at:
+            continue
+        try:
+            age_days = (datetime.now(timezone.utc)
+                        - datetime.fromisoformat(frozen_at)).total_seconds() / 86400.0
+        except Exception:
+            continue
+        if age_days >= FREEZE_MAX_DAYS:
+            expired.append(n)
+
+    if expired:
+        merged = sorted(set(current) - set(expired))
+        try:
+            gov.submit_intent(
+                "disabled_natures", merged, source="parity_score", confidence=0.95,
+                reason=f"冻结TTL到期({FREEZE_MAX_DAYS:.0f}天)自动解除: {sorted(expired)}",
+            )
+            for n in expired:
+                entry = state.get(n, {})
+                entry["count"] = 0
+                entry["frozen_at"] = ""
+                state[n] = entry
+            _save_freeze_state(state)
+            logger.warning("[ParityScore] 冻结TTL到期自动解冻: %s (剩余: %s)",
+                           sorted(expired), merged)
+        except Exception as e:
+            logger.warning("[ParityScore] TTL解冻意图提交失败: %s", e)
+    _freezee_cache.update({"ts": now_ts, "expired": expired})
+    return [n for n in current if n not in set(expired)]
 
 
 def load_parity_history(nature: Optional[str] = None, limit: int = 200) -> List[Dict[str, Any]]:

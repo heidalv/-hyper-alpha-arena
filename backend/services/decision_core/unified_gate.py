@@ -229,9 +229,26 @@ def evaluate_entry(
 
     # ── 2026-07-04: paper 门槛与 Agent/Swing 代码对齐（不再硬编码 68/50）──
     _is_paper = (mode or "paper").strip().lower() == "paper"
+    # [2026-08-29 实盘对齐模拟盘] 引导期(live bootstrap)把置信门/RR/TP 全部
+    # 按 paper 口径取值（用户指令：实盘策略与门禁全面对齐模拟盘，先跑起来）。
+    # 期满(≥20笔实盘平仓样本)自动回落 live 严格口径；LIVE_ALIGN_PAPER_GATES=false
+    # 可整体关闭对齐。行为类分支(fail-closed/否决语义)不随对齐改变。
+    _gate_paper = _is_paper
+    if not _is_paper:
+        try:
+            import os as _os_align
+            if (_os_align.getenv("LIVE_ALIGN_PAPER_GATES", "true").strip().lower()
+                    in ("1", "true", "yes", "on")):
+                from backend.services.full_auto.live_gate_policy import (
+                    live_bootstrap_active,
+                )
+                if live_bootstrap_active(account_id):
+                    _gate_paper = True
+        except Exception as _align_err:
+            logger.debug("[V5Gate] 实盘对齐开关读取失败(沿用 live 口径): %s", _align_err)
     # [2026-08-23 过度阻止修复] 原 `45 if _is_paper else 40` 是笔误：paper 反而比
     # live 高 5 分，与 L406 注释「paper:30/live:40」矛盾。恢复 paper 30 下限。
-    _paper_floor = 30 if _is_paper else 40
+    _paper_floor = 30 if _gate_paper else 40
     # [2026-08-23 过度阻止修复] paper 短线置信度 65→50：ScalpRouter 分数分布
     # 25-85 中位 ~50，且实证「分数与胜率无强单调关系」（诊断 15/17）；65 硬门槛
     # 配合 warmup 放宽后仍 45，把 40-45 分的真实信号全拦（实测 XPL 36<45 冻结）。
@@ -256,20 +273,20 @@ def evaluate_entry(
             logger.debug("[V5Gate] 实盘门槛策略读取失败(沿用默认): %s", _lb_err)
     # resolver 取 max(base+regime, scalp_gate)：实盘生效门 = 两者取大（收紧），
     # paper 维持原有放宽逻辑不变。
-    if not _is_paper and nature_l in ("scalp", "intraday"):
+    if not _is_paper and not _gate_paper and nature_l in ("scalp", "intraday"):
         base_entry_threshold = max(int(base_entry_threshold), int(_live_scalp_gate))
-    _paper_scalp_gate = 50 if _is_paper else _live_scalp_gate
+    _paper_scalp_gate = 50 if _gate_paper else _live_scalp_gate
     # 修正死三元表达式（此前 paper/live 两分支完全相同，paper 未获得任何放宽，
     # 与 3 天 long tier 零成交现象方向吻合）：paper 比 live 低 12 分，但不低于 30 的
     # 合理下限，避免长线置信度门槛在 paper 模式下被压到毫无意义的水平。
     _paper_trend_gate = (
-        max(30, int(V5_TREND_FOLLOW_MIN_CONFIDENCE) - 12) if _is_paper
+        max(30, int(V5_TREND_FOLLOW_MIN_CONFIDENCE) - 12) if _gate_paper
         else int(V5_TREND_FOLLOW_MIN_CONFIDENCE)
     )
     # [M5 2026-08-21] swing/factor_mid 独立置信度口径：不再复用 trend_follow 门槛。
     # swing 持有期更短，口径应介于 scalp 与 trend 之间（初值 45，待回测量化校准）。
     _paper_swing_gate = (
-        max(30, int(V5_SWING_MIN_CONFIDENCE) - 12) if _is_paper
+        max(30, int(V5_SWING_MIN_CONFIDENCE) - 12) if _gate_paper
         else int(V5_SWING_MIN_CONFIDENCE)
     )
     # Paper/Live × nature：短线用更低 RR/TP（加密剥头皮）；中长线一体用 trend 标准。
@@ -277,20 +294,20 @@ def evaluate_entry(
     _is_scalp_like = nature_l in ("scalp", "intraday")
     _is_midlong = nature_l in ("trend_follow", "position", "swing")
     if _is_scalp_like:
-        _paper_min_rr = float(V5_SCALP_MIN_RR_PAPER if _is_paper else V5_SCALP_MIN_RR)
+        _paper_min_rr = float(V5_SCALP_MIN_RR_PAPER if _gate_paper else V5_SCALP_MIN_RR)
         # [2026-08-28 实盘收紧] live RR 保持 V5_SCALP_MIN_RR(1.4) 硬口径，
         # 不再回落 paper 档（1.3）——实盘盈亏比不得低于模拟盘基准。
-        _paper_min_tp = float(V5_SCALP_MIN_TP_PCT_PAPER if _is_paper else V5_SCALP_MIN_TP_PCT)
+        _paper_min_tp = float(V5_SCALP_MIN_TP_PCT_PAPER if _gate_paper else V5_SCALP_MIN_TP_PCT)
     elif nature_l == "swing":
         # [M5 2026-08-21] swing 独立 RR 口径（1.5/1.4，介于 scalp 1.4 与 trend
         # 1.8 之间）；runtime min_risk_reward 语义与 trend 分支一致（仅显式上调）。
         _runtime_rr_raw = overrides.get("min_risk_reward")
-        _swing_base_rr = float(V5_SWING_MIN_RR_PAPER if _is_paper else V5_SWING_MIN_RR)
+        _swing_base_rr = float(V5_SWING_MIN_RR_PAPER if _gate_paper else V5_SWING_MIN_RR)
         if _runtime_rr_raw is None:
             _paper_min_rr = _swing_base_rr
         else:
             _paper_min_rr = max(_swing_base_rr, float(_runtime_rr_raw))
-        _paper_min_tp = 0.008 if _is_paper else float(V5_MIN_TP_PCT)
+        _paper_min_tp = 0.008 if _gate_paper else float(V5_MIN_TP_PCT)
     elif _is_midlong:
         # ── P1-2 修复：Paper RR 公式 ──
         # 原公式把 env 默认值 V5_MIN_RISK_REWARD(=1.8) 当 runtime override 参与计算：
@@ -300,21 +317,21 @@ def evaluate_entry(
         # 未配置时 paper/live 各用各自基准门槛（paper 松 1.6 / live 严 1.8）。
         _runtime_rr_raw = overrides.get("min_risk_reward")
         if _runtime_rr_raw is None:
-            _paper_min_rr = float(V5_TREND_MIN_RR_PAPER if _is_paper else V5_TREND_MIN_RR)
+            _paper_min_rr = float(V5_TREND_MIN_RR_PAPER if _gate_paper else V5_TREND_MIN_RR)
         else:
             _rr_up = float(_runtime_rr_raw)
             _paper_min_rr = (
                 max(float(V5_TREND_MIN_RR_PAPER), _rr_up)
-                if _is_paper
+                if _gate_paper
                 else max(float(V5_TREND_MIN_RR), _rr_up)
             )
-        _paper_min_tp = 0.008 if _is_paper else float(V5_MIN_TP_PCT)
+        _paper_min_tp = 0.008 if _gate_paper else float(V5_MIN_TP_PCT)
     else:
         _paper_min_rr = (
-            max(1.5, float(overrides.get("min_risk_reward", 1.5))) if _is_paper
+            max(1.5, float(overrides.get("min_risk_reward", 1.5))) if _gate_paper
             else float(overrides.get("min_risk_reward", V5_MIN_RISK_REWARD))
         )
-        _paper_min_tp = 0.008 if _is_paper else V5_MIN_TP_PCT
+        _paper_min_tp = 0.008 if _gate_paper else V5_MIN_TP_PCT
     # 震荡均值回归模式（2026-07-09）：MR 单靠小止盈+高胜率赚钱，止盈天然只有 0.6%~1.2%，
     # 会被默认 min_tp/min_rr 冤杀。故仅对 ranging_mr 单换用 MR 专用下限。
     _is_ranging_mr = bool(isinstance(market_data, dict) and market_data.get("ranging_mr"))
@@ -345,6 +362,17 @@ def evaluate_entry(
 
     # ── 0. 反馈闭环禁用的 nature ──
     disabled = overrides.get("disabled_natures") or []
+    if disabled and nature_l in disabled:
+        # [2026-08-31 根因修复] 冻结 TTL：parity_score 的冻结最长存活
+        # FREEZE_MAX_DAYS 天，热路径在这里做过期清理，避免"冻结→无新成交→
+        # 样本老化→下一周才解冻"的长达数周的停摆死锁（实测 scalp 8/29 冻结后
+        # 短线圈 0 开仓）。过期清理会把冻结解除意图提交给 RuntimeGovernor，
+        # 使 tuning 缓存刷新后生效值一致。
+        try:
+            from backend.services.backtest_engine.parity_score import parity_prune_expired
+            disabled = parity_prune_expired(disabled)
+        except Exception:
+            pass
     if nature_l in disabled:
         return _block(symbol, action_l, "nature_disabled",
                       f"nature={nature_l} 已被反馈闭环禁用")
@@ -420,14 +448,14 @@ def evaluate_entry(
     # [2026-08-28 实盘零成交修复] 与上方 _paper_scalp_gate 同源（实盘引导期用
     # LIVE_SCALP_V5_MIN_CONFIDENCE），保持一致性；当前 resolver 实际取
     # scalp_gate=_paper_scalp_gate，此变量仅作记录。
-    _scalp_gate = _paper_scalp_gate if not _is_paper else int(
+    _scalp_gate = _paper_scalp_gate if not _gate_paper else int(
         overrides.get("scalp_min_confidence", V5_SCALP_MIN_CONFIDENCE)
     )
 
     mode_l = (mode or "paper").strip().lower()
     _auto_penalty = AUTO_COIN_V5_CONF_PENALTY
     _auto_min_rr = AUTO_COIN_V5_MIN_RR
-    if mode_l == "paper" and PAPER_RELAX_AUTO_COIN_V5:
+    if _gate_paper and PAPER_RELAX_AUTO_COIN_V5:
         _auto_penalty = PAPER_AUTO_COIN_V5_CONF_PENALTY
         _auto_min_rr = PAPER_AUTO_COIN_V5_MIN_RR
 
@@ -549,7 +577,10 @@ def evaluate_entry(
     # by_nature 调高后的 min_rr（哪怕调到 2.0）系统性压回 1.3，导致 paper 环境
     # 永远无法验证"提高盈亏比门槛是否真的改善盈亏"这一根因假设。paper 现在
     # 只受自己的独立基线 1.5（见 _paper_min_rr）与 runtime 覆盖约束，不再有额外上限。
-    if not _is_paper:
+    # [2026-08-29 实盘对齐] 引导期与 paper 同口径：不叠加 live 专属
+    # auto-coin RR 抬升/高置信 relief（_auto_min_rr 已在上方按 _gate_paper
+    # 取 paper 档，此处 live-bootstrap 一并跳过应用，与 paper 行为一致）。
+    if not _gate_paper:
         if is_auto_coin:
             min_rr = max(min_rr, _auto_min_rr)
         elif high_conviction:
