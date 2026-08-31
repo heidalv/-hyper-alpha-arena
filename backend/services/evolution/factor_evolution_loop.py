@@ -1025,13 +1025,25 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                 from backend.services.evolution.alpha_miner import CodegenCritic
                 _warm_n = int(_os_gp.getenv("FACTOR_GP_LLM_WARM_N", "6") or 6)
                 _critic = CodegenCritic()
-                _warm_prompt = (
-                    f"Generate {_warm_n} diverse crypto alpha factor AST seeds for genetic-programming "
-                    f"warm start at period={period}. Cover distinct hypotheses "
-                    f"(momentum/reversal/vol/volume-price/microstructure). "
-                    f"Output each as a JSON AST with keys op/args/f/c ONLY; do NOT evaluate quality."
-                )
-                for _ in range(_warm_n):
+                # [2026-08-31 根因] 原提示词一次要 6 个种子 → LLM 返回多 AST 列表
+                # → 解析器 llm_invalid_ast → 6 次调用全废（诊断实测：单种子提示词
+                # audit_passed=True 86s 出合法 AST）。改为逐种子请求，假设轮换。
+                _warm_hypos = [
+                    "momentum (trend continuation)",
+                    "short-term mean reversion",
+                    "volatility breakout",
+                    "volume-price divergence",
+                    "orderflow/microstructure imbalance",
+                    "cross-sectional range contraction",
+                ]
+                for _wi in range(_warm_n):
+                    _hypo = _warm_hypos[_wi % len(_warm_hypos)]
+                    _warm_prompt = (
+                        f"Generate ONE crypto alpha factor AST seed for genetic-programming "
+                        f"warm start at period={period}. Hypothesis: {_hypo}. "
+                        f"Output a SINGLE JSON AST with keys op/args/f/c ONLY; "
+                        f"do NOT output multiple ASTs or extra text."
+                    )
                     try:
                         _res = _critic.generate_and_audit(_warm_prompt, existing_pool_exprs=[])
                         if _res.audit_passed and _res.expr_ast:
