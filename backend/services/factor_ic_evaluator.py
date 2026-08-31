@@ -30,6 +30,8 @@ RUNTIME_WEIGHTS_FILE = os.path.join("data", "factor_runtime_weights.json")
 _weights_cache: dict = {"ts": 0.0, "data": {}}
 
 MIN_SAMPLES = 30  # [P0-1 2026-07-30] 从8提高到30，避免小样本IC=1.0假象
+# [2026-08-29 P2.2] ic_ev 模式的权重地板：负/零 IC 因子不再保持满权
+_EV_WEIGHT_FLOOR = 0.1
 NEUTRAL_DIRECTION_EPS = 0.2
 
 
@@ -190,12 +192,34 @@ def run_factor_ic_evaluation(db, lookback_days: int = 30) -> Dict[str, dict]:
 
         weight = 1.0
         if n >= MIN_SAMPLES:
-            if win_rate < 0.40:
-                weight = 0.25
-            elif win_rate < 0.45:
-                weight = 0.5
-            elif win_rate > 0.60:
-                weight = 1.2
+            # [2026-08-29 全面修复 P2.2] 权重映射从"胜率分档"改为"符号一致 × IC"：
+            # 旧口径只看 win_rate 分档（<40%→0.25/<45%→0.5/>60%→1.2），不看 IC
+            # 符号——实测 ai_gen_dust_squeeze IC=-0.2963 仍拿权重 1.0（胜率恰在
+            # 45-60% 带即满权）。新口径（FACTOR_IC_WEIGHT_MODE=ic_ev，默认）：
+            #   - IC<=0（方向与收益无正相关/反向）或方向一致率<45% → 地板 0.1；
+            #   - 否则 w = clip(0.5 + 4×IC, 0.1, 1.5)，IC=0.05→0.7 / 0.1→0.9 /
+            #     0.25→1.5（ICIR 优秀的反手因子此前因胜率<45%被砍半，现按
+            #     方向一致率+IC 正常给权）。
+            # 旧口径可用 FACTOR_IC_WEIGHT_MODE=winrate 回滚。
+            _ic_mode = (os.getenv("FACTOR_IC_WEIGHT_MODE", "ic_ev") or "ic_ev").strip().lower()
+            if _ic_mode == "winrate":
+                if win_rate < 0.40:
+                    weight = 0.25
+                elif win_rate < 0.45:
+                    weight = 0.5
+                elif win_rate > 0.60:
+                    weight = 1.2
+            else:
+                # [2026-08-31 学习层审计 L4] 负 IC 因子（方向与收益负相关/零相关）
+                # 不再占 0.1 地板权重——实测 ai_gen_dust_squeeze IC=-0.3353 仍拿
+                # 0.1 参与合成，污染信号。改为：IC<=0 → 权重 0（不参与）；
+                # IC=null（样本不足）→ 中性 0.1；win_rate<0.45 但 IC>0 → 地板 0.1。
+                if ic is not None and ic <= 0:
+                    weight = 0.0
+                elif ic is None or win_rate < 0.45:
+                    weight = _EV_WEIGHT_FLOOR
+                else:
+                    weight = float(min(1.5, max(_EV_WEIGHT_FLOOR, 0.5 + 4.0 * ic)))
         weights[name] = weight
         results[name] = {
             "n": n,

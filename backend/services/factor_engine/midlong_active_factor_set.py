@@ -116,6 +116,12 @@ class MidLongActiveFactorSet:
             ast = r.get("expr_ast")
             if not fid or not ast:
                 continue
+            # [2026-08-31 生成层审计 G3] seed_bootstrap 是 icir=0.05 的硬编码
+            # 占位种子（6 个 seed_*），并非真实进化产物——此前经桥接混进中线
+            # 活跃集冒充"活跃因子"（"中线 10 个活跃"实为 3 公式+1 rev50+6 占位）。
+            # 排除后中长线活跃=真实因子；FACTOR_OVERSIGHT 晋升放开后由真因子补位。
+            if str(r.get("source") or "").startswith("seed_bootstrap"):
+                continue
             # 短线档排除：s5m_ 前缀（短周期标记）或 source 带 horizon=scalp
             src = str(r.get("source") or "")
             if fid.startswith("s5m_") or "horizon=scalp" in src:

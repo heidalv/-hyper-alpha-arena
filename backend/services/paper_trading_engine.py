@@ -1574,18 +1574,38 @@ class PaperTradingEngine:
                     price=float(current_price or 0),
                 )
                 if _verdict == "reject":
-                    logger.info(
-                        f"[Paper] 部分平仓拒绝(minNotional): {symbol} {side} "
-                        f"reason={reason} {_vdetail}"
-                    )
-                    self._record_exit_event(
-                        db, pos, event_type="partial_exit_rejected",
-                        exit_channel=reason,
-                        metadata={"gate": "min_notional", "detail": _vdetail, "reason": reason},
-                    )
-                    db.commit()
-                    return None
-                if _verdict == "escalate_full":
+                    # [2026-08-31 卡平仓死循环修复] 仓位名义本身 < 2×minNotional
+                    # 时（如 BNB 长线 $9.38 名义要求"减半"→ chunk $4.69 < $5），
+                    # 拒绝只会让调用方每 30s 重试同一动作形成死循环。此类微仓
+                    # 升级为全平（设计意图：防尘仓死等）。
+                    try:
+                        _pos_notional = float(remaining_size) * float(current_price or 0)
+                        _min_notional = None
+                        from backend.services.exit.feasibility_gate import resolve_min_notional_usd
+                        _min_notional = resolve_min_notional_usd(exchange)
+                        if 0 < _pos_notional < 2.0 * float(_min_notional or 5.0):
+                            logger.info(
+                                f"[Paper] 部分平仓拒绝但微仓(名义${_pos_notional:.2f}<"
+                                f"2×min${_min_notional:.2f})→升级全平: {symbol} {side} reason={reason}"
+                            )
+                            is_partial = False
+                            close_qty = remaining_size
+                            _verdict = "escalate_full_dust"
+                    except Exception:
+                        pass
+                    if _verdict == "reject":
+                        logger.info(
+                            f"[Paper] 部分平仓拒绝(minNotional): {symbol} {side} "
+                            f"reason={reason} {_vdetail}"
+                        )
+                        self._record_exit_event(
+                            db, pos, event_type="partial_exit_rejected",
+                            exit_channel=reason,
+                            metadata={"gate": "min_notional", "detail": _vdetail, "reason": reason},
+                        )
+                        db.commit()
+                        return None
+                if _verdict == "escalate_full" or _verdict == "escalate_full_dust":
                     logger.info(
                         f"[Paper] 部分平仓→全平(剩余低于minNotional): {symbol} {side} "
                         f"reason={reason} {_vdetail}"

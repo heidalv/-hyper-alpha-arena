@@ -142,14 +142,26 @@ class TestEngineMinNotionalGate:
 
     def test_partial_below_min_rejected(self, db_session, make_pos, monkeypatch):
         eng = self._patch_engine(monkeypatch)
-        pos = make_pos(7701, 0.10)
+        pos = make_pos(7701, 1.0)  # $100 名义（非微仓，保持 reject 语义）
         # hyperliquid min $10：平 0.05 个（$5）→ 拒单返回 None，仓位不动
         res = eng.close_position(
             db_session, 7701, "BTC", "long", reason="staged_tp1", quantity=0.05)
         assert res is None
         db_session.refresh(pos)
-        assert float(pos.size) == pytest.approx(0.10)
+        assert float(pos.size) == pytest.approx(1.0)
         assert pos.status == "open"
+
+    def test_micro_position_reject_escalates_full(self, db_session, make_pos, monkeypatch):
+        # [2026-08-31] 微仓（名义<2×min）的减仓请求升级全平，防卡平仓死循环
+        # （BNB 长线 $9.38 名义"减半"→chunk $4.69<$5 曾每 30s 重试）
+        eng = self._patch_engine(monkeypatch)
+        pos = make_pos(7705, 0.10)  # $10 名义 < 2×$10(min HL)
+        res = eng.close_position(
+            db_session, 7705, "BTC", "long", reason="long_trend_v2:减半", quantity=0.05)
+        assert res is not None
+        assert res.get("closed_fully") is True
+        db_session.refresh(pos)
+        assert pos.status == "closed"
 
     def test_partial_remaining_dust_escalates_full(self, db_session, make_pos, monkeypatch):
         eng = self._patch_engine(monkeypatch)

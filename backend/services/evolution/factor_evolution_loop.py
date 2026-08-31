@@ -1591,7 +1591,18 @@ def _auto_oversight_approve(metrics, judgment) -> bool:
     """
     from backend.services.factor_engine.lifecycle import FactorState, LifecycleThresholds
     t = LifecycleThresholds()
-    if not metrics.dsr_significant or metrics.pbo > 0.30:  # 比基础 0.5 门槛更严
+    # [2026-08-31 生成层审计 G1] pbo 硬门槛 0.30 比基础门(0.5)严 1.67 倍且不可调，
+    # 实测 5 天 20+ 轮 promoted=0（幸存者 pbo 0.34-0.86 全被拒）——晋升闸=100% 拒绝机。
+    # 改为 env 可调，默认回落 0.5 与基础门一致；PAPER 影子期仍是默认出口（进影子
+    # 用实盘数据继续学习而非直接死刑），SMALL_LIVE/ACTIVE 仍走下方更严的影子毕业条件。
+    _oversight_max_pbo = 0.5
+    try:
+        import os as _os_oa
+        _oversight_max_pbo = float(_os_oa.getenv(
+            "FACTOR_OVERSIGHT_MAX_PBO", "0.5") or 0.5)
+    except (TypeError, ValueError):
+        pass
+    if not metrics.dsr_significant or metrics.pbo > _oversight_max_pbo:
         return False
     if metrics.icir < t.min_icir:
         return False
