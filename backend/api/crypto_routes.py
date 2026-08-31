@@ -1,6 +1,7 @@
 """
 Crypto-specific API routes
 """
+import asyncio
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
 import logging
@@ -51,21 +52,26 @@ async def get_crypto_market_status(symbol: str) -> Dict[str, Any]:
 
 @router.get("/popular")
 async def get_popular_cryptos() -> List[Dict[str, Any]]:
-    """Get popular crypto trading pairs with current prices"""
+    """Get popular crypto trading pairs with current prices.
+
+    [2026-08-31 性能] 原实现串行逐币取价：N 个币 × 每个缓存未命中的 DC REST
+    往返（0.3-1.2s）叠加，且同步调用阻塞事件循环。改为 asyncio.to_thread
+    并发取价（gather 保序），最坏耗时≈单币一次往返。
+    """
     popular_symbols = get_user_trading_pairs()
-    
-    results = []
-    for symbol in popular_symbols:
+
+    async def _fetch(symbol: str) -> Dict[str, Any] | None:
         try:
-            price = get_last_price(symbol, "CRYPTO")
-            results.append({
+            price = await asyncio.to_thread(get_last_price, symbol, "CRYPTO")
+            return {
                 "symbol": symbol,
                 "name": symbol.split("/")[0],  # Extract base currency
                 "price": price,
-                "market": "CRYPTO"
-            })
+                "market": "CRYPTO",
+            }
         except Exception as e:
             logger.warning(f"Could not get price for {symbol}: {e}")
-            continue
-    
-    return results
+            return None
+
+    results = await asyncio.gather(*(_fetch(s) for s in popular_symbols))
+    return [r for r in results if r is not None]

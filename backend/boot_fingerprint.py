@@ -30,6 +30,16 @@ from typing import Any, Dict
 _BOOT_AT = time.time()
 _HEAD = "unknown"
 _marker_validators: Dict[str, Any] = {}
+# [2026-08-31 性能根治] marker 快照只求值一次（docstring 原意就是"启动时 Capture"）。
+# 此前每次 boot_fingerprint() 都重跑全部校验器：其中两个用 inspect.getsource
+# 读 + ast.parse 整个 paper_trading_engine.py（5400+ 行），再加每次 2 次
+# git subprocess → /api/health 恒定 500-800ms，事件循环被堵，前端所有刷新排队。
+_markers_snapshot: Dict[str, bool] | None = None
+_markers_snapshot_ts: float | None = None
+# 磁盘 git HEAD 的 TTL 缓存：subprocess 每次 50-100ms，健康探针不可承受。
+# matches_disk 语义保留（最多滞后 TTL 时长）；0 = 每次实时（旧行为）。
+_HEAD_DISK_TTL_SEC = float(os.getenv("BOOT_FINGERPRINT_DISK_TTL_SEC", "60") or 60)
+_head_disk_cache: tuple | None = None
 
 
 def _git_head() -> str:
@@ -49,6 +59,17 @@ def _git_head() -> str:
     except Exception:
         pass
     return "unknown"
+
+
+def _git_head_disk() -> str:
+    """当前磁盘 git HEAD，带 TTL 缓存（默认 60s；BOOT_FINGERPRINT_DISK_TTL_SEC=0 关闭）。"""
+    global _head_disk_cache
+    _now = time.time()
+    if _head_disk_cache and (_now - _head_disk_cache[0]) < _HEAD_DISK_TTL_SEC:
+        return _head_disk_cache[1]
+    _h = _git_head()
+    _head_disk_cache = (_now, _h)
+    return _h
 
 
 def _register_marker(name: str, fn) -> None:
@@ -116,21 +137,29 @@ def _init_markers() -> None:
 
 
 def boot_fingerprint() -> Dict[str, Any]:
-    """返回启动快照（模块级缓存；进程重启后自动取新值）。"""
-    global _HEAD
+    """返回启动快照（模块级缓存；进程重启后自动取新值）。
+
+    [2026-08-31 性能根治] marker 校验只在首次调用求值一次（语义=启动快照），
+    磁盘 git HEAD 走 TTL 缓存；/api/health 热路径从此零文件解析、零 subprocess。
+    """
+    global _HEAD, _markers_snapshot, _markers_snapshot_ts
     if _HEAD == "unknown":
         _HEAD = _git_head()
     if not _marker_validators:
         _init_markers()
-    markers = {k: bool(v()) for k, v in _marker_validators.items()}
+    if _markers_snapshot is None:
+        _markers_snapshot = {k: bool(v()) for k, v in _marker_validators.items()}
+        _markers_snapshot_ts = time.time()
     from datetime import datetime, timezone
+    _disk = _git_head_disk()
     return {
         "boot_git_hash": _HEAD,
-        "code_git_head": _git_head(),
+        "code_git_head": _disk,
         "boot_at_unix": round(_BOOT_AT, 3),
         "boot_at_iso": datetime.fromtimestamp(_BOOT_AT, tz=timezone.utc).isoformat(),
-        "live_markers": markers,
-        "matches_disk": (_HEAD == _git_head()),
+        "live_markers": dict(_markers_snapshot),
+        "markers_evaluated_at_unix": round(_markers_snapshot_ts or _BOOT_AT, 3),
+        "matches_disk": (_HEAD == _disk),
     }
 
 
