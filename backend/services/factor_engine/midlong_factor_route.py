@@ -454,9 +454,13 @@ def factor_route_open(
             except Exception as _inj_err:
                 logger.debug("[FactorRoute] 指标注入跳过 %s: %s", sym, _inj_err)
             # [2026-08-25 转正] 委员会预算 hint → 真实控制面（pause 直接跳过开仓）
+            # [2026-08-31 根治] 默认改 false（影子观察）：LLM 委员会"方向不明给
+            # pause"的默认行为会冻结绝大多数 mid 开仓（实测 5/7 币 pause）。
+            # 卡片仍写 brain_theses 供复盘；显式 COMMITTEE_CONTROL_ENABLED=true
+            # 可重新接线。
             _cm_mult = 1.0
             try:
-                if os.getenv("COMMITTEE_CONTROL_ENABLED", "true").strip().lower() not in ("0", "false", "off"):
+                if os.getenv("COMMITTEE_CONTROL_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on"):
                     from sqlalchemy import text as _ct
                     from backend.database.connection import SessionLocal as _CSL
                     _cdb = _CSL()
