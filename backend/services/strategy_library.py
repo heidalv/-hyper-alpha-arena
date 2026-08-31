@@ -741,9 +741,12 @@ class StrategyLibrary:
         # (factor_active_set)，策略对象的 enabled_factors/factor_weights 恒空
         # （全生产代码只有手动 API 写它）→ 策略级评估/进化没有因子输入。
         # 创建时把当前活跃因子集 + 运行时权重写入策略。
+        # [2026-09-01 三周期修正] mid tier 此前与 short 共用 ScalpActiveFactorSet
+        # （只读 custom_factor_store，无进化因子）→ 中线策略拿到的是短线公式因子，
+        # 三周期错配。改为：short→scalp 集；mid/long→midlong 集。
         try:
             _tier_key = str(tpl_data.get("tier") or "").strip().lower()
-            if _tier_key == "long":
+            if _tier_key in ("mid", "long"):
                 from backend.services.factor_engine.midlong_active_factor_set import (
                     MidLongActiveFactorSet,
                 )

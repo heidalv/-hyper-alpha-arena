@@ -57,12 +57,21 @@ class ScalpActiveFactorSet:
 
     # ── 查询 ──
     def get_active_factors(self) -> List[Dict[str, Any]]:
-        """返回活跃因子 + 运行时权重（[M4] FACTOR_COMBO_MODE=icir → ICIR 加权）。"""
+        """返回活跃因子 + 运行时权重（[M4] FACTOR_COMBO_MODE=icir → ICIR 加权）。
+
+        [2026-09-01 断层根治] 合并进化仓 TRADABLE 的短线 AST 因子（factor_active_set
+        表，s5m_/15m 前缀或 source 带 horizon=scalp）——此前本类只读
+        custom_factor_store，进化链（GP/MCTS）产物只落 factor_active_set →
+        短线策略注入（strategy_library.create_strategy_from_template）永远拿不到
+        挖掘因子（"挖了也没进策略"的断层）。桥接记录带 role=paper 权重封顶，
+        与中线 _tradable_ast_bridge 同口径。
+        """
         try:
             from backend.services.factor_engine.custom_factor_store import custom_factor_store
         except Exception:
             return []
         active = [r for r in custom_factor_store.list_active(tenant_id=_resolve_tenant_id()) if _is_scalp(r)]
+        active.extend(self._tradable_ast_bridge())
         weights = self._runtime_weights()
         try:
             from backend.services.factor_engine.combo_weights import resolve_combo_weights
@@ -80,6 +89,60 @@ class ScalpActiveFactorSet:
             if str((rec.get("extra") or {}).get("role") or "") == "paper":
                 rec["runtime_weight"] = min(float(rec["runtime_weight"] or 1.0), _paper_cap)
         return active
+
+    @staticmethod
+    def _tradable_ast_bridge() -> List[Dict[str, Any]]:
+        """[2026-09-01 断层根治] 进化仓 TRADABLE 短线 AST → 短线 kind="ast" 记录。
+
+        过滤：排除 seed_bootstrap 占位种子；只保留短线档（s5m_ 前缀或 source 带
+        horizon=scalp）。方向以 icir 符号锁定 expected_sign，权重幅度用 |icir|。
+        """
+        try:
+            from backend.services.factor_engine.active_set_policy import (
+                ActiveSetRole,
+                load_factor_active_rows,
+            )
+            rows = load_factor_active_rows(ActiveSetRole.TRADABLE, parse_expr=True, limit=100)
+        except Exception:
+            return []
+        try:
+            from backend.config.settings import SCALP_AST_BRIDGE_MAX
+            _cap = max(0, int(SCALP_AST_BRIDGE_MAX))
+        except Exception:
+            _cap = 10
+        out: List[Dict[str, Any]] = []
+        for r in rows or []:
+            fid = str(r.get("factor_id") or "")
+            ast = r.get("expr_ast")
+            if not fid or not ast:
+                continue
+            if str(r.get("source") or "").startswith("seed_bootstrap"):
+                continue
+            # 只收短线档：s5m_ 前缀（短周期标记）或 source 带 horizon=scalp。
+            # 中线档（4h 无前缀）归 midlong 桥，避免同一 AST 因子双集重复投票。
+            src = str(r.get("source") or "")
+            if not (fid.startswith("s5m_") or "horizon=scalp" in src):
+                continue
+            icir = float(r.get("icir") or 0.0)
+            out.append({
+                "factor_id": f"evo_{fid}",
+                "formula": None,
+                "extra": {
+                    "horizon": "scalp",
+                    "timeframe": str(r.get("period") or "5m"),
+                    "kind": "ast",
+                    "expr_ast": ast,
+                    **({"role": "paper"} if str(r.get("state") or "") == "PAPER" else {}),
+                },
+                "scores": {
+                    "ic_mean": icir,
+                    "icir": icir,
+                    "expected_sign": 1 if icir >= 0 else -1,
+                },
+            })
+            if len(out) >= _cap:
+                break
+        return out
 
     @staticmethod
     def _runtime_weights() -> Dict[str, float]:

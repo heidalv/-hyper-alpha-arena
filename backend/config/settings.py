@@ -1858,14 +1858,6 @@ TIER_PROMPT_HINTS = {
 # --- P2 feature flags（默认 on，V2 TP/SL + 杠杆上限 + long ATR + long 免疫 + 分批 TP） ---
 RISK_P2_ENABLED:                       bool = os.getenv("RISK_P2_ENABLED", "true").lower() == "true"
 RISK_USE_TIER_TP_SL_V2:                bool = os.getenv("RISK_USE_TIER_TP_SL_V2", "true").lower() == "true"
-# 开仓时用网格训练出的 (tp_pct,sl_pct) 覆盖静态表（见 backend/data/tp_sl_learned/latest.json）
-RISK_USE_LEARNED_TP_SL:                bool = os.getenv("RISK_USE_LEARNED_TP_SL", "true").lower() in (
-    "true", "1", "yes", "on",
-)
-# 每日自动网格训练 TP/SL（05:00 + 启动补训）
-RISK_TP_SL_TRAIN_AUTO:                 bool = os.getenv("RISK_TP_SL_TRAIN_AUTO", "true").lower() in (
-    "true", "1", "yes", "on",
-)
 RISK_USE_LEVERAGE_CAP_BY_TIER:         bool = os.getenv("RISK_USE_LEVERAGE_CAP_BY_TIER", "true").lower() == "true"
 DYNAMIC_LEVERAGE_ENABLED:              bool = os.getenv("DYNAMIC_LEVERAGE_ENABLED", "true").lower() == "true"
 RISK_USE_LONG_TIER_1D_ATR:             bool = os.getenv("RISK_USE_LONG_TIER_1D_ATR", "true").lower() == "true"
@@ -2194,6 +2186,8 @@ MIDLONG_MID_VIA_FACTOR_ROUTE: bool = os.getenv(
 FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "3") or "3")
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
+# [2026-09-01 断层根治] 短线 AST 桥接上限（ScalpActiveFactorSet._tradable_ast_bridge）
+SCALP_AST_BRIDGE_MAX: int = int(os.getenv("SCALP_AST_BRIDGE_MAX", "10") or "10")
 # [M3 2026-08-21] 运行时因子路由 K 线源：默认 "active"（与成交同所，trade 用途
 # 强制 active_exchange + closed_only）；active 所数据不足时路由 hold、不回退
 # binance。回测/晋升数据源 FACTOR_BACKTEST_KLINE_EXCHANGE（默认 binance 深历史）
