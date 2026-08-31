@@ -31,6 +31,14 @@ _FALSY = ("0", "false", "no", "off")
 
 _CALIB_FILE = os.path.join("data", "scalp_calibration.json")
 
+# [2026-08-31 日志治理] 校准文件 mtime 缓存：router 热路径每币每 tick 都读文件，
+# 校准每日才重跑一次——按 mtime 缓存，mtime 未变直接复用（含秒级漂移保护）。
+_calib_cache: Dict[str, Any] = {"mtime_ns": 0.0, "data": {}}
+
+# [2026-08-31 日志治理] "校准无盈利分桶"告警速率限制：此前每币每 tick 都打一条
+# （实测 1201 行/10 分钟纯刷屏），降为每 kind 每 600s 最多一条。
+_warn_last: Dict[str, float] = {}
+
 
 def calibration_enabled() -> bool:
     raw = (os.getenv("SCALP_CALIBRATION_ENABLED", "true") or "true").strip().lower()
@@ -198,12 +206,17 @@ def calibrate() -> Dict[str, Any]:
 
 
 def load_calibration() -> Dict[str, Any]:
-    """读最近一次校准结果（router 热路径读文件，无 DB 开销）。"""
+    """读最近一次校准结果（router 热路径读文件，按 mtime 缓存，无 DB 开销）。"""
     try:
+        _st = os.stat(_CALIB_FILE)
+        if _st.st_mtime_ns == _calib_cache.get("mtime_ns"):
+            return dict(_calib_cache.get("data") or {})
         with open(_CALIB_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+        _calib_cache["mtime_ns"] = _st.st_mtime_ns
+        _calib_cache["data"] = dict(data or {})
         if isinstance(data, dict) and data.get("enabled"):
-            return data
+            return dict(data)
     except Exception:
         pass
     return {}
@@ -260,12 +273,18 @@ def effective_threshold(confirm: int, kind: str = "trend") -> int:
                     "fail-closed 拦截 (SCALP_CALIB_NOEDGE_BLOCK=1)"
                 )
                 return CALIBRATION_BLOCKED_THRESHOLD
-            logger.warning(
-                "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 回退静态门槛 "
-                "%s 放行观察（新 TP/SL 参数需要新样本；EV 闸门/风控兜底）——"
-                "SCALP_CALIB_NOEDGE_BLOCK=1 可回滚全拦",
-                thr,
-            )
+            # [2026-08-31 日志治理] 速率限制：每 kind 每 600s 最多一条（此前每币每
+            # tick 刷屏 1200+ 行/10 分钟）。fail-open 放行语义不变。
+            _now = time.time()
+            _last = _warn_last.get(str(kind), 0.0)
+            if _now - _last >= 600:
+                _warn_last[str(kind)] = _now
+                logger.warning(
+                    "[ScalpCalib] 校准无盈利分桶(threshold=None)，trend/lane 回退静态门槛 "
+                    "%s 放行观察（新 TP/SL 参数需要新样本；EV 闸门/风控兜底）——"
+                    "SCALP_CALIB_NOEDGE_BLOCK=1 可回滚全拦",
+                    thr,
+                )
             return thr
         thr = max(int(confirm), int(t))
     except Exception:
