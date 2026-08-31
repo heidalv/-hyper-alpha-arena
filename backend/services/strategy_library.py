@@ -737,6 +737,39 @@ class StrategyLibrary:
             activated_at=datetime.now(timezone.utc),
         )
 
+        # [2026-08-31 接线] 因子挖掘产物 → 策略对象：此前挖掘因子只喂路由车道
+        # (factor_active_set)，策略对象的 enabled_factors/factor_weights 恒空
+        # （全生产代码只有手动 API 写它）→ 策略级评估/进化没有因子输入。
+        # 创建时把当前活跃因子集 + 运行时权重写入策略。
+        try:
+            _tier_key = str(tpl_data.get("tier") or "").strip().lower()
+            if _tier_key == "long":
+                from backend.services.factor_engine.midlong_active_factor_set import (
+                    MidLongActiveFactorSet,
+                )
+                _af = MidLongActiveFactorSet().get_active_factors()
+            else:
+                from backend.services.factor_engine.scalp_active_factor_set import (
+                    ScalpActiveFactorSet,
+                )
+                _af = ScalpActiveFactorSet().get_active_factors()
+            if _af:
+                _f_ids = [str(r.get("factor_id") or "") for r in _af if r.get("factor_id")]
+                _f_weights = {
+                    str(r.get("factor_id")): float(r.get("runtime_weight") or 1.0)
+                    for r in _af if r.get("factor_id")
+                }
+                genome["injected_factors_at"] = datetime.now(timezone.utc).isoformat()
+                genome["injected_factor_count"] = len(_f_ids)
+                strategy.enabled_factors = _f_ids
+                strategy.factor_weights = _f_weights
+                logger.info(
+                    "[StrategyLibrary] 策略 %s 注入活跃因子 %d 个 (tier=%s)",
+                    strategy_id, len(_f_ids), tpl_data.get("tier"),
+                )
+        except Exception as _inj_err:
+            logger.debug("[StrategyLibrary] 因子注入跳过: %s", _inj_err)
+
         db.add(strategy)
         db.commit()
         db.refresh(strategy)
