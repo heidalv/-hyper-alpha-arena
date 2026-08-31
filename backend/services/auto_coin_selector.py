@@ -2069,13 +2069,30 @@ class AutoCoinSelector:
         for c in approved:
             if board_src:
                 try:
-                    from backend.services.kline_sync_meta import list_catalog_symbols
+                    # [2026-09-01 选币质量审计根治] 看板跟投此前只查 catalog 且
+                    # fail-open：非加密 ticker（EWY/MSTR/SPY 等）与零行情垃圾对
+                    # 直接入池（实测池=["APT","BTR","EWY","FLOCK","IP"]，3 个
+                    # 不可交易）。补三层硬门：① 非加密黑名单 ② 24h 成交量下限
+                    # ③ catalog 可交易校验（catalog 缺失时 fail-closed 拒绝，
+                    # 不再 fail-open 放行）。
+                    from backend.services.kline_sync_meta import (
+                        NON_CRYPTO_TICKERS,
+                        list_catalog_symbols,
+                    )
 
+                    _sym_u = c.symbol.upper()
+                    if _sym_u in NON_CRYPTO_TICKERS:
+                        _data_rejected.append(c.symbol)
+                        logger.warning(
+                            "[AutoCoinSelector] VIP跟投拒绝 %s：非加密 ticker 黑名单",
+                            c.symbol,
+                        )
+                        continue
                     ex = (exchange or "asterdex").strip().lower()
                     if ex == "aster":
                         ex = "asterdex"
                     catalog = list_catalog_symbols(ex) or []
-                    if catalog and c.symbol.upper() not in set(catalog):
+                    if not catalog or _sym_u not in set(catalog):
                         _data_rejected.append(c.symbol)
                         logger.warning(
                             "[AutoCoinSelector] VIP跟投拒绝 %s：不在 %s 可交易目录",
@@ -2083,8 +2100,35 @@ class AutoCoinSelector:
                             ex,
                         )
                         continue
+                    # 24h 成交量硬门：低于下限视为无行情（默认 200 万 USD）。
+                    try:
+                        from backend.config.settings import AUTO_COIN_MIN_VOLUME_24H
+                        _min_vol = float(AUTO_COIN_MIN_VOLUME_24H)
+                    except Exception:
+                        _min_vol = 2_000_000.0
+                    _snap = self._fetch_market_snapshot(c.symbol, ex)
+                    _vol24 = float(
+                        ((_snap or {}).get("quote_volume_24h")
+                         or (_snap or {}).get("volume_24h_usd")
+                         or (_snap or {}).get("volume_24h")
+                         or 0.0)
+                        or 0.0
+                    )
+                    if _vol24 < _min_vol:
+                        _data_rejected.append(c.symbol)
+                        logger.warning(
+                            "[AutoCoinSelector] VIP跟投拒绝 %s：24h成交额 $%.0f < $%.0f 下限",
+                            c.symbol, _vol24, _min_vol,
+                        )
+                        continue
                 except Exception as e:
-                    logger.debug("[AutoCoinSelector] board catalog check: %s", e)
+                    # fail-closed：看板注入宁缺毋滥
+                    _data_rejected.append(c.symbol)
+                    logger.warning(
+                        "[AutoCoinSelector] VIP跟投拒绝 %s：硬门异常 %s",
+                        c.symbol, str(e)[:80],
+                    )
+                    continue
                 _data_ready.append(c)
                 continue
             _ready = self._preflight_data_check(c.symbol, exchange)

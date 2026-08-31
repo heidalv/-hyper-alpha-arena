@@ -33,6 +33,12 @@ NON_CRYPTO_TICKERS: frozenset[str] = frozenset({
     "NG",
     # 知名美股 ticker（加密市场无同名主流币）
     "C", "MSFT", "AAPL", "NVDA",
+    # [2026-09-01 选币质量审计] 实测进入 auto_coin 池的非加密 ticker：
+    # EWY=韩国ETF；MSTR/SPY/QQQ/AMZN=美股；BTR/FLOCK 为无行情垃圾对
+    # （审计快照池=["APT","BTR","EWY","FLOCK","IP"]，3 个不可交易）。
+    "EWY", "MSTR", "SPY", "QQQ", "AMZN", "BTR", "FLOCK",
+    # 常见 ETF/指数补充
+    "DIA", "IWM", "VTI", "TLT", "GLD", "SLV", "USO", "EEM", "EFA",
 })
 
 

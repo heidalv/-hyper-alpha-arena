@@ -363,6 +363,9 @@ COIN_SELECT_PLATFORM_ENABLED: bool = os.getenv(
 ).strip().lower() in ("1", "true", "yes", "on")
 # 会话 AutoCoin：platform_board=只跟投管理员 VIP 短线看板（统一默认）；legacy=旧独立扫描
 AUTO_COIN_SOURCE: str = os.getenv("AUTO_COIN_SOURCE", "platform_board").strip().lower()
+# [2026-09-01 选币质量审计根治] 看板跟投 24h 成交量硬门（USD）：低于下限视为
+# 无行情垃圾对直接拒绝（此前 fail-open 放行 BTR/EWY/FLOCK 等不可交易 ticker）。
+AUTO_COIN_MIN_VOLUME_24H: float = float(os.getenv("AUTO_COIN_MIN_VOLUME_24H", "2000000") or "2000000")
 COIN_SELECT_SCAN_INTERVAL_SEC: int = int(os.getenv("COIN_SELECT_SCAN_INTERVAL_SEC", "1800"))
 COIN_SELECT_AI_MAX_CANDIDATES: int = int(os.getenv("COIN_SELECT_AI_MAX_CANDIDATES", "15"))
 COIN_SELECT_BOARD_TTL_HOURS: int = int(os.getenv("COIN_SELECT_BOARD_TTL_HOURS", "12"))
