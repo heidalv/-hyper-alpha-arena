@@ -269,7 +269,12 @@ def factor_route_decide(
             }
             continue
         if ic < 0:
-            _neg_ic_n += 1
+            # [2026-09-01 口径修正] 只统计"非反手"因子的负 IC：晋升时
+            # expected_sign=-1 的反手因子（负 IC 按反向使用）是设计内行为，
+            # 不应计入"方向一致性恶化"告警（否则反手因子池永久误报警）。
+            _exp_sign = float(scores.get("expected_sign") or (1 if ic >= 0 else -1))
+            if _exp_sign > 0:
+                _neg_ic_n += 1
         w = abs(ic) * float(rec.get("runtime_weight") or 1.0)
         vals = _factor_history(rec, sym)
         if vals is None:
