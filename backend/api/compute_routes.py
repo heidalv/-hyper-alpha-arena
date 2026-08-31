@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -319,6 +321,22 @@ async def evolution_trigger(body: Dict[str, Any] = Body(default_factory=dict)):
         _evo_last_error = None
         t0 = time.time()
         try:
+            # [2026-08-31 挂机根治] 手动触发此前恒在进程内跑，加强档 MCTS/GPU
+            # 阶段把事件循环冻结（09:51 触发 → 10:10 健康检查空响应，DSH 监管
+            # 重启）。与 cron 同口径：FACTOR_EVO_SUBPROCESS=1 时出进程。
+            if os.environ.get("FACTOR_EVO_SUBPROCESS", "0") == "1":
+                import subprocess as _sp
+                _cmd = [sys.executable, "-m", "backend.services.evolution.evo_subprocess", period]
+                _proc = _sp.Popen(
+                    _cmd,
+                    cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                    stdout=None, stderr=None,
+                )
+                logger.info("[Compute] 手动因子进化出进程 pid=%s period=%s", _proc.pid, period)
+                from backend.services.compute.compute_metrics import record_task_event
+                record_task_event("task", "factor_evolution_elapsed", 0.0,
+                                  {"status": "subprocess", "period": period, "pid": _proc.pid})
+                return
             from backend.services.evolution.factor_evolution_loop import (
                 run_factor_evolution_loop,
                 run_scalp_factor_evolution_loop,
