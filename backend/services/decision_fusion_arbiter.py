@@ -260,8 +260,13 @@ def decide_scalp(
             _sp_min_pwin = _f("FUSION_SHADOW_PROBE_MIN_PWIN", _f("FUSION_PROBE_MIN_PWIN", 0.40))
         except (TypeError, ValueError):
             _sp_min_score, _sp_min_pwin = 50.0, 0.40
+        _probe_short_ok = str(os.getenv("FUSION_PROBE_SHORT_ENABLED", "false")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+        _is_short_dir = (str(direction or "").lower() in ("short", "sell"))
         if (
             not is_mr
+            and (_probe_short_ok or not _is_short_dir)
             and pwin is not None
             and factor_score >= _sp_min_score
             and pwin >= _sp_min_pwin
@@ -415,6 +420,15 @@ def decide_scalp(
         except Exception as _live_extra_err:
             logger.debug("[FusionArbiter] 实盘 pwin 加严失败(沿用当前地板): %s", _live_extra_err)
 
+    # [2026-08-31 空头加严] 空头结构失血（14 天 -114、14 天中 12 天亏）：
+    # 空头 pwin 地板加 premium（默认 +0.05，FUSION_SHORT_PWIN_EXTRA=0 关闭）。
+    if d in ("short", "sell"):
+        try:
+            _short_extra = _f("FUSION_SHORT_PWIN_EXTRA", 0.05)
+        except (TypeError, ValueError):
+            _short_extra = 0.05
+        _floor = min(0.95, float(_floor) + _short_extra)
+
     if pwin < _floor:
         # ── 保底流量探针：地板之下但 pwin 达探针线且当日配额有余 → 最小仓放行 ──
         # 仅限非 MR（MR 地板是保本口径，探它=负 EV）；fail 时不放行。
@@ -428,8 +442,12 @@ def decide_scalp(
                 _probe_cap = _probe_quota_cap()
             except (TypeError, ValueError):
                 _probe_min, _probe_min_score, _probe_cap = 0.40, 45.0, 3
+            _probe_short_ok2 = str(os.getenv("FUSION_PROBE_SHORT_ENABLED", "false")).strip().lower() in (
+                "1", "true", "yes", "on",
+            )
             if (
-                pwin >= _probe_min
+                (_probe_short_ok2 or d not in ("short", "sell"))
+                and pwin >= _probe_min
                 and factor_score >= _probe_min_score
                 and _probe_quota_used(account_id) < _probe_cap
             ):

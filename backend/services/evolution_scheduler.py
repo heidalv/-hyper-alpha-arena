@@ -1514,12 +1514,28 @@ def register_evolution_tasks():
         logger.info("[EvoScheduler] 已注册短线regime状态刷新任务(1h)")
 
         # 短线元标签模型自动训练+验证：每天一次；样本不足自动跳过，达标才标记 usable
+        # [2026-08-31 根治] 失败自动重试：06:30 单次失败（如 PG 重启导致连接中断）
+        # 会让 usable 卡 false 一整天、系统整天用旧模型空转（实测 08-31 全眠）。
         def _train_scalp_meta():
-            try:
-                from backend.services.scalp_meta_trainer import train_and_validate
-                train_and_validate()
-            except Exception as _e:
-                logger.debug(f"[EvoScheduler] scalp 元标签训练跳过: {_e}")
+            for _attempt in range(3):
+                try:
+                    from backend.services.scalp_meta_trainer import train_and_validate
+                    _rep = train_and_validate() or {}
+                    if str(_rep.get("status") or "") == "error":
+                        logger.warning(
+                            "[EvoScheduler] scalp 元标签训练 status=error 重试 %d/3: %s",
+                            _attempt + 1, str(_rep.get("error") or "")[:120],
+                        )
+                        time.sleep(60)
+                        continue
+                    return
+                except Exception as _e:
+                    logger.warning(
+                        "[EvoScheduler] scalp 元标签训练异常 重试 %d/3: %s",
+                        _attempt + 1, _e,
+                    )
+                    time.sleep(60)
+            logger.error("[EvoScheduler] scalp 元标签训练 3 次重试均失败（明日再试）")
 
         task_scheduler.add_interval_task(
             task_func=_train_scalp_meta,

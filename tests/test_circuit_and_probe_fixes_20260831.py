@@ -14,6 +14,18 @@ import pytest
 pytestmark = pytest.mark.unit
 
 
+@pytest.fixture(autouse=True)
+def _isolate_env_and_model(monkeypatch):
+    """测试内完全控制 env 与模型状态：
+    - 停用 decide_scalp 的 .env mtime 热重载（否则 .env 文件值覆盖 monkeypatch.setenv）；
+    - 模型默认 usable=True（unusable 探索通道由 TestUnusableExploreLane 单独覆盖）。
+    """
+    from backend.services import decision_fusion_arbiter as dfa
+    monkeypatch.setattr(dfa, "_maybe_reload_env", lambda: None)
+    import backend.services.scalp_meta_trainer as smt
+    monkeypatch.setattr(smt, "meta_model_usable", lambda: True)
+
+
 # ════════════════════════════════════════════════════════════════════
 # 1. midlong_circuit_gate 冷却不顺延 + 到期重置
 # ════════════════════════════════════════════════════════════════════
@@ -156,3 +168,80 @@ class TestShadowProbeLane:
         monkeypatch.setattr(dfa, "_probe_quota_read", lambda: {"14": 3})
         d = self._decide(pwin=0.41, score=55)
         assert d.action == "standdown"  # 配额耗尽 → 保持停摆
+
+
+# ════════════════════════════════════════════════════════════════════
+# 4. 空头加严（2026-08-31：空头 14 天 -114 结构失血）
+# ════════════════════════════════════════════════════════════════════
+class TestShortTightening:
+    def _decide(self, *, pwin, score, direction="short", credit=1.0, is_mr=False):
+        from backend.services.decision_fusion_arbiter import decide_scalp
+        return decide_scalp(
+            pwin=pwin, factor_score=score, direction=direction,
+            credit=credit, tp_pct=1.17, sl_pct=0.90, mode="paper",
+            account_id=14, is_mr=is_mr,
+        )
+
+    def test_short_pwin_premium_blocks_borderline(self, monkeypatch):
+        # rr 1.3 → 基础地板 0.457；空头 +0.05 → 0.507
+        monkeypatch.setenv("FUSION_SHORT_PWIN_EXTRA", "0.05")
+        monkeypatch.setenv("FUSION_PROBE_SHORT_ENABLED", "false")
+        d = self._decide(pwin=0.50, score=70)  # 0.50 < 0.507 → hold
+        assert d.action == "hold"
+
+    def test_short_premium_disabled_restores_floor(self, monkeypatch):
+        monkeypatch.setenv("FUSION_SHORT_PWIN_EXTRA", "0")
+        d = self._decide(pwin=0.52, score=70)  # 0.52 ≥ 分档地板 0.50 → trade
+        assert d.action == "trade"
+
+    def test_short_excluded_from_probe_lane(self, monkeypatch):
+        # pwin 低于地板、但空头默认不给探针
+        monkeypatch.setenv("FUSION_PROBE_SHORT_ENABLED", "false")
+        monkeypatch.setenv("FUSION_SHORT_PWIN_EXTRA", "0.05")
+        d = self._decide(pwin=0.45, score=60)  # 0.45 ≥ 探针线 0.40 但空头被排除
+        assert d.action == "hold"
+        assert d.reason == "pwin_below_min"
+
+    def test_short_probe_restorable(self, monkeypatch):
+        monkeypatch.setenv("FUSION_PROBE_SHORT_ENABLED", "true")
+        monkeypatch.setenv("FUSION_SHORT_PWIN_EXTRA", "0")
+        d = self._decide(pwin=0.45, score=60)  # 空头探针恢复放行
+        assert d.action == "trade"
+        assert d.reason == "pwin_probe_quota"
+
+
+# ════════════════════════════════════════════════════════════════════
+# 5. unusable 探索通道（2026-08-31：hold 死锁 → explore_quota 恢复）
+# ════════════════════════════════════════════════════════════════════
+class TestUnusableExploreLane:
+    def _decide(self, *, pwin, score, direction="long", credit=1.0):
+        from backend.services.decision_fusion_arbiter import decide_scalp
+        return decide_scalp(
+            pwin=pwin, factor_score=score, direction=direction,
+            credit=credit, tp_pct=1.4, sl_pct=1.0, mode="paper",
+            account_id=14,
+        )
+
+    def test_unusable_explore_fires(self, monkeypatch):
+        import backend.services.scalp_meta_trainer as smt
+        monkeypatch.setattr(smt, "meta_model_usable", lambda: False)
+        monkeypatch.setenv("FUSION_PWIN_UNUSABLE_MODE", "explore_quota")
+        d = self._decide(pwin=0.33, score=46)  # score≥35, RR 1.4≥1.3
+        assert d.action == "trade"
+        assert d.reason == "pwin_model_unusable_explore"
+
+    def test_unusable_hold_falls_to_pwin_floor(self, monkeypatch):
+        import backend.services.scalp_meta_trainer as smt
+        monkeypatch.setattr(smt, "meta_model_usable", lambda: False)
+        monkeypatch.setenv("FUSION_PWIN_UNUSABLE_MODE", "hold")
+        d = self._decide(pwin=0.33, score=46)
+        assert d.action == "hold"
+        assert d.reason == "pwin_below_min"
+
+    def test_unusable_explore_blocked_by_low_score(self, monkeypatch):
+        import backend.services.scalp_meta_trainer as smt
+        monkeypatch.setattr(smt, "meta_model_usable", lambda: False)
+        monkeypatch.setenv("FUSION_PWIN_UNUSABLE_MODE", "explore_quota")
+        d = self._decide(pwin=0.33, score=30)  # score < 35
+        assert d.action == "hold"
+        assert d.reason == "pwin_model_unusable_explore_bar"
