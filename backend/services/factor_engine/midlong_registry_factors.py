@@ -462,8 +462,14 @@ def _registry_heldout_verdict(probe: Optional[Dict[str, Any]], timeframe: str) -
     """
     from backend.services.factor_engine.factor_backtest_scorer import factor_backtest_scorer
 
-    vals = np.asarray((probe or {}).get("vals") or [], dtype=float)
-    closes = np.asarray((probe or {}).get("closes") or [], dtype=float)
+    # [2026-09-01 根因修复] probe.get("vals") 返回 numpy 数组时 `or []` 触发
+    # "truth value of an array is ambiguous" ValueError——scan_registry_midlong
+    # 在第一个被晋升候选处整轮崩溃（实测 limit=3 通过、limit=300 崩）。
+    _probe_d = probe or {}
+    _vals_raw = _probe_d.get("vals")
+    _closes_raw = _probe_d.get("closes")
+    vals = np.asarray(_vals_raw if _vals_raw is not None else [], dtype=float)
+    closes = np.asarray(_closes_raw if _closes_raw is not None else [], dtype=float)
     n = min(len(vals), len(closes))
     if n < 300:
         return False, f"探针样本不足({n})"
