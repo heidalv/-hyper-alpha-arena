@@ -154,6 +154,60 @@ def authority_allows_open(authority: str, source: str) -> bool:
     return False
 
 
+def _swing_consensus_gate(
+    symbol: str,
+    action: str,
+    market_summary: Optional[dict],
+) -> Tuple[bool, str, float]:
+    """swing 入场多周期共识闸（2026-09-01 逆势止血）。
+
+    中线波段近 14 天 -11.5（胜率 31%），平仓原因大头是 trend_broken /
+    bias_reversal——与 4h+1d 双周期共识反向开仓、随后被趋势碾过。持仓侧已有
+    _rule_direction（双周期反向才平），但那是事后；这里用**同一套 _tf_vote**
+    前置到入场：
+      - 4h 与 1d 双周期共识同时反向 → 禁开（这是"逆着趋势抄底摸顶"，不是波段）
+      - 单周期反向 → 缩仓 ×SWING_COUNTER_ONE_TF_SIZE_MULT（默认 0.5；
+        保留"回调顺大周期买入"这类合法波段形态）
+      - 数据缺失/票数平 → fail-open 放行（与其余闸门一致，不误杀）
+    SWING_COUNTER_TREND_GATE=false 关闭。仅作用于 nature=swing；
+    trend_follow/position 是当前正盈利引擎，不受影响。
+    """
+    try:
+        _enabled = (os.getenv("SWING_COUNTER_TREND_GATE", "true") or "true").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+        if not _enabled:
+            return True, "swing_ct_gate_off", 1.0
+        from backend.services.full_auto.midlong_position_manager import _tf_vote
+        side = "short" if (action or "").lower() == "sell" else "long"
+        pos_dir = 1 if side == "long" else -1
+        sym_u = str(symbol or "").upper()
+        ms = {}
+        if isinstance(market_summary, dict):
+            ms = market_summary.get(sym_u) or market_summary.get(symbol) or {}
+            if not isinstance(ms, dict):
+                ms = {}
+        i4 = ms.get("indicators_4h") if isinstance(ms.get("indicators_4h"), dict) else {}
+        i1 = ms.get("indicators_1d") if isinstance(ms.get("indicators_1d"), dict) else {}
+        orch = ms.get("orchestrator") if isinstance(ms.get("orchestrator"), dict) else {}
+        tf4 = _tf_vote(orch.get("mid_bias"), i4.get("macd"), i4.get("trend"))
+        tf1 = _tf_vote(orch.get("long_bias") or orch.get("mid_bias"), i1.get("macd"), i1.get("trend"))
+        opp4 = (tf4 == "bearish" and pos_dir > 0) or (tf4 == "bullish" and pos_dir < 0)
+        opp1 = (tf1 == "bearish" and pos_dir > 0) or (tf1 == "bullish" and pos_dir < 0)
+        if opp4 and opp1:
+            return False, f"swing_consensus_oppose(4h={tf4} 1d={tf1} vs {side})", 0.0
+        if opp4 or opp1:
+            try:
+                _mult = float(os.getenv("SWING_COUNTER_ONE_TF_SIZE_MULT", "0.5") or 0.5)
+            except Exception:
+                _mult = 0.5
+            return True, f"swing_single_tf_oppose(4h={tf4} 1d={tf1} vs {side})", max(0.0, min(1.0, _mult))
+        return True, f"swing_consensus_ok(4h={tf4} 1d={tf1})", 1.0
+    except Exception as e:
+        logger.debug("[MidLong] swing 共识闸异常(fail-open): %s", e)
+        return True, "swing_ct_gate_error", 1.0
+
+
 def apply_regime_to_open(
     *,
     symbol: str,
@@ -364,6 +418,30 @@ def execute_midlong_open(
         _record_fail("margin_zero")
         return False
 
+    # [2026-08-29 全面修复 P1.4/P1.5] mid 层熔断闸：连亏熔断 + 单 symbol 日亏
+    # 上限 + mid 空头默认停开。依据：VELVET 两天 54 笔空 -410（无熔断裸奔）、
+    # mid 空头 30 天 -601.73 最差象限。fail-open（闸自身异常不拦交易）。
+    try:
+        from backend.services.full_auto.midlong_circuit_gate import check_midlong_entry
+        _acct_ml = getattr(session, "paper_account_id", None) or getattr(
+            session, "account_id", None
+        )
+        _ml_ok, _ml_reason = check_midlong_entry(
+            _acct_ml, sym_u, side=("short" if act == "sell" else "long"),
+            tier=str(tier or "mid"),
+            market_summary=market_summary,
+        )
+        if not _ml_ok:
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                "reason=%s",
+                sym_u, auth, source, _ml_reason,
+            )
+            _record_fail(_ml_reason[:60] or "midlong_circuit")
+            return False
+    except Exception as _ml_gate_err:
+        logger.debug("[MidLong] 熔断闸检查跳过(fail-open): %s", _ml_gate_err)
+
     # [2026-08-16 long_trend_v2 入场闸] tier=long 时要求 L1=up（多头单边，禁做空）。
     # 默认 LONG_TREND_V2 关 = 无影响；开=长线开仓只认趋势判定器。
     if (tier or "").lower() == "long":
@@ -412,6 +490,23 @@ def execute_midlong_open(
     # [P1] 保留 swing；勿再把 mid 抹成 trend_follow
     if nature not in ("trend_follow", "position", "swing"):
         nature = "trend_follow"
+    # [2026-09-01 逆势止血] swing 多周期共识闸（前置版 trend_broken 防护）：
+    # 双周期反向禁开 / 单周期反向半仓。trend_follow/position 不动。
+    if nature == "swing":
+        _ct_ok, _ct_reason, _ct_mult = _swing_consensus_gate(sym_u, act, market_summary)
+        if not _ct_ok:
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s nature=swing action=hold reason=%s",
+                sym_u, _ct_reason,
+            )
+            _record_fail(_ct_reason)
+            return False
+        if _ct_mult < 1.0:
+            margin = margin * _ct_mult
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s nature=swing 单周期反向 缩仓×%.2f (%s)",
+                sym_u, _ct_mult, _ct_reason,
+            )
     # AI 中线单保留 tier=mid（分通道计数/槽位/风控）
     if (tier or "").lower() == "mid" or nature == "swing":
         exec_tier = "mid"
