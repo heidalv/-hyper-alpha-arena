@@ -484,7 +484,10 @@ def decide_scalp(
         _rr_floor = (
             _f("SCALP_MR_MIN_RR", 1.0) if is_mr else _f("FUSION_RR_FLOOR", RR_FLOOR)
         )
-        if rr < _rr_floor:
+        # [2026-08-31 浮点容差] 结构止盈止损恰好等于地板（如 sl=0.9% tp=sl×1.3）
+        # 时，1.17/0.9=1.2999999999999998 < 1.3 会被浮点误差冤杀。与
+        # scalp_execution_gate._ensure_min_rr 同款 1e-9 容差。
+        if rr + 1e-9 < _rr_floor:
             return FusionDecision("hold", 0.0, "rule", "rr_below_floor",
                                   {"rr": round(rr, 3), "tp_pct": tp_pct, "sl_pct": sl_pct,
                                    "pwin": round(float(pwin), 4), "mr": bool(is_mr)})
