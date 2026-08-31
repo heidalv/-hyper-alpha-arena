@@ -56,16 +56,19 @@ def _kill_existing_workers() -> int:
     根因：后端被硬杀（stop-dev KILL）时 atexit 不执行 → 嵌入 worker 变孤儿；
     每次重启再拉一个 → 累积 57 个僵尸 worker 每 12s 各打一轮 REST → 币安对
     白名单 IP 触发 -1003 限流且封禁时间被不断后推（实盘账户数据读不到）。
-    Windows 无 psutil 依赖时用 wmic 按命令行过滤后逐个 taskkill。
+    用 PowerShell CIM 按命令行过滤后逐个强杀（wmic 已从新版 Windows 移除）。
     """
     killed = 0
     try:
         import subprocess as _sp
+        _ps = (
+            "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+            "Where-Object { $_.CommandLine -match 'binance_user_stream' } | "
+            "ForEach-Object { Write-Output $_.ProcessId }"
+        )
         _out = _sp.run(
-            ["wmic", "process", "where",
-             "name='python.exe' and commandline like '%binance_user_stream%'",
-             "get", "processid"],
-            capture_output=True, text=True, timeout=20,
+            ["powershell", "-NoProfile", "-Command", _ps],
+            capture_output=True, text=True, timeout=30,
         ).stdout or ""
         for _tok in _out.split():
             _tok = _tok.strip()
