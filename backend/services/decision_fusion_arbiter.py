@@ -73,10 +73,16 @@ def _maybe_reload_env() -> None:
 
 
 _EXPLORE_QUOTA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "fusion_pwin_explore_quota.json")
+_PROBE_QUOTA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "fusion_pwin_probe_quota.json")
 
 
-def _explore_quota_used() -> int:
-    """今日已用探索配额（文件按日期重置，读写容错）。"""
+def _explore_quota_read() -> Dict[str, int]:
+    """今日各账户已用探索配额 {account_id_str: used}（文件按日期重置）。
+
+    [2026-08-29 跨账户污染修复] 原计数无账户维度——paper 会话（日均 30+ 笔
+    scalp）把全局 5 笔/天配额吃光，实盘账户（零成交）被同步锁死。改为
+    按账户独立计数；旧格式 {"date","used":int} 迁移到 paper 账户(14)。
+    """
     import json as _json
     import time as _time
     try:
@@ -84,26 +90,104 @@ def _explore_quota_used() -> int:
         if os.path.exists(_EXPLORE_QUOTA_PATH):
             _d = _json.load(open(_EXPLORE_QUOTA_PATH, "r", encoding="utf-8"))
             if isinstance(_d, dict) and _d.get("date") == _today:
-                return int(_d.get("used", 0) or 0)
+                _u = _d.get("used")
+                if isinstance(_u, dict):
+                    return {str(k): int(v) for k, v in _u.items() if isinstance(v, (int, float))}
+                # 旧全局格式：归到 paper 主账户
+                if isinstance(_u, (int, float)):
+                    return {"14": int(_u)}
     except Exception:
         pass
-    return 0
+    return {}
 
 
-def _explore_quota_bump() -> None:
+def _explore_quota_used(account_id=None) -> int:
+    _key = str(account_id) if account_id else "14"
+    return int(_explore_quota_read().get(_key, 0) or 0)
+
+
+def _explore_quota_bump(account_id=None) -> None:
     import json as _json
     import time as _time
     try:
         _today = _time.strftime("%Y-%m-%d")
-        _json.dump({"date": _today, "used": _explore_quota_used() + 1},
+        _used_map = _explore_quota_read()
+        _key = str(account_id) if account_id else "14"
+        _used_map[_key] = int(_used_map.get(_key, 0) or 0) + 1
+        _json.dump({"date": _today, "used": _used_map},
                    open(_EXPLORE_QUOTA_PATH, "w", encoding="utf-8"))
     except Exception:
         pass
 
 
-def explore_quota_bump() -> None:
-    """成交后扣减探索配额（公开入口，scalp_loop 真实成交时调用）。"""
-    _explore_quota_bump()
+def explore_quota_bump(account_id=None) -> None:
+    """成交后扣减探索配额（公开入口，scalp_loop 真实成交时按账户调用）。"""
+    _explore_quota_bump(account_id)
+
+
+# ── [2026-08-29 v2] 保底流量探针配额：分档地板之下仍保证每日最小交易流 ──
+def _probe_quota_read() -> Dict[str, int]:
+    import json as _json
+    import time as _time
+    try:
+        _today = _time.strftime("%Y-%m-%d")
+        if os.path.exists(_PROBE_QUOTA_PATH):
+            _d = _json.load(open(_PROBE_QUOTA_PATH, "r", encoding="utf-8"))
+            if isinstance(_d, dict) and _d.get("date") == _today:
+                _u = _d.get("used")
+                if isinstance(_u, dict):
+                    return {str(k): int(v) for k, v in _u.items() if isinstance(v, (int, float))}
+    except Exception:
+        pass
+    return {}
+
+
+def _probe_quota_used(account_id=None) -> int:
+    return int(_probe_quota_read().get(str(account_id) if account_id else "14", 0) or 0)
+
+
+def _probe_quota_bump(account_id=None) -> None:
+    import json as _json
+    import time as _time
+    try:
+        _today = _time.strftime("%Y-%m-%d")
+        _used_map = _probe_quota_read()
+        _key = str(account_id) if account_id else "14"
+        _used_map[_key] = int(_used_map.get(_key, 0) or 0) + 1
+        _json.dump({"date": _today, "used": _used_map},
+                   open(_PROBE_QUOTA_PATH, "w", encoding="utf-8"))
+    except Exception:
+        pass
+
+
+def probe_quota_bump(account_id=None) -> None:
+    """成交后扣减探针配额（公开入口，scalp_loop 真实成交时按账户调用）。"""
+    _probe_quota_bump(account_id)
+
+
+def _probe_quota_cap() -> int:
+    """每日保底流量探针配额（正常探针与影子探针共享同一预算）。"""
+    try:
+        return int(float(os.getenv("FUSION_PROBE_DAILY_QUOTA", "3") or 3))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _pwin_tiers() -> list:
+    """解析 FUSION_PWIN_TIERS="0.60:0.75,0.55:0.50,0.50:0.25"。
+
+    返回按阈值降序的 [(threshold, size_mult), ...]；解析失败返回空表（退回硬地板模式）。
+    """
+    raw = (os.getenv("FUSION_PWIN_TIERS", "0.60:0.75,0.55:0.50,0.50:0.25") or "").strip()
+    tiers = []
+    try:
+        for part in raw.split(","):
+            th, sz = part.split(":")
+            tiers.append((float(th), float(sz)))
+        tiers.sort(key=lambda t: -t[0])
+    except Exception:
+        return []
+    return tiers
 
 
 def effective_pwin_floor() -> float:
@@ -149,6 +233,7 @@ def decide_scalp(
     sl_pct: Optional[float] = None,
     mode: str = "paper",
     account_id: Optional[int] = None,
+    is_mr: bool = False,
 ) -> FusionDecision:
     """短线入场仲裁（v2 矩阵，pwin 主轴）。
 
@@ -164,8 +249,31 @@ def decide_scalp(
     if llm_veto:
         return FusionDecision("hold", 0.0, "llm", "llm_hard_veto", {"veto": str(llm_veto)[:120]})
 
-    # 2. 来源信用熔断：该来源滚动期望<0 → shadow（只记账不下单）
+    # 2. 来源信用熔断：该来源滚动期望<0 → shadow（只记账不下单）。
+    # [2026-08-31 根治] 死锁出口：shadow 来源被停摆后不再产生新样本，而
+    # 退出条件要求 n>=40 且净期望≥0 → 永无解除。给 shadow 来源极小额
+    # "影子探针"（高分信号 + pwin 达探针线 + 共享每日探针配额），重新积累
+    # 归因证据；若继续亏损，归因仍为负 → 保持停摆（风控不被削弱）。
     if credit <= 0.0:
+        try:
+            _sp_min_score = _f("FUSION_SHADOW_PROBE_MIN_SCORE", 50.0)
+            _sp_min_pwin = _f("FUSION_SHADOW_PROBE_MIN_PWIN", _f("FUSION_PROBE_MIN_PWIN", 0.40))
+        except (TypeError, ValueError):
+            _sp_min_score, _sp_min_pwin = 50.0, 0.40
+        if (
+            not is_mr
+            and pwin is not None
+            and factor_score >= _sp_min_score
+            and pwin >= _sp_min_pwin
+            and _probe_quota_used(account_id) < _probe_quota_cap()
+        ):
+            return FusionDecision(
+                "trade", 0.125, "rule", "shadow_probe_quota",
+                {"credit": credit, "pwin": pwin, "factor_score": factor_score,
+                 "quota_used": _probe_quota_used(account_id),
+                 "quota": _probe_quota_cap(),
+                 "note": "shadow来源影子探针(最小仓), 成交后由 scalp_loop 扣配额"},
+            )
         return FusionDecision("standdown", 0.0, "rule", "source_credit_shadow", {"credit": credit})
 
     # 3. meta 模型不可用：fail-closed（回放：无选择性过滤的历史 = 净 -544）
@@ -210,7 +318,7 @@ def decide_scalp(
             _quota = int(os.getenv("FUSION_PWIN_EXPLORE_DAILY_QUOTA", "5") or 5)
         except (TypeError, ValueError):
             _quota = 5
-        _used = _explore_quota_used()
+        _used = _explore_quota_used(account_id)
         if _used < _quota:
             try:
                 _ex_thr = float(os.getenv("SCALP_FACTOR_EXECUTE_THRESHOLD", "35") or 35)
@@ -218,7 +326,12 @@ def decide_scalp(
                 _ex_thr = 35.0
             _rr_ok = True
             if tp_pct and sl_pct and sl_pct > 0:
-                _rr_ok = (float(tp_pct) / float(sl_pct)) >= _f("FUSION_RR_FLOOR", RR_FLOOR)
+                # [2026-08-29 MR分档] MR 结构自带贴边小止损（RR≈保本口径不同），
+                # 按 SCALP_MR_MIN_RR 独立档；其余走 FUSION_RR_FLOOR（已提至 1.3）。
+                _rr_floor_now = (
+                    _f("SCALP_MR_MIN_RR", 1.0) if is_mr else _f("FUSION_RR_FLOOR", RR_FLOOR)
+                )
+                _rr_ok = (float(tp_pct) / float(sl_pct)) >= _rr_floor_now
             if factor_score >= _ex_thr and _rr_ok:
                 # [2026-08-27 修正] 决策时不扣配额——后续闸门（仓位/执行门/veto）
                 # 可能拦掉，预扣导致配额被浪费（实测5/5只成交1笔）。只打标签，
@@ -242,18 +355,26 @@ def decide_scalp(
         return FusionDecision("hold", 0.0, "rule", "pwin_model_unusable_quota",
                               {"pwin": pwin, "quota_used": _used, "quota": _quota})
 
-    # 5. pwin 主阈值（回放：<0.55 桶全部负期望，不交易、也不浪费 LLM 确认）；
-    #    运行期地板覆盖 = 桶验证失败时的自动衰减熔断（effective_pwin_floor）。
-    # [2026-08-27 RR感知地板] 旧 0.55 地板建立在旧 TP/SL 结构（TP≈2.5% 摸不到、
-    # RR 差）的回放上；新结构 TP1.5/SL1.15 → RR≈1.30 → 保本 pwin=1/(1+RR)=0.435。
-    # 实测 SOL 因子直通 pwin=0.4716 被 0.55 全拦 → 短线零成交。改为：
-    #   floor = max(保本×安全系数(默认1.05), 绝对下限(默认0.45))
-    # legacy 模式（FUSION_PWIN_FLOOR_MODE=legacy）恢复旧行为。
-    _floor = effective_pwin_floor()
+    # 5. pwin 门槛 —— [2026-08-29 v2] 分档放行（替代硬地板，防"零成交死锁"）。
+    #    实证：过分数门的信号 pwin 分布集中 0.4-0.5 带，硬地板 0.60 ≈ 永久零成交
+    #    （用户实测判断）；重训模型（剔噪后 AUC 0.621）top30% 净 +0.112%——
+    #    0.50-0.60 带在新模型下非负 EV。分档让流量存活、资本向最优带集中：
+    #      ≥0.60 → 0.75x | [0.55,0.60) → 0.50x | [0.50,0.55) → 0.25x | <地板 → hold
+    #    硬地板 = max(最低档阈值, rr感知保本地板, 桶验证衰减覆盖, 实盘加严)。
+    #    地板之下还有保底探针（pwin≥FUSION_PROBE_MIN_PWIN 且当日配额有余 →
+    #    0.125x 最小仓）——系统永不全眠，学习样本不断流。
+    #    FUSION_PWIN_TIERED=false 回退 v1 硬地板模式。
+    _tiered = (os.getenv("FUSION_PWIN_TIERED", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+    _tiers = _pwin_tiers() if _tiered else []
+    # 基础地板：分档模式=最低档阈值（旧 0.55 base 不再盖过档位，否则无 tp/sl
+    # 上下文的调用会退回硬地板语义）；非分档=旧 base。桶验证衰减覆盖优先。
+    if _tiers:
+        _floor = (_pwin_floor_override if _pwin_floor_override is not None
+                  else _tiers[-1][0])
+    else:
+        _floor = effective_pwin_floor()
     _floor_mode = os.getenv("FUSION_PWIN_FLOOR_MODE", "rr_aware").strip().lower()
-    # [2026-08-28 实盘收紧] 实盘地板 = max(rr感知地板, 引导期下限) + 实盘加严量。
-    # 此前引导期直接换成 0.45 绝对下限（可能低于 paper 的 rr 感知地板），
-    # 违反「实盘≥模拟」原则；现改为实盘永远不低于模拟盘地板再加严。
     _mode_ds = (mode or "paper").strip().lower()
     _live_tight = _mode_ds == "live"
     _live_boot = False
@@ -272,42 +393,83 @@ def decide_scalp(
         try:
             _rr_now = float(tp_pct) / float(sl_pct)
             _be = 1.0 / (1.0 + _rr_now) if _rr_now > 0 else 1.0
-            _safety = float(os.getenv("FUSION_PWIN_SAFETY_MULT", "1.15") or 1.15)
+            _safety = float(os.getenv("FUSION_PWIN_SAFETY_MULT", "1.05") or 1.05)
             _abs_min = float(os.getenv("FUSION_PWIN_ABSOLUTE_MIN", "0.45") or 0.45)
-            # [2026-08-28 修正] 此前只在 rr 地板低于旧地板时下调——MR(RR=0.75,
-            # 保本0.571)的地板应上调到0.657, 却停在0.55, 导致低于保本线的
-            # 信号成交(实测实现胜率38.5% vs 保本57.1%, 净亏-0.18%/笔)。
-            # 改为 rr_aware 模式下地板 = max(保本×安全系数, 绝对下限),
-            # 完全替代旧结构定标的旧地板; 安全系数默认1.15(元模型pwin
-            # 偏乐观, 均值0.464实现胜率仅38.5% → 留15%校准余量)。
-            _floor_rr = max(_be * _safety, _abs_min)
-            _floor = _floor_rr
+            # rr_aware: 地板 = max(保本×安全系数, 绝对下限)——MR(RR0.75)地板
+            # 自动上浮到 ~0.60，低于保本线的信号不放行（历史实测净亏）。
+            _floor = max(_be * _safety, _abs_min)
         except (TypeError, ValueError):
             pass
+    # 分档模式的硬地板 = max(最低档阈值, 上面的 rr/桶/实盘地板)
+    if _tiers:
+        _floor = max(_floor, _tiers[-1][0])
     if _live_tight:
         try:
             from backend.services.full_auto.live_gate_policy import (
                 live_pwin_extra,
                 live_scalp_pwin_floor,
             )
-            # 引导期下限只托底、不放宽：实盘地板 ≥ max(rr地板, 0.45) + extra
             if _live_boot:
                 _floor = max(float(_floor), float(live_scalp_pwin_floor()))
             _floor = min(0.95, float(_floor) + float(live_pwin_extra()))
         except Exception as _live_extra_err:
             logger.debug("[FusionArbiter] 实盘 pwin 加严失败(沿用当前地板): %s", _live_extra_err)
+
     if pwin < _floor:
+        # ── 保底流量探针：地板之下但 pwin 达探针线且当日配额有余 → 最小仓放行 ──
+        # 仅限非 MR（MR 地板是保本口径，探它=负 EV）；fail 时不放行。
+        # [2026-08-31 根治] ① 探针线默认 0.45→0.40：模型实际输出 ~0.40-0.41，
+        # 0.45 永远够不到 → 系统全眠、无样本、模型不更新（收紧死螺旋）。
+        # ② 补 factor_score 门槛：探针只给高分信号，不给低分垃圾流量。
+        if not is_mr:
+            try:
+                _probe_min = _f("FUSION_PROBE_MIN_PWIN", 0.40)
+                _probe_min_score = _f("FUSION_PROBE_MIN_SCORE", 45.0)
+                _probe_cap = _probe_quota_cap()
+            except (TypeError, ValueError):
+                _probe_min, _probe_min_score, _probe_cap = 0.40, 45.0, 3
+            if (
+                pwin >= _probe_min
+                and factor_score >= _probe_min_score
+                and _probe_quota_used(account_id) < _probe_cap
+            ):
+                return FusionDecision(
+                    "trade", 0.125, "rule", "pwin_probe_quota",
+                    {"pwin": pwin, "floor": _floor, "probe_min": _probe_min,
+                     "probe_min_score": _probe_min_score,
+                     "quota_used": _probe_quota_used(account_id), "quota": _probe_cap,
+                     "note": "保底流量探针(最小仓), 成交后由 scalp_loop 扣配额"},
+                )
         return FusionDecision("hold", 0.0, "rule", "pwin_below_min",
-                              {"pwin": pwin, "floor": _floor, "floor_mode": _floor_mode})
+                              {"pwin": pwin, "floor": _floor, "floor_mode": _floor_mode,
+                               "tiered": bool(_tiers)})
+
+    # 分档仓位：命中最高满足档的 size_mult（与 thesis 冲突仓取较小值）
+    if _tiers:
+        _tier_mult = _tiers[-1][1]  # 兜底=最低档仓位
+        _tier_hit = None
+        for _th, _sz in _tiers:
+            if pwin >= _th:
+                _tier_mult, _tier_hit = _sz, _th
+                break
+        if src == "hybrid":  # thesis 冲突放行路径保持保守上限
+            size = min(size, _tier_mult)
+        else:
+            size = _tier_mult
 
     # 6. RR 下限：TP/SL < 1.2 的结构必亏（历史 RR=0.9/0.32 类），LLM 特批除外
+    # [2026-08-29 MR分档] FUSION_RR_FLOOR 提至 1.3 后，MR 信号（贴区间边缘的
+    # 小止损结构，RR≈1.0，由 SCALP_MR_MIN_RR 在结构层保障 + pwin 地板按保本
+    # 口径自动上浮到 ~0.60）走独立档，不被 1.3 一刀切灭活。
     if tp_pct and sl_pct and sl_pct > 0:
         rr = float(tp_pct) / float(sl_pct)
-        _rr_floor = _f("FUSION_RR_FLOOR", RR_FLOOR)
+        _rr_floor = (
+            _f("SCALP_MR_MIN_RR", 1.0) if is_mr else _f("FUSION_RR_FLOOR", RR_FLOOR)
+        )
         if rr < _rr_floor:
             return FusionDecision("hold", 0.0, "rule", "rr_below_floor",
                                   {"rr": round(rr, 3), "tp_pct": tp_pct, "sl_pct": sl_pct,
-                                   "pwin": round(float(pwin), 4)})
+                                   "pwin": round(float(pwin), 4), "mr": bool(is_mr)})
 
     # factor_score 不参与仓位：回放 score>=70 桶 -332.55（反证据保护）
     return FusionDecision("trade", size, src, "fusion_pass",

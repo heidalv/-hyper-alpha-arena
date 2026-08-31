@@ -2025,7 +2025,11 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         explore_quota_bump(account_id)
                     # [2026-08-29 v2] 保底流量探针配额成交后扣减（同探索模式：
                     # 决策时只打标签，真实成交才计数）
-                    if _pa.get("reason") == "pwin_probe_quota":
+                    # [2026-08-31] shadow_probe_quota 与 pwin_probe_quota 共享同一配额；
+                    # 同时认 factor 车道(_pa)与 fusion 车道(_fusion_decision)的决定。
+                    _probe_reasons = {"pwin_probe_quota", "shadow_probe_quota"}
+                    if (_pa.get("reason") in _probe_reasons
+                            or (_fusion_decision or {}).get("reason") in _probe_reasons):
                         from backend.services.decision_fusion_arbiter import probe_quota_bump
                         probe_quota_bump(account_id)
                 except Exception:
