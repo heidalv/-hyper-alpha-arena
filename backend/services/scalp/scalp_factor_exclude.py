@@ -71,23 +71,26 @@ def get_scalp_factor_allowlist() -> Optional[Set[str]]:
         # [2026-08-14 P0-2 根因修复] FactorActiveSet 位于 Analytics 库
         # （models.FactorActiveSet(AnalyticsBase)），此前误用 Market 库的
         # SessionLocal → 查询异常被静默吞掉 → 白名单恒为空集 → compute_all_factors
-        # 全拦（实盘 scalp factors=0.00 score=0 hold）。改用 AnalyticsSessionLocal。
+        # 全拦（实盘 scalp factors=0.00 score=0 hold）。
+        # [2026-08-29 SSOT 收敛] 散落 state.in_ 改走 active_set_policy 唯一入口
+        # （ops_rootcause CI 契约：禁止绕过 role→states 映射）。
+        # [2026-09-01 三周期错配根治] 只收短线档（s5m_ 前缀或 source 含
+        # horizon=scalp）：此前全量 TRADABLE 进白名单 → 4h 中线因子在 5m
+        # K 线上求值（周期错配）。中线档由 midlong 桥接管，不进短线白名单。
         import logging as _lg
-        from backend.database.connection import AnalyticsSessionLocal
-        from backend.database.models import FactorActiveSet
-        db = AnalyticsSessionLocal()
-        try:
-            rows = (
-                db.query(FactorActiveSet.factor_id)
-                .filter(FactorActiveSet.state.in_(["ACTIVE", "PAPER"]))
-                .all()
-            )
-            for (fid,) in rows:
-                if fid:
-                    allow.add(str(fid))
-        finally:
-            db.close()
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole, load_factor_active_rows,
+        )
+        for rec in load_factor_active_rows(ActiveSetRole.TRADABLE):
+            fid = str(rec.get("factor_id") or "")
+            if not fid:
+                continue
+            src = str(rec.get("source") or "")
+            if not (fid.startswith("s5m_") or "horizon=scalp" in src):
+                continue
+            allow.add(fid)
     except Exception as _e:
+        import logging as _lg
         _lg.getLogger(__name__).warning(
             "[ScalpFactorExclude] factor_active_set 白名单读取失败（DB 因子缺失，"
             "白名单将退化为仅公式因子）: %s", _e,
