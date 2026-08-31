@@ -184,8 +184,16 @@ REGIME_COLS = ("roll_wr20", "roll_fwd20", "roll_rsi10", "roll_cvd10",
 KLINE_COLS = ("ret_15m", "ret_1h", "ret_4h", "ema_slope", "rsi15m",
               "atr_pct", "vol_1h", "below_ema20")
 
+# [2026-09-16 插针行情训练] 影线/插针特征——与 ScalpExecutionGate._check_wick_manipulation
+# 同源公式(wick_ratio=max(upper,lower)/(|close-open|+1e-10)),让元模型学习"插针环境里
+# 什么样的方向/形态能赢",而不是只会一刀切避开(那属于执行门职责,不产生样本)。
+# wick_density_20 即执行门同一判定量(>3.0 占比),训练侧据此对插针样本加权。
+WICK_COLS = ("wick_density_20", "last_wick_ratio", "upper_wick_5",
+             "lower_wick_5", "spike_mag_20")
+
 # 方向×趋势交互(规则实证: 顺势多头 49.4% vs 逆势 33.4%;顺势空头 43.7% vs 逆势 31.2%)
-KLINE_INTER_COLS = ("dir_x_ema", "dir_x_ret1h", "dir_x_ret4h")
+# dir_x_wick_asym: 方向 × 影线不对称(下影强=买方防守,顺势多+下影强=支撑有效)
+KLINE_INTER_COLS = ("dir_x_ema", "dir_x_ret1h", "dir_x_ret4h", "dir_x_wick_asym")
 
 _RSI_KEYS = ("rsi",)
 _CVD_KEYS = ("of_cvd", "cvd")
@@ -277,11 +285,28 @@ def compute_kline_feats(klines_df: Any) -> Dict[str, float]:
         # 1h 波动率
         seg = closes[-5:]
         vol_1h = float(np.std(np.diff(seg)) / c) if len(seg) >= 2 else 0.0
+        # ── 插针/影线特征(与 ScalpExecutionGate._check_wick_manipulation 同源公式) ──
+        o20 = df["open"].astype(float).tail(20).to_numpy()
+        h20 = df["high"].astype(float).tail(20).to_numpy()
+        l20 = df["low"].astype(float).tail(20).to_numpy()
+        c20 = df["close"].astype(float).tail(20).to_numpy()
+        body20 = np.abs(c20 - o20)
+        upper20 = h20 - np.maximum(o20, c20)
+        lower20 = np.minimum(o20, c20) - l20
+        wr20 = np.maximum(upper20, lower20) / (body20 + 1e-10)
+        wick_density_20 = float((wr20 > 3.0).mean())
+        last_wick_ratio = float(np.clip(wr20[-1], 0.0, 50.0))
+        upper_wick_5 = float(np.clip(np.mean(upper20[-5:] / (body20[-5:] + 1e-10)), 0.0, 20.0))
+        lower_wick_5 = float(np.clip(np.mean(lower20[-5:] / (body20[-5:] + 1e-10)), 0.0, 20.0))
+        spike_mag_20 = float(np.clip(np.max(np.maximum(upper20, lower20)) / c, 0.0, 0.5))
         return {
             "ret_15m": float(ret_15m), "ret_1h": float(ret_1h), "ret_4h": float(ret_4h),
             "ema_slope": float(ema_slope), "rsi15m": float(rsi15m),
             "atr_pct": float(atr_pct), "vol_1h": float(vol_1h),
             "below_ema20": 1.0 if c < ema20 else 0.0,
+            "wick_density_20": wick_density_20, "last_wick_ratio": last_wick_ratio,
+            "upper_wick_5": upper_wick_5, "lower_wick_5": lower_wick_5,
+            "spike_mag_20": spike_mag_20,
         }
     except Exception as e:
         logger.debug(f"[ScalpMeta] kline 特征计算失败: {e}")
@@ -346,6 +371,25 @@ def _build_kline_frame(rows: List[Dict[str, Any]], kl: Dict[str, Any]) -> Dict[i
             if c <= 0:
                 continue
             seg = closes_all[j - 4:j + 1]
+            # ── 插针/影线特征(与推理侧 compute_kline_feats 同源,仅用 ts 之前的 bar,无前视) ──
+            _o20 = arr[j - 19:j + 1, 1]
+            _h20 = arr[j - 19:j + 1, 2]
+            _l20 = arr[j - 19:j + 1, 3]
+            _c20 = arr[j - 19:j + 1, 4]
+            _body20 = np.abs(_c20 - _o20)
+            _upper20 = _h20 - np.maximum(_o20, _c20)
+            _lower20 = np.minimum(_o20, _c20) - _l20
+            _wr20 = np.maximum(_upper20, _lower20) / (_body20 + 1e-10)
+            _wick_feats = {
+                "wick_density_20": float((_wr20 > 3.0).mean()),
+                "last_wick_ratio": float(np.clip(_wr20[-1], 0.0, 50.0)),
+                "upper_wick_5": float(np.clip(
+                    np.mean(_upper20[-5:] / (_body20[-5:] + 1e-10)), 0.0, 20.0)),
+                "lower_wick_5": float(np.clip(
+                    np.mean(_lower20[-5:] / (_body20[-5:] + 1e-10)), 0.0, 20.0)),
+                "spike_mag_20": float(np.clip(
+                    np.max(np.maximum(_upper20, _lower20)) / c, 0.0, 0.5)),
+            }
             out[i] = {
                 "ret_15m": float(c / closes_all[j - 1] - 1),
                 "ret_1h": float(c / closes_all[j - 4] - 1),
@@ -355,6 +399,7 @@ def _build_kline_frame(rows: List[Dict[str, Any]], kl: Dict[str, Any]) -> Dict[i
                 "atr_pct": float(atr_all[j] / c) if not np.isnan(atr_all[j]) else 0.0,
                 "vol_1h": float(np.std(np.diff(seg)) / c),
                 "below_ema20": 1.0 if c < ema20_all[j] else 0.0,
+                **_wick_feats,
             }
     return out
 
@@ -463,6 +508,7 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
     if _regime_features_enabled():
         feature_cols = feature_cols + list(REGIME_COLS)
     feature_cols = feature_cols + list(KLINE_COLS)
+    feature_cols = feature_cols + list(WICK_COLS)
     feature_cols = feature_cols + list(KLINE_INTER_COLS)
 
     X = np.zeros((n, len(feature_cols)), dtype=np.float64)
@@ -485,7 +531,7 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
                     X[i, feature_cols.index(k)] = v
         if kline_frame and i in kline_frame:
             for k, v in kline_frame[i].items():
-                if k in KLINE_COLS:
+                if k in KLINE_COLS or k in WICK_COLS:
                     X[i, feature_cols.index(k)] = v
             _kf = kline_frame[i]
             if "dir_x_ema" in feature_cols:
@@ -494,6 +540,9 @@ def _build_matrix(rows: List[Dict[str, Any]], frame: Optional[Dict[int, Dict[str
                 X[i, feature_cols.index("dir_x_ret1h")] = X[i, _idx_dir] * _kf.get("ret_1h", 0.0)
             if "dir_x_ret4h" in feature_cols:
                 X[i, feature_cols.index("dir_x_ret4h")] = X[i, _idx_dir] * _kf.get("ret_4h", 0.0)
+            if "dir_x_wick_asym" in feature_cols:
+                _wick_asym = _kf.get("lower_wick_5", 0.0) - _kf.get("upper_wick_5", 0.0)
+                X[i, feature_cols.index("dir_x_wick_asym")] = X[i, _idx_dir] * _wick_asym
         ca = r.get("created_at")
         if ca is not None:
             if "hour" in feature_cols:
@@ -565,6 +614,15 @@ def train_and_validate() -> Dict[str, Any]:
         kline_frame = None
 
     X, y, ts, net, feature_cols = _build_matrix(rows, frame, kline_frame=kline_frame)
+    # [2026-09-16 插针行情训练] 插针环境样本加权: wick_density_20 越高权重越大,
+    # 让 LightGBM 优先拟合插针行情下的胜率结构(而不是被海量震荡市样本淹没)。
+    # 只作用于训练拟合;验证/OOS 指标不加权,usable 门槛仍按真实分布判定。
+    # SCALP_META_WICK_SAMPLE_WEIGHT=0 关闭。权重公式: 1 + W * wick_density_20。
+    _wick_w = float(os.getenv("SCALP_META_WICK_SAMPLE_WEIGHT", "3.0") or 3.0)
+    sw = None
+    if _wick_w > 0 and "wick_density_20" in feature_cols:
+        sw = 1.0 + _wick_w * X[:, feature_cols.index("wick_density_20")]
+    report["wick_sample_weight"] = _wick_w
     pos, neg = int(y.sum()), int((1 - y).sum())
     report["pos"], report["neg"] = pos, neg
     mpc = _min_per_class()
@@ -607,7 +665,7 @@ def train_and_validate() -> Dict[str, Any]:
             continue
         if len(np.unique(y[tr])) < 2 or len(np.unique(y[te])) < 2:
             continue
-        clf = _mk().fit(X[tr], y[tr])
+        clf = _mk().fit(X[tr], y[tr], sample_weight=(None if sw is None else sw[tr]))
         p = clf.predict_proba(X[te])[:, 1]
         fi += clf.feature_importances_
         lgb_aucs.append(roc_auc_score(y[te], p))
@@ -676,7 +734,7 @@ def train_and_validate() -> Dict[str, Any]:
 
     try:
         import joblib
-        final = _mk().fit(X, y)
+        final = _mk().fit(X, y, sample_weight=sw)
         os.makedirs(_DATA_DIR, exist_ok=True)
         joblib.dump({
             "model": final, "feature_cols": feature_cols,
@@ -841,6 +899,9 @@ def predict_win_prob(
                 x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * (_numeric(kf.get("ret_1h")) or 0.0)
             elif c == "dir_x_ret4h":
                 x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * (_numeric(kf.get("ret_4h")) or 0.0)
+            elif c == "dir_x_wick_asym":
+                _wick_asym = (_numeric(kf.get("lower_wick_5")) or 0.0) - (_numeric(kf.get("upper_wick_5")) or 0.0)
+                x[0, j] = (x[0, _dir_j] if _dir_j is not None else 0.0) * _wick_asym
             else:
                 x[0, j] = _numeric(features.get(c)) or 0.0
         return float(bundle["model"].predict_proba(x)[0, 1])

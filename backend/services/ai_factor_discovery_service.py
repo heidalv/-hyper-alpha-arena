@@ -102,6 +102,15 @@ class AIFactorDiscoveryService:
 3. 波动率聚集：波动率突变/高低波动切换/已实现波动率与收益的交互
 4. 量价关系：量价背离/放量突破确认/缩量整理
 5. 微观结构代理：振幅位置/收盘位置/上下影线不对称
+6. 插针/影线反转（短线重点，优先考虑）：长下影线（锤子线）承接后的反弹 alpha、
+   长上影线（射击之星）后的回落 alpha、影线密度环境下的均值回归。
+   构造公式（与生产插针判定同源）：
+     body  = (data['close'] - data['open']).abs() + 1e-9
+     upper = data['high'] - data[['open','close']].max(axis=1)
+     lower = data[['open','close']].min(axis=1) - data['low']
+   影线不对称度 = (lower - upper) / body（>0 下影主导=买方防守，<0 上影主导=卖方拒绝）；
+   插针密度 = (np.maximum(upper, lower) / body).rolling(20).mean() 作为波动环境分位。
+   把不对称度的 rolling 均值与短期收益方向交互，即为可测 IC 的插针反转因子。
 每个因子用 Python pandas/numpy，输入 pd.DataFrame(open/high/low/close/volume)，返回 pd.Series 值域[-1,+1]。
 
 【代码硬性约束（不满足会被 AST 白名单直接拒绝）】
@@ -110,8 +119,13 @@ class AIFactorDiscoveryService:
    （如 data['close'].rolling(20).mean()、data['close'].pct_change()、data['volume'].rolling(50).median()）。
 3. 禁止调用任何自定义或未定义的函数；全局函数只能用 len/abs/min/max/round/sum/float/int/any/all/sorted。
 4. 变量名只用 data/result/series 等简单名；表达式为纯 pandas/numpy 运算。
+5. AST 白名单：属性链的根只能是 data/np/pd/self/result/series 等——禁止对中间变量直接
+   调用方法（如 ret.rolling(5).mean()、pin_rev.clip(-1,1) 都会被拒绝）。中间变量只能参与
+   算术运算；链式方法必须直接接在 data[...] 或算术表达式后面（(a/b).rolling(3).mean().clip(-1,1) 合法）。
 
 正确示例: "def calculate(self, data):\n    ret = data['close'].pct_change(20)\n    vol = data['close'].pct_change().rolling(20).std()\n    result = (ret / (vol + 1e-9)).clip(-1, 1)\n    return result"
+
+插针示例: "def calculate(self, data):\n    body = (data['close'] - data['open']).abs() + 1e-9\n    upper = data['high'] - data[['open','close']].max(axis=1)\n    lower = data[['open','close']].min(axis=1) - data['low']\n    result = ((lower - upper) / body).rolling(3).mean().clip(-1, 1)\n    return result"
 
 JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_name":"中文","description":"逻辑","category":"technical/composite/behavioral/sentiment/derivatives","subcategory":"momentum/trend/volatility/volume/mean_reversion/contrarian","python_code":"def calculate(self, data):\\n    ...\\n    return result","confidence":0.6}}]}}
 只输出JSON。"""

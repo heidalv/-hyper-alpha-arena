@@ -212,6 +212,14 @@ class ScalpEvGate:
                 p_win = 0.50 if strategy_tag == "ranging_mr" else 0.42
                 p_src = "fallback_const"
 
+        # [2026-09-16 插针训练配套] meta 推理需 15m K线特征(含插针特征):
+        # evaluate 无 market_data 入参,统一走 DB 兜底(120s 缓存,与 scalp_loop 同源)。
+        try:
+            from backend.services.scalp_meta_trainer import kline_feats_from_db_cached
+            _ev_kf = kline_feats_from_db_cached(symbol)
+        except Exception:
+            _ev_kf = {}
+
         # P0-4B：仅 SCALP_META_IN_EV=1 且模型 usable 时软混入 meta p_win（默认关）
         try:
             import os as _os
@@ -226,6 +234,7 @@ class ScalpEvGate:
                         "direction": str(direction or ""),
                     },
                     require_usable=True,
+                    kline_feats=_ev_kf,
                 )
                 if _meta_p is not None:
                     _blend = float(self._cfg("SCALP_META_EV_BLEND", 0.35) or 0.35)
@@ -255,6 +264,7 @@ class ScalpEvGate:
                         "direction": str(direction or ""),
                     },
                     require_usable=True,
+                    kline_feats=_ev_kf,
                 )
                 _min_pwin = float(self._cfg("SCALP_META_MIN_PWIN", 0.5) or 0.5)
                 # [2026-08-29 实盘收紧+可达性] 实盘用独立 meta 硬门槛：
