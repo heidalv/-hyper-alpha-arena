@@ -1795,5 +1795,22 @@ def register_evolution_tasks():
         _t.start()
         logger.info("[EvoScheduler] 已安排启动后60s首次执行学习任务")
 
+        # [2026-09-01 断层根治] 因子打分管线 boot 追补：
+        # factor_job_manager 是进程内内存态（重启即清空已排队任务），且日任务
+        # 05:10 依赖后端该时点存活——两者叠加导致候选因子"永不打分"
+        # （实测 283 个 candidate 长期滞留、registry 扫描首个晋升候选即崩）。
+        # 这里在每次启动时按落盘标记补排队（registry 22h / 候选验证 12h 限频），
+        # 后台单 worker 串行执行，不阻塞交易主链。
+        try:
+            from backend.services.factor_engine import factor_jobs as _fj
+            if _midlong_scan_due("registry_scan", 22 * 3600):
+                _job = _fj.run_scan_registry_midlong(limit=200)
+                logger.info("[EvoScheduler] boot 追补: registry 扫描已排队 job=%s", _job.id)
+            if _midlong_scan_due("candidate_validate", 12 * 3600):
+                _job = _fj.run_validate_candidates(limit=60)
+                logger.info("[EvoScheduler] boot 追补: 候选验证已排队 job=%s", _job.id)
+        except Exception as _bc_err:
+            logger.warning("[EvoScheduler] boot 追补排队失败: %s", _bc_err)
+
     except Exception as e:
         logger.error(f"[EvoScheduler] 定时任务注册失败: {e}", exc_info=True)
