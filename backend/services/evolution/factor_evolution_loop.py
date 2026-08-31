@@ -1037,6 +1037,13 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                         if _res.audit_passed and _res.expr_ast:
                             parse(_res.expr_ast)  # 解析即校验
                             _warm_seeds.append(_res.expr_ast)
+                        else:
+                            # [2026-08-31 可见化] 审计拒绝原因此前完全静默，
+                            # 6/6 失败无法定位（缓存已修，现在全是审计拒）。
+                            logger.warning(
+                                "[FactorEvo] LLM 热启动种子被审计拒绝: %s",
+                                str(getattr(_res, "reason", "") or "unknown")[:160],
+                            )
                     except Exception as _ws_one_err:
                         # [2026-08-27] 逐种子失败原因可见化（此前静默 continue 导致
                         # "热启动种子生成失败"无诊断信息）
