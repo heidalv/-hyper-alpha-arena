@@ -127,8 +127,25 @@ async def _merge_leverage_rest(ex) -> None:
         # AttributeError → position/leverage 合并 19:23 起从未成功，实盘
         # 持仓/杠杆数据冻结（WS 只推增量事件）。
         _raw = getattr(ex, "_exchange", None) or ex
-        rows = await _raw.fapiPrivateV2GetPositionRisk()
+        # [2026-08-28 实盘零成交修复] 双向持仓（Hedge）模式必须按 positionSide
+        # 分别拉取，否则 positionRisk 返回全零 → leverage_map/持仓对账恒空。
+        _rows = []
+        try:
+            _dual = await _raw.fapiPrivateGetPositionSideDual()
+            _is_dual = str(_dual.get("dualSidePosition") or "").lower() == "true"
+        except Exception:
+            _is_dual = False
+        if _is_dual:
+            for _ps in ("LONG", "SHORT"):
+                try:
+                    _rows.extend(await _raw.fapiPrivateV2GetPositionRisk({"positionSide": _ps}) or [])
+                except Exception as _ps_err:
+                    log("merge leverage positionSide=%s failed: %s" % (_ps, str(_ps_err)[:100]))
+        else:
+            _rows = await _raw.fapiPrivateV2GetPositionRisk()
+        rows = _rows
         _map = {}
+        _positions = {}  # [2026-08-28] 全量重建：旧实现只覆盖非零行，平仓后残留幽灵持仓
         for r in rows or []:
             sym = str(r.get("symbol") or "").upper()
             base = sym.replace("USDT", "").replace("USD", "")
@@ -149,7 +166,7 @@ async def _merge_leverage_rest(ex) -> None:
                 "isolated": bool(r.get("isolated")) if r.get("isolated") is not None else None,
             }
             # 初始/定期同步完整持仓（WS 只推增量）
-            _state["positions"][base] = {
+            _positions[base] = {
                 "amt": float(r.get("positionAmt") or 0),
                 "ep": float(r.get("entryPrice") or 0),
                 "bep": float(r.get("breakEvenPrice") or 0),
@@ -160,6 +177,7 @@ async def _merge_leverage_rest(ex) -> None:
                 "ps": str(r.get("positionSide") or "BOTH"),
                 "ma": "USDT",
             }
+        _state["positions"] = _positions
         _state["leverage_map"] = _map
         # 余额同步（fapi/v2/account，官方字段 walletBalance/crossWalletBalance）
         try:
@@ -176,6 +194,7 @@ async def _merge_leverage_rest(ex) -> None:
             pass
         _write_snapshot()
     except Exception as e:
+        _mark_rate_limited(str(e))
         log("merge leverage REST failed: %s" % str(e)[:120])
 
 
@@ -239,7 +258,15 @@ async def _ws_loop(ex) -> None:
 async def _ensure_listen_key(ex) -> bool:
     if _state["listen_key"] and time.time() - _state["listen_key_ts"] < RENEW_EVERY:
         return True
-    r = await ex.fapiPrivatePostListenKey()
+    if _rate_limited():
+        log("rate limited, skip listenKey fetch")
+        return False
+    try:
+        r = await ex.fapiPrivatePostListenKey()
+    except Exception as e:
+        _mark_rate_limited(str(e))
+        log("listenKey fetch failed: %s" % str(e)[:120])
+        return False
     _state["listen_key"] = str(r.get("listenKey") or "")
     _state["listen_key_ts"] = time.time()
     log("listenKey created")
@@ -252,6 +279,7 @@ async def _renew_listen_key(ex) -> None:
         _state["listen_key_ts"] = time.time()
         log("listenKey renewed")
     except Exception as e:
+        _mark_rate_limited(str(e))
         log("listenKey renew failed: %s" % str(e)[:120])
 
 
@@ -290,6 +318,22 @@ async def _periodic_merge(ex) -> None:
             await _merge_leverage_rest(ex)
         except Exception:
             pass
+        # [2026-09-01 限流风暴根治] 418/-1003（IP 被限流）时进入 5 分钟退避：
+        # 此前无退避，多 worker 叠加把白名单 IP 打到永久续封
+        # （实测 57 个僵尸 worker、~5 req/s、ban 时间不断后推）。
+        if _rate_limited():
+            log("rate limited (-1003), merge backoff 300s")
+            await asyncio.sleep(300)
+
+
+def _rate_limited() -> bool:
+    """最近一次 merge/listenKey 失败是否命中 418/-1003 限流。"""
+    return _state.get("rate_limited_until", 0) > time.time()
+
+
+def _mark_rate_limited(msg: str) -> None:
+    if "-1003" in msg or "418" in msg or "DDoSProtection" in msg:
+        _state["rate_limited_until"] = time.time() + 300
 
 
 async def _periodic_renew(ex) -> None:
