@@ -105,13 +105,17 @@ class TestProbeLane:
             account_id=14, is_mr=is_mr,
         )
 
-    def test_probe_fires_for_mid_pwin_high_score(self):
+    def test_probe_fires_for_mid_pwin_high_score(self, monkeypatch):
+        monkeypatch.setenv("FUSION_PROBE_MIN_SCORE", "45")
         d = self._decide(pwin=0.40, score=46)
         assert d.action == "trade"
         assert d.reason == "pwin_probe_quota"
         assert d.size_mult == 0.125
 
-    def test_probe_blocked_by_low_score(self):
+    def test_probe_blocked_by_low_score(self, monkeypatch):
+        # 显式钉住门槛 45（settings 导入会把 .env 的 40 载入进程 env，
+        # 全量跑时影响本断言；套件级 autouse fixture 已屏蔽 reload）。
+        monkeypatch.setenv("FUSION_PROBE_MIN_SCORE", "45")
         d = self._decide(pwin=0.40, score=40)  # <45
         assert d.action == "hold"
         assert d.reason == "pwin_below_min"
