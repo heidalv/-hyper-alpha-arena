@@ -38,7 +38,16 @@ class ScalpExecutionGate:
 
     @staticmethod
     def _cfg(name: str, default=None):
-        return getattr(_settings_mod, name, default)
+        # [2026-08-31 配置接线修复] settings.py 并未暴露全部 .env 键（如
+        # SCALP_SHORT_PAPER_EXEMPT_MIN/FULL_MIN、SCALP_SHORT_EM_*），原实现
+        # getattr(settings, name, default) 对这些键恒返回硬编码默认值——.env
+        # 调整（空头加严 50/65 等）从不生效。改为 settings 缺失时回退 os.getenv。
+        _v = getattr(_settings_mod, name, None)
+        if _v is None:
+            import os as _os_cfg
+            _raw = _os_cfg.getenv(name)
+            return _raw if _raw is not None else default
+        return _v
 
     def evaluate(
         self,
@@ -258,10 +267,21 @@ class ScalpExecutionGate:
                             f"0.125x(凌晨)" if _em_active else "0.25x",
                         )
                 else:
-                    # [2026-08-29 门禁放宽] 实盘空头分档降级（仍比 paper 严格）：
-                    # ① 满足其一条件(4h偏空 或 funding≥门槛) 且 score≥45 → 0.25x；
-                    # ② 零条件但 score≥50 → 0.125x 最小试探（FlashVeto 仍兜底）；
-                    # ③ 零条件且低分 → 硬拦。
+                    # [2026-08-29 全面修复·撤回放宽] 8fea911/2e7469a 的实盘空头
+                    # 单条件(0.25x)/零条件(0.125x)试探仓被 30 天成交数据否决：
+                    # 空头连续 5 周全亏(-824 毛)、盈亏比 1.10(多头 1.81)、
+                    # mid 空头 -601——"解决零成交"不能靠放行负 EV 方向。恢复
+                    # 全条件硬拦(4h偏空 AND funding≥门槛)。要回滚放宽设
+                    # SCALP_SHORT_LIVE_STRICT=false（恢复 8/29 上午的分档试探行为）。
+                    _live_strict = bool(self._cfg("SCALP_SHORT_LIVE_STRICT", True))
+                    if _live_strict:
+                        return GateDecision(
+                            False, lane_id, "hold",
+                            f"空头条件未齐(mid_bias={_mid_bias},bias_src={_bias_src},funding={_funding:.5f}≥"
+                            f"{_funding_min:.5f})——30天空头全亏,实盘全条件门禁",
+                            effective_score=effective_score,
+                            advisory=advisory,
+                        )
                     _live_half_ok = bool(_bias_ok or _fund_ok)
                     try:
                         _live_half_min = float(
@@ -412,6 +432,7 @@ class ScalpExecutionGate:
                 entry=entry,
                 swing_low=advisory.swing_low_5m,
                 swing_high=advisory.swing_high_5m,
+                symbol=symbol,
             )
 
         # 猎杀区：SL 距 stop cluster < 0.3% → 调整 SL 或 penalty
@@ -444,6 +465,17 @@ class ScalpExecutionGate:
         needs_veto = veto_band_low <= effective_score < direct_threshold
         tier = "veto" if needs_veto else "direct"
 
+        _plan = (market_data or {}).get("_tpsl_plan") if isinstance(market_data, dict) else None
+        if isinstance(_plan, dict) and _plan.get("reason"):
+            logger.info(
+                "[ScalpGate] %s tpsl play=%s regime=%s sl=%.3f%% tp=%.3f%% | %s",
+                symbol,
+                _plan.get("playbook"),
+                _plan.get("regime"),
+                float(_plan.get("sl_pct") or sl_pct) * 100.0,
+                float(_plan.get("tp_pct") or tp_pct) * 100.0,
+                str(_plan.get("reason") or "")[:120],
+            )
         logger.info(
             "[ScalpGate] %s %s score=%d eff=%d tier=%s advisory=%s id=%s",
             symbol, action, score, effective_score, tier,
@@ -475,6 +507,7 @@ class ScalpExecutionGate:
                 "regime": regime.regime,
                 "range_position": range_pos,
                 "universe_soft": universe_soft_note or None,
+                "tpsl_plan": _plan if isinstance(_plan, dict) else None,
             },
         )
 
