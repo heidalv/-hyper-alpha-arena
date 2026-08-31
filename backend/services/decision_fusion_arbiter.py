@@ -272,12 +272,13 @@ def decide_scalp(
             and pwin >= _sp_min_pwin
             and _probe_quota_used(account_id) < _probe_quota_cap()
         ):
+            _shadow_size = _f("FUSION_PROBE_SIZE_MULT", 0.25)
             return FusionDecision(
-                "trade", 0.125, "rule", "shadow_probe_quota",
+                "trade", _shadow_size, "rule", "shadow_probe_quota",
                 {"credit": credit, "pwin": pwin, "factor_score": factor_score,
                  "quota_used": _probe_quota_used(account_id),
                  "quota": _probe_quota_cap(),
-                 "note": "shadow来源影子探针(最小仓), 成交后由 scalp_loop 扣配额"},
+                 "note": "shadow来源影子探针, 成交后由 scalp_loop 扣配额"},
             )
         return FusionDecision("standdown", 0.0, "rule", "source_credit_shadow", {"credit": credit})
 
@@ -451,12 +452,16 @@ def decide_scalp(
                 and factor_score >= _probe_min_score
                 and _probe_quota_used(account_id) < _probe_cap
             ):
+                # [2026-09-01 用户指令] 探针仓不再钉死 0.125x：模拟盘的目的
+                # 是开单攒样本、量出策略质量——配额放开后最小仓会把样本量
+                # 稀释到不可测量。仓位由 FUSION_PROBE_SIZE_MULT 控制（默认 0.25）。
+                _probe_size = _f("FUSION_PROBE_SIZE_MULT", 0.25)
                 return FusionDecision(
-                    "trade", 0.125, "rule", "pwin_probe_quota",
+                    "trade", _probe_size, "rule", "pwin_probe_quota",
                     {"pwin": pwin, "floor": _floor, "probe_min": _probe_min,
                      "probe_min_score": _probe_min_score,
                      "quota_used": _probe_quota_used(account_id), "quota": _probe_cap,
-                     "note": "保底流量探针(最小仓), 成交后由 scalp_loop 扣配额"},
+                     "note": "保底流量探针, 成交后由 scalp_loop 扣配额"},
                 )
         return FusionDecision("hold", 0.0, "rule", "pwin_below_min",
                               {"pwin": pwin, "floor": _floor, "floor_mode": _floor_mode,

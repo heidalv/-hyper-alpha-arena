@@ -107,6 +107,7 @@ class TestProbeLane:
 
     def test_probe_fires_for_mid_pwin_high_score(self, monkeypatch):
         monkeypatch.setenv("FUSION_PROBE_MIN_SCORE", "45")
+        monkeypatch.setenv("FUSION_PROBE_SIZE_MULT", "0.125")
         d = self._decide(pwin=0.40, score=46)
         assert d.action == "trade"
         assert d.reason == "pwin_probe_quota"
@@ -144,7 +145,8 @@ class TestShadowProbeLane:
             account_id=14, is_mr=is_mr,
         )
 
-    def test_shadow_probe_fires_high_score(self):
+    def test_shadow_probe_fires_high_score(self, monkeypatch):
+        monkeypatch.setenv("FUSION_PROBE_SIZE_MULT", "0.125")
         d = self._decide(pwin=0.41, score=51)
         assert d.action == "trade"
         assert d.reason == "shadow_probe_quota"
