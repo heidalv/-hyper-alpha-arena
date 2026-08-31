@@ -87,6 +87,7 @@ class SourceAttribution:
             if os.path.exists(_STATE_PATH):
                 with open(_STATE_PATH, "r", encoding="utf-8") as f:
                     d = json.load(f)
+                _stale_shadow = bool(d.get("shadow") or d.get("breaker_shadow"))
                 with self._lock:
                     self._tags = d.get("tags", {})
                     self._stats = d.get("stats", {})
@@ -97,6 +98,26 @@ class SourceAttribution:
                     self._shadow = {}
                     self._breaker = d.get("breaker", {})
                     self._breaker_shadow = {}
+                if _stale_shadow:
+                    # 立即把剥离后的状态回写磁盘：防止空态覆写防护/其他旧进程
+                    # 把累计制 shadow 重新合并回内存或磁盘。
+                    try:
+                        with self._lock:
+                            payload = {
+                                "ts": time.time(),
+                                "tags": dict(self._tags),
+                                "stats": dict(self._stats),
+                                "shadow": {},
+                                "breaker": dict(self._breaker),
+                                "breaker_shadow": {},
+                            }
+                        tmp = _STATE_PATH + f".{os.getpid()}.migrate.tmp"
+                        with open(tmp, "w", encoding="utf-8") as f:
+                            json.dump(payload, f, ensure_ascii=False)
+                        os.replace(tmp, _STATE_PATH)
+                        logger.info("[SourceAttr] 已剥离磁盘旧累计制 shadow 标志（迁移至滚动窗口制）")
+                    except Exception as e:
+                        logger.debug("[SourceAttr] shadow 迁移回写跳过: %s", e)
                 logger.info("[SourceAttr] 恢复状态: tags=%d stats=%d breaker=%d（shadow 已重置为滚动窗口制）",
                             len(self._tags), len(self._stats), len(self._breaker))
         except Exception as e:
@@ -132,9 +153,12 @@ class SourceAttribution:
                         with self._lock:
                             self._tags = dict(disk.get("tags", {}) or {})
                             self._stats = dict(disk.get("stats", {}) or {})
-                            self._shadow = dict(disk.get("shadow", {}) or {})
+                            # [2026-08-31] 合并时排除 shadow/breaker_shadow：旧累计制
+                            # 标志不得回灌（滚动窗口制由新平仓重建），否则空态保存
+                            # 会抵消加载时的迁移清空。
+                            self._shadow = {}
                             self._breaker = dict(disk.get("breaker", {}) or {})
-                            self._breaker_shadow = dict(disk.get("breaker_shadow", {}) or {})
+                            self._breaker_shadow = {}
                         return
                 except Exception:
                     pass

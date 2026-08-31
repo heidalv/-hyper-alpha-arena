@@ -7,6 +7,7 @@ shadow 几乎永无退出（退出需累计净期望回正，而 shadow 期间�
 近期转正的来源自动复活；加载持久化状态时清空旧累计制 shadow 标志。
 """
 import json
+import time
 
 import backend.services.source_attribution as sa
 
@@ -65,6 +66,47 @@ def test_old_persisted_cumulative_shadow_cleared_on_load(monkeypatch, tmp_path):
     inst._ensure_loaded()
     assert inst._shadow == {}
     assert inst._breaker_shadow == {}
+
+
+def test_load_migrates_disk_stripping_stale_shadow(monkeypatch, tmp_path):
+    """加载时把剥离后的状态回写磁盘，防止空态覆写防护/旧进程回灌 shadow。"""
+    p = tmp_path / "old.json"
+    p.write_text(json.dumps({
+        "tags": {"1": {"source": "f"}}, "stats": {"f|s|BTC": {"n": 1, "wins": 0,
+                                                             "gross": 0.0, "fee": 0.0}},
+        "shadow": {"f|s|BTC": True},
+        "breaker": {"short|sl": {"n": 1, "wins": 0}},
+        "breaker_shadow": {"short|sl": True},
+    }), encoding="utf-8")
+    monkeypatch.setattr(sa, "_STATE_PATH", str(p))
+    inst = sa.SourceAttribution()
+    inst._ensure_loaded()
+    on_disk = json.loads(p.read_text(encoding="utf-8"))
+    assert on_disk.get("shadow") == {}
+    assert on_disk.get("breaker_shadow") == {}
+    assert on_disk.get("tags")  # 其他状态保留
+    assert on_disk.get("breaker")
+
+
+def test_empty_save_merge_never_reinjects_shadow(monkeypatch, tmp_path):
+    """空态覆写防护合并磁盘内容时不得回灌旧 shadow 键。"""
+    p = tmp_path / "old.json"
+    p.write_text(json.dumps({
+        "tags": {"1": {"source": "f"}}, "stats": {"f|s|BTC": {"n": 1, "wins": 0,
+                                                             "gross": 0.0, "fee": 0.0}},
+        "shadow": {"f|s|BTC": True},
+        "breaker": {"short|sl": {"n": 1, "wins": 0}},
+        "breaker_shadow": {"short|sl": True},
+    }), encoding="utf-8")
+    monkeypatch.setattr(sa, "_STATE_PATH", str(p))
+    inst = sa.SourceAttribution()
+    inst._loaded = True  # 模拟未走 _ensure_loaded 的进程直接空态保存
+    inst._last_save = time.time() + 3600  # 禁用节流，强制立即保存
+    inst._maybe_save()
+    assert inst._shadow == {}
+    assert inst._breaker_shadow == {}
+    assert inst.credit("f", "s", "BTC") == 1.0
+
 
 
 def test_prewarm_period_no_shadow_below_min_samples(monkeypatch, tmp_path):
