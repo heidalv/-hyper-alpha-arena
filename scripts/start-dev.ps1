@@ -151,7 +151,14 @@ if (-not $NoBackend) {
         # 避免 Windows PowerShell 5.1 把 `&& "` 误解析为运算符导致脚本无法运行。
         # 注意：不要把 stdout 重定向到 backend.log / uvicorn-stdout.log——
         # Windows 下 uvicorn --reload 子进程继承句柄后容易 PermissionError / 起不来。
-        $backendCmd = 'set DATA_CENTER_MODE=standalone&& "' + $PyExe + '" "' + $runner + '"'
+if ($NoReload) {
+            # [2026-08-31] NO_RELOAD single-process: redirect stdout to backend.log
+            # (no reload child, safe). Otherwise live backend logs go to hidden console;
+            # when watchdog instance loses the port race the backend becomes blind.
+            $backendCmd = 'set DATA_CENTER_MODE=standalone&& "' + $PyExe + '" "' + $runner + '" >> "' + $BackendLog + '" 2>&1'
+        } else {
+            $backendCmd = 'set DATA_CENTER_MODE=standalone&& "' + $PyExe + '" "' + $runner + '"'
+        }
         $bp = Start-Process -FilePath 'cmd.exe' `
             -ArgumentList '/c', $backendCmd `
             -WorkingDirectory $RepoRoot `
