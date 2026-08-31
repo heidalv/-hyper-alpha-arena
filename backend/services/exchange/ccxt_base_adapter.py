@@ -99,7 +99,14 @@ class CcxtBaseAdapter(BaseExchangeClient):
                 "apiKey": api_key,
                 "secret": secret,
                 "sandbox": testnet,
-                "options": {"defaultType": _default_type},
+                "options": {
+                    "defaultType": _default_type,
+                    # [2026-09-01 -1021 根治] 本机时钟实测超前 Binance 1.7s+，
+                    # 签名请求间歇性 InvalidNonce；w32tm 被权限拒绝，只能应用层
+                    # 校准：开启 adjustForTimeDifference，_ensure_loop 里
+                    # load_time_difference() 会把偏移写入 timeDifference。
+                    "adjustForTimeDifference": True,
+                },
                 "enableRateLimit": True,
             }
             # [2026-07-10 Phase0] 代理透传：国内环境访问 Binance/Bybit/OKX 必须走代理。
@@ -126,8 +133,10 @@ class CcxtBaseAdapter(BaseExchangeClient):
                 self._ccxt_id,
             )
 
-    def _ensure_loop(self) -> None:
-        """[2026-09-01] 当前 running loop 与客户端绑定 loop 不一致时重建客户端。
+    async def _ensure_loop(self) -> None:
+        """[2026-09-01] 当前 running loop 与客户端绑定 loop 不一致时重建客户端，
+        并同步交易所时间差（本机时钟实测超前 Binance 1.7s+，签名请求会间歇性
+        -1021 InvalidNonce；w32tm 被权限拒绝，只能在应用层校准）。
 
         ccxt async_support 的 aiohttp 会话在首次网络调用时绑定所在 loop；
         单例客户端被跨线程/跨 asyncio.run() 复用时旧实例必然报
@@ -145,6 +154,13 @@ class CcxtBaseAdapter(BaseExchangeClient):
             )
             self._build_exchange()
             self._loop_id = id(loop)
+            if self._exchange is not None:
+                try:
+                    # 拉取交易所时间校准 timeDifference（adjustForTimeDifference
+                    # 生效），消除本机时钟超前导致的 -1021。
+                    await self._exchange.load_time_difference()
+                except Exception:
+                    pass
 
     # ── Properties ────────────────────────────────
 
@@ -163,7 +179,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     # ── Balance ───────────────────────────────────
 
     async def get_balance(self) -> ExchangeBalance:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return ExchangeBalance(0, 0, 0, 0)
         try:
@@ -185,7 +201,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     # ── Positions ─────────────────────────────────
 
     async def get_positions(self) -> List[ExchangePosition]:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return []
         # [2026-08-28 P0/P1 官方文档设计] 币安系：positionRisk V2（杠杆/模式/强平价 权威）
@@ -303,7 +319,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     async def set_margin_type(self, symbol: str, margin_type: str) -> bool:
         """[2026-08-28 P2] 全仓/逐仓切换（币安 POST /fapi/v1/marginType，约 5s 一次限速）。
         margin_type: 'cross' 或 'isolated'（ccxt unified 映射 CROSSED/ISOLATED）。"""
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return False
         try:
@@ -317,7 +333,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     async def set_leverage(self, symbol: str, leverage: int) -> bool:
         """[2026-08-28 方案2·G6] 设置合约杠杆（binance /fapi/v1/leverage；
         bybit/okx 同构）。stub/失败返回 False 不抛——杠杆不一致由对账兜底。"""
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             logger.warning(
                 "[CcxtAdapter] %s stub 模式, set_leverage 跳过", self._ccxt_id
@@ -334,7 +350,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
             return False
 
     async def place_order(self, order: ExchangeOrder) -> Dict:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return {"status": "error", "message": "ccxt not available"}
         try:
@@ -445,7 +461,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
             return {"status": "error", "message": str(e)}
 
     async def cancel_order(self, order_id: str, symbol: str) -> bool:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return False
         try:
@@ -463,7 +479,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
         必须拉挂单匹配。返回 {BASE: {"tp": 触发价, "sl": 触发价}}；
         非减仓的入场条件单（无 reduceOnly/closePosition）不算持仓止盈止损。
         """
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return {}
         out: Dict[str, Dict[str, Any]] = {}
@@ -689,7 +705,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
         逐 symbol 用统一 ccxt 符号（如 "BTC/USDT:USDT"）显式取 linear 永续，稳定可靠。
         无数据/异常返回 None（由上游决定跳过，绝不臆造）。
         """
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return None
         try:
@@ -707,7 +723,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     # ── Orderbook ─────────────────────────────────
 
     async def get_orderbook(self, symbol: str, depth: int = 20) -> Dict:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return {"bids": [], "asks": []}
         try:
@@ -724,7 +740,7 @@ class CcxtBaseAdapter(BaseExchangeClient):
     async def get_klines(
         self, symbol: str, interval: str, limit: int = 100
     ) -> List[Dict]:
-        self._ensure_loop()
+        await self._ensure_loop()
         if self._exchange is None:
             return []
         try:

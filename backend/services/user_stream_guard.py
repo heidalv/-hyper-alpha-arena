@@ -117,6 +117,9 @@ def _spawn():
 def _monitor() -> None:
     while not _state["stop"].is_set():
         try:
+            # [2026-09-01] 链代理保活：每 15s 复查端口，死了立即拉起
+            # （白名单出口 IP 只在这条链上）。
+            ensure_binance_chain_proxy()
             proc = _state["proc"]
             if proc is None:
                 if not _snapshot_fresh(30.0):
@@ -140,16 +143,54 @@ def ensure_user_stream_worker() -> None:
     with _state["lock"]:
         if _state["started"]:
             return
+        _state["started"] = True
+        # [2026-09-01 实盘断链根治] 链代理先于 worker：币安 API key 白名单
+        # 出口 IP 只在 18080 链代理上；代理死了 worker 也白搭。
+        ensure_binance_chain_proxy()
         if _snapshot_fresh(30.0):
             logger.info("[UserStreamGuard] 外部用户流 worker 存活（快照新鲜），不嵌入")
             return
-        _state["started"] = True
         _state["proc"] = _spawn()
         _state["thread"] = threading.Thread(
             target=_monitor, name="user-stream-guard", daemon=True,
         )
         _state["thread"].start()
         atexit.register(_shutdown)
+
+
+def ensure_binance_chain_proxy() -> bool:
+    """[2026-09-01 实盘断链根治] 确保币安白名单链代理(127.0.0.1:18080)在跑。
+
+    链代理 scripts/binance_socks_chain.py 的出口 IP(8.211.172.14) 是币安
+    API key 白名单 IP；代理一死，实盘余额/持仓读取全部失败（实测故障链）。
+    schtasks 注册被拒绝（无管理员权限）→ 改为后端托管保活：后端由
+    backend-watchdog 保活，本函数由守护线程每 15s 复查端口，进程级自愈。
+    零管理员权限，随交易系统一起存活。
+    """
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", 18080), timeout=1.0):
+            return True  # 已在跑
+    except OSError:
+        pass
+    try:
+        _script = os.path.join(_REPO, "scripts", "binance_socks_chain.py")
+        _flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if hasattr(subprocess, "DETACHED_PROCESS"):
+            _flags |= subprocess.DETACHED_PROCESS
+        subprocess.Popen(
+            [sys.executable, _script],
+            cwd=_REPO,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=_flags,
+        )
+        logger.info("[ChainProxyGuard] 币安链代理已拉起 (127.0.0.1:18080)")
+        return True
+    except Exception as _e:
+        logger.warning("[ChainProxyGuard] 链代理拉起失败: %s", _e)
+        return False
 
 
 def _shutdown() -> None:
