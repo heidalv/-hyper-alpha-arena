@@ -2884,6 +2884,7 @@ class AutoCoinSelector:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=300,
+                caller="coin_select_expiry",
             )
             if not resp_data:
                 raise ValueError("Empty AI response")
@@ -4544,6 +4545,7 @@ class AutoCoinSelector:
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.3,
                     max_tokens=300,
+                    caller="coin_select_compose",
                 )
 
             # S2-9 修复：Cycle 在 async 事件循环内同步调用本 caller 时，
@@ -4587,6 +4589,7 @@ class AutoCoinSelector:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=300,
+                caller="coin_select_review",
             )
 
             if not resp_data:
