@@ -53,7 +53,12 @@ def backfill_realized_pnl(db) -> int:
             if injected is None:
                 continue
             pnl_row = db.execute(text(
-                "SELECT COALESCE(SUM(COALESCE(partial_realized_pnl,0)),0) "
+                # [2026-09-01 口径修复] 闭仓后权威已实现盈亏在 unrealized_pnl
+                # （P0-6：closed 状态复用该字段为 realized_pnl 存档，已含分批
+                # partial_realized_pnl）。原只读 partial_realized_pnl 会漏掉
+                # 一次性全平的仓位（其 pnl 不在 partial 里）→ ROI 归因系统性低估。
+                "SELECT COALESCE(SUM(COALESCE(NULLIF(unrealized_pnl,0), "
+                "partial_realized_pnl, 0)),0) "
                 "FROM paper_positions WHERE symbol=:sym AND status='closed' "
                 "AND closed_at BETWEEN :t0 AND :t1"
             ), {"sym": symbol, "t0": injected[0], "t1": removed_at}).fetchone()
@@ -164,6 +169,18 @@ def run_weekly_roi_report(db=None, session_id: Optional[str] = None) -> Dict[str
     from backend.database.connection import SessionLocal
     from backend.database.models import FullAutoSession
 
+    # [2026-09-01 租户根治] 定时线程无 HTTP 上下文 → ContextVar 未设 → RLS
+    # fail-closed → auto_coin_selections(tenant 326)/sessions(326) 全部隐形，
+    # 回填恒 0 行（实测 realized_pnl 全 NULL 的根因）。这里按管理员租户设
+    # 请求身份，connection.begin 钩子会随每次事务自动 SET LOCAL。
+    try:
+        from backend.core.tenant import set_request_identity, clear_request_identity
+        from backend.services.coin_select_platform_service import resolve_admin_tenant_id
+        _roi_tid = resolve_admin_tenant_id() or 326
+        set_request_identity(int(_roi_tid))
+    except Exception:
+        _roi_tid = None
+
     own_db = db is None
     db = db or SessionLocal()
     try:
@@ -215,3 +232,8 @@ def run_weekly_roi_report(db=None, session_id: Optional[str] = None) -> Dict[str
     finally:
         if own_db:
             db.close()
+        try:
+            from backend.core.tenant import clear_request_identity
+            clear_request_identity()
+        except Exception:
+            pass
