@@ -21,6 +21,11 @@ _STATE_PATH = os.path.join(
 
 _MIN_SAMPLES = 20        # 归因最低样本
 _EXPECT_THRESHOLD = 0.0  # 期望值 < 0 → shadow
+# [2026-08-31 根因修复] shadow 判定窗口：累计制下旧亏损永远压在期望上，来源
+# 一旦 shadow 几乎永无退出（退出需累计净期望回正，而 shadow 期间几乎无新样本）
+# ——实测 5/7 币 factor|scalp 来源长期 standdown、短线 406 次拦截。改为滚动
+# 窗口：只看最近 N 笔净收益，来源凭近期表现自然复活（旧亏损随时间滚出窗口）。
+_ROLLING_WINDOW = int(os.getenv("SOURCE_ATTR_ROLLING_WINDOW", "30") or 30)
 
 
 def normalize_reason(reason: str) -> str:
@@ -85,10 +90,14 @@ class SourceAttribution:
                 with self._lock:
                     self._tags = d.get("tags", {})
                     self._stats = d.get("stats", {})
-                    self._shadow = d.get("shadow", {})
+                    # [2026-08-31 滚动窗口迁移] 旧 shadow 标志是累计制判定的（全历史
+                    # 期望<0 即永久 shadow，无滚动窗口可回放）——加载时清空，改由
+                    # 新滚动窗口在后续平仓中重建（20 笔新样本预热期内不 shadow，
+                    # 敞口由探针 0.125x/日配额限制）。
+                    self._shadow = {}
                     self._breaker = d.get("breaker", {})
-                    self._breaker_shadow = d.get("breaker_shadow", {})
-                logger.info("[SourceAttr] 恢复状态: tags=%d stats=%d breaker=%d",
+                    self._breaker_shadow = {}
+                logger.info("[SourceAttr] 恢复状态: tags=%d stats=%d breaker=%d（shadow 已重置为滚动窗口制）",
                             len(self._tags), len(self._stats), len(self._breaker))
         except Exception as e:
             logger.warning("[SourceAttr] 状态加载失败(以空态启动): %s", e)
@@ -176,21 +185,41 @@ class SourceAttribution:
             nat = nature or (tag or {}).get("nature") or ""
             sym = (symbol or (tag or {}).get("symbol") or "").upper()
             key = f"{src}|{nat}|{sym}"
-            st = self._stats.setdefault(key, {"n": 0, "wins": 0, "gross": 0.0, "fee": 0.0})
+            st = self._stats.setdefault(
+                key, {"n": 0, "wins": 0, "gross": 0.0, "fee": 0.0, "recent": []})
             st["n"] += 1
             st["wins"] += int(win)
             st["gross"] += float(pnl or 0)
             st["fee"] += float(fee or 0)
-            # 来源信用：n>=20 且净期望 <0 → shadow
-            if st["n"] >= _MIN_SAMPLES and (st["gross"] - st["fee"]) / st["n"] < _EXPECT_THRESHOLD:
-                self._shadow[key] = True
-            elif self._shadow.get(key) and st["n"] >= _MIN_SAMPLES * 2 and (st["gross"] - st["fee"]) / st["n"] >= 0:
-                self._shadow[key] = False
+            # [2026-08-31 根因修复] 滚动窗口 shadow 判定：只看最近 _ROLLING_WINDOW
+            # 笔净收益。旧累计制（全历史期望）让来源一旦 shadow 几乎永无退出——
+            # 实测 5/7 币 factor|scalp 长期 standdown。滚动窗口下旧亏损滚出后，
+            # 近期转正的来源自动复活；近期仍亏的来源保持 shadow（风控不削弱）。
+            _rec = st.setdefault("recent", [])
+            if not isinstance(_rec, list):
+                _rec = []
+                st["recent"] = _rec
+            _rec.append(net)
+            if len(_rec) > _ROLLING_WINDOW:
+                _rec = _rec[-_ROLLING_WINDOW:]
+                st["recent"] = _rec
+            _roll_n = len(_rec)
+            _roll_net = sum(_rec)
+            if _roll_n >= _MIN_SAMPLES:
+                self._shadow[key] = (_roll_net / _roll_n) < _EXPECT_THRESHOLD
             # 出场通道熔断（close_reason×tier 滚动 30 笔 wr<40% → shadow）
             bkey = f"{tier or '?'}|{normalize_reason(close_reason)}"
-            bst = self._breaker.setdefault(bkey, {"n": 0, "wins": 0})
+            bst = self._breaker.setdefault(bkey, {"n": 0, "wins": 0, "recent": []})
             bst["n"] += 1
             bst["wins"] += int(win)
+            _brec = bst.setdefault("recent", [])
+            if not isinstance(_brec, list):
+                _brec = []
+                bst["recent"] = _brec
+            _brec.append(1 if win else 0)
+            if len(_brec) > _ROLLING_WINDOW:
+                _brec = _brec[-_ROLLING_WINDOW:]
+                bst["recent"] = _brec
             # [2026-08-26 亏损复盘] 熔断阈值环境化：默认 30 笔/40%；震荡市里出血通道
             # 应更早 shadow（8/26 mid|trend_weaken 5 笔 0 胜仍在砍仓）。
             try:
@@ -198,8 +227,10 @@ class SourceAttribution:
                 _shadow_max_wr = float(os.environ.get("EXIT_CHANNEL_SHADOW_MAX_WR", "0.40") or 0.40)
             except Exception:
                 _shadow_min_n, _shadow_max_wr = 30, 0.40
-            if bst["n"] >= _shadow_min_n:
-                wr = bst["wins"] / bst["n"]
+            # [2026-08-31] 通道熔断同样改滚动窗口（窗口=min(配置值, ROLLING_WINDOW)）
+            _bwin_n = min(_shadow_min_n, _ROLLING_WINDOW)
+            if len(_brec) >= _bwin_n:
+                wr = sum(_brec[-_bwin_n:]) / _bwin_n
                 self._breaker_shadow[bkey] = wr < _shadow_max_wr
             result = {"key": key, "n": st["n"], "net": round(st["gross"] - st["fee"], 4),
                       "shadow": bool(self._shadow.get(key)), "bkey": bkey,
