@@ -160,6 +160,13 @@ class SourceAttribution:
     def record_close(self, position_id: int, *, pnl: float, fee: float = 0.0,
                      close_reason: str = "", tier: str = "", symbol: str = "",
                      nature: str = "", source: Optional[str] = None) -> Dict[str, Any]:
+        # [2026-08-31 测试污染根治] 归因统计写 data/fusion_attribution.json 与
+        # brain_attribution 表；单元测试的假平仓会污染来源信用/出场通道熔断统计
+        # （shadow 判定被假样本影响）。pytest 环境只返回占位，不落盘。
+        import os as _os_sa
+        if _os_sa.environ.get("PYTEST_CURRENT_TEST"):
+            return {"key": "test", "n": 0, "net": 0.0, "shadow": False,
+                    "bkey": "test", "breaker_shadow": False}
         self._ensure_loaded()
         net = float(pnl or 0) - float(fee or 0)
         win = net > 0

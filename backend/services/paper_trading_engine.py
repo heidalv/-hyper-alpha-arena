@@ -4687,6 +4687,13 @@ class PaperTradingEngine:
         strategy_id: str = "",
     ) -> None:
         """M10 样本仓库：独立会话写 trade_facts（隔离失败不影响主事务）。"""
+        # [2026-08-31 测试污染根治] 本函数用自己的生产 SessionLocal，单元测试
+        # （in-memory SQLite）跑 close_position 时会把假成交（entry=100 等夹具
+        # 数据）写进生产 trade_facts——实测污染 26 行，毒化学习/校准/IC 管线。
+        # pytest 环境直接跳过（测试断言不依赖本仓库）。
+        import os as _os_tf
+        if _os_tf.environ.get("PYTEST_CURRENT_TEST"):
+            return
         try:
             from sqlalchemy import text as _sa_text
             from backend.database.connection import SessionLocal as _ArenaLocal
