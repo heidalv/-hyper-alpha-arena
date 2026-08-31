@@ -1878,23 +1878,36 @@ def _promote_factors(
             if _f_tr is not None:
                 _f_net = float(_f_tr["net_ic"])
                 if _f_net < _min_net_ic_threshold():
-                    reject_reasons.append({
-                        "factor_id": s["factor_id"],
-                        "reason": "net_ic_trailing",
-                        "detail": {
-                            "val_net_ic": float(info.get("net_ic", 0) or 0),
-                            "trailing_net_ic": round(_f_net, 6),
-                            "trailing_ic_mean": round(float(_f_tr["ic_mean"]), 6),
-                            "trailing_turnover": round(float(_f_tr["turnover"]), 6),
-                        },
-                    })
+                    # [2026-08-31 门禁口径] 连续 3 轮「阶段5 0/2、0/2、0/2」——
+                    # 尾部 15 天窗口净 IC 为负把全部 survivor 硬拒，因子池无法积累。
+                    # PAPER 影子期本身就是低风险验证层：改为默认软处理（带警告放行
+                    # 进 PAPER 影子，由影子法官用真实近期数据裁决），hard 档可回滚
+                    # （FACTOR_NET_IC_TRAILING_MODE=hard 恢复旧行为）。
+                    _trail_mode = (_os_window.getenv("FACTOR_NET_IC_TRAILING_MODE", "soft") or "soft").strip().lower()
+                    if _trail_mode == "hard":
+                        reject_reasons.append({
+                            "factor_id": s["factor_id"],
+                            "reason": "net_ic_trailing",
+                            "detail": {
+                                "val_net_ic": float(info.get("net_ic", 0) or 0),
+                                "trailing_net_ic": round(_f_net, 6),
+                                "trailing_ic_mean": round(float(_f_tr["ic_mean"]), 6),
+                                "trailing_turnover": round(float(_f_tr["turnover"]), 6),
+                            },
+                        })
+                        logger.warning(
+                            "[FactorEvo] 尾部净IC预检拒绝 %s: trailing_net_ic=%.4f "
+                            "val_net_ic=%.4f (阈值 %.3f)",
+                            s["factor_id"], _f_net, info.get("net_ic", 0),
+                            _min_net_ic_threshold(),
+                        )
+                        continue
                     logger.warning(
-                        "[FactorEvo] 尾部净IC预检拒绝 %s: trailing_net_ic=%.4f "
-                        "val_net_ic=%.4f (阈值 %.3f)",
+                        "[FactorEvo] 尾部净IC偏弱但软放行进 PAPER 影子 %s: "
+                        "trailing_net_ic=%.4f val_net_ic=%.4f (阈值 %.3f, 影子期裁决)",
                         s["factor_id"], _f_net, info.get("net_ic", 0),
                         _min_net_ic_threshold(),
                     )
-                    continue
         eval_result = s.get("eval_result")
         if not eval_result:
             reject_reasons.append({"factor_id": s["factor_id"], "reason": "no_eval_result"})
