@@ -520,7 +520,9 @@ function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: Position;
         </span>
       </td>
       <td className="py-2 px-2 text-muted-foreground">{
-        ({scalp:"短线",swing:"中线",trend_follow:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
+        // [2026-08-31 修复] 补 position→长线（long 仓新 nature，此前漏映射回退显示
+        // 英文原文 "position"），与 strategy 页/订单表同一张映射表保持一致。
+        ({scalp:"短线",intraday:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
       }</td>
       <td className="py-2 px-2 text-right tabular-nums num text-muted-foreground">{formatPosPrice(entry)}</td>
       <td className="py-2 px-2 text-right tabular-nums num">

@@ -368,7 +368,9 @@ export default function DashboardPage() {
                 {openPositions.length > 0 ? openPositions.map((p) => (
                   <tr key={p.id} className="border-b border-border/20 hover:bg-white/[0.04]">
                     <td className="px-3 py-2 font-mono text-xs">{p.strategy_id?.slice(0, 20) || "—"}</td>
-                    <td className="py-2"><span className={p.trade_nature === "scalp" ? "text-primary" : p.trade_nature === "swing" ? "text-profit" : "text-warning"}>{p.trade_nature}</span></td>
+                    <td className="py-2"><span className={p.trade_nature === "scalp" ? "text-primary" : p.trade_nature === "swing" ? "text-profit" : "text-warning"}>{
+                      ({scalp:"短线",intraday:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[p.trade_nature] || p.trade_nature
+                    }</span></td>
                     <td className="py-2 font-mono font-semibold text-xs">{p.symbol}</td>
                     <td className="py-2"><span className={`text-[9px] px-1 py-0.5 rounded ${p.side === "long" ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"}`}>{p.side === "long" ? "多" : "空"}</span></td>
                     <td className="text-right py-2 font-mono num">{p.entry_price?.toFixed(2) || "—"}</td>
