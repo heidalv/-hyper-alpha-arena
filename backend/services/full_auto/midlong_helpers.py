@@ -33,7 +33,8 @@ def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optiona
     }
     try:
         with SessionLocal() as db:
-            rows = db.execute(_sa_text(
+            from sqlalchemy import bindparam as _bp, Integer as _Int
+            _stmt = _sa_text(
                 """
                 SELECT tier, COUNT(*) AS n,
                        SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) AS wins,
@@ -44,7 +45,14 @@ def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optiona
                 GROUP BY tier
                 ORDER BY n DESC
                 """
-            ), {"since": since, "acct": account_id}).mappings().all()
+            ).bindparams(
+                # [2026-09-01 修复] psycopg3 无法从 None 推断 $2 类型 →
+                # AmbiguousParameter。显式 bindparam(Integer) 定型。
+                _bp("acct", type_=_Int),
+            )
+            rows = db.execute(
+                _stmt, {"since": since, "acct": account_id},
+            ).mappings().all()
         for r in rows:
             n = int(r["n"] or 0)
             w = int(r["wins"] or 0)
@@ -602,7 +610,17 @@ def try_execute_independent_agent_open(
             _est_notional = 0.0
             _equity = 0.0
             _pos_list = None
-            if _acct_pf:
+            _is_live_mid = (getattr(session, "trading_mode", "paper") or "paper").strip().lower() == "live"
+            if _acct_pf and _is_live_mid:
+                # [2026-08-28 实盘打通] live 会话权益 = 币安真实余额（用户流快照→REST）
+                try:
+                    from backend.database.models import Account as _AcctEQ
+                    from backend.services.full_auto.live_equity import get_live_equity
+                    _acct_eq = db.query(_AcctEQ).filter(_AcctEQ.id == _acct_pf).first()
+                    _equity = get_live_equity(_acct_eq, _acct_pf) if _acct_eq else 0.0
+                except Exception:
+                    _equity = 0.0
+            elif _acct_pf:
                 _bal = paper_engine.get_balance(db, _acct_pf) or {}
                 _pos_list = paper_engine.get_positions(db, _acct_pf, status="open") or []
                 _equity = float(
@@ -636,6 +654,16 @@ def try_execute_independent_agent_open(
                             )
                             or DEFAULT_LEVERAGE
                         )
+                        # [2026-08-28 P2] 账户级三周期杠杆覆盖（mid/long），只收紧
+                        try:
+                            from backend.database.models import Account as _AcctML
+                            from backend.services.leverage_authority import account_tier_leverage_override
+                            _acct_obj = db.query(_AcctML).filter(_AcctML.id == _acct_pf).first()
+                            _acct_cap = account_tier_leverage_override(_acct_obj, (tier or "mid").lower())
+                            if _acct_cap:
+                                _lev = min(float(_lev), float(_acct_cap))
+                        except Exception:
+                            pass
                 except Exception:
                     _lev = 10.0
                 # 名义 = 权益 × 保证金比例 × 杠杆（与 ETH 成交口径一致）
