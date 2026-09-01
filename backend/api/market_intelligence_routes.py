@@ -125,10 +125,11 @@ async def get_overview(symbols: str = Query("BTC,ETH,SOL")):
     衍生品缓存 + 数据中台）fresh 合计 ~2.7s，在交易循环抢 GIL 的活进程里更慢——
     无缓存时每次轮询都全量重算，是"切面切换半分钟加载"的主因之一。分钟级稳定的
     市场总览数据 10s 新鲜度足够，命中缓存 ≈0ms。
+    [2026-09-01 F32] stale-while-revalidate：过期返回旧值+后台刷新，切换永不等。
     """
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached(
+    return ttl_cached_stale(
         f"market_intel_overview:{symbols}", 10.0,
         lambda: _overview_impl(symbols),
     )
@@ -703,7 +704,16 @@ async def get_orderbook(symbol: str, depth: int = Query(20, ge=1, le=50)):
 
 @router.get("/data-health")
 async def get_data_health():
-    """数据健康面板：各数据源在线状态 + 各币数据完整度。"""
+    """数据健康面板：各数据源在线状态 + 各币数据完整度。
+
+    [2026-09-01 F32] 30s stale 缓存：活进程实测 fresh ~1.9s，页面切换永不等。
+    """
+    from backend.utils.ttl_cache import ttl_cached_stale
+
+    return ttl_cached_stale("market_intel_data_health", 30.0, lambda: _data_health_impl())
+
+
+def _data_health_impl() -> Dict[str, Any]:
     health: Dict[str, Any] = {}
     from datetime import datetime
 

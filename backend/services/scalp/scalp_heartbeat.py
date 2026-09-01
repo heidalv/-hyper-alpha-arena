@@ -17,20 +17,41 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 
-def ensure_table() -> None:
-    from backend.database.connection import SessionLocal
-    from backend.core.tenant import system_identity
+_ensured = False
+_ensure_lock = __import__("threading").Lock()
 
-    with system_identity():
-        with SessionLocal() as db:
-            db.execute(text(
-                "CREATE TABLE IF NOT EXISTS experiment_heartbeat ("
-                " task_id VARCHAR(80) PRIMARY KEY,"
-                " last_ok_at TIMESTAMPTZ NOT NULL,"
-                " last_status VARCHAR(16) NOT NULL DEFAULT 'ok',"
-                " detail_json JSONB)"
-            ))
-            db.commit()
+
+def ensure_table() -> None:
+    """建表（每进程仅一次）。
+
+    [2026-09-01 F32] 旧实现 get_heartbeats/touch 每次都执行 CREATE TABLE IF NOT EXISTS：
+    DDL 需要 ACCESS EXCLUSIVE 锁，而 heartbeat 写入每秒都在发生 → 每次读取都要
+    排队等锁（实测 ops_heartbeats 单次 1.6s，是 ops 页 fresh 重算的主成本之一）。
+    改为进程内一次性建表后，读取变纯 SELECT（毫秒级）。
+    """
+    global _ensured
+    if _ensured:
+        return
+    with _ensure_lock:
+        if _ensured:
+            return
+        try:
+            from backend.database.connection import SessionLocal
+            from backend.core.tenant import system_identity
+
+            with system_identity():
+                with SessionLocal() as db:
+                    db.execute(text(
+                        "CREATE TABLE IF NOT EXISTS experiment_heartbeat ("
+                        " task_id VARCHAR(80) PRIMARY KEY,"
+                        " last_ok_at TIMESTAMPTZ NOT NULL,"
+                        " last_status VARCHAR(16) NOT NULL DEFAULT 'ok',"
+                        " detail_json JSONB)"
+                    ))
+                    db.commit()
+            _ensured = True
+        except Exception as e:
+            logger.debug("[Heartbeat] ensure_table 失败: %s", e)
 
 
 def touch(task_id: str, status: str = "ok",
@@ -62,7 +83,7 @@ def touch(task_id: str, status: str = "ok",
 
 
 def get_heartbeats() -> Dict[str, Dict[str, Any]]:
-    ensure_table()
+    # [F32] 不在此处重复建表（每进程一次性），避免 DDL 锁排队
     from backend.database.connection import SessionLocal
     from backend.core.tenant import system_identity
 

@@ -439,9 +439,9 @@ def ops_pipeline() -> Dict[str, Any]:
     # [2026-09-01 F25] TTL 10s→60s：交易循环全天饱和 CPU/GIL，缓存过期后的
     # 重算在活进程里实测 8~10s（独立进程仅 0.4~3s），页面切换几乎必然触发
     # 重算 → "切面后数据半分钟才加载"。ops 页数据分钟级稳定，60s 足够。
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached("ops_pipeline", 60.0, lambda: _ops_pipeline_impl())
+    return ttl_cached_stale("ops_pipeline", 60.0, lambda: _ops_pipeline_impl())
 
 
 def _ops_pipeline_impl() -> Dict[str, Any]:
@@ -494,9 +494,9 @@ def ops_heartbeats() -> Dict[str, Any]:
     # [perf 2026-08-18] 高频轮询 + JSON 详情解析：5s TTL。
     # [2026-09-01 F25] 5s→30s：fresh 重算在 GIL 饱和的活进程里被放大 20 倍
     # （独立进程 1.6s），30s 对心跳 SLA 展示足够。
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached("ops_heartbeats", 30.0, lambda: _ops_heartbeats_impl())
+    return ttl_cached_stale("ops_heartbeats", 30.0, lambda: _ops_heartbeats_impl())
 
 
 def _ops_heartbeats_impl() -> Dict[str, Any]:
@@ -548,10 +548,11 @@ def ops_factor_pool(
     limit: int = Query(50, ge=1, le=200),
 ) -> Dict[str, Any]:
     # [perf 2026-08-18] 高频轮询 + 多组 SQL 聚合：5s TTL。
-    from backend.utils.ttl_cache import ttl_cached
+    # [2026-09-01 F32] stale-while-revalidate：过期返回旧值+后台刷新。
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached(
-        f"ops_factor_pool:{view}:{limit}", 5.0,
+    return ttl_cached_stale(
+        f"ops_factor_pool:{view}:{limit}", 30.0,
         lambda: _ops_factor_pool_impl(view, limit),
     )
 
@@ -826,9 +827,9 @@ def ops_long_trend_v2(session_id: Optional[str] = Query(None)) -> Dict[str, Any]
     # [perf 2026-08-18] 每币拉 1200 根 1d K 线 + pandas 分类，GIL 竞争下实测 4.5s。
     # 长线状态分钟级稳定：15s TTL 缓存。
     # [2026-09-01 F25] 15s→60s：活进程实测 fresh 9.8s，页面切换命中缓存才不卡。
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached(
+    return ttl_cached_stale(
         f"ops_long_trend_v2:{session_id or ''}", 60.0,
         lambda: _ops_long_trend_v2_impl(session_id),
     )
@@ -1252,9 +1253,9 @@ def ops_training() -> Dict[str, Any]:
     """元标签 + 固定池进化进度 + AI 快速扫描进度（一眼分清三条链）。"""
     # [perf 2026-08-18] 3 个子摘要串行，GIL 竞争下实测 8.2s。10s TTL。
     # [2026-09-01 F25] 10s→60s：活进程 fresh 8.3s（独立进程 0.4s），60s 足够。
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached("ops_training", 60.0, lambda: _ops_training_impl())
+    return ttl_cached_stale("ops_training", 60.0, lambda: _ops_training_impl())
 
 
 def _ops_training_impl() -> Dict[str, Any]:
@@ -1271,9 +1272,9 @@ def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
     """中文分级报错中心：系统日志 + 心跳中断 + 车道配置谎言。"""
     # [perf 2026-08-18] GUI 高频轮询：5s TTL 缓存（GIL 竞争下命中≈0ms）。
     # [2026-09-01 F25] 10s→30s：错报中心不需要秒级新鲜度。
-    from backend.utils.ttl_cache import ttl_cached
+    from backend.utils.ttl_cache import ttl_cached_stale
 
-    return ttl_cached(f"ops_errors:{limit}", 30.0, lambda: _ops_errors_impl(limit))
+    return ttl_cached_stale(f"ops_errors:{limit}", 30.0, lambda: _ops_errors_impl(limit))
 
 
 def _ops_errors_impl(limit: int) -> Dict[str, Any]:

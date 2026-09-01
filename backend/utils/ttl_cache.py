@@ -56,6 +56,57 @@ def ttl_cached(key: str, max_age_sec: float, producer: Callable[[], Any]) -> Any
     return value
 
 
+# ── [2026-09-01 F32] stale-while-revalidate ─────────────────────────
+# 背景：交易循环长期饱和 GIL，ops/intel 聚合端点的 fresh 重算在活进程里
+# 8-10s（独立进程 0.4-3s）。单纯调大 TTL 只降低频率，每次过期后的首个
+# 请求仍要等 8-10s——页面切换正好撞上就卡。stale 模式：过期后立即返回
+# 旧值，后台线程单飞刷新；页面切换永不等待 fresh 重算。
+_refreshing: Dict[str, bool] = {}
+_refresh_lock = threading.Lock()
+
+
+def _refresh_bg(key: str, producer: Callable[[], Any]) -> None:
+    try:
+        # 后台线程无请求上下文：套 system_identity 保证 RLS 直通
+        # （与调度任务同口径；producer 自身也会 set 身份，双保险）
+        try:
+            from backend.core.tenant import system_identity
+            with system_identity():
+                value = producer()
+        except Exception:
+            value = producer()
+        ttl_set(key, value)
+    except Exception:
+        pass  # 刷新失败保留旧值，下个周期再试
+    finally:
+        with _refresh_lock:
+            _refreshing[key] = False
+
+
+def ttl_cached_stale(key: str, max_age_sec: float, producer: Callable[[], Any]) -> Any:
+    """stale-while-revalidate：新鲜命中直返；过期返回旧值并后台单飞刷新；
+    无缓存时同步计算（首次请求照常付成本）。"""
+    entry = _store.get(key)
+    if entry is not None:
+        ts, val = entry
+        now = time.time()
+        if now - ts <= max_age_sec:
+            return val
+        # 过期：返回旧值 + 后台刷新（单飞防惊群）
+        with _refresh_lock:
+            if not _refreshing.get(key):
+                _refreshing[key] = True
+                _t = threading.Thread(
+                    target=_refresh_bg, args=(key, producer),
+                    daemon=True, name=f"ttl-stale-{key[:24]}",
+                )
+                _t.start()
+        return val
+    value = producer()
+    ttl_set(key, value)
+    return value
+
+
 def ttl_invalidate(prefix: str = "") -> None:
     """按前缀失效（prefix 为空则全清）。"""
     with _lock:
