@@ -119,7 +119,22 @@ def _read_dc_snapshot(symbols: List[str]) -> Dict[str, Any]:
 
 @router.get("/overview")
 async def get_overview(symbols: str = Query("BTC,ETH,SOL")):
-    """多维聚合总览：每币的盘口 + OI/费率 + 衍生品 + 鲸鱼。每项带真实性标记。"""
+    """多维聚合总览：每币的盘口 + OI/费率 + 衍生品 + 鲸鱼。每项带真实性标记。
+
+    [2026-09-01 F26] 10s TTL 缓存：前端高频轮询此接口；内部 5 个子读（DB 快照 +
+    衍生品缓存 + 数据中台）fresh 合计 ~2.7s，在交易循环抢 GIL 的活进程里更慢——
+    无缓存时每次轮询都全量重算，是"切面切换半分钟加载"的主因之一。分钟级稳定的
+    市场总览数据 10s 新鲜度足够，命中缓存 ≈0ms。
+    """
+    from backend.utils.ttl_cache import ttl_cached
+
+    return ttl_cached(
+        f"market_intel_overview:{symbols}", 10.0,
+        lambda: _overview_impl(symbols),
+    )
+
+
+def _overview_impl(symbols: str) -> Dict[str, Any]:
     sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
     if not sym_list:
         sym_list = ["BTC"]
@@ -272,6 +287,8 @@ def _read_orderbook_cache(symbols: List[str]) -> Dict[str, Any]:
         from backend.database.connection import MarketSessionLocal
 
         now = time.time()
+        # [2026-09-01 F26] 同上：orderbook 表 timestamp 是毫秒，旧秒口径 cutoff 恒真。
+        _cut_ms_ob = int(now * 1000) - 300 * 1000
         with MarketSessionLocal() as db:
             rows = db.execute(
                 _sa_text(
@@ -282,7 +299,7 @@ def _read_orderbook_cache(symbols: List[str]) -> Dict[str, Any]:
                     ORDER BY timestamp DESC
                     """
                 ),
-                {"syms": symbols, "cut": int(now) - 300},
+                {"syms": symbols, "cut": _cut_ms_ob},
             ).fetchall()
         by_sym: Dict[str, Dict[str, Any]] = {}
         for r in rows:
@@ -351,6 +368,10 @@ def _read_market_cache(symbols: List[str]) -> Dict[str, Any]:
         from backend.database.connection import MarketSessionLocal
 
         now = time.time()
+        # [2026-09-01 F26] timestamp 列是毫秒（13位），旧 cutoff 用秒(int(now)-600)
+        # 恒小于毫秒值 → WHERE timestamp >= cut 恒真 → 每页请求全表回扫该币全部历史
+        # （BTC+ETH 334k 行/请求、3.7s）。改毫秒口径后只取近 10 分钟。
+        _cut_ms = int(now * 1000) - 600 * 1000
         with MarketSessionLocal() as db:
             metric_rows = db.execute(
                 _sa_text(
@@ -361,7 +382,7 @@ def _read_market_cache(symbols: List[str]) -> Dict[str, Any]:
                     ORDER BY timestamp DESC
                     """
                 ),
-                {"syms": symbols, "cut": int(now) - 600},
+                {"syms": symbols, "cut": _cut_ms},
             ).fetchall()
             funding_rows = db.execute(
                 _sa_text(
