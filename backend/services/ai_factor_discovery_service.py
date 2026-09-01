@@ -33,7 +33,14 @@ class AIFactorDiscoveryService:
     def should_discover(self, retrospective_count: int) -> bool:
         if retrospective_count < self.MIN_RETROSPECTIVES:
             return False
-        if self._last_discovery and (datetime.now(timezone.utc) - self._last_discovery).days < 3:
+        # [2026-09-01 F31] 冷却可配 + 默认 12h（原硬编码 3 天）：F30 打通生成链后，
+        # 候选→IC 打分→淘汰的质量环成为主筛选器，单轮生成量小（本地 14B 每轮
+        # 1-2 个），3 天一次太慢（插针因子首测 IC 0.004 被拒，需要更多样本迭代）。
+        # 本地 LLM 零成本，12h 一次 = 每天 ~10 候选进 IC 闸门。
+        _cooldown_h = float(os.getenv("AI_FACTOR_DISCOVERY_COOLDOWN_HOURS", "12") or 12)
+        if self._last_discovery and (
+            datetime.now(timezone.utc) - self._last_discovery
+        ).total_seconds() < _cooldown_h * 3600:
             return False
         return True
 
