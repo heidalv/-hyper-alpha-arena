@@ -617,8 +617,11 @@ def train_and_validate() -> Dict[str, Any]:
     # [2026-09-16 插针行情训练] 插针环境样本加权: wick_density_20 越高权重越大,
     # 让 LightGBM 优先拟合插针行情下的胜率结构(而不是被海量震荡市样本淹没)。
     # 只作用于训练拟合;验证/OOS 指标不加权,usable 门槛仍按真实分布判定。
-    # SCALP_META_WICK_SAMPLE_WEIGHT=0 关闭。权重公式: 1 + W * wick_density_20。
-    _wick_w = float(os.getenv("SCALP_META_WICK_SAMPLE_WEIGHT", "3.0") or 3.0)
+    # [2026-09-01 A/B 实证] 默认改 0(关闭): W=3.0 时 OOS AUC 0.629→0.518、usable=False
+    # (少数插针样本被放大 4 倍,扭曲整体校准);W=0 时 AUC=0.636、usable=True、
+    # 过滤 top30% 净收益 +0.053%(基线 -0.190%)——插针特征不加权反而有效。
+    # SCALP_META_WICK_SAMPLE_WEIGHT 显式设置仍可覆盖。权重公式: 1 + W * wick_density_20。
+    _wick_w = float(os.getenv("SCALP_META_WICK_SAMPLE_WEIGHT", "0.0") or 0.0)
     sw = None
     if _wick_w > 0 and "wick_density_20" in feature_cols:
         sw = 1.0 + _wick_w * X[:, feature_cols.index("wick_density_20")]
