@@ -307,7 +307,7 @@ class LearningLoopService:
                 .all()
             )
         except Exception as e:
-            logger.debug("[LearningLoop] live 补扫查询失败: %s", e)
+            logger.warning("[LearningLoop] live 补扫查询失败: %s", e)
         finally:
             if _ana_db is not None:
                 try:
@@ -776,7 +776,9 @@ class LearningLoopService:
         success = True
         extra: Dict[str, Any] = {}
         try:
-            extra = self._do_paper_outcome_backfill()
+            # [2026-09-01 F35] 定时 tick 用 2 小时窗口（安全网语义），
+            # 7 天全量回补只留给手动调用。
+            extra = self._do_paper_outcome_backfill(hours=2)
         except Exception as e:
             success = False
             logger.error(f"[LearningLoop] {job} 异常: {e}", exc_info=True)
@@ -807,15 +809,24 @@ class LearningLoopService:
             full = (close - entry) * size
         return full + partial
 
-    def _do_paper_outcome_backfill(self, days: int = 7) -> Dict[str, Any]:
-        """扫描已平仓 paper_positions，补齐未写入 strategy_trades 的学习结果。"""
+    def _do_paper_outcome_backfill(self, days: int = 7, hours: Optional[int] = None) -> Dict[str, Any]:
+        """扫描已平仓 paper_positions，补齐未写入 strategy_trades 的学习结果。
+
+        [2026-09-01 F35] 新增 hours 参数：默认仍 7 天（手动全量回补用），
+        定时 tick 改为 hours=2——真实平仓由主路径实时处理，backfill 只是
+        重启漏单的安全网；旧 7 天窗口让每 2 分钟 tick 反复扫描数百条已处理
+        仓位（F28 后全部纯去重跳过），是持续 CPU/DB 消耗源之一。
+        """
         from sqlalchemy import cast
         from sqlalchemy.types import Text
         from backend.database.connection import SessionLocal
         from backend.database.models import PaperPosition, StrategyTrade
         from backend.services.unified_learning_service import unified_learning, TradeOutcome
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        if hours is not None:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        else:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         scanned = 0
         backfilled = 0
         skipped_existing = 0
