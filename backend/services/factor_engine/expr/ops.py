@@ -299,4 +299,9 @@ ALLOWED_FIELDS: frozenset[str] = frozenset({
     "open", "high", "low", "close", "vwap", "volume", "returns",
     "funding", "oi", "basis",  # 永续特化（P1.7）
     "amount", "turnover", "liquidation",  # 衍生品/清算（P1.7）
+    # [2026-09-01 插针挖掘弹药] 影线/插针 primitive（factor_compute.kline_df_to_fields
+    # 同源派生，与 ScalpExecutionGate._check_wick_manipulation 同公式）：
+    # 让 GP/MCTS 搜索空间可直接构造插针反转因子（此前 DSL 无逐行双字段 max，
+    # upper_wick=high-max(open,close) 不可表达，插针 alpha 天然挖不到）。
+    "upper_wick", "lower_wick", "body", "wick_ratio",
 })

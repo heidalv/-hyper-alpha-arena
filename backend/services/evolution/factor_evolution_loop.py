@@ -1035,6 +1035,9 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     "volume-price divergence",
                     "orderflow/microstructure imbalance",
                     "cross-sectional range contraction",
+                    # [2026-09-01 插针弹药] 提示词引导 LLM 热启动种子使用新增的
+                    # upper_wick/lower_wick/wick_ratio primitive（见 factor_compute）
+                    "wick/pin-bar reversal: long lower-wick (hammer) support bounce, long upper-wick (shooting star) fade, using upper_wick/lower_wick/wick_ratio fields",
                 ]
                 for _wi in range(_warm_n):
                     _hypo = _warm_hypos[_wi % len(_warm_hypos)]

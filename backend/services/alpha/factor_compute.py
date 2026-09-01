@@ -65,6 +65,29 @@ def kline_df_to_fields(df: pd.DataFrame) -> dict[str, np.ndarray]:
         elif "close" in fields:
             fields["vwap"] = fields["close"].copy()
 
+    # [2026-09-01 插针挖掘弹药] 派生影线/插针 primitive：GP/MCTS 的搜索空间此前
+    # 只有 OHLCV+returns+vwap——upper_wick=high-max(open,close) 需要逐行双字段 max，
+    # DSL 无此算子（max 仅支持 field×const），导致插针形态因子在搜索里天然不可达，
+    # 5m 进化候选 ICIR 恒 <0.4。加入同源派生字段后（与 ScalpExecutionGate.
+    # _check_wick_manipulation / scalp_meta_trainer 同一公式），插针 alpha 变为
+    # 一阶 primitive，GP 可直接组合。wick_ratio 上限 50 与元模型 last_wick_ratio
+    # 一致，防止 body≈0 时数值爆炸污染多币面板。
+    if all(k in fields for k in ("open", "high", "low", "close")):
+        _o = fields["open"]
+        _h = fields["high"]
+        _l = fields["low"]
+        _c = fields["close"]
+        if "upper_wick" not in fields:
+            fields["upper_wick"] = _h - np.maximum(_o, _c)
+        if "lower_wick" not in fields:
+            fields["lower_wick"] = np.minimum(_o, _c) - _l
+        if "body" not in fields:
+            fields["body"] = np.abs(_c - _o)
+        if "wick_ratio" not in fields:
+            _body = fields["body"]
+            _wick = np.maximum(fields["upper_wick"], fields["lower_wick"])
+            fields["wick_ratio"] = np.clip(_wick / (_body + 1e-10), 0.0, 50.0)
+
     return fields
 
 
