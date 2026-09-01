@@ -353,8 +353,17 @@ class CustomFactorStore:
                 return False
             if tenant_id is not None and rec.get("tenant_id") not in (None, int(tenant_id)):
                 return False
+            # [2026-09-01 方向锁定根治] expected_sign 是晋升时锁定的交易方向
+            # （item13 设计契约），但 validate_and_promote / recheck_and_prune 等
+            # 复评路径写回的 scores 不含该字段 → 整块替换把锁定的方向抹掉 →
+            # 因子路由回退"按当前滚动 IC 符号反手"，IC 每次翻转都掉头 → 方向鞭打。
+            # 修复：入参未提供 expected_sign 时保留旧值（单点保护所有调用方）。
+            _old = rec.get("scores") if isinstance(rec.get("scores"), dict) else {}
+            _scores = dict(scores or {})
+            if "expected_sign" not in _scores and _old.get("expected_sign") is not None:
+                _scores["expected_sign"] = _old["expected_sign"]
             rec["grade"] = grade
-            rec["scores"] = scores or {}
+            rec["scores"] = _scores
             rec["scored_at"] = time.time()
             if status:
                 rec["status"] = status

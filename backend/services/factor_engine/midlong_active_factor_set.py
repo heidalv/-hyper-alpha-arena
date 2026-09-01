@@ -220,7 +220,23 @@ class MidLongActiveFactorSet:
                     # 翻跳（macd@4h：IC 同 -0.117，sharpe 0.83→0.21）。降级/退役
                     # 须连续两次复检失败，避免因子池震荡、路由反复换因子。
                     _extra = rec.setdefault("extra", {})
-                    if _failed or _weak:
+                    # [2026-09-01 方向翻转隔离] 晋升时锁定的 expected_sign 与复检
+                    # IC 反向（且 |IC| 超过弱带 0.03）→ 计数 sign_flips。连续 2 次
+                    # 翻转 = 方向不稳定（不是衰减也不是失效，是噪声/过拟合信号），
+                    # 降级回 candidate 重新验证，不让路由拿着锁定的方向逆着新 IC 交易。
+                    _flip_abs_min = float(_cfg("MIDLONG_ACTIVE_FLIP_ABS_IC", 0.03))
+                    _sign_flip = False
+                    try:
+                        _locked = float(((rec.get("scores") or {}).get("expected_sign")) or 0.0)
+                        if _locked != 0 and abs(_ic) >= _flip_abs_min and _locked * _ic < 0:
+                            _sign_flip = True
+                    except Exception:
+                        pass
+                    if _sign_flip:
+                        _extra["sign_flips"] = int(_extra.get("sign_flips") or 0) + 1
+                    else:
+                        _extra["sign_flips"] = 0
+                    if _failed or _weak or _sign_flip:
                         _fails = int(_extra.get("recheck_fails") or 0) + 1
                         _extra["recheck_fails"] = _fails
                     else:
@@ -246,6 +262,19 @@ class MidLongActiveFactorSet:
                         logger.info(
                             "[MidLongFactorSet] 降级 registry 因子 %s tf=%s (grade=C, 连续%d次)",
                             fid, _tf, _extra["recheck_fails"],
+                        )
+                    elif _sign_flip and int(_extra.get("sign_flips") or 0) >= 2:
+                        # [2026-09-01 方向翻转隔离] 锁定方向连续 2 次被复检 IC 反向
+                        # → 方向不稳定，降级回 candidate 重新验证（不交易、不反手）。
+                        custom_factor_store.update_scores(
+                            fid, grade=_g, scores=_scores, status="candidate",
+                            tenant_id=_resolve_tenant_id(),
+                        )
+                        self._detach_from_engine(fid)
+                        reduced += 1
+                        logger.info(
+                            "[MidLongFactorSet] 方向翻转隔离 %s tf=%s (锁定sign×复检IC反向, 连续%d次) → candidate",
+                            fid, _tf, _extra["sign_flips"],
                         )
                     else:
                         # 保留 active 但刷新分数（单次波动不摘牌）
