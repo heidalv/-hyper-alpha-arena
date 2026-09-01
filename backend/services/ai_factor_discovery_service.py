@@ -28,6 +28,7 @@ class AIFactorDiscoveryService:
     def __init__(self):
         self._last_discovery = None
         self._generated_count = 0
+        self._last_reject_reason = None  # [F29] 最近一次校验拒绝原因（反馈重试用）
 
     def should_discover(self, retrospective_count: int) -> bool:
         if retrospective_count < self.MIN_RETROSPECTIVES:
@@ -79,7 +80,7 @@ class AIFactorDiscoveryService:
                     lesson=r.lesson_learned or "", frequency=1)
         return sorted(patterns.values(), key=lambda x: x.frequency, reverse=True)[:10]
 
-    def build_discovery_prompt(self, patterns: List[ErrorPattern]) -> str:
+    def build_discovery_prompt(self, patterns: List[ErrorPattern], extra_instruction: str = "") -> str:
         ptext = "\n".join([
             f"- {p.symbol} {p.side}: {p.exit_reason} 亏{p.pnl:.0f}({p.pnl_pct:+.2f}%) "
             f"regime={p.market_regime} x{p.frequency}"
@@ -127,6 +128,8 @@ class AIFactorDiscoveryService:
 
 插针示例: "def calculate(self, data):\n    body = (data['close'] - data['open']).abs() + 1e-9\n    upper = data['high'] - data[['open','close']].max(axis=1)\n    lower = data[['open','close']].min(axis=1) - data['low']\n    result = ((lower - upper) / body).rolling(3).mean().clip(-1, 1)\n    return result"
 
+{extra_instruction}
+
 JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_name":"中文","description":"逻辑","category":"technical/composite/behavioral/sentiment/derivatives","subcategory":"momentum/trend/volatility/volume/mean_reversion/contrarian","python_code":"def calculate(self, data):\\n    ...\\n    return result","confidence":0.6}}]}}
 只输出JSON。"""
 
@@ -149,7 +152,7 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
             )
             return json.loads(cleaned)
 
-    def call_llm_for_factor_discovery(self, patterns) -> List[GeneratedFactor]:
+    def call_llm_for_factor_discovery(self, patterns, extra_instruction: str = "") -> List[GeneratedFactor]:
         try:
             from backend.services.llm_config_service import (
                 get_llm_config_for_usage,
@@ -182,7 +185,7 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
                 _fm_fallback = _fm_cloud if (_fm_local is not None and _fm_cloud is not None) else None
                 resp_data = call_llm_api_sync(
                     config,
-                    messages=[{"role": "user", "content": self.build_discovery_prompt(patterns)}],
+                    messages=[{"role": "user", "content": self.build_discovery_prompt(patterns, extra_instruction=extra_instruction)}],
                     response_format={"type": "json_object"},
                     max_tokens=3000,
                     temperature=0.5,
@@ -283,11 +286,15 @@ class {class_name}(BaseFactor):
 # 修复：先 dedent python_code 再 indent 4 空格，确保 calculate 与 get_metadata 同级。
 
     def validate_generated_factor(self, factor: GeneratedFactor) -> bool:
+        # [2026-09-01 F29] 记录最近一次拒绝原因，供 run_discovery_cycle 的
+        # "拒绝反馈重试"把具体原因喂回 LLM（本地 14B 模型反复犯同类 AST 违规）。
+        self._last_reject_reason = None
         forbidden = ["os.system", "subprocess", "eval(", "exec(", "__import__",
                      "open(", "shutil", "socket", "requests"]
         for kw in forbidden:
             if kw in factor.python_code.lower():
                 logger.warning(f"[AIFactor] {factor.factor_id} 含禁止调用")
+                self._last_reject_reason = f"含禁止调用关键词 {kw}"
                 return False
         # [2026-08-14 P1-F2 修复] 黑名单字面量匹配可绕过（import os/os.popen/getattr
         # 等不在名单），升级为 AST 白名单：禁 import/dunder/白名单外属性链与函数调用。
@@ -296,6 +303,7 @@ class {class_name}(BaseFactor):
             ok, reason = ast_whitelist_check(factor.python_code)
             if not ok:
                 logger.warning(f"[AIFactor] {factor.factor_id} AST 白名单拒绝: {reason}")
+                self._last_reject_reason = f"AST 白名单拒绝: {reason}"
                 return False
         except Exception as e:
             logger.warning(f"[AIFactor] {factor.factor_id} AST 校验异常: {e}")
@@ -366,6 +374,24 @@ class {class_name}(BaseFactor):
                     if self.inject_factor(c, output_dir):
                         injected.append(c.factor_id)
                         self._generated_count += 1
+            # [2026-09-01 F29 拒绝反馈重试] 本地 14B 模型反复犯同类 AST 违规
+            # （中间变量方法调用：asym/asymmetry.rolling()），单轮全拒时把具体
+            # 拒绝原因喂回 LLM 重试一次——让模型在上下文里学会白名单约束，
+            # 而不是每 3 天冷启动重犯。
+            if not injected and self._last_reject_reason:
+                _fb = (
+                    "\n\n【上一轮输出全部被拒绝，请严格纠正后重新生成】"
+                    f"拒绝原因: {self._last_reject_reason}。"
+                    "禁止对中间变量直接调用任何方法（如 x.rolling(5)、x.clip(-1,1) 都不允许）；"
+                    "链式方法必须直接接在 data[...] 或算术表达式后面。"
+                )
+                logger.warning("[AIFactor] 首轮全部被拒(%s)，带反馈重试一次", self._last_reject_reason[:60])
+                retry_candidates = self.call_llm_for_factor_discovery(patterns, extra_instruction=_fb)
+                for c in (retry_candidates or [])[:self.MAX_CANDIDATES]:
+                    if self.validate_generated_factor(c):
+                        if self.inject_factor(c, output_dir):
+                            injected.append(c.factor_id)
+                            self._generated_count += 1
             self._last_discovery = datetime.now(timezone.utc)
             result = {"status": "completed", "patterns": len(patterns),
                     "candidates": len(candidates), "injected": injected,
