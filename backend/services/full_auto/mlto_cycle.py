@@ -28,6 +28,8 @@ class MltoCycleHost:
     try_execute_independent_agent_open: Callable = field(repr=False, default=lambda *a, **k: False)
     persist_independent_scan_log: Callable = field(repr=False, default=lambda *a, **k: None)
     build_midlong_agent_envelope: Callable = field(repr=False, default=lambda *a, **k: {})
+    # [2026-09-01 F34] 长线车道活动快照写入（前端 tier-activity "固定长线" 列）
+    persist_tcp_snapshot: Callable = field(repr=False, default=lambda *a, **k: False)
     # P0 缺口：execute_midlong_open → try_execute_independent_agent_open 需要这两个
     # 方法；此前缺失导致「open_ready 后 AttributeError，探针永远不成交」。
     get_trading_account_id: Callable = field(repr=False, default=lambda *a, **k: 0)
@@ -63,6 +65,8 @@ def build_mlto_cycle_host(svc) -> MltoCycleHost:
         build_midlong_agent_envelope=svc._build_midlong_agent_envelope,
         get_trading_account_id=svc._get_trading_account_id,
         evaluate_and_execute_proposal=svc._evaluate_and_execute_proposal,
+        # [2026-09-01 F34] 长线车道快照（tier-activity 展示）
+        persist_tcp_snapshot=getattr(svc, "_persist_tcp_snapshot", None) or (lambda *a, **k: False),
     )
 
 
@@ -501,6 +505,29 @@ def maintain_mlto_theses_for_session(
                             pass
                     except Exception:
                         pass
+
+                # [2026-09-01 F34] 长线车道活动快照：trend 车道此前不写
+                # DecisionSnapshot → 前端 tier-activity 的"固定长线"列恒为 0，
+                # 用户观感"长线不分析"（实际 TrendAgent 每轮都在评，只是没落快照）。
+                # 补写 tier=long 快照：hold 带原因，buy/sell 带方向，读侧 600s
+                # 窗口去重防刷屏。
+                try:
+                    host.persist_tcp_snapshot(
+                        session,
+                        symbol=sym_u,
+                        tier="long",
+                        action=_trend_action,
+                        confidence=float(_trend_score),
+                        reasoning=(
+                            (str(_trend_result.get("hold_reason") or "trend_hold"))
+                            if _trend_action == "hold"
+                            else f"trend_dir={_trend_dir} score={_trend_score}"
+                        ),
+                        source_lane="long_lane",
+                        executed=False,
+                    )
+                except Exception:
+                    pass
 
                 if _trend_action in ("buy", "sell"):
                     # 2026-07-20：开仓前二次确认 symbol 仍在 session.symbols。
