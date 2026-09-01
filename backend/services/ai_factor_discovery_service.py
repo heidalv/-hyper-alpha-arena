@@ -201,12 +201,24 @@ JSON输出: {{"factors":[{{"factor_id":"ai_gen_xxx","name":"English","display_na
                 logger.warning("[AIFactor] LLM 空响应（已跳过本轮）")
                 return []
             data = self._parse_llm_json(resp)
-            return [GeneratedFactor(
-                factor_id=it["factor_id"], name=it["name"],
-                display_name=it["display_name"], description=it["description"],
-                category=it["category"], subcategory=it["subcategory"],
-                python_code=it["python_code"], confidence=it.get("confidence", 0.5))
-                for it in data.get("factors", [])]
+            # [2026-09-01 F29b] LLM JSON 缺键修复：实测本地模型返回的 items 常缺
+            # factor_id/python_code 等键，列表推导直接 KeyError → 整批丢弃。
+            # 改为逐项过滤：缺必备键的单条跳过，其余保留。
+            _out: List[GeneratedFactor] = []
+            for it in (data or {}).get("factors", []) or []:
+                if not isinstance(it, dict):
+                    continue
+                if not it.get("factor_id") or not it.get("python_code"):
+                    logger.warning("[AIFactor] 跳过缺键候选: %s", str(it)[:100])
+                    continue
+                _out.append(GeneratedFactor(
+                    factor_id=it["factor_id"], name=it.get("name") or it["factor_id"],
+                    display_name=it.get("display_name") or it["factor_id"],
+                    description=it.get("description") or "",
+                    category=it.get("category") or "technical",
+                    subcategory=it.get("subcategory") or "composite",
+                    python_code=it["python_code"], confidence=it.get("confidence", 0.5)))
+            return _out
         except json.JSONDecodeError as e:
             logger.warning(f"[AIFactor] LLM JSON 解析失败（已跳过本轮）: {e}")
             return []
