@@ -74,7 +74,15 @@ async function tryRefreshAccessToken(): Promise<"ok" | "invalid" | "network"> {
         body: JSON.stringify({ refresh_token: refresh }),
         signal: ctrl.signal,
       });
-      if (!resp.ok) return "invalid";
+      if (!resp.ok) {
+        // [2026-09-01] 无效 refresh token（被轮换/过期/撤销）→ 立即本地登出：
+        // 旧实现只 return "invalid"，keepalive 回调检查 user&&refreshToken 仍为真
+        // → 每 5s 重新武装 → POST /auth/refresh 401 无限循环（实测 964 次/小时，
+        // 拖慢同页所有请求的 ensureFreshAccessToken 前置）。logout 会
+        // clearTokens + stopAuthKeepalive，终止循环并引导重新登录。
+        void useAuthStore.getState().logout();
+        return "invalid";
+      }
       const data = await resp.json();
       await useAuthStore.getState().applyRefreshedTokens(
         data.access_token,
@@ -284,6 +292,11 @@ export const paperApi = {
 export const liveApi = {
   getAccounts: () => apiRequest<{ accounts: Account[] }>("/live/accounts"),
   getBalance: (accountId: number) => apiRequest<LiveBalance>(`/live/balance/${accountId}`),
+  setMarginType: (accountId: number, symbol: string, margin_type: string) =>
+    apiRequest<any>(`/live/margin-type/${accountId}`, {
+      method: "POST",
+      body: JSON.stringify({ symbol, margin_type }),
+    }),
   getPositions: (accountId: number) => apiRequest<{ positions: LivePosition[] }>(`/live/positions/${accountId}`),
   getOrders: (accountId: number) => apiRequest<{ orders: LiveOrder[] }>(`/live/orders/${accountId}`),
   getAsterdexPoints: (accountId: number) => apiRequest<AsterPointsResponse>(`/live/asterdex/points/${accountId}`),
