@@ -212,8 +212,21 @@ class UnifiedLearningService:
                 )
                 return
 
-            if getattr(outcome, "persist_trade", True):
-                self._persist_strategy_trade(db, outcome)
+            # [2026-09-01 F28 记账去重] paper_outcome_backfill 每 2 分钟全量重扫
+            # 7 天已平仓仓位；旧逻辑只在 StrategyTrade 表内去重（INSERT 跳过），
+            # 学习更新与熔断记账仍每次执行 → 同一平仓单被重复记账/重复学习
+            # （实测 VIRTUAL 熔断计数 962 次"连亏" vs 真实 19 笔、day_pnl -5348
+            #  vs 真实 -5.51，全因每 2 分钟重放 7 天闭仓事件）。
+            # 现在：未真正落新行的 outcome 视为重复，跳过全部学习与记账。
+            _persist = bool(getattr(outcome, "persist_trade", True))
+            _inserted = self._persist_strategy_trade(db, outcome) if _persist else True
+            if _persist and not _inserted:
+                logger.debug(
+                    "[UnifiedLearning] 重复 outcome 跳过学习/记账: %s/%s",
+                    outcome.strategy_id, outcome.symbol,
+                )
+                return
+
             self._update_regime_score(db, outcome, weight)
             self._update_strategy_memory(db, outcome)
             self._track_loss_streak(outcome, db)  # [P1-5] 落库，重启恢复
@@ -262,13 +275,63 @@ class UnifiedLearningService:
             db.commit()
 
             # Fix 7: 短线平仓记录币种熔断追踪（在短线硬闸门生效前提下）
+            # [2026-08-28 实盘零成交修复] 熔断按账户隔离：从 outcome.metadata 取
+            # account_id（paper_trading_engine 已写入），避免全部账户共用同一
+            # symbol 计数器（paper 的 BTC 2913 笔连亏曾把实盘 BTC 一起禁了）。
             try:
                 from backend.services.short_tier_entry_gate import record_short_tier_outcome
                 _is_short = (outcome.tier in ("short",)) or (
                     (outcome.trade_nature or "") in ("scalp", "intraday")
                 )
                 if _is_short and outcome.symbol:
-                    record_short_tier_outcome(outcome.symbol, float(outcome.pnl or 0))
+                    _out_acct = None
+                    try:
+                        _out_meta = outcome.metadata or {}
+                        _out_acct = (
+                            _out_meta.get("account_id")
+                            or _out_meta.get("paper_account_id")
+                            or _out_meta.get("trading_account_id")
+                        )
+                        if _out_acct is not None:
+                            _out_acct = int(_out_acct)
+                    except Exception:
+                        _out_acct = None
+                    record_short_tier_outcome(
+                        outcome.symbol,
+                        # [P1.6] 净口径：毛-费（费拖型小亏不再被当"盈利重置连亏"）
+                        float(outcome.pnl or 0)
+                        - float((outcome.metadata or {}).get("close_fee") or 0),
+                        account_id=_out_acct,
+                    )
+            except Exception:
+                pass
+
+            # [2026-08-29 全面修复 P1.4] mid/long 层熔断记录：连亏熔断 + 单 symbol
+            # 日亏上限（VELVET 两天 54 笔空 -410 的结构性防线）。净盈亏=毛-费，
+            # 费拖型小赢不再被当"盈利重置连亏计数"。
+            try:
+                from backend.services.full_auto.midlong_circuit_gate import (
+                    record_midlong_outcome,
+                )
+                _ml_nature = (outcome.trade_nature or outcome.tier or "").lower()
+                if _ml_nature in ("swing", "trend_follow", "position", "mid", "long") and outcome.symbol:
+                    _ml_acct = None
+                    try:
+                        _ml_meta = outcome.metadata or {}
+                        _ml_acct = (
+                            _ml_meta.get("account_id")
+                            or _ml_meta.get("paper_account_id")
+                            or _ml_meta.get("trading_account_id")
+                        )
+                        if _ml_acct is not None:
+                            _ml_acct = int(_ml_acct)
+                    except Exception:
+                        _ml_acct = None
+                    _ml_net = float(outcome.pnl or 0)
+                    _ml_fee = float((outcome.metadata or {}).get("close_fee") or 0)
+                    record_midlong_outcome(
+                        _ml_acct, outcome.symbol, _ml_net - _ml_fee,
+                    )
             except Exception:
                 pass
 
@@ -484,7 +547,7 @@ class UnifiedLearningService:
                     outcome.strategy_id,
                     outcome.template_id,
                 )
-                return
+                return False
 
             _meta = outcome.metadata if isinstance(outcome.metadata, dict) else {}
 
@@ -510,7 +573,7 @@ class UnifiedLearningService:
                             f"[UnifiedLearning] 跳过重复 StrategyTrade(paper_position_id): "
                             f"{strategy_id}/{outcome.symbol}/pos={_paper_position_id}"
                         )
-                        return
+                        return False
                 except Exception as _pid_dup_err:
                     logger.debug(f"[UnifiedLearning] paper_position_id 去重检查失败(放行): {_pid_dup_err}")
 
@@ -538,7 +601,7 @@ class UnifiedLearningService:
                         f"{strategy_id}/{outcome.symbol}/{outcome.side} "
                         f"entry={_entry} exit={_exit} pnl={_pnl}"
                     )
-                    return
+                    return False
             except Exception as _dup_err:
                 logger.debug(f"[UnifiedLearning] ghost-guard 检查失败(放行): {_dup_err}")
 
@@ -644,6 +707,7 @@ class UnifiedLearningService:
                 f"[UnifiedLearning] StrategyTrade persisted: "
                 f"{strategy_id}/{outcome.symbol} pnl={outcome.pnl:.4f}"
             )
+            return True
         except Exception as e:
             err_text = str(e)
             if "ForeignKeyViolation" in err_text or "strategy_trades_strategy_id_fkey" in err_text:
@@ -656,7 +720,7 @@ class UnifiedLearningService:
                     db.rollback()
                 except Exception:
                     pass
-                return
+                return False
             logger.warning(f"[UnifiedLearning] StrategyTrade 写入失败: {e}")
             try:
                 db.rollback()
