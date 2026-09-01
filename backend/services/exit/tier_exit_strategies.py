@@ -181,8 +181,14 @@ class ShortTierExit(TierExitStrategy):
         try:
             if os.getenv("SCALP_EXIT_FAST_CUT_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"):
                 _fc_min = float(os.getenv("SCALP_EXIT_FAST_CUT_MIN", "15") or 15)
+                # [2026-09-01 短线质量校准] 峰值门槛可调：修复后 44 笔实证
+                # fast_cut(time_decay) 占平仓 64%、全小亏(buy avg -0.32/sell -0.12)，
+                # 而逃过 15 分钟窗口进入 trailing 的仓位 avg +0.50——15 分钟在
+                # ATR 0.6% 的震荡市里把本可发育的仓位过早砍掉。默认放宽到 30 分钟
+                # (.env SCALP_EXIT_FAST_CUT_MIN=30)，峰值门槛保持 0.3% 但可调。
+                _fc_peak = float(os.getenv("SCALP_EXIT_FAST_CUT_PEAK_PCT", "0.3") or 0.3)
                 # 浮盈口径是百分数：0.3 = 0.3%（旧代码误写成 0.003）
-                if (ctx.hold_seconds or 0) >= _fc_min * 60 and (ctx.peak_pnl_pct or 0) < 0.3 and (ctx.unrealized_pnl_pct or 0) < 0.3:
+                if (ctx.hold_seconds or 0) >= _fc_min * 60 and (ctx.peak_pnl_pct or 0) < _fc_peak and (ctx.unrealized_pnl_pct or 0) < _fc_peak:
                     return ExitDecision(
                         position_id=ctx.position_id,
                         action=ExitAction.CLOSE.value, qty_ratio=1.0,
