@@ -322,6 +322,68 @@ class ScalpExecutionGate:
                     symbol, _regime_name,
                 )
 
+        # [2026-09-01 F24 多头镜像条件化] 空头侧自 2026-08-23 起有趋势一致性门
+        # （4h偏空+资金费才放行），多头侧一直"不受任何影响"——该不对称结论
+        # 来自上涨周期样本（short 1250 笔 WR 23.8% vs long +50）。今日下行日
+        # 实测反转为：多头 0/3 全亏(-0.436/笔)，空头 6/15 胜(+0.014/笔)。
+        # 结构性逆风与方向无关：镜像门让多头也要求 4h 偏多（或 24h 上涨动能
+        # 回退），MR 低位低吸豁免；Paper 按分数分档缩仓（保持采样不停止），
+        # Live 全条件硬拦（SCALP_LONG_LIVE_STRICT=false 可回滚分档试探）。
+        if side == "long" and bool(self._cfg("SCALP_LONG_REQUIRES_TREND_UP", True)):
+            _mid_bias_l = str((orch or {}).get("mid_bias") or "neutral").lower()
+            _bias_ok_l = _mid_bias_l == "bullish"
+            _bias_src_l = "thesis"
+            if not _bias_ok_l and _mid_bias_l in ("neutral", "", "none"):
+                try:
+                    _chg24_l = float(market_data.get("price_change_24h_pct") or 0)
+                    _chg1_l = float(market_data.get("price_change_1h_pct") or 0)
+                except Exception:
+                    _chg24_l = _chg1_l = 0.0
+                if _chg24_l >= 0.02 and _chg1_l >= 0.0:
+                    _bias_ok_l = True
+                    _bias_src_l = "rule_fallback"
+            if not _bias_ok_l:
+                if _is_mr_signal:
+                    logger.info(
+                        "[ScalpGate] %s MR多头豁免多头条件化（区间低位低吸不参与趋势博弈）",
+                        symbol,
+                    )
+                elif is_paper:
+                    _long_full = int(self._cfg("SCALP_LONG_PAPER_FULL_MIN", 55) or 55)
+                    _long_esc = int(self._cfg("SCALP_LONG_PAPER_EXEMPT_MIN", 40) or 40)
+                    if effective_score >= _long_full:
+                        logger.info(
+                            "[ScalpGate] %s Paper多头趋势未齐高分放行 score=%d≥%d → 全仓样本",
+                            symbol, effective_score, _long_full,
+                        )
+                    elif effective_score >= _long_esc:
+                        size_mult *= 0.5
+                        logger.info(
+                            "[ScalpGate] %s Paper多头趋势未齐中分 score=%d∈[%d,%d) → 半仓样本",
+                            symbol, effective_score, _long_esc, _long_full,
+                        )
+                    else:
+                        size_mult *= 0.25
+                        logger.info(
+                            "[ScalpGate] %s Paper多头趋势未齐低分 score=%d<%d → 0.25x样本",
+                            symbol, effective_score, _long_esc,
+                        )
+                else:
+                    _long_strict = bool(self._cfg("SCALP_LONG_LIVE_STRICT", True))
+                    if _long_strict:
+                        return GateDecision(
+                            False, lane_id, "hold",
+                            f"多头条件未齐(mid_bias={_mid_bias_l},bias_src={_bias_src_l})"
+                            "——下行周期多头结构性逆风",
+                            effective_score=effective_score,
+                            advisory=advisory,
+                        )
+                    size_mult *= 0.25
+                    logger.info(
+                        "[ScalpGate] %s 实盘多头趋势未齐(bias=%s src=%s) → 0.25x试探",
+                        symbol, _mid_bias_l, _bias_src_l,
+                    )
+
         # Universe动态降级：Live 硬拦新开；Paper 样本期默认缩仓软放行
         # （2026-08-02：PUMP/ZEC/KAITO 降级硬拦是开仓断崖主因之一）。
         try:
