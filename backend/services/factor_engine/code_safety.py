@@ -34,11 +34,29 @@ _SAFE_BUILTINS = frozenset({
 })
 
 
-def _attr_root(node) -> str | None:
-    """取属性链的根 Name（df.rolling → 'df'；a.b.c → 'a'）。"""
+def _attr_root_ok(node) -> bool:
+    """属性链根是否安全。
+
+    [2026-09-01 F30] 除原白名单外，允许**小写标识符**作为链根：本地 14B 模型
+    天然写法是 `x = data['close'].pct_change(5); x.rolling(3).mean()`，旧白名单
+    只认 data/np/pd/self 等 → 中间变量方法链全拒（实测 ai_gen 候选 100% 被拒）。
+    安全性论证：因子方法体禁止 import（Import 节点直接拒），模板头只注入
+    pandas/numpy 与 data/self，方法体内可达对象只剩这些白名单对象与 LLM 自己的
+    中间 Series/DataFrame —— 小写根没有可达的危险对象；真正的防线（禁 import、
+    禁 dunder、内建函数白名单）全部保留。大写根（潜在类/模块走私）仍拒。
+    """
+    root = None
     while isinstance(node, ast.Attribute):
         node = node.value
-    return node.id if isinstance(node, ast.Name) else None
+    if isinstance(node, ast.Name):
+        root = node.id
+    if root is None:
+        return True
+    if root in _SAFE_ATTR_ROOTS:
+        return True
+    if root.islower() and root.isidentifier():
+        return True
+    return False
 
 
 def ast_whitelist_check(code: str) -> Tuple[bool, str]:
@@ -53,17 +71,15 @@ def ast_whitelist_check(code: str) -> Tuple[bool, str]:
         if isinstance(node, ast.Attribute):
             if node.attr.startswith("__"):
                 return False, f"禁止 dunder 属性访问: .{node.attr}"
-            root = _attr_root(node)
-            if root is not None and root not in _SAFE_ATTR_ROOTS:
-                return False, f"属性链根不在白名单: {root}."
+            if not _attr_root_ok(node):
+                return False, f"属性链根不在白名单: {node.value}."
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
                 if node.func.id not in _SAFE_BUILTINS:
                     return False, f"全局函数不在白名单: {node.func.id}()"
             elif isinstance(node.func, ast.Attribute):
-                root = _attr_root(node.func)
-                if root is not None and root not in _SAFE_ATTR_ROOTS:
-                    return False, f"方法调用根不在白名单: {root}."
+                if not _attr_root_ok(node.func):
+                    return False, f"方法调用根不在白名单: {node.func}."
         if isinstance(node, ast.Name):
             if node.id.startswith("__"):
                 return False, f"禁止 dunder 命名: {node.id}"
