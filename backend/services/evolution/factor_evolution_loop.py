@@ -2928,6 +2928,18 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         if not quick:
             # M5 WFO 门禁：样本外滚动验证不通过则不晋升
             # 异常默认 fail-closed（FACTOR_EVO_GATE_FAIL_CLOSED=1）
+            # [2026-09-02 F36b] 尊重 FEATURE_WFO_GATE_ENABLED 开关：.env 已置
+            # false（注释明确"WFO 多币验证误杀；PAPER 影子期自身有 OOS 验证"），
+            # 但旧代码在进化主链从未读取该开关 → 开关形同虚设、误杀持续。
+            _wfo_gate_on = (
+                (_os_window.getenv("FEATURE_WFO_GATE_ENABLED", "true") or "true")
+                .strip().lower() in ("1", "true", "yes", "on")
+            )
+            if not _wfo_gate_on:
+                logger.info(
+                    "[FactorEvo] WFO 门禁已关闭(FEATURE_WFO_GATE_ENABLED=false)，"
+                    "晋升交由 PAPER 影子期 OOS 复检兜底"
+                )
             _wfo_freq = {
                 "1m": "1min", "3m": "3min", "5m": "5min", "15m": "15min",
                 "30m": "30min", "1h": "1h", "4h": "4h", "1d": "1d",
@@ -2952,16 +2964,20 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                     )
                 except (TypeError, ValueError):
                     _wfo_min_ratio = 0.667
-                _wfo_symbols = list((dfs or {}).keys())
+                _wfo_symbols = list((dfs or {}).keys()) if _wfo_gate_on else []
                 try:
                     _wfo_max_syms = int(_os_window.getenv("FACTOR_EVO_WFO_SYMBOLS", "0") or 0)
                 except (TypeError, ValueError):
                     _wfo_max_syms = 0
                 if _wfo_max_syms > 0:
                     _wfo_symbols = _wfo_symbols[:_wfo_max_syms]
-                if not _wfo_symbols:
+                if not _wfo_symbols and _wfo_gate_on:
                     raise RuntimeError("WFO 面板为空：无 symbol 可验证")
                 for p in promoted:
+                    if not _wfo_gate_on:
+                        # [2026-09-02 F36b] 门禁关闭直通：PAPER 影子期 OOS 复检兜底
+                        _wfo_kept.append(p)
+                        continue
                     # [2026-09-02 F36] expr 取用链加固 + 跳过原因可见化。
                     # 此前 p.get("expr") 常为 None 且 eval_results 回退键不匹配时，
                     # run_factor_wfo_ic 收到 None → 每窗 evaluate 异常被吞 →
