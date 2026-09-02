@@ -2962,7 +2962,30 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                 if not _wfo_symbols:
                     raise RuntimeError("WFO 面板为空：无 symbol 可验证")
                 for p in promoted:
+                    # [2026-09-02 F36] expr 取用链加固 + 跳过原因可见化。
+                    # 此前 p.get("expr") 常为 None 且 eval_results 回退键不匹配时，
+                    # run_factor_wfo_ic 收到 None → 每窗 evaluate 异常被吞 →
+                    # windows=0 → "oos_ic=None" 系统性跳过，9 币全拒但原因不可见
+                    # （实测 09-02 03:00 4h 档 3 个 gate_pass 因子 ICIR 1.3+ 全灭）。
+                    # 现在：expr 缺失时用 expr_ast 重新 parse；并把 IC-WFO 的真实
+                    # 跳过原因写进拒绝明细，不再吞掉。
                     _expr = p.get("expr") or (eval_results.get(p["factor_id"], {}) or {}).get("expr")
+                    if _expr is None:
+                        _ast = p.get("expr_ast")
+                        if _ast:
+                            try:
+                                from backend.services.factor_engine.expr.parser import parse as _parse_dsl
+                                _expr = _parse_dsl(_ast)
+                            except Exception:
+                                _expr = None
+                    if _expr is None:
+                        _fail_reasons_all = ["expr_missing(无表达式可用)"]
+                        _log_evolution(
+                            p["factor_id"], "wfo", source=p.get("source"),
+                            action="wfo_error_fail_closed",
+                            reason="expr_missing", metrics={"pass": 0, "fail": 1},
+                        )
+                        continue
                     _n_pass = 0
                     _n_fail = 0
                     _fail_reasons: list[str] = []
@@ -3006,9 +3029,12 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                             continue
                         if not _ic_res.get("passed", True):
                             _n_fail += 1
+                            # [2026-09-02 F36] 把 IC-WFO 的真实跳过原因带出来
+                            _ic_skip = str(_ic_res.get("reason") or "")
                             _fail_reasons.append(
                                 f"{_sym}:wfo_ic_reject:oos_ic={_ic_res.get('oos_ic_mean')}"
                                 f"/p={_ic_res.get('oos_ic_p')}/decay={_ic_res.get('decay_rate')}"
+                                f"{(' skip=' + _ic_skip) if _ic_skip else ''}"
                             )
                             _ic_reject_reason = (
                                 f"OOS IC 均值 {_ic_res.get('oos_ic_mean')} / "
