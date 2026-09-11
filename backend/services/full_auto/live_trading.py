@@ -134,20 +134,27 @@ def _rest_account_snapshot_direct(account_id: int) -> dict:
             return {}
 
         async def _run():
-            bal, pos = await _aio.gather(
-                _aio.wait_for(client.get_balance(), timeout=20),
-                _aio.wait_for(client.get_positions(), timeout=20),
-                return_exceptions=True,
-            )
-            return bal, pos
+            # [2026-09-11 修复] close 必须在与请求同一个 event loop 内执行：
+            # 旧实现 bal/pos 与 close 分属两个 asyncio.run，aiohttp 会话绑定在
+            # 第一个 loop，第二个 loop 的 close 清理不到 → 每轮权益检查泄漏
+            # 一个 session（backend.error.log "Unclosed client session" 刷屏）。
+            try:
+                bal, pos = await _aio.gather(
+                    _aio.wait_for(client.get_balance(), timeout=20),
+                    _aio.wait_for(client.get_positions(), timeout=20),
+                    return_exceptions=True,
+                )
+                return bal, pos
+            finally:
+                try:
+                    await _aio.wait_for(client.close(), timeout=5)
+                except Exception:
+                    pass
 
         try:
             bal, pos = _aio.run(_run())
-        finally:
-            try:
-                _aio.run(_aio.wait_for(client.close(), timeout=5))
-            except Exception:
-                pass
+        except Exception:
+            bal, pos = None, None
         if isinstance(bal, BaseException) or isinstance(pos, BaseException):
             return {}
         out = {

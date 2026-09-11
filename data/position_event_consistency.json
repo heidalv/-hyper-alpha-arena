@@ -1,7 +1,7 @@
 {
-  "n": 193,
+  "n": 192,
   "mismatch_n": 104,
-  "mismatch_rate": 0.539,
+  "mismatch_rate": 0.542,
   "over_max_n": 23,
   "max_reduce_max": 3,
   "missing_final_n": 0,
@@ -52,7 +52,7 @@
     {
       "name": "reduce_count 与减仓事件数一致率 ≥95%",
       "ok": false,
-      "detail": "不一致 104/193"
+      "detail": "不一致 104/192"
     },
     {
       "name": "无仓位超过单仓减仓上限",
@@ -65,6 +65,6 @@
       "detail": "缺终局事件 0 笔"
     }
   ],
-  "generated_at": "2026-09-11T13:36:12.067790+00:00",
+  "generated_at": "2026-09-11T14:17:05.645584+00:00",
   "days": 30
 }

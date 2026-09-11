@@ -59,15 +59,25 @@ def get_live_equity(account, trading_acct_id) -> float:
             market_type=getattr(account, "binance_market_type", None) or "usdt_m",
         )
         if client is not None:
-            try:
-                bal = asyncio.run(client.get_balance())
-            finally:
+            # [2026-09-11 修复] 旧实现 get_balance 与 close 分属两个 asyncio.run：
+            # aiohttp 会话绑定在第一个 loop，第二个 loop 里 close 清理不到 →
+            # 每次权益兜底泄漏一个 session（backend.error.log 每 30-45s 一轮
+            # "Unclosed client session"）。改为单 loop 内 finally close。
+            async def _run():
                 try:
-                    _raw = getattr(client, "_exchange", None)
-                    if _raw is not None and hasattr(_raw, "close"):
-                        asyncio.run(_raw.close())
-                except Exception:
-                    pass
+                    return await client.get_balance()
+                finally:
+                    try:
+                        _raw = getattr(client, "_exchange", None)
+                        if _raw is not None and hasattr(_raw, "close"):
+                            await _raw.close()
+                    except Exception:
+                        pass
+
+            try:
+                bal = asyncio.run(_run())
+            except Exception:
+                bal = None
             eq = float(getattr(bal, "total_equity", 0) or 0)
             if eq > 0:
                 return eq
