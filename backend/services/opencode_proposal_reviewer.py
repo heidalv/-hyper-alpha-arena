@@ -181,6 +181,28 @@ def validate_patches_hard(patches: List[Dict[str, Any]]) -> Tuple[bool, List[str
                     f"patch[{i}] {key} delta {delta:.1%} exceeds ��{max_delta:.0%}"
                 )
 
+        # [2026-09-11 F38t] schema 边界硬校验：此前只有 ±20% 步长检查，连续小步提案
+        # 可"棘轮"压到 schema 下限附近（实测 opencode #632 将 max_daily_trades 4.0→3.2，
+        # 日开 3 笔掐断 paper 样本管线）。schema min/max 是唯一权威边界，
+        # 越界即拒绝（宁可拒掉也不静默钳制，保证提案链路可观测）。
+        try:
+            from backend.services.runtime_tuning_store import _DEFAULT_SCHEMA
+            _sch = _DEFAULT_SCHEMA.get(key)
+            if isinstance(_sch, dict) and "value" in _sch:
+                _lo = float(_sch.get("min", -1e18))
+                _hi = float(_sch.get("max", 1e18))
+                _v = float(val)
+                if _v < _lo:
+                    errors.append(
+                        f"patch[{i}] {key} value {val} below schema min {_lo:g} (paper sample pipeline floor)"
+                    )
+                elif _v > _hi:
+                    errors.append(
+                        f"patch[{i}] {key} value {val} above schema max {_hi:g}"
+                    )
+        except Exception:
+            pass
+
     return len(errors) == 0, errors
 
 

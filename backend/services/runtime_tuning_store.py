@@ -45,7 +45,11 @@ _DEFAULT_SCHEMA: Dict[str, Any] = {
         "short": 0.02, "mid": 0.04, "long": 0.07,
     },
     "tier_max_hold_sec": {"short": 2700, "mid": 172800, "long": 604800},  # [2026-08-23 改造A] short 7200→2700（45min，对齐信号边际，浮盈续命见 paper_trading_engine）
-    "max_daily_trades": {"value": 12, "min": 3, "max": 20},
+    # [2026-09-11 F38t] min 3→10：用户定调「模拟盘=收集数据、不做亏损冻结」。
+    # 此前 min=3 允许连续 ±20% 小步提案（opencode #632 实测 4.0→3.2）棘轮式压到
+    # 下限附近，日开 3 笔直接掐断 paper 样本管线。min=10 是所有写入路径
+    # （governor reconcile / 前端 / 直接 patch）的中央钳制；实盘走 live_daily_cap，不受影响。
+    "max_daily_trades": {"value": 12, "min": 10, "max": 20},
     # 日开仓总基数（旧版共享基数，已被 scalp/trend 独立配额取代，保留键供回退/兼容）
     "daily_cap_base": {"value": 120, "min": 10, "max": 300},
     # 各 tier 独立日开仓配额（2026-07-23 改造：替代共享 base × 比例分配）。
