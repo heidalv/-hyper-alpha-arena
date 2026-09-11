@@ -314,10 +314,19 @@ async def get_risk_monitor_status():
         from backend.services.risk_control_service import get_risk_control_service
         status = liquidation_monitor.get_status()
         svc = get_risk_control_service()
+        # [2026-09-12 F38w] 显示口径与生效口径一致：日交易主门读
+        # runtime_tuning.max_daily_trades（单一来源），config.max_daily_trades 只是
+        # 兜底默认值（50）。此前面板显示 50、实际按 20 拦单——运维会被误导。
+        _max_daily_trades = svc.config.max_daily_trades
+        try:
+            from backend.services.runtime_tuning_store import get_tuning_int
+            _max_daily_trades = get_tuning_int("max_daily_trades", int(svc.config.max_daily_trades))
+        except Exception:
+            pass
         return {
             "liquidation_monitor": status,
             "risk_config": {
-                "max_daily_trades": svc.config.max_daily_trades,
+                "max_daily_trades": _max_daily_trades,
                 "max_position_per_trade_ratio": svc.config.max_position_per_trade_ratio,
                 "max_leverage": svc.config.max_leverage,
                 "consecutive_loss_pause_threshold": svc.config.consecutive_loss_pause_threshold,
