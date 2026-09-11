@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789136435962,
+  "ts_ms": 1789136838561,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 721,
+    "n": 722,
     "n_scored": 540,
     "avg_score": 0.9851851851851852,
     "avg_brier": 0.11892674629629664,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 721,
+        "n": 722,
         "n_scored": 540,
         "avg_score": 0.9851851851851852,
         "avg_brier": 0.11892674629629664,
-        "last_ms": 1789136014349
+        "last_ms": 1789136466261
       }
     ],
     "verdict": {
@@ -48,20 +48,20 @@
     "channels": {
       "price": {
         "score": 0.084,
-        "ret_1h_pct": 0.464,
-        "ret_4h_pct": 2.666,
-        "ret_24h_pct": 2.154,
+        "ret_1h_pct": 0.385,
+        "ret_4h_pct": 2.585,
+        "ret_24h_pct": 2.074,
         "drawdown_24h_pct": 1.008,
-        "ret_zscore": 1.619,
+        "ret_zscore": 1.346,
         "n_bars": 168
       },
       "volume": {
-        "score": 0.3459,
-        "peak_abs_z": 3.365,
+        "score": 0.9081,
+        "peak_abs_z": 4.77,
         "n_symbols": 8,
         "by_symbol": {
-          "BTC": 2.245,
-          "ETH": 3.365,
+          "BTC": 2.878,
+          "ETH": 4.77,
           "SOL": 2.423,
           "BNB": 1.107,
           "XRP": 3.119,
@@ -72,7 +72,7 @@
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 1.312,
+        "peak_abs_z": 1.892,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -85,64 +85,64 @@
         ],
         "by_symbol": {
           "AVAX": {
-            "z": 0.158,
-            "latest_8h_pct": 0.0064,
+            "z": 0.066,
+            "latest_8h_pct": 0.0058,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BNB": {
-            "z": -0.535,
-            "latest_8h_pct": 0.0,
+            "z": -0.78,
+            "latest_8h_pct": -0.0029,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": 0.05,
-            "latest_8h_pct": 0.0055,
+            "z": -0.7,
+            "latest_8h_pct": 0.0022,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": -0.072,
-            "latest_8h_pct": 0.007,
+            "z": -1.892,
+            "latest_8h_pct": -0.0017,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": 0.342,
-            "latest_8h_pct": 0.0074,
+            "z": 0.357,
+            "latest_8h_pct": 0.0075,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": -1.312,
-            "latest_8h_pct": -0.0014,
+            "z": -1.231,
+            "latest_8h_pct": -0.0009,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "SOL": {
-            "z": 0.303,
-            "latest_8h_pct": 0.0039,
+            "z": 0.205,
+            "latest_8h_pct": 0.0032,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "XRP": {
-            "z": 0.443,
-            "latest_8h_pct": 0.0079,
+            "z": -0.647,
+            "latest_8h_pct": 0.0012,
             "cusum": {
               "detected": true,
               "direction": -1
@@ -190,13 +190,13 @@
       },
       "liquidation": {
         "score": 1.0,
-        "latest_hour_usd": 35164390.01,
+        "latest_hour_usd": 35164737.23,
         "median_hour_usd": 974387.05,
         "zscore": 9.431,
         "cusum": {
           "detected": true,
           "direction": 1,
-          "s_pos": 11.412,
+          "s_pos": 11.411,
           "s_neg": 0.0,
           "h": 5.0,
           "k": 0.5,
@@ -209,23 +209,23 @@
         "stale_sources": [
           {
             "source": "binance_ann",
-            "age_h": 32.34
+            "age_h": 32.45
           },
           {
             "source": "bybit_ann",
-            "age_h": 6.67
+            "age_h": 6.79
           },
           {
             "source": "liq_ws",
-            "age_h": 16.59
+            "age_h": 16.7
           },
           {
             "source": "okx_ann",
-            "age_h": 8.84
+            "age_h": 8.95
           },
           {
             "source": "whale_activities",
-            "age_h": 11.23
+            "age_h": 11.34
           }
         ],
         "n_sources": 12,
@@ -234,11 +234,11 @@
         "stale_threshold_h": 6.0
       }
     },
-    "stress_score": 0.5784,
+    "stress_score": 0.6458,
     "channel_coverage": 1.0,
     "hard_triggers": [],
     "suggested_state": "reducing",
-    "suggest_reason": "stress=0.58 ≥ 0.55",
+    "suggest_reason": "stress=0.65 ≥ 0.55",
     "current_state": "active",
     "thresholds": {
       "reduce": 0.55,
@@ -247,14 +247,83 @@
       "crash_4h_pct": 12.0
     },
     "llm": {
-      "accepted": false,
-      "consensus_score": 0.41,
-      "run_id": "491bbd2e168a41748dda4a7e1b6458a3",
-      "final": null
+      "accepted": true,
+      "consensus_score": 0.846,
+      "run_id": "c1c5e899cef24b449af563b358b43260",
+      "final": {
+        "direction": "bearish",
+        "strength": 5.5,
+        "confidence": 0.66,
+        "root_causes": [
+          {
+            "channel": "liquidation",
+            "cause": "过去一小时爆仓金额达3516万美元，为小时中位数97.4万美元的36倍，z-score=9.43且CUSUM单边正向漂移(s_pos=11.41)，表明出现集中强制去杠杆事件",
+            "evidence": "latest_hour_usd=35164737.23, median_hour_usd=974387.05, zscore=9.431, cusum.detected=true, direction=1"
+          },
+          {
+            "channel": "open_interest",
+            "cause": "ETH OI z-score达6.03、XRP达5.19，AVAX/BTC也均>2，OI绝对水平显著偏离常态，配合爆仓飙升说明多头头寸被快速削减",
+            "evidence": "ETH z=6.03, XRP z=5.191, AVAX z=2.185, BTC z=2.419, DOGE z=-1.833"
+          },
+          {
+            "channel": "funding",
+            "cause": "DOGE funding z=-1.892、ETH latest_8h_pct=+0.75%但CUSUM同向负漂移，叠加LINK/SOL/AVAX/BNB等CUSUM负向漂移，反映空头拥挤且部分品种费率已转负",
+            "evidence": "DOGE z=-1.892, ETH 8h=+0.75%但cusum.direction=-1, LINK cusum.direction=+1(脱离负向), 其余6币cusum.direction=-1"
+          },
+          {
+            "channel": "volume",
+            "cause": "ETH成交量z=4.77、XRP=3.119、SOL=2.423放量同步，量能集中在价格下跌方向（结合OI下降与爆仓）",
+            "evidence": "ETH z=4.77, XRP z=3.119, SOL z=2.423, peak_abs_z=4.77"
+          },
+          {
+            "channel": "open_interest",
+            "cause": "杠杆仓位在部分品种上极端堆积，是本轮压力的核心驱动",
+            "evidence": "score=1.0，peak_abs_z=6.03；ETH z=6.03、XRP z=5.191、BTC z=2.419、AVAX z=2.185，而价格通道 score 仅 0.084、ret_zscore=1.346，说明异常源于持仓而非价格突破"
+          },
+          {
+            "channel": "liquidation",
+            "cause": "去杠杆清算级联正在进行，疑似高位多头被冲洗",
+            "evidence": "latest_hour_usd=35164737 约为中位数 974387 的 36 倍，zscore=9.431，cusum 检出 direction=+1 且 s_pos=11.411 远超阈值 h=5.0"
+          },
+          {
+            "channel": "funding",
+            "cause": "资金费率全市场出现向下漂移的机制转换，多头付费压力消退、空头资金流入迹象，与去杠杆过程一致",
+            "evidence": "8/8 品种 cusum detected，其中 6/8 direction=-1（AVAX/BNB/BTC/DOGE/ETH/XRP），DOGE z=-1.892 为峰值，且 DOGE 的 OI z=-1.833 显示该品种已先行完成去杠杆"
+          },
+          {
+            "channel": "volume",
+            "cause": "成交量在主流币上同步放大，证实清算/OI 异常是真实的市场事件流而非单一数据毛刺",
+            "evidence": "score=0.9081，peak_abs_z=4.77；ETH 4.77、XRP 3.119、BTC 2.878、SOL 2.423 多品种同向放量"
+          }
+        ],
+        "counter_scenarios": [
+          "若爆仓主为空头爆仓（short squeeze）则方向应看涨，但CUSUM s_neg=0.0、s_pos远高于零，且funding多数品种为负或CUSUM负漂移，与多头被清算的特征更一致，但需警惕ETH funding 8h仍为正(0.75%)说明局部存在多空混爆",
+          "若爆仓来源为单一大户主动平仓（非被动强平），OI下降并不代表看跌趋势，可能只是头寸再平衡",
+          "freshness显示binance_ann已陈旧32.45小时、failing_jobs=8/44，数据缺失可能使OI/爆仓读数偏低，实际风险更高或更低均有可能",
+          "价格通道ret_zscore=1.346、ret_24h=+2.07%显示价格仍在上涨，若爆仓源自交易所合约机制或链上事件驱动，短期可能出现技术性反弹后再下行",
+          "清算多空构成未知：若 3516 万美元清算以空头为主（逼空行情），则价格 4h +2.585% 属挤压式上行，趋势延续概率更高，reducing 会踏空上涨",
+          "liq_ws 数据源已 stale 16.7 小时，且 freshness 显示 8/44 任务失败，清算尖峰可能来自断线后的批量回补/重复计数，z=9.431 或被数据问题夸大，reducing 可能是对脏数据的过度反应",
+          "funding 的 8/8 cusum 同时检出但 |z| 均不超过 1.892，如此整齐的全市场同向漂移也可能是资金费率基线/统计口径变更造成的假阳性，而非真实持仓转换",
+          "DOGE 已率先完成去杠杆（OI 与 funding 双负），若本轮冲洗局限于 ETH/XRP 的局部事件，未必演化为全市场级联，reducing 的必要性下降"
+        ],
+        "key_factors": [
+          "爆仓z-score 9.43与CUSUM正向漂移s_pos=11.41",
+          "ETH/XRP OI z>5",
+          "DOGE funding z=-1.892，多数币种CUSUM负漂移",
+          "ETH成交量z=4.77与爆仓同步",
+          "数据源陈旧与失败任务较多(binance_ann 32.45h, 8/44 jobs failing)",
+          "OI 极端值集中于 ETH(z=6.03) 与 XRP(z=5.191)，风险呈结构性集中而非普涨",
+          "清算小时金额达中位数约 36 倍，cusum s_pos=11.411 表明级联已持续多于一小时",
+          "资金费率方向漂移（6/8 为 -1）与 OI 堆积并存的组合是典型的高位脆弱结构",
+          "价格通道异常分最低（0.084），压力主要由持仓端而非行情端贡献",
+          "数据面降级：liq_ws 停更 16.7h、binance_ann 停更 32.45h、8/44 任务失败，清算与公告类证据可信度打折"
+        ],
+        "summary": "合成stress=0.646、建议reducing。最强信号来自清算通道：单小时爆仓3516万美元（z=9.43）伴随OI显著回落（ETH z=6.03、XRP z=5.19、AVAX/BTC>2），funding侧多数品种CUSUM负漂移且DOGE funding z=-1.892，量能在ETH/XRP/SOL同步放大，整体指向一次由多头拥挤头寸被强制去杠杆触发的下跌冲击，方向判断为bearish、强度6、置信度0.72。需注意：DOGE OI为负、ETH funding仍为正提示多空混爆可能；failing_jobs=8/44及binance_ann陈旧32.45小时使读数可能偏低或失真，建议在数据完整性恢复前保守降仓，避免将技术性反弹误判为趋势反转。"
+      }
     }
   },
   "predictions": [
-    "70ae65df4c8246a083abd40bc98d7881"
+    "98ee0539461c4f06b7b6aaa16bd855f7"
   ],
   "advice": [
     {
@@ -262,12 +331,12 @@
       "target": "reducing",
       "params": {
         "state": "reducing",
-        "stress_score": 0.5784,
+        "stress_score": 0.6458,
         "hard_triggers": [],
         "current_state": "active",
         "requires_confirmation": "双模型或规则确认（方案第七节）"
       },
-      "reason": "stress=0.58 ≥ 0.55",
+      "reason": "stress=0.65 ≥ 0.55",
       "severity": 3,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -275,7 +344,7 @@
   ],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 30.398,
+  "elapsed_sec": 123.351,
   "latest_path": null,
   "dry_run": false
 }

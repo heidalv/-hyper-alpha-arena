@@ -104,7 +104,17 @@ def _fetch_klines_from_adapter(exchange: str, symbol: str, period: str, count: i
     from backend.services.market_data_adapters.registry import exchange_adapter_registry
 
     async def _fetch():
-        return await exchange_adapter_registry.get_klines(exchange, symbol, period, limit=count)
+        # [2026-09-11 修复] 缓存的异步适配器跨 asyncio.run 复用会为每个新 loop
+        # 创建一个永不关闭的 aiohttp 会话（coordinator 兜底 K 线路径每 30-60s
+        # 一轮 "Unclosed client session" 的主源）。本函数每次都在自己的 loop 里
+        # 用完即 close_all（含 clear）——下一次调用重建客户端绑定到新 loop。
+        try:
+            return await exchange_adapter_registry.get_klines(exchange, symbol, period, limit=count)
+        finally:
+            try:
+                await exchange_adapter_registry.close_all()
+            except Exception:
+                pass
 
     try:
         try:
