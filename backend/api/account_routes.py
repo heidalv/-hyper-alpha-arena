@@ -134,14 +134,29 @@ def _binance_live_balance(account, blocking: bool = True) -> Optional[tuple]:
             return None
         try:
             market_type = getattr(account, "binance_market_type", None) or "usdt_m"
-            # [2026-08-28 修复] 凭证绑定账户后必须按 account_id 查找（账户级凭证优先）
-            client = get_exchange_manager().get_or_create_global_client(
+            # [2026-09-12 F38u 泄漏根治] 旧实现 get_or_create_global_client（共享缓存
+            # 客户端）+ asyncio.run 每次新建 event loop：_ensure_loop 检测到跨 loop
+            # 复用就重建 ccxt 实例，旧实例（带活跃 aiohttp 会话）被弃置不 close，
+            # 预热线程每 30s 一轮 → "Unclosed client session" 每 ~40s 一条。
+            # 改为 create_fresh_client（每次新建）+ 与请求同 loop 内 close（与
+            # live_trading._rest_account_snapshot_direct / F38o-r 同款根治）。
+            client = get_exchange_manager().create_fresh_client(
                 "binance", user_id=account.user_id or 1, account_id=account.id,
                 market_type=market_type,
             )
             if client is None:
                 return None
-            bal = _ai.run(client.get_balance())
+
+            async def _fetch_balance():
+                try:
+                    return await _ai.wait_for(client.get_balance(), timeout=20)
+                finally:
+                    try:
+                        await _ai.wait_for(client.close(), timeout=5)
+                    except Exception:
+                        pass
+
+            bal = _ai.run(_fetch_balance())
             equity = float(getattr(bal, "total_equity", 0) or 0)
             available = float(getattr(bal, "available_balance", 0) or 0)
             if equity <= 0 and available <= 0:
