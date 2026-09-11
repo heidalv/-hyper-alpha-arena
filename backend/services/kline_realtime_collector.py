@@ -1055,6 +1055,48 @@ class KlineRealtimeCollector:
                                 out.append(_su)
         except Exception as e:
             logger.debug("[P1-Watch] ai_coin 候选并入观察名单失败(fail-open): %s", e)
+        # [2026-09-12 F38y] 会话 AI 选币池 + midlong 看板 approve 候选并入观察名单。
+        # 起因：AVAX/INJ 是 midlong 看板 approve 候选（coin_select_candidates 表），
+        # 观察名单只并 env / 用户固定对 / ai_coin_unified 动态文件——候选被 sticky 后
+        # 动态文件清空，观察名单丢失该币 → AVAX/4h 陈旧 2.7 天 → trade 用途
+        # fail-closed，"AI 选得出币、中线下不了单"复现。
+        try:
+            import json as _json2
+            from sqlalchemy import text as _sa_text2
+            from backend.database.connection import SessionLocal as _SL2
+            from backend.database.models import FullAutoSession as _FAS2
+
+            _db2 = _SL2()
+            try:
+                _rows2 = _db2.query(_FAS2).filter(
+                    _FAS2.status.in_(["running", "defensive", "paused"])
+                ).all()
+                for _row2 in _rows2:
+                    _vals2 = getattr(_row2, "auto_coin_symbols", None) or []
+                    if isinstance(_vals2, str):
+                        try:
+                            _vals2 = _json2.loads(_vals2) or []
+                        except Exception:
+                            _vals2 = []
+                    for _s2 in _vals2:
+                        _su2 = normalize_symbol(str(_s2))
+                        if _su2 and _su2 not in out:
+                            out.append(_su2)
+                # midlong 看板 approve 候选（与选择器同口径：listed+approve+min_conf 0.4）
+                _bd = _db2.execute(_sa_text2(
+                    "SELECT DISTINCT symbol FROM coin_select_candidates "
+                    "WHERE listed IS TRUE AND horizon = 'midlong' "
+                    "AND lower(ai_verdict) = 'approve' AND COALESCE(confidence, 0) >= 0.4 "
+                    "ORDER BY symbol"
+                )).fetchall()
+                for _r3 in _bd:
+                    _su3 = normalize_symbol(str(_r3[0]))
+                    if _su3 and _su3 not in out:
+                        out.append(_su3)
+            finally:
+                _db2.close()
+        except Exception as e:
+            logger.debug("[P1-Watch] 会话选币池/看板候选并入观察名单失败(fail-open): %s", e)
         return out
 
     def _p1_all_periods(self) -> List[str]:
