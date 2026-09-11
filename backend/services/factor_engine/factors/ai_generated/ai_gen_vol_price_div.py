@@ -1,4 +1,4 @@
-"""AI因子: 量价背离因子 | 置信:55% | 价格上行但成交量萎缩(量价背离)预示动能衰竭，价格下行但缩量则抛压减轻。用价格动量与成交量动量的标准化差刻画背离强度，反向预测未来收益。"""
+"""AI因子: 量价背离 | 置信:50% | 价格短期涨幅与成交量变化方向背离时提示反转：价升量缩为负信号，价跌量增为承接正信号，用收益与量变的符号差异构造背离因子。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,14 +7,14 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class VolumePriceDivergence(BaseFactor):
-    """价格上行但成交量萎缩(量价背离)预示动能衰竭，价格下行但缩量则抛压减轻。用价格动量与成交量动量的标准化差刻画背离强度，反向预测未来收益。"""
+    """价格短期涨幅与成交量变化方向背离时提示反转：价升量缩为负信号，价跌量增为承接正信号，用收益与量变的符号差异构造背离因子。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_vol_price_div",
             name="Volume Price Divergence",
-            display_name="量价背离因子",
-            description="价格上行但成交量萎缩(量价背离)预示动能衰竭，价格下行但缩量则抛压减轻。用价格动量与成交量动量的标准化差刻画背离强度，反向预测未来收益。",
+            display_name="量价背离",
+            description="价格短期涨幅与成交量变化方向背离时提示反转：价升量缩为负信号，价跌量增为承接正信号，用收益与量变的符号差异构造背离因子。",
             category="technical",
             subcategory="volume",
             version="1.0.0-ai",
@@ -23,7 +23,6 @@ class VolumePriceDivergence(BaseFactor):
 
     def calculate(self, data):
         ret = data['close'].pct_change(5)
-        vret = data['volume'].pct_change(5)
-        vstd = data['volume'].pct_change().rolling(20).std() + 1e-9
-        result = (-(ret - vret / vstd)).clip(-1, 1)
+        volchg = data['volume'].pct_change(5)
+        result = (np.sign(ret) * np.sign(volchg) * ret.abs()).clip(-1, 1)
         return result

@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789137577594,
+  "ts_ms": 1789138807627,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 723,
+    "n": 724,
     "n_scored": 540,
     "avg_score": 0.9851851851851852,
     "avg_brier": 0.11892674629629664,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 723,
+        "n": 724,
         "n_scored": 540,
         "avg_score": 0.9851851851851852,
         "avg_brier": 0.11892674629629664,
-        "last_ms": 1789136961905
+        "last_ms": 1789137799188
       }
     ],
     "verdict": {
@@ -48,31 +48,31 @@
     "channels": {
       "price": {
         "score": 0.084,
-        "ret_1h_pct": 0.324,
-        "ret_4h_pct": 2.523,
-        "ret_24h_pct": 2.012,
+        "ret_1h_pct": -0.128,
+        "ret_4h_pct": 2.061,
+        "ret_24h_pct": 1.552,
         "drawdown_24h_pct": 1.008,
-        "ret_zscore": 1.135,
-        "n_bars": 168
+        "ret_zscore": -0.419,
+        "n_bars": 167
       },
       "volume": {
-        "score": 0.9081,
-        "peak_abs_z": 4.77,
+        "score": 1.0,
+        "peak_abs_z": 7.341,
         "n_symbols": 8,
         "by_symbol": {
-          "BTC": 3.404,
-          "ETH": 4.77,
-          "SOL": 2.423,
-          "BNB": 1.107,
-          "XRP": 3.119,
-          "DOGE": -0.455,
-          "LINK": 0.66,
-          "AVAX": -1.284
+          "BTC": 4.693,
+          "ETH": 7.113,
+          "SOL": 5.484,
+          "BNB": 2.977,
+          "XRP": 7.341,
+          "DOGE": -0.45,
+          "LINK": 0.658,
+          "AVAX": -1.282
         }
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 1.698,
+        "peak_abs_z": 0.855,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -85,64 +85,64 @@
         ],
         "by_symbol": {
           "AVAX": {
-            "z": 0.757,
-            "latest_8h_pct": 0.01,
+            "z": -0.597,
+            "latest_8h_pct": 0.0018,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BNB": {
-            "z": -0.534,
-            "latest_8h_pct": 0.0,
+            "z": -0.855,
+            "latest_8h_pct": -0.0038,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": -0.813,
-            "latest_8h_pct": 0.0017,
+            "z": 0.179,
+            "latest_8h_pct": 0.0061,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": -1.698,
-            "latest_8h_pct": -0.0008,
+            "z": -0.569,
+            "latest_8h_pct": 0.0046,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": 0.689,
-            "latest_8h_pct": 0.0092,
+            "z": 0.738,
+            "latest_8h_pct": 0.0094,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": -1.328,
-            "latest_8h_pct": -0.0015,
+            "z": 0.558,
+            "latest_8h_pct": 0.01,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "SOL": {
-            "z": 0.193,
-            "latest_8h_pct": 0.0031,
+            "z": -0.105,
+            "latest_8h_pct": 0.0011,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "XRP": {
-            "z": 0.403,
-            "latest_8h_pct": 0.0076,
+            "z": 0.727,
+            "latest_8h_pct": 0.0096,
             "cusum": {
               "detected": true,
               "direction": -1
@@ -152,51 +152,51 @@
       },
       "open_interest": {
         "score": 1.0,
-        "peak_abs_z": 6.03,
+        "peak_abs_z": 9.898,
         "by_symbol": {
           "AVAX": {
-            "z": 2.185,
+            "z": 1.7,
             "n": 161
           },
           "BNB": {
-            "z": 1.408,
+            "z": 1.323,
             "n": 161
           },
           "BTC": {
-            "z": 2.419,
+            "z": 2.757,
             "n": 159
           },
           "DOGE": {
-            "z": -1.833,
+            "z": 1.854,
             "n": 161
           },
           "ETH": {
-            "z": 6.03,
+            "z": 9.898,
             "n": 159
           },
           "LINK": {
-            "z": 1.055,
+            "z": 0.447,
             "n": 161
           },
           "SOL": {
-            "z": 0.659,
+            "z": 2.294,
             "n": 159
           },
           "XRP": {
-            "z": 5.191,
+            "z": 5.181,
             "n": 161
           }
         }
       },
       "liquidation": {
-        "score": 1.0,
-        "latest_hour_usd": 35290281.68,
-        "median_hour_usd": 974387.05,
-        "zscore": 9.465,
+        "score": 0.6,
+        "latest_hour_usd": 15906521.1,
+        "median_hour_usd": 1009786.76,
+        "zscore": 3.149,
         "cusum": {
           "detected": true,
           "direction": 1,
-          "s_pos": 11.423,
+          "s_pos": 13.597,
           "s_neg": 0.0,
           "h": 5.0,
           "k": 0.5,
@@ -209,23 +209,23 @@
         "stale_sources": [
           {
             "source": "binance_ann",
-            "age_h": 32.66
+            "age_h": 33.0
           },
           {
             "source": "bybit_ann",
-            "age_h": 6.99
+            "age_h": 7.33
           },
           {
             "source": "liq_ws",
-            "age_h": 16.91
+            "age_h": 17.25
           },
           {
             "source": "okx_ann",
-            "age_h": 9.16
+            "age_h": 9.5
           },
           {
             "source": "whale_activities",
-            "age_h": 11.55
+            "age_h": 11.89
           }
         ],
         "n_sources": 12,
@@ -234,11 +234,11 @@
         "stale_threshold_h": 6.0
       }
     },
-    "stress_score": 0.6458,
+    "stress_score": 0.5769,
     "channel_coverage": 1.0,
     "hard_triggers": [],
     "suggested_state": "reducing",
-    "suggest_reason": "stress=0.65 ≥ 0.55",
+    "suggest_reason": "stress=0.58 ≥ 0.55",
     "current_state": "active",
     "thresholds": {
       "reduce": 0.55,
@@ -247,65 +247,14 @@
       "crash_4h_pct": 12.0
     },
     "llm": {
-      "accepted": true,
-      "consensus_score": 0.7,
-      "run_id": "755f0469de904d52bd47e731dddcd501",
-      "final": {
-        "direction": "bullish",
-        "strength": 6,
-        "confidence": 0.6,
-        "root_causes": [
-          {
-            "channel": "liquidation",
-            "cause": "强平金额异常放大且持续累积，市场进入被迫去杠杆的级联阶段，是本次 stress 的核心驱动",
-            "evidence": "latest_hour_usd=35,290,281.68 约为中位数 974,387.05 的 36 倍，zscore=9.465；CUSUM direction=+1，s_pos=11.423 远超阈值 h=5.0，s_neg=0.0，表明强平压力单向持续上升"
-          },
-          {
-            "channel": "open_interest",
-            "cause": "持仓在 ETH/XRP 急速堆积形成杠杆拥挤，放大了价格波动向强平级联传导的链条",
-            "evidence": "ETH z=6.03（n=159）、XRP z=5.191、BTC z=2.419、AVAX z=2.185；DOGE z=-1.833 与主流币背离，说明堆积集中于 ETH/XRP"
-          },
-          {
-            "channel": "volume",
-            "cause": "成交量同步放大确认这是事件驱动的杠杆性急涨而非低流动性的价格噪音",
-            "evidence": "peak_abs_z=4.77（ETH），XRP=3.119、BTC=3.404、SOL=2.423 同步放量，与 OI 集中币种高度重合"
-          },
-          {
-            "channel": "funding",
-            "cause": "资金费率全市场负向漂移与价格上涨背离，符合空头持续进场被挤压（轧空）的特征，挤压燃料仍在堆积",
-            "evidence": "8/8 币种 cusum detected，其中 7 个 direction=-1（仅 LINK=+1），DOGE z=-1.698、BTC z=-0.813，而 price ret_4h_pct=+2.523、ret_zscore=1.135"
-          },
-          {
-            "channel": "freshness",
-            "cause": "关键数据源陈旧与任务失败使强平读数和归因置信度打折，stress 读数本身存在失真可能",
-            "evidence": "liq_ws age_h=16.91、binance_ann age_h=32.66、whale_activities age_h=11.55，5/12 源超 6h 阈值，failing_jobs=8/44"
-          }
-        ],
-        "counter_scenarios": [
-          "liq_ws 已陈旧 16.91h，35.29M 的强平峰值可能部分来自数据缺口后迟到补传的人工尖峰，实际平仓压力低于读数，stress 被高估",
-          "强平多空方向未知：若 35.29M 主要是多头强平，则事件为冲高后的多头去杠杆而非轧空，后续走势偏空而非延续上涨",
-          "8 个币种 funding cusum 同向（7 个 direction=-1）更像系统性共同因子（基准利率/指数成分调整或上游数据处理变更），而非各币种独立的仓位行为变化",
-          "ETH/XRP 的 OI z 值极高也可能源于合约到期移仓、新合约上线或做市商库存调整等机械性因素，并不代表新增方向性杠杆",
-          "ret_1h_pct 仅 +0.324 且 24h 回撤 1.008：若价格已处短期顶部，高 OI + 负费率漂移可能反转为多头踩踏，届时 bullish 归因失效"
-        ],
-        "key_factors": [
-          "强平小时金额 35.29M 约为中位数 0.97M 的 36 倍，z=9.465，CUSUM s_pos=11.423 远超 h=5，是 stress=0.646 的最大贡献项",
-          "ETH 为事件中心（OI z=6.03 + 量能 z=4.77），XRP 次之（OI z=5.191），风险高度集中于少数品种",
-          "funding 7/8 币种负向漂移与 ret_4h +2.523% 背离，符合轧空/空头进场特征，方向偏多但持续性存疑",
-          "24h 价格 +2.012%、回撤仅 1.008%，方向偏多；但 1h 收益仅 +0.324%，动能边际减弱",
-          "数据质量折价：liq_ws 陈旧 16.91h、binance_ann 陈旧 32.66h、8/44 任务失败，限制归因与 stress 读数置信度"
-        ],
-        "summary": "stress=0.646 的异常主要由杠杆链共振驱动：强平金额放大 36 倍（z=9.465）+ OI 在 ETH/XRP 极速堆积（z=6.03/5.191）+ 量能同步激增（z=4.77），叠加 funding 全市场负向漂移与 4h +2.52% 涨幅背离，最可能情形是以 ETH/XRP 为中心的杠杆急涨（疑似轧空）并伴随强平级联，方向暂判偏多。'reducing' 建议合理：高 OI 拥挤 + 费率负漂移意味着挤压退潮后波动将双向放大，降低杠杆敞口可对冲强平级联的尾部风险。但需注意 liq_ws（16.91h）与公告源陈旧、8/44 任务失败可能夸大或扭曲强平读数，且资金费率同向漂移疑似系统性因子；执行减仓的同时应优先修复数据链路并核实本轮强平的多空方向，若确认为多头强平则应转为偏空评估。",
-        "arbitration": {
-          "verdict": "B",
-          "by": "glm_opencode_alt",
-          "rationale": "两人的分歧仅在方向偏斜，对事件本体（强平级联+OI拥挤+数据折价+reducing合理）判断一致。就该分歧而言，B 的因果链更贴合原始数据：(1) 价格在 1h/4h/24h 全部为正（+0.324%/+2.523%/+2.012%），24h 回撤仅 1.008%，A 所称的'放量滞涨/冲高回落'与原始收益数据不符，属过度解读；(2) funding 7/8 币种 cusum 负向漂移叠加价格上行，是空头承压付费的经典轧空签名——若是多头拥挤见顶（A 的看跌前提），费率应正漂移而非负漂移；(3) 价格上行中发生的 35.29M/小时强平（中位数 36 倍，z=9.465）在方向上更偏向空头被平，支持 B 的轧空叙事。但置信度需显著下调：强平多空方向未在数据中给出、liq_ws 已陈旧 16.91h（36 倍尖峰可能含补传失真）、ETH OI z=6.03 的拥挤在挤压退潮后波动双向放大（A 的尾部风险警告本身成立），且 1h 动能仅 +0.324%、ret_zscore=1.135 表明轧空并非极端延伸。综合看 B 方向更可信但强度中等偏低、置信度受限。"
-        }
-      }
+      "accepted": false,
+      "consensus_score": 0.4,
+      "run_id": "cb3dc02e3e334f19a4d56125d85a38e9",
+      "final": null
     }
   },
   "predictions": [
-    "c3acb9c08ad34dbe8231329452bacae4"
+    "2cb1b8e54185432c82de90df1db22a4b"
   ],
   "advice": [
     {
@@ -313,12 +262,12 @@
       "target": "reducing",
       "params": {
         "state": "reducing",
-        "stress_score": 0.6458,
+        "stress_score": 0.5769,
         "hard_triggers": [],
         "current_state": "active",
         "requires_confirmation": "双模型或规则确认（方案第七节）"
       },
-      "reason": "stress=0.65 ≥ 0.55",
+      "reason": "stress=0.58 ≥ 0.55",
       "severity": 3,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -326,7 +275,7 @@
   ],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 221.602,
+  "elapsed_sec": 305.387,
   "latest_path": null,
   "dry_run": false
 }
