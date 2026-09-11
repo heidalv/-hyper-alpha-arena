@@ -52,6 +52,85 @@ _FACTOR_DIR_CACHE: Dict[tuple, tuple] = {}  # (symbol, timeframe, ts0, n) -> (wr
 _FACTOR_DIR_TTL = int(os.getenv("PIPELINE_FACTOR_DIR_TTL_SEC", str(12 * 3600)))
 
 
+# ═══════════ [2026-09-11 F38e] 因子方向序列磁盘缓存 ═══════════
+# 背景：单币全量预计算 ~6.7h（bars≈62k），每周进化 8 模板 ≈54h，而适应度
+# 计算仅 ~10min —— 周进化永远跑不完（9/9 实测 8h 才 40%）。内存缓存随进程
+# 死亡清空，每周都是全新 54h。本磁盘缓存按 (symbol, timeframe) 存整条
+# 方向序列（锚定最早 K 线），任何后续窗口只要首时间戳命中序列即可按后缀
+# 复用（窗口计算只回看 30 根，j≥30 的值与窗口起点无关）。
+# 配合 scripts/warm_factor_dir_cache.py 多进程预热，周一进化从 54h 降到分钟级。
+import json as _json
+from bisect import bisect_left as _bisect_left
+from pathlib import Path as _Path
+
+_FACTOR_DIR_DISK_DIR = _Path(__file__).resolve().parents[2] / "data" / "factor_dir_cache"
+_FACTOR_DIR_DISK_ENABLED = os.getenv(
+    "PIPELINE_FACTOR_DIR_DISK_ENABLED", "true"
+).strip().lower() not in ("0", "false", "no", "off")
+_FACTOR_DIR_DISK_TTL = int(os.getenv("PIPELINE_FACTOR_DIR_DISK_TTL_SEC", str(7 * 24 * 3600)))
+
+
+def _factor_dir_disk_path(sym: str, tf: str) -> _Path:
+    return _FACTOR_DIR_DISK_DIR / f"{sym}_{tf}.json"
+
+
+def _factor_dir_disk_load(sym: str, tf: str):
+    """读磁盘缓存（未过期），返回 (tss, series) 或 None。"""
+    if not _FACTOR_DIR_DISK_ENABLED:
+        return None
+    try:
+        p = _factor_dir_disk_path(sym, tf)
+        if not p.exists():
+            return None
+        if time.time() - p.stat().st_mtime > _FACTOR_DIR_DISK_TTL:
+            return None
+        data = _json.loads(p.read_text(encoding="utf-8"))
+        tss = data.get("tss") or []
+        series = data.get("series") or []
+        if len(tss) == len(series) and tss:
+            return tss, series
+    except Exception as e:
+        logger.debug("[PipelineBT] 因子方向磁盘缓存读取失败(fail-open): %s", e)
+    return None
+
+
+def _factor_dir_disk_save(sym: str, tf: str, tss, series) -> None:
+    """写磁盘缓存（新锚定序列或与既有序列按时间戳合并扩展）。"""
+    if not _FACTOR_DIR_DISK_ENABLED:
+        return
+    try:
+        p = _factor_dir_disk_path(sym, tf)
+        _FACTOR_DIR_DISK_DIR.mkdir(parents=True, exist_ok=True)
+        if p.exists():
+            try:
+                old = _json.loads(p.read_text(encoding="utf-8"))
+                old_tss = old.get("tss") or []
+                old_series = old.get("series") or []
+                if old_tss and old_tss[0] <= tss[0] and len(old_tss) == len(old_series):
+                    # 既有序列锚点更早：把新值按时间戳对齐合并回旧序列
+                    k = _bisect_left(old_tss, tss[0])
+                    if k < len(old_tss) and old_tss[k] == tss[0]:
+                        for j, ts in enumerate(tss):
+                            idx = k + j
+                            if idx < len(old_series):
+                                old_series[idx] = series[j]
+                            else:
+                                old_series.append(series[j])
+                                old_tss.append(ts)
+                        tss, series = old_tss, old_series
+            except Exception:
+                pass
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(
+            _json.dumps({"tss": tss, "series": series, "updated": time.time()},
+                        separators=(",", ":")),
+            encoding="utf-8",
+        )
+        tmp.replace(p)
+    except Exception as e:
+        logger.debug("[PipelineBT] 因子方向磁盘缓存写入失败(不影响回测): %s", e)
+
+
 # ═══════════════════ 默认管线参数（从注册表导入） ═══════════════════
 
 # Legacy: TIER_RISK_DEFAULTS 保留空字典以兼容旧 import
@@ -358,12 +437,47 @@ class LivePipelineBacktestEngine:
                 self._factor_dir_series = _series
                 _FACTOR_DIR_CACHE[(_sym, _tf, _ts0, len(bars))] = (time.time(), _series)
             else:
-                logger.info(
-                    "[PipelineBT] 预计算因子方向序列 bars=%d sym=%s tf=%s（一次性，之后复用/前缀扩展）",
-                    len(bars), _sym or "-", _tf or "-",
-                )
-                _series = [0] * warmup
-                for _i in range(warmup, len(bars)):
+                # [F38e 2026-09-11] 内存 miss → 磁盘缓存（锚定最早 K 线的整条序列，
+                # 按首时间戳后缀复用）。命中则只需补算 warmup 内的窗口与新增尾部，
+                # 单模板预计算从 ~6.7h 降到分钟级。
+                _series = None
+                _disk_tss = None
+                _disk_off = 0
+                _disk_hit = _factor_dir_disk_load(_sym, _tf)
+                if _disk_hit is not None:
+                    _disk_tss, _disk_series = _disk_hit
+                    _off = _bisect_left(_disk_tss, _ts0)
+                    if _off < len(_disk_tss) and int(_disk_tss[_off]) == _ts0:
+                        _disk_off = _off
+                        _covered = len(_disk_series) - _off
+                        _series = list(_disk_series[_off:_off + len(bars)])
+                        if _covered < len(bars):
+                            _series.extend([None] * (len(bars) - _covered))
+                        logger.info(
+                            "[PipelineBT] 因子方向序列磁盘缓存命中 bars=%d sym=%s tf=%s "
+                            "(offset=%d, covered=%d/%d, 需补算=%d)",
+                            len(bars), _sym or "-", _tf or "-",
+                            _disk_off, _covered, len(bars),
+                            max(0, len(bars) - _covered),
+                        )
+                if _series is None:
+                    logger.info(
+                        "[PipelineBT] 预计算因子方向序列 bars=%d sym=%s tf=%s（一次性，之后复用/前缀扩展）",
+                        len(bars), _sym or "-", _tf or "-",
+                    )
+                    _series = [0] * warmup + [None] * (len(bars) - warmup)
+                    _compute_from = warmup
+                else:
+                    # 磁盘复用：warmup 内窗口被截断，需要重算；warmup 之后且已覆盖
+                    # 的位置直接复用（窗口计算只回看 30 根，j≥30 与窗口起点无关）。
+                    _compute_from = warmup
+                    for _j in range(warmup, len(bars)):
+                        if _j >= len(_series) or _series[_j] is None:
+                            _compute_from = _j
+                            break
+                    if len(_series) < len(bars):
+                        _series.extend([None] * (len(bars) - len(_series)))
+                for _i in range(_compute_from, len(bars)):
                     if (_i - warmup) % 5000 == 0:
                         logger.info(
                             "[PipelineBT] 预计算进度 %d/%d (%.0f%%)",
@@ -377,7 +491,13 @@ class LivePipelineBacktestEngine:
                     # 让渡同款模式（实测开销 <1%）。
                     if _i % 32 == 0:
                         time.sleep(0)
-                    _series.append(self._compute_factor_direction_windowed(_i, bars))
+                    _series[_i] = self._compute_factor_direction_windowed(_i, bars)
+                # [F38e] 计算完成后写磁盘缓存（合并扩展），下次任何进程可直接复用。
+                try:
+                    _bar_tss = [int(b.timestamp) for b in bars]
+                    _factor_dir_disk_save(_sym, _tf, _bar_tss, _series)
+                except Exception as _disk_err:
+                    logger.debug("[PipelineBT] 磁盘缓存保存跳过: %s", _disk_err)
                 _FACTOR_DIR_CACHE[(_sym, _tf, _ts0, len(bars))] = (time.time(), _series)
                 self._factor_dir_series = _series
 

@@ -1,86 +1,103 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789127768403,
+  "ts_ms": 1789128613958,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "d5cb0567fcdc43fe88e45ddc553de6ba",
-  "context_hash": "9133da1b6131dd3f70b3ad6f4891cb26c32021245f6788cc481b6c23f8ba401e",
+  "consensus_score": 0.825,
+  "run_id": "4eca421a20384ffebeee696cf68a81d8",
+  "context_hash": "4684810c5fdc6d8c795f5bee5b42ba02268646593320ade190fe4df27242c61d",
   "final": {
     "direction": "bullish",
-    "strength": 4,
-    "confidence": 0.5,
-    "half_life_hours": 12,
+    "strength": 3.0,
+    "confidence": 0.45,
+    "half_life_hours": 14.0,
     "affected_symbols": [
-      "RVN"
+      "NEWT"
     ],
-    "hedging_window_hours": 16,
+    "hedging_window_hours": 24.0,
     "position_adjustments": [
       {
-        "symbol": "RVN",
-        "action": "no_new_short",
-        "reason": "三所资金费同步深度负值（binance -0.267%、bybit -0.284%/事件快照 -0.316%、gateio -0.544%~-0.680%/8h，bybit ≈-346% APR），做空需每8h向多头支付高额资金费且面临轧空风险；当前组合无 RVN 持仓，仅约束新开空头，开多亦因缺 K 线无法确认趋势反转而暂不主动建仓"
+        "symbol": "NEWT",
+        "action": "no_new_long",
+        "reason": "极度负资金费意味着空头拥挤、现货卖压不足，理论上对短期价格有支撑/反弹倾向，但单点Gateio读数（-0.20%/8h）相对温和，且现货回报（7d +5.94%）已部分price-in，避免逆费率裸多"
       },
       {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "事件为 RVN 小币种资金费极值，与现有 BTC 多头（upnl -0.14%，SL 距离 6.54%）无直接冲击，维持现有止损"
+        "symbol": "NEWT",
+        "action": "no_new_short",
+        "reason": "三所资金费同步深度为负（事件载荷 gateio -0.203%/8h ≈-222.6% APR；快照 binance -0.2061%、bybit -0.1896%、gateio -0.3113%/8h），做空 carry 成本极高且空头拥挤、轧空风险大；组合当前未持有 NEWT，维持不新开空。"
       },
       {
         "symbol": "BNB",
         "action": "none",
-        "reason": "事件为 RVN 小币种资金费极值，与现有 BNB 多头（upnl -0.22%，SL 距离 6.48%）无直接冲击，维持现有止损"
+        "reason": "事件为 NEWT 小市值个体信号，与主力币相关性数据缺失（correlation_pairs/corr_to_btc 为空），现有多头（R=-0.04，dist_sl 6.44%）无需调节，仅监控。"
+      },
+      {
+        "symbol": "BTC",
+        "action": "none",
+        "reason": "无向主力币传导的证据，现有多头（R=-0.02）保持原风控。"
       },
       {
         "symbol": "SOL",
         "action": "none",
-        "reason": "事件为 RVN 小币种资金费极值，与现有 SOL 多头（upnl -0.24%，SL 距离 6.54%）无直接冲击，维持现有止损"
+        "reason": "同上，现有多头（R=-0.06）保持；若小市值负资金费 cluster 升级为普跌再收紧。"
       },
       {
         "symbol": "UNI",
         "action": "none",
-        "reason": "事件为 RVN 小币种资金费极值，与现有 UNI 多头（upnl +0.3%）无直接冲击，维持现有止损"
+        "reason": "刚开仓 0.6h（R=0.01），事件与 UNI 无直接关联，维持原计划。"
       }
     ],
     "analogues": [
       {
-        "event": "VTHO 同时刻（ts=1789114123432）多所资金费极端负值：binance -0.650%/8h、gateio -2.000%/8h（≈-2190% APR）",
-        "outcome": "数据不足：context 未提供后续价格与资金费回归记录，无法验证均值回归时点；仅可确认与 RVN 同属本时段小币种空头拥挤集群"
+        "event": "NEWT binance资金费 -0.188%/8h 同窗口触发",
+        "outcome": "与本次Gateio读数同步出现，反映跨交易所一致的空头拥挤，资金费极端持续时间通常为1-3个结算周期（8-24h）"
       },
       {
-        "event": "同批次小币极端负资金费事件密集：24h 内 funding.extreme 共 200 条（PUFFER -1.640%、LSK -1.063%、BREW -0.984%/8h 等）",
-        "outcome": "数据不足：无同类事件的后续走势/费率回归结果记录；全市场 24h 多头清算 $57.55M 显著高于空头 $22.51M，属小币普遍去杠杆环境，个体利多信号易被截面性抛压稀释"
+        "event": "小市值代币极端负费率（VTHO/RVN/LSK等）",
+        "outcome": "多数情况下极端负费率后跟随短期反弹（费率均值回归），但样本量小且流动性差，胜率不稳定"
+      },
+      {
+        "event": "同批次跨所确认：binance NEWT -0.188%/8h（sev2）、bybit NEWT -0.261%/8h（sev3），与 gateio 事件同一时间戳",
+        "outcome": "跨所一致确认空头拥挤，但事件后价格/资金费回归的结局数据缺失（数据不足），无法验证轧空是否兑现。"
+      },
+      {
+        "event": "同期小市值板块负资金费极端群发：gateio VTHO -2.000%/8h、LSK -1.063%/8h、RVN -0.544%/8h，bybit PUFFER -1.640%/8h 等（24h 同类事件 200 起）",
+        "outcome": "结局数据不足：pack 未提供历史同类事件后的收益分布，仅能作为板块性空头拥挤 regime 的旁证。"
       }
     ],
     "key_factors": [
-      "RVN 资金费跨三所同步深度负值（binance/bybit/gateio 均 ≤ -0.26%/8h），跨所确认空头拥挤，按系统约定（负费率→dir=+0.5）映射为偏多方向",
-      "负费率下空头每 8h 支付约 0.28%~0.68%，≈-346% APR 的持仓成本构成强轧空（squeeze）与负费率套利买盘的潜在支撑",
-      "RVN 24h 清算结构：多头 $4,395 vs 空头仅 $212，多头已被清洗，短线抛压部分释放，为反转的前置条件但非确认",
-      "24h 极端资金费事件达 200 条、高影响新闻 3 条全为负面，市场整体多头清算 $57.55M > 空头 $22.51M，小币普遍去杠杆，RVN 个体信号强度被稀释",
-      "数据不足：market 层 RVN 无 K 线（缺失已在 meta 标注）、corr_to_btc 与持仓结构为空，无法验证价格趋势与反转时机，故 confidence 降至 0.5"
+      "三所（binance/bybit/gateio）NEWT资金费同步为负，跨交易所一致性强",
+      "负费率绝对水平（≈-200% APR）较高，但远低于同日BREW/PUFFER/VTHO等极端读数",
+      "NEWT 7日涨幅+5.94%，1日基本持平（-0.09%），趋势偏强",
+      "30日回报数据缺失，无法确认中期趋势背景",
+      "ATR14日6.8%、年化波动84.6%，波动性高使费率信号噪声增大",
+      "同日市场出现200条funding.extreme事件，资金费极端现象普遍，非NEWT特异性信号",
+      "缺乏NEWT与BTC相关性数据，避险对冲参照有限",
+      "当前账户未持有NEWT敞口，仅BTC/BNB/SOL/UNI多头，与本次事件相关性低",
+      "跨所一致性：NEWT 在 binance/bybit/gateio 资金费同时深度为负（约 -0.19%~-0.31%/8h），是空头拥挤共识而非单一交易所噪音",
+      "价格与资金费背离：7d +5.94%、RSI14 60.2、1d 仅 -0.09%，价格韧性叠加极端负资金费，构成轧空（short squeeze）偏多设置，与事件方向标签 dir=+0.5 一致",
+      "板块性背景：24h 内 funding.extreme 达 200 起，负资金费极端集中于小市值 alt（VTHO/PUFFER/LSK/RVN 等），NEWT 属于该 regime 的一环而非孤立事件",
+      "做空 carry 成本约 -223% APR，新开空单每 8h 赔付约 0.2%，风险收益比极差",
+      "数据不足：无历史同类事件结局、无 NEWT 与 BTC 相关性、position_structure 与分币种清算数据为空；且市场快照（as_of 1788998400000）早于事件时间戳（1789114123432）约 32 小时，存在时效错配",
+      "市场噪音偏空：24h 多头清算 $57.4M vs 空头 $22.1M，高冲击新闻 3 条全为负面，限制看多判断的置信度"
     ],
-    "summary": "RVN 资金费三所同步极端负值（binance -0.267%、bybit -0.316%、gateio -0.544%~-0.680%/8h，bybit ≈-346% APR，严重度 3）表明空头拥挤：空头持仓成本极高且 24h 多头清算（$4,395）远超空头（$212），存在轧空与负费率套利支撑，方向判 bullish（与事件 dir=+0.5 一致），但强度仅 4/10——RVN 为低流动性小币，且 24h 全市场 200 条极端费率事件、多头清算占优、负面高影响新闻 3 条构成压制性背景。资金费极值通常在 1~2 个结算周期（8~16h）内均值回归，故半衰期约 12h、对冲窗口设 16h。组合当前无 RVN 敞口，建议仅对 RVN 约束新开空头（规避 -346% APR 做空成本与轧空风险），开多因缺 K 线无法确认趋势反转而暂不主动建仓；对现存 BTC/BNB/SOL/UNI 多头无直接冲击，维持现有止损。主要风险：market 层 RVN K 线缺失（数据不足），若小币去杠杆延续，负费率利多信号可能被继续下跌证伪。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的框架更严谨且与事实锚点一致：RVN 三所资金费同步深度负值（binance -0.267%/bybit -0.316%/gateio -0.680%/8h），空头每 8h 支付高额费率（≈-346% APR）构成轧空与负费率套利的偏多机制；24h 清算结构多头 $4,395 vs 空头 $212 显示多头抛压已释放，且事件 dir=+0.5 与系统负费率→偏多的约定一致。B 对数据缺失（RVN 无 K 线、corr 为空）诚实标注并将 confidence 降至 0.5；而 A 的类比结论声称'未观察到独立价格冲击'，但在 market 层无 K 线的情况下无法从 context 验证，属无依据断言，且 A 忽略了清算不对称性。B 的 key_factors 已涵盖 A 提出的有效稀释因素（24h 200 条极端费率事件、板块级去杠杆、负面新闻），实际操作建议（仅禁新开空、不主动开多）保守合理。鉴于小币流动性极低、信号被截面性抛压稀释，我将强度自 B 的 4 下调至 3。"
-    }
+    "summary": "Gateio NEWT资金费跌至-0.203%/8h（≈-223% APR），与Binance/Bybit同方向同步出现，表明空头仓位拥挤。理论上负费率极端暗示空头平仓风险上升，对短期价格有轻微偏多支撑（direction=bullish），但单点信号强度有限：费率绝对水平在同日200条极端事件中仅属中等，且NEWT已7日+5.94%，反弹预期部分price-in。半衰期约16小时（2个资金费结算周期），之后费率均值回归将削弱信号。现货波动高、缺乏30日与BTC相关性数据，建议对NEWT本身不新开多仓；若已有多头则可适度tighten_stops。整体事件对当前组合（BTC/BNB/SOL/UNI多）影响微弱，无需系统性对冲。confidence因数据缺失和单点信号强度低而下调至0.45。"
   },
   "notes": [],
   "event": {
-    "id": 74287,
+    "id": 74312,
     "event_type": "funding.extreme",
-    "symbol": "RVN",
+    "symbol": "NEWT",
     "ts_ms": 1789114123432,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit RVN 资金费 -0.316%/8h（≈-346% APR）",
+    "title": "gateio NEWT 资金费 -0.203%/8h（≈-223% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -346.3,
-      "rate_8h": -0.00316233,
-      "exchange": "bybit",
-      "rate_raw": -0.00316233,
+      "apr_pct": -222.6,
+      "rate_8h": -0.002033,
+      "exchange": "gateio",
+      "rate_raw": -0.002033,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
