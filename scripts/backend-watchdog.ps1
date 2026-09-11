@@ -10,7 +10,7 @@
 param(
     [int]$HealthPort = 8000,
     [int]$IntervalSec = 30,
-    [int]$FailThreshold = 3,
+    [int]$FailThreshold = 5,
     [int]$HealthTimeoutSec = 8,
     [int]$GraceAfterRestartSec = 90
 )
@@ -48,10 +48,21 @@ try {
 }
 
 function Test-BackendHealth {
+    # [2026-09-11 修复] $HealthTimeoutSec 此前是死参数（WebClient 默认 100s 超时），
+    # 探针在 DB 突发负载下挂死 100s×3 才判死；且 3 次失败（~90s）对「慢但活着」
+    # 的后端太激进（20:16 实测：8 并发因子预热加载 K 线 → /api/health 变慢 →
+    # watchdog 误杀健康后端）。现在真正应用 8s 超时，判死阈值默认 5 次
+    # （~2.5 分钟容忍窗口），慢但活着的后端不会被误杀。
     try {
         $wc = New-Object System.Net.WebClient
         $wc.Headers.Add('Accept', 'application/json')
-        $resp = $wc.DownloadString("http://127.0.0.1:$HealthPort/api/config/default-exchange")
+        # WebClient 无直接超时属性：用异步下载 + Wait 实现超时
+        $task = $wc.DownloadStringTaskAsync("http://127.0.0.1:$HealthPort/api/config/default-exchange")
+        if (-not $task.Wait($HealthTimeoutSec * 1000)) {
+            $wc.CancelAsync()
+            return $false
+        }
+        $resp = $task.Result
         return $resp.Length -gt 0
     } catch {
         return $false

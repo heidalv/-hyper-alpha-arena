@@ -1,4 +1,4 @@
-"""AI因子: 动量加速度 | 置信:55% | 多周期动量差：短期收益减去中期收益，正值表示动量加速上行，负值表示动量衰减或反转。捕捉趋势延续与拐点信号。"""
+"""AI因子: 动量加速度 | 置信:58% | 用短周期动量减去长周期动量衡量动量加速度：短强长弱（正加速）预示趋势延续上涨，短弱长强（负加速）预示回落。捕捉多周期动量结构变化带来的方向性 alpha。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,14 +7,14 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class MomentumAcceleration(BaseFactor):
-    """多周期动量差：短期收益减去中期收益，正值表示动量加速上行，负值表示动量衰减或反转。捕捉趋势延续与拐点信号。"""
+    """用短周期动量减去长周期动量衡量动量加速度：短强长弱（正加速）预示趋势延续上涨，短弱长强（负加速）预示回落。捕捉多周期动量结构变化带来的方向性 alpha。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_mom_accel",
             name="Momentum Acceleration",
             display_name="动量加速度",
-            description="多周期动量差：短期收益减去中期收益，正值表示动量加速上行，负值表示动量衰减或反转。捕捉趋势延续与拐点信号。",
+            description="用短周期动量减去长周期动量衡量动量加速度：短强长弱（正加速）预示趋势延续上涨，短弱长强（负加速）预示回落。捕捉多周期动量结构变化带来的方向性 alpha。",
             category="technical",
             subcategory="momentum",
             version="1.0.0-ai",
@@ -22,8 +22,8 @@ class MomentumAcceleration(BaseFactor):
         )
 
     def calculate(self, data):
-        fast = data['close'].pct_change(5)
-        slow = data['close'].pct_change(20)
+        short = data['close'].pct_change(5)
+        long = data['close'].pct_change(20)
         vol = data['close'].pct_change().rolling(20).std() + 1e-9
-        result = ((fast - slow) / vol).rolling(3).mean().clip(-1, 1)
+        result = ((short - long) / vol).clip(-1, 1)
         return result
