@@ -41,6 +41,18 @@ NON_CRYPTO_TICKERS: frozenset[str] = frozenset({
     "DIA", "IWM", "VTI", "TLT", "GLD", "SLV", "USO", "EEM", "EFA",
 })
 
+# [2026-09-12 F38x] 交易所已下架交易对（venue, symbol）黑名单。
+# 事故溯源：Binance 于 2024-02 下架 XMR（现货+USD-M 永续），Bybit 同期下架；
+# 但 symbol_catalog 里残留的 binance/bybit XMR 行在 DC_ONLY 模式下被
+# MarketScanner 从目录自读再写回（refresh_catalog_from_scanner → upsert），
+# updated_at 每天刷新成"今天"→ 选币 catalog 闸放行 XMR → 永久 stale 告警 +
+# 浪费候选槽（实测 binance XMR 4h 陈旧 64.6h 仍标 trading）。
+# 只收「交易所已公告下架」的确定对，避免误伤真实币种。
+DELISTED_BY_VENUE: frozenset[tuple] = frozenset({
+    ("binance", "XMR"),
+    ("bybit", "XMR"),
+})
+
 
 def _ensure_tables() -> None:
     global _tables_ready
@@ -88,6 +100,34 @@ def _ensure_tables() -> None:
             logger.warning("[KlineSyncMeta] ensure_tables 失败: %s", e)
 
 
+def _filter_catalog_symbols(exchange: str, symbols: Sequence[str]) -> List[str]:
+    """纯函数：归一化 + 去重 + 黑名单过滤（NON_CRYPTO_TICKERS + DELISTED_BY_VENUE）。"""
+    ex = (exchange or "").strip().lower()
+    if ex == "aster":
+        ex = "asterdex"
+    from backend.services.symbol_normalizer import is_valid_base_symbol, normalize_symbol
+
+    cleaned: List[str] = []
+    seen = set()
+    for s in symbols or []:
+        su = normalize_symbol(s)
+        if not su:
+            continue
+        if su in NON_CRYPTO_TICKERS:
+            logger.warning("[KlineSyncMeta] 拒绝写入非加密 ticker: %s (%s)", su, ex)
+            continue
+        if (ex, su) in DELISTED_BY_VENUE:
+            logger.warning(
+                "[KlineSyncMeta] 拒绝写入已下架交易对: %s@%s（交易所已公告下架，防目录自读自写复活）",
+                su, ex,
+            )
+            continue
+        if is_valid_base_symbol(su) and su not in seen:
+            seen.add(su)
+            cleaned.append(su)
+    return cleaned
+
+
 def upsert_symbol_catalog(
     exchange: str,
     symbols: Sequence[str],
@@ -102,17 +142,7 @@ def upsert_symbol_catalog(
         ex = "asterdex"
     if not ex:
         return 0
-    cleaned: List[str] = []
-    seen = set()
-    from backend.services.symbol_normalizer import is_valid_base_symbol, normalize_symbol
-
-    for s in symbols or []:
-        su = normalize_symbol(s)
-        if su and is_valid_base_symbol(su) and su not in NON_CRYPTO_TICKERS and su not in seen:
-            seen.add(su)
-            cleaned.append(su)
-        elif su in NON_CRYPTO_TICKERS:
-            logger.warning("[KlineSyncMeta] 拒绝写入非加密 ticker: %s (%s)", su, ex)
+    cleaned = _filter_catalog_symbols(ex, symbols)
     if not cleaned:
         return 0
     n = 0
