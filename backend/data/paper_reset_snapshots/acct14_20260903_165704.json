@@ -1,0 +1,222 @@
+{
+  "before": {
+    "account_id": 14,
+    "initial_balance": 500.0,
+    "total_equity": 203.02245785128764,
+    "available_balance": 178.92792926138642,
+    "frozen_margin": 24.2975991326492,
+    "realized_pnl": -185.64612863868837,
+    "total_fee_paid": 111.128342967276,
+    "last_reset_at": null
+  },
+  "open_positions": [
+    {
+      "id": 4595,
+      "symbol": "BNB",
+      "side": "long",
+      "size": 0.17357132099616746,
+      "entry": 702.971076,
+      "margin": 12.196548168600001,
+      "lev": 10.0,
+      "tier": "long",
+      "nature": "trend_follow",
+      "upnl": -0.24665803855596435,
+      "opened_at": "2026-09-03 16:25:41.469532"
+    },
+    {
+      "id": 4594,
+      "symbol": "BTC",
+      "side": "long",
+      "size": 0.0015551189439273658,
+      "entry": 77782.0716,
+      "margin": 11.66731074,
+      "lev": 10.0,
+      "tier": "long",
+      "nature": "position",
+      "upnl": 0.04358749580798957,
+      "opened_at": "2026-09-03 14:35:46.991011"
+    }
+  ],
+  "session": {
+    "id": 10,
+    "status": "running",
+    "pause_reason": null,
+    "peak_balance": 0.0,
+    "current_drawdown": 0.593718,
+    "max_drawdown": 0.609603,
+    "total_pnl": -296.8588,
+    "total_trades": 21,
+    "winning_trades": 9,
+    "auto_coin_enabled": true,
+    "auto_coin_mid_enabled": true,
+    "max_total_drawdown_pct": 0.3,
+    "daily_loss_limit_pct": 0.05
+  },
+  "edge_ledger": {
+    "30": {
+      "snapshot_id": 1,
+      "total": {
+        "n": 1848,
+        "wins": 594,
+        "win_rate": 0.3214,
+        "gross": -131.9445,
+        "fees": 122.5016,
+        "net": -254.4461,
+        "fee_share_of_gross_abs": 0.9284,
+        "pf": 0.721,
+        "avg_net": -0.1377,
+        "avg_hold_min": 112.7,
+        "notional": 198517.9,
+        "avg_net_bp": -11.81,
+        "ci95_bp": [
+          -17.71,
+          -5.9
+        ],
+        "edge_verdict": "negative"
+      },
+      "by_tier": {
+        "long": {
+          "n": 12,
+          "wins": 9,
+          "win_rate": 0.75,
+          "gross": 26.1349,
+          "fees": 2.7284,
+          "net": 23.4065,
+          "fee_share_of_gross_abs": 0.1044,
+          "pf": 1.814,
+          "avg_net": 1.9505,
+          "avg_hold_min": 2133.8,
+          "notional": 4787.92,
+          "avg_net_bp": 95.44,
+          "ci95_bp": [
+            -61.31,
+            252.2
+          ],
+          "edge_verdict": "inconclusive"
+        },
+        "mid": {
+          "n": 132,
+          "wins": 41,
+          "win_rate": 0.3106,
+          "gross": -57.2089,
+          "fees": 21.6931,
+          "net": -78.9021,
+          "fee_share_of_gross_abs": 0.3792,
+          "pf": 0.699,
+          "avg_net": -0.5977,
+          "avg_hold_min": 399.5,
+          "notional": 33061.79,
+          "avg_net_bp": -24.0,
+          "ci95_bp": [
+            -69.63,
+            21.63
+          ],
+          "edge_verdict": "inconclusive"
+        },
+        "short": {
+          "n": 1704,
+          "wins": 544,
+          "win_rate": 0.3192,
+          "gross": -100.8704,
+          "fees": 98.0801,
+          "net": -198.9505,
+          "fee_share_of_gross_abs": 0.9723,
+          "pf": 0.681,
+          "avg_net": -0.1168,
+          "avg_hold_min": 76.3,
+          "notional": 160668.19,
+          "avg_net_bp": -11.62,
+          "ci95_bp": [
+            -16.84,
+            -6.39
+          ],
+          "edge_verdict": "negative"
+        }
+      }
+    },
+    "90": {
+      "snapshot_id": 2,
+      "total": {
+        "n": 2996,
+        "wins": 761,
+        "win_rate": 0.254,
+        "gross": -79.0496,
+        "fees": 181.011,
+        "net": -260.0607,
+        "fee_share_of_gross_abs": 2.2898,
+        "pf": 0.754,
+        "avg_net": -0.0868,
+        "avg_hold_min": 150.6,
+        "notional": 298737.51,
+        "avg_net_bp": -9.66,
+        "ci95_bp": [
+          -13.43,
+          -5.89
+        ],
+        "edge_verdict": "negative"
+      },
+      "by_tier": {
+        "long": {
+          "n": 39,
+          "wins": 16,
+          "win_rate": 0.4103,
+          "gross": 55.12,
+          "fees": 6.9025,
+          "net": 48.2175,
+          "fee_share_of_gross_abs": 0.1252,
+          "pf": 2.154,
+          "avg_net": 1.2363,
+          "avg_hold_min": 2238.6,
+          "notional": 12298.42,
+          "avg_net_bp": 29.22,
+          "ci95_bp": [
+            -26.37,
+            84.81
+          ],
+          "edge_verdict": "inconclusive"
+        },
+        "mid": {
+          "n": 201,
+          "wins": 56,
+          "win_rate": 0.2786,
+          "gross": -45.6555,
+          "fees": 30.0062,
+          "net": -75.6617,
+          "fee_share_of_gross_abs": 0.6572,
+          "pf": 0.738,
+          "avg_net": -0.3764,
+          "avg_hold_min": 403.7,
+          "notional": 48303.62,
+          "avg_net_bp": -16.92,
+          "ci95_bp": [
+            -47.29,
+            13.45
+          ],
+          "edge_verdict": "inconclusive"
+        },
+        "short": {
+          "n": 2756,
+          "wins": 689,
+          "win_rate": 0.25,
+          "gross": -88.5141,
+          "fees": 144.1024,
+          "net": -232.6165,
+          "fee_share_of_gross_abs": 1.628,
+          "pf": 0.681,
+          "avg_net": -0.0844,
+          "avg_hold_min": 102.5,
+          "notional": 238135.47,
+          "avg_net_bp": -9.68,
+          "ci95_bp": [
+            -13.04,
+            -6.33
+          ],
+          "edge_verdict": "negative"
+        }
+      }
+    }
+  },
+  "target_equity": 5000.0,
+  "dry_run": false,
+  "ts": "20260903_165704"
+}

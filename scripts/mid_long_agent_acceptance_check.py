@@ -84,7 +84,7 @@ def main():
             MIDLONG_QUANT_BRIEF_HARD_GATE,
             MIDLONG_THESIS_OPEN_GATE,
         )
-        from backend.services.mlto.orchestrator import run_mlto_tick
+        from backend.services.mlto.brain import can_open, midlong_new_open_halted
         from backend.services.swing_agent import swing_agent
         from backend.services.trend_agent import trend_agent
         from backend.api.mlto_routes import router as mlto_router
@@ -92,7 +92,7 @@ def main():
         check("MIDLONG_THESIS_LEDGER_ENABLED", MIDLONG_THESIS_LEDGER_ENABLED)
         check("MIDLONG_QUANT_BRIEF_HARD_GATE 默认关闭", not MIDLONG_QUANT_BRIEF_HARD_GATE)
         check("MIDLONG_THESIS_OPEN_GATE", MIDLONG_THESIS_OPEN_GATE)
-        check("run_mlto_tick 可导入", callable(run_mlto_tick))
+        check("midlong brain 可导入", callable(can_open) and callable(midlong_new_open_halted))
         check("SwingAgent.update_thesis", callable(getattr(swing_agent, "update_thesis", None)))
         check("TrendAgent.update_thesis", callable(getattr(trend_agent, "update_thesis", None)))
         paths = [getattr(r, "path", "") for r in mlto_router.routes]

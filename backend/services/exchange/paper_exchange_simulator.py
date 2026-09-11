@@ -100,10 +100,21 @@ DEFAULT_EXCHANGE_RULES: Dict[str, PaperExchangeRules] = {
         quantity_step=0.0001,
         maintenance_margin_rate=0.005,
     ),
+    # [F54 2026-09-09] 费率修正：原值 maker=taker=0.00005（0.5bp）是 **USD1 通用永续**
+    # 的 taker 费率，而本系统实际交易的是 **USDT 永续**。官方费率表
+    # （https://docs.asterdex.com/trading/perpetuals/fees-and-specs/fees）：
+    #   USDT 永续   maker 0%    taker 0.04%
+    #   USD1 永续   maker 0%    taker 0.005%
+    #   RWA  永续   maker 0%    taker 0.009%
+    # 旧值把 Aster 的往返成本低估了 8 倍（实测 DB 费率 0.50bp 与旧配置一致），
+    # 使全部模拟盘/回测结论系统性偏乐观（按真实 taker 重算，历史短线亏损应为
+    # ≈ −$528 而非账面 −$202，见《短线根因诊断与处置建议_20260909》）。
+    # 允许用环境变量覆盖，便于官方调价时无需改代码：
+    #   ASTERDEX_MAKER_FEE_BP / ASTERDEX_TAKER_FEE_BP
     "asterdex": PaperExchangeRules(
         "asterdex",
-        maker_fee_rate=0.00005,
-        taker_fee_rate=0.00005,
+        maker_fee_rate=float(os.getenv("ASTERDEX_MAKER_FEE_BP", "0")) / 10000.0,
+        taker_fee_rate=float(os.getenv("ASTERDEX_TAKER_FEE_BP", "4")) / 10000.0,
         min_notional_usd=5.0,
         quantity_step=0.0001,
         maintenance_margin_rate=0.005,

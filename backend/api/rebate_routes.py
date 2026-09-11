@@ -691,6 +691,15 @@ async def get_funding_matrix(
                 key=lambda c: c.get("net_apr_at_horizon", 0.0) or 0.0, reverse=True
             )
 
+        # [2026-09 修复 P2] 套利引擎开关状态直接内嵌返回，前端矩阵页可见
+        # 「引擎是否真的在跑」，避免 UI 展示机会但引擎未启用的「半摆设」困惑。
+        arb_status = {}
+        try:
+            from backend.services.rebate_arb.arb_switches import get_arb_switch_status
+            arb_status = get_arb_switch_status().to_dict()
+        except Exception as _arb_err:
+            logger.debug("funding-matrix arb_status 读取失败: %s", _arb_err)
+
         return {
             "as_of": time.time(),
             "multi_venue": multi,
@@ -702,6 +711,7 @@ async def get_funding_matrix(
             "venues": venues,
             "matrix": matrix,
             "combos": combos,
+            "arb_status": arb_status,
         }
     except Exception as e:
         logger.error("get_funding_matrix failed: %s", e)
@@ -713,6 +723,38 @@ async def get_funding_matrix(
             "combos": [],
             "error": str(e),
         }
+
+
+# ════════════════════════════════════════════════════════
+#  GET /asterdex-points/summary — 实盘积分账本（成交顺路吃 Rh 积分计量）
+# ════════════════════════════════════════════════════════
+
+@router.get("/asterdex-points/summary")
+async def get_asterdex_points_summary(
+    days: int = Query(7, ge=1, le=60, description="统计天数"),
+    reconcile: bool = Query(True, description="是否附带官方快照对账"),
+):
+    """实盘 Asterdex 成交的积分计量汇总（估算值，以官方快照为准）。
+
+    设计：docs/ASTERDEX_LIVE_POINTS_DESIGN.md
+    - 只计量真实成交（资金费套利主腿/主交易），不做刷分交易；
+    - 积分模型单一来源 rule_registry.STAGE6_POINT_MODEL。
+    """
+    from backend.services.rebate_arb.live_points_engine import live_points_engine
+
+    summary = live_points_engine.get_summary(days=int(days))
+    resp: Dict[str, Any] = {
+        "days": int(days),
+        "summary": summary,
+        "policy": live_points_engine.get_policy(),
+        "speculative": True,
+        # [2026-09-03] Stage 6 已结束：trade_points/hold_points/est_usd 恒为 0 仅作历史口径；
+        # 真实收入请用 /api/live/asterdex/points/{account_id}（真实流水账本）。
+        "note": "Stage 6 积分赛季已于 2026-05 结束，积分不再计值；真实收入见实盘页「真实收入账本」",
+    }
+    if reconcile:
+        resp["reconcile"] = live_points_engine.reconcile()
+    return resp
 
 
 # ════════════════════════════════════════════════════════

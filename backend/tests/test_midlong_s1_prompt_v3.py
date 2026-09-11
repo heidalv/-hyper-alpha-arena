@@ -139,16 +139,31 @@ class TestS03V3PromptRendering:
         assert "self_check" in rendered
 
     def test_swing_v3_includes_protocol_layer(self):
-        """v3 应注入 protocol_midlong_risk_constitution 协议层。"""
-        rendered = self._render_swing()
-        assert "风险宪法" in rendered
-        assert "单笔风险上限" in rendered
-        assert "同方向冷却规则" in rendered
+        """应注入 protocol_midlong_risk_constitution 协议层。
 
-    def test_swing_v3_uses_3_layer_reasoning(self):
-        """v3 应使用 3 层精炼推理（替代 v2 的 5 层空转）。"""
+        [2026-09-02] 协议文案已由"风险宪法"重构为"中长线风险底线（不可妥协的安全网，仅此 5 条）"，
+        条目为"单笔最大风险 ≤ 权益 1.5%""同向冷却/上限不得再开"等。断言改为现行措辞，
+        意图不变：协议层确实被拼进 swing 提示词，且单笔风险与同向冷却两条硬约束在场。
+        """
         rendered = self._render_swing()
-        assert "3 层精炼" in rendered
+        assert "协议：中长线风险底线" in rendered
+        assert "单笔最大风险" in rendered
+        assert "冷却" in rendered and "不得再" in rendered
+        assert "protocol_midlong_risk_constitution" in rendered  # 段 4 引用来源
+
+    def test_swing_v3_has_reasoning_guidance_section(self):
+        """推理段存在。
+
+        [2026-09-02] v6 松绑把"3 层精炼推理"替换为"段 3 / 自由推理引导（建议覆盖，但不限于）"，
+        不再规定层数（层数规定实测让模型空转套模板）。守住：有独立推理段、且位于数据段之后、
+        风险底线段之前。
+        """
+        rendered = self._render_swing()
+        assert "自由推理引导" in rendered
+        i_data = rendered.find("段 2 / 数据上下文")
+        i_reason = rendered.find("段 3 / 自由推理引导")
+        i_risk = rendered.find("段 4 / 风险底线")
+        assert 0 <= i_data < i_reason < i_risk, "段落顺序应为 数据 → 推理 → 风险底线"
 
 
 # ════════════════════════════════════════════════════════════════════

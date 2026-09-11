@@ -921,117 +921,73 @@ async def close_live_position(payload: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/asterdex/points/{account_id}")
-async def get_asterdex_points(account_id: int, db: Session = Depends(get_db)):
-    """Asterdex 合约交易积分 + 收益预期（含历史记录）。
+async def get_asterdex_points(
+    account_id: int,
+    days: int = 7,
+    db: Session = Depends(get_db),
+):
+    """Asterdex 实盘「真实收入账本」（路径沿用 /asterdex/points 以兼容前端路由）。
 
-    数据来源：Asterdex Rh 积分 API + 费率/返佣 API（经统一 adapter 聚合）。
-    收益预期：
-      - 返佣：7日交易量 × 当前返佣率 → 周/月/年化
-      - 积分：日积分率 → 周/月积分；空投预估价值来自交易所
+    [2026-09-03 重做] 旧实现展示 Stage 6 Rh 积分 / 空投预估 / "交易量×0.001"
+    臆造积分——Stage 6 已于 2026-05 结束，且 /fapi/v1/rh/points 端点并不存在，
+    面板数值恒为 0 或纯估算。现改为只汇总交易所真实返回：
+      - 账户：多资产模式、USDF 抵押占比（Trade & Earn 前提）
+      - 费率：账户真实 maker/taker；窗口内手续费 / 资金费 / 已实现盈亏（income 流水）
+      - 执行：maker 成交占比、省下的手续费（maker 名义 × taker 费率）
+      - Trade & Earn：本周交易量 / 活跃天数 门槛进度、USDF 计入额、参考周奖励（标注 reference）
+      - 奖励：窗口内非交易/非转账类真实入账（USDF 等）
+    凭证识别改为 _credential_exists（.env 或 exchange_credentials 表均可），
+    不再只认 .env。
     """
     account = _get_account(db, account_id)
     exchange = _normalize_exchange(getattr(account, "selected_exchange", None) or "asterdex")
     if exchange != "asterdex":
-        raise HTTPException(status_code=400, detail="仅 asterdex 交易所支持积分查询")
-    if not _keys_configured("asterdex"):
+        raise HTTPException(status_code=400, detail="仅 asterdex 交易所支持收入账本")
+    if not _credential_exists(db, account):
         return {
             "keys_configured": False,
-            "message": "未配置 Asterdex API Key",
-            "points": None,
-            "projection": None,
-            "history": [],
+            "exchange": "asterdex",
+            "message": "未配置 Asterdex API Key（交易所配置页添加凭证并绑定该账户后可用）",
+            "ledger": None,
         }
 
-    client, _ = _get_client(account)
-    try:
-        summary = await client.get_incentive_summary()
-    except Exception as exc:
-        logger.warning("[Live] asterdex points fetch failed account=%s: %s", account_id, exc)
-        raise HTTPException(status_code=502, detail=f"获取积分数据失败: {str(exc)[:150]}")
+    client, _ = _maybe_client(account)
+    if client is None or not hasattr(client, "get_margin_assets"):
+        raise HTTPException(status_code=503, detail="Asterdex 客户端不可用（凭证无效或适配器未加载）")
 
-    pts = summary.points
-    fee = summary.fee_tier
-    reb = summary.rebate
-
-    weekly_rebate = float(getattr(reb, "projected_weekly_rebate", 0) or 0)
-    monthly_rebate = weekly_rebate * 4.33
-    yearly_rebate = weekly_rebate * 52
-    daily_points = float(getattr(pts, "daily_points_rate", 0) or 0)
-    volume_7d = float(getattr(reb, "trading_volume_7d", 0) or 0)
-    multiplier = float(getattr(pts, "points_multiplier", 1) or 1)
-
-    # 若交易所未给日积分率，用「7日交易量 × 乘数 × 0.001」作保守估算（标注 estimated）
-    estimated_daily_points = daily_points
-    points_estimated = False
-    if daily_points <= 0 and volume_7d > 0:
-        estimated_daily_points = volume_7d / 7.0 * multiplier * 0.001
-        points_estimated = True
-
-    points_data = {
-        "points_balance": round(float(getattr(pts, "points_balance", 0) or 0), 2),
-        "points_multiplier": multiplier,
-        "season": getattr(pts, "season", "") or "",
-        "qualifying_days": int(getattr(pts, "qualifying_days", 0) or 0),
-        "required_days": int(getattr(pts, "required_days", 2) or 2),
-        "qualification_pct": round(float(getattr(pts, "qualification_pct", 0) or 0), 4),
-        "airdrop_eligible": bool(getattr(pts, "airdrop_eligible", False)),
-        "estimated_airdrop_value": round(float(getattr(pts, "estimated_airdrop_value", 0) or 0), 2),
-        "daily_points_rate": round(daily_points, 4),
-    }
-    projection = {
-        "volume_7d_usd": round(volume_7d, 2),
-        "rebate_rate": round(float(getattr(reb, "current_rebate_rate", 0) or 0), 8),
-        "weekly_rebate_usd": round(weekly_rebate, 2),
-        "monthly_rebate_usd": round(monthly_rebate, 2),
-        "yearly_rebate_usd": round(yearly_rebate, 2),
-        "daily_points": round(estimated_daily_points, 4),
-        "points_estimated": points_estimated,
-        "weekly_points": round(estimated_daily_points * 7, 2),
-        "monthly_points": round(estimated_daily_points * 30, 2),
-        "total_estimated_monthly_value": round(
-            float(getattr(summary, "total_estimated_monthly_value", 0) or 0), 2
-        ),
-    }
+    from backend.services.rebate_arb.live_income_ledger import build_live_income_ledger
 
     try:
-        _persist_points_snapshot(db, account_id, summary)
-    except Exception:
-        pass
-
-    history: List[Dict[str, Any]] = []
-    try:
-        from backend.database.models import RebateIncentiveSnapshotDB
-        rows = (
-            db.query(RebateIncentiveSnapshotDB)
-            .filter(RebateIncentiveSnapshotDB.exchange == "asterdex")
-            .order_by(RebateIncentiveSnapshotDB.snapshot_time.desc())
-            .limit(30)
-            .all()
+        ledger = await asyncio.wait_for(
+            build_live_income_ledger(
+                client, days=int(days or 7), cache_key=f"asterdex:{account_id}:{int(days or 7)}",
+            ),
+            timeout=40.0,
         )
-        for r in rows:
-            import json as _json
-            meta = {}
-            try:
-                meta = _json.loads(r.data_json or "{}")
-            except Exception:
-                pass
-            history.append({
-                "snapshot_time": str(r.snapshot_time),
-                "points_balance": round(float(r.points_balance or 0), 2),
-                "points_multiplier": float(r.points_multiplier or 1),
-                "airdrop_eligible": bool(meta.get("airdrop_eligible", False)),
-                "estimated_airdrop_value": round(float(meta.get("estimated_airdrop_value", 0) or 0), 2),
-                "volume_7d_usd": round(float(meta.get("volume_7d", 0) or 0), 2),
-                "rebate_rate": float(r.rebate_rate or 0),
-            })
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Asterdex 账本汇总超时（交易所接口响应慢），请稍后重试")
     except Exception as exc:
-        logger.debug("[Live] points history query failed: %s", exc)
+        logger.warning("[Live] asterdex ledger failed account=%s: %s", account_id, exc, exc_info=True)
+        raise HTTPException(status_code=502, detail=f"获取收入账本失败: {str(exc)[:150]}")
+
+    # 交易所配置里的 maker 优先开关状态（让用户在面板上看见"优化是否在生效"）
+    policy: Dict[str, Any] = {}
+    try:
+        from backend.services.rebate_arb.live_points_engine import live_points_engine
+        policy = live_points_engine.get_policy()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[Live] points policy read failed: %s", exc)
 
     return {
         "keys_configured": True,
         "exchange": "asterdex",
-        "points": points_data,
-        "projection": projection,
-        "history": history,
+        "ledger": ledger,
+        "policy": {
+            "maker_first": bool(policy.get("maker_first", False)),
+            "maker_first_tiers": policy.get("maker_first_tiers") or [],
+            "maker_timeout_s": policy.get("maker_timeout_s"),
+            "enabled": bool(policy.get("enabled", False)),
+            "reason": policy.get("reason"),
+        },
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }

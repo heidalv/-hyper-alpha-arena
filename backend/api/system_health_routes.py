@@ -17,11 +17,12 @@
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.database.connection import get_analytics_db as get_db
@@ -122,39 +123,43 @@ def risk_events(
     )
     type_counts = [{"event_type": r.event_type, "count": int(r.n)} for r in by_event_type]
 
-    # 按 details JSON 中的 guard_name 拆分（用 SQL 字符串提取，简易实现）
+    # 按 details JSON 中的 guard_name 拆分。
+    # [2026-09-02] 原实现用裸 SQL `instr()/substr()` 截字符串 —— instr 是 SQLite
+    # 专有函数，PostgreSQL 没有。except 虽把异常吞了，但 PostgreSQL 的失败语句会让
+    # 整个事务进入 aborted 状态，紧接着的 `recent` 查询抛 InFailedSqlTransaction，
+    # 整个接口 500（test_full_flow_integration::test_risk_events_* 长期红）。
+    # 改为 Python 侧 json 解析聚合：无方言依赖、比字符串截取准确（原逻辑对
+    # `"guard_name":"x"` 无空格写法会截错）。窗口内 details 上限 5000 条防止大表全拉。
     guard_counts: List[Dict[str, Any]] = []
     try:
-        sql = text(
-            """
-            SELECT
-              CASE
-                WHEN instr(details, '"guard_name"') > 0
-                  THEN substr(
-                    details,
-                    instr(details, '"guard_name"') + length('"guard_name"') + 3,
-                    50
-                  )
-                ELSE 'n/a'
-              END AS gn_raw,
-              COUNT(*) AS n
-            FROM risk_control_events
-            WHERE created_at >= :cutoff
-            GROUP BY gn_raw
-            ORDER BY n DESC
-            LIMIT 30
-            """
+        _detail_rows = (
+            db.query(RiskControlEvent.details)
+            .filter(RiskControlEvent.created_at >= cutoff)
+            .order_by(RiskControlEvent.created_at.desc())
+            .limit(5000)
+            .all()
         )
-        rs = db.execute(sql, {"cutoff": cutoff.replace(tzinfo=None)}).fetchall()
-        for row in rs:
-            raw = (row[0] or "").strip()
-            # raw 形如 fee_guard"} ……，取前面引号之间内容
-            if raw.startswith('"'):
-                raw = raw[1:]
-            quote_end = raw.find('"')
-            gn = raw[:quote_end] if quote_end > 0 else raw
-            guard_counts.append({"guard_name": gn or "n/a", "count": int(row[1])})
+        _gn_counter: Dict[str, int] = {}
+        for (_d,) in _detail_rows:
+            gn = "n/a"
+            if _d:
+                try:
+                    _obj = json.loads(_d) if isinstance(_d, str) else _d
+                    if isinstance(_obj, dict) and _obj.get("guard_name"):
+                        gn = str(_obj["guard_name"])
+                except Exception:
+                    pass
+            _gn_counter[gn] = _gn_counter.get(gn, 0) + 1
+        guard_counts = [
+            {"guard_name": k, "count": v}
+            for k, v in sorted(_gn_counter.items(), key=lambda kv: -kv[1])[:30]
+        ]
     except Exception:
+        # 任何查询失败都要把事务恢复到可用状态，否则后续查询连带 500
+        try:
+            db.rollback()
+        except Exception:
+            pass
         guard_counts = []
 
     recent = (

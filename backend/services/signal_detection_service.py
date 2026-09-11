@@ -19,7 +19,7 @@ def _get_market_regime_for_trigger(symbol: str, timeframe: str = "5m") -> Option
     """Get market regime classification for a trigger and return as JSON string."""
     try:
         from backend.database.connection import SessionLocal
-        from services.market_regime_service import get_market_regime
+        from backend.services.market_regime_service import get_market_regime
         db = SessionLocal()
         try:
             result = get_market_regime(db, symbol, timeframe)
@@ -563,7 +563,7 @@ class SignalDetectionService:
             # taker_volume is handled in _check_signal_trigger directly
             # All other metrics use DB query via market_flow_indicators
             from backend.database.connection import SessionLocal
-            from services.market_flow_indicators import get_indicator_value
+            from backend.services.market_flow_indicators import get_indicator_value
 
             # Convert time_window to period string
             period = self._time_window_to_period(time_window)
@@ -613,7 +613,7 @@ class SignalDetectionService:
         volume_threshold = condition.get("volume_threshold", 0)
 
         from backend.database.connection import SessionLocal
-        from services.market_flow_indicators import _get_taker_data, TIMEFRAME_MS
+        from backend.services.market_flow_indicators import _get_taker_data, TIMEFRAME_MS
         from datetime import datetime, timezone
 
         period = time_window if isinstance(time_window, str) else self._time_window_to_period(time_window)
@@ -791,7 +791,7 @@ class SignalDetectionService:
 
         # Get taker data from DB
         from backend.database.connection import SessionLocal
-        from services.market_flow_indicators import _get_taker_data, TIMEFRAME_MS
+        from backend.services.market_flow_indicators import _get_taker_data, TIMEFRAME_MS
         from datetime import datetime, timezone
 
         period = time_window if isinstance(time_window, str) else self._time_window_to_period(time_window)

@@ -10,8 +10,8 @@ import {
   Wallet, Banknote, TrendingUp, Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getBackendUrl } from "@/lib/backend-config";
-const BACKEND = getBackendUrl().replace(/\/$/, "");
+import { apiRequest } from "@/lib/api";
+import { usePolling } from "@/hooks/usePolling";
 
 export default function HyperliquidPage() {
   const [statuses, setStatuses] = useState<any[]>([]);
@@ -31,33 +31,34 @@ export default function HyperliquidPage() {
   const getExName = (id: string) => EXCHANGE_NAMES[id] || id;
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // [2026-09-09] 原为裸 fetch（无 Authorization、无续期、失败静默）。
+    // 统一走 apiRequest：带 token + 单飞续期 + 401 重试/登出 + 超时。
     setError(null);
     try {
       const [sts, allPos] = await Promise.all([
-        fetch(`${BACKEND}/api/exchange/statuses`).then(r => r.json()).catch(() => []),
-        fetch(`${BACKEND}/api/exchange/positions/all`).then(r => r.json()).catch(() => []),
+        apiRequest<any[]>("/exchange/statuses", { timeout: 20_000 }).catch(() => []),
+        apiRequest<any>("/exchange/positions/all", { timeout: 20_000 }).catch(() => []),
       ]);
-      setStatuses(sts);
+      setStatuses(Array.isArray(sts) ? sts : []);
       setPositions(Array.isArray(allPos) ? allPos : (allPos?.positions || []));
 
       // 并行获取每个已连接交易所的余额
       const balResults: Record<string, any> = {};
-      await Promise.all(sts.filter((s: any) => s.connected).map(async (s: any) => {
+      await Promise.all((Array.isArray(sts) ? sts : []).filter((s: any) => s.connected).map(async (s: any) => {
         try {
-          const b = await fetch(`${BACKEND}/api/exchange/${s.exchange}/balance`).then(r => r.json());
-          balResults[s.exchange] = b;
-        } catch {}
+          balResults[s.exchange] = await apiRequest<any>(`/exchange/${s.exchange}/balance`, { timeout: 20_000 });
+        } catch { /* 单个交易所失败不影响其余 */ }
       }));
       setBalances(balResults);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); const id = setInterval(load, 30000); return () => clearInterval(id); }, [load]);
+  // 30s 轮询 + 隐藏暂停 + 单飞（原来裸 setInterval 隐藏时照打）
+  usePolling(load, 30_000);
 
   const connectedCount = statuses.filter(s => s.connected).length;
 

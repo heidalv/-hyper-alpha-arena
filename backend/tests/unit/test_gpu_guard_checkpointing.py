@@ -53,12 +53,17 @@ def test_gpu_guard_boundary():
 
 
 def test_gpu_guard_query_real_machine():
-    """实机核验：本机有 GTX 1070 且 nvidia-smi 可查询（环境性，缺卡则跳过）。"""
+    """实机核验：nvidia-smi 可查询且字段形态正确（环境性，缺卡则跳过）。
+
+    [2026-09-02] 不再钉死具体卡型。原断言 "GTX 1070 / 8GB" 在换卡后
+    （现为 RTX 2080 Ti 22GB）必红；query_gpu 的契约是字段解析，不是硬件清单。
+    """
     g = query_gpu()
     if g is None:
         pytest.skip("nvidia-smi 不可用（无 NVIDIA GPU 或驱动未就绪）")
-    assert g["name"].startswith("NVIDIA GeForce GTX 1070")
-    assert g["mem_total_mb"] > 7000  # 8GB 卡
+    assert isinstance(g["name"], str) and g["name"].strip(), "GPU 名称应为非空字符串"
+    assert "NVIDIA" in g["name"].upper() or "GEFORCE" in g["name"].upper() or "RTX" in g["name"].upper()
+    assert g["mem_total_mb"] > 2000, "显存解析异常（<2GB 不可能是训练卡）"
     assert 0 <= g["temp_c"] < 100
 
 

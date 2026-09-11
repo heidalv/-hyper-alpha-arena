@@ -17,11 +17,13 @@ def test_vectorized_rolling_equivalence():
     y = rng.normal(0, 1, 300)
 
     def ref_rolling(a, w, fn):
-        # 新语义参考实现: 与 pandas rolling(min_periods=max(2, w//2)) 对齐——
-        # 相比旧 Python 循环, 头部 w-2 个位置在有效值足够时也计算(更多覆盖, 非错误)。
+        # [2026-09-02 修正] 参考语义 = ed92085 原 Python _rolling（GPU 镜像 _pos_gate 的基准）：
+        # 只在 i ≥ w-1 出值；窗口内有效值 ≥ max(2, w//2) 才算。08-27 版本把 pandas
+        # "不满窗口也出值"写成了标准，与 GPU 镜像/模块契约（"窗口不足处填 nan"）冲突，
+        # 导致 GPU/CPU 等价验收 pearson 0.988655（test_gpu_mirror_matches_cpu）。
         out = np.full(len(a), np.nan)
-        for i in range(1, len(a)):
-            win = a[max(0, i - w + 1):i + 1]
+        for i in range(w - 1, len(a)):
+            win = a[i - w + 1:i + 1]
             m = np.isfinite(win)
             if m.sum() < max(2, w // 2):
                 continue
@@ -46,6 +48,41 @@ def test_ts_rank_semantics():
     assert abs(out[3] - 1.0) < 1e-9
     assert abs(out[4] - 2 / 3) < 1e-9
     assert abs(out[5] - 1.0) < 1e-9
+
+
+def test_ts_rank_nan_and_tie_semantics_match_reference():
+    """[2026-09-02] ts_rank 向量化版必须与 ed92085 原实现（= GPU _roll_ts_rank）逐点一致：
+    - 并列取 "≤ 计数"（method=max），不是 pandas 默认的平均名次；
+    - 窗口内 NaN 剔除后 ≥ max(2, w//2) 个即出值（pandas 默认 min_periods=w 会给 NaN）；
+    - 当前值为 NaN 时对窗口内最后一个有效值排名；
+    - 头部 w-1 根一律 NaN。
+    """
+    from backend.services.factor_engine import formula_ops as F
+
+    def ref(a, w):
+        out = np.full(len(a), np.nan)
+        for i in range(w - 1, len(a)):
+            win = a[i - w + 1:i + 1]
+            v = win[np.isfinite(win)]
+            if len(v) < max(2, w // 2):
+                continue
+            out[i] = float((v <= v[-1]).sum()) / float(len(v))
+        return out
+
+    rng = np.random.default_rng(3)
+    cases = [
+        rng.normal(0, 1, 200),                        # 连续
+        rng.integers(0, 3, 200).astype(float),        # 离散大量并列
+        F.ts_rank(rng.normal(0, 1, 200), 5),          # 嵌套（头部 NaN + 离散）
+    ]
+    for a in cases:
+        a = a.copy()
+        a[rng.random(len(a)) < 0.1] = np.nan          # 含窗口内部 NaN 与当前值 NaN
+        for w in (2, 3, 5, 10, 30):
+            got, exp = F.ts_rank(a, w), ref(a, w)
+            assert np.array_equal(np.isfinite(got), np.isfinite(exp)), f"NaN 位置不一致 w={w}"
+            m = np.isfinite(exp)
+            assert np.allclose(got[m], exp[m], atol=1e-12), f"数值不一致 w={w}"
 
 
 def test_ts_corr_vectorized():
@@ -133,14 +170,19 @@ def test_codegen_cloud_first_resolution():
 
 # ── 7. 挖掘跨币错配修复(初筛) ──
 def test_purge_factor_series_same_source():
-    # factor_series_fn 与 return_series 必须同源(first_df)——修复后代码固定用
-    # list(dfs.values())[0]; 校验实际代码不再通过 best_sym 取数据(注释提及不算)。
+    # [2026-08-30 挖矿升级 M2 更新] 初筛已升级为面板口径：
+    # ① factor_series_fn 不再钉死单币（旧 "list(dfs.values())[0]" 是单币一票
+    #    否决 bug，实测 20/20 全灭）；② 必须使用 _panel_factor_series 逐币
+    #    标准化拼接；③ return_series 与因子同源（逐币 forward_returns 拼接）。
     import inspect
     from backend.services.evolution import factor_evolution_loop as L
     src = inspect.getsource(L._purge_and_select)
     fn_src = src.split("def factor_series_fn")[1].split("def factor_matrix_fn")[0]
     assert "dfs.get(best_sym)" not in fn_src
-    assert "df = list(dfs.values())[0]" in fn_src
+    assert "list(dfs.values())[0]" not in fn_src
+    assert "_panel_factor_series" in src
+    # 逐币同源拼接（因子与收益来自同一币）
+    assert "for _sym, df in dfs.items()" in src
 
 
 # ── 8. 晋升即隔离修复: M2 复评/漂移监控对本轮新晋升宽限一轮 ──

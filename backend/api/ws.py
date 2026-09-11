@@ -44,7 +44,7 @@ class ConnectionManager:
             if WS_DELTA_MODE:
                 _ws_trackers.setdefault(account_id, {})[websocket] = _SnapshotTracker()
             # Add scheduled snapshot task for new account with configured interval
-            from config.refresh_config import get_refresh_interval
+            from backend.config.refresh_config import get_refresh_interval
             interval = get_refresh_interval("websocket_snapshot")
             add_account_snapshot_job(account_id, interval_seconds=interval)
 

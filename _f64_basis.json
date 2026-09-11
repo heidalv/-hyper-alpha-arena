@@ -1,0 +1,100 @@
+{
+ "BTC": {
+  "symbol": "BTC",
+  "venue": "binance",
+  "spot_px": 78608.0,
+  "perp_mark_px": 78569.65,
+  "basis_bp": -4.8786,
+  "spot_age_sec": 193.1,
+  "perp_venue": "binance"
+ },
+ "ETH": {
+  "symbol": "ETH",
+  "venue": "binance",
+  "spot_px": 2487.43,
+  "perp_mark_px": 2485.835,
+  "basis_bp": -6.4122,
+  "spot_age_sec": 193.2,
+  "perp_venue": "binance"
+ },
+ "BNB": {
+  "symbol": "BNB",
+  "venue": "binance",
+  "spot_px": 748.96,
+  "perp_mark_px": 749.165,
+  "basis_bp": 2.7371,
+  "spot_age_sec": 193.2,
+  "perp_venue": "binance"
+ },
+ "XRP": {
+  "symbol": "XRP",
+  "venue": "binance",
+  "spot_px": 1.4146,
+  "perp_mark_px": 1.41385,
+  "basis_bp": -5.3019,
+  "spot_age_sec": 193.3,
+  "perp_venue": "binance"
+ },
+ "SOL": {
+  "symbol": "SOL",
+  "venue": "binance",
+  "spot_px": 103.15,
+  "perp_mark_px": 103.085,
+  "basis_bp": -6.3015,
+  "spot_age_sec": 193.4,
+  "perp_venue": "binance"
+ },
+ "DOGE": {
+  "symbol": "DOGE",
+  "venue": "binance",
+  "spot_px": 0.08952,
+  "perp_mark_px": 0.089465,
+  "basis_bp": -6.1439,
+  "spot_age_sec": 193.4,
+  "perp_venue": "binance"
+ },
+ "ADA": {
+  "symbol": "ADA",
+  "venue": "binance",
+  "spot_px": 0.2163,
+  "perp_mark_px": 0.21595,
+  "basis_bp": -16.1812,
+  "spot_age_sec": 193.4,
+  "perp_venue": "binance"
+ },
+ "LINK": {
+  "symbol": "LINK",
+  "venue": "binance",
+  "spot_px": 12.386,
+  "perp_mark_px": 12.3785,
+  "basis_bp": -6.0552,
+  "spot_age_sec": 193.5,
+  "perp_venue": "binance"
+ },
+ "UNI": {
+  "symbol": "UNI",
+  "venue": "binance",
+  "spot_px": 6.789,
+  "perp_mark_px": 6.7835,
+  "basis_bp": -8.1013,
+  "spot_age_sec": 193.5,
+  "perp_venue": "binance"
+ },
+ "AVAX": {
+  "symbol": "AVAX",
+  "venue": "binance",
+  "spot_px": 7.942,
+  "perp_mark_px": 7.9365,
+  "basis_bp": -6.9252,
+  "spot_age_sec": 193.5,
+  "perp_venue": "binance"
+ },
+ "LTC": null,
+ "DOT": null,
+ "ATOM": null,
+ "NEAR": null,
+ "APT": null,
+ "ARB": null,
+ "OP": null,
+ "SUI": null
+}

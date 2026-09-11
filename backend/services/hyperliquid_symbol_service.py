@@ -104,7 +104,7 @@ def _validate_symbol_tradability(symbol: str, environment: str = "testnet") -> b
     Uses silent validation method that doesn't log errors for invalid symbols.
     """
     try:
-        from services.hyperliquid_market_data import get_hyperliquid_client_for_environment
+        from backend.services.hyperliquid_market_data import get_hyperliquid_client_for_environment
         client = get_hyperliquid_client_for_environment(environment)
         return client.check_symbol_tradability(symbol)
     except Exception:
@@ -364,7 +364,7 @@ def get_symbol_display(symbol: str) -> str:
 
 def schedule_symbol_refresh_task(interval_seconds: int = 7200) -> None:
     """Register periodic symbol refresh job."""
-    from services.scheduler import task_scheduler
+    from backend.services.scheduler import task_scheduler
 
     def _task():
         try:
@@ -403,7 +403,7 @@ def build_market_symbols() -> List[str]:
     paper_symbols: List[str] = []
     if _has_active_paper_accounts():
         try:
-            from services.trading_commands import AI_TRADING_SYMBOLS
+            from backend.services.trading_commands import AI_TRADING_SYMBOLS
         except Exception:
             paper_symbols = [entry["symbol"] for entry in DEFAULT_SYMBOLS]
         else:
@@ -423,7 +423,7 @@ def refresh_market_symbols() -> List[str]:
         logger.warning("Unable to refresh market symbols: %s", err)
 
     try:
-        from services.market_flow_collector import market_flow_collector
+        from backend.services.market_flow_collector import market_flow_collector
         hyperliquid_symbols = get_selected_symbols()
         market_flow_collector.refresh_subscriptions(hyperliquid_symbols)
     except Exception as err:

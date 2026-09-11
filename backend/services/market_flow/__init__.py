@@ -20,7 +20,7 @@ Market Flow 多交易所采集子系统
 启动入口：startup.py / main.py → registry.start_all(symbols_map)
 """
 
-from services.market_flow.registry import (
+from backend.services.market_flow.registry import (
     MarketFlowCollectorRegistry,
     market_flow_registry,
     register_defaults,

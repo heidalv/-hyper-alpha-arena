@@ -160,11 +160,15 @@ def validate_tp_sl_by_nature(
     _LIMITS = {
         # [2026-07-31 research] scalp min_tp/min_sl 0.8%→1.2%，对齐 TIER_SHORT + MR floor
         # [S6 2026-08-21] max_sl 2.5%→3.0% 对齐学习值新夹幅上限；max_tp 4%→4.5%
-        # [2026-08-23 改造A] 全夹幅对齐信号 30-45min 边际（±0.3%）与 1h ATR 尺度：
-        #   min_tp 0.9% / max_tp 1.5% / min_sl 0.7% / max_sl 1.2%。
-        #   旧夹幅会把新 TP/SL 强制拉回 1.2%/1.2%（RR=1.0）→ V5 min_rr=1.3 冤杀，
-        #   或把 SL 拉回 1.4-3% 噪音带（SL 通道全历史 -197 的出血源）。
-        "scalp":        (0.009, 0.015, 0.007, 0.012),
+        # [2026-08-29] 短线夹幅改为安全网，让行情管家按 ATR/regime 拉开差距。
+        #   min_tp 0.6% / max_tp 4.0% / min_sl 0.5% / max_sl 3.0%。
+        #   回滚窄夹幅：SCALP_MARKET_AWARE_TPSL=false（仅改计算器，本表仍放行管家结果）。
+        # [2026-09-02 P2.2] max_tp 4.0%→5.5%：RR 上调到 2.0-2.5 后，这是第三层
+        #   夹幅（前两层为 market_aware_tpsl 的 SCALP_MA_TP_MAX_PCT 与
+        #   ScalpGate._ensure_min_rr 的硬上限）。三层只要有一层没同步，SL 宽于
+        #   1.6% 的单就会被夹回，实际 RR 掉回 1.3 —— 新设定对最需要它的宽止损
+        #   单完全失效。SL 上限 3.0%，取 2.2%×2.5≈5.5% 覆盖绝大多数情形。
+        "scalp":        (0.006, 0.055, 0.005, 0.030),
         "intraday":     (0.01,  0.12,  0.018, 0.08),
         "swing":        (0.02,  0.30,  0.025, 0.12),
         "position":     (0.05,  0.50,  0.030, 0.18),

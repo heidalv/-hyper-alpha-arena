@@ -161,13 +161,23 @@ def test_midlong_loop_long_only_no_mid_dispatch():
 # ═══════════════════════════════════════════════════════════════════
 # 5. MIDLONG_MID_VIA_MLTO 强制 False
 # ═══════════════════════════════════════════════════════════════════
-def test_midlong_mid_via_mlto_forced_false():
-    """MIDLONG_MID_VIA_MLTO 必须恒为 False（即便环境变量设 true 也无效）。"""
+def test_midlong_mid_via_mlto_default_off_env_driven():
+    """MIDLONG_MID_VIA_MLTO：代码默认 False，可由 env 显式开启。
+
+    [2026-09-02] 原断言"恒为 False（env 设 true 也无效）"已过时：2026-08-12 接通
+    "AI 中线通道"（符号源 = 平台看板 coin_select_candidates，与固定长线白名单正交）
+    后，该开关重新成为受 env 控制的正式功能，.env 当前为 true。
+    本用例只守两件事：(1) 代码默认值仍是 false（不悄悄默认开启）；(2) 值是 bool。
+    swing_agent 本身的弃用由本文件其它用例守住。
+    """
+    import re
     from backend.config import settings
 
-    assert settings.MIDLONG_MID_VIA_MLTO is False, (
-        f"MIDLONG_MID_VIA_MLTO 应被强制为 False，实际={settings.MIDLONG_MID_VIA_MLTO}"
-    )
+    assert isinstance(settings.MIDLONG_MID_VIA_MLTO, bool)
+    src = open(settings.__file__, encoding="utf-8").read()
+    m = re.search(r'MIDLONG_MID_VIA_MLTO:\s*bool\s*=\s*os\.getenv\("MIDLONG_MID_VIA_MLTO",\s*"(\w+)"\)', src)
+    assert m, "MIDLONG_MID_VIA_MLTO 应为 env 驱动的 bool 开关"
+    assert m.group(1).lower() == "false", "代码默认值必须保持 false"
 
 
 # ═══════════════════════════════════════════════════════════════════

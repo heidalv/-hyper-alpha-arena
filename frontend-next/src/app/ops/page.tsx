@@ -13,10 +13,10 @@ import { OpsTraining } from "@/components/ops/OpsTraining";
 import { OpsErrors } from "@/components/ops/OpsErrors";
 import { OpsMiningBoost } from "@/components/ops/OpsMiningBoost";
 import { OpsMidlongFactors } from "@/components/ops/OpsMidlongFactors";
-import { OpsTpSlTrain } from "@/components/ops/OpsTpSlTrain";
 import { OpsHealthOverview, type HealthOverviewData } from "@/components/ops/OpsHealthOverview";
 import { cn } from "@/lib/utils";
 import "./ops.css";
+import { confirmDialog } from "@/lib/confirm";
 
 function scrollToErrors() {
   const el = document.getElementById("ops-errors");
@@ -211,7 +211,12 @@ function OpsDashboard() {
   }, [pulse]);
 
   const pauseBinding = async (id: number) => {
-    if (!confirm(`确认暂停绑定 #${id}？`)) return;
+    if (!(await confirmDialog({
+      title: `暂停绑定 #${id}？`,
+      description: "该币种将不再进入决策车道，已有持仓不受影响。",
+      tone: "warning",
+      confirmText: "暂停",
+    }))) return;
     try {
       await apiRequest(`/ops/bindings/${id}/pause`, { method: "POST" });
       showToast(`已暂停绑定 #${id}`);
@@ -222,7 +227,12 @@ function OpsDashboard() {
   };
 
   const enableCand = async (id: number) => {
-    if (!confirm(`确认启用候选 #${id}？（将生成 running 绑定）`)) return;
+    if (!(await confirmDialog({
+      title: `启用候选 #${id}？`,
+      description: "将生成 running 绑定，该币种随后会进入决策车道。",
+      tone: "primary",
+      confirmText: "启用",
+    }))) return;
     try {
       await apiRequest(`/ops/candidates/${id}/enable`, { method: "POST" });
       showToast(`已启用候选 #${id}`);
@@ -256,7 +266,6 @@ function OpsDashboard() {
       <div className="ops-dash">
         <OpsMiningBoost />
         <OpsMidlongFactors />
-        <OpsTpSlTrain />
         <OpsChainProgress
           fixedPool={pulse?.fixed_pool || train?.fixed_pool}
           aiScan={pulse?.ai_scan || train?.ai_scan}

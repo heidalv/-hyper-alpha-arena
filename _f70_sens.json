@@ -1,0 +1,434 @@
+[
+ {
+  "venue": "asterdex",
+  "hold_days": 7.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": -3.8355,
+  "positive_symbols": 1,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -3.6493,
+   "ETH": -2.0046,
+   "BNB": -7.8445,
+   "XRP": -2.634,
+   "SOL": -8.8619,
+   "DOGE": 1.9812
+  },
+  "funding_usd_mean": {
+   "BTC": 1.2523,
+   "ETH": 1.1317,
+   "BNB": 0.77,
+   "XRP": 1.3921,
+   "SOL": 0.8581,
+   "DOGE": 1.5752
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 7.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": -10.0143,
+  "positive_symbols": 0,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -9.7704,
+   "ETH": -8.229,
+   "BNB": -13.9574,
+   "XRP": -8.8594,
+   "SOL": -15.0626,
+   "DOGE": -4.207
+  },
+  "funding_usd_mean": {
+   "BTC": 1.2523,
+   "ETH": 1.1317,
+   "BNB": 0.77,
+   "XRP": 1.3921,
+   "SOL": 0.8581,
+   "DOGE": 1.5752
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 7.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": -20.3123,
+  "positive_symbols": 0,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -19.9723,
+   "ETH": -18.6031,
+   "BNB": -24.1455,
+   "XRP": -19.2352,
+   "SOL": -25.3971,
+   "DOGE": -14.5206
+  },
+  "funding_usd_mean": {
+   "BTC": 1.2523,
+   "ETH": 1.1317,
+   "BNB": 0.77,
+   "XRP": 1.3921,
+   "SOL": 0.8581,
+   "DOGE": 1.5752
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 14.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": 9.8191,
+  "positive_symbols": 5,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 11.5378,
+   "ETH": 7.4802,
+   "BNB": -0.8894,
+   "XRP": 14.7177,
+   "SOL": 7.3716,
+   "DOGE": 18.6969
+  },
+  "funding_usd_mean": {
+   "BTC": 2.6886,
+   "ETH": 2.3785,
+   "BNB": 1.5281,
+   "XRP": 2.8847,
+   "SOL": 1.8976,
+   "DOGE": 3.1866
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 14.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": 3.3404,
+  "positive_symbols": 5,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 5.172,
+   "ETH": 0.8866,
+   "BNB": -7.2098,
+   "XRP": 8.1176,
+   "SOL": 0.721,
+   "DOGE": 12.355
+  },
+  "funding_usd_mean": {
+   "BTC": 2.6886,
+   "ETH": 2.3785,
+   "BNB": 1.5281,
+   "XRP": 2.8847,
+   "SOL": 1.8976,
+   "DOGE": 3.1866
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 14.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": -7.4574,
+  "positive_symbols": 1,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -5.4375,
+   "ETH": -10.1026,
+   "BNB": -17.7436,
+   "XRP": -2.8826,
+   "SOL": -10.3634,
+   "DOGE": 1.7853
+  },
+  "funding_usd_mean": {
+   "BTC": 2.6886,
+   "ETH": 2.3785,
+   "BNB": 1.5281,
+   "XRP": 2.8847,
+   "SOL": 1.8976,
+   "DOGE": 3.1866
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 30.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": 38.1198,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 42.9104,
+   "ETH": 40.3983,
+   "BNB": 15.579,
+   "XRP": 48.8962,
+   "SOL": 26.2332,
+   "DOGE": 54.7018
+  },
+  "funding_usd_mean": {
+   "BTC": 5.7266,
+   "ETH": 5.2915,
+   "BNB": 3.0993,
+   "XRP": 6.0486,
+   "SOL": 3.8076,
+   "DOGE": 6.8568
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 30.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": 31.284,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 36.2155,
+   "ETH": 33.49,
+   "BNB": 8.9775,
+   "XRP": 41.9439,
+   "SOL": 19.0612,
+   "DOGE": 48.0157
+  },
+  "funding_usd_mean": {
+   "BTC": 5.7266,
+   "ETH": 5.2915,
+   "BNB": 3.0993,
+   "XRP": 6.0486,
+   "SOL": 3.8076,
+   "DOGE": 6.8568
+  }
+ },
+ {
+  "venue": "asterdex",
+  "hold_days": 30.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": 19.8909,
+  "positive_symbols": 5,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 25.0574,
+   "ETH": 21.9762,
+   "BNB": -2.025,
+   "XRP": 30.3568,
+   "SOL": 7.1078,
+   "DOGE": 36.8722
+  },
+  "funding_usd_mean": {
+   "BTC": 5.7266,
+   "ETH": 5.2915,
+   "BNB": 3.0993,
+   "XRP": 6.0486,
+   "SOL": 3.8076,
+   "DOGE": 6.8568
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 7.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": -3.7168,
+  "positive_symbols": 1,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -1.5538,
+   "ETH": -4.2492,
+   "BNB": -8.3371,
+   "XRP": 1.7134,
+   "SOL": -5.3675,
+   "DOGE": -4.5067
+  },
+  "funding_usd_mean": {
+   "BTC": 1.454,
+   "ETH": 1.1601,
+   "BNB": 0.9397,
+   "XRP": 0.9408,
+   "SOL": 0.7587,
+   "DOGE": 1.5263
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 7.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": -9.9073,
+  "positive_symbols": 0,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -7.6959,
+   "ETH": -10.4074,
+   "BNB": -14.4973,
+   "XRP": -4.5266,
+   "SOL": -11.6243,
+   "DOGE": -10.6923
+  },
+  "funding_usd_mean": {
+   "BTC": 1.454,
+   "ETH": 1.1601,
+   "BNB": 0.9397,
+   "XRP": 0.9408,
+   "SOL": 0.7587,
+   "DOGE": 1.5263
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 7.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": -20.2247,
+  "positive_symbols": 0,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -17.9327,
+   "ETH": -20.671,
+   "BNB": -24.7643,
+   "XRP": -14.9264,
+   "SOL": -22.0522,
+   "DOGE": -21.0017
+  },
+  "funding_usd_mean": {
+   "BTC": 1.454,
+   "ETH": 1.1601,
+   "BNB": 0.9397,
+   "XRP": 0.9408,
+   "SOL": 0.7587,
+   "DOGE": 1.5263
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 14.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": 8.0255,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 12.0985,
+   "ETH": 1.8738,
+   "BNB": 4.7448,
+   "XRP": 10.1216,
+   "SOL": 3.2648,
+   "DOGE": 16.0495
+  },
+  "funding_usd_mean": {
+   "BTC": 2.8322,
+   "ETH": 2.2804,
+   "BNB": 1.741,
+   "XRP": 1.8911,
+   "SOL": 1.5472,
+   "DOGE": 3.1349
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 14.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": 1.6411,
+  "positive_symbols": 3,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 5.8006,
+   "ETH": -4.4927,
+   "BNB": -1.511,
+   "XRP": 3.6549,
+   "SOL": -3.2125,
+   "DOGE": 9.6071
+  },
+  "funding_usd_mean": {
+   "BTC": 2.8322,
+   "ETH": 2.2804,
+   "BNB": 1.741,
+   "XRP": 1.8911,
+   "SOL": 1.5472,
+   "DOGE": 3.1349
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 14.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": -8.9997,
+  "positive_symbols": 0,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": -4.696,
+   "ETH": -15.1037,
+   "BNB": -11.9373,
+   "XRP": -7.123,
+   "SOL": -14.008,
+   "DOGE": -1.1302
+  },
+  "funding_usd_mean": {
+   "BTC": 2.8322,
+   "ETH": 2.2804,
+   "BNB": 1.741,
+   "XRP": 1.8911,
+   "SOL": 1.5472,
+   "DOGE": 3.1349
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 30.0,
+  "spot_taker_bp": 2.0,
+  "combo_net_bp": 36.7455,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 50.1185,
+   "ETH": 38.8454,
+   "BNB": 23.7304,
+   "XRP": 30.7068,
+   "SOL": 26.534,
+   "DOGE": 50.5378
+  },
+  "funding_usd_mean": {
+   "BTC": 6.097,
+   "ETH": 4.7697,
+   "BNB": 3.8574,
+   "XRP": 3.9608,
+   "SOL": 3.48,
+   "DOGE": 6.3734
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 30.0,
+  "spot_taker_bp": 5.0,
+  "combo_net_bp": 29.9067,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 43.4238,
+   "ETH": 31.9306,
+   "BNB": 17.1346,
+   "XRP": 23.7858,
+   "SOL": 19.3337,
+   "DOGE": 43.8318
+  },
+  "funding_usd_mean": {
+   "BTC": 6.097,
+   "ETH": 4.7697,
+   "BNB": 3.8574,
+   "XRP": 3.9608,
+   "SOL": 3.48,
+   "DOGE": 6.3734
+  }
+ },
+ {
+  "venue": "binance",
+  "hold_days": 30.0,
+  "spot_taker_bp": 10.0,
+  "combo_net_bp": 18.5088,
+  "positive_symbols": 6,
+  "n_symbols": 6,
+  "per_symbol": {
+   "BTC": 32.266,
+   "ETH": 20.406,
+   "BNB": 6.1416,
+   "XRP": 12.2507,
+   "SOL": 7.3332,
+   "DOGE": 32.6552
+  },
+  "funding_usd_mean": {
+   "BTC": 6.097,
+   "ETH": 4.7697,
+   "BNB": 3.8574,
+   "XRP": 3.9608,
+   "SOL": 3.48,
+   "DOGE": 6.3734
+  }
+ }
+]

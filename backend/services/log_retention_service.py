@@ -32,14 +32,26 @@ def _purge_old_files(dir_path: Path, *, patterns: List[str], keep_days: int) -> 
         return 0
     cutoff = time.time() - keep_days * 86400
     removed = 0
+    big: List[str] = []
     for pat in patterns:
         for p in dir_path.glob(pat):
             try:
                 if p.is_file() and p.stat().st_mtime < cutoff:
+                    size = p.stat().st_size
                     p.unlink(missing_ok=True)
                     removed += 1
+                    # [§57 修复] 大文件删除必须**可见**：审计类 JSONL 的轮转备份
+                    # （如 midlong_direction_audit.jsonl.1 ≈ 42MB / 11.2 万行）一旦过期
+                    # 被静默删除，历史就永久消失（详见报告 §57）。
+                    if size >= 2 * 1024 * 1024:
+                        big.append(f"{p.name}({size / 1e6:.1f}MB)")
             except OSError:
                 continue
+    if big:
+        logger.warning(
+            "[LogRetention] 删除 %d 个过期大文件（≥2MB，审计历史类请先确认已归档）: %s",
+            len(big), ", ".join(big[:20]),
+        )
     return removed
 
 
@@ -67,6 +79,11 @@ def run_log_retention(*, dry_run: bool = False) -> Dict[str, Any]:
     report_days = _env_int("REPORT_RETENTION_DAYS", 60)
     max_jsonl = _env_int("AUDIT_JSONL_MAX_BYTES", 20 * 1024 * 1024)
     decision_days = _env_int("AI_DECISION_LOG_RETENTION_DAYS", 90)
+    # [P10 执行 2026-09-10] **审计类 jsonl 备份单独保留期**（默认 180 天，0 = 永不删除）。
+    # 这些是被轮转切下来的取证数据（`midlong_direction_audit.jsonl.1` 等），原先跟普通日志
+    # 一起按 `LOG_RETENTION_DAYS`(30) 静默删除 —— §57 曾因"活动文件被清空"丢过 96% 漏斗历史，
+    # 保留期再短会持续削弱可追溯性。删除动作本身也有 WARNING（`_purge_old_files`）。
+    audit_days = _env_int("AUDIT_BACKUP_KEEP_DAYS", 180)
 
     root = _repo_root()
     data = root / "data"
@@ -75,6 +92,7 @@ def run_log_retention(*, dry_run: bool = False) -> Dict[str, Any]:
 
     stats: Dict[str, Any] = {
         "keep_days": keep_days,
+        "audit_backup_keep_days": audit_days,
         "removed_files": 0,
         "rotated_jsonl": 0,
         "decision_rows_deleted": 0,
@@ -86,8 +104,19 @@ def run_log_retention(*, dry_run: bool = False) -> Dict[str, Any]:
 
     # 1) data/ 下 jsonl 备份与超大文件
     if data.is_dir():
+        # 审计类 jsonl 备份走独立保留期；若设为 0 则不清理（只统计体积）
+        if audit_days > 0:
+            stats["removed_files"] += _purge_old_files(
+                data, patterns=["*.jsonl.*"], keep_days=audit_days
+            )
+        else:
+            kept = sum(p.stat().st_size for p in data.glob("*.jsonl.*"))
+            logger.info(
+                "[LogRetention] AUDIT_BACKUP_KEEP_DAYS=0 ⇒ 审计备份永不删除；当前占用 %.1f MB",
+                kept / 1024 / 1024,
+            )
         stats["removed_files"] += _purge_old_files(
-            data, patterns=["*.jsonl.*", "*.log.*"], keep_days=keep_days
+            data, patterns=["*.log.*"], keep_days=keep_days
         )
         for p in data.glob("*.jsonl"):
             if _force_rotate_huge_jsonl(p, max_jsonl):

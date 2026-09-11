@@ -31,15 +31,78 @@ def _path() -> str:
     return os.getenv("MIDLONG_DIRECTION_AUDIT_PATH", _DEFAULT_PATH)
 
 
+def audit_paths() -> List[str]:
+    """按**时间顺序**返回该审计的全部文件：轮转备份（.N … .1，旧→新）+ 活动文件。
+
+    [§57 修复 2026-09-10] 漏斗审计会被 `log_retention_service._force_rotate_huge_jsonl`
+    轮转：超过 `2 × AUDIT_JSONL_MAX_BYTES`（默认 40MB）时，整个文件被移到
+    `…jsonl.1` 并**清空**活动文件。此前本模块的统计函数只读活动文件 ⇒ 轮转后历史
+    **静默消失**：实测（`_audit_ml/Z116`）活动文件只剩 4,523 行，而备份里还有
+    **112,041 行**（2026-08-07 → 09-08）——读者可见比例仅 **3.9%**。
+    所有统计/报表读取一律走本函数，保证跨轮转连续。
+    """
+    base = _path()
+    out: List[str] = []
+    i = 1
+    while True:
+        cand = f"{base}.{i}"
+        if os.path.isfile(cand):
+            out.append(cand)
+            i += 1
+        else:
+            break
+    out.reverse()  # .N（最旧）… .1（最近一次轮转）
+    if os.path.isfile(base):
+        out.append(base)
+    return out
+
+
+def _iter_rows(paths: Optional[List[str]] = None):
+    """逐行产出审计行（跨轮转文件）；坏行跳过，不抛。"""
+    for p in (paths if paths is not None else audit_paths()):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        yield json.loads(line)
+                    except Exception:
+                        continue
+        except Exception as exc:
+            logger.debug("[MidLongAudit] read skip %s: %s", p, exc)
+            continue
+
+
+def _skip_write_under_pytest() -> bool:
+    """[§82 修复 2026-09-11 / 缺陷 #68] pytest 进程**不得**写生产决策审计。
+
+    现场：`data/midlong_direction_audit.jsonl` 里出现 `TESTCOIN` / `KBONKBONK` 的
+    `outcome=opened` 行（近 24h 的 opened 行里 **16/33 ≈ 48%** 是测试夹具），
+    来源是测试直接调用 `record_decision_audit()` —— 与 §75.1「测试进程写生产日志」
+    同一类。后果：漏斗统计被系统性放大（报告里引用过的 `opened=26/30` 要打对折）。
+
+    口径：处于 pytest **且未显式重定向**（`MIDLONG_DIRECTION_AUDIT_PATH`）⇒ 跳过写盘。
+    需要写盘验证的测试用该环境变量重定向到临时文件（既有轮转/读取测试正是这么做的）。
+    """
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    return not str(os.getenv("MIDLONG_DIRECTION_AUDIT_PATH", "") or "").strip()
+
+
 def _write_row(row: Dict[str, Any]) -> Dict[str, Any]:
     try:
+        if _skip_write_under_pytest():
+            return row
         path = _path()
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with _LOCK:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
     except Exception as exc:
-        logger.debug("[MidLongAudit] write skip: %s", exc)
+        # [§82 修复] 原为 debug ⇒ 审计写失败（漏斗缺行）完全不可见
+        logger.warning("[MidLongAudit] 审计写入失败(漏斗统计会缺行): %s", exc)
     return row
 
 
@@ -178,46 +241,39 @@ def record_open_audit(
 
 
 def summarize_consistency(lookback_hours: float = 48.0) -> Dict[str, Any]:
-    """统计近 N 小时方向一致率（验收用）。"""
-    path = _path()
+    """统计近 N 小时方向一致率（验收用）。[§57] 读取含轮转备份的全部文件。"""
+    paths = audit_paths()
     out: Dict[str, Any] = {
-        "path": path,
+        "path": _path(),
+        "paths": paths,
         "n": 0,
         "comparable": 0,
         "consistent": 0,
         "rate": None,
         "flips": 0,
     }
-    if not os.path.isfile(path):
+    if not paths:
         return out
     cutoff = time.time() - float(lookback_hours) * 3600.0
     flips = 0
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except Exception:
-                    continue
-                if float(row.get("epoch") or 0) < cutoff:
-                    continue
-                # 只统计有方向一致性字段的开仓行
-                if row.get("consistent") is None and row.get("outcome") not in (None, "opened"):
-                    continue
-                if "consistent" not in row and row.get("outcome") != "opened":
-                    continue
-                out["n"] += 1
-                c = row.get("consistent")
-                if c is None:
-                    continue
-                out["comparable"] += 1
-                if c:
-                    out["consistent"] += 1
-                else:
-                    flips += 1
+        for row in _iter_rows(paths):
+            if float(row.get("epoch") or 0) < cutoff:
+                continue
+            # 只统计有方向一致性字段的开仓行
+            if row.get("consistent") is None and row.get("outcome") not in (None, "opened"):
+                continue
+            if "consistent" not in row and row.get("outcome") != "opened":
+                continue
+            out["n"] += 1
+            c = row.get("consistent")
+            if c is None:
+                continue
+            out["comparable"] += 1
+            if c:
+                out["consistent"] += 1
+            else:
+                flips += 1
         out["flips"] = flips
         if out["comparable"] > 0:
             out["rate"] = round(out["consistent"] / out["comparable"], 4)
@@ -226,11 +282,19 @@ def summarize_consistency(lookback_hours: float = 48.0) -> Dict[str, Any]:
     return out
 
 
-def summarize_decision_funnel(lookback_hours: float = 48.0) -> Dict[str, Any]:
-    """统计近 N 小时开/拒仓漏斗（按 outcome / stage / reason 前缀）。"""
-    path = _path()
+def summarize_decision_funnel(lookback_hours: float = 48.0, *, by_day_days: int = 0) -> Dict[str, Any]:
+    """统计近 N 小时开/拒仓漏斗（按 outcome / stage / reason 前缀）。
+
+    [§57 修复] 读取 `audit_paths()`（含轮转备份），不再只看活动文件。
+    [§58 新增] `by_day_days>0` 时附**按 UTC 日切片**（`by_day`）：长窗口会把不同时期
+    的瓶颈混在一起（实测：`L1=sideways` 是 08-17~09-05 的头号拦截，09-05 后 v2 车道关闭、
+    该原因归零；而近 5 天头号是 `evaluate_and_execute_returned_false`）。切片可避免误读。
+    """
+    paths = audit_paths()
     out: Dict[str, Any] = {
-        "path": path,
+        "path": _path(),
+        "paths": paths,
+        "files": len(paths),
         "lookback_hours": float(lookback_hours),
         "n": 0,
         "by_outcome": {},
@@ -240,40 +304,46 @@ def summarize_decision_funnel(lookback_hours: float = 48.0) -> Dict[str, Any]:
         "open_attempts": 0,
         "skips": 0,
     }
-    if not os.path.isfile(path):
+    if by_day_days > 0:
+        out["by_day"] = []
+    if not paths:
         return out
     cutoff = time.time() - float(lookback_hours) * 3600.0
+    day0_cutoff = time.time() - float(by_day_days) * 86400.0 if by_day_days > 0 else None
     by_outcome: Counter = Counter()
     by_stage_skip: Counter = Counter()
     reason_counter: Counter = Counter()
+    day_buckets: Dict[str, Dict[str, Any]] = {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
+        for row in _iter_rows(paths):
+            epoch = float(row.get("epoch") or 0)
+            if epoch < cutoff:
+                continue
+            # 兼容旧 opened 行（无 outcome 字段）
+            outcome = str(row.get("outcome") or "").strip().lower()
+            if not outcome:
+                if "fill_dir" in row or "consistent" in row:
+                    outcome = "opened"
+                else:
                     continue
-                try:
-                    row = json.loads(line)
-                except Exception:
-                    continue
-                if float(row.get("epoch") or 0) < cutoff:
-                    continue
-                # 兼容旧 opened 行（无 outcome 字段）
-                outcome = str(row.get("outcome") or "").strip().lower()
-                if not outcome:
-                    if "fill_dir" in row or "consistent" in row:
-                        outcome = "opened"
-                    else:
-                        continue
-                out["n"] += 1
-                by_outcome[outcome] += 1
-                if outcome == "skip":
-                    stg = str(row.get("stage") or "unknown")
-                    by_stage_skip[stg] += 1
-                    reason = str(row.get("reason") or "unknown")
-                    # 前缀聚合：score_low(30<32) → score_low
-                    prefix = reason.split("(", 1)[0].split(":", 1)[0].strip() or reason
-                    reason_counter[prefix[:80]] += 1
+            out["n"] += 1
+            by_outcome[outcome] += 1
+            if day0_cutoff is not None and epoch >= day0_cutoff:
+                d = datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%d")
+                b = day_buckets.setdefault(d, {"n": 0, "opened": 0, "skips": 0, "reasons": Counter()})
+                b["n"] += 1
+                if outcome in ("opened", "skip"):
+                    b[outcome if outcome == "opened" else "skips"] += 1
+            if outcome == "skip":
+                stg = str(row.get("stage") or "unknown")
+                by_stage_skip[stg] += 1
+                reason = str(row.get("reason") or "unknown")
+                # 前缀聚合：score_low(30<32) → score_low
+                prefix = reason.split("(", 1)[0].split(":", 1)[0].strip() or reason
+                reason_counter[prefix[:80]] += 1
+                if day0_cutoff is not None and epoch >= day0_cutoff:
+                    day_buckets[datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%d")][
+                        "reasons"][prefix[:60]] += 1
         out["by_outcome"] = dict(by_outcome)
         out["by_stage_skip"] = dict(by_stage_skip)
         out["opened"] = int(by_outcome.get("opened", 0))
@@ -283,15 +353,22 @@ def summarize_decision_funnel(lookback_hours: float = 48.0) -> Dict[str, Any]:
             {"reason": k, "count": v}
             for k, v in reason_counter.most_common(12)
         ]
+        if by_day_days > 0:
+            out["by_day"] = [
+                {"date": d, "n": b["n"], "opened": b["opened"], "skips": b["skips"],
+                 "top_skip_reasons": [{"reason": k, "count": v}
+                                      for k, v in b["reasons"].most_common(5)]}
+                for d, b in sorted(day_buckets.items())
+            ]
     except Exception as exc:
         out["error"] = str(exc)
     return out
 
 
 def count_nibble_probes_today(session_id: str = "") -> int:
-    """统计今日已发出的 NIBBLE 探针（dir_src/reason 含 nibble_probe）。"""
-    path = _path()
-    if not os.path.isfile(path):
+    """统计今日已发出的 NIBBLE 探针（dir_src/reason 含 nibble_probe）。[§57] 跨轮转读取。"""
+    paths = audit_paths()
+    if not paths:
         return 0
     # UTC 日界
     now = datetime.now(timezone.utc)
@@ -299,38 +376,30 @@ def count_nibble_probes_today(session_id: str = "") -> int:
     sid = str(session_id or "")[:32]
     n = 0
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except Exception:
-                    continue
-                if float(row.get("epoch") or 0) < day0:
-                    continue
-                if sid and str(row.get("session_id") or "")[:32] != sid:
-                    continue
-                blob = " ".join(
-                    [
-                        str(row.get("reason") or ""),
-                        str(row.get("dir_src") or ""),
-                        str((row.get("extra") or {}).get("dir_src") or "")
-                        if isinstance(row.get("extra"), dict)
-                        else "",
-                    ]
-                ).lower()
-                if "nibble_probe" not in blob:
-                    continue
-                if str(row.get("outcome") or "").lower() in (
-                    "open_attempt", "opened", "skip"
-                ):
-                    # 只计真正尝试/成交；skip 里标注 probe 的也计配额防刷
-                    if str(row.get("outcome") or "").lower() in ("open_attempt", "opened"):
-                        n += 1
-                    elif "nibble_probe_applied" in blob:
-                        n += 1
+        for row in _iter_rows(paths):
+            if float(row.get("epoch") or 0) < day0:
+                continue
+            if sid and str(row.get("session_id") or "")[:32] != sid:
+                continue
+            blob = " ".join(
+                [
+                    str(row.get("reason") or ""),
+                    str(row.get("dir_src") or ""),
+                    str((row.get("extra") or {}).get("dir_src") or "")
+                    if isinstance(row.get("extra"), dict)
+                    else "",
+                ]
+            ).lower()
+            if "nibble_probe" not in blob:
+                continue
+            if str(row.get("outcome") or "").lower() in (
+                "open_attempt", "opened", "skip"
+            ):
+                # 只计真正尝试/成交；skip 里标注 probe 的也计配额防刷
+                if str(row.get("outcome") or "").lower() in ("open_attempt", "opened"):
+                    n += 1
+                elif "nibble_probe_applied" in blob:
+                    n += 1
     except Exception:
         return n
     return n

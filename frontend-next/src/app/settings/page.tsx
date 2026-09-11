@@ -12,6 +12,8 @@ import {
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { configApi, accountApi, proxyConfigApi } from "@/lib/api";
 import { useDefaultExchange } from "@/hooks/useDefaultExchange";
+import { toast } from "@/lib/toast";
+import { confirmDialog } from "@/lib/confirm";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 
@@ -125,7 +127,7 @@ function ProxyConfigsTab() {
       setShowAdd(false);
       setForm({ name: "", proxy_url: "", note: "" });
       load();
-    } catch (e: any) { alert(e?.message || String(e)); }
+    } catch (e: any) { toast.error(e?.message || String(e)); }
     setSaving(false);
   };
 
@@ -133,16 +135,22 @@ function ProxyConfigsTab() {
     setTesting(id);
     try {
       const r: any = await proxyConfigApi.test(id);
-      alert(r?.ok ? `✅ 出口 IP: ${r.egress_ip}（请把该 IP 加入交易所 API Key 白名单）` : "❌ 探测失败（请确认代理可用）");
+      if (r?.ok) toast.success(`出口 IP: ${r.egress_ip}（请把该 IP 加入交易所 API Key 白名单）`);
+      else toast.error("探测失败（请确认代理可用）");
       load();
-    } catch (e: any) { alert(e?.message || String(e)); }
+    } catch (e: any) { toast.error(e?.message || String(e)); }
     setTesting(null);
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("确认删除此代理配置？")) return;
+    if (!(await confirmDialog({
+      title: "确认删除此代理配置？",
+      description: "依赖该代理的交易所凭证将无法通过白名单校验。",
+      tone: "danger",
+      confirmText: "删除",
+    }))) return;
     try { await proxyConfigApi.remove(id); load(); }
-    catch (e: any) { alert(e?.message || String(e)); }
+    catch (e: any) { toast.error(e?.message || String(e)); }
   };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -212,8 +220,7 @@ function AccountsTab() {
   // [2026-08-28 全币安] 默认交易所跟随后端 settings.DEFAULT_EXCHANGE
   const defaultEx = useDefaultExchange();
   const [newExchange, setNewExchange] = useState(defaultEx);
-  const [newLlm, setNewLlm] = useState("");
-  const [newLlmDeep, setNewLlmDeep] = useState("");
+  const [newMarketType, setNewMarketType] = useState("usdt_m");
   const [llmConfigs, setLlmConfigs] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
 
@@ -233,15 +240,19 @@ function AccountsTab() {
         account_type: newMode === "paper" ? "PAPER" : "AI",
         initial_capital: parseFloat(newBalance) || 500,
         selected_exchange: newExchange,
-        llm_config_id: newLlm ? parseInt(newLlm) : null,
-        llm_config_id_deep: newLlmDeep ? parseInt(newLlmDeep) : null,
+        binance_market_type: newMarketType,
       });
-      setNewName(""); setNewLlm(""); setNewLlmDeep(""); setShowCreate(false); load();
-    } catch (e: any) { alert(e.message); }
+      setNewName(""); setShowCreate(false); load();
+    } catch (e: any) { toast.error(e.message); }
   };
   const handleDelete = async (id: number) => {
-    if (!confirm("确认删除此账户？")) return;
-    try { await accountApi.delete(id); load(); } catch (e: any) { alert(e.message); }
+    if (!(await confirmDialog({
+      title: "确认删除此账户？",
+      description: "该账户下的持仓、订单与历史数据将一并清除，不可恢复。",
+      tone: "danger",
+      confirmText: "删除",
+    }))) return;
+    try { await accountApi.delete(id); load(); } catch (e: any) { toast.error(e.message); }
   };
   const handleSaveAccount = async (data: any) => {
     if (!editing) return;
@@ -281,17 +292,15 @@ function AccountsTab() {
                   <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
                 </select>
               </div>
-              <div className="flex-1 min-w-32"><Label className="text-xs">快模型 (Flash)</Label>
-                <select value={newLlm} onChange={(e) => setNewLlm(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                  <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-                  {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-32"><Label className="text-xs">深模型 (Pro)</Label>
-                <select value={newLlmDeep} onChange={(e) => setNewLlmDeep(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-                  <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-                  {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-                </select>
+              {newExchange === "binance" && (
+                <div className="w-36"><Label className="text-xs">交易所环境（币安）</Label>
+                  <select value={newMarketType} onChange={(e) => setNewMarketType(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                    <option value="usdt_m">永续合约 (USDT-M)</option><option value="coin_m">币本位 (COIN-M)</option><option value="margin">实盘杠杆 (Margin)</option>
+                  </select>
+                </div>
+              )}
+              <div className="flex-1 min-w-32"><Label className="text-xs">LLM 配置</Label>
+                <div className="text-xs text-muted-foreground pt-1.5">跟随系统默认配置</div>
               </div>
               <Button size="sm" onClick={handleCreate} className="btn-glow">创建</Button>
             </div>
@@ -357,8 +366,7 @@ function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
   const [form, setForm] = useState({
     name: account.name || "",
     selected_exchange: account.selected_exchange || defaultExEditor,
-    llm_config_id: account.llm_config_id || "",
-    llm_config_id_deep: account.llm_config_id_deep || "",
+    binance_market_type: account.binance_market_type || "usdt_m",
     auto_trading_enabled: !!account.auto_trading_enabled,
   });
   const [saving, setSaving] = useState(false);
@@ -370,11 +378,10 @@ function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
       await onSave({
         name: form.name,
         selected_exchange: form.selected_exchange,
-        llm_config_id: form.llm_config_id ? parseInt(form.llm_config_id) : null,
-        llm_config_id_deep: form.llm_config_id_deep ? parseInt(form.llm_config_id_deep) : null,
+        binance_market_type: form.binance_market_type,
         auto_trading_enabled: form.auto_trading_enabled,
       });
-    } catch (e: any) { alert(e.message); } finally { setSaving(false); }
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   return (
@@ -394,17 +401,15 @@ function AccountLlmEditor({ account, llmConfigs, onClose, onSave }: {
               <option value="binance">币安</option><option value="bybit">Bybit</option><option value="okx">OKX</option>
             </select>
           </div>
-          <div><Label className="text-xs">快模型配置（Flash / 常规决策）</Label>
-            <select value={form.llm_config_id} onChange={(e) => setForm({ ...form, llm_config_id: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-              <option value="">跟随全局默认（{defaultCfg?.model || "无"}）</option>
-              {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model}</option>)}
-            </select>
-          </div>
-          <div><Label className="text-xs">深模型配置（Pro / 深度分析）</Label>
-            <select value={form.llm_config_id_deep} onChange={(e) => setForm({ ...form, llm_config_id_deep: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
-              <option value="">跟随全局默认（{defaultCfg?.model_deep || defaultCfg?.model || "无"}）</option>
-              {llmConfigs.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.model_deep || c.model}</option>)}
-            </select>
+          {form.selected_exchange === "binance" && (
+            <div><Label className="text-xs">交易所环境（币安）</Label>
+              <select value={form.binance_market_type} onChange={(e) => setForm({ ...form, binance_market_type: e.target.value })} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+                <option value="usdt_m">永续合约 (USDT-M)</option><option value="coin_m">币本位 (COIN-M)</option><option value="margin">实盘杠杆 (Margin)</option>
+              </select>
+            </div>
+          )}
+          <div><Label className="text-xs">LLM 配置</Label>
+            <div className="text-xs text-muted-foreground pt-1.5">跟随系统默认配置</div>
           </div>
           <div><Label className="text-xs">自动交易</Label>
             <div className="flex items-center gap-2 pt-1">
@@ -449,22 +454,28 @@ function LLMTab() {
     const profilesCount = c?.profiles_count ?? 0;
     let force = false;
     if (accountsCount + profilesCount > 0) {
-      force = confirm(
-        `该配置仍被 ${accountsCount} 个账户、${profilesCount} 个套利档案引用。\n` +
-        `勾选「强制删除」将自动解除全部关联并删除配置，确认继续？`
-      );
+      force = await confirmDialog({
+        title: `该配置仍被 ${accountsCount} 个账户、${profilesCount} 个套利档案引用`,
+        description: "勾选「强制删除」将自动解除全部关联并删除配置，确认继续？",
+        tone: "danger",
+        confirmText: "强制删除",
+      });
       if (!force) return;
     } else {
-      if (!confirm("确认删除？")) return;
+      if (!(await confirmDialog({
+        title: "确认删除该 LLM 配置？",
+        tone: "danger",
+        confirmText: "删除",
+      }))) return;
     }
-    try { await configApi.llmDelete(id, force); load(); } catch (e: any) { alert(e.message); }
+    try { await configApi.llmDelete(id, force); load(); } catch (e: any) { toast.error(e.message); }
   };
   const handleTest = async (c: any) => {
-    try { await configApi.llmTest({ model: c.model, base_url: c.base_url, api_key: "test" }); alert(`✅ ${c.model} 连接成功`); }
-    catch (e: any) { alert(`❌ ${e.message}`); }
+    try { await configApi.llmTest({ model: c.model, base_url: c.base_url, api_key: "test" }); toast.success(`${c.model} 连接成功`); }
+    catch (e: any) { toast.error(`❌ ${e.message}`); }
   };
   const handleSetDefault = async (c: any) => {
-    try { await configApi.llmSetDefault(c.id); load(); } catch (e: any) { alert(e.message); }
+    try { await configApi.llmSetDefault(c.id); load(); } catch (e: any) { toast.error(e.message); }
   };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
@@ -593,15 +604,15 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.model) { alert("请填写配置名称和快模型"); return; }
-    if (!config?.id && !form.api_key) { alert("请填写 API Key"); return; }
+    if (!form.name || !form.model) { toast.warning("请填写配置名称和快模型"); return; }
+    if (!config?.id && !form.api_key) { toast.warning("请填写 API Key"); return; }
     // [2026-08-15 LLM 统一重构] 模型白名单：provider 有预设变体时禁止自由输入绕过
     if (providerMeta?.model_variants?.length) {
       const allowed = providerMeta.model_variants.map((v: any) => String(v.value).toLowerCase());
       const models = [form.model, form.model_deep].filter(Boolean).map((m) => String(m).toLowerCase());
       const bad = models.find((m) => !allowed.includes(m));
       if (bad) {
-        alert(`模型「${bad}」不在 ${form.provider} 白名单内（允许：${allowed.join(", ")}）。\n统一默认 deepseek-v4-flash，禁止界面绕过。`);
+        toast.warning(`模型「${bad}」不在 ${form.provider} 白名单内（允许：${allowed.join(", ")}）。统一默认 deepseek-v4-flash，禁止界面绕过。`);
         return;
       }
     }
@@ -616,7 +627,7 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
             x.is_active !== false
         );
         if (existing) {
-          alert(`已存在同源配置「${existing.name}」(id=${existing.id})——同一 provider+base_url 不允许重复创建。\n请复用现有配置或先停用旧配置。`);
+          toast.warning(`已存在同源配置「${existing.name}」(id=${existing.id})——同一 provider+base_url 不允许重复创建。请复用现有配置或先停用旧配置。`);
           return;
         }
       } catch { /* 后端仍会兜底校验 */ }
@@ -637,7 +648,7 @@ function LLMEditor({ config, onClose, onSaved }: { config: any; onClose: () => v
       if (form.api_key) data.api_key = form.api_key;
       if (config?.id) await configApi.llmUpdate(config.id, data); else await configApi.llmCreate(data);
       onSaved();
-    } catch (e: any) { alert(e.message); } finally { setSaving(false); }
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
   return (
     <Card className="p-0 gap-0 border-primary/30">
@@ -735,7 +746,7 @@ function PairsTab() {
   useEffect(() => { load(); }, [load]);
 
   const handleAdd = (s: string) => { s = s.trim().toUpperCase(); if (s && !symbols.includes(s)) setSymbols([...symbols, s]); setNewSymbol(""); };
-  const handleSave = async () => { setSaving(true); try { await configApi.saveTradingPairs(symbols); } catch (e: any) { alert(e.message); } finally { setSaving(false); } };
+  const handleSave = async () => { setSaving(true); try { await configApi.saveTradingPairs(symbols); } catch (e: any) { toast.error(e.message); } finally { setSaving(false); } };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
@@ -794,7 +805,7 @@ function KeysTab() {
 
   const load = useCallback(async () => { try { setKeys(await configApi.externalKeys()); } catch {} finally { setLoading(false); } }, []);
   useEffect(() => { load(); }, [load]);
-  const handleSave = async (k: string) => { setSaving(true); try { await configApi.saveExternalKey(k, editValue); setEditingKey(null); setEditValue(""); load(); } catch (e: any) { alert(e.message); } finally { setSaving(false); } };
+  const handleSave = async (k: string) => { setSaving(true); try { await configApi.saveExternalKey(k, editValue); setEditingKey(null); setEditValue(""); load(); } catch (e: any) { toast.error(e.message); } finally { setSaving(false); } };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
@@ -864,7 +875,7 @@ function GatesTab() {
 
   const handleSave = async () => {
     setSaving(true);
-    try { const updates: Record<string, number> = {}; gates.forEach(g => { updates[g.key] = g.current; }); await configApi.saveTradingGates({ gates: updates }); } catch (e: any) { alert(e.message); } finally { setSaving(false); }
+    try { const updates: Record<string, number> = {}; gates.forEach(g => { updates[g.key] = g.current; }); await configApi.saveTradingGates({ gates: updates }); } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;

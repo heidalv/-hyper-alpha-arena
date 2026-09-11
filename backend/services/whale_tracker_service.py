@@ -193,8 +193,11 @@ class WhaleTrackerService:
         # Source 2: mempool.space 内存池大额交易
         txs.extend(self._fetch_from_mempool_space())
 
-        # Source 3: 本地交易所大单推断
-        txs.extend(self._infer_from_market_flow())
+        # [2026-09 修复 P0-1] 原 Source 3 `_infer_from_market_flow` 把 CVD×1000 当
+        # 「大单金额」，实测产出了 27.5 亿美元级的假大单并反复落库，且按金额加权后
+        # 完全主导 BTC 鲸鱼方向（假数据冒充真鲸鱼）。真实交易所大单已由
+        # aggregate_whale_collector（binance/bybit/okx 逐笔 >$50K）覆盖并落
+        # whale_activities(activity_type='aggregate_whale')，此处不再重复推断。
 
         txs.sort(key=lambda x: x.get("amount_usd", 0), reverse=True)
         result = txs[:20]
@@ -287,39 +290,6 @@ class WhaleTrackerService:
             logger.debug(f"[WhaleTracker] mempool.space 异常: {e}")
         return whale_txs[:5]
 
-    def _infer_from_market_flow(self) -> List[Dict]:
-        """从本地 MarketFlow 数据推断交易所大单"""
-        try:
-            from backend.services.market_flow_indicators import get_indicator_value
-            from backend.database.connection import MarketSessionLocal
-            db = MarketSessionLocal()
-            try:
-                cvd = get_indicator_value(db, "BTC", "CVD", "15m") or 0
-            finally:
-                db.close()
-
-            if abs(cvd) < 100:
-                return []
-
-            direction = "buy" if cvd > 0 else "sell"
-            return [{
-                "blockchain": "exchange",
-                "symbol": "BTC",
-                "amount": 0,
-                "amount_usd": abs(cvd) * 1000,
-                "from_owner": "exchange_orderbook",
-                "from_type": "exchange",
-                "to_owner": "exchange_orderbook",
-                "to_type": "exchange",
-                "tx_hash": "",
-                "timestamp": int(time.time()),
-                "source": "local_cvd",
-                "inferred": True,
-                "direction_hint": direction,
-            }]
-        except Exception:
-            return []
-
     # ────────────────────────── 地址分类 ──────────────────────────
 
     @staticmethod
@@ -390,7 +360,7 @@ class WhaleTrackerService:
                     '{"interpretation": "一句话解读", "signal_direction": 0.3, '
                     '"activity_type": "transfer"}\n'
                     "signal_direction: -1(极度利空)~+1(极度利多)\n"
-                    "activity_type: transfer/exchange_deposit/exchange_withdrawal/large_order"
+                    "activity_type: transfer/exchange_deposit/exchange_withdrawal"
                 )},
                 {"role": "user", "content": (
                     f"币种: {tx.get('symbol')}\n"
@@ -434,18 +404,6 @@ class WhaleTrackerService:
                 "interpretation": f"{amount_btc:.2f} BTC (${amount:,.0f}) 从交易所提出，可能长期持有",
                 "signal_direction": 0.3,
                 "activity_type": "exchange_withdrawal",
-            }
-        elif tx.get("direction_hint") == "buy":
-            return {
-                "interpretation": f"交易所检测到大额买单 (${amount:,.0f})",
-                "signal_direction": 0.2,
-                "activity_type": "large_order",
-            }
-        elif tx.get("direction_hint") == "sell":
-            return {
-                "interpretation": f"交易所检测到大额卖单 (${amount:,.0f})",
-                "signal_direction": -0.2,
-                "activity_type": "large_order",
             }
         else:
             return {
@@ -512,6 +470,9 @@ class WhaleTrackerService:
 
     def _save_to_db(self, db: Session, tx: Dict, interpretation: Dict) -> Dict:
         from backend.database.models import WhaleActivity
+        # [2026-09 修复 P0-1] 显式写 timestamp（naive 本地时间，与 persist_whale 的
+        # 口径一致）。此前该列留 NULL，导致按 timestamp 过滤的消费方
+        # （factor_engine/dataset_builder 事件窗口、统一事件时间轴）看不到链上鲸鱼行。
         record = WhaleActivity(
             activity_type=interpretation.get("activity_type", "transfer"),
             symbol=tx.get("symbol", "BTC"),
@@ -523,6 +484,7 @@ class WhaleTrackerService:
             tx_hash=tx.get("tx_hash", ""),
             ai_interpretation=interpretation.get("interpretation", ""),
             signal_direction=interpretation.get("signal_direction", 0),
+            timestamp=datetime.now(),
         )
         # [2026-08-15 P0-1 修复] WhaleActivity 是 MarketBase 模型，必须写 Market DB
         # （alpha_market）。此前调用方传入核心库 SessionLocal → commit 静默失败被吞，

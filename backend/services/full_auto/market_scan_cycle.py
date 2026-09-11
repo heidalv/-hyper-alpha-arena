@@ -124,6 +124,8 @@ def run_scan_markets(db: Session, symbols: List[str], host: MarketScanHost) -> D
                     "data_reliable": data_source not in (
                         "default", "unknown", "insufficient_klines", "cache_miss",
                     ),
+                    # 成功扫描显式清 stale，避免与 last_market_summary 深合并时旧旗标粘住
+                    "data_stale": False,
                     "price_stale_warning": getattr(env, "price_stale_warning", False),
                     "kline_count": getattr(env, "kline_count", 0),
                     "kline_age_hours": getattr(env, "kline_age_hours", 0),
@@ -182,7 +184,8 @@ def run_scan_markets(db: Session, symbols: List[str], host: MarketScanHost) -> D
                         "trend_direction": "neutral", "volatility_regime": "normal",
                         "current_price": _quick_price,
                         "data_source": "fallback", "price_source": _price_source,
-                        "data_reliable": True, "price_stale_warning": "",
+                        "data_reliable": True, "data_stale": False,
+                        "price_stale_warning": "",
                         "scan_time": scan_time,
                     }
                 return symbol, {"error": str(e)}

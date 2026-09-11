@@ -58,7 +58,15 @@ def resolve_combo_weights(records: List[Dict], manual: Dict[str, float]) -> Dict
                 )
     tot = sum(base.values())
     if tot <= 0:
-        logger.warning("[ComboWeights] 全部因子权重归零，回退均权(1/%d)兜底", max(len(base), 1))
-        n = max(len(base), 1)
-        return {fid: 1.0 / n for fid in base}
+        # [2026-09-02 消除 fail-open] 此前这里回退均权(1/n)：把上面刚被负 IC /
+        # 符号冲突"特意归零"的因子原封不动地还回等权，与归零的设计意图正好相反
+        # ——因子体系整体失效时，系统反而按等权继续出信号。
+        # 现在如实返回全零：下游 midlong_factor_route 的 weight_sum<=0 分支会给出
+        # no_valid_votes 并跳过本轮（fail-closed，宁可不开仓也不按坏权重开仓）。
+        logger.error(
+            "[ComboWeights] 全部 %d 个因子权重归零 → 本轮不出信号（不再回退均权）。"
+            "常见原因：icir 全为 0/负（检查 factor_active_set.icir 是否在刷新）、"
+            "或 expected_sign 与 icir 普遍冲突", len(base),
+        )
+        return {fid: 0.0 for fid in base}
     return {fid: v / tot for fid, v in base.items()}

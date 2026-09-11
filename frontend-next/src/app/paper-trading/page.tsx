@@ -19,7 +19,10 @@ import { paperApi } from "@/lib/api";
 import type { PaperOrder, Position } from "@/types/api";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { sumBy, sumUnrealizedPnl } from "@/lib/stats";
+import { formatCloseReason } from "@/lib/close-reason";
 import { useQueryClient } from "@tanstack/react-query";
+import { confirmDialog } from "@/lib/confirm";
 
 export default function PaperTradingPage() {
   const { data: accounts } = useAccounts();
@@ -73,8 +76,8 @@ export default function PaperTradingPage() {
     recordFilter === "filled" ? o.status === "filled" : true
   ) ?? [];
 
-  const totalPnl = openPositions?.reduce((s, p) => s + (p.unrealized_pnl || 0), 0) ?? 0;
-  const totalMargin = openPositions?.reduce((s, p) => s + (p.margin || 0), 0) ?? 0;
+  const totalPnl = sumUnrealizedPnl(openPositions ?? []);
+  const totalMargin = sumBy(openPositions ?? [], (p) => p.margin || 0);
   const feePaid = balance?.total_fee_paid ?? summary?.total_fees ?? 0;
   const initialBal = balance?.initial_balance ?? 500;
   // 总收益 = 当前权益 - 初始资金（已扣手续费后的真实盈亏）
@@ -352,10 +355,10 @@ export default function PaperTradingPage() {
                       <td className="px-3 py-2 text-muted-foreground text-xs">合计 {filteredOrders.length} 笔</td>
                       <td colSpan={6} />
                       <td className={cn("text-right py-2 num font-bold",
-                        filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0) >= 0 ? "text-profit" : "text-loss")}>
-                        {filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0) >= 0 ? "+" : ""}${filteredOrders.reduce((s, o) => s + (o.pnl || 0), 0).toFixed(3)}
+                        sumBy(filteredOrders, (o) => o.pnl || 0) >= 0 ? "text-profit" : "text-loss")}>
+                        {sumBy(filteredOrders, (o) => o.pnl || 0) >= 0 ? "+" : ""}${sumBy(filteredOrders, (o) => o.pnl || 0).toFixed(3)}
                       </td>
-                      <td className="text-right py-2 num text-muted-foreground">${filteredOrders.reduce((s, o) => s + (o.fee || 0), 0).toFixed(4)}</td>
+                      <td className="text-right py-2 num text-muted-foreground">${sumBy(filteredOrders, (o) => o.fee || 0).toFixed(4)}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>
@@ -401,7 +404,13 @@ export default function PaperTradingPage() {
                 size="sm"
                 className="text-warning"
                 onClick={async () => {
-                  if (confirm("确认完整重置？所有持仓和订单将被清除！")) {
+                  if (await confirmDialog({
+                    title: "完整重置模拟账户？",
+                    description: "所有持仓和订单将被清除，账户回到初始资金，不可恢复。",
+                    tone: "danger",
+                    confirmText: "完整重置",
+                    requireText: "重置",
+                  })) {
                     await paperApi.fullReset(activeAccountId);
                     qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
                     qc.invalidateQueries({ queryKey: ["positions", activeAccountId] });
@@ -415,8 +424,14 @@ export default function PaperTradingPage() {
                 variant="outline"
                 size="sm"
                 className="text-loss"
-                onClick={() => {
-                  if (confirm("确认删除此账户？所有数据将被清除。")) {
+                onClick={async () => {
+                  if (await confirmDialog({
+                    title: "删除此模拟账户？",
+                    description: "账户下所有数据将被清除，不可恢复。",
+                    tone: "danger",
+                    confirmText: "删除账户",
+                    requireText: "删除",
+                  })) {
                     deleteMut.mutate(activeAccountId);
                   }
                 }}
@@ -693,21 +708,9 @@ function OrderRow({ order }: { order: PaperOrder }) {
       <td className={cn("py-1.5 px-2 text-[10px]", statusColor)}>{
         ({filled:"已成交",pending:"待成交",cancelled:"已取消",rejected:"已拒绝",expired:"已过期"} as Record<string,string>)[order.status] || order.status
       }</td>
-      <td className="py-1.5 px-2 text-[10px] text-muted-foreground">{
-        order.close_reason ? ({
-          "sl":"止损平仓","tp":"止盈平仓","manual":"手动平仓","hold_timeout_review":"持仓超时AI复审",
-          "trend_review_reduce_30%":"趋势复审减仓30%","trend_review_reduce_50%":"趋势复审减仓50%",
-          "trend_review_reduce_70%":"趋势复审减仓70%","trend_review_close":"趋势复审清仓",
-          "master_close":"总控平仓","master_close_tiny_loss":"总控微亏平仓","master_reduce_min_loss":"总控减仓",
-          "master_running_reduce":"总控运行中减仓","master_running_close":"总控运行中平仓",
-          "circuit_breaker":"熔断平仓","daily_loss_limit":"日亏损限额","forced_liquidation":"强平",
-          "trailing_stop":"追踪止损","signal_exit":"信号退出","reversal":"反向平仓",
-          "auto_close":"自动平仓","expired":"过期平仓","partial_close":"部分平仓",
-          "dust_cleanup":"零碎仓位清理","funding_exit":"资金费率平仓","funding_take":"资金费率止盈",
-          "basis_close":"基差平仓","rebalance":"再平衡","risk_reduce":"风控减仓",
-          "timeout_close":"超时平仓","profit_take":"止盈","loss_cut":"止损",
-        } as Record<string,string>)[order.close_reason] || order.close_reason : "—"
-      }</td>
+      <td className="py-1.5 px-2 text-[10px] text-muted-foreground" title={order.close_reason || undefined}>
+        {formatCloseReason(order.close_reason)}
+      </td>
     </tr>
   );
 }

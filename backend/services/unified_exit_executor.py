@@ -341,6 +341,43 @@ class UnifiedExitExecutor:
         return ExitGateResult(blocked=False, detail=hf.detail)
 
     def should_block(self, req: ExitExecuteRequest) -> ExitGateResult:
+        # [§78 执行 2026-09-11 / 决策 P19-B] **通道熔断前移**（Master 路径）：
+        # 原先把判定放在软退出免疫之后，而免疫在 `action == "close"` 时**无条件**
+        # 追加 `master_running_close`（受保护名单内）⇒ 任何软退出都被判为"Master 软退出"，
+        # 熔断器**永不可达**、事件原因也记不准（§78.2 实证：单测里 event_type 恒为
+        # `midlong_soft_exit_immune`）。前移后：两者都会拦，但原因记录准确、熔断计数可用。
+        # 硬退出（_is_hard_exit）依旧完全跳过本闸。
+        try:
+            _cb_tier = str(
+                (req.pos or {}).get("timeframe_tier") or (req.pos or {}).get("tier") or ""
+            ).strip().lower()
+            if _cb_tier in ("short", "mid", "long") and not _is_hard_exit(
+                req.reason or "", req.exit_channel or ""
+            ):
+                from backend.services.exit.channel_breaker_gate import should_suppress as _cb
+                # [§81 执行 2026-09-11 / 决策 P22-A] **查询键必须与写入键同源**：
+                # 落库用的是 `_execute_raw()` 里 `req.exit_channel or req.reason`
+                # （见本文件 `_reason = req.exit_channel or req.reason`），
+                # 而这里原先写成 `req.reason or req.exit_channel` ⇒ 优先级颠倒。
+                # 后果（§81.3 实证）：Master 路径构造 `reason="master_running"` +
+                # `exit_channel="master_running_close"`，闸门查 `mid|master_running`、
+                # 归因只写 `mid|master_running_close` ⇒ 该半边**永不命中**（惰性）。
+                # 现在两边同为"exit_channel 优先"。
+                _rsn = str(req.exit_channel or "") or str(req.reason or "")
+                _sup, _why = _cb(_rsn, _cb_tier)
+                if _sup:
+                    logger.info(
+                        "[UnifiedExit] 通道熔断抑制离场 %s[%s] channel=%s reason=%r（命中 %s）",
+                        req.symbol, _cb_tier, req.exit_channel, _rsn[:40], _why,
+                    )
+                    return ExitGateResult(
+                        blocked=True,
+                        event_type="exit_channel_broken",
+                        detail=f"🚫 通道熔断抑制离场 [{_why}] reason={_rsn[:80]}",
+                    )
+        except Exception as _cb_err:
+            logger.warning("[UnifiedExit] 通道熔断检查异常(fail-open，本次不抑制): %s", _cb_err)
+
         # S0-6：mid/long 对 Master 软退出免疫（此前函数写了但未接线）
         # [S0-6-scalp 2026-08-23] 扩展 short/scalp tier，并加硬退出兜底：
         #   hardfact / emergency / 日亏 / liquidation 等硬退出绝不免疫。
@@ -388,12 +425,17 @@ class UnifiedExitExecutor:
                                 ),
                             )
         except Exception as _imm_err:
-            logger.debug("[UnifiedExit] midlong immune check skip: %s", _imm_err)
+            # [§51.7 修复] 原为 logger.debug → 生产 INFO 级别下**完全静默**：
+            # 软退出免疫闸一旦异常，仓位会被软退出平掉且无任何痕迹（同 §41.2 的缺陷类，
+            # 但 §41.2 只覆盖了入口路径，出场路径漏了）。fail-open 必须可见。
+            logger.warning("[UnifiedExit] mid/long 免疫检查异常(fail-open) → 本次放行软退出: %s", _imm_err)
 
         tier = self.resolve_tier(req.exit_channel, req.tier_level)
         if tier == 0:
             return ExitGateResult(blocked=False)
 
+        # [§78 执行 2026-09-11 / 决策 P19-B] Master 路径的熔断判定已**前移**到本函数开头
+        # （原因：免疫会抢先命中且把原因记成 midlong_soft_exit_immune）；此处不再重复判定。
         tp = req.tier_protection or {}
         prot = self.check_position_protection(
             req.pos, req.action, tp,

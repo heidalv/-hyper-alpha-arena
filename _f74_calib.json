@@ -1,0 +1,325 @@
+{
+ "recent_start_ms": 1788897600000,
+ "configs": [
+  {
+   "k_vol": 1.0,
+   "vol_pause_mult": 1.0,
+   "fills": 217,
+   "flattens": 18,
+   "notional": 20135.38,
+   "net_bp": 5.2108,
+   "net_usd": 10.49,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 271,
+   "per_symbol": {
+    "BTC": 6.236,
+    "ETH": 2.006,
+    "BNB": 7.588,
+    "XRP": 5.819,
+    "SOL": 2.323,
+    "DOGE": 6.557
+   }
+  },
+  {
+   "k_vol": 1.0,
+   "vol_pause_mult": 1.5,
+   "fills": 231,
+   "flattens": 22,
+   "notional": 21335.62,
+   "net_bp": 4.921,
+   "net_usd": 10.5,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 87,
+   "per_symbol": {
+    "BTC": 6.079,
+    "ETH": 1.79,
+    "BNB": 5.744,
+    "XRP": 5.526,
+    "SOL": 2.151,
+    "DOGE": 6.296
+   }
+  },
+  {
+   "k_vol": 0.5,
+   "vol_pause_mult": 1.0,
+   "fills": 276,
+   "flattens": 20,
+   "notional": 26101.68,
+   "net_bp": 4.8928,
+   "net_usd": 12.77,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 271,
+   "per_symbol": {
+    "BTC": 4.957,
+    "ETH": 2.055,
+    "BNB": 7.87,
+    "XRP": 5.243,
+    "SOL": 2.685,
+    "DOGE": 6.02
+   }
+  },
+  {
+   "k_vol": 1.0,
+   "vol_pause_mult": 2.5,
+   "fills": 237,
+   "flattens": 24,
+   "notional": 21836.07,
+   "net_bp": 4.4675,
+   "net_usd": 9.76,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 29,
+   "per_symbol": {
+    "BTC": 2.424,
+    "ETH": 0.508,
+    "BNB": 5.744,
+    "XRP": 5.261,
+    "SOL": 2.302,
+    "DOGE": 5.902
+   }
+  },
+  {
+   "k_vol": 0.5,
+   "vol_pause_mult": 1.5,
+   "fills": 296,
+   "flattens": 23,
+   "notional": 27902.13,
+   "net_bp": 4.4258,
+   "net_usd": 12.35,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 87,
+   "per_symbol": {
+    "BTC": 4.957,
+    "ETH": 1.717,
+    "BNB": 5.434,
+    "XRP": 5.024,
+    "SOL": 1.994,
+    "DOGE": 5.707
+   }
+  },
+  {
+   "k_vol": 1.0,
+   "vol_pause_mult": 0.0,
+   "fills": 239,
+   "flattens": 26,
+   "notional": 21869.79,
+   "net_bp": 4.4162,
+   "net_usd": 9.66,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 0,
+   "per_symbol": {
+    "BTC": 2.424,
+    "ETH": 0.496,
+    "BNB": 5.744,
+    "XRP": 5.261,
+    "SOL": 2.302,
+    "DOGE": 5.716
+   }
+  },
+  {
+   "k_vol": 2.0,
+   "vol_pause_mult": 1.0,
+   "fills": 159,
+   "flattens": 18,
+   "notional": 14535.25,
+   "net_bp": 4.2786,
+   "net_usd": 6.22,
+   "positive_symbols": 5,
+   "traded_symbols": 6,
+   "vol_pause_count": 271,
+   "per_symbol": {
+    "BTC": 2.511,
+    "ETH": -2.969,
+    "BNB": 10.255,
+    "XRP": 6.346,
+    "SOL": 0.889,
+    "DOGE": 5.207
+   }
+  },
+  {
+   "k_vol": 0.5,
+   "vol_pause_mult": 2.5,
+   "fills": 308,
+   "flattens": 25,
+   "notional": 29003.09,
+   "net_bp": 4.1056,
+   "net_usd": 11.91,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 29,
+   "per_symbol": {
+    "BTC": 1.951,
+    "ETH": 1.329,
+    "BNB": 5.434,
+    "XRP": 4.591,
+    "SOL": 2.322,
+    "DOGE": 5.483
+   }
+  },
+  {
+   "k_vol": 0.0,
+   "vol_pause_mult": 1.0,
+   "fills": 373,
+   "flattens": 24,
+   "notional": 35737.31,
+   "net_bp": 4.064,
+   "net_usd": 14.52,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 271,
+   "per_symbol": {
+    "BTC": 5.834,
+    "ETH": 1.748,
+    "BNB": 6.413,
+    "XRP": 4.416,
+    "SOL": 2.542,
+    "DOGE": 4.549
+   }
+  },
+  {
+   "k_vol": 0.5,
+   "vol_pause_mult": 0.0,
+   "fills": 313,
+   "flattens": 26,
+   "notional": 29404.29,
+   "net_bp": 4.0378,
+   "net_usd": 11.87,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 0,
+   "per_symbol": {
+    "BTC": 1.951,
+    "ETH": 1.396,
+    "BNB": 5.434,
+    "XRP": 4.591,
+    "SOL": 2.322,
+    "DOGE": 5.304
+   }
+  },
+  {
+   "k_vol": 0.0,
+   "vol_pause_mult": 1.5,
+   "fills": 428,
+   "flattens": 29,
+   "notional": 40727.84,
+   "net_bp": 3.6549,
+   "net_usd": 14.89,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 87,
+   "per_symbol": {
+    "BTC": 5.327,
+    "ETH": 2.25,
+    "BNB": 5.663,
+    "XRP": 4.131,
+    "SOL": 2.024,
+    "DOGE": 3.977
+   }
+  },
+  {
+   "k_vol": 2.0,
+   "vol_pause_mult": 1.5,
+   "fills": 166,
+   "flattens": 22,
+   "notional": 15035.66,
+   "net_bp": 3.5667,
+   "net_usd": 5.36,
+   "positive_symbols": 4,
+   "traded_symbols": 6,
+   "vol_pause_count": 87,
+   "per_symbol": {
+    "BTC": 2.78,
+    "ETH": -2.969,
+    "BNB": 7.419,
+    "XRP": 6.154,
+    "SOL": -1.012,
+    "DOGE": 4.292
+   }
+  },
+  {
+   "k_vol": 0.0,
+   "vol_pause_mult": 2.5,
+   "fills": 450,
+   "flattens": 30,
+   "notional": 42828.92,
+   "net_bp": 3.3939,
+   "net_usd": 14.54,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 29,
+   "per_symbol": {
+    "BTC": 4.181,
+    "ETH": 1.834,
+    "BNB": 5.663,
+    "XRP": 3.935,
+    "SOL": 2.174,
+    "DOGE": 3.633
+   }
+  },
+  {
+   "k_vol": 0.0,
+   "vol_pause_mult": 0.0,
+   "fills": 462,
+   "flattens": 31,
+   "notional": 44030.86,
+   "net_bp": 3.2296,
+   "net_usd": 14.22,
+   "positive_symbols": 6,
+   "traded_symbols": 6,
+   "vol_pause_count": 0,
+   "per_symbol": {
+    "BTC": 4.181,
+    "ETH": 1.634,
+    "BNB": 5.663,
+    "XRP": 3.935,
+    "SOL": 2.174,
+    "DOGE": 3.22
+   }
+  },
+  {
+   "k_vol": 2.0,
+   "vol_pause_mult": 2.5,
+   "fills": 169,
+   "flattens": 24,
+   "notional": 15236.1,
+   "net_bp": 3.2296,
+   "net_usd": 4.92,
+   "positive_symbols": 3,
+   "traded_symbols": 6,
+   "vol_pause_count": 29,
+   "per_symbol": {
+    "BTC": -1.321,
+    "ETH": -2.969,
+    "BNB": 7.419,
+    "XRP": 6.154,
+    "SOL": -1.016,
+    "DOGE": 3.947
+   }
+  },
+  {
+   "k_vol": 2.0,
+   "vol_pause_mult": 0.0,
+   "fills": 171,
+   "flattens": 26,
+   "notional": 15370.04,
+   "net_bp": 2.8254,
+   "net_usd": 4.34,
+   "positive_symbols": 3,
+   "traded_symbols": 6,
+   "vol_pause_count": 0,
+   "per_symbol": {
+    "BTC": -1.321,
+    "ETH": -7.08,
+    "BNB": 7.419,
+    "XRP": 6.154,
+    "SOL": -1.016,
+    "DOGE": 3.686
+   }
+  }
+ ]
+}

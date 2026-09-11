@@ -179,9 +179,9 @@ async def update_global_sampling_config(payload: dict, db: Session = Depends(get
         # Trigger sampling pool reconfiguration (use watchlist if available)
         try:
             logger.info(f"[DEBUG] Starting sampling pool update to depth={config.sampling_depth}")
-            from services.sampling_pool import sampling_pool
-            from services.trading_commands import AI_TRADING_SYMBOLS
-            from services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_selected_symbols
+            from backend.services.sampling_pool import sampling_pool
+            from backend.services.trading_commands import AI_TRADING_SYMBOLS
+            from backend.services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_selected_symbols
 
             symbols = get_hyperliquid_selected_symbols() or AI_TRADING_SYMBOLS
             for symbol in symbols:
@@ -344,7 +344,7 @@ async def update_trading_pairs(req: TradingPairsUpdateRequest, db: Session = Dep
         # Trigger K-line backfill for newly added symbols (non-blocking)
         try:
             import asyncio
-            from services.kline_realtime_collector import realtime_collector
+            from backend.services.kline_realtime_collector import realtime_collector
             if realtime_collector.running:
                 loop = asyncio.get_event_loop()
                 loop.create_task(realtime_collector._initial_backfill())

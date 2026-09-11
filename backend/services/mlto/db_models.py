@@ -51,6 +51,15 @@ class MltoThesis(AnalyticsBase):
     # 0.0/None = LLM 本轮未提供（执行层走 structure_stops 兜底）�?
     sl_pct = Column(Float, nullable=True)
     tp_pct = Column(Float, nullable=True)
+    # [2026-09-05 LLM 主脑] 开仓/平仓指令与过期时间必须落库，重启后否决闸才有效。
+    recommend_open = Column(Integer, nullable=True)
+    should_close = Column(Integer, nullable=False, default=0)
+    accepted = Column(Integer, nullable=False, default=0)
+    expires_at = Column(TIMESTAMP, nullable=True)
+    analysis_run_id = Column(String(64), nullable=True)
+    # [2026-09-07 OPRO 地基] 主脑 prompt 版本短哈希（0023 迁移加列）；
+    # 平仓结算按版本统计胜率，为 prompt 自适应优化提供评分。
+    prompt_version = Column(String(32), nullable=True)
     # [v6 4.2] 本次决策注入的回测智�?id 列表（JSON 数组文本）；平仓结算�?
     # 读回用于 evaluate_wisdom_result。None=从未注入�?
     wisdom_ids_json = Column(Text, nullable=True)
@@ -91,6 +100,41 @@ class MltoThesisEvent(AnalyticsBase):
     event_type = Column(String(32), nullable=False)
     payload_json = Column(Text, nullable=True)
     ts = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
+
+
+class MltoEpisode(AnalyticsBase):
+    """[2026-09-07] 情景记忆库（海马体式 Episodic Memory）。
+
+    每个论题刷新 = 一个「情景」：写入时快照市场指纹（regime/波动档/趋势方向），
+    平仓后回填结局（pnl/持仓时长/平仓原因）。主脑写新论题前检索「相似指纹的
+    历史情景及其结局」，让模型看到「上次行情长这样时，做对了还是错了」。
+    纯增量新表（create_all 自动建），不动 mlto_thesis 结构。
+    """
+    __tablename__ = "mlto_episodes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    episode_id = Column(String(64), unique=True, nullable=False, index=True)
+    thesis_id = Column(String(64), nullable=True, index=True)
+    session_id = Column(String(64), nullable=False, index=True)
+    symbol = Column(String(32), nullable=False, index=True)
+    tier = Column(String(16), nullable=False, index=True)
+    direction = Column(String(16), nullable=False, default="neutral")
+    # 市场指纹（写入时快照）：regime/vol_bucket/trend_1h/trend_4h/dist_inv_pct
+    fingerprint_json = Column(Text, nullable=True)
+    accepted = Column(Integer, nullable=False, default=0)
+    recommend_open = Column(Integer, nullable=False, default=0)
+    # 结局（平仓后回填；None=未开仓或未平仓）
+    opened = Column(Integer, nullable=False, default=0)
+    outcome_pnl = Column(Float, nullable=True)
+    outcome_pct = Column(Float, nullable=True)
+    outcome_hold_hours = Column(Float, nullable=True)
+    outcome_close_reason = Column(String(100), nullable=True)
+    outcome_ts = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
+
+    __table_args__ = (
+        Index("ix_mlto_episodes_sym_tier_created", "symbol", "tier", "created_at"),
+    )
 
 
 class MltoSignalWeight(AnalyticsBase):

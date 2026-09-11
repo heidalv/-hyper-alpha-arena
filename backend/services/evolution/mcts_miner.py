@@ -37,6 +37,8 @@ from joblib import Parallel, delayed
 from backend.services.factor_engine.expr.audit import audit
 from backend.services.factor_engine.expr.ops import LOOKAHEAD_BANNED_OPS, OP_REGISTRY
 from backend.services.factor_engine.expr.parser import FactorExpr, parse
+# [P3.2 2026-09-03] 与 GP 共用的目标实现：分段 ICIR + 含成本净收益
+from backend.services.evolution import fitness_objective as _fo
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +129,10 @@ class MCTSConfig:
     windows: Tuple[int, ...] = (3, 5, 10, 20, 50)  # 窗口档位（宏微分离 profile 覆盖）
     max_workers: int = 0             # 0 = min(8, cpu)（扩展批量评估用）
     scale: str = "mid"               # micro | mid | macro（宏微分离）
+    # [P3.2 2026-09-03] 与 GPConfig.objective 同一套取值与默认（icir_net）：
+    # 此前 MCTS 只优化 |IC|、GP 优化 ICIR，两条挖掘路径目标不一致；
+    # 现统一走 fitness_objective（分段 ICIR + 含成本净收益），调用方按 FACTOR_GP_OBJECTIVE 注入。
+    objective: str = _fo.DEFAULT_OBJECTIVE
 
     def __post_init__(self) -> None:
         prof = _SCALE_PROFILES.get(self.scale, _SCALE_PROFILES["mid"])
@@ -265,7 +271,12 @@ def sensitivity_scan(
 # ═══════════════════════════════════════════════════════════════
 
 def _mcts_fitness_core(ast: dict, state: dict) -> Tuple[float, float]:
-    """模块级评估：返回 (ic, fitness)。fitness = |IC| − λ1×复杂度 − λ2×最大相关。"""
+    """模块级评估：返回 (ic, fitness)。
+
+    fitness = obj − λ1×复杂度 − λ2×最大相关，其中 obj 由 state["objective"] 决定
+    （[P3.2 2026-09-03] 与 GP 同口径：ic / icir / icir_net(默认) / ic_net / net，
+    见 fitness_objective）。返回的 ic 始终是原始带符号 IC（min_ic_keep / 根方向用）。
+    """
     factor_value_fn = state["factor_value_fn"]
     target = state["target"]
     try:
@@ -284,6 +295,15 @@ def _mcts_fitness_core(ast: dict, state: dict) -> Tuple[float, float]:
     ic = float(np.corrcoef(fv[mask], target[mask])[0, 1])
     if not np.isfinite(ic):
         return 0.0, _NEG_INF
+    # [P3.2 2026-09-03] 基础目标：|IC| 或分段 ICIR（有 lens 时）；再并入含成本净收益。
+    _objective = (state.get("objective") or "ic").strip().lower()
+    obj = abs(ic)
+    if _fo.objective_uses_icir(_objective):
+        obj = _fo.segment_icir(fv, target, mask, state.get("lens"), fallback=abs(ic))
+    obj = _fo.blend_objective(obj, abs(ic), fv, state.get("net_ctx"),
+                              min_samples=int(state["min_samples"]))
+    if not np.isfinite(obj):
+        return ic, _NEG_INF
     penalty_c = state["lambda_complexity"] * _count_nodes(ast)
     corr_pen = 0.0
     if state.get("root_asts"):
@@ -293,16 +313,26 @@ def _mcts_fitness_core(ast: dict, state: dict) -> Tuple[float, float]:
                 e_fv = np.asarray(factor_value_fn({"expr": parse(r_ast)}), dtype=float)
             except Exception:
                 continue
-            if e_fv.ndim == 0:
-                e_fv = np.full_like(target, float(e_fv))
-            m2 = np.isfinite(fv) & np.isfinite(e_fv)
-            if m2.sum() < 10:
+            # [2026-09-03] 随机根可能退化为常量（如 abs(5)、add(2,3)），求值结果是
+            # 0 维或 size=1 的数组；此前只处理 0 维，size=1 的一维数组会让下面的
+            # 布尔索引对不上长度直接 IndexError，整轮 mine() 崩掉（非确定性触发）。
+            # 常量与任何因子的相关都无定义，直接跳过；形状不一致同样跳过。
+            if e_fv.ndim == 0 or e_fv.size == 1:
                 continue
-            c = abs(float(np.corrcoef(fv[m2], e_fv[m2])[0, 1]))
+            e_fv = e_fv.reshape(-1) if e_fv.ndim > 1 and e_fv.size == target.size else e_fv
+            if e_fv.shape != target.shape:
+                continue
+            m2 = np.isfinite(fv) & np.isfinite(e_fv)
+            if m2.sum() < 10 or np.std(e_fv[m2]) < 1e-12:
+                continue
+            try:
+                c = abs(float(np.corrcoef(fv[m2], e_fv[m2])[0, 1]))
+            except Exception:
+                continue
             if np.isfinite(c):
                 max_corr = max(max_corr, c)
         corr_pen = state["lambda_corr"] * max_corr
-    return ic, float(abs(ic) - penalty_c - corr_pen)
+    return ic, float(obj - penalty_c - corr_pen)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -326,12 +356,28 @@ class MctsMiner:
         pool,
         config: Optional[MCTSConfig] = None,
         weak_seeds: Optional[List[dict]] = None,
+        lens: Optional[List[int]] = None,
+        fwd_ret: Optional[np.ndarray] = None,
+        horizon: Optional[int] = None,
     ):
         self.fields = [f for f in fields if f]
         self.factor_value_fn = factor_value_fn
         self.target = np.asarray(target, dtype=float)
         self.pool = pool
         self.config = config or MCTSConfig()
+        # [P3.2 2026-09-03] 与 GPMiner 同构：币段长度（分段 ICIR）+ 真实前瞻收益/前瞻根数（净收益项）
+        self.lens: Optional[List[int]] = [int(x) for x in lens] if lens else None
+        self.fwd_ret: Optional[np.ndarray] = (
+            np.asarray(fwd_ret, dtype=float) if fwd_ret is not None else None
+        )
+        if self.fwd_ret is not None and self.fwd_ret.shape != self.target.shape:
+            logger.warning(
+                "[MctsMiner] fwd_ret 形状 %s 与 target %s 不一致，净收益项停用",
+                self.fwd_ret.shape, self.target.shape,
+            )
+            self.fwd_ret = None
+        self.horizon: int = max(1, int(horizon or 1))
+        self._net_ctx_cache: Optional[dict] = None
         # 短板种子：活跃集中 |IC| 最低因子的 AST（定向改进短板）
         self.weak_seeds = weak_seeds or []
         self._seen_ast: set = set()
@@ -363,10 +409,15 @@ class MctsMiner:
         if not roots:
             logger.warning("[MctsMiner] 无可用树根（短板种子与随机根均失败）")
             return [], []
-        self._root_asts = [copy.deepcopy(r) for r in roots]
-        self._root_ic = {
-            str(r): abs(self._eval_ast(r)[0]) for r in roots
-        }
+        # [2026-09-03] 先在无参照集下评估各根，再把"求值有效"的根放进相关惩罚参照集。
+        # 此前顺序相反：参照集含退化根（常量）时，后续每一次评估都会撞上它。
+        self._root_asts = []
+        _root_eval = {str(r): self._eval_ast(r) for r in roots}
+        self._root_ic = {k: abs(v[0]) for k, v in _root_eval.items()}
+        self._root_asts = [
+            copy.deepcopy(r) for r in roots
+            if np.isfinite(_root_eval[str(r)][1])
+        ]
 
         # [2026-08-27] 墙钟预算：micro 档强制（默认1200s），0=不限制
         _tb = float(getattr(self.config, "time_budget_sec", 0.0) or 0.0)
@@ -623,6 +674,13 @@ class MctsMiner:
 
     def _fitness_state(self) -> dict:
         """构造 worker 可序列化求值上下文（含闭包 factor_value_fn 与短板根参照）。"""
+        if self._net_ctx_cache is None:
+            self._net_ctx_cache = _fo.net_context(
+                objective=self.config.objective,
+                fwd_ret=self.fwd_ret,
+                horizon=self.horizon,
+                lens=self.lens,
+            )
         return {
             "factor_value_fn": self.factor_value_fn,
             "target": self.target,
@@ -630,6 +688,10 @@ class MctsMiner:
             "lambda_complexity": self.config.lambda_complexity,
             "lambda_corr": self.config.lambda_corr,
             "root_asts": getattr(self, "_root_asts", []),
+            # [P3.2 2026-09-03] 与 GP 同口径的目标配置
+            "objective": self.config.objective,
+            "lens": list(self.lens) if self.lens else None,
+            "net_ctx": self._net_ctx_cache,
         }
 
     # ─────────────────────────── AST 变换原语 ───────────────────────────

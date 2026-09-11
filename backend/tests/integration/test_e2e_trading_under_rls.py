@@ -111,6 +111,10 @@ def test_role():
     与 test_rls_isolation 的 rls_test_tenant **分开**(独立角色),避免两套测试
     并发跑时权限/角色生命周期相互干扰。用主连接(db_admin superuser)建角色、授权。
     """
+    # [2026-09-02] 缺 CREATEROLE 时 skip 而非 ERROR，详见 _rls_privileges。
+    from backend.tests.integration._rls_privileges import SKIP_REASON, can_create_roles
+    if not can_create_roles():
+        pytest.skip(SKIP_REASON)
     with engine.connect() as c:
         c.execute(text(f"DROP ROLE IF EXISTS {_TEST_ROLE}"))
         c.execute(

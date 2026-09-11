@@ -1,0 +1,110 @@
+{
+  "0:XPL": {
+    "consec_losses": 0,
+    "day": "2026-09-01",
+    "day_pnl": 0.0,
+    "banned_until": 0
+  },
+  "0:UNI": {
+    "consec_losses": 1,
+    "day": "2026-09-08",
+    "day_pnl": -2.45,
+    "banned_until": 0
+  },
+  "0:BNB": {
+    "consec_losses": 0,
+    "day": "2026-09-01",
+    "day_pnl": 0.0,
+    "banned_until": 0
+  },
+  "0:ASTER": {
+    "consec_losses": 0,
+    "day": "2026-09-01",
+    "day_pnl": 0.0,
+    "banned_until": 0
+  },
+  "0:SOL": {
+    "consec_losses": 1,
+    "day": "2026-09-01",
+    "day_pnl": -2.5211,
+    "banned_until": 0
+  },
+  "0:XRP": {
+    "consec_losses": 1,
+    "day": "2026-09-10",
+    "day_pnl": -27.3082,
+    "banned_until": 0
+  },
+  "0:VIRTUAL": {
+    "consec_losses": 0,
+    "day": "2026-09-01",
+    "day_pnl": 0.0,
+    "banned_until": 0
+  },
+  "0:ETH": {
+    "consec_losses": 0,
+    "day": "2026-09-01",
+    "day_pnl": 0.0,
+    "banned_until": 0
+  },
+  "0:BTC": {
+    "consec_losses": 8,
+    "day": "2026-09-09",
+    "day_pnl": 760.0,
+    "banned_until": 1788986960.3739982
+  },
+  "14:BNB": {
+    "consec_losses": 2,
+    "day": "2026-09-10",
+    "day_pnl": -32.3619,
+    "banned_until": 0
+  },
+  "14:ETH": {
+    "consec_losses": 3,
+    "day": "2026-09-10",
+    "day_pnl": -4.8899,
+    "banned_until": 1789086615.4837134
+  },
+  "14:BTC": {
+    "consec_losses": 2,
+    "day": "2026-09-07",
+    "day_pnl": -2.4551,
+    "banned_until": 0
+  },
+  "14:VIRTUAL": {
+    "consec_losses": 1,
+    "day": "2026-09-10",
+    "day_pnl": -13.029,
+    "banned_until": 0
+  },
+  "14:XRP": {
+    "consec_losses": 2,
+    "day": "2026-09-10",
+    "day_pnl": -27.6761,
+    "banned_until": 0
+  },
+  "14:SOL": {
+    "consec_losses": 2,
+    "day": "2026-09-10",
+    "day_pnl": -16.564,
+    "banned_until": 0
+  },
+  "14:XPL": {
+    "consec_losses": 0,
+    "day": "2026-09-03",
+    "day_pnl": 1.1573,
+    "banned_until": 0
+  },
+  "14:UNI": {
+    "consec_losses": 0,
+    "day": "2026-09-08",
+    "day_pnl": 2.0594,
+    "banned_until": 0
+  },
+  "14:ASTER": {
+    "consec_losses": 2,
+    "day": "2026-09-10",
+    "day_pnl": -17.0155,
+    "banned_until": 0
+  }
+}

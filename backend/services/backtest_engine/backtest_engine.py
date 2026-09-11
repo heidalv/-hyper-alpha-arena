@@ -102,7 +102,10 @@ class BacktestConfig:
     daily_volume_usd: float = 100_000_000   # 默认日成交量（动态滑点用）
     # 是否扣除资金费率
     apply_funding_rate: bool = False
-    avg_funding_rate: float = 0.0001       # 默认资金费率（0.01%/8h）
+    avg_funding_rate: float = 0.0001       # 默认资金费率（0.01%/8h，历史缺失时兜底）
+    # [2026-09 P1-6] 真实历史资金费场所（None=按 binance>bybit>okx 优先级自动选）。
+    # apply_funding_rate=True 时，事件驱动回测从 perp_funding 读持仓期真实费率。
+    funding_exchange: Optional[str] = "binance"
     mode: BacktestMode = BacktestMode.VECTORIZED
     
     # 风险管理参数
@@ -143,6 +146,7 @@ class Trade:
     commission: float
     slippage: float
     pnl: Optional[float] = None  # 盈亏（平仓时填充）
+    funding_cost: Optional[float] = None  # [2026-09 P1-6] 持仓期资金费（真实历史费率）
 
 
 @dataclass
@@ -154,6 +158,7 @@ class Position:
     current_price: float  # 当前价格
     unrealized_pnl: float = 0.0  # 未实现盈亏
     realized_pnl: float = 0.0  # 已实现盈亏
+    entry_time: Optional[datetime] = None  # [2026-09 P1-6] 入场时间（算持仓期资金费）
 
 
 @dataclass
@@ -536,7 +541,8 @@ class BacktestEngine:
                 symbol=symbol,
                 quantity=quantity,
                 entry_price=price,
-                current_price=price
+                current_price=price,
+                entry_time=timestamp,
             )
         
         # 记录交易
@@ -571,17 +577,36 @@ class BacktestEngine:
         position = self.positions[symbol]
         price = float(exit_price) if exit_price is not None else bar['close']
         quantity = position.quantity
-        
+
         # 计算交易成本
         commission = quantity * price * self.config.commission
         slippage = quantity * price * self.config.slippage
-        
-        # 计算盈亏
-        pnl = (price - position.entry_price) * quantity - commission - slippage
-        
+
+        # [2026-09 P1-6] 持仓期资金费：真实历史费率（perp_funding），缺失时回退常数。
+        funding_cost = 0.0
+        if self.config.apply_funding_rate and position.entry_time is not None:
+            hours_held = (timestamp - position.entry_time).total_seconds() / 3600.0
+            if hours_held > 0:
+                try:
+                    from backend.services.backtest_engine.funding_history import mean_funding_in_window
+                    rate = mean_funding_in_window(
+                        symbol,
+                        position.entry_time.timestamp(),
+                        timestamp.timestamp(),
+                        exchange=self.config.funding_exchange,
+                        default=self.config.avg_funding_rate,
+                    )
+                except Exception:
+                    rate = self.config.avg_funding_rate
+                avg_notional = (position.entry_price + price) / 2.0 * abs(quantity)
+                funding_cost = avg_notional * abs(rate) * (hours_held / 8.0)
+
+        # 计算盈亏（含资金费）
+        pnl = (price - position.entry_price) * quantity - commission - slippage - funding_cost
+
         # 更新资金
-        self.capital += quantity * price - commission - slippage
-        
+        self.capital += quantity * price - commission - slippage - funding_cost
+
         # 记录交易
         self.trades.append(Trade(
             timestamp=timestamp,
@@ -591,9 +616,10 @@ class BacktestEngine:
             quantity=quantity,
             commission=commission,
             slippage=slippage,
-            pnl=pnl
+            pnl=pnl,
+            funding_cost=funding_cost or None
         ))
-        
+
         # 移除持仓
         del self.positions[symbol]
     

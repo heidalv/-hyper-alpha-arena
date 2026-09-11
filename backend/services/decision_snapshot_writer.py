@@ -22,6 +22,17 @@ _DEDUP_WINDOW_SEC = 120.0
 _DEDUP_MAX_ENTRIES = 8000
 
 
+def _coerce_regime_label(raw: Any) -> Optional[str]:
+    """regime_at_decision 列是 VARCHAR；market_data.regime 常为 dict。"""
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        name = raw.get("name") or raw.get("regime") or raw.get("label")
+        return str(name)[:64] if name else None
+    text = str(raw).strip()
+    return text[:64] if text else None
+
+
 def _dedup_signature(snap) -> str:
     # [P0-4] 原签名只看 account|symbol|tier|action|reason[:80]：
     # 同币种同动作同模板措辞的【不同决策】（不同策略/置信度/regime）在 120s 内
@@ -149,7 +160,9 @@ class DecisionSnapshotWriter:
             action=action,
             direction="buy" if action == "buy" else ("sell" if action == "sell" else action),
             confidence=float(confidence or 0),
-            regime_at_decision=mkt.get("market_cycle") or mkt.get("regime"),
+            regime_at_decision=_coerce_regime_label(
+                mkt.get("market_cycle") or mkt.get("regime")
+            ),
             volatility_at_decision=float(mkt.get("volatility_value", 0) or 0) or None,
         )
         for attr, val in (

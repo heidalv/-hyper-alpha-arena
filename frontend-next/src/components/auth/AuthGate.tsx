@@ -42,7 +42,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     useAuthStore.getState().armAuthKeepalive();
     const onVisible = () => {
       if (document.visibilityState === "visible") {
-        useAuthStore.getState().armAuthKeepalive();
+        // force：用户回到窗口时清零续期熔断并重新武装（见 stores/auth.ts 退避策略）
+        useAuthStore.getState().armAuthKeepalive({ force: true });
         void import("@/lib/api").then((m) => m.ensureFreshAccessToken()).catch(() => {});
       }
     };

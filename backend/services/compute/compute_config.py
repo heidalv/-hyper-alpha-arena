@@ -60,17 +60,6 @@ CONFIG_SPECS: Dict[str, Dict[str, Any]] = {
     "FACTOR_EVO_GATE_FAIL_CLOSED": {"default": 1, "type": bool, "min": None, "max": None, "group": "evo", "label": "进化门禁 fail-closed", "desc": "WFO/测试集/capacity 异常时拒绝而非放行"},
     "FACTOR_MIN_NET_IC": {"default": 0.02, "type": float, "min": 0.0, "max": 1.0, "group": "evo", "label": "最小净 IC", "desc": "晋升门槛净 IC（FACTOR_MIN_NET_IC）"},
     "FACTOR_MINING_BOOST_AUTO": {"default": 0, "type": bool, "min": None, "max": None, "group": "evo", "label": "挖矿加强自动", "desc": "开启后每日定时/手动进化前自动套用 mining_boost 预设"},
-    # ── 止盈止损网格训练（tp_sl_grid_trainer）──
-    "RISK_TP_SL_TRAIN_AUTO": {
-        "default": 1, "type": bool, "min": None, "max": None, "group": "risk",
-        "label": "TP/SL 自动训练",
-        "desc": "开启后每日定时自动网格搜索止盈止损；结果写入 tp_sl_learned/latest.json",
-    },
-    "RISK_USE_LEARNED_TP_SL": {
-        "default": 1, "type": bool, "min": None, "max": None, "group": "risk",
-        "label": "开仓使用学习 TP/SL",
-        "desc": "开启后开仓用训练结果覆盖静态表",
-    },
     # ── 本地 LLM 双机（gate_optimizer_service）──
     "LOCAL_LLM_CONFIG_ID":   {"default": 0,   "type": int, "min": 0, "max": 9999, "group": "llm", "label": "本地 LLM 配置 ID", "desc": "0=禁用本地 LLM 门控优化；>0 时读取 LLMConfig 表对应配置"},
 }

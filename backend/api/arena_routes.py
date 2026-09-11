@@ -925,7 +925,7 @@ def get_positions_snapshot(
 
         if account_is_paper:
             # Paper 模式：从 paper_positions 表读取持仓，并附上实时 mark_price
-            from services.price_cache import get_cached_price as _gcp
+            from backend.services.price_cache import get_cached_price as _gcp
             paper_positions = (
                 db.query(PaperPosition)
                 .filter(
@@ -1207,7 +1207,7 @@ def update_pnl_data(db: Session = Depends(get_db)):
     Returns summary of updated records.
     """
     from backend.database.models import HyperliquidWallet, AccountPromptBinding
-    from services.hyperliquid_environment import get_hyperliquid_client
+    from backend.services.hyperliquid_environment import get_hyperliquid_client
     from decimal import Decimal
     from collections import defaultdict
 

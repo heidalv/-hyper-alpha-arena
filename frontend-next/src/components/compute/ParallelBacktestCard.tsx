@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm";
 
 function ConfigRow({ c }: { c: ConfigItem | undefined }) {
   if (!c) {
@@ -252,7 +253,12 @@ export function ParallelBacktestCard() {
   const hasActivity = activities.length > 0;
 
   const onTrigger = async () => {
-    if (!window.confirm("确认手动触发因子进化？（后台线程 + 单飞锁，重复触发将被拒绝）")) return;
+    if (!(await confirmDialog({
+      title: "手动触发因子进化？",
+      description: "后台线程 + 单飞锁，重复触发将被拒绝。可能长时间占用算力。",
+      tone: "warning",
+      confirmText: "触发",
+    }))) return;
     setTriggering(true);
     setTriggerMsg(null);
     try {

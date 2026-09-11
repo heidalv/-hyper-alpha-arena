@@ -43,6 +43,15 @@ def build_proposal_execution_host(svc) -> ProposalExecutionHost:
     )
 
 
+def _mark_block(code: str, *, detail: str = "") -> None:
+    """[§52] 把本层拒绝原因登记给漏斗审计（不改行为，失败静默）。"""
+    try:
+        from backend.services.mlto.open_block_reason import mark_open_block
+        mark_open_block(code, detail=detail, layer="proposal_execution")
+    except Exception:
+        pass
+
+
 def evaluate_and_execute_proposal(
     *,
     db: Session,
@@ -64,6 +73,7 @@ def evaluate_and_execute_proposal(
     trade_nature = proposal.trade_nature
 
     if session_mode not in ("running", "defensive") or action not in ("buy", "sell"):
+        _mark_block("session_mode_or_action", detail=f"mode={session_mode} action={action}")
         return False
 
     if not host.midlong_persistence_allow(sym_u, trade_nature, action):
@@ -73,12 +83,14 @@ def evaluate_and_execute_proposal(
         except Exception:
             _pt = 2
         logger.info("[Persistence] %s %s 拦截(未达 %dtick)", sym_u, trade_nature, _pt)
+        _mark_block("persistence_ticks", detail=f"need={_pt}tick")
         return False
 
     if strat is None:
         strat = host.resolve_independent_strategy(db, session, sym_u, tier)
     if not strat:
         logger.info("[Agent独立] %s tier=%s 无 active 策略", sym_u, tier)
+        _mark_block("no_active_strategy", detail=f"tier={tier}")
         return False
 
     _trade_mode = host.session_trading_mode(session)
@@ -120,6 +132,7 @@ def evaluate_and_execute_proposal(
             "[V5Gate] BLOCK symbol=%s tier=%s action=%s detail=%s",
             sym_u, tier, action, verdict.reason,
         )
+        _mark_block("v5gate", detail=str(verdict.reason or "")[:180])
         return False
 
     dec = proposal.to_decision_dict()
@@ -136,6 +149,7 @@ def evaluate_and_execute_proposal(
         )
         if _bf <= 0:
             logger.info("[BudgetService] %s 层预算已满，跳过新开", sym_u)
+            _mark_block("budget_exhausted", detail=f"tier={tier}")
             return False
         if _bf < 1.0:
             dec["size_multiplier"] = float(dec.get("size_multiplier") or 1.0) * _bf
@@ -165,6 +179,7 @@ def evaluate_and_execute_proposal(
         _tranche_mult = 1.0
     if _tranche_mult <= 0.0:
         logger.info("[TrancheGate] %s tier=%s margin_pct=0%%（tranche 已耗尽）跳过新开", sym_u, tier)
+        _mark_block("tranche_exhausted", detail=f"tier={tier}")
         return False
     if _tranche_mult < 0.999:
         dec["size_multiplier"] = float(dec.get("size_multiplier") or 1.0) * _tranche_mult
@@ -179,6 +194,7 @@ def evaluate_and_execute_proposal(
     if not _dp_ok:
         logger.info("[DecisionPriceGate] BLOCK symbol=%s tier=%s action=%s %s", sym_u, tier, action, _dp_reason)
         host.append_event(session, "decision_price_stale", f"[决策价过期] {sym_u} {_dp_reason[:120]}")
+        _mark_block("decision_price_stale", detail=str(_dp_reason or "")[:180])
         return False
 
     if _trade_mode == "live":
@@ -188,11 +204,48 @@ def evaluate_and_execute_proposal(
             "symbol": sym_u,
             "side": action,
         })
+        # [2026-08-29 实盘零成交·中线车道] 先封顶再送宪法检查：
+        # 此前直接用未缩放敞口（available×pct×lev 兜底=33.2，永远超 20%
+        # 上限）送检 → V5Gate PASS 的提案在宪法层被数学性锁死（实测
+        # 17:47 ETH conf=79 PASS 后被拦）。与 execute_live_trade 内的
+        # LiveCap 同一语义，这里必须先行——检查通过后 execute_live_trade
+        # 内的封顶成为幂等 no-op。
+        try:
+            from backend.services.full_auto.live_trading import (
+                _live_scale_decision_to_cap,
+            )
+            _live_scale_decision_to_cap(db, session, strat, live_dec, None)
+        except Exception as _cap_err:
+            logger.warning("[LiveCap] proposal 路径封顶跳过(fail-open): %s", _cap_err)
+        # 缩放后仍低于交易所最小名义（币安 USDT-M 多数 $5）→ 诚实拒绝，
+        # 不再无声 return False（此前的 evaluate_and_execute_returned_false
+        # 无因可查）。
+        try:
+            _final_ov = float(live_dec.get("order_value") or 0)
+            if 0 < _final_ov < 5.5:
+                logger.info(
+                    "[LiveDust] %s %s 缩放后名义 $%.2f < 交易所最小名义$5.5，跳过"
+                    "（size_multiplier=%.4f）", sym_u, action, _final_ov,
+                    float(live_dec.get("size_multiplier") or 1.0),
+                )
+                host.append_event(
+                    session, "live_dust_block",
+                    f"[Live最小名义] {sym_u} {action} 缩放后${_final_ov:.2f}<$5.5",
+                )
+                _mark_block("live_dust", detail=f"notional={_final_ov:.2f}")
+                return False
+        except Exception:
+            pass
         _allowed, _risk_msg = host.live_constitutional_pre_trade_check(db, session, strat, live_dec)
         if not _allowed:
             host.append_event(session, "live_risk_block", f"[Live宪法] {sym_u} {_risk_msg[:100]}")
+            _mark_block("live_constitutional", detail=str(_risk_msg or "")[:180])
             return False
-        host.execute_live_trade(db, session, strat, live_dec)
+        _live_ok = host.execute_live_trade(db, session, strat, live_dec)
+        if not _live_ok:
+            logger.info("[TCP] Live 下单未成功 %s tier=%s %s", sym_u, tier, action)
+            _mark_block("live_order_failed", detail=f"{sym_u} {action}")
+            return False
         host.safe_commit(db, "proposal_live_open", session=session)
         host.persist_tcp_snapshot(
             session,
@@ -320,4 +373,12 @@ def evaluate_and_execute_proposal(
                         logger.debug("[S2-5] %s exit_plan 写入跳过: %s", sym_u, _exit_plan_err)
         except Exception as _cal_err:
             logger.debug("[MidLongCalibrator] %s 分数快照记录跳过: %s", sym_u, _cal_err)
+    if not ok:
+        # [§52] 兜底：只有在下游没有登记更具体原因时才写通用码。
+        try:
+            from backend.services.mlto.open_block_reason import peek_open_block
+            if not peek_open_block():
+                _mark_block("paper_trade_false", detail="execute_paper_trade returned False")
+        except Exception:
+            pass
     return ok

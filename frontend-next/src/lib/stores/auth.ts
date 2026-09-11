@@ -26,6 +26,22 @@ import { getBackendUrl } from "../backend-config";
 const KEEPALIVE_SKEW_MS = 90_000;
 let authKeepaliveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * [2026-09-09] 续期失败退避与熔断。
+ *
+ * 监控实测：局域网某客户端 3 小时内打了 210 次 POST /api/auth/refresh → 401（约每 5s 一次），
+ * 且 WS 早已断开。根因是 armAuthKeepalive 的固定下限 `Math.max(5_000, …)`：
+ * access 已过期时 delay 恒为 5s，续期失败也照此重排 → 固定 5s 死循环。
+ *
+ * 现在改为：失败次数 → 指数退避（5s/10s/20s/40s/80s，上限 5 分钟）；
+ * 连续失败达熔断阈值后停止重排，交由 AuthGate 的 focus/visibilitychange 重新武装
+ * （用户回到窗口时自然恢复，后台不再打空枪）。
+ */
+const KEEPALIVE_BASE_MS = 5_000;
+const KEEPALIVE_MAX_MS = 300_000;
+const KEEPALIVE_FAILURE_LIMIT = 5;
+let authKeepaliveFailures = 0;
+
 export interface AuthUser {
   id: number;
   username: string;
@@ -62,7 +78,7 @@ interface AuthState {
   setSession: (tokens: TokenResponse) => Promise<void>;
   applyRefreshedTokens: (access: string, refresh: string) => Promise<void>;
   /** 在 access 过期前主动续期，避免闲置后整页无数据 */
-  armAuthKeepalive: () => void;
+  armAuthKeepalive: (opts?: { force?: boolean }) => void;
   stopAuthKeepalive: () => void;
 }
 
@@ -415,6 +431,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setSession: async (tokens) => {
     await saveTokens(tokens.access_token, tokens.refresh_token);
     saveUserCache(tokens.user as CachedAuthUser);
+    // 新会话 = 认证链路已恢复，清零熔断计数
+    authKeepaliveFailures = 0;
     set((s) => ({
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
@@ -429,33 +447,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   applyRefreshedTokens: async (access, refresh) => {
     await saveTokens(access, refresh);
+    // 续期成功 = 链路健康，清零熔断计数
+    authKeepaliveFailures = 0;
     set({ accessToken: access, refreshToken: refresh });
     get().armAuthKeepalive();
   },
 
-  armAuthKeepalive: () => {
+  armAuthKeepalive: (opts) => {
     if (typeof window === "undefined") return;
     if (authKeepaliveTimer) {
       clearTimeout(authKeepaliveTimer);
       authKeepaliveTimer = null;
     }
+    // force = 用户主动回到窗口（AuthGate 的 focus/visibilitychange）：清零熔断后重新武装，
+    // 否则熔断会把自己锁死，只有刷新页面才能恢复。
+    if (opts?.force) authKeepaliveFailures = 0;
     const { accessToken, refreshToken, user } = get();
     if (!user || !refreshToken) return;
+    // 连续续期失败达阈值 → 熔断，不再自动重排（避免 5s 死循环刷 401）。
+    // 恢复路径：AuthGate 在 focus / visibilitychange 时调用本函数重新武装。
+    if (authKeepaliveFailures >= KEEPALIVE_FAILURE_LIMIT) return;
     const expMs = getAccessTokenExpiryMs(accessToken);
-    // 无法解析过期时间时，每 10 分钟探活一次
-    const delay =
-      expMs == null
-        ? 10 * 60_000
-        : Math.max(5_000, expMs - Date.now() - KEEPALIVE_SKEW_MS);
+    // 基础延迟：能解析过期时间就按「过期前 90s」，否则 10 分钟探活一次
+    const baseDelay =
+      expMs == null ? 10 * 60_000 : Math.max(KEEPALIVE_BASE_MS, expMs - Date.now() - KEEPALIVE_SKEW_MS);
+    // 失败退避：第 n 次失败后 delay = base * 2^n，上限 5 分钟
+    const delay = Math.min(
+      KEEPALIVE_MAX_MS,
+      baseDelay * 2 ** Math.min(authKeepaliveFailures, 6)
+    );
     authKeepaliveTimer = setTimeout(() => {
       authKeepaliveTimer = null;
       void (async () => {
+        let ok = false;
         try {
           // 动态导入，避免 auth ↔ api 循环依赖
           const { ensureFreshAccessToken } = await import("../api");
-          await ensureFreshAccessToken();
+          ok = await ensureFreshAccessToken();
         } catch {
-          /* 下次再试 */
+          ok = false;
+        }
+        if (ok) {
+          authKeepaliveFailures = 0;
+        } else {
+          authKeepaliveFailures += 1;
         }
         if (get().user && get().refreshToken) {
           get().armAuthKeepalive();

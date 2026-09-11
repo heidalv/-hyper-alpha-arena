@@ -267,7 +267,11 @@ def test_onchain_collector_no_key_skips(monkeypatch):
 
 
 def test_derivatives_analytics_coinglass_layer(monkeypatch):
-    """derivatives_analytics Layer 5：Coinglass 补 funding + 清算，source 记录含 coinglass。"""
+    """derivatives_analytics Layer 5：Coinglass 补 funding + 清算，source 记录含 coinglass。
+
+    [2026-09 P0-2] 新增 Layer 0（perp_funding 多所落库，优先 binance 真实费率）；
+    本测试模拟「多所落库缺失」场景，验证 Coinglass 仍能兜底填 funding。
+    """
     from backend.services.derivatives_analytics_service import DerivativesAnalyticsService
     svc = DerivativesAnalyticsService()
 
@@ -286,6 +290,8 @@ def test_derivatives_analytics_coinglass_layer(monkeypatch):
     monkeypatch.setattr(svc, "_coinglass_available", lambda: True)
     # 屏蔽其他层网络调用 + DC_ONLY（默认 true 会跳过 Layer 2-5）
     monkeypatch.setattr("backend.services.market_data._dc_only_enabled", lambda: False)
+    # [2026-09 P0-2] 新增的多所落库层也屏蔽（本测试验证 Coinglass 兜底路径）
+    monkeypatch.setattr(svc, "_fill_from_multi_venue_funding", lambda snap: False)
     monkeypatch.setattr(svc, "_fill_from_local", lambda snap: False)
     monkeypatch.setattr(svc, "_fill_from_hyperliquid", lambda snap: False)
     monkeypatch.setattr(svc, "_fill_from_binance", lambda snap: False)

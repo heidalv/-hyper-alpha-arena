@@ -27,7 +27,8 @@ def _cfg_bool(name: str, default: bool = True) -> bool:
 def _cfg_float(name: str, default: float) -> float:
     try:
         from backend.config import settings
-        return float(getattr(settings, name, default) or default)
+        _v = getattr(settings, name, default)
+        return default if _v is None else float(_v)
     except Exception:
         return default
 
@@ -35,7 +36,8 @@ def _cfg_float(name: str, default: float) -> float:
 def _cfg_int(name: str, default: int) -> int:
     try:
         from backend.config import settings
-        return int(getattr(settings, name, default) or default)
+        _v = getattr(settings, name, default)
+        return default if _v is None else int(_v)
     except Exception:
         return default
 

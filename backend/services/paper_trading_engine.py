@@ -82,20 +82,24 @@ from backend.services.tp_sl_authority import TIER_TO_NATURE as _TIER_TO_NATURE  
 from backend.services.leverage_authority import resolve_leverage as _resolve_lev_authority  # noqa: E402
 
 
-def _clamp_leverage_by_tier(leverage: float, tier) -> float:
+def _clamp_leverage_by_tier(leverage: float, tier, symbol=None) -> float:
     """按 tier cap 钳制杠杆(委托单一权威 leverage_authority,阶段 C)。
 
     新单不被旧仓位 max 污染(根因 2 修复)。tier=None 时权威按最高 cap
     处理并 floor 到 1.0,与历史行为等价。
 
+    [2026-09-07 杠杆根治 P2] 新增 symbol 参数：传入后由币种档一锤定音
+    （requested 被忽略），与交易所 set_leverage(symbol, x) 语义对齐。
+
     Args:
         leverage: 目标杠杆
         tier: 仓位档位 ("short"/"mid"/"long") 或 None
+        symbol: 币种（可选，传入则启用一币一档）
 
     Returns:
         钳制后的杠杆: 不低于 1,不高于该 tier 的 cap。
     """
-    return _resolve_lev_authority(tier=tier, requested=leverage)
+    return _resolve_lev_authority(tier=tier, requested=leverage, symbol=symbol)
 
 
 class PaperTradingEngine:
@@ -117,6 +121,9 @@ class PaperTradingEngine:
     _VALID_NATURES = frozenset({
         "scalp", "intraday", "swing", "position", "trend_follow",
     })
+
+    # [2026-09-03 v3 F2c] trade_facts 写入失败累计计数（进程内），ops 巡检 / 边际账本读取。
+    _TRADE_FACT_WRITE_FAILURES = 0
 
     # ── 硬性 SL 最小距离：任何机制都不能将 SL 推得比这更紧 ──
     # v5: 加密市场波动大，BTC日波2-3%、小币6-15%，SL必须给足空间
@@ -326,6 +333,30 @@ class PaperTradingEngine:
             import json
             from backend.database.models import PositionExitEvent
 
+            # [2026-09-10 第二十八轮] 幂等护栏：同一仓位的 `final_trade_outcome` 只写一次。
+            # 实测 #4638（9/9 23:21）在一次平仓中被两条并发通道各写一次、hard_line 再补登一次
+            # → 3 个事件、且落库 reason 不是首个触发通道（sl 先触发、记录却成了
+            # thesis_invalidation）。金额本身只扣一次（reduce_count=0、总 USD 只算一次），
+            # 但归因/审计会读到错误通道，故在事件层加幂等。
+            _etype_guard = str(event_type or "")[:40]
+            if _etype_guard == "final_trade_outcome":
+                _pid_guard = int(getattr(pos, "id", 0) or 0)
+                if _pid_guard:
+                    _dup = (
+                        db.query(PositionExitEvent.id)
+                        .filter(
+                            PositionExitEvent.position_id == _pid_guard,
+                            PositionExitEvent.event_type == "final_trade_outcome",
+                        )
+                        .first()
+                    )
+                    if _dup is not None:
+                        logger.debug(
+                            "[Paper] final_trade_outcome 幂等跳过 pos=%s reason=%s",
+                            _pid_guard, exit_channel,
+                        )
+                        return
+
             peak_pnl = float(getattr(pos, "peak_unrealized_pnl", 0.0) or 0.0)
             current_pnl = float(getattr(pos, "unrealized_pnl", 0.0) or 0.0)
             realized = float(pnl) if pnl is not None else current_pnl
@@ -445,6 +476,59 @@ class PaperTradingEngine:
             min_sl = round(entry * (1 + min_dist), 6)
             if sl < min_sl:
                 pos.sl_price = min_sl
+
+    # ══════════════════════════════════════════════════════════════════════
+    # [§88 执行 2026-09-11 / 决策 P29-A] **SL 距离上限**（按层可配）
+    #
+    # 背景（§87 审计）：long 层 SL 距离中位 **6.52%**，而持仓期最大不利偏移（MAE）
+    # 均值只有 **−1.41%**（约 SL 的 1/5）⇒ 30 天 34 笔里 `sl` 通道 **0 笔**，
+    # 止损"远到不会响"，亏损只能由叙事通道在 −1.4%~−2% 处终止（单笔 −$19.22 = mid 的 6.3×）。
+    # 因 ATR 下限（`apply_structure_atr_floor`：SL ≥ 1dATR×1.5）会把 SL 撑到 6%+，
+    # 只在某一条路径改乘数覆盖不全 ⇒ 这里在**下单收口点**统一加"不得超过该层上限"的夹子。
+    #
+    # 键：`MIDLONG_SL_MAX_PCT_<TIER>` → `MIDLONG_SL_MAX_PCT` → 0（**默认关闭**）。
+    # 只夹"过远"的一侧；过近由既有的 `_MIN_SL_DISTANCE_BY_NATURE` 负责。
+    # ══════════════════════════════════════════════════════════════════════
+    @staticmethod
+    def sl_max_pct_for_tier(tier: str) -> float:
+        import os as _os
+
+        t = str(tier or "").strip().lower()
+        for key in (f"MIDLONG_SL_MAX_PCT_{t.upper()}" if t else "", "MIDLONG_SL_MAX_PCT"):
+            if not key:
+                continue
+            raw = _os.environ.get(key)
+            if raw is None or str(raw).strip() == "":
+                continue
+            try:
+                return max(0.0, float(raw))
+            except (TypeError, ValueError):
+                continue
+        return 0.0
+
+    @staticmethod
+    def clamp_sl_price(sl_price, *, side: str, entry: float, tier: str):
+        """把**过远**的 SL 拉近到该层上限；过近不动、上限为 0 时完全不动。
+
+        返回 `(sl_price, clamped: bool, detail: str)`，便于日志与测试断言。
+        """
+        try:
+            cap = PaperTradingEngine.sl_max_pct_for_tier(tier)
+            e = float(entry or 0)
+            s = float(sl_price) if sl_price is not None else 0.0
+            if cap <= 0 or s <= 0 or e <= 0:
+                return sl_price, False, "off"
+            if str(side or "").lower() in ("long", "buy"):
+                limit = e * (1.0 - cap)
+                if s < limit:
+                    return round(limit, 8), True, f"long_sl_cap({cap:.2%})"
+            else:
+                limit = e * (1.0 + cap)
+                if s > limit:
+                    return round(limit, 8), True, f"short_sl_cap({cap:.2%})"
+            return sl_price, False, "within_cap"
+        except Exception:
+            return sl_price, False, "error"
 
     # ══════════════════════════════════════════════════════════════════════
     # SL 必须在 liq 之"内"（离 entry 比 liq 更近）否则永远触发不了.
@@ -876,6 +960,156 @@ class PaperTradingEngine:
             self._set_tenant_from_account(db, account_id)
             exchange = self._resolve_account_exchange(db, account_id)
 
+            # ── [2026-09-10 第 12 轮] 组合闸**收口点**：mid/long 一律经组合风控（净敞口 + 并发上限）──
+            # 背景：该闸此前只挂在 `midlong_helpers.try_execute_independent_agent_open` 一处，
+            # 实测覆盖率 3/7 个入口——`trend_e1_engine`、`master_execution` 直下、
+            # **加仓（midlong_position_manager）**、`paper_execution` 全部绕过（§48）。
+            # 挂到本收口点后一次覆盖全部入口；与上游那次检查**幂等**（只读）。
+            # 只对 mid/long 生效：scalp/short 返回 not_midlong，行为完全不变。
+            try:
+                from backend.services.mlto.midlong_portfolio_risk import (
+                    choke_point_open_allowed as _choke_gate,
+                )
+                _ck_ok, _ck_why = _choke_gate(
+                    db, account_id, symbol=symbol, action=side,
+                    tier=timeframe_tier, trade_nature=trade_nature,
+                    new_notional=float(quantity or 0) * float(price or 0),
+                    # 探针识别：上游以 thesis 的 dir_src 判定，收口点只能按标识串启发式识别；
+                    # 万一漏判，探针会面对**更严**的常规上限（保守方向，§48.5 已注明）。
+                    is_probe=("probe" in f"{strategy_id or ''} {position_metadata or ''}".lower()),
+                )
+                if not _ck_ok:
+                    logger.warning(
+                        "[MidLongChokeGate] 拒单 %s %s: %s (acct=%s tier=%s nature=%s)",
+                        symbol, side, _ck_why, account_id, timeframe_tier, trade_nature,
+                    )
+                    return None
+            except Exception as _ck_err:
+                logger.warning("[MidLongChokeGate] 检查异常(fail-open): %s", _ck_err)
+
+            # ── [2026-09-05] 短线新开硬闸：纸盘+实盘都禁；已有仓只许平/减 ──
+            if add_type not in ("reduce", "close"):
+                try:
+                    from backend.services.full_auto.scalp_open_gate import scalp_new_open_blocked
+                    _sc_block, _sc_reason = scalp_new_open_blocked(
+                        add_type, trade_nature, timeframe_tier,
+                    )
+                    if _sc_block:
+                        logger.info(
+                            "[Paper] 拒开短线 %s %s nature=%s tier=%s: %s",
+                            symbol, side, trade_nature, timeframe_tier, _sc_reason,
+                        )
+                        return {
+                            "success": False, "blocked": True, "blocked_layer": "scalp_open_gate",
+                            "blocked_by": "scalp_open_disabled", "reason": _sc_reason,
+                            "reason_code": "scalp_open_disabled",
+                        }
+                except Exception as _sc_err:
+                    logger.warning("[Paper] 短线新开闸检查异常（拒开）: %s", _sc_err)
+                    try:
+                        from backend.config.settings import SCALP_OPEN_DISABLED as _sod
+                    except Exception:
+                        _sod = True
+                    if _sod:
+                        return {
+                            "success": False, "blocked": True, "blocked_layer": "scalp_open_gate",
+                            "blocked_by": "scalp_open_disabled", "reason": "scalp_open_gate_error",
+                            "reason_code": "scalp_open_disabled",
+                        }
+
+            # ── [2026-09-03 v3 方向1] E1 独占长车道：非 E1 来源的 tier=long 新开仓只记为提议（TREND_E1_LONG_LANE_EXCLUSIVE）──
+            if add_type not in ("reduce", "close"):
+                try:
+                    from backend.services.trend_e1_engine import long_lane_open_allowed as _e1_gate
+                    _e1_ok, _e1_reason = _e1_gate(timeframe_tier, trade_nature, position_metadata, add_type)
+                    if not _e1_ok:
+                        logger.info(f"[Paper][TrendE1] 拒开 {symbol} {side} tier={timeframe_tier}: {_e1_reason}")
+                        return {
+                            "success": False, "blocked": True, "blocked_layer": "trend_e1_long_lane",
+                            "blocked_by": "trend_e1", "reason": _e1_reason, "reason_code": "trend_e1_long_lane_exclusive",
+                        }
+                except Exception as _e1_err:
+                    logger.debug(f"[Paper][TrendE1] 长车道独占检查异常（放行）: {_e1_err}")
+
+            # ── [2026-09-03 v3 方向1] PositionConstruction 单一权威：所有车道的新开/加仓名义与杠杆在此夹紧 ──
+            # 上游 8 条定仓轨（AI 百分比表 / ATR / 动态杠杆 / Kelly / SizingAgent / 短线名义 / 中长线 ATR 乘子 / 编排器）
+            # 从此只是"提议"；硬帽：单币 ≤35% 权益、单笔风险 ≤ risk_per_trade、同簇 ≤50%、车道 gross、杠杆 ≤3x。
+            # 平仓/减仓不经此处。异常放行（只记日志）。
+            if add_type not in ("reduce", "close"):
+                try:
+                    from backend.services import position_construction as _pc
+                    if _pc.enforce_enabled():
+                        _pc_px = price if (price and price > 0) else self._get_current_price(symbol, exchange)
+                        if _pc_px and _pc_px > 0 and quantity and quantity > 0:
+                            _lane = _pc.normalize_lane(timeframe_tier, trade_nature)
+                            _open = _pc.open_notionals(db, account_id, symbol, lane=_lane)
+                            _sd = None
+                            if sl_price and sl_price > 0:
+                                _sd = abs(float(_pc_px) - float(sl_price)) / float(_pc_px)
+                            _cl = _pc.clamp(
+                                lane=_lane, symbol=symbol, equity=float(bal.total_equity or 0), price=float(_pc_px),
+                                notional=float(quantity) * float(_pc_px), leverage=float(leverage or 1.0),
+                                stop_distance_pct=_sd, symbol_open_notional=_open["symbol"],
+                                cluster_open_notional=_open["cluster"], lane_open_notional=_open["lane"],
+                                is_add=bool(add_type),
+                            )
+                            if _cl.blocked:
+                                logger.warning(
+                                    f"[Paper][PositionConstruction] 拒单 {symbol} {side} lane={_lane}: {_cl.reason}")
+                                return {
+                                    "success": False, "blocked": True,
+                                    "blocked_layer": "position_construction", "blocked_by": "position_construction",
+                                    "reason": _cl.reason, "reason_code": "position_construction_room_zero",
+                                    "position_construction": _cl.to_dict(),
+                                }
+                            if _cl.changed:
+                                logger.info(
+                                    f"[Paper][PositionConstruction] {symbol} {side} lane={_lane} "
+                                    f"notional {float(quantity) * float(_pc_px):.2f}→{_cl.notional:.2f} "
+                                    f"lev {leverage}→{_cl.leverage} caps={_cl.caps_applied}")
+                                quantity = float(_cl.quantity)
+                                leverage = float(_cl.leverage)
+                                if position_metadata is None:
+                                    position_metadata = {}
+                                try:
+                                    position_metadata["position_construction"] = {
+                                        "caps": _cl.caps_applied, "lane": _lane, "notional": _cl.notional,
+                                        "leverage": _cl.leverage,
+                                    }
+                                except Exception:
+                                    pass
+                except Exception as _pc_err:
+                    logger.warning(f"[Paper][PositionConstruction] 检查异常（放行）: {_pc_err}")
+
+            # ── [2026-09-03 v3 方向7] RiskEngine 单入口：急停 / TradingState / 连通性 / 避险窗口 / 日配额 ──
+            # 开仓与加仓必经；平仓/减仓永远放行（引擎内部按 is_open 判定）。异常时按“已落盘状态”判定，
+            # 引擎自身异常不阻断（fail-open 仅限引擎崩溃，状态判定本身不会因数据缺失而误放行）。
+            try:
+                from backend.services.risk.risk_engine import pre_trade as _v3_pre_trade, PreTradeRequest as _V3Req
+                _v3_price = price if (price and price > 0) else self._get_current_price(symbol, exchange)
+                _v3_verdict = _v3_pre_trade(
+                    db,
+                    _V3Req(
+                        account_id=int(account_id), symbol=symbol, side=side,
+                        is_open=(add_type not in ("reduce", "close")),
+                        venue="paper", tier=timeframe_tier, trade_nature=trade_nature,
+                        notional=float(quantity or 0) * float(_v3_price or 0),
+                        equity=float(bal.total_equity or 0), leverage=float(leverage or 1.0),
+                        source=str(strategy_id or ""),
+                    ),
+                )
+                if not _v3_verdict.allowed:
+                    logger.warning(
+                        f"[Paper][RiskEngine v3] 拦截 {symbol} {side} qty={quantity} "
+                        f"tier={timeframe_tier}/{trade_nature}: {_v3_verdict.reason}"
+                    )
+                    return _v3_verdict.as_block_result()
+                # 黑天鹅剧本可临时把新开仓杠杆压到 1x（TradeGate 权威值之上再钳一层）
+                if _v3_verdict.max_leverage and add_type not in ("reduce", "close"):
+                    leverage = min(float(leverage or 1.0), float(_v3_verdict.max_leverage))
+            except Exception as _v3_err:
+                logger.warning(f"[Paper][RiskEngine v3] 检查异常（放行）: {_v3_err}")
+
             # ── 整改#5：引擎层硬风控（最外层、业务无关的最后一道防线）──
             # RISK_ENGINE_ENABLED=true 时生效；无 InstrumentSpec 登记则仅限流/重复/名义/保证金硬规则。
             # 任何异常/未启用均透传放行，绝不阻断主流程。
@@ -904,6 +1138,31 @@ class PaperTradingEngine:
                         }
             except Exception as _eng_err:
                 logger.debug(f"[Paper][RiskEngine#5] 检查异常（放行）: {_eng_err}")
+
+            # ── [2026-09-03 v3 F2] 账户级日手续费预算门（不受锁强度配置影响）──
+            # 只拦新开/加仓；平仓/减仓永远放行。口径与阈值见 ledger/fee_budget.py。
+            if add_type not in ("reduce", "close"):
+                try:
+                    from backend.services.ledger.fee_budget import check_fee_budget as _fee_budget_check
+                    _fb_px = price if (price and price > 0) else self._get_current_price(symbol, exchange)
+                    _fb = _fee_budget_check(
+                        db, account_id,
+                        est_notional=float(quantity or 0) * float(_fb_px or 0),
+                        equity=float(bal.total_equity or 0),
+                        source="paper",
+                    )
+                    if not _fb.allowed:
+                        logger.warning(
+                            f"[Paper][FeeBudget] 拦截 {symbol} {side} qty={quantity}: {_fb.reason}"
+                        )
+                        return {
+                            "success": False, "blocked": True,
+                            "blocked_layer": "fee_budget", "blocked_by": "fee_budget",
+                            "reason": _fb.reason, "reason_code": "fee_budget_exceeded",
+                            "fee_budget": _fb.to_dict(),
+                        }
+                except Exception as _fb_err:
+                    logger.debug(f"[Paper][FeeBudget] 检查异常（放行）: {_fb_err}")
 
             # ── 风控（2026-05-08 v2 升级到 UnifiedRiskGate）──
             # 同时跑 DeterministicRiskGate（瞬时硬规则）+ RiskControlService（带状态规则，
@@ -1066,6 +1325,17 @@ class PaperTradingEngine:
                 sl_price=sl_price,
                 status="pending",
             )
+            # [§88 执行 2026-09-11 / 决策 P29-A] 下单收口点统一夹住"过远的 SL"
+            # （按层上限 `MIDLONG_SL_MAX_PCT_<TIER>`；默认 0 = 关闭 ⇒ 与既有行为一致）。
+            _sl2, _sl_clamped, _sl_why = self.clamp_sl_price(
+                sl_price, side=side, entry=price, tier=timeframe_tier or trade_nature)
+            if _sl_clamped:
+                logger.info(
+                    "[Paper] SL 距离超上限被拉近 %s %s: %s → %s（%s）",
+                    symbol, side, sl_price, _sl2, _sl_why,
+                )
+                sl_price = _sl2
+                order.sl_price = _sl2
             if hasattr(order, "trade_nature"):
                 order.trade_nature = trade_nature or "swing"
             db.add(order)
@@ -1287,9 +1557,11 @@ class PaperTradingEngine:
             # 保证金按新的总名义价值 ÷ 订单杠杆重算。
             # [根因 2 修复] add/DCA 不用 max 提杠杆,按目标仓位 tier cap 钳制,
             # 避免新订单把既有低杠杆仓位强制提到高杠杆。
+            # [2026-09-07 杠杆根治 P2] 传 symbol：一币一档，与交易所同币单杠杆对齐。
             existing.leverage = _clamp_leverage_by_tier(
                 float(order.leverage or existing.leverage or 1.0),
                 getattr(existing, "timeframe_tier", None),
+                symbol=getattr(existing, "symbol", None),
             )
             existing.margin = (existing.size * existing.entry_price) / existing.leverage
             existing.mark_price = current_price
@@ -1374,9 +1646,46 @@ class PaperTradingEngine:
                 logger.error(f"[PaperEngine] 关键操作异常: {_crit_err}", exc_info=True)
                 try: db.rollback()
                 except Exception: pass
-            if position_metadata:
-                import json as _json
-                _pos_kwargs["metadata_json"] = _json.dumps(position_metadata, ensure_ascii=False)
+            # [2026-09-03 修复] PaperPosition 没有 metadata_json 列：原 `_pos_kwargs["metadata_json"] = ...` 在任何
+            # 带 position_metadata 的开仓上都会抛 TypeError（'metadata_json' is an invalid keyword argument）。
+            # 开仓元数据改为并入 exit_state_json.open_metadata（同一 JSON 文本列，merge 语义，各出场模块可读）。
+            # [2026-09-03 v3 方向1] 开仓即快照本车道 ExitPolicy 声明（三重屏障 / trailing / 递减 ROI / 结构失效），
+            # 持仓终身按声明执行，事后可审计"这笔仓当时的出场规则是什么"。
+            try:
+                import json as _json_xp
+                from backend.services.exit.exit_policy import ExitPolicy as _XP
+                from backend.services.position_construction import normalize_lane as _nl_xp
+                _xp_lane = _nl_xp(timeframe_tier, _pos_kwargs.get("trade_nature"))
+                _es_init = {"exit_policy": _XP.for_lane(_xp_lane).to_dict()}
+                # [2026-09-07] 声明 SL 与实际附着 SL 对齐：ATR floor / 结构止损
+                # 常把硬 SL 拉宽到 ~4.5%，但 ExitPolicy 仍快照车道默认 3% →
+                # soft sl_pct 会比硬单更早触发，口径打架。按实际附着距离重写声明。
+                try:
+                    _ep_entry = float(_pos_kwargs.get("entry_price") or 0)
+                    _ep_sl = float(_pos_kwargs.get("sl_price") or 0)
+                    _ep_side = str(_pos_kwargs.get("side") or "long").lower()
+                    if _ep_entry > 0 and _ep_sl > 0:
+                        if _ep_side in ("long", "buy"):
+                            _att = abs(_ep_entry - _ep_sl) / _ep_entry * 100.0
+                        else:
+                            _att = abs(_ep_sl - _ep_entry) / _ep_entry * 100.0
+                        if _att > 0.05:
+                            _es_init["exit_policy"]["sl_pct"] = round(_att, 4)
+                except Exception:
+                    pass
+                if position_metadata and isinstance(position_metadata, dict):
+                    try:
+                        _es_init["open_metadata"] = _json_xp.loads(_json_xp.dumps(position_metadata, ensure_ascii=False, default=str))
+                    except Exception:
+                        pass
+                    _ssp = position_metadata.get("structural_stop_price") or position_metadata.get("invalidation_price")
+                    if _ssp:
+                        _es_init["structural_stop_price"] = float(_ssp)
+                    if position_metadata.get("entry_source"):
+                        _es_init["entry_source"] = str(position_metadata["entry_source"])[:40]
+                _pos_kwargs["exit_state_json"] = _json_xp.dumps(_es_init, ensure_ascii=False)
+            except Exception as _xp_err:
+                logger.debug(f"[Paper][ExitPolicy] 开仓快照失败（忽略）: {_xp_err}")
             pos = PaperPosition(**_pos_kwargs)
             db.add(pos)
 
@@ -1727,7 +2036,10 @@ class PaperTradingEngine:
                 nature=str(getattr(pos, "trade_nature", "") or ""),
             )
         except Exception as _attr_err:
-            logger.debug("[FusionAttr] 归因记录失败: %s", _attr_err)
+            # [§80 修复 2026-09-11] 原为 debug ⇒ INFO 级生产日志里**完全不可见**：
+            # 这条链喂的是"出场通道熔断"的滚动窗（§77–§79），一旦静默失败，
+            # 熔断器会停在旧窗口上、且没人知道（§41.2/§51.7 同类纪律：fail-open 必须可见）。
+            logger.warning("[FusionAttr] 归因记录失败(熔断窗将不含本次平仓): %s", _attr_err)
 
         # ── 整改#9 Phase4：event-first 平仓事件（commit 前）──
         self._record_es_event(
@@ -1758,6 +2070,40 @@ class PaperTradingEngine:
                 "funding_accrued": self._funding_accrued_total(db, pos),
             },
         )
+
+        # ── [2026-09-07] 情景记忆结局回填（海马体记忆巩固的一环）──
+        # 平仓结局回填到对应论题情景，供主脑下次检索「相似行情的历史结局」。
+        try:
+            from backend.database.models import FullAutoSession as _FAS
+            from backend.services.mlto.episodic_memory import backfill_outcome
+            _sess = (
+                db.query(_FAS)
+                .filter(_FAS.paper_account_id == int(account_id))
+                .order_by(_FAS.id.desc())
+                .first()
+            )
+            _sess_id = str(getattr(_sess, "session_id", "") or "") if _sess else ""
+            if _sess_id:
+                _entry = float(getattr(pos, "entry_price", 0) or 0)
+                _dirn = 1 if str(getattr(pos, "side", "")).lower() in ("long", "buy") else -1
+                _pct = ((float(fill_price or 0) - _entry) / _entry * 100 * _dirn) if _entry > 0 else 0.0
+                _hold_h = 0.0
+                _opened = getattr(pos, "opened_at", None)
+                if _opened is not None:
+                    from datetime import datetime as _dt, timezone as _tz
+                    _o = _opened if _opened.tzinfo else _opened.replace(tzinfo=_tz.utc)
+                    _hold_h = max(0.0, (_dt.now(_tz.utc) - _o).total_seconds() / 3600.0)
+                backfill_outcome(
+                    session_id=_sess_id,
+                    symbol=str(getattr(pos, "symbol", "") or ""),
+                    tier=str(getattr(pos, "timeframe_tier", "") or "mid"),
+                    pnl=float(total_pnl or 0),
+                    pct=_pct,
+                    hold_hours=_hold_h,
+                    close_reason=str(actual_reason or ""),
+                )
+        except Exception as _ep_err:
+            logger.debug("[Episodic] 结局回填钩子失败: %s", _ep_err)
 
         self._recalc_balance(db, bal)
         self._cancel_attached_orders(
@@ -2005,6 +2351,16 @@ class PaperTradingEngine:
 
         pos.partial_realized_pnl = float(pos.partial_realized_pnl or 0) + partial_pnl
         pos.partial_fee_paid = float(pos.partial_fee_paid or 0) + partial_fee
+        # [2026-09-10 第 8 轮审计] **减仓计数口径修复**：
+        # `reduce_count` 是出场节流的判据（`unified_exit_state_machine.max_reduce_count`、
+        # `master_execution._DEF_REDUCE_MAX/REDUCE_MAX_COUNT`、`defensive_cycle` 均按它限流），
+        # 但此前**主流减仓路径从不更新该列**（只有 midlong_position_manager / master_execution
+        # 的子仓分支写）⇒ 判据恒为 0、单仓减仓上限形同不存在。
+        # 实证：全账户 524 笔有减仓事件而仅 26 笔 `reduce_count>0`；近 75 天 46 笔减仓 ≥4 次、
+        # 最多 10 次；§30.4 的「BNB 7 分钟减半 4 次至 $9 尘埃仓」即其后果。
+        # 这里补上权威自增，使 DB 列成为**单一事实源**。
+        pos.reduce_count = int(getattr(pos, "reduce_count", 0) or 0) + 1
+        pos.last_reduce_at = datetime.now(timezone.utc)
         remaining = pos_size - close_qty
         margin_release = float(pos.margin) * close_ratio
         pos.size = remaining
@@ -2038,7 +2394,8 @@ class PaperTradingEngine:
                 nature=str(getattr(pos, "trade_nature", "") or ""),
             )
         except Exception as _attr_p_err:
-            logger.debug("[FusionAttr] 部分平仓归因失败: %s", _attr_p_err)
+            # [§80 同款修复] 部分平仓腿同样喂熔断窗，失败必须可见
+            logger.warning("[FusionAttr] 部分平仓归因失败(熔断窗将不含本腿): %s", _attr_p_err)
 
         try:
             self._notify_learning_on_close(
@@ -2407,6 +2764,15 @@ class PaperTradingEngine:
 
             account_id = int(getattr(pos, "account_id", 0) or 0)
             _nature = (getattr(pos, "trade_nature", "") or "").strip().lower()
+
+            # [2026-09-03 v3 方向1] E1 趋势仓：时间不是屏障（回测持仓中位数以月计），唯一出场 = 规则失效 / Chandelier
+            # （trend_e1_engine 日任务 + 上方硬 SL 层）。跳过 AI 复审队列与兜底强平。
+            try:
+                from backend.services.trend_e1_engine import is_e1_position as _is_e1
+                if _is_e1(pos):
+                    return False
+            except Exception:
+                pass
 
             # [三周期持仓时间收敛 2026-08-13] 短线判定双保险：trade_nature 短线
             # 或 tier=short 一律不进 AI 复审队列，超时直接 max_hold_timeout 强平。
@@ -2819,11 +3185,124 @@ class PaperTradingEngine:
         except Exception as _e:
             logger.debug(f"[Paper][v2-Unified] SL收紧失败({reason}): {_e}")
 
+    def _run_exit_policy_layer(self, db, pos, entry: float, current_price: float, tier, nature) -> bool:
+        """[2026-09-03 v3 方向1] 按持仓开仓时声明的 ExitPolicy 评估一根 tick。
+
+        返回 True = 已平仓（调用方 return）。tighten_sl 只朝有利方向改 pos.sl_price（并同步交易所 TP/SL）。
+        峰值 ROI（价格口径）记在 exit_state_json.exit_policy_peak_roi_pct，与 peak_pnl_pct（保证金口径）解耦。
+        """
+        import json as _json_ep
+        from datetime import timezone as _tz_ep
+        from backend.services.exit import exit_policy as _xp
+        from backend.services.position_construction import normalize_lane as _norm_lane
+
+        if not _xp.enforce_enabled():
+            return False
+        if not entry or entry <= 0 or not current_price or current_price <= 0:
+            return False
+        lane = _norm_lane(tier, nature)
+        try:
+            es = _json_ep.loads(getattr(pos, "exit_state_json", None) or "{}") or {}
+        except Exception:
+            es = {}
+        policy = _xp.policy_from_exit_state(es, lane)
+        if not policy.enabled:
+            return False
+
+        # 持仓时长（opened_at 为库内 naive 北京钟面 → UTC）
+        elapsed = 0.0
+        try:
+            from backend.utils.db_datetime import parse_db_naive_to_utc as _norm_ts_ep
+            opened = _norm_ts_ep(pos.opened_at) if pos.opened_at else None
+            if opened is not None:
+                if opened.tzinfo is None:
+                    opened = opened.replace(tzinfo=_tz_ep.utc)
+                elapsed = max(0.0, (datetime.now(_tz_ep.utc) - opened).total_seconds())
+        except Exception:
+            elapsed = 0.0
+
+        side = "long" if str(pos.side).lower() == "long" else "short"
+        roi = (current_price - entry) / entry * 100.0
+        roi = roi if side == "long" else -roi
+        prev_peak = float(es.get("exit_policy_peak_roi_pct") or 0.0)
+        peak = max(prev_peak, roi)
+        if peak > prev_peak + 1e-9:
+            es["exit_policy_peak_roi_pct"] = round(peak, 6)
+            try:
+                pos.exit_state_json = _json_ep.dumps(es, ensure_ascii=False)
+            except Exception:
+                pass
+
+        snap = _xp.ExitSnapshot(
+            side=side, entry=float(entry), current=float(current_price), elapsed_sec=elapsed, peak_roi_pct=peak,
+            sl_price=float(pos.sl_price) if pos.sl_price else None,
+            tp_price=float(pos.tp_price) if pos.tp_price else None,
+            structural_stop_price=(float(es["structural_stop_price"]) if es.get("structural_stop_price") else None),
+            roi_pct=roi,
+        )
+        verdict = _xp.evaluate(policy, snap)
+        if verdict.action == "close":
+            logger.info(
+                f"[Paper][ExitPolicy] close {pos.symbol} {side} lane={lane} reason={verdict.reason} "
+                f"roi={roi:.3f}% peak={peak:.3f}% elapsed={elapsed / 3600:.2f}h detail={verdict.detail}")
+            fill = None
+            if verdict.reason in ("sl", "structural_invalidation") and verdict.detail.get("level"):
+                fill = float(verdict.detail["level"])
+            elif verdict.reason == "tp" and verdict.detail.get("level"):
+                fill = float(verdict.detail["level"])
+            self.close_position(
+                db, pos.account_id, pos.symbol, pos.side,
+                reason=f"exit_policy:{verdict.reason}",
+                strategy_id=getattr(pos, "strategy_id", None),
+                fill_price_override=fill,
+            )
+            return True
+        if verdict.action == "tighten_sl" and verdict.new_sl:
+            old_sl = pos.sl_price
+            pos.sl_price = float(verdict.new_sl)
+            try:
+                self._ensure_sl_inside_liq(pos)
+            except Exception:
+                pass
+            first_activation = not bool(es.get("exit_policy_trailing_active"))
+            es["exit_policy_trailing_active"] = True
+            try:
+                pos.exit_state_json = _json_ep.dumps(es, ensure_ascii=False)
+            except Exception:
+                pass
+            logger.info(
+                f"[Paper][ExitPolicy] tighten_sl {pos.symbol} {side} lane={lane} {old_sl}→{pos.sl_price} "
+                f"(peak={peak:.3f}% lock={verdict.detail.get('lock_roi_pct')})")
+            try:
+                from backend.services.exchange.live_tpsl_sync import (
+                    maybe_sync_live_tpsl as _sync_ep, maybe_place_native_trailing as _native_ep,
+                )
+                # live 账户：首次激活优先挂交易所原生 TRAILING_STOP_MARKET（LIVE_NATIVE_TRAILING_STOP），软件 SL 同步兜底
+                if first_activation and policy.trailing_callback_pct:
+                    _native_ep(db, pos, callback_pct=float(policy.trailing_callback_pct))
+                _sync_ep(db, pos, force=True)
+            except Exception:
+                pass
+        return False
+
     def _run_v2_protection(self, db, pos, entry, current_price, profit_pct, _nature):
         """v2 利润保护系统 — 基于 TP 进度的分层保护
 
         返回 True 表示持仓已平，调用方应 continue。
         """
+        # [2026-09-02 P1.3] 峰谷遥测提到最前：原先 _sync_peak_state 在下面的
+        # max_hold_timeout 与 manager 检查之后，这两处任一提前 return 就整 tick
+        # 跳过遥测更新 —— 实测 MAE 覆盖率只有 10.1%（peak 有 73.4%），且止损单
+        # 的 MAE 均值仅 -0.029% 而止损距离为 1.11%，说明触损那一刻从未被记下。
+        # 遥测是纯观测量（min/max 幂等），不应受保护逻辑的控制流影响；2.2 用
+        # MFE/MAE 校准 TP/SL 依赖它的完整性。
+        try:
+            _upnl_tel = (float(pos.unrealized_pnl or 0)
+                         + float(pos.partial_realized_pnl or 0))
+            self._sync_peak_state(pos, _upnl_tel, current_price)
+        except Exception as _tel_err:
+            logger.debug(f"[Paper] 峰谷遥测同步跳过({getattr(pos,'symbol','?')}): {_tel_err}")
+
         if self._enforce_max_hold_timeout(db, pos):
             return True
 
@@ -2901,6 +3380,17 @@ class PaperTradingEngine:
         except Exception:
             pass
 
+        # ── [2026-09-03 v3 方向1] ExitPolicy 车道声明层（三重屏障收敛）──
+        # 结构失效价 / 硬 SL·TP 口径 / time_limit / 时间递减 ROI / trailing 激活-回撤，在硬层之后、利润管理器之前
+        # 评估一次。V2 长线仓（唯一出场 = long_trend_v2 的 L1/Chandelier）跳过。命中 close → 平仓并 return。
+        if not _v2_long_managed:
+            try:
+                if self._run_exit_policy_layer(db, pos, float(entry), float(current_price), _pos_tier, _pos_nature):
+                    self._peak_profit_cache.pop(pos_id, None)
+                    return True
+            except Exception as _ep_err:
+                logger.warning(f"[Paper][ExitPolicy] 评估异常（跳过本 tick）{getattr(pos, 'symbol', '?')}: {_ep_err}")
+
         if _min_hold_ok and not _v2_long_managed:
             result = manager.get_protection_action(
                 entry=float(entry),
@@ -2931,13 +3421,44 @@ class PaperTradingEngine:
         #   L3 (full_close):   翻转为亏损，全平止损
         # ══════════════════════════════════════════════════════════════
         try:
-            if _v2_long_managed:
-                # [2026-08-24 long_trend_v2] V2 长线仓跳过 D6 盈利回撤保护（中短线口径）；
-                # 极端回撤 60%减半/80%全平由 manage_long_position 的 decide_long 兜底。
+            _skip_d6 = bool(_v2_long_managed)
+            # [2026-09-07] mid/swing 交给 ExitPolicy 单一出口，跳过 D6。
+            # 根因：profit_drawdown_full 在 mid 上频繁锁利/全平，均持仓 ~8h，
+            # 与中线兑现窗口冲突（ExitPolicy trail/min_roi/no_progress 已覆盖）。
+            if not _skip_d6 and str(_pos_tier or "").lower() == "mid":
+                try:
+                    from backend.services.exit.exit_policy import enforce_enabled as _ep_on
+                    if _ep_on():
+                        _skip_d6 = True
+                except Exception:
+                    _skip_d6 = True  # fail-closed：宁跳过 D6 也不短线化 mid
+            if not _skip_d6 and str(_nature or "").lower() == "swing":
+                try:
+                    from backend.services.exit.exit_policy import enforce_enabled as _ep_on2
+                    if _ep_on2():
+                        _skip_d6 = True
+                except Exception:
+                    _skip_d6 = True
+            if _skip_d6:
+                # [2026-08-24 long_trend_v2] V2 长线仓跳过 D6；mid 见上。
                 _dd_action = None
             else:
-                from backend.services.profit_drawdown_guard import get_profit_drawdown_guard
+                from backend.services.profit_drawdown_guard import (
+                    basis_from_original_enabled,
+                    get_profit_drawdown_guard,
+                )
                 _dd_guard = get_profit_drawdown_guard()
+                # [2026-09-10 根因修复] 门槛基准用**原始名义**：peak_profit 是残仓之前
+                # （更大仓位）赚到的历史美元峰值，而 pos.size 在分批减仓后只剩残仓
+                # （实测 ASTER 1/8、UNI 1/16、BTC 1/35）→ 旧口径「3%×当前名义」崩塌，
+                # 守卫在尘埃残仓上误触发全平（profit_drawdown_full 出场后 24h 价格回归
+                # +1.39%、72h +3.61%，即出场过早）。original_size 缺失时回退当前 size。
+                # 回滚：PDG_BASIS_ORIGINAL_NOTIONAL=false。
+                _dd_basis = None
+                if basis_from_original_enabled():
+                    _dd_basis = float(entry) * float(
+                        getattr(pos, "original_size", None) or pos.size or 0
+                    ) or None
                 _dd_action = _dd_guard.evaluate(
                     symbol=pos.symbol,
                     side=pos.side,
@@ -2949,6 +3470,7 @@ class PaperTradingEngine:
                     current_sl=float(pos.sl_price) if pos.sl_price else None,
                     position_size=float(pos.size),
                     tier=_pos_tier,
+                    position_value_basis=_dd_basis,
                 )
             if _dd_action:
                 _dd_type = _dd_action["type"]
@@ -3544,15 +4066,15 @@ class PaperTradingEngine:
             except Exception:
                 pass
 
-        # D7: 因子→AI闭环反馈 — 交易结果反馈给因子衰减监控
-        try:
-            from backend.services.factor_engine.factor_decay_monitor import decay_monitor
-            _ic = 0.05 if total_pnl > 0 else -0.05
-            decay_monitor.record_ic(f"strategy_{pos.symbol}", _ic)
-        except Exception as _crit_err:
-            logger.error(f"[PaperEngine] 关键操作异常: {_crit_err}", exc_info=True)
-            try: db.rollback()
-            except Exception: pass
+        # [2026-09-02] 移除原 D7 "因子衰减反馈"调用。它做的是
+        #   decay_monitor.record_ic(f"strategy_{pos.symbol}", 0.05 if pnl>0 else -0.05)
+        # 两处都错：① key 是策略/品种名而非因子 ID，衰减状态文件里因此只有
+        # strategy_BTC 这类键，get_factor_weight_penalty(因子ID) 永远 miss、恒返回
+        # 1.0，衰减惩罚从未对任何真实因子生效；② IC 是 ±0.05 占位常数，盈亏各半
+        # 时 recent≈0 低于 retire_ic(0.01)，把这些假键全判成 dead/retire。
+        # 单笔平仓算不出 IC（单点相关无定义）；真实 IC 现由
+        # factor_ic_evaluator.run_factor_ic_evaluation 按因子聚合样本算出 Rank IC
+        # 后直接喂给 decay_monitor.record_ic。
 
     def _notify_learning_on_close(
         self, db, pos, fill_price, pnl, reason,
@@ -3688,9 +4210,30 @@ class PaperTradingEngine:
         _pos_meta = {}
         try:
             import json as _json
-            _pos_meta = _json.loads(getattr(pos, "metadata_json", None) or "{}")
-            if not isinstance(_pos_meta, dict):
-                _pos_meta = {}
+            # PaperPosition 无 metadata_json 列；开仓元数据在 exit_state_json.open_metadata
+            _es_raw = getattr(pos, "exit_state_json", None) or "{}"
+            _es_obj = _json.loads(_es_raw) if isinstance(_es_raw, str) else (_es_raw or {})
+            if not isinstance(_es_obj, dict):
+                _es_obj = {}
+            _om = _es_obj.get("open_metadata")
+            if isinstance(_om, dict):
+                _pos_meta = dict(_om)
+            # 顶层兜底字段（历史/补写可能挂在 exit_state 根上）
+            for _k in ("thesis_id", "session_id", "entry_source", "timeframe_tier"):
+                if _k not in _pos_meta and _es_obj.get(_k) is not None:
+                    _pos_meta[_k] = _es_obj.get(_k)
+            if "entry_source" not in _pos_meta and _es_obj.get("entry_source"):
+                _pos_meta["entry_source"] = _es_obj.get("entry_source")
+            # 兼容：若未来补回 metadata_json 列，仍可读
+            _legacy = getattr(pos, "metadata_json", None)
+            if _legacy and not _pos_meta.get("thesis_id"):
+                try:
+                    _leg = _json.loads(_legacy) if isinstance(_legacy, str) else (_legacy or {})
+                    if isinstance(_leg, dict):
+                        for _k, _v in _leg.items():
+                            _pos_meta.setdefault(_k, _v)
+                except Exception:
+                    pass
         except Exception:
             _pos_meta = {}
         outcome = TradeOutcome(
@@ -3748,18 +4291,35 @@ class PaperTradingEngine:
                 "data_source": "paper_trading_engine",
                 "partial_close": is_partial,
                 "learning_weight": float(learning_weight),
+                "timeframe_tier": getattr(pos, "timeframe_tier", None) or tier,
                 **({k: _pos_meta[k] for k in (
                     "agent_envelope", "agent_source", "alignment_score",
                     "cited_fact_ids", "cited_facts",
                     "thesis_id", "memory_event_ids", "hub_adjusted_at_entry",
-                    "open_readiness", "session_id",
+                    "open_readiness", "session_id", "timeframe_tier",
+                    "analysis_run_id", "entry_source",
                 ) if k in _pos_meta}),
                 **({
-                    "thesis_id": (_pos_meta.get("agent_envelope") or {}).get("thesis_id"),
-                    "memory_event_ids": (_pos_meta.get("agent_envelope") or {}).get("memory_event_ids"),
-                    "hub_adjusted_at_entry": (_pos_meta.get("agent_envelope") or {}).get("hub_adjusted"),
+                    "thesis_id": (
+                        _pos_meta.get("thesis_id")
+                        or (_pos_meta.get("agent_envelope") or {}).get("thesis_id")
+                    ),
+                    "memory_event_ids": (
+                        _pos_meta.get("memory_event_ids")
+                        or (_pos_meta.get("agent_envelope") or {}).get("memory_event_ids")
+                    ),
+                    "hub_adjusted_at_entry": (
+                        _pos_meta.get("hub_adjusted_at_entry")
+                        or (_pos_meta.get("agent_envelope") or {}).get("hub_adjusted")
+                    ),
                     "session_id": _pos_meta.get("session_id"),
-                } if isinstance(_pos_meta.get("agent_envelope"), dict) and _pos_meta.get("agent_envelope").get("thesis_id") else {}),
+                } if (
+                    _pos_meta.get("thesis_id")
+                    or (
+                        isinstance(_pos_meta.get("agent_envelope"), dict)
+                        and _pos_meta.get("agent_envelope").get("thesis_id")
+                    )
+                ) else {}),
             },
         )
         learning_db = SessionLocal()
@@ -3861,13 +4421,60 @@ class PaperTradingEngine:
 
             # [P0-4] 方向一致性 + 唯一性：同币种 48h 内多策略/重入场时，
             # 模糊匹配会把盈亏挂到错误决策。候选不唯一 → 记 ambiguous 并跳过（宁缺勿错）。
+            #
+            # [2026-09-06] VIRTUAL 平仓根因：开仓前 evaluate 会连写多条
+            # executed=False 快照（同 strategy+symbol+buy），平仓匹配只看
+            # pnl IS NULL → 把「未成交试单」和真成交搅在一起 → ambiguous 跳过。
+            # 修复：优先只认 executed=True；多条真成交时用 opened_at 最近邻。
             _pos_side = str(getattr(pos, "side", "") or "").lower()
             _want_dir = (
                 "buy" if _pos_side in ("long", "buy")
                 else ("sell" if _pos_side in ("short", "sell") else None)
             )
+            _opened_at = getattr(pos, "opened_at", None)
 
-            # 策略 1: 精确匹配 strategy_id + symbol + 方向 + 时间窗口（要求唯一）
+            def _pick_unique_snap(_raw_cands):
+                if _want_dir:
+                    _raw_cands = [
+                        c for c in _raw_cands
+                        if (getattr(c, "direction", "") or "") == _want_dir
+                        or (getattr(c, "action", "") or "") == _want_dir
+                    ]
+                if not _raw_cands:
+                    return None, 0
+                _exec = [c for c in _raw_cands if bool(getattr(c, "executed", False))]
+                _pool = _exec if _exec else []
+                # 没有真成交快照 → 不拿试单顶替（宁缺勿错）
+                if not _pool:
+                    return None, len(_raw_cands)
+                if len(_pool) == 1:
+                    return _pool[0], 1
+                if _opened_at is not None:
+                    try:
+                        def _dist(c):
+                            ts = getattr(c, "timestamp", None)
+                            if ts is None:
+                                return 10**18
+                            oa = _opened_at
+                            # 统一为 naive/aware 可减
+                            if getattr(ts, "tzinfo", None) and oa.tzinfo is None:
+                                from datetime import timezone as _tz
+                                oa = oa.replace(tzinfo=_tz.utc)
+                            elif oa.tzinfo and getattr(ts, "tzinfo", None) is None:
+                                ts = ts.replace(tzinfo=oa.tzinfo)
+                            return abs((ts - oa).total_seconds())
+                        _pool_sorted = sorted(_pool, key=_dist)
+                        # 最近邻明显近于第二近（<15min 且领先 ≥60s）才采纳，否则仍 ambiguous
+                        if _dist(_pool_sorted[0]) <= 15 * 60 and (
+                            len(_pool_sorted) < 2
+                            or _dist(_pool_sorted[1]) - _dist(_pool_sorted[0]) >= 60
+                        ):
+                            return _pool_sorted[0], len(_pool)
+                    except Exception:
+                        pass
+                return None, len(_pool)
+
+            # 策略 1: 精确匹配 strategy_id + symbol + 方向 + 时间窗口
             _strategy_id_for_match = strategy_id if strategy_id else ""
             if _strategy_id_for_match:
                 _cands = _ana_db.query(DecisionSnapshot).filter(
@@ -3875,33 +4482,27 @@ class PaperTradingEngine:
                     DecisionSnapshot.symbol == pos.symbol,
                     DecisionSnapshot.pnl.is_(None),
                     DecisionSnapshot.timestamp >= _cutoff,
-                ).order_by(DecisionSnapshot.timestamp.desc()).limit(2).all()
-                if _want_dir:
-                    _cands = [c for c in _cands if (getattr(c, "direction", "") or "") == _want_dir]
-                if len(_cands) == 1:
-                    _snap = _cands[0]
-                elif len(_cands) > 1:
+                ).order_by(DecisionSnapshot.timestamp.desc()).limit(8).all()
+                _snap, _n = _pick_unique_snap(_cands)
+                if not _snap and _n > 1:
                     logger.warning(
                         "[Paper] DecisionSnapshot 回写 ambiguous（%d 候选），跳过以防归因错配: %s %s",
-                        len(_cands), pos.symbol, _pos_side,
+                        _n, pos.symbol, _pos_side,
                     )
 
-            # 策略 2: 模糊回退 — 同样要求方向一致且唯一
+            # 策略 2: 模糊回退 — 同样优先 executed=True
             if not _snap:
                 _cands = _ana_db.query(DecisionSnapshot).filter(
                     DecisionSnapshot.symbol == pos.symbol,
                     DecisionSnapshot.action.isnot(None),
                     DecisionSnapshot.pnl.is_(None),
                     DecisionSnapshot.timestamp >= _cutoff,
-                ).order_by(DecisionSnapshot.timestamp.desc()).limit(2).all()
-                if _want_dir:
-                    _cands = [c for c in _cands if (getattr(c, "direction", "") or "") == _want_dir]
-                if len(_cands) == 1:
-                    _snap = _cands[0]
-                elif len(_cands) > 1:
+                ).order_by(DecisionSnapshot.timestamp.desc()).limit(8).all()
+                _snap, _n = _pick_unique_snap(_cands)
+                if not _snap and _n > 1:
                     logger.warning(
                         "[Paper] DecisionSnapshot 回退回写 ambiguous（%d 候选），跳过: %s %s",
-                        len(_cands), pos.symbol, _pos_side,
+                        _n, pos.symbol, _pos_side,
                     )
 
             if _snap:
@@ -4658,24 +5259,26 @@ class PaperTradingEngine:
         )
 
         hit = False
+        reason = "sl"
         if pos.sl_price and float(pos.sl_price) > 0:
             hit = (pos.side == "long" and current_price <= float(pos.sl_price)) or \
                   (pos.side == "short" and current_price >= float(pos.sl_price))
-            reason = "sl"
+            reason = self.sl_reason_for_position(pos, current_price) if hit else "sl"
         if not hit and pos.tp_price and float(pos.tp_price) > 0:
             hit = (pos.side == "long" and current_price >= float(pos.tp_price)) or \
                   (pos.side == "short" and current_price <= float(pos.tp_price))
             reason = "tp"
         if hit:
+            _px_attr = "sl_price" if reason in ("sl", "breakeven_sl") else "tp_price"
             logger.info(
                 f"[Paper][Fast] {reason.upper()} 触发: {pos.symbol} {pos.side} "
-                f"@{current_price} {reason.upper()}={getattr(pos, reason + '_price', 0)}"
+                f"@{current_price} {_px_attr}={getattr(pos, _px_attr, 0)}"
             )
             self.close_position(
                 db, pos.account_id, pos.symbol, pos.side,
                 reason=reason,
                 strategy_id=getattr(pos, "strategy_id", None),
-                fill_price_override=float(getattr(pos, reason + "_price")),
+                fill_price_override=float(getattr(pos, _px_attr) or 0),
             )
             # ── [PostFill §3.5 2026-08-31] 硬线全平补登 ExitSource 事件 ──
             self._record_hard_line_exit_source(db, pos, reason)
@@ -4718,33 +5321,11 @@ class PaperTradingEngine:
             from sqlalchemy import text as _sa_text
             from backend.database.connection import SessionLocal as _ArenaLocal
             with _ArenaLocal() as _db:
-                _db.execute(_sa_text(
-                    "CREATE TABLE IF NOT EXISTS trade_facts ("
-                    " id BIGSERIAL PRIMARY KEY,"
-                    " ts TIMESTAMPTZ NOT NULL DEFAULT now(),"
-                    " source VARCHAR(8) NOT NULL DEFAULT 'paper',"
-                    " account_id INT NOT NULL,"
-                    " position_id VARCHAR(64) NOT NULL,"
-                    " symbol VARCHAR(32) NOT NULL,"
-                    " tier VARCHAR(8) NOT NULL,"
-                    " side VARCHAR(8) NOT NULL,"
-                    " entry_price DOUBLE PRECISION,"
-                    " exit_price DOUBLE PRECISION,"
-                    " fees DOUBLE PRECISION,"
-                    " pnl DOUBLE PRECISION,"
-                    " outcome VARCHAR(16),"
-                    " close_reason VARCHAR(64),"
-                    " factor_exposures JSONB,"
-                    " resonance JSONB)"
-                ))
-                # [2026-08-25] 补 strategy_id 列(旧表 ALTER 一次;JSONB 已建)
-                try:
-                    _db.execute(_sa_text(
-                        "ALTER TABLE trade_facts ADD COLUMN IF NOT EXISTS "
-                        "strategy_id VARCHAR(64) NOT NULL DEFAULT ''"
-                    ))
-                except Exception:
-                    pass
+                # [2026-09-03 v3 F2c] 建表/放宽列宽/补列统一交给 ledger.trade_facts_reconcile
+                # （幂等、进程内只跑一次）。根因：close_reason VARCHAR(64) 被中长线
+                # 120 字符出场原因撑爆 → INSERT 静默失败 → 近 7 天 10 笔 mid 仓无样本。
+                from backend.services.ledger.trade_facts_reconcile import ensure_trade_facts_schema
+                ensure_trade_facts_schema(_db)
                 import json as _json
                 _fx_json = None
                 if factor_exposures:
@@ -4759,17 +5340,23 @@ class PaperTradingEngine:
                     "VALUES ('paper', :a, :p, :s, :t, :d, :e, :x, :f, :pnl, :o, :r, "
                     " CAST(:fx AS JSONB), :sid)"
                 ), {
-                    "a": int(account_id), "p": position_id, "s": str(symbol).upper(),
-                    "t": str(tier or "short"), "d": str(side or ""),
+                    "a": int(account_id), "p": position_id, "s": str(symbol).upper()[:32],
+                    "t": str(tier or "short")[:8], "d": str(side or "")[:8],
                     "e": float(entry_price or 0), "x": float(exit_price or 0),
                     "f": float(fees or 0), "pnl": float(pnl or 0),
-                    "o": str(outcome or ""), "r": str(close_reason or ""),
+                    "o": str(outcome or "")[:16], "r": str(close_reason or "")[:200],
                     "fx": _fx_json if _fx_json else "null",
-                    "sid": str(strategy_id or ""),
+                    "sid": str(strategy_id or "")[:64],
                 })
                 _db.commit()
         except Exception as _tf_err:
-            logger.debug(f"[Paper] trade_fact 落库失败: {_tf_err}")
+            # [2026-09-03 v3 F2c] 学习样本丢失必须可见：warning + 计数器（ops 巡检读取），
+            # 日对账任务（trade_facts_reconcile）会把漏掉的样本按同口径补回。
+            PaperTradingEngine._TRADE_FACT_WRITE_FAILURES += 1
+            logger.warning(
+                "[Paper] trade_fact 落库失败(累计 %d) pos=%s %s: %s",
+                PaperTradingEngine._TRADE_FACT_WRITE_FAILURES, position_id, symbol, _tf_err,
+            )
 
     def update_all_positions(self, db: Session) -> None:
         """批量更新所有 open 持仓的 mark_price, 检查 TP/SL/爆仓"""
@@ -4991,8 +5578,14 @@ class PaperTradingEngine:
         return 0.0
 
     def check_pending_orders(self, db: Session) -> None:
-        """检查挂单是否触发"""
+        """检查挂单是否触发。
+
+        [2026-09-07] 先快照 pending id，结束只读事务，再按单取价/成交。
+        旧实现：SELECT pending 后事务开着，_get_current_price 走 DC/REST
+        可达数十秒 → LeakGuard 点名 check_pending_orders idle-in-transaction。
+        """
         from backend.database.models import PaperOrder, PaperBalance
+        from backend.database.connection import release_idle_txn
         from backend.services.exchange.base_exchange_client import ExchangeOrder, OrderSide, OrderType
         from backend.services.exchange.paper_exchange_simulator import (
             PaperMarketState,
@@ -5000,45 +5593,72 @@ class PaperTradingEngine:
         )
 
         pending = db.query(PaperOrder).filter(PaperOrder.status == "pending").all()
-        for order in pending:
+        snaps = [
+            {
+                "id": int(o.id),
+                "symbol": str(o.symbol or ""),
+                "side": str(o.side or ""),
+                "order_type": str(o.order_type or "").lower(),
+                "price": float(o.price) if o.price is not None else None,
+                "quantity": float(o.quantity or 0),
+                "leverage": float(o.leverage or 1),
+                "account_id": int(o.account_id),
+                "exchange": getattr(o, "exchange", None),
+            }
+            for o in pending
+        ]
+        release_idle_txn(db, where="check_pending_orders.pre_price")
+        for snap in snaps:
             try:
-                exchange = self._resolve_order_exchange(db, order)
-                current_price = self._get_current_price(order.symbol, exchange)
+                # 轻量 stub：_resolve_order_exchange 需要 order 对象
+                order_stub = type("O", (), snap)()
+                exchange = self._resolve_order_exchange(db, order_stub)
+                current_price = self._get_current_price(snap["symbol"], exchange)
             except RuntimeError:
                 continue
+            except Exception as _px_err:
+                logger.debug("[Paper] pending 取价跳过 id=%s: %s", snap["id"], _px_err)
+                continue
 
-            order_type = str(order.order_type or "").lower()
+            order_type = snap["order_type"]
+            trigger = False
             if order_type == "limit":
                 sim_result = simulate_exchange_order(
                     exchange=exchange,
                     order=ExchangeOrder(
-                        order_id=f"paper_{order.id}",
-                        symbol=order.symbol,
-                        side=OrderSide.BUY if order.side == "buy" else OrderSide.SELL,
+                        order_id=f"paper_{snap['id']}",
+                        symbol=snap["symbol"],
+                        side=OrderSide.BUY if snap["side"] == "buy" else OrderSide.SELL,
                         order_type=OrderType.LIMIT,
-                        size=float(order.quantity or 0),
-                        price=float(order.price or 0),
-                        leverage=int(round(float(order.leverage or 1))),
+                        size=float(snap["quantity"] or 0),
+                        price=float(snap["price"] or 0),
+                        leverage=int(round(float(snap["leverage"] or 1))),
                     ),
                     market=PaperMarketState(
-                        symbol=order.symbol,
+                        symbol=snap["symbol"],
                         mark_price=float(current_price),
                         bid=float(current_price),
                         ask=float(current_price),
                     ),
                     resting_limit=True,
                 )
-                if sim_result.status.value != "filled":
-                    continue
-            elif order_type == "stop_market" and order.price:
-                if order.side == "buy" and current_price < order.price:
-                    continue
-                if order.side == "sell" and current_price > order.price:
-                    continue
-            else:
+                trigger = sim_result.status.value == "filled"
+            elif order_type == "stop_market" and snap["price"]:
+                if snap["side"] == "buy" and current_price >= snap["price"]:
+                    trigger = True
+                elif snap["side"] == "sell" and current_price <= snap["price"]:
+                    trigger = True
+            if not trigger:
                 continue
 
-            bal = db.query(PaperBalance).filter(PaperBalance.account_id == order.account_id).first()
+            order = db.query(PaperOrder).filter(
+                PaperOrder.id == snap["id"], PaperOrder.status == "pending",
+            ).first()
+            if not order:
+                continue
+            bal = db.query(PaperBalance).filter(
+                PaperBalance.account_id == order.account_id,
+            ).first()
             if bal:
                 self._fill_market_order(db, order, bal)
 
@@ -5269,16 +5889,27 @@ class PaperTradingEngine:
             # 旧行级求和（PAPER_NETTING_MODE=false 或无仓位时）
             total_margin = sum(float(p.margin or 0) for p in open_positions)
 
-        # 所有订单的已实现 PnL（新数据: 每个订单独立记录；旧数据: 全平订单含累计）
+        # [2026-09-03 v3 F2e] 软重置语义：last_reset_at 之后的订单/资金费才计入权益。
+        # 此前 recalc 无条件汇总全历史订单 → reset_balance_only 会在下一次 recalc 被
+        # 还原（账户 14 初始 500 → 权益 203 与全历史一致，重置形同虚设）。
+        # 重置前开的仓位：保证金照常占用；其平仓 pnl 落在重置后的订单里，自然计入。
+        _reset_at = getattr(bal, "last_reset_at", None)
+        _since_filters = []
+        if _reset_at is not None:
+            _since_filters.append(PaperOrder.created_at >= _reset_at)
+
+        # 订单的已实现 PnL（新数据: 每个订单独立记录；旧数据: 全平订单含累计）
         order_rpnl = float(db.query(func.coalesce(func.sum(PaperOrder.pnl), 0)).filter(
             PaperOrder.account_id == bal.account_id,
             PaperOrder.pnl.isnot(None),
+            *_since_filters,
         ).scalar() or 0)
 
-        # 所有订单手续费（开仓+平仓均有）
+        # 订单手续费（开仓+平仓均有）
         order_fees = float(db.query(func.coalesce(func.sum(PaperOrder.fee), 0)).filter(
             PaperOrder.account_id == bal.account_id,
             PaperOrder.fee.isnot(None),
+            *_since_filters,
         ).scalar() or 0)
 
         # [2026-08-22 M1-2] funding 覆盖竞争修复：_maybe_settle_funding 会把资金费
@@ -5290,11 +5921,12 @@ class PaperTradingEngine:
             from backend.config.settings import FUNDING_SETTLE_APPLY_PNL as _apply_pnl
             if _apply_pnl:
                 from backend.database.models import PaperFundingLedger
-                _funding_pnl = float(
-                    db.query(func.coalesce(func.sum(PaperFundingLedger.payment), 0))
-                    .filter(PaperFundingLedger.account_id == bal.account_id)
-                    .scalar() or 0
+                _fq = db.query(func.coalesce(func.sum(PaperFundingLedger.payment), 0)).filter(
+                    PaperFundingLedger.account_id == bal.account_id
                 )
+                if _reset_at is not None:
+                    _fq = _fq.filter(PaperFundingLedger.settled_at >= _reset_at)
+                _funding_pnl = float(_fq.scalar() or 0)
         except Exception as _fund_err:
             logger.debug(f"[Paper] funding 并入 recalc 跳过: {_fund_err}")
 

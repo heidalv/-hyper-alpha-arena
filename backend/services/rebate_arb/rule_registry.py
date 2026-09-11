@@ -38,23 +38,70 @@ RULE_SOURCES: List[RuleSource] = [
 
 
 # ══════════════════════════════════════════════════════════════════
-# Asterdex Stage 6 Convergence 积分模型（官方现行规则）
+# [2026-09-03 核实] Asterdex 当前有效激励 —— Trade & Earn（进行中）
+#
+# 官方文档 docs.asterdex.com/program-and-rewards/trade-and-earn：
+# - 用 USDF / asBNB 作永续保证金即可获得奖励，每周以 USDF 自动发到合约账户
+# - 存款奖励：账户 USDF > 1 即按小时快照发放（完全被动，不需要交易）
+# - 交易奖励：每周活跃 ≥2 天 且 周成交 ≥ $50,000（2025-11-20 起），
+#   按 USDF 持仓快照发放，单账户计入上限 100,000 USDF（2025-09-04 起）
+# - 结算周期：周四 → 下周三；7 个工作日内发放
+# - 抵押率：USDF 99.99%，asBNB 95%；需开启 Multi-Asset Mode
+# - 刷量 / 操纵 / 批量开号 → 取消资格
+#
+# 真实费率（docs.asterdex.com/trading/perpetuals/fees-and-specs/fees）：
+# - USDT 永续 Maker 0% / Taker 0.04%；USD1 永续 Maker 0% / Taker 0.005%
+# - 用 $ASTER 支付手续费再省 5%
+#
+# 年化为「参考值」：官方按周池子动态浮动，不承诺固定利率；
+# 第三方 2025-2026 快照口径约 存款 4% + 交易 5.6%。前端必须标注"参考"。
+# ══════════════════════════════════════════════════════════════════
+TRADE_AND_EARN_PROGRAM: Dict[str, Any] = {
+    "name": "Trade & Earn",
+    "active": True,
+    "source_url": "https://docs.asterdex.com/program-and-rewards/trade-and-earn",
+    "reward_asset": "USDF",
+    # 交易奖励门槛（存款奖励无门槛）
+    "weekly_volume_threshold_usd": 50_000.0,
+    "weekly_active_days_threshold": 2,
+    "usdf_counted_cap": 100_000.0,
+    # 结算窗口：周四 00:00 UTC → 下周三 23:59 UTC（ISO 周四 = 3）
+    "week_start_weekday": 3,
+    # 抵押率（多资产模式下保证金折算）
+    "collateral_ratio": {"USDF": 0.9999, "asBNB": 0.95},
+    "eligible_collateral": ["USDF", "asBNB"],
+    "requires_multi_assets_mode": True,
+    # 参考年化（非官方承诺，动态浮动）
+    "reference_apy": {"deposit": 0.04, "trading": 0.056, "note": "参考值，官方按周动态浮动"},
+    # 费率单一来源
+    "fee_schedule": {
+        "usdt_perp": {"maker": 0.0, "taker": 0.0004},
+        "usd1_perp": {"maker": 0.0, "taker": 0.00005},
+        "aster_fee_discount": 0.05,
+    },
+    "wash_trade_policy": "刷量/对冲刷分/批量开号取消资格 → 只优化本来就要成交的单",
+}
+
+
+# ══════════════════════════════════════════════════════════════════
+# Asterdex Stage 6 Convergence 积分模型 —— [2026-09-03 核实] 已结束
+#
+# Stage 6 空投（6400 万 ASTER）已于 2026-05 开放领取（50% 即时领取窗口
+# 5/4–6/4 已关闭；100% 锁仓领取窗口 11/4–12/4）。官方文档未公布 Stage 7。
+# 因此：现在为积分多交易一笔 = 纯付手续费、零回报。本模型仅作历史口径保留
+# （live_points_engine / S8 / 单测仍引用其结构），"active": False 时估值归零。
 #
 #   总积分 = (交易积分 + 持仓积分 + Aster资产积分 + 清算积分 + 盈亏积分)
 #            × 团队加成(1.05-1.2x) + 推荐积分
 #
-# 与旧版差异：
-# - 旧「80x 乘数模型」(Taker 2x × 持仓 2x × USDF 20x) 已废弃
-# - Maker 挂单 0% 手续费且同样赚取积分（流动性贡献）
-# - 持仓积分/资产积分已取消上限（T+1 结算）
-# - 官方明确惩罚对冲刷分（wash trade 取消资格）
-# - 真实费率：USDT 永续 0% maker / 0.04% taker；USD1 永续 taker 0.005%
-#
-# 注意：官方未公开各类别精确权重，以下数值为可调估算值（estimate），
-# 通过 YAML strategies.S8_asterdex_rh.stage6_model 可覆盖。
+# 注意：官方从未公开各类别精确权重，以下数值为估算值（estimate）。
 # ══════════════════════════════════════════════════════════════════
 STAGE6_POINT_MODEL: Dict[str, Any] = {
     "version": "stage6_convergence_v1",
+    # [2026-09-03] 赛季状态：已结束、无后继赛季 → 积分估值必须归零
+    "active": False,
+    "stage_status": "ended",
+    "stage_note": "Stage 6 空投已于 2026-05 发放，官方未公布 Stage 7；积分不再产生价值",
     "formula": "(trading + position + aster_asset + liquidation + pnl) * team_boost + referral",
     # ── 费率单一来源（fee_schedule）：策略/YAML/EV 模型统一从这里读 ──
     "fee_schedule": {

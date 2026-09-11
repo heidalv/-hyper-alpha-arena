@@ -144,7 +144,7 @@ class ReportGenerator:
             try:
                 from backend.services.llm_config_service import get_llm_config, call_llm_api_sync
             except ImportError:
-                from services.llm_config_service import get_llm_config, call_llm_api_sync
+                from backend.services.llm_config_service import get_llm_config, call_llm_api_sync
         except ImportError:
             logger.debug("[ReportGenerator] llm_config_service 不可用")
             return None

@@ -123,6 +123,7 @@ class BacktestEngine:
         run_id: Optional[str] = None,
         progress_callback=None,
         tier: str = "mid",
+        symbol: Optional[str] = None,
     ) -> BacktestResult:
         run_id = run_id or f"bt_{uuid.uuid4().hex[:10]}"
         result = BacktestResult(run_id=run_id, bars_total=len(bars))
@@ -192,8 +193,16 @@ class BacktestEngine:
         min_bars_gap = int(sp.get("min_bars_between", 3))
         last_exit_bar = -min_bars_gap
 
-        # 资金费率模拟（每8小时0.01%，根据K线间隔推算）
+        # 资金费率扣除 —— [2026-09 修复 P1-6] 传入 symbol 时用 perp_funding 真实历史
+        # 费率（asof），无历史回退常数 0.0001/8h；未传 symbol 保持旧常数行为。
         funding_rate = 0.0001
+        real_funding_symbol = None
+        if symbol:
+            try:
+                from backend.services.backtest_engine.funding_history import funding_rate_at
+                real_funding_symbol = symbol
+            except Exception:
+                real_funding_symbol = None
         if len(bars) >= 2:
             bar_interval_s = bars[1].timestamp - bars[0].timestamp
             bars_per_8h = max(1, int(8 * 3600 / max(bar_interval_s, 1)))
@@ -229,6 +238,13 @@ class BacktestEngine:
 
             # 资金费率扣除
             if position and i % bars_per_8h == 0:
+                # [2026-09 修复 P1-6] 真实历史费率（asof，保留符号语义：
+                # 多头付 ff、空头收 ff*0.5），缺失回退常数 0.0001
+                if real_funding_symbol:
+                    try:
+                        funding_rate = funding_rate_at(real_funding_symbol, bar.timestamp)
+                    except Exception:
+                        funding_rate = 0.0001
                 notional = position.quantity * bar.c
                 ff = notional * funding_rate
                 if position.side == "long":

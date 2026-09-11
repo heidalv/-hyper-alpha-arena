@@ -47,11 +47,13 @@ COINALYZE_SYMBOL_MAP = {
 class DerivativesSnapshot:
     symbol: str
     timestamp: float = 0.0
-    # 资金费率
+    # 资金费率（[2026-09 修复 P0-2] 统一为「原始结算周期费率」=8h 口径，
+    # 与 perp_funding / intelligence_signal_engine 阈值 0.0005=0.05%/8h 对齐）
     funding_rate: float = 0.0
     funding_rate_8h_avg: float = 0.0
-    funding_rate_percentile: float = 50.0
+    funding_rate_percentile: float = 50.0  # 近30天历史分位（多所落库层计算，真实值）
     predicted_funding_rate: float = 0.0
+    funding_venue: str = ""  # funding_rate 实际来源场所（binance/bybit/okx/...）
     # 持仓量
     oi_total: float = 0.0
     oi_change_1h: float = 0.0
@@ -247,6 +249,12 @@ class DerivativesAnalyticsService:
         from backend.services.market_data import _dc_only_enabled
         dc_only = _dc_only_enabled()
 
+        # Layer 0: 多所资金费（perp_funding 落库数据：binance/bybit/okx/gateio/
+        # hyperliquid/asterdex）。[2026-09 修复 P0-2] 本地 DB 读取、无需外网，
+        # DC_ONLY 下同样生效；binance 优先 + 近30天历史分位。
+        if self._fill_from_multi_venue_funding(snap):
+            sources.append("perp_funding")
+
         # Layer 1: 本地 MarketFlowIndicators（已有WebSocket数据）
         if self._fill_from_local(snap):
             sources.append("local")
@@ -279,6 +287,85 @@ class DerivativesAnalyticsService:
         logger.info(f"[DerivAnalytics] {symbol}: sources={snap.data_sources}, liq={snap.liquidation_1h_long:.0f}/{snap.liquidation_1h_short:.0f}, funding={snap.funding_rate}")
         return snap
 
+    # ────────────── Layer 0: 多所资金费（perp_funding 落库） ──────────────
+
+    FUNDING_VENUE_PRIORITY = ["binance", "bybit", "okx", "gateio", "hyperliquid", "asterdex"]
+
+    def _fill_from_multi_venue_funding(self, snap: DerivativesSnapshot) -> bool:
+        """从 perp_funding（多场所采集器落库）读该 symbol 的最新资金费。
+
+        [2026-09 修复 P0-2] 此前 AI 决策的 funding_rate 只走 Hyperliquid
+        predictedFundings（Binance 单所代理）或 HL 固定值，多场所采集器写入
+        perp_funding 的真实费率从不进入决策主路径。现统一以「原始结算周期
+        费率（8h 口径）」为准：binance > bybit > okx > gateio > hyperliquid。
+        同时计算该场所近 30 天历史分位，供警示阈值做「相对自身历史」判断。
+        """
+        try:
+            from backend.services.rebate_arb.funding_rate_provider import latest_funding_by_venue
+
+            venues = latest_funding_by_venue([snap.symbol], max_age_hours=12.0)
+            want = f"{snap.symbol}/USDT"
+            picked: Optional[tuple] = None  # (venue, rate)
+            for venue in self.FUNDING_VENUE_PRIORITY:
+                rate = (venues.get(venue) or {}).get(want)
+                if rate is not None:
+                    picked = (venue, float(rate))
+                    break
+            if picked is None:
+                # 优先级列表外但存在的场所（如未来新增）按字典序兜底
+                for venue, m in sorted(venues.items()):
+                    rate = m.get(want)
+                    if rate is not None:
+                        picked = (venue, float(rate))
+                        break
+            if picked is None:
+                return False
+            venue, rate = picked
+            snap.funding_rate = rate
+            snap.funding_venue = venue
+            snap.funding_rate_percentile = self._funding_percentile_from_history(
+                snap.symbol, venue, rate
+            )
+            return True
+        except Exception as exc:
+            logger.debug("[DerivAnalytics] 多所资金费读取失败: %s", exc)
+            return False
+
+    def _funding_percentile_from_history(
+        self, symbol: str, venue: str, rate: float, days: int = 30
+    ) -> float:
+        """当前费率在同一场所过去 N 天历史中的分位（0-100）。
+
+        历史不足（<30 条）或查询失败时返回 50.0（中性占位，消费方按
+        percentile>=85/<=15 的阈值判断，50 分位不会触发任何警示）。
+        """
+        try:
+            from sqlalchemy import text as _sa_text
+
+            from backend.database.connection import MarketSessionLocal
+            cutoff_ms = int((time.time() - days * 86400) * 1000)
+            db = MarketSessionLocal()
+            try:
+                rows = db.execute(
+                    _sa_text(
+                        "SELECT funding_rate FROM perp_funding "
+                        "WHERE symbol = :sym AND exchange = :ex AND timestamp >= :cutoff"
+                    ),
+                    {"sym": symbol, "ex": venue, "cutoff": cutoff_ms},
+                ).fetchall()
+            finally:
+                db.close()
+            if not rows:
+                return 50.0
+            hist = [float(r[0]) for r in rows if r[0] is not None]
+            if len(hist) < 30:
+                return 50.0
+            below = sum(1 for h in hist if h <= rate)
+            return round(below / len(hist) * 100.0, 2)
+        except Exception as exc:
+            logger.debug("[DerivAnalytics] 资金费历史分位计算失败: %s", exc)
+            return 50.0
+
     # ────────────── Layer 1: 本地数据 ──────────────
 
     def _fill_from_local(self, snap: DerivativesSnapshot) -> bool:
@@ -289,8 +376,11 @@ class DerivativesAnalyticsService:
             db = SessionLocal()
             try:
                 funding = get_indicator_value(db, snap.symbol, "FUNDING", "15m")
-                if funding is not None:
+                # [2026-09 修复 P0-2] 只在多所落库层（Layer 0）缺失时才用本地
+                # 指标兜底，避免本地缓存脏值（曾出现被×100放大）覆盖 binance 真实费率。
+                if funding is not None and snap.funding_rate == 0:
                     snap.funding_rate = funding
+                    snap.funding_venue = "local"
                     filled = True
                 oi = get_indicator_value(db, snap.symbol, "OI", "1h")
                 if oi is not None and oi > 0:
@@ -351,24 +441,22 @@ class DerivativesAnalyticsService:
                         for i, meta in enumerate(universe):
                             if meta.get("name", "").upper() == snap.symbol and i < len(ctxs):
                                 ctx = ctxs[i]
-                                # [2026-07-10 资金费率修复] 原条件 snap.funding_rate == 0
-                                # 导致 Layer1 本地脏数据(被×100放大)挡住 Hyperliquid 实时值。
-                                # 改为始终用 Hyperliquid 实时值覆盖本地缓存，保证数据新鲜。
-                                if ctx.get("funding"):
+                                # [2026-09 修复 P0-2] HL 自身 funding 对主流币恒为
+                                # 固定值 0.0000125（无市场区分度），只在多所落库层
+                                # 与本地层都缺失时兜底，不得覆盖 binance 真实费率。
+                                if ctx.get("funding") and snap.funding_rate == 0:
                                     snap.funding_rate = float(ctx["funding"])
+                                    snap.funding_venue = "hyperliquid"
                                 if snap.oi_total == 0 and ctx.get("openInterest"):
                                     snap.oi_total = float(ctx["openInterest"])
-                                if ctx.get("markPx"):
-                                    snap.funding_rate_percentile = 50.0
                                 filled = True
                                 break
 
                 # predictedFundings: [[coin, [[venue, {fundingRate, nextFundingTime, fundingIntervalHours}], ...]], ...]
-                # [2026-07-10 资金费率修复] 原代码读 vegaRate/sampleRate 字段（已不存在），
-                # 实际字段是 fundingRate → predicted_funding_rate 恒为 0。
-                # 且各 venue 的费率不同：HlPerp 是 Hyperliquid 固定值(无市场区分度)，
-                # BinPerp/BybitPerp 才反映真实多空拥挤度。优先取 Binance，其次 Bybit，
-                # 最后才 HlPerp；统一换算成"每小时费率"便于横向比较。
+                # [2026-09 修复 P0-2] 统一为「原始结算周期费率」（8h 口径）：
+                # 原代码除以 fundingIntervalHours 转成小时费率，与 perp_funding /
+                # 阈值（0.0005 = 0.05%/8h）口径错位，导致警示几乎恒中性。
+                # 且只在多所落库层缺失时兜底填充 funding_rate。
                 try:
                     r2 = client.post(HYPERLIQUID_INFO, json={"type": "predictedFundings"})
                     if r2.status_code == 200:
@@ -388,29 +476,28 @@ class DerivativesAnalyticsService:
                                                     # 提取 fundingRate（兼容旧字段名）
                                                     if isinstance(val, dict):
                                                         rate_raw = val.get("fundingRate", val.get("vegaRate", val.get("sampleRate")))
-                                                        interval_h = val.get("fundingIntervalHours", 8) or 8
                                                     else:
                                                         rate_raw = val
-                                                        interval_h = 8
                                                     try:
-                                                        rate_per_hour = float(rate_raw or 0) / interval_h
+                                                        rate = float(rate_raw or 0)
                                                     except (TypeError, ValueError):
                                                         continue
-                                                    # 优先级：Binance > Bybit > Hyperliquid（固定值最后）
+                                                    # 优先级：Binance > Bybit > 其他（HL 固定值最后）
                                                     if venue_name == "BinPerp":
-                                                        best_rate = ("BinPerp", rate_per_hour)
+                                                        best_rate = ("BinPerp", rate)
                                                         break  # Binance 最优，直接定
                                                     elif venue_name == "BybitPerp" and best_rate is None:
-                                                        best_rate = ("BybitPerp", rate_per_hour)
+                                                        best_rate = ("BybitPerp", rate)
                                                     elif best_rate is None:
-                                                        best_rate = (venue_name, rate_per_hour)
+                                                        best_rate = (venue_name, rate)
                                             if best_rate is not None:
-                                                snap.predicted_funding_rate = best_rate[1]
-                                                # [2026-07-10 资金费率修复] 真实市场预测费率（各币种不同、
-                                                # 反映多空拥挤度）覆盖 Hyperliquid 固定值。Hyperliquid 自身
-                                                # funding 对主流币恒为 0.0000125，无市场区分度；用 Binance/
-                                                # Bybit 的真实费率作为 AI 决策的主 funding_rate。
-                                                snap.funding_rate = best_rate[1]
+                                                if snap.predicted_funding_rate == 0:
+                                                    snap.predicted_funding_rate = best_rate[1]
+                                                # 真实市场预测费率（各币种不同、反映多空
+                                                # 拥挤度）作为 funding_rate 兜底
+                                                if snap.funding_rate == 0:
+                                                    snap.funding_rate = best_rate[1]
+                                                    snap.funding_venue = best_rate[0].lower()
                                         break
                 except Exception:
                     pass

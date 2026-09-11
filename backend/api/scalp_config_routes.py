@@ -34,12 +34,21 @@ _PARAM_DEFS: Dict[str, Dict[str, Any]] = {
     "atr_tp_mult":       {"env": "TIER_SHORT_ATR_TP_MULT",  "default": "1.8",   "type": "float", "min": 1.0,   "max": 5.0,   "group": "tp_sl",     "label": "ATR止盈倍数",      "unit": "x"},
     "max_sl_pct":        {"env": "TIER_SHORT_MAX_SL",       "default": "0.020", "type": "float", "min": 0.01,  "max": 0.06,  "group": "tp_sl",     "label": "SL上限",          "unit": "%"},
     "max_tp_pct":        {"env": "TIER_SHORT_MAX_TP",       "default": "0.025", "type": "float", "min": 0.015, "max": 0.10,  "group": "tp_sl",     "label": "TP上限",          "unit": "%"},
-    "min_rr":            {"env": "SCALP_MIN_RR_NEW",        "default": "1.3",   "type": "float", "min": 1.0,   "max": 3.0,   "group": "tp_sl",     "label": "最低盈亏比",       "unit": ""},
+    # [2026-09-02 接线更正] 原映射 SCALP_MIN_RR_NEW 在整个后端没有任何消费者（死开关）：
+    # 面板显示 1.3、用户怎么改都不影响交易；真实门禁读 V5_SCALP_MIN_RR(live) /
+    # V5_SCALP_MIN_RR_PAPER(paper)（scalp_execution_gate / unified_gate），.env 现为 2.0/2.0。
+    # 默认值对齐 settings.py 代码默认（1.4 / 1.3）。
+    "min_rr":            {"env": "V5_SCALP_MIN_RR",         "default": "1.4",   "type": "float", "min": 1.0,   "max": 3.0,   "group": "tp_sl",     "label": "最低盈亏比(实盘)",  "unit": ""},
+    "min_rr_paper":      {"env": "V5_SCALP_MIN_RR_PAPER",   "default": "1.3",   "type": "float", "min": 1.0,   "max": 3.0,   "group": "tp_sl",     "label": "最低盈亏比(模拟)",  "unit": ""},
 
     # ── 2. 时间管理 ──
     # [三周期持仓时间收敛 2026-08-13] 移除 SCALP_MAX_HOLD_SEC 声明：该 env 从未被
     # settings/引擎读取（死配置），短线实际最大持仓由 runtime_tuning.json 的
-    # tier_max_hold_sec.short（7200s=2h）唯一权威控制，不再在本 UI 暴露误导项。
+    # tier_max_hold_sec.short 唯一权威控制，不再在本 UI 暴露误导项。
+    # [2026-09-02 更正] 原注释写的 7200s=2h 与实际不符：读到的是项目根
+    # <root>/data/runtime_tuning.json（另有一份 backend/data/ 孤儿副本内容分叉），
+    # 其中 short 长期是 2700s=45min。现已统一为 5400s=90min（回放峰值），
+    # 并把 runtime_tuning_store 的路径改成绝对路径消除 cwd 依赖。
     "roi_t1_sec":        {"env": "SCALP_ROI_T1",            "default": "600",   "type": "int",   "min": 300,   "max": 1200,  "group": "time",      "label": "ROI阶段1(保持100%)","unit": "秒"},
     "roi_t2_sec":        {"env": "SCALP_ROI_T2",            "default": "1200",  "type": "int",   "min": 600,   "max": 2400,  "group": "time",      "label": "ROI阶段2(衰减70%)","unit": "秒"},
     "roi_t3_sec":        {"env": "SCALP_ROI_T3",            "default": "1800",  "type": "int",   "min": 900,   "max": 3600,  "group": "time",      "label": "ROI阶段3(衰减40%)","unit": "秒"},
@@ -197,7 +206,14 @@ def _read_current_config() -> Dict[str, Any]:
 def _write_env(updates: Dict[str, Any]) -> int:
     """更新 os.environ（热生效）+ 持久化到 .env 文件。返回更新条数。"""
     count = 0
-    # 1. 更新 os.environ（立即热生效——settings.py 下次 os.getenv 就读到新值）
+    # 1. 更新 os.environ（对运行时 os.getenv 的消费者立即生效）
+    # [2026-09-02] 同时同步 settings 模块属性：大多数门禁/引擎读的是 import 时固化的
+    # settings.X（如 unified_gate 的 V5_SCALP_MIN_RR），只改 os.environ 要等重启才生效，
+    # 原注释"立即热生效"对这类消费者并不成立。settings 上存在同名属性时按类型回写。
+    try:
+        import backend.config.settings as _settings_mod
+    except Exception:  # pragma: no cover
+        _settings_mod = None
     for key, value in updates.items():
         defn = _PARAM_DEFS.get(key)
         if not defn:
@@ -205,8 +221,21 @@ def _write_env(updates: Dict[str, Any]) -> int:
         env_key = defn["env"]
         if defn["type"] == "bool":
             os.environ[env_key] = "true" if value else "false"
+            typed = bool(value)
+        elif defn["type"] == "int":
+            os.environ[env_key] = str(value)
+            typed = int(float(value))
+        elif defn["type"] == "float":
+            os.environ[env_key] = str(value)
+            typed = float(value)
         else:
             os.environ[env_key] = str(value)
+            typed = value
+        if _settings_mod is not None and hasattr(_settings_mod, env_key):
+            try:
+                setattr(_settings_mod, env_key, typed)
+            except Exception as _e:  # pragma: no cover
+                logger.warning(f"[ScalpConfig] settings.{env_key} 热更新失败: {_e}")
         count += 1
 
     # 2. 持久化到 .env（重启后不丢）

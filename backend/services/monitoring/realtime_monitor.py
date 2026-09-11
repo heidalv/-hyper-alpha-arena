@@ -244,8 +244,8 @@ class RealtimeMonitor:
     def _collect_hyperliquid_metrics(self, db, account, metrics: MonitoringMetrics):
         """收集 Hyperliquid 指标"""
         try:
-            from services.hyperliquid_cache import get_cached_account_state
-            from services.hyperliquid_environment import get_global_trading_mode
+            from backend.services.hyperliquid_cache import get_cached_account_state
+            from backend.services.hyperliquid_environment import get_global_trading_mode
             
             environment = get_global_trading_mode(db)
             state = get_cached_account_state(account.id, environment)

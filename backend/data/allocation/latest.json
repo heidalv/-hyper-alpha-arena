@@ -1,0 +1,26 @@
+{
+  "ts_ms": 1789078216890,
+  "bucket_weights": {
+    "trend": 0.6,
+    "cashflow": 0.3,
+    "research": 0.1
+  },
+  "suggested_raw": {
+    "trend": 0.6,
+    "cashflow": 0.3,
+    "research": 0.1
+  },
+  "credibility": {
+    "n": 1,
+    "n_scored": 0,
+    "avg_score": null,
+    "avg_brier": null
+  },
+  "credibility_scale": 0.5,
+  "promotion_freeze": {
+    "frozen": false
+  },
+  "apply_enabled": false,
+  "ladder": {},
+  "note": "默认只落盘；ALLOCATOR_APPLY=true 才写 runtime_tuning.bucket_weights"
+}

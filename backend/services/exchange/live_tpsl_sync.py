@@ -162,6 +162,56 @@ def _sync_ccxt(client, pos, tp: float, sl: float) -> Dict[str, Any]:
     ))
 
 
+def native_trailing_enabled() -> bool:
+    """[2026-09-03 v3 方向1] live 侧优先交易所原生 TRAILING_STOP_MARKET；默认关，软件 tighten_sl 兜底。"""
+    import os as _os
+    return str(_os.getenv("LIVE_NATIVE_TRAILING_STOP", "false")).strip().lower() in ("1", "true", "yes", "on")
+
+
+def maybe_place_native_trailing(db, pos, *, callback_pct: float, activation_price: Optional[float] = None) -> Dict[str, Any]:
+    """ExitPolicy trailing 首次激活时，在 live 账户挂交易所原生追踪止损（ccxt 系：Binance/Aster）。
+
+    仅 LIVE_NATIVE_TRAILING_STOP=true 且账户 trading_mode=live 时生效；Hyperliquid 无原生追踪单 → 跳过。
+    """
+    empty = {"ok": False, "skipped": True}
+    if not native_trailing_enabled() or pos is None or db is None:
+        return {**empty, "reason": "disabled_or_missing"}
+    account_id = int(getattr(pos, "account_id", 0) or 0)
+    if account_id <= 0:
+        return {**empty, "reason": "no_account"}
+    try:
+        from backend.database.models import Account
+        account = db.query(Account).filter(Account.id == account_id).first()
+    except Exception as exc:
+        logger.debug("[LiveTpSlSync] 读账户失败: %s", exc)
+        return {**empty, "reason": "account_lookup"}
+    if account is None or str(getattr(account, "trading_mode", "") or "").strip().lower() != "live":
+        return {**empty, "reason": "paper"}
+    try:
+        client, exchange = _resolve_client(account)
+        if client is None:
+            return {**empty, "reason": "no_client", "exchange": exchange}
+        placer = getattr(client, "place_trailing_stop", None)
+        if placer is None:
+            return {**empty, "reason": "no_native_trailing", "exchange": exchange}
+        result = _run_async(lambda: placer(
+            getattr(pos, "symbol", ""),
+            side=str(getattr(pos, "side", "long") or "long").lower(),
+            quantity=abs(_f(getattr(pos, "size", 0))),
+            callback_rate_pct=float(callback_pct),
+            activation_price=activation_price,
+        ))
+        ok = bool(result.get("ok", False)) if isinstance(result, dict) else False
+        (logger.info if ok else logger.warning)(
+            "[LiveTpSlSync] native trailing %s %s cb=%.2f%% → %s",
+            getattr(pos, "symbol", "?"), exchange, float(callback_pct), result,
+        )
+        return {"ok": ok, "exchange": exchange, "raw": result}
+    except Exception as exc:
+        logger.warning("[LiveTpSlSync] native trailing 失败（软件 tighten_sl 兜底）: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
 def maybe_sync_live_tpsl(db, pos, *, force: bool = False) -> Dict[str, Any]:
     """账户是 live 且止盈止损变了，才改交易所挂单。"""
     empty = {"ok": False, "skipped": True}

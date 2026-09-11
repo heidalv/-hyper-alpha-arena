@@ -568,6 +568,14 @@ def run_analyst_system_unified(
                     session = db.query(_FAS).filter(_FAS.session_id == session.session_id).first() or session
                 except Exception:
                     pass
+            # [2026-09-02 挂事务修复] refresh/重查开启的读事务在下方审核 LLM、Fix18 单次 LLM
+            # 期间一直空挂（LeakGuard 追踪点名本处）；无待写入时先结束，写入由
+            # execute_master_decisions 内部自行提交。
+            try:
+                from backend.database.connection import release_idle_txn as _release_txn
+                _release_txn(db, where="analyst_cycle.pre_audit")
+            except Exception:
+                pass
             # 使用 _effective_symbols（含孤立持仓）而非 session.symbols
             # 避免孤立持仓的决策被审核拒绝
             _audit_symbols = list(set(session.symbols or []) | _orphan_syms)

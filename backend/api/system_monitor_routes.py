@@ -61,7 +61,7 @@ def get_thread_stats():
 def get_data_quality():
     """数据质量综合报告: 数据源健康 + 近期告警 + K线新鲜度 + 三链路健康。"""
     try:
-        from services.data_quality_monitor import get_data_quality_monitor
+        from backend.services.data_quality_monitor import get_data_quality_monitor
         dq = get_data_quality_monitor()
         # [v6 2.3] 链路缺口检测（行情/K线/链上 last_success 缺口告警）
         try:
@@ -112,7 +112,7 @@ def get_factor_evaluation(
     对指定 symbol 的因子做 IC 质量评估（需要该 symbol 的 K线和因子数据）。
     """
     try:
-        from services.factor_engine.factor_evaluator import FactorEvaluator
+        from backend.services.factor_engine.factor_evaluator import FactorEvaluator
         import pandas as pd
 
         evaluator = FactorEvaluator(forward_period=5)
@@ -162,7 +162,7 @@ def get_factor_evaluation(
 def _load_klines_for_eval(symbol: str):
     """尝试从 unified_data_pool 获取已增强的 DataFrame。"""
     try:
-        from services.unified_data_pool import UnifiedDataPool
+        from backend.services.unified_data_pool import UnifiedDataPool
         pool = UnifiedDataPool.__new__(UnifiedDataPool)
         pool.__init__()
         data = pool.get_enriched_klines(symbol, limit=500)
@@ -172,7 +172,7 @@ def _load_klines_for_eval(symbol: str):
         pass
 
     try:
-        from services.kline_service import get_kline_service
+        from backend.services.kline_service import get_kline_service
         ks = get_kline_service()
         return ks.get_klines_df(symbol, period="1h", limit=500)
     except Exception:
@@ -390,7 +390,7 @@ def get_fee_profile(
 ):
     """获取交易所费率档案。"""
     try:
-        from services.exchange_incentive_monitor import ExchangeIncentiveMonitor
+        from backend.services.exchange_incentive_monitor import ExchangeIncentiveMonitor
         mon = ExchangeIncentiveMonitor()
         p = mon.get_fee_profile(exchange, volume_30d)
         return {
@@ -414,7 +414,7 @@ def get_fee_report(
 ):
     """手续费效率分析报告。"""
     try:
-        from services.exchange_incentive_monitor import ExchangeIncentiveMonitor
+        from backend.services.exchange_incentive_monitor import ExchangeIncentiveMonitor
         from backend.database.connection import SessionLocal
         mon = ExchangeIncentiveMonitor()
 

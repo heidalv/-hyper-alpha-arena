@@ -14,6 +14,7 @@
 """
 import logging
 import json
+import os
 import time
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
@@ -886,6 +887,10 @@ class StrategyCoordinator:
         """从交易所获取实时价格（向后兼容入口）"""
         return StrategyCoordinator._get_realtime_price_robust(symbol, exchange)
 
+    # 死币短缓存：DC_ONLY 取价失败后一段时间内直接返回，不再打 DC/刷屏
+    _DEAD_PRICE_UNTIL: dict = {}
+    _DEAD_PRICE_TTL_SEC = float(os.getenv("COORD_DEAD_PRICE_TTL_SEC", "3600") or 3600)
+
     @staticmethod
     def _get_realtime_price_robust(symbol: str, exchange: str) -> float:
         """从交易所获取实时价格 - 多重 fallback 确保拿到真实价格
@@ -897,6 +902,10 @@ class StrategyCoordinator:
         3. DC_ONLY 下禁止 ccxt 直连兜底（原第 4 步），失败返回 None。
         """
         methods_tried = []
+        _sym_u = str(symbol or "").strip().upper()
+        _dead_until = float(StrategyCoordinator._DEAD_PRICE_UNTIL.get(_sym_u) or 0.0)
+        if _dead_until and time.time() < _dead_until:
+            return None
 
         # ── 秒级权威链路（ticker，5s 新鲜度校验）──
         try:
@@ -907,6 +916,7 @@ class StrategyCoordinator:
                 if price and float(price) > 0 and (
                     time.time() - float(ts or 0)
                 ) <= TICKER_MAX_AGE_SEC:
+                    StrategyCoordinator._DEAD_PRICE_UNTIL.pop(_sym_u, None)
                     logger.info(
                         f"[Coordinator] {symbol} 实时价格(data_center ticker): ${float(price):,.2f}"
                     )
@@ -920,6 +930,7 @@ class StrategyCoordinator:
             from backend.services.market_data import get_last_price
             price = get_last_price(symbol)
             if price and price > 0:
+                StrategyCoordinator._DEAD_PRICE_UNTIL.pop(_sym_u, None)
                 logger.info(f"[Coordinator] {symbol} 实时价格(market_data 兜底): ${price:,.2f}")
                 return float(price)
         except Exception:
@@ -931,9 +942,23 @@ class StrategyCoordinator:
             from backend.services.market_data import _dc_only_enabled
             if _dc_only_enabled():
                 methods_tried.append("temp_ccxt(blocked_dc_only)")
-                logger.warning(
-                    f"[Coordinator] ⚠️ {symbol} 数据中心价格不可用且 DC_ONLY 下禁止直连兜底"
-                )
+                # [2026-09-07] 死币（如 DOLO 停采 20 天）每 tick 刷屏 → 节流 + 短缓存
+                if _sym_u:
+                    StrategyCoordinator._DEAD_PRICE_UNTIL[_sym_u] = (
+                        time.time() + StrategyCoordinator._DEAD_PRICE_TTL_SEC
+                    )
+                try:
+                    from backend.services.data_center import _warn_throttled
+                    _warn_throttled(
+                        f"coord_dc_only:{symbol}",
+                        "[Coordinator] ⚠️ %s 数据中心价格不可用且 DC_ONLY 下禁止直连兜底",
+                        symbol,
+                        log=logger,
+                    )
+                except Exception:
+                    logger.warning(
+                        f"[Coordinator] ⚠️ {symbol} 数据中心价格不可用且 DC_ONLY 下禁止直连兜底"
+                    )
                 return None
             import ccxt
             temp_ex = ccxt.hyperliquid({

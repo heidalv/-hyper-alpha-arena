@@ -140,6 +140,25 @@ class MltoOrchestrator:
             {"hub": hub.reason_text, "adjusted": hub.adjusted, "action": hub.action},
             db=db,
         )
+        # [2026-09-09 归因落库] 把方向来源三元组（direction/dir_src/llm_qual/fw_mean）
+        # 写进 ai_decision_logs.decision_snapshot。根因：此前快照无 direction/dir_src，
+        # 无法回答"方向谁定的"，LLM 方向命中率无法滚动校准（校准表 0 行）。
+        try:
+            from backend.services.mlto.hub_decision_log import persist_hub_decision
+            persist_hub_decision(
+                account_id=getattr(packet, "account_id", None) or getattr(thesis, "account_id", None),
+                symbol=packet.symbol,
+                tier=packet.tier,
+                hub=hub,
+                signals=quant_signals,
+                trade_nature=str(getattr(thesis, "trade_nature", "") or ""),
+                regime=str(_regime_name or ""),
+                session_id=str(getattr(packet, "session_id", "") or ""),
+                thesis_id=str(getattr(thesis, "thesis_id", "") or ""),
+                market_summary=getattr(packet, "market_summary", None),
+            )
+        except Exception as _hl_err:
+            logger.debug("[MLTO] hub 归因落库跳过: %s", _hl_err)
 
         has_pos = _has_position(packet, portfolio, db=db)
 

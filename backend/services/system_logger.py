@@ -336,8 +336,8 @@ class PriceSnapshotLogger:
     def _take_snapshot(self):
         """获取并记录所有币种的当前价格"""
         try:
-            from services.price_cache import get_cached_price
-            from services.trading_commands import AI_TRADING_SYMBOLS
+            from backend.services.price_cache import get_cached_price
+            from backend.services.trading_commands import AI_TRADING_SYMBOLS
 
             prices_info = []
             for symbol in AI_TRADING_SYMBOLS:

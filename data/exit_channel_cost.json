@@ -1,0 +1,1846 @@
+{
+  "generated_at": "2026-09-09T15:42:44.376201+00:00",
+  "n": 184,
+  "recs": [
+    {
+      "fam": "ai_reverse",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.265,
+      "actual": -0.565,
+      "c0": -2.292,
+      "l4": -2.292,
+      "hold_h": 2.28
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 0.821,
+      "actual": -0.893,
+      "c0": 0.245,
+      "l4": 0.245,
+      "hold_h": 56.22
+    },
+    {
+      "fam": "ai_reverse",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.3,
+      "c0": -0.859,
+      "l4": -0.859,
+      "hold_h": 0.38
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 2.324,
+      "actual": 1.222,
+      "c0": 1.05,
+      "l4": 0.827,
+      "hold_h": 40.21
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 1.928,
+      "actual": -0.117,
+      "c0": 6.446,
+      "l4": 0.404,
+      "hold_h": 0.59
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 2.262,
+      "actual": -1.357,
+      "c0": -6.254,
+      "l4": 1.497,
+      "hold_h": 14.28
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.174,
+      "actual": -1.047,
+      "c0": -6.405,
+      "l4": -6.405,
+      "hold_h": 9.05
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.051,
+      "actual": -3.353,
+      "c0": -6.401,
+      "l4": -6.401,
+      "hold_h": 9.74
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.007,
+      "actual": -0.795,
+      "c0": -6.395,
+      "l4": -6.395,
+      "hold_h": 3.34
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.408,
+      "actual": -0.064,
+      "c0": -6.39,
+      "l4": 0.574,
+      "hold_h": 3.03
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -1.013,
+      "c0": 6.644,
+      "l4": 7.144,
+      "hold_h": 2.03
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.122,
+      "actual": -0.28,
+      "c0": -6.384,
+      "l4": -6.384,
+      "hold_h": 0.32
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.733,
+      "actual": -0.169,
+      "c0": -6.381,
+      "l4": 0.526,
+      "hold_h": 2.17
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.056,
+      "actual": -0.23,
+      "c0": -6.378,
+      "l4": -6.378,
+      "hold_h": 0.72
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 0.645,
+      "actual": -0.365,
+      "c0": 10.829,
+      "l4": 0.43,
+      "hold_h": 0.7
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.269,
+      "c0": -6.374,
+      "l4": -6.374,
+      "hold_h": 0.31
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.037,
+      "actual": -0.214,
+      "c0": -6.37,
+      "l4": -6.37,
+      "hold_h": 0.43
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 0.244,
+      "actual": -0.274,
+      "c0": 10.389,
+      "l4": 0.354,
+      "hold_h": 0.05
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.033,
+      "actual": -0.434,
+      "c0": 6.916,
+      "l4": 7.416,
+      "hold_h": 0.68
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.3,
+      "c0": -6.362,
+      "l4": -6.362,
+      "hold_h": 0.04
+    },
+    {
+      "fam": "sl",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.162,
+      "actual": -4.711,
+      "c0": -6.36,
+      "l4": -6.36,
+      "hold_h": 9.05
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.335,
+      "c0": -6.345,
+      "l4": -6.345,
+      "hold_h": 0.03
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 0.195,
+      "actual": -0.045,
+      "c0": 10.898,
+      "l4": 0.497,
+      "hold_h": 0.08
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.3,
+      "c0": 8.958,
+      "l4": 1.752,
+      "hold_h": 0.02
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.3,
+      "c0": 10.6,
+      "l4": 0.548,
+      "hold_h": 0.02
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.3,
+      "c0": -6.333,
+      "l4": -6.333,
+      "hold_h": 0.02
+    },
+    {
+      "fam": "dust_cleanup",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.152,
+      "actual": -0.349,
+      "c0": -6.331,
+      "l4": -6.331,
+      "hold_h": 11.79
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.2,
+      "actual": 0.795,
+      "c0": 2.408,
+      "l4": 0.31,
+      "hold_h": 4.25
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.295,
+      "c0": 2.892,
+      "l4": 0.46,
+      "hold_h": 0.11
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.042,
+      "actual": -0.599,
+      "c0": 1.458,
+      "l4": 0.729,
+      "hold_h": 0.79
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.895,
+      "c0": 2.191,
+      "l4": 2.691,
+      "hold_h": 2.14
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.069,
+      "actual": -0.363,
+      "c0": -6.318,
+      "l4": -6.318,
+      "hold_h": 4.49
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BNB",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.33,
+      "c0": -6.321,
+      "l4": -6.321,
+      "hold_h": 0.03
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.343,
+      "c0": -6.299,
+      "l4": -6.299,
+      "hold_h": 0.65
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.284,
+      "c0": -6.298,
+      "l4": -6.298,
+      "hold_h": 0.03
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.012,
+      "actual": -0.239,
+      "c0": 3.589,
+      "l4": 0.21,
+      "hold_h": 1.0
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.35,
+      "actual": 0.087,
+      "c0": 8.703,
+      "l4": 0.932,
+      "hold_h": 1.2
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BNB",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.299,
+      "c0": -6.316,
+      "l4": -6.316,
+      "hold_h": 0.05
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.274,
+      "c0": 3.781,
+      "l4": 0.396,
+      "hold_h": 0.3
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BNB",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.412,
+      "c0": -6.321,
+      "l4": -6.321,
+      "hold_h": 1.1
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.355,
+      "c0": 3.668,
+      "l4": 0.288,
+      "hold_h": 0.55
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BNB",
+      "side": "short",
+      "peak": 0.065,
+      "actual": -0.364,
+      "c0": -6.32,
+      "l4": -6.32,
+      "hold_h": 1.67
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.291,
+      "c0": 3.698,
+      "l4": 0.316,
+      "hold_h": 0.34
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.285,
+      "c0": 3.569,
+      "l4": 0.34,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.423,
+      "actual": 0.141,
+      "c0": 7.586,
+      "l4": 8.086,
+      "hold_h": 1.24
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.619,
+      "actual": -1.227,
+      "c0": -6.286,
+      "l4": -6.286,
+      "hold_h": 10.21
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "BNB",
+      "side": "short",
+      "peak": 0.655,
+      "actual": -0.119,
+      "c0": -6.309,
+      "l4": -6.309,
+      "hold_h": 18.0
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "SOL",
+      "side": "short",
+      "peak": 1.309,
+      "actual": -0.73,
+      "c0": -6.285,
+      "l4": -6.285,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.031,
+      "actual": -0.475,
+      "c0": 3.57,
+      "l4": 0.608,
+      "hold_h": 0.35
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 1.162,
+      "actual": -0.063,
+      "c0": 9.933,
+      "l4": 10.433,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.018,
+      "actual": -0.418,
+      "c0": -6.234,
+      "l4": -6.234,
+      "hold_h": 1.1
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "SOL",
+      "side": "short",
+      "peak": 0.041,
+      "actual": -0.261,
+      "c0": -6.228,
+      "l4": -6.228,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 0.104,
+      "actual": -0.557,
+      "c0": -6.249,
+      "l4": 1.648,
+      "hold_h": 1.0
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.41,
+      "actual": -0.743,
+      "c0": -6.228,
+      "l4": -6.228,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.137,
+      "actual": -0.272,
+      "c0": 3.858,
+      "l4": 1.726,
+      "hold_h": 4.36
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.132,
+      "actual": -0.261,
+      "c0": 3.858,
+      "l4": 1.726,
+      "hold_h": 4.36
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.066,
+      "actual": -0.298,
+      "c0": -6.228,
+      "l4": -6.228,
+      "hold_h": 0.35
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.005,
+      "actual": -0.441,
+      "c0": -6.234,
+      "l4": -6.234,
+      "hold_h": 1.01
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.041,
+      "actual": -0.178,
+      "c0": 8.216,
+      "l4": 8.716,
+      "hold_h": 0.25
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.39,
+      "actual": -0.843,
+      "c0": -6.228,
+      "l4": -6.228,
+      "hold_h": 18.0
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.194,
+      "actual": -0.056,
+      "c0": 8.283,
+      "l4": 8.783,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 3.072,
+      "actual": 0.581,
+      "c0": -6.248,
+      "l4": 1.633,
+      "hold_h": 18.83
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.224,
+      "actual": -0.058,
+      "c0": 7.917,
+      "l4": 8.417,
+      "hold_h": 0.81
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.041,
+      "actual": -0.331,
+      "c0": 7.917,
+      "l4": 8.417,
+      "hold_h": 0.28
+    },
+    {
+      "fam": "sl",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 2.973,
+      "actual": -4.754,
+      "c0": -6.246,
+      "l4": 1.518,
+      "hold_h": 43.04
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.102,
+      "actual": -0.452,
+      "c0": 7.72,
+      "l4": 8.22,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.421,
+      "c0": 7.521,
+      "l4": 8.021,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.315,
+      "actual": -0.087,
+      "c0": 8.09,
+      "l4": 8.59,
+      "hold_h": 0.28
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "UNI",
+      "side": "short",
+      "peak": 0.629,
+      "actual": -0.154,
+      "c0": -6.21,
+      "l4": -6.21,
+      "hold_h": 2.09
+    },
+    {
+      "fam": "sl",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -4.744,
+      "c0": -6.208,
+      "l4": -6.208,
+      "hold_h": 1.37
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.279,
+      "actual": -0.084,
+      "c0": -6.221,
+      "l4": -6.221,
+      "hold_h": 0.35
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.939,
+      "actual": -0.084,
+      "c0": -6.203,
+      "l4": -6.203,
+      "hold_h": 0.59
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 0.332,
+      "actual": 0.05,
+      "c0": -6.221,
+      "l4": -6.221,
+      "hold_h": 0.25
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.298,
+      "actual": -0.091,
+      "c0": -6.221,
+      "l4": -6.221,
+      "hold_h": 0.25
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "UNI",
+      "side": "short",
+      "peak": 0.472,
+      "actual": -3.365,
+      "c0": -6.22,
+      "l4": -6.22,
+      "hold_h": 9.39
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -2.759,
+      "c0": -6.203,
+      "l4": -6.203,
+      "hold_h": 1.02
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "UNI",
+      "side": "short",
+      "peak": 0.761,
+      "actual": -0.105,
+      "c0": -6.219,
+      "l4": -6.219,
+      "hold_h": 0.57
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "short",
+      "peak": 1.037,
+      "actual": 0.668,
+      "c0": -6.221,
+      "l4": 1.08,
+      "hold_h": 0.25
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 1.72,
+      "actual": 4.283,
+      "c0": 2.795,
+      "l4": 3.295,
+      "hold_h": 8.15
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "XPL",
+      "side": "long",
+      "peak": 3.125,
+      "actual": 0.668,
+      "c0": 1.618,
+      "l4": 2.118,
+      "hold_h": 1.95
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -3.305,
+      "c0": -6.22,
+      "l4": 0.512,
+      "hold_h": 0.54
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.744,
+      "c0": -6.22,
+      "l4": -6.22,
+      "hold_h": 0.25
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.07,
+      "actual": -0.443,
+      "c0": -6.218,
+      "l4": -6.218,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 1.527,
+      "actual": 0.449,
+      "c0": 1.977,
+      "l4": 2.477,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.821,
+      "actual": 0.572,
+      "c0": -6.234,
+      "l4": -6.234,
+      "hold_h": 0.27
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "ASTER",
+      "side": "short",
+      "peak": 1.277,
+      "actual": -0.118,
+      "c0": -6.216,
+      "l4": -6.216,
+      "hold_h": 1.01
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.225,
+      "actual": -0.187,
+      "c0": -6.217,
+      "l4": -6.217,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.979,
+      "actual": -0.496,
+      "c0": -6.215,
+      "l4": -6.215,
+      "hold_h": 1.27
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.147,
+      "actual": -0.333,
+      "c0": -6.232,
+      "l4": -6.232,
+      "hold_h": 0.26
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.123,
+      "actual": -0.362,
+      "c0": -6.216,
+      "l4": -6.216,
+      "hold_h": 1.06
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.482,
+      "c0": -6.214,
+      "l4": -6.214,
+      "hold_h": 0.28
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ETH",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.43,
+      "c0": -6.231,
+      "l4": -6.231,
+      "hold_h": 0.28
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -2.283,
+      "c0": -6.215,
+      "l4": -6.215,
+      "hold_h": 0.84
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.191,
+      "actual": -0.28,
+      "c0": -6.214,
+      "l4": -6.214,
+      "hold_h": 0.28
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -0.834,
+      "c0": -2.849,
+      "l4": -2.849,
+      "hold_h": 1.78
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.846,
+      "c0": 2.759,
+      "l4": 3.259,
+      "hold_h": 0.77
+    },
+    {
+      "fam": "tp",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 1.899,
+      "actual": 1.798,
+      "c0": 10.103,
+      "l4": 3.318,
+      "hold_h": 1.29
+    },
+    {
+      "fam": "max_hold_timeout",
+      "symbol": "BTC",
+      "side": "short",
+      "peak": 0.002,
+      "actual": -2.012,
+      "c0": -2.408,
+      "l4": -2.408,
+      "hold_h": 24.29
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 9.84,
+      "actual": 5.584,
+      "c0": 7.9,
+      "l4": 1.258,
+      "hold_h": 4.4
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 5.639,
+      "actual": 1.285,
+      "c0": 2.399,
+      "l4": 0.43,
+      "hold_h": 10.53
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.613,
+      "actual": 4.167,
+      "c0": 1.457,
+      "l4": 0.304,
+      "hold_h": 4.06
+    },
+    {
+      "fam": "tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 5.613,
+      "actual": 5.596,
+      "c0": 5.335,
+      "l4": 5.835,
+      "hold_h": 1.02
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "XPL",
+      "side": "long",
+      "peak": 3.7,
+      "actual": 0.596,
+      "c0": 1.448,
+      "l4": 1.948,
+      "hold_h": 0.46
+    },
+    {
+      "fam": "max_hold_timeout",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 3.27,
+      "actual": 2.042,
+      "c0": 1.53,
+      "l4": 0.68,
+      "hold_h": 25.36
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 2.489,
+      "actual": -6.208,
+      "c0": -6.223,
+      "l4": 0.995,
+      "hold_h": 19.04
+    },
+    {
+      "fam": "sl",
+      "symbol": "XPL",
+      "side": "long",
+      "peak": 0.328,
+      "actual": -4.844,
+      "c0": -6.201,
+      "l4": -6.201,
+      "hold_h": 0.71
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 1.28,
+      "actual": -1.107,
+      "c0": 6.907,
+      "l4": 1.212,
+      "hold_h": 4.72
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 2.202,
+      "actual": -5.978,
+      "c0": -6.22,
+      "l4": 0.452,
+      "hold_h": 15.05
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 3.478,
+      "actual": -2.01,
+      "c0": 1.811,
+      "l4": 2.311,
+      "hold_h": 133.36
+    },
+    {
+      "fam": "max_hold_timeout",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 2.207,
+      "actual": -2.817,
+      "c0": 1.655,
+      "l4": 0.611,
+      "hold_h": 24.07
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 1.781,
+      "actual": 4.193,
+      "c0": 2.421,
+      "l4": 0.876,
+      "hold_h": 4.12
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 3.148,
+      "actual": -2.21,
+      "c0": 1.588,
+      "l4": 0.898,
+      "hold_h": 126.23
+    },
+    {
+      "fam": "trend_weaken: 原始多头论点（4",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.16,
+      "actual": -1.199,
+      "c0": -3.81,
+      "l4": 0.944,
+      "hold_h": 11.4
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.382,
+      "actual": -2.345,
+      "c0": 4.738,
+      "l4": 5.238,
+      "hold_h": 3.81
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XRP",
+      "side": "short",
+      "peak": 0.807,
+      "actual": -0.874,
+      "c0": 2.153,
+      "l4": 2.656,
+      "hold_h": 7.85
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 1.66,
+      "actual": -2.199,
+      "c0": 2.312,
+      "l4": 0.477,
+      "hold_h": 14.97
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "XPL",
+      "side": "long",
+      "peak": 2.033,
+      "actual": -3.798,
+      "c0": -6.214,
+      "l4": 0.449,
+      "hold_h": 8.05
+    },
+    {
+      "fam": "dust_cleanup",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -7.78,
+      "c0": -6.215,
+      "l4": -6.215,
+      "hold_h": 14.47
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 6.401,
+      "actual": 2.135,
+      "c0": 3.603,
+      "l4": 4.103,
+      "hold_h": 9.55
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.204,
+      "actual": -2.963,
+      "c0": 2.071,
+      "l4": 0.33,
+      "hold_h": 4.56
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 1.517,
+      "actual": 4.173,
+      "c0": -2.945,
+      "l4": -2.945,
+      "hold_h": 16.04
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 1.882,
+      "actual": -1.372,
+      "c0": 7.222,
+      "l4": 0.84,
+      "hold_h": 3.73
+    },
+    {
+      "fam": "dust_cleanup",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -1.443,
+      "c0": -6.245,
+      "l4": -6.245,
+      "hold_h": 1.07
+    },
+    {
+      "fam": "master_running",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.796,
+      "actual": -1.523,
+      "c0": -6.226,
+      "l4": -6.226,
+      "hold_h": 2.78
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 4.16,
+      "actual": 4.366,
+      "c0": 1.375,
+      "l4": 1.875,
+      "hold_h": 4.01
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 3.603,
+      "actual": 1.087,
+      "c0": 1.302,
+      "l4": 1.802,
+      "hold_h": 4.19
+    },
+    {
+      "fam": "master_running",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.551,
+      "actual": -2.77,
+      "c0": -6.221,
+      "l4": -6.221,
+      "hold_h": 1.39
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 3.375,
+      "actual": 1.025,
+      "c0": 1.484,
+      "l4": 1.984,
+      "hold_h": 7.64
+    },
+    {
+      "fam": "tp",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 5.482,
+      "actual": 5.536,
+      "c0": 6.058,
+      "l4": 0.951,
+      "hold_h": 10.56
+    },
+    {
+      "fam": "master_running",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 0.523,
+      "actual": -2.587,
+      "c0": 1.48,
+      "l4": 1.98,
+      "hold_h": 2.21
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 1.569,
+      "actual": 4.148,
+      "c0": -6.295,
+      "l4": 0.545,
+      "hold_h": 4.13
+    },
+    {
+      "fam": "master_running",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 0.0,
+      "actual": -1.799,
+      "c0": 3.566,
+      "l4": 3.229,
+      "hold_h": 0.67
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.893,
+      "actual": -1.294,
+      "c0": 1.395,
+      "l4": 0.839,
+      "hold_h": 11.01
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 3.391,
+      "actual": 0.868,
+      "c0": -6.22,
+      "l4": 1.248,
+      "hold_h": 2.81
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 2.196,
+      "actual": -1.961,
+      "c0": 2.899,
+      "l4": 3.399,
+      "hold_h": 11.53
+    },
+    {
+      "fam": "trend_broken",
+      "symbol": "ASTER",
+      "side": "short",
+      "peak": 0.694,
+      "actual": -1.333,
+      "c0": -3.793,
+      "l4": 0.575,
+      "hold_h": 2.41
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "XPL",
+      "side": "short",
+      "peak": 4.802,
+      "actual": 1.289,
+      "c0": 4.449,
+      "l4": 4.12,
+      "hold_h": 10.03
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.487,
+      "actual": -1.275,
+      "c0": -6.214,
+      "l4": -6.214,
+      "hold_h": 6.63
+    },
+    {
+      "fam": "master_running",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -1.124,
+      "c0": 1.716,
+      "l4": 2.082,
+      "hold_h": 0.47
+    },
+    {
+      "fam": "master_running",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -0.887,
+      "c0": -6.323,
+      "l4": 0.358,
+      "hold_h": 1.89
+    },
+    {
+      "fam": "master_running",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 1.277,
+      "actual": -1.291,
+      "c0": 2.472,
+      "l4": 1.156,
+      "hold_h": 4.33
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 2.499,
+      "actual": -0.786,
+      "c0": 4.323,
+      "l4": 1.212,
+      "hold_h": 57.75
+    },
+    {
+      "fam": "master_running",
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "peak": 1.107,
+      "actual": -1.507,
+      "c0": 1.855,
+      "l4": 0.785,
+      "hold_h": 9.39
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 1.652,
+      "actual": 1.273,
+      "c0": 1.458,
+      "l4": 0.512,
+      "hold_h": 21.98
+    },
+    {
+      "fam": "master_running",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.228,
+      "actual": -3.26,
+      "c0": 2.027,
+      "l4": 2.392,
+      "hold_h": 7.73
+    },
+    {
+      "fam": "master_running",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 1.029,
+      "actual": -2.03,
+      "c0": -6.208,
+      "l4": -6.208,
+      "hold_h": 5.04
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 1.856,
+      "actual": 1.096,
+      "c0": 2.25,
+      "l4": 1.191,
+      "hold_h": 15.92
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 1.666,
+      "actual": 0.122,
+      "c0": 3.038,
+      "l4": 3.538,
+      "hold_h": 24.06
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 1.638,
+      "actual": 0.878,
+      "c0": 4.92,
+      "l4": 0.399,
+      "hold_h": 18.08
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.509,
+      "actual": -1.969,
+      "c0": -6.246,
+      "l4": -6.246,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 4.7,
+      "actual": 1.287,
+      "c0": 2.43,
+      "l4": 2.93,
+      "hold_h": 8.96
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 0.787,
+      "actual": -2.884,
+      "c0": 4.516,
+      "l4": 3.797,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 0.0,
+      "actual": -1.181,
+      "c0": 3.949,
+      "l4": 4.311,
+      "hold_h": 18.0
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 1.057,
+      "actual": 0.597,
+      "c0": 1.305,
+      "l4": 0.309,
+      "hold_h": 18.05
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.852,
+      "actual": -2.066,
+      "c0": 4.109,
+      "l4": 0.297,
+      "hold_h": 18.01
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 1.582,
+      "actual": 0.501,
+      "c0": 1.491,
+      "l4": 0.411,
+      "hold_h": 18.06
+    },
+    {
+      "fam": "sl",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.722,
+      "actual": -4.798,
+      "c0": -6.271,
+      "l4": 0.812,
+      "hold_h": 2.3
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 1.677,
+      "actual": 1.028,
+      "c0": 4.945,
+      "l4": 5.306,
+      "hold_h": 18.08
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 0.283,
+      "actual": -0.627,
+      "c0": 3.243,
+      "l4": 3.307,
+      "hold_h": 18.04
+    },
+    {
+      "fam": "staged_tp2_clear",
+      "symbol": "XPL",
+      "side": "long",
+      "peak": 6.661,
+      "actual": 6.457,
+      "c0": 1.96,
+      "l4": 0.408,
+      "hold_h": 8.07
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 2.32,
+      "actual": 2.051,
+      "c0": 4.027,
+      "l4": 4.527,
+      "hold_h": 7.89
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 1.848,
+      "actual": 1.096,
+      "c0": 2.071,
+      "l4": 2.436,
+      "hold_h": 3.55
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 2.388,
+      "actual": 2.055,
+      "c0": 3.537,
+      "l4": 3.6,
+      "hold_h": 5.6
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 2.185,
+      "actual": 1.942,
+      "c0": 2.284,
+      "l4": 2.784,
+      "hold_h": 1.7
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 2.065,
+      "actual": 1.821,
+      "c0": 7.711,
+      "l4": 0.909,
+      "hold_h": 2.78
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "LINK",
+      "side": "long",
+      "peak": 1.961,
+      "actual": 1.639,
+      "c0": 2.356,
+      "l4": 2.856,
+      "hold_h": 1.44
+    },
+    {
+      "fam": "long_trend_v2",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 1.55,
+      "actual": -2.614,
+      "c0": -1.075,
+      "l4": 0.428,
+      "hold_h": 12.52
+    },
+    {
+      "fam": "profit_drawdown",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 0.17,
+      "actual": -2.422,
+      "c0": -3.658,
+      "l4": -3.658,
+      "hold_h": 29.35
+    },
+    {
+      "fam": "exit_policy:sl_pct",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.197,
+      "actual": -4.098,
+      "c0": 3.524,
+      "l4": 0.388,
+      "hold_h": 2.82
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 6.255,
+      "actual": 4.733,
+      "c0": 4.224,
+      "l4": 4.724,
+      "hold_h": 13.56
+    },
+    {
+      "fam": "max_hold_timeout",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 2.316,
+      "actual": 1.21,
+      "c0": 3.28,
+      "l4": 1.19,
+      "hold_h": 24.49
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "ETH",
+      "side": "long",
+      "peak": 3.171,
+      "actual": 0.521,
+      "c0": 1.62,
+      "l4": 1.462,
+      "hold_h": 63.3
+    },
+    {
+      "fam": "no_progress",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 2.35,
+      "actual": -0.789,
+      "c0": 1.965,
+      "l4": 0.851,
+      "hold_h": 75.61
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "LINK",
+      "side": "long",
+      "peak": 6.983,
+      "actual": 4.766,
+      "c0": 3.575,
+      "l4": 0.83,
+      "hold_h": 27.14
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "BTC",
+      "side": "long",
+      "peak": 0.187,
+      "actual": -0.469,
+      "c0": -1.877,
+      "l4": -1.877,
+      "hold_h": 9.04
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 3.853,
+      "actual": 2.344,
+      "c0": 4.9,
+      "l4": 3.457,
+      "hold_h": 4.86
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "SOL",
+      "side": "long",
+      "peak": 0.823,
+      "actual": -2.917,
+      "c0": -3.066,
+      "l4": -3.066,
+      "hold_h": 18.98
+    },
+    {
+      "fam": "breakeven_tp",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 3.665,
+      "actual": 0.763,
+      "c0": 2.054,
+      "l4": 0.428,
+      "hold_h": 29.24
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "BNB",
+      "side": "long",
+      "peak": 2.139,
+      "actual": 0.967,
+      "c0": -0.901,
+      "l4": 0.994,
+      "hold_h": 28.17
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "XRP",
+      "side": "long",
+      "peak": 0.404,
+      "actual": -0.904,
+      "c0": 2.068,
+      "l4": 2.568,
+      "hold_h": 7.48
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 0.142,
+      "actual": -0.582,
+      "c0": -6.235,
+      "l4": 0.735,
+      "hold_h": 1.3
+    },
+    {
+      "fam": "thesis_should_close",
+      "symbol": "UNI",
+      "side": "long",
+      "peak": 1.352,
+      "actual": 0.453,
+      "c0": -6.234,
+      "l4": 0.307,
+      "hold_h": 1.36
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "ASTER",
+      "side": "long",
+      "peak": 1.108,
+      "actual": -3.861,
+      "c0": -3.36,
+      "l4": -3.36,
+      "hold_h": 6.41
+    },
+    {
+      "fam": "thesis_invalidation",
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "peak": 0.713,
+      "actual": -5.321,
+      "c0": -5.957,
+      "l4": -5.957,
+      "hold_h": 15.16
+    }
+  ]
+}

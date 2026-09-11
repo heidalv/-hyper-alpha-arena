@@ -17,7 +17,8 @@
 
 用法:
     mmr = get_maint_margin_rate("asterdex")   # → 0.005
-    fee = get_fee_rate("asterdex", is_maker=True)  # → 0.00005
+    fee = get_fee_rate("asterdex", is_maker=True)  # → 0.0（Aster USDT 永续 maker 免费）
+    fee = get_fee_rate("asterdex", is_maker=False)  # → 0.0004（taker 0.04%）
 
 设计决策:
 - 不重复定义费率表，直接从 paper_exchange_simulator 导入（DRY）
@@ -116,7 +117,8 @@ def get_fee_rate(exchange: Optional[str], is_maker: bool) -> float:
         is_maker: True=maker费率, False=taker费率
 
     Returns:
-        手续费率（如 asterdex maker=0.00005 = 0.005%, taker=0.00005）
+        手续费率（如 asterdex maker=0.0（USDT 永续 maker 免费）、taker=0.0004；
+        binance maker=0.0002/taker=0.0004，见 paper_exchange_simulator.DEFAULT_EXCHANGE_RULES）
     """
     rules = get_exchange_rules(exchange)
     return float(rules.maker_fee_rate) if is_maker else float(rules.taker_fee_rate)

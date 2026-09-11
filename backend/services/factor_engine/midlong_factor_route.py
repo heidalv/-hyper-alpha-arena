@@ -204,11 +204,25 @@ def _dynamic_sl_tp(symbol: str) -> "tuple[float, float, str]":
 def factor_route_decide(
     symbol: str,
     market_summary: Optional[dict] = None,
+    trading_mode: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """因子路由入场决策。返回 {action, score, votes, reason, confidence, sl_pct, tp_pct}。"""
+    """因子路由入场决策。返回 {action, score, votes, reason, confidence, sl_pct, tp_pct}。
+
+    ``trading_mode``：[2026-09-03 审查修正 A] 实盘会话默认不让影子因子
+    （held-out 未过 role=paper / 进化仓 PAPER）投票，也不计入 min_active；
+    None/paper 保持原口径（半权重）。见 paper_factor_policy。
+    """
     sym = str(symbol or "").upper()
     min_active = int(_cfg("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", 2))
-    threshold = float(_cfg("FACTOR_ROUTE_ENTRY_THRESHOLD", 0.35))
+    # [2026-09-04] 阈值按 paper/live 分离：实盘"宁缺毋滥"，模拟盘要的是样本。
+    # 同一个 0.35 同时管两边时，实测全 universe 只有 1/10 过门 → 中线整天零开仓。
+    _thr_default = float(_cfg("FACTOR_ROUTE_ENTRY_THRESHOLD", 0.35))
+    threshold = float(_cfg(
+        "FACTOR_ROUTE_ENTRY_THRESHOLD_LIVE"
+        if (trading_mode or "paper").strip().lower() == "live"
+        else "FACTOR_ROUTE_ENTRY_THRESHOLD_PAPER",
+        _thr_default,
+    ))
     out = {
         "symbol": sym,
         "action": "hold",
@@ -246,6 +260,21 @@ def factor_route_decide(
         logger.debug("[FactorRoute] 活跃因子读取失败: %s", e)
         active = []
 
+    # [2026-09-03 审查修正 A] 实盘排除影子因子（不投票、不计入 min_active）。
+    _paper_dropped = 0
+    try:
+        from backend.services.factor_engine.paper_factor_policy import (
+            is_paper_record, paper_factor_excluded,
+        )
+        if paper_factor_excluded(trading_mode):
+            _kept = [r for r in active if not is_paper_record(r)]
+            _paper_dropped = len(active) - len(_kept)
+            active = _kept
+    except Exception as _pp_err:
+        logger.debug("[FactorRoute] 影子因子策略跳过: %s", _pp_err)
+    if _paper_dropped:
+        out["paper_excluded"] = _paper_dropped
+
     if len(active) < min_active:
         out["reason"] = f"insufficient_active({len(active)}<{min_active})"
         return out
@@ -275,7 +304,12 @@ def factor_route_decide(
             _exp_sign = float(scores.get("expected_sign") or (1 if ic >= 0 else -1))
             if _exp_sign > 0:
                 _neg_ic_n += 1
-        w = abs(ic) * float(rec.get("runtime_weight") or 1.0)
+        # [2026-09-02 消除 fail-open] 原写法 `rec.get("runtime_weight") or 1.0`
+        # 踩了 Python 的 falsy 陷阱：被 IC 判定为不可信而显式归零的权重（0.0）
+        # 会被 `or` 还原成满权 1.0，归零因子照常参与投票。改为只在字段缺失
+        # （None）时才用中性默认值 1.0，显式的 0 如实传递。
+        _rw = rec.get("runtime_weight")
+        w = abs(ic) * (1.0 if _rw is None else float(_rw))
         vals = _factor_history(rec, sym)
         if vals is None:
             votes[fid] = {"z": None, "vote": None, "skip": "no_history"}
@@ -351,9 +385,17 @@ def factor_route_open(
     （持仓管理走既有模式B/主动退出链路，路由只负责新开）。
     """
     sym = str(symbol or "").upper()
-    dec = factor_route_decide(sym, market_summary=market_summary)
+    dec = factor_route_decide(sym, market_summary=market_summary, trading_mode=trading_mode)
     dec.setdefault("opened", False)
     dec.setdefault("gate", "")
+    try:
+        from backend.config.settings import midlong_brain_enabled
+        if midlong_brain_enabled():
+            dec["opened"] = False
+            dec["gate"] = "brain_evidence_only"
+            return dec
+    except Exception:
+        pass
 
     if dec.get("action") not in ("buy", "sell"):
         return dec
@@ -368,7 +410,7 @@ def factor_route_open(
             logger.info("[FactorRoute] %s 资金流一致性门拦截: %s", sym, _fg_reason)
             return dec
     except Exception as _fg_err:
-        logger.debug("[FactorRoute] 资金流门跳过(fail-open): %s", _fg_err)
+        logger.info("[FactorRoute] 资金流门跳过(fail-open): %s", _fg_err)
 
     # ── 融合仲裁（阶段1：FactorRoute × LLM thesis 对齐闸）──
     # 冲突→skip（不冻结）；LLM 无意见/弱反对→因子自决（fail-open）。
@@ -410,7 +452,7 @@ def factor_route_open(
             return dec
     except Exception as _fm_err:
         # 仲裁异常 → fail-open（不因新代码 bug 停摆中线）
-        logger.debug("[FusionMid] %s 仲裁异常(放行): %s", sym, _fm_err)
+        logger.warning("[FusionMid] %s 仲裁异常(fail-open，放行): %s", sym, _fm_err)
 
     # ── R2 风控禁开（阶段3）：该币 24h 内单笔已实现亏损 >1.5% 权益 → 禁开 ──
     try:
@@ -449,7 +491,7 @@ def factor_route_open(
                 dec["gate"] = "position_exists"
                 return dec
         except Exception as _pos_err:
-            logger.debug("[FactorRoute] 持仓检查跳过 %s: %s", sym, _pos_err)
+            logger.warning("[FactorRoute] 持仓检查跳过 %s(fail-open，未查持仓即放行): %s", sym, _pos_err)
 
         try:
             # [2026-08-15] 与长线趋势路径同款：注入多周期指标信封，否则 V5 提案闸

@@ -26,6 +26,10 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+# [§63] `.env` 懒加载状态（CLI / 校验函数共用；只尝试一次）
+_ENV_LOAD_ATTEMPTED = False
+_ENV_LOADED_OK = False
+
 # 系统使用的 env-flag 前缀。只有匹配这些前缀的才纳入校验（避免误报第三方库的 env）。
 SYSTEM_PREFIXES: tuple[str, ...] = (
     "FACTOR_", "ML_", "QAA_", "RISK_", "EVENT_", "PROMOTION_", "RESOURCE_",
@@ -35,6 +39,10 @@ SYSTEM_PREFIXES: tuple[str, ...] = (
     "BINANCE_", "BYBIT_", "OKX_", "FULLAUTO_", "SCALP_", "MIDLONG_", "PAIR_",
     "WFO_", "BACKTEST_", "FEE_", "ENV_", "LIVE_", "PAPER_", "LONG_V2_", "LONG_TREND_",
     "MASTER_", "EXIT_", "FACTOR_", "PURGE_",
+    # [§63 补齐] 此前遗漏的命名空间（未覆盖 ⇒ 这些前缀下的死键/拼错键**不会被校验发现**）
+    "ANOMALY_", "ONCHAIN_", "HERMES_", "NSGA2_", "REENTRY_",
+    "MARKET_SCANNER_", "TIER_", "KLINE_", "COLD_", "MM_",
+    "MIDLONG_", "LOOP_", "SESSION_", "ACCOUNT_",
 )
 
 # 风控/安全关键 flag —— 被设为 falsy 时必须显式日志，禁止静默关闭。
@@ -46,12 +54,357 @@ SAFETY_CRITICAL_FLAGS: frozenset[str] = frozenset({
     "RESOURCE_GUARD_ENABLED",
     "MARKET_DATA_VERIFIER_ENABLED",
     "LIVE_MODE_RISK_GUARDED",  # Live 模式风控主开关（README: 现硬失败）
+    "SCALP_SHADOW_MODE",       # [v3 F1a] 关掉=短线恢复真单，只能经 edge_ledger 晋升门
+    "RISK_ENGINE_V3_ENABLED",  # [v3 方向7] 关掉=RiskEngine 单入口只观察不拦截
+    "RISK_DAILY_QUOTA_ENABLED",  # [v3 方向7] 关掉=日开仓配额不拦截
+    "RISK_EVENT_WINDOWS_ENABLED",  # [v3 方向4] 关掉=下架/监控标签/清算级联 事件避险窗口不拦截
+    "MIDLONG_PORTFOLIO_GATE_ENABLED",  # [§63 登记] 关掉=组合闸（净敞口/相关簇/并发）不拦截
+    "MIDLONG_CHOP_GATE_ENABLED",  # [§63 登记] 关掉=震荡市入场闸不拦截
+    "MIDLONG_FUNDING_GATE_ENABLED",  # [§63 登记] 关掉=资金费闸不拦截
+    "MIDLONG_NO_PROGRESS_EXIT_ENABLED",  # [§63 登记] 关掉=无进展退出（软退出）不评估
+    "MIDLONG_POSITION_MGMT_ENABLED",  # [§63 登记] 关掉=中线持仓管理段整体跳过
+    "TIER_MID_ENABLED",  # [§63 登记] 关掉=中线车道整体停（含闸门）
+    "TIER_LONG_ENABLED",  # [§63 登记] 关掉=长线车道整体停（含闸门）
+    "LIVE_TPSL_SYNC",  # [§63 登记] 关掉=实盘 TPSL 不同步到交易所
+    "FACTOR_HELDOUT_ENABLED",  # [§63 登记] 关掉=因子留出集验证不跑
+    "FACTOR_SCORER_DSR_REQUIRED",  # [§63 登记] 关掉=因子评分不要求 DSR 门槛
+    "FUNDING_SETTLE_ENABLED",  # [§63 登记] 关掉=资金费结算不执行
 })
 
 # 已登记的 env-flag 白名单。
 # 初始来源：framework_rollout._AGGRESSIVE_DEFAULTS + 常用 settings flag。
 # 运行 --scan 可补全。新增 flag 必须在此登记。
 KNOWN_FLAGS: frozenset[str] = frozenset({
+    "FACTOR_TRIALS_REGISTRY_PATH",  # [§63] trials_registry 的登记簿路径覆盖（生产读取）
+
+    # ── [§63 批量登记 2026-09-10] 代码确实会读（字面/动态前缀/后缀拼接/settings）的 .env 键 ──
+    # 保留在名单外的即是「.env 设了但代码任何方式都不读」的真·死键（注册表会精确报出）。
+    "AI_CONCEPT_DRIFT_DETECTION_ENABLED",
+    "AI_COUNTERFACTUAL_SANDBOX_ENABLED",
+    "AI_CROSS_MARKET_TRANSFER_ENABLED",
+    "AI_FACTOR_STRATEGY_FUSION_ENABLED",
+    "AI_FACTOR_STRATEGY_JOINT_ENABLED",
+    "AI_FREQUENCY_CONSTRAINT_CHAIN_ENABLED",
+    "AI_MEMORY_DECAY_ENABLED",
+    "AI_MULTI_ROUND_ANALYSIS_ENABLED",
+    "AI_STRATEGY_DEEP_DIVE_ENHANCED_ENABLED",
+    "AI_STRUCTURAL_MUTATION_ENABLED",
+    "AI_TRADING_NARRATIVE_ENABLED",
+    "AI_VPVR_V3_ENABLED",
+    "AI_WALK_FORWARD_VALIDATION_ENABLED",
+    "ASTERDEX_BACKFILL_MAX_REQ_PER_MIN",
+    "ASTERDEX_MAX_REQ_PER_MIN",
+    "ASTERDEX_RATE_BACKOFF_SEC",
+    "ASTERDEX_STATS_INTERVAL_S",
+    "ASTERDEX_TICKER_INTERVAL_S",
+    "AUTH_LOCAL_TENANT",
+    "AUTO_COIN_LONG_MAX_SLOTS",
+    "AUTO_COIN_PARALLEL_SESSIONS",
+    "AUTO_COIN_SOFT_FACTOR",
+    "BACKEND_SERVE_WEB",
+    "BINANCE_TICKER_INTERVAL_S",
+    "BLOCKBEATS_API_KEY",
+    "COINGLASS_API_KEY",
+    "COINGLASS_FREE_API_KEY",
+    "COIN_SELECT_ADMIN_TENANT_ID",
+    "COIN_SELECT_AI_MAX_CANDIDATES",
+    "COIN_SELECT_BOARD_TTL_HOURS",
+    "COIN_SELECT_PLATFORM_ENABLED",
+    "COIN_SELECT_SCAN_INTERVAL_SEC",
+    "COLD_EXCHANGE_MAX_REQ_PER_MIN",
+    "COLD_EXCHANGE_MAX_REQ_PER_MIN_OKX",
+    "COLD_EXCHANGE_RATE_BACKOFF_SEC",
+    "COMMITTEE_CONTROL_ENABLED",
+    "DATA_CENTER_MODE",
+    "DB_LEAK_GUARD_KILL_SECONDS",
+    "DRL_DEVICE",
+    "EVOLUTION_MAX_WORKERS_CAP",
+    "EXIT_CHANNEL_SHADOW_MAX_WR",
+    "EXIT_CHANNEL_SHADOW_MIN_N",
+    # [§78 执行 2026-09-11 / P19-B / P20] 统一出口熔断 + 重启重建（两者均可在 .env 回滚）
+    "EXIT_CHANNEL_BREAKER_UNIFIED",
+    "EXIT_CHANNEL_REBUILD_ON_LOAD",
+    "FACTOR_CODEGEN_PREFER_CLOUD",
+    "FACTOR_COMBO_MODE",
+    "FACTOR_EVO_DECAY_TRIGGER",
+    "FACTOR_EVO_DECAY_TRIGGER_ICIR",
+    "FACTOR_EVO_GPU_CHUNK",
+    "FACTOR_EVO_GPU_EVAL",
+    "FACTOR_EVO_GPU_MAX_MEM_MB",
+    "FACTOR_EVO_GPU_POP_BOOST",
+    "FACTOR_EVO_QUICK_MAX_SEC",
+    "FACTOR_EVO_SCALP_PERIODS",
+    "FACTOR_EVO_SUBPROCESS",
+    "FACTOR_GP_ALPS",
+    "FACTOR_GP_ALPS_MAX_AGE",
+    "FACTOR_GP_LAMBDA_HOF",
+    "FACTOR_GP_LEXICASE_EPS",
+    "FACTOR_GP_LLM_WARM_N",
+    "FACTOR_GP_LLM_WARM_START",
+    "FACTOR_GP_OBJECTIVE",
+    "FACTOR_GP_SELECTION",
+    "FACTOR_HELDOUT_RATIO",
+    "FACTOR_IC_SHRINK_K",
+    "FACTOR_IC_WEIGHT_MODE",
+    "FACTOR_LIVE_ALLOWLIST_ONLY",
+    "FACTOR_MCTS_MAX_WORKERS",
+    "FACTOR_MIN_CAPACITY_USD",
+    "FACTOR_NEUTRALIZE_BETA_TRAIN_RATIO",
+    "FACTOR_OVERSIGHT_MAX_PBO",
+    "FACTOR_SCORER_DSR_N_TRIALS",
+    "FACTOR_SCORER_LAG1_MIN_RETENTION",
+    "FACTOR_SCORER_MIDLONG_MIN_BARS_1D",
+    "FACTOR_SCORER_MIDLONG_MIN_BARS_4H",
+    "FACTOR_SCORER_NET_BUFFER",
+    "FACTOR_SCORER_SCALP_MIN_BARS",
+    "FACTOR_SLIMMING_POOL_MAX_CORR",
+    "FACTOR_UNVERIFIED_WEIGHT",
+    "FEATURE_FACTOR_EXPOSURE_ENABLED",
+    "FEATURE_WFO_GATE_ENABLED",
+    "FRED_API_KEY",
+    "FUSION_MODE",
+    "FUSION_PROBE_DAILY_QUOTA",
+    "FUSION_PROBE_DAILY_QUOTA_LIVE",
+    "FUSION_PROBE_DAILY_QUOTA_PAPER",
+    "FUSION_PROBE_MIN_PWIN",
+    "FUSION_PROBE_MIN_PWIN_PAPER",
+    "FUSION_PROBE_MIN_SCORE",
+    "FUSION_PROBE_SHORT_ENABLED",
+    "FUSION_PROBE_SIZE_MULT",
+    "FUSION_PWIN_ABSOLUTE_MIN",
+    "FUSION_PWIN_EXPLORE_DAILY_QUOTA",
+    "FUSION_PWIN_EXPLORE_DAILY_QUOTA_LIVE",
+    "FUSION_PWIN_EXPLORE_DAILY_QUOTA_PAPER",
+    "FUSION_PWIN_MISSING_MODE",
+    "FUSION_PWIN_SAFETY_MULT",
+    "FUSION_PWIN_TIERED",
+    "FUSION_PWIN_TIERS",
+    "FUSION_PWIN_UNUSABLE_MODE",
+    "FUSION_PWIN_UNUSABLE_MODE_LIVE",
+    "FUSION_PWIN_UNUSABLE_MODE_PAPER",
+    "FUSION_RR_FLOOR",
+    "FUSION_SCALP_PWIN_MIN",
+    "FUSION_SCALP_PWIN_MIN_LIVE",
+    "FUSION_SCALP_PWIN_STRONG",
+    "FUSION_SHADOW_PROBE_MIN_PWIN",
+    "FUSION_SHADOW_PROBE_MIN_SCORE",
+    "FUSION_SHORT_PWIN_EXTRA",
+    "GLM_ARBITER_MODEL",
+    "HL_WHALE_ADDRESSES",
+    "KLINE_BACKFILL_DAYS",
+    "KLINE_BACKFILL_REQUEST_INTERVAL_SEC",
+    "KLINE_DEPTH_BACKFILL_COLD_ENABLED",
+    "KLINE_DEPTH_BACKFILL_COLD_LIMIT",
+    "KLINE_DEPTH_BACKFILL_ENABLED",
+    "KLINE_DEPTH_BACKFILL_IDLE_SEC",
+    "KLINE_DEPTH_BACKFILL_ROUND_MAX_SEC",
+    "KLINE_DEPTH_BACKFILL_SYMBOLS",
+    "KLINE_DEPTH_BACKFILL_SYMBOL_LIMIT",
+    "KLINE_MIN_1D_CANDLES",
+    "KLINE_MIN_1H_CANDLES",
+    "KLINE_P0_CONCURRENCY",
+    "KLINE_P0_SYMBOL_CAP",
+    "KLINE_P0_TIMEOUT_S",
+    "KLINE_P1_ACTIVE_BATCH_SIZE",
+    "KLINE_P1_ACTIVE_WEIGHT",
+    "KLINE_P1_BATCH_SIZE",
+    "KLINE_P1_COLD_WEIGHT",
+    "KLINE_P1_CONCURRENCY",
+    "KLINE_P1_DEPTH_DAYS_15M",
+    "KLINE_P1_DEPTH_DAYS_1H",
+    "KLINE_P1_DEPTH_DAYS_1M",
+    "KLINE_P1_DEPTH_DAYS_30M",
+    "KLINE_P1_DEPTH_DAYS_3M",
+    "KLINE_P1_DEPTH_DAYS_5M",
+    "KLINE_P1_INTERVAL_S",
+    "KLINE_P1_TIMEOUT_S",
+    "KLINE_P1_WATCH_INTERVAL_S",
+    "KLINE_P1_WATCH_MAX_SYMBOLS",
+    "KLINE_QUALITY_REPAIR_APPLY_ENABLED",
+    "KLINE_QUALITY_REPAIR_ENABLED",
+    "KLINE_QUALITY_REPAIR_EXCHANGES",
+    "KLINE_QUALITY_REPAIR_PERIODS",
+    "KLINE_QUALITY_REPAIR_SYMBOLS",
+    "KLINE_REALTIME_SYMBOLS",
+    "KLINE_REQUEST_INTERVAL_SEC",
+    "KLINE_RETENTION_DAYS_15M",
+    "KLINE_RETENTION_DAYS_1H",
+    "KLINE_RETENTION_DAYS_1M",
+    "KLINE_RETENTION_DAYS_30M",
+    "KLINE_RETENTION_DAYS_3M",
+    "KLINE_RETENTION_DAYS_4H",
+    "KLINE_RETENTION_DAYS_5M",
+    "KLINE_SYNC_EXCHANGES",
+    "LIVE_BUDGET_MULT",
+    "LIVE_CONF_EXTRA",
+    "LIVE_DAILY_OPEN_CAP",
+    "LIVE_KLINE_FORMING_REFRESH_S",
+    "LIVE_LEARNING_HOOKS_ENABLED",
+    "LIVE_PWIN_EXTRA",
+    "LIVE_RECONCILE_AUTO_FIX",
+    "LIVE_SCALP_DAILY_OPEN_CAP",
+    "LIVE_SCALP_EV_META_HARD_FILTER",
+    "LIVE_SCALP_EV_MIN_PCT_TIGHT",
+    "LIVE_SCALP_META_MIN_PWIN",
+    "LIVE_SCALP_V5_MIN_CONFIDENCE",
+    "LIVE_SCALP_V5_MIN_RR",
+    "LIVE_SCORE_EXTRA",
+    "LIVE_V5_CONF_EXTRA",
+    "LLM2_BUDGET_ENABLED",
+    "LLM2_CAP_COMMITTEE",
+    "LLM2_CAP_KLINE_ANALYSIS",
+    "LLM2_CAP_MASTER",
+    "LLM2_CAP_REVIEW",
+    "LLM2_CAP_SCALP_CONFIRM",
+    "LLM2_CAP_THESIS",
+    "LLM2_DAILY_GLOBAL_CAP",
+    "LONG_V2_SYNTH_TP_MULT",
+    "MARKET_DATA_DC_ONLY",
+    "MARK_PRICE_BINANCE_REFERENCE",
+    "MIDLONG_AI_MIN_CONF_LONG",
+    "MIDLONG_ATR_SL_MULT",
+    "MIDLONG_BRAIN_MAX_OUTPUT_TOKENS",
+    "MIDLONG_BRAIN_OPEN_MARGIN_PCT",
+    "MIDLONG_CHOP_ADX_MAX",
+    "MIDLONG_CORR_CLUSTER_MAX",
+    "MIDLONG_FUNDING_ABS_WARN",
+    "MIDLONG_FUNDING_HOLD_HOURS",
+    "MIDLONG_LONG_AI_CANDIDATES_ENABLED",
+    "MIDLONG_MAX_NET_EXPOSURE_PCT",
+    "MIDLONG_MAX_OPEN_POSITIONS",
+    # [P13 执行 2026-09-10] 每标的同向并发上限（0=关闭）
+    "MIDLONG_MAX_SAME_SYMBOL_POSITIONS",
+    # [P12 执行 2026-09-10] 组合闸名义口径开关（默认 true=与 PositionConstruction 同口径）
+    "MIDLONG_PORTFOLIO_NOTIONAL_ALIGNED",
+    "MIDLONG_MIN_NET_RR",
+    "MIDLONG_NO_PROGRESS_HOURS_LONG",
+    "MIDLONG_NO_PROGRESS_HOURS_MID",
+    "MIDLONG_NO_PROGRESS_MIN_PEAK_R",
+    "MIDLONG_POSITION_MGMT_INTERVAL_SEC",
+    "MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC",
+    "MIDLONG_POSITION_MGMT_PYRAMID_ONLY_PROFIT",
+    "MIDLONG_REVIEW_LLM",
+    "MIDLONG_RISK_PCT",
+    "MIDLONG_SWING_MIN_RR",
+    "MIDLONG_SYMBOL_EXPOSURE_CAP_PCT",
+    "ML_DEEP_MODEL_ENABLED",
+    "ML_INFER_DEVICE",
+    "ML_TRAIN_DEVICE",
+    "ONCHAIN_ETHERSCAN_KEY",
+    "PB_CHECK_TIMEOUT_S",
+    # [P17-C① 执行 2026-09-10] 回撤判据的样本新鲜度阈值（≥该小时数无新样本 ⇒ 只告警不拒单）
+    "PB_DD_STALE_HOURS",
+    "PB_FREEZE_ENABLED",
+    "PB_MAX_SYMBOL_EXPOSURE_PCT",
+    "PB_MIDLONG_DRAWDOWN_SIGMA",
+    "PB_MIDLONG_MAX_SYMBOL_EXPOSURE_PCT",
+    "PB_PAPER_SKIP",
+    "PB_REPAIR_SPAWN_EVO",
+    "PB_SCALP_FREEZE_COOLDOWN_SEC",
+    "PB_SCALP_MAX_SYMBOL_EXPOSURE_PCT",
+    "PC_RISK_PER_TRADE_PCT_LONG",
+    # [2026-09-10 D6 根因修复] 盈利回撤保护的武装门槛基准：true=原始名义（默认），
+    # false=回滚旧的「3%×当前名义」口径（分批减仓后残仓会误触发全平）
+    "PDG_BASIS_ORIGINAL_NOTIONAL",
+    "PROMOTION_MAX_DRAWDOWN",
+    "PROMOTION_MIN_DSR",
+    "PROMOTION_MIN_TRADES",
+    "PROMOTION_MIN_WIN_RATE",
+    "REENTRY_LOSS_COOLDOWN_SEC_LONG",
+    "REENTRY_LOSS_COOLDOWN_SEC_MID",
+    "REENTRY_LOSS_COOLDOWN_SEC_SHORT",
+    "REENTRY_SL_COOLDOWN_SEC_LONG",
+    "REENTRY_SL_COOLDOWN_SEC_MID",
+    "REENTRY_SL_COOLDOWN_SEC_SHORT",
+    "REVIEW_MIN_INTERVAL_S",
+    "REVIEW_OFFICER_ENABLED",
+    "RISK_GATE_EXCEPTION_POLICY",
+    "RISK_MAX_SUBMITS_PER_SEC",
+    "RISK_P3_HARDFAT_SHADOW",
+    "RISK_USE_MID_TIER_IMMUNE",
+    "SCALP_DEFAULT_LEVERAGE",
+    "SCALP_EV_MIN_PCT_PAPER",
+    "SCALP_EXIT_FAST_CUT_MIN",
+    "SCALP_EXIT_PARAM_OVERRIDE",
+    "SCALP_EXIT_SL_PCT",
+    "SCALP_EXIT_TP_PCT",
+    "SCALP_LIQUIDITY_FILTER_ENABLED",
+    "SCALP_LLM_CONFIRM_ENABLED",
+    "SCALP_META_LOAD_WINDOW_DAYS",
+    "SCALP_META_WICK_SAMPLE_WEIGHT",
+    "SCALP_MIN_VOLUME_USD",
+    "SCALP_MR_SIZE_MULTIPLIER",
+    "SCALP_NEW_PARAM_MIN_SAMPLES",
+    "SCALP_PWIN_FAIL_CLOSED",
+    "SCALP_REDUCE_MIN_LOSS_PCT",
+    "SCALP_ROI_T1",
+    "SCALP_ROI_T2",
+    "SCALP_ROI_T3",
+    "SCALP_SHADOW_MODE_PAPER",
+    "SCALP_SHORT_EARLY_MORNING_GATE",
+    "SCALP_SHORT_EM_END_HOUR",
+    "SCALP_SHORT_EM_EXTRA_MULT",
+    "SCALP_SHORT_EM_MIN_RANGE_POS",
+    "SCALP_SHORT_EM_START_HOUR",
+    "SCALP_SHORT_PAPER_EXEMPT_MIN",
+    "SCALP_SHORT_PAPER_FULL_MIN",
+    "SCALP_USE_VETTED_FACTORS_ONLY",
+    "SCHEDULER_MAX_WORKERS",
+    "SMART_MONEY_ENABLED",
+    "SMART_MONEY_EVENT_USD",
+    "SMART_MONEY_MIN_NOTIONAL",
+    "SMART_MONEY_OKX_TOP_N",
+    "SNAPSHOT_PERIODS",
+    "SNAPSHOT_SCHEDULER_ENABLED",
+    "SNAPSHOT_SYMBOLS",
+    "SYMBOL_RISK_BAN_HOURS",
+    "THESIS_SHADOW_INCLUDE_LONG",
+    "THESIS_SHADOW_MAX_PER_CYCLE",
+    "THESIS_SHADOW_MAX_PER_DAY",
+    "THESIS_SHADOW_MIN_INTERVAL_S",
+    "WEEKLY_EVOLUTION_IN_PROCESS",
+    # ── [§63 登记 2026-09-10] settings.py 已定义但此前未登记的 39 个键 ──
+    # （这些键由 .env 读取、被 settings 解析；未登记时启动校验会把它们报成"疑似拼写/遗留"，
+    #   而该告警此前因调用时机问题进不了文件日志——见报告 §63。）
+    "AI_FACTOR_DISCOVERY_ENABLED",
+    "AUTO_COIN_FORBID_LONG",
+    "AUTO_COIN_SOURCE",
+    "FACTOR_CLOUD_SYNC_ENABLED",
+    "FACTOR_FUNDING_DIRECTION_FIX",
+    "FACTOR_HELDOUT_ENABLED",
+    "FACTOR_SCORER_DSR_REQUIRED",
+    "FACTOR_SCORER_LAG1_ENABLED",
+    "FACTOR_SCORER_LAG1_GATE",
+    "FACTOR_SCORER_NEUTRALIZE",
+    "FACTOR_SIGNAL_FILTER_NONDIRECTIONAL",
+    "FUNDING_SETTLE_APPLY_PNL",
+    "FUNDING_SETTLE_ENABLED",
+    "FUSION_LOW_QUALITY_HOLD",
+    "FUSION_REGIME_WEIGHT_MULTIPLIERS",
+    "INTRADAY_LLM_ENABLED",
+    "KLINE_P1_PERIOD_MODE",
+    "LIVE_TPSL_SYNC",
+    "LLM_BUDGET_PER_TENANT",
+    "LLM_HTTPS_PROXY",
+    "LLM_HTTP_PROXY",
+    "MIDLONG_ATR_SIZING_ENABLED",
+    "MIDLONG_CHOP_GATE_ENABLED",
+    "MIDLONG_CORE_BASKET",
+    "MIDLONG_CORR_CLUSTER_SYMBOLS",
+    "MIDLONG_FUNDING_GATE_ENABLED",
+    "MIDLONG_NO_PROGRESS_EXIT_ENABLED",
+    "MIDLONG_PORTFOLIO_GATE_ENABLED",
+    "MIDLONG_POSITION_MGMT_ENABLED",
+    "PAPER_FACTOR_LIVE_EXCLUDE",
+    "RISK_V2_UNIFIED_STAGED_TP",
+    "SCALP_DYNAMIC_HOLD_TPSL",
+    "SCALP_EV_NEW_PARAM_EXPLORE",
+    "SCALP_MARKET_AWARE_TPSL",
+    "SCALP_RESEARCH_ENABLED",
+    "SCALP_SHORT_LIVE_STRICT",
+    "SCALP_SHORT_REQUIRES_TREND_DOWN",
+    "TIER_LONG_ENABLED",
+    "TIER_MID_ENABLED",
     # ── auto-merged from codebase scan + manual entries ──
     "ACTIVE_MARKET_FLOW_EXCHANGES",
     "ADVERSARIAL_DEBATE_ENABLED",
@@ -81,10 +434,21 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "ARCHIVED_CLEANUP_DAYS",
     "ASSISTANT_DAILY_REPORT_HOUR_UTC",
     "AUDIT_HMAC_KEY",
+    # [P10 执行 2026-09-10] 保留期/轮转类键（原先既不在白名单、也不在任何 SYSTEM_PREFIX 下
+    # ⇒ 注册表校验完全看不到它们；这里显式登记，便于后续把 AUDIT_/LOG_ 前缀纳入校验）
+    "AUDIT_JSONL_MAX_BYTES",
+    # [§64 执行 2026-09-10] 启动器（scripts/_restart_backend_clean.py）的 console 日志轮转阈值
+    "BACKEND_CONSOLE_LOG_MAX_MB",
+    "AUDIT_BACKUP_KEEP_DAYS",
+    "LOG_RETENTION_DAYS",
+    "REPORT_RETENTION_DAYS",
+    "AI_DECISION_LOG_RETENTION_DAYS",
     "AUTO_COIN_AI_REVIEW_INTERVAL_SEC",
     "AUTO_COIN_AI_REVIEW_MAX_CANDIDATES",
     "AUTO_COIN_BLACKLIST_DAYS",
     "AUTO_COIN_BLACKLIST_SCORE",
+    "AUTO_COIN_BOARD_VOLUME_PROBE_MIN",
+    "AUTO_COIN_BOARD_VOLUME_SOFT",
     "AUTO_COIN_CANDIDATE_TOP_N",
     "AUTO_COIN_COOLING_HOURS",
     "AUTO_COIN_COOLING_LONG_HOURS",
@@ -139,6 +503,64 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "AUTO_COIN_MID_RESAMPLE_SEC",
     "AUTO_COIN_MID_MAX_SLOTS",
     "MIDLONG_AI_MIN_CONF",
+    # [2026-09-09 根因修复] LLM 方向需框架同意（见 decision_hub._llm_direction_requires_framework_agree）
+    "MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE",
+    # [2026-09-09] 因子打分成本口径：empirical=真实费率+实测滑点
+    "FACTOR_SCORER_COST_SOURCE",
+    "FACTOR_SCORER_COST_EXCHANGE",
+    # [2026-09-09 根因修复] 位置闸 + 中线出场参数标定（见 .env 同名注释块）
+    "MIDLONG_LOCATION_GATE_ENABLED",
+    # [§78 补登记 2026-09-11] 位置闸"延后到长线闸"开关（交叉验证工具发现：有读取方但未登记）
+    "MIDLONG_LOCATION_DEFER_TO_LONG_GATE",
+    "MIDLONG_CHOP_MODE",
+    "MIDLONG_DOWN_SHORT_MODE",
+    # [2026-09-11 V11 深度解析] trend_broken 价格闸：浮亏 < 该%（价格口径，默认 3.0
+    # = SL6% 的一半）且日线非 down → 不执行方向复查平仓（交给 SL/追踪）；0=关闭回滚
+    "MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS",
+    # [2026-09-09 第十五轮] learned 空头准入第三条件：chg24 上限（防追涨摸顶）
+    "MIDLONG_SHORT_CHG24_MAX_PCT",
+    # [2026-09-11 用户指令] 模拟账户不做亏损类冻结：账户模式解析兜底 + paper 跳过闸
+    # （唯一权威见 backend/services/risk_management/loss_lock_policy.py）
+    "DEFAULT_TRADING_MODE",
+    # 注：`PB_PAPER_SKIP` 已在上面登记过（重复键会破坏"键唯一"契约测试，此处不再重复）
+    # [2026-09-09 第十六轮] 多头独立治理：learned（默认）/ regime_only / allow_all
+    # [2026-09-09 第十七/十八轮] up 分支 chg24∈[3,6)（spike 上界）；
+    #   chop 分支 pos≥60% 且 chg24≥2%（第十八轮按近 30 天实际 P&L 回滚）
+    "MIDLONG_LONG_MODE",
+    "MIDLONG_LONG_CHG24_MIN_UP_PCT",
+    "MIDLONG_LONG_CHG24_MAX_UP_PCT",
+    "MIDLONG_LONG_CHG24_MIN_CHOP_PCT",
+    "MIDLONG_LONG_CHOP_POS_MIN_PCT",
+    # [2026-09-10 第二十一轮] learned 特征闸作用车道（默认 mid；long 层被误伤 +$55）
+    "MIDLONG_LONG_LEARNED_TIERS",
+    "MM_W_BASE_BP",
+    "MM_K_INV",
+    "MM_MAX_ONE_SIDE_SEC",
+    "MM_STOP_LOSS_BP",
+    # [§82 执行 2026-09-11 / 决策 P5-A] 车道级风控闸门开关（默认 false：
+    # toxic_streak / 日亏闸在接线前**从未生效**，打开后影子证据基线变保守）
+    "MM_LANE_LIMITS_ENFORCE",
+    # [§84 执行 2026-09-11 / 决策 P27-A / 缺陷 #69] 熔断证据新鲜度（天；0=关闭约束）
+    "BREAKER_EVIDENCE_STALE_DAYS",
+    # [§88 执行 2026-09-11 / 决策 P29-A] long 层 SL 距离上限（0=关闭）
+    "MIDLONG_SL_MAX_PCT_LONG",
+    # [§95 2026-09-11 / 目标③] 抑制上限（0=关闭）+ 计数窗口小时（默认 24）
+    "EXIT_SUPPRESS_MAX_COUNT",
+    "EXIT_SUPPRESS_WINDOW_H",
+    "MIDLONG_LOCATION_MAX_PCT_LONG",
+    "MIDLONG_LOCATION_MIN_PCT_SHORT",
+    "MIDLONG_LOCATION_MAX_ADVERSE_24H_PCT",
+    "MIDLONG_LOCATION_REGIMES",
+    "MIDLONG_LOCATION_TIERS",
+    "EXIT_POLICY_MID_SL_PCT",
+    "EXIT_POLICY_MID_TIME_LIMIT_SEC",
+    "EXIT_POLICY_MID_MIN_ROI",
+    # [2026-09-10 第十九轮] 浮盈锁：mid 追踪激活 3.0→0.5%、回撤 1.5→0.15%；
+    # SL 改善步长防抖（价格 %）
+    "EXIT_POLICY_MID_TRAILING_ACTIVATION_PCT",
+    "EXIT_POLICY_MID_TRAILING_CALLBACK_PCT",
+    "EXIT_POLICY_TRAILING_MIN_STEP_PCT",
+    "AUTO_COIN_MAX_HOLD_HOURS_MID",
     "AUTO_COIN_SCORE_V3_ENABLED",
     "AUTO_COIN_SECTOR_LEADER_RET_1H",
     "AUTO_COIN_SECTOR_LEADER_VOL_Z",
@@ -463,6 +885,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_CALIBRATOR_ENABLED",
     "MIDLONG_DIRECTION_CONSISTENCY_ENABLED",
     "MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION",
+    # [P7 执行 2026-09-10] swing(mid) 赛道 EV 硬拦开关（默认 false）
+    "MIDLONG_EV_ENFORCE_MID",
     "MIDLONG_EV_FALLBACK_RR",
     "MIDLONG_EV_GATE_ENABLED",
     "MIDLONG_EXEC_AUTHORITY",
@@ -477,6 +901,24 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MASTER_STAGGER_SEC",
     "MIDLONG_MID_VIA_MLTO",
     "MIDLONG_MID_VIA_FACTOR_ROUTE",
+    "MIDLONG_BRAIN_MODE",
+    "MIDLONG_THESIS_TTL_MID_S",
+    "MIDLONG_THESIS_TTL_LONG_S",
+    "MIDLONG_THESIS_FAIL_BACKOFF_MID_S",
+    "MIDLONG_THESIS_FAIL_BACKOFF_LONG_S",
+    "MIDLONG_WATCH_SHOCK_PCT_MID",
+    "MIDLONG_WATCH_SHOCK_PCT_LONG",
+    "MIDLONG_WATCH_CHASE_PCT_MID",
+    "MIDLONG_WATCH_CHASE_PCT_LONG",
+    "MIDLONG_WATCH_NEAR_INV_PCT",
+    "MIDLONG_WATCH_MIN_REFRESH_S",
+    "MIDLONG_NO_THESIS_NO_OPEN",
+    "MIDLONG_CHART_REQUIRED",
+    "MIDLONG_THESIS_MAX_REFRESH_PER_CYCLE",
+    "MIDLONG_THESIS_WATCH_REFRESH_CAP",
+    "THESIS_SHADOW_ENABLED",
+    "COMMITTEE_SHADOW_ENABLED",
+    "LONG_TREND_V2",
     "FACTOR_ROUTE_MIN_ACTIVE_FACTORS",
     "FACTOR_CRITIC_ENABLED",
     "FACTOR_CRITIC_MODEL",
@@ -497,7 +939,6 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_OPEN_READINESS_MIN_MID",
     "MIDLONG_ORCH_SNAPSHOT_V2",
     "MIDLONG_ORCH_STALE_REFRESH_SEC",
-    "MIDLONG_PAPER_PROBE_ON_WAIT",
     "MIDLONG_PAPER_PROBE_STRICT",
     "MIDLONG_PERSISTENCE_TICKS",
     "MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL",
@@ -540,8 +981,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MULTI_VENUE_FUNDING_SYMBOLS",
     "MULTI_VENUE_FUNDING_VENUES",
     "NSGA2_ENABLED",
-    # [2026-08-24 槽位治理] 本地 Ollama 全局并发槽数（重负载调用方每调用方另限 1 槽）
-    "OLLAMA_MAX_CONCURRENT",
+    # [2026-08-24 槽位治理] 本地 Ollama 全局并发槽数（重负载调用方另有单调用方上限）
+    "OLLAMA_MAX_CONCURRENT",         # 默认 4（实测真并行度约 4，再高只排队）
+    "OLLAMA_HEAVY_CALLER_SLOTS",     # 单个重调用方的槽上限（默认 2 = 全局的一半）
+    "OLLAMA_SLOT_WAIT_SEC",          # 抢槽等待秒数（默认 3；等久了不如降级云端）
+    "OLLAMA_CALL_TIMEOUT_SEC",       # 高频短调用的超时上限（默认 8s，用于快速降级云端）
+    "OLLAMA_DEEP_CALL_TIMEOUT_SEC",  # 深度分析调用的超时上限（默认 300s；8s 会掐断长输出）
     "OPENAI_API_KEY",
     "OPENCODE_AGENT_BUILD",
     "OPENCODE_AGENT_PLAN",
@@ -701,8 +1146,6 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "RISK_USE_NATURE_EXIT_ORCHESTRATOR",
     "RISK_USE_TIER_PROMPT_HINTS",
     "RISK_USE_TIER_TP_SL_V2",
-    "RISK_USE_LEARNED_TP_SL",
-    "RISK_TP_SL_TRAIN_AUTO",
     "RISK_USE_VOL_BAND_ATR_MULT",
     "RISK_USE_VOL_BAND_DEFAULTS",
     "RISK_USE_VOL_BAND_X_HIGH",
@@ -720,6 +1163,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "SCALP_CALIBRATOR_CACHE_TTL_SEC",
     "SCALP_CALIBRATOR_ENABLED",
     "SCALP_CALIBRATOR_LOOKBACK_DAYS",
+    "SCALP_CALIBRATOR_MIN_CORR",
     "SCALP_CALIBRATOR_MIN_SAMPLES",
     "SCALP_CALIBRATOR_SAMPLE_SINCE",
     "SCALP_COUNTER_TREND_SIZE_MULT",
@@ -745,6 +1189,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "SCALP_LIQ_MAGNET_OPEN_DISABLED",
     "MASTER_SCALP_EXIT_WHITELIST",
     "SCALP_MASTER_HARD_BLOCK",
+    "SCALP_OPEN_DISABLED",
     "SCALP_MAX_OPENS_PER_TICK",
     "SCALP_META_COST",
     "SCALP_META_DEDUP_SEC",
@@ -767,6 +1212,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "SCALP_MR_RSI_OB",
     "SCALP_MR_RSI_OS",
     "SCALP_MR_TP_RANGE_FRAC",
+    "SCALP_MR_TREND_VETO_ENABLED",
     "SCALP_MTF_CONFLICT_MULT",
     "SCALP_MTF_ENFORCE_ENABLED",
     "SCALP_MTF_HARD_ONLY_ANCHOR",
@@ -782,6 +1228,266 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "SCALP_RANGING_MR_ENABLED",
     "SCALP_REVERSE_SOFT_VETO_MULT",
     "SCALP_SIGNAL_LOG_ENABLED",
+    # ── [2026-09-03 v3 Phase 0] 止血 / 账本 ──
+    "SCALP_SHADOW_MODE",
+    "MIDLONG_OPEN_SHORT_ENABLED",
+    "MIDLONG_SHORT_MODE",
+    "FEE_BUDGET_DAILY_PCT",
+    "EDGE_LEDGER_ACCOUNTS",
+    "EXIT_FEE_BUDGET_PCT",
+    # ── [2026-09-03 v3 方向7] RiskEngine 单入口 / TradingState / 急停 / 熔断 ──
+    "RISK_ENGINE_V3_ENABLED",        # 默认 true；false=只记录不拦截（观察模式）
+    "RISK_DAILY_QUOTA_ENABLED",      # 默认 true；日开仓配额（单一来源 runtime_tuning）
+    "LIVE_KILL_SWITCH",              # 部署级急停（true=实盘新开仓全拒）
+    "LIVE_KILL_SWITCH_SCOPE",        # live（默认）| all（paper 也拦）
+    "RISK_COMMAND_TOKEN",            # /api/ops/risk/* 写操作与飞书命令回调的共享令牌
+    "RISK_CONNECTIVITY_FAIL_THRESHOLD",  # 连续失败阈值（默认 3）
+    "RISK_CONNECTIVITY_COOLDOWN_SEC",    # 熔断冷却（默认 600）
+    "RISK_FLASH_CRASH_1H_PCT",       # BTC 1h 跌幅阈值（默认 8）
+    "RISK_FLASH_CRASH_4H_PCT",       # BTC 4h 跌幅阈值（默认 12）
+    "RISK_FLASH_CRASH_REDUCING_HOURS",   # 闪崩后 REDUCING 持续小时（默认 24）
+    "RISK_DD_HALVE_PCT",             # 组合回撤减半档（默认 20）
+    "RISK_DD_REDUCING_PCT",          # 组合回撤只平不开档（默认 30）
+    # ── [2026-09-03 v3 方向6] 统一告警通道（飞书沿用 notification_config.json）──
+    "ALERT_TELEGRAM_BOT_TOKEN",
+    "ALERT_TELEGRAM_CHAT_ID",
+    "ALERT_WEBHOOK_URLS",            # 逗号分隔的通用 webhook（POST JSON）
+    "ALERT_DEDUPE_SEC",              # 同 dedupe_key 去重窗口（默认 600）
+    "ALERT_P0_DEDUPE_SEC",           # P0 去重窗口（默认 120）
+    "ALERT_P2_ALL_CHANNELS",         # P2 也发全通道（默认 false，只飞书）
+    # ── [2026-09-03 v3 方向4 p0-event-data] 免费事件数据接入 ──
+    "EVENT_COLLECTORS_HOST",         # dc | main | both：事件采集任务在哪个进程执行（默认 dc 数据中心）
+    "EVENTS_HTTPS_PROXY",            # 非 Binance 域（OKX/Bybit）的 HTTPS 代理；缺省退 HTTPS_PROXY
+    "EVENTS_HTTP_DIRECT",            # =1 全部直连（不走任何代理）
+    "BINANCE_WEIGHT_SOFT_LIMIT",     # 事件采集器共享的 Binance 1 分钟权重软上限（默认 1500/2400，超过即等下一分钟）
+    "BINANCE_EVENTS_MIN_INTERVAL_SEC",  # 事件采集器 Binance 请求最小间隔（默认 0.15s）
+    "FUNDING_BACKFILL_SLEEP_SEC",    # fundingRate 回填每请求间隔（默认 0.65s；该端点 500 次/5 分钟独立限额）
+    "LIQUIDATION_STREAM_ENABLED",    # 清算 WebSocket 常驻（默认 true）
+    "LIQUIDATION_STREAM_SOURCES",    # 清算源列表（默认 binance,asterdex,okx,bybit；Binance 期货流在部分网络静默）
+    "BYBIT_LIQ_TOP_N",               # Bybit allLiquidation 订阅币数（24h 成交额 Top-N，默认 60）
+    "LIQ_SILENT_WARN_SEC",           # 已连接但无帧多久标记 silent 并告警（默认 900）
+    "LIQ_LARGE_TICK_USD",            # 单笔大额清算事件阈值（默认 250000）
+    "LIQ_CASCADE_5M_MAJOR_USD",      # BTC/ETH 5 分钟级联阈值（默认 1e7）
+    "LIQ_CASCADE_5M_USD",            # 其它币 5 分钟级联阈值（默认 2e6）
+    "LIQ_CASCADE_5M_MARKET_USD",     # 全市场 5 分钟级联阈值（默认 5e7）
+    "LIQ_TICKS_RETENTION_DAYS",      # 逐笔清算保留天数（默认 30）
+    "POSITION_STRUCTURE_TOP_N",      # 持仓结构币池：24h 成交额 Top-N（默认 60）∪ 核心币
+    "POS_OI_JUMP_PCT",               # 1h OI 名义变动事件阈值 %（默认 8）
+    "FUNDING_EXTREME_8H",            # 极端资金费阈值（8h 口径，默认 0.001 = 0.1%）
+    "NEWS_HIGH_IMPACT_MIN",          # 新闻桥接最低强度（量纲 1–5，默认 4）
+    "WHALE_LARGE_USD",               # 巨鲸桥接最低金额（默认 5e7）
+    "BRIDGE_LOOKBACK_HOURS",         # 桥接回看窗口小时（默认 6）
+    "RISK_EVENT_WINDOWS_ENABLED",    # RiskEngine 事件避险窗口检查（默认 true）
+    "RISK_EVENT_NEWS_BLOCK",         # 负面强新闻禁开多（默认 false，待 E5-5 影子验证）
+    # ── [v3 方向2 p0-model-gateway] ModelGateway / QuotaGuard / 深度分析 ──
+    "MINIMAX_API_KEY",               # MiniMax Token Plan 订阅 Key（Anthropic 兼容 API 直连）
+    "MINIMAX_BASE_URL",              # 默认 https://api.minimax.io/anthropic
+    "MINIMAX_MODEL",                 # 默认 MiniMax-M3（可 MiniMax-M2.7）
+    "MINIMAX_HTTPS_PROXY",           # MiniMax 直连专用代理；缺省退 EVENTS_HTTPS_PROXY → HTTPS_PROXY
+    "ZAI_CODING_PLAN_API_KEY",       # GLM Coding Plan Key（只给 OpenCode sidecar 的 zai-coding-plan provider；后端不直连）
+    "GLM_OPENCODE_MODEL",            # sidecar 模型 slug（默认 zai-coding-plan/glm-5.3）
+    "GLM_OPENCODE_AGENT",            # sidecar agent（默认 analysis：只读、纯 JSON）
+    "DEEPSEEK_MODEL",                # 仲裁票 env 兜底模型（默认 deepseek-v4-flash；优先用租户 deep_analysis 用途配置）
+    "ANALYSIS_PRIMARY_TRANSPORTS",   # 两条主传输（默认 minimax,glm_opencode）
+    "ANALYSIS_ARBITER_TRANSPORT",    # 第三票（默认 deepseek）
+    "ANALYSIS_FALLBACK_TRANSPORTS",  # 主票缺席时的顶替候选（默认 deepseek,ollama）
+    "ANALYSIS_OLLAMA_MODEL",         # 本地票模型（默认 qwen3:14b）
+    "ANALYSIS_OLLAMA2_MODEL",        # 第二条本地票模型（须与上一条不同，默认 qwen2.5:7b）
+    "ANALYSIS_LOCAL_TRANSPORTS",     # 免配额的本地传输名单（默认 ollama,ollama2）
+    # ── [2026-09-03 v3 方向1 p1-trend-engine] E1 趋势引擎 / PositionConstruction / ExitPolicy ──
+    "TREND_CORE_SYMBOLS",            # E1 核心币（默认 BTC,ETH,SOL,BNB,XRP,DOGE,LINK,AVAX）
+    "TREND_EXEC_LAG_DAYS",           # 实盘执行延迟天数（1 = 回测验证口径）
+    "TREND_DATA_EXCHANGE",           # 日线数据源交易所（默认 binance）
+    "TREND_WEIGHTING",               # equal | vol_target | portfolio_vol_target
+    "TREND_VOL_TARGET",              # 趋势桶目标年化波动（0.35）
+    "TREND_MAX_WEIGHT_PER_SYMBOL",   # 单币名义上限（0.35）
+    "TREND_GROSS_CAP",               # 趋势车道总名义上限（1.0）
+    "TREND_RISK_PER_TRADE_PCT",      # 单笔风险帽（长线 0.0125）
+    "TREND_STOP_RATCHET",            # Chandelier 是否只上移（默认 false=回测口径）
+    "TREND_ENTRY_RULE",              # ema_stack（回测验证）| l1_score（对照）
+    "TREND_CHANDELIER_MULT",         # Chandelier 倍数（3.0）
+    "TREND_ATR_PERIOD",              # ATR 窗口（20）
+    "TREND_VOL_LOOKBACK",            # 实现波动窗口（60 日）
+    "TREND_MAX_POSITIONS",           # 同时最多持仓数（8）
+    "TREND_E1_ENABLED",              # E1 日任务是否真下单（false=只算目标 + 漂移）
+    "TREND_E1_ACCOUNT_IDS",          # E1 执行的模拟账户 id（逗号分隔）
+    "TREND_E1_BUCKET_FRACTION",      # 趋势桶占权益（E4 三桶 60/30/10 → 0.60）
+    "TREND_E1_REBALANCE_TOL",        # 权重超目标多少才减仓（相对 0.25）
+    "TREND_E1_DRY_RUN",              # 只打印动作
+    "TREND_E1_ADOPT_LEGACY_LONGS",   # 接管核心币"应持"的存量非 E1 长仓（默认 true）
+    "TREND_E1_LONG_LANE_EXCLUSIVE",  # E1 独占长车道（默认随 TREND_E1_ENABLED）
+    "LIVE_LEVERAGE_FAIL_CLOSE",      # 实盘杠杆对齐失败即拒绝开仓（默认 true）
+    "SYMBOL_LEVERAGE_ENABLED",       # 币种杠杆总开关（默认 true；关闭回落旧 requested 行为）
+    "SYMBOL_LEVERAGE_MAP",           # 币种杠杆档位 "BTC:5,ETH:5,SOL:4"
+    "SYMBOL_LEVERAGE_DEFAULT",       # 未列入币种的档位（默认 3）
+    "POSITION_CONSTRUCTION_ENFORCE", # 仓位构造单一权威硬帽（默认 true）
+    "PC_VOL_TARGET", "PC_MAX_WEIGHT_PER_SYMBOL", "PC_RISK_PER_TRADE_PCT", "PC_MAX_LEVERAGE", "PC_CLUSTER_CAP",
+    "PC_GROSS_CAP", "PC_CONF_SCALE_MIN",  # 全局默认；PC_<PARAM>_<LANE> 按车道覆盖（见 KNOWN_FLAG_PATTERNS）
+    "EXIT_POLICY_ENFORCE",           # ExitPolicy 车道声明层（默认 true）；EXIT_POLICY_<LANE>_<PARAM> 见 KNOWN_FLAG_PATTERNS
+    "LIVE_NATIVE_TRAILING_STOP",     # live 侧 ExitPolicy trailing 激活时挂交易所原生 TRAILING_STOP_MARKET（默认 false）
+    "ANALYSIS_UNIVERSE",             # context pack 币池（默认 BTC,ETH,SOL,BNB,XRP,DOGE,ADA,AVAX）
+    "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
+    "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
+    "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）
+    "ANALYSIS_MAX_CONTEXT_TOKENS",       # 单次上下文上限（默认 60000）
+    "ANALYSIS_MAX_OUTPUT_TOKENS",        # 单次输出上限（默认 4000）
+    "ANALYSIS_5H_CALLS_PER_MODEL",       # 5 小时滚动窗每模型调用上限（默认 30；仅作未列入 MAP 的兜底）
+    "ANALYSIS_WEEKLY_CALLS_PER_MODEL",   # 周滚动每模型调用上限（默认 150；同上）
+    # [2026-09-04] 按传输覆盖：各家套餐差着数量级（GLM Max 每 5h 约 2400 次、
+    # MiniMax Token Plan 实测 8 次仅耗 4%、DeepSeek 按量付费超额即账单），
+    # 共用一个全局上限只能按最弱的定，等于把买来的高档额度锁在门外。
+    "ANALYSIS_5H_CALLS_MAP",             # 形如 glm_opencode:400,minimax:100,deepseek:50
+    "ANALYSIS_WEEKLY_CALLS_MAP",         # 形如 glm_opencode:2000,minimax:400,deepseek:250
+    "ANALYSIS_DAILY_CALLS_MAP",          # 单传输每日总调用上限（与分类上限取较小者）
+    "ANALYSIS_ALLOW_GLM_PEAK",           # 允许深度任务在 GLM 峰时（工作日 14–18 点，3× 消耗）运行（默认 false）
+    "ANALYSIS_GLM_PEAK_TZ_OFFSET_H",     # 峰时/日界判定时区偏移小时（默认 8）
+    # ── [v3 方向2 p1-deep-analysis] 双模型任务族 ──
+    "ANALYSIS_TASKS_ENABLED",            # 日简报/周复盘/择时/事件评估总开关（默认 true）
+    "ANALYSIS_WEEKLY_ENABLED",           # 周复盘定时（默认 false，研究报告不控仓）
+    "ANALYSIS_TIMING_ENABLED",           # 择时定时（默认 false）
+    "ANALYSIS_EVENT_LOOKBACK_HOURS",     # 事件扫描回看小时（默认 96）
+    "ANALYSIS_EVENT_MIN_SEVERITY",       # 事件评估最低严重度（默认 3）
+    "ANALYSIS_EVENT_BATCH_LIMIT",        # 每次扫描最多评估条数（默认 8；原 3）
+    "AGENT_ANOMALY_INTERVAL_SEC",        # 异常 Agent 扫描间隔秒（默认 900）
+    "ANALYSIS_EVENT_SCAN_SEC",           # 事件扫描间隔秒（默认 900）
+    "ANALYSIS_TREND_CHART_SEC",          # 图审扫描间隔秒（默认 28800=8h）
+    "ANALYSIS_TREND_CHART_FRESH_H",      # 已入账图审短于此时长则跳过（默认 8h）
+    "ANALYSIS_TREND_CHART_MAX_PER_CYCLE",  # 单轮最多审几个币（默认 4）
+    "MIDLONG_CHART_GATE_LOOKBACK_H",     # 开仓闸认图审的最长小时数（默认 16）
+    # [P11 执行 2026-09-10] 图审信号/立场建议的时效上限（分钟）
+    "MIDLONG_CHART_MAX_SIGNAL_AGE_MIN",  # 通用：超过即 fail-open 不否决（默认 240）
+    "MIDLONG_CHART_ADVICE_TTL_MIN",      # 立场型建议（no_new_long/short）独立 TTL（默认 180，0=关闭特例）
+    "MIDLONG_CHART_GATE_CONFLICT_STRENGTH",
+    "MIDLONG_CHART_GATE_SUPPORT_STRENGTH",
+    "MIDLONG_CHART_GATE_ENABLED",
+    # ── [v3 方向5 p1-cashflow] E2 现金流 ──
+    "CASHFLOW_ASTER_TE_ENABLED",         # Aster T&E 账本定时刷新
+    "CASHFLOW_CARRY_SIM_ENABLED",        # 多场所 carry Paper 模拟
+    "CASHFLOW_CARRY_NOTIONAL_USD",       # 模拟单腿名义（默认 500）
+    "CASHFLOW_CARRY_MIN_NET_APR",        # 最低净 APR（默认 0.08）
+    "CASHFLOW_CARRY_HORIZON_DAYS",       # 持有天数假设（默认 7）
+    "CASHFLOW_CARRY_MAX_EXEC",           # 每次最多模拟几组 combo（默认 3）
+    "CASHFLOW_IDLE_EARN_ENABLED",        # 闲置理财任务
+    "CASHFLOW_IDLE_EARN_LIVE",           # false=只 dry 记录；true=真申购 Binance Simple Earn
+    "CASHFLOW_IDLE_EARN_ACCOUNT_IDS",    # 逗号分隔 live Binance 账户；空=自动发现
+    "CASHFLOW_IDLE_MIN_USDT",            # 超过多少闲置 USDT 才申购（默认 200）
+    "CASHFLOW_IDLE_MAX_SUBSCRIBE_USDT",  # 单次申购上限（默认 5000）
+    "CASHFLOW_IDLE_RESERVE_USDT",        # 账户保留 USDT（默认 100）
+    # ── [v3 方向3 p1-agents-a] SignalReview / Anomaly / Timing 观察模式 Agent ──
+    "AGENTS_ENABLED",                    # Agent 定时任务总开关（默认 true；关闭后到期评分器仍挂载）
+    "AGENT_LLM_ENABLED",                 # Agent 的 LLM 解释层（默认 false：确定性核心不消耗模型配额）
+    "AGENT_GATE_MIN_SCORED",             # 升级到 advise 所需已评分预测数（默认 30）；AGENT_GATE_MIN_SCORED_<AGENT> 可单独覆盖
+    "AGENT_GATE_MIN_SCORE",              # 升级所需平均得分（默认 0.55）
+    "AGENT_GATE_MAX_BRIER",              # 升级允许的最大 Brier（默认 0.30）
+    "AGENT_SIGNAL_REVIEW_DAYS",          # 复盘回看天数（默认 30）
+    "AGENT_SIGNAL_REVIEW_MIN_N",         # 出结论所需最少信号数（默认 20）
+    "AGENT_SIGNAL_REVIEW_MIN_N_PRED",    # 落 source_edge 预测所需最少信号数（默认 30）
+    "AGENT_SIGNAL_REVIEW_WINDOW_H",      # source_edge 预测窗口小时（默认 168）
+    "AGENT_SIGNAL_REVIEW_BUCKET_MIN_N",  # 半衰期曲线每桶最少样本（默认 10）
+    "AGENT_ANOMALY_LOOKBACK_H",          # 异常检测回看小时（默认 168）
+    "AGENT_ANOMALY_REDUCE_SCORE",        # stress 到多少建议 REDUCING（默认 0.55）
+    "AGENT_ANOMALY_HALT_SCORE",          # stress 到多少建议 HALTED（默认 0.80）
+    "AGENT_ANOMALY_WINDOW_H",            # trading_state 预测窗口小时（默认 24）
+    "AGENT_ANOMALY_STRESS_DD_PCT",       # 评分口径：窗口内 BTC 回撤 ≥ 该值视为真有压力（默认 4.0）
+    "AGENT_ANOMALY_STALE_H",             # 数据源静默多少小时算陈旧（默认 6）
+    "AGENT_ANOMALY_LLM_MIN_STRESS",      # stress 低于该值不调 LLM 归因（默认 0.35；硬触发无视）
+    "AGENT_TIMING_WINDOW_H",             # regime 预测窗口小时（默认 168）
+    "AGENT_TIMING_HIGH_VOL_PCT",         # BTC 60d 实现波动 ≥ 该值判 high_vol（默认 100）
+    "AGENT_TIMING_MIN_UP",               # 一致方向门槛上限（默认 5；8 币实际取 4）
+    "AGENT_TIMING_LIQ_FLOOR",            # 7d/90d 均量比低于该值且无方向 → low_liquidity（默认 0.35）
+    # ── [v3 方向3 p2-agents-b] EventImpact / ParamSearch / ExecutionQA + 实验卡闭环 ──
+    "AGENT_EVENT_IMPACT_MIN_N",          # 事件类型出结论所需最少样本（默认 30）
+    "AGENT_EVENT_IMPACT_WINDOW_H",       # event_impact 预测窗口小时（默认 336 = 14 天）
+    "AGENT_EVENT_IMPACT_REFRESH",        # true=现算全量事件研究（分钟级）；默认 false 读 event_study 落盘报告
+    "AGENT_PARAM_SEARCH_ENABLED",        # ParamSearch 扫描开关（默认 true；扫描只读不下单）
+    "AGENT_PARAM_TARGETS",               # 逗号分隔的扫描目标（默认全部 E5 策略）
+    "AGENT_PARAM_TRAIN_FRAC",            # 样本外切分比例（默认 0.7：前 70% 训练、后 30% 检验）
+    "AGENT_PARAM_MIN_N_TEST",            # 样本外最少样本数，不足不提议（默认 30）
+    "AGENT_PARAM_WINDOW_H",              # param_shift 预测窗口小时（默认 336）
+    "AGENT_EXEC_QA_LOOKBACK_H",          # 执行质量回看小时（默认 168）
+    "AGENT_EXEC_QA_SLIP_WARN_BP",        # 滑点中位数警戒线 bp（默认 8）
+    "AGENT_EXEC_QA_REJECT_WARN",         # 拒单率警戒线（默认 0.05）
+    "AGENT_EXEC_QA_WINDOW_H",            # exec_quality 预测窗口小时（默认 24）
+    "AGENT_EXEC_QA_MIN_ORDERS",          # 出结论所需最少订单数（默认 20）
+    "EXPERIMENT_AUTO_START",             # 观察型实验卡自动 proposed→running（默认 true；改配置型永远需人工）
+    "EXPERIMENT_MAX_EXTENSIONS",         # 样本不足最多延长几次，超限按无结论结案（默认 3）
+    # ── [v3 方向2 p2-oms-exec] 订单状态机 / client_order_id / maker 追价 / 日对账 ──
+    "OMS_RECORD_ORDERS",                 # 现有下单路径落 live_orders（默认 true；不改下单方式）
+    "OMS_SHADOW",                        # ExecutionAlgo 影子模式：走状态机但不发真单（默认 true）
+    "OMS_CLIENT_ID_PREFIX",              # client_order_id 前缀（默认 ha；便于交易所后台辨认）
+    "OMS_JOBS_ENABLED",                  # 悬挂扫描 + 日对账任务开关（默认 true）
+    "OMS_STUCK_SEC",                     # 悬挂单告警阈值秒（默认 300）
+    "OMS_RECONCILE_AUTO_FIX",            # 对账是否自动改写本地状态（默认 false：只报告）
+    "OMS_RECONCILE_LOOKBACK_H",          # 对账回看小时（默认 48）
+    "OMS_RECONCILE_UNKNOWN_GRACE_SEC",   # submitted/unknown 无交易所证据多久后标 expired（默认 3600）
+    "EXEC_ALGO_ENABLED",                 # 接管下单走 maker 追价（默认 false；须显式打开）
+    "EXEC_ALGO_CHASE_TIMEOUT_S",         # 单次挂单等待秒（默认 8）
+    "EXEC_ALGO_MAX_CHASES",              # 最多追价次数含首次（默认 3）
+    "EXEC_ALGO_CHASE_STEP_BP",           # 每次向对手价靠拢步长 bp（默认 1）
+    "EXEC_ALGO_POLL_INTERVAL_S",         # 轮询间隔秒（默认 1.5）
+    "EXEC_ALGO_FALLBACK",                # 追不到后：market|cancel|leave（默认 market）
+    "EXEC_ALGO_POST_ONLY",               # 是否 post-only（默认 true）
+    # ── [v3 方向5 p2-arb-infra] 套利 scorecard / 资金划转 / carry 小资金 ──
+    "ARB_SCORECARD_DAYS",                # scorecard 回看天数（默认 30）
+    "ARB_SCORECARD_MIN_N",               # 小资金晋升门：最少平仓/日志样本（默认 10）
+    "ARB_SCORECARD_MIN_ANN",             # 小资金晋升门：最低年化（默认 0.05）
+    "FUND_TRANSFER_ENABLED",             # 资金划转服务总开关（默认 false）
+    "FUND_TRANSFER_LIVE",                # false=只 dry 记账；true=真调交易所 transfer（默认 false）
+    "CASHFLOW_CARRY_SMALL_ENABLED",      # carry 小资金任务（默认 true）
+    "CASHFLOW_CARRY_SMALL_LIVE",         # false=研究桶帽名义仍走 Paper；true 才意图 Live（默认 false）
+    "CASHFLOW_CARRY_RESEARCH_EQUITY_USD",  # 研究桶权益基准（默认 5000）
+    "CASHFLOW_CARRY_RESEARCH_BUCKET_PCT",  # 小资金占研究桶比例（默认 0.05；硬帽 ≤0.20）
+    # ── [v3 p3-promotion] 晋升放量 / 分配器 / 尾部 / F4 / 付费决策 ──
+    "ALLOCATOR_APPLY",                   # true=把 bucket_weights 写入 runtime_tuning（默认 false）
+    "ALLOCATOR_CRED_MIN_N",              # Timing 可信度样本门槛（默认 30）
+    "ALLOCATOR_CRED_MIN_SCORE",          # Timing 可信度均分门槛（默认 0.55）
+    "ALLOCATOR_RESEARCH_EQUITY_USD",     # 研究桶权益基准（默认 5000）
+    "FUNDING_TAIL_ENABLED",              # 尾部 funding 扫描（默认 true）
+    "FUNDING_TAIL_LIVE",                 # 尾部收割真下单意图（默认 false）
+    "FUNDING_TAIL_ENTER_APR",            # 入场年化阈值（默认 0.50）
+    "FUNDING_TAIL_EXIT_APR",             # 出场年化阈值（默认 0.15）
+    "FUNDING_TAIL_MIN_STREAK",           # 连续结算窗口数（默认 3）
+    "BASIS_ENTRY_MIN_ABS_PCT",           # 基差入场 |%| 门槛（默认 0.15）
+    "BASIS_SMALL_ENABLED",               # 未晋级时仍允许 Paper 小名义（默认 true）
+    "BASIS_LIVE",                        # 基差 Live（默认 false）
+    "BASIS_PAPER_NOTIONAL_USD",          # Paper 默认名义（默认 200）
+    "E5_AUTO_PROMOTE",                   # E5 过门自动写入研究桶阶梯（默认 false）
+    "E5_RESEARCH_LIVE",                  # E5 研究桶真下单（默认 false）
+    "TREND_E1_LIVE_ASTER",               # E1 Aster 小额实盘意图（默认 false；须 F4 过门）
+    "TREND_E1_F4_MIN_DAYS",              # F4：最少模拟天数（默认 28）
+    "TREND_E1_F4_MAX_DRIFT",             # F4：|drift| 上限（默认 0.02）
+    "TREND_E1_F4_MAX_FEE_PCT_WEEK",      # F4：周费用/权益上限（默认 0.01）
+    "TREND_E1_F4_SKIP_FEE",              # F4：跳过费用项（默认 false）
+    "TREND_E1_F4_HALT_TESTS_OK",         # F4：声明停机单测已绿（默认 false）
+    # ── p2-event-strategies：E5 事件影子车道（只入 signal_ledger，无下单路径）──
+    "E5_SHADOW_ENABLED",                 # E5 影子车道总开关（默认 true）
+    "E5_E5_2_FUNDING_SHOCK_SHADOW_ENABLED",   # 单策略开关：资金费突变
+    "E5_E5_3_LIQ_CASCADE_SHADOW_ENABLED",     # 单策略开关：清算级联
+    "E5_E5_5_NEWS_HEDGE_SHADOW_ENABLED",      # 单策略开关：新闻避险
+    "E5_E5_2_FUNDING_SHOCK_LOOKBACK_H",       # 影子扫描回看小时（默认 24）
+    "E5_E5_3_LIQ_CASCADE_LOOKBACK_H",
+    "E5_E5_5_NEWS_HEDGE_LOOKBACK_H",
+    "E5_FUNDING_Z",                      # E5-2 |Δfunding| z 阈值（默认 3.0）
+    "E5_FUNDING_MIN_HISTORY",            # E5-2 滚动窗最少样本数（默认 60 ≈ 20 天）
+    "E5_FUNDING_ROLL_WINDOW",            # E5-2 滚动窗长度（默认 60）
+    "E5_FUNDING_REQUIRE_OI",             # E5-2 是否要求 OI 同向增确认（默认 true）
+    "E5_FUNDING_OI_MIN_PCT",             # E5-2 OI 同向增最低幅度 %（默认 2.0；无 OI 时降置信入账）
+    "E5_FUNDING_OI_WINDOW_H",            # E5-2 OI 变化观察窗小时（默认 8）
+    "E5_FUNDING_HORIZON_H",              # E5-2 信号时长（默认 4）
+    "E5_FUNDING_MIN_ABS_8H",             # E5-2 绝对费率下限，滤 0 附近噪声（默认 0.0002）
+    "E5_LIQ_BUCKET_MIN",                 # E5-3 滚动桶宽分钟（默认 30；回退小时源时自动用 60）
+    "E5_LIQ_MIN_HISTORY_BUCKETS",        # E5-3 算 P99 所需最少历史桶（默认 336 = 7 天）
+    "E5_LIQ_PERCENTILE",                 # E5-3 分位阈值（默认 0.99）
+    "E5_LIQ_SIDE_RATIO",                 # E5-3 单边率下限（默认 0.70）
+    "E5_LIQ_MIN_NOTIONAL_USD",           # E5-3 绝对金额下限（默认 200 万美元）
+    "E5_LIQ_HORIZON_H",                  # E5-3 信号时长（默认 2）
+    "E5_LIQ_COOLDOWN_BUCKETS",           # E5-3 同币冷却桶数（默认 4）
+    "E5_NEWS_MIN_STRENGTH",              # E5-5 最低新闻强度（量纲 1–5，默认 4）
+    "E5_NEWS_MIN_DIRECTION",             # E5-5 最低 |方向|（默认 0.5）
+    "E5_NEWS_HEDGE_HOURS",               # E5-5 负面新闻避险窗小时（默认 6）
+    "E5_NEWS_POS_HORIZON_H",             # E5-5 正面新闻信号时长（默认 3）
+    "E5_NEWS_COOLDOWN_MIN",              # E5-5 同币冷却分钟（默认 60）
+    "E5_NEWS_HEDGE_LEV_MULT",            # E5-5 避险窗内杠杆乘数（默认 0.5；Phase 3 才生效）
     "SCALP_SIGNAL_LOG_MIN_SCORE",
     "SCALP_SIZE_PCT",
     "SCALP_MIN_MARGIN_PCT",
@@ -964,23 +1670,74 @@ def _is_falsy(val: str) -> bool:
     return val.strip().lower() in ("", "0", "false", "no", "off", "disabled", "disable")
 
 
+# [2026-09-03 v3 方向1] 按车道参数化的 flag 家族（枚举不完，按模式登记）：
+#   EXIT_POLICY_<LANE>_<PARAM>   ExitPolicy 车道覆盖（SL_PCT / TP_PCT / TIME_LIMIT_SEC / TRAILING_* / MIN_ROI / TP_STAGES / ...）
+#   PC_<PARAM>_<LANE>            PositionConstruction 车道覆盖（MAX_LEVERAGE / RISK_PER_TRADE_PCT / ...）
+KNOWN_FLAG_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^EXIT_POLICY_(SHORT|MID|LONG|RESEARCH|ARB)_[A-Z0-9_]+$"),
+    re.compile(r"^PC_[A-Z0-9_]+_(SHORT|MID|LONG|RESEARCH|ARB)$"),
+    # p1-agents-a / p2-agents-b：AGENT_MODE_<AGENT>（observe|advise|act）与 AGENT_GATE_*_<AGENT> 按 Agent 覆盖
+    re.compile(r"^AGENT_MODE_(SIGNAL_REVIEW|ANOMALY|TIMING|EVENT_IMPACT|PARAM_SEARCH|EXECUTION_QA)$"),
+    re.compile(r"^AGENT_GATE_(MIN_SCORED|MIN_SCORE|MAX_BRIER)_"
+               r"(SIGNAL_REVIEW|ANOMALY|TIMING|EVENT_IMPACT|PARAM_SEARCH|EXECUTION_QA)$"),
+)
+
+
+def _matches_known_pattern(flag: str) -> bool:
+    return any(p.match(flag) for p in KNOWN_FLAG_PATTERNS)
+
+
+def ensure_env_loaded() -> bool:
+    """[§63 修复] 确保 `.env` 已进入 os.environ 后再做校验。
+
+    修复前：本模块的 CLI（`python -m backend.config.env_registry --check`）**不加载 .env**，
+    于是它扫描的是一个空荡荡的环境 ⇒ 恒返回「未知系统 flag: 0 / 退出码 0」的**假绿**。
+    启动路径（`backend/main.py`）恰好因为 `framework_rollout → settings → load_dotenv`
+    的偶然顺序而能看到 `.env`，但这种"碰运气"不该是校验器的前提。
+    返回是否成功加载（找不到 .env 时返回 False）。
+    """
+    global _ENV_LOAD_ATTEMPTED, _ENV_LOADED_OK
+    if _ENV_LOAD_ATTEMPTED:
+        return _ENV_LOADED_OK
+    _ENV_LOAD_ATTEMPTED = True
+    try:
+        from pathlib import Path
+
+        from dotenv import load_dotenv
+        root = Path(__file__).resolve().parents[2]      # backend/config → backend → 仓库根
+        env_file = root / ".env"
+        if env_file.is_file():
+            load_dotenv(str(env_file), override=False)   # 不覆盖真实环境变量
+            _ENV_LOADED_OK = True
+    except Exception as exc:  # pragma: no cover
+        logger.debug("[EnvRegistry] .env 加载失败（结果可能为空）: %s", exc)
+    return _ENV_LOADED_OK
+
+
 def find_unknown_flags(env: dict[str, str] | None = None) -> list[str]:
-    """返回当前 env 中"匹配系统前缀但未登记"的 flag 列表。"""
-    env = env if env is not None else os.environ
+    """返回当前 env 中"匹配系统前缀但未登记"的 flag 列表。
+
+    [§63] `env` 为 None 时先确保 `.env` 已加载，避免"扫描空环境 ⇒ 假绿"。
+    """
+    if env is None:
+        ensure_env_loaded()
+        env = os.environ
     unknown: list[str] = []
     for key in env:
         if not key.isupper():
             continue
         if not _matches_system_prefix(key):
             continue
-        if key not in KNOWN_FLAGS:
+        if key not in KNOWN_FLAGS and not _matches_known_pattern(key):
             unknown.append(key)
     return sorted(unknown)
 
 
 def find_silently_disabled_safety_flags(env: dict[str, str] | None = None) -> list[str]:
     """返回被设为 falsy 的安全关键 flag（这些若非有意应告警）。"""
-    env = env if env is not None else os.environ
+    if env is None:
+        ensure_env_loaded()
+        env = os.environ
     disabled: list[str] = []
     for flag in SAFETY_CRITICAL_FLAGS:
         if flag in env and _is_falsy(env[flag]):
@@ -1019,6 +1776,15 @@ def validate_strict(env: dict[str, str] | None = None, *, on_unknown: str | None
             raise SystemExit(f"ENV_STRICT=error: {msg}")
         elif on_unknown == "warn":
             logger.warning(msg)
+            # [§63 修复 2026-09-10] 若尚未配置任何 logging handler（启动极早期），
+            # `logger.warning` 只会走 lastResort 落到 stderr、**进不了文件日志**——
+            # 本模块的目的正是"防止静默失效"，不能自己静默。故此处补一条 stderr 兜底。
+            try:
+                if not logging.getLogger().handlers:
+                    sys.stderr.write(msg + "\n")
+                    sys.stderr.flush()
+            except Exception:
+                pass
         # silent: 不输出
 
 

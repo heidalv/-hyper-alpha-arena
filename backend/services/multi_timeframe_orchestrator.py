@@ -35,7 +35,16 @@ EVENT_OVERRIDE_RULES: Dict[str, Dict[str, Any]] = {
     "regulation_negative": {"action": "reduce_to_30pct",     "freeze_minutes": 5},
     "extreme_fear":        {"action": "contrarian_small_long","max_position": 0.1},
     "extreme_greed":       {"action": "tighten_tp",          "reduce_new_long": True},
+    # [2026-09-03 v3 p0-event-data] 事件总线 market_events 驱动的覆盖
+    #   下架/监控标签：禁开多 + 现有多仓减半（RiskEngine.event_windows 另有硬闸，这里是决策层的软约束）
+    #   清算级联：多头级联后 1–4h 均值回归倾向 → 不追空、收紧新仓；空头级联反之
+    "event_delisting":     {"action": "no_new_long",         "reduce_position": 0.5, "reduce_new_long": True},
+    "event_liq_cascade":   {"action": "tighten_new_entries", "max_position": 0.5},
 }
+
+# 事件总线 → 覆盖规则的最小严重度
+_EVENT_OVERRIDE_MIN_SEVERITY = {"announcement.delisting": 3, "announcement.monitoring_tag": 3,
+                                "liquidation.cascade": 3, "liquidation.market_cascade": 4}
 
 
 @dataclass
@@ -68,6 +77,8 @@ class OrchestratorDecision:
     # 事件覆盖
     event_override: Optional[Dict] = None
     event_note: str = ""
+    # [2026-09-03 v3] 事件总线选中的覆盖规则键（event_delisting / event_liq_cascade），_coordinate 之后强制执行
+    event_bus_rule: Optional[str] = None
 
     # 最终建议
     final_action: str = "wait"
@@ -289,6 +300,10 @@ class MultiTimeframeOrchestrator:
 
         # 第6步: 三层协调（使用事件覆盖后的视图）
         self._coordinate(decision)
+
+        # 第6.5步 [2026-09-03 v3]: 事件总线硬约束（下架禁开多 / 级联新仓减半）——必须在 _coordinate 之后，
+        # 因为 _coordinate 会按共识重写 allowed_direction / position_multiplier
+        self.enforce_market_event_constraints(decision)
 
         # 第7步: 输出最终建议
         self._finalize(decision, snapshot)
@@ -1429,6 +1444,93 @@ class MultiTimeframeOrchestrator:
 
     # ════════════════════════ 事件覆盖 ════════════════════════
 
+    @staticmethod
+    def select_market_event_override(symbol: str, events: List[Dict], market_wide: Optional[List[Dict]] = None,
+                                     *, now_ms: Optional[int] = None) -> Optional[Tuple[str, Dict[str, Any], str]]:
+        """纯函数：从事件总线记录里挑出最应生效的覆盖。返回 (rule_key, rule, note) 或 None。
+
+        优先级：下架/监控标签（币级，24h 内） > 币级清算级联（2h 内） > 全市场级联（4h 内）。
+        方向语义：清算级联 direction<0 = 多头被清算（下跌级联）→ 倾向反弹，不追空；>0 反之。"""
+        now_ms = int(now_ms or time.time() * 1000)
+        sym_u = str(symbol or "").upper()
+        best: Optional[Tuple[int, str, Dict[str, Any], str]] = None
+
+        def consider(rank: int, key: str, note: str) -> None:
+            nonlocal best
+            if best is None or rank < best[0]:
+                best = (rank, key, dict(EVENT_OVERRIDE_RULES[key]), note)
+
+        for e in list(events or []):
+            et = str(e.get("event_type") or "")
+            sev = int(e.get("severity") or 0)
+            if sev < _EVENT_OVERRIDE_MIN_SEVERITY.get(et, 99):
+                continue
+            age_h = (now_ms - int(e.get("ts_ms") or now_ms)) / 3600000.0
+            if et in ("announcement.delisting", "announcement.monitoring_tag") and age_h <= 24.0:
+                consider(0, "event_delisting", f"{sym_u} {'下架公告' if et.endswith('delisting') else '监控标签'}(S{sev}) → 禁开多/减仓: "
+                                               f"{str(e.get('title') or '')[:50]}")
+            elif et == "liquidation.cascade" and age_h <= 2.0:
+                d = float(e.get("direction") or 0)
+                side = "多头" if d < 0 else "空头"
+                consider(1, "event_liq_cascade", f"{sym_u} {side}清算级联(S{sev}, {age_h:.1f}h前) → 新仓减半、不追{'空' if d < 0 else '多'}")
+        for e in list(market_wide or []):
+            et = str(e.get("event_type") or "")
+            sev = int(e.get("severity") or 0)
+            if et != "liquidation.market_cascade" or sev < _EVENT_OVERRIDE_MIN_SEVERITY[et]:
+                continue
+            age_h = (now_ms - int(e.get("ts_ms") or now_ms)) / 3600000.0
+            if age_h <= 4.0:
+                d = float(e.get("direction") or 0)
+                consider(2, "event_liq_cascade", f"全市场{'多头' if d < 0 else '空头'}清算级联(S{sev}, {age_h:.1f}h前) → 新仓减半")
+        if best is None:
+            return None
+        _, key, rule, note = best
+        return key, rule, note
+
+    def _apply_market_event_overrides(self, decision: OrchestratorDecision, snapshot) -> None:
+        """事件总线覆盖：只在没有更高优先级覆盖（黑天鹅/新闻）时生效；失败静默。"""
+        try:
+            evs_map = getattr(snapshot, "market_events", None) or {}
+            if not evs_map:
+                return
+            sym_u = str(decision.symbol or "").upper()
+            picked = self.select_market_event_override(sym_u, evs_map.get(sym_u, []), evs_map.get("*", []))
+            if not picked:
+                return
+            key, rule, note = picked
+            decision.event_bus_rule = key
+            if not decision.event_override:
+                decision.event_override = rule
+            if key == "event_delisting":
+                # 让协调算法先感知：短期视图转空
+                decision.short_view.bias = "bearish"
+                decision.short_view.confidence = max(decision.short_view.confidence, 0.6)
+                decision.short_view.details += " | 下架/监控标签事件"
+            decision.event_note = (decision.event_note + " | " if decision.event_note else "") + note
+            logger.info("[MTOrchestrator] %s 事件总线覆盖 %s: %s", sym_u, key, note)
+        except Exception as exc:  # 绝不因事件层异常打断决策
+            logger.debug("[MTOrchestrator] market_events 覆盖失败: %s", exc)
+
+    @staticmethod
+    def enforce_market_event_constraints(decision: OrchestratorDecision) -> None:
+        """_coordinate 之后执行：把事件总线选中的规则落成硬约束（allowed_direction / position_multiplier），
+        因为 _coordinate 会按共识重写这两个字段。纯函数式（只读 decision.event_bus_rule）。"""
+        key = decision.event_bus_rule
+        if not key:
+            return
+        rule = EVENT_OVERRIDE_RULES.get(key) or {}
+        if key == "event_delisting":
+            # 禁开多；allowed_direction: long_only/short_only/both/none
+            if decision.allowed_direction == "both":
+                decision.allowed_direction = "short_only"
+            elif decision.allowed_direction == "long_only":
+                decision.allowed_direction = "none"
+            decision.position_multiplier = min(decision.position_multiplier, float(rule.get("reduce_position", 0.5)))
+            decision.coordination_note += " | 事件:下架/监控标签→禁开多"
+        elif key == "event_liq_cascade":
+            decision.position_multiplier = min(decision.position_multiplier, float(rule.get("max_position", 0.5)))
+            decision.coordination_note += " | 事件:清算级联→新仓减半"
+
     def _check_event_overrides(self, decision: OrchestratorDecision, snapshot):
         if not snapshot:
             return
@@ -1481,6 +1583,9 @@ class MultiTimeframeOrchestrator:
                     if len(self._triggered_news_hashes) > 200:
                         self._triggered_news_hashes = set(list(self._triggered_news_hashes)[-100:])
                     break
+
+        # [2026-09-03 v3] 事件总线 market_events（公告/清算级联/极端费率/OI 突变…）
+        self._apply_market_event_overrides(decision, snapshot)
 
         # 检查情绪极端值
         if decision.sentiment_zone == "extreme_fear" and not decision.event_override:
@@ -1596,6 +1701,13 @@ class MultiTimeframeOrchestrator:
                 decision.position_multiplier = 0.1
             elif action == "tighten_tp":
                 decision.final_tp_pct *= 0.7
+            elif action == "no_new_long":
+                # [2026-09-03 v3] 下架/监控标签：禁开多（方向约束已由 enforce_market_event_constraints 落实）
+                if decision.allowed_direction in ("both", "long_only"):
+                    decision.allowed_direction = "short_only" if decision.allowed_direction == "both" else "none"
+            elif action == "tighten_new_entries":
+                # [2026-09-03 v3] 清算级联：止损收紧一档，新仓已减半
+                decision.final_sl_pct *= 0.8
 
         # 判定最终方向（综合三周期，方向矛盾时不开仓）
         final_side = ""

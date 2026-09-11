@@ -2,7 +2,7 @@
 """阶段4 Task 4.1 admin bootstrap 测试。
 
 覆盖:
-  - 迁移 0006 已应用 → default 用户 role == admin(直查 DB)。
+  - 迁移 0006 已应用 → 库中至少一个 admin(直查 DB;不钉死具体用户名)。
   - 新注册用户 role == user(server_default 兜底)。
   - create_access_token(role=admin) 往返解出 role=admin。
 
@@ -25,30 +25,25 @@ def _unique(prefix: str = "admintest") -> str:
 
 
 def _cleanup(username: str, email: str) -> None:
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete()
-            db.delete(user)
-            db.commit()
-        by_email = db.query(User).filter(User.email == email).first()
-        if by_email:
-            db.query(RefreshToken).filter(RefreshToken.user_id == by_email.id).delete()
-            db.delete(by_email)
-            db.commit()
-    finally:
-        db.close()
+    """[2026-09-02] 改走共享 helper（RLS 下删子表需 admin 穿透）。
+    详见 backend/tests/_user_cleanup.py。"""
+    from backend.tests._user_cleanup import cleanup_user
+    cleanup_user(username=username, email=email)
 
 
-def test_default_user_role_is_admin():
-    """迁移 0006 已应用:default 用户 role 应为 admin。"""
+def test_admin_bootstrap_guarantees_at_least_one_admin():
+    """迁移 0006 的不变量:库中至少有一个 role=admin 的用户。
+
+    [2026-09-02] 原用例钉死"username=='default' 必须是 admin"。迁移文档写的是
+    "default 用户（或 id 最小的用户）设为 admin —— 保证至少有一个 admin"，目的
+    是不变量而非某个用户名。本地部署里 admin 是真实属主 heida(326，即
+    AUTH_LOCAL_TENANT)，default(327) 是后建的普通用户，旧断言在这里长期红，
+    但系统状态完全符合迁移意图。改为验证不变量本身。
+    """
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.username == "default").first()
-        assert user is not None, "default 用户不存在(迁移未跑 / 种子缺失)"
-        # getattr 兜底:旧库无 role 列时不会 AttributeError。
-        assert getattr(user, "role", None) == "admin"
+        admins = db.query(User).filter(User.role == "admin").all()
+        assert admins, "库中没有任何 admin 用户（迁移 0006 bootstrap 未生效）"
     finally:
         db.close()
 

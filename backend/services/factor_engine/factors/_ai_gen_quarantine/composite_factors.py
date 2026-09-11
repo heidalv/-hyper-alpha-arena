@@ -304,11 +304,17 @@ class SmartMoneyFlowFactor(BaseFactor):
         return {"window": 12}
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
+        # [2026-09 修复 P0-4] whale_tx_volume 列缺失/全空 = 数据真空，返回全 NaN
+        #（框架按缺失跳过），不得让 oi 单独撑出 0×oi_change 的伪中性序列。
+        if "whale_tx_volume" not in data.columns:
+            return pd.Series(np.nan, index=data.index, name="smart_money_flow")
         whale = _safe_col(data, "whale_tx_volume")
+        if not whale.notna().any() or float(whale.abs().sum()) == 0.0:
+            return pd.Series(np.nan, index=data.index, name="smart_money_flow")
         oi = _safe_col(data, "oi")
         w = self.params["window"]
 
-        if whale.sum() == 0 and oi.sum() == 0:
+        if oi.sum() == 0:
             return _zero(data)
 
         whale_z = (whale - whale.rolling(w).mean()) / (whale.rolling(w).std() + 1e-10)

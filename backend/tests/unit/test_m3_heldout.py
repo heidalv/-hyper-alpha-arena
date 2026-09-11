@@ -71,10 +71,18 @@ def test_heldout_pass_then_verdict_reject(monkeypatch):
 
 
 def test_heldout_verdict_pass(monkeypatch):
+    """[2026-09-02 E14 契约同步] 判决段必须给出正的费后净收益才算 pass。
+
+    08-29 的 P3.3 给 held-out 判决加了硬条件 ``oos_net_return > 0``
+    （开关 FACTOR_HELDOUT_REQUIRE_NET，默认 True），因为诊断实证发现 active
+    因子的 oos_net_return 普遍为负却仍停在 PAPER 态 —— 评估口径与费后盈利脱节。
+    本用例原先没设 oos_net_return（默认 0.0），在新契约下就代表「不赚钱」，
+    判 reject 是正确的；补上正净收益后才真正测到「判决通过」这条路径。
+    """
     train = FactorScoreResult(factor_id="t", grade="A", admitted=True, ic_mean=0.08, icir=0.7)
     verdict = FactorScoreResult(
         factor_id="t", grade="A", admitted=True, ic_mean=0.05, icir=0.5,
-        oos_sharpe=0.6, oos_trades=12,
+        oos_sharpe=0.6, oos_trades=12, oos_net_return=0.012,
     )
     scorer, calls = _make_scorer(train, verdict)
     store = _FakeStore({
@@ -86,6 +94,36 @@ def test_heldout_verdict_pass(monkeypatch):
     assert calls["n"] == 2
     assert r.admitted is True
     assert store.extra_written and store.extra_written["heldout"]["verdict"] == "pass"
+
+
+def test_heldout_rejects_negative_net_return(monkeypatch):
+    """[2026-09-02 E14] IC/Sharpe 全达标但费后净收益为负 → 判决必须拒绝。
+
+    正向锁定 08-29 P3.3 的硬条件：这正是「因子指标好看、实盘不赚钱」的病灶，
+    若有人把该条件回滚，本用例会立刻变红。
+    """
+    train = FactorScoreResult(factor_id="t", grade="A", admitted=True, ic_mean=0.08, icir=0.7)
+    verdict = FactorScoreResult(
+        factor_id="t", grade="A", admitted=True, ic_mean=0.05, icir=0.5,
+        oos_sharpe=0.6, oos_trades=12, oos_net_return=-0.008,
+    )
+    scorer, calls = _make_scorer(train, verdict)
+    store = _FakeStore({
+        "factor_id": "ai_test_h", "formula": "ts_mean(close,20)/close-1",
+        "extra": {"horizon": "midlong", "timeframe": "4h"}, "status": "candidate",
+    })
+    monkeypatch.setattr(
+        "backend.services.factor_engine.custom_factor_store.custom_factor_store", store)
+
+    scorer.validate_and_promote("ai_test_h")
+
+    assert calls["n"] == 2
+    assert store.extra_written["heldout"]["verdict"] == "reject", (
+        "费后亏钱的因子不得通过 held-out 判决"
+    )
+    assert store.extra_written["heldout"]["net_return"] == -0.008, (
+        "判决记录必须落 net_return，否则运维无法看出拒绝理由"
+    )
 
 
 def test_heldout_disabled_single_pass(monkeypatch):

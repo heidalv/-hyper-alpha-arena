@@ -218,8 +218,9 @@ def test_cross_nature_hedge_sends_net(db_session):
     assert r2["order_side"] == "sell"
     assert captured[1]["net_qty"] == pytest.approx(0.4)
     assert captured[1]["order_side"] == "sell"
-    # 统一杠杆 = max(10, 12) = 12
-    assert captured[1]["leverage"] == 12
+    # [2026-08-28 方案2·G1 契约同步] 统一杠杆 = min(现有, 新请求) = min(10,12) = 10：
+    # 保守方向——高位层沿用低位档，绝不让低位层按高杠杆计保证金。
+    assert captured[1]["leverage"] == 10
 
     # 两个 nature 子仓都 open
     open_subs = session.query(LiveSubPosition).filter_by(
@@ -394,7 +395,8 @@ def test_get_net_position_multi_tier(db_session):
     assert view.symbol == "BTC"
     assert view.net_side == "long"
     assert view.net_size == pytest.approx(0.6)
-    assert view.unified_leverage == pytest.approx(12.0)
+    # [2026-08-28 方案2·G1] 统一杠杆 = min(各子仓) = min(10,12) = 10（保守方向）
+    assert view.unified_leverage == pytest.approx(10.0)
     assert len(view.sub_positions) == 2
 
 

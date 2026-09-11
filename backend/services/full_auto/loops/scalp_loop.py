@@ -119,14 +119,31 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
     # 不再因 market_summary 空就 return——K线数据自己从 DB 拉
 
     # 获取账户权益
-    from backend.database.connection import SessionLocal
+    from backend.database.connection import SessionLocal, release_idle_txn
     from backend.database.models import FullAutoSession
     _db = SessionLocal()
+
+    def _release_idle_txn() -> None:
+        """[2026-09-02 挂事务修复] 结束当前"只读"事务，释放连接的 idle-in-transaction 状态。
+
+        本函数体 2000+ 行同步跑在线程里：开头几条 SELECT 后事务就一直开着，之后每个
+        币的 K 线/因子/LLM/交易所调用期间连接都是 idle-in-transaction。LeakGuard 三天
+        实测每小时强杀 10-20 个这类事务（paper_positions 176 次、full_auto_sessions
+        142 次为首），被杀后本 tick 后续 _db 操作全部报错——决策做了、单落不了库。
+        语义见 connection.release_idle_txn：有未提交写入时不动，交给下方既有提交流程。
+        """
+        release_idle_txn(_db, where="scalp_loop")
+
     try:
         session_row = _db.query(FullAutoSession).filter(
             FullAutoSession.session_id == session_id
         ).first()
         if not session_row:
+            return
+        # [2026-09-03 v3 F1d] 本循环只负责"新开"短线仓：会话不在 running/defensive
+        # （paused / drawdown_limit / stopped）时直接退出。此前无此检查，会话被暂停
+        # 或触发回撤硬闸后短线仍在开仓，与 midlong_loop/trading_cycle_loop 口径不一致。
+        if (getattr(session_row, "status", "") or "") not in ("running", "defensive"):
             return
         # 用正确的交易账户ID（paper_account_id，不是 session.account_id）
         trading_acct_id = self._get_trading_account_id(_db, session_row)
@@ -196,11 +213,17 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
         # 不再开新仓（计数在每个成功开仓后 +1）。
         _scalp_daily_cap = 0
         _scalp_opened_today = 0
+        # [2026-09-03 v3 方向7] 配额数字单一来源：risk.daily_quota（runtime_tuning.scalp_daily_cap），
+        # 不再直接读 settings.SCALP_DAILY_OPEN_CAP（旧 env 值已由 daily_quota 一次性播种进文件）。
         try:
-            from backend.config.settings import SCALP_DAILY_OPEN_CAP as _cap_ov
-            _scalp_daily_cap = int(_cap_ov or 0)
+            from backend.services.risk.daily_quota import cap_for as _quota_cap_for
+            _scalp_daily_cap = int(_quota_cap_for("scalp") or 0)
         except Exception:
-            _scalp_daily_cap = 0
+            try:
+                from backend.config.settings import SCALP_DAILY_OPEN_CAP as _cap_ov
+                _scalp_daily_cap = int(_cap_ov or 0)
+            except Exception:
+                _scalp_daily_cap = 0
         # [2026-08-28 实盘零成交修复] 实盘引导期每日开仓上限（默认 5 笔）：
         # 引导期门槛放宽后必须有每日硬顶兜底（配合风控硬顶/日亏熔断）。
         # 引导期满或 LIVE_SCALP_BOOTSTRAP_ENABLED=false 时退回 SCALP_DAILY_OPEN_CAP。
@@ -264,8 +287,13 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
         except Exception as _batch_kline_err:
             logger.debug(f"[ScalpRouter独立] 批量K线预取失败，回退逐个查询: {_batch_kline_err}")
 
+        # [2026-09-02 挂事务修复] 准备段的读事务到此结束；逐币循环开头再释放一次，
+        # 让上一个币迭代内的读查询不会把事务挂到几十秒后的下单提交。
+        _release_idle_txn()
+
         # 扫描每个 symbol
         for sym in symbols:
+            _release_idle_txn()
             # [2026-08-24 M0-H2] 每币迭代让渡 GIL：单进程内 scalp 循环（每 10s ×
             # 多币）连续 Python 计算（K线处理/因子/评估）会把事件循环饿死数秒，
             # /api/health 实测 1-8.7s → 前端超时误报"后端挂了"、平台监管按慢响应
@@ -286,6 +314,11 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
 
             # ── 主动获取 K线 ──
             _md = dict(market_summary.get(sym) or {})
+            # [2026-09-03 审查修正 A] 把会话交易模式带进因子融合：影子因子
+            # （held-out 未过 role=paper / 进化仓 PAPER）在实盘会话权重归零、
+            # 模拟会话保持封顶——见 paper_factor_policy。Router 回退路径复制的
+            # 是这份 _md，同样带上。
+            _md["trading_mode"] = "live" if _is_live_session else "paper"
             # 修复4：数据可靠性检查——data_reliable=False 或 data_stale 时跳过
             if not _md.get("data_reliable", True) or _md.get("data_stale"):
                 logger.info(f"[ScalpRouter独立] {sym} 数据不可靠/过期，跳过")
@@ -528,6 +561,22 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                                     "direction": float(_cs.direction),
                                     "strength": float(getattr(_cs, 'strength', abs(_cs.direction))),
                                 }
+                                # [2026-09-02 P1.2] 回退路径同样带上逐因子归因，
+                                # 否则 factor_v3 缺失时（新币/管道滞后）落库的
+                                # signal_log 又退回"只有一个 composite 分"。
+                                try:
+                                    _cs_attr = getattr(_cs, "attribution", None) or []
+                                    if _cs_attr:
+                                        _md["factor_signal"]["factor_contrib"] = [
+                                            {
+                                                "f": a.factor_id, "d": a.direction,
+                                                "w": a.weight, "c": a.contrib,
+                                                "cat": a.category,
+                                            }
+                                            for a in _cs_attr[:15]
+                                        ]
+                                except Exception:
+                                    pass
                 except Exception as _fe_err:
                     logger.debug(f"[ScalpRouter独立] {sym} 因子引擎主动计算失败: {_fe_err}")
             _prof["factors"] = time.perf_counter() - _pf_ts; _pf_ts = time.perf_counter()
@@ -584,7 +633,22 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         mr_breakout_danger as _mr_guard,
                     )
                     _regime_mr = _cls_reg_mr(_md)
-                    if _regime_mr.regime == "ranging" and _mr_amp_ok(_mr_amp(_md)):
+                    # [2026-09-09 震荡策略加固] 方向上下文缺失不接 MR：上游
+                    # S1 补数（price_change_1h/24h_pct）失败或 K 线不足时，振幅
+                    # 达标也只是"局部窄幅"，没有 24h/1h 方向背景佐证真震荡——
+                    # 这正是历史趋势转换日 MR 按震荡"接飞刀"的盲区之一。
+                    # 无背景一律回落到趋势打法（其 V5/regime 链有完整兜底）。
+                    _dir_ctx_ok = (
+                        _md.get("price_change_1h_pct") is not None
+                        or _md.get("price_change_24h_pct") is not None
+                    )
+                    if not _dir_ctx_ok:
+                        logger.info(
+                            "[ScalpMR] %s 方向上下文缺失(1h/24h 涨跌未就绪)，"
+                            "本 tick 不走均值回归（防无背景接飞刀）", sym,
+                        )
+                    _mr_owned = False  # MR 接管本 tick（regime=震荡 + 振幅在带内 + 守卫放行）
+                    if _regime_mr.regime == "ranging" and _dir_ctx_ok and _mr_amp_ok(_mr_amp(_md)):
                         # [2026-08-23] regime 突变实时守卫：趋势转换日 MR 仍按震荡
                         # 接飞刀 → 用实时波动率/ADX 突变检测拦截，本 tick 改走趋势打法。
                         _mr_danger, _mr_danger_reason = _mr_guard(_md)
@@ -594,12 +658,23 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                                 sym, _mr_danger_reason,
                             )
                         else:
+                            _mr_owned = True
                             _sig = _mr_eval(sym, _md)
-                            _md["ranging_mr"] = True
-                            _mr_active = True
+                            # [2026-09-09 震荡策略加固] 只有 MR 真正开火(buy/sell)
+                            # 才占用 ranging_mr 标记：hold（未达边缘/区间中部）不能
+                            # 把本 tick 的阈值 kind/EV 标签/仓位前缀误打成 MR 口径，
+                            # 否则 MR 的打标统计会被 hold 污染。
+                            if str(getattr(_sig, "action", "") or "") in ("buy", "sell"):
+                                _md["ranging_mr"] = True
+                                _mr_active = True
+                            else:
+                                logger.info(
+                                    "[ScalpMR] %s 接管但未达边缘(hold)，不占用 MR 标记: %s",
+                                    sym, (getattr(_sig, "reasoning", "") or "")[:120],
+                                )
             except Exception as _mr_err:
                 logger.debug(f"[ScalpMR] {sym} 均值回归分流跳过: {_mr_err}")
-            if not _mr_active:
+            if not _mr_active and not _mr_owned:
                 _sig = scalp_factor_router.evaluate(
                     sym, _md,
                     mode=(getattr(session_row, "trading_mode", None) or "paper"),
@@ -745,6 +820,14 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             if _sig.action not in ("buy", "sell"):
                 continue
 
+            # [2026-09-02 修 UnboundLocalError] _trade_mode 原先在下方 ScalpExecutionGate
+            # 处才赋值，但 pwin 仲裁（紧接其下）已经引用它。旧版仲裁异常 fail-open：
+            # 每 tick 第一个 buy/sell 信号抛 UnboundLocalError 被静默放行、绕过 pwin
+            # 闸门，之后的币才正常仲裁。G18 改 fail-closed 后第一个信号 continue 掉、
+            # 永远到不了赋值行 → 17:47 起 2970 次 100% 拒开、短线 5 小时零成交。
+            # 必须在仲裁之前就绑定。
+            _trade_mode = (getattr(session_row, "trading_mode", None) or "paper")
+
             # ── pwin 主轴仲裁(2026-08-25 接线,decision_fusion_arbiter)──
             # 依据: 回放 pwin>=0.55 桶 59.2% 胜率净 +5.09;factor_score>=70 桶
             # 净 -332.55 全场最差。v3 元模型(OOS AUC 0.623, usable=true)为 pwin
@@ -810,14 +893,31 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                     if _arb.size_mult > 0:
                         _pwin_size_mult = float(_arb.size_mult)
             except Exception as _arb_err:
-                logger.debug(
-                    "[ScalpRouter独立] %s pwin仲裁跳过(降级放行): %s", sym, _arb_err,
+                # [2026-09-02 G18] 原为 fail-open + debug 日志：pwin 是唯一经数据验证
+                # 有效的质量闸（12.8 万条回溯：<0.55 各档净收益全负、>=0.55 各档全正），
+                # 异常放行等于让负期望信号绕过它裸奔进场，而 debug 级日志默认不输出，
+                # 故障会被静默吞掉、无从发现。改为默认 fail-closed + warning 可见。
+                _pwin_fail_closed = True
+                try:
+                    from backend.config.settings import SCALP_PWIN_FAIL_CLOSED
+                    _pwin_fail_closed = bool(SCALP_PWIN_FAIL_CLOSED)
+                except Exception:
+                    pass
+                if _pwin_fail_closed:
+                    logger.warning(
+                        "[ScalpRouter独立] %s pwin仲裁异常 → fail-closed 拒开: %s",
+                        sym, _arb_err,
+                    )
+                    _bump_block("pwin_arbiter_error")
+                    continue
+                logger.warning(
+                    "[ScalpRouter独立] %s pwin仲裁异常(降级放行): %s", sym, _arb_err,
                 )
 
             # ── ScalpExecutionGate 统一规则门 ──
             from backend.services.scalp.scalp_execution_gate import scalp_execution_gate
             from backend.services.scalp.scalp_flash_veto import scalp_flash_veto
-            _trade_mode = (getattr(session_row, "trading_mode", None) or "paper")
+            # _trade_mode 已在 pwin 仲裁前绑定（见上方 [2026-09-02 修 UnboundLocalError]）
             _gate = scalp_execution_gate.evaluate(
                 sym, _sig, _md, account_id=account_id, mode=_trade_mode,
             )
@@ -1012,34 +1112,46 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
             # （R2 单笔已实现亏损 24h 禁开仍保留，见下方 FUSION_RISK_EVENT_BAN）；
             # 引导期满自动恢复全局惩罚（此时状态机也会吃到实盘自身结果）。
             _pen_score = float(getattr(_gate, "effective_score", 0) or 0)
-            _live_pen_exempt = False
+            _pen_exempt = False
             if _is_live_session:
                 try:
                     from backend.services.full_auto.live_gate_policy import (
                         live_bootstrap_active,
                     )
-                    _live_pen_exempt = live_bootstrap_active(account_id)
+                    _pen_exempt = live_bootstrap_active(account_id)
                 except Exception:
-                    _live_pen_exempt = False
+                    _pen_exempt = False
+            else:
+                # [2026-09-04] 模拟盘豁免亏损币状态机：该状态机由 paper 日报
+                # 驱动，会把连亏的币禁开或 ×0.5 打折；打折后最高分 34.5 够不到
+                # 探索门槛 45 → 开不了单 → 攒不到翻案样本 → 惩罚永不解除。
+                # 模拟盘没有真金白银可保护，亏损本身就是要采集的样本。
+                try:
+                    from backend.config.settings import PAPER_SYMBOL_PENALTY_ENABLED
+                    _pen_exempt = not PAPER_SYMBOL_PENALTY_ENABLED
+                except Exception:
+                    _pen_exempt = True
             try:
                 from backend.services.symbol_penalty import get_penalty, is_watchlisted
                 _pen = float(get_penalty(sym) or 1.0)
-                if not _live_pen_exempt and (is_watchlisted(sym) or _pen <= 0.0):
+                if not _pen_exempt and (is_watchlisted(sym) or _pen <= 0.0):
                     logger.info(
                         f"[ScalpRouter独立] {sym} 在亏损币观察名单(penalty=0)，禁开待复审"
                     )
                     _bump_block("symbol_watchlist")
                     continue
-                if not _live_pen_exempt and _pen < 1.0:
+                if not _pen_exempt and _pen < 1.0:
                     _pen_score = _pen_score * _pen
                     logger.info(
                         f"[ScalpRouter独立] {sym} 亏损币惩罚 penalty={_pen}: "
                         f"信号强度 {float(getattr(_gate, 'effective_score', 0) or 0):.3f} -> {_pen_score:.3f}"
                     )
-                elif _live_pen_exempt and _pen < 1.0:
+                elif _pen_exempt and _pen < 1.0:
                     logger.info(
-                        "[ScalpRouter独立] %s 实盘引导期豁免 paper 亏损惩罚(penalty=%.2f)",
-                        sym, _pen,
+                        "[ScalpRouter独立] %s %s豁免亏损币惩罚(penalty=%.2f，原分 %.1f 不打折)",
+                        sym,
+                        "实盘引导期" if _is_live_session else "模拟盘采样",
+                        _pen, _pen_score,
                     )
             except Exception as _pen_err:
                 logger.debug(f"[ScalpRouter独立] {sym} symbol_penalty 检查跳过: {_pen_err}")
@@ -1745,7 +1857,22 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             _bump_block("fusion_arbiter")
                             continue
                     except Exception as _fus_err:
-                        # 仲裁器代码异常 → fail-open（不因新代码 bug 停摆短线）
+                        # [2026-09-02 G18] 原为 fail-open（怕新代码 bug 停摆短线）。
+                        # 但这一层同样以 pwin 为主轴，放行即绕过唯一有效的质量闸；
+                        # 与上方主轴仲裁统一为默认 fail-closed，共用同一开关便于回滚。
+                        _fus_fail_closed = True
+                        try:
+                            from backend.config.settings import SCALP_PWIN_FAIL_CLOSED
+                            _fus_fail_closed = bool(SCALP_PWIN_FAIL_CLOSED)
+                        except Exception:
+                            pass
+                        if _fus_fail_closed:
+                            logger.warning(
+                                "[FusionArbiter] %s 异常 → fail-closed 拒开: %s",
+                                sym, _fus_err,
+                            )
+                            _bump_block("fusion_arbiter_error")
+                            continue
                         _fusion_decision = {
                             "action": "trade", "source": "rule",
                             "reason": "arbiter_error_fail_open",
@@ -1813,9 +1940,87 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         threshold=float(_thresh),
                         entry_price=float(_md.get("price") or _md.get("mark_price") or 0),
                         features=_snap, session_id=session_id, account_id=account_id,
+                        # [2026-09-02 P1.1] 冻结这条信号的 TP/SL 距离，供
+                        # triple-barrier 标签复算"TP 与 SL 谁先被触及"。
+                        tp_pct=float(_sig.tp_pct or 0) or None,
+                        sl_pct=float(_sig.sl_pct or 0) or None,
                     )
                 except Exception as _log_err:
                     logger.debug(f"[ScalpRouter独立] {sym} 信号日志跳过: {_log_err}")
+
+                # ── 做空车道闸门（2026-09-02 P2.4）────────────────────────
+                # 依据：triple-barrier 口径 5.5 万条已结算信号，做空 32880 条
+                # 胜率 30.3%、净 -34.14bp，总贡献 -112 万 bp；即便叠加最严的
+                # pwin>=0.55 仍为 -14.15bp（2055 条）—— 做空不是"门槛没调好"，
+                # 而是在当前因子体系下整体负期望。同期做多 22507 条净 +12.82bp，
+                # pwin>=0.55 时 +28.73bp。
+                # 拦截点特意放在 log_signal 之后：信号照常落库、TB 标签继续结算，
+                # 做空样本不断积累（等它自己转正就能放开），只是不再下真单 ——
+                # 这就是"转独立实验车道"的含义，而非把做空从学习闭环里删掉。
+                if str(_sig.direction or "").lower() == "short":
+                    try:
+                        from backend.services.scalp.short_lane_policy import (
+                            short_open_allowed,
+                        )
+                        _sh_ok, _sh_why = short_open_allowed(
+                            pwin=_meta_pwin,
+                            factor_score=float(_sig.factor_score or 0),
+                        )
+                    except Exception as _sh_err:
+                        # fail-closed：闸门自身异常时不放行做空。做空已被证实为
+                        # 负期望，异常放行等于回到亏损路径。
+                        _sh_ok, _sh_why = False, f"policy_error:{_sh_err}"
+                    if not _sh_ok:
+                        logger.info(
+                            "[ScalpRouter独立] %s 做空已闸断(%s)，信号已留档供学习",
+                            sym, _sh_why,
+                        )
+                        _bump_block("short_lane_disabled")
+                        continue
+
+                # ── [2026-09-03 v3 F1a] 短线影子模式 ──────────────────────────
+                # 数据：短线 08-26→09-02 净 -$1,193 / 手续费 $1,420，单笔目标 ≈ 4bp
+                # 而往返成本 ≈ 8bp —— 车道几何上负期望。全部闸门与学习闭环照常，
+                # 但走到下真单这一步改写 action='shadow_fill'（冻结本来会成交的
+                # 入场/TP/SL/杠杆/名义），零手续费。恢复真单只能经 edge_ledger
+                # 的晋升门（N ≥ 300 且净收益 95% 下界 > 0）。fail-closed：影子
+                # 判定或落库异常一律不下真单。
+                _shadow_on = True
+                try:
+                    from backend.services.scalp.shadow_mode import (
+                        scalp_shadow_enabled as _shadow_enabled,
+                        record_shadow_fill as _record_shadow,
+                    )
+                    _shadow_on = _shadow_enabled(_trade_mode)
+                except Exception as _shadow_err:
+                    logger.warning("[ScalpShadow] 开关读取异常，按影子处理: %s", _shadow_err)
+                    _record_shadow = None
+                if _shadow_on:
+                    try:
+                        if _record_shadow is not None:
+                            _record_shadow(
+                                symbol=sym, direction=str(_sig.direction or ""),
+                                entry_price=_scalp_entry, tp_price=_scalp_tp, sl_price=_scalp_sl,
+                                leverage=_dyn_lev, notional_usd=float(_margin_est or 0),
+                                factor_score=float(_sig.factor_score or 0),
+                                threshold=float(_thresh) if _thresh is not None else None,
+                                session_id=session_id, account_id=account_id,
+                                trade_mode=_trade_mode,
+                                features={
+                                    "pwin": _meta_pwin,
+                                    "fusion_reason": (_fusion_decision or {}).get("reason"),
+                                    "gate_tier": getattr(_gate, "tier", None),
+                                },
+                            )
+                    except Exception as _shadow_rec_err:
+                        logger.warning("[ScalpShadow] %s 影子落库异常: %s", sym, _shadow_rec_err)
+                    logger.info(
+                        "[ScalpShadow] %s %s 影子成交(不下真单) entry=%.6g tp=%.6g sl=%.6g lev=%s notional=%.2f",
+                        sym, side, _scalp_entry, _scalp_tp, _scalp_sl, _dyn_lev, float(_margin_est or 0),
+                    )
+                    _bump_block("scalp_shadow_mode")
+                    continue
+
                 # [2026-08-28 实盘接线GAP-1] live 会话走 LiveExecutor（LPM 合并账本
                 # 由 LIVE_SUB_POSITION_TRACKING 控制）；paper 维持原路径。
                 if (_trade_mode or "").lower() == "live":
@@ -1894,6 +2099,35 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                         _margin_est = _notional_live
                     except Exception as _lc_err:
                         logger.debug("[ScalpRouter独立] 宪法检查异常(放行): %s", _lc_err)
+                    # [2026-09-04 杠杆统一] 实盘短线此前把上游 position_sizing_agent
+                    # 算出的动态杠杆（5~10x）直接交给 LiveExecutor，绕过了
+                    # leverage_authority —— 而 paper 侧经 trade_gate 会被改写成
+                    # 币种档位（MAP 里 XRP/SOL=4、未列入=3）。同一个币在模拟盘 4x、
+                    # 实盘 10x，两套账根本不可比；更要命的是交易所的杠杆是按 symbol
+                    # 设的、同向同币仓位会合并，同币先后按不同倍数下单，后一次
+                    # set_leverage 会覆盖前一次，已建仓位的爆仓价被就地改写。
+                    # 这里改为与 paper 同一个权威源；解析失败一律拒单（与
+                    # LIVE_LEVERAGE_FAIL_CLOSE 同精神：宁可不开，不能按错误倍数开）。
+                    try:
+                        from backend.services.leverage_authority import (
+                            resolve_leverage as _auth_lev,
+                        )
+                        _live_lev = float(_auth_lev(
+                            tier="short", requested=_dyn_lev, symbol=sym,
+                        ))
+                    except Exception as _lev_err:
+                        logger.error(
+                            "[ScalpRouter独立] %s 实盘杠杆解析失败，拒绝开仓: %s",
+                            sym, _lev_err, exc_info=True,
+                        )
+                        _bump_block("live_leverage_resolve_failed")
+                        continue
+                    if _live_lev != _dyn_lev:
+                        logger.info(
+                            "[ScalpRouter独立] %s 实盘杠杆对齐币种档位 %.0fx→%.0fx"
+                            "（名义 %.2f 不变，保证金随之调整）",
+                            sym, _dyn_lev, _live_lev, float(_margin_est or 0),
+                        )
                     try:
                         from backend.services.exchange.executors import OrderContext
                         from backend.services.exchange.live_executor import LiveExecutor
@@ -1903,7 +2137,7 @@ def _run_scalp_independent_inner(svc: "FullAutoTradingService", session_id: str,
                             side=side,
                             quantity=_margin_est / _scalp_entry if _scalp_entry > 0 else 0,
                             order_type="market",
-                            leverage=_dyn_lev,
+                            leverage=_live_lev,
                             tp_price=_scalp_tp,
                             sl_price=_scalp_sl,
                             strategy_id=_scalp_strategy_id,

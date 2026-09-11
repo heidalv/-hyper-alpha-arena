@@ -233,7 +233,7 @@ class DynamicStopManager:
 
         # tier 分化：用 TIER_ATR_MULTIPLIER 覆盖 trail_distance_atr
         try:
-            from config.settings import TIER_ATR_MULTIPLIER
+            from backend.config.settings import TIER_ATR_MULTIPLIER
             tier_atr_mult = TIER_ATR_MULTIPLIER.get(tier, cfg.trail_distance_atr)
         except Exception:
             tier_atr_mult = cfg.trail_distance_atr

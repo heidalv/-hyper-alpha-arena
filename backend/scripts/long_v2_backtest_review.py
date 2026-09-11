@@ -72,13 +72,21 @@ def run_one(sym, mult, l1_thr, pyramid_on):
         hold_days = float(i - pos["i0"])
         peak_r = max(pos["peak_r"], r_mult)
         pos["peak_r"] = peak_r
-        dd = max(0.0, 1.0 - (1.0 + (close[i] / pos["entry"] - 1)) / (1.0 + peak_r * 0.05)) \
-            if peak_r > 0 else 0.0
+        # [2026-09-07 P0 同核] 回撤口径与实盘一致：dd = (峰值% − 当前%) / 峰值%，
+        # 峰值% = peak_r × (r0/entry)（R→价格%换算，替代旧 peak_r×0.05 近似）。
+        _risk_frac = float(r0) / pos["entry"] if pos["entry"] > 0 else 0.0
+        peak_pct = peak_r * _risk_frac
+        cur_pct = close[i] / pos["entry"] - 1.0
+        dd = max(0.0, (peak_pct - cur_pct) / peak_pct) if peak_pct > 0 else 0.0
         d = decide_long(
             l1_state=("up" if up else "down"), close=close[i], stop=pos["stop"],
             new_high=bool(nh[i]), r_multiple=r_mult, in_position=True,
             cur_sl=pos["cur_sl"], peak_r=peak_r, hold_days=hold_days,
             drawdown_pct=dd, pyr_batch=(pos["pyr_batch"] if pyramid_on else 99),
+            entry_price=pos["entry"], peak_pnl_pct=peak_pct,
+            dd_halve_done=pos.get("dd_halve_done", False),
+            target_halve_done=pos.get("target_halve_done", False),
+            early_np_done=pos.get("early_np_done", False),
         )
         if d["action"] == "close":
             trades.append({"r": pos["total_scale"] * (close[i] - pos["entry"]) / r0,
@@ -88,6 +96,14 @@ def run_one(sym, mult, l1_thr, pyramid_on):
             trades.append({"r": pos["total_scale"] * float(d.get("ratio") or 0.5) * (close[i] - pos["entry"]) / r0,
                            "hold_days": hold_days, "reason": d["reason"]})
             pos["total_scale"] *= (1.0 - float(d.get("ratio") or 0.5))
+            # [2026-09-07 幂等同核] 减半类规则一次性
+            _rsn = str(d.get("reason") or "")
+            if "极端回撤" in _rsn:
+                pos["dd_halve_done"] = True
+            if "结构目标" in _rsn:
+                pos["target_halve_done"] = True
+            if "early_no_progress" in _rsn:
+                pos["early_np_done"] = True
         elif d["action"] == "add" and d.get("topup"):
             pos["total_scale"] += float(d.get("ratio") or 0.5)
         elif d["action"] == "add":

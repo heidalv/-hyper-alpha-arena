@@ -12,7 +12,33 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-FLOW_EXCHANGE = "hyperliquid"
+# [2026-09 修复 P1-5] 订单流交易所口径不再硬编码 hyperliquid：与现网
+# ACTIVE_MARKET_FLOW_EXCHANGES（当前 binance）保持一致，并按优先级回退
+# （active 所无数据时尝试 hyperliquid/asterdex 兜底），避免 K 线富化 CVD
+# 列与因子层 CVD 双轨不一致。
+_FLOW_EXCHANGE_PRIORITY = ["hyperliquid", "asterdex"]
+
+
+def _active_flow_exchanges() -> List[str]:
+    """现网激活的订单流交易所列表（小写，含兜底顺序）。
+
+    激活所在前，hyperliquid/asterdex 作为兜底追加（去重），
+    配置缺失时退回默认顺序。
+    """
+    try:
+        from backend.config import settings as _settings
+        actives = [
+            str(e).strip().lower()
+            for e in (getattr(_settings, "ACTIVE_MARKET_FLOW_EXCHANGES", None) or [])
+            if str(e).strip()
+        ]
+    except Exception:
+        actives = []
+    ordered: List[str] = []
+    for ex in actives + _FLOW_EXCHANGE_PRIORITY:
+        if ex not in ordered:
+            ordered.append(ex)
+    return ordered
 
 TF_TO_MS = {
     "1m": 60_000,
@@ -58,25 +84,35 @@ def attach_flow_timeseries_to_df(
     start_ms = int(ts_sec.min()) * 1000
     end_ms = int(ts_sec.max()) * 1000 + interval_ms
 
-    try:
-        rows = (
-            db.query(
-                MarketTradesAggregated.timestamp,
-                MarketTradesAggregated.taker_buy_notional,
-                MarketTradesAggregated.taker_sell_notional,
+    # [2026-09 修复 P1-5] 按激活交易所优先级取数，第一个有数据的所生效；
+    # 全部无数据时 cvd_delta 等列置 NaN（诚实缺失，不造假零）。
+    rows = []
+    used_exchange = ""
+    exchanges = _active_flow_exchanges()
+    for ex in exchanges:
+        try:
+            _rows = (
+                db.query(
+                    MarketTradesAggregated.timestamp,
+                    MarketTradesAggregated.taker_buy_notional,
+                    MarketTradesAggregated.taker_sell_notional,
+                )
+                .filter(
+                    MarketTradesAggregated.exchange == ex,
+                    MarketTradesAggregated.symbol == flow_sym,
+                    MarketTradesAggregated.timestamp >= start_ms,
+                    MarketTradesAggregated.timestamp <= end_ms,
+                )
+                .order_by(MarketTradesAggregated.timestamp)
+                .all()
             )
-            .filter(
-                MarketTradesAggregated.exchange == FLOW_EXCHANGE,
-                MarketTradesAggregated.symbol == flow_sym,
-                MarketTradesAggregated.timestamp >= start_ms,
-                MarketTradesAggregated.timestamp <= end_ms,
-            )
-            .order_by(MarketTradesAggregated.timestamp)
-            .all()
-        )
-    except Exception as e:
-        logger.debug(f"[KlineEnrich] flow query {flow_sym}/{timeframe}: {e}")
-        return df
+        except Exception as e:
+            logger.debug(f"[KlineEnrich] flow query {flow_sym}/{timeframe} @{ex}: {e}")
+            continue
+        if _rows:
+            rows = _rows
+            used_exchange = ex
+            break
 
     if not rows:
         df["cvd_delta"] = np.nan
@@ -308,7 +344,7 @@ def record_aux_snapshots(
 
 def capture_flow_indicators_for_symbol(db, symbol: str) -> Dict[str, Any]:
     """当前窗口 CVD/Taker 汇总，写入 unified indicators。"""
-    from services.market_flow_indicators import get_flow_indicators_for_prompt
+    from backend.services.market_flow_indicators import get_flow_indicators_for_prompt
 
     flow_sym = normalize_flow_symbol(symbol)
     out: Dict[str, Any] = {}

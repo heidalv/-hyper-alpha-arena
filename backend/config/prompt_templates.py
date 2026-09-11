@@ -51,7 +51,9 @@ DEFAULT_PROMPT_TEMPLATE = """你是一个加密货币交易 AI。
 === 交易规则 ===
 - operation: "buy"（做多）、"sell"（做空）、"hold" 或 "close"
 - target_portion_of_balance: 0.0-1.0（使用的余额比例）
-- leverage: {default_leverage} 到 {max_leverage}
+- leverage: 由系统按币种统一设定（一币一档，如 BTC/ETH=5x、主流币=4x、小币=3x）。
+  你输出的 leverage 字段会被系统忽略，无需也无法决策杠杆；仓位大小请通过
+  target_portion_of_balance 表达（风险大就小仓，风险小就大仓）
 - max_price: "buy" 和平空仓时必填（滑点保护）
 - min_price: "sell" 和平多仓时必填（滑点保护）
 - 保持总保证金使用率低于 70%

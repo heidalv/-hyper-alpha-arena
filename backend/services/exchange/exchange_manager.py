@@ -155,7 +155,8 @@ class ExchangeManager:
         return list({k.split(":")[0] for k in self._clients})
 
     def get_or_create_global_client(
-        self, exchange: str, user_id: int = 1, account_id: int = 0
+        self, exchange: str, user_id: int = 1, account_id: int = 0,
+        market_type: Optional[str] = None,
     ) -> Optional[BaseExchangeClient]:
         """
         获取或创建交易所客户端,解析顺序(2026-08-28 账户↔凭证关联):
@@ -177,12 +178,45 @@ class ExchangeManager:
             if acct_key in self._clients:
                 return self._clients[acct_key]
 
-        # 2) 全局缓存
-        cache_key = f"{exchange}:global:{user_id}"
+        # 2) 全局缓存 [2026-08-28 环境] key 带 market_type，coin_m/margin 与 usdt_m 互不串客户端
+        cache_key = f"{exchange}:global:{user_id}:{market_type or ''}"
         if cache_key in self._clients:
             return self._clients[cache_key]
 
-        # 从 DB 查凭证(账户级优先,全局其次,任意兜底)
+        client = self.create_fresh_client(
+            exchange, user_id=user_id, account_id=account_id, market_type=market_type,
+        )
+        if client is None:
+            return None
+        store_key = (
+            f"{exchange}:{account_id}" if account_id > 0 else cache_key
+        )
+        self._clients[store_key] = client
+        self._health[store_key] = {
+            "exchange": exchange,
+            "user_id": user_id,
+            "account_id": account_id,
+            "status": "created",
+            "last_check": 0,
+        }
+        return client
+
+    def create_fresh_client(
+        self, exchange: str, user_id: int = 1, account_id: int = 0,
+        market_type: Optional[str] = None,
+    ) -> Optional[BaseExchangeClient]:
+        """每次新建（不读写缓存）的客户端。
+
+        [2026-08-28 实盘零成交修复] ccxt.async_support 的 aiohttp 会话绑定在
+        首次调用所在的 event loop 上；跨 asyncio.run 复用缓存客户端会抛
+        "Event loop is closed"（实测余额查询成功后持仓查询必挂/阻塞）。
+        LiveExecutor 的余额/持仓查询（对账 120s、宪法风控、权益兜底）改用本
+        方法每次新建客户端，把会话生命周期限定在单次 asyncio.run 内。
+        凭证解析顺序与 get_or_create_global_client 一致（账户级→全局→兜底）。
+        """
+        if exchange == "hyperliquid":
+            logger.warning("Hyperliquid uses per-account wallets, not global credentials")
+            return None
         try:
             from backend.database.connection import SessionLocal
             from backend.database.models import ExchangeCredential
@@ -199,8 +233,8 @@ class ExchangeManager:
                 if account_id > 0:
                     cred = q.filter(ExchangeCredential.account_id == account_id).first()
                     if cred:
-                        logger.info(
-                            "[Exchange] 账户级凭证命中: %s account_id=%d", exchange, account_id,
+                        logger.debug(
+                            "[Exchange] 账户级凭证命中(fresh): %s account_id=%d", exchange, account_id,
                         )
                 if cred is None:
                     cred = q.filter(
@@ -208,7 +242,7 @@ class ExchangeManager:
                         | (ExchangeCredential.account_id == 0)
                     ).first()
                     if cred:
-                        logger.info("[Exchange] 全局凭证命中: %s user_id=%d", exchange, user_id)
+                        logger.debug("[Exchange] 全局凭证命中(fresh): %s user_id=%d", exchange, user_id)
                 if cred is None:
                     cred = q.first()  # 旧行为兜底: 任意一条 enabled 凭证
 
@@ -223,38 +257,19 @@ class ExchangeManager:
                 api_secret = decrypt_private_key(cred.api_secret_encrypted) if cred.api_secret_encrypted else ""
                 passphrase = decrypt_private_key(cred.passphrase_encrypted) if cred.passphrase_encrypted else ""
 
-                client = ExchangeClientFactory.create(
+                return ExchangeClientFactory.create(
                     exchange,
                     api_key=api_key,
                     secret=api_secret,
                     password=passphrase,
                     testnet=cred.testnet,
                     proxy_url=cred.proxy_url or None,
+                    market_type=market_type if exchange == "binance" else None,
                 )
-
-                # 账户级凭证 → 账户级缓存键;全局/兜底 → 全局缓存键
-                store_key = (
-                    f"{exchange}:{account_id}"
-                    if (cred.account_id or 0) == account_id and account_id > 0
-                    else cache_key
-                )
-                self._clients[store_key] = client
-                self._health[store_key] = {
-                    "exchange": exchange,
-                    "user_id": user_id,
-                    "account_id": cred.account_id,
-                    "status": "created",
-                    "last_check": 0,
-                }
-                logger.info(
-                    "Created %s client for user_id=%d account_id=%s",
-                    exchange, user_id, cred.account_id,
-                )
-                return client
             finally:
                 db.close()
         except Exception as e:
-            logger.error("Failed to create %s client: %s", exchange, e)
+            logger.error("Failed to create fresh %s client: %s", exchange, e)
             return None
 
     # ── Health Check ──────────────────────────────

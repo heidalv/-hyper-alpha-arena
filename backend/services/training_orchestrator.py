@@ -502,7 +502,7 @@ def _opencode_strategy_compare(
 
 def register_training_jobs() -> None:
     from backend.services.scheduler import task_scheduler
-    from backend.database.connection import SessionLocal
+    from backend.database.connection import SessionLocal, release_idle_txn
 
     if not task_scheduler.is_running():
         task_scheduler.start()
@@ -524,6 +524,9 @@ def register_training_jobs() -> None:
             strategies = db.query(AIStrategy).filter(
                 AIStrategy.status.in_(["active", "paused"])
             ).all()
+            # [2026-09-02 挂事务修复] 这条 db 只用来取策略列表；复评走自己的会话+LLM，
+            # 不结束读事务则整批复评期间此连接一直 idle-in-transaction（LeakGuard 点名）。
+            release_idle_txn(db, where="training_orch.15m_review")
             for s in strategies:
                 try:
                     strategy_learning.run_periodic_review_by_freq(s.strategy_id, freq="15m", days=3)
@@ -543,6 +546,7 @@ def register_training_jobs() -> None:
             strategies = db.query(AIStrategy).filter(
                 AIStrategy.status.in_(["active", "paused"])
             ).all()
+            release_idle_txn(db, where="training_orch.1h_review")  # 同 15m 复评说明
             for s in strategies:
                 try:
                     strategy_learning.run_periodic_review_by_freq(s.strategy_id, freq="1h", days=7)
@@ -562,6 +566,7 @@ def register_training_jobs() -> None:
             strategies = db.query(AIStrategy).filter(
                 AIStrategy.status.in_(["active", "paused"])
             ).all()
+            release_idle_txn(db, where="training_orch.4h_review")  # 同 15m 复评说明
             for s in strategies:
                 try:
                     strategy_learning.run_periodic_review_by_freq(s.strategy_id, freq="4h", days=14)

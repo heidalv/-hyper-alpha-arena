@@ -8,11 +8,12 @@ import {
   Radar, Activity, BarChart3, Radio, Clock, Terminal,
   RefreshCw, Loader2, Cpu, Zap, TrendingUp, Boxes,
   CheckCircle2, XCircle, AlertTriangle, Pause, Play,
-  Server, Brain, Gauge, Layers,
+  Server, Brain, Gauge, Layers, Wallet, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
-import { getAccessToken } from "@/lib/stores/auth";
+import { apiRequest } from "@/lib/api";
+import { usePolling } from "@/hooks/usePolling";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   LineChart as RLineChart, Line as RLine, BarChart as RBarChart, Bar as RBar,
@@ -81,7 +82,7 @@ export default function AgentMonitorPage() {
       <PageHeader
         icon={<Radar className="w-4 h-4" />}
         title="Agent 运行监控"
-        subtitle="多周期 Agent 编排 · FullAuto 调度循环"
+        subtitle="LLM 论题主脑 · 日内波段/中线/长线三车道 · 哨兵盯盘"
         refreshHint="会话状态 15s 轮询"
         breadcrumb={[{ label: "交易核心" }, { label: "Agent 监控" }]}
         actions={
@@ -102,7 +103,7 @@ export default function AgentMonitorPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "relative flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
+              "relative flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors cursor-pointer",
               tab === t.key
                 ? "bg-gradient-to-r from-cyan-400/15 to-violet-500/15 text-cyan-300 font-medium after:absolute after:left-2 after:right-2 after:-bottom-[9px] after:h-0.5 after:rounded-full after:bg-gradient-to-r after:from-cyan-400 after:to-violet-500 after:shadow-[0_0_8px_rgba(34,211,238,0.6)]"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -172,7 +173,7 @@ function AccountSessionSelector({
       <select
         value={selectedAccountId ?? ""}
         onChange={(e) => onAccountChange(e.target.value === "" ? null : Number(e.target.value))}
-        className="h-8 px-2 rounded-md border border-border/60 bg-background text-xs max-w-44"
+        className="h-8 px-2 rounded-md border border-border/60 bg-background text-xs max-w-44 cursor-pointer"
         aria-label="选择账户"
       >
         {accounts.length === 0 && <option value="">无会话</option>}
@@ -188,7 +189,7 @@ function AccountSessionSelector({
         <select
           value={selectedSessionId ?? ""}
           onChange={(e) => onSessionChange(e.target.value || null)}
-          className="h-8 px-2 rounded-md border border-border/60 bg-background text-xs max-w-52"
+          className="h-8 px-2 rounded-md border border-border/60 bg-background text-xs max-w-52 cursor-pointer"
           aria-label="选择会话"
         >
           {sortedSessions.map((s: any) => (
@@ -215,272 +216,139 @@ function usePoll<T>(url: string | null, interval: number): { data: T | null; loa
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-  const abortRef = useRef<AbortController | null>(null);
+  // 代际号：url 变化后丢弃旧请求的迟到结果，避免串数据
+  const genRef = useRef(0);
 
-  const refetch = useCallback(() => setTick(t => t + 1), []);
-
-  useEffect(() => {
-    if (!url) {
-      setLoading(false);
-      return;
+  // [2026-09-09] 原来这里手搓 fetch：401 只 setError 然后按 5~15s 继续打，
+  // 且不参与单飞续期。改走 apiRequest 后统一获得：
+  //   - 请求前 ensureFreshAccessToken 主动续期；
+  //   - 401 → 单飞 refresh → 重试一次；refresh 无效 → 立即登出（循环终止）；
+  //   - 统一超时/错误语义（原手写 AbortController 10s 保留）。
+  // 调用点仍传 `${BACKEND}/api/xxx` 全 URL，这里剥前缀得到 apiRequest 需要的 /xxx。
+  const load = useCallback(async () => {
+    if (!url) return;
+    const gen = ++genRef.current;
+    const path = url.startsWith(`${BACKEND}/api`) ? url.slice(BACKEND.length + 4) : url;
+    try {
+      const json = await apiRequest<T>(path, { timeout: 10_000 });
+      if (gen !== genRef.current) return;
+      setData(json);
+      setError(null);
+    } catch (e) {
+      if (gen !== genRef.current) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg.includes("abort") || /timeout/i.test(msg) ? "请求超时" : msg);
+    } finally {
+      if (gen === genRef.current) setLoading(false);
     }
-    let cancelled = false;
-    const load = async () => {
-      // 超时中断:防慢API卡死页面(10s上限)
-      abortRef.current?.abort();
-      const ac = new AbortController();
-      abortRef.current = ac;
-      const timeout = setTimeout(() => ac.abort(), 10000);
-      try {
-        const token = getAccessToken();
-        const headers: Record<string, string> = { Accept: "application/json" };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        // 相对 /api 路径解析到配置的后端地址（桌面端/远端静态壳无 rewrites）
-        const target = url.startsWith("/api")
-          ? `${getBackendUrl()}${url}`
-          : url;
-        const res = await fetch(target, { signal: ac.signal, headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (!cancelled) { setData(json); setError(null); }
-      } catch (e) {
-        if (!cancelled) {
-          const msg = e instanceof Error ? e.message : String(e);
-          setError(msg.includes('abort') ? '请求超时' : msg);
-        }
-      } finally {
-        clearTimeout(timeout);
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    const id = setInterval(load, interval);
-    return () => { cancelled = true; clearInterval(id); abortRef.current?.abort(); };
-  }, [url, interval, tick]);
+  }, [url]);
 
-  return { data, loading, error, refetch };
+  const refetch = useCallback(() => { void load(); }, [load]);
+
+  // 可见性感知轮询：隐藏时暂停、回到前台立即补一次、慢响应期间不叠加请求；
+  // reloadKey=url → 切换会话/账户时立即重拉（不等下一个 tick）。
+  usePolling(load, interval, { enabled: !!url, reloadKey: url ?? "" });
+
+  return { data, loading: url ? loading : false, error, refetch };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Tab 1: 运行总览
+// Tab 1: 运行总览（2026-09-07 重构：全部接实时活数据）
 // ═══════════════════════════════════════════════════════════════════
 
 function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[]; selectedSessionId: string | null }) {
-  const tickIntervals = usePoll<any>(`${BACKEND}/api/full-auto/tick-intervals`, 30000);
-
   const runningSession = sessionsData.find((s: any) => s.session_id === selectedSessionId)
     ?? sessionsData.find((s: any) => s.status === "running" || s.status === "defensive");
   const sessionId = runningSession?.session_id ?? selectedSessionId;
+  const acctId = runningSession?.paper_account_id ?? runningSession?.account_id ?? null;
+
+  const tickIntervals = usePoll<any>(`${BACKEND}/api/full-auto/tick-intervals`, 15000);
   const tierStatus = usePoll<any>(sessionId ? `${BACKEND}/api/full-auto/tier-status/${sessionId}` : null, 10000);
   const scheduler = usePoll<any>(`${BACKEND}/api/full-auto/debug/scheduler-state`, 15000);
-  const mltoThesis = usePoll<any>(sessionId ? `${BACKEND}/api/mlto/sessions/${sessionId}/thesis/summary` : null, 15000);
-  const autoCoinStatus = usePoll<any>(sessionId ? `${BACKEND}/api/auto-coin/${sessionId}/status` : null, 15000);
-  const autoCoinHistory = usePoll<any>(sessionId ? `${BACKEND}/api/auto-coin/${sessionId}/history?limit=10` : null, 30000);
-  // 中线因子池状态（因子化新形态的数据源：active/候选/拒绝 + 时间框架分布）
-  const midlongFactors = usePoll<any>(`${BACKEND}/api/ops/midlong-factors`, 30000);
-  // 短线因子池状态（scalp_factor_router 数据源）
-  const scalpPool = usePoll<any>(`${BACKEND}/api/ops/factor-pool?view=tradable&limit=1`, 30000);
+  // slim=1：精简模式（跳过逐条 gate/学习指标富化），全量 30s+ → 亚秒，10s 轮询不再超时
+  const mltoThesis = usePoll<any>(sessionId ? `${BACKEND}/api/mlto/sessions/${sessionId}/thesis/summary?slim=1` : null, 10000);
+  const positions = usePoll<any>(acctId ? `${BACKEND}/api/paper/positions/${acctId}?status=open` : null, 5000);
+  const balance = usePoll<any>(acctId ? `${BACKEND}/api/paper/balance/${acctId}` : null, 10000);
   // 组合预算冻结状态（风控止血：全局/账户/策略/交易对四级）
   const pbState = usePoll<any>(`${BACKEND}/api/full-auto/debug/portfolio-budget`, 15000);
-  // 长线 V2 规则化 L1 状态（LLM thesis 影子观察中）：每个固定长线币的 up/down/sideways + score
+  // 长线 V2 规则化 L1 状态（证据）
   const longV2 = usePoll<any>(sessionId ? `${BACKEND}/api/ops/long-trend-v2?session_id=${sessionId}` : null, 15000);
 
-  const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 30, mid: 120, long: 240 };
-  const tiers = tierStatus.data?.tiers ?? {};
+  const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 300, mid: 45, long: 240 };
+  const labels = tickIntervals.data?.labels ?? {};
   const jobs = scheduler.data?.jobs ?? [];
-  const mltoLanes = mltoThesis.data?.lanes ?? {};
-  const longFixedSyms: string[] = (mltoLanes.long_symbols || runningSession?.fixed_symbols_by_tier?.long || [])
-    .map((s: string) => String(s).toUpperCase())
-    .filter(Boolean);
-  const longFixedLabel = longFixedSyms.length
-    ? `long_trend_v2 · L1 规则化 · 仅 ${longFixedSyms.join("/")}`
-    : "long_trend_v2 · L1 规则化 · 未配置固定币";
-  const totalEquity = tierStatus.data?.total_equity ?? 0;
+  const theses: any[] = mltoThesis.data?.theses ?? [];
+  const openPositions: any[] = Array.isArray(positions.data) ? positions.data : (positions.data?.positions ?? []);
 
-  // 统一循环跳过次数
-  const skipCount = Object.values(scheduler.data?.unified_tick_count ?? {}).reduce((s: number, v: any) => s + (typeof v === "number" ? v : 0), 0);
+  // ── 车道数据聚合：每个 tier 的论题统计 + 最近刷新 + 持仓 ──
+  const laneOf = (tier: string) => {
+    const tierTheses = theses.filter((t: any) => t.tier === tier);
+    const accepted = tierTheses.filter((t: any) => t.accepted);
+    const recOpen = tierTheses.filter((t: any) => t.accepted && t.recommend_open);
+    const lastUpdate = tierTheses.length
+      ? new Date(Math.max(...tierTheses.map((t: any) => new Date(t.updated_at ?? 0).getTime())))
+      : null;
+    const tierPositions = openPositions.filter((p: any) =>
+      (p.timeframe_tier ?? "").toLowerCase() === tier ||
+      (tier === "short" && (p.trade_nature ?? "").toLowerCase() === "intraday")
+    );
+    const tierPnl = tierPositions.reduce((s: number, p: any) => s + (Number(p.unrealized_pnl) || 0), 0);
+    return { theses: tierTheses, accepted, recOpen, lastUpdate, positions: tierPositions, pnl: tierPnl };
+  };
+  const lanes = { short: laneOf("short"), mid: laneOf("mid"), long: laneOf("long") };
 
-  // 找到 unified/scalp/midlong 的 next_run
+  // 心跳：positions 轮询成功 = 后端活
+  const backendAlive = !positions.error && positions.data != null;
+  const equity = balance.data?.total_equity ?? tierStatus.data?.total_equity ?? 0;
+  const upnl = balance.data?.unrealized_pnl ?? 0;
+  const realized = balance.data?.realized_pnl ?? 0;
+  const fees = balance.data?.total_fee_paid ?? 0;
+
   const findJob = (pattern: string) => jobs.find((j: any) => j.id?.includes(pattern));
+  const midlongJob = findJob("midlong");
 
-  // AI 选币：独立异步循环（非 APScheduler job），用 last_scan_at + 扫描间隔推算下次扫描
-  const autoScanInterval = autoCoinStatus.data?.scan_interval ?? 1800;
-  const autoLastScan = autoCoinStatus.data?.last_scan_at ?? null;
-  const autoNextScanJob = autoLastScan
-    ? { next_run: new Date(autoLastScan).getTime() + autoScanInterval * 1000 }
-    : null;
-  const autoPool = autoCoinStatus.data?.candidate_pool ?? {};
-  const autoSymbols = autoCoinStatus.data?.auto_symbols ?? [];
-  const mltoTheses = mltoThesis.data?.theses ?? [];
-  const mltoLastUpdate = mltoTheses.length
-    ? new Date(Math.max(...mltoTheses.map((t: any) => new Date(t.updated_at ?? 0).getTime()))).toLocaleTimeString("zh-CN", { hour12: false })
-    : "--";
-
-  const tierCards: {
-    key: string; name: string; icon: any; color: string; interval: number;
-    label: string; data: any; job: any; badge?: string; countdownLabel?: string;
-    stats?: { label: string; value: number }[]; kpiExclude?: boolean;
-    showBudget?: boolean; footer?: any;
-  }[] = [
+  const laneCards = [
     {
-      key: "short", name: "短线 Scalp", icon: Zap, color: "primary",
-      interval: intervals.short, label: "因子引擎 · 5m",
-      data: tiers.short,
-      job: findJob("scalp"),
-      footer: (
-        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-          <div className="px-1 py-0.5 rounded bg-cyan-400/10 text-cyan-300">
-            执行引擎：短线因子路由 scalp_factor_router · 5m/15m 因子扫描 · 分数过门槛直通（TCP/V5 拦截兜底）
-          </div>
-          <div>
-            因子池：
-            tradable={scalpPool.data?.counts?.tradable ?? "…"}
-            {" · "}隔离={scalpPool.data?.counts?.quarantine ?? "…"}
-            {" · "}全部={scalpPool.data?.counts?.all ?? "…"}
-          </div>
-          <div>节奏：{intervals.short}s/tick 独立调度 · 冷却与门控见「冷却与门禁」区</div>
-        </div>
-      ),
+      key: "short", name: "日内波段", icon: Zap, color: "primary" as const,
+      engine: labels.short ?? "日内波段 · LLM 论题（1h）",
+      interval: intervals.short, lane: lanes.short,
+      desc: "持仓 2-12h · 每币冷却 4h · TP 3.5% / SL 2%",
     },
     {
-      key: "mid", name: "中线 · 因子化", icon: Boxes, color: "profit",
-      interval: intervals.mid ?? intervals.long,
-      label: "因子池 mid · 4h/1d · regime/ADX 过滤 → IC 加权",
-      data: {
-        ...(tiers.mid || {}),
-        symbols: tiers.mid?.symbols?.length
-          ? tiers.mid.symbols
-          : (mltoTheses.filter((t: any) => t.tier === "mid").map((t: any) => t.symbol)),
-      },
-      job: findJob("midlong"),
-      footer: (
-        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-          <div className={cn(
-            "px-1 py-0.5 rounded",
-            tickIntervals.data?.mid_mode === "factor_route"
-              ? "bg-profit/10 text-profit"
-              : tickIntervals.data?.mid_mode === "mid_paused"
-                ? "bg-loss/10 text-loss"
-                : "bg-warning/10 text-warning",
-          )}>
-            执行引擎：{tickIntervals.data?.mid_mode === "factor_route"
-              ? "因子路由（已切换）"
-              : tickIntervals.data?.mid_mode === "mid_paused"
-                ? "中线已暂停（只跑因子研究，等待弹药达标）"
-                : "因子路由（规则化 + LLM thesis 方向门已上线）"}
-            {" · "}切换条件：因子池 active≥5 且 shadow 对照达标
-          </div>
-          <div>
-            因子池：
-            active={midlongFactors.data?.health?.active ?? "…"}
-            {" · "}候选={midlongFactors.data?.health?.candidate ?? "…"}
-            {" · "}拒绝={midlongFactors.data?.health?.rejected ?? "…"}
-            {midlongFactors.data?.health?.by_timeframe
-              ? ` · 4h=${midlongFactors.data.health.by_timeframe["4h"] ?? 0} / 1d=${midlongFactors.data.health.by_timeframe["1d"] ?? 0}`
-              : ""}
-            {midlongFactors.data?.health?.avg_active_ic != null
-              ? ` · 均|IC|=${midlongFactors.data.health.avg_active_ic}`
-              : ""}
-          </div>
-          <div>宇宙 = 固定 ∪ AI≤3；得分高/低直接执行或否决，仅边缘带问 LLM（fail-closed）</div>
-          <div>中线 = 因子路由入场 + LLM thesis 方向门（conviction≥60 否决冲突）+ 委员会预算 hint 已上线</div>
-        </div>
-      ),
+      key: "mid", name: "中线波段", icon: Boxes, color: "profit" as const,
+      engine: labels.mid ?? "中线 LLM 论题主脑",
+      interval: intervals.mid, lane: lanes.mid,
+      desc: "持仓 12h-48h · 论题 4h TTL · 18h 无进展复盘",
     },
     {
-      key: "long", name: "固定长线", icon: Boxes, color: "warning",
-      interval: intervals.long, label: longFixedLabel,
-      badge: `${tickIntervals.data?.long_loop_sec ?? 45}s 循环 · 日频决策`,
-      data: tiers.long,
-      job: findJob("midlong"),
-      footer: (
-        <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
-          <div className="px-1 py-0.5 rounded bg-warning/10 text-warning">
-            执行引擎：long_trend_v2 规则化 L1（5 信号投票）· LLM thesis 方向门（conviction≥60 standdown）· 循环 {tickIntervals.data?.long_loop_sec ?? 45}s（持仓管理每循环检查）· 入场分析 {tickIntervals.data?.long_entry_sec ?? intervals.long}s 节流 · 决策日频（仅已收盘 1d bar 更新）
-          </div>
-          <div>入场 = L1=up（score≥+3，多头单边，首仓 50%）；退出 = 结构破坏 + Chandelier 止损 + no_progress/极端回撤兜底；新高金字塔；无分档 TP / 无 15min 复查</div>
-          <div>盘中价格波动不触发决策（未收盘 bar 已丢弃 + 分类缓存）；空仓等待 L1=up 确认</div>
-        </div>
-      ),
-    },
-    {
-      key: "auto", name: "AI 选币", icon: Radar, color: "profit",
-      interval: autoScanInterval, badge: `${autoScanInterval}s/跟投`,
-      label: `${autoCoinStatus.data?.source_label || "平台看板跟投"} · ${autoCoinStatus.data?.exchange ?? "asterdex"}`,
-      countdownLabel: "下次同步",
-      data: {
-        active_count: autoSymbols.length,
-        position_count: 0,
-        symbols: autoSymbols,
-      },
-      stats: [
-        { label: "选币", value: autoSymbols.length },
-        { label: "冷却", value: autoPool.cooling_count ?? 0 },
-        { label: "黑名单", value: autoPool.blacklist_count ?? 0 },
-      ],
-      job: autoNextScanJob,
-      kpiExclude: true,
-      showBudget: false,
-      footer: (
-        <div className="text-xs text-muted-foreground space-y-1 pt-1">
-          <div className="flex items-center justify-between gap-2">
-            <span>上次同步 {autoLastScan ? new Date(autoLastScan).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}</span>
-            <span>池 {Object.keys(autoPool.active ?? {}).length} · 历史 {autoCoinHistory.data?.total ?? 0}</span>
-          </div>
-          {autoCoinStatus.data?.inject_blocked_reason && (
-            <div className="text-warning/90 truncate" title={autoCoinStatus.data.inject_blocked_reason}>
-              注入受限：{autoCoinStatus.data.inject_blocked_reason}
-            </div>
-          )}
-          <div>
-            <div className="mb-0.5">当前选币 {autoSymbols.length} 个（来自 VIP 短线看板）</div>
-            {autoSymbols.length > 0 ? (
-              <div className="flex gap-1 flex-wrap">
-                {autoSymbols.map((sym: string) => (
-                  <span
-                    key={sym}
-                    className="px-1 py-0.5 rounded bg-profit/10 text-profit font-medium"
-                    title={sym}
-                  >
-                    {sym}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="text-muted-foreground/80">暂无选出交易对（等待看板同步）</div>
-            )}
-          </div>
-        </div>
-      ),
+      key: "long", name: "长线趋势", icon: TrendingUp, color: "warning" as const,
+      engine: labels.long ?? "长线 LLM 论题主脑",
+      interval: intervals.long, lane: lanes.long,
+      desc: "持仓 3-7 天 · Chandelier 追踪 · 浮盈≥2% 推保本",
     },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => { tickIntervals.refetch(); tierStatus.refetch(); scheduler.refetch(); autoCoinStatus.refetch(); autoCoinHistory.refetch(); }}>
-          <RefreshCw className="w-3.5 h-3.5" /> 刷新
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <StatusPill label="后端" ok={true} detail=":8000 运行中" />
-        <StatusPill label="会话" ok={!!runningSession} detail={runningSession ? `${runningSession.account_name} · ${runningSession.status}${runningSession.active_exchange ? ` · ${runningSession.active_exchange}` : ""}` : "无活跃会话"} />
+      {/* ── 系统心跳条 ── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatusPill label="后端" ok={backendAlive} detail={backendAlive ? ":8000 运行中" : "连接异常"} />
+        <StatusPill label="会话" ok={!!runningSession} detail={runningSession ? `${runningSession.account_name} · ${runningSession.status}` : "无活跃会话"} />
         <StatusPill label="调度任务" ok={jobs.length > 0} detail={`${jobs.length} 个 job`} />
+        <StatusPill label="主脑" ok={tickIntervals.data?.brain_mode === "llm"} detail={tickIntervals.data?.brain_mode === "llm" ? "LLM 论题驱动" : "未启用"} />
+        <StatusPill label="日内波段" ok={!!tickIntervals.data?.intraday_enabled} detail={tickIntervals.data?.intraday_enabled ? `${intervals.short}s/tick` : "已停用"} />
       </div>
 
       {/* 风控冻结状态（组合预算止血可见性：全局/账户/策略/交易对四级） */}
       <PortfolioBudgetBanner state={pbState.data} />
 
-      {/* 三周期卡片 */}
+      {/* ── 三车道卡片：活着吗？在干什么？赚了还是亏了？ ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {tierCards.filter((t) => t.key !== "auto").map((t) => {
-          const d = t.data ?? {};
-          const budgetPct = d.budget_max ? (d.margin_used / d.budget_max) * 100 : 0;
+        {laneCards.map((t) => {
+          const lane = t.lane;
+          const isLive = t.key === "short" ? !!tickIntervals.data?.intraday_enabled : true;
           return (
-            <Card key={t.key} className="p-4 space-y-2 relative overflow-hidden">
-              {/* 装饰光效 */}
+            <Card key={t.key} className="p-4 space-y-2.5 relative overflow-hidden">
               <div className={cn("absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10",
                 t.color === "primary" ? "bg-primary" : t.color === "profit" ? "bg-profit" : "bg-warning")} />
               <div className="flex items-center justify-between">
@@ -490,134 +358,226 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
                     <t.icon className={cn("w-4 h-4", t.color === "primary" ? "text-primary" : t.color === "profit" ? "text-profit" : "text-warning")} />
                   </div>
                   <div>
-                    <div className="text-sm font-medium">{t.name}</div>
-                    <div className="text-xs text-muted-foreground">{t.label}</div>
+                    <div className="text-sm font-medium flex items-center gap-1.5">
+                      {t.name}
+                      {/* 车道活性灯 */}
+                      <span className={cn("inline-block w-1.5 h-1.5 rounded-full", isLive ? "bg-profit animate-pulse" : "bg-loss")} />
+                    </div>
+                    <div className="text-xs text-muted-foreground">{t.engine}</div>
                   </div>
                 </div>
-                <Badge variant="secondary" className="text-xs tabular-nums">{t.badge ?? `${t.interval}s/tick`}</Badge>
+                <Badge variant="secondary" className="text-xs tabular-nums">{t.interval}s/tick</Badge>
               </div>
 
               {/* 下次 tick 倒计时 */}
-              <NextTickCountdown job={t.job} interval={t.interval} label={t.countdownLabel} />
+              <NextTickCountdown job={t.key === "short" ? undefined : midlongJob} interval={t.interval} label={t.key === "short" ? "下次扫描" : "下次哨兵"} />
 
-              {/* 统计 */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {t.stats ? t.stats.map((s) => <Stat key={s.label} label={s.label} value={s.value} />) : (
-                  <>
-                    <Stat label="策略" value={d.active_count ?? d.strategy_count ?? 0} />
-                    <Stat label="持仓" value={d.position_count ?? 0} />
-                    <Stat label="符号" value={d.symbols?.length ?? 0} />
-                  </>
-                )}
+              {/* 三问：论题 / 持仓 / 盈亏 */}
+              <div className="grid grid-cols-3 gap-2 pt-0.5">
+                <Stat label="论题" value={`${lane.accepted.length}/${lane.theses.length}`} sub="accepted/总" />
+                <Stat label="持仓" value={String(lane.positions.length)} sub="当前" />
+                <Stat
+                  label="浮盈"
+                  value={`${lane.pnl >= 0 ? "+" : ""}${lane.pnl.toFixed(1)}`}
+                  sub="$"
+                  tone={lane.pnl > 0 ? "profit" : lane.pnl < 0 ? "loss" : undefined}
+                />
               </div>
 
-              {/* 预算进度 */}
-              {t.showBudget !== false && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>预算占用</span>
-                    <span className="tabular-nums">{budgetPct.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                    <div className={cn("h-full transition-all rounded-full",
-                      budgetPct > 80 ? "bg-loss" : budgetPct > 50 ? "bg-warning" : "bg-profit")}
-                      style={{ width: `${Math.min(budgetPct, 100)}%` }} />
-                  </div>
+              <div className="text-xs text-muted-foreground space-y-0.5 pt-1 border-t border-border/30">
+                <div>{t.desc}</div>
+                <div className="flex justify-between">
+                  <span>最近论题刷新</span>
+                  <span className="tabular-nums">{lane.lastUpdate ? lane.lastUpdate.toLocaleTimeString("zh-CN", { hour12: false }) : "—"}</span>
                 </div>
-              )}
-              {t.footer}
+                {lane.recOpen.length > 0 && (
+                  <div className="text-profit">待开仓信号：{lane.recOpen.map((x: any) => x.symbol).join(" / ")}</div>
+                )}
+              </div>
             </Card>
           );
         })}
       </div>
 
-      {/* AI 选币（独立全宽横条，不再挤进三周期网格） */}
-      {(() => {
-        const a = tierCards.find((t: any) => t.key === "auto");
-        if (!a) return null;
-        return (
-          <Card className="p-4 space-y-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10 bg-profit" />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-profit/10">
-                  <a.icon className="w-4 h-4 text-profit" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium">{a.name}</div>
-                  <div className="text-xs text-muted-foreground">{a.label}</div>
-                </div>
-              </div>
-              <Badge variant="secondary" className="text-xs tabular-nums">{a.badge ?? `${a.interval}s/tick`}</Badge>
-            </div>
-            <NextTickCountdown job={a.job} interval={a.interval} label={a.countdownLabel} />
-            <div className="grid grid-cols-3 gap-2 pt-1">
-              {a.stats ? a.stats.map((s: any) => <Stat key={s.label} label={s.label} value={s.value} />) : null}
-            </div>
-            {a.footer}
-          </Card>
-        );
-      })()}
-
-      {/* 全局 KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KPICard label="总权益" value={`$${totalEquity.toFixed(2)}`} icon={Gauge} />
-        <KPICard label="活跃策略" value={tierCards.filter((t: any) => !t.kpiExclude).reduce((s, t) => s + ((t.data?.active_count ?? 0) as number), 0)} icon={Layers} />
-        <KPICard label="总持仓" value={tierCards.filter((t: any) => !t.kpiExclude).reduce((s, t) => s + ((t.data?.position_count ?? 0) as number), 0)} icon={Activity} />
-        <KPICard label="调度任务" value={jobs.length} icon={Clock} />
-        <KPICard label="报错中心" value="→ 运维台" icon={AlertTriangle} color="text-muted-foreground" />
-      </div>
-
-      {/* 分周期策略活动摘要（开仓/平仓/减仓记录） */}
-      <TierActivityPanels sessionId={sessionId} />
-
-      {/* 协调器状态 */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium flex items-center gap-1.5">
-            <Cpu className="w-4 h-4 text-primary" /> 协调器 / 统一循环
-          </span>
-          <Badge variant="secondary" className="text-xs">tick 跳过 {skipCount}</Badge>
+      {/* ── 当前持仓实时表 ── */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Wallet className="w-3.5 h-3.5 text-cyan-300" />
+            <span className="text-xs font-semibold">当前持仓</span>
+            <Badge variant="secondary" className="text-xs">{openPositions.length}</Badge>
+          </div>
+          <span className="text-xs text-muted-foreground">5s 轮询 · 杠杆=币种档</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-xs">
-          <Detail label="协调器间隔" value={`${intervals.coordinator}s`} />
-          <Detail label="统一循环" value={scheduler.data?.unified_loop_running ? "运行中" : "—"} />
-        </div>
+        {openPositions.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">当前无持仓</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b border-border/50">
+                  <th className="px-4 py-2 font-medium">币种</th>
+                  <th className="px-2 py-2 font-medium">周期</th>
+                  <th className="px-2 py-2 font-medium text-right">杠杆</th>
+                  <th className="px-2 py-2 font-medium text-right">入场</th>
+                  <th className="px-2 py-2 font-medium text-right">现价</th>
+                  <th className="px-2 py-2 font-medium text-right">浮盈</th>
+                  <th className="px-2 py-2 font-medium text-right">距止损</th>
+                  <th className="px-2 py-2 font-medium text-right">距止盈</th>
+                  <th className="px-4 py-2 font-medium text-right">持仓</th>
+                </tr>
+              </thead>
+              <tbody>
+                {openPositions.map((p: any) => {
+                  const entry = Number(p.entry_price) || 0;
+                  const mark = Number(p.mark_price) || 0;
+                  const isLong = (p.side ?? "").toLowerCase() === "long";
+                  const pnl = Number(p.unrealized_pnl) || 0;
+                  const dist = (px: number | null) => {
+                    if (!px || !mark) return "—";
+                    const d = ((Number(px) - mark) / mark) * 100;
+                    return `${d >= 0 ? "+" : ""}${d.toFixed(1)}%`;
+                  };
+                  const holdH = Number(p.hold_age_hours);
+                  const holdLabel = Number.isFinite(holdH)
+                    ? (holdH >= 24 ? `${(holdH / 24).toFixed(1)}天` : `${holdH.toFixed(1)}h`)
+                    : "—";
+                  const tierLabel: Record<string, string> = { short: "日内", mid: "中线", long: "长线" };
+                  return (
+                    <tr key={p.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
+                      <td className="px-4 py-2 font-medium">
+                        <span className="flex items-center gap-1">
+                          {isLong
+                            ? <ArrowUpRight className="w-3 h-3 text-profit" />
+                            : <ArrowDownRight className="w-3 h-3 text-loss" />}
+                          {p.symbol}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2">{tierLabel[(p.timeframe_tier ?? "").toLowerCase()] ?? p.timeframe_tier}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{p.leverage}x</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{entry ? String(entry).slice(0, 10) : "—"}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{mark ? String(mark).slice(0, 10) : "—"}</td>
+                      <td className={cn("px-2 py-2 text-right tabular-nums font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
+                        {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums text-loss/80">{dist(p.sl_price)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums text-profit/80">{p.tp_price ? dist(p.tp_price) : "追踪"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{holdLabel}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
-      {/* 中长线：长线=long_trend_v2 规则化 L1（无 LLM）；中线=因子化 */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium flex items-center gap-1.5">
-            <Brain className="w-4 h-4 text-warning" /> 中长线 · 长线规则化 / 中线因子化
-          </span>
-          <Badge variant="secondary" className="text-xs">
-            {longV2.data?.enabled ? "long_trend_v2 已启用" : "long_trend_v2 未启用"}
+      {/* ── 全局 KPI ── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KPICard label="总权益" value={`$${Number(equity).toFixed(2)}`} icon={Gauge} />
+        <KPICard label="浮动盈亏" value={`${upnl >= 0 ? "+" : ""}$${Number(upnl).toFixed(2)}`} icon={Activity} color={upnl >= 0 ? "text-profit" : "text-loss"} />
+        <KPICard label="已实现盈亏" value={`${realized >= 0 ? "+" : ""}$${Number(realized).toFixed(2)}`} icon={CheckCircle2} color={realized >= 0 ? "text-profit" : "text-loss"} />
+        <KPICard label="累计手续费" value={`$${Number(fees).toFixed(2)}`} icon={Wallet} color="text-warning" />
+        <KPICard label="调度任务" value={jobs.length} icon={Clock} />
+      </div>
+
+      {/* ── 分周期策略活动摘要（开仓/平仓/减仓记录） ── */}
+      <TierActivityPanels sessionId={sessionId} />
+
+      {/* ── 论题台账：钱谁说了算 ── */}
+      <ThesisLedger theses={theses} longV2={longV2.data} brainMode={tickIntervals.data?.brain_mode} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 论题台账（抽成组件，结构不变）
+// ═══════════════════════════════════════════════════════════════════
+
+function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: any; brainMode?: string }) {
+  const [tierFilter, setTierFilter] = useState<string>("all");
+  const filtered = tierFilter === "all" ? theses : theses.filter((t: any) => t.tier === tierFilter);
+  const lastUpdate = theses.length
+    ? new Date(Math.max(...theses.map((t: any) => new Date(t.updated_at ?? 0).getTime()))).toLocaleTimeString("zh-CN", { hour12: false })
+    : "--";
+  const tierName: Record<string, string> = { short: "日内", mid: "中线", long: "长线" };
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium flex items-center gap-1.5">
+          <Brain className="w-4 h-4 text-warning" /> 论题台账 · LLM 主脑
+        </span>
+        <div className="flex items-center gap-1.5">
+          {["all", "short", "mid", "long"].map((f) => (
+            <button key={f} onClick={() => setTierFilter(f)}
+              className={cn("px-2 py-0.5 text-xs rounded cursor-pointer transition-colors",
+                tierFilter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
+              {f === "all" ? "全部" : tierName[f]}
+            </button>
+          ))}
+          <Badge variant="secondary" className="text-xs ml-1">
+            {brainMode === "llm" ? "brain=llm" : "brain=off"} · 更新 {lastUpdate}
           </Badge>
         </div>
-        <div className="text-xs text-muted-foreground mb-2">
-          长线 · L1 规则化（5 信号投票，score≥+3 才 up；多头单边）
+      </div>
+      <div className="text-xs text-muted-foreground mb-2">
+        没有新鲜 accepted 论题 = 不开。因子 / V2 / 图审只是证据。
+      </div>
+      {filtered.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-2">暂无论题</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted-foreground border-b border-border/50">
+                <th className="text-left py-1 pr-2">币</th>
+                <th className="text-left py-1 pr-2">档</th>
+                <th className="text-left py-1 pr-2">方向</th>
+                <th className="text-left py-1 pr-2">开?</th>
+                <th className="text-left py-1 pr-2">平?</th>
+                <th className="text-right py-1 pr-2">失效价</th>
+                <th className="text-left py-1 pr-2">watch</th>
+                <th className="text-left py-1">run</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, 24).map((t: any) => (
+                <tr key={`${t.symbol}-${t.tier}-${t.thesis_id}`} className="border-b border-border/30">
+                  <td className="py-1 pr-2 font-medium">{t.symbol}</td>
+                  <td className="py-1 pr-2">{tierName[t.tier] ?? t.tier}</td>
+                  <td className={cn(
+                    "py-1 pr-2",
+                    t.direction === "long" ? "text-profit" : t.direction === "short" ? "text-loss" : "",
+                  )}>{t.direction ?? "—"}</td>
+                  <td className="py-1 pr-2">{t.accepted && t.recommend_open ? "是" : t.accepted ? "观望" : "未过门"}</td>
+                  <td className="py-1 pr-2">{t.should_close ? "要平" : "—"}</td>
+                  <td className="py-1 pr-2 text-right num">{t.inv_price ?? "—"}</td>
+                  <td className="py-1 pr-2 truncate max-w-[8rem]" title={t.watch_reason ?? ""}>{t.watch_reason ?? (t.is_fresh ? "持有" : "过期")}</td>
+                  <td className="py-1 truncate max-w-[6rem]" title={t.analysis_run_id ?? ""}>{(t.analysis_run_id || "—").slice(0, 8)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="flex gap-1.5 flex-wrap mb-3">
-          {(longV2.data?.symbols ?? []).length === 0 ? (
-            <div className="text-xs text-muted-foreground py-1">暂无固定长线币 / 未配置</div>
-          ) : (
-            (longV2.data?.symbols ?? []).map((s: any) => (
+      )}
+      {(longV2?.symbols ?? []).length > 0 && (
+        <div className="mt-3 pt-2 border-t border-border/40">
+          <div className="text-xs text-muted-foreground mb-1">V2 L1（证据，不能自己开仓）</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {(longV2?.symbols ?? []).map((s: any) => (
               <span key={s.symbol} className={cn(
                 "px-1.5 py-0.5 rounded text-xs",
                 s.state === "up" ? "bg-profit/10 text-profit" :
                 s.state === "down" ? "bg-loss/10 text-loss" : "bg-muted/30 text-muted-foreground"
               )}>
-                {s.symbol} {s.state === "up" ? "多 ↑" : s.state === "down" ? "空 ↓" : "中性"} (score={s.score})
+                {s.symbol} {s.state} ({s.score})
               </span>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">
-          长线入场 = L1=up 且数据充足；退出 = 结构破坏 + Chandelier。LLM thesis 方向门 + 委员会预算 hint 已上线。中线由因子路由驱动。
-        </div>
-      </Card>
-    </div>
+      )}
+    </Card>
   );
 }
 
@@ -631,8 +591,8 @@ function TierActivityPanels({ sessionId }: { sessionId?: string }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <TierActivityColumn title="短线" items={acts.short ?? []} color="primary" icon={Zap} />
-      <TierActivityColumn title="中线(因子化)" items={acts.mid ?? []} color="profit" icon={Boxes} />
+      <TierActivityColumn title="日内波段" items={acts.short ?? []} color="primary" icon={Zap} />
+      <TierActivityColumn title="中线(论题)" items={acts.mid ?? []} color="profit" icon={Boxes} />
       <TierActivityColumn title="固定长线" items={acts.long ?? []} color="warning" icon={Boxes} />
     </div>
   );
@@ -662,7 +622,7 @@ function TierActivityColumn({ title, items, color, icon: Icon }: {
         </div>
         <div className="flex items-center gap-1">
           <Badge variant="secondary" className="text-xs">{items.length}</Badge>
-          <button onClick={() => setPaused(!paused)} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => setPaused(!paused)} className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
             {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
           </button>
         </div>
@@ -723,13 +683,15 @@ function TierActivityColumn({ title, items, color, icon: Icon }: {
 function NextTickCountdown({ job, interval, label = "下次 tick" }: { job: any; interval: number; label?: string }) {
   const [remaining, setRemaining] = useState(interval);
   useEffect(() => {
+    // 无 job（如日内波段车道不走 APScheduler）时本地按 interval 倒数，到 0 重置——
+    // 此前恒显示 interval 不动，被用户感知为"数据不更新"。
     const calc = () => {
       if (job?.next_run) {
         const next = new Date(job.next_run).getTime();
         const diff = Math.max(0, Math.floor((next - Date.now()) / 1000));
         setRemaining(diff);
       } else {
-        setRemaining(interval);
+        setRemaining((r) => (r <= 1 ? interval : r - 1));
       }
     };
     calc();
@@ -989,7 +951,7 @@ function DecisionsTab({ selectedAccountId }: { selectedAccountId: number | null 
         <div className="flex items-center gap-1">
           {["all", "long", "buy", "sell"].map(f => (
             <button key={f} onClick={() => setFilter(f)}
-              className={cn("px-2 py-1 text-xs rounded",
+              className={cn("px-2 py-1 text-xs rounded cursor-pointer transition-colors",
                 filter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
               {f === "all" ? "全部" : f === "long" ? "长线" : f === "buy" ? "买入" : "卖出"}
             </button>
@@ -1016,7 +978,7 @@ function DecisionsTab({ selectedAccountId }: { selectedAccountId: number | null 
             const isBuy = ["buy", "add"].includes(op);
             const isSell = ["sell", "reduce", "close"].includes(op);
             return (
-              <div key={d.id || i} className="px-4 py-2.5 hover:bg-muted/10">
+              <div key={d.id || i} className="px-4 py-2.5 hover:bg-muted/10 transition-colors">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
                     {d.created_at ? new Date(d.created_at).toLocaleTimeString("zh-CN", { hour12: false }) : "--"}
@@ -1054,7 +1016,8 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
   if (loading && !data) return <LoadingSpinner />;
 
   const jobs = data?.jobs ?? [];
-  const intervals = tickIntervals.data?.intervals ?? { short: 30, mid: 120, long: 240 };
+  const intervals = tickIntervals.data?.intervals ?? { short: 300, mid: 45, long: 240 };
+  const labels = tickIntervals.data?.labels ?? {};
   const running = data?.scheduler_running ?? false;
   const runningSessions: string[] = data?.running_sessions ?? [];
 
@@ -1096,22 +1059,22 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
         </div>
       </Card>
 
-      {/* 两周期 tick 配置 vs 实际 */}
+      {/* 三车道 tick 配置 vs 实际 */}
       <Card className="p-4">
         <CardHead
           icon={<Clock className="w-3.5 h-3.5 text-cyan-300" />}
-          title="Tick 间隔"
+          title="Tick 间隔（运行时真实值）"
           hint="秒 / tick"
           className="mb-3"
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "短线", val: intervals.short, color: "text-primary" },
-            { label: "AI中线", val: intervals.mid ?? intervals.long, color: "text-profit" },
-            { label: "固定长线", val: intervals.long, color: "text-warning" },
+            { label: labels.short ?? "日内波段", val: intervals.short, color: "text-primary" },
+            { label: labels.mid ?? "AI中线", val: intervals.mid ?? intervals.long, color: "text-profit" },
+            { label: labels.long ?? "固定长线", val: intervals.long, color: "text-warning" },
           ].map(t => (
             <div key={t.label} className="text-center p-3 rounded-lg bg-muted/10">
-              <div className="text-xs text-muted-foreground mb-1">{t.label}</div>
+              <div className="text-xs text-muted-foreground mb-1 truncate" title={t.label}>{t.label}</div>
               <div className={cn("text-2xl font-bold tabular-nums", t.color)}>{t.val}</div>
               <div className="text-xs text-muted-foreground">秒/tick</div>
             </div>
@@ -1194,49 +1157,37 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Tab 5: 实时日志
+// Tab 5: 实时日志（2026-09-07 重构：tail 真实 backend.log，3s 滚屏）
 // ═══════════════════════════════════════════════════════════════════
 
 function LogsTab() {
-  const levelParam = "WARNING";
-  const { data, loading, refetch } = usePoll<any>(
-    `${BACKEND}/api/system-logs/?limit=200&level=${levelParam}`,
-    15000,
-  );
   const [paused, setPaused] = useState(false);
   const [levelFilter, setLevelFilter] = useState<string>("all");
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const [keyword, setKeyword] = useState("");
+  const [showAccess, setShowAccess] = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
 
-  const rawLogs = Array.isArray(data?.logs) ? data.logs : [];
-  const lines = rawLogs
-    .map((l: any) => {
-      const lvl = String(l.level || l.severity || "").toUpperCase();
-      const msg = String(l.message || l.msg || l.detail || JSON.stringify(l));
-      const ts = l.timestamp || l.created_at || "";
-      return { lvl, text: `${ts} [${lvl}] ${msg}` };
-    })
-    .filter((l: { lvl: string }) => {
-      if (levelFilter === "all") return true;
-      if (levelFilter === "error") return l.lvl.includes("ERROR") || l.lvl.includes("CRITICAL");
-      if (levelFilter === "warn") return l.lvl.includes("WARN");
-      if (levelFilter === "info") return l.lvl.includes("INFO");
-      return true;
-    });
+  const levelParam = levelFilter === "all" ? "" : levelFilter === "info" ? "INFO" : levelFilter === "warn" ? "WARNING" : "ERROR";
+  const { data, loading, refetch } = usePoll<any>(
+    `${BACKEND}/api/system-logs/tail?lines=300${levelParam ? `&level=${levelParam}` : ""}${keyword ? `&q=${encodeURIComponent(keyword)}` : ""}${showAccess ? "&access=true" : ""}`,
+    3000,
+  );
+
+  const lines: any[] = Array.isArray(data?.logs) ? data.logs : [];
+  const mtime = data?.file_mtime ? new Date(data.file_mtime * 1000) : null;
+  const logAlive = mtime ? (Date.now() - mtime.getTime()) < 15000 : false;
 
   useEffect(() => {
-    if (!paused && logEndRef.current) {
-      logEndRef.current.scrollTop = 0;
+    // tail 返回时间正序（旧→新），自动滚到底部看最新
+    if (!paused && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [lines, paused]);
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-        OpenCode 日志接口已停用。此处读取 <code className="text-xs">/api/system-logs</code>（系统级日志，跨账户）；完整分级报错见{" "}
-        <a href="/ops#ops-errors" className="text-primary underline underline-offset-2">运维台 · 报错中心</a>。
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant={paused ? "default" : "outline"} onClick={() => setPaused(!paused)}>
             {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
             {paused ? "继续滚屏" : "暂停"}
@@ -1244,38 +1195,61 @@ function LogsTab() {
           <div className="flex items-center gap-1">
             {["all", "info", "warn", "error"].map(l => (
               <button key={l} onClick={() => setLevelFilter(l)}
-                className={cn("px-2 py-1 text-xs rounded",
+                className={cn("px-2 py-1 text-xs rounded cursor-pointer transition-colors",
                   levelFilter === l ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
-                {l === "all" ? "全部" : l === "info" ? "INFO" : l === "warn" ? "WARN" : "ERROR"}
+                {l === "all" ? "全部" : l === "info" ? "INFO+" : l === "warn" ? "WARN+" : "ERROR"}
               </button>
             ))}
           </div>
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="关键字过滤（如 MidLongBrain / short / ERROR）"
+            className="h-7 px-2 rounded-md border border-border/60 bg-background text-xs w-64"
+          />
+          <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={showAccess} onChange={(e) => setShowAccess(e.target.checked)} />
+            含访问日志
+          </label>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
-          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className={cn("flex items-center gap-1 text-xs", logAlive ? "text-profit" : "text-loss")}>
+            <span className={cn("inline-block w-1.5 h-1.5 rounded-full", logAlive ? "bg-profit animate-pulse" : "bg-loss")} />
+            {logAlive ? "日志流活跃" : "日志停滞"}
+          </span>
+          <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
+            <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div ref={logEndRef} className="font-mono text-xs h-[500px] overflow-y-auto bg-black/30 p-3 leading-relaxed">
+        <div ref={logRef} className="font-mono text-xs h-[560px] overflow-y-auto bg-black/30 p-3 leading-relaxed">
           {lines.length === 0 ? (
-            <div className="text-muted-foreground text-center py-8">暂无系统日志（或级别过滤过严）</div>
+            <div className="text-muted-foreground text-center py-8">暂无匹配日志（调整级别/关键字过滤）</div>
           ) : (
-            lines.map((line: { text: string; lvl: string }, i: number) => {
-              const isErr = line.lvl.includes("ERROR") || line.lvl.includes("CRITICAL");
-              const isWarn = line.lvl.includes("WARN");
+            lines.map((line: any, i: number) => {
+              const lvl = String(line.level || "INFO");
+              const isErr = lvl === "ERROR" || lvl === "CRITICAL";
+              const isWarn = lvl === "WARNING";
               return (
                 <div key={i} className={cn(
-                  "py-0.5 px-1 hover:bg-muted/10",
+                  "py-0.5 px-1 hover:bg-muted/10 flex gap-2",
                   isErr ? "text-loss" : isWarn ? "text-warning" : "text-muted-foreground"
                 )}>
-                  {line.text}
+                  <span className="text-muted-foreground/60 shrink-0 tabular-nums">{line.ts ? String(line.ts).slice(11) : ""}</span>
+                  <span className={cn("shrink-0 w-12", isErr ? "text-loss" : isWarn ? "text-warning" : "text-cyan-400/70")}>{lvl}</span>
+                  <span className="text-muted-foreground/50 shrink-0 max-w-[10rem] truncate" title={line.module}>{line.module ? String(line.module).replace("backend.services.", "…") : ""}</span>
+                  <span className="flex-1 break-all">{line.msg}</span>
                 </div>
               );
             })
           )}
         </div>
       </Card>
+      <div className="text-xs text-muted-foreground">
+        数据源：logs/backend.log（应用级日志）· 3s 轮询 · 默认已过滤行情轮询访问日志
+      </div>
     </div>
   );
 }
@@ -1359,7 +1333,8 @@ function PortfolioBudgetBanner({ state }: { state: any }) {
   );
 }
 
-function StatusPill({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {  return (
+function StatusPill({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
+  return (
     <Card className="p-2.5 flex items-center gap-2">
       {ok ? <CheckCircle2 className="w-4 h-4 text-profit shrink-0" /> : <XCircle className="w-4 h-4 text-loss shrink-0" />}
       <div className="min-w-0">
@@ -1370,11 +1345,11 @@ function StatusPill({ label, ok, detail }: { label: string; ok: boolean; detail:
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "profit" | "loss" }) {
   return (
     <div className="text-center p-1.5 rounded bg-muted/10">
-      <div className="text-sm font-bold tabular-nums">{value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={cn("text-sm font-bold tabular-nums", tone === "profit" && "text-profit", tone === "loss" && "text-loss")}>{value}</div>
+      <div className="text-xs text-muted-foreground">{label}{sub ? ` · ${sub}` : ""}</div>
     </div>
   );
 }

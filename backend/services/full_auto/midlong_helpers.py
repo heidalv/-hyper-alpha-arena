@@ -5,12 +5,54 @@ import json
 import logging
 import os
 import time
+from typing import Any, Dict, List, Optional
+
+from backend.services.mlto import pnl_basis as _pnl_basis
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+
+def _keep0_float(v, default):
+    """保留显式 0 的浮点配置读取。
+
+    [2026-09-10 审计轮] 原写法 `float(getattr(settings, X, d) or d)` 会把显式 0 换回默认值，
+    使「0 = 关闭该项」的语义静默失效（同类问题见 §38.9/2 的 MIDLONG_MAX_OPEN_POSITIONS）。
+    """
+    return float(default) if v is None else float(v)
+
+
+def _keep0_int(v, default):
+    """保留显式 0 的整数配置读取（同上）。"""
+    return int(default) if v is None else int(v)
+
+
+#: 真值/假值字符串集合（与项目其它配置解析保持一致）
+_TRUTHY = {"1", "true", "yes", "on", "y", "t"}
+_FALSY = {"0", "false", "no", "off", "n", "f"}
+
+
+def _cfg_bool_env(name: str, default: bool) -> bool:
+    """读取布尔环境变量：**未设/空串取默认**，无法识别时按默认并告警（不静默）。
+
+    [P12 执行 2026-09-10] 用于 `MIDLONG_PORTFOLIO_NOTIONAL_ALIGNED` 这类"口径开关"：
+    写错值（如 `ture`）不得静默按某个方向生效。
+
+    [§68 修复] 初版把空串放进 `_FALSY` ⇒ **未设置时返回 False 而不是默认值**，
+    等于把"默认开启"的口径开关静默关掉。空串必须走默认分支。
+    """
+    raw = (os.getenv(name) or "").strip().lower()
+    if raw == "":
+        return bool(default)
+    if raw in _TRUTHY:
+        return True
+    if raw in _FALSY:
+        return False
+    logger.warning("[MidLongCfg] %s=%r 无法识别，按默认 %s 处理", name, raw, default)
+    return bool(default)
 
 
 def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optional[int] = None) -> Dict[str, Any]:
@@ -28,8 +70,11 @@ def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optiona
     out: Dict[str, Any] = {
         "lookback_days": int(lookback_days),
         "source": "trade_facts",
+        # [P3 执行 2026-09-10] 对外口径改为**净**：`pnl` = 毛 − 手续费（− 资金费，见 pnl_basis）
+        "pnl_basis": _pnl_basis.PNL_BASIS,
+        "pnl_basis_desc": _pnl_basis.label(),
         "tiers": {},
-        "totals": {"trades": 0, "wins": 0, "pnl": 0.0},
+        "totals": {"trades": 0, "wins": 0, "pnl": 0.0, "pnl_gross": 0.0, "pnl_net": 0.0, "fees": 0.0},
     }
     try:
         with SessionLocal() as db:
@@ -38,7 +83,8 @@ def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optiona
                 """
                 SELECT tier, COUNT(*) AS n,
                        SUM(CASE WHEN outcome='win' THEN 1 ELSE 0 END) AS wins,
-                       SUM(COALESCE(pnl,0)) AS pnl
+                       SUM(COALESCE(pnl,0)) AS pnl,
+                       SUM(COALESCE(fees,0)) AS fees
                 FROM trade_facts
                 WHERE ts >= :since
                   AND (:acct IS NULL OR account_id = :acct)
@@ -56,14 +102,20 @@ def build_midlong_health_from_facts(lookback_days: int = 14, account_id: Optiona
         for r in rows:
             n = int(r["n"] or 0)
             w = int(r["wins"] or 0)
+            _gross = float(r["pnl"] or 0.0)
+            _fees = float(r["fees"] or 0.0)
+            _desc = _pnl_basis.describe(_gross, _fees, 0.0)
             out["tiers"][str(r["tier"])] = {
                 "trades": n,
                 "win_rate": round(w / n, 4) if n else 0.0,
-                "pnl": round(float(r["pnl"] or 0.0), 4),
+                **_desc,
             }
             out["totals"]["trades"] += n
             out["totals"]["wins"] += w
-            out["totals"]["pnl"] = round(out["totals"]["pnl"] + float(r["pnl"] or 0.0), 4)
+            out["totals"]["pnl_gross"] = round(out["totals"]["pnl_gross"] + _desc["pnl_gross"], 4)
+            out["totals"]["fees"] = round(out["totals"]["fees"] + _desc["fees"], 4)
+            out["totals"]["pnl_net"] = round(out["totals"]["pnl_net"] + _desc["pnl_net"], 4)
+            out["totals"]["pnl"] = out["totals"]["pnl_net"]
     except Exception as exc:  # noqa: BLE001
         out["error"] = str(exc)[:200]
     return out
@@ -279,12 +331,36 @@ def try_execute_independent_agent_open(
             # 守卫本身异常不应阻断开仓（容错优先）；记录后继续。
             logger.debug("[FixedSymbolGate] %s 守卫检查异常跳过: %s", _sym_u, _gate_err)
 
-    # 长线开仓前确保周线指标已注入（防御性兜底）。
-    # [2026-07-31] 与 MLTO 分析层统一：本币周线缺失则 fail-closed，禁止借 BTC/ETH。
-    if tier == "long" and isinstance(market_summary, dict):
-        inject_midlong_indicators(market_summary, _sym_u, include_weekly=True)
+    # 开仓前注入多周期指标信封。factor_route 已先注入；LLM 主脑 maybe_open
+    # 原先跳过 → open_ready 后被 StrictData 卡死（缺 indicators_1h/4h/1d）。
+    # mid/long 统一在此兜底；长线额外要求本币周线（fail-closed，不借大盘）。
+    if isinstance(market_summary, dict):
+        _want_weekly = (_tier_l == "long") or (str(tier or "").lower() == "long")
+        try:
+            inject_midlong_indicators(
+                market_summary, _sym_u, include_weekly=_want_weekly,
+            )
+        except Exception as _inj_err:
+            logger.debug("[MidLongExec] %s 指标注入跳过: %s", _sym_u, _inj_err)
         _ms = market_summary.get(_sym_u) or {}
-        if not _ms.get("indicators_1w"):
+        if isinstance(_ms, dict):
+            # StrictData 认 price；扫描层常只写 current_price
+            if not _ms.get("price") and float(_ms.get("current_price") or 0) > 0:
+                _ms["price"] = float(_ms["current_price"])
+            # [2026-09-08] StrictData 要求 short 档带 volatility_value；扫描/注入层
+            # 对日内档常缺该字段 → V5Gate 卡死（UNI 实证）。缺失时从 1h ATR 兜底计算。
+            if not float(_ms.get("volatility_value") or 0):
+                try:
+                    from backend.services.analysis.context_pack import _atr_pct
+                    from backend.services.kline_data_service import kline_service as _ks_vol
+                    _kl_vol = _ks_vol.get_aggregated_klines(_sym_u, "1h", count=20)
+                    if _kl_vol and len(_kl_vol) >= 15:
+                        _atr_v = _atr_pct(_kl_vol, 14)
+                        if _atr_v and float(_atr_v) > 0:
+                            _ms["volatility_value"] = round(float(_atr_v) / 100.0, 6)
+                except Exception:
+                    pass
+        if _want_weekly and not (_ms.get("indicators_1w") if isinstance(_ms, dict) else None):
             logger.warning(
                 "[MidLongExec] %s 本币周线缺失，拒绝长线开仓（fail-closed，不借大盘）",
                 _sym_u,
@@ -394,9 +470,9 @@ def try_execute_independent_agent_open(
                         _audit_skip(f"tier_circuit_block:{_tier_why[:60]}")
                         return False
                 except Exception as _tier_cb_err:
-                    logger.debug("[TierCircuit] 检查跳过: %s", _tier_cb_err)
+                    logger.warning("[TierCircuit] 检查跳过(fail-open，分层熔断未校验): %s", _tier_cb_err)
         except Exception as _cd_err:
-            logger.debug("[MidLongCooldown] %s 冷却检查跳过: %s", _sym_u, _cd_err)
+            logger.warning("[MidLongCooldown] %s 冷却检查跳过(fail-open，冷却未校验): %s", _sym_u, _cd_err)
 
     # ── v6 M3：LLM exit_plan 止损直通；禁止 max(LLM, structure) 加宽 ──
     # 有 LLM sl → 用之；structure 仅 LLM 缺失时兜底；随后仅 ATR×1.5 地板抬升。
@@ -620,6 +696,53 @@ def try_execute_independent_agent_open(
                     _equity = get_live_equity(_acct_eq, _acct_pf) if _acct_eq else 0.0
                 except Exception:
                     _equity = 0.0
+                # [2026-09-10 第 9 轮审计] **实盘也要把持仓喂给组合闸**：
+                # 此前 live 分支只取权益、不取持仓 → `_portfolio=None` →
+                # `collect_midlong_positions(None, None)` 返回 [] →
+                # **净敞口闸与并发上限（MIDLONG_MAX_OPEN_POSITIONS）在实盘完全不生效**。
+                # 实盘持仓不在 paper_positions（实测 7 个 live 账户 0 行），须经
+                # live_executor.get_positions() 走交易所 adapter 查询，
+                # 其返回字段已与 paper_engine.get_positions 对齐。
+                try:
+                    from backend.services.exchange.executors import get_executor
+                    _ex_live = (
+                        getattr(session, "active_exchange", None)
+                        or getattr(session, "selected_exchange", None)
+                        or "asterdex"
+                    )
+                    _pos_list = (
+                        get_executor("live", exchange=_ex_live).get_positions(
+                            db, _acct_pf, status="open"
+                        )
+                        or []
+                    )
+                    # 交易所返回的持仓**不含** timeframe_tier / trade_nature
+                    # （见 live_executor._get_hl_positions 只填 symbol/side/size/价格），
+                    # 而组合闸的 `_is_midlong_pos()` 依赖这两字段 → 不补齐就会被全部过滤掉、
+                    # 闸再次形同不存在（这正是"修了但没生效"的隐蔽形态）。
+                    # 处置：实盘按**整本持仓**计入并发/敞口上限（对风险闸是保守方向），
+                    # 与 paper 的"仅 mid/long 计数"语义不同，已在 §47 报告与日志中明示。
+                    for _p in _pos_list:
+                        if isinstance(_p, dict):
+                            _p.setdefault("timeframe_tier", "long")
+                            _p.setdefault("trade_nature", "position")
+                    _portfolio = {
+                        "balance": {"total_equity": float(_equity or 0)},
+                        "positions": _pos_list,
+                    }
+                    logger.info(
+                        "[MidLong] live 组合闸持仓注入 account=%s exchange=%s n_open=%d"
+                        "（实盘按整本持仓计入上限）",
+                        _acct_pf, _ex_live, len(_pos_list),
+                    )
+                except Exception as _lpos_err:
+                    # 与全仓惯例一致：取不到持仓时放行，但**必须可见**（第 3 轮已把同类
+                    # fail-open 从 debug 提升为 warning），否则等于静默无保护。
+                    logger.warning(
+                        "[MidLong] live 持仓查询失败(fail-open)：组合闸"
+                        "（净敞口/并发上限）本次不生效 account=%s: %s",
+                        _acct_pf, _lpos_err,
+                    )
             elif _acct_pf:
                 _bal = paper_engine.get_balance(db, _acct_pf) or {}
                 _pos_list = paper_engine.get_positions(db, _acct_pf, status="open") or []
@@ -632,14 +755,17 @@ def try_execute_independent_agent_open(
                 _portfolio = {"balance": _bal, "positions": _pos_list}
                 try:
                     from backend.config import settings as _cfg_pf
-                    _risk_pct = float(getattr(_cfg_pf, "MIDLONG_RISK_PCT", 0.01) or 0.01)
+                    _risk_pct = _keep0_float(getattr(_cfg_pf, "MIDLONG_RISK_PCT", 0.01), 0.01)
                 except Exception:
                     _risk_pct = 0.01
-                # 杠杆：跟真实成交对齐（同币已有仓跟仓；否则默认 10x）
-                _lev = 10.0
+                # 杠杆：与真实成交口径一致 —— 同币已有仓跟仓，否则取该币种统一档位。
+                # [2026-09-04] 必须传 symbol：不传则 resolve_leverage 回落到 requested
+                # 的 10x，估算名义 = 权益×保证金比×10 会算出 100%+ 权益的提议，必被组合
+                # 风控拒（实测 VIRTUAL est=$5435=108% 权益，而单币上限仅 35%），中线因此
+                # 一单也开不出来。account 传入后账户级 tier 覆盖由权威内部统一处理。
+                _lev = 3.0
                 try:
                     from backend.services.leverage_authority import (
-                        DEFAULT_LEVERAGE,
                         extract_existing_symbol_leverage,
                         resolve_leverage,
                     )
@@ -647,25 +773,19 @@ def try_execute_independent_agent_open(
                     if _exist_lev and float(_exist_lev) > 0:
                         _lev = float(_exist_lev)
                     else:
-                        _lev = float(
-                            resolve_leverage(
-                                tier=(tier or "mid").lower(),
-                                requested=float(DEFAULT_LEVERAGE),
-                            )
-                            or DEFAULT_LEVERAGE
-                        )
-                        # [2026-08-28 P2] 账户级三周期杠杆覆盖（mid/long），只收紧
+                        _acct_obj = None
                         try:
                             from backend.database.models import Account as _AcctML
-                            from backend.services.leverage_authority import account_tier_leverage_override
                             _acct_obj = db.query(_AcctML).filter(_AcctML.id == _acct_pf).first()
-                            _acct_cap = account_tier_leverage_override(_acct_obj, (tier or "mid").lower())
-                            if _acct_cap:
-                                _lev = min(float(_lev), float(_acct_cap))
                         except Exception:
-                            pass
+                            _acct_obj = None
+                        _lev = float(resolve_leverage(
+                            tier=(tier or "mid").lower(),
+                            symbol=_sym_u,
+                            account=_acct_obj,
+                        ))
                 except Exception:
-                    _lev = 10.0
+                    _lev = 3.0
                 # 名义 = 权益 × 保证金比例 × 杠杆（与 ETH 成交口径一致）
                 _est_notional = estimate_open_notional(
                     equity=_equity,
@@ -674,18 +794,42 @@ def try_execute_independent_agent_open(
                     sl_pct=float(sl_pct or 0),
                     risk_pct=_risk_pct,
                 )
+            # [P12 执行 2026-09-10] **闸的输入**改用与 PositionConstruction 同口径的名义
+            # （equity×risk/SL×tranche）；旧式估算仅保留给诊断日志与一键回滚。
+            # 依据：§60.1 —— 旧口径把 $783 的真实建仓喂成 $7,050（9×），22,042 次净敞口
+            # 拦截实为"按幻影仓位拒单"（after_pct 无一条 <100%）。
+            _aligned_notional = 0.0
+            try:
+                from backend.services.mlto.midlong_portfolio_risk import (
+                    estimate_open_notional_aligned as _est_aligned,
+                )
+                _aligned_notional = _est_aligned(
+                    equity=_equity, sl_pct=float(sl_pct or 0),
+                    risk_pct=float(_risk_pct or 0.0075),
+                    tranche_mult=float(_tranche_mult or 1.0),
+                )
+            except Exception as _al_err:  # noqa: BLE001
+                logger.warning("[MidLongPortfolio] 同口径名义估算失败(回退旧口径): %s", _al_err)
+            _gate_notional = _est_notional
+            if _aligned_notional > 0 and _cfg_bool_env("MIDLONG_PORTFOLIO_NOTIONAL_ALIGNED", True):
+                _gate_notional = _aligned_notional
             _is_probe = str(dir_src or "").startswith("nibble_probe")
             _pf_ok, _pf_why = check_portfolio_open_allowed(
                 symbol=_sym_u,
                 action=_act,
                 portfolio=_portfolio,
-                new_notional=_est_notional,
+                new_notional=_gate_notional,
                 is_probe=_is_probe,
             )
             if not _pf_ok:
+                # [§60 诊断 + P12] 同时给出两种口径的名义估计，暴露倍差（口径切换后可核对
+                # 拦截是否"按真实仓位"发生）。
+                _ratio = (_est_notional / _aligned_notional) if _aligned_notional > 0 else 0.0
                 logger.info(
-                    "[MidLongPortfolio] BLOCK %s %s: %s (est_notional=%.1f equity=%.1f margin×=%.3f)",
-                    _sym_u, _act, _pf_why, _est_notional, _equity, float(_tranche_mult or 0),
+                    "[MidLongPortfolio] BLOCK %s %s: %s (gate_notional=%.1f "
+                    "legacy=%.1f aligned=%.1f 倍差=%.1fx equity=%.1f margin×=%.3f)",
+                    _sym_u, _act, _pf_why, _gate_notional, _est_notional, _aligned_notional, _ratio,
+                    _equity, float(_tranche_mult or 0),
                 )
                 host.append_event(
                     session, "midlong_portfolio_block",
@@ -699,44 +843,59 @@ def try_execute_independent_agent_open(
     # ── 组合级风险预算（v6 计划 阶段1 第4项，下单前最后一道检查）──
     # 组合日 VaR / 单币集中度 / 策略 3σ 熔断 / 冻结信号。持仓/收益序列模块内
     # TTL 缓存；paper fail-open、live fail-closed。
+    # [2026-09-11 用户指令] **模拟(paper)账户整段跳过**：纸面亏损=训练数据，
+    # 不得被冻结/回撤熔断按住（实测 freeze 台账每 17 分钟刷 midlong
+    # BTC/XRP/ASTER "drawdown 23.60σ"）。与短线 scalp_loop 的 PB_PAPER_SKIP
+    # 语义对齐；权威判断仍在 portfolio_budget.evaluate_open 内，此处只是省掉调用。
     if _act in ("buy", "sell"):
+        _pb_mode = (getattr(session, "trading_mode", "") or "paper").strip().lower()
         try:
-            from backend.services.risk_management.portfolio_budget import (
-                portfolio_budget as _pb,
+            _pb_skip = os.getenv("PB_PAPER_SKIP", "true").strip().lower() in (
+                "1", "true", "yes", "on",
             )
-            _pb_strategy = (
-                "midlong"
-                if (tier or "").lower() in ("mid", "long")
-                or _tn_l in ("swing", "trend_follow", "position")
-                else str(trade_nature or "midlong").lower()
+        except Exception:
+            _pb_skip = True
+        if _pb_skip and _pb_mode == "paper":
+            logger.debug(
+                "[MidLongPortfolio] %s paper 模式跳过组合预算(PB_PAPER_SKIP=true)", _sym_u,
             )
-            _pb_mode = (getattr(session, "trading_mode", "") or "paper").strip().lower()
-            _pb_dec = _pb.evaluate_open(
-                symbol=_sym_u,
-                action=_act,
-                notional_usd=float(_est_notional or 0),
-                equity=float(_equity or 0),
-                strategy=_pb_strategy,
-                mode=_pb_mode,
-                db=db,
-                account_id=int(_acct_pf or 0),
-                positions=_pos_list if "_pos_list" in locals() else None,
-            )
-            if not _pb_dec.allowed:
-                logger.info(
-                    "[MidLongPortfolio] BLOCK %s %s: portfolio_budget %s",
-                    _sym_u, _act, ";".join(_pb_dec.reasons[:3]),
+        else:
+            try:
+                from backend.services.risk_management.portfolio_budget import (
+                    portfolio_budget as _pb,
                 )
-                host.append_event(
-                    session, "portfolio_budget_block",
-                    f"[组合预算] {_sym_u} {_act}: {';'.join(_pb_dec.reasons[:3])}",
+                _pb_strategy = (
+                    "midlong"
+                    if (tier or "").lower() in ("mid", "long")
+                    or _tn_l in ("swing", "trend_follow", "position")
+                    else str(trade_nature or "midlong").lower()
                 )
-                _audit_skip(
-                    "portfolio_budget_block:" + ";".join(_pb_dec.reasons[:3])
+                _pb_dec = _pb.evaluate_open(
+                    symbol=_sym_u,
+                    action=_act,
+                    notional_usd=float(_est_notional or 0),
+                    equity=float(_equity or 0),
+                    strategy=_pb_strategy,
+                    mode=_pb_mode,
+                    db=db,
+                    account_id=int(_acct_pf or 0),
+                    positions=_pos_list if "_pos_list" in locals() else None,
                 )
-                return False
-        except Exception as _pb_err:
-            logger.debug("[MidLongPortfolio] %s 组合预算跳过: %s", _sym_u, _pb_err)
+                if not _pb_dec.allowed:
+                    logger.info(
+                        "[MidLongPortfolio] BLOCK %s %s: portfolio_budget %s",
+                        _sym_u, _act, ";".join(_pb_dec.reasons[:3]),
+                    )
+                    host.append_event(
+                        session, "portfolio_budget_block",
+                        f"[组合预算] {_sym_u} {_act}: {';'.join(_pb_dec.reasons[:3])}",
+                    )
+                    _audit_skip(
+                        "portfolio_budget_block:" + ";".join(_pb_dec.reasons[:3])
+                    )
+                    return False
+            except Exception as _pb_err:
+                logger.debug("[MidLongPortfolio] %s 组合预算跳过: %s", _sym_u, _pb_err)
 
     _extra_kwargs = {
         "mtf_size_mult": _mtf_size_mult,
@@ -747,6 +906,21 @@ def try_execute_independent_agent_open(
         # [M1-A] entry_source 只在非空时下发（历史调用方不受影响）
         **({"entry_source": entry_source} if entry_source else {}),
     }
+    # 开仓前就把 thesis_id 塞进 proposal.extra → decision → open_metadata，
+    # 避免仅靠开仓后异步 tag（重启/跨进程会丢）。
+    try:
+        from backend.services.mlto.thesis_store import get as _thesis_pre
+        _sid_pre = str(getattr(session, "session_id", "") or "")
+        _td_pre = _thesis_pre(_sid_pre, _sym_u, _tier_l)
+        if _td_pre is not None and getattr(_td_pre, "thesis_id", ""):
+            _extra_kwargs["thesis_id"] = str(_td_pre.thesis_id)
+            if getattr(_td_pre, "analysis_run_id", ""):
+                _extra_kwargs["analysis_run_id"] = str(_td_pre.analysis_run_id)
+        if _sid_pre:
+            _extra_kwargs["session_id"] = _sid_pre
+        _extra_kwargs["timeframe_tier"] = _tier_l or "mid"
+    except Exception:
+        pass
 
     if not _sl_source and float(sl_pct or 0) > 0:
         _sl_source = "llm"
@@ -857,15 +1031,19 @@ def try_execute_independent_agent_open(
                     # [U3-2a 2026-08-25] thesis 绑定：把当前活跃 thesis_id 挂进归因标签 meta，
                     # 供平仓学习桥（unified_learning meta.thesis_id 兜底回查）解锁 owm 调权。
                     _t_meta: Dict[str, Any] = {}
+                    _sid_bind = str(getattr(session, "session_id", "") or "")
                     try:
                         from backend.services.mlto.thesis_store import get as _thesis_get
-                        _t_dto = _thesis_get(
-                            str(getattr(session, "session_id", "") or ""), _sym_u, _tier_l,
-                        )
+                        _t_dto = _thesis_get(_sid_bind, _sym_u, _tier_l)
                         if _t_dto is not None and getattr(_t_dto, "thesis_id", ""):
                             _t_meta["thesis_id"] = str(_t_dto.thesis_id)
+                            if getattr(_t_dto, "analysis_run_id", ""):
+                                _t_meta["analysis_run_id"] = str(_t_dto.analysis_run_id)
                     except Exception as _tb_err:
                         logger.debug("[FusionAttr] thesis 绑定跳过: %s", _tb_err)
+                    if _sid_bind:
+                        _t_meta["session_id"] = _sid_bind
+                    _t_meta["timeframe_tier"] = _tier_l or "mid"
                     _attr_mh.tag_position(
                         int(_prow[0]),
                         source=str(entry_source or "midlong"),
@@ -873,26 +1051,103 @@ def try_execute_independent_agent_open(
                         symbol=_sym_u,
                         meta=_t_meta or None,
                     )
+                    # 耐久落库：PaperPosition 无 metadata_json，thesis_id 必须写进
+                    # exit_state_json.open_metadata，否则平仓读不到、OWM 永不调权。
+                    if _t_meta.get("thesis_id"):
+                        try:
+                            import json as _json_bind
+                            _pid_bind = int(_prow[0])
+                            _row_es = db.execute(
+                                _sa_text_mh(
+                                    "SELECT exit_state_json FROM paper_positions WHERE id=:i"
+                                ),
+                                {"i": _pid_bind},
+                            ).first()
+                            _es_bind: Dict[str, Any] = {}
+                            if _row_es and _row_es[0]:
+                                try:
+                                    _es_bind = _json_bind.loads(_row_es[0]) if isinstance(
+                                        _row_es[0], str
+                                    ) else dict(_row_es[0] or {})
+                                except Exception:
+                                    _es_bind = {}
+                            if not isinstance(_es_bind, dict):
+                                _es_bind = {}
+                            _om_bind = _es_bind.get("open_metadata")
+                            if not isinstance(_om_bind, dict):
+                                _om_bind = {}
+                            _om_bind.update({
+                                k: v for k, v in _t_meta.items() if v is not None
+                            })
+                            if entry_source:
+                                _om_bind.setdefault("entry_source", str(entry_source)[:40])
+                                _es_bind["entry_source"] = str(entry_source)[:40]
+                            _es_bind["open_metadata"] = _om_bind
+                            db.execute(
+                                _sa_text_mh(
+                                    "UPDATE paper_positions SET exit_state_json=:j WHERE id=:i"
+                                ),
+                                {
+                                    "i": _pid_bind,
+                                    "j": _json_bind.dumps(_es_bind, ensure_ascii=False),
+                                },
+                            )
+                            db.commit()
+                        except Exception as _es_err:
+                            logger.debug("[FusionAttr] open_metadata 写 thesis 跳过: %s", _es_err)
+                            try:
+                                db.rollback()
+                            except Exception:
+                                pass
         except Exception as _tagmh_err:
             logger.debug("[FusionAttr] 中长线标签绑定失败: %s", _tagmh_err)
     elif not _ok and _act in ("buy", "sell"):
-        try:
-            from backend.services.mlto.midlong_direction_audit import record_decision_audit
-            record_decision_audit(
-                outcome="skip",
-                stage="exec",
-                symbol=_sym_u,
-                reason="evaluate_and_execute_returned_false",
-                session_id=str(getattr(session, "session_id", "") or ""),
-                tier=(tier or "").lower(),
-                action=_act,
-                mode=hub_mode or "",
-                direction=hub_dir or "",
-                authority=authority or "",
-            )
-        except Exception:
-            pass
+        # [§52 修复] 带上**真实**拒单原因：此前一律写通用字符串，实测 1866/4235（44.1%）
+        # 的拒仓因此无因可查（其中最大来源是 paper 层 `code=daily_quota` 配额用尽，
+        # 见 `_audit_ml/Z69`）。原因由下游各层经 `open_block_reason.mark_open_block` 登记。
+        record_exec_false_audit(
+            symbol=_sym_u, tier=tier, action=_act, session=session,
+            mode=hub_mode or "", direction=hub_dir or "", authority=authority or "",
+        )
     return _ok
+
+
+def record_exec_false_audit(*, symbol: str, tier: str, action: str, session=None,
+                            mode: str = "", direction: str = "", authority: str = "") -> Optional[str]:
+    """[§52] 把 exec 阶段拒仓写进漏斗审计，带上游登记的**具体**原因码。
+
+    未登记时保持旧字符串 `evaluate_and_execute_returned_false`（向后兼容：
+    老看板/周报汇总口径不变）。返回实际写入的 reason（便于测试与调用方观测）。
+    """
+    _blk: Dict[str, Any] = {}
+    try:
+        from backend.services.mlto.open_block_reason import take_open_block
+        _blk = take_open_block() or {}
+    except Exception:
+        _blk = {}
+    _code = str(_blk.get("code") or "").strip()
+    reason = f"eval_false:{_code}" if _code else "evaluate_and_execute_returned_false"
+    try:
+        from backend.services.mlto.midlong_direction_audit import record_decision_audit
+        record_decision_audit(
+            outcome="skip",
+            stage="exec",
+            symbol=str(symbol or "").upper(),
+            reason=reason,
+            session_id=str(getattr(session, "session_id", "") or ""),
+            tier=str(tier or "").lower(),
+            action=str(action or "").lower(),
+            mode=mode or "",
+            direction=direction or "",
+            authority=authority or "",
+            extra=(
+                {"block_layer": _blk.get("layer") or "", "block_detail": _blk.get("detail") or ""}
+                if _code else None
+            ),
+        )
+    except Exception:
+        pass
+    return reason
 
 def record_midlong_factor_snapshots(
     *,
@@ -1275,6 +1530,11 @@ def inject_midlong_indicators(
                 _c = _kdf["close"].astype(float)
                 _p_last = float(_c.iloc[-1])
                 if _p_last > 0:
+                    # StrictData / 下单价：扫描层偶发只带 indicators 不带 price
+                    if float(ms.get("price") or 0) <= 0:
+                        ms["price"] = _p_last
+                    if float(ms.get("current_price") or 0) <= 0:
+                        ms["current_price"] = _p_last
                     if ms.get("price_change_1h_pct") is None and float(_c.iloc[-2]) > 0:
                         ms["price_change_1h_pct"] = round(
                             (_p_last / float(_c.iloc[-2]) - 1.0) * 100.0, 4,
@@ -1283,6 +1543,18 @@ def inject_midlong_indicators(
                         ms["price_change_24h_pct"] = round(
                             (_p_last / float(_c.iloc[-25]) - 1.0) * 100.0, 4,
                         )
+                # [2026-09-09 位置闸数据源] 就地缓存 24h 高低沿（避免位置闸再去拉 K 线）。
+                # 依据：_audit_ml/21_timing.py 实测「入场价在 24h 区间 80-100% 分位」
+                # 的 33 笔入场后 24h 均值 -3.89%/胜率 0.152。位置闸靠这两个字段算分位。
+                try:
+                    if "high" in _kdf.columns and "low" in _kdf.columns and len(_kdf) >= 2:
+                        _h = _kdf["high"].astype(float).iloc[-24:]
+                        _l = _kdf["low"].astype(float).iloc[-24:]
+                        if len(_h) > 0 and len(_l) > 0:
+                            ms["range_24h_high"] = float(_h.max())
+                            ms["range_24h_low"] = float(_l.min())
+                except Exception as _rg_err:
+                    logger.debug("[MidLong] 24h 高低沿缓存跳过 %s: %s", sym, _rg_err)
         # 补 volatility_pct（口径与 classify_regime 期望一致：ATR/price 小数 0.01~0.05）
         if ms.get("volatility_pct") is None:
             _v = ms.get("atr_1d_pct") or 0

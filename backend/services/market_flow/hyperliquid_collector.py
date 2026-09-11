@@ -27,8 +27,8 @@ from collections import defaultdict
 
 from hyperliquid.info import Info
 
-from services.exchange.base_exchange_client import ExchangeTrade
-from services.market_flow.base_collector import (
+from backend.services.exchange.base_exchange_client import ExchangeTrade
+from backend.services.market_flow.base_collector import (
     BaseMarketFlowCollector,
     TradeBuffer,
 )
@@ -71,7 +71,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
 
     def _get_base_url(self) -> str:
         try:
-            from config import settings
+            from backend.config import settings
             return settings.HYPERLIQUID_API_URL
         except Exception:
             return "https://api.hyperliquid.xyz"
@@ -123,7 +123,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
     def _resolve_default_symbols(self) -> List[str]:
         """沿用旧 MarketFlowCollector.start 的 symbol 解析逻辑。"""
         try:
-            from services.hyperliquid_symbol_service import get_selected_symbols
+            from backend.services.hyperliquid_symbol_service import get_selected_symbols
             syms = get_selected_symbols()
             if syms:
                 return syms
@@ -158,7 +158,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
             logger.warning("[hyperliquid] 信号池 symbol 加载失败: %s", e)
 
         try:
-            from services.trading_commands import AI_TRADING_SYMBOLS
+            from backend.services.trading_commands import AI_TRADING_SYMBOLS
             return list(AI_TRADING_SYMBOLS)
         except Exception as e:
             logger.warning("[hyperliquid] AI_TRADING_SYMBOLS 回退失败: %s", e)
@@ -300,7 +300,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
                 self._on_orderbook(symbol, data)
                 # 兼容：推送至跨所 mid 缓存
                 try:
-                    from services.arbitrage.cross_exchange_ws_feed import (
+                    from backend.services.arbitrage.cross_exchange_ws_feed import (
                         push_hyperliquid_l2book,
                     )
                     push_hyperliquid_l2book(symbol, data)
@@ -318,7 +318,7 @@ class HyperliquidMarketFlowCollector(BaseMarketFlowCollector):
             if data:
                 self._on_asset_ctx(symbol, data)
                 try:
-                    from services.market_data_hub import market_data_hub
+                    from backend.services.market_data_hub import market_data_hub
                     market_data_hub.publish_asset_ctx(
                         self.exchange_id, symbol, data, source="ws",
                     )

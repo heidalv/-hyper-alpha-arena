@@ -242,30 +242,17 @@ class FactorEvaluationPipeline:
         # 公式因子（held-out/条件口径影子晋升）同样封顶——此前只认
         # factor_active_set 表，公式影子因子在 SCALP_USE_VETTED_FACTORS_ONLY=false
         # 全量计算路径下权重不受限。
+        # [2026-09-03 审查修正 A] 收敛到 paper_factor_policy 唯一入口：实盘会话
+        # （market_data["trading_mode"]=="live"）默认把影子因子权重归零、不参与融合；
+        # 模拟会话保持 ≤PAPER_FACTOR_WEIGHT_CAP。V3 路径与中线路由走同一函数。
         try:
-            from backend.config import settings as _s_cfg
-            _paper_cap = float(getattr(_s_cfg, "PAPER_FACTOR_WEIGHT_CAP", 0.5) or 0.5)
-            if _paper_cap > 0:
-                from backend.services.scalp.scalp_factor_exclude import get_paper_factor_ids
-                from backend.services.factor_engine.key_utils import normalize_engine_key
-                _paper_ids = get_paper_factor_ids()
-                try:
-                    from backend.services.factor_engine.custom_factor_store import custom_factor_store
-                    from backend.services.coin_select_platform_service import resolve_admin_tenant_id
-                    _tid = resolve_admin_tenant_id()
-                    for _rec in custom_factor_store.list_active(tenant_id=_tid):
-                        if str((_rec.get("extra") or {}).get("role") or "") == "paper":
-                            _fid = str(_rec.get("factor_id") or "")
-                            if _fid:
-                                _paper_ids.add(normalize_engine_key(_fid))
-                except Exception as _cs_err:
-                    logger.debug("[FactorPipeline] 公式影子因子封顶集合扩展跳过: %s", _cs_err)
-                if _paper_ids:
-                    for name in factor_names:
-                        if normalize_engine_key(name) in _paper_ids:
-                            base_weights[name] = min(base_weights[name], _paper_cap)
+            from backend.services.factor_engine.paper_factor_policy import apply_paper_policy
+            _mode = None
+            if isinstance(market_data, dict):
+                _mode = market_data.get("trading_mode")
+            apply_paper_policy(base_weights, _mode, where="pipeline")
         except Exception as e:
-            logger.debug(f"[FactorPipeline] PAPER 权重上限跳过: {e}")
+            logger.debug(f"[FactorPipeline] PAPER 权重策略跳过: {e}")
 
         # 归一化（防止某些因子权重过大）
         total = sum(base_weights.values())

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.config.prompt_templates import DEFAULT_PROMPT_TEMPLATE, PRO_PROMPT_TEMPLATE, HYPERLIQUID_PROMPT_TEMPLATE
-from repositories import prompt_repo
+from backend.repositories import prompt_repo
 
 SYSTEM_USER = "system"
 

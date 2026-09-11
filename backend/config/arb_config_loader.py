@@ -51,6 +51,9 @@ class ArbFundingConfig:
     min_annual_yield: float = 0.15
     max_position_usd: float = 10000.0
     max_holding_hours: int = 72
+    # [2026-09] 套利杠杆跟随策略配置（附在实盘合约交易上的附带套利，
+    # 双腿互相对冲，低杠杆即可；env 覆盖 ARB_FUNDING_LEVERAGE）
+    leverage: float = 3.0
 
 
 @dataclass

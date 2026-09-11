@@ -62,15 +62,32 @@ def _base_weight_for_source(source: str, tier: str) -> float:
     return _OWM_DEFAULT_BASE_WEIGHT
 
 
+def _normalize_owm_tier(raw: Any) -> str:
+    """OWM 键用 mid/long；平仓 outcome.tier 常被映射成 swing/trend_follow。"""
+    t = str(raw or "mid").strip().lower()
+    if t in ("long", "trend", "trend_follow", "position"):
+        return "long"
+    if t in ("mid", "swing"):
+        return "mid"
+    return "mid"
+
+
 def record_outcome(db, outcome, analytics_db=None) -> None:
     meta = outcome.metadata if isinstance(outcome.metadata, dict) else {}
     thesis_id = meta.get("thesis_id")
     if not thesis_id:
         return
+    # 同一 thesis 只记一次：防平仓路径双触发刷 postmortem / 双 bump OWM
+    if _has_postmortem(thesis_id, analytics_db):
+        logger.debug("[MLTO learning] outcome already recorded thesis=%s", thesis_id)
+        return
     cited = meta.get("memory_event_ids") or []
     pnl = float(outcome.pnl or 0)
     session_id = meta.get("session_id") or ""
-    tier = meta.get("tier") or outcome.tier or "mid"
+    # 优先 timeframe_tier（mid/long），再退到 nature 化的 outcome.tier
+    tier = _normalize_owm_tier(
+        meta.get("timeframe_tier") or meta.get("tier") or getattr(outcome, "tier", None) or "mid"
+    )
 
     _bump_owm(db, session_id, tier, cited, pnl, meta, analytics_db)
     try:
@@ -87,6 +104,39 @@ def record_outcome(db, outcome, analytics_db=None) -> None:
         )
     except Exception as exc:
         logger.debug("[MLTO learning] postmortem skip: %s", exc)
+
+
+def _has_postmortem(thesis_id: str, analytics_db=None) -> bool:
+    """查询 analytics 是否已有该 thesis 的 postmortem。"""
+    if not thesis_id:
+        return False
+    try:
+        from backend.services.mlto.db_models import MltoThesisEvent
+        if analytics_db is not None:
+            n = (
+                analytics_db.query(MltoThesisEvent.id)
+                .filter(
+                    MltoThesisEvent.thesis_id == thesis_id,
+                    MltoThesisEvent.event_type == "postmortem",
+                )
+                .limit(1)
+                .first()
+            )
+            return n is not None
+        from backend.database.connection import AnalyticsSessionLocal
+        with AnalyticsSessionLocal() as adb:
+            n = (
+                adb.query(MltoThesisEvent.id)
+                .filter(
+                    MltoThesisEvent.thesis_id == thesis_id,
+                    MltoThesisEvent.event_type == "postmortem",
+                )
+                .limit(1)
+                .first()
+            )
+            return n is not None
+    except Exception:
+        return False
 
 
 def _bump_owm(db, session_id, tier, cited_ids, pnl, meta, analytics_db):

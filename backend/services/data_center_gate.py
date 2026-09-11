@@ -86,7 +86,7 @@ def check_trade_source_isolation() -> Dict[str, Any]:
 
 def check_default_exchange() -> Dict[str, Any]:
     try:
-        from config import settings
+        from backend.config import settings
         default = (getattr(settings, "DEFAULT_EXCHANGE", None) or "asterdex").strip().lower()
     except Exception:
         default = (os.getenv("DEFAULT_EXCHANGE") or "asterdex").strip().lower()
@@ -109,7 +109,7 @@ def check_coverage_gate(
     """四所 catalog 覆盖门禁（弱门：告警，不阻断启动）。"""
     if exchanges is None:
         try:
-            from config import settings
+            from backend.config import settings
             exchanges = list(getattr(settings, "KLINE_SYNC_EXCHANGES", None) or [])
         except Exception:
             exchanges = []

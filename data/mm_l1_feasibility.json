@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-09-09T07:07:29.586459+00:00",
+  "rows": [
+    {
+      "symbol": "BTC",
+      "n": 43191,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 0.016,
+      "markout_bid_bp": -0.0503,
+      "markout_ask_bp": 0.0503,
+      "gross_bp": 0.016,
+      "adverse_bp": 0.0,
+      "net_bp": 0.0158
+    },
+    {
+      "symbol": "ETH",
+      "n": 43188,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 0.053,
+      "markout_bid_bp": -0.0709,
+      "markout_ask_bp": 0.0709,
+      "gross_bp": 0.053,
+      "adverse_bp": 0.0,
+      "net_bp": 0.0531
+    },
+    {
+      "symbol": "SOL",
+      "n": 43180,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 1.321,
+      "markout_bid_bp": -0.0851,
+      "markout_ask_bp": 0.0851,
+      "gross_bp": 1.321,
+      "adverse_bp": 0.0,
+      "net_bp": 1.3211
+    },
+    {
+      "symbol": "XRP",
+      "n": 43173,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 0.996,
+      "markout_bid_bp": -0.0927,
+      "markout_ask_bp": 0.0927,
+      "gross_bp": 0.996,
+      "adverse_bp": 0.0,
+      "net_bp": 0.9956
+    },
+    {
+      "symbol": "DOGE",
+      "n": 43186,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 1.429,
+      "markout_bid_bp": -0.0682,
+      "markout_ask_bp": 0.0682,
+      "gross_bp": 1.429,
+      "adverse_bp": 0.0,
+      "net_bp": 1.4289
+    },
+    {
+      "symbol": "ADA",
+      "n": 43177,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 5.651,
+      "markout_bid_bp": -0.033,
+      "markout_ask_bp": 0.033,
+      "gross_bp": 5.651,
+      "adverse_bp": 0.0,
+      "net_bp": 5.6513
+    },
+    {
+      "symbol": "AVAX",
+      "n": 43184,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 4.614,
+      "markout_bid_bp": -0.0561,
+      "markout_ask_bp": 0.0561,
+      "gross_bp": 4.614,
+      "adverse_bp": 0.0,
+      "net_bp": 4.6136
+    },
+    {
+      "symbol": "LINK",
+      "n": 43180,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 4.21,
+      "markout_bid_bp": -0.1094,
+      "markout_ask_bp": 0.1094,
+      "gross_bp": 4.21,
+      "adverse_bp": 0.0,
+      "net_bp": 4.2096
+    },
+    {
+      "symbol": "UNI",
+      "n": 43178,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 6.213,
+      "markout_bid_bp": -0.2064,
+      "markout_ask_bp": 0.2064,
+      "gross_bp": 6.213,
+      "adverse_bp": 0.0,
+      "net_bp": 6.2131
+    },
+    {
+      "symbol": "BNB",
+      "n": 43174,
+      "median_gap_s": 15.0,
+      "spread_bp_median": 0.165,
+      "markout_bid_bp": -0.0585,
+      "markout_ask_bp": 0.0585,
+      "gross_bp": 0.165,
+      "adverse_bp": 0.0,
+      "net_bp": 0.1648
+    }
+  ]
+}

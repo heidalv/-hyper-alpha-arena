@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -27,9 +28,50 @@ from backend.services.long_tier_manager import weekly_atr, weekly_atr_causal, is
 logger = logging.getLogger(__name__)
 
 
+_V2_IGNORED_WARNED = False
+
+
 def long_v2_enabled() -> bool:
-    import os
-    return os.getenv("LONG_TREND_V2", "0").strip().lower() in ("1", "true", "yes", "on")
+    """v2 入场闸是否生效：`LONG_TREND_V2` 为真 **且** 主脑模式未接管。
+
+    [§58 修复 2026-09-10] 这里有两个条件，但后者会**静默否决**前者：把
+    `LONG_TREND_V2=1` 打开、而脑模式（`MIDLONG_BRAIN_MODE`）已启用时，v2 闸**不生效**，
+    却没有任何日志——属本项目反复出现的"开关形同虚设"形态。现在首次遇到
+    「env 要求开、但被脑模式否决」时打一条 WARNING（不改变裁决，仅让状态可见）。
+    """
+    global _V2_IGNORED_WARNED
+    requested = os.getenv("LONG_TREND_V2", "0").strip().lower() in ("1", "true", "yes", "on")
+    try:
+        from backend.config.settings import midlong_brain_enabled
+        if midlong_brain_enabled():
+            if requested and not _V2_IGNORED_WARNED:
+                _V2_IGNORED_WARNED = True
+                logger.warning(
+                    "[LongTrendV2] LONG_TREND_V2=%s 但主脑模式(MIDLONG_BRAIN_MODE=%s)已接管长线入场 "
+                    "→ v2 入场闸**不生效**（长线开仓由主脑决定）",
+                    os.getenv("LONG_TREND_V2"), os.getenv("MIDLONG_BRAIN_MODE"),
+                )
+            return False
+    except Exception:
+        pass
+    return requested
+
+
+def evidence_snapshot(symbol: str) -> Dict[str, Any]:
+    """V2 L1 看法，只当证据。脑模式下不据此开仓。"""
+    sym = str(symbol or "").upper()
+    try:
+        df, c = _get_l1_classification(sym)
+        if df is None or c is None:
+            return {"role": "证据，非指令", "l1": "unknown", "note": "1d 数据不足"}
+        return {
+            "role": "证据，非指令",
+            "l1": c.get("state"),
+            "score": c.get("score"),
+            "would_open_if_v2": bool(_l1_up(c)),
+        }
+    except Exception as exc:
+        return {"role": "证据，非指令", "error": str(exc)[:120]}
 
 
 def _cfg_int(key: str, default: int) -> int:
@@ -53,9 +95,34 @@ def _cfg_bool(key: str, default: bool) -> bool:
     return str(os.environ.get(key, "true" if default else "false")).strip().lower() in ("1", "true", "yes", "on")
 
 
+def _l1_thr() -> int:
+    """生效的 L1 入场阈值（可配 `LONG_V2_L1_UP_SCORE`，默认 3）。"""
+    return _cfg_int("LONG_V2_L1_UP_SCORE", 3)
+
+
 def _l1_up(c: Dict[str, Any]) -> bool:
     """L1 是否 up（用可配置阈值 LONG_V2_L1_UP_SCORE，默认 3，替代硬编码 ±3）。"""
-    return float(c.get("score") or 0.0) >= _cfg_int("LONG_V2_L1_UP_SCORE", 3)
+    return float(c.get("score") or 0.0) >= _l1_thr()
+
+
+def _l1_reason(c: Dict[str, Any], allowed: bool) -> str:
+    """[§58 修复] 判决文案必须与**生效阈值**一致。
+
+    此前文案写死 `L1=up … 放行` / `L1={state} … 非 up 禁开`，而 `state` 来自
+    `trend_layer.classify()` 的**硬编码 ±3**：当 `LONG_V2_L1_UP_SCORE` 被调成 ≠3 时
+    会产出**自相矛盾**的审计文本——
+      - 阈值=2、score=2：判决放行，文案却说 `L1=up(score=2)`（state 实为 sideways）；
+      - 阈值=4、score=3：判决拒绝，文案却说 `L1=up(score=3)，非 up 禁开`。
+    现在文案统一为 `L1=<state>(score=<score>) ≥/< 阈值<thr>`，判决与文本不可能打架。
+    """
+    state = c.get("state")
+    score = float(c.get("score") or 0.0)
+    thr = _l1_thr()
+    head = f"long_trend_v2 L1={state}(score={score:g})"
+    # 注意：state 来自硬编码 ±3，而阈值可配 ⇒ 拒绝文案**不得**写"非 up"（会与 L1=up 打架），
+    # 只陈述"未达入场线"。
+    return (f"{head} ≥ 阈值{thr} 放行" if allowed
+            else f"{head} < 阈值{thr}，未达 L1 入场线禁开")
 
 
 def _initial_fill() -> float:
@@ -157,6 +224,42 @@ def _entry_idx_for(df: pd.DataFrame, opened_at) -> int:
         return 0
 
 
+def _read_exit_state_flags(db, position: Dict[str, Any]) -> Dict[str, bool]:
+    """读取减半/补足类幂等标记；**优先 DB 实时行**，回退调用方快照。
+
+    [2026-09-10 第十九轮根修] 只读快照会漏掉本轮刚写入的 done 标记
+    （快照生成于减半之前）→ 连续减半至清仓（实测 BNB 7 分钟减半 4 次至
+    $9 尘埃仓，随后 401 次被 min_notional 拒绝）。
+    """
+    out = {"dd_halve_done": False, "target_halve_done": False, "early_np_done": False}
+    raw = None
+    try:
+        _pid = int(position.get("id") or 0)
+    except Exception:
+        _pid = 0
+    if db is not None and _pid > 0:
+        try:
+            from backend.database.models import PaperPosition as _PPFlag
+            _row = db.query(_PPFlag.exit_state_json).filter(_PPFlag.id == _pid).first()
+            if _row is not None:
+                raw = _row[0]
+        except Exception:
+            raw = None
+    if not raw:
+        raw = position.get("exit_state_json")
+        if not raw:
+            raw = position.get("exit_state")
+    try:
+        import json as _json
+        d = _json.loads(raw) if isinstance(raw, str) and raw else (raw if isinstance(raw, dict) else {})
+        if isinstance(d, dict):
+            for k in out:
+                out[k] = bool(d.get(k))
+    except Exception:
+        pass
+    return out
+
+
 def _topup_done(position: Dict[str, Any]) -> bool:
     """首仓补足是否已完成（exit_state_json.topup_done 标记）。"""
     try:
@@ -201,8 +304,8 @@ def entry_gate(symbol: str, action: str, market_summary: Optional[dict] = None) 
     if df is None or c is None:
         return False, "long_trend_v2 1d 数据不足(<260根)"
     if not _l1_up(c):
-        return False, f"long_trend_v2 L1={c['state']}(score={c['score']})，非 up 禁开"
-    return True, f"long_trend_v2 L1=up(score={c['score']}) 放行"
+        return False, _l1_reason(c, allowed=False)
+    return True, _l1_reason(c, allowed=True)
 
 
 def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str, Any]:
@@ -226,7 +329,7 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
     score_raw = float(c.get("score") or 0.0)
     if not _l1_up(c):
         return {"should_open": False, "action": "hold", "direction": "neutral",
-                "score": 0, "hold_reason": f"L1={c['state']}(score={score_raw}) 非 up",
+                "score": 0, "hold_reason": _l1_reason(c, allowed=False).replace("long_trend_v2 ", ""),
                 "suggested_sl_pct": 0.08, "size_hint_mult": _initial_fill(), "reason": ""}
     # [A4] 尖峰过滤：pullback_z |z|>3σ 的单日暴涨 bar 不追（设计 §4.2）
     try:
@@ -326,12 +429,37 @@ def manage_long_position(
     except Exception:
         _new_high = False
 
+    # [2026-09-07 P0 单位修复] peak_pnl_pct 统一为小数口径（无杠杆价格%）。
+    # get_positions 的 dict 里该字段被 ×100（前端展示用），直接读会把峰值放大 100 倍：
+    # peak_r 虚高 → no_progress 永不触发；旧回撤公式分母 (1+2.35) → 回撤恒 ≈64%，
+    # 极端回撤减半每 tick 重复触发直至清仓（position_exit_events 实证：7 分钟 7 次减半）。
+    # 优先读 DB 原始列（小数）；无 db 时回退 dict 值，>1.5 按百分比折算。
+    _peak_pct = 0.0
+    try:
+        _pid = int(position.get("id") or 0)
+    except Exception:
+        _pid = 0
+    if db is not None and _pid > 0:
+        try:
+            from backend.database.models import PaperPosition as _PPeak
+            _prow = db.query(_PPeak.peak_pnl_pct).filter(_PPeak.id == _pid).first()
+            if _prow is not None and _prow[0] is not None:
+                _peak_pct = float(_prow[0]) or 0.0
+        except Exception:
+            _peak_pct = 0.0
+    if _peak_pct <= 0:
+        try:
+            _raw_peak = float(position.get("peak_pnl_pct") or 0) or 0.0
+            _peak_pct = _raw_peak / 100.0 if _raw_peak > 1.5 else _raw_peak
+        except Exception:
+            _peak_pct = 0.0
+
     # [A3] 峰值 R / 持有天数 / 相对峰值回撤（供 decide_long 兜底判定）
     peak_r = None
     try:
         _risk_pct = (mult * atr_w) / entry
         if _risk_pct > 0:
-            peak_r = float(position.get("peak_pnl_pct") or 0) / _risk_pct
+            peak_r = _peak_pct / _risk_pct
     except Exception:
         pass
     hold_days = None
@@ -341,16 +469,23 @@ def manage_long_position(
             hold_days = float((pd.Timestamp.utcnow() - pd.Timestamp(_opened)).total_seconds()) / 86400.0
     except Exception:
         pass
+    # [2026-09-07 P0 口径修复] 利润回撤必须同单位：旧公式分子用 upnl/margin
+    # （杠杆化保证金%）、分母用 peak_pnl_pct（价格%）——杠杆>1 时回撤失真。
+    # 正确口径：dd = (峰值浮盈% − 当前浮盈%) / 峰值浮盈%（均为无杠杆价格%）。
+    # 例：峰值 +3%、当前 +1% → dd=67%（回吐 2/3 利润）→ 触发 60% 减半。
     drawdown = None
     try:
-        _margin = float(position.get("margin") or 0)
-        _upnl = float(position.get("unrealized_pnl") or 0)
-        _cur_pct = (_upnl / _margin) if _margin > 0 else 0.0
-        _peak_pct = float(position.get("peak_pnl_pct") or 0) or 0.0
-        if _peak_pct > -1.0:
-            drawdown = max(0.0, 1.0 - (1.0 + _cur_pct) / (1.0 + _peak_pct))
+        if _peak_pct > 0 and entry > 0:
+            _cur_unlev = (close_now - entry) / entry
+            drawdown = max(0.0, (_peak_pct - _cur_unlev) / _peak_pct)
     except Exception:
         pass
+    # [2026-09-07 幂等标记 / 2026-09-10 根修] 减半类决策每 tick 重评会连续减半至清仓。
+    # 从 DB 实时行读 done 标记（`_read_exit_state_flags`），无 db 时回退调用方快照。
+    _flags = _read_exit_state_flags(db, position)
+    _dd_halve_done = _flags["dd_halve_done"]
+    _target_halve_done = _flags["target_halve_done"]
+    _early_np_done = _flags["early_np_done"]
     pyr_batch = _pyramid_batch(position)
     if not _cfg_bool("LONG_V2_PYRAMID_ENABLED", True):
         pyr_batch = 99  # 金字塔禁用：批次打满禁止 add
@@ -373,4 +508,7 @@ def manage_long_position(
         in_position=True, cur_sl=cur_sl, peak_r=peak_r, hold_days=hold_days,
         drawdown_pct=drawdown, pyr_batch=pyr_batch,
         target=_target, needs_topup=needs_topup, topup_ratio=topup_ratio,
+        entry_price=entry, peak_pnl_pct=_peak_pct,
+        dd_halve_done=_dd_halve_done, target_halve_done=_target_halve_done,
+        early_np_done=_early_np_done,
     )

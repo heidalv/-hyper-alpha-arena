@@ -1,0 +1,13 @@
+{
+  "ts_ms": 1788735828625,
+  "source": "dual:daily_brief",
+  "run_id": "2c3a150a9857489f9e873940539bfdc7",
+  "bucket_weights": {
+    "trend": 0.45,
+    "cashflow": 0.35,
+    "research": 0.2,
+    "direction": null
+  },
+  "regime": "range",
+  "consensus_score": 0.7
+}

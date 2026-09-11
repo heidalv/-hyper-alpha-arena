@@ -14,22 +14,32 @@ class _FakeAudit:
         self.avg_net = avg_net
 
 
-def test_ev_governor_decisions():
-    """正期望放大 / 负期望收缩 / 深负暂停。"""
+def test_ev_governor_decisions(monkeypatch):
+    """正期望放大 / 负期望收缩 / 深负暂停。
+
+    [2026-09-02] reduce/pause 乘数按 2026-08-23 用户指示上调为 0.75/0.5（×0.2 把单仓
+    压到 ~5% 权益，手续费吞噬盈利、"基本就是刷手续费"）；原断言 0.5/0.2 过时。
+    这里清掉 env 覆盖，验证代码默认值；再验证 env 可调。
+    """
     from backend.services.ev_governor import _decide
 
+    monkeypatch.delenv("EV_GOVERNOR_PAUSE_MULT", raising=False)
+    monkeypatch.delenv("EV_GOVERNOR_REDUCE_MULT", raising=False)
     # n>=10 且 EV>0 → premium
     d = _decide(_FakeAudit(20, 0.05))
     assert d["decision"] == "premium" and d["mult"] == 1.2
     # 样本太少 → stable
     d = _decide(_FakeAudit(5, 0.05))
     assert d["decision"] == "stable" and d["mult"] == 1.0
-    # n>=30 且 EV<0 → reduce
+    # n>=30 且 EV<0 → reduce（默认 0.75）
     d = _decide(_FakeAudit(40, -0.03))
-    assert d["decision"] == "reduce" and d["mult"] == 0.5
-    # n>=50 且 EV<0 → pause
+    assert d["decision"] == "reduce" and d["mult"] == 0.75
+    # n>=50 且 EV<0 → pause（默认 0.5）
     d = _decide(_FakeAudit(60, -0.03))
-    assert d["decision"] == "pause" and d["mult"] == 0.2
+    assert d["decision"] == "pause" and d["mult"] == 0.5
+    # env 可调
+    monkeypatch.setenv("EV_GOVERNOR_REDUCE_MULT", "0.6")
+    assert _decide(_FakeAudit(40, -0.03))["mult"] == 0.6
     # 负但样本不足 → stable（不冤枉）
     d = _decide(_FakeAudit(15, -0.03))
     assert d["decision"] == "stable" and d["mult"] == 1.0

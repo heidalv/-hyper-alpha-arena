@@ -341,27 +341,36 @@ def test_all_gates_pass_promotes_to_paper():
 
 
 def test_auto_oversight_stricter_than_base_gates():
-    """自动化复核（_auto_oversight_approve）比基础门槛更严：pbo≤0.30。"""
+    """自动化复核（_auto_oversight_approve）比基础门槛更严：pbo≤0.30。
+
+    [2026-08-29 契约同步] 阈值改为从 LifecycleThresholds 动态取（8/13 P2-11
+    收紧 paper_min_days 5→10 后旧硬编码 days=12 不再满足 2×10=20 而失效）。"""
     from types import SimpleNamespace
+    from backend.services.factor_engine.lifecycle import LifecycleThresholds
+
+    t = LifecycleThresholds()
 
     def judge_for(to_state):
         return SimpleNamespace(decision=TransitionDecision(
             "f", FactorState.ORTHO, to_state, auto=True, reason="x"))
 
-    m_pbo04 = _ortho_metrics(pbo=0.4, paper_sharpe=2.0, paper_days=20,
-                             small_live_days=30)
+    m_pbo04 = _ortho_metrics(pbo=0.4, paper_sharpe=2.0, paper_days=t.paper_min_days * 2,
+                             small_live_days=t.small_live_min_days * 2)
     # pbo=0.40 通过基础门槛（≤0.50）但复核拒绝（>0.30）
     assert not _auto_oversight_approve(m_pbo04, judge_for(FactorState.SMALL_LIVE))
-    # pbo=0.20 + 纸面达标（sharpe≥1.5×1.0、days≥2×5）→ 复核通过
-    m_ok = _ortho_metrics(pbo=0.2, paper_sharpe=1.8, paper_days=12,
-                          small_live_days=30)
+    # pbo=0.20 + 纸面达标（sharpe≥1.5×min、days≥2×min）→ 复核通过
+    m_ok = _ortho_metrics(pbo=0.2, paper_sharpe=t.min_paper_sharpe * 1.8,
+                          paper_days=t.paper_min_days * 2 + 2,
+                          small_live_days=t.small_live_min_days * 2)
     assert _auto_oversight_approve(m_ok, judge_for(FactorState.SMALL_LIVE))
-    # ACTIVE 复核需要小仓期 ≥ 1.5×14
-    m_active_ok = _ortho_metrics(pbo=0.2, paper_sharpe=1.8, paper_days=12,
-                                 small_live_days=25)
+    # ACTIVE 复核需要小仓期 ≥ 1.5×small_live_min_days
+    m_active_ok = _ortho_metrics(pbo=0.2, paper_sharpe=t.min_paper_sharpe * 1.8,
+                                 paper_days=t.paper_min_days * 2 + 2,
+                                 small_live_days=int(t.small_live_min_days * 1.5) + 4)
     assert _auto_oversight_approve(m_active_ok, judge_for(FactorState.ACTIVE))
-    m_active_short = _ortho_metrics(pbo=0.2, paper_sharpe=1.8, paper_days=12,
-                                    small_live_days=10)
+    m_active_short = _ortho_metrics(pbo=0.2, paper_sharpe=t.min_paper_sharpe * 1.8,
+                                    paper_days=t.paper_min_days * 2 + 2,
+                                    small_live_days=max(1, t.small_live_min_days - 4))
     assert not _auto_oversight_approve(m_active_short, judge_for(FactorState.ACTIVE))
 
 
@@ -375,14 +384,29 @@ def test_dsr_n_trials_multiple_testing_penalty():
 
 
 def test_compute_dsr_pbo_for_factors_gates_quality():
-    """整体门：低质量因子集不通过，高质量因子集通过（DSR 显著 + PBO<0.5）。"""
+    """整体门：低质量因子集不通过，高质量因子集通过（DSR 显著 + PBO<0.5）。
+
+    [2026-09-02 E14 契约同步] 原断言 ``low.dsr_result.significant is False``
+    绑定的是 08-31 之前的错误 DSR 口径 —— 那时把「幸存者 ICIR 的截面 std」当作
+    H0 噪声方差。截面离散反映的是因子间真实质量差异，不是抽样噪声：T=252 时真实
+    标准误仅 1/sqrt(252)=0.063，而该集合的截面 std 约 0.29，是其 4.6 倍，
+    于是 expected_max 被抬到观测值之上，任何好因子都判不显著。
+
+    修正后（sr_mean=0、sr_std=1/sqrt(T)，multiple-testing 校正保留）：本集合的
+    最佳幸存者 ICIR=0.3、T=252 → t=0.3/0.063≈4.8，即便按 10 次试验校正也依然
+    显著，判 significant=True 是统计正确的。DSR 检验的对象是「最佳因子是否真有
+    alpha」，而不是「集合整体平均质量」——后者由 PBO 负责，整体门也正是靠 PBO
+    继续拒绝这个方向翻转严重的集合。
+    """
     low = compute_dsr_pbo_for_factors(
         icir_list=[0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6],
         n_total_candidates=10,
         sample_len=252,
     )
-    assert low["overall_passes"] is False
-    assert low["dsr_result"]["significant"] is False
+    assert low["overall_passes"] is False, "低质量集必须被整体门拒绝"
+    assert low["pbo_result"]["pbo"] >= 0.5, (
+        "方向翻转的序列应体现为高 PBO —— 这才是拒绝该集合的正当理由"
+    )
 
     high = compute_dsr_pbo_for_factors(
         icir_list=[3.0] + [0.5] * 19,
@@ -395,17 +419,20 @@ def test_compute_dsr_pbo_for_factors_gates_quality():
 
 
 def test_pbo_direction_semantics_is_academic():
-    """PBO 方向语义（2026-08-05 修复）：IS 最优因子在 OOS 排名靠后才算过拟合。
+    """PBO 方向语义（[P0-1 时序 CSCV] 重写后的契约）：icir_values 是【单因子
+    IC 的时间序列】——IS 段定的方向在 OOS 段失效才累计 PBO。
 
-    10 个递减 ICIR（2.0→1.1，C(5,2)=10 组全枚举）：
-      修复前（r≤N/2 判 overfit）：7/10 组合 overfit → pbo=0.7
-      修复后（r>N/2 判 overfit）：3/10 组合 overfit → pbo=0.3
-    只有 IS 最优在 OOS 中位排名之外（表现差）才累计 PBO。
+    旧契约（10 个因子横截面 C(5,2) 组合、r>N/2 判 overfit → pbo=0.3）测的是
+    已删除的横截面实现，随 P0-1 时序版一并作废。新契约：
+      - 持续正 IC 的稳定序列 → 方向全程保持 → pbo 低；
+      - 前半正后半负的翻转序列 → IS 方向在 OOS 失效 → pbo 高。
     """
-    res = compute_pbo_simple(icir_values=[2.0, 1.9, 1.8, 1.7, 1.6,
-                                          1.5, 1.4, 1.3, 1.2, 1.1])
-    assert res["pbo"] == 0.3, f"方向语义错误：pbo={res['pbo']}（期望 0.3）"
-    assert res["significant"] is True
+    stable = compute_pbo_simple(icir_values=[2.0, 1.9, 1.8, 1.7, 1.6,
+                                             1.5, 1.4, 1.3, 1.2, 1.1])
+    assert stable["pbo"] <= 0.3, f"稳定正IC序列不应判高过拟合: {stable['pbo']}"
+    flipped = compute_pbo_simple(icir_values=[2.0, 1.8, 1.6, 1.4, 1.2,
+                                              -1.2, -1.4, -1.6, -1.8, -2.0])
+    assert flipped["pbo"] >= 0.5, f"方向翻转序列应判高过拟合: {flipped['pbo']}"
 
 
 def test_pbo_stable_best_in_oos_not_overfit():

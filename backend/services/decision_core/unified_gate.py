@@ -20,6 +20,11 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# 盈亏比门槛比较的统一容差。所有"rr 是否达到 min_rr"的判定（本文件 RR 门、
+# ScalpGate._ensure_min_rr）必须用同一个值，否则上游判达标/下游判不达标会在
+# 边界上互相打架（见 evaluate_entry 内 [2026-09-02 P2.2 联动修复] 注释）。
+RR_EPS = 1e-4
+
 # [2026-08-23 M0-B7] 退役：v5_runtime_gates.json 不再作为门槛写入口/读入口，
 # 唯一权威是 RuntimeGovernor → runtime_tuning.json。此处的文件直读回退
 # （含 60s 缓存）全部删除，杜绝「改了文件不生效」的假开关误读。
@@ -614,9 +619,16 @@ def evaluate_entry(
             )
 
     rr = tp / sl
-    if rr < min_rr:
+    # [2026-09-02 P2.2 联动修复] RR 比较必须带容差。ScalpGate 把 TP 精确设成
+    # SL×min_rr，大量订单恰落在门槛上；上游 sl_pct 由 sl_price 反推带浮点噪声
+    # （实测 sl=0.010645500000000117, tp=0.021291 → rr=1.9999999999999782），
+    # ScalpGate._ensure_min_rr 用 1e-9 容差判为达标不再抬 TP，这里却用裸 `<`
+    # 判为不达标 → 两层在边界上口径相反。近 2h 266 条短线快照 148 条（56%）
+    # 死在 2e-14 的差上。容差取 1e-4：覆盖 6 位小数舍入（tp 误差 5e-7 / sl 0.005
+    # → rr 误差 1e-4），经济上 RR 1.9999 与 2.0 无差别。与 _ensure_min_rr 同值。
+    if rr < min_rr - RR_EPS:
         return _block(symbol, action_l, "risk_reward",
-                      f"盈亏比 {rr:.2f} < 最低 {min_rr}（TP {tp:.1%} / SL {sl:.1%}）")
+                      f"盈亏比 {rr:.4f} < 最低 {min_rr}（TP {tp:.2%} / SL {sl:.2%}）")
     if tp < _paper_min_tp:
         return _block(symbol, action_l, "min_tp",
                       f"止盈距离 {tp:.2%} < 最低 {_paper_min_tp:.1%}（paper放宽,"

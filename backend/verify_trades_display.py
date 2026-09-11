@@ -7,7 +7,7 @@ This mimics the WebSocket snapshot data that the frontend receives
 import json
 from backend.database.connection import SessionLocal
 from backend.database.models import Trade, User, Position, Order
-from services.asset_calculator import calc_positions_value
+from backend.services.asset_calculator import calc_positions_value
 
 def simulate_snapshot_for_user(username: str):
     """Simulate the snapshot data sent to frontend for a specific user"""

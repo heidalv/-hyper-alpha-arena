@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -19,6 +20,16 @@ _ATR_PERIOD = 14
 _CHANDELIER_MULT = 2.0
 _NEW_HIGH_WINDOW = 60
 _PYRAMID_R = 1.0  # 每 1R 允许一次加仓
+
+# ── [2026-09-07 P0] 长线早期复盘 + 浮盈保本（小资金盘诊断驱动） ──
+# 背景：BTC 长线 5x 扛 29.4h 峰值仅 +0.2% 最终 -$44.87；旧 no_progress 要等 30 天，
+# 对 max_hold=7d 的盘子等于没有。XRP/ETH 峰值 +2.4%/+3.2% 但 SL 仍在 -12%/-6.5% 深水区。
+_EARLY_NP_REDUCE_DAYS = 2.0   # 持仓 ≥2 天且峰值从未达 0.3R → 减半（只执行一次）
+_EARLY_NP_CLOSE_DAYS = 3.0    # 持仓 ≥3 天且峰值从未达 0.3R → 退出（与 72h min_hold 对齐）
+_EARLY_NP_PEAK_R = 0.3        # 峰值 R 门槛（0.3R ≈ 0.6×周ATR，"动起来过"的最低标准）
+_BREAKEVEN_PEAK_PCT = 0.02    # 峰值浮盈(无杠杆价格%) ≥2% → SL 推保本
+_LOCK_PROFIT_PEAK_PCT = 0.03  # 峰值浮盈 ≥3% → 锁定峰值利润的 1/3
+_LOCK_PROFIT_FRAC = 1.0 / 3.0
 
 
 def weekly_atr(df_1d: pd.DataFrame, period: int = _ATR_PERIOD) -> pd.Series:
@@ -149,6 +160,11 @@ def decide_long(
     target: Optional[float] = None,
     needs_topup: bool = False,
     topup_ratio: float = 0.5,
+    entry_price: Optional[float] = None,
+    peak_pnl_pct: Optional[float] = None,
+    dd_halve_done: bool = False,
+    target_halve_done: bool = False,
+    early_np_done: bool = False,
 ) -> Dict[str, Any]:
     """长线持仓单日决策（纯规则，回测/实盘同核的唯一决策函数）。
 
@@ -161,9 +177,15 @@ def decide_long(
     cur_sl: 当前仓位 SL 价（收紧止损判定用）
     peak_r: 持仓峰值 R（no_progress 判定用）
     hold_days: 持有天数（no_progress 判定用）
-    drawdown_pct: 相对峰值的持仓回撤（极端回撤保护用，0~1）
+    drawdown_pct: 相对峰值的利润回撤（极端回撤保护用，0~1；
+                  口径 = (峰值浮盈% − 当前浮盈%) / 峰值浮盈%，峰值/当前同单位）
     pyr_batch: 已完成的金字塔加仓批次数（capped 3 档 0.5/0.35/0.25）
     max_batches: 金字塔批次上限
+    entry_price: [P0] 入场价（浮盈保本/锁利用；不传则该规则静默跳过）
+    peak_pnl_pct: [P0] 峰值浮盈（无杠杆价格%，与 paper_positions.peak_pnl_pct 同口径）
+    dd_halve_done: [幂等] 极端回撤减半是否已执行过（防调用方高频重评导致连续减半）
+    target_halve_done: [幂等] 结构目标减半是否已执行过
+    early_np_done: [幂等] 早期 no_progress 减半是否已执行过
 
     返回 {"action": hold/add/reduce/close/tighten_sl, "reason", "ratio"?, "new_sl"?}
     """
@@ -175,19 +197,36 @@ def decide_long(
     # Chandelier 打穿 → 被动退出
     if stop is not None and close < stop:
         return {"action": "close", "reason": f"Chandelier止损(close={close:.2f}<stop={stop:.2f})"}
-    # [A3] 极端回撤（紧急保护，优先于加仓/持有）：>=80% 全平、>=60% 减半
+    # [A3] 极端回撤（紧急保护，优先于加仓/持有）：>=80% 全平、>=60% 减半（减半幂等）
+    # [2026-09-08 放宽浮盈保护] 数据分析：盈利单冲到峰值后回撤60%就被减半，回吐过多。
+    # 阈值放宽为 env 可调：极端回撤减半 LONG_DD_HALVE(默认0.75)、全平 LONG_DD_CLOSE(默认0.90)，
+    # 给盈利单更大回旋空间，让 winners 多跑一段。env 设回 0.6/0.8 即回退。
+    _dd_close = float(os.getenv("LONG_DD_CLOSE", "0.90"))
+    _dd_halve = float(os.getenv("LONG_DD_HALVE", "0.75"))
     if drawdown_pct is not None:
-        if drawdown_pct >= 0.8:
-            return {"action": "close", "reason": f"极端回撤≥80%({drawdown_pct:.0%})"}
-        if drawdown_pct >= 0.6:
+        if drawdown_pct >= _dd_close:
+            return {"action": "close", "reason": f"极端回撤≥{_dd_close:.0%}({drawdown_pct:.0%})"}
+        if drawdown_pct >= _dd_halve and not dd_halve_done:
             return {"action": "reduce", "ratio": 0.5,
-                    "reason": f"极端回撤≥60%({drawdown_pct:.0%})减半"}
+                    "reason": f"极端回撤≥{_dd_halve:.0%}({drawdown_pct:.0%})减半"}
+    # [P0 2026-09-07] 早期 no_progress：趋势仍 up 但价格迟迟不动（死钱占用）。
+    # 旧规则要等 30 天，对 max_hold=7d 的盘子形同虚设（BTC 长线扛 29h -$44.87 实证）。
+    # ≥2 天减半（幂等）、≥3 天退出（与 TIER_PROTECTION long min_hold 72h 对齐）。
+    if hold_days is not None and peak_r is not None and peak_r < _EARLY_NP_PEAK_R:
+        if hold_days >= _EARLY_NP_CLOSE_DAYS:
+            return {"action": "close",
+                    "reason": f"early_no_progress(hold={hold_days:.1f}天≥{_EARLY_NP_CLOSE_DAYS:.0f}天, "
+                              f"peak_r={peak_r:.2f}<{_EARLY_NP_PEAK_R})"}
+        if hold_days >= _EARLY_NP_REDUCE_DAYS and not early_np_done:
+            return {"action": "reduce", "ratio": 0.5,
+                    "reason": f"early_no_progress减半(hold={hold_days:.1f}天≥{_EARLY_NP_REDUCE_DAYS:.0f}天, "
+                              f"peak_r={peak_r:.2f}<{_EARLY_NP_PEAK_R})"}
     # [A3] no_progress 兜底：hold>=30 天且峰值从未达到 1R → 离场
     if hold_days is not None and peak_r is not None and hold_days >= 30.0 and peak_r < 1.0:
         return {"action": "close",
                 "reason": f"no_progress(hold={hold_days:.0f}天, peak_r={peak_r:.2f})"}
-    # [A4] 结构目标减仓：收盘达 L1 结构目标（h60+ATR 投影）→ 减 50%，其余交给追踪
-    if target is not None and close >= target:
+    # [A4] 结构目标减仓：收盘达 L1 结构目标（h60+ATR 投影）→ 减 50%（幂等），其余交给追踪
+    if target is not None and close >= target and not target_halve_done:
         return {"action": "reduce", "ratio": 0.5,
                 "reason": f"结构目标达成减半(close={close:.2f}≥target={target:.2f})"}
     # [A4] 首仓补足：满 24h 且未补足 → 补到 100%（试探仓 50% 的补足腿）
@@ -200,8 +239,21 @@ def decide_long(
         _ratio = _ratios[min(int(pyr_batch), len(_ratios) - 1)]
         return {"action": "add", "ratio": _ratio,
                 "reason": f"新高加仓(r={r_multiple:.2f}R, 第{int(pyr_batch) + 1}批)"}
-    # Chandelier 上移 → 收紧 SL（只上移）
+    # [P0 2026-09-07] 浮盈保本/锁利（只上移）：峰值 ≥2% 推保本，≥3% 锁峰值利润 1/3。
+    # 与 Chandelier 候选取较高者；XRP/ETH 峰值 +2.4%/+3.2% 而 SL 滞留深水区的实证修复。
+    _tighten_cand: Optional[float] = None
+    _tighten_why = ""
+    if entry_price is not None and peak_pnl_pct is not None and entry_price > 0:
+        if peak_pnl_pct >= _LOCK_PROFIT_PEAK_PCT:
+            _tighten_cand = entry_price * (1.0 + peak_pnl_pct * _LOCK_PROFIT_FRAC)
+            _tighten_why = f"峰值{peak_pnl_pct:.1%}锁利1/3"
+        elif peak_pnl_pct >= _BREAKEVEN_PEAK_PCT:
+            _tighten_cand = entry_price
+            _tighten_why = f"峰值{peak_pnl_pct:.1%}推保本"
     if cur_sl is not None and stop is not None and stop > cur_sl:
-        return {"action": "tighten_sl", "new_sl": round(float(stop), 6),
-                "reason": f"Chandelier上移 SL→{stop:.4f}"}
+        if _tighten_cand is None or stop > _tighten_cand:
+            _tighten_cand, _tighten_why = stop, "Chandelier上移"
+    if _tighten_cand is not None and (cur_sl is None or _tighten_cand > cur_sl):
+        return {"action": "tighten_sl", "new_sl": round(float(_tighten_cand), 6),
+                "reason": f"{_tighten_why} SL→{_tighten_cand:.4f}"}
     return {"action": "hold", "reason": "持有"}

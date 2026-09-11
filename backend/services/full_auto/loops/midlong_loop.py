@@ -1,14 +1,10 @@
 """
-长线独立循环（含中线因子路由调度）— 整改#8 midlong_loop 拆分。
+中长线独立循环 — midlong_loop 拆分。
 
-从 full_auto_trading_service._run_midlong_independent 迁出；
-monolith 保留 thin shim 转发。
-
-[M12 2026-08-21] 现行分工：long 由 long_trend_v2 日频管理（规则化 L1 + Chandelier，
-本循环维护 thesis/入场）；mid 在 MIDLONG_MID_VIA_FACTOR_ROUTE=true 时由因子路由
-（factor_route_*，经 execute_midlong_open(source=factor_route)）驱动，
-_run_mid = ("mid" in due) and 中线宇宙非空。原「阶段4 仅处理 long」描述作废；
-SwingAgent 独立分析已废弃，mid_view 子结构仅剩兼容读取（M13 deprecated）。
+[M12 2026-08-21] 本循环负责 mid/long 两个 tier 的独立 tick（不再只跑 long）。
+[2026-09-05 LLM 主脑] mid/long 新开仓唯一走 run_midlong_brain_batch →
+execute_midlong_open(source=mlto)。因子路由 / long_trend_v2 / E1 默认关闭，
+只产证据。本循环 ~45s 哨兵盯盘（止损/失效价/should_close），论题按行情时钟重问。
 """
 from __future__ import annotations
 
@@ -22,13 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick: int) -> None:
-    """轻量 long tick：TrendAgent + MLTO thesis（含 mid_view）+ 独立开单。"""
+    """中长线 tick：市场扫描 + LLM 论题批次 + 持仓主动退出。"""
     self = svc
     # [C1] 中长线循环是 APScheduler 后台循环,不在 HTTP 请求上下文。设 system_identity
     # 覆盖整轮(含下方两次 db = SessionLocal() 重连模式 + _run_midlong_active_exit)。
     from backend.core.tenant import set_system_identity
     set_system_identity()
     from backend.database.connection import SessionLocal
+    from backend.database.connection import release_idle_txn as _release_txn
     from backend.database.models import FullAutoSession
     from backend.services.tier_tick_scheduler import get_due_ai_tiers
 
@@ -43,6 +40,21 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
         if session.status not in ("running", "defensive"):
             logger.warning("[MidLongAgent独立] session.status=%s 非 running/defensive，提前 return %s", session.status, session_id)
             return
+        # [2026-09-07] 论题 should_close / bias / no_progress：每 tick 【开头】先哨兵。
+        # 旧口径只在 due 为空或长 LLM 结束才跑 → 主脑写 should_close 后要等整轮
+        # brain batch（可达数分钟）才平仓（BTC 4624 实证干挂 ~30min）。
+        try:
+            _exit_ms0 = (
+                session.last_market_summary
+                if isinstance(session.last_market_summary, dict)
+                else {}
+            )
+            _release_txn(db, where="midlong_loop.pre_tick_exit")
+            self._run_midlong_active_exit(db, session, _exit_ms0)
+            self._safe_commit(db, "midlong_pre_tick_active_exit", session=session)
+        except Exception as _pre_exit_err:
+            logger.debug("[MidLongExit] tick 开头主动退出跳过: %s", _pre_exit_err)
+
         due = get_due_ai_tiers(session_id)
         if not due:
             # 2026-07-20：诊断 due 为空的根因（曾在此静默 return 导致 midlong 从不执行）
@@ -54,18 +66,7 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
                 )
             except Exception:
                 logger.warning("[MidLongAgent独立] due 为空，提前 return %s", session_id)
-            # [P2-6 修复] due 为空只跳过「入场分析」，主动退出（bias 反转 / no-progress）
-            # 必须照常执行——此前直接 return 连 active exit 一起跳过，有仓时只能死等 SL/TP。
-            try:
-                if session is not None:
-                    _exit_ms = (
-                        session.last_market_summary
-                        if isinstance(session.last_market_summary, dict)
-                        else {}
-                    )
-                    self._run_midlong_active_exit(db, session, _exit_ms)
-            except Exception as _exit_err:
-                logger.debug("[MidLongExit] due 为空主动退出检查跳过: %s", _exit_err)
+            # 开头已跑过 active_exit；此处只需落库返回
             try:
                 self._safe_commit(db, "midlong_active_exit_only", session=session)
             except Exception as _cm_err:
@@ -116,8 +117,13 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
         # [2026-08-10 问题三] AI 中线候选：只读消费平台看板 midlong approve，
         # 仅走 mid lane（与长线白名单正交、互不污染）；候选为空时
         # _run_mid 仍可因固定中线币而继续。
+        # [2026-09-04] MIDLONG_MID_AI_CANDIDATES_ENABLED=false 时中线只用固定币，
+        # 不再让 AI 候选占扫描名额（见 settings 同名开关的实测依据）。
+        from backend.config.settings import (
+            MIDLONG_MID_AI_CANDIDATES_ENABLED as _AI_MID_ON,
+        )
         _ai_mid: List[str] = []
-        if _session_id:
+        if _session_id and _AI_MID_ON:
             try:
                 _ai_mid = list(get_ai_mid_candidates_for_session(_session_id, db=db) or [])
             except Exception as _ai_err:
@@ -142,8 +148,37 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
         except Exception as _hold_err:
             logger.debug("[MidLongAgent独立] mid 持仓续管并入跳过: %s", _hold_err)
         _ai_mid_scan = list(dict.fromkeys(list(_ai_mid) + list(_ai_mid_hold)))
-        # 长线只扫 long 固定；中线宇宙 = mid 固定 ∪ AI中线 ∪ 续管持仓
-        symbols = list(_fixed_long) if _fixed_long else []
+        # [2026-09-08] 长线引入 AI 选币：长线宇宙 = long 固定 ∪ AI长线候选 ∪ 长线续管持仓
+        # （中线宇宙 = mid 固定 ∪ AI中线 ∪ 续管持仓，不变）
+        _ai_long: List[str] = []
+        if _session_id:
+            try:
+                from backend.config.settings import (
+                    MIDLONG_LONG_AI_CANDIDATES_ENABLED as _AI_LONG_ON,
+                )
+                if _AI_LONG_ON:
+                    from backend.services.auto_coin_selector import (
+                        get_ai_long_candidates_for_session,
+                    )
+                    _ai_long = list(get_ai_long_candidates_for_session(_session_id, db=db) or [])
+            except Exception as _ai_long_err:
+                logger.debug("[MidLongAgent独立] AI 长线候选查询跳过: %s", _ai_long_err)
+        # 长线续管：已开 long 仓即使不在固定/候选，也并入本轮长线扫描/管仓集合
+        _ai_long_hold: List[str] = []
+        try:
+            from backend.services.full_auto.midlong_position_manager import (
+                _open_midlong_positions as _omp_l,
+            )
+            _acct_l = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
+            if _acct_l:
+                for _p in _omp_l(db, int(_acct_l)) or []:
+                    if str(_p.get("timeframe_tier") or "").lower() == "long":
+                        _su = str(_p.get("symbol") or "").upper()
+                        if _su and _su not in _fixed_long and _su not in _ai_long_hold:
+                            _ai_long_hold.append(_su)
+        except Exception as _hold_l_err:
+            logger.debug("[MidLongAgent独立] long 持仓续管并入跳过: %s", _hold_l_err)
+        symbols = list(dict.fromkeys(list(_fixed_long) + list(_ai_long) + list(_ai_long_hold)))
         _mid_universe = list(dict.fromkeys(list(_fixed_mid) + list(_ai_mid_scan)))
         if not symbols:
             logger.warning(
@@ -151,12 +186,17 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
                 tick,
             )
         logger.info(
-            f"[MidLongAgent独立] tick#{tick} 固定long={symbols} 固定mid={list(_fixed_mid)} "
+            f"[MidLongAgent独立] tick#{tick} 固定long={list(_fixed_long)} ai_long={_ai_long} "
+            f"long_hold={_ai_long_hold} long_universe={symbols} 固定mid={list(_fixed_mid)} "
             f"ai_mid={_ai_mid} hold={_ai_mid_hold} mid_universe={_mid_universe}"
         )
         market_summary = session.last_market_summary if isinstance(session.last_market_summary, dict) else {}
         # 市场扫描覆盖 long(fixed) + mid(固定∪AI∪续管)
         _scan_syms = list(dict.fromkeys(list(symbols) + list(_mid_universe)))
+        # [2026-09-02 挂事务修复] 上面全是 SELECT（session/固定币/候选/持仓），到此先结束
+        # 读事务：_scan_markets/_ensure_market_prices 是交易所网络调用，动辄十几秒，
+        # LeakGuard 追踪点名本函数 39 行开启的事务在此期间 idle-in-transaction。
+        _release_txn(db, where="midlong_loop.pre_scan")
         try:
             fresh = self._scan_markets(db, _scan_syms)
             if isinstance(fresh, dict) and fresh:
@@ -169,22 +209,46 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
                 for _sym, _entry in fresh.items():
                     _base = market_summary.get(_sym)
                     if isinstance(_base, dict) and isinstance(_entry, dict):
-                        market_summary[_sym] = {**_base, **_entry}
+                        _merged = {**_base, **_entry}
+                        # [2026-09-07] 深合并不会删掉旧 data_stale；扫描成功必须清掉，
+                        # 否则 VIRTUAL 等币一旦被 bootstrap 标 stale 就永久「跳过编排器」。
+                        if float(_merged.get("current_price") or 0) > 0 and _merged.get(
+                            "data_reliable", True
+                        ):
+                            _merged["data_stale"] = False
+                        market_summary[_sym] = _merged
                     else:
                         market_summary[_sym] = dict(_entry) if isinstance(_entry, dict) else _entry
                 session.last_market_summary = market_summary
-                db.flush()
+                # [2026-09-02 挂事务修复] 原为 db.flush()：UPDATE full_auto_sessions 后行锁
+                # 一直持到下方 267 行 midlong_pre_llm 提交，中间 _ensure_market_prices /
+                # _build_portfolio_for_agents 还有网络与查询。这里直接提交（下方本就要提交，
+                # 只是把窗口缩短；expire_on_commit=False，session 对象继续可用）。
+                self._safe_commit(db, "midlong_scan_persist", session=session)
         except Exception as _scan_err:
             logger.debug("[MidLongAgent独立] 市场扫描跳过: %s", _scan_err)
         if _scan_syms:
             self._ensure_market_prices(market_summary, _scan_syms)
         # 编排器结果在 OrchBG 缓存里，合并进 market_summary（含 XPL 等非 session.symbols 币）
+        _hold_syms = {str(s).upper() for s in (_ai_mid_hold or []) if s}
         for _sym in _scan_syms:
-            # 修复4：跳过数据不可靠的品种
+            _sym_u = str(_sym or "").upper()
             _sym_data = market_summary.get(_sym) or {}
-            if not _sym_data.get("data_reliable", True) or _sym_data.get("data_stale"):
-                logger.info("[MidLongAgent独立] %s 数据不可靠/过期，跳过分析", _sym)
+            _stale = (
+                not _sym_data.get("data_reliable", True) or _sym_data.get("data_stale")
+            )
+            # 持仓续管币：即使 stale 也合并编排器（管仓/空头下行证据依赖 mid_bias）
+            if _stale and _sym_u not in _hold_syms:
+                logger.info(
+                    "[MidLongAgent独立] %s 数据不可靠/过期，跳过编排器合并",
+                    _sym,
+                )
                 continue
+            if _stale and _sym_u in _hold_syms:
+                logger.info(
+                    "[MidLongAgent独立] %s 持仓续管：数据标过期仍合并编排器",
+                    _sym,
+                )
             _cached = self._market_scan_cache.get(_sym) or {}
             if isinstance(_cached, dict) and _cached.get("orchestrator"):
                 market_summary.setdefault(_sym, {})
@@ -206,6 +270,8 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
         # 中线：固定交易对始终在 + AI中线≤3 + 续管；不再只扫 AI 候选
         _run_mid = ("mid" in due) and bool(_mid_universe)
         _run_long = "long" in due
+        # [2026-09-07] LLM 日内波段车道：short tier 进入调度轮转（INTRADAY_LLM_ENABLED 门控）
+        _run_short = "short" in due
         # 分游标：long 只滚固定币；mid 滚固定∪AI∪续管
         _sym_one: List[str] = []
         if _run_long and symbols:
@@ -311,6 +377,9 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
             ).first()
             if session is None:
                 return
+        # [2026-09-02 挂事务修复] merge/重查 session 开启了新事务，而下方 _maintain 跑数百秒
+        # LLM（开仓走独立 _SwingDB，不用本 db）——LeakGuard 追踪 18 分钟点名本处 7 次。
+        _release_txn(db, where="midlong_loop.pre_maintain")
         self._maintain_mlto_theses_for_session(
             session=session,
             market_summary=market_summary,
@@ -325,6 +394,7 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
             mid_universe=_mid_universe,
             run_mid=_run_mid,
             run_long=_run_long,
+            run_short=_run_short,
             # [2026-07-31] 长线开仓/thesis 必须 deep_context：注入 4h/1d/1w OHLCV。
             # 禁止 light_context=True（只会塞一行 EMA/RSI 标量，AI 看不到真实 K 线）。
             light_context=False,

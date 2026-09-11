@@ -134,7 +134,10 @@ VAL_DAYS = int(_os_window.getenv("FACTOR_EVO_VAL_DAYS", "30"))
 # 功效不足（实测 ICIR 1.31 仍不显著）。面板拼接后 T=验证根数×币数。
 # 4h train 1800 根为最大杠杆；5m 受覆盖限制保持。
 _PERIOD_SPLIT_DAYS: dict[str, tuple[int, int, int]] = {
-    "1m": (30, 10, 10), "5m": (30, 10, 10), "15m": (45, 15, 10),
+    # [2026-09-07] 5m: 30/10/10=50d 高于库内多数币实测覆盖(~47d)，每日 04:00
+    # 剔除后只剩 UNI/XRP → <MIN_SYMBOLS 整轮 depth_insufficient。改为 26/10/10=46d，
+    # 与当前回填墙对齐；回填追上 55d 目标后可用 FACTOR_EVO_*_DAYS 再拉长。
+    "1m": (30, 10, 10), "5m": (26, 10, 10), "15m": (45, 15, 10),
     "30m": (90, 30, 20), "1h": (150, 45, 30), "2h": (200, 60, 30),
     "4h": (300, 60, 30), "8h": (300, 60, 30), "1d": (300, 60, 30),
 }
@@ -189,16 +192,21 @@ def _mine_symbol_keys(dfs: dict) -> list[str]:
 def _stack_mine_panel(dfs: dict, symbol_keys: list[str]):
     """多币拼接面板：挖矿适应度不再只绑第一币。
 
-    返回 (eval_fn, target, field_names, panel)；panel = (field_dicts, lens)
-    —— 供 GPU 批量求值上下文直接建 (F,S,B) 面板张量。
+    返回 (eval_fn, target, field_names, panel)；panel = (field_dicts, lens, fwd_raw)
+    —— field_dicts/lens 供 GPU 批量求值上下文直接建 (F,S,B) 面板张量；
+    fwd_raw [P3.2 2026-09-03] 是与 target 等长对齐的**真实**前瞻 horizon 根简单收益
+    （target 在 5m/15m 可能是三重障碍 ±1 标签），供 GP/MCTS 的含成本净收益目标扣 bp。
     """
     field_dicts = []
     targets = []
+    fwd_raws = []
     for s in symbol_keys:
         df = dfs[s]
         field_dicts.append(_kline_to_fields(df))
         targets.append(np.asarray(_forward_returns(df), dtype=float))
+        fwd_raws.append(np.asarray(_forward_returns(df, raw=True), dtype=float))
     target = np.concatenate(targets) if targets else np.array([], dtype=float)
+    fwd_raw = np.concatenate(fwd_raws) if fwd_raws else np.array([], dtype=float)
 
     def eval_fn(ctx):
         expr = ctx["expr"]
@@ -211,8 +219,29 @@ def _stack_mine_panel(dfs: dict, symbol_keys: list[str]):
         return np.concatenate(parts) if parts else np.array([], dtype=float)
 
     field_names = sorted({k for fd in field_dicts for k in fd.keys()})
-    panel = (field_dicts, [len(t) for t in targets])
+    panel = (field_dicts, [len(t) for t in targets], fwd_raw)
     return eval_fn, target, field_names, panel
+
+
+def _miner_panel_kwargs(panel, period: str | None = None) -> dict:
+    """[P3.2] 把 _stack_mine_panel 的 panel 拆成 GPMiner/MctsMiner 的 lens/fwd_ret/horizon 参数。
+
+    panel 缺失或形状异常时返回空 dict（挖矿器退回旧行为：无 lens、无净收益项），
+    绝不因目标增强而让挖掘整体失败。
+    """
+    try:
+        if not panel or len(panel) < 2:
+            return {}
+        lens = [int(x) for x in (panel[1] or [])]
+        out: dict = {"lens": lens or None}
+        fwd_raw = panel[2] if len(panel) >= 3 else None
+        if fwd_raw is not None and len(fwd_raw) == int(sum(lens)):
+            out["fwd_ret"] = np.asarray(fwd_raw, dtype=float)
+        out["horizon"] = _fwd_bars_for_period(period)
+        return out
+    except Exception as e:  # pragma: no cover - 防御
+        logger.debug("[FactorEvo] 挖矿面板参数组装失败，退回旧口径: %s", e)
+        return {}
 
 
 def _lookback_for_period(period: str | None) -> int:
@@ -258,17 +287,28 @@ def _fwd_bars_for_period(period: str | None = None, fallback: int = 5) -> int:
     return _PERIOD_FWD_BARS.get(p, fallback)
 
 
-def _forward_returns(df: pd.DataFrame, horizon: int | None = None) -> np.ndarray:
+def _forward_returns(
+    df: pd.DataFrame, horizon: int | None = None, *, raw: bool = False,
+) -> np.ndarray:
     """评估/清洗目标序列。
 
     默认：未来 horizon 根简单收益；horizon 由周期分档（_PERIOD_FWD_BARS，
     对应 scalp ATR 持仓节奏），FACTOR_EVO_FWD_BARS 可显式覆盖。
     当 FEATURE_FACTOR_LABELS_ENABLED 且当前进化 period∈{5m,15m}：改用三重障碍
     标签（-1/0/+1 → float），使挖矿目标更贴近短线 SL/TP/超时结算。
+    raw=True [P3.2 2026-09-03]：强制返回真实简单收益（跳过三重障碍），供含成本
+    净收益目标使用——标签是 ±1，扣不了 bp。
     """
     horizon = int(horizon) if horizon is not None else _fwd_bars_for_period()
     period = (_ACTIVE_EVO_PERIOD or "").strip().lower()
     use_tb = False
+    if raw:
+        # 尾部 horizon 根没有未来 → NaN（净收益统计按有效样本剔除，不当 0 收益计入）
+        close = df["close"].values.astype(float)
+        fwd = np.full(len(close), np.nan)
+        if len(close) > horizon:
+            fwd[:-horizon] = (close[horizon:] / close[:-horizon] - 1.0)
+        return fwd
     try:
         from backend.services.evolution.factor_labels import (
             FEATURE_FACTOR_LABELS_ENABLED,
@@ -897,6 +937,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
 
     shared_pool = None
     _eval_fn = target = field_names = sym_keys = None
+    _panel = None  # [P3.2] (field_dicts, lens, fwd_raw)，GP/MCTS 共用
 
     # [根因修复] quick=止血模式：只保留种子/永续公式，禁止 GP/MCTS。
     # 此前 quick 仍跑 GP+MCTS（仅跳过 LLM），loky 常驻 15–25 分钟占满 CPU/GIL，
@@ -936,12 +977,45 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
                     setattr(gp_config, _attr, int(_v))
                 except (TypeError, ValueError):
                     pass
+        # [2026-09-07 QuantaAlpha 轨迹级进化] 按上轮挖掘轨迹的「失败环节」
+        # 定向调整本轮 GP 行为（改挖掘行为本身，而非泛泛提示）：
+        #   eval_gate（初筛死一片）→ 提高换手惩罚，逼出低频高质信号；
+        #   pool_corr（增量相关死）→ 提高相关惩罚，逼出低相关新族；
+        #   dsr_pbo（过拟合死）→ 提高组合增量奖励，奖多样性。
+        # FACTOR_TRAJECTORY_STEER=0 回滚。
+        try:
+            if (_os_gp.getenv("FACTOR_TRAJECTORY_STEER", "1") or "1").strip().lower() not in ("0", "false", "off"):
+                from backend.services.evolution.evolution_memory_v7 import latest_trajectory_directive
+                _traj = latest_trajectory_directive(str(period or "4h"))
+                if _traj:
+                    _step = str(_traj.get("failure_step") or "")
+                    if _step == "eval_gate":
+                        gp_config.lambda_turnover = min(0.05, gp_config.lambda_turnover * 2.0)
+                    elif _step == "pool_corr":
+                        gp_config.lambda_corr = min(0.20, gp_config.lambda_corr * 2.0)
+                    elif _step == "dsr_pbo":
+                        gp_config.lambda_combo = min(1.0, float(getattr(gp_config, "lambda_combo", 0.5)) * 1.5)
+                    if _step:
+                        logger.info(
+                            "[FactorEvo] 轨迹导向 GP 调整: 上轮瓶颈=%s → lambda_turnover=%.3f "
+                            "lambda_corr=%.3f lambda_combo=%.3f",
+                            _step, gp_config.lambda_turnover, gp_config.lambda_corr,
+                            getattr(gp_config, "lambda_combo", 0.0),
+                        )
+        except Exception as _traj_err:
+            logger.debug("[FactorEvo] 轨迹导向跳过: %s", _traj_err)
         # [R0/R1] 字符串/浮点配置
-        for _env, _attr in (("FACTOR_GP_SELECTION", "selection"),
-                            ("FACTOR_GP_OBJECTIVE", "objective")):
-            _v = _os_gp.getenv(_env)
-            if _v:
-                setattr(gp_config, _attr, str(_v).strip().lower())
+        _v = _os_gp.getenv("FACTOR_GP_SELECTION")
+        if _v:
+            gp_config.selection = str(_v).strip().lower()
+        # [P3.2 2026-09-03] objective 经 fitness_objective.default_objective 归一
+        # （非法值 → icir_net；GP/MCTS 共用同一开关）
+        from backend.services.evolution.fitness_objective import (
+            default_objective as _default_objective,
+            mining_cost as _mining_cost,
+            net_weight as _net_weight,
+        )
+        gp_config.objective = _default_objective()
         for _env, _attr in (("FACTOR_GP_LEXICASE_EPS", "lexicase_eps"),
                             ("FACTOR_GP_LAMBDA_HOF", "lambda_hof")):
             _v = _os_gp.getenv(_env)
@@ -1011,7 +1085,18 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             except Exception as _gpu_init_err:
                 logger.warning("[FactorEvo] GPU 上下文初始化失败，走 CPU 路径: %s", _gpu_init_err)
                 gpu_ctx = None
-        miner = GPMiner(field_names, _eval_fn, target, shared_pool, gp_config, gpu_ctx=gpu_ctx)
+        # [P3.2 2026-09-03] lens/fwd_ret/horizon：分段 ICIR 不再依赖 GPU 上下文，
+        # 含成本净收益项用真实前瞻收益 + FACTOR_SCORER_COST（与晋升门禁同源）
+        _panel_kwargs = _miner_panel_kwargs(_panel, period)
+        logger.info(
+            "[FactorEvo] 挖矿目标 objective=%s cost=%.4f net_weight=%.2f horizon=%s fwd_ret=%s",
+            gp_config.objective, _mining_cost(), _net_weight(),
+            _panel_kwargs.get("horizon"), "yes" if _panel_kwargs.get("fwd_ret") is not None else "no",
+        )
+        miner = GPMiner(
+            field_names, _eval_fn, target, shared_pool, gp_config, gpu_ctx=gpu_ctx,
+            **_panel_kwargs,
+        )
         if gpu_ctx is not None:
             # 等价性验收采样：用矿机自身随机树生成器
             gpu_ctx.sample_fn = lambda n: [
@@ -1093,10 +1178,18 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             if shared_pool is None:
                 shared_pool = AlphaPool(capacity=80)
                 sym_keys = _mine_symbol_keys(dfs)
-                _eval_fn, target, field_names, _panel2 = _stack_mine_panel(dfs, sym_keys)
+                _eval_fn, target, field_names, _panel = _stack_mine_panel(dfs, sym_keys)
 
             mcts_pool = shared_pool
             mcts_config = MCTSConfig(scale=scale_for_period(period))
+            # [P3.2 2026-09-03] 与 GP 同一目标开关（FACTOR_GP_OBJECTIVE → icir_net 默认）
+            try:
+                from backend.services.evolution.fitness_objective import (
+                    default_objective as _mcts_default_objective,
+                )
+                mcts_config.objective = _mcts_default_objective()
+            except Exception:
+                pass
             # [2026-08-27 5m实跑诊断] MCTS 无墙钟预算且单进程评估：5m 面板
             # (14450 根)实测 4.5h 未出结果（4h/15m 从未暴露——15m 秒挂广播异常、
             # 4h 面板小 2.7 倍且 macro 档成功过）。micro 档削减迭代/根数并强制
@@ -1135,6 +1228,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             mcts_miner = MctsMiner(
                 list(field_names), _eval_fn, target, mcts_pool,
                 mcts_config, weak_seeds=weak_seeds,
+                **_miner_panel_kwargs(_panel, period),  # [P3.2] lens/fwd_ret/horizon 同 GP
             )
             mcts_admitted, mcts_chains = mcts_miner.mine()
             logger.info(
@@ -1174,7 +1268,7 @@ def _mine_candidates(dfs, period=None, quick: bool = False):
             if shared_pool is None:
                 shared_pool = AlphaPool(capacity=80)
                 sym_keys = _mine_symbol_keys(dfs)
-                _eval_fn, target, field_names, _panel3 = _stack_mine_panel(dfs, sym_keys)
+                _eval_fn, target, field_names, _panel = _stack_mine_panel(dfs, sym_keys)
 
             fail_hints = []
             try:
@@ -1337,6 +1431,11 @@ def _evaluate_candidates(candidates, dfs, period=None):
 # ═══════════════════════════════════════════════════════════════
 #  阶段 4：清洗
 # ═══════════════════════════════════════════════════════════════
+
+# [2026-09-07] 轨迹级进化：最近一次 purge 报告的模块级缓存（供主报告
+# stage_counts 透传给 V7 轨迹提取）。
+_LAST_PURGE_REPORT = None
+
 
 def _purge_and_select(eval_results, dfs):
     from backend.services.factor_engine.lifecycle import LifecycleThresholds
@@ -1573,6 +1672,10 @@ def _purge_and_select(eval_results, dfs):
     # [2026-08-30 挖矿升级 M2] 初筛拒因可审计（样本最多 20 条）
     for _rs in (report.reject_reason_samples or [])[:10]:
         logger.info(f"[FactorEvo] 清洗拒因: {_rs}")
+    # [2026-09-07] 轨迹级进化：把 purge 漏斗计数挂到模块级，供主报告
+    # stage_counts 透传给 V7 轨迹提取（定位失败环节）。
+    global _LAST_PURGE_REPORT
+    _LAST_PURGE_REPORT = report
     return enriched
 
 
@@ -1594,15 +1697,24 @@ def _auto_oversight_approve(metrics, judgment) -> bool:
     """
     from backend.services.factor_engine.lifecycle import FactorState, LifecycleThresholds
     t = LifecycleThresholds()
-    # [2026-08-31 生成层审计 G1] pbo 硬门槛 0.30 比基础门(0.5)严 1.67 倍且不可调，
-    # 实测 5 天 20+ 轮 promoted=0（幸存者 pbo 0.34-0.86 全被拒）——晋升闸=100% 拒绝机。
-    # 改为 env 可调，默认回落 0.5 与基础门一致；PAPER 影子期仍是默认出口（进影子
-    # 用实盘数据继续学习而非直接死刑），SMALL_LIVE/ACTIVE 仍走下方更严的影子毕业条件。
-    _oversight_max_pbo = 0.5
+    # [2026-09-02 E14 门禁回归] 默认值从 0.5 恢复为 0.30，保留 env 可调。
+    #
+    # 08-31 曾以「实测 5 天 20+ 轮 promoted=0（幸存者 pbo 0.34-0.86 全被拒）」为由
+    # 把默认放到 0.5（与基础门齐平）。该归因站不住：本函数只在
+    # judgment.pending_approval 为真时被调用，而 pending_approval 仅对
+    # SMALL_LIVE/ACTIVE 成立 —— 「→ PAPER」的晋升根本不经过这里（见调用点注释
+    # 「不需审批的(→PAPER)维持原有自动执行逻辑不变」）。也就是说放宽它并不能让
+    # PAPER 晋升多一个，只是把「进真金白银实盘」的复核降到与基础门同级，
+    # 抹掉了本函数唯一的存在价值（替代人工审批的更严一层）。
+    #
+    # 统计上：pbo=0.4 意味着约 40% 概率该因子的回测优势来自过拟合，用这种成色
+    # 决定实盘仓位不可接受；而因子仍有 PAPER 影子期这个出口，不存在「判死刑」。
+    # 真正的 promoted=0 要在因子质量（ICIR 口径、权重体系）上解，不该由风控让位。
+    _oversight_max_pbo = 0.30
     try:
         import os as _os_oa
         _oversight_max_pbo = float(_os_oa.getenv(
-            "FACTOR_OVERSIGHT_MAX_PBO", "0.5") or 0.5)
+            "FACTOR_OVERSIGHT_MAX_PBO", "0.30") or 0.30)
     except (TypeError, ValueError):
         pass
     if not metrics.dsr_significant or metrics.pbo > _oversight_max_pbo:
@@ -1838,36 +1950,79 @@ def _promote_factors(
             "[FactorEvo] 空 TRADABLE 冷启动：DSR n_trials=%d（原搜索广度=%d）",
             n_trials, n_total,
         )
-    # [2026-08-31 M2e] PBO 用真 IC 时序（P0-1）：最佳幸存者的面板 IC 序列。
-    # 此前只传标量 ICIR 列表被当"伪时序"切分 → 数值无时间含义 → pbo 偏高。
+    # [2026-09-03 审查修正 C] 跨轮累计：验证窗每天只滑 1 天，连续几轮是在同一段
+    # 数据上反复挑最好的，多重检验的真实次数 = 近 验证窗天数 内评估过的**不同**
+    # 假设数（重复评估不加计、过期自动剔除，既不棘轮也不漏算）。冷启动例外保留。
+    _n_rolling = 0
+    try:
+        from backend.services.factor_engine.trials_registry import register_and_count
+        _n_rolling = int(register_and_count(
+            period or DEFAULT_PERIOD, list((eval_results or {}).keys()), window_days=_vd,
+        ))
+    except Exception as _tr_err:
+        logger.debug("[FactorEvo] 跨轮假设登记跳过: %s", _tr_err)
+    if not (_tradable_n == 0 and survivors) and _n_rolling > n_trials:
+        logger.info(
+            "[FactorEvo] DSR n_trials 本轮=%d → 近 %d 天跨轮不同假设=%d（采用后者）",
+            n_trials, int(_vd), _n_rolling,
+        )
+        n_trials = _n_rolling
+    # [2026-09-07] 批次摘要仍算一次（日志/审计），但晋升门禁改为【逐因子】
+    # DSR/PBO。此前把「最佳幸存者」的时序 PBO 套到整批：同分钟多因子共用
+    # 同一 pbo（实证 0.38–0.92），ICIR 1.2 也被同票否决 → 连续零晋升。
+    # 多重检验分母 n_trials 仍用跨轮累计广度，不放水。
+    def _survivor_pooled_ic(item):
+        if isinstance(item, dict):
+            return item.get("pooled_ic")
+        return getattr(item, "pooled_ic", None)
+
     _best_surv = max(
-        (s for s in (survivors or []) if getattr(s, "pooled_ic", None) is not None),
-        key=lambda s: abs(float(getattr(s, "pooled_ic").mean())),
+        (s for s in (survivors or []) if _survivor_pooled_ic(s) is not None),
+        key=lambda s: abs(float(np.mean(_survivor_pooled_ic(s)))),
         default=None,
     )
-    _ic_series = getattr(_best_surv, "pooled_ic", None) if _best_surv is not None else None
+    _ic_series = _survivor_pooled_ic(_best_surv) if _best_surv is not None else None
     dsr_pbo = compute_dsr_pbo_for_factors(
         icir_list=all_icir_values,
         n_total_candidates=n_trials,
         sample_len=sample_len,
         ic_series=(list(_ic_series) if _ic_series is not None else None),
     )
-    # [P0-1 fail-closed] 原实现用 .get(..., True)/.get(..., 0.3) 放行缺省值：
-    # 空 icir 或缺字段时闸门被静默绕过。现显式读 overall_passes 与 indeterminate，
-    # 任一不可判定即 fail-closed（dsr_significant=False, pbo=1.0）。
+    # 批次摘要（仅日志；门禁用下方逐因子结果）
     _pbo_r = dsr_pbo.get("pbo_result") or {}
     _dsr_r = dsr_pbo.get("dsr_result") or {}
     if bool(_pbo_r.get("indeterminate")) or _dsr_r is None:
-        dsr_significant = False
-        pbo_val = 1.0
+        _batch_dsr_sig = False
+        _batch_pbo = 1.0
     else:
-        dsr_significant = bool(_dsr_r.get("significant", False))
-        pbo_val = float(_pbo_r.get("pbo", 1.0))
+        _batch_dsr_sig = bool(_dsr_r.get("significant", False))
+        _batch_pbo = float(_pbo_r.get("pbo", 1.0))
     logger.info(
-        f"[FactorEvo] DSR/PBO: dsr_sig={dsr_significant} pbo={pbo_val:.3f} "
+        f"[FactorEvo] DSR/PBO 批次摘要: dsr_sig={_batch_dsr_sig} pbo={_batch_pbo:.3f} "
         f"best_icir={dsr_pbo.get('best_icir')} n_factors={dsr_pbo.get('n_factors')} "
-        f"sample_len={sample_len} n_trials={n_trials} (search_breadth={n_total})"
+        f"sample_len={sample_len} n_trials={n_trials} (search_breadth={n_total}) "
+        f"— 门禁改逐因子"
     )
+
+    def _per_factor_dsr_pbo(icir: float, ic_series) -> tuple[bool, float]:
+        """单因子 DSR + 时序 PBO；序列缺失/不可判定 → fail-closed。"""
+        _series = None
+        if ic_series is not None:
+            try:
+                _series = list(np.asarray(ic_series, dtype=float).ravel())
+            except Exception:
+                _series = None
+        _one = compute_dsr_pbo_for_factors(
+            icir_list=[float(icir)],
+            n_total_candidates=n_trials,
+            sample_len=sample_len,
+            ic_series=_series,
+        )
+        _pr = _one.get("pbo_result") or {}
+        _dr = _one.get("dsr_result") or {}
+        if bool(_pr.get("indeterminate")) or _dr is None:
+            return False, 1.0
+        return bool(_dr.get("significant", False)), float(_pr.get("pbo", 1.0))
 
     from backend.services.factor_engine.evaluation import information_coefficient
     from backend.services.evolution.factor_labels import net_ic as _nic, turnover as _turn
@@ -1960,6 +2115,16 @@ def _promote_factors(
             )
             cap = float(_cap_floor)
 
+        _factor_icir = float(getattr(eval_result, "icir", 0.0) or 0.0)
+        dsr_significant, pbo_val = _per_factor_dsr_pbo(
+            _factor_icir, s.get("pooled_ic"),
+        )
+        logger.info(
+            "[FactorEvo] 逐因子 DSR/PBO %s: dsr_sig=%s pbo=%.3f icir=%.3f "
+            "(batch_pbo=%.3f)",
+            s["factor_id"], dsr_significant, pbo_val, _factor_icir, _batch_pbo,
+        )
+
         metrics = FactorMetrics(
             factor_id=s["factor_id"],
             state=FactorState.ORTHO,
@@ -2029,6 +2194,8 @@ def _promote_factors(
                     "dsr_significant": dsr_significant,
                     "pbo": pbo_val,
                     "capacity_usd": cap,
+                    "pbo_mode": "per_factor",
+                    "batch_pbo": _batch_pbo,
                 },
             )
             logger.info(
@@ -2056,16 +2223,18 @@ def _promote_factors(
                     "pbo": pbo_val,
                     "capacity_usd": cap,
                     "icir": getattr(eval_result, "icir", None),
+                    "pbo_mode": "per_factor",
+                    "batch_pbo": _batch_pbo,
                 },
             )
             logger.info(
-                "[FactorEvo] 晋升拒绝 %s: %s failed=%s",
-                s["factor_id"], judgment.decision.reason, failed,
+                "[FactorEvo] 晋升拒绝 %s: %s failed=%s pbo=%.3f",
+                s["factor_id"], judgment.decision.reason, failed, pbo_val,
             )
 
     logger.info(
         f"[FactorEvo] 阶段5 上线: {len(promoted)}/{len(survivors)} 门禁通过, "
-        f"dsr_sig={dsr_significant} pbo={pbo_val:.3f} rejects={len(reject_reasons)}"
+        f"batch_pbo={_batch_pbo:.3f} rejects={len(reject_reasons)} (逐因子门禁)"
     )
     # 供 quick 快路径把可审计拒绝原因带回报告
     for s in survivors:
@@ -2126,6 +2295,35 @@ def _monitor_active(
                 metrics={"drift_count": drifts},
             )
             logger.warning(f"[FactorEvo] 因子退化 {f['factor_id']}: drifts={drifts}")
+        elif drifts > 0:
+            # [2026-09-07] DriftWatcher adapt 状态机接线：检测到漂移但未到回滚
+            # 阈值时，按优先级执行适应策略（此前 next_adapt_strategy 无生产调用方，
+            # 检测→rollback 之间是断的）。第一档 ONLINE_WEIGHT_RESET 重置常驻在线
+            # 模型权重（漂移自愈）；后续档位（regime/maml）留待接线。
+            try:
+                strat = watcher.next_adapt_strategy(f["factor_id"])
+                if strat is not None:
+                    from backend.services.evolution.drift_watcher import AdaptStrategy
+                    if strat == AdaptStrategy.ONLINE_WEIGHT_RESET:
+                        from backend.services.evolution.online_weights import (
+                            reset_resident_online_model,
+                        )
+                        reset_resident_online_model(
+                            reason=f"factor {f['factor_id']} drift x{drifts}",
+                        )
+                    _log_evolution(
+                        f["factor_id"], "monitor",
+                        source=f.get("source"),
+                        action="drift_adapt",
+                        reason=f"漂移适应策略={strat.value} drifts={drifts}",
+                        metrics={"drift_count": drifts, "strategy": strat.value},
+                    )
+                    logger.info(
+                        "[FactorEvo] 因子 %s 漂移适应: %s (drifts=%d)",
+                        f["factor_id"], strat.value, drifts,
+                    )
+            except Exception as _adapt_err:
+                logger.debug("[FactorEvo] 漂移适应跳过 %s: %s", f["factor_id"], _adapt_err)
 
     logger.info(f"[FactorEvo] 阶段6 监控: {len(degraded)}/{len(active_factors)} 退化")
     return degraded
@@ -2246,19 +2444,18 @@ def _advance_shadow_factors(existing_active: list[dict], dfs) -> list[dict]:
         if not expr:
             continue
 
-        # 重算当前 ICIR（跨可用品种取均值）
-        ics = []
-        for sym, df in dfs.items():
-            try:
-                fields = _kline_to_fields(df)
-                vals = expr.evaluate(fields)
-                fwd = _forward_returns(df)
-                ic = information_coefficient(vals, fwd)
-                if ic is not None and np.isfinite(ic):
-                    ics.append(ic)
-            except Exception:
-                continue
-        icir = float(np.mean(ics)) if ics else float(f.get("icir") or 0.0)
+        # [2026-09-02 ICIR 口径修正] 此前这段注释写"重算当前 ICIR"，实际算的是
+        # np.mean(ics)——跨币 IC 单值的均值，与 ICIR(=IC序列 mean/std) 量纲完全
+        # 不同（通常小一个量级），却直接写进 f["icir"]、参与 min_icir 门禁判定
+        # 和 paper_sharpe 代理换算。改用与晋升评估 _panel_eval_fn 同源的面板
+        # ICIR（_trailing_net_ic 内部 pooled_ic 的 mean/std）。
+        _tr_icir = _trailing_net_ic(expr, dfs)
+        _icir_new = _tr_icir.get("icir") if _tr_icir is not None else None
+        icir = (
+            float(_icir_new)
+            if _icir_new is not None and np.isfinite(_icir_new)
+            else float(f.get("icir") or 0.0)
+        )
 
         activated_at = f.get("activated_at")
         days_in_state = 0
@@ -2385,9 +2582,24 @@ def _replace_degraded(degraded, dfs, period=None):
 # ═══════════════════════════════════════════════════════════════
 
 def _update_online_weights(active_factors, dfs):
-    from backend.services.evolution.online_weights import OnlineLinearModel
+    # [2026-09-07] 改用常驻在线模型（跨轮累积学习），替代每轮新建临时模型。
+    # 旧行为：每轮 new OnlineLinearModel() 喂 1 样本就丢 → 实为「每轮一次性拟合」。
+    # 新行为：常驻单例持续 learn_one，权重落盘跨重启保留，漂移时可 reset。
+    from backend.services.evolution.online_weights import (
+        get_resident_online_model,
+        save_resident_online_model,
+    )
 
-    model = OnlineLinearModel()
+    model = get_resident_online_model()
+    # 常驻模型维度与当前活跃集对齐：因子数变了（晋升/淘汰）则重置维度，
+    # 避免 feature_importance 用旧维度回写错配。维度一致时保留累积权重。
+    if len(model.weights) > 0 and len(model.weights) != len([f for f in (active_factors or []) if f.get("expr") and str(f.get("factor_id") or "").strip()]):
+        logger.info(
+            "[FactorEvo] 常驻在线模型维度 %d → %d（活跃集变化），重置权重",
+            len(model.weights),
+            len([f for f in (active_factors or []) if f.get("expr") and str(f.get("factor_id") or "").strip()]),
+        )
+        model.reset()
     # 与向量同序保留 factor_id，避免 feature_importance 用 f0/f1 导致回写永不命中
     factor_ids: list[str] = []
     for f in active_factors or []:
@@ -2441,7 +2653,8 @@ def _update_online_weights(active_factors, dfs):
             continue
 
     weights = model.feature_importance(names=factor_ids if factor_ids else None)
-    logger.info(f"[FactorEvo] 阶段8 在线权重: {len(weights)} 个因子")
+    save_resident_online_model()
+    logger.info(f"[FactorEvo] 阶段8 在线权重: {len(weights)} 个因子（常驻模型 n={model._n_samples}）")
     return weights
 
 
@@ -2494,11 +2707,20 @@ def _trailing_net_ic(expr, dfs: dict) -> "dict | None":
     且 WFO-IC 滚动 OOS 0.14~0.19 p=0.000 通过——全窗口径把旧 regime 历史
     拖尾算进衰减判据，误杀近期有边因子，是因子池长期为空的机制级根因。
     """
-    from backend.services.factor_engine.evaluation import information_coefficient
+    from backend.services.factor_engine.evaluation import (
+        information_coefficient,
+        time_series_ic as _ts_ic,
+    )
     from backend.services.evolution.factor_labels import net_ic as _nic, turnover as _turn
     ic_sum = 0.0
     n = 0
     t_sum = 0.0
+    # [2026-09-02 icir 断链修复] 顺带产出面板 ICIR：逐币滚动 IC 序列拼接后 mean/std，
+    # 与晋升评估 _panel_eval_fn（本文件 pooled_ic 口径）严格同源。此前复评只刷
+    # last_net_ic 不刷 icir，而 combo_weights 的 icir 模式直接消费该字段，导致
+    # 7 个种子因子的 icir 自 08-02 建行起永久停在 bootstrap 占位值 0.05。
+    # 在同一次求值里算完，不额外遍历 dfs。
+    ic_parts: list = []
     for _df in (dfs or {}).values():
         try:
             _fields = _kline_to_fields(_df)
@@ -2509,17 +2731,38 @@ def _trailing_net_ic(expr, dfs: dict) -> "dict | None":
             ic_sum += float(_ic)
             n += 1
             t_sum += _turn(pd.Series(_vals[-_tail:]))
+            # 面板 ICIR 分量（全窗滚动序列；net_ic 仍用尾部窗口，两者口径各自
+            # 保持既有语义：尾部避免旧 regime 拖尾误杀，全窗对齐晋升门禁）
+            _fs = pd.Series(_vals, index=_df.index)
+            _rs = pd.Series(_fwd, index=_df.index)
+            _m = _fs.notna() & _rs.notna()
+            if int(_m.sum()) >= 30:
+                # step=0 → 非重叠窗口。复评是"因子数×币种数"双层循环，用默认的
+                # 重叠步长 1 实测每币 1.9s(n=2000)，20 因子×7 币要多花约 266s，
+                # 会直接加剧已知的后端 GIL 饱和；非重叠快约 22 倍，且 IC 近似
+                # 独立、ICIR 不再被自相关抬高。
+                _ic_s = _ts_ic(_fs[_m], _rs[_m], method="spearman", step=0)
+                _ic_s = _ic_s[np.isfinite(_ic_s)]
+                if len(_ic_s):
+                    ic_parts.append(_ic_s)
         except Exception:
             continue
     if n == 0:
         return None
     ic_mean = ic_sum / n
     turnover = t_sum / max(len(dfs), 1)
+    _icir = None
+    if ic_parts:
+        _pooled = np.concatenate(ic_parts)
+        if len(_pooled) >= 2:
+            _icir = float(np.mean(_pooled) / (np.std(_pooled) + 1e-12))
     return {
         "ic_mean": ic_mean,
         "turnover": turnover,
         "net_ic": _nic(ic_mean, turnover),
         "n_symbols": n,
+        # None = 样本不足；调用方必须保持原值而非写 0（写 0 会被 min_icir 门禁误杀）
+        "icir": _icir,
     }
 
 
@@ -2574,6 +2817,14 @@ def _review_active_factors(
         f["turnover"] = round(t, 6)
         f["capacity_usd"] = _cap(vol_usd, t)
         f["evaluated_cycles"] = int(f.get("evaluated_cycles") or 0) + 1
+        # [2026-09-02 icir 断链修复] 复评时刷新 icir。此前本函数只写上面四个字段，
+        # icir 仅在 _advance_shadow_states 的状态跃迁分支才写，状态长期不变的因子
+        # （含全部种子因子）就永久停在建行占位值，而 combo_weights 的 icir 模式正是
+        # 用这个字段定权重 → 实盘/模拟盘按一个 08-02 的常数分配因子话语权。
+        # 算不出时保持原值：写 0 会让因子被 min_icir 门禁误判退化。
+        _new_icir = _tr.get("icir") if _tr is not None else None
+        if _new_icir is not None and np.isfinite(_new_icir):
+            f["icir"] = round(float(_new_icir), 6)
         if n == 0:
             # [2026-08-06 2.3 修复] 全部 symbol 求值异常（表达式损坏/字段缺失/数据断裂）
             # 时，不能按 net_ic=0 判退化——这正是 07-23 批量误杀 100 个因子的机制
@@ -2951,19 +3202,24 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
                     run_factor_wfo_ic,
                 )
                 _wfo_kept = []
-                # [2026-08-13 P1-8] WFO 多币验证：遍历训练面板全部 symbol（不再只验第一个），
-                # 任一币不达标即拒（FACTOR_EVO_WFO_REQUIRE_ALL=1 默认）；
-                # 关闭后改为 ≥ FACTOR_EVO_WFO_MIN_SYMBOL_RATIO（默认 2/3）币通过。
+                # [2026-08-13 P1-8] WFO 多币验证：遍历训练面板全部 symbol（不再只验第一个）。
+                # [2026-09-03 审查修正 B] 默认改为"≥ FACTOR_EVO_WFO_MIN_SYMBOL_RATIO（2/3）
+                # 币通过"，不再要求全部币通过：挖掘/评估/DSR 全链都是**面板池化**口径
+                # （IC 在多币拼接序列上算），门禁却要求逐币单独显著，比池化判据严得
+                # 不成比例——实测 09-03 4h 档动量因子 9 币 7 过、2 币 OOS IC 为负，
+                # 池化 IC 显著却被单币否决。FACTOR_EVO_WFO_REQUIRE_ALL=1 可恢复一票否决。
                 _wfo_require_all = (
-                    (_os_window.getenv("FACTOR_EVO_WFO_REQUIRE_ALL") or "1").strip().lower()
-                    not in ("0", "false", "no", "off")
+                    (_os_window.getenv("FACTOR_EVO_WFO_REQUIRE_ALL") or "0").strip().lower()
+                    in ("1", "true", "yes", "on")
                 )
                 try:
+                    # 默认 0.66 而非 0.667：9 币 6 过 = 0.6667 应视为"2/3 通过"，
+                    # 用 0.667 会被浮点边界误拒（与 RR 门 2e-14 事故同类）。
                     _wfo_min_ratio = float(
-                        _os_window.getenv("FACTOR_EVO_WFO_MIN_SYMBOL_RATIO", "0.667") or 0.667
+                        _os_window.getenv("FACTOR_EVO_WFO_MIN_SYMBOL_RATIO", "0.66") or 0.66
                     )
                 except (TypeError, ValueError):
-                    _wfo_min_ratio = 0.667
+                    _wfo_min_ratio = 0.66
                 _wfo_symbols = list((dfs or {}).keys()) if _wfo_gate_on else []
                 try:
                     _wfo_max_syms = int(_os_window.getenv("FACTOR_EVO_WFO_SYMBOLS", "0") or 0)
@@ -3237,6 +3493,21 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
         "budget_truncated": _budget_truncated,
         "promoted_factors": [{"id": p["factor_id"], "source": p["source"]} for p in promoted],
     }
+    # [2026-09-07] 轨迹级进化：透传 purge 漏斗计数，供 V7 轨迹定位失败环节。
+    try:
+        _pr = _LAST_PURGE_REPORT
+        if _pr is not None:
+            report["stage_counts"] = {
+                "rejected_static": int(getattr(_pr, "rejected_static", 0) or 0),
+                "rejected_dedup": int(getattr(_pr, "rejected_dedup", 0) or 0),
+                "rejected_eval": int(getattr(_pr, "rejected_eval", 0) or 0),
+                "rejected_quality": int(getattr(_pr, "rejected_quality", 0) or 0),
+                "rejected_pool": int(getattr(_pr, "rejected_pool", 0) or 0),
+                "rejected_dsr_pbo": int(getattr(_pr, "rejected_dsr_pbo", 0) or 0),
+                "nearmiss_repaired": int(getattr(_pr, "nearmiss_repaired", 0) or 0),
+            }
+    except Exception:
+        pass
     logger.info(f"[FactorEvo] ═══ 因子进化完成: {report} ═══")
     return report
 

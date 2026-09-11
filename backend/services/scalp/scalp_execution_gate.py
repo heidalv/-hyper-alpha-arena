@@ -208,8 +208,12 @@ class ScalpExecutionGate:
                 if _is_mr_signal:
                     _mr_pos = None
                     try:
-                        _mr_pos = float(getattr(advisory, "range_position_5m", None) or -1)
-                    except Exception:
+                        # [2026-09-09 震荡策略加固] 原写法 `getattr(..., None) or -1`
+                        # 会把合法的 0.0（价格恰贴区间下沿）误判为"未知"(-1)；
+                        # 显式 None 判定，0.0 保持原值参与阈值比较。
+                        _rp = getattr(advisory, "range_position_5m", None)
+                        _mr_pos = float(_rp) if _rp is not None else None
+                    except (TypeError, ValueError):
                         _mr_pos = None
                     _mr_em_ok = (not _em_active) or (_mr_pos is not None and _mr_pos >= _em_min_pos)
                     if _mr_em_ok:
@@ -584,24 +588,40 @@ class ScalpExecutionGate:
         is_mr: bool,
         is_paper: bool,
     ) -> Tuple[float, float]:
-        """SL 变宽后抬 TP，保证 tp/sl ≥ 最低盈亏比。"""
+        """SL 变宽后抬 TP，保证 tp/sl ≥ 最低盈亏比。
+
+        [2026-09-02 P2.2] 兜底 RR 由 1.3/1.4 上调到 2.0/2.0，与
+        market_aware_tpsl 的 regime playbook 保持同一口径 —— 否则算价层给
+        出 RR 2.0-2.5，这里却只兜到 1.3，猎杀区加宽 SL 后的单会被悄悄拉回
+        低 RR，等于新设定对最需要它的那批单失效。依据见 market_aware_tpsl
+        中 plan_scalp_tp_sl 的注释（回放 RR1.3→2.3 净 +25.4→+44.0bp）。
+
+        MR（震荡均值回归）保持 1.0 不动：它贴区间边缘做小幅回归，本来就
+        靠高胜率而非高赔率，套用 2.0 会把 TP 推出区间外反而打不到。
+        """
         if entry <= 0 or sl_pct <= 0:
             return tp_pct, tp_price
         try:
             if is_mr:
                 min_rr = float(self._cfg("SCALP_MR_MIN_RR", 1.0) or 1.0)
             elif is_paper:
-                min_rr = float(self._cfg("V5_SCALP_MIN_RR_PAPER", 1.3) or 1.3)
+                min_rr = float(self._cfg("V5_SCALP_MIN_RR_PAPER", 2.0) or 2.0)
             else:
-                min_rr = float(self._cfg("V5_SCALP_MIN_RR", 1.4) or 1.4)
+                min_rr = float(self._cfg("V5_SCALP_MIN_RR", 2.0) or 2.0)
         except Exception:
-            min_rr = 1.0 if is_mr else 1.3
+            min_rr = 1.0 if is_mr else 2.0
         if min_rr <= 0:
             return tp_pct, tp_price
         rr = tp_pct / sl_pct
-        if rr + 1e-9 >= min_rr:
+        # [2026-09-02] 容差与 unified_gate 的 RR 门统一为 RR_EPS。此前这里 1e-9、
+        # 下游裸 `<`：sl_pct 经 _adjust_sl_for_stop_hunt 从价格反推带浮点噪声
+        # （rr=1.9999999999999782），本函数判"达标"不抬 TP，下游判"不达标"拦单，
+        # 恰落门槛的订单 100% 被拦（近 2h 148/266）。两层必须共用同一 eps。
+        from backend.services.decision_core.unified_gate import RR_EPS
+        if rr + RR_EPS >= min_rr:
             return tp_pct, tp_price
-        new_tp = min(0.05, max(tp_pct, sl_pct * min_rr))
+        # 上限同步 5%→5.5%，与 SCALP_MA_TP_MAX_PCT 对齐，避免这里成为新瓶颈
+        new_tp = min(0.055, max(tp_pct, sl_pct * min_rr))
         if side == "long":
             new_tp_price = entry * (1.0 + new_tp)
         else:

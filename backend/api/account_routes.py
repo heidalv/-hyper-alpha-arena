@@ -102,6 +102,103 @@ def _serialize_personality(tp) -> dict:
     }
 
 
+# [2026-08-28] 币安实盘真实余额缓存（列表显示用）：成功 60s TTL，失败 15s 短缓存防打爆。
+_BINANCE_LIVE_BALANCE_CACHE: dict[str, dict] = {}
+_BINANCE_BALANCE_FETCH_LOCK = __import__("threading").Lock()
+
+
+def _binance_live_balance(account, blocking: bool = True) -> Optional[tuple]:
+    """币安实盘账户真实余额 (equity, available)，走 manager 全局客户端（链式代理出口）。
+
+    blocking=False：只读缓存，绝不发网络请求（列表请求路径用，避免 10s 级长尾）；
+    blocking=True ：缓存过期时拉取（后台预热线程用）。
+    """
+    import time as _t
+    import asyncio as _ai
+
+    key = f"binance:{account.id}"
+    now = _t.time()
+    cached = _BINANCE_LIVE_BALANCE_CACHE.get(key)
+    if cached:
+        ttl = 60.0 if cached.get("ok") else 15.0
+        if now - cached["ts"] <= ttl:
+            return cached.get("equity"), cached.get("available")
+    if not blocking:
+        return None  # 无新鲜缓存：回退 DB 值，不阻塞请求线程
+
+    try:
+        from backend.services.exchange.exchange_manager import get_exchange_manager
+
+        # 拉取互斥：预热线程持锁时，请求线程最多等 8s 后放弃（回退 DB 值，绝不 hang）
+        if not _BINANCE_BALANCE_FETCH_LOCK.acquire(timeout=8.0):
+            return None
+        try:
+            market_type = getattr(account, "binance_market_type", None) or "usdt_m"
+            # [2026-08-28 修复] 凭证绑定账户后必须按 account_id 查找（账户级凭证优先）
+            client = get_exchange_manager().get_or_create_global_client(
+                "binance", user_id=account.user_id or 1, account_id=account.id,
+                market_type=market_type,
+            )
+            if client is None:
+                return None
+            bal = _ai.run(client.get_balance())
+            equity = float(getattr(bal, "total_equity", 0) or 0)
+            available = float(getattr(bal, "available_balance", 0) or 0)
+            if equity <= 0 and available <= 0:
+                return None  # 0 不视为真实余额，回退 DB 值
+            _BINANCE_LIVE_BALANCE_CACHE[key] = {"ts": now, "ok": True,
+                                               "equity": equity, "available": available}
+            return equity, available
+        finally:
+            _BINANCE_BALANCE_FETCH_LOCK.release()
+    except Exception as e:
+        logger.warning("[Account] 币安实盘余额拉取失败 id=%s: %s", account.id, str(e)[:140])
+        _BINANCE_LIVE_BALANCE_CACHE[key] = {"ts": now, "ok": False,
+                                           "equity": None, "available": None}
+        return None
+
+
+_BINANCE_PREWARM_STARTED = False
+
+
+def _binance_prewarm_thread() -> None:
+    """每 30s 后台刷新所有实盘币安账户余额缓存（独立线程，不占用请求线程）。"""
+    import time as _t
+
+    while True:
+        # 先拉后睡：启动后立即预热第一轮（列表首屏即拿缓存），再按 30s 周期刷新
+        try:
+            from backend.database.connection import SessionLocal
+            from backend.database.models import Account
+
+            with SessionLocal() as db:
+                accts = db.query(Account).filter(
+                    Account.is_active == "true",
+                    Account.trading_mode == "live",
+                    Account.binance_enabled == "true",
+                ).all()
+            for a in accts:
+                try:
+                    _binance_live_balance(a, blocking=True)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        _t.sleep(30.0)
+
+
+def _binance_ensure_prewarm() -> None:
+    global _BINANCE_PREWARM_STARTED
+    if _BINANCE_PREWARM_STARTED:
+        return
+    _BINANCE_PREWARM_STARTED = True
+    import threading
+
+    threading.Thread(
+        target=_binance_prewarm_thread, name="binance-balance-prewarm", daemon=True,
+    ).start()
+
+
 @router.get("/list")
 def list_all_accounts(trading_mode: Optional[str] = None, include_inactive: bool = False,
                        request: Request = None, db: Session = Depends(get_db)):
@@ -215,6 +312,26 @@ def list_all_accounts(trading_mode: Optional[str] = None, include_inactive: bool
                     llm_config_name_deep = llm_config_deep.name
 
             binance_enabled = getattr(account, "binance_enabled", "false") == "true"
+            # [2026-08-28] 币安实盘：显示交易所真实余额（不再显示模拟默认值 10000）
+            if binance_enabled and getattr(account, "trading_mode", "paper") == "live":
+                _binance_ensure_prewarm()
+                try:
+                    # [2026-09-08 修复] 列表接口改用 blocking=False（只读缓存，不发网络请求）。
+                    # 此前 blocking=True 在缓存未命中时同步拉交易所 REST（单账户 ≤8s），
+                    # 而列表会处理所有活跃账户（含 live 币安户 188）→ 整个 /api/account/list
+                    # 拖到 11s+，模拟交易页首屏被它卡住（用户反馈"1分钟才出数据"）。
+                    # 余额新鲜度由后台预热线程（_binance_prewarm_thread 每30s blocking=True）保证；
+                    # 列表只读缓存，冷启动瞬间回退 DB 值，绝不阻塞请求线程。
+                    _bb = _binance_live_balance(account, blocking=False)
+                    if _bb and _bb[0] is not None and float(_bb[0]) > 0:
+                        current_cash = float(_bb[0])
+                        frozen_cash = max(0.0, float(_bb[0]) - float(_bb[1] or 0))
+                        logger.info(
+                            "[Account] 币安实盘余额 account=%s equity=%.2f frozen=%.2f",
+                            account.id, current_cash, frozen_cash,
+                        )
+                except Exception as _bb_err:
+                    logger.debug("[Account] 币安实盘余额覆盖失败 id=%s: %s", account.id, _bb_err)
             # Mask api_key: only show last 4 chars
             masked_key = ""
             if account.api_key and len(account.api_key) > 4:
@@ -251,6 +368,7 @@ def list_all_accounts(trading_mode: Optional[str] = None, include_inactive: bool
                 "binance_enabled": binance_enabled,
                 "hyperliquid_enabled": getattr(account, "hyperliquid_enabled", "false") == "true",
                 "selected_exchange": getattr(account, "selected_exchange", "hyperliquid"),
+                "binance_market_type": getattr(account, "binance_market_type", None),
                 "personality": _serialize_personality(getattr(account, "personality", None)),
             })
 
@@ -285,7 +403,7 @@ def get_specific_account_overview(account_id: int, db: Session = Depends(get_db)
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Calculate positions value for this specific account
-        from services.asset_calculator import calc_positions_value
+        from backend.services.asset_calculator import calc_positions_value
         positions_value = float(calc_positions_value(db, account.id) or 0.0)
         
         # Count positions and pending orders for this account
@@ -403,7 +521,7 @@ def get_account_strategy_status(
     db: Session = Depends(get_db),
 ):
     """Get real-time strategy execution status for an account."""
-    from services.trading_strategy import hyper_strategy_manager
+    from backend.services.trading_strategy import hyper_strategy_manager
     from datetime import datetime, timezone
     
     account = (
@@ -464,7 +582,7 @@ def get_account_overview(db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="No active account found")
         
         # Calculate positions value
-        from services.asset_calculator import calc_positions_value
+        from backend.services.asset_calculator import calc_positions_value
         positions_value = float(calc_positions_value(db, account.id) or 0.0)
         
         # Count positions and pending orders
@@ -554,6 +672,8 @@ def create_new_account(payload: dict, request: Request, db: Session = Depends(ge
             trading_mode=payload.get("trading_mode", "live"),  # "paper" or "live"
             # 绑定交易所（默认 asterdex，见 settings.DEFAULT_EXCHANGE）
             selected_exchange=payload.get("selected_exchange") or DEFAULT_EXCHANGE,
+            # [2026-08-28 环境] 币安交易所环境: usdt_m 永续 / coin_m 币本位 / margin 杠杆
+            binance_market_type=(payload.get("binance_market_type") or "usdt_m").strip().lower(),
         )
         
         db.add(new_account)
@@ -587,9 +707,11 @@ def create_new_account(payload: dict, request: Request, db: Session = Depends(ge
         # Auto-create default strategy config so the trading scheduler can load this account
         try:
             from backend.database.models import AccountStrategyConfig
+            # [2026-09-03] 修复：AccountStrategyConfig 没有 trigger_mode 列（DB 与 ORM 都没有），
+            # 传该 kwarg 会让 SQLAlchemy 构造器抛 TypeError → 此处 try 静默吞掉 → API 新建账户
+            # 从未拿到默认策略配置，调度器加载不到该账户。trigger_mode 只存在于返回给前端的 schema 里。
             default_strategy = AccountStrategyConfig(
                 account_id=new_account.id,
-                trigger_mode="unified",
                 trigger_interval=300,
                 enabled="true",
             )
@@ -760,6 +882,11 @@ def update_account_settings(account_id: int, payload: dict, db: Session = Depend
         if "is_active" in payload:
             account.is_active = "true" if _normalize_bool(payload["is_active"]) else "false"
             logger.info(f"Updated is_active to: {account.is_active}")
+        if "binance_market_type" in payload and payload["binance_market_type"]:
+            _bmt = str(payload["binance_market_type"]).strip().lower()
+            if _bmt in ("usdt_m", "coin_m", "margin", "spot", "futures"):
+                account.binance_market_type = _bmt
+                logger.info(f"Updated binance_market_type to: {account.binance_market_type}")
         
         db.commit()
         db.refresh(account)
@@ -772,9 +899,9 @@ def update_account_settings(account_id: int, payload: dict, db: Session = Depend
                 AccountStrategyConfig.account_id == account_id
             ).first()
             if not existing_strategy:
+                # [2026-09-03] 同上：去掉不存在的 trigger_mode kwarg
                 default_strategy = AccountStrategyConfig(
                     account_id=account_id,
-                    trigger_mode="unified",
                     trigger_interval=300,
                     enabled="true",
                 )
@@ -899,7 +1026,7 @@ def get_asset_curve(
 ):
     """Get asset curve data for all accounts (or specific account) with specified timeframe and trading mode"""
     try:
-        from services.asset_curve_calculator import get_all_asset_curves_data_new
+        from backend.services.asset_curve_calculator import get_all_asset_curves_data_new
         data = get_all_asset_curves_data_new(
             db,
             timeframe=timeframe,
@@ -965,7 +1092,7 @@ def get_asset_curve_by_timeframe(
             } for account in accounts]
         
         # Fetch kline data for all symbols (20 points)
-        from services.market_data import get_kline_data
+        from backend.services.market_data import get_kline_data
         
         symbol_klines = {}
         for symbol, market in unique_symbols:
@@ -1280,7 +1407,7 @@ def trigger_ai_trade(
         Trade execution result
     """
     try:
-        from services.trading_commands import place_ai_driven_crypto_order
+        from backend.services.trading_commands import place_ai_driven_crypto_order
 
         # Validate account exists and is active
         account = db.query(Account).filter(Account.id == account_id).first()
@@ -1354,7 +1481,7 @@ def trigger_ai_trade(
                 }]
 
         # Trigger AI trading via unified router — routes based on account.selected_exchange
-        from config import settings
+        from backend.config import settings
         _default_ex = getattr(settings, "DEFAULT_EXCHANGE", "asterdex")
         selected_exchange = getattr(account, "selected_exchange", _default_ex) or _default_ex
         logger.info(
@@ -1363,7 +1490,7 @@ def trigger_ai_trade(
         )
 
         try:
-            from services.trading_commands import place_ai_driven_order
+            from backend.services.trading_commands import place_ai_driven_order
             place_ai_driven_order(
                 account_id=account_id,
                 bypass_auto_trading=True,
@@ -1431,7 +1558,7 @@ def check_builder_authorization(
     """
     try:
         import requests
-        from config.settings import HYPERLIQUID_BUILDER_CONFIG
+        from backend.config.settings import HYPERLIQUID_BUILDER_CONFIG
 
         # Query Hyperliquid API for max builder fee
         response = requests.post(
@@ -1499,8 +1626,8 @@ def approve_builder_fee(
     """
     try:
         logger.info(f"[BUILDER_AUTH] ========== Starting authorization for account_id={account_id} ==========")
-        from config.settings import HYPERLIQUID_BUILDER_CONFIG
-        from services.hyperliquid_environment import get_hyperliquid_client
+        from backend.config.settings import HYPERLIQUID_BUILDER_CONFIG
+        from backend.services.hyperliquid_environment import get_hyperliquid_client
 
         # Get account
         account = db.query(Account).filter(Account.id == account_id).first()
@@ -1605,9 +1732,9 @@ def check_mainnet_accounts(
     """
     try:
         import requests
-        from config.settings import HYPERLIQUID_BUILDER_CONFIG
+        from backend.config.settings import HYPERLIQUID_BUILDER_CONFIG
         from eth_account import Account as EthAccount
-        from services.hyperliquid_environment import decrypt_private_key
+        from backend.services.hyperliquid_environment import decrypt_private_key
 
         unauthorized_accounts = []
         checked_account_ids = set()

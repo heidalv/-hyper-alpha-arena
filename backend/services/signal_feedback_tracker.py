@@ -96,13 +96,16 @@ class SignalFeedbackTracker:
                     except (TypeError, ValueError):
                         val = 0.0
                     direction = "bullish" if val > 0 else ("bearish" if val < 0 else "neutral")
-                    # [fix 2026-06-30] signal_type 列是 VARCHAR(30)，超长因子名(如
-                    # cloud_microstructure_kyle 加 factor: 前缀=32字符)会导致整个
-                    # bulk_save 事务回滚 → 124 条全部丢失 → account14 开仓零快照 →
-                    # IC 闭环收不到该账户样本。截断到 28 字符(留余量)，根治整批失败。
+                    # [fix 2026-08-29] 迁移 0008 已把 signal_type 扩到 VARCHAR(100)，
+                    # 旧的 28 字符截断成了反向 bug：92 个 AI 因子中 52 个名字被截断
+                    # (如 factor:ai_gen_liquidity_squeeze=31字符)，factor_ic_evaluator
+                    # 按截断名写 data/factor_runtime_weights.json，而
+                    # factor_evaluation_pipeline._compute_weights 按全名查
+                    # runtime_weights.get(name) 永远 miss → 这些因子的学习权重
+                    # 静默失效。现按列宽 100 截断（仅防御超长名，正常因子名不再截断）。
                     _stype = f"factor:{factor_name}"
-                    if len(_stype) > 28:
-                        _stype = _stype[:28]
+                    if len(_stype) > 100:
+                        _stype = _stype[:100]
                     records.append(SignalTradeFeedback(
                         account_id=account_id,
                         trade_id=trade_id,

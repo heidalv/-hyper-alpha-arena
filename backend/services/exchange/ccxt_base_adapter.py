@@ -422,10 +422,39 @@ class CcxtBaseAdapter(BaseExchangeClient):
                 params["timeInForce"] = "GTX"
             if order.leverage and order.leverage != 1:
                 params["leverage"] = order.leverage
-            if getattr(order, "tp", None):
-                params["takeProfitPrice"] = float(order.tp)
-            if getattr(order, "sl", None):
-                params["stopLossPrice"] = float(order.sl)
+            # [2026-09-04 p2-oms-exec] 幂等键：带上后下单超时可安全重试（交易所按此去重）。
+            # 各家参数名不同，按 ccxt id 分发；未提供时不加任何参数，行为与此前一致。
+            _cid = getattr(order, "client_order_id", None)
+            if _cid:
+                from backend.services.oms.client_id import sanitize_for_exchange
+
+                _safe_cid = sanitize_for_exchange(_cid, self._ccxt_id)
+                if self._ccxt_id in ("okx", "okex"):
+                    params["clOrdId"] = _safe_cid
+                elif self._ccxt_id.startswith("bybit"):
+                    params["orderLinkId"] = _safe_cid
+                else:
+                    # binance / asterdex / gate 等走 ccxt 统一字段
+                    params["newClientOrderId"] = _safe_cid
+            # [2026-09-03 入场单 TP/SL 修复] ccxt binance 会把带 stopLossPrice /
+            # takeProfitPrice 的 MARKET 单**改写成 STOP_MARKET / TAKE_PROFIT_MARKET
+            # 触发单**（ccxt binance.create_order_request: isStopLoss → uppercaseType
+            # = 'STOP_MARKET', stopPrice = stopLossPrice）。对开仓来说：买入止损价
+            # 在市价之下 → 交易所 -2021 "Order would immediately trigger" 拒单，
+            # 开仓根本发不出去。正确做法：入场单只发纯市价，成交后把 TP/SL 作为
+            # reduce-only 条件单单独挂（复用 replace_tpsl_orders，与 live_tpsl_sync
+            # 同一口径）。限价入场 / 平仓单保持原参数语义不变。
+            _otype_val = str(getattr(order.order_type, "value", order.order_type) or "").lower()
+            _attach_tpsl_after = (
+                _otype_val == "market"
+                and not order.reduce_only
+                and (bool(getattr(order, "tp", None)) or bool(getattr(order, "sl", None)))
+            )
+            if not _attach_tpsl_after:
+                if getattr(order, "tp", None):
+                    params["takeProfitPrice"] = float(order.tp)
+                if getattr(order, "sl", None):
+                    params["stopLossPrice"] = float(order.sl)
             # [2026-08-29 数量精度] 币安按市场 stepSize 校验（如 XPL step=1
             # 整数张），带小数的数量直接被拒（实测 141.9013 → "must be
             # greater than minimum amount precision of 1"）。统一量化。
@@ -455,6 +484,30 @@ class CcxtBaseAdapter(BaseExchangeClient):
                 price=order.price,
                 params=params if params else None,
             )
+            if _attach_tpsl_after and isinstance(result, dict):
+                # 入场已成交/已受理 → 单独挂 reduce-only TP/SL 条件单。失败只告警：
+                # live_tpsl_sync 在账本同步时会再挂一次，不阻塞入场结果返回。
+                try:
+                    _qty_filled = float(result.get("filled") or result.get("amount") or _amount or 0)
+                    _tpsl = await self.replace_tpsl_orders(
+                        _sym_unified,
+                        side="long" if order.side.value == "buy" else "short",
+                        quantity=_qty_filled if _qty_filled > 0 else float(order.size),
+                        tp_price=float(order.tp) if getattr(order, "tp", None) else None,
+                        sl_price=float(order.sl) if getattr(order, "sl", None) else None,
+                    )
+                    if not _tpsl.get("ok"):
+                        logger.warning(
+                            "%s.place_order TP/SL attach failed (%s): %s",
+                            self.__class__.__name__, _sym_unified, _tpsl.get("error"),
+                        )
+                    else:
+                        result.setdefault("tpsl_attached", _tpsl.get("updated"))
+                except Exception as _tpsl_err:
+                    logger.warning(
+                        "%s.place_order TP/SL attach error (%s): %s",
+                        self.__class__.__name__, _sym_unified, _tpsl_err,
+                    )
             return result if isinstance(result, dict) else {"status": "ok"}
         except Exception as e:
             logger.warning("%s.place_order failed: %s", self.__class__.__name__, e)
@@ -633,12 +686,14 @@ class CcxtBaseAdapter(BaseExchangeClient):
                 except Exception as cancel_err:
                     logger.debug("%s.replace_tpsl cancel %s failed: %s",
                                  self.__class__.__name__, oid, cancel_err)
-            params: Dict[str, Any] = {
-                "stopPrice": px,
-                "reduceOnly": True,
-            }
+            params: Dict[str, Any] = {"stopPrice": px}
             if hedge:
+                # [2026-09-03] 双向持仓模式：减仓语义由 positionSide 表达，币安/Aster
+                # 对 hedge 模式下的 reduceOnly 直接拒单 -1106 "sent when not required"
+                # （与 place_order 同一规则）。单向模式才带 reduceOnly。
                 params["positionSide"] = "LONG" if close_side == "sell" else "SHORT"
+            else:
+                params["reduceOnly"] = True
             try:
                 await self._exchange.create_order(
                     ccxt_sym, otype, close_side, qty, None, params,
@@ -657,6 +712,64 @@ class CcxtBaseAdapter(BaseExchangeClient):
         except Exception as exc:
             return {"ok": False, "error": str(exc), "updated": updated}
         return {"ok": True, "via": "ccxt", "updated": updated, "symbol": ccxt_sym}
+
+    async def place_trailing_stop(
+        self,
+        symbol: str,
+        *,
+        side: str,
+        quantity: float,
+        callback_rate_pct: float,
+        activation_price: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """[2026-09-03 v3 方向1] 交易所原生 TRAILING_STOP_MARKET（Binance USDM / Aster 同构）。
+
+        callback_rate_pct：从最优价回撤该百分比触发（币安允许 0.1–10）。activation_price 可选（不给 = 立即激活）。
+        已存在同向 reduce-only 追踪单则先撤再挂（同价差 ≤0.1% 跳过）。ExitPolicy trailing 激活时由 live_tpsl_sync 调用，
+        默认关闭（LIVE_NATIVE_TRAILING_STOP=false），软件侧 tighten_sl 仍是兜底。
+        """
+        if self._exchange is None:
+            return {"ok": False, "error": "ccxt not available"}
+        ccxt_sym = self._swap_symbol(symbol)
+        qty = abs(float(quantity or 0))
+        cb = float(callback_rate_pct or 0)
+        if qty <= 0 or cb <= 0:
+            return {"ok": False, "error": "qty<=0 or callback<=0"}
+        cb = max(0.1, min(10.0, round(cb, 1)))
+        close_side = "sell" if str(side or "").lower() in ("long", "buy") else "buy"
+        try:
+            open_orders = await self._exchange.fetch_open_orders(ccxt_sym) or []
+        except Exception as exc:
+            return {"ok": False, "error": f"fetch_open_orders:{exc}"}
+        for o in open_orders:
+            otype = str(o.get("type") or (o.get("info") or {}).get("type") or "").upper()
+            if "TRAILING" not in otype:
+                continue
+            try:
+                old_cb = float((o.get("info") or {}).get("priceRate") or (o.get("info") or {}).get("callbackRate") or 0)
+            except (TypeError, ValueError):
+                old_cb = 0.0
+            if old_cb > 0 and abs(old_cb - cb) <= 0.05:
+                return {"ok": True, "via": "ccxt", "skipped": "same_callback", "symbol": ccxt_sym}
+            oid = str(o.get("id") or (o.get("info") or {}).get("orderId") or "")
+            if oid:
+                try:
+                    await self._exchange.cancel_order(oid, ccxt_sym)
+                except Exception as cancel_err:
+                    logger.debug("%s.place_trailing_stop cancel %s failed: %s", self.__class__.__name__, oid, cancel_err)
+        params: Dict[str, Any] = {"callbackRate": cb}
+        if activation_price and float(activation_price) > 0:
+            params["activationPrice"] = float(activation_price)
+        if await self._is_hedge_mode():
+            params["positionSide"] = "LONG" if close_side == "sell" else "SHORT"
+        else:
+            params["reduceOnly"] = True
+        try:
+            order = await self._exchange.create_order(ccxt_sym, "TRAILING_STOP_MARKET", close_side, qty, None, params)
+        except Exception as exc:
+            logger.warning("%s.place_trailing_stop failed: %s", self.__class__.__name__, exc)
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "via": "ccxt", "symbol": ccxt_sym, "order_id": str((order or {}).get("id") or ""), "callback_rate": cb}
 
     # ── Funding Rates ─────────────────────────────
 
@@ -908,6 +1021,57 @@ class CcxtBaseAdapter(BaseExchangeClient):
     async def get_active_campaigns(self) -> List[Dict]:
         """获取进行中的活动 — 默认返回空列表，需交易所子类覆盖"""
         return []
+
+    # ── Simple Earn（Binance sapi；其它 ccxt 所默认不支持）────────────────
+
+    async def list_simple_earn_flexible(self, asset: str = "USDT") -> List[Dict[str, Any]]:
+        """Binance Simple Earn 活期产品列表。非 binance 或 ccxt 不可用 → []。"""
+        if self._ccxt_id not in ("binance", "binanceusdm") or self._exchange is None:
+            return []
+        try:
+            params = {"asset": str(asset).upper()}
+            raw = await self._exchange.sapi_get_simple_earn_flexible_list(params)
+            rows = (raw or {}).get("rows") or []
+            out: List[Dict[str, Any]] = []
+            for r in rows[:20]:
+                if not isinstance(r, dict):
+                    continue
+                out.append({
+                    "product_id": r.get("productId"),
+                    "asset": r.get("asset"),
+                    "latest_annual_rate": r.get("latestAnnualPercentageRate"),
+                    "min_purchase": r.get("minPurchaseAmount"),
+                    "can_purchase": r.get("canPurchase"),
+                    "can_redeem": r.get("canRedeem"),
+                })
+            return out
+        except Exception as exc:
+            logger.debug("%s.list_simple_earn_flexible: %s", self.__class__.__name__, exc)
+            return []
+
+    async def subscribe_simple_earn_flexible(self, asset: str, amount: float) -> Dict[str, Any]:
+        """申购 Binance Simple Earn 活期。amount 为 USDT 数量。"""
+        if self._ccxt_id not in ("binance", "binanceusdm") or self._exchange is None:
+            return {"ok": False, "error": "not_binance"}
+        amt = float(amount or 0)
+        if amt <= 0:
+            return {"ok": False, "error": "amount<=0"}
+        products = await self.list_simple_earn_flexible(asset)
+        pid = None
+        for p in products:
+            if p.get("can_purchase") and str(p.get("asset", "")).upper() == str(asset).upper():
+                pid = p.get("product_id")
+                break
+        if not pid:
+            return {"ok": False, "error": "no_product"}
+        try:
+            res = await self._exchange.sapi_post_simple_earn_flexible_subscribe({
+                "productId": pid, "amount": str(amt),
+            })
+            return {"ok": True, "product_id": pid, "amount": amt, "raw": res}
+        except Exception as exc:
+            logger.warning("%s.subscribe_simple_earn_flexible failed: %s", self.__class__.__name__, exc)
+            return {"ok": False, "error": str(exc)}
 
     # ── Cleanup ───────────────────────────────────
 

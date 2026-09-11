@@ -40,6 +40,8 @@ class OpportunityScanner:
 
     def __init__(self):
         self._funding_history: Dict[str, List[Tuple[float, float]]] = {}
+        # [2026-09] 双所价差历史（配对口径反转检测）
+        self._pair_spread_history: Dict[str, List[Tuple[float, float]]] = {}
         self._cached_opportunities: List[ArbitrageOpportunity] = []
         self._lock = threading.Lock()
         self._scan_count: int = 0
@@ -100,6 +102,20 @@ class OpportunityScanner:
         """获取某个 symbol 的资金费率历史"""
         with self._lock:
             return [rate for _, rate in self._funding_history.get(symbol, [])]
+
+    # ── [2026-09] 双所价差序列（配对口径的反转检测数据源） ──
+
+    def append_pair_spread(self, symbol: str, spread: float) -> None:
+        """追加双所价差样本（orchestrator 配对修正时调用）。"""
+        with self._lock:
+            hist = self._pair_spread_history.setdefault(symbol, [])
+            hist.append((time.time(), float(spread)))
+            if len(hist) > 200:
+                self._pair_spread_history[symbol] = hist[-200:]
+
+    def get_pair_spread_history(self, symbol: str) -> List[float]:
+        with self._lock:
+            return [v for _, v in self._pair_spread_history.get(symbol, [])]
 
     @property
     def scan_count(self) -> int:

@@ -335,7 +335,7 @@ class StrategyManager:
 
             # Execute AI trading decision with trigger context
             logger.info(f"Account {account_id} executing Hyperliquid trading (trigger: {trigger_type})")
-            from services.trading_commands import place_ai_driven_hyperliquid_order
+            from backend.services.trading_commands import place_ai_driven_hyperliquid_order
             place_ai_driven_hyperliquid_order(account_id=account_id, trigger_context=trigger_context)
 
         except Exception as e:
@@ -469,7 +469,7 @@ class HyperliquidStrategyManager(StrategyManager):
             logger.warning("[Hyperliquid策略] 回调已注册，跳过")
             return
         try:
-            from services.signal_detection_service import signal_detection_service
+            from backend.services.signal_detection_service import signal_detection_service
             logger.warning(f"[Hyperliquid策略] 注册前回调数量: {len(signal_detection_service._trigger_callbacks)}")
             signal_detection_service.subscribe_signal_triggers(self._on_signal_triggered)
             self._signal_callback_registered = True
@@ -482,7 +482,7 @@ class HyperliquidStrategyManager(StrategyManager):
         if not self._signal_callback_registered:
             return
         try:
-            from services.signal_detection_service import signal_detection_service
+            from backend.services.signal_detection_service import signal_detection_service
             signal_detection_service.unsubscribe_signal_triggers(self._on_signal_triggered)
             self._signal_callback_registered = False
             logger.info("[Hyperliquid策略] 信号触发回调已注销")
@@ -613,7 +613,7 @@ def _execute_strategy_direct(account_id: int, symbol: str, event_time: datetime,
         elif is_binance:
             logger.info(f"[DirectStrategy] Binance removed (Phase 1), skip account {account_id}")
         else:
-            from services.trading_commands import place_ai_driven_crypto_order
+            from backend.services.trading_commands import place_ai_driven_crypto_order
             place_ai_driven_crypto_order(max_ratio=0.2, account_id=account_id)
         logger.info(f"Strategy executed for account {account_id} on {symbol} price update")
 

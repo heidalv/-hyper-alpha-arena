@@ -2058,8 +2058,13 @@ class ArbitragePaperAccountService:
         pnl_delta: float = 0.0,
         note: str = "",
         metadata: Optional[Dict[str, Any]] = None,
+        force_log: bool = False,
     ) -> None:
-        """记录 Paper 成交成本/盈亏，同步分所余额与总账户。"""
+        """记录 Paper 成交成本/盈亏，同步分所余额与总账户。
+
+        `force_log=True`：金额全为 0 的成交也补一条 `paper_fill` 事件，
+        让账户视图看得到「这条策略确实在成交」（不改变任何余额）。
+        """
         ex = (exchange or "").lower().strip()
         account = db.query(ArbitragePaperAccountDB).filter(
             ArbitragePaperAccountDB.id == account_id
@@ -2146,13 +2151,136 @@ class ArbitragePaperAccountService:
                 metadata={**meta, "position_id": position_id, "phase": phase},
             )
 
+        # [F69] 成交必留痕：金额全为 0 的成交（如 maker 0% + 价差≈0）默认不写任何流水，
+        # 账户视图就会显示「这条策略一笔没做」。force_log=True 时补一条 0 金额事件，
+        # 只用于「账户看得到交易活动」，不改变任何余额。
+        if force_log and net_fee <= 0 and float(slippage_cost or 0) <= 0 \
+                and abs(float(pnl_delta or 0)) <= 1e-9:
+            self._ledger(
+                db, account_id, ex, "paper_fill", 0.0,
+                float(bal_row.available_usd or 0.0),
+                strategy_type=strategy_type,
+                related_position_id=position_id,
+                note=note or f"{phase} 成交（零成本）",
+                metadata={**meta, "position_id": position_id, "phase": phase},
+            )
+
         # 同步总账户权益
+        # 口径必须与 update_balances / allocate_strategy_capital 一致：
+        #   total_equity = Σ allocated（总资本），available_balance = Σ available（可用）。
+        # 旧实现用「Σ available + frozen」当总权益，与其它写入路径冲突——
+        # 做市成交一走这条路，账户权益就会从 $5,300 掉到 $5,155（差值是已占用保证金）。
         all_bals = db.query(ArbitragePaperExchangeBalanceDB).filter(
             ArbitragePaperExchangeBalanceDB.account_id == account_id
         ).all()
         total_available = sum(float(b.available_usd or 0) for b in all_bals)
+        total_allocated = sum(float(b.allocated_usd or 0) for b in all_bals)
         account.available_balance = total_available
-        account.total_equity = total_available + float(account.frozen_balance or 0)
+        account.total_equity = total_allocated
+
+    def allocate_strategy_capital(
+        self,
+        db: Session,
+        account_id: int,
+        exchange: str,
+        delta_usd: float,
+        *,
+        strategy_type: str = "",
+        strategy_limit_pct: Optional[float] = None,
+        note: str = "",
+    ) -> Dict[str, Any]:
+        """[F69] 在**统一模拟账户**内给某策略追加/回收资金，并设置其配额比例。
+
+        为什么需要它：做市（MM）等新策略要与 S3/S8/SDN 同账管理——
+        同一账户权益、同一资金池、按 `strategy_type` 分账，账户层面能看到整体。
+        与 `update_balances` 的区别：**不要求账户处于停止状态**（账户在跑时也能调），
+        且只动指定交易所的额度，不影响其它策略已占用的资金。
+        """
+        self.ensure_schema()
+        ex = (exchange or "").lower().strip()
+        account = db.query(ArbitragePaperAccountDB).filter(
+            ArbitragePaperAccountDB.id == account_id
+        ).first()
+        if not account:
+            raise ValueError("套利 Paper 账户不存在")
+        row = db.query(ArbitragePaperExchangeBalanceDB).filter(
+            ArbitragePaperExchangeBalanceDB.account_id == account_id,
+            ArbitragePaperExchangeBalanceDB.exchange == ex,
+        ).first()
+        if not row:
+            row = ArbitragePaperExchangeBalanceDB(
+                account_id=account_id, exchange=ex,
+                allocated_usd=0.0, available_usd=0.0, frozen_usd=0.0,
+            )
+            db.add(row)
+
+        delta = float(delta_usd or 0.0)
+        row.allocated_usd = max(float(row.allocated_usd or 0.0) + delta, 0.0)
+        row.available_usd = max(float(row.available_usd or 0.0) + delta, 0.0)
+
+        if strategy_limit_pct is not None and strategy_type:
+            limits = _loads(getattr(row, "strategy_limits_json", None), {}) or {}
+            limits[str(strategy_type).upper()] = round(float(strategy_limit_pct), 6)
+            row.strategy_limits_json = json.dumps(limits, ensure_ascii=False)
+
+        all_bals = db.query(ArbitragePaperExchangeBalanceDB).filter(
+            ArbitragePaperExchangeBalanceDB.account_id == account_id
+        ).all()
+        total_alloc = sum(float(b.allocated_usd or 0.0) for b in all_bals)
+        total_avail = sum(float(b.available_usd or 0.0) for b in all_bals)
+        account.total_equity = total_alloc
+        account.available_balance = total_avail
+
+        self._ledger(
+            db, account_id, ex, "strategy_capital_alloc", delta,
+            float(row.available_usd or 0.0),
+            strategy_type=(str(strategy_type).upper() or None),
+            note=note or f"{strategy_type or '策略'} 资金调拨 {delta:+.2f}",
+            metadata={"strategy_limit_pct": strategy_limit_pct, "delta_usd": delta},
+        )
+        sqlite_write_commit(db, label="allocate_strategy_capital")
+        return {
+            "account_id": account_id, "exchange": ex, "delta_usd": delta,
+            "allocated_usd": round(float(row.allocated_usd or 0.0), 2),
+            "available_usd": round(float(row.available_usd or 0.0), 2),
+            "strategy_type": str(strategy_type).upper() or None,
+            "strategy_limit_pct": strategy_limit_pct,
+            "account_total_equity": round(total_alloc, 2),
+            "account_available_balance": round(total_avail, 2),
+        }
+
+    def set_strategy_limits(
+        self,
+        db: Session,
+        account_id: int,
+        exchange: str,
+        limits: Dict[str, float],
+    ) -> Dict[str, Any]:
+        """[F69] 覆盖某交易所的策略配额比例（占该所额度的比例）。
+
+        与 `allocate_strategy_capital` 配合使用：追加资金后必须重算既有策略比例，
+        否则它们的**绝对预算**会被静默放大（比例 × 变大的额度）。
+        """
+        self.ensure_schema()
+        ex = (exchange or "").lower().strip()
+        row = db.query(ArbitragePaperExchangeBalanceDB).filter(
+            ArbitragePaperExchangeBalanceDB.account_id == account_id,
+            ArbitragePaperExchangeBalanceDB.exchange == ex,
+        ).first()
+        if not row:
+            raise ValueError(f"账户 {account_id} 无 {ex} 余额行")
+        clean = {str(k).upper(): round(float(v), 6) for k, v in (limits or {}).items()
+                 if v is not None}
+        row.strategy_limits_json = json.dumps(clean, ensure_ascii=False)
+        self._ledger(
+            db, account_id, ex, "strategy_limits_update", 0.0,
+            float(row.available_usd or 0.0),
+            note=f"策略配额重算: {clean}",
+            metadata={"strategy_limits": clean},
+        )
+        sqlite_write_commit(db, label="set_strategy_limits")
+        return {"account_id": account_id, "exchange": ex, "strategy_limits": clean,
+                "allocated_usd": round(float(row.allocated_usd or 0.0), 2)}
 
     def _ledger(
         self,

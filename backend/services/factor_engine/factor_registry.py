@@ -64,7 +64,8 @@ class FactorRegistry:
         except Exception as e:
             # 单个因子实例化失败（如抽象方法未实现）不应抛异常导致整个模块导入失败，
             # 否则同文件的其他可用因子会一起丢失。跳过该因子即可。
-            print(f"Skip registering {factor_class.__name__}: {e}")
+            # [§64] 走 logger：`print` 只进 console 文件，读 backend.log 的人看不到因子缺失
+            logger.warning("[FactorRegistry] 跳过注册 %s: %s", factor_class.__name__, e)
             return
         
         factor_id = metadata.factor_id

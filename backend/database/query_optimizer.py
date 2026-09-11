@@ -196,62 +196,53 @@ OPTIMIZATION_TIPS = """
 """
 
 
-def create_missing_indexes(engine):
-    """
-    创建常用的复合索引以提升性能
+def create_missing_indexes(engine, *, group: str | None = None):
+    """创建常用的复合索引以提升性能。
 
-    这些索引对高频查询特别有效
+    [2026-09-07] 按库分组：core / market / analytics。旧实现对三库各跑完整清单，
+    每库产生十几条 UndefinedTable WARNING（paper_orders 不在 market 等），淹日志。
+    group=None 时仍跑全量（兼容旧调用），但缺表/缺列降为 debug。
     """
-    indexes = [
-        # 账户快照查询
+    core_indexes = [
+        # 账户快照查询（core Base）
         "CREATE INDEX IF NOT EXISTS idx_snapshot_account_time ON hyperliquid_account_snapshots(wallet_address, snapshot_time DESC)",
-
-        # 持仓历史查询
-        "CREATE INDEX IF NOT EXISTS idx_position_account_time ON hyperliquid_positions(wallet_address, symbol, entry_time DESC)",
-
-        # AI决策查询
-        "CREATE INDEX IF NOT EXISTS idx_decision_account_time ON ai_decision_logs(account_id, decision_time DESC)",
-
-        # 交易历史查询
-        "CREATE INDEX IF NOT EXISTS idx_trade_account_time ON hyperliquid_trades(wallet_address, symbol, timestamp DESC)",
-
-        # K线数据查询
-        "CREATE INDEX IF NOT EXISTS idx_kline_symbol_time ON crypto_klines(symbol, timestamp DESC) WHERE environment='mainnet'",
-
-        # 市场数据聚合查询
-        "CREATE INDEX IF NOT EXISTS idx_trades_agg_symbol_time ON market_trades_aggregated(symbol, sample_time DESC)",
-
-        # [2026-07-09 性能修复] 模拟盘热表复合索引
-        # LeakGuard 日志反复出现 paper_orders/paper_positions 的慢 count(*) 全表扫描
-        # （age 高达 133s）。这些表虽有 ORM index=True，但 create_all 不会给已存在的表补索引。
-        # 仪表盘按 (account_id, status) 过滤，加复合索引让这些查询走索引扫描。
-        # paper_orders: get_summary 的 count(*) + 按账户/状态筛选
+        # 持仓历史：以 updated/created 为准（表无 entry_time 列）
+        "CREATE INDEX IF NOT EXISTS idx_hl_position_account_sym ON hyperliquid_positions(account_id, symbol, environment)",
+        # 模拟盘热表
         "CREATE INDEX IF NOT EXISTS idx_paper_orders_account_status ON paper_orders(account_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_paper_orders_strategy ON paper_orders(account_id, strategy_id, status)",
-        # paper_positions: get_positions 按账户+状态取开仓持仓
         "CREATE INDEX IF NOT EXISTS idx_paper_positions_account_status ON paper_positions(account_id, status)",
-        # strategy_trades: 按 strategy_id + 平仓时间倒序统计（此表无 account_id 列）
         "CREATE INDEX IF NOT EXISTS idx_strategy_trades_strategy_closed ON strategy_trades(strategy_id, closed_at DESC)",
-
-        # [2026-07-11 性能修复] 补充复合索引（见 RAG/OpenCode/数据库优化方案 阶段0）：
-        # crypto_klines 实际热查询按 (exchange, symbol, period) 过滤 + timestamp 倒序，
-        # 而现有 idx_kline_symbol_time 只覆盖 (symbol, timestamp)，缺 exchange/period。
-        "CREATE INDEX IF NOT EXISTS idx_kline_exchange_symbol_period_time "
-        "ON crypto_klines(exchange, symbol, period, timestamp DESC)",
-
-        # signal_trade_feedback: scalp_confidence_calibrator 按 signal_type + created_at
-        # 窗口过滤，此前只有单列索引，复合索引可避免"索引扫描后再过滤"。
         "CREATE INDEX IF NOT EXISTS idx_signal_feedback_type_created "
         "ON signal_trade_feedback(signal_type, created_at)",
-
-        # strategy_memories: master_execution 按 updated_at 倒序取样本量达标的记忆。
         "CREATE INDEX IF NOT EXISTS idx_strategy_memories_updated "
         "ON strategy_memories(updated_at DESC)",
-
-        # paper_orders: 按账户 + 下单时间倒序查历史订单（此前只有 account_id 单列索引）。
         "CREATE INDEX IF NOT EXISTS idx_paper_orders_account_created "
         "ON paper_orders(account_id, created_at DESC)",
     ]
+    market_indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_kline_symbol_time ON crypto_klines(symbol, timestamp DESC) WHERE environment='mainnet'",
+        "CREATE INDEX IF NOT EXISTS idx_trades_agg_symbol_time ON market_trades_aggregated(symbol, timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_kline_exchange_symbol_period_time "
+        "ON crypto_klines(exchange, symbol, period, timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_perp_funding_ts ON perp_funding(timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_perp_funding_sym_ts ON perp_funding(symbol, timestamp)",
+    ]
+    analytics_indexes = [
+        "CREATE INDEX IF NOT EXISTS idx_decision_account_time ON ai_decision_logs(account_id, decision_time DESC)",
+    ]
+    by_group = {
+        "core": core_indexes,
+        "market": market_indexes,
+        "analytics": analytics_indexes,
+    }
+    if group is None:
+        indexes = core_indexes + market_indexes + analytics_indexes
+    else:
+        indexes = list(by_group.get(str(group).lower(), []))
+        if not indexes:
+            logger.warning("[create_missing_indexes] unknown group=%s", group)
+            return
 
     # [2026-07-09 性能修复] 原实现在同一连接/事务里连续执行所有 CREATE INDEX，
     # 一旦某条失败（表不在本库/列不存在），PostgreSQL 会把事务置为 aborted，
@@ -260,6 +251,7 @@ def create_missing_indexes(engine):
     # 成功即 commit，失败即 rollback（释放该条的事务），下一条在新事务里执行，互不影响。
     created_count = 0
     failed_count = 0
+    skipped_count = 0
     for index_sql in indexes:
         try:
             with engine.connect() as conn:
@@ -274,10 +266,17 @@ def create_missing_indexes(engine):
                     tx.rollback()
                     raise
         except Exception as e:
-            failed_count += 1
-            logger.warning(f"Failed to create index: {str(e)[:120]}")
+            msg = str(e)
+            # 跨库缺表 / 缺列：预期跳过，勿刷 WARNING
+            if "UndefinedTable" in msg or "UndefinedColumn" in msg or "不存在" in msg:
+                skipped_count += 1
+                logger.debug("Skip index (missing relation/column): %s", msg[:120])
+            else:
+                failed_count += 1
+                logger.warning(f"Failed to create index: {msg[:120]}")
     logger.info(
-        f"[create_missing_indexes] 完成: 成功 {created_count}, 失败/跳过 {failed_count}"
+        "[create_missing_indexes] group=%s 完成: 成功 %s, 跳过 %s, 失败 %s",
+        group or "all", created_count, skipped_count, failed_count,
     )
 
 

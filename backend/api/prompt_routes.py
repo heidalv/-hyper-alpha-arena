@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database.connection import SessionLocal
-from repositories import prompt_repo
+from backend.repositories import prompt_repo
 from backend.database.models import PromptTemplate, Account
 from backend.schemas.prompt import (
     PromptListResponse,
@@ -248,18 +248,18 @@ def preview_prompt(
         ]
     }
     """
-    from services.ai_decision_service import (
+    from backend.services.ai_decision_service import (
         _get_portfolio_data,
         _build_prompt_context,
         SafeDict,
         SUPPORTED_SYMBOLS,
     )
-    from services.market_data import get_last_price
-    from services.news_feed import fetch_latest_news
-    from services.sampling_pool import sampling_pool
+    from backend.services.market_data import get_last_price
+    from backend.services.news_feed import fetch_latest_news
+    from backend.services.sampling_pool import sampling_pool
     from backend.database.models import Account
     import logging
-    from services.hyperliquid_symbol_service import (
+    from backend.services.hyperliquid_symbol_service import (
         get_selected_symbols as get_hyperliquid_selected_symbols,
         get_available_symbol_map as get_hyperliquid_symbol_map,
     )
@@ -306,7 +306,7 @@ def preview_prompt(
         news_section = "No recent CoinJournal news available."
 
     # Import multi-symbol sampling data builder
-    from services.ai_decision_service import _build_multi_symbol_sampling_data
+    from backend.services.ai_decision_service import _build_multi_symbol_sampling_data
 
     previews = []
 
@@ -317,7 +317,7 @@ def preview_prompt(
             continue
 
         # Check if account uses Hyperliquid - ONLY use global environment
-        from services.hyperliquid_environment import get_global_trading_mode
+        from backend.services.hyperliquid_environment import get_global_trading_mode
         hyperliquid_environment = get_global_trading_mode(db)
 
         # NOTE: Account-level environment setting is deprecated
@@ -328,7 +328,7 @@ def preview_prompt(
         if hyperliquid_environment in ["testnet", "mainnet"]:
             # Get Hyperliquid real-time data
             try:
-                from services.hyperliquid_environment import get_hyperliquid_client
+                from backend.services.hyperliquid_environment import get_hyperliquid_client
 
                 client = get_hyperliquid_client(db, account_id, override_environment=hyperliquid_environment)
                 account_state = client.get_account_state(db)

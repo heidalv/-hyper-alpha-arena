@@ -64,6 +64,13 @@ def is_embedding_model_cached() -> bool:
     return False
 
 
+# [2026-08-28 优化] 嵌入结果缓存(300s TTL) + 推理并发锁：同文重复查询不再重复打 GPU，
+# 多线程并发 encode 串行化，削平 GPU util 峰值与 GIL 波动。
+_EMBED_CACHE: dict = {}
+_EMBED_CACHE_TTL = 300.0
+_EMBED_LOCK = __import__("threading").Lock()
+
+
 class RAGKnowledgeService:
     """RAG 知识库核心服务（单例）"""
 
@@ -212,6 +219,10 @@ class RAGKnowledgeService:
                 EMBEDDING_MODEL_NAME,
                 device=_device,
             )
+            # [2026-08-28 优化] 推理模式 + CUDA 半精度：显存/带宽减半，推理提速
+            self._embed_model.eval()
+            if _device == "cuda":
+                self._embed_model.half()
             logger.info(f"[RAG] Embedding 模型加载完成: {EMBEDDING_MODEL_NAME} device={_device} ({time.time()-t0:.1f}s)")
         except Exception as load_err:
             logger.warning(
@@ -228,18 +239,33 @@ class RAGKnowledgeService:
     # ------------------------------------------------------------------
 
     def _embed_texts(self, texts: List[str]) -> List[List[float]]:
-        """批量计算文本 embedding"""
+        """批量计算文本 embedding（缓存 + 串行化，降低 GPU 峰值/消除重复推理）"""
         if not texts:
             return []
         if self._embed_model is None:
             return []
-        embeddings = self._embed_model.encode(
-            texts,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-            batch_size=64,
-        )
-        return embeddings.tolist()
+        import time as _t
+
+        key = "\n".join(texts)
+        now = _t.time()
+        hit = _EMBED_CACHE.get(key)
+        if hit and now - hit[0] <= _EMBED_CACHE_TTL:
+            return hit[1]
+        with _EMBED_LOCK:
+            hit = _EMBED_CACHE.get(key)
+            if hit and now - hit[0] <= _EMBED_CACHE_TTL:
+                return hit[1]
+            embeddings = self._embed_model.encode(
+                texts,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                batch_size=64,
+            )
+            vecs = embeddings.astype("float32").tolist()
+            if len(_EMBED_CACHE) > 512:
+                _EMBED_CACHE.clear()
+            _EMBED_CACHE[key] = (now, vecs)
+            return vecs
 
     # ------------------------------------------------------------------
     #  索引接口（增量 + 全量）

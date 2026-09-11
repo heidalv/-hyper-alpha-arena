@@ -76,8 +76,15 @@ class ScalpActiveFactorSet:
         try:
             from backend.services.factor_engine.combo_weights import resolve_combo_weights
             wmap = resolve_combo_weights(active, weights)
-        except Exception:
-            wmap = {str(r.get("factor_id") or ""): weights.get(r.get("factor_id"), 1.0) for r in active}
+        except Exception as err:
+            # [2026-09-02 消除 fail-open] 原分支静默退化为等权 1.0，权重体系出错时
+            # 系统照常满权出信号。改为显式告警 + 全零（fail-closed）：下游
+            # weight_sum<=0 会跳过本轮，宁可不开仓也不按不可信权重开仓。
+            logger.error(
+                "[ScalpActiveSet] 组合权重解析失败 → 本轮因子权重全零、不出信号: %s",
+                err, exc_info=True,
+            )
+            wmap = {str(r.get("factor_id") or ""): 0.0 for r in active}
         # [M0-F1 2026-08-22] role=paper 影子因子权重封顶（与中线同一口径）。
         try:
             from backend.config.settings import PAPER_FACTOR_WEIGHT_CAP as _PWC
@@ -85,9 +92,15 @@ class ScalpActiveFactorSet:
         except Exception:
             _paper_cap = 0.5
         for rec in active:
-            rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 1.0)
+            # wmap 由 resolve_combo_weights 产出、必然覆盖全部 records，缺失即异常
+            # → 用 0.0 而非 1.0（1.0 会让未定权的因子满权投票）。
+            rec["runtime_weight"] = wmap.get(rec.get("factor_id"), 0.0)
             if str((rec.get("extra") or {}).get("role") or "") == "paper":
-                rec["runtime_weight"] = min(float(rec["runtime_weight"] or 1.0), _paper_cap)
+                # 只在缺失(None)时取中性 1.0；显式 0.0 必须保持 0（避免 `or` 陷阱
+                # 把归零权重还原成满权）
+                _rw = rec.get("runtime_weight")
+                rec["runtime_weight"] = min(
+                    1.0 if _rw is None else float(_rw), _paper_cap)
         return active
 
     @staticmethod
@@ -153,10 +166,18 @@ class ScalpActiveFactorSet:
             # 直接读文件兜底
             try:
                 import json
-                path = os.path.join("data", "factor_runtime_weights.json")
+                # [2026-09-02] 两处修正：①原先遍历 JSON 顶层键（updated_at /
+                # lookback_days / weights / stats），float("2026-09-02T...") 必抛
+                # ValueError → 这条兜底路径实际上永远返回 {}，从未生效过；
+                # ②相对路径改为基于 __file__，不再依赖进程 cwd。
+                from pathlib import Path as _P
+                path = str(_P(__file__).resolve().parents[3] / "data"
+                           / "factor_runtime_weights.json")
                 if os.path.exists(path):
                     with open(path, "r", encoding="utf-8") as f:
-                        return {str(k): float(v) for k, v in json.load(f).items()}
+                        _raw = json.load(f) or {}
+                    return {str(k): float(v)
+                            for k, v in (_raw.get("weights") or {}).items()}
             except Exception:
                 pass
             return {}

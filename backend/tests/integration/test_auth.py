@@ -43,22 +43,14 @@ def _unique(prefix: str = "authtest") -> str:
 
 
 def _cleanup(username: str, email: str) -> None:
-    """删除测试产生的 user 及其 refresh_tokens 行,保证幂等。"""
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete()
-            db.delete(user)
-            db.commit()
-        # 兜底:按 email 也清一次(防止 user 行没建但 email 唯一索引残留)
-        by_email = db.query(User).filter(User.email == email).first()
-        if by_email:
-            db.query(RefreshToken).filter(RefreshToken.user_id == by_email.id).delete()
-            db.delete(by_email)
-            db.commit()
-    finally:
-        db.close()
+    """删除测试产生的 user 及其 refresh_tokens 行,保证幂等。
+
+    [2026-09-02] 改走共享 helper。原地实现会稳定抛 ForeignKeyViolation：
+    refresh_tokens 挂 RLS(FORCE)、users 没挂，子表 DELETE 被策略过滤成匹配
+    0 行后父表删除畅通 → 撞外键。详见 backend/tests/_user_cleanup.py。
+    """
+    from backend.tests._user_cleanup import cleanup_user
+    cleanup_user(username=username, email=email)
 
 
 def test_register_returns_tokens(client):
@@ -80,6 +72,11 @@ def test_register_returns_tokens(client):
         assert body["user"]["tier"] == "free"  # server_default 兜底
 
         # register 同时应落一条 refresh_tokens 行(revoked=false)
+        # [2026-09-02] refresh_tokens 挂 RLS(tenant_isolation)。无身份的 SessionLocal
+        # 查询会被 AUTH_LOCAL_TENANT 注入本地租户，新用户的行被正确隐藏 → 查不到。
+        # 以新用户身份读：读到即同时证明落库与 RLS 放行都正确。
+        from backend.core.tenant import set_request_identity, clear_request_identity
+        set_request_identity(tenant_id=int(body["user"]["id"]), role="user")
         db = SessionLocal()
         try:
             from backend.core.security import decode_token
@@ -89,6 +86,7 @@ def test_register_returns_tokens(client):
             assert rec is not None and rec.revoked == "false"
         finally:
             db.close()
+            clear_request_identity()
     finally:
         _cleanup(username, email)
 
@@ -167,9 +165,18 @@ def test_refresh_rotates_and_revokes_old_jti(client):
         new_body = r1.json()
         assert new_body["refresh_token"] != old_refresh
 
-        # 旧 refresh token 再用 → 401(revoked)
+        # 幂等宽限（防多窗口 401 风暴）：宽限窗内用旧 refresh 再刷 → 200,
+        # 且返回的是与首次轮换 **完全相同** 的那份子令牌（不再新签、不再爆炸）。
         r2 = client.post("/api/auth/refresh", json={"refresh_token": old_refresh})
-        assert r2.status_code == 401
+        assert r2.status_code == 200, r2.text
+        assert r2.json()["refresh_token"] == new_body["refresh_token"]
+
+        # 宽限过期后（清缓存模拟）旧 refresh token 不可再用 → 401(revoked)
+        from backend.api.auth_routes import _clear_rotation_cache
+
+        _clear_rotation_cache()
+        r2b = client.post("/api/auth/refresh", json={"refresh_token": old_refresh})
+        assert r2b.status_code == 401
 
         # 新 refresh token 能继续用
         r3 = client.post("/api/auth/refresh", json={"refresh_token": new_body["refresh_token"]})

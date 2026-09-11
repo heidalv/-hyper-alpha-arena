@@ -15,10 +15,27 @@ from typing import Any, Dict, Optional, Union
 
 logger = logging.getLogger(__name__)
 
-TUNING_FILE = os.path.join("data", "runtime_tuning.json")
-SNAPSHOT_DIR = os.path.join("data", "runtime_tuning_snapshots")
-OVERLAY_DIR = os.path.join("data", "runtime_tuning_overlays")
-LEGACY_GATES_FILE = os.path.join("data", "v5_runtime_gates.json")
+# [2026-09-02] 相对路径 → 绝对路径。
+#
+# 原写法 os.path.join("data", ...) 依赖进程 cwd，而项目里同时存在
+#   <root>/data/runtime_tuning.json          （后端从根启动时实际读到的）
+#   <root>/backend/data/runtime_tuning.json  （孤儿副本，从未被读）
+# 两份内容早已分叉：前者 tier_max_hold_sec.short=2700，后者 7200，而
+# settings.py / scalp_config_routes.py / 单测三处注释都写着"权威值 7200"。
+# 结果是短线最大持仓实际一直按 45min 执行，与全部文档表述不符；从项目根跑
+# 的单测又因 cwd 差异读不到任何文件、回退到 _DEFAULT_SCHEMA，出现"测试值、
+# 文档值、运行值"三不一致。
+#
+# 这里锚定到项目根（本文件位于 <root>/backend/services/），与后端从根启动
+# 时的现行行为完全一致 —— 只消除 cwd 依赖，不改变读的是哪一份文件。
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+_DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
+
+TUNING_FILE = os.path.join(_DATA_DIR, "runtime_tuning.json")
+SNAPSHOT_DIR = os.path.join(_DATA_DIR, "runtime_tuning_snapshots")
+OVERLAY_DIR = os.path.join(_DATA_DIR, "runtime_tuning_overlays")
+LEGACY_GATES_FILE = os.path.join(_DATA_DIR, "v5_runtime_gates.json")
 _cache: dict = {"ts": 0.0, "data": {}}
 
 # schema: key -> {value, min, max} or nested dict
@@ -36,6 +53,9 @@ _DEFAULT_SCHEMA: Dict[str, Any] = {
     # 默认：短线 60/天、长线 10/天（用户明确指定，仅作初始默认值，可在前端修改）。
     "scalp_daily_cap": {"value": 150, "min": 10, "max": 300},
     "trend_daily_cap": {"value": 15, "min": 1, "max": 60},
+    # [2026-09-03 v3 RiskEngine] 实盘全 tier 合计日开仓上限（旧 env LIVE_DAILY_OPEN_CAP 迁入，
+    # 0=不限制）。唯一读取口 backend/services/risk/daily_quota.py::cap_for("live")。
+    "live_daily_cap": {"value": 6, "min": 0, "max": 50},
     "scalp_min_confidence": {"value": 70, "min": 60, "max": 90},
     "min_risk_reward": {"value": 1.8, "min": 1.2, "max": 2.5},
     # MaturityController 高层旋钮（OpenCode 慢循环只调这些，不直接改各处硬阈值）：

@@ -303,6 +303,27 @@ class ScalpConfidenceCalibrator:
             )
             return model
 
+        # [2026-09-09 深度解析 P7] 校准曲线质量门：实证 scalp_composite_mr 的
+        # corr(score, win)=+0.0034（纯噪声）——分数与输赢无关时，保序回归拟合的
+        # 是噪声曲线，p_win 会被系统性高估（如 [40,50) 桶 n=16 胜率 75% 纯属小样本）。
+        # |corr| 低于门槛 → 视作未校准，回退基础胜率锚点（诚实且保守）。
+        try:
+            import numpy as _np_corr
+
+            _xs_c = _np_corr.array([float(s) for s, _ in pairs], dtype=float)
+            _ys_c = _np_corr.array([1.0 if w else 0.0 for _, w in pairs], dtype=float)
+            _corr = float(_np_corr.corrcoef(_xs_c, _ys_c)[0, 1])
+            _min_corr = float(self._cfg("SCALP_CALIBRATOR_MIN_CORR", 0.05) or 0.05)
+            if not _np_corr.isfinite(_corr) or abs(_corr) < _min_corr:
+                logger.info(
+                    "[ScalpCalibrator] [%s] 分数-输赢相关 |%.3f|<%.2f，"
+                    "拒绝拟合噪声曲线（回退基础胜率 %.3f）",
+                    strategy_tag, _corr, _min_corr, model.base_rate,
+                )
+                return model
+        except Exception as _corr_err:  # noqa: BLE001 — 质量门失败按旧行为放行
+            logger.debug("[ScalpCalibrator] 质量门计算跳过: %s", _corr_err)
+
         # 分桶（按分数 10 分一档，动态覆盖数据范围）
         buckets: Dict[int, List[int]] = {}
         for score, won in pairs:

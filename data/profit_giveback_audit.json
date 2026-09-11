@@ -1,0 +1,189 @@
+{
+  "by_tier": {
+    "long": {
+      "n": 27,
+      "usd": -121.57,
+      "win_rate": 0.593,
+      "big_loss_n": 7,
+      "pattern_n": 6,
+      "pattern_usd": -120.38,
+      "pattern_rate": 0.222,
+      "giveback_pct_sum": 22.03,
+      "median_giveback_pct": 4.11,
+      "gate_split": {
+        "allow": {
+          "n": 4,
+          "usd": -10.45,
+          "pattern_n": 0,
+          "pattern_rate": 0.0,
+          "pattern_usd": 0
+        },
+        "block": {
+          "n": 23,
+          "usd": -111.13,
+          "pattern_n": 6,
+          "pattern_rate": 0.261,
+          "pattern_usd": -120.38
+        }
+      }
+    },
+    "mid": {
+      "n": 32,
+      "usd": -11.41,
+      "win_rate": 0.375,
+      "big_loss_n": 6,
+      "pattern_n": 10,
+      "pattern_usd": -82.1,
+      "pattern_rate": 0.312,
+      "giveback_pct_sum": 34.77,
+      "median_giveback_pct": 3.45,
+      "gate_split": {
+        "allow": {
+          "n": 4,
+          "usd": 21.22,
+          "pattern_n": 0,
+          "pattern_rate": 0.0,
+          "pattern_usd": 0
+        },
+        "block": {
+          "n": 28,
+          "usd": -32.63,
+          "pattern_n": 10,
+          "pattern_rate": 0.357,
+          "pattern_usd": -82.1
+        }
+      }
+    }
+  },
+  "pattern_n": 16,
+  "pattern_usd": -202.48,
+  "worst5": [
+    {
+      "symbol": "VIRTUAL",
+      "tier": "mid",
+      "peak_pct": 0.71,
+      "usd": -41.88,
+      "reason": "thesis_invalidation"
+    },
+    {
+      "symbol": "ASTER",
+      "tier": "long",
+      "peak_pct": 1.11,
+      "usd": -34.75,
+      "reason": "thesis_invalidation"
+    },
+    {
+      "symbol": "XRP",
+      "tier": "long",
+      "peak_pct": 1.25,
+      "usd": -27.31,
+      "reason": "trend_broken: 原始多头论点已失效：4h 由"
+    },
+    {
+      "symbol": "SOL",
+      "tier": "long",
+      "peak_pct": 0.82,
+      "usd": -25.16,
+      "reason": "thesis_should_close"
+    },
+    {
+      "symbol": "SOL",
+      "tier": "long",
+      "peak_pct": 1.68,
+      "usd": -23.08,
+      "reason": "trend_broken: 原始多头论点已失效。开仓时依"
+    }
+  ],
+  "gate": {
+    "allow": {
+      "n": 8,
+      "usd": 10.77,
+      "win_rate": 0.875,
+      "pattern_n": 0,
+      "pattern_rate": 0.0,
+      "pattern_usd": 0,
+      "big_loss_n": 0
+    },
+    "block": {
+      "n": 51,
+      "usd": -143.76,
+      "win_rate": 0.412,
+      "pattern_n": 16,
+      "pattern_rate": 0.314,
+      "pattern_usd": -202.48,
+      "big_loss_n": 13
+    }
+  },
+  "by_family": {
+    "long_swing": {
+      "n": 15,
+      "usd": -189.11,
+      "win_rate": 0.467,
+      "pattern_n": 3,
+      "pattern_rate": 0.2,
+      "pattern_usd": -71.24
+    },
+    "mid_range": {
+      "n": 14,
+      "usd": -17.77,
+      "win_rate": 0.357,
+      "pattern_n": 3,
+      "pattern_rate": 0.214,
+      "pattern_usd": -22.92
+    },
+    "mid_reversion": {
+      "n": 2,
+      "usd": 2.35,
+      "win_rate": 0.5,
+      "pattern_n": 1,
+      "pattern_rate": 0.5,
+      "pattern_usd": -2.77
+    },
+    "auto": {
+      "n": 22,
+      "usd": 11.73,
+      "win_rate": 0.455,
+      "pattern_n": 8,
+      "pattern_rate": 0.364,
+      "pattern_usd": -104.64
+    },
+    "trend_e1": {
+      "n": 6,
+      "usd": 59.82,
+      "win_rate": 0.833,
+      "pattern_n": 1,
+      "pattern_rate": 0.167,
+      "pattern_usd": -0.9
+    }
+  },
+  "verdicts": [
+    {
+      "name": "mid 模式 USD ≥ 0",
+      "ok": false,
+      "detail": "mid pattern_usd=-82.1"
+    },
+    {
+      "name": "mid 大亏笔数 ≤ 8",
+      "ok": true,
+      "detail": "mid big_loss_n=6"
+    },
+    {
+      "name": "门放行集模式率 < 门拦截集",
+      "ok": true,
+      "detail": "allow=0.0 vs block=0.314"
+    },
+    {
+      "name": "门放行集模式 USD/笔 优于门拦截集",
+      "ok": true,
+      "detail": "allow=0/8 vs block=-202.48/51"
+    },
+    {
+      "name": "long 车道豁免正确（反事实：被拦集更赚）",
+      "ok": false,
+      "detail": "long 放行 $-10.45/4 vs 拦截 $-111.13/23"
+    }
+  ],
+  "generated_at": "2026-09-11T10:01:17.340863+00:00",
+  "days": 14,
+  "n": 59
+}

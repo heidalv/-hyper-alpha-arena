@@ -173,18 +173,26 @@ def calibrate() -> Dict[str, Any]:
     if result.get("no_edge"):
         _prev = load_calibration()
         _since = float((_prev or {}).get("no_edge_since") or 0.0)
+        # [2026-09-02 文案纠偏] 原文案写死"所有开仓已被 fail-closed 拦截"，但 08-23 起
+        # calibrated_threshold 的实际行为是：未设 SCALP_CALIB_NOEDGE_BLOCK=1 时回退静态
+        # 门槛放行观察（见下方 282 行 WARNING），两条日志自相矛盾、CRITICAL 误导运维判断。
+        # 现按真实模式输出。
+        _blocking = os.getenv("SCALP_CALIB_NOEDGE_BLOCK", "0") in ("1", "true", "yes", "on")
+        _mode_txt = (
+            "当前 trend/lane 开仓已被 fail-closed 拦截（SCALP_CALIB_NOEDGE_BLOCK=1）"
+            if _blocking
+            else "当前为放行观察态：trend/lane 回退静态门槛放行，由 EV 闸门/风控兜底"
+        )
         if _since <= 0:
             _since = time.time()
-            logger.warning(
-                "[ScalpCalib] 校准进入「无盈利分桶」观察态：短线开仓已由 fail-closed 拦截"
-            )
+            logger.warning("[ScalpCalib] 校准进入「无盈利分桶」观察态：%s", _mode_txt)
         else:
             _days = int((time.time() - _since) / 86400) + 1
             if _days >= 3:
                 logger.critical(
                     "[ScalpCalib] 无盈利分桶已持续 %d 天（自 %s）：短线应人工决议——"
-                    "继续观察 or 永久停用（当前所有开仓已被 fail-closed 拦截）",
-                    _days, time.strftime("%Y-%m-%d", time.localtime(_since)),
+                    "继续观察 or 永久停用（%s）",
+                    _days, time.strftime("%Y-%m-%d", time.localtime(_since)), _mode_txt,
                 )
         result["no_edge_since"] = _since
     else:

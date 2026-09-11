@@ -756,6 +756,22 @@ class StrategyLibrary:
                     ScalpActiveFactorSet,
                 )
                 _af = ScalpActiveFactorSet().get_active_factors()
+            # [2026-09-03 审查修正 A] 实盘账户的策略不注入影子因子（held-out 未过
+            # role=paper / 进化仓 PAPER），与在线融合口径一致；模拟账户保持原样。
+            try:
+                from backend.database.models import Account as _Acct
+                from backend.services.factor_engine.paper_factor_policy import (
+                    is_paper_record, paper_factor_excluded,
+                )
+                _acct_row = db.query(_Acct.trading_mode).filter(_Acct.id == account_id).first()
+                _acct_mode = (_acct_row[0] if _acct_row else None) or "paper"
+                if _af and paper_factor_excluded(_acct_mode):
+                    _before = len(_af)
+                    _af = [r for r in _af if not is_paper_record(r)]
+                    if len(_af) != _before:
+                        genome["paper_factors_excluded"] = _before - len(_af)
+            except Exception as _pf_err:
+                logger.debug("[StrategyLibrary] 影子因子过滤跳过: %s", _pf_err)
             if _af:
                 _f_ids = [str(r.get("factor_id") or "") for r in _af if r.get("factor_id")]
                 _f_weights = {

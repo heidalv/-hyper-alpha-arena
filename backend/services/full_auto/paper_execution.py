@@ -335,7 +335,7 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                                 return False
         except Exception as _cap_err:
             # 检查本身异常不得阻断开仓（容错优先）；记录后继续。
-            logger.debug("[MidLongExposureCap] 检查跳过: %s", _cap_err)
+            logger.warning("[MidLongExposureCap] 检查异常(fail-open，未做敞口检查即放行): %s", _cap_err)
 
         # ── 执行计划 ──
         if plan.action == "skip":
@@ -379,7 +379,9 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                             f"🛡️ {symbol} long tier 免疫 ai_reverse，不平反向长仓")
                         return False
             except Exception as _e_imm2:
-                logger.debug(f"[FullAuto][StageE][P2.D13] ai_reverse immune 异常: {_e_imm2}")
+                # [§51.7 修复] 原为 logger.debug → 生产不可见。long tier 的 ai_reverse
+                # 免疫一旦异常，反向 long 仓会被平掉且无痕迹（同 §41.2 缺陷类，出场侧漏项）。
+                logger.warning("[StageE][P2.D13] long tier ai_reverse 免疫检查异常(fail-open) → 放行平仓: %s", _e_imm2)
 
             close_result = paper_engine.close_position(
                 db, account_id, symbol, plan.close_opposite_side,
@@ -534,13 +536,22 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
 
         _pos_meta = {}
         _env = (decision or {}).get("_agent_envelope")
-        if isinstance(_env, dict) and _env.get("agent_source"):
+        if isinstance(_env, dict) and (_env.get("agent_source") or _env.get("thesis_id")):
             _pos_meta = {
                 "agent_envelope": _env,
                 "agent_source": _env.get("agent_source"),
                 "alignment_score": _env.get("alignment_score"),
                 "cited_fact_ids": _env.get("cited_fact_ids"),
             }
+            if _env.get("thesis_id"):
+                _pos_meta["thesis_id"] = _env.get("thesis_id")
+        # LLM 主脑 / 提案路径：thesis_id 可能在 decision 顶层或 extra
+        for _tk in ("thesis_id", "session_id", "analysis_run_id", "timeframe_tier"):
+            _tv = (decision or {}).get(_tk)
+            if _tv and _tk not in _pos_meta:
+                _pos_meta[_tk] = _tv
+        if (decision or {}).get("entry_source") and "entry_source" not in _pos_meta:
+            _pos_meta["entry_source"] = (decision or {}).get("entry_source")
 
         # 阶段 3 统一执行器开关: USE_UNIFIED_EXECUTOR=true 时走 PaperExecutor
         # （封装 paper_engine + trace_id 注入 + 返回值标准化），否则走原路径
@@ -696,10 +707,36 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                 f"{symbol} {side} 限价单已挂出")
             return True
         else:
-            err = result.get("error", "unknown") if result else "engine returned None"
+            # [2026-09-04] 引擎各道闸拒单时返回的是 reason / blocked_layer /
+            # reason_code（见 paper_trading_engine.place_order 的 return），并没有
+            # "error" 字段 —— 原本只读 error 导致所有风控拒单一律显示 "unknown"，
+            # 排查中线零成交时完全看不出是哪道闸拦的。
+            if result:
+                err = (
+                    result.get("reason")
+                    or result.get("error")
+                    or "engine returned no reason"
+                )
+                layer = result.get("blocked_layer") or result.get("blocked_by") or "?"
+                code = result.get("reason_code") or ""
+            else:
+                err, layer, code = "engine returned None", "?", ""
             host.append_event(session, "trade_failed",
-                f"{symbol} {side} 下单失败: {err}")
-            logger.warning(f"[FullAuto] 模拟下单失败: {symbol} {err}")
+                f"{symbol} {side} 下单失败[{layer}]: {err}")
+            logger.warning(
+                "[FullAuto] 模拟下单失败: %s %s layer=%s code=%s reason=%s",
+                symbol, side, layer, code, err,
+            )
+            # [§52 修复] 把真实拒单原因传给漏斗审计（此前只有这行 warning，
+            # 而审计 JSONL 里一律写成通用 reason，44% 的拒仓因此无因可查）。
+            try:
+                from backend.services.mlto.open_block_reason import mark_open_block
+                mark_open_block(
+                    code or "paper_execute_failed",
+                    detail=f"{layer}:{err}", layer=str(layer or ""),
+                )
+            except Exception:
+                pass
             return False
     except Exception as e:
         err_str = str(e)

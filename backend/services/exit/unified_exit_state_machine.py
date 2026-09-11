@@ -53,9 +53,11 @@ class TierProtectionConfig:
 
 # [三周期持仓时间收敛 2026-08-13] min_hold_sec 对齐主配置 settings.TIER_PROTECTION_PARAMS：
 # mid 30min→12h、long 2h→72h（与 min_hold 保护一致，状态机路径不得使用脱节值）。
+# [2026-09-09] short 1h→2h：settings TIER_SHORT_MIN_HOLD_SEC 权威默认 7200，
+# 本表此前停留在 3600 造成双口径（四源一致性测试 test_state_machine_min_hold_matches_main_config）。
 TIER_PROTECTION: dict[str, TierProtectionConfig] = {
     "short": TierProtectionConfig(
-        min_hold_sec=3600,             # 1h
+        min_hold_sec=7200,             # 2h（对齐 TIER_PROTECTION_PARAMS short）
         min_profit_to_reduce_pct=1.5,
         reentry_cooldown_sec=7200,     # 2h
         reduce_cooldown_sec=1800,      # 30min

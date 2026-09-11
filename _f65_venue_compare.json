@@ -1,0 +1,167 @@
+{
+ "config": {
+  "w_base_bp": 8.0,
+  "k_inv": 0.6,
+  "hold_sec": 900.0,
+  "dir": 0.04
+ },
+ "penetrations": [
+  0.0,
+  1.0,
+  2.0
+ ],
+ "venues": {
+  "asterdex": {
+   "symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ],
+   "maker_fee_bp": 0.0,
+   "runs": [
+    {
+     "penetration_bp": 0.0,
+     "fills": 5428,
+     "flattens": 789,
+     "notional": 489157.84,
+     "spread_bp": 6.5911,
+     "price_bp": -3.8428,
+     "fee_bp": -0.2574,
+     "net_bp": 2.491,
+     "net_usd": 121.85,
+     "positive_symbols": 6,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": 1.421,
+      "BTC": 2.192,
+      "DOGE": 2.438,
+      "ETH": 2.722,
+      "SOL": 2.648,
+      "XRP": 2.684
+     }
+    },
+    {
+     "penetration_bp": 1.0,
+     "fills": 3746,
+     "flattens": 650,
+     "notional": 336798.59,
+     "spread_bp": 6.432,
+     "price_bp": -4.287,
+     "fee_bp": -0.3675,
+     "net_bp": 1.7775,
+     "net_usd": 59.86,
+     "positive_symbols": 6,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": 0.58,
+      "BTC": 0.922,
+      "DOGE": 1.706,
+      "ETH": 2.24,
+      "SOL": 1.877,
+      "XRP": 2.137
+     }
+    },
+    {
+     "penetration_bp": 2.0,
+     "fills": 2644,
+     "flattens": 509,
+     "notional": 236250.75,
+     "spread_bp": 6.3773,
+     "price_bp": -4.7875,
+     "fee_bp": -0.4191,
+     "net_bp": 1.1707,
+     "net_usd": 27.66,
+     "positive_symbols": 5,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": -0.477,
+      "BTC": 0.596,
+      "DOGE": 1.466,
+      "ETH": 1.72,
+      "SOL": 0.507,
+      "XRP": 1.785
+     }
+    }
+   ]
+  },
+  "binance": {
+   "symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ],
+   "maker_fee_bp": 2.0,
+   "runs": [
+    {
+     "penetration_bp": 0.0,
+     "fills": 102687,
+     "flattens": 2442,
+     "notional": 10126357.48,
+     "spread_bp": 6.7889,
+     "price_bp": -5.7208,
+     "fee_bp": -2.0204,
+     "net_bp": -0.9524,
+     "net_usd": -964.39,
+     "positive_symbols": 1,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": -1.71,
+      "BTC": -4.441,
+      "DOGE": 0.386,
+      "ETH": -4.822,
+      "SOL": -0.426,
+      "XRP": -1.296
+     }
+    },
+    {
+     "penetration_bp": 1.0,
+     "fills": 81404,
+     "flattens": 2553,
+     "notional": 8002729.88,
+     "spread_bp": 6.7484,
+     "price_bp": -6.5053,
+     "fee_bp": -2.0296,
+     "net_bp": -1.7866,
+     "net_usd": -1429.76,
+     "positive_symbols": 0,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": -2.821,
+      "BTC": -5.62,
+      "DOGE": -0.291,
+      "ETH": -6.019,
+      "SOL": -1.221,
+      "XRP": -2.244
+     }
+    },
+    {
+     "penetration_bp": 2.0,
+     "fills": 64898,
+     "flattens": 2605,
+     "notional": 6365037.65,
+     "spread_bp": 6.7006,
+     "price_bp": -7.422,
+     "fee_bp": -2.0428,
+     "net_bp": -2.7643,
+     "net_usd": -1759.48,
+     "positive_symbols": 0,
+     "n_symbols": 6,
+     "per_symbol": {
+      "BNB": -4.204,
+      "BTC": -6.411,
+      "DOGE": -1.149,
+      "ETH": -7.369,
+      "SOL": -2.174,
+      "XRP": -3.281
+     }
+    }
+   ]
+  }
+ }
+}

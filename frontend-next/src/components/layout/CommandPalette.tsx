@@ -8,7 +8,7 @@ import {
   Settings2, Activity, Zap,
   Shield, Settings, Database as DBIcon,
   Server, ArrowRightLeft, CandlestickChart,
-  FileText, Coins,
+  FileText, Coins, PieChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { softNavigate } from "@/lib/app-nav";
@@ -36,6 +36,7 @@ const COMMANDS: Cmd[] = [
   { label: "套利中心", href: "/arbitrage", icon: ArrowRightLeft, keywords: ["arbitrage", "套利"] },
   { label: "Hyperliquid", href: "/hyperliquid", icon: CandlestickChart, keywords: ["hyperliquid", "hl", "dex"] },
   { label: "风控监控", href: "/risk", icon: Shield, keywords: ["risk", "风控"] },
+  { label: "资本与边际", href: "/capital-margin", icon: PieChart, keywords: ["capital", "margin", "资本", "边际", "分配", "kpi"] },
   { label: "运维看板", href: "/ops", icon: Activity, keywords: ["ops", "运维", "看板", "heartbeat"] },
   { label: "报错中心", href: "/ops#ops-errors", icon: FileText, keywords: ["log", "日志", "报错", "system", "errors"] },
   { label: "设置", href: "/settings", icon: Settings, keywords: ["settings", "设置", "config"] },

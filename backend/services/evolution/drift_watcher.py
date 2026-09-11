@@ -115,12 +115,18 @@ class DriftEvent:
 
 
 class AdaptStrategy(str, Enum):
-    """适应策略（drift 触发后可采取）。"""
-    ONLINE_WEIGHT_RESET = "online_weight_reset"   # River 在线权重重置
-    REGIME_SWITCH = "regime_switch"               # 切 regime + 切子策略
-    MAML_ADAPT = "maml_adapt"                     # few-step adapt
-    SHADOW_NEW_CANDIDATE = "shadow_new_candidate" # 训练新候选
-    ROLLBACK = "rollback"                         # 回滚前任（持续 drift 未消解）
+    """适应策略（drift 触发后可采取）。
+
+    [2026-09-07 接线状态] ONLINE_WEIGHT_RESET 已接线（factor_evolution_loop
+    ._monitor_active → online_weights.reset_resident_online_model）；
+    REGIME_SWITCH / MAML_ADAPT / SHADOW_NEW_CANDIDATE 为设计占位，暂无生产
+    调用方（MAML 无实现文件）。ROLLBACK 已接线（should_rollback → 因子退化）。
+    """
+    ONLINE_WEIGHT_RESET = "online_weight_reset"   # River 在线权重重置【已接线】
+    REGIME_SWITCH = "regime_switch"               # 切 regime + 切子策略【占位】
+    MAML_ADAPT = "maml_adapt"                     # few-step adapt【占位：无实现】
+    SHADOW_NEW_CANDIDATE = "shadow_new_candidate" # 训练新候选【占位】
+    ROLLBACK = "rollback"                         # 回滚前任（持续 drift 未消解）【已接线】
 
 
 @dataclass

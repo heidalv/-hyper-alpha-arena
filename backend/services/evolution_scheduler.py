@@ -462,10 +462,18 @@ class EvolutionScheduler:
 
     def daily_signal_weight_update(self):
         """每日更新信号权重：基于交易结果反馈自适应调整情报引擎各信号分量的权重"""
+        from backend.database.connection import release_idle_txn
         db = SessionLocal()
         try:
+            def _rel(where: str) -> None:
+                try:
+                    release_idle_txn(db, where=where)
+                except Exception:
+                    pass
+
             from backend.services.signal_feedback_tracker import signal_feedback_tracker
             updated = signal_feedback_tracker.update_weights(db)
+            _rel("evo.daily_weight.after_feedback")
             if updated:
                 logger.info("[EvoScheduler] 每日信号权重更新完成")
             else:
@@ -480,6 +488,7 @@ class EvolutionScheduler:
                     logger.info(f"[EvoScheduler] 因子IC评估完成: {len(ic_results)} 个因子")
             except Exception as _ic_err:
                 logger.error(f"[EvoScheduler] 因子IC评估异常: {_ic_err}", exc_info=True)
+            _rel("evo.daily_weight.after_ic")
 
             # S4-C：按成交性质(scalp/swing/trend)分流评估因子 IC，供中长线健康视图。
             try:
@@ -492,6 +501,7 @@ class EvolutionScheduler:
                     )
             except Exception as _seg_err:
                 logger.debug(f"[EvoScheduler] 因子IC分流评估跳过: {_seg_err}")
+            _rel("evo.daily_weight.after_ic_seg")
 
             # [R7 升级] 衰减触发的持续挖掘：active 平均|icir| 跌破阈值 → 自动补挖
             try:
@@ -501,6 +511,7 @@ class EvolutionScheduler:
                     logger.info("[EvoScheduler] 衰减触发补挖: %s", _dres["triggered"])
             except Exception as _decay_err:
                 logger.debug(f"[EvoScheduler] 衰减触发检查跳过: {_decay_err}")
+            _rel("evo.daily_weight.after_decay")
 
             # [M6/P4 升级] LLM 提案层周频任务（节流 6 天；同门禁+更严参数）
             try:
@@ -510,6 +521,7 @@ class EvolutionScheduler:
                     logger.info("[EvoScheduler] LLM 提案注册: %d 个", _llm_res["registered"])
             except Exception as _llm_err:
                 logger.debug(f"[EvoScheduler] LLM 提案跳过: {_llm_err}")
+            _rel("evo.daily_weight.after_llm")
 
             # S4-C：中长线 AI 辅助因子挖掘（OpenCode 受控生成，4h），
             # 由 factor_backtest_scorer 在对应时间框架样本外打分晋升（内部 23h 节流）。
@@ -527,6 +539,7 @@ class EvolutionScheduler:
                         )
             except Exception as _mld_err:
                 logger.debug(f"[EvoScheduler] 中长线因子挖掘跳过: {_mld_err}")
+            _rel("evo.daily_weight.after_discovery")
 
             # S4-A：一次性把 Alpha101 公式因子库灌成中长线候选（幂等），
             # 随后由下方准入闸门在 4h/1d 上样本外打分晋升。
@@ -539,6 +552,7 @@ class EvolutionScheduler:
                     logger.info(f"[EvoScheduler] Alpha101 灌库: 登记{seed.get('registered')}")
             except Exception as _a101_err:
                 logger.debug(f"[EvoScheduler] Alpha101 灌库跳过: {_a101_err}")
+            _rel("evo.daily_weight.after_alpha101")
 
             # [2026-08-14 弹药扩源] registry Python 类因子（ai_generated/legacy_compat）
             # 登记为中线引用候选 + 每日排队扫描打分（4h/1d，复用闸门引擎）。
@@ -569,6 +583,7 @@ class EvolutionScheduler:
                         logger.info("[EvoScheduler] 中线 registry 扫描今日已跑，跳过（重启去重）")
             except Exception as _rs_err:
                 logger.debug(f"[EvoScheduler] registry 中线扫描跳过: {_rs_err}")
+            _rel("evo.daily_weight.after_registry")
 
             # 阶段二 2.2/2.3：发现因子准入闸门 —— 给候选公式因子做样本外回测打分，
             # A/B 级晋升为 active（进入短线活跃因子集），其余淘汰。定时兜底，确保
@@ -1482,36 +1497,56 @@ def register_evolution_tasks():
         )
         logger.info("[EvoScheduler] 已注册每日信号权重更新任务（05:10）")
 
-        # 短线信号日志结算（元标签数据采集）：每 5 分钟回填到期信号的输赢
-        def _settle_scalp_signals():
-            try:
-                from backend.services.scalp_signal_logger import settle_pending
-                settle_pending(limit=800)
-            except Exception as _e:
-                logger.debug(f"[EvoScheduler] scalp 信号结算跳过: {_e}")
+        # 短线信号日志结算。短线已停则不注册，避免与 startup 重复空转。
+        try:
+            from backend.config.settings import SCALP_OPEN_DISABLED as _scalp_off
+        except Exception:
+            _scalp_off = True
+        if _scalp_off:
+            logger.info("[EvoScheduler] SCALP_OPEN_DISABLED，跳过短线信号结算注册")
+        else:
+            def _settle_scalp_signals():
+                try:
+                    from backend.services.scalp_signal_logger import settle_pending
+                    settle_pending(limit=800)
+                except Exception as _e:
+                    logger.debug(f"[EvoScheduler] scalp 信号结算跳过: {_e}")
+                try:
+                    from backend.services.scalp_signal_logger import settle_triple_barrier
+                    settle_triple_barrier(limit=800)
+                except Exception as _e:
+                    logger.debug(f"[EvoScheduler] scalp triple-barrier 结算跳过: {_e}")
 
-        task_scheduler.add_interval_task(
-            task_func=_settle_scalp_signals,
-            interval_seconds=300,
-            task_id="scalp_signal_settle",
-        )
-        logger.info("[EvoScheduler] 已注册短线信号结算任务(5min)")
+            task_scheduler.add_interval_task(
+                task_func=_settle_scalp_signals,
+                interval_seconds=300,
+                task_id="scalp_signal_settle",
+            )
+            logger.info("[EvoScheduler] 已注册短线信号结算任务(5min)")
 
         # v3(2026-08-25): 币种级滚动 regime 状态刷新(推理特征,1h 一次;
         # 基于 settle_ts 无前视;元模型 predict_win_prob 读该状态文件)
-        def _refresh_scalp_regime():
-            try:
-                from backend.services.scalp_meta_trainer import refresh_regime_state
-                refresh_regime_state()
-            except Exception as _e:
-                logger.debug(f"[EvoScheduler] scalp regime 刷新跳过: {_e}")
+        # [2026-09-07] 短线研究总闸：SCALP_RESEARCH_ENABLED=false 时跳过（结构性负期望关停）
+        try:
+            from backend.config.settings import SCALP_RESEARCH_ENABLED as _scalp_research
+        except Exception:
+            _scalp_research = False
+        if _scalp_research:
+            def _refresh_scalp_regime():
+                try:
+                    from backend.services.scalp_meta_trainer import refresh_regime_state
+                    refresh_regime_state()
+                except Exception as _e:
+                    logger.debug(f"[EvoScheduler] scalp regime 刷新跳过: {_e}")
 
-        task_scheduler.add_interval_task(
-            task_func=_refresh_scalp_regime,
-            interval_seconds=3600,
-            task_id="scalp_regime_refresh_hourly",
-        )
-        logger.info("[EvoScheduler] 已注册短线regime状态刷新任务(1h)")
+            task_scheduler.add_interval_task(
+                task_func=_refresh_scalp_regime,
+                interval_seconds=3600,
+                task_id="scalp_regime_refresh_hourly",
+            )
+            logger.info("[EvoScheduler] 已注册短线regime状态刷新任务(1h)")
+        else:
+            logger.info("[EvoScheduler] SCALP_RESEARCH_ENABLED=false，跳过短线regime刷新注册")
 
         # 短线元标签模型自动训练+验证：每天一次；样本不足自动跳过，达标才标记 usable
         # [2026-08-31 根治] 失败自动重试：06:30 单次失败（如 PG 重启导致连接中断）
@@ -1537,13 +1572,37 @@ def register_evolution_tasks():
                     time.sleep(60)
             logger.error("[EvoScheduler] scalp 元标签训练 3 次重试均失败（明日再试）")
 
-        task_scheduler.add_interval_task(
-            task_func=_train_scalp_meta,
-            interval_seconds=DAY_SECONDS,
-            task_id="scalp_meta_train_daily",
-            next_run_time=_next_daily_run(6, 30),
-        )
-        logger.info("[EvoScheduler] 已注册短线元标签每日训练任务（06:30）")
+        # [2026-09-07] 短线研究总闸：元标签训练随 SCALP_RESEARCH_ENABLED=false 关停
+        if _scalp_research:
+            task_scheduler.add_interval_task(
+                task_func=_train_scalp_meta,
+                interval_seconds=DAY_SECONDS,
+                task_id="scalp_meta_train_daily",
+                next_run_time=_next_daily_run(6, 30),
+            )
+            logger.info("[EvoScheduler] 已注册短线元标签每日训练任务（06:30）")
+        else:
+            logger.info("[EvoScheduler] SCALP_RESEARCH_ENABLED=false，跳过短线元标签训练注册")
+
+        # [2026-09-07] 情景记忆每日睡眠巩固（海马体→新皮层）：回放近日带结局情景，
+        # 蒸馏成长期规则，注入主脑 feed。每天 05:30（避开 4h/15m 进化高峰）。
+        try:
+            def _episodic_consolidate():
+                try:
+                    from backend.services.mlto.episodic_memory import consolidate_daily
+                    consolidate_daily(days=7)
+                except Exception as _e:
+                    logger.debug(f"[EvoScheduler] 情景记忆巩固跳过: {_e}")
+
+            task_scheduler.add_cron_task(
+                task_func=_episodic_consolidate,
+                hour=5, minute=30,
+                task_id="episodic_consolidation_daily",
+                max_instances=1,
+            )
+            logger.info("[EvoScheduler] 已注册情景记忆每日巩固任务（05:30）")
+        except Exception as _ep_reg_err:
+            logger.debug(f"[EvoScheduler] 情景记忆巩固注册失败: {_ep_reg_err}")
 
         # [2026-08-23 M0-L5] 隔离因子自动复评晋升：GP 进化产出被判 QUARANTINE 后，
         # 此前只有手工 API（/api/compute/evolution/repromote-quarantine）能拉回 PAPER，

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Globe, Activity, Database, Waves, RefreshCw, Loader2,
-  TrendingUp, TrendingDown, LineChart, HeartPulse,
+  TrendingUp, TrendingDown, LineChart, HeartPulse, Zap,
 } from "lucide-react";
 import { useMarketOverview, useMarketHealth, useWatchlist, useMarketOverviewAll } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
@@ -18,8 +18,10 @@ import { KlineChartPanel } from "@/components/market/KlineChartPanel";
 import DataQualityPanel from "@/components/monitor/DataQualityPanel";
 // [2026-08-16] 数据中心体检：现有数据/缺失/采集器/回填/入库及时性
 import { DataCenterOverviewPanel } from "@/components/monitor/DataCenterOverviewPanel";
+// [2026-09 P2] 多所资金费矩阵 + delta-neutral 组合机会 + 套利引擎开关状态
+import FundingMatrixPanel from "@/components/monitor/FundingMatrixPanel";
 
-type Tab = "overview" | "kline" | "orderbook" | "oi" | "whale" | "health" | "dc";
+type Tab = "overview" | "kline" | "orderbook" | "oi" | "whale" | "funding" | "health" | "dc";
 
 export default function IntelPage() {
   return (
@@ -43,6 +45,7 @@ function IntelPageInner() {
     if (t === "orderbook" || t === "盘口") return "orderbook";
     if (t === "oi" || t === "费率") return "oi";
     if (t === "whale" || t === "鲸鱼") return "whale";
+    if (t === "funding" || t === "资金费" || t === "费率矩阵" || t === "fundingmatrix") return "funding";
     if (t === "health" || t === "健康" || t === "数据健康") return "health";
     if (t === "dc" || t === "数据中心" || t === "数据中台" || t === "体检") return "dc";
     if (sp.get("symbol")) return "kline";
@@ -117,7 +120,7 @@ function IntelPageInner() {
   const { data: health, refetch: refetchHealth } = useMarketHealth();
   const { data: watchlist } = useWatchlist();
   const wlSymbols = watchlist?.symbols ?? symbols;
-  const { data: overview, isLoading, refetch: refetchOverview } = useMarketOverview(wlSymbols);
+  const { data: overview, isLoading, isError: overviewError, error: overviewErr, refetch: refetchOverview } = useMarketOverview(wlSymbols);
   const { data: allMarket, isLoading: allLoading } = useMarketOverviewAll(exchange);
 
   const refetch = () => {
@@ -135,6 +138,7 @@ function IntelPageInner() {
     { key: "kline", label: "K 线", icon: LineChart },
     { key: "orderbook", label: "多所盘口", icon: Activity },
     { key: "oi", label: "OI/费率", icon: Database },
+    { key: "funding", label: "资金费矩阵", icon: Zap },
     { key: "whale", label: "鲸鱼/资金流", icon: Waves },
     { key: "dc", label: "数据中心", icon: Database },
     { key: "health", label: "数据健康", icon: HeartPulse },
@@ -249,6 +253,21 @@ function IntelPageInner() {
             <DataQualityPanel />
           </div>
         </Card>
+      ) : tab === "funding" ? (
+        <Card className="glass">
+          <div className="flex items-center justify-between gap-2 px-4 pb-3 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300">
+                <Zap className="w-4 h-4" />
+              </span>
+              <span className="text-sm font-medium">多所资金费矩阵</span>
+              <Badge variant="secondary" className="text-xs">perp_funding 实时</Badge>
+            </div>
+          </div>
+          <div className="px-4">
+            <FundingMatrixPanel />
+          </div>
+        </Card>
       ) : tab === "dc" ? (
         <Card className="glass">
           <div className="flex items-center justify-between gap-2 px-4 pb-3 border-b border-border/40">
@@ -314,6 +333,19 @@ function IntelPageInner() {
       ) : isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : overviewError && !overview?.symbols ? (
+        // [2026-09-09] 原来失败与「真的没有数据」都渲染成「暂无数据」，
+        // 用户无法区分是后端挂了还是市场确实为空。
+        <div className="flex flex-col items-center gap-2 py-12 text-sm">
+          <span className="text-loss">行情数据加载失败：{(overviewErr as Error)?.message || "未知错误"}</span>
+          <button
+            type="button"
+            onClick={() => void refetchOverview()}
+            className="text-xs text-cyan-300 underline underline-offset-2 hover:opacity-80"
+          >
+            重试
+          </button>
         </div>
       ) : !overview?.symbols ? (
         <div className="text-center py-12 text-muted-foreground text-sm">暂无数据</div>

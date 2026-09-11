@@ -29,15 +29,35 @@ def _cfg_bool(name: str, default: bool = True) -> bool:
 def _cfg_float(name: str, default: float) -> float:
     try:
         from backend.config import settings
-        return float(getattr(settings, name, default) or default)
+        _v = getattr(settings, name, default)
+        return default if _v is None else float(_v)
     except Exception:
         return default
 
 
 def _cfg_int(name: str, default: int) -> int:
+    """读整数配置；**仅当值为 None 时**回落默认（保留显式 0）。
+
+    [§55 修复 2026-09-10] 原实现是 `int(getattr(settings, name, default) or default)`，
+    会把显式的 0/False 吞成默认值。本模块唯一的调用点是 `MIDLONG_CORR_CLUSTER_MAX`：
+    判据 `same_dir >= cap_n` ⇒ 设 0 的语义是「同簇一个都不许开」（最严），
+    但原实现会静默变成默认 2（**悄悄放宽两个仓位**）——与 §38.9/§39.3 修过的
+    `MIDLONG_MAX_OPEN_POSITIONS` 属同一缺陷类：**配置越严，闸越松**。
+    """
+    return _cfg_int_allow_zero(name, default)
+
+
+def _cfg_int_allow_zero(name: str, default: int) -> int:
+    """读整数配置但**保留 0**。
+
+    [2026-09-10] `_cfg_int` 用 `or default`，会把显式的 0 吞成默认值——
+    于是 `MIDLONG_MAX_OPEN_POSITIONS=0`（约定为"关闭该闸"）实际仍按 4 拦单。
+    并发上限的调用点是 `if max_pos > 0 and ...`，语义上 0 必须是 0，故单独提供本函数。
+    """
     try:
         from backend.config import settings
-        return int(getattr(settings, name, default) or default)
+        v = getattr(settings, name, default)
+        return default if v is None else int(v)
     except Exception:
         return default
 
@@ -126,7 +146,9 @@ def estimate_open_notional(
     *,
     equity: float,
     margin_frac: float,
-    leverage: float = 10.0,
+    # [2026-09-04 币种杠杆] 默认值由 10.0 收到 3.0（=最保守档位）。调用方都应显式传
+    # 该币种档位；漏传时按 10x 估算会把名义算大 3 倍多，让组合闸误拦所有开仓。
+    leverage: float = 3.0,
     sl_pct: float = 0.0,
     risk_pct: float = 0.01,
 ) -> float:
@@ -154,6 +176,38 @@ def estimate_open_notional(
     rp = float(risk_pct or 0.01)
     mult = 1.0 if mf <= 0 else min(1.0, mf)
     return abs(eq * rp / sl * mult)
+
+
+def estimate_open_notional_aligned(
+    *,
+    equity: float,
+    sl_pct: float,
+    risk_pct: float = 0.0075,
+    tranche_mult: float = 1.0,
+) -> float:
+    """与 `PositionConstruction` **同口径**的名义估计（**P12 执行后已是闸的正式输入**）。
+
+    背景（§60.1 实证）：组合闸原本喂进去的是 `estimate_open_notional()`（`equity×margin×leverage`），
+    而真实建仓口径是 `PositionConstruction` 的「按止损距离的风险预算」
+    `equity × risk_pct / sl_pct`（× 分档系数）。实测对照（paper 引擎日志）：
+    `[Paper][PositionConstruction] VIRTUAL buy lane=mid notional 1188.24→825.31
+     caps=['risk_per_trade(0.0075/0.0450)']` —— 与 `equity(~4950)×0.0075/0.045 ≈ 825` 吻合。
+
+    两者在当前配置下差约 **一个数量级**：equity=$4,700、margin=0.15、lev=10 ⇒ 旧式估算
+    **$7,050（150% 权益）**，而同口径仅 **$783（16.7%）** ⇒ 组合闸长期"按幻影仓位"拒单
+    （22,042 次拦截中 70% 的 `after_pct` 落在 200–500%，无一条 <100%）。
+
+    [P12 执行 2026-09-10] 调用侧（`midlong_helpers`）现按
+    `MIDLONG_PORTFOLIO_NOTIONAL_ALIGNED`（默认 **true**）把**闸的输入**换成本函数；
+    旧式 `estimate_open_notional()` 保留用于诊断日志与一键回滚（=false）。
+    """
+    eq = float(equity or 0)
+    if eq <= 0:
+        return 0.0
+    sl = max(float(sl_pct or 0), 0.01)
+    rp = max(float(risk_pct or 0), 0.0)
+    tf = min(1.0, max(0.0, float(tranche_mult or 1.0))) or 1.0
+    return abs(eq * rp / sl * tf)
 
 
 def check_portfolio_open_allowed(
@@ -232,12 +286,120 @@ def check_portfolio_open_allowed(
                 f"({','.join(sorted(cluster))})",
             )
 
+    # ── 每标的并发上限（P13 执行 2026-09-10）──
+    # 实证（§61，269 笔已平仓 mid/long）：同标的并发组均值 -2.39%/胜率 27.8%，
+    # 单笔组均值 +3.57%/胜率 35.9%，bootstrap 均值差 -5.96%（95%CI [-10.83%, -1.51%]，留一法仍显著）。
+    # 口径：只数**同标的同方向**的 mid/long 持仓（对冲仓不算重复暴露）；
+    # `MIDLONG_MAX_SAME_SYMBOL_POSITIONS=0` 表示关闭该闸（沿用 _cfg_int_allow_zero 的零语义修复）。
+    same_sym_cap = _cfg_int_allow_zero("MIDLONG_MAX_SAME_SYMBOL_POSITIONS", 2)
+    if same_sym_cap > 0:
+        same_sym_same_dir = sum(
+            1 for p in mids
+            if str(p.get("symbol") or "").upper() == sym and _pos_dir(p.get("side")) == direction
+        )
+        if same_sym_same_dir >= same_sym_cap:
+            return (
+                False,
+                f"same_symbol_concurrency {sym} {direction} count={same_sym_same_dir}>={same_sym_cap}"
+                " (历史实测该模式均值 -2.4% vs 单笔 +3.6%，§61)",
+            )
+
     # ── 全局中长线并发上限 ──
-    max_pos = _cfg_int("MIDLONG_MAX_OPEN_POSITIONS", 4)
+    # [2026-09-10 第二十八轮] 9/9 夜 5-6 笔同向山寨（0.94x 权益、无对冲）在 alt 齐跌中
+    # 单夜 -$155.48（§38）。此闸此前被 `.env` 设为 6 而形同虚设，现已收回代码默认 4。
+    max_pos = _cfg_int_allow_zero("MIDLONG_MAX_OPEN_POSITIONS", 4)
     if max_pos > 0 and len(mids) >= max_pos:
-        return False, f"midlong_open_positions {len(mids)}>={max_pos}"
+        return (
+            False,
+            f"midlong_open_positions {len(mids)}>={max_pos}"
+            + (f" ({','.join(str(p.get('symbol') or '?') for p in mids[:8])})"),
+        )
 
     return True, "ok"
+
+
+def choke_point_open_allowed(
+    db,
+    account_id: int,
+    *,
+    symbol: str,
+    action: str,
+    tier: Optional[str] = None,
+    trade_nature: Optional[str] = None,
+    new_notional: float = 0.0,
+    is_probe: bool = False,
+) -> Tuple[bool, str]:
+    """**下单收口点**组合闸（只对 mid/long 生效，scalp/short 直接放行）。
+
+    [2026-09-10 第 12 轮] 组合闸此前只挂在 `midlong_helpers.try_execute_independent_agent_open`
+    一处——覆盖率实测仅 **3/7** 个入口（`_audit_ml/Z54_gate_coverage_map.py`）：
+    `trend_e1_engine`、`master_execution` 直下、**加仓路径（`midlong_position_manager`）**、
+    `paper_execution` 全部绕过；且加仓能把净敞口绕过（`Z55`：10/289 笔有加仓，最大 +51% 名义）。
+
+    本函数挂在 `paper_engine.place_order`（全仓唯一收口点）上，一次覆盖全部入口；
+    与 `midlong_helpers` 的那次检查**幂等**（只读检查，不改变任何状态）。
+
+    语义：
+      - 非 mid/long（scalp/short/日内）→ `(True, "not_midlong")`，**不受影响**；
+      - 持仓/余额从 DB **实时**读取（收口点优势：不依赖上游快照）；
+      - 任何异常 → 放行但 **warning**（与全仓惯例一致，且不静默）。
+    """
+    _t = str(tier or "").strip().lower()
+    _n = str(trade_nature or "").strip().lower()
+    if _t not in _MIDLONG_TIERS and _n not in _MIDLONG_NATURES:
+        return True, "not_midlong"
+    try:
+        from backend.database.models import PaperBalance, PaperPosition
+
+        rows = (
+            db.query(PaperPosition)
+            .filter(PaperPosition.account_id == account_id)
+            .filter(PaperPosition.status == "open")
+            .all()
+        )
+        positions = [
+            {
+                "symbol": getattr(p, "symbol", "") or "",
+                "side": getattr(p, "side", "") or "",
+                "size": float(getattr(p, "size", 0) or 0),
+                "entry_price": float(getattr(p, "entry_price", 0) or 0),
+                "mark_price": float(getattr(p, "mark_price", 0) or 0),
+                "margin": float(getattr(p, "margin", 0) or 0),
+                "trade_nature": getattr(p, "trade_nature", None),
+                "timeframe_tier": getattr(p, "timeframe_tier", None),
+            }
+            for p in rows
+        ]
+        bal = db.query(PaperBalance).filter(PaperBalance.account_id == account_id).first()
+        equity = float(getattr(bal, "total_equity", 0) or 0) if bal else 0.0
+        # [§61 观测] 同标的并发开仓在此留痕：近全量历史实测（269 笔已平仓 mid/long）
+        # 同标的并发组均值 -2.39%、胜率 27.8%，而单笔组均值 +3.57%、胜率 35.9%，
+        # bootstrap 均值差 -5.96%（95%CI [-10.83%, -1.51%]，留一法仍显著）。
+        # 本轮**不改判据**（是否加每标的并发上限属决策 P13），先让该模式可被度量。
+        try:
+            _sym_u = str(symbol or "").upper()
+            _same = [p for p in positions if str(p.get("symbol") or "").upper() == _sym_u]
+            if _same:
+                logger.info(
+                    "[MidLongChokeGate] 同标的并发开仓 sym=%s tier=%s nature=%s "
+                    "该标的当前已开 %d 笔（历史实测该模式均值 -2.4%% vs 单笔 +3.6%%）",
+                    _sym_u, tier, trade_nature, len(_same),
+                )
+        except Exception:
+            pass
+        return check_portfolio_open_allowed(
+            symbol=symbol,
+            action=action,
+            portfolio={"balance": {"total_equity": equity}, "positions": positions},
+            new_notional=float(new_notional or 0),
+            is_probe=is_probe,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[MidLongChokeGate] 组合闸检查失败(fail-open) sym=%s tier=%s nature=%s: %s",
+            symbol, tier, trade_nature, exc,
+        )
+        return True, f"choke_gate_error:{str(exc)[:60]}"
 
 
 @dataclass
@@ -335,7 +497,13 @@ def _r_multiple(position: Dict[str, Any]) -> Tuple[float, float]:
 
 
 def evaluate_no_progress_exit(position: Dict[str, Any]) -> NoProgressDecision:
-    """持仓过久且峰值未达 0.5R → 主动离场。"""
+    """持仓过久且峰值未达阈值 → 主动离场。
+
+    [2026-09-04] 中线 18h + peak_R<0.5 过狠：近 7 天 23 笔 mid 几乎全被
+    no_progress 平掉，均亏 43bp；其中多笔平仓时 cur_R>0（价格方向对了，
+    只是还没走到 0.5R）。no_progress 的本意是收回**死钱/亏钱**仓位，
+    不应砍掉仍在浮盈的单。故：cur_R ≥ 0 时不触发；中线时限 18→36h。
+    """
     if not _cfg_bool("MIDLONG_NO_PROGRESS_EXIT_ENABLED", True):
         return NoProgressDecision()
     if not _is_midlong_pos(position):
@@ -346,7 +514,7 @@ def evaluate_no_progress_exit(position: Dict[str, Any]) -> NoProgressDecision:
     if tier == "long" or nature in ("trend_follow", "position"):
         max_h = _cfg_float("MIDLONG_NO_PROGRESS_HOURS_LONG", 72.0)
     else:
-        max_h = _cfg_float("MIDLONG_NO_PROGRESS_HOURS_MID", 18.0)
+        max_h = _cfg_float("MIDLONG_NO_PROGRESS_HOURS_MID", 36.0)
 
     hold_h = _held_hours(position)
     if hold_h < max_h:
@@ -355,6 +523,9 @@ def evaluate_no_progress_exit(position: Dict[str, Any]) -> NoProgressDecision:
     min_peak_r = _cfg_float("MIDLONG_NO_PROGRESS_MIN_PEAK_R", 0.5)
     peak_r, cur_r = _r_multiple(position)
     if peak_r >= min_peak_r:
+        return NoProgressDecision(peak_r=peak_r, hold_hours=hold_h)
+    # 仍在浮盈：方向对了，只是还没走到目标 R —— 不算"无进展"
+    if cur_r >= 0:
         return NoProgressDecision(peak_r=peak_r, hold_hours=hold_h)
 
     return NoProgressDecision(

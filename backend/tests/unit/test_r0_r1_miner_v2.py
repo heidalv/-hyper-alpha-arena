@@ -67,7 +67,14 @@ def test_gpu_miner_v2_lexicase_icir():
     ]
     admitted = miner.mine()
     print(f"admitted={len(admitted)} case_cache={len(miner._case_cache)} hof={len(miner._hof)} "
-          f"verify_ok={ctx._stats.get('verify_ok')} neutralized={ctx._neutralized}")
+          f"gpu_evals={ctx._stats.get('gpu_evals')} verify_ok={ctx._stats.get('verify_ok')} "
+          f"neutralized={ctx._neutralized}")
+    # [2026-08-29 契约修复] 等价性验收需要真实 GPU 覆盖（gpu_evals>0）——
+    # 无 GPU/CPU 回退环境下 verify 无从执行，verify_ok=False 是设计行为
+    # （GpuEvalContext 会置 _failed 回退 CPU），不应判失败。
+    if ctx._stats.get("gpu_evals", 0) == 0:
+        import pytest as _pytest
+        _pytest.skip("无 GPU 覆盖（gpu_evals=0）——等价性验收仅在 GPU 环境可执行")
     assert ctx._stats.get("verify_ok"), "等价性验收应通过"
     assert len(miner._case_cache) > 0, "案例缓存应被填充（ε-lexicase 数据源）"
     # 有 GPU 覆盖且至少跑完 2 代不炸即可；admitted 可为空（小种群+门禁）

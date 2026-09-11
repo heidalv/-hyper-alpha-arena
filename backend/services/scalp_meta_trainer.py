@@ -103,49 +103,117 @@ def _regime_win_span() -> int:
         return 20
 
 
-def _load_settled_rows() -> List[Dict[str, Any]]:
-    from sqlalchemy import text as _text
-    from backend.database.connection import SessionLocal
-    db = SessionLocal()
+def _load_window_days() -> int:
+    """分批读取的时间窗大小（天）。默认 5 天/批 → 60 天切成 12 批。"""
     try:
-        rows = db.execute(_text(
-            "SELECT id, signal_ts, settle_ts, created_at, symbol, direction, factor_score, win, "
-            "fwd_ret, net_ret, horizon_sec, features_json "
-            "FROM scalp_signal_log WHERE settled = true AND win IS NOT NULL "
-            "AND created_at >= NOW() - INTERVAL '60 days' ORDER BY created_at"
-        )).fetchall()
-        out = []
+        v = int(os.getenv("SCALP_META_LOAD_WINDOW_DAYS", "5") or 5)
+        return max(1, min(60, v))
+    except (TypeError, ValueError):
+        return 5
+
+
+_SETTLED_SQL = (
+    "SELECT id, signal_ts, settle_ts, created_at, symbol, direction, factor_score, win, "
+    "fwd_ret, net_ret, horizon_sec, features_json "
+    "FROM scalp_signal_log WHERE settled = true AND win IS NOT NULL "
+    "AND created_at >= :w_start AND created_at < :w_end ORDER BY created_at"
+)
+
+
+def _parse_settled_row(r) -> Dict[str, Any]:
+    """把一行原始记录转成训练样本（含 features_json 解码）。
+
+    **必须在数据库会话之外调用**：35 万行的 JSON 解码是 CPU 密集操作，放在事务
+    内会让事务长时间 idle 并被服务端的 idle_in_transaction 超时掐断。
+    """
+    try:
+        # [2026-08-31 perf] orjson 解码释放 GIL（std json C 解码全程持 GIL，
+        # 大块 features_json 会在调度线程里堵住所有 HTTP 请求数百 ms）；
+        # 失败回退 std json，语义等价（均产出 dict/str 键）。
+        import orjson as _oj
+        feats = _oj.loads(r.features_json) if r.features_json else {}
+    except Exception:
+        try:
+            feats = json.loads(r.features_json) if r.features_json else {}
+        except Exception:
+            feats = {}
+    if not isinstance(feats, dict):
+        feats = {}
+    # signal_ts/settle_ts 为 UTC epoch 秒(created_at 为北京时间,相差 8h)
+    sts = int(r.signal_ts or 0)
+    if sts <= 0:
+        sts = int(r.created_at.timestamp())
+    settle = int(r.settle_ts or 0)
+    if settle <= 0:
+        settle = sts + int(r.horizon_sec or 1800)
+    return {
+        "ts": sts, "settle": settle, "created_at": r.created_at,
+        "symbol": str(r.symbol or ""), "direction": str(r.direction or ""),
+        "factor_score": float(r.factor_score or 0), "win": 1 if r.win else 0,
+        "fwd_ret": float(r.fwd_ret or 0), "net_ret": float(r.net_ret or 0),
+        "horizon": int(r.horizon_sec or 1800), "feats": feats,
+    }
+
+
+def _load_settled_rows() -> List[Dict[str, Any]]:
+    """读取近 60 天已结算信号样本（按时间窗分批 + 事务外解码）。
+
+    [2026-09-02 因子闭环修复 F15] 原实现用单条 ``fetchall()`` 一次拉 35.2 万行
+    含 ``features_json`` 大字段，**并在同一事务内逐行解 JSON**。事务因此长时间
+    idle，撞上系统自设的防泄漏机制 ``DB_IDLE_IN_TXN_TIMEOUT_MS``（120 秒）被
+    服务端强制断开，报 ``consuming input failed: server closed the connection
+    unexpectedly``，整轮 meta 训练失败 —— 而 meta 模型不可用会直接影响 pwin 仲裁
+    （09-02 11:23 就发生过一次）。
+
+    不放宽全局超时（那会退回连接泄漏老问题），改为把长任务切成一批批短事务：
+
+    - 基准时间 ``NOW()`` 只取一次并固定下来，批次边界用绝对时间的半开区间
+      ``[w_start, w_end)``。若每批各自调 ``NOW()``，边界会随执行耗时漂移，
+      导致边界行重复或漏读；
+    - 每批一个独立会话，``fetchall()`` 后立即关闭连接；
+    - JSON 解码与后续训练全部发生在会话之外。
+    """
+    from datetime import timedelta as _td
+
+    from sqlalchemy import text as _text
+
+    from backend.database.connection import SessionLocal
+
+    _win = _load_window_days()
+    _t0 = time.time()
+
+    # 固定基准时间（取自数据库，保持与 created_at 相同的时区语义）
+    with SessionLocal() as _db0:
+        _now_db = _db0.execute(_text("SELECT NOW()")).scalar()
+    if _now_db is None:
+        logger.warning("[ScalpMeta] 无法获取数据库基准时间，跳过本轮样本加载")
+        return []
+
+    _start_all = _now_db - _td(days=60)
+    out: List[Dict[str, Any]] = []
+    _batches = 0
+    _cursor = _start_all
+    while _cursor < _now_db:
+        _end = _cursor + _td(days=_win)
+        if _end >= _now_db:
+            # 末批上界加 1 秒余量：半开区间 [start, end) 若正好以基准时刻收口，
+            # created_at == NOW() 的那一行会被漏掉
+            _end = _now_db + _td(seconds=1)
+        with SessionLocal() as db:
+            rows = db.execute(_text(_SETTLED_SQL), {
+                "w_start": _cursor, "w_end": _end,
+            }).fetchall()
+        # 连接已归还，解码在事务外做
         for r in rows:
-            try:
-                # [2026-08-31 perf] orjson 解码释放 GIL（std json C 解码全程持 GIL，
-                # 大块 features_json 会在调度线程里堵住所有 HTTP 请求数百 ms）；
-                # 失败回退 std json，语义等价（均产出 dict/str 键）。
-                import orjson as _oj
-                feats = _oj.loads(r.features_json) if r.features_json else {}
-            except Exception:
-                try:
-                    feats = json.loads(r.features_json) if r.features_json else {}
-                except Exception:
-                    feats = {}
-            if not isinstance(feats, dict):
-                feats = {}
-            # signal_ts/settle_ts 为 UTC epoch 秒(created_at 为北京时间,相差 8h)
-            sts = int(r.signal_ts or 0)
-            if sts <= 0:
-                sts = int(r.created_at.timestamp())
-            settle = int(r.settle_ts or 0)
-            if settle <= 0:
-                settle = sts + int(r.horizon_sec or 1800)
-            out.append({
-                "ts": sts, "settle": settle, "created_at": r.created_at,
-                "symbol": str(r.symbol or ""), "direction": str(r.direction or ""),
-                "factor_score": float(r.factor_score or 0), "win": 1 if r.win else 0,
-                "fwd_ret": float(r.fwd_ret or 0), "net_ret": float(r.net_ret or 0),
-                "horizon": int(r.horizon_sec or 1800), "feats": feats,
-            })
-        return out
-    finally:
-        db.close()
+            out.append(_parse_settled_row(r))
+        _batches += 1
+        _cursor = _end
+
+    logger.info(
+        "[ScalpMeta] 样本加载完成: %d 行 / %d 批(%d 天/批) 耗时 %.1fs",
+        len(out), _batches, _win, time.time() - _t0,
+    )
+    return out
 
 
 def _dedup_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

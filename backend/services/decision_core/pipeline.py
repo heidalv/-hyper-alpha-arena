@@ -46,7 +46,7 @@ def evaluate_open_decision(
                     logger.info("[V5Gate][Verifier#11] %s 纠正 %d 项 LLM 数值幻觉",
                                 symbol, len(_vr.discrepancies))
         except Exception as _ver_err:
-            logger.debug("[V5Gate][Verifier#11] 跳过: %s", _ver_err)
+            logger.warning("[V5Gate][Verifier#11] 跳过(fail-open): %s", _ver_err)
 
     # Strict Data Contract（Live/Paper 一致，Paper 可 WARN）
     if action in ("buy", "sell", "pyramid", "dca"):
@@ -101,8 +101,19 @@ def evaluate_open_decision(
     # _looks_like_ai_placeholder_tp_sl 误判成"AI 占位符"而替换成 tier 大默认值，
     # 从而抹掉 MR 打法。ranging_mr 单跳过占位符替换与 tier 兜底，原样沿用传入 tp/sl。
     _mr_flag = bool(isinstance(market_data, dict) and market_data.get("ranging_mr"))
+    # [2026-09-02 P2.2 联动修复] 短线通道同样跳过占位符替换。
+    # scalp_lane 的 tp/sl 来自 ScalpExecutionGate → market_aware_tpsl 的 ATR/结构算价
+    # （正是本启发式 docstring 说"不该替换"的执行层结果），但判据"TP<=3% 且 SL<=1.5%
+    # 或 RR<=2.05"几乎命中所有短线单：实测 0.9%/1.8%（RR 2.0）被换成 tier 默认
+    # 1.0%/1.5%（RR 1.5）。P2.2 之前 min_rr 1.3 → 1.5 恰好能过，于是 RR 门两周来
+    # 检查的一直是常数 1.5 而非订单真实 RR（RR<1.3 的单照放，实现盈亏比仅 1.042）；
+    # P2.2 把 min_rr 抬到 2.0 后 1.5 过不了 → 短线 100% 被 TCP/V5 拦。
+    # 实际执行一直用的是 ScalpGate 算价（近 14 天 795 笔有 204 种 TP/SL 组合、
+    # 恰为 1.5/1.0 默认值的 0 笔），所以只有门控在看错数，成交数据本身可信。
+    _scalp_lane = str(dec.get("_source_lane") or "") == "scalp_lane"
     # Master LLM 常输出 2%/1% 占位符；实际执行走 ATR band，门控应使用 tier 真实默认
-    if not _mr_flag and tp_pct and sl_pct and _looks_like_ai_placeholder_tp_sl(tp_pct, sl_pct):
+    if (not _mr_flag and not _scalp_lane and tp_pct and sl_pct
+            and _looks_like_ai_placeholder_tp_sl(tp_pct, sl_pct)):
         logger.debug(
             "[V5Gate] %s tier=%s AI TP/SL 占位 (%s/%s) → 门控改用 tier 默认",
             symbol, tier, f"{tp_pct:.1%}", f"{sl_pct:.1%}",
@@ -172,7 +183,7 @@ def evaluate_open_decision(
                     if sm < 0.999:
                         adjustments["size_multiplier"] = round(sm, 3)
         except Exception as err:
-            logger.debug("[MidLongGate] orch soft 跳过: %s", err)
+            logger.warning("[MidLongGate] orch soft 跳过(fail-open): %s", err)
 
     return result.allowed, result.reason, adjustments
 
@@ -209,6 +220,10 @@ def evaluate_midlong_open(
     nature = (dec.get("trade_nature") or "swing").lower()
     tier = (dec.get("timeframe_tier") or dec.get("tier") or "mid").lower()
     from backend.services.decision_core.unified_gate import normalize_v5_nature
+    # [P7 执行 2026-09-10] 归一会把 swing→trend_follow，而 EV 闸的**校准器/门槛**要按
+    # 赛道语义选（mid 赛道=swing 校准器）。故在此**保留归一前**的 nature 供 EV 闸使用，
+    # 否则闸永远问未校准的 trend 校准器 ⇒ 永久影子放行（§53.1：563/563 全放行、0 拦截）。
+    _lane_nature = nature
     norm_nature = normalize_v5_nature(nature)
     if norm_nature == "nature_ambiguous":
         return False, f"[MidLong] nature_ambiguous trade_nature={nature!r} 无法归一 → hold", {}
@@ -245,7 +260,7 @@ def evaluate_midlong_open(
                     f"[LongConcurrentCap] 长线当前 {_open_count} 个持仓 ≥ 上限 {_cap}"
                 ), {}
         except Exception as err:
-            logger.debug("[MidLongGate] concurrent cap 跳过: %s", err)
+            logger.warning("[MidLongGate] concurrent cap 跳过(fail-open，并发上限未校验): %s", err)
 
     allowed, reason, adjustments = evaluate_open_decision(
         db=db,
@@ -303,7 +318,7 @@ def evaluate_midlong_open(
                         symbol, action, mc.tail_loss_pct * 100, mc.size_multiplier,
                     )
         except Exception as err:
-            logger.debug("[MonteCarlo] 跳过: %s", err)
+            logger.warning("[MonteCarlo] 跳过(fail-open): %s", err)
 
     # ── S1-2 期望值(EV)闸门：扣往返成本后期望为正才放行 ──
     # 放在最后：仅当前置全部放行时才算 EV，避免无谓计算；影子模式只记录不拦截。
@@ -312,6 +327,7 @@ def evaluate_midlong_open(
             from backend.services.decision_core.midlong_ev_gate import midlong_ev_gate
             _ev = midlong_ev_gate.evaluate(
                 nature=nature,
+                calib_nature=_lane_nature,  # [P7] 校准器/门槛按赛道语义（mid→swing）
                 symbol=symbol,
                 score=float(dec.get("confidence") or 0),
                 direction="long" if action == "buy" else "short",
@@ -324,12 +340,14 @@ def evaluate_midlong_open(
                 "p_win": _ev.p_win,
                 "ev_min": _ev.ev_min,
                 "p_win_source": _ev.p_win_source,
+                "exec_nature": _ev.nature,
+                "calib_nature": (_ev.breakdown or {}).get("calib_nature"),
             }
             if not _ev.allowed:
                 logger.info("[MidLongEvGate] BLOCK %s %s %s", symbol, action, _ev.reason)
                 return False, f"[EVGate] {_ev.reason}", adjustments
         except Exception as err:
-            logger.debug("[MidLongEvGate] 跳过: %s", err)
+            logger.warning("[MidLongEvGate] 跳过(fail-open，EV 闸本次未生效): %s", err)
 
     return allowed, reason, adjustments
 

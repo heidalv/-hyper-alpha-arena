@@ -414,6 +414,11 @@ LLM_USAGE_REGISTRY = {
     # 已存在于 DB usage_scope，仅补注册表条目（UI 用途分配列表可见）。
     "scalp_confirm": ("短线LLM确认层", "下单前本地LLM裁决（fail-open，84本地/85云端）"),
     "thesis": ("中长线thesis", "方向论题影子研判（U1-2，本地14B优先/云端兜底）"),
+    # [v3 方向2 2026-09-03] ModelGateway 的第三票（DeepSeek 仲裁）与深度任务用途；
+    # MiniMax / GLM 两条主传输不经此表（MiniMax 走 MINIMAX_API_KEY 直连，GLM 走 OpenCode sidecar）。
+    "deep_analysis": ("深度分析(仲裁票)", "日度简报/周度复盘/择时的 DeepSeek 第三票与单模型兜底（ModelGateway）"),
+    "event_impact": ("事件影响评估", "事件触发的方向/强度/半衰期评估（ModelGateway，≤20 次/日/模型）"),
+    "param_search": ("参数寻优建议", "喂回放/回测结果，模型只提候选网格不直接改参（ModelGateway）"),
 }
 
 
@@ -1436,7 +1441,11 @@ async def call_llm_api(
         # [2026-08-23 35B MoE 适配] Ollama 走 /api/generate 快速通道（think=False，
         # 实测 63 tok/s）；失败自动降级 fallback_config（云端）。
         if str(getattr(config, "provider", "") or "").lower() == "ollama":
-            _ollama_resp = _call_ollama_generate(
+            # [2026-08-28 关键修复] Ollama 本地推理 30-120s：同步 urllib 直接调用会阻塞
+            # 整个事件循环（AI 选币平台扫描 5min/轮 → 期间全站请求排队）；改线程池。
+            import asyncio as _ai
+            _ollama_resp = await _ai.to_thread(
+                _call_ollama_generate,
                 config, messages, temperature, max_tokens, response_format,
                 caller=_resolved_caller, account_id=account_id,
             )
@@ -1609,8 +1618,21 @@ _llm_semantic_cache = None
 _llm_cache_lock = threading.Lock()
 # [2026-08-23] Ollama generate 并发闸（单模型串行推理，多币并行排队会挤爆线程池）
 _ollama_sem = None
-# [2026-08-24 槽位治理] 重负载批量调用方（KlineAnalyst 多币并行）单调用方限 1 槽，
+# [2026-08-24 槽位治理] 重负载批量调用方（KlineAnalyst 多币并行）限槽，
 # 防止其把全局槽全部占满 → scalp_confirm / ai_factor_discovery 永远拿不到槽。
+# 「不让单个调用方独占」这个意图仍然正确，故保留本机制，只放宽档位（见下）。
+#
+# [2026-09-04 实测重定档] 原为硬编码 1 槽。该值来自 35B MoE 时代「Ollama 单模型推理
+# 串行、并发排队会挤爆线程池」的判断，对现在的 qwen3:14b 已不成立。实测（2080 Ti
+# 22.5G，14b + 7b 双模型常驻）：
+#   串行×4 墙钟 10758ms  成功 4/4      并发×4 墙钟  6011ms 成功 4/4（最慢 6.0s）
+#   串行×8 墙钟 17526ms  成功 8/8      并发×8 墙钟 11106ms 成功 8/8（最慢 11.1s）
+# 即并发不崩且更快，真并行度约 4 —— 超过 4 路开始排队，P95 延迟翻倍，故定档 4。
+#
+# 旧档位的实际代价：KlineAnalyst 一批扫 3~6 个币，只有 1 个能走本地，其余 3s 抢不到槽
+# 就降级云端。日志实测 53 次云端降级里 47 次来自 KlineAnalyst（41 次抢不到槽 + 6 次
+# 超时），而同期 GPU 利用率是 0% —— 本地免费算力闲置，却把 DeepSeek 的 5h 窗打到 37/30
+# 超支，深度分析反而没模型可用。
 _ollama_caller_sems: Dict[str, Any] = {}
 _ollama_caller_sems_lock = threading.Lock()
 _OLLAMA_HEAVY_CALLER_MARKERS = ("klineanalyst", "mastercontroller")
@@ -1623,7 +1645,10 @@ def _heavy_caller_sem(caller: str):
     with _ollama_caller_sems_lock:
         _sem = _ollama_caller_sems.get(_c)
         if _sem is None:
-            _sem = threading.BoundedSemaphore(1)
+            # 默认 2 = 全局 4 槽的一半：重调用方能并行吃到本地算力，同时始终给
+            # 其他调用方留一半，不退回「独占」的老问题。
+            _slots = max(1, int(os.getenv("OLLAMA_HEAVY_CALLER_SLOTS", "2") or 2))
+            _sem = threading.BoundedSemaphore(_slots)
             _ollama_caller_sems[_c] = _sem
         return _sem
 
@@ -1637,6 +1662,7 @@ def _call_ollama_generate(
     *,
     caller: str,
     account_id: Optional[int] = None,
+    timeout: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     """[2026-08-23 35B MoE 适配] Ollama 快速通道：/api/generate + think=False。
 
@@ -1647,20 +1673,24 @@ def _call_ollama_generate(
     prompt 走 generate，返回 OpenAI 兼容结构，usage 用原生计数字段。
 
     [2026-08-23 并发闸] Ollama 单模型推理串行，KlineAnalyst 多币并行会排队
-    挤爆线程池（DSH 监管连杀根因）。信号量限 2 并发，10s 拿不到槽即放弃
-    （调用方自动降级云端）；单请求超时 30s（35B 热调用 4s/冷 17s 足够）。
+    挤爆线程池（DSH 监管连杀根因）。信号量限并发，抢不到槽即放弃（调用方自动
+    降级云端）。[2026-09-04] 「单模型推理串行」已被实测推翻（见 _heavy_caller_sem
+    上方的对照数据），并发档位由 OLLAMA_MAX_CONCURRENT 定，默认随之抬到 4。
     """
     global _ollama_sem
     if _ollama_sem is None:
         _ollama_sem = threading.BoundedSemaphore(
-            int(os.getenv("OLLAMA_MAX_CONCURRENT", "1") or 1)
+            max(1, int(os.getenv("OLLAMA_MAX_CONCURRENT", "4") or 4))
         )
+    # 抢槽等待时长。仍保持短等待：本地排队久了不如直接降级云端，短线链路对延迟敏感。
+    # 槽位放宽后命中率本身就上来了，不靠拉长等待来硬撑。
+    _wait = max(0.5, float(os.getenv("OLLAMA_SLOT_WAIT_SEC", "3") or 3))
     _csem = _heavy_caller_sem(caller)
-    if _csem is not None and not _csem.acquire(timeout=3):
+    if _csem is not None and not _csem.acquire(timeout=_wait):
         logger.warning("[LLM ollama] %s 调用方槽占满，降级云端", caller)
         return None
     try:
-        if not _ollama_sem.acquire(timeout=3):
+        if not _ollama_sem.acquire(timeout=_wait):
             logger.warning("[LLM ollama] %s 并发槽占满，降级云端", caller)
             return None
         try:
@@ -1701,10 +1731,28 @@ def _call_ollama_generate(
                 data=_json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
-            _ollama_timeout = min(
-                float(resolve_llm_call_timeout(config) or 90),
-                float(os.getenv("OLLAMA_CALL_TIMEOUT_SEC", "8") or 8),
+            # [2026-09-04] 深度分析调用方（ModelGateway 交叉验证）用其显式传入的
+            # timeout；其余调用方行为完全不变。
+            #
+            # 原实现无视 timeout 形参、一律 min(..., 8s)。8s 是为 KlineAnalyst 那类
+            # 「多币并行、拿不到就赶紧降级云端」的高频短调用定的，对它们仍然正确；
+            # 但深度分析要输出 1600+ tokens，实测 8.078s 就被掐断 → 返回 None →
+            # 上层报「ollama 空响应」，signal_review / anomaly 的本地票 100% 失败。
+            # 且深度分析没有云端可降级 —— 补本地票正是因为云端不可用。
+            _deep_caller = any(
+                _m in str(caller or "").lower()
+                for _m in ("model_gateway", "analysis.", "agents.")
             )
+            if _deep_caller and timeout and float(timeout) > 0:
+                _ollama_timeout = min(
+                    float(timeout),
+                    float(os.getenv("OLLAMA_DEEP_CALL_TIMEOUT_SEC", "300") or 300),
+                )
+            else:
+                _ollama_timeout = min(
+                    float(resolve_llm_call_timeout(config) or 90),
+                    float(os.getenv("OLLAMA_CALL_TIMEOUT_SEC", "8") or 8),
+                )
             # 本地 Ollama 直连，禁用任何代理（否则走系统代理报 Privoxy 500）
             _opener = _urlreq.build_opener(_urlreq.ProxyHandler({}))
             with _opener.open(req, timeout=_ollama_timeout) as r:
@@ -1852,7 +1900,7 @@ def call_llm_api_sync(
         if str(getattr(config, "provider", "") or "").lower() == "ollama":
             _ollama_resp = _call_ollama_generate(
                 config, messages, temperature, max_tokens, response_format,
-                caller=_resolved_caller, account_id=account_id,
+                caller=_resolved_caller, account_id=account_id, timeout=timeout,
             )
             if _ollama_resp is not None:
                 return _ollama_resp

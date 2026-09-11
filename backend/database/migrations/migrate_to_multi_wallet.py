@@ -41,7 +41,7 @@ def parse_wallet_address_from_private_key(encrypted_private_key: str) -> str:
     """Parse wallet address from encrypted private key"""
     try:
         from eth_account import Account as EthAccount
-        from utils.encryption import decrypt_private_key
+        from backend.utils.encryption import decrypt_private_key
 
         # First decrypt the private key (it's stored encrypted in Account table)
         private_key = decrypt_private_key(encrypted_private_key)

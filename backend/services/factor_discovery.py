@@ -112,7 +112,7 @@ class FactorDiscoveryEngine:
         db,
         symbols: List[str] = None,
         *,
-        horizon: str = "scalp",
+        horizon: str = "midlong",
         interval: Optional[str] = None,
         timeframe_tag: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -127,7 +127,10 @@ class FactorDiscoveryEngine:
         5. 通过验证的因子写入 FactorEngine
 
         Args:
-            horizon: "scalp"（短线，默认，1h）或 "midlong"（中长线，4h/1d）。
+            horizon: "midlong"（中长线，默认，4h/1d）或 "scalp"（短线，1h）。
+                     [2026-09-07] 默认从 scalp 改为 midlong：短线车道已判结构性负期望
+                     关停（SCALP_RESEARCH_ENABLED=false），1h 因子没有交易消费者；
+                     midlong 因子喂 4h/1d 的中长线路由，是仍在交易的车道。
                      midlong 会：用更长时间框架取数、提示走趋势/均值回归/量价背离、
                      登记时打标 extra={"horizon":"midlong","timeframe":tf}，
                      由 factor_backtest_scorer 在对应时间框架样本外打分晋升。

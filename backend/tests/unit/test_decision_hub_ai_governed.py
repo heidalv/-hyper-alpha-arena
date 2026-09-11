@@ -233,9 +233,17 @@ def test_readiness_safety_net_still_vetoes(monkeypatch):
     assert d.action == "WAIT", f"readiness 安全网应否决，实测 {d.action}"
 
 
-def test_ai_governed_off_by_default():
-    """默认（未设 env）ai_governed 关闭：standard 行为。"""
-    assert dh._AI_GOVERNED is False
+def test_ai_governed_off_by_default(monkeypatch):
+    """代码默认（env 未设）ai_governed 关闭；关闭时为 standard 行为。
+
+    [2026-09-02] 原断言直接读模块常量 dh._AI_GOVERNED，但 .env 已按设计开启
+    MLTO_AI_GOVERNED=1（可一键回滚）。默认值用源码核对；行为用 monkeypatch 关闭后验证。
+    """
+    import re
+    src = open(dh.__file__, encoding="utf-8").read()
+    m = re.search(r'_AI_GOVERNED\s*=\s*os\.getenv\("MLTO_AI_GOVERNED",\s*"(\w+)"\)', src)
+    assert m and m.group(1) in ("0", "false", "off"), "MLTO_AI_GOVERNED 代码默认必须关闭"
+    monkeypatch.setattr(dh, "_AI_GOVERNED", False)
     d = dh.fuse_signals(_sig_llm_fw(llm_val=0.90, fw_val=0.10), "mid", mode="paper")
     assert d.mode == "standard"
     assert d.consistency < 1.0  # 惩罚仍在

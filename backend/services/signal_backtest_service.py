@@ -404,7 +404,7 @@ class SignalBacktestService:
             return []
 
         # Build a lookup for K-line prices (for display only)
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         kline_prices = {}
         for kline in klines:
             bucket_ts = floor_timestamp(kline["timestamp"], interval_ms)
@@ -467,7 +467,7 @@ class SignalBacktestService:
             return None
 
         # Find the bucket that contains this timestamp
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         bucket_ts = floor_timestamp(timestamp_ms, interval_ms)
 
         return bucket_values.get(bucket_ts)
@@ -482,7 +482,7 @@ class SignalBacktestService:
 
         Returns a dict mapping bucket_timestamp -> indicator_value
         """
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketAssetMetrics, MarketTradesAggregated
         from backend.database.models import MarketOrderbookSnapshots
         from datetime import datetime, timezone
@@ -528,7 +528,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute OI delta percentage for each bucket (same as signal_analysis)."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketAssetMetrics
 
         records = db.query(
@@ -566,7 +566,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute CVD for each bucket."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketTradesAggregated
 
         records = db.query(
@@ -600,7 +600,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute depth ratio (bid/ask) for each bucket."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
@@ -633,7 +633,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute order imbalance for each bucket."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketOrderbookSnapshots
 
         records = db.query(
@@ -674,7 +674,7 @@ class SignalBacktestService:
         - ln(0.5) = -0.69 (sellers 2x buyers)
         """
         import math
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketTradesAggregated
 
         records = db.query(
@@ -711,7 +711,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute funding rate for each bucket."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketAssetMetrics
 
         records = db.query(
@@ -738,7 +738,7 @@ class SignalBacktestService:
         self, db, symbol, interval_ms, start_time_ms, current_time_ms
     ) -> Dict[int, float]:
         """Compute absolute OI for each bucket."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketAssetMetrics
 
         records = db.query(
@@ -788,7 +788,7 @@ class SignalBacktestService:
             return []
 
         # Build K-line price lookup
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         kline_prices = {}
         for kline in klines:
             bucket_ts = floor_timestamp(kline["timestamp"], interval_ms)
@@ -849,7 +849,7 @@ class SignalBacktestService:
         Uses ln(buy/sell) for symmetric ratio around 0.
         """
         import math
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
         from backend.database.models import MarketTradesAggregated
         from datetime import datetime, timezone
 
@@ -1386,7 +1386,7 @@ class SignalBacktestService:
 
     def _calc_cvd_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
         """Calculate CVD at a specific time (same logic as _get_cvd_data)."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         buckets = {}
         for ts, buy, sell in data:
@@ -1406,7 +1406,7 @@ class SignalBacktestService:
 
     def _calc_oi_delta_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
         """Calculate OI delta percentage at a specific time."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         buckets = {}
         for ts, oi in data:
@@ -1425,7 +1425,7 @@ class SignalBacktestService:
 
     def _calc_imbalance_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
         """Calculate order book imbalance at a specific time."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         buckets = {}
         for ts, bid, ask in data:
@@ -1444,7 +1444,7 @@ class SignalBacktestService:
 
     def _calc_depth_ratio_at_time(self, data: List[tuple], interval_ms: int) -> Optional[float]:
         """Calculate depth ratio (bid/ask) at a specific time."""
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         buckets = {}
         for ts, bid, ask in data:
@@ -1466,7 +1466,7 @@ class SignalBacktestService:
         Uses ln(buy/sell) for symmetric ratio around 0.
         """
         import math
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         buckets = {}
         for ts, buy, sell in data:
@@ -1495,7 +1495,7 @@ class SignalBacktestService:
         """
         import bisect
         import math
-        from services.market_flow_indicators import floor_timestamp
+        from backend.services.market_flow_indicators import floor_timestamp
 
         lookback_ms = interval_ms * 10
         start_time = check_time - lookback_ms

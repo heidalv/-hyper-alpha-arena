@@ -81,7 +81,7 @@ def test_structure_stop_sl_adaptive_not_capped(monkeypatch):
         "klines": None,
     }
     sl_pct, tp_pct, sl_price, tp_price = structure_stop_calculator.compute_sl_tp(
-        md, side="long", entry=100.0,
+        md, side="long", entry=100.0, market_aware=False,
     )
     assert abs(sl_pct - 0.0115) < 1e-6, f"sl_pct={sl_pct} 应封顶 1.15%（对齐信号边际）"
     assert abs(tp_pct - 0.015) < 1e-6, f"tp_pct={tp_pct} 应为 1.5%（RR≈1.30 过 V5 闸）"

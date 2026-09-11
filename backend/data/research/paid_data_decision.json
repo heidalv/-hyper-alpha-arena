@@ -1,0 +1,30 @@
+{
+  "ts_ms": 1789073402189,
+  "n_event_types_in_report": 0,
+  "decisions": [
+    {
+      "vendor": "coinglass",
+      "product": "liquidation_heatmap_oi",
+      "decision": "BUY",
+      "reason": "event_study 无相关类型报告：覆盖不足，建议评估付费源能否补齐",
+      "annual_usd_est": 3000,
+      "related": [],
+      "note": "清算热力/OI 细粒度；免费 forceOrder 已有逐笔时优先用免费"
+    },
+    {
+      "vendor": "tokenomist",
+      "product": "token_unlocks",
+      "decision": "BUY",
+      "reason": "event_study 无相关类型报告：覆盖不足，建议评估付费源能否补齐",
+      "annual_usd_est": 2400,
+      "related": [],
+      "note": "解锁日历；CoinMarketCal 免费层覆盖不足时再订"
+    }
+  ],
+  "summary": {
+    "BUY": 2,
+    "HOLD": 0,
+    "SKIP": 0
+  },
+  "note": "决策卡仅建议，不自动订阅；采纳需人工确认预算"
+}

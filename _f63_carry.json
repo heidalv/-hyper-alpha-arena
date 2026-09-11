@@ -1,0 +1,2311 @@
+{
+ "days": 365.0,
+ "cost_bp": 18.0,
+ "cost_breakdown": {
+  "perp_round_trip_bp": 8.0,
+  "spot_round_trip_bp": 10.0
+ },
+ "venues": {
+  "asterdex": {
+   "symbols": {
+    "BNB": {
+     "symbol": "BNB",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.34523,
+      "median_bp": 0.0847,
+      "std_bp": 0.50648,
+      "t": 67.9,
+      "positive_ratio": 0.53,
+      "min_bp": 0.0,
+      "max_bp": 3.1825
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -10.7502,
+       "net_usd_per_1k": -1.075,
+       "breakeven_periods": 52.14,
+       "breakeven_days": 17.38,
+       "annualized_pct": 3.7803,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -3.5003,
+       "net_usd_per_1k": -0.35,
+       "breakeven_periods": 52.14,
+       "breakeven_days": 17.38,
+       "annualized_pct": 3.7803,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 13.0707,
+       "net_usd_per_1k": 1.3071,
+       "breakeven_periods": 52.14,
+       "breakeven_days": 17.38,
+       "annualized_pct": 3.7803,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 44.1414,
+       "net_usd_per_1k": 4.4141,
+       "breakeven_periods": 52.14,
+       "breakeven_days": 17.38,
+       "annualized_pct": 3.7803,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 44.1414,
+     "breakeven_days": 17.38,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.55704,
+       "t": 66.901
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.3365,
+       "t": 28.225
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.28823,
+       "t": 24.585
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.19934,
+       "t": 32.791
+      }
+     ]
+    },
+    "BTC": {
+     "symbol": "BTC",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.62509,
+      "median_bp": 0.6992,
+      "std_bp": 0.35574,
+      "t": 175.036,
+      "positive_ratio": 0.9361,
+      "min_bp": -0.8904,
+      "max_bp": 1.1072
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -4.8731,
+       "net_usd_per_1k": -0.4873,
+       "breakeven_periods": 28.8,
+       "breakeven_days": 9.6,
+       "annualized_pct": 6.8447,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 8.2538,
+       "net_usd_per_1k": 0.8254,
+       "breakeven_periods": 28.8,
+       "breakeven_days": 9.6,
+       "annualized_pct": 6.8447,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 38.2581,
+       "net_usd_per_1k": 3.8258,
+       "breakeven_periods": 28.8,
+       "breakeven_days": 9.6,
+       "annualized_pct": 6.8447,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 94.5162,
+       "net_usd_per_1k": 9.4516,
+       "breakeven_periods": 28.8,
+       "breakeven_days": 9.6,
+       "annualized_pct": 6.8447,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 94.5162,
+     "breakeven_days": 9.6,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.57782,
+       "t": 81.99
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.57355,
+       "t": 90.038
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.82776,
+       "t": 175.88
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.52138,
+       "t": 62.859
+      }
+     ]
+    },
+    "DOGE": {
+     "symbol": "DOGE",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.77685,
+      "median_bp": 1.0,
+      "std_bp": 0.33423,
+      "t": 231.532,
+      "positive_ratio": 0.9592,
+      "min_bp": -0.74,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -1.6861,
+       "net_usd_per_1k": -0.1686,
+       "breakeven_periods": 23.17,
+       "breakeven_days": 7.72,
+       "annualized_pct": 8.5065,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 14.6277,
+       "net_usd_per_1k": 1.4628,
+       "breakeven_periods": 23.17,
+       "breakeven_days": 7.72,
+       "annualized_pct": 8.5065,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 51.9165,
+       "net_usd_per_1k": 5.1917,
+       "breakeven_periods": 23.17,
+       "breakeven_days": 7.72,
+       "annualized_pct": 8.5065,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 121.833,
+       "net_usd_per_1k": 12.1833,
+       "breakeven_periods": 23.17,
+       "breakeven_days": 7.72,
+       "annualized_pct": 8.5065,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 121.833,
+     "breakeven_days": 7.72,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.80815,
+       "t": 114.161
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.66703,
+       "t": 81.384
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.82802,
+       "t": 162.146
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.80418,
+       "t": 146.259
+      }
+     ]
+    },
+    "ETH": {
+     "symbol": "ETH",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.60924,
+      "median_bp": 0.6185,
+      "std_bp": 0.34381,
+      "t": 176.519,
+      "positive_ratio": 0.9508,
+      "min_bp": -0.698,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -5.206,
+       "net_usd_per_1k": -0.5206,
+       "breakeven_periods": 29.55,
+       "breakeven_days": 9.85,
+       "annualized_pct": 6.6712,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 7.5881,
+       "net_usd_per_1k": 0.7588,
+       "breakeven_periods": 29.55,
+       "breakeven_days": 9.85,
+       "annualized_pct": 6.6712,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 36.8316,
+       "net_usd_per_1k": 3.6832,
+       "breakeven_periods": 29.55,
+       "breakeven_days": 9.85,
+       "annualized_pct": 6.6712,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 91.6632,
+       "net_usd_per_1k": 9.1663,
+       "breakeven_periods": 29.55,
+       "breakeven_days": 9.85,
+       "annualized_pct": 6.6712,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 91.6632,
+     "breakeven_days": 9.85,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.46092,
+       "t": 64.299
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.46598,
+       "t": 71.153
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.81589,
+       "t": 144.699
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.69406,
+       "t": 132.719
+      }
+     ]
+    },
+    "SOL": {
+     "symbol": "SOL",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.38848,
+      "median_bp": 0.4827,
+      "std_bp": 0.57687,
+      "t": 67.082,
+      "positive_ratio": 0.713,
+      "min_bp": -1.2609,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -9.8419,
+       "net_usd_per_1k": -0.9842,
+       "breakeven_periods": 46.33,
+       "breakeven_days": 15.44,
+       "annualized_pct": 4.2539,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -1.6838,
+       "net_usd_per_1k": -0.1684,
+       "breakeven_periods": 46.33,
+       "breakeven_days": 15.44,
+       "annualized_pct": 4.2539,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 16.9632,
+       "net_usd_per_1k": 1.6963,
+       "breakeven_periods": 46.33,
+       "breakeven_days": 15.44,
+       "annualized_pct": 4.2539,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 51.9264,
+       "net_usd_per_1k": 5.1926,
+       "breakeven_periods": 46.33,
+       "breakeven_days": 15.44,
+       "annualized_pct": 4.2539,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 51.9264,
+     "breakeven_days": 15.44,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.51225,
+       "t": 51.36
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.26275,
+       "t": 21.393
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.61455,
+       "t": 57.734
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.16462,
+       "t": 15.044
+      }
+     ]
+    },
+    "XRP": {
+     "symbol": "XRP",
+     "venue": "asterdex",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 9923,
+      "mean_bp": 0.65416,
+      "median_bp": 0.8736,
+      "std_bp": 0.43955,
+      "t": 148.249,
+      "positive_ratio": 0.8987,
+      "min_bp": -1.1022,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -4.2626,
+       "net_usd_per_1k": -0.4263,
+       "breakeven_periods": 27.52,
+       "breakeven_days": 9.17,
+       "annualized_pct": 7.1631,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 9.4747,
+       "net_usd_per_1k": 0.9475,
+       "breakeven_periods": 27.52,
+       "breakeven_days": 9.17,
+       "annualized_pct": 7.1631,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 40.8744,
+       "net_usd_per_1k": 4.0874,
+       "breakeven_periods": 27.52,
+       "breakeven_days": 9.17,
+       "annualized_pct": 7.1631,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 99.7488,
+       "net_usd_per_1k": 9.9749,
+       "breakeven_periods": 27.52,
+       "breakeven_days": 9.17,
+       "annualized_pct": 7.1631,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 99.7488,
+     "breakeven_days": 9.17,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2480,
+       "mean_bp": 0.67766,
+       "t": 69.89
+      },
+      {
+       "fold": 1,
+       "n": 2480,
+       "mean_bp": 0.6198,
+       "t": 62.759
+      },
+      {
+       "fold": 2,
+       "n": 2480,
+       "mean_bp": 0.72246,
+       "t": 107.038
+      },
+      {
+       "fold": 3,
+       "n": 2483,
+       "mean_bp": 0.59678,
+       "t": 71.01
+      }
+     ]
+    }
+   },
+   "combo_30d": {
+    "hold_days": 30.0,
+    "periods": 90.0,
+    "periods_per_day": 3.0,
+    "net_bp": 32.9857,
+    "net_usd_per_1k": 3.2986,
+    "breakeven_periods": 31.77,
+    "breakeven_days": 10.59,
+    "annualized_pct": 6.2033,
+    "profitable": true
+   },
+   "executable_symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ]
+  },
+  "binance": {
+   "symbols": {
+    "BNB": {
+     "symbol": "BNB",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.43809,
+      "median_bp": 0.22945,
+      "std_bp": 0.6271,
+      "t": 73.349,
+      "positive_ratio": 0.6224,
+      "min_bp": -3.5218,
+      "max_bp": 4.548
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -8.8001,
+       "net_usd_per_1k": -0.88,
+       "breakeven_periods": 41.09,
+       "breakeven_days": 13.7,
+       "annualized_pct": 4.7971,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 0.3998,
+       "net_usd_per_1k": 0.04,
+       "breakeven_periods": 41.09,
+       "breakeven_days": 13.7,
+       "annualized_pct": 4.7971,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 21.4281,
+       "net_usd_per_1k": 2.1428,
+       "breakeven_periods": 41.09,
+       "breakeven_days": 13.7,
+       "annualized_pct": 4.7971,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 60.8562,
+       "net_usd_per_1k": 6.0856,
+       "breakeven_periods": 41.09,
+       "breakeven_days": 13.7,
+       "annualized_pct": 4.7971,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 60.8562,
+     "breakeven_days": 13.7,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.41225,
+       "t": 42.096
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.27504,
+       "t": 41.619
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.70411,
+       "t": 38.775
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.36096,
+       "t": 45.168
+      }
+     ]
+    },
+    "BTC": {
+     "symbol": "BTC",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.62252,
+      "median_bp": 0.66345,
+      "std_bp": 0.33562,
+      "t": 194.748,
+      "positive_ratio": 0.9672,
+      "min_bp": -1.5178,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -4.9271,
+       "net_usd_per_1k": -0.4927,
+       "breakeven_periods": 28.91,
+       "breakeven_days": 9.64,
+       "annualized_pct": 6.8166,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 8.1458,
+       "net_usd_per_1k": 0.8146,
+       "breakeven_periods": 28.91,
+       "breakeven_days": 9.64,
+       "annualized_pct": 6.8166,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 38.0268,
+       "net_usd_per_1k": 3.8027,
+       "breakeven_periods": 28.91,
+       "breakeven_days": 9.64,
+       "annualized_pct": 6.8166,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 94.0536,
+       "net_usd_per_1k": 9.4054,
+       "breakeven_periods": 28.91,
+       "breakeven_days": 9.64,
+       "annualized_pct": 6.8166,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 94.0536,
+     "breakeven_days": 9.64,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.43293,
+       "t": 58.902
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.57022,
+       "t": 105.054
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.87252,
+       "t": 230.529
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.6144,
+       "t": 114.151
+      }
+     ]
+    },
+    "DOGE": {
+     "symbol": "DOGE",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.67664,
+      "median_bp": 0.92825,
+      "std_bp": 0.4411,
+      "t": 161.06,
+      "positive_ratio": 0.9115,
+      "min_bp": -2.6033,
+      "max_bp": 4.5253
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -3.7906,
+       "net_usd_per_1k": -0.3791,
+       "breakeven_periods": 26.6,
+       "breakeven_days": 8.87,
+       "annualized_pct": 7.4092,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 10.4189,
+       "net_usd_per_1k": 1.0419,
+       "breakeven_periods": 26.6,
+       "breakeven_days": 8.87,
+       "annualized_pct": 7.4092,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 42.8976,
+       "net_usd_per_1k": 4.2898,
+       "breakeven_periods": 26.6,
+       "breakeven_days": 8.87,
+       "annualized_pct": 7.4092,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 103.7952,
+       "net_usd_per_1k": 10.3795,
+       "breakeven_periods": 26.6,
+       "breakeven_days": 8.87,
+       "annualized_pct": 7.4092,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 103.7952,
+     "breakeven_days": 8.87,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.46407,
+       "t": 40.375
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.5831,
+       "t": 74.077
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.88408,
+       "t": 207.957
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.77533,
+       "t": 137.929
+      }
+     ]
+    },
+    "ETH": {
+     "symbol": "ETH",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.50395,
+      "median_bp": 0.5128,
+      "std_bp": 0.37986,
+      "t": 139.295,
+      "positive_ratio": 0.915,
+      "min_bp": -3.6526,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -7.417,
+       "net_usd_per_1k": -0.7417,
+       "breakeven_periods": 35.72,
+       "breakeven_days": 11.91,
+       "annualized_pct": 5.5183,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 3.1659,
+       "net_usd_per_1k": 0.3166,
+       "breakeven_periods": 35.72,
+       "breakeven_days": 11.91,
+       "annualized_pct": 5.5183,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 27.3555,
+       "net_usd_per_1k": 2.7355,
+       "breakeven_periods": 35.72,
+       "breakeven_days": 11.91,
+       "annualized_pct": 5.5183,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 72.711,
+       "net_usd_per_1k": 7.2711,
+       "breakeven_periods": 35.72,
+       "breakeven_days": 11.91,
+       "annualized_pct": 5.5183,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 72.711,
+     "breakeven_days": 11.91,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.32896,
+       "t": 39.113
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.42699,
+       "t": 81.396
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.7557,
+       "t": 117.415
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.50417,
+       "t": 87.062
+      }
+     ]
+    },
+    "SOL": {
+     "symbol": "SOL",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.28163,
+      "median_bp": 0.38655,
+      "std_bp": 0.80071,
+      "t": 36.929,
+      "positive_ratio": 0.6683,
+      "min_bp": -30.2761,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -12.0858,
+       "net_usd_per_1k": -1.2086,
+       "breakeven_periods": 63.91,
+       "breakeven_days": 21.3,
+       "annualized_pct": 3.0838,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -6.1715,
+       "net_usd_per_1k": -0.6172,
+       "breakeven_periods": 63.91,
+       "breakeven_days": 21.3,
+       "annualized_pct": 3.0838,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 7.3467,
+       "net_usd_per_1k": 0.7347,
+       "breakeven_periods": 63.91,
+       "breakeven_days": 21.3,
+       "annualized_pct": 3.0838,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 32.6934,
+       "net_usd_per_1k": 3.2693,
+       "breakeven_periods": 63.91,
+       "breakeven_days": 21.3,
+       "annualized_pct": 3.0838,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 32.6934,
+     "breakeven_days": 21.3,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.26349,
+       "t": 12.116
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.13867,
+       "t": 10.775
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.68378,
+       "t": 67.222
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.04056,
+       "t": 4.027
+      }
+     ]
+    },
+    "XRP": {
+     "symbol": "XRP",
+     "venue": "binance",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 11024,
+      "mean_bp": 0.38687,
+      "median_bp": 0.4935,
+      "std_bp": 0.59999,
+      "t": 67.701,
+      "positive_ratio": 0.7632,
+      "min_bp": -4.4229,
+      "max_bp": 4.3589
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -9.8757,
+       "net_usd_per_1k": -0.9876,
+       "breakeven_periods": 46.53,
+       "breakeven_days": 15.51,
+       "annualized_pct": 4.2362,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -1.7515,
+       "net_usd_per_1k": -0.1751,
+       "breakeven_periods": 46.53,
+       "breakeven_days": 15.51,
+       "annualized_pct": 4.2362,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 16.8183,
+       "net_usd_per_1k": 1.6818,
+       "breakeven_periods": 46.53,
+       "breakeven_days": 15.51,
+       "annualized_pct": 4.2362,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 51.6366,
+       "net_usd_per_1k": 5.1637,
+       "breakeven_periods": 46.53,
+       "breakeven_days": 15.51,
+       "annualized_pct": 4.2362,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 51.6366,
+     "breakeven_days": 15.51,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2756,
+       "mean_bp": 0.2345,
+       "t": 18.422
+      },
+      {
+       "fold": 1,
+       "n": 2756,
+       "mean_bp": 0.15578,
+       "t": 12.337
+      },
+      {
+       "fold": 2,
+       "n": 2756,
+       "mean_bp": 0.7129,
+       "t": 87.975
+      },
+      {
+       "fold": 3,
+       "n": 2756,
+       "mean_bp": 0.44431,
+       "t": 53.924
+      }
+     ]
+    }
+   },
+   "combo_30d": {
+    "hold_days": 30.0,
+    "periods": 90.0,
+    "periods_per_day": 3.0,
+    "net_bp": 25.6455,
+    "net_usd_per_1k": 2.5645,
+    "breakeven_periods": 37.12,
+    "breakeven_days": 12.37,
+    "annualized_pct": 5.3102,
+    "profitable": true
+   },
+   "executable_symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ]
+  },
+  "hyperliquid": {
+   "symbols": {
+    "BNB": {
+     "symbol": "BNB",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 279306,
+      "mean_bp": 0.08447,
+      "median_bp": 0.125,
+      "std_bp": 0.09757,
+      "t": 457.53,
+      "positive_ratio": 0.8548,
+      "min_bp": -1.8717,
+      "max_bp": 1.2651
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": -3.809,
+       "net_usd_per_1k": -0.3809,
+       "breakeven_periods": 213.09,
+       "breakeven_days": 8.88,
+       "annualized_pct": 7.3996,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": 10.3819,
+       "net_usd_per_1k": 1.0382,
+       "breakeven_periods": 213.09,
+       "breakeven_days": 8.88,
+       "annualized_pct": 7.3996,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 42.8184,
+       "net_usd_per_1k": 4.2818,
+       "breakeven_periods": 213.09,
+       "breakeven_days": 8.88,
+       "annualized_pct": 7.3996,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 103.6368,
+       "net_usd_per_1k": 10.3637,
+       "breakeven_periods": 213.09,
+       "breakeven_days": 8.88,
+       "annualized_pct": 7.3996,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 103.6368,
+     "breakeven_days": 8.88,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 69826,
+       "mean_bp": 0.09864,
+       "t": 375.201
+      },
+      {
+       "fold": 1,
+       "n": 69826,
+       "mean_bp": 0.05381,
+       "t": 134.076
+      },
+      {
+       "fold": 2,
+       "n": 69826,
+       "mean_bp": 0.08491,
+       "t": 288.285
+      },
+      {
+       "fold": 3,
+       "n": 69828,
+       "mean_bp": 0.10053,
+       "t": 220.201
+      }
+     ]
+    },
+    "BTC": {
+     "symbol": "BTC",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 291913,
+      "mean_bp": 0.07357,
+      "median_bp": 0.125,
+      "std_bp": 0.08145,
+      "t": 488.067,
+      "positive_ratio": 0.8307,
+      "min_bp": -0.866,
+      "max_bp": 0.602
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": -5.6402,
+       "net_usd_per_1k": -0.564,
+       "breakeven_periods": 244.66,
+       "breakeven_days": 10.19,
+       "annualized_pct": 6.4447,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": 6.7195,
+       "net_usd_per_1k": 0.672,
+       "breakeven_periods": 244.66,
+       "breakeven_days": 10.19,
+       "annualized_pct": 6.4447,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 34.9704,
+       "net_usd_per_1k": 3.497,
+       "breakeven_periods": 244.66,
+       "breakeven_days": 10.19,
+       "annualized_pct": 6.4447,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 87.9408,
+       "net_usd_per_1k": 8.7941,
+       "breakeven_periods": 244.66,
+       "breakeven_days": 10.19,
+       "annualized_pct": 6.4447,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 87.9408,
+     "breakeven_days": 10.19,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 72978,
+       "mean_bp": 0.01689,
+       "t": 43.927
+      },
+      {
+       "fold": 1,
+       "n": 72978,
+       "mean_bp": 0.06165,
+       "t": 223.472
+      },
+      {
+       "fold": 2,
+       "n": 72978,
+       "mean_bp": 0.12379,
+       "t": 3491.976
+      },
+      {
+       "fold": 3,
+       "n": 72979,
+       "mean_bp": 0.09196,
+       "t": 398.706
+      }
+     ]
+    },
+    "DOGE": {
+     "symbol": "DOGE",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 10718,
+      "mean_bp": 0.14173,
+      "median_bp": 0.125,
+      "std_bp": 0.10725,
+      "t": 136.808,
+      "positive_ratio": 0.9868,
+      "min_bp": -0.3148,
+      "max_bp": 1.06
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": 5.8106,
+       "net_usd_per_1k": 0.5811,
+       "breakeven_periods": 127.0,
+       "breakeven_days": 5.29,
+       "annualized_pct": 12.4155,
+       "profitable": true
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": 29.6213,
+       "net_usd_per_1k": 2.9621,
+       "breakeven_periods": 127.0,
+       "breakeven_days": 5.29,
+       "annualized_pct": 12.4155,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 84.0456,
+       "net_usd_per_1k": 8.4046,
+       "breakeven_periods": 127.0,
+       "breakeven_days": 5.29,
+       "annualized_pct": 12.4155,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 186.0912,
+       "net_usd_per_1k": 18.6091,
+       "breakeven_periods": 127.0,
+       "breakeven_days": 5.29,
+       "annualized_pct": 12.4155,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 186.0912,
+     "breakeven_days": 5.29,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2679,
+       "mean_bp": 0.10031,
+       "t": 108.047
+      },
+      {
+       "fold": 1,
+       "n": 2679,
+       "mean_bp": 0.15209,
+       "t": 85.053
+      },
+      {
+       "fold": 2,
+       "n": 2679,
+       "mean_bp": 0.18863,
+       "t": 55.593
+      },
+      {
+       "fold": 3,
+       "n": 2681,
+       "mean_bp": 0.12589,
+       "t": 1052.998
+      }
+     ]
+    },
+    "ETH": {
+     "symbol": "ETH",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 292865,
+      "mean_bp": 0.06985,
+      "median_bp": 0.125,
+      "std_bp": 0.09607,
+      "t": 393.472,
+      "positive_ratio": 0.8196,
+      "min_bp": -1.3807,
+      "max_bp": 0.3365
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": -6.2652,
+       "net_usd_per_1k": -0.6265,
+       "breakeven_periods": 257.7,
+       "breakeven_days": 10.74,
+       "annualized_pct": 6.1189,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": 5.4696,
+       "net_usd_per_1k": 0.547,
+       "breakeven_periods": 257.7,
+       "breakeven_days": 10.74,
+       "annualized_pct": 6.1189,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 32.292,
+       "net_usd_per_1k": 3.2292,
+       "breakeven_periods": 257.7,
+       "breakeven_days": 10.74,
+       "annualized_pct": 6.1189,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 82.584,
+       "net_usd_per_1k": 8.2584,
+       "breakeven_periods": 257.7,
+       "breakeven_days": 10.74,
+       "annualized_pct": 6.1189,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 82.584,
+     "breakeven_days": 10.74,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 73216,
+       "mean_bp": 0.02628,
+       "t": 59.973
+      },
+      {
+       "fold": 1,
+       "n": 73216,
+       "mean_bp": 0.02963,
+       "t": 70.496
+      },
+      {
+       "fold": 2,
+       "n": 73216,
+       "mean_bp": 0.12488,
+       "t": 11364.009
+      },
+      {
+       "fold": 3,
+       "n": 73217,
+       "mean_bp": 0.09862,
+       "t": 528.734
+      }
+     ]
+    },
+    "SOL": {
+     "symbol": "SOL",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 292849,
+      "mean_bp": 0.03926,
+      "median_bp": 0.1007,
+      "std_bp": 0.12507,
+      "t": 169.854,
+      "positive_ratio": 0.7187,
+      "min_bp": -1.2382,
+      "max_bp": 1.0374
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": -11.4043,
+       "net_usd_per_1k": -1.1404,
+       "breakeven_periods": 458.48,
+       "breakeven_days": 19.1,
+       "annualized_pct": 3.4392,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": -4.8086,
+       "net_usd_per_1k": -0.4809,
+       "breakeven_periods": 458.48,
+       "breakeven_days": 19.1,
+       "annualized_pct": 3.4392,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 10.2672,
+       "net_usd_per_1k": 1.0267,
+       "breakeven_periods": 458.48,
+       "breakeven_days": 19.1,
+       "annualized_pct": 3.4392,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 38.5344,
+       "net_usd_per_1k": 3.8534,
+       "breakeven_periods": 458.48,
+       "breakeven_days": 19.1,
+       "annualized_pct": 3.4392,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 38.5344,
+     "breakeven_days": 19.1,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 73212,
+       "mean_bp": -0.00574,
+       "t": -11.757
+      },
+      {
+       "fold": 1,
+       "n": 73212,
+       "mean_bp": 0.02078,
+       "t": 33.303
+      },
+      {
+       "fold": 2,
+       "n": 73212,
+       "mean_bp": 0.08858,
+       "t": 374.022
+      },
+      {
+       "fold": 3,
+       "n": 73213,
+       "mean_bp": 0.05341,
+       "t": 166.89
+      }
+     ]
+    },
+    "XRP": {
+     "symbol": "XRP",
+     "venue": "hyperliquid",
+     "period_hours": 1.0,
+     "periods_per_day": 24.0,
+     "stats": {
+      "n": 24355,
+      "mean_bp": 0.11632,
+      "median_bp": 0.125,
+      "std_bp": 0.0914,
+      "t": 198.61,
+      "positive_ratio": 0.9244,
+      "min_bp": -0.4105,
+      "max_bp": 1.0129
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 168.0,
+       "periods_per_day": 24.0,
+       "net_bp": 1.5418,
+       "net_usd_per_1k": 0.1542,
+       "breakeven_periods": 154.75,
+       "breakeven_days": 6.45,
+       "annualized_pct": 10.1896,
+       "profitable": true
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 336.0,
+       "periods_per_day": 24.0,
+       "net_bp": 21.0835,
+       "net_usd_per_1k": 2.1084,
+       "breakeven_periods": 154.75,
+       "breakeven_days": 6.45,
+       "annualized_pct": 10.1896,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 720.0,
+       "periods_per_day": 24.0,
+       "net_bp": 65.7504,
+       "net_usd_per_1k": 6.575,
+       "breakeven_periods": 154.75,
+       "breakeven_days": 6.45,
+       "annualized_pct": 10.1896,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 1440.0,
+       "periods_per_day": 24.0,
+       "net_bp": 149.5008,
+       "net_usd_per_1k": 14.9501,
+       "breakeven_periods": 154.75,
+       "breakeven_days": 6.45,
+       "annualized_pct": 10.1896,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 149.5008,
+     "breakeven_days": 6.45,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 6088,
+       "mean_bp": 0.05006,
+       "t": 42.779
+      },
+      {
+       "fold": 1,
+       "n": 6088,
+       "mean_bp": 0.16874,
+       "t": 99.702
+      },
+      {
+       "fold": 2,
+       "n": 6088,
+       "mean_bp": 0.122,
+       "t": 485.92
+      },
+      {
+       "fold": 3,
+       "n": 6091,
+       "mean_bp": 0.12447,
+       "t": 1920.837
+      }
+     ]
+    }
+   },
+   "combo_30d": {
+    "hold_days": 30.0,
+    "periods": 720.0,
+    "periods_per_day": 24.0,
+    "net_bp": 45.024,
+    "net_usd_per_1k": 4.5024,
+    "breakeven_periods": 205.64,
+    "breakeven_days": 8.57,
+    "annualized_pct": 7.6679,
+    "profitable": true
+   },
+   "executable_symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ]
+  },
+  "bybit": {
+   "symbols": {
+    "BNB": {
+     "symbol": "BNB",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.41155,
+      "median_bp": 0.9568,
+      "std_bp": 0.78852,
+      "t": 52.735,
+      "positive_ratio": 0.7263,
+      "min_bp": -3.081,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -9.3575,
+       "net_usd_per_1k": -0.9357,
+       "breakeven_periods": 43.74,
+       "breakeven_days": 14.58,
+       "annualized_pct": 4.5065,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -0.7149,
+       "net_usd_per_1k": -0.0715,
+       "breakeven_periods": 43.74,
+       "breakeven_days": 14.58,
+       "annualized_pct": 4.5065,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 19.0395,
+       "net_usd_per_1k": 1.904,
+       "breakeven_periods": 43.74,
+       "breakeven_days": 14.58,
+       "annualized_pct": 4.5065,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 56.079,
+       "net_usd_per_1k": 5.6079,
+       "breakeven_periods": 43.74,
+       "breakeven_days": 14.58,
+       "annualized_pct": 4.5065,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 56.079,
+     "breakeven_days": 14.58,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.42525,
+       "t": 26.703
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.15688,
+       "t": 9.27
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.66554,
+       "t": 52.176
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": 0.39854,
+       "t": 26.795
+      }
+     ]
+    },
+    "BTC": {
+     "symbol": "BTC",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.46336,
+      "median_bp": 0.4805,
+      "std_bp": 0.39687,
+      "t": 117.968,
+      "positive_ratio": 0.8731,
+      "min_bp": -1.7152,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -8.2694,
+       "net_usd_per_1k": -0.8269,
+       "breakeven_periods": 38.85,
+       "breakeven_days": 12.95,
+       "annualized_pct": 5.0738,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 1.4611,
+       "net_usd_per_1k": 0.1461,
+       "breakeven_periods": 38.85,
+       "breakeven_days": 12.95,
+       "annualized_pct": 5.0738,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 23.7024,
+       "net_usd_per_1k": 2.3702,
+       "breakeven_periods": 38.85,
+       "breakeven_days": 12.95,
+       "annualized_pct": 5.0738,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 65.4048,
+       "net_usd_per_1k": 6.5405,
+       "breakeven_periods": 38.85,
+       "breakeven_days": 12.95,
+       "annualized_pct": 5.0738,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 65.4048,
+     "breakeven_days": 12.95,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.35654,
+       "t": 42.953
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.38962,
+       "t": 54.024
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.68106,
+       "t": 94.141
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": 0.42623,
+       "t": 61.55
+      }
+     ]
+    },
+    "DOGE": {
+     "symbol": "DOGE",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.46426,
+      "median_bp": 0.6357,
+      "std_bp": 0.62227,
+      "t": 75.383,
+      "positive_ratio": 0.7944,
+      "min_bp": -3.4712,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -8.2505,
+       "net_usd_per_1k": -0.8251,
+       "breakeven_periods": 38.77,
+       "breakeven_days": 12.92,
+       "annualized_pct": 5.0836,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 1.4989,
+       "net_usd_per_1k": 0.1499,
+       "breakeven_periods": 38.77,
+       "breakeven_days": 12.92,
+       "annualized_pct": 5.0836,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 23.7834,
+       "net_usd_per_1k": 2.3783,
+       "breakeven_periods": 38.77,
+       "breakeven_days": 12.92,
+       "annualized_pct": 5.0836,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 65.5668,
+       "net_usd_per_1k": 6.5567,
+       "breakeven_periods": 38.77,
+       "breakeven_days": 12.92,
+       "annualized_pct": 5.0836,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 65.5668,
+     "breakeven_days": 12.92,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.50862,
+       "t": 41.327
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.40803,
+       "t": 30.418
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.55016,
+       "t": 49.952
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": 0.39026,
+       "t": 32.157
+      }
+     ]
+    },
+    "ETH": {
+     "symbol": "ETH",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.45522,
+      "median_bp": 0.4771,
+      "std_bp": 0.40988,
+      "t": 112.218,
+      "positive_ratio": 0.8601,
+      "min_bp": -1.4287,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -8.4404,
+       "net_usd_per_1k": -0.844,
+       "breakeven_periods": 39.54,
+       "breakeven_days": 13.18,
+       "annualized_pct": 4.9847,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": 1.1192,
+       "net_usd_per_1k": 0.1119,
+       "breakeven_periods": 39.54,
+       "breakeven_days": 13.18,
+       "annualized_pct": 4.9847,
+       "profitable": true
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 22.9698,
+       "net_usd_per_1k": 2.297,
+       "breakeven_periods": 39.54,
+       "breakeven_days": 13.18,
+       "annualized_pct": 4.9847,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 63.9396,
+       "net_usd_per_1k": 6.394,
+       "breakeven_periods": 39.54,
+       "breakeven_days": 13.18,
+       "annualized_pct": 4.9847,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 63.9396,
+     "breakeven_days": 13.18,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.22528,
+       "t": 28.929
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.56137,
+       "t": 87.571
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.55267,
+       "t": 61.766
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": 0.48157,
+       "t": 66.496
+      }
+     ]
+    },
+    "SOL": {
+     "symbol": "SOL",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.25434,
+      "median_bp": 0.3493,
+      "std_bp": 0.7148,
+      "t": 35.952,
+      "positive_ratio": 0.6574,
+      "min_bp": -3.2804,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -12.6589,
+       "net_usd_per_1k": -1.2659,
+       "breakeven_periods": 70.77,
+       "breakeven_days": 23.59,
+       "annualized_pct": 2.785,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -7.3177,
+       "net_usd_per_1k": -0.7318,
+       "breakeven_periods": 70.77,
+       "breakeven_days": 23.59,
+       "annualized_pct": 2.785,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 4.8906,
+       "net_usd_per_1k": 0.4891,
+       "breakeven_periods": 70.77,
+       "breakeven_days": 23.59,
+       "annualized_pct": 2.785,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 27.7812,
+       "net_usd_per_1k": 2.7781,
+       "breakeven_periods": 70.77,
+       "breakeven_days": 23.59,
+       "annualized_pct": 2.785,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 27.7812,
+     "breakeven_days": 23.59,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.34279,
+       "t": 26.498
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.344,
+       "t": 29.886
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.53632,
+       "t": 40.566
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": -0.20557,
+       "t": -14.321
+      }
+     ]
+    },
+    "XRP": {
+     "symbol": "XRP",
+     "venue": "bybit",
+     "period_hours": 8.0,
+     "periods_per_day": 3.0,
+     "stats": {
+      "n": 10209,
+      "mean_bp": 0.42106,
+      "median_bp": 0.5208,
+      "std_bp": 0.58039,
+      "t": 73.302,
+      "positive_ratio": 0.7584,
+      "min_bp": -3.2551,
+      "max_bp": 1.0
+     },
+     "cost_bp": 18.0,
+     "holds": {
+      "7d": {
+       "hold_days": 7.0,
+       "periods": 21.0,
+       "periods_per_day": 3.0,
+       "net_bp": -9.1577,
+       "net_usd_per_1k": -0.9158,
+       "breakeven_periods": 42.75,
+       "breakeven_days": 14.25,
+       "annualized_pct": 4.6106,
+       "profitable": false
+      },
+      "14d": {
+       "hold_days": 14.0,
+       "periods": 42.0,
+       "periods_per_day": 3.0,
+       "net_bp": -0.3155,
+       "net_usd_per_1k": -0.0315,
+       "breakeven_periods": 42.75,
+       "breakeven_days": 14.25,
+       "annualized_pct": 4.6106,
+       "profitable": false
+      },
+      "30d": {
+       "hold_days": 30.0,
+       "periods": 90.0,
+       "periods_per_day": 3.0,
+       "net_bp": 19.8954,
+       "net_usd_per_1k": 1.9895,
+       "breakeven_periods": 42.75,
+       "breakeven_days": 14.25,
+       "annualized_pct": 4.6106,
+       "profitable": true
+      },
+      "60d": {
+       "hold_days": 60.0,
+       "periods": 180.0,
+       "periods_per_day": 3.0,
+       "net_bp": 57.7908,
+       "net_usd_per_1k": 5.7791,
+       "breakeven_periods": 42.75,
+       "breakeven_days": 14.25,
+       "annualized_pct": 4.6106,
+       "profitable": true
+      }
+     },
+     "best_hold": "60d",
+     "best_net_bp": 57.7908,
+     "breakeven_days": 14.25,
+     "folds": [
+      {
+       "fold": 0,
+       "n": 2552,
+       "mean_bp": 0.29808,
+       "t": 23.607
+      },
+      {
+       "fold": 1,
+       "n": 2552,
+       "mean_bp": 0.37791,
+       "t": 34.862
+      },
+      {
+       "fold": 2,
+       "n": 2552,
+       "mean_bp": 0.60711,
+       "t": 59.468
+      },
+      {
+       "fold": 3,
+       "n": 2553,
+       "mean_bp": 0.40116,
+       "t": 35.661
+      }
+     ]
+    }
+   },
+   "combo_30d": {
+    "hold_days": 30.0,
+    "periods": 90.0,
+    "periods_per_day": 3.0,
+    "net_bp": 19.0468,
+    "net_usd_per_1k": 1.9047,
+    "breakeven_periods": 43.73,
+    "breakeven_days": 14.58,
+    "annualized_pct": 4.5074,
+    "profitable": true
+   },
+   "executable_symbols": [
+    "BNB",
+    "BTC",
+    "DOGE",
+    "ETH",
+    "SOL",
+    "XRP"
+   ]
+  }
+ },
+ "note": "现货腿无行情数据，价格盈亏按完全对冲处理（仅计成本与基差）"
+}

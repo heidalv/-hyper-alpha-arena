@@ -1,0 +1,35 @@
+{
+ "generated_at": "2026-09-10T21:30:00.946886+00:00",
+ "days": 7,
+ "rules": [
+  {
+   "tier": "long",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "long",
+   "n": 10,
+   "win_rate": 0.2,
+   "avg_pct": -1.77
+  },
+  {
+   "tier": "mid",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "long",
+   "n": 3,
+   "win_rate": 0.0,
+   "avg_pct": -3.47
+  },
+  {
+   "tier": "long",
+   "regime": "trending",
+   "vol_bucket": "low",
+   "direction": "long",
+   "n": 3,
+   "win_rate": 0.333,
+   "avg_pct": -0.8
+  }
+ ],
+ "lessons_text": "长线·震荡市·低波动·做多：10 笔 胜率20% 均盈-1.77%\n中线·震荡市·低波动·做多：3 笔 胜率0% 均盈-3.47%\n长线·趋势市·低波动·做多：3 笔 胜率33% 均盈-0.80%",
+ "total_episodes": 23
+}

@@ -849,8 +849,8 @@ class FullAutoTradingService:
 
         # Step 2: 根据账户 selected_exchange 确保市场流订阅
         try:
-            from config import settings as _settings
-            from services.market_flow import market_flow_registry
+            from backend.config import settings as _settings
+            from backend.services.market_flow import market_flow_registry
 
             # 确定交易所：会话级 active_exchange(已规范化) > account.selected_exchange > DEFAULT_EXCHANGE
             exchange_id = (
@@ -1241,8 +1241,11 @@ class FullAutoTradingService:
         # Fix 22b: 注入后立即触发订单流订阅（原不触发 → 新币 OI/CVD/Taker 全缺）
         if added:
             try:
-                from services.market_flow_collector import market_flow_collector
-                trade_universe = list(dict.fromkeys(current + auto_coin))
+                from backend.services.market_flow_collector import market_flow_collector
+                # [2026-09-07] 走统一 resolve（含 AI 可交易过滤），勿直接拼 DB 脏 auto_coin
+                trade_universe = self._resolve_session_trade_symbols(session, db) or list(
+                    dict.fromkeys(current + auto_coin)
+                )
                 if market_flow_collector.running:
                     market_flow_collector.refresh_subscriptions(trade_universe)
                     logger.info(f"[FullAuto] 新增币种 {added} 订单流订阅已刷新")
@@ -2315,6 +2318,7 @@ class FullAutoTradingService:
         from backend.services.full_auto.market_summary_helpers import MarketSummaryContext
         return MarketSummaryContext(
             market_scan_cache=self._market_scan_cache,
+            market_scan_cache_ts=float(getattr(self, "_market_scan_cache_ts", 0) or 0),
             last_unified_snapshot=getattr(self, "_last_unified_snapshot", None),
             bg_scan_running=self._bg_scan_running,
             start_bg_scan=self._bg_market_scan,
@@ -2651,6 +2655,7 @@ class FullAutoTradingService:
         mid_universe: Optional[List[str]] = None,
         run_mid: bool = True,
         run_long: bool = True,
+        run_short: bool = False,
         light_context: bool = False,
     ) -> None:
         from backend.services.full_auto.mlto_cycle import (
@@ -2669,6 +2674,7 @@ class FullAutoTradingService:
             mid_universe=mid_universe,
             run_mid=run_mid,
             run_long=run_long,
+            run_short=run_short,
             light_context=light_context,
         )
         self._mlto_handled_keys = host.mlto_handled_keys
@@ -3456,10 +3462,13 @@ class FullAutoTradingService:
     _scalp_loop_started: Dict[str, float] = {}
     _midlong_loop_running: Dict[str, bool] = {}
     _midlong_loop_started: Dict[str, float] = {}
+    _midlong_loop_thread: Dict[str, Any] = {}
     _midlong_tick_count: Dict[str, int] = {}
     _last_hold_timeout_ai_review: Dict[str, float] = {}  # session_id -> ts
     _SCALP_LOOP_HANG_TIMEOUT_SECONDS = 180  # 7 币扫描通常 <2min；超时则强制放行下一轮
-    _MIDLONG_LOOP_HANG_TIMEOUT_SECONDS = 300  # mid/long LLM 单轮上限 ~5min
+    # 主脑一轮最多 3+3 次 dual_call×180s + 持仓 LLM，5 分钟会误判 hang 并叠第二轮，
+    # 后写的 degraded 论题会盖掉刚达成的共识（2026-09-05 ASTER long 实测）。
+    _MIDLONG_LOOP_HANG_TIMEOUT_SECONDS = 1500
     # ── unified loop hang 阈值：自适应动态计算（根据近 N 轮真实完成耗时） ──
     # 固定 360s(Paper) / 1000s(Live) 实测会误杀正常长轮（单轮可达 868-1003s）。
     # 现改为：阈值 = clamp(近N轮 P90 × 倍数, 下限, 上限)。全部可通过 env 覆盖。
@@ -3798,18 +3807,46 @@ class FullAutoTradingService:
         if session_id not in self._running_sessions:
             logger.warning("[MidLongAgent独立] 跳过: session 不在 _running_sessions %s", session_id)
             return
+        # [2026-09-07] 旗标被重注册清掉时，仍以存活线程为准，禁止叠第二轮
+        th_alive = self._midlong_loop_thread.get(session_id)
+        if th_alive is not None and getattr(th_alive, "is_alive", lambda: False)():
+            elapsed = time.time() - float(self._midlong_loop_started.get(session_id, 0) or time.time())
+            logger.debug(
+                "[MidLongAgent独立] 上轮线程仍存活(%ss)，跳过 %s",
+                int(elapsed), session_id,
+            )
+            if not self._midlong_loop_running.get(session_id):
+                self._midlong_loop_running[session_id] = True
+            return
         prev_started = self._midlong_loop_started.get(session_id, 0)
         if self._midlong_loop_running.get(session_id):
             elapsed = time.time() - prev_started
-            if elapsed < self._MIDLONG_LOOP_HANG_TIMEOUT_SECONDS:
-                logger.debug(
-                    f"[MidLongAgent独立] 上轮仍在执行({elapsed:.0f}s)，跳过 {session_id}"
-                )
+            th = self._midlong_loop_thread.get(session_id)
+            alive = bool(th is not None and getattr(th, "is_alive", lambda: True)())
+            timeout = self._MIDLONG_LOOP_HANG_TIMEOUT_SECONDS
+            try:
+                from backend.config.settings import midlong_brain_enabled as _brain_on
+                if _brain_on():
+                    timeout = max(timeout, 1500)
+            except Exception:
+                pass
+            if alive:
+                if elapsed < timeout:
+                    logger.debug(
+                        f"[MidLongAgent独立] 上轮仍在执行({elapsed:.0f}s)，跳过 {session_id}"
+                    )
+                else:
+                    logger.warning(
+                        "[MidLongAgent独立] 上轮仍在跑(%ss≥%s)，禁止叠第二轮（避免论题互盖）%s",
+                        int(elapsed), timeout, session_id,
+                    )
                 return
             logger.warning(
-                f"[MidLongAgent独立] 上轮疑似 hang({elapsed:.0f}s)，强制新扫描 {session_id}"
+                "[MidLongAgent独立] 上轮线程已死但旗标未清(%ss)，回收后新扫描 %s",
+                int(elapsed), session_id,
             )
             self._midlong_loop_running[session_id] = False
+            self._midlong_loop_thread.pop(session_id, None)
         _st = self._get_session_status_fast(session_id)
         if _st == "paused":
             logger.warning("[MidLongAgent独立] 跳过: session 状态=paused %s", session_id)
@@ -3817,12 +3854,14 @@ class FullAutoTradingService:
         logger.info("[MidLongAgent独立] 启动 tick %s status=%s", session_id, _st)
         self._midlong_loop_running[session_id] = True
         self._midlong_loop_started[session_id] = time.time()
-        threading.Thread(
+        _th = threading.Thread(
             target=self._run_midlong_loop_wrapped,
             args=(session_id,),
             daemon=True,
             name=f"fullauto-midlong-{session_id[:8]}",
-        ).start()
+        )
+        self._midlong_loop_thread[session_id] = _th
+        _th.start()
 
     def _run_midlong_loop_wrapped(self, session_id: str):
         from backend.utils.trace_context import bind_trace, generate_trace_id
@@ -3843,8 +3882,12 @@ class FullAutoTradingService:
             except Exception:
                 pass
         finally:
-            self._midlong_loop_running[session_id] = False
-            self._midlong_loop_started.pop(session_id, None)
+            if self._midlong_loop_thread.get(session_id) is threading.current_thread():
+                self._midlong_loop_running[session_id] = False
+                self._midlong_loop_started.pop(session_id, None)
+                self._midlong_loop_thread.pop(session_id, None)
+            else:
+                logger.debug("[MidLongAgent独立] 旧线程收尾，不清理新轮旗标 %s", session_id)
 
     def _run_midlong_independent(self, session_id: str, tick: int) -> None:
         """#8 thin shim → full_auto.loops.midlong_loop"""
@@ -3870,7 +3913,9 @@ class FullAutoTradingService:
         for pos in positions:
             nature = str(pos.get("trade_nature") or "").lower()
             tier = str(pos.get("timeframe_tier") or "").lower()
-            if nature not in ("swing", "trend_follow", "position") and tier not in ("mid", "long"):
+            # [2026-09-07] 日内波段(short/intraday)纳入哨兵扫描：论题硬离场覆盖日内仓。
+            # 下游安全：v2 只管 long；bias 反转/no_progress 对 short 自然跳过。
+            if nature not in ("swing", "trend_follow", "position", "intraday") and tier not in ("mid", "long", "short"):
                 continue
             sym = str(pos.get("symbol") or "").upper()
             md = market_summary.get(sym) if isinstance(market_summary, dict) else None
@@ -3883,6 +3928,49 @@ class FullAutoTradingService:
                 _v2_active = long_v2_enabled()
             except Exception:
                 _v2_active = False
+            # [2026-09-03 v3 方向1] E1 趋势仓由 trend_e1_engine 日任务独管（ema_stack / Chandelier 3×ATR20），
+            # 不再叠加 V2 的 L1 五票 / 周线 Chandelier 2.0 —— 双重管理会把回测验证过的持仓提前砍掉。
+            try:
+                from backend.services.trend_e1_engine import is_e1_position as _is_e1_pos
+                if _is_e1_pos(pos):
+                    continue
+            except Exception:
+                pass
+
+            # [2026-09-07] 论题 should_close / 同向失效价：每 tick 全仓哨兵。
+            # 不依赖扫描 batch——主脑写 should_close 后必须在 ~45s 内执行，
+            # 否则 mid 仓会因「不在本批 symbols」一直挂着（BTC 4624 实证）。
+            try:
+                from backend.config.settings import midlong_brain_enabled as _brain_on
+                if _brain_on():
+                    from backend.services.full_auto.midlong_position_manager import (
+                        resolve_thesis_hard_exit as _th_exit,
+                        ack_thesis_hard_exit as _th_ack,
+                        _tier_of as _th_tier_of,
+                    )
+                    _sid = str(getattr(session, "session_id", "") or "")
+                    _hit = _th_exit(_sid, pos)
+                    if _hit:
+                        _reason, _th = _hit
+                        paper_engine.close_position(
+                            db, acct_id, sym, pos.get("side"),
+                            reason=str(_reason)[:120],
+                            strategy_id=pos.get("strategy_id"),
+                            position_id=pos.get("id"),
+                            trade_nature=nature or None,
+                        )
+                        _th_ack(
+                            _th, reason=_reason, symbol=sym,
+                            tier=_th_tier_of(pos), side=pos.get("side"),
+                        )
+                        logger.info(
+                            "[MidLongExit] 论题硬离场 %s %s reason=%s",
+                            sym, pos.get("side"), _reason,
+                        )
+                        continue
+            except Exception as _th_ex:
+                logger.debug("[MidLongExit] 论题哨兵跳过 %s: %s", sym, _th_ex)
+
             if _v2_active and tier == "long":
                 try:
                     _v2d = manage_long_position(db, account_id=acct_id, position=pos)
@@ -4012,6 +4100,32 @@ class FullAutoTradingService:
                             )
                             logger.info("[MidLongExit][V2] 部分减仓 %s qty=%s: %s", sym, _red_qty, _v2d.get("reason"))
                             log_long_action(sym, "reduce", str(_v2d.get("reason") or ""))
+                            # [2026-09-07 幂等] 减半成功后置 done 标记，防每 tick 重评连续减半。
+                            # （实证：极端回撤减半曾 7 分钟内连减 7 次至清仓。标记键与
+                            # long_trend_v2 读取侧 dd_halve_done/target_halve_done/early_np_done 对齐）
+                            try:
+                                import json as _json_r
+                                from backend.database.models import PaperPosition as _PP3
+                                _rrow = db.query(_PP3).filter(_PP3.id == int(pos.get("id") or 0)).first()
+                                if _rrow is not None:
+                                    _rst = _rrow.exit_state_json or "{}"
+                                    try:
+                                        _rd = _json_r.loads(_rst) if isinstance(_rst, str) else {}
+                                    except Exception:
+                                        _rd = {}
+                                    if not isinstance(_rd, dict):
+                                        _rd = {}
+                                    _rsn = str(_v2d.get("reason") or "")
+                                    if "极端回撤" in _rsn:
+                                        _rd["dd_halve_done"] = True
+                                    if "结构目标" in _rsn:
+                                        _rd["target_halve_done"] = True
+                                    if "early_no_progress" in _rsn:
+                                        _rd["early_np_done"] = True
+                                    _rrow.exit_state_json = _json_r.dumps(_rd, ensure_ascii=False)
+                                    db.commit()
+                            except Exception as _re:
+                                logger.debug("[MidLongExit][V2] 减半幂等标记写入失败: %s", _re)
                 except Exception as _v2e:
                     logger.warning("[MidLongExit][V2] 管理异常 %s: %s", sym, _v2e)
                 continue
@@ -4133,6 +4247,11 @@ class FullAutoTradingService:
             PaperPosition.status == "open",
             PaperPosition.trade_nature.in_(("scalp", "intraday")),
         ).first()
+        # [2026-09-02 挂事务修复] 这条 SELECT 是短线逐币循环里最常见的事务起点
+        # （LeakGuard 追踪点名）：无反向仓直接返回、有反向仓要去拉链上清算数据，
+        # 两种情况都先结束只读事务（有未提交写入时 release 不动，语义见 connection）。
+        from backend.database.connection import release_idle_txn as _release_txn
+        _release_txn(db, where="liq_magnet_reversal_exit")
         if not opp_pos:
             return
 

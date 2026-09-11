@@ -119,6 +119,90 @@ def _cosine(a: List[float], b: List[float]) -> float:
     return float(sum(x * y for x, y in zip(a, b)))
 
 
+def _extract_trajectory(report: Dict[str, Any], period: str) -> Optional[Dict[str, Any]]:
+    """[2026-09-07 QuantaAlpha 轨迹级进化] 把整轮挖掘当一条「轨迹」记录漏斗，
+    并产出针对**失败环节**的定向变异指令（而非泛泛的「下一轮更好」）。
+
+    与 success_recipe/gate_lesson 的区别：那些是结果快照；轨迹记录的是
+    「候选从哪来 → 在哪一关死 → 该怎么改」的因果链，供下轮直接改写挖掘行为。
+
+    轨迹变异规则（确定性，不让 LLM 当裁判）：
+      - 候选多但初筛死一片（ICIR/换手）→ 指令：GP/MCTS 提高 ICIR 下限、降换手；
+      - 过初筛但池筛死（增量相关高）→ 指令：换字段/换窗口族，找低相关；
+      - 过池筛但 DSR/PBO 死 → 指令：减少同族重复搜索，拉大多样性；
+      - 幸存但晋升 0（测试集/净IC）→ 指令：优先 near-miss 修复与成本约束。
+    """
+    if report.get("error"):
+        return None
+    cand = int(report.get("candidates") or 0)
+    evaluated = int(report.get("evaluated") or 0)
+    survivors = int(report.get("survivors") or 0)
+    promoted = report.get("promoted_factors") or []
+    if cand <= 0:
+        return None
+
+    # 漏斗定位失败环节
+    purge = report.get("purge") or {}
+    stage_counts = report.get("stage_counts") or {}
+    rej_eval = int(stage_counts.get("rejected_eval") or purge.get("rejected_eval") or 0)
+    rej_pool = int(stage_counts.get("rejected_pool") or purge.get("rejected_pool") or 0)
+    rej_dsr = int(stage_counts.get("rejected_dsr_pbo") or purge.get("rejected_dsr_pbo") or 0)
+
+    if promoted:
+        step, directive = "promote_ok", (
+            "本轮有晋升。下轮以晋升因子为父本做结构变异（保骨架、换窗口/字段），"
+            "并检索其低相关互补因子。"
+        )
+    elif rej_dsr > 0 and rej_dsr >= max(1, survivors):
+        step, directive = "dsr_pbo", (
+            "候选过池筛但死于 DSR/PBO（过拟合）。下轮：减少同族重复假设，"
+            "拉大字段/窗口多样性，避免在同一信号族上反复微调。"
+        )
+    elif rej_pool > 0:
+        step, directive = "pool_corr", (
+            "候选过初筛但死于增量相关（与池内太像）。下轮：换字段族"
+            "（funding/oi/liquidation/wick）与不同窗口，优先低相关新信号。"
+        )
+    elif rej_eval > 0 and rej_eval >= cand * 0.5:
+        step, directive = "eval_gate", (
+            "大量候选死于初筛（ICIR/换手/半衰期）。下轮：提高挖掘适应度的 ICIR "
+            "权重、加强换手惩罚，优先低频高质信号而非高频噪声。"
+        )
+    elif survivors > 0 and not promoted:
+        step, directive = "final_gate", (
+            "有幸存者但晋升 0（测试集/净 IC 拦）。下轮：用 near-miss 修复"
+            "（decay/ts_rank 包装）救接近达标者，并强化含成本净收益目标。"
+        )
+    else:
+        step, directive = "explore", (
+            "漏斗无单一瓶颈。下轮：扩大搜索广度（更多种子/迭代），保持多样性。"
+        )
+
+    trajectory = {
+        "period": period,
+        "candidates": cand,
+        "evaluated": evaluated,
+        "survivors": survivors,
+        "promoted": len(promoted),
+        "rej_eval": rej_eval,
+        "rej_pool": rej_pool,
+        "rej_dsr_pbo": rej_dsr,
+        "failure_step": step,
+        "mutation_directive": directive,
+    }
+    cycle = _period_to_cycle(period)
+    return {
+        "created_at": _now(),
+        "kind": "trajectory",
+        "cycle": cycle,
+        "period": period,
+        "title": f"{period} 挖掘轨迹：瓶颈={step}（候选{cand}→幸存{survivors}→晋升{len(promoted)}）",
+        "summary": f"失败环节定位={step}。定向变异指令：{directive}",
+        "report_json": {"trajectory": trajectory, "report": report},
+        "quality": 0.85,
+    }
+
+
 def _extract_lessons(report: Dict[str, Any], period: str) -> List[Dict[str, Any]]:
     """Deterministic lesson extraction. LLM is not the alpha judge; the loop's
     hard metrics/report decide what enters memory."""
@@ -130,6 +214,11 @@ def _extract_lessons(report: Dict[str, Any], period: str) -> List[Dict[str, Any]
         "cycle": cycle,
         "period": period,
     }
+
+    # [2026-09-07] 轨迹级进化：最先提取（失败环节定位 + 定向变异指令）
+    traj = _extract_trajectory(report, period)
+    if traj is not None:
+        lessons.append(traj)
 
     if report.get("error"):
         lessons.append({
@@ -231,6 +320,34 @@ def record_report(period: str, report: Dict[str, Any]) -> int:
             conn.close()
 
 
+def latest_trajectory_directive(period: str) -> Optional[Dict[str, Any]]:
+    """[2026-09-07] 取最近一次挖掘轨迹的定向变异指令（供下轮挖掘实际改行为）。
+
+    返回 {failure_step, mutation_directive, candidates, survivors, promoted}，
+    无轨迹记录时返回 None。进化循环可用它调整下轮 GP/MCTS 的适应度权重、
+    字段族偏好等——这是 QuantaAlpha「轨迹级变异」的落地：改的是挖掘行为本身。
+    """
+    init_db()
+    with _LOCK:
+        conn = _conn()
+        try:
+            row = conn.execute(
+                """SELECT report_json FROM v7_lessons
+                   WHERE kind='trajectory' AND status='active' AND period=?
+                   ORDER BY id DESC LIMIT 1""",
+                (period,),
+            ).fetchone()
+        finally:
+            conn.close()
+    if not row:
+        return None
+    try:
+        payload = json.loads(row[0] or "{}")
+        return payload.get("trajectory")
+    except Exception:
+        return None
+
+
 def build_codegen_context(period: str, limit: int = 8) -> str:
     """Retrieve top memory for Codegen prompt injection.
 
@@ -284,6 +401,7 @@ def build_codegen_context(period: str, limit: int = 8) -> str:
             "gate_lesson": "门禁教训",
             "decay_case": "衰退案例",
             "pipeline_issue": "链路问题",
+            "trajectory": "挖掘轨迹",
         }.get(kind, kind)
         lines.append(f"- [{kind_label}|{cycle}|{period_}] {title}: {summary}")
         # 记录本次被检索（下次检索质量上升；无效教训可通过 status=retired 淘汰）

@@ -1,0 +1,116 @@
+{
+  "agent": "execution_qa",
+  "ts_ms": 1789082101489,
+  "ok": true,
+  "mode": "observe",
+  "configured_mode": "observe",
+  "downgraded": false,
+  "downgrade_reason": "",
+  "credibility": {
+    "agent": "execution_qa",
+    "days": 60,
+    "n": 7,
+    "n_scored": 4,
+    "avg_score": 0.5,
+    "avg_brier": 0.24907424515624996,
+    "by_kind": [
+      {
+        "kind": "exec_quality",
+        "n": 7,
+        "n_scored": 4,
+        "avg_score": 0.5,
+        "avg_brier": 0.24907424515624996,
+        "last_ms": 1788995704240
+      }
+    ],
+    "verdict": {
+      "passed": false,
+      "reason": "已评分样本 4 < 30",
+      "gate": {
+        "min_scored": 30,
+        "min_avg_score": 0.55,
+        "max_avg_brier": 0.3
+      }
+    }
+  },
+  "findings": {
+    "lookback_h": 168.0,
+    "accounts": [],
+    "per_account": [
+      {
+        "account_id": null,
+        "since_ms": 1788477302400,
+        "until_ms": 1789082102400,
+        "n_orders": 200,
+        "notes": [
+          "1 笔成交缺基准价，未计入滑点",
+          "maker/taker 占比与下单延迟未落库（仅存在于仿真器内存），本轮不评估"
+        ],
+        "n_filled": 115,
+        "n_rejected": 0,
+        "n_partial": 0,
+        "reject_rate": 0.0,
+        "partial_rate": 0.0,
+        "median_slippage_bp": 7.802,
+        "avg_slippage_bp": 9.402,
+        "p90_slippage_bp": 22.821,
+        "n_slippage_samples": 114,
+        "slippage_by_type": {
+          "market": {
+            "n": 112,
+            "median_bp": 7.8
+          },
+          "stop_loss": {
+            "n": 2,
+            "median_bp": 5.0
+          }
+        },
+        "worst_symbols": [
+          {
+            "symbol": "ASTER",
+            "n": 10,
+            "median_bp": 19.99
+          },
+          {
+            "symbol": "SOL",
+            "n": 13,
+            "median_bp": 17.81
+          },
+          {
+            "symbol": "BNB",
+            "n": 11,
+            "median_bp": 17.46
+          },
+          {
+            "symbol": "XRP",
+            "n": 10,
+            "median_bp": 10.51
+          },
+          {
+            "symbol": "ETH",
+            "n": 20,
+            "median_bp": 7.66
+          }
+        ],
+        "avg_fee_bp": 3.991,
+        "n_fee_samples": 115
+      }
+    ],
+    "n_usable": 1,
+    "issues": [],
+    "thresholds": {
+      "slippage_bp": 8.0,
+      "reject_rate": 0.05,
+      "min_orders": 20
+    }
+  },
+  "predictions": [
+    "bba2e2cd01124637b9562a7542e7f053"
+  ],
+  "advice": [],
+  "experiments": [],
+  "errors": [],
+  "elapsed_sec": 12.623,
+  "latest_path": null,
+  "dry_run": false
+}

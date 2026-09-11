@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy.orm import Session
 from backend.database.connection import engine, SessionLocal, DATABASE_URL
 from backend.database.models import Base, Account, User, TradingConfig
-from config.settings import DEFAULT_TRADING_CONFIGS
+from backend.config.settings import DEFAULT_TRADING_CONFIGS
 import logging
 
 logging.basicConfig(level=logging.INFO)

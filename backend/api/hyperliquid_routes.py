@@ -236,7 +236,7 @@ async def get_balance(
     try:
         # Determine environment to use
         if environment is None:
-            from services.hyperliquid_environment import get_global_trading_mode
+            from backend.services.hyperliquid_environment import get_global_trading_mode
             environment = get_global_trading_mode(db)
 
         if not force_refresh:
@@ -287,7 +287,7 @@ async def get_positions(
     try:
         # Determine environment to use
         if environment is None:
-            from services.hyperliquid_environment import get_global_trading_mode
+            from backend.services.hyperliquid_environment import get_global_trading_mode
             environment = get_global_trading_mode(db)
 
         if not force_refresh:
@@ -345,7 +345,7 @@ async def place_manual_order(
         client = get_hyperliquid_client(db, account_id, override_environment=request.environment)
 
         # Validate leverage against wallet limits (uses unified leverage getter)
-        from services.hyperliquid_environment import get_leverage_settings, get_global_trading_mode
+        from backend.services.hyperliquid_environment import get_leverage_settings, get_global_trading_mode
 
         # Determine actual environment being used
         actual_environment = request.environment if request.environment else get_global_trading_mode(db)
@@ -653,7 +653,7 @@ def get_account_rate_limit(
     try:
         # Determine environment to use
         if environment is None:
-            from services.hyperliquid_environment import get_global_trading_mode
+            from backend.services.hyperliquid_environment import get_global_trading_mode
             environment = get_global_trading_mode(db)
 
         # Get Hyperliquid client for this account with environment override
@@ -711,7 +711,7 @@ def get_account_trading_stats(
     try:
         # Determine environment to use
         if environment is None:
-            from services.hyperliquid_environment import get_global_trading_mode
+            from backend.services.hyperliquid_environment import get_global_trading_mode
             environment = get_global_trading_mode(db)
 
         # Get Hyperliquid client for this account with environment override
@@ -802,7 +802,7 @@ def get_account_wallet(
     Returns both testnet and mainnet wallet configurations with balance information.
     """
     from backend.database.models import HyperliquidWallet, Account
-    from services.hyperliquid_environment import get_global_trading_mode
+    from backend.services.hyperliquid_environment import get_global_trading_mode
 
     try:
         # Check if account exists
@@ -883,7 +883,7 @@ def configure_account_wallet(
     The private key will be encrypted before storage.
     """
     from backend.database.models import HyperliquidWallet, Account
-    from utils.encryption import encrypt_private_key
+    from backend.utils.encryption import encrypt_private_key
     from eth_account import Account as EthAccount
 
     try:
@@ -945,7 +945,7 @@ def configure_account_wallet(
             if request.environment == 'mainnet':
                 try:
                     logger.info(f"[BUILDER_AUTH] Checking authorization after wallet save for account {account_id}, wallet={wallet_address}")
-                    from config.settings import HYPERLIQUID_BUILDER_CONFIG
+                    from backend.config.settings import HYPERLIQUID_BUILDER_CONFIG
                     import requests
 
                     # Check authorization status
@@ -1014,7 +1014,7 @@ def configure_account_wallet(
             if request.environment == 'mainnet':
                 try:
                     logger.info(f"[BUILDER_AUTH] Checking authorization after wallet save for account {account_id}, wallet={wallet_address}")
-                    from config.settings import HYPERLIQUID_BUILDER_CONFIG
+                    from backend.config.settings import HYPERLIQUID_BUILDER_CONFIG
                     import requests
 
                     # Check authorization status
@@ -1140,7 +1140,7 @@ def test_wallet_connection(
     Uses global trading_mode to determine which network to test.
     """
     from backend.database.models import Account
-    from services.hyperliquid_environment import get_global_trading_mode
+    from backend.services.hyperliquid_environment import get_global_trading_mode
 
     try:
         # Check if account exists
@@ -1205,7 +1205,7 @@ def get_trading_mode(db: Session = Depends(get_db)):
 
     Returns the current trading environment (testnet or mainnet) that all AI Traders use.
     """
-    from services.hyperliquid_environment import get_global_trading_mode
+    from backend.services.hyperliquid_environment import get_global_trading_mode
 
     try:
         mode = get_global_trading_mode(db)
@@ -1268,7 +1268,7 @@ def set_trading_mode(
 
         # Clear all Hyperliquid caches when environment changes
         # This ensures fresh data is fetched from the new environment
-        from services.hyperliquid_cache import clear_all_caches
+        from backend.services.hyperliquid_cache import clear_all_caches
         clear_all_caches()
         logger.info("Cleared all Hyperliquid caches after trading mode switch")
 

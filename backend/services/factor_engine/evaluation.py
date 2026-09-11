@@ -39,6 +39,10 @@ class FactorEvalResult:
     monotonicity_p: float = 1.0
     turnover: float = 1.0
     halflife_bars: int = 0
+    # [2026-08-30 M2d] 尾部价差 t 统计量（top-bottom 分位均值差的 Welch t）。
+    # 反转/均值回归因子只在尾部有效、中段平坦 → 全档单调性检验天然失败；
+    # 尾部价差显著(|t|≥2)即认定方向结构成立。monotonicity_p 与此互为替代路径。
+    tail_spread_t: float = 0.0
     n_samples: int = 0
 
 
@@ -66,10 +70,20 @@ def time_series_ic(
     return_series: pd.Series,
     *,
     method: str = "pearson",
+    step: int = 1,
 ) -> np.ndarray:
     """
-    时序 IC 序列：逐期算因子值与下期收益的相关（滚动非重叠）。
+    时序 IC 序列：逐期算因子值与下期收益的相关。
     输入为对齐的时间序列，输出 IC 数组（每期一个）。
+
+    step=1（默认，历史行为）为步长 1 的**重叠**滑窗：n 个 bar 调 n 次
+    scipy 相关，实测 n=2000 耗时 1.9s、n=8000 耗时 7.2s。它是 CPCV 评估
+    在单测里 120s 超时挂死的调用点，且重叠窗口让 IC 序列强自相关、std 被
+    低估、由此算出的 ICIR 系统性虚高。
+    step=window 为**非重叠**窗口：调用次数降到 n/window（实测同数据快约
+    22 倍），IC 之间近似独立，ICIR/t 检验才成立。新代码优先用 step=0
+    （自动取 window，即非重叠）；默认值保持 1 是为了不改动既有调用方的
+    统计口径（晋升门禁阈值是按重叠口径调出来的）。
     """
     # 对齐
     factor_values = factor_series
@@ -77,15 +91,16 @@ def time_series_ic(
     if len(df) < 10:
         return np.array([])
     # 简化：整体 IC 作为单点（横截面场景逐期算需多品种面板）
-    # 这里返回滑动窗口 IC 序列
     window = min(20, len(df) // 3)
     if window < 5:
         return np.array([information_coefficient(df["f"].values, df["r"].values, method=method)])
+    _step = window if int(step) <= 0 else max(1, int(step))
+    _f = df["f"].values
+    _r = df["r"].values
     ics = []
-    for i in range(window, len(df)):
-        seg_f = df["f"].iloc[i - window:i].values
-        seg_r = df["r"].iloc[i - window:i].values
-        ics.append(information_coefficient(seg_f, seg_r, method=method))
+    for i in range(window, len(df) + (1 if _step > 1 else 0), _step):
+        ics.append(information_coefficient(
+            _f[i - window:i], _r[i - window:i], method=method))
     return np.array(ics)
 
 
@@ -234,6 +249,27 @@ class AdmissionGateResult:
     details: Dict[str, float] = field(default_factory=dict)  # 各项实测值
 
 
+def _lifecycle_defaults() -> Dict[str, float]:
+    """从 LifecycleThresholds 拉取共享阈值（单一事实源）。
+
+    [2026-09-07] 此前 admission_gate 与 lifecycle 各自硬编码半衰期/换手/PBO，
+    同一因子两处结论相反。现在 admission_gate 的对应项直接取 lifecycle 值，
+    只保留 admission 独有的（sharpe/fitness/ic_p 等）。
+    """
+    try:
+        from backend.services.factor_engine.lifecycle import LifecycleThresholds
+        t = LifecycleThresholds()
+        return {
+            "max_turnover": float(t.max_turnover),
+            "min_halflife_bars": float(t.min_halflife_bars),
+            # max_pool_corr 保持 0.7（BRAIN 口径）；lifecycle 的 max_incremental_corr=0.5
+            # 是晋升门的增量相关，语义更严，两者不混用。
+            "max_pool_corr": 0.7,
+        }
+    except Exception:
+        return {"max_turnover": 0.7, "min_halflife_bars": 4, "max_pool_corr": 0.7}
+
+
 DEFAULT_GATE_CONFIG: Dict[str, float] = {
     # 全部门槛可配置（crypto 波动率缩放），默认值对标 WorldQuant BRAIN 并放宽到 crypto 口径
     "min_top_quantile_sharpe": 0.3,    # 多头组最小年化夏普
@@ -243,11 +279,10 @@ DEFAULT_GATE_CONFIG: Dict[str, float] = {
     # p=1.2e-6, 9/9 币正)被拒 → 挖掘恒 0 晋升。降到 0.4 与 Lifecycle 对齐。
     "min_fitness": 0.4,                # Fitness(=ICIR) > 0.4
     "min_turnover": 0.0,               # Turnover 下限（WorldQuant 1%）
-    "max_turnover": 0.7,               # Turnover 上限（WorldQuant 70%）
-    "max_pool_corr": 0.7,              # 与池内最大相关 |ρ| < 0.7
-    "min_halflife_bars": 4,            # IC 半衰期 ≥ 4 期
     "ic_p_threshold": 0.05,            # IC 单边 t 检验 p < 0.05
     "min_ic_mean": 0.0,                # IC 均值 > 0
+    # [2026-09-07] 共享阈值从 LifecycleThresholds 取（单一事实源），见 _lifecycle_defaults
+    **_lifecycle_defaults(),
 }
 
 

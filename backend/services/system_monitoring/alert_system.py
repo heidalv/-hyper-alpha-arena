@@ -50,7 +50,7 @@ class AlertSystem:
         """懒加载钉钉通知服务"""
         if self._dingtalk_service is None:
             try:
-                from services.dingtalk.notification_service import DingTalkNotificationService
+                from backend.services.dingtalk.notification_service import DingTalkNotificationService
                 self._dingtalk_service = DingTalkNotificationService()
             except ImportError:
                 logger.warning("[AlertSystem] 钉钉通知模块未找到，降级为日志记录")

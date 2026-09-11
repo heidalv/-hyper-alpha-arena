@@ -393,7 +393,7 @@ class AlertSystem:
     def _send_dingtalk_alert(self, notification: AlertNotification) -> bool:
         """发送钉钉告警"""
         try:
-            from services.dingtalk import get_dingtalk_bot_client
+            from backend.services.dingtalk import get_dingtalk_bot_client
             
             bot = get_dingtalk_bot_client()
             if not bot:

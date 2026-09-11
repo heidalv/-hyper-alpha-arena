@@ -45,6 +45,68 @@ _WFO_IC_MIN_OOS_IC = float(os.getenv("WFO_IC_MIN_OOS_IC", "0.01"))
 _WFO_IC_MAX_DECAY = float(os.getenv("WFO_IC_MAX_DECAY", "0.50"))  # 衰退率 <50% 视为稳定
 _WFO_IC_MIN_WINDOWS = int(os.getenv("WFO_IC_MIN_WINDOWS", "3"))
 
+# [2026-09-03 审查修正 B] IC-WFO 窗口按周期分档。原 60/15/7 天是 4h 档口径，对
+# 5m（进化取数 50 天）/15m（70 天）永远凑不出一个窗 → insufficient_windows:0 →
+# fail-closed 全拒（实测 09-03 03:20 BTC 5m 14085 根：windows=0）。分档口径与
+# factor_evolution_loop._PERIOD_SPLIT_DAYS 的数据深度匹配；env WFO_IC_*_DAYS
+# 显式设置时对所有周期生效（保持旧语义），未设置时按周期取默认。
+_WFO_STRAT_WINDOWS_BY_FREQ: Dict[str, tuple] = {
+    # 策略级 WFO（WalkForwardAnalyzer）：(train_days, test_days, step_days)
+    "1min": (20, 5, 5), "3min": (20, 5, 5), "5min": (20, 5, 5),
+    "15min": (20, 5, 5), "30min": (30, 10, 7),
+    "1h": (30, 10, 7), "2h": (60, 15, 15), "4h": (60, 15, 15), "8h": (60, 15, 15), "1d": (60, 15, 15),
+}
+_WFO_IC_WINDOWS_BY_FREQ: Dict[str, tuple] = {
+    # freq: (train_days, test_days, step_days)。step == test：测试窗**不重叠**，
+    # 每根 OOS K 线只参与一次评估，窗间 IC 才近似独立、单边 t 检验才成立
+    # （原 60/15/7 相邻测试窗重叠 8/15 根，47 个"窗"有效自由度不到一半）。
+    "1min": (20, 5, 5), "3min": (20, 5, 5), "5min": (20, 5, 5),
+    "15min": (30, 10, 10), "30min": (45, 15, 15),
+    "1h": (60, 15, 15), "2h": (60, 15, 15), "4h": (60, 15, 15), "8h": (60, 15, 15), "1d": (60, 15, 15),
+}
+# 单窗 OOS 至少要有这么多个点：短窗内的样本相关系数对"滞后收益均值"类因子有
+# ≈ -k/n 的小样本负偏（i.i.d. 噪声上 15 点窗实测 |IC|≈0.2、p≈0），60 点把偏差
+# 压到 ~0.02 以内。测试窗按天算出来不足时按根数抬高（步长同步）。
+_WFO_IC_MIN_TEST_BARS = int(os.getenv("WFO_IC_MIN_TEST_BARS", "60"))
+
+
+def _wfo_ic_windows(freq: str, total_bars: int, bpd: float) -> tuple:
+    """返回 (train_bars, test_bars, step_bars)：env 覆盖 > 周期分档 > 按数据跨度自适应收缩。
+
+    自适应：若按分档窗口连 ``_WFO_IC_MIN_WINDOWS`` 个窗都凑不出，把训练/测试窗
+    等比例缩到"刚好能出 MIN_WINDOWS 个窗"的尺度（训练窗不低于 5 天、测试窗不低于
+    2 天）；再不够则如实返回、由调用方按 insufficient_windows fail-closed。
+    宁可窗短、也不能没有滚动 OOS 检验。
+    """
+    env_set = any(os.getenv(k) for k in ("WFO_IC_TRAIN_DAYS", "WFO_IC_TEST_DAYS", "WFO_IC_STEP_DAYS"))
+    if env_set:
+        td, sd, pd_ = _WFO_IC_TRAIN_DAYS, _WFO_IC_TEST_DAYS, _WFO_IC_STEP_DAYS
+    else:
+        td, sd, pd_ = _WFO_IC_WINDOWS_BY_FREQ.get((freq or "").strip().lower(), (60, 15, 7))
+    train_bars = int(td * bpd)
+    test_bars = int(sd * bpd)
+    step_bars = max(1, int(pd_ * bpd))
+    # 单窗 OOS 点数下限（低频周期 15 天只有 15 根日线 → 抬到 60 根；训练窗同比例
+    # 至少 2 倍测试窗；步长不小于测试窗，保持不重叠）
+    if test_bars < _WFO_IC_MIN_TEST_BARS:
+        test_bars = _WFO_IC_MIN_TEST_BARS
+        train_bars = max(train_bars, 2 * test_bars)
+    step_bars = max(step_bars, test_bars) if not env_set else step_bars
+    need = train_bars + test_bars + step_bars * max(0, _WFO_IC_MIN_WINDOWS - 1)
+    if total_bars >= need or env_set:
+        return train_bars, test_bars, step_bars
+    # 自适应收缩：保持 train:test 比例、step=test，使 need == total_bars；
+    # 测试窗不低于 _WFO_IC_MIN_TEST_BARS（低于它宁可窗少也不出偏 IC）
+    scale = total_bars / float(max(need, 1))
+    test2 = max(_WFO_IC_MIN_TEST_BARS, int(test_bars * scale))
+    train2 = max(int(5 * bpd), int(train_bars * scale))
+    logger.info(
+        "[FactorWFO-IC] %s 数据 %d 根不足以按 train=%d/test=%d/step=%d 出 %d 个窗，收缩为 %d/%d/%d",
+        freq, total_bars, train_bars, test_bars, step_bars, _WFO_IC_MIN_WINDOWS,
+        train2, test2, test2,
+    )
+    return train2, test2, test2
+
 # [2026-08-13 P1-5] IC 前瞻期按周期分档（对齐 scalp ATR 持仓节奏；与
 # factor_evolution_loop._PERIOD_FWD_BARS 同口径），未知周期回退 env/5。
 _WFO_IC_FWD_BARS: Dict[str, int] = {
@@ -62,6 +124,13 @@ def _wfo_ic_fwd_bars(freq: str) -> int:
         return int(os.getenv("WFO_IC_FWD_BARS", "5") or 5)
     except (TypeError, ValueError):
         return 5
+
+
+def _strategy_gate_binding() -> bool:
+    """策略级 WFO 是否作为硬门（默认否，见 run_factor_wfo 内注释）。"""
+    return (os.getenv("FACTOR_EVO_WFO_STRATEGY_GATE", "0") or "0").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
 
 
 def _ensure_reports_table() -> None:
@@ -93,6 +162,34 @@ def _ensure_reports_table() -> None:
         pass
 
 
+def _report_consistency_and_periods(report: Any) -> tuple[float, int]:
+    """从 WalkForwardResult 取 (一致性, 有效期数)。
+
+    [2026-09-03 审查修正 B · 根因] WalkForwardResult 的字段叫 ``consistency_score``
+    与 ``periods``（列表），本模块自 M5 起一直读 ``consistency`` / ``n_periods``
+    ——两个不存在的属性，getattr 默认值 0 → ``consistency>=0.6`` 与 ``n_periods>=3``
+    永远不成立 → **策略级 WFO 门禁从写出来那天起就不可能通过**。08-27 观察到
+    "总报 n_periods=0/consistency=0" 后把门禁整体关掉，把症状当成了数据不足。
+    这里做字段兼容：新旧两套名字都认。
+    """
+    try:
+        c = getattr(report, "consistency_score", None)
+        if c is None:
+            c = getattr(report, "consistency", 0.0)
+        consistency = float(c or 0.0)
+    except Exception:
+        consistency = 0.0
+    try:
+        n = getattr(report, "n_periods", None)
+        if n is None:
+            _ps = getattr(report, "periods", None) or []
+            n = len([p for p in _ps if getattr(p, "test_result", None) is not None])
+        n_periods = int(n or 0)
+    except Exception:
+        n_periods = 0
+    return consistency, n_periods
+
+
 def _persist_report(
     subject_type: str,
     subject_id: str,
@@ -103,6 +200,7 @@ def _persist_report(
         _ensure_reports_table()
         from backend.database.connection import AnalyticsSessionLocal
         from sqlalchemy import text as _sa_text
+        _c, _n = _report_consistency_and_periods(report)
         with AnalyticsSessionLocal() as db:
             db.execute(_sa_text(
                 "INSERT INTO walk_forward_reports "
@@ -112,10 +210,11 @@ def _persist_report(
             ), {
                 "t": subject_type, "id": subject_id,
                 "pbo": float(getattr(report, "pbo", 0) or 0),
-                "dsr": float(getattr(report, "dsr", 0) or 0),
-                "c": float(getattr(report, "consistency", 0) or 0),
+                "dsr": float(getattr(report, "deflated_sharpe", None)
+                             or getattr(report, "dsr", 0) or 0),
+                "c": _c,
                 "o": float(getattr(report, "overfitting_score", 0) or 0),
-                "n": int(getattr(report, "n_periods", 0) or 0),
+                "n": _n,
                 "pj": "{}",
                 "passed": passed,
                 "mj": "{}",
@@ -170,10 +269,12 @@ def run_factor_wfo(
     """对因子跑 WFO 并落库；返回 {passed, report, error}。"""
     if not FEATURE_WFO_GATE_ENABLED:
         return {"passed": True, "report": None, "skipped": True}
+    # advisory 模式下数据不足/异常同样不阻断（约束由 IC-WFO 承担）
+    _fail_verdict = (not _WFO_FAIL_CLOSED) or (not _strategy_gate_binding())
     if df is None or len(df) < 500:
         return {
-            "passed": not _WFO_FAIL_CLOSED, "report": None, "skipped": True,
-            "reason": "insufficient_data",
+            "passed": _fail_verdict, "report": None, "skipped": True,
+            "reason": "insufficient_data", "binding": _strategy_gate_binding(),
         }
     try:
         # WFO 需要 DatetimeIndex（train_start + timedelta）
@@ -188,10 +289,15 @@ def run_factor_wfo(
             WalkForwardAnalyzer,
             WalkForwardConfig,
         )
+        # [2026-09-03 审查修正 B] 策略级 WFO 窗口按周期分档（env 显式设置优先）：
+        # 原 20/5/5 天对 4h 档 390 天数据要滚 70+ 期×网格×CSCV，慢且每期只有
+        # 120 根 K 线；5m/15m 保持 20/5/5。
+        _s_td, _s_sd, _s_pd = _WFO_STRAT_WINDOWS_BY_FREQ.get(
+            (freq or "").strip().lower(), (20, 5, 5))
         cfg = WalkForwardConfig(
-            train_period_days=int(os.getenv("WFO_TRAIN_DAYS", "20")),
-            test_period_days=int(os.getenv("WFO_TEST_DAYS", "5")),
-            step_days=int(os.getenv("WFO_STEP_DAYS", "5")),
+            train_period_days=int(os.getenv("WFO_TRAIN_DAYS", str(_s_td))),
+            test_period_days=int(os.getenv("WFO_TEST_DAYS", str(_s_sd))),
+            step_days=int(os.getenv("WFO_STEP_DAYS", str(_s_pd))),
             purge_days=int(os.getenv("WFO_PURGE_DAYS", "2")),
             embargo_days=int(os.getenv("WFO_EMBARGO_DAYS", "1")),
             optimizer="grid",
@@ -210,8 +316,7 @@ def run_factor_wfo(
         )
         pbo = float(getattr(report, "pbo", 0.5) or 0.5)
         overfit = float(getattr(report, "overfitting_score", 0.0) or 0.0)
-        consistency = float(getattr(report, "consistency", 0.0) or 0.0)
-        n_periods = int(getattr(report, "n_periods", 0) or 0)
+        consistency, n_periods = _report_consistency_and_periods(report)
         passed = (
             pbo <= 0.30
             and overfit >= 0.5
@@ -220,19 +325,35 @@ def run_factor_wfo(
         )
         _persist_report("factor", factor_id, report, passed)
         logger.info(
-            "[FactorWFO] %s passed=%s pbo=%.3f overfit=%.2f consistency=%.2f n=%d",
+            "[FactorWFO] %s passed=%s pbo=%.3f overfit=%.2f consistency=%.2f n=%d%s",
             factor_id, passed, pbo, overfit, consistency, n_periods,
+            "" if _strategy_gate_binding() else " (advisory：不阻断晋升，IC-WFO 为约束门)",
         )
-        return {"passed": passed, "report": report, "skipped": False}
+        out = {
+            "passed": passed, "report": report, "skipped": False,
+            "strategy_passed": passed, "binding": _strategy_gate_binding(),
+            "pbo": round(pbo, 4), "consistency": round(consistency, 4), "n_periods": n_periods,
+        }
+        if not _strategy_gate_binding():
+            # [2026-09-03 审查修正 B] 策略级 WFO 只作参考：它评估的是"z>1 开仓、
+            # 回到 0.5 平仓"这条与线上加权融合无关的固定规则，其 PBO 反映的是
+            # 这条规则 6 个阈值组合的稳定性，不是因子的预测力（实测 4h 档
+            # IC-WFO 47 窗 OOS IC 0.14/p≈0 的因子，策略级 pbo=0.74 照样拒）。
+            # 滚动 OOS 约束由 IC-WFO 承担；FACTOR_EVO_WFO_STRATEGY_GATE=1 可恢复硬门。
+            out["passed"] = True
+            out["advisory"] = True
+        return out
     except Exception as exc:
         logger.warning(
             "[FactorWFO] %s 运行异常(%s): %s",
-            factor_id, "fail-closed" if _WFO_FAIL_CLOSED else "fail-open",
+            factor_id,
+            ("advisory" if not _strategy_gate_binding()
+             else ("fail-closed" if _WFO_FAIL_CLOSED else "fail-open")),
             str(exc)[:150],
         )
         return {
-            "passed": not _WFO_FAIL_CLOSED, "report": None, "skipped": True,
-            "error": str(exc)[:150],
+            "passed": _fail_verdict, "report": None, "skipped": True,
+            "error": str(exc)[:150], "binding": _strategy_gate_binding(),
         }
 
 
@@ -333,9 +454,7 @@ def run_factor_wfo_ic(
             information_coefficient,
         )
 
-        train_bars = int(_WFO_IC_TRAIN_DAYS * bpd)
-        test_bars = int(_WFO_IC_TEST_DAYS * bpd)
-        step_bars = max(1, int(_WFO_IC_STEP_DAYS * bpd))
+        train_bars, test_bars, step_bars = _wfo_ic_windows(freq, len(df), bpd)
         if train_bars <= 0 or test_bars <= 0:
             return {"passed": not _WFO_FAIL_CLOSED, "skipped": True, "reason": "invalid_window"}
 
@@ -343,19 +462,45 @@ def run_factor_wfo_ic(
         _fwd = _wfo_ic_fwd_bars(freq)
         total = len(df)
         windows = []
+        # [2026-09-03 审查修正 B] 因子值在全序列上**一次**求值，再按窗切片。
+        # 原实现每窗单独 evaluate(test_df)：滚动类因子（mean/std 50 根等）的
+        # 预热期在测试窗内部重新开始 → 4h 档 15 天测试窗 90 根里 49 根是 NaN，
+        # 只剩 41 个点算 OOS IC，噪声 |IC|≈0.16 淹没一切（实测 47 窗 decay 全部
+        # 钉在 -1：OOS "远好于" 训练，纯属小样本方差）。因子表达式是因果的
+        # （加载器拒绝前视算子），全序列求值后切片不引入任何未来信息；训练窗
+        # 尾部 _fwd 根的标签跨越训练/测试边界，按 purge 从训练 IC 中剔除。
+        _vals_all: Optional[np.ndarray] = None
+        _fwd_all: Optional[np.ndarray] = None
+        try:
+            _va = np.asarray(expr.evaluate(kline_df_to_fields(df)), dtype=float).ravel()
+            if len(_va) == total:
+                _vals_all = _va
+                _fwd_all = _forward_returns(df["close"].values.astype(float), horizon=_fwd)
+        except Exception:
+            _vals_all = None
         end = total
         while end - train_bars - test_bars >= 0:
-            train_df = df.iloc[end - train_bars - test_bars: end - test_bars]
-            test_df = df.iloc[end - test_bars: end]
+            tr_lo, tr_hi = end - train_bars - test_bars, end - test_bars
+            te_lo, te_hi = end - test_bars, end
             try:
-                train_vals = expr.evaluate(kline_df_to_fields(train_df))
-                test_vals = expr.evaluate(kline_df_to_fields(test_df))
-                tr_close = train_df["close"].values.astype(float)
-                te_close = test_df["close"].values.astype(float)
-                train_ic = information_coefficient(
-                    train_vals, _forward_returns(tr_close, horizon=_fwd))
-                oos_ic = information_coefficient(
-                    test_vals, _forward_returns(te_close, horizon=_fwd))
+                if _vals_all is not None and _fwd_all is not None:
+                    _tr_hi_purged = max(tr_lo + 5, tr_hi - _fwd)  # purge：训练尾部标签跨界的 _fwd 根
+                    train_ic = information_coefficient(
+                        _vals_all[tr_lo:_tr_hi_purged], _fwd_all[tr_lo:_tr_hi_purged])
+                    oos_ic = information_coefficient(
+                        _vals_all[te_lo:te_hi], _fwd_all[te_lo:te_hi])
+                else:
+                    # 回退：表达式返回长度异常时沿用逐窗求值（旧路径）
+                    train_df = df.iloc[tr_lo:tr_hi]
+                    test_df = df.iloc[te_lo:te_hi]
+                    train_vals = expr.evaluate(kline_df_to_fields(train_df))
+                    test_vals = expr.evaluate(kline_df_to_fields(test_df))
+                    tr_close = train_df["close"].values.astype(float)
+                    te_close = test_df["close"].values.astype(float)
+                    train_ic = information_coefficient(
+                        train_vals, _forward_returns(tr_close, horizon=_fwd))
+                    oos_ic = information_coefficient(
+                        test_vals, _forward_returns(te_close, horizon=_fwd))
                 if np.isfinite(train_ic) and np.isfinite(oos_ic):
                     windows.append({
                         "train_ic": float(train_ic),
@@ -377,14 +522,25 @@ def run_factor_wfo_ic(
 
         oos_ics = np.array([w["oos_ic"] for w in windows])
         train_ics = np.array([w["train_ic"] for w in windows])
+        # [2026-09-03 审查修正 B] 方向由训练段决定、测试段验证：用全部训练窗 IC 均值
+        # 的符号做**全局**定向（与晋升时锁定 expected_sign、线上按固定符号使用的
+        # 口径一致），再算定向后的 OOS IC 均值/单边 p。原实现要求原始 OOS IC ≥ +0.01，
+        # 反转类因子（负 IC、线上按反向使用）会被系统性拒绝。
+        _orient = 1.0 if float(np.mean(train_ics)) >= 0 else -1.0
+        oos_ics = _orient * oos_ics
+        train_ics = _orient * train_ics
         oos_mean = float(np.mean(oos_ics))
         oos_std = float(np.std(oos_ics))
         oos_p = float(ic_significance(oos_ics))
-        # 衰退率 = (|train| − |oos|) / |train|；训练段均值绝对IC为基准
-        train_abs = float(np.mean(np.abs(train_ics)))
-        oos_abs = float(np.mean(np.abs(oos_ics)))
+        # 衰退率 = (train − oos) / train，两边都是**定向后的均值**。
+        # [2026-09-03 审查修正 B] 原用 mean(|IC|) 对比：测试窗（90 根）比训练窗
+        # （360 根）短 4 倍，|IC| 的抽样噪声大一倍，mean(|oos|) 被系统性抬高 →
+        # decay 恒为 -1（"OOS 远好于训练"），这个判据形同虚设。定向均值不受
+        # 该偏差影响：噪声在均值里正负相抵。
+        train_abs = float(np.mean(train_ics))
+        oos_abs = float(np.mean(oos_ics))
         decay_rate = float(np.clip(1.0 - oos_abs / train_abs, -1.0, 1.0)) \
-            if train_abs > 1e-9 else 0.0
+            if train_abs > 1e-9 else (0.0 if oos_abs > 0 else 1.0)
 
         passed = (
             oos_mean >= _WFO_IC_MIN_OOS_IC
@@ -395,6 +551,9 @@ def run_factor_wfo_ic(
             "passed": passed,
             "skipped": False,
             "freq": freq,
+            "orientation": int(_orient),
+            "train_bars": int(train_bars),
+            "test_bars": int(test_bars),
             "oos_ic_series": [round(float(v), 6) for v in oos_ics],
             "train_ic_series": [round(float(v), 6) for v in train_ics],
             "oos_ic_mean": round(oos_mean, 6),

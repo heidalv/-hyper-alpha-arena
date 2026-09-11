@@ -1,204 +1,181 @@
-"""交易矩阵仪表盘 API — /api/dashboard/*
+# -*- coding: utf-8 -*-
+"""资本与边际看板聚合（v3 方向 8，dashboard）。
 
-统一账户概览聚合（多账户 x 多交易所 x 多模式）+ 布局持久化。
-概览部分为纯只读聚合，不触碰任何下单/资金逻辑；复用 dashboard_aggregator 的编排结果。
+一次返回：KPI、三桶分配、策略/套利贡献、Agent 可信度、模型一致性、数据新鲜度、配额。
+原料全部只读既有落盘与账本——本路由不造数、不改状态。
 """
-
 from __future__ import annotations
 
+import json
 import logging
+import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-
-from backend.database.connection import SessionLocal
-from backend.database.models import DashboardLayout
-from backend.services.dashboard_aggregator import get_accounts_overview
+from fastapi import APIRouter, Query
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
-# 当前系统以单用户为主（与 bootstrap 默认账户模式一致），布局暂不做多用户隔离；
-# 预留 user_id 字段以便未来引入多用户体系时无需迁移 schema。
-_DEFAULT_USER_ID: Optional[int] = None
+DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 
 
-def get_db():
-    db = SessionLocal()
+def _read_json(path: Path) -> Optional[Dict[str, Any]]:
+    if not path.exists():
+        return None
     try:
-        yield db
-    finally:
-        db.close()
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
 
-class AccountSelector(BaseModel):
-    account_id: int
-    exchange: str = "hyperliquid"
-    trading_mode: str = Field("paper", pattern="^(paper|testnet|mainnet)$")
-
-
-class OverviewRequestBody(BaseModel):
-    selections: List[AccountSelector]
-
-
-@router.post("/overview")
-def post_overview(body: OverviewRequestBody, db: Session = Depends(get_db)):
-    """批量聚合多个「账户 x 交易所 x 模式」组合的统一概览（多选对比模式）。"""
-    if not body.selections:
-        return {"generated_at": None, "accounts": []}
-
-    selections = [sel.model_dump() for sel in body.selections]
+def _age_h(ts_ms: Optional[float]) -> Optional[float]:
+    if ts_ms is None:
+        return None
     try:
-        results = get_accounts_overview(db, selections)
+        t = float(ts_ms)
+        if t > 1e12:
+            t = t / 1000.0
+        return round((time.time() - t) / 3600.0, 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _freshness() -> List[Dict[str, Any]]:
+    items = [
+        ("allocation", DATA_ROOT / "allocation" / "latest.json", "ts_ms"),
+        ("scorecard", DATA_ROOT / "arb" / "scorecard_latest.json", "ts_ms"),
+        ("timing_weights", DATA_ROOT / "agents" / "latest_timing_weights.json", "ts_ms"),
+        ("event_study", DATA_ROOT / "event_study" / "latest.json", "ts_ms"),
+        ("carry_sim", DATA_ROOT / "cashflow" / "carry_sim" / "latest.json", "ts_ms"),
+        ("trend_drift", DATA_ROOT / "trend_drift" / "latest.json", "ts_ms"),
+        ("paid_data", DATA_ROOT / "research" / "paid_data_decision.json", "ts_ms"),
+        ("f4_gate", DATA_ROOT / "trend_e1" / "f4_gate_latest.json", "ts_ms"),
+    ]
+    out = []
+    for name, path, key in items:
+        data = _read_json(path)
+        ts = None
+        if data:
+            ts = data.get(key) or data.get("generated_at") or data.get("ts")
+        age = _age_h(ts)
+        stale = age is None or age > 36
+        out.append({
+            "name": name, "exists": path.exists(),
+            "age_h": age, "stale": stale,
+            "path": str(path.relative_to(DATA_ROOT.parent)) if path.exists() else None,
+        })
+    return out
+
+
+@router.get("/capital-margin")
+def capital_margin(days: int = Query(14, ge=1, le=90)) -> Dict[str, Any]:
+    """资本与边际总览。"""
+    kpi: Dict[str, Any] = {}
+    buckets = {}
+    agents = []
+    consistency = None
+    quota = None
+    arb = None
+    e5 = []
+    notes: List[str] = []
+
+    # 分配器
+    try:
+        from backend.services.allocation.capital_allocator import (
+            latest_allocation, allocate, promotion_frozen,
+        )
+        alloc = latest_allocation() or allocate(persist=False)
+        buckets = alloc.get("bucket_weights") or {}
+        kpi["credibility_scale"] = alloc.get("credibility_scale")
+        kpi["promotion_freeze"] = promotion_frozen()
     except Exception as exc:
-        logger.error(f"[dashboard_routes] overview aggregation failed: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"聚合失败: {exc}")
+        notes.append(f"allocation: {exc}")
 
-    from datetime import datetime, timezone
+    # 套利 scorecard
+    try:
+        from backend.services.arbitrage.scorecard import latest_scorecard
+        arb = latest_scorecard()
+        if arb and arb.get("kpi"):
+            kpi["arb_pnl"] = arb["kpi"].get("pnl")
+            kpi["arb_ann"] = arb["kpi"].get("annualized")
+            kpi["arb_mdd"] = arb["kpi"].get("max_drawdown")
+            kpi["arb_occupied"] = arb["kpi"].get("occupied_usd")
+    except Exception as exc:
+        notes.append(f"scorecard: {exc}")
+
+    # edge_ledger 摘要（若有）
+    try:
+        from backend.services.analysis import ledgers
+        if hasattr(ledgers, "edge_summary"):
+            kpi["edge"] = ledgers.edge_summary(days=days)
+        elif hasattr(ledgers, "summary"):
+            kpi["edge"] = ledgers.summary(days=days)
+    except Exception as exc:
+        notes.append(f"edge_ledger: {exc}")
+
+    # Agent 可信度
+    try:
+        from backend.services.analysis import ledgers
+        rows = ledgers.agent_credibility(days)
+        agents = rows if isinstance(rows, list) else []
+    except Exception as exc:
+        notes.append(f"agents: {exc}")
+
+    # 模型一致性 / 配额
+    try:
+        from backend.services.analysis import ledgers
+        if hasattr(ledgers, "model_credibility"):
+            consistency = ledgers.model_credibility(days)  # type: ignore[attr-defined]
+        elif hasattr(ledgers, "list_analysis_runs"):
+            runs = ledgers.list_analysis_runs(limit=20)  # type: ignore[attr-defined]
+            consistency = {"recent_runs": len(runs or []), "note": "无专用一致性矩阵；展示最近 analysis_runs 数"}
+    except Exception as exc:
+        notes.append(f"consistency: {exc}")
+    try:
+        from backend.services.analysis.quota_guard import get_quota_guard
+        quota = get_quota_guard().snapshot()
+    except Exception as exc:
+        notes.append(f"quota: {exc}")
+
+    # E5 KPI 快照
+    try:
+        from backend.services.strategies.event.base import get_strategy, registered_strategies
+        for sid in registered_strategies():
+            s = get_strategy(sid)
+            if not s:
+                continue
+            try:
+                k = s.kpi(days=min(days, 30))
+                e5.append({
+                    "strategy": sid,
+                    "promotion_ready": k.get("promotion_ready"),
+                    "n_scored": k.get("n_scored"),
+                    "net_lower_bp": k.get("net_lower_bp"),
+                    "hit_rate": k.get("hit_rate"),
+                })
+            except Exception:
+                continue
+    except Exception as exc:
+        notes.append(f"e5: {exc}")
+
+    # F4 / 付费决策摘要
+    f4 = _read_json(DATA_ROOT / "trend_e1" / "f4_gate_latest.json")
+    paid = _read_json(DATA_ROOT / "research" / "paid_data_decision.json")
+
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "accounts": results,
+        "ts_ms": int(time.time() * 1000),
+        "days": days,
+        "kpi": kpi,
+        "bucket_weights": buckets,
+        "arb_scorecard": {"kpi": (arb or {}).get("kpi"), "gate": (arb or {}).get("promotion_gate")} if arb else None,
+        "agents": agents[:20],
+        "model_consistency": consistency,
+        "quota": quota,
+        "e5": e5,
+        "f4": {"passed": (f4 or {}).get("passed"), "live_allowed": (f4 or {}).get("live_allowed")} if f4 else None,
+        "paid_data_summary": (paid or {}).get("summary"),
+        "freshness": _freshness(),
+        "notes": notes,
     }
-
-
-# ─────────────────────────────────────────────
-#  布局持久化 CRUD — /api/dashboard/layouts*
-# ─────────────────────────────────────────────
-
-class WidgetConfig(BaseModel):
-    id: str
-    type: str
-    x: int = 0
-    y: int = 0
-    w: int = 4
-    h: int = 4
-    config: Dict[str, Any] = Field(default_factory=dict)
-
-
-class LayoutCreateBody(BaseModel):
-    name: str = "默认布局"
-    widgets: List[WidgetConfig] = Field(default_factory=list)
-    selected_accounts: List[AccountSelector] = Field(default_factory=list)
-    activate: bool = False
-
-
-class LayoutUpdateBody(BaseModel):
-    name: Optional[str] = None
-    widgets: Optional[List[WidgetConfig]] = None
-    selected_accounts: Optional[List[AccountSelector]] = None
-
-
-def _layout_to_dict(layout: DashboardLayout) -> Dict[str, Any]:
-    return {
-        "id": layout.id,
-        "name": layout.name,
-        "is_active": bool(layout.is_active),
-        "widgets": layout.widgets or [],
-        "selected_accounts": layout.selected_accounts or [],
-        "created_at": layout.created_at.isoformat() if layout.created_at else None,
-        "updated_at": layout.updated_at.isoformat() if layout.updated_at else None,
-    }
-
-
-@router.get("/layouts")
-def list_layouts(db: Session = Depends(get_db)):
-    """列出当前用户的全部已保存布局。"""
-    rows = (
-        db.query(DashboardLayout)
-        .filter(DashboardLayout.user_id == _DEFAULT_USER_ID)
-        .order_by(DashboardLayout.updated_at.desc())
-        .all()
-    )
-    return {"layouts": [_layout_to_dict(r) for r in rows]}
-
-
-@router.get("/layouts/active")
-def get_active_layout(db: Session = Depends(get_db)):
-    """获取当前激活布局；若从未保存过，返回 null（前端使用内置默认布局）。"""
-    row = (
-        db.query(DashboardLayout)
-        .filter(DashboardLayout.user_id == _DEFAULT_USER_ID, DashboardLayout.is_active == True)  # noqa: E712
-        .first()
-    )
-    return {"layout": _layout_to_dict(row) if row else None}
-
-
-@router.post("/layouts")
-def create_layout(body: LayoutCreateBody, db: Session = Depends(get_db)):
-    """新建一个命名布局；activate=True 时立即置为当前激活布局。"""
-    if body.activate:
-        db.query(DashboardLayout).filter(
-            DashboardLayout.user_id == _DEFAULT_USER_ID, DashboardLayout.is_active == True  # noqa: E712
-        ).update({"is_active": False})
-
-    layout = DashboardLayout(
-        user_id=_DEFAULT_USER_ID,
-        name=body.name,
-        is_active=body.activate,
-        widgets=[w.model_dump() for w in body.widgets],
-        selected_accounts=[s.model_dump() for s in body.selected_accounts],
-    )
-    db.add(layout)
-    db.commit()
-    db.refresh(layout)
-    return {"layout": _layout_to_dict(layout)}
-
-
-@router.put("/layouts/{layout_id}")
-def update_layout(layout_id: int, body: LayoutUpdateBody, db: Session = Depends(get_db)):
-    """更新布局（拖拽/缩放变更、重命名、重选账户组合）。"""
-    layout = (
-        db.query(DashboardLayout)
-        .filter(DashboardLayout.id == layout_id, DashboardLayout.user_id == _DEFAULT_USER_ID)
-        .first()
-    )
-    if not layout:
-        raise HTTPException(status_code=404, detail="layout not found")
-
-    if body.name is not None:
-        layout.name = body.name
-    if body.widgets is not None:
-        layout.widgets = [w.model_dump() for w in body.widgets]
-    if body.selected_accounts is not None:
-        layout.selected_accounts = [s.model_dump() for s in body.selected_accounts]
-
-    db.commit()
-    db.refresh(layout)
-    return {"layout": _layout_to_dict(layout)}
-
-
-@router.delete("/layouts/{layout_id}")
-def delete_layout(layout_id: int, db: Session = Depends(get_db)):
-    layout = (
-        db.query(DashboardLayout)
-        .filter(DashboardLayout.id == layout_id, DashboardLayout.user_id == _DEFAULT_USER_ID)
-        .first()
-    )
-    if not layout:
-        raise HTTPException(status_code=404, detail="layout not found")
-    db.delete(layout)
-    db.commit()
-    return {"status": "deleted", "id": layout_id}
-
-
-@router.post("/layouts/{layout_id}/activate")
-def activate_layout(layout_id: int, db: Session = Depends(get_db)):
-    """将指定布局设为当前激活布局（同用户下唯一激活）。"""
-    layout = (
-        db.query(DashboardLayout)
-        .filter(DashboardLayout.id == layout_id, DashboardLayout.user_id == _DEFAULT_USER_ID)
-        .first()
-    )
-    if not layout:
-        raise HTTPException(status_code=404, detail="layout not found")
-
-    db.query(DashboardLayout).filter(
-        DashboardLayout.user_id == _DEFAULT_USER_ID, DashboardLayout.is_active == True  # noqa: E712
-    ).update({"is_active": False})
-    layout.is_active = True
-    db.commit()
-    db.refresh(layout)
-    return {"layout": _layout_to_dict(layout)}

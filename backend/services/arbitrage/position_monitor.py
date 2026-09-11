@@ -130,8 +130,10 @@ class ArbitragePositionMonitor:
         results = []
         with self._lock:
             for sym, opp in list(self._opportunities.items()):
-                # 检查反转
-                history = self._scanner.get_funding_history(sym)
+                # 检查反转 —— [2026-09] 配对口径：价差历史优先，否则单所历史
+                history = self._scanner.get_pair_spread_history(sym)
+                if len(history) < 4:
+                    history = self._scanner.get_funding_history(sym)
                 reversal_warning = self._check_reversal(history)
 
                 results.append({

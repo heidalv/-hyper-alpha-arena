@@ -1,4 +1,6 @@
 """MCTS 因子挖掘器单测（阶段2 S2-12：UCT + 短板扩展 + FSA + CoE + 宏微分离）。"""
+import copy
+
 import numpy as np
 import pandas as pd
 
@@ -173,6 +175,34 @@ def test_weak_seeds_roots_shortboard_expansion():
     # 短板种子在前
     assert roots[0] == weak[0] or roots[0] == weak[1]
     miner.mine()
+    miner.close()
+
+
+def test_constant_root_does_not_crash_mine():
+    """[2026-09-03 回归] 退化为常量的树根不得让整轮 mine() 崩掉。
+
+    随机根有约 30% 概率抽到常量叶子；`abs(5)`/`add(2,3)` 这类纯常量表达式求值结果是
+    shape=(1,) 的数组（不是 0 维），旧代码在相关惩罚里只处理 0 维，布尔索引长度不匹配
+    → IndexError，全量单测里非确定性复现过一次。此处用 weak_seeds 强制注入常量根。
+    """
+    fields, eval_fn, target = _make_env(300)
+    pool = AlphaPool(capacity=20)
+    const_roots = [
+        {"op": "abs", "args": [{"c": 5.0}]},
+        {"op": "add", "args": [{"c": 2.0}, {"c": 3.0}]},
+    ]
+    cfg = _small_config(n_roots=3, n_iterations=8)
+    miner = MctsMiner(list(fields.keys()), eval_fn, target, pool, cfg, weak_seeds=const_roots)
+    # 直接命中旧崩溃路径：参照集含常量根时评估一个正常因子
+    miner._root_asts = [copy.deepcopy(r) for r in const_roots]
+    ic, fit = miner._eval_ast({"op": "mean", "args": [{"f": "returns"}, {"c": 5}]})
+    assert np.isfinite(ic)
+    assert fit > float("-inf")
+    # 端到端：mine() 不抛异常，且常量根不进入相关惩罚参照集
+    admitted, chains = miner.mine()
+    assert isinstance(admitted, list) and isinstance(chains, list)
+    for r in miner._root_asts:
+        assert r not in const_roots
     miner.close()
 
 

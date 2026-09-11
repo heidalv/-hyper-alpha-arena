@@ -73,6 +73,242 @@ def _normalize_confidence(raw_conf: Any) -> float:
         return 0.5  # Default to moderate confidence
 
 
+def _live_maker_first_decision(
+    exchange: str, decision: Dict, trigger_context: Optional[Dict[str, Any]] = None,
+) -> Tuple[bool, float]:
+    """[2026-09-03 Aster 费率优化] 该笔实盘开仓是否走 maker 优先，返回 (bool, timeout_s)。
+
+    门控全部在 live_points_engine.maker_first_for：仅 asterdex + 开仓(非 reduce_only)
+    + 周期 ∈ 交易所配置的 maker_first_tiers（默认 mid/long）+ 配置页开关开。
+    周期来源优先级：trigger_context["tier"]（全自动/中长线调度写入）→
+    decision["timeframe_tier"]/["tier"]（AI 输出）→ 无周期 = 不走 maker（宁可市价）。
+    任何异常一律返回 (False, 0) → 原样市价，绝不因为优化逻辑影响正常交易。
+    """
+    try:
+        if str(exchange or "").lower() != "asterdex":
+            return False, 0.0
+        if bool(decision.get("reduce_only")):
+            return False, 0.0
+        _tier = (
+            ((trigger_context or {}).get("tier") if isinstance(trigger_context, dict) else None)
+            or decision.get("timeframe_tier")
+            or decision.get("tier")
+        )
+        from backend.services.rebate_arb.live_points_engine import live_points_engine
+        return live_points_engine.maker_first_for(
+            exchange, timeframe_tier=_tier, is_open=True,
+        )
+    except Exception as _mf_err:
+        logger.debug("[MakerFirst] gate error → taker: %s", _mf_err)
+        return False, 0.0
+
+
+def _place_order_fresh_client(
+    mgr, exchange: str, user_id: int, account_id: int, market_type, order,
+    *, timeout_sec: float = 20.0, maker_first: bool = False, maker_timeout_s: float = 30.0,
+):
+    """[2026-08-31 挂死根治] 每次下单新建客户端 + wait_for 硬超时 + 用完即关。
+
+    背景（trading_commands 8/29 注释已定位、但只修了一半）：ccxt async 的
+    aiohttp 会话绑定在首次调用所在的事件循环上；本函数调用方流程是
+    asyncio.run(余额/持仓) 之后再 asyncio.run(下单) —— 同一客户端第二次
+    进新循环会【永久挂起】（不是抛错）。入口处 create_fresh_client 只保证
+    跨调用隔离，不解决一次调用内的多次 asyncio.run。故所有下单点统一走
+    本 helper：新客户端、单次 run、20s 硬超时、诚实异常。
+
+    [2026-09-03] maker_first=True 且客户端支持 place_order_maker_first（asterdex）时，
+    先 post-only 挂最优价等 maker_timeout_s 秒，未成交自动撤单回退市价；硬超时相应
+    放宽为 maker_timeout_s + timeout_sec，保证兜底市价单有完整时间窗。
+
+    [2026-09-04 p2-oms-exec] 下单前挂 client_order_id 并落 live_orders intent；
+    EXEC_ALGO_ENABLED=true 时改走通用 maker 追价（失败自动回退本函数原路径）。
+    """
+    import asyncio as _aio
+
+    # ── OMS：幂等键 + 可选 ExecutionAlgo ──
+    _oms_cid = None
+    try:
+        from backend.services.oms.bridge import begin_order, finish_order, try_algo_place
+
+        _oms_cid = begin_order(order, account_id=account_id, exchange=exchange)
+    except Exception as _oms_begin_err:
+        logger.debug("[OMS] begin_order skip: %s", _oms_begin_err)
+        begin_order = finish_order = try_algo_place = None  # type: ignore
+
+    _client = mgr.create_fresh_client(
+        exchange, user_id=user_id, account_id=account_id,
+        market_type=market_type if exchange == "binance" else None,
+    )
+    if _client is None:
+        if finish_order and _oms_cid:
+            finish_order(_oms_cid, None, error="fresh client 创建失败")
+        raise RuntimeError(f"{exchange} fresh client 创建失败(凭证缺失?)")
+
+    # ExecutionAlgo 接管（默认关）
+    if try_algo_place is not None:
+        try:
+            _algo_res = try_algo_place(_client, order, account_id=account_id, exchange=exchange)
+            if _algo_res is not None:
+                try:
+                    import asyncio as _aio_close
+                    _aio_close.get_event_loop().run_until_complete(_client.close())
+                except Exception:
+                    try:
+                        _aio.run(_client.close())
+                    except Exception:
+                        pass
+                if str(_algo_res.get("status") or "").lower() == "error":
+                    raise RuntimeError(str(_algo_res.get("message") or _algo_res)[:200])
+                _v3_connectivity_record(exchange, ok=True)
+                return _algo_res
+        except RuntimeError:
+            raise
+        except Exception as _algo_err:
+            logger.warning("[OMS] algo 回退原路径: %s", _algo_err)
+
+    _use_mf = bool(maker_first) and hasattr(_client, "place_order_maker_first")
+    _hard_timeout = float(timeout_sec) + (float(maker_timeout_s) if _use_mf else 0.0)
+
+    async def _run():
+        try:
+            if _use_mf:
+                logger.info(
+                    "[MakerFirst] %s %s %s qty=%s → post-only 挂单 %.0fs 后回退市价",
+                    exchange, getattr(order, "symbol", "?"),
+                    getattr(getattr(order, "side", None), "value", getattr(order, "side", "?")),
+                    getattr(order, "size", "?"), float(maker_timeout_s),
+                )
+                _res = await _aio.wait_for(
+                    _client.place_order_maker_first(order, timeout_s=float(maker_timeout_s)),
+                    timeout=_hard_timeout,
+                )
+            else:
+                _res = await _aio.wait_for(_client.place_order(order), timeout=timeout_sec)
+        finally:
+            try:
+                await _client.close()
+            except Exception:
+                pass
+        # 适配器对交易所拒单返回 {"status":"error"} 而不抛异常——不检查会把
+        # 拒单当成交记 executed=True（实测 -1106 reduceOnly 拒单被记成功）。
+        if isinstance(_res, dict) and str(_res.get("status") or "").lower() == "error":
+            raise RuntimeError(str(_res.get("message") or _res)[:200])
+        return _res
+
+    # [2026-09-03 v3 方向7] 连通性熔断计数：超时/连接类异常记失败（连续 ≥N 该 venue 禁开），
+    # 成功或“交易所明确拒单”记成功（拒单说明链路是通的）。
+    try:
+        _res_final = _aio.run(_run())
+    except (_aio.TimeoutError, TimeoutError, ConnectionError, OSError) as _conn_err:
+        _v3_connectivity_record(exchange, ok=False, error=str(_conn_err))
+        if finish_order and _oms_cid:
+            # 超时不能猜成败 → unknown，交给对账
+            try:
+                from backend.services.oms.order_store import OrderStatus, transition
+                transition(_oms_cid, OrderStatus.UNKNOWN, error=f"timeout: {_conn_err}"[:400])
+            except Exception:
+                finish_order(_oms_cid, None, error=str(_conn_err)[:400])
+        raise
+    except Exception as _other_err:
+        _msg = str(_other_err).lower()
+        _is_conn = any(k in _msg for k in ("timeout", "timed out", "connection", "network", "temporarily unavailable",
+                                            "service unavailable", "502", "503", "504", "dns", "reset by peer"))
+        _v3_connectivity_record(exchange, ok=not _is_conn, error=str(_other_err))
+        if finish_order and _oms_cid:
+            finish_order(_oms_cid, None, error=str(_other_err)[:400])
+        raise
+    _v3_connectivity_record(exchange, ok=True)
+    if finish_order and _oms_cid:
+        finish_order(_oms_cid, _res_final)
+    return _res_final
+
+
+def _v3_connectivity_record(exchange: str, *, ok: bool, error: str = "") -> None:
+    try:
+        from backend.services.risk.circuit_breakers import get_connectivity_breaker
+        if ok:
+            get_connectivity_breaker().record_success(exchange)
+        else:
+            get_connectivity_breaker().record_failure(exchange, error)
+    except Exception as _cb_err:  # pragma: no cover
+        logger.debug("[RiskEngine v3] connectivity record fail: %s", _cb_err)
+
+
+def _v3_risk_pre_trade_live(
+    db, account, symbol: str, operation: str, *, order_value: float, total_equity: float,
+    leverage: float, exchange: str, decision: Optional[Dict] = None,
+) -> Optional[str]:
+    """[2026-09-03 v3 方向7] 实盘开仓前 RiskEngine 单入口。返回拦截原因（None=放行）。
+
+    覆盖：LIVE_KILL_SWITCH / TradingState / 该 venue 连通性熔断 / 事件避险窗口 / 日开仓配额（单一来源）。
+    引擎自身异常 → 放行并告警日志（状态判定基于已落盘状态，不会因数据缺失误放行）。
+    """
+    try:
+        from backend.services.risk.risk_engine import pre_trade as _v3_pre_trade, PreTradeRequest as _V3Req
+        _d = decision or {}
+        _verdict = _v3_pre_trade(
+            db,
+            _V3Req(
+                account_id=int(getattr(account, "id", 0) or 0), symbol=str(symbol), side=str(operation),
+                is_open=True, venue=str(exchange or "").lower(),
+                tier=_d.get("timeframe_tier") or _d.get("tier"),
+                trade_nature=_d.get("trade_nature") or _d.get("nature"),
+                notional=float(order_value or 0), equity=float(total_equity or 0), leverage=float(leverage or 1),
+                source="live_ai_trade",
+            ),
+        )
+        if not _verdict.allowed:
+            logger.warning("[RiskEngine v3][%s] 拦截 %s %s: %s", str(exchange).upper(), symbol, operation, _verdict.reason)
+            return f"RiskEngine: {_verdict.reason}"
+        return None
+    except Exception as _v3_err:
+        logger.warning("[RiskEngine v3] live 检查异常（放行）: %s", _v3_err)
+        return None
+
+
+def _v3_position_construction_live(
+    db, account, symbol: str, *, price: float, order_value: float, leverage: float, total_equity: float,
+    decision: Optional[Dict] = None, exchange: str = "",
+) -> Tuple[float, float, float, Optional[str]]:
+    """[2026-09-03 v3 方向1] 实盘开仓名义/杠杆经 PositionConstruction 单一权威夹紧。
+
+    返回 (order_value, leverage, quantity, block_reason)。block_reason 非空 = 该币/簇/车道已无余量，应拒单。
+    异常放行（返回原值）。上游 AI 的 target_portion × leverage 从此只是"提议"。
+    """
+    try:
+        from backend.services import position_construction as _pc
+        if not _pc.enforce_enabled() or not price or price <= 0 or order_value <= 0:
+            return order_value, leverage, round(order_value / price, 6) if price else 0.0, None
+        _d = decision or {}
+        _lane = _pc.normalize_lane(_d.get("timeframe_tier") or _d.get("tier"), _d.get("trade_nature") or _d.get("nature"))
+        _open = _pc.open_notionals(db, int(getattr(account, "id", 0) or 0), symbol, lane=_lane)
+        _sd = None
+        _sl = _d.get("stop_loss") or _d.get("sl_price")
+        try:
+            if _sl and float(_sl) > 0:
+                _sd = abs(float(price) - float(_sl)) / float(price)
+        except Exception:
+            _sd = None
+        _cl = _pc.clamp(
+            lane=_lane, symbol=symbol, equity=float(total_equity or 0), price=float(price),
+            notional=float(order_value), leverage=float(leverage or 1.0), stop_distance_pct=_sd,
+            symbol_open_notional=_open["symbol"], cluster_open_notional=_open["cluster"], lane_open_notional=_open["lane"],
+        )
+        if _cl.blocked:
+            logger.warning("[PositionConstruction][%s] 拒单 %s lane=%s: %s", str(exchange).upper(), symbol, _lane, _cl.reason)
+            return order_value, leverage, 0.0, f"PositionConstruction: {_cl.reason}"
+        if _cl.changed:
+            logger.info("[PositionConstruction][%s] %s lane=%s notional %.2f→%.2f lev %s→%s caps=%s",
+                        str(exchange).upper(), symbol, _lane, order_value, _cl.notional, leverage, _cl.leverage, _cl.caps_applied)
+            if isinstance(decision, dict):
+                decision["position_construction"] = {"caps": _cl.caps_applied, "lane": _lane, "notional": _cl.notional,
+                                                     "leverage": _cl.leverage}
+        return float(_cl.notional), float(_cl.leverage), round(float(_cl.quantity), 6), None
+    except Exception as _pc_err:
+        logger.warning("[PositionConstruction] live 检查异常（放行）: %s", _pc_err)
+        return order_value, leverage, round(order_value / price, 6) if price else 0.0, None
+
+
 def _validate_and_autofill_decision(
     decision: Dict,
     current_prices: Dict[str, float],
@@ -335,7 +571,7 @@ def place_ai_driven_crypto_order(max_ratio: float = 0.2, account_ids: Optional[I
             return
 
         # Get all symbols with available sampling data
-        from services.sampling_pool import sampling_pool
+        from backend.services.sampling_pool import sampling_pool
         available_symbols = []
         for sym in SUPPORTED_SYMBOLS.keys():
             samples_data = sampling_pool.get_samples(sym)
@@ -529,7 +765,7 @@ def place_ai_driven_hyperliquid_order(
     """
 
     try:
-        from services.hyperliquid_environment import get_hyperliquid_client
+        from backend.services.hyperliquid_environment import get_hyperliquid_client
         from backend.database.models import HyperliquidPosition
     except Exception as e:
         logger.error(f"Error in place_ai_driven_hyperliquid_order start: {e}", exc_info=True)
@@ -588,7 +824,7 @@ def place_ai_driven_hyperliquid_order(
         return
 
     # Sampling data availability (informational)
-    from services.sampling_pool import sampling_pool
+    from backend.services.sampling_pool import sampling_pool
     available_symbols = []
     for sym in selected_symbols:
         samples_data = sampling_pool.get_samples(sym)
@@ -642,7 +878,7 @@ def place_ai_driven_hyperliquid_order(
                 continue
 
             # Get global trading mode (environment) for Hyperliquid
-            from services.hyperliquid_environment import get_global_trading_mode, get_leverage_settings
+            from backend.services.hyperliquid_environment import get_global_trading_mode, get_leverage_settings
             environment = get_global_trading_mode(db)
             logger.info(f"处理Hyperliquid交易账户: {account.name} (环境: {environment})")
 
@@ -906,14 +1142,19 @@ def place_ai_driven_hyperliquid_order(
                     target_portion = 0.20
                     decision["target_portion_of_balance"] = 0.20
 
-                # 3. 强制杠杆范围 5x-20x
-                if leverage > 20:
-                    logger.warning(
-                        f"[RiskGuard] AI 请求杠杆 {leverage}x 超过硬性上限20x，截断至20x"
+                # 3. [2026-09-07 杠杆根治 P1] 杠杆 = 币种档（leverage_authority 唯一权威），
+                # AI 自报杠杆一律忽略；SYMBOL_LEVERAGE_ENABLED=false 时回退旧 5-20x 钳制。
+                try:
+                    from backend.services.leverage_authority import (
+                        symbol_leverage_enabled as _sym_lev_on,
+                        resolve_leverage as _auth_lev_rg,
                     )
-                    leverage = 20
-                elif leverage < 5:
-                    leverage = 5
+                    if _sym_lev_on():
+                        leverage = _auth_lev_rg(tier=None, symbol=symbol)
+                    else:
+                        leverage = max(5, min(20, leverage))
+                except Exception:
+                    leverage = max(5, min(20, leverage))
 
                 # 4. buy/sell 必须有止损价 (auto-filled above, but double-check)
                 if operation in ("buy", "sell") and not decision.get("stop_loss_price"):
@@ -1035,6 +1276,17 @@ def place_ai_driven_hyperliquid_order(
                     order_value = margin * leverage
                     quantity = round(order_value / price, 6)
 
+                    # [2026-09-03 v3 方向1] PositionConstruction 单一权威：AI 的 portion×leverage 只是提议
+                    order_value, leverage, quantity, _pc_block = _v3_position_construction_live(
+                        db, account, symbol, price=price, order_value=order_value, leverage=leverage,
+                        total_equity=total_equity, decision=decision, exchange="hyperliquid",
+                    )
+                    if _pc_block:
+                        decision["error_reason"] = _pc_block
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
+                        continue
+                    margin = order_value / max(1.0, float(leverage or 1.0))
+
                     # ========================================
                     # RISK CONTROL CHECK - Before Order Execution # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
                     # ========================================
@@ -1067,13 +1319,22 @@ def place_ai_driven_hyperliquid_order(
                                 f"[RISK][unified] Order blocked for {account.name}: "
                                 f"{_ures_live.reason_text} [layer={_ures_live.blocked_layer} rule={_ures_live.blocked_rule}]"
                             )
-                            save_ai_decision(
-                                db, account, decision, portfolio, executed=False,
-                                reason=f"统一风控拦截: {_ures_live.reason_text}"
-                            )
+                            # [2026-09-03 修复] save_ai_decision 无 reason 形参，原写法在拦截路径抛 TypeError
+                            decision["error_reason"] = f"统一风控拦截: {_ures_live.reason_text}"
+                            save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                             continue
                     except Exception as _uc_err:
                         logger.debug(f"[RISK][unified] 跳过统一风控: {_uc_err}")
+
+                    # [2026-09-03 v3 方向7] RiskEngine 单入口（急停/状态机/连通性/避险窗口/日配额）
+                    _v3_block = _v3_risk_pre_trade_live(
+                        db, account, symbol, operation, order_value=order_value, total_equity=total_equity,
+                        leverage=leverage, exchange="hyperliquid", decision=decision,
+                    )
+                    if _v3_block:
+                        decision["error_reason"] = _v3_block
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
+                        continue
 
                     risk_allowed, risk_message = check_risk_before_trade(
                         db=db,
@@ -1091,10 +1352,9 @@ def place_ai_driven_hyperliquid_order(
                         logger.warning(
                             f"[RISK] Order blocked for {account.name}: {risk_message}"
                         )
-                        save_ai_decision(
-                            db, account, decision, portfolio, executed=False,
-                            reason=f"风控检查拒绝: {risk_message}"
-                        )
+                        # [2026-09-03 修复] save_ai_decision 无 reason 形参，原写法在拦截路径抛 TypeError
+                        decision["error_reason"] = f"风控检查拒绝: {risk_message}"
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                         continue
 
                     logger.info(
@@ -1192,6 +1452,17 @@ def place_ai_driven_hyperliquid_order(
                     order_value = margin * leverage
                     quantity = round(order_value / price, 6)
 
+                    # [2026-09-03 v3 方向1] PositionConstruction 单一权威：AI 的 portion×leverage 只是提议
+                    order_value, leverage, quantity, _pc_block = _v3_position_construction_live(
+                        db, account, symbol, price=price, order_value=order_value, leverage=leverage,
+                        total_equity=total_equity, decision=decision, exchange="hyperliquid",
+                    )
+                    if _pc_block:
+                        decision["error_reason"] = _pc_block
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
+                        continue
+                    margin = order_value / max(1.0, float(leverage or 1.0))
+
                     # ========================================
                     # RISK CONTROL CHECK - Before Order Execution # 深挖第 3 轮 (2026-05-08)：UnifiedRiskGate 跑两层硬规则 + 带状态规则
                     # ========================================
@@ -1224,13 +1495,22 @@ def place_ai_driven_hyperliquid_order(
                                 f"[RISK][unified] Order blocked for {account.name}: "
                                 f"{_ures_live.reason_text} [layer={_ures_live.blocked_layer} rule={_ures_live.blocked_rule}]"
                             )
-                            save_ai_decision(
-                                db, account, decision, portfolio, executed=False,
-                                reason=f"统一风控拦截: {_ures_live.reason_text}"
-                            )
+                            # [2026-09-03 修复] save_ai_decision 无 reason 形参，原写法在拦截路径抛 TypeError
+                            decision["error_reason"] = f"统一风控拦截: {_ures_live.reason_text}"
+                            save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                             continue
                     except Exception as _uc_err:
                         logger.debug(f"[RISK][unified] 跳过统一风控: {_uc_err}")
+
+                    # [2026-09-03 v3 方向7] RiskEngine 单入口（急停/状态机/连通性/避险窗口/日配额）
+                    _v3_block = _v3_risk_pre_trade_live(
+                        db, account, symbol, operation, order_value=order_value, total_equity=total_equity,
+                        leverage=leverage, exchange="hyperliquid", decision=decision,
+                    )
+                    if _v3_block:
+                        decision["error_reason"] = _v3_block
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
+                        continue
 
                     risk_allowed, risk_message = check_risk_before_trade(
                         db=db,
@@ -1248,10 +1528,9 @@ def place_ai_driven_hyperliquid_order(
                         logger.warning(
                             f"[RISK] Order blocked for {account.name}: {risk_message}"
                         )
-                        save_ai_decision(
-                            db, account, decision, portfolio, executed=False,
-                            reason=f"风控检查拒绝: {risk_message}"
-                        )
+                        # [2026-09-03 修复] save_ai_decision 无 reason 形参，原写法在拦截路径抛 TypeError
+                        decision["error_reason"] = f"风控检查拒绝: {risk_message}"
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                         continue
 
                     logger.info(
@@ -1342,10 +1621,8 @@ def place_ai_driven_hyperliquid_order(
                             f"[CLOSE COOLDOWN] {symbol} in cooldown for {remaining:.0f}s, "
                             f"skipping close for {account.name}"
                         )
-                        save_ai_decision(
-                            db, account, decision, portfolio, executed=False,
-                            reason=f"平仓冷却期中({remaining:.0f}s)", **decision_kwargs
-                        )
+                        decision["error_reason"] = f"平仓冷却期中({remaining:.0f}s)"
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                         continue
 
                     # For close operations, only check if account is under circuit breaker
@@ -1358,10 +1635,8 @@ def place_ai_driven_hyperliquid_order(
                         logger.warning(
                             f"[RISK] Close operation blocked for {account.name} due to circuit breaker: {daily_loss_check.message}"
                         )
-                        save_ai_decision(
-                            db, account, decision, portfolio, executed=False,
-                            reason=f"熔断状态下禁止操作: {daily_loss_check.message}"
-                        )
+                        decision["error_reason"] = f"熔断状态下禁止操作: {daily_loss_check.message}"
+                        save_ai_decision(db, account, decision, portfolio, executed=False, **decision_kwargs)
                         continue
                     
                     position_to_close = None
@@ -1700,7 +1975,7 @@ def place_ai_driven_hyperliquid_order(
                         # 发送钉钉平仓推送通知（仅 close 操作，sell 是开空不是平仓）
                         if operation == 'close':
                             try:
-                                from services.dingtalk import get_notification_service
+                                from backend.services.dingtalk import get_notification_service
                                 import asyncio
                                 import threading
 
@@ -1986,7 +2261,7 @@ def execute_hyperliquid_close_decisions(
     if not decisions:
         return
     try:
-        from services.hyperliquid_environment import get_hyperliquid_client
+        from backend.services.hyperliquid_environment import get_hyperliquid_client
     except Exception as e:
         logger.error(f"execute_hyperliquid_close_decisions: get_hyperliquid_client failed: {e}", exc_info=True)
         return
@@ -2115,6 +2390,17 @@ BINANCE_TRADE_JOB_ID = "binance_ai_trade"
 #  Unified AI-Driven Order — Multi-Exchange Entry Point
 # ══════════════════════════════════════════════════════════════════
 
+def _close_ccxt_client(client) -> None:
+    """关闭 fresh ccxt 客户端（aiohttp 会话泄漏防护；失败静默）。"""
+    try:
+        import asyncio as _aio
+        _close_ex = getattr(client, "close", None)
+        if callable(_close_ex):
+            _aio.run(_aio.wait_for(_close_ex(), timeout=5))
+    except Exception:
+        pass
+
+
 def place_ai_driven_order(
     account_id: Optional[int] = None,
     bypass_auto_trading: bool = False,
@@ -2201,8 +2487,16 @@ def _execute_ccxt_ai_trade(
         # Resolve LLM config
         resolve_account_llm_config(db, account)
 
-        # Validate LLM config
-        if not account.api_key or not account.model:
+        # [2026-08-29 实盘零成交·末环修复] 预生成决策(pre_made_decisions)由
+        # 系统车道（因子/Agent/MLTO）完整产出，不需要 LLM 参与——此前仍
+        # 强制账户级 LLM 配置(api_key/model)，实盘账户未配 LLM → 订单在
+        # UnifiedRouter 之后被"LLM配置不完整"静默跳过（实测 18:45 ETH）。
+        # 仅对"无预生成决策、需现场调 LLM"的路径保留该硬检查。
+        _has_pre_made = bool(
+            isinstance(trigger_context, dict)
+            and trigger_context.get("pre_made_decisions")
+        )
+        if not _has_pre_made and (not account.api_key or not account.model):
             logger.warning(
                 "AI交易员 '%s' (ID: %d) 已跳过 - LLM配置不完整",
                 account.name, account.id,
@@ -2216,8 +2510,14 @@ def _execute_ccxt_ai_trade(
             AccountStrategyConfig.enabled == "true",
         ).first()
         if not strategy:
-            logger.warning("Account %s: strategy not configured or disabled", account.name)
-            return
+            # 预生成决策自带策略上下文，同样不应被账户级策略配置卡死
+            if not _has_pre_made:
+                logger.warning("Account %s: strategy not configured or disabled", account.name)
+                return
+            logger.info(
+                "[PreMade] Account %s 无账户级策略配置，使用预生成决策继续",
+                account.name,
+            )
 
     finally:
         db.close()
@@ -2226,7 +2526,22 @@ def _execute_ccxt_ai_trade(
     mgr = get_exchange_manager()
     # [2026-08-28] 账户绑定凭证优先,无绑定则回退全局凭证(user-level)
     user_id = account.user_id or 1
-    client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account.id)
+    # [2026-08-28 环境] 实盘按账户币安环境建客户端（usdt_m/coin_m/margin）
+    _mt = getattr(account, "binance_market_type", None) or "usdt_m"
+    # [2026-08-29 实盘下单挂死修复] 缓存客户端的 aiohttp 会话绑定在首次调用
+    # 的 event loop 上，跨 asyncio.run 复用会永久挂起（实测 18:52 ETH 下单后
+    # live 会话循环 62s→182s 递增卡死，无任何日志返回）。改为：
+    # ① create_fresh_client 每次新建（与 live_executor 同款根治方案）；
+    # ② wait_for 20s 硬超时，超时/异常诚实报错返回；③ 用完即关。
+    client = mgr.create_fresh_client(
+        exchange, user_id=user_id, account_id=account.id,
+        market_type=_mt if exchange == "binance" else None,
+    )
+    if client is None:
+        client = mgr.get_or_create_global_client(
+            exchange, user_id=user_id, account_id=account.id,
+            market_type=_mt if exchange == "binance" else None,
+        )
     if client is None:
         logger.warning(
             "AI交易员 '%s': %s 交易所未配置全局API凭证，请先在「交易所配置」中添加",
@@ -2235,12 +2550,18 @@ def _execute_ccxt_ai_trade(
         return
 
     # ── 3. Get balance & positions ──
+    async def _fetch_bal_pos():
+        _bal = await asyncio.wait_for(client.get_balance(), timeout=20)
+        _pos = await asyncio.wait_for(client.get_positions(), timeout=20)
+        return _bal, _pos
+
     try:
-        balance: ExchangeBalance = asyncio.run(client.get_balance())
-        positions: List[ExchangePosition] = asyncio.run(client.get_positions())
+        balance, positions = asyncio.run(_fetch_bal_pos())
     except Exception as e:
         logger.error("Failed to get %s balance/positions for %s: %s", exchange, account.name, e)
+        _close_ccxt_client(client)
         return
+    # 注意：client 后续下单仍要用，函数末尾统一 _close_ccxt_client(client)
 
     available_balance = balance.available_balance
     total_equity = balance.total_equity
@@ -2342,6 +2663,14 @@ def _execute_ccxt_ai_trade(
 
             operation = decision.get("operation", "").lower()
             symbol = decision.get("symbol", "").upper()
+            # [2026-08-31 白名单格式修复] 决策符号归一为裸基币名。
+            # 白名单/价格表以裸名("ASTER")为键，而上游（LiveExecutor 平仓/
+            # LPM/对账）可能传统一符号("ASTER/USDT:USDT") → 此前被静默拒单
+            # （save_ai_decision executed=False）而 LiveExecutor 乐观报 filled，
+            # 实盘单黑洞。ccxt 适配器下单时自行做裸名→统一符号解析。
+            if "/" in symbol:
+                symbol = symbol.split("/")[0].strip()
+                decision["symbol"] = symbol
             target_portion = float(decision.get("target_portion_of_balance", 0))
             leverage = int(decision.get("leverage", 10))
             # 同币已有仓：adopt 交易所杠杆（一仓一杠杆）
@@ -2399,9 +2728,76 @@ def _execute_ccxt_ai_trade(
                 save_ai_decision(db, account, decision, portfolio, executed=False)
                 continue
 
+            # ── [2026-08-31 平仓修复] reduce_only 显式数量快速通道 ──
+            # LiveExecutor.close_position/_send_raw_order 传统量+reduce_only 走
+            # operation=sell 的决策，而 sell 分支按余额×portion 重算名义且
+            # reduce_only=False → 实盘"平仓"从未真正平过仓（数量0或反向开仓）。
+            # 决策现透传 quantity/reduce_only：命中时发精确数量的 reduce-only
+            # 市价单，不再进开仓 sizing 分支，也不受可用余额下限约束。
+            if (
+                operation in ("buy", "sell", "close")
+                and bool(decision.get("reduce_only"))
+                and float(decision.get("quantity") or 0) > 0
+            ):
+                _rq = float(decision.get("quantity"))
+                # 方向推导：显式 close_position_side（"long"/"short"）优先；
+                # close 按本地持仓方向反推；其余按 operation 本身（sell=平多, buy=平空）。
+                _side_hint = str(decision.get("close_position_side") or "").strip().lower()
+                if not _side_hint and operation == "close":
+                    _pos_match = next(
+                        (p for p in positions
+                         if str(getattr(p, "symbol", "") or "").upper().split("/")[0]
+                         == symbol.split("/")[0]),
+                        None,
+                    )
+                    if _pos_match is not None:
+                        _side_hint = "short" if str(
+                            getattr(_pos_match, "side", "long")).lower() == "short" else "long"
+                if _side_hint == "short":
+                    _r_side = OrderSide.BUY   # 平空：买入
+                elif _side_hint == "long":
+                    _r_side = OrderSide.SELL  # 平多：卖出
+                else:
+                    _r_side = OrderSide.SELL if operation == "sell" else OrderSide.BUY
+                try:
+                    # [2026-08-31 挂死修复] 新客户端 + 20s 硬超时（同余额/持仓
+                    # 的 8/29 修复模式；旧 asyncio.run(client.place_order) 在
+                    # 余额查询之后第二次进新事件循环会永久挂起）。
+                    _r_result = _place_order_fresh_client(
+                        mgr, exchange, user_id, account.id, _mt,
+                        ExchangeOrder(
+                            order_id="", symbol=symbol,
+                            side=_r_side, order_type=OrderType.MARKET,
+                            size=_rq, price=price, leverage=1, reduce_only=True,
+                            # [2026-08-31 Hedge] 币安双向持仓模式平仓必须带
+                            # positionSide=被平仓位方向（平多=SELL+LONG）。
+                            position_side=(
+                                ("LONG" if _side_hint == "long" else "SHORT")
+                                if _side_hint in ("long", "short") else None
+                            ),
+                        ),
+                    )
+                    logger.info(
+                        "[%s] REDUCE-ONLY %s executed: side=%s qty=%.6f result=%s",
+                        exchange.upper(), symbol, _r_side.value, _rq, _r_result,
+                    )
+                    save_ai_decision(db, account, decision, portfolio, executed=True)
+                except Exception as e:
+                    logger.error("[%s] REDUCE-ONLY %s failed: %s", exchange.upper(), symbol, e)
+                    decision["error_reason"] = str(e)
+                    save_ai_decision(db, account, decision, portfolio, executed=False)
+                continue
+
             if operation == "close":
                 # Find position to close
-                pos_to_close = next((p for p in positions if p.symbol == symbol), None)
+                # [2026-08-31 格式容忍] positions 可能带统一符号("ASTER/USDT:USDT")
+                # 而决策符号是裸名——按裸基币名匹配。
+                pos_to_close = next(
+                    (p for p in positions
+                     if str(getattr(p, "symbol", "") or "").upper().split("/")[0]
+                     == symbol.split("/")[0]),
+                    None,
+                )
                 if not pos_to_close:
                     logger.warning("No position to close for %s on %s", symbol, exchange)
                     save_ai_decision(db, account, decision, portfolio, executed=False)
@@ -2423,7 +2819,8 @@ def _execute_ccxt_ai_trade(
                 )
 
                 try:
-                    result = asyncio.run(client.place_order(order))
+                    result = _place_order_fresh_client(
+                        mgr, exchange, user_id, account.id, _mt, order)
                     logger.info(
                         "[%s] CLOSE %s executed: side=%s size=%.4f result=%s",
                         exchange.upper(), symbol, "buy" if is_buy_close else "sell",
@@ -2432,7 +2829,8 @@ def _execute_ccxt_ai_trade(
                     save_ai_decision(db, account, decision, portfolio, executed=True)
                 except Exception as e:
                     logger.error("[%s] CLOSE %s failed: %s", exchange.upper(), symbol, e)
-                    save_ai_decision(db, account, decision, portfolio, executed=False, reason=str(e))
+                    decision["error_reason"] = str(e)
+                    save_ai_decision(db, account, decision, portfolio, executed=False)
                 continue
 
             # buy / sell
@@ -2446,6 +2844,27 @@ def _execute_ccxt_ai_trade(
             order_value = margin * leverage
             quantity = round(order_value / price, 6)
 
+            # [2026-09-03 v3 方向1] PositionConstruction 单一权威：AI 的 portion×leverage 只是提议
+            order_value, leverage, quantity, _pc_block = _v3_position_construction_live(
+                db, account, symbol, price=price, order_value=order_value, leverage=leverage,
+                total_equity=total_equity, decision=decision, exchange=exchange,
+            )
+            if _pc_block:
+                decision["error_reason"] = _pc_block
+                save_ai_decision(db, account, decision, portfolio, executed=False)
+                continue
+            margin = order_value / max(1.0, float(leverage or 1.0))
+
+            # [2026-09-03 v3 方向7] RiskEngine 单入口（急停/状态机/连通性/避险窗口/日配额）
+            _v3_block = _v3_risk_pre_trade_live(
+                db, account, symbol, operation, order_value=order_value, total_equity=total_equity,
+                leverage=leverage, exchange=exchange, decision=decision,
+            )
+            if _v3_block:
+                decision["error_reason"] = _v3_block
+                save_ai_decision(db, account, decision, portfolio, executed=False)
+                continue
+
             # Risk check
             risk_allowed, risk_message = check_risk_before_trade(
                 db=db, account_id=account.id, symbol=symbol, operation=operation,
@@ -2455,8 +2874,27 @@ def _execute_ccxt_ai_trade(
             )
             if not risk_allowed:
                 logger.warning("[RISK] %s order blocked: %s", exchange.upper(), risk_message)
-                save_ai_decision(db, account, decision, portfolio, executed=False, reason=risk_message)
+                decision["error_reason"] = risk_message
+                save_ai_decision(db, account, decision, portfolio, executed=False)
                 continue
+
+            # [2026-09-03 v3 F2] 账户级日手续费预算门（live：进程内按日累计的成交费用估算）
+            try:
+                from backend.services.ledger.fee_budget import (
+                    check_fee_budget as _fee_budget_check,
+                    fees_paid_today_live as _fees_today_live,
+                )
+                _fb = _fee_budget_check(
+                    db, account.id, est_notional=float(order_value or 0), equity=float(total_equity or 0),
+                    fees_today=_fees_today_live(account.id), source="live",
+                )
+                if not _fb.allowed:
+                    logger.warning("[FeeBudget] %s %s %s 拦截: %s", exchange.upper(), symbol, operation, _fb.reason)
+                    decision["error_reason"] = _fb.reason
+                    save_ai_decision(db, account, decision, portfolio, executed=False)
+                    continue
+            except Exception as _fb_err:
+                logger.debug("[FeeBudget] live 检查异常(放行): %s", _fb_err)
 
             # Use max_price/min_price if provided
             order_price = price
@@ -2467,16 +2905,22 @@ def _execute_ccxt_ai_trade(
 
             # 阶段 3.2: OrderAlgo 切片（默认 MARKET 单笔，行为不变）
             algo = str(decision.get("algo", "MARKET") or "MARKET").upper()
+            # [2026-09-03 Aster 费率优化] 仅中长线开仓走 maker 优先（其余原样市价）
+            _mf_on, _mf_timeout = _live_maker_first_decision(exchange, decision, trigger_context)
             try:
                 if algo == "MARKET" or quantity <= 0:
-                    result = asyncio.run(client.place_order(ExchangeOrder(
-                        order_id="", symbol=symbol,
-                        side=OrderSide.BUY if operation == "buy" else OrderSide.SELL,
-                        order_type=OrderType.MARKET, size=quantity, price=order_price,
-                        sl=decision.get("stop_loss_price"),
-                        tp=decision.get("take_profit_price"),
-                        leverage=leverage, reduce_only=False,
-                    )))
+                    result = _place_order_fresh_client(
+                        mgr, exchange, user_id, account.id, _mt,
+                        ExchangeOrder(
+                            order_id="", symbol=symbol,
+                            side=OrderSide.BUY if operation == "buy" else OrderSide.SELL,
+                            order_type=OrderType.MARKET, size=quantity, price=order_price,
+                            sl=decision.get("stop_loss_price"),
+                            tp=decision.get("take_profit_price"),
+                            leverage=leverage, reduce_only=False,
+                        ),
+                        maker_first=_mf_on, maker_timeout_s=_mf_timeout,
+                    )
                 else:
                     from backend.services.exchange.algo_exec import build_algo_slices, execute_slices
                     children, meta = build_algo_slices(
@@ -2498,7 +2942,9 @@ def _execute_ccxt_ai_trade(
                             tp=(decision.get("take_profit_price") if is_last else None),
                             leverage=leverage, reduce_only=False,
                         )
-                        _r = asyncio.run(client.place_order(_o))
+                        _r = _place_order_fresh_client(
+                            mgr, exchange, user_id, account.id, _mt, _o,
+                            maker_first=_mf_on, maker_timeout_s=_mf_timeout)
                         logger.info(
                             f"[AlgoExec][CCXT:{algo}] slice {'LAST' if is_last else '..'} "
                             f"{symbol} {operation} qty={qty} -> {_r}"
@@ -2519,11 +2965,20 @@ def _execute_ccxt_ai_trade(
                     )
 
                 save_ai_decision(db, account, decision, portfolio, executed=True)
+                # [2026-09-03 v3 F2] 成交后登记本单预估手续费到日预算累计（taker 口径，偏保守）
+                try:
+                    from backend.services.ledger.fee_budget import estimate_fee as _est_fee, record_live_fee as _rec_fee
+                    _rec_fee(account.id, _est_fee(float(order_value or 0)))
+                except Exception:
+                    pass
                 # Update balance for subsequent decisions
                 available_balance -= margin
             except Exception as e:
                 logger.error("[%s] %s %s failed: %s", exchange.upper(), operation.upper(), symbol, e)
-                save_ai_decision(db, account, decision, portfolio, executed=False, reason=str(e))
+                decision["error_reason"] = str(e)
+                save_ai_decision(db, account, decision, portfolio, executed=False)
 
     finally:
+        # [2026-08-29] fresh 客户端用完即关（防 aiohttp 会话泄漏/挂死）
+        _close_ccxt_client(client)
         db.close()

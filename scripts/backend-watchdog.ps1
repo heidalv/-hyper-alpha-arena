@@ -1,46 +1,34 @@
 <#
 .SYNOPSIS
-    开发环境后端看门狗：8000 不可用/假死时自动 stop + 重启 backend。
-
+    后端看门狗：8000 不可用时自动拉起后端（NO_RELOAD 启动器），与 data-center-watchdog 同模式。
 .DESCRIPTION
-    探测轻量 /api/health。后端假死特征是「端口在听但 HTTP 无响应」。
-    旧实现用 Invoke-WebRequest 且超时 30s、连续 8 次才重启，假死期间用户会卡很久；
-    且看门狗进程常在 start-dev 之外被杀掉后无人拉起。
-
-    2026-08-09 修复：
-      - 用 curl.exe 短超时探测（健康接口本身极轻，>8s 即视为假死）
-      - 区分：端口在听但超时 = zombie（阈值更低，更快重启）
-      - 连接拒绝 = down（阈值稍高，避免重启抖动）
-      - 单实例互斥，避免多个看门狗互相杀进程
-      - 重启后二次确认健康；启动失败写日志
+    每 30s 探测 /api/config/default-exchange；连续 3 次失败 → Start-Process 启动
+    scripts\start-backend-noreload.cmd；重启后 90s 内不重复拉起（避免连续误判循环）。
+    单实例锁：logs\backend-watchdog.lock
 #>
 [CmdletBinding()]
 param(
-    [int]$BackendPort = 8000,
-    [int]$IntervalSec = 20,
-    [int]$FailThresholdDown = 5,
-    [int]$FailThresholdZombie = 10,
-    [int]$GraceAfterRestartSec = 120,
-    [int]$HealthTimeoutSec = 12,
-    [int]$GracefulWaitSec = 20,
-    [int]$PostRestartCoolSec = 300
+    [int]$HealthPort = 8000,
+    [int]$IntervalSec = 30,
+    [int]$FailThreshold = 3,
+    [int]$HealthTimeoutSec = 8,
+    [int]$GraceAfterRestartSec = 90
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ScriptDir = $PSScriptRoot
 $RepoRoot = Split-Path $ScriptDir -Parent
 $LogDir = Join-Path $RepoRoot 'logs'
-if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $LogFile = Join-Path $LogDir 'backend-watchdog.log'
 $LockFile = Join-Path $LogDir 'backend-watchdog.lock'
 
 function Write-WdLog([string]$msg) {
-    $line = "{0} {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
+    $line = '{0} [backend-watchdog] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
     Add-Content -Path $LogFile -Value $line -Encoding UTF8
-    Write-Host $line -ForegroundColor DarkYellow
+    Write-Host $line -ForegroundColor DarkCyan
 }
 
-# 单实例：已有存活看门狗则退出，避免双狗互殴
 try {
     $myPid = $PID
     if (Test-Path $LockFile) {
@@ -49,163 +37,56 @@ try {
         if ($oldPid -gt 0 -and $oldPid -ne $myPid) {
             $alive = Get-Process -Id $oldPid -ErrorAction SilentlyContinue
             if ($alive) {
-                Write-WdLog "[watchdog] another instance already running (pid=$oldPid) — exit"
+                Write-WdLog "another instance already running (pid=$oldPid) - exit"
                 exit 0
             }
         }
     }
     Set-Content -Path $LockFile -Value "$myPid" -Encoding ASCII
 } catch {
-    Write-WdLog "[watchdog] lock warning: $($_.Exception.Message)"
+    Write-WdLog ("lock warning: " + $_.Exception.Message)
 }
 
-function Test-PortListening([int]$port) {
-    $c = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-    return [bool]$c
-}
-
-function Probe-BackendHealth {
-    <#
-      返回: ok | timeout | refused | error
-      优先 curl（超时可靠）；无 curl 时回退 Invoke-WebRequest
-    #>
-    $uri = "http://127.0.0.1:$BackendPort/api/health"
-    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-    if ($curl) {
-        $tmp = Join-Path $env:TEMP ("aa-wd-health-{0}.txt" -f $BackendPort)
-        try {
-            $args = @(
-                '-sS', '-o', $tmp, '-w', '%{http_code}',
-                '--connect-timeout', '3',
-                '--max-time', "$HealthTimeoutSec",
-                $uri
-            )
-            $code = & curl.exe @args 2>$null
-            if ($LASTEXITCODE -eq 28 -or $LASTEXITCODE -eq 7) {
-                # 28=timeout, 7=failed to connect
-                if ($LASTEXITCODE -eq 28) { return 'timeout' }
-                return 'refused'
-            }
-            if ("$code" -eq '200') { return 'ok' }
-            if (-not (Test-PortListening $BackendPort)) { return 'refused' }
-            return 'error'
-        } catch {
-            if (Test-PortListening $BackendPort) { return 'timeout' }
-            return 'refused'
-        } finally {
-            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
-        }
-    }
-
+function Test-BackendHealth {
     try {
-        $r = Invoke-WebRequest -Uri $uri -TimeoutSec $HealthTimeoutSec -UseBasicParsing
-        if ($r.StatusCode -eq 200) { return 'ok' }
-        return 'error'
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add('Accept', 'application/json')
+        $resp = $wc.DownloadString("http://127.0.0.1:$HealthPort/api/config/default-exchange")
+        return $resp.Length -gt 0
     } catch {
-        if (Test-PortListening $BackendPort) { return 'timeout' }
-        return 'refused'
+        return $false
     }
 }
 
-function Get-BackendPids {
-    $procs = Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe' OR Name='cmd.exe'" -ErrorAction SilentlyContinue
-    return @(
-        $procs | Where-Object {
-            $cl = $_.CommandLine
-            if (-not $cl) { return $false }
-            ($cl -match 'run_uvicorn_dev\.py') -or
-            ($cl -match 'uvicorn' -and $cl -match 'backend\.main:app') -or
-            ($cl -match 'uvicorn' -and $cl -match 'backend\.main')
-        } | ForEach-Object { $_.ProcessId }
-    )
+function Start-Backend {
+    Write-WdLog "backend down -> starting via start-backend-noreload.cmd"
+    $startCmd = Join-Path $RepoRoot 'scripts\start-backend-noreload.cmd'
+    Start-Process -FilePath 'cmd.exe' -ArgumentList "/c `"$startCmd`"" -WindowStyle Hidden
 }
 
-function Restart-Backend([string]$reason) {
-    Start-Sleep -Seconds 2
-    $probe = Probe-BackendHealth
-    if ($probe -eq 'ok') {
-        Write-WdLog "[watchdog] pre-restart probe OK — skip restart (transient; was $reason)"
-        return
-    }
-    Write-WdLog "[watchdog] backend $reason — stop + start (port $BackendPort) probe=$probe pids=$((Get-BackendPids) -join ',')"
+Write-WdLog "backend watchdog started (port=$HealthPort interval=${IntervalSec}s threshold=${FailThreshold}s)"
+$failCount = 0
+$lastRestart = 0
 
-    $pids = Get-BackendPids
-    foreach ($procId in $pids) {
-        taskkill /PID $procId /T 2>$null | Out-Null
-    }
-    $deadline = (Get-Date).AddSeconds($GracefulWaitSec)
-    while ((Get-Date) -lt $deadline) {
-        if (-not (Get-BackendPids)) { break }
-        Start-Sleep -Seconds 2
-    }
-
-    & (Join-Path $ScriptDir 'stop-dev.ps1') -Ports @($BackendPort, ($BackendPort + 1)) | Out-Null
-    Start-Sleep -Seconds 3
-
-    # 看门狗自身继续跑：子启动禁止再起 watchdog，避免套娃
-    & (Join-Path $ScriptDir 'start-dev.ps1') -NoFrontend -NoWatchdog | Out-Null
-
-    $okAt = $null
-    $deadline = (Get-Date).AddSeconds($GraceAfterRestartSec)
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds 5
-        if ((Probe-BackendHealth) -eq 'ok') {
-            $okAt = Get-Date
-            break
-        }
-    }
-    if ($okAt) {
-        Write-WdLog "[watchdog] backend healthy after restart"
-    } else {
-        Write-WdLog "[watchdog] WARN: backend still unhealthy after ${GraceAfterRestartSec}s — will keep probing"
-    }
-}
-
-Write-WdLog "[watchdog] started (port=$BackendPort interval=${IntervalSec}s zombieThreshold=$FailThresholdZombie downThreshold=$FailThresholdDown timeout=${HealthTimeoutSec}s cooldown=${PostRestartCoolSec}s probe=/api/health pid=$PID)"
-
-$fail = 0
-$failKind = ''
-# [2026-08-16 修复死亡循环] 后端启动后的风暴期（FullAuto 各循环 + 批标注 + 因子
-# 闸门 + LLM 预热同时爆发，GIL 饱和）会让极轻的 /api/health 也偶发 >8s 超时。
-# 此前 3 次僵尸阈值 ≈60s 恰好短于 3~4 分钟的风暴期 → 每次重启都误杀 → 无限循环。
-# 现在：重启后 $PostRestartCoolSec 内 zombie 超时不计数（down 仍计数），冷却期后
-# 需连续 $FailThresholdZombie 次超时（≥200s）才判死——真僵尸永不恢复，晚几分钟
-# 重启无害；健康但繁忙的后端不再被误杀。
-$coolUntil = [datetime]::MinValue
 while ($true) {
+    $ok = Test-BackendHealth
+    if ($ok) {
+        if ($failCount -ge $FailThreshold) {
+            Write-WdLog "backend recovered"
+        }
+        $failCount = 0
+    } else {
+        $failCount++
+        Write-WdLog "probe fail ($failCount/$FailThreshold)"
+        if ($failCount -ge $FailThreshold) {
+            $now = [datetime]::Now
+            if (($now - [datetime]::FromFileTime($lastRestart)).TotalSeconds -ge $GraceAfterRestartSec) {
+                Start-Backend
+                $lastRestart = $now.ToFileTime()
+                $failCount = 0
+                Start-Sleep -Seconds 10
+            }
+        }
+    }
     Start-Sleep -Seconds $IntervalSec
-    $result = Probe-BackendHealth
-    if ($result -eq 'ok') {
-        if ($fail -gt 0) {
-            Write-WdLog "[watchdog] backend recovered (was $fail x $failKind)"
-        }
-        $fail = 0
-        $failKind = ''
-        continue
-    }
-
-    $listening = Test-PortListening $BackendPort
-    $kind = if ($result -eq 'timeout' -or ($listening -and $result -ne 'refused')) { 'zombie' } else { 'down' }
-    if ($kind -eq 'zombie' -and (Get-Date) -lt $coolUntil) {
-        Write-WdLog "[watchdog] zombie timeout during post-restart cooldown — tolerate (probe=$result listen=$listening)"
-        continue
-    }
-    if ($failKind -ne $kind) {
-        # 失败类型切换时重置计数，避免混合计数误伤
-        if ($fail -gt 0) {
-            Write-WdLog "[watchdog] failure kind changed $failKind -> $kind (reset count)"
-        }
-        $fail = 0
-        $failKind = $kind
-    }
-    $fail++
-    $threshold = if ($kind -eq 'zombie') { $FailThresholdZombie } else { $FailThresholdDown }
-    $pids = @(Get-BackendPids)
-    Write-WdLog "[watchdog] health $result ($fail/$threshold kind=$kind listen=$listening procs=$($pids.Count))"
-    if ($fail -ge $threshold) {
-        Restart-Backend $kind
-        $fail = 0
-        $failKind = ''
-        $coolUntil = (Get-Date).AddSeconds($PostRestartCoolSec)
-    }
 }

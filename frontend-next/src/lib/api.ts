@@ -80,7 +80,10 @@ async function tryRefreshAccessToken(): Promise<"ok" | "invalid" | "network"> {
         // → 每 5s 重新武装 → POST /auth/refresh 401 无限循环（实测 964 次/小时，
         // 拖慢同页所有请求的 ensureFreshAccessToken 前置）。logout 会
         // clearTokens + stopAuthKeepalive，终止循环并引导重新登录。
-        void useAuthStore.getState().logout();
+        // [2026-09-09] 改为 await：原先 `void logout()` 不等清理完成就返回，
+        // 调用方（keepalive）紧接着检查 get().refreshToken 时可能仍为真 → 重新武装，
+        // 实测 401 循环依旧存在（3 小时 210 次）。等待登出落地可彻底关闭竞态。
+        await useAuthStore.getState().logout();
         return "invalid";
       }
       const data = await resp.json();
@@ -221,13 +224,13 @@ export async function fetchPublic<T = any>(
 import type {
   Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
-  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterPointsResponse,
+  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterLedgerResponse,
 } from "@/types/api";
 
 export type {
   Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
-  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterPointsResponse,
+  LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterLedgerResponse,
 };
 // ═══ 模拟交易 API（对齐旧前端 PaperTradingPanel） ═══
 
@@ -299,7 +302,9 @@ export const liveApi = {
     }),
   getPositions: (accountId: number) => apiRequest<{ positions: LivePosition[] }>(`/live/positions/${accountId}`),
   getOrders: (accountId: number) => apiRequest<{ orders: LiveOrder[] }>(`/live/orders/${accountId}`),
-  getAsterdexPoints: (accountId: number) => apiRequest<AsterPointsResponse>(`/live/asterdex/points/${accountId}`),
+  // [2026-09-03] 路径沿用，但返回体已重做为「真实收入账本」（Stage 6 积分已结束）
+  getAsterdexPoints: (accountId: number, days = 7) =>
+    apiRequest<AsterLedgerResponse>(`/live/asterdex/points/${accountId}?days=${days}`),
   placeOrder: (data: Record<string, unknown>) =>
     apiRequest<LiveOrderResult>("/live/order", { method: "POST", body: JSON.stringify(data) }),
   closePosition: (data: Record<string, unknown>) =>

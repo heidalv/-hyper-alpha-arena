@@ -77,8 +77,15 @@ class MidLongActiveFactorSet:
         try:
             from backend.services.factor_engine.combo_weights import resolve_combo_weights
             wmap = resolve_combo_weights(active, weights)
-        except Exception:
-            wmap = {str(r.get("factor_id") or ""): weights.get(r.get("factor_id"), 1.0) for r in active}
+        except Exception as err:
+            # [2026-09-02 消除 fail-open] 原分支静默退化为等权 1.0，权重体系出错时
+            # 系统照常满权出信号。改为显式告警 + 全零（fail-closed）：下游
+            # midlong_factor_route 的 weight_sum<=0 会给 no_valid_votes 跳过本轮。
+            logger.error(
+                "[MidLongActiveSet] 组合权重解析失败 → 本轮因子权重全零、不出信号: %s",
+                err, exc_info=True,
+            )
+            wmap = {str(r.get("factor_id") or ""): 0.0 for r in active}
         # [M0-F1 2026-08-22] role=paper 因子（held-out 未过但 A/B 级晋升的影子因子）
         # 权重封顶 PAPER_FACTOR_WEIGHT_CAP，与短线 PAPER 因子同一上限口径，
         # 让影子因子参与投票但不主导决策。
@@ -89,9 +96,15 @@ class MidLongActiveFactorSet:
             _paper_cap = 0.5
         for rec in active:
             _fid = str(rec.get("factor_id") or "")
-            rec["runtime_weight"] = wmap.get(_fid, 1.0)
+            # wmap 由 resolve_combo_weights 产出、必然覆盖全部 records，缺失即异常
+            # → 用 0.0 而非 1.0（1.0 会让未定权的因子满权投票）。
+            rec["runtime_weight"] = wmap.get(_fid, 0.0)
             if str((rec.get("extra") or {}).get("role") or "") == "paper":
-                rec["runtime_weight"] = min(float(rec["runtime_weight"] or 1.0), _paper_cap)
+                # 只在缺失(None)时取中性 1.0；显式 0.0 必须保持 0（避免 `or` 陷阱
+                # 把归零权重还原成满权）
+                _rw = rec.get("runtime_weight")
+                rec["runtime_weight"] = min(
+                    1.0 if _rw is None else float(_rw), _paper_cap)
         return active
 
     @staticmethod
@@ -160,10 +173,18 @@ class MidLongActiveFactorSet:
         except Exception:
             try:
                 import json
-                path = os.path.join("data", "factor_runtime_weights.json")
+                # [2026-09-02] 两处修正：①原先遍历 JSON 顶层键（updated_at /
+                # lookback_days / weights / stats），float("2026-09-02T...") 必抛
+                # ValueError → 这条兜底路径实际上永远返回 {}，从未生效过；
+                # ②相对路径改为基于 __file__，不再依赖进程 cwd。
+                from pathlib import Path as _P
+                path = str(_P(__file__).resolve().parents[3] / "data"
+                           / "factor_runtime_weights.json")
                 if os.path.exists(path):
                     with open(path, "r", encoding="utf-8") as f:
-                        return {str(k): float(v) for k, v in json.load(f).items()}
+                        _raw = json.load(f) or {}
+                    return {str(k): float(v)
+                            for k, v in (_raw.get("weights") or {}).items()}
             except Exception:
                 pass
             return {}
@@ -215,6 +236,16 @@ class MidLongActiveFactorSet:
                         "reason": r.get("reason", ""),
                     }
                     _failed = abs(_ic) < _RETIRE_ABS_IC or _g in ("D", "F")
+                    # [2026-09-02 根因修复] held-out 判决 reject 的纸面影子因子：
+                    # 晋升时以「实盘 IC 反馈学习」为由放行，但反馈回路从未接回 →
+                    # OOS 死因子永久滞留 active（实证 recheck_fails=21 仍 active、
+                    # heldout ic=0）。reject 计入失败计数，连续 2 次 → 降级。
+                    try:
+                        _ho = dict((rec.get("extra") or {}).get("heldout") or {})
+                        if str(_ho.get("verdict")) == "reject":
+                            _failed = True
+                    except Exception:
+                        pass
                     _weak = _g == "C"
                     # [2026-08-15 去抖] 单次复检受窗口滑动 1-2 根 K 线影响即可 A↔C
                     # 翻跳（macd@4h：IC 同 -0.117，sharpe 0.83→0.21）。降级/退役
@@ -310,6 +341,15 @@ class MidLongActiveFactorSet:
 
                 abs_ic = abs(sr.ic_mean)
                 _failed = abs_ic < _RETIRE_ABS_IC or sr.grade in ("D", "F")
+                # [2026-09-02 根因修复] 公式因子分支同 registry 分支：
+                # held-out reject 计入失败计数（纸面影子无反馈回路，OOS 死因子
+                # 不得永久滞留 active），连续 2 次 → 降级 candidate。
+                try:
+                    _ho = dict((rec.get("extra") or {}).get("heldout") or {})
+                    if str(_ho.get("verdict")) == "reject":
+                        _failed = True
+                except Exception:
+                    pass
                 _weak = sr.grade == "C"
                 # [2026-08-15 去抖扩展] 公式因子与 registry 分支同一套规则：
                 # 单次复检受窗口滑动 1-2 根 K 线影响即可 A↔C 翻跳

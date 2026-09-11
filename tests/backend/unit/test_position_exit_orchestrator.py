@@ -49,6 +49,12 @@ class TestPositionExitOrchestrator:
         from backend.services.position_exit_orchestrator import position_exit_orchestrator
         from backend.services.paper_trading_engine import paper_engine
 
+        # [契约更新 2026-08-31] PEO 的 nature_staged_tp 路径默认被 v2 统一
+        # 分段止盈旁路（RISK_V2_UNIFIED_STAGED_TP=true）；本用例验证 PEO 路径
+        # 本身，显式关闭 v2 旁路（其文档化回滚开关）。
+        monkeypatch.setattr(
+            "backend.config.settings.RISK_V2_UNIFIED_STAGED_TP", False)
+
         _make_balance(db_session, account_id=1)
         pos = _make_position(db_session, price=108.0)
         monkeypatch.setattr(paper_engine, "_get_current_price", lambda symbol, exchange=None: 108.0)
@@ -124,6 +130,10 @@ class TestPositionExitOrchestrator:
         import json
         from backend.services.position_exit_orchestrator import position_exit_orchestrator
         from backend.services.paper_trading_engine import paper_engine
+
+        # [契约更新 2026-08-31] 同 staged_reduce：PEO trailing 默认被 v2 旁路。
+        monkeypatch.setattr(
+            "backend.config.settings.RISK_V2_UNIFIED_STAGED_TP", False)
 
         _make_balance(db_session, account_id=2)
         pos = _make_position(db_session, account_id=2, price=126.0)

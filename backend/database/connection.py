@@ -487,6 +487,98 @@ def get_session_for(model_class):
 # ═══════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════
+# [2026-09-02] 事务发起方追踪（LeakGuard 精确定位用）
+#
+# 背景：LeakGuard 三天来每小时告警 15-25 次、强杀 10-20 个 idle-in-transaction 事务
+# （paper_positions 176 次、full_auto_sessions 142 次），但它的"转储全部线程栈"
+# 从来没定位到持有者——持有者是 asyncio 协程（同步 session 读完后 await LLM/行情
+# 几十秒），线程栈里只能看到事件循环在 _poll。这里在每次事务 begin 时按 PG 后端
+# pid 记录发起方的应用层调用链（只保留仓库内、非 .venv、非本文件的帧），巡检发现
+# 挂起事务时按 pid 直接打出"谁开的这笔事务"。开销：extract_stack(limit=40) 约
+# 20-40µs/事务，远低于原先每次告警 80 个线程栈 ×4KB 的日志量。
+# DB_LEAK_GUARD_TRACE=0 可关闭。
+# ═══════════════════════════════════════════════════════════════
+_TXN_TRACE_ENABLED = os.environ.get("DB_LEAK_GUARD_TRACE", "1").strip().lower() not in ("0", "false", "no", "off")
+_TXN_ORIGIN_MAX = 512
+_txn_origin: Dict[int, tuple] = {}  # backend_pid -> (monotonic_ts, "a.py:12 f > b.py:34 g")
+_REPO_ROOT_MARK = os.path.normcase(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+def _backend_pid_of(conn) -> int | None:
+    """从 SQLAlchemy Connection 取 PG 后端 pid（psycopg3: info.backend_pid）。"""
+    try:
+        dbapi = conn.connection.dbapi_connection
+        info = getattr(dbapi, "info", None)
+        pid = getattr(info, "backend_pid", None)
+        return int(pid) if pid else None
+    except Exception:
+        return None
+
+
+def _record_txn_origin(conn) -> None:
+    if not _TXN_TRACE_ENABLED:
+        return
+    try:
+        pid = _backend_pid_of(conn)
+        if pid is None:
+            return
+        import traceback as _tb
+        frames = []
+        raw = _tb.extract_stack(limit=40)
+        for fr in raw:
+            fn = os.path.normcase(fr.filename or "")
+            if not fn.startswith(_REPO_ROOT_MARK) or ".venv" in fn or fn.endswith(os.path.normcase("database\\connection.py")) or fn.endswith(os.path.normcase("database/connection.py")):
+                continue
+            frames.append(f"{os.path.relpath(fr.filename, _REPO_ROOT_MARK)}:{fr.lineno} {fr.name}")
+        if not frames:
+            # 仓库外发起（脚本/REPL）：保留最后 3 个非 SQLAlchemy 帧，至少能看出是谁
+            frames = [
+                f"{fr.filename}:{fr.lineno} {fr.name}"
+                for fr in raw
+                if "sqlalchemy" not in os.path.normcase(fr.filename or "")
+                and not os.path.normcase(fr.filename or "").endswith(os.path.normcase("database\\connection.py"))
+            ][-3:]
+            if not frames:
+                return
+        if len(_txn_origin) >= _TXN_ORIGIN_MAX:
+            # 连接池 pid 数量有限，超限说明有大量已断开连接的陈旧项；整体清一次即可
+            _txn_origin.clear()
+        _txn_origin[pid] = (_time_mod.monotonic(), " > ".join(frames[-8:]))
+    except Exception:
+        pass
+
+
+def txn_origin_for_pid(pid: int) -> str | None:
+    """LeakGuard 用：返回该后端 pid 最近一次事务的发起调用链（无记录返回 None）。"""
+    item = _txn_origin.get(int(pid))
+    return item[1] if item else None
+
+
+def release_idle_txn(db, *, where: str = "") -> bool:
+    """[2026-09-02] 结束 session 上当前的"只读"事务，避免连接跨长操作 idle-in-transaction。
+
+    用法：同步 session 做完一批 SELECT、即将进入 LLM/行情/交易所等长耗时调用之前调用。
+    - 只在 ``db.in_transaction()`` 且没有未提交写入（new/dirty/deleted 均空）时 commit：
+      读事务 commit 没有数据副作用；本项目所有 sessionmaker 都是 expire_on_commit=False，
+      已加载对象保持可用，不会触发懒加载重开事务。
+    - 有待写入时不动（返回 False），交给调用方既有的提交流程——绝不替业务代码决定提交。
+    - 用 commit 而非 rollback：rollback 会把全部已加载实例标记过期，之后每次属性访问都
+      重新 SELECT（又开新事务），既慢又回到原问题。
+    返回是否真的结束了一个事务。
+    """
+    try:
+        if db is None or not db.in_transaction():
+            return False
+        if db.new or db.dirty or db.deleted:
+            return False
+        db.commit()
+        return True
+    except Exception as e:  # pragma: no cover - 兜底：释放失败不影响业务
+        logger.debug("[DB] release_idle_txn(%s) 失败(忽略): %s", where or "-", e)
+        return False
+
+
 def _install_tenant_rls_hook(eng) -> None:
     """为 engine 注册 begin 钩子:每次事务开始设 SET LOCAL app.tenant_id。
 
@@ -513,6 +605,7 @@ def _install_tenant_rls_hook(eng) -> None:
 
     @event.listens_for(eng, "begin")
     def _set_tenant_guc(conn):
+        _record_txn_origin(conn)
         tid = tenant_id_var.get()
         is_admin = is_admin_var.get()
         if tid is None and _local_tenant is not None:
@@ -528,6 +621,32 @@ def _install_tenant_rls_hook(eng) -> None:
         if is_admin:
             try:
                 conn.exec_driver_sql("SET LOCAL app.is_admin = 'on'")
+            except Exception:
+                pass
+
+    # [2026-09-02 纵深防御] 连接归还池时清掉会话级租户/管理员 GUC。
+    # 上面的钩子只用 SET LOCAL（事务级），本不需要这一步；但实测 ops_routes 曾用
+    # 会话级 `SET app.tenant_id='326'; SET app.is_admin='on'`，连接还池后这两个值
+    # 一直挂着——下一个拿到该连接的请求在设身份之前就是 admin。逐处审查代码防不
+    # 住将来再写一次，这里在池层面兜底：checkin 时（默认 reset=rollback 已执行、
+    # 连接处于干净状态）RESET 两个 GUC。RESET 对从未设置过的自定义 GUC 也合法
+    # （实测 PG 返回 ''），一次往返 <0.3ms。失败静默：SQLite/无 RLS 的开发库不适用。
+    @event.listens_for(eng, "checkin")
+    def _reset_tenant_guc_on_checkin(dbapi_connection, connection_record):
+        try:
+            cur = dbapi_connection.cursor()
+            try:
+                cur.execute("RESET app.tenant_id")
+                cur.execute("RESET app.is_admin")
+            finally:
+                cur.close()
+            # PG 的 SET/RESET 是事务性的：psycopg3 非 autocommit 下上面两句隐式
+            # 开了事务，必须 commit —— 否则连接带着 idle-in-transaction 回池，且若
+            # 之后被 rollback，RESET 本身会被撤销、等于白做。
+            dbapi_connection.commit()
+        except Exception:
+            try:
+                dbapi_connection.rollback()
             except Exception:
                 pass
 
@@ -679,25 +798,34 @@ def _check_leaked_transactions() -> None:
                     f"(>{_LEAK_GUARD_AGE_SECONDS}s)，{_LEAK_GUARD_KILL_SECONDS}s 后会被强制终止 "
                     f"(共 {len(rows)} 个，重复项已抑制):"
                 )
+                _unresolved = 0
                 for r in new_rows:
                     logger.warning(
                         f"[DB LeakGuard]   pid={r.pid} db={r.datname} app={r.application_name} "
                         f"age={r.age_s}s sql={r.query!r}"
                     )
+                    # [2026-09-02] 精确定位：按 pid 打出事务发起方调用链（见 _record_txn_origin）
+                    _origin = txn_origin_for_pid(r.pid)
+                    if _origin:
+                        logger.warning(f"[DB LeakGuard]   pid={r.pid} origin: {_origin}")
+                    else:
+                        _unresolved += 1
                 # [2026-08-11] 根因定位：同一进程内转储所有线程栈。
-                # 泄漏事务通常被“开了 session 又去跑 LLM”的线程持有，
-                # 转储能直接给出开 session 的调用链。
-                try:
-                    import sys as _sys
-                    import traceback as _tb
-                    for _tid, _frame in _sys._current_frames().items():
-                        _stack = "".join(_tb.format_stack(_frame))
-                        logger.warning(
-                            "[DB LeakGuard] thread=%s stack:\n%s",
-                            _tid, _stack[-4000:],
-                        )
-                except Exception as _stack_err:
-                    logger.debug(f"[DB LeakGuard] 线程栈转储失败: {_stack_err}")
+                # [2026-09-02] 降级为兜底：只在 pid 没有 origin 记录（其他进程/市场库/
+                # 追踪关闭）时才转储；协程持有的事务线程栈本就抓不到，原先每次告警
+                # 80 个栈 ×4KB 只是刷屏。
+                if _unresolved and os.environ.get("DB_LEAK_GUARD_DUMP_THREADS", "0").strip().lower() in ("1", "true", "yes", "on"):
+                    try:
+                        import sys as _sys
+                        import traceback as _tb
+                        for _tid, _frame in _sys._current_frames().items():
+                            _stack = "".join(_tb.format_stack(_frame))
+                            logger.warning(
+                                "[DB LeakGuard] thread=%s stack:\n%s",
+                                _tid, _stack[-4000:],
+                            )
+                    except Exception as _stack_err:
+                        logger.debug(f"[DB LeakGuard] 线程栈转储失败: {_stack_err}")
             # P0 修复：对超过 kill 阈值的事务主动终止，释放锁和连接
             kill_pids = [r.pid for r in rows if r.age_s and r.age_s >= _LEAK_GUARD_KILL_SECONDS]
             for pid in kill_pids:

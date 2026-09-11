@@ -37,8 +37,19 @@ logger = logging.getLogger(__name__)
 # 2) fitness 确定化：同一窗口内所有 genome 在同一方向序列上比较（对 NSGA-II
 #    更公平——旧行为下 genome 间比较被归一化漂移污染）。
 # 方向序列只依赖 K 线窗口（与 genome 无关），按 (len,首尾时间戳) 指纹复用。
-_FACTOR_DIR_CACHE: Dict[tuple, tuple] = {}
-_FACTOR_DIR_TTL = 1800
+#
+# [2026-09-09 F38] 跨模板复用修复。实测（logs/standalone_weekly_scheduled.log）：
+# 每周进化 8 个模板，每个模板开头都触发一次全量预计算（bars≈62k，单次 ≈6.7h），
+# 整轮 ~54h，而真正的适应度计算只占约 10min。根因两条：
+#   ① TTL=1800s 远小于「模板间隔(≈6.7h)」→ 下一个模板必然 miss；
+#   ② strategy_evolver._load_bars 的 cutoff=now-days*86400 随时间滑动 →
+#      bars[0].timestamp 漂移 → 缓存键失配，连前缀扩展都命中不了。
+# 另修一处潜在串用 bug：旧键 (_ts0, len) 不含 symbol/timeframe，不同币种若
+# 首时间戳与长度相同会复用彼此的因子方向序列。
+# 现键改为 (symbol, timeframe, ts0, len)；配合 _load_bars 的按天对齐 cutoff
+# （见 strategy_evolver._load_bars）与 TTL 提升，每轮预计算次数 8 → 1。
+_FACTOR_DIR_CACHE: Dict[tuple, tuple] = {}  # (symbol, timeframe, ts0, n) -> (written_at, series)
+_FACTOR_DIR_TTL = int(os.getenv("PIPELINE_FACTOR_DIR_TTL_SEC", str(12 * 3600)))
 
 
 # ═══════════════════ 默认管线参数（从注册表导入） ═══════════════════
@@ -236,6 +247,8 @@ class LivePipelineBacktestEngine:
         tier: str = "mid",
         funding_rate_series: Optional[Dict[int, float]] = None,
         fgi_series: Optional[Dict[int, float]] = None,
+        symbol: str = "",
+        timeframe: str = "",
     ) -> BacktestResult:
         """
         主回测循环 — 逐 bar 调用实盘同款决策管线
@@ -245,6 +258,8 @@ class LivePipelineBacktestEngine:
             pipeline_params: 管线参数（编排器阈值+情报权重+风控）
             funding_rate_series: {timestamp: rate} 历史资金费率
             fgi_series: {timestamp: fgi_value} 历史恐贪指数
+            symbol / timeframe: [F38] 因子方向序列缓存的键维度。
+                不传则退化为仅按窗口指纹复用（旧行为），建议调用方一律传。
         """
         run_id = run_id or f"lp_{uuid.uuid4().hex[:10]}"
         result = BacktestResult(run_id=run_id, bars_total=len(bars))
@@ -315,12 +330,16 @@ class LivePipelineBacktestEngine:
         self._factor_dir_series = None
         if float(p.get("factor_signal_weight", 0.3)) > 0 and len(bars) > warmup:
             _ts0 = int(bars[0].timestamp)
+            # [F38] 键含 symbol/timeframe，避免不同币种窗口指纹相同时串用方向序列
+            _sym = str(symbol or "").upper()
+            _tf = str(timeframe or "")
             _best_ln, _best_series = -1, None
             for _k, (_kt, _ks) in list(_FACTOR_DIR_CACHE.items()):
-                try:
-                    _k0, _kln = _k
-                except (TypeError, ValueError):
-                    continue  # 兼容旧三元组键格式（仅存在于旧进程内存）
+                if not isinstance(_k, tuple) or len(_k) != 4:
+                    continue  # 兼容旧格式键（仅存在于旧进程内存）
+                _k_sym, _k_tf, _k0, _kln = _k
+                if _k_sym != _sym or _k_tf != _tf:
+                    continue
                 if _k0 == _ts0 and _kln <= len(bars) and _kln > _best_ln and (time.time() - _kt) <= _FACTOR_DIR_TTL:
                     _best_ln, _best_series = _kln, _ks
             if _best_series is not None:
@@ -328,8 +347,8 @@ class LivePipelineBacktestEngine:
                 _start_i = max(len(_series), warmup)
                 if _start_i < len(bars):
                     logger.info(
-                        "[PipelineBT] 因子方向序列前缀扩展 +%d 窗口 (cached=%d, bars=%d)",
-                        len(bars) - _start_i, len(_series), len(bars),
+                        "[PipelineBT] 因子方向序列前缀扩展 +%d 窗口 (cached=%d, bars=%d, sym=%s, tf=%s)",
+                        len(bars) - _start_i, len(_series), len(bars), _sym or "-", _tf or "-",
                     )
                     for _i in range(_start_i, len(bars)):
                         # [M0-P2v4] 同款 GIL 让渡（见全量预计算循环）。
@@ -337,11 +356,11 @@ class LivePipelineBacktestEngine:
                             time.sleep(0)
                         _series.append(self._compute_factor_direction_windowed(_i, bars))
                 self._factor_dir_series = _series
-                _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
+                _FACTOR_DIR_CACHE[(_sym, _tf, _ts0, len(bars))] = (time.time(), _series)
             else:
                 logger.info(
-                    "[PipelineBT] 预计算因子方向序列 bars=%d（一次性，之后复用/前缀扩展）",
-                    len(bars),
+                    "[PipelineBT] 预计算因子方向序列 bars=%d sym=%s tf=%s（一次性，之后复用/前缀扩展）",
+                    len(bars), _sym or "-", _tf or "-",
                 )
                 _series = [0] * warmup
                 for _i in range(warmup, len(bars)):
@@ -359,7 +378,7 @@ class LivePipelineBacktestEngine:
                     if _i % 32 == 0:
                         time.sleep(0)
                     _series.append(self._compute_factor_direction_windowed(_i, bars))
-                _FACTOR_DIR_CACHE[(_ts0, len(bars))] = (time.time(), _series)
+                _FACTOR_DIR_CACHE[(_sym, _tf, _ts0, len(bars))] = (time.time(), _series)
                 self._factor_dir_series = _series
 
         for i in range(warmup, len(bars)):
@@ -712,7 +731,7 @@ class LivePipelineBacktestEngine:
     def _compute_factor_direction_windowed(self, i: int, bars: List[Bar]) -> int:
         """原慢路径：对以 i 结尾的 30 根窗口跑全因子引擎并合成方向。"""
         try:
-            from services.factor_engine import factor_engine, FactorSignalGenerator
+            from backend.services.factor_engine import factor_engine, FactorSignalGenerator
 
             # 使用最近 30 根 K 线作为计算窗口
             window_start = max(0, i - 29)

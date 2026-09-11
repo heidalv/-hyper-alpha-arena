@@ -282,7 +282,26 @@ class StrategyHealthService:
         }
 
     def _heal_pause_reoptimize(self, strategy, db) -> Dict[str, Any]:
-        """中度: 暂停策略 + 触发参数重优化"""
+        """中度: 暂停策略 + 触发参数重优化
+
+        [2026-09-11 用户指令] 模拟账户不暂停：纸面亏损=训练数据，
+        健康度差只做「降风险」（`_heal_reduce_risk`）与重优化，绝不停止交易。
+        判据唯一权威：`risk_management/loss_lock_policy.loss_locks_disabled`。
+        """
+        try:
+            from backend.services.risk_management.loss_lock_policy import (
+                loss_locks_disabled as _lld,
+            )
+
+            if _lld():
+                logger.info(
+                    "[StrategyHealth] %s 健康度差但**模拟账户不暂停**（继续收集训练数据）",
+                    strategy.strategy_id,
+                )
+                # 降级为「降风险」：仍在交易，只是仓位更小
+                return self._heal_reduce_risk(strategy, db)
+        except Exception:
+            logger.debug("[StrategyHealth] paper 判据异常，按原逻辑暂停")
         old_status = strategy.status
         strategy.status = "paused"
         # 2026-06-19: 统一注册到 SymbolLockRegistry
@@ -318,7 +337,24 @@ class StrategyHealthService:
         }
 
     def _heal_archive_replace(self, strategy, db) -> Dict[str, Any]:
-        """重度: 归档策略 + 通知 evolver 生成替代"""
+        """重度: 归档策略 + 通知 evolver 生成替代
+
+        [2026-09-11 用户指令] 模拟账户不归档（纸面亏损=训练数据）。
+        只降风险 + 排队重优化，策略继续跑继续产样本。
+        """
+        try:
+            from backend.services.risk_management.loss_lock_policy import (
+                loss_locks_disabled as _lld,
+            )
+
+            if _lld():
+                logger.info(
+                    "[StrategyHealth] %s 健康度极差但**模拟账户不归档**（继续收集训练数据）",
+                    strategy.strategy_id,
+                )
+                return self._heal_reduce_risk(strategy, db)
+        except Exception:
+            logger.debug("[StrategyHealth] paper 判据异常，按原逻辑归档")
         old_status = strategy.status
         strategy.status = "archived"
 

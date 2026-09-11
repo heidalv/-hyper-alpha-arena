@@ -14,14 +14,9 @@ import { getBackendUrl } from "@/lib/backend-config";
 import { SectionCard, RefreshButton, EmptyState } from "@/components/operations/IlcUi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { fmtTime } from "@/lib/format";
 
 const BACKEND = getBackendUrl().replace(/\/$/, "");
-
-function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-}
 
 function formatInterval(s?: number): string {
   if (!s) return "—";

@@ -64,23 +64,12 @@ def _unique(prefix: str = "byok") -> str:
 
 
 def _cleanup_user(username: str, email: str) -> None:
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete()
-            # 清掉该用户名下的测试 LLM 配置(避免外键残留)
-            db.query(LLMConfiguration).filter(LLMConfiguration.tenant_id == user.id).delete()
-            db.delete(user)
-            db.commit()
-        by_email = db.query(User).filter(User.email == email).first()
-        if by_email:
-            db.query(RefreshToken).filter(RefreshToken.user_id == by_email.id).delete()
-            db.query(LLMConfiguration).filter(LLMConfiguration.tenant_id == by_email.id).delete()
-            db.delete(by_email)
-            db.commit()
-    finally:
-        db.close()
+    """[2026-09-02] 改走共享 helper。llm_configurations 同样挂 RLS，作为
+    extra_tables 一并在 admin 穿透事务内清理。
+    详见 backend/tests/_user_cleanup.py。"""
+    from backend.tests._user_cleanup import cleanup_user
+    cleanup_user(username=username, email=email,
+                 extra_tables={"llm_configurations": "tenant_id"})
 
 
 def _cleanup_llm(config_id: int) -> None:
@@ -154,16 +143,23 @@ def test_create_stamps_caller_tenant_id(client):
         assert resp.status_code == 200, resp.text
         config_id = resp.json()["id"]
 
-        # 直接查库验证 tenant_id 被正确 stamp(superuser 连接绕 RLS,可读到)
+        # 直接查库验证 tenant_id 被正确 stamp。
+        # [2026-09-02] 原注释"superuser 连接绕 RLS 可读到"已不成立：应用账号 laobao
+        # 非 superuser，且 AUTH_LOCAL_TENANT 会给无身份查询注入本地租户，新用户的行
+        # 被 RLS 正确隐藏 → "刚创建的配置查不到"。改为以新用户身份读：读到即同时证明
+        # stamp 正确 **且** RLS 按 tenant_id 放行；读不到则二者之一有误。
+        from backend.core.tenant import set_request_identity, clear_request_identity
+        set_request_identity(tenant_id=user_id, role="user")
         db = SessionLocal()
         try:
             cfg = db.query(LLMConfiguration).filter(LLMConfiguration.id == config_id).first()
-            assert cfg is not None, "刚创建的配置查不到"
+            assert cfg is not None, "以新用户身份查不到刚创建的配置：stamp 或 RLS 有误"
             assert cfg.tenant_id == user_id, (
                 f"BYOK stamp 失败:期望 tenant_id={user_id},实际 {cfg.tenant_id!r}"
             )
         finally:
             db.close()
+            clear_request_identity()
     finally:
         if config_id is not None:
             _cleanup_llm(config_id)
@@ -283,6 +279,10 @@ def _as_test_role():
 @pytest.fixture(scope="module")
 def rls_role():
     """建立非 superuser 测试角色 + 对 llm_configurations 的 SELECT 授权。"""
+    # [2026-09-02] 缺 CREATEROLE 时 skip 而非 ERROR，详见 _rls_privileges。
+    from backend.tests.integration._rls_privileges import SKIP_REASON, can_create_roles
+    if not can_create_roles():
+        pytest.skip(SKIP_REASON)
     with engine.connect() as c:
         c.execute(text(f"DROP ROLE IF EXISTS {_TEST_ROLE}"))
         c.execute(

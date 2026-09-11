@@ -31,7 +31,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ def _cfg_bool(key: str, default: bool = True) -> bool:
 def _cfg_int(key: str, default: int) -> int:
     try:
         from backend.config import settings
-        return int(getattr(settings, key, default) or 0)
+        _v = getattr(settings, key, default)
+        return 0 if _v is None else int(_v)
     except Exception:
         try:
             return int(os.getenv(key, str(default)))
@@ -65,7 +66,8 @@ def _cfg_int(key: str, default: int) -> int:
 def _cfg_float(key: str, default: float) -> float:
     try:
         from backend.config import settings
-        return float(getattr(settings, key, default) or default)
+        _v = getattr(settings, key, default)
+        return default if _v is None else float(_v)
     except Exception:
         try:
             return float(os.getenv(key, str(default)))
@@ -98,6 +100,8 @@ def has_open_midlong_position(db, account_id, symbol: str) -> bool:
 _MIDLONG_NATURE_GROUPS: Dict[str, frozenset] = {
     "mid": frozenset({"swing"}),
     "long": frozenset({"trend_follow", "position"}),
+    # [2026-09-07] LLM 日内波段车道：short 组互锁（同币已有日内仓则不重复开）
+    "short": frozenset({"intraday", "scalp"}),
 }
 
 
@@ -172,7 +176,8 @@ def _open_midlong_positions(db, account_id) -> List[Dict[str, Any]]:
                 continue
             tier = str(p.get("timeframe_tier") or "").lower()
             nature = str(p.get("trade_nature") or "").lower()
-            if tier in ("mid", "long") or nature in ("trend_follow", "swing", "position"):
+            # [2026-09-07] 日内波段(short/intraday)纳入管理扫描（论题硬离场哨兵覆盖）
+            if tier in ("mid", "long", "short") or nature in ("trend_follow", "swing", "position", "intraday"):
                 out.append(p)
         return out
     except Exception as e:
@@ -194,14 +199,101 @@ def _pos_direction(side: Any) -> str:
 
 def _tier_of(position: Dict[str, Any]) -> str:
     tier = str(position.get("timeframe_tier") or "").lower()
-    if tier in ("mid", "long"):
+    if tier in ("mid", "long", "short"):
         return tier
     nature = str(position.get("trade_nature") or "").lower()
     if nature in ("trend_follow", "position"):
         return "long"
     if nature == "swing":
         return "mid"
+    # [2026-09-07] 日内波段：nature=intraday → short（此前默认落 mid，
+    # 导致日内仓的论题硬离场读的是中线论题——退出保护错配）
+    if nature in ("intraday", "scalp"):
+        return "short"
     return "mid"
+
+
+def resolve_thesis_hard_exit(
+    session_id: str,
+    position: Dict[str, Any],
+) -> Optional[tuple]:
+    """论题硬离场：返回 (reason, thesis_dto) 或 None。
+
+    [2026-09-07] 从 manage_position 抽出，供 midlong 每 tick 哨兵复用。
+    根因：should_close 曾只挂在「本批扫描币」的 manage_position 上，
+    主脑已写 should_close=true 的 mid 仓（如 BTC）若不在 batch 就一直挂着。
+
+    - should_close：有仓即可平（允许论题翻空去平多头）。
+    - invalidation：仅论题方向与仓位同向时用失效价
+      （空头论题的上沿失效价不得当成多头「跌破即平」）。
+    """
+    try:
+        from backend.config.settings import midlong_brain_enabled
+        if not midlong_brain_enabled():
+            return None
+    except Exception:
+        return None
+    sym = str(position.get("symbol") or "").upper()
+    if not sym or not session_id:
+        return None
+    try:
+        from backend.services.mlto.thesis_store import get as _th_get
+        from backend.services.mlto.brain import (
+            _inv_price as _th_inv_px,
+            thesis_is_tradeable_fresh as _th_tradeable,
+        )
+        tier = _tier_of(position)
+        # [2026-09-07] 三档读论题：short 仓读 short 论题（此前一律读 mid，错配）
+        th = _th_get(str(session_id), sym, tier if tier in ("long", "short") else "mid")
+        if not _th_tradeable(th):
+            return None
+        if bool(getattr(th, "should_close", False)):
+            return ("thesis_should_close", th)
+        inv = getattr(th, "invalidation", None) or {}
+        ipx = _th_inv_px(inv)
+        mark = float(position.get("mark_price") or position.get("current_price") or 0)
+        side = _pos_direction(position.get("side"))
+        th_dir = str(getattr(th, "direction", "") or "").lower()
+        # 同向才用失效价：多头论题跌破 / 空头论题上破
+        if ipx and mark > 0 and th_dir == side and th_dir in ("long", "short"):
+            hit = (side == "long" and mark < float(ipx)) or (
+                side == "short" and mark > float(ipx)
+            )
+            if hit:
+                return ("thesis_invalidation", th)
+        # [2026-09-07] 退出传导（周期联动）：本档论题未触发时，若长线论题
+        # should_close 且与仓位同向 → 中线/日内同向仓跟随离场（高周期破坏向下传导）。
+        if tier in ("mid", "short"):
+            try:
+                from backend.config.settings import CYCLE_COORDINATOR_ENABLED as _cc_on
+            except Exception:
+                _cc_on = True
+            if _cc_on and tier != "long":
+                th_long = _th_get(str(session_id), sym, "long")
+                if th_long is not None and _th_tradeable(th_long):
+                    lg_dir = str(getattr(th_long, "direction", "") or "").lower()
+                    if bool(getattr(th_long, "should_close", False)) and lg_dir and lg_dir == side:
+                        return ("thesis_long_propagate", th_long)
+    except Exception as exc:
+        logger.debug("[MidLong] resolve_thesis_hard_exit 跳过 %s: %s", sym, exc)
+    return None
+
+
+def ack_thesis_hard_exit(thesis, *, reason: str, symbol: str, tier: str, side: str) -> None:
+    """平仓成功后复位 should_close 并记事件（幂等失败可忽略）。"""
+    if thesis is None:
+        return
+    try:
+        thesis.should_close = False
+        from backend.services.mlto import thesis_store as _ts
+        _ts._persist(None, thesis)  # noqa: SLF001
+        _ts.append_event(
+            thesis.thesis_id,
+            str(reason or "thesis_should_close"),
+            {"symbol": symbol, "tier": tier, "side": side},
+        )
+    except Exception as exc:
+        logger.debug("[MidLong] ack_thesis_hard_exit 跳过: %s", exc)
 
 
 def _review_min_hold_check(db, *, position, pos_tier: str, pnl_pct: float,
@@ -238,8 +330,69 @@ def _review_min_hold_check(db, *, position, pos_tier: str, pnl_pct: float,
                        f"{_min_hold_sec/3600:.1f}h，仓位兑现窗口未到（M0-11）"),
         }
     except Exception as _e:
-        logger.debug("[MidLong] stage=manage %s review_min_hold 检查异常(放行): %s", sym, _e)
+        # [§59 修复] 该检查是「最短持有期」软闸，异常放行=闸未生效，必须可见
+        logger.warning("[MidLong] stage=manage %s review_min_hold 检查异常(fail-open，放行): %s", sym, _e)
         return {"ok": True, "detail": f"检查异常放行: {_e}"}
+
+
+def trend_broken_price_gate(
+    position: Dict[str, Any], *, side: str, tier: str,
+) -> Tuple[bool, str]:
+    """[2026-09-11 深度解析 V11] trend_broken（方向复查平仓）的价格闸。
+
+    ## 数据依据（本机复算，`_audit_ml/V11_discretionary_exit_value.py`）
+
+    long 组 114 笔入场：
+      * 实际出场（含 trend_broken 裁量砍仓）：均 **−0.58 USD/笔**，合计 −66.37；
+      * 同一批入场套用 ExitPolicy（SL6% / 追踪 3-1.5% / 168h）反事实：均 **+2.454%**
+        （胜率 65.8%）。
+    其中 `trend_broken` 通道 24 笔：实际均 −4.10（合计 −98.46），政策反事实 **+8.127%**
+    （胜率 83.3%，出场分布全是 trail）——即 4h 级"趋势破坏"多在噪音区内触发，
+    把仓位砍在 72h 兑现窗口之前（与《中长线负期望根因报告》§2「边际需 72h+」一致）。
+    同时段 `thesis_*`（12 笔）与 `breakeven_tp`/`long_trend_v2`（35 笔）的裁量出场
+    **优于**政策反事实 → 本闸只针对 trend_broken，不动其它通道。
+
+    ## 闸语义
+
+    价格口径浮亏 < `MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS`（默认 3.0%，即 SL6% 的一半）
+    且**日线 regime 非 down** 时：不执行平仓（返回 False），把亏损交给 SL/追踪决定；
+    浮亏已 ≥ 阈值（SL 也快到了）或日线转下行（down-regime 做多是负边际，实测 t=−4.09）
+    时仍允许平仓。阈值置 0 = 关闭本闸（回滚）。数据缺失 fail-open（放行，保持旧行为）。
+    """
+    try:
+        gate = float(_cfg_float("MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS", 3.0) or 0.0)
+    except Exception:
+        gate = 3.0
+    if gate <= 0:
+        return True, "价格闸关闭"
+    t = str(tier or "").strip().lower()
+    if t not in ("mid", "long"):
+        return True, f"tier={t} 不适用"
+    try:
+        sym = str(position.get("symbol") or "").upper()
+        entry = float(position.get("entry_price") or 0)
+        mark = float(
+            position.get("mark_price") or position.get("current_price") or 0
+        )
+        if entry <= 0 or mark <= 0:
+            return True, "无价格数据(fail-open)"
+        s = str(side or "").strip().lower()
+        loss_pct = (
+            (entry - mark) / entry * 100.0 if s in ("long", "buy")
+            else (mark - entry) / entry * 100.0
+        )
+        if loss_pct >= gate:
+            return True, f"浮亏 {loss_pct:.2f}% ≥ {gate:.1f}%（SL 同向，放行）"
+        # 日线下行 regime：裁量平仓仍放行（down-regime 做多为负边际）
+        try:
+            from backend.services.full_auto.midlong_circuit_gate import _daily_regime
+            if _daily_regime(sym) == "down":
+                return True, "日线 regime=down（放行）"
+        except Exception:
+            pass
+        return False, f"浮亏仅 {loss_pct:.2f}% < {gate:.1f}%（噪音区不砍仓，交给 SL/追踪）"
+    except Exception as exc:  # noqa: BLE001 — 闸自身异常必须放行
+        return True, f"价格闸异常放行: {exc}"
 
 
 def _held_hours(position: Dict[str, Any], db=None) -> float:
@@ -603,6 +756,29 @@ def _exec_close(db, *, account_id, position, reason: str, host, session) -> Opti
             sym, side, _nature or "?", _tier or "?",
         )
         return None
+    # [§78 执行 2026-09-11 / 决策 P19-B] **通道熔断（MLTO 路径）**：
+    # 这里是 mid/long 唯一平仓收口点（review / 论题哨兵 / 兜底共 5 个调用点）。
+    # 判据在共享闸 `services/exit/channel_breaker_gate.py`：
+    #   保护性通道（sl/tp/强平/紧急/硬事实/浮盈保护/超时/尘仓…）**永不抑制**；
+    #   仅"叙事/系统裁量"通道参与熔断；`EXIT_CHANNEL_BREAKER_UNIFIED=false` 可一键回滚。
+    try:
+        from backend.services.exit.channel_breaker_gate import should_suppress as _cb_gate
+        _sup, _why = _cb_gate(str(reason or ""), _tier)
+        if _sup:
+            logger.warning(
+                "[MidLong] stage=manage symbol=%s 离场被**通道熔断**抑制 reason=%s（命中 %s）",
+                sym, str(reason or "")[:60], _why,
+            )
+            try:
+                host.append_event(
+                    session, "exit_channel_broken",
+                    f"🚫 [通道熔断] {sym}[{side}] 抑制离场 {str(reason or '')[:60]}（命中 {_why}）",
+                )
+            except Exception:
+                pass
+            return None
+    except Exception as _cb_err:  # fail-open 但可见
+        logger.warning("[MidLong] stage=manage %s 通道熔断检查异常(fail-open): %s", sym, _cb_err)
     try:
         from backend.services.paper_trading_engine import paper_engine
         res = paper_engine.close_position(
@@ -838,6 +1014,31 @@ def manage_position(
     if not position:
         return _out
 
+    # [2026-09-05] LLM 主脑：论题 should_close / 失效价优先于叙事复查。
+    # 硬止损、组合超限、吊灯减仓仍走下方规则，不等 LLM。
+    # 开平同权：触发后写事件并复位 should_close，防重复平仓。
+    # [2026-09-07] 判定抽到 resolve_thesis_hard_exit（与 active_exit 哨兵同口径）。
+    try:
+        _sid = str(getattr(session, "session_id", "") or "")
+        _hit = resolve_thesis_hard_exit(_sid, position)
+        if _hit:
+            _reason, _th = _hit
+            _closed = _exec_close(
+                db, account_id=account_id, position=position,
+                reason=_reason, host=host, session=session,
+            )
+            if _closed:
+                ack_thesis_hard_exit(
+                    _th, reason=_reason, symbol=sym,
+                    tier=_tier_of(position), side=position.get("side"),
+                )
+            return {
+                "action": "manage_close", "score": 0, "direction": "manage",
+                "reasoning": f"论题 {_reason}", "hold_reason": _reason,
+            }
+    except Exception as _thc_err:
+        logger.warning("[MidLong] stage=manage %s 论题离场检查跳过(fail-open，软退出未评估): %s", sym, _thc_err)
+
     # [2026-08-16 long_trend_v2] 长线仓改由 V2 每日管理器接管（Chandelier/结构退出/
     # 新高金字塔），跳过本模块的短中线口径（分档TP/保本/15min复查/bias反转）。
     try:
@@ -1067,6 +1268,18 @@ def manage_position(
                 sym, position.get("id"), _reason_base,
             )
             return _summary(f"通道熔断 shadow(trend_broken): {_reason_base}", action="manage_hold")
+
+        # [2026-09-11 V11] trend_broken 价格闸：浮亏 < 3%（SL6% 的一半）且日线非下行时
+        # 不执行平仓。实证 long 组 24 笔 trend_broken 实际均 −4.10（合计 −98.46），
+        # 同一批入场政策反事实 +8.13%/笔（胜率 83%）——4h 级复查在噪音区砍仓，
+        # 砍在 72h 兑现窗口之前。回滚：MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS=0。
+        _tb_ok, _tb_detail = trend_broken_price_gate(position, side=side, tier=pos_tier)
+        if not _tb_ok:
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s trend_broken 价格闸拦截: %s（%s）",
+                sym, position.get("id"), _tb_detail, _reason_base,
+            )
+            return _summary(f"trend_broken 价格闸: {_tb_detail}", action="manage_hold")
 
         # [2026-08-26 亏损复盘] "转 mixed" 类复查平仓缓冲：震荡日里 4h 转 mixed
         # 并非结构破坏，浮亏 <2% 时先 hold 观察一档（每仓每天最多 1 次），

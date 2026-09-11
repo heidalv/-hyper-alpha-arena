@@ -679,7 +679,7 @@ class MarketDataAnalyzer:
         days: int
     ) -> Dict[str, IndicatorDistribution]:
         """Analyze market flow indicators"""
-        from services.signal_backtest_service import signal_backtest_service
+        from backend.services.signal_backtest_service import signal_backtest_service
         
         distributions = {}
         interval_ms = TIMEFRAME_MS.get(period, 300000)
@@ -813,7 +813,7 @@ class MarketDataAnalyzer:
         days: int
     ) -> List[float]:
         """Get historical values for a specific metric"""
-        from services.signal_backtest_service import signal_backtest_service
+        from backend.services.signal_backtest_service import signal_backtest_service
         
         interval_ms = TIMEFRAME_MS.get(period, 300000)
         

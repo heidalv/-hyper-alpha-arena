@@ -478,3 +478,9 @@ reports/coverage/
 /data/factor_slimming_report_*.json
 # 短线亏损币状态机运行时状态（日报每日推进）
 data/symbol_penalty_state.json
+
+# pytest transient dirs (runtime churn)
+.pytest_tmp*/
+
+# scratch/ptmp dirs
+_ptmp/

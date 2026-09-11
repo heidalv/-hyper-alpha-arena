@@ -15,6 +15,7 @@ class MarketSummaryContext:
     """monolith 状态切片，供 bootstrap/ensure 使用。"""
 
     market_scan_cache: Dict[str, Any]
+    market_scan_cache_ts: float = 0.0
     last_unified_snapshot: Any = None
     bg_scan_running: bool = False
     start_bg_scan: Optional[Callable[[List[str]], None]] = None
@@ -71,8 +72,11 @@ def bootstrap_market_summary(symbols: List[str], ctx: MarketSummaryContext) -> D
             # 修复3：校验cache新鲜度——超300s的cache标stale
             _cache_ts = ctx.market_scan_cache_ts
             if _cache_ts and (time.time() - _cache_ts > 300):
-                market_summary[s]["data_stale"] = True
-                market_summary[s]["data_reliable"] = False
+                # 仅提示「扫描缓存偏旧」；有现价时仍可靠，避免 data_stale 粘住后
+                # 永久跳过编排器合并（VIRTUAL 持仓现场曾因此刷屏）。
+                market_summary[s]["scan_cache_age_sec"] = round(time.time() - _cache_ts, 1)
+                market_summary[s]["data_stale"] = False
+                market_summary[s]["data_reliable"] = True
 
     missing = [s for s in symbols if not (market_summary.get(s) or {}).get("current_price")]
 
@@ -161,7 +165,7 @@ def bootstrap_market_summary(symbols: List[str], ctx: MarketSummaryContext) -> D
 
     if missing:
         try:
-            from services.price_cache import get_cached_price
+            from backend.services.price_cache import get_cached_price
             from backend.services.exchange_config import get_active_exchange
 
             _env = get_active_exchange()

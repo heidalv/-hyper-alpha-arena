@@ -770,7 +770,7 @@ def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
     """
     try:
         if market is None:
-            from services.exchange_config import get_active_exchange
+            from backend.services.exchange_config import get_active_exchange
             market = get_active_exchange()
         symbol_list = [s.strip().upper() for s in symbols.split(',') if s.strip()]
 
@@ -907,7 +907,7 @@ def get_multiple_prices(symbols: str = "BTC,ETH,SOL", market: str = None):
         if _fill_ex == "hyperliquid" and os.getenv("MARKET_DATA_DC_ONLY", "true").strip().lower() in (
             "0", "false", "no", "off",
         ):
-            from services.hyperliquid_market_data import get_bulk_ticker_data_from_hyperliquid
+            from backend.services.hyperliquid_market_data import get_bulk_ticker_data_from_hyperliquid
             bulk_data = get_bulk_ticker_data_from_hyperliquid(
                 [s for s in missing if s not in filled]
             )
@@ -1011,7 +1011,7 @@ def get_crypto_klines_query(
         if limit is not None and int(limit) > 0:
             count = int(limit)
         if market is None:
-            from services.exchange_config import get_active_exchange
+            from backend.services.exchange_config import get_active_exchange
             market = get_active_exchange()
         valid_periods = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '3d', '1w', '1M']
         if period not in valid_periods:
@@ -1290,9 +1290,9 @@ def get_kline_with_indicators(
     """
     with market_data_metrics.timer("api.market.kline_with_indicators"):
         try:
-            from services.technical_indicators import calculate_indicators
+            from backend.services.technical_indicators import calculate_indicators
             if market is None:
-                from services.exchange_config import get_active_exchange
+                from backend.services.exchange_config import get_active_exchange
                 market = get_active_exchange()
 
             valid_periods = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '3d', '1w', '1M']
@@ -1401,7 +1401,7 @@ def get_exchange_quotes(symbol: str, period: str = "1m"):
                     price = float(rows[-1]["close"])
                     ts = int(rows[-1]["timestamp"])
             elif exchange_key == "hyperliquid":
-                from services.hyperliquid_market_data import get_ticker_data_from_hyperliquid
+                from backend.services.hyperliquid_market_data import get_ticker_data_from_hyperliquid
                 ticker = get_ticker_data_from_hyperliquid(symbol, "mainnet")
                 if ticker and float(ticker.get("price") or 0) > 0:
                     price = float(ticker["price"])
@@ -1480,7 +1480,7 @@ def get_available_indicators():
         支持的指标列表
     """
     try:
-        from services.technical_indicators import get_available_indicators
+        from backend.services.technical_indicators import get_available_indicators
         return {
             "indicators": get_available_indicators(),
             "message": "支持的技术指标列表"
@@ -1503,7 +1503,7 @@ def get_available_symbols(market: str = None):
     """
     try:
         if market is None:
-            from services.exchange_config import get_active_exchange
+            from backend.services.exchange_config import get_active_exchange
             market = get_active_exchange()
         if market == "binance":
             # 币安常见交易对
@@ -2052,11 +2052,15 @@ def get_market_events(
                 })
 
             # 3) 鲸鱼/大单
+            # [2026-09 修复 P0-1] whale_activities.timestamp 是 naive TIMESTAMP，
+            # 存服务器本地时间（与 persist_whale / whale_tracker 写入口径一致），
+            # 不能用 tz-aware 的 UTC cutoff 直接比较（会整体偏 8 小时）。
+            cutoff_local = datetime.now() - timedelta(hours=int(hours))
             whale_rows = db.execute(_sa_text(
                 "SELECT activity_type, symbol, direction, amount_usd, signal_direction, "
                 "ai_interpretation, timestamp, from_entity, blockchain "
                 "FROM whale_activities WHERE timestamp >= :cutoff ORDER BY timestamp DESC LIMIT :lim"
-            ), {"cutoff": cutoff, "lim": limit}).fetchall()
+            ), {"cutoff": cutoff_local, "lim": limit}).fetchall()
             for r in whale_rows:
                 (atype, wsym, wdir, amt, sig, interp, ts, fr, chain) = r
                 if sym and wsym and wsym.upper() != sym:

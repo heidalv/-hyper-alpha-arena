@@ -54,6 +54,10 @@ def live_guard_status():
         "reconcile_state": None,
         "sub_positions": 0,
         "live_accounts": 0,
+        # [2026-09-02 D12] 外部手工持仓单列：系统不接管、不计盈亏，仅告知。
+        # 此前这类持仓每轮报 MISMATCH ERROR，面板与日志都无法区分"手工仓"和
+        # "账本真漂移"。
+        "external_positions": [],
     }
     try:
         _rp = _os.path.join(
@@ -63,6 +67,13 @@ def live_guard_status():
         if _os.path.exists(_rp):
             with open(_rp, "r", encoding="utf-8") as f:
                 status["reconcile_state"] = json.load(f)
+    except Exception:
+        pass
+    try:
+        from backend.services.live_position_reconciler import (
+            get_external_positions,
+        )
+        status["external_positions"] = get_external_positions()
     except Exception:
         pass
     try:

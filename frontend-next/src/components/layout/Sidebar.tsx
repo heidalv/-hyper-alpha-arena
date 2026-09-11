@@ -9,7 +9,7 @@ import {
   Shield, Settings, Activity, ChevronLeft, Zap,
   Server, ArrowRightLeft,
   FlaskConical as Factor, FileText,
-  Radar, Coins, Workflow, Cpu, Boxes,
+  Radar, Coins, Workflow, Cpu, Boxes, PieChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shouldHandleNavClick, softNavigate } from "@/lib/app-nav";
@@ -69,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "系统",
     items: [
       { href: "/risk", label: "风控监控", icon: Shield },
+      { href: "/capital-margin", label: "资本与边际", icon: PieChart },
       { href: "/ops", label: "运维看板", icon: Activity },
       { href: "/ops#ops-errors", label: "报错中心", icon: FileText },
       { href: "/settings", label: "设置", icon: Settings },

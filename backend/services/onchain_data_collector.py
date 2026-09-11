@@ -44,9 +44,20 @@ class OnchainDataCollector:
 
     def __init__(self):
         self._cache: Dict[str, Tuple[float, Any]] = {}
-        self._etherscan_key: Optional[str] = os.getenv("ETHERSCAN_API_KEY")
+        # [2026-09 修复 P1-8] Etherscan key 环境变量名对齐 .env（ONCHAIN_ETHERSCAN_KEY），
+        # 同时兼容旧名 ETHERSCAN_API_KEY（此前代码只读旧名，key 永远读不到）。
+        self._etherscan_key: Optional[str] = (
+            os.getenv("ONCHAIN_ETHERSCAN_KEY") or os.getenv("ETHERSCAN_API_KEY")
+        )
         self._coinglass_netflow_ttl = 1800      # 30min（Coinglass 免费额度有限）
         self._coinglass_stable_ttl = 3600       # 1h
+        # 一次性告警标记（避免每个 tick 刷日志）
+        self._coinglass_key_warned = False
+        if not self._etherscan_key:
+            logger.info(
+                "[OnchainDataCollector] 无 Etherscan key（ONCHAIN_ETHERSCAN_KEY），"
+                "ETH gas/supply 采集跳过"
+            )
 
     @staticmethod
     def _public_get(url: str, timeout: float = 5.0):
@@ -167,6 +178,15 @@ class OnchainDataCollector:
         except Exception:
             return {}
         if not provider.has_key:
+            # [2026-09 修复 P1-8] 一次性启动告警：Coinglass 双 key 为空 → 交易所净流入/
+            # 稳定币净铸造整层缺失。诚实告知运维；因子层已按 NaN 跳过（P0-4），不会冒充中性。
+            if not self._coinglass_key_warned:
+                self._coinglass_key_warned = True
+                logger.warning(
+                    "[OnchainDataCollector] COINGLASS_API_KEY / COINGLASS_FREE_API_KEY 均为空："
+                    "交易所净流入/稳定币净铸造数据缺失（下游因子已按 NaN 跳过）。"
+                    "可在 coinglass.com 申请免费 API key 填入 .env 启用该链路。"
+                )
             return {}
 
         dq = get_data_quality_monitor()

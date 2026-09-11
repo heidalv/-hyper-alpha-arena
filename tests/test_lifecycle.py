@@ -95,8 +95,10 @@ class TestOrthoToPaper:
 
 class TestPaperToSmallLive:
     def test_promotes_with_approval(self):
+        # [2026-09-07] paper_days 7→12：paper_min_days 08-13 已从 5 收紧到 10，
+        # 7 天现在不满足，改用 12 天才达转换条件。
         m = _metrics(FactorState.PAPER, paper_sharpe=1.5, live_deviation=0.001,
-                     paper_days=7)
+                     paper_days=12)
         d = evaluate_transition(m)
         assert d.to_state == FactorState.SMALL_LIVE
         assert needs_approval(d)
@@ -167,12 +169,15 @@ class TestBugRejection:
 class TestThresholdsConfig:
     def test_default_thresholds(self):
         t = LifecycleThresholds()
-        assert t.min_icir == 0.30
-        assert t.max_pbo == 0.50
+        # [2026-09-07] 与代码当前值对齐（08-13 收紧 0.30→0.40 / 0.50→0.35，
+        # 09-07 半衰期 5→4）；此前断言陈旧值一直红。
+        assert t.min_icir == 0.40
+        assert t.max_pbo == 0.35
+        assert t.min_halflife_bars == 4
 
     def test_load_missing_yaml_returns_default(self, tmp_path):
         t = load_thresholds(tmp_path / "nonexistent.yaml")
-        assert t.min_icir == 0.30
+        assert t.min_icir == 0.40
 
     def test_approval_set(self):
         assert FactorState.SMALL_LIVE in APPROVAL_REQUIRED

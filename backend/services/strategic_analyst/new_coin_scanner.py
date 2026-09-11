@@ -155,7 +155,7 @@ class NewCoinScanner:
             try:
                 from backend.services.hyperliquid_market_data import get_hyperliquid_client
             except ImportError:
-                from services.hyperliquid_market_data import get_hyperliquid_client
+                from backend.services.hyperliquid_market_data import get_hyperliquid_client
             client = get_hyperliquid_client()
             all_symbols = client.get_all_symbols()
             if all_symbols:

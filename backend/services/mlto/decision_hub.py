@@ -393,6 +393,32 @@ def _orch_bias_direction(signals: List[Signal], adjusted: float) -> str:
     return "neutral"
 
 
+def _llm_direction_requires_framework_agree() -> bool:
+    """[2026-09-09 根因修复] LLM 方向是否必须得到框架系信号同意。
+
+    数据依据（`backend/scripts/audit_llm_direction_edge.py`，brain_theses × 1h K 线，n=192）：
+      ALL/long  24h 胜率 **0.434** / 均值 -0.729%
+      ALL/short 24h 胜率 **0.343** / 均值 -0.899%
+      mid/long  24h 胜率 0.357；mid/short 24h 胜率 0.308
+    即 LLM 的「方向」在 24h 尺度上比抛硬币更差，而 `_derive_direction` 在
+    ai_governed 模式下**把 direction 完全交给 llm_qual**（≥0.55 多 / ≤0.45 空），
+    在标准模式下 llm_qual≥0.6 或 ≤0.4 也能单方面定方向。
+
+    生产实况（alpha_analytics.ai_decision_logs）：mid/long 决策的
+    `decision_snapshot.hub_mode` 恒为 `ai_governed`、`ai_governed_weight=0.6`
+    —— 即**每一条中长线方向都由 LLM 单独决定**，而 `brain_agent_calibration`
+    表 0 行（从未校准）。这是 §6 负边际的直接落地路径。
+
+    本开关（默认 true）要求：LLM 想定方向时，框架系信号均值必须同向
+    （long 需 `_fw_mean >= 0.55`，short 需 `_fw_mean <= 0.45`）；
+    否则方向回落 `orch_bias` / `framework` 兜底，LLM 只贡献分数不改方向。
+    回滚：`MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE=false`。
+    """
+    return os.getenv(
+        "MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE", "true"
+    ).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _derive_direction(
     signals: List[Signal], adjusted: float, *, ai_governed: bool = False
 ) -> tuple:
@@ -400,31 +426,46 @@ def _derive_direction(
 
     ai_governed：direction = llm_qual 单调映射（≥0.55 多 / ≤0.45 空）；
     orch_bias 仅在 LLM 中性带兜底；framework 永不改方向。
+
+    [2026-09-09] 新增「LLM 定方向需框架同意」闸（`_llm_direction_requires_framework_agree`）：
+    开关开时，LLM 的强方向必须与框架系信号均值同向，否则退回 orch/framework 兜底。
     """
     llm_sig = next((s for s in signals if s.name == "llm_qual"), None)
+    _fw_agree_required = _llm_direction_requires_framework_agree()
     if llm_sig is not None:
         if ai_governed:
+            _fw = _fw_mean(signals)
             if llm_sig.value >= 0.55:
-                return "long", "llm_qual"
-            if llm_sig.value <= 0.45:
-                return "short", "llm_qual"
-            # LLM 中性：仅 orch_bias 兜底（禁止 framework 翻向）
+                if not _fw_agree_required or _fw >= 0.55:
+                    return "long", "llm_qual"
+                logger.info(
+                    "[decision_hub] LLM 想定 long 但框架均值 %.2f<0.55，方向交回框架兜底",
+                    _fw,
+                )
+            elif llm_sig.value <= 0.45:
+                if not _fw_agree_required or _fw <= 0.45:
+                    return "short", "llm_qual"
+                logger.info(
+                    "[decision_hub] LLM 想定 short 但框架均值 %.2f>0.45，方向交回框架兜底",
+                    _fw,
+                )
+            # LLM 中性（或未获框架同意）：仅 orch_bias 兜底（禁止 framework 翻向）
             _d = _orch_bias_direction(signals, adjusted)
             if _d != "neutral":
                 return _d, "orch_bias"
             return "neutral", "llm_qual"
         if llm_sig.value >= 0.6:
-            if adjusted >= 0.32:
-                return "long", "llm_qual"
-            return (
-                ("long", "framework") if _fw_mean(signals) >= 0.55 else ("neutral", "llm_qual")
-            )
+            _fw = _fw_mean(signals)
+            if not _fw_agree_required or _fw >= 0.55:
+                if adjusted >= 0.32:
+                    return "long", "llm_qual"
+                return ("long", "framework") if _fw >= 0.55 else ("neutral", "llm_qual")
         if llm_sig.value <= 0.4:
-            if adjusted >= 0.32:
-                return "short", "llm_qual"
-            return (
-                ("short", "framework") if _fw_mean(signals) <= 0.45 else ("neutral", "llm_qual")
-            )
+            _fw = _fw_mean(signals)
+            if not _fw_agree_required or _fw <= 0.45:
+                if adjusted >= 0.32:
+                    return "short", "llm_qual"
+                return ("short", "framework") if _fw <= 0.45 else ("neutral", "llm_qual")
 
     _d = _orch_bias_direction(signals, adjusted)
     if _d != "neutral":

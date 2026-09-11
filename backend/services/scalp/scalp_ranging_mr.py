@@ -62,7 +62,10 @@ _MR_SL_CAP = 0.016
 # 摸不到 → 37% 磨到超时。新口径 TP ≤1.5%。
 # [2026-08-24 深挖 B] 1.5%→1.2%：7天平仓实证 TP 1.0-1.2% 桶每笔 +0.12（最佳），
 #   TP≥2.2% 桶 496 笔只摸到 11% 每笔 -0.07。TP 离信号边际越近越摸得到。
-_MR_TP_CAP = 0.009  # [2026-08-26 数据驱动] 1.2%%→0.9%%：昨晚 MFE 实证赚钱单峰值带 0.6-1.2%%（众数 0.8-1.0%%），TP 1.2%% 太远导致 40%% 超时磨费
+# [2026-08-26 数据驱动] 1.2%→0.9%：昨晚 MFE 实证赚钱单峰值带 0.6-1.2%
+#   （众数 0.8-1.0%），TP 1.2% 仍太远导致 40% 超时磨费。
+# 注意：下方 RR 自洽抬升可让 TP 短暂高于此值（受"对沿 + SL上限×MIN_RR"双重约束）。
+_MR_TP_CAP = 0.009
 
 _calc = StructureStopCalculator()
 
@@ -98,21 +101,49 @@ def amplitude_in_band(amp: Optional[float]) -> bool:
     return SCALP_MR_MIN_RANGE_PCT <= amp <= SCALP_MR_MAX_RANGE_PCT
 
 
-def apply_learned_mr(tp_pct: float, sl_pct: float) -> Tuple[float, float]:
-    """[D1] learned TP/SL 覆盖：网格训练最优 (tp,sl) 覆盖贴区间结构值；缺失时原样返回。"""
+# ── K 线趋势否决（2026-09-09 深度解析 P8）──
+# 实证（1424 笔 MR 入场 × 5m K 线重算）：37.9% 的 MR 入场发生在 |24h 涨跌|≥4%
+# 的趋势日（classify_regime 依赖的 market_summary 涨跌字段陈旧/滞后，标签不诚实），
+# 该批 SL 率 27.4% vs 真震荡批 15.6%。这里在选点内部用【本 tick 已持有的 5m K 线】
+# 重算 1h/24h 涨跌，与 regime_agent 同阈值：极端/趋势日直接否决 MR（fail-open：
+# K 线不足 289 根时不否决）。开关 SCALP_MR_TREND_VETO_ENABLED 可回滚。
+_MR_VETO_CHG24_TREND = 0.04    # |24h 涨跌|≥4% 且 1h 同向 → 趋势日
+_MR_VETO_CHG1_EXTREME = 0.05   # |1h 涨跌|≥5% → 极端
+_MR_VETO_CHG24_EXTREME = 0.12  # |24h 涨跌|≥12% → 极端
+
+
+def _trend_veto_enabled() -> bool:
     try:
-        from backend.services.risk.tp_sl_grid_trainer import get_learned_pct
-        _learned_mr = get_learned_pct("short", band="mr")
-        if _learned_mr:
-            _ltp = float(_learned_mr.get("tp_pct") or 0)
-            _lsl = float(_learned_mr.get("sl_pct") or 0)
-            if _ltp > 0 and _lsl > 0:
-                # [2026-08-23 改造 A] 学习值也受 TP/SL 夹幅约束（旧口径可把学习值
-                # 放宽到 3%+，与信号边际错配的根因之一）。
-                return min(max(_ltp, SCALP_MR_MIN_TP), _MR_TP_CAP), _clip(_lsl, _MR_SL_FLOOR, _MR_SL_CAP)
+        from backend.config.settings import SCALP_MR_TREND_VETO_ENABLED
+        return bool(SCALP_MR_TREND_VETO_ENABLED)
     except Exception:
-        pass
-    return tp_pct, sl_pct
+        return True
+
+
+def kline_trend_veto(df: pd.DataFrame, price: float) -> Optional[str]:
+    """K 线口径的趋势/极端否决。返回否决原因字符串；不否决返回 None。"""
+    if not _trend_veto_enabled():
+        return None
+    try:
+        n = len(df)
+        if n < 289:
+            return None  # K 线不足 24h，fail-open
+        closes = df["close"].astype(float)
+        base24 = float(closes.iloc[-289])
+        base1 = float(closes.iloc[-13])
+        last = float(closes.iloc[-1])
+        if last <= 0 or base24 <= 0 or base1 <= 0:
+            return None
+        chg24 = last / base24 - 1.0
+        chg1 = last / base1 - 1.0
+        if abs(chg24) >= _MR_VETO_CHG24_EXTREME or abs(chg1) >= _MR_VETO_CHG1_EXTREME:
+            return f"K线趋势否决(极端): 24h={chg24:+.2%} 1h={chg1:+.2%}"
+        if abs(chg24) >= _MR_VETO_CHG24_TREND and (chg1 == 0 or chg1 * chg24 > 0):
+            return f"K线趋势否决: 24h={chg24:+.2%} 1h={chg1:+.2%}（趋势日不做均值回归）"
+        return None
+    except Exception as _veto_err:  # noqa: BLE001 — 否决层 fail-open
+        logger.debug("[ScalpMR] K线趋势否决计算失败，放行: %r", _veto_err)
+        return None
 
 
 def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal:
@@ -137,6 +168,12 @@ def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal
             price = float(df["close"].iloc[-1])
         except Exception:
             return ScalpSignal(action="hold", source="ranging_mr", reasoning="无价格")
+
+    # [2026-09-09 深度解析 P8] 先用 K 线重算的 1h/24h 涨跌否决趋势/极端日：
+    # 不信任可能陈旧的 market_summary regime 标签（实证 37.9% 接飞刀来源）。
+    _veto_reason = kline_trend_veto(df, price)
+    if _veto_reason:
+        return ScalpSignal(action="hold", source="ranging_mr", reasoning=_veto_reason)
 
     swing_low, swing_high, range_pos = _calc.swing_levels(df)
     if swing_high <= swing_low or price <= 0:
@@ -196,24 +233,28 @@ def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal
     # 止盈强制盖过手续费；止损夹在合理区间（防过紧被噪声扫、防过松变趋势大亏）
     tp_pct = max(tp_pct, SCALP_MR_MIN_TP)
     sl_pct = _clip(sl_pct, _MR_SL_FLOOR, _MR_SL_CAP)
-    # [2026-08-23 改造 A] TP 硬上限 1.5%：旧口径对沿×0.55 可达 2.7%+，方向对的仓
-    # 摸不到 TP → 37% 磨到超时白交费。新口径 TP≤1.5% 且 RR≥1.2（SL≤1.2%）。
+    # 结构止盈封顶 _MR_TP_CAP（0.9%）：TP 离信号边际越近越摸得到（见上方注释）。
     tp_pct = min(tp_pct, _MR_TP_CAP)
-
-    # [D1 2026-08-19] learned TP/SL 覆盖（与 tp_sl_prices 同口径）：网格训练的最优
-    # (tp,sl) 覆盖贴区间结构值。背景：ScalpMR 自算 rr=1.0 的宽 TP/SL 导致 37% 仓位
-    # 磨到 max_hold_timeout 退出（既不到 TP 也碰不到 SL）。learned 缺失时保持原口径。
-    tp_pct, sl_pct = apply_learned_mr(tp_pct, sl_pct)
 
     # 自洽盈亏比：贴边缘算出的止损有时略大于止盈(rr<1)，会被下游 min_rr 冤杀。
     # 优先收紧止损（不低于硬下限）；若仍不足则【抬止盈】到 sl×MIN_RR，
     # 不再把结构性 RR 倒挂丢给 V5（2026-08-02：ONDO/HYPE 大量 TP0.9/SL1.2 冤杀）。
-    if SCALP_MR_MIN_RR > 0:
+    # [2026-09-09 震荡策略加固] 抬升改为双重上限，替换原魔数 min(0.04, ...)：
+    #   1) 不得超过对沿（swing_high/swing_low）——超出对沿=结构上够不到，
+    #      正是旧口径 TP 2.7%+ 造成 37% 超时磨费的同款错误；
+    #   2) 不得超过 _MR_SL_CAP × MIN_RR（参数自洽，SL 已封顶时抬 TP 也封顶）。
+    # 若双重上限内仍达不到 MIN_RR → hold：结构装不下满足 MIN_RR 的止盈，
+    # EV 闸也必然否决，这里显式拦截、理由可观测。
+    if SCALP_MR_MIN_RR > 0 and sl_pct > 0:
         _sl_cap_for_rr = tp_pct / SCALP_MR_MIN_RR
         if _sl_cap_for_rr >= _MR_SL_FLOOR:
             sl_pct = min(sl_pct, _sl_cap_for_rr)
-        elif sl_pct > 0 and (tp_pct / sl_pct) < SCALP_MR_MIN_RR:
-            tp_pct = min(0.04, max(tp_pct, sl_pct * SCALP_MR_MIN_RR))
+        elif (tp_pct / sl_pct) < SCALP_MR_MIN_RR:
+            _uplift_cap = min(
+                dist_to_far / price,
+                _MR_SL_CAP * SCALP_MR_MIN_RR,
+            )
+            tp_pct = min(_uplift_cap, max(tp_pct, sl_pct * SCALP_MR_MIN_RR))
 
     if direction == "long":
         sl_price = price * (1.0 - sl_pct)
@@ -223,6 +264,17 @@ def evaluate_ranging_mr(symbol: str, market_data: Dict[str, Any]) -> ScalpSignal
         tp_price = price * (1.0 - tp_pct)
 
     rr = tp_pct / sl_pct if sl_pct > 0 else 0.0
+    # [2026-09-09 震荡策略加固] 最终不变量：无论配置如何漂移，绝不放行 RR 低于
+    # MIN_RR 的 MR 信号（下游 V5 会冤杀或漏杀，这里显式 hold 且理由可观测）。
+    if SCALP_MR_MIN_RR > 0 and (rr + 1e-6) < SCALP_MR_MIN_RR:
+        return ScalpSignal(
+            action="hold",
+            source="ranging_mr",
+            reasoning=(
+                f"RR不可达: tp={tp_pct:.3%} sl={sl_pct:.3%} rr={rr:.3f} "
+                f"< MIN_RR={SCALP_MR_MIN_RR}（区间装不下满足盈亏比的止盈）"
+            ),
+        )
     reasoning = (
         f"[ScalpMR] {direction} pos={range_pos:.2f} rsi={rsi:.1f} amp={amp:.2%} "
         f"tp={tp_pct:.3%} sl={sl_pct:.3%} rr={rr:.2f} score={score}"

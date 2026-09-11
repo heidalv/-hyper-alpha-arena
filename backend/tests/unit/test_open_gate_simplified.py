@@ -195,14 +195,41 @@ class TestFixedSymbolFloor:
 # D. 底线 4：recommend_open 尊重
 # ════════════════════════════════════════════════════════════════════
 class TestRecommendOpen:
-    def test_llm_recommend_open_false_blocked(self, fixed_symbols):
-        """LLM 明确 recommend_open=False → 拦截（AI 自己说不建议开仓）。"""
+    def test_llm_recommend_open_false_blocked(self, fixed_symbols, monkeypatch):
+        """LLM 明确 recommend_open=False → 拦截（AI 自己说不建议开仓）。
+
+        [2026-09-02] 后加的 Paper 探针例外：MIDLONG_NIBBLE_PROBE_ENABLED 且非 live、
+        Hub 已 NIBBLE/BUILD 且有方向时，recommend_open=False 只 soft（否则探针永远进不了
+        Writer）。.env 已开启该探针 → 原用例（BUILD/long/paper）恰好落入例外而假红。
+        这里关闭探针验证硬拦截；例外路径另有用例。
+        """
+        import backend.config.settings as settings
+        monkeypatch.setattr(settings, "MIDLONG_NIBBLE_PROBE_ENABLED", False, raising=False)
         thesis = _thesis(recommend_open=False)
         hub = _hub(direction="long", action="BUILD")
         packet = _packet()
         ok, reason = open_gate.allow(thesis, hub, packet, {})
         assert not ok
         assert "recommend_open" in reason
+
+    def test_llm_recommend_open_false_soft_under_paper_nibble_probe(self, fixed_symbols, monkeypatch):
+        """探针开启 + paper + Hub BUILD/long → recommend_open=False 软放行；live 仍硬拦。"""
+        import backend.config.settings as settings
+        monkeypatch.setattr(settings, "MIDLONG_NIBBLE_PROBE_ENABLED", True, raising=False)
+        thesis = _thesis(recommend_open=False)
+        hub = _hub(direction="long", action="BUILD")
+        packet = _packet()
+        if hasattr(packet, "trading_mode"):
+            packet.trading_mode = "paper"
+        ok, _ = open_gate.allow(thesis, hub, packet, {})
+        assert ok, "paper 探针下 recommend_open=False 应软放行"
+        packet_live = _packet()
+        try:
+            packet_live.trading_mode = "live"
+        except Exception:
+            pytest.skip("packet 不支持 trading_mode 字段")
+        ok_live, reason = open_gate.allow(thesis, hub, packet_live, {})
+        assert not ok_live and "recommend_open" in reason
 
     def test_llm_recommend_open_true_passes(self, fixed_symbols):
         thesis = _thesis(recommend_open=True)

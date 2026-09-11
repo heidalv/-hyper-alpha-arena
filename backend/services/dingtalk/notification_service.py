@@ -10,10 +10,10 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 from backend.database.models import DingTalkBot, DingTalkNotification, DingTalkNotificationStats, Account
-from services.dingtalk.dingtalk_bot_client import DingTalkBotClientSync
-from services.dingtalk.message_formatter import MessageFormatter
-from services.dingtalk.rate_limiter import rate_limiter
-from config.dingtalk_config import config
+from backend.services.dingtalk.dingtalk_bot_client import DingTalkBotClientSync
+from backend.services.dingtalk.message_formatter import MessageFormatter
+from backend.services.dingtalk.rate_limiter import rate_limiter
+from backend.config.dingtalk_config import config
 
 logger = logging.getLogger(__name__)
 
@@ -343,7 +343,7 @@ class NotificationService:
             # 尝试从Hyperliquid获取持仓
             if account.hyperliquid_enabled == "true":
                 try:
-                    from services.hyperliquid_environment import get_hyperliquid_client
+                    from backend.services.hyperliquid_environment import get_hyperliquid_client
                     
                     # 确定环境
                     env = account.hyperliquid_environment or "testnet"

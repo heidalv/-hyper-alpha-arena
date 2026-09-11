@@ -12,6 +12,7 @@
 import asyncio
 import json
 import logging
+import os
 import math
 import uuid
 import copy
@@ -30,6 +31,24 @@ from backend.services.backtest_evolution_engine import (
 from backend.services.live_pipeline_backtest_engine import (
     LivePipelineBacktestEngine, DEFAULT_PIPELINE_PARAMS, PIPELINE_PARAM_RANGES,
 )
+def _capped_workers(n) -> int:
+    """[2026-08-30 防卡顿] 进化回测并行数上限（env: EVOLUTION_MAX_WORKERS_CAP，默认 2）。
+
+    紧急进化(all_new)曾以 4 并行 pandas 回测把进程 CPU 打到 227%，
+    GIL 饥饿导致 API 全线卡顿（ticker-bar 0.2s→6s）。在进程内跑 GA 必须
+    给交易主循环留核；要跑满核请用进程外 backfill（WEEKLY_EVOLUTION_IN_PROCESS=0）。
+    """
+    try:
+        _cap = int(os.getenv("EVOLUTION_MAX_WORKERS_CAP", "2") or 2)
+    except (TypeError, ValueError):
+        _cap = 2
+    try:
+        _n = int(n or 1)
+    except (TypeError, ValueError):
+        _n = 1
+    return max(1, min(_n, max(1, _cap)))
+
+
 from backend.services.strategy_params_registry import (
     PROMOTION_THRESHOLDS, DEFAULT_EVOLUTION_CONFIG,
     apply_genome as _apply_genome,  # v3 整改: 统一 genome 写入口
@@ -416,6 +435,7 @@ class StrategyEvolver:
             timeframes = tier_cfg["timeframes"]
 
             bars_cache = {}
+            sym_used, tf_used = "", ""
             symbols = DEFAULT_EVOLUTION_CONFIG.get("symbols", ["BTC", "ETH"])
             for symbol in symbols:
                 for tf in timeframes:
@@ -423,6 +443,7 @@ class StrategyEvolver:
                     bars = self._load_bars(symbol, tf, 365)
                     if bars and len(bars) >= 50:
                         bars_cache[key] = bars
+                        sym_used, tf_used = symbol, tf
                         break
                 if bars_cache:
                     break
@@ -441,6 +462,8 @@ class StrategyEvolver:
                 result = engine.run(
                     bars, pipeline_params, tier=tier,
                     funding_rate_series=funding_rates, fgi_series=fgi_series,
+                    # [F38] 传入缓存键维度，避免不同币种串用因子方向序列
+                    symbol=sym_used, timeframe=tf_used,
                 )
                 if result and not result.error:
                     def _sf(v):
@@ -488,7 +511,7 @@ class StrategyEvolver:
             risk.setdefault("max_position_size", 0.20)
 
             engine = BacktestEngine(initial_capital=10000, leverage=risk.get("default_leverage", 10))
-            result = engine.run(bars, {**cfg, "category": tpl.category}, risk, tier=tier)
+            result = engine.run(bars, {**cfg, "category": tpl.category}, risk, tier=tier, symbol=symbol)
 
             self._save_backtest_run(db, result, tpl, symbol, timeframe, days)
             return self._result_to_dict(result, tpl.name)
@@ -626,7 +649,7 @@ class StrategyEvolver:
 
             # ── 阶段 1: 多线程并行回测 ──
             gen_results = self._run_generation_backtests(
-                population, base_config, tpl.category, bars_cache, cfg["max_workers"], tier
+                population, base_config, tpl.category, bars_cache, _capped_workers(cfg["max_workers"]), tier
             )
 
             if not gen_results:
@@ -791,7 +814,7 @@ class StrategyEvolver:
         if best_overall and val_bars_cache:
             self._progress["ai_phase"] = "Walk-Forward 验证"
             val_results = self._run_generation_backtests(
-                [best_overall["risk"]], base_config, tpl.category, val_bars_cache, cfg["max_workers"], tier
+                [best_overall["risk"]], base_config, tpl.category, val_bars_cache, _capped_workers(cfg["max_workers"]), tier
             )
             if val_results:
                 vr = val_results[0]["result"]
@@ -888,7 +911,7 @@ class StrategyEvolver:
             self._progress["ai_phase"] = "管线回测中"
 
             gen_results = self._run_pipeline_generation(
-                population, bars_cache, cfg["max_workers"], tier,
+                population, bars_cache, _capped_workers(cfg["max_workers"]), tier,
                 funding_rates, fgi_series,
             )
             if not gen_results:
@@ -1127,7 +1150,7 @@ class StrategyEvolver:
                     future = pool.submit(
                         self._run_backtest_worker,
                         bars, {**base_config, "category": category},
-                        risk_variant, run_id, tier,
+                        risk_variant, run_id, tier, key,
                     )
                     futures.append((future, risk_variant, key))
 
@@ -1500,13 +1523,13 @@ class StrategyEvolver:
         }
 
     @staticmethod
-    def _run_backtest_worker(bars, config, risk, run_id, tier="mid") -> BacktestResult:
+    def _run_backtest_worker(bars, config, risk, run_id, tier="mid", symbol=None) -> BacktestResult:
         """线程池中的回测工作函数"""
         engine = BacktestEngine(
             initial_capital=10000,
             leverage=risk.get("default_leverage", 10),
         )
-        return engine.run(bars, config, risk, run_id=run_id, tier=tier)
+        return engine.run(bars, config, risk, run_id=run_id, tier=tier, symbol=symbol)
 
     # ══════════════════════════════════════════════════
     #  参数变异
@@ -2016,7 +2039,13 @@ class StrategyEvolver:
         if _hit and (_now - _hit[0]) < _INPUT_CACHE_TTL:
             return _hit[1]
 
-        cutoff = int(_now) - days * 86400
+        # [F38 2026-09-09] 起点按天对齐。原 cutoff=now-days*86400 随时间滑动 →
+        # bars[0].timestamp 每前进一个 bar 就变一次 → 引擎的因子方向序列缓存键
+        # （含首时间戳）随之失配 → 每个进化模板都要重跑一次 ~6.7h 的全量预计算
+        # （实测 8 模板 ≈54h/轮，而真正的适应度计算仅约 10min）。
+        # 对齐到当日 00:00 后，同一天内窗口起点稳定，跨模板可命中缓存并只做前缀扩展。
+        _day0 = (int(_now) // 86400) * 86400
+        cutoff = _day0 - days * 86400
 
         market_db = MarketSessionLocal()
         try:

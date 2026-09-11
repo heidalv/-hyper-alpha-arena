@@ -46,7 +46,7 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     version = Column(String(100), nullable=False, default="v1")
     
     # Account Identity
@@ -183,7 +183,7 @@ class UserAuthSession(Base):
     __tablename__ = "user_auth_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     session_token = Column(String(64), unique=True, nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
@@ -208,7 +208,7 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     jti = Column(String(64), unique=True, nullable=False, index=True)  # JWT id
     revoked = Column(String(10), nullable=False, default="false")  # "true"/"false" (match is_active style)
     expires_at = Column(TIMESTAMP, nullable=False)
@@ -242,6 +242,9 @@ class AdminAuditLog(Base):
 
 class Position(Base):
     __tablename__ = "positions"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     version = Column(String(100), nullable=False, default="v1")
@@ -262,6 +265,9 @@ class Position(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     version = Column(String(100), nullable=False, default="v1")
@@ -296,6 +302,9 @@ class Order(Base):
 
 class Trade(Base):
     __tablename__ = "trades"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
@@ -548,6 +557,9 @@ class FlowArchive5m(MarketBase):
 
 class AccountAssetSnapshot(Base):
     __tablename__ = "account_asset_snapshots"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
@@ -564,6 +576,9 @@ class AccountAssetSnapshot(Base):
 
 class AccountStrategyConfig(Base):
     __tablename__ = "account_strategy_configs"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True)
@@ -599,7 +614,7 @@ class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     subscription_type = Column(String(20), nullable=False, default="free")  # "free" | "premium"
     expires_at = Column(TIMESTAMP, nullable=True)  # NULL for free tier or lifetime premium
     max_sampling_depth = Column(Integer, nullable=False, default=10)  # Free: 10, Premium: up to 60
@@ -745,6 +760,9 @@ class PromptTemplate(Base):
 
 class AccountPromptBinding(Base):
     __tablename__ = "account_prompt_bindings"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True)
@@ -821,6 +839,10 @@ class AIStrategy(Base):
     # 状态
     status = Column(String(20), nullable=False, default="draft")
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    # [2026-09-02 多租户] 表上早有 tenant_id 列并挂 RLS（tenant_isolation 策略），但 ORM
+    # 一直没映射、创建路径从不打标 → 全部落 DB 默认租户 1。非超级用户库角色下用户
+    # 看不到自己建的策略（与 LLM 配置 BYOK 同类漏洞）。现映射并在创建时按账户归属打标。
+    tenant_id = Column(Integer, nullable=True, index=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     activated_at = Column(TIMESTAMP, nullable=True)
     last_executed_at = Column(TIMESTAMP, nullable=True)
@@ -854,6 +876,31 @@ class AIStrategy(Base):
 
     # Relationships
     account = relationship("Account")
+
+
+def _ai_strategy_stamp_tenant(mapper, connection, target) -> None:
+    """[2026-09-02 多租户] AIStrategy 插入前兜底打 tenant_id。
+
+    AIStrategy 有 6 处构造点（API 创建/完整创建、Hermes 创生、策略库、学习占位、
+    OpenCode 哨兵），逐处补参数容易漏。统一在 ORM 层：tenant_id 为空且有 account_id
+    时，按账户归属 user_id 填入；查不到则保持 None（RLS 策略对 NULL 放行，与旧数据同）。
+    """
+    try:
+        if getattr(target, "tenant_id", None) is not None or not getattr(target, "account_id", None):
+            return
+        from sqlalchemy import select as _select
+        row = connection.execute(
+            _select(Account.user_id).where(Account.id == int(target.account_id))
+        ).first()
+        if row is not None and row[0] is not None:
+            target.tenant_id = int(row[0])
+    except Exception:
+        # 打标失败不应阻断插入（fail-open 保持旧行为）
+        pass
+
+
+from sqlalchemy import event as _sa_event  # noqa: E402
+_sa_event.listen(AIStrategy, "before_insert", _ai_strategy_stamp_tenant)
 
 
 class StrategyAnalysisLog(AnalyticsBase):
@@ -1023,6 +1070,9 @@ class HyperliquidWallet(Base):
     (one for testnet, one for mainnet).
     """
     __tablename__ = "hyperliquid_wallets"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
@@ -1059,6 +1109,9 @@ class HyperliquidWallet(Base):
 class HyperliquidAccountSnapshot(Base):
     """Store Hyperliquid account state snapshots for audit and analysis"""
     __tablename__ = "hyperliquid_account_snapshots"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
@@ -1082,6 +1135,9 @@ class HyperliquidAccountSnapshot(Base):
 class HyperliquidPosition(Base):
     """Store Hyperliquid position snapshots"""
     __tablename__ = "hyperliquid_positions"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
@@ -1109,6 +1165,9 @@ class HyperliquidPosition(Base):
 class HyperliquidExchangeAction(Base):
     """Track every POST /exchange action for Hyperliquid accounts"""
     __tablename__ = "hyperliquid_exchange_actions"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
@@ -1166,7 +1225,7 @@ class UserExchangeConfig(Base):
     __tablename__ = "user_exchange_config"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     selected_exchange = Column(String(20), nullable=False, default="asterdex")
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(
@@ -1184,7 +1243,7 @@ class ExchangeCredential(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     # 与 users.id 对齐；禁止长期保持 NULL（NULL 在 RLS 下会被当成「全局行」）
     tenant_id = Column(Integer, nullable=True, index=True)
     exchange = Column(String(32), nullable=False, index=True)
@@ -1197,6 +1256,12 @@ class ExchangeCredential(Base):
     passphrase_encrypted = Column(Text, default="")
     testnet = Column(Boolean, default=True)
     enabled = Column(Boolean, default=False)
+    # [2026-09] Asterdex 积分一体化开关：实盘成交「顺路」吃 Rh 积分。
+    # 默认关（用户显式开启）；仅对 asterdex 凭证有意义。
+    # points_config = 执行策略 JSON：
+    #   {"maker_first": bool, "maker_timeout_s": float, "asset_points_enabled": bool}
+    points_enabled = Column(Boolean, default=False, nullable=False)
+    points_config = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp()
@@ -1278,7 +1343,7 @@ class AiPromptConversation(Base):
     __tablename__ = "ai_prompt_conversations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(200), nullable=False, default="New Strategy Prompt")
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
     updated_at = Column(
@@ -1318,7 +1383,7 @@ class AiSignalConversation(Base):
     __tablename__ = "ai_signal_conversations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(200), nullable=False, default="New Signal")
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
     updated_at = Column(
@@ -1358,7 +1423,7 @@ class AiAttributionConversation(Base):
     __tablename__ = "ai_attribution_conversations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(200), nullable=False, default="New Analysis")
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
     updated_at = Column(
@@ -1403,7 +1468,7 @@ class AlphaAssistantConversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     session_uuid = Column(String(64), unique=True, nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(200), nullable=False, default="新对话")
     channel = Column(String(20), nullable=False, default="web", index=True)  # web | feishu
     feishu_chat_id = Column(String(100), nullable=True, index=True)
@@ -1464,7 +1529,7 @@ class ScalpSignalLog(Base):
     account_id = Column(Integer, nullable=True)
     features_json = Column(Text, nullable=True)                  # 因子快照(JSON)：breakdown + 订单流字段
 
-    # ── 事后结算 ──
+    # ── 事后结算（固定 horizon 口径）──
     horizon_sec = Column(Integer, nullable=True)                 # 结算周期（秒）
     settled = Column(Boolean, nullable=False, default=False, index=True)
     settle_ts = Column(BigInteger, nullable=True)
@@ -1474,8 +1539,26 @@ class ScalpSignalLog(Base):
     win = Column(Boolean, nullable=True)                         # net_ret>0
     settle_note = Column(String(64), nullable=True)
 
+    # ── 事后结算（triple-barrier 口径，2026-09-02 P1.1）──
+    # 上面的固定 horizon 标签回答的是"30 分钟后价格涨没涨"，而实盘真正决定盈亏的是
+    # "TP 和 SL 谁先被触及"。实测主账户短线中位持仓 46 分钟、止盈命中仅 13%，标签与
+    # 执行严重错配 —— 模型学得再准也预测不了实际那一笔的输赢。
+    # 这里新增一套并行标签而非改写旧列：12.8 万条历史样本仍按旧口径可用，新样本两套
+    # 标签齐备，可直接比对哪套更能预测真实盈亏，再决定 meta 模型采信哪个（见
+    # SCALP_META_LABEL）。
+    tb_tp_pct = Column(Float, nullable=True)      # 信号当时的止盈距离（小数）
+    tb_sl_pct = Column(Float, nullable=True)      # 信号当时的止损距离（小数）
+    tb_max_hold_sec = Column(Integer, nullable=True)   # 垂直轨：持仓上限
+    tb_kind = Column(String(12), nullable=True)   # tp / sl / timeout / none
+    tb_hold_sec = Column(Integer, nullable=True)  # 实际触轨用时
+    tb_fwd_ret = Column(Float, nullable=True)     # 触轨点的方向毛收益
+    tb_net_ret = Column(Float, nullable=True)     # 扣往返成本后净收益
+    tb_win = Column(Boolean, nullable=True)       # tb_net_ret>0
+    tb_settled = Column(Boolean, nullable=True, index=True)
+
     __table_args__ = (
         Index("ix_scalp_signal_settle", "settled", "signal_ts"),
+        Index("ix_scalp_signal_tb", "tb_settled", "signal_ts"),
     )
 
 
@@ -1873,6 +1956,9 @@ class RiskControlConfig(Base):
     风控配置表 - 每个账户可配置不同的风控参数
     """
     __tablename__ = "risk_control_configs"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -2075,7 +2161,7 @@ class ATASStrategy(Base):
     strategy_id = Column(String(64), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     
     # 策略类型与来源
     strategy_type = Column(String(50), nullable=False)
@@ -2299,7 +2385,7 @@ class VisualStrategy(Base):
     __tablename__ = "visual_strategies"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # 策略基本信息
     name = Column(String(200), nullable=False)
@@ -2621,6 +2707,9 @@ class PaperOrder(Base):
 class PaperFundingLedger(Base):
     """纸面仿真 — 资金费率结算流水（research 模式）"""
     __tablename__ = "paper_funding_ledger"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
@@ -2731,6 +2820,9 @@ class StrategyTemplate(Base):
 class FullAutoSession(Base):
     """全自动交易会话 — 用户只选交易对+开启，AI 自主完成一切"""
     __tablename__ = "full_auto_sessions"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String(50), unique=True, nullable=False, index=True)
@@ -2755,6 +2847,10 @@ class FullAutoSession(Base):
     # 中线 AI 选币（与短线隔离；默认关）
     auto_coin_mid_enabled = Column(Boolean, nullable=True, default=False)
     auto_coin_mid_max_slots = Column(Integer, nullable=True, default=3)
+    # [2026-09-08] 长线 AI 选币（与中线隔离；默认关）。复用 midlong 看板 approve 候选，
+    # 但门槛更高（长线要更高置信）。槽位默认 2（长线更精选）。
+    auto_coin_long_enabled = Column(Boolean, nullable=True, default=False)
+    auto_coin_long_max_slots = Column(Integer, nullable=True, default=2)
     active_exchange = Column(String(20), nullable=True)
 
     # AI 动态风控评估结果
@@ -3047,6 +3143,9 @@ class TraderMentalState(Base):
     每个 account_id 一条记录，持续更新。
     """
     __tablename__ = "trader_mental_states"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True, index=True)
@@ -3088,6 +3187,9 @@ class TraderPersonality(Base):
     性格参数直接影响仓位管理（PositionMemoryManager）和 AI Prompt 角色扮演。
     """
     __tablename__ = "trader_personalities"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True, index=True)
@@ -3164,13 +3266,26 @@ class SignalTradeFeedback(Base):
     用于计算每种信号的实际交易贡献度，驱动自适应权重优化。
     """
     __tablename__ = "signal_trade_feedback"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
     trade_id = Column(Integer, nullable=True, index=True)
     symbol = Column(String(20), nullable=False, index=True)
 
-    signal_type = Column(String(30), nullable=False, index=True)
+    # [2026-09-02 因子闭环修复 F16] 30 → 100，与实际数据库列宽对齐。
+    # 迁移 0008 早已把线上列扩到 VARCHAR(100)（原因见该迁移注释：30 太短，
+    # AI 生成因子名如 factor:cloud_microstructure_kyle 超长 → bulk_save 整批
+    # 回滚 → 开仓零快照 → IC 闭环收不到样本），但 ORM 声明一直没跟上。
+    # 危害不只是"看着不一致"：所有走 Base.metadata.create_all 的建表路径
+    # （0001 baseline、init_db.py、init_postgresql.py、api/paper_trading_routes.py
+    # 以及大量 SQLite 单测）都按 ORM 建列，会重新建出 30 宽的列，把上面那个
+    # 已修过的 bug 重新引入；SQLite 不强制 VARCHAR 长度，单测还发现不了。
+    # 写入侧 signal_feedback_tracker.record_entry_signals 按 100 截断，
+    # 两处必须同步（见 test_orm_column_width_20260902.py 的不变式测试）。
+    signal_type = Column(String(100), nullable=False, index=True)
     signal_value = Column(Float, nullable=True)
     signal_direction = Column(String(20), nullable=True)
 
@@ -3240,6 +3355,35 @@ class DecisionSnapshot(AnalyticsBase):
     prev_hash = Column(String(64), nullable=True)
 
 
+class AsterdexLivePointsEvent(AnalyticsBase):
+    """[2026-09] Asterdex 实盘成交积分账本 — 实盘单顺路吃 Rh 积分的逐笔计量。
+
+    open 事件记录交易积分（fee 贡献 + maker 流动性）；close 事件记录持仓积分。
+    设计见 docs/ASTERDEX_LIVE_POINTS_DESIGN.md。
+    """
+    __tablename__ = "asterdex_live_points_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ts = Column(TIMESTAMP, server_default=func.current_timestamp(), index=True)
+    session_id = Column(String(50), nullable=True, index=True)
+    source = Column(String(20), nullable=False, default="funding_arb")  # funding_arb/live_trading/manual
+    event_type = Column(String(10), nullable=False)                    # open / close
+    order_id = Column(String(80), nullable=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    side = Column(String(10), nullable=True)
+    qty = Column(Float, nullable=True)
+    price = Column(Float, nullable=True)
+    notional_usd = Column(Float, nullable=False, default=0.0)
+    maker = Column(Boolean, nullable=True)
+    fee_usd = Column(Float, nullable=True, default=0.0)
+    trade_points = Column(Float, nullable=True, default=0.0)
+    hold_points = Column(Float, nullable=True, default=0.0)
+    hold_hours = Column(Float, nullable=True, default=0.0)
+    est_usd = Column(Float, nullable=True, default=0.0)
+    model_version = Column(String(30), nullable=True)
+    reason = Column(String(40), nullable=True)
+
+
 # ═══════════════════════════════════════════════════════════════
 # V3 System Tables (Reference: docs/SYSTEM_UPGRADE_DESIGN_V3.md §7.4)
 # ═══════════════════════════════════════════════════════════════
@@ -3278,6 +3422,9 @@ class ArbitragePosition(Base):
     mode = Column(String(16), default='paper')                # paper/live
     size_usd = Column(DECIMAL(20, 8), nullable=True)         # 仓位大小USD
     pnl = Column(DECIMAL(20, 8), nullable=True)              # 已实现盈亏
+    # [2026-09-04 p2-arb-infra] 此前无 tenant_id、无 RLS → 任意租户可读全部套利仓。
+    # 可空：历史行与系统级仓位（tenant_id IS NULL）对所有租户可见，与 0005 策略一致。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
 
 class AnomalyEvent(Base):
@@ -3402,7 +3549,7 @@ try:
         CrossMarketCorrelationRecord,
     )
 except ImportError:
-    from services.strategic_analyst.db_models import (
+    from backend.services.strategic_analyst.db_models import (
         StrategicMacroSnapshot,
         StrategicReportRecord,
         NewCoinOpportunityRecord,
@@ -3717,7 +3864,7 @@ class CoinSelectAdoption(Base):
     __tablename__ = "coin_select_adoptions"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String(50), nullable=False, index=True)
     symbol = Column(String(20), nullable=False, index=True)
     horizon = Column(String(16), nullable=False)
@@ -3824,6 +3971,9 @@ class RebatePerformanceLogDB(Base):
 class ArbitrageProfileDB(Base):
     """AI 交易员专用套利档案 — Account 级预设，FullAuto 启动时可覆盖。"""
     __tablename__ = "arbitrage_profiles"
+    # [2026-09-03 M1-1d] 与 DB DDL 对齐声明 tenant_id：DB 列 NOT NULL DEFAULT 1 早已存在，但 ORM 未声明时
+    # before_flush 自动填充钩子不生效 → 新行落 DEFAULT 1 → FORCE RLS 下属主(326/327)看不到、请求内写入被 WITH CHECK 拒。
+    tenant_id = Column(Integer, nullable=True, index=True)
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, unique=True, index=True)
@@ -4110,7 +4260,7 @@ class DashboardLayout(Base):
     __tablename__ = "dashboard_layouts"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(100), nullable=False, default="默认布局")
     is_active = Column(Boolean, default=False, index=True)
     widgets = Column(JSON, nullable=True)  # List[dict]
@@ -4130,7 +4280,7 @@ try:
         TrendPredictionRecord,
     )
 except ImportError:
-    from services.strategic_analyst.db_models import (  # noqa: F401
+    from backend.services.strategic_analyst.db_models import (  # noqa: F401
         StrategicMacroSnapshot, StrategicReportRecord, NewCoinOpportunityRecord,
         StrategicMemoryRecord, CrossMarketCorrelationRecord, MacroRegimeStateRecord,
         TrendPredictionRecord,

@@ -22,6 +22,87 @@ REVIEW_SYSTEM_PROMPT_PATH = os.path.join("backend", "prompts", "opencode_proposa
 _last_error: Optional[str] = None
 _last_ok_ts: float = 0.0
 
+# ── [2026-09-05] sidecar 主动轮换：opencode serve 每个请求在内置事件总线上挂一个
+# 监听器且不摘除（MaxListenersExceededWarning → 进程崩溃；流式 /event 只是放大器，
+# 非流式同样漏，实测 ~11 次请求必崩：03:34 / 03:55 / 10:42 三次实锤）。与其等它
+# 崩在请求中间（连接重置 + 最多 2 分钟不可用），不如桥接层记数、在请求间隙
+# 干净重启：杀进程 + 立即 schtasks 拉起，停机约 5~8 秒。
+_RECYCLE_LOCK = threading.Lock()
+_inflight: int = 0
+_calls_since_cycle: int = 0
+_recycle_scheduled: bool = False
+_RECYCLE_EVENT = "opencode recycle"
+
+
+def _recycle_every() -> int:
+    try:
+        return int(os.getenv("OPENCODE_RECYCLE_EVERY", "8"))
+    except ValueError:
+        return 8
+
+
+def _note_call_start() -> None:
+    global _inflight
+    with _RECYCLE_LOCK:
+        _inflight += 1
+
+
+def _note_call_end() -> None:
+    global _inflight, _calls_since_cycle, _recycle_scheduled
+    schedule = False
+    with _RECYCLE_LOCK:
+        _inflight = max(0, _inflight - 1)
+        _calls_since_cycle += 1
+        if _calls_since_cycle >= _recycle_every() and not _recycle_scheduled:
+            _recycle_scheduled = True
+            schedule = True
+    if schedule:
+        threading.Thread(target=_do_recycle, daemon=True).start()
+
+
+def _do_recycle() -> None:
+    """空闲间隙轮换 sidecar：等在途请求 ≤0（最多 90s）→ 杀 opencode → 拉任务 → 等健康。"""
+    global _calls_since_cycle, _recycle_scheduled, _inflight
+    try:
+        deadline = time.time() + 90
+        while time.time() < deadline:
+            with _RECYCLE_LOCK:
+                if _inflight <= 0:
+                    break
+            time.sleep(2)
+        import subprocess as _sp
+
+        killed = []
+        try:
+            import psutil
+
+            for p in psutil.process_iter(["pid", "name", "cmdline"]):
+                try:
+                    cmd = " ".join(p.info.get("cmdline") or [])
+                    if "opencode" in (p.info.get("name") or "").lower() and "serve" in cmd:
+                        p.terminate()
+                        killed.append(p.pid)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        logger.warning("[OpenCode] %s: 第 %d 次调用后主动轮换 sidecar（防 MaxListeners 崩溃）killed=%s",
+                       _RECYCLE_EVENT, _calls_since_cycle, killed)
+        try:
+            _sp.run(["schtasks", "/Run", "/TN", "AlphaArena_OpenCodeSidecar"],
+                    capture_output=True, timeout=15)
+        except Exception as exc:
+            logger.warning("[OpenCode] %s: 拉起任务失败（等 1 分钟自愈兜底）: %s", _RECYCLE_EVENT, exc)
+        for _ in range(20):  # 最多等 40s 恢复
+            if health_check():
+                logger.info("[OpenCode] %s: sidecar 已恢复", _RECYCLE_EVENT)
+                break
+            time.sleep(2)
+    finally:
+        with _RECYCLE_LOCK:
+            _calls_since_cycle = 0
+            _recycle_scheduled = False
+
 
 def get_bridge_status() -> Dict[str, Any]:
     return {
@@ -78,7 +159,10 @@ def _model() -> str:
         logger.debug("[OpenCodeBridge] 默认模型通道读取失败: %s", exc)
     # [2026-08-15 LLM 统一重构] 删除 OPENCODE_MODEL 环境变量后门：
     # 模型只由租户默认配置决定，此处为无配置时的静态兜底。
-    return "deepseek/deepseek-v4-flash"
+    # [2026-09-05] deepseek 全面退役：兜底从 deepseek/deepseek-v4-flash 切到
+    # zai-coding-plan/glm-5.3-flash（演化 plan/review、悬浮助手等不带显式
+    # model_slug 的 8 处调用点全部随之走 GLM Coding Plan）。
+    return "zai-coding-plan/glm-5.3-flash"
 
 
 def _agent_plan() -> str:
@@ -244,6 +328,21 @@ def _load_system_prompt(path: str = SYSTEM_PROMPT_PATH, fallback: str = "") -> s
     )
 
 
+def _image_parts(images: Optional[List[Dict[str, str]]]) -> List[Dict[str, Any]]:
+    """多模态图包 → opencode file 部件（data URL 内联，实测 sidecar 1.18 支持）。
+
+    [2026-09-05] 视觉分析 P2：图片放在 text 部件之前，与 OpenCode TUI 粘贴顺序一致。
+    """
+    parts: List[Dict[str, Any]] = []
+    for img in images or []:
+        b64 = str((img or {}).get("b64") or "").strip()
+        if not b64:
+            continue
+        mt = str((img or {}).get("media_type") or "image/png")
+        parts.append({"type": "file", "url": f"data:{mt};base64,{b64}", "mime": mt})
+    return parts
+
+
 def run_http_agent_message(
     *,
     system_prompt: str,
@@ -253,6 +352,7 @@ def run_http_agent_message(
     session_title: str = "Alpha Arena agent",
     timeout_s: Optional[float] = None,
     allow_stream: bool = True,
+    images: Optional[List[Dict[str, str]]] = None,
 ) -> Tuple[Optional[str], Optional[str]]:
     """Sidecar HTTP Session 单次对话；返回 (assistant_text, error)。"""
     global _last_error, _last_ok_ts
@@ -260,6 +360,30 @@ def run_http_agent_message(
     if not health_check():
         err = _last_error or "sidecar unavailable"
         return None, err
+
+    # [2026-09-05] 记数以便请求间隙主动轮换 sidecar（防 opencode MaxListeners 崩溃）
+    _note_call_start()
+    try:
+        return _run_http_agent_message_inner(
+            system_prompt=system_prompt, user_text=user_text, agent=agent, model_slug=model_slug,
+            session_title=session_title, timeout_s=timeout_s, allow_stream=allow_stream, images=images,
+        )
+    finally:
+        _note_call_end()
+
+
+def _run_http_agent_message_inner(
+    *,
+    system_prompt: str,
+    user_text: str,
+    agent: str,
+    model_slug: str,
+    session_title: str,
+    timeout_s: Optional[float],
+    allow_stream: bool,
+    images: Optional[List[Dict[str, str]]],
+) -> Tuple[Optional[str], Optional[str]]:
+    global _last_error, _last_ok_ts
 
     if allow_stream and _should_stream_agent_message(model_slug, user_text, session_title):
         return collect_http_agent_stream_text(
@@ -271,6 +395,7 @@ def run_http_agent_message(
             idle_timeout_s=max(float(timeout_s or _timeout()), 300.0),
             max_duration_s=max(float(timeout_s or _timeout()) * 4, 900.0),
             log_prefix=f"OpenCode:{session_title}",
+            images=images,
         )
 
     provider_id, model_id = _parse_model_slug(model_slug)
@@ -286,7 +411,7 @@ def run_http_agent_message(
         "model": {"providerID": provider_id, "modelID": model_id},
         "system": system_prompt,
         "tools": {"write": True, "edit": True, "bash": True},
-        "parts": [{"type": "text", "text": user_text}],
+        "parts": _image_parts(images) + [{"type": "text", "text": user_text}],
     }
 
     # trust_env=False：sidecar 恒为本地，禁止走系统/Privoxy 代理（见 health_check 注释）
@@ -326,6 +451,7 @@ def iter_http_agent_message_stream(
     session_title: str = "Alpha Arena agent",
     idle_timeout_s: float = 300.0,
     max_duration_s: float = 3600.0,
+    images: Optional[List[Dict[str, str]]] = None,
 ) -> Generator[Dict[str, Any], None, None]:
     """Sidecar 流式对话：订阅 /event，prompt_async 后逐 token 产出 delta。
 
@@ -351,7 +477,7 @@ def iter_http_agent_message_stream(
         "model": {"providerID": provider_id, "modelID": model_id},
         "system": system_prompt,
         "tools": {"write": True, "edit": True, "bash": True},
-        "parts": [{"type": "text", "text": user_text}],
+        "parts": _image_parts(images) + [{"type": "text", "text": user_text}],
     }
 
     event_q: "queue.Queue[Optional[Dict[str, Any]]]" = queue.Queue()
@@ -560,6 +686,7 @@ def collect_http_agent_stream_text(
     idle_timeout_s: float = 300.0,
     max_duration_s: float = 3600.0,
     log_prefix: str = "Hermes",
+    images: Optional[List[Dict[str, str]]] = None,
 ) -> Tuple[Optional[str], Optional[str]]:
     """流式 Sidecar 对话并收集完整回复；按 token 空闲超时，非固定总耗时。"""
     global _last_error, _last_ok_ts
@@ -576,6 +703,7 @@ def collect_http_agent_stream_text(
             session_title=session_title,
             idle_timeout_s=idle_timeout_s,
             max_duration_s=max_duration_s,
+            images=images,
         ):
             ev_type = ev.get("type") or ""
             if ev_type == "content":

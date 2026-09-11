@@ -274,7 +274,7 @@ class MacroRegimeService:
             try:
                 from backend.services.strategic_analyst.db_models import MacroRegimeStateRecord
             except ImportError:
-                from services.strategic_analyst.db_models import MacroRegimeStateRecord
+                from backend.services.strategic_analyst.db_models import MacroRegimeStateRecord
 
             row = (
                 db.query(MacroRegimeStateRecord)
@@ -336,7 +336,7 @@ class MacroRegimeService:
             try:
                 from backend.services.strategic_analyst.db_models import MacroRegimeStateRecord
             except ImportError:
-                from services.strategic_analyst.db_models import MacroRegimeStateRecord
+                from backend.services.strategic_analyst.db_models import MacroRegimeStateRecord
 
             now = datetime.now(timezone.utc)
             row = MacroRegimeStateRecord(

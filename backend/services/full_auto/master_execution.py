@@ -237,7 +237,14 @@ def execute_master_decisions(
                 _precomputed_orch_state[f"{_psym.upper()}_reason"] = str(_poch.get("reasoning", "") or _poch_action)[:120]
 
     def _bump_live_open_quota():
-        """[2026-08-29 实盘收紧] 真实成交后扣减每日开单配额（只在 live）。"""
+        """[2026-08-29 实盘收紧] 真实成交后扣减每日开单配额（只在 live）。
+
+        [§56 修复 2026-09-10] **只允许在开仓路径调用**。此前本函数被挂在 6 个
+        平仓/减仓路径上（ai_take_profit / ai_cut_loss / close_to_sl / close_tiny /
+        master_*_reduce），于是"关得越多、当天可开的单越少"——把"每日**开单**配额"
+        变成了"每日**成交**配额"。契约测试
+        `test_master_live_quota_open_only_20260910.py` 会按调用点上下文阻止回归。
+        """
         if (mode or "paper").strip().lower() != "live":
             return
         try:
@@ -245,6 +252,24 @@ def execute_master_decisions(
             live_daily_open_bump(str(getattr(session, "session_id", "") or ""))
         except Exception:
             pass
+
+    def _close_outcome(pnl, pct=None):
+        """平仓盈亏 → (reason, emoji, label, pnl_text)。
+
+        [§56 修复] 实盘平仓路径（LiveExecutor/LPM）**不回传 pnl**，旧代码用
+        `result.get("pnl", 0)` 兜成 0，于是实盘每一笔平仓都被标成 `ai_take_profit`
+        并显示 `PnL=$+0.00`（盈亏方向、归因与学习全被污染）。现在只有在真拿到
+        pnl 时才判方向，拿不到就**显式标注未知**，绝不臆造"止盈"。
+        """
+        if pnl is None:
+            return ("ai_close_pnl_unknown", "❔", "AI平仓(盈亏未回传)", "PnL=?")
+        # 保留一位小数的区间标签（部分平仓用）
+        tag = (f"{int(pct)}%" if pct is not None and float(pct) < 95 else "")
+        if pnl >= 0:
+            return ("ai_take_profit", "💰", f"AI止盈{tag}" if tag else "AI止盈全平",
+                    f"PnL=${pnl:+.2f}")
+        return ("ai_cut_loss", "✂️", f"AI止损{tag}" if tag else "AI止损全平",
+                f"PnL=${pnl:+.2f}")
 
     # 防御性 rollback：分析阶段可能有查询失败导致 session 事务污染
     # [fix] rollback 后 merge session 避免 "not persistent" 错误
@@ -583,9 +608,18 @@ def execute_master_decisions(
 
         # ── ScalpExecutionLane: Master 路径 hard block scalp/intraday 新开 ──
         try:
-            from backend.config.settings import SCALP_MASTER_HARD_BLOCK
-            if SCALP_MASTER_HARD_BLOCK and scalp_factor_router.is_scalp_nature(_dec_nature_raw):
-                if action in ("buy", "sell", "pyramid", "dca"):
+            from backend.config.settings import SCALP_MASTER_HARD_BLOCK, SCALP_OPEN_DISABLED
+            if action in ("buy", "sell", "pyramid", "dca"):
+                if SCALP_OPEN_DISABLED and (
+                    scalp_factor_router.is_scalp_nature(_dec_nature_raw)
+                    or str(_dec_nature_raw or "").lower() in ("scalp", "intraday")
+                ):
+                    logger.info(
+                        "[FullAuto][ScalpLane] 短线新开已硬停，跳过 %s %s nature=%s",
+                        sym, action, _dec_nature_raw,
+                    )
+                    continue
+                if SCALP_MASTER_HARD_BLOCK and scalp_factor_router.is_scalp_nature(_dec_nature_raw):
                     logger.debug(
                         "[FullAuto][ScalpLane] Master 跳过 %s %s nature=%s（由 ScalpExecutionLane 负责）",
                         sym, action, _dec_nature_raw,
@@ -848,7 +882,7 @@ def execute_master_decisions(
             if "onchain_macro" not in _ms_sym:
                 _ms_sym["onchain_macro"] = {}
                 try:
-                    from services.onchain_data_collector import onchain_collector as _oc2
+                    from backend.services.onchain_data_collector import onchain_collector as _oc2
                     _oc2_data = _oc2.collect_all([sym]).get(sym, {})
                     if isinstance(_oc2_data, dict):
                         for _k in ('fear_greed','active_addresses','exchange_net_flow',
@@ -1583,7 +1617,7 @@ def execute_master_decisions(
                                     )
                                 continue
                     except Exception as _pc_gate_err:
-                        logger.debug(f"[UnifiedExit] partial_close 门控跳过: {_pc_gate_err}")
+                        logger.warning(f"[UnifiedExit] partial_close 门控跳过(fail-open): {_pc_gate_err}")
 
                     # ── 累计部分平仓安全网：防止"千刀万剐" ──
                     _tracker_key = f"{session.id}:{sym}:{pos.get('strategy_id', '')}"
@@ -1622,16 +1656,14 @@ def execute_master_decisions(
                                 reason="ai_take_profit",
                                 strategy_id=pos_strategy_id)
                         if result:
-                            pnl = result.get("pnl", 0)
-                            _reason = "ai_take_profit" if pnl >= 0 else "ai_cut_loss"
-                            _emoji = "💰" if pnl >= 0 else "✂️"
-                            _label = "AI止盈全平" if pnl >= 0 else "AI止损全平"
+                            pnl = result.get("pnl")
+                            _reason, _emoji, _label, _pnl_txt = _close_outcome(pnl)
                             result["close_reason"] = _reason
                             session.total_trades = (session.total_trades or 0) + 1
-                            _bump_live_open_quota()
+                            # [§56] 平仓**不**消耗每日开单配额（见 _bump_live_open_quota 注释）
                             host.append_event(session, _reason,
                                 f"{_emoji} {_label} {sym}[{pos_log_scope}] {side} "
-                                f"PnL=${pnl:+.2f} | {reasoning}")
+                                f"{_pnl_txt} | {reasoning}")
                             # 全平后清除追踪器
                             host.partial_close_tracker.pop(_tracker_key, None)
                             _position_dirty = True
@@ -1642,16 +1674,13 @@ def execute_master_decisions(
                             reason="ai_take_profit",
                             strategy_id=pos_strategy_id)
                         if result:
-                            pnl = result.get("pnl", 0)
-                            _reason = "ai_take_profit" if pnl >= 0 else "ai_cut_loss"
-                            _emoji = "💰" if pnl >= 0 else "✂️"
-                            _label = f"AI止盈{pct}%" if pnl >= 0 else f"AI止损{pct}%"
+                            pnl = result.get("pnl")
+                            _reason, _emoji, _label, _pnl_txt = _close_outcome(pnl, pct=pct)
                             result["close_reason"] = _reason
                             session.total_trades = (session.total_trades or 0) + 1
-                            _bump_live_open_quota()
                             host.append_event(session, _reason,
                                 f"{_emoji} {_label} {sym}[{pos_log_scope}] {side} "
-                                f"PnL=${pnl:+.2f} | {reasoning}")
+                                f"{_pnl_txt} | {reasoning}")
                             # 更新累计追踪器
                             _tracker["total_pct"] = _cumulative
                             _tracker["count"] = _tracker.get("count", 0) + 1
@@ -1825,16 +1854,17 @@ def execute_master_decisions(
                             if not _blocked and not _gate_blocked and _factor_veto_reason is None and not risk_block_new_positions:
                                 _mkt2 = (market_summary or {}).get(sym, {}) if isinstance(market_summary, dict) else {}
                                 _orch2 = _mkt2.get("orchestrator", {}) if isinstance(_mkt2, dict) else {}
-                                # 杠杆由置信度驱动，不从 orchestrator 统一值取
+                                # [2026-09-07 杠杆根治 P1] 断流：置信度→杠杆表(5-20x)废除。
+                                # 杠杆 = 币种属性（leverage_authority 一币一档）；置信度只通过
+                                # ai_dynamic_position_pct 影响保证金（仓位大小），不再碰杠杆。
                                 _conf_pct = int(_override_conf * 100) if _override_conf else 50
-                                if _conf_pct >= 90: _dyn_lev = 20
-                                elif _conf_pct >= 80: _dyn_lev = 18
-                                elif _conf_pct >= 70: _dyn_lev = 15
-                                elif _conf_pct >= 60: _dyn_lev = 12
-                                elif _conf_pct >= 50: _dyn_lev = 10
-                                elif _conf_pct >= 40: _dyn_lev = 8
-                                elif _conf_pct >= 30: _dyn_lev = 6
-                                else: _dyn_lev = 5
+                                try:
+                                    from backend.services.leverage_authority import (
+                                        resolve_leverage as _auth_lev_ov,
+                                    )
+                                    _dyn_lev = _auth_lev_ov(tier=_rec_tier or "mid", symbol=sym)
+                                except Exception:
+                                    _dyn_lev = 5
                                 _vol2 = float(_mkt2.get("volatility_value", 0.015) or 0.015) if isinstance(_mkt2, dict) else 0.015
                                 _regime2 = _mkt2.get("market_cycle", "unknown") if isinstance(_mkt2, dict) else "unknown"
                                 _pos_pct_base = host.ai_dynamic_position_pct(
@@ -2001,7 +2031,7 @@ def execute_master_decisions(
                             pass
                         continue
             except Exception as _kline_gate_err:
-                logger.debug(f"[FullAuto] K线深度门控跳过: {_kline_gate_err}")
+                logger.warning(f"[FullAuto] K线深度门控跳过(fail-open): {_kline_gate_err}")
 
             # V5 / MidLong 组合门控
             try:
@@ -2125,6 +2155,15 @@ def execute_master_decisions(
                     )
                     _gate = unified_exit_executor.should_block(_exit_req)
                     if _gate.blocked:
+                        # [§85 修复 2026-09-11 / 目标③ 可追溯性] 主平仓路径此前**只 continue**，
+                        # 不像部分平仓路径那样把 `event_type` 写进会话事件流 ⇒ 通道熔断的抑制
+                        # 在事件流里查不到（只剩日志一行）。抑制是一种**风险决策**，
+                        # 必须可追溯（与 §78 的 `exit_channel_broken` 事件口径一致）。
+                        if _gate.event_type:
+                            try:
+                                host.append_event(session, _gate.event_type, _gate.detail)
+                            except Exception as _ev_err:
+                                logger.warning("[UnifiedExit] 抑制事件落库失败(抑制已生效): %s", _ev_err)
                         if _gate.convert_to_set_sl:
                             unified_exit_executor._set_emergency_sl(_exit_req)
                         continue
@@ -2133,7 +2172,7 @@ def execute_master_decisions(
                     if _ux_result is not None:
                         pnl = _ux_result.get("pnl", 0)
                         session.total_trades = (session.total_trades or 0) + 1
-                        _bump_live_open_quota()
+                        # [§56] 出场执行不消耗每日开单配额
                         _pos_tier_close = pos.get("timeframe_tier", "mid")
                         _pls = host.event_scope_label(None, _pos_tier_close)
                         event_type = "defensive_close" if mode == "defensive" else "trade_executed"
@@ -2328,7 +2367,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
-                    _bump_live_open_quota()
+                    # [§56] 平仓不消耗每日开单配额
                     event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                     _tier_label = {"short":"短线","mid":"中线","long":"长线"}.get(_pos_tier_close, _pos_tier_close)
                     host.append_event(session, event_type,
@@ -2429,7 +2468,7 @@ def execute_master_decisions(
             if result:
                 pnl = result.get("pnl", 0)
                 session.total_trades = (session.total_trades or 0) + 1
-                _bump_live_open_quota()
+                # [§56] 平仓不消耗每日开单配额
                 event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                 _tier_label = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
                 host.append_event(session, event_type,
@@ -2522,7 +2561,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
-                    _bump_live_open_quota()
+                    # [§56] 微仓全平不消耗每日开单配额
                     event_type = "defensive_close" if mode == "defensive" else "trade_executed"
                     _tier_label_ct = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
                     host.append_event(session, event_type,
@@ -2586,7 +2625,7 @@ def execute_master_decisions(
                 if result:
                     pnl = result.get("pnl", 0)
                     session.total_trades = (session.total_trades or 0) + 1
-                    _bump_live_open_quota()
+                    # [§56] 减仓/微仓平仓不消耗每日开单配额
                     closed_fully = result.get("closed_fully", False)
                     event_type = "defensive_reduce" if mode == "defensive" else "trade_executed"
                     _tier_label_rd = {"short":"短线","mid":"中线","long":"长线"}.get(tier, tier)
@@ -3306,7 +3345,7 @@ def execute_master_decisions(
                             logger.info(f"[FullAuto] P2-2: {_msg}")
                             continue
                 except Exception as _pg_err:
-                    logger.debug(f"[FullAuto] 历史表现门控异常(放行): {_pg_err}")
+                    logger.warning(f"[FullAuto] 历史表现门控异常(fail-open，放行): {_pg_err}")
 
                 # ── 统一风控（深挖第 3 轮 2026-05-08：UnifiedRiskGate）──
                 # 同时跑两层规则，结果统一格式 + 自动落盘 risk_control_events
@@ -3573,7 +3612,7 @@ def execute_master_decisions(
                                     )
                                     continue
                             except Exception as _q_err:
-                                logger.debug("[FullAuto] 实盘配额检查跳过: %s", _q_err)
+                                logger.warning("[FullAuto] 实盘配额检查跳过(fail-open，配额未校验): %s", _q_err)
                         # 多周期预算感知：从 dec 中提取 tier 预算信息
                         _tier_budget_pct = float(dec.get("_tier_max_margin_pct", 0) or 0)
                         # 统一仓位规划：AI建议 → SizingAgent 风险预算约束 → 执行层保真
@@ -3624,6 +3663,10 @@ def execute_master_decisions(
                         decision_data = {
                             "action": action,
                             "side": action,
+                            # [2026-08-29] 补 symbol：此前决策缺该字段，实盘
+                            # 拦截日志显示 "BLOCK ? sell"，下游仅靠
+                            # strat.primary_symbol 兜底。
+                            "symbol": sym,
                             "price": price,
                             "leverage": _sizing_plan.leverage,
                             "position_pct": _final_pct,

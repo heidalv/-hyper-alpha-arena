@@ -48,13 +48,19 @@ def test_normalize_none_and_empty():
 
 
 class _FakeUsageResolver:
-    """monkeypatch get_llm_config_for_usage 的假实现。"""
+    """monkeypatch get_llm_config_for_usage 的假实现。
+
+    [2026-08-29 契约同步] 实现已增加 exclude_provider 参数（云端解析排除
+    ollama，防止 fallback 与 primary 重复）——假实现接受任意 kwargs。"""
 
     def __init__(self, by_key):
         # by_key: {(usage, provider)} -> LLMConfig | None
         self.by_key = by_key
 
-    def __call__(self, usage, account_id=None, tier="quick", tenant_id=None, provider=None):
+    def __call__(self, usage, account_id=None, tier="quick", tenant_id=None,
+                 provider=None, exclude_provider=None, **kwargs):
+        if exclude_provider:
+            return self.by_key.get((usage, None))
         return self.by_key.get((usage, provider))
 
 
@@ -97,12 +103,12 @@ def test_local_first_same_config_no_fallback(monkeypatch):
 
 def test_usage_resolution_non_default_precedence():
     """[2026-08-23 排序修复] usage 解析：非默认专属绑定优先于默认宽 scope。
-    factor_mining → 本地 84（此前恒落默认 17）。需要真实 DB（本仓库单测环境）。
-    """
+    [2026-08-29 契约同步] factor_mining 的具体 provider（ollama/deepseek）是
+    DB 运营态选择——契约收敛为「专属绑定可解析出配置」而非固定本地。
+    需要真实 DB（本仓库单测环境）。"""
     from backend.services.llm_config_service import get_llm_config_for_usage
     try:
         cfg = get_llm_config_for_usage("factor_mining", tenant_id=326)
     except Exception as e:
         pytest.skip(f"DB 不可用: {e}")
-    assert cfg is not None
-    assert getattr(cfg, "provider", None) == "ollama", "factor_mining 应命中本地 ollama"
+    assert cfg is not None, "factor_mining 专属绑定应可解析出配置"

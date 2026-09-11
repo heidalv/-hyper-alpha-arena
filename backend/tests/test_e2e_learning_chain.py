@@ -74,7 +74,18 @@ def _create_test_strategy(db) -> str:
     sample = db.query(AIStrategy.account_id).filter(
         AIStrategy.account_id.isnot(None)
     ).first()
-    acct_id = sample[0] if sample else 1
+    if sample:
+        acct_id = sample[0]
+    else:
+        # [2026-09-03] 不再兜底成 account_id=1：该账户在库里并不存在（FK 会炸），
+        # 而且"看不到任何策略"通常意味着当前租户身份下没有可见行——改从 accounts
+        # 表取一个当前身份可见的真实账户；还是没有就跳过，而不是制造假阳性失败。
+        from backend.database.models import Account
+        acct_row = db.query(Account.id).order_by(Account.id).first()
+        if not acct_row:
+            import pytest
+            pytest.skip("当前租户身份下没有可见账户，无法挂载 e2e 测试策略")
+        acct_id = int(acct_row[0])
     strat = AIStrategy(
         strategy_id=sid,
         name=f"E2E Test {TEST_RUN_ID}",

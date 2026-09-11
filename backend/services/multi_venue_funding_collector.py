@@ -32,6 +32,17 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+def _keep0_int(v, default):
+    """保留显式 0 的整数读取（`v or default` 会把 0 吞掉）。[2026-09-10 审计轮]"""
+    return int(default) if v is None else int(v)
+
+
+def _keep0_float(v, default):
+    """保留显式 0 的浮点读取。[2026-09-10 审计轮]"""
+    return float(default) if v is None else float(v)
+
+
+
 # 采集场所（hyperliquid 已由 market_flow_collector 采集，这里补其余深流动性场所）
 DEFAULT_VENUES: List[str] = ["binance", "bybit", "okx", "gateio", "asterdex"]
 
@@ -293,7 +304,8 @@ def _fetch_okx_funding_ccxt(symbols_upper: Optional[set]):
             return {}, {"status": "error", "count": 0, "elapsed_ms": int((_t.time() - t0) * 1000), "via": None, "error": "create:okx"}
         ex.options["defaultType"] = "swap"
         out: Dict[str, float] = {}
-        targets = sorted(symbols_upper) if symbols_upper else []
+        # okx 只有逐币 ccxt 路径；全币池模式（symbols_upper=None）下退回核心币白名单，避免 500+ 次串行请求
+        targets = sorted(symbols_upper) if symbols_upper else sorted(DEFAULT_SYMBOLS)
         for base in targets:
             try:
                 fr = ex.fetch_funding_rate(f"{base}/USDT:USDT")
@@ -453,31 +465,56 @@ def _persist(venue_rates: Dict[str, Dict[str, float]], ts_ms: int) -> int:
 
     db = MarketSessionLocal()
     try:
-        for exchange, rates in venue_rates.items():
-            for base_symbol, rate in rates.items():
-                exists = (
-                    db.query(PerpFunding.id)
-                    .filter(
-                        PerpFunding.exchange == exchange,
-                        PerpFunding.symbol == base_symbol,
-                        PerpFunding.timestamp == ts_ms,
+        # [2026-09-03] Postgres：单条批量 INSERT ... ON CONFLICT DO NOTHING（全币池模式下每轮
+        # 数千行，逐行 exists+add 会打数千次往返）。非 Postgres 回退旧的逐行幂等写法。
+        bulk_done = False
+        try:
+            from backend.database.connection import MARKET_DATABASE_URL as _MURL
+            if str(_MURL).startswith("postgres"):
+                from sqlalchemy import text as _text
+                params = [
+                    {"ex": exchange, "sym": str(base_symbol)[:20], "ts": ts_ms, "rate": rate}
+                    for exchange, rates in venue_rates.items()
+                    for base_symbol, rate in rates.items()
+                ]
+                if params:
+                    res = db.execute(_text(
+                        "INSERT INTO perp_funding (exchange, symbol, timestamp, funding_rate, mark_price) "
+                        "VALUES (:ex, :sym, :ts, :rate, NULL) ON CONFLICT (exchange, symbol, timestamp) DO NOTHING"
+                    ), params)
+                    written = int(res.rowcount) if res.rowcount is not None and res.rowcount >= 0 else len(params)
+                    db.commit()
+                bulk_done = True
+        except Exception as bulk_exc:
+            db.rollback()
+            written = 0
+            logger.debug("[MultiVenueFunding] 批量写入失败，回退逐行: %s", bulk_exc)
+        if not bulk_done:
+            for exchange, rates in venue_rates.items():
+                for base_symbol, rate in rates.items():
+                    exists = (
+                        db.query(PerpFunding.id)
+                        .filter(
+                            PerpFunding.exchange == exchange,
+                            PerpFunding.symbol == base_symbol,
+                            PerpFunding.timestamp == ts_ms,
+                        )
+                        .first()
                     )
-                    .first()
-                )
-                if exists:
-                    continue
-                db.add(
-                    PerpFunding(
-                        exchange=exchange,
-                        symbol=base_symbol,
-                        timestamp=ts_ms,
-                        funding_rate=rate,
-                        mark_price=None,
+                    if exists:
+                        continue
+                    db.add(
+                        PerpFunding(
+                            exchange=exchange,
+                            symbol=base_symbol,
+                            timestamp=ts_ms,
+                            funding_rate=rate,
+                            mark_price=None,
+                        )
                     )
-                )
-                written += 1
-        if written:
-            sqlite_write_commit(db, label="multi_venue_funding_write")
+                    written += 1
+            if written:
+                sqlite_write_commit(db, label="multi_venue_funding_write")
     except Exception as exc:
         logger.warning("[MultiVenueFunding] 写入 perp_funding 失败: %s", exc)
         try:
@@ -504,7 +541,7 @@ def _maybe_alert(venue_report: Dict[str, Dict[str, object]]) -> List[str]:
     try:
         from backend.config import settings as _settings
 
-        threshold = int(getattr(_settings, "MULTI_VENUE_FUNDING_ALERT_THRESHOLD", 3) or 0)
+        threshold = _keep0_int(getattr(_settings, "MULTI_VENUE_FUNDING_ALERT_THRESHOLD", 3), 3)
     except Exception:
         threshold = 3
     if threshold <= 0:
@@ -572,7 +609,13 @@ def collect_once(
     """
     venues = venues or DEFAULT_VENUES
     symbols = symbols if symbols is not None else DEFAULT_SYMBOLS
-    symbols_upper = {s.strip().upper() for s in symbols} if symbols else None
+    # [2026-09-03 v3 p0-event-data] 通配 "*"/"ALL" = 全币池：不过滤白名单，premiumIndex/tickers
+    # 返回的全部 USDT 永续都入库（MULTI_VENUE_FUNDING_SYMBOLS=*）。写入走批量 ON CONFLICT，
+    # 500+ 币 × 5 场所每 5 分钟约 2500 行，单条 INSERT 一次往返。
+    if symbols and any(str(s).strip().upper() in ("*", "ALL") for s in symbols):
+        symbols_upper = None
+    else:
+        symbols_upper = {s.strip().upper() for s in symbols} if symbols else None
 
     t0 = time.time()
     diagnostics: Dict[str, Dict[str, object]] = {}

@@ -1,4 +1,10 @@
 {
-  "scalp": 1,
-  "swing": 2
+  "scalp": {
+    "count": 1,
+    "frozen_at": ""
+  },
+  "swing": {
+    "count": 0,
+    "frozen_at": ""
+  }
 }

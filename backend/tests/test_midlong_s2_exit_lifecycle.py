@@ -82,25 +82,25 @@ class TestS01TierExitStrategiesFixed:
         return PositionContext(**defaults)
 
     def test_short_tier_exit_staged_tp1(self):
-        """短线 TP1（浮盈 4%）触发减仓 35%。"""
+        """短线 TP1 按 ATR 可触达：atr=2% → TP1≈1.2%，减仓 25%。"""
         from backend.services.exit.tier_exit_strategies import ShortTierExit
         strategy = ShortTierExit()
-        ctx = self._make_ctx(unrealized_pnl_pct=4.5, tier="short")
-        decision = strategy.evaluate(ctx, tp_level_reached=0)
+        ctx = self._make_ctx(unrealized_pnl_pct=1.3, peak_pnl_pct=1.3, tier="short")
+        decision = strategy.evaluate(ctx, tp_level_reached=0, breakeven_active=True)
         assert decision is not None
         assert decision.action == "reduce"
-        assert decision.qty_ratio == 0.35
+        assert decision.qty_ratio == pytest.approx(0.25)
         assert "TP#1" in decision.reason
 
     def test_short_tier_exit_tp2_skipped_when_already_triggered(self):
-        """已触发 TP1（tp_level_reached=1）时应跳过 TP1,检查 TP2。"""
+        """已触发 TP1 且浮盈介于 TP1/TP2 之间时，不再重复 TP1。"""
         from backend.services.exit.tier_exit_strategies import ShortTierExit
         strategy = ShortTierExit()
-        ctx = self._make_ctx(unrealized_pnl_pct=4.5, tier="short")
-        decision = strategy.evaluate(ctx, tp_level_reached=1)  # TP1 已触发
-        # 4.5% < TP2(7%),不应触发 TP1,应返回 None 或 trailing/breakeven
+        # atr=2% → TP1=1.2% TP2=2.2%；1.5% 只应跳过、不应打 TP2
+        ctx = self._make_ctx(unrealized_pnl_pct=1.5, peak_pnl_pct=1.5, tier="short")
+        decision = strategy.evaluate(ctx, tp_level_reached=1, breakeven_active=True)
         if decision:
-            assert "TP#1" not in decision.reason  # 不应重复触发 TP1
+            assert "TP#1" not in decision.reason
 
     def test_short_tier_exit_trailing_no_typo(self):
         """S2-1 修复:ShortTierExit 的 trailing 不再有 typo 'drawback'。

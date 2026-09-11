@@ -253,6 +253,8 @@ def create_strategy(
             llm_config_id=request.llm_config_id,
             llm_config_id_deep=request.llm_config_id_deep,
             status="draft",
+            # [2026-09-02 多租户] 按账户归属打标；此前缺省落 DB 默认租户 1，RLS 下创建者不可见
+            tenant_id=getattr(account, "user_id", None),
         )
         
         db.add(strategy)
@@ -262,6 +264,11 @@ def create_strategy(
         logger.info(f"Created AI strategy: {strategy_id} tier={request.timeframe_tier}")
         return strategy
         
+    except HTTPException:
+        # [2026-09-02] 业务层 404（账户不存在）等必须原样透出；此前被下面的兜底
+        # 吞成 500 "404: Account N not found"，前端拿不到正确状态码。
+        db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Failed to create AI strategy: {e}")
         db.rollback()
@@ -1493,7 +1500,7 @@ async def generate_strategy_framework(
         
         # --- 策略1: 直接从交易所API实时获取 ---
         try:
-            from services.exchange_config import get_active_exchange, get_exchange_for_account
+            from backend.services.exchange_config import get_active_exchange, get_exchange_for_account
             
             live_klines = None
             # 通过中央配置决定交易所
@@ -1562,7 +1569,7 @@ async def generate_strategy_framework(
                                 } for k in rows]
                                 exchange_label = "Hyperliquid"
                         else:
-                            from services.hyperliquid_market_data import get_kline_data_from_hyperliquid
+                            from backend.services.hyperliquid_market_data import get_kline_data_from_hyperliquid
                             exchange_label = "Hyperliquid"
                             hl_klines = get_kline_data_from_hyperliquid(
                                 symbol=primary_symbol, period=detected_period, count=200, persist=False
@@ -2220,6 +2227,7 @@ def create_complete_strategy_system(
             name=request.strategy_name,
             description=request.strategy_description,
             account_id=request.account_id,
+            tenant_id=getattr(account, "user_id", None),  # [2026-09-02 多租户] 同 create_strategy
             
             # 关联信号池
             signal_pool_ids=[signal_pool.id],

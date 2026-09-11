@@ -15,25 +15,25 @@ from backend.database.models import Account
 logger = logging.getLogger(__name__)
 
 # 导入新的ATAS V2模块
-from services.backtest_engine import (
+from backend.services.backtest_engine import (
     BacktestEngine, BacktestConfig, BacktestMode, Strategy
 )
-from services.backtest_reporting import (
+from backend.services.backtest_reporting import (
     BacktestReportGenerator, ReportFormat,
     BacktestMetricsCalculator,
     BacktestChartGenerator, ChartType
 )
-from services.risk_management import (
+from backend.services.risk_management import (
     RiskController, RiskCheckResult,
     PositionManager, PositionSizingMethod,
     RiskMonitor
 )
-from services.system_monitoring import (
+from backend.services.system_monitoring import (
     MonitoringDashboard,
     HealthScoreCalculator,
     AlertSystem, AlertChannel
 )
-from services.atas_v2_executor import get_atas_v2_executor
+from backend.services.atas_v2_executor import get_atas_v2_executor
 
 router = APIRouter(prefix="/atas/v2", tags=["ATAS V2"])
 
@@ -219,7 +219,7 @@ def get_risk_monitor_status(db: Session = Depends(get_db)):
     此接口返回系统级别的风险摘要。
     """
     try:
-        from services.atas_v2_executor import get_atas_v2_executor
+        from backend.services.atas_v2_executor import get_atas_v2_executor
 
         executor = get_atas_v2_executor(db)
 
@@ -275,7 +275,7 @@ async def get_account_snapshot(account_id: int, db: Session = Depends(get_db)):
         import asyncio
         import uuid
         import time
-        from services.atas_v2_executor import get_atas_v2_executor
+        from backend.services.atas_v2_executor import get_atas_v2_executor
         
         executor = get_atas_v2_executor(db)
         
@@ -304,7 +304,7 @@ def get_monitoring_dashboard(db: Session = Depends(get_db)):
     获取监控仪表板数据（系统级 + 真实数据汇总）
     """
     try:
-        from services.atas_v2_executor import get_atas_v2_executor
+        from backend.services.atas_v2_executor import get_atas_v2_executor
         from datetime import datetime
 
         executor = get_atas_v2_executor(db)
@@ -362,7 +362,7 @@ def get_health_score(db: Session = Depends(get_db)):
     注意：优先使用 /account/{account_id}/health 获取指定账户的健康度评分。
     """
     try:
-        from services.atas_v2_executor import get_atas_v2_executor
+        from backend.services.atas_v2_executor import get_atas_v2_executor
         
         executor = get_atas_v2_executor(db)
         
@@ -431,7 +431,7 @@ def send_alert(
         
         alert_channel = channel_map.get(channel, AlertChannel.EMAIL)
         
-        from services.system_monitoring.alert_system import AlertMessage
+        from backend.services.system_monitoring.alert_system import AlertMessage
         message = AlertMessage(
             title=title,
             content=content,
@@ -605,7 +605,7 @@ async def get_account_health(account_id: int, db: Session = Depends(get_db)):
 async def get_symbol_factors(symbol: str, db: Session = Depends(get_db)):
     """获取指定交易对的因子值（V2 版本，扩展分类）"""
     try:
-        from services.factor_engine import factor_engine
+        from backend.services.factor_engine import factor_engine
         from backend.services.market_data import get_kline_data
         import pandas as pd
 

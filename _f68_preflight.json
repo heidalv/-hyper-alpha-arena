@@ -1,0 +1,106 @@
+{
+ "lane": "mm_asterdex",
+ "venue": "asterdex",
+ "results": [
+  {
+   "check": "后端健康",
+   "ok": true,
+   "detail": "healthy"
+  },
+  {
+   "check": "数据中心健康",
+   "ok": true,
+   "detail": "standalone"
+  },
+  {
+   "check": "市场流含 asterdex",
+   "ok": true,
+   "detail": "up:{'binance': True, 'asterdex': True}"
+  },
+  {
+   "check": "asterdex orderbook 新鲜度",
+   "ok": true,
+   "detail": "age=8s"
+  },
+  {
+   "check": "asterdex trades 新鲜度",
+   "ok": true,
+   "detail": "age=8s"
+  },
+  {
+   "check": "asterdex maker 费率 ≤0.5bp",
+   "ok": true,
+   "detail": "maker=0.0bp taker=4.0bp"
+  },
+  {
+   "check": "车道 mm_asterdex mode",
+   "ok": true,
+   "detail": "mode=paper status=active"
+  },
+  {
+   "check": "边际来源可信",
+   "ok": true,
+   "detail": "source=f59_replay net_bp=2.5755"
+  },
+  {
+   "check": "晋升判定存在",
+   "ok": true,
+   "detail": "ready=False 通过 4/7 未过=['fold_t', 'max_drawdown_pct', 'fill_rate_ratio']"
+  },
+  {
+   "check": "今日/近7天盈亏可取",
+   "ok": true,
+   "detail": "pnl_7d=-8.1395 fills_7d=103"
+  },
+  {
+   "check": "影子期驱动器在跑",
+   "ok": true,
+   "detail": "ticks=16 fills=1 flattens=0 last_error=''"
+  },
+  {
+   "check": "至少一个标的在报价",
+   "ok": true,
+   "detail": "5/6"
+  },
+  {
+   "check": "影子期报告可读",
+   "ok": true,
+   "detail": "fills=103 net_bp=-7.1495"
+  },
+  {
+   "check": "无熔断触发",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "check": "六维账本可读",
+   "ok": true,
+   "detail": "n=103 net_bp=-7.1495"
+  },
+  {
+   "check": "现货行情已采集",
+   "ok": true,
+   "detail": "binance_spot rows=110538 age=370.9s"
+  },
+  {
+   "check": "对冲后净期望已回测",
+   "ok": true,
+   "detail": "6/10 个标的；可执行 6 个"
+  },
+  {
+   "check": "对冲净期望 DOGE",
+   "ok": true,
+   "detail": "+50.47bp / 持有 30.0 天 / paper_spot_channel"
+  },
+  {
+   "check": "对冲净期望 XRP",
+   "ok": true,
+   "detail": "+47.38bp / 持有 30.0 天 / paper_spot_channel"
+  },
+  {
+   "check": "对冲净期望 BTC",
+   "ok": true,
+   "detail": "+38.93bp / 持有 30.0 天 / paper_spot_channel"
+  }
+ ]
+}

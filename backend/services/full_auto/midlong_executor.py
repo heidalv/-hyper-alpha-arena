@@ -150,6 +150,12 @@ def authority_allows_open(authority: str, source: str) -> bool:
     if auth == "trend":
         return src == "trend"
     if auth == "mlto":
+        try:
+            from backend.config.settings import midlong_brain_enabled
+            if midlong_brain_enabled():
+                return src == "mlto"
+        except Exception:
+            pass
         return src in ("mlto", "factor_route")
     return False
 
@@ -204,7 +210,7 @@ def _swing_consensus_gate(
             return True, f"swing_single_tf_oppose(4h={tf4} 1d={tf1} vs {side})", max(0.0, min(1.0, _mult))
         return True, f"swing_consensus_ok(4h={tf4} 1d={tf1})", 1.0
     except Exception as e:
-        logger.debug("[MidLong] swing 共识闸异常(fail-open): %s", e)
+        logger.warning("[MidLong] swing 共识闸异常(fail-open): %s", e)
         return True, "swing_ct_gate_error", 1.0
 
 
@@ -409,6 +415,19 @@ def execute_midlong_open(
         _record_fail(f"authority_block writer={auth}")
         return False
 
+    try:
+        from backend.config.settings import midlong_new_open_halted
+        if midlong_new_open_halted():
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                "reason=midlong_open_halted",
+                sym_u, auth, source,
+            )
+            _record_fail("midlong_open_halted")
+            return False
+    except Exception:
+        pass
+
     if margin <= 0:
         logger.info(
             "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
@@ -440,7 +459,58 @@ def execute_midlong_open(
             _record_fail(_ml_reason[:60] or "midlong_circuit")
             return False
     except Exception as _ml_gate_err:
-        logger.debug("[MidLong] 熔断闸检查跳过(fail-open): %s", _ml_gate_err)
+        logger.warning("[MidLong] 熔断闸检查跳过(fail-open): %s", _ml_gate_err)
+
+    # [2026-09-05 多模态图审闸] 间隔扫描的 trend_chart_review 共识信号（双票+仲裁）对
+    # 开仓方向的三类否决：position_advice 禁令 / 强反向 / 亏损后同向再开需图审同意。
+    # 直接针对 2026-08-31 周报的 swing 失血点（亏损后同向再开率 70%）。fail-open。
+    try:
+        from backend.services.full_auto.midlong_chart_gate import chart_gate_check
+        _cg_ok, _cg_reason, _cg_detail = chart_gate_check(
+            sym_u, act, tier=str(tier or ""), trade_nature=str(trade_nature or ""),
+        )
+        if not _cg_ok:
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold reason=%s",
+                sym_u, auth, source, _cg_reason,
+            )
+            _record_fail(_cg_reason[:80] or "chart_gate_veto")
+            return False
+    except Exception as _cg_err:
+        logger.warning("[MidLong] 图审闸检查跳过(fail-open): %s", _cg_err)
+
+    # [2026-09-09 位置闸] 实测（_audit_ml/21_timing.py，99 笔真实 mid/long）：
+    # 入场价在 24h 区间 80-100% 分位的 33 笔，入场后 24h 均值 -3.89%、胜率 0.152；
+    # 60-80% 分位 -3.21%/0.231；而 0-20% 分位 +1.86%/0.857。61% 的开仓落在上半区。
+    # 另：24h 已跌 >5% 时做多，24h 均值 -4.41%/胜率 0.167（接飞刀）。
+    # 闸只对 mid/long + ranging/unknown regime 生效，数据缺失 fail-open。
+    try:
+        from backend.services.full_auto.midlong_location_gate import location_gate_check
+        # regime 优先取缓存（apply_regime_to_open 每轮写入），缓存空时现场判一次，
+        # 避免首个 tick 因缓存未就绪而 fail-open 放行。
+        _reg_now = get_cached_regime(sym_u) or ""
+        if not _reg_now:
+            try:
+                from backend.services.decision_core.regime_agent import classify_regime
+                _ms_lg = {}
+                if isinstance(market_summary, dict):
+                    _ms_lg = market_summary.get(sym_u) or market_summary.get(symbol) or {}
+                _reg_now = str(classify_regime(_ms_lg if isinstance(_ms_lg, dict) else {}).regime or "")
+            except Exception:
+                _reg_now = ""
+        _lg_ok, _lg_reason, _lg_detail = location_gate_check(
+            sym_u, act, tier=str(tier or ""), regime=_reg_now,
+            market_summary=market_summary,
+        )
+        if not _lg_ok:
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold reason=%s",
+                sym_u, auth, source, _lg_reason,
+            )
+            _record_fail(_lg_reason[:80] or "location_gate_veto", _reg_now)
+            return False
+    except Exception as _lg_err:
+        logger.warning("[MidLong] 位置闸检查跳过(fail-open): %s", _lg_err)
 
     # [2026-08-16 long_trend_v2 入场闸] tier=long 时要求 L1=up（多头单边，禁做空）。
     # 默认 LONG_TREND_V2 关 = 无影响；开=长线开仓只认趋势判定器。
@@ -488,7 +558,9 @@ def execute_midlong_open(
 
     nature = normalize_midlong_nature(trade_nature, tier)
     # [P1] 保留 swing；勿再把 mid 抹成 trend_follow
-    if nature not in ("trend_follow", "position", "swing"):
+    # [2026-09-08] 保留 intraday（日内波段）：normalize 已保留，此处不再抹成
+    # trend_follow——否则日内仓被错当长线，exec_tier 错落 long 撞 E1 独占闸。
+    if nature not in ("trend_follow", "position", "swing", "intraday", "scalp"):
         nature = "trend_follow"
     # [2026-09-01 逆势止血] swing 多周期共识闸（前置版 trend_broken 防护）：
     # 双周期反向禁开 / 单周期反向半仓。trend_follow/position 不动。
@@ -508,8 +580,12 @@ def execute_midlong_open(
                 sym_u, _ct_mult, _ct_reason,
             )
     # AI 中线单保留 tier=mid（分通道计数/槽位/风控）
+    # [2026-09-08] exec_tier 三档：short/intraday → short（日内波段），
+    # 不再错落 long（错落会撞 E1 长线独占闸 → 日内仓永远 writer_blocked）。
     if (tier or "").lower() == "mid" or nature == "swing":
         exec_tier = "mid"
+    elif (tier or "").lower() == "short" or nature in ("intraday", "scalp"):
+        exec_tier = "short"
     else:
         exec_tier = "long"
     logger.info(

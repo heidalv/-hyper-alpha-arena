@@ -49,10 +49,37 @@ def _live_sub_position_tracking_enabled() -> bool:
 def _default_exchange() -> str:
     """读取全局默认交易所（热路径用，避免反复 import）。"""
     try:
-        from config import settings
+        from backend.config import settings
         return getattr(settings, "DEFAULT_EXCHANGE", "asterdex") or "asterdex"
     except Exception:
         return "asterdex"
+
+
+def _leverage_fail_close() -> bool:
+    """杠杆对齐失败时是否拒绝开仓（默认 true）。
+
+    设为 false 可紧急回到"只告警不阻塞"的旧行为，但会重新暴露"交易所残留高倍数
+    导致实际敞口远超本地记账"的风险，仅作应急开关。
+    """
+    raw = os.getenv("LIVE_LEVERAGE_FAIL_CLOSE")
+    if raw is None or str(raw).strip() == "":
+        return True
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _close_raw_exchange(client) -> None:
+    """[2026-08-28] 关闭 fresh client 的底层 ccxt exchange（释放 aiohttp 会话）。
+
+    每次查询新建客户端（避免 "Event loop is closed"），查询后必须显式 close，
+    否则每个客户端泄漏一个 aiohttp session + 若干连接（对账 120s/次会累积）。
+    """
+    try:
+        _raw = getattr(client, "_exchange", None)
+        if _raw is not None and hasattr(_raw, "close"):
+            import asyncio
+            asyncio.run(_raw.close())
+    except Exception:
+        pass
 
 
 class LiveExecutor(ExecutionChannel):
@@ -102,24 +129,129 @@ class LiveExecutor(ExecutionChannel):
             _bound_locally = True
 
         try:
+            # ── [2026-09-05] 短线新开硬闸（实盘与纸盘同一语义）──
+            try:
+                from backend.services.full_auto.scalp_open_gate import scalp_new_open_blocked
+                _sc_block, _sc_reason = scalp_new_open_blocked(
+                    add_type="open",
+                    trade_nature=getattr(ctx, "trade_nature", None),
+                    timeframe_tier=getattr(ctx, "timeframe_tier", None),
+                    reduce_only=bool(getattr(ctx, "reduce_only", False)),
+                )
+                if _sc_block:
+                    return OrderResult(
+                        status="blocked",
+                        symbol=ctx.symbol,
+                        side=ctx.side,
+                        channel="live",
+                        exchange=self._exchange,
+                        error=_sc_reason,
+                        blocked_by="scalp_open_disabled",
+                        blocked_layer="scalp_open_gate",
+                    )
+            except Exception as _sc_err:
+                logger.warning("[LiveExecutor] 短线新开闸检查异常（拒开）: %s", _sc_err)
+                try:
+                    from backend.config.settings import SCALP_OPEN_DISABLED as _sod
+                except Exception:
+                    _sod = True
+                if _sod and not bool(getattr(ctx, "reduce_only", False)):
+                    return OrderResult(
+                        status="blocked",
+                        symbol=ctx.symbol,
+                        side=ctx.side,
+                        channel="live",
+                        exchange=self._exchange,
+                        error="scalp_open_gate_error",
+                        blocked_by="scalp_open_disabled",
+                        blocked_layer="scalp_open_gate",
+                    )
+
+            # ── [2026-08-31 诚实拒单] 白名单前置校验 ──
+            # place_ai_driven_order 拒单时只写 ai_decision_logs(executed=False)、
+            # 返回 None，本方法却乐观标 "filled" → 调用方（平仓/减仓链路）以为
+            # 已成交，实盘单黑洞。这里提前校验，不符时如实返回 error。
+            # 注意：HL 账户白名单来自 hyperliquid_symbol_service，不走全局
+            # user_trading_pairs，跳过本前置（HL 拒单路径不变）。
+            try:
+                from backend.database.models import Account as _Acct
+                _acct = db.query(_Acct).filter(_Acct.id == ctx.account_id).first()
+                _ex_name = (
+                    getattr(_acct, "selected_exchange", None)
+                    or self._exchange or _default_exchange()
+                ).lower()
+                if _ex_name != "hyperliquid":
+                    from backend.services.trading_pairs_config import (
+                        get_user_trading_pairs_set,
+                    )
+                    _base = str(ctx.symbol or "").upper().split("/")[0].strip()
+                    if _base and _base not in get_user_trading_pairs_set():
+                        return OrderResult(
+                            status="error",
+                            symbol=ctx.symbol,
+                            side=ctx.side,
+                            channel="live",
+                            exchange=self._exchange,
+                            error=f"symbol_not_in_whitelist:{_base}",
+                        )
+            except Exception:
+                pass
+
             # ── 阶段 3: 子仓位跟踪路径（默认关闭，灰度启用）──
             if _live_sub_position_tracking_enabled():
                 return self._place_order_via_lpm(db, ctx)
 
+            # ── [2026-09-04 杠杆统一] 旧路径补齐交易所杠杆对齐 ──
+            # 此前 _apply_leverage + fail-close 只装在 LPM 路径上，而
+            # LIVE_SUB_POSITION_TRACKING 默认 false —— 线上实际跑的恰恰是这条
+            # 旧路径，等于杠杆对齐在生效路径上从未执行过。
+            # 交易所的杠杆是按 symbol 记忆的：上一次设成多少就一直留着，且同向
+            # 同币仓位会被合并。本地按 5x 记账而交易所残留 75x 时，同样的保证金
+            # 会开出 15 倍名义敞口，爆仓价也完全不是本地算的那个（XPL 事故）。
+            # 减仓/平仓不阻断，否则止损会被卡住。
+            if not bool(getattr(ctx, "reduce_only", False)):
+                _lev_ok = False
+                try:
+                    _lev_ok = self._apply_leverage(
+                        db, ctx.account_id, ctx.symbol, float(ctx.leverage or 0),
+                    )
+                except Exception as _lev_err:
+                    logger.warning(
+                        "[LiveExecutor] 杠杆对齐异常 %s: %s", ctx.symbol, _lev_err,
+                    )
+                if not _lev_ok and _leverage_fail_close():
+                    logger.error(
+                        "[LiveExecutor] %s 杠杆未确认对齐到 %sx，拒绝开仓"
+                        "（交易所残留倍数会让实际敞口偏离本地记账）",
+                        ctx.symbol, ctx.leverage,
+                    )
+                    return OrderResult(
+                        status="error",
+                        symbol=ctx.symbol,
+                        side=ctx.side,
+                        channel="live",
+                        exchange=self._exchange,
+                        error=f"leverage_align_failed:{ctx.symbol}@{ctx.leverage}x",
+                    )
+
             # ── 旧路径: 直连 place_ai_driven_order ──
             trigger_ctx = self._send_raw_order(db, ctx)
 
+            # [2026-09-07] 不再乐观标 filled：回读 OMS live_orders 最新状态。
+            # 订单已走 _place_order_fresh_client 的 begin/finish（OMS 状态机），
+            # 这里把真实状态映射回 OrderResult，避免「以为成交实则悬挂/拒单」。
+            _real_status, _oms_meta = self._readback_oms_status(db, ctx)
             return OrderResult(
-                status="filled",  # 乐观标记（实际成交由交易所确认）
+                status=_real_status,
                 symbol=ctx.symbol,
                 side=ctx.side,
-                filled_quantity=ctx.quantity,
+                filled_quantity=ctx.quantity if _real_status == "filled" else 0.0,
                 leverage=ctx.leverage,
                 tp_price=ctx.tp_price,
                 sl_price=ctx.sl_price,
                 channel="live",
                 exchange=self._exchange,
-                raw={"trigger_context": trigger_ctx},
+                raw={"trigger_context": trigger_ctx, "oms": _oms_meta},
             )
 
         except Exception as e:
@@ -142,6 +274,48 @@ class LiveExecutor(ExecutionChannel):
                     _trace_cm.__exit__(None, None, None)
                 except Exception:
                     pass
+
+    def _readback_oms_status(self, db, ctx: OrderContext) -> tuple:
+        """[2026-09-07] 下单后回读 OMS live_orders 最新状态，映射为 OrderResult.status。
+
+        place_ai_driven_order 返回 None（结果内部消耗），但订单已走
+        _place_order_fresh_client 的 OMS begin/finish —— live_orders 有真实状态。
+        取该账户+币种最近 30s 内最新一条，映射：
+          filled→filled；partial→partial；acked/submitted/intent→submitted（已受理未成交）；
+          rejected/expired/cancelled→error；unknown/无记录→submitted（保守：已发出待确认）。
+        任何异常回退 "filled"（不影响主流程，与旧行为一致）。
+        """
+        try:
+            from backend.services.oms.order_store import list_orders, now_ms
+            rows = list_orders(
+                account_id=int(ctx.account_id),
+                symbol=str(ctx.symbol or "").upper(),
+                since_ms=now_ms() - 30_000,
+                limit=1,
+            )
+            if not rows:
+                return "submitted", {"note": "no_oms_record"}
+            o = rows[0]
+            st = str(o.get("status") or "").lower()
+            meta = {
+                "client_order_id": o.get("client_order_id"),
+                "status": st,
+                "filled_qty": o.get("filled_qty"),
+                "avg_price": o.get("avg_price"),
+                "exchange_order_id": o.get("exchange_order_id"),
+            }
+            if st == "filled":
+                return "filled", meta
+            if st == "partial":
+                return "partial", meta
+            if st in ("acked", "submitted", "intent"):
+                return "submitted", meta
+            if st in ("rejected", "expired", "cancelled"):
+                return "error", {**meta, "error": f"oms_{st}"}
+            return "submitted", meta  # unknown → 保守：已发出待确认
+        except Exception as exc:
+            logger.debug("[LiveExecutor] OMS 回读失败（回退乐观 filled）: %s", exc)
+            return "filled", {"note": "oms_readback_error", "error": str(exc)[:120]}
 
     def _send_raw_order(self, db, ctx: OrderContext) -> Dict[str, Any]:
         """实际向交易所下单（直连 place_ai_driven_order）。
@@ -180,9 +354,14 @@ class LiveExecutor(ExecutionChannel):
         )
         return trigger_ctx
 
-    def _apply_leverage(self, db, account_id: int, symbol: str, leverage: float) -> None:
-        """[2026-08-28 方案2·G6] 下单前把交易所仓位杠杆对齐到统一档位
-        （LPM 已取 min=最保守）。失败只告警不阻塞——不一致由对账任务兜底。"""
+    def _apply_leverage(self, db, account_id: int, symbol: str, leverage: float) -> bool:
+        """下单前把交易所杠杆对齐到该币种的统一档位，返回是否 **已确认** 对齐。
+
+        [2026-09-04 fail-close] 原实现失败只告警不阻塞，交给对账兜底——但对账是事后的，
+        期间交易所仍按旧杠杆成交：若交易所残留 75x 而本地按 5x 记账，同样的保证金会开出
+        15 倍的名义敞口（XPL 事故即此）。故开仓路径改为失败即拒单，由调用方按
+        reduce_only 区分（减仓/平仓失败仍放行，避免止损被卡住）。
+        """
         try:
             from backend.database.models import Account
             account = db.query(Account).filter(Account.id == account_id).first()
@@ -193,27 +372,42 @@ class LiveExecutor(ExecutionChannel):
             if ex == "hyperliquid":
                 from backend.services.hyperliquid_environment import get_hyperliquid_client
                 client = get_hyperliquid_client(db, account_id)
-                if client is not None:
-                    try:
-                        client.set_leverage(db, symbol, int(round(leverage)))
-                    except Exception as e:
-                        logger.warning("[LiveExecutor] HL set_leverage 失败: %s", e)
-                return
+                if client is None:
+                    logger.warning("[LiveExecutor] HL 无客户端, 杠杆无法对齐")
+                    return False
+                try:
+                    client.set_leverage(db, symbol, int(round(leverage)))
+                    return True
+                except Exception as e:
+                    logger.warning("[LiveExecutor] HL set_leverage 失败: %s", e)
+                    return False
             from backend.services.exchange.exchange_manager import ExchangeManager
-            client = ExchangeManager().get_or_create_global_client(ex, account_id=account_id)
+            _mt_lev = (getattr(account, "binance_market_type", None) or "usdt_m")
+            # [2026-08-28] 新建客户端，避免跨 asyncio.run 复用缓存客户端的
+            # "Event loop is closed"（与余额/持仓查询同因）。
+            client = ExchangeManager().create_fresh_client(
+                ex, user_id=getattr(account, "user_id", None) or 1,
+                account_id=account_id,
+                market_type=_mt_lev if ex == "binance" else None,
+            )
             if client is None:
-                logger.debug("[LiveExecutor] %s 无全局客户端, set_leverage 跳过", ex)
-                return
+                logger.warning("[LiveExecutor] %s 无客户端, 杠杆无法对齐", ex)
+                return False
             import asyncio
-            ok = asyncio.run(client.set_leverage(symbol, int(round(leverage))))
+            try:
+                ok = asyncio.run(client.set_leverage(symbol, int(round(leverage))))
+            finally:
+                _close_raw_exchange(client)
             if not ok:
                 logger.warning(
                     "[LiveExecutor] ccxt set_leverage 未确认 %s %sx", symbol, leverage,
                 )
+            return bool(ok)
         except Exception as e:
             logger.warning(
                 "[LiveExecutor] set_leverage 应用失败(%s %sx): %s", symbol, leverage, e,
             )
+            return False
 
     def _place_order_via_lpm(self, db, ctx: OrderContext) -> OrderResult:
         """通过 LivePositionManager 下单（子仓位跟踪路径）。
@@ -258,12 +452,22 @@ class LiveExecutor(ExecutionChannel):
                 position_metadata=ctx.position_metadata,
             )
             try:
-                # G6: 差额单前对齐交易所杠杆到统一档位(最保守 min)
+                # G6: 差额单前对齐交易所杠杆到该币种统一档位
+                _lev_ok = False
                 try:
-                    executor_self._apply_leverage(_db, ctx.account_id, symbol, leverage)
+                    _lev_ok = executor_self._apply_leverage(
+                        _db, ctx.account_id, symbol, leverage,
+                    )
                 except Exception as _lev_err:
                     logger.warning(
                         "[LiveExecutor] 杠杆对齐异常 %s: %s", symbol, _lev_err,
+                    )
+                # [2026-09-04 fail-close] 杠杆没对上就开仓 = 按交易所残留倍数成交，
+                # 名义敞口会偏离本地记账（XPL 事故）。减仓/平仓不阻断，否则止损会被卡住。
+                if not _lev_ok and not bool(sub_ctx.reduce_only) and _leverage_fail_close():
+                    raise RuntimeError(
+                        f"杠杆对齐失败，拒绝开仓：{symbol} 目标 {leverage}x "
+                        f"（交易所未确认，实际成交倍数不可控）"
                     )
                 executor_self._send_raw_order(_db, sub_ctx)
             except Exception as cb_err:
@@ -287,6 +491,26 @@ class LiveExecutor(ExecutionChannel):
             tier=tier,
             exchange_callback=_exchange_cb,
         )
+
+        # [2026-09-02 因子闭环修复 D10] 实盘开仓写因子快照。
+        # 此前 paper 侧在 paper_engine 内部记快照、live 侧全程零调用，
+        # signal_trade_feedback 里没有任何实盘样本 —— 而它正是 factor_ic_evaluator
+        # 算因子 IC 的唯一数据源，等于实盘成交对因子权重的贡献恒为 0。
+        # 位置在下单完成之后，因子计算耗时不会影响成交价；钩子内部独立会话 +
+        # 全异常自吞，失败只丢一条学习样本，绝不影响下单结果。
+        try:
+            from backend.services.live_learning_hooks import (
+                record_live_entry_snapshot,
+            )
+            record_live_entry_snapshot(
+                account_id=ctx.account_id,
+                sub_position_id=lpm_result.get("sub_position_id"),
+                symbol=ctx.symbol,
+                position_side=position_side,
+                trade_nature=trade_nature,
+            )
+        except Exception as _llh_err:
+            logger.debug("[LiveExecutor] 实盘开仓学习钩子跳过: %s", _llh_err)
 
         return OrderResult(
             status="filled",
@@ -321,6 +545,12 @@ class LiveExecutor(ExecutionChannel):
             "reason": f"unified_executor: {ctx.trade_nature or 'swing'}",
             "trade_nature": ctx.trade_nature or "swing",
             "timeframe_tier": ctx.timeframe_tier or "mid",
+            # [2026-08-31 平仓修复] 数量与 reduce_only 必须透传：此前被丢弃导致
+            # 平仓决策落入 sell 开仓分支（按余额重算名义、reduce_only=False、
+            # 无 quantity 时目标份数=0）——实盘"平仓"从未真正发出平仓单。
+            "quantity": float(ctx.quantity or 0),
+            "reduce_only": bool(ctx.reduce_only),
+            "close_position_side": (ctx.trigger_context or {}).get("close_position_side"),
             # 阶段 3.2: 执行算法透传（下游 place_ai_driven_order 消费切片下单）
             "algo": (ctx.algo or "MARKET").upper(),
             "algo_config": ctx.algo_config,
@@ -467,7 +697,14 @@ class LiveExecutor(ExecutionChannel):
             return []
         mgr = get_exchange_manager()
         user_id = account.user_id or 1
-        client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account_id)
+        _mt = (getattr(account, "binance_market_type", None) or "usdt_m")
+        # [2026-08-28 实盘零成交修复] 每次查询新建客户端：缓存客户端绑定的
+        # aiohttp 会话/event loop 跨 asyncio.run 复用会抛 "Event loop is closed"
+        # 并可能阻塞（对账/宪法风控热路径）。单次调用内 create→run→丢弃。
+        client = mgr.create_fresh_client(
+            exchange, user_id=user_id, account_id=account_id,
+            market_type=_mt if exchange == "binance" else None,
+        )
         if not client:
             logger.warning(f"[LiveExecutor] CCXT 客户端未配置: exchange={exchange} user={user_id} account={account_id}")
             return []
@@ -476,21 +713,33 @@ class LiveExecutor(ExecutionChannel):
         except Exception as e:
             logger.warning(f"[LiveExecutor] CCXT get_positions 异常: {e}")
             return []
+        finally:
+            _close_raw_exchange(client)
+
+        # [2026-08-28 实盘零成交修复] client.get_positions() 返回 ExchangePosition
+        # dataclass 列表（非 dict），原 p.get(...) 会 AttributeError。统一 _val 兼容。
+        def _val(obj, key, default):
+            if obj is None:
+                return default
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
         result = []
         for p in (positions or []):
-            size = float(p.get("size", 0) or getattr(p, "size", 0) or 0)
+            size = float(_val(p, "size", 0) or 0)
             if abs(size) < 1e-9:
                 continue
-            side = str(p.get("side", getattr(p, "side", "")) or "").lower()
+            side = str(_val(p, "side", "") or "").lower()
             result.append({
-                "symbol": p.get("symbol", getattr(p, "symbol", "")),
+                "symbol": _val(p, "symbol", ""),
                 "side": side,
                 "size": abs(size),
-                "entry_price": float(p.get("entry_price", getattr(p, "entry_price", 0)) or 0),
-                "mark_price": float(p.get("mark_price", getattr(p, "mark_price", 0)) or 0),
-                "leverage": float(p.get("leverage", getattr(p, "leverage", 1)) or 1),
-                "unrealized_pnl": float(p.get("unrealized_pnl", getattr(p, "unrealized_pnl", 0)) or 0),
-                "margin": float(p.get("margin", getattr(p, "margin", 0)) or 0),
+                "entry_price": float(_val(p, "entry_price", 0) or 0),
+                "mark_price": float(_val(p, "mark_price", 0) or 0),
+                "leverage": float(_val(p, "leverage", 1) or 1),
+                "unrealized_pnl": float(_val(p, "unrealized_pnl", 0) or 0),
+                "margin": float(_val(p, "margin", 0) or 0),
                 "status": "open",
                 "channel": "live",
                 "exchange": exchange,
@@ -547,7 +796,13 @@ class LiveExecutor(ExecutionChannel):
             return None
         mgr = get_exchange_manager()
         user_id = account.user_id or 1
-        client = mgr.get_or_create_global_client(exchange, user_id=user_id, account_id=account_id)
+        _mt = (getattr(account, "binance_market_type", None) or "usdt_m")
+        # [2026-08-28 实盘零成交修复] 每次查询新建客户端（见 _get_ccxt_positions
+        # 同因注释），杜绝跨 asyncio.run 复用导致的 "Event loop is closed"。
+        client = mgr.create_fresh_client(
+            exchange, user_id=user_id, account_id=account_id,
+            market_type=_mt if exchange == "binance" else None,
+        )
         if not client:
             return None
         try:
@@ -555,12 +810,31 @@ class LiveExecutor(ExecutionChannel):
         except Exception as e:
             logger.warning(f"[LiveExecutor] CCXT get_balance 异常: {e}")
             return None
+        finally:
+            _close_raw_exchange(client)
+        # [2026-08-28 实盘零成交修复] client.get_balance() 返回 ExchangeBalance
+        # dataclass（不是 dict），此前直接调 .get() → AttributeError → 恒返回 None
+        # → 宪法风控 snapshot 权益恒 0 → 所有实盘开仓被「无法获取实盘权益」拒绝。
+        # 统一用「dict .get 优先，getattr 兜底」的 _val 取值，兼容两种返回形态。
+        def _val(obj, key, default):
+            if obj is None:
+                return default
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        total_equity = _val(bal, "total_equity", None)
+        if total_equity in (None, 0):
+            total_equity = _val(bal, "total", 0)
         return {
             "account_id": account_id,
-            "total_equity": float(bal.get("total_equity", bal.get("total", 0)) or 0),
-            "available_balance": float(bal.get("available", bal.get("free", 0)) or 0),
-            "frozen_margin": float(bal.get("frozen_margin", bal.get("used", 0)) or 0),
-            "unrealized_pnl": float(bal.get("unrealized_pnl", 0) or 0),
+            "total_equity": float(total_equity or 0),
+            "available_balance": float(_val(bal, "available_balance", None)
+                                       or _val(bal, "available", None)
+                                       or _val(bal, "free", 0) or 0),
+            "frozen_margin": float(_val(bal, "frozen_margin", None)
+                                   or _val(bal, "used", 0) or 0),
+            "unrealized_pnl": float(_val(bal, "unrealized_pnl", 0) or 0),
             "channel": "live",
             "exchange": exchange,
             "raw": bal,

@@ -77,10 +77,14 @@ def test_maint_margin_rate_none_uses_global():
 
 # ── 手续费率 ────────────────────────────────────────────────────
 
-def test_fee_rate_asterdex_maker_taker_equal():
-    # asterdex maker == taker == 0.00005（返利交易所）
-    assert get_fee_rate("asterdex", is_maker=True) == 0.00005
-    assert get_fee_rate("asterdex", is_maker=False) == 0.00005
+def test_fee_rate_asterdex_maker_free_taker_usdt_perp():
+    # [F54 2026-09-09] 费率修正：本系统交易的是 **USDT 永续**，官方费率
+    # （docs.asterdex.com/trading/perpetuals/fees-and-specs/fees）：
+    #   USDT 永续 maker 0% / taker 0.04%
+    # 旧断言 maker==taker==0.00005 实际是 USD1 合约的费率，把成本低估了 8 倍。
+    assert get_fee_rate("asterdex", is_maker=True) == 0.0
+    assert get_fee_rate("asterdex", is_maker=False) == 0.0004
+    assert get_fee_rate("asterdex", is_maker=False) > get_fee_rate("asterdex", is_maker=True)
 
 
 def test_fee_rate_hyperliquid():
@@ -96,11 +100,14 @@ def test_fee_rate_binance_taker_higher_than_maker():
     assert taker > maker
 
 
-def test_fee_rate_asterdex_cheapest():
-    # asterdex 是最便宜的（返利生态）
-    asterdex_fee = get_fee_rate("asterdex", is_maker=False)
+def test_fee_rate_asterdex_cheapest_maker():
+    # [F54] 修正后 Aster 的价值在 **maker 免费**（taker 4bp 与 binance 持平）
+    asterdex_maker = get_fee_rate("asterdex", is_maker=True)
+    assert asterdex_maker == 0.0
     for ex in ("hyperliquid", "binance", "okx", "bybit", "gateio"):
-        assert get_fee_rate(ex, is_maker=False) > asterdex_fee
+        assert get_fee_rate(ex, is_maker=True) > asterdex_maker
+    # taker 侧不再是全市场最低（binance 同为 4bp）
+    assert get_fee_rate("asterdex", is_maker=False) == 0.0004
 
 
 # ── 完整规则对象 ────────────────────────────────────────────────
@@ -108,8 +115,8 @@ def test_fee_rate_asterdex_cheapest():
 def test_get_exchange_rules_asterdex():
     rules = get_exchange_rules("asterdex")
     assert rules.exchange == "asterdex"
-    assert rules.maker_fee_rate == 0.00005
-    assert rules.taker_fee_rate == 0.00005
+    assert rules.maker_fee_rate == 0.0
+    assert rules.taker_fee_rate == 0.0004
     assert rules.min_notional_usd == 5.0
     assert rules.maintenance_margin_rate == 0.005
 

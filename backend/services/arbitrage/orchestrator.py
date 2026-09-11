@@ -91,6 +91,9 @@ class ArbitrageOrchestrator:
             self._funding_primary = arb_config.funding.primary_exchange
             self._funding_hedge = arb_config.funding.hedge_exchange
             self._default_mode = arb_config.engine.default_mode
+            self._min_annual_yield_funding = float(arb_config.scanner.min_annual_yield or 0.15)
+            # [2026-09] 套利杠杆跟随策略配置（附在实盘合约交易上的附带套利）
+            self._funding_leverage = float(arb_config.funding.leverage or 3.0)
         except Exception as e:
             logger.debug("[ArbOrchestrator] Config load fallback: %s", e)
             self._basis_scan_enabled = False
@@ -222,6 +225,10 @@ class ArbitrageOrchestrator:
         # 1a. 资金费率扫描
         try:
             funding_opps = opportunity_scanner.scan_opportunities(symbols, snapshot)
+            # [2026-09] 双所配对口径修正：净收益 = 收腿所费率 − 付腿所费率，
+            # 方向/年化按 perp_funding 双所真实费率重算（修复「决策看单所、
+            # 执行跨双所」的 EV 错配——决策所若是 hedge 腿，方向会正好做反）。
+            funding_opps = self._apply_funding_pair_spread(funding_opps)
             for opp in funding_opps:
                 opportunities.append({
                     "source": "funding_rate",
@@ -269,6 +276,80 @@ class ArbitrageOrchestrator:
             )
 
         return opportunities
+
+    def _apply_funding_pair_spread(self, funding_opps: List[Any]) -> List[Any]:
+        """[2026-09] 资金费套利双所配对口径修正。
+
+        扫描器用单场所费率（snapshot）决定方向与年化，但执行是
+        primary 收费 / hedge 付费的跨所配对：净收益 = 收腿所费率 − 付腿所费率。
+        用 perp_funding 双所最新费率重算：
+          - 费率高的所 = 空腿（收正 funding），费率低的所 = 多腿（付少）；
+          - 年化 = |价差| × 3 × 365；
+          - 价差低于最小年化门槛 → 直接剔除（诚实无机会）。
+        双所数据缺失时原样保留（沿用单所逻辑兜底）。
+        """
+        primary = getattr(self, "_funding_primary", "")
+        hedge = getattr(self, "_funding_hedge", "")
+        if not primary or not hedge or primary == hedge or not funding_opps:
+            return funding_opps
+        min_annual = float(getattr(self, "_min_annual_yield_funding", 0.15) or 0.15)
+        # [2026-09] 积分补贴阈值：asterdex 积分开关开启时，maker 0 费率 + 流动性积分
+        # + 持仓积分是价差之外的确定性补贴 → 最低年化门槛下调（env 可调）。
+        try:
+            import os as _os
+
+            from backend.services.rebate_arb.live_points_engine import live_points_engine
+            if live_points_engine.points_enabled():
+                min_annual = float(_os.getenv("ARB_FUNDING_MIN_ANNUAL_WITH_POINTS", "0.06") or 0.06)
+        except Exception:
+            pass
+        try:
+            from backend.services.rebate_arb.funding_rate_provider import latest_funding_by_venue
+
+            syms = [str(o.symbol).upper() for o in funding_opps]
+            venues = latest_funding_by_venue(syms, use_cache=True)
+            kept: List[Any] = []
+            for opp in funding_opps:
+                want = f"{opp.symbol}/USDT"
+                pr = (venues.get(primary) or {}).get(want)
+                hr = (venues.get(hedge) or {}).get(want)
+                if pr is None or hr is None:
+                    kept.append(opp)
+                    continue
+                spread = float(pr) - float(hr)
+                annual = abs(spread) * 3 * 365
+                if annual < min_annual:
+                    logger.debug(
+                        "[ArbOrchestrator] funding pair spread %s %.6f%% < min %.1f%% → 剔除",
+                        opp.symbol, annual * 100, min_annual * 100,
+                    )
+                    continue
+                # 高费率的所开空收钱：价差为正负都空「较高所」、多「较低所」，
+                # 净收益恒 = |价差|。方向文本统一 funding_short（收腿=空腿）。
+                opp.strategy = "funding_short"
+                opp.expected_annual_yield = annual
+                # 价差样本进入配对历史（反转检测/退出监控的配对口径序列）
+                try:
+                    opportunity_scanner.append_pair_spread(str(opp.symbol).upper(), spread)
+                except Exception:
+                    pass
+                if getattr(opp, "funding_snapshot", None) is not None:
+                    try:
+                        opp.funding_snapshot.current_rate = spread
+                        opp.funding_snapshot.rate_24h_avg = spread
+                        opp.funding_snapshot.annual_yield = annual
+                    except Exception:
+                        pass
+                logger.info(
+                    "[ArbOrchestrator] funding pair spread %s: %s=%.6f %s=%.6f "
+                    "→ spread=%.6f annual=%.1f%% (%s)",
+                    opp.symbol, primary, pr, hedge, hr, spread, annual * 100, opp.strategy,
+                )
+                kept.append(opp)
+            return kept
+        except Exception as e:
+            logger.debug("[ArbOrchestrator] pair spread enrich failed: %s", e)
+            return funding_opps
 
     def _scan_cross_exchange(
         self, symbols: List[str], exchange_manager: Any
@@ -432,11 +513,21 @@ class ArbitrageOrchestrator:
                 proposed_notional = self._capital_pool.available_usd * self.DEFAULT_POSITION_SIZE_PCT
                 proposed_delta = 0.0  # 配对交易 delta 接近0
 
-                # 获取资金费率历史
+                # 获取资金费率历史 —— [2026-09 修复] 此前只传 [current_rate]
+                # 单元素，FundingStabilityCheck 恒走「历史不足」跳过，反转检测
+                # 从未真正生效。现传真实序列：配对口径价差历史 > 单所历史。
                 funding_history = None
                 if source == "funding_rate":
                     old_opp = opp_data.get("opportunity")
-                    if old_opp and hasattr(old_opp, 'funding_snapshot'):
+                    sym_u = str(v3_opp.symbol or "").upper()
+                    _pair_hist = opportunity_scanner.get_pair_spread_history(sym_u)
+                    if len(_pair_hist) >= 4:
+                        funding_history = _pair_hist
+                    else:
+                        _single_hist = opportunity_scanner.get_funding_history(sym_u)
+                        if len(_single_hist) >= 4:
+                            funding_history = _single_hist
+                    if funding_history is None and old_opp and hasattr(old_opp, 'funding_snapshot'):
                         snapshot_data = old_opp.funding_snapshot
                         if snapshot_data and hasattr(snapshot_data, 'current_rate'):
                             funding_history = [snapshot_data.current_rate]
@@ -577,22 +668,43 @@ class ArbitrageOrchestrator:
         else:
             primary_ex = getattr(self, "_funding_primary", "hyperliquid")
             hedge_ex = getattr(self, "_funding_hedge", "binance")
+            # [2026-09] 双所价差定腿：费率高的所开空（收 funding），低的所开多（付 funding）。
+            # 净收益恒 = 高价差所费率 − 低价差所费率 > 0，方向不再被单所费率误导。
+            short_ex, long_ex = primary_ex, hedge_ex
+            try:
+                from backend.services.rebate_arb.funding_rate_provider import latest_funding_by_venue
+                _want = f"{symbol}/USDT"
+                _v = latest_funding_by_venue([symbol], use_cache=True)
+                _pr = (_v.get(primary_ex) or {}).get(_want)
+                _hr = (_v.get(hedge_ex) or {}).get(_want)
+                if _pr is not None and _hr is not None:
+                    if float(_pr) >= float(_hr):
+                        short_ex, long_ex = primary_ex, hedge_ex
+                    else:
+                        short_ex, long_ex = hedge_ex, primary_ex
+                    logger.info(
+                        "[ArbOrchestrator] funding legs %s: short=%s long=%s "
+                        "(rates %.6f/%.6f)", symbol, short_ex, long_ex, _pr, _hr,
+                    )
+            except Exception as _lv_err:
+                logger.debug("[ArbOrchestrator] funding legs fallback: %s", _lv_err)
             live_result = self._live_executor.execute_funding({
-                "exchange": primary_ex,
-                "primary_exchange": primary_ex,
-                "hedge_exchange": hedge_ex,
+                "exchange": short_ex,
+                "primary_exchange": short_ex,
+                "hedge_exchange": long_ex,
                 "symbol": symbol,
                 "size_usd": notional,
-                "direction": direction,
+                "direction": "short",
                 "entry_price": entry_price,
+                "leverage": getattr(self, "_funding_leverage", 3.0),
             })
             if live_result.get("ok"):
                 pos_id = live_result.get("position_id", f"live_fund_{symbol}_{int(time.time())}")
                 self._register_position(
                     pos_id, symbol, StrategyType.FUNDING_RATE,
-                    notional, entry_price, direction,
-                    exchange_long=primary_ex if direction != "short" else hedge_ex,
-                    exchange_short=primary_ex if direction == "short" else hedge_ex,
+                    notional, entry_price, "short",
+                    exchange_long=long_ex,
+                    exchange_short=short_ex,
                 )
             return live_result
 

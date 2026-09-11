@@ -23,6 +23,7 @@ import {
   usePolling,
 } from "./common";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/lib/confirm";
 
 function RagHealthBlock() {
   const { data: health, loading: hl, error: he, refresh: refreshHealth } =
@@ -38,7 +39,12 @@ function RagHealthBlock() {
   const degraded = Boolean(stats?.degraded ?? health?.degraded);
 
   const onReindex = async () => {
-    if (!window.confirm("确认全量重建 RAG 向量库？（耗时较长，期间检索降级）")) return;
+    if (!(await confirmDialog({
+      title: "全量重建 RAG 向量库？",
+      description: "耗时较长，期间检索降级。",
+      tone: "warning",
+      confirmText: "开始重建",
+    }))) return;
     setReindexing(true);
     setReindexMsg(null);
     try {

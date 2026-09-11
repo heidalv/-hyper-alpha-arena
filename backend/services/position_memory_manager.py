@@ -197,6 +197,13 @@ STATE_TRANSITIONS = {
 # 3. _unify_leverage_for_side 净额模式取 max，20x 污染所有 tier
 # 修复：三档统一为 10x 上限，实际 leverage 由 calculate_dynamic_leverage
 # 在 [DYNAMIC_LEVERAGE_MIN=5, DYNAMIC_LEVERAGE_MAX=10] 区间动态决定。
+#
+# [2026-09-04 已废弃 / DEPRECATED] 上面这套"按 tier 定杠杆"已停用，本表与
+# _calc_leverage 均不再被 build_position_plan 调用。原因同上（交易所只认
+# symbol 级杠杆），但修法从"三档统一 10x"进一步改为"一币一档"：杠杆由
+# leverage_authority.resolve_leverage(symbol=...) 单一权威给出，风险敞口由
+# 名义价值的四道帽控制。10x 固定档会让小币的名义 = 保证金×10 冲到 174%
+# 权益，被敞口闸拒死。新代码不应再读本表。
 TIER_LEVERAGE = {
     "scalp": 10,        # 短线 10x 上限（动态 5-10x）
     "swing": 10,        # 中线 10x 上限（动态 5-10x）
@@ -918,16 +925,32 @@ class PositionMemoryManager:
 
         remaining_capacity = max(0, equity * MAX_TOTAL_EXPOSURE_PCT - total_margin_after)
 
-        # ── 7. 计算最终杠杆（按 tier 差异化 + 性格偏好 + 上限覆盖）──
-        # 三周期杠杆分层：短线 20x / 中线 10x / 长线 5x
-        _tier_leverage = TIER_LEVERAGE.get(trade_nature, 10)
-        effective_raw_lev = min(_tier_leverage, raw_leverage if raw_leverage > 0 else _tier_leverage)
-        effective_lev_cap = min(lev_cap, p_max_lev, _tier_leverage)
-
-        leverage = self._calc_leverage(
-            effective_raw_lev, ai_confidence, volatility_pct,
-            effective_lev_cap, memory
-        )
+        # ── 7. 杠杆：一币一档（对齐交易所口径）──
+        # [2026-09-04] 交易所的杠杆是**按币种**的账户级设置，同币同方向持仓会合并
+        # 成一个净头寸，「短/中/长各自一套杠杆」在交易所落不了地，本地记多套等于
+        # 记假账。旧路径（TIER_LEVERAGE 三档实际全是 10x + _calc_leverage 的 [5,20]
+        # 全局硬下限）会让 VIRTUAL 这类小币也拿到 10x，而名义 = 保证金×杠杆，于是
+        # 开口就提议 174% 权益的仓位（实测 margin=$754 → notional=$7543），必被敞口
+        # 闸拒 —— 中线因此长期零成交。
+        # 现统一走 leverage_authority 的币种档位（BTC/ETH 5x、二线主流 4x、其余 3x）；
+        # 风险敞口改由名义价值的四道帽（单币/单笔/相关簇/gross）控制。
+        # lev_cap（心理状态机）与 p_max_lev（性格）作为 mental_cap 下传，只收紧。
+        _mental_lev_cap = min(float(lev_cap or 0), float(p_max_lev or 0))
+        if _mental_lev_cap <= 0:
+            # cap=0 的原语义是「心理态冻结，禁止开仓」，不可退化成 1x 继续开
+            return self._skip_plan(
+                symbol, side, f"心理状态{mental.state}杠杆上限=0，禁止开仓",
+            )
+        try:
+            from backend.services.leverage_authority import resolve_leverage as _resolve_lev
+            leverage = float(_resolve_lev(
+                tier=tier, symbol=symbol, mental_cap=_mental_lev_cap,
+            ))
+        except Exception as _lev_err:
+            logger.warning(
+                "[PosMgr] %s 币种杠杆解析失败，取最保守档 3x: %s", symbol, _lev_err,
+            )
+            leverage = 3.0
         adjustments["leverage"] = leverage
 
         # ── 8. 计算仓位大小（按 tier 差异化保证金）──

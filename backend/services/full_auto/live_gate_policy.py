@@ -229,11 +229,19 @@ def live_budget_mult() -> float:
 
 
 def live_daily_open_cap() -> int:
-    """实盘每日开单总上限（全部 tier 合计；0=不限制）。"""
+    """实盘每日开单总上限（全部 tier 合计；0=不限制）。
+
+    [2026-09-03 v3 方向7] 数字单一来源：risk.daily_quota.cap_for("live")（runtime_tuning.live_daily_cap）。
+    旧 env LIVE_DAILY_OPEN_CAP 仅在首次播种时被读取一次，此后不再生效。
+    """
     try:
-        return max(0, int(os.getenv("LIVE_DAILY_OPEN_CAP", "6") or 6))
-    except (TypeError, ValueError):
-        return 6
+        from backend.services.risk.daily_quota import cap_for
+        return int(cap_for("live"))
+    except Exception:
+        try:
+            return max(0, int(os.getenv("LIVE_DAILY_OPEN_CAP", "6") or 6))
+        except (TypeError, ValueError):
+            return 6
 
 
 _QUOTA_DIR = os.path.join(

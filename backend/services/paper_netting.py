@@ -45,7 +45,7 @@ class NetPosition:
         net_size: 净头寸绝对值 (>=0)
         net_signed_size: 带符号净头寸 (long 正 / short 负 / flat 0)
         net_weighted_entry: 净头寸加权均价（仅 net_size>0 时有意义）
-        unified_leverage: 该币种统一杠杆（取所有 open 行的最大值，HL 行为）
+        unified_leverage: 该币种统一杠杆（2026-09-07 起 = leverage_authority 币种档）
         row_margin_sum: 行级保证金求和（用于审计对比）
         net_margin: 净保证金（取代 row_margin_sum 用于风险/余额计算）
         net_liquidation_price: 净方向单一爆仓价（net_size=0 时为 0.0）
@@ -188,7 +188,7 @@ def aggregate_rows_to_net(
     1. net_signed_size = Σ signed_size(side, size)
     2. net_weighted_entry = Σ(entry_i × signed_size_i) / net_signed_size  (净方向加权)
        - 注意: 对冲时相反方向的行贡献负的 notional，自动抵消
-    3. unified_leverage = max(leverage_i)  (HL 同币种杠杆必须一致，取最大)
+    3. unified_leverage = symbol_leverage(symbol)  (2026-09-07 起 = 币种档唯一权威)
     4. net_margin = net_size × net_weighted_entry ÷ unified_leverage
     5. net_unrealized_pnl = Σ row.unrealized_pnl  (代数和，等价净头寸 uPnL)
     6. row_margin_sum = Σ row.margin  (审计用)
@@ -223,7 +223,13 @@ def aggregate_rows_to_net(
     np_.net_signed_size = signed_sum
     np_.net_side = net_side_from_signed(signed_sum)
     np_.net_size = abs(signed_sum)
-    np_.unified_leverage = max_lev
+    # [2026-09-07 杠杆根治 P2] 统一杠杆 = 币种档（leverage_authority 唯一权威）。
+    # 废除 max(行杠杆)：行级 leverage 历史可残留任意值，max/min 都是假账。
+    try:
+        from backend.services.leverage_authority import symbol_leverage as _sym_lev
+        np_.unified_leverage = float(_sym_lev(symbol))
+    except Exception:
+        np_.unified_leverage = max_lev
     np_.row_margin_sum = row_margin_sum
     np_.net_unrealized_pnl = net_upnl
     np_.row_count = len(row_list)

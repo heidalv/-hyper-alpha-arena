@@ -152,6 +152,29 @@ def _placeholder_thesis(symbol: str, tier: str) -> dict:
 
 
 
+def _slim_thesis_row(row: dict) -> dict:
+    """[2026-09-07] 精简行：跳过 describe_gate_status / learning_metrics 重富化，
+    只留台账展示字段（symbol/tier/direction/accepted/recommend_open/should_close/
+    inv_price/is_fresh/updated_at/analysis_run_id）。供监控页高频轮询（30s 全量 → 亚秒）。
+    """
+    from datetime import datetime, timezone
+    t = dict(row)
+    try:
+        from backend.services.mlto.brain import _inv_price, _aware
+        t["inv_price"] = _inv_price(t.get("invalidation"))
+        # 轻量新鲜度：expires_at 未过期即新鲜（替代 DTO 级 thesis_is_fresh）
+        exp_raw = t.get("expires_at")
+        if isinstance(exp_raw, str) and exp_raw:
+            exp_raw = datetime.fromisoformat(exp_raw.replace("Z", "+00:00"))
+        exp = _aware(exp_raw) if exp_raw is not None else None
+        if exp is not None:
+            t["is_fresh"] = exp > datetime.now(timezone.utc)
+    except Exception:
+        t.setdefault("inv_price", None)
+    t.setdefault("gate_status", {"summary": "", "can_open": False, "checks": []})
+    return t
+
+
 def _enrich_thesis_row(row: dict, session_id: str, db) -> dict:
 
     from backend.services.mlto import thesis_store
@@ -220,6 +243,22 @@ def _enrich_thesis_row(row: dict, session_id: str, db) -> dict:
 
             t_dict["gate_status"] = open_gate.describe_gate_status(t, hub, pkt, {})
 
+            try:
+                from backend.services.mlto.brain import (
+                    _inv_price,
+                    thesis_is_fresh,
+                    thesis_watch_reason,
+                )
+                t_dict["inv_price"] = _inv_price(getattr(t, "invalidation", None))
+                t_dict["is_fresh"] = bool(thesis_is_fresh(t))
+                _ms_feed = {str(t.symbol).upper(): {"last": _price}} if _price else None
+                t_dict["watch_reason"] = thesis_watch_reason(
+                    t, t.symbol, t.tier, _ms_feed,
+                )
+            except Exception:
+                t_dict.setdefault("inv_price", None)
+                t_dict.setdefault("watch_reason", None)
+
     except Exception:
 
         t_dict["gate_status"] = {"summary": "计算中", "can_open": False, "checks": []}
@@ -238,21 +277,27 @@ def thesis_summary(
 
     symbols: str = Query("", description="逗号分隔，如 BTC,ETH"),
 
+    slim: int = Query(0, description="1=精简模式：跳过逐条 gate/学习指标富化（高频轮询用）"),
+
     db: Session = Depends(_analytics_db),
 
 ):
     # [perf 2026-08-18] 每行 thesis 丰富化 + learning metrics 多查询，GIL 竞争下
     # 实测 4.7s。thesis 分钟级稳定：10s TTL 缓存。
+    # [2026-09-07] 29 条论题全量富化实测 30-34s，监控页 10s 轮询超时永远拿不到数据。
+    # slim=1 跳过 describe_gate_status / learning_metrics（台账页不展示这些），
+    # 响应降到亚秒级；slim TTL 30s（论题分钟级稳定）。
     from backend.utils.ttl_cache import ttl_cached
 
+    _slim = bool(slim)
     return ttl_cached(
-        f"mlto_thesis_summary:{session_id}:{symbols}",
-        10.0,
-        lambda: _thesis_summary_impl(session_id, symbols, db),
+        f"mlto_thesis_summary:{session_id}:{symbols}:{int(_slim)}",
+        30.0 if _slim else 10.0,
+        lambda: _thesis_summary_impl(session_id, symbols, db, slim=_slim),
     )
 
 
-def _thesis_summary_impl(session_id: str, symbols: str, db: Session) -> dict:
+def _thesis_summary_impl(session_id: str, symbols: str, db: Session, slim: bool = False) -> dict:
 
     from backend.services.mlto import thesis_store
 
@@ -262,7 +307,10 @@ def _thesis_summary_impl(session_id: str, symbols: str, db: Session) -> dict:
 
     items = thesis_store.list_session_theses(session_id, db=db)
 
-    enriched = [_enrich_thesis_row(row, session_id, db) for row in items]
+    if slim:
+        enriched = [_slim_thesis_row(row) for row in items]
+    else:
+        enriched = [_enrich_thesis_row(row, session_id, db) for row in items]
 
     # [2026-08-10] 中线/长线双通道展示： #   long → 仅固定交易对 #   mid  → 固定交易对 ∪ AI中线≤3（固定币中线不能丢）
     from backend.config.settings import MIDLONG_MID_VIA_MLTO as _MID_VIA_MLTO
@@ -326,7 +374,7 @@ def _thesis_summary_impl(session_id: str, symbols: str, db: Session) -> dict:
 
     enriched.sort(key=lambda x: (0 if x.get("tier") == "mid" else 1, x.get("symbol", "")))
 
-    metrics = get_learning_metrics(session_id, db)
+    metrics = {} if slim else get_learning_metrics(session_id, db)
 
     return {
         "session_id": session_id,

@@ -22,6 +22,9 @@ NameError bug(Task 2.1 备注),且是旧的 opaque session token 体系。本模
 """
 from __future__ import annotations
 
+import os
+import threading
+import time as _time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -50,6 +53,66 @@ from backend.schemas.auth import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+# ---------------------------------------------------------------------------
+# refresh 轮换幂等缓存（消除多客户端并发刷新的 401 风暴 + refresh_tokens 爆炸）
+# ---------------------------------------------------------------------------
+# 背景：access token 15min 过期，多窗口（Electron 桌面端 + 浏览器）共享同一份
+# localStorage 凭证。任一窗口先刷新一次就把旧 jti 轮换掉，其余窗口仍持旧 jti →
+# 全部被判 revoked → 401 → 前端 tryRefresh 反复登出/重试 → 观测到 1000+ 次
+# /auth/refresh 401，且每次成功轮换都新增一行 refresh_tokens（爆炸到上千行）。
+#
+# 修复（业界标准的 "refresh token rotation reuse grace"）：一次成功轮换后，把
+# parent_jti → 刚签发的子令牌对 缓存一个很短的 TTL（默认 25s）。宽限窗内，携带
+# 同一 parent refresh token 的并发/重复请求直接返回 **同一份** 子令牌（幂等），
+# 而不是把彼此判为失效。这样并发客户端会收敛到同一条最新令牌链，风暴消失，
+# 也不会每次都新签一对（不再爆炸）。窗口外重用旧令牌仍然 401，撤销语义基本不变。
+#
+# 安全权衡：宽限窗内，持有"刚被轮换掉"的 parent token 者可再拿到一次子令牌——
+# 这与原轮换的信任模型一致（拿到 parent 即视为合法持有者），窗口极短（默认 25s），
+# 影响极小。可用 AUTH_REFRESH_ROTATION_GRACE_SEC 调整；设为 0 则完全关闭本机制。
+try:
+    _ROTATION_GRACE_SEC = float(os.environ.get("AUTH_REFRESH_ROTATION_GRACE_SEC", "25") or 25.0)
+except (TypeError, ValueError):
+    _ROTATION_GRACE_SEC = 25.0
+
+_rotation_cache: "dict[str, tuple[float, TokenResponse]]" = {}
+_rotation_lock = threading.Lock()
+
+
+def _prune_rotation_cache(now: float) -> None:
+    """惰性清理：删除已过宽限期的条目（在持锁上下文内调用）。"""
+    stale = [k for k, (exp, _) in _rotation_cache.items() if exp <= now]
+    for k in stale:
+        _rotation_cache.pop(k, None)
+
+
+def remember_rotation(parent_jti: str, resp: "TokenResponse") -> None:
+    """记住一次成功轮换：parent_jti → 子令牌对，缓存 _ROTATION_GRACE_SEC 秒。"""
+    if not parent_jti or _ROTATION_GRACE_SEC <= 0:
+        return
+    now = _time.monotonic()
+    with _rotation_lock:
+        _prune_rotation_cache(now)
+        _rotation_cache[parent_jti] = (now + _ROTATION_GRACE_SEC, resp)
+
+
+def get_rotation(parent_jti: str) -> "TokenResponse | None":
+    """宽限窗内命中则返回上次为该 parent 签发的同一份子令牌，否则 None。"""
+    if not parent_jti or _ROTATION_GRACE_SEC <= 0:
+        return None
+    now = _time.monotonic()
+    with _rotation_lock:
+        _prune_rotation_cache(now)
+        item = _rotation_cache.get(parent_jti)
+        return item[1] if item is not None else None
+
+
+def _clear_rotation_cache() -> None:
+    """测试辅助：清空幂等缓存，模拟宽限期已过。"""
+    with _rotation_lock:
+        _rotation_cache.clear()
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -117,7 +180,15 @@ def refresh(req: RefreshRequest, db: Session = Depends(get_db)):
 
     jti = payload.get("jti")
     record = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
-    if not record or record.revoked == "true":
+    if not record:
+        raise HTTPException(status_code=401, detail="refresh token revoked")
+    if record.revoked == "true":
+        # 幂等宽限：若该 jti 是"刚刚被本服务轮换掉"的（多窗口/重复刷新竞态），
+        # 直接返回上次为它签发的同一份子令牌，避免把并发客户端判为失效而引发
+        # 401 风暴与反复登出。窗口外（默认 25s）命中不到 → 仍按撤销处理返回 401。
+        cached = get_rotation(jti)
+        if cached is not None:
+            return cached
         raise HTTPException(status_code=401, detail="refresh token revoked")
     if record.expires_at <= datetime.now(timezone.utc).replace(tzinfo=None):
         # 兜底:DB 侧过期判定(decode_token 已校验 JWT exp,这里防 DB 时间漂移)
@@ -125,10 +196,12 @@ def refresh(req: RefreshRequest, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(status_code=401, detail="refresh token expired")
 
-    # 轮换:撤销当前 jti,再签发新对(新 jti)。
+    # 轮换:撤销当前 jti,再签发新对(新 jti)，并把 parent_jti→子令牌记入宽限缓存。
     record.revoked = "true"
     db.commit()
-    return _issue_tokens(db, user)
+    resp = _issue_tokens(db, user)
+    remember_rotation(jti, resp)
+    return resp
 
 
 @router.post("/logout")

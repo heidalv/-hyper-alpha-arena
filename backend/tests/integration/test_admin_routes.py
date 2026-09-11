@@ -47,32 +47,15 @@ def _unique(prefix: str = "admintest") -> str:
 
 
 def _cleanup_user(user_id: int | None, username: str | None, email: str | None) -> None:
-    """彻底清掉一个测试用户及其审计记录 / refresh token。"""
-    db = SessionLocal()
-    try:
-        targets = []
-        if user_id is not None:
-            u = db.query(User).filter(User.id == user_id).first()
-            if u:
-                targets.append(u)
-        if username is not None:
-            for u in db.query(User).filter(User.username == username).all():
-                if u not in targets:
-                    targets.append(u)
-        if email is not None:
-            for u in db.query(User).filter(User.email == email).all():
-                if u not in targets:
-                    targets.append(u)
-        for u in targets:
-            db.query(RefreshToken).filter(RefreshToken.user_id == u.id).delete()
-            db.query(AdminAuditLog).filter(
-                (AdminAuditLog.admin_user_id == u.id)
-                | (AdminAuditLog.target_user_id == u.id)
-            ).delete(synchronize_session=False)
-            db.delete(u)
-        db.commit()
-    finally:
-        db.close()
+    """彻底清掉一个测试用户及其审计记录 / refresh token。
+
+    [2026-09-02] 改走共享 helper：refresh_tokens 挂 RLS(FORCE) 而 users 没挂，
+    原地实现的子表 DELETE 会被策略过滤成匹配 0 行 → 删 users 时撞外键。
+    helper 在同一事务内 SET LOCAL app.is_admin='on' 走策略的管理员穿透分支。
+    详见 backend/tests/_user_cleanup.py。
+    """
+    from backend.tests._user_cleanup import cleanup_user
+    cleanup_user(username=username, email=email, user_id=user_id)
 
 
 def _register_user(client: TestClient, username: str, email: str, password: str) -> int:

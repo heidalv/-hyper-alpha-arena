@@ -15,6 +15,17 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+def _keep0_int(v, default):
+    """保留显式 0 的整数读取（`v or default` 会把 0 吞掉）。[2026-09-10 审计轮]"""
+    return int(default) if v is None else int(v)
+
+
+def _keep0_float(v, default):
+    """保留显式 0 的浮点读取。[2026-09-10 审计轮]"""
+    return float(default) if v is None else float(v)
+
+
+
 CONFIG_FILE = os.path.join("data", "paper_fast_trial.json")
 
 # 参数定义：group 用于前端分组展示
@@ -847,7 +858,7 @@ class PaperFastTrialController:
                 min_ready = 35
                 try:
                     from backend.config import settings
-                    min_ready = int(getattr(settings, "MIDLONG_OPEN_READINESS_MIN_MID", 35) or 35)
+                    min_ready = _keep0_int(getattr(settings, "MIDLONG_OPEN_READINESS_MIN_MID", 35), 35)
                 except Exception:
                     pass
                 can_open = sum(

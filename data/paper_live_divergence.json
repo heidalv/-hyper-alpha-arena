@@ -1,0 +1,210 @@
+[
+  {
+    "file": "backend/services/full_auto/midlong_helpers.py",
+    "line": 201,
+    "test": "_trade_mode == 'paper'",
+    "kind": "ROUTING",
+    "line_n": 2,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_helpers.py",
+    "line": 858,
+    "test": "_pb_skip and _pb_mode == 'paper'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_helpers.py",
+    "line": 690,
+    "test": "_acct_pf and _is_live_mid",
+    "kind": "ROUTING",
+    "line_n": 2,
+    "via_flag": true
+  },
+  {
+    "file": "backend/services/full_auto/midlong_executor.py",
+    "line": 48,
+    "test": "mode != 'live' or bool(PAPER_FAST_TRIAL)",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_executor.py",
+    "line": 539,
+    "test": "getattr(session, 'trading_mode', None)",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/proposal_execution.py",
+    "line": 75,
+    "test": "session_mode not in ('running', 'defensive') or action not in ('buy', 'sell')",
+    "kind": "GUARD",
+    "line_n": 2,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/proposal_execution.py",
+    "line": 200,
+    "test": "_trade_mode == 'live'",
+    "kind": "GUARD",
+    "line_n": 12,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/paper_execution.py",
+    "line": 175,
+    "test": "_trading_mode == 'paper'",
+    "kind": "ROUTING",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 248,
+    "test": "(mode or 'paper').strip().lower() != 'live'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 699,
+    "test": "_is_midlong_nature and MIDLONG_AGENT_INDEPENDENT_SCHEDULER and (str(MASTER_MIDLONG_LLM_MODE or 'summary').strip().lower(",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 2235,
+    "test": "DEFENSIVE_TIERED_MODE and mode == 'defensive' and (action in ('reduce', 'close')) and pos",
+    "kind": "SIZE/PARAM",
+    "line_n": 17,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 1712,
+    "test": "mode == 'running' and (not pos) and _orch_override_enabled and _overridable_nature and (not _orch_already_blocked)",
+    "kind": "SIZE/PARAM",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 2100,
+    "test": "get_orchestrator_hard_gate(mode)",
+    "kind": "LOG/OTHER",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 2677,
+    "test": "action == 'pyramid' and mode == 'running' and pos",
+    "kind": "SIZE/PARAM",
+    "line_n": 2,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 2763,
+    "test": "action == 'dca' and mode == 'running' and pos",
+    "kind": "SIZE/PARAM",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 1643,
+    "test": "mode == 'live'",
+    "kind": "ROUTING",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 2836,
+    "test": "action in ('buy', 'sell') and mode == 'running'",
+    "kind": "SIZE/PARAM",
+    "line_n": 14,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 3706,
+    "test": "action in ('buy', 'sell') and mode == 'defensive'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 3586,
+    "test": "(mode or 'paper').strip().lower() == 'live'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 1844,
+    "test": "mode == 'live'",
+    "kind": "LOG/OTHER",
+    "line_n": 2,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/master_execution.py",
+    "line": 3600,
+    "test": "(mode or 'paper').strip().lower() == 'live' and (action or '').lower() == 'buy'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/mlto_cycle.py",
+    "line": 179,
+    "test": "_trade_mode in ('running', 'defensive', 'paused')",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/factor_engine/midlong_factor_route.py",
+    "line": 352,
+    "test": "score >= threshold",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": true
+  },
+  {
+    "file": "backend/services/factor_engine/midlong_factor_route.py",
+    "line": 269,
+    "test": "paper_factor_excluded(trading_mode)",
+    "kind": "LOG/OTHER",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/factor_engine/midlong_factor_route.py",
+    "line": 354,
+    "test": "score <= -threshold",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": true
+  },
+  {
+    "file": "backend/services/mlto/brain.py",
+    "line": 1494,
+    "test": "(os.getenv('MIDLONG_BRAIN_MODE', 'llm') or 'llm').strip().lower() != 'llm'",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  }
+]

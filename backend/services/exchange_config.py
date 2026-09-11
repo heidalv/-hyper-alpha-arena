@@ -47,7 +47,7 @@ def get_active_exchange() -> str:
     except Exception:
         pass
     try:
-        from config import settings
+        from backend.config import settings
         return getattr(settings, "DEFAULT_EXCHANGE", "asterdex") or "asterdex"
     except Exception:
         return "asterdex"

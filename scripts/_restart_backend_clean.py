@@ -55,8 +55,35 @@ env.update({
 # [2026-08-29 日志轮转根治] 此前把 stdout/stderr 重定向到 backend.log/error.log，
 # 与进程内 RotatingFileHandler 抢同一文件（重定向句柄无 FILE_SHARE_DELETE）→
 # 轮转 rename 永久 PermissionError、error.log 无限膨胀。改写到独立 console 文件。
-out = open(os.path.join(ROOT, "logs", "backend-console.log"), "a", encoding="utf-8", buffering=1)
-err = open(os.path.join(ROOT, "logs", "backend-console.err.log"), "a", encoding="utf-8", buffering=1)
+#
+# [§64 修复 2026-09-10] 这两个 console 文件**没有任何轮转**：`log_retention_service`
+# 只清理 `*.log.*`（轮转碎片），而 console 是持续追加的活文件。实测
+# `backend-console.log` 已达 **540.5MB**（≈24MB/天）。现启动前按阈值改名，
+# 命名成 `*.log.<时间戳>` 即自动落入既有保留策略（LOG_RETENTION_DAYS）。
+CONSOLE_LOG_MAX_MB = float(os.getenv("BACKEND_CONSOLE_LOG_MAX_MB", "64") or 64)
+
+
+def _rotate_if_huge(path: str, max_mb: float) -> None:
+    """console 文件超过阈值则改名（失败不阻断启动）。"""
+    try:
+        if not os.path.exists(path):
+            return
+        size_mb = os.path.getsize(path) / (1024 * 1024)
+        if size_mb < max_mb:
+            return
+        dst = f"{path}.{time.strftime('%Y%m%d_%H%M%S')}"
+        os.replace(path, dst)
+        print(f"[rotate] {os.path.basename(path)} {size_mb:.1f}MB > {max_mb:.0f}MB -> {os.path.basename(dst)}")
+    except Exception as e:
+        print(f"[rotate] {path} 轮转失败（不阻断启动）: {e}")
+
+
+_console_log = os.path.join(ROOT, "logs", "backend-console.log")
+_console_err = os.path.join(ROOT, "logs", "backend-console.err.log")
+_rotate_if_huge(_console_log, CONSOLE_LOG_MAX_MB)
+_rotate_if_huge(_console_err, CONSOLE_LOG_MAX_MB)
+out = open(_console_log, "a", encoding="utf-8", buffering=1)
+err = open(_console_err, "a", encoding="utf-8", buffering=1)
 p = subprocess.Popen(
     [PY, os.path.join(ROOT, "scripts", "run_uvicorn_dev.py")],
     cwd=ROOT,

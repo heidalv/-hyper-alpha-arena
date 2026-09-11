@@ -55,6 +55,15 @@ def build_triple_barrier_labels(
 
     包装 backend.services.labeling.triple_barrier.apply_triple_barrier；
     失败时返回全 0 空标签（fail-safe，调用方应检查非空）。
+
+    [2026-09-02 修复] apply_triple_barrier 返回的是 DataFrame（index=事件时点，
+    columns=label/touch_price/touch_idx/horizon），而本函数一直按更早的
+    "可迭代 (t, row) 元组" 契约写 `for idx_t, row in records`——迭代 DataFrame 得到的
+    是列名字符串，解包必然 ValueError，被下面的 except 吞掉后返回全 0。
+    下游 factor_evolution_loop._forward_returns 见全 0 即静默回退前瞻收益，导致
+    08-13 "P1-5 三重障碍标签默认启用" 对 5m/15m 挖矿从未真正生效（目标一直是旧的
+    前瞻收益）。现按 DataFrame 契约读取，并兼容旧的元组序列；异常改为 warning 级
+    留痕，不再无声。
     """
     empty = pd.Series(0, index=df.index, dtype=int)
     if df is None or df.empty or "close" not in df.columns:
@@ -74,21 +83,35 @@ def build_triple_barrier_labels(
             vol_lookback=20,
         )
         records = apply_triple_barrier(prices, events_index=prices.index, config=cfg)
-        labels = {}
-        for idx_t, row in records:
-            if isinstance(row, dict):
-                label = row.get("label", BarrierLabel.VERTICAL)
-            else:
-                label = getattr(row, "label", BarrierLabel.VERTICAL)
-            if label == BarrierLabel.UPPER:
-                labels[idx_t] = 1
-            elif label == BarrierLabel.LOWER:
-                labels[idx_t] = -1
-            else:
-                labels[idx_t] = 0
-        out = pd.Series(labels, dtype=int)
+
+        def _to_pm1(label) -> int:
+            if label == BarrierLabel.UPPER or label == int(BarrierLabel.UPPER):
+                return 1
+            if label == BarrierLabel.LOWER or label == int(BarrierLabel.LOWER):
+                return -1
+            return 0
+
+        if isinstance(records, pd.DataFrame):
+            if records.empty or "label" not in records.columns:
+                return empty
+            out = records["label"].map(_to_pm1).astype(int)
+        else:
+            labels = {}
+            for idx_t, row in records:  # 旧契约：可迭代的 (t, row) 序列
+                if isinstance(row, dict):
+                    label = row.get("label", BarrierLabel.VERTICAL)
+                else:
+                    label = getattr(row, "label", BarrierLabel.VERTICAL)
+                labels[idx_t] = _to_pm1(label)
+            out = pd.Series(labels, dtype=int)
+        # 同一时点重复事件取首个；再对齐到 df.index（未打标处为 0）
+        out = out[~out.index.duplicated(keep="first")]
         return out.reindex(df.index).fillna(0).astype(int)
-    except Exception:
+    except Exception as e:  # pragma: no cover - 兜底路径
+        import logging
+        logging.getLogger(__name__).warning(
+            "[FactorLabels] build_triple_barrier_labels 失败，返回全 0 标签: %s", e
+        )
         return empty
 
 

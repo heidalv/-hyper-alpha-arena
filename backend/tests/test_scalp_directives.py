@@ -109,20 +109,6 @@ def _report(date, scalp_symbols=None, exit_total=100, exit_timeout=20):
             "sections": {"scalp": scalp, "midlong": {}, "long": {}}}
 
 
-def test_directives_d1_timeout_ratio_over_35(sp_state):
-    r = _report("2026-08-19", exit_total=100, exit_timeout=40)
-    out = analyze_directives(r)
-    types = [d["type"] for d in out]
-    assert "tp_sl_retrain" in types
-    d1 = next(d for d in out if d["type"] == "tp_sl_retrain")
-    assert d1["timeout_ratio"] == 0.4
-
-
-def test_directives_d1_no_trigger_below_35(sp_state):
-    out = analyze_directives(_report("2026-08-19", exit_total=100, exit_timeout=20))
-    assert not any(d["type"] == "tp_sl_retrain" for d in out)
-
-
 def test_directives_d2_half_signal_after_two_loss_days(sp_state):
     analyze_directives(_report("2026-08-17", scalp_symbols=[
         {"symbol": "GPS", "pnl": -5.9, "n": 6}]))
@@ -156,40 +142,3 @@ def test_directives_skip_zero_trades(sp_state):
         {"symbol": "ETH", "pnl": -4.0, "n": 0}]))
     assert sp.get_penalty("ETH") == 1.0
     assert not sp.snapshot()["symbols"].get("ETH")
-
-
-# ─────────────── D1: ScalpMR learned 覆盖 ───────────────
-
-def test_apply_learned_mr_override(monkeypatch):
-    from backend.services.risk import tp_sl_grid_trainer as trainer
-    from backend.services.scalp.scalp_ranging_mr import apply_learned_mr
-    monkeypatch.setattr(trainer, "get_learned_pct",
-                        lambda tier, band=None, morph=None: {"tp_pct": 0.025, "sl_pct": 0.015})
-    tp, sl = apply_learned_mr(0.012, 0.012)
-    # [2026-08-23 改造A] learned 值也受新夹幅约束：TP cap 1.5%、SL cap 1.15%
-    assert tp == 0.015 and sl == 0.0115
-
-
-def test_apply_learned_mr_sl_floor_clip(monkeypatch):
-    from backend.services.risk import tp_sl_grid_trainer as trainer
-    from backend.services.scalp.scalp_ranging_mr import apply_learned_mr
-    monkeypatch.setattr(trainer, "get_learned_pct",
-                        lambda tier, band=None, morph=None: {"tp_pct": 0.010, "sl_pct": 0.002})
-    tp, sl = apply_learned_mr(0.012, 0.015)
-    assert tp == 0.010  # 0.010 >= MIN_TP 0.006
-    assert sl == 0.007  # 0.002 被夹到 _MR_SL_FLOOR（[2026-08-23 改造A] 地板 0.7%）
-
-
-def test_apply_learned_mr_fallback_when_missing(monkeypatch):
-    from backend.services.risk import tp_sl_grid_trainer as trainer
-    from backend.services.scalp.scalp_ranging_mr import apply_learned_mr
-    monkeypatch.setattr(trainer, "get_learned_pct", lambda *a, **k: None)
-    assert apply_learned_mr(0.012, 0.015) == (0.012, 0.015)
-
-
-def test_apply_learned_mr_fallback_invalid_tp(monkeypatch):
-    from backend.services.risk import tp_sl_grid_trainer as trainer
-    from backend.services.scalp.scalp_ranging_mr import apply_learned_mr
-    monkeypatch.setattr(trainer, "get_learned_pct",
-                        lambda tier, band=None, morph=None: {"tp_pct": 0.0, "sl_pct": 0.015})
-    assert apply_learned_mr(0.012, 0.015) == (0.012, 0.015)

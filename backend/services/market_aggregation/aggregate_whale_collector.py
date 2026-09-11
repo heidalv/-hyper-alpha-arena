@@ -2,10 +2,17 @@
 """
 多所聚合鲸鱼/大单采集器 — 从 Binance/Bybit/OKX 逐笔成交检测大单。
 
-用 ccxt fetch_trades 获取最近成交，筛选大单（>$100K），计算每币种：
+用 ccxt fetch_trades 获取最近成交，筛选大单，计算每币种：
 - 净流入方向：大单买入额 - 大单卖出额（归一化到 -1 ~ +1）
 - 异动金额：大单总 USD
 - 置信度：大单笔数 / 阈值
+
+[2026-09 修复 P1-7]
+- 跨轮去重：按成交 id（缺失时用 时间:价:量 组合键）标记已见成交，同一笔
+  不会被相邻两轮重复计数（此前每轮取 limit=100 有重叠 → 金额虚高）。
+- 分档阈值：BTC/ETH 深流动性币 $250K（$50K 对它们只是噪音），其余 $50K；
+  可用 AGG_WHALE_MAJOR_THRESHOLD_USD / AGG_WHALE_THRESHOLD_USD 覆盖。
+- 采样量：AGG_WHALE_TRADES_LIMIT（默认 300，原 100 对 BTC 只覆盖几秒成交）。
 
 覆盖所有币种（不限 BTC），各所独立标 available（某所超时=该所 null，不造假）。
 """
@@ -24,8 +31,20 @@ from backend.services.market_aggregation.aggregate_collector_base import (
 logger = logging.getLogger(__name__)
 
 # 大单阈值（USD）。低于此值不算鲸鱼行为。
-# $50K 对 BTC 是中等大单，对中低市值币种也能捕获到像样的异动。
 WHALE_THRESHOLD_USD = 50_000
+# [2026-09 P1-7] 深流动性币种的高档阈值：BTC/ETH 上 $50K 成交是常态噪音，
+# $250K 起才算有信息量的大单。
+_MAJOR_SYMBOLS = ("BTC", "ETH")
+_MAJOR_THRESHOLD_USD = 250_000
+
+# 已见成交键的淘汰上限（每 venue×symbol），防内存无限增长
+_SEEN_CAP = 4000
+
+
+def _threshold_for(symbol: str) -> float:
+    if (symbol or "").upper() in _MAJOR_SYMBOLS:
+        return float(os.getenv("AGG_WHALE_MAJOR_THRESHOLD_USD", str(_MAJOR_THRESHOLD_USD)))
+    return float(os.getenv("AGG_WHALE_THRESHOLD_USD", str(WHALE_THRESHOLD_USD)))
 
 
 class AggregateWhaleCollector(AggregateCollectorBase):
@@ -36,23 +55,54 @@ class AggregateWhaleCollector(AggregateCollectorBase):
     CACHE_TTL = 30  # 鲸鱼行为中频变化，30 秒缓存
     MAX_WORKERS = 5
 
+    def __init__(self):
+        super().__init__()
+        # [2026-09 P1-7] 已见成交键（跨轮去重）：(venue, symbol) → {trade_key: None}
+        self._seen_trades: Dict[Any, Dict[str, None]] = {}
+
+    def _mark_seen(self, venue: str, sym: str, key: str) -> None:
+        d = self._seen_trades.setdefault((venue, sym), {})
+        if len(d) >= _SEEN_CAP:
+            # 淘汰最旧一半，防内存膨胀
+            half = _SEEN_CAP // 2
+            for k in list(d)[:half]:
+                del d[k]
+        d[key] = None
+
     def _fetch_one_venue(self, venue: str, symbols: List[str]) -> Optional[Dict[str, Any]]:
         """从单个交易所取多币种最近成交，筛选大单。失败返回 None。"""
         ex = _create_ccxt_public(venue)
         if ex is None:
             return None
+        try:
+            limit = int(os.getenv("AGG_WHALE_TRADES_LIMIT", "300"))
+        except (TypeError, ValueError):
+            limit = 300
+        limit = max(100, min(1000, limit))
         venue_data: Dict[str, Any] = {}
         for sym in symbols:
             try:
                 ccxt_sym = f"{sym}/USDT:USDT"
-                trades = ex.fetch_trades(ccxt_sym, limit=100)
+                trades = ex.fetch_trades(ccxt_sym, limit=limit)
+                threshold = _threshold_for(sym)
+                seen = self._seen_trades.setdefault((venue, sym), {})
                 whale_buys = 0.0
                 whale_sells = 0.0
                 whale_count = 0
                 largest = 0.0
+                new_count = 0
                 for t in trades:
+                    tid = t.get("id")
+                    ts = t.get("timestamp") or 0
+                    price = t.get("price") or 0
+                    amount = t.get("amount") or 0
+                    key = str(tid) if tid is not None else f"{ts}:{price}:{amount}"
+                    if key in seen:
+                        continue
+                    self._mark_seen(venue, sym, key)
+                    new_count += 1
                     cost = t.get("cost", 0) or 0
-                    if cost < WHALE_THRESHOLD_USD:
+                    if cost < threshold:
                         continue
                     side = t.get("side", "")
                     if side == "buy":
@@ -68,6 +118,8 @@ class AggregateWhaleCollector(AggregateCollectorBase):
                     "count": whale_count,
                     "largest_usd": round(largest, 2),
                     "trade_total": len(trades),
+                    "new_trades": new_count,
+                    "threshold_usd": threshold,
                 }
             except Exception as e:
                 logger.debug(f"[AggregateWhale] {venue} {sym} 失败: {e}")

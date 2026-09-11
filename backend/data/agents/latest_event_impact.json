@@ -1,0 +1,491 @@
+{
+  "agent": "event_impact",
+  "ts_ms": 1789079401758,
+  "ok": true,
+  "mode": "observe",
+  "configured_mode": "observe",
+  "downgraded": false,
+  "downgrade_reason": "",
+  "credibility": {
+    "agent": "event_impact",
+    "days": 60,
+    "n": 9,
+    "n_scored": 0,
+    "avg_score": null,
+    "avg_brier": null,
+    "by_kind": [
+      {
+        "kind": "event_impact",
+        "n": 9,
+        "n_scored": 0,
+        "avg_score": null,
+        "avg_brier": null,
+        "last_ms": 1788993000839
+      }
+    ],
+    "verdict": {
+      "passed": false,
+      "reason": "已评分样本 0 < 30",
+      "gate": {
+        "min_scored": 30,
+        "min_avg_score": 0.55,
+        "max_avg_brier": 0.3
+      }
+    }
+  },
+  "findings": {
+    "n_types": 19,
+    "types": [
+      {
+        "event_type": "announcement.airdrop",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.collateral",
+        "n_used": 5,
+        "n_raw": 8,
+        "significant": false,
+        "optimal_hold_h": 50,
+        "mean_at_opt": 0.0189,
+        "mean_lo_at_opt": -0.009399,
+        "hit_rate": 0.75,
+        "wilson": [
+          0.3006,
+          0.9544
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.delisting",
+        "n_used": 31,
+        "n_raw": 120,
+        "significant": false,
+        "optimal_hold_h": 4,
+        "mean_at_opt": 0.005834,
+        "mean_lo_at_opt": -0.005558,
+        "hit_rate": 0.5806,
+        "wilson": [
+          0.4077,
+          0.7358
+        ],
+        "significant_horizons": [],
+        "conclusive": true
+      },
+      {
+        "event_type": "announcement.futures_listing",
+        "n_used": 13,
+        "n_raw": 70,
+        "significant": false,
+        "optimal_hold_h": 71,
+        "mean_at_opt": 0.016355,
+        "mean_lo_at_opt": -0.013984,
+        "hit_rate": 0.3846,
+        "wilson": [
+          0.1771,
+          0.6448
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.launchpool",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.listing",
+        "n_used": 20,
+        "n_raw": 49,
+        "significant": false,
+        "optimal_hold_h": 69,
+        "mean_at_opt": 0.034827,
+        "mean_lo_at_opt": -0.006049,
+        "hit_rate": 0.6667,
+        "wilson": [
+          0.3906,
+          0.8619
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.maintenance",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.monitoring_tag",
+        "n_used": 1,
+        "n_raw": 2,
+        "significant": false,
+        "optimal_hold_h": 26,
+        "mean_at_opt": 0.027785,
+        "mean_lo_at_opt": 0.027785,
+        "hit_rate": 1.0,
+        "wilson": [
+          0.2065,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "announcement.other",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "funding.extreme",
+        "n_used": 349,
+        "n_raw": 4349,
+        "significant": false,
+        "optimal_hold_h": 26,
+        "mean_at_opt": 0.058238,
+        "mean_lo_at_opt": -0.003621,
+        "hit_rate": 0.4857,
+        "wilson": [
+          0.4044,
+          0.5678
+        ],
+        "significant_horizons": [],
+        "conclusive": true
+      },
+      {
+        "event_type": "liquidation.cascade",
+        "n_used": 4,
+        "n_raw": 6,
+        "significant": false,
+        "optimal_hold_h": 72,
+        "mean_at_opt": 0.102566,
+        "mean_lo_at_opt": 0.025128,
+        "hit_rate": 1.0,
+        "wilson": [
+          0.5101,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "liquidation.large",
+        "n_used": 150,
+        "n_raw": 165,
+        "significant": true,
+        "optimal_hold_h": 14,
+        "mean_at_opt": 0.026293,
+        "mean_lo_at_opt": -0.004264,
+        "hit_rate": 0.6316,
+        "wilson": [
+          0.547,
+          0.7088
+        ],
+        "significant_horizons": [
+          72
+        ],
+        "conclusive": true
+      },
+      {
+        "event_type": "liquidation.market_cascade",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "macro.released",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "macro.scheduled",
+        "n_used": 0,
+        "n_raw": 0,
+        "significant": false,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.0,
+        "mean_lo_at_opt": 0.0,
+        "hit_rate": 0.0,
+        "wilson": [
+          0.0,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "news.high_impact",
+        "n_used": 3,
+        "n_raw": 4,
+        "significant": false,
+        "optimal_hold_h": 2,
+        "mean_at_opt": 0.002141,
+        "mean_lo_at_opt": -0.002551,
+        "hit_rate": 0.3333,
+        "wilson": [
+          0.0615,
+          0.7923
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "position.oi_jump",
+        "n_used": 557,
+        "n_raw": 1158,
+        "significant": true,
+        "optimal_hold_h": 71,
+        "mean_at_opt": 0.082707,
+        "mean_lo_at_opt": 0.028993,
+        "hit_rate": 0.5194,
+        "wilson": [
+          0.4712,
+          0.5673
+        ],
+        "significant_horizons": [
+          72
+        ],
+        "conclusive": true
+      },
+      {
+        "event_type": "smart_money.move",
+        "n_used": 12,
+        "n_raw": 13,
+        "significant": false,
+        "optimal_hold_h": 52,
+        "mean_at_opt": 0.021564,
+        "mean_lo_at_opt": 0.021564,
+        "hit_rate": 1.0,
+        "wilson": [
+          0.2065,
+          1.0
+        ],
+        "significant_horizons": [],
+        "conclusive": false
+      },
+      {
+        "event_type": "whale.large",
+        "n_used": 40,
+        "n_raw": 40,
+        "significant": false,
+        "optimal_hold_h": 12,
+        "mean_at_opt": -0.003688,
+        "mean_lo_at_opt": -0.009284,
+        "hit_rate": 0.2632,
+        "wilson": [
+          0.1497,
+          0.4201
+        ],
+        "significant_horizons": [],
+        "conclusive": true
+      }
+    ],
+    "significant": [
+      {
+        "event_type": "liquidation.large",
+        "n_used": 150,
+        "n_raw": 165,
+        "significant": true,
+        "optimal_hold_h": 14,
+        "mean_at_opt": 0.026293,
+        "mean_lo_at_opt": -0.004264,
+        "hit_rate": 0.6316,
+        "wilson": [
+          0.547,
+          0.7088
+        ],
+        "significant_horizons": [
+          72
+        ],
+        "conclusive": true
+      },
+      {
+        "event_type": "position.oi_jump",
+        "n_used": 557,
+        "n_raw": 1158,
+        "significant": true,
+        "optimal_hold_h": 71,
+        "mean_at_opt": 0.082707,
+        "mean_lo_at_opt": 0.028993,
+        "hit_rate": 0.5194,
+        "wilson": [
+          0.4712,
+          0.5673
+        ],
+        "significant_horizons": [
+          72
+        ],
+        "conclusive": true
+      }
+    ],
+    "flips": [],
+    "thin_types": [
+      "announcement.airdrop",
+      "announcement.collateral",
+      "announcement.futures_listing",
+      "announcement.launchpool",
+      "announcement.listing",
+      "announcement.maintenance",
+      "announcement.monitoring_tag",
+      "announcement.other",
+      "liquidation.cascade",
+      "liquidation.market_cascade",
+      "macro.released",
+      "macro.scheduled",
+      "news.high_impact",
+      "smart_money.move"
+    ],
+    "min_n": 30,
+    "source": "latest_report",
+    "report_ms": 1789077656239,
+    "stale": false
+  },
+  "predictions": [
+    "9368fc0b942e4c8bbde35f6bfe946bfe",
+    "70ac7b97112c49f4b90b52b07400d398"
+  ],
+  "advice": [
+    {
+      "action": "propose_experiment",
+      "target": "liquidation.large",
+      "params": {
+        "title": "liquidation.large 事件影子接入",
+        "hypothesis": "liquidation.large 的 14h 方向化超额在历史样本上显著（95% 下界 -0.004264 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
+        "change": {
+          "apply": false,
+          "kind": "event_lane",
+          "proposal": "以 14h 持有期把 liquidation.large 接入事件影子车道",
+          "event_type": "liquidation.large",
+          "horizon_h": 14
+        },
+        "expected_metrics": [
+          {
+            "metric": "excess_lower_bp",
+            "op": ">",
+            "threshold": 14,
+            "scope": "source:event_liquidation.large",
+            "min_n": 30
+          },
+          {
+            "metric": "signal_n",
+            "op": ">=",
+            "threshold": 30,
+            "scope": "source:event_liquidation.large"
+          }
+        ],
+        "window_hours": 336,
+        "rollback_condition": "若窗口内超额 95% 下界跌破 0，停止该事件类型的影子入账"
+      },
+      "reason": "liquidation.large 在 n=150 样本上显著：14h 平均超额 0.026293（95% 下界 -0.004264）",
+      "severity": 2,
+      "applied": false,
+      "apply_note": "observe 模式：实验卡仅记录不落库"
+    },
+    {
+      "action": "propose_experiment",
+      "target": "position.oi_jump",
+      "params": {
+        "title": "position.oi_jump 事件影子接入",
+        "hypothesis": "position.oi_jump 的 71h 方向化超额在历史样本上显著（95% 下界 0.028993 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
+        "change": {
+          "apply": false,
+          "kind": "event_lane",
+          "proposal": "以 71h 持有期把 position.oi_jump 接入事件影子车道",
+          "event_type": "position.oi_jump",
+          "horizon_h": 71
+        },
+        "expected_metrics": [
+          {
+            "metric": "excess_lower_bp",
+            "op": ">",
+            "threshold": 14,
+            "scope": "source:event_position.oi_jump",
+            "min_n": 30
+          },
+          {
+            "metric": "signal_n",
+            "op": ">=",
+            "threshold": 30,
+            "scope": "source:event_position.oi_jump"
+          }
+        ],
+        "window_hours": 336,
+        "rollback_condition": "若窗口内超额 95% 下界跌破 0，停止该事件类型的影子入账"
+      },
+      "reason": "position.oi_jump 在 n=557 样本上显著：71h 平均超额 0.082707（95% 下界 0.028993）",
+      "severity": 2,
+      "applied": false,
+      "apply_note": "observe 模式：实验卡仅记录不落库"
+    }
+  ],
+  "experiments": [],
+  "errors": [],
+  "elapsed_sec": 5.021,
+  "latest_path": null,
+  "dry_run": false
+}

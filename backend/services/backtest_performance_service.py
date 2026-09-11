@@ -142,7 +142,7 @@ class BacktestPerformanceService:
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
         # Get triggers using existing backtest service
-        from services.signal_backtest_service import signal_backtest_service
+        from backend.services.signal_backtest_service import signal_backtest_service
         trigger_result = signal_backtest_service.backtest_signal(
             db, signal_id, symbol, start_time, end_time
         )
@@ -236,7 +236,7 @@ class BacktestPerformanceService:
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
         # Get all signal triggers
-        from services.signal_backtest_service import signal_backtest_service
+        from backend.services.signal_backtest_service import signal_backtest_service
         all_triggers = {}
         time_window = "5m"  # Default
         
@@ -323,7 +323,7 @@ class BacktestPerformanceService:
         start_time = end_time - (days * 24 * 60 * 60 * 1000)
         
         # Get triggers using temp backtest
-        from services.signal_backtest_service import signal_backtest_service
+        from backend.services.signal_backtest_service import signal_backtest_service
         trigger_result = signal_backtest_service.backtest_temp_signal(
             db, symbol, trigger_condition, start_time, end_time
         )

@@ -1,0 +1,15 @@
+{
+  "task": "daily_brief",
+  "ts_ms": 1789081524831,
+  "accepted": false,
+  "status": "degraded",
+  "consensus_score": 0.35,
+  "run_id": "48c7a240cb824894b1ab829d66a01c0d",
+  "context_hash": "d7ce90d3323f15e30393ca880c5e9431ed29fcdd1684b972c5551808b29a37d1",
+  "final": null,
+  "notes": [
+    "minimax: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)'}, 'request_id': '06f269ffd0d3464a79c9c36d0e261981'}",
+    "单模型结论（glm_opencode），不得入 signal_ledger"
+  ],
+  "event": null
+}

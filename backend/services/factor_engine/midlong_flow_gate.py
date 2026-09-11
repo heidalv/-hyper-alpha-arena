@@ -61,7 +61,7 @@ def _flow_from_db(symbol: str) -> Optional[Dict[str, Any]]:
         with _lock:
             _cache[symbol] = (now, {})   # 缓存负结果，避免每轮查库
     except Exception as e:
-        logger.debug("[MidFlowGate] %s flow 获取失败(fail-open): %s", symbol, e)
+        logger.info("[MidFlowGate] %s flow 获取失败(fail-open): %s", symbol, e)
     return None
 
 

@@ -87,7 +87,21 @@ def apply_promotion_stage(
     dsr: Optional[float] = None,
     patch_id: Optional[str] = None,
 ) -> bool:
-    """RuntimeGovernor approve 或扫描通过后落盘阶段。"""
+    """RuntimeGovernor approve 或扫描通过后落盘阶段。
+
+    [2026-09-04 p3-promotion] 黑天鹅 promotion_freeze 期间禁止 shadow→canary/full
+    （退回 shadow 仍允许，便于降级）。
+    """
+    if to_stage in ("canary", "full"):
+        try:
+            from backend.services.allocation.capital_allocator import promotion_frozen
+            fr = promotion_frozen()
+            if fr.get("frozen"):
+                logger.warning("[PromotionScan] promotion_freeze 拒晋 %s → %s", candidate_id, to_stage)
+                return False
+        except Exception as exc:
+            logger.debug("[PromotionScan] freeze 检查跳过: %s", exc)
+
     data = _load_registry()
     cands = data.setdefault("candidates", {})
     prev = (cands.get(candidate_id) or {}).get("stage", "shadow")

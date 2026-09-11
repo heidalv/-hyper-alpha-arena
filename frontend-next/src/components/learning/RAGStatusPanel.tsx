@@ -19,6 +19,7 @@ import { SectionCard, RefreshButton, StatCard } from "../operations/IlcUi";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Database, Boxes, Loader2, HardDrive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { fmtTime } from "@/lib/format";
 
 const KNOWN_COLLECTIONS = ["trading_wisdom", "proposal_wisdom", "decision_retro", "factor_knowledge", "outcome_lessons"];
 
@@ -222,12 +223,6 @@ export function RAGStatusPanel() {
       </SectionCard>
     </div>
   );
-}
-
-function fmtTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export default RAGStatusPanel;

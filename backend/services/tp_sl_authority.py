@@ -21,6 +21,8 @@ TIER_TO_NATURE: dict[str, str] = {
 # 现在 position 与 trend_follow 同参数（长线档）。
 NATURE_TP_SL: dict[str, tuple[float, float]] = {
     "scalp":       (0.020, 0.012),   # tp 2%, sl 1.2% (RR=1.67)
+    # [2026-09-07] LLM 日内波段：tp 3.5%, sl 2%（费用占比 <3%，RR=1.75）
+    "intraday":    (0.035, 0.020),
     "swing":       (0.060, 0.025),   # tp 6%,  sl 2.5%
     "trend_follow": (0.120, 0.040),  # tp 12%, sl 4%
     "position":    (0.120, 0.040),   # tp 12%, sl 4%（long 层同 trend_follow）

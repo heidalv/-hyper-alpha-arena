@@ -1,12 +1,20 @@
-"""[阶段3a] decision_hub 权重重平衡 单元测试。
+"""decision_hub 权重与方向派生 单元测试。
+
+[2026-09-09 根因修复] 契约已随实测证据更新：
+- `WEIGHTS_LONG/MID["llm_qual"]` 默认 **0.10**（原 0.30）——依据
+  `backend/scripts/audit_llm_direction_edge.py`：LLM 方向 24h 胜率
+  long 0.434 / short 0.343（比抛硬币差）。
+- `_derive_direction`：LLM **不再单方面决定方向**，必须与框架系信号同向
+  （`MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE=true`，默认）。
+  旧契约（"llm_qual≥0.6 → 方向由 LLM 决定，即便 orch_bias 相反"）已由
+  `backend/tests/unit/test_llm_direction_gate.py` 取代为反向断言。
 
 覆盖：
-- WEIGHTS_LONG：llm_qual=0.30（或 env override），mid_timing=0.15，orch_long_bias=0.12
-- WEIGHTS_MID：llm_qual=0.30（或 env override），orch_mid_bias=0.12
-- fuse_signals：强 llm_qual + 弱 orch_bias → composite 反映 LLM 主导（≥0.6）
-- _derive_direction：llm_qual≥0.6 → 方向由 LLM 决定（即便 orch_bias 相反）
-- env override：MLTO_LLM_WEIGHT_LONG=0.20 → 权重变化
-- mid_timing 信号在 WEIGHTS_LONG 中存在且非 0；在 WEIGHTS_MID 中为 0
+- WEIGHTS_LONG/MID：llm_qual 默认值、orch_bias、mid_timing
+- env override：MLTO_LLM_WEIGHT_LONG/MID
+- fuse_signals：LLM 提升 composite、mid_timing 参与/不参与
+- _derive_direction：LLM 与框架同向才定方向、中性回退 orch、无 LLM 用 orch
+- consistency 惩罚放宽
 """
 from __future__ import annotations
 
@@ -29,9 +37,24 @@ from backend.services.mlto.types import Signal
 # A. 权重表默认值
 # ════════════════════════════════════════════════════════════════════
 class TestWeightsTable:
-    def test_weights_long_llm_qual_default(self):
-        """生产目标 0.30（未设 env 时）。"""
-        assert WEIGHTS_LONG["llm_qual"] == pytest.approx(0.30)
+    def test_weights_long_llm_qual_default(self, monkeypatch):
+        """[2026-09-09] 未设 env 时模块默认 0.30；生产 .env 显式降为 0.10。
+
+        本用例锁「模块默认」契约；生产值由 `test_env_override_*` 与 .env 覆盖。
+        """
+        _orig = os.environ.get("MLTO_LLM_WEIGHT_LONG")
+        monkeypatch.delenv("MLTO_LLM_WEIGHT_LONG", raising=False)
+        importlib.reload(decision_hub)
+        try:
+            assert decision_hub.WEIGHTS_LONG["llm_qual"] == pytest.approx(0.30)
+        finally:
+            # [2026-09-09 隔离修复] 恢复原 env 后再 reload，避免把默认值
+            # 冻结进模块常量、污染后续用例（learning_retune 曾因此拿到 0.30）。
+            if _orig is None:
+                monkeypatch.delenv("MLTO_LLM_WEIGHT_LONG", raising=False)
+            else:
+                monkeypatch.setenv("MLTO_LLM_WEIGHT_LONG", _orig)
+            importlib.reload(decision_hub)
 
     def test_weights_long_mid_timing_new(self):
         """新增 mid_timing=0.15。"""
@@ -44,11 +67,21 @@ class TestWeightsTable:
     def test_weights_long_sum_reasonable(self):
         """权重表合计落在合理区间（fuse 自归一，无需精确为 1）。"""
         total = sum(WEIGHTS_LONG.values())
-        # 0.92 默认；env override 时可能略变
-        assert 0.85 <= total <= 1.05
+        # llm_qual 0.30 默认 → ~0.92；env 降到 0.10 → ~0.72
+        assert 0.60 <= total <= 1.05
 
-    def test_weights_mid_llm_qual_default(self):
-        assert WEIGHTS_MID["llm_qual"] == pytest.approx(0.30)
+    def test_weights_mid_llm_qual_default(self, monkeypatch):
+        _orig = os.environ.get("MLTO_LLM_WEIGHT_MID")
+        monkeypatch.delenv("MLTO_LLM_WEIGHT_MID", raising=False)
+        importlib.reload(decision_hub)
+        try:
+            assert decision_hub.WEIGHTS_MID["llm_qual"] == pytest.approx(0.30)
+        finally:
+            if _orig is None:
+                monkeypatch.delenv("MLTO_LLM_WEIGHT_MID", raising=False)
+            else:
+                monkeypatch.setenv("MLTO_LLM_WEIGHT_MID", _orig)
+            importlib.reload(decision_hub)
 
     def test_weights_mid_orch_bias_downgraded(self):
         assert WEIGHTS_MID["orch_mid_bias"] == pytest.approx(0.12)
@@ -64,25 +97,37 @@ class TestWeightsTable:
 class TestEnvOverride:
     def test_env_override_long_lowers_weight(self, monkeypatch):
         """MLTO_LLM_WEIGHT_LONG=0.20 → 重新加载后 llm_qual=0.20。"""
+        _orig_long = os.environ.get("MLTO_LLM_WEIGHT_LONG")
+        _orig_mid = os.environ.get("MLTO_LLM_WEIGHT_MID")
         monkeypatch.setenv("MLTO_LLM_WEIGHT_LONG", "0.20")
+        monkeypatch.setenv("MLTO_LLM_WEIGHT_MID", "0.20")
         # 重载模块以重新读取 env（决策表是模块级常量）
         importlib.reload(decision_hub)
         try:
             assert decision_hub.WEIGHTS_LONG["llm_qual"] == pytest.approx(0.20)
-            # mid 未单独 override → 仍为默认 0.30
-            assert decision_hub.WEIGHTS_MID["llm_qual"] == pytest.approx(0.30)
+            # 显式声明 mid 前提，避免继承 .env 生产值导致契约漂移
+            assert decision_hub.WEIGHTS_MID["llm_qual"] == pytest.approx(0.20)
         finally:
-            # 恢复模块状态（清掉 env 后重载）
-            monkeypatch.delenv("MLTO_LLM_WEIGHT_LONG", raising=False)
+            # 恢复模块状态（恢复原 env 后重载）
+            for name, val in (("MLTO_LLM_WEIGHT_LONG", _orig_long),
+                              ("MLTO_LLM_WEIGHT_MID", _orig_mid)):
+                if val is None:
+                    monkeypatch.delenv(name, raising=False)
+                else:
+                    monkeypatch.setenv(name, val)
             importlib.reload(decision_hub)
 
     def test_env_override_mid(self, monkeypatch):
+        _orig = os.environ.get("MLTO_LLM_WEIGHT_MID")
         monkeypatch.setenv("MLTO_LLM_WEIGHT_MID", "0.20")
         importlib.reload(decision_hub)
         try:
             assert decision_hub.WEIGHTS_MID["llm_qual"] == pytest.approx(0.20)
         finally:
-            monkeypatch.delenv("MLTO_LLM_WEIGHT_MID", raising=False)
+            if _orig is None:
+                monkeypatch.delenv("MLTO_LLM_WEIGHT_MID", raising=False)
+            else:
+                monkeypatch.setenv("MLTO_LLM_WEIGHT_MID", _orig)
             importlib.reload(decision_hub)
 
 
@@ -134,24 +179,36 @@ class TestFuseLlmDominance:
 
 
 # ════════════════════════════════════════════════════════════════════
-# D. _derive_direction：LLM 决定方向（覆盖 orch_bias）
+# D. _derive_direction：LLM 定方向需框架同意（2026-09-09 新契约）
 # ════════════════════════════════════════════════════════════════════
 class TestDeriveDirectionLlmDriven:
-    def test_llm_bullish_overrides_bearish_orch(self):
-        """llm_qual=0.80（看多）即便 orch_long_bias=0.30（看空），方向=long。"""
+    def test_llm_bullish_does_not_override_bearish_orch(self):
+        """[2026-09-09 反向契约] llm_qual=0.80（看多）但框架看空 → 方向=short。
+
+        旧契约是 long（LLM 单方面决定），实测该路径 24h 胜率 0.434，已废除。
+        """
         sigs = [
             Signal("orch_long_bias", 0.30, 0.9, "framework"),   # 规则看空
             Signal("llm_qual", 0.80, 0.5, "llm"),               # LLM 看多
         ]
-        # adjusted 足够高时 → long
-        assert _derive_direction(sigs, adjusted=0.55)[0] == "long"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "short"
 
-    def test_llm_bearish_overrides_bullish_orch(self):
+    def test_llm_bearish_does_not_override_bullish_orch(self):
+        """[2026-09-09 反向契约] llm_qual=0.30（看空）但框架看多 → 方向=long。"""
         sigs = [
             Signal("orch_long_bias", 0.70, 0.9, "framework"),   # 规则看多
             Signal("llm_qual", 0.30, 0.5, "llm"),               # LLM 看空
         ]
-        assert _derive_direction(sigs, adjusted=0.55)[0] == "short"
+        assert _derive_direction(sigs, adjusted=0.55)[0] == "long"
+
+    def test_llm_agrees_with_framework_can_direct(self):
+        """LLM 与框架同向时，LLM 可以定方向（dir_src=llm_qual）。"""
+        sigs = [
+            Signal("orch_long_bias", 0.70, 0.9, "framework"),   # 规则看多
+            Signal("llm_qual", 0.80, 0.5, "llm"),               # LLM 也看多
+        ]
+        direction, src = _derive_direction(sigs, adjusted=0.55)
+        assert direction == "long" and src == "llm_qual", (direction, src)
 
     def test_llm_neutral_falls_back_to_orch(self):
         """LLM 中性（0.5）→ 回退到 orch_bias 逻辑。"""

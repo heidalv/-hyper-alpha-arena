@@ -31,6 +31,25 @@ class FactorSignal:
 
 
 @dataclass
+class FactorContribution:
+    """单因子对合成方向的精确归因（2026-09-02 P1.2）。
+
+    合成方向是加权平均 `Σ(direction_i × eff_w_i) / Σeff_w`，因此每个入选因子对
+    最终方向的贡献可精确拆解为 `direction_i × eff_w_i / Σeff_w`，且所有 contrib
+    之和恒等于 CompositeSignal.direction —— 这是加性归因，不是近似估计。
+
+    之所以在聚合处产出而非事后重算：eff_w 经 `_cap_category_share` 做过同类压制，
+    外部按 `weight × |direction|` 重算会与真实聚合口径不一致。
+    """
+    factor_id: str
+    direction: float    # 因子自身方向 [-1, +1]
+    weight: float       # IC 定权后的因子权重
+    eff_weight: float   # 有效权重（含 |direction| 放大与同类压制）
+    contrib: float      # 对合成方向的加性贡献，Σcontrib == composite direction
+    category: str
+
+
+@dataclass
 class CompositeSignal:
     """多因子加权合成信号"""
     direction: float                   # [-1.0, +1.0]
@@ -39,6 +58,10 @@ class CompositeSignal:
     contributing_factors: int
     regime: str
     signals: Dict[str, FactorSignal] = field(default_factory=dict)
+    # [2026-09-02 P1.2] 入选 top-N 因子的加性归因，按 |contrib| 降序。
+    # 用途：signal_log 落库后可回答"这笔亏损是哪几个因子投的票"，
+    # 使因子层的盈亏归因成为可能（此前只有聚合分 composite/raw_dir 入库）。
+    attribution: List["FactorContribution"] = field(default_factory=list)
 
 
 # ════════════════════════════════════════════════════════════
@@ -324,7 +347,7 @@ class FactorSignalGenerator:
         if weights is None:
             weights = {name: 1.0 for name in signals}
 
-        direction, strength, confidence = self._aggregate(signals, weights)
+        direction, strength, confidence, attribution = self._aggregate(signals, weights)
 
         return CompositeSignal(
             direction=direction,
@@ -333,6 +356,7 @@ class FactorSignalGenerator:
             contributing_factors=len(signals),
             regime=regime,
             signals=signals,
+            attribution=attribution,
         )
 
     def _map_direction(self, factor_name: str, value: float) -> float:
@@ -352,7 +376,7 @@ class FactorSignalGenerator:
         self,
         signals: Dict[str, FactorSignal],
         weights: Dict[str, float],
-    ) -> Tuple[float, float, float]:
+    ) -> Tuple[float, float, float, List[FactorContribution]]:
         """
         加权聚合信号（top-N 强信号加权，跳过中性因子）。
 
@@ -361,7 +385,8 @@ class FactorSignalGenerator:
         top-N 个因子加权平均，让明确方向的信号主导合成结果。
 
         Returns:
-            (composite_direction, composite_strength, confidence)
+            (composite_direction, composite_strength, confidence, attribution)
+            attribution 为入选因子的加性归因，Σcontrib == composite_direction。
         """
         # 1. 过滤掉权重<=0 和中性因子(|direction|<0.1)，按 |direction| 降序
         _TOP_N = 15
@@ -376,7 +401,7 @@ class FactorSignalGenerator:
             candidates.append((name, sig, w))
 
         if not candidates:
-            return 0.0, 0.0, 0.0
+            return 0.0, 0.0, 0.0, []
 
         # 2. 取方向最强的 top-N
         candidates.sort(key=lambda x: abs(x[1].direction), reverse=True)
@@ -403,10 +428,26 @@ class FactorSignalGenerator:
             directions.append(sig.direction)
 
         if total_weight == 0 or not directions:
-            return 0.0, 0.0, 0.0
+            return 0.0, 0.0, 0.0, []
 
         composite_dir = weighted_direction / total_weight
         composite_str = weighted_strength / total_weight
+
+        # [2026-09-02 P1.2] 加性归因：contrib_i = direction_i × eff_w_i / Σeff_w，
+        # Σcontrib 恒等于 composite_dir（在下面的 clamp 之前）。放在此处而非外部
+        # 重算，是因为 eff_w 已被 _cap_category_share 调整过。
+        attribution = [
+            FactorContribution(
+                factor_id=name,
+                direction=round(float(sig.direction), 6),
+                weight=round(float(w), 6),
+                eff_weight=round(float(eff_w), 6),
+                contrib=round(float(sig.direction) * float(eff_w) / total_weight, 6),
+                category=str(sig.category),
+            )
+            for (name, sig, w), eff_w in zip(selected, eff_weights)
+        ]
+        attribution.sort(key=lambda a: abs(a.contrib), reverse=True)
 
         # confidence = 1 - std(directions) / max_possible_std
         # 完全一致时 confidence=1, 完全分散时 confidence→0
@@ -423,4 +464,5 @@ class FactorSignalGenerator:
             max(-1.0, min(1.0, composite_dir)),
             max(0.0, min(1.0, composite_str)),
             max(0.0, min(1.0, confidence)),
+            attribution,
         )

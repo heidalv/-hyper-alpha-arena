@@ -96,7 +96,7 @@ def rag_qaa_stats():
     _env_dir = (os.getenv("QAA_CHROMA_DIR") or "").strip()
     if _env_dir:
         # 相对路径（如 ./qaa_chromadb）相对项目根解析，与后端进程 cwd 无关
-        chroma_dir = _env_dir if os.path.isabs(_env_dir) else os.path.join(root, _env_dir.lstrip(".\/").lstrip("./"))
+        chroma_dir = _env_dir if os.path.isabs(_env_dir) else os.path.join(root, _env_dir.lstrip(r".\/").lstrip("./"))
         chroma_dir = os.path.normpath(chroma_dir)
     else:
         chroma_dir = os.path.join(root, "qaa_chromadb")

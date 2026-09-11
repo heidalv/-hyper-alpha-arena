@@ -19,6 +19,7 @@ Profit Drawdown Guard — 盈利回撤保护 (D6)
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
@@ -53,6 +54,18 @@ PROFIT_LOCK_BUFFER = {
 # ── 部分减仓比例 ──
 PARTIAL_CLOSE_RATIO = 0.35   # 中度回撤时平掉 35%（原 50% 过于激进）
 MIN_PEAK_PROFIT_PCT = 0.03   # 峰值浮盈须达名义 3% 才启用回撤保护
+
+
+def basis_from_original_enabled() -> bool:
+    """武装门槛是否使用「原始名义」基准（2026-09-10 根因修复的开关）。
+
+    默认 true：调用方传 `entry × original_size`，避免分批减仓后残仓名义
+    崩塌导致守卫误触发全平。回滚：`PDG_BASIS_ORIGINAL_NOTIONAL=false`
+    （回到 `3% × 当前名义` 旧口径）。
+    """
+    return (os.getenv("PDG_BASIS_ORIGINAL_NOTIONAL", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
 
 
 class ProfitDrawdownGuard:
@@ -106,9 +119,19 @@ class ProfitDrawdownGuard:
         position_size: float,         # 仓位大小（币数）
         tier: str = "mid",
         atr_pct: Optional[float] = None,  # 手动指定 ATR%，不传则自动获取
+        position_value_basis: Optional[float] = None,  # 门槛基准名义（默认取 position_value）
     ) -> Optional[Dict[str, Any]]:
         """
         评估是否需要盈利回撤保护。
+
+        position_value_basis:
+            [2026-09-10 根因修复] 武装门槛与「翻亏全平」下限的**名义基准**。
+            默认 None = 沿用旧行为（用当前 position_value）。
+            背景：分批减仓后 `pos.size` 只剩残仓（实测 ASTER 1/8、UNI 1/16、BTC 1/35），
+            而 `peak_profit` 是**残仓之前**（更大仓位）赚到的历史美元峰值 ⇒
+            门槛 `3% × 当前名义` 崩塌 → 守卫在尘埃残仓上误触发全平
+            （12 笔实测：profit_drawdown_full 出场后 24h 价格回归 +1.39%/72h +3.61%，
+             即出场过早）。调用方应传 `entry × original_size`。
 
         Returns:
             None: 无需动作
@@ -123,7 +146,10 @@ class ProfitDrawdownGuard:
         """
         # ── 前置条件：必须有过显著利润 (peak > 1% of position value) ──
         position_value = entry_price * position_size
-        min_peak = position_value * MIN_PEAK_PROFIT_PCT
+        _basis = float(position_value_basis) if (
+            position_value_basis is not None and float(position_value_basis) > 0
+        ) else float(position_value)
+        min_peak = _basis * MIN_PEAK_PROFIT_PCT
         if peak_profit < min_peak:
             return None
 
@@ -149,7 +175,7 @@ class ProfitDrawdownGuard:
         threshold = self._get_threshold(symbol, nature, atr_pct)
 
         # ── 确定动作等级 ──
-        action = self._classify_action(dd_ratio, threshold, current_upnl, position_value)
+        action = self._classify_action(dd_ratio, threshold, current_upnl, position_value, _basis)
 
         if action is None:
             return None
@@ -289,6 +315,7 @@ class ProfitDrawdownGuard:
         threshold: float,
         current_upnl: float,
         position_value: float = 0.0,
+        position_value_basis: Optional[float] = None,
     ) -> Optional[str]:
         """
         根据回撤严重程度返回动作类型。
@@ -297,10 +324,16 @@ class ProfitDrawdownGuard:
         L1: dd_ratio >= threshold, upnl > 0        → tighten_sl (锁利)
         L2: dd_ratio >= threshold + 0.30, upnl > 0 → partial_close (减仓锁利)
         L3: dd_ratio >= 1.0 (翻转为亏损)            → full_close (止损)
+
+        position_value_basis：[2026-09-10] 见 evaluate() —— L3 的「1% 名义」下限
+        与武装门槛同基准（原始名义），避免残仓因名义缩水被碎平。
         """
+        _basis = float(position_value_basis) if (
+            position_value_basis is not None and float(position_value_basis) > 0
+        ) else float(position_value)
         if dd_ratio >= 1.0 and current_upnl < 0:
             # 盈利翻亏：仅当亏损达名义 1% 才全平，避免 profit_drawdown_full 0% 胜率碎平
-            min_flip_loss = position_value * 0.01 if position_value > 0 else 0
+            min_flip_loss = _basis * 0.01 if _basis > 0 else 0
             if min_flip_loss > 0 and abs(current_upnl) < min_flip_loss:
                 return "tighten_sl"
             return "full_close"

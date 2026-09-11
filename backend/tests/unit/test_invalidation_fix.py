@@ -83,12 +83,21 @@ def _make_thesis(**kw):
 
 
 def _fake_db_with_position(symbol="BTC", side="long", account_id=42):
-    """构造一个假 db: query(...).filter(...).first() 返回一个 open 仓位。"""
-    pos = SimpleNamespace(symbol=symbol.upper(), side=side, status="open")
+    """构造一个假 db: query(...).filter(...)[.order_by(...)].first() 返回一个 open 仓位。
+
+    [2026-09-02] M0-6 之后 _mlto_close_symbol 的查询链多了 .order_by(id.desc())，
+    并读取 pos.id / pos.trade_nature 传给 close_position。原假 DB 只接了
+    filter().first()，order_by() 返回全新 MagicMock → pos.side 是 MagicMock →
+    代码退回 thesis.direction 兜底，Bug3 用例因此假红。现让 order_by 返回自身。
+    """
+    pos = SimpleNamespace(
+        id=1001, symbol=symbol.upper(), side=side, status="open", trade_nature="swing",
+    )
     db = MagicMock()
     query = MagicMock()
     filtered = MagicMock()
     filtered.first.return_value = pos
+    filtered.order_by.return_value = filtered
     query.filter.return_value = filtered
     db.query.return_value = query
     return db, pos
@@ -100,6 +109,7 @@ def _fake_db_no_position():
     query = MagicMock()
     filtered = MagicMock()
     filtered.first.return_value = None
+    filtered.order_by.return_value = filtered
     query.filter.return_value = filtered
     db.query.return_value = query
     return db

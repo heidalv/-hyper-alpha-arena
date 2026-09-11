@@ -86,6 +86,27 @@ _DC_TICKER_URL_BASE: str = os.getenv("DATA_CENTER_TICKER_URL", "http://127.0.0.1
 _DC_BINANCE_CACHE: dict = {}
 _DC_BINANCE_CACHE_TTL_SEC: float = 1.0
 
+# [2026-09-07] 过期/拒价告警节流：DOLO 等死币每 tick 刷 WARNING 淹日志
+_WARN_THROTTLE_TS: dict[str, float] = {}
+_WARN_THROTTLE_COOLDOWN_SEC: float = float(os.getenv("DC_WARN_THROTTLE_SEC", "600") or 600)
+_WARN_THROTTLE_LOCK = threading.Lock()
+
+
+def _warn_throttled(key: str, msg: str, *args, log=None) -> None:
+    """同 key 在冷却期内只打一次 WARNING。"""
+    now = time.time()
+    with _WARN_THROTTLE_LOCK:
+        last = float(_WARN_THROTTLE_TS.get(key) or 0.0)
+        if now - last < _WARN_THROTTLE_COOLDOWN_SEC:
+            return
+        _WARN_THROTTLE_TS[key] = now
+        if len(_WARN_THROTTLE_TS) > 800:
+            cutoff = now - _WARN_THROTTLE_COOLDOWN_SEC
+            dead = [k for k, t in _WARN_THROTTLE_TS.items() if t < cutoff]
+            for k in dead[:400]:
+                _WARN_THROTTLE_TS.pop(k, None)
+    (log or logger).warning(msg, *args)
+
 
 @dataclass
 class KlineResult:
@@ -256,7 +277,8 @@ class UnifiedMarketDataCenter:
             best.purpose = "trade"
             # 交易用途：过期不静默换所，返回空结果（调用方应拒开仓）
             if best.count > 0 and not best.is_fresh:
-                logger.warning(
+                _warn_throttled(
+                    f"kline_stale:{symbol}:{period}:{best.exchange}",
                     "[DataCenter] %s/%s@%s 数据过期 stale=%.0fs，trade 用途返回不可用",
                     symbol, period, best.exchange, best.stale_sec or -1,
                 )
@@ -566,8 +588,10 @@ class UnifiedMarketDataCenter:
                 ts = float(row[1] or 0)
                 age_sec = time.time() - ts
                 if age_sec > (3 * 60 + 30):
-                    logger.warning(
-                        "[DataCenter] %s 1m close 兜底过期 age=%.0fs，拒绝返回", base, age_sec,
+                    _warn_throttled(
+                        f"1m_stale:{base}:{ex}",
+                        "[DataCenter] %s 1m close 兜底过期 age=%.0fs，拒绝返回",
+                        base, age_sec,
                     )
                     return (None, None)
                 return (float(row[0]), ts)

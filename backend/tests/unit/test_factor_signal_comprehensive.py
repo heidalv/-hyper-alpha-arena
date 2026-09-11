@@ -425,9 +425,11 @@ class TestFactorCalculationAccuracy:
         assert results == {}
 
     def test_factor_registration_count(self):
-        """注册表已从 21 个膨胀到 160+（含 ai_generated 54 个）：成员断言"""
+        """注册表规模 + 核心成员断言。
+        [2026-08-29 契约同步] l2_depth_imbalance 已随 orderflow 分类归档
+        （_ai_gen_archive），替换为现存 legacy_compat 成员 obv。"""
         assert len(self.engine.FACTORS) >= 21
-        for key in ('rsi', 'macd', 'atr', 'hv', 'l2_depth_imbalance'):
+        for key in ('rsi', 'macd', 'atr', 'hv', 'obv'):
             assert key in self.engine.FACTORS
 
     def test_get_factors_by_category(self):
@@ -1386,7 +1388,13 @@ class TestEndToEndPipeline:
     """端到端管道测试：K线 → 因子 → 信号 → 融合 → 决策"""
 
     def test_uptrend_pipeline_produces_buy(self):
-        """上涨趋势完整管道 → buy"""
+        """上涨趋势完整管道 → buy
+
+        [2026-09-02] 实测拆分：32 个基础因子合成 +0.548，116 个 AI/GP 因子合成 -0.062
+        （教科书式单边上涨里多为饱和的出场/风控类因子，净为噪音），全池被稀释到 +0.14。
+        因此：基础因子子集必须给出明确多头；全池只要求"不得是卖出"（direction > -0.2），
+        否则用例会随 AI 池增减来回翻——池收敛（阶段三 3.1）落地后可再收紧。
+        """
         engine = FactorEngine()
         klines = _make_strong_uptrend_klines(60)
         fvs = engine.compute_all_factors(klines)
@@ -1394,7 +1402,18 @@ class TestEndToEndPipeline:
 
         gen = FactorSignalGenerator()
         composite = gen.generate_signals(fvs)
-        assert composite.direction > 0
+        assert composite.direction > -0.2, f"全池在强上涨中不得给出卖出信号: {composite.direction:+.3f}"
+
+        def _is_ai(name: str) -> bool:
+            # [2026-09-03] 按族而非具体前缀：活跃后端的进化循环会随时写入
+            # ai_a101_bb_fade_1d / evo_<hash> 这类不匹配旧前缀的因子，它们曾被算进
+            # "基础因子"（一个 -0.68 的 bb_fade 把基础合成从 +0.43 压到 +0.16），
+            # 用例随磁盘上的进化产物来回翻。
+            return name.startswith(("ai_", "gp_", "s5m_", "evo_"))
+        base_fvs = {k: v for k, v in fvs.items() if not _is_ai(k)}
+        assert len(base_fvs) >= 10, "基础因子集异常缩水"
+        base_comp = gen.generate_signals(base_fvs)
+        assert base_comp.direction > 0.2, f"基础因子在强上涨中应明确看多: {base_comp.direction:+.3f}"
 
         fusion = DecisionFusionEngine()
         decision = fusion.fuse(fvs, expected_factors=list(fvs.keys()))

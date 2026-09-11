@@ -190,12 +190,13 @@ def get_l2_orderbook_health(
     微观结构因子输入质量提升可验证"）——用于人工/监控核查gap检测确实在生产环境
     真实运行，而非只是写了代码没人调。
     """
-    # [2026-07-18 修复] 必须用与 base_collector.py 完全一致的裸路径导入（services.xxx，
-    # 不带 backend. 前缀）——backend/ 目录被 append 进 sys.path 后，
-    # "backend.services.market_flow.l2_orderbook_manager" 和
-    # "services.market_flow.l2_orderbook_manager" 会被当成两个不同模块各建一份单例，
+    # [2026-07-18 修复] 必须用与 base_collector.py 完全一致的导入路径 —— backend/ 目录被
+    # append 进 sys.path 后，"backend.services.market_flow.l2_orderbook_manager" 与
+    # "services.market_flow.l2_orderbook_manager" 会被当成两个模块各建一份单例，
     # 采集侧写入的是后者，这里若用前者永远读到空对象（曾导致本接口一直返回空books）。
-    from services.market_flow.l2_orderbook_manager import l2_orderbook_manager
+    # [P16 / §66 修复 2026-09-10] 全仓已统一为 `backend.*` 写法（78 文件 / 276 行），
+    # 且 backend/__init__ 装了身份重定向器兜底 ⇒ 现在**两种写法都是同一个对象**。
+    from backend.services.market_flow.l2_orderbook_manager import l2_orderbook_manager
 
     if exchange and symbol:
         health = l2_orderbook_manager.get_health(exchange, symbol.upper())

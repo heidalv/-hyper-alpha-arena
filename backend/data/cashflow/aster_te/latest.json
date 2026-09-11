@@ -1,0 +1,17 @@
+{
+  "ok": false,
+  "accounts": 2,
+  "refreshed": 0,
+  "results": [
+    {
+      "account_id": 7,
+      "ok": false,
+      "error": "client_unavailable"
+    },
+    {
+      "account_id": 146,
+      "ok": false,
+      "error": "client_unavailable"
+    }
+  ]
+}

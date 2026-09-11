@@ -68,6 +68,10 @@ class AITradeJournalService:
                 return {"period": target_date, "total_trades": 0}
 
             stats = self._calculate_stats(trades)
+            # [2026-09-02 挂事务修复] 读完 trade_facts 就结束事务再去跑 LLM：此前连接在
+            # LLM 期间 idle-in-transaction，90s 被 LeakGuard 强杀，随后 _save_journal 报
+            # "server closed the connection"（03 日 02:19 实录），日复盘直接丢失。
+            self._release_read_txn(db)
             ai_analysis = await self._llm_analyze(trades, stats, "daily", target_date)
 
             result = {
@@ -121,6 +125,7 @@ class AITradeJournalService:
             strategy_perf = self._group_by_strategy(trades)
             stats["strategy_performance"] = strategy_perf
 
+            self._release_read_txn(db)  # 同 daily_review 说明
             ai_analysis = await self._llm_analyze(trades, stats, "weekly", target_date)
 
             result = {
@@ -175,6 +180,7 @@ class AITradeJournalService:
             drift = self._detect_parameter_drift(db)
             stats["parameter_drift"] = drift
 
+            self._release_read_txn(db)  # 同 daily_review 说明
             ai_analysis = await self._llm_analyze(trades, stats, "monthly", target_date)
 
             result = {
@@ -228,6 +234,15 @@ class AITradeJournalService:
             db.close()
 
     # ════════════════════════ 数据收集 ════════════════════════
+
+    @staticmethod
+    def _release_read_txn(db: Session) -> None:
+        """[2026-09-02] 结束只读事务（语义见 connection.release_idle_txn），LLM 前调用。"""
+        try:
+            from backend.database.connection import release_idle_txn
+            release_idle_txn(db, where="trade_journal")
+        except Exception:
+            pass
 
     def _collect_trades(self, db: Session, date_str: str, period: str) -> List[Dict]:
         """收集指定日期的交易记录,数据源 trade_facts(paper_orders 已被清空)。"""

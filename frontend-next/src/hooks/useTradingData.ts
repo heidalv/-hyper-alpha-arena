@@ -6,6 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, paperApi, accountApi, sessionApi, fullAutoApi } from "@/lib/api";
+import { toast } from "@/lib/toast";
 import type { Account } from "@/types/api";
 
 // Query Keys
@@ -46,8 +47,11 @@ export function usePaperBalance(accountId: number | null) {
     queryKey: QK.balance(accountId || 0),
     queryFn: () => paperApi.getBalance(accountId!),
     enabled: !!accountId,
-    staleTime: 2_000,
-    refetchInterval: 2_000,
+    // [2026-09-09] 2s → 5s：实测这两条 2s 轮询在 3 小时窗口里占 1396/1089 次请求，
+    // 而后端正被因子预计算长任务占满 GIL（tier-status 偶发 45s）。5s 对盘面感知无差别，
+    // 请求量直接砍 60%。后续应改由 WS position_update 推送替代轮询（见 ws.py:432）。
+    staleTime: 5_000,
+    refetchInterval: 5_000,
     retry: 1, // balance 404 = 未初始化，不要疯狂重试
   });
 }
@@ -57,8 +61,8 @@ export function usePositions(accountId: number | null, status?: "open" | "closed
     queryKey: QK.positions(accountId || 0, status),
     queryFn: () => paperApi.getPositions(accountId!, status),
     enabled: !!accountId,
-    staleTime: 2_000,
-    refetchInterval: 2_000,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
   });
 }
 
@@ -225,8 +229,10 @@ export function useMarketOverviewAll(exchange?: string) {
   return useQuery({
     queryKey: ["market-overview-all", exchange || "auto"] as const,
     queryFn: () => api.getMarketOverviewAll(exchange),
-    staleTime: 1_500,
-    refetchInterval: 2_000,
+    // [2026-09-09] 2s/1.5s 是全站最激进的轮询，且与 intel 页的
+    // useMarketOverview(30s)/useMarketHealth(60s) 重复拉同一批行情 → 收敛到 10s。
+    staleTime: 8_000,
+    refetchInterval: 10_000,
   });
 }
 
@@ -345,7 +351,7 @@ export function useDeleteAccount() {
         /401|Not authenticated|登录|过期/i.test(msg)
           ? "（登录态已失效：请重新登录，或刷新页面后重试）"
           : "";
-      alert(`账户删除失败：${msg}${authHint}`);
+      toast.error(`账户删除失败：${msg}${authHint}`);
     },
   });
 }

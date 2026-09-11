@@ -38,6 +38,8 @@ from backend.services.factor_engine.expr.audit import audit
 from backend.services.factor_engine.expr.ops import LOOKAHEAD_BANNED_OPS, OP_REGISTRY
 from backend.services.factor_engine.expr.parser import FactorExpr, parse
 from backend.services.evolution.alpha_miner import AlphaPool
+# [P3.2 2026-09-03] 三条挖矿路径共用的目标实现：分段 ICIR + 含成本净收益
+from backend.services.evolution import fitness_objective as _fo
 
 logger = logging.getLogger(__name__)
 
@@ -99,36 +101,20 @@ def _fitness_core(ast: dict, state: dict) -> float:
     ic = abs(float(np.corrcoef(fv[mask], target[mask])[0, 1]))
     if not np.isfinite(ic):
         return _NEG_INF
-    # [FIX-2 2026-08-19] objective="icir" 时与 GPU 路径同口径：
+    # [FIX-2 2026-08-19] objective 含 icir 时与 GPU 路径同口径：
     # ICIR = |mean|/std 仅在 >=2 个有效币段且 std 非退化时定义，否则回退 |IC|。
+    # [P3.2 2026-09-03] 实现下沉到 fitness_objective.segment_icir（GP/MCTS 共用）；
+    # lens 现由 GPMiner 直接携带（此前无 GPU 上下文时拿不到 lens，icir 静默退化成 |IC|）。
     obj = ic
-    _objective = state.get("objective") or "ic"
-    if _objective == "icir":
-        _lens = state.get("lens")
-        if _lens:
-            _case_list = []
-            _off = 0
-            for _ln in _lens:
-                _ln = int(_ln)
-                if _ln <= 0:
-                    continue
-                _mseg = mask[_off:_off + _ln]
-                if int(_mseg.sum()) < 20:
-                    _off += _ln
-                    continue
-                _fs = fv[_off:_off + _ln][_mseg]
-                _ts = target[_off:_off + _ln][_mseg]
-                _off += _ln
-                if np.std(_fs) < 1e-12 or np.std(_ts) < 1e-12:
-                    continue
-                _cseg = float(np.corrcoef(_fs, _ts)[0, 1])
-                if np.isfinite(_cseg):
-                    _case_list.append(_cseg)
-            if len(_case_list) >= 2:
-                _arr = np.asarray(_case_list)
-                _std = float(_arr.std())
-                if _std > 1e-3:
-                    obj = abs(float(_arr.mean() / _std))
+    _objective = (state.get("objective") or "ic").strip().lower()
+    if _fo.objective_uses_icir(_objective):
+        obj = _fo.segment_icir(fv, target, mask, state.get("lens"), fallback=ic)
+    # [P3.2 2026-09-03] 含成本净收益并入目标（icir_net 默认；ic/icir 原样返回，可回滚）。
+    # 用真实前瞻收益 + FACTOR_SCORER_COST（与晋升门禁同源），挖矿不再优化"扣费后亏钱的高 IC"。
+    obj = _fo.blend_objective(obj, ic, fv, state.get("net_ctx"),
+                              min_samples=int(state["min_samples"]))
+    if not np.isfinite(obj):
+        return _NEG_INF
     # 复杂度惩罚（节点数）
     penalty_c = state["lambda_complexity"] * _count_nodes(ast)
     # 与精英池最大相关惩罚（防同质化）
@@ -169,7 +155,38 @@ def _fitness_core(ast: dict, state: dict) -> float:
     # [item11 2026-08-21] 换手成本惩罚：与 GPU 路径同口径
     _lam_to = float(state.get("lambda_turnover") or 0.0)
     turnover_pen = _lam_to * _turnover_flip_rate(fv) if _lam_to > 0 else 0.0
-    return float(obj - penalty_c - corr_pen - turnover_pen)
+    # [2026-09-07 AlphaGen 组合增量] 奖励「加入后池组合 IC 的提升」，而非只奖单因子。
+    # 此前适应度只优化单因子 ICIR，池筛（增量相关≤0.5）是拒绝式事后把关 →
+    # 池里容易堆同族高 ICIR 因子（实测活跃池全是 rev5/10/20/50）。这里把
+    # 「候选 + 精英池等权组合」的 |IC| 与「精英池单独」的 |IC| 之差作为奖励项，
+    # 因子为组合而生。lambda_combo=0 回滚旧行为。
+    combo_bonus = 0.0
+    _lam_combo = float(state.get("lambda_combo") or 0.0)
+    if _lam_combo > 0 and elite_fvs:
+        try:
+            def _z(x):
+                x = np.asarray(x, dtype=float)
+                m = np.isfinite(x)
+                if m.sum() < 10 or np.std(x[m]) < 1e-12:
+                    return None
+                out = np.full_like(x, np.nan)
+                out[m] = (x[m] - np.mean(x[m])) / (np.std(x[m]) + 1e-12)
+                return out
+            pool_parts = [pz for pz in (_z(e) for e in elite_fvs) if pz is not None]
+            if pool_parts:
+                pool_sig = np.nanmean(np.column_stack(pool_parts), axis=1)
+                cand_z = _z(fv)
+                if cand_z is not None:
+                    combo_sig = np.nanmean(np.column_stack(pool_parts + [cand_z]), axis=1)
+                    mm = np.isfinite(pool_sig) & np.isfinite(combo_sig) & np.isfinite(target)
+                    if mm.sum() >= state["min_samples"]:
+                        pool_ic = abs(float(np.corrcoef(pool_sig[mm], target[mm])[0, 1]))
+                        combo_ic = abs(float(np.corrcoef(combo_sig[mm], target[mm])[0, 1]))
+                        if np.isfinite(pool_ic) and np.isfinite(combo_ic):
+                            combo_bonus = _lam_combo * (combo_ic - pool_ic)
+        except Exception:
+            combo_bonus = 0.0
+    return float(obj - penalty_c - corr_pen - turnover_pen + combo_bonus)
 
 
 @dataclass
@@ -195,13 +212,26 @@ class GPConfig:
     selection: str = "lexicase"          # tournament | lexicase
     lexicase_eps: float = 1e-4           # 案例 IC 容差
     # [R1 升级] 目标与协同奖励
-    objective: str = "ic"                # ic | icir（M2 中性化后建议 icir）
+    # [2026-09-02 口径校准] objective 默认 ic → icir：准入闸门 fitness 判定用
+    # ICIR（factor_card/admission_gate 2026-08-27 校准后），挖掘若按原始 IC 选优
+    # 会与晋升口径脱节——高分 IC 因子在闸门处因 ICIR 不足被拒（"挖掘分数过低"的
+    # 机制之一）。icir 是含波动惩罚的信号质量口径，与闸门同源。
+    # [P3.2 2026-09-03] icir → icir_net：再并入"含成本净收益"项（fitness_objective）。
+    # 晋升门禁 FactorBacktestScorer 按扣费后 walk-forward 净收益打分，挖掘只看
+    # IC/ICIR 会把"IC 高但逐步翻转、扣费后亏钱"的因子推到门禁前白白淘汰。
+    # 取值：ic | icir（旧行为）| icir_net（默认）| ic_net | net（IC 仅初筛）。
+    # GP 与 MCTS 共用 FACTOR_GP_OBJECTIVE 一个开关（factor_evolution_loop 注入）。
+    objective: str = _fo.DEFAULT_OBJECTIVE
     lambda_hof: float = 0.1              # 名人堂协同惩罚系数（低冗余因子集）
     # [item11 2026-08-21] 换手成本惩罚系数：适应度 − λ_to×方向翻转率。
     # 原实现只在最终闸门扣成本，挖掘期高换手（逐bar翻转）因子与打分口径脱节。
     # 翻转率∈[0,2]（0=恒向，2=逐bar反转）；λ=0.01 时逐bar反转者被扣 0.02
     # （≈半个 |IC| 量级），普通低频因子（<0.1 翻转）几乎无感。
     lambda_turnover: float = 0.01
+    # [2026-09-07 AlphaGen 组合增量奖励] 适应度 + λ_combo×(候选入池后组合|IC| − 池|IC|)。
+    # 奖励对组合有边际贡献的因子，而非只奖单因子高 ICIR——打破同族垄断。
+    # 0 = 关闭（回滚旧行为）。默认 0.5：组合 IC 提升 0.02 即 +0.01 适应度。
+    lambda_combo: float = 0.5
     # [R2 升级] ALPS 年龄分层（防早熟保创新）
     alps: bool = True
     alps_max_age: int = 12               # 超龄个体重播为随机新生（创新注入）
@@ -262,12 +292,30 @@ class GPMiner:
         pool: AlphaPool,
         config: Optional[GPConfig] = None,
         gpu_ctx=None,
+        lens: Optional[List[int]] = None,
+        fwd_ret: Optional[np.ndarray] = None,
+        horizon: Optional[int] = None,
     ):
         self.fields = [f for f in fields if f]
         self.factor_value_fn = factor_value_fn
         self.target = np.asarray(target, dtype=float)
         self.pool = pool
         self.config = config or GPConfig()
+        # [P3.2 2026-09-03] 面板币段长度 + 真实前瞻收益 + 前瞻根数：
+        # lens 让 CPU 路径的 ICIR 不再依赖 GPU 上下文；fwd_ret/horizon 供含成本净收益项
+        # （target 在 5m/15m 可能是三重障碍 ±1 标签，扣不了 bp，必须另带真实收益）。
+        self.lens: Optional[List[int]] = [int(x) for x in lens] if lens else None
+        self.fwd_ret: Optional[np.ndarray] = (
+            np.asarray(fwd_ret, dtype=float) if fwd_ret is not None else None
+        )
+        if self.fwd_ret is not None and self.fwd_ret.shape != self.target.shape:
+            logger.warning(
+                "[GPMiner] fwd_ret 形状 %s 与 target %s 不一致，净收益项停用",
+                self.fwd_ret.shape, self.target.shape,
+            )
+            self.fwd_ret = None
+        self.horizon: int = max(1, int(horizon or 1))
+        self._net_ctx_cache: Optional[dict] = None
         # [2026-08-14 P1-G1] 剔除单序列前视算子（rank/cs_rank/scale 已被 audit 禁）
         self._op_names = [n for n in OP_REGISTRY.keys() if n not in LOOKAHEAD_BANNED_OPS]
         # 各代精英（防同质化相关性惩罚的参照系）
@@ -548,6 +596,7 @@ class GPMiner:
                             lam_hof=self.config.lambda_hof,
                             hof_values=[v for _, v, _ in self._hof],
                             lam_to=self.config.lambda_turnover,  # [item11] 换手惩罚同口径
+                            net_ctx=self._net_ctx(),  # [P3.2] 含成本净收益同口径
                         )
                         for i, f in zip(gpu_idx, fg):
                             fits[i] = f
@@ -610,9 +659,6 @@ class GPMiner:
         """构造 worker 可序列化的适应度求值上下文（含闭包 factor_value_fn）。"""
         # [FIX-2 2026-08-19] 携带 objective + lens，使 CPU 兜底路径与 GPU 路径
         # 适应度口径一致（objective="icir" 时按币段算 ICIR）。
-        _lens = None
-        if self._gpu_ctx is not None:
-            _lens = list(getattr(self._gpu_ctx, "lens", None) or [])
         return {
             "factor_value_fn": self.factor_value_fn,
             "target": self.target,
@@ -621,12 +667,36 @@ class GPMiner:
             "lambda_corr": self.config.lambda_corr,
             # [item11] 换手成本惩罚（CPU 兜底路径与 GPU 同口径）
             "lambda_turnover": self.config.lambda_turnover,
+            # [2026-09-07] AlphaGen 组合增量奖励系数
+            "lambda_combo": float(getattr(self.config, "lambda_combo", 0.0) or 0.0),
             "objective": self.config.objective,
-            "lens": _lens or None,
+            "lens": self._panel_lens(),
+            # [P3.2 2026-09-03] 含成本净收益上下文（objective 不含 net 时仅含 objective 键）
+            "net_ctx": self._net_ctx(),
             "elite_ast": self._elite_ast,
             # [2026-08-17 GPU] 精英值预计算缓存（每代一次，_fitness_core 优先用）
             "elite_fvs": list(self._elite_fvs),
         }
+
+    def _panel_lens(self) -> Optional[List[int]]:
+        """币段长度：显式 lens 优先，其次 GPU 上下文的 lens（历史行为）。"""
+        if self.lens:
+            return list(self.lens)
+        if self._gpu_ctx is not None:
+            _lens = list(getattr(self._gpu_ctx, "lens", None) or [])
+            return _lens or None
+        return None
+
+    def _net_ctx(self) -> dict:
+        """[P3.2] 净收益求值上下文（构造一次复用；随 state 序列化给 loky worker）。"""
+        if self._net_ctx_cache is None:
+            self._net_ctx_cache = _fo.net_context(
+                objective=self.config.objective,
+                fwd_ret=self.fwd_ret,
+                horizon=self.horizon,
+                lens=self._panel_lens(),
+            )
+        return self._net_ctx_cache
 
     # ─────────────────────────── 适应度 ───────────────────────────
 

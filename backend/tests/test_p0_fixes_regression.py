@@ -197,9 +197,19 @@ def test_emergency_sl_low_leverage_keeps_5pct_cap():
 
 @pytest.mark.unit
 def test_funding_settle_flags_defaults():
+    """P0-8：结算默认开启；APPLY_PNL 的**代码默认**为 false（dry-run 观察期）。
+
+    [2026-09-02] 原断言直接读 settings 值，但 .env 已按设计在观察期结束后把
+    FUNDING_SETTLE_APPLY_PNL 切为 true（计入 realized_pnl）。默认值与部署值是两回事：
+    这里用源码核对代码默认，用运行值核对类型。
+    """
+    import re
     settings = pytest.importorskip("backend.config.settings")
     assert bool(getattr(settings, "FUNDING_SETTLE_ENABLED", False)) is True
-    assert bool(getattr(settings, "FUNDING_SETTLE_APPLY_PNL", True)) is False
+    assert isinstance(getattr(settings, "FUNDING_SETTLE_APPLY_PNL", None), bool)
+    src = open(settings.__file__, encoding="utf-8").read()
+    m = re.search(r'FUNDING_SETTLE_APPLY_PNL:\s*bool\s*=\s*os\.getenv\("FUNDING_SETTLE_APPLY_PNL",\s*"(\w+)"\)', src)
+    assert m and m.group(1).lower() == "false", "APPLY_PNL 代码默认必须是 false（dry-run）"
 
 
 @pytest.mark.unit

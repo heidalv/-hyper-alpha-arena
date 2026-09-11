@@ -92,16 +92,22 @@ def record_short_tier_open(account_id: int, symbol: str, side: str) -> None:
     _same_dir_short_opens[key] = [t for t in _same_dir_short_opens[key] if t >= cutoff]
 
 
-def record_short_tier_outcome(symbol: str, pnl: float) -> None:
+def record_short_tier_outcome(symbol: str, pnl: float, account_id: Optional[int] = None) -> None:
     """平仓后记录盈亏，更新熔断追踪器。
 
     由 unified_learning_service.process_outcome 在短线平仓时调用。
     连续亏损达阈值 → 自动熔断该币种一段时间。
+
+    [2026-08-28 实盘零成交修复] 增加 account_id 维度：原 key 只有 symbol，
+    全部模拟盘账户的亏损共用同一计数器（实测 BTC 被 paper 刷出 2913 笔连亏，
+    把实盘 BTC 也禁了）。现在传 account_id 时按 `account_id:symbol` 记账；
+    不传（旧调用）仍写 symbol 旧 key 兼容。
     """
     sym = (symbol or "").upper()
     if not sym:
         return
-    tracker = _symbol_loss_tracker.setdefault(sym, {"consec_losses": 0, "last_loss_at": 0, "banned_until": 0})
+    key = f"{int(account_id)}:{sym}" if account_id is not None else sym
+    tracker = _symbol_loss_tracker.setdefault(key, {"consec_losses": 0, "last_loss_at": 0, "banned_until": 0})
     now = time.time()
 
     # 清除过期熔断
@@ -116,7 +122,7 @@ def record_short_tier_outcome(symbol: str, pnl: float) -> None:
             tracker["banned_until"] = now + CIRCUIT_BREAKER_COOLDOWN_S
             logger.warning(
                 "[ShortTierGate] 🚫 币种熔断: %s 连续亏损 %d 笔，冷却 %dh",
-                sym, tracker["consec_losses"], CIRCUIT_BREAKER_COOLDOWN_S // 3600,
+                key, tracker["consec_losses"], CIRCUIT_BREAKER_COOLDOWN_S // 3600,
             )
     else:
         # 盈利则重置连续亏损计数（但不清除熔断——熔断期内盈利也不解禁）
@@ -185,8 +191,14 @@ def check_short_tier_entry(
         )
 
     # Fix 7: 币种累计亏损熔断检查
+    # [2026-08-28 实盘零成交修复] 熔断键账户隔离：live 只认 `account_id:symbol`
+    # 键（该账户自己的亏损史）；paper 优先账户键、无则回退旧全局 symbol 键
+    # （兼容历史状态文件）。旧实现全局共享导致 paper 的 BTC 连亏把实盘 BTC
+    # 一起禁了。
     sym_upper = (symbol or "").upper()
-    tracker = _symbol_loss_tracker.get(sym_upper)
+    tracker = _symbol_loss_tracker.get(f"{int(account_id)}:{sym_upper}")
+    if tracker is None and (mode or "paper").strip().lower() == "paper":
+        tracker = _symbol_loss_tracker.get(sym_upper)
     if tracker:
         now_cb = time.time()
         banned_until = tracker.get("banned_until", 0)

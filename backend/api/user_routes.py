@@ -163,7 +163,7 @@ def get_exchange_config(request: Request, db: Session = Depends(get_db)):
     try:
         config = db.query(UserExchangeConfig).filter(UserExchangeConfig.user_id == uid).first()
         if not config:
-            from config import settings
+            from backend.config import settings
             return {"selected_exchange": getattr(settings, "DEFAULT_EXCHANGE", "asterdex"), "user_id": uid}
         return {"selected_exchange": config.selected_exchange, "user_id": uid}
     except Exception as e:

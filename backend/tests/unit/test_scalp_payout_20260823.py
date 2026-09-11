@@ -22,7 +22,7 @@ def test_structure_stop_sl_tp_aligned_bounds():
         "klines": None,
     }
     sl_pct, tp_pct, sl_price, tp_price = structure_stop_calculator.compute_sl_tp(
-        md, side="long", entry=100.0,
+        md, side="long", entry=100.0, market_aware=False,
     )
     assert abs(sl_pct - 0.0115) < 1e-9, f"SL 应封顶 1.15%: {sl_pct}"
     assert abs(tp_pct - 0.015) < 1e-9, f"TP 应为 1.5%: {tp_pct}"
@@ -41,7 +41,7 @@ def test_structure_stop_sl_floor_and_rr():
         "klines": None,
     }
     sl_pct, tp_pct, _, _ = structure_stop_calculator.compute_sl_tp(
-        md, side="short", entry=50.0,
+        md, side="short", entry=50.0, market_aware=False,
     )
     assert sl_pct >= 0.007, f"SL 下限 0.7%: {sl_pct}"
     assert sl_pct <= 0.0115
@@ -103,8 +103,13 @@ def test_mr_tp_sl_capped_20260823(monkeypatch):
     monkeypatch.setattr(mr, "SCALP_MR_MIN_RANGE_PCT", 0.01)
     monkeypatch.setattr(mr, "SCALP_MR_MAX_RANGE_PCT", 0.20)
     monkeypatch.setattr(mr, "SCALP_MR_TP_RANGE_FRAC", 0.55)
-    # 关掉 learned 覆盖（无训练文件时本就原样返回，但显式隔离）
-    monkeypatch.setattr(mr, "apply_learned_mr", lambda tp, sl: (tp, sl))
+    # 关掉 learned 覆盖（无训练文件时本就原样返回，但显式隔离）。
+    # [2026-09-02] 加 raising=False：apply_learned_mr 已在重构中移除
+    # （backend/data/tp_sl_learned/ 下的 JSON 也已全部删除，代码库无任何引用），
+    # 原写法会因属性不存在直接 AttributeError 而非跳过隔离。保留此行是为了
+    # 若将来重新引入 learned 覆盖，本用例仍自动隔离它。
+    monkeypatch.setattr(mr, "apply_learned_mr", lambda tp, sl: (tp, sl),
+                        raising=False)
 
     sig = mr.evaluate_ranging_mr("BTC", md)
     assert sig.action == "sell", f"应触发空头 MR: {sig.action} {sig.reasoning}"
@@ -193,25 +198,52 @@ def test_gate_short_two_conditions_half_size_when_ranging(monkeypatch):
 
 
 def test_gate_short_one_condition_probe_when_4h_bullish(monkeypatch):
-    # [2026-08-29 门禁放宽] live 空头单条件降级：满足其一(此处 funding 极端正)
-    # 且 score≥45 → 0.25x 试探仓（比 paper 无条件分档严格一档）。
+    import importlib as _imp
+    _settings = _imp.import_module("backend.config.settings")
+    monkeypatch.setattr(_settings, "SCALP_SHORT_LIVE_STRICT", True, raising=False)
+
+    # [2026-08-29 全面修复·撤回放宽] 默认 SCALP_SHORT_LIVE_STRICT=true：
+    # 单条件（此处 funding 极端正但 4h 偏多）live 空头也硬拦——30 天空头
+    # 全亏(-824 毛)/盈亏比1.10，"零成交"不能靠放行负 EV 方向解决。
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0003, mid_bias="bullish")
     dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
-    assert dec.allowed
-    assert abs(dec.size_multiplier - 0.25) < 1e-9
+    assert not dec.allowed
+    assert "空头条件未齐" in dec.reason
 
 
 def test_gate_short_one_condition_probe_when_funding_low(monkeypatch):
+    import importlib as _imp
+    _settings = _imp.import_module("backend.config.settings")
+    monkeypatch.setattr(_settings, "SCALP_SHORT_LIVE_STRICT", True, raising=False)
+
+    # 单条件（4h 偏空但 funding 低于门槛）live 空头同样硬拦。
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0, mid_bias="bearish")
     dec = gate.evaluate("BTC", _make_signal(), md, account_id=14, mode="live")
-    assert dec.allowed
-    assert abs(dec.size_multiplier - 0.25) < 1e-9
+    assert not dec.allowed
+    assert "空头条件未齐" in dec.reason
 
 
 def test_gate_short_zero_condition_high_score_probe(monkeypatch):
-    """零条件但 score≥50 → 0.125x 最小试探（比 paper 严格）。"""
+    import importlib as _imp
+    _settings = _imp.import_module("backend.config.settings")
+    monkeypatch.setattr(_settings, "SCALP_SHORT_LIVE_STRICT", True, raising=False)
+
+    """零条件高分：默认严格模式硬拦（回滚开关 SCALP_SHORT_LIVE_STRICT=false
+    时恢复 0.125x 试探行为）。"""
+    gate = _patch_gate_deps(monkeypatch, "trending")
+    md = _gate_md(funding=0.0, mid_bias="bullish")
+    dec = gate.evaluate("BTC", _make_signal(score=70), md, account_id=14, mode="live")
+    assert not dec.allowed
+    assert "空头条件未齐" in dec.reason
+
+
+def test_gate_short_zero_condition_relaxed_when_strict_off(monkeypatch):
+    """SCALP_SHORT_LIVE_STRICT=false 时恢复 8/29 上午的分档试探（回滚路径可用）。"""
+    import importlib
+    _settings = importlib.import_module("backend.config.settings")
+    monkeypatch.setattr(_settings, "SCALP_SHORT_LIVE_STRICT", False, raising=False)
     gate = _patch_gate_deps(monkeypatch, "trending")
     md = _gate_md(funding=0.0, mid_bias="bullish")
     dec = gate.evaluate("BTC", _make_signal(score=70), md, account_id=14, mode="live")

@@ -1,0 +1,4786 @@
+{
+  "generated_at": "2026-09-09T07:56:28.875494+00:00",
+  "equity": 5000.0,
+  "fill_notional": 100.0,
+  "rows": [
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 77336,
+      "net_bp": -0.698,
+      "net_usd": -554.0978,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.402,
+          "fills": 6022,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 6.509406657018813
+        },
+        "ETH": {
+          "net_bp": -0.342,
+          "fills": 9741,
+          "flatten_share": 0.248,
+          "avg_hold_snaps": 6.8532440782698245
+        },
+        "SOL": {
+          "net_bp": -0.489,
+          "fills": 18487,
+          "flatten_share": 0.23,
+          "avg_hold_snaps": 7.914738929279577
+        },
+        "XRP": {
+          "net_bp": -0.468,
+          "fills": 15981,
+          "flatten_share": 0.234,
+          "avg_hold_snaps": 7.744065281899109
+        },
+        "DOGE": {
+          "net_bp": -0.78,
+          "fills": 15116,
+          "flatten_share": 0.244,
+          "avg_hold_snaps": 7.545592130155127
+        },
+        "BNB": {
+          "net_bp": -0.494,
+          "fills": 8079,
+          "flatten_share": 0.276,
+          "avg_hold_snaps": 6.471778487752928
+        },
+        "ADA": {
+          "net_bp": -4.259,
+          "fills": 1763,
+          "flatten_share": 0.354,
+          "avg_hold_snaps": 4.2272727272727275
+        },
+        "UNI": {
+          "net_bp": -4.621,
+          "fills": 2147,
+          "flatten_share": 0.346,
+          "avg_hold_snaps": 4.390282131661442
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 76796,
+      "net_bp": -0.66,
+      "net_usd": -519.2727,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.377,
+          "fills": 6002,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 6.61521580102414
+        },
+        "ETH": {
+          "net_bp": -0.313,
+          "fills": 9673,
+          "flatten_share": 0.243,
+          "avg_hold_snaps": 6.946930280957336
+        },
+        "SOL": {
+          "net_bp": -0.467,
+          "fills": 18402,
+          "flatten_share": 0.226,
+          "avg_hold_snaps": 8.109353970390309
+        },
+        "XRP": {
+          "net_bp": -0.438,
+          "fills": 15895,
+          "flatten_share": 0.229,
+          "avg_hold_snaps": 7.8501311352566505
+        },
+        "DOGE": {
+          "net_bp": -0.736,
+          "fills": 14962,
+          "flatten_share": 0.237,
+          "avg_hold_snaps": 7.755409582689335
+        },
+        "BNB": {
+          "net_bp": -0.476,
+          "fills": 8042,
+          "flatten_share": 0.273,
+          "avg_hold_snaps": 6.49680170575693
+        },
+        "ADA": {
+          "net_bp": -3.972,
+          "fills": 1715,
+          "flatten_share": 0.334,
+          "avg_hold_snaps": 4.998144712430427
+        },
+        "UNI": {
+          "net_bp": -4.476,
+          "fills": 2105,
+          "flatten_share": 0.332,
+          "avg_hold_snaps": 5.218446601941747
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 76745,
+      "net_bp": -0.654,
+      "net_usd": -514.0857,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.372,
+          "fills": 6000,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 6.613021214337967
+        },
+        "ETH": {
+          "net_bp": -0.313,
+          "fills": 9670,
+          "flatten_share": 0.243,
+          "avg_hold_snaps": 6.951612903225806
+        },
+        "SOL": {
+          "net_bp": -0.467,
+          "fills": 18402,
+          "flatten_share": 0.226,
+          "avg_hold_snaps": 8.110699865410497
+        },
+        "XRP": {
+          "net_bp": -0.444,
+          "fills": 15893,
+          "flatten_share": 0.229,
+          "avg_hold_snaps": 7.870822380773563
+        },
+        "DOGE": {
+          "net_bp": -0.733,
+          "fills": 14956,
+          "flatten_share": 0.237,
+          "avg_hold_snaps": 7.75956706609973
+        },
+        "BNB": {
+          "net_bp": -0.472,
+          "fills": 8040,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 6.511478910838227
+        },
+        "ADA": {
+          "net_bp": -3.934,
+          "fills": 1707,
+          "flatten_share": 0.331,
+          "avg_hold_snaps": 5.152985074626866
+        },
+        "UNI": {
+          "net_bp": -4.301,
+          "fills": 2077,
+          "flatten_share": 0.323,
+          "avg_hold_snaps": 5.3605220228384995
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 70806,
+      "net_bp": -0.49,
+      "net_usd": -358.9273,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.158,
+          "fills": 5620,
+          "flatten_share": 0.22,
+          "avg_hold_snaps": 11.515291936978684
+        },
+        "ETH": {
+          "net_bp": -0.122,
+          "fills": 9028,
+          "flatten_share": 0.193,
+          "avg_hold_snaps": 12.413258110014104
+        },
+        "SOL": {
+          "net_bp": -0.244,
+          "fills": 16407,
+          "flatten_share": 0.168,
+          "avg_hold_snaps": 14.606409614421633
+        },
+        "XRP": {
+          "net_bp": -0.239,
+          "fills": 14632,
+          "flatten_share": 0.173,
+          "avg_hold_snaps": 14.21945945945946
+        },
+        "DOGE": {
+          "net_bp": -0.555,
+          "fills": 13781,
+          "flatten_share": 0.185,
+          "avg_hold_snaps": 13.699835074216603
+        },
+        "BNB": {
+          "net_bp": -0.295,
+          "fills": 7547,
+          "flatten_share": 0.227,
+          "avg_hold_snaps": 11.891625615763546
+        },
+        "ADA": {
+          "net_bp": -4.233,
+          "fills": 1716,
+          "flatten_share": 0.337,
+          "avg_hold_snaps": 6.662790697674419
+        },
+        "UNI": {
+          "net_bp": -4.623,
+          "fills": 2075,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 6.7841483979763915
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 70032,
+      "net_bp": -0.436,
+      "net_usd": -314.788,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.112,
+          "fills": 5584,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 11.85483870967742
+        },
+        "ETH": {
+          "net_bp": -0.075,
+          "fills": 8918,
+          "flatten_share": 0.183,
+          "avg_hold_snaps": 12.782671480144405
+        },
+        "SOL": {
+          "net_bp": -0.203,
+          "fills": 16255,
+          "flatten_share": 0.162,
+          "avg_hold_snaps": 15.15968992248062
+        },
+        "XRP": {
+          "net_bp": -0.181,
+          "fills": 14515,
+          "flatten_share": 0.165,
+          "avg_hold_snaps": 14.728992765720646
+        },
+        "DOGE": {
+          "net_bp": -0.479,
+          "fills": 13584,
+          "flatten_share": 0.172,
+          "avg_hold_snaps": 14.479815455594002
+        },
+        "BNB": {
+          "net_bp": -0.273,
+          "fills": 7493,
+          "flatten_share": 0.222,
+          "avg_hold_snaps": 12.083392729864576
+        },
+        "ADA": {
+          "net_bp": -4.15,
+          "fills": 1668,
+          "flatten_share": 0.315,
+          "avg_hold_snaps": 8.84928716904277
+        },
+        "UNI": {
+          "net_bp": -4.528,
+          "fills": 2015,
+          "flatten_share": 0.308,
+          "avg_hold_snaps": 8.849557522123893
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 69955,
+      "net_bp": -0.433,
+      "net_usd": -312.3607,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.109,
+          "fills": 5584,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 11.855787476280835
+        },
+        "ETH": {
+          "net_bp": -0.072,
+          "fills": 8915,
+          "flatten_share": 0.183,
+          "avg_hold_snaps": 12.817787418655097
+        },
+        "SOL": {
+          "net_bp": -0.205,
+          "fills": 16253,
+          "flatten_share": 0.162,
+          "avg_hold_snaps": 15.145069695405265
+        },
+        "XRP": {
+          "net_bp": -0.181,
+          "fills": 14513,
+          "flatten_share": 0.164,
+          "avg_hold_snaps": 14.7734375
+        },
+        "DOGE": {
+          "net_bp": -0.488,
+          "fills": 13576,
+          "flatten_share": 0.172,
+          "avg_hold_snaps": 14.48932487016734
+        },
+        "BNB": {
+          "net_bp": -0.265,
+          "fills": 7489,
+          "flatten_share": 0.221,
+          "avg_hold_snaps": 12.125804145818442
+        },
+        "ADA": {
+          "net_bp": -4.077,
+          "fills": 1652,
+          "flatten_share": 0.308,
+          "avg_hold_snaps": 9.289855072463768
+        },
+        "UNI": {
+          "net_bp": -4.504,
+          "fills": 1973,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 9.45970695970696
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 63872,
+      "net_bp": -0.16,
+      "net_usd": -105.2673,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.151,
+          "fills": 5164,
+          "flatten_share": 0.153,
+          "avg_hold_snaps": 26.475317348378
+        },
+        "ETH": {
+          "net_bp": 0.17,
+          "fills": 8327,
+          "flatten_share": 0.123,
+          "avg_hold_snaps": 29.233734939759035
+        },
+        "SOL": {
+          "net_bp": 0.125,
+          "fills": 14231,
+          "flatten_share": 0.099,
+          "avg_hold_snaps": 34.12127045235804
+        },
+        "XRP": {
+          "net_bp": 0.147,
+          "fills": 13299,
+          "flatten_share": 0.101,
+          "avg_hold_snaps": 34.59267015706806
+        },
+        "DOGE": {
+          "net_bp": -0.238,
+          "fills": 12388,
+          "flatten_share": 0.117,
+          "avg_hold_snaps": 31.105314960629922
+        },
+        "BNB": {
+          "net_bp": 0.092,
+          "fills": 6825,
+          "flatten_share": 0.146,
+          "avg_hold_snaps": 28.69894982497083
+        },
+        "ADA": {
+          "net_bp": -4.141,
+          "fills": 1669,
+          "flatten_share": 0.315,
+          "avg_hold_snaps": 12.230125523012552
+        },
+        "UNI": {
+          "net_bp": -4.291,
+          "fills": 1969,
+          "flatten_share": 0.302,
+          "avg_hold_snaps": 12.15355086372361
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 62654,
+      "net_bp": -0.004,
+      "net_usd": -2.7361,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.174,
+          "fills": 5106,
+          "flatten_share": 0.146,
+          "avg_hold_snaps": 28.326951399116346
+        },
+        "ETH": {
+          "net_bp": 0.363,
+          "fills": 8174,
+          "flatten_share": 0.106,
+          "avg_hold_snaps": 32.533508541392905
+        },
+        "SOL": {
+          "net_bp": 0.266,
+          "fills": 13959,
+          "flatten_share": 0.086,
+          "avg_hold_snaps": 39.10393873085339
+        },
+        "XRP": {
+          "net_bp": 0.306,
+          "fills": 13108,
+          "flatten_share": 0.088,
+          "avg_hold_snaps": 37.684031710079275
+        },
+        "DOGE": {
+          "net_bp": -0.043,
+          "fills": 12095,
+          "flatten_share": 0.098,
+          "avg_hold_snaps": 33.30543933054393
+        },
+        "BNB": {
+          "net_bp": 0.2,
+          "fills": 6753,
+          "flatten_share": 0.135,
+          "avg_hold_snaps": 30.383863080684595
+        },
+        "ADA": {
+          "net_bp": -3.772,
+          "fills": 1594,
+          "flatten_share": 0.277,
+          "avg_hold_snaps": 19.612826603325416
+        },
+        "UNI": {
+          "net_bp": -4.203,
+          "fills": 1865,
+          "flatten_share": 0.265,
+          "avg_hold_snaps": 19.249448123620308
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 62510,
+      "net_bp": 0.022,
+      "net_usd": 13.8049,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.179,
+          "fills": 5102,
+          "flatten_share": 0.145,
+          "avg_hold_snaps": 28.33529411764706
+        },
+        "ETH": {
+          "net_bp": 0.356,
+          "fills": 8171,
+          "flatten_share": 0.106,
+          "avg_hold_snaps": 32.62105263157895
+        },
+        "SOL": {
+          "net_bp": 0.255,
+          "fills": 13946,
+          "flatten_share": 0.086,
+          "avg_hold_snaps": 39.336633663366335
+        },
+        "XRP": {
+          "net_bp": 0.312,
+          "fills": 13104,
+          "flatten_share": 0.087,
+          "avg_hold_snaps": 37.81704545454546
+        },
+        "DOGE": {
+          "net_bp": -0.033,
+          "fills": 12076,
+          "flatten_share": 0.098,
+          "avg_hold_snaps": 33.75635593220339
+        },
+        "BNB": {
+          "net_bp": 0.198,
+          "fills": 6755,
+          "flatten_share": 0.135,
+          "avg_hold_snaps": 30.52883435582822
+        },
+        "ADA": {
+          "net_bp": -3.491,
+          "fills": 1561,
+          "flatten_share": 0.265,
+          "avg_hold_snaps": 21.627791563275434
+        },
+        "UNI": {
+          "net_bp": -3.666,
+          "fills": 1795,
+          "flatten_share": 0.243,
+          "avg_hold_snaps": 22.458432304038006
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 75089,
+      "net_bp": -0.606,
+      "net_usd": -448.3905,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.284,
+          "fills": 5975,
+          "flatten_share": 0.273,
+          "avg_hold_snaps": 6.492429704397981
+        },
+        "ETH": {
+          "net_bp": -0.218,
+          "fills": 9664,
+          "flatten_share": 0.246,
+          "avg_hold_snaps": 6.886880165289257
+        },
+        "SOL": {
+          "net_bp": -0.389,
+          "fills": 16785,
+          "flatten_share": 0.245,
+          "avg_hold_snaps": 7.992045077891945
+        },
+        "XRP": {
+          "net_bp": -0.327,
+          "fills": 15962,
+          "flatten_share": 0.232,
+          "avg_hold_snaps": 7.767916821388786
+        },
+        "DOGE": {
+          "net_bp": -0.71,
+          "fills": 14794,
+          "flatten_share": 0.247,
+          "avg_hold_snaps": 7.54174537211938
+        },
+        "BNB": {
+          "net_bp": -0.395,
+          "fills": 8015,
+          "flatten_share": 0.275,
+          "avg_hold_snaps": 6.511205976520811
+        },
+        "ADA": {
+          "net_bp": -4.204,
+          "fills": 1770,
+          "flatten_share": 0.353,
+          "avg_hold_snaps": 4.2290909090909095
+        },
+        "UNI": {
+          "net_bp": -4.616,
+          "fills": 2124,
+          "flatten_share": 0.35,
+          "avg_hold_snaps": 4.390282131661442
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 74560,
+      "net_bp": -0.559,
+      "net_usd": -409.6341,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.256,
+          "fills": 5959,
+          "flatten_share": 0.271,
+          "avg_hold_snaps": 6.599854227405248
+        },
+        "ETH": {
+          "net_bp": -0.179,
+          "fills": 9599,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 6.989033942558747
+        },
+        "SOL": {
+          "net_bp": -0.354,
+          "fills": 16691,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 8.229230247541539
+        },
+        "XRP": {
+          "net_bp": -0.294,
+          "fills": 15883,
+          "flatten_share": 0.228,
+          "avg_hold_snaps": 7.855484837139648
+        },
+        "DOGE": {
+          "net_bp": -0.653,
+          "fills": 14646,
+          "flatten_share": 0.239,
+          "avg_hold_snaps": 7.7764023210831725
+        },
+        "BNB": {
+          "net_bp": -0.375,
+          "fills": 7979,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 6.55406852248394
+        },
+        "ADA": {
+          "net_bp": -3.92,
+          "fills": 1722,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 5.012987012987013
+        },
+        "UNI": {
+          "net_bp": -4.465,
+          "fills": 2081,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 5.218446601941747
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 74506,
+      "net_bp": -0.553,
+      "net_usd": -404.6818,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.251,
+          "fills": 5960,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 6.597667638483965
+        },
+        "ETH": {
+          "net_bp": -0.179,
+          "fills": 9595,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 6.993733681462141
+        },
+        "SOL": {
+          "net_bp": -0.352,
+          "fills": 16689,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 8.2371903630811
+        },
+        "XRP": {
+          "net_bp": -0.3,
+          "fills": 15878,
+          "flatten_share": 0.228,
+          "avg_hold_snaps": 7.879504504504505
+        },
+        "DOGE": {
+          "net_bp": -0.654,
+          "fills": 14638,
+          "flatten_share": 0.239,
+          "avg_hold_snaps": 7.787761425251743
+        },
+        "BNB": {
+          "net_bp": -0.371,
+          "fills": 7977,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 6.5689008042895445
+        },
+        "ADA": {
+          "net_bp": -3.882,
+          "fills": 1715,
+          "flatten_share": 0.329,
+          "avg_hold_snaps": 5.167910447761194
+        },
+        "UNI": {
+          "net_bp": -4.283,
+          "fills": 2054,
+          "flatten_share": 0.326,
+          "avg_hold_snaps": 5.3605220228384995
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 69054,
+      "net_bp": -0.366,
+      "net_usd": -250.5836,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.019,
+          "fills": 5612,
+          "flatten_share": 0.219,
+          "avg_hold_snaps": 11.490358126721762
+        },
+        "ETH": {
+          "net_bp": 0.018,
+          "fills": 9023,
+          "flatten_share": 0.188,
+          "avg_hold_snaps": 12.6355871886121
+        },
+        "SOL": {
+          "net_bp": -0.12,
+          "fills": 14970,
+          "flatten_share": 0.174,
+          "avg_hold_snaps": 15.3508316008316
+        },
+        "XRP": {
+          "net_bp": -0.037,
+          "fills": 14728,
+          "flatten_share": 0.169,
+          "avg_hold_snaps": 14.492332968236584
+        },
+        "DOGE": {
+          "net_bp": -0.458,
+          "fills": 13445,
+          "flatten_share": 0.186,
+          "avg_hold_snaps": 13.877562326869807
+        },
+        "BNB": {
+          "net_bp": -0.162,
+          "fills": 7502,
+          "flatten_share": 0.224,
+          "avg_hold_snaps": 12.00919377652051
+        },
+        "ADA": {
+          "net_bp": -4.164,
+          "fills": 1725,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 6.672480620155039
+        },
+        "UNI": {
+          "net_bp": -4.6,
+          "fills": 2049,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 6.78752107925801
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 68285,
+      "net_bp": -0.299,
+      "net_usd": -201.8067,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.033,
+          "fills": 5579,
+          "flatten_share": 0.214,
+          "avg_hold_snaps": 11.884905660377358
+        },
+        "ETH": {
+          "net_bp": 0.074,
+          "fills": 8924,
+          "flatten_share": 0.179,
+          "avg_hold_snaps": 13.174871418074945
+        },
+        "SOL": {
+          "net_bp": -0.068,
+          "fills": 14823,
+          "flatten_share": 0.165,
+          "avg_hold_snaps": 16.341931942919867
+        },
+        "XRP": {
+          "net_bp": 0.034,
+          "fills": 14614,
+          "flatten_share": 0.161,
+          "avg_hold_snaps": 14.973565804274466
+        },
+        "DOGE": {
+          "net_bp": -0.358,
+          "fills": 13220,
+          "flatten_share": 0.174,
+          "avg_hold_snaps": 14.651972157772622
+        },
+        "BNB": {
+          "net_bp": -0.126,
+          "fills": 7455,
+          "flatten_share": 0.219,
+          "avg_hold_snaps": 12.232424677187948
+        },
+        "ADA": {
+          "net_bp": -4.072,
+          "fills": 1680,
+          "flatten_share": 0.312,
+          "avg_hold_snaps": 8.891836734693877
+        },
+        "UNI": {
+          "net_bp": -4.525,
+          "fills": 1990,
+          "flatten_share": 0.312,
+          "avg_hold_snaps": 8.849557522123893
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 68208,
+      "net_bp": -0.295,
+      "net_usd": -198.6822,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.034,
+          "fills": 5580,
+          "flatten_share": 0.214,
+          "avg_hold_snaps": 11.885849056603774
+        },
+        "ETH": {
+          "net_bp": 0.08,
+          "fills": 8920,
+          "flatten_share": 0.178,
+          "avg_hold_snaps": 13.19250551065393
+        },
+        "SOL": {
+          "net_bp": -0.069,
+          "fills": 14821,
+          "flatten_share": 0.165,
+          "avg_hold_snaps": 16.324013157894736
+        },
+        "XRP": {
+          "net_bp": 0.033,
+          "fills": 14606,
+          "flatten_share": 0.16,
+          "avg_hold_snaps": 15.021432600112803
+        },
+        "DOGE": {
+          "net_bp": -0.359,
+          "fills": 13213,
+          "flatten_share": 0.174,
+          "avg_hold_snaps": 14.708963911525029
+        },
+        "BNB": {
+          "net_bp": -0.12,
+          "fills": 7452,
+          "flatten_share": 0.218,
+          "avg_hold_snaps": 12.265995686556435
+        },
+        "ADA": {
+          "net_bp": -3.994,
+          "fills": 1666,
+          "flatten_share": 0.305,
+          "avg_hold_snaps": 9.33402489626556
+        },
+        "UNI": {
+          "net_bp": -4.502,
+          "fills": 1950,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 9.45970695970696
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 62794,
+      "net_bp": 0.003,
+      "net_usd": 2.0728,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.309,
+          "fills": 5173,
+          "flatten_share": 0.15,
+          "avg_hold_snaps": 26.936079545454547
+        },
+        "ETH": {
+          "net_bp": 0.344,
+          "fills": 8350,
+          "flatten_share": 0.116,
+          "avg_hold_snaps": 30.750312109862673
+        },
+        "SOL": {
+          "net_bp": 0.285,
+          "fills": 13258,
+          "flatten_share": 0.093,
+          "avg_hold_snaps": 37.92584745762712
+        },
+        "XRP": {
+          "net_bp": 0.381,
+          "fills": 13461,
+          "flatten_share": 0.093,
+          "avg_hold_snaps": 37.7440543601359
+        },
+        "DOGE": {
+          "net_bp": -0.054,
+          "fills": 12107,
+          "flatten_share": 0.115,
+          "avg_hold_snaps": 31.836163836163838
+        },
+        "BNB": {
+          "net_bp": 0.246,
+          "fills": 6809,
+          "flatten_share": 0.139,
+          "avg_hold_snaps": 30.33495145631068
+        },
+        "ADA": {
+          "net_bp": -4.086,
+          "fills": 1685,
+          "flatten_share": 0.313,
+          "avg_hold_snaps": 12.269874476987448
+        },
+        "UNI": {
+          "net_bp": -4.271,
+          "fills": 1951,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 12.180769230769231
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 61639,
+      "net_bp": 0.156,
+      "net_usd": 93.8829,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.377,
+          "fills": 5111,
+          "flatten_share": 0.14,
+          "avg_hold_snaps": 29.062968515742128
+        },
+        "ETH": {
+          "net_bp": 0.529,
+          "fills": 8200,
+          "flatten_share": 0.099,
+          "avg_hold_snaps": 34.995839112343965
+        },
+        "SOL": {
+          "net_bp": 0.434,
+          "fills": 13054,
+          "flatten_share": 0.075,
+          "avg_hold_snaps": 44.64118372379778
+        },
+        "XRP": {
+          "net_bp": 0.513,
+          "fills": 13247,
+          "flatten_share": 0.078,
+          "avg_hold_snaps": 41.853233830845774
+        },
+        "DOGE": {
+          "net_bp": 0.108,
+          "fills": 11828,
+          "flatten_share": 0.096,
+          "avg_hold_snaps": 34.88165038002172
+        },
+        "BNB": {
+          "net_bp": 0.382,
+          "fills": 6738,
+          "flatten_share": 0.127,
+          "avg_hold_snaps": 32.37003841229193
+        },
+        "ADA": {
+          "net_bp": -3.652,
+          "fills": 1620,
+          "flatten_share": 0.272,
+          "avg_hold_snaps": 19.700712589073635
+        },
+        "UNI": {
+          "net_bp": -4.232,
+          "fills": 1841,
+          "flatten_share": 0.268,
+          "avg_hold_snaps": 19.20309050772627
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 61505,
+      "net_bp": 0.187,
+      "net_usd": 112.5948,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.389,
+          "fills": 5110,
+          "flatten_share": 0.14,
+          "avg_hold_snaps": 28.995515695067265
+        },
+        "ETH": {
+          "net_bp": 0.519,
+          "fills": 8197,
+          "flatten_share": 0.098,
+          "avg_hold_snaps": 35.260445682451255
+        },
+        "SOL": {
+          "net_bp": 0.426,
+          "fills": 13048,
+          "flatten_share": 0.075,
+          "avg_hold_snaps": 44.8822800495663
+        },
+        "XRP": {
+          "net_bp": 0.518,
+          "fills": 13239,
+          "flatten_share": 0.077,
+          "avg_hold_snaps": 42.12265331664581
+        },
+        "DOGE": {
+          "net_bp": 0.133,
+          "fills": 11817,
+          "flatten_share": 0.095,
+          "avg_hold_snaps": 35.552486187845304
+        },
+        "BNB": {
+          "net_bp": 0.38,
+          "fills": 6735,
+          "flatten_share": 0.127,
+          "avg_hold_snaps": 32.508997429305914
+        },
+        "ADA": {
+          "net_bp": -3.354,
+          "fills": 1592,
+          "flatten_share": 0.259,
+          "avg_hold_snaps": 21.727047146401986
+        },
+        "UNI": {
+          "net_bp": -3.71,
+          "fills": 1767,
+          "flatten_share": 0.246,
+          "avg_hold_snaps": 22.55
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 74476,
+      "net_bp": -0.467,
+      "net_usd": -330.045,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.167,
+          "fills": 5919,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 6.5281791907514455
+        },
+        "ETH": {
+          "net_bp": -0.072,
+          "fills": 9642,
+          "flatten_share": 0.241,
+          "avg_hold_snaps": 6.939927498705334
+        },
+        "SOL": {
+          "net_bp": -0.281,
+          "fills": 16989,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 8.028257978723405
+        },
+        "XRP": {
+          "net_bp": -0.046,
+          "fills": 15712,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 7.762973868237026
+        },
+        "DOGE": {
+          "net_bp": -0.605,
+          "fills": 14391,
+          "flatten_share": 0.249,
+          "avg_hold_snaps": 7.5753217259651775
+        },
+        "BNB": {
+          "net_bp": -0.284,
+          "fills": 7945,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 6.465572033898305
+        },
+        "ADA": {
+          "net_bp": -4.164,
+          "fills": 1771,
+          "flatten_share": 0.352,
+          "avg_hold_snaps": 4.2327272727272724
+        },
+        "UNI": {
+          "net_bp": -4.622,
+          "fills": 2107,
+          "flatten_share": 0.353,
+          "avg_hold_snaps": 4.390282131661442
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 73929,
+      "net_bp": -0.42,
+      "net_usd": -293.7364,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.143,
+          "fills": 5900,
+          "flatten_share": 0.268,
+          "avg_hold_snaps": 6.632116788321168
+        },
+        "ETH": {
+          "net_bp": -0.037,
+          "fills": 9577,
+          "flatten_share": 0.236,
+          "avg_hold_snaps": 7.051362683438155
+        },
+        "SOL": {
+          "net_bp": -0.247,
+          "fills": 16900,
+          "flatten_share": 0.236,
+          "avg_hold_snaps": 8.270500170125894
+        },
+        "XRP": {
+          "net_bp": -0.015,
+          "fills": 15617,
+          "flatten_share": 0.218,
+          "avg_hold_snaps": 7.96168294515402
+        },
+        "DOGE": {
+          "net_bp": -0.545,
+          "fills": 14237,
+          "flatten_share": 0.241,
+          "avg_hold_snaps": 7.8006194347657765
+        },
+        "BNB": {
+          "net_bp": -0.256,
+          "fills": 7912,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 6.552350427350428
+        },
+        "ADA": {
+          "net_bp": -3.872,
+          "fills": 1725,
+          "flatten_share": 0.332,
+          "avg_hold_snaps": 5.0185528756957325
+        },
+        "UNI": {
+          "net_bp": -4.472,
+          "fills": 2061,
+          "flatten_share": 0.339,
+          "avg_hold_snaps": 5.218446601941747
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 73875,
+      "net_bp": -0.412,
+      "net_usd": -287.9383,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.138,
+          "fills": 5901,
+          "flatten_share": 0.268,
+          "avg_hold_snaps": 6.630656934306569
+        },
+        "ETH": {
+          "net_bp": -0.036,
+          "fills": 9574,
+          "flatten_share": 0.236,
+          "avg_hold_snaps": 7.0581761006289305
+        },
+        "SOL": {
+          "net_bp": -0.246,
+          "fills": 16898,
+          "flatten_share": 0.236,
+          "avg_hold_snaps": 8.278515491998638
+        },
+        "XRP": {
+          "net_bp": -0.02,
+          "fills": 15612,
+          "flatten_share": 0.218,
+          "avg_hold_snaps": 7.983057228915663
+        },
+        "DOGE": {
+          "net_bp": -0.542,
+          "fills": 14226,
+          "flatten_share": 0.241,
+          "avg_hold_snaps": 7.815432338115548
+        },
+        "BNB": {
+          "net_bp": -0.252,
+          "fills": 7910,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 6.567148207597646
+        },
+        "ADA": {
+          "net_bp": -3.831,
+          "fills": 1720,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 5.17910447761194
+        },
+        "UNI": {
+          "net_bp": -4.285,
+          "fills": 2034,
+          "flatten_share": 0.329,
+          "avg_hold_snaps": 5.3605220228384995
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 68763,
+      "net_bp": -0.199,
+      "net_usd": -130.9141,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.119,
+          "fills": 5587,
+          "flatten_share": 0.215,
+          "avg_hold_snaps": 11.811918063314712
+        },
+        "ETH": {
+          "net_bp": 0.178,
+          "fills": 9057,
+          "flatten_share": 0.181,
+          "avg_hold_snaps": 13.066957787481805
+        },
+        "SOL": {
+          "net_bp": 0.013,
+          "fills": 15199,
+          "flatten_share": 0.168,
+          "avg_hold_snaps": 15.632244467860906
+        },
+        "XRP": {
+          "net_bp": 0.248,
+          "fills": 14595,
+          "flatten_share": 0.157,
+          "avg_hold_snaps": 15.022358859698155
+        },
+        "DOGE": {
+          "net_bp": -0.286,
+          "fills": 13099,
+          "flatten_share": 0.185,
+          "avg_hold_snaps": 14.188658057271196
+        },
+        "BNB": {
+          "net_bp": 0.006,
+          "fills": 7469,
+          "flatten_share": 0.219,
+          "avg_hold_snaps": 12.23445318084346
+        },
+        "ADA": {
+          "net_bp": -4.118,
+          "fills": 1726,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 6.684108527131783
+        },
+        "UNI": {
+          "net_bp": -4.65,
+          "fills": 2031,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 6.790893760539629
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 67991,
+      "net_bp": -0.133,
+      "net_usd": -86.0259,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.17,
+          "fills": 5547,
+          "flatten_share": 0.209,
+          "avg_hold_snaps": 12.265834932821496
+        },
+        "ETH": {
+          "net_bp": 0.232,
+          "fills": 8957,
+          "flatten_share": 0.172,
+          "avg_hold_snaps": 13.59714928732183
+        },
+        "SOL": {
+          "net_bp": 0.068,
+          "fills": 15058,
+          "flatten_share": 0.159,
+          "avg_hold_snaps": 16.659052924791087
+        },
+        "XRP": {
+          "net_bp": 0.322,
+          "fills": 14467,
+          "flatten_share": 0.148,
+          "avg_hold_snaps": 15.920047031158143
+        },
+        "DOGE": {
+          "net_bp": -0.195,
+          "fills": 12900,
+          "flatten_share": 0.172,
+          "avg_hold_snaps": 14.985882352941177
+        },
+        "BNB": {
+          "net_bp": 0.044,
+          "fills": 7412,
+          "flatten_share": 0.213,
+          "avg_hold_snaps": 12.512372634643377
+        },
+        "ADA": {
+          "net_bp": -4.016,
+          "fills": 1682,
+          "flatten_share": 0.312,
+          "avg_hold_snaps": 8.920408163265305
+        },
+        "UNI": {
+          "net_bp": -4.589,
+          "fills": 1968,
+          "flatten_share": 0.315,
+          "avg_hold_snaps": 8.853097345132744
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 67919,
+      "net_bp": -0.127,
+      "net_usd": -81.6922,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.174,
+          "fills": 5547,
+          "flatten_share": 0.208,
+          "avg_hold_snaps": 12.26295585412668
+        },
+        "ETH": {
+          "net_bp": 0.241,
+          "fills": 8955,
+          "flatten_share": 0.172,
+          "avg_hold_snaps": 13.649624060150376
+        },
+        "SOL": {
+          "net_bp": 0.068,
+          "fills": 15054,
+          "flatten_share": 0.159,
+          "avg_hold_snaps": 16.640511964385087
+        },
+        "XRP": {
+          "net_bp": 0.32,
+          "fills": 14466,
+          "flatten_share": 0.148,
+          "avg_hold_snaps": 15.972287735849056
+        },
+        "DOGE": {
+          "net_bp": -0.191,
+          "fills": 12890,
+          "flatten_share": 0.171,
+          "avg_hold_snaps": 15.01060695344726
+        },
+        "BNB": {
+          "net_bp": 0.05,
+          "fills": 7409,
+          "flatten_share": 0.213,
+          "avg_hold_snaps": 12.547045951859957
+        },
+        "ADA": {
+          "net_bp": -3.94,
+          "fills": 1670,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 9.369294605809129
+        },
+        "UNI": {
+          "net_bp": -4.55,
+          "fills": 1928,
+          "flatten_share": 0.3,
+          "avg_hold_snaps": 9.461538461538462
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 62976,
+      "net_bp": 0.144,
+      "net_usd": 87.1193,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.417,
+          "fills": 5212,
+          "flatten_share": 0.144,
+          "avg_hold_snaps": 27.68109668109668
+        },
+        "ETH": {
+          "net_bp": 0.446,
+          "fills": 8403,
+          "flatten_share": 0.109,
+          "avg_hold_snaps": 32.420645161290324
+        },
+        "SOL": {
+          "net_bp": 0.439,
+          "fills": 13564,
+          "flatten_share": 0.085,
+          "avg_hold_snaps": 40.89115646258504
+        },
+        "XRP": {
+          "net_bp": 0.611,
+          "fills": 13448,
+          "flatten_share": 0.079,
+          "avg_hold_snaps": 41.320388349514566
+        },
+        "DOGE": {
+          "net_bp": 0.091,
+          "fills": 11869,
+          "flatten_share": 0.112,
+          "avg_hold_snaps": 33.74190177638454
+        },
+        "BNB": {
+          "net_bp": 0.355,
+          "fills": 6850,
+          "flatten_share": 0.134,
+          "avg_hold_snaps": 30.988957055214723
+        },
+        "ADA": {
+          "net_bp": -4.052,
+          "fills": 1694,
+          "flatten_share": 0.31,
+          "avg_hold_snaps": 12.292016806722689
+        },
+        "UNI": {
+          "net_bp": -4.283,
+          "fills": 1936,
+          "flatten_share": 0.307,
+          "avg_hold_snaps": 12.215384615384615
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 61773,
+      "net_bp": 0.288,
+      "net_usd": 168.6785,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.513,
+          "fills": 5145,
+          "flatten_share": 0.133,
+          "avg_hold_snaps": 30.116385911179172
+        },
+        "ETH": {
+          "net_bp": 0.607,
+          "fills": 8218,
+          "flatten_share": 0.088,
+          "avg_hold_snaps": 38.52095808383233
+        },
+        "SOL": {
+          "net_bp": 0.568,
+          "fills": 13301,
+          "flatten_share": 0.067,
+          "avg_hold_snaps": 49.62771739130435
+        },
+        "XRP": {
+          "net_bp": 0.712,
+          "fills": 13296,
+          "flatten_share": 0.064,
+          "avg_hold_snaps": 49.02836879432624
+        },
+        "DOGE": {
+          "net_bp": 0.282,
+          "fills": 11601,
+          "flatten_share": 0.089,
+          "avg_hold_snaps": 39.468599033816425
+        },
+        "BNB": {
+          "net_bp": 0.457,
+          "fills": 6754,
+          "flatten_share": 0.12,
+          "avg_hold_snaps": 33.45359477124183
+        },
+        "ADA": {
+          "net_bp": -3.547,
+          "fills": 1631,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 19.935560859188545
+        },
+        "UNI": {
+          "net_bp": -4.27,
+          "fills": 1827,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 19.23841059602649
+        }
+      }
+    },
+    {
+      "w_base_bp": 3.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 61626,
+      "net_bp": 0.323,
+      "net_usd": 189.0227,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.527,
+          "fills": 5145,
+          "flatten_share": 0.132,
+          "avg_hold_snaps": 30.125574272588054
+        },
+        "ETH": {
+          "net_bp": 0.61,
+          "fills": 8217,
+          "flatten_share": 0.088,
+          "avg_hold_snaps": 38.810526315789474
+        },
+        "SOL": {
+          "net_bp": 0.562,
+          "fills": 13293,
+          "flatten_share": 0.067,
+          "avg_hold_snaps": 49.9207650273224
+        },
+        "XRP": {
+          "net_bp": 0.72,
+          "fills": 13286,
+          "flatten_share": 0.063,
+          "avg_hold_snaps": 49.387142857142855
+        },
+        "DOGE": {
+          "net_bp": 0.295,
+          "fills": 11582,
+          "flatten_share": 0.088,
+          "avg_hold_snaps": 39.84774665042631
+        },
+        "BNB": {
+          "net_bp": 0.463,
+          "fills": 6749,
+          "flatten_share": 0.12,
+          "avg_hold_snaps": 33.55307994757536
+        },
+        "ADA": {
+          "net_bp": -3.26,
+          "fills": 1601,
+          "flatten_share": 0.255,
+          "avg_hold_snaps": 22.085213032581454
+        },
+        "UNI": {
+          "net_bp": -3.679,
+          "fills": 1753,
+          "flatten_share": 0.248,
+          "avg_hold_snaps": 22.585714285714285
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 27430,
+      "net_bp": -0.584,
+      "net_usd": -162.2995,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.031,
+          "fills": 1708,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 5.708502024291498
+        },
+        "ETH": {
+          "net_bp": -0.122,
+          "fills": 3365,
+          "flatten_share": 0.314,
+          "avg_hold_snaps": 5.78405315614618
+        },
+        "SOL": {
+          "net_bp": -0.323,
+          "fills": 5743,
+          "flatten_share": 0.306,
+          "avg_hold_snaps": 5.96969696969697
+        },
+        "XRP": {
+          "net_bp": 0.016,
+          "fills": 5992,
+          "flatten_share": 0.299,
+          "avg_hold_snaps": 6.131436314363143
+        },
+        "DOGE": {
+          "net_bp": -0.353,
+          "fills": 5334,
+          "flatten_share": 0.306,
+          "avg_hold_snaps": 6.062404870624048
+        },
+        "BNB": {
+          "net_bp": -0.122,
+          "fills": 2321,
+          "flatten_share": 0.334,
+          "avg_hold_snaps": 5.582481751824817
+        },
+        "ADA": {
+          "net_bp": -3.529,
+          "fills": 1436,
+          "flatten_share": 0.369,
+          "avg_hold_snaps": 4.036324786324786
+        },
+        "UNI": {
+          "net_bp": -4.616,
+          "fills": 1531,
+          "flatten_share": 0.361,
+          "avg_hold_snaps": 3.9730848861283645
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 26885,
+      "net_bp": -0.42,
+      "net_usd": -113.291,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.088,
+          "fills": 1693,
+          "flatten_share": 0.318,
+          "avg_hold_snaps": 5.821138211382114
+        },
+        "ETH": {
+          "net_bp": 0.036,
+          "fills": 3304,
+          "flatten_share": 0.298,
+          "avg_hold_snaps": 6.003393665158371
+        },
+        "SOL": {
+          "net_bp": -0.178,
+          "fills": 5647,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 6.288461538461538
+        },
+        "XRP": {
+          "net_bp": 0.155,
+          "fills": 5903,
+          "flatten_share": 0.288,
+          "avg_hold_snaps": 6.347886347886348
+        },
+        "DOGE": {
+          "net_bp": -0.087,
+          "fills": 5169,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 6.411347517730497
+        },
+        "BNB": {
+          "net_bp": -0.074,
+          "fills": 2286,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 5.704845814977974
+        },
+        "ADA": {
+          "net_bp": -3.191,
+          "fills": 1387,
+          "flatten_share": 0.348,
+          "avg_hold_snaps": 4.886956521739131
+        },
+        "UNI": {
+          "net_bp": -4.427,
+          "fills": 1496,
+          "flatten_share": 0.347,
+          "avg_hold_snaps": 4.9742489270386265
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 26825,
+      "net_bp": -0.394,
+      "net_usd": -106.1643,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.08,
+          "fills": 1689,
+          "flatten_share": 0.319,
+          "avg_hold_snaps": 5.817073170731708
+        },
+        "ETH": {
+          "net_bp": 0.042,
+          "fills": 3299,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 6.016987542468856
+        },
+        "SOL": {
+          "net_bp": -0.175,
+          "fills": 5644,
+          "flatten_share": 0.291,
+          "avg_hold_snaps": 6.293656450463293
+        },
+        "XRP": {
+          "net_bp": 0.151,
+          "fills": 5901,
+          "flatten_share": 0.287,
+          "avg_hold_snaps": 6.358529819694868
+        },
+        "DOGE": {
+          "net_bp": -0.073,
+          "fills": 5163,
+          "flatten_share": 0.283,
+          "avg_hold_snaps": 6.4560570071258905
+        },
+        "BNB": {
+          "net_bp": -0.057,
+          "fills": 2281,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 5.726470588235294
+        },
+        "ADA": {
+          "net_bp": -3.127,
+          "fills": 1380,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 5.0435729847494555
+        },
+        "UNI": {
+          "net_bp": -4.132,
+          "fills": 1468,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 5.224890829694323
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 26015,
+      "net_bp": -0.425,
+      "net_usd": -112.9476,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.079,
+          "fills": 1623,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 9.804245283018869
+        },
+        "ETH": {
+          "net_bp": 0.088,
+          "fills": 3214,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 10.059681697612731
+        },
+        "SOL": {
+          "net_bp": -0.096,
+          "fills": 5427,
+          "flatten_share": 0.256,
+          "avg_hold_snaps": 10.327380952380953
+        },
+        "XRP": {
+          "net_bp": 0.222,
+          "fills": 5588,
+          "flatten_share": 0.254,
+          "avg_hold_snaps": 10.686757215619695
+        },
+        "DOGE": {
+          "net_bp": -0.139,
+          "fills": 5058,
+          "flatten_share": 0.263,
+          "avg_hold_snaps": 10.277828886844526
+        },
+        "BNB": {
+          "net_bp": -0.009,
+          "fills": 2205,
+          "flatten_share": 0.303,
+          "avg_hold_snaps": 9.596314907872697
+        },
+        "ADA": {
+          "net_bp": -3.494,
+          "fills": 1401,
+          "flatten_share": 0.355,
+          "avg_hold_snaps": 6.266365688487585
+        },
+        "UNI": {
+          "net_bp": -4.774,
+          "fills": 1499,
+          "flatten_share": 0.348,
+          "avg_hold_snaps": 6.002169197396963
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 25283,
+      "net_bp": -0.249,
+      "net_usd": -63.6339,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.3,
+          "fills": 1601,
+          "flatten_share": 0.276,
+          "avg_hold_snaps": 10.384987893462469
+        },
+        "ETH": {
+          "net_bp": 0.284,
+          "fills": 3118,
+          "flatten_share": 0.254,
+          "avg_hold_snaps": 10.810511756569849
+        },
+        "SOL": {
+          "net_bp": 0.043,
+          "fills": 5296,
+          "flatten_share": 0.235,
+          "avg_hold_snaps": 11.208071748878924
+        },
+        "XRP": {
+          "net_bp": 0.429,
+          "fills": 5457,
+          "flatten_share": 0.235,
+          "avg_hold_snaps": 11.421750663129973
+        },
+        "DOGE": {
+          "net_bp": 0.178,
+          "fills": 4858,
+          "flatten_share": 0.23,
+          "avg_hold_snaps": 11.5994005994006
+        },
+        "BNB": {
+          "net_bp": 0.092,
+          "fills": 2162,
+          "flatten_share": 0.286,
+          "avg_hold_snaps": 10.145299145299145
+        },
+        "ADA": {
+          "net_bp": -3.349,
+          "fills": 1347,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 8.726618705035971
+        },
+        "UNI": {
+          "net_bp": -4.843,
+          "fills": 1444,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 8.449074074074074
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 25211,
+      "net_bp": -0.23,
+      "net_usd": -58.6954,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.3,
+          "fills": 1598,
+          "flatten_share": 0.276,
+          "avg_hold_snaps": 10.368038740920097
+        },
+        "ETH": {
+          "net_bp": 0.286,
+          "fills": 3119,
+          "flatten_share": 0.254,
+          "avg_hold_snaps": 10.890429958391124
+        },
+        "SOL": {
+          "net_bp": 0.048,
+          "fills": 5296,
+          "flatten_share": 0.235,
+          "avg_hold_snaps": 11.208071748878924
+        },
+        "XRP": {
+          "net_bp": 0.43,
+          "fills": 5458,
+          "flatten_share": 0.235,
+          "avg_hold_snaps": 11.404761904761905
+        },
+        "DOGE": {
+          "net_bp": 0.179,
+          "fills": 4846,
+          "flatten_share": 0.228,
+          "avg_hold_snaps": 11.735887096774194
+        },
+        "BNB": {
+          "net_bp": 0.111,
+          "fills": 2157,
+          "flatten_share": 0.285,
+          "avg_hold_snaps": 10.22680412371134
+        },
+        "ADA": {
+          "net_bp": -3.261,
+          "fills": 1332,
+          "flatten_share": 0.321,
+          "avg_hold_snaps": 9.253658536585366
+        },
+        "UNI": {
+          "net_bp": -4.709,
+          "fills": 1405,
+          "flatten_share": 0.31,
+          "avg_hold_snaps": 9.346246973365618
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 24388,
+      "net_bp": -0.2,
+      "net_usd": -50.248,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.023,
+          "fills": 1535,
+          "flatten_share": 0.252,
+          "avg_hold_snaps": 20.048571428571428
+        },
+        "ETH": {
+          "net_bp": 0.276,
+          "fills": 2975,
+          "flatten_share": 0.226,
+          "avg_hold_snaps": 21.279646017699115
+        },
+        "SOL": {
+          "net_bp": 0.177,
+          "fills": 5065,
+          "flatten_share": 0.194,
+          "avg_hold_snaps": 21.507710557532622
+        },
+        "XRP": {
+          "net_bp": 0.543,
+          "fills": 5147,
+          "flatten_share": 0.192,
+          "avg_hold_snaps": 22.82138517618469
+        },
+        "DOGE": {
+          "net_bp": 0.079,
+          "fills": 4764,
+          "flatten_share": 0.209,
+          "avg_hold_snaps": 22.275549805950842
+        },
+        "BNB": {
+          "net_bp": 0.28,
+          "fills": 2084,
+          "flatten_share": 0.251,
+          "avg_hold_snaps": 20.643923240938165
+        },
+        "ADA": {
+          "net_bp": -3.331,
+          "fills": 1366,
+          "flatten_share": 0.339,
+          "avg_hold_snaps": 11.375
+        },
+        "UNI": {
+          "net_bp": -4.451,
+          "fills": 1452,
+          "flatten_share": 0.326,
+          "avg_hold_snaps": 10.669099756690997
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 23309,
+      "net_bp": 0.038,
+      "net_usd": 8.9933,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.299,
+          "fills": 1499,
+          "flatten_share": 0.224,
+          "avg_hold_snaps": 23.507598784194528
+        },
+        "ETH": {
+          "net_bp": 0.701,
+          "fills": 2861,
+          "flatten_share": 0.185,
+          "avg_hold_snaps": 25.854
+        },
+        "SOL": {
+          "net_bp": 0.416,
+          "fills": 4845,
+          "flatten_share": 0.158,
+          "avg_hold_snaps": 26.977746870653686
+        },
+        "XRP": {
+          "net_bp": 0.882,
+          "fills": 4940,
+          "flatten_share": 0.156,
+          "avg_hold_snaps": 27.716083916083917
+        },
+        "DOGE": {
+          "net_bp": 0.405,
+          "fills": 4492,
+          "flatten_share": 0.162,
+          "avg_hold_snaps": 27.779299847793
+        },
+        "BNB": {
+          "net_bp": 0.406,
+          "fills": 2027,
+          "flatten_share": 0.221,
+          "avg_hold_snaps": 24.18475750577367
+        },
+        "ADA": {
+          "net_bp": -3.026,
+          "fills": 1281,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 19.21212121212121
+        },
+        "UNI": {
+          "net_bp": -5.049,
+          "fills": 1364,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 18.361581920903955
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 23144,
+      "net_bp": 0.135,
+      "net_usd": 31.6699,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.277,
+          "fills": 1495,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 23.576219512195124
+        },
+        "ETH": {
+          "net_bp": 0.704,
+          "fills": 2849,
+          "flatten_share": 0.184,
+          "avg_hold_snaps": 26.10282258064516
+        },
+        "SOL": {
+          "net_bp": 0.388,
+          "fills": 4841,
+          "flatten_share": 0.158,
+          "avg_hold_snaps": 26.933333333333334
+        },
+        "XRP": {
+          "net_bp": 0.916,
+          "fills": 4930,
+          "flatten_share": 0.155,
+          "avg_hold_snaps": 27.92394366197183
+        },
+        "DOGE": {
+          "net_bp": 0.478,
+          "fills": 4467,
+          "flatten_share": 0.158,
+          "avg_hold_snaps": 28.11230769230769
+        },
+        "BNB": {
+          "net_bp": 0.416,
+          "fills": 2017,
+          "flatten_share": 0.219,
+          "avg_hold_snaps": 24.543325526932083
+        },
+        "ADA": {
+          "net_bp": -2.707,
+          "fills": 1251,
+          "flatten_share": 0.283,
+          "avg_hold_snaps": 21.39541547277937
+        },
+        "UNI": {
+          "net_bp": -4.132,
+          "fills": 1294,
+          "flatten_share": 0.262,
+          "avg_hold_snaps": 22.486153846153847
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 27487,
+      "net_bp": -0.373,
+      "net_usd": -100.0585,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.158,
+          "fills": 1702,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 5.711111111111111
+        },
+        "ETH": {
+          "net_bp": 0.092,
+          "fills": 3357,
+          "flatten_share": 0.31,
+          "avg_hold_snaps": 5.785242290748899
+        },
+        "SOL": {
+          "net_bp": 0.069,
+          "fills": 5943,
+          "flatten_share": 0.286,
+          "avg_hold_snaps": 6.060481099656357
+        },
+        "XRP": {
+          "net_bp": 0.292,
+          "fills": 5878,
+          "flatten_share": 0.296,
+          "avg_hold_snaps": 6.248125426039537
+        },
+        "DOGE": {
+          "net_bp": -0.24,
+          "fills": 5354,
+          "flatten_share": 0.303,
+          "avg_hold_snaps": 6.075170842824601
+        },
+        "BNB": {
+          "net_bp": 0.03,
+          "fills": 2310,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 5.6046852122986826
+        },
+        "ADA": {
+          "net_bp": -3.513,
+          "fills": 1421,
+          "flatten_share": 0.373,
+          "avg_hold_snaps": 4.036324786324786
+        },
+        "UNI": {
+          "net_bp": -4.579,
+          "fills": 1522,
+          "flatten_share": 0.363,
+          "avg_hold_snaps": 3.9730848861283645
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 26977,
+      "net_bp": -0.201,
+      "net_usd": -52.1398,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.266,
+          "fills": 1689,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 5.869653767820774
+        },
+        "ETH": {
+          "net_bp": 0.281,
+          "fills": 3305,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 6.016891891891892
+        },
+        "SOL": {
+          "net_bp": 0.23,
+          "fills": 5854,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 6.4278571428571425
+        },
+        "XRP": {
+          "net_bp": 0.428,
+          "fills": 5796,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 6.475226796929518
+        },
+        "DOGE": {
+          "net_bp": 0.025,
+          "fills": 5197,
+          "flatten_share": 0.281,
+          "avg_hold_snaps": 6.434303697875689
+        },
+        "BNB": {
+          "net_bp": 0.101,
+          "fills": 2279,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 5.715124816446402
+        },
+        "ADA": {
+          "net_bp": -3.175,
+          "fills": 1374,
+          "flatten_share": 0.351,
+          "avg_hold_snaps": 4.886956521739131
+        },
+        "UNI": {
+          "net_bp": -4.396,
+          "fills": 1483,
+          "flatten_share": 0.35,
+          "avg_hold_snaps": 4.9742489270386265
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 26916,
+      "net_bp": -0.174,
+      "net_usd": -45.1267,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.262,
+          "fills": 1686,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 5.857433808553972
+        },
+        "ETH": {
+          "net_bp": 0.287,
+          "fills": 3300,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 6.0225225225225225
+        },
+        "SOL": {
+          "net_bp": 0.232,
+          "fills": 5849,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 6.4353109363831305
+        },
+        "XRP": {
+          "net_bp": 0.425,
+          "fills": 5794,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 6.4919636617749825
+        },
+        "DOGE": {
+          "net_bp": 0.032,
+          "fills": 5191,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 6.5134920634920634
+        },
+        "BNB": {
+          "net_bp": 0.118,
+          "fills": 2273,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 5.7367647058823525
+        },
+        "ADA": {
+          "net_bp": -3.108,
+          "fills": 1367,
+          "flatten_share": 0.347,
+          "avg_hold_snaps": 5.0435729847494555
+        },
+        "UNI": {
+          "net_bp": -4.092,
+          "fills": 1456,
+          "flatten_share": 0.338,
+          "avg_hold_snaps": 5.224890829694323
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 26160,
+      "net_bp": -0.18,
+      "net_usd": -45.9373,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.306,
+          "fills": 1614,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 9.818823529411764
+        },
+        "ETH": {
+          "net_bp": 0.315,
+          "fills": 3225,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 10.194407456724367
+        },
+        "SOL": {
+          "net_bp": 0.379,
+          "fills": 5640,
+          "flatten_share": 0.236,
+          "avg_hold_snaps": 10.625320786997433
+        },
+        "XRP": {
+          "net_bp": 0.52,
+          "fills": 5515,
+          "flatten_share": 0.25,
+          "avg_hold_snaps": 11.02061855670103
+        },
+        "DOGE": {
+          "net_bp": -0.026,
+          "fills": 5083,
+          "flatten_share": 0.258,
+          "avg_hold_snaps": 10.335169880624425
+        },
+        "BNB": {
+          "net_bp": 0.232,
+          "fills": 2204,
+          "flatten_share": 0.299,
+          "avg_hold_snaps": 9.709949409780776
+        },
+        "ADA": {
+          "net_bp": -3.46,
+          "fills": 1388,
+          "flatten_share": 0.359,
+          "avg_hold_snaps": 6.2686230248307
+        },
+        "UNI": {
+          "net_bp": -4.717,
+          "fills": 1491,
+          "flatten_share": 0.349,
+          "avg_hold_snaps": 6.008676789587852
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 25439,
+      "net_bp": 0.003,
+      "net_usd": 0.6342,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.492,
+          "fills": 1586,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 10.554744525547445
+        },
+        "ETH": {
+          "net_bp": 0.526,
+          "fills": 3136,
+          "flatten_share": 0.248,
+          "avg_hold_snaps": 11.044755244755244
+        },
+        "SOL": {
+          "net_bp": 0.548,
+          "fills": 5494,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 11.753211009174311
+        },
+        "XRP": {
+          "net_bp": 0.723,
+          "fills": 5401,
+          "flatten_share": 0.23,
+          "avg_hold_snaps": 11.78673835125448
+        },
+        "DOGE": {
+          "net_bp": 0.291,
+          "fills": 4899,
+          "flatten_share": 0.227,
+          "avg_hold_snaps": 11.682634730538922
+        },
+        "BNB": {
+          "net_bp": 0.323,
+          "fills": 2161,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 10.328151986183075
+        },
+        "ADA": {
+          "net_bp": -3.354,
+          "fills": 1333,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 8.726618705035971
+        },
+        "UNI": {
+          "net_bp": -4.807,
+          "fills": 1429,
+          "flatten_share": 0.331,
+          "avg_hold_snaps": 8.456018518518519
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 25352,
+      "net_bp": 0.02,
+      "net_usd": 4.9476,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.501,
+          "fills": 1585,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 10.540145985401459
+        },
+        "ETH": {
+          "net_bp": 0.522,
+          "fills": 3136,
+          "flatten_share": 0.248,
+          "avg_hold_snaps": 11.123422159887799
+        },
+        "SOL": {
+          "net_bp": 0.547,
+          "fills": 5491,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 11.772977941176471
+        },
+        "XRP": {
+          "net_bp": 0.73,
+          "fills": 5392,
+          "flatten_share": 0.229,
+          "avg_hold_snaps": 11.794802867383513
+        },
+        "DOGE": {
+          "net_bp": 0.271,
+          "fills": 4886,
+          "flatten_share": 0.226,
+          "avg_hold_snaps": 11.84661957618567
+        },
+        "BNB": {
+          "net_bp": 0.336,
+          "fills": 2154,
+          "flatten_share": 0.282,
+          "avg_hold_snaps": 10.431304347826087
+        },
+        "ADA": {
+          "net_bp": -3.266,
+          "fills": 1318,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 9.253658536585366
+        },
+        "UNI": {
+          "net_bp": -4.63,
+          "fills": 1390,
+          "flatten_share": 0.312,
+          "avg_hold_snaps": 9.353510895883778
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 24645,
+      "net_bp": 0.067,
+      "net_usd": 16.3019,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.35,
+          "fills": 1538,
+          "flatten_share": 0.252,
+          "avg_hold_snaps": 20.404558404558404
+        },
+        "ETH": {
+          "net_bp": 0.484,
+          "fills": 3016,
+          "flatten_share": 0.222,
+          "avg_hold_snaps": 21.59010600706714
+        },
+        "SOL": {
+          "net_bp": 0.686,
+          "fills": 5296,
+          "flatten_share": 0.176,
+          "avg_hold_snaps": 22.6309963099631
+        },
+        "XRP": {
+          "net_bp": 0.853,
+          "fills": 5112,
+          "flatten_share": 0.187,
+          "avg_hold_snaps": 23.99122807017544
+        },
+        "DOGE": {
+          "net_bp": 0.269,
+          "fills": 4806,
+          "flatten_share": 0.202,
+          "avg_hold_snaps": 22.665359477124184
+        },
+        "BNB": {
+          "net_bp": 0.429,
+          "fills": 2079,
+          "flatten_share": 0.248,
+          "avg_hold_snaps": 21.331182795698926
+        },
+        "ADA": {
+          "net_bp": -3.281,
+          "fills": 1355,
+          "flatten_share": 0.342,
+          "avg_hold_snaps": 11.350961538461538
+        },
+        "UNI": {
+          "net_bp": -4.427,
+          "fills": 1443,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 10.669099756690997
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 23613,
+      "net_bp": 0.384,
+      "net_usd": 87.8319,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.622,
+          "fills": 1505,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 24.091185410334347
+        },
+        "ETH": {
+          "net_bp": 0.9,
+          "fills": 2910,
+          "flatten_share": 0.179,
+          "avg_hold_snaps": 26.400402414486923
+        },
+        "SOL": {
+          "net_bp": 1.033,
+          "fills": 5063,
+          "flatten_share": 0.137,
+          "avg_hold_snaps": 29.21005917159763
+        },
+        "XRP": {
+          "net_bp": 1.288,
+          "fills": 4928,
+          "flatten_share": 0.148,
+          "avg_hold_snaps": 29.438136826783115
+        },
+        "DOGE": {
+          "net_bp": 0.736,
+          "fills": 4567,
+          "flatten_share": 0.153,
+          "avg_hold_snaps": 29.02201257861635
+        },
+        "BNB": {
+          "net_bp": 0.591,
+          "fills": 2015,
+          "flatten_share": 0.217,
+          "avg_hold_snaps": 24.969483568075116
+        },
+        "ADA": {
+          "net_bp": -3.01,
+          "fills": 1271,
+          "flatten_share": 0.299,
+          "avg_hold_snaps": 19.21212121212121
+        },
+        "UNI": {
+          "net_bp": -4.898,
+          "fills": 1354,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 18.358757062146893
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 23450,
+      "net_bp": 0.479,
+      "net_usd": 108.4945,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.61,
+          "fills": 1503,
+          "flatten_share": 0.222,
+          "avg_hold_snaps": 24.161585365853657
+        },
+        "ETH": {
+          "net_bp": 0.92,
+          "fills": 2895,
+          "flatten_share": 0.177,
+          "avg_hold_snaps": 26.869653767820775
+        },
+        "SOL": {
+          "net_bp": 1.026,
+          "fills": 5056,
+          "flatten_share": 0.137,
+          "avg_hold_snaps": 29.09439528023599
+        },
+        "XRP": {
+          "net_bp": 1.296,
+          "fills": 4917,
+          "flatten_share": 0.146,
+          "avg_hold_snaps": 29.72540381791483
+        },
+        "DOGE": {
+          "net_bp": 0.783,
+          "fills": 4543,
+          "flatten_share": 0.149,
+          "avg_hold_snaps": 29.53993610223642
+        },
+        "BNB": {
+          "net_bp": 0.596,
+          "fills": 2009,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 25.26603325415677
+        },
+        "ADA": {
+          "net_bp": -2.661,
+          "fills": 1240,
+          "flatten_share": 0.285,
+          "avg_hold_snaps": 21.413793103448278
+        },
+        "UNI": {
+          "net_bp": -4.049,
+          "fills": 1287,
+          "flatten_share": 0.263,
+          "avg_hold_snaps": 22.483076923076922
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 27237,
+      "net_bp": -0.263,
+      "net_usd": -67.2134,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.32,
+          "fills": 1705,
+          "flatten_share": 0.321,
+          "avg_hold_snaps": 5.905154639175258
+        },
+        "ETH": {
+          "net_bp": 0.256,
+          "fills": 3360,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 5.829646017699115
+        },
+        "SOL": {
+          "net_bp": 0.208,
+          "fills": 5642,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 6.089972527472527
+        },
+        "XRP": {
+          "net_bp": 0.418,
+          "fills": 5939,
+          "flatten_share": 0.292,
+          "avg_hold_snaps": 6.27266530334015
+        },
+        "DOGE": {
+          "net_bp": -0.138,
+          "fills": 5365,
+          "flatten_share": 0.301,
+          "avg_hold_snaps": 6.085171102661597
+        },
+        "BNB": {
+          "net_bp": 0.172,
+          "fills": 2307,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 5.589855072463768
+        },
+        "ADA": {
+          "net_bp": -3.468,
+          "fills": 1414,
+          "flatten_share": 0.375,
+          "avg_hold_snaps": 4.036324786324786
+        },
+        "UNI": {
+          "net_bp": -4.557,
+          "fills": 1505,
+          "flatten_share": 0.367,
+          "avg_hold_snaps": 3.977225672877847
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 26757,
+      "net_bp": -0.089,
+      "net_usd": -22.1986,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.426,
+          "fills": 1686,
+          "flatten_share": 0.313,
+          "avg_hold_snaps": 6.074844074844075
+        },
+        "ETH": {
+          "net_bp": 0.418,
+          "fills": 3311,
+          "flatten_share": 0.288,
+          "avg_hold_snaps": 6.058690744920993
+        },
+        "SOL": {
+          "net_bp": 0.379,
+          "fills": 5570,
+          "flatten_share": 0.283,
+          "avg_hold_snaps": 6.488538681948424
+        },
+        "XRP": {
+          "net_bp": 0.538,
+          "fills": 5850,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 6.521708683473389
+        },
+        "DOGE": {
+          "net_bp": 0.128,
+          "fills": 5227,
+          "flatten_share": 0.278,
+          "avg_hold_snaps": 6.461720599842147
+        },
+        "BNB": {
+          "net_bp": 0.273,
+          "fills": 2282,
+          "flatten_share": 0.322,
+          "avg_hold_snaps": 5.7190684133915575
+        },
+        "ADA": {
+          "net_bp": -3.133,
+          "fills": 1367,
+          "flatten_share": 0.353,
+          "avg_hold_snaps": 4.886956521739131
+        },
+        "UNI": {
+          "net_bp": -4.362,
+          "fills": 1464,
+          "flatten_share": 0.355,
+          "avg_hold_snaps": 4.984978540772532
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 26702,
+      "net_bp": -0.061,
+      "net_usd": -15.2288,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.422,
+          "fills": 1683,
+          "flatten_share": 0.313,
+          "avg_hold_snaps": 6.0623700623700625
+        },
+        "ETH": {
+          "net_bp": 0.422,
+          "fills": 3308,
+          "flatten_share": 0.287,
+          "avg_hold_snaps": 6.074576271186441
+        },
+        "SOL": {
+          "net_bp": 0.383,
+          "fills": 5566,
+          "flatten_share": 0.282,
+          "avg_hold_snaps": 6.493906810035842
+        },
+        "XRP": {
+          "net_bp": 0.544,
+          "fills": 5851,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 6.539971949509116
+        },
+        "DOGE": {
+          "net_bp": 0.131,
+          "fills": 5220,
+          "flatten_share": 0.277,
+          "avg_hold_snaps": 6.54140127388535
+        },
+        "BNB": {
+          "net_bp": 0.286,
+          "fills": 2278,
+          "flatten_share": 0.32,
+          "avg_hold_snaps": 5.765739385065886
+        },
+        "ADA": {
+          "net_bp": -3.063,
+          "fills": 1360,
+          "flatten_share": 0.349,
+          "avg_hold_snaps": 5.0435729847494555
+        },
+        "UNI": {
+          "net_bp": -4.062,
+          "fills": 1436,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 5.235807860262009
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 25935,
+      "net_bp": -0.049,
+      "net_usd": -11.9383,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.509,
+          "fills": 1622,
+          "flatten_share": 0.285,
+          "avg_hold_snaps": 9.845070422535212
+        },
+        "ETH": {
+          "net_bp": 0.492,
+          "fills": 3227,
+          "flatten_share": 0.266,
+          "avg_hold_snaps": 10.355886332882273
+        },
+        "SOL": {
+          "net_bp": 0.529,
+          "fills": 5329,
+          "flatten_share": 0.245,
+          "avg_hold_snaps": 10.658141517476556
+        },
+        "XRP": {
+          "net_bp": 0.71,
+          "fills": 5583,
+          "flatten_share": 0.242,
+          "avg_hold_snaps": 11.14495254529767
+        },
+        "DOGE": {
+          "net_bp": 0.084,
+          "fills": 5103,
+          "flatten_share": 0.255,
+          "avg_hold_snaps": 10.485661424606846
+        },
+        "BNB": {
+          "net_bp": 0.316,
+          "fills": 2207,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 9.701168614357263
+        },
+        "ADA": {
+          "net_bp": -3.4,
+          "fills": 1383,
+          "flatten_share": 0.36,
+          "avg_hold_snaps": 6.2686230248307
+        },
+        "UNI": {
+          "net_bp": -4.602,
+          "fills": 1481,
+          "flatten_share": 0.352,
+          "avg_hold_snaps": 6.010845986984815
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 25239,
+      "net_bp": 0.153,
+      "net_usd": 35.8283,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.671,
+          "fills": 1585,
+          "flatten_share": 0.269,
+          "avg_hold_snaps": 10.556900726392252
+        },
+        "ETH": {
+          "net_bp": 0.74,
+          "fills": 3155,
+          "flatten_share": 0.241,
+          "avg_hold_snaps": 11.309219858156029
+        },
+        "SOL": {
+          "net_bp": 0.726,
+          "fills": 5200,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 11.958371877890842
+        },
+        "XRP": {
+          "net_bp": 0.907,
+          "fills": 5469,
+          "flatten_share": 0.221,
+          "avg_hold_snaps": 11.973826714801444
+        },
+        "DOGE": {
+          "net_bp": 0.43,
+          "fills": 4917,
+          "flatten_share": 0.224,
+          "avg_hold_snaps": 11.884964682139254
+        },
+        "BNB": {
+          "net_bp": 0.457,
+          "fills": 2171,
+          "flatten_share": 0.279,
+          "avg_hold_snaps": 10.496539792387543
+        },
+        "ADA": {
+          "net_bp": -3.275,
+          "fills": 1329,
+          "flatten_share": 0.334,
+          "avg_hold_snaps": 8.726618705035971
+        },
+        "UNI": {
+          "net_bp": -4.708,
+          "fills": 1413,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 8.467592592592593
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 25157,
+      "net_bp": 0.173,
+      "net_usd": 40.3899,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.68,
+          "fills": 1584,
+          "flatten_share": 0.269,
+          "avg_hold_snaps": 10.542372881355933
+        },
+        "ETH": {
+          "net_bp": 0.734,
+          "fills": 3153,
+          "flatten_share": 0.24,
+          "avg_hold_snaps": 11.407988587731811
+        },
+        "SOL": {
+          "net_bp": 0.729,
+          "fills": 5199,
+          "flatten_share": 0.222,
+          "avg_hold_snaps": 11.98239110287303
+        },
+        "XRP": {
+          "net_bp": 0.907,
+          "fills": 5459,
+          "flatten_share": 0.22,
+          "avg_hold_snaps": 12.017194570135747
+        },
+        "DOGE": {
+          "net_bp": 0.422,
+          "fills": 4910,
+          "flatten_share": 0.221,
+          "avg_hold_snaps": 12.048979591836735
+        },
+        "BNB": {
+          "net_bp": 0.474,
+          "fills": 2165,
+          "flatten_share": 0.278,
+          "avg_hold_snaps": 10.6282722513089
+        },
+        "ADA": {
+          "net_bp": -3.183,
+          "fills": 1315,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 9.253658536585366
+        },
+        "UNI": {
+          "net_bp": -4.545,
+          "fills": 1372,
+          "flatten_share": 0.316,
+          "avg_hold_snaps": 9.385922330097088
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 24533,
+      "net_bp": 0.197,
+      "net_usd": 45.8125,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.67,
+          "fills": 1551,
+          "flatten_share": 0.244,
+          "avg_hold_snaps": 21.060693641618496
+        },
+        "ETH": {
+          "net_bp": 0.686,
+          "fills": 3053,
+          "flatten_share": 0.214,
+          "avg_hold_snaps": 21.761989342806395
+        },
+        "SOL": {
+          "net_bp": 0.811,
+          "fills": 4992,
+          "flatten_share": 0.184,
+          "avg_hold_snaps": 23.428035043804755
+        },
+        "XRP": {
+          "net_bp": 1.0,
+          "fills": 5210,
+          "flatten_share": 0.179,
+          "avg_hold_snaps": 24.873076923076923
+        },
+        "DOGE": {
+          "net_bp": 0.396,
+          "fills": 4854,
+          "flatten_share": 0.2,
+          "avg_hold_snaps": 22.579427083333332
+        },
+        "BNB": {
+          "net_bp": 0.571,
+          "fills": 2091,
+          "flatten_share": 0.243,
+          "avg_hold_snaps": 21.798283261802574
+        },
+        "ADA": {
+          "net_bp": -3.23,
+          "fills": 1350,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 11.350961538461538
+        },
+        "UNI": {
+          "net_bp": -4.429,
+          "fills": 1432,
+          "flatten_share": 0.331,
+          "avg_hold_snaps": 10.589805825242719
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 23530,
+      "net_bp": 0.55,
+      "net_usd": 120.6856,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.947,
+          "fills": 1514,
+          "flatten_share": 0.214,
+          "avg_hold_snaps": 24.962962962962962
+        },
+        "ETH": {
+          "net_bp": 1.145,
+          "fills": 2960,
+          "flatten_share": 0.17,
+          "avg_hold_snaps": 27.466257668711656
+        },
+        "SOL": {
+          "net_bp": 1.27,
+          "fills": 4781,
+          "flatten_share": 0.132,
+          "avg_hold_snaps": 32.34134615384615
+        },
+        "XRP": {
+          "net_bp": 1.39,
+          "fills": 5012,
+          "flatten_share": 0.137,
+          "avg_hold_snaps": 31.145896656534955
+        },
+        "DOGE": {
+          "net_bp": 0.873,
+          "fills": 4617,
+          "flatten_share": 0.147,
+          "avg_hold_snaps": 29.94345718901454
+        },
+        "BNB": {
+          "net_bp": 0.816,
+          "fills": 2041,
+          "flatten_share": 0.208,
+          "avg_hold_snaps": 26.332530120481927
+        },
+        "ADA": {
+          "net_bp": -2.883,
+          "fills": 1269,
+          "flatten_share": 0.299,
+          "avg_hold_snaps": 19.21212121212121
+        },
+        "UNI": {
+          "net_bp": -4.926,
+          "fills": 1336,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 18.22752808988764
+        }
+      }
+    },
+    {
+      "w_base_bp": 5.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 23393,
+      "net_bp": 0.643,
+      "net_usd": 140.0777,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.934,
+          "fills": 1512,
+          "flatten_share": 0.213,
+          "avg_hold_snaps": 25.037151702786378
+        },
+        "ETH": {
+          "net_bp": 1.166,
+          "fills": 2950,
+          "flatten_share": 0.168,
+          "avg_hold_snaps": 28.12266112266112
+        },
+        "SOL": {
+          "net_bp": 1.279,
+          "fills": 4779,
+          "flatten_share": 0.132,
+          "avg_hold_snaps": 32.391653290529696
+        },
+        "XRP": {
+          "net_bp": 1.405,
+          "fills": 5015,
+          "flatten_share": 0.136,
+          "avg_hold_snaps": 31.356269113149846
+        },
+        "DOGE": {
+          "net_bp": 0.906,
+          "fills": 4598,
+          "flatten_share": 0.143,
+          "avg_hold_snaps": 30.542763157894736
+        },
+        "BNB": {
+          "net_bp": 0.832,
+          "fills": 2033,
+          "flatten_share": 0.205,
+          "avg_hold_snaps": 26.938574938574938
+        },
+        "ADA": {
+          "net_bp": -2.536,
+          "fills": 1241,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 21.413793103448278
+        },
+        "UNI": {
+          "net_bp": -4.215,
+          "fills": 1265,
+          "flatten_share": 0.266,
+          "avg_hold_snaps": 22.515432098765434
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8831,
+      "net_bp": -0.467,
+      "net_usd": -41.9289,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.101,
+          "fills": 409,
+          "flatten_share": 0.411,
+          "avg_hold_snaps": 4.823943661971831
+        },
+        "ETH": {
+          "net_bp": 0.206,
+          "fills": 856,
+          "flatten_share": 0.388,
+          "avg_hold_snaps": 5.0366300366300365
+        },
+        "SOL": {
+          "net_bp": 0.137,
+          "fills": 1747,
+          "flatten_share": 0.369,
+          "avg_hold_snaps": 5.128544423440454
+        },
+        "XRP": {
+          "net_bp": 0.611,
+          "fills": 1660,
+          "flatten_share": 0.373,
+          "avg_hold_snaps": 5.181996086105675
+        },
+        "DOGE": {
+          "net_bp": 0.003,
+          "fills": 1756,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 5.345833333333333
+        },
+        "BNB": {
+          "net_bp": 0.048,
+          "fills": 495,
+          "flatten_share": 0.392,
+          "avg_hold_snaps": 4.728915662650603
+        },
+        "ADA": {
+          "net_bp": -2.332,
+          "fills": 955,
+          "flatten_share": 0.386,
+          "avg_hold_snaps": 3.6349693251533743
+        },
+        "UNI": {
+          "net_bp": -3.954,
+          "fills": 953,
+          "flatten_share": 0.374,
+          "avg_hold_snaps": 3.449367088607595
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8398,
+      "net_bp": -0.117,
+      "net_usd": -9.6912,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.664,
+          "fills": 386,
+          "flatten_share": 0.376,
+          "avg_hold_snaps": 5.242857142857143
+        },
+        "ETH": {
+          "net_bp": 0.554,
+          "fills": 808,
+          "flatten_share": 0.353,
+          "avg_hold_snaps": 5.447368421052632
+        },
+        "SOL": {
+          "net_bp": 0.479,
+          "fills": 1656,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 5.557729941291585
+        },
+        "XRP": {
+          "net_bp": 1.162,
+          "fills": 1585,
+          "flatten_share": 0.34,
+          "avg_hold_snaps": 5.489065606361829
+        },
+        "DOGE": {
+          "net_bp": 0.602,
+          "fills": 1638,
+          "flatten_share": 0.321,
+          "avg_hold_snaps": 5.947712418300654
+        },
+        "BNB": {
+          "net_bp": 0.233,
+          "fills": 474,
+          "flatten_share": 0.367,
+          "avg_hold_snaps": 5.236363636363636
+        },
+        "ADA": {
+          "net_bp": -2.03,
+          "fills": 918,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 4.813291139240507
+        },
+        "UNI": {
+          "net_bp": -3.933,
+          "fills": 933,
+          "flatten_share": 0.36,
+          "avg_hold_snaps": 4.751633986928105
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 8347,
+      "net_bp": -0.031,
+      "net_usd": -2.5694,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.689,
+          "fills": 386,
+          "flatten_share": 0.376,
+          "avg_hold_snaps": 5.264285714285714
+        },
+        "ETH": {
+          "net_bp": 0.576,
+          "fills": 804,
+          "flatten_share": 0.35,
+          "avg_hold_snaps": 5.50188679245283
+        },
+        "SOL": {
+          "net_bp": 0.491,
+          "fills": 1655,
+          "flatten_share": 0.332,
+          "avg_hold_snaps": 5.580392156862745
+        },
+        "XRP": {
+          "net_bp": 1.144,
+          "fills": 1584,
+          "flatten_share": 0.338,
+          "avg_hold_snaps": 5.575452716297787
+        },
+        "DOGE": {
+          "net_bp": 0.653,
+          "fills": 1629,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 6.081858407079646
+        },
+        "BNB": {
+          "net_bp": 0.342,
+          "fills": 473,
+          "flatten_share": 0.364,
+          "avg_hold_snaps": 5.343558282208589
+        },
+        "ADA": {
+          "net_bp": -1.869,
+          "fills": 908,
+          "flatten_share": 0.359,
+          "avg_hold_snaps": 5.083067092651757
+        },
+        "UNI": {
+          "net_bp": -3.537,
+          "fills": 908,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 5.127946127946128
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8551,
+      "net_bp": -0.259,
+      "net_usd": -22.6234,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.213,
+          "fills": 400,
+          "flatten_share": 0.4,
+          "avg_hold_snaps": 7.742647058823529
+        },
+        "ETH": {
+          "net_bp": 0.492,
+          "fills": 837,
+          "flatten_share": 0.368,
+          "avg_hold_snaps": 8.003921568627451
+        },
+        "SOL": {
+          "net_bp": 0.273,
+          "fills": 1680,
+          "flatten_share": 0.346,
+          "avg_hold_snaps": 8.369978858350951
+        },
+        "XRP": {
+          "net_bp": 0.814,
+          "fills": 1597,
+          "flatten_share": 0.347,
+          "avg_hold_snaps": 8.516198704103672
+        },
+        "DOGE": {
+          "net_bp": 0.397,
+          "fills": 1676,
+          "flatten_share": 0.333,
+          "avg_hold_snaps": 8.665071770334928
+        },
+        "BNB": {
+          "net_bp": 0.405,
+          "fills": 481,
+          "flatten_share": 0.376,
+          "avg_hold_snaps": 7.67515923566879
+        },
+        "ADA": {
+          "net_bp": -2.121,
+          "fills": 940,
+          "flatten_share": 0.379,
+          "avg_hold_snaps": 5.619354838709677
+        },
+        "UNI": {
+          "net_bp": -3.962,
+          "fills": 940,
+          "flatten_share": 0.368,
+          "avg_hold_snaps": 4.9935064935064934
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8023,
+      "net_bp": 0.162,
+      "net_usd": 12.8868,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.598,
+          "fills": 368,
+          "flatten_share": 0.348,
+          "avg_hold_snaps": 9.392
+        },
+        "ETH": {
+          "net_bp": 1.116,
+          "fills": 776,
+          "flatten_share": 0.321,
+          "avg_hold_snaps": 9.407563025210084
+        },
+        "SOL": {
+          "net_bp": 0.92,
+          "fills": 1572,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 9.877828054298643
+        },
+        "XRP": {
+          "net_bp": 1.311,
+          "fills": 1498,
+          "flatten_share": 0.305,
+          "avg_hold_snaps": 9.653846153846153
+        },
+        "DOGE": {
+          "net_bp": 1.204,
+          "fills": 1542,
+          "flatten_share": 0.276,
+          "avg_hold_snaps": 10.588390501319262
+        },
+        "BNB": {
+          "net_bp": 0.469,
+          "fills": 454,
+          "flatten_share": 0.341,
+          "avg_hold_snaps": 9.364864864864865
+        },
+        "ADA": {
+          "net_bp": -1.852,
+          "fills": 900,
+          "flatten_share": 0.351,
+          "avg_hold_snaps": 8.525597269624573
+        },
+        "UNI": {
+          "net_bp": -4.097,
+          "fills": 913,
+          "flatten_share": 0.352,
+          "avg_hold_snaps": 7.890034364261169
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 7929,
+      "net_bp": 0.226,
+      "net_usd": 17.8026,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.706,
+          "fills": 367,
+          "flatten_share": 0.346,
+          "avg_hold_snaps": 9.57258064516129
+        },
+        "ETH": {
+          "net_bp": 1.184,
+          "fills": 772,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 9.572033898305085
+        },
+        "SOL": {
+          "net_bp": 0.92,
+          "fills": 1562,
+          "flatten_share": 0.291,
+          "avg_hold_snaps": 9.830699774266366
+        },
+        "XRP": {
+          "net_bp": 1.394,
+          "fills": 1490,
+          "flatten_share": 0.303,
+          "avg_hold_snaps": 9.758542141230068
+        },
+        "DOGE": {
+          "net_bp": 1.236,
+          "fills": 1525,
+          "flatten_share": 0.269,
+          "avg_hold_snaps": 10.814516129032258
+        },
+        "BNB": {
+          "net_bp": 0.556,
+          "fills": 452,
+          "flatten_share": 0.336,
+          "avg_hold_snaps": 9.602739726027398
+        },
+        "ADA": {
+          "net_bp": -1.656,
+          "fills": 881,
+          "flatten_share": 0.341,
+          "avg_hold_snaps": 9.163194444444445
+        },
+        "UNI": {
+          "net_bp": -4.098,
+          "fills": 880,
+          "flatten_share": 0.326,
+          "avg_hold_snaps": 9.290441176470589
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8200,
+      "net_bp": -0.263,
+      "net_usd": -22.1194,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": -0.058,
+          "fills": 391,
+          "flatten_share": 0.391,
+          "avg_hold_snaps": 14.584615384615384
+        },
+        "ETH": {
+          "net_bp": 0.298,
+          "fills": 808,
+          "flatten_share": 0.349,
+          "avg_hold_snaps": 15.467532467532468
+        },
+        "SOL": {
+          "net_bp": 0.291,
+          "fills": 1596,
+          "flatten_share": 0.308,
+          "avg_hold_snaps": 16.68274111675127
+        },
+        "XRP": {
+          "net_bp": 0.931,
+          "fills": 1486,
+          "flatten_share": 0.31,
+          "avg_hold_snaps": 17.273936170212767
+        },
+        "DOGE": {
+          "net_bp": 0.466,
+          "fills": 1605,
+          "flatten_share": 0.302,
+          "avg_hold_snaps": 16.288888888888888
+        },
+        "BNB": {
+          "net_bp": 0.347,
+          "fills": 469,
+          "flatten_share": 0.354,
+          "avg_hold_snaps": 15.853146853146853
+        },
+        "ADA": {
+          "net_bp": -2.029,
+          "fills": 920,
+          "flatten_share": 0.37,
+          "avg_hold_snaps": 9.847682119205299
+        },
+        "UNI": {
+          "net_bp": -3.942,
+          "fills": 925,
+          "flatten_share": 0.357,
+          "avg_hold_snaps": 8.242320819112628
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 7529,
+      "net_bp": 0.257,
+      "net_usd": 19.4163,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.452,
+          "fills": 349,
+          "flatten_share": 0.321,
+          "avg_hold_snaps": 20.419642857142858
+        },
+        "ETH": {
+          "net_bp": 1.037,
+          "fills": 732,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 21.297029702970296
+        },
+        "SOL": {
+          "net_bp": 0.988,
+          "fills": 1460,
+          "flatten_share": 0.238,
+          "avg_hold_snaps": 23.51212121212121
+        },
+        "XRP": {
+          "net_bp": 1.668,
+          "fills": 1379,
+          "flatten_share": 0.249,
+          "avg_hold_snaps": 22.97590361445783
+        },
+        "DOGE": {
+          "net_bp": 1.314,
+          "fills": 1441,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 23.424242424242426
+        },
+        "BNB": {
+          "net_bp": 0.052,
+          "fills": 434,
+          "flatten_share": 0.313,
+          "avg_hold_snaps": 21.267175572519083
+        },
+        "ADA": {
+          "net_bp": -1.423,
+          "fills": 858,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 18.43071161048689
+        },
+        "UNI": {
+          "net_bp": -4.04,
+          "fills": 876,
+          "flatten_share": 0.323,
+          "avg_hold_snaps": 16.137795275590552
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.3,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 7399,
+      "net_bp": 0.534,
+      "net_usd": 39.5861,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.593,
+          "fills": 346,
+          "flatten_share": 0.318,
+          "avg_hold_snaps": 21.08108108108108
+        },
+        "ETH": {
+          "net_bp": 1.171,
+          "fills": 727,
+          "flatten_share": 0.279,
+          "avg_hold_snaps": 21.756218905472636
+        },
+        "SOL": {
+          "net_bp": 0.973,
+          "fills": 1448,
+          "flatten_share": 0.234,
+          "avg_hold_snaps": 24.191358024691358
+        },
+        "XRP": {
+          "net_bp": 1.632,
+          "fills": 1375,
+          "flatten_share": 0.243,
+          "avg_hold_snaps": 23.84472049689441
+        },
+        "DOGE": {
+          "net_bp": 1.475,
+          "fills": 1425,
+          "flatten_share": 0.212,
+          "avg_hold_snaps": 25.03191489361702
+        },
+        "BNB": {
+          "net_bp": 0.311,
+          "fills": 428,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 22.1640625
+        },
+        "ADA": {
+          "net_bp": -1.084,
+          "fills": 828,
+          "flatten_share": 0.307,
+          "avg_hold_snaps": 21.027667984189723
+        },
+        "UNI": {
+          "net_bp": -2.658,
+          "fills": 822,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 21.839285714285715
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8821,
+      "net_bp": -0.276,
+      "net_usd": -23.9489,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.207,
+          "fills": 407,
+          "flatten_share": 0.413,
+          "avg_hold_snaps": 4.823943661971831
+        },
+        "ETH": {
+          "net_bp": 0.31,
+          "fills": 859,
+          "flatten_share": 0.383,
+          "avg_hold_snaps": 5.003663003663004
+        },
+        "SOL": {
+          "net_bp": 0.614,
+          "fills": 1732,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 5.236294896030246
+        },
+        "XRP": {
+          "net_bp": 0.862,
+          "fills": 1676,
+          "flatten_share": 0.367,
+          "avg_hold_snaps": 5.2736220472440944
+        },
+        "DOGE": {
+          "net_bp": 0.163,
+          "fills": 1765,
+          "flatten_share": 0.362,
+          "avg_hold_snaps": 5.35
+        },
+        "BNB": {
+          "net_bp": 0.137,
+          "fills": 493,
+          "flatten_share": 0.391,
+          "avg_hold_snaps": 4.682634730538922
+        },
+        "ADA": {
+          "net_bp": -2.328,
+          "fills": 946,
+          "flatten_share": 0.39,
+          "avg_hold_snaps": 3.6349693251533743
+        },
+        "UNI": {
+          "net_bp": -3.918,
+          "fills": 943,
+          "flatten_share": 0.378,
+          "avg_hold_snaps": 3.449367088607595
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8389,
+      "net_bp": 0.097,
+      "net_usd": 7.7029,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.712,
+          "fills": 384,
+          "flatten_share": 0.378,
+          "avg_hold_snaps": 5.242857142857143
+        },
+        "ETH": {
+          "net_bp": 0.764,
+          "fills": 815,
+          "flatten_share": 0.345,
+          "avg_hold_snaps": 5.496212121212121
+        },
+        "SOL": {
+          "net_bp": 1.018,
+          "fills": 1636,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 5.744047619047619
+        },
+        "XRP": {
+          "net_bp": 1.41,
+          "fills": 1601,
+          "flatten_share": 0.334,
+          "avg_hold_snaps": 5.552894211576846
+        },
+        "DOGE": {
+          "net_bp": 0.737,
+          "fills": 1646,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 5.978118161925602
+        },
+        "BNB": {
+          "net_bp": 0.33,
+          "fills": 473,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 5.212121212121212
+        },
+        "ADA": {
+          "net_bp": -1.883,
+          "fills": 909,
+          "flatten_share": 0.369,
+          "avg_hold_snaps": 4.810126582278481
+        },
+        "UNI": {
+          "net_bp": -3.901,
+          "fills": 925,
+          "flatten_share": 0.363,
+          "avg_hold_snaps": 4.751633986928105
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 8342,
+      "net_bp": 0.172,
+      "net_usd": 13.6516,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.737,
+          "fills": 384,
+          "flatten_share": 0.378,
+          "avg_hold_snaps": 5.264285714285714
+        },
+        "ETH": {
+          "net_bp": 0.76,
+          "fills": 811,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 5.566539923954372
+        },
+        "SOL": {
+          "net_bp": 1.034,
+          "fills": 1636,
+          "flatten_share": 0.329,
+          "avg_hold_snaps": 5.7673956262425445
+        },
+        "XRP": {
+          "net_bp": 1.399,
+          "fills": 1603,
+          "flatten_share": 0.331,
+          "avg_hold_snaps": 5.642424242424243
+        },
+        "DOGE": {
+          "net_bp": 0.765,
+          "fills": 1636,
+          "flatten_share": 0.314,
+          "avg_hold_snaps": 6.115555555555556
+        },
+        "BNB": {
+          "net_bp": 0.42,
+          "fills": 472,
+          "flatten_share": 0.364,
+          "avg_hold_snaps": 5.3496932515337425
+        },
+        "ADA": {
+          "net_bp": -1.803,
+          "fills": 899,
+          "flatten_share": 0.363,
+          "avg_hold_snaps": 5.083067092651757
+        },
+        "UNI": {
+          "net_bp": -3.507,
+          "fills": 901,
+          "flatten_share": 0.345,
+          "avg_hold_snaps": 5.127946127946128
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8559,
+      "net_bp": -0.054,
+      "net_usd": -4.5479,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.374,
+          "fills": 398,
+          "flatten_share": 0.399,
+          "avg_hold_snaps": 7.866666666666666
+        },
+        "ETH": {
+          "net_bp": 0.535,
+          "fills": 835,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 7.9411764705882355
+        },
+        "SOL": {
+          "net_bp": 0.817,
+          "fills": 1674,
+          "flatten_share": 0.339,
+          "avg_hold_snaps": 8.570526315789474
+        },
+        "XRP": {
+          "net_bp": 1.134,
+          "fills": 1616,
+          "flatten_share": 0.34,
+          "avg_hold_snaps": 8.62987012987013
+        },
+        "DOGE": {
+          "net_bp": 0.553,
+          "fills": 1697,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 8.59478672985782
+        },
+        "BNB": {
+          "net_bp": 0.44,
+          "fills": 481,
+          "flatten_share": 0.376,
+          "avg_hold_snaps": 7.69620253164557
+        },
+        "ADA": {
+          "net_bp": -2.11,
+          "fills": 931,
+          "flatten_share": 0.382,
+          "avg_hold_snaps": 5.619354838709677
+        },
+        "UNI": {
+          "net_bp": -3.969,
+          "fills": 927,
+          "flatten_share": 0.373,
+          "avg_hold_snaps": 4.9935064935064934
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8040,
+      "net_bp": 0.377,
+      "net_usd": 28.9296,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.633,
+          "fills": 366,
+          "flatten_share": 0.35,
+          "avg_hold_snaps": 9.596774193548388
+        },
+        "ETH": {
+          "net_bp": 1.37,
+          "fills": 781,
+          "flatten_share": 0.318,
+          "avg_hold_snaps": 9.552742616033756
+        },
+        "SOL": {
+          "net_bp": 1.41,
+          "fills": 1552,
+          "flatten_share": 0.287,
+          "avg_hold_snaps": 10.250574712643678
+        },
+        "XRP": {
+          "net_bp": 1.714,
+          "fills": 1533,
+          "flatten_share": 0.295,
+          "avg_hold_snaps": 9.861047835990888
+        },
+        "DOGE": {
+          "net_bp": 1.283,
+          "fills": 1554,
+          "flatten_share": 0.27,
+          "avg_hold_snaps": 10.577836411609498
+        },
+        "BNB": {
+          "net_bp": 0.649,
+          "fills": 456,
+          "flatten_share": 0.338,
+          "avg_hold_snaps": 9.38255033557047
+        },
+        "ADA": {
+          "net_bp": -1.806,
+          "fills": 893,
+          "flatten_share": 0.354,
+          "avg_hold_snaps": 8.522184300341298
+        },
+        "UNI": {
+          "net_bp": -4.057,
+          "fills": 905,
+          "flatten_share": 0.355,
+          "avg_hold_snaps": 7.88659793814433
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 7951,
+      "net_bp": 0.422,
+      "net_usd": 32.0034,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.744,
+          "fills": 365,
+          "flatten_share": 0.348,
+          "avg_hold_snaps": 9.78048780487805
+        },
+        "ETH": {
+          "net_bp": 1.357,
+          "fills": 777,
+          "flatten_share": 0.315,
+          "avg_hold_snaps": 9.753191489361702
+        },
+        "SOL": {
+          "net_bp": 1.453,
+          "fills": 1545,
+          "flatten_share": 0.283,
+          "avg_hold_snaps": 10.213793103448277
+        },
+        "XRP": {
+          "net_bp": 1.75,
+          "fills": 1525,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 9.958715596330276
+        },
+        "DOGE": {
+          "net_bp": 1.283,
+          "fills": 1540,
+          "flatten_share": 0.262,
+          "avg_hold_snaps": 10.803763440860216
+        },
+        "BNB": {
+          "net_bp": 0.731,
+          "fills": 452,
+          "flatten_share": 0.334,
+          "avg_hold_snaps": 9.678082191780822
+        },
+        "ADA": {
+          "net_bp": -1.635,
+          "fills": 872,
+          "flatten_share": 0.344,
+          "avg_hold_snaps": 9.159722222222221
+        },
+        "UNI": {
+          "net_bp": -4.114,
+          "fills": 875,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 9.286764705882353
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8259,
+      "net_bp": 0.051,
+      "net_usd": 4.1678,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.189,
+          "fills": 388,
+          "flatten_share": 0.389,
+          "avg_hold_snaps": 14.744186046511627
+        },
+        "ETH": {
+          "net_bp": 0.394,
+          "fills": 810,
+          "flatten_share": 0.347,
+          "avg_hold_snaps": 15.376623376623376
+        },
+        "SOL": {
+          "net_bp": 1.04,
+          "fills": 1593,
+          "flatten_share": 0.303,
+          "avg_hold_snaps": 16.87719298245614
+        },
+        "XRP": {
+          "net_bp": 1.395,
+          "fills": 1534,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 17.555851063829788
+        },
+        "DOGE": {
+          "net_bp": 0.717,
+          "fills": 1639,
+          "flatten_share": 0.297,
+          "avg_hold_snaps": 16.134986225895318
+        },
+        "BNB": {
+          "net_bp": 0.522,
+          "fills": 472,
+          "flatten_share": 0.35,
+          "avg_hold_snaps": 16.041958041958043
+        },
+        "ADA": {
+          "net_bp": -1.981,
+          "fills": 911,
+          "flatten_share": 0.373,
+          "avg_hold_snaps": 9.847682119205299
+        },
+        "UNI": {
+          "net_bp": -3.955,
+          "fills": 912,
+          "flatten_share": 0.362,
+          "avg_hold_snaps": 8.242320819112628
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 7610,
+      "net_bp": 0.599,
+      "net_usd": 43.7636,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.439,
+          "fills": 342,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 20.758928571428573
+        },
+        "ETH": {
+          "net_bp": 1.371,
+          "fills": 746,
+          "flatten_share": 0.277,
+          "avg_hold_snaps": 21.465346534653467
+        },
+        "SOL": {
+          "net_bp": 1.718,
+          "fills": 1451,
+          "flatten_share": 0.227,
+          "avg_hold_snaps": 24.67080745341615
+        },
+        "XRP": {
+          "net_bp": 2.173,
+          "fills": 1437,
+          "flatten_share": 0.233,
+          "avg_hold_snaps": 23.944615384615386
+        },
+        "DOGE": {
+          "net_bp": 1.585,
+          "fills": 1473,
+          "flatten_share": 0.216,
+          "avg_hold_snaps": 24.333333333333332
+        },
+        "BNB": {
+          "net_bp": 0.321,
+          "fills": 437,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 21.75968992248062
+        },
+        "ADA": {
+          "net_bp": -1.41,
+          "fills": 852,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 18.382022471910112
+        },
+        "UNI": {
+          "net_bp": -3.905,
+          "fills": 872,
+          "flatten_share": 0.325,
+          "avg_hold_snaps": 16.054901960784314
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 0.6,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 7480,
+      "net_bp": 0.839,
+      "net_usd": 60.0527,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.539,
+          "fills": 341,
+          "flatten_share": 0.323,
+          "avg_hold_snaps": 21.37837837837838
+        },
+        "ETH": {
+          "net_bp": 1.41,
+          "fills": 740,
+          "flatten_share": 0.274,
+          "avg_hold_snaps": 22.14
+        },
+        "SOL": {
+          "net_bp": 1.708,
+          "fills": 1440,
+          "flatten_share": 0.223,
+          "avg_hold_snaps": 25.329113924050635
+        },
+        "XRP": {
+          "net_bp": 2.185,
+          "fills": 1434,
+          "flatten_share": 0.226,
+          "avg_hold_snaps": 24.879746835443036
+        },
+        "DOGE": {
+          "net_bp": 1.72,
+          "fills": 1462,
+          "flatten_share": 0.204,
+          "avg_hold_snaps": 26.05818181818182
+        },
+        "BNB": {
+          "net_bp": 0.559,
+          "fills": 429,
+          "flatten_share": 0.296,
+          "avg_hold_snaps": 22.928
+        },
+        "ADA": {
+          "net_bp": -1.129,
+          "fills": 818,
+          "flatten_share": 0.311,
+          "avg_hold_snaps": 21.023715415019762
+        },
+        "UNI": {
+          "net_bp": -2.83,
+          "fills": 816,
+          "flatten_share": 0.281,
+          "avg_hold_snaps": 21.90134529147982
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8802,
+      "net_bp": -0.161,
+      "net_usd": -13.6021,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.407,
+          "fills": 413,
+          "flatten_share": 0.402,
+          "avg_hold_snaps": 4.795774647887324
+        },
+        "ETH": {
+          "net_bp": 0.492,
+          "fills": 867,
+          "flatten_share": 0.377,
+          "avg_hold_snaps": 5.0366300366300365
+        },
+        "SOL": {
+          "net_bp": 0.674,
+          "fills": 1735,
+          "flatten_share": 0.364,
+          "avg_hold_snaps": 5.27134724857685
+        },
+        "XRP": {
+          "net_bp": 1.067,
+          "fills": 1682,
+          "flatten_share": 0.363,
+          "avg_hold_snaps": 5.306483300589391
+        },
+        "DOGE": {
+          "net_bp": 0.245,
+          "fills": 1735,
+          "flatten_share": 0.365,
+          "avg_hold_snaps": 5.3375
+        },
+        "BNB": {
+          "net_bp": 0.452,
+          "fills": 496,
+          "flatten_share": 0.383,
+          "avg_hold_snaps": 4.771084337349397
+        },
+        "ADA": {
+          "net_bp": -2.33,
+          "fills": 941,
+          "flatten_share": 0.392,
+          "avg_hold_snaps": 3.6319018404907975
+        },
+        "UNI": {
+          "net_bp": -3.846,
+          "fills": 933,
+          "flatten_share": 0.382,
+          "avg_hold_snaps": 3.449367088607595
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8403,
+      "net_bp": 0.212,
+      "net_usd": 16.4456,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.891,
+          "fills": 391,
+          "flatten_share": 0.371,
+          "avg_hold_snaps": 5.25
+        },
+        "ETH": {
+          "net_bp": 0.902,
+          "fills": 825,
+          "flatten_share": 0.338,
+          "avg_hold_snaps": 5.556818181818182
+        },
+        "SOL": {
+          "net_bp": 1.058,
+          "fills": 1646,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 5.81
+        },
+        "XRP": {
+          "net_bp": 1.608,
+          "fills": 1615,
+          "flatten_share": 0.329,
+          "avg_hold_snaps": 5.587649402390438
+        },
+        "DOGE": {
+          "net_bp": 0.86,
+          "fills": 1625,
+          "flatten_share": 0.317,
+          "avg_hold_snaps": 6.032967032967033
+        },
+        "BNB": {
+          "net_bp": 0.606,
+          "fills": 477,
+          "flatten_share": 0.361,
+          "avg_hold_snaps": 5.343558282208589
+        },
+        "ADA": {
+          "net_bp": -1.859,
+          "fills": 905,
+          "flatten_share": 0.37,
+          "avg_hold_snaps": 4.819620253164557
+        },
+        "UNI": {
+          "net_bp": -3.775,
+          "fills": 919,
+          "flatten_share": 0.366,
+          "avg_hold_snaps": 4.741830065359477
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 60.0,
+      "stop_loss_bp": 0.0,
+      "fills": 8352,
+      "net_bp": 0.288,
+      "net_usd": 22.1523,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.916,
+          "fills": 391,
+          "flatten_share": 0.371,
+          "avg_hold_snaps": 5.271428571428571
+        },
+        "ETH": {
+          "net_bp": 0.871,
+          "fills": 820,
+          "flatten_share": 0.337,
+          "avg_hold_snaps": 5.61596958174905
+        },
+        "SOL": {
+          "net_bp": 1.07,
+          "fills": 1645,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 5.833667334669339
+        },
+        "XRP": {
+          "net_bp": 1.609,
+          "fills": 1613,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 5.670020120724346
+        },
+        "DOGE": {
+          "net_bp": 0.903,
+          "fills": 1615,
+          "flatten_share": 0.314,
+          "avg_hold_snaps": 6.199105145413871
+        },
+        "BNB": {
+          "net_bp": 0.698,
+          "fills": 476,
+          "flatten_share": 0.359,
+          "avg_hold_snaps": 5.484472049689441
+        },
+        "ADA": {
+          "net_bp": -1.74,
+          "fills": 898,
+          "flatten_share": 0.363,
+          "avg_hold_snaps": 5.092651757188499
+        },
+        "UNI": {
+          "net_bp": -3.421,
+          "fills": 894,
+          "flatten_share": 0.348,
+          "avg_hold_snaps": 5.127946127946128
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8551,
+      "net_bp": 0.084,
+      "net_usd": 6.858,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.609,
+          "fills": 406,
+          "flatten_share": 0.387,
+          "avg_hold_snaps": 7.762962962962963
+        },
+        "ETH": {
+          "net_bp": 0.664,
+          "fills": 849,
+          "flatten_share": 0.358,
+          "avg_hold_snaps": 7.96078431372549
+        },
+        "SOL": {
+          "net_bp": 0.879,
+          "fills": 1676,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 8.545073375262055
+        },
+        "XRP": {
+          "net_bp": 1.416,
+          "fills": 1622,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 8.65943600867679
+        },
+        "DOGE": {
+          "net_bp": 0.709,
+          "fills": 1665,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 8.522458628841608
+        },
+        "BNB": {
+          "net_bp": 0.727,
+          "fills": 485,
+          "flatten_share": 0.367,
+          "avg_hold_snaps": 7.7594936708860756
+        },
+        "ADA": {
+          "net_bp": -2.111,
+          "fills": 928,
+          "flatten_share": 0.384,
+          "avg_hold_snaps": 5.606451612903226
+        },
+        "UNI": {
+          "net_bp": -3.877,
+          "fills": 920,
+          "flatten_share": 0.376,
+          "avg_hold_snaps": 4.9935064935064934
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 25.0,
+      "fills": 8097,
+      "net_bp": 0.523,
+      "net_usd": 38.9081,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 1.05,
+          "fills": 379,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 9.709677419354838
+        },
+        "ETH": {
+          "net_bp": 1.471,
+          "fills": 806,
+          "flatten_share": 0.305,
+          "avg_hold_snaps": 9.783898305084746
+        },
+        "SOL": {
+          "net_bp": 1.422,
+          "fills": 1564,
+          "flatten_share": 0.284,
+          "avg_hold_snaps": 10.314087759815243
+        },
+        "XRP": {
+          "net_bp": 1.961,
+          "fills": 1544,
+          "flatten_share": 0.29,
+          "avg_hold_snaps": 10.011467889908257
+        },
+        "DOGE": {
+          "net_bp": 1.484,
+          "fills": 1547,
+          "flatten_share": 0.266,
+          "avg_hold_snaps": 10.777188328912468
+        },
+        "BNB": {
+          "net_bp": 0.933,
+          "fills": 466,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 9.449664429530202
+        },
+        "ADA": {
+          "net_bp": -1.776,
+          "fills": 891,
+          "flatten_share": 0.354,
+          "avg_hold_snaps": 8.575342465753424
+        },
+        "UNI": {
+          "net_bp": -3.914,
+          "fills": 900,
+          "flatten_share": 0.357,
+          "avg_hold_snaps": 7.876288659793815
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 120.0,
+      "stop_loss_bp": 0.0,
+      "fills": 8007,
+      "net_bp": 0.589,
+      "net_usd": 43.2541,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 1.175,
+          "fills": 379,
+          "flatten_share": 0.332,
+          "avg_hold_snaps": 9.894308943089431
+        },
+        "ETH": {
+          "net_bp": 1.439,
+          "fills": 801,
+          "flatten_share": 0.303,
+          "avg_hold_snaps": 9.97008547008547
+        },
+        "SOL": {
+          "net_bp": 1.446,
+          "fills": 1555,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 10.333333333333334
+        },
+        "XRP": {
+          "net_bp": 2.008,
+          "fills": 1537,
+          "flatten_share": 0.287,
+          "avg_hold_snaps": 10.133949191685913
+        },
+        "DOGE": {
+          "net_bp": 1.561,
+          "fills": 1532,
+          "flatten_share": 0.259,
+          "avg_hold_snaps": 10.975741239892184
+        },
+        "BNB": {
+          "net_bp": 1.02,
+          "fills": 462,
+          "flatten_share": 0.327,
+          "avg_hold_snaps": 9.746575342465754
+        },
+        "ADA": {
+          "net_bp": -1.579,
+          "fills": 871,
+          "flatten_share": 0.343,
+          "avg_hold_snaps": 9.21602787456446
+        },
+        "UNI": {
+          "net_bp": -3.95,
+          "fills": 870,
+          "flatten_share": 0.33,
+          "avg_hold_snaps": 9.286764705882353
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 10.0,
+      "fills": 8273,
+      "net_bp": 0.202,
+      "net_usd": 15.955,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 0.558,
+          "fills": 398,
+          "flatten_share": 0.374,
+          "avg_hold_snaps": 14.255813953488373
+        },
+        "ETH": {
+          "net_bp": 0.654,
+          "fills": 826,
+          "flatten_share": 0.335,
+          "avg_hold_snaps": 15.270742358078603
+        },
+        "SOL": {
+          "net_bp": 1.152,
+          "fills": 1606,
+          "flatten_share": 0.298,
+          "avg_hold_snaps": 16.850374064837904
+        },
+        "XRP": {
+          "net_bp": 1.653,
+          "fills": 1549,
+          "flatten_share": 0.291,
+          "avg_hold_snaps": 17.49468085106383
+        },
+        "DOGE": {
+          "net_bp": 0.853,
+          "fills": 1605,
+          "flatten_share": 0.301,
+          "avg_hold_snaps": 16.283333333333335
+        },
+        "BNB": {
+          "net_bp": 0.85,
+          "fills": 474,
+          "flatten_share": 0.344,
+          "avg_hold_snaps": 15.641379310344828
+        },
+        "ADA": {
+          "net_bp": -2.114,
+          "fills": 909,
+          "flatten_share": 0.374,
+          "avg_hold_snaps": 9.748344370860927
+        },
+        "UNI": {
+          "net_bp": -3.852,
+          "fills": 906,
+          "flatten_share": 0.364,
+          "avg_hold_snaps": 8.238907849829351
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 25.0,
+      "fills": 7655,
+      "net_bp": 0.746,
+      "net_usd": 52.8825,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 1.03,
+          "fills": 360,
+          "flatten_share": 0.308,
+          "avg_hold_snaps": 20.955357142857142
+        },
+        "ETH": {
+          "net_bp": 1.662,
+          "fills": 768,
+          "flatten_share": 0.264,
+          "avg_hold_snaps": 22.145
+        },
+        "SOL": {
+          "net_bp": 1.822,
+          "fills": 1464,
+          "flatten_share": 0.222,
+          "avg_hold_snaps": 25.203761755485893
+        },
+        "XRP": {
+          "net_bp": 2.339,
+          "fills": 1447,
+          "flatten_share": 0.224,
+          "avg_hold_snaps": 24.20807453416149
+        },
+        "DOGE": {
+          "net_bp": 1.586,
+          "fills": 1449,
+          "flatten_share": 0.213,
+          "avg_hold_snaps": 24.645833333333332
+        },
+        "BNB": {
+          "net_bp": 0.711,
+          "fills": 447,
+          "flatten_share": 0.293,
+          "avg_hold_snaps": 21.96875
+        },
+        "ADA": {
+          "net_bp": -1.323,
+          "fills": 853,
+          "flatten_share": 0.328,
+          "avg_hold_snaps": 18.332089552238806
+        },
+        "UNI": {
+          "net_bp": -3.775,
+          "fills": 867,
+          "flatten_share": 0.326,
+          "avg_hold_snaps": 16.04705882352941
+        }
+      }
+    },
+    {
+      "w_base_bp": 8.0,
+      "k_inv": 1.0,
+      "max_one_side_sec": 300.0,
+      "stop_loss_bp": 0.0,
+      "fills": 7533,
+      "net_bp": 0.985,
+      "net_usd": 68.3235,
+      "per_symbol": {
+        "BTC": {
+          "net_bp": 1.138,
+          "fills": 359,
+          "flatten_share": 0.304,
+          "avg_hold_snaps": 21.845454545454544
+        },
+        "ETH": {
+          "net_bp": 1.661,
+          "fills": 763,
+          "flatten_share": 0.261,
+          "avg_hold_snaps": 22.752525252525253
+        },
+        "SOL": {
+          "net_bp": 1.85,
+          "fills": 1454,
+          "flatten_share": 0.217,
+          "avg_hold_snaps": 25.805732484076433
+        },
+        "XRP": {
+          "net_bp": 2.449,
+          "fills": 1447,
+          "flatten_share": 0.218,
+          "avg_hold_snaps": 25.156549520766774
+        },
+        "DOGE": {
+          "net_bp": 1.733,
+          "fills": 1433,
+          "flatten_share": 0.202,
+          "avg_hold_snaps": 25.916666666666668
+        },
+        "BNB": {
+          "net_bp": 0.894,
+          "fills": 439,
+          "flatten_share": 0.285,
+          "avg_hold_snaps": 23.153225806451612
+        },
+        "ADA": {
+          "net_bp": -1.087,
+          "fills": 821,
+          "flatten_share": 0.309,
+          "avg_hold_snaps": 21.07114624505929
+        },
+        "UNI": {
+          "net_bp": -2.843,
+          "fills": 817,
+          "flatten_share": 0.28,
+          "avg_hold_snaps": 22.053811659192824
+        }
+      }
+    }
+  ]
+}

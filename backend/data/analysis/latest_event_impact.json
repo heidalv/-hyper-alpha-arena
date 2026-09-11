@@ -1,0 +1,32 @@
+{
+  "task": "event_impact",
+  "ts_ms": 1789121755745,
+  "accepted": false,
+  "status": "degraded",
+  "consensus_score": 0.25,
+  "run_id": "293ce4aef8844bd5a29b334a07e777bf",
+  "context_hash": "e3d0d77868824e51e4234ef471ab28f568a3c042c37288cd63836a28646bb76e",
+  "final": null,
+  "notes": [
+    "minimax: 输出中无可解析 JSON",
+    "单模型结论（glm_opencode），不得入 signal_ledger"
+  ],
+  "event": {
+    "id": 74258,
+    "event_type": "funding.extreme",
+    "symbol": "1000BTT",
+    "ts_ms": 1789114123432,
+    "severity": 3,
+    "direction": 0.5,
+    "title": "bybit 1000BTT 资金费 -0.296%/8h（≈-324% APR）",
+    "source": "funding_collector",
+    "payload": {
+      "apr_pct": -324.0,
+      "rate_8h": -0.00295895,
+      "exchange": "bybit",
+      "rate_raw": -0.00295895,
+      "threshold_8h": 0.001,
+      "window_hours": 8.0
+    }
+  }
+}

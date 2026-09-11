@@ -24,9 +24,10 @@ from backend.services.market_regime import (
     MarketRegimeClassifier, MarketRegime, RegimeClassification,
     REGIME_STRATEGY_MAP,
 )
-from backend.services.strategy_hypothesis_generator import (
-    StrategyHypothesisGenerator, StrategyHypothesis,
-)
+# [2026-09-02] strategy_hypothesis_generator 已下线（模块不存在），原第 4 节
+# StrategyHypothesisGenerator 用例与两条 hypothesis 集成用例随之移除。本文件保留
+# genetic_optimizer / market_regime（均为活代码）的用例——此前整个文件因这条
+# import 收集失败，连 NSGA-II 与市场状态分类的用例一起失去保护。
 
 
 # ════════════════════════════════════════════════════════
@@ -403,150 +404,6 @@ class TestGetStrategyParams:
 
 
 # ════════════════════════════════════════════════════════
-#  4. StrategyHypothesisGenerator Tests
-# ════════════════════════════════════════════════════════
-
-class TestStrategyHypothesis:
-    def test_creation(self):
-        h = StrategyHypothesis(
-            hypothesis_id="test_1",
-            name="Test Strategy",
-            description="A test strategy",
-            market_regime="trending",
-            entry_logic="Buy when RSI < 30",
-            exit_logic="Sell when RSI > 70",
-            risk_rules="2% max loss",
-        )
-        assert h.confidence == 0.5
-        assert h.expected_trade_nature == "swing"
-        assert h.param_ranges == {}
-
-
-class TestStrategyHypothesisGeneratorRuleBased:
-    def test_trending_context(self):
-        gen = StrategyHypothesisGenerator()
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(
-                market_context={"regime": "trending_up", "volatility": 0.5},
-                available_factors=["ema_trend", "rsi"],
-            )
-        )
-        assert len(result) >= 1
-        assert any("Trend" in h.name for h in result)
-
-    def test_ranging_context(self):
-        gen = StrategyHypothesisGenerator()
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(
-                market_context={"regime": "ranging"},
-            )
-        )
-        assert len(result) >= 1
-
-    def test_default_context(self):
-        gen = StrategyHypothesisGenerator()
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(market_context={"regime": "unknown"})
-        )
-        assert len(result) >= 1
-        assert result[0].hypothesis_id.startswith("shyp_rule_")
-
-    def test_hypothesis_has_param_ranges(self):
-        gen = StrategyHypothesisGenerator()
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(market_context={"regime": "trending_up"})
-        )
-        for h in result:
-            assert isinstance(h.param_ranges, dict)
-
-
-class TestStrategyHypothesisGeneratorLLM:
-    def test_parse_valid_json(self):
-        gen = StrategyHypothesisGenerator()
-        json_response = json.dumps({
-            "hypotheses": [{
-                "name": "RSI Reversal",
-                "description": "Trade RSI extremes",
-                "market_regime": "ranging",
-                "entry_logic": "RSI < 30",
-                "exit_logic": "RSI > 70",
-                "risk_rules": "2% max loss",
-                "param_ranges": {
-                    "stop_loss_pct": [0.02, 0.05],
-                    "take_profit_pct": [0.04, 0.15],
-                },
-                "required_factors": ["rsi"],
-                "expected_trade_nature": "swing",
-                "confidence": 0.8,
-                "reasoning": "Market is ranging",
-            }]
-        })
-        result = gen._parse_hypotheses(json_response)
-        assert len(result) == 1
-        assert result[0].name == "RSI Reversal"
-        assert result[0].confidence == 0.8
-        assert "stop_loss_pct" in result[0].param_ranges
-
-    def test_parse_invalid_json(self):
-        gen = StrategyHypothesisGenerator()
-        result = gen._parse_hypotheses("not json")
-        assert result == []
-
-    def test_parse_empty_hypotheses(self):
-        gen = StrategyHypothesisGenerator()
-        result = gen._parse_hypotheses('{"hypotheses": []}')
-        assert result == []
-
-    def test_parse_respects_count(self):
-        gen = StrategyHypothesisGenerator()
-        json_response = json.dumps({
-            "hypotheses": [
-                {"name": f"Strategy {i}", "param_ranges": {}}
-                for i in range(5)
-            ]
-        })
-        result = gen._parse_hypotheses(json_response, count=2)
-        assert len(result) == 2
-
-    def test_llm_failure_fallback(self):
-        mock_llm = MagicMock()
-        mock_llm.chat.completions.create = AsyncMock(side_effect=Exception("API error"))
-        gen = StrategyHypothesisGenerator(llm_client=mock_llm)
-
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(market_context={"regime": "trending_up"})
-        )
-        # Should fallback to rule-based
-        assert len(result) >= 1
-        assert result[0].hypothesis_id.startswith("shyp_rule_")
-
-    def test_llm_success(self):
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "hypotheses": [{
-                "name": "LLM Strategy",
-                "description": "Generated by LLM",
-                "market_regime": "volatile",
-                "entry_logic": "Breakout",
-                "exit_logic": "Trailing stop",
-                "risk_rules": "3% max loss",
-                "param_ranges": {"stop_loss_pct": [0.02, 0.04]},
-                "confidence": 0.7,
-            }]
-        })
-        mock_llm = MagicMock()
-        mock_llm.chat.completions.create = AsyncMock(return_value=mock_response)
-
-        gen = StrategyHypothesisGenerator(llm_client=mock_llm)
-        result = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(market_context={"regime": "volatile"})
-        )
-        assert len(result) == 1
-        assert result[0].name == "LLM Strategy"
-
-
-# ════════════════════════════════════════════════════════
 #  5. Integration Tests
 # ════════════════════════════════════════════════════════
 
@@ -593,52 +450,6 @@ class TestPhase5Integration:
             assert isinstance(result, ParetoFront)
             assert fitness_calls[0] > 0
 
-    def test_regime_to_hypothesis_pipeline(self):
-        """MarketRegime → StrategyHypothesisGenerator"""
-        clf = MarketRegimeClassifier()
-        klines = _make_ranging_klines()
-        regime_result = clf.classify(klines)
-
-        gen = StrategyHypothesisGenerator()
-        hypotheses = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(
-                market_context={
-                    "regime": regime_result.regime.value,
-                    "volatility": regime_result.features.get('volatility', 0.5),
-                }
-            )
-        )
-        assert len(hypotheses) >= 1
-
-    def test_hypothesis_param_ranges_usable_by_optimizer(self):
-        """StrategyHypothesis 的 param_ranges 应可传给 NSGA-II"""
-        gen = StrategyHypothesisGenerator()
-        hypotheses = asyncio.get_event_loop().run_until_complete(
-            gen.generate_hypotheses(market_context={"regime": "trending_up"})
-        )
-
-        for hyp in hypotheses:
-            if hyp.param_ranges:
-                opt = NSGAIIOptimizer()
-                def mock_fitness(genome):
-                    return MultiObjectiveIndividual(
-                        genome=genome,
-                        objectives={
-                            'sharpe': 1.0,
-                            'max_drawdown': -0.05,
-                            'win_rate': 0.5,
-                        },
-                        fitness=1.0,
-                    )
-                result = opt.evolve_multi_objective(
-                    template_id=hyp.hypothesis_id,
-                    param_ranges=hyp.param_ranges,
-                    fitness_fn=mock_fitness,
-                    generations=2,
-                    population_size=6,
-                )
-                assert isinstance(result, ParetoFront)
-
     def test_all_phase5_modules_importable(self):
         """验证所有Phase 5模块可以被正常导入"""
         from backend.services.genetic_optimizer import (
@@ -649,9 +460,5 @@ class TestPhase5Integration:
             MarketRegimeClassifier, MarketRegime, RegimeClassification,
             REGIME_STRATEGY_MAP,
         )
-        from backend.services.strategy_hypothesis_generator import (
-            StrategyHypothesisGenerator, StrategyHypothesis,
-        )
         assert NSGAIIOptimizer is not None
         assert MarketRegimeClassifier is not None
-        assert StrategyHypothesisGenerator is not None

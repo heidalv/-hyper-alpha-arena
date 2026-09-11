@@ -63,7 +63,11 @@ def freeze(
             "n": int(portfolio_budget._trigger_count.get(key, 0) or 1),
         }
         _FREEZES[key] = entry
-        _push_event("freeze", account_id, strategy, sym, why)
+    # [2026-09-02 死锁修复] _push_event 自己也要 `with _FREEZE_LOCK`，而
+    # _FREEZE_LOCK 是普通 threading.Lock（不可重入）—— 原先在锁内调用它，
+    # 同一线程二次申请必然自锁死，之后整个冻结台账（含 is_frozen/unfreeze）
+    # 全部卡住。同模块的 unfreeze() 一直是在锁外调用的，这里改为与其同构。
+    _push_event("freeze", account_id, strategy, sym, why)
     logger.warning(
         "[FreezeCoordinator] 冻结 %s %s %s (key级): %s", account_id, strategy, sym, why,
     )

@@ -454,6 +454,7 @@ class StrategyHypothesisEngine:
                 strategy_config=strategy_config,
                 risk_params=risk_params,
                 run_id=hypothesis.hypothesis_id,
+                symbol=hypothesis.symbol,
             )
 
             if bt_result:

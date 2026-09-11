@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from services.market_flow.asterdex_collector import AsterdexMarketFlowCollector
+from backend.services.market_flow.asterdex_collector import AsterdexMarketFlowCollector
 
 
 class BinanceMarketFlowCollector(AsterdexMarketFlowCollector):

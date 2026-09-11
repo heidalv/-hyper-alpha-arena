@@ -1,0 +1,24 @@
+{
+  "ts_ms": 1789118658432,
+  "switches": {
+    "v3_statistical_arb": {
+      "env_enabled": true,
+      "session_enabled": false,
+      "runnable": false,
+      "note": "需 FUNDING_ARB_ENABLED=true 且 会话 arb_enabled=true（与关系）"
+    },
+    "rebate_points_arb": {
+      "paper_mode": true,
+      "auto_execute": false,
+      "scan_runnable": true,
+      "auto_open": false,
+      "note": "Paper 下恒可扫描/模拟；auto_execute 才会自动开仓"
+    },
+    "live_trading": {
+      "enabled": false,
+      "note": "Phase 5 未启用，本次全程 Paper，无真实下单"
+    }
+  },
+  "rebate_config_error": "cannot import name 'get_rebate_config' from 'backend.config.rebate_config_loader' (D:\\001Alpha\\Hyper-Alpha-Arena\\backend\\config\\rebate_config_loader.py)",
+  "arb_config_error": "cannot import name 'get_arb_config' from 'backend.config.arb_config_loader' (D:\\001Alpha\\Hyper-Alpha-Arena\\backend\\config\\arb_config_loader.py)"
+}

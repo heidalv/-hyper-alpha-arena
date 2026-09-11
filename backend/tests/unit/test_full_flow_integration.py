@@ -76,23 +76,42 @@ def _make_candidate_coin(symbol="BTC", score=0.7, **kwargs):
 
 
 def _api_get(endpoint, base_url="http://localhost:8000"):
-    """对运行中的后端发起 HTTP GET，返回 (status_code, json_dict)"""
+    """对运行中的后端发起 HTTP GET，返回 (status_code, json_dict)
+
+    [2026-09-02] 显式绕过系统代理。测试进程加载 .env 后带着 HTTP_PROXY（Privoxy），
+    urllib 默认会把 localhost 请求也送进代理 → "500 Internal Privoxy Error"，
+    本文件 15 个 API 用例因此长期红而后端实际健康。回环地址永远直连。
+    """
+    import socket
+    import time as _time
     import urllib.request
     import urllib.error
     url = f"{base_url}{endpoint}"
-    try:
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status, json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        body = {}
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    # [2026-09-03] 超时重试一次：这些是打真实后端的 E2E 用例，后端刚重启时在做
+    # 启动学习（ScalpMeta 加载 35 万样本约 30s），/api/signals/unified 曾因此 10s 超时
+    # 被记为失败而后端实际健康。仅对超时重试，HTTP 错误码照常返回。
+    last_err = None
+    for attempt in range(2):
         try:
-            body = json.loads(e.read())
-        except Exception:
-            pass
-        return e.code, body
-    except Exception as e:
-        return 0, {"error": str(e)}
+            req = urllib.request.Request(url)
+            with opener.open(req, timeout=10 if attempt == 0 else 30) as resp:
+                return resp.status, json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            body = {}
+            try:
+                body = json.loads(e.read())
+            except Exception:
+                pass
+            return e.code, body
+        except Exception as e:
+            last_err = e
+            is_timeout = isinstance(e, (socket.timeout, TimeoutError)) or "timed out" in str(e).lower()
+            if is_timeout and attempt == 0:
+                _time.sleep(2)
+                continue
+            break
+    return 0, {"error": str(last_err)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -237,9 +256,10 @@ class TestAutoCoinCoolingBlacklist:
     """测试冷却期和黑名单机制"""
 
     def _make_selector(self):
+        # [2026-08-29 契约同步] AUTO_COIN_COOLING_PERIOD 已被分档
+        # COOLING_DURATIONS(short/long/very_long) 取代，池默认 cooling_period=3600
         from backend.services.auto_coin_selector import (
             AutoCoinSelector, CandidatePool, AUTO_COIN_MAX_POOL_SIZE,
-            AUTO_COIN_COOLING_PERIOD,
         )
         selector = AutoCoinSelector.__new__(AutoCoinSelector)
         selector.session_id = "test"
@@ -247,27 +267,44 @@ class TestAutoCoinCoolingBlacklist:
         selector._exchange = "hyperliquid"
         selector._pool = CandidatePool(
             max_active=AUTO_COIN_MAX_POOL_SIZE,
-            cooling_period=AUTO_COIN_COOLING_PERIOD,
+            cooling_period=3600,
         )
         selector._evaluation_count = {}
         selector._auto_symbols = set()
         selector._cycle_count = 0
         return selector
 
+    # [2026-09-02 契约同步] cooling 条目自"分档冷却"重设计起为三元组
+    # (start_time, tier, duration_sec)，见 auto_coin_selector._is_cooling /
+    # 写入点 `self._pool.cooling[symbol] = (datetime.now(), tier, _eff)`。
+    # 原用例塞裸 datetime，命中 `_entry[0]` 即 TypeError —— 是用例过时，不是代码 bug
+    # （加载侧 _load_injected 也统一还原成元组，生产不会遇到裸 datetime）。
+    # top20 高流动币冷却豁免会 del 条目并返回 False，用例里屏蔽掉以免受真实宇宙影响。
     def test_cooling_active(self):
         """冷却期内币种应被跳过"""
         selector = self._make_selector()
         now = datetime.now()
-        selector._pool.cooling["DOGE"] = now
-        assert selector._is_cooling("DOGE", now) is True
+        selector._pool.cooling["DOGE"] = (now, "short", 3600)
+        with patch.object(type(selector), "_top20_liquid", return_value=set()):
+            assert selector._is_cooling("DOGE", now) is True
 
     def test_cooling_expired(self):
-        """冷却期过期后应可再次选中"""
+        """冷却期过期后应可再次选中（且条目被清理）"""
         selector = self._make_selector()
         past = datetime.now() - timedelta(hours=2)
-        selector._pool.cooling_period = 3600
-        selector._pool.cooling["DOGE"] = past
-        assert selector._is_cooling("DOGE", datetime.now()) is False
+        selector._pool.cooling["DOGE"] = (past, "short", 3600)
+        with patch.object(type(selector), "_top20_liquid", return_value=set()):
+            assert selector._is_cooling("DOGE", datetime.now()) is False
+        assert "DOGE" not in selector._pool.cooling
+
+    def test_cooling_top20_exempt(self):
+        """top20 高流动币不受冷却锁定：命中即解除并放行。"""
+        selector = self._make_selector()
+        now = datetime.now()
+        selector._pool.cooling["BTC"] = (now, "short", 3600)
+        with patch.object(type(selector), "_top20_liquid", return_value={"BTC"}):
+            assert selector._is_cooling("BTC", now) is False
+        assert "BTC" not in selector._pool.cooling
 
     def test_blacklist_active(self):
         """黑名单期内币种应被跳过"""
@@ -276,11 +313,20 @@ class TestAutoCoinCoolingBlacklist:
         assert selector._is_blacklisted("SCAM", datetime.now()) is True
 
     def test_blacklist_expired(self):
-        """24小时后黑名单应过期"""
+        """黑名单到期后应放行（时长以 BLACKLIST_S 为准，默认 AUTO_COIN_BLACKLIST_DAYS=7 天）。
+
+        [2026-09-02] 原用例写死"24 小时后过期"，而黑名单早已改为按天配置（默认 7 天），
+        25 小时的条目仍在期内 → 断言必红。改为相对 BLACKLIST_S 构造过期时间，
+        并补一条"期内仍拦"的对照。
+        """
+        from backend.services.auto_coin_selector import BLACKLIST_S
         selector = self._make_selector()
-        past = datetime.now() - timedelta(hours=25)
-        selector._pool.blacklist["DOGE"] = past
-        assert selector._is_blacklisted("DOGE", datetime.now()) is False
+        now = datetime.now()
+        selector._pool.blacklist["DOGE"] = now - timedelta(seconds=BLACKLIST_S + 60)
+        assert selector._is_blacklisted("DOGE", now) is False
+        assert "DOGE" not in selector._pool.blacklist, "过期条目应被清理"
+        selector._pool.blacklist["PEPE"] = now - timedelta(seconds=BLACKLIST_S - 60)
+        assert selector._is_blacklisted("PEPE", now) is True
 
     def test_pool_max_active_respected(self):
         """活跃池不应超过最大数量限制"""
@@ -292,9 +338,21 @@ class TestAutoCoinCoolingBlacklist:
 
 
 class TestAutoCoinExchangeDetection:
-    """测试交易所感知"""
+    """测试交易所感知。
 
-    def test_hyperliquid_detected(self):
+    [2026-09-02 契约同步] resolve_exchange 的解析顺序早已改为：
+      1. self._exchange 缓存
+      2. full_auto 会话 active_exchange
+      3. account.selected_exchange
+      4. get_active_exchange() / 默认 asterdex
+    原用例 mock 的是已废弃的 account.hyperliquid_enabled / binance_enabled 字段，
+    MagicMock 下会话查询返回 truthy 的 mock → 断言拿到 "<MagicMock ...>"。
+    mock_db 的 query().filter().first() 对会话查询和账户查询是同一条链，故用同一个
+    对象同时扮演两者：active_exchange 控制第 2 级，selected_exchange 控制第 3 级。
+    """
+
+    @staticmethod
+    def _selector():
         from backend.services.auto_coin_selector import AutoCoinSelector, CandidatePool
         selector = AutoCoinSelector.__new__(AutoCoinSelector)
         selector.session_id = "test"
@@ -304,68 +362,62 @@ class TestAutoCoinExchangeDetection:
         selector._evaluation_count = {}
         selector._auto_symbols = set()
         selector._cycle_count = 0
+        return selector
 
+    @staticmethod
+    def _db(active_exchange, selected_exchange):
         mock_db = MagicMock()
-        mock_account = MagicMock()
-        mock_account.hyperliquid_enabled = "true"
-        mock_account.binance_enabled = "false"
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_account
+        row = MagicMock()
+        row.active_exchange = active_exchange
+        row.selected_exchange = selected_exchange
+        mock_db.query.return_value.filter.return_value.first.return_value = row
+        return mock_db
 
-        exchange = selector.resolve_exchange(mock_db)
+    def test_session_active_exchange_wins(self):
+        """第 2 级：会话 active_exchange 优先于账户 selected_exchange。"""
+        selector = self._selector()
+        exchange = selector.resolve_exchange(self._db("hyperliquid", "binance"))
         assert exchange == "hyperliquid"
+        assert selector._exchange == "hyperliquid", "结果应被缓存"
 
-    def test_binance_fallback(self):
-        from backend.services.auto_coin_selector import AutoCoinSelector, CandidatePool
-        selector = AutoCoinSelector.__new__(AutoCoinSelector)
-        selector.session_id = "test"
-        selector.account_id = 1
-        selector._exchange = None
-        selector._pool = CandidatePool()
-        selector._evaluation_count = {}
-        selector._auto_symbols = set()
-        selector._cycle_count = 0
-
-        mock_db = MagicMock()
-        mock_account = MagicMock()
-        # The code does: for ex_id, enabled_field in exchange_checks:
-        #   hasattr(account, enabled_field) and getattr(account, enabled_field) == "true"
-        # exchange_checks = [("hyperliquid", account.hyperliquid_enabled), ...]
-        # So enabled_field is the VALUE of the attribute, and hasattr(account, "true")
-        # must return False for hyperliquid_enabled's value
-        mock_account.hyperliquid_enabled = "false"
-        mock_account.binance_enabled = "true"
-        # MagicMock: hasattr(account, "false") → creates it → True
-        # So we must set exchange directly to simulate binance detection
-        selector._exchange = "binance"
-        # Verify the exchange was set
-        exchange = selector.resolve_exchange(mock_db)
-        assert exchange == "binance"
+    def test_account_selected_exchange_fallback(self):
+        """第 3 级：会话未指定时用账户 selected_exchange；'aster' 归一化为 'asterdex'。"""
+        selector = self._selector()
+        assert selector.resolve_exchange(self._db(None, "binance")) == "binance"
+        selector2 = self._selector()
+        assert selector2.resolve_exchange(self._db("", " Aster ")) == "asterdex"
 
     def test_default_fallback(self):
-        from backend.services.auto_coin_selector import AutoCoinSelector, CandidatePool
-        selector = AutoCoinSelector.__new__(AutoCoinSelector)
-        selector.session_id = "test"
-        selector.account_id = 1
-        selector._exchange = None
-        selector._pool = CandidatePool()
-        selector._evaluation_count = {}
-        selector._auto_symbols = set()
-        selector._cycle_count = 0
-
+        """第 4 级：会话与账户都查不到 → get_active_exchange()。"""
+        selector = self._selector()
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.first.return_value = None
-        exchange = selector.resolve_exchange(mock_db)
-        assert exchange == "hyperliquid"
+        with patch("backend.services.exchange_config.get_active_exchange",
+                   return_value="hyperliquid"):
+            assert selector.resolve_exchange(mock_db) == "hyperliquid"
+
+    def test_cached_exchange_short_circuits(self):
+        """第 1 级：已缓存则不再查库。"""
+        selector = self._selector()
+        selector._exchange = "binance"
+        mock_db = MagicMock()
+        assert selector.resolve_exchange(mock_db) == "binance"
+        mock_db.query.assert_not_called()
 
 
 class TestAutoCoinAIRReviewFallback:
-    """测试 AI 审核的回退逻辑"""
+    """测试 AI 审核在无 LLM key 时的降级契约。
 
-    def test_no_api_key_auto_approves_high_score(self):
-        """无 API key 时高分币种应自动通过"""
+    [2026-09-02] 契约已在 2026-08-28"选币重设计①"翻转：无 API key 时**不再**按分数
+    伪装批准（旧断言 "Score auto-approve (no AI key)"），而是拒绝注入、
+    ai_confidence=0，reason 以 "degraded:" 开头——杜绝 0.5 假中性链。
+    旧用例还 patch 了早已不在取 key 路径上的 ai_decision_service.get_account_api_key，
+    结果真去读了 DB 里的 LLM 配置。现改为 patch 当前路径 get_llm_config_for_usage。
+    """
+
+    @staticmethod
+    def _make_selector():
         from backend.services.auto_coin_selector import AutoCoinSelector, CandidatePool
-        import asyncio
-
         selector = AutoCoinSelector.__new__(AutoCoinSelector)
         selector.session_id = "test"
         selector.account_id = 1
@@ -374,30 +426,38 @@ class TestAutoCoinAIRReviewFallback:
         selector._evaluation_count = {}
         selector._auto_symbols = set()
         selector._cycle_count = 0
+        return selector
 
+    def _run_no_key(self, paper: bool):
+        import asyncio
+        from backend.services.auto_coin_selector import AutoCoinSelector
+        selector = self._make_selector()
+        selector._paper_mode_cache = paper  # 绕开 _is_paper_session 的 DB 查询
         candidates = [
             _make_candidate_coin(symbol="BTC", score=0.70),
             _make_candidate_coin(symbol="LOW", score=0.30),
         ]
+        AutoCoinSelector._last_ai_review_ts = 0.0  # 不被限流分支截走
+        with patch.object(AutoCoinSelector, 'resolve_exchange', return_value="hyperliquid"), \
+             patch('backend.services.llm_config_service.get_llm_config_for_usage',
+                   return_value=None):
+            # Py3.12+: 无运行中循环时 get_event_loop() 不再隐式创建，用 asyncio.run
+            return selector, asyncio.run(selector.ai_review(MagicMock(), candidates))
 
-        mock_db = MagicMock()
-        with patch.object(selector, 'resolve_exchange', return_value="hyperliquid"):
-            with patch(
-                'backend.services.auto_coin_selector.AutoCoinSelector.resolve_exchange',
-                return_value="hyperliquid"
-            ):
-                with patch(
-                    'backend.services.ai_decision_service.get_account_api_key',
-                    side_effect=Exception("no key"),
-                    create=True,
-                ):
-                    result = asyncio.get_event_loop().run_until_complete(
-                        selector.ai_review(mock_db, candidates)
-                    )
+    def test_no_api_key_paper_rejects_all_without_faking_ai(self):
+        """paper 无 key：高分低分一律拒绝，不伪装 AI 批准"""
+        selector, result = self._run_no_key(paper=True)
+        for c in result:
+            assert c.ai_approved is False, f"{c.symbol} 无 key 却被批准（伪装 AI）"
+            assert c.ai_confidence == 0.0
+            assert str(c.ai_reason).startswith("degraded:"), c.ai_reason
+        assert selector._last_degraded == "no_llm_paper_block"
 
-        assert result[0].ai_approved is True   # score >= 0.50
-        assert result[0].ai_reason == "Score auto-approve (no AI key)"
-        assert result[1].ai_approved is False  # score < 0.50
+    def test_no_api_key_live_rejects_all(self):
+        """live 无 key：同样拒绝，并标记 live 专属降级原因"""
+        selector, result = self._run_no_key(paper=False)
+        assert all(c.ai_approved is False for c in result)
+        assert selector._last_degraded == "no_llm_live_block"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -723,7 +783,7 @@ class TestDatabaseIntegrity:
     """数据库完整性测试"""
 
     def test_core_db_tables_exist(self):
-        """核心数据库应有必要的表"""
+        """核心数据库应有必要的表（[2026-08-29] sqlite_master→跨方言 information_schema）"""
         from backend.database.connection import DATABASE_URL, SessionLocal
         # 测试环境使用 test.db，跳过空库
         if "test.db" in DATABASE_URL:
@@ -732,7 +792,7 @@ class TestDatabaseIntegrity:
         try:
             from sqlalchemy import text
             result = db.execute(text(
-                "SELECT name FROM sqlite_master WHERE type='table'"
+                "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
             ))
             tables = {row[0] for row in result}
             assert len(tables) >= 0
@@ -740,39 +800,32 @@ class TestDatabaseIntegrity:
             db.close()
 
     def test_market_db_tables_exist(self):
-        """市场数据库应有 crypto_klines 表"""
-        from backend.database.connection import MarketSessionLocal, MARKET_DATABASE_URL
+        """市场数据库应有 crypto_klines 表（PG 方言）"""
+        from backend.database.connection import MarketSessionLocal
         db = MarketSessionLocal()
         try:
             from sqlalchemy import text
             result = db.execute(text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='crypto_klines'"
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema='public' AND table_name='crypto_klines'"
             ))
             tables = {row[0] for row in result}
             assert "crypto_klines" in tables
-        except Exception as e:
-            if "unable to open database" in str(e):
-                pytest.skip(f"Market DB file not found: {MARKET_DATABASE_URL}")
-            raise
         finally:
             db.close()
 
     def test_analytics_db_tables_exist(self):
-        """分析数据库应有 risk_control_events 表"""
-        from backend.database.connection import AnalyticsSessionLocal, ANALYTICS_DATABASE_URL
+        """分析数据库应有 risk_control_events 表（PG 方言）"""
+        from backend.database.connection import AnalyticsSessionLocal
         db = AnalyticsSessionLocal()
         try:
             from sqlalchemy import text
             result = db.execute(text(
-                "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name IN ('risk_control_events', 'llm_usage_logs')"
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema='public' AND table_name IN ('risk_control_events', 'llm_usage_logs')"
             ))
             tables = {row[0] for row in result}
             assert len(tables) >= 1
-        except Exception as e:
-            if "unable to open database" in str(e):
-                pytest.skip(f"Analytics DB file not found: {ANALYTICS_DATABASE_URL}")
-            raise
         finally:
             db.close()
 
@@ -929,10 +982,10 @@ class TestFactorEngineRegression:
     """因子引擎回归测试"""
 
     def test_factor_engine_initialization(self):
-        """因子引擎应正确初始化"""
+        """因子引擎应正确初始化（[2026-08-29] 21→下限断言：注册表已扩到 112+）"""
         from backend.services.factor_engine.base_factors import FactorEngine
         engine = FactorEngine()
-        assert len(engine.FACTORS) == 21
+        assert len(engine.FACTORS) >= 21
 
     def _make_kline_df(self, n=30):
         import pandas as pd
@@ -945,13 +998,13 @@ class TestFactorEngineRegression:
         })
 
     def test_compute_all_factors(self):
-        """compute_all_factors 应返回完整的因子字典"""
+        """compute_all_factors 应返回完整的因子字典（[2026-08-29] 数量改下限）"""
         from backend.services.factor_engine.base_factors import FactorEngine
         engine = FactorEngine()
         df = self._make_kline_df(50)
         result = engine.compute_all_factors(df)
         assert isinstance(result, dict)
-        assert len(result) == 21
+        assert len(result) >= 21
 
     def test_factor_value_structure(self):
         """因子值应包含 direction 和 value"""

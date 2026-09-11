@@ -1,0 +1,36 @@
+{
+  "ok": false,
+  "ts_ms": 1789076700888,
+  "research_equity_usd": 5000.0,
+  "bucket_pct": 0.05,
+  "notional_usd": 250.0,
+  "live_requested": false,
+  "mode": "paper",
+  "notes": [
+    "小资金资格 = scorecard.promotion_gate.passed；过门 ≠ 自动开 Live"
+  ],
+  "promotion_gate": {
+    "passed": false,
+    "min_n": 10,
+    "min_ann": 0.05,
+    "n": 0,
+    "annualized": null,
+    "reasons": [
+      "已平仓样本 0 < 10",
+      "年化无法计算（无占用或无平仓）"
+    ],
+    "note": "过门只是小资金资格，不等于自动开 Live"
+  },
+  "kpi": {
+    "pnl": null,
+    "occupied_usd": 0,
+    "annualized": null,
+    "max_drawdown": null,
+    "recon_error": null,
+    "funding_captured": 0,
+    "rebate": null,
+    "points": null,
+    "maker_ratio": null
+  },
+  "reason": "未过 scorecard 晋升门"
+}

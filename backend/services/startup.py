@@ -32,6 +32,58 @@ _scheduler_lock_fd = None
 _scheduler_initialized = False
 
 
+def _reap_orphan_workers():
+    """[2026-09-05] 收割孤儿 worker：父进程已死的后台子进程。
+
+    事故（2026-09-05 03:16）：历次后端死亡后遗留的孤儿 worker（evo_subprocess×2、
+    user_stream×2、market_data_center×2 双份残留）继续持有继承来的 backend.log
+    句柄，新后端 `>> backend.log` 重定向直接失败、秒退且无任何日志 —— watchdog
+    反复拉起反复死。句柄继承已在各 spawn 点改 DEVNULL（治本），本函数是启动时
+    的清道夫（治存量）：按「命令行匹配 worker + 父进程不在」判定孤儿并结束。
+
+    父进程存活的实例不动 —— data-center-watchdog / user_stream_guard 托管的
+    正常 worker 有活着的父进程，不受影响。fail-open：psutil 缺失/异常只记日志。
+    """
+    import os as _os
+
+    patterns = (
+        "binance_user_stream",
+        "workers.market_data_center",
+        "evo_subprocess",
+    )
+    try:
+        import psutil
+    except Exception as exc:
+        logger.warning("[Startup] 孤儿 worker 收割跳过（无 psutil）: %s", exc)
+        return
+    me = _os.getpid()
+    reaped = []
+    try:
+        for proc in psutil.process_iter(["pid", "ppid", "cmdline"]):
+            try:
+                cmd = " ".join(proc.info.get("cmdline") or [])
+                if not cmd or proc.pid == me:
+                    continue
+                if not any(p in cmd for p in patterns):
+                    continue
+                if "python" not in (proc.info.get("cmdline") or [""])[0].lower():
+                    continue
+                ppid = proc.info.get("ppid") or 0
+                if ppid and psutil.pid_exists(ppid):
+                    continue  # 有活着的父进程 → 托管实例，不动
+                proc.terminate()
+                reaped.append(f"{proc.pid}:{cmd[:60]}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as exc:
+        logger.warning("[Startup] 孤儿 worker 收割异常（忽略）: %s", exc)
+        return
+    if reaped:
+        logger.warning("[Startup] 已收割孤儿 worker %d 个: %s", len(reaped), "; ".join(reaped))
+    else:
+        logger.info("[Startup] 无孤儿 worker（父进程存活检查通过）")
+
+
 def initialize_sync_services():
     """初始化同步服务（在后台线程中运行，不包含需要事件循环的异步服务）"""
     global _scheduler_lock_fd, _scheduler_initialized
@@ -39,6 +91,9 @@ def initialize_sync_services():
         logger.info("[Startup] 同步服务已初始化，跳过重复调用")
         return
     _scheduler_initialized = True
+
+    # 先清孤儿 worker，再初始化/拉起新 worker，避免双份进程与句柄残留
+    _reap_orphan_workers()
 
     try:
         from backend.services.trading_pairs_config import ensure_trading_pairs_seeded
@@ -162,7 +217,7 @@ def initialize_sync_services():
             logger.warning(f"[Startup] 套利 Paper 会话恢复失败（非致命）: {_arb_paper_err}")
 
         # Add price cache cleanup task (every 2 minutes)
-        from services.price_cache import clear_expired_prices
+        from backend.services.price_cache import clear_expired_prices
         task_scheduler.add_interval_task(
             task_func=clear_expired_prices,
             interval_seconds=120,
@@ -219,7 +274,7 @@ def initialize_sync_services():
 
         # Subscribe strategy manager to price updates
         try:
-            from services.trading_strategy import handle_price_update as strategy_price_update
+            from backend.services.trading_strategy import handle_price_update as strategy_price_update
 
             def strategy_price_wrapper(event):
                 symbol = event.get("symbol")
@@ -243,7 +298,7 @@ def initialize_sync_services():
 
         # Start asset curve broadcast task (every 60 seconds)
         try:
-            from services.scheduler import start_asset_curve_broadcast
+            from backend.services.scheduler import start_asset_curve_broadcast
             start_asset_curve_broadcast()
             logger.info("资产曲线广播任务已启动（60秒间隔）")
         except Exception as _e:
@@ -251,7 +306,7 @@ def initialize_sync_services():
 
         # Start paper trading position monitor (every 30 seconds)
         try:
-            from services.scheduler import start_paper_trading_monitor
+            from backend.services.scheduler import start_paper_trading_monitor
             start_paper_trading_monitor()
             logger.info("模拟交易监控任务已启动（10秒间隔）")
         except Exception as _e:
@@ -259,7 +314,7 @@ def initialize_sync_services():
 
         # Start TP/SL protection monitor (every 60 seconds)
         try:
-            from services.scheduler import start_tpsl_monitor
+            from backend.services.scheduler import start_tpsl_monitor
             start_tpsl_monitor()
             logger.info("TP/SL保护监控任务已启动（60秒间隔）")
         except Exception as _e:
@@ -276,14 +331,14 @@ def initialize_sync_services():
             )
         else:
             try:
-                from services.scheduler import start_multi_venue_funding_collector
+                from backend.services.scheduler import start_multi_venue_funding_collector
                 start_multi_venue_funding_collector()
             except Exception as _e:
                 logger.error(f"多场所资金费采集启动失败（非致命）: {_e}")
 
             try:
-                from services.market_flow import market_flow_registry, register_defaults
-                from config import settings
+                from backend.services.market_flow import market_flow_registry, register_defaults
+                from backend.config import settings
                 register_defaults()
                 active_exchanges = list(
                     getattr(settings, "ACTIVE_MARKET_FLOW_EXCHANGES", None)
@@ -303,7 +358,7 @@ def initialize_sync_services():
                 for ex in active_exchanges:
                     if ex == "asterdex":
                         try:
-                            from services.trading_pairs_config import get_user_trading_pairs
+                            from backend.services.trading_pairs_config import get_user_trading_pairs
                             trading_pairs = get_user_trading_pairs()
                             symbols_map[ex] = (
                                 trading_pairs[:10] if trading_pairs else ["BTC", "ETH", "SOL"]
@@ -330,7 +385,7 @@ def initialize_sync_services():
                             "[Startup] market_flow 后台启动失败: %s", e, exc_info=True
                         )
                         try:
-                            from services.market_flow_collector import market_flow_collector
+                            from backend.services.market_flow_collector import market_flow_collector
                             market_flow_collector.start()
                             logger.warning("[Startup] 回退到旧版单所 market_flow_collector")
                         except Exception as _e2:
@@ -345,17 +400,27 @@ def initialize_sync_services():
 
         # D7: 因子体系初始化 — 衰减监控 + 外部因子加载（始终在主 API）
         try:
-            from services.factor_engine.factor_decay_monitor import decay_monitor
-            from services.factor_engine.factor_loader import FactorLoader
+            from backend.services.factor_engine.factor_decay_monitor import decay_monitor
+            from backend.services.factor_engine.factor_loader import FactorLoader
             _fl = FactorLoader()
             _loaded = _fl.discover_and_load_all()
+            # [§65 修复 2026-09-10] 这里走的是**顶格身份** `services.*`，而因子文件
+            # 写的是 `from backend.services... import BaseFactor` ⇒ 两套模块对象、
+            # BaseFactor 不一致 ⇒ 实测加载 **0 个因子**却打印"就绪"（假绿）。
+            # 0 不可能是正常结果（因子树有 155 个文件），必须显式告警。
+            if _loaded == 0:
+                logger.warning(
+                    "[Startup] 因子体系就绪但**加载 0 个因子**：本步走的 `services.*` 身份与"
+                    "因子文件的 `backend.services.*` 身份不一致（模块身份分裂），"
+                    "真实因子装载发生在 base_factors 合并路径。见报告 §65 / 决策 P16。",
+                )
             logger.info(f"[Startup] 因子体系就绪: {_loaded}因子 + 衰减监控")
         except Exception as _fe:
             logger.warning(f"[Startup] 因子体系初始化跳过: {_fe}")
 
         # L1: 学习后端注册表加载
         try:
-            from services.learning import backend_loader
+            from backend.services.learning import backend_loader
             _bl_loaded = backend_loader.load_all()
             logger.info(f"[Startup] 学习后端注册表就绪: {_bl_loaded}个后端")
         except Exception as _lb_err:
@@ -363,7 +428,7 @@ def initialize_sync_services():
 
         # D7: LLM自动因子发现 — 每10分钟检查
         try:
-            from services.ai_factor_discovery_service import ai_factor_discovery
+            from backend.services.ai_factor_discovery_service import ai_factor_discovery
             def _run_factor_discovery():
                 try:
                     from backend.database.connection import AnalyticsSessionLocal
@@ -387,7 +452,7 @@ def initialize_sync_services():
 
         # 市场流数据清理（主 API 仍可挂；独立 DC 模式也需要定期清）
         try:
-            from services.market_flow_collector import cleanup_old_market_flow_data
+            from backend.services.market_flow_collector import cleanup_old_market_flow_data
             task_scheduler.add_interval_task(
                 task_func=cleanup_old_market_flow_data,
                 interval_seconds=6 * 3600,
@@ -399,7 +464,7 @@ def initialize_sync_services():
 
         # Add trigger frequency monitoring task (every hour)
         try:
-            from services.trigger_frequency_monitor import run_trigger_frequency_monitoring
+            from backend.services.trigger_frequency_monitor import run_trigger_frequency_monitoring
             task_scheduler.add_interval_task(
                 task_func=run_trigger_frequency_monitoring,
                 interval_seconds=3600,
@@ -565,20 +630,22 @@ def initialize_sync_services():
         except Exception as e:
             logger.error(f"进化调度任务注册失败: {e}")
 
-        # 短线信号结算（每5分钟）
-        # 原注册点在上方已停用的 register_evolution_tasks() 内，随之失效，导致
-        # 因子预测力无法度量（信号只入库、不回填输赢）。此处单独注册，不恢复进化调度。
+        # 短线信号结算（每5分钟）。短线已停则不再注册，避免和进化调度重复空转。
         try:
-            def _settle_scalp_signals():
-                from backend.services.scalp_signal_logger import settle_pending
-                settle_pending(limit=800)
+            from backend.config.settings import SCALP_OPEN_DISABLED as _scalp_off
+            if _scalp_off:
+                logger.info("SCALP_OPEN_DISABLED，跳过短线信号结算注册")
+            else:
+                def _settle_scalp_signals():
+                    from backend.services.scalp_signal_logger import settle_pending
+                    settle_pending(limit=800)
 
-            task_scheduler.add_interval_task(
-                task_func=_settle_scalp_signals,
-                interval_seconds=300,
-                task_id="scalp_signal_settle",
-            )
-            logger.info("短线信号结算任务已注册（5分钟间隔）")
+                task_scheduler.add_interval_task(
+                    task_func=_settle_scalp_signals,
+                    interval_seconds=300,
+                    task_id="scalp_signal_settle",
+                )
+                logger.info("短线信号结算任务已注册（5分钟间隔）")
         except Exception as e:
             logger.error(f"短线信号结算任务注册失败: {e}")
 
@@ -828,7 +895,10 @@ def initialize_sync_services():
                 else:
                     logger.info("[Startup] QAA v3.0 后台 bootstrap 进行中")
             else:
-                logger.info(f"[Startup] QAA v3.0 跳过 (QAA_MODE={QAA_MODE}, QAA_V3_ENABLED={QAA_V3_ENABLED})")
+                logger.info(
+                    f"[Startup] QAA v3.0 已退役，不进主循环 "
+                    f"(QAA_MODE={QAA_MODE}, QAA_V3_ENABLED={QAA_V3_ENABLED})"
+                )
 
         except Exception as _qaa_err:
             logger.warning(f"[Startup] QAA 初始化跳过（非致命）: {_qaa_err}")
@@ -1306,66 +1376,23 @@ def _seed_local_llm_config():
 
 
 def _seed_deepseek_config():
+    """[2026-09-05] deepseek 全面退役（GLM 全面替代）后的空占位，保留调用点兼容。
+
+    原逻辑：只要 DEEPSEEK_API_KEY 存在且 llm_configurations 无 deepseek 记录，
+    就自动写入一条 is_default 的 DeepSeek V4 Flash 预设 —— coin_select 等按
+    「管理员默认配置」取模的服务会因此复活 deepseek 直连流量，故整体停用。
     """
-    初始化 DeepSeek V4 双模型预设配置。
-
-    写入一条 DeepSeek V4 Flash 预设（quick/deep 均用 flash）：
-    - model / model_deep = deepseek-v4-flash
-
-    当以下条件之一满足时自动创建：
-    - 数据库中不存在 provider='deepseek' 的任何记录
-    - 用户在环境变量中提供了 DEEPSEEK_API_KEY
-    """
-    import os
-    from backend.database.connection import SessionLocal
-    from backend.database.models import LLMConfiguration
-
-    deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
-    deepseek_base = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-
-    db = SessionLocal()
-    try:
-        existing_deepseek = db.query(LLMConfiguration).filter(
-            LLMConfiguration.provider == "deepseek"
-        ).all()
-
-        if existing_deepseek:
-            logger.info(f"[Seed] DeepSeek 已有 {len(existing_deepseek)} 条配置，跳过初始化")
-            return
-
-        if not deepseek_key:
-            logger.info("[Seed] 未设置 DEEPSEEK_API_KEY，跳过 DeepSeek 预设")
-            return
-
-        config = LLMConfiguration(
-            name="DeepSeek V4 Flash",
-            provider="deepseek",
-            description="统一使用 DeepSeek V4 Flash（快速+深度任务均走 flash）",
-            model="deepseek-v4-flash",
-            model_deep="deepseek-v4-flash",
-            base_url=deepseek_base,
-            api_key=deepseek_key,
-            is_default="true",
-            is_active="true",
-            test_status="pending",
-        )
-        db.add(config)
-        db.commit()
-        logger.info("[Seed] 已写入 DeepSeek V4 Flash 预设")
-    except Exception as e:
-        db.rollback()
-        logger.warning(f"[Seed] DeepSeek 预设写入失败: {e}")
-    finally:
-        db.close()
+    logger.info("[Seed] deepseek 已退役（GLM 全面替代），跳过 DeepSeek 预设")
+    return
 
 
 async def shutdown_services():
     """Shut down all services"""
     global _scheduler_lock_fd, _scheduler_initialized
     try:
-        from services.scheduler import stop_scheduler
-        from services.hyperliquid_snapshot_service import hyperliquid_snapshot_service
-        from services.kline_realtime_collector import realtime_collector
+        from backend.services.scheduler import stop_scheduler
+        from backend.services.hyperliquid_snapshot_service import hyperliquid_snapshot_service
+        from backend.services.kline_realtime_collector import realtime_collector
 
         # ── 优先注销 FullAuto 定时任务（2026-06-17 修复）──
         # 原顺序是先 stop_strategy_manager / 各 collector，最后才注销 fullauto job，
@@ -1399,12 +1426,12 @@ async def shutdown_services():
 
         # Stop market flow collectors (新版注册表 + 旧单例兜底)
         try:
-            from services.market_flow import market_flow_registry
+            from backend.services.market_flow import market_flow_registry
             market_flow_registry.stop_all()
         except Exception as _mf_stop_err:
             logger.debug("[Shutdown] market_flow_registry stop: %s", _mf_stop_err)
         try:
-            from services.market_flow_collector import market_flow_collector
+            from backend.services.market_flow_collector import market_flow_collector
             if market_flow_collector.running:
                 market_flow_collector.stop()
         except Exception as _old_mf_err:
@@ -1448,7 +1475,7 @@ def schedule_auto_trading(interval_seconds: int = 300, max_ratio: float = 0.2, u
         max_ratio: Maximum portion of portfolio to use per trade
         use_ai: If True, use AI-driven trading; if False, use random trading
     """
-    from services.trading_commands import (
+    from backend.services.trading_commands import (
         place_ai_driven_crypto_order,
         place_random_crypto_order,
         AUTO_TRADE_JOB_ID,

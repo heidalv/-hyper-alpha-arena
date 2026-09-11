@@ -1,0 +1,68 @@
+{
+  "ts_ms": 1789118676262,
+  "days": 30,
+  "kpi": {
+    "pnl": null,
+    "occupied_usd": 0,
+    "annualized": null,
+    "max_drawdown": null,
+    "recon_error": null,
+    "funding_captured": 0,
+    "rebate": null,
+    "points": null,
+    "maker_ratio": null
+  },
+  "v3": {
+    "n": 0,
+    "n_active": 0,
+    "n_closed": 0,
+    "pnl": 0,
+    "funding_captured": 0,
+    "occupied_usd": 0,
+    "avg_notional_usd": null,
+    "annualized": null,
+    "max_drawdown": null,
+    "by_strategy": {},
+    "paper_n": 0,
+    "live_n": 0,
+    "notes": []
+  },
+  "rebate": {
+    "n": 0,
+    "notes": [
+      "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786526676196}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    ]
+  },
+  "carry_sim": {
+    "available": true,
+    "ok": true,
+    "venues": [
+      "asterdex",
+      "binance",
+      "bybit",
+      "gateio",
+      "hyperliquid",
+      "okx"
+    ],
+    "n_combos": 20,
+    "n_executions": 3,
+    "multi_venue_coverage": true,
+    "notes": []
+  },
+  "promotion_gate": {
+    "passed": false,
+    "min_n": 10,
+    "min_ann": 0.05,
+    "n": 0,
+    "annualized": null,
+    "reasons": [
+      "已平仓样本 0 < 10",
+      "年化无法计算（无占用或无平仓）"
+    ],
+    "note": "过门只是小资金资格，不等于自动开 Live"
+  },
+  "notes": [
+    "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786526676196}]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+    "maker_ratio 需指定 live 账户客户端，scorecard 不主动建连"
+  ]
+}

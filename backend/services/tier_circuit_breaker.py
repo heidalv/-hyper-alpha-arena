@@ -70,7 +70,13 @@ def _today_key() -> str:
 
 
 def compute_tier_daily_pnl(db, account_id: int) -> Dict[str, float]:
-    """当日各 tier 已实现盈亏（paper_orders 权威账本）。异常降级为空。"""
+    """当日各 tier 已实现**净**盈亏（paper_orders 权威账本：毛 pnl − 全部成交手续费）。
+
+    [2026-09-03 v3 F1d] 旧口径只算 pnl（毛），手续费不计入日亏预算 —— 而账户 14
+    的亏损有 37% 是手续费、短线车道费用 > 亏损本身。费用是这条车道的主要亏损形式，
+    必须进预算，否则熔断永远在"看不见的地方"失效。开仓单 pnl 为 NULL、fee 非零，
+    故 SUM 覆盖开/平/部分平所有 filled 单。异常降级为空。
+    """
     out = {"short": 0.0, "mid": 0.0, "long": 0.0, "unknown": 0.0}
     try:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -88,7 +94,7 @@ def compute_tier_daily_pnl(db, account_id: int) -> Dict[str, float]:
                 s.timeframe_tier,
                 'unknown'
               ) AS tier,
-              SUM(COALESCE(o.pnl, 0)) AS total_pnl
+              SUM(COALESCE(o.pnl, 0)) - SUM(COALESCE(o.fee, 0)) AS total_pnl
             FROM paper_orders o
             LEFT JOIN ai_strategies s ON s.strategy_id = o.strategy_id
             WHERE o.account_id = :acct
@@ -141,15 +147,31 @@ def check_and_update(db, account_id: int, equity: Optional[float] = None) -> Dic
             frozen_at = (prev or {}).get("frozen_at")
 
             if not frozen and budget_pct > 0 and loss < 0 and abs(loss) >= budget:
-                frozen = True
-                frozen_at = time.time()
-                reason = (
-                    f"{tier}层当日亏损 ${abs(loss):.2f} "
-                    f"({abs(loss) / equity * 100:.1f}% 权益) 达到日亏预算 "
-                    f"${budget:.2f} ({budget_pct:.1f}%) — 仅冻结本周期新开仓，"
-                    f"其他周期不受影响"
-                )
-                logger.warning("[TierCircuit] FREEZE account=%s tier=%s %s", account_id, tier, reason)
+                # [2026-09-11 用户指令] 模拟账户只告警不冻结（纸面日亏=训练数据）
+                try:
+                    from backend.services.risk_management.loss_lock_policy import (
+                        loss_locks_disabled as _lld,
+                    )
+
+                    _paper = _lld(account_id)
+                except Exception:
+                    _paper = True
+                if _paper:
+                    reason = (
+                        f"{tier}层当日亏损 ${abs(loss):.2f} 达日亏预算 "
+                        f"${budget:.2f} — 模拟账户不冻结（继续收集训练数据）"
+                    )
+                    logger.info("[TierCircuit] %s account=%s tier=%s", reason, account_id, tier)
+                else:
+                    frozen = True
+                    frozen_at = time.time()
+                    reason = (
+                        f"{tier}层当日亏损 ${abs(loss):.2f} "
+                        f"({abs(loss) / equity * 100:.1f}% 权益) 达到日亏预算 "
+                        f"${budget:.2f} ({budget_pct:.1f}%) — 仅冻结本周期新开仓，"
+                        f"其他周期不受影响"
+                    )
+                    logger.warning("[TierCircuit] FREEZE account=%s tier=%s %s", account_id, tier, reason)
             elif frozen and (prev or {}).get("reason"):
                 # 已冻结：保留原始原因（含冻结时刻）
                 pass
@@ -171,7 +193,19 @@ def check_and_update(db, account_id: int, equity: Optional[float] = None) -> Dic
 
 
 def is_tier_open_blocked(account_id: int, tier: str) -> Tuple[bool, str]:
-    """开仓前调用（只读内存态）。冻结只挡新开仓。"""
+    """开仓前调用（只读内存态）。冻结只挡新开仓。
+
+    [2026-09-11 用户指令] 模拟(paper)账户不做亏损类冻结：纸面日亏=训练数据，
+    冻结只会让样本停摆。判据唯一权威见 risk_management/loss_lock_policy。
+    live 账户行为不变。
+    """
+    try:
+        from backend.services.risk_management.loss_lock_policy import loss_locks_disabled
+
+        if loss_locks_disabled(account_id):
+            return False, ""
+    except Exception:
+        return False, ""   # 判据异常按 paper 处理（不冻结）
     key = _state_key(account_id, tier)
     with _state_lock:
         state = _tier_state.get(key)

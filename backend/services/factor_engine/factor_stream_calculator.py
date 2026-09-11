@@ -2,17 +2,24 @@
 ATAS V2 - 流式因子计算器
 
 支持增量计算和实时数据流处理
+
+[§64 修复 2026-09-10] 因子计算失败此前只用 `print()` 报告（只进 console 文件，
+读 backend.log 的人看不到）—— 因子算不出来会静默退化成"没有该因子"，
+而中长线 factor_route 的分数就建立在因子之上。现全部改走 `logger`。
 """
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import asyncio
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 from .factor_base import BaseFactor
 from .factor_registry import FactorRegistry
 from .factor_cache import FactorCache
+
+logger = logging.getLogger(__name__)
 
 
 class StreamFactorCalculator:
@@ -89,7 +96,7 @@ class StreamFactorCalculator:
                     self.state_cache[state_key] = new_state
                     
             except Exception as e:
-                print(f"Error calculating factor {factor_id}: {str(e)}")
+                logger.warning("[FactorStream] 因子计算失败 %s: %s（该因子退化为 NaN）", factor_id, e)
                 results[factor_id] = pd.Series([np.nan] * len(new_data))
         
         return {fid: results[fid] for fid in factor_ids}
@@ -114,7 +121,7 @@ class StreamFactorCalculator:
             params: 参数覆盖
             callback: 结果回调函数
         """
-        print(f"Starting stream calculation for {len(factor_ids)} factors...")
+        logger.info("[FactorStream] 启动流式计算: %d 个因子 symbol=%s", len(factor_ids), symbol)
         
         while True:
             try:
@@ -147,9 +154,9 @@ class StreamFactorCalculator:
                     await callback(results, new_data)
                     
             except asyncio.TimeoutError:
-                print("Stream timeout, waiting for more data...")
+                logger.debug("[FactorStream] 流等待超时，继续等待数据...")
             except Exception as e:
-                print(f"Stream calculation error: {str(e)}")
+                logger.warning("[FactorStream] 流式计算错误: %s", e)
     
     def calculate_batch_parallel(
         self,
@@ -198,7 +205,7 @@ class StreamFactorCalculator:
             try:
                 results[symbol] = future.result()
             except Exception as e:
-                print(f"Error calculating {symbol}: {str(e)}")
+                logger.warning("[FactorStream] 标的计算失败 %s: %s（返回空结果）", symbol, e)
                 results[symbol] = {}
         
         return results
@@ -220,7 +227,9 @@ class StreamFactorCalculator:
                 factor = self.registry.get(factor_id, params)
                 results[factor_id] = factor.calculate(data)
             except Exception as e:
-                print(f"Error in {symbol}/{factor_id}: {str(e)}")
+                logger.warning(
+                    "[FactorStream] 因子计算失败 %s/%s: %s（退化为 NaN）", symbol, factor_id, e,
+                )
                 results[factor_id] = pd.Series([np.nan] * len(data))
         
         return {fid: results[fid] for fid in factor_ids}

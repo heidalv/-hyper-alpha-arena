@@ -718,11 +718,75 @@ class CodegenCritic:
             _ok_turn, _reason_turn = self._audit_turnover_cap(ast)
             if not _ok_turn:
                 return CodegenResult(expr_ast=None, audit_passed=False, reason=_reason_turn)
+            # [2026-09-07 AlphaAgent 假设-因子语义对齐] 生成后让 LLM 自述该表达式
+            # 捕捉的经济逻辑，与挖掘 prompt 的假设比对；明显不符（答非所问/无法
+            # 解释）则拒。防止 LLM 为凑 IC 生成无经济含义的过拟合式。默认开，
+            # FACTOR_ALIGN_CHECK=0 回滚；LLM 不可用 fail-open（不阻断）。
+            _ok_align, _reason_align = self._check_hypothesis_alignment(ast, prompt, config)
+            if not _ok_align:
+                return CodegenResult(expr_ast=None, audit_passed=False, reason=_reason_align)
         return CodegenResult(
             expr_ast=ast if result.ok else None,
             audit_passed=result.ok,
             reason="OK" if result.ok else "; ".join(result.errors),
         )
+
+    def _check_hypothesis_alignment(self, ast: dict, prompt: str, config) -> tuple:
+        """假设-因子语义对齐校验（AlphaAgent 抗 alpha decay 核心机制之一）。
+
+        让 LLM 用一句话解释该 AST 捕捉的市场现象，并判断它与挖掘假设是否
+        语义一致。输出 JSON {"aligned": true|false, "logic": "..."}。
+        LLM 不可用/解析失败 → (True, "align_check_unavailable")（fail-open）。
+        """
+        import os as _os
+        if (_os.getenv("FACTOR_ALIGN_CHECK", "1") or "1").strip().lower() in ("0", "false", "off"):
+            return True, "align_check_disabled"
+        if not config or not getattr(config, "api_key", None):
+            return True, "align_check_unavailable"
+        try:
+            import json as _json
+            from backend.services.llm_config_service import call_llm_api_sync
+            _instr = (
+                "你是量化因子审查员。给定一个因子表达式 AST 和当初的挖掘假设，"
+                "判断该表达式是否真正表达了假设的经济逻辑（而非凑统计）。"
+                "只输出 JSON：{\"aligned\": true/false, \"logic\": \"一句话说明表达式捕捉什么\"}。"
+                "宽松标准：只要表达式与假设方向/机制大体相关即 aligned=true；"
+                "完全无关或无法解释才 false。\n"
+                "挖掘假设：" + str(prompt)[:600] + "\n"
+                "因子表达式：" + _json.dumps(ast, ensure_ascii=False)[:800]
+            )
+            resp_data = call_llm_api_sync(
+                config,
+                messages=[{"role": "user", "content": _instr
+                           + self._no_think_suffix(getattr(config, "model", ""))}],
+                max_tokens=400, temperature=0.1, caller="factor_align_check",
+                bypass_cache=True,
+            )
+            if not resp_data:
+                return True, "align_check_unavailable"
+            choices = resp_data.get("choices") or []
+            content = ((choices[0].get("message") or {}).get("content")) if choices else None
+            if not content:
+                return True, "align_check_unavailable"
+            parsed = None
+            try:
+                parsed = _json.loads(content)
+            except Exception:
+                s, e = content.find("{"), content.rfind("}")
+                if 0 <= s < e:
+                    try:
+                        parsed = _json.loads(content[s:e + 1])
+                    except Exception:
+                        parsed = None
+            if not isinstance(parsed, dict) or "aligned" not in parsed:
+                return True, "align_check_parse_failed"
+            aligned = bool(parsed.get("aligned", True))
+            logic = str(parsed.get("logic") or "")[:120]
+            if not aligned:
+                return False, f"hypothesis_misaligned: {logic or '表达式与假设语义不符'}"
+            return True, f"aligned: {logic}"
+        except Exception as e:
+            return True, f"align_check_error: {str(e)[:80]}"
 
     @staticmethod
     def _audit_turnover_cap(ast: dict) -> tuple[bool, str]:

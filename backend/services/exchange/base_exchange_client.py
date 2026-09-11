@@ -41,8 +41,14 @@ class ExchangeOrder:
     price: Optional[float] = None
     sl: Optional[float] = None
     tp: Optional[float] = None
-    leverage: int = 1
+    post_only: bool = False
     reduce_only: bool = False
+    position_side: Optional[str] = None
+    leverage: int = 1
+    # [2026-09-04 p2-oms-exec] 幂等键：适配器会作为 newClientOrderId 下发给交易所。
+    # 有了它，下单超时后重试是安全的（交易所按此去重），否则重试可能变双倍仓位。
+    # 为 None 时行为与此前完全一致（不下发），保证存量调用方零影响。
+    client_order_id: Optional[str] = None
 
     @property
     def notional_value(self) -> float:
@@ -62,6 +68,10 @@ class ExchangePosition:
     margin: float
     leverage: float
     liquidation_price: Optional[float] = None
+    margin_type: Optional[str] = None      # cross/isolated（全仓/逐仓）
+    isolated: Optional[bool] = None        # 是否逐仓
+    maint_margin: float = 0.0              # 维持保证金(USDT)
+    margin_ratio: float = 0.0              # 保证金率(%) = 维持保证金/名义
 
     @property
     def notional_value(self) -> float:

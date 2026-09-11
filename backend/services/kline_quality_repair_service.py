@@ -36,7 +36,8 @@ class KlineQualityRepairService:
         self._last_result: dict[str, Any] | None = None
         self._last_error = ""
         self._run_count = 0
-
+        # [2026-08-28 剥离] 子进程句柄（修复在独立进程执行）
+        self._child: object | None = None
     @staticmethod
     def enabled() -> bool:
         return _env_bool("KLINE_QUALITY_REPAIR_ENABLED")
@@ -78,6 +79,18 @@ class KlineQualityRepairService:
     ) -> dict[str, Any]:
         cfg = self.config()
         should_apply = bool(apply and self.apply_enabled())
+        # [2026-08-28 剥离] 防重叠：上一轮子进程未结束则跳过本轮
+        _ch = getattr(self, "_child", None)
+        if _ch is not None and _ch.poll() is None:
+            return {
+                "ok": False,
+                "requested_apply": apply,
+                "applied": False,
+                "elapsed_seconds": 0,
+                "skipped": True,
+                "reason": "child_process_running pid=%s" % _ch.pid,
+                "config": cfg,
+            }
         requested_symbols = symbols if symbols is not None else cfg["symbols"]
         if not normalize_symbols(requested_symbols):
             return {
@@ -107,7 +120,43 @@ class KlineQualityRepairService:
 
         started = time.time()
         try:
-            result = await asyncio.to_thread(run_kline_quality_repair, args)
+            # [2026-08-28 剥离] 重活移出主进程：独立子进程（独立 GIL/DB/采集），
+            # 主进程只做调度与日志，修复期间 /api 不再被拖累。
+            import subprocess as _sp
+            import sys as _sys
+
+            _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            _py = os.path.join(_repo, ".venv", "Scripts", "python.exe")
+            if not os.path.exists(_py):
+                _py = _sys.executable
+            _argv = [
+                _py, "-m", "backend.scripts.kline_quality_repair",
+                "--exchanges", ",".join(str(x) for x in args.exchanges if x),
+                "--symbols", ",".join(str(x) for x in (args.symbols or [])),
+                "--periods", ",".join(str(x) for x in (args.periods or [])),
+                "--limit", str(args.limit),
+                "--fetch-timeout", str(args.fetch_timeout),
+                "--volume-tolerance", str(args.volume_tolerance),
+                "--settle-periods", str(args.settle_periods),
+                "--settle-seconds", str(args.settle_seconds),
+            ]
+            if not args.closed_only:
+                _argv.append("--include-open")
+            if should_apply:
+                _argv.append("--apply")
+            _lf = open(os.path.join(_repo, "logs", "kline_repair_%d.log" % int(time.time())), "w", encoding="utf-8")
+            self._child = _sp.Popen(
+                _argv, cwd=_repo,
+                stdout=_lf, stderr=_sp.STDOUT,
+                creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0),
+            )
+            result = {
+                "spawned": True,
+                "pid": self._child.pid,
+                "log_file": _lf.name,
+                "child_running": True,
+                "note": "repair running in child process (独立进程)",
+            }
             self._last_result = result
             self._last_error = ""
             self._last_run_at = time.time()
@@ -164,6 +213,7 @@ class KlineQualityRepairService:
             "run_count": self._run_count,
             "last_error": self._last_error,
             "config": cfg,
+            "child_pid": getattr(self, "_child", None).pid if getattr(self, "_child", None) and getattr(self, "_child", None).poll() is None else None,
             "last_result_summary": self._summarize_result(self._last_result),
         }
 

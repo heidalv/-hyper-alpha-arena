@@ -105,13 +105,33 @@ def test_no_progress_triggers():
         "timeframe_tier": "long",
         "entry_price": 100.0,
         "sl_price": 95.0,  # 5% R
-        "mark_price": 100.5,
+        "mark_price": 99.0,  # 浮亏：cur_R < 0（浮盈时不再触发 no_progress）
         "peak_pnl_pct": 0.01,  # 价格 1% 峰值 → 0.2R < 0.5R
         "opened_at": opened,
     }
     d = evaluate_no_progress_exit(pos)
     assert d.action == "close", (d.action, d.reason, d.peak_r, d.hold_hours)
     assert "no_progress" in d.reason
+
+
+def test_no_progress_skips_when_still_green():
+    """浮盈中线不应被 no_progress 砍掉 —— 只是还没走到 0.5R。"""
+    from backend.services.mlto.midlong_portfolio_risk import evaluate_no_progress_exit
+
+    opened = time.time() - 40 * 3600
+    pos = {
+        "symbol": "BNB",
+        "side": "long",
+        "trade_nature": "swing",
+        "timeframe_tier": "mid",
+        "entry_price": 100.0,
+        "sl_price": 95.0,
+        "mark_price": 101.0,  # 浮盈
+        "peak_pnl_pct": 0.015,  # 0.3R < 0.5R
+        "opened_at": opened,
+    }
+    d = evaluate_no_progress_exit(pos)
+    assert d.action == "hold", (d.action, d.reason, d.peak_r)
 
 
 def test_no_progress_skips_when_peak_ok():

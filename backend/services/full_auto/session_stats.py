@@ -138,7 +138,15 @@ def update_session_stats(
     if current_equity is None:
         current_equity = initial_capital + total_pnl
 
-    peak = session.peak_balance or initial_capital
+    # [2026-09-03 v3 F1d] peak_balance 为 None/0 时（实测会话 10 一直是 0.0）：
+    # 旧逻辑 `or initial_capital` 只在本地取值、从不落库，峰值永远不被初始化；
+    # 账户重置（last_reset_at）后也应以重置后的初始资金重新起算峰值。
+    # 账户重置时由重置流程显式回写 peak_balance/current_drawdown（见 ops 重置脚本）。
+    _peak_raw = float(session.peak_balance or 0)
+    if _peak_raw <= 0:
+        _peak_raw = max(float(initial_capital), float(current_equity))
+        session.peak_balance = round(_peak_raw, 4)
+    peak = _peak_raw
     # 真实权益高于峰值时，更新峰值
     if current_equity > peak:
         session.peak_balance = round(current_equity, 4)

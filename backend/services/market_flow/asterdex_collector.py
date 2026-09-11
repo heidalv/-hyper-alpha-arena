@@ -26,8 +26,8 @@ import time
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from services.exchange.base_exchange_client import ExchangeTrade
-from services.market_flow.base_collector import BaseMarketFlowCollector
+from backend.services.exchange.base_exchange_client import ExchangeTrade
+from backend.services.market_flow.base_collector import BaseMarketFlowCollector
 
 from backend.services.symbol_normalizer import normalize_symbol
 
@@ -166,7 +166,7 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
 
     @staticmethod
     def _new_buffer():
-        from services.market_flow.base_collector import TradeBuffer
+        from backend.services.market_flow.base_collector import TradeBuffer
         return TradeBuffer()
 
     @staticmethod

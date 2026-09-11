@@ -792,6 +792,10 @@ class AutoCoinSelector:
                 price=rr.price,
                 price_change_24h=rr.change_24h,
                 is_new_listing=symbol_upper in new_listings,
+                # [2026-09-02] 与 legacy 路径对齐回填：AI 审核提示词按 social_score>0
+                # 向 LLM 报告 CoinGecko 热门榜排名，此前 RankEngine 路径只加分不回填，
+                # LLM 看不到热度信息。
+                social_score=social,
             )
             # soft_reject：强制试仓层
             if rr.gate == "soft_reject" or not is_strong_eligible(rr):
@@ -2100,13 +2104,38 @@ class AutoCoinSelector:
                             ex,
                         )
                         continue
-                    # 24h 成交量硬门：低于下限视为无行情（默认 200 万 USD）。
+                    # 24h 成交量门：低于下限视为流动性不足（默认 200 万 USD）。
+                    # [2026-09-03 根因修复] 此前对 board 币做「硬拒绝」，但成交量取自
+                    # 数据中心 asterdex_ticker_poller（AsterDex 口径）+ 可能过期的 K线；
+                    # 对 binance / 其它会话属 **跨所口径**，实测把 ADA($52万)、XMR($196万)
+                    # 等在本所高流动的币误判为「低于 $200万」而 **全部拒绝** →
+                    # ai_review 通过 9 个、inject 注入 0 个 → 短线 AI 选币长期空池。
+                    # 本函数设计意图（顶部注释）是「看板 approve = 可注入，勿用独立评分
+                    # 否决管理员结论」；而「非加密黑名单 + catalog」两道门已保证这是
+                    # 「本所可交易的真加密对」。故此处把成交量改为 **软信号**：低于下限
+                    # 不再硬拒，而是降级为 PROBE 试仓（下游按 PROBE_SIZE_MULT 缩仓）注入，
+                    # 风险受控且不再误杀本所高流动币；仅当快照完全无价（真无行情）才拒。
+                    # AUTO_COIN_BOARD_VOLUME_SOFT=0 可回退旧的硬拒行为。
                     try:
                         from backend.config.settings import AUTO_COIN_MIN_VOLUME_24H
                         _min_vol = float(AUTO_COIN_MIN_VOLUME_24H)
                     except Exception:
                         _min_vol = 2_000_000.0
+                    _soft_vol = str(
+                        os.environ.get("AUTO_COIN_BOARD_VOLUME_SOFT", "1")
+                    ).strip().lower() not in ("0", "false", "no", "off")
+                    # 软降级仍保留一个更低的「试仓下限」，过滤真正枯竭/流动性极差的对
+                    # （实测 NATGAS/META/SNXX/LA 等 $20万~$39万 的对不应入池，即便缩仓）。
+                    # 允许区间：[PROBE_MIN, MIN_VOLUME) → PROBE 试仓；≥MIN_VOLUME → 全量。
+                    try:
+                        _probe_min = float(
+                            os.environ.get("AUTO_COIN_BOARD_VOLUME_PROBE_MIN", "500000")
+                            or 500_000.0
+                        )
+                    except (TypeError, ValueError):
+                        _probe_min = 500_000.0
                     _snap = self._fetch_market_snapshot(c.symbol, ex)
+                    _has_px = bool(_snap and float((_snap or {}).get("price") or 0) > 0)
                     _vol24 = float(
                         ((_snap or {}).get("quote_volume_24h")
                          or (_snap or {}).get("volume_24h_usd")
@@ -2115,12 +2144,23 @@ class AutoCoinSelector:
                         or 0.0
                     )
                     if _vol24 < _min_vol:
-                        _data_rejected.append(c.symbol)
-                        logger.warning(
-                            "[AutoCoinSelector] VIP跟投拒绝 %s：24h成交额 $%.0f < $%.0f 下限",
-                            c.symbol, _vol24, _min_vol,
-                        )
-                        continue
+                        if _soft_vol and _has_px and _vol24 >= _probe_min:
+                            # 软降级：转 PROBE 试仓注入（缩仓），不再误杀本所高流动币
+                            # （如 XMR $196万、ARB $71万、SUI $150万），风险受控。
+                            c.test_position = True
+                            logger.info(
+                                "[AutoCoinSelector] VIP跟投软降级 %s：DC口径24h成交额 "
+                                "$%.0f ∈ [$%.0f, $%.0f)，转 PROBE 试仓注入（缩仓）",
+                                c.symbol, _vol24, _probe_min, _min_vol,
+                            )
+                        else:
+                            _data_rejected.append(c.symbol)
+                            logger.warning(
+                                "[AutoCoinSelector] VIP跟投拒绝 %s：24h成交额 $%.0f < $%.0f "
+                                "（无价/低于试仓下限$%.0f/软门已关）",
+                                c.symbol, _vol24, _min_vol, _probe_min,
+                            )
+                            continue
                 except Exception as e:
                     # fail-closed：看板注入宁缺毋滥
                     _data_rejected.append(c.symbol)
@@ -2755,7 +2795,7 @@ class AutoCoinSelector:
                 logger.warning(f"[AutoCoinSelector] freshness gate fail {sym_u}: {e}")
                 return False
 
-            from services.kline_data_service import kline_service
+            from backend.services.kline_data_service import kline_service
 
             if paper_relax:
                 _TF_REQUIREMENTS = [
@@ -5733,6 +5773,141 @@ def get_ai_mid_candidates_for_session(
     except Exception as e:
         logger.warning(
             f"[AutoCoinSelector] get_ai_mid_candidates_for_session 查询失败 {session_id}: {e}"
+        )
+        return []
+
+
+def get_session_long_ai_config(session_id: str, db: Optional[Session] = None) -> Dict[str, Any]:
+    """[2026-09-08] 读会话长线 AI 开关/槽位（auto_coin_long_enabled / auto_coin_long_max_slots）。"""
+    enabled = False
+    max_slots = 2
+    try:
+        from backend.config.settings import AUTO_COIN_LONG_MAX_SLOTS
+        max_slots = max(1, min(4, int(AUTO_COIN_LONG_MAX_SLOTS or 2)))
+    except Exception:
+        max_slots = 2
+    try:
+        from sqlalchemy import text as _sa_text
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal
+            db = SessionLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            row = db.execute(
+                _sa_text(
+                    "SELECT auto_coin_long_enabled, auto_coin_long_max_slots "
+                    "FROM full_auto_sessions WHERE session_id = :sid"
+                ),
+                {"sid": session_id},
+            ).first()
+            if row:
+                enabled = bool(row[0])
+                if row[1] is not None:
+                    try:
+                        max_slots = max(1, min(4, int(row[1])))
+                    except Exception:
+                        pass
+        finally:
+            if _owns_db:
+                db.close()
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] get_session_long_ai_config fail %s: %s", session_id, e)
+    return {"enabled": enabled, "max_slots": max_slots}
+
+
+def get_ai_long_candidates_for_session(
+    session_id: str,
+    db: Optional[Session] = None,
+    max_slots: Optional[int] = None,
+) -> List[str]:
+    """[2026-09-08] AI 长线(tier=long)候选——复用平台看板 midlong approve，但门槛更高。
+
+    与中线区别：长线持仓数天、回撤容忍大，入选要更高置信（MIDLONG_AI_MIN_CONF_LONG
+    默认 0.70 > 中线 0.60），槽位更少（默认 2）。与固定长线白名单正交（不重复）。
+    会话 auto_coin_long_enabled=false 时返回空（已有 long 仓由调用方续管）。
+    """
+    long_cfg = get_session_long_ai_config(session_id, db=db)
+    if not long_cfg.get("enabled"):
+        return []
+    try:
+        from sqlalchemy import text as _sa_text
+        try:
+            from backend.config.settings import (
+                AUTO_COIN_LONG_MAX_SLOTS,
+                MIDLONG_AI_MIN_CONF_LONG,
+            )
+            _max_slots = max(1, min(4, int(
+                max_slots if max_slots is not None
+                else (long_cfg.get("max_slots") or AUTO_COIN_LONG_MAX_SLOTS or 2)
+            )))
+            _min_conf = float(MIDLONG_AI_MIN_CONF_LONG or 0.70)
+        except Exception:
+            _max_slots = max(1, min(4, int(max_slots or long_cfg.get("max_slots") or 2)))
+            _min_conf = 0.70
+
+        _owns_db = db is None
+        if _owns_db:
+            from backend.database.connection import SessionLocal as _CoreLocal
+            db = _CoreLocal()
+            try:
+                db.connection().exec_driver_sql("SET app.is_admin = 'on'")
+            except Exception:
+                pass
+        try:
+            _acc_id = None
+            _acc_row = db.execute(
+                _sa_text(
+                    "SELECT paper_account_id FROM full_auto_sessions WHERE session_id = :sid"
+                ),
+                {"sid": session_id},
+            ).first()
+            if _acc_row and _acc_row[0] is not None:
+                _acc_id = int(_acc_row[0])
+            _fixed_long = get_fixed_symbols_for_session(session_id, db=None, tier="long")
+            # 槽位只计「AI 选的长线仓」（不在固定长线白名单里的），固定长线仓不占 AI 槽位——
+            # 否则固定仓一占满，AI 长线永远没有名额（违背"AI 在固定币之外增选"的本意）。
+            _open_long_rows = db.execute(
+                _sa_text(
+                    "SELECT DISTINCT upper(symbol) FROM paper_positions "
+                    "WHERE status = 'open' AND timeframe_tier = 'long'"
+                    + (" AND account_id = :acc" if _acc_id is not None else "")
+                ),
+                {"acc": _acc_id} if _acc_id is not None else {},
+            ).all()
+            _open_long_all = {str(r[0]).upper() for r in _open_long_rows if r[0]}
+            _open_long = {s for s in _open_long_all if s not in _fixed_long}  # 只计 AI 选的
+            _free = max(0, _max_slots - len(_open_long))
+            if _free <= 0:
+                logger.info(
+                    "[AutoCoinSelector] AI 长线槽位已满 open=%d max=%d session=%s",
+                    len(_open_long), _max_slots, session_id,
+                )
+                return []
+
+            # 主源：平台看板 midlong approve（更高置信门槛，排除固定长线 + 已开长线）
+            _cands = _midlong_board_approve_candidates(db, fixed=_fixed_long, min_conf=_min_conf)
+            picked: List[str] = []
+            for _s, _c in _cands:
+                if _s in _open_long_all or _s in picked:  # 已持仓(固定+AI)的币不重复开
+                    continue
+                picked.append(_s)
+                if len(picked) >= _free:
+                    break
+            logger.info(
+                "[AutoCoinSelector] AI 长线候选 session=%s picked=%s (open_long=%d free=%d min_conf=%.2f)",
+                session_id, picked, len(_open_long), _free, _min_conf,
+            )
+            return picked
+        finally:
+            if _owns_db:
+                db.close()
+    except Exception as e:
+        logger.warning(
+            f"[AutoCoinSelector] get_ai_long_candidates_for_session 查询失败 {session_id}: {e}"
         )
         return []
 

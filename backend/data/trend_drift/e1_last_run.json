@@ -1,0 +1,186 @@
+{
+  "started_at": "2026-09-05T00:20:00.178813+00:00",
+  "as_of_bar": "2026-09-03",
+  "exec_lag_days": 1,
+  "n_target_positions": 6,
+  "gross_weight": 0.7756146406859293,
+  "targets": {
+    "BTC": {
+      "target": 1,
+      "weight": 0.16537913531323725,
+      "stop": 72813.305,
+      "close": 81255.8,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "ETH": {
+      "target": 1,
+      "weight": 0.14535946242303255,
+      "stop": 2188.2255,
+      "close": 2508.18,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "SOL": {
+      "target": 1,
+      "weight": 0.10340372721354159,
+      "stop": 91.64699999999999,
+      "close": 103.96,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "BNB": {
+      "target": 1,
+      "weight": 0.17414555629099235,
+      "stop": 660.912,
+      "close": 724.86,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "XRP": {
+      "target": 1,
+      "weight": 0.061960884789478164,
+      "stop": 1.158275,
+      "close": 1.451,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "DOGE": {
+      "target": 0,
+      "weight": 0.0,
+      "stop": null,
+      "close": 0.08797,
+      "reason": "空仓：入场规则不成立"
+    },
+    "LINK": {
+      "target": 1,
+      "weight": 0.1253658746556474,
+      "stop": 10.075599999999998,
+      "close": 11.886,
+      "reason": "持有：入场规则成立且未破 Chandelier"
+    },
+    "AVAX": {
+      "target": 0,
+      "weight": 0.0,
+      "stop": null,
+      "close": 7.258,
+      "reason": "空仓：入场规则不成立"
+    }
+  },
+  "execute": true,
+  "accounts": {
+    "14": {
+      "equity": 4908.996731046091,
+      "sleeve_equity": 2945.4,
+      "bucket_fraction": 0.6,
+      "adopted": [
+        {
+          "symbol": "BTC",
+          "position_id": 4601,
+          "stop": 72813.305
+        }
+      ],
+      "e1_positions": {
+        "BTC": [
+          4601
+        ]
+      },
+      "other_long_positions": {},
+      "actions": [
+        {
+          "action": "adopt",
+          "symbol": "BTC",
+          "position_id": 4601,
+          "stop": 72813.305
+        },
+        {
+          "action": "reduce",
+          "symbol": "BTC",
+          "position_id": 4601,
+          "actual_weight": 0.3527,
+          "target_weight": 0.0992,
+          "quantity": 0.01563347823548653
+        },
+        {
+          "action": "flat_ok",
+          "symbol": "DOGE"
+        },
+        {
+          "action": "flat_ok",
+          "symbol": "AVAX"
+        },
+        {
+          "action": "open",
+          "symbol": "ETH",
+          "notional": 288.62,
+          "quantity": 0.11770362789952227,
+          "leverage": 5.0,
+          "sl": 2188.2255,
+          "weight": 0.098,
+          "caps": [
+            "risk_per_trade(0.0125/0.1276)"
+          ],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_23375"
+          }
+        },
+        {
+          "action": "skip_open",
+          "symbol": "SOL",
+          "reason": "PositionConstruction 无余量 ['max_weight_per_symbol(0.35)', 'cluster_cap(0.50)']",
+          "lane_open": 775.73,
+          "sleeve_equity": 2945.4
+        },
+        {
+          "action": "skip_open",
+          "symbol": "BNB",
+          "reason": "PositionConstruction 无余量 ['max_weight_per_symbol(0.35)']",
+          "lane_open": 775.73,
+          "sleeve_equity": 2945.4
+        },
+        {
+          "action": "open",
+          "symbol": "XRP",
+          "notional": 182.5,
+          "quantity": 130.66475873885804,
+          "leverage": 4.0,
+          "sl": 1.158275,
+          "weight": 0.062,
+          "caps": [],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_23376"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "LINK",
+          "notional": 241.72,
+          "quantity": 20.81293699683231,
+          "leverage": 4.0,
+          "sl": 10.075599999999998,
+          "weight": 0.0821,
+          "caps": [
+            "risk_per_trade(0.0125/0.1523)"
+          ],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_23377"
+          }
+        }
+      ],
+      "drift": {
+        "trend_drift": 2,
+        "weight_drift": 0,
+        "leverage_violations": 4,
+        "missing": [
+          "SOL",
+          "BNB"
+        ],
+        "as_of_bar": "2026-09-03",
+        "extra": [],
+        "wrong_side": []
+      }
+    }
+  },
+  "elapsed_sec": 14.8
+}

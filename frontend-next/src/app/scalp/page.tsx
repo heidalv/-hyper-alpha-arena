@@ -23,7 +23,7 @@ function calcEV(tp: number, sl: number, pWin: number, tpReal = 0.55, lev = 10, p
 }
 
 export default function ScalpPage() {
-  const { data, isLoading } = useScalpConfig();
+  const { data, isLoading, isError, error, refetch } = useScalpConfig();
   const { data: presets } = useScalpPresets();
   const updateMutation = useUpdateScalpConfig();
 
@@ -51,6 +51,22 @@ export default function ScalpPage() {
     if (!config) return null;
     return calcEV(config.tp_pct, config.sl_pct, pWin, config.ev_tp_realization, config.leverage, config.position_pct);
   }, [config, pWin]);
+
+  // [2026-09-09] 补 isError 分支：否则接口失败时页面永远转圈
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 h-40 text-sm">
+        <span className="text-loss">短线策略配置加载失败：{(error as Error)?.message || "未知错误"}</span>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="text-xs text-cyan-300 underline underline-offset-2 hover:opacity-80"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || !config || !data) {
     return <div className="flex items-center justify-center h-40"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;

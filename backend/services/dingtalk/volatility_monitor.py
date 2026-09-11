@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 
 from backend.database.connection import SessionLocal
 from backend.database.models import DingTalkBot
-from services.dingtalk.notification_service import get_notification_service
+from backend.services.dingtalk.notification_service import get_notification_service
 
 logger = logging.getLogger(__name__)
 

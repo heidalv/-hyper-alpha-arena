@@ -238,6 +238,66 @@ def _build_thesis_block(thesis: ThesisDTO) -> str:
     )
 
 
+def _h1_timing_line(ms: Dict[str, Any], price: float) -> str:
+    """[2026-09-09 第十八轮] 1h 派生择时读数（与闸门同源字段）。
+
+    背景：1h 原始 K 线早已在 prompt 里（`[1h K线×30]` + `[1h] RSI/MACD/…`），
+    但由 1h 派生的两个**被实测证明有边际**的择时读数——`price_change_24h_pct`
+    （24h 涨跌）与 `range_24h_high/low`（24h 区间位置）——此前只被闸门
+    （位置闸 / learned 门 / regime_agent）使用，**LLM 简报里一行都没有**，
+    要模型从 30 根 K 线里自己算（实际做不到）。
+
+    数据依据：learned 多头门（§16–18）用 chg24/pos24 判定准入，近 30 天实测
+    `up chg∈[3,6) ∪ chop pos≥60&chg≥2` 放行集 **+0.406%/笔**（多头 +1.722%、
+    胜率 0.857），而全量不拦是 -0.406%/笔。把同样的读数摆给 LLM，
+    使其择时判断与门/闸的事实基础一致。
+
+    字段缺失时从 `indicators_1h.recent_klines` 兜底计算；仍无数据返回空串。
+    """
+    chg24 = ms.get("price_change_24h_pct")
+    chg1h = ms.get("price_change_1h_pct")
+    hi24 = ms.get("range_24h_high")
+    lo24 = ms.get("range_24h_low")
+    # 兜底：从 1h K 线现算
+    if chg24 is None or chg1h is None or hi24 is None or lo24 is None:
+        try:
+            ind = ms.get("indicators_1h") if isinstance(ms.get("indicators_1h"), dict) else {}
+            rows = ind.get("recent_klines") or []
+            closes = [float(r["close"]) for r in rows if isinstance(r, dict) and r.get("close")]
+            highs = [float(r["high"]) for r in rows if isinstance(r, dict) and r.get("high")]
+            lows = [float(r["low"]) for r in rows if isinstance(r, dict) and r.get("low")]
+            if chg1h is None and len(closes) >= 2 and closes[-2] > 0:
+                chg1h = (closes[-1] / closes[-2] - 1.0) * 100
+            if chg24 is None and len(closes) >= 25 and closes[-25] > 0:
+                chg24 = (closes[-1] / closes[-25] - 1.0) * 100
+            if (hi24 is None or lo24 is None) and len(highs) >= 24 and len(lows) >= 24:
+                hi24 = max(highs[-24:])
+                lo24 = min(lows[-24:])
+        except Exception:
+            pass
+    bits: list[str] = []
+    try:
+        if chg1h is not None:
+            bits.append(f"1h涨跌={float(chg1h):+.2f}%")
+    except (TypeError, ValueError):
+        pass
+    try:
+        if chg24 is not None:
+            bits.append(f"24h涨跌={float(chg24):+.2f}%")
+    except (TypeError, ValueError):
+        pass
+    pos_txt = ""
+    try:
+        if price and hi24 is not None and lo24 is not None and float(hi24) > float(lo24):
+            pos_pct = (float(price) - float(lo24)) / (float(hi24) - float(lo24)) * 100.0
+            pos_txt = (f" 24h区间位置={pos_pct:.0f}%（{float(lo24):.6g}~{float(hi24):.6g}）")
+    except (TypeError, ValueError):
+        pos_txt = ""
+    if not bits and not pos_txt:
+        return ""
+    return "[1h择时] " + " | ".join(bits) + pos_txt
+
+
 def _build_market_brief(packet) -> str:
     """从 PerceptionPacket 提取实时市场数据摘要，注入 prompt 供 LLM 判断方向。
 
@@ -258,6 +318,13 @@ def _build_market_brief(packet) -> str:
         lines.append(f"ATR日波幅: {ms['atr_1d_pct']:.1%}")
     if ms.get("volatility_regime"):
         lines.append(f"波动率regime: {ms['volatility_regime']}")
+    # [2026-09-09 第十八轮] 1h 派生择时读数（闸门同源）
+    try:
+        _h1 = _h1_timing_line(ms, float(price or 0))
+        if _h1:
+            lines.append(_h1)
+    except Exception:
+        pass
 
     # ── 市场周期 & 趋势 ──
     if ms.get("market_cycle"):
@@ -638,7 +705,7 @@ def _build_prompt(thesis, memory_block, delta_block, constraints, packet, db=Non
 
   "recommend_open": true,
 
-  "should_close": false,
+  "should_close": true|false,
 {mid_view_request}}}
 
 ## regime 参数建议（v6 S2-7，选填；参考市场行情给出档位建议）

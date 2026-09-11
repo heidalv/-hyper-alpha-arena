@@ -8,11 +8,11 @@
 # 保持同一套命名空间。混用两套路径会把本包在两个不同的模块身份
 # （backend.services.dingtalk 与 services.dingtalk）下各初始化一次，
 # 一旦其中一层还没定义完类就被另一层回头引用，就会触发循环导入 ImportError。
-from services.dingtalk.background_tasks import (
+from backend.services.dingtalk.background_tasks import (
     DingTalkBackgroundTasks,
     get_background_tasks,
 )
-from services.dingtalk.volatility_monitor import (
+from backend.services.dingtalk.volatility_monitor import (
     VolatilityMonitor,
     get_volatility_monitor,
 )

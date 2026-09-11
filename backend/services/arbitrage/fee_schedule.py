@@ -57,8 +57,11 @@ _DEFAULT_SCHEDULES: Dict[str, Dict] = {
     },
     "asterdex": {
         "exchange_id": "asterdex",
-        "maker_rate": 0.0005,      # 0.05%
-        "taker_rate": 0.0005,      # 0.05%
+        # [2026-09] Stage 6 官方费率（与 rule_registry.STAGE6_POINT_MODEL.
+        # fee_schedule 单一来源对齐）：USDT 永续 maker 0% / taker 0.04%。
+        # 旧值 0.05%/0.05% 是上一赛季假设，已过时。
+        "maker_rate": 0.0,
+        "taker_rate": 0.0004,
         "withdrawal_fee_usd": 0.5,
         "slippage_bps_estimate": 5.0,
     },

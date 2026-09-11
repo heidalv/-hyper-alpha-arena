@@ -1,0 +1,177 @@
+{
+  "agent": "timing",
+  "ts_ms": 1788445589075,
+  "ok": true,
+  "mode": "observe",
+  "configured_mode": "observe",
+  "downgraded": false,
+  "downgrade_reason": "",
+  "credibility": {
+    "agent": "timing",
+    "days": 60,
+    "n": 0,
+    "n_scored": 0,
+    "avg_score": null,
+    "avg_brier": null,
+    "by_kind": [],
+    "verdict": {
+      "passed": false,
+      "reason": "已评分样本 0 < 30",
+      "gate": {
+        "min_scored": 30,
+        "min_avg_score": 0.55,
+        "max_avg_brier": 0.3
+      }
+    }
+  },
+  "findings": {
+    "symbols": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "BNB",
+      "XRP",
+      "DOGE",
+      "LINK",
+      "AVAX"
+    ],
+    "regime": "trend_up",
+    "confidence": 0.85,
+    "reason": "5/8 币 L1=up（门槛 4）且 BTC>EMA200",
+    "up_count": 5,
+    "down_count": 0,
+    "sideways_count": 3,
+    "rated_symbols": 8,
+    "consensus_needed": 4,
+    "btc_above_ema200": true,
+    "btc_realized_vol_pct": 37.57,
+    "btc_adx": 42.21,
+    "liquidity_ratio_7d_90d": 0.843,
+    "per_symbol": {
+      "AVAX": {
+        "state": "sideways",
+        "score": 0.0,
+        "strength": 0.0
+      },
+      "BNB": {
+        "state": "up",
+        "score": 3.0,
+        "strength": 60.0
+      },
+      "BTC": {
+        "state": "up",
+        "score": 3.0,
+        "strength": 60.0
+      },
+      "DOGE": {
+        "state": "sideways",
+        "score": 0.0,
+        "strength": 0.0
+      },
+      "ETH": {
+        "state": "up",
+        "score": 3.0,
+        "strength": 60.0
+      },
+      "LINK": {
+        "state": "up",
+        "score": 3.0,
+        "strength": 60.0
+      },
+      "SOL": {
+        "state": "up",
+        "score": 3.0,
+        "strength": 60.0
+      },
+      "XRP": {
+        "state": "sideways",
+        "score": 1.0,
+        "strength": 20.0
+      }
+    },
+    "bucket_weights": {
+      "trend": 0.6,
+      "cashflow": 0.3,
+      "research": 0.1
+    },
+    "engine_capital": [
+      {
+        "engine": "E1",
+        "weight": 0.6,
+        "rationale": "趋势桶全额给 E1（regime=trend_up）"
+      },
+      {
+        "engine": "E2",
+        "weight": 0.3,
+        "rationale": "现金流桶：Aster T&E + carry + 理财"
+      },
+      {
+        "engine": "E5",
+        "weight": 0.06,
+        "rationale": "研究桶 60% 给事件影子车道"
+      },
+      {
+        "engine": "E3",
+        "weight": 0.04,
+        "rationale": "研究桶 40% 给挑战者/参数寻优"
+      }
+    ],
+    "params": {
+      "high_vol_pct": 100.0,
+      "min_up": 5,
+      "liq_floor": 0.35
+    },
+    "counterfactual": {
+      "note": "尚无已评分的 regime 预测"
+    },
+    "llm": null
+  },
+  "predictions": [
+    "61411baffb9f438f9e3e516e8eb5af28"
+  ],
+  "advice": [
+    {
+      "action": "set_bucket_weights",
+      "target": "capital_allocator",
+      "params": {
+        "bucket_weights": {
+          "trend": 0.6,
+          "cashflow": 0.3,
+          "research": 0.1
+        },
+        "engine_capital": [
+          {
+            "engine": "E1",
+            "weight": 0.6,
+            "rationale": "趋势桶全额给 E1（regime=trend_up）"
+          },
+          {
+            "engine": "E2",
+            "weight": 0.3,
+            "rationale": "现金流桶：Aster T&E + carry + 理财"
+          },
+          {
+            "engine": "E5",
+            "weight": 0.06,
+            "rationale": "研究桶 60% 给事件影子车道"
+          },
+          {
+            "engine": "E3",
+            "weight": 0.04,
+            "rationale": "研究桶 40% 给挑战者/参数寻优"
+          }
+        ],
+        "regime": "trend_up"
+      },
+      "reason": "5/8 币 L1=up（门槛 4）且 BTC>EMA200",
+      "severity": 2,
+      "applied": false,
+      "apply_note": "observe 模式：仅记录不执行"
+    }
+  ],
+  "experiments": [],
+  "errors": [],
+  "elapsed_sec": 0.745,
+  "latest_path": null,
+  "dry_run": false
+}

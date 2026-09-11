@@ -313,12 +313,16 @@ def check_bucket_can_open(
 ) -> tuple[bool, str]:
     """判断新开仓是否违反桶级并发上限（D5）。
 
-    Args:
-        symbol: 待开仓 symbol
-        open_positions_by_bucket: {"majors": 2, "indep": 1, ...}
+    ⚠️ **现状：本函数全仓无调用点（未接线）——且 2026-09-10 审计证明"不该接线"。**
 
-    Returns:
-        (allowed, reason)
+    75 天时间顺序回放（`_audit_ml/Z44_bucket_cap_replay.py`，n=288，总 USD 口径）：
+      - 在全局 `MIDLONG_MAX_OPEN_POSITIONS=4` 之上叠加**配置值**桶级上限 → **0 笔新增拦截**、
+        总 USD 完全不变（+$20.53）；原因是桶只覆盖 8 个币，且全局 4 已更严；
+      - 桶级上限收紧到 ×0.67（majors 2）→ +$6.37（更差）；
+      - **只用桶级、去掉全局** → -$22.70，且 walk-forward 验证 -$14.27（对照全局 cap=4 为 +$29.22）→ 样本外失败。
+
+    结论：**保持未接线**。但若未来扩容扫描宇宙（§37 提议 9→~26 币），全局上限会被摊薄、
+    桶级上限将开始生效——届时必须**与扩容一起**接线并重跑本反事实。
     """
     bucket = get_correlation_bucket(symbol)
     if bucket is None:

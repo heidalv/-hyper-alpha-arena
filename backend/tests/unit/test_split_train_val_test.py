@@ -27,11 +27,13 @@ def _make_df(n: int = 2200) -> pd.DataFrame:
 
 
 def test_split_days_period_tiers():
+    # [2026-08-30 挖矿升级 M1] 窗口按 DB 实际覆盖拉长：4h 验证段仅 360 根时 DSR×27 试验
+    # 统计功效不足（ICIR 1.31 仍不显著）。1h 90/30/15→150/45/30，4h/1d 180/60/30→300/60/30。
     assert _split_days_for_period("5m") == (30, 10, 10)
-    assert _split_days_for_period("1h") == (90, 30, 15)
-    assert _split_days_for_period("4h") == (180, 60, 30)
-    assert _split_days_for_period("1d") == (180, 60, 30)
-    assert _split_days_for_period(None) == (180, 60, 30)  # 默认 4h
+    assert _split_days_for_period("1h") == (150, 45, 30)
+    assert _split_days_for_period("4h") == (300, 60, 30)
+    assert _split_days_for_period("1d") == (300, 60, 30)
+    assert _split_days_for_period(None) == (300, 60, 30)  # 默认 4h
 
 
 def test_split_days_env_override():
@@ -42,37 +44,46 @@ def test_split_days_env_override():
 
 
 def test_lookback_period():
-    # +50 安全缓冲（与 _lookback_for_period 实现对齐）
-    assert _lookback_for_period("4h") == (180 + 60 + 30) * 6 + 50
-    assert _lookback_for_period("1h") == (90 + 30 + 15) * 24 + 50
-    assert _lookback_for_period("5m") == (30 + 10 + 10) * 288 + 50
+    # +50 安全缓冲（与 _lookback_for_period 实现对齐）；天数随 M1 分档表
+    assert _lookback_for_period("4h") == (300 + 60 + 30) * 6 + 50    # 2390
+    assert _lookback_for_period("1h") == (150 + 45 + 30) * 24 + 50   # 5450
+    assert _lookback_for_period("5m") == (30 + 10 + 10) * 288 + 50   # 14450
+    # 与分档表恒等（防两处各改一处）
+    for p in ("5m", "1h", "4h", "1d"):
+        td, vd, ted = _split_days_for_period(p)
+        bpd = {"5m": 288, "1h": 24, "4h": 6, "1d": 1}[p]
+        assert _lookback_for_period(p) == (td + vd + ted) * bpd + 50
 
 
 def test_split_train_val_test_4h():
-    dfs = {"BTC": _make_df(2200), "ETH": _make_df(2200)}
+    need = _lookback_for_period("4h")  # 2390
+    dfs = {"BTC": _make_df(need + 100), "ETH": _make_df(need + 100)}
     train, val, test = _split_train_val_test(dfs, "4h")
-    # 4h: 180/60/30 天 → 1080/360/180 根
-    assert len(train["BTC"]) == 1080
+    # 4h: 300/60/30 天 → 1800/360/180 根
+    assert len(train["BTC"]) == 1800
     assert len(val["BTC"]) == 360
     assert len(test["BTC"]) == 180
-    assert len(train["ETH"]) == 1080
+    assert len(train["ETH"]) == 1800
     # 时间顺序：train < val < test
     assert train["BTC"].index.max() < val["BTC"].index.min()
     assert val["BTC"].index.max() < test["BTC"].index.min()
 
 
 def test_split_train_val_test_1h():
-    dfs = {"BTC": _make_df(5000)}
+    need = _lookback_for_period("1h")  # 5450
+    dfs = {"BTC": _make_df(need + 100)}
     train, val, test = _split_train_val_test(dfs, "1h")
-    # 1h: 90/30/15 天 → 2160/720/360 根
-    assert len(train["BTC"]) == 2160
-    assert len(val["BTC"]) == 720
-    assert len(test["BTC"]) == 360
+    # 1h: 150/45/30 天 → 3600/1080/720 根
+    assert len(train["BTC"]) == 3600
+    assert len(val["BTC"]) == 1080
+    assert len(test["BTC"]) == 720
 
 
 def test_split_skips_short_symbol():
-    dfs = {"BTC": _make_df(2200), "ETH": _make_df(300)}  # ETH 不足
+    need = _lookback_for_period("4h")
+    dfs = {"BTC": _make_df(need + 100), "ETH": _make_df(300)}  # ETH 不足
     train, val, test = _split_train_val_test(dfs, "4h")
+    assert "BTC" in train
     assert "ETH" not in train and "ETH" not in val and "ETH" not in test
 
 

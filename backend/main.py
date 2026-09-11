@@ -29,13 +29,14 @@ except Exception:
     pass
 
 # P0.5 环境变量严格校验：env-rollout 后、业务 import 前扫描一次。 # 捕获"匹配系统前缀但未登记"的 flag（疑似拼写/遗留/静默禁用）， # 以及被设为 falsy 的安全关键 flag。默认 warn；ENV_STRICT=error 时硬失败。
-try:
-    from backend.config.env_registry import validate_strict
-    validate_strict()
-except SystemExit:
-    raise  # ENV_STRICT=error 时直接终止启动
-except Exception:
-    pass  # 校验器自身故障不阻塞启动（但应告警）
+#
+# [§63 修复 2026-09-10] 调用点**下移**到 `_bootstrap_logging()` 与 `load_dotenv()` **之后**：
+#   修复前它在第 34 行执行——那时**文件日志 handler 尚未挂上**（`_bootstrap_logging()` 在
+#   第 119 行），于是它发现的 153 个"未登记 flag"告警只走 stderr/lastResort，
+#   `logs/backend.log` 里**一条都没有**（实测命中 0）⇒ 这道"防静默失效"的闸自己静默了。
+#   同时它此前依赖 `framework_rollout → settings → load_dotenv` 的**偶然**加载顺序；
+#   现在改为依赖显式的 `load_dotenv()`，顺序上不再碰运气。
+# 见报告 §63 与 `backend/tests/unit/test_env_registry_visibility_20260910.py`。
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == 'win32':
@@ -51,6 +52,19 @@ def _bootstrap_logging() -> None:
     _root = logging.getLogger()
     # 已被其它入口配置过则跳过，避免重复 handler
     if any(getattr(h, "_hyper_alpha_arena_file", False) for h in _root.handlers):
+        return
+    # [§75 修复 2026-09-10] **测试进程不得写生产日志**：任何 `import backend.main` 的测试
+    # 都会走到这里挂上 `logs/backend.log` 的 RotatingFileHandler（20MB×10 轮转），后果：
+    #   ① 测试里**合成**的日志混进生产日志（实测：用例 `_resolve_reentry_cooldown(None,"45")`
+    #      吐出的「检测到旧键 …=45」把我自己误导成"环境里真设了该键"）；
+    #   ② 测试进程同样会触发 20MB 轮转，可能把真正的生产日志切走；
+    #   ③ "日志里有没有某事件"这类判定失去可信度（可追溯性）。
+    # 检测到 pytest 时只保留控制台输出（不挂文件 handler）。
+    if _os_log_init.getenv("PYTEST_CURRENT_TEST") or "pytest" in sys.modules:
+        logging.getLogger(__name__).info(
+            "[Logging] 检测到测试环境（pytest）⇒ 跳过 backend.log/error.log 文件 handler，"
+            "避免测试日志污染生产日志（§75）"
+        )
         return
     _level_name = _os_log_init.getenv("BACKEND_LOG_LEVEL", "INFO").upper()
     _level = getattr(logging, _level_name, logging.INFO)
@@ -130,6 +144,16 @@ from sqlalchemy.orm import Session
 
 # Load environment variables from .env file # uv run --directory backend 将 CWD 设为 backend/，需向上查找根目录的 .env
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+# [§63] P0.5 环境变量严格校验：**必须在** `_bootstrap_logging()`（文件日志就绪）与
+# `load_dotenv()`（.env 已进入 os.environ）**之后**执行，否则它的告警不可见/扫描不到 .env。
+try:
+    from backend.config.env_registry import validate_strict
+    validate_strict()
+except SystemExit:
+    raise  # ENV_STRICT=error 时直接终止启动
+except Exception:
+    pass  # 校验器自身故障不阻塞启动（但应告警）
 
 # ══════════════════════════════════════════════════════════════
 # Production safety gate: refuse to start without BACKEND_API_KEY
@@ -409,6 +433,9 @@ def _ensure_columns_safe(eng, inspector, columns=None):
         ("full_auto_sessions", "fixed_symbols_by_tier", "JSONB"),
         ("full_auto_sessions", "auto_coin_mid_enabled", "BOOLEAN DEFAULT FALSE"),
         ("full_auto_sessions", "auto_coin_mid_max_slots", "INTEGER DEFAULT 3"),
+        # [2026-09-08] 长线 AI 选币会话配置
+        ("full_auto_sessions", "auto_coin_long_enabled", "BOOLEAN DEFAULT FALSE"),
+        ("full_auto_sessions", "auto_coin_long_max_slots", "INTEGER DEFAULT 2"),
     ]
     
     is_sqlite = str(eng.url).startswith("sqlite")
@@ -499,7 +526,7 @@ def on_startup():
         )
     except Exception:
         try:
-            from services.strategic_analyst.db_models import (  # noqa: F401
+            from backend.services.strategic_analyst.db_models import (  # noqa: F401
                 CrossMarketCorrelationRecord,
                 MacroRegimeStateRecord,
                 NewCoinOpportunityRecord,
@@ -669,10 +696,10 @@ def on_startup():
     # [2026-07-09 性能修复] 创建热表索引（幂等 CREATE INDEX IF NOT EXISTS） # create_all 不会给已存在的表补索引，而 paper_orders/paper_positions 等热表 # 缺索引导致 get_summary 的 count(*) 全表扫描（LeakGuard 日志 age 高达 133s）。
     try:
         from backend.database.query_optimizer import create_missing_indexes, tune_autovacuum_for_hot_tables
-        create_missing_indexes(engine)
-        create_missing_indexes(market_engine)
+        create_missing_indexes(engine, group="core")
+        create_missing_indexes(market_engine, group="market")
         # [2026-07-11 修复] analytics 库（ai_decision_logs 等表所在库）此前从未跑过 # 建索引：idx_decision_account_time 这条语句一直只对 engine/market_engine 执行， # 而 ai_decision_logs 实际在 analytics 库里，导致该索引从未真正创建成功 # （每次都因"表不存在"被静默跳过）。补上对 analytics_engine 的调用。
-        create_missing_indexes(analytics_engine)
+        create_missing_indexes(analytics_engine, group="analytics")
         logger.info("[startup] 热表索引创建完成")
 
         # [2026-07-11 阶段2] 定时VACUUM的低风险落地：本机无pg_cron，收紧热表 # autovacuum触发阈值代替显式定时任务，见函数文档注释。三个库都跑一遍， # 每个库里不存在的表会被静默跳过（同一份清单跨库复用）。
@@ -1050,7 +1077,7 @@ def on_startup():
     # Ensure prompt templates exist
     db = SessionLocal()
     try:
-        from services.prompt_initializer import seed_prompt_templates
+        from backend.services.prompt_initializer import seed_prompt_templates
         seed_prompt_templates(db)
     finally:
         db.close()
@@ -1064,15 +1091,15 @@ def on_startup():
     #     logger.info(f"[startup] OpenCode prompt emit skipped: {emit_err}")
     
     # Initialize system log collector
-    from services.system_logger import setup_system_logger
+    from backend.services.system_logger import setup_system_logger
     setup_system_logger()
 
     # Load and apply global sampling configuration (use watchlist if available)
     try:
         from backend.database.models import GlobalSamplingConfig
-        from services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_selected_symbols
-        from services.sampling_pool import sampling_pool
-        from services.trading_commands import AI_TRADING_SYMBOLS
+        from backend.services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_selected_symbols
+        from backend.services.sampling_pool import sampling_pool
+        from backend.services.trading_commands import AI_TRADING_SYMBOLS
 
         db = SessionLocal()
         try:
@@ -1115,7 +1142,7 @@ def on_startup():
         time.sleep(1)
         try:
             logger.info("[后台] 正在初始化同步服务...")
-            from services.startup import initialize_sync_services
+            from backend.services.startup import initialize_sync_services
             initialize_sync_services()
 
             # D2: 注入 SystemCoordinator 到 TradingDecisionInterface # 修复前 Kelly/DRL/PortfolioRisk 永久 pass-through
@@ -1193,7 +1220,7 @@ def on_startup():
 
         if not _dc_external:
             try:
-                from services.kline_realtime_collector import realtime_collector
+                from backend.services.kline_realtime_collector import realtime_collector
                 await realtime_collector.start()
             except Exception as e:
                 logger.info(f"[async] K线采集器启动失败: {e}")
@@ -1390,12 +1417,17 @@ def on_startup():
                 max_instances=1,
             )
             # 短线 5m 完整进化（凌晨4点，走 WFO/测试集终审，非 PB quick）
-            task_scheduler.add_cron_task(
-                task_func=make_subprocess_task("5m", run_scalp_factor_evolution_loop),
-                hour=4, minute=0,
-                task_id="factor_evolution_scalp_5m_daily",
-                max_instances=1,
-            )
+            # [2026-09-07] 短线结构性负期望已判死，研究任务默认关停（SCALP_RESEARCH_ENABLED）
+            from backend.config.settings import SCALP_RESEARCH_ENABLED as _scalp_research_on
+            if _scalp_research_on:
+                task_scheduler.add_cron_task(
+                    task_func=make_subprocess_task("5m", run_scalp_factor_evolution_loop),
+                    hour=4, minute=0,
+                    task_id="factor_evolution_scalp_5m_daily",
+                    max_instances=1,
+                )
+            else:
+                logger.info("[async] SCALP_RESEARCH_ENABLED=false，跳过 5m 因子日进化注册")
             # V7 中周期 15m 完整进化（凌晨6点，避开 4h/5m 两档）
             task_scheduler.add_cron_task(
                 task_func=make_subprocess_task("15m", run_mid_factor_evolution_loop),
@@ -1424,8 +1456,32 @@ def on_startup():
                 max_instances=1,
                 next_run_time=_nxt_hour,
             )
+            # [2026-09-07] 中线因子池 regime 条件化自适应权重（治「池子过期」的本）：
+            # 每小时按当前 regime 重算各活跃中线因子的近端滚动 IC → 写权重文件，
+            # 过期因子自动降地板权（软退役），有效因子提权，regime 切换自动重组。
+            try:
+                def _midlong_regime_weights_tick():
+                    try:
+                        from backend.services.factor_engine.midlong_regime_weights import (
+                            compute_regime_weights,
+                        )
+                        compute_regime_weights()
+                    except Exception as _rw_err:
+                        logger.debug("[async] 中线 regime 权重更新跳过: %s", _rw_err)
+
+                task_scheduler.add_interval_task(
+                    task_func=_midlong_regime_weights_tick,
+                    interval_seconds=3600,
+                    task_id="midlong_regime_weights_hourly",
+                    max_instances=1,
+                    next_run_time=_nxt_hour,
+                )
+                logger.info("[async] 中线 regime 自适应权重已注册（每小时）")
+            except Exception as _rw_reg_err:
+                logger.debug("[async] 中线 regime 权重注册失败: %s", _rw_reg_err)
             logger.info(
-                "[async] 因子进化闭环已注册（每日3点4h + 每日4点5m短线 + 每小时权重）"
+                "[async] 因子进化闭环已注册（每日3点4h + 每日6点15m中线 + 每小时权重"
+                + (" + 每日4点5m短线" if _scalp_research_on else "；5m短线已停") + "）"
             )
             # [2026-08-28 方案2·P2] 实盘虚拟子仓周期对账任务（120s）：
             # 本地 live_sub_positions Σ vs 交易所实仓，mismatch 连续2轮自动对齐。
@@ -1454,6 +1510,18 @@ def on_startup():
                     logger.info("[async] 实盘子仓对账任务已关闭（LIVE_RECONCILE_ENABLED=false）")
             except Exception as _reg_err:
                 logger.warning("[async] 实盘子仓对账任务注册失败(非致命): %s", _reg_err)
+            # [2026-08-28 实盘零成交修复] 币安用户数据流 worker 嵌入保活：
+            # 独立 worker 进程曾静默死亡（快照过期 → 实盘权益恒 0 → 整轮跳过开仓）。
+            # 后端由 backend-watchdog 保活，worker 由守护线程保活，链条闭合。
+            # USER_STREAM_EMBEDDED=false 可关闭（回到独立 worker 模式）。
+            try:
+                if os.getenv("USER_STREAM_EMBEDDED", "true").strip().lower() not in (
+                    "0", "false", "no", "off",
+                ):
+                    from backend.services.user_stream_guard import ensure_user_stream_worker
+                    ensure_user_stream_worker()
+            except Exception as _usg_err:
+                logger.warning("[UserStreamGuard] 嵌入保活启动失败(非致命): %s", _usg_err)
             # [2026-08-28 选币重设计④] 选币ROI周报（周一08:00）：回填removed盈亏、
             # AI币vs固定币周对比，连续2周负ROI自动降级关闭选币退回固定宇宙。
             try:
@@ -1473,8 +1541,9 @@ def on_startup():
             except Exception as _roi_reg_err:
                 logger.warning("[async] 选币ROI周报注册失败(非致命): %s", _roi_reg_err)
             logger.info(
-                "[async] V7 三周期正式上线：03:00 4h(L) / 04:00 5m(S) / "
-                "06:00 15m(M) / 06:50 长期记忆维护 / 每小时权重"
+                "[async] V7 进化排程：03:00 4h(L) / "
+                + ("04:00 5m(S) / " if _scalp_research_on else "5m(S)已停 / ")
+                + "06:00 15m(M) / 06:50 长期记忆维护 / 每小时权重"
             )
             # V7 自动运行：后端每次启动后，若 4h 快速进化超过 6 小时未跑，
             # 自动补一轮（后台线程，不阻塞启动）。完整三周期由上方 cron 自动执行，
@@ -1507,55 +1576,35 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 因子进化注册失败: {e}")
 
-        # 止盈止损自动训练：每日 05:00；缺结果/过期时启动补训
+        # 短线因子每日体检 + 链路巡检（M0，只读）。短线已停则不注册。
         try:
-            from backend.services.risk.tp_sl_grid_trainer import (
-                maybe_startup_train,
-                scheduled_tp_sl_train,
-            )
-            from backend.services.scheduler import task_scheduler
-
-            task_scheduler.start()
-            task_scheduler.add_cron_task(
-                task_func=lambda: scheduled_tp_sl_train(source="cron"),
-                hour=5,
-                minute=0,
-                task_id="tp_sl_train_daily",
-                max_instances=1,
-            )
-            _startup_tpsl = maybe_startup_train(max_age_hours=36.0)
-            logger.info(
-                "[async] TP/SL 自动训练已注册（每日05:00）startup=%s",
-                _startup_tpsl,
-            )
-        except Exception as e:
-            logger.info(f"[async] TP/SL 自动训练注册失败: {e}")
-
-        # 短线因子每日体检 + 链路巡检（M0，只读，不改变交易行为）
-        try:
-            from backend.services.scalp.scalp_daily_health import run_scalp_daily_health
-            from backend.services.scalp.scalp_chain_health import run_scalp_chain_health
+            from backend.config.settings import SCALP_OPEN_DISABLED as _scalp_off
             from backend.services.scheduler import task_scheduler
             task_scheduler.start()
-            task_scheduler.add_cron_task(
-                task_func=run_scalp_daily_health,
-                hour=5, minute=30,
-                task_id="scalp_daily_health",
-                max_instances=1,
-            )
-            task_scheduler.add_interval_task(
-                task_func=run_scalp_chain_health,
-                interval_seconds=600,
-                task_id="scalp_chain_health",
-                max_instances=1,
-            )
-            from backend.services.scalp.scalp_symbol_profile import build_symbol_scalp_profile
-            task_scheduler.add_cron_task(
-                task_func=build_symbol_scalp_profile,
-                hour=5, minute=45,
-                task_id="scalp_symbol_profile_daily",
-                max_instances=1,
-            )
+            if _scalp_off:
+                logger.info("[async] SCALP_OPEN_DISABLED，跳过短线日检/链路巡检")
+            else:
+                from backend.services.scalp.scalp_daily_health import run_scalp_daily_health
+                from backend.services.scalp.scalp_chain_health import run_scalp_chain_health
+                task_scheduler.add_cron_task(
+                    task_func=run_scalp_daily_health,
+                    hour=5, minute=30,
+                    task_id="scalp_daily_health",
+                    max_instances=1,
+                )
+                task_scheduler.add_interval_task(
+                    task_func=run_scalp_chain_health,
+                    interval_seconds=600,
+                    task_id="scalp_chain_health",
+                    max_instances=1,
+                )
+                from backend.services.scalp.scalp_symbol_profile import build_symbol_scalp_profile
+                task_scheduler.add_cron_task(
+                    task_func=build_symbol_scalp_profile,
+                    hour=5, minute=45,
+                    task_id="scalp_symbol_profile_daily",
+                    max_instances=1,
+                )
             # AI 选币 → 快速策略矩阵扫描（每 N 分钟扫活跃 auto_coin_symbols， # 每 tick 最多启动 1 个币的 pair_selector；候选写库，达标可自动晋级绑定）
             try:
                 from backend.config.settings import (
@@ -1581,21 +1630,24 @@ def on_startup():
                     logger.info("[async] pair_selector_watcher 已关闭（PAIR_SELECTOR_WATCHER_ENABLED=0）")
             except Exception as _pw_err:
                 logger.info(f"[async] pair_selector_watcher 注册失败: {_pw_err}")
-            # 绑定车道：默认关交易，只干跑心跳；显式 PAIR_BINDING_LANE_ENABLED=true 才开仓
+            # 绑定车道：短线已停则不注册；否则默认 dry-run。
             try:
-                from backend.config.settings import PAIR_BINDING_LANE_INTERVAL_SEC
-                from backend.services.scalp.pair_binding_lane import run_tick as _pair_lane_tick
-                _lane_iv = max(60, int(PAIR_BINDING_LANE_INTERVAL_SEC or 300))
-                task_scheduler.add_interval_task(
-                    task_func=_pair_lane_tick,
-                    interval_seconds=_lane_iv,
-                    task_id="pair_binding_lane",
-                    max_instances=1,
-                )
-                logger.info(
-                    "[async] pair_binding_lane 已注册（每 %ds，默认 dry-run）",
-                    _lane_iv,
-                )
+                if _scalp_off:
+                    logger.info("[async] SCALP_OPEN_DISABLED，跳过 pair_binding_lane")
+                else:
+                    from backend.config.settings import PAIR_BINDING_LANE_INTERVAL_SEC
+                    from backend.services.scalp.pair_binding_lane import run_tick as _pair_lane_tick
+                    _lane_iv = max(60, int(PAIR_BINDING_LANE_INTERVAL_SEC or 300))
+                    task_scheduler.add_interval_task(
+                        task_func=_pair_lane_tick,
+                        interval_seconds=_lane_iv,
+                        task_id="pair_binding_lane",
+                        max_instances=1,
+                    )
+                    logger.info(
+                        "[async] pair_binding_lane 已注册（每 %ds，默认 dry-run）",
+                        _lane_iv,
+                    )
             except Exception as _lane_err:
                 logger.info(f"[async] pair_binding_lane 注册失败: {_lane_err}")
             # 熔断：默认 dry-run（不 pause）；SCALP_CIRCUIT_BREAKER_ENABLED=true 才生效
@@ -1777,6 +1829,35 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] 中长线 Walk-Forward 注册失败: {e}")
 
+        # ── [2026-09-03 v3] Phase 0+ 定时任务集中注册（账本快照 / 样本对账 / 风控巡检 / 数据采集…）──
+        try:
+            from backend.services.ops.v3_jobs import register_v3_jobs
+            _v3_registered = register_v3_jobs()
+            logger.info(f"[async] v3 定时任务已注册: {_v3_registered}")
+        except Exception as e:
+            logger.warning(f"[async] v3 定时任务注册失败: {e}")
+
+        # ── [F60 2026-09-09] L1 做市影子期驱动器（模拟账户直跑）──
+        # 每 15s 读盘口+区间成交 → 报价/成交/库存/超时平仓 → 写六维账本。
+        # 车道 mode=paper 且 status=active 时才会实际推进；默认 stopped → 空转。
+        # 关闭方式：MM_SHADOW_ENABLED=0
+        try:
+            from backend.services.market_maker.runner import register_shadow_task
+            if register_shadow_task():
+                logger.info("[async] L1 做市影子期调度已注册（每15s，车道未启动时空转）")
+        except Exception as e:
+            logger.info(f"[async] L1 做市影子期调度注册失败: {e}")
+
+        # ── [F64 2026-09-09] 现货行情采集（L2 现货-永续 carry 的前置数据）──
+        # 库里原本没有现货数据（crypto_klines.market 恒为 CRYPTO）；没有现货价
+        # 就无法算基差、也无法验证对冲腿。关闭方式：SPOT_COLLECT_ENABLED=0
+        try:
+            from backend.services.carry.spot_collector import register_collector
+            if register_collector(interval_minutes=30):
+                logger.info("[async] 现货行情采集已注册（每30分钟，6 币 5m）")
+        except Exception as e:
+            logger.info(f"[async] 现货行情采集注册失败: {e}")
+
     try:
         loop = _startup_asyncio.get_running_loop()
         loop.create_task(_start_async_services())
@@ -1789,7 +1870,7 @@ def on_startup():
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    from services.startup import shutdown_services
+    from backend.services.startup import shutdown_services
     await shutdown_services()
 
     # S1: 停止事件总线
@@ -2057,6 +2138,65 @@ try:
 except Exception as _ops_err:
     logger.warning(f"[Ops] 挂载失败（非致命）: {_ops_err}")
 
+# [2026-09-03 v3 F2] 边际账本 / 费用预算 / 影子车道（/api/ops/edge-ledger*）
+try:
+    from .api.ops_ledger_routes import router as ops_ledger_router
+    app.include_router(ops_ledger_router)
+    logger.info("[OpsLedger] /api/ops/edge-ledger* 已挂载")
+except Exception as _opsl_err:
+    logger.warning(f"[OpsLedger] 挂载失败（非致命）: {_opsl_err}")
+
+# [2026-09-03 v3 方向7] RiskEngine 单入口运维接口（/api/ops/risk/*：状态机、急停、熔断、配额、剧本、飞书命令）
+try:
+    from .api.ops_risk_routes import router as ops_risk_router
+    app.include_router(ops_risk_router)
+    logger.info("[OpsRisk] /api/ops/risk/* 已挂载")
+except Exception as _opsr_err:
+    logger.warning(f"[OpsRisk] 挂载失败（非致命）: {_opsr_err}")
+
+# [2026-09-03 v3 方向6] 定时任务登记/心跳/告警（/api/ops/jobs*、/api/ops/alerts*）
+try:
+    from .api.ops_jobs_routes import router as ops_jobs_router
+    app.include_router(ops_jobs_router)
+    logger.info("[OpsJobs] /api/ops/jobs* 已挂载")
+except Exception as _opsj_err:
+    logger.warning(f"[OpsJobs] 挂载失败（非致命）: {_opsj_err}")
+
+# [2026-09-03 v3 方向4] 事件总线 / 事件数据新鲜度（/api/ops/market-events*、/api/ops/data-freshness、/api/ops/announcements）
+try:
+    from .api.ops_events_routes import router as ops_events_router
+    app.include_router(ops_events_router)
+    logger.info("[OpsEvents] /api/ops/market-events* 已挂载")
+except Exception as _opse_err:
+    logger.warning(f"[OpsEvents] 挂载失败（非致命）: {_opse_err}")
+
+# [2026-09-03 v3 方向2] 双模型深度分析（/api/analysis/*：ModelGateway 状态、QuotaGuard、analysis_runs、signal_ledger、agent_predictions、experiments）
+try:
+    from .api.analysis_routes import router as analysis_router
+    app.include_router(analysis_router)
+    from .api.cashflow_routes import router as cashflow_router
+    app.include_router(cashflow_router)
+    from .api.agent_routes import router as agents_router
+    app.include_router(agents_router)
+    from .api.event_strategy_routes import router as event_strategy_router
+    app.include_router(event_strategy_router)
+    from .api.experiment_routes import router as experiments_router
+    app.include_router(experiments_router)
+    from .api.oms_routes import router as oms_router
+    app.include_router(oms_router)
+    # [2026-09-07] 飞书通知配置 API（/api/notification/*）——此前文件存在但未注册
+    from .api.notification_routes import router as notification_router
+    app.include_router(notification_router)
+    from .api.arb_infra_routes import router as arb_infra_router
+    app.include_router(arb_infra_router)
+    from .api.promotion_routes import router as promotion_router
+    app.include_router(promotion_router)
+    from .api.dashboard_routes import router as dashboard_router
+    app.include_router(dashboard_router)
+    logger.info("[Analysis] /api/analysis/*、/api/cashflow/*、/api/agents/*、/api/strategies/event/*、/api/experiments/*、/api/oms/*、/api/arb-infra/*、/api/promotion/*、/api/dashboard/* 已挂载")
+except Exception as _ana_err:
+    logger.warning(f"[Analysis] 挂载失败（非致命）: {_ana_err}")
+
 # 全市场数据中台（2026-08-16）：真实数据/缺口/采集器/回填/入库及时性总览
 try:
     from .api.data_center_routes import router as data_center_overview_router
@@ -2118,6 +2258,21 @@ try:
 except Exception as e:
     logger.info(f"[监控] 监控端点加载失败: {e}")
 
+# [F56 2026-09-09] 车道注册表 API（复合策略单一事实源；套利中心前端数据源）
+try:
+    from .api.lane_routes import router as lane_router
+    app.include_router(lane_router)
+    logger.info("[LaneRegistry] 车道 API 已挂载 /api/trading/lanes*")
+except Exception as e:
+    logger.info(f"[LaneRegistry] 车道 API 加载失败: {e}")
+
+# [F61 2026-09-09] 交易中心聚合 API（总览/持仓/机会/风险/配置；套利中心前端契约）
+try:
+    from .api.trading_routes import router as trading_router
+    app.include_router(trading_router)
+    logger.info("[TradingHub] 交易中心 API 已挂载 /api/trading/*")
+except Exception as e:
+    logger.info(f"[TradingHub] 交易中心 API 加载失败: {e}")
 # ATAS - 高级自动化交易系统 (安全加载，不影响主系统)
 try:
     from .api.atas_routes import router as atas_router
@@ -2172,13 +2327,13 @@ def get_db():
 @app.get("/api/accounts/{account_id}/strategy")
 async def get_account_strategy_alias(account_id: int, db: Session = Depends(get_db)):
     """Alias for strategy config endpoint"""
-    from api.account_routes import get_account_strategy
+    from backend.api.account_routes import get_account_strategy
     return await get_account_strategy(account_id, db)
 
 @app.put("/api/accounts/{account_id}/strategy")
 async def update_account_strategy_alias(account_id: int, payload: dict, db: Session = Depends(get_db)):
     """Alias for strategy config endpoint"""
-    from api.account_routes import update_account_strategy
+    from backend.api.account_routes import update_account_strategy
     from pydantic import ValidationError
     from schemas.account import StrategyConfigUpdate
     try:
@@ -2190,7 +2345,7 @@ async def update_account_strategy_alias(account_id: int, payload: dict, db: Sess
 @app.get("/api/accounts/{account_id}/strategy/status")
 async def get_account_strategy_status_alias(account_id: int, db: Session = Depends(get_db)):
     """Alias for strategy status endpoint (frontend uses /api/accounts plural)"""
-    from api.account_routes import get_account_strategy_status
+    from backend.api.account_routes import get_account_strategy_status
     return await get_account_strategy_status(account_id, db)
 
 @app.get("/api/strategy/status")

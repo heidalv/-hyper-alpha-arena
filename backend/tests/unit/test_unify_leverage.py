@@ -1,10 +1,13 @@
 # backend/tests/unit/test_unify_leverage.py
-"""根因 2 止血测试:杠杆按 tier cap 钳制,不再被历史仓位 max 污染。
+"""杠杆统一/钳制契约。
 
-相关修复:
-- paper_trading_engine._unify_leverage_for_side 不再用 max 覆盖所有同币种仓位
-- add-path (DCA/add 合并) 不再用 max 提杠杆
-- 新增 _clamp_leverage_by_tier 纯函数,按 tier cap 钳制(long=12, short/mid=20)
+- _clamp_leverage_by_tier 纯函数：按 tier cap 钳制(long=12, short/mid=20)。
+- _unify_leverage_for_side：
+    netting-on（默认，对齐 Hyperliquid/Asterdex 同币一仓一杠杆）→ 同币**所有**本地子仓
+    同步到本笔订单杠杆，margin/强平价重算；防"新单随意改写既有杠杆"的责任在 trade_gate
+    （有开腿时 adopt 既有腿最大杠杆）。
+    netting-off（旧行为）→ 仅同方向统一到 target，并按 cap 钳制。
+[2026-09-02] 原文件断言的是更早的"按各腿 tier cap 各自钳制、互不影响"设计，已被上述设计取代。
 """
 import pytest
 
@@ -51,11 +54,16 @@ def test_existing_position_leverage_not_raised_by_new_order_target():
     assert _clamp_leverage_by_tier(8.0, "long") == 8.0
 
 
-def test_unify_leverage_netting_on_does_not_raise_existing_via_target(monkeypatch):
-    """集成验证: netting-on 分支下,新订单 target_leverage 不抬高既有仓位杠杆。
+def test_unify_leverage_netting_on_syncs_all_legs_to_order_leverage(monkeypatch):
+    """集成验证: netting-on 分支下,同币所有本地子仓同步到本笔订单杠杆。
 
-    场景: 已有两个 long 仓位: 10x (tier=long) + 8x (tier=long)。新订单 target=20x。
-    终态: 两仓均保持自身杠杆(自身 < cap 12,无变化),绝不被提到 20。
+    [2026-09-02 契约更正] 原用例断言"既有仓位不被新单 target 抬高"，对应的是被取代的旧设计。
+    现行设计（paper_trading_engine._unify_leverage_for_side 注释）："交易所同币一仓一杠杆，
+    所有本地子仓同步到本笔订单杠杆；不得再按各 tier cap 留不同杠杆"。防污染责任前移到
+    trade_gate：符号已有开腿时新单先 adopt 既有腿的最大杠杆（"adopt existing leverage"），
+    所以到这里 target 通常就是既有杠杆；本函数只负责把所有腿拉齐并重算 margin/强平价。
+
+    场景: 已有 10x + 8x 两个 long 腿，订单 target=20x → 两腿都变 20x，margin=notional/20。
     """
     # 强制 netting 模式开启,保证走 netting_on 分支
     import backend.config.settings as settings
@@ -92,17 +100,18 @@ def test_unify_leverage_netting_on_does_not_raise_existing_via_target(monkeypatc
     engine = PaperTradingEngine.__new__(PaperTradingEngine)
     engine._unify_leverage_for_side(_FakeDB(), account_id=1, symbol="BTC",
                                     side="long", target_leverage=20.0)
-    # 既有 10x 仓位: 自身 < cap(12),不应被新订单 target=20 抬高
-    assert pos_a.leverage == 10.0, f"既有仓位不应被新订单 target 抬高,实际 {pos_a.leverage}"
-    assert pos_b.leverage == 8.0, f"既有仓位不应被新订单 target 抬高,实际 {pos_b.leverage}"
+    assert pos_a.leverage == 20.0 and pos_b.leverage == 20.0, "同币所有腿必须拉齐到订单杠杆"
+    # margin = notional / lev = (1*100)/20 = 5.0；强平价随新杠杆重算（非 0）
+    assert pos_a.margin == pytest.approx(5.0)
+    assert pos_a.liquidation_price and pos_a.liquidation_price != 0.0
 
 
-def test_unify_leverage_netting_on_lowers_via_tier_cap(monkeypatch):
-    """集成验证: netting-on 分支下,孤儿超 cap 仓位被自身 tier cap 钳制(降杠杆)。
+def test_unify_leverage_netting_on_syncs_down_too(monkeypatch):
+    """集成验证: netting-on 分支下,拉齐是双向的——高杠杆腿也会被拉到订单杠杆。
 
-    场景: 已有两个 short 仓位: 25x (tier=short, cap=20) + 18x (tier=short)。
-    新订单 target=10x。终态: 孤儿 25x 被钳到 20(降杠杆生效),18x 保持,
-    margin/liquidation 同步重算。两仓均不受 target=10 或任何 max 抬升影响。
+    [2026-09-02 契约更正] 原用例期望"25x 被 tier cap 钳到 20、18x 保持"（旧设计）。
+    现行设计不按 tier cap 分别保留：25x 与 18x 两腿都同步到订单的 10x，
+    margin=notional/10 重算。
     """
     import backend.config.settings as settings
     monkeypatch.setattr(settings, "PAPER_NETTING_MODE", True)
@@ -136,13 +145,48 @@ def test_unify_leverage_netting_on_lowers_via_tier_cap(monkeypatch):
             return _FakeQuery([pos_orphan, pos_ok])
 
     engine = PaperTradingEngine.__new__(PaperTradingEngine)
-    # target=10x 不影响既有仓位;既有仓位 25x 自身被 cap(20)钳到 20
     engine._unify_leverage_for_side(_FakeDB(), account_id=1, symbol="BTC",
                                     side="short", target_leverage=10.0)
-    assert pos_orphan.leverage == 20.0, (
-        f"孤儿 25x 应被自身 tier cap 降到 20,实际 {pos_orphan.leverage}")
-    # margin 按新杠杆重算 = notional / lev = (2*100)/20 = 10.0
-    assert pos_orphan.margin == pytest.approx(10.0)
-    # 18x 仓: 自身 < cap(20),保持 18,绝不被 target=10 拉低,也不被任何 max 抬升
-    assert pos_ok.leverage == 18.0
+    assert pos_orphan.leverage == 10.0 and pos_ok.leverage == 10.0, "两腿都应同步到订单 10x"
+    # margin 按新杠杆重算 = notional / lev = (2*100)/10 = 20.0；(1*100)/10 = 10.0
+    assert pos_orphan.margin == pytest.approx(20.0)
+    assert pos_ok.margin == pytest.approx(10.0)
+
+
+def test_unify_leverage_netting_off_keeps_same_side_only(monkeypatch):
+    """netting-off（旧行为）：仅同方向统一到 target，并按 tier cap 钳制。"""
+    import backend.config.settings as settings
+    monkeypatch.setattr(settings, "PAPER_NETTING_MODE", False)
+    from backend.services.paper_trading_engine import PaperTradingEngine, _clamp_leverage_by_tier
+
+    class _FakePos:
+        def __init__(self, leverage, side):
+            self.leverage = leverage
+            self.timeframe_tier = "long"
+            self.trade_nature = "trend_follow"
+            self.side = side
+            self.size = 1.0
+            self.entry_price = 100.0
+            self.margin = 0.0
+            self.liquidation_price = 0.0
+
+    a, b = _FakePos(10.0, "long"), _FakePos(8.0, "long")
+
+    class _FakeQuery:
+        def __init__(self, items):
+            self._items = items
+        def filter(self, *x, **k):
+            return self
+        def all(self):
+            return list(self._items)
+
+    class _FakeDB:
+        def query(self, model):
+            return _FakeQuery([a, b])
+
+    engine = PaperTradingEngine.__new__(PaperTradingEngine)
+    engine._unify_leverage_for_side(_FakeDB(), account_id=1, symbol="BTC",
+                                    side="long", target_leverage=50.0)
+    expected = _clamp_leverage_by_tier(50.0, None)
+    assert a.leverage == expected and b.leverage == expected
 

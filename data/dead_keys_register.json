@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-09-11 10:01:54",
+  "env_keys_total": 951,
+  "truly_dead_n": 18,
+  "used_only_in_tests_n": 17,
+  "dynamic_prefix_read_n": 96,
+  "suffix_composed_read_n": 30,
+  "registry_unknown_n": 17,
+  "cross_check_diff": [
+    "no_proxy"
+  ],
+  "cross_check_ok": true,
+  "decisions_vocabulary": {
+    "retain-annotated": "保留并在本登记册记录（无行为影响，供后续接线或清理）",
+    "delete-candidate": "建议删除（纯装饰性开关，且不存在任何读取方或路线图引用）",
+    "wire-up": "建议接线（代码里已有同名意图但用错键名，需人确认）"
+  },
+  "entries": [
+    {
+      "key": "ANOMALY_DETECTOR_ENABLED",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "ARBITRAGE_ENABLED",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "ARBITRAGE_MIN_ANNUAL_YIELD",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "BINANCE_ENCRYPTION_KEY",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "FACTOR_MAX_TURNOVER",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "HERMES_L2_AB_MIN_SAMPLES",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "HERMES_L4_MAX_INCUBATIONS",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "MARKET_SCANNER_ENABLED",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "MARKET_SCANNER_MIN_VOLUME",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "MARKET_SCANNER_TOP_N",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "NSGA2_POPULATION_SIZE",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "ONCHAIN_DATA_ENABLED",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "ONCHAIN_GLASSNODE_KEY",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "SCALP_MAX_HOLD_SEC",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "SCALP_TARGET_SL_PCT",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "SCALP_TARGET_TP_PCT",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "V5_MAX_TRADE_PCT",
+      "kind": "used_only_in_tests",
+      "decision": "wire-up",
+      "evidence": "audit_config_effective.findings.env_used_only_in_tests"
+    },
+    {
+      "key": "no_proxy",
+      "kind": "truly_dead",
+      "decision": "retain-annotated",
+      "evidence": "audit_config_effective.findings.env_truly_dead"
+    }
+  ]
+}

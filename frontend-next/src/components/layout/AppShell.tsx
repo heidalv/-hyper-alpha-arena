@@ -7,6 +7,8 @@ import { TopBar } from "./TopBar";
 import { TickerBar } from "./TickerBar";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
+import { Toaster } from "@/components/ui/toaster";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { DesktopUpdateBanner } from "@/components/desktop/DesktopUpdateBanner";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -43,6 +45,8 @@ function ShellBody({ children }: { children: React.ReactNode }) {
         </div>
         <StatusBar />
         <CommandPalette />
+        <Toaster />
+        <ConfirmDialog />
       </div>
     </div>
   );
@@ -70,6 +74,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DesktopUpdateBanner />
             {children}
           </div>
+          <Toaster />
+          <ConfirmDialog />
         </>
       ) : (
         <ShellBody>{children}</ShellBody>

@@ -1,14 +1,20 @@
 """
 ATAS V2 - 链上数据因子
 
-包含4个链上数据相关因子:
+包含5个链上数据相关因子:
 - ExchangeNetFlowFactor: 交易所净流量
 - WhaleTransactionFactor: 鲸鱼大额交易
 - TVLChangeFactor: DeFi TVL变化率
 - ActiveAddressFactor: 链上活跃地址数
+- StablecoinMintBurnFactor: 稳定币铸造/销毁
 
 数据注入方式: unified_data_pool 在 K线 DataFrame 中注入对应列。
-因子检查列是否存在，无数据时优雅降级为零/中性序列。
+
+[2026-09 修复 P0-4] 「无数据」诚实约定：因子框架以全 NaN 序列作为「数据不可用」
+标记（factor_calculator 同款约定），冷池扫描（midlong_cold_pool）对 isfinite < 60
+的序列直接丢弃、评估器 dropna 后计算 IC。此前列缺失时返回 0/1 中性序列，等于把
+「数据真空」伪装成「真实中性」参与滚动 IC 与打分。现改为：列缺失或全 NaN → 返回
+全 NaN 序列；存在部分数据 → NaN 自然传播（不 fillna(0) 冒充）。
 """
 import pandas as pd
 import numpy as np
@@ -16,6 +22,11 @@ from typing import Dict, Any
 
 from ...factor_base import BaseFactor, FactorMetadata
 from ...factor_registry import register_factor
+
+
+def _missing_series(data: pd.DataFrame, name: str) -> pd.Series:
+    """数据列缺失时的诚实输出：全 NaN（框架据此跳过该因子）。"""
+    return pd.Series(np.nan, index=data.index, name=name)
 
 
 @register_factor()
@@ -44,15 +55,17 @@ class ExchangeNetFlowFactor(BaseFactor):
         return {'window': 24, 'normalize': True}
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
-        if 'exchange_net_flow' in data.columns:
-            flow = data['exchange_net_flow'].fillna(0.0)
-            if self.params.get('normalize', True):
-                window = self.params.get('window', 24)
-                mean = flow.rolling(window).mean()
-                std = flow.rolling(window).std()
-                return (flow - mean) / (std + 1e-10)
-            return flow
-        return pd.Series(0.0, index=data.index, name='exchange_net_flow')
+        if 'exchange_net_flow' not in data.columns:
+            return _missing_series(data, 'exchange_net_flow')
+        flow = data['exchange_net_flow'].astype(float)
+        if not flow.notna().any():
+            return _missing_series(data, 'exchange_net_flow')
+        if self.params.get('normalize', True):
+            window = self.params.get('window', 24)
+            mean = flow.rolling(window).mean()
+            std = flow.rolling(window).std()
+            return (flow - mean) / (std + 1e-10)
+        return flow
 
 
 @register_factor()
@@ -80,15 +93,17 @@ class WhaleTransactionFactor(BaseFactor):
         return {'window': 24}
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
-        if 'whale_tx_count' in data.columns and 'whale_tx_volume' in data.columns:
-            count = data['whale_tx_count'].fillna(0).astype(float)
-            volume = data['whale_tx_volume'].fillna(0.0)
-            window = self.params.get('window', 24)
-            count_ma = count.rolling(window).mean()
-            volume_ma = volume.rolling(window).mean()
-            score = (count / (count_ma + 1e-10)) * (volume / (volume_ma + 1e-10))
-            return score.fillna(1.0)
-        return pd.Series(1.0, index=data.index, name='whale_transactions')
+        if 'whale_tx_count' not in data.columns or 'whale_tx_volume' not in data.columns:
+            return _missing_series(data, 'whale_transactions')
+        count = data['whale_tx_count'].astype(float)
+        volume = data['whale_tx_volume'].astype(float)
+        if not count.notna().any() and not volume.notna().any():
+            return _missing_series(data, 'whale_transactions')
+        window = self.params.get('window', 24)
+        count_ma = count.rolling(window).mean()
+        volume_ma = volume.rolling(window).mean()
+        score = (count / (count_ma + 1e-10)) * (volume / (volume_ma + 1e-10))
+        return score
 
 
 @register_factor()
@@ -115,10 +130,13 @@ class TVLChangeFactor(BaseFactor):
         return {'period': 7}
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
-        if 'tvl' in data.columns:
-            period = self.params.get('period', 7)
-            return data['tvl'].fillna(0.0).pct_change(period)
-        return pd.Series(0.0, index=data.index, name='tvl_change')
+        if 'tvl' not in data.columns:
+            return _missing_series(data, 'tvl_change')
+        tvl = data['tvl'].astype(float)
+        if not tvl.notna().any():
+            return _missing_series(data, 'tvl_change')
+        period = self.params.get('period', 7)
+        return tvl.pct_change(period)
 
 
 @register_factor()
@@ -145,11 +163,13 @@ class ActiveAddressFactor(BaseFactor):
         return {'window': 14}
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
-        if 'active_addresses' in data.columns:
-            aa = data['active_addresses'].fillna(0).astype(float)
-            window = self.params.get('window', 14)
-            return aa / (aa.rolling(window).mean() + 1e-10)
-        return pd.Series(1.0, index=data.index, name='active_addresses')
+        if 'active_addresses' not in data.columns:
+            return _missing_series(data, 'active_addresses')
+        aa = data['active_addresses'].astype(float)
+        if not aa.notna().any():
+            return _missing_series(data, 'active_addresses')
+        window = self.params.get('window', 14)
+        return aa / (aa.rolling(window).mean() + 1e-10)
 
 
 @register_factor()
@@ -159,7 +179,7 @@ class StablecoinMintBurnFactor(BaseFactor):
 
     净铸造（正值）→ 增量流动性入市 → 看多；净销毁（负值）→ 流动性收缩 → 看空。
     数据列 stablecoin_mint_burn 由 onchain_data_collector 的 Coinglass 通道注入。
-    列缺失时返回中性 0，不伪造。
+    [2026-09 修复 P0-4] 列缺失/全空时返回全 NaN（框架跳过），不再返回中性 0。
     """
 
     def get_metadata(self) -> FactorMetadata:
@@ -180,13 +200,16 @@ class StablecoinMintBurnFactor(BaseFactor):
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         if 'stablecoin_mint_burn' not in data.columns:
-            return pd.Series(0.0, index=data.index, name='stablecoin_mint_burn')
+            return _missing_series(data, 'stablecoin_mint_burn')
 
-        flow = data['stablecoin_mint_burn'].fillna(0.0)
+        flow = data['stablecoin_mint_burn'].astype(float)
+        if not flow.notna().any():
+            return _missing_series(data, 'stablecoin_mint_burn')
+
         if self.params.get('normalize', True):
             window = self.params.get('window', 24)
             mean = flow.rolling(window).mean()
             std = flow.rolling(window).std()
-            # 起始段（窗口不足）与恒定流量（std=0）产出 NaN → 中性 0
-            return ((flow - mean) / (std + 1e-10)).fillna(0.0)
+            # 起始段（窗口不足）产出 NaN → 保留 NaN，由评估器 dropna 处理
+            return (flow - mean) / (std + 1e-10)
         return flow

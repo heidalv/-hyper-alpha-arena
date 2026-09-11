@@ -109,7 +109,7 @@ def test_cvd_query_with_exchange_filter():
     print("CVD 查询交易所过滤功能测试")
     print("=" * 80)
     
-    from services.market_flow_indicators import get_flow_indicators_for_prompt
+    from backend.services.market_flow_indicators import get_flow_indicators_for_prompt
     
     db = MarketSessionLocal()
     try:

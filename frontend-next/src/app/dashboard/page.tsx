@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Loader2, Wallet, TrendingUp, PieChart, Banknote } from "lucide-react";
+import { Loader2, Wallet, TrendingUp, PieChart, Banknote, AlertTriangle } from "lucide-react";
 import {
   useAccounts, usePositions, useSessions, usePaperBalance,
   useTierStatus, useTierActivity,
@@ -15,6 +15,8 @@ import { DecisionTimeline } from "@/components/trading/DecisionTimeline";
 import { BlockReportPanel } from "@/components/trading/BlockReportPanel";
 import { CooldownMatrixPanel, BlockEventStream } from "@/components/trading/CooldownMatrixPanel";
 import type { Account, Position } from "@/types/api";
+import { fmtMoney } from "@/lib/format";
+import { sumBy, sumUnrealizedPnl } from "@/lib/stats";
 
 const TIER_KEYS = ["short", "mid", "long"] as const;
 type TierKey = (typeof TIER_KEYS)[number];
@@ -32,12 +34,14 @@ function positionTierOf(p: Position, tierKey: TierKey): boolean {
   return p.trade_nature === "trend_follow" || p.trade_nature === "position" || p.timeframe_tier === "long";
 }
 
-function fmtMoney(v: number): string {
-  return `${v >= 0 ? "+" : ""}$${v.toFixed(2)}`;
-}
-
 export default function DashboardPage() {
-  const { data: accounts, isLoading: accountsLoading } = useAccounts();
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    isError: accountsError,
+    error: accountsErr,
+    refetch: refetchAccounts,
+  } = useAccounts();
   const { data: sessions } = useSessions();
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [period, setPeriod] = useState("24H");
@@ -54,8 +58,9 @@ export default function DashboardPage() {
   // 无 paper 账户时 activeAccountId=null，页面渲染空态引导。
   const activeAccountId: number | null = selectedAccountId ?? paperAccounts[0]?.id ?? null;
 
-  const { data: balance } = usePaperBalance(activeAccountId);
-  const { data: positions } = usePositions(activeAccountId, "open");
+  const { data: balance, isError: balanceError, dataUpdatedAt: balanceUpdatedAt } =
+    usePaperBalance(activeAccountId);
+  const { data: positions, isError: positionsError } = usePositions(activeAccountId, "open");
   // [2026-08-26 账户一致性修复] 会话必须与选中账户联动：此前取"第一个 running 会话"
   //（可能属于其它 paper 账户），导致 tick 状态/活动数据与 KPI 口径不一致。
   const activeSession = (sessions ?? []).find(
@@ -66,7 +71,12 @@ export default function DashboardPage() {
   const { data: tierActivity } = useTierActivity(activeSession?.session_id);
 
   const openPositions: Position[] = positions ?? [];
-  const totalUnrealizedPnl = openPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+  // [2026-09-09] 数据可信度：接口失败/未就绪时不再把「未知」渲染成 0。
+  // 旧行为（balance?.total_equity ?? 0）在请求失败时显示「总权益 $0.00 · 无持仓」，
+  // 对交易员等于谎报爆仓。现在缺数据一律显示「—」并给出显式提示。
+  const balanceReady = balance != null;
+  const dataUnavailable = balanceError || positionsError;
+  const totalUnrealizedPnl = sumUnrealizedPnl(openPositions);
   const tiers = tierStatus?.tiers;
   // F8：活跃策略数取真实契约字段（旧 active_strategies 字段不存在，恒显示 0）
   const activeStrategyCount = tiers
@@ -81,6 +91,36 @@ export default function DashboardPage() {
 
   if (accountsLoading) {
     return <div className="flex items-center justify-center h-40"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (accountsError && !accounts) {
+    // 账号列表拉取失败 ≠ 没有账号。旧实现把两者混为一谈，
+    // 后端一抖动就显示「暂无模拟交易账户，去创建账户」——对已登录用户是误导。
+    return (
+      <div className="flex flex-col gap-2.5 min-w-[1024px]">
+        <div className="flex items-center justify-between min-h-8">
+          <h1 className="text-base font-semibold tracking-tight">仪表盘</h1>
+        </div>
+        <Card className="border-border">
+          <div className="flex flex-col items-center justify-center gap-2.5 py-10 text-center">
+            <span className="w-11 h-11 rounded-xl bg-loss/15 border border-loss/30 flex items-center justify-center text-loss">
+              <AlertTriangle className="w-5 h-5" />
+            </span>
+            <div className="text-sm text-foreground">账户数据加载失败</div>
+            <div className="text-xs text-muted-foreground/70 max-w-md">
+              {(accountsErr as Error)?.message || "后端未响应"} —— 这不是「没有账户」，请重试。
+            </div>
+            <button
+              type="button"
+              onClick={() => void refetchAccounts()}
+              className="text-xs px-3 py-1.5 rounded-md bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors"
+            >
+              重新加载
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   if (paperAccounts.length === 0) {
@@ -109,9 +149,9 @@ export default function DashboardPage() {
   }
 
   // P&L 归因
-  const scalpPnl = openPositions.filter((p) => p.trade_nature === "scalp").reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
-  const swingPnl = openPositions.filter((p) => p.trade_nature === "swing").reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
-  const trendPnl = openPositions.filter((p) => p.trade_nature === "trend_follow").reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+  const scalpPnl = sumUnrealizedPnl(openPositions.filter((p) => p.trade_nature === "scalp"));
+  const swingPnl = sumUnrealizedPnl(openPositions.filter((p) => p.trade_nature === "swing"));
+  const trendPnl = sumUnrealizedPnl(openPositions.filter((p) => p.trade_nature === "trend_follow"));
   const grossPnl = Math.abs(scalpPnl) + Math.abs(swingPnl) + Math.abs(trendPnl) || 1;
 
   return (
@@ -129,6 +169,13 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {dataUnavailable ? (
+            <StatusBadge tone="loss" glow>数据不可用</StatusBadge>
+          ) : balanceUpdatedAt ? (
+            <span className="text-[10px] font-mono text-muted-foreground">
+              数据 {new Date(balanceUpdatedAt).toLocaleTimeString("zh-CN", { hour12: false })}
+            </span>
+          ) : null}
           {activeSession && <StatusBadge tone="profit" glow>{activeSession.status}</StatusBadge>}
           <StatusBadge tone="warning" glow>paper</StatusBadge>
           {paperAccounts.length > 0 && (
@@ -191,14 +238,14 @@ export default function DashboardPage() {
         </SectionHeader>
         {/* KPI（设计稿布局：4 张主玻璃卡 + 4 张次卡） */}
         <div className="glass rounded-xl grid grid-cols-2 xl:grid-cols-4">
-          <KpiCell label="总权益" value={`$${totalEquity.toFixed(2)}`} delta={`${balance?.return_pct ? (balance.return_pct * 100).toFixed(2) : "0"}%`} deltaColor={(balance?.return_pct ?? 0) >= 0 ? "profit" : "loss"} grad="cyan" icon={<Wallet className="w-3.5 h-3.5" />} />
-          <KpiCell label="浮动 PnL" value={fmtMoney(totalUnrealizedPnl)} deltaColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} grad={totalUnrealizedPnl >= 0 ? "green" : "red"} icon={<TrendingUp className="w-3.5 h-3.5" />} />
-          <KpiCell label="已实现 PnL" value={fmtMoney(realizedPnl)} deltaColor={realizedPnl >= 0 ? "profit" : "loss"} grad={realizedPnl >= 0 ? "green" : "red"} icon={<PieChart className="w-3.5 h-3.5" />} />
-          <KpiCell label="可用余额" value={`$${availableBalance.toFixed(2)}`} icon={<Banknote className="w-3.5 h-3.5" />} />
+          <KpiCell label="总权益" value={balanceReady ? `$${totalEquity.toFixed(2)}` : "—"} delta={balanceReady ? `${balance?.return_pct ? (balance.return_pct * 100).toFixed(2) : "0"}%` : undefined} deltaColor={(balance?.return_pct ?? 0) >= 0 ? "profit" : "loss"} grad={balanceReady ? "cyan" : undefined} icon={<Wallet className="w-3.5 h-3.5" />} />
+          <KpiCell label="浮动 PnL" value={positionsError ? "—" : fmtMoney(totalUnrealizedPnl)} deltaColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} grad={positionsError ? undefined : totalUnrealizedPnl >= 0 ? "green" : "red"} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+          <KpiCell label="已实现 PnL" value={balanceReady ? fmtMoney(realizedPnl) : "—"} deltaColor={realizedPnl >= 0 ? "profit" : "loss"} grad={balanceReady ? (realizedPnl >= 0 ? "green" : "red") : undefined} icon={<PieChart className="w-3.5 h-3.5" />} />
+          <KpiCell label="可用余额" value={balanceReady ? `$${availableBalance.toFixed(2)}` : "—"} icon={<Banknote className="w-3.5 h-3.5" />} />
         </div>
         <div className="glass rounded-xl grid grid-cols-2 xl:grid-cols-4">
-          <KpiCell label="持仓" value={String(openPositions.length)} delta={`${longCount}多 ${shortCount}空`} deltaColor="muted" />
-          <KpiCell label="手续费" value={`$${feePaid.toFixed(2)}`} deltaColor="loss" />
+          <KpiCell label="持仓" value={positionsError ? "—" : String(openPositions.length)} delta={positionsError ? undefined : `${longCount}多 ${shortCount}空`} deltaColor="muted" />
+          <KpiCell label="手续费" value={balanceReady ? `$${feePaid.toFixed(2)}` : "—"} deltaColor="loss" />
           <KpiCell label="活跃策略" value={String(activeStrategyCount)} deltaColor="muted" />
           <KpiCell label="中线AI选币" value={tierStatus?.auto_coin_mid_enabled ? "开启" : "关闭"} deltaColor={tierStatus?.auto_coin_mid_enabled ? "profit" : "muted"} />
         </div>
@@ -218,7 +265,7 @@ export default function DashboardPage() {
               const t = tiers[tierKey];
               if (!t) return null;
               const tierPositions = openPositions.filter((p) => positionTierOf(p, tierKey));
-              const tierPnl = tierPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+              const tierPnl = sumUnrealizedPnl(tierPositions);
               const acts = tierActivity?.[tierKey] ?? [];
               const lastAct = acts[acts.length - 1];
               return (
@@ -401,7 +448,7 @@ export default function DashboardPage() {
       <div>
         <SectionHeader title="风险敞口" />
         <div className="glass rounded-xl overflow-hidden grid grid-cols-6">
-          <RiskCell label="当前敞口" value={`$${(openPositions.reduce((s, p) => s + (p.margin || 0), 0)).toFixed(0)}`} ctx={`/ $${totalEquity.toFixed(0)} 上限`} />
+          <RiskCell label="当前敞口" value={`$${sumBy(openPositions, (p) => p.margin || 0).toFixed(0)}`} ctx={`/ $${totalEquity.toFixed(0)} 上限`} />
           <RiskCell label="浮动盈亏" value={fmtMoney(totalUnrealizedPnl)} valueColor={totalUnrealizedPnl >= 0 ? "profit" : "loss"} ctx={`${openPositions.length} 持仓 · 平均 $${openPositions.length > 0 ? (totalUnrealizedPnl / openPositions.length).toFixed(0) : 0}`} />
           <RiskCell label="已实现 PnL" value={fmtMoney(realizedPnl)} valueColor={realizedPnl >= 0 ? "profit" : "loss"} />
           <RiskCell label="手续费" value={`$${feePaid.toFixed(2)}`} valueColor="loss" />

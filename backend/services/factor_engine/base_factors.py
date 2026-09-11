@@ -14,6 +14,7 @@ Author: Hyper-Alpha-Arena
 
 import logging
 import os
+import re
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
@@ -67,7 +68,20 @@ _CATEGORY_ALIASES: Dict[str, "FactorCategory"] = {
     "COMPOSITE": FactorCategory.STRENGTH,
     "DISCOVERED": FactorCategory.MOMENTUM,
     "ALPHA101": FactorCategory.MOMENTUM,
+    # seed_bootstrap 占位种子：类别字段常写成 seed_bootstrap，映射到 PATTERN
+    #（热路径会按 source 前缀排除，但解析时不应再刷「未知类别」告警）
+    "SEED_BOOTSTRAP": FactorCategory.PATTERN,
 }
+
+# [P15 / §67 执行 2026-09-10] DB 里的 active 公式因子（custom_factor_store.list_active）
+# 有一批遗留类别名 `rev5/rev10/rev20/rev50`（就是报告里那批均值回归因子）——
+# 它们不在枚举里，于是每次加载都打一条「未知因子类别 … 回退 PATTERN」并**真的**落到
+# PATTERN（selector 类别系数 PATTERN=0.75 < MEAN_REVERSION=0.9，且 scalp 热路径会按
+# `exclude_categories={PATTERN,BEHAVIORAL}` 把它们排除）。语义上它们是均值回归因子，
+# 故按正则统一映射，既消除告警噪声、也避免语义错分（口径：只影响**类别标签**，
+# 不改任何因子表达式/数值）。
+_REV_CATEGORY_RX = re.compile(r"^REV\d+$")
+_REV_CATEGORY = FactorCategory.MEAN_REVERSION
 
 
 @dataclass
@@ -465,6 +479,9 @@ class FactorEngine:
         _key = (str(cat_str or "")).strip().upper()
         if _key in _CATEGORY_ALIASES:
             return _CATEGORY_ALIASES[_key]
+        if _REV_CATEGORY_RX.match(_key):
+            # [P15] 遗留 `revN` 类别（DB 里的均值回归公式因子）→ MEAN_REVERSION
+            return _REV_CATEGORY
         try:
             return FactorCategory[_key]
         except (KeyError, AttributeError):
@@ -701,21 +718,46 @@ class FactorEngine:
             _timeframe = str(market_data.get("timeframe") or market_data.get("tf") or "")
 
         # [P0-9 运行期断言] 实盘信号路径必须显式传 allowlist（有 OOS 证据的精选池）。
-        # 未传时：FACTOR_LIVE_ALLOWLIST_ONLY=true → 自动收敛到 custom_factor_store 的 active 集
-        # （fail-closed：active 集为空则返回空结果，不放无验证因子进信号）；
-        # 默认 false 保持旧行为但打 warning（可见性）。
+        # 未传时：FACTOR_LIVE_ALLOWLIST_ONLY=true → 自动收敛到「受治理活跃集」
+        # （factor_active_set TRADABLE ∪ 商店 active 中引擎可计算者）——
+        # fail-closed：active 集为空则返回空结果，不放无验证因子进信号；
+        # 默认 true（2026-09-02 根因修复：此前默认 false，53 个生产调用点无一个
+        # 传 allowlist → 信号实际由 141 个未验证因子驱动，治理活跃集形同虚设）。
         if allowlist is None:
             try:
-                _restrict = os.getenv("FACTOR_LIVE_ALLOWLIST_ONLY", "false").lower() in (
+                _restrict = os.getenv("FACTOR_LIVE_ALLOWLIST_ONLY", "true").lower() in (
                     "1", "true", "yes", "on",
                 )
                 if _restrict:
-                    from .custom_factor_store import custom_factor_store
-                    _recs = custom_factor_store.list_active(tenant_id=_resolve_admin_tenant_id())
-                    _ids = {str(r.get("factor_id")) for r in _recs if r.get("factor_id")}
+                    from .active_set_policy import ActiveSetRole, load_factor_active_rows
+                    from .key_utils import normalize_engine_key
+                    _ids: set = set()
+                    try:
+                        _rows = load_factor_active_rows(ActiveSetRole.TRADABLE, parse_expr=False)
+                        for _r in _rows:
+                            # [2026-09-02] 与 ScalpActiveFactorSet._tradable_ast_bridge 同口径：
+                            # 排除 seed_bootstrap 占位种子。它们的 icir=0.05 是写死的占位
+                            # 值而非评估结果；实测 allowlist 13 个里 6 个是这种种子，
+                            # 等于让无证据的占位符驱动信号——恰是本开关要防的事。
+                            if str(_r.get("source") or "").startswith("seed_bootstrap"):
+                                continue
+                            _fid = normalize_engine_key(str(_r.get("factor_id") or ""))
+                            if _fid:
+                                _ids.add(_fid)
+                    except Exception as _db_err:
+                        logger.debug("[FactorEngine] TRADABLE 读取失败: %s", _db_err)
+                    # 商店 active 兜底（引擎可计算者；纯公式因子由中长线 expr 路由消费）
+                    try:
+                        from .custom_factor_store import custom_factor_store
+                        for _r in custom_factor_store.list_active(tenant_id=_resolve_admin_tenant_id()):
+                            _fid = normalize_engine_key(str(_r.get("factor_id") or ""))
+                            if _fid:
+                                _ids.add(_fid)
+                    except Exception:
+                        pass
                     allowlist = _ids if _ids else set()
                     logger.info(
-                        "[FactorEngine] FACTOR_LIVE_ALLOWLIST_ONLY=true：%d 个 active 因子生效",
+                        "[FactorEngine] FACTOR_LIVE_ALLOWLIST_ONLY=true：%d 个受治理因子生效",
                         len(_ids),
                     )
                 else:

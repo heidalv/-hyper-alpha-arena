@@ -12,6 +12,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# [2026-09] 多会话防重复 tick：套利编排器是全局单例，多个会话同时
+# arb_enabled=true 会在同一 tick 内重复下单。全局最小间隔 30s（V3 tick
+# 本身 90s 一轮），跨会话取最早到达者执行，其余跳过。
+_last_v3_tick_ts: float = 0.0
+_V3_TICK_MIN_INTERVAL = 30.0
+
 
 def record_arb_tick_error(svc: "FullAutoTradingService", domain: str, exc: Exception) -> None:
     """套利 tick 异常计数 + warning 可见化（供健康检查读取）。"""
@@ -32,6 +38,7 @@ def record_arb_tick_error(svc: "FullAutoTradingService", domain: str, exc: Excep
 
 def run_arbitrage_tick(svc: "FullAutoTradingService", session_id: str) -> None:
     """套利域并行 Tick。"""
+    global _last_v3_tick_ts
     self = svc
     # 检查套利开关
     _sinfo = self._running_sessions.get(session_id, {})
@@ -41,6 +48,12 @@ def run_arbitrage_tick(svc: "FullAutoTradingService", session_id: str) -> None:
     from backend.config.settings import FUNDING_ARB_ENABLED
     if not FUNDING_ARB_ENABLED:
         return
+
+    # [2026-09] 多会话防重复：全局编排器单例，短窗口内只允许一次 tick
+    _now = time.time()
+    if _now - _last_v3_tick_ts < _V3_TICK_MIN_INTERVAL:
+        return
+    _last_v3_tick_ts = _now
 
     # 延迟初始化 Orchestrator（单例）
     if not hasattr(self, '_arb_orchestrator') or self._arb_orchestrator is None:

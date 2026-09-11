@@ -16,6 +16,7 @@ import {
 import { sessionApi, autoCoinApi, configApi, type SessionStatus } from "@/lib/api";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/auth";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 /** 会话内 AI 选币：VIP / 管理员 / 已开选币特权 */
@@ -117,6 +118,9 @@ export function SessionManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const paperAccounts = accounts?.filter((a) => a.trading_mode === "paper") ?? [];
+  // [2026-08-28 修复] 实盘账户可被会话向导选择（此前下拉写死只列 paper 资金池）
+  const liveAccounts = accounts?.filter((a) => a.trading_mode === "live" && a.is_active) ?? [];
+  const selectableAccounts = mode === "paper" ? paperAccounts : liveAccounts;
 
   // 分组：活跃 vs 已停用
   const activeStatuses = ["running", "defensive", "paused"];
@@ -168,7 +172,11 @@ export function SessionManager() {
             <select value={selectedAccount ?? ""} onChange={(e) => setSelectedAccount(Number(e.target.value))}
               className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
               <option value="">选择账户...</option>
-              {paperAccounts.map((a) => (<option key={a.id} value={a.id}>{a.name} (${a.current_cash})</option>))}
+              {selectableAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} {mode === "paper" ? `($${a.current_cash})` : a.binance_market_type ? `(实盘·${a.binance_market_type === "coin_m" ? "币本位" : a.binance_market_type === "margin" ? "杠杆" : "永续U"})` : "(实盘)"}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -177,7 +185,7 @@ export function SessionManager() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">交易模式</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
+            <select value={mode} onChange={(e) => { setMode(e.target.value); setSelectedAccount(null); }} className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
               <option value="paper">模拟 (Paper)</option><option value="live">实盘 (Live)</option>
             </select>
           </div>
@@ -314,14 +322,14 @@ function SessionRow({
       await qc.refetchQueries({ queryKey: ["sessions"] });
     } catch (e: any) {
       const msg = e?.message || e?.detail || String(e);
-      alert(`操作失败: ${msg}`);
+      toast.error(`操作失败: ${msg}`);
     } finally { setBusy(null); }
   };
 
   const toggleAutoCoin = async () => {
     const enabled = autoCoinStatus?.auto_coin_enabled;
     if (!enabled && !canAutoCoin) {
-      alert("会话内 AI 选币仅 VIP 可用，请升级 VIP 后再开启");
+      toast.warning("会话内 AI 选币仅 VIP 可用，请升级 VIP 后再开启");
       return;
     }
     await action("autoCoin", async () => {
@@ -333,7 +341,7 @@ function SessionRow({
 
   const scanNow = async () => {
     if (!canAutoCoin) {
-      alert("会话内 AI 选币仅 VIP 可用");
+      toast.warning("会话内 AI 选币仅 VIP 可用");
       return;
     }
     await action("scan", () => autoCoinApi.scanNow(session.session_id));

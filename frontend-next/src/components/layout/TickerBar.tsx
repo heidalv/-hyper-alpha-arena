@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useMarketStore } from "@/lib/stores/market";
 import { cn } from "@/lib/utils";
 import { fetchPublic } from "@/lib/api";
+import { usePolling } from "@/hooks/usePolling";
 
 /** 固定币备选池（常驻显示） */
 const FIXED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "VIRTUAL", "ASTER", "XPL"] as const;
 
-const PRICE_POLL_MS = 1_000;   // 数据中心价格轮询（秒级 ticker，1s 刷新）
-const AUTO_POLL_MS = 15_000;   // AI 选币列表轮询
+// [2026-09-09] 1s → 3s。实测 ticker-bar 占后端总请求量 48.5%（3 小时窗口 5547/11440），
+// 而该端点偶发 3~4s 延迟 → 1s 间隔必然堆积。设计稿要求 ticker「每 2.2s 跳动」，
+// 3s 仍满足观感；配合 usePolling 的可见性暂停与单飞去重，后台/慢响应下不再打空枪。
+const PRICE_POLL_MS = 3_000;   // 数据中心价格轮询
+const AUTO_POLL_MS = 30_000;   // AI 选币列表轮询（原来 15s，属低频数据）
 
 interface PriceEntry {
   price: number;
@@ -37,57 +41,48 @@ export function TickerBar() {
   const prevRef = useRef<Record<string, number>>({});
 
   // AI 选币动态列表
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await fetchPublic<{ auto_symbols?: string[] }>("/auto-coin/active-symbols");
-        if (cancelled || !Array.isArray(data?.auto_symbols)) return;
-        setAutoSymbols(
-          data.auto_symbols
-            .map((s: string) => String(s).trim().toUpperCase())
-            .filter(Boolean)
-        );
-      } catch { /* 忽略轮询错误 */ }
-    };
-    void load();
-    const id = setInterval(() => void load(), AUTO_POLL_MS);
-    return () => { cancelled = true; clearInterval(id); };
+  const loadAutoSymbols = useCallback(async () => {
+    try {
+      const data = await fetchPublic<{ auto_symbols?: string[] }>("/auto-coin/active-symbols");
+      if (!Array.isArray(data?.auto_symbols)) return;
+      setAutoSymbols(
+        data.auto_symbols
+          .map((s: string) => String(s).trim().toUpperCase())
+          .filter(Boolean)
+      );
+    } catch { /* 忽略轮询错误 */ }
   }, []);
+  usePolling(loadAutoSymbols, AUTO_POLL_MS);
 
   // 数据中心价格轮询（固定币 + AI 选币动态并集）
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const all = [...new Set([...FIXED_SYMBOLS, ...autoSymbols])];
-      if (!all.length) return;
-      try {
-        const rows = await fetchPublic<any[]>(`/market/ticker-bar?symbols=${all.join(",")}`);
-        if (cancelled || !Array.isArray(rows)) return;
-        const next: Record<string, PriceEntry> = {};
-        const flashNext: Record<string, "up" | "down"> = {};
-        for (const r of rows) {
-          const sym = String(r?.symbol || "").toUpperCase();
-          const price = Number(r?.price);
-          if (!sym || !Number.isFinite(price) || price <= 0) continue;
-          next[sym] = { price, changePct: Number(r?.percentage24h || 0) };
-          const prev = prevRef.current[sym];
-          if (prev !== undefined && price !== prev) {
-            flashNext[sym] = price > prev ? "up" : "down";
-          }
-          prevRef.current[sym] = price;
+  // fn 存于 ref，autoSymbols 变化无需重建定时器（见 usePolling 实现）
+  const loadPrices = useCallback(async () => {
+    const all = [...new Set([...FIXED_SYMBOLS, ...autoSymbols])];
+    if (!all.length) return;
+    try {
+      const rows = await fetchPublic<any[]>(`/market/ticker-bar?symbols=${all.join(",")}`);
+      if (!Array.isArray(rows)) return;
+      const next: Record<string, PriceEntry> = {};
+      const flashNext: Record<string, "up" | "down"> = {};
+      for (const r of rows) {
+        const sym = String(r?.symbol || "").toUpperCase();
+        const price = Number(r?.price);
+        if (!sym || !Number.isFinite(price) || price <= 0) continue;
+        next[sym] = { price, changePct: Number(r?.percentage24h || 0) };
+        const prev = prevRef.current[sym];
+        if (prev !== undefined && price !== prev) {
+          flashNext[sym] = price > prev ? "up" : "down";
         }
-        setPrices(next);
-        if (Object.keys(flashNext).length) {
-          setFlash(flashNext);
-          setTimeout(() => setFlash({}), 500);
-        }
-      } catch { /* 忽略轮询错误 */ }
-    };
-    void load();
-    const id = setInterval(() => void load(), PRICE_POLL_MS);
-    return () => { cancelled = true; clearInterval(id); };
+        prevRef.current[sym] = price;
+      }
+      setPrices(next);
+      if (Object.keys(flashNext).length) {
+        setFlash(flashNext);
+        setTimeout(() => setFlash({}), 500);
+      }
+    } catch { /* 忽略轮询错误 */ }
   }, [autoSymbols]);
+  usePolling(loadPrices, PRICE_POLL_MS);
 
   const symbols = [...new Set([...FIXED_SYMBOLS, ...autoSymbols])];
 

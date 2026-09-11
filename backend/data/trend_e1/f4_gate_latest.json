@@ -1,0 +1,52 @@
+{
+  "ts_ms": 1789058102207,
+  "passed": false,
+  "live_aster_requested": false,
+  "live_allowed": false,
+  "checks": [
+    {
+      "name": "trend_drift",
+      "ok": false,
+      "trend_drift": 2,
+      "weight_drift": 0,
+      "leverage_violations": 4,
+      "max_weight_deviation": 0.0866,
+      "max_ok": 0.02,
+      "accounts_checked": 1,
+      "as_of_bar": "2026-09-03",
+      "reason": "trend_drift=2（方向不符仓位数，要求 0）；leverage_violations=4（要求 0）；max|权重偏差|=0.0866 > 0.02"
+    },
+    {
+      "name": "run_days",
+      "ok": false,
+      "days": 7.0,
+      "min_days": 28,
+      "reason": "模拟天数 7.0 < 28"
+    },
+    {
+      "name": "fee_budget",
+      "ok": false,
+      "inconclusive": true,
+      "reason": "无 fee_summary；请补 edge_ledger 或设 TREND_E1_F4_SKIP_FEE=true"
+    },
+    {
+      "name": "promotion_freeze",
+      "ok": true,
+      "reason": null,
+      "detail": {
+        "frozen": false
+      }
+    },
+    {
+      "name": "kill_switch",
+      "ok": true,
+      "reason": null
+    },
+    {
+      "name": "halt_tests",
+      "ok": false,
+      "reason": "缺少 halt_tests_ok.json；跑停机单测后 touch 或设 TREND_E1_F4_HALT_TESTS_OK=true"
+    }
+  ],
+  "note": "passed 只是资格；真下单还要 TREND_E1_LIVE_ASTER=true 与 live 账户列表"
+}

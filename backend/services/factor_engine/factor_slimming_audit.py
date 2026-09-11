@@ -73,8 +73,12 @@ POOL_MAX_CORR = float(
     __import__("os").environ.get("FACTOR_SLIMMING_POOL_MAX_CORR", "0.5") or "0.5"
 )
 
-STATE_PATH = os.path.join("data", "factor_slimming_state.json")
-WEIGHTS_PATH = os.path.join("data", "factor_runtime_weights.json")
+# [2026-09-02] 相对路径改为基于 __file__。本模块会**写回**权重文件（降权 50%），
+# 相对路径在非仓库根 cwd 下会另建一份 data/ 并把降权写进错误副本：真正被读取的
+# 权重文件毫无变化，淘汰候选却被记为"已降权"，审计闭环静默断开。
+_AUDIT_ROOT = Path(__file__).resolve().parents[3]
+STATE_PATH = str(_AUDIT_ROOT / "data" / "factor_slimming_state.json")
+WEIGHTS_PATH = str(_AUDIT_ROOT / "data" / "factor_runtime_weights.json")
 FACTORS_DIR = Path(__file__).parent / "factors"
 QUARANTINE_DIR = FACTORS_DIR / "_ai_gen_quarantine"
 ARCHIVE_DIR = FACTORS_DIR / "_ai_gen_archive"
@@ -225,21 +229,18 @@ def _save_json(path: str, data: dict) -> None:
 
 
 def _load_tradable_factor_ids() -> set:
-    """[2026-08-14 P1-D3] factor_active_set 中可交易行（ACTIVE/SMALL_LIVE/PAPER）
-    的因子 id —— 受保护集：审计只报告不移动，防止正在实盘使用的因子被物理删源。"""
+    """[2026-08-14 P1-D3] factor_active_set 中可交易行的因子 id —— 受保护集：
+    审计只报告不移动，防止正在实盘使用的因子被物理删源。
+    [2026-08-29 SSOT 收敛] 散落 state.in_ 改走 active_set_policy 唯一入口。"""
     try:
-        from backend.database.connection import AnalyticsSessionLocal
-        from backend.database.models import FactorActiveSet
-        db = AnalyticsSessionLocal()
-        try:
-            rows = (
-                db.query(FactorActiveSet.factor_id)
-                .filter(FactorActiveSet.state.in_(["ACTIVE", "SMALL_LIVE", "PAPER"]))
-                .all()
-            )
-            return {str(fid) for (fid,) in rows if fid}
-        finally:
-            db.close()
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole, load_factor_active_rows,
+        )
+        return {
+            str(rec.get("factor_id"))
+            for rec in load_factor_active_rows(ActiveSetRole.TRADABLE)
+            if rec.get("factor_id")
+        }
     except Exception as e:
         logger.warning(
             "[Slimming] factor_active_set 保护集读取失败（保护集为空，物理移动风险上升）: %s", e

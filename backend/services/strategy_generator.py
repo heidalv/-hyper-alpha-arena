@@ -294,7 +294,7 @@ class StrategyGenerator:
         
         try:
             # 1. 获取统一数据快照
-            from services.unified_data_pool import get_unified_data_pool
+            from backend.services.unified_data_pool import get_unified_data_pool
             data_pool = get_unified_data_pool()
             
             snapshot = data_pool.capture_snapshot(
@@ -585,7 +585,7 @@ class StrategyGenerator:
             (推荐因子名称列表, 因子权重字典)
         """
         try:
-            from services.factor_engine import (
+            from backend.services.factor_engine import (
                 factor_engine,
                 get_factor_weighting,
             )

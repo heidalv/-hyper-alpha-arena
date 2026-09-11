@@ -267,14 +267,25 @@ def test_consistency_gate_check_no_history():
 
 
 def test_consistency_gate_flip_flop_detection():
-    """验证 flip-flop 检测: 5分钟内方向翻转应被拦截 (gate 只检查最后一次决策)"""
-    from backend.services.decision_consistency_gate import get_consistency_gate
+    """验证 flip-flop 检测: 最小间隔内方向翻转应被拦截 (gate 只检查最后一次决策)
+
+    [2026-09-02] 原用例硬编码"4 分钟前翻转应被拦"，隐含 min interval=300s。
+    实际阈值已是 180s（FLIP_FLOP_MIN_INTERVAL_SEC），240s 属放行区间，故长期
+    失败。这里改为从常量推导间隔，锁"阈值内必拦"的行为而非某个具体分钟数。
+
+    注：该阈值经实测复核确认**不应**改回 300s —— 3-5min 区间的翻转单是近 30
+    天最赚的一档（8 笔 +43.44、胜率 87.5%），详见 decision_consistency_gate
+    中 FLIP_FLOP_MIN_INTERVAL_SEC 的注释。
+    """
+    from backend.services.decision_consistency_gate import (
+        FLIP_FLOP_MIN_INTERVAL_SEC, get_consistency_gate,
+    )
 
     gate = get_consistency_gate()
     gate._decision_history.clear()
 
-    # 模拟: 4分钟前 sell, 现在要 buy → 间隔 < 5分钟 → 应被拦截
-    past_time = time.time() - 240  # 4 min ago (< 300s min interval)
+    # 取阈值的一半作为"确定落在拦截区间内"的间隔
+    past_time = time.time() - FLIP_FLOP_MIN_INTERVAL_SEC / 2
     gate._decision_history["1:BTC"] = [
         (past_time, "SELL", -1, 0.65),
     ]
@@ -285,8 +296,30 @@ def test_consistency_gate_flip_flop_detection():
         market_regime="trending_up",
     )
     assert result.passed is False, \
-        f"5分钟内方向翻转应被拦截, 实际: passed={result.passed}, reason={result.reason}"
+        (f"{FLIP_FLOP_MIN_INTERVAL_SEC}s 内方向翻转应被拦截, "
+         f"实际: passed={result.passed}, reason={result.reason}")
+    assert result.check_name == "flip_flop_detection"
     print(f"  ✓ Flip-flop 检测生效: {result.reason}")
+
+
+def test_consistency_gate_flip_flop_allows_beyond_threshold():
+    """阈值之外的方向翻转应放行（实测该区间盈利最好，不得误拦）。"""
+    from backend.services.decision_consistency_gate import (
+        FLIP_FLOP_MIN_INTERVAL_SEC, get_consistency_gate,
+    )
+
+    gate = get_consistency_gate()
+    gate._decision_history.clear()
+    gate._decision_history["1:BTC"] = [
+        (time.time() - (FLIP_FLOP_MIN_INTERVAL_SEC + 60), "SELL", -1, 0.65),
+    ]
+
+    result = gate.check(
+        account_id=1, symbol="BTC",
+        action="buy", confidence=0.70,
+        market_regime="trending_up",
+    )
+    assert result.passed is True, f"阈值外翻转不应拦截, reason={result.reason}"
 
 
 def test_consistency_gate_normal_sequence():
@@ -381,22 +414,26 @@ def test_full_chain_paper_trade_to_learning():
         except Exception as e:
             print(f"  ✓ Step 2: unified_learning 降级 (开发DB): {str(e)[:80]}")
 
-        # Step 3: 通过学习总线触发后续系统
+        # Step 3: 兼容壳 dispatch 仍应可调用且不抛异常（旧调用方可能还在用）
         bus = get_learning_bus()
         bus_result = bus.dispatch(db, outcome)
-
         assert bus_result["unified_learning"] is True
-        print(f"  ✓ Step 3: LearningBus.dispatch 成功 → "
-              f"review={bus_result['review_triggered']}, "
-              f"miner={bus_result['miner_triggered']}, "
-              f"evolver={bus_result['evolver_triggered']}")
+        print(f"  ✓ Step 3: LearningBus.dispatch(兼容壳) 转发成功")
 
-        # Step 4: 验证总线状态更新
+        # Step 4: 验证扇出点存在。
+        # [2026-09-02] 原断言 status["trade_count_total"] > 0，但 L2 收敛后
+        # dispatch 已废弃、只做转发，不再累加任何计数器（见其 docstring），
+        # 该值恒为 0 —— 断言的是一个被架构淘汰的副作用。真正该锁的是扇出：
+        # process_outcome → get_registry().handle_all()。
         status = bus.get_status()
-        assert status["trade_count_total"] > 0
-        print(f"  ✓ Step 4: 总线状态 trade_count_total={status['trade_count_total']}")
+        assert "trade_count_total" in status, "兼容壳仍应提供状态字段"
 
-        print(f"  ✅ 全链路: TradeOutcome → unified_learning → LearningBus → 状态更新 闭环验证通过")
+        import inspect as _inspect
+        from backend.services.unified_learning_service import UnifiedLearningService
+        _src = _inspect.getsource(UnifiedLearningService.process_outcome)
+        assert "handle_all" in _src, "BUG: 学习闭环的扇出点缺失"
+
+        print(f"  ✅ 全链路: TradeOutcome → unified_learning → registry.handle_all 闭环验证通过")
 
     finally:
         db.close()
@@ -422,18 +459,28 @@ def test_decision_source_chain_rule_engine_path():
 
 
 def test_consistency_gate_in_full_auto_path():
-    """验证一致性门控已集成到 full_auto_trading_service 总控路径"""
+    """验证一致性门控已集成到总控执行路径。
+
+    [2026-09-02] 原用例只看 FullAutoTradingService._execute_master_decisions
+    的源码。该方法已重构成转发壳，实现搬到
+    backend.services.full_auto.master_execution.execute_master_decisions
+    （门控在其中导入并调用），故断言长期失败——但门控其实一直在线。
+    这里改为两段都验：转发壳确实转发、被转发到的实现确实带门控。
+    """
     import inspect
-    # 动态导入以避免循环依赖
+    from backend.services.full_auto import master_execution
     from backend.services.full_auto_trading_service import FullAutoTradingService
 
-    # 验证 _execute_master_decisions 中引用了 decision_consistency_gate
-    source = inspect.getsource(FullAutoTradingService._execute_master_decisions)
-    assert "decision_consistency_gate" in source, \
-        "BUG: _execute_master_decisions 未集成 decision_consistency_gate"
-    assert "get_consistency_gate" in source, \
-        "BUG: _execute_master_decisions 未调用 get_consistency_gate"
-    print(f"  ✓ _execute_master_decisions 已集成 decision_consistency_gate")
+    impl = inspect.getsource(master_execution.execute_master_decisions)
+    assert "get_consistency_gate" in impl, \
+        "BUG: execute_master_decisions 未调用 get_consistency_gate"
+    assert "_gate.check(" in impl, \
+        "BUG: 一致性门控已导入但未实际调用 check()"
+
+    shell = inspect.getsource(FullAutoTradingService._execute_master_decisions)
+    assert "execute_master_decisions" in shell or "master_execution" in shell, \
+        "BUG: 总控入口未转发到 master_execution，门控形同未接线"
+    print(f"  ✓ 一致性门控在 master_execution.execute_master_decisions 中生效")
 
 
 def test_no_circular_imports():
@@ -461,34 +508,72 @@ def test_no_circular_imports():
 print("\n--- Test 6: 执行层→学习层 接线验证 ---")
 
 
-def test_paper_trading_calls_learning_bus():
-    """验证 paper_trading_engine._notify_learning_on_close 调用 LearningBus"""
+# ── 架构说明 [2026-09-02] ──
+# 下面两个用例原先断言"源码文本里必须出现 learning_bus / get_learning_bus"。
+# 学习层已做 L2 收敛（见 learning_bus.dispatch 的 [已废弃] docstring）：
+#
+#   平仓点 ──> unified_learning.process_outcome(db, outcome)
+#                 └─> learning_registry_bridge.get_registry().handle_all()
+#                       ├─ review / miner / pattern / causal_discovery
+#                       └─ template_stats / qaa / factor_joint / drift
+#
+# LearningBus 降级为向后兼容壳，dispatch 只做转发且不再累加计数器。平仓路径
+# 直接调 unified_learning 门面、不再认识总线，这是**更正确**的分层——撮合引擎
+# 不该知道总线的存在。断言 import 语句等于把测试钉在旧实现上，故改为验证
+# 行为：平仓路径必须把结果交给统一学习入口，且该入口必须扇出到 registry。
+def test_paper_trading_notifies_unified_learning():
+    """paper_trading_engine 平仓必须把结果交给统一学习入口。"""
     import inspect
     from backend.services.paper_trading_engine import PaperTradingEngine
 
     source = inspect.getsource(PaperTradingEngine._notify_learning_on_close)
-    assert "learning_bus" in source, \
-        "BUG: paper_trading_engine._notify_learning_on_close 未导入 learning_bus"
-    assert "get_learning_bus" in source, \
-        "BUG: paper_trading_engine._notify_learning_on_close 未调用 get_learning_bus"
-    print(f"  ✓ paper_trading_engine._notify_learning_on_close 已连接 LearningBus")
+    assert "unified_learning" in source, \
+        "BUG: 平仓路径未接入统一学习入口，学习闭环断开"
+    assert "TradeOutcome" in source, \
+        "BUG: 平仓路径未构造 TradeOutcome"
 
 
-def test_trading_commands_calls_learning_bus():
-    """验证 trading_commands.py 平仓路径调用 LearningBus"""
-    # 直接读取文件检查（避免执行时触发完整导入链）
-    import inspect
-    # trading_commands.py 在模块级别执行，用 grep 方式检查
+def test_trading_commands_notifies_unified_learning():
+    """trading_commands 实盘平仓路径同样必须接入统一学习入口。"""
     with open(
         os.path.join(os.path.dirname(__file__), "..", "services", "trading_commands.py"),
         encoding="utf-8",
     ) as f:
         content = f.read()
-    assert "learning_bus" in content, \
-        "BUG: trading_commands.py 未导入 learning_bus"
-    assert "get_learning_bus" in content, \
-        "BUG: trading_commands.py 未调用 get_learning_bus"
-    print(f"  ✓ trading_commands.py 已连接 LearningBus")
+    assert "unified_learning" in content, \
+        "BUG: trading_commands.py 未接入统一学习入口"
+    assert "process_outcome" in content, \
+        "BUG: trading_commands.py 未调用 process_outcome"
+
+
+def test_unified_learning_fans_out_to_registry():
+    """统一学习入口必须扇出到后端注册表 —— 这是闭环真正的分发点。
+
+    锁住这一条，上面两个用例才有意义：只要平仓 → unified_learning →
+    registry 三段都在，review/miner/evolver 就都能收到交易结果。
+    """
+    import inspect
+    from backend.services.unified_learning_service import UnifiedLearningService
+
+    source = inspect.getsource(UnifiedLearningService.process_outcome)
+    assert "get_registry" in source and "handle_all" in source, \
+        "BUG: process_outcome 未扇出到 BackendRegistry，所有学习后端将收不到交易结果"
+
+
+def test_registry_has_learning_backends_registered():
+    """注册表里必须确有后端 —— 否则 handle_all 是空转。"""
+    from backend.services.learning_registry_bridge import get_registry
+
+    reg = get_registry()
+    assert reg is not None
+    names = []
+    for attr in ("backends", "_backends", "handlers", "_handlers"):
+        val = getattr(reg, attr, None)
+        if val:
+            names = list(val.keys()) if isinstance(val, dict) else list(val)
+            break
+    assert names, f"BUG: 学习后端注册表为空，handle_all 空转: {reg!r}"
+    print(f"  ✓ 已注册 {len(names)} 个学习后端")
 
 
 # ═══════════════════════════════════════════════════════════════

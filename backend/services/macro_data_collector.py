@@ -93,24 +93,27 @@ def _get_json(url: str, timeout: float = 15.0) -> Optional[Any]:
 
 
 def _get_html(url: str, timeout: float = 15.0) -> Optional[str]:
+    """抓取 HTML：先走代理，失败自动直连兜底（[2026-09-08] BLS 屏蔽代理出口 IP）。"""
+    import urllib.request
+    from backend.services.market_aggregation.aggregate_collector_base import _get_proxy
+    proxy = None
     try:
-        import urllib.request
-        from backend.services.market_aggregation.aggregate_collector_base import _get_proxy
-        proxy = None
+        proxy = _get_proxy()
+    except Exception:
+        pass
+    for attempt_proxy in ([proxy, None] if proxy else [None]):
         try:
-            proxy = _get_proxy()
-        except Exception:
-            pass
-        opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({"http": proxy, "https": proxy})
-            if proxy else urllib.request.ProxyHandler({})
-        )
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with opener.open(req, timeout=timeout) as resp:
-            return resp.read().decode("utf-8", errors="replace")
-    except Exception as exc:
-        logger.debug("[MacroCollector] HTML %s 失败: %s", url[:80], exc)
-        return None
+            opener = urllib.request.build_opener(
+                urllib.request.ProxyHandler({"http": attempt_proxy, "https": attempt_proxy})
+                if attempt_proxy else urllib.request.ProxyHandler({})
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with opener.open(req, timeout=timeout) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except Exception as exc:
+            logger.debug("[MacroCollector] HTML %s 失败(proxy=%s): %s",
+                         url[:80], bool(attempt_proxy), exc)
+    return None
 
 
 def _persist_series(rows: List[Dict[str, Any]]) -> int:
@@ -219,6 +222,54 @@ def _parse_dates_from_html(html: str, year: Optional[int] = None) -> List[dateti
     return found
 
 
+_MONTHS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
+    "december": 12,
+}
+
+
+def _parse_fomc_calendar(html: str) -> List[datetime]:
+    """[2026-09-08] 按 FOMC 日历页真实结构解析。
+
+    页面结构（联邦储备委员会官网现行模板）：
+      <a id="42828">2026 FOMC Meetings</a>          ← 年份在区块标题里
+      <div class="fomc-meeting__month"><strong>September</strong></div>
+      <div class="fomc-meeting__date">16-17*</div>   ← 日范围在独立 div，月份与日被标签隔开
+
+    旧的纯文本正则 "Month Day" 因此永远匹配不到（9月8日实测全页仅命中页脚一个
+    无关日期 → macro_events 自 8-20 起停摆）。此处按「年份区块 → 月份+日范围」
+    成对抽取；取会议**第二天**18:00 UTC（美东14:00声明发布时刻）作为事件时间。
+    """
+    found: List[datetime] = []
+    # 按年份区块切分
+    year_sections = re.split(r"(20\d\d)\s*FOMC\s*Meetings", html, flags=re.IGNORECASE)
+    # year_sections: [前导, "2026", 区块HTML, "2027", 区块HTML, ...]
+    pair_re = re.compile(
+        r"fomc-meeting__month[^>]*>\s*<strong>\s*([A-Za-z]+)\s*</strong>"
+        r".{0,400}?fomc-meeting__date[^>]*>\s*(\d{1,2})\s*-\s*(\d{1,2})",
+        re.DOTALL,
+    )
+    for i in range(1, len(year_sections) - 1, 2):
+        try:
+            year = int(year_sections[i])
+        except (TypeError, ValueError):
+            continue
+        section = year_sections[i + 1]
+        for m in pair_re.finditer(section):
+            month = _MONTHS.get(m.group(1).lower())
+            if not month:
+                continue
+            end_day = int(m.group(3))
+            try:
+                dt = datetime(year, month, end_day, 18, 0, tzinfo=timezone.utc)
+                if dt.date() >= date.today() - timedelta(days=2):
+                    found.append(dt)
+            except ValueError:
+                continue
+    return found
+
+
 def _llm_extract_calendar(html: str, source: str) -> List[Dict[str, Any]]:
     """LLM 从官方页面抽取结构化事件（未来 60 天）。失败返回 []。"""
     try:
@@ -317,7 +368,9 @@ def collect_macro_calendar() -> Dict[str, Any]:
         html = _get_html(url)
         if not html:
             continue
-        for dt in _parse_dates_from_html(html):
+        # [2026-09-08] FOMC 页用结构化解析器；BLS 等仍走通用正则
+        dates = _parse_fomc_calendar(html) if source == "federalreserve" else _parse_dates_from_html(html)
+        for dt in dates:
             items.append({
                 "event": "FOMC" if source == "federalreserve" else "CPI",
                 "scheduled_at": dt,

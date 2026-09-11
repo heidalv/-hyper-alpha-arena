@@ -303,19 +303,26 @@ def compute_fitness_from_values(
     lam_hof: float = 0.0,
     hof_values: Optional[Sequence[np.ndarray]] = None,
     lam_to: float = 0.0,
+    net_ctx: Optional[dict] = None,
 ):
     """向量化适应度组装 —— 与 gp_miner._fitness_core 语义逐项对齐。
 
     返回 (fits, case_ics)：
     - fits: 适应度列表；无效个体 -inf；
     - case_ics: (P, S) 按币段案例 IC（ε-lexicase 用；无效段为 NaN）；
-    - objective="ic" → 全面板 |IC|；"icir" → 案例 IC 的 mean/std；
+    - objective="ic" → 全面板 |IC|；"icir"/"icir_net" → 案例 IC 的 mean/std；
     - hof_values: 名人堂因子值（协同奖励：与名人堂最大相关惩罚 lam_hof）；
-    - lam_to: [item11 2026-08-21] 换手成本惩罚（信号方向翻转率），CPU 同口径。
+    - lam_to: [item11 2026-08-21] 换手成本惩罚（信号方向翻转率），CPU 同口径；
+    - net_ctx: [P3.2 2026-09-03] 含成本净收益上下文（fitness_objective.net_context），
+      objective 含 net 时把 clip(net/cost) 并入目标，与 CPU/MCTS 同口径。
     """
     from backend.services.evolution.gp_miner import (
         _count_nodes as _cn,
         _turnover_flip_rate as _tfr,
+    )
+    from backend.services.evolution.fitness_objective import (
+        blend_objective as _blend,
+        objective_uses_icir as _uses_icir,
     )
 
     P = vals.shape[0]
@@ -365,7 +372,7 @@ def compute_fitness_from_values(
         if not np.isfinite(ic_full):
             continue
         _case_arr = np.asarray(case_list)
-        if objective == "icir" and _case_arr.size >= 2:
+        if _uses_icir(objective) and _case_arr.size >= 2:
             # [FIX-1 2026-08-19] ICIR = |mean|/std 仅在 >=2 个有效币段且 std 非退化时定义。
             # 单币段（std 精确为 0）时 mean/1e-10 会爆炸到 1e8~1e9，碾压正常因子、
             # 使复杂度/相关性惩罚失效、选择退化为「选单币噪声」。此时回退全面板 |IC|。
@@ -376,6 +383,10 @@ def compute_fitness_from_values(
                 obj = ic_full
         else:
             obj = ic_full
+        # [P3.2 2026-09-03] 含成本净收益并入目标（与 gp_miner._fitness_core / MCTS 同口径）
+        obj = _blend(obj, ic_full, fv, net_ctx, min_samples=int(min_samples))
+        if not np.isfinite(obj):
+            continue
         penalty_c = lam_c * (node_counts[i] if node_counts is not None else _cn(population[i]))
         corr_pen = 0.0
         refs = list(elite_fvs or [])

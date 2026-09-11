@@ -187,12 +187,37 @@ class ShortTierExit(TierExitStrategy):
                 # ATR 0.6% 的震荡市里把本可发育的仓位过早砍掉。默认放宽到 30 分钟
                 # (.env SCALP_EXIT_FAST_CUT_MIN=30)，峰值门槛保持 0.3% 但可调。
                 _fc_peak = float(os.getenv("SCALP_EXIT_FAST_CUT_PEAK_PCT", "0.3") or 0.3)
+                # [2026-09-02 P2.1] 追加"确实走坏"条件。
+                #
+                # 原条件只要求 peak<0.3% 且 unrealized<0.3%，于是"微盈微亏来回
+                # 震荡、还没发育"的仓位与"方向确实错了"的仓位被一起砍掉。实测
+                # 近 30 天 801 笔时间类出场中，453 笔（57%）曾浮盈 >0.2%、272 笔
+                # （34%）曾 >0.5% —— 它们本来是赚钱的，被时间赶出场时已回吐。
+                #
+                # 离线回放（做多+pwin>=0.55，2542 条，分段稳健性 robust）显示，
+                # 把有效持仓从 1800s 放到 3600s 净收益 +15.14bp → +33.21bp；而
+                # 同批数据里 timeout 出场本身净 +20.87bp 为正 —— 说明"到时平仓"
+                # 是在锁利，问题出在**砍得太早太宽**，不在时间出场本身。
+                #
+                # 故只对明确走坏的仓位认错：unrealized 跌破 -SCALP_EXIT_FAST_CUT_LOSS_PCT。
+                # 设为 0 可回到旧行为（无浮盈即砍）。
+                _fc_loss = float(os.getenv("SCALP_EXIT_FAST_CUT_LOSS_PCT", "0.2") or 0)
+                _no_upside = (
+                    (ctx.hold_seconds or 0) >= _fc_min * 60
+                    and (ctx.peak_pnl_pct or 0) < _fc_peak
+                    and (ctx.unrealized_pnl_pct or 0) < _fc_peak
+                )
                 # 浮盈口径是百分数：0.3 = 0.3%（旧代码误写成 0.003）
-                if (ctx.hold_seconds or 0) >= _fc_min * 60 and (ctx.peak_pnl_pct or 0) < _fc_peak and (ctx.unrealized_pnl_pct or 0) < _fc_peak:
+                _gone_bad = (ctx.unrealized_pnl_pct or 0) <= -abs(_fc_loss)
+                if _no_upside and (_fc_loss <= 0 or _gone_bad):
                     return ExitDecision(
                         position_id=ctx.position_id,
                         action=ExitAction.CLOSE.value, qty_ratio=1.0,
-                        reason="fast_cut: %.0fmin无浮盈认错出清(peak=%.3f%%)" % (_fc_min, ctx.peak_pnl_pct or 0),
+                        reason="fast_cut: %.0fmin无浮盈且已走坏认错出清"
+                               "(peak=%.3f%% upnl=%.3f%%)" % (
+                                   _fc_min, ctx.peak_pnl_pct or 0,
+                                   ctx.unrealized_pnl_pct or 0,
+                               ),
                         source=ExitSource.TIME_DECAY.value,
                         ts_ns=int(time.time() * 1e9),
                     )

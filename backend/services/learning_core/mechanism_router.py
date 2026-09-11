@@ -10,6 +10,14 @@
     新 regime 持续      → MAML few-step adapt（P4.4）
     离线策略结构进化    → CMA-ES/MAP-Elites（P4.7b）+ RL 重训
     OWM（MLTO 中长线）  → 仅 mid/long thesis，不与短线 AlphaEnsemble 抢权重
+
+[2026-09-07 接线状态标注] ⚠️ 本模块当前**未被任何编排器调用**（摆设）。
+  - 真 MAML few-shot 无实现文件（仅枚举引用，无训练/adapt 代码）；
+  - MechanismRouter.route() 无生产调用方（LearningOrchestrator 从不 import 它）；
+  - 真正接线的漂移自愈走 factor_evolution_loop._monitor_active →
+    DriftWatcher.next_adapt_strategy → online_weights.reset_resident_online_model。
+  保留本模块作为「设计意图文档」；若未来接 MAML，应在这里注册路由并由
+  LearningOrchestrator 调用。审计/差距分析时不要把本模块当作已实现能力。
 """
 from __future__ import annotations
 

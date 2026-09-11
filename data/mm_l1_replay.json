@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-09-09T07:08:14.368941+00:00",
+  "quote_notional_usd": 1000.0,
+  "maker_fee": 0.0,
+  "rows": [
+    {
+      "symbol": "BTC",
+      "n_snap": 43194,
+      "filled_notional": 43308427.25,
+      "legs": 43358,
+      "gross_bp": 0.0117,
+      "inventory_bp": -0.1264,
+      "net_bp": -0.1147,
+      "turnover_usd_per_day": 1443530.7
+    },
+    {
+      "symbol": "ETH",
+      "n_snap": 43191,
+      "filled_notional": 42839578.42,
+      "legs": 43322,
+      "gross_bp": 0.0321,
+      "inventory_bp": 0.1905,
+      "net_bp": 0.2226,
+      "turnover_usd_per_day": 1427903.31
+    },
+    {
+      "symbol": "SOL",
+      "n_snap": 43183,
+      "filled_notional": 33132295.96,
+      "legs": 43239,
+      "gross_bp": 0.6608,
+      "inventory_bp": 0.4249,
+      "net_bp": 1.0857,
+      "turnover_usd_per_day": 1104345.96
+    },
+    {
+      "symbol": "XRP",
+      "n_snap": 43176,
+      "filled_notional": 22254371.99,
+      "legs": 43080,
+      "gross_bp": 0.5188,
+      "inventory_bp": 8.7115,
+      "net_bp": 9.2304,
+      "turnover_usd_per_day": 741769.47
+    },
+    {
+      "symbol": "DOGE",
+      "n_snap": 43189,
+      "filled_notional": 14617230.16,
+      "legs": 41815,
+      "gross_bp": 0.8232,
+      "inventory_bp": -10.2963,
+      "net_bp": -9.473,
+      "turnover_usd_per_day": 487212.81
+    },
+    {
+      "symbol": "ADA",
+      "n_snap": 43180,
+      "filled_notional": 747308.57,
+      "legs": 3159,
+      "gross_bp": 3.5745,
+      "inventory_bp": -30.7916,
+      "net_bp": -27.2171,
+      "turnover_usd_per_day": 24908.84
+    },
+    {
+      "symbol": "AVAX",
+      "n_snap": 43187,
+      "filled_notional": 673889.84,
+      "legs": 1518,
+      "gross_bp": 2.1445,
+      "inventory_bp": -2.468,
+      "net_bp": -0.3235,
+      "turnover_usd_per_day": 22461.69
+    },
+    {
+      "symbol": "LINK",
+      "n_snap": 43183,
+      "filled_notional": 1117657.87,
+      "legs": 2972,
+      "gross_bp": 1.9045,
+      "inventory_bp": -124.8921,
+      "net_bp": -122.9877,
+      "turnover_usd_per_day": 37253.11
+    },
+    {
+      "symbol": "UNI",
+      "n_snap": 43181,
+      "filled_notional": 877632.4,
+      "legs": 1957,
+      "gross_bp": 3.3913,
+      "inventory_bp": -1006.1777,
+      "net_bp": -1002.7865,
+      "turnover_usd_per_day": 29252.72
+    },
+    {
+      "symbol": "BNB",
+      "n_snap": 43177,
+      "filled_notional": 26439339.38,
+      "legs": 43261,
+      "gross_bp": 0.2011,
+      "inventory_bp": -5.8718,
+      "net_bp": -5.6706,
+      "turnover_usd_per_day": 881260.31
+    }
+  ]
+}

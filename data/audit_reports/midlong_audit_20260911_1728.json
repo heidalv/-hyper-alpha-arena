@@ -1,0 +1,304 @@
+{
+  "generated_at": "2026-09-11 17:28:17",
+  "checks": [
+    {
+      "id": "defect_inventory",
+      "desc": "缺陷清单自校验（§62，含格式/证据/统计行一致性）",
+      "argv": [
+        "backend/scripts/audit_defect_inventory.py"
+      ],
+      "rc": 0,
+      "seconds": 0.4,
+      "tail": [
+        "条目 70；严重度 {'高': 7, '中': 38, '低': 24, '记录': 1}；状态 {'已修': 65, '记录': 1, '部分': 2, '撤销': 2}",
+        "待决策 P 编号: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]",
+        "",
+        "✅ 清单自校验通过",
+        "已写入 D:\\001Alpha\\Hyper-Alpha-Arena\\data\\audit_defect_inventory.json"
+      ]
+    },
+    {
+      "id": "dead_keys",
+      "desc": "死键登记册漂移检测（§67.3；双工具交叉验证）",
+      "argv": [
+        "backend/scripts/audit_dead_keys_register.py",
+        "--check"
+      ],
+      "rc": 0,
+      "seconds": 27.3,
+      "tail": [
+        "登记册 18 项 / 当前 18 项",
+        "  交叉验证: ✅ 一致"
+      ]
+    },
+    {
+      "id": "profit_giveback",
+      "desc": "浮盈回吐监控（§44/§57 类问题的常态监控）",
+      "argv": [
+        "backend/scripts/audit_profit_giveback.py"
+      ],
+      "rc": 0,
+      "seconds": 3.2,
+      "tail": [
+        "",
+        "验收判定：",
+        "  [未达标] mid 模式 USD ≥ 0 — mid pattern_usd=-83.9",
+        "  [达标] mid 大亏笔数 ≤ 8 — mid big_loss_n=6",
+        "  [达标] 门放行集模式率 < 门拦截集 — allow=0.0 vs block=0.327",
+        "  [达标] 门放行集模式 USD/笔 优于门拦截集 — allow=0/8 vs block=-204.27/52",
+        "  [未达标] long 车道豁免正确（反事实：被拦集更赚） — long 放行 $-10.45/4 vs 拦截 $-111.13/23",
+        "已写入 D:\\001Alpha\\Hyper-Alpha-Arena\\data\\profit_giveback_audit.json"
+      ]
+    },
+    {
+      "id": "gate_edge",
+      "desc": "各闸门边际效益（哪道闸在真正拦钱 / 拦错）",
+      "argv": [
+        "backend/scripts/audit_gate_edge.py"
+      ],
+      "rc": 0,
+      "seconds": 9.0,
+      "tail": [
+        "      模式率差      -0.080 CI[ -0.200, +0.000] 不显著",
+        "  2026-08   样本不足 (放行0/拦截12)",
+        "  2026-09   放行n=  4(USD   -10.45) 拦截n= 18(USD  -128.02)",
+        "      均值差%      +1.731 CI[ -0.766, +4.217] 不显著",
+        "      大亏率差      -0.389 CI[ -0.611, -0.167] 显著",
+        "      模式率差      -0.333 CI[ -0.556, -0.111] 显著",
+        "",
+        "已写入 D:\\001Alpha\\Hyper-Alpha-Arena\\data\\gate_edge_audit.json"
+      ]
+    },
+    {
+      "id": "position_event_consistency",
+      "desc": "持仓与事件流一致性（记账口径 §43/§44）",
+      "argv": [
+        "backend/scripts/audit_position_event_consistency.py"
+      ],
+      "rc": 0,
+      "seconds": 1.0,
+      "tail": [
+        "    #3000 BTC mid 减仓=7 计数列=0",
+        "",
+        "验收判定：",
+        "  [未达标] reduce_count 与减仓事件数一致率 ≥95% — 不一致 104/193",
+        "  [未达标] 无仓位超过单仓减仓上限 — > 3 次的仓位 23 笔",
+        "  [达标] 已平仓仓位均有终局事件 — 缺终局事件 0 笔",
+        "",
+        "已写入 D:\\001Alpha\\Hyper-Alpha-Arena\\data\\position_event_consistency.json"
+      ]
+    },
+    {
+      "id": "paper_live_divergence",
+      "desc": "paper/live 两态分叉清单（§65/§66 之后持续盯）",
+      "argv": [
+        "backend/scripts/audit_paper_live_divergence.py"
+      ],
+      "rc": 0,
+      "seconds": 0.8,
+      "tail": [
+        "",
+        "=== ROUTING 类 ===",
+        "  backend/services/full_auto/midlong_helpers.py:201  if _trade_mode == 'paper'",
+        "  backend/services/full_auto/midlong_helpers.py:690  if _acct_pf and _is_live_mid",
+        "  backend/services/full_auto/paper_execution.py:175  if _trading_mode == 'paper'",
+        "  backend/services/full_auto/master_execution.py:1643  if mode == 'live'",
+        "",
+        "已写入 D:\\001Alpha\\Hyper-Alpha-Arena\\data\\paper_live_divergence.json"
+      ]
+    },
+    {
+      "id": "breaker_harm",
+      "desc": "熔断是否误伤盈利通道 / 漏报亏损通道（净额口径 × 滚动窗胜率）",
+      "argv": [
+        "_audit_ml/Z235_breaker_harm_check.py"
+      ],
+      "rc": 0,
+      "seconds": 2.2,
+      "tail": [
+        "",
+        "【C. 独立复核：状态窗口 vs DB 重算】",
+        "  ✅ 全部一致（窗口内胜场数逐键相同）",
+        "",
+        "【D. 判定汇总】",
+        "  误伤（shadow 但窗口净额>0）：0 条 []",
+        "  漏报（未 shadow 但窗口胜率<0.4 且净额<0）：0 条 []",
+        "  一致（shadow 且窗口净额<=0）：7 条"
+      ]
+    },
+    {
+      "id": "suppression_safety",
+      "desc": "出场抑制安全：保护性通道永不被抑制 + 无悬挂仓位（无事件则 NO_DATA）",
+      "argv": [
+        "_audit_ml/Z236_suppression_safety_monitor.py",
+        "7"
+      ],
+      "rc": 0,
+      "seconds": 2.2,
+      "tail": [
+        "====================================================================================================",
+        "P19-B 出场抑制安全监控（近 7 天）｜悬挂上限 48.0h",
+        "====================================================================================================",
+        "抑制事件来源：position_exit_events=0｜session.event_log=0｜合计 0",
+        "判定：**NO_DATA**（窗口内没有被抑制的离场 ⇒ 无法证伪，也不假装通过）",
+        "",
+        "证据过期 ⇒ 只记录不抑制（P27-A）计数：（本日志窗口内无）",
+        "快照：D:\\001Alpha\\Hyper-Alpha-Arena\\data\\audit_reports\\suppression_safety_20260911_1728.json"
+      ]
+    },
+    {
+      "id": "breaker_evidence_age",
+      "desc": "熔断证据新鲜度：shadow+可抑制通道的最新样本年龄（过期=冻结候选）",
+      "argv": [
+        "_audit_ml/Z241_breaker_evidence_lock.py"
+      ],
+      "rc": 0,
+      "seconds": 2.2,
+      "tail": [
+        "  证据冻结（shadow + 可抑制 + 最新样本 > 7 天）：2 个",
+        "    ❗ mid|midlong: 最新样本 8.0 天｜窗口 17 笔｜累计 17 笔",
+        "    ❗ mid|trend_broken: 最新样本 14.2 天｜窗口 30 笔｜累计 65 笔",
+        "",
+        "  机制说明：抑制发生在 `record_close()` **之前** ⇒ 被抑制的通道不再产生样本 ⇒",
+        "  窗口只增不减（在别的通道上增），该通道的胜率**永久冻结**；",
+        "  自愈只能靠：① DB 重回填（`backfill_exit_channel_breaker.py`，手动）",
+        "  ② 证据过期规则（本脚本的 `is_evidence_frozen`，待决策 P27）③ 定期放行一次探针离场。"
+      ]
+    }
+  ],
+  "failed": [],
+  "runtime_snapshot": {
+    "generated_at": "2026-09-11 17:28:17",
+    "funnel_2h": {
+      "skips": 28,
+      "opened": 7,
+      "open_attempts": 20,
+      "by_stage_skip": {
+        "exec": 5,
+        "hub": 5,
+        "writer": 18
+      },
+      "top_skip_reasons": [
+        {
+          "reason": "chart_gate_veto",
+          "count": 18
+        },
+        {
+          "reason": "hub_wait_or_neutral",
+          "count": 5
+        },
+        {
+          "reason": "fixed_symbol_gate",
+          "count": 2
+        },
+        {
+          "reason": "evaluate_and_execute_returned_false",
+          "count": 1
+        },
+        {
+          "reason": "midlong_1w_missing",
+          "count": 1
+        },
+        {
+          "reason": "midlong_cooldown_block",
+          "count": 1
+        }
+      ]
+    },
+    "funnel_24h": {
+      "skips": 544,
+      "opened": 31,
+      "open_attempts": 60,
+      "by_stage_skip": {
+        "exec": 487,
+        "writer": 37,
+        "hub": 20
+      },
+      "top_skip_reasons": [
+        {
+          "reason": "portfolio_budget_block",
+          "count": 252
+        },
+        {
+          "reason": "midlong_portfolio_block",
+          "count": 161
+        },
+        {
+          "reason": "midlong_cooldown_block",
+          "count": 58
+        },
+        {
+          "reason": "chart_gate_veto",
+          "count": 37
+        },
+        {
+          "reason": "hub_wait_or_neutral",
+          "count": 20
+        },
+        {
+          "reason": "fixed_symbol_gate",
+          "count": 8
+        }
+      ]
+    },
+    "funnel_168h": {
+      "skips": 8901,
+      "opened": 187,
+      "open_attempts": 165,
+      "by_stage_skip": {
+        "trend": 484,
+        "exec": 5457,
+        "writer": 2888,
+        "hub": 72
+      },
+      "top_skip_reasons": [
+        {
+          "reason": "evaluate_and_execute_returned_false",
+          "count": 3124
+        },
+        {
+          "reason": "midlong_portfolio_block",
+          "count": 1638
+        },
+        {
+          "reason": "chart_gate_veto",
+          "count": 1597
+        },
+        {
+          "reason": "midlong_short_off",
+          "count": 947
+        },
+        {
+          "reason": "L1=sideways",
+          "count": 469
+        },
+        {
+          "reason": "portfolio_budget_block",
+          "count": 455
+        }
+      ]
+    },
+    "gates": {
+      "MIDLONG_MAX_NET_EXPOSURE_PCT": 1.5,
+      "MIDLONG_MAX_OPEN_POSITIONS": 4,
+      "MIDLONG_MAX_SAME_SYMBOL_POSITIONS": 2,
+      "MIDLONG_CORR_CLUSTER_MAX": 2,
+      "MIDLONG_EV_ENFORCE_MID": true,
+      "PB_MIDLONG_DRAWDOWN_SIGMA": 10.0,
+      "PB_DD_STALE_HOURS": 12.0,
+      "PB_FREEZE_ENABLED": false,
+      "TIER_mid_cooldown_sec": 1800,
+      "TIER_long_cooldown_sec": 14400
+    },
+    "drawdown": {
+      "ratio": 23.6046,
+      "sigma": 10.019,
+      "drawdown": 236.4943,
+      "peak": 41.1917,
+      "last_value": -195.3026,
+      "n_samples": 171,
+      "last_sample_ts": "2026-09-10 20:48:03",
+      "age_hours": 20.672
+    }
+  }
+}

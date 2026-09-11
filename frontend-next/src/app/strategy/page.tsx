@@ -14,12 +14,10 @@ import Link from "next/link";
 import { useSessions, usePositions, useAccounts } from "@/hooks/useTradingData";
 import { SessionManager } from "@/components/trading/SessionManager";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, apiRequest } from "@/lib/api";
 import type { AtasDecision, AiDecisionEntry, Position, TickIntervals } from "@/types/api";
 import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { getBackendUrl } from "@/lib/backend-config";
-const BACKEND = getBackendUrl().replace(/\/$/, "");
 
 export default function StrategyPage() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions();
@@ -32,7 +30,7 @@ export default function StrategyPage() {
   const { data: tickData } = useQuery({
     queryKey: ["tick-intervals"],
     queryFn: (): Promise<TickIntervals> =>
-      fetch(`${BACKEND}/api/full-auto/tick-intervals`).then((r) => r.json()),
+      apiRequest<TickIntervals>("/full-auto/tick-intervals", { timeout: 15_000 }),
     staleTime: 60_000,
   });
   const tickIntervals = tickData?.intervals ?? { short: 30, mid: 120, long: 240 };
@@ -68,7 +66,7 @@ export default function StrategyPage() {
       <PageHeader
         icon={<Brain className="w-4 h-4" />}
         title="AI 策略"
-        subtitle="多周期 AI 决策引擎 · 编排器驱动实盘执行"
+        subtitle="中长线 LLM 论题主脑 · 没有新鲜论题不开仓"
         refreshHint="决策流实时"
         breadcrumb={[{ label: "策略中心" }, { label: "AI 策略" }]}
         actions={
@@ -190,21 +188,21 @@ export default function StrategyPage() {
               name="短线 Scalp"
               icon={Zap}
               color="primary"
-              description="因子引擎 · 5m K线"
+              description="新开已禁 · 已有仓只许平"
               positions={scalpPos}
               configPath="/scalp"
               tickInterval={`${tickIntervals.short}s`}
               holdRange="1h~12h"
             />
             <StrategyTierCard
-              name="长线 Trend (含中周期)"
+              name="中长线 LLM 论题"
               icon={TrendingUp}
               color="warning"
-              description="TrendAgent 长线 · 4h/1d；中线因子化(过渡期 MLTO 对照)"
+              description="唯一新开理由：新鲜 accepted 论题 · 因子/V2/图审是证据"
               positions={[...trendPos, ...swingPos]}
               configPath="/long"
-              tickInterval={`${tickIntervals.long}s`}
-              holdRange="中周期~7天"
+              tickInterval={`${tickData?.long_loop_sec ?? 45}s`}
+              holdRange="中周期~数日"
             />
           </div>
 
@@ -396,9 +394,8 @@ function SignalFlow({ accountId }: { accountId: number | null }) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["atas-decisions", accountId],
     queryFn: async () => {
-      const res = await fetch(`${BACKEND}/api/atas/decisions?limit=50`);
-      if (!res.ok) return [];
-      const json = await res.json();
+      // [2026-09-09] 裸 fetch → apiRequest（带 token + 单飞续期 + 401 重试/登出 + 超时）
+      const json = await apiRequest<any>("/atas/decisions?limit=50", { timeout: 15_000 });
       return Array.isArray(json) ? json : (json.decisions ?? json.items ?? []);
     },
     staleTime: 15_000,

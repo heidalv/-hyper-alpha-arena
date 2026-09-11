@@ -3,6 +3,7 @@
 
 engine:
   default_mode: paper          # paper | live
+  # 套利附属于实盘合约交易：资金池上限/仓位比例/杠杆均从本配置控制
   max_pool_pct_of_equity: 0.30
   daily_loss_limit_pct: 0.03
   position_size_pct: 0.20
@@ -31,6 +32,9 @@ funding:
   min_annual_yield: 0.15
   max_position_usd: 10000.0
   max_holding_hours: 72
+  # 套利杠杆（附在实盘合约交易上的附带套利：双腿对冲，低杠杆即可；
+  # env ARB_FUNDING_LEVERAGE 可覆盖）
+  leverage: 3.0
 
 capital_allocation:
   # 与 Rebate 系统共享的全局分配（占权益比例，总和 <= 1.0）

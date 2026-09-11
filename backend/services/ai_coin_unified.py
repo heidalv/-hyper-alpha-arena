@@ -64,6 +64,169 @@ def _write_state(session_id: str, state: Dict[str, Any]) -> None:
             logger.warning("[AiCoinUnified] write state fail %s: %s", session_id, e)
 
 
+_HARD_DENY_SYMBOLS = frozenset({
+    # 股票 / ETF / 传统资产永续（交易所目录里也有，必须硬拒绝）
+    "TSLA", "AAPL", "MSFT", "NVDA", "AMZN", "GOOG", "GOOGL", "META", "NFLX",
+    "AMD", "INTC", "COIN", "MSTR", "HOOD", "CRCL",
+    "EWY", "SPY", "QQQ", "IWM", "DIA", "SOXL", "SOXS", "TQQQ", "SQQQ",
+    "SKHYNIX", "SNDK", "NATGAS", "GOLD", "SILVER", "CL", "GC",
+})
+
+
+def _ai_quality_thresholds() -> Dict[str, float]:
+    """流动性 / 新鲜度门槛（可用环境变量覆盖）。"""
+    try:
+        from backend.config.settings import AUTO_COIN_MIN_VOLUME_24H
+        min_vol = float(AUTO_COIN_MIN_VOLUME_24H)
+    except Exception:
+        min_vol = 2_000_000.0
+    min_vol = float(os.getenv("AI_COIN_MIN_VOLUME_24H", str(min_vol)) or min_vol)
+    require_hl = str(os.getenv("AI_COIN_REQUIRE_HYPERLIQUID", "1")).strip().lower() not in (
+        "0", "false", "no", "off",
+    )
+    max_age_h = float(os.getenv("AI_COIN_MAX_KLINE_AGE_H", "6") or 6)
+    max_rank = int(float(os.getenv("AI_COIN_MAX_VOLUME_RANK", "120") or 120))
+    return {
+        "min_vol": max(0.0, min_vol),
+        "require_hl": 1.0 if require_hl else 0.0,
+        "max_age_sec": max(600.0, max_age_h * 3600.0),
+        "max_rank": max(10, max_rank),
+    }
+
+
+def _liquidity_snapshot() -> Dict[str, Dict[str, Any]]:
+    """{SYM: {volume_24h, exchanges, rank}}；失败返回空 dict（调用方 fail-open）。"""
+    try:
+        from backend.services.data_center import data_center
+        tickers = data_center.get_all_market_tickers() or {}
+    except Exception as exc:
+        logger.debug("[AiCoinUnified] ticker snapshot skip: %s", exc)
+        return {}
+    ranked = sorted(
+        tickers.items(),
+        key=lambda kv: -float((kv[1] or {}).get("volume_24h") or 0.0),
+    )
+    out: Dict[str, Dict[str, Any]] = {}
+    for i, (sym, data) in enumerate(ranked):
+        u = str(sym or "").strip().upper()
+        if not u or not isinstance(data, dict):
+            continue
+        out[u] = {
+            "volume_24h": float(data.get("volume_24h") or 0.0),
+            "exchanges": [str(x).lower() for x in (data.get("exchanges") or [])],
+            "rank": i + 1,
+        }
+    return out
+
+
+def _kline_ages_sec(symbols: List[str]) -> Dict[str, float]:
+    """1m K 线最新年龄（秒）；查库失败则返回空（fail-open）。"""
+    if not symbols:
+        return {}
+    try:
+        from sqlalchemy import text
+        from backend.database.connection import MarketSessionLocal
+    except Exception:
+        return {}
+    ages: Dict[str, float] = {}
+    now = time.time()
+    try:
+        with MarketSessionLocal() as db:
+            for s in symbols:
+                row = db.execute(
+                    text(
+                        "SELECT MAX(timestamp) FROM crypto_klines "
+                        "WHERE symbol=:s AND period='1m'"
+                    ),
+                    {"s": s},
+                ).scalar()
+                if row is None:
+                    ages[s] = 1e18
+                else:
+                    ages[s] = max(0.0, now - float(row))
+    except Exception as exc:
+        logger.debug("[AiCoinUnified] kline age skip: %s", exc)
+        return {}
+    return ages
+
+
+def filter_tradeable_ai_symbols(symbols: List[str]) -> List[str]:
+    """AI 选币可读/可写过滤：股票 ETF / 目录 / 流动性 / 新鲜度。
+
+    目录或行情快照拉取失败时 fail-open（只应用硬拒绝表），避免 DC 抖动清空选币。
+    """
+    raw = [str(s).strip().upper() for s in (symbols or []) if s]
+    if not raw:
+        return []
+    hard = [s for s in raw if s not in _HARD_DENY_SYMBOLS]
+    denied_hard = [s for s in raw if s in _HARD_DENY_SYMBOLS]
+    if denied_hard:
+        logger.info("[AiCoinUnified] hard-deny non-crypto: %s", denied_hard)
+
+    allowed: set = set()
+    try:
+        from backend.services.exchange_config import get_active_exchange
+        from backend.services.market_scanner import MarketScanner
+        ex = (get_active_exchange() or "binance").strip().lower()
+        catalog = MarketScanner.get_all_tradable_symbols(ex) or []
+        for c in catalog:
+            u = str(c or "").strip().upper()
+            if not u:
+                continue
+            allowed.add(u)
+            if u.endswith("USDT") and len(u) > 4:
+                allowed.add(u[:-4])
+            if u.endswith("USD") and len(u) > 3:
+                allowed.add(u[:-3])
+    except Exception as exc:
+        logger.debug("[AiCoinUnified] catalog filter skip: %s", exc)
+        return hard
+
+    if not allowed:
+        return hard
+
+    in_catalog: List[str] = []
+    dropped_cat: List[str] = []
+    for s in hard:
+        if s in allowed or f"{s}USDT" in allowed:
+            in_catalog.append(s)
+        else:
+            dropped_cat.append(s)
+    if dropped_cat:
+        logger.info("[AiCoinUnified] drop not-in-catalog: %s", dropped_cat)
+
+    th = _ai_quality_thresholds()
+    liq = _liquidity_snapshot()
+    ages = _kline_ages_sec(in_catalog) if in_catalog else {}
+
+    out: List[str] = []
+    dropped_q: List[str] = []
+    for s in in_catalog:
+        reasons: List[str] = []
+        snap = liq.get(s) if liq else None
+        if snap is not None:
+            vol = float(snap.get("volume_24h") or 0.0)
+            rank = int(snap.get("rank") or 10**9)
+            exs = set(snap.get("exchanges") or [])
+            if vol < float(th["min_vol"]):
+                reasons.append(f"vol<{th['min_vol']:.0f}")
+            if rank > int(th["max_rank"]):
+                reasons.append(f"rank>{int(th['max_rank'])}")
+            if th["require_hl"] >= 1.0 and "hyperliquid" not in exs:
+                reasons.append("no_hyperliquid")
+        # 无行情快照时不做流动性否决（fail-open）
+        age = ages.get(s) if ages else None
+        if age is not None and age > float(th["max_age_sec"]):
+            reasons.append(f"kline_age>{th['max_age_sec']:.0f}s")
+        if reasons:
+            dropped_q.append(f"{s}({','.join(reasons)})")
+            continue
+        out.append(s)
+    if dropped_q:
+        logger.info("[AiCoinUnified] drop low-quality: %s", dropped_q)
+    return out
+
+
 def set_tier_symbols(
     session_id: str,
     tier: str,
@@ -76,11 +239,19 @@ def set_tier_symbols(
     tier = (tier or "").strip().lower()
     if tier not in ("short", "mid"):
         return
+    # [2026-09-07] 写入前过滤不可交易垃圾（TSLA/BZ 等），避免污染下游 universe
+    cleaned = filter_tradeable_ai_symbols([str(s).upper() for s in symbols if s])
+    dropped = [str(s).upper() for s in symbols if s and str(s).upper() not in set(cleaned)]
+    if dropped:
+        logger.info(
+            "[AiCoinUnified] drop untradeable on write session=%s tier=%s dropped=%s",
+            session_id, tier, dropped,
+        )
     state = _read_state(session_id)
     state.setdefault("version", 1)
     state.setdefault("session_id", str(session_id))
     state[tier] = {
-        "symbols": [str(s).upper() for s in symbols if s],
+        "symbols": cleaned,
         "updated_at": time.time(),
         "reason": reason or "",
     }
@@ -188,4 +359,5 @@ def get_ai_coin_symbols(
             if u and u not in seen:
                 seen.add(u)
                 out.append(u)
-    return out
+    # [2026-09-07] 读路径也过滤，清历史脏状态（TSLA/BZ 等）
+    return filter_tradeable_ai_symbols(out)

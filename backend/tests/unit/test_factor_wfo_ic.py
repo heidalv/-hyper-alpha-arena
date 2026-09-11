@@ -149,20 +149,35 @@ class TestRunFactorWfoIc:
 # ════════════════════════════════════════════════════════
 
 class TestEvolutionLoopIcWfo:
-    def _run_loop(self, ic_wfo_result):
+    def _run_loop(self, ic_wfo_result, wfo_gate: str = "true"):
+        """跑一遍进化主链。
+
+        [2026-09-02 E14 契约同步] 必须显式设置 FEATURE_WFO_GATE_ENABLED。
+        F36b（09-02）让进化主链真正读取该开关，而仓库 .env 里它是 false
+        （运维决定：WFO 多币验证误杀，交由 PAPER 影子期 OOS 兜底）。测试进程会
+        加载 .env，于是本类原先实际测到的是「开关关闭时不拦截」——与用例名声称的
+        「拒绝→拦截」正好相反，属于漏设前提而非代码放松。
+        """
+        import os as _os
+        from unittest.mock import patch as _patch
+
         from backend.services.evolution import factor_evolution_loop as fel
         from backend.services.factor_engine.expr.parser import parse
 
         ast = {"op": "mean", "args": [{"f": "returns"}, {"c": 5}]}
         expr = parse(ast)
         dfs = {"BTC": _make_klines(rows=500, seed=21)}
+        _env_patch = _patch.dict(
+            _os.environ, {"FEATURE_WFO_GATE_ENABLED": wfo_gate},
+        )
 
         logged = []
 
         def fake_log(factor_id, phase, **kwargs):
             logged.append((factor_id, phase, kwargs))
 
-        with patch.object(fel, "_load_data", return_value=dfs), \
+        with _env_patch, \
+             patch.object(fel, "_load_data", return_value=dfs), \
              patch.object(fel, "_ensure_governance_columns"), \
              patch.object(fel, "_mine_candidates",
                           return_value=[(expr, "mom5")]), \
@@ -209,7 +224,7 @@ class TestEvolutionLoopIcWfo:
         return report, logged, expr.expr_id
 
     def test_ic_wfo_reject_blocks_promotion(self):
-        """IC-WFO 拒绝 → 晋升被拦截 + 日志 action=wfo_ic_reject。"""
+        """IC-WFO 拒绝 → 晋升被拦截 + 日志 action=wfo_ic_reject（门禁开启时）。"""
         report, logged, fid = self._run_loop({
             "passed": False, "skipped": False,
             "oos_ic_mean": -0.01, "oos_ic_p": 0.9, "decay_rate": 0.8,
@@ -227,4 +242,18 @@ class TestEvolutionLoopIcWfo:
             "oos_ic_mean": 0.03, "oos_ic_p": 0.01, "decay_rate": 0.2,
         })
         assert report["promoted"] == 1
+        assert not [l for l in logged if l[2].get("action") == "wfo_ic_reject"]
+
+    def test_gate_disabled_skips_wfo_rejection(self):
+        """[2026-09-02 E14] FEATURE_WFO_GATE_ENABLED=false → 不因 WFO 拒绝而拦截。
+
+        锁定 F36b 的开关语义（仓库 .env 当前正是 false）：门禁关闭时 WFO 的拒绝
+        结论不参与晋升决策，改由 PAPER 影子期 OOS 复检兜底。此用例与上面
+        test_ic_wfo_reject_blocks_promotion 成对，任一侧被误改都会立刻暴露。
+        """
+        report, logged, fid = self._run_loop({
+            "passed": False, "skipped": False,
+            "oos_ic_mean": -0.01, "oos_ic_p": 0.9, "decay_rate": 0.8,
+        }, wfo_gate="false")
+        assert report["promoted"] == 1, "门禁关闭时不应因 WFO 拒绝而拦截晋升"
         assert not [l for l in logged if l[2].get("action") == "wfo_ic_reject"]

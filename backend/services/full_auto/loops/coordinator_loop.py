@@ -94,19 +94,32 @@ def _run_unified_loop_inner(svc: "FullAutoTradingService", session_id: str) -> N
                 due_tiers.append("long")
 
         if session_status in ("running", "defensive") and due_tiers:
-            logger.info(
-                f"[FullAuto] tick#{tick} 🧠AI周期 {session_id} "
-                f"tiers={due_tiers} (status={session_status})"
+            from backend.config.settings import (
+                MIDLONG_AGENT_INDEPENDENT_SCHEDULER,
+                SCALP_OPEN_DISABLED,
             )
-            try:
-                self._run_trading_cycle(session_id, ai_tiers=due_tiers)
-                # [中长线合并] 主循环已把 mid/long LLM+开仓委派给独立循环
-                # （_skip_agent_llm=True），不再标记 tier_run，否则独立循环
-                # 会因 due 被清空而提前空转（"due 为空，提前 return"）。
-                # 独立循环按自身 job 周期 + batch 轮换稳定调度。
-                mark_tier_run(session_id, [t for t in due_tiers if t == "short"])
-            except Exception as _tc_err:
-                logger.error(f"[FullAuto] AI周期异常: {_tc_err}", exc_info=True)
+            _ai = [t for t in due_tiers if t == "short"] if MIDLONG_AGENT_INDEPENDENT_SCHEDULER else list(due_tiers)
+            if SCALP_OPEN_DISABLED:
+                _ai = [t for t in _ai if t != "short"]
+            if _ai:
+                logger.info(
+                    f"[FullAuto] tick#{tick} 🧠AI周期 {session_id} "
+                    f"tiers={_ai} (status={session_status})"
+                )
+                try:
+                    self._run_trading_cycle(session_id, ai_tiers=_ai)
+                    # [中长线合并] 主循环已把 mid/long LLM+开仓委派给独立循环
+                    # （_skip_agent_llm=True），不再标记 tier_run，否则独立循环
+                    # 会因 due 被清空而提前空转（"due 为空，提前 return"）。
+                    # 独立循环按自身 job 周期 + batch 轮换稳定调度。
+                    mark_tier_run(session_id, [t for t in _ai if t == "short"])
+                except Exception as _tc_err:
+                    logger.error(f"[FullAuto] AI周期异常: {_tc_err}", exc_info=True)
+            else:
+                logger.debug(
+                    f"[FullAuto] tick#{tick} 中长线由独立循环负责，协调器跳过分析师开仓 "
+                    f"{session_id} due={due_tiers}"
+                )
         elif session_status in ("running", "defensive"):
             logger.debug(
                 f"[FullAuto] tick#{tick} 轻量协调 {session_id} "

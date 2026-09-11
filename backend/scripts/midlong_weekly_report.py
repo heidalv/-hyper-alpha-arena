@@ -355,6 +355,79 @@ def compute_max_same_dir_exposure(positions) -> dict:
     }
 
 
+def compute_brain_audit(db, days: int) -> dict:
+    """主脑验收：新开必须 source=mlto；scalp/E1/因子新开应为 0。"""
+    out = {
+        "opens_by_source": {},
+        "opens_by_nature": {},
+        "scalp_opens": 0,
+        "e1_opens": 0,
+        "factor_opens": 0,
+        "mlto_opens": 0,
+        "thesis": {},
+        "error": "",
+    }
+    try:
+        rows = db.execute(
+            text("""
+                SELECT trade_nature, timeframe_tier, COALESCE(exit_state_json, '{}') AS st
+                FROM paper_positions
+                WHERE opened_at >= now() - make_interval(days => :d)
+            """),
+            {"d": int(days)},
+        ).mappings().all()
+        for r in rows:
+            nature = str(r.get("trade_nature") or "").lower()
+            tier = str(r.get("timeframe_tier") or "").lower()
+            st = r.get("st") or {}
+            if isinstance(st, str):
+                try:
+                    st = json.loads(st)
+                except Exception:
+                    st = {}
+            src = str((st or {}).get("entry_source") or "unknown").lower()
+            out["opens_by_source"][src] = out["opens_by_source"].get(src, 0) + 1
+            out["opens_by_nature"][nature or tier] = out["opens_by_nature"].get(nature or tier, 0) + 1
+            if nature in ("scalp", "intraday") or tier == "short":
+                out["scalp_opens"] += 1
+            if src == "e1" or "trend_e1" in src:
+                out["e1_opens"] += 1
+            if src == "factor_route":
+                out["factor_opens"] += 1
+            if src == "mlto":
+                out["mlto_opens"] += 1
+    except Exception as exc:
+        out["error"] = str(exc)[:160]
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        adb = AnalyticsSessionLocal()
+        try:
+            row = adb.execute(
+                text("""
+                    SELECT
+                      COUNT(*) AS n,
+                      SUM(CASE WHEN COALESCE(accepted, 0) = 1 THEN 1 ELSE 0 END) AS accepted_n,
+                      SUM(CASE WHEN COALESCE(recommend_open, 0) = 1 THEN 1 ELSE 0 END) AS rec_open_n,
+                      SUM(CASE WHEN COALESCE(should_close, 0) = 1 THEN 1 ELSE 0 END) AS should_close_n
+                    FROM mlto_thesis
+                    WHERE updated_at >= now() - make_interval(days => :d)
+                """),
+                {"d": int(days)},
+            ).mappings().first()
+            if row:
+                out["thesis"] = {
+                    "n": int(row.get("n") or 0),
+                    "accepted": int(row.get("accepted_n") or 0),
+                    "recommend_open": int(row.get("rec_open_n") or 0),
+                    "should_close": int(row.get("should_close_n") or 0),
+                }
+        finally:
+            adb.close()
+    except Exception as exc:
+        out["thesis"] = {"error": str(exc)[:120]}
+    return out
+
+
 def compute_nibble_conversion(days: int) -> dict:
     """Hub NIBBLE/BUILD → 24h 内中长线开仓转化率（analytics DB）。"""
     import json as _json
@@ -531,6 +604,95 @@ def compute_tp_stage_stats(positions) -> dict:
     return stats
 
 
+def compute_giveback_audit(db, days: int) -> dict:
+    """「先盈利后大亏」审计（§23 #10 / §33 / §34）——复用审计脚本的纯函数聚合。
+
+    只做聚合（tier / 来源家族 / 模式率 / 回吐严重度），**不做门判定**：
+    门判定需要行情库 + 特征构建，周报路径不引入该依赖；
+    需要门放行/拦截维度时手动跑 `backend/scripts/audit_profit_giveback.py`。
+    """
+    try:
+        from backend.scripts.audit_profit_giveback import (
+            source_family,
+            summarize,
+            total_usd,
+        )
+    except Exception as exc:  # pragma: no cover - 仅依赖缺失时
+        return {"error": f"import: {exc}"[:160]}
+    try:
+        rows = db.execute(
+            text("""
+                SELECT symbol, timeframe_tier, strategy_id, entry_price,
+                       original_size, size, peak_pnl_pct, unrealized_pnl,
+                       partial_realized_pnl, partial_fee_paid, close_reason, opened_at
+                FROM paper_positions
+                WHERE timeframe_tier IN ('mid','long') AND status = 'closed'
+                  AND closed_at >= now() - make_interval(days => :d)
+            """),
+            {"d": int(days)},
+        ).mappings().all()
+    except Exception as exc:
+        return {"error": str(exc)[:160]}
+    out_rows = []
+    for r in rows:
+        entry = float(r["entry_price"] or 0)
+        sz0 = float(r["original_size"] or r["size"] or 0)
+        if entry <= 0 or sz0 <= 0:
+            continue
+        out_rows.append({
+            "tier": str(r["timeframe_tier"]), "symbol": r["symbol"],
+            "family": source_family(str(r["strategy_id"] or "")),
+            "peak_pnl_pct": float(r["peak_pnl_pct"] or 0),
+            "notional0": entry * sz0,
+            "usd": total_usd(r),
+            "close_reason": str(r["close_reason"] or ""),
+            "opened_at": str(r["opened_at"])[:19],
+        })
+    return summarize(out_rows)
+
+
+def render_giveback_section(rep: Optional[dict]) -> list:
+    """把审计结果渲染成周报小节（纯函数，便于测试）。"""
+    lines = []
+    if not rep:
+        return lines
+    lines.append("## 浮盈回吐验收（§23 #10 / §33 / §34）")
+    lines.append("")
+    if rep.get("error"):
+        lines.append(f"- 审计查询失败: {rep.get('error')}")
+        lines.append("")
+        return lines
+    lines.append(
+        f"- 模式笔（峰值≥0.5% 后总 USD 亏损）: {rep.get('pattern_n', 0)} 笔 / "
+        f"USD {float(rep.get('pattern_usd') or 0):+.2f}"
+    )
+    for t, b in sorted((rep.get("by_tier") or {}).items()):
+        lines.append(
+            f"- [{t}] n={b.get('n', 0)} 总USD={float(b.get('usd') or 0):+.2f} "
+            f"胜率={b.get('win_rate')} 大亏(≤-2%)={b.get('big_loss_n', 0)} "
+            f"模式={b.get('pattern_n', 0)}({b.get('pattern_rate')}) "
+            f"{float(b.get('pattern_usd') or 0):+.2f} | "
+            f"回吐合计={b.get('giveback_pct_sum')}% 中位={b.get('median_giveback_pct')}%"
+        )
+    fam = rep.get("by_family") or {}
+    worst = sorted(fam.items(), key=lambda kv: float(kv[1].get("pattern_usd") or 0))[:3]
+    if worst:
+        lines.append(
+            "- 模式 USD 最差来源家族: "
+            + " / ".join(
+                f"{k}(n={v.get('n')}, 模式率={v.get('pattern_rate')}, "
+                f"{float(v.get('pattern_usd') or 0):+.2f})"
+                for k, v in worst
+            )
+        )
+    for v in (rep.get("verdicts") or []):
+        lines.append(
+            f"- [{'达标' if v.get('ok') else '未达标'}] {v.get('name')} — {v.get('detail')}"
+        )
+    lines.append("")
+    return lines
+
+
 def render_report(
     days: int,
     order_stats: dict,
@@ -542,6 +704,8 @@ def render_report(
     nibble: Optional[dict] = None,
     funnel: Optional[dict] = None,
     data_source: str = "paper_db",
+    brain: Optional[dict] = None,
+    giveback: Optional[dict] = None,
 ) -> str:
     lines = []
     lines.append(f"# 中长线策略周度绩效报表（近 {days} 天）")
@@ -552,6 +716,7 @@ def render_report(
         "paper_orders + paper_positions + paper_funding_ledger + mlto_thesis_events"
         if data_source == "paper_db"
         else "event_log.jsonl（paper_* 空库回退）+ mlto_thesis_events + midlong_direction_audit.jsonl"
+             "（含 .N 轮转备份，见 §57）"
     )
     lines.append(
         f"> 数据来源: {_src_note}。对应 04 综合方案 §3.5 / P3 证明闭环。"
@@ -563,6 +728,35 @@ def render_report(
             "盈亏/开仓以事件日志为准。"
         )
     lines.append("")
+
+    if brain:
+        lines.append("## LLM 主脑验收")
+        lines.append("")
+        if brain.get("error"):
+            lines.append(f"- 开仓审计查询失败: {brain.get('error')}")
+        else:
+            lines.append(
+                f"- 新开 by source: "
+                + (" / ".join(f"{k}={v}" for k, v in sorted((brain.get("opens_by_source") or {}).items())) or "无")
+            )
+            lines.append(
+                f"- source=mlto 新开: {brain.get('mlto_opens', 0)} | "
+                f"scalp={brain.get('scalp_opens', 0)} | "
+                f"factor_route={brain.get('factor_opens', 0)} | "
+                f"E1={brain.get('e1_opens', 0)}"
+            )
+            lines.append(
+                "- 验收线：主脑切流后 scalp / factor_route / E1 新开应为 0，中长线新开应带 source=mlto"
+            )
+        th = brain.get("thesis") or {}
+        if th.get("error"):
+            lines.append(f"- 论题账本: {th.get('error')}")
+        elif th:
+            lines.append(
+                f"- 论题(近窗): n={th.get('n', 0)} accepted={th.get('accepted', 0)} "
+                f"recommend_open={th.get('recommend_open', 0)} should_close={th.get('should_close', 0)}"
+            )
+        lines.append("")
 
     # ── P3 KPI 总览 ──
     lines.append("## P3 证明闭环 KPI")
@@ -617,6 +811,8 @@ def render_report(
             f"short={exposure.get('max_short_count', 0)}"
         )
     lines.append("")
+
+    lines.extend(render_giveback_section(giveback))
 
     for nature in NATURES:
         s = order_stats.get(nature)
@@ -758,11 +954,14 @@ def generate_report(days: int = 14) -> str:
             funnel = summarize_decision_funnel(float(days) * 24.0)
         except Exception as _fun_err:
             funnel = {"error": str(_fun_err)[:120]}
+        brain = compute_brain_audit(db, days)
+        giveback = compute_giveback_audit(db, days)
         return render_report(
             days, order_stats, tp_stats, reopen,
             open_stats=open_stats, funding=funding,
             exposure=exposure, nibble=nibble,
             funnel=funnel, data_source=data_source,
+            brain=brain, giveback=giveback,
         )
     finally:
         db.close()

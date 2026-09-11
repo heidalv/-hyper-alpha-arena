@@ -1,0 +1,2069 @@
+{
+  "n_py": 2865,
+  "gates": [
+    {
+      "name": "gateway_status",
+      "file": "backend\\api\\analysis_routes.py",
+      "line": 63,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "gateway_test",
+      "file": "backend\\api\\analysis_routes.py",
+      "line": 77,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_aggregate_account_stats",
+      "file": "backend\\api\\arena_routes.py",
+      "line": 299,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\arena_routes.py"
+      ]
+    },
+    {
+      "name": "check_risk",
+      "file": "backend\\api\\atas_v2_routes.py",
+      "line": 153,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\arbitrage_routes.py",
+        "backend\\api\\atas_v2_routes.py",
+        "backend\\services\\risk_management\\risk_controller.py"
+      ]
+    },
+    {
+      "name": "update_trading_gate",
+      "file": "backend\\api\\config_routes.py",
+      "line": 468,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_compute_aggregates",
+      "file": "backend\\api\\data_center_routes.py",
+      "line": 53,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_ensure_aggregates",
+      "file": "backend\\api\\data_center_routes.py",
+      "line": 85,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\data_center_routes.py"
+      ]
+    },
+    {
+      "name": "_load_aggregates",
+      "file": "backend\\api\\data_center_routes.py",
+      "line": 96,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\data_center_routes.py"
+      ]
+    },
+    {
+      "name": "_is_block_event",
+      "file": "backend\\api\\full_auto_routes.py",
+      "line": 1320,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\full_auto_routes.py"
+      ]
+    },
+    {
+      "name": "hermes_block_patterns",
+      "file": "backend\\api\\hermes_routes.py",
+      "line": 265,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_gate_stats",
+      "file": "backend\\api\\learning_health_routes.py",
+      "line": 76,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\learning_health_routes.py"
+      ]
+    },
+    {
+      "name": "_collect_aggregate_market",
+      "file": "backend\\api\\market_intelligence_routes.py",
+      "line": 582,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "risk_kill",
+      "file": "backend\\api\\ops_risk_routes.py",
+      "line": 92,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_gate_reasons",
+      "file": "backend\\api\\ops_routes.py",
+      "line": 103,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\ops_routes.py"
+      ]
+    },
+    {
+      "name": "f4_gate",
+      "file": "backend\\api\\promotion_routes.py",
+      "line": 89,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_classify_breaker",
+      "file": "backend\\api\\trading_routes.py",
+      "line": 557,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\trading_routes.py"
+      ]
+    },
+    {
+      "name": "_breaker_rows",
+      "file": "backend\\api\\trading_routes.py",
+      "line": 579,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\trading_routes.py"
+      ]
+    },
+    {
+      "name": "risk_breakers",
+      "file": "backend\\api\\trading_routes.py",
+      "line": 681,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "reset_breaker",
+      "file": "backend\\api\\trading_routes.py",
+      "line": 707,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "live_guard_status",
+      "file": "backend\\api\\unified_account_routes.py",
+      "line": 44,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "midlong_new_open_halted",
+      "file": "backend\\config\\settings.py",
+      "line": 2338,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 4,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py",
+        "backend\\services\\mlto\\brain.py"
+      ]
+    },
+    {
+      "name": "feature_allowed",
+      "file": "backend\\core\\permissions.py",
+      "line": 77,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\auto_coin_routes.py",
+        "backend\\api\\full_auto_routes.py",
+        "backend\\core\\permissions.py"
+      ]
+    },
+    {
+      "name": "aggregate",
+      "file": "backend\\scripts\\audit_gate_edge.py",
+      "line": 59,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 5,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\rl_routes.py",
+        "backend\\scripts\\audit_gate_edge.py",
+        "backend\\services\\market_flow\\l2_reconstructor.py",
+        "backend\\services\\rl\\system_coordinator.py"
+      ]
+    },
+    {
+      "name": "attach_gate",
+      "file": "backend\\scripts\\audit_profit_giveback.py",
+      "line": 223,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\scripts\\audit_profit_giveback.py"
+      ]
+    },
+    {
+      "name": "location_blocked",
+      "file": "backend\\scripts\\replay_midlong_policy.py",
+      "line": 163,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\scripts\\replay_midlong_policy.py"
+      ]
+    },
+    {
+      "name": "render_memory_block",
+      "file": "backend\\services\\agent_quant_feature_table.py",
+      "line": 550,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\swing_agent.py",
+        "backend\\services\\trend_agent.py"
+      ]
+    },
+    {
+      "name": "render_atr_block",
+      "file": "backend\\services\\agent_quant_feature_table.py",
+      "line": 590,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\swing_agent.py",
+        "backend\\services\\trend_agent.py"
+      ]
+    },
+    {
+      "name": "render_recent_loss_block",
+      "file": "backend\\services\\agent_quant_feature_table.py",
+      "line": 630,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\swing_agent.py",
+        "backend\\services\\trend_agent.py"
+      ]
+    },
+    {
+      "name": "rotation_remove_allowed",
+      "file": "backend\\services\\auto_coin_selector.py",
+      "line": 229,
+      "fail_open": true,
+      "fail_open_documented": true,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\auto_coin_selector.py"
+      ]
+    },
+    {
+      "name": "is_long_allowed",
+      "file": "backend\\services\\auto_coin_selector.py",
+      "line": 6043,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 3,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\api\\mlto_routes.py",
+        "backend\\services\\full_auto\\master_execution.py"
+      ]
+    },
+    {
+      "name": "record_block",
+      "file": "backend\\services\\block_report_aggregator.py",
+      "line": 69,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 4,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "record_blocked_close",
+      "file": "backend\\services\\close_guard_calibrator.py",
+      "line": 43,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\close_guard_calibrator.py"
+      ]
+    },
+    {
+      "name": "run_close_guard_calibration",
+      "file": "backend\\services\\close_guard_calibrator.py",
+      "line": 90,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\close_guard_calibrator.py",
+        "backend\\services\\evolution_scheduler.py"
+      ]
+    },
+    {
+      "name": "check_coverage_gate",
+      "file": "backend\\services\\data_center_gate.py",
+      "line": 104,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\data_center_gate.py"
+      ]
+    },
+    {
+      "name": "run_startup_gate",
+      "file": "backend\\services\\data_center_gate.py",
+      "line": 181,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\system_monitor_routes.py",
+        "backend\\main.py"
+      ]
+    },
+    {
+      "name": "allow_open_action",
+      "file": "backend\\services\\data_readiness_gate.py",
+      "line": 158,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\data_readiness_gate.py",
+        "backend\\services\\full_auto\\master_execution.py"
+      ]
+    },
+    {
+      "name": "gate_orchestrator_decision",
+      "file": "backend\\services\\data_readiness_gate.py",
+      "line": 208,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\multi_timeframe_orchestrator.py"
+      ]
+    },
+    {
+      "name": "resolve_entry_gate_pct",
+      "file": "backend\\services\\entry_confidence_gate.py",
+      "line": 16,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 4,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\entry_confidence_gate.py",
+        "backend\\services\\tier_parallel_executor.py",
+        "backend\\services\\trading_analysts.py"
+      ]
+    },
+    {
+      "name": "format_gate_hint",
+      "file": "backend\\services\\entry_confidence_gate.py",
+      "line": 76,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "ensure_breaker_log",
+      "file": "backend\\services\\lane_registry.py",
+      "line": 319,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\lane_registry.py"
+      ]
+    },
+    {
+      "name": "breaker_history",
+      "file": "backend\\services\\lane_registry.py",
+      "line": 378,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\trading_routes.py"
+      ]
+    },
+    {
+      "name": "llm2_allow",
+      "file": "backend\\services\\llm_budget_governor.py",
+      "line": 91,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 6,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\committee_shadow.py",
+        "backend\\services\\mlto\\thesis_shadow.py",
+        "backend\\services\\mlto\\trade_review_officer.py",
+        "backend\\services\\scalp\\scalp_llm_confirm.py",
+        "backend\\services\\trading_analysts.py"
+      ]
+    },
+    {
+      "name": "_forbid_shared_platform_llm",
+      "file": "backend\\services\\llm_config_service.py",
+      "line": 172,
+      "fail_open": true,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\llm_config_service.py"
+      ]
+    },
+    {
+      "name": "_cost_for_aggregate_row",
+      "file": "backend\\services\\llm_usage_service.py",
+      "line": 397,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\llm_usage_service.py"
+      ]
+    },
+    {
+      "name": "entry_gate",
+      "file": "backend\\services\\long_trend_v2.py",
+      "line": 247,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py"
+      ]
+    },
+    {
+      "name": "check_master_min_hold_block",
+      "file": "backend\\services\\master_close_guard.py",
+      "line": 257,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\paper_risk_helpers.py",
+        "backend\\services\\master_close_guard.py",
+        "backend\\services\\unified_exit_executor.py"
+      ]
+    },
+    {
+      "name": "aggregate_rows_to_net",
+      "file": "backend\\services\\paper_netting.py",
+      "line": 180,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\paper_netting.py",
+        "backend\\services\\paper_trading_engine.py"
+      ]
+    },
+    {
+      "name": "trend_pyramid_gate",
+      "file": "backend\\services\\position_memory_manager.py",
+      "line": 288,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\position_memory_manager.py"
+      ]
+    },
+    {
+      "name": "reopen_blocked",
+      "file": "backend\\services\\reentry_cooldown.py",
+      "line": 231,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 9,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\services\\agent_quant_feature_table.py",
+        "backend\\services\\full_auto\\health_check_cycle.py",
+        "backend\\services\\full_auto\\loops\\scalp_loop.py",
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto\\midlong_helpers.py"
+      ]
+    },
+    {
+      "name": "_durable_reopen_blocked",
+      "file": "backend\\services\\reentry_cooldown.py",
+      "line": 351,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\reentry_cooldown.py"
+      ]
+    },
+    {
+      "name": "is_ai_reverse_blocked",
+      "file": "backend\\services\\reentry_cooldown.py",
+      "line": 780,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\position_memory_manager.py"
+      ]
+    },
+    {
+      "name": "gate_weights",
+      "file": "backend\\services\\regime_policy_library.py",
+      "line": 117,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_ic_evaluator.py",
+        "backend\\services\\regime_policy_library.py"
+      ]
+    },
+    {
+      "name": "guard_training_operation",
+      "file": "backend\\services\\resource_guard.py",
+      "line": 84,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\ml\\activation_service.py",
+        "backend\\services\\promotion_scan_service.py",
+        "backend\\services\\resource_guard.py"
+      ]
+    },
+    {
+      "name": "is_close_reason_blocked_for_long",
+      "file": "backend\\services\\risk_band_resolver.py",
+      "line": 215,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "is_close_reason_blocked_for_midlong",
+      "file": "backend\\services\\risk_band_resolver.py",
+      "line": 234,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\unified_exit_executor.py"
+      ]
+    },
+    {
+      "name": "check_bucket_can_open",
+      "file": "backend\\services\\risk_band_resolver.py",
+      "line": 310,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "constitutional_veto",
+      "file": "backend\\services\\risk_constitution.py",
+      "line": 59,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\brain.py",
+        "backend\\services\\risk_constitution.py"
+      ]
+    },
+    {
+      "name": "check_risk_before_trade",
+      "file": "backend\\services\\risk_control_service.py",
+      "line": 911,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 4,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\live_trading.py",
+        "backend\\services\\trading_commands.py"
+      ]
+    },
+    {
+      "name": "runtime_gates_compat",
+      "file": "backend\\services\\runtime_tuning_store.py",
+      "line": 344,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\analytics_routes.py",
+        "backend\\services\\decision_core\\unified_gate.py"
+      ]
+    },
+    {
+      "name": "_symbol_universe_allowed",
+      "file": "backend\\services\\scalp_factor_router.py",
+      "line": 51,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\scalp_factor_router.py"
+      ]
+    },
+    {
+      "name": "_gate_min_auc",
+      "file": "backend\\services\\scalp_meta_trainer.py",
+      "line": 75,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\scalp_meta_trainer.py"
+      ]
+    },
+    {
+      "name": "_load_circuit_state",
+      "file": "backend\\services\\short_tier_entry_gate.py",
+      "line": 51,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\short_tier_entry_gate.py"
+      ]
+    },
+    {
+      "name": "_save_circuit_state",
+      "file": "backend\\services\\short_tier_entry_gate.py",
+      "line": 71,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\short_tier_entry_gate.py"
+      ]
+    },
+    {
+      "name": "_gate_key",
+      "file": "backend\\services\\short_tier_entry_gate.py",
+      "line": 141,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\short_tier_entry_gate.py"
+      ]
+    },
+    {
+      "name": "apply_short_tier_gate",
+      "file": "backend\\services\\short_tier_entry_gate.py",
+      "line": 248,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\loops\\scalp_loop.py"
+      ]
+    },
+    {
+      "name": "is_tier_open_blocked",
+      "file": "backend\\services\\tier_circuit_breaker.py",
+      "line": 179,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto\\midlong_helpers.py"
+      ]
+    },
+    {
+      "name": "_aggregate",
+      "file": "backend\\services\\trade_performance_analyzer.py",
+      "line": 82,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 9,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\factor_signal_generator.py",
+        "backend\\services\\market_aggregation\\aggregate_collector_base.py",
+        "backend\\services\\scalp\\kline_factor_backtest.py",
+        "backend\\services\\scalp\\scalp_strategy_backtest.py",
+        "backend\\services\\trade_performance_analyzer.py"
+      ]
+    },
+    {
+      "name": "_run_gate2",
+      "file": "backend\\services\\training_live_promote_service.py",
+      "line": 245,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\training_live_promote_service.py"
+      ]
+    },
+    {
+      "name": "long_lane_open_allowed",
+      "file": "backend\\services\\trend_e1_engine.py",
+      "line": 148,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 1,
+      "call_files": [
+        "backend\\services\\paper_trading_engine.py"
+      ]
+    },
+    {
+      "name": "_check_fee_budget",
+      "file": "backend\\services\\trend_e1_f4_gate.py",
+      "line": 162,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\trend_e1_f4_gate.py"
+      ]
+    },
+    {
+      "name": "_check_freeze_and_kill",
+      "file": "backend\\services\\trend_e1_f4_gate.py",
+      "line": 181,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\trend_e1_f4_gate.py"
+      ]
+    },
+    {
+      "name": "evaluate_f4_gate",
+      "file": "backend\\services\\trend_e1_f4_gate.py",
+      "line": 208,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 5,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\promotion_routes.py",
+        "backend\\services\\allocation\\jobs.py",
+        "backend\\services\\trend_e1_engine.py",
+        "backend\\services\\trend_e1_f4_gate.py"
+      ]
+    },
+    {
+      "name": "assert_live_allowed",
+      "file": "backend\\services\\trend_e1_f4_gate.py",
+      "line": 256,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "_gate_exception_policy",
+      "file": "backend\\services\\unified_risk_gate.py",
+      "line": 238,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\unified_risk_gate.py"
+      ]
+    },
+    {
+      "name": "record_guard_block",
+      "file": "backend\\services\\unified_risk_gate.py",
+      "line": 251,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 7,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\health_check_cycle.py",
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\liquidation_monitor.py",
+        "backend\\services\\paper_trading_engine.py",
+        "backend\\services\\sub_position_manager.py",
+        "backend\\services\\trading_commands.py"
+      ]
+    },
+    {
+      "name": "_kill_existing_workers",
+      "file": "backend\\services\\user_stream_guard.py",
+      "line": 53,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\user_stream_guard.py"
+      ]
+    },
+    {
+      "name": "gate_verdict",
+      "file": "backend\\services\\agents\\base.py",
+      "line": 139,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\agents\\base.py"
+      ]
+    },
+    {
+      "name": "basis_entry_allowed",
+      "file": "backend\\services\\arbitrage\\basis_entry_gate.py",
+      "line": 30,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\promotion_routes.py"
+      ]
+    },
+    {
+      "name": "_arb_direct_feed_allowed",
+      "file": "backend\\services\\arbitrage\\cross_exchange_ws_feed.py",
+      "line": 286,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\arbitrage\\cross_exchange_ws_feed.py"
+      ]
+    },
+    {
+      "name": "_kill_switch_blocked",
+      "file": "backend\\services\\arbitrage\\fund_transfer.py",
+      "line": 73,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\arbitrage\\fund_transfer.py"
+      ]
+    },
+    {
+      "name": "_promotion_gate",
+      "file": "backend\\services\\arbitrage\\scorecard.py",
+      "line": 251,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\arbitrage\\scorecard.py"
+      ]
+    },
+    {
+      "name": "_scorecard_gate",
+      "file": "backend\\services\\cashflow\\carry_small.py",
+      "line": 69,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\cashflow\\carry_small.py"
+      ]
+    },
+    {
+      "name": "gates_enabled",
+      "file": "backend\\services\\coin_rank\\gates.py",
+      "line": 13,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\coin_rank\\gates.py"
+      ]
+    },
+    {
+      "name": "apply_gates",
+      "file": "backend\\services\\coin_rank\\gates.py",
+      "line": 45,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\coin_rank\\engine.py"
+      ]
+    },
+    {
+      "name": "apply_data_contract_gate",
+      "file": "backend\\services\\decision_core\\data_contract.py",
+      "line": 108,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\decision_core\\execute_proposal.py",
+        "backend\\services\\decision_core\\pipeline.py"
+      ]
+    },
+    {
+      "name": "_record_block",
+      "file": "backend\\services\\decision_core\\unified_gate.py",
+      "line": 59,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\decision_core\\unified_gate.py"
+      ]
+    },
+    {
+      "name": "record_block_event",
+      "file": "backend\\services\\decision_core\\unified_gate.py",
+      "line": 73,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\decision_core\\direction_coherence.py",
+        "backend\\services\\full_auto\\master_execution.py"
+      ]
+    },
+    {
+      "name": "_block",
+      "file": "backend\\services\\decision_core\\unified_gate.py",
+      "line": 105,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 12,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\decision_core\\unified_gate.py"
+      ]
+    },
+    {
+      "name": "_aggregate_positions",
+      "file": "backend\\services\\events\\smart_money.py",
+      "line": 570,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\events\\smart_money.py"
+      ]
+    },
+    {
+      "name": "_evo_gate_fail_closed",
+      "file": "backend\\services\\evolution\\factor_evolution_loop.py",
+      "line": 163,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\evolution\\factor_evolution_loop.py"
+      ]
+    },
+    {
+      "name": "_strategy_gate_binding",
+      "file": "backend\\services\\evolution\\factor_wfo.py",
+      "line": 129,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 7,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\evolution\\factor_wfo.py"
+      ]
+    },
+    {
+      "name": "_pos_gate",
+      "file": "backend\\services\\evolution\\gpu_batch_eval.py",
+      "line": 313,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\evolution\\gpu_batch_eval.py"
+      ]
+    },
+    {
+      "name": "forbidden_literal_scan",
+      "file": "backend\\services\\factor_engine\\code_safety.py",
+      "line": 113,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\llm_proposal.py"
+      ]
+    },
+    {
+      "name": "aggregate_event_features",
+      "file": "backend\\services\\factor_engine\\dataset_builder.py",
+      "line": 279,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\dataset_builder.py"
+      ]
+    },
+    {
+      "name": "admission_gate",
+      "file": "backend\\services\\factor_engine\\evaluation.py",
+      "line": 478,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\factor_card.py"
+      ]
+    },
+    {
+      "name": "allowlist_hits",
+      "file": "backend\\services\\factor_engine\\key_utils.py",
+      "line": 42,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\pipeline_health.py"
+      ]
+    },
+    {
+      "name": "mid_flow_consistency_gate",
+      "file": "backend\\services\\factor_engine\\midlong_flow_gate.py",
+      "line": 68,
+      "fail_open": true,
+      "fail_open_documented": true,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\midlong_factor_route.py"
+      ]
+    },
+    {
+      "name": "default_dsr_pbo_gate",
+      "file": "backend\\services\\factor_engine\\purge_pipeline.py",
+      "line": 95,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\purge_pipeline.py"
+      ]
+    },
+    {
+      "name": "orchestrator_blocks_open",
+      "file": "backend\\services\\full_auto\\execution_gates.py",
+      "line": 11,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 4,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "check_live_constitutional_session_risk",
+      "file": "backend\\services\\full_auto\\live_trading.py",
+      "line": 358,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\health_check_cycle.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "chart_gate_check",
+      "file": "backend\\services\\full_auto\\midlong_chart_gate.py",
+      "line": 128,
+      "fail_open": true,
+      "fail_open_documented": true,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py"
+      ]
+    },
+    {
+      "name": "authority_allows_open",
+      "file": "backend\\services\\full_auto\\midlong_executor.py",
+      "line": 141,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py"
+      ]
+    },
+    {
+      "name": "_swing_consensus_gate",
+      "file": "backend\\services\\full_auto\\midlong_executor.py",
+      "line": 163,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py"
+      ]
+    },
+    {
+      "name": "_compute_midlong_indicator_block",
+      "file": "backend\\services\\full_auto\\midlong_helpers.py",
+      "line": 1129,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_helpers.py"
+      ]
+    },
+    {
+      "name": "_indicator_block_incomplete",
+      "file": "backend\\services\\full_auto\\midlong_helpers.py",
+      "line": 1229,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_helpers.py"
+      ]
+    },
+    {
+      "name": "_sym_block",
+      "file": "backend\\services\\full_auto\\midlong_location_gate.py",
+      "line": 73,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_location_gate.py"
+      ]
+    },
+    {
+      "name": "location_gate_check",
+      "file": "backend\\services\\full_auto\\midlong_location_gate.py",
+      "line": 193,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py"
+      ]
+    },
+    {
+      "name": "tiny_close_allowed_by_hardfact",
+      "file": "backend\\services\\full_auto\\paper_risk_helpers.py",
+      "line": 38,
+      "fail_open": true,
+      "fail_open_documented": true,
+      "has_block": true,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "scalp_new_open_blocked",
+      "file": "backend\\services\\full_auto\\scalp_open_gate.py",
+      "line": 11,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\exchange\\live_executor.py",
+        "backend\\services\\paper_trading_engine.py"
+      ]
+    },
+    {
+      "name": "check_per_symbol_risk",
+      "file": "backend\\services\\full_auto\\symbol_risk.py",
+      "line": 394,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\health_check_cycle.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "check_global_risk",
+      "file": "backend\\services\\full_auto\\symbol_risk.py",
+      "line": 487,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\health_check_cycle.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "factor_veto_check",
+      "file": "backend\\services\\full_auto\\tp_sl_gates.py",
+      "line": 25,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\master_execution.py",
+        "backend\\services\\full_auto_trading_service.py"
+      ]
+    },
+    {
+      "name": "check_fee_budget",
+      "file": "backend\\services\\ledger\\fee_budget.py",
+      "line": 146,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\services\\paper_trading_engine.py",
+        "backend\\services\\trading_commands.py"
+      ]
+    },
+    {
+      "name": "_aggregate_window",
+      "file": "backend\\services\\local_llm\\dataset_builder.py",
+      "line": 108,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\local_llm\\dataset_builder.py"
+      ]
+    },
+    {
+      "name": "_current_gates",
+      "file": "backend\\services\\local_llm\\gate_optimizer_service.py",
+      "line": 122,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\local_llm\\gate_optimizer_service.py"
+      ]
+    },
+    {
+      "name": "run_gate_optimization",
+      "file": "backend\\services\\local_llm\\gate_optimizer_service.py",
+      "line": 355,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\decision_feedback_service.py",
+        "backend\\services\\local_llm\\gate_optimizer_service.py"
+      ]
+    },
+    {
+      "name": "check_lane_limits",
+      "file": "backend\\services\\market_maker\\core.py",
+      "line": 286,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "vol_regime_blocked",
+      "file": "backend\\services\\market_maker\\core.py",
+      "line": 355,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\market_maker\\runner.py"
+      ]
+    },
+    {
+      "name": "trend_blocked_side",
+      "file": "backend\\services\\market_maker\\core.py",
+      "line": 380,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\market_maker\\replay.py",
+        "backend\\services\\market_maker\\runner.py"
+      ]
+    },
+    {
+      "name": "check_side_allowed",
+      "file": "backend\\services\\market_maker\\core.py",
+      "line": 398,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 4,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\market_maker\\replay.py",
+        "backend\\services\\market_maker\\runner.py"
+      ]
+    },
+    {
+      "name": "check_fee_guard",
+      "file": "backend\\services\\market_maker\\runner.py",
+      "line": 183,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\market_maker\\runner.py"
+      ]
+    },
+    {
+      "name": "missing_blocks_open",
+      "file": "backend\\services\\mlto\\brain.py",
+      "line": 628,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 7,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\brain.py"
+      ]
+    },
+    {
+      "name": "midlong_new_open_halted",
+      "file": "backend\\services\\mlto\\brain.py",
+      "line": 1489,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 4,
+      "alias_hits": 2,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_executor.py",
+        "backend\\services\\mlto\\brain.py"
+      ]
+    },
+    {
+      "name": "_emit_open_blocked",
+      "file": "backend\\services\\mlto\\brain.py",
+      "line": 1519,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\brain.py"
+      ]
+    },
+    {
+      "name": "can_open_block_reason",
+      "file": "backend\\services\\mlto\\brain.py",
+      "line": 1559,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\brain.py"
+      ]
+    },
+    {
+      "name": "can_open",
+      "file": "backend\\services\\mlto\\brain.py",
+      "line": 1631,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\loops\\scalp_loop.py",
+        "backend\\services\\full_auto\\master_execution.py"
+      ]
+    },
+    {
+      "name": "_cfg_int_allow_zero",
+      "file": "backend\\services\\mlto\\midlong_portfolio_risk.py",
+      "line": 46,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\midlong_portfolio_risk.py"
+      ]
+    },
+    {
+      "name": "check_portfolio_open_allowed",
+      "file": "backend\\services\\mlto\\midlong_portfolio_risk.py",
+      "line": 177,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\midlong_helpers.py"
+      ]
+    },
+    {
+      "name": "allow",
+      "file": "backend\\services\\mlto\\open_gate.py",
+      "line": 122,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\open_gate.py",
+        "backend\\services\\mlto\\orchestrator.py"
+      ]
+    },
+    {
+      "name": "lessons_prompt_block",
+      "file": "backend\\services\\mlto\\trade_review_officer.py",
+      "line": 204,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\mlto\\thesis_shadow.py"
+      ]
+    },
+    {
+      "name": "aggregate_points_and_pnl",
+      "file": "backend\\services\\rebate_arb\\points_aggregation.py",
+      "line": 61,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\rebate_routes.py",
+        "backend\\services\\rebate_arb\\arbitrage_paper_account_service.py",
+        "backend\\services\\rebate_arb\\points_aggregation.py"
+      ]
+    },
+    {
+      "name": "event_block_reason",
+      "file": "backend\\services\\risk\\event_windows.py",
+      "line": 49,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\risk\\event_windows.py"
+      ]
+    },
+    {
+      "name": "kill_switch_scope",
+      "file": "backend\\services\\risk\\kill_switch.py",
+      "line": 58,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\risk\\kill_switch.py"
+      ]
+    },
+    {
+      "name": "kill_switch_status",
+      "file": "backend\\services\\risk\\kill_switch.py",
+      "line": 63,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 9,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\ops_risk_routes.py",
+        "backend\\services\\arbitrage\\fund_transfer.py",
+        "backend\\services\\risk\\kill_switch.py",
+        "backend\\services\\risk\\risk_engine.py",
+        "backend\\services\\trend_e1_f4_gate.py"
+      ]
+    },
+    {
+      "name": "kill_switch_engaged",
+      "file": "backend\\services\\risk\\kill_switch.py",
+      "line": 85,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 0,
+      "alias_hits": 0,
+      "call_files": []
+    },
+    {
+      "name": "kill_close_all",
+      "file": "backend\\services\\risk\\playbook.py",
+      "line": 115,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 2,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\ops_risk_routes.py",
+        "backend\\services\\risk\\playbook.py"
+      ]
+    },
+    {
+      "name": "check_risk",
+      "file": "backend\\services\\risk_management\\risk_controller.py",
+      "line": 294,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 3,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\api\\arbitrage_routes.py",
+        "backend\\api\\atas_v2_routes.py",
+        "backend\\services\\risk_management\\risk_controller.py"
+      ]
+    },
+    {
+      "name": "_aggregate",
+      "file": "backend\\services\\scalp\\kline_factor_backtest.py",
+      "line": 274,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 9,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\factor_signal_generator.py",
+        "backend\\services\\market_aggregation\\aggregate_collector_base.py",
+        "backend\\services\\scalp\\kline_factor_backtest.py",
+        "backend\\services\\scalp\\scalp_strategy_backtest.py",
+        "backend\\services\\trade_performance_analyzer.py"
+      ]
+    },
+    {
+      "name": "_trend_veto_enabled",
+      "file": "backend\\services\\scalp\\scalp_ranging_mr.py",
+      "line": 115,
+      "fail_open": true,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\scalp\\scalp_ranging_mr.py"
+      ]
+    },
+    {
+      "name": "kline_trend_veto",
+      "file": "backend\\services\\scalp\\scalp_ranging_mr.py",
+      "line": 123,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\scalp\\scalp_ranging_mr.py"
+      ]
+    },
+    {
+      "name": "_aggregate",
+      "file": "backend\\services\\scalp\\scalp_strategy_backtest.py",
+      "line": 248,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 9,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\factor_signal_generator.py",
+        "backend\\services\\market_aggregation\\aggregate_collector_base.py",
+        "backend\\services\\scalp\\kline_factor_backtest.py",
+        "backend\\services\\scalp\\scalp_strategy_backtest.py",
+        "backend\\services\\trade_performance_analyzer.py"
+      ]
+    },
+    {
+      "name": "evaluate_gate",
+      "file": "backend\\services\\scalp\\scalp_validation_gate.py",
+      "line": 83,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": false,
+      "returns_bool": false,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\scalp\\scalp_strategy_backtest.py"
+      ]
+    },
+    {
+      "name": "short_open_allowed",
+      "file": "backend\\services\\scalp\\short_lane_policy.py",
+      "line": 89,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\full_auto\\loops\\scalp_loop.py"
+      ]
+    },
+    {
+      "name": "_rank_single_series_allowed",
+      "file": "backend\\services\\factor_engine\\expr\\ops.py",
+      "line": 94,
+      "fail_open": false,
+      "fail_open_documented": false,
+      "has_block": true,
+      "returns_bool": true,
+      "calls": 1,
+      "alias_hits": 0,
+      "call_files": [
+        "backend\\services\\factor_engine\\expr\\ops.py"
+      ]
+    }
+  ]
+}

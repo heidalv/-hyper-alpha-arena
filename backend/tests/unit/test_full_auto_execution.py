@@ -149,14 +149,18 @@ class TestDeterministicRiskGate:
         assert result.passed
 
     def test_reject_symbol_notional_exceeded(self):
+        """[2026-08-29 契约同步] 2026-05-08 深挖修复后 Rule1 全账户统一 margin
+        基准（旧 notional 基准 25%≈10x 杠杆下 2.5% margin，实测 100% 误拦）；
+        名义敞口改由 max_portfolio_leverage 独立约束。reason_code 同步为
+        symbol_margin_exceeded。"""
         from backend.services.deterministic_risk_gate import AccountSnapshot, PositionInfo, ProposedOrder
         gate = self._make_gate({"max_symbol_notional_pct": 0.10})
         account = AccountSnapshot(total_equity=100000, available_balance=50000, frozen_margin=20000)
-        positions = [PositionInfo(symbol="BTC", side="long", margin=5000, notional=15000, size=0.5, leverage=3)]
+        positions = [PositionInfo(symbol="BTC", side="long", margin=9000, notional=45000, size=0.5, leverage=5)]
         order = ProposedOrder(symbol="BTC", side="buy", notional=12000, margin=2400, leverage=5)
         result = gate.check(account, positions, order)
         assert not result.passed
-        assert "symbol_notional" in result.reason_code
+        assert result.reason_code == "symbol_margin_exceeded"
 
     def test_reject_side_margin_exceeded(self):
         from backend.services.deterministic_risk_gate import AccountSnapshot, PositionInfo, ProposedOrder
@@ -169,8 +173,12 @@ class TestDeterministicRiskGate:
         assert "side_margin" in result.reason_code
 
     def test_reject_daily_loss_circuit(self):
+        """[2026-08-29 契约同步] 日亏规则重构：max_daily_loss_pct 已由
+        global_extreme_daily_loss_pct（极端安全网，默认15%）替代——常规日亏
+        由上层 per-symbol 熔断（symbol_daily_pnl 参数）处理，避免普通亏损日
+        全账户禁开。"""
         from backend.services.deterministic_risk_gate import AccountSnapshot, PositionInfo, ProposedOrder
-        gate = self._make_gate({"max_daily_loss_pct": 0.05})
+        gate = self._make_gate({"global_extreme_daily_loss_pct": 5.0})
         account = AccountSnapshot(total_equity=100000, available_balance=40000, frozen_margin=20000,
                                   realized_pnl_today=-6000)
         order = ProposedOrder(symbol="BTC", side="buy", notional=5000, margin=1000, leverage=5)
@@ -272,12 +280,14 @@ class TestDefensiveMode:
 class TestFundingSettlement:
 
     def test_funding_skipped_in_demo_mode(self):
-        """demo 模式下 _maybe_settle_funding 应直接返回"""
+        """[2026-08-29 契约同步] P0-8 重构后资金费结算不再绑定 demo/research 档
+        （中期持仓跨 8h 结算点必须计费，否则学习闭环在无资金费偏置的 PnL 上
+        自训）；总开关改为 FUNDING_SETTLE_ENABLED=false → 直接返回。"""
         from backend.services.paper_trading_engine import PaperTradingEngine
         engine = PaperTradingEngine()
         mock_db = MagicMock()
         mock_pos = MagicMock()
-        with patch("backend.config.settings.PAPER_SIMULATION_TIER", "demo"):
+        with patch("backend.config.settings.FUNDING_SETTLE_ENABLED", False):
             # Should not raise even though pos is incomplete
             engine._maybe_settle_funding(mock_db, mock_pos, 50000.0)
 

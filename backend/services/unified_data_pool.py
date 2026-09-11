@@ -140,6 +140,10 @@ class UnifiedSnapshot:
     intelligence_by_symbol: Dict[str, str] = field(default_factory=dict)
     data_completeness: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
+    # [2026-09-03 v3 p0-event-data] 事件总线 market_events：按币分组，"*" 为全市场事件
+    # （公告上新/下架/监控标签、清算级联、极端资金费、OI 突变、桥接的新闻/巨鲸/宏观）
+    market_events: Dict[str, List[Dict]] = field(default_factory=dict)
+
     # [2026-07-10 Phase1] 全市场聚合数据（多所盘口 + OI/费率）
     aggregate_orderbook: Dict[str, Any] = field(default_factory=dict)
     aggregate_market: Dict[str, Any] = field(default_factory=dict)
@@ -267,6 +271,9 @@ class UnifiedDataPool:
         # [2026-07-10 Phase1] 全市场聚合数据采集（多所盘口 + OI/费率）
         snapshot.aggregate_orderbook = self._capture_aggregate_orderbook(symbols)
         snapshot.aggregate_market = self._capture_aggregate_market(symbols)
+
+        # [2026-09-03 v3] 事件总线（单次查询，轻量；light_mode 也采）
+        snapshot.market_events = self._capture_market_events(symbols)
 
         # 11. 指标并入衍生品/市场字段 + 完整性审计
         self._enrich_indicators_from_context(snapshot, symbols)
@@ -403,7 +410,7 @@ class UnifiedDataPool:
 
                 if not price:
                     try:
-                        from services.price_cache import get_cached_price
+                        from backend.services.price_cache import get_cached_price
                         price = float(get_cached_price(symbol, "CRYPTO", environment) or 0)
                     except Exception:
                         price = 0.0
@@ -451,7 +458,7 @@ class UnifiedDataPool:
         """捕获账户数据（仅 HyperLiquid，Binance 已移除）"""
         accounts = {}
         try:
-            from services.hyperliquid_cache import get_cached_account_state, get_cached_positions
+            from backend.services.hyperliquid_cache import get_cached_account_state, get_cached_positions
 
             state_entry = get_cached_account_state(account_id, environment, max_age_seconds=10)
             positions_entry = get_cached_positions(account_id, environment, max_age_seconds=10)
@@ -485,7 +492,7 @@ class UnifiedDataPool:
         # 预取每个 symbol 的 funding_rate，用于注入 K线 DataFrame
         funding_rates: Dict[str, float] = {}
         try:
-            from services.market_flow_indicators import get_indicator_value
+            from backend.services.market_flow_indicators import get_indicator_value
 
             from backend.database.connection import MarketSessionLocal
             with MarketSessionLocal() as db:
@@ -512,7 +519,7 @@ class UnifiedDataPool:
                 derivatives_data[symbol] = {'oi': 0.0, 'long_short_ratio': 1.0}
         else:
             try:
-                from services.derivatives_analytics_service import derivatives_analytics
+                from backend.services.derivatives_analytics_service import derivatives_analytics
 
                 def _deriv_one(sym: str):
                     try:
@@ -550,7 +557,7 @@ class UnifiedDataPool:
         onchain_data: Dict[str, Dict[str, Any]] = {}
         if _env_bool("UNIFIED_DATA_POOL_KLINE_ONCHAIN_ENRICHMENT", "true"):
             try:
-                from services.onchain_data_collector import onchain_collector
+                from backend.services.onchain_data_collector import onchain_collector
                 onchain_data = onchain_collector.collect_all(symbols)
             except Exception as e:
                 logger.debug(f"预取链上/宏观数据失败: {e}")
@@ -575,7 +582,7 @@ class UnifiedDataPool:
                 logger.debug(f"链上/社交时间序列记录失败: {e}")
 
         try:
-            from services.kline_data_service import kline_service
+            from backend.services.kline_data_service import kline_service
 
             from backend.database.connection import MarketSessionLocal as _MktSL2
             from backend.services.kline_enrichment_service import enrich_kline_dataframe
@@ -782,7 +789,7 @@ class UnifiedDataPool:
                 logger.debug(f"[UnifiedDataPool] strategic_context 不可用: {_sc_err}")
 
             try:
-                from services.strategy_orchestrator.long_term_planner import long_term_planner
+                from backend.services.strategy_orchestrator.long_term_planner import long_term_planner
 
                 for sym in symbols:
                     # 优先 1d → 4h → 1h
@@ -943,8 +950,8 @@ class UnifiedDataPool:
 
             # ========== 短期战术（15m 数据 + 长线硬约束） ==========
             try:
-                from services.strategy_orchestrator import ShortTermContext, get_short_term_tactician
-                from services.strategy_orchestrator.short_term_tactician import TacticalConfig
+                from backend.services.strategy_orchestrator import ShortTermContext, get_short_term_tactician
+                from backend.services.strategy_orchestrator.short_term_tactician import TacticalConfig
 
                 st_df = klines.get(short_kline_key)
                 if st_df is None or st_df.empty:
@@ -1061,7 +1068,7 @@ class UnifiedDataPool:
         try:
             import time as _time
 
-            from services.market_flow_indicators import _get_funding_data
+            from backend.services.market_flow_indicators import _get_funding_data
 
             from backend.database.connection import MarketSessionLocal
 
@@ -1074,7 +1081,7 @@ class UnifiedDataPool:
                     hist = [float(x) for x in data["last_5"] if x is not None]
                     if hist:
                         return hist[-limit:]
-                from services.market_flow_indicators import get_indicator_value
+                from backend.services.market_flow_indicators import get_indicator_value
                 rate = get_indicator_value(db, symbol, "FUNDING", "1h")
                 if rate is not None:
                     return [float(rate)]
@@ -1335,7 +1342,7 @@ class UnifiedDataPool:
                 # Fix 17b/17c: 链上/宏观/期权数据注入（总控长线分析需要 fear_greed/options_skew 等）
                 # 原只算K线技术指标 → 链上/宏观/期权维度对总控不可见
                 try:
-                    from services.onchain_data_collector import onchain_collector as _oc_udp
+                    from backend.services.onchain_data_collector import onchain_collector as _oc_udp
                     _oc_d = _oc_udp.collect_all([symbol]).get(symbol, {})
                     if isinstance(_oc_d, dict):
                         for _k in ('fear_greed','active_addresses','exchange_net_flow',
@@ -1765,6 +1772,40 @@ class UnifiedDataPool:
             logger.debug(f"[UnifiedDataPool] 新闻并行采集失败: {e}")
             return {s: [] for s in symbols}
 
+    def _capture_market_events(self, symbols: List[str]) -> Dict[str, List[Dict]]:
+        """[2026-09-03 v3] 读事件总线 market_events（近 24h、严重度 ≥ 2），按币分组 + "*" 全市场。
+        失败/未启用 → {}（编排器与 prompt 侧按"无事件"处理，不造数）。"""
+        if not symbols:
+            return {}
+        if _env_int("UNIFIED_DATA_POOL_MARKET_EVENTS", 1, min_value=0, max_value=1) == 0:
+            return {}
+        try:
+            from backend.services.events import market_events_store as mes
+            hours = float(_env_int("MARKET_EVENTS_SNAPSHOT_HOURS", 24, min_value=1, max_value=168))
+            return mes.for_symbols(symbols, hours=hours, min_severity=2, limit=400)
+        except Exception as e:
+            logger.debug(f"[UnifiedDataPool] market_events 采集失败: {e}")
+            return {}
+
+    @staticmethod
+    def summarize_market_events(events: List[Dict], market_wide: Optional[List[Dict]] = None,
+                                max_lines: int = 6) -> str:
+        """把事件列表压成给 LLM 看的几行文本（按严重度、时间倒序）。空 → ''。"""
+        rows = list(events or []) + list(market_wide or [])
+        if not rows:
+            return ""
+        rows.sort(key=lambda e: (-int(e.get("severity") or 0), -int(e.get("ts_ms") or 0)))
+        now_ms = int(time.time() * 1000)
+        lines: List[str] = []
+        for e in rows[:max_lines]:
+            age_h = max(0.0, (now_ms - int(e.get("ts_ms") or now_ms)) / 3600000.0)
+            d = e.get("direction")
+            tag = "利多" if (d or 0) > 0.2 else ("利空" if (d or 0) < -0.2 else "中性")
+            scope = e.get("symbol") or "全市场"
+            lines.append(f"  [{tag} S{int(e.get('severity') or 0)} {age_h:.1f}h前] {e.get('event_type')} {scope}: "
+                         f"{str(e.get('title') or '')[:70]}")
+        return "\n".join(lines)
+
     def _capture_intelligence_prompts(self, symbols: List[str]) -> Dict[str, str]:
         out: Dict[str, str] = {}
         timeout_seconds = _env_int("UNIFIED_DATA_POOL_INTELLIGENCE_TIMEOUT", 45, min_value=5, max_value=180)
@@ -1833,6 +1874,17 @@ class UnifiedDataPool:
             whale = snapshot.whale_signals.get(sym, {})
             if whale:
                 ind["whale_direction"] = whale.get("direction", 0)
+            # [2026-09-03 v3] 事件总线 → 指标：最高严重度 + 方向加权偏置（-1..1），编排器/规则可直接读
+            evs = list((snapshot.market_events or {}).get(sym, []) or [])
+            evs_all = evs + list((snapshot.market_events or {}).get("*", []) or [])
+            if evs_all:
+                ind["event_max_severity"] = max(int(e.get("severity") or 0) for e in evs_all)
+                w = sum(int(e.get("severity") or 0) for e in evs_all if e.get("direction") is not None)
+                if w > 0:
+                    bias = sum(float(e.get("direction") or 0) * int(e.get("severity") or 0)
+                               for e in evs_all if e.get("direction") is not None) / w
+                    ind["event_bias"] = round(max(-1.0, min(1.0, bias)), 3)
+                ind["event_count_24h"] = len(evs_all)
 
     def audit_snapshot_completeness(
         self, snapshot: "UnifiedSnapshot", symbols: List[str],
@@ -2217,6 +2269,9 @@ class UnifiedDataPool:
         if deriv_info.get("data_quality") == "degraded":
             _deriv_signal = "⚠️数据不可用"
 
+        _sym_u = str(symbol or "").upper()
+        _events = (snapshot.market_events or {}).get(_sym_u, []) or []
+        _events_mkt = (snapshot.market_events or {}).get("*", []) or []
         return {
             "news_summary": news_summary or "暂无重大新闻",
             "whale_direction": whale_info.get("direction", 0),
@@ -2226,6 +2281,9 @@ class UnifiedDataPool:
             "sentiment_index": sent_info.get("index", 50),
             "sentiment_zone": sent_info.get("zone", "neutral"),
             "sentiment_guidance": sent_info.get("guidance", ""),
+            # [2026-09-03 v3] 事件总线摘要（公告/清算级联/极端费率/OI 突变/新闻/巨鲸/宏观）
+            "market_events_summary": self.summarize_market_events(_events, _events_mkt) or "近 24h 无重大事件",
+            "market_events_count": len(_events) + len(_events_mkt),
         }
 
     # ══════════════════════════════════════════════════════

@@ -48,6 +48,15 @@ def save_position_open(
                     direction = "funding_hedged"
                 strategy = direction if direction.startswith("funding") else strategy
 
+            # [2026-09-04 p2-arb-infra] 显式写 tenant_id；before_flush 也会兜底，
+            # 但系统线程 ContextVar 为空时兜底是 AUTH_LOCAL_TENANT——显式写入更清晰。
+            _tid = None
+            try:
+                from backend.core.tenant import tenant_id_var
+                _tid = tenant_id_var.get()
+            except Exception:
+                _tid = None
+
             row = ArbitragePosition(
                 position_id=pos.position_id,
                 symbol=pos.symbol,
@@ -68,6 +77,7 @@ def save_position_open(
                 entry_edge=Decimal(str(pos.entry_edge)) if pos.entry_edge else None,
                 mode=_mode_to_db(mode),
                 size_usd=Decimal(str(size_usd)),
+                tenant_id=_tid,
             )
             db.add(row)
             db.commit()

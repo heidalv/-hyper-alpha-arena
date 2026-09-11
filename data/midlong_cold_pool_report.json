@@ -1,45 +1,87 @@
 {
   "methodology_note": "multi_fwd_variant_selection_unadjusted",
-  "scanned": 657,
-  "loaded": 358,
-  "passers": 26,
+  "scanned": 2101,
+  "loaded": 1129,
+  "passers": 67,
   "passer_details": [
     {
-      "factor_id": "ai_gen_ampvol",
+      "factor_id": "ai_gen_multi_momentum",
       "timeframe": "4h",
-      "ic_mean": 0.0366,
-      "icir": 0.3059,
-      "oos_net_return": 0.339205,
-      "oos_sharpe": 0.7374,
-      "oos_win_rate": 0.514,
-      "oos_trades": 1114,
+      "ic_mean": 0.04498,
+      "icir": 0.3233,
+      "oos_net_return": 0.246798,
+      "oos_sharpe": 0.5537,
+      "oos_win_rate": 0.4865,
+      "oos_trades": 1174,
       "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.026230260132606407,
-          "icir": 0.2086084205917166,
-          "oos_net_return": 0.219528,
-          "oos_sharpe": 0.6049,
-          "oos_win_rate": 0.5325,
-          "oos_trades": 246,
+          "ic_mean": 0.05377298853588566,
+          "icir": 0.40897722776895534,
+          "oos_net_return": 0.266308,
+          "oos_sharpe": 0.7432,
+          "oos_win_rate": 0.5019,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.03730607152829999,
+          "icir": 0.2072752616552464,
+          "oos_net_return": 0.032499,
+          "oos_sharpe": 0.0617,
+          "oos_win_rate": 0.4423,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": 0.043850835287548094,
+          "icir": 0.35370253218951386,
+          "oos_net_return": 0.441586,
+          "oos_sharpe": 0.8563,
+          "oos_win_rate": 0.5152,
+          "oos_trades": 394,
+          "fwd": 4
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_entropy_micro",
+      "timeframe": "4h",
+      "ic_mean": 0.04083,
+      "icir": 0.374,
+      "oos_net_return": 0.227968,
+      "oos_sharpe": 0.4752,
+      "oos_win_rate": 0.5084,
+      "oos_trades": 1040,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.08401755282172678,
+          "icir": 0.6101058675026125,
+          "oos_net_return": 0.185403,
+          "oos_sharpe": 0.4863,
+          "oos_win_rate": 0.5058,
+          "oos_trades": 259,
           "fwd": 6
         },
         "ETH": {
-          "ic_mean": 0.04688254647726729,
-          "icir": 0.35616214465818824,
-          "oos_net_return": 0.695762,
-          "oos_sharpe": 1.399,
-          "oos_win_rate": 0.5135,
-          "oos_trades": 370,
-          "fwd": 4
+          "ic_mean": 0.05840872478530173,
+          "icir": 0.6401210033971393,
+          "oos_net_return": 0.596591,
+          "oos_sharpe": 1.129,
+          "oos_win_rate": 0.5097,
+          "oos_trades": 259,
+          "fwd": 6
         },
         "SOL": {
-          "ic_mean": 0.036686322157005256,
-          "icir": 0.35284009763713603,
-          "oos_net_return": 0.102325,
-          "oos_sharpe": 0.2084,
-          "oos_win_rate": 0.496,
-          "oos_trades": 498,
+          "ic_mean": -0.01993333661846791,
+          "icir": -0.1281508504775399,
+          "oos_net_return": -0.098089,
+          "oos_sharpe": -0.1898,
+          "oos_win_rate": 0.5096,
+          "oos_trades": 522,
           "fwd": 3
         }
       },
@@ -47,210 +89,42 @@
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_bbzone",
+      "factor_id": "ai_gen_liq_trap",
       "timeframe": "4h",
-      "ic_mean": -0.05709,
-      "icir": -0.3623,
-      "oos_net_return": 0.243464,
-      "oos_sharpe": 0.5395,
-      "oos_win_rate": 0.4982,
-      "oos_trades": 898,
+      "ic_mean": 0.0369,
+      "icir": 0.3591,
+      "oos_net_return": 0.240165,
+      "oos_sharpe": 0.4801,
+      "oos_win_rate": 0.5068,
+      "oos_trades": 912,
       "fwd": 5,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.027140331141534097,
-          "icir": -0.17885788537873917,
-          "oos_net_return": 0.160998,
-          "oos_sharpe": 0.4686,
-          "oos_win_rate": 0.4648,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "ETH": {
-          "ic_mean": -0.07861310000849825,
-          "icir": -0.5243826104270347,
-          "oos_net_return": 0.364485,
-          "oos_sharpe": 0.7539,
-          "oos_win_rate": 0.4961,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": -0.06552801749350753,
-          "icir": -0.38371712101464117,
-          "oos_net_return": 0.20491,
-          "oos_sharpe": 0.396,
-          "oos_win_rate": 0.5337,
-          "oos_trades": 386,
-          "fwd": 4
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_fakeout_rsi_div",
-      "timeframe": "4h",
-      "ic_mean": 0.05474,
-      "icir": 0.3094,
-      "oos_net_return": 0.232134,
-      "oos_sharpe": 0.4665,
-      "oos_win_rate": 0.5024,
-      "oos_trades": 770,
-      "fwd": 6,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.05279770759476557,
-          "icir": 0.2652026794599948,
-          "oos_net_return": 0.11158,
-          "oos_sharpe": 0.3251,
-          "oos_win_rate": 0.4531,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "ETH": {
-          "ic_mean": 0.015468255543015732,
-          "icir": 0.08179464666742042,
-          "oos_net_return": 0.045511,
-          "oos_sharpe": 0.0939,
-          "oos_win_rate": 0.4844,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": 0.09594709175783923,
-          "icir": 0.5813074842698549,
-          "oos_net_return": 0.539312,
-          "oos_sharpe": 0.9806,
-          "oos_win_rate": 0.5698,
-          "oos_trades": 258,
-          "fwd": 6
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_fbo",
-      "timeframe": "4h",
-      "ic_mean": -0.03893,
-      "icir": -1.1799,
-      "oos_net_return": 0.240777,
-      "oos_sharpe": 0.5201,
-      "oos_win_rate": 0.5266,
-      "oos_trades": 700,
-      "fwd": 5,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.023213271453507302,
-          "icir": -0.3330966855927132,
-          "oos_net_return": 0.069607,
-          "oos_sharpe": 0.2017,
-          "oos_win_rate": 0.5236,
-          "oos_trades": 254,
-          "fwd": 6
-        },
-        "ETH": {
-          "ic_mean": -0.07319109704992581,
-          "icir": -2.9735672217789983,
-          "oos_net_return": 0.124359,
-          "oos_sharpe": 0.3232,
-          "oos_win_rate": 0.5211,
-          "oos_trades": 190,
-          "fwd": 4
-        },
-        "SOL": {
-          "ic_mean": -0.02039391958698772,
-          "icir": -0.23294968199539912,
-          "oos_net_return": 0.528366,
-          "oos_sharpe": 1.0355,
-          "oos_win_rate": 0.5352,
-          "oos_trades": 256,
-          "fwd": 6
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_liq_magnet_fade",
-      "timeframe": "4h",
-      "ic_mean": 0.04834,
-      "icir": 0.6052,
-      "oos_net_return": 0.288571,
-      "oos_sharpe": 0.6348,
-      "oos_win_rate": 0.5241,
-      "oos_trades": 896,
-      "fwd": 5,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.03250833201883313,
-          "icir": 0.5423443226919081,
-          "oos_net_return": 0.157121,
-          "oos_sharpe": 0.4487,
-          "oos_win_rate": 0.5373,
-          "oos_trades": 510,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": 0.07278200776560129,
-          "icir": 0.9967624138790486,
-          "oos_net_return": 0.193213,
-          "oos_sharpe": 0.5207,
-          "oos_win_rate": 0.5078,
-          "oos_trades": 128,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": 0.039719634690492465,
-          "icir": 0.2763797830048769,
-          "oos_net_return": 0.51538,
-          "oos_sharpe": 0.9351,
-          "oos_win_rate": 0.5271,
-          "oos_trades": 258,
-          "fwd": 6
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_lqm_rev",
-      "timeframe": "4h",
-      "ic_mean": -0.03604,
-      "icir": -0.3595,
-      "oos_net_return": 0.306985,
-      "oos_sharpe": 0.6591,
-      "oos_win_rate": 0.5048,
-      "oos_trades": 1025,
-      "fwd": 5,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.039222796313991226,
-          "icir": -0.38789740924765354,
-          "oos_net_return": 0.182897,
-          "oos_sharpe": 0.4982,
-          "oos_win_rate": 0.4883,
-          "oos_trades": 383,
+          "ic_mean": 0.04376477681623063,
+          "icir": 0.44645067175398684,
+          "oos_net_return": 0.018592,
+          "oos_sharpe": 0.0531,
+          "oos_win_rate": 0.4897,
+          "oos_trades": 390,
           "fwd": 4
         },
         "ETH": {
-          "ic_mean": -0.01987177803551213,
-          "icir": -0.18330512214929165,
-          "oos_net_return": 0.39199,
-          "oos_sharpe": 0.8105,
-          "oos_win_rate": 0.5391,
-          "oos_trades": 256,
+          "ic_mean": 0.03087311591865295,
+          "icir": 0.27836395622870175,
+          "oos_net_return": 0.078785,
+          "oos_sharpe": 0.1494,
+          "oos_win_rate": 0.5077,
+          "oos_trades": 260,
           "fwd": 6
         },
         "SOL": {
-          "ic_mean": -0.049011597176488994,
-          "icir": -0.5073562033294453,
-          "oos_net_return": 0.346068,
-          "oos_sharpe": 0.6686,
-          "oos_win_rate": 0.487,
-          "oos_trades": 386,
-          "fwd": 4
+          "ic_mean": 0.03605594191699398,
+          "icir": 0.35239892633385067,
+          "oos_net_return": 0.623118,
+          "oos_sharpe": 1.2378,
+          "oos_win_rate": 0.5229,
+          "oos_trades": 262,
+          "fwd": 6
         }
       },
       "grade": "B",
@@ -261,37 +135,37 @@
       "timeframe": "4h",
       "ic_mean": 0.122,
       "icir": 3.5069,
-      "oos_net_return": 0.19217,
-      "oos_sharpe": 0.5176,
-      "oos_win_rate": 0.4987,
-      "oos_trades": 385,
+      "oos_net_return": 0.151917,
+      "oos_sharpe": 0.3949,
+      "oos_win_rate": 0.4961,
+      "oos_trades": 391,
       "fwd": 6,
       "per_symbol": {
         "BTC": {
           "ic_mean": 0.24556754777828851,
           "icir": 8.008339011939674,
-          "oos_net_return": 0.109771,
-          "oos_sharpe": 0.4162,
-          "oos_win_rate": 0.4922,
-          "oos_trades": 128,
+          "oos_net_return": 0.018042,
+          "oos_sharpe": 0.0594,
+          "oos_win_rate": 0.4846,
+          "oos_trades": 130,
           "fwd": 6
         },
         "ETH": {
           "ic_mean": 0.06010725628099559,
           "icir": 0.9425068613415789,
-          "oos_net_return": 0.193213,
-          "oos_sharpe": 0.5207,
-          "oos_win_rate": 0.5078,
-          "oos_trades": 128,
+          "oos_net_return": 0.11076,
+          "oos_sharpe": 0.2683,
+          "oos_win_rate": 0.4692,
+          "oos_trades": 130,
           "fwd": 6
         },
         "SOL": {
           "ic_mean": 0.060319411636252575,
           "icir": 1.569856472022705,
-          "oos_net_return": 0.273526,
-          "oos_sharpe": 0.6159,
-          "oos_win_rate": 0.4961,
-          "oos_trades": 129,
+          "oos_net_return": 0.326949,
+          "oos_sharpe": 0.857,
+          "oos_win_rate": 0.5344,
+          "oos_trades": 131,
           "fwd": 6
         }
       },
@@ -299,84 +173,84 @@
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_market_neutrality",
+      "factor_id": "ai_gen_mad",
       "timeframe": "4h",
-      "ic_mean": -0.03713,
-      "icir": -0.3397,
-      "oos_net_return": 0.284039,
-      "oos_sharpe": 0.5788,
-      "oos_win_rate": 0.5057,
-      "oos_trades": 1152,
-      "fwd": 4,
+      "ic_mean": -0.05278,
+      "icir": -0.3035,
+      "oos_net_return": 0.35796,
+      "oos_sharpe": 0.7885,
+      "oos_win_rate": 0.484,
+      "oos_trades": 1042,
+      "fwd": 5,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.032305615189776364,
-          "icir": -0.4034432723810166,
-          "oos_net_return": 0.055348,
-          "oos_sharpe": 0.158,
-          "oos_win_rate": 0.4922,
-          "oos_trades": 510,
+          "ic_mean": -0.026093207339245084,
+          "icir": -0.21432852343740746,
+          "oos_net_return": 0.327171,
+          "oos_sharpe": 0.9129,
+          "oos_win_rate": 0.4788,
+          "oos_trades": 520,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.08801445072430786,
-          "icir": -0.6619732213840782,
-          "oos_net_return": 0.283597,
-          "oos_sharpe": 0.586,
-          "oos_win_rate": 0.5352,
-          "oos_trades": 256,
+          "ic_mean": -0.053981393682256684,
+          "icir": -0.3044468312928255,
+          "oos_net_return": 0.326931,
+          "oos_sharpe": 0.6206,
+          "oos_win_rate": 0.5,
+          "oos_trades": 260,
           "fwd": 6
         },
         "SOL": {
-          "ic_mean": 0.00892537364892709,
-          "icir": 0.04621135035503437,
-          "oos_net_return": 0.513172,
-          "oos_sharpe": 0.9925,
-          "oos_win_rate": 0.4896,
-          "oos_trades": 386,
-          "fwd": 4
+          "ic_mean": -0.07825623963059987,
+          "icir": -0.3917877711235923,
+          "oos_net_return": 0.419779,
+          "oos_sharpe": 0.8321,
+          "oos_win_rate": 0.4733,
+          "oos_trades": 262,
+          "fwd": 6
         }
       },
       "grade": "B",
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_mdr",
+      "factor_id": "ai_gen_md",
       "timeframe": "4h",
-      "ic_mean": 0.03091,
-      "icir": 0.3253,
-      "oos_net_return": 0.697168,
-      "oos_sharpe": 1.6117,
-      "oos_win_rate": 0.5165,
-      "oos_trades": 1406,
-      "fwd": 3,
+      "ic_mean": 0.04391,
+      "icir": 0.3213,
+      "oos_net_return": 0.300652,
+      "oos_sharpe": 0.6386,
+      "oos_win_rate": 0.4962,
+      "oos_trades": 1305,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.04197899641219766,
-          "icir": 0.45890873094237866,
-          "oos_net_return": 0.753223,
-          "oos_sharpe": 2.1743,
-          "oos_win_rate": 0.5235,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": 0.049141790062518724,
+          "icir": 0.3649483385003068,
+          "oos_net_return": 0.15131,
+          "oos_sharpe": 0.4328,
+          "oos_win_rate": 0.4923,
+          "oos_trades": 390,
+          "fwd": 4
         },
         "ETH": {
-          "ic_mean": 0.018874574480719743,
-          "icir": 0.19518560011461986,
-          "oos_net_return": 0.331837,
-          "oos_sharpe": 0.7019,
-          "oos_win_rate": 0.4922,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": 0.05719582596167986,
+          "icir": 0.41590974040942486,
+          "oos_net_return": 0.230163,
+          "oos_sharpe": 0.4774,
+          "oos_win_rate": 0.4897,
+          "oos_trades": 390,
+          "fwd": 4
         },
         "SOL": {
-          "ic_mean": 0.031883181210547784,
-          "icir": 0.32178635210217654,
-          "oos_net_return": 1.006444,
-          "oos_sharpe": 1.959,
-          "oos_win_rate": 0.5337,
-          "oos_trades": 386,
-          "fwd": 4
+          "ic_mean": 0.02538492014273673,
+          "icir": 0.18293870931434633,
+          "oos_net_return": 0.520484,
+          "oos_sharpe": 1.0055,
+          "oos_win_rate": 0.5067,
+          "oos_trades": 525,
+          "fwd": 3
         }
       },
       "grade": "B",
@@ -385,81 +259,585 @@
     {
       "factor_id": "ai_gen_micro_profit_risk",
       "timeframe": "4h",
-      "ic_mean": 0.11824,
-      "icir": 2.1546,
-      "oos_net_return": 0.202179,
-      "oos_sharpe": 0.5537,
-      "oos_win_rate": 0.527,
-      "oos_trades": 703,
-      "fwd": 3,
+      "ic_mean": 0.12184,
+      "icir": 2.125,
+      "oos_net_return": 0.16374,
+      "oos_sharpe": 0.4379,
+      "oos_win_rate": 0.5115,
+      "oos_trades": 651,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
           "ic_mean": 0.19823505450040102,
           "icir": 2.331633144497067,
-          "oos_net_return": 0.111587,
-          "oos_sharpe": 0.4037,
-          "oos_win_rate": 0.5255,
-          "oos_trades": 255,
+          "oos_net_return": 0.029181,
+          "oos_sharpe": 0.1018,
+          "oos_win_rate": 0.4962,
+          "oos_trades": 260,
           "fwd": 3
         },
         "ETH": {
           "ic_mean": 0.04385301589112108,
           "icir": 0.9475354505452566,
-          "oos_net_return": 0.200468,
-          "oos_sharpe": 0.5411,
-          "oos_win_rate": 0.5373,
-          "oos_trades": 255,
+          "oos_net_return": 0.135091,
+          "oos_sharpe": 0.355,
+          "oos_win_rate": 0.5038,
+          "oos_trades": 260,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": 0.11262943926784727,
-          "icir": 3.184535993088564,
-          "oos_net_return": 0.294482,
-          "oos_sharpe": 0.7162,
-          "oos_win_rate": 0.5181,
-          "oos_trades": 193,
-          "fwd": 4
+          "ic_mean": 0.12343309364385074,
+          "icir": 3.095682776363571,
+          "oos_net_return": 0.326949,
+          "oos_sharpe": 0.857,
+          "oos_win_rate": 0.5344,
+          "oos_trades": 131,
+          "fwd": 6
         }
       },
       "grade": "A",
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_noise",
-      "timeframe": "1d",
-      "ic_mean": -0.0497,
-      "icir": -0.5578,
-      "oos_net_return": 2.711267,
-      "oos_sharpe": 0.7523,
-      "oos_win_rate": 0.5171,
-      "oos_trades": 4136,
-      "fwd": 2,
+      "factor_id": "ai_gen_momentum_divergence",
+      "timeframe": "4h",
+      "ic_mean": -0.04492,
+      "icir": -0.3325,
+      "oos_net_return": 0.453604,
+      "oos_sharpe": 1.0605,
+      "oos_win_rate": 0.4972,
+      "oos_trades": 1172,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.056386520388621734,
-          "icir": -0.5197197250715321,
-          "oos_net_return": 1.193973,
-          "oos_sharpe": 0.4039,
-          "oos_win_rate": 0.521,
-          "oos_trades": 666,
+          "ic_mean": -0.07359334271959478,
+          "icir": -0.5416702668930901,
+          "oos_net_return": 0.479031,
+          "oos_sharpe": 1.3739,
+          "oos_win_rate": 0.5128,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": -0.039034522363228304,
+          "icir": -0.3342535516365706,
+          "oos_net_return": 0.574324,
+          "oos_sharpe": 1.1979,
+          "oos_win_rate": 0.4904,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.022125083469927916,
+          "icir": -0.12168596128545019,
+          "oos_net_return": 0.307456,
+          "oos_sharpe": 0.6097,
+          "oos_win_rate": 0.4885,
+          "oos_trades": 262,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_momqual",
+      "timeframe": "4h",
+      "ic_mean": 0.06491,
+      "icir": 0.5461,
+      "oos_net_return": 0.398341,
+      "oos_sharpe": 0.8139,
+      "oos_win_rate": 0.5085,
+      "oos_trades": 1042,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.053613705692794625,
+          "icir": 0.48032150045217775,
+          "oos_net_return": 0.015312,
+          "oos_sharpe": 0.0437,
+          "oos_win_rate": 0.4667,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": 0.06655787718355126,
+          "icir": 0.5034267044304235,
+          "oos_net_return": 0.609578,
+          "oos_sharpe": 1.2664,
+          "oos_win_rate": 0.5205,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": 0.0745681181159503,
+          "icir": 0.654642548478365,
+          "oos_net_return": 0.570134,
+          "oos_sharpe": 1.1315,
+          "oos_win_rate": 0.5382,
+          "oos_trades": 262,
+          "fwd": 6
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_regime_instability",
+      "timeframe": "4h",
+      "ic_mean": -0.05739,
+      "icir": -0.4168,
+      "oos_net_return": 0.375547,
+      "oos_sharpe": 0.8731,
+      "oos_win_rate": 0.5112,
+      "oos_trades": 1305,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.052729256357563446,
+          "icir": -0.36448022621690224,
+          "oos_net_return": 0.347123,
+          "oos_sharpe": 0.9937,
+          "oos_win_rate": 0.4974,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": -0.07504071913358983,
+          "icir": -0.5660049689269759,
+          "oos_net_return": 0.807504,
+          "oos_sharpe": 1.6796,
+          "oos_win_rate": 0.541,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.04439230937034955,
+          "icir": -0.32005676513202297,
+          "oos_net_return": -0.027987,
+          "oos_sharpe": -0.0539,
+          "oos_win_rate": 0.4952,
+          "oos_trades": 525,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_squeeze_risk",
+      "timeframe": "4h",
+      "ic_mean": -0.05698,
+      "icir": -0.3927,
+      "oos_net_return": 0.374838,
+      "oos_sharpe": 0.8321,
+      "oos_win_rate": 0.504,
+      "oos_trades": 1036,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.049776777366789066,
+          "icir": -0.33332765167321204,
+          "oos_net_return": 0.384359,
+          "oos_sharpe": 1.0318,
+          "oos_win_rate": 0.5388,
+          "oos_trades": 258,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": -0.08157845554999218,
+          "icir": -0.585106738067467,
+          "oos_net_return": 0.777945,
+          "oos_sharpe": 1.5345,
+          "oos_win_rate": 0.5078,
+          "oos_trades": 258,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": -0.03957931816501948,
+          "icir": -0.25956355373638856,
+          "oos_net_return": -0.03779,
+          "oos_sharpe": -0.07,
+          "oos_win_rate": 0.4654,
+          "oos_trades": 520,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_confusion",
+      "timeframe": "4h",
+      "ic_mean": 0.04719,
+      "icir": 0.3288,
+      "oos_net_return": 0.619427,
+      "oos_sharpe": 1.2406,
+      "oos_win_rate": 0.4982,
+      "oos_trades": 912,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.045014494961883,
+          "icir": 0.30964604708832716,
+          "oos_net_return": 0.415453,
+          "oos_sharpe": 1.0673,
+          "oos_win_rate": 0.5,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": 0.009204357267896623,
+          "icir": 0.07682210533459004,
+          "oos_net_return": 0.06903,
+          "oos_sharpe": 0.1361,
+          "oos_win_rate": 0.4487,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": 0.08735582801267966,
+          "icir": 0.5998617292252221,
+          "oos_net_return": 1.373797,
+          "oos_sharpe": 2.5184,
+          "oos_win_rate": 0.5458,
+          "oos_trades": 262,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trendexhaust",
+      "timeframe": "4h",
+      "ic_mean": -0.04215,
+      "icir": -0.366,
+      "oos_net_return": 0.337123,
+      "oos_sharpe": 0.7567,
+      "oos_win_rate": 0.5303,
+      "oos_trades": 912,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.06644806549115599,
+          "icir": -0.5906763272316412,
+          "oos_net_return": 0.379256,
+          "oos_sharpe": 0.992,
+          "oos_win_rate": 0.5462,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": -0.007053532320515465,
+          "icir": -0.05054592733894954,
+          "oos_net_return": 0.276858,
+          "oos_sharpe": 0.574,
+          "oos_win_rate": 0.5026,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.05293837897353383,
+          "icir": -0.45688263061581064,
+          "oos_net_return": 0.355256,
+          "oos_sharpe": 0.7041,
+          "oos_win_rate": 0.542,
+          "oos_trades": 262,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_tstb",
+      "timeframe": "4h",
+      "ic_mean": 0.06727,
+      "icir": 0.351,
+      "oos_net_return": 0.514758,
+      "oos_sharpe": 1.1282,
+      "oos_win_rate": 0.5115,
+      "oos_trades": 774,
+      "fwd": 6,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.0779306116707752,
+          "icir": 0.3787152197069461,
+          "oos_net_return": 0.5656,
+          "oos_sharpe": 1.5335,
+          "oos_win_rate": 0.5292,
+          "oos_trades": 257,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": 0.024973109102214425,
+          "icir": 0.1159245948748426,
+          "oos_net_return": 0.161066,
+          "oos_sharpe": 0.314,
+          "oos_win_rate": 0.4591,
+          "oos_trades": 257,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": 0.09889217272707618,
+          "icir": 0.558329193193489,
+          "oos_net_return": 0.817607,
+          "oos_sharpe": 1.5371,
+          "oos_win_rate": 0.5462,
+          "oos_trades": 260,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vcs",
+      "timeframe": "4h",
+      "ic_mean": 0.06318,
+      "icir": 0.3775,
+      "oos_net_return": 0.41682,
+      "oos_sharpe": 0.9739,
+      "oos_win_rate": 0.5047,
+      "oos_trades": 1148,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.054812741066807016,
+          "icir": 0.34457837183748347,
+          "oos_net_return": 0.627935,
+          "oos_sharpe": 1.7258,
+          "oos_win_rate": 0.5131,
+          "oos_trades": 382,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": 0.07371335382285357,
+          "icir": 0.4875643309891475,
+          "oos_net_return": 0.133405,
+          "oos_sharpe": 0.2673,
+          "oos_win_rate": 0.5108,
+          "oos_trades": 509,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.06102489151297987,
+          "icir": 0.30045464967525265,
+          "oos_net_return": 0.489121,
+          "oos_sharpe": 0.9285,
+          "oos_win_rate": 0.4903,
+          "oos_trades": 257,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_volty_shift",
+      "timeframe": "4h",
+      "ic_mean": -0.06096,
+      "icir": -0.3412,
+      "oos_net_return": 0.672178,
+      "oos_sharpe": 1.3888,
+      "oos_win_rate": 0.5344,
+      "oos_trades": 989,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.04580166548756712,
+          "icir": -0.26725455497422773,
+          "oos_net_return": 0.153402,
+          "oos_sharpe": 0.443,
+          "oos_win_rate": 0.5108,
+          "oos_trades": 370,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": -0.08269571523514595,
+          "icir": -0.47687993039007903,
+          "oos_net_return": 1.196634,
+          "oos_sharpe": 2.5421,
+          "oos_win_rate": 0.5622,
+          "oos_trades": 370,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.05439624443436255,
+          "icir": -0.2795484995825919,
+          "oos_net_return": 0.666497,
+          "oos_sharpe": 1.1814,
+          "oos_win_rate": 0.5301,
+          "oos_trades": 249,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vp_div",
+      "timeframe": "4h",
+      "ic_mean": 0.04774,
+      "icir": 0.4569,
+      "oos_net_return": 0.482559,
+      "oos_sharpe": 1.0285,
+      "oos_win_rate": 0.5192,
+      "oos_trades": 989,
+      "fwd": 5,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.04575641736729452,
+          "icir": 0.470696500254754,
+          "oos_net_return": 0.300411,
+          "oos_sharpe": 0.8433,
+          "oos_win_rate": 0.4755,
+          "oos_trades": 490,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.0385373027967894,
-          "icir": -0.5058604571926902,
-          "oos_net_return": 2.142651,
-          "oos_sharpe": 0.5212,
-          "oos_win_rate": 0.5065,
+          "ic_mean": 0.04608839700290087,
+          "icir": 0.3925115962817501,
+          "oos_net_return": 0.236294,
+          "oos_sharpe": 0.4488,
+          "oos_win_rate": 0.5458,
+          "oos_trades": 251,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": 0.051383026009835985,
+          "icir": 0.5073441171878249,
+          "oos_net_return": 0.910971,
+          "oos_sharpe": 1.7933,
+          "oos_win_rate": 0.5363,
+          "oos_trades": 248,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vrsi",
+      "timeframe": "4h",
+      "ic_mean": 0.08895,
+      "icir": 0.4726,
+      "oos_net_return": 0.22947,
+      "oos_sharpe": 0.4517,
+      "oos_win_rate": 0.5204,
+      "oos_trades": 782,
+      "fwd": 6,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.059191469547000185,
+          "icir": 0.27741740620731936,
+          "oos_net_return": 0.033195,
+          "oos_sharpe": 0.0867,
+          "oos_win_rate": 0.4923,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": 0.09322073986173345,
+          "icir": 0.5051402906711278,
+          "oos_net_return": 0.369736,
+          "oos_sharpe": 0.7028,
+          "oos_win_rate": 0.5154,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "SOL": {
+          "ic_mean": 0.11442472459394826,
+          "icir": 0.6352293687618803,
+          "oos_net_return": 0.285479,
+          "oos_sharpe": 0.5656,
+          "oos_win_rate": 0.5534,
+          "oos_trades": 262,
+          "fwd": 6
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_choppy",
+      "timeframe": "1d",
+      "ic_mean": -0.05245,
+      "icir": -0.3967,
+      "oos_net_return": 1.36241,
+      "oos_sharpe": 0.3938,
+      "oos_win_rate": 0.5112,
+      "oos_trades": 2158,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.047844802655437425,
+          "icir": -0.41067600945946836,
+          "oos_net_return": 1.669283,
+          "oos_sharpe": 0.5618,
+          "oos_win_rate": 0.513,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.04564012321895043,
+          "icir": -0.3293880494220584,
+          "oos_net_return": 1.948888,
+          "oos_sharpe": 0.493,
+          "oos_win_rate": 0.5225,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.06385543146023835,
+          "icir": -0.4501230973901509,
+          "oos_net_return": 0.46906,
+          "oos_sharpe": 0.1265,
+          "oos_win_rate": 0.498,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_noise",
+      "timeframe": "1d",
+      "ic_mean": -0.04852,
+      "icir": -0.5687,
+      "oos_net_return": 2.66161,
+      "oos_sharpe": 0.7285,
+      "oos_win_rate": 0.5174,
+      "oos_trades": 4475,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.042408987680495745,
+          "icir": -0.5549804862164768,
+          "oos_net_return": 0.700613,
+          "oos_sharpe": 0.2318,
+          "oos_win_rate": 0.5055,
           "oos_trades": 2000,
           "fwd": 1
         },
+        "ETH": {
+          "ic_mean": -0.04916082899109452,
+          "icir": -0.5045997201398038,
+          "oos_net_return": 2.53494,
+          "oos_sharpe": 0.6393,
+          "oos_win_rate": 0.524,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
         "SOL": {
-          "ic_mean": -0.054171173315410735,
-          "icir": -0.6479324435087761,
-          "oos_net_return": 4.797176,
-          "oos_sharpe": 1.3319,
-          "oos_win_rate": 0.5238,
-          "oos_trades": 1470,
+          "ic_mean": -0.05400075643333636,
+          "icir": -0.6465366968072311,
+          "oos_net_return": 4.749276,
+          "oos_sharpe": 1.3145,
+          "oos_win_rate": 0.5227,
+          "oos_trades": 1475,
           "fwd": 1
         }
       },
@@ -469,39 +847,39 @@
     {
       "factor_id": "ai_gen_reverse_trap",
       "timeframe": "1d",
-      "ic_mean": -0.05297,
-      "icir": -0.5679,
-      "oos_net_return": 1.512489,
-      "oos_sharpe": 0.4181,
-      "oos_win_rate": 0.513,
-      "oos_trades": 3136,
+      "ic_mean": -0.05113,
+      "icir": -0.5528,
+      "oos_net_return": 1.426161,
+      "oos_sharpe": 0.4003,
+      "oos_win_rate": 0.501,
+      "oos_trades": 3141,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.03556660691860119,
-          "icir": -0.3621781424002667,
-          "oos_net_return": 0.79362,
-          "oos_sharpe": 0.2699,
-          "oos_win_rate": 0.527,
-          "oos_trades": 1000,
-          "fwd": 2
-        },
-        "ETH": {
-          "ic_mean": -0.059422657199311536,
-          "icir": -0.4914056927523698,
-          "oos_net_return": 1.878536,
-          "oos_sharpe": 0.4677,
-          "oos_win_rate": 0.512,
+          "ic_mean": -0.04006839349431721,
+          "icir": -0.3327543894824798,
+          "oos_net_return": 0.820019,
+          "oos_sharpe": 0.2855,
+          "oos_win_rate": 0.494,
           "oos_trades": 666,
           "fwd": 3
         },
+        "ETH": {
+          "ic_mean": -0.0495755519815049,
+          "icir": -0.4767323814124475,
+          "oos_net_return": 1.641054,
+          "oos_sharpe": 0.4135,
+          "oos_win_rate": 0.51,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
         "SOL": {
-          "ic_mean": -0.0639118408386073,
-          "icir": -0.8502612184953505,
-          "oos_net_return": 1.86531,
-          "oos_sharpe": 0.5167,
-          "oos_win_rate": 0.5,
-          "oos_trades": 1470,
+          "ic_mean": -0.06375062961906554,
+          "icir": -0.848885484607348,
+          "oos_net_return": 1.817411,
+          "oos_sharpe": 0.5019,
+          "oos_win_rate": 0.499,
+          "oos_trades": 1475,
           "fwd": 1
         }
       },
@@ -509,42 +887,126 @@
       "admitted": true
     },
     {
-      "factor_id": "cloud_bollinger_width",
+      "factor_id": "ai_gen_timeout_decay",
       "timeframe": "1d",
-      "ic_mean": 0.04024,
-      "icir": 0.3427,
-      "oos_net_return": 1.05873,
-      "oos_sharpe": 0.3144,
-      "oos_win_rate": 0.5126,
-      "oos_trades": 3156,
+      "ic_mean": -0.04396,
+      "icir": -0.4574,
+      "oos_net_return": 1.160536,
+      "oos_sharpe": 0.3275,
+      "oos_win_rate": 0.5133,
+      "oos_trades": 3404,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.038963482207355286,
-          "icir": 0.33554731727281356,
-          "oos_net_return": 1.054774,
-          "oos_sharpe": 0.3566,
-          "oos_win_rate": 0.509,
+          "ic_mean": -0.03255366264850836,
+          "icir": -0.4135849460965519,
+          "oos_net_return": 0.177715,
+          "oos_sharpe": 0.0588,
+          "oos_win_rate": 0.504,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.03680235842555832,
+          "icir": -0.30071045734236207,
+          "oos_net_return": 0.199895,
+          "oos_sharpe": 0.0505,
+          "oos_win_rate": 0.5075,
           "oos_trades": 666,
           "fwd": 3
         },
+        "SOL": {
+          "ic_mean": -0.06252887335384535,
+          "icir": -0.6579723745861228,
+          "oos_net_return": 3.103997,
+          "oos_sharpe": 0.8733,
+          "oos_win_rate": 0.5285,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_uncertainty_vola",
+      "timeframe": "1d",
+      "ic_mean": -0.04188,
+      "icir": -0.4288,
+      "oos_net_return": 2.645744,
+      "oos_sharpe": 0.7071,
+      "oos_win_rate": 0.5065,
+      "oos_trades": 4492,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.03758447278908061,
+          "icir": -0.45918681740658285,
+          "oos_net_return": 1.341442,
+          "oos_sharpe": 0.4442,
+          "oos_win_rate": 0.506,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
         "ETH": {
-          "ic_mean": 0.022645393312786005,
-          "icir": 0.29132207870017146,
-          "oos_net_return": 0.355438,
-          "oos_sharpe": 0.0864,
-          "oos_win_rate": 0.5065,
+          "ic_mean": -0.03765341203833641,
+          "icir": -0.37798002139760944,
+          "oos_net_return": 4.042489,
+          "oos_sharpe": 0.9868,
+          "oos_win_rate": 0.5175,
           "oos_trades": 2000,
           "fwd": 1
         },
         "SOL": {
-          "ic_mean": 0.059112693376185584,
-          "icir": 0.40134438918605053,
-          "oos_net_return": 1.765979,
-          "oos_sharpe": 0.5002,
-          "oos_win_rate": 0.5224,
-          "oos_trades": 490,
+          "ic_mean": -0.050397538314984426,
+          "icir": -0.4490985437396262,
+          "oos_net_return": 2.553302,
+          "oos_sharpe": 0.6903,
+          "oos_win_rate": 0.4959,
+          "oos_trades": 492,
           "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "cloud_bollinger_width",
+      "timeframe": "1d",
+      "ic_mean": 0.03289,
+      "icir": 0.3798,
+      "oos_net_return": 1.306461,
+      "oos_sharpe": 0.3807,
+      "oos_win_rate": 0.5065,
+      "oos_trades": 4475,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.034733703348770836,
+          "icir": 0.3584906888755815,
+          "oos_net_return": 1.199519,
+          "oos_sharpe": 0.4035,
+          "oos_win_rate": 0.505,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.02210036514226899,
+          "icir": 0.28641811520907623,
+          "oos_net_return": 0.381039,
+          "oos_sharpe": 0.0928,
+          "oos_win_rate": 0.508,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.04183416188444803,
+          "icir": 0.4944470593957233,
+          "oos_net_return": 2.338825,
+          "oos_sharpe": 0.6457,
+          "oos_win_rate": 0.5064,
+          "oos_trades": 1475,
+          "fwd": 1
         }
       },
       "grade": "B",
@@ -553,40 +1015,40 @@
     {
       "factor_id": "ai_gen_aro",
       "timeframe": "1d",
-      "ic_mean": 0.04283,
-      "icir": 0.4227,
-      "oos_net_return": 1.741484,
-      "oos_sharpe": 0.5122,
-      "oos_win_rate": 0.4848,
-      "oos_trades": 3735,
+      "ic_mean": 0.03632,
+      "icir": 0.4121,
+      "oos_net_return": 1.827682,
+      "oos_sharpe": 0.512,
+      "oos_win_rate": 0.5113,
+      "oos_trades": 4141,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.04323492428588602,
-          "icir": 0.3688698998455658,
-          "oos_net_return": 1.975621,
-          "oos_sharpe": 0.6733,
-          "oos_win_rate": 0.523,
-          "oos_trades": 1000,
-          "fwd": 2
+          "ic_mean": 0.04217195779973473,
+          "icir": 0.32703866428480793,
+          "oos_net_return": 1.228764,
+          "oos_sharpe": 0.4284,
+          "oos_win_rate": 0.521,
+          "oos_trades": 666,
+          "fwd": 3
         },
         "ETH": {
-          "ic_mean": 0.02517570809032868,
-          "icir": 0.40329966904084624,
-          "oos_net_return": 1.268536,
-          "oos_sharpe": 0.3302,
-          "oos_win_rate": 0.424,
+          "ic_mean": 0.025019205880319563,
+          "icir": 0.40063767076174245,
+          "oos_net_return": 2.067798,
+          "oos_sharpe": 0.5041,
+          "oos_win_rate": 0.5145,
           "oos_trades": 2000,
           "fwd": 1
         },
         "SOL": {
-          "ic_mean": 0.060092544968017185,
-          "icir": 0.4957965245802991,
-          "oos_net_return": 1.980295,
-          "oos_sharpe": 0.5332,
-          "oos_win_rate": 0.5075,
-          "oos_trades": 735,
-          "fwd": 2
+          "ic_mean": 0.04177019721459038,
+          "icir": 0.5086880521059981,
+          "oos_net_return": 2.186484,
+          "oos_sharpe": 0.6036,
+          "oos_win_rate": 0.4983,
+          "oos_trades": 1475,
+          "fwd": 1
         }
       },
       "grade": "B",
@@ -595,81 +1057,81 @@
     {
       "factor_id": "ai_gen_bbp",
       "timeframe": "1d",
-      "ic_mean": 0.04939,
-      "icir": 0.4353,
-      "oos_net_return": 2.917744,
-      "oos_sharpe": 0.8077,
-      "oos_win_rate": 0.5215,
-      "oos_trades": 3401,
+      "ic_mean": 0.04754,
+      "icir": 0.4148,
+      "oos_net_return": 2.430335,
+      "oos_sharpe": 0.6912,
+      "oos_win_rate": 0.5101,
+      "oos_trades": 3492,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.040104136399836766,
-          "icir": 0.44420169448743163,
-          "oos_net_return": 2.072209,
-          "oos_sharpe": 0.6855,
-          "oos_win_rate": 0.513,
+          "ic_mean": 0.03998302416578349,
+          "icir": 0.44282388357288954,
+          "oos_net_return": 2.187757,
+          "oos_sharpe": 0.7248,
+          "oos_win_rate": 0.515,
           "oos_trades": 2000,
           "fwd": 1
         },
         "ETH": {
-          "ic_mean": 0.04905780522898417,
-          "icir": 0.3677499984254928,
-          "oos_net_return": 3.178233,
-          "oos_sharpe": 0.7929,
-          "oos_win_rate": 0.533,
-          "oos_trades": 666,
-          "fwd": 3
+          "ic_mean": 0.05001447622044677,
+          "icir": 0.43882553584792955,
+          "oos_net_return": 1.765994,
+          "oos_sharpe": 0.4451,
+          "oos_win_rate": 0.501,
+          "oos_trades": 1000,
+          "fwd": 2
         },
         "SOL": {
-          "ic_mean": 0.058995048393297445,
-          "icir": 0.4938026584440529,
-          "oos_net_return": 3.502789,
-          "oos_sharpe": 0.9446,
-          "oos_win_rate": 0.5184,
-          "oos_trades": 735,
-          "fwd": 2
+          "ic_mean": 0.05262247201907738,
+          "icir": 0.36280383549778455,
+          "oos_net_return": 3.337255,
+          "oos_sharpe": 0.9038,
+          "oos_win_rate": 0.5142,
+          "oos_trades": 492,
+          "fwd": 3
         }
       },
       "grade": "B",
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_breakout_strength",
+      "factor_id": "ai_gen_choppiness",
       "timeframe": "1d",
-      "ic_mean": 0.03474,
-      "icir": 0.3924,
-      "oos_net_return": 2.070442,
-      "oos_sharpe": 0.5434,
-      "oos_win_rate": 0.5127,
-      "oos_trades": 3735,
+      "ic_mean": 0.05005,
+      "icir": 0.4061,
+      "oos_net_return": 1.109349,
+      "oos_sharpe": 0.347,
+      "oos_win_rate": 0.5025,
+      "oos_trades": 2393,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.02085235251774738,
-          "icir": 0.25982008774440934,
-          "oos_net_return": 0.39621,
-          "oos_sharpe": 0.1309,
-          "oos_win_rate": 0.4895,
-          "oos_trades": 2000,
-          "fwd": 1
-        },
-        "ETH": {
-          "ic_mean": 0.022758519746921724,
-          "icir": 0.23703656554236285,
-          "oos_net_return": 2.975116,
-          "oos_sharpe": 0.734,
-          "oos_win_rate": 0.514,
-          "oos_trades": 1000,
+          "ic_mean": 0.048088185402842994,
+          "icir": 0.41202673606909357,
+          "oos_net_return": 2.01422,
+          "oos_sharpe": 0.6885,
+          "oos_win_rate": 0.5181,
+          "oos_trades": 996,
           "fwd": 2
         },
+        "ETH": {
+          "ic_mean": 0.04616294437786585,
+          "icir": 0.33204213953441397,
+          "oos_net_return": 0.606887,
+          "oos_sharpe": 0.149,
+          "oos_win_rate": 0.5105,
+          "oos_trades": 664,
+          "fwd": 3
+        },
         "SOL": {
-          "ic_mean": 0.06060206679811658,
-          "icir": 0.6802276887100757,
-          "oos_net_return": 2.84,
-          "oos_sharpe": 0.7652,
-          "oos_win_rate": 0.5347,
-          "oos_trades": 735,
+          "ic_mean": 0.05589614674312783,
+          "icir": 0.4741071227145344,
+          "oos_net_return": 0.706941,
+          "oos_sharpe": 0.2034,
+          "oos_win_rate": 0.4789,
+          "oos_trades": 733,
           "fwd": 2
         }
       },
@@ -679,82 +1141,40 @@
     {
       "factor_id": "ai_gen_cm",
       "timeframe": "1d",
-      "ic_mean": 0.0497,
-      "icir": 0.5578,
-      "oos_net_return": 2.711267,
-      "oos_sharpe": 0.7523,
-      "oos_win_rate": 0.5171,
-      "oos_trades": 4136,
-      "fwd": 2,
+      "ic_mean": 0.04852,
+      "icir": 0.5687,
+      "oos_net_return": 2.66161,
+      "oos_sharpe": 0.7285,
+      "oos_win_rate": 0.5174,
+      "oos_trades": 4475,
+      "fwd": 1,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.056386520342039434,
-          "icir": 0.5197197246639583,
-          "oos_net_return": 1.193973,
-          "oos_sharpe": 0.4039,
-          "oos_win_rate": 0.521,
-          "oos_trades": 666,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": 0.03853730280681754,
-          "icir": 0.5058604572909812,
-          "oos_net_return": 2.142651,
-          "oos_sharpe": 0.5212,
-          "oos_win_rate": 0.5065,
+          "ic_mean": 0.04240898760803438,
+          "icir": 0.554980485535654,
+          "oos_net_return": 0.700613,
+          "oos_sharpe": 0.2318,
+          "oos_win_rate": 0.5055,
           "oos_trades": 2000,
           "fwd": 1
         },
-        "SOL": {
-          "ic_mean": 0.05417117256429461,
-          "icir": 0.6479324339664473,
-          "oos_net_return": 4.797176,
-          "oos_sharpe": 1.3319,
-          "oos_win_rate": 0.5238,
-          "oos_trades": 1470,
-          "fwd": 1
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_consol",
-      "timeframe": "1d",
-      "ic_mean": 0.03822,
-      "icir": 0.3117,
-      "oos_net_return": 1.059409,
-      "oos_sharpe": 0.329,
-      "oos_win_rate": 0.4915,
-      "oos_trades": 2657,
-      "fwd": 2,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.032907366959950134,
-          "icir": 0.3026308497511429,
-          "oos_net_return": 1.528508,
-          "oos_sharpe": 0.5311,
-          "oos_win_rate": 0.5113,
-          "oos_trades": 974,
-          "fwd": 2
-        },
         "ETH": {
-          "ic_mean": 0.033586889276007934,
-          "icir": 0.2625709051192199,
-          "oos_net_return": 0.86699,
-          "oos_sharpe": 0.2248,
-          "oos_win_rate": 0.4979,
-          "oos_trades": 974,
+          "ic_mean": 0.04916082900047568,
+          "icir": 0.5045997203181125,
+          "oos_net_return": 2.53494,
+          "oos_sharpe": 0.6393,
+          "oos_win_rate": 0.524,
+          "oos_trades": 1000,
           "fwd": 2
         },
         "SOL": {
-          "ic_mean": 0.04816372919908241,
-          "icir": 0.3700393745099918,
-          "oos_net_return": 0.782729,
-          "oos_sharpe": 0.2311,
-          "oos_win_rate": 0.4654,
-          "oos_trades": 709,
-          "fwd": 2
+          "ic_mean": 0.05400075568473353,
+          "icir": 0.6465366872998406,
+          "oos_net_return": 4.749276,
+          "oos_sharpe": 1.3145,
+          "oos_win_rate": 0.5227,
+          "oos_trades": 1475,
+          "fwd": 1
         }
       },
       "grade": "B",
@@ -763,39 +1183,39 @@
     {
       "factor_id": "ai_gen_eff_ratio",
       "timeframe": "1d",
-      "ic_mean": 0.0497,
-      "icir": 0.5578,
-      "oos_net_return": 2.711267,
-      "oos_sharpe": 0.7523,
-      "oos_win_rate": 0.5171,
-      "oos_trades": 4136,
-      "fwd": 2,
+      "ic_mean": 0.04852,
+      "icir": 0.5687,
+      "oos_net_return": 2.66161,
+      "oos_sharpe": 0.7285,
+      "oos_win_rate": 0.5174,
+      "oos_trades": 4475,
+      "fwd": 1,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.056386520388621734,
-          "icir": 0.5197197250715321,
-          "oos_net_return": 1.193973,
-          "oos_sharpe": 0.4039,
-          "oos_win_rate": 0.521,
-          "oos_trades": 666,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": 0.0385373027967894,
-          "icir": 0.5058604571926902,
-          "oos_net_return": 2.142651,
-          "oos_sharpe": 0.5212,
-          "oos_win_rate": 0.5065,
+          "ic_mean": 0.042408987680495745,
+          "icir": 0.5549804862164768,
+          "oos_net_return": 0.700613,
+          "oos_sharpe": 0.2318,
+          "oos_win_rate": 0.5055,
           "oos_trades": 2000,
           "fwd": 1
         },
+        "ETH": {
+          "ic_mean": 0.04916082899109452,
+          "icir": 0.5045997201398038,
+          "oos_net_return": 2.53494,
+          "oos_sharpe": 0.6393,
+          "oos_win_rate": 0.524,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
         "SOL": {
-          "ic_mean": 0.05417117329754363,
-          "icir": 0.6479324434061493,
-          "oos_net_return": 4.797176,
-          "oos_sharpe": 1.3319,
-          "oos_win_rate": 0.5238,
-          "oos_trades": 1470,
+          "ic_mean": 0.054000756415529046,
+          "icir": 0.6465366967049986,
+          "oos_net_return": 4.749276,
+          "oos_sharpe": 1.3145,
+          "oos_win_rate": 0.5227,
+          "oos_trades": 1475,
           "fwd": 1
         }
       },
@@ -805,39 +1225,39 @@
     {
       "factor_id": "ai_gen_efficiency_ratio",
       "timeframe": "1d",
-      "ic_mean": 0.05381,
-      "icir": 0.5342,
-      "oos_net_return": 1.942502,
-      "oos_sharpe": 0.5628,
-      "oos_win_rate": 0.5112,
-      "oos_trades": 3321,
+      "ic_mean": 0.05908,
+      "icir": 0.5363,
+      "oos_net_return": 1.552814,
+      "oos_sharpe": 0.4561,
+      "oos_win_rate": 0.5148,
+      "oos_trades": 2684,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.05285995004907839,
-          "icir": 0.5031122871967738,
-          "oos_net_return": 0.898302,
-          "oos_sharpe": 0.3177,
-          "oos_win_rate": 0.4953,
-          "oos_trades": 963,
-          "fwd": 2
+          "ic_mean": 0.05691297634163586,
+          "icir": 0.4868399108042962,
+          "oos_net_return": 0.648551,
+          "oos_sharpe": 0.2299,
+          "oos_win_rate": 0.5062,
+          "oos_trades": 642,
+          "fwd": 3
         },
         "ETH": {
-          "ic_mean": 0.056535127273121294,
-          "icir": 0.5207292284172157,
-          "oos_net_return": 2.203265,
-          "oos_sharpe": 0.5816,
-          "oos_win_rate": 0.5223,
-          "oos_trades": 963,
-          "fwd": 2
+          "ic_mean": 0.06865060365530284,
+          "icir": 0.5476526826985745,
+          "oos_net_return": 1.183627,
+          "oos_sharpe": 0.3234,
+          "oos_win_rate": 0.5218,
+          "oos_trades": 642,
+          "fwd": 3
         },
         "SOL": {
-          "ic_mean": 0.052028841114685594,
-          "icir": 0.5788107613360737,
-          "oos_net_return": 2.725938,
-          "oos_sharpe": 0.789,
-          "oos_win_rate": 0.5161,
-          "oos_trades": 1395,
+          "ic_mean": 0.0516701883667909,
+          "icir": 0.5744306874942281,
+          "oos_net_return": 2.826265,
+          "oos_sharpe": 0.815,
+          "oos_win_rate": 0.5164,
+          "oos_trades": 1400,
           "fwd": 1
         }
       },
@@ -845,84 +1265,42 @@
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_effr",
+      "factor_id": "ai_gen_flow_reversal",
       "timeframe": "1d",
-      "ic_mean": 0.03067,
-      "icir": 0.3082,
-      "oos_net_return": 2.153336,
-      "oos_sharpe": 0.5749,
-      "oos_win_rate": 0.5051,
-      "oos_trades": 4735,
-      "fwd": 1,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.016518279537172803,
-          "icir": 0.24166002254168603,
-          "oos_net_return": 0.643493,
-          "oos_sharpe": 0.2126,
-          "oos_win_rate": 0.497,
-          "oos_trades": 2000,
-          "fwd": 1
-        },
-        "ETH": {
-          "ic_mean": 0.024107165515263696,
-          "icir": 0.2766363206763582,
-          "oos_net_return": 2.162912,
-          "oos_sharpe": 0.5263,
-          "oos_win_rate": 0.4945,
-          "oos_trades": 2000,
-          "fwd": 1
-        },
-        "SOL": {
-          "ic_mean": 0.05137358694731641,
-          "icir": 0.4063216723707624,
-          "oos_net_return": 3.653603,
-          "oos_sharpe": 0.9857,
-          "oos_win_rate": 0.5238,
-          "oos_trades": 735,
-          "fwd": 2
-        }
-      },
-      "grade": "B",
-      "admitted": true
-    },
-    {
-      "factor_id": "ai_gen_hold_time_risk",
-      "timeframe": "1d",
-      "ic_mean": 0.04266,
-      "icir": 0.4295,
-      "oos_net_return": 1.378231,
-      "oos_sharpe": 0.361,
-      "oos_win_rate": 0.5048,
-      "oos_trades": 3735,
+      "ic_mean": -0.03093,
+      "icir": -0.3256,
+      "oos_net_return": 1.146381,
+      "oos_sharpe": 0.3293,
+      "oos_win_rate": 0.507,
+      "oos_trades": 2449,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.03335801028828318,
-          "icir": 0.3916949543730353,
-          "oos_net_return": 0.058874,
-          "oos_sharpe": 0.0194,
-          "oos_win_rate": 0.49,
-          "oos_trades": 2000,
-          "fwd": 1
+          "ic_mean": -0.027682691267260705,
+          "icir": -0.327920264039921,
+          "oos_net_return": 0.824012,
+          "oos_sharpe": 0.2852,
+          "oos_win_rate": 0.5041,
+          "oos_trades": 984,
+          "fwd": 2
         },
         "ETH": {
-          "ic_mean": 0.028496013070961477,
-          "icir": 0.32173273325618595,
-          "oos_net_return": 1.47852,
-          "oos_sharpe": 0.3642,
-          "oos_win_rate": 0.502,
-          "oos_trades": 1000,
+          "ic_mean": -0.015175363403334136,
+          "icir": -0.1337687556363117,
+          "oos_net_return": 0.768911,
+          "oos_sharpe": 0.1931,
+          "oos_win_rate": 0.4827,
+          "oos_trades": 984,
           "fwd": 2
         },
         "SOL": {
-          "ic_mean": 0.06614062231529513,
-          "icir": 0.5750057705449553,
-          "oos_net_return": 2.597298,
-          "oos_sharpe": 0.6994,
-          "oos_win_rate": 0.5224,
-          "oos_trades": 735,
-          "fwd": 2
+          "ic_mean": -0.04992352170074723,
+          "icir": -0.5151564096012421,
+          "oos_net_return": 1.84622,
+          "oos_sharpe": 0.5096,
+          "oos_win_rate": 0.5343,
+          "oos_trades": 481,
+          "fwd": 3
         }
       },
       "grade": "B",
@@ -931,39 +1309,39 @@
     {
       "factor_id": "ai_gen_hold_timeout_risk",
       "timeframe": "1d",
-      "ic_mean": -0.03931,
-      "icir": -0.453,
-      "oos_net_return": 1.763865,
-      "oos_sharpe": 0.476,
-      "oos_win_rate": 0.5042,
-      "oos_trades": 4470,
-      "fwd": 1,
+      "ic_mean": -0.03598,
+      "icir": -0.3991,
+      "oos_net_return": 1.659527,
+      "oos_sharpe": 0.459,
+      "oos_win_rate": 0.5017,
+      "oos_trades": 4141,
+      "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.031134830010360767,
-          "icir": -0.3520333287138141,
-          "oos_net_return": 0.614257,
-          "oos_sharpe": 0.203,
-          "oos_win_rate": 0.498,
+          "ic_mean": -0.029378062352051038,
+          "icir": -0.3302080180419107,
+          "oos_net_return": 0.798767,
+          "oos_sharpe": 0.2643,
+          "oos_win_rate": 0.4995,
           "oos_trades": 2000,
           "fwd": 1
         },
         "ETH": {
-          "ic_mean": -0.0503898988946121,
-          "icir": -0.4911106337310125,
-          "oos_net_return": 2.311528,
-          "oos_sharpe": 0.5697,
-          "oos_win_rate": 0.507,
-          "oos_trades": 1000,
-          "fwd": 2
+          "ic_mean": -0.041976375037761346,
+          "icir": -0.34822416255303934,
+          "oos_net_return": 1.799483,
+          "oos_sharpe": 0.4553,
+          "oos_win_rate": 0.4985,
+          "oos_trades": 666,
+          "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.036404222651061,
-          "icir": -0.5159357069839479,
-          "oos_net_return": 2.36581,
-          "oos_sharpe": 0.6552,
-          "oos_win_rate": 0.5075,
-          "oos_trades": 1470,
+          "ic_mean": -0.03658476717726924,
+          "icir": -0.5188498274694326,
+          "oos_net_return": 2.38033,
+          "oos_sharpe": 0.6573,
+          "oos_win_rate": 0.5071,
+          "oos_trades": 1475,
           "fwd": 1
         }
       },
@@ -973,30 +1351,30 @@
     {
       "factor_id": "ai_gen_hsp",
       "timeframe": "1d",
-      "ic_mean": 0.0472,
-      "icir": 1.4927,
-      "oos_net_return": 1.446581,
-      "oos_sharpe": 0.426,
-      "oos_win_rate": 0.5074,
-      "oos_trades": 2136,
+      "ic_mean": 0.0462,
+      "icir": 1.5361,
+      "oos_net_return": 1.404667,
+      "oos_sharpe": 0.4067,
+      "oos_win_rate": 0.4965,
+      "oos_trades": 2475,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.03092186189428068,
-          "icir": 0.3343032929722008,
-          "oos_net_return": 0.833582,
-          "oos_sharpe": 0.2818,
-          "oos_win_rate": 0.527,
-          "oos_trades": 666,
-          "fwd": 3
+          "ic_mean": 0.02892030829583983,
+          "icir": 0.4212242682189665,
+          "oos_net_return": 0.629415,
+          "oos_sharpe": 0.2116,
+          "oos_win_rate": 0.505,
+          "oos_trades": 1000,
+          "fwd": 2
         },
         "SOL": {
           "ic_mean": 0.06348166739764183,
           "icir": 2.6510025169446574,
-          "oos_net_return": 2.059579,
-          "oos_sharpe": 0.5702,
-          "oos_win_rate": 0.4878,
-          "oos_trades": 1470,
+          "oos_net_return": 2.17992,
+          "oos_sharpe": 0.6017,
+          "oos_win_rate": 0.4881,
+          "oos_trades": 1475,
           "fwd": 1
         }
       },
@@ -1006,39 +1384,39 @@
     {
       "factor_id": "ai_gen_mht",
       "timeframe": "1d",
-      "ic_mean": -0.05567,
-      "icir": -0.4979,
-      "oos_net_return": 2.538445,
-      "oos_sharpe": 0.7096,
-      "oos_win_rate": 0.5136,
-      "oos_trades": 3104,
+      "ic_mean": -0.05643,
+      "icir": -0.4808,
+      "oos_net_return": 1.854157,
+      "oos_sharpe": 0.5544,
+      "oos_win_rate": 0.5224,
+      "oos_trades": 2449,
       "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.047622156166758,
-          "icir": -0.5592534539903126,
-          "oos_net_return": 1.685095,
-          "oos_sharpe": 0.5672,
-          "oos_win_rate": 0.5213,
-          "oos_trades": 1968,
-          "fwd": 1
+          "ic_mean": -0.05439112043666603,
+          "icir": -0.4857549693197627,
+          "oos_net_return": 1.416753,
+          "oos_sharpe": 0.486,
+          "oos_win_rate": 0.5183,
+          "oos_trades": 984,
+          "fwd": 2
         },
         "ETH": {
-          "ic_mean": -0.04932615618930321,
-          "icir": -0.37172656386943576,
-          "oos_net_return": 2.956087,
-          "oos_sharpe": 0.7382,
-          "oos_win_rate": 0.5152,
-          "oos_trades": 656,
-          "fwd": 3
+          "ic_mean": -0.04485073485416455,
+          "icir": -0.3929672493361378,
+          "oos_net_return": 0.363654,
+          "oos_sharpe": 0.0928,
+          "oos_win_rate": 0.498,
+          "oos_trades": 984,
+          "fwd": 2
         },
         "SOL": {
-          "ic_mean": -0.07007472425357526,
-          "icir": -0.5628218258595269,
-          "oos_net_return": 2.974152,
-          "oos_sharpe": 0.8234,
-          "oos_win_rate": 0.5042,
-          "oos_trades": 480,
+          "ic_mean": -0.07005050831755275,
+          "icir": -0.5635758739170615,
+          "oos_net_return": 3.782063,
+          "oos_sharpe": 1.0845,
+          "oos_win_rate": 0.5509,
+          "oos_trades": 481,
           "fwd": 3
         }
       },
@@ -1048,39 +1426,1383 @@
     {
       "factor_id": "ai_gen_micro_noise",
       "timeframe": "1d",
-      "ic_mean": -0.04353,
-      "icir": -0.3825,
-      "oos_net_return": 1.490546,
-      "oos_sharpe": 0.474,
-      "oos_win_rate": 0.518,
-      "oos_trades": 2156,
-      "fwd": 3,
+      "ic_mean": -0.04269,
+      "icir": -0.4054,
+      "oos_net_return": 1.091,
+      "oos_sharpe": 0.3515,
+      "oos_win_rate": 0.5079,
+      "oos_trades": 4492,
+      "fwd": 2,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.05484667163912163,
-          "icir": -0.5045689271719457,
-          "oos_net_return": 2.965962,
-          "oos_sharpe": 1.0127,
+          "ic_mean": -0.0401259334345862,
+          "icir": -0.4985535767085916,
+          "oos_net_return": 2.520137,
+          "oos_sharpe": 0.8346,
+          "oos_win_rate": 0.5115,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": 0.000826635246936903,
+          "icir": 0.00909909458948563,
+          "oos_net_return": -0.638377,
+          "oos_sharpe": -0.1555,
+          "oos_win_rate": 0.496,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": -0.08877963514542632,
+          "icir": -0.7267897077187001,
+          "oos_net_return": 1.391239,
+          "oos_sharpe": 0.3753,
+          "oos_win_rate": 0.5163,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_netflow",
+      "timeframe": "1d",
+      "ic_mean": 0.03193,
+      "icir": 0.376,
+      "oos_net_return": 1.139952,
+      "oos_sharpe": 0.324,
+      "oos_win_rate": 0.5063,
+      "oos_trades": 4141,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.028993401045025527,
+          "icir": 0.31905201595160054,
+          "oos_net_return": 0.827733,
+          "oos_sharpe": 0.2883,
+          "oos_win_rate": 0.5105,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.043833488405361144,
+          "icir": 0.513643540709765,
+          "oos_net_return": 0.975479,
+          "oos_sharpe": 0.2377,
+          "oos_win_rate": 0.5115,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.022970123959146587,
+          "icir": 0.29520742538141276,
+          "oos_net_return": 1.616644,
+          "oos_sharpe": 0.4461,
+          "oos_win_rate": 0.4969,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_osc",
+      "timeframe": "1d",
+      "ic_mean": 0.03077,
+      "icir": 0.3287,
+      "oos_net_return": 1.369741,
+      "oos_sharpe": 0.3769,
+      "oos_win_rate": 0.5048,
+      "oos_trades": 4475,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.035942120528740344,
+          "icir": 0.33977264921923167,
+          "oos_net_return": 0.65615,
+          "oos_sharpe": 0.2207,
+          "oos_win_rate": 0.501,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.026660350047018343,
+          "icir": 0.27373338585184065,
+          "oos_net_return": 1.339733,
+          "oos_sharpe": 0.3265,
+          "oos_win_rate": 0.509,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.029712723515327687,
+          "icir": 0.3726202494427048,
+          "oos_net_return": 2.11334,
+          "oos_sharpe": 0.5835,
+          "oos_win_rate": 0.5044,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_rbd",
+      "timeframe": "1d",
+      "ic_mean": 0.03319,
+      "icir": 0.3298,
+      "oos_net_return": 1.281422,
+      "oos_sharpe": 0.395,
+      "oos_win_rate": 0.5041,
+      "oos_trades": 3475,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.031755382174193235,
+          "icir": 0.3122836223443455,
+          "oos_net_return": 2.381215,
+          "oos_sharpe": 0.8027,
           "oos_win_rate": 0.526,
           "oos_trades": 1000,
           "fwd": 2
         },
         "ETH": {
-          "ic_mean": 0.01202254723533313,
-          "icir": 0.0819050998877785,
-          "oos_net_return": 0.481509,
-          "oos_sharpe": 0.1197,
-          "oos_win_rate": 0.5015,
+          "ic_mean": 0.033238444537786745,
+          "icir": 0.3045266129728719,
+          "oos_net_return": 0.893676,
+          "oos_sharpe": 0.2251,
+          "oos_win_rate": 0.505,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.03458836535140805,
+          "icir": 0.37267536648917343,
+          "oos_net_return": 0.569376,
+          "oos_sharpe": 0.1571,
+          "oos_win_rate": 0.4814,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_rc",
+      "timeframe": "1d",
+      "ic_mean": 0.03028,
+      "icir": 0.3042,
+      "oos_net_return": 1.229989,
+      "oos_sharpe": 0.382,
+      "oos_win_rate": 0.5031,
+      "oos_trades": 3475,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.03210681972009586,
+          "icir": 0.3169751734368765,
+          "oos_net_return": 2.381215,
+          "oos_sharpe": 0.8027,
+          "oos_win_rate": 0.526,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.026468693763471954,
+          "icir": 0.2390829424886477,
+          "oos_net_return": 0.739375,
+          "oos_sharpe": 0.1862,
+          "oos_win_rate": 0.502,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.032255767054571664,
+          "icir": 0.3566363935821501,
+          "oos_net_return": 0.569376,
+          "oos_sharpe": 0.1571,
+          "oos_win_rate": 0.4814,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_regime_instability",
+      "timeframe": "1d",
+      "ic_mean": -0.0605,
+      "icir": -0.3772,
+      "oos_net_return": 2.121623,
+      "oos_sharpe": 0.5844,
+      "oos_win_rate": 0.5172,
+      "oos_trades": 1824,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.07947864432158473,
+          "icir": -0.47627463937651343,
+          "oos_net_return": 0.834753,
+          "oos_sharpe": 0.2907,
+          "oos_win_rate": 0.506,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.02904848143232612,
+          "icir": -0.17122520479367537,
+          "oos_net_return": 1.983241,
+          "oos_sharpe": 0.5016,
+          "oos_win_rate": 0.515,
           "oos_trades": 666,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.08776779376556348,
-          "icir": -0.724744741963872,
-          "oos_net_return": 1.024166,
-          "oos_sharpe": 0.2897,
-          "oos_win_rate": 0.5265,
-          "oos_trades": 490,
+          "ic_mean": -0.07297647757266629,
+          "icir": -0.48398131756280866,
+          "oos_net_return": 3.546874,
+          "oos_sharpe": 0.9609,
+          "oos_win_rate": 0.5305,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_regime_vol",
+      "timeframe": "1d",
+      "ic_mean": -0.03677,
+      "icir": -0.3508,
+      "oos_net_return": 2.163222,
+      "oos_sharpe": 0.5881,
+      "oos_win_rate": 0.5008,
+      "oos_trades": 4492,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.027731407196631384,
+          "icir": -0.3194248719964516,
+          "oos_net_return": 1.379264,
+          "oos_sharpe": 0.4566,
+          "oos_win_rate": 0.502,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.03406299298481159,
+          "icir": -0.3281794785126458,
+          "oos_net_return": 2.777983,
+          "oos_sharpe": 0.6774,
+          "oos_win_rate": 0.5105,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": -0.048506524325688305,
+          "icir": -0.4047819140474007,
+          "oos_net_return": 2.33242,
+          "oos_sharpe": 0.6302,
+          "oos_win_rate": 0.4898,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_regimeavoid",
+      "timeframe": "1d",
+      "ic_mean": -0.04896,
+      "icir": -0.3831,
+      "oos_net_return": 1.557885,
+      "oos_sharpe": 0.4507,
+      "oos_win_rate": 0.4989,
+      "oos_trades": 2113,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.048147826383918776,
+          "icir": -0.3475534875554663,
+          "oos_net_return": 1.255148,
+          "oos_sharpe": 0.4279,
+          "oos_win_rate": 0.4862,
+          "oos_trades": 654,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.05173484361762435,
+          "icir": -0.4752233637451882,
+          "oos_net_return": 1.683943,
+          "oos_sharpe": 0.4252,
+          "oos_win_rate": 0.5168,
+          "oos_trades": 981,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.046984411164976383,
+          "icir": -0.326393444252688,
+          "oos_net_return": 1.734564,
+          "oos_sharpe": 0.4989,
+          "oos_win_rate": 0.4937,
+          "oos_trades": 478,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_reversalscore",
+      "timeframe": "1d",
+      "ic_mean": 0.0391,
+      "icir": 0.3465,
+      "oos_net_return": 1.515486,
+      "oos_sharpe": 0.4256,
+      "oos_win_rate": 0.5067,
+      "oos_trades": 2738,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.024906745770103034,
+          "icir": 0.2450225002731172,
+          "oos_net_return": 0.916145,
+          "oos_sharpe": 0.3081,
+          "oos_win_rate": 0.509,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.03677379128739912,
+          "icir": 0.3171766062113723,
+          "oos_net_return": 1.77744,
+          "oos_sharpe": 0.448,
+          "oos_win_rate": 0.518,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.05562633425322661,
+          "icir": 0.47739671341603807,
+          "oos_net_return": 1.852873,
+          "oos_sharpe": 0.5206,
+          "oos_win_rate": 0.4932,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_reverse_strength",
+      "timeframe": "1d",
+      "ic_mean": -0.03499,
+      "icir": -0.3553,
+      "oos_net_return": 1.328429,
+      "oos_sharpe": 0.384,
+      "oos_win_rate": 0.5073,
+      "oos_trades": 2738,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.03263297092487416,
+          "icir": -0.3802707332812792,
+          "oos_net_return": 0.795809,
+          "oos_sharpe": 0.2676,
+          "oos_win_rate": 0.512,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.032165112414482784,
+          "icir": -0.30980329863042066,
+          "oos_net_return": 0.431977,
+          "oos_sharpe": 0.1088,
+          "oos_win_rate": 0.499,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.0401624021257371,
+          "icir": -0.3758926531575341,
+          "oos_net_return": 2.757501,
+          "oos_sharpe": 0.7755,
+          "oos_win_rate": 0.5108,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_revrisk",
+      "timeframe": "1d",
+      "ic_mean": -0.04545,
+      "icir": -0.4724,
+      "oos_net_return": 1.466723,
+      "oos_sharpe": 0.3797,
+      "oos_win_rate": 0.5183,
+      "oos_trades": 4462,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.036817256830916884,
+          "icir": -0.46424515509669645,
+          "oos_net_return": -0.45559,
+          "oos_sharpe": -0.1519,
+          "oos_win_rate": 0.4992,
+          "oos_trades": 1987,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.036784176169261606,
+          "icir": -0.42185184853403335,
+          "oos_net_return": 2.565557,
+          "oos_sharpe": 0.6295,
+          "oos_win_rate": 0.5128,
+          "oos_trades": 1987,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": -0.06275997382725362,
+          "icir": -0.5310392316526875,
+          "oos_net_return": 2.290201,
+          "oos_sharpe": 0.6614,
+          "oos_win_rate": 0.543,
+          "oos_trades": 488,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_rsi_reversal",
+      "timeframe": "1d",
+      "ic_mean": -0.04624,
+      "icir": -0.4182,
+      "oos_net_return": 1.841613,
+      "oos_sharpe": 0.5027,
+      "oos_win_rate": 0.5258,
+      "oos_trades": 3158,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.02888355579945944,
+          "icir": -0.3486160455958643,
+          "oos_net_return": 0.742759,
+          "oos_sharpe": 0.2458,
+          "oos_win_rate": 0.512,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.0573273550805686,
+          "icir": -0.5140499025427662,
+          "oos_net_return": 1.794117,
+          "oos_sharpe": 0.4536,
+          "oos_win_rate": 0.533,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.05251027872267371,
+          "icir": -0.39196139281080644,
+          "oos_net_return": 2.987962,
+          "oos_sharpe": 0.8087,
+          "oos_win_rate": 0.5325,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_sl_risk",
+      "timeframe": "1d",
+      "ic_mean": -0.0463,
+      "icir": -0.4258,
+      "oos_net_return": 1.969042,
+      "oos_sharpe": 0.5644,
+      "oos_win_rate": 0.5215,
+      "oos_trades": 2492,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.04595066104155218,
+          "icir": -0.4513737694662106,
+          "oos_net_return": 1.615502,
+          "oos_sharpe": 0.5439,
+          "oos_win_rate": 0.522,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.03225987625023402,
+          "icir": -0.3076945250308208,
+          "oos_net_return": 0.719852,
+          "oos_sharpe": 0.1813,
+          "oos_win_rate": 0.506,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.06070036227823562,
+          "icir": -0.5183829103003494,
+          "oos_net_return": 3.571771,
+          "oos_sharpe": 0.968,
+          "oos_win_rate": 0.5366,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_squeeze_exhaustion",
+      "timeframe": "1d",
+      "ic_mean": 0.03334,
+      "icir": 0.4176,
+      "oos_net_return": 2.206123,
+      "oos_sharpe": 0.6033,
+      "oos_win_rate": 0.5033,
+      "oos_trades": 4738,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.025403974285739532,
+          "icir": 0.2581148630379455,
+          "oos_net_return": 1.170508,
+          "oos_sharpe": 0.3875,
+          "oos_win_rate": 0.486,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": 0.051741628547316,
+          "icir": 0.6645119953726587,
+          "oos_net_return": 2.928623,
+          "oos_sharpe": 0.7143,
+          "oos_win_rate": 0.509,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.02286645485544954,
+          "icir": 0.3301318933988284,
+          "oos_net_return": 2.519238,
+          "oos_sharpe": 0.7081,
+          "oos_win_rate": 0.5149,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_tdc",
+      "timeframe": "1d",
+      "ic_mean": -0.03786,
+      "icir": -0.3612,
+      "oos_net_return": 1.243986,
+      "oos_sharpe": 0.3446,
+      "oos_win_rate": 0.5071,
+      "oos_trades": 2070,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.06486199744828859,
+          "icir": -0.5570977063221106,
+          "oos_net_return": 0.373484,
+          "oos_sharpe": 0.13,
+          "oos_win_rate": 0.4925,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.022126286785952836,
+          "icir": -0.24240203054163098,
+          "oos_net_return": 1.410027,
+          "oos_sharpe": 0.3565,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.026580387706282033,
+          "icir": -0.2841303838579998,
+          "oos_net_return": 1.948446,
+          "oos_sharpe": 0.5474,
+          "oos_win_rate": 0.5244,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_consensus",
+      "timeframe": "1d",
+      "ic_mean": -0.08532,
+      "icir": -0.7232,
+      "oos_net_return": 1.695547,
+      "oos_sharpe": 0.4668,
+      "oos_win_rate": 0.4994,
+      "oos_trades": 2070,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.09355742890335884,
+          "icir": -0.7509851547617007,
+          "oos_net_return": 0.624968,
+          "oos_sharpe": 0.2176,
+          "oos_win_rate": 0.482,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.0966366259368185,
+          "icir": -0.8198536330474143,
+          "oos_net_return": 2.53719,
+          "oos_sharpe": 0.6423,
+          "oos_win_rate": 0.512,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.06576031576441961,
+          "icir": -0.5988629390494297,
+          "oos_net_return": 1.924483,
+          "oos_sharpe": 0.5405,
+          "oos_win_rate": 0.5041,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_noise",
+      "timeframe": "1d",
+      "ic_mean": 0.04932,
+      "icir": 0.5215,
+      "oos_net_return": 1.959075,
+      "oos_sharpe": 0.5352,
+      "oos_win_rate": 0.5135,
+      "oos_trades": 4492,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.04300559541051184,
+          "icir": 0.5843402841557621,
+          "oos_net_return": 1.180115,
+          "oos_sharpe": 0.3906,
+          "oos_win_rate": 0.5095,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": 0.03270861737018941,
+          "icir": 0.4276639453655524,
+          "oos_net_return": 2.070964,
+          "oos_sharpe": 0.5049,
+          "oos_win_rate": 0.5065,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.07224539778495233,
+          "icir": 0.5524591574754051,
+          "oos_net_return": 2.626146,
+          "oos_sharpe": 0.7102,
+          "oos_win_rate": 0.5244,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_ratio",
+      "timeframe": "1d",
+      "ic_mean": 0.04444,
+      "icir": 0.4627,
+      "oos_net_return": 2.286145,
+      "oos_sharpe": 0.6065,
+      "oos_win_rate": 0.5075,
+      "oos_trades": 3387,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.052412428312373825,
+          "icir": 0.4968792737053389,
+          "oos_net_return": 0.460613,
+          "oos_sharpe": 0.1545,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 664,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.027254359232080503,
+          "icir": 0.40863158398589655,
+          "oos_net_return": 2.693985,
+          "oos_sharpe": 0.6601,
+          "oos_win_rate": 0.5106,
+          "oos_trades": 1990,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": 0.0536510331829412,
+          "icir": 0.48260510799978595,
+          "oos_net_return": 3.703838,
+          "oos_sharpe": 1.0049,
+          "oos_win_rate": 0.5075,
+          "oos_trades": 733,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_unstable",
+      "timeframe": "1d",
+      "ic_mean": 0.05089,
+      "icir": 0.3587,
+      "oos_net_return": 2.162617,
+      "oos_sharpe": 0.6404,
+      "oos_win_rate": 0.5093,
+      "oos_trades": 2404,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.054162797601013855,
+          "icir": 0.4461529257352428,
+          "oos_net_return": 2.877348,
+          "oos_sharpe": 0.9709,
+          "oos_win_rate": 0.528,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.08229239884986031,
+          "icir": 0.5014255786527188,
+          "oos_net_return": 2.27808,
+          "oos_sharpe": 0.5762,
+          "oos_win_rate": 0.5135,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.016216186822612232,
+          "icir": 0.1284981277515287,
+          "oos_net_return": 1.332422,
+          "oos_sharpe": 0.3741,
+          "oos_win_rate": 0.4864,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_trend_weak",
+      "timeframe": "1d",
+      "ic_mean": 0.03895,
+      "icir": 0.3864,
+      "oos_net_return": 1.94374,
+      "oos_sharpe": 0.5193,
+      "oos_win_rate": 0.5009,
+      "oos_trades": 2158,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.020251232133961797,
+          "icir": 0.20802129467234776,
+          "oos_net_return": 0.337395,
+          "oos_sharpe": 0.1135,
+          "oos_win_rate": 0.505,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.018853317919521724,
+          "icir": 0.17268071476979263,
+          "oos_net_return": 2.445452,
+          "oos_sharpe": 0.6192,
+          "oos_win_rate": 0.4835,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.07774457570337376,
+          "icir": 0.778440141230279,
+          "oos_net_return": 3.048374,
+          "oos_sharpe": 0.8251,
+          "oos_win_rate": 0.5142,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_unk_reg",
+      "timeframe": "1d",
+      "ic_mean": 0.10113,
+      "icir": 9.1624,
+      "oos_net_return": 1.228697,
+      "oos_sharpe": 0.4824,
+      "oos_win_rate": 0.5095,
+      "oos_trades": 1325,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.12768790585299333,
+          "icir": 19.344992414784286,
+          "oos_net_return": 0.565992,
+          "oos_sharpe": 0.4495,
+          "oos_win_rate": 0.528,
+          "oos_trades": 500,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.02651100504127416,
+          "icir": 4.8458337527394475,
+          "oos_net_return": 0.709655,
+          "oos_sharpe": 0.3464,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 333,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.14919659814341107,
+          "icir": 3.296520750621167,
+          "oos_net_return": 2.410445,
+          "oos_sharpe": 0.6514,
+          "oos_win_rate": 0.4959,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vc",
+      "timeframe": "1d",
+      "ic_mean": 0.03028,
+      "icir": 0.3042,
+      "oos_net_return": 1.229989,
+      "oos_sharpe": 0.382,
+      "oos_win_rate": 0.5031,
+      "oos_trades": 3475,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.03210681972009586,
+          "icir": 0.3169751734368765,
+          "oos_net_return": 2.381215,
+          "oos_sharpe": 0.8027,
+          "oos_win_rate": 0.526,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.026468693763471954,
+          "icir": 0.2390829424886477,
+          "oos_net_return": 0.739375,
+          "oos_sharpe": 0.1862,
+          "oos_win_rate": 0.502,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.032255767054571664,
+          "icir": 0.3566363935821501,
+          "oos_net_return": 0.569376,
+          "oos_sharpe": 0.1571,
+          "oos_win_rate": 0.4814,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vcl",
+      "timeframe": "1d",
+      "ic_mean": 0.03028,
+      "icir": 0.3042,
+      "oos_net_return": 1.229989,
+      "oos_sharpe": 0.382,
+      "oos_win_rate": 0.5031,
+      "oos_trades": 3475,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.03210681972009586,
+          "icir": 0.3169751734368765,
+          "oos_net_return": 2.381215,
+          "oos_sharpe": 0.8027,
+          "oos_win_rate": 0.526,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.026468693763471954,
+          "icir": 0.2390829424886477,
+          "oos_net_return": 0.739375,
+          "oos_sharpe": 0.1862,
+          "oos_win_rate": 0.502,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.032255767054571664,
+          "icir": 0.3566363935821501,
+          "oos_net_return": 0.569376,
+          "oos_sharpe": 0.1571,
+          "oos_win_rate": 0.4814,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vld",
+      "timeframe": "1d",
+      "ic_mean": -0.03788,
+      "icir": -0.4997,
+      "oos_net_return": 1.542905,
+      "oos_sharpe": 0.4358,
+      "oos_win_rate": 0.5017,
+      "oos_trades": 2738,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.027253460061353502,
+          "icir": -0.26626177007415347,
+          "oos_net_return": 0.715652,
+          "oos_sharpe": 0.2406,
+          "oos_win_rate": 0.505,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.017639639831161655,
+          "icir": -0.19927853526293715,
+          "oos_net_return": 1.143297,
+          "oos_sharpe": 0.288,
+          "oos_win_rate": 0.481,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.06873378761089882,
+          "icir": -1.0335102407514396,
+          "oos_net_return": 2.769767,
+          "oos_sharpe": 0.7787,
+          "oos_win_rate": 0.519,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vol_accel",
+      "timeframe": "1d",
+      "ic_mean": -0.04302,
+      "icir": -0.4642,
+      "oos_net_return": 1.939232,
+      "oos_sharpe": 0.5552,
+      "oos_win_rate": 0.514,
+      "oos_trades": 4475,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.051039123544583974,
+          "icir": -0.4353694820049919,
+          "oos_net_return": 1.615553,
+          "oos_sharpe": 0.544,
+          "oos_win_rate": 0.514,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.03402764447592442,
+          "icir": -0.3985247746302287,
+          "oos_net_return": 1.221905,
+          "oos_sharpe": 0.2979,
+          "oos_win_rate": 0.506,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": -0.04400813065294503,
+          "icir": -0.5587806329721631,
+          "oos_net_return": 2.980239,
+          "oos_sharpe": 0.8236,
+          "oos_win_rate": 0.522,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vol_adjusted_mean_reversion",
+      "timeframe": "1d",
+      "ic_mean": 0.04579,
+      "icir": 0.3533,
+      "oos_net_return": 1.110047,
+      "oos_sharpe": 0.3452,
+      "oos_win_rate": 0.4889,
+      "oos_trades": 1824,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.043742795630083944,
+          "icir": 0.33657043178789703,
+          "oos_net_return": 1.813997,
+          "oos_sharpe": 0.6333,
+          "oos_win_rate": 0.491,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.05747802745946264,
+          "icir": 0.45816442980613215,
+          "oos_net_return": 0.399676,
+          "oos_sharpe": 0.1009,
+          "oos_win_rate": 0.488,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.03615889067756216,
+          "icir": 0.26513164040252113,
+          "oos_net_return": 1.116469,
+          "oos_sharpe": 0.3013,
+          "oos_win_rate": 0.4878,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_volab",
+      "timeframe": "1d",
+      "ic_mean": 0.03327,
+      "icir": 0.3967,
+      "oos_net_return": 1.334096,
+      "oos_sharpe": 0.47,
+      "oos_win_rate": 0.493,
+      "oos_trades": 3476,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.03417942599468288,
+          "icir": 0.483544347346106,
+          "oos_net_return": 0.67303,
+          "oos_sharpe": 0.5196,
+          "oos_win_rate": 0.5015,
+          "oos_trades": 1001,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": 0.062024582688686,
+          "icir": 0.6512387160401637,
+          "oos_net_return": 1.178877,
+          "oos_sharpe": 0.2969,
+          "oos_win_rate": 0.492,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.003609474984510435,
+          "icir": 0.05546403516736831,
+          "oos_net_return": 2.150381,
+          "oos_sharpe": 0.5936,
+          "oos_win_rate": 0.4854,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_volclust",
+      "timeframe": "1d",
+      "ic_mean": -0.03146,
+      "icir": -0.3478,
+      "oos_net_return": 1.158527,
+      "oos_sharpe": 0.3597,
+      "oos_win_rate": 0.4972,
+      "oos_trades": 4475,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.030561082918447134,
+          "icir": -0.41139413015119514,
+          "oos_net_return": 2.448446,
+          "oos_sharpe": 0.8114,
+          "oos_win_rate": 0.509,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.03025308452132116,
+          "icir": -0.28248692685394394,
+          "oos_net_return": 0.650334,
+          "oos_sharpe": 0.1638,
+          "oos_win_rate": 0.502,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.03356023064318713,
+          "icir": -0.3494386818589831,
+          "oos_net_return": 0.376801,
+          "oos_sharpe": 0.1039,
+          "oos_win_rate": 0.4807,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vom",
+      "timeframe": "1d",
+      "ic_mean": -0.03806,
+      "icir": -0.4009,
+      "oos_net_return": 1.870246,
+      "oos_sharpe": 0.5155,
+      "oos_win_rate": 0.5176,
+      "oos_trades": 5367,
+      "fwd": 1,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.0394940592830247,
+          "icir": -0.41600447806521046,
+          "oos_net_return": 1.21958,
+          "oos_sharpe": 0.4117,
+          "oos_win_rate": 0.5209,
+          "oos_trades": 1964,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.04050704567491071,
+          "icir": -0.4265175362286387,
+          "oos_net_return": 3.157538,
+          "oos_sharpe": 0.7859,
+          "oos_win_rate": 0.5239,
+          "oos_trades": 1964,
+          "fwd": 1
+        },
+        "SOL": {
+          "ic_mean": -0.03417863128087244,
+          "icir": -0.36004660822820156,
+          "oos_net_return": 1.23362,
+          "oos_sharpe": 0.3488,
+          "oos_win_rate": 0.508,
+          "oos_trades": 1439,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_vtr",
+      "timeframe": "1d",
+      "ic_mean": 0.04074,
+      "icir": 0.3771,
+      "oos_net_return": 2.100012,
+      "oos_sharpe": 0.6084,
+      "oos_win_rate": 0.5152,
+      "oos_trades": 2492,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.042479242558166125,
+          "icir": 0.4770756452047129,
+          "oos_net_return": 1.830329,
+          "oos_sharpe": 0.6164,
+          "oos_win_rate": 0.517,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": 0.026711823746508365,
+          "icir": 0.23056796928066747,
+          "oos_net_return": 0.23603,
+          "oos_sharpe": 0.0594,
+          "oos_win_rate": 0.486,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": 0.05302013992556557,
+          "icir": 0.42350906504908525,
+          "oos_net_return": 4.233676,
+          "oos_sharpe": 1.1494,
+          "oos_win_rate": 0.5427,
+          "oos_trades": 492,
+          "fwd": 3
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_weak_trend",
+      "timeframe": "1d",
+      "ic_mean": -0.05382,
+      "icir": -0.5263,
+      "oos_net_return": 1.439544,
+      "oos_sharpe": 0.3992,
+      "oos_win_rate": 0.507,
+      "oos_trades": 3404,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.03432686787873024,
+          "icir": -0.4916082043596667,
+          "oos_net_return": 0.654644,
+          "oos_sharpe": 0.2166,
+          "oos_win_rate": 0.5155,
+          "oos_trades": 2000,
+          "fwd": 1
+        },
+        "ETH": {
+          "ic_mean": -0.04762181042966794,
+          "icir": -0.3968618080653414,
+          "oos_net_return": 1.718504,
+          "oos_sharpe": 0.4345,
+          "oos_win_rate": 0.5135,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.07949755701121611,
+          "icir": -0.6905245957946402,
+          "oos_net_return": 1.945485,
+          "oos_sharpe": 0.5465,
+          "oos_win_rate": 0.4919,
+          "oos_trades": 738,
+          "fwd": 2
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "ai_gen_whipsaw",
+      "timeframe": "1d",
+      "ic_mean": -0.04299,
+      "icir": -0.3717,
+      "oos_net_return": 1.752477,
+      "oos_sharpe": 0.4964,
+      "oos_win_rate": 0.5089,
+      "oos_trades": 3475,
+      "fwd": 2,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.04360726282958992,
+          "icir": -0.35377153291548324,
+          "oos_net_return": 1.26192,
+          "oos_sharpe": 0.4247,
+          "oos_win_rate": 0.52,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "ETH": {
+          "ic_mean": -0.04080749666922614,
+          "icir": -0.34641606994309926,
+          "oos_net_return": 1.607491,
+          "oos_sharpe": 0.4051,
+          "oos_win_rate": 0.499,
+          "oos_trades": 1000,
+          "fwd": 2
+        },
+        "SOL": {
+          "ic_mean": -0.04455816534704866,
+          "icir": -0.4147726601824429,
+          "oos_net_return": 2.38802,
+          "oos_sharpe": 0.6594,
+          "oos_win_rate": 0.5078,
+          "oos_trades": 1475,
+          "fwd": 1
+        }
+      },
+      "grade": "B",
+      "admitted": true
+    },
+    {
+      "factor_id": "wq_alpha020",
+      "timeframe": "1d",
+      "ic_mean": -0.03341,
+      "icir": -0.3576,
+      "oos_net_return": 1.151547,
+      "oos_sharpe": 0.3011,
+      "oos_win_rate": 0.4926,
+      "oos_trades": 1824,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.026414051636159327,
+          "icir": -0.26211507754648655,
+          "oos_net_return": 0.077493,
+          "oos_sharpe": 0.027,
+          "oos_win_rate": 0.5,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.031185187765545692,
+          "icir": -0.3607578396104003,
+          "oos_net_return": 2.059249,
+          "oos_sharpe": 0.5209,
+          "oos_win_rate": 0.494,
+          "oos_trades": 666,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.04262642670187625,
+          "icir": -0.449862789856622,
+          "oos_net_return": 1.3179,
+          "oos_sharpe": 0.3554,
+          "oos_win_rate": 0.4837,
+          "oos_trades": 492,
           "fwd": 3
         }
       },
@@ -1089,35 +2811,287 @@
     }
   ],
   "timeouts": 0,
-  "errors": 78,
+  "errors": 264,
   "top_by_ic": [
     {
       "factor_id": "ai_gen_contrarian_trap",
       "timeframe": "1d",
       "ic_mean": -0.13895,
       "icir": -3.356,
-      "oos_net_return": 0.583827,
-      "oos_sharpe": 0.248,
-      "oos_win_rate": 0.5157,
+      "oos_net_return": 0.451426,
+      "oos_sharpe": 0.1931,
+      "oos_win_rate": 0.5188,
       "oos_trades": 999,
       "fwd": 3,
       "per_symbol": {
         "BTC": {
           "ic_mean": -0.11959635484007176,
           "icir": -1.0415747994734104,
-          "oos_net_return": 0.67977,
-          "oos_sharpe": 0.2297,
-          "oos_win_rate": 0.524,
+          "oos_net_return": 0.494512,
+          "oos_sharpe": 0.1721,
+          "oos_win_rate": 0.515,
           "oos_trades": 666,
           "fwd": 3
         },
         "ETH": {
           "ic_mean": -0.15830939858325668,
           "icir": -5.670503112596787,
-          "oos_net_return": 0.487885,
-          "oos_sharpe": 0.2664,
-          "oos_win_rate": 0.5075,
+          "oos_net_return": 0.408339,
+          "oos_sharpe": 0.2141,
+          "oos_win_rate": 0.5225,
           "oos_trades": 333,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_volad",
+      "timeframe": "4h",
+      "ic_mean": -0.13527,
+      "icir": -0.713,
+      "oos_net_return": -0.046636,
+      "oos_sharpe": -0.1129,
+      "oos_win_rate": 0.5146,
+      "oos_trades": 1174,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.14367871978731261,
+          "icir": -0.6592998385412192,
+          "oos_net_return": 0.011984,
+          "oos_sharpe": 0.0313,
+          "oos_win_rate": 0.5115,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": -0.12588216442381045,
+          "icir": -0.8039991328274798,
+          "oos_net_return": -0.531244,
+          "oos_sharpe": -1.1063,
+          "oos_win_rate": 0.4942,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.13623762181994623,
+          "icir": -0.6755524433001663,
+          "oos_net_return": 0.379352,
+          "oos_sharpe": 0.7363,
+          "oos_win_rate": 0.5381,
+          "oos_trades": 394,
+          "fwd": 4
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_trend_consensus",
+      "timeframe": "4h",
+      "ic_mean": -0.13129,
+      "icir": -0.8968,
+      "oos_net_return": -0.355056,
+      "oos_sharpe": -0.7938,
+      "oos_win_rate": 0.4971,
+      "oos_trades": 1565,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.11613218195786523,
+          "icir": -0.7887117482324788,
+          "oos_net_return": -0.27459,
+          "oos_sharpe": -0.764,
+          "oos_win_rate": 0.5077,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.14421209190261106,
+          "icir": -1.0587413519512412,
+          "oos_net_return": -0.596529,
+          "oos_sharpe": -1.2433,
+          "oos_win_rate": 0.4827,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.13351320473080736,
+          "icir": -0.8429034822889523,
+          "oos_net_return": -0.194049,
+          "oos_sharpe": -0.3741,
+          "oos_win_rate": 0.501,
+          "oos_trades": 525,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_trend_weakness",
+      "timeframe": "4h",
+      "ic_mean": 0.12865,
+      "icir": 0.6627,
+      "oos_net_return": 0.136468,
+      "oos_sharpe": 0.3155,
+      "oos_win_rate": 0.5358,
+      "oos_trades": 1163,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.14666292610116966,
+          "icir": 0.6351346179091714,
+          "oos_net_return": 0.140048,
+          "oos_sharpe": 0.4101,
+          "oos_win_rate": 0.5504,
+          "oos_trades": 258,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": 0.12684500658574235,
+          "icir": 0.6942360551111878,
+          "oos_net_return": 0.176764,
+          "oos_sharpe": 0.368,
+          "oos_win_rate": 0.5155,
+          "oos_trades": 386,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": 0.11245666518978117,
+          "icir": 0.6586420698342259,
+          "oos_net_return": 0.092592,
+          "oos_sharpe": 0.1685,
+          "oos_win_rate": 0.5414,
+          "oos_trades": 519,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_retracement",
+      "timeframe": "4h",
+      "ic_mean": 0.12864,
+      "icir": 0.8381,
+      "oos_net_return": 0.162123,
+      "oos_sharpe": 0.3163,
+      "oos_win_rate": 0.5006,
+      "oos_trades": 1143,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": 0.1272239148321562,
+          "icir": 0.9333052218280972,
+          "oos_net_return": 0.004847,
+          "oos_sharpe": 0.0133,
+          "oos_win_rate": 0.499,
+          "oos_trades": 507,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": 0.10599828184767986,
+          "icir": 0.7300940370029969,
+          "oos_net_return": 0.113527,
+          "oos_sharpe": 0.2401,
+          "oos_win_rate": 0.5105,
+          "oos_trades": 380,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": 0.15270155673883803,
+          "icir": 0.8507785234978144,
+          "oos_net_return": 0.367995,
+          "oos_sharpe": 0.6956,
+          "oos_win_rate": 0.4922,
+          "oos_trades": 256,
+          "fwd": 6
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_regimeavoid",
+      "timeframe": "4h",
+      "ic_mean": -0.125,
+      "icir": -0.7857,
+      "oos_net_return": -0.562598,
+      "oos_sharpe": -1.1703,
+      "oos_win_rate": 0.4941,
+      "oos_trades": 1526,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.11680028331926381,
+          "icir": -0.7225486825558407,
+          "oos_net_return": -0.221337,
+          "oos_sharpe": -0.6303,
+          "oos_win_rate": 0.4832,
+          "oos_trades": 507,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.1363414219270561,
+          "icir": -0.9020603056901877,
+          "oos_net_return": -0.596875,
+          "oos_sharpe": -1.2232,
+          "oos_win_rate": 0.501,
+          "oos_trades": 507,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.12187310641794175,
+          "icir": -0.7324733866347034,
+          "oos_net_return": -0.869582,
+          "oos_sharpe": -1.6575,
+          "oos_win_rate": 0.498,
+          "oos_trades": 512,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_trd_str",
+      "timeframe": "4h",
+      "ic_mean": -0.1235,
+      "icir": -0.7564,
+      "oos_net_return": -0.314341,
+      "oos_sharpe": -0.704,
+      "oos_win_rate": 0.5003,
+      "oos_trades": 1565,
+      "fwd": 3,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.11264157048196813,
+          "icir": -0.6895170188643619,
+          "oos_net_return": -0.241696,
+          "oos_sharpe": -0.6725,
+          "oos_win_rate": 0.5096,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "ETH": {
+          "ic_mean": -0.13173001222530434,
+          "icir": -0.8571796375975111,
+          "oos_net_return": -0.559624,
+          "oos_sharpe": -1.1662,
+          "oos_win_rate": 0.4981,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": -0.12613238754579562,
+          "icir": -0.722365580551519,
+          "oos_net_return": -0.141703,
+          "oos_sharpe": -0.2733,
+          "oos_win_rate": 0.4933,
+          "oos_trades": 525,
           "fwd": 3
         }
       },
@@ -1129,37 +3103,37 @@
       "timeframe": "4h",
       "ic_mean": 0.122,
       "icir": 3.5069,
-      "oos_net_return": 0.19217,
-      "oos_sharpe": 0.5176,
-      "oos_win_rate": 0.4987,
-      "oos_trades": 385,
+      "oos_net_return": 0.151917,
+      "oos_sharpe": 0.3949,
+      "oos_win_rate": 0.4961,
+      "oos_trades": 391,
       "fwd": 6,
       "per_symbol": {
         "BTC": {
           "ic_mean": 0.24556754777828851,
           "icir": 8.008339011939674,
-          "oos_net_return": 0.109771,
-          "oos_sharpe": 0.4162,
-          "oos_win_rate": 0.4922,
-          "oos_trades": 128,
+          "oos_net_return": 0.018042,
+          "oos_sharpe": 0.0594,
+          "oos_win_rate": 0.4846,
+          "oos_trades": 130,
           "fwd": 6
         },
         "ETH": {
           "ic_mean": 0.06010725628099559,
           "icir": 0.9425068613415789,
-          "oos_net_return": 0.193213,
-          "oos_sharpe": 0.5207,
-          "oos_win_rate": 0.5078,
-          "oos_trades": 128,
+          "oos_net_return": 0.11076,
+          "oos_sharpe": 0.2683,
+          "oos_win_rate": 0.4692,
+          "oos_trades": 130,
           "fwd": 6
         },
         "SOL": {
           "ic_mean": 0.060319411636252575,
           "icir": 1.569856472022705,
-          "oos_net_return": 0.273526,
-          "oos_sharpe": 0.6159,
-          "oos_win_rate": 0.4961,
-          "oos_trades": 129,
+          "oos_net_return": 0.326949,
+          "oos_sharpe": 0.857,
+          "oos_win_rate": 0.5344,
+          "oos_trades": 131,
           "fwd": 6
         }
       },
@@ -1167,125 +3141,125 @@
       "admitted": true
     },
     {
-      "factor_id": "ai_gen_eff_trend",
+      "factor_id": "ai_gen_micro_profit_risk",
       "timeframe": "4h",
-      "ic_mean": -0.11893,
-      "icir": -0.6043,
-      "oos_net_return": 0.141451,
-      "oos_sharpe": 0.3314,
-      "oos_win_rate": 0.5452,
-      "oos_trades": 1027,
-      "fwd": 5,
+      "ic_mean": 0.12184,
+      "icir": 2.125,
+      "oos_net_return": 0.16374,
+      "oos_sharpe": 0.4379,
+      "oos_win_rate": 0.5115,
+      "oos_trades": 651,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.12105889223754433,
-          "icir": -0.5366813057284926,
-          "oos_net_return": 0.192167,
-          "oos_sharpe": 0.5599,
-          "oos_win_rate": 0.5586,
-          "oos_trades": 256,
-          "fwd": 6
+          "ic_mean": 0.19823505450040102,
+          "icir": 2.331633144497067,
+          "oos_net_return": 0.029181,
+          "oos_sharpe": 0.1018,
+          "oos_win_rate": 0.4962,
+          "oos_trades": 260,
+          "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.14265288428355136,
-          "icir": -0.6929620759805343,
-          "oos_net_return": 0.040883,
-          "oos_sharpe": 0.0844,
-          "oos_win_rate": 0.543,
-          "oos_trades": 256,
-          "fwd": 6
+          "ic_mean": 0.04385301589112108,
+          "icir": 0.9475354505452566,
+          "oos_net_return": 0.135091,
+          "oos_sharpe": 0.355,
+          "oos_win_rate": 0.5038,
+          "oos_trades": 260,
+          "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.09307572520902092,
-          "icir": -0.5833297829522844,
-          "oos_net_return": 0.191304,
-          "oos_sharpe": 0.3498,
-          "oos_win_rate": 0.534,
-          "oos_trades": 515,
-          "fwd": 3
+          "ic_mean": 0.12343309364385074,
+          "icir": 3.095682776363571,
+          "oos_net_return": 0.326949,
+          "oos_sharpe": 0.857,
+          "oos_win_rate": 0.5344,
+          "oos_trades": 131,
+          "fwd": 6
+        }
+      },
+      "grade": "A",
+      "admitted": true
+    },
+    {
+      "factor_id": "wq_alpha086",
+      "timeframe": "4h",
+      "ic_mean": -0.1208,
+      "icir": -0.6628,
+      "oos_net_return": 0.067068,
+      "oos_sharpe": 0.1535,
+      "oos_win_rate": 0.5264,
+      "oos_trades": 1174,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.11250045264852271,
+          "icir": -0.5945924081154653,
+          "oos_net_return": 0.064054,
+          "oos_sharpe": 0.1829,
+          "oos_win_rate": 0.5231,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "ETH": {
+          "ic_mean": -0.1291118146877274,
+          "icir": -0.7503371277881086,
+          "oos_net_return": 0.088834,
+          "oos_sharpe": 0.1841,
+          "oos_win_rate": 0.5333,
+          "oos_trades": 390,
+          "fwd": 4
+        },
+        "SOL": {
+          "ic_mean": -0.12077995778482396,
+          "icir": -0.6433408368306694,
+          "oos_net_return": 0.048317,
+          "oos_sharpe": 0.0936,
+          "oos_win_rate": 0.5228,
+          "oos_trades": 394,
+          "fwd": 4
         }
       },
       "grade": "C",
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_micro_profit_risk",
-      "timeframe": "4h",
-      "ic_mean": 0.11824,
-      "icir": 2.1546,
-      "oos_net_return": 0.202179,
-      "oos_sharpe": 0.5537,
-      "oos_win_rate": 0.527,
-      "oos_trades": 703,
-      "fwd": 3,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.19823505450040102,
-          "icir": 2.331633144497067,
-          "oos_net_return": 0.111587,
-          "oos_sharpe": 0.4037,
-          "oos_win_rate": 0.5255,
-          "oos_trades": 255,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": 0.04385301589112108,
-          "icir": 0.9475354505452566,
-          "oos_net_return": 0.200468,
-          "oos_sharpe": 0.5411,
-          "oos_win_rate": 0.5373,
-          "oos_trades": 255,
-          "fwd": 3
-        },
-        "SOL": {
-          "ic_mean": 0.11262943926784727,
-          "icir": 3.184535993088564,
-          "oos_net_return": 0.294482,
-          "oos_sharpe": 0.7162,
-          "oos_win_rate": 0.5181,
-          "oos_trades": 193,
-          "fwd": 4
-        }
-      },
-      "grade": "A",
-      "admitted": true
-    },
-    {
       "factor_id": "ai_gen_meanrev_strength",
       "timeframe": "4h",
-      "ic_mean": 0.1118,
-      "icir": 0.7768,
-      "oos_net_return": -0.443301,
-      "oos_sharpe": -1.0311,
-      "oos_win_rate": 0.4973,
-      "oos_trades": 1504,
-      "fwd": 3,
+      "ic_mean": 0.11571,
+      "icir": 0.7104,
+      "oos_net_return": -0.188618,
+      "oos_sharpe": -0.3291,
+      "oos_win_rate": 0.5081,
+      "oos_trades": 1278,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.10712010041120557,
-          "icir": 0.6761472284537369,
-          "oos_net_return": -0.471751,
-          "oos_sharpe": -1.328,
-          "oos_win_rate": 0.492,
-          "oos_trades": 500,
-          "fwd": 3
+          "ic_mean": 0.12809192484350732,
+          "icir": 0.5819184770574387,
+          "oos_net_return": 0.163264,
+          "oos_sharpe": 0.4491,
+          "oos_win_rate": 0.5137,
+          "oos_trades": 255,
+          "fwd": 6
         },
         "ETH": {
-          "ic_mean": 0.11623144044953009,
-          "icir": 0.9007698273518684,
-          "oos_net_return": -0.712061,
-          "oos_sharpe": -1.4899,
-          "oos_win_rate": 0.492,
-          "oos_trades": 500,
+          "ic_mean": 0.11060296311881561,
+          "icir": 0.8249028929547266,
+          "oos_net_return": -0.52553,
+          "oos_sharpe": -1.0531,
+          "oos_win_rate": 0.4912,
+          "oos_trades": 509,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": 0.11203971310585725,
-          "icir": 0.7534163323541571,
-          "oos_net_return": -0.14609,
-          "oos_sharpe": -0.2753,
-          "oos_win_rate": 0.5079,
-          "oos_trades": 504,
+          "ic_mean": 0.10844644915860406,
+          "icir": 0.7243670077413055,
+          "oos_net_return": -0.203587,
+          "oos_sharpe": -0.3834,
+          "oos_win_rate": 0.5195,
+          "oos_trades": 514,
           "fwd": 3
         }
       },
@@ -1295,81 +3269,81 @@
     {
       "factor_id": "ai_gen_mmc",
       "timeframe": "4h",
-      "ic_mean": -0.10191,
-      "icir": -0.6672,
-      "oos_net_return": -0.285264,
-      "oos_sharpe": -0.6394,
-      "oos_win_rate": 0.5133,
-      "oos_trades": 1535,
-      "fwd": 3,
+      "ic_mean": -0.11238,
+      "icir": -0.6445,
+      "oos_net_return": -0.217922,
+      "oos_sharpe": -0.533,
+      "oos_win_rate": 0.5024,
+      "oos_trades": 1302,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.09209358763648037,
-          "icir": -0.5464210377989281,
-          "oos_net_return": -0.213421,
-          "oos_sharpe": -0.6095,
-          "oos_win_rate": 0.5118,
-          "oos_trades": 510,
+          "ic_mean": -0.08499895493816968,
+          "icir": -0.4868512591483377,
+          "oos_net_return": -0.314926,
+          "oos_sharpe": -0.876,
+          "oos_win_rate": 0.4654,
+          "oos_trades": 520,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.10624877807980655,
-          "icir": -0.7117296110519757,
-          "oos_net_return": -0.471653,
-          "oos_sharpe": -0.9968,
-          "oos_win_rate": 0.5039,
-          "oos_trades": 510,
+          "ic_mean": -0.10173097671509415,
+          "icir": -0.6718915867675636,
+          "oos_net_return": -0.510508,
+          "oos_sharpe": -1.0633,
+          "oos_win_rate": 0.4769,
+          "oos_trades": 520,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.10737986105141897,
-          "icir": -0.7435214492939131,
-          "oos_net_return": -0.170717,
-          "oos_sharpe": -0.3119,
-          "oos_win_rate": 0.5243,
-          "oos_trades": 515,
-          "fwd": 3
+          "ic_mean": -0.1503996870221234,
+          "icir": -0.7748019708435636,
+          "oos_net_return": 0.171669,
+          "oos_sharpe": 0.3402,
+          "oos_win_rate": 0.5649,
+          "oos_trades": 262,
+          "fwd": 6
         }
       },
       "grade": "C",
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_mean_reversion_risk",
+      "factor_id": "ai_gen_tcq",
       "timeframe": "4h",
-      "ic_mean": 0.09575,
-      "icir": 0.5132,
-      "oos_net_return": 0.081633,
-      "oos_sharpe": 0.0664,
-      "oos_win_rate": 0.5182,
-      "oos_trades": 1152,
+      "ic_mean": -0.11177,
+      "icir": -0.6252,
+      "oos_net_return": -0.091135,
+      "oos_sharpe": -0.1726,
+      "oos_win_rate": 0.5198,
+      "oos_trades": 1304,
       "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.06651591353317307,
-          "icir": 0.4071137140206718,
-          "oos_net_return": -0.353473,
-          "oos_sharpe": -1.0071,
-          "oos_win_rate": 0.5039,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": -0.10458494351478737,
+          "icir": -0.5609462650848139,
+          "oos_net_return": 0.082563,
+          "oos_sharpe": 0.2356,
+          "oos_win_rate": 0.5154,
+          "oos_trades": 390,
+          "fwd": 4
         },
         "ETH": {
-          "ic_mean": 0.11649000677161948,
-          "icir": 0.5643966490891946,
-          "oos_net_return": 0.365339,
-          "oos_sharpe": 0.7557,
-          "oos_win_rate": 0.543,
-          "oos_trades": 256,
-          "fwd": 6
+          "ic_mean": -0.11160069242479397,
+          "icir": -0.7385919569003809,
+          "oos_net_return": -0.442434,
+          "oos_sharpe": -0.9208,
+          "oos_win_rate": 0.5058,
+          "oos_trades": 520,
+          "fwd": 3
         },
         "SOL": {
-          "ic_mean": 0.104249996006957,
-          "icir": 0.5681194488794079,
-          "oos_net_return": 0.233034,
-          "oos_sharpe": 0.4507,
-          "oos_win_rate": 0.5078,
-          "oos_trades": 386,
+          "ic_mean": -0.11910982443857715,
+          "icir": -0.5760332743150278,
+          "oos_net_return": 0.086467,
+          "oos_sharpe": 0.1675,
+          "oos_win_rate": 0.5381,
+          "oos_trades": 394,
           "fwd": 4
         }
       },
@@ -1377,167 +3351,41 @@
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_tren",
+      "factor_id": "ai_gen_vol_adjusted_mean_reversion",
       "timeframe": "4h",
-      "ic_mean": -0.09479,
-      "icir": -0.5287,
-      "oos_net_return": 0.088607,
-      "oos_sharpe": 0.0808,
-      "oos_win_rate": 0.5211,
-      "oos_trades": 1152,
-      "fwd": 4,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.06394416049436101,
-          "icir": -0.397351871966982,
-          "oos_net_return": -0.354146,
-          "oos_sharpe": -1.0092,
-          "oos_win_rate": 0.5098,
-          "oos_trades": 510,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": -0.1188634582544839,
-          "icir": -0.6000975475018534,
-          "oos_net_return": 0.391614,
-          "oos_sharpe": 0.81,
-          "oos_win_rate": 0.543,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": -0.10155950880607738,
-          "icir": -0.5885420084670915,
-          "oos_net_return": 0.228354,
-          "oos_sharpe": 0.4417,
-          "oos_win_rate": 0.5104,
-          "oos_trades": 386,
-          "fwd": 4
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "ai_gen_mom_consistency",
-      "timeframe": "4h",
-      "ic_mean": -0.09338,
-      "icir": -0.6109,
-      "oos_net_return": 0.075741,
-      "oos_sharpe": 0.0823,
-      "oos_win_rate": 0.525,
-      "oos_trades": 1281,
-      "fwd": 4,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.06969887563500161,
-          "icir": -0.4959352290253293,
-          "oos_net_return": -0.206207,
-          "oos_sharpe": -0.5883,
-          "oos_win_rate": 0.5157,
-          "oos_trades": 510,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": -0.10918395620046084,
-          "icir": -0.6548757839424202,
-          "oos_net_return": 0.179866,
-          "oos_sharpe": 0.3716,
-          "oos_win_rate": 0.5195,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": -0.10125337785562706,
-          "icir": -0.6817495739582076,
-          "oos_net_return": 0.253563,
-          "oos_sharpe": 0.4635,
-          "oos_win_rate": 0.5398,
-          "oos_trades": 515,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "ai_gen_mom",
-      "timeframe": "4h",
-      "ic_mean": -0.09085,
-      "icir": -0.4895,
-      "oos_net_return": 0.031483,
-      "oos_sharpe": 0.0274,
-      "oos_win_rate": 0.5276,
-      "oos_trades": 1281,
-      "fwd": 4,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.07664538190378087,
-          "icir": -0.4508844979535879,
-          "oos_net_return": -0.089792,
-          "oos_sharpe": -0.2564,
-          "oos_win_rate": 0.498,
-          "oos_trades": 510,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": -0.12193314965668926,
-          "icir": -0.5710541475910654,
-          "oos_net_return": 0.007172,
-          "oos_sharpe": 0.0148,
-          "oos_win_rate": 0.5469,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": -0.07395904525139955,
-          "icir": -0.44655948542041224,
-          "oos_net_return": 0.177069,
-          "oos_sharpe": 0.3237,
-          "oos_win_rate": 0.5379,
-          "oos_trades": 515,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "cloud_vwap_deviation",
-      "timeframe": "4h",
-      "ic_mean": -0.08757,
-      "icir": -0.5819,
-      "oos_net_return": -0.20216,
-      "oos_sharpe": -0.5541,
-      "oos_win_rate": 0.5179,
-      "oos_trades": 1535,
+      "ic_mean": 0.10959,
+      "icir": 0.7098,
+      "oos_net_return": -0.464964,
+      "oos_sharpe": -1.0452,
+      "oos_win_rate": 0.4907,
+      "oos_trades": 1565,
       "fwd": 3,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.08392788751173448,
-          "icir": -0.540723408246706,
-          "oos_net_return": -0.496871,
-          "oos_sharpe": -1.4177,
-          "oos_win_rate": 0.4922,
-          "oos_trades": 510,
+          "ic_mean": 0.0994444637264355,
+          "icir": 0.6094445468677303,
+          "oos_net_return": -0.417775,
+          "oos_sharpe": -1.1628,
+          "oos_win_rate": 0.4942,
+          "oos_trades": 520,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.08693053158568309,
-          "icir": -0.5927108215622854,
-          "oos_net_return": -0.155677,
-          "oos_sharpe": -0.3287,
-          "oos_win_rate": 0.5216,
-          "oos_trades": 510,
+          "ic_mean": 0.11997719970754074,
+          "icir": 0.8255258773899453,
+          "oos_net_return": -0.570945,
+          "oos_sharpe": -1.1897,
+          "oos_win_rate": 0.4788,
+          "oos_trades": 520,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.09184621396013223,
-          "icir": -0.6122852245229953,
-          "oos_net_return": 0.046069,
-          "oos_sharpe": 0.0842,
-          "oos_win_rate": 0.5398,
-          "oos_trades": 515,
+          "ic_mean": 0.10934501321199097,
+          "icir": 0.6944384036058608,
+          "oos_net_return": -0.406172,
+          "oos_sharpe": -0.783,
+          "oos_win_rate": 0.499,
+          "oos_trades": 525,
           "fwd": 3
         }
       },
@@ -1545,41 +3393,83 @@
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_conflict",
+      "factor_id": "ai_gen_stop_freq",
       "timeframe": "4h",
-      "ic_mean": -0.08418,
-      "icir": -0.5403,
-      "oos_net_return": -0.013838,
-      "oos_sharpe": -0.2248,
-      "oos_win_rate": 0.5106,
-      "oos_trades": 1281,
+      "ic_mean": 0.10675,
+      "icir": 0.591,
+      "oos_net_return": -0.395875,
+      "oos_sharpe": -0.7803,
+      "oos_win_rate": 0.487,
+      "oos_trades": 1305,
       "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.06426679070854312,
-          "icir": -0.44534796652881603,
-          "oos_net_return": -0.653017,
-          "oos_sharpe": -1.864,
-          "oos_win_rate": 0.4843,
-          "oos_trades": 510,
+          "ic_mean": 0.1391624807746797,
+          "icir": 0.6219359406849777,
+          "oos_net_return": 0.022112,
+          "oos_sharpe": 0.0577,
+          "oos_win_rate": 0.4885,
+          "oos_trades": 260,
+          "fwd": 6
+        },
+        "ETH": {
+          "ic_mean": 0.08496969479476443,
+          "icir": 0.549356525597767,
+          "oos_net_return": -0.420303,
+          "oos_sharpe": -0.8756,
+          "oos_win_rate": 0.5,
+          "oos_trades": 520,
+          "fwd": 3
+        },
+        "SOL": {
+          "ic_mean": 0.09612244961425193,
+          "icir": 0.6016251173532838,
+          "oos_net_return": -0.789435,
+          "oos_sharpe": -1.5229,
+          "oos_win_rate": 0.4724,
+          "oos_trades": 525,
+          "fwd": 3
+        }
+      },
+      "grade": "C",
+      "admitted": false
+    },
+    {
+      "factor_id": "ai_gen_momconsensus",
+      "timeframe": "4h",
+      "ic_mean": -0.10184,
+      "icir": -0.5855,
+      "oos_net_return": -0.001102,
+      "oos_sharpe": -0.0908,
+      "oos_win_rate": 0.5311,
+      "oos_trades": 1271,
+      "fwd": 4,
+      "per_symbol": {
+        "BTC": {
+          "ic_mean": -0.07627887175621573,
+          "icir": -0.4635089842933444,
+          "oos_net_return": -0.275337,
+          "oos_sharpe": -0.7903,
+          "oos_win_rate": 0.5217,
+          "oos_trades": 506,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.10966306068712793,
-          "icir": -0.6051212100665895,
-          "oos_net_return": 0.294201,
-          "oos_sharpe": 0.609,
-          "oos_win_rate": 0.5117,
-          "oos_trades": 256,
+          "ic_mean": -0.1201007910121535,
+          "icir": -0.6424398284975916,
+          "oos_net_return": 0.063287,
+          "oos_sharpe": 0.1328,
+          "oos_win_rate": 0.5276,
+          "oos_trades": 254,
           "fwd": 6
         },
         "SOL": {
-          "ic_mean": -0.07861910737158694,
-          "icir": -0.5703107785328995,
-          "oos_net_return": 0.317301,
-          "oos_sharpe": 0.5805,
-          "oos_win_rate": 0.5359,
-          "oos_trades": 515,
+          "ic_mean": -0.1091416218075355,
+          "icir": -0.6504501969495051,
+          "oos_net_return": 0.208745,
+          "oos_sharpe": 0.3852,
+          "oos_win_rate": 0.544,
+          "oos_trades": 511,
           "fwd": 3
         }
       },
@@ -1587,124 +3477,82 @@
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_market_microstructure",
-      "timeframe": "4h",
-      "ic_mean": -0.08294,
-      "icir": -0.5566,
-      "oos_net_return": -0.142896,
-      "oos_sharpe": -0.4164,
-      "oos_win_rate": 0.5192,
-      "oos_trades": 1535,
+      "factor_id": "ai_gen_unk_reg",
+      "timeframe": "1d",
+      "ic_mean": 0.10113,
+      "icir": 9.1624,
+      "oos_net_return": 1.228697,
+      "oos_sharpe": 0.4824,
+      "oos_win_rate": 0.5095,
+      "oos_trades": 1325,
       "fwd": 3,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.0760964158867809,
-          "icir": -0.5015933936638141,
-          "oos_net_return": -0.437668,
-          "oos_sharpe": -1.2485,
-          "oos_win_rate": 0.4961,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": 0.12768790585299333,
+          "icir": 19.344992414784286,
+          "oos_net_return": 0.565992,
+          "oos_sharpe": 0.4495,
+          "oos_win_rate": 0.528,
+          "oos_trades": 500,
+          "fwd": 2
         },
         "ETH": {
-          "ic_mean": -0.08299749378692083,
-          "icir": -0.5705980280652682,
-          "oos_net_return": -0.060192,
-          "oos_sharpe": -0.1271,
-          "oos_win_rate": 0.5235,
-          "oos_trades": 510,
+          "ic_mean": 0.02651100504127416,
+          "icir": 4.8458337527394475,
+          "oos_net_return": 0.709655,
+          "oos_sharpe": 0.3464,
+          "oos_win_rate": 0.5045,
+          "oos_trades": 333,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": -0.08973486737033945,
-          "icir": -0.5977095357869422,
-          "oos_net_return": 0.069171,
-          "oos_sharpe": 0.1264,
-          "oos_win_rate": 0.5379,
-          "oos_trades": 515,
+          "ic_mean": 0.14919659814341107,
+          "icir": 3.296520750621167,
+          "oos_net_return": 2.410445,
+          "oos_sharpe": 0.6514,
+          "oos_win_rate": 0.4959,
+          "oos_trades": 492,
           "fwd": 3
         }
       },
-      "grade": "C",
-      "admitted": false
+      "grade": "A",
+      "admitted": true
     },
     {
-      "factor_id": "ai_gen_dvr",
+      "factor_id": "ai_gen_holdtime",
       "timeframe": "4h",
-      "ic_mean": -0.0804,
-      "icir": -0.5205,
-      "oos_net_return": -0.184928,
-      "oos_sharpe": -0.527,
-      "oos_win_rate": 0.5185,
-      "oos_trades": 1535,
-      "fwd": 3,
+      "ic_mean": 0.10032,
+      "icir": 0.5635,
+      "oos_net_return": -0.362642,
+      "oos_sharpe": -0.8419,
+      "oos_win_rate": 0.5246,
+      "oos_trades": 1273,
+      "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.07268428207977988,
-          "icir": -0.4506029055533342,
-          "oos_net_return": -0.431748,
-          "oos_sharpe": -1.2324,
-          "oos_win_rate": 0.4902,
-          "oos_trades": 510,
+          "ic_mean": 0.08311476633460728,
+          "icir": 0.4873789066444708,
+          "oos_net_return": -0.50208,
+          "oos_sharpe": -1.4315,
+          "oos_win_rate": 0.5049,
+          "oos_trades": 507,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": -0.0839356108748606,
-          "icir": -0.5382103486117984,
-          "oos_net_return": -0.436458,
-          "oos_sharpe": -0.9221,
-          "oos_win_rate": 0.5216,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": 0.12541230653134378,
+          "icir": 0.6246618775678412,
+          "oos_net_return": 0.178053,
+          "oos_sharpe": 0.3607,
+          "oos_win_rate": 0.5551,
+          "oos_trades": 254,
+          "fwd": 6
         },
         "SOL": {
-          "ic_mean": -0.08458168010412007,
-          "icir": -0.5725434465358752,
-          "oos_net_return": 0.313423,
-          "oos_sharpe": 0.5735,
-          "oos_win_rate": 0.5437,
-          "oos_trades": 515,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "ai_gen_chop",
-      "timeframe": "4h",
-      "ic_mean": -0.07825,
-      "icir": -0.5294,
-      "oos_net_return": -0.440341,
-      "oos_sharpe": -1.0133,
-      "oos_win_rate": 0.4954,
-      "oos_trades": 1528,
-      "fwd": 3,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.08052254978508913,
-          "icir": -0.5107560519328057,
-          "oos_net_return": -0.514742,
-          "oos_sharpe": -1.4368,
-          "oos_win_rate": 0.4803,
-          "oos_trades": 508,
-          "fwd": 3
-        },
-        "ETH": {
-          "ic_mean": -0.07316003013305901,
-          "icir": -0.5327615690117719,
-          "oos_net_return": -0.489027,
-          "oos_sharpe": -1.0101,
-          "oos_win_rate": 0.4902,
-          "oos_trades": 508,
-          "fwd": 3
-        },
-        "SOL": {
-          "ic_mean": -0.08108233119650207,
-          "icir": -0.5447604780080443,
-          "oos_net_return": -0.317254,
-          "oos_sharpe": -0.593,
-          "oos_win_rate": 0.5156,
+          "ic_mean": 0.09243653494495256,
+          "icir": 0.5785301639192958,
+          "oos_net_return": -0.763899,
+          "oos_sharpe": -1.4548,
+          "oos_win_rate": 0.5137,
           "oos_trades": 512,
           "fwd": 3
         }
@@ -1713,41 +3561,41 @@
       "admitted": false
     },
     {
-      "factor_id": "ai_gen_ar",
+      "factor_id": "ai_gen_voladjmom",
       "timeframe": "4h",
-      "ic_mean": 0.07567,
-      "icir": 0.5255,
-      "oos_net_return": 0.000399,
-      "oos_sharpe": 0.0366,
-      "oos_win_rate": 0.5107,
-      "oos_trades": 1535,
+      "ic_mean": -0.10005,
+      "icir": -0.6318,
+      "oos_net_return": -0.039194,
+      "oos_sharpe": -0.0819,
+      "oos_win_rate": 0.5166,
+      "oos_trades": 1435,
       "fwd": 3,
       "per_symbol": {
         "BTC": {
-          "ic_mean": 0.0515882712063022,
-          "icir": 0.3051298643559706,
-          "oos_net_return": 0.089183,
-          "oos_sharpe": 0.2546,
-          "oos_win_rate": 0.5,
-          "oos_trades": 510,
+          "ic_mean": -0.08997107459749076,
+          "icir": -0.5826341318115807,
+          "oos_net_return": -0.034641,
+          "oos_sharpe": -0.0963,
+          "oos_win_rate": 0.5231,
+          "oos_trades": 520,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": 0.07139219589955599,
-          "icir": 0.5526103119439912,
-          "oos_net_return": 0.05672,
-          "oos_sharpe": 0.1199,
-          "oos_win_rate": 0.5098,
-          "oos_trades": 510,
-          "fwd": 3
+          "ic_mean": -0.1165371524532652,
+          "icir": -0.7202564330172302,
+          "oos_net_return": 0.072631,
+          "oos_sharpe": 0.1505,
+          "oos_win_rate": 0.5333,
+          "oos_trades": 390,
+          "fwd": 4
         },
         "SOL": {
-          "ic_mean": 0.10404193517715563,
-          "icir": 0.7188494453744695,
-          "oos_net_return": -0.144707,
-          "oos_sharpe": -0.2647,
-          "oos_win_rate": 0.5223,
-          "oos_trades": 515,
+          "ic_mean": -0.09365521608960843,
+          "icir": -0.5925046077298592,
+          "oos_net_return": -0.155573,
+          "oos_sharpe": -0.3,
+          "oos_win_rate": 0.4933,
+          "oos_trades": 525,
           "fwd": 3
         }
       },
@@ -1755,173 +3603,47 @@
       "admitted": false
     },
     {
-      "factor_id": "cloud_microstructure_kyle",
-      "timeframe": "1d",
-      "ic_mean": -0.07482,
-      "icir": -0.6542,
-      "oos_net_return": -0.20184,
-      "oos_sharpe": -0.0533,
-      "oos_win_rate": 0.4989,
-      "oos_trades": 4490,
-      "fwd": 2,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": -0.030142538570548383,
-          "icir": -0.35338117209734304,
-          "oos_net_return": -1.150411,
-          "oos_sharpe": -0.38,
-          "oos_win_rate": 0.49,
-          "oos_trades": 2000,
-          "fwd": 1
-        },
-        "ETH": {
-          "ic_mean": -0.06930046713785928,
-          "icir": -0.8004636453695605,
-          "oos_net_return": -1.631211,
-          "oos_sharpe": -0.3966,
-          "oos_win_rate": 0.4945,
-          "oos_trades": 2000,
-          "fwd": 1
-        },
-        "SOL": {
-          "ic_mean": -0.12501447696601473,
-          "icir": -0.8087641663812025,
-          "oos_net_return": 2.176103,
-          "oos_sharpe": 0.6166,
-          "oos_win_rate": 0.5122,
-          "oos_trades": 490,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "cloud_microstructure_kyle",
+      "factor_id": "ai_gen_rev",
       "timeframe": "4h",
-      "ic_mean": -0.07417,
-      "icir": -0.4898,
-      "oos_net_return": -0.111161,
-      "oos_sharpe": -0.201,
-      "oos_win_rate": 0.5133,
-      "oos_trades": 1281,
+      "ic_mean": 0.09641,
+      "icir": 0.5768,
+      "oos_net_return": -0.190309,
+      "oos_sharpe": -0.4494,
+      "oos_win_rate": 0.5006,
+      "oos_trades": 1302,
       "fwd": 4,
       "per_symbol": {
         "BTC": {
-          "ic_mean": -0.05843735642832097,
-          "icir": -0.33530447860785145,
-          "oos_net_return": 0.095838,
-          "oos_sharpe": 0.2789,
-          "oos_win_rate": 0.5508,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "ETH": {
-          "ic_mean": -0.08573287563164006,
-          "icir": -0.6530350402810802,
-          "oos_net_return": -0.339821,
-          "oos_sharpe": -0.7183,
-          "oos_win_rate": 0.4941,
-          "oos_trades": 510,
-          "fwd": 3
-        },
-        "SOL": {
-          "ic_mean": -0.07833725401760859,
-          "icir": -0.4811690790752551,
-          "oos_net_return": -0.0895,
-          "oos_sharpe": -0.1636,
-          "oos_win_rate": 0.4951,
-          "oos_trades": 515,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "ai_gen_exh",
-      "timeframe": "4h",
-      "ic_mean": 0.07402,
-      "icir": 0.5443,
-      "oos_net_return": -0.152941,
-      "oos_sharpe": -0.3939,
-      "oos_win_rate": 0.5067,
-      "oos_trades": 1535,
-      "fwd": 3,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.06195909246930082,
-          "icir": 0.42811096305286095,
-          "oos_net_return": -0.207955,
-          "oos_sharpe": -0.5934,
-          "oos_win_rate": 0.4882,
-          "oos_trades": 510,
+          "ic_mean": 0.08588866313737693,
+          "icir": 0.5589951869979675,
+          "oos_net_return": -0.199796,
+          "oos_sharpe": -0.5561,
+          "oos_win_rate": 0.4904,
+          "oos_trades": 520,
           "fwd": 3
         },
         "ETH": {
-          "ic_mean": 0.06054617866433601,
-          "icir": 0.46392783430462414,
-          "oos_net_return": -0.457053,
-          "oos_sharpe": -0.9655,
-          "oos_win_rate": 0.5,
-          "oos_trades": 510,
+          "ic_mean": 0.08462003906185682,
+          "icir": 0.5456890221665669,
+          "oos_net_return": -0.557123,
+          "oos_sharpe": -1.1607,
+          "oos_win_rate": 0.4846,
+          "oos_trades": 520,
           "fwd": 3
         },
         "SOL": {
-          "ic_mean": 0.09955808410217963,
-          "icir": 0.740742699861113,
-          "oos_net_return": 0.206186,
-          "oos_sharpe": 0.3771,
-          "oos_win_rate": 0.532,
-          "oos_trades": 515,
-          "fwd": 3
-        }
-      },
-      "grade": "C",
-      "admitted": false
-    },
-    {
-      "factor_id": "ai_gen_mean_rev_boll",
-      "timeframe": "4h",
-      "ic_mean": 0.07351,
-      "icir": 0.3886,
-      "oos_net_return": 0.035082,
-      "oos_sharpe": 0.1592,
-      "oos_win_rate": 0.5276,
-      "oos_trades": 1027,
-      "fwd": 5,
-      "per_symbol": {
-        "BTC": {
-          "ic_mean": 0.07681996377948304,
-          "icir": 0.35362396002268415,
-          "oos_net_return": 0.224637,
-          "oos_sharpe": 0.6558,
-          "oos_win_rate": 0.5156,
-          "oos_trades": 256,
+          "ic_mean": 0.1187300357473071,
+          "icir": 0.625865786206124,
+          "oos_net_return": 0.185993,
+          "oos_sharpe": 0.3686,
+          "oos_win_rate": 0.5267,
+          "oos_trades": 262,
           "fwd": 6
-        },
-        "ETH": {
-          "ic_mean": 0.07856040139982172,
-          "icir": 0.3974948434128541,
-          "oos_net_return": 0.165923,
-          "oos_sharpe": 0.343,
-          "oos_win_rate": 0.5391,
-          "oos_trades": 256,
-          "fwd": 6
-        },
-        "SOL": {
-          "ic_mean": 0.06516342986929272,
-          "icir": 0.4145666756317291,
-          "oos_net_return": -0.285313,
-          "oos_sharpe": -0.5211,
-          "oos_win_rate": 0.5282,
-          "oos_trades": 515,
-          "fwd": 3
         }
       },
       "grade": "C",
       "admitted": false
     }
   ],
-  "elapsed_sec": 120.0
+  "elapsed_sec": 569.2
 }

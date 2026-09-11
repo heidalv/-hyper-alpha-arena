@@ -304,6 +304,23 @@ def run_v3_factor_pipeline(
                             }
                     except Exception:
                         _ic_weights = None
+                    # [2026-09-03 审查修正 A] 影子因子策略：此前 V3 路径只传 IC 权重，
+                    # PAPER/role=paper 因子既不封顶也不排除——而短线循环**优先**消费
+                    # 的正是这条路径的 factor_v3。现与 pipeline/中线路由同一入口：
+                    # live 会话权重归零，paper 会话封顶 PAPER_FACTOR_WEIGHT_CAP。
+                    try:
+                        from backend.services.factor_engine.paper_factor_policy import (
+                            apply_paper_policy,
+                        )
+                        if _ic_weights is None:
+                            _ic_weights = {name: 1.0 for name in _fvals}
+                        apply_paper_policy(
+                            _ic_weights,
+                            getattr(session, "trading_mode", None) or "paper",
+                            where="v3_pipeline",
+                        )
+                    except Exception as _pp_err:
+                        logger.debug(f"[FullAuto][V3] 影子因子策略跳过: {_pp_err}")
                     _sig = _signal_gen.generate_signals(
                         _fvals, weights=_ic_weights,
                         regime=str(_regime_tag), symbol=_sym, timeframe="15m",
@@ -350,7 +367,7 @@ def run_v3_factor_pipeline(
                             or (_reg.get("confidence") if isinstance(_reg, dict) else None)
                         )
                     _summary_payload = {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "factor_count": _safe_num(getattr(_sig, "contributing_factors", None)),
                         "signal_score": _safe_num(getattr(_sig, "strength", None)),
                         "direction": _dir_num,
@@ -358,6 +375,28 @@ def run_v3_factor_pipeline(
                         "confidence": _safe_num(getattr(_sig, "confidence", None)),
                         "regime": _regime_tag,
                     }
+                    # [2026-09-02 P1.2] 逐因子归因随 payload 下传（schema 2→3）。
+                    # 原先只有聚合后的 direction/confidence 出栈，逐因子明细在此
+                    # 蒸发，导致 scalp_signal_log 里 141 个因子对应的只有一个
+                    # composite 分 —— 亏损无法归因到因子，进化闭环缺输入。
+                    # 合成本身只取 |direction| 最强的 top-15，故这里体量有界。
+                    try:
+                        _attr = getattr(_sig, "attribution", None) or []
+                        if _attr:
+                            _summary_payload["factor_contrib"] = [
+                                {
+                                    "f": a.factor_id,
+                                    "d": a.direction,
+                                    "w": a.weight,
+                                    "c": a.contrib,
+                                    "cat": a.category,
+                                }
+                                for a in _attr[:15]
+                            ]
+                    except Exception as _attr_err:
+                        logger.debug(
+                            f"[FullAuto][V3] {_sym} 因子归因打包跳过: {_attr_err}"
+                        )
                     _persist_rows.append((
                         _sym, _summary_payload, _dir_label, _regime_conf, _regime_tag,
                     ))

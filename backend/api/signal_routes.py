@@ -860,7 +860,7 @@ def test_signal(
 @router.get("/states")
 def get_signal_states():
     """Get current signal states for monitoring"""
-    from services.signal_detection_service import signal_detection_service
+    from backend.services.signal_detection_service import signal_detection_service
     return {
         "states": signal_detection_service.get_signal_states(),
         "cache_info": {
@@ -877,7 +877,7 @@ def reset_signal_states(
     symbol: Optional[str] = Query(None)
 ):
     """Reset signal and pool states (useful for testing)"""
-    from services.signal_detection_service import signal_detection_service
+    from backend.services.signal_detection_service import signal_detection_service
     signal_detection_service.reset_state(signal_id, pool_id, symbol)
     return {"message": "Signal and pool states reset successfully"}
 

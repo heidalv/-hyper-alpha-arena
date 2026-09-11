@@ -46,20 +46,4 @@ def analyze_directives(report: Dict[str, Any]) -> List[Dict[str, Any]]:
                     })
     except Exception as e:
         logger.debug("[ReportDirectives] D2 指令生成失败: %s", e)
-    try:
-        # D1 超时治理：短线段超时退出占比 > 35% → 触发 TP/SL 网格重训指令
-        sec = (report.get("sections") or {}).get("scalp") or {}
-        _exits = sec.get("exit_stats") or {}
-        total = int(_exits.get("total_exits") or 0)
-        timeout = int(_exits.get("max_hold_timeout") or 0)
-        if total > 0 and (timeout / total) > 0.35:
-            directives.append({
-                "type": "tp_sl_retrain",
-                "horizon": "scalp",
-                "action": "retrain",
-                "timeout_ratio": round(timeout / total, 3),
-                "detail": "max_hold_timeout 占比超 35%，触发 TP/SL 网格重训（近 30 天窗口）",
-            })
-    except Exception as e:
-        logger.debug("[ReportDirectives] D1 指令生成失败: %s", e)
     return directives

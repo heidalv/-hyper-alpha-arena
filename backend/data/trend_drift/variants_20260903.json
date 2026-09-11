@@ -1,0 +1,1885 @@
+{
+  "variants": [
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "equal",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A0 majors8 EW12.5% fee5+2bp fund7.5% (v2 ref)"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 18.423520175987232,
+        "cagr": 0.5594032387384982,
+        "vol": 0.4833344423217853,
+        "sharpe": 1.1528461853317258,
+        "mdd": -0.505548931574514,
+        "yearly": {
+          "2020": 0.4160511719015456,
+          "2021": 9.351535450268416,
+          "2022": -0.16352448269267306,
+          "2023": 0.19206431492778386,
+          "2024": 0.511095338259409,
+          "2025": -0.09821348535962937,
+          "2026": -0.024795502150627202
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.12057373482280109,
+        "cagr": -0.07399968230872156,
+        "vol": 0.26625631424519297,
+        "sharpe": -0.15321432134081425,
+        "mdd": -0.23423261387238892,
+        "yearly": {
+          "2025": -0.09821348535962937,
+          "2026": -0.024795502150627202
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 10.278262207632336,
+      "avg_gross": 0.3580221583914649,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.007194783545342635,
+      "funding_drag_ann": 0.026851661879359865,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": true,
+        "sharpe_ok": true,
+        "mdd_ok": true,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": true
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A1 vol-target35% cap35% gross1.0"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 27.380562480658774,
+        "cagr": 0.6505368367316633,
+        "vol": 0.5854657893764398,
+        "sharpe": 1.1513681608579125,
+        "mdd": -0.7023248203958092,
+        "yearly": {
+          "2020": 1.0514286840880342,
+          "2021": 10.853223278920886,
+          "2022": -0.3362703518903585,
+          "2023": 0.34559506000771534,
+          "2024": 0.5734444605849116,
+          "2025": -0.13472526435629217,
+          "2026": -0.04011972598393676
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.16943984965114078,
+        "cagr": -0.10514054198781242,
+        "vol": 0.3501870680648612,
+        "sharpe": -0.13932897311454456,
+        "mdd": -0.3622308731883265,
+        "yearly": {
+          "2025": -0.13472526435629217,
+          "2026": -0.04011972598393676
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 25.55290386128494,
+      "avg_gross": 0.542490071580907,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.017887032702899458,
+      "funding_drag_ann": 0.04068675536856802,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": 0.0075,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A2 A1 + risk/trade 0.75%"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 1.8174986001021316,
+        "cagr": 0.16782569836685557,
+        "vol": 0.14326598794344567,
+        "sharpe": 1.1543311007833361,
+        "mdd": -0.2007738410063351,
+        "yearly": {
+          "2020": 0.231074907771754,
+          "2021": 0.8186213399939497,
+          "2022": -0.04321789189330638,
+          "2023": 0.08445849907510072,
+          "2024": 0.2573296089082424,
+          "2025": -0.020537144520161532,
+          "2026": -0.015141469720984402
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.035367651689238166,
+        "cagr": -0.021315456897906593,
+        "vol": 0.10037358822136253,
+        "sharpe": -0.16403466781301299,
+        "mdd": -0.10696913235555394,
+        "yearly": {
+          "2025": -0.020537144520161532,
+          "2026": -0.015141469720984402
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 3.531074915486084,
+      "avg_gross": 0.13575264705837578,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.0024717524408402586,
+      "funding_drag_ann": 0.010181448529378183,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": 0.0125,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A3 A1 + risk/trade 1.25%"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 4.1930887270374715,
+        "cagr": 0.2798303324883309,
+        "vol": 0.23854085345200918,
+        "sharpe": 1.152879177219068,
+        "mdd": -0.3147071211253165,
+        "yearly": {
+          "2020": 0.3946897176986577,
+          "2021": 1.6270591909432572,
+          "2022": -0.07137865169533852,
+          "2023": 0.13593190464116578,
+          "2024": 0.4405402811954655,
+          "2025": -0.043101819446419776,
+          "2026": -0.02524339004955456
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.0672571734558427,
+        "cagr": -0.04080540860908877,
+        "vol": 0.16728931370227093,
+        "sharpe": -0.16403466781301315,
+        "mdd": -0.17451751998596465,
+        "yearly": {
+          "2025": -0.043101819446419776,
+          "2026": -0.02524339004955456
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 5.885154661781922,
+      "avg_gross": 0.2261343488865833,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.004119608263247345,
+      "funding_drag_ann": 0.016960076166493747,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "equal",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 0.0,
+        "slip_bp": 1.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A4 A0 Aster maker0 (+1bp slip)"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 19.240747125348552,
+        "cagr": 0.5690586668828745,
+        "vol": 0.4833131559020093,
+        "sharpe": 1.16565671452343,
+        "mdd": -0.4980430854150927,
+        "yearly": {
+          "2020": 0.4254069247977932,
+          "2021": 9.440261936999468,
+          "2022": -0.1618282912062644,
+          "2023": 0.20103923783121247,
+          "2024": 0.5223548919164622,
+          "2025": -0.09027236581433118,
+          "2026": -0.024429202361554436
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.1124962862837513,
+        "cagr": -0.06891983617881403,
+        "vol": 0.2662957109768332,
+        "sharpe": -0.13263180379520417,
+        "mdd": -0.2328959792069678,
+        "yearly": {
+          "2025": -0.09027236581433118,
+          "2026": -0.024429202361554436
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 10.278262207632336,
+      "avg_gross": 0.3580221583914649,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.0010278262207632336,
+      "funding_drag_ann": 0.026851661879359865,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": true,
+        "sharpe_ok": true,
+        "mdd_ok": true,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": true
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "l1_score",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "equal",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "A5 A0 with l1_score>=3 entry (legacy live rule)"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 11.008048380511216,
+        "cagr": 0.45103283847362685,
+        "vol": 0.3476406386314144,
+        "sharpe": 1.2472391005862002,
+        "mdd": -0.39892527446315307,
+        "yearly": {
+          "2020": 0.25660585249774814,
+          "2021": 6.166649504581047,
+          "2022": -0.14642638057304036,
+          "2023": 0.3298478417192987,
+          "2024": 0.36500295920572134,
+          "2025": -0.11990847339934996,
+          "2026": -0.022193733752176703
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.1394409904182713,
+        "cagr": -0.08593872423997717,
+        "vol": 0.17904610372347363,
+        "sharpe": -0.4119410427131677,
+        "mdd": -0.17798795162809466,
+        "yearly": {
+          "2025": -0.11990847339934996,
+          "2026": -0.022193733752176703
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 380,
+      "n_exits": 375,
+      "exit_reasons": {
+        "chandelier": 52,
+        "rule_invalid": 374
+      },
+      "ann_turnover": 14.134950759130078,
+      "avg_gross": 0.24456298727944192,
+      "in_market_pct": 0.5457529749692245,
+      "fee_drag_ann": 0.009894465531391054,
+      "funding_drag_ann": 0.018342224045958144,
+      "per_symbol": {
+        "BTC": {
+          "entries": 66,
+          "exits": 65,
+          "days_held_since_start": 854,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 71,
+          "exits": 70,
+          "days_held_since_start": 720,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 40,
+          "exits": 39,
+          "days_held_since_start": 598,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 84,
+          "exits": 83,
+          "days_held_since_start": 697,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 430,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 42,
+          "exits": 42,
+          "days_held_since_start": 534,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 51,
+          "exits": 50,
+          "days_held_since_start": 539,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 36,
+          "exits": 36,
+          "days_held_since_start": 406,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "equal",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 0,
+        "exchange": "binance",
+        "label": "A6 A0 exec lag 0 (live 00:05 UTC)"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 13.243210514709558,
+        "cagr": 0.4886096476095452,
+        "vol": 0.4759752103137696,
+        "sharpe": 1.066573633585951,
+        "mdd": -0.5749262504483776,
+        "yearly": {
+          "2020": 0.19897659752902497,
+          "2021": 7.248661688333495,
+          "2022": -0.15191195961721193,
+          "2023": 0.30077363322899475,
+          "2024": 0.600893453153083,
+          "2025": -0.16808049415694692,
+          "2026": -0.019771568017250107
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.1845288472515999,
+        "cagr": -0.11490396892498433,
+        "vol": 0.265705217660576,
+        "sharpe": -0.32339172471702166,
+        "mdd": -0.2772093687528975,
+        "yearly": {
+          "2025": -0.16808049415694692,
+          "2026": -0.019771568017250107
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 10.278262207632336,
+      "avg_gross": 0.3582786212556422,
+      "in_market_pct": 0.6471070988920804,
+      "fee_drag_ann": 0.007194783545342635,
+      "funding_drag_ann": 0.02687089659417316,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": true,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "portfolio_vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "B1 bucket vol-target35% (cov60) cap35% gross1.0"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 5.419537121398821,
+        "cagr": 0.32112318368863324,
+        "vol": 0.3154910483776997,
+        "sharpe": 1.0415641818021066,
+        "mdd": -0.5717693597433077,
+        "yearly": {
+          "2020": 0.7524086801140792,
+          "2021": 1.8310303001774635,
+          "2022": -0.2942436872419726,
+          "2023": 0.3000575944577646,
+          "2024": 0.4430526026759958,
+          "2025": 0.013928429143505339,
+          "2026": -0.03613330413149962
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.022708155154310683,
+        "cagr": -0.013650296191758393,
+        "vol": 0.21722327418345577,
+        "sharpe": 0.04572805683257833,
+        "mdd": -0.21457074029785972,
+        "yearly": {
+          "2025": 0.013928429143505339,
+          "2026": -0.03613330413149962
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 18.519772751513017,
+      "avg_gross": 0.3519996074223459,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.012963840926059112,
+      "funding_drag_ann": 0.026399970556675936,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": false,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "portfolio_vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": 0.0125,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "B2 B1 + risk/trade 1.25%"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 3.408303670551267,
+        "cagr": 0.24880699198241096,
+        "vol": 0.20981440388364553,
+        "sharpe": 1.1639251988858916,
+        "mdd": -0.31118888668127354,
+        "yearly": {
+          "2020": 0.39549014092292945,
+          "2021": 1.3004405843853348,
+          "2022": -0.07137865169533852,
+          "2023": 0.12195794892686984,
+          "2024": 0.3893524069914316,
+          "2025": -0.02680490107897826,
+          "2026": -0.025221063865259463
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.051349916822222785,
+        "cagr": -0.031050460745142172,
+        "vol": 0.15635985455143173,
+        "sharpe": -0.12279499113304866,
+        "mdd": -0.15175335571836712,
+        "yearly": {
+          "2025": -0.02680490107897826,
+          "2026": -0.025221063865259463
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 6.453094780260649,
+      "avg_gross": 0.211037858823418,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.004517166346182455,
+      "funding_drag_ann": 0.01582783941175635,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "portfolio_vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 1.0,
+          "risk_per_trade_pct": 0.0075,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "B3 B1 + risk/trade 0.75%"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 1.7503207318674963,
+        "cagr": 0.1636123932656437,
+        "vol": 0.14055052104906723,
+        "sharpe": 1.1481752751722794,
+        "mdd": -0.20049278073501564,
+        "yearly": {
+          "2020": 0.2339332691983036,
+          "2021": 0.780691879699773,
+          "2022": -0.04321789189330638,
+          "2023": 0.08483986572151814,
+          "2024": 0.25032615877565023,
+          "2025": -0.020674550451571516,
+          "2026": -0.015141469720984402
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.0355029770928984,
+        "cagr": -0.02139761218244296,
+        "vol": 0.10034068614172019,
+        "sharpe": -0.1649577813804191,
+        "mdd": -0.10688340533798524,
+        "yearly": {
+          "2025": -0.020674550451571516,
+          "2026": -0.015141469720984402
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 3.609471871251551,
+      "avg_gross": 0.13409038948698046,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.002526630309876086,
+      "funding_drag_ann": 0.010056779211523537,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": true,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    },
+    {
+      "config": {
+        "rules": {
+          "entry_rule": "ema_stack",
+          "l1_min_score": 3,
+          "chandelier_mult": 3.0,
+          "atr_period": 20,
+          "ema_fast": 20,
+          "ema_mid": 50,
+          "ema_slow": 100,
+          "ema_regime": 200,
+          "weighting": "portfolio_vol_target",
+          "vol_target": 0.35,
+          "vol_lookback": 60,
+          "max_weight_per_symbol": 0.35,
+          "gross_cap": 3.0,
+          "risk_per_trade_pct": null,
+          "max_positions": 8
+        },
+        "symbols": [
+          "BTC",
+          "ETH",
+          "SOL",
+          "BNB",
+          "XRP",
+          "DOGE",
+          "LINK",
+          "AVAX"
+        ],
+        "start": "2020-01-01",
+        "end": null,
+        "fee_side_bp": 5.0,
+        "slip_bp": 2.0,
+        "funding_ann": 0.075,
+        "exec_lag_days": 1,
+        "exchange": "binance",
+        "label": "B4 B1 gross cap 3.0 (leverage allowed)"
+      },
+      "metrics": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 5.419537121398821,
+        "cagr": 0.32112318368863324,
+        "vol": 0.3154910483776997,
+        "sharpe": 1.0415641818021066,
+        "mdd": -0.5717693597433077,
+        "yearly": {
+          "2020": 0.7524086801140792,
+          "2021": 1.8310303001774635,
+          "2022": -0.2942436872419726,
+          "2023": 0.3000575944577646,
+          "2024": 0.4430526026759958,
+          "2025": 0.013928429143505339,
+          "2026": -0.03613330413149962
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "since_2025": {
+        "n_days": 610,
+        "years": 1.67,
+        "total_return": -0.022708155154310683,
+        "cagr": -0.013650296191758393,
+        "vol": 0.21722327418345577,
+        "sharpe": 0.04572805683257833,
+        "mdd": -0.21457074029785972,
+        "yearly": {
+          "2025": 0.013928429143505339,
+          "2026": -0.03613330413149962
+        },
+        "first": "2025-01-01",
+        "last": "2026-09-02"
+      },
+      "benchmark_btc": {
+        "n_days": 2437,
+        "years": 6.68,
+        "total_return": 9.7237294707744,
+        "cagr": 0.4266562437508399,
+        "vol": 0.6041959227055832,
+        "sharpe": 0.8964855590932354,
+        "mdd": -0.7662925431645939,
+        "yearly": {
+          "2020": 3.019833973340667,
+          "2021": 0.5978952157803168,
+          "2022": -0.64207055726116,
+          "2023": 1.5579117903085424,
+          "2024": 1.2108262040932112,
+          "2025": -0.06350368630737446,
+          "2026": -0.11926395017817737
+        },
+        "first": "2020-01-01",
+        "last": "2026-09-02"
+      },
+      "n_entries": 277,
+      "n_exits": 272,
+      "exit_reasons": {
+        "chandelier": 172,
+        "rule_invalid": 145
+      },
+      "ann_turnover": 18.519772751513017,
+      "avg_gross": 0.3519996074223459,
+      "in_market_pct": 0.6466967583093968,
+      "fee_drag_ann": 0.012963840926059112,
+      "funding_drag_ann": 0.026399970556675936,
+      "per_symbol": {
+        "BTC": {
+          "entries": 42,
+          "exits": 41,
+          "days_held_since_start": 1145,
+          "first_bar": "2017-08-17"
+        },
+        "ETH": {
+          "entries": 47,
+          "exits": 46,
+          "days_held_since_start": 1091,
+          "first_bar": "2017-08-17"
+        },
+        "SOL": {
+          "entries": 35,
+          "exits": 34,
+          "days_held_since_start": 743,
+          "first_bar": "2020-08-11"
+        },
+        "BNB": {
+          "entries": 45,
+          "exits": 44,
+          "days_held_since_start": 1055,
+          "first_bar": "2017-11-06"
+        },
+        "XRP": {
+          "entries": 45,
+          "exits": 45,
+          "days_held_since_start": 775,
+          "first_bar": "2018-05-04"
+        },
+        "DOGE": {
+          "entries": 41,
+          "exits": 41,
+          "days_held_since_start": 746,
+          "first_bar": "2019-07-05"
+        },
+        "LINK": {
+          "entries": 39,
+          "exits": 38,
+          "days_held_since_start": 884,
+          "first_bar": "2019-01-16"
+        },
+        "AVAX": {
+          "entries": 28,
+          "exits": 28,
+          "days_held_since_start": 551,
+          "first_bar": "2020-09-22"
+        }
+      },
+      "data_range": {
+        "first": "2017-08-17",
+        "last": "2026-09-02",
+        "n_bars": 3304
+      },
+      "reference_check": {
+        "cagr_ok": false,
+        "sharpe_ok": false,
+        "mdd_ok": false,
+        "reference": {
+          "cagr": 0.561,
+          "sharpe": 1.15,
+          "mdd": -0.49
+        },
+        "all_ok": false
+      }
+    }
+  ]
+}

@@ -25,13 +25,17 @@ def _packet() -> PerceptionPacket:
     )
 
 
-def _thesis() -> ThesisDTO:
+def _thesis(direction: str = "long") -> ThesisDTO:
+    # [2026-09-02] P5 修复后 llm_v 以 thesis.direction 为真语义：neutral → 0.5；
+    # long/short → 0.5 + (conviction-50)/100 再夹到方向侧（≥0.55 / ≤0.45）。
+    # 原 helper 不设 direction（默认 neutral）→ value 恒 0.5，与 0.80 的断言冲突。
     return ThesisDTO(
         thesis_id="t1",
         session_id="sess1",
         symbol="BTC",
         tier="long",
-        llm_conviction=80,  # → llm_v = 0.5 + (80-50)/100 = 0.80
+        direction=direction,
+        llm_conviction=80,  # long → llm_v = 0.5 + (80-50)/100 = 0.80
     )
 
 
@@ -56,8 +60,15 @@ class TestLlmQualConfidence:
         """confidence 变更不影响 value 计算（仍由 llm_conviction 驱动）。"""
         signals = compute(_packet(), _thesis(), db=None)
         llm_qual = next(s for s in signals if s.name == "llm_qual")
-        # llm_v = 0.5 + (80-50)/100 = 0.80
+        # long: llm_v = 0.5 + (80-50)/100 = 0.80
         assert llm_qual.value == pytest.approx(0.80)
+
+    def test_llm_qual_value_neutral_is_half_and_short_clamped(self):
+        """P5 方向语义：neutral → 0.5（不贡献方向）；short 夹到 ≤0.45。"""
+        neutral = next(s for s in compute(_packet(), _thesis("neutral"), db=None) if s.name == "llm_qual")
+        assert neutral.value == pytest.approx(0.5)
+        short = next(s for s in compute(_packet(), _thesis("short"), db=None) if s.name == "llm_qual")
+        assert short.value <= 0.45
 
     def test_llm_qual_source_still_llm(self):
         signals = compute(_packet(), _thesis(), db=None)

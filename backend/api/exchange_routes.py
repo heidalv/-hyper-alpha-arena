@@ -78,6 +78,12 @@ class CredentialCreate(BaseModel):
     passphrase: str = ""
     testnet: bool = True
     enabled: bool = True
+    # [2026-09] Asterdex 积分一体化开关（仅 asterdex 有意义）：
+    # 实盘成交「顺路」吃 Rh 积分（maker-first 挂单 + 逐笔计量）。
+    # points_config: {"maker_first": bool, "maker_timeout_s": float,
+    #                 "asset_points_enabled": bool}
+    points_enabled: Optional[bool] = None
+    points_config: Optional[Dict[str, Any]] = None
 
 
 def _mask_key(enc) -> Optional[str]:
@@ -126,6 +132,9 @@ async def list_credentials(
                     "has_passphrase": bool(c.passphrase_encrypted),
                     "proxy_url": c.proxy_url,
                     "api_key_masked": _mask_key(c.api_key_encrypted),
+                    # [2026-09] 积分开关（仅 asterdex 有意义）
+                    "points_enabled": bool(getattr(c, "points_enabled", False)),
+                    "points_config": getattr(c, "points_config", None),
                     "created_at": str(c.created_at) if c.created_at else None,
                 }
                 for c in creds
@@ -189,6 +198,12 @@ async def save_credential(body: CredentialCreate, request: Request):
                 existing.testnet = body.testnet
                 existing.enabled = body.enabled
                 existing.user_id = uid
+                # [2026-09] 积分开关（仅 asterdex 凭证生效）
+                if body.exchange == "asterdex":
+                    if body.points_enabled is not None:
+                        existing.points_enabled = bool(body.points_enabled)
+                    if body.points_config is not None:
+                        existing.points_config = body.points_config or None
                 # [2026-08-28] 允许 POST 重新绑定账户(等效 /bind 端点)
                 if body.account_id is not None:
                     existing.account_id = body.account_id
@@ -209,6 +224,13 @@ async def save_credential(body: CredentialCreate, request: Request):
                     passphrase_encrypted=enc_pass,
                     testnet=body.testnet,
                     enabled=body.enabled,
+                    # [2026-09] 积分开关：仅 asterdex 凭证生效，其它所恒 False/None
+                    points_enabled=(
+                        bool(body.points_enabled) if body.exchange == "asterdex" else False
+                    ),
+                    points_config=(
+                        (body.points_config or None) if body.exchange == "asterdex" else None
+                    ),
                 )
                 if "tenant_id" in ExchangeCredential.__table__.columns:
                     kwargs["tenant_id"] = tid
@@ -239,6 +261,18 @@ async def save_credential(body: CredentialCreate, request: Request):
                     testnet=body.testnet,
                     proxy_url=body.proxy_url or "",
                 )
+
+            # [2026-09-03] Aster 收益优化开关（points_enabled / maker_first / tiers）
+            # 保存后立刻生效：live_points_engine 的策略缓存 60s，不失效会让
+            # 用户"开了开关但下一单仍是市价"。
+            if body.exchange == "asterdex":
+                try:
+                    from backend.services.rebate_arb.live_points_engine import live_points_engine
+                    live_points_engine.invalidate_policy_cache()
+                    from backend.services.rebate_arb.live_income_ledger import invalidate_ledger_cache
+                    invalidate_ledger_cache()
+                except Exception as _inv_err:  # noqa: BLE001
+                    logger.debug("[Exchange] points policy cache invalidate skipped: %s", _inv_err)
 
             return {"id": cred_id, "status": "saved", "exchange": body.exchange, "user_id": uid}
         finally:

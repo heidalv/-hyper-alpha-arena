@@ -4,7 +4,7 @@ from typing import Dict, Optional, List
 import pandas as pd
 import numpy as np
 
-from models import Factor
+from backend.models import Factor
 
 
 def calculate_days_from_longest_candle(df_window):

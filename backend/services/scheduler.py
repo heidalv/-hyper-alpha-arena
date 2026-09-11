@@ -378,7 +378,7 @@ class TaskScheduler:
                         continue
 
                     # Get latest price
-                    from services.market_data import get_last_price
+                    from backend.services.market_data import get_last_price
                     current_price = get_last_price(position.symbol, position.market)
 
                     # Save price record
@@ -451,8 +451,8 @@ def setup_market_tasks():
 def _ensure_market_data_ready() -> None:
     """Prefetch required market data before enabling trading tasks"""
     try:
-        from services.market_data import get_last_price
-        from services.trading_commands import AI_TRADING_SYMBOLS
+        from backend.services.market_data import get_last_price
+        from backend.services.trading_commands import AI_TRADING_SYMBOLS
 
         missing_symbols: List[str] = []
 
@@ -618,7 +618,7 @@ def start_paper_trading_monitor():
         # tenant_id),不设身份会 fail-closed → 模拟盘持仓 TP/SL/爆仓检查全部失效。
         from backend.core.tenant import set_system_identity
         set_system_identity()
-        from services.paper_trading_engine import paper_engine
+        from backend.services.paper_trading_engine import paper_engine
 
         from backend.database.models import PaperPosition
         # 阶段1：短事务 — 仅读取 open 持仓 ID 列表

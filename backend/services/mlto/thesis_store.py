@@ -28,6 +28,28 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_opt_bool(v: Any) -> Optional[bool]:
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return v
+    try:
+        return bool(int(v))
+    except (TypeError, ValueError):
+        return bool(v)
+
+
+def _load_from_analytics(session_id: str, symbol: str, tier: str) -> Optional[ThesisDTO]:
+    """mlto_thesis 在 analytics 库。调用方常传入 core SessionLocal，必须自己开 analytics 连接。"""
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        with AnalyticsSessionLocal() as adb:
+            return _load(adb, session_id, symbol, tier)
+    except Exception as exc:
+        logger.debug("[MLTO] analytics thesis load skip %s %s %s: %s", session_id, symbol, tier, exc)
+        return None
+
+
 def _parse_wisdom_ids(raw: Any) -> list:
     """从 wisdom_ids_json 列解析 id 列表（None/空/坏 JSON → []）。"""
     if not raw:
@@ -47,15 +69,29 @@ def get(
     tier: str,
     db=None,
 ) -> Optional[ThesisDTO]:
+    """读论题。优先返回库里更新的版本，避免跨进程写入后本进程缓存饿死可交易票。"""
     k = _key(session_id, symbol, tier)
-    if k in _THESIS_CACHE:
-        return _THESIS_CACHE[k]
+    cached = _THESIS_CACHE.get(k)
+    loaded = None
     if db is not None:
         loaded = _load(db, session_id, symbol, tier)
-        if loaded:
+    if loaded is None:
+        loaded = _load_from_analytics(session_id, symbol, tier)
+    if loaded is not None:
+        if cached is None:
             _THESIS_CACHE[k] = loaded
             return loaded
-    return None
+        try:
+            cu = cached.updated_at
+            lu = loaded.updated_at
+            if lu is not None and (cu is None or lu >= cu):
+                _THESIS_CACHE[k] = loaded
+                return loaded
+        except Exception:
+            _THESIS_CACHE[k] = loaded
+            return loaded
+        return cached
+    return cached
 
 
 def get_or_create(
@@ -71,11 +107,14 @@ def get_or_create(
     with _THESIS_LOCK:
         if k in _THESIS_CACHE:
             return _THESIS_CACHE[k]
+        loaded = None
         if db is not None:
             loaded = _load(db, session_id, symbol, tier)
-            if loaded:
-                _THESIS_CACHE[k] = loaded
-                return loaded
+        if loaded is None:
+            loaded = _load_from_analytics(session_id, symbol, tier)
+        if loaded:
+            _THESIS_CACHE[k] = loaded
+            return loaded
         now = _utcnow()
         dto = ThesisDTO(
             thesis_id=str(uuid.uuid4()),
@@ -215,16 +254,25 @@ def list_session_theses(session_id: str, db=None) -> list:
     for t in _THESIS_CACHE.values():
         if t.session_id == session_id:
             by_key[_key(session_id, t.symbol, t.tier)] = t
+    def _ingest_rows(rows) -> None:
+        for r in rows:
+            dto = _row_to_dto(r)
+            by_key[_key(session_id, dto.symbol, dto.tier)] = dto
+            _THESIS_CACHE[_key(session_id, dto.symbol, dto.tier)] = dto
+
     if db is not None:
         try:
             from backend.services.mlto.db_models import MltoThesis
-            rows = db.query(MltoThesis).filter(MltoThesis.session_id == session_id).all()
-            for r in rows:
-                dto = _row_to_dto(r)
-                by_key[_key(session_id, dto.symbol, dto.tier)] = dto
-                _THESIS_CACHE[_key(session_id, dto.symbol, dto.tier)] = dto
+            _ingest_rows(db.query(MltoThesis).filter(MltoThesis.session_id == session_id).all())
         except Exception:
             pass
+    try:
+        from backend.database.connection import AnalyticsSessionLocal
+        from backend.services.mlto.db_models import MltoThesis
+        with AnalyticsSessionLocal() as adb:
+            _ingest_rows(adb.query(MltoThesis).filter(MltoThesis.session_id == session_id).all())
+    except Exception:
+        pass
     return [t.to_dict() for t in by_key.values()]
 
 
@@ -232,12 +280,20 @@ def get_by_id(thesis_id: str, db=None) -> Optional[ThesisDTO]:
     for t in _THESIS_CACHE.values():
         if t.thesis_id == thesis_id:
             return t
-    if db is None:
-        return None
+    if db is not None:
+        try:
+            from backend.services.mlto.db_models import MltoThesis
+            r = db.query(MltoThesis).filter(MltoThesis.thesis_id == thesis_id).first()
+            if r:
+                return _row_to_dto(r)
+        except Exception:
+            pass
     try:
+        from backend.database.connection import AnalyticsSessionLocal
         from backend.services.mlto.db_models import MltoThesis
-        r = db.query(MltoThesis).filter(MltoThesis.thesis_id == thesis_id).first()
-        return _row_to_dto(r) if r else None
+        with AnalyticsSessionLocal() as adb:
+            r = adb.query(MltoThesis).filter(MltoThesis.thesis_id == thesis_id).first()
+            return _row_to_dto(r) if r else None
     except Exception:
         return None
 
@@ -360,6 +416,21 @@ def _persist(db, thesis: ThesisDTO) -> None:
                 row.mid_view_json = (
                     thesis.mid_view.to_dict() if thesis.mid_view else None
                 )
+            if hasattr(row.__class__, "recommend_open"):
+                if thesis.recommend_open is None:
+                    row.recommend_open = None
+                else:
+                    row.recommend_open = 1 if thesis.recommend_open else 0
+            if hasattr(row.__class__, "should_close"):
+                row.should_close = 1 if thesis.should_close else 0
+            if hasattr(row.__class__, "accepted"):
+                row.accepted = 1 if thesis.accepted else 0
+            if hasattr(row.__class__, "expires_at"):
+                row.expires_at = thesis.expires_at
+            if hasattr(row.__class__, "analysis_run_id"):
+                row.analysis_run_id = (thesis.analysis_run_id or "")[:64] or None
+            if hasattr(row.__class__, "prompt_version"):
+                row.prompt_version = (getattr(thesis, "prompt_version", "") or "")[:32] or None
             # 把孤儿事件挂回规范 thesis_id，否则活动流 JOIN 永远看不到
             if orphan_id and orphan_id != row.thesis_id:
                 try:
@@ -371,6 +442,7 @@ def _persist(db, thesis: ThesisDTO) -> None:
                 except Exception as _heal_err:
                     logger.debug("[MLTO] orphan event heal skip: %s", _heal_err)
             _db.commit()
+            _THESIS_CACHE[_key(thesis.session_id, thesis.symbol, thesis.tier)] = thesis
     except Exception as exc:
         logger.warning(
             "[MLTO] thesis persist skip %s %s %s: %s",
@@ -498,6 +570,13 @@ def _row_to_dto(r) -> ThesisDTO:
         # [v6 4.2] 读回注入的回测智慧 id；getattr 容错旧库未补列。
         wisdom_ids=_parse_wisdom_ids(getattr(r, "wisdom_ids_json", None)),
         updated_at=r.updated_at,
+        recommend_open=_as_opt_bool(getattr(r, "recommend_open", None)),
+        should_close=bool(_as_opt_bool(getattr(r, "should_close", 0)) or False),
+        accepted=bool(_as_opt_bool(getattr(r, "accepted", 0)) or False)
+        and str(getattr(r, "direction", "") or "").lower() in ("long", "short"),
+        expires_at=getattr(r, "expires_at", None),
+        analysis_run_id=str(getattr(r, "analysis_run_id", "") or ""),
+        prompt_version=str(getattr(r, "prompt_version", "") or ""),
     )
 
 

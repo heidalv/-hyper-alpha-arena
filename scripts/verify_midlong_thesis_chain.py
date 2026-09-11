@@ -6,7 +6,6 @@ import os
 import sys
 import time
 import uuid
-from unittest.mock import patch
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -42,14 +41,16 @@ def _mock_qual_tick(thesis_summary: str, direction: str = "long", delta: int = 3
 def main():
     print("=== verify_midlong_thesis_chain ===\n")
 
-    # 1. 模块导入
+    # 1. 模块导入（旧 run_mlto_tick 已删，主路径是 LLM 主脑）
     try:
-        from backend.services.mlto.orchestrator import run_mlto_tick, MltoOrchestrator
+        from backend.services.mlto.brain import can_open, thesis_is_fresh, midlong_new_open_halted
         from backend.services.mlto import thesis_store, decision_hub, evidence_ingest
         from backend.services.mlto.db_models import MltoThesis, MltoMemoryEvent
-        check("MLTO 模块导入", True)
+        check("MLTO 主脑模块导入", True)
+        check("can_open 可调用", callable(can_open) and callable(thesis_is_fresh))
+        check("紧急停机 helper", callable(midlong_new_open_halted))
     except Exception as exc:
-        check("MLTO 模块导入", False, str(exc))
+        check("MLTO 主脑模块导入", False, str(exc))
         print(f"\n合计 PASS={PASS} FAIL={FAIL}")
         sys.exit(1)
 
@@ -75,98 +76,44 @@ def main():
     except Exception as exc:
         check("Decision Hub", False, str(exc))
 
-    # 4. 5 tick 模拟（mock LLM，内存 DB 可选）
+    # 4. 主脑闸 + thesis 落库（不再模拟已删除的 run_mlto_tick）
     session_id = f"verify-{uuid.uuid4().hex[:8]}"
     symbol = "WIF"
-    readiness_series: list[int] = []
-
-    summaries = [
-        "WIF 4h 结构偏多，等待放量确认",
-        "衍生品 funding 转正，多头叙事加强",
-        "1h 回踩 EMA 支撑，中线入场窗口",
-        "Hub 与 LLM 方向一致，就绪度提升",
-        "证据链完整，接近开单阈值",
-        "多周期共振加强，review 持续累积",
-        "open_readiness 稳步上升",
-        "接近 BUILD 阈值，仍待 stable 满足",
-    ]
-
-    tick_idx = [0]
-    tick_count = 8
-
-    def _fake_qual(*_a, **_kw):
-        i = min(tick_idx[0], len(summaries) - 1)
-        tick_idx[0] += 1
-        return _mock_qual_tick(summaries[i], "long", delta=4)
-
-    market_summary = {
-        symbol: {
-            "current_price": 2.5,
-            "orchestrator": {
-                "mid_bias": "bullish",
-                "mid_confidence": 0.55 + 0.05 * tick_idx[0],
-                "long_bias": "bullish",
-                "long_confidence": 0.6,
-                "recommended_slots": ["mid"],
-                "slot_actions": {"mid": "create"},
-            },
-            "indicators_1h": {"rsi": 58, "ema_trend": "bullish", "macd_hist": 0.05, "vol_ratio": 1.1},
-            "indicators_4h": {"rsi": 52, "ema_trend": "bullish"},
-        }
-    }
-
-    class _Session:
-        account_id = 1
-
-        def __init__(self, sid: str):
-            self.session_id = sid
-
     try:
+        from datetime import datetime, timedelta, timezone
         from backend.database.connection import AnalyticsSessionLocal, AnalyticsBase, analytics_engine
-        from backend.services.mlto.db_models import MltoThesis  # noqa: F401 — register tables
+        from backend.services.mlto.db_models import MltoThesis  # noqa: F401
+        from backend.services.mlto.types import ThesisDTO
+
+        now = datetime.now(timezone.utc)
+        fresh = ThesisDTO(
+            thesis_id="v1", session_id=session_id, symbol=symbol, tier="mid",
+            direction="long", recommend_open=True, accepted=True,
+            expires_at=now + timedelta(hours=2), analysis_run_id="verify-fresh",
+        )
+        check("新鲜 accepted 论题可开", can_open(fresh))
+        stale = ThesisDTO(
+            thesis_id="v2", session_id=session_id, symbol=symbol, tier="mid",
+            direction="long", recommend_open=True, accepted=True,
+            expires_at=now - timedelta(minutes=1),
+        )
+        check("过期论题不可开", not can_open(stale) and not thesis_is_fresh(stale))
 
         AnalyticsBase.metadata.create_all(bind=analytics_engine)
         db = AnalyticsSessionLocal()
-        mock_session = _Session(session_id)
-
-        with patch("backend.services.mlto.qual_layer.update_thesis", side_effect=_fake_qual):
-            for tick in range(tick_count):
-                market_summary[symbol]["orchestrator"]["mid_confidence"] = 0.5 + tick * 0.04
-                result = run_mlto_tick(
-                    session_id=session_id,
-                    symbol=symbol,
-                    tier="mid",
-                    market_summary=market_summary,
-                    analyst_reports={},
-                    session=mock_session,
-                    db=db,
-                    portfolio={"positions": []},
-                    persistence_state={},
-                    slot_action="create",
-                    trading_mode="paper",
-                )
-                if result.thesis:
-                    readiness_series.append(result.thesis.open_readiness)
-                check(f"tick {tick + 1} 有 thesis", result.thesis is not None)
-                check(f"tick {tick + 1} reason 含 MLTO", "[MLTO]" in (result.reason or ""))
-
-        check(f"{tick_count} tick 完成", tick_idx[0] >= tick_count)
-        check(f"review_count >= {tick_count}", (result.thesis.review_count if result.thesis else 0) >= tick_count)
-
-        # readiness 非严格单调，但末 tick 应 >= 首 tick（证据累积）
-        if len(readiness_series) >= 2:
-            check(
-                "open_readiness 末 tick >= 首 tick",
-                readiness_series[-1] >= readiness_series[0],
-                f"{readiness_series}",
-            )
-
+        t = thesis_store.get_or_create(session_id, symbol, "mid", db=db)
+        t.direction = "long"
+        t.recommend_open = True
+        t.accepted = True
+        t.expires_at = now + timedelta(hours=2)
+        t.analysis_run_id = "verify-run"
+        thesis_store._persist(db, t)
+        thesis_store.clear_cache()
         rows = thesis_store.list_session_theses(session_id, db=db)
         check("DB 持久化 thesis", len(rows) >= 1)
-
         db.close()
     except Exception as exc:
-        check("8 tick 模拟", False, str(exc))
+        check("主脑闸/thesis 落库", False, str(exc))
 
     # 5. regime_reset + DB 恢复
     try:
@@ -222,7 +169,7 @@ def main():
     except Exception as exc:
         check("debate/tranche", False, str(exc))
 
-    # 7. hub BUILD 阈值不开仓（open_gate）
+    # 7. 主脑 can_open + 非法 hub 动作拦截（WAIT 在阶段3b 已是合法动作）
     try:
         from backend.services.mlto import open_gate
         from backend.services.mlto.types import PerceptionPacket, ThesisDTO, HubDecision
@@ -230,25 +177,34 @@ def main():
         th = ThesisDTO(
             thesis_id="g1", session_id="g", symbol="X", tier="mid",
             review_count=5, open_readiness=50, direction="long",
+            recommend_open=True, accepted=True,
         )
         th.stable_since = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
         th.updated_at = th.stable_since
         hub = HubDecision(
-            action="WAIT", direction="long", composite=0.35, adjusted=0.35,
-            consistency=0.7, open_readiness=35, reason_text="wait",
+            action="HOLD", direction="long", composite=0.35, adjusted=0.35,
+            consistency=0.7, open_readiness=35, reason_text="hold",
         )
         pkt = PerceptionPacket(
             symbol="X", tier="mid", session_id="g", ts=time.time(), price=1,
-            market_summary_sym={},
+            market_summary_sym={"price": 1},
             orchestrator={},
             quant_brief={},
             analyst_reports={},
             pre_screener_passed=True,
         )
         ok, reason = open_gate.allow(th, hub, pkt, {})
-        check("hub WAIT 零开仓", not ok and "hub_action" in reason)
+        check("非法 hub HOLD 拦截", not ok and "hub_action" in reason, reason)
+        hold_th = ThesisDTO(
+            thesis_id="g2", session_id="g", symbol="X", tier="mid",
+            direction="long", recommend_open=False, accepted=True,
+            expires_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+            + __import__("datetime").timedelta(hours=2),
+            analysis_run_id="verify-hold",
+        )
+        check("主脑 can_open 拒绝 hold 论题", not can_open(hold_th))
     except Exception as exc:
-        check("open_gate WAIT", False, str(exc))
+        check("open_gate / can_open", False, str(exc))
 
     # 8. Agent update_thesis API
     try:

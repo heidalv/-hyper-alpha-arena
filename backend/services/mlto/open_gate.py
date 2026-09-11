@@ -16,24 +16,39 @@ from backend.services.mlto.types import HubDecision, PerceptionPacket, ThesisDTO
 
 logger = logging.getLogger(__name__)
 
+def _cfg_int_keep0(name: str, default: int) -> int:
+    """读 int 配置并**保留显式 0**。
+
+    [2026-09-10 审计轮] 原写法 `int(getattr(settings, name, default) or default)`
+    会把显式设成 0 的阈值悄悄换回默认值——运维想用「0 = 不作要求」时
+    看到的却是「按 78/72/3 拦」，是典型的静默失效。
+    """
+    try:
+        v = getattr(settings, name, default)
+    except Exception:
+        return int(default)
+    return int(default) if v is None else int(v)
+
+
+
 
 def _thresholds(tier: str) -> tuple:
     """阈值仅用于 describe_gate_status 展示（allow 不再依赖 readiness/reviews）。"""
     min_readiness = (
-        int(getattr(settings, "MIDLONG_OPEN_READINESS_MIN_LONG", 78) or 78)
+        _cfg_int_keep0("MIDLONG_OPEN_READINESS_MIN_LONG", 78)
         if tier == "long"
-        else int(getattr(settings, "MIDLONG_OPEN_READINESS_MIN_MID", 72) or 72)
+        else _cfg_int_keep0("MIDLONG_OPEN_READINESS_MIN_MID", 72)
     )
-    min_reviews = int(getattr(settings, "MIDLONG_THESIS_MIN_REVIEWS", 3) or 3)
+    min_reviews = _cfg_int_keep0("MIDLONG_THESIS_MIN_REVIEWS", 3)
     # stable_sec / persist_ticks / stale_max 历史上用于已删除的 persistence/新鲜度闸门，
     # 此处保留返回结构以维持向后兼容（describe 仍读 min_readiness/min_reviews）。
     stable_sec = (
-        int(getattr(settings, "MIDLONG_THESIS_STABLE_MIN_SEC_LONG", 7200) or 7200)
+        _cfg_int_keep0("MIDLONG_THESIS_STABLE_MIN_SEC_LONG", 7200)
         if tier == "long"
-        else int(getattr(settings, "MIDLONG_THESIS_STABLE_MIN_SEC_MID", 1800) or 1800)
+        else _cfg_int_keep0("MIDLONG_THESIS_STABLE_MIN_SEC_MID", 1800)
     )
-    persist_ticks = max(1, int(getattr(settings, "MIDLONG_PERSISTENCE_TICKS", 2) or 2))
-    stale_max = int(getattr(settings, "MIDLONG_THESIS_STALE_MAX_SEC", 120) or 120)
+    persist_ticks = max(1, _cfg_int_keep0("MIDLONG_PERSISTENCE_TICKS", 2))
+    stale_max = _cfg_int_keep0("MIDLONG_THESIS_STALE_MAX_SEC", 120)
     return min_readiness, min_reviews, stable_sec, persist_ticks, stale_max
 
 

@@ -130,6 +130,54 @@ STRATEGY_RUNTIME: Dict[str, StrategyRuntimeSpec] = {
         summary="Asterdex 合约单腿方向仓；QAA analyst+planner，macro 过滤，持仓≥60min Taker 平仓。",
         not_ready_reason="S8 需要有效 AI 信号；信号不可用或 risk=danger 时必须跳过，不能默认开单。",
     ),
+    # [2026-09-04 p2-arb-infra] SDN 此前在 ALL_STRATEGIES 可扫可评，但 STRATEGY_RUNTIME
+    # 缺席 → Paper validate_start / 自动执行过滤会当成「未知策略」拒掉。补上后与 YAML
+    # rebate_arb_config 的 SDN_delta_neutral.enabled 对齐，Paper 才能合法跑。
+    "SDN": StrategyRuntimeSpec(
+        strategy_id="SDN",
+        name="Delta-Neutral 资金费+积分",
+        category="points_arb",
+        execution_mode="hedge",
+        required_exchanges=("asterdex", "binance"),  # 典型：积分所做多 + 深所做空；实际腿由矩阵选定
+        min_equity_usd=100.0,
+        paper_auto_executable=True,
+        requires_trader_profile=False,
+        requires_ai_signal=False,
+        requires_funding_signal=True,
+        direction_rule="funding_matrix",
+        hold_model="adaptive_7_21d",
+        ai_decision_mode="none",
+        coordination_group="delta_neutral",
+        summary="多场所资金费矩阵选最优 combo：积分/高费率所做多 + 深流动所做空，"
+                "赚净资金费并刷积分；持有期 7–21 天自适应摊平手续费。",
+        not_ready_reason="需 MULTI_VENUE_FUNDING_COLLECTOR 覆盖 ≥2 场所且净 APR 过门；"
+                         "Live 仍受 arb_switches.live_trading_enabled 硬关。",
+    ),
+    # [2026-09-09 F69] 做市（影子期）纳入统一模拟账户。
+    # 用户决策：影子期不应是独立账户，而应作为**统一账户里的一条策略配置**，
+    # 资金/风控/盈亏与 S3/S8/SDN 同账管理，账户层面看到整体交易与各策略配合。
+    # 与其它策略的差异：本策略的成交来自 `lane_ledger`（做市驱动器），
+    # 通过 `record_paper_leg_fill(strategy_type="MM")` 汇入账户总账。
+    "MM": StrategyRuntimeSpec(
+        strategy_id="MM",
+        name="做市 · Asterdex（影子期）",
+        category="points_arb",
+        execution_mode="maker_roundtrip",
+        required_exchanges=("asterdex",),
+        min_equity_usd=1_000.0,
+        paper_auto_executable=True,
+        requires_trader_profile=False,
+        requires_ai_signal=False,
+        requires_funding_signal=False,
+        direction_rule="inventory_neutral",
+        hold_model="intraday_seconds",
+        ai_decision_mode="none",
+        coordination_group="delta_neutral",
+        summary="Aster maker 0% 下双边挂宽 8bp 做市；库存偏斜 + 超时平仓；"
+                "成交与盈亏汇入统一模拟账户（strategy_type=MM）。",
+        not_ready_reason="需 Asterdex 盘口/成交采集器在线（数据年龄 ≤180s），"
+                         "且 maker 费率 ≤0.5bp；否则驱动器拒绝报价。",
+    ),
 }
 
 

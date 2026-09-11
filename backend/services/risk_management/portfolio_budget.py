@@ -169,6 +169,10 @@ class PortfolioBudget:
         # [2026-08-08 P2-1] 修复失败后冷却，避免 depth/promote 失败时空转占锁
         self._repair_fail_until: Dict[Any, float] = {}
         self._cache: Dict[str, Any] = {}
+        #: [§72] 回撤拒单告警的限流计数（key = strategy:symbol）
+        self._dd_reject_warn: Dict[str, int] = {}
+        #: [P17-C①] 回撤判据 stale（不拒单）告警的限流计数（key = strategy）
+        self._dd_stale_warn: Dict[str, int] = {}
         self._lock = __import__("threading").Lock()
         self._last_decision: Optional[BudgetDecision] = None
 
@@ -199,6 +203,18 @@ class PortfolioBudget:
 
         if not _cfg_bool("PB_ENABLED", True):
             return BudgetDecision(True, [], metrics, strategy=strategy)
+
+        # [2026-09-11 用户指令] **模拟(paper)账户不接组合预算闸**：
+        # 用户原话「模拟账户交易还配置全局冻结？」——纸面阶段的亏损就是训练数据，
+        # 冻结/熔断只会让样本停摆（历史上 freeze 台账每 17 分钟刷一次
+        # midlong BTC/XRP/ASTER "drawdown 23.60σ"，把纸面开仓按住）。
+        # 与短线侧 scalp_loop 的既有语义对齐（PB_PAPER_SKIP=true 时 paper 跳过整段），
+        # 唯一权威落点放在此处：任何调用方传 mode="paper" 都不会被本闸拦。
+        # live 不受影响（继续全量检查 + fail-closed）；需要复现拦截行为时
+        # 传 mode="live" 或显式 PB_PAPER_SKIP=false。
+        if mode == "paper" and _cfg_bool("PB_PAPER_SKIP", True):
+            metrics["paper_skip"] = True
+            return BudgetDecision(True, ["paper_skip(PB_PAPER_SKIP)"], metrics, strategy=strategy)
 
         try:
             # ── 0. 冻结信号（四级粒度：key→策略→账户→全局；只拦命中者，其余照常）──
@@ -290,8 +306,11 @@ class PortfolioBudget:
                 return BudgetDecision(False, reasons, metrics, strategy=strategy)
 
             # ── 3. 单策略回撤 3σ 熔断 ──
-            dd_sigma = self._strategy_drawdown_sigma(strategy, db, account_id)
+            _dd_metric = self._strategy_drawdown_metric(strategy, db, account_id)
+            dd_sigma = float(_dd_metric["ratio"]) if _dd_metric else None
             metrics["drawdown_sigma"] = dd_sigma
+            if _dd_metric:
+                metrics["drawdown_metric"] = _dd_metric
             sigma_cap = _cfg_float("PB_STRATEGY_DRAWDOWN_SIGMA", 3.0)
             # 中长线历史回撤序列波动大（纸盘探针期常 >3σ）；单独放宽避免永久熔断。
             if _strat == "midlong":
@@ -299,7 +318,23 @@ class PortfolioBudget:
                     "PB_MIDLONG_DRAWDOWN_SIGMA",
                     max(float(sigma_cap), 10.0),
                 )
-            if dd_sigma is not None and dd_sigma > sigma_cap:
+            # [P17-C① 执行 2026-09-10] **自愈规则**：判据只吃已平仓样本，而它拒绝的是"开仓"
+            # ⇒ 长时间无新样本时 `ratio` 不可能变（§72.3 实测 3 小时恒定 18.99σ、110 次拦截）。
+            # 故：距最后一次样本 ≥ PB_DD_STALE_HOURS（默认 12h，0=关闭该自愈）时，本判据
+            # **降级为告警、不再拒单**，让"开仓→平仓→有新样本"的回路重新运转。
+            dd_stale_h = _cfg_float("PB_DD_STALE_HOURS", 12.0)
+            dd_age_h = (_dd_metric or {}).get("age_hours")
+            dd_is_stale = bool(
+                dd_sigma is not None and dd_stale_h > 0
+                and dd_age_h is not None and float(dd_age_h) >= dd_stale_h
+            )
+            if dd_is_stale and dd_sigma > sigma_cap:
+                metrics["dd_sigma_stale"] = {
+                    "age_hours": float(dd_age_h), "stale_hours": float(dd_stale_h),
+                    "ratio": dd_sigma, "cap": float(sigma_cap),
+                }
+                self._warn_dd_stale(strategy, sym, dd_sigma, sigma_cap, float(dd_age_h), dd_stale_h)
+            if dd_sigma is not None and dd_sigma > sigma_cap and not dd_is_stale:
                 reasons.append(f"{strategy} drawdown={dd_sigma:.2f}σ>{sigma_cap:.0f}σ")
                 # 最小粒度：只冻结该策略下亏损最重的 symbol（止血），
                 # 非亏损源的当前 symbol 放行继续后续规则，其余 symbol 不受影响
@@ -308,6 +343,18 @@ class PortfolioBudget:
                     top_k=_cfg_int("PB_FREEZE_TOP_WORST", PB_FREEZE_TOP_WORST),
                 )
                 metrics["drawdown_worst"] = worst
+                metrics["dd_sigma_reject"] = {
+                    "dd_sigma": round(float(dd_sigma), 3),
+                    "cap": float(sigma_cap),
+                    "worst": list(worst or [])[:5],
+                }
+                # [§72 诊断 2026-09-10] `PB_FREEZE_ENABLED=false` 只关掉**冻结记账**，
+                # **不关拒单**：本分支照样 `return BudgetDecision(False, ...)`。
+                # 而 `_freeze()` 在开关关闭时打印的是「继续交易」⇒ 日志与行为**互相矛盾**，
+                # 且该判据在亏损期**无法自愈**（禁止开仓 → 无新平仓 → 累计曲线不变 →
+                # dd/σ 不变，实测 18.99σ 连续 3 小时一个数字都没变，110 次拒单）。
+                # 纯诊断：限流 WARNING，不改任何裁决。
+                self._warn_dd_reject_without_freeze(strategy, sym, dd_sigma, sigma_cap, worst)
                 if worst:
                     for wsym in worst:
                         self._freeze_via_coordinator(account_id, strategy, wsym,
@@ -343,6 +390,55 @@ class PortfolioBudget:
             return BudgetDecision(True, ["pb_error_fail_open"], metrics, strategy=strategy)
 
     # ── 冻结信号 ─────────────────────────────────────────────
+
+    def _warn_dd_stale(
+        self, strategy: str, symbol: str, dd_sigma: float, cap: float, age_h: float, stale_h: float,
+    ) -> None:
+        """[P17-C①] 判据 stale ⇒ 不拒单，必须留痕（限流：首次 + 每 200 次）。"""
+        try:
+            k = f"stale:{strategy}"
+            n = int(self._dd_stale_warn.get(k, 0)) + 1
+            self._dd_stale_warn[k] = n
+            if n == 1 or n % 200 == 0:
+                logger.warning(
+                    "[PortfolioBudget] 回撤判据已 stale（距最后一次样本 %.1fh ≥ %.0fh）⇒ "
+                    "**不拒单**（自愈闸，P17-C①）strategy=%s sym=%s 当前 dd=%.2fσ>%.0fσ "
+                    "第%d次 —— 保留告警以便观察回撤是否继续恶化",
+                    float(age_h), float(stale_h), strategy, symbol,
+                    float(dd_sigma), float(cap), n,
+                )
+        except Exception:
+            pass
+
+    def _warn_dd_reject_without_freeze(
+        self, strategy: str, symbol: str, dd_sigma: float, cap: float, worst,
+    ) -> None:
+        """[§72 诊断] 回撤熔断在"冻结已禁用"时**仍拒单**这件事必须可见。
+
+        背景：2026-08-16 用户指令是「亏一笔就冻结机制整体删除…继续交易」，
+        运维据此认为该判据已不影响交易；实际上 `PB_FREEZE_ENABLED=false` 只关掉冻结
+        记账，`evaluate_open` 里这一支仍旧 `return False`。实测（2026-09-10 14:23–16:27）
+        该原因连续 **110 次**成为中长线开仓的 TOP1 拦截，且 dd/σ 恒为 18.99σ 不变
+        （禁止开仓 ⇒ 无新平仓 ⇒ 累计曲线不变 ⇒ 判据不自愈）。
+        限流：每个 (strategy, symbol) 首次 + 每 200 次各报一条。
+        """
+        if _cfg_bool("PB_FREEZE_ENABLED", True):
+            return
+        try:
+            k = f"{strategy}:{str(symbol or '').upper()}"
+            n = int(self._dd_reject_warn.get(k, 0)) + 1
+            self._dd_reject_warn[k] = n
+            if n == 1 or n % 200 == 0:
+                logger.warning(
+                    "[PortfolioBudget] 回撤熔断**拒单**（注意：冻结开关 PB_FREEZE_ENABLED=false "
+                    "并不关闭本条拒单路径）strategy=%s sym=%s dd=%.2fσ>%.0fσ worst=%s "
+                    "第%d次 —— 该判据在亏损期无法自愈（禁止开仓→无新平仓→曲线不变），"
+                    "是否保留由决策 P17 定（见报告 §72）",
+                    strategy, symbol, float(dd_sigma), float(cap),
+                    list(worst or [])[:3], n,
+                )
+        except Exception:
+            pass
 
     def _freeze_via_coordinator(
         self,
@@ -408,29 +504,42 @@ class PortfolioBudget:
             # paper 阶段亏损=训练数据（用户原话：前期就是要亏钱亏出数据）。
             # 因子/策略的处置走累计口径：累计亏损超限 → 下架 + 重挖 + 替代因子
             # 继续交易（修复流水线承担），绝不写冻结时间戳阻断其它交易对。
+            # [2026-09-02 死锁修复] 本分支原先**在持锁状态下**直接调用
+            # _spawn_repair，而后者开头也要 `with self._lock`——self._lock 是普通
+            # threading.Lock（不可重入），同一线程二次申请必然自锁死。整条链是
+            # evaluate_open → _freeze_via_coordinator → freeze_coordinator.freeze
+            # → _freeze → _spawn_repair，死锁后这把全局锁再也不释放，PortfolioBudget
+            # 的开仓评估会全部卡住。生产 .env 正是 PB_FREEZE_ENABLED=false，所以
+            # 这条路径是活跃的（全量回归里 test_daily_var_block 永久挂起即此因）。
+            # 改为与下方正常路径同构：只在锁内决策，_spawn_repair 一律出锁后调用。
             if not _cfg_bool("PB_FREEZE_ENABLED", True):
                 logger.info(
                     "[PortfolioBudget] 冻结已禁用(PB_FREEZE_ENABLED=false)，"
                     "仅启动修复流水线(下架/重挖/替代): %s %s %s",
                     account_id, strategy, sym,
                 )
-                self._spawn_repair(account_id, strategy, sym, why, scope)
-                return
-            n = self._trigger_count.get(cnt_key, 0) + 1
-            self._trigger_count[cnt_key] = n
-            decay = 2.0 ** min(n - 1, 3)          # 3600→1800→900→450
-            # 短线最低冷却 180s（原 450），加快恢复交易
-            _min_cd = 180.0 if str(strategy).lower() == "scalp" else 450.0
-            cooldown_eff = max(_min_cd, base / decay)
-            until = time.time() + cooldown_eff
-            if scope == "account":
-                self._account_frozen_until[account_id] = max(
-                    self._account_frozen_until.get(account_id, 0.0), until)
-            elif scope == "strategy":
-                self._strategy_frozen_until[(account_id, strategy)] = max(
-                    self._strategy_frozen_until.get((account_id, strategy), 0.0), until)
+                _repair_only = True
             else:
-                self._key_frozen_until[key] = max(self._key_frozen_until.get(key, 0.0), until)
+                _repair_only = False
+                n = self._trigger_count.get(cnt_key, 0) + 1
+                self._trigger_count[cnt_key] = n
+                decay = 2.0 ** min(n - 1, 3)          # 3600→1800→900→450
+                # 短线最低冷却 180s（原 450），加快恢复交易
+                _min_cd = 180.0 if str(strategy).lower() == "scalp" else 450.0
+                cooldown_eff = max(_min_cd, base / decay)
+                until = time.time() + cooldown_eff
+                if scope == "account":
+                    self._account_frozen_until[account_id] = max(
+                        self._account_frozen_until.get(account_id, 0.0), until)
+                elif scope == "strategy":
+                    self._strategy_frozen_until[(account_id, strategy)] = max(
+                        self._strategy_frozen_until.get((account_id, strategy), 0.0), until)
+                else:
+                    self._key_frozen_until[key] = max(self._key_frozen_until.get(key, 0.0), until)
+        if _repair_only:
+            # 锁已释放，可以安全进入修复流水线
+            self._spawn_repair(account_id, strategy, sym, why, scope)
+            return
         logger.warning(
             "[PortfolioBudget] acct=%s %s %s 触发%s冻结 %ds(第%d次): %s",
             account_id, strategy, sym, scope, int(cooldown_eff), n, why,
@@ -762,10 +871,17 @@ class PortfolioBudget:
             logger.debug("[PortfolioBudget] %s 1d 收益获取失败: %s", sym, e)
             return None
 
-    def _strategy_drawdown_sigma(
-        self, strategy: str, db, account_id: int,
-    ) -> Optional[float]:
-        """策略历史已平仓 PnL 序列：当前回撤 / 序列 σ。数据不足返回 None。"""
+    def _strategy_drawdown_metric(self, strategy: str, db, account_id: int) -> Optional[Dict[str, Any]]:
+        """策略回撤熔断的**完整输入**（P17-C① 需要样本新鲜度）。
+
+        返回 `{ratio, sigma, drawdown, peak, last_value, n_samples, last_sample_ts, age_hours}`
+        或 `None`（数据不足/查询失败）。
+
+        [P17 执行 2026-09-10] 原来只返回 `ratio`，于是无法判断"这个判据还新鲜吗"。
+        实测（§72.3）：判据只吃**已平仓**交易，而它拒绝的正是"开仓" ⇒ 无新平仓 ⇒ 曲线不变
+        ⇒ `ratio` 恒定（18.99σ 连续 3 小时），**永不自愈**。故把"距最后一次样本多少小时"
+        一并算出来，供"stale 即不拒单"的自愈规则使用。
+        """
         if not db or not account_id:
             return None
         cache_key = f"dd:{strategy}:{account_id}"
@@ -795,6 +911,7 @@ class PortfolioBudget:
             logger.debug("[PortfolioBudget] %s 历史交易查询失败: %s", strategy, e)
             return None
         pnls = []
+        last_sample_ts = None
         for r in rows:
             try:
                 if not _is_strategy_pos(
@@ -813,6 +930,9 @@ class PortfolioBudget:
                 pnl = pnl + float(r.partial_realized_pnl or 0)
                 if np.isfinite(pnl):
                     pnls.append(pnl)
+                    _c_at = getattr(r, "closed_at", None)
+                    if _c_at is not None and (last_sample_ts is None or _c_at > last_sample_ts):
+                        last_sample_ts = _c_at
             except Exception:
                 continue
         if len(pnls) < min_trades:
@@ -825,8 +945,31 @@ class PortfolioBudget:
         peak = float(np.maximum.accumulate(equity_curve)[-1])
         current_dd = float(peak - equity_curve[-1])
         dd_sigma = current_dd / sigma
-        self._cache[cache_key] = (time.time(), dd_sigma)
-        return dd_sigma
+        age_h: Optional[float] = None
+        if last_sample_ts is not None:
+            try:
+                import datetime as _dt2
+                _now = _dt2.datetime.now(tz=getattr(last_sample_ts, "tzinfo", None))
+                age_h = max(0.0, (_now - last_sample_ts).total_seconds() / 3600.0)
+            except Exception:
+                age_h = None
+        metric = {
+            "ratio": round(dd_sigma, 4),
+            "sigma": round(sigma, 4),
+            "drawdown": round(current_dd, 4),
+            "peak": round(peak, 4),
+            "last_value": round(float(equity_curve[-1]), 4),
+            "n_samples": len(pnls),
+            "last_sample_ts": str(last_sample_ts)[:19] if last_sample_ts is not None else None,
+            "age_hours": round(age_h, 3) if age_h is not None else None,
+        }
+        self._cache[cache_key] = (time.time(), metric)
+        return metric
+
+    def _strategy_drawdown_sigma(self, strategy: str, db, account_id: int) -> Optional[float]:
+        """兼容入口：只取 ratio（旧调用方/测试仍可用）。"""
+        m = self._strategy_drawdown_metric(strategy, db, account_id)
+        return None if not m else float(m["ratio"])
 
     def _worst_symbols(
         self, strategy: str, db, account_id: int, top_k: int = 3,

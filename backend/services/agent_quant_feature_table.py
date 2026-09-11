@@ -23,6 +23,17 @@ from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+def _keep0_int(v, default):
+    """保留显式 0 的整数读取（`v or default` 会把 0 吞掉）。[2026-09-10 审计轮]"""
+    return int(default) if v is None else int(v)
+
+
+def _keep0_float(v, default):
+    """保留显式 0 的浮点读取。[2026-09-10 审计轮]"""
+    return float(default) if v is None else float(v)
+
+
+
 
 def _safe_num(v: Any, default: str = "unavailable") -> str:
     """格式化数值，None/异常返回 default。"""
@@ -401,8 +412,8 @@ def render_quant_feature_table(
     # 6. 开仓配额：按 nature 限定统计口径，上限读取真实配置（不再写死误导性门槛）
     try:
         from backend.config import settings as _qs
-        _trend_daily_cap = int(getattr(_qs, "TREND_DAILY_OPEN_CAP", 15) or 15)
-        _trend_week_cap = int(getattr(_qs, "TREND_MAX_OPENS_PER_WEEK", 6) or 6)
+        _trend_daily_cap = _keep0_int(getattr(_qs, "TREND_DAILY_OPEN_CAP", 15), 15)
+        _trend_week_cap = _keep0_int(getattr(_qs, "TREND_MAX_OPENS_PER_WEEK", 6), 6)
     except Exception:
         _trend_daily_cap, _trend_week_cap = 15, 6
     if nature_l in ("trend_follow", "position"):

@@ -99,6 +99,15 @@ class FullAutoOrchestrator:
             from dotenv import load_dotenv as _ld
 
             _ld(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"), override=True)
+            try:
+                from backend.config.settings import SCALP_OPEN_DISABLED as _scalp_halt
+            except Exception:
+                _scalp_halt = os.getenv("SCALP_OPEN_DISABLED", "true").lower() in (
+                    "1", "true", "yes", "on",
+                )
+            if _scalp_halt:
+                logger.info("[FullAutoOrchestrator] SCALP_OPEN_DISABLED，不注册 scalp 独立循环")
+                return
             _scalp_enabled = os.getenv("SCALP_FACTOR_INDEPENDENT_SCHEDULER", "true").lower() in (
                 "1", "true", "yes", "on",
             )
@@ -135,6 +144,30 @@ class FullAutoOrchestrator:
         except Exception as exc:
             logger.warning("[FullAutoOrchestrator] 注册 scalp 循环失败: %s", exc)
 
+    def _unregister_midlong(self, session_id: str) -> None:
+        svc = self.svc
+        try:
+            from backend.services.scheduler import task_scheduler
+
+            task_scheduler.remove_task(f"fullauto_midlong_{session_id}")
+            # [2026-09-07] 旧线程若仍在 LLM，禁止清 running/thread——否则下一发
+            # APScheduler 会叠第二轮 midlong，brain batch 互跳 skip overlapping。
+            th = getattr(svc, "_midlong_loop_thread", {}).get(session_id)
+            alive = bool(th is not None and getattr(th, "is_alive", lambda: False)())
+            if alive:
+                logger.info(
+                    "[FullAutoOrchestrator] midlong 注销保留在跑线程旗标 %s",
+                    session_id,
+                )
+                svc._midlong_tick_count.pop(session_id, None)
+                return
+            svc._midlong_tick_count.pop(session_id, None)
+            svc._midlong_loop_running.pop(session_id, None)
+            svc._midlong_loop_started.pop(session_id, None)
+            getattr(svc, "_midlong_loop_thread", {}).pop(session_id, None)
+        except Exception as exc:
+            logger.warning("[FullAutoOrchestrator] 注销 midlong 失败: %s", exc)
+
     def register_midlong_loop(self, session_id: str) -> None:
         svc = self.svc
         try:
@@ -152,6 +185,25 @@ class FullAutoOrchestrator:
             from backend.services.scheduler import task_scheduler
 
             midlong_id = f"fullauto_midlong_{session_id}"
+            # 已注册且任务仍在：幂等跳过，避免 unregister 清旗标叠跑
+            try:
+                _sched = getattr(task_scheduler, "scheduler", None)
+                if _sched is not None and _sched.get_job(midlong_id) is not None:
+                    th = getattr(svc, "_midlong_loop_thread", {}).get(session_id)
+                    if th is not None and getattr(th, "is_alive", lambda: False)():
+                        logger.info(
+                            "[FullAutoOrchestrator] midlong 已在跑，跳过重注册 %s",
+                            midlong_id,
+                        )
+                        return
+                    if svc._midlong_loop_running.get(session_id):
+                        logger.info(
+                            "[FullAutoOrchestrator] midlong job 已在，跳过重注册 %s",
+                            midlong_id,
+                        )
+                        return
+            except Exception:
+                pass
             self._unregister_midlong(session_id)
             if session_id not in svc._midlong_tick_count:
                 svc._midlong_tick_count[session_id] = 0
@@ -211,18 +263,6 @@ class FullAutoOrchestrator:
             svc._scalp_loop_started.pop(session_id, None)
         except Exception as exc:
             logger.warning("[FullAutoOrchestrator] 注销 scalp 失败: %s", exc)
-
-    def _unregister_midlong(self, session_id: str) -> None:
-        svc = self.svc
-        try:
-            from backend.services.scheduler import task_scheduler
-
-            task_scheduler.remove_task(f"fullauto_midlong_{session_id}")
-            svc._midlong_tick_count.pop(session_id, None)
-            svc._midlong_loop_running.pop(session_id, None)
-            svc._midlong_loop_started.pop(session_id, None)
-        except Exception as exc:
-            logger.warning("[FullAutoOrchestrator] 注销 midlong 失败: %s", exc)
 
     # ── Loop 分发（thin shim 目标）────────────────────────────────
 

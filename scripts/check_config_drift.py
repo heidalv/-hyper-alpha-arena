@@ -56,7 +56,15 @@ def load_env(path: Path) -> tuple[dict[str, str], list[str]]:
         if key in seen:
             duplicates.append(key)
         seen.add(key)
-        values[key] = value.strip().strip('"').strip("'")
+        value = value.strip()
+        # [2026-09-02 F17] 剥离行尾注释。此前 `KEY=false  # 说明` 会把整段注释
+        # 当成值参与比对，报出 `env=false  # 说明` 这种既难读又必然不相等的假漂移，
+        # 反过来逼着维护者把注释从 .env 里删掉才能过检 —— 与「配置要有据可查」相悖。
+        # 只在 `#` 前有空白时才剥离，避免误伤值内部含 # 的写法（如 a#b）。
+        _cm = re.search(r"\s+#", value)
+        if _cm:
+            value = value[:_cm.start()].strip()
+        values[key] = value.strip('"').strip("'")
     return values, duplicates
 
 

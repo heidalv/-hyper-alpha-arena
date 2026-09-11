@@ -365,7 +365,7 @@ def get_positions_with_plans(
         if account.binance_enabled == "true":
             try:
                 from backend.database.models import Order
-                from services.market_data import get_last_price
+                from backend.services.market_data import get_last_price
 
                 logger.info(f"[DEBUG] Getting individual AI decision positions for account {account_id}")
 
@@ -579,7 +579,7 @@ def close_position(
                 size = abs(position_size)
 
                 # 获取当前市场价格
-                from services.market_data import get_last_price
+                from backend.services.market_data import get_last_price
                 current_price = get_last_price(request.symbol, "hyperliquid")
 
                 # 读取全局保证金模式
@@ -784,7 +784,7 @@ def close_position(
                     # 不影响主流程
             
             # 记录平仓决策
-            from services.ai_decision_service import save_ai_decision
+            from backend.services.ai_decision_service import save_ai_decision
 
             portfolio = {
                 "total_assets": float(account.current_cash or 0),
@@ -1257,7 +1257,7 @@ def close_all_positions(
                         size = abs(position_size)
 
                         # 获取当前价格
-                        from services.market_data import get_last_price
+                        from backend.services.market_data import get_last_price
                         current_price = get_last_price(coin, "hyperliquid")
 
                         # 读取全局保证金模式

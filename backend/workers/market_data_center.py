@@ -580,6 +580,22 @@ async def _run_collectors(stop: asyncio.Event) -> None:
         comps["aggregate_whale"] = f"skip:{e}"
         logger.info("[DataCenter] aggregate_whale: %s", e)
 
+    # 11) [2026-09-03 v3 p0-event-data] 事件数据采集：交易所公告 / forceOrder 逐笔清算流 /
+    # 持仓结构 / 全币池结算 funding 回填 / news·whale·macro → market_events 桥接。
+    # EVENT_COLLECTORS_HOST 默认 dc → 在本进程调度；心跳/失败登记到 job_registry（主库）。
+    try:
+        from backend.services.events.collectors import register_event_jobs
+        from backend.services.scheduler import task_scheduler as _ts
+
+        if not _ts.is_running():
+            _ts.start()
+        _evt_names = register_event_jobs(_ts, host="dc")
+        comps["event_collectors"] = f"up:{len(_evt_names)}" if _evt_names else "registered-only"
+        logger.info("[DataCenter] event_collectors %s", _evt_names)
+    except Exception as e:
+        comps["event_collectors"] = f"skip:{e}"
+        logger.info("[DataCenter] event_collectors: %s", e)
+
     # 至少 K 线起来才算 ok
     _STATE["ok"] = comps.get("kline_realtime_collector") == "up"
     logger.info("[DataCenter] ready ok=%s components=%s", _STATE["ok"], comps)

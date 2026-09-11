@@ -29,13 +29,26 @@ def test_decide_long_tighten_sl():
     assert d["action"] == "tighten_sl" and d["new_sl"] == 95
 
 
-def test_decide_long_extreme_drawdown():
+def test_decide_long_extreme_drawdown(monkeypatch):
+    # [2026-09-08] 极端回撤阈值改为 env 可调（LONG_DD_CLOSE/LONG_DD_HALVE）。
+    # 显式设回旧值 0.80/0.60 测机制，与默认值解耦。
+    monkeypatch.setenv("LONG_DD_CLOSE", "0.80")
+    monkeypatch.setenv("LONG_DD_HALVE", "0.60")
     d80 = decide_long(l1_state="up", close=100, stop=80, new_high=False, r_multiple=0.5,
                       drawdown_pct=0.85)
     assert d80["action"] == "close" and "80%" in d80["reason"]
     d60 = decide_long(l1_state="up", close=100, stop=80, new_high=False, r_multiple=0.5,
                       drawdown_pct=0.65)
     assert d60["action"] == "reduce" and d60["ratio"] == 0.5
+    # 新默认（0.90/0.75）下：0.85 只减半不全平（更宽容，让盈利单多跑）
+    monkeypatch.setenv("LONG_DD_CLOSE", "0.90")
+    monkeypatch.setenv("LONG_DD_HALVE", "0.75")
+    d85 = decide_long(l1_state="up", close=100, stop=80, new_high=False, r_multiple=0.5,
+                      drawdown_pct=0.85)
+    assert d85["action"] == "reduce" and d85["ratio"] == 0.5
+    d95 = decide_long(l1_state="up", close=100, stop=80, new_high=False, r_multiple=0.5,
+                      drawdown_pct=0.95)
+    assert d95["action"] == "close"
 
 
 def test_decide_long_no_progress():
@@ -94,6 +107,8 @@ def test_manage_long_position_same_core():
         out = lv2.manage_long_position(None, account_id=1, position=position)
 
     # 手动按同核逻辑算期望：entry_idx=5 天前的 bar（开仓日在 df 中），close_now=最后一根
+    # [2026-09-07 P0] 回撤口径更新为 (峰值%−当前%)/峰值%（无杠杆价格%），
+    # 并传入 P0 新参数（entry_price/peak_pnl_pct/done 标记）保持同核断言。
     from backend.services.long_tier_manager import chandelier_long_stop as _chs
     entry = 100.0
     mult = 2.0
@@ -101,12 +116,17 @@ def test_manage_long_position_same_core():
     close_now = float(close.iloc[-1])
     stops = _chs(close, atr_series, mult=mult, entry_idx=n - 6, entry_price=entry)
     stop = float(stops.iloc[-1])
+    _peak_pct = 0.12
+    _cur_pct = close_now / entry - 1.0
     expect = decide_long(
         l1_state="up", close=close_now, stop=stop, new_high=False,
         r_multiple=(close_now - entry) / (mult * atr_w),
         in_position=True, cur_sl=90.0,
-        peak_r=0.12 / ((mult * atr_w) / entry),
-        hold_days=5.0, drawdown_pct=max(0.0, 1.0 - (1.0 + 0.08) / (1.0 + 0.12)),
+        peak_r=_peak_pct / ((mult * atr_w) / entry),
+        hold_days=5.0,
+        drawdown_pct=max(0.0, (_peak_pct - _cur_pct) / _peak_pct),
         pyr_batch=0,
+        entry_price=entry, peak_pnl_pct=_peak_pct,
+        dd_halve_done=False, target_halve_done=False, early_np_done=False,
     )
     assert out["action"] == expect["action"], f"同核失败: {out} vs {expect}"

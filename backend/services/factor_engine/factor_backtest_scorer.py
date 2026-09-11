@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -50,11 +51,57 @@ class FactorScoreResult:
     # 逻辑一致），与 eval_mode="continuous" 的单边连续持仓口径区分。
     eval_mode: str = "continuous"
     conditional: Dict[str, Any] = field(default_factory=dict)
+    # [P3.2 2026-09-03] "延迟一根成交"稳健性：信号在 t 收盘产生，t+1 收盘才成交
+    # （线上循环周期 + 下单延迟的保守上界）。lag1 净收益不留存 → 边际依赖零延迟执行，
+    # 实盘大概率被执行延迟吃光。默认只记指标（FACTOR_SCORER_LAG1_GATE=false），
+    # 开门后 A/B 级候选 lag1_fragile 降为 C。
+    lag1_net_return: float = 0.0
+    lag1_sharpe: float = 0.0
+    lag1_retention: Optional[float] = None   # lag1_net / lag0_net（lag0>0 时才有定义）
+    lag1_fragile: bool = False
 
 
 def _cfg(name: str, default):
     from backend.config import settings as _s
     return getattr(_s, name, default)
+
+
+def resolve_roundtrip_cost(fallback: float) -> float:
+    """[2026-09-09 根因修复] 往返成本按**真实费率 + 实测滑点**解析，而非固定 9bp。
+
+    实测（`data/slippage_dist.json`，ExecutionQA 近 30 天）：median 滑点 **5bp**；
+    `fee_schedule_service`：asterdex maker=taker=**0.005%**（5bp）。
+    故真实往返成本 ≈ 2×(5bp 手续费 + 5bp 滑点) = **20bp**，而 `FACTOR_SCORER_COST`
+    默认 **9bp** —— 晋升门用的成本只有真实的一半，会让"费后为负"的因子看起来接近打平。
+
+    解析顺序：
+      1. `FACTOR_SCORER_COST_SOURCE=empirical`（默认）：taker 费率 + 实测滑点中位数；
+      2. 任一步失败或样本不足 → 回退 `fallback`（env 固定档）。
+
+    回滚：`FACTOR_SCORER_COST_SOURCE=fixed` 或 `SLIPPAGE_EMPIRICAL_ENABLED=0`。
+    """
+    try:
+        src = str(os.getenv("FACTOR_SCORER_COST_SOURCE", "empirical") or "empirical").strip().lower()
+    except Exception:
+        src = "empirical"
+    if src != "empirical":
+        return float(fallback)
+    try:
+        from backend.services.fee_schedule_service import get_fee_rate
+        from backend.services.slippage_model import estimate_slippage_bp
+
+        _ex = str(os.getenv("FACTOR_SCORER_COST_EXCHANGE", "asterdex") or "asterdex")
+        fee_side = float(get_fee_rate(_ex, is_maker=False))
+        slip = estimate_slippage_bp(0.0, "swing", percentile=0.5)
+        if not slip or slip.get("slippage_bp") is None:
+            return float(fallback)
+        slip_side = float(slip["slippage_bp"]) / 10000.0
+        cost = 2.0 * (fee_side + slip_side)
+        # 上下界保护：不得低于固定档的 0.5 倍，也不得高于 60bp（异常数据防炸）
+        cost = max(float(fallback) * 0.5, min(cost, 0.0060))
+        return float(cost)
+    except Exception:
+        return float(fallback)
 
 
 def scalp_lookback_for(symbol: str) -> int:
@@ -258,7 +305,15 @@ class FactorBacktestScorer:
 
     @classmethod
     def _to_arrays(cls, klines):
-        """→ (arrays, ts)。arrays 不含 ts（避免进入公式命名空间）；ts 供池化中性化对齐。"""
+        """→ (arrays, ts)。arrays 不含 ts（避免进入公式命名空间）；ts 供池化中性化对齐。
+
+        [2026-09-09 根因修复 · 口径对齐] 此前只暴露 OHLCV 五个字段，而 DSL 路径
+        （`alpha/factor_compute.kline_df_to_fields`）已暴露 17 个字段（含 vwap /
+        upper_wick / lower_wick / body / wick_ratio）。后果：**打分器与 DSL 的字段
+        命名空间不一致**——用 DSL 字段写的因子（如 `-1 * upper_wick / close`）在
+        打分器里 `eval` 直接 NameError → 返回 None → 判为"无信号"被拒。
+        本处补齐同源派生字段，公式与 `kline_df_to_fields` 完全一致，避免双口径。
+        """
         try:
             closes = np.array([float(cls._kline_field(k, "close")) for k in klines])
             highs = np.array([float(cls._kline_field(k, "high") or cls._kline_field(k, "close")) for k in klines])
@@ -274,10 +329,31 @@ class FactorBacktestScorer:
                 float(cls._kline_field(k, "timestamp") or cls._kline_field(k, "ts") or 0)
                 for k in klines
             ])
-            return (
-                {"close": closes, "high": highs, "low": lows, "volume": vols, "open": opens},
-                ts,
+            arrays: Dict[str, np.ndarray] = {
+                "close": closes, "high": highs, "low": lows, "volume": vols, "open": opens,
+            }
+            # 派生字段（与 kline_df_to_fields 同源）
+            rets = np.zeros_like(closes)
+            if len(closes) > 1:
+                rets[1:] = np.diff(closes) / np.where(closes[:-1] != 0, closes[:-1], 1.0)
+            arrays["returns"] = rets
+            arrays["vwap"] = (highs + lows + closes) / 3.0
+            arrays["upper_wick"] = highs - np.maximum(opens, closes)
+            arrays["lower_wick"] = np.minimum(opens, closes) - lows
+            arrays["body"] = np.abs(closes - opens)
+            _rng = highs - lows
+            # 用安全分母避免 np.where 双分支求值触发除零 RuntimeWarning
+            _rng_safe = np.where(_rng > 0, _rng, 1.0)
+            arrays["wick_ratio"] = np.clip(
+                np.where(_rng > 0, (arrays["upper_wick"] + arrays["lower_wick"]) / _rng_safe, 0.0),
+                0.0, 50.0,
             )
+            # 成交额（若上游提供；crypto_klines.amount 当前全 NULL，故做容错）
+            _amt = [cls._kline_field(k, "amount") or cls._kline_field(k, "quote_volume") for k in klines]
+            if any(a is not None for a in _amt):
+                arrays["amount"] = np.array([float(a or 0) for a in _amt])
+                arrays["turnover"] = arrays["amount"]
+            return arrays, ts
         except Exception:
             return None, None
 
@@ -306,10 +382,21 @@ class FactorBacktestScorer:
         cost: float,
         funding_per_hold: float = 0.0,
         bars_per_year: Optional[int] = None,
+        entry_lag: int = 0,
     ) -> Dict[str, Any]:
+        """样本外 walk-forward 回测。
+
+        entry_lag [P3.2 2026-09-03]：成交延迟根数。0 = 信号根收盘成交（加密永续 24/7、
+        open[t+1]≈close[t]，与线上 closed_only 后立即市价一致）；1 = 延迟一根成交
+        （t+1 收盘进、t+1+fwd 收盘出），用于"边际是否依赖零延迟执行"的稳健性对照。
+        """
         n = len(closes)
+        lag = max(0, int(entry_lag or 0))
+        span = int(fwd) + lag
         fwd_ret = np.full(n, np.nan)
-        fwd_ret[:-fwd] = (closes[fwd:] - closes[:-fwd]) / closes[:-fwd]
+        if n > span:
+            # 信号在 t；进场价 closes[t+lag]、出场价 closes[t+lag+fwd]
+            fwd_ret[: n - span] = (closes[span:] - closes[lag: n - fwd]) / closes[lag: n - fwd]
 
         # 因子标准化（滚动 z-score，避免量纲影响持仓方向的门限）
         f = factor_vals.copy()
@@ -594,7 +681,12 @@ class FactorBacktestScorer:
         else:
             _fwd_cfg = int(_cfg("FACTOR_SCORER_FWD_PERIOD", 0) or 0)
             fwd = _fwd_cfg if _fwd_cfg > 0 else _period_fwd_bars(interval)
-        cost = float(cost if cost is not None else _cfg("FACTOR_SCORER_COST", 0.0021))
+        _explicit_cost = cost is not None
+        cost = float(cost if _explicit_cost else _cfg("FACTOR_SCORER_COST", 0.0021))
+        # [2026-09-09] 未显式传入成本时，按真实费率 + 实测滑点解析（见 resolve_roundtrip_cost）。
+        # 显式传入（如调用方已算好）则完全尊重，不做二次加工。
+        if not _explicit_cost:
+            cost = resolve_roundtrip_cost(cost)
         min_sharpe = float(min_sharpe if min_sharpe is not None else _cfg("FACTOR_SCORER_MIN_SHARPE", 0.5))
         min_net = float(min_net if min_net is not None else _cfg("FACTOR_SCORER_MIN_NET_RETURN", 0.0))
         redun_corr = float(redun_corr if redun_corr is not None else _cfg("FACTOR_SCORER_REDUNDANCY_CORR", 0.7))
@@ -628,6 +720,10 @@ class FactorBacktestScorer:
         wr_list: List[float] = []
         trades_total = 0
         net_total = 0.0
+        # [P3.2 2026-09-03] 延迟一根成交对照
+        _lag1_enabled = bool(_cfg("FACTOR_SCORER_LAG1_ENABLED", True))
+        lag1_net_list: List[float] = []
+        lag1_sharpe_list: List[float] = []
 
         evaluator = get_factor_evaluator(forward_period=fwd)
 
@@ -735,6 +831,24 @@ class FactorBacktestScorer:
                 trades_total += bt["trades"]
                 net_total += bt["net_return"]
                 result.per_symbol[sym] = bt
+                # [P3.2 2026-09-03] 延迟一根成交对照（同折、同方向规则、同成本）
+                if _lag1_enabled:
+                    try:
+                        bt_lag = self._walk_forward_backtest(
+                            factor_vals, arrays["close"], fwd, cost,
+                            funding_per_hold=funding_per_hold, bars_per_year=bars_per_year,
+                            entry_lag=1,
+                        )
+                        if bt_lag["trades"] > 0:
+                            bt["lag1"] = {
+                                "net_return": bt_lag["net_return"],
+                                "sharpe": bt_lag["sharpe"],
+                                "trades": bt_lag["trades"],
+                            }
+                            lag1_net_list.append(bt_lag["net_return"])
+                            lag1_sharpe_list.append(bt_lag["sharpe"])
+                    except Exception as e:
+                        logger.debug(f"[FactorScorer] {sym} lag1 回测跳过: {e}")
 
             # [P0-1] 滚动 IC 时序（供 PBO 时序 CSCV，检测时间维度过拟合）
             # [M2] 使用中性化收益口径（与主 IC 口径一致）
@@ -772,6 +886,21 @@ class FactorBacktestScorer:
         result.oos_sharpe = round(float(np.mean(sharpe_list)), 4)
         result.oos_win_rate = round(float(np.mean(wr_list)), 4)
         result.oos_trades = trades_total
+
+        # ── [P3.2 2026-09-03] 延迟一根成交稳健性汇总 ──
+        # retention = lag1_net / lag0_net（lag0>0 时）；fragile = lag0 盈利但 lag1 ≤ 0，
+        # 或留存率 < FACTOR_SCORER_LAG1_MIN_RETENTION（默认 0.3）。指标始终落库；
+        # 是否阻断晋升由 FACTOR_SCORER_LAG1_GATE 决定（默认 false，先观察分布再开门）。
+        _lag1_gate = bool(_cfg("FACTOR_SCORER_LAG1_GATE", False))
+        _lag1_min_ret = float(_cfg("FACTOR_SCORER_LAG1_MIN_RETENTION", 0.3))
+        if lag1_net_list:
+            result.lag1_net_return = round(float(np.mean(lag1_net_list)), 6)
+            result.lag1_sharpe = round(float(np.mean(lag1_sharpe_list)), 4) if lag1_sharpe_list else 0.0
+            if result.oos_net_return > 0:
+                result.lag1_retention = round(float(result.lag1_net_return / result.oos_net_return), 4)
+                result.lag1_fragile = bool(
+                    result.lag1_net_return <= 0.0 or result.lag1_retention < _lag1_min_ret
+                )
 
         # 正交去冗余：与 active 因子相关性过高 → 冗余，不准入
         try:
@@ -849,6 +978,14 @@ class FactorBacktestScorer:
             # 导致每个候选因子打分异常中断（validate job 全程空转）。
             _pbo_txt = f"{pbo_val:.3f}" if pbo_val is not None else "N/A"
             result.reason = f"DSR/PBO 未通过（pbo={_pbo_txt}）——多重检验下无显著预测力"
+        elif _lag1_gate and result.lag1_fragile and abs_ic >= 0.03 and abs_icir > 0.3 and perf_ok:
+            # [P3.2] 只拦"本来会 A/B 准入"的候选：边际在延迟一根后不留存 → 依赖零延迟执行
+            result.grade = "C"
+            result.reason = (
+                f"延迟一根成交后边际不留存（lag0_net={result.oos_net_return} "
+                f"lag1_net={result.lag1_net_return} retention={result.lag1_retention}）"
+                "——实盘执行延迟会吃光该边际"
+            )
         elif abs_ic >= 0.05 and abs_icir > 0.5 and perf_ok:
             result.grade = "A"
         elif abs_ic >= 0.03 and abs_icir > 0.3 and perf_ok:
@@ -868,6 +1005,13 @@ class FactorBacktestScorer:
         # [P0-1] DSR 跳过的可见性：reason 落库供运维台确认跳过原因（现为 fail-closed）
         if pbo_val is None:
             result.reason += " | DSR/PBO fail-closed（跨币样本不足或 IC 时序缺失）"
+        # [P3.2] 延迟一根成交指标随 reason 落库（观察期可直接从成绩单看留存分布）
+        if lag1_net_list:
+            result.reason += (
+                f" | lag1_net={result.lag1_net_return} lag1_sharpe={result.lag1_sharpe}"
+                f" retention={result.lag1_retention}"
+                + (" fragile" if result.lag1_fragile else "")
+            )
 
         # ── [2026-08-23 M0-C1] 条件信号评价第二意见 ──
         # 反转/MR 类因子在「单边连续持仓」口径下必亏（评价尺度错配，见
@@ -1004,9 +1148,18 @@ class FactorBacktestScorer:
                 )
                 return False, float(_pbo_r.get("pbo", 0.5))
             pbo = float(_pbo_r.get("pbo", 1.0))
+            # [2026-09-07 阈值单一事实源] MAX_PBO 默认改从 LifecycleThresholds 取
+            # （0.35），与晋升门一致；此前 scorer 默认 0.5 与 lifecycle 0.35 并存，
+            # 同一因子在不同入口结论相反。env FACTOR_SCORER_MAX_PBO 仍可显式覆盖。
+            def _default_max_pbo() -> float:
+                try:
+                    from backend.services.factor_engine.lifecycle import LifecycleThresholds
+                    return float(LifecycleThresholds().max_pbo)
+                except Exception:
+                    return 0.35
             _max_pbo = float(
                 max_pbo_override if max_pbo_override is not None
-                else _cfg("FACTOR_SCORER_MAX_PBO", 0.5)
+                else _cfg("FACTOR_SCORER_MAX_PBO", _default_max_pbo())
             )
             return bool(dsr_sig and pbo <= _max_pbo), pbo
         except Exception as e:
@@ -1118,17 +1271,24 @@ class FactorBacktestScorer:
                     (result.ic_mean >= 0 and r_v.ic_mean >= 0)
                     or (result.ic_mean < 0 and r_v.ic_mean <= 0)
                 )
+                # [2026-08-29 全面修复 P3.3] 费后净收益硬条件：IC/Sharpe 好看但
+                # OOS 净收益为负的因子不再晋升（诊断实证：active 因子 oos_net_return
+                # 普遍为负仍在 PAPER 态——评估口径与费后盈利脱节）。env 可回滚。
+                _net_required = bool(_cfg("FACTOR_HELDOUT_REQUIRE_NET", True))
+                _net_ok = (not _net_required) or (float(r_v.oos_net_return or 0) > 0)
                 _v_ok = (
                     r_v.ic_mean is not None and abs(r_v.ic_mean) >= 0.03
                     and r_v.oos_sharpe >= 0.3
                     and _sign_ok
                     and r_v.oos_trades >= 5
+                    and _net_ok
                 )
                 _heldout_rec = {
                     "cutoff_ts": int(_time.time()),
                     "verdict": "pass" if _v_ok else "reject",
                     "ic_mean": round(float(r_v.ic_mean or 0), 4),
                     "sharpe": round(float(r_v.oos_sharpe or 0), 4),
+                    "net_return": round(float(r_v.oos_net_return or 0), 4),
                     "verdict_bars": int(_verdict_bars),
                 }
                 if not _v_ok:
@@ -1244,6 +1404,11 @@ class FactorBacktestScorer:
                 # [M0-C1] 条件信号评价口径落库（成绩单透明化）
                 "eval_mode": str(result.eval_mode or "continuous"),
                 "conditional": result.conditional or {},
+                # [P3.2 2026-09-03] 延迟一根成交稳健性（成绩单可见，观察期决定是否开门）
+                "lag1_net_return": result.lag1_net_return,
+                "lag1_sharpe": result.lag1_sharpe,
+                "lag1_retention": result.lag1_retention,
+                "lag1_fragile": bool(result.lag1_fragile),
             },
             status=status,
             tenant_id=_resolve_admin_tenant(),

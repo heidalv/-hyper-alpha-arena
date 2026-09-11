@@ -9,10 +9,10 @@ from typing import Optional
 
 from backend.database.connection import SessionLocal
 from backend.database.models import DingTalkBot
-from services.dingtalk.notification_service import get_notification_service
-from services.dingtalk.volatility_monitor import get_volatility_monitor
-from services.dingtalk.rate_limiter import rate_limiter
-from config.dingtalk_config import config
+from backend.services.dingtalk.notification_service import get_notification_service
+from backend.services.dingtalk.volatility_monitor import get_volatility_monitor
+from backend.services.dingtalk.rate_limiter import rate_limiter
+from backend.config.dingtalk_config import config
 
 logger = logging.getLogger(__name__)
 

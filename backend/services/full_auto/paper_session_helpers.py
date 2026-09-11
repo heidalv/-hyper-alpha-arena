@@ -90,6 +90,12 @@ def paper_auto_unlock_session(db: Session, session, host: PaperSessionHost) -> b
     changed = False
     pause_reason = (getattr(session, "pause_reason", None) or "").strip()
 
+    # [2026-09-03 v3 F1d] 回撤硬闸（drawdown_limit）不属于"可自动解开的亏损锁"：
+    # 会话回撤越过 max_total_drawdown_pct 是资本保护的最后一道线，必须人工复核后
+    # 通过 resume 接口恢复。这里整段跳过（包括 symbol 解冻与策略复活）。
+    if session.status == "paused" and pause_reason == "drawdown_limit":
+        return False
+
     if session.status in ("defensive", "paused"):
         loss_related = (
             session.status == "defensive"

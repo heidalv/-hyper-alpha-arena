@@ -1,0 +1,741 @@
+{
+  "generated_at": "2026-09-09T02:51:41.615618+00:00",
+  "source": "alpha_analytics: factor_active_set / factor_evolution_log / factor_performance_logs",
+  "active_set": {
+    "total": 19,
+    "by_state": {
+      "ACTIVE": 2,
+      "PAPER": 6,
+      "QUARANTINE": 11
+    },
+    "rows": [
+      {
+        "factor_id": "3d51976a92a07bea",
+        "source": "rev20",
+        "state": "ACTIVE",
+        "icir": 1.103618,
+        "last_net_ic": 0.256521,
+        "turnover": 0.000372,
+        "period": "4h",
+        "activated_at": "2026-09-08 01:23:49.934317",
+        "deactivated_at": "None",
+        "evaluated_cycles": 3,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 20
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "180ee6eedd1fe9cc",
+        "source": "rev5",
+        "state": "ACTIVE",
+        "icir": 0.847672,
+        "last_net_ic": 0.333764,
+        "turnover": 0.001478,
+        "period": "4h",
+        "activated_at": "2026-08-08 12:07:02.206744",
+        "deactivated_at": "None",
+        "evaluated_cycles": 3,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 5
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "5a0c7a226b5446a4",
+        "source": "rev10",
+        "state": "PAPER",
+        "icir": 1.028726,
+        "last_net_ic": 0.38045,
+        "turnover": 0.000721,
+        "period": "4h",
+        "activated_at": "2026-08-07 22:49:53.347356",
+        "deactivated_at": "None",
+        "evaluated_cycles": 5,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 10
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "d6f82d364676127e",
+        "source": "rev50",
+        "state": "PAPER",
+        "icir": 0.946859,
+        "last_net_ic": 0.300196,
+        "turnover": 0.000167,
+        "period": "4h",
+        "activated_at": "2026-08-07 22:49:53.347356",
+        "deactivated_at": "None",
+        "evaluated_cycles": 18,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 50
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_rev10",
+        "source": "seed_bootstrap",
+        "state": "PAPER",
+        "icir": 1.028726,
+        "last_net_ic": 0.38045,
+        "turnover": 0.000721,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "None",
+        "evaluated_cycles": 5,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 10
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_rev50",
+        "source": "seed_bootstrap",
+        "state": "PAPER",
+        "icir": 0.946859,
+        "last_net_ic": 0.300196,
+        "turnover": 0.000167,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "None",
+        "evaluated_cycles": 18,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 50
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_rev20",
+        "source": "seed_bootstrap",
+        "state": "PAPER",
+        "icir": 1.103618,
+        "last_net_ic": 0.256521,
+        "turnover": 0.000372,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "None",
+        "evaluated_cycles": 5,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 20
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_rev5",
+        "source": "seed_bootstrap",
+        "state": "PAPER",
+        "icir": 0.847672,
+        "last_net_ic": 0.333764,
+        "turnover": 0.001478,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "None",
+        "evaluated_cycles": 5,
+        "expr_ast": {
+          "op": "mul",
+          "args": [
+            {
+              "c": -1
+            },
+            {
+              "op": "mean",
+              "args": [
+                {
+                  "f": "returns"
+                },
+                {
+                  "c": 5
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "0f3fbe4b9de18230",
+        "source": "mcts_0f3fbe4b",
+        "state": "QUARANTINE",
+        "icir": null,
+        "last_net_ic": 0.178008,
+        "turnover": 0.075314,
+        "period": null,
+        "activated_at": "2026-08-08 12:07:02.206744",
+        "deactivated_at": "2026-08-10 04:22:09.508653",
+        "evaluated_cycles": 2,
+        "expr_ast": {
+          "op": "cs_rank",
+          "args": [
+            {
+              "op": "ts_rank",
+              "args": [
+                {
+                  "op": "mul",
+                  "args": [
+                    {
+                      "c": -1
+                    },
+                    {
+                      "op": "std",
+                      "args": [
+                        {
+                          "op": "ts_argmax",
+                          "args": [
+                            {
+                              "f": "close"
+                            },
+                            {
+                              "c": 5.0
+                            }
+                          ]
+                        },
+                        {
+                          "c": 10
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "c": 10.0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_mom5",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": -0.877887,
+        "last_net_ic": 0.152922,
+        "turnover": 0.001745,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-09-06 03:25:13.880811",
+        "evaluated_cycles": 13,
+        "expr_ast": {
+          "op": "mean",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 5
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_vol10",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": 0.05,
+        "last_net_ic": 0.034102,
+        "turnover": 0.000633,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-08-29 03:06:28.587637",
+        "evaluated_cycles": null,
+        "expr_ast": {
+          "op": "std",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 10
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_mom10",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": -1.077972,
+        "last_net_ic": 0.182183,
+        "turnover": 0.000851,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-09-06 03:25:13.888712",
+        "evaluated_cycles": 13,
+        "expr_ast": {
+          "op": "mean",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 10
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_mom20",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": -1.053013,
+        "last_net_ic": 0.149678,
+        "turnover": 0.000432,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-09-06 03:25:13.897865",
+        "evaluated_cycles": 13,
+        "expr_ast": {
+          "op": "mean",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 20
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_vol20",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": 0.05,
+        "last_net_ic": 0.03,
+        "turnover": 0.2,
+        "period": null,
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-08-02 00:52:13.504919",
+        "evaluated_cycles": 0,
+        "expr_ast": {
+          "op": "std",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 20
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_vp_corr10",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": 0.05,
+        "last_net_ic": 0.03,
+        "turnover": 0.2,
+        "period": null,
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-08-02 00:52:14.336076",
+        "evaluated_cycles": 0,
+        "expr_ast": {
+          "op": "rank",
+          "args": [
+            {
+              "op": "corr",
+              "args": [
+                {
+                  "f": "close"
+                },
+                {
+                  "f": "volume"
+                },
+                {
+                  "c": 10
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_vp_corr20",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": 0.05,
+        "last_net_ic": 0.03,
+        "turnover": 0.2,
+        "period": null,
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-08-02 00:52:15.002308",
+        "evaluated_cycles": 0,
+        "expr_ast": {
+          "op": "rank",
+          "args": [
+            {
+              "op": "corr",
+              "args": [
+                {
+                  "f": "close"
+                },
+                {
+                  "f": "volume"
+                },
+                {
+                  "c": 20
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_vol50",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": 0.05,
+        "last_net_ic": 0.029344,
+        "turnover": 7.4e-05,
+        "period": null,
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-08-13 06:15:11.218561",
+        "evaluated_cycles": null,
+        "expr_ast": {
+          "op": "std",
+          "args": [
+            {
+              "f": "returns"
+            },
+            {
+              "c": 50
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_ts_rank50",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": -1.275475,
+        "last_net_ic": 0.094349,
+        "turnover": 0.031332,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-09-06 03:25:13.871948",
+        "evaluated_cycles": 13,
+        "expr_ast": {
+          "op": "ts_rank",
+          "args": [
+            {
+              "f": "close"
+            },
+            {
+              "c": 50
+            }
+          ]
+        }
+      },
+      {
+        "factor_id": "seed_ts_rank20",
+        "source": "seed_bootstrap",
+        "state": "QUARANTINE",
+        "icir": -1.054772,
+        "last_net_ic": 0.081121,
+        "turnover": 0.055538,
+        "period": "4h",
+        "activated_at": "2026-08-02 00:42:34.931344",
+        "deactivated_at": "2026-09-06 03:25:13.860157",
+        "evaluated_cycles": 13,
+        "expr_ast": {
+          "op": "ts_rank",
+          "args": [
+            {
+              "f": "close"
+            },
+            {
+              "c": 20
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "families": {
+    "time_series_reversal": 4,
+    "other:seed_bootstrap": 14,
+    "mcts_mined": 1
+  },
+  "expr_space": {
+    "n_with_ast": 19,
+    "distinct_fields": [
+      "close",
+      "returns",
+      "volume"
+    ],
+    "distinct_ops": [
+      "corr",
+      "cs_rank",
+      "mean",
+      "mul",
+      "rank",
+      "std",
+      "ts_argmax",
+      "ts_rank"
+    ]
+  },
+  "funnel": [
+    {
+      "phase": "card",
+      "action": "card_generated",
+      "n": 6872,
+      "f": 3081
+    },
+    {
+      "phase": "mine",
+      "action": "chain_step",
+      "n": 5682,
+      "f": 4674
+    },
+    {
+      "phase": "pb_freeze",
+      "action": null,
+      "n": 1091,
+      "f": 34
+    },
+    {
+      "phase": "review",
+      "action": "net_ic_low",
+      "n": 97,
+      "f": 19
+    },
+    {
+      "phase": "test_gate",
+      "action": "test_reject",
+      "n": 86,
+      "f": 4
+    },
+    {
+      "phase": "promote",
+      "action": "promote_reject",
+      "n": 52,
+      "f": 15
+    },
+    {
+      "phase": "repromote",
+      "action": "repromote_to_paper",
+      "n": 43,
+      "f": 14
+    },
+    {
+      "phase": "mine",
+      "action": "llm_admit",
+      "n": 41,
+      "f": 39
+    },
+    {
+      "phase": "review",
+      "action": "promote_grace",
+      "n": 40,
+      "f": 3
+    },
+    {
+      "phase": "promote",
+      "action": "gate_pass",
+      "n": 27,
+      "f": 16
+    },
+    {
+      "phase": "degrade",
+      "action": "quarantine",
+      "n": 27,
+      "f": 15
+    },
+    {
+      "phase": "wfo",
+      "action": "wfo_reject",
+      "n": 17,
+      "f": 14
+    },
+    {
+      "phase": "promote",
+      "action": "promote",
+      "n": 13,
+      "f": 9
+    },
+    {
+      "phase": "review",
+      "action": "restore_manual",
+      "n": 4,
+      "f": 4
+    },
+    {
+      "phase": "PURGE",
+      "action": "purge",
+      "n": 1,
+      "f": 1
+    },
+    {
+      "phase": "EVALUATE",
+      "action": "run",
+      "n": 1,
+      "f": 1
+    },
+    {
+      "phase": "DATA",
+      "action": "run",
+      "n": 1,
+      "f": 1
+    },
+    {
+      "phase": "ONLINE_WEIGHTS",
+      "action": "update",
+      "n": 1,
+      "f": 1
+    },
+    {
+      "phase": "PROMOTE",
+      "action": "promote",
+      "n": 1,
+      "f": 1
+    }
+  ],
+  "reject_reasons_30d": {
+    "池筛选未达标": 47,
+    "test_set_missing_fail_closed": 30,
+    "test_ic=-0.0992 < 0.01": 20,
+    "wfo_ic_reject": 16,
+    "test_ic=-0.1036 < 0.01": 10,
+    "test_ic_unavailable_fail_closed": 2,
+    "wfo_reject": 1,
+    "test_ic=-0.1700 < 0.01": 1,
+    "test_ic=-0.1179 < 0.01": 1,
+    "test_ic=-0.1155 < 0.01": 1
+  },
+  "ic_by_category_tf_30d": [
+    {
+      "factor_category": "composite_v3",
+      "timeframe": "15m",
+      "n": 182039,
+      "avg_ic": 0.0028,
+      "avg_abs_ic": 0.0792
+    },
+    {
+      "factor_category": "segmented_ic",
+      "timeframe": "15m",
+      "n": 161120,
+      "avg_ic": -0.0033,
+      "avg_abs_ic": 0.0664
+    },
+    {
+      "factor_category": "segmented_ic",
+      "timeframe": "4h",
+      "n": 6307,
+      "avg_ic": 0.0423,
+      "avg_abs_ic": 0.2005
+    },
+    {
+      "factor_category": "segmented_ic",
+      "timeframe": "1d",
+      "n": 628,
+      "avg_ic": 0.1329,
+      "avg_abs_ic": 0.1769
+    }
+  ]
+}

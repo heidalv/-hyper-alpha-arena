@@ -134,6 +134,46 @@ if ($useStandaloneDc) {
     Write-Host "`n[2/4] Data Center skipped (-NoDataCenter) → embedded collectors" -ForegroundColor DarkGray
 }
 
+# [2026-09-03 v3 方向2] OpenCode sidecar：GLM Coding Plan 只允许经 OpenCode 使用，ModelGateway 的 GLM 票依赖它。
+# 触发条件：.env 里配置了 ZAI_CODING_PLAN_API_KEY（或 OPENCODE_SIDECAR_AUTOSTART=true）；:4096 已有监听则跳过。
+$SidecarLog = Join-Path $LogDir 'opencode-sidecar.log'
+$SidecarScript = Join-Path $PSScriptRoot 'start_opencode_sidecar.ps1'
+$EnvFileForSidecar = Join-Path $RepoRoot '.env'
+$wantSidecar = $false
+if (Test-Path $EnvFileForSidecar) {
+    $envText = Get-Content $EnvFileForSidecar -Raw -ErrorAction SilentlyContinue
+    if ($envText -match '(?m)^\s*ZAI_CODING_PLAN_API_KEY\s*=\s*\S+' -or $envText -match '(?m)^\s*OPENCODE_SIDECAR_AUTOSTART\s*=\s*(true|1|yes|on)\s*$') {
+        $wantSidecar = $true
+    }
+}
+if ($wantSidecar -and (Test-Path $SidecarScript)) {
+    $sidecarPort = 4096
+    if ($envText -match '(?m)^\s*OPENCODE_PORT\s*=\s*(\d+)') { $sidecarPort = [int]$Matches[1] }
+    if (Test-Port $sidecarPort) {
+        Write-Host "`n[2b] OpenCode sidecar already listening on :$sidecarPort" -ForegroundColor Green
+    } else {
+        Write-Host "`n[2b] starting OpenCode sidecar on :$sidecarPort (GLM via zai-coding-plan) ..." -ForegroundColor Yellow
+        try {
+            Start-Process -FilePath 'powershell.exe' `
+                -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $SidecarScript) `
+                -WorkingDirectory $RepoRoot -WindowStyle Hidden `
+                -RedirectStandardOutput $SidecarLog -RedirectStandardError (Join-Path $LogDir 'opencode-sidecar.err.log') | Out-Null
+            $scReady = $false
+            for ($i = 0; $i -lt 20; $i++) {
+                Start-Sleep -Seconds 1
+                try {
+                    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$sidecarPort/global/health" -UseBasicParsing -TimeoutSec 2 -Proxy $null
+                    if ($r.StatusCode -eq 200) { $scReady = $true; break }
+                } catch { }
+            }
+            if ($scReady) { Write-Host "   [OK] http://127.0.0.1:$sidecarPort/global/health" -ForegroundColor Green }
+            else { Write-Host "   [WARN] sidecar not healthy yet; check $SidecarLog" -ForegroundColor Yellow }
+        } catch {
+            Write-Host "   [WARN] sidecar start failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+}
+
 if (-not $NoBackend) {
     $reloadTag = if ($NoReload) { '(no reload)' } else { '(reload via run_uvicorn_dev.py)' }
     Write-Host "`n[3/4] starting uvicorn on :$BackendPort $reloadTag ..." -ForegroundColor Yellow

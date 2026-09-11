@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from typing import Dict, List
@@ -105,7 +106,7 @@ LLM_MAX_CALLS_PER_CYCLE = int(os.getenv("LLM_MAX_CALLS_PER_CYCLE", "2"))
 #  K-line LLM 缓存配置 (Tier 1 优化)
 # ══════════════════════════════════════════════════
 # K线 LLM 结果缓存 TTL（秒），默认 300s = 覆盖一个完整 tick 周期
-KLINE_LLM_CACHE_TTL = int(os.getenv("KLINE_LLM_CACHE_TTL", "300"))
+KLINE_LLM_CACHE_TTL = int(os.getenv("KLINE_LLM_CACHE_TTL", "900"))  # [2026-09-07] 300→900：bar 级对齐，降低重复调用
 # 缓存最大条目数
 KLINE_LLM_CACHE_MAX_SIZE = int(os.getenv("KLINE_LLM_CACHE_MAX_SIZE", "50"))
 # Symbol 级变更检测阈值：价格变化低于此比例则跳过 LLM（0.15%=更及时）
@@ -346,6 +347,10 @@ SCHEDULER_MAX_WORKERS: int = int(os.getenv("SCHEDULER_MAX_WORKERS", "64"))
 AUDIT_JSONL_MAX_BYTES: int = int(os.getenv("AUDIT_JSONL_MAX_BYTES", str(20 * 1024 * 1024)))
 AUDIT_JSONL_BACKUP_COUNT: int = int(os.getenv("AUDIT_JSONL_BACKUP_COUNT", "5"))
 LOG_RETENTION_DAYS: int = int(os.getenv("LOG_RETENTION_DAYS", "30"))
+# [P10 执行 2026-09-10] 审计类 jsonl 备份的独立保留期（天，0=永不删除）。
+# 必须在此声明：`log_retention_service._env_int()` 是经 settings 读取的，
+# 未声明的键写进 `.env` 也不会生效（§73.4 自查发现的同类静默失效）。
+AUDIT_BACKUP_KEEP_DAYS: int = int(os.getenv("AUDIT_BACKUP_KEEP_DAYS", "180"))
 REPORT_RETENTION_DAYS: int = int(os.getenv("REPORT_RETENTION_DAYS", "60"))
 AI_DECISION_LOG_RETENTION_DAYS: int = int(os.getenv("AI_DECISION_LOG_RETENTION_DAYS", "90"))
 # 数据中心采集通道预留（P0 优先）
@@ -464,7 +469,28 @@ PROFIT_PROTECTION_ACTIVATION_USD = float(os.getenv("PROFIT_PROTECTION_ACTIVATION
 PROFIT_PROTECTION_MIN_HOLD_SEC = int(os.getenv("PROFIT_PROTECTION_MIN_HOLD_SEC", "600"))
 
 # 同向再开仓冷却时间（秒）（被 TIER_PROTECTION_PARAMS 覆盖）
-REENTRY_COOLDOWN_SECONDS = int(os.getenv("REENTRY_COOLDOWN_SECONDS", "600"))  # 默认 10 分钟
+# [P2 执行 2026-09-10] **近名键兼容**：`.env` 里长期写的是 `REENTRY_COOLDOWN_SEC`（少 `ONDS`），
+# 而代码只认 `REENTRY_COOLDOWN_SECONDS` ⇒ 60s 的意图静默变成默认 600s（**10 倍**）。
+# 现在两者都认（canonical 优先），且使用旧名时在启动期显式告警一次 —— 不再静默。
+_REENTRY_CANON = os.getenv("REENTRY_COOLDOWN_SECONDS")
+_REENTRY_LEGACY = os.getenv("REENTRY_COOLDOWN_SEC")
+
+
+def _resolve_reentry_cooldown(canon, legacy, default: str = "600") -> int:
+    """[P2] 规范键优先、旧近名键兜底（并告警）。抽成纯函数便于契约测试。"""
+    if canon not in (None, ""):
+        return int(canon)
+    if legacy not in (None, ""):
+        logging.getLogger(__name__).warning(
+            "[Settings] 检测到旧键 REENTRY_COOLDOWN_SEC=%s（规范键为 REENTRY_COOLDOWN_SECONDS）"
+            "—— 已按旧键生效；建议把 .env 键名改为规范写法（P2 / 报告 §73）",
+            legacy,
+        )
+        return int(legacy)
+    return int(default)
+
+
+REENTRY_COOLDOWN_SECONDS = _resolve_reentry_cooldown(_REENTRY_CANON, _REENTRY_LEGACY)  # 默认 10 分钟
 
 # ══════════════════════════════════════════════════
 #  全周期交易 · Tier 差异化保护参数
@@ -473,22 +499,31 @@ REENTRY_COOLDOWN_SECONDS = int(os.getenv("REENTRY_COOLDOWN_SECONDS", "600"))  # 
 # [三周期持仓时间收敛 2026-08-13]
 # 持仓复审点的唯一权威 = data/runtime_tuning.json 的 tier_max_hold_sec
 # （resolve_tier_review_seconds 优先读 runtime_tuning，此处 max_hold_sec 仅作回退）。
-# 当前权威值：short=7200s(2h) / mid=172800s(48h) / long=604800s(7d)。
+# 当前权威值：short=5400s(90min) / mid=172800s(48h) / long=604800s(7d)。
+#
+# [2026-09-02 P2.2] short 7200→5400。离线回放（做多+pwin>=0.55，SL1.1%，RR2.3）
+# 按持仓上限交叉验证：60min=+42.1bp / 90min=+48.4bp / 120min=+44.0bp /
+# 180min=+43.2bp —— 90min 处有明确峰值，再往后是已走坏的单在拖时间。
+# 注意改这个值必须同时改 runtime_tuning.json（权威）与下方 env 默认（回退），
+# 只改一处会出现"配置写了但不生效"。
 # min_hold_sec 的权威 = 本表（min_hold 不参与 runtime_tuning 热调），
 # 且必须与 unified_exit_state_machine.TIER_PROTECTION、TIER_PROMPT_HINTS 保持一致。
 
 TIER_PROTECTION_PARAMS = {
     "short": {
-        "min_hold_sec":        int(os.getenv("TIER_SHORT_MIN_HOLD_SEC", "3600")),      # 1 hour（日内单最少持仓1小时，不是10分钟）
-        "max_hold_sec":        int(os.getenv("TIER_SHORT_MAX_HOLD_SEC", "43200")),     # 12 hours（日内单最多持仓到当日结束）
+        # [2026-09-07] short tier 复活为「LLM 日内波段」：持仓区间 2h-12h
+        # （旧因子 scalp 的 1h/90min 已随 SCALP_OPEN_DISABLED 判死）。
+        "min_hold_sec":        int(os.getenv("TIER_SHORT_MIN_HOLD_SEC", "7200")),      # 2 hours（日内波段最短持仓）
+        "max_hold_sec":        int(os.getenv("TIER_SHORT_MAX_HOLD_SEC", "43200")),     # 12 hours（日内波段上限；仅在 runtime_tuning 缺失时回退到此）
         "lock_stages":         1,
         "lock_tp_progress":   [0.80],
         "lock_close_pct":     [0.30],
         "lock_sl_to_progress": [0.60],
         "lock_min_margin_pct": [0.50],
-        "breakeven_tp_progress": 0.85,  # [2026-07-30 crypto-native] 0.70→0.85 等85%才推保本，避免微利就走
-        "drawdown_emergency":  0.80,                                                   # 80% 回撤才紧急平仓
-        "drawdown_protect":    0.65,                                                   # 65% 回撤保护
+        # [2026-09-08 放宽浮盈保护] short breakeven 0.85→0.90，回撤容忍 0.65/0.80→0.75/0.88。env可回退。
+        "breakeven_tp_progress": float(os.getenv("TIER_SHORT_BREAKEVEN_TP_PROGRESS", "0.90")),
+        "drawdown_emergency":  float(os.getenv("TIER_SHORT_DRAWDOWN_EMERGENCY", "0.88")),
+        "drawdown_protect":    float(os.getenv("TIER_SHORT_DRAWDOWN_PROTECT", "0.75")),
         "drawdown_activate":   1.50,                                                   # 利润达保证金150%才激活
         "min_hold_emergency_loss_pct": float(os.getenv("TIER_SHORT_MIN_HOLD_EMERGENCY_LOSS_PCT", "8")),  # 保护期内允许 close 的保证金亏损%（正数）
         "tight_trail_start":   0.90,
@@ -505,9 +540,10 @@ TIER_PROTECTION_PARAMS = {
         "lock_close_pct":     [0.25, 0.30],
         "lock_sl_to_progress": [0.50, 0.70],
         "lock_min_margin_pct": [0.50, 0.70],
-        "breakeven_tp_progress": 0.65,
-        "drawdown_emergency":  0.80,                                                   # 80% 回撤才紧急平仓
-        "drawdown_protect":    0.65,                                                   # 65% 回撤保护
+        # [2026-09-08 放宽浮盈保护] mid breakeven 0.65→0.80，回撤容忍 0.65/0.80→0.75/0.88。env可回退。
+        "breakeven_tp_progress": float(os.getenv("TIER_MID_BREAKEVEN_TP_PROGRESS", "0.80")),
+        "drawdown_emergency":  float(os.getenv("TIER_MID_DRAWDOWN_EMERGENCY", "0.88")),
+        "drawdown_protect":    float(os.getenv("TIER_MID_DRAWDOWN_PROTECT", "0.75")),
         "drawdown_activate":   2.00,                                                   # 利润达保证金200%才激活
         "min_hold_emergency_loss_pct": float(os.getenv("TIER_MID_MIN_HOLD_EMERGENCY_LOSS_PCT", "6")),
         "tight_trail_start":   0.92,
@@ -526,9 +562,12 @@ TIER_PROTECTION_PARAMS = {
         "lock_close_pct":     [0.25],
         "lock_sl_to_progress": [0.65],
         "lock_min_margin_pct": [0.60],
-        "breakeven_tp_progress": 0.50,
-        "drawdown_emergency":  0.80,
-        "drawdown_protect":    0.65,
+        # [2026-09-08 放宽浮盈保护] 数据分析：盈利单普遍冲到实际平仓价2-4倍就被提早平掉，
+        # 峰值-实落袋差 59%。breakeven_tp_progress 0.50→0.72（更晚推保本，给盈利单回旋空间）；
+        # drawdown_protect 0.65→0.75 / emergency 0.80→0.88（容忍更大峰值回撤才保护）。env可回退。
+        "breakeven_tp_progress": float(os.getenv("TIER_LONG_BREAKEVEN_TP_PROGRESS", "0.72")),
+        "drawdown_emergency":  float(os.getenv("TIER_LONG_DRAWDOWN_EMERGENCY", "0.88")),
+        "drawdown_protect":    float(os.getenv("TIER_LONG_DRAWDOWN_PROTECT", "0.75")),
         "drawdown_activate":   3.00,                                                   # 利润达保证金300%才激活
         "min_hold_emergency_loss_pct": float(os.getenv("TIER_LONG_MIN_HOLD_EMERGENCY_LOSS_PCT", "5")),
         "tight_trail_start":   0.95,
@@ -657,6 +696,57 @@ def get_scalp_veto_fail_open(trading_mode: str = "paper") -> bool:
 SCALP_MASTER_HARD_BLOCK: bool = os.getenv("SCALP_MASTER_HARD_BLOCK", "true").lower() in (
     "true", "1", "yes", "on",
 )
+# [2026-09-05] 短线新开总闸：纸盘+实盘都禁。独立循环不注册仍可能从
+# Master / E5 / 其它 place_order 漏开。已有短线仓只许平、不许加。
+SCALP_OPEN_DISABLED: bool = os.getenv("SCALP_OPEN_DISABLED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+# [2026-09-07] 短线研究室总闸：5m 因子日进化 / 元标签训练 / regime 刷新。
+# 短线已被大样本判定结构性负期望（90天 2756 笔、胜率 25%、费用/毛利 1.63），
+# 交易停了研究还空转 = 白烧算力。默认 false 全停；重开需显式置 true。
+SCALP_RESEARCH_ENABLED: bool = os.getenv("SCALP_RESEARCH_ENABLED", "false").lower() in (
+    "true", "1", "yes", "on",
+)
+
+# ── [2026-09-07] LLM 日内波段车道（short tier 复活为 LLM 论题驱动） ──
+# 旧因子 scalp 已判死（见上）。本车道复用中长线 LLM 主脑（midlong_brain），
+# tier="short" / nature="intraday"：1h 级别论题、持仓 4-12h、ATR 止盈 3%/止损 2%、
+# 每币冷却 4h。仅模拟盘验证（用户拍板：模拟盘直跑，不套影子层）。
+INTRADAY_LLM_ENABLED: bool = os.getenv("INTRADAY_LLM_ENABLED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+# 日内波段论题 TTL（成功票）与失败退避：比中线(4h/20min)更快
+MIDLONG_THESIS_TTL_SHORT_S: int = int(os.getenv("MIDLONG_THESIS_TTL_SHORT_S", "3600") or "3600")
+MIDLONG_THESIS_FAIL_BACKOFF_SHORT_S: int = int(
+    os.getenv("MIDLONG_THESIS_FAIL_BACKOFF_SHORT_S", "600") or "600"
+)
+# 日内波段哨兵 tick 间隔（2026-09-07 用户指正：与中/长线 45s 对齐。
+# 此前 300s 导致入场窗口探测延迟比中长线慢 6.7 倍；本层只是"有没有事要做"的
+# 检查循环（不调 LLM、很便宜），LLM 分析频率由论题 TTL/退避/watch 触发器独立控制。
+# GLM 预算充足（实测 <2%/5h），无需在此保守。）
+TIER_SHORT_AI_TICK_SEC: int = int(os.getenv("TIER_SHORT_AI_TICK_SEC", "45") or "45")
+
+# [2026-09-07] 周期联动协调器（严格一致矩阵，cycle_coordinator.py）总开关
+CYCLE_COORDINATOR_ENABLED: bool = os.getenv(
+    "CYCLE_COORDINATOR_ENABLED", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+
+# ── 日内波段自适应频率（2026-09-07，用户拍板：平时 1h / 波动放大切 15m）──
+# 总开关
+INTRADAY_ADAPTIVE_FREQ_ENABLED: bool = os.getenv(
+    "INTRADAY_ADAPTIVE_FREQ_ENABLED", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+# 活跃档触发：|1h 涨跌| ≥ 1.5% 或 volatility_value ≥ 2%（纯规则无前视）
+INTRADAY_ACTIVE_1H_CHANGE_PCT: float = float(os.getenv("INTRADAY_ACTIVE_1H_CHANGE_PCT", "0.015") or "0.015")
+INTRADAY_ACTIVE_VOL_PCT: float = float(os.getenv("INTRADAY_ACTIVE_VOL_PCT", "0.02") or "0.02")
+# watch 参数·平时档（对 SL 2% 的车道：冲击 0.7% 而非中线的 1.2%）
+MIDLONG_WATCH_SHOCK_PCT_SHORT: float = float(os.getenv("MIDLONG_WATCH_SHOCK_PCT_SHORT", "0.007") or "0.007")
+MIDLONG_WATCH_CHASE_PCT_SHORT: float = float(os.getenv("MIDLONG_WATCH_CHASE_PCT_SHORT", "0.005") or "0.005")
+MIDLONG_WATCH_MIN_REFRESH_SHORT_S: int = int(os.getenv("MIDLONG_WATCH_MIN_REFRESH_SHORT_S", "600") or "600")
+# watch 参数·活跃档（15m 决策时钟 + 5min 重问 + 0.5% 冲击）
+MIDLONG_WATCH_SHOCK_PCT_SHORT_ACTIVE: float = float(os.getenv("MIDLONG_WATCH_SHOCK_PCT_SHORT_ACTIVE", "0.005") or "0.005")
+MIDLONG_WATCH_CHASE_PCT_SHORT_ACTIVE: float = float(os.getenv("MIDLONG_WATCH_CHASE_PCT_SHORT_ACTIVE", "0.0035") or "0.0035")
+MIDLONG_WATCH_MIN_REFRESH_SHORT_ACTIVE_S: int = int(os.getenv("MIDLONG_WATCH_MIN_REFRESH_SHORT_ACTIVE_S", "300") or "300")
 # [S8 2026-08-21] 总控对短线持仓 close/reduce 的白名单例外（逗号分隔关键字，
 # 对决策 reason/reasoning 小写做包含匹配）。默认仅风控/强平类理由可越权动
 # 短线仓（防守权归短线自己的 SL/TP/超时出场链）；置空 = 总控永不碰短线仓。
@@ -713,6 +803,13 @@ SCALP_EV_MIN_PCT: float = float(os.getenv("SCALP_EV_MIN_PCT", "0.0003"))
 # Live 下 EV 评估异常时 fail-closed；Paper 仍 fail-open 保样本
 SCALP_EV_FAIL_CLOSED_LIVE: bool = os.getenv(
     "SCALP_EV_FAIL_CLOSED_LIVE", "true"
+).lower() in ("true", "1", "yes", "on")
+# [2026-09-02 G18] pwin 仲裁异常时的处置。12.8 万条已结算信号回溯显示：pwin<0.55
+# 的各档平均净收益全为负、>=0.55 的各档全为正，pwin 是目前唯一被数据验证有效的
+# 质量闸（同期 factor_score 各档净收益全负且高分档最差）。异常放行等于让负期望
+# 信号绕过唯一有效过滤器裸奔进场，故默认 fail-closed。设 false 可回到放行行为。
+SCALP_PWIN_FAIL_CLOSED: bool = os.getenv(
+    "SCALP_PWIN_FAIL_CLOSED", "true"
 ).lower() in ("true", "1", "yes", "on")
 # TP/SL 实现率：真实交易很少吃满计划 TP（分批/追踪/超时），亏损往往吃满甚至更多。
 # EV 用 tp_pct×TP实现率 作为期望盈利幅度、sl_pct×SL实现率 作为期望亏损幅度，更贴近实盘。
@@ -818,6 +915,13 @@ MIDLONG_EV_FALLBACK_RR: float = float(os.getenv("MIDLONG_EV_FALLBACK_RR", "2.0")
 MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION: bool = os.getenv(
     "MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION", "true"
 ).lower() in ("true", "1", "yes", "on")
+# [P7 执行 2026-09-10] swing 赛道（=mid 车道）是否按 EV **硬拦**。
+# 默认 false：接线修好后 mid 会立刻从"永久影子"变成"硬拦"，而 §53.2 实测该口径下
+# mid 提案 EV ≈ −2.60% ⇒ 硬拦等于**关闭 mid 车道**，必须由使用方显式开启。
+# false 时仍**用正确校准器**影子记录，可直接回答"若强制会拦多少"。
+MIDLONG_EV_ENFORCE_MID: bool = os.getenv(
+    "MIDLONG_EV_ENFORCE_MID", "false"
+).lower() in ("true", "1", "yes", "on")
 # 中线 swing：tp 实现率偏高（波段吃满概率尚可），sl 常吃满
 SWING_EV_MIN_PCT: float = float(os.getenv("SWING_EV_MIN_PCT", "0.0005"))
 SWING_EV_TP_REALIZATION: float = float(os.getenv("SWING_EV_TP_REALIZATION", "0.70"))
@@ -903,13 +1007,42 @@ MIDLONG_NIBBLE_NET_EXPOSURE_PCT: float = float(
 MIDLONG_CORR_CLUSTER_SYMBOLS: str = os.getenv("MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL")
 MIDLONG_CORR_CLUSTER_MAX: int = int(os.getenv("MIDLONG_CORR_CLUSTER_MAX", "2") or "2")
 MIDLONG_MAX_OPEN_POSITIONS: int = int(os.getenv("MIDLONG_MAX_OPEN_POSITIONS", "4") or "4")
+# [P13 执行 2026-09-10] 每标的**同向**并发上限（0 = 关闭该闸）。
+# 依据 §61：同标的并发组均值 -2.39%/胜率 27.8% vs 单笔 +3.57%/35.9%，
+# bootstrap 均值差 -5.96%（95%CI [-10.83%, -1.51%]，留一法仍显著）。
+MIDLONG_MAX_SAME_SYMBOL_POSITIONS: int = int(os.getenv("MIDLONG_MAX_SAME_SYMBOL_POSITIONS", "2") or "2")
 # 无进展超时离场：持仓过久且峰值未达 0.5R → 全平
 MIDLONG_NO_PROGRESS_EXIT_ENABLED: bool = os.getenv("MIDLONG_NO_PROGRESS_EXIT_ENABLED", "true").lower() in (
     "true", "1", "yes", "on",
 )
-MIDLONG_NO_PROGRESS_HOURS_MID: float = float(os.getenv("MIDLONG_NO_PROGRESS_HOURS_MID", "18"))
+# [2026-09-07] 默认 36h（原 18h 把中线砍成短线；与 .env / midlong_portfolio_risk 对齐）
+MIDLONG_NO_PROGRESS_HOURS_MID: float = float(os.getenv("MIDLONG_NO_PROGRESS_HOURS_MID", "36"))
 MIDLONG_NO_PROGRESS_HOURS_LONG: float = float(os.getenv("MIDLONG_NO_PROGRESS_HOURS_LONG", "72"))
 MIDLONG_NO_PROGRESS_MIN_PEAK_R: float = float(os.getenv("MIDLONG_NO_PROGRESS_MIN_PEAK_R", "0.5"))
+# [§78 执行 2026-09-11 / 决策 P19-B] 出场通道熔断在**统一出场出口**是否生效：
+# true（默认）= 所有经 UnifiedExitExecutor 的 close/reduce 先查熔断（硬退出除外）；
+# false = 回滚到"仅 midlong_position_manager 的 2 个局部查询点"。
+EXIT_CHANNEL_BREAKER_UNIFIED: bool = os.getenv(
+    "EXIT_CHANNEL_BREAKER_UNIFIED", "true"
+).lower() in ("true", "1", "yes", "on")
+# [§78 / 决策 P20] 重启时是否由持久化的 `_breaker` 重建通道熔断标志（消除"盲窗"）
+EXIT_CHANNEL_REBUILD_ON_LOAD: bool = os.getenv(
+    "EXIT_CHANNEL_REBUILD_ON_LOAD", "false"
+).lower() in ("true", "1", "yes", "on")
+# [§84 执行 2026-09-11 / 决策 P27-A / 缺陷 #69] 熔断的**证据新鲜度约束**：
+# 抑制发生在记账之前 ⇒ 被抑制通道不再产生样本 ⇒ 胜率永久冻结（自锁）。
+# 超过该天数的"过期证据"不再用于抑制（只记录），与 P17「判据 stale 不拒单」同款自愈闸。
+# 0 = 关闭该约束（回到旧行为）。
+BREAKER_EVIDENCE_STALE_DAYS: float = float(os.getenv("BREAKER_EVIDENCE_STALE_DAYS", "7") or 7)
+# [§82 执行 2026-09-11 / 决策 P5-A —— 清单第 19 条] MM **车道级**风控闸门：
+# 接线前 `check_lane_limits()` 生产调用点 = 0 ⇒ `toxic_streak`（连续逆选择暂停）
+# 从未生效、`daily_loss_stop_pct`（日亏上限）从未实现。true 后 `runner.plan_tick`
+# 在每个 tick 执行车道级暂停（仅整车道判据：权益/波动/毒性流/日亏；**不含敞口**，
+# 敞口仍由单侧闸门处理，避免把"减仓腿"一起停掉）。
+# 默认 **false** ⇒ 与接线前逐字一致（影子证据基线不被静默改写）；一键回滚。
+MM_LANE_LIMITS_ENFORCE: bool = os.getenv(
+    "MM_LANE_LIMITS_ENFORCE", "false"
+).lower() in ("true", "1", "yes", "on")
 # 人工核心币池：并入长线正向白名单（仍排除 AI 选币）；空=仅用会话 symbols
 MIDLONG_CORE_BASKET: str = os.getenv("MIDLONG_CORE_BASKET", "")
 
@@ -1047,6 +1180,13 @@ SCALP_COUNTER_TREND_SIZE_MULT: float = float(
 SCALP_RANGING_MR_ENABLED: bool = os.getenv(
     "SCALP_RANGING_MR_ENABLED", "true"
 ).lower() in ("true", "1", "yes", "on")
+# [2026-09-09 深度解析 P8] K线趋势否决：MR 选点内部用本 tick 5m K 线重算 1h/24h 涨跌，
+# 与 regime_agent 同阈值否决趋势/极端日（实证 37.9% 的 MR 入场发生在 |24h|≥4% 的趋势日，
+# SL 率 27.4% vs 真震荡 15.6%；market_summary 的 regime 标签可能陈旧）。
+# 回滚：SCALP_MR_TREND_VETO_ENABLED=false。
+SCALP_MR_TREND_VETO_ENABLED: bool = os.getenv(
+    "SCALP_MR_TREND_VETO_ENABLED", "true"
+).lower() in ("true", "1", "yes", "on")
 # 振幅下限：48×5m 区间振幅低于此值不做（手续费盖不住薄利）。
 # [2026-07-31 research] 0.8%→1.5%：SL 抬到 1.2%+ 后，过窄振幅装不下合理 TP/SL。
 SCALP_MR_MIN_RANGE_PCT: float = float(os.getenv("SCALP_MR_MIN_RANGE_PCT", "0.015"))
@@ -1095,6 +1235,11 @@ SCALP_MR_COLD_BASE_RATE: float = float(os.getenv("SCALP_MR_COLD_BASE_RATE", "0.5
 SCALP_CALIBRATOR_SAMPLE_SINCE: str = os.getenv(
     "SCALP_CALIBRATOR_SAMPLE_SINCE", "2026-07-10T00:00:00+08:00"
 )
+# [2026-09-09 深度解析 P7] 校准质量门：score 与 win 的 Pearson |corr| 低于此值视为噪声，
+# 拒绝用保序回归拟合噪声曲线（回退基础胜率锚点）。实证 scalp_composite_mr corr=+0.0034。
+SCALP_CALIBRATOR_MIN_CORR: float = float(
+    os.getenv("SCALP_CALIBRATOR_MIN_CORR", "0.05")
+)
 
 # ── 冷启动数据积累豁免（2026-07-11，用户明确要求：现在的目的是积累数据而不是空跑）──
 # 只在【Paper 模拟盘 + 校准器还没攒够真实样本(cold_linear)】时生效：给 EV 闸门的
@@ -1127,6 +1272,17 @@ FACTOR_SCORER_COST: float = float(os.getenv("FACTOR_SCORER_COST", "0.0009"))
 # 配合成本修正，让"真实存在的微弱 alpha"先进入观察，由 EV governor 按实盘结果收紧。
 FACTOR_SCORER_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIN_SHARPE", "0.2"))
 FACTOR_SCORER_MIN_NET_RETURN: float = float(os.getenv("FACTOR_SCORER_MIN_NET_RETURN", "0.0"))
+# [P3.2 2026-09-03] "延迟一根成交"稳健性：信号根收盘产生、下一根收盘才成交的对照回测。
+# ENABLED 控制是否计算并落库（lag1_net_return/lag1_sharpe/lag1_retention/lag1_fragile）；
+# GATE 开门后 A/B 级候选若 lag1 边际不留存（lag1_net≤0 或留存率<MIN_RETENTION）降为 C。
+# 默认只记指标不阻断——先在成绩单上观察留存分布，再决定开门。
+FACTOR_SCORER_LAG1_ENABLED: bool = os.getenv("FACTOR_SCORER_LAG1_ENABLED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+FACTOR_SCORER_LAG1_GATE: bool = os.getenv("FACTOR_SCORER_LAG1_GATE", "false").lower() in (
+    "true", "1", "yes", "on",
+)
+FACTOR_SCORER_LAG1_MIN_RETENTION: float = float(os.getenv("FACTOR_SCORER_LAG1_MIN_RETENTION", "0.3"))
 # [P0-B 升级] 准入冗余阈值统一为 0.7（factor_evaluator/score_formula 同读此值）
 FACTOR_SCORER_REDUNDANCY_CORR: float = float(os.getenv("FACTOR_SCORER_REDUNDANCY_CORR", "0.7"))
 # [P0-B 升级] 退役冗余阈值（factor_slimming_audit 专属，与准入阈值语义分离）
@@ -1136,6 +1292,11 @@ FACTOR_SCORER_SCALP_MIN_BARS: int = int(os.getenv("FACTOR_SCORER_SCALP_MIN_BARS"
 # [M2 升级] 收益中性化总开关：IC/ICIR/衰减/PBO 对风格残差收益计算（双轨保留 raw_ic）
 FACTOR_SCORER_NEUTRALIZE: bool = os.getenv("FACTOR_SCORER_NEUTRALIZE", "true").lower() in (
     "true", "1", "yes", "on",
+)
+# [P3.2 2026-09-03] 中性化 β 训练窗比例：时间轴前 ratio 的时间戳拟合 4 个池化系数
+# （再剔除末尾 fwd 根 purge），验证/判决段只套用不参与拟合。1.0 = 旧全窗口口径（回滚）。
+FACTOR_NEUTRALIZE_BETA_TRAIN_RATIO: float = float(
+    os.getenv("FACTOR_NEUTRALIZE_BETA_TRAIN_RATIO", "0.7") or 0.7
 )
 # [M3 升级] held-out 判决集：训练段 A/B 后须在末尾判决段独立复验（判决段对挖掘/LLM 不可见）
 FACTOR_HELDOUT_ENABLED: bool = os.getenv("FACTOR_HELDOUT_ENABLED", "true").lower() in (
@@ -1149,7 +1310,9 @@ FACTOR_SCORER_FUNDING_RATE: float = float(os.getenv("FACTOR_SCORER_FUNDING_RATE"
 FACTOR_SCORER_DSR_REQUIRED: bool = os.getenv("FACTOR_SCORER_DSR_REQUIRED", "true").lower() in (    "true", "1", "yes", "on",
 )
 FACTOR_SCORER_DSR_N_TRIALS: int = int(os.getenv("FACTOR_SCORER_DSR_N_TRIALS", "40"))
-FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.5"))
+# [2026-09-07 阈值单一事实源] 0.5→0.35：与 LifecycleThresholds.max_pbo 对齐。
+# 此前 scorer 0.5 / lifecycle 0.35 两套门并存，同一因子不同入口结论相反。
+FACTOR_SCORER_MAX_PBO: float = float(os.getenv("FACTOR_SCORER_MAX_PBO", "0.35"))
 # [2026-08-14 P0-1] DSR/PBO 跨币样本下限：单因子打分的 ICIR 样本数（币种数）
 # [D10 2026-08-21 对齐] 低于该值时多重检验无法估计，闸门 **fail-closed 拒绝晋升**
 # （原注释写 fail-open 与现码相反；打分币池 FACTOR_SCORER_SYMBOLS 必须 ≥ 此值，
@@ -1174,6 +1337,13 @@ FUSION_LOW_QUALITY_HOLD: bool = os.getenv("FUSION_LOW_QUALITY_HOLD", "false").lo
 # [2026-08-14 P1-C4] PAPER 影子因子在线权重上限（拍板：PAPER 保持可交易但权重受限）。
 # factor_evaluation_pipeline 对 state=PAPER 的因子强制 min(weight, cap)；0=不限制。
 PAPER_FACTOR_WEIGHT_CAP: float = float(os.getenv("PAPER_FACTOR_WEIGHT_CAP", "0.5") or 0.5)
+# [2026-09-03 审查修正 A] 实盘会话的融合是否**排除**影子因子（held-out 判决未过的
+# role=paper 公式因子 / 进化仓 state=PAPER 的 AST 因子）。默认排除：没过判决的因子
+# 只在模拟会话里以 ≤cap 权重继续学习，不碰真钱。false=恢复 08-22 行为（实盘也给半权重）。
+# 统一入口：backend/services/factor_engine/paper_factor_policy.py
+PAPER_FACTOR_LIVE_EXCLUDE: bool = os.getenv("PAPER_FACTOR_LIVE_EXCLUDE", "true").lower() in (
+    "true", "1", "yes", "on",
+)
 # [2026-08-14 P1-E5] 云端因子同步总开关：安全加固完成前默认禁用。
 # sync_from_repo 在开关关闭时直接跳过；本地化产物一律 candidate（待验证）。
 FACTOR_CLOUD_SYNC_ENABLED: bool = os.getenv("FACTOR_CLOUD_SYNC_ENABLED", "false").lower() in (
@@ -2149,6 +2319,15 @@ MIDLONG_HUB_TREND_SIGNAL_BONUS: float = float(
 MIDLONG_ALLOW_RANGE_PROBE: bool = os.getenv(
     "MIDLONG_ALLOW_RANGE_PROBE", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [2026-09-11 V11 深度解析] trend_broken（4h 方向复查）价格闸：价格口径浮亏 < 该值（%）
+# 且日线非 down 时不执行平仓，把亏损交给 SL6%/追踪/168h 决定。
+# 依据（_audit_ml/V11）：long 组 24 笔 trend_broken 实际均 −4.10（合计 −98.46），
+# 同批入场纯 ExitPolicy 反事实 +8.127%/笔（胜率 83%）——4h 复查在噪音区砍仓、
+# 砍在 72h 兑现窗口之前。置 0 = 关闭本闸（回滚）。
+# 注意：必须在此声明（modules 用 _cfg_float 读 settings 属性，仅注册 env 不生效）。
+MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS: float = float(
+    os.getenv("MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS", "3.0") or "3.0"
+)
 # WAIT 时是否 Paper 探针开仓（默认关，避免 WAIT 被静默改成成交）
 MIDLONG_PAPER_PROBE_ON_WAIT: bool = os.getenv(
     "MIDLONG_PAPER_PROBE_ON_WAIT", "false"
@@ -2183,6 +2362,54 @@ MIDLONG_MID_VIA_MLTO: bool = os.getenv("MIDLONG_MID_VIA_MLTO", "false").strip().
 MIDLONG_MID_VIA_FACTOR_ROUTE: bool = os.getenv(
     "MIDLONG_MID_VIA_FACTOR_ROUTE", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [2026-09-05] 中长线唯一主脑。合法值只有 llm：没有新鲜 accepted 论题就不许新开。
+# MIDLONG_NO_THESIS_NO_OPEN=false 或 BRAIN_MODE 切走 = 紧急全禁新开，不回退因子。
+MIDLONG_BRAIN_MODE: str = (os.getenv("MIDLONG_BRAIN_MODE", "llm") or "llm").strip().lower()
+# TTL 是最长沉默，不是心跳。真正重问看 4h/日线收盘、现价冲击、失效价。
+# 成功票才吃满 TTL；失败票只吃短退避，避免低分锁死 4h/8h。
+MIDLONG_THESIS_TTL_MID_S: int = int(os.getenv("MIDLONG_THESIS_TTL_MID_S", "14400") or "14400")
+MIDLONG_THESIS_TTL_LONG_S: int = int(os.getenv("MIDLONG_THESIS_TTL_LONG_S", "28800") or "28800")
+MIDLONG_THESIS_FAIL_BACKOFF_MID_S: int = int(
+    os.getenv("MIDLONG_THESIS_FAIL_BACKOFF_MID_S", "1200") or "1200"
+)
+MIDLONG_THESIS_FAIL_BACKOFF_LONG_S: int = int(
+    os.getenv("MIDLONG_THESIS_FAIL_BACKOFF_LONG_S", "2400") or "2400"
+)
+MIDLONG_WATCH_SHOCK_PCT_MID: float = float(os.getenv("MIDLONG_WATCH_SHOCK_PCT_MID", "0.012") or "0.012")
+MIDLONG_WATCH_SHOCK_PCT_LONG: float = float(os.getenv("MIDLONG_WATCH_SHOCK_PCT_LONG", "0.025") or "0.025")
+MIDLONG_WATCH_CHASE_PCT_MID: float = float(os.getenv("MIDLONG_WATCH_CHASE_PCT_MID", "0.008") or "0.008")
+MIDLONG_WATCH_CHASE_PCT_LONG: float = float(os.getenv("MIDLONG_WATCH_CHASE_PCT_LONG", "0.015") or "0.015")
+MIDLONG_WATCH_NEAR_INV_PCT: float = float(os.getenv("MIDLONG_WATCH_NEAR_INV_PCT", "0.004") or "0.004")
+MIDLONG_WATCH_MIN_REFRESH_S: int = int(os.getenv("MIDLONG_WATCH_MIN_REFRESH_S", "1800") or "1800")
+MIDLONG_NO_THESIS_NO_OPEN: bool = os.getenv(
+    "MIDLONG_NO_THESIS_NO_OPEN", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+# 图审是附加证据。默认缺图仍可开；true 才把缺图当成禁开。
+MIDLONG_CHART_REQUIRED: bool = os.getenv(
+    "MIDLONG_CHART_REQUIRED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+# 闲扫每轮最多刷新几个；变盘池另计（WATCH_REFRESH_CAP）。
+MIDLONG_THESIS_MAX_REFRESH_PER_CYCLE: int = int(
+    os.getenv("MIDLONG_THESIS_MAX_REFRESH_PER_CYCLE", "3") or "3"
+)
+MIDLONG_THESIS_WATCH_REFRESH_CAP: int = int(
+    os.getenv("MIDLONG_THESIS_WATCH_REFRESH_CAP", "5") or "5"
+)
+AGENT_PARAM_SEARCH_ENABLED: bool = os.getenv(
+    "AGENT_PARAM_SEARCH_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+
+
+def midlong_brain_enabled() -> bool:
+    """中长线是否由包月双模型论题主脑开仓。唯一合法模式是 llm。"""
+    return (MIDLONG_BRAIN_MODE or "llm").strip().lower() == "llm"
+
+
+def midlong_new_open_halted() -> bool:
+    """紧急停机：脑模式切走，或 MIDLONG_NO_THESIS_NO_OPEN=false → 全禁中长线新开。"""
+    if not midlong_brain_enabled():
+        return True
+    return not bool(MIDLONG_NO_THESIS_NO_OPEN)
 # 因子路由入场参数：最少活跃因子数 / 合成分数阈值 / 止损止盈 / 权重衰减
 # [M8 2026-08-21] 默认 2→3：活跃因子掉到门槛以下应暂停而不是硬开。
 # 顺序依赖已满足（item14 AST 桥接中线落地，中线弹药=公式+registry+AST 三源）。
@@ -2197,6 +2424,18 @@ SCALP_AST_BRIDGE_MAX: int = int(os.getenv("SCALP_AST_BRIDGE_MAX", "10") or "10")
 # 不受此开关影响——运行时与回测分离。
 FACTOR_ROUTE_KLINE_EXCHANGE: str = (os.getenv("FACTOR_ROUTE_KLINE_EXCHANGE", "active") or "active").strip()
 FACTOR_ROUTE_ENTRY_THRESHOLD: float = float(os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD", "0.35") or "0.35")
+# [2026-09-04] 入场阈值按 paper/live 分离。实测 09-04 17:20 全 universe 打分：
+# |score| min=0.001 中位=0.128 max=0.880，达到 0.35 的只有 1/10（且那一笔是
+# 逆资金流的空头、被一致性门正确拦掉）→ 中线当天 0 开仓。阈值本身没错，错在
+# 用同一个数字同时管实盘与模拟盘：实盘要的是"宁缺毋滥"，模拟盘要的是样本。
+# live 维持 0.35；paper 降到 0.22（对应当前分布约 2/10 过门，叠加日内多轮扫描
+# 与分数波动，回到历史日均 3~5 笔的节奏）。
+FACTOR_ROUTE_ENTRY_THRESHOLD_LIVE: float = float(
+    os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD_LIVE", "") or FACTOR_ROUTE_ENTRY_THRESHOLD
+)
+FACTOR_ROUTE_ENTRY_THRESHOLD_PAPER: float = float(
+    os.getenv("FACTOR_ROUTE_ENTRY_THRESHOLD_PAPER", "0.22") or "0.22"
+)
 FACTOR_ROUTE_SL_PCT: float = float(os.getenv("FACTOR_ROUTE_SL_PCT", "0.05") or "0.05")
 FACTOR_ROUTE_TP_PCT: float = float(os.getenv("FACTOR_ROUTE_TP_PCT", "0.10") or "0.10")
 # [M4 2026-08-21] 因子仓动态 SL/TP：max(结构摆动, k×ATR@4h)，静态值只作上限夹幅。
@@ -2210,6 +2449,11 @@ FACTOR_ROUTE_IC_ABS_MIN: float = float(os.getenv("FACTOR_ROUTE_IC_ABS_MIN", "0.0
 # 0.12 → 480 名义 = 120% 敞口，在 MIDLONG_MAX_NET_EXPOSURE_PCT(1.5) 之内。
 FACTOR_ROUTE_TRANCHE_MARGIN_PCT: float = float(
     os.getenv("FACTOR_ROUTE_TRANCHE_MARGIN_PCT", "0.12") or "0.12"
+)
+# [2026-09-06] 主脑开仓默认保证金占权益比。切勿用 1.0：ranging 探针会再 ×0.25，
+# 再乘杠杆后名义轻松 >100% 权益，被 PB 集中度闸误杀（实测 BTC 125%>60%）。
+MIDLONG_BRAIN_OPEN_MARGIN_PCT: float = float(
+    os.getenv("MIDLONG_BRAIN_OPEN_MARGIN_PCT", "0.12") or "0.12"
 )
 # AI 中线候选最低置信度：看板 midlong approve 且 confidence ≥ 此值才进 mid 槽。
 MIDLONG_AI_MIN_CONF: float = float(os.getenv("MIDLONG_AI_MIN_CONF", "0.60") or "0.60")
@@ -2387,6 +2631,37 @@ AUTO_COIN_EVALUATION_INTERVAL: int = int(os.getenv("AUTO_COIN_EVALUATION_INTERVA
 # 中线候选独立慢刷新，默认 3h（可调 2–4h: 7200–14400），避免跟短线同频换人。
 AUTO_COIN_MID_RESAMPLE_SEC: int = int(os.getenv("AUTO_COIN_MID_RESAMPLE_SEC", "10800") or "10800")
 AUTO_COIN_MID_MAX_SLOTS: int = int(os.getenv("AUTO_COIN_MID_MAX_SLOTS", "3") or "3")
+# [2026-09-04 用户指令：中线只用可配置固定币] 中线宇宙此前 = 固定币 ∪ AI候选，
+# 而中线每 tick 只扫 MIDLONG_SCAN_BATCH(=3) 个币、游标滚动：12 币轮一圈要 4 个
+# tick，AI 那 3 个名额独占整整一轮，其中 AVAX/LINK 在 active 所取不到 K 线
+# （实测 0 根）→ 约 1/4 扫描算力空转，固定币被挤到 4 轮才轮一次。
+# 关掉后中线只扫固定币；已开的 AI 币仓位仍并入续管集合，不会没人管仓。
+MIDLONG_MID_AI_CANDIDATES_ENABLED: bool = os.getenv(
+    "MIDLONG_MID_AI_CANDIDATES_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+
+# [2026-09-08] 长线 AI 选币（用户指令：长线也引入 AI 选币）。复用 midlong 看板 approve
+# 候选，但门槛更高（长线持仓数天、要更高置信）、槽位更少（更精选）。默认关，会话级开关
+# auto_coin_long_enabled 打开后生效；已开长线仓由调用方续管，不会因关候选而没人管。
+MIDLONG_LONG_AI_CANDIDATES_ENABLED: bool = os.getenv(
+    "MIDLONG_LONG_AI_CANDIDATES_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+AUTO_COIN_LONG_MAX_SLOTS: int = int(os.getenv("AUTO_COIN_LONG_MAX_SLOTS", "2") or "2")
+# 长线入选置信门槛（高于中线 0.60）：长线持仓久、回撤大，要更高把握才入选
+MIDLONG_AI_MIN_CONF_LONG: float = float(os.getenv("MIDLONG_AI_MIN_CONF_LONG", "0.70") or "0.70")
+
+# [2026-09-04 用户指令：模拟盘不设影子层] 亏损币惩罚状态机（symbol_penalty）
+# 对模拟盘的处置。该状态机由 paper 日报驱动，实测 09-04 17:40 九个固定币
+# 全部中招：BTC/ETH/SOL/VIRTUAL 进观察名单被直接 continue 禁开，
+# XRP/BNB/UNI/XPL/ASTER 被 ×0.5 打折 → 最高分 69 腰斩成 34.5，而元模型
+# 不可用期的探索门槛是 45 → 数学上永不可达。于是死锁：亏损 → 惩罚 →
+# 开不了单 → 攒不到翻案样本 → 惩罚永不解除（短线连续 0 单）。
+# 惩罚的立论是"止损保护"，只对真金白银成立；模拟盘的亏损本身就是要采集的
+# 样本。故模拟盘默认豁免，实盘保持原状态机（引导期另有 live_bootstrap 豁免）。
+# 置 true 可一键回到旧行为。
+PAPER_SYMBOL_PENALTY_ENABLED: bool = os.getenv(
+    "PAPER_SYMBOL_PENALTY_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
 # P2 调优（2026-07-14）：池容量 5→8，降低门槛让更多候选通过，趋势维度修复后评分更准
 AUTO_COIN_MAX_COUNT: int = int(os.getenv("AUTO_COIN_MAX_COUNT", "7"))
 # [2026-08-28 选币重设计①] 门槛 0.50→0.65：0.5 假中性是评分断链的根源，
@@ -2838,7 +3113,7 @@ SCALP_META_EV_BLEND: float = float(os.getenv("SCALP_META_EV_BLEND", "0.35"))
 
 # AI 选币后快速策略观察者（pair_selector_watcher）：默认开，每 5 分钟扫活跃 AI 币
 PAIR_SELECTOR_WATCHER_ENABLED: bool = os.getenv(
-    "PAIR_SELECTOR_WATCHER_ENABLED", "true"
+    "PAIR_SELECTOR_WATCHER_ENABLED", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
 PAIR_SELECTOR_WATCHER_INTERVAL_SEC: int = max(
     60, int(os.getenv("PAIR_SELECTOR_WATCHER_INTERVAL_SEC", "300") or 300)

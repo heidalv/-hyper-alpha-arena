@@ -133,19 +133,15 @@ def _notify_degraded_pool(health: Dict[str, Any]) -> None:
 
 
 def _count_db_tradable_factors() -> int:
-    """factor_active_set 中 state∈{ACTIVE,PAPER,SMALL_LIVE} 的行数（只读）。"""
+    """factor_active_set 中 tradable 态行数（只读）。
+
+    [2026-08-29 SSOT 收敛] 散落 state.in_ 改走 active_set_policy 唯一入口
+    （ops_rootcause CI 契约：禁止绕过 role→states 映射）。"""
     try:
-        from backend.database.connection import AnalyticsSessionLocal
-        from backend.database.models import FactorActiveSet
-        db = AnalyticsSessionLocal()
-        try:
-            return int(
-                db.query(FactorActiveSet.factor_id)
-                .filter(FactorActiveSet.state.in_(["ACTIVE", "PAPER", "SMALL_LIVE"]))
-                .count()
-            )
-        finally:
-            db.close()
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole, load_factor_active_rows,
+        )
+        return len(load_factor_active_rows(ActiveSetRole.TRADABLE))
     except Exception as e:
         logger.debug("[PipelineHealth] DB tradable 计数失败: %s", e)
         return -1

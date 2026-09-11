@@ -187,6 +187,18 @@ def resolve_decision_leverage(
     trade_nature: str = "",
     market_summary: dict = None,
 ) -> tuple:
+    # [2026-09-07 杠杆根治 P1] 断流：一币一档启用时，杠杆 = 币种属性，
+    # AI 自报 / 编排器 / 动态杠杆 5-20x 等上游提议全部不再解析（风险调整走
+    # 仓位大小=保证金，不走杠杆）。回滚：SYMBOL_LEVERAGE_ENABLED=false。
+    try:
+        from backend.services.leverage_authority import (
+            symbol_leverage_enabled as _sym_lev_on,
+            resolve_leverage as _auth_lev_early,
+        )
+        if sym and _sym_lev_on():
+            return max(1, int(round(_auth_lev_early(tier=tier, symbol=sym)))), "symbol_tier"
+    except Exception:
+        pass
     try:
         from backend.config.settings import DYNAMIC_LEVERAGE_MIN, DYNAMIC_LEVERAGE_MAX
     except ImportError:

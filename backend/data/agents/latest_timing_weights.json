@@ -1,0 +1,35 @@
+{
+  "ts_ms": 1788445589817,
+  "agent": "timing",
+  "mode_note": "观察模式产物，未生效；E4 消费前需核对 /api/agents/status 的可信度",
+  "regime": "trend_up",
+  "regime_confidence": 0.85,
+  "bucket_weights": {
+    "trend": 0.6,
+    "cashflow": 0.3,
+    "research": 0.1
+  },
+  "engine_capital": [
+    {
+      "engine": "E1",
+      "weight": 0.6,
+      "rationale": "趋势桶全额给 E1（regime=trend_up）"
+    },
+    {
+      "engine": "E2",
+      "weight": 0.3,
+      "rationale": "现金流桶：Aster T&E + carry + 理财"
+    },
+    {
+      "engine": "E5",
+      "weight": 0.06,
+      "rationale": "研究桶 60% 给事件影子车道"
+    },
+    {
+      "engine": "E3",
+      "weight": 0.04,
+      "rationale": "研究桶 40% 给挑战者/参数寻优"
+    }
+  ],
+  "reason": "5/8 币 L1=up（门槛 4）且 BTC>EMA200"
+}

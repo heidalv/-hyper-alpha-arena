@@ -1,0 +1,78 @@
+{
+ "session_id": "fa_7e12e7a1b6",
+ "weeks": [
+  {
+   "week": "2026-W29",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 3.9077,
+   "fixed_n": 139,
+   "roi_diff": -3.9077
+  },
+  {
+   "week": "2026-W30",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 11.135,
+   "fixed_n": 78,
+   "roi_diff": -11.135
+  },
+  {
+   "week": "2026-W31",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 27.5127,
+   "fixed_n": 35,
+   "roi_diff": -27.5127
+  },
+  {
+   "week": "2026-W32",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 1.664,
+   "fixed_n": 103,
+   "roi_diff": -1.664
+  },
+  {
+   "week": "2026-W33",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": -14.6593,
+   "fixed_n": 162,
+   "roi_diff": 14.6593
+  },
+  {
+   "week": "2026-W34",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 11.0965,
+   "fixed_n": 326,
+   "roi_diff": -11.0965
+  },
+  {
+   "week": "2026-W35",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": -25.4561,
+   "fixed_n": 337,
+   "roi_diff": 25.4561
+  },
+  {
+   "week": "2026-W36",
+   "auto_pnl": 0.0,
+   "auto_n": 122,
+   "fixed_pnl": 32.5171,
+   "fixed_n": 287,
+   "roi_diff": -32.5171
+  },
+  {
+   "week": "2026-W37",
+   "auto_pnl": 0.0,
+   "auto_n": 0,
+   "fixed_pnl": 0.0,
+   "fixed_n": 1,
+   "roi_diff": 0.0
+  }
+ ],
+ "generated_at": "2026-09-07T08:00:03.878731"
+}

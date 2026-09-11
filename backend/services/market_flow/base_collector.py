@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional
 
-from services.exchange.base_exchange_client import ExchangeTrade
+from backend.services.exchange.base_exchange_client import ExchangeTrade
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +284,7 @@ class BaseMarketFlowCollector(ABC):
 
         # 旁路：推送到事件总线（兼容旧 MarketDataHub 行为）
         try:
-            from services.market_data_hub import market_data_hub
+            from backend.services.market_data_hub import market_data_hub
             market_data_hub.publish_trade(
                 self.exchange_id, symbol,
                 {"px": trade.price, "sz": trade.size, "side": "B" if trade.is_taker_buy else "A",
@@ -304,7 +304,7 @@ class BaseMarketFlowCollector(ABC):
         """
         self.last_update_time["l2book"] = time.time()
         try:
-            from services.market_flow.l2_orderbook_manager import l2_orderbook_manager
+            from backend.services.market_flow.l2_orderbook_manager import l2_orderbook_manager
             if isinstance(book_data, dict) and "levels" in book_data:
                 book_data = l2_orderbook_manager.ingest(self.exchange_id, symbol, book_data)
         except Exception as e:
@@ -313,7 +313,7 @@ class BaseMarketFlowCollector(ABC):
         # [v6-S2-1] L2 重建层接线：把清洗后的快照喂给默认重建器（跳变防护 + 深度派生）， # flush 时从重建器取末帧计算前5档名义深度落库（见 _current_depth_notional）。 # 兼容两种既有快照格式：HL levels（{"levels": [[bids],[asks]]}）与 # asterdex 的 bids/asks 数组（[{"px","sz"}, ...]）。
         try:
             if isinstance(book_data, dict):
-                from services.market_flow.l2_reconstructor import default_reconstructor
+                from backend.services.market_flow.l2_reconstructor import default_reconstructor
                 if book_data.get("levels"):
                     default_reconstructor.ingest_hl(
                         self.exchange_id, symbol,
@@ -435,7 +435,7 @@ class BaseMarketFlowCollector(ABC):
         except Exception as e:
             logger.warning("[%s] 深度列读取(实例订单簿)失败: %s", getattr(self, "exchange_id", ""), e)
         try:
-            from services.market_flow.l2_reconstructor import default_reconstructor
+            from backend.services.market_flow.l2_reconstructor import default_reconstructor
             frame = default_reconstructor.latest(self.exchange_id, symbol)
             if frame is None or not frame.bids or not frame.asks:
                 return None, None
@@ -515,7 +515,7 @@ class BaseMarketFlowCollector(ABC):
     def _run_signal_detection(self) -> None:
         """flush 后触发信号检测（与旧实现一致）。"""
         try:
-            from services.signal_detection_service import signal_detection_service
+            from backend.services.signal_detection_service import signal_detection_service
             for symbol in self.subscribed_symbols:
                 market_data = {
                     "asset_ctx": self.latest_asset_ctx.get(symbol, {}),

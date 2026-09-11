@@ -75,8 +75,12 @@ def make_subprocess_task(period: str, fallback_fn):
                 proc = subprocess.Popen(
                     cmd,
                     cwd=_repo_root(),
-                    stdout=None,  # 继承主进程 stdout（日志由子进程 FileHandler 落盘）
-                    stderr=None,
+                    # [2026-09-05] DEVNULL：子进程日志走自己的 FileHandler 落盘，不需要
+                    # 主进程 stdout。此前 stdout=None 继承 backend.log 句柄——主进程
+                    # 死后孤儿 evo 子进程仍握着句柄，导致新后端 `>> backend.log`
+                    # 重定向失败、秒退无日志（2026-09-05 03:16 事故根因）。
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
                 return {"subprocess_pid": proc.pid, "period": period}
             except Exception as e:  # noqa: BLE001

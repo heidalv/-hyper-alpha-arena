@@ -17,9 +17,65 @@ def test_pwin_missing_fail_closed():
     d = decide_scalp(pwin=None)
     assert d.action == "hold" and d.reason == "pwin_unavailable"
 
-def test_pwin_below_min_holds():
-    d = decide_scalp(pwin=0.54)
+def _isolate(monkeypatch, *, tiers="0.60:0.75,0.55:0.50,0.50:0.25", probe_quota="0"):
+    """把被测逻辑与生产 .env 隔离。
+
+    decide_scalp() 首行调用 _maybe_reload_env()，它会 load_dotenv(override=True)
+    把 .env 灌回 os.environ —— 这会盖掉 monkeypatch 的 setenv/delenv，导致下面
+    这些用例实际测的是"当前生产门槛"而非"机制本身"。
+
+    生产门槛随回溯证据收紧（2026-09-02：12.8 万条已结算信号显示 pwin<0.55 各档
+    净收益全为负），档位已从三档砍到两档 0.60:0.75,0.55:0.50 —— 最低档即 0.55。
+    下面的用例要验证的是"分档机制在给定档位下取值正确"，故显式钉住三档配置；
+    分档模式的硬地板取 _tiers[-1][0]，与 FUSION_SCALP_PWIN_MIN 无关。
+    """
+    import backend.services.decision_fusion_arbiter as arb
+    monkeypatch.setattr(arb, "_maybe_reload_env", lambda: None)
+    monkeypatch.setenv("FUSION_PWIN_TIERED", "true")
+    monkeypatch.setenv("FUSION_PWIN_TIERS", tiers)
+    monkeypatch.setenv("FUSION_PROBE_DAILY_QUOTA", probe_quota)
+    return arb
+
+def test_pwin_below_min_holds(monkeypatch):
+    """[2026-08-29 v2 分档契约] 0.54 落在 [0.50,0.55) 档 → 0.25x 放行（非 hold）；
+    低于最低档且探针关闭时 → hold。"""
+    _isolate(monkeypatch, probe_quota="0")
+    d54 = decide_scalp(pwin=0.54)
+    assert d54.action == "trade" and abs(d54.size_mult - 0.25) < 1e-9
+    d = decide_scalp(pwin=0.40)
     assert d.action == "hold" and d.reason == "pwin_below_min"
+
+def test_pwin_probe_quota_guarantees_flow(monkeypatch, tmp_path):
+    """保底流量机制：地板之下 pwin≥探针线且配额有余 → 0.125x 探针放行；
+    配额耗尽 → hold；MR 不参与探针（MR 地板是保本口径，探它=负EV）。
+
+    生产已将 FUSION_PROBE_DAILY_QUOTA 置 0（探针单经回溯为负期望），且探针仓位
+    在 2026-09-01 由钉死的 0.125x 改为可配的 FUSION_PROBE_SIZE_MULT（生产 0.25）。
+    此处显式开启配额并钉住仓位——验证的是"机制启用时行为正确"，与生产开关解耦。
+    """
+    arb = _isolate(monkeypatch, probe_quota="3")
+    monkeypatch.setattr(arb, "_PROBE_QUOTA_PATH", str(tmp_path / "probe.json"))
+    monkeypatch.setenv("FUSION_PROBE_MIN_PWIN", "0.45")
+    monkeypatch.setenv("FUSION_PROBE_MIN_SCORE", "0")
+    monkeypatch.setenv("FUSION_PROBE_SIZE_MULT", "0.125")
+    d = decide_scalp(pwin=0.47, account_id=991)
+    assert d.action == "trade" and d.reason == "pwin_probe_quota"
+    assert abs(d.size_mult - 0.125) < 1e-9
+    # 配额耗尽（本用例设 3 笔/天）
+    for _ in range(3):
+        arb.probe_quota_bump(991)
+    d2 = decide_scalp(pwin=0.47, account_id=991)
+    assert d2.action == "hold" and d2.reason == "pwin_below_min"
+    # MR 不探针
+    d3 = decide_scalp(pwin=0.47, account_id=992, is_mr=True)
+    assert d3.action == "hold" and d3.reason == "pwin_below_min"
+
+def test_pwin_tier_boundaries(monkeypatch):
+    """分档边界：0.52→0.25x / 0.57→0.50x / 0.62→0.75x。"""
+    _isolate(monkeypatch, probe_quota="0")
+    assert abs(decide_scalp(pwin=0.52).size_mult - 0.25) < 1e-9
+    assert abs(decide_scalp(pwin=0.57).size_mult - 0.50) < 1e-9
+    assert abs(decide_scalp(pwin=0.62).size_mult - 0.75) < 1e-9
 
 def test_pwin_55_observe_size_factor_source():
     d = decide_scalp(pwin=0.55, factor_score=50, direction="long")

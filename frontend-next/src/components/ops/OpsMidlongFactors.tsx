@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm";
 
 type MidlongHealth = {
   active?: number;
@@ -164,7 +165,12 @@ export function OpsMidlongFactors() {
   }
 
   async function mine() {
-    if (!window.confirm("一键快速挖掘：灌库 Alpha101 候选（幂等）→ 后台样本外回测（约1-2分钟）。确认？")) return;
+    if (!(await confirmDialog({
+      title: "一键快速挖掘？",
+      description: "灌库 Alpha101 候选（幂等）→ 后台样本外回测（约 1–2 分钟）。",
+      tone: "warning",
+      confirmText: "开始挖掘",
+    }))) return;
     setBusy("mine");
     setMsg(null);
     try {
@@ -180,7 +186,12 @@ export function OpsMidlongFactors() {
   }
 
   async function prune() {
-    if (!window.confirm("对活跃中线因子重跑样本外复检（当前活跃=0 时为空跑）。确认？")) return;
+    if (!(await confirmDialog({
+      title: "重跑样本外复检？",
+      description: "对活跃中线因子重跑；当前活跃=0 时为空跑。",
+      tone: "warning",
+      confirmText: "开始复检",
+    }))) return;
     setBusy("prune");
     setMsg(null);
     try {

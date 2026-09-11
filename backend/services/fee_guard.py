@@ -60,6 +60,17 @@ def calc_slippage_rate(
     # 基础滑点
     rate = SLIPPAGE_BASE
 
+    # [2026-09-07] 经验滑点分布优先：有足够真实样本时用 ExecutionQA 聚合的
+    # 经验分布（median/p95）替代固定档；样本不足回退固定档（不影响现有行为）。
+    # SLIPPAGE_EMPIRICAL_ENABLED=0 回滚纯固定档。
+    try:
+        from backend.services.slippage_model import empirical_slippage_rate
+        _emp = empirical_slippage_rate(notional_usd, trade_nature, is_sl=is_sl)
+        if _emp is not None:
+            return min(max(_emp, 0.0), SLIPPAGE_MAX)
+    except Exception:
+        pass
+
     # 规模分档
     for threshold, extra in _SIZE_TIERS:
         if notional_usd > threshold:

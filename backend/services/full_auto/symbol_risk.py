@@ -540,8 +540,10 @@ def check_global_risk(db: Session, session, host: SymbolRiskHost) -> Optional[st
                         f"[FullAuto] 峰值衰减{accel_tag}: peak ${peak:.1f}→${new_peak:.1f}, "
                         f"DD {current_dd*100:.1f}% (防守{hours_in_defensive:.1f}h)")
 
+    # [2026-09-03 v3 F1d] 返回值带稳定前缀码（drawdown_limit: / sentiment_extreme:），
+    # 供 health_check_cycle 区分"回撤硬闸"（会话级 paused）与"情绪极端"（只作提示）。
     if current_dd > max_dd:
-        return f"当前回撤 {current_dd*100:.1f}% 超过上限 {max_dd*100:.0f}%"
+        return f"{DRAWDOWN_LIMIT_CODE}: 当前回撤 {current_dd*100:.1f}% 超过上限 {max_dd*100:.0f}%"
 
     # 情报驱动的风控：检查是否有极端市场信号
     try:
@@ -550,10 +552,28 @@ def check_global_risk(db: Session, session, host: SymbolRiskHost) -> Optional[st
             if isinstance(info, dict):
                 si = info.get("sentiment_index", 50)
                 if si < 10:
-                    return f"[WARN] {symbol} 极度恐惧(情绪{si:.0f})，市场可能恐慌性抛售"
+                    return f"{SENTIMENT_EXTREME_CODE}: [WARN] {symbol} 极度恐惧(情绪{si:.0f})，市场可能恐慌性抛售"
     except Exception:
         pass
 
+    return None
+
+
+# [2026-09-03 v3 F1d] check_global_risk 的稳定原因码；pause_reason 也用 DRAWDOWN_LIMIT_CODE，
+# paper_auto_unlock_session 对该原因不自动解锁（必须人工复核后恢复）。
+DRAWDOWN_LIMIT_CODE = "drawdown_limit"
+SENTIMENT_EXTREME_CODE = "sentiment_extreme"
+
+
+def drawdown_limit_breached(session) -> Optional[str]:
+    """纯函数：仅判断会话回撤是否越过 max_total_drawdown_pct（不做峰值衰减、不看情绪）。
+
+    单测与 RiskEngine 复用；health_check_cycle 走 check_global_risk（含防守期峰值衰减）。
+    """
+    max_dd = float(getattr(session, "max_total_drawdown_pct", None) or 0.30)
+    current_dd = float(getattr(session, "current_drawdown", None) or 0)
+    if current_dd > max_dd:
+        return f"{DRAWDOWN_LIMIT_CODE}: 当前回撤 {current_dd*100:.1f}% 超过上限 {max_dd*100:.0f}%"
     return None
 
     # ══════════════════════════════════════════════════

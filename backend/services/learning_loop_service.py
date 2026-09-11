@@ -278,8 +278,82 @@ class LearningLoopService:
         finally:
             self._record_tick(job, t0, success, extra)
 
+    @staticmethod
+    def _resolve_tier_nature(log) -> tuple:
+        """从决策日志还原 ``(tier, trade_nature)``。
+
+        [2026-09-02 因子闭环修复 D11] 此前本补扫链路把 ``tier`` 硬编码为 ``"mid"``、
+        ``trade_nature`` 留空，短线（scalp）实盘交易被整体记成中线：
+        ``TradeOutcome.trade_nature`` 在 unified_learning 里是**优先于 tier** 的分层
+        依据（L316/340/366/608/918 皆先取 nature），留空就等于强制走 tier，于是
+        所有实盘补扫样本都落进 mid 桶 —— 中线统计被短线交易稀释，短线统计则完全
+        看不到实盘样本。
+
+        数据来源按可靠性排序：
+
+        1. ``decision_snapshot`` 的结构化字段（master_execution / midlong_helpers /
+           mlto_cycle 三处写入时都带 ``trade_nature`` 与 ``tier``）；
+        2. ``reason`` 文本兜底（LiveExecutor 写成 ``"unified_executor: <nature>"``）；
+        3. 由 nature 反推 tier。
+
+        判不出时返回空串而**不回落 "mid"**：下游对空 tier 有完备兜底（如
+        ``outcome.tier or outcome.trade_nature or "unknown"``），归入 unknown 桶是
+        诚实的缺失标记；硬填 mid 则是把污染写死进统计，正是本项要修的病根。
+
+        Returns:
+            (tier, trade_nature) —— 均为小写；未知时为空串。
+        """
+        _nature_to_tier = {
+            "scalp": "short", "intraday": "short",
+            "swing": "mid",
+            "trend_follow": "long", "trend": "long", "position": "long",
+        }
+        _nature = ""
+        _tier = ""
+
+        _snap = getattr(log, "decision_snapshot", None)
+        if _snap:
+            try:
+                import json as _json
+                _d = _json.loads(_snap)
+                if isinstance(_d, dict):
+                    _nature = str(_d.get("trade_nature") or "").strip().lower()
+                    _tier = str(
+                        _d.get("tier") or _d.get("timeframe_tier") or "",
+                    ).strip().lower()
+            except Exception:
+                # 部分链路（qaa 兜底等）把 decision_snapshot 当纯文本写，非 JSON 属正常
+                pass
+
+        if not _nature:
+            _reason = str(getattr(log, "reason", "") or "").lower()
+            for _cand in ("trend_follow", "scalp", "intraday", "swing", "position"):
+                if _cand in _reason:
+                    _nature = _cand
+                    break
+
+        if not _tier and _nature:
+            _tier = _nature_to_tier.get(_nature, "")
+        if _tier not in ("short", "mid", "long"):
+            _tier = ""
+        return _tier, _nature
+
     def _do_live_outcome_backfill(self, days: int = 7) -> Dict[str, Any]:
-        """从 AIDecisionLog 扫描已平仓 live 决策，补齐未写 StrategyTrade 的学习结果。"""
+        """从 AIDecisionLog 扫描已平仓 live 决策，补齐未写 StrategyTrade 的学习结果。
+
+        与主链路的关系（D10 落地后需明确，否则会被误当成重复记账）：
+
+        - 主链路：实盘平仓 → ``live_trade_facts.record_live_close_trade_fact`` →
+          写 ``trade_facts`` 并回填 ``signal_trade_feedback`` 的因子快照盈亏
+          （因子 IC 闭环）；
+        - 本链路：从 ``AIDecisionLog.realized_pnl`` 补扫 → ``unified_learning``
+          （策略级记忆/绩效矩阵闭环），落 ``StrategyTrade``。
+
+        两者写的是不同的表、服务不同的闭环，**不构成重复记账**。本链路自身有两层
+        幂等：前置按 ``decision_context`` 里的 ``decision_log_id`` 去重，
+        ``process_outcome`` 内部再按 ``_persist_strategy_trade`` 是否真的插入新行
+        决定要不要执行学习与熔断记账。
+        """
         from sqlalchemy import cast
         from sqlalchemy.types import Text
         from backend.database.connection import SessionLocal, AnalyticsSessionLocal
@@ -350,13 +424,15 @@ class LearningLoopService:
                     except Exception:
                         _notional = 0.0
                     _pnl_pct = (_pnl / _notional) if _notional > 0 else 0.0
+                    # [2026-09-02 D11] 还原真实层级，替代原先硬编码的 tier="mid"
+                    _tier_r, _nature_r = self._resolve_tier_nature(log)
                     outcome = TradeOutcome(
                         source="live",
                         strategy_id=_sid,
                         symbol=log.symbol or "",
                         side=_side,
-                        tier="mid",
-                        trade_nature="",
+                        tier=_tier_r,
+                        trade_nature=_nature_r,
                         entry_price=0.0,
                         exit_price=0.0,
                         pnl=_pnl,
@@ -373,6 +449,11 @@ class LearningLoopService:
                             "data_source": "aiddecisionlog_backfill",
                             "market_type": "perp",
                             "leverage": 1.0,
+                            # [D11] 层级判定结果可观测：统计 decision_context 里
+                            # tier_unknown=true 的占比，即可知道上游哪些链路漏写
+                            # decision_snapshot.trade_nature，而不是像原先那样被
+                            # "mid" 掩盖成"全是中线"。
+                            "tier_unknown": not bool(_tier_r),
                         },
                         persist_trade=True,
                     )

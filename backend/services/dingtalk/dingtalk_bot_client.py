@@ -9,7 +9,7 @@ import time
 import logging
 from typing import Dict, List, Optional
 import aiohttp
-from config.dingtalk_config import config
+from backend.config.dingtalk_config import config
 
 logger = logging.getLogger(__name__)
 

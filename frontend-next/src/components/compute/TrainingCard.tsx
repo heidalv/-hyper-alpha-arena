@@ -25,6 +25,7 @@ import {
   usePolling,
 } from "./common";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/lib/confirm";
 
 function MetaTrainerBlock() {
   const { data, loading, error, refresh } = usePolling(getScalpMetaReport, 10000);
@@ -41,7 +42,12 @@ function MetaTrainerBlock() {
   const reportStatus = report?.status ?? null;
 
   const onTrain = async () => {
-    if (!window.confirm("确认手动触发元标签分类器训练？（walk-forward + usable 门控）")) return;
+    if (!(await confirmDialog({
+      title: "手动触发元标签分类器训练？",
+      description: "walk-forward + usable 门控，训练期间占用算力。",
+      tone: "warning",
+      confirmText: "开始训练",
+    }))) return;
     setTraining(true);
     setTrainMsg(null);
     try {

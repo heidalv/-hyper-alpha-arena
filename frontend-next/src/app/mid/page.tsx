@@ -29,7 +29,7 @@ export default function MidPage() {
 function MidPageInner() {
   const searchParams = useSearchParams();
   const tier = "mid" as const;
-  const { data, isLoading } = useStrategyConfig(tier);
+  const { data, isLoading, isError, error, refetch } = useStrategyConfig(tier);
   const updateMutation = useUpdateStrategyConfig(tier);
 
   const [config, setConfig] = useState<Record<string, any> | null>(null);
@@ -55,6 +55,23 @@ function MidPageInner() {
     await updateMutation.mutateAsync(config);
     setDirty(false);
   };
+
+  // [2026-09-09] 原来只判 isLoading||!config||!data → 接口失败时 data 恒为
+  // undefined，页面永远停在转圈（比空白更糟）。补 isError 分支。
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 h-40 text-sm">
+        <span className="text-loss">中线策略配置加载失败：{(error as Error)?.message || "未知错误"}</span>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="text-xs text-cyan-300 underline underline-offset-2 hover:opacity-80"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || !config || !data) {
     return (

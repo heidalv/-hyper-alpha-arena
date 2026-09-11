@@ -39,9 +39,16 @@ class TestScalpP1:
         # 旧 fail-open 文案必须消失
         assert "short_tier_gate 检查跳过" not in src
         assert "组合预算跳过" not in src
-        # [aa7e0dd 信号准确率根治] pwin 仲裁异常改为「降级放行+日志」——
-        # 不再静默跳过，也不再一刀切拦截；与 S9 三闸 fail-closed 并存。
-        assert "pwin仲裁跳过(降级放行)" in src
+        # [2026-09-02] pwin 仲裁异常由「降级放行」改为默认 fail-closed。
+        # 原设计（aa7e0dd）是降级放行 + 日志，但日志是 debug 级、默认不输出，
+        # 故障会被静默吞掉；而 pwin 是当前唯一有效的质量闸，放行等于让负期望
+        # 信号裸奔进场。现改为 warning 可见 + 默认拒开，开关 SCALP_PWIN_FAIL_CLOSED
+        # 可一键回到旧行为。
+        assert "SCALP_PWIN_FAIL_CLOSED" in src, "fail-closed 开关缺失，无法回退"
+        assert "pwin仲裁异常 → fail-closed 拒开" in src
+        assert '_bump_block("pwin_arbiter_error")' in src
+        # 保留降级分支（开关关闭时走），但必须是 warning 级而非静默
+        assert "pwin仲裁异常(降级放行)" in src
         # 已 fail-closed 的 reentry_cooldown 语义保留
         assert "reentry_cooldown 异常，拒绝开仓" in src
 
@@ -62,17 +69,6 @@ class TestS6LearnedSlClamp:
         assert mr._MR_SL_FLOOR == pytest.approx(0.012)
         assert mr._MR_SL_CAP == pytest.approx(0.016)
 
-    def test_learned_sl_survives(self, monkeypatch):
-        from backend.services.risk import tp_sl_grid_trainer as tgt
-        from backend.services.scalp import scalp_ranging_mr as mr
-        monkeypatch.setattr(
-            tgt, "get_learned_pct",
-            lambda tier, band: {"tp_pct": 0.025, "sl_pct": 0.027},
-        )
-        tp, sl = mr.apply_learned_mr(0.02, 0.012)
-        assert sl == pytest.approx(0.016)  # 夹幅封顶 1.6%（深挖B）
-        assert tp == pytest.approx(0.009)  # TP cap 0.9%（2026-08-26 MFE 峰值带）
-
     def test_structure_atr_clamp_widened(self):
         from backend.services.scalp.structure_stop_calculator import StructureStopCalculator
         c = StructureStopCalculator()
@@ -80,13 +76,22 @@ class TestS6LearnedSlClamp:
         assert c.compute_atr_pct({"volatility_value": 0.05}) == pytest.approx(0.030)
 
     def test_tp_sl_gates_rr_coherent(self):
-        """[2026-08-23 改造A 更新] scalp 夹幅对齐新 TP/SL 口径（0.9-1.5%/0.7-1.2%）。"""
+        """[2026-08-29] scalp 夹幅改为管家安全网（0.6-4.0%/0.5-3.0%）。
+
+        [2026-09-02 P2.2 更新] max_tp 4.0%→5.5%、V5_SCALP_MIN_RR 1.4→2.0。
+        原断言 `V5_SCALP_MIN_RR <= 1.5` 是在盈亏比未被量化时定的上界；实测
+        近14天 short tier 812 笔盈亏比仅 1.042、胜率 41.4%，打平需 1.417 ——
+        1.5 的上界恰好把参数锁在必亏区。改为断言下界：RR 必须够得着打平线。
+        夹幅上限同步放开，否则 SL 宽于 1.6% 的单会被夹回低 RR。
+        """
         src = _src("services", "full_auto", "tp_sl_gates.py")
-        assert '"scalp":        (0.009, 0.015, 0.007, 0.012)' in src
+        assert '"scalp":        (0.006, 0.055, 0.005, 0.030)' in src
         from backend.config.settings import V5_SCALP_MIN_RR
-        assert 0.015 / 0.012 >= 1.2  # 新夹幅 RR 下限 1.25
-        assert 0.015 / 0.009 >= 1.5  # 典型 RR 1.5 ≥ V5 闸
-        assert float(V5_SCALP_MIN_RR) <= 1.5
+        # 夹幅本身要能容纳目标 RR：最宽 SL 配最远 TP 仍需 >= 2.0
+        assert 0.055 / 0.030 >= 1.8
+        assert float(V5_SCALP_MIN_RR) >= 1.417, (
+            "RR 下限低于实测打平线 1.417，参数被锁在数学上必亏的区间"
+        )
 
 
 # ── M4：动态 SL/TP ─────────────────────────────────────

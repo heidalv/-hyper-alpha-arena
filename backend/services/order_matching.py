@@ -302,7 +302,7 @@ def _execute_order(db: Session, order: Order, account: Account, execution_price:
         # Broadcast real-time updates via WebSocket
         import asyncio
         from backend.api.ws import broadcast_trade_update, broadcast_position_update
-        from repositories.position_repo import list_positions
+        from backend.repositories.position_repo import list_positions
 
         try:
             # Broadcast trade update

@@ -19,7 +19,7 @@ import logging
 import threading
 from typing import Callable, Dict, List, Optional, Type
 
-from services.market_flow.base_collector import BaseMarketFlowCollector
+from backend.services.market_flow.base_collector import BaseMarketFlowCollector
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ def register_defaults() -> None:
     if market_flow_registry._defaults_registered:
         return
     try:
-        from services.market_flow.hyperliquid_collector import (
+        from backend.services.market_flow.hyperliquid_collector import (
             HyperliquidMarketFlowCollector,
         )
         market_flow_registry.register("hyperliquid", HyperliquidMarketFlowCollector)
@@ -206,7 +206,7 @@ def register_defaults() -> None:
         logger.warning("[MarketFlowRegistry] 注册 hyperliquid collector 失败: %s", e)
 
     try:
-        from services.market_flow.asterdex_collector import (
+        from backend.services.market_flow.asterdex_collector import (
             AsterdexMarketFlowCollector,
         )
         market_flow_registry.register("asterdex", AsterdexMarketFlowCollector)
@@ -214,7 +214,7 @@ def register_defaults() -> None:
         logger.warning("[MarketFlowRegistry] 注册 asterdex collector 失败: %s", e)
 
     try:
-        from services.market_flow.binance_collector import (
+        from backend.services.market_flow.binance_collector import (
             BinanceMarketFlowCollector,
         )
         market_flow_registry.register("binance", BinanceMarketFlowCollector)

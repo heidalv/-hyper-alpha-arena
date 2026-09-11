@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-09-09T08:26:17.286871+00:00",
+  "n_signals": 5784,
+  "results": {
+    "hold24h": {
+      "n": 5780,
+      "net_mean": -0.044,
+      "net_median": 0.232,
+      "win": 0.537
+    },
+    "hold48h": {
+      "n": 5777,
+      "net_mean": 0.173,
+      "net_median": 0.466,
+      "win": 0.547
+    },
+    "hold72h": {
+      "n": 5772,
+      "net_mean": 0.788,
+      "net_median": 1.107,
+      "win": 0.592
+    },
+    "hold168h": {
+      "n": 5744,
+      "net_mean": 0.689,
+      "net_median": 1.005,
+      "win": 0.565
+    },
+    "SL6/trail3-1.5/max168h": {
+      "n": 5784,
+      "net_mean": 0.953,
+      "net_median": 2.194,
+      "win": 0.705
+    },
+    "SL5/trail2-1/max168h": {
+      "n": 5784,
+      "net_mean": 0.919,
+      "net_median": 1.62,
+      "win": 0.757
+    },
+    "SL8/trail4-2/max336h": {
+      "n": 5784,
+      "net_mean": 0.875,
+      "net_median": 2.71,
+      "win": 0.706
+    },
+    "SL4/trail2-1/max96h": {
+      "n": 5784,
+      "net_mean": 0.864,
+      "net_median": 1.491,
+      "win": 0.712
+    }
+  }
+}

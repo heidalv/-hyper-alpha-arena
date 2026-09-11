@@ -1246,6 +1246,35 @@ class UnifiedLearningService:
         if streak < ADAPT_LOSS_STREAK:
             return
 
+        # [2026-09-11 用户指令] **模拟账户不做亏损冻结**：
+        # 「模拟账户本来就是收集交易数据，你还弄个极端亏损冻结？」
+        # paper 样本只做「保护性减仓/降杠杆」（仍在交易=仍在产数据），
+        # 但**绝不暂停策略、绝不永久禁用**——那等于把数据管线掐断。
+        # 判据唯一权威：risk_management/loss_lock_policy。
+        _paper_src = str(getattr(outcome, "source", "") or "").strip().lower() == "paper"
+        if not _paper_src and outcome.metadata:
+            try:
+                _aid = (
+                    (outcome.metadata or {}).get("account_id")
+                    or (outcome.metadata or {}).get("paper_account_id")
+                )
+                if _aid:
+                    from backend.services.risk_management.loss_lock_policy import (
+                        loss_locks_disabled as _lld,
+                    )
+
+                    _paper_src = bool(_lld(_aid))
+            except Exception:
+                _paper_src = False
+        if _paper_src and streak >= 15:
+            logger.info(
+                "[UnifiedLearning] %s 连亏 %s 次 —— 模拟账户不做暂停/永久禁用"
+                "（继续收集训练数据，仅保留减仓型保护性调整）",
+                key, streak,
+            )
+            self._loss_streaks[key] = 12   # 夹在减仓档内，避免每笔都重算/刷屏
+            return
+
         # 极端连亏（≥50次）：永久禁用，策略本身无价值
         if streak >= 50:
             # [2026-08-24 深挖 G2] 幂等守卫只依赖 genome.permanently_disabled

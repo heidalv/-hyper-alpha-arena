@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
@@ -46,7 +47,11 @@ class FactorDecayMonitor:
         return cls._instance
     
     # [P0-2] 状态持久化路径：重启后恢复 penalty，避免重启清零导致衰减因子满权重复活
-    STATUS_PATH = os.path.join("data", "factor_decay_status.json")
+    # [2026-09-02] 相对路径改为基于 __file__：原写法依赖进程 cwd，从非仓库根启动
+    # 时读不到已有状态（penalty 静默归零 = 衰减因子满权复活，正是 P0-2 要防的），
+    # 且会在错误目录另写一份状态文件。
+    STATUS_PATH = str(
+        Path(__file__).resolve().parents[3] / "data" / "factor_decay_status.json")
 
     def __init__(self):
         if self._initialized:
@@ -58,14 +63,57 @@ class FactorDecayMonitor:
         self._load_status()
         logger.info("[DecayMonitor] 因子衰减监控初始化")
     
+    # 非因子键前缀。策略/品种维度的盈亏不构成因子 IC，混入后会顶替真实因子占位。
+    _NON_FACTOR_PREFIXES = ("strategy_",)
+
+    @classmethod
+    def _is_factor_key(cls, key: str) -> bool:
+        """判定一个 key 是否是合法因子 ID。
+
+        写入侧（record_ic）与读取侧（_load_status）必须共用同一把尺子 ——
+        [2026-09-02] 只在 record_ic 做校验时，堵住了新污染但清不掉存量：
+        启动 _load_status 把历史 strategy_* 键原样读回内存，下一次
+        _save_status 再原样写出，文件永远自我延续。实测重启后
+        factor_decay_status.json 的 saved_at 刷新成重启时刻，内容仍是那三个
+        strategy_ASTER/BTC/XPL（全 trend=dead），真实因子零覆盖。
+        """
+        k = str(key or "").strip()
+        if not k:
+            return False
+        return not k.startswith(cls._NON_FACTOR_PREFIXES)
+
     def record_ic(self, factor_id: str, ic: float):
-        """记录一次IC值（每次因子评估时调用）"""
-        if factor_id not in self._ic_history:
-            self._ic_history[factor_id] = []
-        self._ic_history[factor_id].append(ic)
+        """记录一次 IC 值（由因子 IC 评估器在算出真实 Rank IC 后调用）。
+
+        factor_id 必须是**因子** ID/名，不能是策略或品种标识。
+        [2026-09-02] 此前 paper_trading_engine 在平仓时按 f"strategy_{symbol}"
+        记录固定占位 IC(±0.05)，导致：① 状态文件里只有 strategy_BTC 这类键，
+        get_factor_weight_penalty(真实因子ID) 永远查不到、恒返回 1.0，衰减惩罚
+        从未生效；② 盈亏各半时 recent≈0 < retire_ic(0.01)，三个策略键全被判
+        dead/retire。单笔平仓本就算不出 IC（单点相关无定义），真实 IC 只能由
+        run_factor_ic_evaluation 按因子聚合样本得出。
+        """
+        _fid = str(factor_id or "").strip()
+        if not _fid:
+            return
+        if not self._is_factor_key(_fid):
+            logger.warning(
+                "[DecayMonitor] 拒绝非因子键 %s：record_ic 只接受因子 ID，"
+                "策略/品种维度的盈亏统计不属于因子衰减监控", _fid,
+            )
+            return
+        try:
+            _ic = float(ic)
+        except (TypeError, ValueError):
+            return
+        if _ic != _ic:  # NaN
+            return
+        if _fid not in self._ic_history:
+            self._ic_history[_fid] = []
+        self._ic_history[_fid].append(_ic)
         # 保留最近 100 次记录
-        if len(self._ic_history[factor_id]) > 100:
-            self._ic_history[factor_id] = self._ic_history[factor_id][-100:]
+        if len(self._ic_history[_fid]) > 100:
+            self._ic_history[_fid] = self._ic_history[_fid][-100:]
     
     def evaluate_factor(self, factor_id: str) -> DecayStatus:
         """评估单个因子的衰减状态"""
@@ -161,11 +209,37 @@ class FactorDecayMonitor:
 
     # ── [P0-2] 状态持久化（data/factor_decay_status.json）──
 
+    # 状态文件格式版本。v2 起同时持久化 _ic_history（见 _load_status 说明）。
+    _STATUS_VERSION = 2
+
     def _load_status(self) -> None:
         try:
             with open(self.STATUS_PATH, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-            for fid, d in (raw or {}).items():
+                raw = json.load(f) or {}
+            # [2026-09-02] v2 格式：额外恢复 _ic_history。P0-2 只持久化了
+            # _decay_status，而 evaluate_factor 需要 ≥20 条 IC 历史才给出非
+            # "stable/keep" 的判定——历史是纯内存态，每次重启清零后要重新累积
+            # 20 轮评估（按日频=20 天）才能重新生效，衰减监控实际长期空转。
+            if "ic_history" in raw or "status" in raw:
+                _status_raw = raw.get("status") or {}
+                for fid, vals in (raw.get("ic_history") or {}).items():
+                    if not self._is_factor_key(fid):
+                        continue
+                    try:
+                        _hist = [float(v) for v in (vals or [])][-100:]
+                    except (TypeError, ValueError):
+                        continue
+                    if _hist:
+                        self._ic_history[str(fid)] = _hist
+            else:
+                _status_raw = raw  # v1：顶层直接是 factor_id → status
+
+            # 存量清理：过滤非因子键，并在确有污染时立刻回写一次，
+            # 否则这批键会在下一次 _save_status 被原样续命（详见 _is_factor_key）。
+            _dropped = [k for k in _status_raw if not self._is_factor_key(k)]
+            for fid, d in _status_raw.items():
+                if not self._is_factor_key(fid):
+                    continue
                 self._decay_status[fid] = DecayStatus(
                     factor_id=fid,
                     current_ic=float(d.get("current_ic", 0) or 0),
@@ -175,30 +249,51 @@ class FactorDecayMonitor:
                     trend=str(d.get("trend", "stable")),
                     recommendation=str(d.get("recommendation", "keep")),
                 )
-            logger.info("[DecayMonitor] 恢复 %d 个因子衰减状态", len(self._decay_status))
+            logger.info(
+                "[DecayMonitor] 恢复 %d 个因子衰减状态、%d 个因子 IC 历史",
+                len(self._decay_status), len(self._ic_history),
+            )
+            if _dropped:
+                logger.warning(
+                    "[DecayMonitor] 已清理 %d 个历史非因子键并回写状态文件: %s",
+                    len(_dropped), _dropped[:10],
+                )
+                self._save_status()
         except FileNotFoundError:
             pass
         except Exception as e:
-            logger.debug("[DecayMonitor] 状态加载失败: %s", e)
+            # 加载失败 = penalty 归零 = 衰减因子满权复活（P0-2 要防的正是这个），
+            # 不能只记 debug。
+            logger.warning("[DecayMonitor] 状态加载失败，衰减惩罚将从零累积: %s", e)
 
     def _save_status(self) -> None:
         try:
             os.makedirs(os.path.dirname(self.STATUS_PATH) or ".", exist_ok=True)
             payload = {
-                fid: {
-                    "current_ic": s.current_ic,
-                    "historical_ic": s.historical_ic,
-                    "decay_rate": s.decay_rate,
-                    "half_life_days": s.half_life_days,
-                    "trend": s.trend,
-                    "recommendation": s.recommendation,
-                }
-                for fid, s in self._decay_status.items()
+                "_meta": {
+                    "version": self._STATUS_VERSION,
+                    "saved_at": datetime.now(timezone.utc).isoformat(),
+                },
+                "status": {
+                    fid: {
+                        "current_ic": s.current_ic,
+                        "historical_ic": s.historical_ic,
+                        "decay_rate": s.decay_rate,
+                        "half_life_days": s.half_life_days,
+                        "trend": s.trend,
+                        "recommendation": s.recommendation,
+                    }
+                    for fid, s in self._decay_status.items()
+                },
+                "ic_history": {
+                    fid: [round(float(v), 6) for v in hist[-100:]]
+                    for fid, hist in self._ic_history.items() if hist
+                },
             }
             with open(self.STATUS_PATH, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            logger.debug("[DecayMonitor] 状态保存失败: %s", e)
+            logger.warning("[DecayMonitor] 状态保存失败: %s", e)
 
 
 # 全局单例

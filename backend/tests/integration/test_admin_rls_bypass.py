@@ -154,6 +154,10 @@ def _as_test_role():
 @pytest.fixture()
 def test_role_nosuperuser():
     """建非 superuser 测试角色 + 授权 positions SELECT。"""
+    # [2026-09-02] 缺 CREATEROLE 时 skip 而非 ERROR，详见 _rls_privileges。
+    from backend.tests.integration._rls_privileges import SKIP_REASON, can_create_roles
+    if not can_create_roles():
+        pytest.skip(SKIP_REASON)
     with engine.connect() as c:
         c.execute(text(f"DROP ROLE IF EXISTS {_TEST_ROLE}"))
         c.execute(
@@ -285,20 +289,10 @@ def _unique(prefix: str = "admintest") -> str:
 
 
 def _cleanup(username: str, email: str) -> None:
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.username == username).first()
-        if user:
-            db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete()
-            db.delete(user)
-            db.commit()
-        by_email = db.query(User).filter(User.email == email).first()
-        if by_email:
-            db.query(RefreshToken).filter(RefreshToken.user_id == by_email.id).delete()
-            db.delete(by_email)
-            db.commit()
-    finally:
-        db.close()
+    """[2026-09-02] 改走共享 helper（RLS 下删子表需 admin 穿透）。
+    详见 backend/tests/_user_cleanup.py。"""
+    from backend.tests._user_cleanup import cleanup_user
+    cleanup_user(username=username, email=email)
 
 
 def _register_user(client: TestClient, username: str, email: str, password: str) -> int:
@@ -384,9 +378,11 @@ def test_middleware_state_role_is_admin_for_admin_jwt(client):
             json={},
             headers={"Authorization": f"Bearer {token}"},
         )
-        # 中间件放行(admin JWT 有效)→ FastAPI 路由层 404
-        assert resp2.status_code == 404, (
-            f"admin JWT 应穿过中间件到路由层(预期 404),实际 {resp2.status_code}"
+        # 中间件放行(admin JWT 有效)→ 到达 FastAPI 路由层。
+        # main.py 的 SPA 回退 `GET /{full_path:path}` 让未知路径的 POST 返回 405 而非
+        # 404；两者都证明穿过了中间件（被拦是 401）。
+        assert resp2.status_code in (404, 405), (
+            f"admin JWT 应穿过中间件到路由层(预期 404/405),实际 {resp2.status_code}"
         )
     finally:
         _cleanup(username, email)

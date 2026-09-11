@@ -115,3 +115,80 @@ class OnlineLinearModel:
             "weight_norm": self.weight_norm(),
             "has_river": self._river_model is not None,
         }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [2026-09-07] 常驻在线模型（真·在线学习，替代每轮临时新建）
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 此前 _update_online_weights 每轮进化新建 OnlineLinearModel、每币喂 1 个样本、
+# 回写权重后丢弃——这不是在线学习，是「每轮一次性拟合」。这里提供进程级常驻
+# 单例：权重持久化到磁盘，跨轮/跨重启累积学习；DriftWatcher 触发时 reset。
+#
+# 设计：
+#   - 单例 get_resident_online_model()，权重落 data/online_linear_resident.npz
+#   - 每次 learn_one 后增量落盘（原子写），重启启动时加载
+#   - reset() 清权重并落盘（漂移自愈入口，见 drift_watcher ONLINE_WEIGHT_RESET）
+
+import os as _os
+import threading as _threading
+
+_RESIDENT_LOCK = _threading.Lock()
+_RESIDENT_MODEL: "OnlineLinearModel | None" = None
+
+
+def _resident_path() -> str:
+    return _os.path.join("data", "online_linear_resident.npz")
+
+
+def get_resident_online_model() -> "OnlineLinearModel":
+    """取进程级常驻在线模型（懒加载 + 磁盘恢复）。"""
+    global _RESIDENT_MODEL
+    with _RESIDENT_LOCK:
+        if _RESIDENT_MODEL is None:
+            m = OnlineLinearModel()
+            try:
+                p = _resident_path()
+                if _os.path.exists(p):
+                    d = np.load(p, allow_pickle=False)
+                    m.weights = d["weights"]
+                    m.bias = float(d["bias"])
+                    m._n_samples = int(d["n_samples"])
+            except Exception:
+                pass
+            _RESIDENT_MODEL = m
+        return _RESIDENT_MODEL
+
+
+def resident_learn_one(x: np.ndarray, y: float, *, persist: bool = True) -> None:
+    """常驻模型单样本学习 + 增量落盘。"""
+    m = get_resident_online_model()
+    m.learn_one(x, y)
+    if persist:
+        save_resident_online_model()
+
+
+def save_resident_online_model() -> None:
+    """原子落盘常驻模型权重。"""
+    m = get_resident_online_model()
+    try:
+        p = _resident_path()
+        _os.makedirs(_os.path.dirname(p), exist_ok=True)
+        tmp = p + ".tmp"
+        np.savez(tmp, weights=m.weights, bias=m.bias, n_samples=m._n_samples)
+        # np.savez 会自动加 .npz；规范到目标名
+        if _os.path.exists(tmp + ".npz"):
+            _os.replace(tmp + ".npz", p)
+        elif _os.path.exists(tmp):
+            _os.replace(tmp, p)
+    except Exception:
+        pass
+
+
+def reset_resident_online_model(reason: str = "") -> None:
+    """漂移自愈：重置常驻模型权重并落盘。DriftWatcher ONLINE_WEIGHT_RESET 调用。"""
+    m = get_resident_online_model()
+    m.reset()
+    save_resident_online_model()
+    import logging as _lg
+    _lg.getLogger(__name__).warning("[OnlineWeights] 常驻模型已重置（漂移自愈）: %s", reason)

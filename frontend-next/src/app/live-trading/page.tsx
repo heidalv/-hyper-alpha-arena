@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   TrendingUp, TrendingDown, Wallet, Banknote, Shield, Layers, RefreshCw, Loader2, AlertTriangle,
+  Receipt, CheckCircle2, XCircle,
 } from "lucide-react";
 import { liveApi } from "@/lib/api";
-import type { LiveOrder, LivePosition, AsterPointsSnapshot } from "@/types/api";
+import type { LiveOrder, LivePosition, AsterLedger } from "@/types/api";
 import { useAccounts } from "@/hooks/useTradingData";
 import { cn } from "@/lib/utils";
+import { sumUnrealizedPnl } from "@/lib/stats";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { confirmDialog } from "@/lib/confirm";
 
 const fmt = (v: number | undefined | null, d = 2) =>
   v === undefined || v === null || isNaN(Number(v)) ? "—" : Number(v).toFixed(d);
@@ -22,6 +25,248 @@ const fmtPrice = (v: number | undefined | null) => {
   const n = Number(v);
   return n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : n.toFixed(4);
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// Asterdex 真实收入账本
+// 只展示交易所真实返回的数据：手续费/资金费/已实现盈亏（income 流水）、maker 占比
+// （userTrades）、多资产模式 + USDF 抵押（account.assets）、Trade & Earn 本周门槛进度。
+// Stage 6 Rh 积分赛季已于 2026-05 结束，不再展示任何积分/空投估值。
+// ═══════════════════════════════════════════════════════════════════
+const fmtUsd = (v: number | undefined | null, d = 2) =>
+  v === undefined || v === null || isNaN(Number(v))
+    ? "—"
+    : `${Number(v) < 0 ? "-" : ""}$${Math.abs(Number(v)).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+const fmtPct = (v: number | undefined | null, d = 0) =>
+  v === undefined || v === null || isNaN(Number(v)) ? "—" : `${(Number(v) * 100).toFixed(d)}%`;
+
+function LedgerStat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "profit" | "loss" | "muted" }) {
+  return (
+    <div className="p-3 rounded bg-muted/30 min-w-0">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={cn("text-lg font-bold tabular-nums truncate", tone === "profit" && "text-profit", tone === "loss" && "text-loss", tone === "muted" && "text-muted-foreground")}>{value}</div>
+      {hint ? <div className="text-xs text-muted-foreground truncate">{hint}</div> : null}
+    </div>
+  );
+}
+
+function AsterLedgerCard({
+  icoCls, isLoading, isError, keysConfigured, message, ledger, policy, onRefresh,
+}: {
+  icoCls: string;
+  isLoading: boolean;
+  isError: boolean;
+  keysConfigured?: boolean;
+  message?: string;
+  ledger: AsterLedger | null;
+  policy?: { maker_first?: boolean; maker_first_tiers?: string[]; maker_timeout_s?: number; enabled?: boolean; reason?: string };
+  onRefresh: () => void;
+}) {
+  const acct = ledger?.account;
+  const fees = ledger?.fees;
+  const ex = ledger?.execution;
+  const te = ledger?.trade_and_earn;
+  const rw = ledger?.rewards;
+  const signTone = (v?: number | null): "profit" | "loss" | undefined =>
+    v === undefined || v === null || v === 0 ? undefined : v > 0 ? "profit" : "loss";
+  const rewardTypes = Object.entries(rw?.by_type ?? {});
+
+  return (
+    <Card className="glass">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-border/40">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={icoCls}><Receipt className="w-3.5 h-3.5" /></span>
+          <span className="text-sm font-medium">Asterdex 真实收入账本</span>
+          <Badge variant="secondary" className="text-xs">近 {ledger?.window_days ?? 7} 天 · 交易所流水</Badge>
+          {policy ? (
+            <Badge variant="outline" className={cn("text-xs", policy.maker_first ? "text-profit border-profit/40" : "text-muted-foreground")}>
+              Maker 优先 {policy.maker_first ? `开 · ${(policy.maker_first_tiers ?? []).join("/") || "mid/long"} 开仓` : "关"}
+            </Badge>
+          ) : null}
+        </div>
+        <Button variant="ghost" size="sm" onClick={onRefresh} title="刷新">
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+        </Button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {keysConfigured === false ? (
+          <div className="text-xs px-3 py-2 rounded bg-warning/10 text-warning border border-warning/20">
+            {message ?? "未配置 Asterdex API Key，无法读取账户流水"}
+          </div>
+        ) : isLoading && !ledger ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : isError && !ledger ? (
+          <div className="text-xs px-3 py-2 rounded bg-loss/10 text-loss border border-loss/20">
+            收入账本获取失败（交易所接口不可达或凭证无效），稍后自动重试
+          </div>
+        ) : ledger ? (
+          <>
+            {/* 第一行：真实资金流水 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <LedgerStat
+                label="手续费支出"
+                value={fmtUsd(fees?.commission_paid_usd, 4)}
+                hint={`maker ${fmtPct(fees?.maker_rate, 3)} / taker ${fmtPct(fees?.taker_rate, 3)}${fees?.rate_source === "api" ? "（账户真实费率）" : "（费率表）"}`}
+                tone={(fees?.commission_paid_usd ?? 0) > 0 ? "loss" : undefined}
+              />
+              <LedgerStat label="资金费净额" value={fmtUsd(fees?.funding_fee_usd, 4)} hint="正 = 收到资金费" tone={signTone(fees?.funding_fee_usd)} />
+              <LedgerStat label="已实现盈亏" value={fmtUsd(fees?.realized_pnl_usd)} hint="交易所 REALIZED_PNL 流水" tone={signTone(fees?.realized_pnl_usd)} />
+              <LedgerStat
+                label="奖励入账（USDF）"
+                value={fmtUsd(rw?.usdf_received, 4)}
+                hint={`${rw?.count ?? 0} 条非交易/非转账入账`}
+                tone={(rw?.usdf_received ?? 0) > 0 ? "profit" : "muted"}
+              />
+            </div>
+
+            {/* 第二行：执行质量 + 抵押结构 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <LedgerStat
+                label="Maker 成交占比"
+                value={ex?.maker_ratio === null || ex?.maker_ratio === undefined ? "—" : fmtPct(ex.maker_ratio)}
+                hint={`${ex?.trades ?? 0} 笔 · 名义 ${fmtUsd(ex?.notional_usd, 0)}`}
+                tone={(ex?.maker_ratio ?? 0) >= 0.5 ? "profit" : undefined}
+              />
+              <LedgerStat label="Maker 省下手续费（估）" value={fmtUsd(ex?.fee_saved_est_usd, 4)} hint="maker 名义 × (taker − maker 费率)" tone={(ex?.fee_saved_est_usd ?? 0) > 0 ? "profit" : undefined} />
+              <LedgerStat
+                label="多资产保证金模式"
+                value={acct?.multi_assets_mode === true ? "已开启" : acct?.multi_assets_mode === false ? "未开启" : "未知"}
+                hint={`USDF 抵押占比 ${fmtPct(acct?.usdf_share)} · 总保证金 ${fmtUsd(acct?.total_margin_usd, 0)}`}
+                tone={acct?.multi_assets_mode === true ? "profit" : acct?.multi_assets_mode === false ? "loss" : "muted"}
+              />
+              <LedgerStat label="USDF 抵押余额" value={fmtUsd(acct?.usdf_balance)} hint={`奖励计入上限 ${fmtUsd(te?.usdf_cap_usd, 0)}`} />
+            </div>
+
+            {/* Trade & Earn 本周进度 */}
+            <div className="rounded-lg border border-border/40 p-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Trade &amp; Earn 本周进度</span>
+                  <span className="text-xs text-muted-foreground">
+                    {te?.week_start ? `${te.week_start.slice(5, 10)} → ${te?.week_end?.slice(5, 10)} UTC` : "周四 00:00 UTC 结算周"}
+                  </span>
+                </div>
+                {te?.eligible_now ? (
+                  <Badge variant="outline" className="text-xs text-profit border-profit/40"><CheckCircle2 className="w-3 h-3 mr-1" />交易奖励门槛已达</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-warning border-warning/40"><XCircle className="w-3 h-3 mr-1" />仅存款奖励 / 门槛未达</Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>本周交易量</span>
+                    <span className="tabular-nums">{fmtUsd(te?.volume_usd, 0)} / {fmtUsd(te?.volume_threshold_usd, 0)}</span>
+                  </div>
+                  <div className="h-1.5 rounded bg-muted/40 overflow-hidden">
+                    <div className={cn("h-full rounded", (te?.volume_progress ?? 0) >= 1 ? "bg-profit" : "bg-cyan-400/70")} style={{ width: `${Math.min(100, (te?.volume_progress ?? 0) * 100)}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>活跃交易日</span>
+                    <span className="tabular-nums">{te?.active_days ?? 0} / {te?.active_days_threshold ?? 2} 天</span>
+                  </div>
+                  <div className="h-1.5 rounded bg-muted/40 overflow-hidden">
+                    <div className={cn("h-full rounded", (te?.active_days ?? 0) >= (te?.active_days_threshold ?? 2) ? "bg-profit" : "bg-cyan-400/70")} style={{ width: `${Math.min(100, ((te?.active_days ?? 0) / Math.max(1, te?.active_days_threshold ?? 2)) * 100)}%` }} />
+                  </div>
+                </div>
+                <div className="text-xs">
+                  <div className="text-muted-foreground">参考周奖励（非官方承诺）</div>
+                  <div className="text-base font-bold tabular-nums">{fmtUsd(te?.reference_weekly_reward_usd)}</div>
+                  <div className="text-muted-foreground">
+                    USDF 计入 {fmtUsd(te?.usdf_counted_usd, 0)} × 年化 {fmtPct((te?.reference_apy?.deposit ?? 0) + (te?.eligible_now ? (te?.reference_apy?.trading ?? 0) : 0), 1)} ÷ 52
+                  </div>
+                </div>
+              </div>
+              {te?.blockers?.length ? (
+                <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                  {te.blockers.map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
+              ) : null}
+            </div>
+
+            {/* 抵押资产明细 + 奖励类型明细 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="border border-border/40 rounded overflow-hidden">
+                <div className="text-xs text-muted-foreground px-2 py-1.5 border-b border-border/40">保证金资产（/fapi/v2/account）</div>
+                {acct?.assets?.length ? (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-muted-foreground border-b border-border/40">
+                        <th className="text-left py-1.5 px-2">资产</th>
+                        <th className="text-right py-1.5 px-2">余额</th>
+                        <th className="text-right py-1.5 px-2">抵押率</th>
+                        <th className="text-right py-1.5 px-2">折算 USD</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {acct.assets.map((a, i) => (
+                        <tr key={i} className="border-b border-border/20 last:border-0">
+                          <td className="py-1.5 px-2 font-medium">{a.asset}{a.margin_available === false ? <span className="text-muted-foreground"> (不可作保证金)</span> : null}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums">{fmt(a.wallet_balance, 4)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums">{a.collateral_ratio === null || a.collateral_ratio === undefined ? "—" : fmtPct(a.collateral_ratio, 2)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums">{fmtUsd(a.usd_value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-xs text-muted-foreground px-2 py-3 text-center">无保证金资产数据</div>
+                )}
+              </div>
+              <div className="border border-border/40 rounded overflow-hidden">
+                <div className="text-xs text-muted-foreground px-2 py-1.5 border-b border-border/40">奖励入账明细（/fapi/v1/income）</div>
+                {rewardTypes.length ? (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-muted-foreground border-b border-border/40">
+                        <th className="text-left py-1.5 px-2">类型</th>
+                        <th className="text-left py-1.5 px-2">资产</th>
+                        <th className="text-right py-1.5 px-2">金额</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rewardTypes.flatMap(([type, byAsset]) =>
+                        Object.entries(byAsset).map(([asset, amt]) => (
+                          <tr key={`${type}-${asset}`} className="border-b border-border/20 last:border-0">
+                            <td className="py-1.5 px-2">{type}</td>
+                            <td className="py-1.5 px-2">{asset}</td>
+                            <td className={cn("py-1.5 px-2 text-right tabular-nums", amt > 0 && "text-profit")}>{fmt(amt, 4)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-xs text-muted-foreground px-2 py-3 text-center">统计窗口内无奖励类入账</div>
+                )}
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5">
+              <div>
+                Stage 6 积分赛季已于 2026-05 结束（{ledger.programs?.stage6?.status ?? "ended"}），本面板不再展示 Rh 积分/空投估值；
+                当前唯一有效激励为 Trade &amp; Earn（USDF 抵押 + 周交易门槛），年化为参考值、官方按周动态浮动。
+              </div>
+              {ex?.symbols?.length ? (
+                <div>成交币种：{ex.symbols.join("、")}{ex.symbols_truncated ? "…（仅统计成交最多的 12 个）" : ""}</div>
+              ) : null}
+              {ledger.errors?.length ? (
+                <div className="text-warning">部分数据不可用：{ledger.errors.slice(0, 3).join("；")}{ledger.errors.length > 3 ? ` 等 ${ledger.errors.length} 项` : ""}</div>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground text-sm border border-dashed border-border/40 rounded-lg">
+            <RefreshCw className="w-5 h-5 mx-auto mb-2 opacity-40" />
+            暂无账本数据
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export default function LiveTradingPage() {
   const { data: accounts } = useAccounts();
@@ -76,6 +321,7 @@ export default function LiveTradingPage() {
 
   const bal = balanceQ.data;
   const positions = positionsQ.data?.positions ?? [];
+  const totalUnrealizedPnl = sumUnrealizedPnl(positions);
   const orders = ordersQ.data?.orders ?? [];
   const keysOk = activeAccount?.keys_configured ?? bal?.keys_configured ?? false;
   const accountActive = activeAccount?.is_active === true;
@@ -106,9 +352,20 @@ export default function LiveTradingPage() {
     onError: (e: Error) => { setMsgErr(true); setMsg(`平仓失败: ${e?.message ?? e}`); },
   });
 
-  const submitOrder = () => {
+  const submitOrder = async () => {
     setMsg(null);
-    if (!window.confirm(`确认实盘下单？\n${side === "buy" ? "做多" : "做空"} ${symbol} ${quantity} @ ${orderType === "market" ? "市价" : `限价 ${price}`} ${leverage}x`)) return;
+    const sideText = side === "buy" ? "做多" : "做空";
+    const priceText = orderType === "market" ? "市价" : `限价 ${price}`;
+    // [2026-09-09] 实盘下单是最危险的操作：改为 Aurora 确认框 + 要求输入确认词，
+    // 避免回车/误触直接成交。
+    const ok = await confirmDialog({
+      title: "确认实盘下单？",
+      description: `${sideText} ${symbol} ${quantity} @ ${priceText} ${leverage}x\n成交后立即进入真实市场，不可撤销。`,
+      tone: "danger",
+      confirmText: "下单",
+      requireText: "下单",
+    });
+    if (!ok) return;
     orderMut.mutate({
       account_id: aid,
       symbol,
@@ -122,8 +379,32 @@ export default function LiveTradingPage() {
     });
   };
 
-  const closePosition = (pos: LivePosition) => {
-    if (!window.confirm(`确认平仓 ${pos.symbol} ${pos.side === "long" ? "多" : "空"} ${pos.size}？`)) return;
+  const switchMarginType = async (p: LivePosition) => {
+    if (!aid) return;
+    const next = p.margin_type === "isolated" ? "cross" : "isolated";
+    if (!(await confirmDialog({
+      title: `将 ${p.symbol} 持仓切换为${next === "cross" ? "全仓" : "逐仓"}？`,
+      description: "切换保证金模式会改变强平价格，请确认仓位与风险承受度。",
+      tone: "warning",
+      confirmText: "切换",
+    }))) return;
+    try {
+      await liveApi.setMarginType(aid, p.symbol, next);
+      positionsQ.refetch();
+      setMsg(`已切换 ${p.symbol} 为 ${next === "cross" ? "全仓" : "逐仓"}`);
+    } catch (e: any) {
+      setMsgErr(true);
+      setMsg(e?.message || String(e));
+    }
+  };
+
+  const closePosition = async (pos: LivePosition) => {
+    if (!(await confirmDialog({
+      title: `确认平仓 ${pos.symbol} ${pos.side === "long" ? "多" : "空"} ${pos.size}？`,
+      description: "将以市价平掉该持仓，操作不可撤销。",
+      tone: "danger",
+      confirmText: "平仓",
+    }))) return;
     closeMut.mutate({ account_id: aid, symbol: pos.symbol, side: pos.side });
   };
 
@@ -156,11 +437,17 @@ export default function LiveTradingPage() {
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left">币种</th>
                   <th className="text-left">方向</th>
+                  <th className="text-left">周期</th>
                   <th className="text-right">开仓价 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">当前价 <span className="text-cyan-300">▲</span></th>
+                  <th className="text-right">止盈 <span className="text-cyan-300">▲</span></th>
+                  <th className="text-right">止损 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">数量 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">杠杆 <span className="text-cyan-300">▲</span></th>
+                  <th className="text-right">强平价 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">保证金 <span className="text-cyan-300">▲</span></th>
+                  <th className="text-right">保证金比率 <span className="text-cyan-300">▲</span></th>
+                  <th className="text-right">模式 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">浮盈 <span className="text-cyan-300">▲</span></th>
                   <th className="text-right">盈亏% <span className="text-cyan-300">▲</span></th>
                   <th className="text-left">操作</th>
@@ -178,11 +465,47 @@ export default function LiveTradingPage() {
                           {p.side === "long" ? "多" : "空"}
                         </Badge>
                       </td>
+                      <td className="py-2 pr-2">
+                        {p.tier && p.tier.length ? (
+                          <span className="inline-flex flex-wrap gap-1">
+                            {p.tier.map((t) => (
+                              <Badge key={t} className={cn("text-[10px]", t === "short" ? "bg-cyan-400/15 text-cyan-300" : t === "mid" ? "bg-violet-400/15 text-violet-300" : "bg-amber-400/15 text-amber-300")}>
+                                {t === "short" ? "短线" : t === "mid" ? "中线" : "长线"}
+                              </Badge>
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-2 text-right num">{fmtPrice(p.entry_price)}</td>
                       <td className="py-2 pr-2 text-right num">{fmtPrice(p.last_price ?? p.mark_price)}</td>
+                      <td className={cn("py-2 pr-2 text-right num", p.tp_price ? "text-profit" : "text-muted-foreground")}>
+                        {p.tp_price ? fmtPrice(p.tp_price) : "—"}
+                      </td>
+                      <td className={cn("py-2 pr-2 text-right num", p.sl_price ? "text-loss" : "text-muted-foreground")}>
+                        {p.sl_price ? fmtPrice(p.sl_price) : "—"}
+                      </td>
                       <td className="py-2 pr-2 text-right num">{Number(p.size).toFixed(4)}</td>
                       <td className="py-2 pr-2 text-right num">{Number(p.leverage || 1)}x</td>
+                      <td className="py-2 pr-2 text-right num">{p.liquidation_price ? fmtPrice(p.liquidation_price) : "—"}</td>
                       <td className="py-2 pr-2 text-right num">${fmt(p.margin)}</td>
+                      <td className={cn("py-2 pr-2 text-right num", Number(p.margin_ratio) >= 10 ? "text-loss" : "")}>
+                        {Number(p.margin_ratio) > 0 ? `${Number(p.margin_ratio).toFixed(2)}%` : "—"}
+                      </td>
+                      <td className="py-2 pr-2 text-right text-xs">
+                        {p.margin_type === "isolated" || p.margin_type === "crossed" ? (
+                          <button
+                            className="text-cyan-300 hover:underline cursor-pointer"
+                            title="点击切换 全仓/逐仓（币安约 5 秒限速）"
+                            onClick={() => switchMarginType(p)}
+                          >
+                            {p.margin_type === "isolated" ? "逐仓" : "全仓"}
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className={cn("py-2 pr-2 text-right num font-medium", pnl >= 0 ? "text-profit" : "text-loss")}>
                         {pnl >= 0 ? "+" : ""}${fmt(pnl, 4)}
                       </td>
@@ -202,13 +525,13 @@ export default function LiveTradingPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t border-border/50 bg-muted/20">
-                  <td colSpan={7} className="px-3 py-2 text-xs text-muted-foreground">
+                  <td colSpan={9} className="px-3 py-2 text-xs text-muted-foreground">
                     合计 <span className="num font-semibold text-foreground">{positions.length}</span> 笔持仓
                   </td>
                   <td className={cn("px-3 py-2 text-right text-xs num font-bold",
-                    positions.reduce((s, p) => s + (Number(p.unrealized_pnl) || 0), 0) >= 0 ? "text-profit" : "text-loss")}>
-                    {positions.reduce((s, p) => s + (Number(p.unrealized_pnl) || 0), 0) >= 0 ? "+" : ""}$
-                    {fmt(positions.reduce((s, p) => s + (Number(p.unrealized_pnl) || 0), 0), 4)}
+                    totalUnrealizedPnl >= 0 ? "text-profit" : "text-loss")}>
+                    {totalUnrealizedPnl >= 0 ? "+" : ""}$
+                    {fmt(totalUnrealizedPnl, 4)}
                   </td>
                   <td colSpan={2} />
                 </tr>
@@ -407,119 +730,17 @@ export default function LiveTradingPage() {
 
         {isAsterdex ? (
           <div className="lg:col-span-2 space-y-4">
-            {/* Asterdex 合约积分 + 收益预期 */}
-            <Card className="glass">
-              <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-border/40">
-                <div className="flex items-center gap-2">
-                  <span className={icoCls}><TrendingUp className="w-3.5 h-3.5" /></span>
-                  <span className="text-sm font-medium">Asterdex 合约积分 · 收益预期</span>
-                </div>
-                <Badge variant="secondary" className="text-xs">Rh 积分</Badge>
-              </div>
-              <div className="p-4 space-y-3">
-                {pointsQ.data?.keys_configured === false ? (
-                  <div className="text-xs px-3 py-2 rounded bg-warning/10 text-warning border border-warning/20">
-                    {pointsQ.data?.message ?? "未配置 Asterdex API Key，无法获取积分数据"}
-                  </div>
-                ) : pointsQ.isLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-                ) : pointsQ.isError ? (
-                  <div className="text-xs px-3 py-2 rounded bg-loss/10 text-loss border border-loss/20">
-                    积分数据获取失败（需要 Asterdex API Key 与账户授权）
-                  </div>
-                ) : pointsQ.data?.points ? (
-                  <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">当前 Rh 积分</div>
-                        <div className="text-lg font-bold tabular-nums">{Number(pointsQ.data.points.points_balance).toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">乘数 x{pointsQ.data.points.points_multiplier}</div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">赛季/阶段</div>
-                        <div className="text-lg font-bold">{pointsQ.data.points.season || "—"}</div>
-                        <div className="text-xs text-muted-foreground">
-                          合格 {pointsQ.data.points.qualifying_days}/{pointsQ.data.points.required_days} 天
-                        </div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">空投预估价值</div>
-                        <div className={cn("text-lg font-bold tabular-nums", pointsQ.data.points.airdrop_eligible ? "text-profit" : "")}>
-                          ${fmt(pointsQ.data.points.estimated_airdrop_value)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {pointsQ.data.points.airdrop_eligible ? "已具备空投资格" : "暂未达标"}
-                        </div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">预计月价值</div>
-                        <div className="text-lg font-bold tabular-nums">${fmt(pointsQ.data.projection?.total_estimated_monthly_value)}</div>
-                        <div className="text-xs text-muted-foreground">返佣 + 空投估算</div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">7日交易量</div>
-                        <div className="text-lg font-bold tabular-nums">${fmt(pointsQ.data.projection?.volume_7d_usd)}</div>
-                        <div className="text-xs text-muted-foreground">近 7 日</div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">返佣率 (当前)</div>
-                        <div className="text-lg font-bold tabular-nums">{(Number(pointsQ.data.projection?.rebate_rate) * 100).toFixed(4)}%</div>
-                        <div className="text-xs text-muted-foreground">当前返佣率</div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">预计返佣</div>
-                        <div className="text-lg font-bold tabular-nums">月 ${fmt(pointsQ.data.projection?.monthly_rebate_usd)}</div>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          周 ${fmt(pointsQ.data.projection?.weekly_rebate_usd)} · 年 ${fmt(pointsQ.data.projection?.yearly_rebate_usd)}
-                        </div>
-                      </div>
-                      <div className="p-3 rounded bg-muted/30">
-                        <div className="text-xs text-muted-foreground">预计积分</div>
-                        <div className="text-lg font-bold tabular-nums">月 {fmt(pointsQ.data.projection?.monthly_points, 1)}</div>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          日 {fmt(pointsQ.data.projection?.daily_points, 1)}{pointsQ.data.projection?.points_estimated ? " (估算)" : ""} · 周 {fmt(pointsQ.data.projection?.weekly_points, 1)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {pointsQ.data.history?.length ? (
-                      <div className="pt-1">
-                        <div className="text-xs text-muted-foreground mb-2">积分记录（最近 {pointsQ.data.history.length} 条快照）</div>
-                        <div className="overflow-x-auto max-h-48 overflow-y-auto border border-border/40 rounded">
-                          <table className="w-full text-xs">
-                            <thead className="sticky top-0 bg-card">
-                              <tr className="text-muted-foreground border-b border-border/40">
-                                <th className="text-left py-1.5 px-2">时间</th>
-                                <th className="text-right py-1.5 px-2">积分 <span className="text-cyan-300">▲</span></th>
-                                <th className="text-right py-1.5 px-2">乘数 <span className="text-cyan-300">▲</span></th>
-                                <th className="text-right py-1.5 px-2">空投预估 <span className="text-cyan-300">▲</span></th>
-                                <th className="text-right py-1.5 px-2">7日交易量 <span className="text-cyan-300">▲</span></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {pointsQ.data.history?.map((h: AsterPointsSnapshot, i: number) => (
-                                <tr key={i} className="border-b border-border/20 last:border-0">
-                                  <td className="py-1.5 px-2 text-muted-foreground">{String(h.snapshot_time).replace("T", " ").slice(5, 16)}</td>
-                                  <td className="py-1.5 px-2 text-right tabular-nums">{Number(h.points_balance).toLocaleString()}</td>
-                                  <td className="py-1.5 px-2 text-right tabular-nums">x{h.points_multiplier}</td>
-                                  <td className="py-1.5 px-2 text-right tabular-nums">${fmt(h.estimated_airdrop_value)}</td>
-                                  <td className="py-1.5 px-2 text-right tabular-nums">${fmt(h.volume_7d_usd)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="text-center py-6 text-muted-foreground text-sm border border-dashed border-border/40 rounded-lg">
-                    <RefreshCw className="w-5 h-5 mx-auto mb-2 opacity-40" />
-                    暂无积分数据
-                  </div>
-                )}
-              </div>
-            </Card>
+            {/* [2026-09-03] Asterdex 真实收入账本（替代已结束的 Stage 6 Rh 积分面板） */}
+            <AsterLedgerCard
+              icoCls={icoCls}
+              isLoading={pointsQ.isLoading}
+              isError={pointsQ.isError}
+              keysConfigured={pointsQ.data?.keys_configured}
+              message={pointsQ.data?.message}
+              ledger={pointsQ.data?.ledger ?? null}
+              policy={pointsQ.data?.policy}
+              onRefresh={() => pointsQ.refetch()}
+            />
           </div>
         ) : (
           <div className="lg:col-span-2">{positionsCard}</div>

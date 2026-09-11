@@ -71,9 +71,12 @@ class PurgeReport:
     rejected_pool: int = 0        # 增量池筛选
     rejected_dsr_pbo: int = 0
     surviving: int = 0
+    nearmiss_repaired: int = 0  # [2026-09-07] near-miss 自动修复成功数
     # applied=数值层 QR 已跑；skipped_no_matrix=调用方未供矩阵；skipped_trivial=因子数不足
     ortho_status: str = "skipped_no_matrix"
     candidates: list[CandidateFactor] = field(default_factory=list)
+    # [2026-08-30 挖矿升级 M2] 初筛拒因样本（可审计，最多 20 条）
+    reject_reason_samples: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
@@ -85,7 +88,7 @@ class PurgeReport:
             f"池筛拒 {self.rejected_pool}, "
             f"DSR/PBO 拒 {self.rejected_dsr_pbo} → "
             f"幸存 {self.surviving} "
-            f"(ortho={self.ortho_status})"
+            f"(ortho={self.ortho_status}, nearmiss修复 {self.nearmiss_repaired})"
         )
 
 
@@ -259,6 +262,7 @@ def stage3_cpcv_eval(
     factor_series_fn: Callable[[CandidateFactor], pd.Series],
     return_series: pd.Series,
     thresholds: LifecycleThresholds,
+    eval_fn=None,
 ) -> tuple[list[CandidateFactor], list[CandidateFactor]]:
     """
     步骤 3+4：CPCV 评估 + 初筛。
@@ -268,15 +272,25 @@ def stage3_cpcv_eval(
     for c in candidates:
         try:
             fs = factor_series_fn(c)
-            c.eval_result = evaluate_factor(c.factor_id, fs, return_series)
+            # [2026-08-30 M2c] eval_fn 注入面板口径评估（默认单序列）
+            if eval_fn is not None:
+                c.eval_result = eval_fn(c.factor_id, fs, return_series, c)
+            else:
+                c.eval_result = evaluate_factor(c.factor_id, fs, return_series)
         except Exception as e:
             c.status = "REJECTED"
             c.reject_reason = f"评估失败: {e!r}"
             rejected.append(c)
             continue
         r = c.eval_result
+        # [2026-08-30 M2d] 单调性替代路径：尾部价差 |t|≥2 视为方向结构成立。
+        # 反转因子只在尾部极端档有效（中段平坦是特性不是缺陷），全档单调性
+        # p 值对它们系统性偏大；IC/ICIR/DSR/PBO 等统计门禁不减免。
+        _tail_t = float(getattr(r, "tail_spread_t", 0.0) or 0.0)
+        _mono_ok = (r.monotonicity_p <= thresholds.max_monotonicity_p
+                    or abs(_tail_t) >= 2.0)
         if (r.icir >= thresholds.min_icir
-                and r.monotonicity_p <= thresholds.max_monotonicity_p
+                and _mono_ok
                 and r.turnover <= thresholds.max_turnover
                 and r.halflife_bars >= thresholds.min_halflife_bars):
             surviving.append(c)
@@ -285,13 +299,92 @@ def stage3_cpcv_eval(
             fails = []
             if r.icir < thresholds.min_icir:
                 fails.append(f"ICIR={r.icir:.3f}<{thresholds.min_icir}")
-            if r.monotonicity_p > thresholds.max_monotonicity_p:
-                fails.append(f"单调性p={r.monotonicity_p:.3f}")
+            if not _mono_ok:
+                fails.append(f"单调性p={r.monotonicity_p:.3f}(尾部t={_tail_t:.2f})")
             if r.turnover > thresholds.max_turnover:
                 fails.append(f"换手={r.turnover:.3f}")
             c.reject_reason = "初筛未达标：" + ", ".join(fails)
             rejected.append(c)
     return surviving, rejected
+
+
+def _nearmiss_repair_variants(ast: dict) -> list:
+    """[2026-09-07 WQ BRAIN near-miss] 对「差一点」的因子生成修复变体。
+
+    BRAIN 对 Sharpe 0.90-1.24 的因子自动调参：Fitness/换手不够 → 加 decay、
+    换 ts_rank。这里对 AST 做两类轻量包装（不改变经济逻辑，只平滑/降换手）：
+      1. decay_linear(x, 5)：线性衰减平滑，降换手、提半衰期；
+      2. ts_rank(x, 10)：滚动分位，压极端值、稳 IC。
+    只包装根节点一次，避免组合爆炸。
+    """
+    if not isinstance(ast, dict) or "op" not in ast:
+        return []
+    if ast.get("op") in ("decay_linear", "ts_rank", "wma", "ema"):
+        return []
+    return [
+        {"op": "decay_linear", "args": [ast, {"c": 5}]},
+        {"op": "ts_rank", "args": [ast, {"c": 10}]},
+    ]
+
+
+def stage3b_nearmiss_repair(
+    rejected: list,
+    thresholds: LifecycleThresholds,
+    factor_series_fn,
+    return_series,
+    eval_fn=None,
+) -> list:
+    """near-miss 自动修复：初筛「差一点」的因子（ICIR 接近门槛或换手略超），
+    生成平滑/分位变体并重评一次，达标者复活进后续阶段。
+
+    只救「接近达标」的（ICIR ≥ 0.7×门槛 或换手 ≤ 1.5×上限 或半衰期差一点），
+    差太远的不救——避免把噪声因子包装后蒙混过关。每因子最多 1 个变体复活。
+    默认开启；PURGE_NEARMISS_REPAIR=0 回滚。
+    """
+    import os as _os
+    if (_os.getenv("PURGE_NEARMISS_REPAIR", "1") or "1").strip().lower() in ("0", "false", "off"):
+        return []
+    repaired: list = []
+    for c in rejected:
+        r = c.eval_result
+        if r is None or c.expr_ast is None:
+            continue
+        icir_close = 0 < r.icir < thresholds.min_icir and r.icir >= thresholds.min_icir * 0.7
+        to_over = r.turnover > thresholds.max_turnover and r.turnover <= thresholds.max_turnover * 1.5
+        hl_close = 0 < r.halflife_bars < thresholds.min_halflife_bars
+        if not (icir_close or to_over or hl_close):
+            continue
+        best = None
+        for variant_ast in _nearmiss_repair_variants(c.expr_ast):
+            vc = CandidateFactor(
+                factor_id=c.factor_id + "_nr",
+                source_name=c.source_name + "+nearmiss",
+                expr_ast=variant_ast,
+            )
+            try:
+                fs = factor_series_fn(vc)
+                vc.eval_result = (eval_fn(vc.factor_id, fs, return_series, vc)
+                                  if eval_fn is not None
+                                  else evaluate_factor(vc.factor_id, fs, return_series))
+            except Exception:
+                continue
+            vr = vc.eval_result
+            _tail_t = float(getattr(vr, "tail_spread_t", 0.0) or 0.0)
+            _mono_ok = (vr.monotonicity_p <= thresholds.max_monotonicity_p
+                        or abs(_tail_t) >= 2.0)
+            if (vr.icir >= thresholds.min_icir and _mono_ok
+                    and vr.turnover <= thresholds.max_turnover
+                    and vr.halflife_bars >= thresholds.min_halflife_bars):
+                if best is None or vr.icir > best.eval_result.icir:
+                    best = vc
+        if best is not None:
+            logger.info(
+                "[Purge] near-miss 修复 %s → ICIR %.3f→%.3f 换手 %.2f→%.2f",
+                c.factor_id, r.icir, best.eval_result.icir,
+                r.turnover, best.eval_result.turnover,
+            )
+            repaired.append(best)
+    return repaired
 
 
 def stage4_data_quality(
@@ -434,6 +527,7 @@ def run_purge_pipeline(
     config: PurgeConfig | None = None,
     thresholds: LifecycleThresholds | None = None,
     dsr_pbo_gate: Callable[[list[CandidateFactor]], tuple[list[CandidateFactor], list[CandidateFactor]]] | None = None,
+    eval_fn=None,
     sample_len: int = 252,
     n_total_candidates: int | None = None,
 ) -> tuple[list[CandidateFactor], PurgeReport]:
@@ -455,8 +549,17 @@ def run_purge_pipeline(
     report.rejected_dedup = len(s2_rej)
 
     # Stage 3+4: CPCV 评估 + 初筛
-    s3_surv, s3_rej = stage3_cpcv_eval(s2_surv, factor_series_fn, return_series, thresholds)
+    s3_surv, s3_rej = stage3_cpcv_eval(s2_surv, factor_series_fn, return_series, thresholds, eval_fn=eval_fn)
     report.rejected_eval = len(s3_rej)
+
+    # [2026-09-07] Stage 3b: near-miss 自动修复（WQ BRAIN 式）——初筛「差一点」
+    # 的因子生成平滑/分位变体重评，达标者复活，不浪费接近及格的搜索结果。
+    s3b_repaired = stage3b_nearmiss_repair(
+        s3_rej, thresholds, factor_series_fn, return_series, eval_fn=eval_fn,
+    )
+    if s3b_repaired:
+        s3_surv = list(s3_surv) + s3b_repaired
+        report.nearmiss_repaired = len(s3b_repaired)
 
     # Stage 4.5: 数据质量门槛
     s4_surv, s4_rej = stage4_data_quality(s3_surv, config, factor_series_fn=factor_series_fn)
@@ -486,4 +589,11 @@ def run_purge_pipeline(
 
     report.surviving = len(final)
     report.candidates = report.candidates or candidates
+    # [2026-08-30 挖矿升级 M2] 拒因样本：按阶段聚合，最多 20 条（可审计）
+    for _stage, _rejs in (("静态", s1_rej), ("去重", s2_rej), ("初筛", s3_rej),
+                          ("质量", s4_rej), ("池筛", s6_rej), ("DSR/PBO", dsr_rej)):
+        for _c in (_rejs or [])[:5]:
+            _r = getattr(_c, "reject_reason", "") or getattr(_c, "status", "")
+            report.reject_reason_samples.append(f"[{_stage}] {str(_r)[:90]}")
+    report.reject_reason_samples = report.reject_reason_samples[:20]
     return final, report

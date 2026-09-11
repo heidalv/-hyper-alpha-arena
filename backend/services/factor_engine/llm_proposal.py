@@ -123,7 +123,10 @@ def _trial_eval(formula: str) -> bool:
 
 def propose_and_register(tier: str, k: int = 8) -> Dict[str, Any]:
     """LLM 提案 → 校验 → 注册（source=llm）。返回统计。"""
-    from backend.services.factor_engine.code_safety import ast_whitelist_check
+    from backend.services.factor_engine.code_safety import (
+        ast_whitelist_check,
+        forbidden_literal_scan,
+    )
     from backend.services.factor_engine.custom_factor_store import custom_factor_store
     from backend.services.evolution.alpha_miner import CodegenCritic
 
@@ -160,6 +163,13 @@ def propose_and_register(tier: str, k: int = 8) -> Dict[str, Any]:
     for p in proposals:
         formula = str(p.get("formula") or "").strip()
         if not formula:
+            continue
+        # [2026-09-02 E13] 补字面量黑名单兜底：本路径此前是唯一「单层 AST 把关 +
+        # 立即 eval 执行」的入口（_trial_eval 用真 eval 跑 LLM 返回的公式），
+        # 另两个消费者（ai_factor_discovery / factor_sync）早已是黑名单 + AST 双层。
+        ok_lit, why_lit = forbidden_literal_scan(formula)
+        if not ok_lit:
+            rejected.append(f"{formula[:50]}: {why_lit}")
             continue
         ok_wh, why = ast_whitelist_check(formula)
         if not ok_wh:

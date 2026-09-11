@@ -135,11 +135,19 @@ class TestFixedSymbolGatePhase0:
     # ── Test 6：白名单为空集（异常容错）→ 不拦截（容错优先） ──
     def test_empty_fixed_set_does_not_block(self):
         """get_fixed_symbols_for_session 返回空集（查询失败/session 不存在）时，
-        守卫不拦截（容错优先：避免误伤正常开仓）。"""
+        守卫不拦截（容错优先：避免误伤正常开仓）。
+
+        [2026-09-02] 只断言"守卫未触发"。AUTO_SYMBOL 是假币，守卫放行后会撞上更下游的
+        周线数据 fail-closed 门（midlong_1w_missing），那不是本守卫的职责；原用例
+        断言 result is True 把两道门混在一起，在没有假币 K 线的库上必红。
+        """
         result, host = self._run(
             sym=self.AUTO_SYMBOL, tier="long",
             trade_nature="trend_follow",
             fixed_set=set(),  # 空
         )
-        assert result is True, "白名单为空时应容错放行"
-        host.evaluate_and_execute_proposal.assert_called_once()
+        # 守卫拒绝一定会先 append "fixed_symbol_gate_block" 事件；没有该事件 = 守卫放行
+        for call in host.append_event.call_args_list:
+            assert call[0][1] != "fixed_symbol_gate_block", "白名单为空时守卫不应拦截"
+        if result is True:
+            host.evaluate_and_execute_proposal.assert_called_once()

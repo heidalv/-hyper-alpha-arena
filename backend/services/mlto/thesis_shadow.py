@@ -32,7 +32,7 @@ def _env(new: str, old: str, default: str) -> str:
     """新名优先、旧名兼容（2026-08-25 影子清理：thesis 已转正为方向门）。"""
     return os.getenv(new, os.getenv(old, default))
 
-_ENABLED = lambda: _env("THESIS_LLM_ENABLED", "THESIS_SHADOW_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+_ENABLED = lambda: _env("THESIS_LLM_ENABLED", "THESIS_SHADOW_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
 _MIN_INTERVAL = lambda: float(_env("THESIS_LLM_MIN_INTERVAL_S", "THESIS_SHADOW_MIN_INTERVAL_S", "14400") or 14400)
 _MAX_PER_DAY = lambda: int(_env("THESIS_LLM_MAX_PER_DAY", "THESIS_SHADOW_MAX_PER_DAY", "200") or 200)
 _MAX_PER_CYCLE = lambda: int(_env("THESIS_LLM_MAX_PER_CYCLE", "THESIS_SHADOW_MAX_PER_CYCLE", "3") or 3)
@@ -136,7 +136,7 @@ def _build_prompt(symbol: str, tier: str, market_summary: Dict, analyst_reports:
   "invalidation": {{"condition": "什么价格/条件出现时论题失效", "price_level": 价格或null}},
   "missing_evidence": ["还想看但当前没有的证据1", "..."],
   "recommend_open": true 或 false（证据是否支持开仓）,
-  "should_close": false（影子期恒 false，仅记录）
+  "should_close": true|false（影子期只记录，不驱动平仓）
 }}"""
 
 

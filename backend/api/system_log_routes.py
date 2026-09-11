@@ -3,11 +3,85 @@ System Log API Routes
 提供系统日志查询接口
 """
 
+import os
+import re
 from fastapi import APIRouter, Query
 from typing import Optional, List, Dict, Any
 from backend.services.system_logger import system_logger
 
 router = APIRouter(prefix="/api/system-logs", tags=["System Logs"])
+
+# [2026-09-07] 真·运行日志 tail：/api/system-logs/ 是内存事件台账（只收特定事件，
+# 常年为空导致前端"日志不滚动"），本端点直接 tail logs/backend.log（RotatingFileHandler
+# 应用日志），供 Agent 监控页实时滚屏。
+_LOG_LINE_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:[,.]\d+)?\s+\[(\w+)\]\s+\[tr=[^\]]*\]\s+(\S+?)\s*-\s*(.*)$"
+)
+_LEVEL_ORDER = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
+
+
+def _backend_log_path() -> str:
+    # 后端工作目录 = 项目根（run_uvicorn_dev.py 从根起）
+    here = os.path.dirname(os.path.abspath(__file__))  # backend/api
+    root = os.path.dirname(os.path.dirname(here))
+    return os.path.join(root, "logs", "backend.log")
+
+
+@router.get("/tail")
+async def tail_backend_log(
+    lines: int = Query(200, ge=1, le=1000, description="返回最后 N 行"),
+    level: Optional[str] = Query(None, description="最低级别: INFO/WARNING/ERROR"),
+    q: Optional[str] = Query(None, description="关键字过滤（大小写不敏感子串）"),
+    access: bool = Query(False, description="是否包含 uvicorn.access 访问日志"),
+) -> Dict[str, Any]:
+    path = _backend_log_path()
+    if not os.path.exists(path):
+        return {"logs": [], "total": 0, "error": f"日志文件不存在: {path}"}
+
+    min_lv = _LEVEL_ORDER.get((level or "").upper(), 0)
+    q_lower = (q or "").strip().lower() or None
+
+    # 高效 tail：只读文件末尾 4MB
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 4_000_000))
+            raw = f.read().decode("utf-8", errors="replace")
+    except Exception as exc:
+        return {"logs": [], "total": 0, "error": str(exc)[:200]}
+
+    out: List[Dict[str, Any]] = []
+    for line in raw.splitlines():
+        line = line.rstrip()
+        if not line:
+            continue
+        m = _LOG_LINE_RE.match(line)
+        if m:
+            ts, lvl, module, msg = m.groups()
+            lvl = lvl.upper()
+            if not access and module.startswith("uvicorn.access"):
+                continue
+            if _LEVEL_ORDER.get(lvl, 0) < min_lv:
+                continue
+            text = msg
+        else:
+            # 多行日志的续行（Traceback 等）：挂靠为上一条的延续
+            lvl, module, ts = "INFO", "", ""
+            text = line
+            if min_lv > 0:
+                continue
+        if q_lower and q_lower not in line.lower():
+            continue
+        out.append({"ts": ts, "level": lvl, "module": module, "msg": text})
+
+    tail = out[-lines:]
+    return {
+        "logs": tail,
+        "total": len(tail),
+        "file_mtime": os.path.getmtime(path),
+        "file_size": size,
+    }
 
 
 @router.get("/")

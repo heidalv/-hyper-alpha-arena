@@ -27,7 +27,7 @@ def _import_model():
     try:
         from backend.services.strategic_analyst.db_models import TrendPredictionRecord
     except ImportError:
-        from services.strategic_analyst.db_models import TrendPredictionRecord
+        from backend.services.strategic_analyst.db_models import TrendPredictionRecord
     return TrendPredictionRecord
 
 

@@ -260,11 +260,18 @@ def compute_dsr_pbo_for_factors(
             sample_len=sample_len,
         )
     else:
+        # [2026-08-31 DSR 口径根治] 多幸存者分支与单幸存者分支(08-27 修复)
+        # 同口径：零均值 + 标准误 1/sqrt(T)。此前用幸存者 ICIR 的截面 std
+        # 当噪声方差 → expected_max = mean + std×Gumbel(49) 被抬高到超过
+        # 观测值（截面离散是真实质量差异，不是 H0 抽样噪声；T=2520 时真实
+        # 标准误仅 1/sqrt(2520)=0.02，截面 std 0.25 是其 12 倍）→ 任何好因子
+        # 都 dsr_sig=False。multiple-testing 校正仍保留（n_trials）。
+        _se_null = 1.0 / math.sqrt(max(2.0, float(sample_len)))
         dsr_result = compute_dsr(
             observed_sr=observed,
-            n_trials=n_total_candidates,
-            sr_mean=mean_icir,
-            sr_std=max(std_icir, 0.01),
+            n_trials=max(1, int(n_total_candidates)),
+            sr_mean=0.0,
+            sr_std=_se_null,
             sample_len=sample_len,
         )
 

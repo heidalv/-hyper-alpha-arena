@@ -134,7 +134,7 @@ class MarketFlowCollector:
 
         # Get symbols from watchlist if not provided
         if symbols is None:
-            from services.hyperliquid_symbol_service import get_selected_symbols
+            from backend.services.hyperliquid_symbol_service import get_selected_symbols
             symbols = get_selected_symbols()
 
         if not symbols:
@@ -187,7 +187,7 @@ class MarketFlowCollector:
 
                                 # Only load Hyperliquid symbols if Hyperliquid is enabled
                                 if hyperliquid_enabled:
-                                    from services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_symbols
+                                    from backend.services.hyperliquid_symbol_service import get_selected_symbols as get_hyperliquid_symbols
                                     hyperliquid_symbols = get_hyperliquid_symbols()
                                     symbols.extend(hyperliquid_symbols)
                                     logger.info(f"Loaded Hyperliquid symbols: {hyperliquid_symbols}")
@@ -214,7 +214,7 @@ class MarketFlowCollector:
 
         if not symbols:
             try:
-                from services.trading_commands import AI_TRADING_SYMBOLS
+                from backend.services.trading_commands import AI_TRADING_SYMBOLS
                 symbols = list(AI_TRADING_SYMBOLS)
                 logger.warning(f"Using hardcoded AI_TRADING_SYMBOLS fallback: {symbols}")
             except Exception as e:
@@ -473,7 +473,7 @@ class MarketFlowCollector:
                 # [v6-S2-1] L2 重建层接线：把 HL l2Book 快照喂给默认重建器 # （跳变防护 + 深度派生），flush 时取末帧前5档名义深度落库。
                 try:
                     if data.get("levels"):
-                        from services.market_flow.l2_reconstructor import default_reconstructor
+                        from backend.services.market_flow.l2_reconstructor import default_reconstructor
                         default_reconstructor.ingest_hl(
                             FLOW_DATA_SOURCE, symbol,
                             [data["levels"][0] or [], data["levels"][1] or []],
@@ -735,7 +735,7 @@ class MarketFlowCollector:
     def _run_signal_detection(self):
         """Run signal detection for all subscribed symbols"""
         try:
-            from services.signal_detection_service import signal_detection_service
+            from backend.services.signal_detection_service import signal_detection_service
 
             for symbol in self.subscribed_symbols:
                 # Build market data context for signal detection
@@ -793,7 +793,7 @@ class MarketFlowCollector:
             logger.warning(f"[S2-1] 深度列读取(实例订单簿)失败 {symbol}: {e}")
         # ── 辅助来源：L2 重建器 ──
         try:
-            from services.market_flow.l2_reconstructor import default_reconstructor
+            from backend.services.market_flow.l2_reconstructor import default_reconstructor
             frame = default_reconstructor.latest(FLOW_DATA_SOURCE, symbol)
             if frame is None or not frame.bids or not frame.asks:
                 return None, None

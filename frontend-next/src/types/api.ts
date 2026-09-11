@@ -20,6 +20,7 @@ export interface Account {
   auto_trading_enabled: boolean;
   trading_mode: string;
   selected_exchange: string;
+  binance_market_type?: string;
   llm_config_id_deep?: number | null;
   exchange?: string;
   keys_configured?: boolean;
@@ -340,6 +341,14 @@ export interface LivePosition {
   leverage?: number;
   margin?: number;
   unrealized_pnl?: number;
+  liquidation_price?: number | null;
+  margin_type?: string | null;   // cross/isolated
+  isolated?: boolean | null;
+  maint_margin?: number;
+  margin_ratio?: number;         // 保证金率%
+  tier?: string[] | null;        // 周期归属 short/mid/long
+  tp_price?: number | null;      // 交易所条件单止盈价（无则未挂）
+  sl_price?: number | null;      // 交易所条件单止损价（无则未挂）
 }
 
 export interface LiveOrder {
@@ -360,39 +369,88 @@ export interface LiveOrderResult {
   result?: { message?: string };
 }
 
-export interface AsterPointsSnapshot {
-  snapshot_time?: string;
-  points_balance?: number;
-  points_multiplier?: number;
-  estimated_airdrop_value?: number;
-  volume_7d_usd?: number;
+// ═══ Asterdex 实盘真实收入账本（GET /api/live/asterdex/points/{account_id}） ═══
+// [2026-09-03] 替代已结束的 Stage 6 Rh 积分面板：只展示交易所真实流水 + Trade & Earn 门槛进度。
+
+export interface AsterLedgerAsset {
+  asset?: string;
+  wallet_balance?: number;
+  available?: number;
+  collateral_ratio?: number | null;
+  margin_available?: boolean;
+  usd_value?: number;
 }
 
-export interface AsterPointsResponse {
+export interface AsterLedger {
+  window_days?: number;
+  account?: {
+    multi_assets_mode?: boolean | null;
+    total_margin_usd?: number;
+    usdf_balance?: number;
+    usdf_share?: number;
+    eligible_collateral_usd?: number;
+    assets?: AsterLedgerAsset[];
+  };
+  fees?: {
+    maker_rate?: number;
+    taker_rate?: number;
+    rate_source?: "api" | "schedule";
+    commission_paid_usd?: number;
+    funding_fee_usd?: number;
+    realized_pnl_usd?: number;
+  };
+  execution?: {
+    trades?: number;
+    notional_usd?: number;
+    maker_notional_usd?: number;
+    maker_ratio?: number | null;
+    maker_ratio_count?: number | null;
+    fee_saved_est_usd?: number;
+    symbols?: string[];
+    symbols_truncated?: boolean;
+  };
+  trade_and_earn?: {
+    active?: boolean;
+    week_start?: string;
+    week_end?: string;
+    volume_usd?: number;
+    volume_threshold_usd?: number;
+    volume_progress?: number;
+    active_days?: number;
+    active_days_threshold?: number;
+    eligible_now?: boolean;
+    blockers?: string[];
+    usdf_counted_usd?: number;
+    usdf_cap_usd?: number;
+    reference_weekly_reward_usd?: number;
+    reference_apy?: { deposit?: number; trading?: number; note?: string };
+    reference?: boolean;
+    requires_multi_assets_mode?: boolean;
+    source_url?: string;
+  };
+  rewards?: {
+    usdf_received?: number;
+    by_type?: Record<string, Record<string, number>>;
+    count?: number;
+    note?: string;
+  };
+  programs?: { stage6?: { status?: string; note?: string } };
+  errors?: string[];
+}
+
+export interface AsterLedgerResponse {
   keys_configured?: boolean;
+  exchange?: string;
   message?: string;
-  points?: {
-    points_balance?: number;
-    points_multiplier?: number;
-    season?: string | number;
-    qualifying_days?: number;
-    required_days?: number;
-    airdrop_eligible?: boolean;
-    estimated_airdrop_value?: number;
+  ledger?: AsterLedger | null;
+  policy?: {
+    maker_first?: boolean;
+    maker_first_tiers?: string[];
+    maker_timeout_s?: number;
+    enabled?: boolean;
+    reason?: string;
   };
-  projection?: {
-    total_estimated_monthly_value?: number;
-    volume_7d_usd?: number;
-    rebate_rate?: number;
-    weekly_rebate_usd?: number;
-    monthly_rebate_usd?: number;
-    yearly_rebate_usd?: number;
-    daily_points?: number;
-    weekly_points?: number;
-    monthly_points?: number;
-    points_estimated?: boolean;
-  };
-  history?: AsterPointsSnapshot[];
+  fetched_at?: string;
 }
 
 // ═══ AI 决策（/api/atas/decisions、/api/arena/model-chat） ═══
@@ -431,5 +489,14 @@ export interface AiDecisionEntry {
 
 /** /api/full-auto/tick-intervals */
 export interface TickIntervals {
-  intervals?: { short?: number; mid?: number; long?: number };
+  intervals?: { short?: number; mid?: number; long?: number; coordinator?: number };
+  labels?: Record<string, string>;
+  mid_mode?: string;
+  brain_mode?: string;
+  mid_open_authority?: string;
+  scalp_open_disabled?: boolean;
+  chart_required?: boolean;
+  long_loop_sec?: number;
+  long_entry_sec?: number;
+  long_decision?: string;
 }

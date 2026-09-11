@@ -112,8 +112,15 @@ class TestItem12FwdAligned:
 # ── item13：expected_sign 同号规则 ──────────────────────
 class TestItem13ExpectedSign:
     def test_promotion_writes_expected_sign(self):
+        import re
         scorer_src = _src("services", "factor_engine", "factor_backtest_scorer.py")
-        assert '"expected_sign": 1 if float(result.ic_mean or 0) >= 0 else -1' in scorer_src
+        # [M0-C1] 条件口径因子优先用条件回测的 dir_sign，连续 IC 符号作回退——
+        # 表达式已改为多行括号形式，用正则匹配语义而非逐字。
+        assert re.search(
+            r'"expected_sign":\s*\(\s*int\(float\(result\.conditional\.get\("dir_sign"\)\)\s*or\s*0\)'
+            r'[\s\S]{0,200}?else\s*\(1 if float\(result\.ic_mean or 0\) >= 0 else -1\)',
+            scorer_src,
+        ), "晋升成绩单必须写 expected_sign（条件 dir_sign 优先，IC 符号回退）"
         reg_src = _src("services", "factor_engine", "midlong_registry_factors.py")
         assert '"expected_sign": 1 if float(r.get("ic_mean") or 0) >= 0 else -1' in reg_src
         rc_src = _src("services", "factor_engine", "midlong_active_factor_set.py")

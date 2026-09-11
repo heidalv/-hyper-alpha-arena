@@ -64,7 +64,7 @@ def _make_tier1_req(action="close"):
         db=None, account_id=1, symbol="TEST", action=action,
         pos=_make_blocking_pos(),
         exit_channel="trend_review",
-        reason="trend_review",  # 注意:Agent 白名单会命中;下面测试会绕开
+        reason="trend_review",  # 2026-08-14 起不在 Agent 白名单内，会走硬事实门
         reasoning="",
         confidence=None,
         tier_level=1,
@@ -206,17 +206,40 @@ class TestTier1Shadow:
         assert res.event_type == "hardfat_shadow_passthrough"
 
     def test_tier1_whitelist_still_allowed_under_shadow(self, _shadow_on):
-        """Tier1:白名单命中 → hf.allow=True → 直接放行(不走 shadow 分支)。"""
+        """Tier1:白名单命中 → hf.allow=True → 直接放行(不走 shadow 分支)。
+
+        [2026-09-02] 原用 trend_review 作白名单样例。该通道已于 2026-08-14 F6 整改
+        从 _AGENT_EXIT_REASON_WHITELIST 移除（历史 12 笔 0% 胜率 -44.90），此后本
+        用例一直红。改用仍在白名单内的 hold_timeout_review 验证同一条路径。
+        """
         ex = UnifiedExitExecutor()
         req = ExitExecuteRequest(
             db=None, account_id=1, symbol="TEST", action="close",
             pos=_make_blocking_pos(),
-            exit_channel="trend_review",  # 白名单
-            reason="trend_review", reasoning="", tier_level=1,
+            exit_channel="hold_timeout_review",  # 仍在 Agent 白名单
+            reason="hold_timeout_review", reasoning="", tier_level=1,
         )
         res = ex.check_hardfact_gate(req, tier_level=1)
         assert res.blocked is False
         assert res.event_type == ""  # allow 路径,event_type 默认空
+
+    def test_tier1_trend_review_no_longer_whitelisted(self, _shadow_on):
+        """锁住 F6 整改：trend_review 不再命中白名单，须走硬事实门。
+
+        小亏无硬事实的仓位在 shadow 模式下应是 passthrough（记录而非拦截），
+        而不是白名单直接放行（event_type 为空）。若有人把 trend_review 加回
+        白名单，这里会红。
+        """
+        ex = UnifiedExitExecutor()
+        req = ExitExecuteRequest(
+            db=None, account_id=1, symbol="TEST", action="close",
+            pos=_make_blocking_pos(),
+            exit_channel="trend_review",
+            reason="trend_review", reasoning="", tier_level=1,
+        )
+        res = ex.check_hardfact_gate(req, tier_level=1)
+        assert res.blocked is False  # shadow 模式不拦
+        assert res.event_type == "hardfat_shadow_passthrough"
 
 
 # ════════════════════════════════════════════════════════════════════

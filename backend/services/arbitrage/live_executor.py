@@ -13,6 +13,7 @@ Live Executor — 真实下单桥接层
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -56,6 +57,25 @@ class LiveExecutor:
                 return None
         return self._exchange_manager
 
+    @staticmethod
+    def _v3_live_open_guard(symbol: str, venues) -> Optional[Dict[str, Any]]:
+        """[2026-09-03 v3 方向7] 套利实盘开仓也必经 RiskEngine 单入口（急停 / TradingState /
+        各腿 venue 连通性熔断 / 避险窗口）。平仓 close_position 不经此闸。返回 None=放行。"""
+        try:
+            from backend.services.risk.risk_engine import pre_trade, PreTradeRequest
+            for v in [x for x in (venues or []) if x]:
+                verdict = pre_trade(None, PreTradeRequest(
+                    account_id=0, symbol=str(symbol), side="open", is_open=True, venue=str(v).lower(),
+                    trade_nature="arbitrage", source="arb_live_executor",
+                ))
+                if not verdict.allowed:
+                    logger.warning("[LiveExecutor][RiskEngine v3] 套利开仓拦截 %s@%s: %s", symbol, v, verdict.reason)
+                    return {"ok": False, "error": "risk_engine_blocked", "reason": verdict.reason,
+                            "reason_code": verdict.reason_code, "venue": v}
+        except Exception as exc:
+            logger.warning("[LiveExecutor][RiskEngine v3] 检查异常（放行）: %s", exc)
+        return None
+
     def execute_funding(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行资金费率套利（delta-neutral）
@@ -70,6 +90,8 @@ class LiveExecutor:
         size_usd = payload.get("size_usd", 0)
         direction = payload.get("direction", "short")  # short=收正 funding, long=收负 funding
         entry_price = payload.get("entry_price", 0)
+        # [2026-09] 杠杆跟随策略配置（arb_config.yaml funding.leverage / ARB_FUNDING_LEVERAGE）
+        leverage = max(1.0, float(payload.get("leverage", 3.0) or 3.0))
 
         if not symbol or size_usd <= 0 or entry_price <= 0:
             return {"ok": False, "error": "invalid_parameters"}
@@ -80,87 +102,154 @@ class LiveExecutor:
                 hedge_exchange=hedge_exchange,
             )
 
+        _blocked = self._v3_live_open_guard(symbol, venues=[primary_exchange, hedge_exchange])
+        if _blocked:
+            return _blocked
+
         mgr = self._get_exchange_manager()
         if mgr is None:
             return {"ok": False, "error": "exchange_manager_unavailable"}
 
         try:
-            primary_client = mgr.get_client(primary_exchange)
-            if primary_client is None:
-                return {"ok": False, "error": f"no_client_for_{primary_exchange}"}
-
             size = max(size_usd / entry_price, 0.001)
             from .async_bridge import run_async
 
-            # 主腿：收 funding 方向
+            # ── [2026-09] 双腿编排（兼容积分一体化）──
+            # 收腿 = primary（短收正 funding）；对冲腿 = hedge（反向）。
+            # 开腿顺序：非 asterdex 腿先开（市价秒成），asterdex 腿最后开
+            # （maker-first 挂单等待窗口内只剩一条腿，delta 敞口受控）。
+            # asterdex 腿无论主/对冲角色都接 wash 守卫 + 积分计量。
             primary_side = OrderSide.SELL if direction == "short" else OrderSide.BUY
-            primary_order = ExchangeOrder(
-                order_id=f"arb_primary_{symbol}_{int(time.time())}",
-                symbol=symbol,
-                side=primary_side,
-                order_type=OrderType.MARKET,
-                size=size,
-            )
-            primary_result = run_async(primary_client.place_order(primary_order))
-            if primary_result.get("status") == "error":
-                try:
-                    from backend.services.arbitrage.arbitrage_alert_monitor import arb_alert_monitor
-                    arb_alert_monitor.on_leg_failure(
-                        symbol, primary_exchange,
-                        str(primary_result.get("message", "unknown")),
-                        leg="primary",
-                    )
-                except Exception:
-                    pass
-                return {
-                    "ok": False,
-                    "error": f"primary_leg_failed: {primary_result.get('message')}",
-                }
-
-            # 对冲腿：跨所反向（同所同 symbol 会抵消 funding）
             hedge_side = OrderSide.BUY if direction == "short" else OrderSide.SELL
-            hedge_result = {"status": "skipped", "message": "no_hedge_exchange"}
-            hedge_ex = hedge_exchange
 
+            legs: List[Dict[str, Any]] = [
+                {"venue": primary_exchange, "side": primary_side, "role": "primary"},
+            ]
             if hedge_exchange and hedge_exchange != primary_exchange:
-                hedge_client = mgr.get_client(hedge_exchange)
-                if hedge_client is None:
-                    self._emergency_close_leg(
-                        primary_client, symbol, size, primary_side, run_async
-                    )
-                    return {"ok": False, "error": f"no_client_for_{hedge_exchange}"}
+                legs.append({"venue": hedge_exchange, "side": hedge_side, "role": "hedge"})
+            # asterdex 腿移到末尾
+            _adx_idx = next((i for i, lg in enumerate(legs) if lg["venue"] == "asterdex"), -1)
+            if _adx_idx >= 0 and _adx_idx != len(legs) - 1:
+                legs.append(legs.pop(_adx_idx))
 
-                hedge_order = ExchangeOrder(
-                    order_id=f"arb_hedge_{symbol}_{int(time.time())}",
+            # 积分策略（asterdex 凭证级开关）
+            _points_on = False
+            _maker_first = False
+            _timeout = 30.0
+            _has_asterdex = any(lg["venue"] == "asterdex" for lg in legs)
+            if _has_asterdex:
+                try:
+                    from backend.services.rebate_arb.live_points_engine import live_points_engine
+                    _pol = live_points_engine.get_policy()
+                    _points_on = bool(_pol.get("enabled"))
+                    _maker_first = _points_on and bool(_pol.get("maker_first"))
+                    _timeout = float(_pol.get("maker_timeout_s") or 30.0)
+                except Exception as _pe:
+                    logger.debug("[LiveExecutor] 积分策略读取跳过: %s", _pe)
+
+            # wash 守卫：asterdex 同所同币**反向**持仓 → 跳过（官方惩罚对冲刷分；
+            # 同向加仓允许——单边方向仓 + 平仓数量按自身腿核算，互不干扰）。
+            _adx_opposing: Dict[str, str] = {}  # symbol -> existing side
+            if _has_asterdex:
+                try:
+                    _adx_client = mgr.get_client("asterdex")
+                    if _adx_client is not None:
+                        _existing = run_async(_adx_client.get_positions()) or []
+                        for _p in _existing:
+                            _psym = str(getattr(_p, "symbol", "") or "").upper()
+                            _psize = float(getattr(_p, "size", 0) or 0)
+                            if _psym == symbol.upper() and _psize > 0:
+                                _adx_opposing[_psym] = str(getattr(_p, "side", "") or "").lower()
+                except Exception as _wg_err:
+                    logger.debug("[LiveExecutor] wash 守卫检查跳过: %s", _wg_err)
+
+            # asterdex 保证金预检（软校验：按策略杠杆估算所需保证金，留 20% 缓冲）
+            if _has_asterdex:
+                try:
+                    _adx_client = mgr.get_client("asterdex")
+                    if _adx_client is not None and hasattr(_adx_client, "get_balance"):
+                        _bal = run_async(_adx_client.get_balance())
+                        _avail = float(getattr(_bal, "available_balance", 0) or 0)
+                        _need = size_usd / leverage * 1.2
+                        if _avail < _need:
+                            logger.warning(
+                                "[LiveExecutor] asterdex 可用余额 $%.2f < 所需保证金 $%.2f（%.0fx），跳过",
+                                _avail, _need, leverage,
+                            )
+                            return {"ok": False, "error": "insufficient_asterdex_margin"}
+                except Exception as _mb_err:
+                    logger.debug("[LiveExecutor] 保证金预检跳过: %s", _mb_err)
+
+            opened: List[Dict[str, Any]] = []  # 已开腿 [{client, side, size, venue}]
+            results: Dict[str, Any] = {}
+            for lg in legs:
+                venue, side, role = lg["venue"], lg["side"], lg["role"]
+                # wash 守卫（方向感知）：asterdex 腿与已有持仓反向 → 跳过
+                if venue == "asterdex" and symbol.upper() in _adx_opposing:
+                    _leg_side = "long" if side == OrderSide.BUY else "short"
+                    if _adx_opposing[symbol.upper()] in ("long", "short") and _adx_opposing[symbol.upper()] != _leg_side:
+                        logger.warning(
+                            "[LiveExecutor] wash 守卫：asterdex %s 已有反向持仓（%s vs %s），跳过",
+                            symbol, _adx_opposing[symbol.upper()], _leg_side,
+                        )
+                        for _op in reversed(opened):
+                            self._emergency_close_leg(_op["client"], symbol, _op["size"], _op["side"], run_async)
+                        return {"ok": False, "error": "wash_guard_opposing_position_on_asterdex"}
+                client = mgr.get_client(venue)
+                if client is None:
+                    for _op in reversed(opened):
+                        self._emergency_close_leg(_op["client"], symbol, _op["size"], _op["side"], run_async)
+                    return {"ok": False, "error": f"no_client_for_{venue}"}
+
+                order = ExchangeOrder(
+                    order_id=f"arb_{role}_{symbol}_{int(time.time())}",
                     symbol=symbol,
-                    side=hedge_side,
+                    side=side,
                     order_type=OrderType.MARKET,
                     size=size,
+                    # [2026-09] 杠杆跟随策略配置（arb_config funding.leverage）：
+                    # 套利是实盘合约交易的附带，双腿对冲，低杠杆、语义可预测
+                    leverage=int(leverage),
                 )
-                hedge_result = run_async(hedge_client.place_order(hedge_order))
-                if hedge_result.get("status") == "error":
-                    logger.error(
-                        "[LiveExecutor] 对冲腿失败，紧急平仓主腿: %s", hedge_result
-                    )
+                if venue == "asterdex" and _maker_first and hasattr(client, "place_order_maker_first"):
+                    r = run_async(client.place_order_maker_first(order, timeout_s=_timeout))
+                else:
+                    r = run_async(client.place_order(order))
+
+                if r.get("status") == "error":
+                    logger.error("[LiveExecutor] %s 腿失败: %s", venue, r)
                     try:
                         from backend.services.arbitrage.arbitrage_alert_monitor import arb_alert_monitor
                         arb_alert_monitor.on_leg_failure(
-                            symbol, hedge_exchange,
-                            str(hedge_result.get("message", "unknown")),
-                            leg="hedge",
+                            symbol, venue, str(r.get("message", "unknown")), leg=role,
                         )
                     except Exception:
                         pass
-                    self._emergency_close_leg(
-                        primary_client, symbol, size, primary_side, run_async
-                    )
-                    return {"ok": False, "error": "hedge_leg_failed_emergency_closed_primary"}
-            else:
-                hedge_ex = ""
-                logger.warning(
-                    "[LiveExecutor] 无跨所对冲，%s 单腿方向性持仓 direction=%s",
-                    primary_exchange, direction,
-                )
+                    for _op in reversed(opened):
+                        self._emergency_close_leg(_op["client"], symbol, _op["size"], _op["side"], run_async)
+                    return {"ok": False, "error": f"{role}_leg_failed: {r.get('message')}"}
+
+                opened.append({"client": client, "side": side, "size": size, "venue": venue})
+                results[role] = r
+
+                # [2026-09] 积分账本：asterdex 腿无论主/对冲都计量（开关开启时）
+                if venue == "asterdex" and _points_on:
+                    try:
+                        from backend.services.rebate_arb.live_points_engine import live_points_engine
+                        _qty = float(r.get("qty") or r.get("amount") or size)
+                        _px = float(r.get("price") or r.get("average") or entry_price)
+                        _maker = bool(r.get("maker", False))
+                        live_points_engine.record_fill(
+                            source="funding_arb",
+                            symbol=symbol,
+                            side="sell" if side == OrderSide.SELL else "buy",
+                            qty=_qty,
+                            price=_px,
+                            maker=_maker,
+                            order_id=str(r.get("order_id") or order.order_id),
+                        )
+                    except Exception as _pt_err:
+                        logger.debug("[LiveExecutor] 积分记录失败: %s", _pt_err)
 
             position_id = f"live_fund_{symbol}_{int(time.time())}"
             logger.info("[LiveExecutor] Funding arb LIVE executed: %s", position_id)
@@ -170,12 +259,12 @@ class LiveExecutor:
                 "position_id": position_id,
                 "mode": "live",
                 "exchange": primary_exchange,
-                "hedge_exchange": hedge_ex,
+                "hedge_exchange": hedge_exchange,
                 "symbol": symbol,
                 "size_usd": size_usd,
                 "direction": direction,
-                "primary_result": primary_result,
-                "hedge_result": hedge_result,
+                "primary_result": results.get("primary"),
+                "hedge_result": results.get("hedge"),
             }
 
         except Exception as e:
@@ -220,6 +309,10 @@ class LiveExecutor:
                 direction_a, direction_b,
             )
 
+        _blocked = self._v3_live_open_guard(symbol, venues=[exchange_a, exchange_b])
+        if _blocked:
+            return _blocked
+
         # Live 模式
         mgr = self._get_exchange_manager()
         if mgr is None:
@@ -254,6 +347,17 @@ class LiveExecutor:
                 order_type=OrderType.MARKET,
                 size=size,
             )
+
+            # [2026-09] asterdex 腿积分一体化（跨所套利）：
+            # wash 守卫（反向持仓才拦截）+ 积分计量。跨所套利双腿需同时成交，
+            # 不做 maker-first（挂单等待会破坏配对）。
+            _x_points_on = False
+            if "asterdex" in (exchange_a, exchange_b):
+                try:
+                    from backend.services.rebate_arb.live_points_engine import live_points_engine
+                    _x_points_on = bool(live_points_engine.get_policy().get("enabled"))
+                except Exception:
+                    _x_points_on = False
 
             # 同时下单
             result_a = run_async(client_a.place_order(order_a))
@@ -294,6 +398,30 @@ class LiveExecutor:
                 run_async(client_a.place_order(close_a))
                 return {"ok": False, "error": "leg_b_failed_emergency_closed_a"}
 
+            # [2026-09] asterdex 腿计量（开关开启时）
+            if _x_points_on:
+                try:
+                    from backend.services.rebate_arb.live_points_engine import live_points_engine
+                    for _ex, _side, _res, _oid in (
+                        (exchange_a, side_a, result_a, order_a.order_id),
+                        (exchange_b, side_b, result_b, order_b.order_id),
+                    ):
+                        if _ex != "asterdex" or _res.get("status") == "error":
+                            continue
+                        _qty = float(_res.get("qty") or _res.get("amount") or size)
+                        _px = float(_res.get("price") or _res.get("average") or ref_price)
+                        live_points_engine.record_fill(
+                            source="cross_exchange_arb",
+                            symbol=symbol,
+                            side="sell" if _side == OrderSide.SELL else "buy",
+                            qty=_qty,
+                            price=_px,
+                            maker=False,
+                            order_id=str(_oid),
+                        )
+                except Exception as _xe:
+                    logger.debug("[LiveExecutor] 跨所积分记录失败: %s", _xe)
+
             position_id = f"live_cross_{symbol}_{int(time.time())}"
             logger.info(f"[LiveExecutor] Cross-exchange arb LIVE executed: {position_id}")
 
@@ -327,6 +455,10 @@ class LiveExecutor:
 
         if self._mode == "paper":
             return self._paper_execute_basis(exchange, symbol, size_usd, basis_pct, perp_price, spot_price)
+
+        _blocked = self._v3_live_open_guard(symbol, venues=[exchange])
+        if _blocked:
+            return _blocked
 
         # Live 模式: 买入低价资产，卖出高价资产
         mgr = self._get_exchange_manager()
@@ -452,6 +584,18 @@ class LiveExecutor:
                     reduce_only=True,
                 )
                 result = run_async(client.place_order(close_order))
+                # [2026-09] 积分一体化：asterdex 腿平仓 → 结算持仓积分
+                if ex == "asterdex" and str(result.get("status") or "").lower() not in ("error",):
+                    try:
+                        from backend.services.rebate_arb.live_points_engine import live_points_engine
+                        live_points_engine.record_close(
+                            source="funding_arb",
+                            symbol=symbol,
+                            order_id=close_order.order_id,
+                            reason=reason,
+                        )
+                    except Exception as _pc_err:
+                        logger.debug("[LiveExecutor] 平仓积分记录失败: %s", _pc_err)
                 results.append({"exchange": ex, "result": result})
 
             logger.info(f"[LiveExecutor] LIVE closed position: {position_id}, reason: {reason}")

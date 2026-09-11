@@ -178,6 +178,11 @@ class LivePositionManager:
 
         # 5. 差额订单
         delta = target_net - current_net
+        # [2026-09-07 杠杆根治 P2] 统一杠杆 = 币种档（leverage_authority 唯一权威）。
+        # 废除 min(现有子仓, 新请求) 合并：子仓 leverage 字段历史可能残留任意值，
+        # min/max 都是在假账上算账；交易所对同币只有一档，本地唯一真实来源 = 币种档。
+        from backend.services.leverage_authority import symbol_leverage as _sym_lev
+        unified_lev = float(_sym_lev(symbol))
         if abs(delta) < 1e-8:
             _log.info(
                 "[LPM] %s %s: no net change (delta≈0), skip exchange order",
@@ -188,11 +193,6 @@ class LivePositionManager:
             order_id = None
         else:
             order_side = "buy" if delta > 0 else "sell"
-            # [2026-08-28 方案2·G1] 统一杠杆 = min(现有所有子仓杠杆, 新请求杠杆):
-            # 取最保守值——高杠杆层自动沿用低位档(超保证金=安全方向),
-            # 绝不让低位层按高杠杆计保证金(旧 max 逻辑放大风险)。
-            all_levs = [p.leverage for p in existing] + [leverage]
-            unified_lev = min(all_levs) if all_levs else leverage
             # 发给交易所
             result = exchange_callback(db, symbol, order_side, abs(delta), unified_lev)
             order_id = result.get("order_id")
@@ -204,6 +204,8 @@ class LivePositionManager:
             p.status = "closed"
 
         # 创建新子仓位(仅当 size > 0;size==0 表示该 nature 平仓后不再开新仓)
+        # [2026-09-07 杠杆根治 P2] 账本杠杆只记统一值（币种档），不记请求值——
+        # 本地账本必须与交易所实际杠杆一致，否则保证金/强平都是假账。
         sub_id = None
         if size > 0:
             new_sub = LiveSubPosition(
@@ -213,8 +215,8 @@ class LivePositionManager:
                 trade_nature=trade_nature,
                 timeframe_tier=tier,
                 size=size,
-                leverage=leverage,
-                margin=size / max(leverage, 1.0),
+                leverage=unified_lev,
+                margin=size / max(unified_lev, 1.0),
                 entry_price=fill_price,
                 status="open",
                 exchange_order_id=order_id,
@@ -581,6 +583,7 @@ class LivePositionManager:
     def reconcile(
         self, db, account_id: int, symbol: str,
         exchange_qty: float, exchange_leverage: float,
+        *, log_mismatch: bool = True,
     ) -> dict:
         """对账:比较本地子仓位合计 vs 交易所实际仓位。
 
@@ -590,6 +593,13 @@ class LivePositionManager:
             symbol: 交易对。
             exchange_qty: 交易所返回的实际净仓位(signed:long 正,short 负)。
             exchange_leverage: 交易所返回的实际杠杆(目前仅用于日志,未参与判定)。
+            log_mismatch: 不一致时是否在此处记 WARNING。
+                [2026-09-02 D12] 周期性对账循环(live_position_reconciler,每 120s)
+                传 False:本函数只做数值比较,分不清"用户手工开的外部持仓"和"账本
+                真漂移",一律 WARNING 会让手工持仓每 120s × 每账户 × 每币刷一条噪音
+                (实测 VIRTUAL/XPL 两个手工仓 × 5 个账户 = 每分钟 5 条)。判定归调用方:
+                reconciler 识别出外部持仓记 INFO(且仅在数量变化时),真漂移才记 ERROR。
+                其余调用方(健康检查/API 手动对账)保持默认 True,行为不变。
 
         返回:
             dict: {matched, local, exchange, diff}
@@ -602,11 +612,12 @@ class LivePositionManager:
         threshold = max(abs(exchange_qty) * 0.01, 1e-6)
 
         if abs(diff) > threshold:
-            _log.warning(
-                "[LPM] %s reconcile MISMATCH: local=%.6f exchange=%.6f "
-                "diff=%.6f (threshold=%.6f)",
-                symbol, local_qty, exchange_qty, diff, threshold,
-            )
+            if log_mismatch:
+                _log.warning(
+                    "[LPM] %s reconcile MISMATCH: local=%.6f exchange=%.6f "
+                    "diff=%.6f (threshold=%.6f)",
+                    symbol, local_qty, exchange_qty, diff, threshold,
+                )
             return {
                 "matched": False, "local": local_qty,
                 "exchange": exchange_qty, "diff": diff,

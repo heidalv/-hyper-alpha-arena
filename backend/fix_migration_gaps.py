@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import argparse
 import logging
-from migrate_to_postgresql import (
+from backend.migrate_to_postgresql import (
     get_sqlite_tables, get_pg_tables, get_table_columns,
     get_boolean_columns, get_row_count, load_progress, save_progress
 )

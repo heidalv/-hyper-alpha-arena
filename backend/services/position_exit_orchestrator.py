@@ -57,6 +57,14 @@ class PositionExitOrchestrator:
             nature = p.get("trade_nature") or "swing"
             if not pid or not sym or not side or entry <= 0 or mark <= 0:
                 continue
+            # [2026-09-03 v3 方向1] E1 趋势仓唯一出场 = 规则失效 / Chandelier（trend_e1_engine），
+            # 不走分档 TP / breakeven / bias 反转 / trailing 的中长线出场栈。
+            try:
+                from backend.services.trend_e1_engine import is_e1_position as _is_e1_peo
+                if _is_e1_peo(p):
+                    continue
+            except Exception:
+                pass
 
             db_pos = db.query(PaperPosition).filter(
                 PaperPosition.id == int(pid),
@@ -127,6 +135,32 @@ class PositionExitOrchestrator:
                 # 读 invalidation_condition（S2-5c 写入的）
                 _invalidation = state_data.get("invalidation_condition", "")
                 _tp_stages = (state_data.get("nature_staged_tp") or {}).get("tp_stages_override")
+                _regime = ""
+                try:
+                    from backend.services.decision_core.regime_agent import classify_regime
+                    _regime = classify_regime(mkt if isinstance(mkt, dict) else {}).regime
+                except Exception:
+                    _regime = str((mkt or {}).get("regime") or "")
+                # [2026-08-31 时区修复] opened_at 是北京钟面 naive（PG 会话
+                # tz=Asia/Shanghai），此前与 naive-UTC 的 utcnow() 相减会把
+                # 持仓时长低估 8h（min_hold 保护被拉长、fast_cut 认错被推迟
+                # 8h）。统一归一化到 UTC 再算；PEO 只处理 open 仓，closed_at
+                # 分支本就不可达且类型错误（datetime 无 total_seconds），删除。
+                _hold_seconds = 0
+                if db_pos.opened_at:
+                    from datetime import datetime as _dt, timezone as _tz
+                    _opened = db_pos.opened_at
+                    try:
+                        from backend.utils.db_datetime import parse_db_naive_to_utc
+                        _norm = parse_db_naive_to_utc(_opened)
+                        if _norm is not None:
+                            _opened = _norm
+                    except Exception:
+                        pass
+                    if _opened.tzinfo is None:
+                        _opened = _opened.replace(tzinfo=_tz.utc)
+                    _hold_seconds = max(
+                        0, int((_dt.now(_tz.utc) - _opened).total_seconds()))
                 _ctx = PositionContext(
                     position_id=int(pid), symbol=sym, tier=_tier, side=side,
                     entry_price=entry, current_price=mark, quantity=float(p.get("size", 0) or 0),
@@ -135,11 +169,14 @@ class PositionExitOrchestrator:
                     tp_price=float(getattr(db_pos, "tp_price", 0) or 0) or None,
                     unrealized_pnl_pct=_current_pnl,
                     peak_pnl_pct=_pnl_pct,
-                    hold_seconds=int((db_pos.closed_at or __import__('datetime').datetime.utcnow() - db_pos.opened_at).total_seconds()) if db_pos.opened_at else 0,
+                    hold_seconds=_hold_seconds,
                     atr_pct=atr_pct * 100,
                     tp_stages=_tp_stages if isinstance(_tp_stages, list) else [],
                     tp_level_reached=len(state.triggered_stages),
                     invalidation_condition=_invalidation,
+                    regime=_regime,
+                    funding_rate=float((mkt or {}).get("funding_rate") or 0),
+                    oi_delta=float((mkt or {}).get("oi_delta_pct") or (mkt or {}).get("oi_delta") or 0),
                 )
                 _req = ExitRequest(
                     position_id=int(pid), symbol=sym, tier=_tier,
@@ -156,17 +193,36 @@ class PositionExitOrchestrator:
                                 f"{sym}[{nature}] breakeven SL→${_sm_decision.new_sl_price:.4f}")
                     changes += 1
                 elif _sm_decision and _sm_decision.action == ExitAction.CLOSE.value:
-                    # invalidation 退出：全平
+                    # 认错/追踪/论点失效：全平
                     res = paper_engine.close_position(
                         db, account_id, sym, side,
-                        reason=f"lifecycle_invalidation",
+                        reason=f"lifecycle_{_sm_decision.source or 'invalidation'}",
                         strategy_id=p.get("strategy_id"),
                     )
                     if res:
                         changes += 1
                         self._bump_session(session, res.get("pnl", 0))
-                        self._event(append_event, session, "lifecycle_invalidation",
-                                    f"{sym}[{nature}] invalidation 全平 PnL=${res.get('pnl', 0):+.2f}")
+                        self._event(append_event, session, "lifecycle_close",
+                                    f"{sym}[{nature}] {_sm_decision.reason} PnL=${res.get('pnl', 0):+.2f}")
+                elif (
+                    (not _v2_unified)
+                    and _sm_decision
+                    and _sm_decision.action == ExitAction.REDUCE.value
+                    and float(_sm_decision.qty_ratio or 0) > 0
+                ):
+                    qty = round(float(p.get("size", 0) or 0) * float(_sm_decision.qty_ratio), 8)
+                    if qty > 0:
+                        res = paper_engine.close_position(
+                            db, account_id, sym, side,
+                            reason=f"lifecycle_{_sm_decision.source or 'reduce'}",
+                            quantity=qty,
+                            strategy_id=p.get("strategy_id"),
+                        )
+                        if res:
+                            changes += 1
+                            self._bump_session(session, res.get("pnl", 0))
+                            self._event(append_event, session, "lifecycle_reduce",
+                                        f"{sym}[{nature}] {_sm_decision.reason}")
             except Exception as _sm_err:
                 logger.debug("[PEO][S2-6] %s exit_state_machine 调用跳过: %s", sym, _sm_err)
 

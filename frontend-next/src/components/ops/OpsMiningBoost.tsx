@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm";
 
 type Preflight = {
   ready?: boolean;
@@ -128,7 +129,12 @@ export function OpsMiningBoost() {
   }
 
   async function trigger(period: string) {
-    if (!window.confirm(`确认触发因子进化 period=${period}？后台单飞，可能跑很久。`)) return;
+    if (!(await confirmDialog({
+      title: `触发因子进化 period=${period}？`,
+      description: "后台单飞，可能跑很久（历史上单轮预计算可达数小时）。",
+      tone: "warning",
+      confirmText: "触发",
+    }))) return;
     setBusy(`run-${period}`);
     setMsg(null);
     try {
@@ -146,7 +152,12 @@ export function OpsMiningBoost() {
   }
 
   async function abortRun() {
-    if (!window.confirm("确认强制结束卡住的进化任务？")) return;
+    if (!(await confirmDialog({
+      title: "强制结束卡住的进化任务？",
+      description: "当前正在运行的进化轮次会被中断，已产出的中间结果不会入库。",
+      tone: "danger",
+      confirmText: "强制结束",
+    }))) return;
     setBusy("abort");
     setMsg(null);
     try {
@@ -164,7 +175,12 @@ export function OpsMiningBoost() {
   }
 
   async function repromote() {
-    if (!window.confirm("对隔离因子做复评，达标者回 PAPER（纸面），确认？")) return;
+    if (!(await confirmDialog({
+      title: "复评隔离因子？",
+      description: "达标者回 PAPER（纸面）状态，不会直接进入实盘。",
+      tone: "warning",
+      confirmText: "开始复评",
+    }))) return;
     setBusy("repromote");
     setMsg(null);
     try {

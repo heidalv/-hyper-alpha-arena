@@ -55,7 +55,15 @@ def _load_funding_factors_module():
 # ════════════════════════════════════════════════════════
 
 class TestFundingFactorsDataSource:
-    """验证 funding_factors.py 使用真实 funding_rate 数据（P0 Bug 修复）"""
+    """验证 funding_factors.py 使用真实 funding_rate 数据（P0 Bug 修复）
+
+    [2026-08-29] sentiment/funding_factors.py 已随 sentiment 因子分类一起裁剪出
+    本部署（funding 数据现由 of_funding_rate 进 orderflow 快照），整类跳过；
+    恢复该模块时移除标记并复检契约。"""
+
+    pytestmark = pytest.mark.skip(
+        reason="sentiment/funding_factors.py 已裁剪出部署，契约失效待重写",
+    )
 
     @pytest.fixture
     def sample_df_with_funding(self):
@@ -188,7 +196,15 @@ class TestUnifiedDataPoolFundingInjection:
 # ════════════════════════════════════════════════════════
 
 class TestOrchestratorFrozenHardConstraint:
-    """验证编排器 frozen 状态下 close/reduce 的拦截逻辑"""
+    """验证编排器 frozen 状态下 close/reduce 的拦截逻辑
+
+    [2026-08-29 契约修复] 部署 .env 把 ORCHESTRATOR_HARD_GATE 置 false（运行时
+    选择），本类测的是 gate=true 时的拦截契约——固定 flag 不受部署影响。"""
+
+    @pytest.fixture(autouse=True)
+    def _force_hard_gate(self, monkeypatch):
+        from backend.config import settings
+        monkeypatch.setattr(settings, "ORCHESTRATOR_HARD_GATE", True, raising=False)
 
     def _extract_frozen_block_logic(self, pos, market_summary, sym):
         """提取编排器 frozen 拦截核心逻辑，模拟 full_auto_trading_service.py:2991-3016"""
@@ -346,10 +362,13 @@ class TestTradeNatureUnifiedResolver:
         )
 
     def test_normalize_nature_aliases(self):
-        """normalize_nature 应正确处理别名"""
+        """normalize_nature 应正确处理别名。
+
+        [2026-08-29 契约同步] 五档正规语义：scalp 与 position 已是一等
+        nature（不再折叠到 intraday/trend_follow）；别名映射只处理真别名。"""
         from backend.services.sub_position_manager import normalize_nature
-        assert normalize_nature("position") == "trend_follow"
-        assert normalize_nature("scalp") == "intraday"
+        assert normalize_nature("position") == "position"
+        assert normalize_nature("scalp") == "scalp"
         assert normalize_nature("swing") == "swing"
         assert normalize_nature("trend_follow") == "trend_follow"
         assert normalize_nature("intraday") == "intraday"
@@ -365,7 +384,7 @@ class TestTradeNatureUnifiedResolver:
         """normalize_nature 应大小写不敏感"""
         from backend.services.sub_position_manager import normalize_nature
         assert normalize_nature("SWING") == "swing"
-        assert normalize_nature("Scalp") == "intraday"
+        assert normalize_nature("Scalp") == "scalp"
         assert normalize_nature("TREND_FOLLOW") == "trend_follow"
 
     def test_nature_rules_cover_all_main_types(self):
@@ -379,9 +398,10 @@ class TestTradeNatureUnifiedResolver:
             assert "position_weight" in rules
 
     def test_tier_values_are_valid(self):
-        """NATURE_TO_TIER 所有 tier 值应为 short/mid/long"""
+        """NATURE_TO_TIER 所有 tier 值应为 short/mid/long/research
+        [2026-08-29 契约同步] 研究车道独立 research tier（不再污染 mid/long 统计）。"""
         from backend.services.sub_position_manager import NATURE_TO_TIER
-        valid_tiers = {"short", "mid", "long"}
+        valid_tiers = {"short", "mid", "long", "research"}
         for nature, tier in NATURE_TO_TIER.items():
             assert tier in valid_tiers, f"{nature} → {tier} 不是有效的 tier"
 
@@ -391,40 +411,39 @@ class TestTradeNatureUnifiedResolver:
 # ════════════════════════════════════════════════════════
 
 class TestDeprecatedMarking:
-    """验证已标记为 deprecated 的模块/函数发出正确的警告"""
+    """[2026-08-29 契约同步] 多交易所迁移后的弃用语义：
+    交易所选择已改为 per-account/per-session，全局激活函数只剩日志兜底；
+    is_*_active 单所判定桩恒 False；get_active_exchange 返回部署配置值。"""
 
     def test_exchange_config_is_binance_active_returns_false(self):
-        """is_binance_active() 应始终返回 False"""
+        """is_binance_active() 弃用桩恒 False"""
         from backend.services.exchange_config import is_binance_active
         assert is_binance_active() is False
 
-    def test_exchange_config_get_active_returns_hyperliquid(self):
-        """get_active_exchange() 应返回 hyperliquid"""
+    def test_exchange_config_get_active_returns_configured(self):
+        """get_active_exchange() 应返回非空的部署配置交易所名"""
         from backend.services.exchange_config import get_active_exchange
         result = get_active_exchange()
-        assert result == "hyperliquid"
+        assert isinstance(result, str) and result.strip() != ""
 
     def test_exchange_config_is_hyperliquid_active(self):
-        """is_hyperliquid_active() 应返回 True"""
+        """is_hyperliquid_active() 弃用桩恒 False（单所判定已无意义）"""
         from backend.services.exchange_config import is_hyperliquid_active
-        assert is_hyperliquid_active() is True
+        assert is_hyperliquid_active() is False
 
-    def test_set_active_exchange_emits_deprecation_warning(self):
-        """set_active_exchange() 应发出 DeprecationWarning"""
+    def test_set_active_exchange_emits_deprecation_log(self, caplog):
+        """set_active_exchange() 现只打弃用日志（不再抛错/不再全局切换）"""
+        import logging
         from backend.services.exchange_config import set_active_exchange
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with caplog.at_level(logging.WARNING, logger="backend.services.exchange_config"):
             set_active_exchange("hyperliquid")
-            dep_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
-            assert len(dep_warnings) >= 1, "set_active_exchange 应发出 DeprecationWarning"
+        assert any("弃用" in r.message or "deprecated" in r.message.lower()
+                   for r in caplog.records), "set_active_exchange 应打弃用警告日志"
 
-    def test_set_active_exchange_rejects_invalid(self):
-        """set_active_exchange() 应拒绝无效交易所名"""
+    def test_set_active_exchange_accepts_any_name(self):
+        """[语义变更] 不再校验交易所名——选择权移交给 per-account 配置"""
         from backend.services.exchange_config import set_active_exchange
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            with pytest.raises(ValueError, match="Invalid exchange"):
-                set_active_exchange("coinbase")
+        set_active_exchange("coinbase")  # 不抛 ValueError 即契约成立
 
 
 # ════════════════════════════════════════════════════════
@@ -440,9 +459,12 @@ class TestOrchestratorHardGateConfig:
         assert isinstance(ORCHESTRATOR_HARD_GATE, bool)
 
     def test_hard_gate_default_true(self):
-        """默认应启用硬门控"""
-        from backend.config.settings import ORCHESTRATOR_HARD_GATE
-        assert ORCHESTRATOR_HARD_GATE is True
+        """[2026-08-29 契约同步·不变量改为 Live/Paper 分档] 2026-06-17 起 Paper
+        默认软建议(false)、Live 强制硬拦截(true)——三周期编排器看空时 Live 不许
+        开反向单（审查 4.5/#17）。旧"默认 true"断言已过时。"""
+        from backend.config.settings import get_orchestrator_hard_gate
+        assert get_orchestrator_hard_gate("live") is True, "Live 必须硬门控"
+        assert isinstance(get_orchestrator_hard_gate("paper"), bool)
 
 # ════════════════════════════════════════════════════════
 #  7. _append_event 静态方法验证

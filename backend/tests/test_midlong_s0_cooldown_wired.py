@@ -55,8 +55,26 @@ class TestS07NewFlags:
         assert "manual" not in settings.MID_TIER_PROTECTED_FROM
 
     def test_risk_use_mid_tier_immune_default_true(self):
-        from backend.config import settings
-        assert settings.RISK_USE_MID_TIER_IMMUNE is True
+        """契约：settings 值忠实反映 .env 文件配置——无覆盖时默认 true，有覆盖
+        时与文件值解析一致（部署显式关闭豁免=运行时选择，不是回归）。
+        直接读 .env 文件判定（os.environ 受同批测试 import 顺序影响不稳定）；
+        函数行为契约由 TestS06 固定 flag=True 覆盖。"""
+        from pathlib import Path
+        import backend.config.settings as _settings
+        val = getattr(_settings, "RISK_USE_MID_TIER_IMMUNE")
+        assert isinstance(val, bool)
+        _env_val = ""
+        _envf = Path(__file__).resolve().parents[2] / ".env"
+        if _envf.exists():
+            for _ln in _envf.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if _ln.strip().startswith("RISK_USE_MID_TIER_IMMUNE="):
+                    _env_val = _ln.split("=", 1)[1].strip()
+                    break
+        if _env_val:
+            assert val == (_env_val.lower() in ("1", "true", "yes", "on")), \
+                f"settings 值 {val} 与 .env 覆盖 '{_env_val}' 不一致"
+        else:
+            assert val is True
 
     def test_long_tier_protected_from_still_intact(self):
         """long tier 原有保护不应被破坏。"""
@@ -70,7 +88,17 @@ class TestS07NewFlags:
 # S0-6: is_close_reason_blocked_for_midlong 函数行为
 # ════════════════════════════════════════════════════════════════════
 class TestS06MidlongImmune:
-    """验证 is_close_reason_blocked_for_midlong 正确区分软/硬退出 + tier。"""
+    """验证 is_close_reason_blocked_for_midlong 正确区分软/硬退出 + tier。
+
+    [2026-08-29 契约修复] 部署 .env 把 RISK_USE_MID_TIER_IMMUNE 置 false
+    （豁免关闭=运行时选择），导致本类在真实环境全红。测试的是【函数契约】，
+    应固定 flag=true 不受部署配置影响。"""
+
+    @pytest.fixture(autouse=True)
+    def _force_immune_flags(self, monkeypatch):
+        from backend.config import settings
+        monkeypatch.setattr(settings, "RISK_USE_MID_TIER_IMMUNE", True, raising=False)
+        monkeypatch.setattr(settings, "RISK_USE_LONG_TIER_IMMUNE", True, raising=False)
 
     def test_mid_master_running_close_blocked(self):
         from backend.services.risk_band_resolver import is_close_reason_blocked_for_midlong

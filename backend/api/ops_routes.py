@@ -510,6 +510,26 @@ def _ops_heartbeats_impl() -> Dict[str, Any]:
         "1", "true", "yes", "on",
     ):
         _disabled_tasks.add("pair_selector_watcher")
+    # [F39 2026-09-09] SCALP_OPEN_DISABLED=true（2026-09-05 起短线整体停开：
+    # 大样本判定结构性负期望）时 main.py 不再注册下列任务（main.py:1560-1622
+    # 的 `if _scalp_off: 跳过` 分支），心跳自然停更 → 按 age 会误报 P0
+    # 「心跳中断」。实测这 4 条在报错中心长期占位 P0=4（09-05 至今）。
+    # 与 pair_selector_watcher 同款处理：标记 disabled 后报错中心不生成故障项
+    # （见本文件 errors 端点：sla=disabled 不入 items）。
+    # 注意：scalp_circuit_breaker 仍被注册（不在本表内），保持正常 SLA 判定。
+    try:
+        from backend.config.settings import SCALP_OPEN_DISABLED as _scalp_off
+    except Exception:  # 配置不可用时按 .env 兜底
+        _scalp_off = os.getenv("SCALP_OPEN_DISABLED", "true").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    if _scalp_off:
+        _disabled_tasks.update({
+            "scalp_daily_health",     # main.py:1565 cron 05:30
+            "scalp_chain_health",     # main.py:1571 interval 600s
+            "scalp_symbol_profile",   # main.py:1578 cron 05:45（心跳 id 去 _daily）
+            "pair_binding_lane",      # main.py:1617 interval 300s
+        })
     items = []
     for tid, info in sorted(raw.items()):
         age = _age_sec(info.get("last_ok_at"))
@@ -855,8 +875,14 @@ def _ops_long_trend_v2_impl(session_id: Optional[str]) -> Dict[str, Any]:
             from backend.database.models import FullAutoSession
             db = SessionLocal()
             try:
-                db.execute(text("SET app.tenant_id='326'"))
-                db.execute(text("SET app.is_admin='on'"))
+                # [2026-09-02 安全修复] 原为会话级 `SET app.tenant_id='326'` +
+                # `SET app.is_admin='on'`。会话级 GUC 不随 rollback/commit 消失，
+                # db.close() 把连接还回池后，**下一个拿到这条连接的任意请求都是
+                # admin（RLS 全部绕过）且租户被钉成 326**。test_rls_after_commit::
+                # test_tenant_guc_unset_when_no_identity 抓到的 '326' 残留正是它。
+                # 运维读全表只需事务级 admin 穿透：SET LOCAL 随本事务结束自动失效，
+                # 与 connection.py 的租户钩子同一口径；不再硬编码任何租户 id。
+                db.execute(text("SET LOCAL app.is_admin='on'"))
                 sess = db.query(FullAutoSession).filter(
                     FullAutoSession.status.in_(["running", "defensive"])
                 ).order_by(FullAutoSession.id.desc()).first()

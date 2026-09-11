@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from backend.database.connection import get_db
 from backend.database.models import CryptoKline
-from factors import compute_all_factors, compute_selected_factors, list_factors
+from backend.factors import compute_all_factors, compute_selected_factors, list_factors
 
 router = APIRouter(prefix="/api/ranking", tags=["ranking"])
 

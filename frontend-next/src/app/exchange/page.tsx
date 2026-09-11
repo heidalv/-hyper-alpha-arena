@@ -7,17 +7,21 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Server, Plus, Trash2, Loader2, CheckCircle2, XCircle, RefreshCw,
   Key, Bot, Settings2, Link2, Save, AlertTriangle, Pencil,
-  Wallet, Banknote, TrendingUp, Play, StopCircle, Activity,
+  Wallet, Banknote, TrendingUp, Play, StopCircle, Activity, Coins,
 } from "lucide-react";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount, useSessions } from "@/hooks/useTradingData";
 import { useDefaultExchange } from "@/hooks/useDefaultExchange";
-import { accountApi, sessionApi, proxyConfigApi } from "@/lib/api";
+import { accountApi, sessionApi, proxyConfigApi, apiRequest } from "@/lib/api";
+import { usePolling } from "@/hooks/usePolling";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { getBackendUrl } from "@/lib/backend-config";
-const BACKEND = getBackendUrl().replace(/\/$/, "");
+// [2026-09] 实盘积分账本（Asterdex 成交顺路吃 Rh 积分计量）
+import AsterdexPointsPanel from "@/components/exchange/AsterdexPointsPanel";
+import { confirmDialog } from "@/lib/confirm";
 
 const EX_NAMES: Record<string, string> = {
   hyperliquid: "Hyperliquid", binance: "币安", bybit: "Bybit",
@@ -30,7 +34,7 @@ const ENV_NAMES: Record<string, string> = {
 };
 const envName = (id: string) => ENV_NAMES[id] || id;
 
-type Tab = "accounts" | "credentials" | "monitor";
+type Tab = "accounts" | "credentials" | "monitor" | "points";
 
 export default function ExchangePage() {
   const [tab, setTab] = useState<Tab>("accounts");
@@ -39,6 +43,7 @@ export default function ExchangePage() {
     { key: "accounts", label: "账户管理", icon: Bot },
     { key: "credentials", label: "API 凭证", icon: Key },
     { key: "monitor", label: "交易所监控", icon: Server },
+    { key: "points", label: "积分账本", icon: Coins },
   ];
 
   return (
@@ -65,6 +70,11 @@ export default function ExchangePage() {
       {tab === "accounts" && <AccountsTab />}
       {tab === "credentials" && <CredentialsTab />}
       {tab === "monitor" && <MonitorTab />}
+      {tab === "points" && (
+        <Card className="p-4 border-amber-400/30 space-y-3 glass">
+          <AsterdexPointsPanel />
+        </Card>
+      )}
     </div>
   );
 }
@@ -103,7 +113,7 @@ function AccountsTab() {
       setWizardAcct(null);
       refetchSessions();
     } catch (e: any) {
-      alert(e?.message || String(e));
+      toast.error(e?.message || String(e));
     } finally {
       setWzBusy(false);
     }
@@ -112,9 +122,10 @@ function AccountsTab() {
     (sessions || []).filter((s: any) => s.account_id === acctId || s.paper_account_id === acctId);
 
   useEffect(() => {
-    fetch(`${BACKEND}/api/llm-configs`).then(r => r.json()).then(d => setLlmConfigs(d.items || [])).catch(() => {});
-    fetch(`${BACKEND}/api/account/personality-presets`).then(r => r.json()).then(setPersonalities).catch(() => {});
-    fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).then(d => setCreds(Array.isArray(d) ? d : [])).catch(() => {});
+    // [2026-09-09] 裸 fetch → apiRequest（带 token + 单飞续期 + 401 重试/登出 + 超时）
+    void apiRequest<any>("/llm-configs", { timeout: 15_000 }).then(d => setLlmConfigs(d.items || [])).catch(() => {});
+    void apiRequest<any>("/account/personality-presets", { timeout: 15_000 }).then(setPersonalities).catch(() => {});
+    void apiRequest<any>("/exchange/credentials", { timeout: 15_000 }).then(d => setCreds(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
   const [form, setForm] = useState({ name: "", trading_mode: "paper", initial_capital: "500", selected_exchange: defaultEx, binance_market_type: "usdt_m", credential_id: "" });
@@ -131,9 +142,10 @@ function AccountsTab() {
     // [2026-08-28] 实盘账户创建时可顺带绑定 API 凭证
     if (form.trading_mode === "live" && form.credential_id && created?.id) {
       try {
-        await fetch(`${BACKEND}/api/exchange/credentials/${form.credential_id}/bind`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
+        await apiRequest(`/exchange/credentials/${form.credential_id}/bind`, {
+          method: "PUT",
           body: JSON.stringify({ account_id: created.id }),
+          timeout: 15_000,
         });
       } catch {}
     }
@@ -302,10 +314,17 @@ function AccountsTab() {
                         {running.length > 0 && (
                           <button title="停止该账户全部会话" className="text-loss ml-1"
                             onClick={() => {
-                              if (confirm("停止该账户的全部运行中会话？")) {
-                                running.forEach((s: any) => sessionApi.stop(s.session_id).catch(() => {}));
-                                setTimeout(() => refetchSessions(), 1500);
-                              }
+                              void (async () => {
+                                if (await confirmDialog({
+                                  title: `停止该账户的全部 ${running.length} 个运行中会话？`,
+                                  description: "已开仓位不会被平掉，策略将不再产生新决策。",
+                                  tone: "warning",
+                                  confirmText: "停止会话",
+                                })) {
+                                  running.forEach((s: any) => sessionApi.stop(s.session_id).catch(() => {}));
+                                  setTimeout(() => refetchSessions(), 1500);
+                                }
+                              })();
                             }}>
                             <StopCircle className="w-3.5 h-3.5" />
                           </button>
@@ -316,14 +335,26 @@ function AccountsTab() {
                   <button title="启动会话" onClick={() => { setWizardAcct(a); setWz({ mode: a.trading_mode || "paper", paperAccountId: "", symbols: "BTC,ETH,SOL", risk: "moderate" }); }} className="text-cyan-300 hover:text-cyan-200 mr-1"><Play className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setEditing(a)} className="text-primary hover:text-primary/80 mr-1"><Settings2 className="w-3.5 h-3.5" /></button>
                   <button onClick={() => {
-                    if (confirm("停用账户？（将自动停止其全部会话，历史保留）。再确认一次可选择彻底删除")) {
-                      deleteMut.mutate(a.id);
-                    } else if (confirm("彻底删除账户？（仅当无持仓无会话；历史一并清除，不可恢复）")) {
-                      accountApi.delete(a.id, { hard: true })
-                        .then((r: any) => alert(r?.message || "已彻底删除"))
-                        .catch((e: any) => alert(e?.message || String(e)))
-                        .finally(() => window.location.reload());
-                    }
+                    void (async () => {
+                      if (await confirmDialog({
+                        title: `停用账户「${a.name}」？`,
+                        description: "将自动停止其全部会话，历史保留。若需彻底删除请再次点击并在下一步确认。",
+                        tone: "warning",
+                        confirmText: "停用",
+                      })) {
+                        deleteMut.mutate(a.id);
+                      } else if (await confirmDialog({
+                        title: `彻底删除账户「${a.name}」？`,
+                        description: "仅当无持仓无会话时可删；历史一并清除，不可恢复。",
+                        tone: "danger",
+                        confirmText: "彻底删除",
+                      })) {
+                        accountApi.delete(a.id, { hard: true })
+                          .then((r: any) => toast.success(r?.message || "已彻底删除"))
+                          .catch((e: any) => toast.error(e?.message || String(e)))
+                          .finally(() => window.location.reload());
+                      }
+                    })();
                   }} className="text-loss hover:text-loss/80"><Trash2 className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
@@ -383,7 +414,7 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
   const defaultCfg = (llmConfigs || []).find((c: any) => c.is_default);
 
   useEffect(() => {
-    fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).then((d) => {
+    void apiRequest<any>("/exchange/credentials", { timeout: 15_000 }).then((d) => {
       const list = Array.isArray(d) ? d : [];
       setCreds(list);
       setBoundCred(list.find((c: any) => c.account_id === account.id) || null);
@@ -393,22 +424,20 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
   const handleBindCred = async (credId: string) => {
     try {
       if (boundCred && boundCred.id !== parseInt(credId || "0")) {
-        await fetch(`${BACKEND}/api/exchange/credentials/${boundCred.id}/bind`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ account_id: null }),
+        await apiRequest(`/exchange/credentials/${boundCred.id}/bind`, {
+          method: "PUT", body: JSON.stringify({ account_id: null }), timeout: 15_000,
         });
       }
       if (credId) {
-        await fetch(`${BACKEND}/api/exchange/credentials/${credId}/bind`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ account_id: account.id }),
+        await apiRequest(`/exchange/credentials/${credId}/bind`, {
+          method: "PUT", body: JSON.stringify({ account_id: account.id }), timeout: 15_000,
         });
       }
-      const fresh = await fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).catch(() => []);
+      const fresh = await apiRequest<any>("/exchange/credentials", { timeout: 15_000 }).catch(() => []);
       const list = Array.isArray(fresh) ? fresh : [];
       setCreds(list);
       setBoundCred(list.find((c: any) => c.account_id === account.id) || null);
-    } catch (e: any) { alert(e?.message || String(e)); }
+    } catch (e: any) { toast.error(e?.message || String(e)); }
   };
 
   const handleSave = async () => {
@@ -429,10 +458,10 @@ function AccountEditor({ account, llmConfigs, personalities, onClose, onSave }: 
       if (!Number.isNaN(v) && v > 0) to[t] = { leverage: v };
     });
     try {
-      await fetch(`${BACKEND}/api/unified-account/${account.id}/tier-overrides`, {
+      await apiRequest(`/unified-account/${account.id}/tier-overrides`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier_overrides: to }),
+        timeout: 15_000,
       });
     } catch {}
     setSaving(false);
@@ -556,23 +585,24 @@ function MonitorTab() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
+      // [2026-09-09] 裸 fetch → apiRequest（带 token + 单飞续期 + 401 重试/登出 + 超时）
       const [sts, allPos] = await Promise.all([
-        fetch(`${BACKEND}/api/exchange/statuses`).then(r => r.json()).catch(() => []),
-        fetch(`${BACKEND}/api/exchange/positions/all`).then(r => r.json()).catch(() => []),
+        apiRequest<any>("/exchange/statuses", { timeout: 20_000 }).catch(() => []),
+        apiRequest<any>("/exchange/positions/all", { timeout: 20_000 }).catch(() => []),
       ]);
-      setStatuses(sts);
+      setStatuses(Array.isArray(sts) ? sts : []);
       setPositions(Array.isArray(allPos) ? allPos : (allPos?.positions || []));
       const balResults: Record<string, any> = {};
-      await Promise.all(sts.filter((s: any) => s.connected).map(async (s: any) => {
-        try { balResults[s.exchange] = await fetch(`${BACKEND}/api/exchange/${s.exchange}/balance`).then(r => r.json()); } catch {}
+      await Promise.all((Array.isArray(sts) ? sts : []).filter((s: any) => s.connected).map(async (s: any) => {
+        try { balResults[s.exchange] = await apiRequest<any>(`/exchange/${s.exchange}/balance`, { timeout: 20_000 }); } catch {}
       }));
       setBalances(balResults);
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); const id = setInterval(load, 30000); return () => clearInterval(id); }, [load]);
+  // 30s 轮询 + 隐藏暂停 + 单飞（原来裸 setInterval 隐藏时照打）
+  usePolling(load, 30_000);
 
   const EX_NAMES: Record<string, string> = { hyperliquid: "Hyperliquid", binance: "币安", bybit: "Bybit", okx: "OKX", gateio: "Gate.io", asterdex: "Asterdex" };
   const getExName = (id: string) => EX_NAMES[id] || id;
@@ -749,15 +779,14 @@ function CredentialsTab() {
   const [editing, setEditing] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "" });
+  const [form, setForm] = useState({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "", points_enabled: false, points_maker_first: true, points_maker_timeout_s: "30", points_asset: false });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const [creds, proxys] = await Promise.all([
-        fetch(`${BACKEND}/api/exchange/credentials`).then(r => r.json()).catch(() => []),
+        apiRequest<any>("/exchange/credentials", { timeout: 15_000 }).catch(() => []),
         proxyConfigApi.list().catch(() => []),
       ]);
       setCredentials(creds);
@@ -765,7 +794,9 @@ function CredentialsTab() {
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // 规则无法看穿 async 边界（load 首个语句是 await，setState 在微任务里），显式豁免
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void load(); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -773,8 +804,9 @@ function CredentialsTab() {
       let proxyValue: string | null = null;
       if (form.proxy_id === "__current__") proxyValue = form.proxy_current || null;
       else if (form.proxy_id) proxyValue = (proxyCfgs || []).find((p: any) => p.id === parseInt(form.proxy_id))?.proxy_url || null;
-      await fetch(`${BACKEND}/api/exchange/credentials`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      await apiRequest("/exchange/credentials", {
+        method: "POST",
+        timeout: 20_000,
         body: JSON.stringify({
           id: editing ? editing.id : undefined,
           exchange: form.exchange,
@@ -785,18 +817,28 @@ function CredentialsTab() {
           account_id: form.account_id ? parseInt(form.account_id) : null,
           testnet: form.testnet,
           proxy_url: proxyValue,
+          // [2026-09] Asterdex 积分开关（仅 asterdex 凭证生效）
+          points_enabled: form.exchange === "asterdex" ? form.points_enabled : undefined,
+          points_config: form.exchange === "asterdex"
+            ? {
+                maker_first: form.points_maker_first,
+                maker_timeout_s: parseFloat(form.points_maker_timeout_s) || 30,
+                asset_points_enabled: form.points_asset,
+              }
+            : undefined,
         }),
       });
       setShowAdd(false);
       setEditing(null);
-      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "" });
+      setForm({ exchange: "binance", api_key: "", api_secret: "", passphrase: "", label: "", account_id: "", testnet: false, proxy_id: "", proxy_current: "", points_enabled: false, points_maker_first: true, points_maker_timeout_s: "30", points_asset: false });
       load();
-    } catch (e: any) { alert(e?.message || String(e)); }
+    } catch (e: any) { toast.error(e?.message || String(e)); }
     setSaving(false);
   };
 
   const openEdit = (cred: any) => {
     const match = (proxyCfgs || []).find((p: any) => p.proxy_url === cred.proxy_url);
+    const pcfg = cred.points_config || {};
     setEditing(cred);
     setForm({
       exchange: cred.exchange,
@@ -805,6 +847,10 @@ function CredentialsTab() {
       testnet: !!cred.testnet,
       proxy_id: match ? String(match.id) : (cred.proxy_url ? "__current__" : ""),
       proxy_current: cred.proxy_url || "",
+      points_enabled: !!cred.points_enabled,
+      points_maker_first: pcfg.maker_first !== false,
+      points_maker_timeout_s: String(pcfg.maker_timeout_s ?? 30),
+      points_asset: !!pcfg.asset_points_enabled,
     });
     setShowAdd(true);
   };
@@ -812,26 +858,33 @@ function CredentialsTab() {
   const handleTest = async (id: number) => {
     setTesting(id);
     try {
-      const result = await fetch(`${BACKEND}/api/exchange/credentials/${id}/test`, { method: "POST" }).then(r => r.json());
-      alert(result.connected ? "✅ 连接成功" : `❌ ${result.error || "连接失败"}`);
-    } catch (e: any) { alert(e.message); }
+      const result = await apiRequest<any>(`/exchange/credentials/${id}/test`, { method: "POST", timeout: 30_000 });
+      if (result.connected) toast.success("连接成功");
+      else toast.error(result.error || "连接失败");
+    } catch (e: any) { toast.error(e.message); }
     setTesting(null);
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("确认删除此凭证？")) return;
-    try { await fetch(`${BACKEND}/api/exchange/credentials/${id}`, { method: "DELETE" }); load(); }
-    catch (e: any) { alert(e.message); }
+    if (!(await confirmDialog({
+      title: "确认删除此 API 凭证？",
+      description: "已绑定该凭证的账户将无法下单，需重新绑定。",
+      tone: "danger",
+      confirmText: "删除",
+    }))) return;
+    try { await apiRequest(`/exchange/credentials/${id}`, { method: "DELETE", timeout: 15_000 }); void load(); }
+    catch (e: any) { toast.error(e.message); }
   };
 
   const handleBind = async (id: number, accountId: string) => {
     try {
-      await fetch(`${BACKEND}/api/exchange/credentials/${id}/bind`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+      await apiRequest(`/exchange/credentials/${id}/bind`, {
+        method: "PUT",
         body: JSON.stringify({ account_id: accountId ? parseInt(accountId) : null }),
+        timeout: 15_000,
       });
-      load();
-    } catch (e: any) { alert(e?.message || String(e)); }
+      void load();
+    } catch (e: any) { toast.error(e?.message || String(e)); }
   };
 
   const acctName = (id: number | null | undefined) => {
@@ -857,6 +910,7 @@ function CredentialsTab() {
                 className="w-full bg-card border border-border text-sm rounded px-2 py-1.5">
                 <option value="binance">币安</option><option value="bybit">Bybit</option>
                 <option value="okx">OKX</option><option value="gateio">Gate.io</option>
+                <option value="asterdex">Asterdex</option>
                 <option value="hyperliquid">Hyperliquid</option>
               </select>
             </div>
@@ -892,6 +946,44 @@ function CredentialsTab() {
             {form.exchange === "okx" && (
               <div className="col-span-2"><Label className="text-xs">Passphrase (仅 OKX)</Label><Input type="password" value={form.passphrase} onChange={(e) => setForm({ ...form, passphrase: e.target.value })} className="text-sm font-mono" /></div>
             )}
+            {form.exchange === "asterdex" && (
+              <div className="col-span-2 border border-amber-400/30 rounded-lg p-3 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-medium text-amber-300 flex items-center gap-1">
+                      <Coins className="w-3.5 h-3.5" /> Asterdex 实盘收益优化（Maker 0 费率 + Trade &amp; Earn）
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Stage 6 积分赛季已于 2026-05 结束，不再有积分可赚。当前有效：① 中长线开仓走 Maker 优先挂单（USDT 永续 maker 0% / taker 0.04%），超时自动市价兜底，不改变交易意图；② Trade &amp; Earn 用 USDF 作保证金拿周奖励（需在 Aster 网页手动兑换 USDF 并开启多资产模式）。只优化「本来就要成交」的单，绝不为刷量而交易。
+                    </div>
+                  </div>
+                  <Switch checked={form.points_enabled} onCheckedChange={(v) => setForm({ ...form, points_enabled: !!v })} />
+                </div>
+                {form.points_enabled && (
+                  <>
+                    <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                      <div>
+                        <div className="text-xs">Maker 优先挂单（仅 mid / long 周期开仓）</div>
+                        <div className="text-[10px] text-muted-foreground">短线开仓、平仓、止损一律保持市价（时效优先）；挂单未成交 → 撤单 → 市价补足</div>
+                      </div>
+                      <Switch checked={form.points_maker_first} onCheckedChange={(v) => setForm({ ...form, points_maker_first: !!v })} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">挂单等待上限（秒）</span>
+                      <Input value={form.points_maker_timeout_s} onChange={(e) => setForm({ ...form, points_maker_timeout_s: e.target.value })} className="w-24 text-sm" />
+                      <span className="text-[10px] text-muted-foreground">建议 30～90；范围 5～300</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                      <div>
+                        <div className="text-xs">已把保证金换成 USDF / asBNB（Trade &amp; Earn）</div>
+                        <div className="text-[10px] text-muted-foreground">仅作标记，系统不会自动换币；抵押品占比与门槛进度以实盘页「真实收入账本」为准</div>
+                      </div>
+                      <Switch checked={form.points_asset} onCheckedChange={(v) => setForm({ ...form, points_asset: !!v })} />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); setEditing(null); }}>取消</Button>
@@ -921,6 +1013,11 @@ function CredentialsTab() {
                     <div className="text-sm font-medium flex items-center gap-1.5">
                       {EX_NAMES[cred.exchange] || cred.exchange} {cred.label && `· ${cred.label}`}
                       <Badge variant="secondary" className="text-[10px]">{cred.testnet ? "测试网" : "主网"}</Badge>
+                      {cred.exchange === "asterdex" && (
+                        <Badge variant="outline" className={cn("text-[10px]", cred.points_enabled ? "text-amber-300 border-amber-400/40" : "text-muted-foreground")}>
+                          <Coins className="w-3 h-3 mr-0.5" />积分 {cred.points_enabled ? "ON" : "OFF"}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
                       {cred.api_key_masked || (cred.has_key ? "已配置" : "未配置密钥")}
@@ -955,8 +1052,8 @@ function CredentialsTab() {
 function LiveGuardBadge() {
   const [st, setSt] = useState<any>(null);
   useEffect(() => {
-    fetch(`${BACKEND}/api/unified-account/live-guard-status`)
-      .then((r) => r.json()).then(setSt).catch(() => {});
+    void apiRequest<any>("/unified-account/live-guard-status", { timeout: 15_000 })
+      .then(setSt).catch(() => {});
   }, []);
   if (!st) return null;
   return (

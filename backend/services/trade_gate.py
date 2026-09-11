@@ -145,9 +145,10 @@ class TradeGate:
                     ),
                 )
 
-        # ③ 杠杆：交易所同币一仓一杠杆。已有仓必须沿用，不得用新算值压低/抬高。
+        # ③ 杠杆：交易所同币一仓一杠杆。已有仓必须沿用，不得用新算值压低/抬高；
+        #    无仓则取该 **币种** 的统一档位（入参 leverage 仅作日志对比，不再作数）。
         _resolved = resolve_leverage(
-            tier=tier, requested=leverage, mental_cap=mental_cap,
+            tier=tier, requested=leverage, mental_cap=mental_cap, symbol=symbol,
         )
         _has_existing = bool(_coord_res.existing_sub_positions)
         if _has_existing:

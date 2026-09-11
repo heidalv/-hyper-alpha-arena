@@ -440,7 +440,7 @@ async def get_strategy_analysis(db: Session = Depends(get_db)):
 async def get_symbol_factors(symbol: str, db: Session = Depends(get_db)):
     """获取指定交易对的因子值"""
     try:
-        from services.factor_engine import factor_engine
+        from backend.services.factor_engine import factor_engine
         from backend.services.market_data import get_kline_data
         import pandas as pd
 
@@ -503,7 +503,7 @@ async def get_symbol_factors(symbol: str, db: Session = Depends(get_db)):
 async def recommend_factors(symbol: str, db: Session = Depends(get_db)):
     """获取指定交易对的推荐因子组合（基于当前市场状态自适应权重）"""
     try:
-        from services.factor_engine import (
+        from backend.services.factor_engine import (
             factor_engine,
             get_factor_weighting,
         )

@@ -42,6 +42,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from backend.database.connection import DATABASE_URL, engine
+from backend.tests.integration._rls_privileges import SKIP_REASON, can_create_roles
 
 
 pytestmark = pytest.mark.skipif(
@@ -89,6 +90,10 @@ def test_role():
     # 故把名字/密码内联。两者均为本文件写死的常量,无注入面。
     # 注意 SQLAlchemy 2.0 autobegin:Connection 退出时不会自动提交,DDL 必须
     # 显式 commit(),否则 CREATE ROLE 被回滚 → 角色不存在 → 测试连接失败。
+    # [2026-09-02] 应用账号已降权(非 superuser、无 CREATEROLE),此处会抛
+    # InsufficientPrivilege。缺权限时 skip 而非 ERROR，详见 _rls_privileges。
+    if not can_create_roles():
+        pytest.skip(SKIP_REASON)
     with engine.connect() as c:
         c.execute(text(f"DROP ROLE IF EXISTS {_TEST_ROLE}"))
         c.execute(

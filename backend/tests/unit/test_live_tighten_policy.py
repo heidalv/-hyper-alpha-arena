@@ -22,9 +22,14 @@ def test_live_pwin_extra_defaults():
     assert P.live_daily_open_cap() >= 0
 
 
-def test_ev_meta_hard_filter_defaults_on_for_live():
-    # 实盘收紧：默认 false = 不降级（硬过滤保持）
+def test_ev_meta_hard_filter_defaults_on_for_live(monkeypatch):
+    # 实盘收紧：代码默认 false = 不降级（硬过滤保持）。
+    # [2026-08-29 实盘对齐模拟盘] .env 显式设 LIVE_SCALP_EV_META_HARD_FILTER=true
+    # （引导期与 paper 同款软接入）；测试须剥离 env 校验代码默认值本身。
+    monkeypatch.delenv("LIVE_SCALP_EV_META_HARD_FILTER", raising=False)
     assert P.live_scalp_ev_meta_hard_filter_off() is False
+    monkeypatch.setenv("LIVE_SCALP_EV_META_HARD_FILTER", "true")
+    assert P.live_scalp_ev_meta_hard_filter_off() is True
 
 
 def test_daily_quota_resets_by_date_and_session():

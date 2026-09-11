@@ -32,6 +32,22 @@ def _s(name: str, default: str) -> str:
     return (os.getenv(name, "") or default).strip().lower()
 
 
+def _f_mode(name: str, default: float, mode: Optional[str] = None) -> float:
+    """按 paper/live 分离读取阈值，未配 `_PAPER`/`_LIVE` 时回落到全局键。
+
+    风控阈值对模拟盘与实盘的含义不同：实盘的每一笔都是真金白银，模拟盘的
+    每一笔都是样本。分离后同一个闸门可以对实盘从严、对模拟盘按采样需求放宽。
+    """
+    _suffix = "_LIVE" if (mode or "paper").strip().lower() == "live" else "_PAPER"
+    _raw = os.getenv(name + _suffix)
+    if _raw is not None and str(_raw).strip() != "":
+        try:
+            return float(_raw)
+        except ValueError:
+            pass
+    return _f(name, default)
+
+
 FUSION_MODE: str = _s("FUSION_MODE", "hybrid")            # hybrid | factor | llm
 PWIN_MIN: float = _f("FUSION_SCALP_PWIN_MIN", 0.55)       # 入场主阈值（回放证据）
 PWIN_STRONG: float = _f("FUSION_SCALP_PWIN_STRONG", 0.60) # 最强桶
@@ -125,6 +141,36 @@ def explore_quota_bump(account_id=None) -> None:
     _explore_quota_bump(account_id)
 
 
+# ── [2026-09-04] 元模型不可用期的处置按 paper/live 分开 ──
+# 此前 FUSION_PWIN_UNUSABLE_MODE 是全局一个值，被钉成 hold，理由是
+# "scalp_signal_log 已有 36 万条样本、无需真实成交即可积累"。这个立论
+# 只对"信号样本"成立：重训元模型要的是成交后才存在的滑点、实际成交价、
+# 真实 PnL 与退出行为，信号日志里一条都没有。于是形成死锁——模型不可用
+# → 不开仓 → 攒不到成交样本 → 模型永远不可用（实测 09-04 全天短线 0 单）。
+# 模拟盘不是真钱，它的产出就是数据本身，亏损也是样本；实盘则相反，pwin
+# 噪声期盲开是拿真金白银换数据，保持 hold。
+def _unusable_mode_for(mode: Optional[str] = None) -> str:
+    _m = (mode or "paper").strip().lower()
+    if _m == "live":
+        _v = (os.getenv("FUSION_PWIN_UNUSABLE_MODE_LIVE")
+              or os.getenv("FUSION_PWIN_UNUSABLE_MODE") or "hold")
+    else:
+        _v = (os.getenv("FUSION_PWIN_UNUSABLE_MODE_PAPER") or "explore_quota")
+    return _v.strip().lower()
+
+
+def _explore_quota_cap(mode: Optional[str] = None) -> int:
+    """探索配额上限。模拟盘按"够重训一批"给量，实盘沿用保守的 5 笔/天。"""
+    _m = (mode or "paper").strip().lower()
+    _key = ("FUSION_PWIN_EXPLORE_DAILY_QUOTA_LIVE" if _m == "live"
+            else "FUSION_PWIN_EXPLORE_DAILY_QUOTA_PAPER")
+    _raw = os.getenv(_key) or os.getenv("FUSION_PWIN_EXPLORE_DAILY_QUOTA") or "5"
+    try:
+        return int(float(_raw))
+    except (TypeError, ValueError):
+        return 5
+
+
 # ── [2026-08-29 v2] 保底流量探针配额：分档地板之下仍保证每日最小交易流 ──
 def _probe_quota_read() -> Dict[str, int]:
     import json as _json
@@ -165,10 +211,19 @@ def probe_quota_bump(account_id=None) -> None:
     _probe_quota_bump(account_id)
 
 
-def _probe_quota_cap() -> int:
-    """每日保底流量探针配额（正常探针与影子探针共享同一预算）。"""
+def _probe_quota_cap(mode: Optional[str] = None) -> int:
+    """每日保底流量探针配额（正常探针与影子探针共享同一预算）。
+
+    [2026-09-04] 同 `_unusable_mode_for`：模拟盘与实盘分开。全局键此前被设为
+    0（"探针实质关闭"），使被信用熔断的来源再也攒不到翻案证据——模拟盘里这层
+    保护没有意义，亏损本身就是要采集的样本。
+    """
+    _m = (mode or "paper").strip().lower()
+    _key = ("FUSION_PROBE_DAILY_QUOTA_LIVE" if _m == "live"
+            else "FUSION_PROBE_DAILY_QUOTA_PAPER")
+    _raw = os.getenv(_key) or os.getenv("FUSION_PROBE_DAILY_QUOTA") or "3"
     try:
-        return int(float(os.getenv("FUSION_PROBE_DAILY_QUOTA", "3") or 3))
+        return int(float(_raw))
     except (TypeError, ValueError):
         return 3
 
@@ -257,7 +312,8 @@ def decide_scalp(
     if credit <= 0.0:
         try:
             _sp_min_score = _f("FUSION_SHADOW_PROBE_MIN_SCORE", 50.0)
-            _sp_min_pwin = _f("FUSION_SHADOW_PROBE_MIN_PWIN", _f("FUSION_PROBE_MIN_PWIN", 0.40))
+            _sp_min_pwin = _f_mode("FUSION_SHADOW_PROBE_MIN_PWIN",
+                                   _f_mode("FUSION_PROBE_MIN_PWIN", 0.40, mode), mode)
         except (TypeError, ValueError):
             _sp_min_score, _sp_min_pwin = 50.0, 0.40
         _probe_short_ok = str(os.getenv("FUSION_PROBE_SHORT_ENABLED", "false")).strip().lower() in (
@@ -270,14 +326,14 @@ def decide_scalp(
             and pwin is not None
             and factor_score >= _sp_min_score
             and pwin >= _sp_min_pwin
-            and _probe_quota_used(account_id) < _probe_quota_cap()
+            and _probe_quota_used(account_id) < _probe_quota_cap(mode)
         ):
             _shadow_size = _f("FUSION_PROBE_SIZE_MULT", 0.25)
             return FusionDecision(
                 "trade", _shadow_size, "rule", "shadow_probe_quota",
                 {"credit": credit, "pwin": pwin, "factor_score": factor_score,
                  "quota_used": _probe_quota_used(account_id),
-                 "quota": _probe_quota_cap(),
+                 "quota": _probe_quota_cap(mode),
                  "note": "shadow来源影子探针, 成交后由 scalp_loop 扣配额"},
             )
         return FusionDecision("standdown", 0.0, "rule", "source_credit_shadow", {"credit": credit})
@@ -318,12 +374,9 @@ def decide_scalp(
     except Exception:
         _m_usable = None
     _mu = bool(_m_usable()) if _m_usable is not None else None
-    _unusable_mode = os.getenv("FUSION_PWIN_UNUSABLE_MODE", "explore_quota").strip().lower()
+    _unusable_mode = _unusable_mode_for(mode)
     if _mu is False and _unusable_mode != "hold":
-        try:
-            _quota = int(os.getenv("FUSION_PWIN_EXPLORE_DAILY_QUOTA", "5") or 5)
-        except (TypeError, ValueError):
-            _quota = 5
+        _quota = _explore_quota_cap(mode)
         _used = _explore_quota_used(account_id)
         if _used < _quota:
             try:
@@ -438,9 +491,9 @@ def decide_scalp(
         # ② 补 factor_score 门槛：探针只给高分信号，不给低分垃圾流量。
         if not is_mr:
             try:
-                _probe_min = _f("FUSION_PROBE_MIN_PWIN", 0.40)
+                _probe_min = _f_mode("FUSION_PROBE_MIN_PWIN", 0.40, mode)
                 _probe_min_score = _f("FUSION_PROBE_MIN_SCORE", 45.0)
-                _probe_cap = _probe_quota_cap()
+                _probe_cap = _probe_quota_cap(mode)
             except (TypeError, ValueError):
                 _probe_min, _probe_min_score, _probe_cap = 0.40, 45.0, 3
             _probe_short_ok2 = str(os.getenv("FUSION_PROBE_SHORT_ENABLED", "false")).strip().lower() in (

@@ -237,8 +237,8 @@ class StrategyIntelligenceEngine:
             # D7: 优先用因子引擎判断市场状态
             try:
                 import pandas as pd
-                from services.factor_engine.base_factors import FactorEngine
-                from services.factor_engine.factor_weighting import DynamicFactorWeighting
+                from backend.services.factor_engine.base_factors import FactorEngine
+                from backend.services.factor_engine.factor_weighting import DynamicFactorWeighting
                 _df = pd.DataFrame(klines)
                 if not _df.empty and all(c in _df.columns for c in ('open','high','low','close','volume')):
                     _fe = FactorEngine()

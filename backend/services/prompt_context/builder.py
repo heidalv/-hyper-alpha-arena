@@ -105,7 +105,7 @@ class PromptContextBuilder:
         """Resolve default/max leverage from account + TraderPersonality."""
         if inp.db:
             try:
-                from services.hyperliquid_environment import get_leverage_settings
+                from backend.services.hyperliquid_environment import get_leverage_settings
                 settings = get_leverage_settings(inp.db, inp.account.id, inp.environment)
                 inp.max_leverage = settings["max_leverage"]
                 inp.default_leverage = settings["default_leverage"]

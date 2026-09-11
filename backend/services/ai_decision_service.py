@@ -18,7 +18,7 @@ from backend.services.asset_calculator import calc_positions_value
 from backend.services.news_feed import fetch_latest_news
 from backend.repositories.strategy_repo import set_last_trigger
 from backend.services.system_logger import system_logger
-from repositories import prompt_repo
+from backend.repositories import prompt_repo
 
 # ── Phase 3B 集成：规则引擎决策管道 ──
 from backend.services.signal_confirmation_engine import SignalConfirmationEngine, ConfirmationResult
@@ -183,7 +183,7 @@ def _calculate_total_return_percent(account: Account) -> str:
 
     # Add positions value if available
     try:
-        from services.asset_calculator import calc_positions_value
+        from backend.services.asset_calculator import calc_positions_value
         from backend.database.connection import SessionLocal
         db = SessionLocal()
         try:
@@ -768,7 +768,7 @@ def _build_prompt_context(
     # Hyperliquid-specific context - Get leverage settings from unified function
     # This ensures leverage values match the wallet configuration for the current environment
     if db:
-        from services.hyperliquid_environment import get_leverage_settings
+        from backend.services.hyperliquid_environment import get_leverage_settings
         try:
             leverage_settings = get_leverage_settings(db, account.id, environment)
             max_leverage = leverage_settings["max_leverage"]
@@ -1037,7 +1037,7 @@ def _build_prompt_context(
     if hyperliquid_state and environment in ("testnet", "mainnet"):
         try:
             # Get trading client to fetch recent closed trades
-            from services.hyperliquid_trading_client import HyperliquidTradingClient
+            from backend.services.hyperliquid_trading_client import HyperliquidTradingClient
             from backend.database.connection import SessionLocal
 
             # Get account's Hyperliquid wallet configuration
@@ -1051,7 +1051,7 @@ def _build_prompt_context(
 
                 if wallet:
                     # Decrypt private key
-                    from utils.encryption import decrypt_private_key
+                    from backend.utils.encryption import decrypt_private_key
                     try:
                         private_key = decrypt_private_key(wallet.private_key_encrypted)
                     except Exception as decrypt_error:
@@ -1201,7 +1201,7 @@ def _build_prompt_context(
             from backend.database.connection import SessionLocal
             variable_groups = _parse_kline_indicator_variables(template_text)
             if variable_groups:
-                from services.exchange_config import get_active_exchange, get_exchange_for_account
+                from backend.services.exchange_config import get_active_exchange, get_exchange_for_account
                 if account and hasattr(account, 'id'):
                     exchange = get_exchange_for_account(account.id)
                 else:
@@ -1395,7 +1395,7 @@ Regime Types:
 
     if db:
         try:
-            from services.market_regime_service import get_market_regime
+            from backend.services.market_regime_service import get_market_regime
             supported_timeframes = ["1m", "5m", "15m", "1h"]
 
             def format_regime_text(symbol, tf, result):
@@ -1439,7 +1439,7 @@ Regime Types:
     # Integrate strategy orchestrator for long-term planning and short-term tactics.
     strategy_context = {}
     try:
-        from services.unified_data_pool import get_unified_data_pool
+        from backend.services.unified_data_pool import get_unified_data_pool
         
         data_pool = get_unified_data_pool()
         
@@ -1525,14 +1525,14 @@ Regime Types:
     # for dynamic stop-loss/take-profit and position sizing recommendations.
     adaptive_context = {}
     try:
-        from services.ai_decision_integration import (
+        from backend.services.ai_decision_integration import (
             build_factor_context,
             build_execution_context,
             format_factor_summary,
             format_execution_summary,
             add_adaptive_context_to_prompt
         )
-        from services.factor_engine import factor_engine, get_factor_weighting, MarketRegime
+        from backend.services.factor_engine import factor_engine, get_factor_weighting, MarketRegime
         
         # Get K-line data for factor calculation
         klines_data = {}
@@ -1667,7 +1667,7 @@ Regime Types:
     # ══════════════════════════════════════════════════
     factor_guidance = ""
     try:
-        from services.ai_decision_integration import build_factor_guidance_for_prompt
+        from backend.services.ai_decision_integration import build_factor_guidance_for_prompt
         factor_guidance = build_factor_guidance_for_prompt(
             symbols=ordered_symbols,
             klines_data=klines_data if 'klines_data' in dir() else {},
@@ -1796,7 +1796,7 @@ Regime Types:
     try:
         from backend.database.models import CryptoKline
         from backend.database.connection import MarketSessionLocal
-        from services.exchange_config import get_active_exchange, get_exchange_for_account
+        from backend.services.exchange_config import get_active_exchange, get_exchange_for_account
         import pandas as pd
         import numpy as np
 
@@ -2214,7 +2214,7 @@ def call_ai_for_decision(
         return None
 
     # IMPORTANT: Get global trading mode at the start
-    from services.hyperliquid_environment import get_global_trading_mode
+    from backend.services.hyperliquid_environment import get_global_trading_mode
     global_environment = get_global_trading_mode(db)
 
     try:
@@ -2260,7 +2260,7 @@ def call_ai_for_decision(
     symbol_order = symbols if symbols else list(active_symbol_metadata.keys())
 
     # ── Build context using PromptContextBuilder (decomposed from _build_prompt_context) ──
-    from services.prompt_context import PromptContextBuilder, BuildInput
+    from backend.services.prompt_context import PromptContextBuilder, BuildInput
 
     _sampling_interval = None
     try:
@@ -2294,7 +2294,7 @@ def call_ai_for_decision(
     # Multi-symbol sampling data (appended separately for backward compat)
     if symbols:
         try:
-            from services.sampling_pool import sampling_pool
+            from backend.services.sampling_pool import sampling_pool
             context["sampling_data"] = _build_multi_symbol_sampling_data(
                 symbols, sampling_pool, _sampling_interval
             )
@@ -3638,7 +3638,7 @@ def save_ai_decision(
 
         # Get Hyperliquid environment for decision tagging
         # IMPORTANT: Always use global trading mode for accurate logging
-        from services.hyperliquid_environment import get_global_trading_mode
+        from backend.services.hyperliquid_environment import get_global_trading_mode
         hyperliquid_environment = get_global_trading_mode(db)
 
         # Create decision log entry
@@ -4259,9 +4259,9 @@ def _build_klines_and_indicators_context(
     Returns:
         Dict mapping variable names to formatted strings
     """
-    from services.market_data import get_kline_data, get_ticker_data
-    from services.technical_indicators import calculate_indicators
-    from services.kline_ai_analysis_service import _format_klines_summary
+    from backend.services.market_data import get_kline_data, get_ticker_data
+    from backend.services.technical_indicators import calculate_indicators
+    from backend.services.kline_ai_analysis_service import _format_klines_summary
 
     context = {}
     
@@ -4370,7 +4370,7 @@ def _build_klines_and_indicators_context(
 
             # Process market flow indicators
             if requirements.get('flow_indicators'):
-                from services.market_flow_indicators import get_flow_indicators_for_prompt
+                from backend.services.market_flow_indicators import get_flow_indicators_for_prompt
 
                 flow_indicators_to_calc = requirements['flow_indicators']
                 flow_data = get_flow_indicators_for_prompt(

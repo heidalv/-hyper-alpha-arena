@@ -1,0 +1,713 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\001Alpha\Hyper-Alpha-Arena
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.14.2, cov-7.1.0, timeout-2.4.0
+timeout: 120.0s
+timeout method: thread
+timeout func_only: False
+collected 3910 items
+
+backend\tests\integration\test_account_create_tenant_20260903.py ....... [  0%]
+...                                                                      [  0%]
+backend\tests\integration\test_admin_rls_bypass.py ..s...                [  0%]
+backend\tests\integration\test_admin_routes.py .......                   [  0%]
+backend\tests\integration\test_ai_strategy_api.py ...................... [  1%]
+                                                                         [  1%]
+backend\tests\integration\test_auth.py ......                            [  1%]
+backend\tests\integration\test_auth_middleware.py .............          [  1%]
+backend\tests\integration\test_background_loops_rls.py ....              [  1%]
+backend\tests\integration\test_blocking_io_offloaded.py ......           [  1%]
+backend\tests\integration\test_e2e_trading_under_rls.py ssss             [  1%]
+backend\tests\integration\test_fixed_symbol_gate.py ......               [  2%]
+backend\tests\integration\test_llm_config_byok.py ....s                  [  2%]
+backend\tests\integration\test_phase_a_effective.py ...                  [  2%]
+backend\tests\integration\test_phase_d_ghost_trade.py ..                 [  2%]
+backend\tests\integration\test_place_order_gated.py ..                   [  2%]
+backend\tests\integration\test_rls_after_commit.py .....                 [  2%]
+backend\tests\integration\test_rls_isolation.py ssssss                   [  2%]
+backend\tests\integration\test_scalp_gated.py ..                         [  2%]
+backend\tests\integration\test_shortline_auto_coin_regression.py ......  [  2%]
+backend\tests\integration\test_swing_deprecated.py ......                [  3%]
+backend\tests\integration\test_vip_permissions.py ...................... [  3%]
+.                                                                        [  3%]
+backend\tests\test_arb_llm_planner.py .                                  [  3%]
+backend\tests\test_decision_fusion_arbiter.py ....F...................   [  4%]
+backend\tests\test_deepseek_thinking.py .......                          [  4%]
+backend\tests\test_e2e_learning_chain.py .......                         [  4%]
+backend\tests\test_ev_governor_20260822.py ...                           [  4%]
+backend\tests\test_executors.py ..................FF.......              [  5%]
+backend\tests\test_fee_schedule_service.py ....................          [  5%]
+backend\tests\test_fusion_stage3_risk.py ...                             [  6%]
+backend\tests\test_learning_execution_chain.py .......................   [  6%]
+backend\tests\test_llm_timeout_budget.py ...                             [  6%]
+backend\tests\test_m0_m1_fixes_20260822.py .......                       [  6%]
+backend\tests\test_m1_fixes_regression.py .........                      [  7%]
+backend\tests\test_m2_fixes_regression.py ........                       [  7%]
+backend\tests\test_midlong_s0_cooldown_wired.py ........................ [  7%]
+...............                                                          [  8%]
+backend\tests\test_midlong_s1_prompt_v3.py ............................. [  9%]
+..                                                                       [  9%]
+backend\tests\test_midlong_s2_exit_lifecycle.py ....................     [  9%]
+backend\tests\test_p0_fixes_regression.py ..........                     [  9%]
+backend\tests\test_paper_netting.py ..............F.........             [ 10%]
+backend\tests\test_position_hold_time.py .....                           [ 10%]
+backend\tests\test_rebate_qaa.py .......                                 [ 10%]
+backend\tests\test_rebate_tick_unified.py ..                             [ 10%]
+backend\tests\test_scalp_directives.py ..............                    [ 11%]
+backend\tests\test_sizing_overlay.py .......                             [ 11%]
+backend\tests\test_source_attribution.py ........                        [ 11%]
+backend\tests\test_trace_context.py ............                         [ 11%]
+backend\tests\test_unified_account_service.py ..............             [ 12%]
+backend\tests\unit\test_admin_bootstrap.py ...                           [ 12%]
+backend\tests\unit\test_ai_coin_filter_20260907.py F...                  [ 12%]
+backend\tests\unit\test_ai_coin_unified.py FFF.                          [ 12%]
+backend\tests\unit\test_ai_decision_calibrator.py ..................     [ 12%]
+backend\tests\unit\test_ai_decision_service.py ......................... [ 13%]
+.                                                                        [ 13%]
+backend\tests\unit\test_ai_discovery_whitelist.py ....                   [ 13%]
+backend\tests\unit\test_ai_governed_gray.py .................            [ 14%]
+backend\tests\unit\test_ai_mid_board_source.py ..F                       [ 14%]
+backend\tests\unit\test_analysis_schemas_20260904.py .F.....             [ 14%]
+backend\tests\unit\test_attribution_failure_visibility_20260911.py ...   [ 14%]
+backend\tests\unit\test_audit_backup_retention_20260910.py ....          [ 14%]
+backend\tests\unit\test_audit_defect_inventory_20260910.py .....         [ 14%]
+backend\tests\unit\test_audit_gate_edge.py ...                           [ 14%]
+backend\tests\unit\test_audit_profit_giveback.py .........               [ 15%]
+backend\tests\unit\test_audit_rotation_reader_20260910.py ......         [ 15%]
+backend\tests\unit\test_auto_coin_min_hold_20260823.py ..............    [ 15%]
+backend\tests\unit\test_autocoin_ai_review.py .................          [ 16%]
+backend\tests\unit\test_autocoin_enrich_wiring.py ......                 [ 16%]
+backend\tests\unit\test_autocoin_feedback.py ............                [ 16%]
+backend\tests\unit\test_autocoin_multi_lane.py ...                       [ 16%]
+backend\tests\unit\test_autocoin_rotation.py ..                          [ 16%]
+backend\tests\unit\test_autocoin_score_v3.py .......                     [ 16%]
+backend\tests\unit\test_autocoin_scoring.py ........................x    [ 17%]
+backend\tests\unit\test_autocoin_sector_signal.py ...                    [ 17%]
+backend\tests\unit\test_autocoin_social.py ...................           [ 17%]
+backend\tests\unit\test_brain_attribution_idempotent.py .                [ 18%]
+backend\tests\unit\test_breaker_backfill_20260911.py ......              [ 18%]
+backend\tests\unit\test_breaker_lookup_key_20260911.py ......            [ 18%]
+backend\tests\unit\test_capital_coordinator_deadlock_20260902.py ....... [ 18%]
+...                                                                      [ 18%]
+backend\tests\unit\test_cfg_helper_zero_semantics_20260910.py ......     [ 18%]
+backend\tests\unit\test_channel_breaker_rebuild_20260910.py ......       [ 18%]
+backend\tests\unit\test_chart_advice_ttl_20260910.py .......             [ 19%]
+backend\tests\unit\test_choke_point_gate_20260910.py .....               [ 19%]
+backend\tests\unit\test_code_safety_chain_20260902.py .................. [ 19%]
+.........................................................                [ 21%]
+backend\tests\unit\test_codegen_mine_wire.py ..                          [ 21%]
+backend\tests\unit\test_coin_ic_weights.py ............................. [ 21%]
+..........                                                               [ 22%]
+backend\tests\unit\test_coin_rank_feedback_loop.py ..............        [ 22%]
+backend\tests\unit\test_comprehensive_functional.py .................... [ 23%]
+......................ssssssssss............F...                         [ 24%]
+backend\tests\unit\test_config_dead_keys_20260910.py ...........         [ 24%]
+backend\tests\unit\test_config_governance_20260902.py .............F...  [ 24%]
+backend\tests\unit\test_config_silent_failure_20260910.py ............   [ 25%]
+backend\tests\unit\test_context_pack_h1_layer_20260909.py ...            [ 25%]
+backend\tests\unit\test_create_indexes_grouped_20260907.py .             [ 25%]
+backend\tests\unit\test_d6_arming_basis_20260910.py .......              [ 25%]
+backend\tests\unit\test_data_provider.py ..................              [ 26%]
+backend\tests\unit\test_dataset_builder_leakage.py .........             [ 26%]
+backend\tests\unit\test_db_txn_hygiene_20260902.py .....                 [ 26%]
+backend\tests\unit\test_dd_sigma_reject_semantics_20260910.py .......... [ 26%]
+..                                                                       [ 26%]
+backend\tests\unit\test_dead_key_register_20260910.py ...                [ 26%]
+backend\tests\unit\test_decision_hub_ai_governed.py .................    [ 27%]
+backend\tests\unit\test_decision_hub_weights.py .....................    [ 27%]
+backend\tests\unit\test_decision_pnl_backfill.py .........               [ 27%]
+backend\tests\unit\test_design_skeletons.py ..............               [ 28%]
+backend\tests\unit\test_dual_local_votes_20260904.py ..FF...             [ 28%]
+backend\tests\unit\test_dynamic_hold_tpsl_20260829.py ...........        [ 28%]
+backend\tests\unit\test_e5_sample_starve_20260904.py ....                [ 28%]
+backend\tests\unit\test_env_registry_visibility_20260910.py ........     [ 29%]
+backend\tests\unit\test_ev_gate_calib_nature_20260910.py .........       [ 29%]
+backend\tests\unit\test_evaluation_upgrade.py ...............            [ 29%]
+backend\tests\unit\test_evo_subprocess.py ..                             [ 29%]
+backend\tests\unit\test_exit_channel_breaker_unified_20260911.py ....... [ 29%]
+..                                                                       [ 29%]
+backend\tests\unit\test_exit_event_idempotent_20260910.py ....           [ 30%]
+backend\tests\unit\test_external_position_20260902.py ...............    [ 30%]
+backend\tests\unit\test_f38_factor_dir_cache.py ........                 [ 30%]
+backend\tests\unit\test_f39_scalp_heartbeat_sla.py ...                   [ 30%]
+backend\tests\unit\test_f55_data_quality_gate.py .................       [ 31%]
+backend\tests\unit\test_f56_lane_registry.py ...................         [ 31%]
+backend\tests\unit\test_f57_lane_ledger.py ..........                    [ 31%]
+backend\tests\unit\test_f58_market_maker_core.py ....................... [ 32%]
+.....................                                                    [ 33%]
+backend\tests\unit\test_f60_market_maker_runner.py ..................... [ 33%]
+......................                                                   [ 34%]
+backend\tests\unit\test_f61_trading_routes.py .......................... [ 34%]
+.                                                                        [ 34%]
+backend\tests\unit\test_f63_carry_model.py ............................  [ 35%]
+backend\tests\unit\test_f64_spot_collector.py .........                  [ 35%]
+backend\tests\unit\test_f69_account_integration.py ............          [ 36%]
+backend\tests\unit\test_f70_hedged_carry.py ................             [ 36%]
+backend\tests\unit\test_factor_attribution_20260902.py ................  [ 36%]
+backend\tests\unit\test_factor_card.py ............                      [ 37%]
+backend\tests\unit\test_factor_chain_caliber_20260821.py ..............  [ 37%]
+backend\tests\unit\test_factor_decay_key_20260902.py ........            [ 37%]
+backend\tests\unit\test_factor_evo_gate_roots.py .........               [ 38%]
+backend\tests\unit\test_factor_fake_loop_fixes.py ...                    [ 38%]
+backend\tests\unit\test_factor_ic_weight_mode.py ....                    [ 38%]
+backend\tests\unit\test_factor_icir_refresh_20260902.py ........         [ 38%]
+backend\tests\unit\test_factor_phase5.py .....                           [ 38%]
+backend\tests\unit\test_factor_pipeline_gates.py ..........              [ 38%]
+backend\tests\unit\test_factor_security.py .......                       [ 38%]
+backend\tests\unit\test_factor_signal_comprehensive.py ................. [ 39%]
+........................................................................ [ 41%]
+..............................................................           [ 42%]
+backend\tests\unit\test_factor_signal_fixes.py .......                   [ 42%]
+backend\tests\unit\test_factor_weight_confidence_20260902.py ........... [ 43%]
+...........                                                              [ 43%]
+backend\tests\unit\test_factor_weight_integrity_20260902.py .........    [ 43%]
+backend\tests\unit\test_factor_wfo_gate_repair_20260903.py ............. [ 44%]
+..                                                                       [ 44%]
+backend\tests\unit\test_factor_wfo_ic.py ...........                     [ 44%]
+backend\tests\unit\test_failopen_observability_20260910.py .....         [ 44%]
+backend\tests\unit\test_fast_cut_gone_bad_20260902.py ..............     [ 44%]
+backend\tests\unit\test_final_batch_20260821.py ............             [ 45%]
+backend\tests\unit\test_fitness_objective_20260903.py .................. [ 45%]
+.................                                                        [ 46%]
+backend\tests\unit\test_fixed_symbols_by_tier.py .........               [ 46%]
+backend\tests\unit\test_full_auto_execution.py ......................... [ 47%]
+.                                                                        [ 47%]
+backend\tests\unit\test_full_flow_integration.py ....................... [ 47%]
+.............................................................            [ 49%]
+backend\tests\unit\test_fusion_probe_bypass_20260902.py ................ [ 49%]
+.                                                                        [ 49%]
+backend\tests\unit\test_g1_evolution_gates.py ................           [ 50%]
+backend\tests\unit\test_gate_parity_20260910.py .............            [ 50%]
+backend\tests\unit\test_gp_fitness_icir_consistency.py ...               [ 50%]
+backend\tests\unit\test_gp_icir_degeneracy.py ...                        [ 50%]
+backend\tests\unit\test_gp_mine_checkpoint.py ...                        [ 50%]
+backend\tests\unit\test_gp_miner.py ........                             [ 50%]
+backend\tests\unit\test_gp_mining_budget.py ..                           [ 50%]
+backend\tests\unit\test_gpu_guard_checkpointing.py ................      [ 51%]
+backend\tests\unit\test_h1_timing_brief_20260909.py .....                [ 51%]
+backend\tests\unit\test_hardfat_shadow.py ....................           [ 51%]
+backend\tests\unit\test_hold_time_convergence_2026_08.py ............... [ 52%]
+..........                                                               [ 52%]
+backend\tests\unit\test_invalidation_close.py .........................  [ 53%]
+backend\tests\unit\test_invalidation_fix.py ....................         [ 53%]
+backend\tests\unit\test_kline_volume_aggregation.py .......              [ 53%]
+backend\tests\unit\test_l1_gate_and_funnel_slicing_20260910.py ........  [ 54%]
+backend\tests\unit\test_l2_reconstructor.py ..............               [ 54%]
+backend\tests\unit\test_learning_retune.py .......................       [ 55%]
+backend\tests\unit\test_learning_stop_bleed.py .................         [ 55%]
+backend\tests\unit\test_learning_tier_resolve_20260902.py .............. [ 55%]
+                                                                         [ 55%]
+backend\tests\unit\test_leverage_authority.py ...................        [ 56%]
+backend\tests\unit\test_leverage_unified_live_20260904.py ...........F.F [ 56%]
+F....                                                                    [ 56%]
+backend\tests\unit\test_live_learning_hooks_20260902.py ..............   [ 57%]
+backend\tests\unit\test_live_portfolio_gate_20260910.py ....             [ 57%]
+backend\tests\unit\test_live_position_manager.py F.F.....F........F.     [ 57%]
+backend\tests\unit\test_live_tighten_policy.py ....                      [ 57%]
+backend\tests\unit\test_llm_direction_gate.py .......                    [ 58%]
+backend\tests\unit\test_llm_local_first_20260823.py .........            [ 58%]
+backend\tests\unit\test_llm_stops_direct.py .................            [ 58%]
+backend\tests\unit\test_log_and_import_hygiene_20260910.py .......       [ 58%]
+backend\tests\unit\test_long_gate_deadlock_fix_20260911.py ............. [ 59%]
+..                                                                       [ 59%]
+backend\tests\unit\test_long_rule_validator_a6.py ..                     [ 59%]
+backend\tests\unit\test_long_v2_a4_fill_spike.py ....                    [ 59%]
+backend\tests\unit\test_long_v2_daily_freq.py ...                        [ 59%]
+backend\tests\unit\test_long_v2_same_core.py ........                    [ 59%]
+backend\tests\unit\test_m0_11_min_hold_review_20260822.py ......         [ 59%]
+backend\tests\unit\test_m0_c1_conditional_eval.py ...                    [ 59%]
+backend\tests\unit\test_m0_gate_fixes.py ....                            [ 60%]
+backend\tests\unit\test_m1_m2_m3_midlong_fixes_20260821.py ............. [ 60%]
+........                                                                 [ 60%]
+backend\tests\unit\test_m2_neutralization.py ..                          [ 60%]
+backend\tests\unit\test_m3_heldout.py FFFF                               [ 60%]
+backend\tests\unit\test_m4_combo_weights.py ....                         [ 60%]
+backend\tests\unit\test_macro_tailwind_halving.py ..                     [ 60%]
+backend\tests\unit\test_market_aware_tpsl.py .........                   [ 61%]
+backend\tests\unit\test_master_live_quota_open_only_20260910.py ....     [ 61%]
+backend\tests\unit\test_mcts_miner.py .............                      [ 61%]
+backend\tests\unit\test_meta_batch_load_20260902.py ................     [ 61%]
+backend\tests\unit\test_microstructure_gauge.py ....                     [ 62%]
+backend\tests\unit\test_midline_stopgap.py ..........                    [ 62%]
+backend\tests\unit\test_midlong_ammo.py .....                            [ 62%]
+backend\tests\unit\test_midlong_audit_suite_20260910.py ...              [ 62%]
+backend\tests\unit\test_midlong_circuit_gate.py ........                 [ 62%]
+backend\tests\unit\test_midlong_concurrency_cap_20260910.py ......       [ 62%]
+backend\tests\unit\test_midlong_ev_gate_wiring_20260910.py ......        [ 62%]
+backend\tests\unit\test_midlong_inject_before_open.py .                  [ 63%]
+backend\tests\unit\test_midlong_llm_brain_20260905.py .................. [ 63%]
+........................                                                 [ 64%]
+backend\tests\unit\test_midlong_location_gate.py ..........              [ 64%]
+backend\tests\unit\test_midlong_long_learned_gate.py ...............     [ 64%]
+backend\tests\unit\test_midlong_overlap_coalesce_20260907.py .           [ 64%]
+backend\tests\unit\test_midlong_portfolio_risk_p2.py .........           [ 64%]
+backend\tests\unit\test_midlong_regime_short_gate.py ...............     [ 65%]
+backend\tests\unit\test_midlong_remediation_2026_08.py ...........       [ 65%]
+backend\tests\unit\test_midlong_v6_unshackle.py .......                  [ 65%]
+backend\tests\unit\test_midlong_weekly_giveback_20260910.py ....         [ 65%]
+backend\tests\unit\test_midview_thesis.py ............FF..............   [ 66%]
+backend\tests\unit\test_mining_templates_20260830.py .                   [ 66%]
+backend\tests\unit\test_mlto_cycle_host_exec.py .                        [ 66%]
+backend\tests\unit\test_module_identity_unification_20260910.py ........ [ 66%]
+............                                                             [ 67%]
+backend\tests\unit\test_mr_breakout_guard_20260823.py .....              [ 67%]
+backend\tests\unit\test_neutralize_train_beta_20260903.py ..........     [ 67%]
+backend\tests\unit\test_news_dedup_20260904.py ......                    [ 67%]
+backend\tests\unit\test_news_llm_annotate_20260904.py .......            [ 67%]
+backend\tests\unit\test_open_block_reason_20260910.py ........           [ 68%]
+backend\tests\unit\test_open_gate_simplified.py .....................    [ 68%]
+backend\tests\unit\test_ops_rootcause.py ........                        [ 68%]
+backend\tests\unit\test_orm_column_width_20260902.py ....                [ 68%]
+backend\tests\unit\test_owm_thesis_bind_20260906.py ..F                  [ 69%]
+backend\tests\unit\test_p0_shortline_fixes_20260821.py ................. [ 69%]
+                                                                         [ 69%]
+backend\tests\unit\test_p12_p13_gate_notional_and_symbol_cap_20260910.py . [ 69%]
+......                                                                   [ 69%]
+backend\tests\unit\test_p1_fixes_20260821.py ...............             [ 70%]
+backend\tests\unit\test_p2_second_knife_20260821.py .............        [ 70%]
+backend\tests\unit\test_pair_selector_watcher.py ...                     [ 70%]
+backend\tests\unit\test_panel_purge_20260830.py FF                       [ 70%]
+backend\tests\unit\test_paper_factor_policy_20260903.py ...........      [ 70%]
+backend\tests\unit\test_paper_sampling_not_blocked_20260904.py ......... [ 71%]
+.....                                                                    [ 71%]
+backend\tests\unit\test_param_domain_expander.py ......................  [ 71%]
+backend\tests\unit\test_peak_trough_telemetry_20260902.py ..........     [ 71%]
+backend\tests\unit\test_period_reports.py .....                          [ 72%]
+backend\tests\unit\test_phase0_changes.py sssssssss..................... [ 72%]
+..........                                                               [ 73%]
+backend\tests\unit\test_phase1_signal_system.py ........................ [ 73%]
+..............                                                           [ 74%]
+backend\tests\unit\test_phase2_arbitrage.py ............................ [ 74%]
+...............                                                          [ 75%]
+backend\tests\unit\test_phase3_factor_expansion.py sssssssssssssssssssss [ 75%]
+sssssssssssssssssssssssssssssssssssssssssssssssssss                      [ 77%]
+backend\tests\unit\test_phase4_market_scan.py ssssssssssssssssssssssssss [ 77%]
+sssssssssssssssssssssssssssssssssssssssssss                              [ 78%]
+backend\tests\unit\test_phase5_adaptive_evolution.py ................... [ 79%]
+.............                                                            [ 79%]
+backend\tests\unit\test_phase6_exchange.py ............................. [ 80%]
+...........................................                              [ 81%]
+backend\tests\unit\test_phase7_drl.py .................................. [ 82%]
+..........                                                               [ 82%]
+backend\tests\unit\test_pnl_net_basis_20260910.py ....                   [ 82%]
+backend\tests\unit\test_portfolio_budget.py .....................        [ 83%]
+backend\tests\unit\test_portfolio_budget_deadlock_20260902.py .....      [ 83%]
+backend\tests\unit\test_portfolio_notional_alignment_20260910.py ......  [ 83%]
+backend\tests\unit\test_position_coordinator.py ..............           [ 83%]
+backend\tests\unit\test_profit_lock_20260910.py ......                   [ 84%]
+backend\tests\unit\test_promote_quick_fail.py ...                        [ 84%]
+backend\tests\unit\test_prompt_liberation.py ..............              [ 84%]
+backend\tests\unit\test_pwin_fail_closed_20260902.py ............        [ 84%]
+backend\tests\unit\test_qaa_scheduler.py .............                   [ 85%]
+backend\tests\unit\test_quant_layer_confidence.py .....                  [ 85%]
+backend\tests\unit\test_quota_local_transport_20260904.py ......         [ 85%]
+backend\tests\unit\test_quota_per_transport_20260904.py .........        [ 85%]
+backend\tests\unit\test_r0_r1_miner_v2.py .                              [ 85%]
+backend\tests\unit\test_ranging_hardening_20260909.py ...........        [ 85%]
+backend\tests\unit\test_reduce_count_consistency_20260910.py ...         [ 85%]
+backend\tests\unit\test_reentry_cooldown_effective_20260910.py .....     [ 86%]
+backend\tests\unit\test_reentry_cooldown_key_20260910.py .....           [ 86%]
+backend\tests\unit\test_regime_suggestion.py ........................... [ 86%]
+                                                                         [ 86%]
+backend\tests\unit\test_regime_weighting_not_silently_broken.py ......   [ 87%]
+backend\tests\unit\test_replace_degraded_persist.py ..                   [ 87%]
+backend\tests\unit\test_reset_gate.py .....                              [ 87%]
+backend\tests\unit\test_rev_category_alias_20260910.py ....              [ 87%]
+backend\tests\unit\test_rr_gate_boundary_20260902.py ......              [ 87%]
+backend\tests\unit\test_rr_uplift_20260902.py ................           [ 87%]
+backend\tests\unit\test_runtime_diagnostics_use_logger_20260910.py ..... [ 88%]
+.......                                                                  [ 88%]
+backend\tests\unit\test_s8_master_scalp_exit_guard.py ...........        [ 88%]
+backend\tests\unit\test_same_symbol_concurrency_obs_20260910.py ...      [ 88%]
+backend\tests\unit\test_scalp_dynamic_sizing.py ..                       [ 88%]
+backend\tests\unit\test_scalp_factor_exclude.py ..F                      [ 88%]
+backend\tests\unit\test_scalp_factor_labels_meta.py ...                  [ 88%]
+backend\tests\unit\test_scalp_lane_tpsl_passthrough_20260902.py ...      [ 88%]
+backend\tests\unit\test_scalp_loop_locals_20260902.py ..                 [ 88%]
+backend\tests\unit\test_scalp_payout_20260823.py ......FFF....           [ 89%]
+backend\tests\unit\test_scalp_replayer_20260902.py ..................... [ 89%]
+..........                                                               [ 90%]
+backend\tests\unit\test_scalp_soft_exit_immune_20260823.py ............. [ 90%]
+.....................                                                    [ 90%]
+backend\tests\unit\test_scanlog_account_attribution_20260910.py ...      [ 90%]
+backend\tests\unit\test_scorer_lag1_20260903.py ..........               [ 91%]
+backend\tests\unit\test_security.py ......                               [ 91%]
+backend\tests\unit\test_shadow_graduation_20260830.py ....               [ 91%]
+backend\tests\unit\test_shadow_state_persistence_20260911.py ..........  [ 91%]
+backend\tests\unit\test_short_lane_policy_20260902.py .................. [ 92%]
+...                                                                      [ 92%]
+backend\tests\unit\test_signal_bus_deep.py ............................. [ 93%]
+.............                                                            [ 93%]
+backend\tests\unit\test_signal_feedback_factor_name.py ...               [ 93%]
+backend\tests\unit\test_signal_ledger_excess_20260904.py ............... [ 93%]
+....                                                                     [ 93%]
+backend\tests\unit\test_smart_money_20260908.py .........                [ 94%]
+backend\tests\unit\test_smoke_20260827.py ..............                 [ 94%]
+backend\tests\unit\test_split_train_val_test.py F.F.......FF...          [ 94%]
+backend\tests\unit\test_tenant_orm_alignment_20260903.py ............... [ 95%]
+...........                                                              [ 95%]
+backend\tests\unit\test_thesis_hard_exit_sentinel_20260907.py ....       [ 95%]
+backend\tests\unit\test_tp_sl_authority.py .....                         [ 95%]
+backend\tests\unit\test_trade_gate.py .........                          [ 96%]
+backend\tests\unit\test_trading.py .................                     [ 96%]
+backend\tests\unit\test_tranche_fix.py .........FF...........            [ 97%]
+backend\tests\unit\test_trend_chart_schedule_20260905.py ..              [ 97%]
+backend\tests\unit\test_trend_e1_f4_pre_exec_20260910.py .......         [ 97%]
+backend\tests\unit\test_trend_inception_wyckoff.py ....                  [ 97%]
+backend\tests\unit\test_trials_registry_20260903.py .......FF            [ 97%]
+backend\tests\unit\test_triple_barrier_label_20260902.py ............... [ 97%]
+..........                                                               [ 98%]
+backend\tests\unit\test_txn_hygiene_ic_score_20260907.py ..              [ 98%]
+backend\tests\unit\test_unified_position_mgmt.py ...............         [ 98%]
+backend\tests\unit\test_unify_leverage.py ........                       [ 98%]
+backend\tests\unit\test_user_repo_password.py ......                     [ 99%]
+backend\tests\unit\test_utils.py ...........                             [ 99%]
+backend\tests\unit\test_wisdom_tracker_s2.py ...............             [ 99%]
+backend\tests\unit\test_ws_redis_bridge.py ............                  [100%]
+
+============================== warnings summary ===============================
+backend\main.py:504
+  D:\001Alpha\Hyper-Alpha-Arena\backend\main.py:504: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+.venv\Lib\site-packages\fastapi\applications.py:4495
+.venv\Lib\site-packages\fastapi\applications.py:4495
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\fastapi\applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+backend\main.py:1871
+  D:\001Alpha\Hyper-Alpha-Arena\backend\main.py:1871: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+backend\database\snapshot_connection.py:154
+  D:\001Alpha\Hyper-Alpha-Arena\backend\database\snapshot_connection.py:154: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    SnapshotBase = declarative_base()
+
+.venv\Lib\site-packages\pydantic\_internal\_config.py:291: 23 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\pydantic\_internal\_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+backend\api\arena_routes.py:438
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\arena_routes.py:438: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    trading_mode: Optional[str] = Query(None, regex="^(paper|testnet|mainnet)$"),
+
+backend\api\arena_routes.py:703
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\arena_routes.py:703: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    trading_mode: Optional[str] = Query(None, regex="^(paper|testnet|mainnet)$"),
+
+backend\api\arena_routes.py:708
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\arena_routes.py:708: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    tier: Optional[str] = Query(None, regex="^(short|mid|long)$", description="按周期筛选：short/mid/long（从 decision_snapshot.tier 匹配）"),
+
+backend\api\arena_routes.py:894
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\arena_routes.py:894: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    trading_mode: Optional[str] = Query(None, regex="^(paper|testnet|mainnet)$"),
+
+backend\api\arena_routes.py:1158
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\arena_routes.py:1158: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    trading_mode: Optional[str] = Query(None, regex="^(paper|testnet|mainnet)$"),
+
+backend\api\hyperliquid_action_routes.py:48
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\hyperliquid_action_routes.py:48: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    environment: Optional[str] = Query(None, regex="^(testnet|mainnet)$"),
+
+backend\api\ai_strategy_routes.py:72
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\ai_strategy_routes.py:72: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    @validator("timeframe_tier")
+
+backend\api\ai_strategy_routes.py:164
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\ai_strategy_routes.py:164: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    @validator("created_at", "activated_at", "last_executed_at", pre=True, always=True)
+
+backend\api\analytics_routes.py:577
+  D:\001Alpha\Hyper-Alpha-Arena\backend\api\analytics_routes.py:577: DeprecationWarning: ai_attribution_service is deprecated (Phase 2), use ai_decision_service
+    from backend.services.ai_attribution_service import (
+
+.venv\Lib\site-packages\pydantic\_internal\_fields.py:132
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\pydantic\_internal\_fields.py:132: UserWarning: Field "model_deep" in LLMConfigCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+.venv\Lib\site-packages\pydantic\_internal\_fields.py:132
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\pydantic\_internal\_fields.py:132: UserWarning: Field "model_deep" in LLMConfigUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+.venv\Lib\site-packages\pydantic\_internal\_fields.py:132
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\pydantic\_internal\_fields.py:132: UserWarning: Field "model_deep" in LLMConfigResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+backend\tests\unit\test_brain_attribution_idempotent.py:1
+  D:\001Alpha\Hyper-Alpha-Arena\backend\tests\unit\test_brain_attribution_idempotent.py:1: PytestWarning: usefixtures() in backend/tests/unit/test_brain_attribution_idempotent.py::test_attribution_row_is_idempotent without arguments has no effect
+    # -*- coding: utf-8 -*-
+
+backend/tests/integration/test_account_create_tenant_20260903.py: 1 warning
+backend/tests/integration/test_admin_rls_bypass.py: 4 warnings
+backend/tests/integration/test_admin_routes.py: 8 warnings
+backend/tests/integration/test_ai_strategy_api.py: 28 warnings
+backend/tests/integration/test_auth.py: 7 warnings
+backend/tests/integration/test_auth_middleware.py: 2 warnings
+backend/tests/integration/test_llm_config_byok.py: 8 warnings
+backend/tests/integration/test_vip_permissions.py: 6 warnings
+backend/tests/unit/test_admin_bootstrap.py: 1 warning
+backend/tests/unit/test_security.py: 3 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\jose\jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+backend/tests/integration/test_ai_strategy_api.py::TestAiStrategyCRUD::test_create_strategy_succeeds
+  D:\001Alpha\Hyper-Alpha-Arena\backend\tests\integration\test_ai_strategy_api.py:150: DeprecationWarning: autonomous_strategy_service is deprecated (Phase 2), use FullAutoTradingService
+    from backend.services.autonomous_strategy_service import autonomous_service
+
+backend/tests/integration/test_ai_strategy_api.py::TestAiStrategyCRUD::test_update_strategy
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\pydantic\main.py:1114: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn('The `dict` method is deprecated; use `model_dump` instead.', category=PydanticDeprecatedSince20)
+
+backend/tests/integration/test_fixed_symbol_gate.py: 1350 warnings
+backend/tests/test_midlong_s0_cooldown_wired.py: 150 warnings
+backend/tests/unit/test_midlong_inject_before_open.py: 100 warnings
+backend/tests/unit/test_midlong_llm_brain_20260905.py: 20 warnings
+backend/tests/unit/test_midlong_location_gate.py: 1300 warnings
+backend/tests/unit/test_paper_factor_policy_20260903.py: 150 warnings
+backend/tests/unit/test_regime_weighting_not_silently_broken.py: 150 warnings
+backend/tests/unit/test_tranche_fix.py: 100 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\kline_data_service.py:532: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    'datetime': datetime.utcfromtimestamp(ts).isoformat(),
+
+backend/tests/integration/test_fixed_symbol_gate.py::TestFixedSymbolGatePhase0::test_fixed_symbol_long_tier_passes
+backend/tests/unit/test_factor_pipeline_gates.py::test_allowlist_priority_over_exclude
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\httpx\_client.py:681: DeprecationWarning: The 'proxies' argument is now deprecated. Use 'proxy' or 'mounts' instead.
+    warnings.warn(message, DeprecationWarning)
+
+backend/tests/test_e2e_learning_chain.py::test_loss_streak_triggers_adaptation
+backend/tests/test_e2e_learning_chain.py::test_loss_streak_triggers_adaptation
+backend/tests/test_e2e_learning_chain.py::test_loss_streak_triggers_adaptation
+backend/tests/test_e2e_learning_chain.py::test_loss_streak_triggers_adaptation
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\lesson_utils.py:48: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=30)
+
+backend/tests/test_e2e_learning_chain.py: 32 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\lesson_utils.py:85: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_renders_with_no_db_graceful_degradation
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_swing_nature_uses_4h_primary_tf
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_trend_nature_uses_1d_primary_tf
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_swing_risk_bounds
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_trend_risk_bounds
+backend/tests/unit/test_midlong_remediation_2026_08.py::test_count_opens_filters_account
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\agent_quant_feature_table.py:508: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    since = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_renders_with_no_db_graceful_degradation
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_swing_nature_uses_4h_primary_tf
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_trend_nature_uses_1d_primary_tf
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_swing_risk_bounds
+backend/tests/test_midlong_s1_prompt_v3.py::TestS02QuantFeatureTable::test_trend_risk_bounds
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\agent_quant_feature_table.py:532: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    since = datetime.utcnow() - timedelta(days=7)
+
+backend/tests/test_rebate_qaa.py::test_macro_filter_neutral_allows
+  <string>:10: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+backend/tests/test_rebate_qaa.py::test_macro_filter_neutral_allows
+  <string>:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+backend/tests/unit/test_ai_coin_unified.py::test_mid_sticky_io_routes_through_unified
+backend/tests/unit/test_ai_mid_board_source.py::test_force_adopt_ai_mid_writes_sticky
+backend/tests/unit/test_ai_mid_board_source.py::test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky
+backend/tests/unit/test_ai_mid_board_source.py::test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky
+backend/tests/unit/test_fixed_symbols_by_tier.py::test_ai_mid_slots_from_session_truncates_sticky
+backend/tests/unit/test_fixed_symbols_by_tier.py::test_force_adopt_requires_mid_enabled
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\auto_coin_selector.py:5465: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_iso": datetime.utcnow().isoformat() + "Z",
+
+backend/tests/unit/test_coin_rank_feedback_loop.py: 31 warnings
+  d:\001Alpha\Hyper-Alpha-Arena\backend\tests\unit\test_coin_rank_feedback_loop.py:55: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    row.created_at = datetime.utcnow() - timedelta(hours=age_h)
+
+backend/tests/unit/test_factor_chain_caliber_20260821.py::TestD6DiscoveryPrescreen::test_open_is_real_not_rolled
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_discovery.py:107: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    r, _ = stats.spearmanr(fv, fr)
+
+backend/tests/unit/test_factor_chain_caliber_20260821.py::TestD6DiscoveryPrescreen::test_open_is_real_not_rolled
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\numpy\_core\fromnumeric.py:3904: RuntimeWarning: Mean of empty slice.
+    return _methods._mean(a, axis=axis, dtype=dtype,
+
+backend/tests/unit/test_factor_chain_caliber_20260821.py::TestD6DiscoveryPrescreen::test_open_is_real_not_rolled
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\numpy\_core\_methods.py:147: RuntimeWarning: invalid value encountered in scalar divide
+    ret = ret.dtype.type(ret / rcount)
+
+backend/tests/unit/test_long_rule_validator_a6.py::test_single_side_signal_zero_is_flat
+backend/tests/unit/test_mcts_miner.py::test_constant_root_does_not_crash_mine
+backend/tests/unit/test_r0_r1_miner_v2.py::test_gpu_miner_v2_lexicase_icir
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\numpy\lib\_function_base_impl.py:2999: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+backend/tests/unit/test_long_rule_validator_a6.py::test_single_side_signal_zero_is_flat
+backend/tests/unit/test_r0_r1_miner_v2.py::test_gpu_miner_v2_lexicase_icir
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\numpy\lib\_function_base_impl.py:3000: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[None, :]
+
+backend/tests/unit/test_long_v2_daily_freq.py::test_live_1d_drops_unclosed_bar
+  D:\001Alpha\Hyper-Alpha-Arena\backend\tests\unit\test_long_v2_daily_freq.py:36: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+backend/tests/unit/test_long_v2_daily_freq.py::test_live_1d_drops_unclosed_bar
+backend/tests/unit/test_long_v2_daily_freq.py::test_live_1d_keeps_closed_bar
+backend/tests/unit/test_long_v2_daily_freq.py::test_l1_classification_cache
+backend/tests/unit/test_long_v2_daily_freq.py::test_l1_classification_cache
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\long_trend_v2.py:138: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    t = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+backend/tests/unit/test_long_v2_daily_freq.py::test_live_1d_keeps_closed_bar
+  D:\001Alpha\Hyper-Alpha-Arena\backend\tests\unit\test_long_v2_daily_freq.py:48: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+backend/tests/unit/test_long_v2_daily_freq.py::test_l1_classification_cache
+  D:\001Alpha\Hyper-Alpha-Arena\backend\tests\unit\test_long_v2_daily_freq.py:58: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+backend/tests/unit/test_mcts_miner.py::test_mine_returns_admitted_and_chains
+backend/tests/unit/test_mcts_miner.py::test_mine_returns_admitted_and_chains
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\expr\ops.py:57: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+    w = max(1, int(w))
+
+backend/tests/unit/test_mcts_miner.py: 11 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\formula_ops.py:71: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+    w = min(max(1, int(w)), 120)
+
+backend/tests/unit/test_mcts_miner.py::test_mine_returns_admitted_and_chains
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\formula_ops.py:150: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+    w = min(max(2, int(w)), 120)
+
+backend/tests/unit/test_mcts_miner.py::test_mine_returns_admitted_and_chains
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\formula_ops.py:240: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+    w = max(1, int(w))
+
+backend/tests/unit/test_mcts_miner.py::test_mine_returns_admitted_and_chains
+backend/tests/unit/test_mcts_miner.py::test_mine_candidates_mcts_integration
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\expr\ops.py:151: RuntimeWarning: divide by zero encountered in power
+    out = np.power(np.abs(a), b) * np.sign(a)
+
+backend/tests/unit/test_mcts_miner.py::test_constant_root_does_not_crash_mine
+backend/tests/unit/test_mcts_miner.py::test_mine_dedup_and_fsa_filter_runs
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\formula_ops.py:29: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+    d = int(d)
+
+backend/tests/unit/test_mcts_miner.py::test_constant_root_does_not_crash_mine
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\numpy\_core\_methods.py:197: RuntimeWarning: overflow encountered in multiply
+    x = um.multiply(x, x, out=x)
+
+backend/tests/unit/test_midlong_remediation_2026_08.py::test_trade_memory_filters_account_and_nature
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\agent_quant_feature_table.py:167: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    since = datetime.utcnow() - timedelta(days=window_days)
+
+backend/tests/unit/test_midlong_remediation_2026_08.py::test_trade_memory_filters_account_and_nature
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\agent_quant_feature_table.py:228: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    since = datetime.utcnow() - timedelta(hours=24)
+
+backend/tests/unit/test_period_reports.py::test_loss_attribution_triggers_on_loss
+backend/tests/unit/test_period_reports.py::test_loss_attribution_inactive_on_profit
+backend/tests/unit/test_period_reports.py::test_loss_attribution_inactive_no_samples
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\loss_attribution.py:61: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\period_daily_report.py:40: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m-%d")
+
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\period_daily_report.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\period_daily_report.py:112: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+backend/tests/unit/test_period_reports.py::test_daily_report_builds_three_sections
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\period_daily_report.py:59: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+backend/tests/unit/test_phase6_exchange.py: 10 warnings
+  D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\aiohttp\connector.py:851: DeprecationWarning: enable_cleanup_closed ignored because https://github.com/python/cpython/pull/118960 is fixed in Python version sys.version_info(major=3, minor=12, micro=10, releaselevel='final', serial=0)
+    super().__init__(
+
+backend/tests/unit/test_smoke_20260827.py::test_review_promote_grace_skips_quarantine
+backend/tests/unit/test_smoke_20260827.py::test_review_without_grace_still_quarantines
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\evaluation.py:64: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    r, _ = stats.pearsonr(a[mask], b[mask])
+
+backend/tests/unit/test_smoke_20260827.py::test_review_promote_grace_skips_quarantine
+backend/tests/unit/test_smoke_20260827.py::test_review_without_grace_still_quarantines
+  D:\001Alpha\Hyper-Alpha-Arena\backend\services\factor_engine\evaluation.py:62: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    r, _ = stats.spearmanr(a[mask], b[mask])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_decision_fusion_arbiter.py::test_pwin_probe_quota_guarantees_flow
+FAILED backend/tests/test_executors.py::test_live_executor_place_order_mock
+FAILED backend/tests/test_executors.py::test_live_executor_place_order_exception
+FAILED backend/tests/test_paper_netting.py::test_unified_leverage_single_row_keeps
+FAILED backend/tests/unit/test_ai_coin_filter_20260907.py::test_hard_deny_stocks
+FAILED backend/tests/unit/test_ai_coin_unified.py::test_short_mid_roundtrip_and_merge
+FAILED backend/tests/unit/test_ai_coin_unified.py::test_mid_sticky_io_routes_through_unified
+FAILED backend/tests/unit/test_ai_coin_unified.py::test_legacy_sticky_migration
+FAILED backend/tests/unit/test_ai_mid_board_source.py::test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky
+FAILED backend/tests/unit/test_analysis_schemas_20260904.py::test_每个task的template与required类型自洽
+FAILED backend/tests/unit/test_comprehensive_functional.py::Test性能基准::test_factor_engine_speed
+FAILED backend/tests/unit/test_config_governance_20260902.py::test_no_drift_between_env_and_facts
+FAILED backend/tests/unit/test_dual_local_votes_20260904.py::test_两条主票同模型时退化为单票
+FAILED backend/tests/unit/test_dual_local_votes_20260904.py::test_不同模型时正常发两票
+FAILED backend/tests/unit/test_leverage_unified_live_20260904.py::test_旧路径开仓前会对齐杠杆
+FAILED backend/tests/unit/test_leverage_unified_live_20260904.py::test_平仓不被杠杆对齐卡住
+FAILED backend/tests/unit/test_leverage_unified_live_20260904.py::test_应急开关可回到只告警
+FAILED backend/tests/unit/test_live_position_manager.py::test_same_nature_add_sends_delta
+FAILED backend/tests/unit/test_live_position_manager.py::test_cross_nature_hedge_sends_net
+FAILED backend/tests/unit/test_live_position_manager.py::test_get_net_position_multi_tier
+FAILED backend/tests/unit/test_live_position_manager.py::test_margin_computed_from_size_and_leverage
+FAILED backend/tests/unit/test_m3_heldout.py::test_heldout_pass_then_verdict_reject
+FAILED backend/tests/unit/test_m3_heldout.py::test_heldout_verdict_pass - Att...
+FAILED backend/tests/unit/test_m3_heldout.py::test_heldout_rejects_negative_net_return
+FAILED backend/tests/unit/test_m3_heldout.py::test_heldout_disabled_single_pass
+FAILED backend/tests/unit/test_midview_thesis.py::TestQualLayerPromptMidView::test_long_prompt_contains_mid_view_request
+FAILED backend/tests/unit/test_midview_thesis.py::TestQualLayerPromptMidView::test_mid_prompt_excludes_mid_view_request
+FAILED backend/tests/unit/test_owm_thesis_bind_20260906.py::test_record_outcome_uses_session_and_mid_tier
+FAILED backend/tests/unit/test_panel_purge_20260830.py::test_panel_purge_survives_multisymbol_factor
+FAILED backend/tests/unit/test_panel_purge_20260830.py::test_panel_purge_rejects_antisymbol_factor
+FAILED backend/tests/unit/test_scalp_factor_exclude.py::test_router_passes_exclude_into_compute
+FAILED backend/tests/unit/test_scalp_payout_20260823.py::test_gate_short_one_condition_probe_when_4h_bullish
+FAILED backend/tests/unit/test_scalp_payout_20260823.py::test_gate_short_one_condition_probe_when_funding_low
+FAILED backend/tests/unit/test_scalp_payout_20260823.py::test_gate_short_zero_condition_high_score_probe
+FAILED backend/tests/unit/test_split_train_val_test.py::test_split_days_period_tiers
+FAILED backend/tests/unit/test_split_train_val_test.py::test_lookback_period
+FAILED backend/tests/unit/test_split_train_val_test.py::test_required_coverage_days_5m
+FAILED backend/tests/unit/test_split_train_val_test.py::test_check_split_depth_short_fails
+FAILED backend/tests/unit/test_tranche_fix.py::TestProposalExecutionAppliesMarginPct::test_margin_pct_scales_size_multiplier
+FAILED backend/tests/unit/test_tranche_fix.py::TestProposalExecutionAppliesMarginPct::test_margin_pct_zero_blocks_open
+FAILED backend/tests/unit/test_trials_registry_20260903.py::TestEvolutionLoopWiring::test_promote_uses_rolling_when_larger
+FAILED backend/tests/unit/test_trials_registry_20260903.py::TestEvolutionLoopWiring::test_cold_start_exception_preserved
+= 42 failed, 3695 passed, 172 skipped, 1 xfailed, 3581 warnings in 1819.86s (0:30:19) =

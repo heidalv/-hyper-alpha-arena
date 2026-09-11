@@ -18,6 +18,15 @@ import pytest
 import pandas as pd
 import numpy as np
 
+# [2026-08-29 测试债清理] Phase3 因子扩展（onchain/derivatives/macro 分类）已在本
+# 部署裁剪——factors/onchain|derivatives|macro 目录不存在（旧实现移入
+# _ai_gen_archive），FactorLoader 显示这些分类 0 因子。本套件 72 例断言的是
+# 被裁剪前的因子集，全部失效。整模块跳过；若未来恢复扩展因子，删掉本标记
+# 并按新因子集重写契约。
+pytestmark = pytest.mark.skip(
+    reason="phase3 扩展因子(onchain/derivatives/macro)已裁剪出本部署，契约失效待重写",
+)
+
 # ════════════════════════════════════════════════════════
 #  Helpers
 # ════════════════════════════════════════════════════════

@@ -36,7 +36,9 @@ _last_coord_run: Dict[str, float] = {}
 #: PARAM_DEFS 里找不到对应字段时才退回下面这个兜底值。
 _SETTINGS_FIELD_TO_TIER = {
     "TIER_COORDINATOR_TICK_SEC": ("coordinator", 15),
-    "SCALP_FACTOR_SCAN_INTERVAL_SEC": ("short", 20),
+    # [2026-09-07] short tier = LLM 日内波段车道（旧 SCALP_FACTOR_SCAN_INTERVAL_SEC
+    # 因子 scalp 循环已随 SCALP_OPEN_DISABLED 判死，其映射位由本字段接替）
+    "TIER_SHORT_AI_TICK_SEC": ("short", 60),
     "TIER_MID_AI_TICK_SEC": ("mid", 45),
     "TIER_LONG_AI_TICK_SEC": ("long", 90),
 }
@@ -101,15 +103,17 @@ def get_due_ai_tiers(session_id: str) -> List[str]:
     """
     iv = _intervals()
     # 读取 tier 级别开关（默认 true 保持兼容）
-    tier_enabled = {"mid": True, "long": True}
+    # [2026-09-07] short=LLM 日内波段车道，由 INTRADAY_LLM_ENABLED 门控（默认开）
+    tier_enabled = {"mid": True, "long": True, "short": False}
     try:
         from backend.config import settings as _s
         tier_enabled["mid"] = getattr(_s, "TIER_MID_ENABLED", True)
         tier_enabled["long"] = getattr(_s, "TIER_LONG_ENABLED", True)
+        tier_enabled["short"] = bool(getattr(_s, "INTRADAY_LLM_ENABLED", False))
     except Exception:
         pass
     due: List[str] = []
-    for tier in ("mid", "long"):
+    for tier in ("mid", "long", "short"):
         if not tier_enabled.get(tier, True):
             continue
         if _elapsed(session_id, tier) >= iv[tier]:

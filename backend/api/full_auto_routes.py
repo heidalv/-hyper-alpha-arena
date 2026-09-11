@@ -303,6 +303,8 @@ class UpdateConfigRequest(BaseModel):
     auto_coin_max_slots: Optional[int] = None  # 5~10，短线 AI 选币槽位
     auto_coin_mid_enabled: Optional[bool] = None
     auto_coin_mid_max_slots: Optional[int] = None  # 1~5，中线 AI 选币槽位
+    auto_coin_long_enabled: Optional[bool] = None  # [2026-09-08] 长线 AI 选币开关
+    auto_coin_long_max_slots: Optional[int] = None  # 1~4，长线 AI 选币槽位
 
 
 @router.post("/update-config/{session_id}")
@@ -324,6 +326,8 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
         request.auto_coin_max_slots is not None
         or request.auto_coin_mid_enabled is not None
         or request.auto_coin_mid_max_slots is not None
+        or request.auto_coin_long_enabled is not None
+        or request.auto_coin_long_max_slots is not None
     ):
         from backend.api.auto_coin_routes import _assert_vip_session_auto_coin
         _assert_vip_session_auto_coin(http_request, db, session)
@@ -374,6 +378,15 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
             raise HTTPException(status_code=400, detail="auto_coin_mid_max_slots 须在 1-5")
         session.auto_coin_mid_max_slots = v
         updated.append(f"auto_coin_mid_max_slots={v}")
+    if request.auto_coin_long_enabled is not None:
+        session.auto_coin_long_enabled = bool(request.auto_coin_long_enabled)
+        updated.append(f"auto_coin_long_enabled={session.auto_coin_long_enabled}")
+    if request.auto_coin_long_max_slots is not None:
+        v = int(request.auto_coin_long_max_slots)
+        if v < 1 or v > 4:
+            raise HTTPException(status_code=400, detail="auto_coin_long_max_slots 须在 1-4")
+        session.auto_coin_long_max_slots = v
+        updated.append(f"auto_coin_long_max_slots={v}")
 
     if not updated:
         return {"success": True, "session_id": session_id, "updated": [], "message": "无字段需要更新"}
@@ -719,6 +732,8 @@ def _build_sessions_list(db: Session, account_id: Optional[int], status: Optiona
             "auto_coin_mid_enabled": bool(getattr(s, "auto_coin_mid_enabled", False)),
             "auto_coin_mid_max_slots": int(getattr(s, "auto_coin_mid_max_slots", None) or 3),
             "auto_coin_mid_symbols": _mid_syms,
+            "auto_coin_long_enabled": bool(getattr(s, "auto_coin_long_enabled", False)),
+            "auto_coin_long_max_slots": int(getattr(s, "auto_coin_long_max_slots", None) or 2),
             "fixed_symbols_by_tier": _parse_by_tier(getattr(s, "fixed_symbols_by_tier", None)),
             "backup_pool": _backup_pool,
             "risk_level": s.risk_level,
@@ -750,48 +765,77 @@ def get_tick_intervals():
         intervals = get_intervals()
     except Exception:
         intervals = {"coordinator": 30, "short": 30, "mid": 120, "long": 240}
-    # [2026-08-14] 中线状态明示：标签随运行时开关动态变化，
-    # 避免"因子化已定案但旧 AI 仍在过渡执行"造成的显示混乱。
-    # 三态：mlto_transition（旧AI执行）/ mid_paused（旧AI已停、因子路由未接线，
-    # 只跑因子研究）/ factor_route（因子路由接管中线入场）。
-    _mid_mode = "mlto_transition"
-    _mid_label = "中线AI(过渡)"
+
+    _brain = False
+    _scalp_off = False
+    _chart_req = False
     try:
-        from backend.config.settings import MIDLONG_MID_VIA_MLTO as _mv
-        from backend.config.settings import MIDLONG_MID_VIA_FACTOR_ROUTE as _fr
-        if _mv:
-            _mid_mode = "mlto_transition"
-            _mid_label = "中线AI(过渡)"
-        elif _fr:
-            _mid_mode = "factor_route"
-            _mid_label = "中线因子路由"
-        else:
-            _mid_mode = "mid_paused"
-            _mid_label = "中线暂停(因子研究)"
+        from backend.config.settings import (
+            MIDLONG_CHART_REQUIRED,
+            SCALP_OPEN_DISABLED,
+            midlong_brain_enabled,
+        )
+        _brain = bool(midlong_brain_enabled())
+        _scalp_off = bool(SCALP_OPEN_DISABLED)
+        _chart_req = bool(MIDLONG_CHART_REQUIRED)
     except Exception:
         pass
-    # [2026-08-19] 长线真实节奏澄清：midlong 独立循环（mid+long 共用）的实际频率
-    # 由 orchestrator 注册为 max(45, TIER_MID_AI_TICK_SEC)；intervals["long"]=TIER_LONG_AI_TICK_SEC
-    # 只是「入场分析 due 节流」，不是循环频率。前端曾把 240 标成 tick 频率（误导）。
+
+    # 主脑优先：故事必须等于真相。因子/旧 MLTO 标签仅在脑关闭时回退。
+    _mid_mode = "llm_brain" if _brain else "mid_paused"
+    _mid_label = "中线 LLM 论题主脑"
+    if not _brain:
+        try:
+            from backend.config.settings import MIDLONG_MID_VIA_MLTO as _mv
+            from backend.config.settings import MIDLONG_MID_VIA_FACTOR_ROUTE as _fr
+            if _mv:
+                _mid_mode = "mlto_transition"
+                _mid_label = "中线AI(过渡)"
+            elif _fr:
+                _mid_mode = "factor_route"
+                _mid_label = "中线因子路由"
+            else:
+                _mid_mode = "mid_paused"
+                _mid_label = "中线暂停(因子研究)"
+        except Exception:
+            pass
+
     _long_loop_sec = intervals.get("long", 240)
     try:
         from backend.config.settings import TIER_MID_AI_TICK_SEC as _mid_tick
         _long_loop_sec = max(45, int(_mid_tick or 45))
     except Exception:
         pass
+    # [2026-09-07] 日内波段车道标签：short tier = LLM 论题驱动（旧因子 scalp 已判死）
+    _intraday_on = False
+    try:
+        from backend.config.settings import INTRADAY_LLM_ENABLED as _intraday
+        _intraday_on = bool(_intraday)
+    except Exception:
+        pass
+    if _intraday_on and _brain:
+        _short_label = "日内波段 · LLM 论题（1h）"
+    elif _scalp_off:
+        _short_label = "短线（已判负期望关停）"
+    else:
+        _short_label = "短线因子"
     return {
         "intervals": intervals,
         "labels": {
             "coordinator": "协调器",
-            "short": "短线因子",
+            "short": _short_label,
             "mid": _mid_label,
-            "long": "长线AI",
+            "long": "长线 LLM 论题主脑" if _brain else "长线AI",
         },
+        "intraday_enabled": _intraday_on,
         "mid_mode": _mid_mode,
-        # 长线三层节奏：循环(实际扫描) / 入场节流 / 决策
+        "brain_mode": "llm" if _brain else "off",
+        "mid_open_authority": "llm_thesis" if _brain else "none",
+        "scalp_open_disabled": _scalp_off,
+        "chart_required": _chart_req,
         "long_loop_sec": _long_loop_sec,
         "long_entry_sec": int(intervals.get("long", 240)),
-        "long_decision": "daily_closed_bar",
+        "long_decision": "bar_close_and_shock" if _brain else "daily_closed_bar",
     }
 
 
@@ -995,7 +1039,40 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
 
     adb = AnalyticsSessionLocal()
     try:
-        snapshots = adb.query(_DS).order_by(_DS.id.desc()).limit(limit * 5).all()
+        # [2026-09 修复 F36] 此前只取全局最新 limit*5 条（默认 300）再按 tier 分桶：
+        # 短线车道 10 秒级高频写入会把 240s 一轮的长线车道挤出窗口，导致前端
+        # 「固定长线」列间歇性归零（观感=长线不分析，实为读侧饥饿）。
+        # 改为每 tier 独立配额：ROW_NUMBER 按 tier 分组各取 limit 条（扫描范围
+        # 用 id 下限收敛到最近 6 万条，保证性能）。这样任一 tier 只要近期有写入
+        # 就必然出现在窗口里，不再被高频车道挤掉。
+        from sqlalchemy import func as _func
+
+        _min_id = int(adb.query(_func.max(_DS.id)).scalar() or 0) - 60000
+        _sub = (
+            adb.query(
+                _DS.id.label("_sid"),
+                _func.row_number()
+                .over(partition_by=_DS.tier, order_by=_DS.id.desc())
+                .label("_rn"),
+            )
+            .filter(_DS.id > _min_id)
+            .subquery()
+        )
+        _keep_ids = [
+            int(r[0])
+            for r in adb.query(_sub.c._sid)
+            .filter(_sub.c._rn <= max(int(limit), 10))
+            .all()
+        ]
+        if _keep_ids:
+            snapshots = (
+                adb.query(_DS)
+                .filter(_DS.id.in_(_keep_ids))
+                .order_by(_DS.id.desc())
+                .all()
+            )
+        else:
+            snapshots = []
     finally:
         adb.close()
 
@@ -1143,20 +1220,24 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
     for t in result:
         result[t] = result[t][:limit]
 
-    # 补充 MLTO 分析历史：读 mlto_thesis_events(thesis_update) 追加流，
-    # 不再只读当前 mlto_thesis 快照（每 symbol 一行会被覆盖，面板看不到历史）。
+    # [2026-09-07 根治] 主脑分析动态：读 mlto_thesis_events 今日真实事件流。
+    # 旧版三处错配导致 LLM 主脑时代活动流整天空白（用户实证"一天一个都没有"）：
+    #   1) event_type 只读 'thesis_update'，而新主脑写 'midlong_thesis'；
+    #   2) tier 排除 short（日内波段车道）；
+    #   3) 新事件 payload 无 summary 字段，被 `if not _summary: continue` 全跳过。
     try:
         from backend.database.connection import AnalyticsSessionLocal as _ASL2
         from sqlalchemy import text as _sa_text
         adb2 = _ASL2()
         try:
-            _ev_lim = max(int(limit), 40)
+            _ev_lim = max(int(limit) * 2, 80)
             _events = adb2.execute(_sa_text(
-                "SELECT te.id, te.ts, t.symbol, te.payload_json, t.llm_conviction, t.tier "
+                "SELECT te.id, te.ts, t.symbol, te.payload_json, t.llm_conviction, t.tier, "
+                "te.event_type, t.direction, t.accepted, t.recommend_open, t.thesis_summary "
                 "FROM mlto_thesis_events te "
                 "JOIN mlto_thesis t ON t.thesis_id = te.thesis_id "
-                "WHERE t.session_id = :sid AND t.tier IN ('long', 'mid') "
-                "AND te.event_type = 'thesis_update' "
+                "WHERE t.session_id = :sid "
+                "AND te.event_type IN ('midlong_thesis','thesis_update','open_blocked','open_execute_false','thesis_should_close') "
                 "ORDER BY te.ts DESC LIMIT :lim"
             ), {"sid": session_id, "lim": _ev_lim}).fetchall()
         finally:
@@ -1168,26 +1249,49 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
                 _payload = _raw if isinstance(_raw, dict) else _json.loads(_raw or "{}")
             except Exception:
                 _payload = {}
-            _summary = str(_payload.get("summary") or "")[:120]
-            if not _summary:
-                continue
-            _dir = str(_payload.get("direction") or "").lower()
+            _ev_type = str(ev[6] or "")
             _ts = ev[1]
-            _conv = _payload.get("conviction")
-            if _conv is None:
-                _conv = ev[4]
-            _ev_tier = str(ev[5] or "long").lower()
-            if _ev_tier not in ("mid", "long"):
-                _ev_tier = "long"
+            _conv = ev[4]
+            _ev_tier = str(ev[5] or "").lower()
+            if _ev_tier not in ("short", "mid", "long"):
+                _ev_tier = "mid"
+            # 方向：事件 payload 优先，回退论题当前方向
+            _dir = str(_payload.get("direction") or ev[7] or "").lower()
+            _accepted = ev[8]
+            _rec_open = ev[9]
+            _summary = str(ev[10] or "")[:120]
+            # 动作与文案映射（新主脑事件无 summary，用状态组合出可读文案）
+            if _ev_type == "open_blocked":
+                _action = "拦截"
+                _block = str(_payload.get("reason") or "")[:80]
+            elif _ev_type == "open_execute_false":
+                _action = "未执行"
+                _block = ""
+            elif _ev_type == "thesis_should_close":
+                _action = "平仓信号"
+                _block = ""
+            else:
+                # midlong_thesis / thesis_update = 一次论题分析
+                if _rec_open:
+                    _action = "信号"
+                elif _accepted:
+                    _action = "观望"
+                else:
+                    _action = "分析"
+                _block = ""
+            if not _summary:
+                _dir_cn = {"long": "看多", "short": "看空", "neutral": "中性"}.get(_dir, _dir or "—")
+                _state_cn = "建议开仓" if _rec_open else ("已接受·观望" if _accepted else "未过门")
+                _summary = f"{_dir_cn} · {_state_cn}"
             result[_ev_tier].append({
                 "id": f"mlto-ev-{ev[0]}",
                 "time": _ts.strftime("%m-%d %H:%M:%S") if _ts else "",
                 "symbol": ev[2] or "",
-                "action": "分析",
+                "action": _action,
                 "executed": False,
                 "allowed": None,
                 "confidence": round(float(_conv or 0), 0),
-                "block_reason": "",
+                "block_reason": _block,
                 "source": "mlto_thesis_events",
                 "reasoning": _summary,
                 "direction": _dir,

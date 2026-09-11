@@ -74,6 +74,9 @@ class HealthCheckHost:
     attach_scalp_advisory_for_ui: Callable = field(repr=False, default=lambda *a, **k: None)
     record_strategy_pause: Callable = field(repr=False, default=lambda *a, **k: None)
     should_log_pause_event: Callable = field(repr=False, default=lambda *a, **k: True)
+    # [2026-09-03 v3 F1d] 会话级回撤硬闸（symbol_risk.check_global_risk）
+    check_global_risk: Callable = field(repr=False, default=lambda *a, **k: None)
+    invalidate_session_status_cache: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
 def build_health_check_host(svc) -> HealthCheckHost:
@@ -134,6 +137,9 @@ def build_health_check_host(svc) -> HealthCheckHost:
         attach_scalp_advisory_for_ui=svc._attach_scalp_advisory_for_ui,
         record_strategy_pause=svc._record_strategy_pause,
         should_log_pause_event=svc._should_log_pause_event,
+        check_global_risk=svc._check_global_risk,
+        # 此前 host 未声明该字段，但 L1015/L1053 已在调用 → 熔断触发时 AttributeError（潜在 bug）
+        invalidate_session_status_cache=getattr(svc, "_invalidate_session_status_cache", lambda *a, **k: None),
     )
 
 
@@ -247,7 +253,7 @@ def run_health_check(
 
         # ── 1.0b 订单流采集：订阅用户选择的交易币种（CVD/Taker 写入 DB）──
         try:
-            from services.market_flow_collector import market_flow_collector
+            from backend.services.market_flow_collector import market_flow_collector
             if _symbols and market_flow_collector.running:
                 market_flow_collector.refresh_subscriptions(_symbols)
             elif _symbols and not market_flow_collector.running:
@@ -988,8 +994,52 @@ def run_health_check(
         except Exception as _tier_cb_err:
             logger.debug("[FullAuto] tier_circuit_breaker 巡检跳过: %s", _tier_cb_err)
 
+        # ── 4.58 [2026-09-03 v3 F1d] 会话级回撤硬闸（独立于锁强度 / 亏损锁配置）──
+        # 实测：会话 10 current_drawdown=0.61 > max_total_drawdown_pct=0.30 仍 running ——
+        # check_global_risk 此前从未被任何路径调用，且 paper_auto_unlock_session 会把
+        # paused/defensive 改回 running。这里无条件调用；越限 → status=paused、
+        # pause_reason=drawdown_limit（该原因不自动解锁，需人工复核后恢复）。
+        # 不 return：后续持仓治理 / 平仓巡检照常，只是不再新开仓。
+        try:
+            from backend.services.full_auto.symbol_risk import DRAWDOWN_LIMIT_CODE as _DD_CODE
+            _gr_reason = host.check_global_risk(db, session)
+            if _gr_reason and str(_gr_reason).startswith(_DD_CODE):
+                _already = (
+                    session.status == "paused"
+                    and (getattr(session, "pause_reason", None) or "") == _DD_CODE
+                )
+                if not _already:
+                    _prev_status = session.status
+                    session.status = "paused"
+                    session.pause_reason = _DD_CODE
+                    host.defensive_entered_at.pop(session_id, None)
+                    host.invalidate_session_status_cache(session_id)
+                    host.append_event(
+                        session, "drawdown_limit",
+                        f"⛔ 会话回撤硬闸: {_gr_reason} | 状态 {_prev_status}→paused，停止所有新开仓；"
+                        f"需人工复核（/api/full-auto resume）后恢复",
+                    )
+                    logger.warning("[FullAuto] 会话回撤硬闸触发 %s: %s", session_id, _gr_reason)
+                    try:
+                        from backend.services.risk_management.freeze_coordinator import register_event
+                        register_event("freeze_drawdown_limit",
+                                       int(getattr(session, "account_id", 0) or 0),
+                                       "session", str(session_id), str(_gr_reason)[:160])
+                    except Exception:
+                        pass
+                    host.safe_commit(db, "hc_drawdown_limit", session=session)
+        except Exception as _gr_err:
+            logger.warning("[FullAuto] 回撤硬闸检查异常 %s: %s", session_id, _gr_err)
+        _dd_paused = bool(
+            session.status == "paused"
+            and (getattr(session, "pause_reason", None) or "") == "drawdown_limit"
+        )
+
         # ── 4.6 风控巡检 (per-symbol + 全局极端安全网) ──
-        if host.live_constitutional_enabled(session):
+        if _dd_paused:
+            # 回撤硬闸期间不跑亏损锁 / 自动解锁 / 防守切换（它们会把 paused 改回 running 或 defensive）
+            pass
+        elif host.live_constitutional_enabled(session):
             host.check_live_constitutional_session_risk(db, session)
         elif host.paper_loss_locks_disabled(session):
             host.paper_auto_unlock_session(db, session)

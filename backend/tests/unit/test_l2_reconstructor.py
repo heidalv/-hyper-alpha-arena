@@ -8,10 +8,10 @@ from backend.services.market_flow.l2_reconstructor import (
     L2Reconstructor,
     OrderBookFrame,
 )
-from backend.services.factor_engine.factors.derivatives.orderflow_crypto_factors import (
-    L2DepthImbalanceFactor,
-    _proxy_signed_volume,
-)
+# [2026-09-02] orderflow_crypto_factors 已归档到 factors/_ai_gen_archive/（无生产代码
+# 引用），原「因子自动切换钩子」三个用例随之移除。本文件保留 l2_reconstructor
+# （market_flow 活代码）的用例，此前整个文件因这条 import 收集失败、连活代码的
+# 14 个用例一起失去保护。
 
 
 def _book(bids, asks):
@@ -192,36 +192,3 @@ def test_attach_empty_frames_creates_nan_columns():
         assert out[c].isna().all()
 
 
-# ─────────────────────────── 因子自动切换钩子 ───────────────────────────
-
-def test_proxy_signed_volume_switches_to_real_taker():
-    """K 线含 taker_buy_volume 列时，CVD/OFI 因子自动走真实数据。"""
-    df = pd.DataFrame({
-        "high": [102.0, 103.0], "low": [98.0, 99.0],
-        "close": [100.0, 101.0], "volume": [10.0, 10.0],
-        "taker_buy_volume": [7.0, 6.0],
-    })
-    signed = _proxy_signed_volume(df)
-    # 真实路径：buy − (volume − buy) = 7−3=4, 6−4=2
-    assert list(signed) == pytest.approx([4.0, 2.0])
-
-
-def test_l2_depth_imbalance_factor_degrade_and_value():
-    """L2 深度失衡因子：列缺失降级 0；列就绪输出滚动均值。"""
-    f = L2DepthImbalanceFactor()
-    f.params = {"window": 3}
-    # 缺失 → 全 0
-    df = pd.DataFrame({"close": [1.0, 2.0, 3.0]})
-    out = f.calculate(df)
-    assert (out == 0.0).all()
-    # 就绪 → 滚动均值
-    df2 = pd.DataFrame({"close": [1.0] * 3, "depth_imbalance": [0.5, -0.5, 1.0]})
-    out2 = f.calculate(df2)
-    assert out2.iloc[2] == pytest.approx((0.5 - 0.5 + 1.0) / 3)
-
-
-def test_l2_factor_registered():
-    """l2_depth_imbalance 因子已在注册表（元数据完整）。"""
-    assert L2DepthImbalanceFactor().get_metadata().factor_id == "l2_depth_imbalance"
-    md = L2DepthImbalanceFactor().get_metadata()
-    assert md.category == "derivatives" and md.subcategory == "orderflow"

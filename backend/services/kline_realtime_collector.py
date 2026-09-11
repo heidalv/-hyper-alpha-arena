@@ -166,6 +166,12 @@ def get_research_priority_symbols(limit: int = 80) -> List[str]:
                 pass
     except Exception as e:
         logger.debug("get_research_priority_symbols: %s", e)
+    # [2026-09-07] 踢股票永续 / 低流动 / 停采死币，避免 P0 研究池拖脏
+    try:
+        from backend.services.ai_coin_unified import filter_tradeable_ai_symbols
+        out = filter_tradeable_ai_symbols(out)
+    except Exception:
+        pass
     return out
 
 
@@ -263,6 +269,13 @@ def get_trade_universe_symbols() -> List[str]:
                 result.append(sym)
     except Exception:
         pass
+    # [2026-09-07] 研究池也会混进 TSLA/死币 → 与 AI 选币同一套可交易过滤
+    if result:
+        try:
+            from backend.services.ai_coin_unified import filter_tradeable_ai_symbols
+            result = filter_tradeable_ai_symbols(result)
+        except Exception:
+            pass
     if result:
         _trade_universe_cache = result
         _trade_universe_ts = now
@@ -732,7 +745,7 @@ class KlineRealtimeCollector:
             exchanges = [x.strip().lower() for x in raw.split(",") if x.strip()]
         else:
             try:
-                from config import settings
+                from backend.config import settings
                 exchanges = list(getattr(settings, "KLINE_SYNC_EXCHANGES", None) or [])
             except Exception:
                 exchanges = []
@@ -981,6 +994,22 @@ class KlineRealtimeCollector:
             su = normalize_symbol(s)
             if su and su not in out:
                 out.append(su)
+        # [2026-09-04] 用户固定币无条件并入观察名单。
+        # 起因：AI 选出的 AVAX/LINK 落在 P1 冷门尾部，1h 轮转一圈 ~2.4h，
+        # 超过 trade 通道的新鲜度门槛（period*2+60 = 7260s ≈ 2.02h）→
+        # data_center 对 purpose="trade" 返回空，而 research 通道照常返回 →
+        # "AI 选得出币、中线下不了单"。P0 只采 1m/3m/5m，救不了 1h；
+        # 只有观察名单能让长周期在 active 所按 KLINE_P1_WATCH_INTERVAL_S 刷新。
+        # 这里直接跟随 user_trading_pairs，不再手工维护第二份名单——
+        # 否则改了固定币却忘了改 KLINE_FRESHNESS_SYMBOLS，就会重演本次故障。
+        try:
+            from backend.services.trading_pairs_config import get_user_trading_pairs
+            for s in (get_user_trading_pairs() or []):
+                su = normalize_symbol(s)
+                if su and su not in out:
+                    out.append(su)
+        except Exception as e:
+            logger.debug("[P1-Watch] 固定币并入观察名单失败(降级用 env): %s", e)
         return out
 
     def _p1_all_periods(self) -> List[str]:

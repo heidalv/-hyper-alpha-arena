@@ -259,7 +259,7 @@ class KlineRepository:
             if _dc_only_enabled():
                 return
             try:
-                from services.hyperliquid_market_data import get_kline_data_from_hyperliquid
+                from backend.services.hyperliquid_market_data import get_kline_data_from_hyperliquid
                 period_seconds = self._period_to_seconds(period)
                 limit = min(1000, (end_ts - start_ts) // period_seconds) if period_seconds else 200
                 kline_data = get_kline_data_from_hyperliquid(symbol, period, limit, persist=False)

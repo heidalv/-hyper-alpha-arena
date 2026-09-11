@@ -152,6 +152,13 @@ class ThesisDTO:
     # 平仓结算时据此评估智慧效果）。空 = 本轮未注入。
     wisdom_ids: List[int] = field(default_factory=list)
     updated_at: Optional[datetime] = None
+    # [2026-09-05 LLM 主脑] 共识过门才算真论题；过期后必须重跑 dual_call。
+    accepted: bool = False
+    expires_at: Optional[datetime] = None
+    analysis_run_id: str = ""
+    # [2026-09-07] 主脑 prompt 版本（OPRO 地基）：论题产出时的 system prompt
+    # 短哈希，平仓结算可按版本统计胜率，为 prompt 自适应优化提供评分。
+    prompt_version: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -182,6 +189,10 @@ class ThesisDTO:
             "regime_suggestion": self.regime_suggestion,
             "wisdom_ids": self.wisdom_ids,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "accepted": self.accepted,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "analysis_run_id": self.analysis_run_id,
+            "prompt_version": self.prompt_version,
         }
 
 

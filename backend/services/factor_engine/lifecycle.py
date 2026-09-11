@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+import os
+
 import yaml
 
 
@@ -48,12 +50,21 @@ class LifecycleThresholds:
     min_icir: float = 0.40   # [2026-08-13 P2-11] 0.30→0.40 收紧（诊断：准入门槛系统性偏松）
     max_monotonicity_p: float = 0.05   # 单调性 p 值（越小越单调）
     max_turnover: float = 0.70
-    min_halflife_bars: int = 5
+    # [2026-09-07 阈值单一事实源] 5→4：与 admission_gate（evaluation.py
+    # DEFAULT_GATE_CONFIG.min_halflife_bars=4）对齐。此前同一因子在
+    # lifecycle 要 HL≥5、在因子卡要 HL≥4，两处标准不一导致审计困难。
+    # 4 对中短周期因子更友好（rev_5 在 4h 的 IC 半衰期实测仅 3-4 根）。
+    min_halflife_bars: int = 4
     # ORTHO → PAPER
     max_incremental_corr: float = 0.50  # 对活跃池的增量相关
     min_dsr_significant: bool = True    # Deflated Sharpe 显著
     max_pbo: float = 0.35               # [2026-08-13 P2-11] 0.50→0.35（诊断：PBO 门槛低于行业常规）
-    min_capacity_usd: float = 1e5       # 容量下限（P1.6）
+    # 容量下限（P1.6）[2026-08-30 env 可调] 默认 1e5；实盘小资金账户经
+    # .env 设 FACTOR_MIN_CAPACITY_USD=50000 —— 与 decay_capacity_min_usd
+    # (5e4) 对齐：容量 5-10 万的因子对 $ 百元级账户绰绰有余，不必在
+    # 晋升门禁误杀（实测 08-29 一个 DSR 显著+PBO=0 的因子差 2.4% 被拒）。
+    # 统计门禁（ICIR/DSR/PBO/test_ic）不随此放宽。
+    min_capacity_usd: float = float(os.getenv("FACTOR_MIN_CAPACITY_USD", "1e5"))
     # PAPER → SMALL_LIVE
     min_paper_sharpe: float = 1.0
     max_live_deviation: float = 0.003   # 实盘对齐偏差 0.3%

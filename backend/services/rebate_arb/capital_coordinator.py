@@ -421,11 +421,20 @@ class CapitalAllocationCoordinator:
             return self._get_strategy_sub_available(strategy_id)
 
     def _get_strategy_sub_available(self, strategy_id: str) -> float:
-        """rebate_points_arb 池内按 S1–S8 子配额可用额度。"""
+        """rebate_points_arb 池内按 S1–S8 子配额可用额度。
+
+        调用契约：**调用者必须已持有 self._lock**。self._lock 是
+        threading.Lock（不可重入），因此本方法内部一律直读 _allocation，
+        禁止再调用任何 with self._lock 的公开方法。
+        """
         sid = (strategy_id or "").upper()
         pct = self._strategy_sub_pools.get(sid)
         if pct is None or pct <= 0:
-            return self.get_rebate_available()
+            # [2026-09-02] 修重入死锁：原为 self.get_rebate_available()，该方法
+            # 自身 with self._lock，与外层 get_strategy_sub_available 的锁构成
+            # 自等待 —— 凡未配置子池的 strategy_id 都会 100% 永久挂起（实测
+            # test_rebate_qaa 卡死 180s 超时）。直读同一字段，语义完全等价。
+            return self._allocation.available_for_rebate
         rebate_pool = self._allocation.allocations.get("rebate_points_arb", 0.0)
         cap = rebate_pool * pct
         used = self._strategy_used.get(sid, 0.0)

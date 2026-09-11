@@ -144,11 +144,19 @@ COMPONENT_WEIGHTS = {
     "top_trader":  0.08,
 }
 
-# 资金费率阈值
+# 资金费率阈值 —— [2026-09 修复 P0-2] 统一为「原始结算周期费率（8h）」口径：
+# 0.0005 = 0.05%/8h（约 5 倍常态），0.001 = 0.1%/8h（约 10 倍常态）。
+# 与 derivatives_analytics / perp_funding / position_sizer / trade_memory 等一致。
 FUNDING_EXTREME_POSITIVE = 0.0005
 FUNDING_EXTREME_NEGATIVE = -0.0005
 FUNDING_HYPER_POSITIVE = 0.001
 FUNDING_HYPER_NEGATIVE = -0.001
+
+# 资金费率历史分位阈值（近 30 天同场所，derivatives_analytics 计算）
+FUNDING_PCT_EXTREME_HIGH = 95
+FUNDING_PCT_HIGH = 85
+FUNDING_PCT_LOW = 15
+FUNDING_PCT_EXTREME_LOW = 5
 
 # OI变化阈值
 OI_SIGNIFICANT_CHANGE = 0.015   # 1.5% 即认为有意义
@@ -244,6 +252,7 @@ class IntelligenceSignalEngine:
             "news": signal.news_top_event != "" or signal.news_sentiment != 0.0,
             "sentiment": signal.fear_greed_index != 50.0,
             "ls_ratio": signal.long_short_ratio != 1.0,
+            "top_trader": signal.top_trader_ls_ratio != 1.0,
         }
 
         self._compute_confluence(signal)
@@ -260,28 +269,49 @@ class IntelligenceSignalEngine:
             from backend.services.derivatives_analytics_service import derivatives_analytics
             snap = derivatives_analytics.get_snapshot(symbol)
             rate = snap.funding_rate
+            pct = float(getattr(snap, "funding_rate_percentile", 50.0) or 50.0)
+            venue = str(getattr(snap, "funding_venue", "") or "")
             regime.rate = rate
+            # [2026-09 修复 P0-3] percentile 此前恒为 50 的死字段，现为真实历史分位。
+            # 判定 = 绝对阈值 OR 历史分位（任一触发即警示）。分位触发带绝对下限：
+            # BTC 在 0.01% 上下窄幅震荡时「历史 100 分位」只是噪声，必须 |rate| 高于
+            # 常态（正费率 >0.0001，负费率 <0）才允许分位把状态升级为偏多/偏空。
+            regime.percentile = pct
 
-            if rate >= FUNDING_HYPER_POSITIVE:
+            hyper = rate >= FUNDING_HYPER_POSITIVE or (
+                rate >= FUNDING_EXTREME_POSITIVE and pct >= FUNDING_PCT_EXTREME_HIGH
+            )
+            pos = rate >= FUNDING_EXTREME_POSITIVE or (
+                pct >= FUNDING_PCT_HIGH and rate > 0.0001
+            )
+            neg_hyper = rate <= FUNDING_HYPER_NEGATIVE or (
+                rate <= FUNDING_EXTREME_NEGATIVE and pct <= FUNDING_PCT_EXTREME_LOW
+            )
+            neg = rate <= FUNDING_EXTREME_NEGATIVE or (
+                pct <= FUNDING_PCT_LOW and rate < 0
+            )
+
+            _v = f" {venue}" if venue else ""
+            if hyper:
                 regime.regime = "extreme_positive"
                 regime.signal = "bearish"
-                regime.description = "多头极度拥挤，费率极高，注意回调风险"
-            elif rate >= FUNDING_EXTREME_POSITIVE:
+                regime.description = f"多头极度拥挤，费率极高(历史{pct:.0f}分位{_v})，注意回调风险"
+            elif pos:
                 regime.regime = "positive"
                 regime.signal = "bearish"
-                regime.description = "多头偏拥挤，费率偏高"
-            elif rate <= FUNDING_HYPER_NEGATIVE:
+                regime.description = f"多头偏拥挤，费率偏高(历史{pct:.0f}分位{_v})"
+            elif neg_hyper:
                 regime.regime = "extreme_negative"
                 regime.signal = "bullish"
-                regime.description = "空头极度拥挤，费率极低，可能反弹"
-            elif rate <= FUNDING_EXTREME_NEGATIVE:
+                regime.description = f"空头极度拥挤，费率极低(历史{pct:.0f}分位{_v})，可能反弹"
+            elif neg:
                 regime.regime = "negative"
                 regime.signal = "bullish"
-                regime.description = "空头偏拥挤，费率偏低"
+                regime.description = f"空头偏拥挤，费率偏低(历史{pct:.0f}分位{_v})"
             else:
                 regime.regime = "neutral"
                 regime.signal = "neutral"
-                regime.description = "费率正常范围，无极端偏向"
+                regime.description = f"费率正常范围(历史{pct:.0f}分位{_v})，无极端偏向"
 
         except Exception as e:
             logger.debug(f"[IntelSignal] 资金费率获取失败: {e}")
@@ -464,7 +494,12 @@ class IntelligenceSignalEngine:
     # ────────────────────── 汇流评分 ──────────────────────
 
     def _compute_confluence(self, signal: TradingDirectionSignal):
-        """按权重汇流所有子信号，输出最终方向和置信度"""
+        """按权重汇流所有子信号，输出最终方向和置信度。
+
+        [2026-09 修复 P0-3] 数据不可用的组件不再参与加权：原实现把缺失组件的
+        分数当 0 但仍计入总权重，等于用「无数据」稀释「有数据」组件的信号强度。
+        现在按 sources_available 重新归一化权重。
+        """
 
         scores: Dict[str, float] = {}
 
@@ -503,12 +538,29 @@ class IntelligenceSignalEngine:
         else:
             scores["top_trader"] = 0
 
+        # 汇流权重 → 可用性标记的映射（sources_available 键名 ≠ 权重键名）
+        _COMPONENT_TO_SOURCE = {
+            "funding": "funding",
+            "oi": "oi",
+            "liquidation": "liquidation",
+            "whale": "whale",
+            "news": "news",
+            "fear_greed": "sentiment",
+            "long_short": "ls_ratio",
+            "top_trader": "top_trader",
+        }
+        avail = signal.sources_available or {}
+
         weighted_sum = 0.0
         total_weight = 0.0
         for component, weight in self._weights.items():
-            if component in scores:
-                weighted_sum += scores[component] * weight
-                total_weight += weight
+            if component not in scores:
+                continue
+            source_key = _COMPONENT_TO_SOURCE.get(component)
+            if source_key is not None and not avail.get(source_key, True):
+                continue  # 数据不可用 → 不参与加权，也不占权重
+            weighted_sum += scores[component] * weight
+            total_weight += weight
 
         if total_weight > 0:
             composite = weighted_sum / total_weight

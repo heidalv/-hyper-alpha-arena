@@ -40,11 +40,20 @@ from backend.services.portfolio.resonance_layer import (  # noqa: E402
 
 
 class TestFeatureFlags:
-    def test_flags_default_off(self):
-        # 骨架阶段所有开关必须默认关闭
-        assert FEATURE_FACTOR_LABELS_ENABLED is False
-        assert FEATURE_FACTOR_EXPOSURE_ENABLED is False
-        assert PRL_ENABLED is False
+    def test_flags_are_env_driven_bools(self):
+        """[2026-09-02] 骨架阶段"全部默认关闭"已过时：M2 因子标签已产品化（代码默认 true），
+        M3 暴露层由 .env 开启（FEATURE_FACTOR_EXPOSURE_ENABLED=true）。
+        现只守：三者都是 bool；M3/M8 的**代码默认**仍为关闭（未配置环境 fail-safe）。
+        """
+        import re
+        from backend.services.factor_engine import exposure_service
+        from backend.services.portfolio import resonance_layer
+        for flag in (FEATURE_FACTOR_LABELS_ENABLED, FEATURE_FACTOR_EXPOSURE_ENABLED, PRL_ENABLED):
+            assert isinstance(flag, bool)
+        src_m3 = open(exposure_service.__file__, encoding="utf-8").read()
+        assert re.search(r'"FEATURE_FACTOR_EXPOSURE_ENABLED",\s*"false"', src_m3), "M3 代码默认应关闭"
+        src_m8 = open(resonance_layer.__file__, encoding="utf-8").read()
+        assert re.search(r'os\.getenv\("PRL_ENABLED",\s*"false"\)', src_m8), "M8 代码默认应关闭"
 
 
 class TestM2FactorLabels:
@@ -78,6 +87,31 @@ class TestM2FactorLabels:
         assert isinstance(labels, pd.Series)
         assert len(labels) == len(df)
         assert labels.index.equals(df.index)
+        # [2026-09-02] 注释一直写着"不应全为 0"，却从未断言内容——包装层按旧契约迭代
+        # DataFrame 解包失败被吞、恒返回全 0 的 bug 因此漏网半个月。单边上涨必须出现 +1。
+        assert (labels == 1).any(), f"单边上涨却无 +1 标签: {labels.value_counts().to_dict()}"
+        assert not (labels == -1).any(), "单边上涨不应出现 -1"
+
+    def test_triple_barrier_labels_match_raw_labeler(self):
+        """[2026-09-02 回归] 包装层必须逐点等于底层 apply_triple_barrier 的 label 列，
+        且在随机游走上三类标签都出现（否则 factor_evolution_loop 会静默回退前瞻收益）。"""
+        import numpy as np
+        from backend.services.labeling.triple_barrier import (
+            TripleBarrierConfig, apply_triple_barrier,
+        )
+        rng = np.random.default_rng(0)
+        close = 100 * np.exp(np.cumsum(rng.normal(0, 0.01, 600)))
+        idx = pd.date_range("2026-01-01", periods=600, freq="5min")
+        df = pd.DataFrame({"close": close}, index=idx)
+        labels = build_triple_barrier_labels(df, horizon_bars=12)
+        raw = apply_triple_barrier(
+            df["close"], events_index=df.index,
+            config=TripleBarrierConfig(num_days=12, upper_mult=1.5, lower_mult=1.5,
+                                       min_vol=0.0001, vol_lookback=20),
+        )
+        assert set(labels.unique()) == {-1, 0, 1}, labels.value_counts().to_dict()
+        aligned = raw["label"].astype(int).reindex(df.index).fillna(0).astype(int)
+        assert labels.equals(aligned), "包装层标签与底层打标器不一致"
 
     def test_quality_metrics(self):
         s = pd.Series([0.0, 1.0, 1.0, -1.0, -1.0])
@@ -96,7 +130,10 @@ class TestM3Exposure:
         d = e.to_dict()
         assert d["expected_alpha"] == round(1.5 * 0.02 * 0.1, 8)
 
-    def test_disabled_returns_empty(self):
+    def test_disabled_returns_empty(self, monkeypatch):
+        """开关关闭时 exposure() 返回空、status.enabled=False（fail-safe）。
+        [2026-09-02] .env 已开启该功能，用例改为显式关闭 env 后验证（_exposure_enabled 每次读 env）。"""
+        monkeypatch.setenv("FEATURE_FACTOR_EXPOSURE_ENABLED", "false")
         assert factor_exposure_service.exposure("BTC", "5m") == []
         assert factor_exposure_service.status()["enabled"] is False
 

@@ -24,8 +24,10 @@ import pytest
 
 from backend.services.learning_loop_service import (
     JOB_COORDINATOR,
+    JOB_FACTOR_DECAY,
     JOB_HEARTBEAT,
     JOB_KELLY_PORTFOLIO,
+    JOB_LIVE_OUTCOME_BACKFILL,
     JOB_OUTCOME_BATCH,
     JOB_PAPER_OUTCOME_BACKFILL,
     learning_loop,
@@ -67,10 +69,13 @@ def test_heartbeat_records_tick(monkeypatch):
 
 
 def test_last_tick_map_thread_safe_snapshot():
-    """last_tick_map 返回 ISO 字符串快照，未运行 job 为 None。"""
+    """last_tick_map 返回 ISO 字符串快照，未运行 job 为 None。
+    [2026-08-29 契约同步] P0-2/P1-4 新增了 factor_decay 与 live_outcome_backfill
+    两个 job，期望集随之更新。"""
     m = learning_loop.last_tick_map()
     assert set(m) == {JOB_OUTCOME_BATCH, JOB_PAPER_OUTCOME_BACKFILL,
-                      JOB_KELLY_PORTFOLIO, JOB_COORDINATOR, JOB_HEARTBEAT}
+                      JOB_KELLY_PORTFOLIO, JOB_COORDINATOR, JOB_HEARTBEAT,
+                      JOB_FACTOR_DECAY, JOB_LIVE_OUTCOME_BACKFILL}
     assert all(v is None or isinstance(v, str) for v in m.values())
 
 

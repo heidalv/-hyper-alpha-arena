@@ -11,7 +11,7 @@ def get_registry():
     try:
         from backend.services.learning import registry
     except ImportError:
-        from services.learning import registry  # type: ignore
+        from backend.services.learning import registry  # type: ignore
 
     if not registry.list_backends():
         try:

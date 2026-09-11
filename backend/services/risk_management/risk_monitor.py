@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Optional, Callable
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class AlertLevel(Enum):
@@ -225,7 +228,12 @@ class RiskMonitor:
             try:
                 callback(alert)
             except Exception as e:
-                print(f"Error in alert callback: {e}")
+                # [§64] 风险预警回调失败必须进日志流（此前 print 只进 console 文件，
+                # 等价于"风险预警投递失败但没人知道"）
+                logger.error(
+                    "[RiskMonitor] 预警回调执行失败 %s: %s（该预警可能未被投递）",
+                    getattr(callback, "__name__", callback), e,
+                )
     
     def get_active_alerts(self, level: Optional[AlertLevel] = None) -> List[RiskAlert]:
         """获取活跃预警"""

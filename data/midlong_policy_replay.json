@@ -1,0 +1,719 @@
+{
+  "generated_at": "2026-09-09T08:15:25.043165+00:00",
+  "n_trades": 100,
+  "n_pass": 77,
+  "block_stats": {
+    "regime_long_down": 3,
+    "regime_short_up": 9,
+    "regime_short_chop": 11
+  },
+  "full_policy": {
+    "name": "全链策略",
+    "n": 77,
+    "net_mean": 1.996,
+    "net_median": 2.451,
+    "net_sum": 153.7,
+    "win_rate": 0.766,
+    "exits": {
+      "timeout": 9,
+      "trail": 56,
+      "sl": 12
+    },
+    "hold_h_median": 32
+  },
+  "rows": [
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 1.966,
+      "net_pct": 1.722,
+      "hold_h": 35,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "ASTER",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -1.581,
+      "net_pct": -1.821,
+      "hold_h": 32,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "XRP",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.19,
+      "net_pct": 1.961,
+      "hold_h": 23,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 0.653,
+      "net_pct": 0.41,
+      "hold_h": 35,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.197,
+      "net_pct": 2.992,
+      "hold_h": 4,
+      "exit": "trail"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.512,
+      "net_pct": 2.306,
+      "hold_h": 5,
+      "exit": "trail"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.512,
+      "net_pct": 2.306,
+      "hold_h": 5,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 4.505,
+      "net_pct": 4.292,
+      "hold_h": 10,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -2.14,
+      "net_pct": -2.422,
+      "hold_h": 66,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -0.501,
+      "net_pct": -0.801,
+      "hold_h": 80,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -0.501,
+      "net_pct": -0.801,
+      "hold_h": 80,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.914,
+      "net_pct": 2.697,
+      "hold_h": 14,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.619,
+      "net_pct": 3.371,
+      "hold_h": 39,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 3.616,
+      "net_pct": 3.39,
+      "hold_h": 21,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 2.839,
+      "net_pct": 2.564,
+      "hold_h": 60,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -1.907,
+      "net_pct": -2.276,
+      "hold_h": 135,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "ETH",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 0.783,
+      "net_pct": 0.414,
+      "hold_h": 135,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 5.313,
+      "net_pct": 5.081,
+      "hold_h": 26,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ETH",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 5.27,
+      "net_pct": 5.027,
+      "hold_h": 35,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 4.606,
+      "net_pct": 4.367,
+      "hold_h": 31,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ETH",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.758,
+      "net_pct": 3.491,
+      "hold_h": 54,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 4.908,
+      "net_pct": 4.642,
+      "hold_h": 53,
+      "exit": "trail"
+    },
+    {
+      "symbol": "XRP",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 7.163,
+      "net_pct": 6.897,
+      "hold_h": 53,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.061,
+      "net_pct": 1.787,
+      "hold_h": 59,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.0,
+      "net_pct": 2.788,
+      "hold_h": 9,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.234,
+      "hold_h": 27,
+      "exit": "sl"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.685,
+      "net_pct": 3.386,
+      "hold_h": 79,
+      "exit": "trail"
+    },
+    {
+      "symbol": "XRP",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 5.583,
+      "net_pct": 5.284,
+      "hold_h": 79,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 1.577,
+      "net_pct": 1.274,
+      "hold_h": 82,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.849,
+      "net_pct": 2.637,
+      "hold_h": 10,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.21,
+      "net_pct": 1.879,
+      "hold_h": 105,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.418,
+      "net_pct": 2.082,
+      "hold_h": 109,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ETH",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.28,
+      "hold_h": 64,
+      "exit": "sl"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.594,
+      "net_pct": 3.246,
+      "hold_h": 119,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.391,
+      "net_pct": 2.133,
+      "hold_h": 47,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -1.471,
+      "net_pct": -1.881,
+      "hold_h": 168,
+      "exit": "timeout"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 1.68,
+      "net_pct": 1.274,
+      "hold_h": 165,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.18,
+      "net_pct": 1.933,
+      "hold_h": 38,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.332,
+      "hold_h": 106,
+      "exit": "sl"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 1.685,
+      "net_pct": 1.275,
+      "hold_h": 168,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 1.761,
+      "net_pct": 1.511,
+      "hold_h": 40,
+      "exit": "trail"
+    },
+    {
+      "symbol": "XPL",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": 8.098,
+      "net_pct": 7.881,
+      "hold_h": 14,
+      "exit": "trail"
+    },
+    {
+      "symbol": "XPL",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 22.974,
+      "net_pct": 22.76,
+      "hold_h": 11,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": -6.0,
+      "net_pct": -6.235,
+      "hold_h": 28,
+      "exit": "sl"
+    },
+    {
+      "symbol": "XRP",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": -6.0,
+      "net_pct": -6.21,
+      "hold_h": 8,
+      "exit": "sl"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": 1.893,
+      "net_pct": 1.671,
+      "hold_h": 18,
+      "exit": "trail"
+    },
+    {
+      "symbol": "XRP",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": -6.0,
+      "net_pct": -6.226,
+      "hold_h": 21,
+      "exit": "sl"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.399,
+      "net_pct": 8.167,
+      "hold_h": 26,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BNB",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 4.406,
+      "net_pct": 4.156,
+      "hold_h": 40,
+      "exit": "trail"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.601,
+      "net_pct": 8.364,
+      "hold_h": 29,
+      "exit": "trail"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.601,
+      "net_pct": 8.364,
+      "hold_h": 29,
+      "exit": "trail"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.702,
+      "net_pct": 8.463,
+      "hold_h": 31,
+      "exit": "trail"
+    },
+    {
+      "symbol": "VIRTUAL",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": -6.0,
+      "net_pct": -6.244,
+      "hold_h": 35,
+      "exit": "sl"
+    },
+    {
+      "symbol": "UNI",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.836,
+      "net_pct": 8.596,
+      "hold_h": 32,
+      "exit": "trail"
+    },
+    {
+      "symbol": "BTC",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 9.571,
+      "net_pct": 9.225,
+      "hold_h": 117,
+      "exit": "trail"
+    },
+    {
+      "symbol": "PUMP",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.144,
+      "net_pct": 1.932,
+      "hold_h": 10,
+      "exit": "trail"
+    },
+    {
+      "symbol": "KAITO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.209,
+      "hold_h": 7,
+      "exit": "sl"
+    },
+    {
+      "symbol": "PUMP",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.225,
+      "hold_h": 20,
+      "exit": "sl"
+    },
+    {
+      "symbol": "VVV",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": -6.0,
+      "net_pct": -6.265,
+      "hold_h": 52,
+      "exit": "sl"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": -6.0,
+      "net_pct": -6.253,
+      "hold_h": 42,
+      "exit": "sl"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 8.061,
+      "net_pct": 7.747,
+      "hold_h": 91,
+      "exit": "trail"
+    },
+    {
+      "symbol": "KAITO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.654,
+      "net_pct": 2.451,
+      "hold_h": 2,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 4.495,
+      "net_pct": 4.268,
+      "hold_h": 21,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.749,
+      "net_pct": 3.519,
+      "hold_h": 24,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.315,
+      "net_pct": 2.105,
+      "hold_h": 8,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.352,
+      "net_pct": 3.109,
+      "hold_h": 34,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.635,
+      "net_pct": 3.389,
+      "hold_h": 37,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ONDO",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 5.501,
+      "net_pct": 5.283,
+      "hold_h": 15,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LDO",
+      "side": "long",
+      "regime": "chop",
+      "gross_pct": 2.111,
+      "net_pct": 1.897,
+      "hold_h": 11,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ZEC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": -6.0,
+      "net_pct": -6.215,
+      "hold_h": 12,
+      "exit": "sl"
+    },
+    {
+      "symbol": "ZEC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.924,
+      "net_pct": 3.718,
+      "hold_h": 5,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ZEC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 5.066,
+      "net_pct": 4.857,
+      "hold_h": 7,
+      "exit": "trail"
+    },
+    {
+      "symbol": "ZEC",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 4.322,
+      "net_pct": 4.111,
+      "hold_h": 9,
+      "exit": "trail"
+    },
+    {
+      "symbol": "SOL",
+      "side": "short",
+      "regime": "down",
+      "gross_pct": 4.173,
+      "net_pct": 3.898,
+      "hold_h": 60,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LIT",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 2.014,
+      "net_pct": 1.811,
+      "hold_h": 3,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LIT",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.535,
+      "net_pct": 3.328,
+      "hold_h": 5,
+      "exit": "trail"
+    },
+    {
+      "symbol": "LIT",
+      "side": "long",
+      "regime": "up",
+      "gross_pct": 3.342,
+      "net_pct": 3.131,
+      "hold_h": 9,
+      "exit": "trail"
+    }
+  ]
+}

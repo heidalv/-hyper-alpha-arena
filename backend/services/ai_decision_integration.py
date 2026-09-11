@@ -56,7 +56,7 @@ def build_factor_context(
         FactorContext对象
     """
     try:
-        from services.factor_engine import (
+        from backend.services.factor_engine import (
             factor_engine,
             get_factor_weighting,
             MarketRegime
@@ -103,7 +103,7 @@ def _compute_factor_values(symbol: str, klines) -> "Dict[str, Any]":
     完整的 FactorValue（value/category/is_directional/has_data 字段）。
     """
     try:
-        from services.factor_engine import factor_engine
+        from backend.services.factor_engine import factor_engine
         return factor_engine.compute_all_factors(klines, None)
     except Exception:
         return {}
@@ -132,11 +132,11 @@ def build_execution_context(
         ExecutionContext对象
     """
     try:
-        from services.adaptive_executor import (
+        from backend.services.adaptive_executor import (
             get_stop_manager,
             get_position_sizer
         )
-        from services.factor_engine import MarketRegime
+        from backend.services.factor_engine import MarketRegime
         
         stop_manager = get_stop_manager()
         sizer = get_position_sizer()
@@ -245,7 +245,7 @@ def get_adaptive_parameters_for_symbol(
     atr = 0.0
     if klines is not None and not klines.empty:
         try:
-            from services.factor_engine import factor_engine
+            from backend.services.factor_engine import factor_engine
             atr = factor_engine.compute_atr(klines, market_data)
         except Exception:
             atr = entry_price * 0.02 if entry_price > 0 else 100.0
@@ -391,8 +391,8 @@ def compute_fusion_decision(
     返回 None 表示融合失败（不影响原有流程）。
     """
     try:
-        from services.factor_engine import factor_engine, get_factor_weighting
-        from services.factor_engine.decision_fusion_engine import DecisionFusionEngine
+        from backend.services.factor_engine import factor_engine, get_factor_weighting
+        from backend.services.factor_engine.decision_fusion_engine import DecisionFusionEngine
 
         if klines is None or klines.empty:
             return None
@@ -503,6 +503,26 @@ def build_factor_guidance_for_prompt(
     except Exception as _g_err:
         logger.warning(f"[FactorGuidance] 失败: {_g_err}")
         return "（因子引擎: 临时错误）"
+
+    # [2026-09-02 根因修复 P1-4] 因子活跃集 SSOT 接入：量化层真正在用的
+    # 活跃因子（factor_active_set TRADABLE）同步进提示词，LLM 能看到量化
+    # 层拿什么在交易——此前挖掘成果与决策提示词完全脱钩。
+    try:
+        from backend.services.factor_engine.active_set_policy import (
+            ActiveSetRole,
+            load_factor_active_rows,
+        )
+        _rows = load_factor_active_rows(ActiveSetRole.TRADABLE, parse_expr=False, limit=20)
+        if _rows:
+            lines.append("")
+            lines.append("── 量化层活跃因子集（factor_active_set TRADABLE）──")
+            for _r in _rows:
+                lines.append(
+                    f"  · {str(_r.get('factor_id', ''))[:32]} | ICIR={float(_r.get('icir') or 0):+.3f} "
+                    f"| state={_r.get('state')} | period={_r.get('period') or '-'}"
+                )
+    except Exception:
+        pass
 
     lines.append("\n═══════════════════════════════")
     return "\n".join(lines)

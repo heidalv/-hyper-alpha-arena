@@ -52,6 +52,7 @@ class MidLongStructureStop:
 
         sl_pct, tp_pct, sl_price, tp_price = structure_stop_calculator.compute_sl_tp(
             md, side=side, entry=entry, buffer_pct=buffer_pct,
+            market_aware=False, symbol=symbol,
         )
 
         # ── 中长线 TP/SL 扩展：覆盖短线窄区间钳制 ──
@@ -80,6 +81,17 @@ class MidLongStructureStop:
         # TP 按 RR ≥ 1.8 计算（P0-1：原 2.5 倍 SL 叠加 ATR 地板后 TP 达 16-22%，
         # 远超全库 peak 上限 5.03%，止盈从未触发；下修到 1.8 倍换取可触达性）
         tp_pct = max(min_tp, min(max_tp, sl_pct * 1.8))
+
+        try:
+            from backend.services.exit.market_aware_tpsl import apply_market_overlays
+            sl_pct, tp_pct, _notes = apply_market_overlays(
+                sl_pct, tp_pct, side=side, market_data=md,
+                sl_min=min_sl, sl_max=max_sl, tp_min=min_tp, tp_max=max_tp,
+            )
+            if _notes:
+                logger.info("[MidLongStop] %s overlays: %s", symbol, "；".join(_notes))
+        except Exception as _ov_err:
+            logger.debug("[MidLongStop] %s overlay 跳过: %s", symbol, _ov_err)
 
         # 重新计算价格
         side_l = (side or "long").lower()

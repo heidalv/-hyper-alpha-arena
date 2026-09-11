@@ -274,12 +274,16 @@ def run_analyst_system_v3(
                     market_summary=market_summary,
                 )
         try:
+            from backend.config.settings import MIDLONG_AGENT_INDEPENDENT_SCHEDULER
+            _ml_independent = bool(MIDLONG_AGENT_INDEPENDENT_SCHEDULER)
             host.maintain_mlto_theses_for_session(
                 session=session_row,
                 market_summary=market_summary or {},
                 analyst_reports=merge_reports_with_tier_slices(result),
                 mode=mode,
                 portfolio={"balance": bal_info, "positions": positions_list},
+                run_mid=not _ml_independent,
+                run_long=not _ml_independent,
             )
         except Exception as _mlto_maint_qaa:
             logger.debug("[MLTO][QAA v3] maintain: %s", _mlto_maint_qaa)

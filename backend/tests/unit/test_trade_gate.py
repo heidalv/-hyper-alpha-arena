@@ -60,14 +60,22 @@ def test_gate_serializes_concurrent_opens():
     assert _seq in (["A", "A", "B", "B"], ["B", "B", "A", "A"]), f"got {_seq}"
 
 def test_gate_applies_leverage_authority():
-    """闸内用单一杠杆权威钳制(首仓:unified == requested → resolved 生效)。"""
+    """闸内用单一杠杆权威定杠杆。
+
+    [2026-09-04 币种杠杆] 首仓取该 **币种** 的档位（BTC=5x），入参 leverage 不再作数——
+    交易所按币种设杠杆且同币同向仓位合并，按周期分配（long→12x）落不了地。
+    """
     from backend.services.trade_gate import TradeGate
     gate = TradeGate()
     db = _mock_db([])  # 无既有仓
     d = gate.check(db, account_id=1, symbol="BTC", side="buy",
                    leverage=20, tier="long")
     assert d.allowed is True
-    assert d.leverage == 12  # long tier cap
+    assert d.leverage == 5.0  # BTC 档位，与上游请求的 20x 无关
+    # 同一个币换个周期必须还是同一个杠杆
+    d2 = gate.check(db, account_id=1, symbol="BTC", side="buy",
+                    leverage=3, tier="short")
+    assert d2.leverage == 5.0
 
 def test_gate_no_existing_position_allows():
     from backend.services.trade_gate import TradeGate

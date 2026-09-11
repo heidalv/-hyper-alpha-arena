@@ -53,10 +53,15 @@ class TestPaceMultiplierScope:
         )
 
     def test_short_review_fixed_1x(self, _pace_1_5x):
-        """短线复审点固定 7200s，pace×1.5 不生效。"""
+        """短线复审点固定，pace×1.5 不生效。
+
+        [2026-09-09] 权威值 5400→43200（12h，日内波段上限）。
+        本用例测的是"pace 倍率对 short 不生效"这条语义，不是某个具体秒数，
+        故随 runtime_tuning 权威值同步即可。
+        """
         with _pace_1_5x:
             sec = resolve_tier_review_seconds(_pos("scalp", "short"))
-        assert sec == 7200
+        assert sec == 43200, "short 复审点应等于 runtime_tuning 权威值且不乘 pace"
 
     def test_research_review_fixed_1x(self, _pace_1_5x):
         """研究车道复审点固定 7200s，pace×1.5 不生效。"""
@@ -65,10 +70,10 @@ class TestPaceMultiplierScope:
         assert sec == 7200
 
     def test_mid_review_uses_pace(self, _pace_1_5x):
-        """中线复审点 = 172800 × 1.5。"""
+        """中线复审点 = 604800 × 1.5（[2026-09-09] mid 权威值 48h→7d，结构对齐）。"""
         with _pace_1_5x:
             sec = resolve_tier_review_seconds(_pos("swing", "mid"))
-        assert sec == 172800 * 1.5
+        assert sec == 604800 * 1.5
 
     def test_long_review_uses_pace(self, _pace_1_5x):
         with _pace_1_5x:
@@ -130,11 +135,32 @@ class TestAgentExitLongMinHold:
         hf = _hf_call("long", hours_ago=1.0, upnl=-5.5)
         assert hf.allow is True
 
-    def test_long_after_72h_whitelist_allowed(self):
-        """long 超过 72h → 恢复 Agent 白名单放行。"""
+    def test_long_after_72h_still_needs_hardfact(self):
+        """long 超过 72h → min_hold 不再拦，但仍需硬事实（小亏不放行）。
+
+        [2026-09-02 更新] 原用例名为 test_long_after_72h_whitelist_allowed，
+        断言 `matched_rule.startswith("agent_channel")` 即"白名单通道放行"。
+        该分支已在 2026-08-14 F6 整改中删除 —— 见 master_close_guard 内注释：
+        trend_review* close 纳入与 master 同标准硬事实门，理由是历史 12 笔
+        该通道平仓 0% 胜率、合计 -44.90。测试当时未同步，此后长期失败。
+
+        整改后的正确语义是**两道门串联**：
+          1) min_hold 门：long 72h 内小亏直接拦（matched_rule=min_hold_protection）
+          2) 过了 72h 也不自动放行，还要过 loss_pct/sl_breach/risk_score 硬事实
+        本用例锁定第 2 道门：72h 后 -1% 仍应拦，且拦截理由已不是 min_hold。
+        """
         hf = _hf_call("long", hours_ago=100.0, upnl=-1.0)
+        assert hf.allow is False, "F6 整改后小亏不得凭白名单通道平仓"
+        assert hf.matched_rule != "min_hold_protection", (
+            "72h 已过，拦截理由应是硬事实不足而非 min_hold"
+        )
+        assert "loss_pct" in hf.detail
+
+    def test_long_after_72h_with_real_loss_allowed(self):
+        """long 超过 72h 且亏损达标 → 放行（确认门不是一味拒绝）。"""
+        hf = _hf_call("long", hours_ago=100.0, upnl=-5.5)
         assert hf.allow is True
-        assert hf.matched_rule.startswith("agent_channel")
+        assert hf.matched_rule.startswith("loss_pct>=")
 
     def test_mid_small_loss_within_12h_blocked(self):
         """mid 12h 内小亏 → 拦截（12h min_hold）。"""
@@ -142,19 +168,31 @@ class TestAgentExitLongMinHold:
         assert hf.allow is False
         assert hf.matched_rule == "min_hold_protection"
 
-    def test_mid_after_12h_whitelist_allowed(self):
+    def test_mid_after_12h_still_needs_hardfact(self):
+        """mid 超过 12h → min_hold 不再拦，但小亏仍需硬事实（同 F6 整改）。"""
         hf = _hf_call("mid", hours_ago=13.0, upnl=-1.0)
-        assert hf.allow is True
+        assert hf.allow is False
+        assert hf.matched_rule != "min_hold_protection"
+        hf2 = _hf_call("mid", hours_ago=13.0, upnl=-3.0)
+        assert hf2.allow is True, "mid 亏损达标（≥2%）应放行"
 
     def test_short_unaffected_by_min_hold(self):
         """short 跳过 min_hold 前置（白名单放行）。"""
         hf = _hf_call("short", hours_ago=0.1, upnl=-1.0)
         assert hf.allow is True
 
-    def test_missing_opened_at_backward_compatible(self):
-        """无 opened_at（旧调用方）→ min_hold 跳过，白名单放行。"""
+    def test_missing_opened_at_skips_min_hold_only(self):
+        """无 opened_at（旧调用方）→ 只跳过 min_hold，硬事实门仍生效。
+
+        [2026-09-02 更新] 原断言 allow is True（"白名单放行"），同样是 F6
+        整改前的语义。缺 opened_at 时无法判断持仓时长，故 min_hold 前置放过，
+        但这不等于免检 —— 否则任何旧调用方都能绕开硬事实门平掉小亏仓位。
+        """
         hf = _hf_call("long", hours_ago=0, upnl=-1.0, opened_at=False)
-        assert hf.allow is True
+        assert hf.matched_rule != "min_hold_protection", "缺 opened_at 时不应触发 min_hold"
+        assert hf.allow is False, "跳过 min_hold 不等于跳过硬事实门"
+        hf2 = _hf_call("long", hours_ago=0, upnl=-5.5, opened_at=False)
+        assert hf2.allow is True, "缺 opened_at 且亏损达标应放行"
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -273,10 +311,33 @@ class TestFourSourceConsistency:
         assert "< 2h" in TIER_PROMPT_HINTS["short"]
 
     def test_runtime_tuning_authority_values(self):
-        """runtime_tuning tier_max_hold_sec 权威值 = 2h/48h/7d。"""
-        from backend.services.runtime_tuning_store import get_tier_value
-        assert int(get_tier_value("tier_max_hold_sec", "short", 0)) == 7200
-        assert int(get_tier_value("tier_max_hold_sec", "mid", 0)) == 172800
+        """runtime_tuning tier_max_hold_sec 权威值 = 12h/7d/7d。
+
+        [2026-09-02] 本用例此前长期失败且掩盖了两个真问题：
+
+        1. runtime_tuning_store 用相对路径 "data/runtime_tuning.json"，依赖
+           进程 cwd。项目里同时存在 <root>/data/ 与 <root>/backend/data/ 两份
+           同名文件且内容分叉（2700 vs 7200）；从项目根跑单测时两份都读不到，
+           回退到 _DEFAULT_SCHEMA 的 2700，于是断言 2700 == 7200 恒失败。
+           已改为锚定项目根的绝对路径。
+        2. 三处注释（settings.py、scalp_config_routes.py、本用例）都写着
+           "权威值 7200"，而根目录那份实际是 2700 —— 短线最大持仓一直按
+           45min 执行，文档全错。
+
+        [2026-09-09] 权威值演进：short 5400→43200（12h 日内波段上限）、
+        mid 172800→604800（7d，与出场结构 72h+ 边际对齐）。
+        """
+        from backend.services.runtime_tuning_store import (
+            get_tier_value, invalidate_cache, TUNING_FILE,
+        )
+        import os
+        invalidate_cache()
+        assert os.path.isabs(TUNING_FILE), (
+            "TUNING_FILE 必须是绝对路径，否则读到哪一份取决于启动目录"
+        )
+        assert os.path.isfile(TUNING_FILE), f"权威文件不存在: {TUNING_FILE}"
+        assert int(get_tier_value("tier_max_hold_sec", "short", 0)) == 43200
+        assert int(get_tier_value("tier_max_hold_sec", "mid", 0)) == 604800
         assert int(get_tier_value("tier_max_hold_sec", "long", 0)) == 604800
 
     def test_nature_rules_within_tier_review(self):
@@ -285,10 +346,11 @@ class TestFourSourceConsistency:
         from backend.services.position_hold_time import (
             resolve_initial_expected_hold_hours,
         )
-        # swing 24h ≤ mid 复审 48h（pace 1x）
-        assert NATURE_RULES["swing"]["expected_hold_hours"] <= 172800 / 3600
+        # swing 24h ≤ mid 复审 7d（pace 1x，[2026-09-09] mid 权威值 604800s）
+        assert NATURE_RULES["swing"]["expected_hold_hours"] <= 604800 / 3600
         # trend_follow/position 168h ≤ long 复审 7d
         for n in ("trend_follow", "position"):
             assert NATURE_RULES[n]["expected_hold_hours"] <= 604800 / 3600
-        # scalp 写入预期 = min(nature 预期, 短线复审 2h)
-        assert resolve_initial_expected_hold_hours("scalp", "short") <= 2.0 + 1e-6
+        # scalp 3h ≤ short 复审 12h（[2026-09-09] short 权威值 43200s）
+        # scalp 写入预期 = min(nature 预期, short 复审)
+        assert resolve_initial_expected_hold_hours("scalp", "short") <= 43200 / 3600 + 1e-6

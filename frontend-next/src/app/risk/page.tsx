@@ -6,35 +6,37 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Shield, Activity, Zap, TrendingDown, RefreshCw, Loader2, Bell, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { getBackendUrl } from "@/lib/backend-config";
-const BACKEND = getBackendUrl().replace(/\/$/, "");
 
 export default function RiskPage() {
-  const { data: riskStatus, refetch: refetchStatus, isLoading: loadingStatus } = useQuery({
+  // [2026-09-09] 原来 4 个 queryFn 都是裸 fetch（无 Authorization、无续期，
+  // 失败时页面没有 isError 分支 → 表格静默变空）。改走 apiRequest 并补 isError 提示。
+  const { data: riskStatus, refetch: refetchStatus, isLoading: loadingStatus, isError: errStatus } = useQuery({
     queryKey: ["risk-status"],
-    queryFn: () => api.getHealth().then(() => fetch(`${BACKEND}/api/risk/status`).then(r => r.json())),
+    queryFn: () => api.getHealth().then(() => apiRequest<any>("/risk/status", { timeout: 15_000 })),
     staleTime: 15_000, refetchInterval: 30_000,
   });
 
-  const { data: liqRisks, isLoading: loadingLiq } = useQuery({
+  const { data: liqRisks, isLoading: loadingLiq, isError: errLiq } = useQuery({
     queryKey: ["risk-liquidation"],
-    queryFn: () => fetch(`${BACKEND}/api/risk/liquidation-risks`).then(r => r.json()),
+    queryFn: () => apiRequest<any>("/risk/liquidation-risks", { timeout: 15_000 }),
     staleTime: 15_000, refetchInterval: 30_000,
   });
 
-  const { data: pdStatus, isLoading: loadingPd } = useQuery({
+  const { data: pdStatus, isLoading: loadingPd, isError: errPd } = useQuery({
     queryKey: ["risk-pd"],
-    queryFn: () => fetch(`${BACKEND}/api/risk/profit-drawdown/status`).then(r => r.json()),
+    queryFn: () => apiRequest<any>("/risk/profit-drawdown/status", { timeout: 15_000 }),
     staleTime: 15_000, refetchInterval: 30_000,
   });
 
-  const { data: alertHistory } = useQuery({
+  const { data: alertHistory, isError: errAlerts } = useQuery({
     queryKey: ["risk-alerts"],
-    queryFn: () => fetch(`${BACKEND}/api/risk/alert-history?limit=20`).then(r => r.json()),
+    queryFn: () => apiRequest<any>("/risk/alert-history?limit=20", { timeout: 15_000 }),
     staleTime: 30_000, refetchInterval: 60_000,
   });
+
+  const anyError = errStatus || errLiq || errPd || errAlerts;
 
   const mon = riskStatus?.liquidation_monitor;
   const cfg = riskStatus?.risk_config;
@@ -63,6 +65,17 @@ export default function RiskPage() {
           </Button>
         }
       />
+
+      {/* 数据可信度：接口失败时明确告知，而不是让表格静默变空 */}
+      {anyError && (
+        <div className="flex items-center gap-2 rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-xs text-loss">
+          <span className="w-1.5 h-1.5 rounded-full bg-loss flex-shrink-0" />
+          <span>部分风控数据加载失败，下方数值可能不完整（不代表「无风险」）。</span>
+          <button type="button" onClick={() => void refetchStatus()} className="ml-auto underline underline-offset-2 hover:opacity-80">
+            重试
+          </button>
+        </div>
+      )}
 
       {/* 监控状态 KPI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

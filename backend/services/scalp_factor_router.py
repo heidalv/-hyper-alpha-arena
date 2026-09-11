@@ -151,6 +151,8 @@ class ScalpSignal:
     factor_breakdown: Dict[str, float] = field(default_factory=dict)
     source: str = "factor_router"
     reasoning: str = ""
+    tpsl_reason: str = ""
+    tpsl_playbook: str = ""
 
 
 class ScalpFactorRouter:
@@ -172,6 +174,7 @@ class ScalpFactorRouter:
         symbol: str,
         market_data: Dict[str, Any],
         mode: str = "paper",
+        account_id: Optional[int] = None,
     ) -> ScalpSignal:
         """从因子引擎取信号，按阈值决策。
 
@@ -179,6 +182,8 @@ class ScalpFactorRouter:
             symbol: 交易对（如 BTC）
             market_data: 该 symbol 的市场数据（含因子信号、K线、订单流）
             mode: paper/live（Paper 样本期放宽自适应门槛与微结构硬拦）
+            account_id: 实盘账户 ID——live 模式自适应门槛按该账户自身样本统计
+                （[2026-08-28] 修复实盘门槛被模拟盘亏损数据污染的问题）
 
         Returns:
             ScalpSignal: 决策结果
@@ -296,7 +301,9 @@ class ScalpFactorRouter:
             pass
 
         # 1.7 动态胜率门槛（2026-06-26：根据该币种历史表现自适应门槛）
-        adaptive_threshold = self._get_adaptive_threshold(symbol, is_paper=_is_paper)
+        adaptive_threshold = self._get_adaptive_threshold(
+            symbol, is_paper=_is_paper, account_id=account_id,
+        )
 
         if factor_score < adaptive_threshold:
             return ScalpSignal(
@@ -351,7 +358,9 @@ class ScalpFactorRouter:
         if price <= 0:
             return ScalpSignal(reasoning="无有效价格")
 
-        sl_pct, tp_pct = self._compute_sl_tp(market_data, direction=direction, price=price)
+        sl_pct, tp_pct = self._compute_sl_tp(
+            market_data, direction=direction, price=price, symbol=symbol,
+        )
 
         # [restored 2026-07-08] 重新启用手续费守卫（阶段一 1.3），flag 门控。
         # 便宜的早筛：TP 连来回手续费的 3x 都覆盖不了的信号直接 hold，不必再往下算。
@@ -390,15 +399,19 @@ class ScalpFactorRouter:
             from backend.services.scalp.structure_stop_calculator import structure_stop_calculator
             side = "long" if action == "buy" else "short"
             sl_pct, tp_pct, sl_price, tp_price = structure_stop_calculator.compute_sl_tp(
-                market_data, side=side, entry=price,
+                market_data, side=side, entry=price, symbol=symbol,
             )
         except Exception:
             sl_price = price * (1 - sl_pct) if action == "buy" else price * (1 + sl_pct)
             tp_price = price * (1 + tp_pct) if action == "buy" else price * (1 - tp_pct)
 
+        _plan = (market_data.get("_tpsl_plan") if isinstance(market_data, dict) else None) or {}
+        _tpsl_why = str(_plan.get("reason") or "")
+        _tpsl_play = str(_plan.get("playbook") or "")
         logger.info(
             f"[ScalpRouter] {symbol} {action} score={factor_score} dir={direction} "
             f"entry={price:.2f} sl={sl_pct:.2%} tp={tp_pct:.2%} [{_src}]"
+            f"{f' play={_tpsl_play} why={_tpsl_why[:80]}' if _tpsl_why else ''}"
         )
 
         return ScalpSignal(
@@ -408,6 +421,8 @@ class ScalpFactorRouter:
             sl_pct=sl_pct, tp_pct=tp_pct,
             factor_breakdown=breakdown,
             source=_src, reasoning=_reason,
+            tpsl_reason=_tpsl_why,
+            tpsl_playbook=_tpsl_play,
         )
 
     @staticmethod
@@ -446,6 +461,14 @@ class ScalpFactorRouter:
             direction = "long" if _dir > 0.15 else "short" if _dir < -0.15 else "neutral"
             breakdown["composite"] = score
             breakdown["raw_dir"] = round(_dir, 3)
+            # [2026-09-02 P1.2] 透传逐因子归因（v3_factor_pipeline schema 3）。
+            # 这里原先只留 composite/raw_dir 两个聚合数，"哪些因子投了这一票"
+            # 全部丢弃；signal_log 因此只能按总分复盘，无法按因子复盘。
+            # 值为 list，下游 log_signal 会把它写进 features_json；
+            # meta 特征构造处已过滤 dict/list，故不会污染模型输入。
+            _contrib = factor_signal.get("factor_contrib")
+            if isinstance(_contrib, list) and _contrib:
+                breakdown["factor_contrib"] = _contrib
             return score, direction, breakdown
 
         # 回退1：多周期因子引擎共振（2026-06-26 升级：5m+15m 双周期）
@@ -580,12 +603,20 @@ class ScalpFactorRouter:
             pass
         return 0
 
-    def _get_adaptive_threshold(self, symbol: str, is_paper: bool = True, kind: str = "trend") -> int:
+    def _get_adaptive_threshold(
+        self, symbol: str, is_paper: bool = True, kind: str = "trend",
+        account_id: Optional[int] = None,
+    ) -> int:
         """动态胜率门槛：按币种近期胜率自适应 + 分数-胜率校准门槛上提（P0-2）。
 
         [2026-08-22 PROFIT-2] kind 透传：ranging_mr 走分类放行（MR 历史胜率有证据）。
+
+        [2026-08-28 实盘零成交修复] account_id 透传：实盘（live）模式此前直接
+        读 paper_positions 全局 3 天胜率（含全部模拟盘亏损），把实盘门槛抬到
+        50 造成零成交。现在 live 只统计该实盘账户自身的平仓 scalp 样本；样本
+        不足（<5）时回退基础 CONFIRM 门槛，不再被模拟盘亏损数据惩罚。
         """
-        base = self._adaptive_threshold_inner(symbol, is_paper)
+        base = self._adaptive_threshold_inner(symbol, is_paper, account_id=account_id)
         # [2026-08-13 P0-2] 校准门槛只升不降：历史分桶胜率决定的保本门槛优先
         try:
             from backend.services.scalp.scalp_score_calibration import effective_threshold
@@ -593,20 +624,19 @@ class ScalpFactorRouter:
         except Exception:
             return base
 
-    def _adaptive_threshold_inner(self, symbol: str, is_paper: bool = True) -> int:
+    def _adaptive_threshold_inner(
+        self, symbol: str, is_paper: bool = True, account_id: Optional[int] = None,
+    ) -> int:
         """动态胜率门槛（原有逻辑，见 _get_adaptive_threshold docstring）。
 
         胜率 < 30%（连亏币）→ 门槛提高（Live 50；Paper 有上限，默认 38）
         胜率 > 60%（表现好）→ 门槛降到 CONFIRM-5（最低 25）
         中间 → 用默认阈值 CONFIRM
-
-        Returns:
-            该 symbol 的开仓门槛
         """
         # [2026-08-24 短线深挖 F] TTL 缓存：3天胜率是慢变量，10分钟内复用结果，
         # 消除每 tick 每 symbol 的 SessionLocal 查询（8/23 实测 XRP 1804/SOL 1505 次）。
         try:
-            _ck = (symbol.upper(), bool(is_paper))
+            _ck = (symbol.upper(), bool(is_paper), int(account_id or 0))
             _cached = _adaptive_cache.get(_ck)
             if _cached and (time.time() - _cached[0]) < _ADAPTIVE_CACHE_SEC:
                 return int(_cached[1])
@@ -617,14 +647,27 @@ class ScalpFactorRouter:
             from sqlalchemy import text
             db = SessionLocal()
             try:
-                row = db.execute(text("""
-                    SELECT count(*),
-                           count(*) FILTER (WHERE unrealized_pnl > 0)
-                    FROM paper_positions
-                    WHERE status='closed' AND trade_nature='scalp'
-                    AND symbol = :sym
-                    AND closed_at >= NOW() - INTERVAL '3 days'
-                """), {"sym": symbol.upper()}).fetchone()
+                _aid = int(account_id or 0)
+                if not is_paper and _aid > 0:
+                    # 实盘：只统计该账户自身的平仓 scalp 样本
+                    row = db.execute(text("""
+                        SELECT count(*),
+                               count(*) FILTER (WHERE unrealized_pnl > 0)
+                        FROM paper_positions
+                        WHERE status='closed' AND trade_nature='scalp'
+                        AND symbol = :sym
+                        AND account_id = :aid
+                        AND closed_at >= NOW() - INTERVAL '3 days'
+                    """), {"sym": symbol.upper(), "aid": _aid}).fetchone()
+                else:
+                    row = db.execute(text("""
+                        SELECT count(*),
+                               count(*) FILTER (WHERE unrealized_pnl > 0)
+                        FROM paper_positions
+                        WHERE status='closed' AND trade_nature='scalp'
+                        AND symbol = :sym
+                        AND closed_at >= NOW() - INTERVAL '3 days'
+                    """), {"sym": symbol.upper()}).fetchone()
                 n = int(row[0] or 0)
                 if n < 5:
                     # 样本不足 → 用默认阈值
@@ -656,7 +699,7 @@ class ScalpFactorRouter:
                     else:
                         _thr = _SCALP_CONFIRM_THRESHOLD
                 try:
-                    _adaptive_cache[(symbol.upper(), bool(is_paper))] = (time.time(), int(_thr))
+                    _adaptive_cache[(symbol.upper(), bool(is_paper), _aid)] = (time.time(), int(_thr))
                 except Exception:
                     pass
                 return int(_thr)
@@ -768,13 +811,16 @@ class ScalpFactorRouter:
 
         return True, "微观结构检查通过"
 
-    def _compute_sl_tp(self, market_data: Dict, direction: str = "long", price: float = 0.0) -> tuple:
-        """计算短线 SL/TP（委托 StructureStopCalculator，结构 swing 优先）。"""
+    def _compute_sl_tp(
+        self, market_data: Dict, direction: str = "long", price: float = 0.0,
+        symbol: str = "",
+    ) -> tuple:
+        """计算短线 SL/TP（委托行情管家 / StructureStopCalculator）。"""
         try:
             from backend.services.scalp.structure_stop_calculator import structure_stop_calculator
             side = "long" if direction == "long" else "short"
             sl_pct, tp_pct, _, _ = structure_stop_calculator.compute_sl_tp(
-                market_data, side=side, entry=price,
+                market_data, side=side, entry=price, symbol=symbol,
             )
             return sl_pct, tp_pct
         except Exception:

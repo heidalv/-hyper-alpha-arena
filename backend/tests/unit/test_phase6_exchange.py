@@ -42,6 +42,36 @@ from backend.services.exchange.cross_exchange_risk import (
 )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _module_event_loop():
+    """为本模块提供一个受控事件循环。
+
+    [2026-09-02] 本文件 26 个 async 用例原先靠 asyncio.get_event_loop() 拿
+    循环。Python 3.12 起该函数在"当前线程无已设置循环"时不再隐式创建，直接抛
+    RuntimeError: There is no current event loop in thread 'MainThread'。
+    单独跑本文件时恰好还有可用循环所以 72 个全过，但全量跑时前面的用例已把
+    线程循环清掉 —— 这 26 个便集体报错。属于测试基建问题，被测代码无关。
+
+    这里显式建一个模块级循环并在结束后还原线程状态，好处是保持原有"整个文件
+    共享一个循环"的语义不变。没有改成逐处 asyncio.run()：那会让每个调用都用
+    新循环，而这些适配器内部持有 aiohttp 连接器（见 enable_cleanup_closed
+    的告警），session 与创建它的循环绑定，跨循环复用会引入新的偶发失败。
+    """
+    try:
+        _prev = asyncio.get_event_loop_policy().get_event_loop()
+    except RuntimeError:
+        _prev = None
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        try:
+            loop.close()
+        finally:
+            asyncio.set_event_loop(_prev)
+
+
 # ════════════════════════════════════════════════════════
 #  1. Data Model Tests
 # ════════════════════════════════════════════════════════
@@ -249,9 +279,12 @@ class TestBinanceAdapter:
         assert result['status'] == 'error'
 
     def test_get_funding_rate_no_ccxt(self):
+        """[2026-08-29 契约同步] 无 client 时返回 None（未知）而非 0.0——
+        0.0 是"真实的零费率"，会把降级误当有效数据（ccxt_base_adapter
+        get_funding_rate -> Optional[float] 的语义）。"""
         adapter = BinanceAdapter()
         rate = asyncio.get_event_loop().run_until_complete(adapter.get_funding_rate("BTC"))
-        assert rate == 0.0
+        assert rate is None
 
     def test_get_orderbook_no_ccxt(self):
         adapter = BinanceAdapter()
@@ -308,6 +341,12 @@ class TestExchangeClientFactory:
             async def get_all_funding_rates(self): return {}
             async def get_orderbook(self, symbol, depth=20): return {'bids': [], 'asks': []}
             async def get_klines(self, symbol, interval, limit=100): return []
+            # [2026-08-29 契约同步] 积分/返利扩展的 5 个新抽象方法补桩
+            async def get_fee_tier(self): return None
+            async def get_points_snapshot(self): return None
+            async def get_rebate_info(self): return None
+            async def get_incentive_summary(self): return None
+            async def get_active_campaigns(self): return []
 
         ExchangeClientFactory.register('aster', StubAdapter)
         assert ExchangeClientFactory.is_registered('aster')
@@ -693,11 +732,15 @@ class TestLegRiskManager:
 
 class TestPhase6Integration:
     def test_all_phase6_modules_importable(self):
-        from backend.services.exchange import (
+        """[2026-08-29 契约同步] 包 __init__ 不做聚合再导出（保持零副作用），
+        从各自模块直接导入验证可导入性。"""
+        from backend.services.exchange.base_exchange_client import (
             BaseExchangeClient, ExchangeOrder, ExchangePosition, ExchangeBalance,
             OrderSide, OrderType, ExchangeType,
-            HyperliquidAdapter, BinanceAdapter, ExchangeClientFactory,
         )
+        from backend.services.exchange.hyperliquid_adapter import HyperliquidAdapter
+        from backend.services.exchange.binance_adapter import BinanceAdapter
+        from backend.services.exchange.exchange_factory import ExchangeClientFactory
         from backend.services.exchange.cross_exchange_arb import (
             CrossExchangeArbitrageEngine, CrossExchangeSpread,
         )
