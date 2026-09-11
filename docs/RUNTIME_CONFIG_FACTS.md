@@ -1,4 +1,4 @@
-﻿# 运行时配置事实清单（RUNTIME_CONFIG FACTS）
+# 运行时配置事实清单（RUNTIME_CONFIG FACTS）
 
 > 单一事实来源：本表登记「关键配置开关的声明意图与期望值」。
 > 校验脚本：`scripts/check_config_drift.py`（有漂移时退出码 1）。
@@ -51,7 +51,7 @@
 | QAA_FULLAUTO_SCHEDULE_ENABLED | QAA 全自动调度 | false | ⚠ 已回写实况（原期望 true，请人工确认意图） |
 | QAA_REBATE_SCHEDULE_ENABLED | QAA 套利调度 | false | 2026-09-05 中长线 LLM 主脑改造：不跑积分套利空转 |
 | LLM_ANALYSIS_FORCE_STREAM | LLM 分析强制流式 | true | |
-| OPENCODE_ENABLED | OpenCode 侧车 | false | ⚠ 已回写实况（原期望 true，请人工确认意图） |
+| OPENCODE_ENABLED | OpenCode 侧车 | true | [2026-09-11] 与 .env 对齐：侧车由计划任务保活（15min 崩溃自愈），历史"false"意图已过时 |
 | ONCHAIN_DATA_ENABLED | 链上数据采集 | false | |
 | HERMES_L2_AB_ENABLED | Hermes L2 A/B | false | |
 | PAIR_BINDING_LANE_ENABLED | 交易对绑定车道 | false | |
@@ -246,7 +246,7 @@ task 名必须已注册、每个 task 的 template 与 required 类型自洽、�
 | 配置键 | 声明意图 | 期望值 | 备注 |
 | --- | --- | --- | --- |
 | ANALYSIS_LOCAL_TRANSPORTS | 免配额的本地传输名单 | ollama,ollama2 | 本地不走供应商 Key，无 5h 窗 / 周配额 / 峰时倍率 |
-| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 | deepseek,ollama,ollama2 | 按序补位，缺几条补几条 |
+| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 | glm_opencode_alt,ollama,ollama2 | [2026-09-11] 与 .env 对齐：sidecar 崩溃窗口由 glm_opencode_alt 顶替 |
 | ANALYSIS_OLLAMA_MODEL | 本地票模型 | qwen3:14b | |
 | ANALYSIS_OLLAMA2_MODEL | 第二条本地票模型 | qwen2.5:7b-instruct-q4_K_M | 必须与上一条不同模型，否则退化为单票 |
 
@@ -489,18 +489,18 @@ monkeypatch.setattr(QuotaGuard, "_persist", lambda *a, **k: None, raising=False)
 
 | 配置键 | 含义 | 值 | 依据 |
 | --- | --- | --- | --- |
-| ANALYSIS_5H_CALLS_MAP | 按传输的 5h 窗上限 | glm_opencode:400,minimax:100,deepseek:50 | GLM 取 2400 的 1/6；MiniMax 按 token 计费，"次数"只是本地近似，取满额约一半 |
-| ANALYSIS_WEEKLY_CALLS_MAP | 按传输的周上限 | glm_opencode:2000,minimax:400,deepseek:250 | 同上比例 |
-| ANALYSIS_DAILY_CALLS_MAP | 单传输每日总调用上限 | deepseek:80 | 与分类上限取**较小者**；只对按量付费的 DeepSeek 设 |
+| ANALYSIS_5H_CALLS_MAP | 按传输的 5h 窗上限 | glm_opencode:4500,glm_opencode_alt:4500,minimax:4500 | [2026-09-11] 与 .env 对齐（订阅计划扩容后统一 4500） |
+| ANALYSIS_WEEKLY_CALLS_MAP | 按传输的周上限 | glm_opencode:100000,glm_opencode_alt:100000,minimax:100000 | [2026-09-11] 与 .env 对齐 |
+| ANALYSIS_DAILY_CALLS_MAP | 单传输每日总调用上限 | glm_opencode_alt:5000,glm_opencode:5000,minimax:5000 | [2026-09-11] 与 .env 对齐 |
 
 分类上限同步放宽 —— 原值（6/20/40）是在两家云端都没接通、只能省着用的前提下拍的。
 保留该维度作为**我们自己的成本与节奏控制**，与供应商侧上限是两回事：
 
 | 配置键 | 含义 | 值 | 备注 |
 | --- | --- | --- | --- |
-| ANALYSIS_DEEP_DAILY_PER_MODEL | 深度任务每模型每日上限 | 20 | 日报 / 周复盘 / 择时 / 参数寻优 |
-| ANALYSIS_EVENT_DAILY_PER_MODEL | 事件评估每模型每日上限 | 60 | |
-| ANALYSIS_LIGHT_DAILY_PER_MODEL | 轻量 / 测试调用每日上限 | 120 | 含 gateway_test 联调 |
+| ANALYSIS_DEEP_DAILY_PER_MODEL | 深度任务每模型每日上限 | 5000 | [2026-09-11] 与 .env 对齐（订阅计划扩容） |
+| ANALYSIS_EVENT_DAILY_PER_MODEL | 事件评估每模型每日上限 | 5000 | [2026-09-11] 与 .env 对齐 |
+| ANALYSIS_LIGHT_DAILY_PER_MODEL | 轻量 / 测试调用每日上限 | 5000 | [2026-09-11] 与 .env 对齐 |
 
 > **DeepSeek 不随套餐放宽**：它是按量付费，超额即账单，故仅小幅抬到 50。
 
@@ -737,7 +737,7 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 | MIDLONG_THESIS_FAIL_BACKOFF_LONG_S | 长线失败票短退避 | 2400 | 低分票不得锁死 8h |
 | MIDLONG_WATCH_SHOCK_PCT_MID | 中线现价冲击阈值 | 0.012 | 同根 4h K 内涨跌超 1.2% 重问 |
 | MIDLONG_WATCH_SHOCK_PCT_LONG | 长线现价冲击阈值 | 0.025 | 同日涨跌超 2.5% 重问 |
-| MIDLONG_WATCH_CHASE_PCT_MID | 中线追高阈值 | 0.008 | 论题后已涨 0.8% 先重问，不拿旧票追 |
+| MIDLONG_WATCH_CHASE_PCT_MID | 中线追高阈值 | 0.015 | [2026-09-11 F38k] 与 LONG 对齐：旧 0.8% 把 learned 闸唯一盈利档（chop 区间上沿突破）系统性拦住 |
 | MIDLONG_WATCH_CHASE_PCT_LONG | 长线追高阈值 | 0.015 | 论题后已涨 1.5% 先重问 |
 | MIDLONG_WATCH_NEAR_INV_PCT | 失效价靠近 | 0.004 | 离失效价 0.4% 立刻重问 |
 | MIDLONG_WATCH_MIN_REFRESH_S | 冲击类最小间隔 | 1800 | 收盘/失效/事件不受此限 |
