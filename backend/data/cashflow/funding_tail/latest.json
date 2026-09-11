@@ -1,11 +1,11 @@
 {
   "ok": false,
-  "ts_ms": 1789136867442,
+  "ts_ms": 1789138451882,
   "enter_apr": 0.5,
   "exit_apr": 0.15,
   "min_streak": 3,
   "candidates": [],
   "exits": [],
   "notes": [],
-  "reason": "perp_funding 读取失败: (psycopg.errors.UndefinedTable) 关系 \"perp_funding\" 不存在\nLINE 1: ..., EXTRACT(EPOCH FROM ts), 0) * 1000 AS ts_ms FROM perp_fundi...\n                                                             ^\n[SQL: SELECT symbol, exchange, funding_rate, COALESCE(EXTRACT(EPOCH FROM funding_time), EXTRACT(EPOCH FROM ts), 0) * 1000 AS ts_ms FROM perp_funding WHERE COALESCE(EXTRACT(EPOCH FROM funding_time), EXTRACT(EPOCH FROM ts), 0) * 1000   >= %(lo)s ORDER BY symbol, ts_ms DESC LIMIT 20000]\n[parameters: {'lo': 1788964067442}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+  "reason": "perp_funding 读取失败: (psycopg.errors.UndefinedTable) 关系 \"perp_funding\" 不存在\nLINE 1: ..., EXTRACT(EPOCH FROM ts), 0) * 1000 AS ts_ms FROM perp_fundi...\n                                                             ^\n[SQL: SELECT symbol, exchange, funding_rate, COALESCE(EXTRACT(EPOCH FROM funding_time), EXTRACT(EPOCH FROM ts), 0) * 1000 AS ts_ms FROM perp_funding WHERE COALESCE(EXTRACT(EPOCH FROM funding_time), EXTRACT(EPOCH FROM ts), 0) * 1000   >= %(lo)s ORDER BY symbol, ts_ms DESC LIMIT 20000]\n[parameters: {'lo': 1788965651883}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
 }

@@ -145,6 +145,32 @@ from sqlalchemy.orm import Session
 # Load environment variables from .env file # uv run --directory backend 将 CWD 设为 backend/，需向上查找根目录的 .env
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
+# ═════ [2026-09-11 临时诊断] aiohttp 会话创建栈追踪 ═════
+# 诊断 "Unclosed client session" 持续泄漏（~6/min，多个修复后仍存）。
+# AIOHTTP_LEAK_TRACE=true 时记录每个 ClientSession 的创建栈到
+# logs/aiohttp_session_traces.log；定位到源头后关闭该开关即可。
+if os.getenv("AIOHTTP_LEAK_TRACE", "").strip().lower() in ("1", "true", "yes"):
+    try:
+        import aiohttp as _aiohttp_diag
+        import traceback as _tb_diag
+        _orig_init = _aiohttp_diag.ClientSession.__init__
+
+        def _diag_init(self, *a, **k):
+            _orig_init(self, *a, **k)
+            try:
+                _st = "".join(_tb_diag.format_stack(limit=16))
+                with open(
+                    os.path.join(os.path.dirname(__file__), "..", "logs", "aiohttp_session_traces.log"),
+                    "a", encoding="utf-8",
+                ) as _f:
+                    _f.write(f"\n===== {time.time():.3f} =====\n{_st}\n")
+            except Exception:
+                pass
+
+        _aiohttp_diag.ClientSession.__init__ = _diag_init
+    except Exception:
+        pass
+
 # [§63] P0.5 环境变量严格校验：**必须在** `_bootstrap_logging()`（文件日志就绪）与
 # `load_dotenv()`（.env 已进入 os.environ）**之后**执行，否则它的告警不可见/扫描不到 .env。
 try:

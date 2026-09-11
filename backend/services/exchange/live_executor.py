@@ -96,6 +96,9 @@ def _run_and_close(client, op):
     """在同一 event loop 内执行异步操作并在 finally 中 close 客户端。
 
     唯一能真正释放 aiohttp 会话的方式（见 _close_raw_exchange 的 09-11 注释）。
+    [2026-09-11 二次修复] 旧版在 finally 里调 _close_raw_exchange，而它对
+    协程型 close 走了 asyncio.run 新 loop 兜底——等于没关（栈追踪实测所有
+    "Unclosed client session" 均来自本路径）。改为在本协程内直接 await close。
     """
     import asyncio
 
@@ -103,7 +106,14 @@ def _run_and_close(client, op):
         try:
             return await op()
         finally:
-            _close_raw_exchange(client)
+            try:
+                _raw = getattr(client, "_exchange", None)
+                if _raw is not None and hasattr(_raw, "close"):
+                    _r = _raw.close()
+                    if inspect.isawaitable(_r):
+                        await _r
+            except Exception:
+                pass
 
     return asyncio.run(_do())
 
