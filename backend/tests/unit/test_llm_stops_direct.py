@@ -133,11 +133,13 @@ def test_llm_sl_pass_through_when_wide_enough():
 
 
 def test_atr_floor_lifts_narrow_llm_sl():
-    """LLM sl=0.02 < ATR×1.5（0.045）→ 硬抬到 0.045。"""
+    """[2026-09-12 F38b 语义更新] LLM sl=0.02 < ATR×1.5（0.045）→ 抬到
+    min(0.045, 2×0.02)=0.04：抬升上限 2× 封顶（MIDLONG_ATR_FLOOR_MAX_LIFT，
+    防高波动日 SL 被无限抬升后 TP 触顶 → 净 RR<1.3 → funding 闸死锁）。"""
     t = _thesis(sl=0.02, tp=0.05)
     sl, tp = _llm_stops(t, _packet(atr_1d_pct=0.03), "buy")
-    assert sl == pytest.approx(0.045), "窄 SL 应被 ATR floor 硬抬"
-    assert tp == pytest.approx(0.09), "TP 至少 2×SL"
+    assert sl == pytest.approx(0.04), "窄 SL 按抬升上限 2× 封顶（F38b）"
+    assert tp == pytest.approx(0.08), "TP 至少 2×SL"
 
 
 def test_tp_min_two_x_sl():
