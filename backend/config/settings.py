@@ -922,6 +922,11 @@ MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION: bool = os.getenv(
 MIDLONG_EV_ENFORCE_MID: bool = os.getenv(
     "MIDLONG_EV_ENFORCE_MID", "false"
 ).lower() in ("true", "1", "yes", "on")
+# [2026-09-11] paper 下 mid 赛道 EV 影子放行（用户定调：模拟盘=收集数据，
+# 否则「EV 负→硬拦→零样本→校准器无数据→EV 恒负」自我锁死）；live 硬拦不变。
+MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW: bool = os.getenv(
+    "MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW", "true"
+).lower() in ("true", "1", "yes", "on")
 # 中线 swing：tp 实现率偏高（波段吃满概率尚可），sl 常吃满
 SWING_EV_MIN_PCT: float = float(os.getenv("SWING_EV_MIN_PCT", "0.0005"))
 SWING_EV_TP_REALIZATION: float = float(os.getenv("SWING_EV_TP_REALIZATION", "0.70"))

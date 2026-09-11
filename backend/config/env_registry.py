@@ -890,6 +890,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION",
     # [P7 执行 2026-09-10] swing(mid) 赛道 EV 硬拦开关（默认 false）
     "MIDLONG_EV_ENFORCE_MID",
+    # [2026-09-11] paper 下 mid 赛道 EV 影子放行（收集样本；live 硬拦不变，默认 true）
+    "MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW",
     "MIDLONG_EV_FALLBACK_RR",
     "MIDLONG_EV_GATE_ENABLED",
     "MIDLONG_EXEC_AUTHORITY",

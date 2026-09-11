@@ -1,30 +1,71 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789126238783,
-  "accepted": false,
-  "status": "degraded",
-  "consensus_score": 0.375,
-  "run_id": "6d4c9e416a8741aaa6013b93922bd593",
-  "context_hash": "089f9707fa6263d0ad902062427ab54c6917df97eb8ddafd0f19ec24ea26e91d",
-  "final": null,
-  "notes": [
-    "glm_opencode: RuntimeError: [WinError 10054] 远程主机强迫关闭了一个现有的连接。",
-    "单模型结论（minimax），不得入 signal_ledger"
-  ],
+  "ts_ms": 1789127347861,
+  "accepted": true,
+  "status": "ok",
+  "consensus_score": 0.7,
+  "run_id": "b882a2d009674fe79f899cd4e62f4dbb",
+  "context_hash": "a721f4e4917cbd6df1fde2b8af3bb8a380b89c39fbc5807c1b51b5b921551875",
+  "final": {
+    "direction": "bullish",
+    "strength": 4,
+    "confidence": 0.45,
+    "half_life_hours": 16,
+    "affected_symbols": [
+      "NEWT"
+    ],
+    "hedging_window_hours": 24,
+    "position_adjustments": [
+      {
+        "symbol": "NEWT",
+        "action": "no_new_short",
+        "reason": "NEWT 资金费三所深度负值（binance -0.231%/bybit -0.1769%/gateio -0.3584% 每8h），新开空单需承担约 -286% APR 的付费且面临轧空风险；当前组合未持有 NEWT 仓位，仅限制新增空头，不涉及减仓或止损收紧"
+      }
+    ],
+    "analogues": [
+      {
+        "event": "同窗口 NEWT binance -0.188%/8h、gateio -0.203%/8h 资金费极端事件（sev 2-3）",
+        "outcome": "多所同步深负，交叉确认空头拥挤为 NEWT 全市场现象而非单所异动；context pack 未提供后续价格走势，无法验证结果"
+      },
+      {
+        "event": "同窗口小币深负资金费聚集：VTHO gateio -2.0%/8h、PUFFER bybit -1.64%/8h、LSK gateio -1.06%/8h、BREW -0.98%/8h 等",
+        "outcome": "无结果数据可验证；仅能确认深负资金费在当前窗口为跨品种结构性现象，NEWT 并非孤立个案，削弱其个券特异性信号强度"
+      },
+      {
+        "event": "正向极端资金费对照：SENSETIME +0.611%/8h、STORJ +0.644%/8h（dir -0.5）",
+        "outcome": "系统编码显示深负资金费映射为偏多方向（dir +0.5）、深正资金费映射为偏空方向（dir -0.5），与本事件方向标签一致；无后续涨跌结果数据"
+      }
+    ],
+    "key_factors": [
+      "NEWT 资金费三所同时深度负值（-0.177% 至 -0.358%/8h），空头支付约 200%-320% APR 给多头，空头拥挤为跨所确认事实",
+      "系统事件方向编码 0.5：深负资金费历史上偏轧空/偏多解读，多头持有永续合约可收取资金费 carry",
+      "同窗口全市场约 200 起资金费极端事件、多数为深负值聚集（VTHO/PUFFER/LSK/BREW 等），提示或为小币结构性空头拥挤而非 NEWT 个券独立信号",
+      "24h 全市场多单清算 5756 万美元远大于空单清算 2246 万美元，显示价格端整体偏弱、多头承压，与轧多（bullish）解读存在张力",
+      "NEWT 行情快照：7d +5.94%、1d -0.09%、RSI14 60.2、日 ATR 6.8%、年化波动 84.6%，趋势中性偏强但波动高，价格上下行风险均不小",
+      "数据缺口：无 NEWT 持仓结构/清算数据、无与 BTC 相关性、无历史同类事件后续走势；且行情快照（as_of 1788998400000）早于事件时间戳约 32 小时，存在时滞，故降低 confidence"
+    ],
+    "summary": "NEWT 在 bybit 出现 -0.261%/8h（约 -286% APR）的极端负资金费，且 binance/gateio 同步深负，空头拥挤获多所交叉确认；按系统编码与轧空逻辑偏多解读，但同窗口深负资金费为跨小币聚集的结构性现象、且全市场多头清算显著大于空头，价格端信号存在冲突，故仅给中等偏弱强度（4/10）与较低置信度（0.45）。预计资金费极值在 1-2 个资金费周期（约 16 小时）内均值回归，观察窗口设 24 小时。当前组合仅持有 BNB/BTC/SOL/UNI 多单、未持有 NEWT，因相关性数据缺失且事件为 NEWT 个券级，不对现有主流币仓位做调节；对 NEWT 仅限制新增空头（避免支付极端 carry 并规避轧空），不开多建议需等待价格端确认与资金费极值衰减信号。历史同类事件在 context pack 中无后续走势结果，数据不足，无法强化方向判断。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的方向判断更贴近 context pack 事实：事件本身被系统编码为 direction +0.5（深负资金费映射偏多），且三所同步深负（binance -0.2314%/bybit -0.1769%/gateio -0.3584%/8h）交叉确认空头拥挤，空头向多头支付约 200%-320% APR 的 carry 与轧空逻辑有机械性支撑；B 还主动引用了对自身不利的证据（全市场多单清算 5756 万 vs 空单 2246 万、同窗口约 200 起深负资金费聚集为结构性现象、行情快照落后事件约 32 小时）并据此压低置信度，推理更自洽。反观 A：其摘要明确承认'极值本身更多反映杠杆失衡而非方向性信号'、'方向信号模糊，不宜追多'，却仍给出 bearish 结论，属于内部矛盾；其类比事件也自认'数据不足，未给出可验证结局'。因此裁给 B。但 B 的证据链也有实质弱点：清算数据偏空、深负费率为跨小币聚集而非 NEWT 个券信号、无任何历史同类事件结果验证，故强度下调至 3，置信度维持 0.45 的偏低水平。"
+    }
+  },
+  "notes": [],
   "event": {
-    "id": 74287,
+    "id": 74277,
     "event_type": "funding.extreme",
-    "symbol": "RVN",
+    "symbol": "NEWT",
     "ts_ms": 1789114123432,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit RVN 资金费 -0.316%/8h（≈-346% APR）",
+    "title": "bybit NEWT 资金费 -0.261%/8h（≈-286% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -346.3,
-      "rate_8h": -0.00316233,
+      "apr_pct": -285.7,
+      "rate_8h": -0.00260904,
       "exchange": "bybit",
-      "rate_raw": -0.00316233,
+      "rate_raw": -0.00260904,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

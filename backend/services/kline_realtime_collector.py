@@ -1030,6 +1030,31 @@ class KlineRealtimeCollector:
                     out.append(su)
         except Exception as e:
             logger.debug("[P1-Watch] 固定币并入观察名单失败(降级用 env): %s", e)
+        # [2026-09-11] AI 选币活跃候选（mid/short）并入观察名单：
+        # ai_coin_unified 动态选出的 AVAX/INJ/LINK 等候选落在 P1 冷门尾部，
+        # 1h 轮转 ~2.4h 超 trade 新鲜度门槛（7260s）→ 候选因 kline_age>6h
+        # 被 AI_COIN_MAX_KLINE_AGE_H 丢弃（"AI 选得出币、中线下不了单"复现）。
+        # 读 backend/services/data/ai_coin_unified/*.json 的 active 候选，
+        # P1-Watch 每轮对它们刷全周期。文件小、候选少（1-5 币），开销可忽略。
+        try:
+            import json as _json
+            from pathlib import Path as _P
+            _base = _P(__file__).resolve().parents[1] / "services" / "data" / "ai_coin_unified"
+            if _base.is_dir():
+                for _f in _base.glob("*.json"):
+                    try:
+                        _data = _json.loads(_f.read_text(encoding="utf-8"))
+                    except Exception:
+                        continue
+                    if not isinstance(_data, dict):
+                        continue
+                    for _tier in ("mid", "short"):
+                        for _s in ((_data.get(_tier) or {}).get("symbols") or []):
+                            _su = normalize_symbol(str(_s))
+                            if _su and _su not in out:
+                                out.append(_su)
+        except Exception as e:
+            logger.debug("[P1-Watch] ai_coin 候选并入观察名单失败(fail-open): %s", e)
         return out
 
     def _p1_all_periods(self) -> List[str]:

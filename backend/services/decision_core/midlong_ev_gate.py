@@ -98,6 +98,7 @@ class MidLongEvGate:
         exchange: Optional[str] = None,
         p_win_override: Optional[float] = None,
         calib_nature: Optional[str] = None,
+        paper_mode: bool = False,
     ) -> EvDecision:
         """计算并裁决本次中长线开仓的期望值。
 
@@ -108,6 +109,13 @@ class MidLongEvGate:
         因 `MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION=true` 而**永久影子放行**（563/563 全放行、
         0 拦截），而那时**真正已校准的 swing 校准器**从未被咨询。传入 `calib_nature` 后，
         mid 赛道会用自己的校准器与自己的 EV 门槛，闸才可能真正生效。
+
+        [2026-09-11 修复] `paper_mode`：mid 车道在 paper 下按用户定调「模拟盘=
+        收集交易数据」**影子放行**（记录 EV 判定但不拦截），否则「EV 负 → 硬拦 →
+        零成交 → 校准器无新样本 → EV 恒负」自我锁死（实测 mid 车道 EV≈-2.60%
+        被 MIDLONG_EV_ENFORCE_MID=true 全拦、9/9 后 mid 零新样本）。
+        live 模式行为完全不变（保护照旧）。开关 `MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW`
+        （默认 true）；false = 回滚旧口径（paper mid 也硬拦）。
         """
         nat = (nature or "swing").lower()
         # 校准/门槛所依据的赛道：优先显式传入，否则退回执行语义（保持旧行为可复现）
@@ -178,14 +186,20 @@ class MidLongEvGate:
         #   =true ⇒ 允许 mid 赛道按 EV 硬拦。
         # 其它赛道（trend_follow/position）行为不变。
         enforce_mid = bool(self._cfg("MIDLONG_EV_ENFORCE_MID", False))
+        # [2026-09-11 修复] paper + mid 车道（swing）→ 影子放行（收集样本，不拦截）。
+        # 用户定调「模拟盘=收集交易数据」（见 loss_lock_policy 同源判据）；
+        # live 硬拦保护完全不变。MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW=false 回滚旧口径。
+        _paper_allow_mid = bool(self._cfg("MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW", True))
         shadow_lane = (nat_calib == "swing") and not enforce_mid
+        if (nat_calib == "swing") and enforce_mid and paper_mode and _paper_allow_mid:
+            shadow_lane = True
         shadow = shadow_cold or shadow_lane
 
         reason = (
             f"EV={ev_pct:+.4%} {'≥' if allowed else '<'} 门槛{ev_min:+.4%} | "
             f"p_win={p_win:.3f}({p_src}) tp={tp:.3%}×{tp_real:.2f} "
             f"sl={sl:.3%}×{sl_real:.2f} 成本={round_trip_cost:.3%} "
-            f"[exec={nat}/calib={nat_calib}]"
+            f"[exec={nat}/calib={nat_calib}/paper={paper_mode}]"
             + (f" 影子:calib_required={shadow_cold}/lane_switch_off={shadow_lane}" if shadow else "")
         )
 

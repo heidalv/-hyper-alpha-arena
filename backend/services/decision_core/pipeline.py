@@ -334,6 +334,8 @@ def evaluate_midlong_open(
                 tp_pct=_safe_float(dec.get("take_profit_pct")) or 0.0,
                 sl_pct=_safe_float(dec.get("stop_loss_pct")) or 0.0,
                 exchange=(dec.get("exchange") or None),
+                # [2026-09-11] paper 下 mid 车道影子放行（收集样本），live 硬拦不变
+                paper_mode=(str(mode or "").strip().lower() == "paper"),
             )
             adjustments["ev_gate"] = {
                 "ev_pct": _ev.ev_pct,
