@@ -27,6 +27,9 @@ def _bars(n, ts0=1700000000, step=3600):
 def _env(monkeypatch, tmp_path):
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_DIR", tmp_path)
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_ENABLED", True)
+    # [2026-09-11] 引擎对 pytest 默认禁写磁盘缓存（防污染生产缓存），
+    # 本测试已重定向到 tmp_path，显式放行。
+    monkeypatch.setenv("FACTOR_DIR_DISK_ALLOW_PYTEST", "1")
     monkeypatch.setattr(eng, "_FACTOR_DIR_CACHE", {})
     return tmp_path
 

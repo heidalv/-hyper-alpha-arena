@@ -105,6 +105,14 @@ def _factor_dir_disk_save(sym: str, tf: str, tss, series) -> None:
     """写磁盘缓存（新锚定序列或与既有序列按时间戳合并扩展）。"""
     if not _FACTOR_DIR_DISK_ENABLED:
         return
+    # [2026-09-11 修复] pytest 进程不得写生产缓存：全量单测中某个用例用假 bar
+    # 调 engine.run() → 磁盘合并逻辑被假锚点触发整文件重写 → 真实预热缓存
+    # （BTC/ETH 1h/4h 共 4 个文件）被 1.7KB 假数据覆盖（21:48:49 实测）。
+    # 与 midlong_direction_audit._skip_write_under_pytest（§82）同款判据；
+    # 测试需要验证磁盘缓存的用例显式重定向 _FACTOR_DIR_DISK_DIR 到临时目录
+    # （test_factor_dir_*_20260911 已如此）。
+    if os.getenv("PYTEST_CURRENT_TEST") and not os.getenv("FACTOR_DIR_DISK_ALLOW_PYTEST"):
+        return
     try:
         p = _factor_dir_disk_path(sym, tf)
         _FACTOR_DIR_DISK_DIR.mkdir(parents=True, exist_ok=True)

@@ -12,12 +12,14 @@ import backend.services.live_pipeline_backtest_engine as eng
 def _tmp_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_DIR", tmp_path)
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_ENABLED", True)
+    monkeypatch.setenv("FACTOR_DIR_DISK_ALLOW_PYTEST", "1")
     return tmp_path
 
 
 def test_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_DIR", tmp_path)
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_ENABLED", True)
+    monkeypatch.setenv("FACTOR_DIR_DISK_ALLOW_PYTEST", "1")
     tss = [1000, 2000, 3000, 4000, 5000]
     series = [0, 0, 1, -1, 0]
     eng._factor_dir_disk_save("BTC", "1h", tss, series)
@@ -30,6 +32,7 @@ def test_roundtrip(tmp_path, monkeypatch):
 def test_merge_extends_tail(tmp_path, monkeypatch):
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_DIR", tmp_path)
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_ENABLED", True)
+    monkeypatch.setenv("FACTOR_DIR_DISK_ALLOW_PYTEST", "1")
     tss = [1000, 2000, 3000]
     series = [0, 1, -1]
     eng._factor_dir_disk_save("BTC", "1h", tss, series)
@@ -45,6 +48,7 @@ def test_merge_extends_tail(tmp_path, monkeypatch):
 def test_ttl_expired(tmp_path, monkeypatch):
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_DIR", tmp_path)
     monkeypatch.setattr(eng, "_FACTOR_DIR_DISK_ENABLED", True)
+    monkeypatch.setenv("FACTOR_DIR_DISK_ALLOW_PYTEST", "1")
     eng._factor_dir_disk_save("BTC", "1h", [1000], [1])
     old = time.time() - 999999
     p = eng._factor_dir_disk_path("BTC", "1h")
