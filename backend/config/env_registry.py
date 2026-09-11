@@ -205,6 +205,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "KLINE_P0_CONCURRENCY",
     "KLINE_P0_SYMBOL_CAP",
     "KLINE_P0_TIMEOUT_S",
+    "KLINE_P0_ROUND_RETRY",   # [2026-09-11] P0 整轮全失败时同轮快速重试一次（默认 true）
     "KLINE_P1_ACTIVE_BATCH_SIZE",
     "KLINE_P1_ACTIVE_WEIGHT",
     "KLINE_P1_BATCH_SIZE",
@@ -759,6 +760,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "HYPOTHESIS_AUTO_EVOLVE",
     "KELLY_AS_UPPER_BOUND",
     "KLINE_AGG_EXCHANGES",
+    "KLINE_AGG_BASELINE_FALLBACK_ENABLED",  # [2026-09-11] 基准所过期→新鲜所单所回退（默认 true）
     "KLINE_VOLUME_AGGREGATION_ENABLED",
     "KLINE_ANALYST_MAX_PARALLEL",
     "KLINE_ANALYST_MODE",
@@ -1280,6 +1282,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "RISK_EVENT_WINDOWS_ENABLED",    # RiskEngine 事件避险窗口检查（默认 true）
     "RISK_EVENT_NEWS_BLOCK",         # 负面强新闻禁开多（默认 false，待 E5-5 影子验证）
     # ── [v3 方向2 p0-model-gateway] ModelGateway / QuotaGuard / 深度分析 ──
+    "MODEL_GATEWAY_RETRY_COUNT",     # [2026-09-11] 连接类失败重试次数（默认 1，0=不重试）
     "MINIMAX_API_KEY",               # MiniMax Token Plan 订阅 Key（Anthropic 兼容 API 直连）
     "MINIMAX_BASE_URL",              # 默认 https://api.minimax.io/anthropic
     "MINIMAX_MODEL",                 # 默认 MiniMax-M3（可 MiniMax-M2.7）
@@ -1357,6 +1360,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [P11 执行 2026-09-10] 图审信号/立场建议的时效上限（分钟）
     "MIDLONG_CHART_MAX_SIGNAL_AGE_MIN",  # 通用：超过即 fail-open 不否决（默认 240）
     "MIDLONG_CHART_ADVICE_TTL_MIN",      # 立场型建议（no_new_long/short）独立 TTL（默认 180，0=关闭特例）
+    "MIDLONG_CHART_ADVICE_DIRECTION_CONSISTENT",  # [2026-09-11] 建议只在与信号方向相反时否决（默认 true）
     "MIDLONG_CHART_GATE_CONFLICT_STRENGTH",
     "MIDLONG_CHART_GATE_SUPPORT_STRENGTH",
     "MIDLONG_CHART_GATE_ENABLED",

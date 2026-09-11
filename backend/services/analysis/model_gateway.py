@@ -794,9 +794,47 @@ class ModelGateway:
                 if not valid:
                     res.error = "schema 校验失败: " + "; ".join(errs[:6])
         except Exception as exc:
-            res.error = f"{type(exc).__name__}: {str(exc)[:400]}"
-            logger.warning("[ModelGateway] %s/%s 调用失败: %s", transport, task, res.error)
-            self._note_failure(transport, res.error)
+            # [2026-09-11 修复] 传输层断连重试：opencode sidecar 每 ~15min 崩溃重启
+            # （exit 15），崩溃窗口内的调用以 ReadError/ConnectError 失败（实测
+            # glm_opencode/midlong_thesis WinError 10054）。对连接类异常重试 1 次
+            # （1.5s 后退），把窗口期成功率拉回；配额/配置错误不重试。
+            _retry = int(os.getenv("MODEL_GATEWAY_RETRY_COUNT", "1") or 0)
+            _retryable = (
+                "ReadError", "ConnectError", "ConnectTimeout", "ReadTimeout",
+                "ConnectionError", "RemoteProtocolError", "RemoteDisconnected",
+                "ServerDisconnectedError", "ProxyError",
+            )
+            first_err = f"{type(exc).__name__}: {str(exc)[:400]}"
+            if _retry > 0 and any(k in type(exc).__name__ or k in first_err for k in _retryable):
+                time.sleep(1.5)
+                try:
+                    raw = tr.complete(system, user, max_tokens=max_out, temperature=temperature,
+                                      timeout_s=timeout_s, task=task, images=images)
+                    res.text = raw.text or ""
+                    res.model = raw.model or model
+                    res.input_tokens, res.output_tokens = raw.input_tokens, raw.output_tokens
+                    obj = extract_json(res.text)
+                    if obj is None:
+                        res.error = "输出中无可解析 JSON"
+                    else:
+                        valid, errs = schemas.validate(schema_task or task, obj)
+                        res.json = obj
+                        res.schema_errors = errs
+                        res.ok = valid
+                        if not valid:
+                            res.error = "schema 校验失败: " + "; ".join(errs[:6])
+                    logger.warning(
+                        "[ModelGateway] %s/%s 首次调用失败(%s)，重试后成功",
+                        transport, task, first_err[:160],
+                    )
+                except Exception as exc2:
+                    res.error = f"重试仍失败: {type(exc2).__name__}: {str(exc2)[:400]}"
+                    logger.warning("[ModelGateway] %s/%s 调用失败: %s", transport, task, res.error)
+                    self._note_failure(transport, res.error)
+            else:
+                res.error = first_err
+                logger.warning("[ModelGateway] %s/%s 调用失败: %s", transport, task, res.error)
+                self._note_failure(transport, res.error)
         res.latency_ms = int((time.time() - t0) * 1000)
         self.quota.record(
             transport, task, model=res.model, input_tokens=res.input_tokens, output_tokens=res.output_tokens,

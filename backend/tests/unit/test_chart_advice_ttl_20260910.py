@@ -42,8 +42,10 @@ def _gate(monkeypatch, *, age_min: int, advice: str = "no_new_long", direction: 
 
 
 def test_fresh_advice_still_vetoes(monkeypatch):
+    """新鲜立场建议仍否决。[2026-09-11] 方向一致性默认开启后，
+    否决需要「建议与方向一致」：看空(-1) + no_new_long 才拦开多。"""
     monkeypatch.setenv("MIDLONG_CHART_ADVICE_TTL_MIN", "180")
-    g = _gate(monkeypatch, age_min=1)
+    g = _gate(monkeypatch, age_min=1, direction=-1)
     ok, reason, detail = g.chart_gate_check("UNI", "buy", tier="mid")
     assert ok is False, reason
     assert "no_new_long" in reason
@@ -54,15 +56,18 @@ def test_fresh_advice_still_vetoes(monkeypatch):
 def test_stale_stance_advice_does_not_veto(monkeypatch):
     """200min 前给的建议：超过立场 TTL(180) 但仍在通用上限(240) 之内 ⇒ 不否决。"""
     monkeypatch.setenv("MIDLONG_CHART_ADVICE_TTL_MIN", "180")
-    g = _gate(monkeypatch, age_min=200)
+    g = _gate(monkeypatch, age_min=200, direction=-1)
     ok, reason, _ = g.chart_gate_check("UNI", "buy", tier="mid")
     assert ok is True, f"过期立场建议仍否决: {reason}"
     assert "立场建议陈旧" in reason and "fail-open" in reason
 
 
 def test_advice_ttl_zero_disables_the_special_case(monkeypatch):
-    """TTL=0 ⇒ 关闭特例：仍按通用上限判（200min < 240min ⇒ 否决）。"""
+    """TTL=0 ⇒ 关闭特例：仍按通用上限判（200min < 240min ⇒ 否决）。
+    [2026-09-11] 方向一致性默认开启会使「方向相同」的建议被忽略，
+    故本用例显式用回滚档（=false）锁定旧口径。"""
     monkeypatch.setenv("MIDLONG_CHART_ADVICE_TTL_MIN", "0")
+    monkeypatch.setenv("MIDLONG_CHART_ADVICE_DIRECTION_CONSISTENT", "false")
     g = _gate(monkeypatch, age_min=200)
     ok, reason, _ = g.chart_gate_check("UNI", "buy", tier="mid")
     assert ok is False, f"TTL=0 应关闭特例但实际放行: {reason}"
@@ -73,14 +78,15 @@ def test_general_signal_age_rule_still_applies(monkeypatch):
     """通用陈旧规则（默认 240min）仍在：250min 的信号一律不否决。"""
     monkeypatch.setenv("MIDLONG_CHART_ADVICE_TTL_MIN", "180")
     monkeypatch.setenv("MIDLONG_CHART_MAX_SIGNAL_AGE_MIN", "240")
-    g = _gate(monkeypatch, age_min=250)
+    g = _gate(monkeypatch, age_min=250, direction=-1)
     ok, reason, _ = g.chart_gate_check("UNI", "buy", tier="mid")
     assert ok is True and "陈旧" in reason, reason
 
 
 def test_short_direction_symmetric(monkeypatch):
+    """对称性：[2026-09-11] 方向一致性下，看多(+1) + no_new_short 才拦开空。"""
     monkeypatch.setenv("MIDLONG_CHART_ADVICE_TTL_MIN", "180")
-    g = _gate(monkeypatch, age_min=1, advice="no_new_short", direction=-1)
+    g = _gate(monkeypatch, age_min=1, advice="no_new_short", direction=1)
     ok, reason, _ = g.chart_gate_check("UNI", "sell", tier="mid")
     assert ok is False and "no_new_short" in reason, reason
 

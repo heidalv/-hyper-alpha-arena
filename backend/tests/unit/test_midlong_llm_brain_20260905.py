@@ -249,10 +249,11 @@ def test_chart_gate_vetoes_no_new_long_when_chart_exists(monkeypatch):
     # 而 chart_gate 在 2026-09-08 加入了「信号年龄 > MIDLONG_CHART_MAX_SIGNAL_AGE_MIN
     # （默认 240min）即 fail-open 不否决」的规则 → 恒放行、断言必红。
     # 改为相对当前时间的「新鲜」信号，恢复用例本意（图审禁令否决开仓）。
+    # [2026-09-11] 方向一致性默认开启：no_new_long 需信号方向看空(-1)才否决开多。
     import time as _t
     _now_ms = int(_t.time() * 1000)
     monkeypatch.setattr(g, "_latest_chart_signal", lambda _s: {
-        "direction": 1,
+        "direction": -1,
         "strength": 5,
         "created_ms": _now_ms - 60_000,
         "payload": {"position_advice": "no_new_long"},

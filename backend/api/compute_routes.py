@@ -161,6 +161,22 @@ async def evolution_status():
 
     rt = evo_runtime.snapshot()
     auto = bool(get_value("FACTOR_MINING_BOOST_AUTO"))
+    # [2026-09-11 可观测性] 周进化独立进程心跳（scripts/run_weekly_evolution_standalone.py
+    # 写 data/standalone_weekly_heartbeat.json；计划任务每周一 01:00 出进程跑，
+    # 此前唯一观测是 standalone 日志 →「主脑进化未知」。此处透出心跳，前端可
+    # 直接看到上次周进化何时/什么阶段/是否异常。
+    standalone = None
+    try:
+        from pathlib import Path as _P
+        _hb = _P(__file__).resolve().parents[3] / "data" / "standalone_weekly_heartbeat.json"
+        if _hb.exists():
+            import json as _json
+            _payload = _json.loads(_hb.read_text(encoding="utf-8"))
+            _age_min = int((__import__("time").time() - float(_payload.get("epoch") or 0)) / 60)
+            _payload["age_min"] = _age_min
+            standalone = _payload
+    except Exception:  # noqa: BLE001
+        pass
     return {
         "running": bool(rt.get("running") or _evo_running),
         "runtime": rt,
@@ -170,6 +186,7 @@ async def evolution_status():
         "recent_activity": _evolution_activity(10),
         "active_factors": _active_factor_stats(),
         "config": get_group("gp") + get_group("mcts") + get_group("evo"),
+        "standalone_weekly": standalone,
         "schedule": {
             "daily_4h": "每日 03:00（factor_evolution_daily）",
             "daily_5m": "每日 04:00（factor_evolution_scalp_5m_daily）",

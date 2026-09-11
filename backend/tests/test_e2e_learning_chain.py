@@ -497,6 +497,26 @@ def test_factor_registry_unified():
 # ═══════════════════════════════════════════════════════════════
 
 def main():
+    # [2026-09-11 防护] 本脚本按 docstring 设计在 SQLite 上跑，但项目已切 Postgres；
+    # 直跑会把 e2e_* 测试策略/交易写进生产库（9/11 实测 06:21/06:50 两批 16 行
+    # strategy_trades 污染生产账本，PnL 统计失真）。默认拒绝连接生产 Postgres，
+    # 仅当显式 E2E_ALLOW_PROD_DB=1（且 DB 名含 test）才放行；SQLite 文件照旧。
+    _db_url = (os.getenv("DATABASE_URL") or "").strip()
+    _db_like_sqlite = bool(_db_url) and "sqlite" in _db_url.lower()
+    _allow = os.getenv("E2E_ALLOW_PROD_DB", "").strip() in ("1", "true", "yes")
+    _is_test_pg = bool(_db_url) and (
+        "test" in _db_url.lower().split("/")[-1].split("?")[0]
+        or "test" in _db_url.lower()
+    )
+    if not _db_like_sqlite and not (_allow and _is_test_pg):
+        _print("=" * 64)
+        _print("拒绝运行：当前 DATABASE_URL 不是 SQLite，且未显式设置 E2E_ALLOW_PROD_DB=1。")
+        _print("e2e 学习链测试会向数据库写入 e2e_* 测试策略与交易，污染生产账本。")
+        _print(f"DATABASE_URL={_db_url[:60]}...")
+        _print("解决：改用 SQLite 测试库，或确认目标是测试库后 set E2E_ALLOW_PROD_DB=1。")
+        _print("=" * 64)
+        return 2
+
     _print("=" * 64)
     _print("全链路端到端验证 — 交易 → 学习 → 进化 (L1-L5 收敛后)")
     _print(f"测试运行 ID: {TEST_RUN_ID}")

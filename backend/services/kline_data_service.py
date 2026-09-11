@@ -458,11 +458,43 @@ class KlineDataService:
         if not base_rows:
             return []
         if not _fresh(base_rows):
-            logger.warning(
-                "[KlineAgg] %s/%s@%s 基准所 K 线过期（阈值 %.0fs），拒绝聚合返回",
-                symbol, period, base_ex, fresh_window,
-            )
-            return []
+            # [2026-09-11 修复] 基准所过期 → 单所回退（显式、留痕，非静默跨所）：
+            # 现场（9/11）：AVAX/XRP/UNI 等 15m~1d @binance 基准所过期，而 asterdex
+            # 等所新鲜 —— 整体拒绝导致多头闸/regime 门对滞后币形同虚设（《长边两闸
+            # 互斥与出场裁量_20260911》§5 建议）。回退时 OHLC 改取「新鲜所」同源，
+            # 价格行带 price_source 标记，日志 WARNING 可见；无任何所新鲜才拒绝。
+            # 回滚：KLINE_AGG_BASELINE_FALLBACK_ENABLED=false。
+            _fallback_on = os.getenv(
+                "KLINE_AGG_BASELINE_FALLBACK_ENABLED", "true"
+            ).strip().lower() not in ("0", "false", "no", "off")
+            fallback_ex = None
+            fallback_rows: List[Dict[str, Any]] = []
+            if _fallback_on:
+                for ex in exs:
+                    try:
+                        cand = self._query_klines_from_db(symbol, period, count, ex)
+                    except Exception:
+                        continue
+                    if _fresh(cand):
+                        fallback_ex = ex
+                        fallback_rows = cand
+                        break
+            if fallback_ex and fallback_rows:
+                logger.warning(
+                    "[KlineAgg] %s/%s@%s 基准所 K 线过期（阈值 %.0fs），"
+                    "回退到新鲜所 %s（单所同源，价格行带 price_source）",
+                    symbol, period, base_ex, fresh_window, fallback_ex,
+                )
+                base_rows = fallback_rows
+                base_ex = fallback_ex
+            else:
+                logger.warning(
+                    "[KlineAgg] %s/%s@%s 基准所 K 线过期（阈值 %.0fs），且无新鲜所可回退，拒绝聚合返回",
+                    symbol, period, base_ex, fresh_window,
+                )
+                return []
+        # 回退发生后 base_ex 已指向新鲜所：卷聚合时不再重复累加该所（其 OHLC 已作基源）。
+        exs = [e for e in exs if str(e).strip().lower() != str(base_ex).strip().lower()]
         merged: Dict[int, Dict[str, Any]] = {}
         for row in base_rows:
             ts = int(row.get("timestamp") or 0)
@@ -471,6 +503,7 @@ class KlineDataService:
             item = dict(row)
             item["volume"] = float(item.get("volume") or 0)
             item["volume_sources"] = 1
+            item["price_source"] = base_ex
             merged[ts] = item
         for ex in exs:
             try:

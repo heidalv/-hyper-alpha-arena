@@ -63,15 +63,45 @@ class ExchangeDataProfileService:
 
             try:
                 # 两段式轻量统计，禁止 COUNT(DISTINCT) 扫全表：
-                # 1) 每所最新/最旧时间（走 timestamp 索引，通常 <1s）
+                # 1) 每所最新/最旧时间（按所分拆，走 (exchange,timestamp) 索引 O(1)）
+                #    [2026-09-11 修复] 旧 GROUP BY exchange 版本在 70M 行下表扫描
+                #    12s+，被 statement_timeout 取消后永久走近似分支。分拆后每所
+                #    一条索引查询（<10ms），总耗时毫秒级。
                 # 2) 最近 72h 行数（窗口过滤，可超时降级）
-                latest_rows = db.execute(text("""
-                    SELECT exchange,
-                           MAX(timestamp) AS latest_ts,
-                           MIN(timestamp) AS earliest_ts
-                    FROM crypto_klines
-                    GROUP BY exchange
-                """)).mappings().all()
+                _ex_rows = db.execute(text(
+                    "SELECT DISTINCT exchange FROM symbol_catalog "
+                    "WHERE exchange IS NOT NULL ORDER BY exchange"
+                )).fetchall()
+                _exs = [str(r[0]) for r in _ex_rows if r and r[0]]
+                if not _exs:
+                    _exs = ["asterdex", "binance", "okx", "bybit", "hyperliquid"]
+                latest_rows = []
+                for _ex in _exs:
+                    try:
+                        _row = db.execute(text("""
+                            SELECT
+                                (SELECT timestamp FROM crypto_klines
+                                 WHERE exchange = :ex ORDER BY timestamp DESC LIMIT 1) AS latest_ts,
+                                (SELECT timestamp FROM crypto_klines
+                                 WHERE exchange = :ex ORDER BY timestamp ASC  LIMIT 1) AS earliest_ts
+                        """), {"ex": _ex}).mappings().first()
+                    except Exception:
+                        _row = None
+                    if _row is not None and _row["latest_ts"] is not None:
+                        latest_rows.append({
+                            "exchange": _ex,
+                            "latest_ts": _row["latest_ts"],
+                            "earliest_ts": _row["earliest_ts"],
+                        })
+                if not latest_rows:
+                    # 完全取不到时退回旧口径（仍可能超时，仅兜底）
+                    latest_rows = db.execute(text("""
+                        SELECT exchange,
+                               MAX(timestamp) AS latest_ts,
+                               MIN(timestamp) AS earliest_ts
+                        FROM crypto_klines
+                        GROUP BY exchange
+                    """)).mappings().all()
                 cutoff = int(time.time()) - 72 * 3600
                 try:
                     count_rows = db.execute(text("""

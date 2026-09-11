@@ -2388,6 +2388,12 @@ MIDLONG_NO_THESIS_NO_OPEN: bool = os.getenv(
 MIDLONG_CHART_REQUIRED: bool = os.getenv(
     "MIDLONG_CHART_REQUIRED", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [2026-09-11] 图审立场建议(no_new_long/short)的方向一致性：建议只在与信号自身
+# 方向相反时才否决（看空+别开多 / 看多+别开空）；方向相同/中性不否决。
+# false = 旧口径（TTL 内一律否决）。
+MIDLONG_CHART_ADVICE_DIRECTION_CONSISTENT: bool = os.getenv(
+    "MIDLONG_CHART_ADVICE_DIRECTION_CONSISTENT", "true"
+).strip().lower() in ("1", "true", "yes", "on")
 # 闲扫每轮最多刷新几个；变盘池另计（WATCH_REFRESH_CAP）。
 MIDLONG_THESIS_MAX_REFRESH_PER_CYCLE: int = int(
     os.getenv("MIDLONG_THESIS_MAX_REFRESH_PER_CYCLE", "3") or "3"

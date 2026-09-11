@@ -149,18 +149,32 @@ def register_event(kind: str, account_id: int, strategy: str, symbol: str, why: 
 
 def _push_event(kind: str, account_id: int, strategy: str, symbol: str, why: str) -> None:
     with _FREEZE_LOCK:
-        _EVENT_LOG.append(
-            {
-                "ts": time.time(),
-                "kind": kind,
-                "account_id": account_id,
-                "strategy": strategy,
-                "symbol": symbol,
-                "why": str(why)[:160],
-            }
-        )
+        entry = {
+            "ts": time.time(),
+            "kind": kind,
+            "account_id": account_id,
+            "strategy": strategy,
+            "symbol": symbol,
+            "why": str(why)[:160],
+        }
+        _EVENT_LOG.append(entry)
         if len(_EVENT_LOG) > _EVENT_LOG_MAX:
             del _EVENT_LOG[: len(_EVENT_LOG) - _EVENT_LOG_MAX]
+    # [2026-09-11 可观测性] 台账此前纯进程内存（重启即失、跨进程不可见 =
+    # 「随意冻结」观感来源之一）。追加 JSONL 文件持久化（审计脚本/日报可读），
+    # 与 midlong_direction_audit.jsonl 同模式；>5MB 轮转改名。
+    try:
+        import json as _json
+        import os as _os
+        from pathlib import Path as _Path
+        _fp = _Path(__file__).resolve().parents[3] / "data" / "freeze_events.jsonl"
+        if _fp.exists() and _fp.stat().st_size > 5 * 1024 * 1024:
+            _os.replace(_fp, str(_fp) + ".old")
+        _fp.parent.mkdir(exist_ok=True)
+        with open(_fp, "a", encoding="utf-8") as _f:
+            _f.write(_json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        pass
 
 
 # 单例

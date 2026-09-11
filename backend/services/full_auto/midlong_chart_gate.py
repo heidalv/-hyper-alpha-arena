@@ -66,6 +66,28 @@ def _advice_ttl_min() -> int:
         return 180
 
 
+def _advice_direction_consistent() -> bool:
+    """[2026-09-11 修复] 立场建议禁令的「方向一致性」开关（默认 true）。
+
+    现场（2026-09-11）：图审信号自身 `direction=long` 却同时给
+    `position_advice=no_new_long`（自相矛盾），且每 65~156min 重新签发一次，
+    使 ETH/UNI/XPL 的多头通道几乎全时段被压死、纸面盘长期零成交。
+    48h 审计 1,419 条否决中 98.1% 来自单条 no_new_long，且其中大量与信号
+    自身方向矛盾 —— 这类"方向看多但建议别开多"属模型软性择时意见，证据
+    强度弱，不应作为否决依据。
+
+    一致性规则：`no_new_long` 仅在信号方向**看空**（dir=-1）时否决开多；
+    `no_new_short` 仅在信号方向**看多**（dir=+1）时否决开空。方向相同或中性
+    时不否决（可见日志）。`=false` 回滚旧口径（TTL 内一律否决）。
+    """
+    try:
+        return os.getenv("MIDLONG_CHART_ADVICE_DIRECTION_CONSISTENT", "true").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return True
+
+
 def _latest_chart_signal(symbol: str) -> Optional[Dict[str, Any]]:
     """最新且未过期的图审共识信号（入账即 accepted；无则 None → 放行）。"""
     try:
@@ -199,10 +221,33 @@ def chart_gate_check(
             f"chart_gate: 图审立场建议陈旧({_age}min>{_adv_ttl}min) advice={advice}，不否决（fail-open）",
             detail,
         )
-    if dir_int > 0 and advice == "no_new_long":
-        return False, f"chart_gate_veto: 图审 position_advice=no_new_long (age={_age}min ttl={_adv_ttl}min)", detail
-    if dir_int < 0 and advice == "no_new_short":
-        return False, f"chart_gate_veto: 图审 position_advice=no_new_short (age={_age}min ttl={_adv_ttl}min)", detail
+    if _advice_direction_consistent():
+        # [2026-09-11 修复] 方向一致性：建议只有在与信号自身方向相反时才构成
+        # 一致证据（看空 + 别开多 / 看多 + 别开空）；方向相同或中性视为模型
+        # 软性择时意见，不否决（避免多头通道被自相矛盾的 no_new_long 长期压死）。
+        if dir_int > 0 and advice == "no_new_long":
+            if sig_dir == -1:
+                return False, (f"chart_gate_veto: 图审 no_new_long 且方向看空"
+                               f"(dir={sig_dir}, s={sig_strength}, age={_age}min ttl={_adv_ttl}min)"), detail
+            logger.info(
+                "[chart_gate] %s advice=no_new_long 与信号方向(dir=%d)矛盾或一致，忽略建议（方向一致性开关）",
+                sym, sig_dir,
+            )
+            return True, f"chart_gate: advice=no_new_long 与信号方向(dir={sig_dir})不一致，不否决", detail
+        if dir_int < 0 and advice == "no_new_short":
+            if sig_dir == 1:
+                return False, (f"chart_gate_veto: 图审 no_new_short 且方向看多"
+                               f"(dir={sig_dir}, s={sig_strength}, age={_age}min ttl={_adv_ttl}min)"), detail
+            logger.info(
+                "[chart_gate] %s advice=no_new_short 与信号方向(dir=%d)矛盾或一致，忽略建议（方向一致性开关）",
+                sym, sig_dir,
+            )
+            return True, f"chart_gate: advice=no_new_short 与信号方向(dir={sig_dir})不一致，不否决", detail
+    else:
+        if dir_int > 0 and advice == "no_new_long":
+            return False, f"chart_gate_veto: 图审 position_advice=no_new_long (age={_age}min ttl={_adv_ttl}min)", detail
+        if dir_int < 0 and advice == "no_new_short":
+            return False, f"chart_gate_veto: 图审 position_advice=no_new_short (age={_age}min ttl={_adv_ttl}min)", detail
 
     # 2) 强反向拦截
     if sig_dir != 0 and sig_dir == -dir_int and sig_strength >= _conflict_strength():

@@ -21,6 +21,7 @@
 """
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -72,14 +73,39 @@ def _close_raw_exchange(client) -> None:
 
     每次查询新建客户端（避免 "Event loop is closed"），查询后必须显式 close，
     否则每个客户端泄漏一个 aiohttp session + 若干连接（对账 120s/次会累积）。
+
+    [2026-09-11 修复] 旧实现 `asyncio.run(_raw.close())` 在新 event loop 里执行
+    close：ccxt async 的 aiohttp 会话绑定在**上一个**（已关闭的）loop 上，新 loop
+    清理不到它 → 每次查询仍泄漏一个 session（backend.error.log 每 30-45s 一轮
+    "Unclosed client session/connector" 实证）。故改为「同一 loop 内执行操作并
+    finally close」的 `_run_and_close`，本函数保留为兜底（不再单独新建 loop）。
     """
     try:
         _raw = getattr(client, "_exchange", None)
         if _raw is not None and hasattr(_raw, "close"):
-            import asyncio
-            asyncio.run(_raw.close())
+            result = _raw.close()
+            if inspect.isawaitable(result):
+                # 无运行中 loop 时最后兜底（正常路径不应走到这里）
+                import asyncio
+                asyncio.run(result)
     except Exception:
         pass
+
+
+def _run_and_close(client, op):
+    """在同一 event loop 内执行异步操作并在 finally 中 close 客户端。
+
+    唯一能真正释放 aiohttp 会话的方式（见 _close_raw_exchange 的 09-11 注释）。
+    """
+    import asyncio
+
+    async def _do():
+        try:
+            return await op()
+        finally:
+            _close_raw_exchange(client)
+
+    return asyncio.run(_do())
 
 
 class LiveExecutor(ExecutionChannel):
@@ -393,11 +419,12 @@ class LiveExecutor(ExecutionChannel):
             if client is None:
                 logger.warning("[LiveExecutor] %s 无客户端, 杠杆无法对齐", ex)
                 return False
-            import asyncio
             try:
-                ok = asyncio.run(client.set_leverage(symbol, int(round(leverage))))
-            finally:
-                _close_raw_exchange(client)
+                ok = _run_and_close(
+                    client, lambda: client.set_leverage(symbol, int(round(leverage)))
+                )
+            except Exception:
+                ok = False
             if not ok:
                 logger.warning(
                     "[LiveExecutor] ccxt set_leverage 未确认 %s %sx", symbol, leverage,
@@ -709,12 +736,10 @@ class LiveExecutor(ExecutionChannel):
             logger.warning(f"[LiveExecutor] CCXT 客户端未配置: exchange={exchange} user={user_id} account={account_id}")
             return []
         try:
-            positions = asyncio.run(client.get_positions())
+            positions = _run_and_close(client, client.get_positions)
         except Exception as e:
             logger.warning(f"[LiveExecutor] CCXT get_positions 异常: {e}")
             return []
-        finally:
-            _close_raw_exchange(client)
 
         # [2026-08-28 实盘零成交修复] client.get_positions() 返回 ExchangePosition
         # dataclass 列表（非 dict），原 p.get(...) 会 AttributeError。统一 _val 兼容。
@@ -806,12 +831,10 @@ class LiveExecutor(ExecutionChannel):
         if not client:
             return None
         try:
-            bal = asyncio.run(client.get_balance())
+            bal = _run_and_close(client, client.get_balance)
         except Exception as e:
             logger.warning(f"[LiveExecutor] CCXT get_balance 异常: {e}")
             return None
-        finally:
-            _close_raw_exchange(client)
         # [2026-08-28 实盘零成交修复] client.get_balance() 返回 ExchangeBalance
         # dataclass（不是 dict），此前直接调 .get() → AttributeError → 恒返回 None
         # → 宪法风控 snapshot 权益恒 0 → 所有实盘开仓被「无法获取实盘权益」拒绝。

@@ -670,13 +670,33 @@ class KlineRealtimeCollector:
 
             ok, err = 0, 0
             if tasks:
-                try:
-                    results = await asyncio.wait_for(
+                async def _gather_all():
+                    return await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
                         timeout=P0_TIMEOUT_S,
                     )
+
+                try:
+                    results = await _gather_all()
                     ok = sum(1 for r in results if r is True)
                     err = len(results) - ok
+                    # [2026-09-11 修复] 整轮全失败多为链代理瞬时抖动（实测 0/309 与
+                    # 276/309 交替），熔断 180s 会丢掉整分钟 1m bar。同一轮内
+                    # 快速重试一次（8s 后），代理恢复即可补回本轮，无需等熔断窗口。
+                    _retry_on_all_fail = os.getenv(
+                        "KLINE_P0_ROUND_RETRY", "true"
+                    ).strip().lower() not in ("0", "false", "no", "off")
+                    if _retry_on_all_fail and ok == 0 and err > 0:
+                        await asyncio.sleep(8)
+                        results2 = await _gather_all()
+                        ok2 = sum(1 for r in results2 if r is True)
+                        err2 = len(results2) - ok2
+                        if ok2 > 0:
+                            logger.warning(
+                                "[P0] 整轮重试恢复: %dok/%derr (exchange=%s)",
+                                ok2, err2, active_ex,
+                            )
+                        ok, err = ok2, err2
                 except asyncio.TimeoutError:
                     logger.warning(
                         f"[P0] timed out after {P0_TIMEOUT_S}s "
