@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789133563668,
+  "ts_ms": 1789134049209,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 717,
+    "n": 718,
     "n_scored": 537,
     "avg_score": 0.9851024208566108,
     "avg_brier": 0.1188988026070767,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 717,
+        "n": 718,
         "n_scored": 537,
         "avg_score": 0.9851024208566108,
         "avg_brier": 0.1188988026070767,
-        "last_ms": 1789132934038
+        "last_ms": 1789133681005
       }
     ],
     "verdict": {
@@ -72,7 +72,7 @@
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 1.346,
+        "peak_abs_z": 1.486,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -93,56 +93,56 @@
             }
           },
           "BNB": {
-            "z": 0.304,
-            "latest_8h_pct": 0.01,
+            "z": -0.538,
+            "latest_8h_pct": 0.0,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": 0.865,
-            "latest_8h_pct": 0.0092,
+            "z": -0.542,
+            "latest_8h_pct": 0.0029,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": -1.083,
-            "latest_8h_pct": 0.0022,
+            "z": -1.031,
+            "latest_8h_pct": 0.0024,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": 0.856,
-            "latest_8h_pct": 0.01,
+            "z": 0.408,
+            "latest_8h_pct": 0.0077,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": -1.346,
-            "latest_8h_pct": -0.0016,
+            "z": -1.486,
+            "latest_8h_pct": -0.0025,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "SOL": {
-            "z": 0.465,
-            "latest_8h_pct": 0.005,
+            "z": 0.058,
+            "latest_8h_pct": 0.0022,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "XRP": {
-            "z": 0.1,
-            "latest_8h_pct": 0.0058,
+            "z": -0.915,
+            "latest_8h_pct": -0.0005,
             "cusum": {
               "detected": true,
               "direction": -1
@@ -190,14 +190,14 @@
       },
       "liquidation": {
         "score": 1.0,
-        "latest_hour_usd": 22813439.53,
+        "latest_hour_usd": 22854854.87,
         "median_hour_usd": 974387.05,
-        "zscore": 6.729,
+        "zscore": 6.758,
         "cusum": {
           "detected": true,
           "direction": 1,
-          "s_pos": 7.276,
-          "s_neg": 0.485,
+          "s_pos": 7.29,
+          "s_neg": 0.458,
           "h": 5.0,
           "k": 0.5,
           "n": 168
@@ -205,23 +205,27 @@
         "n_hours": 168
       },
       "freshness": {
-        "score": 0.8333,
+        "score": 0.9167,
         "stale_sources": [
           {
             "source": "binance_ann",
-            "age_h": 31.54
+            "age_h": 31.68
+          },
+          {
+            "source": "bybit_ann",
+            "age_h": 6.01
           },
           {
             "source": "liq_ws",
-            "age_h": 15.79
+            "age_h": 15.93
           },
           {
             "source": "okx_ann",
-            "age_h": 8.04
+            "age_h": 8.18
           },
           {
             "source": "whale_activities",
-            "age_h": 10.43
+            "age_h": 10.57
           }
         ],
         "n_sources": 12,
@@ -230,11 +234,11 @@
         "stale_threshold_h": 6.0
       }
     },
-    "stress_score": 0.3985,
+    "stress_score": 0.4069,
     "channel_coverage": 1.0,
     "hard_triggers": [],
     "suggested_state": "active",
-    "suggest_reason": "stress=0.40 低于减仓线 0.55",
+    "suggest_reason": "stress=0.41 低于减仓线 0.55",
     "current_state": "active",
     "thresholds": {
       "reduce": 0.55,
@@ -244,98 +248,63 @@
     },
     "llm": {
       "accepted": true,
-      "consensus_score": 0.82,
-      "run_id": "ec4c9c1be7664406aafa10824a3d5bfb",
+      "consensus_score": 0.7,
+      "run_id": "15eb3e0733b9406dba0bdb75b67386ef",
       "final": {
-        "direction": "bearish",
-        "strength": 4.5,
-        "confidence": 0.585,
+        "direction": "neutral",
+        "strength": 3,
+        "confidence": 0.55,
         "root_causes": [
           {
             "channel": "liquidation",
-            "cause": "小时级清算规模异常飙升，约2281万美元，为中位974万的23倍，z-score达6.73，触发CUSUM正向漂移(s_pos=7.28)，表明出现强制去杠杆事件",
-            "evidence": "latest_hour_usd=22813439.53 vs median=974387.05, zscore=6.729, cusum_detected=true direction=1 s_pos=7.276"
+            "cause": "最近一小时清算金额异常放大（约为小时中位数的23倍），CUSUM确认正向漂移越过阈值，构成stress合成的主要贡献来源，最可能对应一次杠杆强制平仓脉冲",
+            "evidence": "latest_hour_usd=22,854,854.87 vs median_hour_usd=974,387.05（约23.5倍），zscore=6.758，cusum detected=true、direction=1、s_pos=7.29>h=5.0，通道score=1.0（唯一满分异常）"
           },
           {
             "channel": "price",
-            "cause": "1小时回撤-0.59%而4h/24h仍为正(+0.65%/+0.62%)，结合1h回撤z-score=-2.06，与24h最大回撤1.01%，暗示短期急跌伴随清算级联",
-            "evidence": "ret_1h_pct=-0.587, ret_4h_pct=0.652, ret_24h_pct=0.62, drawdown_24h_pct=1.008, ret_zscore=-2.058"
+            "cause": "1小时短线回撤与清算脉冲在时间上吻合，形态为上行趋势中的脉冲式下杀而非趋势反转，属于触发/伴随因素而非独立趋势信号",
+            "evidence": "ret_1h_pct=-0.587、ret_zscore=-2.058，但ret_4h_pct=+0.652、ret_24h_pct=+0.62均为正，drawdown_24h_pct仅1.008，价格通道score仅0.084"
           },
           {
             "channel": "funding",
-            "cause": "全部8个币种Funding CUSUM均触发漂移，多数方向为-1（BNB/BTC/DOGE/ETH/XRP），多头费率下移或转负，反映做多力量减弱，与清算级联方向一致",
-            "evidence": "cusum_drifting覆盖全部8币，direction=-1占比5/8，其中ETH z=0.856、DOGE z=-1.083、LINK z=-1.346"
+            "cause": "全部8个品种检出资金费率CUSUM漂移，其中BTC/ETH/BNB/XRP/DOGE共5个为负向漂移，显示杠杆空头仓位渐进积累、情绪面偏空，但当前费率水平不极端",
+            "evidence": "cusum_drifting覆盖8/8品种；direction=-1的有BNB/BTC/DOGE/ETH/XRP；当前|z|最高仅1.486（LINK），latest_8h_pct多在±0.003以内"
           },
           {
             "channel": "freshness",
-            "cause": "数据管线健康度下降，8/44任务失败，多个数据源陈旧（binance_ann 31.5h、liq_ws 15.8h、whale_activities 10.4h），可能放大误报",
-            "evidence": "failing_jobs=8/44, stale_sources含4项，其中liq_ws age=15.79h"
-          },
-          {
-            "channel": "open_interest",
-            "cause": "OI整体变化温和（peak |z|=0.986），未观察到明显增仓或减仓，未能为下行方向提供强确认",
-            "evidence": "score=0.0, peak_abs_z=0.986, ETH z=-0.986为最大单点"
-          },
-          {
-            "channel": "liquidation",
-            "cause": "爆仓额持续异常放大，最可能为局部多头杠杆集中强平/去杠杆冲击",
-            "evidence": "latest_hour_usd=22813439.53，为 median_hour_usd=974387.05 的约 23.4 倍；zscore=6.729；cusum direction=+1 且 s_pos=7.276 > h=5.0（168 小时窗口确认向上漂移），score=1.0 为各通道最高"
-          },
-          {
-            "channel": "funding",
-            "cause": "主流币资金费率 cusum 负向漂移，多头付费意愿回落、全市场处于去杠杆方向，与爆仓冲击同向",
-            "evidence": "8/8 币种 cusum detected；BTC(z=0.865)、ETH(z=0.856)、BNB、DOGE、XRP 方向均为 -1，BTC/ETH 最新 8h 费率仅 0.0092%~0.01%；仅 LINK/SOL/AVAX 为正向漂移"
-          },
-          {
-            "channel": "price",
-            "cause": "1 小时急跌可能触发清算连环，但中期趋势未破坏，冲击幅度有限",
-            "evidence": "ret_1h=-0.587%、ret_zscore=-2.058，而 ret_4h=+0.652%、ret_24h=+0.62%，drawdown_24h 仅 1.008%，score=0.084"
-          },
-          {
-            "channel": "freshness",
-            "cause": "清算与公告数据管道可靠性下降，爆仓尖峰可能部分来自断线后补发/回放而非真实市场",
-            "evidence": "liq_ws age_h=15.79、binance_ann age_h=31.54、whale_activities age_h=10.43、okx_ann age_h=8.04（陈旧阈值 6.0），8/44 任务失败，freshness score=0.8333"
-          },
-          {
-            "channel": "open_interest",
-            "cause": "持仓量与成交量均无异常，缺乏系统性去杠杆的仓位与放量确认，说明冲击局限或在数据侧被放大",
-            "evidence": "OI score=0（peak_abs_z=0.986，仅 ETH -0.986，n=158/160）；volume score=0（peak_abs_z=1.502，XRP）"
+            "cause": "数据管道退化可能污染清算通道读数：清算websocket源已长时间无更新，若尖峰来自ws重连后的批量回补，则异常可能是统计伪影而非真实市场清算",
+            "evidence": "liq_ws age_h=15.93>stale_threshold_h=6.0，failing_jobs=8/44，binance_ann age_h=31.68，5个源超时"
           }
         ],
         "counter_scenarios": [
-          "清算金额为单笔大户爆仓或协议事件驱动，并非市场系统性压力，OI未显著下降意味着并未触发强平连锁",
-          "价差回撤z-score=-2.06或来自流动性短暂闪崩（如交易所撮合异常），随后4h/24h仍正，趋势未真正转空",
-          "funding CUSUM全币种触发可能由费率结算时点造成的统计漂移，并非真实情绪转向",
-          "freshness中liq_ws陈旧15.8h，清算数据更新延迟，可能导致数值高估或错配",
-          "XRP成交量z=1.502为唯一显著放量，但其funding和OI并无对应变化，或为孤立事件",
-          "爆仓尖峰是 liq_ws 断线 15.79h 后重连时的积压消息补发/重复计数，实际市场平静（OI 与 volume 得分均为 0 支持此解释），此时按 active 收紧风控会误杀正常信号",
-          "1 小时急跌为下方流动性扫损（stop hunt），多头清算完成后价格企稳反弹，短期看空方向错误",
-          "资金费率负向 cusum 漂移可能只是前期溢价基差的正常化回落，并非趋势性看空定位",
-          "若公告类源（binance_ann 陈旧 31.54h、okx_ann 陈旧 8.04h）漏掉了真实风险事件，则当前 OI 平静读数同样滞后，实际杠杆风险可能被低估而非高估"
+          "清算尖峰是liq_ws重连后回补旧数据造成的伪影：真实清算潮通常伴随成交量与持仓量放大，但volume与open_interest通道score均为0（peak_abs_z分别1.502/0.986），无任何配合证据；若为伪影则stress=0.407被高估，不应据此调整风险敞口",
+          "若清算CUSUM的direction=1实际对应空头被强平而非多头，则叠加5/8品种资金费率负向漂移的拥挤空头结构，事件反而可能演变为轧空上行，看空解读完全失效",
+          "1h价格z=-2.058若由单一品种的个异性冲击驱动而非全市场共振，且4h/24h趋势为正，价格可能在数小时内修复，价格通道异常不构成本身方向信号",
+          "8/44任务失败可能使stress合成基于缺失/滞后数据计算，合成值本身有偏，'active'建议的依据不充分"
         ],
         "key_factors": [
-          "清算小时值z=6.73且CUSUM正向漂移，确认压力事件",
-          "1h急跌-0.59%但4h/24h仍正，呈现回撤而非反转",
-          "Funding CUSUM全币种触发、多数方向为-1，多头条件减弱",
-          "OI score=0.0、peak|z|<1，无系统性仓位变化配合",
-          "freshness下降，8/44任务失败，存在数据噪声风险",
-          "爆仓小时额约为 168 小时中位数的 23.4 倍且 cusum 上破阈值（s_pos 7.276 > h 5.0），是本次 stress=0.399 的最大贡献项",
-          "5/8 主流币（含 BTC、ETH）资金费率 cusum 负向漂移，指向去杠杆而非新增杠杆",
-          "OI 与 volume 通道得分均为 0，缺乏系统性压力的仓位/成交确认",
-          "liq_ws 陈旧 15.79h、8/44 任务失败，清算数据可信度需打折扣",
-          "价格 1h z=-2.058 但 24h 仍为正收益、回撤仅 1.008%，实际价格冲击幅度有限"
+          "清算通道是唯一满分级异常（score=1.0、z=6.758），其余通道均低分，异常高度集中",
+          "volume与open_interest双通道零异常，未给清算尖峰提供市场微观结构配合证据",
+          "5/8主流品种（BTC/ETH/BNB/XRP/DOGE）资金费率负向CUSUM漂移，空头渐进积累但|z|≤1.486未达极端",
+          "1h回撤（z=-2.058）发生在4h/24h正收益背景下，drawdown_24h仅约1%，属趋势内脉冲",
+          "liq_ws闲置15.93小时、8/44任务失败，清算数据与合成stress的可信度需先核验"
         ],
-        "summary": "合成stress=0.399、建议active。核心信号来自清算通道的极端异常（单小时2281万美元、z=6.73、CUSUM正向漂移），叠加1小时价格急跌-0.59%以及Funding全市场CUSUM触发且多数偏负，提示短期出现强制去杠杆压力，方向偏空。但OI与成交量并未提供确认，4h/24h收益仍正，且数据管线有8个任务失败、多个源陈旧，置信度受限。建议判断最可能出错的情形：清算为孤立大单爆仓或数据延迟导致的虚高，以及短期闪崩在OI未降的前提下被错误解读为趋势反转。综合判断为bearish，强度中等、置信度中等偏低。"
+        "summary": "本轮异常高度集中于清算通道：最近一小时清算2,285万美元，约为小时中位数（97.4万）的23倍，z=6.758，CUSUM正向越过阈值（s_pos=7.29>h=5.0），与1小时价格回撤-0.587%（z=-2.058）时间吻合，最可能解释是一次杠杆清算脉冲。但该假设存在明显疑点：4h/24h收益仍为正（+0.652%/+0.62%）、回撤仅约1%，且volume与open_interest通道均无异常配合，同时liq_ws源已闲置约16小时、8/44任务失败，尖峰有相当概率是数据回补伪影。资金费率层面8/8品种检出CUSUM漂移、其中5个负向（BTC/ETH/BNB/XRP/DOGE），显示空头仓位渐进积累但尚未极端。综合判断方向中性、强度温和：与stress=0.407及active建议一致，建议维持active运行，但应先人工核验清算尖峰的数据源真实性与品种构成，再决定是否收紧敞口，不应仅凭该单一尖峰直接转向防御。",
+        "arbitration": {
+          "verdict": "B",
+          "by": "glm_opencode_alt",
+          "rationale": "B 的中性判断更贴合 context 事实。异常高度集中于清算通道（唯一 score=1.0，z=6.758，约为中位数23.5倍），但真实清算级联通常伴随成交与持仓放大，而 volume（score=0，peak_abs_z=1.502）与 open_interest（score=0，peak_abs_z=0.986）双通道均无任何配合证据，A 的看空论断缺乏微观结构确认。更关键的是，驱动看空结论的核心数据源本身存疑：liq_ws 已闲置 15.93 小时（超过 6 小时阈值）、8/44 任务失败，尖峰存在回补伪影的可能，B 据此要求先核验数据再调敞口在证据上更严谨。价格面上 1h 回撤 -0.587%（z=-2.058）发生在 4h/24h 双正收益（+0.652%/+0.62%）背景下，价格通道 score 仅 0.084，A 将其解读为‘反弹脆弱’属过度推断。资金费率 cusum 虽覆盖 8/8 币种，但 |z| 最大仅 1.486、方向混杂（5 负 3 正），A 称‘持仓普遍极端化’与数据不符，B 的‘渐进积累但未极端’更准确；且若被强平一方为空头（与 5/8 负向漂移一致），事件甚至可能演变为轧空上行。B 与合成 stress=0.407/active 的温和水平一致，A 的 bearish+6 超出了数据所能支撑的强度。"
+        }
       }
     }
   },
   "predictions": [
-    "9b85097d155e4b5d8e316dafe4c33e75"
+    "261258c4d8bb4df4944178ae24cbbf5d"
   ],
   "advice": [],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 118.999,
+  "elapsed_sec": 200.466,
   "latest_path": null,
   "dry_run": false
 }

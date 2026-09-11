@@ -5,8 +5,8 @@
     "symbols": [
       "TON"
     ],
-    "updated_at": 1789124819.693151,
+    "updated_at": 1789134143.27233,
     "reason": "resample age>=10800s from midlong_board min_conf=0.4"
   },
-  "updated_at": 1789124819.693151
+  "updated_at": 1789134143.27233
 }
