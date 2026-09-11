@@ -1290,6 +1290,23 @@ def refresh_thesis(
             + "\n\n【本币附加证据】\n"
             + json.dumps(extras, ensure_ascii=False, default=str)[:_BRAIN_EXTRAS_CHAR_BUDGET]
         )
+        # [2026-09-11] 风控提示注入：mid/long 空头被 regime 闸拦截（仅日线 down 放行）
+        # 时提前告知主脑，避免 LLM 反复提案「必然被拒」的空头（实测 midlong_short_
+        # regime_block 单日 111 次，浪费 LLM 调用且污染统计）。direction 仍如实写，
+        # 只约束 recommend_open=true 的空头提案。
+        try:
+            from backend.services.full_auto.midlong_circuit_gate import _daily_regime, _short_mode
+            _tier_l = _tier3(tier)
+            if _tier_l != "short" and str(_short_mode()) == "regime_gated":
+                _reg_hint = _daily_regime(symbol)
+                if _reg_hint and _reg_hint != "down":
+                    user += (
+                        f"\n\n【风控提示】当前 {symbol} 日线 regime={_reg_hint}（非下行），"
+                        "空头开仓会被 regime 闸全部拦截：direction 可写 bearish，"
+                        "但 recommend_open=true 的空头论题不会成交。优先评估多头或观望。"
+                    )
+        except Exception:
+            pass
         gw = get_model_gateway()
         cres = gw.dual_call(
             "midlong_thesis",
