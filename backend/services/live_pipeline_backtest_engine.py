@@ -70,8 +70,15 @@ _FACTOR_DIR_DISK_ENABLED = os.getenv(
 _FACTOR_DIR_DISK_TTL = int(os.getenv("PIPELINE_FACTOR_DIR_DISK_TTL_SEC", str(7 * 24 * 3600)))
 
 
+def _factor_dir_mode_tag() -> str:
+    """缓存按因子集模式分桶：FACTOR_LIVE_ALLOWLIST_ONLY=true（受治理 3-4 因子）
+    与 false（全量 191 因子）的计算结果不同，混用会污染进化 fitness。"""
+    _v = os.getenv("FACTOR_LIVE_ALLOWLIST_ONLY", "true").strip().lower()
+    return "gov" if _v in ("1", "true", "yes", "on") else "full"
+
+
 def _factor_dir_disk_path(sym: str, tf: str) -> _Path:
-    return _FACTOR_DIR_DISK_DIR / f"{sym}_{tf}.json"
+    return _FACTOR_DIR_DISK_DIR / f"{sym}_{tf}_{_factor_dir_mode_tag()}.json"
 
 
 def _factor_dir_disk_load(sym: str, tf: str):

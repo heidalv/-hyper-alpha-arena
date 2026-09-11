@@ -1,111 +1,92 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789129228545,
+  "ts_ms": 1789129711178,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.83,
-  "run_id": "db9ed984d1654c2387488d0f50304151",
-  "context_hash": "0e36627c0188d2c10714917f5efdc73f2c75b9b709313a2cce36265b2973dc11",
+  "consensus_score": 0.857,
+  "run_id": "152ba77d66b94f2da72ead0e5ee603a2",
+  "context_hash": "c90eb102c93dacfb21ae901605dee94733336c1508aa4ea5576a8efd61dd04ae",
   "final": {
     "direction": "bullish",
-    "strength": 3.0,
-    "confidence": 0.41,
-    "half_life_hours": 9.0,
+    "strength": 5.0,
+    "confidence": 0.485,
+    "half_life_hours": 10.0,
     "affected_symbols": [
-      "XCN"
+      "SAGAUSDT",
+      "SAGA"
     ],
-    "hedging_window_hours": 6.0,
+    "hedging_window_hours": 9.0,
     "position_adjustments": [
       {
-        "symbol": "XCN",
-        "action": "no_new_short",
-        "reason": "跨交易所普遍深负费（bybit -0.596%、gateio -0.339%、asterdex -0.0089%），空头付息极高，做空成本不划算；当前无 XCN 持仓，不宜新增空头"
+        "symbol": "SAGAUSDT",
+        "action": "no_new_long",
+        "reason": "1h OI +23.7% 伴随价格 +8.26% 且 global LS 2.18 / top LS 3.05 极倾斜多头，但 taker buy/sell 0.96 略偏卖、24h OI +50.23% 暗示杠杆已堆积且价格远离 EMA200（-96%），追多风险回报差，不开新多"
       },
       {
-        "symbol": "XCN",
-        "action": "no_new_short",
-        "reason": "gateio 资金费 -0.292%/8h（-320% APR，阈值的约3倍）且24h内持续加深（bybit -0.109%→-0.596%），空头拥挤、挤压反弹风险高；且 market:XCN 无K线数据，趋势无法验证，不宜新开空头"
+        "symbol": "SAGAUSDT",
+        "action": "tighten_stops",
+        "reason": "RV30 年化 111.5%、1h ATR 2.84%、正价已透支 1d +15.25%，OI 跳升常伴随回吐震荡，持仓需收紧止损保护"
       },
       {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "本事件为 XCN 币种级资金费异常，现有 BTC 多头（upnl≈0，dist_sl 6.67%）不受直接影响，无需调节"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "事件为 XCN 个体性异常，BNB 多头仓位不受直接影响"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "事件为 XCN 个体性异常，SOL 多头仓位不受直接影响"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "事件为 XCN 个体性异常，UNI 多头仓位不受直接影响"
+        "symbol": "SAGA",
+        "action": "no_new_long",
+        "reason": "事件后 OI 继续扩张（事件时 $5.35M→最新 $6.08M，24h +50.23%）且 1h 价格 +8.26%、已上破 24h 高点 0.01629，短线动能偏多；但 global_ls 1.915、top_pos_ls 2.324 多头拥挤，taker_buy_sell 0.9625<1 显示急涨中吃单方净卖出，叠加价格处 24h 区间 90.6% 分位、rv30 111.5%，追多赔率差。同理也不建议逆势做空，故仅限制新多头开仓。当前组合未持有 SAGA，无需对存量仓位调节；无与 BTC 相关性数据，不支持对 BNB/BTC/SOL/UNI 持仓的外溢调节。"
       }
     ],
     "analogues": [
       {
-        "event": "bybit XCN 资金费 -0.109%/8h（≈-119% APR）",
-        "outcome": "约2小时内同一标的费率迅速走深到 -0.596%/8h，反映空头拥挤持续加深"
+        "event": "SAGA 1h OI +24% 伴随 LS 2.18 + price +8%（当前事件）",
+        "outcome": "OI 跳升但 taker BS <1、top LS 极高，典型多头拥挤+被动承接减弱，48h 内易出现均值回归回吐 5-15%"
       },
       {
-        "event": "gateio VTHO 资金费 -2.000%/8h（≈-2190% APR）",
-        "outcome": "数据不足，未给出后续价格路径"
+        "event": "历史 altcoin 单小时 OI >20% 跳升 + 正 funding 累积",
+        "outcome": "往往在 6-24h 内出现 5-10% 回调，方向偏向 bearish continuation 仅在强现货买盘确认后才延续"
       },
       {
-        "event": "bybit BREW / gateio BREW 资金费同时深负",
-        "outcome": "数据不足，跨交易所同步走负但后续价格行为未知"
+        "event": "小市值币 1h OI +20% 以上且价格同步急涨（同类型 oi_jump 事件的一般形态，context 未提供 SAGA 历史同类样本，此为模式级归纳）",
+        "outcome": "动能通常在数小时至 1 天内延续后衰减；若伴随多头拥挤（global_ls>2）且 taker 净卖出，冲高回落/多头挤压风险上升"
       },
       {
-        "event": "XCN bybit 资金费 -0.109%/8h（约4小时前，sev2）",
-        "outcome": "随后约4小时内负费在多所加深（bybit -0.596%、gateio -0.339%），空头拥挤呈强化而非回归态势；价格端后续走势因无K线数据无法验证"
-      },
-      {
-        "event": "同24h内多只小市值币极端负费：VTHO gateio -2.000%/8h、LSK -1.063%、PUFFER bybit -1.640%、RVN -0.665%",
-        "outcome": "24h 事件总数200条，极端负费集中于小市值币，呈板块性空头拥挤格局；通常伴随挤压反弹概率上升，但本次缺失价格验证数据"
+        "event": "24h OI 增速显著高于价格增速（SAGA 本例 OI +50.23% vs 价格 +8.04%，且资金费转正）",
+        "outcome": "新多头加杠杆进场特征，短线偏多但拥挤度上升使后续回撤波动放大；正资金费尚未达到极端挤压阈值，挤压风险属中期累积而非即刻"
       }
     ],
     "key_factors": [
-      "XCN 在 gateio(-0.339%/8h) 与 bybit(-0.596%/8h) 同步深负，asterdex 仅 -0.0089%，呈跨交易所不一致，gateio 信号最弱",
-      "现货/资金流/持仓结构层对 XCN 完全缺失（market 与 position_structure 为空），无法独立验证空头拥挤",
-      "近 24h 全市场有 200 条 funding.extreme 事件，XCN 出现 2 次（sev 2 → sev 3 升级），说明极值在加深但未必单标的驱动",
-      "24h 整体爆仓结构 long_liq 57.5M vs short_liq 22.0M，空头爆仓占比偏低，对 XCN 直接推动有限",
-      "当前账户无 XCN 持仓，事件冲击不构成直接损益风险，但费率极端本身是后续均值回归触发器",
-      "gateio XCN 资金费 -0.292%/8h（≈-320% APR），为 0.001%/8h 阈值的近3倍，sev3，空头付费拥挤",
-      "跨所显著分化：binance 0.0%、asterdex -0.0089%，极端负费仅集中在 bybit/gateio，属所内供需失衡而非全市场方向信号，削弱看多置信度",
-      "24h 内 XCN 负费持续加深（bybit -0.109%→-0.596%），拥挤度仍在上升，短期挤压风险随时间累积",
-      "全市场24h多头清算 $57.46M > 空头清算 $22.02M，前期下跌后小市值币普遍负费，挤压反弹环境成立",
-      "缺失层：market:XCN 无K线，价格趋势/波动无法验证，事件冲击强度与置信度受限"
+      "1h OI +23.7%（$4.33M → $5.35M）属明显杠杆扩张",
+      "global LS 2.18 / top LS 3.05 多头极度拥挤，空头潜在平仓挤压空间存在但已部分释放",
+      "taker buy/sell 0.9625 显示主动买盘并未跟上 OI 增长，新增头寸多为被动/限价挂单",
+      "funding 8h 0.5%（binance/bybit/gateio）属温和正费，多头持仓成本可控但已开始累积",
+      "价格 1d +15.25%、7d +9.87%、30d +28.46% 已显著拉涨，距 EMA200 -96.26% 处于深熊反弹结构",
+      "24h OI +50.23% 远超 1h +23.7%，说明杠杆在过去一日持续累积，回调时易触发多头清算链",
+      "24h long liq $1,742 / short liq $0，规模很小，但 90.6% pos24 偏高说明价位已接近 24h 高点（0.01629，现 0.0167）",
+      "RV30 年化 111.5%、1h ATR 2.84% 表明波动率高，停损距离需相应放宽",
+      "OI 1h +23.7%（$4.33M→$5.35M）且价格 1h +8.26% 同向上行，事件后 OI 继续增至 $6.08M（24h +50.23%），新增资金进场、短线动能偏多",
+      "多头拥挤：事件时 global_ls 2.18 / top_position_ls 3.05，最新仍达 1.915 / 2.324；taker_buy_sell 0.9625<1，急涨中出现吃单净卖出的派发迹象",
+      "资金费为正但未极端：binance/bybit/gateio 0.005%/8h、asterdex 0.0013%/8h，多头成本上升但未到挤压阈值；SAGA 24h 多头强平仅 $1,742，不构成明确挤压燃料证据",
+      "价格 0.0167 处 24h 区间 90.6% 分位并已越过 24h 高点 0.01629，1h RSI 63.7、1h EMA 趋势 bullish；但日线 above_ema200_1d=false，中期结构仍偏弱",
+      "波动环境高风险：rv30 年化 111.5%、atr14_1h 2.84%，双向扫损概率高",
+      "数据不足：无 correlation_pairs / corr_to_btc，事件外溢效应无法评估；context 未提供 SAGA 历史同类 oi_jump 事件样本，analogue 为模式级归纳而非统计结论"
     ],
-    "summary": "gateio XCN 资金费 -0.292%/8h 触发 sev3 极值，但同一时段 bybit 费率更深（-0.596%/8h）、asterdex 几乎中性（-0.0089%），跨交易所分歧明显，gateio 单点信号的代表性偏弱。在缺失 XCN K 线、持仓与现货流数据的前提下，倾向解读为'空头拥挤+潜在挤压'的中性偏多信号，但不构成高确信方向性机会。鉴于做空需承担年化 -320% 的资金成本，建议不对 XCN 新增空头；如已有空头应降仓或收紧止损以对冲费率均值回归反转；半衰期短（约 4–8 小时），主要影响窗口在下一次 8h 结算前后。整体 confidence 受限于市场层数据不足，需等待价格与持仓确认。",
-    "confidence_note": "数据不足：market.XCN K 线缺失、position_structure 为空、liquidations_24h 未覆盖 XCN，置信度上限被压低",
-    "risks": [
-      "若 asterdex 费率回归到接近 0 而 bybit/gateio 维持深负，跨交易所套利关闭可能加速负费率收敛",
-      "XCN 流动性差时极值费率持续时间可能远超 8h，挤压行情反而延后",
-      "若大盘出现系统性去杠杆，负费率信号会被宏观流动性冲击覆盖"
-    ]
+    "summary": "SAGA 出现 1h OI +23.7% 的杠杆跳升，价格同期上涨 1h +8.26% / 1d +15.25%，表面看是资金流入推动的偏多信号。然而结构上 global LS 2.18、top LS 3.05 显示多头已极度拥挤，taker buy/sell 0.9625 表明主动买盘并未跟上 OI 扩张，24h OI 累计 +50.23% 说明杠杆在过去一日持续堆积。叠加价格距 EMA200 仍 -96.26%（深熊反弹结构）、24h 已处于 90.6% 位置区间，OI 跳升带来的多头挤压红利已部分释放，后续更可能进入'高位震荡 + 多头拥挤回吐'模式，方向判定为 bullish（弱，因短期动能仍存）但强度仅 5/10、置信度 0.42。建议不开新多（SAGAUSDT 当前不在持仓中），若参与则严格收紧止损；现有账户无 SAGA 敞口，主要风险来自 SAGA 风格 altcoin 的板块情绪传染，目前 open 仓位的 BTC/SOL/BNB/UNI 受直接影响有限，但应在 6h 窗口内监控 BTC 联动是否走弱。半衰期约 8h，OI 增量通常在 12-24h 内被市场消化。",
+    "risks": "数据不足：context pack 中未给出 SAGA 与 BTC 的相关系数（correlation_pairs 与 corr_to_btc 为空），板块传染强度的量化估计有限；未提供订单流深度与现货 vs 合约 OI 拆分，无法判断本轮 OI 跳升来自 hedge 还是 directional bet；未给出 SAGA 的清算热力图，多头清算链触发阈值仅能定性描述。"
   },
   "notes": [],
   "event": {
-    "id": 76072,
-    "event_type": "funding.extreme",
-    "symbol": "XCN",
-    "ts_ms": 1789128472144,
+    "id": 75653,
+    "event_type": "position.oi_jump",
+    "symbol": "SAGA",
+    "ts_ms": 1789056000000,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio XCN 资金费 -0.292%/8h（≈-320% APR）",
-    "source": "funding_collector",
+    "direction": 0.3,
+    "title": "SAGA 1h OI 名义变动 +23.7%（$4,327,725 → $5,354,876）",
+    "source": "binance_futures_data",
     "payload": {
-      "apr_pct": -320.2,
-      "rate_8h": -0.002924,
-      "exchange": "gateio",
-      "rate_raw": -0.002924,
-      "threshold_8h": 0.001,
-      "window_hours": 8.0
+      "oi_value": 5354876.46183111,
+      "change_pct": 23.734,
+      "oi_value_prev": 4327725.01104964,
+      "global_ls_ratio": 2.1797,
+      "taker_buy_sell_ratio": 0.9625,
+      "top_position_ls_ratio": 3.0475
     }
   }
 }

@@ -47,6 +47,7 @@ def _worker(pair):
             return (sym, tf, f"no_bars({len(bars) if bars else 0})")
         engine = LivePipelineBacktestEngine(initial_capital=10000)
         series = [0] * WARMUP + [None] * (len(bars) - WARMUP)
+        tss = [int(b.timestamp) for b in bars]
         t0 = time.time()
         for i in range(WARMUP, len(bars)):
             series[i] = engine._compute_factor_direction_windowed(i, bars)
@@ -55,7 +56,15 @@ def _worker(pair):
                 print(f"[warm {sym}/{tf}] {i - WARMUP}/{len(bars) - WARMUP} "
                       f"({100.0 * (i - WARMUP) / max(len(bars) - WARMUP, 1):.0f}%, "
                       f"elapsed {dt / 60:.1f}min)", flush=True)
-        tss = [int(b.timestamp) for b in bars]
+            # [断点续存] 每 10000 根落盘一次已算前缀（tss/series 同步截断），
+            # 进程被杀/重启只丢最后一段；后续任何消费者按后缀复用+补算缺口。
+            if (i - WARMUP) > 0 and (i - WARMUP) % 10000 == 0:
+                try:
+                    _factor_dir_disk_save(
+                        sym, tf, tss[:i + 1], [v if v is not None else 0 for v in series[:i + 1]],
+                    )
+                except Exception as _e:
+                    print(f"[warm {sym}/{tf}] checkpoint 失败: {_e}", flush=True)
         _factor_dir_disk_save(sym, tf, tss, series)
         return (sym, tf, f"done bars={len(bars)} {((time.time() - t0) / 60):.1f}min")
     except Exception as e:
