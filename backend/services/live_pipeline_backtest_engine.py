@@ -477,7 +477,9 @@ class LivePipelineBacktestEngine:
                 else:
                     # 磁盘复用：warmup 内窗口被截断，需要重算；warmup 之后且已覆盖
                     # 的位置直接复用（窗口计算只回看 30 根，j≥30 与窗口起点无关）。
-                    _compute_from = warmup
+                    # 默认全复用（_compute_from=len(bars) → 计算循环空转），
+                    # 只有找到第一个未覆盖位置（None/超出磁盘序列）才从那里补算。
+                    _compute_from = len(bars)
                     for _j in range(warmup, len(bars)):
                         if _j >= len(_series) or _series[_j] is None:
                             _compute_from = _j

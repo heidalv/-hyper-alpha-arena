@@ -66,6 +66,27 @@ def test_run_hits_disk_and_computes_only_tail(monkeypatch, tmp_path, _env):
     assert gseries[70] == -1  # 尾部新算值
 
 
+def test_run_full_coverage_zero_compute(monkeypatch, tmp_path, _env):
+    """磁盘已覆盖全窗口 → 预计算循环空转（0 次因子计算）。"""
+    n = 120
+    bars = _bars(n)
+    cached_series = [0] * 30 + [1] * (n - 30)
+    cached_tss = [b.timestamp for b in bars]
+    eng._factor_dir_disk_save("TST3", "4h", cached_tss, cached_series)
+
+    calls = []
+    monkeypatch.setattr(
+        eng.LivePipelineBacktestEngine,
+        "_compute_factor_direction_windowed",
+        lambda self, i, bs: (calls.append(i), 1)[1],
+    )
+    engine = LivePipelineBacktestEngine(initial_capital=10000)
+    params = dict(eng.DEFAULT_PIPELINE_PARAMS) if hasattr(eng, "DEFAULT_PIPELINE_PARAMS") else {}
+    params.update({"factor_signal_weight": 0.3, "max_trades_per_day": 0, "position_size_pct": 0.0})
+    engine.run(bars, params, tier="mid", symbol="TST3", timeframe="4h")
+    assert calls == [], f"完全覆盖时不应有任何因子计算，实际 {len(calls)} 次"
+
+
 def test_run_full_compute_saves_disk(monkeypatch, tmp_path, _env):
     n = 120
     bars = _bars(n)

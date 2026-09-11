@@ -1,32 +1,30 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789130197979,
+  "ts_ms": 1789131950616,
   "accepted": false,
   "status": "degraded",
-  "consensus_score": 0.191,
-  "run_id": "c86edcbbeec64cb699ec1f564d2d914c",
-  "context_hash": "987da0c076d4df7d14e6aae52d65abb9e48ed6b119fdbb12f48bbbc23f811c75",
+  "consensus_score": 0.325,
+  "run_id": "6a81cdc8ed0345f3bb2f5f22938fd13e",
+  "context_hash": "3287936220679db773ca0f2d4ee052aef8696eb04f986dc00cc02a03955422d2",
   "final": null,
   "notes": [
-    "仲裁候选 glm_opencode_alt 失败: 未配置: OpenCode sidecar 不可达: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
-    "仲裁候选 ollama 失败: 输出中无可解析 JSON",
-    "仲裁候选 ollama2 失败: 输出中无可解析 JSON",
-    "仲裁调用失败: 输出中无可解析 JSON；分歧未解"
+    "glm_opencode: 重试仍失败: RuntimeError: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
+    "单模型结论（minimax），不得入 signal_ledger"
   ],
   "event": {
-    "id": 76122,
+    "id": 76245,
     "event_type": "funding.extreme",
-    "symbol": "FLYBRAIN",
-    "ts_ms": 1789129070752,
+    "symbol": "EMBER",
+    "ts_ms": 1789130278714,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio FLYBRAIN 资金费 -0.348%/8h（≈-381% APR）",
+    "direction": -0.5,
+    "title": "gateio EMBER 资金费 +0.363%/8h（≈+398% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -380.7,
-      "rate_8h": -0.003477,
+      "apr_pct": 397.7,
+      "rate_8h": 0.003632,
       "exchange": "gateio",
-      "rate_raw": -0.003477,
+      "rate_raw": 0.003632,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
