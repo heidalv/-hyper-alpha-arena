@@ -1,4 +1,4 @@
-"""AI因子: 插针不对称反转(波动环境加权) | 置信:62% | 利用上下影线不对称度衡量买卖方防守强度：下影主导(lower>upper)表示买方承接，未来反弹概率高；上影主导表示卖方拒绝，未来回落概率高。将不对称度的短期rolling均值与波动环境(插针密度)交互，在插针密集环境下反转信号更强，输出值域[-1,1]。"""
+"""AI因子: 插针反转波动环境因子 | 置信:62% | 利用上下影线不对称度衡量买卖方防守强度，long lower shadow(下影主导)表示买方承接，预示反弹；用插针密度作为波动环境分位，在高波动环境下反转信号更可靠。因子值>0看涨，<0看跌。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -6,17 +6,17 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 
 @register_factor()
-class PinBarAsymmetryReversalWithVolatilityContext(BaseFactor):
-    """利用上下影线不对称度衡量买卖方防守强度：下影主导(lower>upper)表示买方承接，未来反弹概率高；上影主导表示卖方拒绝，未来回落概率高。将不对称度的短期rolling均值与波动环境(插针密度)交互，在插针密集环境下反转信号更强，输出值域[-1,1]。"""
+class PinBarReversalWithVolatilityRegime(BaseFactor):
+    """利用上下影线不对称度衡量买卖方防守强度，long lower shadow(下影主导)表示买方承接，预示反弹；用插针密度作为波动环境分位，在高波动环境下反转信号更可靠。因子值>0看涨，<0看跌。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_pin_reversal_vol",
-            name="Pin Bar Asymmetry Reversal with Volatility Context",
-            display_name="插针不对称反转(波动环境加权)",
-            description="利用上下影线不对称度衡量买卖方防守强度：下影主导(lower>upper)表示买方承接，未来反弹概率高；上影主导表示卖方拒绝，未来回落概率高。将不对称度的短期rolling均值与波动环境(插针密度)交互，在插针密集环境下反转信号更强，输出值域[-1,1]。",
+            name="Pin Bar Reversal with Volatility Regime",
+            display_name="插针反转波动环境因子",
+            description="利用上下影线不对称度衡量买卖方防守强度，long lower shadow(下影主导)表示买方承接，预示反弹；用插针密度作为波动环境分位，在高波动环境下反转信号更可靠。因子值>0看涨，<0看跌。",
             category="technical",
-            subcategory="contrarian",
+            subcategory="mean_reversion",
             version="1.0.0-ai",
             author="AI Generated (D7)",
         )
@@ -26,7 +26,6 @@ class PinBarAsymmetryReversalWithVolatilityContext(BaseFactor):
         upper = data['high'] - data[['open','close']].max(axis=1)
         lower = data[['open','close']].min(axis=1) - data['low']
         asym = (lower - upper) / body
-        density = (data[['high','low']].max(axis=1) - data[['high','low']].min(axis=1)) / body
-        env = density.rolling(20).mean()
-        result = (asym.rolling(3).mean() * (env / (env.rolling(20).mean() + 1e-9))).clip(-1, 1)
+        density = (np.maximum(upper, lower) / body).rolling(20).mean()
+        result = (asym.rolling(3).mean() / (density + 1e-9)).clip(-1, 1)
         return result
