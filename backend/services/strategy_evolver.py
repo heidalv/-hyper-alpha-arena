@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func  # [F38i] _load_bars 单所回退的 count 聚合
 
 from backend.services.backtest_evolution_engine import (
     BacktestEngine, BacktestResult, Bar, TIER_CONFIG, get_tier_signal_param_ranges,
@@ -2049,11 +2050,59 @@ class StrategyEvolver:
 
         market_db = MarketSessionLocal()
         try:
-            rows = market_db.query(CryptoKline).filter(
+            # [F38i 2026-09-11] 单所同源修复：原查询不筛 exchange → 5 所重复时间戳
+            # interleave 成 5× 序列（实测 ETH/4h×365d：5 所各 2191 行）——
+            # 预计算 6.7h 里约 5h 是重复计算、fitness 被跨所价噪污染。改为
+            # 与实盘同源（get_active_exchange，默认 binance）；该所数据 <50 根时
+            # 回退到数据量最大的所（不静默混所）。
+            _venue = None
+            try:
+                from backend.services.exchange_config import get_active_exchange
+                _venue = str(get_active_exchange() or "").strip().lower() or None
+            except Exception:
+                _venue = None
+            q = market_db.query(CryptoKline).filter(
                 CryptoKline.symbol == symbol,
                 CryptoKline.period == timeframe,
                 CryptoKline.timestamp >= cutoff,
-            ).order_by(CryptoKline.timestamp.asc()).all()
+            )
+            rows = []
+            if _venue:
+                rows = q.filter(CryptoKline.exchange == _venue).order_by(
+                    CryptoKline.timestamp.asc()
+                ).all()
+            if len(rows) < 50:
+                _best_ex = None
+                try:
+                    _cnts = (
+                        market_db.query(
+                            CryptoKline.exchange,
+                            func.count().label("n"),
+                        )
+                        .filter(
+                            CryptoKline.symbol == symbol,
+                            CryptoKline.period == timeframe,
+                            CryptoKline.timestamp >= cutoff,
+                        )
+                        .group_by(CryptoKline.exchange)
+                        .order_by(func.count().desc())
+                        .limit(3)
+                        .all()
+                    )
+                    for _ex, _n in _cnts:
+                        if int(_n or 0) >= 50:
+                            _best_ex = _ex
+                            break
+                except Exception:
+                    _best_ex = None
+                if _best_ex and _best_ex != _venue:
+                    rows = q.filter(CryptoKline.exchange == _best_ex).order_by(
+                        CryptoKline.timestamp.asc()
+                    ).all()
+                    logger.warning(
+                        "[Evolver] %s/%s 用 %s 无数据(<50)，回退单所 %s (%d 根)",
+                        symbol, timeframe, _venue, _best_ex, len(rows),
+                    )
         finally:
             market_db.close()
 
