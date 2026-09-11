@@ -2550,18 +2550,28 @@ def _execute_ccxt_ai_trade(
         return
 
     # ── 3. Get balance & positions ──
+    # [2026-09-11 修复] 主 client 只用于余额/持仓查询（所有下单自 8/31 起已走
+    # _place_order_fresh_client 独立新客户端），故查询后在同一 event loop 内
+    # 直接 close——旧实现函数末尾 _close_ccxt_client 在**新** loop 里 close，
+    # aiohttp 会话绑定在查询 loop，清理不到 → 每轮 AI 交易循环泄漏一个 session
+    # （backend.error.log "Unclosed client session" 5+/min 的残余源）。
     async def _fetch_bal_pos():
-        _bal = await asyncio.wait_for(client.get_balance(), timeout=20)
-        _pos = await asyncio.wait_for(client.get_positions(), timeout=20)
-        return _bal, _pos
+        try:
+            _bal = await asyncio.wait_for(client.get_balance(), timeout=20)
+            _pos = await asyncio.wait_for(client.get_positions(), timeout=20)
+            return _bal, _pos
+        finally:
+            try:
+                await asyncio.wait_for(client.close(), timeout=5)
+            except Exception:
+                pass
 
     try:
         balance, positions = asyncio.run(_fetch_bal_pos())
     except Exception as e:
         logger.error("Failed to get %s balance/positions for %s: %s", exchange, account.name, e)
-        _close_ccxt_client(client)
         return
-    # 注意：client 后续下单仍要用，函数末尾统一 _close_ccxt_client(client)
+    # 主 client 已随查询同 loop 关闭；后续下单全部走 fresh client
 
     available_balance = balance.available_balance
     total_equity = balance.total_equity
