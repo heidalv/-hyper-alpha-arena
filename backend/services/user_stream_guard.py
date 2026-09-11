@@ -114,6 +114,29 @@ def _spawn():
     return proc
 
 
+def _user_stream_process_alive() -> bool:
+    """[2026-09-11 修复] 用 psutil 判断是否有用户流 worker 进程存活。
+
+    背景：旧逻辑只看快照新鲜度。后端重启瞬间，上一任后端的嵌入 worker
+    （已成孤儿）最后一次写的快照仍 <30s 新鲜 → 新后端判定「外部 worker 存活」
+    直接 return → **守护线程根本没启动** → 孤儿随后静默死亡后无人接管
+    （9/11 21:31 实测断链）。快照无法区分「外部 schtasks worker」与
+    「上一任后端的孤儿」，进程存在性检查可以。
+    """
+    try:
+        import psutil
+        for p in psutil.process_iter(["cmdline"]):
+            try:
+                cmd = " ".join(p.info.get("cmdline") or [])
+            except Exception:
+                continue
+            if "binance_user_stream" in cmd and p.pid != os.getpid():
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def _monitor() -> None:
     while not _state["stop"].is_set():
         try:
@@ -121,17 +144,24 @@ def _monitor() -> None:
             # （白名单出口 IP 只在这条链上）。
             ensure_binance_chain_proxy()
             proc = _state["proc"]
-            if proc is None:
-                if not _snapshot_fresh(30.0):
-                    _state["proc"] = _spawn()
-            elif proc.poll() is not None:
+            if proc is not None and proc.poll() is not None:
                 _rc = proc.returncode
                 logger.warning(
                     "[UserStreamGuard] 用户流 worker 退出(rc=%s)，8s 后重启", _rc,
                 )
                 _state["proc"] = None
                 time.sleep(8)
-                if not _state["stop"].is_set() and not _snapshot_fresh(30.0):
+                if not _state["stop"].is_set() and not _user_stream_process_alive():
+                    _state["proc"] = _spawn()
+            elif proc is None:
+                # [2026-09-11 修复] 外部模式（未嵌入）下也要持续监护：
+                # 进程没了且快照不再新鲜 → 拉起自己的 worker。旧逻辑在
+                # proc=None 时只靠快照判断（见 _user_stream_process_alive 注释），
+                # 外部 worker 死后快照保鲜期内不重启、过期后无人管。
+                if not _user_stream_process_alive() and not _snapshot_fresh(30.0):
+                    logger.warning(
+                        "[UserStreamGuard] 未检测到用户流 worker 进程且快照过期，拉起嵌入 worker"
+                    )
                     _state["proc"] = _spawn()
         except Exception as _e:
             logger.warning("[UserStreamGuard] 守护循环异常: %s", _e)
@@ -147,10 +177,14 @@ def ensure_user_stream_worker() -> None:
         # [2026-09-01 实盘断链根治] 链代理先于 worker：币安 API key 白名单
         # 出口 IP 只在 18080 链代理上；代理死了 worker 也白搭。
         ensure_binance_chain_proxy()
-        if _snapshot_fresh(30.0):
-            logger.info("[UserStreamGuard] 外部用户流 worker 存活（快照新鲜），不嵌入")
-            return
-        _state["proc"] = _spawn()
+        # [2026-09-11 修复] 启动判定改用进程存在性（快照新鲜可能是上一任
+        # 后端的孤儿所写）：有进程 → 外部 worker 模式（守护线程照常启动，
+        # 外部 worker 死掉后由监护拉起）；无进程 → 立即嵌入并监护。
+        if _user_stream_process_alive():
+            logger.info("[UserStreamGuard] 外部用户流 worker 进程存活，监护模式（不嵌入）")
+            _state["proc"] = None
+        else:
+            _state["proc"] = _spawn()
         _state["thread"] = threading.Thread(
             target=_monitor, name="user-stream-guard", daemon=True,
         )

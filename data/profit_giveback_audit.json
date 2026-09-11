@@ -28,13 +28,13 @@
       }
     },
     "mid": {
-      "n": 32,
-      "usd": -11.41,
-      "win_rate": 0.375,
+      "n": 31,
+      "usd": -9.37,
+      "win_rate": 0.387,
       "big_loss_n": 6,
       "pattern_n": 10,
       "pattern_usd": -82.1,
-      "pattern_rate": 0.312,
+      "pattern_rate": 0.323,
       "giveback_pct_sum": 34.77,
       "median_giveback_pct": 3.45,
       "gate_split": {
@@ -46,10 +46,10 @@
           "pattern_usd": 0
         },
         "block": {
-          "n": 28,
-          "usd": -32.63,
+          "n": 27,
+          "usd": -30.59,
           "pattern_n": 10,
-          "pattern_rate": 0.357,
+          "pattern_rate": 0.37,
           "pattern_usd": -82.1
         }
       }
@@ -105,11 +105,11 @@
       "big_loss_n": 0
     },
     "block": {
-      "n": 51,
-      "usd": -143.76,
-      "win_rate": 0.412,
+      "n": 50,
+      "usd": -141.71,
+      "win_rate": 0.42,
       "pattern_n": 16,
-      "pattern_rate": 0.314,
+      "pattern_rate": 0.32,
       "pattern_usd": -202.48,
       "big_loss_n": 13
     }
@@ -124,11 +124,11 @@
       "pattern_usd": -71.24
     },
     "mid_range": {
-      "n": 14,
-      "usd": -17.77,
-      "win_rate": 0.357,
+      "n": 13,
+      "usd": -15.73,
+      "win_rate": 0.385,
       "pattern_n": 3,
-      "pattern_rate": 0.214,
+      "pattern_rate": 0.231,
       "pattern_usd": -22.92
     },
     "mid_reversion": {
@@ -170,12 +170,12 @@
     {
       "name": "门放行集模式率 < 门拦截集",
       "ok": true,
-      "detail": "allow=0.0 vs block=0.314"
+      "detail": "allow=0.0 vs block=0.32"
     },
     {
       "name": "门放行集模式 USD/笔 优于门拦截集",
       "ok": true,
-      "detail": "allow=0/8 vs block=-202.48/51"
+      "detail": "allow=0/8 vs block=-202.48/50"
     },
     {
       "name": "long 车道豁免正确（反事实：被拦集更赚）",
@@ -183,7 +183,7 @@
       "detail": "long 放行 $-10.45/4 vs 拦截 $-111.13/23"
     }
   ],
-  "generated_at": "2026-09-11T10:01:17.340863+00:00",
+  "generated_at": "2026-09-11T13:36:02.569839+00:00",
   "days": 14,
-  "n": 59
+  "n": 58
 }

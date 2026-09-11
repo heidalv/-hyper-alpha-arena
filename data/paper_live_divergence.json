@@ -201,7 +201,15 @@
   },
   {
     "file": "backend/services/mlto/brain.py",
-    "line": 1494,
+    "line": 1300,
+    "test": "_tier_l != 'short' and str(_short_mode()) == 'regime_gated'",
+    "kind": "LOG/OTHER",
+    "line_n": 2,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/mlto/brain.py",
+    "line": 1511,
     "test": "(os.getenv('MIDLONG_BRAIN_MODE', 'llm') or 'llm').strip().lower() != 'llm'",
     "kind": "LOG/OTHER",
     "line_n": 1,
