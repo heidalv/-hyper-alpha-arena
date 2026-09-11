@@ -203,9 +203,20 @@ def get_llm_config(
         and not allow_shared
         and _forbid_shared_platform_llm()
     ):
+        # [2026-09-11 观测] 加调用方定位：该警告每 30-60s 出现一次，此前无从
+        # 得知是哪个系统级服务在裸调 get_llm_config()（疑似 rebate/whale/宏观
+        # 等周期任务），无法评估其 LLM 特性静默降级面。只加日志，不改行为。
+        _caller = "-"
+        try:
+            import traceback as _tb
+            _fr = _tb.extract_stack()[-2]
+            _caller = f"{_fr.filename.replace(chr(92), '/').split('/')[-1]}:{_fr.lineno}"
+        except Exception:
+            pass
         logger.warning(
             "[LLM] 拒绝公用默认配置：请为账户配置自有 LLM"
-            "（get_llm_config 未传 tenant_id）"
+            "（get_llm_config 未传 tenant_id；caller=%s）",
+            _caller,
         )
         return None
 
