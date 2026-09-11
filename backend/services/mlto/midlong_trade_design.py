@@ -245,12 +245,29 @@ def apply_structure_atr_floor(
     sl_pct: float,
     atr_1d_pct: Optional[float],
 ) -> Tuple[float, str]:
-    """止损至少覆盖 ATR×mult，避免长线被日噪音波扫。"""
+    """止损至少覆盖 ATR×mult，避免长线被日噪音波扫。
+
+    [2026-09-11 修复] 增加抬升上限 `MIDLONG_ATR_FLOOR_MAX_LIFT`（默认 2.0×原 SL）：
+    高波动日里 ATR×1.5 会把 SL 从 4.8% 撑到 16.24%，随后 TP 被 tier 上限
+    （20%）钳制 → 净 RR 1.23 < MIDLONG_MIN_NET_RR(1.3) → funding 闸恒拦
+    （UNI 19:11 实测，入场链死锁）。政策口径证据（ExitPolicy SL6% 反事实
+    +8.1%/笔）支持「SL 不要无限放宽」。超过 2× 的抬升交给 ATR 仓位收缩
+    （atr_size_multiplier）而非无限放宽止损距离。置 0 = 不设上限（旧口径）。
+    """
     atr = float(atr_1d_pct or 0)
     if atr <= 0:
         return float(sl_pct or 0), "no_atr"
     floor = atr * _cfg_float("MIDLONG_ATR_SL_MULT", 1.5)
     sl = float(sl_pct or 0)
     if floor > sl:
+        max_lift = _cfg_float("MIDLONG_ATR_FLOOR_MAX_LIFT", 2.0)
+        capped = floor
+        if max_lift > 0 and sl > 0:
+            capped = min(floor, sl * max_lift)
+        if capped < floor:
+            return capped, (
+                f"sl {sl:.2%}→{capped:.2%} (ATR×mult floor={floor:.2%} "
+                f"已按抬升上限{max_lift:.1f}×封顶)"
+            )
         return floor, f"sl {sl:.2%}→{floor:.2%} (ATR×mult floor)"
     return sl, "ok"

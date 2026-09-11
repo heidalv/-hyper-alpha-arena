@@ -987,6 +987,8 @@ MIDLONG_ATR_SIZING_ENABLED: bool = os.getenv("MIDLONG_ATR_SIZING_ENABLED", "true
     "true", "1", "yes", "on",
 )
 MIDLONG_ATR_SL_MULT: float = float(os.getenv("MIDLONG_ATR_SL_MULT", "1.5"))
+# [2026-09-11] ATR 地板抬升上限（×原 SL；0=不设限，旧口径）。
+MIDLONG_ATR_FLOOR_MAX_LIFT: float = float(os.getenv("MIDLONG_ATR_FLOOR_MAX_LIFT", "2.0"))
 MIDLONG_RISK_PCT: float = float(os.getenv("MIDLONG_RISK_PCT", "0.01"))
 # 杠杆：中长线升级禁止另设。开仓走动态杠杆 + 已有仓统一杠杆；
 # leverage_authority 仅作上限钳制，不是按周期固定分配。

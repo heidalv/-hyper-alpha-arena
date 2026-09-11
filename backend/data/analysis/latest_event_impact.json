@@ -1,81 +1,30 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789124591449,
-  "accepted": true,
-  "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "052a47fbc7bd4d9bae313d3602395297",
-  "context_hash": "3632dc444d501e692021c1e1e86f0f3068b133230080b9aa8e39a1e041af52fd",
-  "final": {
-    "direction": "bearish",
-    "strength": 5,
-    "confidence": 0.45,
-    "half_life_hours": 12,
-    "affected_symbols": [
-      "KSTR"
-    ],
-    "hedging_window_hours": 8,
-    "position_adjustments": [
-      {
-        "symbol": "KSTR",
-        "action": "no_new_long",
-        "reason": "bybit 资金费 +0.324%/8h（≈+355% APR，为阈值 0.001 的 3.2 倍），binance 亦触发 +0.167%/8h，多所同向正值费率表明多头拥挤；新开多头需承担约 355% APR 的资金费成本且面临多头拥挤回撤风险，费率回归常态前不新增多单。反向空头虽可收取资金费，但无 K 线与持仓结构数据支持择时，不主动建议。"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "现有 long 持仓（upnl -0.24%，距 SL 6.46%）与 KSTR 资金费事件无直接关联证据（corr_to_btc 为空、KSTR 无 K 线），major 币种费率未出现在 funding_extremes 列表，不做调节。"
-      },
-      {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "现有 position 仓（upnl -0.08%）不受 KSTR 局部资金费极值直接影响；市场层面多头清算 5563 万美元高于空头 2251 万美元仅作观察，不足以支持收紧主要仓位止损。"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "现有 position 仓（upnl -0.48%，距 SL 6.31%）与 KSTR 小市值资金费事件无传导证据，维持不变。"
-      }
-    ],
-    "analogues": [
-      {
-        "event": "HORIZON bybit 资金费 +0.778%/8h（≈+852% APR，sev 4），同为正费率极值且幅度高于本次 KSTR",
-        "outcome": "context pack 未提供该事件后续价格/费率回归数据，结果不可考（数据不足）"
-      },
-      {
-        "event": "SENSETIME bybit 资金费 +0.611%/8h（≈+670% APR，sev 4），同类正费率极值",
-        "outcome": "pack 无后续行情与清算归因数据，无法验证均值回归路径（数据不足）"
-      }
-    ],
-    "key_factors": [
-      "KSTR 多所资金费同向极值：bybit +0.324%/8h（≈+355% APR，sev 3）、binance +0.167%/8h（sev 2），asterdex +0.0015、gateio 0.0，正向费率集中反映多头拥挤",
-      "事件 direction 编码为 -0.5（正费率→偏空），为均值回归型信号而非趋势信号，指向前 8-24 小时多头回撤/清算风险",
-      "market:KSTR 无 K 线（缺失层），无法确认价格所处位置与涨幅背景，是本评估置信度受限的主因",
-      "flows 层 bybit 0.1315 与事件 payload 0.324419 存在快照差异，binance 0.2554 与 0.167 亦不一致，可能为不同采样时点，以事件 rate_raw 为准并需跟踪下一期费率",
-      "全市场 24h funding.extreme 事件 200 起、多头清算 5563 万美元 > 空头 2251 万美元，整体多头杠杆偏拥挤；但极值名单均为小市值山寨，未波及当前持仓的 BNB/BTC/SOL"
-    ],
-    "summary": "KSTR 在 bybit/binance 出现同向极端正资金费（bybit +0.324%/8h ≈ +355% APR，为阈值的 3.2 倍），是典型的多头拥挤过热信号，方向判定为偏空（bearish），但强度中等（sev 3）且因 market:KSTR K 线缺失、多所费率快照存在差异，confidence 降至 0.45。资金费极值通常在 1-2 个结算周期（约 8-24h）内衰减，取半衰期 12h、监控窗口 8h。该事件为 KSTR 局部冲击，与现有 BNB/BTC/SOL 三笔多头持仓无直接传导证据，故仅对 KSTR 设 no_new_long（避免在 355% APR 付费成本与多头回撤风险下开多），现有持仓维持不动；若 KSTR 费率连续两期维持极值且出现价格放量滞涨，再评估升级为 reduce/tighten_stops。历史同类极值（HORIZON +852% APR、SENSETIME +670% APR 等）在 pack 中无后续行情数据，无法验证结果，本次结论以费率结构推断为主，建议下一期资金费结算后复核。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 对证据的处理更忠实于 context pack：其 analogues 明确标注 pack 未提供后续价格/费率回归数据（数据不足不可考），而 A 为 HORIZON/SENSETIME 等类比事件虚构了'高正费率后通常多头平仓回落/24-48h走弱'的结果，属于 pack 之外的假设；且 A 摘要中自认'方向偏空'却给出 neutral 方向，自相矛盾。事实层面，pack 显示 KSTR 为多所同向正费率而非单一交易所局部异常：bybit +0.324%/8h（sev3）与 binance +0.167%/8h（sev2）同时触发独立事件，flows 快照 binance 0.2554%、bybit 0.1315% 亦均为正，配合事件 direction=-0.5 的均值回归编码，支持多头拥挤的偏空判定；B 还正确识别了 flows 快照与事件 payload 的采样差异，并论证与现有 BNB/BTC/SOL 持仓无传导证据、维持持仓不动，处置边界恰当。但 market:KSTR 无 K 线（缺失层）、gateio 0.0/asterdex 0.0015 表明非全市场拥挤、24h 内同类 funding.extreme 达 200 起且 KSTR 仅 sev3、系无持仓小币种，故将强度自 B 的 5 下调至 4，confidence 取中等。"
-    }
-  },
-  "notes": [],
+  "ts_ms": 1789126238783,
+  "accepted": false,
+  "status": "degraded",
+  "consensus_score": 0.375,
+  "run_id": "6d4c9e416a8741aaa6013b93922bd593",
+  "context_hash": "089f9707fa6263d0ad902062427ab54c6917df97eb8ddafd0f19ec24ea26e91d",
+  "final": null,
+  "notes": [
+    "glm_opencode: RuntimeError: [WinError 10054] 远程主机强迫关闭了一个现有的连接。",
+    "单模型结论（minimax），不得入 signal_ledger"
+  ],
   "event": {
-    "id": 74274,
+    "id": 74287,
     "event_type": "funding.extreme",
-    "symbol": "KSTR",
+    "symbol": "RVN",
     "ts_ms": 1789114123432,
     "severity": 3,
-    "direction": -0.5,
-    "title": "bybit KSTR 资金费 +0.324%/8h（≈+355% APR）",
+    "direction": 0.5,
+    "title": "bybit RVN 资金费 -0.316%/8h（≈-346% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 355.2,
-      "rate_8h": 0.00324419,
+      "apr_pct": -346.3,
+      "rate_8h": -0.00316233,
       "exchange": "bybit",
-      "rate_raw": 0.00324419,
+      "rate_raw": -0.00316233,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
