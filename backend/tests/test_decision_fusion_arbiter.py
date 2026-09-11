@@ -1,7 +1,22 @@
 """决策融合仲裁器单测（阶段0）：v2 决策矩阵全行覆盖。"""
+import pytest
+
+from backend.services import scalp_meta_trainer as _smt
 from backend.services.decision_fusion_arbiter import (
     FusionDecision, decide_scalp, decide_mid, decide_long,
 )
+
+
+@pytest.fixture(autouse=True)
+def _meta_model_usable(monkeypatch):
+    """[2026-09-12] 本文件测的是分档/门槛机制本身：钉住 meta_model_usable=True。
+
+    生产元模型 v3 自评 OOS AUC 0.522<0.53 → usable=False 时，decide_scalp 走
+    探索配额路径（pwin_model_unusable_explore*），分档断言全部错位——生产模型
+    状态泄漏进单测。这里显式钉住 True，机制测试与生产状态解耦；
+    unusable 探索路径的契约在 scalp 侧专门测试覆盖。
+    """
+    monkeypatch.setattr(_smt, "meta_model_usable", lambda: True)
 
 # ── decide_scalp 决策矩阵 ──
 
@@ -34,6 +49,11 @@ def _isolate(monkeypatch, *, tiers="0.60:0.75,0.55:0.50,0.50:0.25", probe_quota=
     monkeypatch.setenv("FUSION_PWIN_TIERED", "true")
     monkeypatch.setenv("FUSION_PWIN_TIERS", tiers)
     monkeypatch.setenv("FUSION_PROBE_DAILY_QUOTA", probe_quota)
+    # [2026-09-12] 生产 .env 有 FUSION_PROBE_DAILY_QUOTA_PAPER=60：_probe_quota_cap
+    # 按 mode 优先读 *_PAPER / *_LIVE 键，只设全局键会被生产值盖掉（实测 cap=60
+    # 而非 3）。三键同钉，机制测试与生产配额解耦。
+    monkeypatch.setenv("FUSION_PROBE_DAILY_QUOTA_PAPER", probe_quota)
+    monkeypatch.setenv("FUSION_PROBE_DAILY_QUOTA_LIVE", probe_quota)
     return arb
 
 def test_pwin_below_min_holds(monkeypatch):
