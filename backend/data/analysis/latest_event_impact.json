@@ -1,103 +1,109 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789128613958,
+  "ts_ms": 1789129228545,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.825,
-  "run_id": "4eca421a20384ffebeee696cf68a81d8",
-  "context_hash": "4684810c5fdc6d8c795f5bee5b42ba02268646593320ade190fe4df27242c61d",
+  "consensus_score": 0.83,
+  "run_id": "db9ed984d1654c2387488d0f50304151",
+  "context_hash": "0e36627c0188d2c10714917f5efdc73f2c75b9b709313a2cce36265b2973dc11",
   "final": {
     "direction": "bullish",
     "strength": 3.0,
-    "confidence": 0.45,
-    "half_life_hours": 14.0,
+    "confidence": 0.41,
+    "half_life_hours": 9.0,
     "affected_symbols": [
-      "NEWT"
+      "XCN"
     ],
-    "hedging_window_hours": 24.0,
+    "hedging_window_hours": 6.0,
     "position_adjustments": [
       {
-        "symbol": "NEWT",
-        "action": "no_new_long",
-        "reason": "极度负资金费意味着空头拥挤、现货卖压不足，理论上对短期价格有支撑/反弹倾向，但单点Gateio读数（-0.20%/8h）相对温和，且现货回报（7d +5.94%）已部分price-in，避免逆费率裸多"
-      },
-      {
-        "symbol": "NEWT",
+        "symbol": "XCN",
         "action": "no_new_short",
-        "reason": "三所资金费同步深度为负（事件载荷 gateio -0.203%/8h ≈-222.6% APR；快照 binance -0.2061%、bybit -0.1896%、gateio -0.3113%/8h），做空 carry 成本极高且空头拥挤、轧空风险大；组合当前未持有 NEWT，维持不新开空。"
+        "reason": "跨交易所普遍深负费（bybit -0.596%、gateio -0.339%、asterdex -0.0089%），空头付息极高，做空成本不划算；当前无 XCN 持仓，不宜新增空头"
       },
       {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "事件为 NEWT 小市值个体信号，与主力币相关性数据缺失（correlation_pairs/corr_to_btc 为空），现有多头（R=-0.04，dist_sl 6.44%）无需调节，仅监控。"
+        "symbol": "XCN",
+        "action": "no_new_short",
+        "reason": "gateio 资金费 -0.292%/8h（-320% APR，阈值的约3倍）且24h内持续加深（bybit -0.109%→-0.596%），空头拥挤、挤压反弹风险高；且 market:XCN 无K线数据，趋势无法验证，不宜新开空头"
       },
       {
         "symbol": "BTC",
         "action": "none",
-        "reason": "无向主力币传导的证据，现有多头（R=-0.02）保持原风控。"
+        "reason": "本事件为 XCN 币种级资金费异常，现有 BTC 多头（upnl≈0，dist_sl 6.67%）不受直接影响，无需调节"
+      },
+      {
+        "symbol": "BNB",
+        "action": "none",
+        "reason": "事件为 XCN 个体性异常，BNB 多头仓位不受直接影响"
       },
       {
         "symbol": "SOL",
         "action": "none",
-        "reason": "同上，现有多头（R=-0.06）保持；若小市值负资金费 cluster 升级为普跌再收紧。"
+        "reason": "事件为 XCN 个体性异常，SOL 多头仓位不受直接影响"
       },
       {
         "symbol": "UNI",
         "action": "none",
-        "reason": "刚开仓 0.6h（R=0.01），事件与 UNI 无直接关联，维持原计划。"
+        "reason": "事件为 XCN 个体性异常，UNI 多头仓位不受直接影响"
       }
     ],
     "analogues": [
       {
-        "event": "NEWT binance资金费 -0.188%/8h 同窗口触发",
-        "outcome": "与本次Gateio读数同步出现，反映跨交易所一致的空头拥挤，资金费极端持续时间通常为1-3个结算周期（8-24h）"
+        "event": "bybit XCN 资金费 -0.109%/8h（≈-119% APR）",
+        "outcome": "约2小时内同一标的费率迅速走深到 -0.596%/8h，反映空头拥挤持续加深"
       },
       {
-        "event": "小市值代币极端负费率（VTHO/RVN/LSK等）",
-        "outcome": "多数情况下极端负费率后跟随短期反弹（费率均值回归），但样本量小且流动性差，胜率不稳定"
+        "event": "gateio VTHO 资金费 -2.000%/8h（≈-2190% APR）",
+        "outcome": "数据不足，未给出后续价格路径"
       },
       {
-        "event": "同批次跨所确认：binance NEWT -0.188%/8h（sev2）、bybit NEWT -0.261%/8h（sev3），与 gateio 事件同一时间戳",
-        "outcome": "跨所一致确认空头拥挤，但事件后价格/资金费回归的结局数据缺失（数据不足），无法验证轧空是否兑现。"
+        "event": "bybit BREW / gateio BREW 资金费同时深负",
+        "outcome": "数据不足，跨交易所同步走负但后续价格行为未知"
       },
       {
-        "event": "同期小市值板块负资金费极端群发：gateio VTHO -2.000%/8h、LSK -1.063%/8h、RVN -0.544%/8h，bybit PUFFER -1.640%/8h 等（24h 同类事件 200 起）",
-        "outcome": "结局数据不足：pack 未提供历史同类事件后的收益分布，仅能作为板块性空头拥挤 regime 的旁证。"
+        "event": "XCN bybit 资金费 -0.109%/8h（约4小时前，sev2）",
+        "outcome": "随后约4小时内负费在多所加深（bybit -0.596%、gateio -0.339%），空头拥挤呈强化而非回归态势；价格端后续走势因无K线数据无法验证"
+      },
+      {
+        "event": "同24h内多只小市值币极端负费：VTHO gateio -2.000%/8h、LSK -1.063%、PUFFER bybit -1.640%、RVN -0.665%",
+        "outcome": "24h 事件总数200条，极端负费集中于小市值币，呈板块性空头拥挤格局；通常伴随挤压反弹概率上升，但本次缺失价格验证数据"
       }
     ],
     "key_factors": [
-      "三所（binance/bybit/gateio）NEWT资金费同步为负，跨交易所一致性强",
-      "负费率绝对水平（≈-200% APR）较高，但远低于同日BREW/PUFFER/VTHO等极端读数",
-      "NEWT 7日涨幅+5.94%，1日基本持平（-0.09%），趋势偏强",
-      "30日回报数据缺失，无法确认中期趋势背景",
-      "ATR14日6.8%、年化波动84.6%，波动性高使费率信号噪声增大",
-      "同日市场出现200条funding.extreme事件，资金费极端现象普遍，非NEWT特异性信号",
-      "缺乏NEWT与BTC相关性数据，避险对冲参照有限",
-      "当前账户未持有NEWT敞口，仅BTC/BNB/SOL/UNI多头，与本次事件相关性低",
-      "跨所一致性：NEWT 在 binance/bybit/gateio 资金费同时深度为负（约 -0.19%~-0.31%/8h），是空头拥挤共识而非单一交易所噪音",
-      "价格与资金费背离：7d +5.94%、RSI14 60.2、1d 仅 -0.09%，价格韧性叠加极端负资金费，构成轧空（short squeeze）偏多设置，与事件方向标签 dir=+0.5 一致",
-      "板块性背景：24h 内 funding.extreme 达 200 起，负资金费极端集中于小市值 alt（VTHO/PUFFER/LSK/RVN 等），NEWT 属于该 regime 的一环而非孤立事件",
-      "做空 carry 成本约 -223% APR，新开空单每 8h 赔付约 0.2%，风险收益比极差",
-      "数据不足：无历史同类事件结局、无 NEWT 与 BTC 相关性、position_structure 与分币种清算数据为空；且市场快照（as_of 1788998400000）早于事件时间戳（1789114123432）约 32 小时，存在时效错配",
-      "市场噪音偏空：24h 多头清算 $57.4M vs 空头 $22.1M，高冲击新闻 3 条全为负面，限制看多判断的置信度"
+      "XCN 在 gateio(-0.339%/8h) 与 bybit(-0.596%/8h) 同步深负，asterdex 仅 -0.0089%，呈跨交易所不一致，gateio 信号最弱",
+      "现货/资金流/持仓结构层对 XCN 完全缺失（market 与 position_structure 为空），无法独立验证空头拥挤",
+      "近 24h 全市场有 200 条 funding.extreme 事件，XCN 出现 2 次（sev 2 → sev 3 升级），说明极值在加深但未必单标的驱动",
+      "24h 整体爆仓结构 long_liq 57.5M vs short_liq 22.0M，空头爆仓占比偏低，对 XCN 直接推动有限",
+      "当前账户无 XCN 持仓，事件冲击不构成直接损益风险，但费率极端本身是后续均值回归触发器",
+      "gateio XCN 资金费 -0.292%/8h（≈-320% APR），为 0.001%/8h 阈值的近3倍，sev3，空头付费拥挤",
+      "跨所显著分化：binance 0.0%、asterdex -0.0089%，极端负费仅集中在 bybit/gateio，属所内供需失衡而非全市场方向信号，削弱看多置信度",
+      "24h 内 XCN 负费持续加深（bybit -0.109%→-0.596%），拥挤度仍在上升，短期挤压风险随时间累积",
+      "全市场24h多头清算 $57.46M > 空头清算 $22.02M，前期下跌后小市值币普遍负费，挤压反弹环境成立",
+      "缺失层：market:XCN 无K线，价格趋势/波动无法验证，事件冲击强度与置信度受限"
     ],
-    "summary": "Gateio NEWT资金费跌至-0.203%/8h（≈-223% APR），与Binance/Bybit同方向同步出现，表明空头仓位拥挤。理论上负费率极端暗示空头平仓风险上升，对短期价格有轻微偏多支撑（direction=bullish），但单点信号强度有限：费率绝对水平在同日200条极端事件中仅属中等，且NEWT已7日+5.94%，反弹预期部分price-in。半衰期约16小时（2个资金费结算周期），之后费率均值回归将削弱信号。现货波动高、缺乏30日与BTC相关性数据，建议对NEWT本身不新开多仓；若已有多头则可适度tighten_stops。整体事件对当前组合（BTC/BNB/SOL/UNI多）影响微弱，无需系统性对冲。confidence因数据缺失和单点信号强度低而下调至0.45。"
+    "summary": "gateio XCN 资金费 -0.292%/8h 触发 sev3 极值，但同一时段 bybit 费率更深（-0.596%/8h）、asterdex 几乎中性（-0.0089%），跨交易所分歧明显，gateio 单点信号的代表性偏弱。在缺失 XCN K 线、持仓与现货流数据的前提下，倾向解读为'空头拥挤+潜在挤压'的中性偏多信号，但不构成高确信方向性机会。鉴于做空需承担年化 -320% 的资金成本，建议不对 XCN 新增空头；如已有空头应降仓或收紧止损以对冲费率均值回归反转；半衰期短（约 4–8 小时），主要影响窗口在下一次 8h 结算前后。整体 confidence 受限于市场层数据不足，需等待价格与持仓确认。",
+    "confidence_note": "数据不足：market.XCN K 线缺失、position_structure 为空、liquidations_24h 未覆盖 XCN，置信度上限被压低",
+    "risks": [
+      "若 asterdex 费率回归到接近 0 而 bybit/gateio 维持深负，跨交易所套利关闭可能加速负费率收敛",
+      "XCN 流动性差时极值费率持续时间可能远超 8h，挤压行情反而延后",
+      "若大盘出现系统性去杠杆，负费率信号会被宏观流动性冲击覆盖"
+    ]
   },
   "notes": [],
   "event": {
-    "id": 74312,
+    "id": 76072,
     "event_type": "funding.extreme",
-    "symbol": "NEWT",
-    "ts_ms": 1789114123432,
+    "symbol": "XCN",
+    "ts_ms": 1789128472144,
     "severity": 3,
     "direction": 0.5,
-    "title": "gateio NEWT 资金费 -0.203%/8h（≈-223% APR）",
+    "title": "gateio XCN 资金费 -0.292%/8h（≈-320% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -222.6,
-      "rate_8h": -0.002033,
+      "apr_pct": -320.2,
+      "rate_8h": -0.002924,
       "exchange": "gateio",
-      "rate_raw": -0.002033,
+      "rate_raw": -0.002924,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
