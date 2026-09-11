@@ -107,10 +107,35 @@ def _get_credential(db, user_id: int):
     ).first()
 
 
-def _get_client(user_id: int):
+def _get_client(user_id: int, account_id: int = 0):
+    """[2026-09-12 F38u] fresh 客户端（每次新建，不读共享缓存）。
+
+    旧实现 get_or_create_global_client（共享缓存）+ asyncio.run（每次新 loop）：
+    ccxt 适配器 _ensure_loop 检测跨 loop 复用即重建实例，旧实例（带活跃 aiohttp
+    会话）弃置不 close → "Unclosed client session"；下单路径还会踩 8/29 的
+    跨 loop 永久挂起。与 trading_commands / live_trading 同款：fresh + 用完即关。
+    """
     from backend.services.exchange.exchange_manager import get_exchange_manager
     mgr = get_exchange_manager()
-    return mgr.get_or_create_global_client(EXCHANGE_NAME, user_id=user_id)
+    return mgr.create_fresh_client(
+        EXCHANGE_NAME, user_id=user_id, account_id=account_id,
+    )
+
+
+def _run_client_op(client, factory, timeout: float = 30.0):
+    """同一 event loop 内执行 factory 并关闭客户端（F38 根治模式）。
+
+    close 必须在与请求相同的 loop 内 await，否则 aiohttp 会话清理不到。
+    """
+    async def _op():
+        try:
+            return await asyncio.wait_for(factory(), timeout=timeout)
+        finally:
+            try:
+                await asyncio.wait_for(client.close(), timeout=5)
+            except Exception:
+                pass
+    return asyncio.run(_op())
 
 
 def _fingerprint(api_key: str) -> Optional[str]:
@@ -310,11 +335,11 @@ async def get_binance_balance(account_id: int, request: Request):
     finally:
         db.close()
 
-    client = _get_client(uid)
+    client = _get_client(uid, account_id)
     if client is None:
         raise HTTPException(400, "币安未配置或未启用（请先在「交易所配置」添加全局凭证）")
     try:
-        bal = asyncio.run(client.get_balance())
+        bal = _run_client_op(client, client.get_balance)
     except Exception as e:
         logger.error("[Binance] get_balance error: %s", e)
         raise HTTPException(502, f"获取余额失败: {e}")
@@ -341,11 +366,11 @@ async def get_binance_positions(
     finally:
         db.close()
 
-    client = _get_client(uid)
+    client = _get_client(uid, account_id)
     if client is None:
         raise HTTPException(400, "币安未配置或未启用")
     try:
-        positions = asyncio.run(client.get_positions())
+        positions = _run_client_op(client, client.get_positions)
     except Exception as e:
         logger.error("[Binance] get_positions error: %s", e)
         raise HTTPException(502, f"获取持仓失败: {e}")
@@ -380,10 +405,6 @@ async def place_binance_order(account_id: int, body: BinanceOrderRequest, reques
     finally:
         db.close()
 
-    client = _get_client(uid)
-    if client is None:
-        raise HTTPException(400, "币安未配置或未启用")
-
     from backend.services.exchange.base_exchange_client import (
         ExchangeOrder, OrderSide, OrderType,
     )
@@ -393,11 +414,15 @@ async def place_binance_order(account_id: int, body: BinanceOrderRequest, reques
     otype = OrderType.LIMIT if body.order_type.lower() == "limit" else OrderType.MARKET
     algo = (body.algo or "MARKET").upper()
 
-    # FUNDING_IS: 用交易所 funding rate（BaseExchangeClient 提供）
+    # FUNDING_IS: 用交易所 funding rate（BaseExchangeClient 提供）——一次性 fresh 客户端
     funding_rate_8h = None
     if algo == "FUNDING_IS":
         try:
-            funding_rate_8h = asyncio.run(client.get_funding_rate(body.symbol))
+            _fr_client = _get_client(uid, account_id)
+            if _fr_client is not None:
+                funding_rate_8h = _run_client_op(
+                    _fr_client, lambda: _fr_client.get_funding_rate(body.symbol),
+                )
         except Exception as e:
             logger.warning("[Binance] funding rate unavailable: %s", e)
 
@@ -411,6 +436,12 @@ async def place_binance_order(account_id: int, body: BinanceOrderRequest, reques
         logger.warning("[Binance] %s %s 降级: %s", body.symbol, body.side, meta["fallback"])
 
     def _place_slice(qty: float, is_last: bool):
+        # [2026-09-12 F38u] 每切片独立 fresh 客户端 + 同 loop 关闭（与
+        # trading_commands._place_order_fresh_client 同款根治：共享客户端
+        # 跨 asyncio.run 复用会重建实例弃置旧会话 + 下单永久挂起风险）。
+        _slice_client = _get_client(uid, account_id)
+        if _slice_client is None:
+            raise RuntimeError("币安未配置或未启用")
         order = ExchangeOrder(
             order_id="",
             symbol=body.symbol,
@@ -422,7 +453,7 @@ async def place_binance_order(account_id: int, body: BinanceOrderRequest, reques
             reduce_only=body.reduce_only,
             # 仅最后一片携带 TP/SL？手动下单无 TP/SL 参数 → 全 None
         )
-        r = asyncio.run(client.place_order(order))
+        r = _run_client_op(_slice_client, lambda: _slice_client.place_order(order), timeout=30.0)
         logger.info(
             "[Binance] algo=%s slice=%s %s %s qty=%.6f -> %s",
             algo, "LAST" if is_last else "..", body.symbol, body.side, qty, r,
@@ -465,7 +496,7 @@ async def close_binance_position(account_id: int, request: Request, symbol: str 
     finally:
         db.close()
 
-    client = _get_client(uid)
+    client = _get_client(uid, account_id)
     if client is None:
         raise HTTPException(400, "币安未配置或未启用")
 
@@ -474,7 +505,7 @@ async def close_binance_position(account_id: int, request: Request, symbol: str 
     )
 
     try:
-        positions = asyncio.run(client.get_positions())
+        positions = _run_client_op(client, client.get_positions)
     except Exception as e:
         logger.error("[Binance] get_positions error: %s", e)
         raise HTTPException(502, f"获取持仓失败: {e}")
@@ -493,8 +524,12 @@ async def close_binance_position(account_id: int, request: Request, symbol: str 
         leverage=1,
         reduce_only=True,
     )
+    # [2026-09-12 F38u] 下单独立 fresh 客户端 + 同 loop 关闭（持仓查询的客户端已关）
+    _ord_client = _get_client(uid, account_id)
+    if _ord_client is None:
+        raise HTTPException(400, "币安未配置或未启用")
     try:
-        result = asyncio.run(client.place_order(order))
+        result = _run_client_op(_ord_client, lambda: _ord_client.place_order(order), timeout=30.0)
     except Exception as e:
         logger.error("[Binance] close_position error: %s", e)
         raise HTTPException(502, f"平仓失败: {e}")
