@@ -92,9 +92,9 @@
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_ee142d": 112,
-    "tpl_mid_range_89e53b": 76,
-    "tpl_mid_reversion_290af6": 112
+    "tpl_mid_reversion_ee142d": 113,
+    "tpl_mid_range_89e53b": 77,
+    "tpl_mid_reversion_290af6": 113
   },
   "live_cooldown_until": {},
   "started_at": "2026-09-09T04:43:02.132140+00:00"
