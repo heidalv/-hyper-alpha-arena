@@ -115,15 +115,18 @@ def _resolve_client(account) -> Tuple[Any, str]:
     exchange = _norm_ex(getattr(account, "selected_exchange", None) or _default_ex())
     from backend.services.exchange.exchange_manager import get_exchange_manager
     mgr = get_exchange_manager()
-    client = mgr.get_client(exchange, getattr(account, "id", 0) or 0)
-    if client is None:
-        market_type = getattr(account, "binance_market_type", None) or "usdt_m"
-        client = mgr.get_or_create_global_client(
-            exchange,
-            user_id=getattr(account, "user_id", None) or 1,
-            account_id=getattr(account, "id", 0) or 0,
-            market_type=market_type if exchange == "binance" else None,
-        )
+    # [2026-09-12 F38v 泄漏家族终局] 旧实现 get_client / get_or_create_global_client
+    # （共享缓存客户端）+ _run_async（每次 asyncio.run 新 loop）：ccxt 适配器
+    # _ensure_loop 检测跨 loop 复用即重建实例，旧实例（带活跃 aiohttp 会话）
+    # 弃置不 close → Unclosed session；实盘 TP/SL 变更时每条同步泄漏一个。
+    # 改为 fresh 客户端 + 与请求同 loop 内 close（F38o-r/u 同款根治）。
+    market_type = getattr(account, "binance_market_type", None) or "usdt_m"
+    client = mgr.create_fresh_client(
+        exchange,
+        user_id=getattr(account, "user_id", None) or 1,
+        account_id=getattr(account, "id", 0) or 0,
+        market_type=market_type if exchange == "binance" else None,
+    )
     if client is None and exchange == "hyperliquid":
         client = mgr.create_client("hyperliquid", getattr(account, "id", 0) or 0)
     return client, exchange
@@ -153,13 +156,24 @@ def _sync_ccxt(client, pos, tp: float, sl: float) -> Dict[str, Any]:
     if replacer is None:
         return {"ok": False, "error": "no replace_tpsl_orders"}
     side = str(getattr(pos, "side", "long") or "long").lower()
-    return _run_async(lambda: replacer(
-        getattr(pos, "symbol", ""),
-        side=side,
-        quantity=abs(_f(getattr(pos, "size", 0))),
-        tp_price=tp if tp > 0 else None,
-        sl_price=sl if sl > 0 else None,
-    ))
+
+    async def _op():
+        try:
+            return await replacer(
+                getattr(pos, "symbol", ""),
+                side=side,
+                quantity=abs(_f(getattr(pos, "size", 0))),
+                tp_price=tp if tp > 0 else None,
+                sl_price=sl if sl > 0 else None,
+            )
+        finally:
+            # [2026-09-12 F38v] 与请求同 loop 关闭（fresh 客户端，用完即弃）
+            try:
+                await client.close()
+            except Exception:
+                pass
+
+    return _run_async(lambda: _op())
 
 
 def native_trailing_enabled() -> bool:
@@ -194,13 +208,24 @@ def maybe_place_native_trailing(db, pos, *, callback_pct: float, activation_pric
         placer = getattr(client, "place_trailing_stop", None)
         if placer is None:
             return {**empty, "reason": "no_native_trailing", "exchange": exchange}
-        result = _run_async(lambda: placer(
-            getattr(pos, "symbol", ""),
-            side=str(getattr(pos, "side", "long") or "long").lower(),
-            quantity=abs(_f(getattr(pos, "size", 0))),
-            callback_rate_pct=float(callback_pct),
-            activation_price=activation_price,
-        ))
+
+        async def _op():
+            try:
+                return await placer(
+                    getattr(pos, "symbol", ""),
+                    side=str(getattr(pos, "side", "long") or "long").lower(),
+                    quantity=abs(_f(getattr(pos, "size", 0))),
+                    callback_rate_pct=float(callback_pct),
+                    activation_price=activation_price,
+                )
+            finally:
+                # [2026-09-12 F38v] 与请求同 loop 关闭（fresh 客户端）
+                try:
+                    await client.close()
+                except Exception:
+                    pass
+
+        result = _run_async(lambda: _op())
         ok = bool(result.get("ok", False)) if isinstance(result, dict) else False
         (logger.info if ok else logger.warning)(
             "[LiveTpSlSync] native trailing %s %s cb=%.2f%% → %s",

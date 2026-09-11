@@ -40,3 +40,20 @@ def test_client_closed_in_same_loop():
     # finally 块内 await close（与请求同 loop）；若 close 在 asyncio.run 之外新 loop 执行则清理不到
     assert "await _ai.wait_for(client.close(), timeout=5)" in src
     assert "finally:" in src
+
+
+# ══ [2026-09-12 F38v] live_tpsl_sync 泄漏家族终局（同一根治模式） ══
+
+def test_live_tpsl_sync_uses_fresh_client():
+    from backend.services.exchange import live_tpsl_sync as lts
+    src = inspect.getsource(lts._resolve_client)
+    assert "create_fresh_client(" in src, "实盘 TP/SL 同步必须每次新建客户端"
+    assert ".get_or_create_global_client(" not in src, "共享缓存客户端是泄漏源，禁止回归"
+
+
+def test_live_tpsl_sync_closes_in_loop():
+    from backend.services.exchange import live_tpsl_sync as lts
+    src = inspect.getsource(lts._sync_ccxt)
+    assert "finally:" in src and "await client.close()" in src
+    src2 = inspect.getsource(lts.maybe_place_native_trailing)
+    assert "finally:" in src2 and "await client.close()" in src2
