@@ -1118,18 +1118,22 @@ def _dim_controlled_dca(
         )
         th = _th_get(_sid, sym, tier if tier in ("long", "short") else "mid")
         if th is None or not _th_fresh(th):
+            _dca_precheck_note(sym, "no_thesis", "无论题/论题过期")
             return {**out, "channel": "no_thesis", "reasoning": "无论题/论题过期"}
         th_dir = str(getattr(th, "direction", "") or "").lower()
         if th_dir != side:
+            _dca_precheck_note(sym, "thesis_dir_mismatch", f"论题方向 {th_dir} ≠ 仓位 {side}")
             return {**out, "channel": "thesis_dir_mismatch",
                     "reasoning": f"论题方向 {th_dir} ≠ 仓位 {side}"}
         if bool(getattr(th, "should_close", False)):
+            _dca_precheck_note(sym, "should_close_pending", "should_close 待确认：不平也不补")
             return {**out, "channel": "should_close_pending",
                     "reasoning": "should_close 待确认：不平也不补"}
         # 反转价格闸：True=放行平仓（亏损深/下行 regime）→ 禁止补仓；
         # False=噪音区（行情未反转）→ 补仓候选
         _tb_ok, _tb_why = trend_broken_price_gate(position, side=side, tier=tier)
         if _tb_ok:
+            _dca_precheck_note(sym, "trend_broken_gate", f"反转价格闸放行平仓侧({_tb_why})，禁止补仓")
             return {**out, "channel": "trend_broken_gate",
                     "reasoning": f"反转价格闸放行平仓侧({_tb_why})，禁止补仓"}
         # 同向失效价未破
@@ -1141,16 +1145,31 @@ def _dim_controlled_dca(
                 side == "short" and mark > float(ipx)
             )
             if hit:
+                _dca_precheck_note(sym, "inv_breached", f"失效价 {ipx} 已破，禁止补仓")
                 return {**out, "channel": "inv_breached",
                         "reasoning": f"失效价 {ipx} 已破，禁止补仓"}
     except Exception as e:
         logger.debug("[MidLong] F40 前置检查异常(skip): %s", e)
+        _dca_precheck_note(sym, "precheck_error", str(e)[:80])
         return {**out, "channel": "precheck_error", "reasoning": str(e)[:80]}
     if _exec_controlled_dca(db, account_id=account_id, position=position,
                             host=host, session=session):
         return {"action": "dca_executed", "channel": "dca",
                 "reasoning": "逆势补仓已成交（论题有效+噪音区）"}
     return {**out, "channel": "dca_gate_skip", "reasoning": "补仓门控未通过（冷却/带外/敞口）"}
+
+
+_dca_precheck_logged: Dict[str, float] = {}
+
+
+def _dca_precheck_note(sym: str, channel: str, reasoning: str) -> None:
+    """F40 前置 skip 的可观测限流日志（每 (symbol,channel) 最多 1 条/小时）。"""
+    now = time.time()
+    key = f"{sym}:{channel}"
+    if now - _dca_precheck_logged.get(key, 0.0) < 3600.0:
+        return
+    _dca_precheck_logged[key] = now
+    logger.info("[MidLong] F40 补仓前置 skip %s channel=%s: %s", sym, channel, reasoning)
 
 
 # ──────────────────────────────────────────────────────────────────────
