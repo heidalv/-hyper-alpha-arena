@@ -330,13 +330,28 @@ def plan_tick(
         # 固定基础币数量（而非固定美元名义）：否则一买一卖后残留差额，
         # 长期会漂移出不受控的方向性库存。与 F59 回放同口径。
         leg_qty = fill_notional / mid
+        # [F75 2026-09-12 回放/实盘同口径] 队列份额约束：影子成交模拟必须与回放
+        # 一致——排在既有做市商之后，只能吃到区间主动量的一部分（F59_QUEUE_SHARE，
+        # 默认 0.30）。此前实盘每段全量吃 $100、回放只吃 30%：库存摆动 ~3× 大、
+        # 漂移亏损 ~3× 大——回放正收益的配置在实盘变负的根因。
+        try:
+            from backend.services.market_maker.replay import (
+                MIN_FILL_NOTIONAL as _MIN_FILL_NOTIONAL,
+                QUEUE_SHARE as _QUEUE_SHARE,
+            )
+        except Exception:
+            _QUEUE_SHARE, _MIN_FILL_NOTIONAL = 0.30, 10.0
         # 归因口径：价差用**挂单时的中价**做基准（挂单意图的边际），
         # 行情从挂单到成交的移动归入 price 维度。
         # 若用成交判定时的中价，行情下跌会把负值塞进 spread，
         # 看起来像「挂宽 8bp 却负价差」，实际是逆选择（总量不变，但归因不可读）。
         ref_mid = state.quote_mid if state.quote_mid > 0 else mid
         for side, px in legs:
-            qty = leg_qty
+            # [F75] 队列份额：与回放同口径（只能吃到区间主动量的一部分）
+            _avail = float(seg_taker_sell if side == "buy" else seg_taker_buy)
+            qty = min(leg_qty, _avail * _QUEUE_SHARE)
+            if qty * px < _MIN_FILL_NOTIONAL:
+                continue
             edge = ((ref_mid - px) if side == "buy" else (px - ref_mid)) / ref_mid * 1e4
             d = local_book.apply_fill(symbol=state.symbol, side=side, qty=qty, fill_px=px,
                                       mid_px=ref_mid, fee_rate=maker_fee_bp / 1e4,
@@ -937,7 +952,9 @@ class ShadowRunner:
 
         rep = {
             "lane_id": self.lane_id, "venue": self.venue, "window_days": days,
-            "fills": fills, "flattens": self.flattens,
+            # [F75] flattens 与 fills 必须同窗口同源（此前用进程内计数 vs 30 天账本
+            # ——重启即清零，与 fills 窗口不一致，报表平仓占比长期失真）。
+            "fills": fills, "flattens": int((fstats or {}).get("flattens") or 0),
             "notional": round(float(total.get("notional") or 0.0), 2),
             # 无成交时六维是「无数据」而非 0——用 0 会把「没跑」读成「跑平了」
             "spread_bp": total.get("spread_bp") if fills else None,
