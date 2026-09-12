@@ -7,7 +7,9 @@
   ① 方向延续性   trend_agent.review_position          → hold / reduce / close / tighten
   ② 滚仓(金字塔)  trend_agent.evaluate_pyramid + 5层门控 → add / wait / skip
   ③ TP/SL 调整   review_position.trend_adjustment      → update_position_tp_sl
-  ④ 补仓(DCA)    默认禁止（浮亏加仓=自杀原则）          → skip
+  ④ 补仓(DCA)    [2026-09-12 F40] 受控逆势补仓：论题同向有效 + 反转价格闸
+                 噪音区 + 亏损带内（-2%~-8%）→ evaluate_dca 全门控补仓；
+                 否则 skip（绝不在未反转行情里小亏全平）
   ⑤ 分批止盈      long_tier_staged_tp.check            → reduce / trailing_update / trailing_hit
   ⑥ 反转离场      evaluate_midlong_exit + no_progress   → close
 
@@ -1023,6 +1025,134 @@ def _exec_pyramid(
     return False
 
 
+def _exec_controlled_dca(
+    db, *, account_id, position: Dict[str, Any], host, session,
+) -> bool:
+    """[2026-09-12 F40] 行情未反转时的受控逆势补仓执行。
+
+    全部门控在 position_manager.evaluate_dca 内部（最多补 1 次 / 亏损带 -2%~-8% /
+    2h 冷却 / 同向敞口≤权益50% / 资金充足 / SL 地板不得比原仓更差），
+    补仓杠杆减半（防死亡螺旋）。调用方保证「论题同向有效 + 反转价格闸未触发」。
+    """
+    sym = str(position.get("symbol", "") or "").upper()
+    side = _pos_direction(position.get("side"))
+    if not sym or not side:
+        return False
+    tier = _tier_of(position)
+    try:
+        from backend.services.paper_trading_engine import paper_engine
+        from backend.services.position_memory_manager import position_manager
+
+        plan = position_manager.evaluate_dca(
+            db=db, account_id=account_id, symbol=sym, side=side,
+            ai_confidence=0.60,  # 论题同向有效即 0.60 > DCA_MIN_CONFIDENCE=0.40
+            current_price=float(position.get("mark_price", 0) or 0),
+            existing_position=position,
+            volatility_pct=0.015,
+            market_regime="unknown",
+            orchestrator_decision=None,  # 方向支持由论题同向前置闸保证
+            risk_score=50.0,
+            tier=tier,
+        )
+        if plan.action != "dca":
+            host.append_event(
+                session, "pos_mgmt_dca_skip",
+                f"📊 [持仓管理] {sym} 补仓门控拦截: {getattr(plan, 'reasoning', '') or 'no_reason'}",
+            )
+            return False
+
+        mark = float(position.get("mark_price", 0) or 0)
+        qty = plan.notional_usd / mark if mark and mark > 0 else 0
+        if qty <= 0:
+            return False
+        # 保守杠杆：补仓杠杆减半（与 master_execution DCA 同款防死亡螺旋）
+        _dca_lev = min(5.0, max(2.0, float(position.get("leverage", 10) or 10) / 2.0))
+        result = paper_engine.place_order(
+            db, account_id, sym,
+            "buy" if side == "long" else "sell",
+            quantity=qty, leverage=_dca_lev,
+            tp_price=plan.take_profit_price, sl_price=plan.stop_loss_price,
+            strategy_id=position.get("strategy_id"),
+            timeframe_tier=tier,
+            trade_nature=position.get("trade_nature"),
+            add_type="dca",
+        )
+        if result and result.get("status") == "filled":
+            host.append_event(
+                session, "pos_mgmt_dca",
+                f"📉 [持仓管理] 逆势补仓 {sym}[{side}] +${plan.margin_usd:.0f} | {getattr(plan, 'reasoning', '') or ''}",
+            )
+            logger.info(
+                "[MidLong] stage=manage symbol=%s action=dca margin=%.0f qty=%s",
+                sym, plan.margin_usd or 0, qty,
+            )
+            return True
+        logger.info("[MidLong] stage=manage %s 补仓下单未成交", sym)
+    except Exception as e:
+        logger.warning("[MidLong] stage=manage %s 补仓执行异常: %s", sym, e)
+    return False
+
+
+def _dim_controlled_dca(
+    db, *, account_id, position: Dict[str, Any], host, session,
+) -> Dict[str, Any]:
+    """[2026-09-12 F40] 六维④：行情未反转时的受控逆势补仓前置闸。
+
+    前置条件（全满足才尝试补仓；任一不满足 → skip，绝不平仓）：
+      1) 论题有效、方向与仓位同向、无待确认的 should_close（与 F39 同口径）；
+      2) 反转价格闸（trend_broken_price_gate）判定「噪音区未破位」；
+      3) 同向失效价未被突破。
+    """
+    out: Dict[str, Any] = {"action": "skip", "channel": None, "reasoning": ""}
+    sym = str(position.get("symbol", "") or "").upper()
+    side = _pos_direction(position.get("side"))
+    tier = _tier_of(position)
+    if not sym or not side:
+        return out
+    try:
+        _sid = str(getattr(session, "session_id", "") or "")
+        from backend.services.mlto.thesis_store import get as _th_get
+        from backend.services.mlto.brain import (
+            _inv_price as _th_inv_px,
+            thesis_is_tradeable_fresh as _th_fresh,
+        )
+        th = _th_get(_sid, sym, tier if tier in ("long", "short") else "mid")
+        if th is None or not _th_fresh(th):
+            return {**out, "channel": "no_thesis", "reasoning": "无论题/论题过期"}
+        th_dir = str(getattr(th, "direction", "") or "").lower()
+        if th_dir != side:
+            return {**out, "channel": "thesis_dir_mismatch",
+                    "reasoning": f"论题方向 {th_dir} ≠ 仓位 {side}"}
+        if bool(getattr(th, "should_close", False)):
+            return {**out, "channel": "should_close_pending",
+                    "reasoning": "should_close 待确认：不平也不补"}
+        # 反转价格闸：True=放行平仓（亏损深/下行 regime）→ 禁止补仓；
+        # False=噪音区（行情未反转）→ 补仓候选
+        _tb_ok, _tb_why = trend_broken_price_gate(position, side=side, tier=tier)
+        if _tb_ok:
+            return {**out, "channel": "trend_broken_gate",
+                    "reasoning": f"反转价格闸放行平仓侧({_tb_why})，禁止补仓"}
+        # 同向失效价未破
+        inv = getattr(th, "invalidation", None) or {}
+        ipx = _th_inv_px(inv)
+        mark = float(position.get("mark_price", 0) or 0)
+        if ipx and mark > 0 and th_dir == side:
+            hit = (side == "long" and mark < float(ipx)) or (
+                side == "short" and mark > float(ipx)
+            )
+            if hit:
+                return {**out, "channel": "inv_breached",
+                        "reasoning": f"失效价 {ipx} 已破，禁止补仓"}
+    except Exception as e:
+        logger.debug("[MidLong] F40 前置检查异常(skip): %s", e)
+        return {**out, "channel": "precheck_error", "reasoning": str(e)[:80]}
+    if _exec_controlled_dca(db, account_id=account_id, position=position,
+                            host=host, session=session):
+        return {"action": "dca_executed", "channel": "dca",
+                "reasoning": "逆势补仓已成交（论题有效+噪音区）"}
+    return {**out, "channel": "dca_gate_skip", "reasoning": "补仓门控未通过（冷却/带外/敞口）"}
+
+
 # ──────────────────────────────────────────────────────────────────────
 # 模式 B 主入口
 # ──────────────────────────────────────────────────────────────────────
@@ -1262,6 +1392,22 @@ def manage_position(
             sym, side, pnl_pct * 100, hold_hours, staged["channel"], staged["reason"],
         )
         return _summary(f"追踪止损触发: {staged['reason']}", action="manage_close")
+
+    # ═══ ④ 受控逆势补仓（F40：行情未反转时替代「小亏全平」）═══
+    if _cfg_bool("MIDLONG_CONTROLLED_DCA_ENABLED", True):
+        try:
+            _dca = _dim_controlled_dca(
+                db, account_id=account_id, position=position, host=host, session=session,
+            )
+            _sig["dca"] = _dca["channel"] or "no"
+            if _dca["action"] == "dca_executed":
+                logger.info(
+                    "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh dca=%s reason=%s",
+                    sym, side, pnl_pct * 100, hold_hours, _dca["channel"], _dca["reasoning"],
+                )
+                return _summary(f"逆势补仓: {_dca['reasoning']}", action="manage_dca")
+        except Exception as _dca_dim_err:
+            logger.debug("[MidLong] stage=manage %s 补仓维度异常: %s", sym, _dca_dim_err)
 
     # ═══ LLM 维度（①②③）节流：复用 exit_state_json.last_trend_review_ts ═══
     _llm_interval = _cfg_int("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", 900)

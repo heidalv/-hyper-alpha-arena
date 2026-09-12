@@ -2272,6 +2272,12 @@ MIDLONG_POSITION_MGMT_ENABLED: bool = os.getenv("MIDLONG_POSITION_MGMT_ENABLED",
 MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED: bool = os.getenv(
     "MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
+# 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
+# SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。
+MIDLONG_CONTROLLED_DCA_ENABLED: bool = os.getenv(
+    "MIDLONG_CONTROLLED_DCA_ENABLED", "true"
+).lower() in ("1", "true", "yes", "on")
 # 模式 B 整体执行节流（秒）：0=随 tick（默认 ~120s）；>0 则两次分析间隔不小于该值。
 # 注意：即使为 0，规则维度（分批止盈/反转离场）仍每 tick 跑；LLM 维度受
 # MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC 单独节流。
