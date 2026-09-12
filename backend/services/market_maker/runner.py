@@ -484,6 +484,16 @@ def plan_tick(
     # [F71] 趋势闸门：单边行情里禁止逆势侧（下跌禁买、上涨禁卖）
     blocked = trend_blocked_side(state.mid_hist, limits.trend_pause_bp,
                                  limits.trend_lookback)
+    # [F76 2026-09-12] 库存感知：趋势闸只封锁**加仓侧**。
+    # 减仓侧在趋势里成交对持仓是**有利**的（多头在上涨中高价卖出、空头在
+    # 下跌中低价回补）——此前减仓侧一并被封死，库存只能等超时 taker 平仓
+    # （实盘平仓均价 -12.98bp，是亏损主因）。空仓时两侧都是加仓，语义不变。
+    if blocked:
+        _pos = local_book.qty(state.symbol)
+        if _pos > 1e-12 and blocked == "sell":
+            blocked = ""          # 多头减仓侧（卖），放行
+        elif _pos < -1e-12 and blocked == "buy":
+            blocked = ""          # 空头减仓侧（买），放行
     if blocked == "buy" and allow_buy:
         allow_buy, why_buy = False, "trend_down"
     elif blocked == "sell" and allow_sell:
@@ -1069,12 +1079,20 @@ def get_runner(lane_id: str = DEFAULT_LANE_ID) -> Optional[ShadowRunner]:
                                     if k in QuoteParams.__dataclass_fields__})
             limits = LaneRiskLimits(**{k: v for k, v in stored.items()
                                        if k in LaneRiskLimits.__dataclass_fields__})
+            # [F77 2026-09-12] 币种宇宙由注册表 meta.symbols 控制。
+            # 此前 get_runner 不传 symbols ⇒ 永远跑 DEFAULT_SYMBOLS（6 币），
+            # 组合回放证实 6 币共享账本下 alt 币全部负边际，只有 BTC（及
+            # 部分 ETH 组合）为正 ⇒ 币种精选无法上线。现在读注册表。
+            _symbols = list(meta.get("symbols") or [])
+            _symbols = [str(s) for s in _symbols if str(s)] or list(DEFAULT_SYMBOLS)
+            _fn = float(stored.get("fill_notional") or FILL_NOTIONAL)
             r = ShadowRunner(
                 lane_id=lane_id, venue=str(meta.get("venue") or DEFAULT_VENUE),
                 equity=float(meta.get("shadow_equity") or 5000.0),
                 account_id=meta.get("paper_account_id"),
                 strategy_type=str(meta.get("strategy_type") or "MM"),
-                params=params, limits=limits,
+                params=params, limits=limits, symbols=_symbols,
+                fill_notional=_fn,
             )
             r.meta = meta          # 供 report() 读取回放基线等
             r.load_states()

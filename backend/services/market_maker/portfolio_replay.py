@@ -21,7 +21,7 @@ from backend.services.market_maker.core import (
     InventoryBook,
     LaneRiskLimits,
     QuoteParams,
-    sigma_norm_from_ranges,
+    realized_vol_bp,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,9 +61,30 @@ def replay_portfolio(
     states = {s: SymbolState(symbol=s) for s in symbols}
     book = InventoryBook()                       # ← 共享账本：组合级约束在此生效
     marks: Dict[str, float] = {}
-    # 每币的价差窗口与基准（波动暂停闸门要用，与单币回放同口径）
-    ranges: Dict[str, List[float]] = {s: [] for s in symbols}
-    baseline: Dict[str, float] = {s: 0.0 for s in symbols}
+    # [F75] 与实盘同构：每币维护 mid_hist + 已实现波动基准（实盘 tick 同款）。
+    # 此前 portfolio_replay 不维护 mid_hist ⇒ plan_tick 的趋势闸/波动闸
+    # （trend_blocked_side / vol_regime_blocked 都读 state.mid_hist）在组合级
+    # 回放里形同虚设，且 vol_pause 误用「价差 sigma」替代「已实现波动 sigma」。
+    # 两遍法：先扫各币全序列中价，算已实现波动中位数（replay_symbol 同口径）
+    _mid_series: Dict[str, List[float]] = {s: [] for s in symbols}
+    for s in symbols:
+        d = data[s]
+        for i in range(len(d["ots"])):
+            _m = float((d["bb"][i] + d["ba"][i]) / 2)
+            if _m > 0:
+                _mid_series[s].append(_m)
+    vol_baseline: Dict[str, float] = {}
+    for s in symbols:
+        ms = _mid_series[s]
+        vb = 0.0
+        if len(ms) >= 22:
+            _vs = [realized_vol_bp(ms[j - 20:j + 1], 20) for j in range(20, len(ms))]
+            _vs = [v for v in _vs if v > 0]
+            if _vs:
+                import numpy as _np
+                vb = float(_np.median(_vs))
+        vol_baseline[s] = vb
+        states[s].vol_baseline_bp = vb
     # 每个币的下一个快照下标
     idx = {s: 0 for s in symbols}
     # 合并时间线：所有币的快照时间戳并集（升序）
@@ -87,15 +108,15 @@ def replay_portfolio(
             if mid <= 0:
                 continue
             marks[s] = mid
-            # 波动归一（近 20 期相对价差，与单币回放同口径）
-            rng = (float(d["ba"][i]) - float(d["bb"][i])) / mid
-            ranges[s].append(rng)
-            if len(ranges[s]) > 20:
-                ranges[s].pop(0)
-            if len(ranges[s]) >= 20 and baseline[s] <= 0:
-                baseline[s] = float(np.mean(ranges[s])) or 0.0
-            sigma = (sigma_norm_from_ranges(ranges[s], baseline[s])
-                     if baseline[s] > 0 else 0.0)
+            # [F75] 与实盘同构：维护 mid_hist（趋势/波动闸的输入）
+            st = states[s]
+            st.mid_hist.append(mid)
+            if len(st.mid_hist) > 40:
+                st.mid_hist = st.mid_hist[-40:]
+            # 波动归一（近 20 期**已实现波动**相对基准，与实盘 tick 同口径）
+            vol_cur = realized_vol_bp(st.mid_hist, limits.vol_window)
+            sigma = (max(0.0, vol_cur / vol_baseline[s] - 1.0)
+                     if vol_baseline[s] > 0 else 0.0)
             half_spread = (float(d["ba"][i]) - float(d["bb"][i])) / 2.0
             # 缺口保护（同 F71）：间隔过大直接丢弃该币库存语义
             if int(d["ots"][i + 1]) - int(d["ots"][i]) > max_gap_ms:
