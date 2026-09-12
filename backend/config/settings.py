@@ -2265,6 +2265,13 @@ MIDLONG_EXIT_MIN_HOLD_SEC: int = int(os.getenv("MIDLONG_EXIT_MIN_HOLD_SEC", "360
 MIDLONG_POSITION_MGMT_ENABLED: bool = os.getenv("MIDLONG_POSITION_MGMT_ENABLED", "true").lower() in (
     "1", "true", "yes", "on",
 )
+# [2026-09-12 F39] flag-only thesis should_close 的反转确认闸：
+# 只有「价格突破同向失效价 / 论题方向翻反 / min_hold 满 / 紧急亏损≥6%」之一
+# 才允许全平；否则继续持有等价格确认（14 天反事实：55-61% 小亏平仓 6-48h 内
+# 收复平仓价——无反转的小亏全离场≈抛硬币）。false=回滚到旧行为。
+MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED: bool = os.getenv(
+    "MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED", "true"
+).lower() in ("1", "true", "yes", "on")
 # 模式 B 整体执行节流（秒）：0=随 tick（默认 ~120s）；>0 则两次分析间隔不小于该值。
 # 注意：即使为 0，规则维度（分批止盈/反转离场）仍每 tick 跑；LLM 维度受
 # MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC 单独节流。

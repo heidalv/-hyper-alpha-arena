@@ -296,6 +296,54 @@ def ack_thesis_hard_exit(thesis, *, reason: str, symbol: str, tier: str, side: s
         logger.debug("[MidLong] ack_thesis_hard_exit 跳过: %s", exc)
 
 
+def thesis_should_close_confirmed(
+    db, *, position: Dict[str, Any], thesis, tier: str,
+    pnl_pct: float, hold_hours: float,
+) -> Tuple[bool, str]:
+    """[2026-09-12 F39] flag-only should_close 的反转确认闸。
+
+    数据依据（14 天 163 笔亏损平仓反事实复算）：
+    +6h/+24h/+48h 分别 55%/58%/61% 收复平仓价上方——flag-only 判断在年轻小亏仓
+    上≈抛硬币（用户实测反馈「小亏后全部离场不合理」）。只有三选一满足才全平：
+      1) 价格确认：mark 已突破同向失效价，或论题方向已翻反（真反转判定）；
+      2) min_hold 已满（mid 12h / long 72h，M0-11 同契约）且仍浮亏；
+      3) 紧急亏损：保证金口径 ≤ -min_hold_emergency_loss_pct（默认 6%）。
+    否则返回 (False, 原因)——行情没反转就不离场，flag 保留待后续 tick 复核。
+    异常时 fail-open 放行（不改变旧保护语义）。
+    """
+    try:
+        mark = float(position.get("mark_price") or position.get("current_price") or 0)
+        side = _pos_direction(position.get("side"))
+        th_dir = str(getattr(thesis, "direction", "") or "").lower()
+        # 1) 价格确认：同向失效价被突破
+        try:
+            from backend.services.mlto.brain import _inv_price as _th_inv_px
+            inv = getattr(thesis, "invalidation", None) or {}
+            ipx = _th_inv_px(inv)
+        except Exception:
+            ipx = None
+        if ipx and mark > 0 and th_dir == side and th_dir in ("long", "short"):
+            hit = (side == "long" and mark < float(ipx)) or (
+                side == "short" and mark > float(ipx)
+            )
+            if hit:
+                return True, "inv_price_confirmed"
+        # 2) 论题方向翻反 = 主脑反转判定
+        if th_dir and th_dir in ("long", "short") and th_dir != side:
+            return True, "thesis_direction_flipped"
+        # 3) min_hold / 紧急豁免（与 M0-11 同契约）
+        _mh = _review_min_hold_check(
+            db, position=position, pos_tier=tier, pnl_pct=pnl_pct,
+            hold_hours=hold_hours, side=side, sym=str(position.get("symbol") or ""),
+        )
+        if _mh.get("ok"):
+            return True, f"min_hold_ok:{_mh.get('detail', '')[:60]}"
+        return False, f"wait_price_confirmation:{_mh.get('detail', '')[:60]}"
+    except Exception as _e:
+        logger.warning("[MidLong] thesis_should_close_confirmed 异常(fail-open 放行): %s", _e)
+        return True, "gate_error_fail_open"
+
+
 def _review_min_hold_check(db, *, position, pos_tier: str, pnl_pct: float,
                            hold_hours: float, side: str, sym: str) -> Dict[str, Any]:
     """[2026-08-22 M0-11] 复查平仓 min_hold 保护。
@@ -1023,6 +1071,44 @@ def manage_position(
         _hit = resolve_thesis_hard_exit(_sid, position)
         if _hit:
             _reason, _th = _hit
+            # [2026-09-12 F39] flag-only should_close 反转确认闸：行情未反转（无价格
+            # 确认/未满 min_hold/非紧急亏损）→ 不平仓。反事实：14 天 163 笔亏损平仓
+            # 55-61% 在 6-48h 内收复平仓价——flag-only 判断≈抛硬币（用户实测反馈）。
+            if _reason == "thesis_should_close" and _cfg_bool(
+                "MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED", True
+            ):
+                _f39_pnl = _pnl_pct_of(position)
+                _f39_hold = _held_hours(position, db)
+                _f39_ok, _f39_why = thesis_should_close_confirmed(
+                    db, position=position, thesis=_th, tier=_tier_of(position),
+                    pnl_pct=_f39_pnl, hold_hours=_f39_hold,
+                )
+                if not _f39_ok:
+                    # 价格已收复（盈利）→ should_close 被行情证伪：撤销 flag 继续持有
+                    if _f39_pnl >= 0:
+                        try:
+                            _th.should_close = False
+                            from backend.services.mlto import thesis_store as _ts2
+                            _ts2._persist(None, _th)
+                            _ts2.append_event(
+                                _th.thesis_id, "should_close_recovered", {"symbol": sym},
+                            )
+                        except Exception:
+                            pass
+                        _out["hold_reason"] = "thesis_should_close_recovered"
+                        _out["reasoning"] = "should_close 被行情收复证伪，撤销并继续持有"
+                        return _out
+                    logger.info(
+                        "[MidLong] stage=manage %s should_close 被反转确认闸拦截(%s)——行情未反转不平仓",
+                        sym, _f39_why,
+                    )
+                    host.append_event(
+                        session, "thesis_close_blocked",
+                        f"[F39] {sym} should_close 等待价格确认: {_f39_why}",
+                    )
+                    _out["hold_reason"] = "thesis_should_close_wait_confirmation"
+                    _out["reasoning"] = f"should_close 等待价格确认（{_f39_why}）"
+                    return _out
             _closed = _exec_close(
                 db, account_id=account_id, position=position,
                 reason=_reason, host=host, session=session,
