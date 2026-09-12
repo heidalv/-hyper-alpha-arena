@@ -1098,8 +1098,11 @@ def get_runner(lane_id: str = DEFAULT_LANE_ID) -> Optional[ShadowRunner]:
             r.load_states()
             # [F71b] 用**回放窗口**的已实现波动做高波动基准（自适应当前盘会失去意义）
             vol_base = (meta.get("replay_baseline") or {}).get("vol_baseline_bp") or {}
+            # [F79 2026-09-12] 注册表始终权威：此前只在持久化基线 ≤0 时播种 ⇒
+            # 基线在注册表更新（重锚回放窗口）后永远不会生效——持久化副本粘住旧值，
+            # 实盘 sigma 口径与验证回放漂移。现在每次 runner 重建都从注册表覆写。
             for sym, st in r.states.items():
-                if st.vol_baseline_bp <= 0 and vol_base.get(sym):
+                if vol_base.get(sym):
                     st.vol_baseline_bp = float(vol_base[sym])
             _SHADOW_RUNNERS[lane_id] = r
             return r

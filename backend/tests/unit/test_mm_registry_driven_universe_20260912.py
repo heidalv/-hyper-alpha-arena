@@ -37,3 +37,14 @@ def test_registry_params_map_to_dataclass_fields_only():
     src = inspect.getsource(mmrunner.get_runner)
     assert "QuoteParams.__dataclass_fields__" in src
     assert "LaneRiskLimits.__dataclass_fields__" in src
+
+
+def test_get_runner_vol_baseline_always_from_registry():
+    """[F79] 波动基准注册表始终权威：runner 重建时必须覆写持久化副本。
+
+    此前 `if st.vol_baseline_bp <= 0` 只在基线为空时播种 ⇒ 注册表更新后
+    持久化旧值粘住，实盘 sigma 口径与验证回放永久漂移。
+    """
+    src = inspect.getsource(mmrunner.get_runner)
+    assert "vol_baseline_bp = float(vol_base[sym])" in src
+    assert "st.vol_baseline_bp <= 0 and vol_base" not in src
