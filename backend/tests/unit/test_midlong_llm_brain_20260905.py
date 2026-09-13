@@ -264,6 +264,8 @@ def test_chart_gate_vetoes_no_new_long_when_chart_exists(monkeypatch):
 
 
 def test_factor_route_open_is_evidence_only_when_brain(monkeypatch):
+    """[M5 2026-09-14] 语义更新：脑开启时默认 A/B（paper 并行开仓）；
+    MIDLONG_MID_FACTOR_ROUTE_AB=false 才是旧行为（evidence_only 回滚档）。"""
     monkeypatch.setattr(
         "backend.config.settings.midlong_brain_enabled", lambda: True,
     )
@@ -271,6 +273,8 @@ def test_factor_route_open_is_evidence_only_when_brain(monkeypatch):
     monkeypatch.setattr(fr, "factor_route_decide", lambda *a, **k: {
         "action": "buy", "score": 0.9, "reason": "fake",
     })
+    # 回滚档：AB=false → evidence_only（旧语义锁定）
+    monkeypatch.setenv("MIDLONG_MID_FACTOR_ROUTE_AB", "false")
     dec = fr.factor_route_open(
         host=SimpleNamespace(), session=SimpleNamespace(), symbol="BTC",
     )
