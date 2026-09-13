@@ -71,6 +71,13 @@ def _parse_cluster_symbols() -> List[str]:
     return [s.strip().upper() for s in str(raw).split(",") if s.strip()]
 
 
+def _is_long_lane_pos(pos: Dict[str, Any]) -> bool:
+    """长车道（trend）持仓：nature=trend_follow/position 或 tier=long。"""
+    nature = str(pos.get("trade_nature") or "").lower()
+    tier = str(pos.get("timeframe_tier") or "").lower()
+    return nature in ("trend_follow", "position") or tier == "long"
+
+
 def _is_midlong_pos(pos: Dict[str, Any]) -> bool:
     nature = str(pos.get("trade_nature") or "").lower()
     tier = str(pos.get("timeframe_tier") or "").lower()
@@ -219,8 +226,13 @@ def check_portfolio_open_allowed(
     new_notional: float = 0.0,
     max_net_pct: Optional[float] = None,
     is_probe: bool = False,
+    long_lane: bool = False,
 ) -> Tuple[bool, str]:
-    """开仓前组合闸：净方向敞口 + 相关簇同向数量。"""
+    """开仓前组合闸：净方向敞口 + 相关簇同向数量。
+
+    [M3 2026-09-14] long_lane=True 时并发帽改用长车道口径
+    （MIDLONG_MAX_LONG_LANE_POSITIONS，只数长车道持仓）；净敞口/簇帽不变。
+    """
     if not _cfg_bool("MIDLONG_PORTFOLIO_GATE_ENABLED", True):
         return True, "portfolio_gate_off"
 
@@ -230,6 +242,8 @@ def check_portfolio_open_allowed(
         return True, "no_direction"
 
     mids = collect_midlong_positions(portfolio, positions)
+    # [M3 2026-09-14] 长车道并发帽只数长车道持仓；净敞口/簇帽仍看全量 midlong（不削弱）。
+    _cap_count = [p for p in mids if _is_long_lane_pos(p)] if long_lane else mids
     equity = _equity_from_portfolio(portfolio)
 
     # ── 净方向敞口 ──
@@ -307,12 +321,19 @@ def check_portfolio_open_allowed(
     # ── 全局中长线并发上限 ──
     # [2026-09-10 第二十八轮] 9/9 夜 5-6 笔同向山寨（0.94x 权益、无对冲）在 alt 齐跌中
     # 单夜 -$155.48（§38）。此闸此前被 `.env` 设为 6 而形同虚设，现已收回代码默认 4。
+    # [M3 2026-09-14] 长车道（E1 趋势 sleeve）独立并发帽：E1 有自身车道风险边界
+    # （60% 权益桶 + gross/cluster/risk_per_trade 四道帽 + Chandelier 结构止损），
+    # 且目标最多 8 个核心币；混在 4 笔全局帽里会让趋势 sleeve 永远开不出仓
+    # （2026-09-14 实测：脑 mid 4 仓占满 → E1 全拒）。mid 车道继续走全局帽不变。
+    # MIDLONG_MAX_LONG_LANE_POSITIONS 默认 8（=TREND_MAX_POSITIONS）；0=关闭该闸。
     max_pos = _cfg_int_allow_zero("MIDLONG_MAX_OPEN_POSITIONS", 4)
-    if max_pos > 0 and len(mids) >= max_pos:
+    if long_lane:
+        max_pos = _cfg_int_allow_zero("MIDLONG_MAX_LONG_LANE_POSITIONS", 8)
+    if max_pos > 0 and len(_cap_count) >= max_pos:
         return (
             False,
-            f"midlong_open_positions {len(mids)}>={max_pos}"
-            + (f" ({','.join(str(p.get('symbol') or '?') for p in mids[:8])})"),
+            f"midlong_open_positions {len(_cap_count)}>={max_pos}"
+            + (f" ({','.join(str(p.get('symbol') or '?') for p in _cap_count[:8])})"),
         )
 
     return True, "ok"
@@ -393,6 +414,8 @@ def choke_point_open_allowed(
             portfolio={"balance": {"total_equity": equity}, "positions": positions},
             new_notional=float(new_notional or 0),
             is_probe=is_probe,
+            # [M3 2026-09-14] 长车道开仓走长车道并发帽（E1 趋势 sleeve）
+            long_lane=(_t in ("long",) or _n in ("trend_follow", "position")),
         )
     except Exception as exc:
         logger.warning(

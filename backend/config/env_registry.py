@@ -274,6 +274,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_LONG_AI_CANDIDATES_ENABLED",
     "MIDLONG_MAX_NET_EXPOSURE_PCT",
     "MIDLONG_MAX_OPEN_POSITIONS",
+    # [M3 2026-09-14] 长车道（E1 趋势 sleeve）独立并发帽（默认 8=TREND_MAX_POSITIONS；0=关闭）
+    "MIDLONG_MAX_LONG_LANE_POSITIONS",
     # [P13 执行 2026-09-10] 每标的同向并发上限（0=关闭）
     "MIDLONG_MAX_SAME_SYMBOL_POSITIONS",
     # [P12 执行 2026-09-10] 组合闸名义口径开关（默认 true=与 PositionConstruction 同口径）
