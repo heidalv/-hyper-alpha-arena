@@ -190,8 +190,26 @@ class MidLongEvGate:
         # 用户定调「模拟盘=收集交易数据」（见 loss_lock_policy 同源判据）；
         # live 硬拦保护完全不变。MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW=false 回滚旧口径。
         _paper_allow_mid = bool(self._cfg("MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW", True))
-        shadow_lane = (nat_calib == "swing") and not enforce_mid
+        # [M1 2026-09-14] long 车道（trend_follow/position）同款 paper 影子放行：
+        # 实测校准 p_win 全部来自修复前负期望旧样本（32 笔胜率 0.375 ⇒ EV≈−1.3%）
+        # ⇒ 硬拦 ⇒ 零成交 ⇒ 校准器永远拿不到新样本 ⇒ EV 恒负（死亡螺旋，
+        # 2026-09-13 现场：tier=long 候选=8 成交=0，2.5h BLOCK 42 次）。
+        # 与 mid 车道政策对齐：paper=收集数据（记录判定不拦截），live 硬拦不变。
+        # MIDLONG_EV_ENFORCE_LONG=true 才允许 long 车道按 EV 硬拦（默认 false）；
+        # MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW=false 回滚旧口径（paper long 也硬拦）。
+        _enforce_long = bool(self._cfg("MIDLONG_EV_ENFORCE_LONG", False))
+        _paper_allow_long = bool(self._cfg("MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW", True))
+        shadow_lane = ((nat_calib == "swing") and not enforce_mid) or (
+            (nat_calib in ("trend_follow", "position")) and not _enforce_long
+        )
         if (nat_calib == "swing") and enforce_mid and paper_mode and _paper_allow_mid:
+            shadow_lane = True
+        if (
+            (nat_calib in ("trend_follow", "position"))
+            and _enforce_long
+            and paper_mode
+            and _paper_allow_long
+        ):
             shadow_lane = True
         shadow = shadow_cold or shadow_lane
 

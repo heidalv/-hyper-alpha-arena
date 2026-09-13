@@ -291,6 +291,20 @@ class ConfidenceCalibrator:
         )
         return model
 
+    def _effective_cutoff(self, lookback_days: int, now: Optional[datetime] = None) -> datetime:
+        """样本窗口下界 = max(now − lookback_days, {PREFIX}_MIN_TS)。MIN_TS=0 → 不切分。"""
+        _now = now or datetime.now(timezone.utc)
+        cutoff = _now - timedelta(days=lookback_days)
+        min_ts = float(self._cfg("MIN_TS", 0) or 0)
+        if min_ts > 0:
+            try:
+                _min_dt = datetime.fromtimestamp(min_ts, tz=timezone.utc)
+                if _min_dt > cutoff:
+                    cutoff = _min_dt
+            except (OverflowError, OSError, ValueError):
+                logger.debug(f"[Calibrator:{self._prefix}] MIN_TS 无效，忽略: {min_ts}")
+        return cutoff
+
     def _load_samples(self, lookback_days: int) -> List[Tuple[float, bool]]:
         """拉取 (score, won) 样本对。"""
         try:
@@ -300,7 +314,12 @@ class ConfidenceCalibrator:
             logger.debug(f"[Calibrator:{self._prefix}] 无法加载模型依赖: {e}")
             return []
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        # [M1 2026-09-14] 修复切点：{PREFIX}_MIN_TS（epoch 秒）早于该时刻的旧样本不计入。
+        # 背景：trend 校准器 32 笔样本全部来自 2026-09-11 修复前（胜率 0.375 的旧结构），
+        # 校准后 p_win=0.393 把 EV 压到 −1.3% ⇒ 硬拦 ⇒ 零成交 ⇒ 校准器无新样本 ⇒ 恒负
+        # （死亡螺旋）。允许按"修复上线时刻"切分样本窗口，让校准反映当前策略结构。
+        # 默认 0=不切分（旧行为逐字节一致）；样本不足时自动回退冷启动线性映射。
+        cutoff = self._effective_cutoff(lookback_days)
         db = SessionLocal()
         try:
             rows = (

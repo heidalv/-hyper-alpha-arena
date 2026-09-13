@@ -388,6 +388,43 @@ COIN_RANK_TRAP_SOFT_REJECT: float = float(os.getenv("COIN_RANK_TRAP_SOFT_REJECT"
 COIN_RANK_TRAP_HARD_REJECT: float = float(os.getenv("COIN_RANK_TRAP_HARD_REJECT", "0.85"))
 COIN_RANK_MTF_MIN_STRONG: float = float(os.getenv("COIN_RANK_MTF_MIN_STRONG", "0.5"))
 COIN_RANK_FEEDBACK_INTERVAL_SEC: int = int(os.getenv("COIN_RANK_FEEDBACK_INTERVAL_SEC", "900"))
+# ── [2026-09-12 图信号试点] RTGNN 迁移第一阶（零训练，纯 numpy）──
+# 领先-滞后分(lead) + 动量加速度分(dm) 软融合进 CoinRank base 分。
+# 默认全关 = 生产行为不变；打开后 engine 注入，score_rows 按 GRAPH_WEIGHT 融合。
+COIN_RANK_GRAPH_SIGNAL_ENABLED: bool = os.getenv(
+    "COIN_RANK_GRAPH_SIGNAL_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+# graph 信号占 base 的软融合权重（0=纯旧行为）
+COIN_RANK_GRAPH_WEIGHT: float = float(os.getenv("COIN_RANK_GRAPH_WEIGHT", "0.10") or "0.10")
+# graph_comp 内 lead 与 dm 的配比：graph_comp = LEAD_WEIGHT·lead + (1−LEAD_WEIGHT)·dm
+COIN_RANK_GRAPH_LEAD_WEIGHT: float = float(os.getenv("COIN_RANK_GRAPH_LEAD_WEIGHT", "0.60") or "0.60")
+COIN_RANK_GRAPH_LEAD_PERIOD: str = os.getenv("COIN_RANK_GRAPH_LEAD_PERIOD", "15m")
+COIN_RANK_GRAPH_MOM_PERIOD: str = os.getenv("COIN_RANK_GRAPH_MOM_PERIOD", "4h")
+COIN_RANK_GRAPH_LEAD_COUNT: int = int(os.getenv("COIN_RANK_GRAPH_LEAD_COUNT", "288") or "288")
+COIN_RANK_GRAPH_MOM_COUNT: int = int(os.getenv("COIN_RANK_GRAPH_MOM_COUNT", "48") or "48")
+COIN_RANK_GRAPH_MAX_LAG: int = int(os.getenv("COIN_RANK_GRAPH_MAX_LAG", "6") or "6")
+COIN_RANK_GRAPH_ANCHORS: str = os.getenv("COIN_RANK_GRAPH_ANCHORS", "BTC,ETH")
+COIN_RANK_GRAPH_TTL_SEC: int = int(os.getenv("COIN_RANK_GRAPH_TTL_SEC", "600") or "600")
+COIN_RANK_GRAPH_MIN_BARS: int = int(os.getenv("COIN_RANK_GRAPH_MIN_BARS", "60") or "60")
+# ── [2026-09-12 RTGNN 迁移 P1] RTGNN-lite 影子模型服务（graph_rank）──
+# 默认全关；开启后 train_shadow_report 可跑影子训练（Rank IC 报告，不进实盘），
+# graph_score_for_symbols 优先用已训练模型，未就绪时回退零训练试点信号。
+GRAPH_RANK_ENABLED: bool = os.getenv(
+    "GRAPH_RANK_ENABLED", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+GRAPH_RANK_PERIOD: str = os.getenv("GRAPH_RANK_PERIOD", "1h")
+GRAPH_RANK_COUNT: int = int(os.getenv("GRAPH_RANK_COUNT", "720") or "720")
+GRAPH_RANK_LOOKBACK: int = int(os.getenv("GRAPH_RANK_LOOKBACK", "24") or "24")
+GRAPH_RANK_HORIZON: int = int(os.getenv("GRAPH_RANK_HORIZON", "6") or "6")
+GRAPH_RANK_EPOCHS: int = int(os.getenv("GRAPH_RANK_EPOCHS", "20") or "20")
+GRAPH_RANK_BATCH_SIZE: int = int(os.getenv("GRAPH_RANK_BATCH_SIZE", "16") or "16")
+GRAPH_RANK_LR: float = float(os.getenv("GRAPH_RANK_LR", "1e-3") or "1e-3")
+GRAPH_RANK_PATIENCE: int = int(os.getenv("GRAPH_RANK_PATIENCE", "5") or "5")
+GRAPH_RANK_LAMBDA_RANK: float = float(os.getenv("GRAPH_RANK_LAMBDA_RANK", "0.5") or "0.5")
+GRAPH_RANK_MODEL_PATH: str = os.getenv("GRAPH_RANK_MODEL_PATH", "data/graph_rank_model.pt")
+GRAPH_RANK_SCORE_TTL_SEC: int = int(os.getenv("GRAPH_RANK_SCORE_TTL_SEC", "600") or "600")
+GRAPH_RANK_MIN_ASSETS: int = int(os.getenv("GRAPH_RANK_MIN_ASSETS", "12") or "12")
+GRAPH_RANK_DEVICE: str = os.getenv("GRAPH_RANK_DEVICE", "auto")
 # midlong 独立循环相对 Master 主循环的首跑错峰（秒）
 MIDLONG_MASTER_STAGGER_SEC: int = int(os.getenv("MIDLONG_MASTER_STAGGER_SEC", "22"))
 
@@ -869,6 +906,10 @@ SWING_CALIBRATOR_MIN_SAMPLES: int = int(os.getenv("SWING_CALIBRATOR_MIN_SAMPLES"
 SWING_CALIBRATOR_LOOKBACK_DAYS: int = int(os.getenv("SWING_CALIBRATOR_LOOKBACK_DAYS", "45"))
 SWING_CALIBRATOR_CACHE_TTL_SEC: int = int(os.getenv("SWING_CALIBRATOR_CACHE_TTL_SEC", "900"))
 SWING_CALIBRATOR_PIVOT: float = float(os.getenv("SWING_CALIBRATOR_PIVOT", "52"))
+# [M1 2026-09-14] 修复切点：早于该 epoch 秒的样本不计入校准（0=不切分，默认旧行为）。
+# 用途：策略结构大修后（如 F38 放行链修复），旧结构的负期望样本会永久压住 p_win，
+# 用切点把校准窗口锚到"修复上线时刻"之后，让校准反映当前策略（样本不足自动回退冷启动）。
+SWING_CALIBRATOR_MIN_TS: float = float(os.getenv("SWING_CALIBRATOR_MIN_TS", "0") or 0)
 # 长线 trend 校准器
 TREND_CALIBRATOR_ENABLED: bool = os.getenv("TREND_CALIBRATOR_ENABLED", "true").lower() in (
     "true", "1", "yes", "on",
@@ -877,6 +918,9 @@ TREND_CALIBRATOR_MIN_SAMPLES: int = int(os.getenv("TREND_CALIBRATOR_MIN_SAMPLES"
 TREND_CALIBRATOR_LOOKBACK_DAYS: int = int(os.getenv("TREND_CALIBRATOR_LOOKBACK_DAYS", "60"))
 TREND_CALIBRATOR_CACHE_TTL_SEC: int = int(os.getenv("TREND_CALIBRATOR_CACHE_TTL_SEC", "900"))
 TREND_CALIBRATOR_PIVOT: float = float(os.getenv("TREND_CALIBRATOR_PIVOT", "56"))
+# [M1 2026-09-14] 修复切点（同上语义）：trend 校准器 32 笔旧样本胜率 0.375（修复前结构），
+# 锚到 2026-09-11 F38 放行链修复上线时刻之后；样本不足自动回退冷启动线性映射。
+TREND_CALIBRATOR_MIN_TS: float = float(os.getenv("TREND_CALIBRATOR_MIN_TS", "0") or 0)
 
 # ─────────────────────────────────────────────────────────────────
 # AI 决策置信度校准器 · S2-8（2026-08-05）
@@ -926,6 +970,17 @@ MIDLONG_EV_ENFORCE_MID: bool = os.getenv(
 # 否则「EV 负→硬拦→零样本→校准器无数据→EV 恒负」自我锁死）；live 硬拦不变。
 MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW: bool = os.getenv(
     "MIDLONG_EV_ENFORCE_MID_PAPER_ALLOW", "true"
+).lower() in ("true", "1", "yes", "on")
+# [M1 2026-09-14] long 车道（trend_follow/position）EV 硬拦开关（默认 false）。
+# false 时 long 车道与 mid 同款：paper 影子放行（记录判定不拦截，收集样本），
+# live 仍按校准结果硬拦（保护不变）——打破「EV 负→硬拦→零样本→校准恒旧」死亡螺旋。
+# true 才允许 paper 下按 EV 硬拦（配 MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW=false 全硬拦）。
+MIDLONG_EV_ENFORCE_LONG: bool = os.getenv(
+    "MIDLONG_EV_ENFORCE_LONG", "false"
+).lower() in ("true", "1", "yes", "on")
+# [M1 2026-09-14] paper 下 long 赛道 EV 影子放行（默认 true；收集样本，live 硬拦不变）。
+MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW: bool = os.getenv(
+    "MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW", "true"
 ).lower() in ("true", "1", "yes", "on")
 # 中线 swing：tp 实现率偏高（波段吃满概率尚可），sl 常吃满
 SWING_EV_MIN_PCT: float = float(os.getenv("SWING_EV_MIN_PCT", "0.0005"))
@@ -2866,6 +2921,15 @@ AUTO_COIN_W_FLOW: float = float(os.getenv("AUTO_COIN_W_FLOW", "0.20"))
 AUTO_COIN_W_WHALE: float = float(os.getenv("AUTO_COIN_W_WHALE", "0.10"))
 AUTO_COIN_W_NEWS: float = float(os.getenv("AUTO_COIN_W_NEWS", "0.10"))
 AUTO_COIN_W_SECTOR: float = float(os.getenv("AUTO_COIN_W_SECTOR", "0.05"))
+# [2026-09-12 图信号试点 P2] graph 维度静态权重：默认 0 = 不影响 V3 合成；
+# 开 AUTO_COIN_GRAPH_SCORE_ENABLED 后建议 0.05~0.15（与 sector 同量级），
+# 或交给 IC 加权自适应分配（graph_score 进 FACTOR_KEYS 后自动参与）。
+AUTO_COIN_W_GRAPH: float = float(os.getenv("AUTO_COIN_W_GRAPH", "0.0") or "0.0")
+# graph 分数提供开关：RTGNN-lite 训练模型优先（GRAPH_RANK_ENABLED），
+# 零训练试点信号（COIN_RANK_GRAPH_SIGNAL_ENABLED）兜底。
+AUTO_COIN_GRAPH_SCORE_ENABLED: bool = os.getenv(
+    "AUTO_COIN_GRAPH_SCORE_ENABLED", "false"
+).strip().lower() in ("true", "1", "yes", "on")
 # ── S2-9 选币因子自适应：IC 加权 + 相关性去重 + LLM 组合决策 ──
 # IC 加权：以 auto_coin_selections 的 factor_snapshot_json + hit_24h 为样本，
 # 计算各因子 Spearman IC 并归一化为 V3 合成权重（负 IC 弃用）；样本不足回退静态权重。
