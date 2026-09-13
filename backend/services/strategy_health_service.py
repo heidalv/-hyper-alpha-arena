@@ -298,6 +298,19 @@ class StrategyHealthService:
                     "[StrategyHealth] %s 健康度差但**模拟账户不暂停**（继续收集训练数据）",
                     strategy.strategy_id,
                 )
+                # [M4 2026-09-14] paper 双轨：降风险 + 触发重优化（原来只降风险不排队，
+                # 导致灰度发布唯一入口 queue_optimization 在 paper 下永远不被触发、
+                # 0 灰度记录——学习闭环的"优化→灰度→确认/回滚"路径整段空转）。
+                # 不暂停、不停交易（用户定调：纸面亏损=训练数据），只缩仓 + 排重优化。
+                try:
+                    from backend.services.auto_optimizer import AutoOptimizer
+                    AutoOptimizer().queue_optimization(strategy.strategy_id)
+                    logger.info(
+                        "[StrategyHealth] %s paper 重优化已排队（不暂停，缩仓双轨）",
+                        strategy.strategy_id,
+                    )
+                except Exception as opt_err:
+                    logger.warning(f"[StrategyHealth] paper optimization queue failed: {opt_err}")
                 # 降级为「降风险」：仍在交易，只是仓位更小
                 return self._heal_reduce_risk(strategy, db)
         except Exception:

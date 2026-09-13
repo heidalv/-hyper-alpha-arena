@@ -32,6 +32,23 @@ _scheduler_lock_fd = None
 _scheduler_initialized = False
 
 
+def register_maturity_tick(task_scheduler) -> None:
+    """[M4 2026-09-14] 注册成熟度状态定时刷新（每 6h）。
+
+    根因：run_maturity_tick 此前无任何定时调用者，data/maturity_state.json 自
+    2026-08-16 冻结，threshold_resolver 等 6 处门控长期读旧快照。
+    抽成独立函数便于契约测试锁定注册参数。
+    """
+    from backend.services.maturity_controller import run_maturity_tick
+
+    task_scheduler.add_interval_task(
+        task_func=run_maturity_tick,
+        interval_seconds=6 * 3600,
+        task_id="maturity_tick",
+    )
+    logger.info("[Startup] 成熟度状态定时刷新已注册（每 6h）")
+
+
 def _reap_orphan_workers():
     """[2026-09-05] 收割孤儿 worker：父进程已死的后台子进程。
 
@@ -881,6 +898,14 @@ def initialize_sync_services():
                 task_id="qaa_optimization_cycle",
             )
             logger.info("[Startup] QAA 进化系统已初始化（auto_discover 后台运行）")
+
+            # [M4 2026-09-14] 成熟度状态定时刷新：run_maturity_tick 此前无任何定时调用者，
+            # data/maturity_state.json 自 2026-08-16 冻结，6 处门控（threshold_resolver 等）
+            # 一直在读 28 天前的快照。每 6 小时重算一次（计算量 = 全量平仓统计，低频足够）。
+            try:
+                register_maturity_tick(task_scheduler)
+            except Exception as _mt_err:
+                logger.warning(f"[Startup] 成熟度定时任务注册失败（fail-open）: {_mt_err}")
 
             # QAAContext + TradingPlugin（若 restore 阶段未提前完成则在此补全）
             if QAA_MODE == "qaa" and QAA_V3_ENABLED:

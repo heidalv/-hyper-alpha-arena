@@ -88,16 +88,35 @@ class GrayscalePlan:
 #  OutcomeAdapter — 将 TradeOutcome 喂入 QAA 组件
 # ════════════════════════════════════════════════════════════════
 
+def outcome_decision_quality(pnl_pct: float) -> float:
+    """[M4 2026-09-14] 按交易结果折算决策质量分（0~1）：盈利→高分、亏损→低分。
+
+    旧行为恒 0.5 ⇒ 所有反馈评分全等 ⇒ FeedbackCollector 趋势恒 stable ⇒
+    get_degrading_targets 恒空 ⇒ 5 分钟优化周期空转（历史 24,367 条 optimize_*=0）。
+    ±6% 满幅（pnl_pct×8 后截断到 [0,1]），使"近期比过去差"可被真实检测。
+    """
+    try:
+        return max(0.0, min(1.0, 0.5 + float(pnl_pct or 0.0) * 8))
+    except (TypeError, ValueError):
+        return 0.5
+
+
 class OutcomeAdapter:
     """将后端 TradeOutcome 转换为 QAA 进化系统的指标/反馈"""
 
     def __init__(self, bridge: "QAABridge"):
         self._bridge = bridge
 
-    def feed_outcome(self, outcome, decision_quality: float = 0.5):
+    def feed_outcome(self, outcome, decision_quality: Optional[float] = None):
         """
         在 UnifiedLearningService.process_outcome() 的 db.commit() 之后调用。
         将交易结果喂入 QAA PerformanceTracker + FeedbackCollector + EvolutionHistory。
+
+        [M4 2026-09-14] decision_quality 默认值修复：旧实现不传值 → 恒 0.5 →
+        所有条目评分全等 → trend 恒 stable → get_degrading_targets 恒空 →
+        5 分钟优化周期空转（24,367 条历史 optimize_* 出现 0 次）。现按交易结果折算：
+        盈利→高分、亏损→低分、幅度缩放（±6% 满幅），使"近期比过去差"可被真实检测。
+        显式传 decision_quality 仍可覆盖（保持旧 API 兼容）。
         """
         b = self._bridge
         if not b._enabled:
@@ -110,6 +129,8 @@ class OutcomeAdapter:
             pnl_pct = getattr(outcome, "pnl_pct", 0) or 0
             regime = getattr(outcome, "regime_at_entry", "unknown")
             tier = getattr(outcome, "tier", "swing")
+            if decision_quality is None:
+                decision_quality = outcome_decision_quality(pnl_pct)
 
             # 1. PerformanceTracker — 多维指标
             b.tracker.record(
