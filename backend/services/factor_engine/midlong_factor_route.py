@@ -391,9 +391,17 @@ def factor_route_open(
     try:
         from backend.config.settings import midlong_brain_enabled
         if midlong_brain_enabled():
-            dec["opened"] = False
-            dec["gate"] = "brain_evidence_only"
-            return dec
+            # [M5 2026-09-14] A/B 车道：开关开且 paper → 因子路由与 LLM 主脑并行开仓
+            # （entry_source=factor_route 独立记账，月末按车道净边际对账——回答
+            # 「因子到底能不能自己赚钱」的唯一科学方式）。默认 true。
+            # false=旧行为（脑开启时因子只产证据不开仓）。
+            _ab = (os.getenv("MIDLONG_MID_FACTOR_ROUTE_AB", "true") or "true").strip().lower()
+            if _ab not in ("1", "true", "yes", "on") or (
+                trading_mode or "paper").strip().lower() != "paper":
+                dec["opened"] = False
+                dec["gate"] = "brain_evidence_only"
+                return dec
+            dec["gate"] = "ab_parallel(paper)"
     except Exception:
         pass
 

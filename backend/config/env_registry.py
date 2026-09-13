@@ -952,6 +952,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MASTER_STAGGER_SEC",
     "MIDLONG_MID_VIA_MLTO",
     "MIDLONG_MID_VIA_FACTOR_ROUTE",
+    # [M5 2026-09-14] 因子路由 A/B 车道（脑开启时 paper 并行自开；false=旧行为）
+    "MIDLONG_MID_FACTOR_ROUTE_AB",
     "MIDLONG_BRAIN_MODE",
     "MIDLONG_THESIS_TTL_MID_S",
     "MIDLONG_THESIS_TTL_LONG_S",
@@ -1362,6 +1364,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "TREND_VOL_LOOKBACK",            # 实现波动窗口（60 日）
     "TREND_MAX_POSITIONS",           # 同时最多持仓数（8）
     "TREND_E1_ENABLED",              # E1 日任务是否真下单（false=只算目标 + 漂移）
+    # [M2 2026-09-14] drift 杠杆违规阈值（默认 5.0=币种杠杆权威表上限；旧硬编码 3.0 与权威表冲突）
+    "TREND_DRIFT_MAX_LEVERAGE",
     "TREND_E1_ACCOUNT_IDS",          # E1 执行的模拟账户 id（逗号分隔）
     "TREND_E1_BUCKET_FRACTION",      # 趋势桶占权益（E4 三桶 60/30/10 → 0.60）
     "TREND_E1_REBALANCE_TOL",        # 权重超目标多少才减仓（相对 0.25）

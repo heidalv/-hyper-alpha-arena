@@ -225,6 +225,39 @@ def maintain_mlto_theses_for_session(
                 )
             except Exception as _br_err:
                 logger.warning("[MidLongBrain] 中线批次异常: %s", _br_err, exc_info=True)
+            # [M5 2026-09-14] A/B 车道：脑开启时因子路由也并行自开（paper），
+            # entry_source=factor_route 独立记账，月末按车道对账。开关
+            # MIDLONG_MID_FACTOR_ROUTE_AB（默认 true）；false=回滚旧行为。
+            try:
+                import os as _os_ab
+                _ab_on = (_os_ab.getenv("MIDLONG_MID_FACTOR_ROUTE_AB", "true") or "true"
+                          ).strip().lower() in ("1", "true", "yes", "on")
+                if _ab_on and (_trade_mode or "paper").strip().lower() == "paper" and _FR:
+                    for _m in _mid_syms:
+                        if not _reserve_key(f"{_m}:mid:ab"):
+                            continue
+                        try:
+                            from backend.services.factor_engine.midlong_factor_route import (
+                                factor_route_open,
+                            )
+                            _fr_dec = factor_route_open(
+                                host=host,
+                                session=session,
+                                symbol=_m,
+                                market_summary=market_summary,
+                                portfolio=portfolio,
+                                trading_mode=_trade_mode,
+                            )
+                            logger.info(
+                                "[FactorRouteAB] %s action=%s score=%s opened=%s gate=%s | %s",
+                                _m, _fr_dec.get("action"), _fr_dec.get("score"),
+                                _fr_dec.get("opened"), _fr_dec.get("gate"),
+                                (_fr_dec.get("reason") or "")[:110],
+                            )
+                        except Exception as _fr_err:
+                            logger.warning("[FactorRouteAB] %s 决策异常: %s", _m, _fr_err, exc_info=True)
+            except Exception as _ab_err:
+                logger.warning("[FactorRouteAB] A/B 车道跳过: %s", _ab_err)
         elif _FR and _mid_syms:
             for _m in _mid_syms:
                 if not _reserve_key(f"{_m}:mid"):

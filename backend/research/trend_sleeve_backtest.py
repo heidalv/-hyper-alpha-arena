@@ -379,14 +379,23 @@ def _kline_base(symbol: str) -> str:
 
 
 def compute_trend_drift(account_id: int, rules: Optional[TrendRules] = None, *, tier: str = "long",
-                        weight_tol: float = 0.10, max_leverage: float = 3.0, persist: bool = True,
+                        weight_tol: float = 0.10, max_leverage: Optional[float] = None, persist: bool = True,
                         targets: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """规则今日应有仓位 vs 账户实际 long 车道持仓。
 
     drift = 缺仓（应持未持）+ 多仓（不应持却持 / 非核心币）+ 反向（long 车道有空单）；
     weight_drift = 已匹配币的 |实际名义/权益 − 目标权重| > weight_tol 的个数（金字塔加仓会高于目标，单独列出）；
     leverage_violations = 杠杆 > max_leverage 的仓位。
+
+    [M2 2026-09-14] max_leverage 默认改为 env `TREND_DRIFT_MAX_LEVERAGE`（默认 5.0）：
+    旧硬编码 3.0 写于 9/4 币种杠杆权威之前——权威表现行 BTC/ETH 5x、二线 4x、小币 3x，
+    3.0 会把 E1 所有正常仓位误判成杠杆违规（F4 门永远过不了的自锁）。5.0 = 权威表上限。
     """
+    if max_leverage is None:
+        try:
+            max_leverage = float(os.getenv("TREND_DRIFT_MAX_LEVERAGE", "5.0") or 5.0)
+        except (TypeError, ValueError):
+            max_leverage = 5.0
     from sqlalchemy import text
     from backend.core.tenant import set_system_identity
     from backend.database.connection import SessionLocal
