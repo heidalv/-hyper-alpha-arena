@@ -44,6 +44,9 @@ def _fresh(monkeypatch, long_mode="learned"):
     monkeypatch.setenv("MIDLONG_DOWN_SHORT_MODE", "flat")
     monkeypatch.setenv("MIDLONG_CHOP_MODE", "long_only")
     monkeypatch.setenv("MIDLONG_LONG_MODE", long_mode)
+    # [M4 2026-09-14] 本文件契约测试锁的是 learned 门本身（hold 语义）；
+    # paper 探针（缩仓放行）是独立政策，见 test_m4_gate_paper_probe_20260914.py。
+    monkeypatch.setenv("MIDLONG_LEARNED_PAPER_PROBE", "false")
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MIN_UP_PCT", raising=False)
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MAX_UP_PCT", raising=False)
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MIN_CHOP_PCT", raising=False)

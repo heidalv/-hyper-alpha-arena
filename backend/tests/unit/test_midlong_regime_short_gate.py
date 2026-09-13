@@ -39,6 +39,9 @@ def _fresh(monkeypatch, mode="regime_gated"):
     monkeypatch.setenv("MIDLONG_SHORT_MODE", mode)
     monkeypatch.setenv("MIDLONG_DOWN_SHORT_MODE", "flat")  # 显式声明，避免环境漂移（生产默认 learned）
     monkeypatch.setenv("MIDLONG_CHOP_MODE", "long_only")
+    # [M4 2026-09-14] 本文件契约锁的是 regime 门本身（hold 语义）；paper 探针
+    # （缩仓放行）是独立政策，见 test_m4_gate_paper_probe_20260914.py。
+    monkeypatch.setenv("MIDLONG_LEARNED_PAPER_PROBE", "false")
     # [2026-09-09 第十六轮] 多头治理已独立（MIDLONG_LONG_MODE，生产默认 learned）；
     # 本文件契约基于「仅 down 拦」的多头口径，显式钉 regime_only（learned 分支
     # 契约见 test_midlong_long_learned_gate.py）。

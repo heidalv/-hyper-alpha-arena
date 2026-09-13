@@ -544,10 +544,18 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "FACTOR_SCORER_COST_EXCHANGE",
     # [2026-09-09 根因修复] 位置闸 + 中线出场参数标定（见 .env 同名注释块）
     "MIDLONG_LOCATION_GATE_ENABLED",
+    # [M4 2026-09-14] paper 下位置闸从 veto 降级为缩仓放行（默认 true；false=旧 veto）
+    "MIDLONG_LOCATION_PAPER_SHRINK_ENABLED",
+    # [M4 2026-09-14] paper 位置闸缩仓倍数（0.25）
+    "MIDLONG_LOCATION_PAPER_SHRINK_MULT",
     # [§78 补登记 2026-09-11] 位置闸"延后到长线闸"开关（交叉验证工具发现：有读取方但未登记）
     "MIDLONG_LOCATION_DEFER_TO_LONG_GATE",
     "MIDLONG_CHOP_MODE",
     "MIDLONG_DOWN_SHORT_MODE",
+    # [M4 2026-09-14] learned 窄带闸 paper 探针（默认 true=缩仓放行；false=旧 hold）
+    "MIDLONG_LEARNED_PAPER_PROBE",
+    # [M4 2026-09-14] learned 窄带 paper 探针缩仓倍数（默认 0.25）
+    "MIDLONG_LEARNED_PAPER_PROBE_MULT",
     # [2026-09-11 V11 深度解析] trend_broken 价格闸：浮亏 < 该%（价格口径，默认 3.0
     # = SL6% 的一半）且日线非 down → 不执行方向复查平仓（交给 SL/追踪）；0=关闭回滚
     "MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS",

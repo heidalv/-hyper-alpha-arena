@@ -234,6 +234,21 @@ def _change_24h_pct(ms: Dict[str, Any]) -> Optional[float]:
     return None
 
 
+def _paper_shrink_enabled() -> bool:
+    """[M4 2026-09-14] paper 下位置闸从 veto 降级为缩仓放行。"""
+    return (os.getenv("MIDLONG_LOCATION_PAPER_SHRINK_ENABLED", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _paper_shrink_mult() -> float:
+    try:
+        v = float(os.getenv("MIDLONG_LOCATION_PAPER_SHRINK_MULT", "0.25") or 0.25)
+        return max(0.05, min(1.0, v))
+    except (TypeError, ValueError):
+        return 0.25
+
+
 def location_gate_check(
     symbol: str,
     action: str,
@@ -241,8 +256,15 @@ def location_gate_check(
     tier: str = "",
     regime: str = "",
     market_summary: Optional[dict] = None,
+    paper_mode: bool = False,
 ) -> Tuple[bool, str, Dict[str, Any]]:
-    """开仓前的「位置」否决检查。返回 (allow, reason, detail)。"""
+    """开仓前的「位置」否决检查。返回 (allow, reason, detail)。
+
+    [M4 2026-09-14] paper_mode=true 且命中否决条件时：不 veto，改为缩仓放行
+    （detail 携带 paper_shrink_mult，调用方乘到 margin 上）。理由：位置闸的统计
+    依据来自旧策略结构的 99 笔样本，paper 的使命是收集**当前策略**的新样本；
+    live 口径保持硬 veto 不变。回滚：MIDLONG_LOCATION_PAPER_SHRINK_ENABLED=false。
+    """
     if not _enabled():
         return True, "location_gate 未启用", {}
     act = str(action or "").lower()
@@ -268,6 +290,20 @@ def location_gate_check(
     max_long = _f("MIDLONG_LOCATION_MAX_PCT_LONG", 60.0)
     min_short = _f("MIDLONG_LOCATION_MIN_PCT_SHORT", 40.0)
     adverse = _f("MIDLONG_LOCATION_MAX_ADVERSE_24H_PCT", 5.0)
+    _paper_shrink = bool(paper_mode) and _paper_shrink_enabled()
+
+    def _veto(reason: str) -> Tuple[bool, str, Dict[str, Any]]:
+        if _paper_shrink:
+            _mult = _paper_shrink_mult()
+            _d2 = dict(detail)
+            _d2["paper_shrink_mult"] = _mult
+            _d2["paper_shrink_veto_reason"] = reason
+            return (
+                True,
+                f"location_gate: paper 缩仓×{_mult:.2f} 放行（live 仍 veto）: {reason}",
+                _d2,
+            )
+        return False, reason, detail
 
     # [2026-09-11 V14/V17] 日线 chop + mid 学习门 ⇒ 位置规则让位（否则两闸互斥、
     # mid 层在震荡日无单可开；详见 _long_gate_authoritative docstring）。
@@ -278,34 +314,26 @@ def location_gate_check(
     # 1) 区间位置
     if pos_pct is not None and not _defer_pos:
         if act == "buy" and pos_pct >= max_long:
-            return (
-                False,
+            return _veto(
                 f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≥{max_long:.0f}% 高位追多"
-                f"（实测该带 24h 胜率 0.15-0.23）",
-                detail,
+                f"（实测该带 24h 胜率 0.15-0.23）"
             )
         if act == "sell" and pos_pct <= min_short:
-            return (
-                False,
+            return _veto(
                 f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≤{min_short:.0f}% 低位追空"
-                f"（实测该带 24h 胜率 0.15-0.23）",
-                detail,
+                f"（实测该带 24h 胜率 0.15-0.23）"
             )
 
     # 2) 追跌 / 追涨
     if chg24 is not None:
         if act == "buy" and chg24 <= -abs(adverse):
-            return (
-                False,
+            return _veto(
                 f"location_gate_veto: 24h已跌{chg24:.1f}% 逆势接刀做多"
-                f"（实测该带 24h 均值 -4.41%/胜率 0.167）",
-                detail,
+                f"（实测该带 24h 均值 -4.41%/胜率 0.167）"
             )
         if act == "sell" and chg24 >= abs(adverse):
-            return (
-                False,
-                f"location_gate_veto: 24h已涨{chg24:.1f}% 逆势追空做空",
-                detail,
+            return _veto(
+                f"location_gate_veto: 24h已涨{chg24:.1f}% 逆势追空做空"
             )
 
     if pos_pct is None and chg24 is None:

@@ -492,6 +492,24 @@ def _acct_key(account_id: Optional[int], symbol: str) -> str:
     return f"{int(account_id or 0)}:{(symbol or '').upper()}"
 
 
+def _learned_paper_probe_enabled() -> bool:
+    """[M4 2026-09-14] paper 下 learned 窄带闸从 hold 降级为缩仓探针。"""
+    return _env_b("MIDLONG_LEARNED_PAPER_PROBE", True)
+
+
+def _learned_paper_probe_mult() -> float:
+    try:
+        v = float(os.getenv("MIDLONG_LEARNED_PAPER_PROBE_MULT", "0.25") or 0.25)
+        return max(0.05, min(1.0, v))
+    except (TypeError, ValueError):
+        return 0.25
+
+
+def _paper_probe_reason(orig: str, mult: float) -> str:
+    """带稳定标记的探针放行 reason：调用方（midlong_executor）据此乘 margin。"""
+    return f"paper_probe×{mult:.2f}: {orig}"
+
+
 def check_midlong_entry(
     account_id: Optional[int],
     symbol: str,
@@ -507,6 +525,13 @@ def check_midlong_entry(
 
     [2026-09-09 第十六轮] 多头独立治理（`MIDLONG_LONG_MODE`，默认 learned）：
     down 拦 + up 需 chg24≥3% + chop 需 pos24≥60% 且 chg24≥2%（见 `_long_mode`）。
+
+    [M4 2026-09-14] learned 窄带闸 paper 探针：模拟账户（loss_locks_disabled）
+    命中 learned 窄带否决时不再 hold，改为缩仓×0.25 放行（reason 带
+    `paper_probe×` 标记，midlong_executor 据此乘 margin）。理由：learned 窄带
+    （chg24∈[3,6) 等）是按旧策略样本标定，paper 的使命是收集当前策略新样本；
+    regime 方向性硬拦（down 禁多 / 非 down 禁空 / short off）保持原样。
+    回滚：MIDLONG_LEARNED_PAPER_PROBE=false。
     """
     try:
         if not _env_b("MIDLONG_CIRCUIT_ENABLED", True):
@@ -514,6 +539,12 @@ def check_midlong_entry(
         _load()
         side_l = (side or "").lower()
         _sym_u = (symbol or "").upper()
+        # paper 探针开关：与亏损锁禁用同一判据（模拟账户）
+        try:
+            from backend.services.risk_management.loss_lock_policy import loss_locks_disabled as _lld
+            _paper_probe = bool(_lld(account_id)) and _learned_paper_probe_enabled()
+        except Exception:
+            _paper_probe = False
         if side_l in ("sell", "short"):
             _mode = _short_mode()
             if _mode == "off":
@@ -547,6 +578,11 @@ def check_midlong_entry(
                 if _dsm == "learned":
                     _ok, _why = _short_learned_ok(_sym_u)
                     if not _ok:
+                        if _paper_probe:
+                            return True, _paper_probe_reason(
+                                f"midlong_short_learned_block: {_why}",
+                                _learned_paper_probe_mult(),
+                            )
                         return False, f"midlong_short_learned_block: {_why}"
             elif _mode == "conditional" and not _is_intraday and not _short_bias_ok(market_summary, _sym_u):
                 return False, (
@@ -569,6 +605,11 @@ def check_midlong_entry(
                     if _lm == "learned" and _reg in ("up", "chop") and _tier_in_learned(tier):
                         _ok, _why = _long_learned_ok(_sym_u, _reg)
                         if not _ok:
+                            if _paper_probe:
+                                return True, _paper_probe_reason(
+                                    f"midlong_long_learned_block: {_why}",
+                                    _learned_paper_probe_mult(),
+                                )
                             return False, f"midlong_long_learned_block: {_why}"
         # [2026-09-09 第十轮] chop 空仓开关（默认 long_only，置 flat 启用）
         if _chop_flat_enabled() and str(tier or "").lower() != "short" and side_l in ("buy", "long", "sell", "short"):

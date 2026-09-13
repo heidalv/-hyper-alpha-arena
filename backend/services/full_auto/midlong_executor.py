@@ -440,6 +440,8 @@ def execute_midlong_open(
     # [2026-08-29 全面修复 P1.4/P1.5] mid 层熔断闸：连亏熔断 + 单 symbol 日亏
     # 上限 + mid 空头默认停开。依据：VELVET 两天 54 笔空 -410（无熔断裸奔）、
     # mid 空头 30 天 -601.73 最差象限。fail-open（闸自身异常不拦交易）。
+    # [M4 2026-09-14] learned 窄带 paper 探针：reason 带 `paper_probe×` 标记时
+    # 放行并乘 margin（缩仓探针，收集当前策略样本）；live 仍硬拦。
     try:
         from backend.services.full_auto.midlong_circuit_gate import check_midlong_entry
         _acct_ml = getattr(session, "paper_account_id", None) or getattr(
@@ -458,6 +460,17 @@ def execute_midlong_open(
             )
             _record_fail(_ml_reason[:60] or "midlong_circuit")
             return False
+        if _ml_ok and "paper_probe×" in str(_ml_reason):
+            try:
+                _pm = float(str(_ml_reason).split("paper_probe×", 1)[1].split(":", 1)[0])
+                _pm = max(0.05, min(1.0, _pm))
+                margin = margin * _pm
+                logger.info(
+                    "[MidLong] stage=fuse symbol=%s 熔断窄带 paper 缩仓×%.2f（%s）",
+                    sym_u, _pm, str(_ml_reason)[:90],
+                )
+            except (ValueError, IndexError):
+                pass
     except Exception as _ml_gate_err:
         logger.warning("[MidLong] 熔断闸检查跳过(fail-open): %s", _ml_gate_err)
 
@@ -484,6 +497,8 @@ def execute_midlong_open(
     # 60-80% 分位 -3.21%/0.231；而 0-20% 分位 +1.86%/0.857。61% 的开仓落在上半区。
     # 另：24h 已跌 >5% 时做多，24h 均值 -4.41%/胜率 0.167（接飞刀）。
     # 闸只对 mid/long + ranging/unknown regime 生效，数据缺失 fail-open。
+    # [M4 2026-09-14] paper 下命中否决 → 缩仓×0.25 放行（收集当前策略新样本），
+    # live 仍硬 veto；detail.paper_shrink_mult 乘到 margin。
     try:
         from backend.services.full_auto.midlong_location_gate import location_gate_check
         # regime 优先取缓存（apply_regime_to_open 每轮写入），缓存空时现场判一次，
@@ -498,9 +513,13 @@ def execute_midlong_open(
                 _reg_now = str(classify_regime(_ms_lg if isinstance(_ms_lg, dict) else {}).regime or "")
             except Exception:
                 _reg_now = ""
+        _tm_lg = str(trading_mode or "paper")
+        if getattr(session, "trading_mode", None):
+            _tm_lg = str(getattr(session, "trading_mode") or _tm_lg)
         _lg_ok, _lg_reason, _lg_detail = location_gate_check(
             sym_u, act, tier=str(tier or ""), regime=_reg_now,
             market_summary=market_summary,
+            paper_mode=(_tm_lg.strip().lower() == "paper"),
         )
         if not _lg_ok:
             logger.info(
@@ -509,6 +528,14 @@ def execute_midlong_open(
             )
             _record_fail(_lg_reason[:80] or "location_gate_veto", _reg_now)
             return False
+        if isinstance(_lg_detail, dict) and _lg_detail.get("paper_shrink_mult"):
+            _shrink = float(_lg_detail["paper_shrink_mult"])
+            margin = margin * _shrink
+            logger.info(
+                "[MidLong] stage=fuse symbol=%s 位置闸 paper 缩仓×%.2f（%s）",
+                sym_u, _shrink,
+                (_lg_detail.get("paper_shrink_veto_reason") or "")[:90],
+            )
     except Exception as _lg_err:
         logger.warning("[MidLong] 位置闸检查跳过(fail-open): %s", _lg_err)
 
