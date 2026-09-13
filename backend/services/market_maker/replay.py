@@ -243,7 +243,7 @@ def replay_symbol(
             continue
         now_ts = ots[i] / 1000.0
         mid_hist.append(mid)
-        if len(mid_hist) > 40:
+        if len(mid_hist) > 240:
             mid_hist.pop(0)
         # [F74] 波动信号：当前已实现波动相对基准的倍数（低波动≈0 → w 退化为 w_base）
         vol_cur = realized_vol_bp(mid_hist, limits.vol_window)

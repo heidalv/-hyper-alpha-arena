@@ -111,8 +111,8 @@ def replay_portfolio(
             # [F75] 与实盘同构：维护 mid_hist（趋势/波动闸的输入）
             st = states[s]
             st.mid_hist.append(mid)
-            if len(st.mid_hist) > 40:
-                st.mid_hist = st.mid_hist[-40:]
+            if len(st.mid_hist) > 240:
+                st.mid_hist = st.mid_hist[-240:]
             # 波动归一（近 20 期**已实现波动**相对基准，与实盘 tick 同口径）
             vol_cur = realized_vol_bp(st.mid_hist, limits.vol_window)
             sigma = (max(0.0, vol_cur / vol_baseline[s] - 1.0)

@@ -76,7 +76,7 @@ class SymbolState:
             "toxic_streak": self.toxic_streak,
             "spread_hist": [round(x, 8) for x in (self.spread_hist or [])[-20:]],
             "spread_baseline": round(self.spread_baseline, 8),
-            "mid_hist": [round(x, 10) for x in (self.mid_hist or [])[-40:]],
+            "mid_hist": [round(x, 10) for x in (self.mid_hist or [])[-240:]],
             "vol_baseline_bp": round(self.vol_baseline_bp, 4),
         }
 
@@ -427,8 +427,23 @@ def plan_tick(
     # ③ 重挂新单（含单侧许可）
     inv_ratio = (inv_ratio_hint if inv_ratio_hint is not None
                  else local_book.inv_ratio(state.symbol, mid, limit_notional))
+    # [F80 2026-09-13] 冻结行情信号：近 frozen_lookback 期单步最大移动（bp）。
+    # 单步指标对「微幅高频往返」敏感、对缓慢漂移不敏感——与「挂单能否被
+    # 穿越」的真实成交条件对应（冻结日 2h 全幅 16bp 但单步 ≤2bp 即为例证）。
+    _hist = state.mid_hist or []
+    slow_move_bp = 0.0
+    _lb = max(2, int(getattr(params, "frozen_lookback", 60) or 60))
+    if len(_hist) >= _lb + 1:
+        _h = _hist[-_lb - 1:]
+        _maxmv = 0.0
+        for _i in range(len(_h) - 1):
+            if _h[_i] > 0 and _h[_i + 1] > 0:
+                _mv = abs(_h[_i + 1] - _h[_i]) / _h[_i] * 1e4
+                if _mv > _maxmv:
+                    _maxmv = _mv
+        slow_move_bp = _maxmv
     q = compute_quote(symbol=state.symbol, mid=mid, sigma_norm=sigma_norm,
-                      inv_ratio=inv_ratio, params=params)
+                      inv_ratio=inv_ratio, slow_range_bp=slow_move_bp, params=params)
     if q is None:
         dec.skip = "no_quote"
         if dec.action != "flatten":
@@ -866,8 +881,8 @@ class ShadowRunner:
                                   "data_age_sec": round(age, 1)})
                 continue
             st.mid_hist.append(float(m["mid"]))
-            if len(st.mid_hist) > 40:
-                st.mid_hist = st.mid_hist[-40:]
+            if len(st.mid_hist) > 240:
+                st.mid_hist = st.mid_hist[-240:]
             # [F74] 波动信号：当前已实现波动相对基准的倍数（低波动≈0 → w 退化为 w_base）
             from backend.services.market_maker.core import realized_vol_bp
 

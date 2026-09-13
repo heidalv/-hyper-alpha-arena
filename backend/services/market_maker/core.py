@@ -40,6 +40,17 @@ class QuoteParams:
     max_width_bp: float = 60.0    # 上限，防止极端波动挂到天外
     k_vol: float = 0.5            # 波动放大系数
     k_inv: float = float(os.getenv("MM_K_INV", "1.0"))            # 库存偏斜系数
+    # [F80 2026-09-13] 冻结行情自适应挂宽：近 frozen_lookback 期的**单步最大移动**
+    # （max|Δmid|）< frozen_max_move_bp ⇒ 判定行情冻结（微幅振荡、无穿越行情），
+    # 挂宽切到 frozen_width_bp。
+    # 证据（09-13 冻结日回放）：单段 |Δmid| ≤2bp 时 w7/5/4 全 ≤0、w3 唯一为正
+    # （+0.24bp/140 fills）；活跃块 w3 会被逆选择屠杀 ⇒ 必须按行情档位切换。
+    # 用单步移动而非全幅：冻结行情是「±1-2bp 高频往返」而非「无移动」——
+    # 全幅指标在漂移型冻结下永远超阈值（2h 区间 16bp），单步指标才与
+    # 「挂单能否被穿越」的真实条件对应。None = 关闭（旧行为逐字一致）。
+    frozen_width_bp: Optional[float] = None
+    frozen_max_move_bp: float = 4.0
+    frozen_lookback: int = 60
 
 
 @dataclass(frozen=True)
@@ -59,6 +70,7 @@ def compute_quote(
     mid: float,
     sigma_norm: float = 0.0,
     inv_ratio: float = 0.0,
+    slow_range_bp: float = 0.0,
     params: QuoteParams = QuoteParams(),
 ) -> Optional[Quote]:
     """计算双边报价。
@@ -67,10 +79,18 @@ def compute_quote(
         mid: 中间价（<=0 直接返回 None）
         sigma_norm: 波动归一值（近 20 期振幅 / 长期均值 - 1，>=0 表示比平时波动大）
         inv_ratio: 库存偏离度 ∈ [-1, 1]（正=多头库存，需偏向卖出）
+        slow_range_bp: 近 240 期中价全幅（bp）——[F80] 冻结行情检测信号；
+            >0 且 < frozen_max_move_bp 时挂宽切到 frozen_width_bp
     """
     if not mid or mid <= 0:
         return None
-    base = params.w_base_bp * (1.0 + params.k_vol * max(0.0, sigma_norm))
+    # [F80] 冻结行情：全幅小于阈值 ⇒ 波动坍缩，窄挂宽捕获微小振荡
+    # （w3 在冻结日唯一为正的实测档位；无冻结信号时行为与旧版逐字一致）
+    if (params.frozen_width_bp is not None and float(params.frozen_width_bp) > 0
+            and 0 < float(slow_range_bp) < float(params.frozen_max_move_bp)):
+        base = float(params.frozen_width_bp)
+    else:
+        base = params.w_base_bp * (1.0 + params.k_vol * max(0.0, sigma_norm))
     # 库存偏斜：多头库存 → 买价挂更远、卖价挂更近（鼓励减仓）
     w_bid = base * (1.0 + params.k_inv * inv_ratio)
     w_ask = base * (1.0 - params.k_inv * inv_ratio)
