@@ -1252,6 +1252,29 @@ def _system_prompt(tier: str = "") -> str:
     )
 
 
+def _framework_agree_adjust(llm_dir: str, fw_mean: float, require_agree: bool = True) -> str:
+    """[M8 2026-09-14] 框架同意闸纯函数：LLM 方向与框架均值不一致时回落框架兜底。
+
+    语义与 decision_hub._derive_direction 的 ai_governed 分支一致（n=192：
+    LLM 方向 24h 胜率 0.434/0.343 比抛硬币差）：long 需 fw≥0.55、short 需 fw≤0.45；
+    不一致时框架决定性（≥0.55/≤0.45）取框架方向，否则 neutral。
+    """
+    if not require_agree:
+        return llm_dir
+    d = (llm_dir or "neutral").lower()
+    if d == "long" and fw_mean < 0.55:
+        return "short" if fw_mean <= 0.45 else "neutral"
+    if d == "short" and fw_mean > 0.45:
+        return "long" if fw_mean >= 0.55 else "neutral"
+    return d
+
+
+def _apply_owm_to_conviction(conviction: int, owm_w: float) -> int:
+    """[M8 2026-09-14] OWM llm 乘子（clamp [0.5,1.5]）作用到 conviction。"""
+    w = max(0.5, min(1.5, float(owm_w or 1.0)))
+    return int(max(0, min(100, round(conviction * w))))
+
+
 def refresh_thesis(
     *,
     session_id: str,
@@ -1383,6 +1406,60 @@ def refresh_thesis(
             )
             return live
         dto.direction = _map_direction(final.get("direction"))
+        # [M8 2026-09-14] 框架同意闸搬回现网：decision_hub._derive_direction（含
+        # 「LLM 定方向需框架同意」闸，audit_llm_direction_edge.py n=192：LLM 方向
+        # 24h 胜率 0.434/0.343 比抛硬币更差）随旧 orchestrator 9/5 下线后成为死路径，
+        # 现网 LLM 方向不经任何框架校验直接采用。此处按同源口径（orch bias +
+        # quant_alignment，与 quant_layer.compute 一致）复刻该闸：
+        # LLM 想定 long 需 fw_mean≥0.55、short 需 fw_mean≤0.45，否则方向回落框架
+        # 兜底（框架决定性时取框架方向，否则 neutral）。回滚：MLTO_LLM_DIRECTION_
+        # REQUIRE_FW_AGREE=false（.env 已有，原为死开关，现在真正生效）。
+        try:
+            if (os.getenv("MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE", "true") or "true"
+                    ).strip().lower() in ("1", "true", "yes", "on"):
+                _fw_mean = 0.5
+                _fw_has_evidence = False
+                _pack = feed.get("pack")
+                _qb = getattr(_pack, "quant_brief", None) or {}
+                _orch = getattr(_pack, "orchestrator", None) or {}
+                if isinstance(_qb, dict) and isinstance(_orch, dict):
+                    _fw_vals = []
+                    _bias_k = "mid_bias" if _tier3(tier) == "mid" else "long_bias"
+                    _bias = str(_orch.get(_bias_k) or "").strip().lower()
+                    if _bias in ("bullish", "long", "buy"):
+                        _fw_vals.append(1.0)
+                        _fw_has_evidence = True
+                    elif _bias in ("bearish", "short", "sell"):
+                        _fw_vals.append(0.0)
+                        _fw_has_evidence = True
+                    elif _bias:
+                        _fw_vals.append(0.5)
+                        _fw_has_evidence = True
+                    if "alignment_score" in _qb:
+                        try:
+                            _align = float(_qb.get("alignment_score") or 0)
+                            _fw_vals.append(min(1.0, max(0.0, _align / 15.0)))
+                            _fw_has_evidence = True
+                        except (TypeError, ValueError):
+                            pass
+                    if _fw_vals:
+                        _fw_mean = sum(_fw_vals) / len(_fw_vals)
+                _llm_dir = dto.direction
+                _new_dir = _framework_agree_adjust(_llm_dir, _fw_mean, require_agree=True)
+                if _new_dir != _llm_dir and _fw_has_evidence:
+                    logger.info(
+                        "[MidLongBrain] 框架同意闸: LLM %s 但 fw_mean=%.2f → 回落 %s",
+                        _llm_dir, _fw_mean, _new_dir,
+                    )
+                    dto.direction = _new_dir
+                elif _new_dir != _llm_dir:
+                    # 框架证据缺失：不回退（fail-open，避免缺数据把 long 误翻 short）
+                    logger.debug(
+                        "[MidLongBrain] 框架同意闸跳过: 无框架证据（%s %s）",
+                        symbol, tier,
+                    )
+        except Exception as _fw_err:
+            logger.debug("[MidLongBrain] 框架同意闸跳过(fail-open): %s", _fw_err)
         # [2026-09-09 归因落库] 主脑是 mid/long 车道的方向决定者（旧 MLTO orchestrator
         # 已于 2026-09-05 下线，`run_mlto_tick` 不再调用），因此 hub 归因必须在此写。
         # 记录：direction / llm_qual(conviction) / fw_mean(量化对齐) / regime / 是否建议开仓。
@@ -1437,6 +1514,33 @@ def refresh_thesis(
             dto.llm_conviction = int(max(0, min(100, round(float(final.get("confidence") or 0) * 100))))
         except (TypeError, ValueError):
             dto.llm_conviction = 0
+        # [M8 2026-09-14] OWM 读端接线：_bump_owm 每笔平仓仍在写 mlto_signal_weights
+        # （赢 +5% 基础权重 / 输 −5%），但唯一读端随 orchestrator 下线 → write-only。
+        # 现在把 llm 源的 OWM 乘子（clamp [0.5,1.5]，同 decision_hub.fuse_signals 口径）
+        # 作用到主脑 conviction：该 tier 的 LLM 近期连胜 → 加码，连败 → 打折。
+        # 回滚：MLTO_OWM_INTO_BRAIN=false。
+        try:
+            if (os.getenv("MLTO_OWM_INTO_BRAIN", "true") or "true"
+                    ).strip().lower() in ("1", "true", "yes", "on"):
+                from backend.services.mlto.learning_bridge import (
+                    _normalize_owm_tier as _owm_tier_of,
+                    load_owm_weights as _load_owm,
+                )
+                from backend.database.connection import AnalyticsSessionLocal as _ASL
+                _owm_w = 1.0
+                with _ASL() as _adb:
+                    _owm_map = _load_owm(session_id, _owm_tier_of(tier), _adb)
+                _owm_w = float(_owm_map.get("llm", 1.0) or 1.0)
+                _owm_w = max(0.5, min(1.5, _owm_w))
+                if abs(_owm_w - 1.0) > 1e-6:
+                    _old_conv = dto.llm_conviction
+                    dto.llm_conviction = _apply_owm_to_conviction(_old_conv, _owm_w)
+                    logger.info(
+                        "[MidLongBrain] OWM llm×%.3f: conviction %d→%d (%s %s)",
+                        _owm_w, _old_conv, dto.llm_conviction, symbol, tier,
+                    )
+        except Exception as _owm_err:
+            logger.debug("[MidLongBrain] OWM 接线跳过(fail-open): %s", _owm_err)
         dto.missing_evidence = miss[:10]
         dto.invalidation = inv_norm
         try:

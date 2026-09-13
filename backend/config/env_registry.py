@@ -539,6 +539,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_AI_MIN_CONF",
     # [2026-09-09 根因修复] LLM 方向需框架同意（见 decision_hub._llm_direction_requires_framework_agree）
     "MLTO_LLM_DIRECTION_REQUIRE_FW_AGREE",
+    # [M8 2026-09-14] OWM 权重读端接回主脑 conviction（默认 true；false=回滚 write-only）
+    "MLTO_OWM_INTO_BRAIN",
     # [2026-09-09] 因子打分成本口径：empirical=真实费率+实测滑点
     "FACTOR_SCORER_COST_SOURCE",
     "FACTOR_SCORER_COST_EXCHANGE",

@@ -2172,6 +2172,40 @@ def place_ai_driven_hyperliquid_order(
                                 except Exception as _open_err:
                                     logger.debug(f"[LEARNING] live opened_at 反推失败: {_open_err}")
 
+                                # [M8 2026-09-14] live 平仓补齐 thesis 元数据：审计发现 live
+                                # TradeOutcome 从不携带 thesis_id/decision_source → live 平仓
+                                # 永不进 AI 反馈体系（记忆/归因/教训全部漏记）。从最早开仓单的
+                                # metadata/decision_context 尽力反推；取不到保持旧行为（无回归）。
+                                _live_thesis_id = ""
+                                _live_decision_source = ""
+                                try:
+                                    _eo = _earliest_order
+                                    if _eo is not None:
+                                        for _md in (
+                                            getattr(_eo, "metadata", None),
+                                            getattr(_eo, "metadata_json", None),
+                                            getattr(_eo, "decision_context", None),
+                                        ):
+                                            if not _md:
+                                                continue
+                                            if isinstance(_md, str):
+                                                try:
+                                                    import json as _json
+                                                    _md = _json.loads(_md)
+                                                except Exception:
+                                                    _md = None
+                                            if isinstance(_md, dict):
+                                                _live_thesis_id = str(
+                                                    _md.get("thesis_id") or _md.get("thesisId") or ""
+                                                )[:64] or _live_thesis_id
+                                                _live_decision_source = str(
+                                                    _md.get("decision_source") or _md.get("source") or ""
+                                                )[:32] or _live_decision_source
+                                                if _live_thesis_id:
+                                                    break
+                                except Exception as _th_err:
+                                    logger.debug(f"[LEARNING] live thesis 元数据反推失败: {_th_err}")
+
                                 live_outcome = TradeOutcome(
                                     source="live",
                                     strategy_id=_strat_id,
@@ -2198,6 +2232,9 @@ def place_ai_driven_hyperliquid_order(
                                         "trend_direction": _trend_dir,
                                         "trend_strength": _trend_str,
                                         "opened_at_source": _opened_at_source,
+                                        # [M8 2026-09-14] thesis 归属（尽力反推；空串=旧行为）
+                                        "thesis_id": _live_thesis_id,
+                                        "decision_source": _live_decision_source,
                                     },
                                 )
                                 unified_learning.process_outcome(db, live_outcome)

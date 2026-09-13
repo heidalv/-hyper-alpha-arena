@@ -90,11 +90,15 @@ def register_v3_jobs() -> List[str]:
         logger.warning("[v3_jobs] edge_ledger_snapshot 注册失败: %s", exc)
 
     # ── 后续 Phase 的任务在此追加（RiskEngine 巡检、数据采集、双模型简报…）──
+    # [M8 2026-09-14] 原裸 `except ImportError: pass` 可静默杀掉全部扩展定时任务
+    # （审计实证：ops/v3_jobs.py:96-97）。改为 WARNING 可见 + 注册计数归零可见。
     try:
         from backend.services.ops.v3_jobs_ext import register_extended_jobs
         registered.extend(register_extended_jobs(task_scheduler, _wrap, _job))
-    except ImportError:
-        pass
+    except ImportError as exc:
+        logger.warning(
+            "[v3_jobs] v3_jobs_ext 导入失败（扩展任务全部未注册）: %s", exc
+        )
     except Exception as exc:
         logger.warning("[v3_jobs] 扩展任务注册失败: %s", exc)
 
