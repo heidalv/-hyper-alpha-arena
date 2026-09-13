@@ -752,12 +752,12 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 | MIDLONG_THESIS_WATCH_REFRESH_CAP | 变盘池每轮最多刷新 | 5 | watch/失败退避优先 |
 | ANALYSIS_WEEKLY_ENABLED | 周复盘定时注册 | false | 研究报告不控仓，默认停 |
 | ANALYSIS_TIMING_ENABLED | 择时定时注册 | false | 同上 |
-| MIDLONG_MID_VIA_FACTOR_ROUTE | 中线因子路由自己开仓 | false | 因子只产证据快照 |
+| MIDLONG_MID_VIA_FACTOR_ROUTE | 中线因子路由自己开仓 | true | [M5 2026-09-14] A/B 车道：脑开启时 paper 并行自开（entry_source 独立记账） |
 | LONG_TREND_V2 | 长线 V2 规则自己开仓 | 0 | 脑模式下 V2 降为证据 |
 | THESIS_SHADOW_ENABLED | 本地 14B 影子论题 | false | 主脑上线后下线 |
 | COMMITTEE_SHADOW_ENABLED | 影子委员会 | false | 主脑上线后下线 |
-| TREND_E1_ENABLED | E1 日任务真下单 | false | 可留算目标+漂移，不许 place_order |
-| TREND_E1_LONG_LANE_EXCLUSIVE | E1 独占长车道 | false | 否则 LLM 长线新开会被交易所层拒掉 |
+| TREND_E1_ENABLED | E1 日任务真下单 | true | [M2 2026-09-14] 启用 paper 实跑（唯一回测正期望策略；F4 门禁为实盘前置） |
+| TREND_E1_LONG_LANE_EXCLUSIVE | E1 独占长车道 | true | [M3 2026-09-14] LLM 长线新开只记为提议，长车道由 E1 单主管理 |
 | SCALP_OPEN_DISABLED | 短线新开总闸（纸盘+实盘） | true | 已有短线仓只许平、不许加 |
 | PAIR_SELECTOR_WATCHER_ENABLED | 短线 AI 选币扫描 | false | 选币已关仍 5 分钟扫的漏开源 |
 | E5_SHADOW_ENABLED | E5 事件影子车道 | false | 停空转 |

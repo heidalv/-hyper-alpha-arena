@@ -67,10 +67,11 @@ def _pos(sym, tier="long", nature="position", side="long", size=1.0, px=100.0, m
                 margin=margin, trade_nature=nature, timeframe_tier=tier)
 
 
-def _settings(monkeypatch, cap=4):
+def _settings(monkeypatch, cap=4, long_cap=8):
     from backend.config import settings
     monkeypatch.setattr(settings, "MIDLONG_PORTFOLIO_GATE_ENABLED", True, raising=False)
     monkeypatch.setattr(settings, "MIDLONG_MAX_OPEN_POSITIONS", cap, raising=False)
+    monkeypatch.setattr(settings, "MIDLONG_MAX_LONG_LANE_POSITIONS", long_cap, raising=False)
     monkeypatch.setattr(settings, "MIDLONG_CORR_CLUSTER_SYMBOLS", "", raising=False)
     return settings
 
@@ -90,12 +91,42 @@ def test_non_midlong_is_untouched(monkeypatch):
 
 
 def test_midlong_blocks_at_cap(monkeypatch):
+    """[M3 2026-09-14 语义更新] mid 车道开仓仍走全局帽（全量 midlong 计数）。"""
     _settings(monkeypatch, cap=3)
     from backend.services.mlto.midlong_portfolio_risk import choke_point_open_allowed
 
     db = _DB([_pos("SOL"), _pos("ETH"), _pos("XRP", tier="mid", nature="swing")])
     ok, why = choke_point_open_allowed(
-        db, 14, symbol="VIRTUAL", action="buy", tier="long", trade_nature="trend_follow",
+        db, 14, symbol="VIRTUAL", action="buy", tier="mid", trade_nature="swing",
+        new_notional=900.0,
+    )
+    assert not ok, why
+    assert "midlong_open_positions" in why
+
+
+def test_long_lane_cap_independent_of_mid(monkeypatch):
+    """[M3 2026-09-14] 长车道开仓只数长车道持仓（mid 仓不占长车道帽）。"""
+    _settings(monkeypatch, cap=3, long_cap=8)
+    from backend.services.mlto.midlong_portfolio_risk import choke_point_open_allowed
+
+    # 3 笔 mid 仓占满全局帽，但长车道 0 仓 → 长车道开仓放行
+    db = _DB([_pos(s, tier="mid", nature="swing") for s in ("XPL", "UNI", "BNB")])
+    ok, why = choke_point_open_allowed(
+        db, 14, symbol="BTC", action="buy", tier="long", trade_nature="trend_follow",
+        new_notional=900.0,
+    )
+    assert ok, why
+
+
+def test_long_lane_cap_blocks_when_long_lane_full(monkeypatch):
+    """[M3 2026-09-14] 长车道 8 仓满 → 长车道开仓被拦（帽独立生效）。"""
+    _settings(monkeypatch, cap=4, long_cap=8)
+    from backend.services.mlto.midlong_portfolio_risk import choke_point_open_allowed
+
+    db = _DB([_pos(s, tier="long", nature="trend_follow")
+              for s in ("BTC", "ETH", "SOL", "BNB", "XRP", "LINK", "DOGE", "AVAX")])
+    ok, why = choke_point_open_allowed(
+        db, 14, symbol="ADA", action="buy", tier="long", trade_nature="trend_follow",
         new_notional=900.0,
     )
     assert not ok, why

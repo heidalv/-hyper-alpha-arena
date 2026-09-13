@@ -140,18 +140,44 @@ def test_mid_lane_stays_shadow_until_switch_on(monkeypatch, caplog):
 
 
 def test_trend_lane_unaffected_by_mid_switch(monkeypatch):
-    """trend 赛道不因 mid 开关而改变（默认即会按校准硬拦）。"""
+    """[M1 2026-09-14 语义更新] trend 赛道默认与 mid 同款「车道开关未开=影子放行」
+    （MIDLONG_EV_ENFORCE_LONG 默认 false）；硬拦须显式开 MIDLONG_EV_ENFORCE_LONG。
+    旧语义（trend 恒按校准硬拦）是「EV 负→硬拦→零样本→校准恒旧」死亡螺旋的成因。
+    """
     _install_recorder(monkeypatch, p_win=0.20, source="calibrated")
     monkeypatch.setattr(evg.midlong_ev_gate, "_cfg", staticmethod(
         lambda name, default: {"MIDLONG_EV_GATE_ENABLED": True,
                                "MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION": True,
-                               "MIDLONG_EV_ENFORCE_MID": False}.get(name, default)
+                               "MIDLONG_EV_ENFORCE_MID": False,
+                               "MIDLONG_EV_ENFORCE_LONG": False,
+                               "MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW": True}.get(name, default)
     ))
     d = evg.midlong_ev_gate.evaluate(
         nature="trend_follow", calib_nature="trend_follow",
         symbol="ETH", score=60.0, direction="long", tp_pct=0.02, sl_pct=0.05,
     )
-    assert d.allowed is False and not d.breakdown.get("shadow_lane_switch")
+    # 默认（enforce_long=false）：影子放行（lane switch off，与 mid 同语义）
+    assert d.allowed is True
+    assert d.breakdown.get("shadow_lane_switch") is True
+
+
+def test_trend_lane_hard_blocks_when_enforce_long_on(monkeypatch):
+    """[M1 2026-09-14] 显式开 MIDLONG_EV_ENFORCE_LONG 且 live → 校准硬拦（保护不变）。"""
+    _install_recorder(monkeypatch, p_win=0.20, source="calibrated")
+    monkeypatch.setattr(evg.midlong_ev_gate, "_cfg", staticmethod(
+        lambda name, default: {"MIDLONG_EV_GATE_ENABLED": True,
+                               "MIDLONG_EV_ENFORCE_REQUIRES_CALIBRATION": True,
+                               "MIDLONG_EV_ENFORCE_MID": False,
+                               "MIDLONG_EV_ENFORCE_LONG": True,
+                               "MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW": True}.get(name, default)
+    ))
+    d = evg.midlong_ev_gate.evaluate(
+        nature="trend_follow", calib_nature="trend_follow",
+        symbol="ETH", score=60.0, direction="long", tp_pct=0.02, sl_pct=0.05,
+        paper_mode=False,  # live
+    )
+    assert d.allowed is False
+    assert not d.breakdown.get("shadow_lane_switch")
 
 
 def test_pipeline_passes_pre_normalization_nature():
