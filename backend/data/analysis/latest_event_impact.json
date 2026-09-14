@@ -1,114 +1,85 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789393279678,
+  "ts_ms": 1789393574333,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.819,
-  "run_id": "8884a79497aa4ae3b49a8c0bc69dfe22",
-  "context_hash": "9ea5797f892f343dcc4692808976f50bdb27ec1cdae7ae5293f96548d9b172e5",
+  "consensus_score": 0.825,
+  "run_id": "f60fa0a58c2a49539acdf8c70292c39f",
+  "context_hash": "e081360971d38c897156928f937dce716d23c41e359dd6bdf88aa908c775fe07",
   "final": {
-    "direction": "bullish",
-    "strength": 2.0,
-    "confidence": 0.325,
-    "half_life_hours": 15.0,
+    "direction": "bearish",
+    "strength": 3.5,
+    "confidence": 0.45,
+    "half_life_hours": 10.0,
     "affected_symbols": [
-      "SHAZ"
+      "BROCCOLIF3B"
     ],
-    "hedging_window_hours": 10.0,
+    "hedging_window_hours": 11.0,
     "position_adjustments": [
       {
-        "symbol": "SHAZ",
+        "symbol": "BROCCOLIF3B",
         "action": "no_new_long",
-        "reason": "bybit funding at -0.334%/8h (≈-366% APR) implies shorts are paying longs heavily; this is a short-crowded/squeeze-prone setup. Direction signal mildly bullish but confidence is low given absence of price/K-line data, tiny/illiquid token profile, and no high-impact news catalyst. Avoid initiating new long exposure until price action confirms; existing longs could benefit from squeeze but risk of snap reversal is high."
+        "reason": "Gateio funding +0.386%/8h（≈+423% APR）为极高正向资金费，做多成本极重，拥挤多头面临持续扣减；RSI53.6、1d仅+2.13%而无明显催化，资金费率极端常预示杠杆多头拥挤，存在被动去杠杆→价格回撤风险"
       },
       {
-        "symbol": "SHAZ",
-        "action": "no_new_short",
-        "reason": "bybit 资金费 -0.334%/8h（≈-366% APR），做空需持续支付负 carry（约1%/日）；且信号已在衰减（约5.5小时后 bybit 收敛至 -0.0499%）。缺少 SHAZ K线数据，方向性入场无法验证，仅保留受控多头吃 carry 的可能性，禁止新空。"
+        "symbol": "BROCCOLIF3B",
+        "action": "reduce",
+        "reason": "该币为高波动小盘（年化波动94%、ATR14 6.86%），且binance与gateio资金费方向不一致（binance +0.005、gateio +0.0397，跨所价差/资金费差大），做市深度浅，建议减仓降低杠杆拥挤度风险"
       },
       {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "当前 BTC 多头持仓（trend_e1 + auto swing）与 SHAZ 无直接敞口重叠；pack 中 corr_to_btc 与相关性矩阵为空，极端 alt 负资金费向主流币的传导无证据，不做无依据调节。"
-      },
-      {
-        "symbol": "ETH",
-        "action": "none",
-        "reason": "无 SHAZ 直接敞口；相关性数据缺失，系统性空头拥挤（多 alt 极端负费）尚无传导至 ETH 的证据（24h 清算多空大致均衡 20.4M vs 21.4M），维持现有仓位。"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "同上，无 SHAZ 敞口；清算面与新闻情绪（pos_ratio 0.5）均中性，无单边风险信号，持仓不动。"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "无 SHAZ 敞口；两笔 BNB 多头中 swing 仓剩余持仓时限仅 3.2h，按既有时间规则自然处理，无需因本事件额外干预。"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "无 SHAZ 敞口；事件属小市值 alt 资金费结构问题，与 UNI 关联未证实，维持。"
-      },
-      {
-        "symbol": "XRP",
-        "action": "none",
-        "reason": "无 SHAZ 敞口；XRP trend 仓浮盈 +3.55% 且止损距离仅 1.88%，已有保护，事件无增量影响。"
+        "symbol": "BROCCOLIF3B",
+        "action": "no_new_long",
+        "reason": "gateio 资金费 +0.386%/8h（≈+423% APR，为阈值 0.1%/8h 的约 3.86 倍），binance 同向极端 +0.114%/8h，多头持有成本极高且属拥挤多头；该币 7d 回报 -7.48%、仅 1d 反弹 +2.13%，追多费率为负carry。当前组合未持有该币（持仓集中于 BTC/ETH/SOL/BNB/XRP/UNI/ASTER），故仅限制新开多头，不涉及既有仓位减仓或对冲。"
       }
     ],
     "analogues": [
       {
-        "event": "binance SHAZ 资金费 -0.100%/8h（≈-110% APR） (ts 1789377306121, sev 2)",
-        "outcome": "Earlier same-day negative funding extreme on the same token across another venue — consistent cross-venue crowding signal but price impact unverified (数据不足)."
+        "event": "binance BROCCOLIF3B 资金费 +0.114%/8h（≈+125% APR）同窗口出现",
+        "outcome": "方向一致信号，gateio升级至+423% APR表明做多拥挤进一步加剧"
       },
       {
-        "event": "LSK bybit 资金费 -2.000%/8h (≈-2190% APR) and binance/asterdex/gateio all deeply negative",
-        "outcome": "Cross-venue cluster of extreme negative funding on LSK; historical pattern: such clusters often precede short-squeeze but also coincide with sharp drawdowns as crowded shorts unwind violently. Outcome not directly observable in pack."
+        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR）同窗口出现",
+        "outcome": "同类高正资金费极值通常在1-2个资金周期（8-16h）内因空头套利回补而回归均值，价格短期承压"
       },
       {
-        "event": "STEEM multi-venue negative funding ~-1.25%/8h",
-        "outcome": "Same-day multi-venue negative funding cluster on STEEM; direction ambiguous without price tape."
+        "event": "binance BROCCOLIF3B 资金费 +0.114%/8h（≈+125% APR，与本次 gateio 事件同一时刻、双所同向极端正费率）",
+        "outcome": "系统统一标记 dir=-0.5（偏空）；本 context pack 内无该类事件的事后价格/清算结果数据，无法量化历史均值回归幅度，仅作方向交叉验证：双所同向确认拥挤多头非单所噪声。"
       },
       {
-        "event": "SHAZ binance 资金费 -0.100%/8h（≈-110% APR，事件后约1.2小时）",
-        "outcome": "资金费绝对值继续收敛：最新快照 bybit -0.0499% / binance -0.1883% / gateio 0.0%，极端负费呈数小时内快速衰减特征；因 market:SHAZ 无 K 线，对应价格结果不可观测。"
-      },
-      {
-        "event": "同批次多币极端负资金费（LSK -2.0%/8h、STEEM -1.25%/8h、CVC -0.80%~-1.22%/8h、POWR -0.46%~-1.14%/8h，集中于 bybit/binance/asterdex）",
-        "outcome": "属系统性空头拥挤而非 SHAZ 个币独有；24h 全市场清算 long 20.4M / short 21.4M 大致均衡，未出现单边挤压的已确认结局数据，结果未知。"
+        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR）、gateio FATCOIN +1.0559%/8h、gateio INDEX +0.5279%/8h（同期扫描 3279 个合约中的更极端正费率样本）",
+        "outcome": "同类拥挤多头信号均被标记 dir=-0.5；pack 内无事后结果数据，仅表明 BROCCOLIF3B 的 +0.386%/8h 在同期正费率阵营中属中等强度（弱于 BSP/FATCOIN），支持 direction=bearish 但 strength 不取高值。"
       }
     ],
     "key_factors": [
-      "Cross-venue negative funding on SHAZ (bybit -0.334%, binance -0.100%, gateio 0) signals persistent short crowding — structurally bullish for price via squeeze pressure but only mildly so given bybit is the most extreme venue",
-      "Severity 3 (moderate) and APR ≈-366% is extreme in absolute terms but SHAZ is a small-cap/low-liquidity token where funding can stay dislocated without resolving",
-      "No K-line / price data available (数据不足) — cannot confirm whether squeeze is already underway or funding is reflecting an ongoing downtrend",
-      "Market-wide funding context: 24h liquidations roughly balanced (long 20.4M vs short 21.4M USD) and no high-impact news, so the event is idiosyncratic to SHAZ rather than systemic",
-      "Current book has no SHAZ exposure across accounts 14/147/149/156, so event is observation-only with no direct P&L impact",
-      "SHAZ bybit 资金费 -0.334%/8h（≈-366% APR），空头支付多头，负 carry 显著，反向看多为空头拥挤后的挤压风险",
-      "信号快速衰减：事件后约5.5小时 bybit 已收敛至 -0.0499%、binance -0.1883%、gateio 0.0%，跨所费率分歧大，典型小市值 alt 特征",
-      "market:SHAZ 无 K 线（数据不足），价格趋势与波动率不可评估，方向判断主要依赖资金费结构本身",
-      "同时刻多 alt 极端负费（LSK/STEEM/CVC/POWR/PUNDIX/GLM/ARK/FLY/UNITREE 等），为系统性环境而非 SHAZ 个币事件，削弱 SHAZ 专属信号强度",
-      "24h 清算多空均衡（long 20,420,503 / short 21,395,239 USD），新闻密度升至前日 1.69 倍但情绪中性（pos_ratio 0.5），无单边压力确认",
-      "当前 9 笔持仓（BTC/ETH/SOL/BNB/UNI/XRP，全多头）与 SHAZ 无重叠，直接敞口为零；跨币相关性数据缺失，间接传导无法量化"
+      "Gateio BROCCOLIF3B 资金费 +0.386%/8h达+423% APR，severity=3属极端水平",
+      "Binance同币资金费仅+0.005，跨所价差/资金费差显著，gateio单所极端值",
+      "现货7日回撤-7.48%但1日+2.13%，近期短线反弹触发杠杆多头涌入",
+      "年化波动率94%、ATR14达6.86%，高波动小盘对极端资金费冲击敏感",
+      "同时间窗口大量其他币种出现极端资金费（如LSK -2190% APR、BSP +1569% APR），市场整体杠杆结构失衡",
+      "极端正费率：gateio +0.386%/8h ≈ +423% APR，为触发阈值（0.1%/8h）的约 3.86 倍，longs 需支付高额资金成本，历史上该状态对应拥挤多头与多头踩踏（long squeeze）风险，系统事件方向标记亦为 -0.5（偏空）",
+      "双所同向且快速上行：按 flows 快照（as_of 更早约 8 小时）gateio 0.0397% → 事件时 0.386%、binance 0.005% → 0.114%，费率在约一个资金费周期内放大约 10 倍，投机多头加速堆积",
+      "价格背景不支撑强势：1d +2.13% 但 7d -7.48%，RSI14 53.6 中性，反弹伴随费率飙升更像挤压式逼空后的脆弱结构",
+      "高波动放大回归风险：ATR14 6.86%/日、rv30 年化 94%，费率均值回归时价格摆动可能剧烈",
+      "传染证据缺失：corr_to_btc、correlation_pairs、position_structure、该币清算数据均为空，无法评估对组合现有持仓（BTC/ETH/SOL/BNB/XRP/UNI/ASTER）的外溢影响；账户14 总敞口已达 100.6%，不宜借该事件扩仓",
+      "半衰期设定依据：极端资金费通常在 1–3 个结算周期（8h/期）内回归，取 16h 为中枢估计；事件时点较行情快照晚约 8 小时，存在数据时滞"
     ],
-    "summary": "Bybit SHAZ funding at -0.334%/8h (≈-366% APR) indicates heavy short crowding and mild bullish squeeze risk, but confidence is low (0.35) because (a) no price/K-line data is available to confirm trend, (b) SHAZ is a low-liquidity token where negative funding can persist without forcing a squeeze, and (c) no high-impact news or systemic catalyst is present. Direction is tentatively bullish with strength 2/10 and an estimated half-life of ~24h. No existing SHAZ positions in the book, so the actionable recommendation is simply no_new_long until price confirmation; no hedging required. Data gaps (price, volume, OI) are the main risk to this assessment."
+    "summary": "Gateio BROCCOLIF3B 资金费飙升至+0.386%/8h（约+423% APR），远高于0.1%阈值，叠加binance端仅+0.005的明显跨所价差，提示该平台多头杠杆严重拥挤、做多成本极高。在高波动小盘+7日已回撤-7.48%的背景下，极端正资金费通常在1-2个资金周期内因套利空头介入而均值回归，价格短期偏空/承压。受影响仅限BROCCOLIF3B单一标的（不在BTC/ETH/SOL等持仓篮子），对现有组合敞口无直接影响，但应禁止新增该币多头并考虑减仓以规避杠杆拥挤与潜在去杠杆波动。半衰期约4小时，避险窗口建议6小时内完成仓位调整。"
   },
   "notes": [],
   "event": {
-    "id": 102655,
+    "id": 102669,
     "event_type": "funding.extreme",
-    "symbol": "SHAZ",
+    "symbol": "BROCCOLIF3B",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": 0.5,
-    "title": "bybit SHAZ 资金费 -0.334%/8h（≈-366% APR）",
+    "direction": -0.5,
+    "title": "gateio BROCCOLIF3B 资金费 +0.386%/8h（≈+423% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -366.1,
-      "rate_8h": -0.00334312,
-      "exchange": "bybit",
-      "rate_raw": -0.00334312,
+      "apr_pct": 422.7,
+      "rate_8h": 0.00386,
+      "exchange": "gateio",
+      "rate_raw": 0.00386,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
