@@ -135,6 +135,22 @@ def main() -> int:
                                    since=since_era) or {}
     print(f"  平仓占比={fs.get('flatten_share')} 平仓笔数={fs.get('flattens')}")
 
+    # [F168] 风控闸门余量：夜间/长跑累积最怕"日亏闸被触发 ⇒ 车道停车 ⇒ 证据链中断" ✗
+    # 这一节给出阈值、当日已实现净额与余量，让"会不会被打断"一眼可见 ✓。
+    try:
+        from backend.services.market_maker.runner import (
+            lane_day_pnl_usd, lane_limits_enforce_enabled)
+        _thr = -float(st.get("account_equity") or st.get("equity") or 300.0) * float(
+            params.get("daily_loss_stop_pct", 10.0)) / 100.0
+        _day = lane_day_pnl_usd(lane_id)
+        _eq = float(st.get("account_equity") or st.get("equity") or 300.0)
+        _hr("④b 风控闸门余量（保护长时间累积不被打断）")
+        print(f"  车道闸门武装={lane_limits_enforce_enabled()}  "
+              f"日亏阈值={_thr:+.2f}$  当日已实现={_day:+.3f}$  "
+              f"余量={_day - _thr:+.3f}$（{(_day - _thr)/max(1.0, _eq)*100:.2f}% 权益）")
+    except Exception as e:  # pragma: no cover
+        print(f"  （闸门余量读取失败: {e}）")
+
     _hr("④ 双账一致性（运行态 vs 账本重建）")
     try:
         from backend.services.market_maker.reconcile import compare_lane_books
