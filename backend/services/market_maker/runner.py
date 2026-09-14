@@ -285,6 +285,37 @@ def seg_window(prev_label_ms: int, snap_ms: int, quote_ts: float = 0.0,
     return lo, hi, qts_ms
 
 
+def pending_contrib(state: "SymbolState", mark: float, leg: float
+                    ) -> Tuple[float, float, float]:
+    """[F94c 2026-09-14] 单个币的在挂腿对风险预留的贡献 `(up, down, gross)`（USD）。
+
+    - **加仓腿**（空仓的买、空头的卖）：足额 `leg` —— 成交会新增一条腿。
+    - **减仓腿**（多头的卖、空头的买）：`min(leg, |现仓|)` —— 平仓最多只能减掉
+      现有仓位，不可能新增敞口。
+    - `gross` 只计加仓腿（减仓只会减小总敞口）。
+
+    为什么必须区分：此前一律按足额 `leg` 计 ⇒ 只要场上有几个减仓腿在挂，
+    其余币的加仓侧就被"最坏情形"封死——实测重启后 **5 分钟 0 成交**、
+    `skip=net_exposure`。减仓腿按现仓计之后，预留与实际风险一致。
+    """
+    q = float(getattr(state, "qty", 0.0) or 0.0)
+    pos_nt = abs(q) * float(mark or 0.0)
+    up = down = gross = 0.0
+    if float(getattr(state, "quote_bid", 0.0) or 0.0) > 0:
+        if q < -1e-12:                       # 空头买回 = 减仓
+            up += min(leg, pos_nt)
+        else:                                # 空仓/多头买入 = 加仓
+            up += leg
+            gross += leg
+    if float(getattr(state, "quote_ask", 0.0) or 0.0) > 0:
+        if q > 1e-12:                        # 多头卖出 = 减仓
+            down += min(leg, pos_nt)
+        else:                                # 空仓/空头卖出 = 加仓
+            down += leg
+            gross += leg
+    return up, down, gross
+
+
 def check_data_freshness(snapshot_ts_ms: int, now_ts: float,
                          max_age_sec: float = MAX_DATA_AGE_SEC) -> Tuple[bool, float, str]:
     """盘口数据新鲜度检查。返回 (fresh, age_sec, reason)。
@@ -365,6 +396,9 @@ def plan_tick(
     day_pnl_usd: float = 0.0,
     # [F86] 上一桶主动流失衡 OFI∈[-1,1]（+1=全是主动买）；用于流向毒性闸
     ofi: float = 0.0,
+    # [F94] 本 tick 其余币**在挂同向腿**的名义（最坏情形风险预留）：调用方维护，
+    # 形如 {"up": 买单在挂名义, "down": 卖单在挂名义}，跨币累加。
+    pending: Optional[Dict[str, float]] = None,
 ) -> Tuple[TickDecision, Dict[str, Any]]:
     """一个 tick 的纯决策：成交判定 → 超时平仓 → 重挂新单。
 
@@ -386,6 +420,7 @@ def plan_tick(
 
     params = params or QuoteParams()
     limits = limits or LaneRiskLimits()
+    _pend = pending if pending is not None else {}
     dec = TickDecision(symbol=state.symbol, mid=float(mid or 0.0), sigma_norm=float(sigma_norm or 0.0))
     if not mid or mid <= 0:
         dec.skip = "no_mid"
@@ -635,10 +670,17 @@ def plan_tick(
 
     allow_buy, why_buy = check_side_allowed(
         symbol=state.symbol, side="buy", book=local_book, marks=marks, equity=equity,
-        add_notional=fill_notional, limits=limits, now_ts=now_ts, sigma_norm=sigma_norm)
+        add_notional=fill_notional, limits=limits, now_ts=now_ts, sigma_norm=sigma_norm,
+        # [F94] 在挂同向腿的最坏情形预留（见 core.check_side_allowed docstring）
+        pending_up_usd=float(_pend.get("up") or 0.0),
+        pending_down_usd=float(_pend.get("down") or 0.0),
+        pending_gross_usd=float(_pend.get("gross") or 0.0))
     allow_sell, why_sell = check_side_allowed(
         symbol=state.symbol, side="sell", book=local_book, marks=marks, equity=equity,
-        add_notional=fill_notional, limits=limits, now_ts=now_ts, sigma_norm=sigma_norm)
+        add_notional=fill_notional, limits=limits, now_ts=now_ts, sigma_norm=sigma_norm,
+        pending_up_usd=float(_pend.get("up") or 0.0),
+        pending_down_usd=float(_pend.get("down") or 0.0),
+        pending_gross_usd=float(_pend.get("gross") or 0.0))
 
     # [F71] 趋势闸门：单边行情里禁止逆势侧（下跌禁买、上涨禁卖）
     blocked = trend_blocked_side(state.mid_hist, limits.trend_pause_bp,
@@ -1170,6 +1212,15 @@ class ShadowRunner:
         # 时组合已 $600 同向暴露，却谁都看不到。
         from backend.services.market_maker.core import InventoryBook, Position
 
+        # [F94 2026-09-14] 在挂同向腿的风险预留（跨币累加）：净敞口上限必须把
+        # **已经挂在场的腿**算进去，否则多币同向同时成交会把敞口顶穿（实测回放
+        # 峰值 7.9× 上限、实盘 3.4×）。本 tick 每个币重挂时先减掉自己的旧贡献，
+        # 再按新挂单加回（等价于「撤旧单 → 挂新单」的真实时序）。
+        pending_up = 0.0
+        pending_down = 0.0
+        pending_gross = 0.0
+        _pending = {"up": 0.0, "down": 0.0, "gross": 0.0}
+
         shared_book = InventoryBook()
         marks: Dict[str, float] = {}
         # [F90] 孤儿持仓同样计入共享库存账本：净敞口上限必须覆盖真实风险，
@@ -1183,6 +1234,16 @@ class ShadowRunner:
                     opened_ts=st0.opened_ts, last_ts=st0.last_ts)
             if m0:
                 marks[s] = float(m0["mid"])
+        # [F94c] 在挂腿预留：必须在 marks 建好之后，按「加仓/减仓」区分计入
+        for _s in self.risk_symbols():
+            _st = self.states.get(_s)
+            if not _st:
+                continue
+            _u, _d, _g = pending_contrib(_st, marks.get(_s, 0.0), self.fill_notional)
+            pending_up += _u
+            pending_down += _d
+            pending_gross += _g
+        _pending = {"up": pending_up, "down": pending_down, "gross": pending_gross}
         for s in self.symbols:
             m = market.get(s)
             st = self.states.setdefault(s, SymbolState(symbol=s))
@@ -1201,6 +1262,12 @@ class ShadowRunner:
             st.mid_hist.append(float(m["mid"]))
             if len(st.mid_hist) > 240:
                 st.mid_hist = st.mid_hist[-240:]
+            # [F94] 撤旧单 → 挂新单：先减掉本币旧的在挂腿，plan_tick 挂完后再加回
+            # [F94c] 撤旧单 → 挂新单：按「加仓/减仓」区分先减掉本币旧贡献
+            _u0, _d0, _g0 = pending_contrib(st, marks.get(s, 0.0), self.fill_notional)
+            _pending["up"] = max(0.0, _pending["up"] - _u0)
+            _pending["down"] = max(0.0, _pending["down"] - _d0)
+            _pending["gross"] = max(0.0, _pending["gross"] - _g0)
             # [F74] 波动信号：当前已实现波动相对基准的倍数（低波动≈0 → w 退化为 w_base）
             from backend.services.market_maker.core import realized_vol_bp
 
@@ -1220,7 +1287,14 @@ class ShadowRunner:
                 ofi=float(m.get("ofi") or 0.0),
                 # [§82/P5-A] 日亏闸输入：本 UTC 日车道已实现净额（关闭时不参与判定）
                 day_pnl_usd=(day_pnl if lane_limits_enforce_enabled() else 0.0),
+                pending=_pending,
             )
+            # [F94] 本币新挂单计入在挂风险（供同 tick 后续币种判定）
+            # [F94c] 本币新挂单按「加仓/减仓」计入在挂风险（供同 tick 后续币种判定）
+            _u1, _d1, _g1 = pending_contrib(st, marks.get(s, 0.0), self.fill_notional)
+            _pending["up"] += _u1
+            _pending["down"] += _d1
+            _pending["gross"] += _g1
             self._record_fills(dec)
             self.fills += len(dec.fills)
             self.flattens += sum(1 for f in dec.fills if f.is_flatten)

@@ -310,6 +310,12 @@ class TestOneSidedFillDetection:
     """
 
     def test_long_at_limit_still_fills_reducing_ask(self):
+        """多头到顶仍必须能成交减仓侧（本测试锁定 F72 语义）。
+
+        [F91 2026-09-14 更新] 减仓腿改为**精确平仓**（`min(|现仓|, 队列份额)`）：
+        旧口径按 dollar 腿量 $100/100=1.0 平，新口径按现仓 2.0 但受队列份额
+        （5.0 × 0.30 = 1.5）封顶 ⇒ 成交 1.5、剩 0.5。语义未变：减仓侧照常成交。
+        """
         st = SymbolState(symbol="BTC", qty=2.0, avg_px=100.0, avg_mid=100.0,
                          opened_ts=1000.0, quote_bid=0.0, quote_ask=100.05,
                          quote_mid=100.0, quote_ts=1000.0)
@@ -320,9 +326,11 @@ class TestOneSidedFillDetection:
                                                  max_net_directional_ratio=0.04,
                                                  stop_loss_bp=0.0))
         assert [f.side for f in dec.fills] == ["sell"]
-        assert st.qty == pytest.approx(1.0, abs=1e-6)
+        assert dec.fills[0].qty == pytest.approx(1.5, abs=1e-6), "min(现仓 2.0, 5.0×0.30)"
+        assert st.qty == pytest.approx(0.5, abs=1e-6)
 
     def test_short_at_limit_still_fills_reducing_bid(self):
+        """空头到顶仍必须能成交减仓侧（对称保护，口径同 F91）。"""
         st = SymbolState(symbol="ETH", qty=-2.0, avg_px=100.0, avg_mid=100.0,
                          opened_ts=1000.0, quote_bid=99.95, quote_ask=0.0,
                          quote_mid=100.0, quote_ts=1000.0)
@@ -333,7 +341,8 @@ class TestOneSidedFillDetection:
                                                  max_net_directional_ratio=0.04,
                                                  stop_loss_bp=0.0))
         assert [f.side for f in dec.fills] == ["buy"]
-        assert st.qty == pytest.approx(-1.0, abs=1e-6)
+        assert dec.fills[0].qty == pytest.approx(1.5, abs=1e-6)
+        assert st.qty == pytest.approx(-0.5, abs=1e-6)
 
     def test_no_quotes_no_fill(self):
         st = SymbolState(symbol="BTC", quote_bid=0.0, quote_ask=0.0)

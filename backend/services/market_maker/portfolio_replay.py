@@ -23,6 +23,8 @@ from backend.services.market_maker.core import (
     QuoteParams,
     realized_vol_bp,
 )
+# [F94c] 在挂腿风险预留口径必须与实盘 tick 完全一致（同一函数，避免两处漂移）
+from backend.services.market_maker.runner import pending_contrib as _pending_contrib  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +104,31 @@ def replay_portfolio(
     _ratio = float(fill_notional_ratio or 0.0)
     running_equity = float(equity)
     capped_fill_count = 0   # 队列份额截断腿量的次数（容量上限观测）
+    # [F94c] 风险实况：由**真实账本**逐快照统计（外部用成交日志重建会失真——
+    # 实测重建值偏离真实值 2 倍以上，导致上限是否生效无法判断）
+    max_net_usd = 0.0
+    max_gross_usd = 0.0
+    breach_snapshots = 0
+    # [F94] 在挂同向腿的风险预留（跨币累加，逐快照重建）
+    pending: Dict[str, float] = {"up": 0.0, "down": 0.0, "gross": 0.0}
 
     for ts in timeline:
+        # [F94c] 每个快照开始时重建预留：按「加仓/减仓」区分（减仓腿只可能减掉现仓）
+        pending["up"] = 0.0
+        pending["down"] = 0.0
+        pending["gross"] = 0.0
+        _leg_now = (max(10.0, _ratio * running_equity) if _ratio > 0 else fill_notional)
+        _marks_now = {}
+        for _s in symbols:
+            _i = idx[_s]
+            _d0 = data[_s]
+            if _i < len(_d0["bb"]):
+                _marks_now[_s] = float((_d0["bb"][_i] + _d0["ba"][_i]) / 2)
+        for _s in symbols:
+            _u, _d, _g = _pending_contrib(states[_s], _marks_now.get(_s, 0.0), _leg_now)
+            pending["up"] += _u
+            pending["down"] += _d
+            pending["gross"] += _g
         for s in symbols:
             d = data[s]
             i = idx[s]
@@ -145,6 +170,16 @@ def replay_portfolio(
                 _b, _s = float(d["bv"][_k]), float(d["sv"][_k])
                 if _b + _s > 0:
                     ofi = (_b - _s) / (_b + _s)
+            # [F94 2026-09-14] 在挂同向腿的风险预留：与实盘 tick 同口径——
+            # 每个币重挂前先撤掉自己的旧贡献，挂完再按新单加回。此前闸门不看
+            # 在挂单 ⇒ 多币同向同时成交把净敞口顶到上限的 7.9 倍（回放实测）。
+            _leg_nt = (max(10.0, _ratio * running_equity) if _ratio > 0
+                       else fill_notional)
+            _st = states[s]
+            _u0, _d0, _g0 = _pending_contrib(_st, marks.get(s, 0.0), _leg_nt)
+            pending["up"] = max(0.0, pending["up"] - _u0)
+            pending["down"] = max(0.0, pending["down"] - _d0)
+            pending["gross"] = max(0.0, pending["gross"] - _g0)
             dec, _meta = plan_tick(
                 state=states[s], mid=mid, seg_low=seg_low, seg_high=seg_high,
                 seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
@@ -157,8 +192,13 @@ def replay_portfolio(
                                if _ratio > 0 else fill_notional),
                 taker_fee_bp=4.0, maker_fee_bp=0.0, half_spread=half_spread,
                 sigma_norm=sigma, book=book, marks=marks,
-                ofi=ofi,
+                ofi=ofi, pending=pending,
             )
+            # [F94c] 新挂腿按加仓/减仓区分计入
+            _u1, _d1, _g1 = _pending_contrib(states[s], marks.get(s, 0.0), _leg_nt)
+            pending["up"] += _u1
+            pending["down"] += _d1
+            pending["gross"] += _g1
             if dec.skip and not dec.fills:
                 key = dec.skip.split("(")[0]
                 skips[key] = skips.get(key, 0) + 1
@@ -178,6 +218,14 @@ def replay_portfolio(
                     "net_usd": round(f.net_usd, 6), "flatten": f.is_flatten,
                     "net_position_usd": round(book.notional(s, mid), 4),
                 })
+        # [F94c] 快照末风险实况（真实账本口径）
+        _n = abs(book.net_notional(marks)) if marks else 0.0
+        _g = sum(abs(book.notional(k, marks.get(k, 0.0))) for k in symbols) if marks else 0.0
+        max_net_usd = max(max_net_usd, _n)
+        max_gross_usd = max(max_gross_usd, _g)
+        if limits.max_gross_notional_ratio > 0 and \
+                _g > running_equity * limits.max_gross_notional_ratio * 1.02:
+            breach_snapshots += 1
 
     fills_log.sort(key=lambda x: x["ts_ms"])
     cum = np.cumsum([x["net_usd"] for x in fills_log]) if fills_log else np.array([])
@@ -211,6 +259,10 @@ def replay_portfolio(
         "skipped": skips,
         "open_inventory_usd": round(gross, 2),
         "net_exposure_usd": round(book.net_notional(marks), 2),
+        # [F94c] 风险实况（真实账本逐快照峰值）：用于验证上限是否真的兜住风险
+        "max_net_usd": round(max_net_usd, 2),
+        "max_gross_usd": round(max_gross_usd, 2),
+        "cap_breach_snapshots": breach_snapshots,
         # [F84] 复利观测：最终权益与队列份额截断次数
         "final_equity": round(running_equity, 4),
         "capped_fill_count": capped_fill_count,

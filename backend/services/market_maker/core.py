@@ -288,6 +288,11 @@ class LaneRiskLimits:
 
     max_symbol_notional_ratio: float = 0.05     # 单币库存 ≤ 该币 10 档深度 ×5%
     max_net_exposure_ratio: float = 0.30        # 总净敞口 ≤ 权益 30%
+    # [F94b 2026-09-14] 总敞口上限（Σ|仓位| / 权益）。0 = 关闭（旧行为逐字一致）。
+    # **唯一能严格兜住真实风险的口径**：平仓会让对冲腿消失从而放大净敞口
+    # （实测 3 空 1 多净 −$900 → 平掉多单后净 −$1286），却只会减小总敞口
+    # ⇒ 下单侧约束对净敞口只能「尽力而为」，对总敞口是硬约束。
+    max_gross_notional_ratio: float = 0.0
     max_net_directional_ratio: float = 0.10     # 单边方向敞口 ≤ 权益 10%
     max_one_side_seconds: float = float(os.getenv("MM_MAX_ONE_SIDE_SEC", "300"))  # 单边持仓上限
     vol_pause_sigma: float = 1.5                # 波动 > 1.5× → 暂停该币
@@ -511,6 +516,9 @@ def check_side_allowed(
     limits: LaneRiskLimits = LaneRiskLimits(),
     now_ts: float = 0.0,
     sigma_norm: float = 0.0,
+    pending_up_usd: float = 0.0,
+    pending_down_usd: float = 0.0,
+    pending_gross_usd: float = 0.0,
 ) -> Tuple[bool, str]:
     """单侧报价许可（做市必需：库存到顶后仍要能挂减仓腿）。
 
@@ -519,6 +527,14 @@ def check_side_allowed(
       - 减仓方向（与现有库存反向）永远允许——否则库存一旦到顶就永久卡死，
         只能等对手腿偶然成交（F59 首轮回放 30 天仅 10 笔成交即此原因）；
       - 加仓方向才受单币/净敞口约束，且按**加入后**的敞口判断。
+
+    [F94 2026-09-14] `pending_up_usd` / `pending_down_usd` = **已挂在场的同向腿名义**
+    （其余币在当前 tick 仍有效的挂单）。此前闸门只看「已成交持仓 + 本腿」，
+    完全不计在挂单 ⇒ 挂单在下一 tick 判定成交时不再过闸，5 个币同向同时在挂就会
+    在同一个成交桶里一起成交：回放实测 |净敞口| 峰值 **$2367 = 上限的 7.9 倍**、
+    48.9% 的快照超上限；实盘实测 $1021（3.4 倍）。风险上限形同虚设。
+    这里按**最坏情形**预留：买单成交会把净敞口推高 `pending_up`，卖单推低
+    `pending_down`（只预留同向；对手向成交只会减小该方向敞口）。
     """
     if equity <= 0:
         return False, "equity<=0"
@@ -539,9 +555,23 @@ def check_side_allowed(
     new_one_side = abs(q + signed * add_qty) * mark
     if new_one_side > equity * limits.max_net_directional_ratio:
         return False, f"symbol_exposure({new_one_side:.0f})"
-    net = abs(book.net_notional(marks) + signed * add_notional)
-    if net > equity * limits.max_net_exposure_ratio:
-        return False, f"net_exposure({net:.0f})"
+    # [F94b 2026-09-14] **总敞口上限（严格可约束的那个量）**。
+    # 为什么必须有：净敞口在「对冲腿被平掉」时会**变大**（例如 3 空 1 多净 −$900，
+    # 把那条多单平掉后净变 −$1286）——所以任何**下单侧**约束都无法严格界定净敞口。
+    # 只有总敞口 Σ|仓位| 不会被平仓推高（平仓只会减小它），因此它是唯一能严格
+    # 兜住真实风险的口径。实测：配置净上限 $900 时真实净敞口峰值 $2569（2.85×）。
+    if limits.max_gross_notional_ratio > 0:
+        _gross = sum(abs(book.notional(s, marks.get(s, 0.0) or 0.0))
+                     for s in set(list(book.positions) + [symbol]))
+        if _gross + max(0.0, pending_gross_usd) + add_notional > \
+                equity * limits.max_gross_notional_ratio:
+            return False, f"gross_exposure({_gross + pending_gross_usd + add_notional:.0f})"
+    # [F94] 净敞口按「在挂同向腿全部成交」的最坏情形判定（见 docstring）
+    _net = book.net_notional(marks)
+    _worst = (_net + max(0.0, pending_up_usd) + add_notional if signed > 0
+              else _net - max(0.0, pending_down_usd) - add_notional)
+    if abs(_worst) > equity * limits.max_net_exposure_ratio:
+        return False, f"net_exposure({_worst:.0f})"
     return True, ""
 
 

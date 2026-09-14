@@ -954,7 +954,14 @@ def config_fees() -> Dict[str, Any]:
 
 LANE_CONFIG_KEYS = ("w_base_bp", "min_width_bp", "min_width_reduce_bp", "max_width_bp",
                     "k_vol", "k_inv", "max_one_side_seconds", "vol_pause_sigma",
-                    "max_net_directional_ratio", "max_net_exposure_ratio")
+                    "max_net_directional_ratio", "max_net_exposure_ratio",
+                    "max_gross_notional_ratio")
+# [F94b 2026-09-14] 组合级敞口上限允许 **>1**（单位=权益倍数）：每个币的腿量就是
+# 1×权益，五标的并行做市天然需要多倍组合上限；把组合上限也压在 ≤1 会与
+# 「单币 = 1×权益」自相矛盾（实测该配置下真实净敞口冲到上限的 7.9 倍）。
+# 单币/方向类比例仍限制在 (0,1]。
+_PORTFOLIO_RATIO_KEYS = ("max_net_exposure_ratio", "max_gross_notional_ratio")
+_MAX_PORTFOLIO_RATIO = 20.0
 
 
 @router.get("/config/lanes/{lane_id}")
@@ -1004,7 +1011,13 @@ def patch_lane_config(lane_id: str, body: LaneConfigBody) -> Dict[str, Any]:
             raise HTTPException(status_code=400, detail=f"参数 {k} 不是有限数")
         if k.endswith("_bp") and fv < 0:
             raise HTTPException(status_code=400, detail=f"参数 {k} 不能为负")
-        if k.endswith("_ratio") and not (0.0 < fv <= 1.0):
+        if k.endswith("_ratio") and k in _PORTFOLIO_RATIO_KEYS:
+            # [F94b] 组合级上限：0（关闭）或 (0, 20] 倍权益
+            if fv != 0.0 and not (0.0 < fv <= _MAX_PORTFOLIO_RATIO):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"参数 {k} 必须为 0（关闭）或 (0,{_MAX_PORTFOLIO_RATIO}]（权益倍数）")
+        elif k.endswith("_ratio") and not (0.0 < fv <= 1.0):
             raise HTTPException(status_code=400, detail=f"参数 {k} 必须在 (0,1]")
     meta = dict(lane.get("meta") or {})
     params = dict(meta.get("params") or {})

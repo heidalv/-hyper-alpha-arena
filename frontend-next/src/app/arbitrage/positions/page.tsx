@@ -122,8 +122,15 @@ function PositionsInner() {
   }, [pos.data]);
 
   const equity = cfg.data ? Number(shadow.data?.account_equity ?? shadow.data?.equity ?? 0) : (shadow.data?.account_equity ?? shadow.data?.equity ?? 0);
-  const netDirRatio = Number(cfg.data?.limits?.max_net_directional_ratio ?? 1);
-  const limitUsd = equity * netDirRatio;
+  // [F94b] 上限口径必须与后端**实际执行**的闸门一致：
+  //   - 组合净敞口上限 = equity × max_net_exposure_ratio（下单预留口径，单位=权益倍数）
+  //   - 单币库存上限   = equity × max_net_directional_ratio
+  //   - 隐含总敞口上限 = 单币上限 × 宇宙币数（严格可约束：平仓不会推高总敞口）
+  const netRatio = Number(cfg.data?.limits?.max_net_exposure_ratio ?? 1);
+  const symRatio = Number(cfg.data?.limits?.max_net_directional_ratio ?? 1);
+  const limitUsd = equity * netRatio;
+  const symLimitUsd = equity * symRatio;
+  const grossLimitUsd = symLimitUsd * Math.max(1, (shadow.data?.symbols ?? []).length);
   const maxOneSide = Number(cfg.data?.limits?.max_one_side_seconds ?? 0);
 
   const netExposure = rows.reduce((s, p) => s + p.notional_usd * (p.qty > 0 ? 1 : -1), 0);
@@ -191,9 +198,9 @@ function PositionsInner() {
           {/* KPI：做市真正关心的四个数 */}
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <Kpi
-              label="净敞口 / 上限"
+              label="净敞口 / 组合上限"
               value={`${fmtUsd(netExposure)} / ${fmtUsd(limitUsd)}`}
-              sub={`利用率 ${usePct.toFixed(1)}%${usePct > 99 ? "（顶格：一次只持一腿）" : ""}`}
+              sub={`利用率 ${usePct.toFixed(1)}% · 单币上限 ${fmtUsd(symLimitUsd)}（下单侧预留口径）`}
               tone={netExposure >= 0 ? "text-profit" : "text-loss"}
             />
             <Kpi
@@ -232,8 +239,15 @@ function PositionsInner() {
             )}
             <div className="grid gap-3 lg:grid-cols-2">
               <div className="rounded-xl border border-border/40 p-3">
-                <InventoryPanel positions={rows} equity={equity} limitPct={netDirRatio * 100}
-                  limitLabel="方向敞口上限" />
+                <InventoryPanel positions={rows} equity={equity} limitPct={netRatio * 100}
+                  limitLabel="组合净敞口上限（下单预留口径）" />
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  上限口径：组合净敞口 ≤ {netRatio}×权益（{fmtUsd(limitUsd)}，下单时按「在挂同向腿
+                  全部成交」的最坏情形预留）；单币库存 ≤ {symRatio}×权益（{fmtUsd(symLimitUsd)}）；
+                  隐含总敞口上限 {fmtUsd(grossLimitUsd)}（{universe.length} 币 × 单币上限，
+                  平仓不会推高总敞口 ⇒ 这是**严格**可兜住的口径）。
+                  净敞口在对冲腿被平掉时会变大，故它是「尽力而为」而非硬约束。
+                </p>
               </div>
               <div className="overflow-x-auto rounded-xl border border-border/40">
                 <table className="data-table">
