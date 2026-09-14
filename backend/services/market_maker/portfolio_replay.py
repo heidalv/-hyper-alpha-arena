@@ -50,6 +50,10 @@ def replay_portfolio(
     fill_notional: float = 100.0,
     max_gap_ms: int = 120_000,
     data: Optional[Dict[str, Dict[str, np.ndarray]]] = None,
+    # [F84 2026-09-14] 复利模拟：>0 时每腿名义 = 该比例 × 运行权益（权益随已实现
+    # 盈亏滚动），equity 参数成为初始权益；敞口上限也随运行权益缩放（与实盘
+    # 「按权益比例的风控」语义一致）。None/0 = 固定腿量（旧行为）。
+    fill_notional_ratio: Optional[float] = None,
 ) -> Dict[str, Any]:
     """按合并时间线回放多个标的，**共享库存账本**。"""
     from backend.services.market_maker.runner import SymbolState, plan_tick
@@ -94,6 +98,10 @@ def replay_portfolio(
     notional_sum = 0.0
     per_symbol: Dict[str, Dict[str, float]] = {
         s: {"fills": 0, "net_usd": 0.0, "notional": 0.0} for s in symbols}
+    # [F84] 复利：运行权益与腿量（初始 equity 只作起点）
+    _ratio = float(fill_notional_ratio or 0.0)
+    running_equity = float(equity)
+    capped_fill_count = 0   # 队列份额截断腿量的次数（容量上限观测）
 
     for ts in timeline:
         for s in symbols:
@@ -133,7 +141,12 @@ def replay_portfolio(
                 state=states[s], mid=mid, seg_low=seg_low, seg_high=seg_high,
                 seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
                 now_ts=float(d["ots"][i]) / 1000.0, params=params, limits=limits,
-                equity=equity, fill_notional=fill_notional,
+                # [F84] 复利模式：腿量与权益均用运行值；固定模式权益恒定
+                # （权益随盈亏漂移会把敞口上限压到腿量以下 ⇒ 入场侧永久死锁，
+                #  实测 25928 次 symbol_exposure 拦截、6 天仅 5 笔）。
+                equity=(running_equity if _ratio > 0 else equity),
+                fill_notional=(max(10.0, _ratio * running_equity)
+                               if _ratio > 0 else fill_notional),
                 taker_fee_bp=4.0, maker_fee_bp=0.0, half_spread=half_spread,
                 sigma_norm=sigma, book=book, marks=marks,
             )
@@ -141,6 +154,11 @@ def replay_portfolio(
                 key = dec.skip.split("(")[0]
                 skips[key] = skips.get(key, 0) + 1
             for f in dec.fills:
+                # [F84] 队列份额截断观测：qty < 期望腿量 ⇒ 容量上限在约束
+                if f.qty * f.px < (fill_notional if _ratio <= 0
+                                   else max(10.0, _ratio * running_equity)) * 0.9:
+                    capped_fill_count += 1
+                running_equity += float(f.net_usd)
                 notional_sum += f.qty * f.px
                 per_symbol[s]["fills"] += 1
                 per_symbol[s]["net_usd"] += f.net_usd
@@ -184,5 +202,8 @@ def replay_portfolio(
         "skipped": skips,
         "open_inventory_usd": round(gross, 2),
         "net_exposure_usd": round(book.net_notional(marks), 2),
+        # [F84] 复利观测：最终权益与队列份额截断次数
+        "final_equity": round(running_equity, 4),
+        "capped_fill_count": capped_fill_count,
         "fills_log": fills_log,
     }

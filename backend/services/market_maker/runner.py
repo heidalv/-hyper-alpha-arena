@@ -655,6 +655,29 @@ class ShadowRunner:
         self.realized_usd: float = 0.0
         # [F81] 成交桶水位线：每币已消费的最大桶时间戳（防漏桶/防重复消费）
         self._seg_watermark: Dict[str, int] = {}
+        # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
+        self.compound_ratio: float = float(params.compound_ratio) if hasattr(
+            params, "compound_ratio") and params.compound_ratio else 0.0
+
+    def _read_account_equity(self) -> float:
+        """[F85] 读模拟账户当前权益（复利模式的腿量/上限基准）。"""
+        if not self.account_id:
+            return 0.0
+        try:
+            from sqlalchemy import text
+
+            from backend.core.tenant import system_identity
+            from backend.database.connection import SessionLocal
+
+            with system_identity():
+                with SessionLocal() as db:
+                    row = db.execute(text(
+                        "SELECT total_equity FROM arbitrage_paper_accounts WHERE id=:i"
+                    ), {"i": self.account_id}).first()
+                    return float(row[0]) if row and row[0] else 0.0
+        except Exception as e:
+            logger.warning("[F85] 读账户权益失败: %s", e)
+            return 0.0
 
     # ── 状态持久化 ──
     def load_states(self) -> int:
@@ -863,6 +886,19 @@ class ShadowRunner:
             if day_pnl:
                 logger.info("[F60] 车道 %s 本日已实现净额 = %.2f USD（日亏闸输入）",
                             self.lane_id, day_pnl)
+        # [F85 2026-09-14] 复利模式：每 tick 读模拟账户权益，腿量 = 权益 × 比例。
+        # 复利研究结论（30 天/6 天回放）：全权益腿复利 +6.25% vs 固定 +5.34%
+        # （6 天窗口），且回撤不增；固定腿量 + 权益联动上限反而会在小额亏损后
+        # 死锁入场侧（上限 < 腿量）。容量上限：$10k 腿 41% 段被队列份额截断、
+        # $30k 腿 73%——复利增长在 $10k 腿量附近开始饱和。
+        if (self.compound_ratio or 0) > 0 and self.account_id:
+            try:
+                _eq = self._read_account_equity()
+                if _eq and _eq > 0:
+                    self.equity = float(_eq)
+                    self.fill_notional = max(10.0, float(self.compound_ratio) * self.equity)
+            except Exception as _e:
+                self.last_error = f"compound_equity: {_e}"
         # [F72] 组合级共享库存账本：所有币共用，`max_net_exposure_ratio`
         # （组合净敞口上限）才有意义——此前每币各自一本账，6 个币各持 $100
         # 时组合已 $600 同向暴露，却谁都看不到。

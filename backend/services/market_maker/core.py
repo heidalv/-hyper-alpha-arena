@@ -51,6 +51,9 @@ class QuoteParams:
     frozen_width_bp: Optional[float] = None
     frozen_max_move_bp: float = 4.0
     frozen_lookback: int = 60
+    # [F85 2026-09-14] 复利比例：>0 时每腿名义 = 该比例 × 模拟账户当前权益
+    # （权益随已实现盈亏滚动，做市收益自动再投资）。0 = 固定腿量（旧行为）。
+    compound_ratio: float = 0.0
 
 
 @dataclass(frozen=True)
