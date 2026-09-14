@@ -56,11 +56,20 @@ def test_floor_funnel_is_wired_into_tick():
 
 
 def test_floor_threshold_sits_above_reduce_floor():
-    """阈值必须略高于 `min_width_reduce_bp`，否则偏斜/浮点会把地板腿漏掉。"""
+    """[F162] 阈值必须**跟随** `min_width_reduce_bp`，否则改配置后漏斗静默失明。
+
+    现场：`min_width_reduce_bp` 由 1.0 调到 2.0 后，固定的 1.5bp 阈值匹配不到任何
+    地板腿 ⇒ `floor_*` 四个计数全部恒为 0 ✗（实测新配置时代全 0 ✗）。
+    """
+    import inspect
     from backend.services.market_maker.core import QuoteParams
     qp = QuoteParams()
     assert mmrunner.FLOOR_QUOTE_BP >= float(qp.min_width_reduce_bp)
-    assert mmrunner.FLOOR_QUOTE_BP <= 3.0, "不能把普通窄单也算成地板腿"
+    assert mmrunner.FLOOR_QUOTE_BP <= 3.0, "兜底常量不能把普通窄单也算成地板腿"
+    _tick = mmrunner.ShadowRunner.tick
+    src = inspect.getsource(_tick)
+    assert "min_width_reduce_bp" in src and "_floor_bp" in src, \
+        "阈值必须由 min_width_reduce_bp 动态推导（配置变了漏斗不能失明）"
 
 
 def test_cross_condition_matches_plan_tick():

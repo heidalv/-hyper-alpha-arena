@@ -1517,7 +1517,13 @@ class ShadowRunner:
                 _fw = (_qm0 - _qb0) / _qm0 * 1e4 if _qm0 > 0 else 0.0
             elif _qa0 > 0:
                 _fw = (_qa0 - _qm0) / _qm0 * 1e4 if _qm0 > 0 else 0.0
-            if 0 < _fw <= FLOOR_QUOTE_BP:
+            # [F162 2026-09-14] 阈值必须**跟随配置**：`min_width_reduce_bp` 从 1.0 调到
+            # 2.0 之后，固定的 1.5bp 阈值再也匹配不到任何地板腿 ⇒ 四个 floor_* 计数
+            # **全部恒为 0**，漏斗静默失明 ✗（实测新配置时代 floor_* 全 0 ✗）。
+            # 改成"减仓侧地板 + 0.5bp 余量"，并保留下限常量作为兜底 ✓。
+            _floor_bp = max(FLOOR_QUOTE_BP,
+                            float(getattr(self.params, "min_width_reduce_bp", 1.0) or 1.0) + 0.5)
+            if 0 < _fw <= _floor_bp:
                 if _hit_buy or _hit_sell:
                     if dec.fills:
                         self.cross_counts["floor_cross_fill"] += 1

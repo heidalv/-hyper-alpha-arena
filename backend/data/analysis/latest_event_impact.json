@@ -1,94 +1,32 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789397440542,
-  "accepted": true,
+  "ts_ms": 1789397910814,
+  "accepted": false,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "1d4ea2991be84b5b9fecb4fbc8ec1613",
-  "context_hash": "9f283bb3b785342637ff0affc7d05242069652806794bb0f49dbc5f2d33bc14d",
-  "final": {
-    "direction": "bullish",
-    "strength": 3,
-    "confidence": 0.41,
-    "half_life_hours": 8.0,
-    "affected_symbols": [
-      "PUNDIX"
-    ],
-    "hedging_window_hours": 15.0,
-    "position_adjustments": [
-      {
-        "symbol": "PUNDIX",
-        "action": "no_new_long",
-        "reason": "负资金费极端值暗示空头拥挤/杠杆不平衡，存在均值回归风险；RSI 83.3 已超买+1d 涨幅 11.26%，不建议新开多；若持有空头应警惕短轧空反弹"
-      },
-      {
-        "symbol": "PUNDIX",
-        "action": "no_new_short",
-        "reason": "跨所资金费深度为负且未收敛：事件 gateio -0.449%/8h，约 8h 后 binance -0.684%、bybit -0.378%/8h；负费意味着空头向多头支付高额 carry（≈-492% APR），空头拥挤叠加现货 1d +11.26%、7d +24.75% 强势上行，轧空风险高，逆势开空成本与风险俱增"
-      },
-      {
-        "symbol": "BTCUSDT",
-        "action": "none",
-        "reason": "事件为 PUNDIX 个币资金费异常；组合现有 10 笔持仓全部为大币（BTC/ETH/SOL/BNB/XRP/UNI/ASTER），corr_to_btc 与 correlation_pairs 数据缺失、无证据显示外溢，维持现有仓位不因该事件调节"
-      }
-    ],
-    "analogues": [
-      {
-        "event": "binance PUNDIX 资金费 -0.684%/8h（≈-749% APR）同日 1 窗口前",
-        "outcome": "同期资金费持续深度负值，PUNDIX 现货 1d 涨 11.26% / 7d 涨 24.75%，负费率并未阻止上行"
-      },
-      {
-        "event": "LSK 多交易所同步负资金费（-1%~-2%/8h）",
-        "outcome": "深度负费率通常反映空头拥挤，常伴随短轧空反弹而非直接崩盘"
-      },
-      {
-        "event": "STEEM 多交易所 -1.25%/8h 极端负费",
-        "outcome": "类小币种极端负费率多由空头主导，方向偏空但不绝对，半衰期短"
-      },
-      {
-        "event": "同 24h 窗口小市值币跨所极端负资金费聚集：CAP bybit -2.1865%/8h（四所皆<-1.1%）、LSK bybit -2.000%/8h、STEEM binance -1.256%/8h、CVC binance -1.220%/8h、POWR 多所约 -0.9%~-1.1%/8h",
-        "outcome": "context 未提供上述币种后续价格走势，无可靠历史结果映射；仅可确认 PUNDIX 的负费在约 8h 后的结算点未收敛反而跨所加深（gateio -0.0708% → binance -0.684%/bybit -0.378%）"
-      }
-    ],
-    "key_factors": [
-      "PUNDIX 现货 1d +11.26%、7d +24.75%，RSI14=83.3 处于明显超买区",
-      "Gateio 单交易所费率 -0.449%/8h，但 Binance 仅 -0.1097%、Bybit +0.005%，跨所严重背离，说明该信号并非全市场共识",
-      "24h 多头清算 9.6k USD > 空头清算 5.6k USD，价格上涨过程中已先清洗部分多头",
-      "24h PUNDIX 清算规模相对全市场 43M USD 极小（占比<0.05%），对整体市场无溢出",
-      "事件 severity=3 低于同批次 LSK/STEEM 等 severity=4 事件，强度有限",
-      "universe 仅扫描 PUNDIX，缺少 BTC/ETH 相关性与 30d/EMA 趋势等确认数据（数据不足）",
-      "现货动量强但超买：PUNDIX 1d +11.26%、7d +24.75%，RSI14 日线 83.3，追多亦有过热回落风险",
-      "资金费极端为负且跨所扩散：gateio -0.449%/8h（≈-492% APR），flows 快照 binance -0.1097%/bybit +0.005%/gateio -0.0708%，约 8h 后 binance -0.684%、bybit -0.378%，负费未收敛",
-      "负费 = 空头支付多头，空头拥挤 + 现货强上行 → 典型轧空（short squeeze）条件，方向偏多",
-      "各所读数波动剧烈（flows 快照与后续事件幅度相差近 10 倍），信号稳定性差，通常在 1-2 个 8h 结算周期内回归",
-      "高波动小市值：rv30 年化 75.1%、atr14 8.73%/日；24h 清算规模极小（多 9625 / 空 5592 USD），事件自身价格冲击容量有限",
-      "相关性缺失：corr_to_btc 与 correlation_pairs 均为空，无法评估向持仓大币的外溢",
-      "市场背景：24h 内 CAP/LSK/STEEM/CVC/POWR 等多小币跨所极端负资金费聚集，或反映小币 perp 普遍被做空、定价错位的环境性现象"
-    ],
-    "summary": "Gateio 上 PUNDIX 资金费 -0.449%/8h 虽达极端阈值，但跨交易所费率显著背离（Binance -0.11%、Bybit +0.005%），更像是 Gateio 单所空头拥挤/局部套利失衡，而非全市场方向信号。结合现货已 7d 涨 24.75% 且 RSI 83.3 超买，事件本身不构成强方向催化，更可能带来短轧空反弹或高位震荡。强度低、半衰期短（~4h）、置信度低。对账户影响有限：当前无 PUNDIX 持仓，仅需避免新开 PUNDIX 多头，已有多头应警惕超买回调，不建议专门对冲。数据不足层：corr_to_btc、correlation_pairs、30d 收益与 EMA 趋势缺失，无法判断与大盘联动性。",
-    "arbitration": {
-      "verdict": "merge",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的看涨方向证据更充分：pack 事件流显示焦点事件（gateio -0.449%/8h，≈-492% APR）约 8h 后负费跨所加深——binance -0.684%/8h（sev 4）、bybit -0.378%/8h（sev 3），并非 A 所述'单所孤例'（A 引用的 bybit +0.005% 仅是 as_of 时点快照，被后续读数否定）；叠加现货 1d +11.26%、7d +24.75% 强势上行，空头在上涨中支付高额 carry，构成典型空头拥挤+轧空环境，短期方向偏多。但 A 的风险约束同样成立：RSI14=83.3 明显超买、各所费率读数波动剧烈（flows 快照 binance -0.1097% vs 事件 -0.684%，量级差近 6 倍）、PUNDIX 24h 清算合计仅约 1.5 万 USD（不足全市场 43M 的 0.05%）、corr_to_btc 与 correlation_pairs 缺失、无同类事件历史结果映射，且组合 10 笔持仓均为大币、未持有 PUNDIX，事件外溢证据不足。故采纳 B 的方向，下调强度至 3、置信度保持低位，半衰期按 1-2 个 8h 结算周期理解；可执行含义与 B 一致（窗口内避免新开 PUNDIX 空单），同时保留 A 的'不追多'谨慎。"
-    }
-  },
-  "notes": [],
+  "consensus_score": 0.137,
+  "run_id": "15bc0c699fdd4749a3cfff6419376a5b",
+  "context_hash": "0e3acaf4d8e310f79974a006b2f63c549f4e93a1586fe15a762f3787397329ad",
+  "final": null,
+  "notes": [
+    "双票均为中性：这是「都没方向」，不是交易共识，不升仲裁、不入账本"
+  ],
   "event": {
-    "id": 98645,
-    "event_type": "funding.extreme",
-    "symbol": "PUNDIX",
-    "ts_ms": 1789344449113,
+    "id": 101273,
+    "event_type": "whale.large",
+    "symbol": "BTC",
+    "ts_ms": 1789359521286,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio PUNDIX 资金费 -0.449%/8h（≈-492% APR）",
-    "source": "funding_collector",
+    "direction": 0.0,
+    "title": "BTC 巨鲸 transfer $1,579,050,871",
+    "source": "whale_activities",
     "payload": {
-      "apr_pct": -492.0,
-      "rate_8h": -0.004493,
-      "exchange": "gateio",
-      "rate_raw": -0.004493,
-      "threshold_8h": 0.001,
-      "window_hours": 8.0
+      "whale_id": 204355,
+      "direction": "sell",
+      "to_entity": "个人钱包(找零)",
+      "amount_usd": 1579050870.6131186,
+      "blockchain": "bitcoin",
+      "from_entity": "个人钱包",
+      "activity_type": "transfer"
     }
   }
 }

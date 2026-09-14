@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789396921143,
+  "ts_ms": 1789397791973,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 1032,
+    "n": 1033,
     "n_scored": 885,
     "avg_score": 0.984180790960452,
     "avg_brier": 0.12693693446327703,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 1032,
+        "n": 1033,
         "n_scored": 885,
         "avg_score": 0.984180790960452,
         "avg_brier": 0.12693693446327703,
-        "last_ms": 1789396114910
+        "last_ms": 1789396927586
       }
     ],
     "verdict": {
@@ -48,31 +48,31 @@
     "channels": {
       "price": {
         "score": 0.0689,
-        "ret_1h_pct": 0.287,
-        "ret_4h_pct": 0.655,
-        "ret_24h_pct": 1.716,
+        "ret_1h_pct": 0.197,
+        "ret_4h_pct": 0.564,
+        "ret_24h_pct": 1.624,
         "drawdown_24h_pct": 0.827,
-        "ret_zscore": 0.88,
+        "ret_zscore": 0.607,
         "n_bars": 168
       },
       "volume": {
         "score": 0.0,
-        "peak_abs_z": 1.022,
+        "peak_abs_z": 1.71,
         "n_symbols": 8,
         "by_symbol": {
-          "BTC": 1.022,
-          "ETH": 0.058,
-          "SOL": -0.866,
-          "BNB": -0.942,
-          "XRP": -0.713,
-          "DOGE": -0.742,
+          "BTC": 1.71,
+          "ETH": 0.916,
+          "SOL": 0.497,
+          "BNB": -0.128,
+          "XRP": 1.401,
+          "DOGE": 0.17,
           "LINK": -0.456,
           "AVAX": -0.663
         }
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 1.24,
+        "peak_abs_z": 1.202,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -85,64 +85,64 @@
         ],
         "by_symbol": {
           "AVAX": {
-            "z": 0.366,
-            "latest_8h_pct": 0.0049,
+            "z": 1.202,
+            "latest_8h_pct": 0.01,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "BNB": {
-            "z": -0.7,
-            "latest_8h_pct": -0.0019,
+            "z": -0.283,
+            "latest_8h_pct": 0.0015,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": 0.174,
-            "latest_8h_pct": 0.0062,
+            "z": 0.108,
+            "latest_8h_pct": 0.0059,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": -0.662,
-            "latest_8h_pct": 0.0031,
+            "z": -0.286,
+            "latest_8h_pct": 0.0049,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": 0.577,
-            "latest_8h_pct": 0.0084,
+            "z": 0.34,
+            "latest_8h_pct": 0.0072,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": 0.437,
-            "latest_8h_pct": 0.006,
+            "z": 1.054,
+            "latest_8h_pct": 0.01,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "SOL": {
-            "z": 1.24,
-            "latest_8h_pct": 0.0091,
+            "z": 1.174,
+            "latest_8h_pct": 0.0087,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "XRP": {
-            "z": 0.137,
-            "latest_8h_pct": 0.0043,
+            "z": -0.034,
+            "latest_8h_pct": 0.0031,
             "cusum": {
               "detected": true,
               "direction": -1
@@ -152,7 +152,7 @@
       },
       "open_interest": {
         "score": 0.0,
-        "peak_abs_z": 0.66,
+        "peak_abs_z": 0.867,
         "by_symbol": {
           "AVAX": {
             "z": -0.383,
@@ -175,8 +175,8 @@
             "n": 160
           },
           "LINK": {
-            "z": -0.626,
-            "n": 161
+            "z": 0.867,
+            "n": 162
           },
           "SOL": {
             "z": 0.512,
@@ -197,7 +197,7 @@
           "detected": true,
           "direction": 1,
           "s_pos": 14.76,
-          "s_neg": 0.283,
+          "s_neg": 0.278,
           "h": 5.0,
           "k": 0.5,
           "n": 168
@@ -209,19 +209,19 @@
         "stale_sources": [
           {
             "source": "liq_ws",
-            "age_h": 35.2
+            "age_h": 35.44
           },
           {
             "source": "news_events",
-            "age_h": 56.87
+            "age_h": 57.11
           },
           {
             "source": "okx_ann",
-            "age_h": 55.7
+            "age_h": 55.94
           },
           {
             "source": "whale_activities",
-            "age_h": 10.39
+            "age_h": 10.63
           }
         ],
         "n_sources": 12,
@@ -248,12 +248,12 @@
     }
   },
   "predictions": [
-    "525de1754cf24e13ba7a57cd72339b57"
+    "d016e6cd3f17442faf22b7a885094964"
   ],
   "advice": [],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 6.56,
+  "elapsed_sec": 10.656,
   "latest_path": null,
   "dry_run": false
 }
