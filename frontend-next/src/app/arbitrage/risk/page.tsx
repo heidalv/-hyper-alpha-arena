@@ -224,7 +224,12 @@ function RiskInner() {
 
       {/* 资金池（GET /api/trading/capital/pool） */}
       <Card className="glass p-4">
-        <BlockTitle icon={<Wallet className="h-3.5 w-3.5" />} title="资金池 · 模拟账户" right={`合计权益 ${fmtUsd(pool.data?.total_equity ?? equity ?? 0)} · 来源 /api/trading/capital/pool`} />
+        <BlockTitle icon={<Wallet className="h-3.5 w-3.5" />} title="资金池 · 模拟账户"
+          right={`车道占用 ${fmtUsd(pool.data?.lane_bound_equity ?? equity ?? 0)}`
+            + ((pool.data?.unbound_equity ?? 0) > 0
+              ? ` · 另有历史账户 ${fmtUsd(pool.data?.unbound_equity ?? 0)}（未被任何车道使用）`
+              : "")
+            + ` · 合计 ${fmtUsd(pool.data?.total_equity ?? equity ?? 0)}`} />
         <DataState
           loading={pool.loading}
           error={pool.error}
@@ -245,6 +250,7 @@ function RiskInner() {
                   <th className="text-right">冻结</th>
                   <th className="text-left">状态</th>
                   <th className="text-left">配置</th>
+                  <th className="text-left">车道绑定</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,6 +263,11 @@ function RiskInner() {
                     <td className="text-right font-mono tabular-nums text-muted-foreground">{fmtUsd(a.frozen_balance)}</td>
                     <td className="text-muted-foreground">{a.status}</td>
                     <td className="text-muted-foreground">{a.preset ?? "—"}</td>
+                    <td className="font-mono text-[11px]">
+                      {a.bound
+                        ? <span className="text-cyan-300">{(a.bound_lanes ?? []).join(", ")}</span>
+                        : <span className="text-muted-foreground/70">未绑定（历史账户，不计入车道占用）</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

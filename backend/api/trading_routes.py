@@ -880,15 +880,35 @@ def capital_pool() -> Dict[str, Any]:
                 )).mappings().all()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"资金池查询失败: {e}") from e
+    # [F100 2026-09-14] 区分「车道占用」与「未绑定（历史）账户」：此前合计权益把
+    # 旧的 $5300 返佣账户与做市账户 $300 直接相加成 $5600，页面上看起来像做市有
+    # $5600 资金（用户反复抱怨的「旧数据污染」）。合计仍保留（兼容），但另外给出
+    # 车道占用小计 + 每个账户的绑定车道，让页面能说清"业务实际在用多少钱"。
+    try:
+        from backend.services import lane_registry as _reg
+        _bound: Dict[int, List[str]] = {}
+        for _ln in _reg.list_lanes():
+            _pid = (_ln.get("meta") or {}).get("paper_account_id")
+            if _pid:
+                _bound.setdefault(int(_pid), []).append(str(_ln.get("lane_id")))
+    except Exception as _e:
+        logger.debug("[TradingHub] 资金池绑定车道解析失败: %s", _e)
+        _bound = {}
     items = [{
         "account_id": r["id"], "name": r["name"],
         "total_equity": round(float(r["total_equity"] or 0.0), 2),
         "available_balance": round(float(r["available_balance"] or 0.0), 2),
         "frozen_balance": round(float(r["frozen_balance"] or 0.0), 2),
         "status": r["status"], "preset": r["allocation_preset"],
+        "bound_lanes": _bound.get(int(r["id"]), []),
+        "bound": bool(_bound.get(int(r["id"]))),
     } for r in rows]
+    _bound_eq = round(sum(i["total_equity"] for i in items if i["bound"]), 2)
+    _unbound_eq = round(sum(i["total_equity"] for i in items if not i["bound"]), 2)
     return {"items": items, "count": len(items),
             "total_equity": round(sum(i["total_equity"] for i in items), 2),
+            "lane_bound_equity": _bound_eq,
+            "unbound_equity": _unbound_eq,
             "as_of": _now_iso()}
 
 

@@ -570,12 +570,20 @@ export interface CapitalPoolAccount {
   frozen_balance: number;
   status: string;
   preset: string | null;
+  /** [F100] 该账户被哪些车道绑定（空 = 未被任何车道使用的历史账户） */
+  bound_lanes?: string[];
+  bound?: boolean;
 }
 
 export interface CapitalPoolResponse {
   items: CapitalPoolAccount[];
   count: number;
+  /** 全部账户合计（兼容字段；含未被车道使用的历史账户） */
   total_equity: number;
+  /** [F100] **车道实际占用**的权益合计——这才是"业务在用多少钱" */
+  lane_bound_equity?: number;
+  /** [F100] 未被任何车道绑定的历史账户权益（如旧返佣账户） */
+  unbound_equity?: number;
   as_of: string;
 }
 
