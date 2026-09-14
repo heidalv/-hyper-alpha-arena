@@ -1236,6 +1236,7 @@ class AutoCoinSelector:
         whale_score: Optional[float] = None,
         news_score: Optional[float] = None,
         sector_score: Optional[float] = None,
+        graph_score: Optional[float] = None,
         weights: Optional[Dict[str, float]] = None,
     ) -> Tuple[float, Dict[str, Any]]:
         """V3 综合分：缺维权重重新归一化到可用维。
@@ -1248,6 +1249,7 @@ class AutoCoinSelector:
                 from backend.config.settings import (
                     AUTO_COIN_W_BASE,
                     AUTO_COIN_W_FLOW,
+                    AUTO_COIN_W_GRAPH,
                     AUTO_COIN_W_NEWS,
                     AUTO_COIN_W_SECTOR,
                     AUTO_COIN_W_WHALE,
@@ -1258,9 +1260,10 @@ class AutoCoinSelector:
                     "whale": float(AUTO_COIN_W_WHALE),
                     "news": float(AUTO_COIN_W_NEWS),
                     "sector": float(AUTO_COIN_W_SECTOR),
+                    "graph": float(AUTO_COIN_W_GRAPH),
                 }
             except Exception:
-                weights = {"base": 0.55, "flow": 0.20, "whale": 0.10, "news": 0.10, "sector": 0.05}
+                weights = {"base": 0.55, "flow": 0.20, "whale": 0.10, "news": 0.10, "sector": 0.05, "graph": 0.0}
 
         parts: Dict[str, Optional[float]] = {
             "base": max(0.0, min(1.0, float(base_score or 0.0))),
@@ -1268,6 +1271,7 @@ class AutoCoinSelector:
             "whale": whale_score,
             "news": news_score,
             "sector": sector_score,
+            "graph": graph_score,
         }
         acc = 0.0
         tw = 0.0
@@ -1310,6 +1314,19 @@ class AutoCoinSelector:
         except Exception as e:
             logger.debug(f"[AutoCoinSelector] IC 权重读取失败,回退静态权重: {e}")
 
+        # [2026-09-12 图信号试点 P2] graph 维度：RTGNN-lite 模型分优先，零训练试点兜底；
+        # 开关关闭/失败 → {}，compose 权重缺省为 0 → 零影响
+        graph_map: Dict[str, float] = {}
+        try:
+            from backend.config.settings import AUTO_COIN_GRAPH_SCORE_ENABLED
+
+            if AUTO_COIN_GRAPH_SCORE_ENABLED:
+                from backend.services.graph_rank.service import graph_score_for_symbols
+
+                graph_map = graph_score_for_symbols([c.symbol for c in candidates]) or {}
+        except Exception as e:
+            logger.debug(f"[AutoCoinSelector] 图分数获取失败(降级跳过): {e}")
+
         kept: List[CandidateCoin] = []
         blocked = 0
         for c in candidates:
@@ -1351,14 +1368,18 @@ class AutoCoinSelector:
                     sector_s = sector_rs_score(c.symbol)
             except Exception:
                 sector_s = None
+            graph_s = graph_map.get(c.symbol) if graph_map else None
 
-            composite, meta = self._compose_v3_score(base, flow_s, whale_s, news_s, sector_s, weights=ic_weights)
+            composite, meta = self._compose_v3_score(
+                base, flow_s, whale_s, news_s, sector_s, graph_s, weights=ic_weights
+            )
             c.scores_detail = dict(c.scores_detail or {})
             c.scores_detail["base_score"] = base
             c.scores_detail["flow_score"] = flow_s
             c.scores_detail["whale_score"] = whale_s
             c.scores_detail["news_score"] = news_s
             c.scores_detail["sector_rs_score"] = sector_s
+            c.scores_detail["graph_score"] = graph_s
             c.scores_detail["v3_meta"] = meta
             if ic_meta:
                 c.scores_detail["ic_meta"] = ic_meta
@@ -5379,12 +5400,20 @@ def get_fixed_symbols_for_session(
         return set()
 
 
-def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None) -> int:
+def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None,
+                                exclude_symbols=None) -> int:
     """open 的 tier=mid 持仓数（AI 中线单分通道计数）。
 
     [2026-08-10 问题三] 修复前 mid lane 全禁、中长线一律归一成 long，不存在 mid
     持仓；修复后 mid 持仓只可能来自 AI 中线候选，timeframe_tier='mid' 即通道标记，
     无需再区分来源。槽位 ≤3 硬上限依赖本计数（候选查询截断 + 开仓前二次校验）。
+
+    [验收轮4 2026-09-14] 上述"mid 持仓只可能来自 AI 候选"的假设已失效：
+    9/5 起 LLM 主脑在**固定币**上开 mid 仓（tpl_mid_range/auto_*），开启 AI 选币后
+    这些固定币仓被误计入 AI 槽位 → open=4 > max=3 → ai_mid_slot_full → AI 候选
+    永不注入（用户观察「升级 AI 选币后没有成交」的直接机制之一）。
+    修复：与长线路径同口径（§5903 只计 AI 选的），exclude_symbols（=固定币集合）
+    不占 AI 槽位。
     """
     try:
         from sqlalchemy import text as _sa_text
@@ -5405,6 +5434,10 @@ def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None) -
             if account_id is not None:
                 _sql += " AND account_id = :acc"
                 _params["acc"] = int(account_id)
+            _excl = [str(s).upper() for s in (exclude_symbols or []) if s]
+            if _excl:
+                _sql += " AND upper(symbol) NOT IN :excl"
+                _params["excl"] = tuple(_excl)
             return int(db.execute(_sa_text(_sql), _params).scalar() or 0)
         finally:
             if _owns_db:
@@ -5672,7 +5705,12 @@ def get_ai_mid_candidates_for_session(
             ).first()
             if _acc_row and _acc_row[0] is not None:
                 _acc_id = int(_acc_row[0])
-            _open_mid_n = count_open_ai_mid_positions(db=db, account_id=_acc_id)
+            # [验收轮4 2026-09-14] 固定币不占 AI 槽位（README 契约 + 长线路径同口径），
+            # 否则脑在固定币上开的 mid 仓会误占满 AI 槽位（ai_mid_slot_full 假满）。
+            _fixed = get_fixed_symbols_for_session(session_id, db=None, tier="mid")
+            _open_mid_n = count_open_ai_mid_positions(
+                db=db, account_id=_acc_id, exclude_symbols=_fixed,
+            )
             _free = max(0, _max_slots - _open_mid_n)
             if _free <= 0:
                 logger.info(
@@ -5682,7 +5720,6 @@ def get_ai_mid_candidates_for_session(
                 )
                 return []
 
-            _fixed = get_fixed_symbols_for_session(session_id, db=None, tier="mid")
             _open_mid_rows = db.execute(
                 _sa_text(
                     "SELECT DISTINCT upper(symbol) FROM paper_positions "
