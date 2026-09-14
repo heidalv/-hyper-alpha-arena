@@ -98,6 +98,12 @@ def replay_portfolio(
     # `created_at > 快照标签 + 该滞后` 的桶，实盘当时**还没看到**，回放也不能用。
     # `None` = 关闭过滤（历史行为，仅用于对照实验）。
     tick_delay_ms: Optional[float] = 8800.0,
+    # [F108c 2026-09-14] 波动基准覆盖。默认从 `data` 现算（= 所载窗口的已实现波动中位）；
+    # **只喂子窗口时这会静默改变 σ**：基准跟着"最近的波动"走 ⇒ σ≈0（实测 σ=0 占 63%、
+    # 均值 0.123），而实盘用注册表里锚定的**长窗基准**（σ 均值 0.377）⇒ 实盘挂更宽、
+    # 成交更少，实测差 1.5×。要复现实盘必须显式把锚定基准传进来（见
+    # `scripts/mm_anchor_vol_baseline.py` / `meta.replay_baseline.vol_baseline_bp`）。
+    vol_baseline: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """按合并时间线回放多个标的，**共享库存账本**。"""
     from backend.services.market_maker.runner import SEG_BUCKET_MS as _SEG_BUCKET_MS
@@ -131,7 +137,8 @@ def replay_portfolio(
             _m = float((d["bb"][i] + d["ba"][i]) / 2)
             if _m > 0:
                 _mid_series[s].append(_m)
-    vol_baseline: Dict[str, float] = compute_vol_baselines(_mid_series)
+    vol_baseline: Dict[str, float] = (dict(vol_baseline) if vol_baseline
+                                      else compute_vol_baselines(_mid_series))
     for s in symbols:
         states[s].vol_baseline_bp = float(vol_baseline.get(s) or 0.0)
     # [F107] 每币成交桶**水位**（= 已消费到的最大桶标签；只在真读到桶时前进）。

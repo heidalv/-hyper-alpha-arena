@@ -1,85 +1,32 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789389151382,
-  "accepted": true,
-  "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "5bcf54b01487441a80bff80460c6d8b6",
-  "context_hash": "cb017a6f462b279eb00b4721a3039467d9faa4b48b75504597380ad45c4927bf",
-  "final": {
-    "direction": "bullish",
-    "strength": 3,
-    "confidence": 0.5,
-    "half_life_hours": 12,
-    "affected_symbols": [
-      "BZ"
-    ],
-    "hedging_window_hours": 12,
-    "position_adjustments": [
-      {
-        "symbol": "BZ",
-        "action": "no_new_short",
-        "reason": "BZ 四所资金费全负（bybit -0.299%/8h≈-328% APR，gateio -0.259%，asterdex -0.159%，binance -0.156%），新开空头需支付极端费率；且 24h 空头清算 $64,103 vs 多头仅 $326、全局多空比 0.368，逼空上行风险占优，不宜加入拥挤空头"
-      },
-      {
-        "symbol": "BTCUSDT",
-        "action": "none",
-        "reason": "context 中 correlation_pairs 与 corr_to_btc 为空，无证据表明 BZ 资金费极值会传导至已持有的主流币多头组合，维持现有持仓"
-      },
-      {
-        "symbol": "ETHUSDT",
-        "action": "none",
-        "reason": "缺乏 BZ 与主流币相关性数据，现有 ETH 多头（R+0.15）不受本事件直接冲击，不调节"
-      },
-      {
-        "symbol": "SOLUSDT",
-        "action": "none",
-        "reason": "全市场 24h 多空清算大体均衡（多头 $18.6M vs 空头 $20.2M），无系统性风险信号，SOL 多头不调节"
-      }
-    ],
-    "analogues": [
-      {
-        "event": "同窗口 LSK 多所资金费极负（bybit -2.0%/8h≈-2190% APR，sev4）",
-        "outcome": "数据不足：context 未提供该类极值后的价格演化结果"
-      },
-      {
-        "event": "同窗口 STEEM 多所资金费极负（binance -1.256%/8h≈-1375% APR，sev4）",
-        "outcome": "数据不足：无后续走势样本可参照"
-      },
-      {
-        "event": "同窗口 BZ 自身 asterdex/binance -0.102%/8h、gateio -0.219%/8h 极值并存",
-        "outcome": "四所同步负费率，指向板块性空头拥挤而非单所噪声；后续结果待 1-3 个资金费周期验证"
-      }
-    ],
-    "key_factors": [
-      "BZ 四所资金费全部为负且 bybit 最深（-0.299%/8h≈-328% APR），空头方持续付费，拥挤度极端",
-      "持仓结构偏空：global_ls 0.368、top_pos_ls 0.423，但 24h 空头清算 $64,103 远超多头 $326，存在空头止损/逼空迹象",
-      "OI 24h +4.86% 至 $216M，叠加 7d +8.98%、30d +17.72%、RSI14 71.9 超买、4h EMA 趋势 bullish，上行挤压与高位回落双向波动风险并存",
-      "同窗口 LSK/STEEM/POWR/CVC 等多币出现更极端负费率，属跨币种空头拥挤环境，BZ 事件强度在同类中居中（sev3 vs 同类 sev4）",
-      "regime=ranging 且 confidence 仅 0.3，correlation_pairs/corr_to_btc 为空，跨币传导与趋势确认证据均不足，故置信度压低至 0.5"
-    ],
-    "summary": "BZ 在 bybit 触发 sev3 级极端负资金费（-0.299%/8h≈-328% APR），且四所同步为负（-0.102%~-0.299%/8h），表明空头拥挤并支付极端成本。结合价格上行背景（7d +8.98%、30d +17.72%、4h EMA bullish、RSI 71.9）、OI 24h +4.86% 与 24h 空头清算 $64,103 对多头 $326 的悬殊对比，首要方向性含义为逼空式上行风险（bullish），但强度仅给 3/10：事件在同类（LSK/STEEM/CVC 等 sev4 极值）中居中，且 regime 为低置信度 ranging、超买后亦存在回落风险。资金费极值随 8h 结算周期衰减，预计半衰期约 12 小时、避险/观察窗口 12 小时。组合当前未持有 BZ，对 BZ 给出 no_new_short（避免支付极端费率并暴露于挤压）；已持有的 BTC/ETH/SOL 等主流币多头因无相关性数据（correlation_pairs、corr_to_btc 为空）不主张调节，维持 none。模拟盘数据中无 BZ 历史同类事件后续结果，analogues 仅能列示同窗口共现极值、outcome 标记数据不足，故置信度取 0.5 而非更高。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的推理与 context 事实在机制上完全一致：资金费为负（bybit -0.299%/8h，四所全负）意味着空头付费、多头收_fee；global_ls=0.368（<1）表明持仓结构偏空而非偏多；24h 清算空头 $64,103 对多头 $326 的悬殊加上 7d +8.98%/30d +17.72%、4h EMA bullish，共同指向逼空式上行风险，故 bullish 方向有数据支撑。A 存在关键性事实错误：将 0.368 的多空比解读为 'skewed long'，并称负费率下 'longs pay shorts'、'receiving funding on a short is attractive'——这与负资金费的实际付费方向完全相反（负费率下空头付多头），其 no_new_long 建立在被颠倒的资金费机制之上，可信度受损。B 同时正确承认了限制因素（regime=ranging 且 confidence 仅 0.3、RSI14=71.9 超买双向风险、无 BZ 历史类比结果、corr_to_btc 为空），故强度仅 3、置信度 0.5 的克制设定合理。综合：B 的方向判断与证据链一致且机制正确，裁定 B；方向 bullish，强度 3，置信度略上调至 0.6（机制解读正确的确定性高于 B 自身的 0.5，但缺乏历史演化样本仍限制置信度）。"
-    }
-  },
-  "notes": [],
+  "ts_ms": 1789389364607,
+  "accepted": false,
+  "status": "degraded",
+  "consensus_score": 0.148,
+  "run_id": "4fbf6b749f0e415a8b8b1ca6b3ca7ef4",
+  "context_hash": "f7e0232bd7b38d5c524abd5fff5b660b6b78b62f5dedad384a0281aa4c3bf18f",
+  "final": null,
+  "notes": [
+    "仲裁候选 glm_opencode_alt 失败: 未配置: OpenCode sidecar 不可达: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
+    "仲裁候选 ollama 失败: 输出中无可解析 JSON",
+    "仲裁候选 ollama2 失败: 输出中无可解析 JSON",
+    "仲裁调用失败: 输出中无可解析 JSON；分歧未解"
+  ],
   "event": {
-    "id": 102627,
+    "id": 102628,
     "event_type": "funding.extreme",
-    "symbol": "BZ",
+    "symbol": "CBRS",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit BZ 资金费 -0.299%/8h（≈-328% APR）",
+    "title": "bybit CBRS 资金费 -0.285%/8h（≈-312% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -327.9,
-      "rate_8h": -0.00299466,
+      "apr_pct": -311.9,
+      "rate_8h": -0.00284816,
       "exchange": "bybit",
-      "rate_raw": -0.00299466,
+      "rate_raw": -0.00284816,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

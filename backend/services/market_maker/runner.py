@@ -942,7 +942,9 @@ class ShadowRunner:
         # 穿越但腿量低于最小名义 / 穿越但挂单被判陈旧清除（F89a）。
         self.cross_counts: Dict[str, int] = {
             "cross_buy": 0, "cross_sell": 0, "fill_buy": 0, "fill_sell": 0,
-            "nofill_min_notional": 0, "nofill_stale": 0, "nofill_other": 0}
+            "nofill_min_notional": 0, "nofill_stale": 0, "nofill_other": 0,
+            # [F107] 判定区间空/非空（数据层缺陷导致的成交机会损失，可观测）
+            "win_judged": 0, "win_empty": 0}
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
@@ -1005,6 +1007,55 @@ class ShadowRunner:
         except Exception as e:
             self.last_error = f"load_states: {e}"
             logger.warning("[F60] load_states 失败: %s", e)
+            return 0
+
+    def backfill_mid_hist(self, *, keep: int = 240) -> int:
+        """[F109 2026-09-14] 冷启动补齐 `mid_hist`：滑动窗口类闸门不能在重启后"失明"。
+
+        背景（实测）：趋势闸 `trend_blocked_side`、波动闸 `vol_regime_blocked`（σ 的输入）
+        与冻结闸 `0 < slow_range_bp < frozen_max_move_bp` 全部读 `state.mid_hist`。
+        运行态持久化里带 `mid_hist`，但**进程重启后它是空的**（或只有重启后积累的那几条）：
+        实测 20:30 时实盘 186 条 vs 回放 240 条 ⇒ 冻结闸在趋势行情下会与回放分叉
+        （实盘用更短的窗口 ⇒ 更容易判定"冻结" ⇒ 挂 3bp 窄单 ✗），而"冻结"本身就是
+        决定挂宽档位的关键信号 ⇒ 直接改变成交与收益。
+
+        做法：从盘口快照表按**每快照一条**（与 tick 循环 F102 的追加口径一致）补最近
+        `keep` 条中价，并把 `last_mid_src_ms` 锚到最后一条，避免下一 tick 重复追加。
+        只在窗口明显不足时补（不覆盖正在运行中的真实窗口）。
+        """
+        if keep <= 0:
+            return 0
+        try:
+            from sqlalchemy import text
+
+            from backend.core.tenant import system_identity
+            from backend.database.connection import MarketSessionLocal
+
+            filled = 0
+            with system_identity():
+                with MarketSessionLocal() as db:
+                    for sym, st in list(self.states.items()):
+                        if len(st.mid_hist or []) >= keep:
+                            continue
+                        rows = db.execute(text(
+                            "SELECT timestamp, best_bid, best_ask"
+                            " FROM market_orderbook_snapshots"
+                            " WHERE exchange=:e AND symbol=:s"
+                            " AND best_bid>0 AND best_ask>best_bid"
+                            " ORDER BY timestamp DESC LIMIT :n"
+                        ), {"e": self.venue, "s": sym, "n": int(keep)}).mappings().all()
+                        if not rows:
+                            continue
+                        mids = [((float(r["best_bid"]) + float(r["best_ask"])) / 2.0)
+                                for r in reversed(rows)]
+                        st.mid_hist = [m for m in mids if m > 0][-keep:]
+                        st.last_mid_src_ms = int(rows[0]["timestamp"])
+                        filled += 1
+            if filled:
+                logger.info("[F109] mid_hist 冷启动补齐: %d 个币 × %d 期", filled, keep)
+            return filled
+        except Exception as e:  # pragma: no cover - 补历史失败不能挡住车道启动
+            logger.warning("[F109] mid_hist 补齐失败(忽略): %s", e)
             return 0
 
     def orphan_states(self) -> Dict[str, SymbolState]:
@@ -1426,8 +1477,7 @@ class ShadowRunner:
             if (_hit_buy or _hit_sell) and not dec.fills:
                 if "stale_quote" in str(dec.skip or ""):
                     self.cross_counts["nofill_stale"] += 1
-                else:
-                    # 唯一其它可能：队列份额后的腿量低于最小名义（判定本身已通过）
+                else:                    # 唯一其它可能：队列份额后的腿量低于最小名义（判定本身已通过）
                     _mid = float(m.get("mid") or 0.0)
                     _side = "buy" if _hit_buy else "sell"
                     _avail = _seg_sell if _side == "buy" else _seg_buy
@@ -1438,6 +1488,15 @@ class ShadowRunner:
                         self.cross_counts["nofill_min_notional"] += 1
                     else:
                         self.cross_counts["nofill_other"] += 1
+            # [F107] 判定区间的"空/非空"观测：成交桶表只有 47.5% 的 15s 网格被填充
+            # （30s 轮询 + 15s flush + 空桶不落行）⇒ 挂着单但**本刻没有可判定的成交桶**
+            # 的决策占比就是"数据层吃掉的成交机会"。这是实盘与回放对齐的关键证据，
+            # 前端「链路健康」直接用（此前这个损失完全不可见）。
+            if _qb0 > 0 or _qa0 > 0:
+                if _seg_low > 0 or _seg_high > 0:
+                    self.cross_counts["win_judged"] += 1
+                else:
+                    self.cross_counts["win_empty"] += 1
             # [F102] 记入环形缓冲：判定用的挂单 vs 区间高低 + 成交数（审计"该成交却没成交"）
             self.recent_ticks.append({
                 "ts": round(now_ts, 1), "s": s,
@@ -1730,6 +1789,13 @@ def get_runner(lane_id: str = DEFAULT_LANE_ID) -> Optional[ShadowRunner]:
             )
             r.meta = meta          # 供 report() 读取回放基线等
             r.load_states()
+            # [F109] 冷启动补齐滑动窗口（趋势/波动/冻结闸的输入），否则重启后头一小时
+            # 这些闸门用着"空窗口"运行，挂宽档位与回放分叉。
+            try:
+                _keep = int(getattr(params, "frozen_lookback", 240) or 240)
+                r.backfill_mid_hist(keep=max(60, _keep))
+            except Exception as _e:  # pragma: no cover
+                logger.warning("[F109] backfill 调用失败(忽略): %s", _e)
             # [F71b] 用**回放窗口**的已实现波动做高波动基准（自适应当前盘会失去意义）
             vol_base = (meta.get("replay_baseline") or {}).get("vol_baseline_bp") or {}
             # [F79 2026-09-12] 注册表始终权威：此前只在持久化基线 ≤0 时播种 ⇒
