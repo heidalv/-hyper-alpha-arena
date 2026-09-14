@@ -308,14 +308,21 @@ def attribution(days: float = 7.0, lane_id: Optional[str] = None,
         return {"days": days, "lane_id": lane_id, "total": {}, "by_lane": []}
 
 
-def daily_series(lane_id: Optional[str] = None, days: float = 7.0) -> List[Dict[str, Any]]:
-    """按日聚合净收益（美元），供前端迷你曲线。"""
+def daily_series(lane_id: Optional[str] = None, days: float = 7.0,
+                 since: Optional[str] = None) -> List[Dict[str, Any]]:
+    """按日聚合净收益（美元），供前端迷你曲线。
+
+    [2026-09-14] `since`（ISO 串）= 统计时代起点，旧时代行不计入。
+    """
     ensure_table()
     where = "WHERE ts >= now() - make_interval(secs => :secs)"
     params: Dict[str, Any] = {"secs": float(days) * 86400.0}
     if lane_id:
         where += " AND lane_id = :lane"
         params["lane"] = lane_id
+    if since:
+        where += " AND ts >= CAST(:since AS timestamptz)"
+        params["since"] = str(since)
     try:
         from sqlalchemy import text
 

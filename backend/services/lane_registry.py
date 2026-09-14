@@ -273,6 +273,25 @@ def set_status(lane_id: str, status: str) -> bool:
                          risk=lane.get("risk"), meta=lane.get("meta"), edge=lane.get("edge"))
 
 
+def stats_since(lane_id: Optional[str] = None) -> Optional[str]:
+    """[2026-09-14 统计时代隔离] 车道统计时代起点（`meta.stats_since`，ISO 串）。
+
+    配置/账户重构后，旧时代的账本行不应继续进入「今日/7 天/30 天」展示口径。
+    指定 lane_id → 该车道的起点；否则 → 各车道起点中的**最新值**（中心口径）。
+    历史行保留在库中供审计。
+    """
+    try:
+        if lane_id:
+            return ((get_lane(lane_id) or {}).get("meta") or {}).get("stats_since")
+        vals = [str(s) for s in (
+            ((ln.get("meta") or {}) or {}).get("stats_since")
+            for ln in (list_lanes() or [])) if s]
+        return max(vals) if vals else None
+    except Exception as e:  # pragma: no cover - 注册表不可用时 fail-open
+        logger.debug("[LaneRegistry] stats_since 读取失败: %s", e)
+        return None
+
+
 def update_meta(lane_id: str, meta: Dict[str, Any]) -> bool:
     """更新车道元数据（含报价/风控参数，供配置页 PATCH 持久化）。"""
     lane = get_lane(lane_id)

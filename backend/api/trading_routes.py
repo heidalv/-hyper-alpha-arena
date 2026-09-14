@@ -277,12 +277,7 @@ def _stats_since() -> Optional[str]:
     try:
         from backend.services import lane_registry as reg
 
-        vals = []
-        for ln in (reg.list_lanes() or []):
-            s = ((ln.get("meta") or {}) or {}).get("stats_since")
-            if s:
-                vals.append(str(s))
-        return max(vals) if vals else None
+        return reg.stats_since()
     except Exception as e:
         logger.debug("[TradingHub] stats_since 解析失败: %s", e)
         return None
@@ -688,7 +683,7 @@ def risk_summary(days: float = 30.0) -> Dict[str, Any]:
     for x in open_items:
         by_symbol[x["symbol"]] = by_symbol.get(x["symbol"], 0.0) + x["notional_usd"]
     max_sym = max(by_symbol.items(), key=lambda kv: kv[1]) if by_symbol else (None, 0.0)
-    series = lane_ledger.daily_series(days=days)
+    series = lane_ledger.daily_series(days=days, since=_stats_since())
     worst = min(series, key=lambda r: r["net_usd"]) if series else None
     lanes = _lanes()
     try:

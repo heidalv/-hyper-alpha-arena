@@ -229,20 +229,29 @@ class FillBody(BaseModel):
 
 @router.get("/portfolio/attribution")
 def portfolio_attribution(days: float = 7.0, lane_id: Optional[str] = None) -> Dict[str, Any]:
-    """近 N 天六维归因（前端「归因堆叠条」数据源）。"""
-    from backend.services import lane_ledger as ledger
+    """近 N 天六维归因（前端「归因堆叠条」数据源）。
 
-    res = ledger.attribution(days=days, lane_id=lane_id)
+    [2026-09-14 统计时代隔离] 按车道 `stats_since` 裁剪——重构前的旧账本行
+    不再出现在归因条里（否则总览会显示历史污染数字）。
+    """
+    from backend.services import lane_ledger as ledger
+    from backend.services import lane_registry as reg
+
+    res = ledger.attribution(days=days, lane_id=lane_id,
+                             since=reg.stats_since(lane_id))
     res["as_of"] = datetime.now(timezone.utc).isoformat()
     return res
 
 
 @router.get("/portfolio/series")
 def portfolio_series(days: float = 7.0, lane_id: Optional[str] = None) -> Dict[str, Any]:
-    """近 N 天逐日净收益（前端迷你曲线数据源）。"""
+    """近 N 天逐日净收益（前端迷你曲线数据源；同样按 stats_since 裁剪）。"""
     from backend.services import lane_ledger as ledger
+    from backend.services import lane_registry as reg
 
-    return {"days": days, "lane_id": lane_id, "series": ledger.daily_series(lane_id, days),
+    _since = reg.stats_since(lane_id)
+    return {"days": days, "lane_id": lane_id,
+            "series": ledger.daily_series(lane_id, days, since=_since),
             "as_of": datetime.now(timezone.utc).isoformat()}
 
 
