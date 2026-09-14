@@ -1018,7 +1018,8 @@ class ShadowRunner:
         } for x in (attr.get("by_symbol") or []) if x.get("symbol")}
         net_bp = float(total.get("net_bp") or 0.0)
         fills = int(total.get("n") or 0)
-        series = lane_ledger.daily_series(days=days, lane_id=self.lane_id)
+        _since = ((getattr(self, "meta", None) or {}).get("stats_since"))
+        series = lane_ledger.daily_series(days=days, lane_id=self.lane_id, since=_since)
         # 逐日序列（美元口径）——晋级判定需要「分折」，影子期用自然日作为一折
         folds = [{"date": row.get("date"), "net_usd": row.get("net_usd"),
                   "n": row.get("n")} for row in series or []]
@@ -1027,10 +1028,11 @@ class ShadowRunner:
         # fill_rate_ratio = 实测成交速率 ÷ 回放建模速率（基线存在车道 meta）
         baseline = (self.meta.get("replay_baseline") or {}).get("fills_per_symbol_hour")
         frr = lane_ledger.fill_rate_ratio(self.lane_id, baseline_per_symbol_hour=baseline,
-                                          days=days)
-        fr_stats = lane_ledger.fill_rate_stats(self.lane_id, days=days)
-        dd = lane_ledger.max_drawdown_pct(self.lane_id, days=days, equity=self.equity)
-        fstats = lane_ledger.flatten_stats(self.lane_id, days=days)
+                                          days=days, since=_since)
+        fr_stats = lane_ledger.fill_rate_stats(self.lane_id, days=days, since=_since)
+        dd = lane_ledger.max_drawdown_pct(self.lane_id, days=days, equity=self.equity,
+                                          since=_since)
+        fstats = lane_ledger.flatten_stats(self.lane_id, days=days, since=_since)
         baseline_flat = ((self.meta.get("replay_baseline") or {})
                          .get("flatten_price_bp"))
 

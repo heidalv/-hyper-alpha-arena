@@ -83,7 +83,9 @@ def _enrich_lanes(items: list) -> list:
         logger.warning("[LaneRoutes] 归因读取失败: %s", logger_err)
         attr_1d, attr_7d = {}, {}
     try:
-        pos = lane_ledger.open_positions(days=30.0)
+        from backend.services import lane_registry as _reg_pos
+
+        pos = lane_ledger.open_positions(days=30.0, since=_reg_pos.stats_since())
     except Exception as e:  # pragma: no cover
         logger.warning("[LaneRoutes] 持仓重建失败: %s", e)
         pos = []

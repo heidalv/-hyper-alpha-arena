@@ -218,8 +218,9 @@ def account_unified(account_id: Optional[int] = None,
     mm_positions: List[Dict[str, Any]] = []
     try:
         marks = _latest_marks()
-        mm_positions = [p for p in lane_ledger.open_positions(days=days, marks=marks)
-                        if abs(p["qty"]) > 1e-12]
+        mm_positions = [p for p in lane_ledger.open_positions(
+            days=days, marks=marks, since=_stats_since())
+            if abs(p["qty"]) > 1e-12]
     except Exception as e:
         logger.debug("[TradingHub] MM 持仓读取失败: %s", e)
 
@@ -332,7 +333,8 @@ def positions(lane_id: Optional[str] = None, symbol: Optional[str] = None,
     from backend.services import lane_ledger
 
     marks = _latest_marks()
-    items = lane_ledger.open_positions(lane_id=lane_id, days=days, marks=marks)
+    items = lane_ledger.open_positions(lane_id=lane_id, days=days, marks=marks,
+                                       since=_stats_since())
     if symbol:
         items = [x for x in items if x["symbol"].upper() == symbol.upper()]
     open_items = [x for x in items if abs(x["qty"]) > 1e-12]

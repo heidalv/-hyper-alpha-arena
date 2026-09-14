@@ -354,12 +354,16 @@ def open_positions(
     lane_id: Optional[str] = None,
     days: float = 30.0,
     marks: Optional[Dict[str, float]] = None,
+    since: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """从账本成交重建各 (车道, 标的) 的当前持仓。
 
     账本是唯一事实源：不依赖各车道自己维护的持仓表，因此**新车道只要写账本
     就能出现在前端持仓页**。价格盈亏口径与 `market_maker.core` 一致
     （中间价对中间价），未平部分用 `marks` 算浮动盈亏。
+
+    [2026-09-14 统计时代隔离] `since` = 统计时代起点：旧时代的成交行不再重建出
+    仓位/归因（否则持仓页会残留旧配置的 6 币种行与旧已实现盈亏，实测 -$42.61）。
     """
     ensure_table()
     where = "WHERE event = 'fill' AND ts >= now() - make_interval(secs => :secs)"
@@ -367,6 +371,9 @@ def open_positions(
     if lane_id:
         where += " AND lane_id = :lane"
         params["lane"] = lane_id
+    if since:
+        where += " AND ts >= CAST(:since AS timestamptz)"
+        params["since"] = str(since)
     try:
         from sqlalchemy import text
 
@@ -476,12 +483,14 @@ def open_positions(
 
 # ═══════════════════════ 影子期晋升指标（真实数据可算） ═══════════════════════
 
-def fill_rate_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
+def fill_rate_stats(lane_id: str, days: float = 7.0,
+                    since: Optional[str] = None) -> Dict[str, Any]:
     """实测成交速率（笔/标的/小时）。
 
     为什么需要它：晋升判定里的 `fill_rate_ratio`（真实成交率 ≥ 离线模拟 30%）
     此前一直是 None——因为没人把「模拟盘实际成交」与「回放建模成交」对齐过。
     这里给出前一半（实测速率），调用方拿回放基线做比值即可。
+    [2026-09-14] `since` = 统计时代起点（旧时代行不计入速率）。
     """
     ensure_table()
     try:
@@ -490,14 +499,18 @@ def fill_rate_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
         from backend.core.tenant import system_identity
         from backend.database.connection import SessionLocal
 
+        _w = ("WHERE lane_id = :l AND event = 'fill'"
+              " AND ts >= now() - make_interval(secs => :s)")
+        _p: Dict[str, Any] = {"l": lane_id, "s": float(days) * 86400.0}
+        if since:
+            _w += " AND ts >= CAST(:since AS timestamptz)"
+            _p["since"] = str(since)
         with system_identity():
             with SessionLocal() as db:
                 row = db.execute(text(
                     "SELECT COUNT(*) AS n, COUNT(DISTINCT symbol) AS syms,"
-                    " MIN(ts) AS mn, MAX(ts) AS mx FROM lane_ledger"
-                    " WHERE lane_id = :l AND event = 'fill'"
-                    " AND ts >= now() - make_interval(secs => :s)"
-                ), {"l": lane_id, "s": float(days) * 86400.0}).mappings().first()
+                    f" MIN(ts) AS mn, MAX(ts) AS mx FROM lane_ledger {_w}"
+                ), _p).mappings().first()
         n = int(row["n"] or 0)
         syms = int(row["syms"] or 0)
         if n == 0 or not row["mn"] or not row["mx"] or syms == 0:
@@ -518,11 +531,12 @@ def fill_rate_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
 
 
 def max_drawdown_pct(lane_id: str, days: float = 30.0, equity: float = 0.0,
-                     event: str = "fill") -> Optional[float]:
+                     event: str = "fill", since: Optional[str] = None) -> Optional[float]:
     """已实现盈亏曲线的最大回撤（占权益百分比）。
 
     逐笔累计净收益（`net_bp × notional`），取峰值到谷底的最大跌幅。
     权益未知（<=0）时返回 None——不用未定义的分母造数。
+    [2026-09-14] `since` = 统计时代起点（旧时代行不计入回撤）。
     """
     if equity <= 0:
         return None
@@ -533,14 +547,18 @@ def max_drawdown_pct(lane_id: str, days: float = 30.0, equity: float = 0.0,
         from backend.core.tenant import system_identity
         from backend.database.connection import SessionLocal
 
+        _w = ("WHERE lane_id = :l AND event = :e"
+              " AND ts >= now() - make_interval(secs => :s)")
+        if since:
+            _w += " AND ts >= CAST(:since AS timestamptz)"
         with system_identity():
             with SessionLocal() as db:
                 rows = db.execute(text(
                     "SELECT ts, net_bp, notional FROM lane_ledger"
-                    " WHERE lane_id = :l AND event = :e"
-                    " AND ts >= now() - make_interval(secs => :s) ORDER BY ts"
+                    f" {_w} ORDER BY ts"
                 ), {"l": lane_id, "e": event,
-                    "s": float(days) * 86400.0}).mappings().all()
+                    "s": float(days) * 86400.0,
+                    **({"since": str(since)} if since else {})}).mappings().all()
         if not rows:
             return None
         cum = 0.0
@@ -557,26 +575,28 @@ def max_drawdown_pct(lane_id: str, days: float = 30.0, equity: float = 0.0,
 
 
 def fill_rate_ratio(lane_id: str, *, baseline_per_symbol_hour: float,
-                    days: float = 7.0) -> Optional[float]:
+                    days: float = 7.0, since: Optional[str] = None) -> Optional[float]:
     """实测成交速率 ÷ 回放建模速率（晋升判定的 `fill_rate_ratio`）。
 
     基线缺失或为 0 时返回 None（fail-closed，不拿未知分母凑数）。
     """
     if not baseline_per_symbol_hour or baseline_per_symbol_hour <= 0:
         return None
-    st = fill_rate_stats(lane_id, days=days)
+    st = fill_rate_stats(lane_id, days=days, since=since)
     live = st.get("per_symbol_hour")
     if not live:
         return None
     return round(float(live) / float(baseline_per_symbol_hour), 4)
 
 
-def flatten_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
+def flatten_stats(lane_id: str, days: float = 7.0,
+                  since: Optional[str] = None) -> Dict[str, Any]:
     """平仓诊断：占比与**价格维度**成本（bp）。
 
     为什么单独看它：实测挂单成交 +1.77bp（与模型一致），但超时平仓 −26.7bp、
     占 28.8%——净期望为负全在这里。回放窗口同口径只有 14.0% / −3.4bp，
     两个数字放在一起就能判断「是模型错还是市场变差」。
+    [2026-09-14] `since` = 统计时代起点（旧时代行不计入平仓诊断）。
     """
     ensure_table()
     try:
@@ -585,6 +605,12 @@ def flatten_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
         from backend.core.tenant import system_identity
         from backend.database.connection import SessionLocal
 
+        _w = ("WHERE lane_id = :l AND event = 'fill'"
+              " AND ts >= now() - make_interval(secs => :s)")
+        _p: Dict[str, Any] = {"l": lane_id, "s": float(days) * 86400.0}
+        if since:
+            _w += " AND ts >= CAST(:since AS timestamptz)"
+            _p["since"] = str(since)
         with system_identity():
             with SessionLocal() as db:
                 row = db.execute(text(
@@ -596,9 +622,8 @@ def flatten_stats(lane_id: str, days: float = 7.0) -> Dict[str, Any]:
                     "   (WHERE meta_json->>'flatten' IN ('true','True')) AS fl_price,"
                     " AVG(net_bp) FILTER (WHERE meta_json->>'flatten' IN ('true','True'))"
                     "   AS fl_net_bp"
-                    " FROM lane_ledger WHERE lane_id = :l AND event = 'fill'"
-                    " AND ts >= now() - make_interval(secs => :s)"
-                ), {"l": lane_id, "s": float(days) * 86400.0}).mappings().first()
+                    f" FROM lane_ledger {_w}"
+                ), _p).mappings().first()
         n = int(row["n"] or 0)
         fl = int(row["fl"] or 0)
         fl_notional = float(row["fl_notional"] or 0.0)
