@@ -1,85 +1,102 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789393574333,
+  "ts_ms": 1789393806931,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.825,
-  "run_id": "f60fa0a58c2a49539acdf8c70292c39f",
-  "context_hash": "e081360971d38c897156928f937dce716d23c41e359dd6bdf88aa908c775fe07",
+  "consensus_score": 0.7,
+  "run_id": "17876c5f92bc496aa82ca4e2f35d22e7",
+  "context_hash": "551fac821c105952ea5db09ba7b2da1fc79df7872f70e26dc8dbf473e3d995f6",
   "final": {
-    "direction": "bearish",
-    "strength": 3.5,
-    "confidence": 0.45,
-    "half_life_hours": 10.0,
+    "direction": "bullish",
+    "strength": 4,
+    "confidence": 0.55,
+    "half_life_hours": 12,
     "affected_symbols": [
-      "BROCCOLIF3B"
+      "BZ"
     ],
-    "hedging_window_hours": 11.0,
+    "hedging_window_hours": 24,
     "position_adjustments": [
       {
-        "symbol": "BROCCOLIF3B",
-        "action": "no_new_long",
-        "reason": "Gateio funding +0.386%/8h（≈+423% APR）为极高正向资金费，做多成本极重，拥挤多头面临持续扣减；RSI53.6、1d仅+2.13%而无明显催化，资金费率极端常预示杠杆多头拥挤，存在被动去杠杆→价格回撤风险"
+        "symbol": "BZ",
+        "action": "no_new_short",
+        "reason": "四所资金费同步深负（gateio -0.3001%、bybit -0.3361%、asterdex -0.2021%、binance -0.2015%/8h），全球多空比仅0.375且OI 24h +7.62%，空头拥挤并仍在加码；24h空头清算7.43万美元 vs 多头仅429美元，逼空已在进行，新开空既需持续付费又面临挤压风险。"
       },
       {
-        "symbol": "BROCCOLIF3B",
-        "action": "reduce",
-        "reason": "该币为高波动小盘（年化波动94%、ATR14 6.86%），且binance与gateio资金费方向不一致（binance +0.005、gateio +0.0397，跨所价差/资金费差大），做市深度浅，建议减仓降低杠杆拥挤度风险"
+        "symbol": "BTC",
+        "action": "none",
+        "reason": "事件为BZ个体资金费异常，与现有BTC多头（2笔、名义约890）相关性数据缺失（corr_to_btc为空），证据不足不支持调节。"
       },
       {
-        "symbol": "BROCCOLIF3B",
-        "action": "no_new_long",
-        "reason": "gateio 资金费 +0.386%/8h（≈+423% APR，为阈值 0.1%/8h 的约 3.86 倍），binance 同向极端 +0.114%/8h，多头持有成本极高且属拥挤多头；该币 7d 回报 -7.48%、仅 1d 反弹 +2.13%，追多费率为负carry。当前组合未持有该币（持仓集中于 BTC/ETH/SOL/BNB/XRP/UNI/ASTER），故仅限制新开多头，不涉及既有仓位减仓或对冲。"
+        "symbol": "ETH",
+        "action": "none",
+        "reason": "同上，无向主流币传导的证据，维持趋势多头不动。"
+      },
+      {
+        "symbol": "SOL",
+        "action": "none",
+        "reason": "同上，无向主流币传导的证据，维持趋势多头不动。"
+      },
+      {
+        "symbol": "BNB",
+        "action": "none",
+        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
+      },
+      {
+        "symbol": "XRP",
+        "action": "none",
+        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
+      },
+      {
+        "symbol": "UNI",
+        "action": "none",
+        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
+      },
+      {
+        "symbol": "ASTER",
+        "action": "none",
+        "reason": "同上，ASTER自身费率未出现在极端清单中，无调节依据。"
       }
     ],
-    "analogues": [
+    "analogs": [
       {
-        "event": "binance BROCCOLIF3B 资金费 +0.114%/8h（≈+125% APR）同窗口出现",
-        "outcome": "方向一致信号，gateio升级至+423% APR表明做多拥挤进一步加剧"
+        "event": "BZ同批次多所同步触发资金费极端事件（asterdex -0.102%、binance -0.102%、bybit -0.299%/8h）",
+        "outcome": "跨所一致深负，属持续性拥挤空头而非单所噪声；同期价格7d仍+8.98%、空头被持续清算，挤压未逆转（同类事件后续走势的历史样本数据不足）"
       },
       {
-        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR）同窗口出现",
-        "outcome": "同类高正资金费极值通常在1-2个资金周期（8-16h）内因空头套利回补而回归均值，价格短期承压"
-      },
-      {
-        "event": "binance BROCCOLIF3B 资金费 +0.114%/8h（≈+125% APR，与本次 gateio 事件同一时刻、双所同向极端正费率）",
-        "outcome": "系统统一标记 dir=-0.5（偏空）；本 context pack 内无该类事件的事后价格/清算结果数据，无法量化历史均值回归幅度，仅作方向交叉验证：双所同向确认拥挤多头非单所噪声。"
-      },
-      {
-        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR）、gateio FATCOIN +1.0559%/8h、gateio INDEX +0.5279%/8h（同期扫描 3279 个合约中的更极端正费率样本）",
-        "outcome": "同类拥挤多头信号均被标记 dir=-0.5；pack 内无事后结果数据，仅表明 BROCCOLIF3B 的 +0.386%/8h 在同期正费率阵营中属中等强度（弱于 BSP/FATCOIN），支持 direction=bearish 但 strength 不取高值。"
+        "event": "同期小市值币普遍极端负费率：LSK -2.0%/8h（bybit）、STEEM -1.251%/8h、POWR -0.898%/8h、CVC -1.220%/8h",
+        "outcome": "市场处于系统性小币空头拥挤状态，负费率或随空头回补在1-3个结算周期内收敛；各币后续结果数据不足"
       }
     ],
     "key_factors": [
-      "Gateio BROCCOLIF3B 资金费 +0.386%/8h达+423% APR，severity=3属极端水平",
-      "Binance同币资金费仅+0.005，跨所价差/资金费差显著，gateio单所极端值",
-      "现货7日回撤-7.48%但1日+2.13%，近期短线反弹触发杠杆多头涌入",
-      "年化波动率94%、ATR14达6.86%，高波动小盘对极端资金费冲击敏感",
-      "同时间窗口大量其他币种出现极端资金费（如LSK -2190% APR、BSP +1569% APR），市场整体杠杆结构失衡",
-      "极端正费率：gateio +0.386%/8h ≈ +423% APR，为触发阈值（0.1%/8h）的约 3.86 倍，longs 需支付高额资金成本，历史上该状态对应拥挤多头与多头踩踏（long squeeze）风险，系统事件方向标记亦为 -0.5（偏空）",
-      "双所同向且快速上行：按 flows 快照（as_of 更早约 8 小时）gateio 0.0397% → 事件时 0.386%、binance 0.005% → 0.114%，费率在约一个资金费周期内放大约 10 倍，投机多头加速堆积",
-      "价格背景不支撑强势：1d +2.13% 但 7d -7.48%，RSI14 53.6 中性，反弹伴随费率飙升更像挤压式逼空后的脆弱结构",
-      "高波动放大回归风险：ATR14 6.86%/日、rv30 年化 94%，费率均值回归时价格摆动可能剧烈",
-      "传染证据缺失：corr_to_btc、correlation_pairs、position_structure、该币清算数据均为空，无法评估对组合现有持仓（BTC/ETH/SOL/BNB/XRP/UNI/ASTER）的外溢影响；账户14 总敞口已达 100.6%，不宜借该事件扩仓",
-      "半衰期设定依据：极端资金费通常在 1–3 个结算周期（8h/期）内回归，取 16h 为中枢估计；事件时点较行情快照晚约 8 小时，存在数据时滞"
+      "BZ资金费四所齐深负（约-110%~-330% APR），非单一交易所异常，信号可信度较高",
+      "全球多空比0.375、top_pos_ls 0.419、OI 24h +7.62%至2.20亿美元，空头拥挤且仍在加码，构成挤压燃料",
+      "24h空头清算7.43万美元 vs 多头清算仅429美元，逼空已在发生，偏多验证信号",
+      "价格7d +8.98%、30d +17.72%、4h趋势bullish、做多可收取资金费；但RSI14=71.9超买、regime=ranging且置信度仅0.3，限制上行强度判断",
+      "同期多币种极端负费率（LSK/STEEM/POWR/CVC）显示系统性小币空头拥挤，但极端费率通常在8-24小时内均值回归",
+      "组合未持有BZ，敞口100.6%集中于主流币多头；与BZ相关性数据缺失，历史同类事件后续样本不足，故confidence压低至0.55"
     ],
-    "summary": "Gateio BROCCOLIF3B 资金费飙升至+0.386%/8h（约+423% APR），远高于0.1%阈值，叠加binance端仅+0.005的明显跨所价差，提示该平台多头杠杆严重拥挤、做多成本极高。在高波动小盘+7日已回撤-7.48%的背景下，极端正资金费通常在1-2个资金周期内因套利空头介入而均值回归，价格短期偏空/承压。受影响仅限BROCCOLIF3B单一标的（不在BTC/ETH/SOL等持仓篮子），对现有组合敞口无直接影响，但应禁止新增该币多头并考虑减仓以规避杠杆拥挤与潜在去杠杆波动。半衰期约4小时，避险窗口建议6小时内完成仓位调整。"
+    "summary": "BZ四所资金费同步深负（gateio -0.219%/8h事件，全所区间-0.20%~-0.34%/8h，约-110%~-330% APR），叠加多空比0.375、OI 24h +7.62%的空头拥挤结构，且24h空头清算7.43万美元（多头仅429美元）表明逼空已在进行，判定挤压型偏多（strength 4）；但RSI14=71.9超买、regime=ranging且市场置信度仅0.3，强度受限。极端费率通常在1-3个结算周期（8-24h）内均值回归，半衰期估12h、对冲观察窗24h。组合当前未持有BZ，核心约束为不开新空（no_new_short）；现有主流币多头与该事件无已证传导（相关性数据缺失），历史同类事件后续样本数据不足，故confidence仅0.55，不据此调节存量仓位。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的证据链完整锚定在 context pack 事实内：四所同步深负资金费（asterdex -0.2021%、binance -0.2015%、bybit -0.3361%、gateio -0.3001%/8h）确认空头拥挤为跨所一致结构；24h 空头清算 $74,309 对比多头仅 $429（约173:1）是最直接的逼空进行时证据；配合 7d +8.98%、30d +17.72%、4h EMA bullish，价格在空头持续付费背景下上涨，符合挤压形态；global_ls 0.375、top_pos_ls 0.419、OI 24h +7.62% 表明空头占优且仍在加码。B 还诚实标注历史样本不足、把 confidence 压至 0.55，且因 RSI 71.9 超买与 ranging（conf 0.3）主动限制强度，行动约束（no_new_short、不调整无传导证据的存量仓位）与证据边界匹配。相比之下，A 的中性结论依赖两点薄弱支撑：一是自设阈值断言'纯空头拥挤 ls 应<0.3'（context 中无此依据，且 ls 0.375 本身即空头占优，反而支持拥挤判断）；二是引用 2024 年外部历史类比作为论据，超出了 context pack 事实范围。A 的有效观点（系统性小币拥挤、费率均值回归）已基本被 B 的 key_factors 覆盖。故判 B 更有依据；鉴于 1d 价格走平（-0.01%）、RSI 超买及事件的系统性（非 BZ 特异催化）属性，我采用偏多方向但将强度略降至 3、confidence 0.5。"
+    }
   },
   "notes": [],
   "event": {
-    "id": 102669,
+    "id": 102670,
     "event_type": "funding.extreme",
-    "symbol": "BROCCOLIF3B",
+    "symbol": "BZ",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": -0.5,
-    "title": "gateio BROCCOLIF3B 资金费 +0.386%/8h（≈+423% APR）",
+    "direction": 0.5,
+    "title": "gateio BZ 资金费 -0.219%/8h（≈-240% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 422.7,
-      "rate_8h": 0.00386,
+      "apr_pct": -239.8,
+      "rate_8h": -0.00219,
       "exchange": "gateio",
-      "rate_raw": 0.00386,
+      "rate_raw": -0.00219,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
