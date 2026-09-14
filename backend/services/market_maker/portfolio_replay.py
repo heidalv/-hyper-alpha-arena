@@ -121,6 +121,8 @@ def replay_portfolio(
     vol_baseline: Dict[str, float] = compute_vol_baselines(_mid_series)
     for s in symbols:
         states[s].vol_baseline_bp = float(vol_baseline.get(s) or 0.0)
+    # [F103] 每币「上一段」成交明细（= 当前在挂单的存续期内成交），用于下一轮判定
+    prev_win: Dict[str, Any] = {}
     # 每个币的下一个快照下标
     idx = {s: 0 for s in symbols}
     # 合并时间线：所有币的快照时间戳并集（升序）
@@ -217,13 +219,26 @@ def replay_portfolio(
                 continue
             j0 = int(np.searchsorted(d["tts"], d["ots"][i], "left"))
             j1 = int(np.searchsorted(d["tts"], d["ots"][i + 1], "right"))
-            seg_low = float(d["lo"][j0:j1].min()) if j1 > j0 else 0.0
-            seg_high = float(d["hi"][j0:j1].max()) if j1 > j0 else 0.0
-            seg_sell = float(d["sv"][j0:j1].sum()) if j1 > j0 else 0.0
-            seg_buy = float(d["bv"][j0:j1].sum()) if j1 > j0 else 0.0
-            # [F86] 决策时可见的「上一已完成桶」主动流失衡 OFI∈[-1,1]：
-            # 取 ts <= 当前快照 的最后一个成交桶（信息集约束：不含未来）
-            _k = int(np.searchsorted(d["tts"], d["ots"][i], "right")) - 1
+            _w_lo = float(d["lo"][j0:j1].min()) if j1 > j0 else 0.0
+            _w_hi = float(d["hi"][j0:j1].max()) if j1 > j0 else 0.0
+            _w_sv = float(d["sv"][j0:j1].sum()) if j1 > j0 else 0.0
+            _w_bv = float(d["bv"][j0:j1].sum()) if j1 > j0 else 0.0
+            # [F103 2026-09-14] **成交判定窗口必须用「上一段」而不是「本段」**。
+            # 旧口径：把 [ots[i], ots[i+1]) 交给 plan_tick，而 plan_tick 检验的是
+            # **上一轮挂出的单**（状态里的 quote）⇒ 挂单被拿"它被刷新之后才发生的
+            # 成交"来判定 ⇒ **前瞻偏差**，系统性多算成交。单标的 `replay.py` 没有
+            # 这个问题（它在同一轮内先算挂单、再用同段成交判定）。
+            # 现场证据：同窗口实盘成交只有该回放的 0.38~0.6×，且蒙特卡洛 12 个实现
+            # 分布极紧（107~119 vs 实盘 43）⇒ 不是"自然分叉"而是模型偏差。
+            # 修：用该币**上一段**（= 挂单存续期内）的成交明细判定，本段留到下一次。
+            _prev = prev_win.get(s)
+            prev_win[s] = (_w_lo, _w_hi, _w_sv, _w_bv)
+            if _prev is None:
+                continue          # 第一段没有"上一段"⇒不判定（下一段起正常）
+            seg_low, seg_high, seg_sell, seg_buy = _prev
+            # [F103] OFI 同样要退一段：迭代 i 时已知的是**被判定窗口**那一桶的流向
+            # （信息集约束），旧口径取 `ts <= ots[i]` 的最后一桶 = 尚未判定的那一桶。
+            _k = int(np.searchsorted(d["tts"], d["ots"][i], "left")) - 1
             ofi = 0.0
             if _k >= 0:
                 _b, _s = float(d["bv"][_k]), float(d["sv"][_k])
