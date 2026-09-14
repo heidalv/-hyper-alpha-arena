@@ -653,6 +653,8 @@ class ShadowRunner:
         self.fills: int = 0
         self.flattens: int = 0
         self.realized_usd: float = 0.0
+        # [F81] 成交桶水位线：每币已消费的最大桶时间戳（防漏桶/防重复消费）
+        self._seg_watermark: Dict[str, int] = {}
 
     # ── 状态持久化 ──
     def load_states(self) -> int:
@@ -709,7 +711,14 @@ class ShadowRunner:
 
     # ── 行情 ──
     def fetch_market(self, since_ms: int) -> Dict[str, Dict[str, Any]]:
-        """读每个币的最新盘口 + 自 since_ms 以来的区间成交汇总。"""
+        """读每个币的最新盘口 + 自水位线以来的区间成交汇总。
+
+        [F81 2026-09-14] 成交桶水位线：market_trades_aggregated 按 **15 秒桶**存储、
+        时间戳=桶起点；此前 `timestamp > since_ms`（开区间）+ 15s tick 使桶起点
+        恰好落在边界时被系统性跳过——同窗口实测回放 212 笔 vs 实盘 4 笔（漏单 98%），
+        「一直亏损」的真因（几笔坏平仓主导了稀少的成交）。水位线保证每个成交桶
+        **恰好消费一次**（与回放 [left,right] 语义一致），迟到的桶也会被补收。
+        """
         from sqlalchemy import text
 
         from backend.core.tenant import system_identity
@@ -724,13 +733,18 @@ class ShadowRunner:
                         " WHERE exchange=:e AND symbol=:s AND best_bid>0 AND best_ask>best_bid"
                         " ORDER BY timestamp DESC LIMIT 1"
                     ), {"e": self.venue, "s": s}).mappings().first()
+                    # [F81] 取数下界 = max(since_ms, 已消费桶水位) ⇒ 每桶恰好一次
+                    _wm = max(int(since_ms or 0), int(self._seg_watermark.get(s, 0)))
                     tr = db.execute(text(
                         "SELECT MIN(low_price) AS lo, MAX(high_price) AS hi,"
                         " COALESCE(SUM(taker_sell_volume),0) AS sv,"
-                        " COALESCE(SUM(taker_buy_volume),0) AS bv"
+                        " COALESCE(SUM(taker_buy_volume),0) AS bv,"
+                        " MAX(timestamp) AS mts"
                         " FROM market_trades_aggregated"
                         " WHERE exchange=:e AND symbol=:s AND timestamp > :ts"
-                    ), {"e": self.venue, "s": s, "ts": int(since_ms)}).mappings().first()
+                    ), {"e": self.venue, "s": s, "ts": _wm}).mappings().first()
+                    if tr and tr["mts"] is not None:
+                        self._seg_watermark[s] = max(_wm, int(tr["mts"]))
                     if not ob:
                         continue
                     best_bid, best_ask = float(ob["best_bid"]), float(ob["best_ask"])
