@@ -5436,8 +5436,10 @@ def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None,
                 _params["acc"] = int(account_id)
             _excl = [str(s).upper() for s in (exclude_symbols or []) if s]
             if _excl:
-                _sql += " AND upper(symbol) NOT IN :excl"
-                _params["excl"] = tuple(_excl)
+                _ph = ", ".join(f":ex{i}" for i in range(len(_excl)))
+                _sql += f" AND upper(symbol) NOT IN ({_ph})"
+                for i, s in enumerate(_excl):
+                    _params[f"ex{i}"] = s
             return int(db.execute(_sa_text(_sql), _params).scalar() or 0)
         finally:
             if _owns_db:

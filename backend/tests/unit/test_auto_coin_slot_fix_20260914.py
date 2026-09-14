@@ -58,9 +58,11 @@ def test_exclude_symbols_adds_not_in_filter():
     )
     assert n == 0
     sql = " ".join(e[0] for e in db.execs)
-    assert "NOT IN :excl" in sql
-    params = [e[1] for e in db.execs if "excl" in e[1]]
-    assert params and "BTC" in params[0]["excl"]
+    assert "NOT IN" in sql
+    # 逐个占位符展开（psycopg2 不支持 NOT IN :tuple 元组绑定）
+    assert ":ex0" in sql and ":ex1" in sql
+    params = [e[1] for e in db.execs if "ex0" in e[1]]
+    assert params and params[0]["ex0"] == "BTC"
 
 
 def test_no_exclude_keeps_legacy_semantics():
@@ -70,7 +72,7 @@ def test_no_exclude_keeps_legacy_semantics():
     n = acs.count_open_ai_mid_positions(db=db, account_id=14)
     assert n == 4
     sql = " ".join(e[0] for e in db.execs)
-    assert "NOT IN :excl" not in sql
+    assert "NOT IN" not in sql
 
 
 def test_empty_exclude_equivalent_to_none():
@@ -80,4 +82,4 @@ def test_empty_exclude_equivalent_to_none():
     n = acs.count_open_ai_mid_positions(db=db, account_id=14, exclude_symbols=[])
     assert n == 4
     sql = " ".join(e[0] for e in db.execs)
-    assert "NOT IN :excl" not in sql
+    assert "NOT IN" not in sql
