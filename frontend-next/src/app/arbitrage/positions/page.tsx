@@ -426,6 +426,30 @@ function PositionsInner() {
               <div>腿量 <span className="font-mono text-foreground">{fmtUsd(shadow.data?.fill_notional ?? 0)}</span>（复利 {shadow.data?.compound_ratio ?? 0}）</div>
               <div>账户 <span className="font-mono text-foreground">#{shadow.data?.account_id ?? "—"}</span> · {shadow.data?.venue ?? ""}</div>
             </div>
+            {/* [F95] 闸门拦截分布：回答「过去这一小时是哪道闸门在吃成交」 */}
+            {(shadow.data?.skip_counts && Object.keys(shadow.data.skip_counts).length > 0) && (
+              <div className="mt-2 rounded-lg border border-border/40 px-3 py-2">
+                <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>闸门拦截分布（本进程累计）</span>
+                  {shadow.data.side_counts && (
+                    <span className="font-mono">
+                      双边报价 {shadow.data.side_counts.both ?? 0} · 单边 {shadow.data.side_counts.one ?? 0} · 未挂 {shadow.data.side_counts.none ?? 0}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono">
+                  {Object.entries(shadow.data.skip_counts).map(([k, v]) => (
+                    <span key={k} className="text-muted-foreground">
+                      {k} <span className="text-foreground">{v}</span>
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  net_exposure/symbol_exposure = 敞口闸（下单侧预留口径）；ofi_toxic_* = 流向毒性闸；
+                  vol_pause = 波动闸。拦截多≠异常，但可据此判断哪道闸在限制产能。
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ④ 其它车道持仓（做市已在上方展开，这里只列别的车道） */}

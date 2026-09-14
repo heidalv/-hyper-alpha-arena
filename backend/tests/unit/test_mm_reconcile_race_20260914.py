@@ -117,3 +117,45 @@ def test_live_reconcile_is_stable_readonly():
         time.sleep(2.0)
         r = rc.compare_lane_books(lane_id="mm_asterdex")
         assert r["ok"], f"对账分叉（疑似竞态误报）: {r['mismatches']}"
+
+
+def test_adjustment_row_is_stamped_at_snapshot_time(monkeypatch):
+    """[F95] 调整行必须按**运行态快照时刻**落库。
+
+    对账把账本裁到 `state_ts`（防竞态假分叉），若调整行按 now() 落库就会被自己的
+    上界裁掉——实测 `--fix` 报成功但复核仍分叉（写了等于没写）。
+    """
+    calls = []
+    monkeypatch.setattr(rc.lane_ledger, "record_fill",
+                        lambda **kw: calls.append(kw) or True)
+    snap = "2026-09-14T17:20:00+00:00"
+    n = rc.apply_adjustments(lane_id="t", ts=snap,
+                             mismatches=[{"symbol": "BTC", "diff_qty": -1.0,
+                                          "mark_px": 100.0}])
+    assert n == 1
+    assert calls[0].get("ts") is not None, "必须显式带上快照时刻"
+    assert calls[0]["ts"].isoformat() == snap
+
+
+def test_position_reconcile_ignores_display_era(monkeypatch):
+    """[F95] 持仓对账必须按「完整历史」重建，不能被显示时代起点裁剪。
+
+    否则时代起点晚于某仓位开仓时刻时，账本看不到那条腿 ⇒ 假分叉（巡检误报）。
+    """
+    seen = {}
+
+    def _fake_open_positions(**kw):
+        seen.update(kw)
+        return []
+
+    monkeypatch.setattr(rc, "runtime_positions", lambda lane: {
+        "BTC": {"qty": 3.0, "avg_px": 100.0, "updated_ts": None}})
+    monkeypatch.setattr(rc, "latest_marks", lambda syms, venue: {"BTC": 100.0})
+    monkeypatch.setattr(rc, "lane_meta", lambda lane: {"venue": "asterdex",
+                                                       "symbols": ["BTC"],
+                                                       "stats_since": "2026-09-14T17:00:00+08:00"})
+    monkeypatch.setattr(rc.lane_ledger, "open_positions", _fake_open_positions)
+    rc.compare_lane_books(lane_id="test_lane")
+    assert seen.get("since") is None, \
+        f"持仓重建不得按显示时代裁剪（since={seen.get('since')}）"
+    assert seen.get("days"), "应使用 days 窗口重建完整持仓历史"

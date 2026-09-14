@@ -50,7 +50,8 @@ def main() -> int:
     if not args.fix:
         print("（dry-run：加 --fix 写对账调整行；调整行净额恒为 0，不制造盈亏）")
         return 2
-    n = apply_adjustments(lane_id=args.lane, mismatches=res["mismatches"])
+    n = apply_adjustments(lane_id=args.lane, mismatches=res["mismatches"],
+                          ts=res.get("state_ts"))
     for m in res["mismatches"]:
         side = "sell" if m["diff_qty"] > 0 else "buy"
         print(f"  ✅ {m['symbol']}: {side} {abs(m['diff_qty']):.8f} @ {m['mark_px']:.8f}"

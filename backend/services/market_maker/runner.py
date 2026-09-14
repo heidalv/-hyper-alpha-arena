@@ -285,6 +285,19 @@ def seg_window(prev_label_ms: int, snap_ms: int, quote_ts: float = 0.0,
     return lo, hi, qts_ms
 
 
+def skip_key(reason: str) -> str:
+    """[F95] 把 skip 原因归一成统计键（去掉括号里的参数值）。
+
+    现场需要回答的问题：「到底哪道闸门在吃我的成交？」——回放侧有 skip 计数，
+    实盘侧此前完全看不到（只能手工打一次 tick 看瞬时值）。归一化后按进程累计，
+    前端「链路健康」直接展示分布。
+    """
+    s = str(reason or "").strip()
+    if not s:
+        return ""
+    return s.split("(")[0].split(":")[0].strip()
+
+
 def pending_contrib(state: "SymbolState", mark: float, leg: float
                     ) -> Tuple[float, float, float]:
     """[F94c 2026-09-14] 单个币的在挂腿对风险预留的贡献 `(up, down, gross)`（USD）。
@@ -872,12 +885,24 @@ class ShadowRunner:
         self.realized_usd: float = 0.0
         # [F81] 成交桶水位线：每币已消费的最大桶时间戳（防漏桶/防重复消费）
         self._seg_watermark: Dict[str, int] = {}
+        # [F95] 闸门拦截分布（进程内累计）：实盘「哪道闸门在吃成交」的可观测性
+        self.skip_counts: Dict[str, int] = {}
+        self.side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
 
     def _read_account_equity(self) -> float:
-        """[F85] 读模拟账户当前权益（复利模式的腿量/上限基准）。"""
+        """[F85] 读模拟账户当前权益（复利模式的腿量/上限基准）。
+
+        [F95 2026-09-14] **必须算上已实现盈亏**：`arbitrage_paper_accounts.total_equity`
+        是「交易所分配资本」的口径——`record_paper_leg_fill` 只改 `available_balance`
+        与 `realized_pnl`，**从不改 total_equity**（实测 160 笔成交后仍恒为 $300.00）。
+        此前直接读 total_equity ⇒ 实盘复利完全失效（腿量永远 $300），而回放按
+        running_equity 复利（7 天 $300→$389）——实盘/回放口径不一致。
+        口径与回放对齐：**权益 = 分配资本 + 已实现盈亏**（不含浮动盈亏，避免与
+        未平仓腿的盯市重复计入）。
+        """
         if not self.account_id:
             return 0.0
         try:
@@ -889,9 +914,12 @@ class ShadowRunner:
             with system_identity():
                 with SessionLocal() as db:
                     row = db.execute(text(
-                        "SELECT total_equity FROM arbitrage_paper_accounts WHERE id=:i"
+                        "SELECT total_equity, COALESCE(realized_pnl, 0)"
+                        " FROM arbitrage_paper_accounts WHERE id=:i"
                     ), {"i": self.account_id}).first()
-                    return float(row[0]) if row and row[0] else 0.0
+                    if not row or not row[0]:
+                        return 0.0
+                    return float(row[0]) + float(row[1] or 0.0)
         except Exception as e:
             logger.warning("[F85] 读账户权益失败: %s", e)
             return 0.0
@@ -1295,6 +1323,16 @@ class ShadowRunner:
             _pending["up"] += _u1
             _pending["down"] += _d1
             _pending["gross"] += _g1
+            # [F95] 闸门拦截分布（进程内累计，供前端「链路健康」展示）
+            _k = skip_key(dec.skip)
+            if _k:
+                self.skip_counts[_k] = self.skip_counts.get(_k, 0) + 1
+            if dec.bid > 0 and dec.ask > 0:
+                self.side_counts["both"] += 1
+            elif dec.bid > 0 or dec.ask > 0:
+                self.side_counts["one"] += 1
+            else:
+                self.side_counts["none"] += 1
             self._record_fills(dec)
             self.fills += len(dec.fills)
             self.flattens += sum(1 for f in dec.fills if f.is_flatten)
@@ -1467,6 +1505,10 @@ class ShadowRunner:
                 if self._first_tick_ts and self.last_tick_ts > self._first_tick_ts else None),
             "spread_buckets": {s: int(getattr(st, "last_seg_ms", 0) or 0)
                                for s, st in self.states.items()},
+            # [F95] 闸门拦截分布 + 双边/单边/未挂 报价比例（实盘可观测性）
+            "skip_counts": dict(sorted(self.skip_counts.items(),
+                                       key=lambda kv: -kv[1])[:12]),
+            "side_counts": dict(self.side_counts),
             # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
             # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
             "orphan_inventory": {s: round(float(st.qty), 8)

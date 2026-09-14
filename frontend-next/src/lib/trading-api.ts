@@ -253,6 +253,9 @@ export interface ShadowStatus {
   process_window_sec?: number;
   fills_per_hour?: number | null;
   spread_buckets?: Record<string, number>;
+  /** [F95] 闸门拦截分布（进程内累计）+ 双边/单边/未挂 报价计数 */
+  skip_counts?: Record<string, number>;
+  side_counts?: Record<string, number>;
   as_of?: string | null;
 }
 

@@ -100,8 +100,11 @@ def compare_lane_books(*, lane_id: str, venue: Optional[str] = None,
     # 之间会产生假分叉（实测 ±1 条腿 ≈ ±$300，下一轮自愈）——巡检误报不可接受。
     _ts = [v.get("updated_ts") for v in rt.values() if v.get("updated_ts")]
     until = min(_ts).isoformat() if _ts else None
+    # [F95 2026-09-14] 持仓对账**不能用显示时代起点裁剪**：`stats_since` 是「盈亏
+    # 聚合窗口」，而持仓是当前状态事实——若时代起点晚于某仓位开仓时刻，账本重建
+    # 会看不到那条腿 ⇒ 假分叉。这里固定用 days 窗口（默认 30 天）重建持仓。
     led_rows = lane_ledger.open_positions(lane_id=lane_id, days=days, marks=mk,
-                                          since=since, until=until)
+                                          since=None, until=until)
     led = {r["symbol"]: r for r in led_rows}
 
     rows: List[Dict[str, Any]] = []
@@ -132,12 +135,25 @@ def compare_lane_books(*, lane_id: str, venue: Optional[str] = None,
     }
 
 
-def apply_adjustments(*, lane_id: str, mismatches: List[Dict[str, Any]]) -> int:
+def apply_adjustments(*, lane_id: str, mismatches: List[Dict[str, Any]],
+                      ts: Optional[str] = None) -> int:
     """按对账结果写调整行（净额恒为 0，仅校正库存），返回写入条数。
 
     `side` = 平掉残差的方向；`fill_px = mid_px` ⇒ 价差/价格维度均为 0、费率 0
     ⇒ 六维净额 = 0，**不制造任何盈亏**，meta 标记 `source=reconcile` 可审计。
+
+    [F95 2026-09-14] `ts` 必须传**运行态快照时刻**（`compare_lane_books.state_ts`）：
+    对账把账本裁到该时刻（防竞态假分叉），若调整行按 `now()` 落库就会被自己的
+    上界裁掉 ⇒ 写了等于没写（实测 `--fix` 报成功但复核仍分叉）。
     """
+    from datetime import datetime as _dt
+
+    _ts = None
+    if ts:
+        try:
+            _ts = _dt.fromisoformat(str(ts))
+        except Exception:
+            _ts = None
     n = 0
     for m in mismatches:
         if float(m.get("mark_px") or 0.0) <= 0:
@@ -147,7 +163,7 @@ def apply_adjustments(*, lane_id: str, mismatches: List[Dict[str, Any]]) -> int:
         ok = lane_ledger.record_fill(
             lane_id=lane_id, symbol=str(m["symbol"]), side=side,
             qty=abs(float(m["diff_qty"])), fill_px=float(m["mark_px"]),
-            mid_px=float(m["mark_px"]), fee_rate=0.0,
+            mid_px=float(m["mark_px"]), fee_rate=0.0, ts=_ts,
             meta={"source": "reconcile", "reason": "runtime_vs_ledger_divergence",
                   "runtime_qty": m.get("runtime_qty"), "ledger_qty": m.get("ledger_qty")},
         )

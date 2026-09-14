@@ -56,6 +56,10 @@ def replay_portfolio(
     # 盈亏滚动），equity 参数成为初始权益；敞口上限也随运行权益缩放（与实盘
     # 「按权益比例的风控」语义一致）。None/0 = 固定腿量（旧行为）。
     fill_notional_ratio: Optional[float] = None,
+    # [F95 2026-09-14] 影子对齐校验：以**实盘运行态**为初值从指定时刻起跑，
+    # 使回放与实盘在同一状态、同一数据上逐桶推进——「实盘有没有漏成交」才可判定。
+    init_states: Optional[Dict[str, Any]] = None,
+    start_ts_ms: Optional[int] = None,
 ) -> Dict[str, Any]:
     """按合并时间线回放多个标的，**共享库存账本**。"""
     from backend.services.market_maker.runner import SymbolState, plan_tick
@@ -65,6 +69,15 @@ def replay_portfolio(
     data = data or _load_all(symbols, venue)
 
     states = {s: SymbolState(symbol=s) for s in symbols}
+    # [F95] 影子对齐：以实盘运行态为初值（深拷贝，不改调用方对象）
+    if init_states:
+        for _s, _st in init_states.items():
+            if _s not in states or _st is None:
+                continue
+            try:
+                states[_s] = SymbolState.from_dict(_st.to_dict())
+            except Exception:
+                states[_s] = _st if isinstance(_st, SymbolState) else states[_s]
     book = InventoryBook()                       # ← 共享账本：组合级约束在此生效
     marks: Dict[str, float] = {}
     # [F75] 与实盘同构：每币维护 mid_hist + 已实现波动基准（实盘 tick 同款）。
@@ -95,6 +108,12 @@ def replay_portfolio(
     idx = {s: 0 for s in symbols}
     # 合并时间线：所有币的快照时间戳并集（升序）
     timeline = np.unique(np.concatenate([data[s]["ots"] for s in symbols]))
+    if start_ts_ms:
+        timeline = timeline[timeline >= int(start_ts_ms)]
+    # [F95] 从实盘状态起跑时：各币下标要跳到 start 之后（否则重复消费历史快照）
+    if start_ts_ms:
+        for s in symbols:
+            idx[s] = int(np.searchsorted(data[s]["ots"], int(start_ts_ms), "left"))
     fills_log: List[Dict[str, Any]] = []
     skips: Dict[str, int] = {}
     notional_sum = 0.0
@@ -104,6 +123,10 @@ def replay_portfolio(
     _ratio = float(fill_notional_ratio or 0.0)
     running_equity = float(equity)
     capped_fill_count = 0   # 队列份额截断腿量的次数（容量上限观测）
+    # [F95] 与实盘同口径的行为计数：报价侧分布 + 闸门拦截分布。
+    # 实盘/回放速率不一致时，用来判定差异在「报价行为」还是「成交判定」。
+    side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
+    skip_counts: Dict[str, int] = {}
     # [F94c] 风险实况：由**真实账本**逐快照统计（外部用成交日志重建会失真——
     # 实测重建值偏离真实值 2 倍以上，导致上限是否生效无法判断）
     max_net_usd = 0.0
@@ -202,6 +225,16 @@ def replay_portfolio(
             if dec.skip and not dec.fills:
                 key = dec.skip.split("(")[0]
                 skips[key] = skips.get(key, 0) + 1
+            # [F95] 行为计数（与实盘 tick 同口径）
+            _kk = dec.skip.split("(")[0].strip() if dec.skip else ""
+            if _kk:
+                skip_counts[_kk] = skip_counts.get(_kk, 0) + 1
+            if dec.bid > 0 and dec.ask > 0:
+                side_counts["both"] += 1
+            elif dec.bid > 0 or dec.ask > 0:
+                side_counts["one"] += 1
+            else:
+                side_counts["none"] += 1
             for f in dec.fills:
                 # [F84] 队列份额截断观测：qty < 期望腿量 ⇒ 容量上限在约束
                 if f.qty * f.px < (fill_notional if _ratio <= 0
@@ -257,6 +290,9 @@ def replay_portfolio(
                            if v["notional"] > 0 else 0.0}
                        for s, v in per_symbol.items()},
         "skipped": skips,
+        # [F95] 行为计数（与实盘同口径）：定位实盘/回放速率差异来源
+        "side_counts": side_counts,
+        "skip_counts": dict(sorted(skip_counts.items(), key=lambda kv: -kv[1])[:12]),
         "open_inventory_usd": round(gross, 2),
         "net_exposure_usd": round(book.net_notional(marks), 2),
         # [F94c] 风险实况（真实账本逐快照峰值）：用于验证上限是否真的兜住风险
