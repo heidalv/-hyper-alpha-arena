@@ -1,102 +1,32 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789393806931,
-  "accepted": true,
-  "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "17876c5f92bc496aa82ca4e2f35d22e7",
-  "context_hash": "551fac821c105952ea5db09ba7b2da1fc79df7872f70e26dc8dbf473e3d995f6",
-  "final": {
-    "direction": "bullish",
-    "strength": 4,
-    "confidence": 0.55,
-    "half_life_hours": 12,
-    "affected_symbols": [
-      "BZ"
-    ],
-    "hedging_window_hours": 24,
-    "position_adjustments": [
-      {
-        "symbol": "BZ",
-        "action": "no_new_short",
-        "reason": "四所资金费同步深负（gateio -0.3001%、bybit -0.3361%、asterdex -0.2021%、binance -0.2015%/8h），全球多空比仅0.375且OI 24h +7.62%，空头拥挤并仍在加码；24h空头清算7.43万美元 vs 多头仅429美元，逼空已在进行，新开空既需持续付费又面临挤压风险。"
-      },
-      {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "事件为BZ个体资金费异常，与现有BTC多头（2笔、名义约890）相关性数据缺失（corr_to_btc为空），证据不足不支持调节。"
-      },
-      {
-        "symbol": "ETH",
-        "action": "none",
-        "reason": "同上，无向主流币传导的证据，维持趋势多头不动。"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "同上，无向主流币传导的证据，维持趋势多头不动。"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
-      },
-      {
-        "symbol": "XRP",
-        "action": "none",
-        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "同上，无向主流币传导的证据，维持现有仓位。"
-      },
-      {
-        "symbol": "ASTER",
-        "action": "none",
-        "reason": "同上，ASTER自身费率未出现在极端清单中，无调节依据。"
-      }
-    ],
-    "analogs": [
-      {
-        "event": "BZ同批次多所同步触发资金费极端事件（asterdex -0.102%、binance -0.102%、bybit -0.299%/8h）",
-        "outcome": "跨所一致深负，属持续性拥挤空头而非单所噪声；同期价格7d仍+8.98%、空头被持续清算，挤压未逆转（同类事件后续走势的历史样本数据不足）"
-      },
-      {
-        "event": "同期小市值币普遍极端负费率：LSK -2.0%/8h（bybit）、STEEM -1.251%/8h、POWR -0.898%/8h、CVC -1.220%/8h",
-        "outcome": "市场处于系统性小币空头拥挤状态，负费率或随空头回补在1-3个结算周期内收敛；各币后续结果数据不足"
-      }
-    ],
-    "key_factors": [
-      "BZ资金费四所齐深负（约-110%~-330% APR），非单一交易所异常，信号可信度较高",
-      "全球多空比0.375、top_pos_ls 0.419、OI 24h +7.62%至2.20亿美元，空头拥挤且仍在加码，构成挤压燃料",
-      "24h空头清算7.43万美元 vs 多头清算仅429美元，逼空已在发生，偏多验证信号",
-      "价格7d +8.98%、30d +17.72%、4h趋势bullish、做多可收取资金费；但RSI14=71.9超买、regime=ranging且置信度仅0.3，限制上行强度判断",
-      "同期多币种极端负费率（LSK/STEEM/POWR/CVC）显示系统性小币空头拥挤，但极端费率通常在8-24小时内均值回归",
-      "组合未持有BZ，敞口100.6%集中于主流币多头；与BZ相关性数据缺失，历史同类事件后续样本不足，故confidence压低至0.55"
-    ],
-    "summary": "BZ四所资金费同步深负（gateio -0.219%/8h事件，全所区间-0.20%~-0.34%/8h，约-110%~-330% APR），叠加多空比0.375、OI 24h +7.62%的空头拥挤结构，且24h空头清算7.43万美元（多头仅429美元）表明逼空已在进行，判定挤压型偏多（strength 4）；但RSI14=71.9超买、regime=ranging且市场置信度仅0.3，强度受限。极端费率通常在1-3个结算周期（8-24h）内均值回归，半衰期估12h、对冲观察窗24h。组合当前未持有BZ，核心约束为不开新空（no_new_short）；现有主流币多头与该事件无已证传导（相关性数据缺失），历史同类事件后续样本数据不足，故confidence仅0.55，不据此调节存量仓位。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的证据链完整锚定在 context pack 事实内：四所同步深负资金费（asterdex -0.2021%、binance -0.2015%、bybit -0.3361%、gateio -0.3001%/8h）确认空头拥挤为跨所一致结构；24h 空头清算 $74,309 对比多头仅 $429（约173:1）是最直接的逼空进行时证据；配合 7d +8.98%、30d +17.72%、4h EMA bullish，价格在空头持续付费背景下上涨，符合挤压形态；global_ls 0.375、top_pos_ls 0.419、OI 24h +7.62% 表明空头占优且仍在加码。B 还诚实标注历史样本不足、把 confidence 压至 0.55，且因 RSI 71.9 超买与 ranging（conf 0.3）主动限制强度，行动约束（no_new_short、不调整无传导证据的存量仓位）与证据边界匹配。相比之下，A 的中性结论依赖两点薄弱支撑：一是自设阈值断言'纯空头拥挤 ls 应<0.3'（context 中无此依据，且 ls 0.375 本身即空头占优，反而支持拥挤判断）；二是引用 2024 年外部历史类比作为论据，超出了 context pack 事实范围。A 的有效观点（系统性小币拥挤、费率均值回归）已基本被 B 的 key_factors 覆盖。故判 B 更有依据；鉴于 1d 价格走平（-0.01%）、RSI 超买及事件的系统性（非 BZ 特异催化）属性，我采用偏多方向但将强度略降至 3、confidence 0.5。"
-    }
-  },
-  "notes": [],
+  "ts_ms": 1789393978888,
+  "accepted": false,
+  "status": "degraded",
+  "consensus_score": 0.134,
+  "run_id": "839ec7a66a2148a08f99d4403026d83c",
+  "context_hash": "95ae1c365de23c7f96ef6809f9b0860e9581de3ac9037742acdf40cc43637c2a",
+  "final": null,
+  "notes": [
+    "仲裁候选 glm_opencode_alt 失败: 未配置: OpenCode sidecar 不可达: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
+    "仲裁候选 ollama 失败: 输出中无可解析 JSON",
+    "仲裁候选 ollama2 失败: 输出中无可解析 JSON",
+    "仲裁调用失败: 输出中无可解析 JSON；分歧未解"
+  ],
   "event": {
-    "id": 102670,
+    "id": 102676,
     "event_type": "funding.extreme",
-    "symbol": "BZ",
+    "symbol": "GAIB",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio BZ 资金费 -0.219%/8h（≈-240% APR）",
+    "direction": -0.5,
+    "title": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -239.8,
-      "rate_8h": -0.00219,
+      "apr_pct": 384.6,
+      "rate_8h": 0.003512,
       "exchange": "gateio",
-      "rate_raw": -0.00219,
+      "rate_raw": 0.003512,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
