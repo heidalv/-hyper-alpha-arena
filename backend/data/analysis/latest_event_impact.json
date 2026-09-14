@@ -1,101 +1,72 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789391375365,
+  "ts_ms": 1789391624698,
   "accepted": true,
   "status": "ok",
   "consensus_score": 0.7,
-  "run_id": "05d159b396a341c8ac459e3320a29948",
-  "context_hash": "bfc14117580a0b8bf95b356f79b26f1a5770b966fd5085dc89fd0769c2892a25",
+  "run_id": "c6472de4a1fb4a69a30401f6405b05fa",
+  "context_hash": "e4586570d15d2ce500b51afa1be43e050b522096cab1220ca005cfa967b92d6e",
   "final": {
     "direction": "bullish",
     "strength": 3,
-    "confidence": 0.4,
-    "half_life_hours": 8,
+    "confidence": 0.3,
+    "half_life_hours": 5,
     "affected_symbols": [
-      "HIVE",
-      "STEEM",
-      "LSK",
-      "POWR",
-      "CVC"
+      "MTL"
     ],
     "hedging_window_hours": 8,
     "position_adjustments": [
       {
-        "symbol": "HIVE",
-        "action": "none",
-        "reason": "当前未持仓 HIVE；至数据截止（事件后约5小时）bybit HIVE 费率已回归 +0.005%/8h、binance 回升至 -0.0391%，极端负费率自行消退，剩余可交易优势有限，不建议追轧空行情"
+        "symbol": "MTL",
+        "action": "no_new_short",
+        "reason": "bybit -0.311%/8h（-341% APR）且 binance/gateio 同步为负，空头侧拥挤、存在挤压风险；OI 仅 $3.37M 且 1h 内 -11.5% 快速进出，流动性薄，禁止新开空单；当前无 MTL 持仓，亦不建议追多（价格趋势数据不足）"
       },
       {
         "symbol": "BTC",
         "action": "none",
-        "reason": "现有 BTC 多头（trend_e1/auto 各一笔）与 HIVE 负费率事件无直接交集；corr_to_btc 数据缺失，无板块传染证据，维持现有止损即可"
-      },
-      {
-        "symbol": "ETH",
-        "action": "none",
-        "reason": "ETH 多头为 trend_e1 长线仓，与 HIVE 小币费率事件无关联证据，无需调节"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "SOL 两笔多头与受影响小币簇无关联证据，且 SOL 当前 upnl 为正（trend_e1 +1.46%），无需调节"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "BNB 两笔多头与事件币无关联；mid 仓剩余持有 3.7h 将按时间限制自然了结，无需额外干预"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "UNI 多头与事件无关联证据，维持现有止损"
-      },
-      {
-        "symbol": "XRP",
-        "action": "none",
-        "reason": "XRP 两笔多头与事件无关联，mid 仓止损距离仅 0.17% 已很紧，无需再收紧"
+        "reason": "代表现有主流币多头持仓组（BTC/ETH/SOL/BNB/UNI/XRP 共 9 笔）；本事件为 MTL 个币费率极值，相关性数据缺失（corr_to_btc 为空），无传导至主流币的证据，维持现有持仓与止损"
       }
     ],
     "analogues": [
       {
-        "event": "本事件：bybit HIVE 资金费 -0.237%/8h（≈-259% APR，ts 1789373112896，sev3）",
-        "outcome": "pack 内可见的后续演化：约5小时后数据截止时 bybit HIVE 费率已回归 +0.005%/8h，其后另一条 HIVE 资金费事件（gateio -0.103%，sev2）严重度亦降级，极端拥挤基本自行消退；但 HIVE 无 K 线数据，无法确认价格端是否已兑现轧空上行"
+        "event": "同一时刻 binance MTL 极端负费率 -0.173%/8h（sev 2）",
+        "outcome": "约 5 小时后最新快照 bybit 费率已回到 +0.0013%（近零），MTL 退出当前全市场费率极值前 12 名——本样本内同类极值呈快速衰减"
       },
       {
-        "event": "同批次板块性负费率簇：LSK（bybit -2.0%）、STEEM（多所 -0.48%~-1.26%）、POWR（-0.49%~-1.14%）、CVC（binance -0.84%~-1.22%），同属社区/存储类老币",
-        "outcome": "指向板块性空头拥挤而非 HIVE 个币孤立事件，其中 STEEM 与 HIVE 板块关联最近；pack 内无这些币的后续价格结果，挤压兑现程度数据不足"
+        "event": "同批次小市值币跨所极端负费率簇（LSK -2.0%、STEEM 约 -1.25%、CVC -1.22%、POWR -0.9%~-1.1%/8h）",
+        "outcome": "缺乏后续价格与清算结果数据，无法评估同类事件的历史兑现情况（数据不足）"
       }
     ],
     "key_factors": [
-      "极端负资金费（-259% APR）通常映射空头拥挤，存在轧空上行偏置，与事件自带 direction=0.5 一致，故方向取温和 bullish",
-      "费率衰减快：事件后约5小时 bybit HIVE 已回到 +0.005%/8h、binance 回升至 -0.0391%，极端状态基本自行消退，半衰期按 8h 资金费周期估计且偏短",
-      "同簇 LSK/STEEM/POWR/CVC 多所同步极端负费率（sev4），属板块性拥挤，HIVE 非孤例，事件独立冲击被稀释",
-      "market:HIVE 无 K 线，position_structure、HIVE 清算数据、corr_to_btc 均缺失，方向与强度缺价格验证，confidence 压至 0.4",
-      "组合 10 笔持仓全部为 BTC/ETH/SOL/BNB/UNI/XRP 主流多头，与事件币种零交集，直接传染与对冲需求有限",
-      "即便做多收资金费，HIVE 类小币流动性薄、插针风险高，且费率优势已消失，不建议借事件开新仓"
+      "bybit MTL 资金费 -0.311%/8h（≈-341% APR）：负费率=空头付费，指向空头侧拥挤，属挤压型（contrarian bullish）而非趋势信号",
+      "跨所一致性：同一时刻 binance -0.173%、gateio -0.1868% 同为负，非单所数据异常",
+      "事件已过约 5.1 小时，bybit 最新快照 +0.0013% 近零，MTL 退出当前极值榜单，极值处于快速衰减期，预计半衰期约 5 小时（一个 8h 费率周期内）",
+      "持仓结构不稳：OI 24h +26.38% 后 1h 名义 -11.5%（$3.97M→$3.52M），投机性仓位快速进出",
+      "信号混合：global_ls 1.596（多头账户占优）与负费率的空头拥挤含义相矛盾",
+      "24h 多空清算基本平衡（$25.9k vs $28.7k），挤仓尚未兑现，配合缺失的 K 线层（MTL 无价格数据），故置信度压低至 0.3、强度仅 3/10"
     ],
-    "summary": "单事件评估：bybit HIVE 资金费 -0.237%/8h（≈-259% APR，sev3）为典型的空头拥挤信号，带温和轧空上行偏置（bullish，强度 3/10）。但两条关键证据压低了可执行性：其一，数据截止（事件后约5小时）bybit HIVE 费率已自行回归 +0.005%/8h，随后 gateio 的 HIVE 负费率事件严重度由 3 降至 2，极端状态消退快，半衰期按 8h 资金费周期估计；其二，同一时刻 LSK/STEEM/POWR/CVC 等同板块老币在多所同步出现更极端的负费率（部分 sev4），说明这是板块性空头拥挤而非 HIVE 个币冲击，事件独立影响被稀释。数据不足提示：HIVE 无 K 线、无持仓结构与清算数据、无对 BTC 相关性，价格端验证缺失，故 confidence 仅 0.4。持仓影响评估：现有 10 笔持仓全部为 BTC/ETH/SOL/BNB/UNI/XRP 主流多头，与事件币种零交集，无需对冲或减仓，建议仅设置 8 小时观察窗口监控该负费率簇是否向主流币扩散；若扩散再评估 tighten_stops。",
+    "summary": "单事件评估：bybit MTL 资金费 -0.311%/8h（-341% APR）为个币级负费率极值，同一时刻 binance（-0.173%）与 gateio（-0.1868%）同步为负，属跨所一致的多空失衡；负费率代表空头付费、空头侧拥挤，叠加 OI 24h +26.4% 后 1h 快速 -11.5% 的仓位进出，判定为短期温和的挤压型偏多信号（direction=bullish, strength=3）。事件发生约 5.1 小时后，最新快照 bybit 费率已回到 +0.0013%（近零）、MTL 退出当前全市场极值前 12 名，极值快速衰减，半衰期估计约 5 小时，避险/观察窗口按一个费率周期 8 小时计。24h 多空清算基本平衡（$25.9k vs $28.7k），挤压尚未兑现。影响范围限于 MTL：当前组合 9 笔持仓全部为主流币多头，与 MTL 无直接敞口，且相关性数据缺失无法评估传染，主流币持仓维持不动；对 MTL 仅禁止新开空单、不追多。重要提示：MTL 市场层缺失（无 K 线，价格趋势与挤压兑现度数据不足），故 confidence 仅 0.3；本信号属短周期费率事件，随下一次结算窗口自然衰减，无需大盘级对冲。",
     "arbitration": {
       "verdict": "B",
       "by": "glm_opencode_alt",
-      "rationale": "B 的事实链更准确且与 pack 内数据自洽：(1) B 正确识别数据截止时（事件后约5小时）bybit HIVE 费率已回归 +0.005%/8h、后续 gateio HIVE 事件严重度降为 sev2，证明极端状态快速自行消退，这是 pack 内可直接观测的锚点；(2) B 正确指出同刻 LSK/STEEM/POWR/CVC 多所同步极端负费率（sev4），属板块性空头拥挤，负费率+direction=0.5 支持温和轧空上行偏置（bullish, 3/10），并以无 K 线、无 corr_to_btc 将 confidence 压至 0.4，谨慎合理；(3) 组合 10 笔持仓全为 BTC/ETH/SOL/BNB/UNI/XRP 多头，与事件币零交集，B 的全 none 处置与证据一致，且指出 XRP 止损距离已仅 0.17% 无需再收紧。反观 A：(a) 其核心论据'跨所严重分裂（gateio 近零/+0.005%）'存在数据误读——+0.005% 是截止时 bybit 的费率而非 gateio 事件时费率，gateio 随后还打出 -0.103%（sev2），事件时 bybit/binance 同为深度负值（-0.237%/-0.253%），分裂论不成立；(b) A 的 analogues 引用'2024年类似案例结果'与'未观测到对主流币传导'，均非 pack 内可验证事实；(c) A 自认事件局部非方向性，却对与事件无因果链的 XRP/BNB 提议 tighten_stops，逻辑自相矛盾且缺 pack 证据。两者均无 HIVE 价格验证，故方向置信度均应偏低，但 B 的温和 bullish 更有 pack 内依据。"
+      "rationale": "B 更有依据。极端负资金费的规范解读是空头拥挤付费给多头，属逆向（挤压型）偏多信号；A 以'负费率=现货卖压'推出 bearish 且 confidence 0.62，但其自身承认 short squeeze 可能与 bybit 单所套利扭曲风险，因果链与置信度均不严谨。决定性证据：数据截止时（事件后约 5.1h）bybit MTL 最新快照费率已回归 +0.0013%（近零），且 MTL 已不在当前全市场费率极值前 12 名中，直接支持 B 的 ~5h 半衰期与 8h 观察窗，而 A 的 16h 半衰期/24h 避险窗与该实测衰减相矛盾。事件后 1h OI 名义 -11.5%（$3.97M→$3.52M）显示空头拥挤已在快速去化，与去化过程中的温和偏多（挤压残余）一致而非趋势性看空。组合无 MTL 敞口、9 笔持仓全为主流币多头且 corr_to_btc 为空无传导证据，B 的'禁新开空单、不追多、主流币持仓不动'比 A 的'不开新多+收紧止损'更贴合拥挤在空头侧这一事实。MTL 无 K 线价格数据、global_ls 1.596 与负费率信号矛盾、24h 多空爆仓基本平衡（$25.9k vs $28.7k）且挤压未兑现，故信号强度维持低位（3），置信度中低。"
     }
   },
   "notes": [],
   "event": {
-    "id": 102641,
+    "id": 102645,
     "event_type": "funding.extreme",
-    "symbol": "HIVE",
+    "symbol": "MTL",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit HIVE 资金费 -0.237%/8h（≈-259% APR）",
+    "title": "bybit MTL 资金费 -0.311%/8h（≈-341% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -259.0,
-      "rate_8h": -0.00236507,
+      "apr_pct": -341.0,
+      "rate_8h": -0.00311406,
       "exchange": "bybit",
-      "rate_raw": -0.00236507,
+      "rate_raw": -0.00311406,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
