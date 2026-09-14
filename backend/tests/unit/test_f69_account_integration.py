@@ -188,20 +188,31 @@ class TestAccountIntegration:
             assert set(ex) >= {"exchange", "allocated_usd", "available_usd",
                                "strategy_limits", "strategy_budgets"}
 
-    def test_strategy_limits_are_parsed_not_empty(self):
-        """回归：`strategy_limits_json` 必须被解析成 dict（曾因漏 import json 恒为空）。"""
+    def test_strategy_limits_parse_contract(self):
+        """回归：`strategy_limits_json` 必须被解析成 dict（曾因漏 import json 恒为空）。
+
+        2026-09-14 改为**数据无关**契约：直接锁定解析入口 + 视图内配额一致性。
+        旧版断言「asterdex 账户里必须存在 legacy 策略配额」——做市专用账户
+        (#101) 清理旧 S3/S8/S7 配额后（否则套利中心显示 $5000 幽灵仓位）该前提
+        已不成立，但「解析不得恒为空」的回归意图必须保留。
+        """
         from backend.api import trading_routes as T
 
+        assert T._parse_strategy_limits('{"S3": 0.5, "MM": 1.0}') == {"S3": 0.5, "MM": 1.0}
+        assert T._parse_strategy_limits({"S8": 0.25}) == {"S8": 0.25}
+        assert T._parse_strategy_limits(None) == {}
+        assert T._parse_strategy_limits("") == {}
+        assert T._parse_strategy_limits("not-json") == {}
+        assert T._parse_strategy_limits("[1, 2]") == {}
+        assert T._parse_strategy_limits('{"bad": "x"}') == {}, "非法比例应跳过而非抛出"
+
         res = T.account_unified(days=30.0)
-        active = [e for e in res["exchanges"] if e["allocated_usd"] > 0]
-        assert active, "至少应有一个已分配额度的交易所"
-        ast = next((e for e in active if e["exchange"] == "asterdex"), active[0])
-        assert ast["strategy_limits"], f"strategy_limits 不应为空: {ast}"
-        assert ast["strategy_budgets"], f"strategy_budgets 不应为空: {ast}"
-        for sid, pct in ast["strategy_limits"].items():
-            assert 0.0 < float(pct) <= 1.0, sid
-            assert ast["strategy_budgets"][sid] == pytest.approx(
-                ast["allocated_usd"] * float(pct), abs=0.05)
+        assert [e for e in res["exchanges"]], "视图必须返回交易所行"
+        for ex in res["exchanges"]:
+            for sid, pct in ex["strategy_limits"].items():
+                assert 0.0 < float(pct) <= 1.0, sid
+                assert ex["strategy_budgets"][sid] == pytest.approx(
+                    ex["allocated_usd"] * float(pct), abs=0.05)
 
     def test_unified_view_auto_selects_account(self):
         """不传 account_id 时按做市车道绑定自动定位（前端不必硬编码 id）。"""
@@ -212,6 +223,12 @@ class TestAccountIntegration:
         assert res["account"]["name"]
 
     def test_unified_view_sees_mm_strategy(self):
+        """做市策略必须在统一账户视图里可见，且资金口径非 0。
+
+        2026-09-14：MM 专用账户不再有 legacy `strategy_capital_alloc` 流水，
+        `capital_usd` 由后端回落到「账户内已分配额度」（$300 全权益腿），
+        否则前端策略表会显示成 0 资金在跑。
+        """
         from backend.api import trading_routes as T
 
         res = T.account_unified(days=30.0)
@@ -220,6 +237,9 @@ class TestAccountIntegration:
         assert "MM" in kinds, kinds
         mm = next(s for s in res["strategies"] if s["strategy_type"] == "MM")
         assert mm["capital_usd"] > 0
+        # 资金口径必须与账户已分配额度一致（不是凭空造数）
+        alloc = sum(float(e["allocated_usd"] or 0.0) for e in res["exchanges"])
+        assert mm["capital_usd"] <= alloc + 0.05
 
 
 class TestLaneBinding:

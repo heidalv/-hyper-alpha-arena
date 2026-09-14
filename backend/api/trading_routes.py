@@ -122,6 +122,31 @@ def _resolve_equity(lane_id: Optional[str] = None) -> tuple:
 
 # ═══════════════════════ ① 组合总览 ═══════════════════════
 
+def _parse_strategy_limits(raw: Any) -> Dict[str, float]:
+    """[F69 回归 · 2026-09-14 收敛为唯一入口] 解析 `strategy_limits_json`。
+
+    历史 bug：漏 import json ⇒ 恒返回 {} ⇒ 前端「策略配额」整块空白。
+    JSONB 列经不同驱动可能以 `str` / `dict` / `None` 返回，这里统一收敛成
+    `{策略: 比例}`；非法输入一律回空 dict（不抛异常、不污染视图）。
+    单元测试 `test_f69_account_integration.py::test_strategy_limits_parse_contract`
+    锁定该契约。
+    """
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, float] = {}
+    for k, v in raw.items():
+        try:
+            out[str(k)] = float(v)
+        except Exception:
+            continue
+    return out
+
+
 @router.get("/account/unified")
 def account_unified(account_id: Optional[int] = None,
                     days: float = 30.0) -> Dict[str, Any]:
@@ -213,6 +238,23 @@ def account_unified(account_id: Optional[int] = None,
     # [2026-09-14 清理] 账户级事件（开户/重置）没有策略归属，聚合出的
     # 「(未标注)」空策略行不是策略分账——后端直接剔除，避免污染前端表格。
     strat.pop("(未标注)", None)
+    # [F90b 2026-09-14] MM 资金口径回落：做市专用账户（车道绑定）不再写 legacy
+    # `strategy_capital_alloc` 流水——旧 S3/S8/S7 配额已清理（不清理则套利中心
+    # 显示 $5000 幽灵仓位）。于是 MM 行 `capital_usd` 恒为 0，前端「这条策略在跑
+    # 多少钱」变成空白。回落到**账户内已分配额度**（优先车道 venue 对应交易所）。
+    if "MM" in strat and float(strat["MM"].get("capital_usd") or 0.0) <= 0:
+        _venues = set()
+        for ln in lane_registry.list_lanes():
+            _meta = ln.get("meta") or {}
+            if int(_meta.get("paper_account_id") or 0) != int(acct_id or 0):
+                continue
+            _v = str(_meta.get("venue") or "").lower()
+            if _v:
+                _venues.add(_v)
+        _alloc = sum(float(b["allocated_usd"] or 0.0) for b in bals
+                     if not _venues or str(b["exchange"]).lower() in _venues)
+        if _alloc > 0:
+            strat["MM"]["capital_usd"] = round(_alloc, 4)
 
     # 持仓：MM 来自车道账本；其它策略来自 rebate 监控
     mm_positions: List[Dict[str, Any]] = []
@@ -226,12 +268,7 @@ def account_unified(account_id: Optional[int] = None,
 
     exchange_rows = []
     for b in bals:
-        limits = b["strategy_limits_json"]
-        if isinstance(limits, str):
-            try:
-                limits = json.loads(limits)
-            except Exception:
-                limits = {}
+        limits = _parse_strategy_limits(b["strategy_limits_json"])
         exchange_rows.append({
             "exchange": b["exchange"],
             "allocated_usd": round(float(b["allocated_usd"] or 0.0), 2),

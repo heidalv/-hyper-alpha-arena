@@ -258,6 +258,49 @@ def check_data_freshness(snapshot_ts_ms: int, now_ts: float,
     return True, age, ""
 
 
+def plan_orphan_exit(*, state: SymbolState, market_row: Optional[Dict[str, Any]],
+                     now_ts: float, taker_fee_bp: float = 0.0
+                     ) -> Tuple[List[PlannedFill], str, float]:
+    """[F90 2026-09-14] 孤儿持仓退出计划（**纯函数**：无 DB、无全局状态）。
+
+    「孤儿持仓」= 币种已被移出宇宙，但运行态里仍有仓位。此前 tick 主循环只遍历
+    在营币种 ⇒ 该仓位不进净敞口上限、永不退出、盈亏永不实现（静默漏仓）。
+    这里给出退出计划：用当前盘口的对手价（mid ∓ 半价差）平掉全仓，按 taker 计费。
+
+    ⚠️ 行情陈旧返回**空成交**（`orphan_stale_data(...)`）：绝不用旧价成交——
+    F89a 的 4 笔幻影成交（净敞口 -$739 > $300 上限）就是这么来的。
+    返回 `(fills, skip, mid)`；`fills` 非空 ⇒ 调用方负责落账 + 清空运行态。
+    """
+    from backend.services.market_maker.core import InventoryBook, Position
+
+    if abs(float(getattr(state, "qty", 0.0) or 0.0)) <= 1e-12:
+        return [], "orphan_flat", 0.0
+    if not market_row:
+        return [], "orphan_no_market", 0.0
+    fresh, _age, why = check_data_freshness(market_row.get("ts_ms"), now_ts)
+    mid = float(market_row.get("mid") or 0.0)
+    if not fresh or mid <= 0:
+        return [], f"orphan_{why or 'no_mid'}", 0.0
+    qty = abs(float(state.qty))
+    half_spread = max(0.0, float(market_row.get("half_spread") or 0.0))
+    side = "sell" if state.qty > 0 else "buy"
+    px = (mid - half_spread) if side == "sell" else (mid + half_spread)
+    book = InventoryBook()
+    book.positions[state.symbol] = Position(
+        qty=state.qty, avg_px=state.avg_px, avg_mid=state.avg_mid,
+        opened_ts=state.opened_ts, last_ts=state.last_ts,
+    )
+    fd = book.apply_fill(symbol=state.symbol, side=side, qty=qty, fill_px=px,
+                         mid_px=mid, fee_rate=abs(taker_fee_bp) / 1e4, now_ts=now_ts)
+    return [PlannedFill(
+        symbol=state.symbol, side=side, qty=qty, px=px, mid=mid, ts=now_ts,
+        is_flatten=True,
+        spread_usd=float(fd.get("spread_usd") or 0.0),
+        price_usd=float(fd.get("price_usd") or 0.0),
+        fee_usd=float(fd.get("fee_usd") or 0.0),
+    )], "orphan_flatten", mid
+
+
 def plan_tick(
     *,
     state: SymbolState,
@@ -366,7 +409,17 @@ def plan_tick(
         for side, px in legs:
             # [F75] 队列份额：与回放同口径（只能吃到区间主动量的一部分）
             _avail = float(seg_taker_sell if side == "buy" else seg_taker_buy)
-            qty = min(leg_qty, _avail * _QUEUE_SHARE)
+            # [F91 2026-09-14] 减仓腿按「**精确平掉现有仓位**」定量。
+            # 缺陷现场：两腿都用 `leg_qty = fill_notional/mid`，而进场腿与出场腿
+            # 的 mid 不同 ⇒ 每次往返都留下 |Δqty| 残差（账本实测每趟 +6.4e-7 BTC
+            # ≈ $0.05，且因均值回归两方向**同号**）→ 静默单向库存漂移，账本能重建
+            # 出运行态根本没有的持仓（BTC $5.10 幽灵仓）。平仓必须精确归零：
+            # 减仓方向取 min(|现仓|, 队列份额)，绝不用 dollar 腿量「大致平掉」。
+            _pos = float(state.qty or 0.0)
+            _reducing = ((side == "sell" and _pos > 0)
+                         or (side == "buy" and _pos < 0))
+            _target_qty = abs(_pos) if _reducing else leg_qty
+            qty = min(_target_qty, _avail * _QUEUE_SHARE)
             if qty * px < _MIN_FILL_NOTIONAL:
                 continue
             edge = ((ref_mid - px) if side == "buy" else (px - ref_mid)) / ref_mid * 1e4
@@ -721,6 +774,10 @@ class ShadowRunner:
         self.states: Dict[str, SymbolState] = {
             s: SymbolState(symbol=s) for s in self.symbols
         }
+        # [F90 2026-09-14] 在营宇宙集合。`load_states` 会把**历史宇宙**的残留行
+        # 一并读进内存（实测 DOGE 被移出宇宙后仍留在 lane_runtime_state），
+        # 用集合区分「在营」与「孤儿持仓」——孤儿必须计入风险并强制退出。
+        self._symbol_set: set = set(self.symbols)
         self.last_tick_ts: float = 0.0
         self.last_error: str = ""
         self.ticks: int = 0
@@ -780,6 +837,54 @@ class ShadowRunner:
             self.last_error = f"load_states: {e}"
             logger.warning("[F60] load_states 失败: %s", e)
             return 0
+
+    def orphan_states(self) -> Dict[str, SymbolState]:
+        """[F90 2026-09-14] 孤儿持仓 = 不在当前宇宙、但运行态里仍有非零仓位。
+
+        事故背景：把 DOGE 移出宇宙后，`lane_runtime_state` 的历史行仍被
+        `load_states` 读进 `self.states`，而 tick 主循环、共享库存账本（净敞口
+        上限）、`fetch_market` 全部只遍历 `self.symbols` ⇒ 该仓位既**不进风险
+        上限**、也**永远不会被平掉**、盈亏**永不实现**。当时 DOGE 恰好是空仓，
+        所以只表现为状态里的僵尸行；若带仓移除则是静默漏仓。
+        """
+        out: Dict[str, SymbolState] = {}
+        for s, st in self.states.items():
+            if s in self._symbol_set:
+                continue
+            if abs(float(getattr(st, "qty", 0.0) or 0.0)) > 1e-12:
+                out[s] = st
+        return out
+
+    def risk_symbols(self) -> List[str]:
+        """[F90] 计入共享风险账本的币种 = 在营宇宙 + 孤儿持仓（风险不可见是最危险的）。"""
+        return list(self.symbols) + list(self.orphan_states())
+
+    def prune_flat_orphans(self) -> List[str]:
+        """[F90] 丢弃**已平掉**的孤儿运行态（内存 + DB），避免死币种被反复写回。"""
+        dead = [s for s in list(self.states)
+                if s not in self._symbol_set
+                and abs(float(getattr(self.states[s], "qty", 0.0) or 0.0)) <= 1e-12]
+        for s in dead:
+            self.states.pop(s, None)
+            self._seg_watermark.pop(s, None)
+        if dead:
+            try:
+                from sqlalchemy import text
+
+                from backend.core.tenant import system_identity
+                from backend.database.connection import SessionLocal
+
+                with system_identity():
+                    with SessionLocal() as db:
+                        for s in dead:
+                            db.execute(text(
+                                "DELETE FROM lane_runtime_state"
+                                " WHERE lane_id=:l AND symbol=:s"
+                            ), {"l": self.lane_id, "s": s})
+                        db.commit()
+            except Exception as e:
+                logger.warning("[F90] prune_flat_orphans DB 清理失败: %s", e)
+        return dead
 
     def save_states(self) -> None:
         ensure_table()
@@ -861,6 +966,26 @@ class ShadowRunner:
                         "seg_sell": _sv,
                         "seg_buy": _bv,
                         "ofi": _ofi,
+                    }
+                # [F90 2026-09-14] 孤儿持仓估值行情：只取盘口（强制退出/估值用），
+                # **不消费成交桶**（该币不报价，水位线保持不动）。
+                for s in self.orphan_states():
+                    ob = db.execute(text(
+                        "SELECT timestamp, best_bid, best_ask FROM market_orderbook_snapshots"
+                        " WHERE exchange=:e AND symbol=:s AND best_bid>0 AND best_ask>best_bid"
+                        " ORDER BY timestamp DESC LIMIT 1"
+                    ), {"e": self.venue, "s": s}).mappings().first()
+                    if not ob:
+                        continue
+                    best_bid, best_ask = float(ob["best_bid"]), float(ob["best_ask"])
+                    mid = (best_bid + best_ask) / 2.0
+                    out[s] = {
+                        "ts_ms": int(ob["timestamp"]),
+                        "mid": mid,
+                        "half_spread": max(0.0, (best_ask - best_bid) / 2.0),
+                        "rel_spread": ((best_ask - best_bid) / mid) if mid > 0 else 0.0,
+                        "seg_low": 0.0, "seg_high": 0.0, "seg_sell": 0.0, "seg_buy": 0.0,
+                        "ofi": 0.0, "orphan": True,
                     }
         return out
 
@@ -985,7 +1110,9 @@ class ShadowRunner:
 
         shared_book = InventoryBook()
         marks: Dict[str, float] = {}
-        for s in self.symbols:
+        # [F90] 孤儿持仓同样计入共享库存账本：净敞口上限必须覆盖真实风险，
+        # 不能因为币种不在宇宙里就「看不见」它的仓位。
+        for s in self.risk_symbols():
             m0 = market.get(s)
             st0 = self.states.get(s)
             if m0 and st0 and abs(st0.qty) > 1e-12:
@@ -1038,6 +1165,39 @@ class ShadowRunner:
             d = dec.to_dict()
             d["data_age_sec"] = round(age, 1)
             decisions.append(d)
+
+        # [F90 2026-09-14] 孤儿持仓**强制退出**：币种移出宇宙后，运行态里若仍有
+        # 仓位，本 tick 必须用对手价平掉（进账本、实现盈亏、清空运行态）。
+        # 行情陈旧 ⇒ 不平（F89a 幻影成交教训：绝不用旧价成交），但登记为
+        # `orphan_*` 可见异常，并在 status 里暴露 `orphan_unflattened`。
+        for s, st in self.orphan_states().items():
+            m_o = market.get(s)
+            _fills_o, _skip_o, _mid_o = plan_orphan_exit(
+                state=st, market_row=m_o, now_ts=now_ts, taker_fee_bp=TAKER_FEE_BP)
+            if not _fills_o:
+                _d = {"symbol": s, "action": "pause", "orphan": True, "skip": _skip_o}
+                if m_o and m_o.get("ts_ms"):
+                    _d["data_age_sec"] = round(
+                        float(now_ts) - int(m_o["ts_ms"]) / 1000.0, 1)
+                decisions.append(_d)
+                continue
+            dec_o = TickDecision(symbol=s, action="flatten", skip=_skip_o, mid=_mid_o)
+            dec_o.fills.extend(_fills_o)
+            st.qty = 0.0
+            st.avg_px = st.avg_mid = st.opened_ts = 0.0
+            st.last_ts = now_ts
+            st.quote_bid = st.quote_ask = st.quote_ts = 0.0
+            self._record_fills(dec_o)
+            self.fills += len(dec_o.fills)
+            self.flattens += 1
+            d_o = dec_o.to_dict()
+            d_o["orphan"] = True
+            decisions.append(d_o)
+            logger.warning("[F90] 孤儿持仓强制退出 %s: qty=%.8f @ %.8f (mid=%.8f)",
+                           s, float(_fills_o[0].qty), float(_fills_o[0].px), _mid_o)
+        _pruned = self.prune_flat_orphans()
+        if _pruned:
+            logger.info("[F90] 清理已平孤儿运行态: %s", ", ".join(_pruned))
 
         self.last_tick_ts = now_ts
         self.ticks += 1
@@ -1163,6 +1323,10 @@ class ShadowRunner:
             "fill_notional": self.fill_notional,
             "account_equity": self._read_account_equity() if self.account_id else None,
             "states": {s: st.to_dict() for s, st in self.states.items()},
+            # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
+            # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
+            "orphan_inventory": {s: round(float(st.qty), 8)
+                                 for s, st in self.orphan_states().items()},
             "as_of": _now_iso(),
         }
 

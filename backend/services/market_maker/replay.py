@@ -343,7 +343,14 @@ def replay_symbol(
             continue
 
         for leg_side, px, avail_qty in legs:
-            fill_qty = min(qty, float(avail_qty))
+            # [F91 2026-09-14] 减仓腿**精确平仓**（与实盘 `plan_tick` 同口径）：
+            # 固定 dollar 腿量在两腿 mid 不同时必然留下残差 → 单向库存漂移、
+            # 账本/运行态分叉。减仓方向取 min(|现仓|, 队列份额)。
+            _pos = float(book.qty(symbol) or 0.0)
+            _reducing = ((leg_side == "sell" and _pos > 0)
+                         or (leg_side == "buy" and _pos < 0))
+            _target_qty = abs(_pos) if _reducing else qty
+            fill_qty = min(_target_qty, float(avail_qty))
             if fill_qty * px < MIN_FILL_NOTIONAL:
                 res.skipped["no_queue"] = res.skipped.get("no_queue", 0) + 1
                 continue
