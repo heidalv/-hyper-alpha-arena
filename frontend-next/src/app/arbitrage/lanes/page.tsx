@@ -13,6 +13,7 @@ import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react"
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   GitBranch, PauseCircle, PlayCircle, ShieldAlert, ArrowLeft, Wrench, RotateCw,
+  Wallet, Activity, TrendingUp,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -308,38 +309,125 @@ function LaneDetail({ laneId }: { laneId: string }) {
         </button>
       </div>
 
-      {/* 详情头部 */}
+      {/* [重设计 2026-09-14] ① 账户总览（最显眼：权益 + 盈亏 + 复利） */}
+      <Card className="glass border-cyan-400/20 p-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" />
+              模拟账户权益
+              <span className="rounded bg-cyan-400/10 px-1.5 py-0.5 font-mono text-cyan-300">
+                acct {shadow.data?.account_id ?? laneData?.meta?.paper_account_id ?? "—"}
+              </span>
+            </div>
+            <div className="mt-1 font-mono text-3xl font-bold tabular-nums">
+              {fmtUsd(accountEquity(laneData, shadow.data) ?? 0)}
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {laneData?.mode === "paper" ? "模拟盘（影子期直跑）" : laneData?.mode}{" "}
+              · 场地 {laneData?.meta?.venue ?? "—"} · 币种{" "}
+              {(laneData?.meta?.symbols ?? shadow.data?.symbols ?? []).join("/")}
+            </div>
+            {(shadow.data?.compound_ratio ?? 0) > 0 && (
+              <div className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-profit/20 bg-profit/5 px-2 py-0.5 text-[11px] text-profit">
+                <TrendingUp className="h-3 w-3" />
+                复利开启：每腿 = 权益 × {fmtPct(shadow.data?.compound_ratio ?? 0, 0)}
+                （当前 {fmtUsd(shadow.data?.fill_notional ?? 0)}/腿）
+              </div>
+            )}
+          </div>
+          <div className="flex gap-6 text-right">
+            <div>
+              <div className="text-[11px] text-muted-foreground">今日净收益</div>
+              <div className={cn("font-mono text-2xl font-bold tabular-nums", pnlTone(laneData?.pnl_today_usd))}>
+                {laneData?.pnl_today_usd == null ? "—" : fmtUsd(laneData.pnl_today_usd)}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {laneData?.fills_today == null ? "" : `${laneData.fills_today} 笔`}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-muted-foreground">近 7 天净收益</div>
+              <div className={cn("font-mono text-2xl font-bold tabular-nums", pnlTone(laneData?.pnl_7d_usd))}>
+                {laneData?.pnl_7d_usd == null ? "—" : fmtUsd(laneData.pnl_7d_usd)}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {laneData?.notional_7d == null ? "" : `名义 ${fmtUsd(laneData.notional_7d)}`}
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <ModeBadge mode={laneData?.mode ?? "paper"} />
+              <StatusDot status={laneData?.status ?? "stopped"} />
+              <span className="font-mono text-[11px] text-muted-foreground">lane_id: {laneData?.lane_id}</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* ② 实时运行与挂单明细 */}
       <Card className="glass p-4">
+        <BlockTitle icon={<Activity className="h-3.5 w-3.5" />} title="实时运行与挂单" />
         <DataState
-          loading={lane.loading}
-          error={lane.error}
-          hasData={!!laneData}
-          onRetry={lane.refresh}
-          stale={isStale(laneData?.updated_at)}
+          loading={shadow.loading}
+          error={shadow.error}
+          hasData={!!shadow.data}
+          onRetry={shadow.refresh}
+          stale={isStale(shadow.data?.as_of)}
         >
-          {laneData && (
+          {shadow.data && (
             <>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <ModeBadge mode={laneData.mode} />
-                <StatusDot status={laneData.status} />
-                <span className="font-mono text-[11px] text-muted-foreground">lane_id: {laneData.lane_id}</span>
-                {laneData.meta?.venue && <span className="text-[11px] text-muted-foreground">场地: {laneData.meta.venue}</span>}
+              <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>ticks <span className="font-mono tabular-nums text-foreground">{shadow.data.ticks}</span></span>
+                <span>进程内成交 <span className="font-mono tabular-nums text-foreground">{shadow.data.fills}</span></span>
+                <span>数据年龄 <span className={cn("font-mono tabular-nums", (laneData?.data_age_sec ?? 0) > 180 ? "text-loss" : "text-foreground")}>{laneData?.data_age_sec == null ? "—" : `${laneData.data_age_sec.toFixed(0)}s`}</span></span>
+                <span>熔断 <span className={cn("font-mono", laneData?.health?.breaker ? "text-loss" : "text-profit")}>{laneData?.health?.breaker ?? "无"}</span></span>
+                {shadow.data.last_error && (
+                  <span className="text-loss">错误: {shadow.data.last_error}</span>
+                )}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-                <span className="flex items-center gap-2">
-                  <span className="text-muted-foreground">净期望</span>
-                  <EdgeBadge edge={laneData.edge} />
-                </span>
-                <span className="text-muted-foreground">
-                  预算 <span className="font-mono tabular-nums">{fmtPct((laneData.risk?.budget_pct ?? 0), 1)}</span>
-                </span>
-                <span className="text-muted-foreground">
-                  最大单币敞口上限 <span className="font-mono tabular-nums">{laneData.risk?.max_symbol_exposure_pct != null ? fmtPct(laneData.risk.max_symbol_exposure_pct, 1) : "—"}</span>
-                </span>
+              <div className="overflow-x-auto rounded-lg border border-border/40">
+                <table className="data-table text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="text-left">币种</th>
+                      <th className="text-right">仓位 qty</th>
+                      <th className="text-right">仓位名义</th>
+                      <th className="text-right">均价</th>
+                      <th className="text-right">买单价</th>
+                      <th className="text-right">卖单价</th>
+                      <th className="text-right">总挂宽</th>
+                      <th className="text-right">波动基准</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(shadow.data?.symbols ?? []).map((sym) => {
+                      const st = shadow.data?.states[sym];
+                      if (!st) return null;
+                      const mid = (st.quote_bid && st.quote_ask)
+                        ? (st.quote_bid + st.quote_ask) / 2
+                        : st.quote_mid || st.avg_mid || 0;
+                      const widthBp = mid && st.quote_bid && st.quote_ask
+                        ? ((st.quote_ask - st.quote_bid) / mid) * 1e4
+                        : null;
+                      return (
+                        <tr key={sym} className="border-b border-border/20">
+                          <td className="font-medium">{sym}</td>
+                          <td className="text-right font-mono tabular-nums">{fmtNum(st.qty ?? 0, 6)}</td>
+                          <td className="text-right font-mono tabular-nums">{mid && st.qty ? fmtUsd(Math.abs(st.qty) * mid) : "—"}</td>
+                          <td className="text-right font-mono tabular-nums">{st.avg_px ? fmtNum(st.avg_px, 1) : "—"}</td>
+                          <td className={cn("text-right font-mono tabular-nums", st.quote_bid ? "text-profit" : "text-muted-foreground/50")}>{st.quote_bid ? fmtNum(st.quote_bid, 1) : "—"}</td>
+                          <td className={cn("text-right font-mono tabular-nums", st.quote_ask ? "text-loss" : "text-muted-foreground/50")}>{st.quote_ask ? fmtNum(st.quote_ask, 1) : "—"}</td>
+                          <td className="text-right font-mono tabular-nums">{widthBp == null ? "—" : `${widthBp.toFixed(1)}bp`}</td>
+                          <td className="text-right font-mono tabular-nums">{st.vol_baseline_bp == null ? "—" : `${fmtNum(st.vol_baseline_bp, 3)}bp`}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              {laneData.meta?.note && (
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{laneData.meta.note}</p>
-              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                挂单宽 0 表示该侧未挂（减仓侧等待成交或数据间歇）；10bp = 双边各 5bp。
+              </p>
             </>
           )}
         </DataState>
@@ -348,7 +436,7 @@ function LaneDetail({ laneId }: { laneId: string }) {
       {/* 成交与捕获 + 库存与敞口 */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="glass p-4">
-          <BlockTitle icon={<RotateCw className="h-3.5 w-3.5" />} title="成交与捕获" />
+          <BlockTitle icon={<RotateCw className="h-3.5 w-3.5" />} title="成交与捕获（30 天）" />
           <DataState
             loading={report.loading}
             error={report.error}
@@ -359,16 +447,21 @@ function LaneDetail({ laneId }: { laneId: string }) {
             emptyHint="该车道影子期尚无成交记录"
           >
             {report.data && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                <KV k="影子成交" v={fmtNum(report.data.fills ?? 0, 0)} />
-                <KV k="名义" v={fmtUsd(report.data.notional ?? 0)} />
-                <KV k="平均捕获" v={bp(report.data.net_bp)} tone={signTone(report.data.net_bp)} />
-                <KV k="逆选择(price)" v={bp(report.data.price_bp)} tone={signTone(report.data.price_bp)} />
-                <KV k="费率(fee)" v={bp(report.data.fee_bp)} tone={signTone(report.data.fee_bp)} />
-                <KV k="净" v={bp(report.data.net_bp)} tone={signTone(report.data.net_bp)} />
-                <KV k="maker 费率" v={`${fmtNum(report.data.maker_fee_bp ?? 0, 2)}bp`} />
-                <KV k="窗口" v={`${report.data.window_days} 天`} />
-              </div>
+              <>
+                <div className={cn("mb-2 font-mono text-2xl font-bold tabular-nums", pnlTone(report.data.net_usd))}>
+                  {report.data.net_usd == null ? "—" : fmtUsd(report.data.net_usd)}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <KV k="影子成交" v={fmtNum(report.data.fills ?? 0, 0)} />
+                  <KV k="名义" v={fmtUsd(report.data.notional ?? 0)} />
+                  <KV k="价差捕获(spread)" v={bp(report.data.spread_bp)} tone={signTone(report.data.spread_bp)} />
+                  <KV k="逆选择(price)" v={bp(report.data.price_bp)} tone={signTone(report.data.price_bp)} />
+                  <KV k="费率(fee)" v={bp(report.data.fee_bp)} tone={signTone(report.data.fee_bp)} />
+                  <KV k="净边际" v={bp(report.data.net_bp)} tone={signTone(report.data.net_bp)} />
+                  <KV k="平仓笔数" v={fmtNum(report.data.flattens ?? 0, 0)} />
+                  <KV k="maker 费率" v={`${fmtNum(report.data.maker_fee_bp ?? 0, 2)}bp`} />
+                </div>
+              </>
             )}
           </DataState>
         </Card>
@@ -504,4 +597,15 @@ function signTone(v: number | null | undefined): "profit" | "loss" | undefined {
 
 function equityFromMeta(lane: LaneSummary | null): number | null {
   return lane?.meta?.shadow_equity ?? null;
+}
+
+/** 账户权益：优先用影子状态里的真实账户权益（复利模式下随盈亏滚动），回退 meta.shadow_equity */
+function accountEquity(lane: LaneSummary | null, shadow: import("@/lib/trading-api").ShadowStatus | null): number | null {
+  if (shadow?.account_equity != null && shadow.account_equity > 0) return shadow.account_equity;
+  return equityFromMeta(lane);
+}
+
+function pnlTone(v: number | null | undefined): string {
+  if (v == null) return "text-muted-foreground";
+  return v >= 0 ? "text-profit" : "text-loss";
 }

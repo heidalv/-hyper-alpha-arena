@@ -27,6 +27,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
 DEFAULT_LANE_ID = "mm_asterdex"
 DEFAULT_VENUE = "asterdex"
 DEFAULT_SYMBOLS = ["BTC", "ETH", "BNB", "XRP", "SOL", "DOGE"]
@@ -1070,7 +1074,12 @@ class ShadowRunner:
             "maker_fee_bp": self.maker_fee_bp, "ticks": self.ticks,
             "fills": self.fills, "flattens": self.flattens,
             "last_tick_ts": self.last_tick_ts, "last_error": self.last_error,
+            # [F85] 复利/账户字段（前端「账户总览」卡片数据源）
+            "compound_ratio": self.compound_ratio,
+            "fill_notional": self.fill_notional,
+            "account_equity": self._read_account_equity() if self.account_id else None,
             "states": {s: st.to_dict() for s, st in self.states.items()},
+            "as_of": _now_iso(),
         }
 
     def archive_report(self, days: int = 30) -> bool:

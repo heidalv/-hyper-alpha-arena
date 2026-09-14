@@ -226,6 +226,8 @@ export interface ShadowSymbolState {
   quote_mid: number;
   quote_ts: number;
   toxic_streak: number;
+  mid_hist?: number[];
+  vol_baseline_bp?: number;
 }
 
 export interface ShadowStatus {
@@ -241,6 +243,11 @@ export interface ShadowStatus {
   last_tick_ts: number;
   last_error: string;
   states: Record<string, ShadowSymbolState>;
+  // [F85] 复利/账户字段（前端「账户总览」卡片）
+  compound_ratio?: number;
+  fill_notional?: number;
+  account_equity?: number | null;
+  as_of?: string | null;
 }
 
 export interface ShadowReportDaily {
