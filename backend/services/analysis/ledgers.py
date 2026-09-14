@@ -42,6 +42,43 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def fee_summary(days: int = 7, account_id: int = 14) -> Dict[str, Any]:
+    """[验收轮2 2026-09-14] E1-F4 费用预算项的数据源（此前缺 fee_summary → F4 恒 inconclusive）。
+
+    口径：近 `days` 天 paper_orders.fee 合计（E1 账户），除以当前权益 → fee_pct。
+    失败返回空 dict（调用方按 inconclusive 处理，不假装通过）。
+    """
+    out: Dict[str, Any] = {}
+    try:
+        from sqlalchemy import text
+
+        db = _db()
+        try:
+            row = db.execute(text(
+                "SELECT coalesce(sum(o.fee),0) FROM paper_orders o "
+                "WHERE o.account_id = :a AND o.created_at >= now() - make_interval(days => :d)"),
+                {"a": int(account_id or 14), "d": int(days or 7)}).first()
+            fee_usd = float(row[0]) if row and row[0] is not None else 0.0
+            eq_row = db.execute(text(
+                "SELECT total_equity FROM paper_balances WHERE account_id = :a"),
+                {"a": int(account_id or 14)}).first()
+            equity = float(eq_row[0]) if eq_row and eq_row[0] is not None else 0.0
+            out = {
+                "fee_usd": round(fee_usd, 4),
+                "equity": round(equity, 4),
+                # [验收轮2] F4 门读取的键名是 equity_usd（edge_ledger 口径）
+                "equity_usd": round(equity, 4),
+                "fee_pct": round(fee_usd / equity, 6) if equity > 0 else None,
+                "days": int(days or 7),
+                "account_id": int(account_id or 14),
+            }
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.debug("[ledgers] fee_summary 失败: %s", exc)
+    return out
+
+
 def new_id() -> str:
     return uuid.uuid4().hex
 
