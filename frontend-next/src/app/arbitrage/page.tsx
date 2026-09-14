@@ -96,7 +96,7 @@ export default function ArbitragePage() {
             <KpiCard
               label="组合权益"
               value={fmtUsd(summary.data.equity)}
-              sub={summary.data.equity_source}
+              sub={equitySourceLabel(summary.data.equity_source)}
               icon={Gauge}
             />
             <KpiCard
@@ -276,8 +276,17 @@ function KpiCard({
   );
 }
 
-function RiskCell({ label, value, tone }: { label: string; value: string; tone?: "profit" | "loss" | "muted" }) {
-  return (
+/** 权益来源标签（后端 equity_source → 人话）：让「这个数字是什么口径」一眼可见 */
+function equitySourceLabel(src?: string | null): string {
+  if (!src) return "来源未知";
+  if (src.startsWith("lane_accounts(")) return "车道绑定账户合计（中心自有资金）";
+  if (src.startsWith("lane_account(")) return `车道账户 ${src.replace(/[^0-9]/g, "")}`;
+  if (src.startsWith("paper_accounts(")) return "全部模拟账户合计（含非车道账户）";
+  if (src === "default_reference") return "默认参考值（未取到真实账户）";
+  return src;
+}
+
+function RiskCell({ label, value, tone }: { label: string; value: string; tone?: "profit" | "loss" | "muted" }) {  return (
     <div className="rounded-md bg-muted/20 px-3 py-2">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div

@@ -122,12 +122,17 @@ class TestEquityResolution:
         eq, src = T._resolve_equity()
         assert eq > 0 and src
         # 来源必须明示，不能偷偷用默认值冒充真实权益
-        assert src in ("default_reference",) or src.startswith(("paper_accounts(", "lane_account("))
+        # [2026-09-14] 新增 lane_accounts(...) = 车道绑定账户合计（中心自有资金），
+        # 避免历史遗留的非车道账户（返佣策略）把组合权益灌水（5300+300=5600 事故）。
+        assert src in ("default_reference",) or src.startswith(
+            ("paper_accounts(", "lane_account(", "lane_accounts(")
+        )
 
     def test_lane_scoped_equity_differs_or_falls_back(self):
         eq, src = T._resolve_equity("mm_asterdex")
         assert eq > 0
-        assert src.startswith(("lane_account(", "paper_accounts(", "default_reference"))
+        assert src.startswith(("lane_account(", "lane_accounts(",
+                               "paper_accounts(", "default_reference"))
 
 
 class TestMakerOpportunities:

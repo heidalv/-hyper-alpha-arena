@@ -57,10 +57,15 @@ def _lane_budget_equity(lanes: List[Dict[str, Any]], reference: float) -> Dict[s
 
 
 def _resolve_equity(lane_id: Optional[str] = None) -> tuple:
-    """权益口径：指定车道 → 该车道自己的模拟账户；否则全部模拟账户合计。
+    """权益口径：指定车道 → 该车道自己的模拟账户；否则 → **车道绑定账户**合计。
 
     设计 §3.2：每条车道一个独立模拟账户、独立权益、独立风控。取不到时回落到
     参考值，并通过 `equity_source` 明示（不隐藏假设）。
+
+    [2026-09-14 修复「组合权益灌水」] 此前无 lane_id 时直接 SUM 全部 paper 账户，
+    于是历史遗留的返佣策略账户（$5300）与做市车道账户（$300）被相加成 $5600——
+    套利中心总览显示的不是中心自有资金，而是全库账户大杂烩。现在改为只统计
+    **绑定到车道的账户**（meta.paper_account_id），无绑定时才回落到全量合计。
     """
     try:
         from sqlalchemy import text
@@ -84,6 +89,26 @@ def _resolve_equity(lane_id: Optional[str] = None) -> tuple:
                     ), {"i": int(acct_id)}).mappings().first()
                     if row and row["eq"] and float(row["eq"]) > 0:
                         return float(row["eq"]), f"lane_account({acct_id})"
+                # 车道绑定账户合计（中心自有资金）
+                try:
+                    from backend.services import lane_registry as reg2
+
+                    ids = []
+                    for ln in (reg2.list_lanes() or []):
+                        _aid = ((ln.get("meta") or {}) or {}).get("paper_account_id")
+                        if _aid:
+                            ids.append(int(_aid))
+                    ids = sorted(set(ids))
+                    if ids:
+                        row = db.execute(text(
+                            "SELECT SUM(total_equity) AS eq, COUNT(*) AS n"
+                            " FROM arbitrage_paper_accounts"
+                            " WHERE status <> 'deleted' AND id = ANY(:ids)"
+                        ), {"ids": ids}).mappings().first()
+                        if row and row["eq"] and float(row["eq"]) > 0:
+                            return float(row["eq"]), f"lane_accounts({int(row['n'] or 0)}:{ids})"
+                except Exception as e:
+                    logger.debug("[TradingHub] 车道账户合计失败: %s", e)
                 row = db.execute(text(
                     "SELECT SUM(total_equity) AS eq, COUNT(*) AS n"
                     " FROM arbitrage_paper_accounts WHERE status <> 'deleted'"
