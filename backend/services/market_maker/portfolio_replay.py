@@ -42,6 +42,26 @@ def _load_all(symbols: List[str], venue: str = DEFAULT_VENUE) -> Dict[str, Dict[
     return out
 
 
+def compute_vol_baselines(mid_series_by_symbol: Dict[str, List[float]],
+                          *, window: int = 20) -> Dict[str, float]:
+    """各币「已实现波动基准」= 全窗逐期中位（回放与实盘共用同一口径）。
+
+    [F96 2026-09-14] 抽成单一实现：此前 `portfolio_replay` 内联算、注册表另存一份、
+    实盘只对注册表里**存在**的币覆写（其余沿用持久化的陈旧值）——实测 ETH/BNB/XRP/SOL
+    的实盘基准比回放低 15~21%。`k_vol>0` 时 σ=vol/基准−1 直接决定挂宽，这个漂移会
+    让实盘与回放**挂不同宽度的单**。现在：回放、锚定脚本、实盘校验全部走这一个函数。
+    """
+    out: Dict[str, float] = {}
+    for s, ms in mid_series_by_symbol.items():
+        vals: List[float] = []
+        if len(ms) >= window + 2:
+            vals = [realized_vol_bp(ms[j - window:j + 1], window)
+                    for j in range(window, len(ms))]
+            vals = [v for v in vals if v > 0]
+        out[s] = float(np.median(vals)) if vals else 0.0
+    return out
+
+
 def replay_portfolio(
     symbols: List[str],
     *,
@@ -92,18 +112,9 @@ def replay_portfolio(
             _m = float((d["bb"][i] + d["ba"][i]) / 2)
             if _m > 0:
                 _mid_series[s].append(_m)
-    vol_baseline: Dict[str, float] = {}
+    vol_baseline: Dict[str, float] = compute_vol_baselines(_mid_series)
     for s in symbols:
-        ms = _mid_series[s]
-        vb = 0.0
-        if len(ms) >= 22:
-            _vs = [realized_vol_bp(ms[j - 20:j + 1], 20) for j in range(20, len(ms))]
-            _vs = [v for v in _vs if v > 0]
-            if _vs:
-                import numpy as _np
-                vb = float(_np.median(_vs))
-        vol_baseline[s] = vb
-        states[s].vol_baseline_bp = vb
+        states[s].vol_baseline_bp = float(vol_baseline.get(s) or 0.0)
     # 每个币的下一个快照下标
     idx = {s: 0 for s in symbols}
     # 合并时间线：所有币的快照时间戳并集（升序）
@@ -249,6 +260,9 @@ def replay_portfolio(
                     "ts_ms": int(d["ots"][i]), "symbol": s, "side": f.side,
                     "notional": round(f.qty * f.px, 4),
                     "net_usd": round(f.net_usd, 6), "flatten": f.is_flatten,
+                    # [F96] 逐笔 markout 研究需要成交量/成交价/成交时中价
+                    "qty": round(float(f.qty), 10), "px": round(float(f.px), 10),
+                    "mid": round(float(f.mid), 10),
                     "net_position_usd": round(book.notional(s, mid), 4),
                 })
         # [F94c] 快照末风险实况（真实账本口径）

@@ -39,13 +39,21 @@ GRID: Dict[str, List[Any]] = {
     # （此前 frozen_width 固定 3bp、lookback 固定 240、k_vol 固定 0 都是人工定的）
     "frozen_width_bp": [2.0, 3.0, 4.0],
     "frozen_lookback": [120, 240, 480],
-    "k_vol": [0.0, 0.3],
+    # [F96 2026-09-14] 补入 0.6：实测 k_vol=0.3 在双窗均不劣（净 bp +0.366~0.430 vs
+    # +0.247）、k_vol=0.6 净 bp 相近但成交更少（USD 更低）——把上限也交给护栏判定。
+    "k_vol": [0.0, 0.3, 0.6],
 }
 # 护栏
 MIN_FILLS = 150              # 验证窗最少成交
 MAX_DD_PCT = 3.0             # 验证窗回撤上限（占 $300 权益）
 MIN_IMPROVE_BP = 0.01        # 净 bp 至少改进
 MIN_IMPROVE_USD = 0.30       # 或净额至少改进（USD）
+# [F96 2026-09-14] 全窗容忍带：复利路径敏感（同一配置在不同数据切片上净额可差 ±12%，
+# 实测 baseline ±0.6% 但 k_vol 变体 +$118~+$145），硬性「全窗 ≥ 在位」会用噪声
+# 否掉真实改进（如 ofi_block=0.0 全窗 −2% 但验证窗 +$5.8 被拒）。改为允许 2% 回退，
+# 且**净 bp 不劣**即可进入候选池；最终是否上线仍由验证窗改进决定（纪律不放宽）。
+FULL_TOL = 0.02
+MAX_CANDIDATES = 24          # 覆盖当前完整单维网格（16）并留扩展余量
 ROLLBACK_HOURS = 12.0        # 变更后观察窗口
 ROLLBACK_NET_BP = -1.0       # 观察窗净 bp 低于此值 ⇒ 回滚
 
@@ -74,8 +82,14 @@ def read_journal(limit: int = 20) -> List[Dict[str, Any]]:
         return []
 
 
-def candidate_grid(current: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """围绕当前配置生成有界候选（单维逐一变动 + 在位配置本身）。"""
+def candidate_grid(current: Dict[str, Any], *, rotate: int = 0) -> List[Dict[str, Any]]:
+    """围绕当前配置生成有界候选（单维逐一变动 + 在位配置本身）。
+
+    [F96 2026-09-14] 支持 `rotate` 轮换起点：此前 `[:max_candidates]` 按**字典序**
+    截断 —— 12 个名额被前几个维度吃满，排在最后的 `k_vol` / `frozen_lookback`
+    **永远没被评估过**（实测网格里明明有 k_vol=0.3，而它值 +49% 净 bp）。
+    轮换保证跨轮次公平覆盖全部维度（截断不再等于永久忽略）。
+    """
     out: List[Dict[str, Any]] = []
     seen = set()
 
@@ -86,14 +100,25 @@ def candidate_grid(current: Dict[str, Any]) -> List[Dict[str, Any]]:
             out.append(p)
 
     _add(dict(current))
+    changes: List[Dict[str, Any]] = []
     for k, vals in GRID.items():
         for v in vals:
             if current.get(k) == v:
                 continue
             p = dict(current)
             p[k] = v
-            _add(p)
+            changes.append(p)
+    if changes and rotate:
+        r = int(rotate) % len(changes)
+        changes = changes[r:] + changes[:r]
+    for p in changes:
+        _add(p)
     return out
+
+
+def full_grid_size(current: Dict[str, Any]) -> int:
+    """完整单维网格的候选总数（用于决定候选上限，避免按序截断）。"""
+    return len(candidate_grid(current))
 
 
 def should_deploy(cand: Dict[str, Any], inc: Dict[str, Any],
@@ -174,9 +199,12 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
     data = _load_all(symbols, venue)
     # [F88c] 规模化保护：多标的时每轮成本 ≈ 标的数 × 候选数 × 2 窗口；按标的数裁剪
     # 候选上限，保证每日轮次在 ~20 分钟内完成（单标的 24、2 标的 16、≥3 标的 12）。
+    # [F96] 但「按序截断」会让排在网格末尾的维度永远不被评估（实测 k_vol 从未被测）。
+    # 现在：上限 ≥ 完整单维网格规模（当前 16），并用 rotate 轮换截断起点兜底。
     _n_sym = max(1, len(symbols))
-    _cap = 24 if _n_sym == 1 else (16 if _n_sym == 2 else 12)
+    _cap = MAX_CANDIDATES if _n_sym >= 3 else 24
     max_candidates = min(int(max_candidates), _cap)
+    _rotate = int(datetime.now(timezone.utc).timetuple().tm_yday)
     primary = data[symbols[0]]
     cut = int((time.time() - float(window_days) * 86400.0) * 1000)
     a = int(np.searchsorted(primary["ots"], cut, "left"))
@@ -226,7 +254,7 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
                 "net_usd": r.get("net_usd"), "max_dd_pct": r.get("max_dd_pct"),
                 "flatten_share": r.get("flatten_share")}
 
-    cands = candidate_grid(cur_params)[:max_candidates]
+    cands = candidate_grid(cur_params, rotate=_rotate)[:max_candidates]
     rows: List[Dict[str, Any]] = []
     # [F88 v2 稳健选择] 每个候选同时评「全窗口（跨行情域）」与「验证窗（近期）」：
     #   ① 硬约束：全窗口净额 **不得低于在位配置**（防止用近期局部最优换掉全局最优——
@@ -243,7 +271,12 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
             logger.warning("[F88] 候选评估失败 %s: %s", c, e)
             continue
         rows.append({"params": c, "metrics": m_val, "full_metrics": m_full})
-        if float(m_full.get("net_usd") or 0.0) >= float(inc_full.get("net_usd") or 0.0) - 1e-9:
+        # [F96] 候选池准入：全窗不实质回退（容忍 FULL_TOL，或净 bp 不劣）
+        _f_usd = float(m_full.get("net_usd") or 0.0)
+        _i_usd = float(inc_full.get("net_usd") or 0.0)
+        _f_bp = float(m_full.get("net_bp") or 0.0)
+        _i_bp = float(inc_full.get("net_bp") or 0.0)
+        if _f_usd >= _i_usd * (1.0 - FULL_TOL) or _f_bp >= _i_bp:
             eligible.append((c, m_val, m_full))
 
     if eligible:

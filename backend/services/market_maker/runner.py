@@ -1612,6 +1612,14 @@ def get_runner(lane_id: str = DEFAULT_LANE_ID) -> Optional[ShadowRunner]:
             for sym, st in r.states.items():
                 if vol_base.get(sym):
                     st.vol_baseline_bp = float(vol_base[sym])
+                else:
+                    # [F96] 注册表缺该币 ⇒ 实盘会沿用持久化的陈旧基准，σ 口径与回放
+                    # 漂移（实测低 15~21%，k_vol>0 时直接改变挂宽）。显式告警，
+                    # 修复：`python scripts/mm_anchor_vol_baseline.py`。
+                    logger.warning(
+                        "[F96] 币 %s 缺少注册表波动基准（replay_baseline."
+                        "vol_baseline_bp）⇒ σ 口径可能与回放漂移；"
+                        "请运行 scripts/mm_anchor_vol_baseline.py", sym)
             _SHADOW_RUNNERS[lane_id] = r
             return r
         except Exception as e:
