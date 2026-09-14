@@ -466,6 +466,63 @@ function PositionsInner() {
                 </p>
               </div>
             )}
+            {/* [F107] 成交链路：穿越→成交转化率 + 判定区间空/非空（数据层损失的可见性） */}
+            {shadow.data?.cross_counts && (
+              <div className="mt-2 rounded-lg border border-border/40 px-3 py-2">
+                <div className="mb-1 text-[11px] text-muted-foreground">
+                  成交链路（本进程累计）——「区间价触及挂单价」到「真的成交」有没有断点
+                </div>
+                {(() => {
+                  const c = shadow.data.cross_counts ?? {};
+                  const cross = (c.cross_buy ?? 0) + (c.cross_sell ?? 0);
+                  const fill = (c.fill_buy ?? 0) + (c.fill_sell ?? 0);
+                  const wj = c.win_judged ?? 0;
+                  const we = c.win_empty ?? 0;
+                  const emptyPct = wj + we > 0 ? (we / (wj + we)) * 100 : 0;
+                  const conv = cross > 0 ? (fill / cross) * 100 : null;
+                  return (
+                    <>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono">
+                        <span className="text-muted-foreground">
+                          穿越 <span className="text-foreground">{cross}</span>
+                          （买 {c.cross_buy ?? 0} / 卖 {c.cross_sell ?? 0}）
+                        </span>
+                        <span className="text-muted-foreground">
+                          成交 <span className="text-foreground">{fill}</span>
+                          （买 {c.fill_buy ?? 0} / 卖 {c.fill_sell ?? 0}）
+                        </span>
+                        <span className="text-muted-foreground">
+                          转化率{" "}
+                          <span className={conv != null && conv < 95 ? "text-amber-500" : "text-foreground"}>
+                            {conv != null ? `${conv.toFixed(0)}%` : "—"}
+                          </span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          漏判 腿量不足 <span className="text-foreground">{c.nofill_min_notional ?? 0}</span> ·
+                          陈旧 <span className="text-foreground">{c.nofill_stale ?? 0}</span> ·
+                          其它 <span className="text-foreground">{c.nofill_other ?? 0}</span>
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono">
+                        <span className="text-muted-foreground">
+                          判定区间 非空 <span className="text-foreground">{wj}</span> ·
+                          空 <span className="text-foreground">{we}</span>
+                          （<span className={emptyPct > 30 ? "text-amber-500" : "text-foreground"}>
+                            {emptyPct.toFixed(0)}%
+                          </span>）
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        判定区间为空 = 挂着单、但本刻**没有任何已落库的成交桶**可判：
+                        成交聚合表按落库时刻分桶（30s 轮询 + 15s flush + 空桶不落行），
+                        实测只有约 47% 的 15s 网格被填充 ⇒ 这部分成交机会是**数据层**吃掉的，
+                        不是做市参数问题。转化率长期低于 100% 才需要查策略侧。
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* ④ 其它车道持仓（做市已在上方展开，这里只列别的车道） */}

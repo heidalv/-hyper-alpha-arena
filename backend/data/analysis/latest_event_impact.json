@@ -1,32 +1,126 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789389364607,
-  "accepted": false,
-  "status": "degraded",
-  "consensus_score": 0.148,
-  "run_id": "4fbf6b749f0e415a8b8b1ca6b3ca7ef4",
-  "context_hash": "f7e0232bd7b38d5c524abd5fff5b660b6b78b62f5dedad384a0281aa4c3bf18f",
-  "final": null,
-  "notes": [
-    "仲裁候选 glm_opencode_alt 失败: 未配置: OpenCode sidecar 不可达: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
-    "仲裁候选 ollama 失败: 输出中无可解析 JSON",
-    "仲裁候选 ollama2 失败: 输出中无可解析 JSON",
-    "仲裁调用失败: 输出中无可解析 JSON；分歧未解"
-  ],
+  "ts_ms": 1789389917483,
+  "accepted": true,
+  "status": "ok",
+  "consensus_score": 0.829,
+  "run_id": "ede8d27bb56d44cc8ba9203b2d3fb547",
+  "context_hash": "1d3d6c2af0884414319cfe3a95ef2d1ba88b8241010e09227890428a61706ca8",
+  "final": {
+    "direction": "bearish",
+    "strength": 4.0,
+    "confidence": 0.525,
+    "half_life_hours": 14.0,
+    "affected_symbols": [
+      "PLAYUSDT",
+      "PLAY"
+    ],
+    "hedging_window_hours": 16.0,
+    "position_adjustments": [
+      {
+        "symbol": "PLAYUSDT",
+        "action": "no_new_long",
+        "reason": "Gate.io funding spikes to +0.211%/8h (≈+231% APR) signal crowded longs / short hedge demand on a low-cap, high-vol name (ATR14≈10%, RV30≈87%). Expect mean-reversion / short-squeeze unwind risk; avoid adding long exposure until funding normalizes."
+      },
+      {
+        "symbol": "PLAYUSDT",
+        "action": "tighten_stops",
+        "reason": "Even though we hold no PLAY position, the cross-exchange funding divergence (gateio 0.1165% vs binance 0.0453% vs asterdex 0.005%) plus 24h broad funding-extreme cluster (LSK, POWR, STEEM, CVC, GLM, BSP) signals elevated cascade/liquidation risk across alts; tighten stops on existing alt longs (BNB, SOL, UNI, XRP) on account 14 to limit contagion drawdown."
+      },
+      {
+        "symbol": "PLAY",
+        "action": "no_new_long",
+        "reason": "gateio 资金费 +0.2111%/8h（≈231% APR）为 0.1% 阈值的 2.1 倍，多头拥挤付高费、空头持高额 carry，短线多头挤压/套利抛压风险偏空；禁止新开多，仅可在套利框架下评估空单收 carry"
+      },
+      {
+        "symbol": "BTC",
+        "action": "none",
+        "reason": "事件为 PLAY 单币种费率异动，组合未持有 PLAY；PLAY 与 BTC 相关性数据缺失（corr_to_btc 为空），无联动证据，不调节现有 BTC 持仓"
+      },
+      {
+        "symbol": "ETH",
+        "action": "none",
+        "reason": "同上：事件仅涉及 PLAY，与主流币无相关性数据支持外推，持仓不调节"
+      },
+      {
+        "symbol": "SOL",
+        "action": "none",
+        "reason": "同上：单币种资金费异常，对 SOL 无直接传导证据"
+      },
+      {
+        "symbol": "BNB",
+        "action": "none",
+        "reason": "同上：BNB 两笔持仓（mid/trend）与 PLAY 事件无关联证据"
+      },
+      {
+        "symbol": "XRP",
+        "action": "none",
+        "reason": "同上：事件不涉及 XRP，不调节"
+      },
+      {
+        "symbol": "UNI",
+        "action": "none",
+        "reason": "同上：事件不涉及 UNI，不调节"
+      }
+    ],
+    "analogues": [
+      {
+        "event": "gateio BSP funding +1.433%/8h (≈+1569% APR)",
+        "outcome": "Extreme positive funding on low-cap token typically precedes short-term top as long crowding exhausts; historically followed by sharp pullback within 24-48h as shorts collect carry and squeeze unwinds."
+      },
+      {
+        "event": "gateio FATCOIN funding +1.414%/8h (≈+1548% APR)",
+        "outcome": "Similar low-cap, single-venue funding spike; price often mean-reverts after funding peak as arbitrage/short-hedge flow caps further upside."
+      },
+      {
+        "event": "Cross-exchange LSK funding extremes (-2.0% bybit vs -1.0% binance)",
+        "outcome": "When multiple venues simultaneously show extreme negative funding, signals broad short-crowding; brief reflexive bounces but underlying bias remains fragile."
+      },
+      {
+        "event": "gateio FATCOIN 资金费 +1.6064%/8h（pack 内同类正费率极端，sev 4）",
+        "outcome": "数据不足：context 未提供该事件后续价格表现，无法验证均值回归规律"
+      },
+      {
+        "event": "bybit BSP 资金费 +1.433%/8h（pack 内同类正费率极端，sev 4）",
+        "outcome": "数据不足：context 未提供后续涨跌结果"
+      },
+      {
+        "event": "LSK 多交易所资金费 -1.0%~-2.0%/8h（pack 内负费率极端簇，sev 4）",
+        "outcome": "数据不足：context 未提供后续价格表现"
+      }
+    ],
+    "key_factors": [
+      "Gate.io PLAY funding at +0.211%/8h (~231% APR) is ~2.1x the 0.1% threshold, qualifying as 'extreme' but only severity 3 — moderate not maximum",
+      "Cross-exchange funding divergence on PLAY (gateio 0.1165% vs binance 0.0453% vs asterdex 0.005%) suggests localized Gate.io positioning, not a broad market move",
+      "PLAY is a micro-cap: last price ~$0.032, ATR14 ≈10.1% daily, RV30 ≈87% annualized — high-vol, low-liquidity profile amplifies funding shocks",
+      "24h funding-extreme cluster across many alts (LSK, POWR, STEEM, CVC, GLM, BSP, FATCOIN) indicates a regime of crowded one-sided positioning across the alt complex, raising cascade risk",
+      "1d return +4.73% but 7d -12.25% — the funding spike coincides with a short-term bounce inside a downtrend, classic late-stage squeeze signature",
+      "RSI14=44.2 is neutral, not overbought, slightly moderating the 'top is in' read",
+      "No direct PLAY exposure in current portfolio — impact is indirect (alt-complex contagion), reducing urgency",
+      "gateio PLAY 资金费 +0.2111%/8h（231% APR），为 threshold_8h 0.1% 的约 2.1 倍，severity 3、事件方向标签 -0.5（偏空）",
+      "费率较 flows 快照持续抬升：约 12 小时前 gateio 为 0.1165%/8h，事件时升至 0.2111%，过热在加速",
+      "跨所费率分化显著：gateio 0.1165% > binance 0.0453% > asterdex 0.005%，属单所局部过热而非全市场拥挤，方向信号强度打折",
+      "PLAY 1 日 +4.73% 但 7 日 -12.25%、RSI14 44.2，日线未极端超买；高波动小市值币（ATR14 10.14%/日、RV30 87.2%），费率极端下双向挤压风险大",
+      "组合 10 笔持仓全部为主流币（BNB/BTC/ETH/SOL/UNI/XRP），未持有 PLAY，事件直接敞口为零",
+      "24h 内全市场资金费极端事件密集（events_total_24h=200，多为负费率簇），PLAY 属个别正费率异动，非系统性信号"
+    ],
+    "summary": "Gate.io PLAY funding spiked to ~+231% APR, indicating heavy long crowding on a micro-cap, high-vol name (ATR ~10%/day). Severity 3 and only moderate divergence across venues tempers the signal, but combined with a 24h cluster of alt funding extremes (LSK, POWR, STEEM, CVC, BSP) it flags elevated short-squeeze-unwind / liquidation cascade risk across alts. We have no direct PLAY position; impact is indirect via alt contagion. Action: do not initiate new PLAY longs, and tighten stops on existing alt longs (BNB/SOL/UNI/XRP) on account 14. Confidence is moderate (0.55) because PLAY is small-cap, the spike is single-venue, and no direct exposure exists — outcome is more a risk-management trigger than a directional PLAY trade."
+  },
+  "notes": [],
   "event": {
-    "id": 102628,
+    "id": 104635,
     "event_type": "funding.extreme",
-    "symbol": "CBRS",
-    "ts_ms": 1789373112896,
+    "symbol": "PLAY",
+    "ts_ms": 1789387508126,
     "severity": 3,
-    "direction": 0.5,
-    "title": "bybit CBRS 资金费 -0.285%/8h（≈-312% APR）",
+    "direction": -0.5,
+    "title": "gateio PLAY 资金费 +0.211%/8h（≈+231% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -311.9,
-      "rate_8h": -0.00284816,
-      "exchange": "bybit",
-      "rate_raw": -0.00284816,
+      "apr_pct": 231.2,
+      "rate_8h": 0.002111,
+      "exchange": "gateio",
+      "rate_raw": 0.002111,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

@@ -260,6 +260,15 @@ export interface ShadowStatus {
   avg_width_bp?: { bid: number | null; ask: number | null };
   avg_sigma?: number | null;
   quoted_decisions?: number;
+  /**
+   * [F105/F107] 成交链路计数（进程内累计）：
+   * - cross_buy/cross_sell 区间价触及挂单价、fill_* 实际成交 ⇒ 转化率；
+   * - nofill_* 穿越却未成交的分类（最小名义、挂单陈旧、其它）；
+   * - win_judged/win_empty 判定区间非空/为空 —— 为空是**数据层**造成的
+   *   （成交聚合表只有约一半的 15s 网格被填充、且按落库时刻分桶），
+   *   代表"这批决策根本没有可判定的成交"，不是策略参数问题。
+   */
+  cross_counts?: Record<string, number>;
   as_of?: string | null;
 }
 
