@@ -279,6 +279,8 @@ def plan_tick(
     book=None,
     marks: Optional[Dict[str, float]] = None,
     day_pnl_usd: float = 0.0,
+    # [F86] 上一桶主动流失衡 OFI∈[-1,1]（+1=全是主动买）；用于流向毒性闸
+    ofi: float = 0.0,
 ) -> Tuple[TickDecision, Dict[str, Any]]:
     """一个 tick 的纯决策：成交判定 → 超时平仓 → 重挂新单。
 
@@ -428,6 +430,39 @@ def plan_tick(
         ))
         dec.action = "flatten"
 
+    # ②′ [F86 2026-09-14] 流向择时平仓：持仓已过半程且 **OFI 顺离场方向**
+    # （多头遇买压=高位卖出、空头遇卖压=低位回补）⇒ 提前 taker 平仓。
+    # 依据：平仓腿是最大成本项（实测均 -9.4bp、占 16-25%）；最优执行文献指出
+    # 应「顺着订单流离场」而非固定时点。实证 OFI>+0.5 后下一期 +0.195bp、
+    # OFI<-0.5 后 -0.257bp（86.5% 延续）——顺风离场可吃到这段漂移。
+    _fl_th = float(getattr(limits, "ofi_flatten_threshold", 0.0) or 0.0)
+    if (_fl_th > 0 and abs(state.qty) > 1e-12 and state.opened_ts > 0
+            and (now_ts - state.opened_ts)
+            > limits.max_one_side_seconds * float(
+                getattr(limits, "ofi_flatten_min_age_ratio", 0.5) or 0.5)):
+        _fl_side = "sell" if state.qty > 0 else "buy"
+        _favorable = ((float(ofi) > _fl_th) if _fl_side == "sell"
+                      else (float(ofi) < -_fl_th))
+        if _favorable:
+            hs = max(0.0, float(half_spread or 0.0))
+            px = (mid - hs) if _fl_side == "sell" else (mid + hs)
+            qty = abs(state.qty)
+            fd = local_book.apply_fill(symbol=state.symbol, side=_fl_side, qty=qty,
+                                       fill_px=px, mid_px=mid,
+                                       fee_rate=abs(taker_fee_bp) / 1e4, now_ts=now_ts)
+            state.qty = local_book.qty(state.symbol)
+            state.avg_px = state.avg_mid = state.opened_ts = 0.0
+            state.last_ts = now_ts
+            dec.fills.append(PlannedFill(
+                symbol=state.symbol, side=_fl_side, qty=qty, px=px, mid=mid,
+                ts=now_ts, is_flatten=True,
+                spread_usd=float(fd.get("spread_usd") or 0.0),
+                price_usd=float(fd.get("price_usd") or 0.0),
+                fee_usd=float(fd.get("fee_usd") or 0.0),
+            ))
+            dec.action = "flatten"
+            dec.skip = "ofi_flatten"
+
     # ③ 重挂新单（含单侧许可）
     inv_ratio = (inv_ratio_hint if inv_ratio_hint is not None
                  else local_book.inv_ratio(state.symbol, mid, limit_notional))
@@ -517,6 +552,30 @@ def plan_tick(
         allow_buy, why_buy = False, "trend_down"
     elif blocked == "sell" and allow_sell:
         allow_sell, why_sell = False, "trend_up"
+
+    # [F86 2026-09-14] 流向毒性闸（学术）：按上一桶主动流失衡封锁**逆势加仓侧**。
+    # 依据 Lu-Abergel 2018（市价单驱动的移动延续率 84.3% vs 撤单 27%）与
+    # Barzykin et al. 2025 逆向选择框架；本项目实证 OFI<-0.5 后 86.5% 继续下跌。
+    # 语义：ofi 显著为负（主动卖压）⇒ 下一期大概率下跌 ⇒ 买单会被逆选择
+    # （买了继续跌）⇒ 封买；ofi 显著为正 ⇒ 封卖。**减仓侧永不受限**（同 F76）。
+    _ofi_th = float(getattr(limits, "ofi_block_threshold", 0.0) or 0.0)
+    if _ofi_th > 0 and abs(float(ofi or 0.0)) > _ofi_th:
+        _toxic_side = "buy" if float(ofi) < 0 else "sell"
+        _pos_ofi = local_book.qty(state.symbol)
+        # 库存感知：若被封侧实为减仓侧（空头遇卖压封买/多头遇买压封卖），放行
+        _is_reduce = ((_toxic_side == "buy" and _pos_ofi < -1e-12)
+                      or (_toxic_side == "sell" and _pos_ofi > 1e-12))
+        if not _is_reduce:
+            if _toxic_side == "buy" and allow_buy:
+                allow_buy = False
+                why_buy = f"ofi_toxic_sell({float(ofi):+.2f})"
+                if not any(f.is_flatten for f in dec.fills):
+                    dec.skip = dec.skip or "ofi_toxic_sell"
+            elif _toxic_side == "sell" and allow_sell:
+                allow_sell = False
+                why_sell = f"ofi_toxic_buy({float(ofi):+.2f})"
+                if not any(f.is_flatten for f in dec.fills):
+                    dec.skip = dec.skip or "ofi_toxic_buy"
 
     if not allow_buy and not allow_sell:
         dec.skip = (why_buy or why_sell or "blocked").split("(")[0]
@@ -776,6 +835,10 @@ class ShadowRunner:
                         continue
                     best_bid, best_ask = float(ob["best_bid"]), float(ob["best_ask"])
                     mid = (best_bid + best_ask) / 2.0
+                    _sv = float(tr["sv"]) if tr else 0.0
+                    _bv = float(tr["bv"]) if tr else 0.0
+                    # [F86] 本桶主动流失衡 OFI∈[-1,1]（+1=全主动买）→ 流向毒性闸
+                    _ofi = ((_bv - _sv) / (_bv + _sv)) if (_bv + _sv) > 0 else 0.0
                     out[s] = {
                         "ts_ms": int(ob["timestamp"]),
                         "mid": mid,
@@ -784,8 +847,9 @@ class ShadowRunner:
                         "rel_spread": ((best_ask - best_bid) / mid) if mid > 0 else 0.0,
                         "seg_low": float(tr["lo"]) if tr and tr["lo"] else 0.0,
                         "seg_high": float(tr["hi"]) if tr and tr["hi"] else 0.0,
-                        "seg_sell": float(tr["sv"]) if tr else 0.0,
-                        "seg_buy": float(tr["bv"]) if tr else 0.0,
+                        "seg_sell": _sv,
+                        "seg_buy": _bv,
+                        "ofi": _ofi,
                     }
         return out
 
@@ -952,6 +1016,8 @@ class ShadowRunner:
                 half_spread=float(m.get("half_spread") or 0.0),
                 sigma_norm=sigma,
                 book=shared_book, marks=marks,
+                # [F86] 流向毒性闸输入：本桶主动流失衡（决策时可见的已完成桶）
+                ofi=float(m.get("ofi") or 0.0),
                 # [§82/P5-A] 日亏闸输入：本 UTC 日车道已实现净额（关闭时不参与判定）
                 day_pnl_usd=(day_pnl if lane_limits_enforce_enabled() else 0.0),
             )

@@ -137,6 +137,14 @@ def replay_portfolio(
             seg_high = float(d["hi"][j0:j1].max()) if j1 > j0 else 0.0
             seg_sell = float(d["sv"][j0:j1].sum()) if j1 > j0 else 0.0
             seg_buy = float(d["bv"][j0:j1].sum()) if j1 > j0 else 0.0
+            # [F86] 决策时可见的「上一已完成桶」主动流失衡 OFI∈[-1,1]：
+            # 取 ts <= 当前快照 的最后一个成交桶（信息集约束：不含未来）
+            _k = int(np.searchsorted(d["tts"], d["ots"][i], "right")) - 1
+            ofi = 0.0
+            if _k >= 0:
+                _b, _s = float(d["bv"][_k]), float(d["sv"][_k])
+                if _b + _s > 0:
+                    ofi = (_b - _s) / (_b + _s)
             dec, _meta = plan_tick(
                 state=states[s], mid=mid, seg_low=seg_low, seg_high=seg_high,
                 seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
@@ -149,6 +157,7 @@ def replay_portfolio(
                                if _ratio > 0 else fill_notional),
                 taker_fee_bp=4.0, maker_fee_bp=0.0, half_spread=half_spread,
                 sigma_norm=sigma, book=book, marks=marks,
+                ofi=ofi,
             )
             if dec.skip and not dec.fills:
                 key = dec.skip.split("(")[0]

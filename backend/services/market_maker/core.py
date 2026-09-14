@@ -304,6 +304,22 @@ class LaneRiskLimits:
     # 约为回放窗口 2.3 倍，超时平仓 −26.7bp/笔）→ 超过基准倍数即暂停该币。
     vol_pause_mult: float = 0.0                 # 0=关闭；1.5 表示 >1.5×基准即停
     vol_window: int = 20
+    # ── [F86 2026-09-14 学术升级] 流向毒性闸 ──
+    # 依据：Lu & Abergel 2018（队列反应模型：**市价单驱动的移动会延续**——实测
+    # 其样本中 84.3% 延续 vs 撤单驱动仅 27%）+ Barzykin/Bergault/Guéant/Lemmel 2025
+    # 《Optimal Quoting under Adverse Selection and Price Reading》逆向选择框架。
+    # 本项目实证（asterdex BTC 近 3 天 1.5 万快照）：主动流失衡
+    # OFI=(买主动-卖主动)/(买+卖) 对**下一期**中价收益 corr=+0.084；OFI<-0.5 后
+    # 下一期 86.5% 继续下跌（均值 -0.257bp）；OFI>+0.5 后 +0.195bp（右偏长尾）。
+    # ⇒ 逆势侧挂单会在信息流之后成交（典型逆选择）⇒ 按 OFI 封锁逆势**加仓侧**；
+    # 减仓侧永不受限（F76 库存感知语义）。
+    ofi_block_threshold: float = 0.0            # 0=关闭；0.5=上一桶 |OFI|>0.5 即封锁逆势加仓侧
+    # [F86] 流向择时平仓：持仓年龄 > hold × min_age_ratio 且 OFI **顺离场方向**
+    # （多头遇买压=高价卖出、空头遇卖压=低价回补）⇒ 提前 taker 平仓，替代盲等超时。
+    # 逻辑依据：平仓腿是最大成本项（实测均 -9.4bp、占 16-25%）；把平仓时点从
+    # 「固定 900 秒」改为「流向顺风时」，理论上是执行时机的改进（最优执行文献）。
+    ofi_flatten_threshold: float = 0.0         # 0=关闭；0.5=|OFI|>0.5 视为顺风
+    ofi_flatten_min_age_ratio: float = 0.5     # 持仓超过 hold 的该比例后才考虑择时平仓
 
 
 def lane_pause_reason(
