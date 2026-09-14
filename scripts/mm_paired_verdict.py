@@ -66,6 +66,37 @@ def bootstrap_median_ci(values, iters=2000, alpha=0.05, seed=7):
     return (lo, hi)
 
 
+def cash_trips(rows):
+    """[F148] 与**归因无关**的口径：一趟往返的现金净额 = Σ卖出 − Σ买入（只用成交价）。
+
+    为什么必须同时报这个：账本/引擎的 `net_bp` 依赖"用哪个 mid 归因"（实盘用挂单依据
+    中价、模型用其迭代快照中价）⇒ 跨引擎**不可比** ✗。实测实盘现金口径 +0.73bp
+    而账本归因口径 +0.18bp（差 0.55bp ⇒ 归因偏保守）。
+    rows: [{"ts","symbol","side","fill_px","qty"}]
+    """
+    pos = {}
+    out = []
+    for x in sorted(rows, key=lambda y: y["ts"]):
+        s = x["symbol"]
+        sg = 1 if str(x["side"]) in ("buy", "long", "b") else -1
+        q = float(x["qty"])
+        px = float(x["fill_px"])
+        if q <= 0 or px <= 0:
+            continue
+        p = pos.setdefault(s, {"qty": 0.0, "cash": 0.0, "buy_nt": 0.0, "n": 0})
+        if abs(p["qty"]) < 1e-12:
+            p.update(qty=0.0, cash=0.0, buy_nt=0.0, n=0)
+        p["qty"] += sg * q
+        p["cash"] += -sg * q * px
+        if sg > 0:
+            p["buy_nt"] += q * px
+        p["n"] += 1
+        if abs(p["qty"]) < 1e-12 and p["n"] >= 2:
+            out.append((p["cash"], p["buy_nt"]))
+            p.update(qty=0.0, cash=0.0, buy_nt=0.0, n=0)
+    return out
+
+
 def ttest_stats(values):
     """纯函数：给一组观测值，返回均值/标准差/标准误/t/双侧 p/达到 t=2 所需 n。
 
@@ -189,6 +220,25 @@ def main() -> int:
     if nt:
         print(f"  分解：价差 {tot['spread']/nt*1e4:+.2f}  价格 {tot['price']/nt*1e4:+.2f}  "
               f"费用 {tot['fee']/nt*1e4:+.2f} bp")
+    # [F148] 现金口径（与归因无关，跨引擎可比）
+    trips = cash_trips([{"ts": x["ts"], "symbol": x["symbol"],
+                         "side": (x.get("meta_json") or {}).get("side"),
+                         "fill_px": (x.get("meta_json") or {}).get("fill_px"),
+                         "qty": (x.get("meta_json") or {}).get("qty")} for x in rows
+                        if (x.get("meta_json") or {}).get("fill_px")])
+    if trips:
+        cusd = sum(t[0] for t in trips)
+        cnt = sum(t[1] for t in trips)
+        cbp = [t[0] / t[1] * 1e4 for t in trips if t[1] > 0]
+        cst = ttest_stats(cbp)
+        csg = sign_test(cbp)
+        print(f"  【现金口径】{len(trips)} 趟往返  净 {cusd:+.2f}USD = "
+              f"{cusd/cnt*1e4 if cnt else 0:+.3f}bp  每趟中位 "
+              f"{sorted(cbp)[len(cbp)//2] if cbp else 0:+.3f}bp  "
+              f"正收益趟 {csg['pos']}/{csg['n']} = {csg['share']*100:.0f}%  "
+              f"符号检验 p ≈ {csg['p']:.4f}")
+        if cst["need_n"]:
+            print(f"  （现金口径均值 t = {cst['t']:+.2f}；达到 |t|=2.5 需 ~{cst['need_n']} 趟）")
 
     if args.no_model:
         return 0

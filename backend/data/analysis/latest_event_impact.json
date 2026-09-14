@@ -1,32 +1,64 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789393978888,
-  "accepted": false,
-  "status": "degraded",
-  "consensus_score": 0.134,
-  "run_id": "839ec7a66a2148a08f99d4403026d83c",
-  "context_hash": "95ae1c365de23c7f96ef6809f9b0860e9581de3ac9037742acdf40cc43637c2a",
-  "final": null,
-  "notes": [
-    "仲裁候选 glm_opencode_alt 失败: 未配置: OpenCode sidecar 不可达: [WinError 10061] 由于目标计算机积极拒绝，无法连接。",
-    "仲裁候选 ollama 失败: 输出中无可解析 JSON",
-    "仲裁候选 ollama2 失败: 输出中无可解析 JSON",
-    "仲裁调用失败: 输出中无可解析 JSON；分歧未解"
-  ],
+  "ts_ms": 1789394260113,
+  "accepted": true,
+  "status": "ok",
+  "consensus_score": 0.7,
+  "run_id": "440e301e631d4aa1b5ca8b1d9088f3bb",
+  "context_hash": "341c3034ef6d428f8834c589ae1eeedf87744f100bcb8b8bc4b7355288e3cf3d",
+  "final": {
+    "direction": "bullish",
+    "strength": 4,
+    "confidence": 0.4,
+    "half_life_hours": 12,
+    "affected_symbols": [
+      "GLM"
+    ],
+    "hedging_window_hours": 24,
+    "position_adjustments": [
+      {
+        "symbol": "GLM",
+        "action": "no_new_short",
+        "reason": "gateio GLM 资金费 -0.384%/8h（≈-421% APR），且同刻 binance -0.628%、bybit -0.365% 均极端为负：空头每8h需付费、拥挤度高；GLM 价升（1d +3.79%、7d +7.26%、RSI14 66.5）且24h空头强平 35,090 USD > 多头 22,553 USD，轧空风险大于做空回报。当前无 GLM 持仓，不宜逆极端负费开新空。"
+      }
+    ],
+    "analogues": [
+      {
+        "event": "同刻（ts 1789373112896）多币种极端负资金费：LSK bybit -2.000%/8h、STEEM binance -1.256%/8h、CVC binance -1.220%/8h、POWR binance/bybit ≈-0.9%~-1.1%/8h",
+        "outcome": "数据不足：该批事件与待评估事件同时刻发生且无后续价量结果，无法作为已验证的历史同类样本，仅能确认小币种系统性拥挤空头环境"
+      }
+    ],
+    "key_factors": [
+      "GLM 三所资金费同刻极端为负：gateio -0.384%/8h（事件本体）、binance -0.628%/8h、bybit -0.365%/8h，空头拥挤且做空需持续付费",
+      "价费背离：GLM ret_1d +3.79%、ret_7d +7.26%、RSI14 66.5，价格上行叠加极端负费构成轧空（short squeeze）条件，故方向偏多",
+      "24h GLM 空头强平 35,090 USD 高于多头 22,553 USD，空头已在承受挤压",
+      "费率时点不一致：flows 快照（as_of 1789257600000，早于事件约32h）显示 GLM gateio 仅 -0.0461%/8h、binance -0.064%，事件读数急剧恶化，可能是短时尖峰；且事件 ts 晚于 pack 数据截止约32h，市场快照相对事件滞后",
+      "同刻 LSK/STEEM/CVC/POWR/PUNDIX/FLY 等多币极端负费（另 BSP 极端正费 +1.433%/8h），提示小币种系统性做空压力，需警惕整体风险偏好恶化的外溢",
+      "组合未持有 GLM，现有 10 笔持仓均为主流币多头（acct14 毛敞口 100.6%），事件对现有账簿无直接冲击",
+      "缺失数据：BTC/大盘行情、GLM 与 BTC 相关性、ema_trend_4h、above_ema200_1d、ret_30d 均为空，且无历史同类极端负费事件的结果样本，无法交叉验证，故置信度压低至 0.4"
+    ],
+    "summary": "GLM 在 gateio 出现 -0.384%/8h（≈-421% APR）极端负资金费，且 binance（-0.628%）与 bybit（-0.365%）同刻确认，为跨所空头拥挤信号；叠加 GLM 价格上行（1d +3.79%、7d +7.26%、RSI14 66.5）与24h空头强平（35,090 USD）高于多头（22,553 USD），构成偏多的轧空背离，故 direction=bullish、strength=4。但置信度仅 0.4：flows 层旧快照费率温和（gateio -0.0461%）、事件时间戳晚于数据截止约32h、同刻多山寨极端负费暗示系统性小币做空压力、且缺大盘与历史同类结果数据。资金费以8h为周期，极端读数通常在1~3个周期内回归，取半衰期12h、避险观察窗24h。组合未持有 GLM，对现有主力多头账簿无直接影响；建议 GLM 不开新空（做空需付费且挤压风险高），仅观察费率与价格是否延续背离，不据此对主流币持仓做调节。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的偏多判断有 context pack 中可直接验证的事实支撑：事件同刻（ts 1789373112896）GLM 三所资金费同步极端为负（gateio -0.384%、binance -0.628%、bybit -0.365%），叠加价格上行（1d +3.79%、7d +7.26%、RSI14 66.5）与 24h 空头强平 35,090 USD > 多头 22,553 USD，构成跨所空头拥挤+轧空的完整证据链；B 还正确指出 flows 快照（as_of 1789257600000）落后事件约 32 小时、且同刻多山寨极端负费属系统性现象，主动压低置信度至 0.4。反观 A：其 analogues 断言了 pack 中不存在的'历史结果'（同刻事件并无后续结果数据，属于引入外部假设）；其'gateio 存在特有 perp 偏差'的推理与事实矛盾——binance（-0.628%）比 gateio（-0.384%）更极端，并非 gateio 特异；且 A 方向判 neutral 却给出 no_new_long 的偏防御动作，与自身'理论偏多'的论述自相矛盾。A 唯一有价值的'系统性噪声'观点 B 已纳入并作为压低置信度的理由。故判 B，方向 bullish，强度取中等偏低（4/10），置信度 0.45 以反映系统性小币异常与数据时点错位的不确定性。"
+    }
+  },
+  "notes": [],
   "event": {
-    "id": 102676,
+    "id": 102677,
     "event_type": "funding.extreme",
-    "symbol": "GAIB",
+    "symbol": "GLM",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": -0.5,
-    "title": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR）",
+    "direction": 0.5,
+    "title": "gateio GLM 资金费 -0.384%/8h（≈-421% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 384.6,
-      "rate_8h": 0.003512,
+      "apr_pct": -420.9,
+      "rate_8h": -0.003844,
       "exchange": "gateio",
-      "rate_raw": 0.003512,
+      "rate_raw": -0.003844,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
