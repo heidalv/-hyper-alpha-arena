@@ -138,12 +138,17 @@ class MidLongIntent:
     regime: str = ""
 
 
-def authority_allows_open(authority: str, source: str) -> bool:
+def authority_allows_open(authority: str, source: str, trading_mode: Optional[str] = None) -> bool:
     """source: trend | mlto | factor_route。仅当与当前 Single Writer 一致才允许开仓。
 
     [2026-08-15 因子化] authority=mlto（paper 默认）时同时放行 factor_route 中线新开：
     中线入场已由活跃因子信号驱动，与长线 mlto thesis 共用同一 Single Writer 配额/冷却。
     authority=trend（live 保守）时仍只放行 trend。
+
+    [验收轮3 2026-09-14] 脑开启时的 factor_route 放行：M5 A/B 车道（
+    MIDLONG_MID_FACTOR_ROUTE_AB=true + paper）下允许 factor_route 与脑并行开仓
+    （entry_source 独立记账）；此前脑开启恒拦 factor_route（实测 09:37 每轮
+    `authority_block`，A/B 车道白开）。live 与 AB=false 保持旧行为。
     """
     auth = (authority or get_midlong_exec_authority()).strip().lower()
     src = (source or "").strip().lower()
@@ -153,7 +158,13 @@ def authority_allows_open(authority: str, source: str) -> bool:
         try:
             from backend.config.settings import midlong_brain_enabled
             if midlong_brain_enabled():
-                return src == "mlto"
+                if src == "mlto":
+                    return True
+                if src == "factor_route" and (trading_mode or "paper").strip().lower() == "paper":
+                    import os as _os_ab
+                    return (_os_ab.getenv("MIDLONG_MID_FACTOR_ROUTE_AB", "true") or "true"
+                            ).strip().lower() in ("1", "true", "yes", "on")
+                return False
         except Exception:
             pass
         return src in ("mlto", "factor_route")
@@ -406,7 +417,7 @@ def execute_midlong_open(
         _record_fail(reason or "not_entry")
         return False
 
-    if not authority_allows_open(auth, source):
+    if not authority_allows_open(auth, source, trading_mode=trading_mode):
         logger.info(
             "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
             "reason=authority_block (writer=%s)",

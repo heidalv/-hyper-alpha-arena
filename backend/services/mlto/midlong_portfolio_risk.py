@@ -242,8 +242,15 @@ def check_portfolio_open_allowed(
         return True, "no_direction"
 
     mids = collect_midlong_positions(portfolio, positions)
-    # [M3 2026-09-14] 长车道并发帽只数长车道持仓；净敞口/簇帽仍看全量 midlong（不削弱）。
-    _cap_count = [p for p in mids if _is_long_lane_pos(p)] if long_lane else mids
+    # [M3/验收轮3 2026-09-14] 并发帽**车道化**：
+    #   long_lane=True  → 只数长车道仓 vs MIDLONG_MAX_LONG_LANE_POSITIONS（E1 sleeve）；
+    #   long_lane=False → 只数中线仓 vs MIDLONG_MAX_OPEN_POSITIONS。
+    # 根因（验收轮3 实测）：E1 5 个长仓把全局帽 4 占满 → 中线 `midlong_open_positions
+    # 6>=4` 全部饿死（用户观察「中线几乎没有开仓」）。总敞口仍由下方 net_exposure
+    # 检查（全量 midlong）兜底，不因车道化而削弱。
+    _cap_count = [p for p in mids if _is_long_lane_pos(p)] if long_lane else [
+        p for p in mids if not _is_long_lane_pos(p)
+    ]
     equity = _equity_from_portfolio(portfolio)
 
     # ── 净方向敞口 ──
@@ -283,17 +290,20 @@ def check_portfolio_open_allowed(
         )
 
     # ── 相关簇同向上限 ──
-    # [验收轮2 2026-09-14] long_lane=True（E1 趋势 sleeve）时用长车道专属簇帽
-    # MIDLONG_CORR_CLUSTER_MAX_LONG（默认 3）：E1 核心宇宙 BTC/ETH/SOL 本就设计同持，
-    # 其相关性风险已由 portfolio vol-target（协方差加权）+ 车道 gross 帽处理；
-    # 旧全局帽 2 会让 SOL 在 BTC+ETH 持仓时永远开不出仓（实测 08:20 日任务 SOL 被拒）。
-    # mid 车道继续用全局 MIDLONG_CORR_CLUSTER_MAX=2（9/9 山寨齐跌实证）。
+    # [验收轮3 2026-09-14] 簇帽计数也车道化（与并发帽同根因）：
+    #   long_lane → 只数长车道簇仓 vs MIDLONG_CORR_CLUSTER_MAX_LONG（默认 3，E1 核心宇宙）；
+    #   mid      → 只数中线簇仓 vs MIDLONG_CORR_CLUSTER_MAX（默认 2，9/9 山寨齐跌实证）。
+    # 旧实现全量计数：E1 持 BTC/ETH 时中线 ETH/SOL 也永远开不出（跨车道误伤）。
     cluster = set(_parse_cluster_symbols())
     if sym in cluster:
         same_dir = 0
         for p in mids:
             ps = str(p.get("symbol") or "").upper()
             if ps not in cluster:
+                continue
+            if long_lane and not _is_long_lane_pos(p):
+                continue
+            if (not long_lane) and _is_long_lane_pos(p):
                 continue
             if _pos_dir(p.get("side")) == direction:
                 same_dir += 1

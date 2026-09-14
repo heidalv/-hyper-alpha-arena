@@ -301,7 +301,10 @@ def test_authority_brain_only_allows_mlto(monkeypatch):
         lambda *a, **k: "mlto",
     )
     assert authority_allows_open("mlto", "mlto")
-    assert not authority_allows_open("mlto", "factor_route")
+    # [验收轮3 语义更新] 脑开启时 factor_route 在 paper+AB 下放行（A/B 车道）；
+    # 未传 trading_mode 视为 paper（执行链显式传），AB=false / live 仍拦。
+    monkeypatch.setenv("MIDLONG_MID_FACTOR_ROUTE_AB", "false")
+    assert not authority_allows_open("mlto", "factor_route", trading_mode="paper")
 
 
 def test_thesis_row_to_dto_brain_cols():

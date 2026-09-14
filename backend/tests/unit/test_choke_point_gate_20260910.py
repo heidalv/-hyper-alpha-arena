@@ -91,11 +91,13 @@ def test_non_midlong_is_untouched(monkeypatch):
 
 
 def test_midlong_blocks_at_cap(monkeypatch):
-    """[M3 2026-09-14 语义更新] mid 车道开仓仍走全局帽（全量 midlong 计数）。"""
+    """[验收轮3 语义更新] 中线开仓并发帽只数中线仓（长仓不占中线帽）。"""
     _settings(monkeypatch, cap=3)
     from backend.services.mlto.midlong_portfolio_risk import choke_point_open_allowed
 
-    db = _DB([_pos("SOL"), _pos("ETH"), _pos("XRP", tier="mid", nature="swing")])
+    db = _DB([_pos("SOL", tier="mid", nature="swing"),
+              _pos("ETH", tier="mid", nature="swing"),
+              _pos("XRP", tier="mid", nature="swing")])
     ok, why = choke_point_open_allowed(
         db, 14, symbol="VIRTUAL", action="buy", tier="mid", trade_nature="swing",
         new_notional=900.0,

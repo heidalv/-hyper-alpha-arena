@@ -153,3 +153,78 @@ def test_brain_long_batch_suppressed_when_e1_exclusive():
 def backend_file():
     import backend.services.full_auto.mlto_cycle as m
     return m.__file__
+
+
+# ── [验收轮3 2026-09-14] 中线饿死根治：并发帽/簇帽车道化 + factor_route 权威放行 ──
+
+def test_mid_cap_counts_only_mid_positions(monkeypatch):
+    """E1 5 个长仓不得占用中线并发帽：中线 1 仓时中线开仓放行。"""
+    mod = _fresh(monkeypatch)
+    positions = [_long_pos(s) for s in ("BTC", "ETH", "SOL", "BNB", "XRP")]
+    positions.append(_mid_pos("UNI"))
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="XPL", action="buy", positions=positions, new_notional=100.0,
+        long_lane=False,
+    )
+    assert ok is True, reason
+
+
+def test_mid_cap_still_blocks_when_mid_lane_full(monkeypatch):
+    """中线自身 4 仓满 → 中线开仓被拦（车道帽独立生效）。"""
+    mod = _fresh(monkeypatch)
+    positions = [_mid_pos(s) for s in ("XPL", "UNI", "BNB", "BTC")]
+    positions.extend(_long_pos(s) for s in ("ETH", "SOL"))  # 长仓不占中线帽
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="ASTER", action="buy", positions=positions, new_notional=100.0,
+        long_lane=False,
+    )
+    assert ok is False
+    assert "midlong_open_positions" in reason
+
+
+def test_mid_cluster_counts_only_mid_positions(monkeypatch):
+    """E1 持 BTC/ETH 时，中线 ETH 开仓不再被跨车道簇计数误伤（中线簇 0 仓）。"""
+    mod = _fresh_cluster(monkeypatch)
+    positions = [_long_pos("BTC"), _long_pos("ETH")]
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="ETH", action="buy", positions=positions, new_notional=100.0,
+        long_lane=False,
+    )
+    assert ok is True, reason
+
+
+def test_mid_cluster_own_cap_2_still_binds(monkeypatch):
+    """中线自身簇 2 仓满 → 中线簇开仓被拦（9/9 实证不回退）。"""
+    mod = _fresh_cluster(monkeypatch)
+    positions = [_mid_pos("BTC"), _mid_pos("ETH")]
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="SOL", action="buy", positions=positions, new_notional=100.0,
+        long_lane=False,
+    )
+    assert ok is False
+    assert "corr_cluster" in reason
+
+
+def test_factor_route_authority_allowed_in_paper_ab(monkeypatch):
+    """[验收轮3] 脑开启 + paper + AB 开关 → factor_route 允许开仓（A/B 车道真正通车）。"""
+    import backend.services.full_auto.midlong_executor as me
+
+    monkeypatch.setattr(
+        "backend.config.settings.midlong_brain_enabled", lambda: True,
+    )
+    monkeypatch.setenv("MIDLONG_MID_FACTOR_ROUTE_AB", "true")
+    assert me.authority_allows_open("mlto", "factor_route", trading_mode="paper") is True
+    assert me.authority_allows_open("mlto", "mlto", trading_mode="paper") is True
+
+
+def test_factor_route_authority_rollbacks(monkeypatch):
+    """AB=false / live → factor_route 仍被拦（旧行为）。"""
+    import backend.services.full_auto.midlong_executor as me
+
+    monkeypatch.setattr(
+        "backend.config.settings.midlong_brain_enabled", lambda: True,
+    )
+    monkeypatch.setenv("MIDLONG_MID_FACTOR_ROUTE_AB", "false")
+    assert me.authority_allows_open("mlto", "factor_route", trading_mode="paper") is False
+    monkeypatch.setenv("MIDLONG_MID_FACTOR_ROUTE_AB", "true")
+    assert me.authority_allows_open("mlto", "factor_route", trading_mode="live") is False
