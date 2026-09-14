@@ -38,7 +38,11 @@ export function UnifiedAccountCard({
   className?: string;
 }) {
   const acct = data?.account;
-  const strategies = data?.strategies ?? [];
+  // [2026-09-14 清理] 过滤空策略行（"(未标注)" 是账户级账本行，不是策略分账）；
+  // 只展示真正有策略归属的行，避免旧账本噪声污染「按策略分账」表。
+  const strategies = (data?.strategies ?? []).filter(
+    (s) => s.strategy_type && s.strategy_type !== "(未标注)" && s.strategy_type.trim() !== ""
+  );
   const activeExchanges = useMemo(
     () => (data?.exchanges ?? []).filter((e) => e.allocated_usd > 0 || e.available_usd > 0 || e.frozen_usd > 0),
     [data]
@@ -64,7 +68,14 @@ export function UnifiedAccountCard({
             <span className="font-mono text-[11px] text-muted-foreground">account_id={acct.account_id}</span>
             {acct.preset && <span className="text-[11px] text-muted-foreground">预设：{acct.preset}</span>}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">统一模拟账户 · 做市已并入该账户</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            统一模拟账户 · 做市已并入该账户
+            {activeExchanges.length === 1
+              ? ` · 资金全仓于 ${activeExchanges[0].exchange}（做市专用，无跨所切分、无旧策略额度）`
+              : activeExchanges.length > 1
+                ? ` · 资金分布于 ${activeExchanges.length} 个交易所`
+                : ""}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs sm:grid-cols-3">
           <Metric label="权益" value={fmtUsd(acct.total_equity)} grad />
@@ -76,7 +87,7 @@ export function UnifiedAccountCard({
 
       {/* 按策略分账表 */}
       <div>
-        <div className="mb-1.5 text-xs text-muted-foreground">按策略分账（各周期相互配合）</div>
+        <div className="mb-1.5 text-xs text-muted-foreground">按策略分账</div>
         <div className="overflow-x-auto rounded-xl border border-border/40">
           <table className="data-table">
             <thead>
@@ -132,7 +143,7 @@ export function UnifiedAccountCard({
                     </span>
                   </div>
                   {budgetKeys.length === 0 && limitKeys.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground">未配置 strategy_budgets / strategy_limits</div>
+                    <div className="text-[11px] text-muted-foreground">全额分配到本所（无跨所/多策略切分）</div>
                   ) : (
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
