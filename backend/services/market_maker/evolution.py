@@ -35,6 +35,11 @@ GRID: Dict[str, List[Any]] = {
     "k_inv": [0.6, 1.0],
     "frozen_max_move_bp": [5.0, 8.0, 12.0],
     "ofi_block_threshold": [0.0, 0.5],
+    # [F88b] 把「冻结档」自身也交给进化：冻结宽度/冻结时间常数/波动缩放
+    # （此前 frozen_width 固定 3bp、lookback 固定 240、k_vol 固定 0 都是人工定的）
+    "frozen_width_bp": [2.0, 3.0, 4.0],
+    "frozen_lookback": [120, 240, 480],
+    "k_vol": [0.0, 0.3],
 }
 # 护栏
 MIN_FILLS = 150              # 验证窗最少成交
@@ -146,7 +151,7 @@ def _apply_params(lane_id: str, base_meta: Dict[str, Any], new_params: Dict[str,
 def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14.0,
                         train_ratio: float = 0.6, equity: float = 300.0,
                         fill_notional: Optional[float] = None,
-                        max_candidates: int = 12) -> Dict[str, Any]:
+                        max_candidates: int = 24) -> Dict[str, Any]:
     """跑一轮自进化：有界候选 + 走查验证 + 护栏 + （可选）落地。
 
     返回结构化结果（含候选指标表与决策），并写日志。

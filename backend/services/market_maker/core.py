@@ -320,6 +320,13 @@ class LaneRiskLimits:
     # 「固定 900 秒」改为「流向顺风时」，理论上是执行时机的改进（最优执行文献）。
     ofi_flatten_threshold: float = 0.0         # 0=关闭；0.5=|OFI|>0.5 视为顺风
     ofi_flatten_min_age_ratio: float = 0.5     # 持仓超过 hold 的该比例后才考虑择时平仓
+    # ── [F89a 2026-09-14] 陈旧挂单保护 ──
+    # 现场事故：币种重新加入宇宙时，运行态里残留着**数天前的挂单**（quote_bid/ask），
+    # 首个 tick 把「当前区间成交」判成这些旧价位的成交——4 笔幻影成交、净敞口冲到
+    # -$739（上限 $300），且账本用旧 ref_mid 记成 +8~+12bp 假盈利。
+    # 保护：挂单年龄 > max_quote_age_sec（默认 90s = 6 个 tick）⇒ 直接丢弃挂单、
+    # 不做成交判定（与「数据陈旧撤单」同源，但覆盖「状态陈旧」场景）。
+    max_quote_age_sec: float = 90.0
 
 
 def lane_pause_reason(

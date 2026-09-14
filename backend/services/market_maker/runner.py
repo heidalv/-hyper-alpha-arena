@@ -317,6 +317,17 @@ def plan_tick(
 
     limit_notional = equity * limits.max_net_directional_ratio
 
+    # [F89a 2026-09-14] 陈旧挂单保护：挂单年龄超限 ⇒ 丢弃挂单、不判成交。
+    # 现场事故：币种重新加入宇宙时运行态残留数天前的挂单，首个 tick 把当前区间
+    # 成交判成这些旧价位的成交（4 笔幻影成交、净敞口 -$739 > 上限 $300，且账本
+    # 用旧 ref_mid 记成假盈利）。默认阈值 90s（6 个 15s tick）。
+    _max_q_age = float(getattr(limits, "max_quote_age_sec", 0.0) or 0.0)
+    if (_max_q_age > 0 and state.quote_ts > 0
+            and (now_ts - float(state.quote_ts)) > _max_q_age):
+        state.quote_bid = state.quote_ask = state.quote_ts = 0.0
+        state.quote_mid = 0.0
+        dec.skip = dec.skip or "stale_quote_cleared"
+
     # ① 旧挂单成交判定（区间成交明细）
     # **两侧独立判定**：一侧被敞口/趋势闸门挡住时挂单价为 0，但另一侧的挂单
     # 依然真实存在、必须照常检查成交。此前用 `bid>0 and ask>0` 作为总开关，
