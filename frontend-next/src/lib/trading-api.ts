@@ -256,6 +256,10 @@ export interface ShadowStatus {
   /** [F95] 闸门拦截分布（进程内累计）+ 双边/单边/未挂 报价计数 */
   skip_counts?: Record<string, number>;
   side_counts?: Record<string, number>;
+  /** [F98] 实盘实际挂宽（半宽 bp，只统计真挂出去的一侧）与平均 σ */
+  avg_width_bp?: { bid: number | null; ask: number | null };
+  avg_sigma?: number | null;
+  quoted_decisions?: number;
   as_of?: string | null;
 }
 

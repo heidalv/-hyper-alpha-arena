@@ -214,13 +214,22 @@ def lane_limits_enforce_enabled() -> bool:
 def lane_day_pnl_usd(lane_id: str, now_ts: Optional[float] = None) -> float:
     """本 UTC 日的车道已实现净额（美元）——日亏闸 `daily_loss_stop_pct` 的输入。
 
-    取 `lane_ledger.daily_series`（唯一事实源）最后一行；失败返回 0.0
-    （fail-open：读不到账本不应把车道停掉，但会在 `last_error` 里可见）。
+    [F98 2026-09-14] **按统计时代（当前配置代）裁剪**：口径 = `ts >= max(当日 0 点,
+    stats_since)`。原因：实测今日（UTC）车道净额 −$18.77，其中 **−$13.73 来自
+    「修复前」的旧配置时期**（06:00 −$9.80 / 10:00 −$4.21 的漏单与幻影成交时期），
+    时代内只有 −$5.04。若按自然日不裁剪，日亏闸会**用已被修掉的缺陷造成的亏损**
+    去停掉现在的车道（阈值 −$30 已被占用 63%），既不公平也难排查；而且与前端展示
+    （时代口径）自相矛盾。fail-open：读不到账本返回 0.0（不因读数失败停车道）。
     """
     try:
-        from backend.services import lane_ledger
+        from backend.services import lane_ledger, lane_registry
 
-        rows = lane_ledger.daily_series(lane_id=lane_id, days=2) or []
+        _since = None
+        try:
+            _since = (lane_registry.get_lane(lane_id) or {}).get("meta", {}).get("stats_since")
+        except Exception:
+            _since = None
+        rows = lane_ledger.daily_series(lane_id=lane_id, days=2, since=_since) or []
         if not rows:
             return 0.0
         today = datetime.now(timezone.utc).date()
@@ -412,6 +421,11 @@ def plan_tick(
     # [F94] 本 tick 其余币**在挂同向腿**的名义（最坏情形风险预留）：调用方维护，
     # 形如 {"up": 买单在挂名义, "down": 卖单在挂名义}，跨币累加。
     pending: Optional[Dict[str, float]] = None,
+    # [F98 2026-09-14] 车道级闸门开关：None = 读环境变量（生产默认行为），
+    # True/False = 显式覆盖（回放/实验用）。此前闸门调用被 env 硬门控，
+    # 回放**永远测不到** daily_loss_stop_pct / toxic_streak ⇒ 配置里的这两个
+    # 数字从未被任何实验覆盖过（本次修复后才能真正 A/B）。
+    lane_limits_enforce: Optional[bool] = None,
 ) -> Tuple[TickDecision, Dict[str, Any]]:
     """一个 tick 的纯决策：成交判定 → 超时平仓 → 重挂新单。
 
@@ -657,7 +671,9 @@ def plan_tick(
     # 打开后只执行**车道级**判据（权益/波动/毒性流/日亏）——
     # **绝不**把手伸到敞口判据：那会让"减仓腿"一起停掉，库存只能等超时砸单。
     # 位置刻意放在 ①′止损 / ②超时平仓 **之后** ⇒ 暂停永远不阻断已有库存的离场。
-    if lane_limits_enforce_enabled():
+    # [F98] 开关：显式参数优先（回放/实验可强制开启），否则读环境变量（生产默认）
+    if (lane_limits_enforce if lane_limits_enforce is not None
+            else lane_limits_enforce_enabled()):
         _lane_pause, _lane_why = lane_pause_reason(
             equity=equity, limits=limits, sigma_norm=sigma_norm,
             toxic_streak=state.toxic_streak, day_pnl_usd=day_pnl_usd,
@@ -669,6 +685,14 @@ def plan_tick(
             if dec.action != "flatten":
                 dec.action = "pause"
             state.quote_bid = state.quote_ask = state.quote_ts = 0.0
+            # [F98 2026-09-14] **暂停必须自解除**：`toxic_streak` 只在成交判定里
+            # 更新（成交才 +1 / 否则归零），而暂停会清掉挂单 ⇒ 不再有成交 ⇒ 计数
+            # 永远卡在阈值上 ⇒ **整车道永久停摆**（谁打开 MM_LANE_LIMITS_ENFORCE
+            # 谁中招，且表现为「策略突然不成交」）。语义上「暂停一拍」本身就意味着
+            # 这一段毒性行情已经避开，重新武装计数即可（15s 粒度下暂停一拍=一个桶）。
+            # 日亏闸不需要这样处理：它按 UTC 日读账本，跨日自然解除（这是它的设计）。
+            if _lane_why.startswith("toxic_streak"):
+                state.toxic_streak = 0
             return dec, {"book": local_book, "lane_pause": _lane_why}
 
     # [F71b] 波动状态闸门：高波动时平仓成本吞掉价差 → 暂停该币
@@ -888,6 +912,11 @@ class ShadowRunner:
         # [F95] 闸门拦截分布（进程内累计）：实盘「哪道闸门在吃成交」的可观测性
         self.skip_counts: Dict[str, int] = {}
         self.side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
+        # [F98] 挂宽均值（进程内累计）：k_vol>0 后挂宽随波动变化，必须能直接看到
+        # 实盘实际挂多宽——否则「实盘成交比回放少」只能靠猜（挂宽是首要嫌疑）。
+        self._w_sum = {"bid": 0.0, "ask": 0.0}
+        self._w_n = 0
+        self._sigma_sum = 0.0
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
@@ -1333,6 +1362,14 @@ class ShadowRunner:
                 self.side_counts["one"] += 1
             else:
                 self.side_counts["none"] += 1
+            # [F98] 挂宽观测：只统计真正挂出去的那一侧（未挂侧宽度为 0，不该摊薄均值）
+            if dec.bid > 0:
+                self._w_sum["bid"] += float(dec.w_bid_bp or 0.0)
+            if dec.ask > 0:
+                self._w_sum["ask"] += float(dec.w_ask_bp or 0.0)
+            if dec.bid > 0 or dec.ask > 0:
+                self._w_n += 1
+                self._sigma_sum += float(sigma or 0.0)
             self._record_fills(dec)
             self.fills += len(dec.fills)
             self.flattens += sum(1 for f in dec.fills if f.is_flatten)
@@ -1509,6 +1546,12 @@ class ShadowRunner:
             "skip_counts": dict(sorted(self.skip_counts.items(),
                                        key=lambda kv: -kv[1])[:12]),
             "side_counts": dict(self.side_counts),
+            # [F98] 挂宽/σ 观测（进程内均值）：与回放同口径对比「实盘挂多宽」
+            "avg_width_bp": {
+                "bid": round(self._w_sum["bid"] / self._w_n, 3) if self._w_n else None,
+                "ask": round(self._w_sum["ask"] / self._w_n, 3) if self._w_n else None},
+            "avg_sigma": round(self._sigma_sum / self._w_n, 3) if self._w_n else None,
+            "quoted_decisions": self._w_n,
             # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
             # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
             "orphan_inventory": {s: round(float(st.qty), 8)

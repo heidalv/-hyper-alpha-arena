@@ -426,6 +426,22 @@ function PositionsInner() {
               <div>腿量 <span className="font-mono text-foreground">{fmtUsd(shadow.data?.fill_notional ?? 0)}</span>（复利 {shadow.data?.compound_ratio ?? 0}）</div>
               <div>账户 <span className="font-mono text-foreground">#{shadow.data?.account_id ?? "—"}</span> · {shadow.data?.venue ?? ""}</div>
             </div>
+            {/* [F98] 实盘实际挂宽/σ：k_vol>0 后挂宽随波动变化，成交变少时要能立刻看到是不是挂太宽 */}
+            {shadow.data?.avg_width_bp && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                <span>实盘平均挂宽（半宽）</span>
+                <span className="font-mono text-foreground">
+                  买 {shadow.data.avg_width_bp.bid != null ? `${shadow.data.avg_width_bp.bid.toFixed(2)}bp` : "—"}
+                  {" / "}
+                  卖 {shadow.data.avg_width_bp.ask != null ? `${shadow.data.avg_width_bp.ask.toFixed(2)}bp` : "—"}
+                </span>
+                <span>平均 σ <span className="font-mono text-foreground">{shadow.data.avg_sigma != null ? shadow.data.avg_sigma.toFixed(2) : "—"}</span></span>
+                <span>报价决策 <span className="font-mono text-foreground">{shadow.data.quoted_decisions ?? 0}</span></span>
+                <span className="text-muted-foreground/70">
+                  （半宽 ×2 = 双边跨度；基准 {`w_base × (1 + k_vol×σ)`}）
+                </span>
+              </div>
+            )}
             {/* [F95] 闸门拦截分布：回答「过去这一小时是哪道闸门在吃成交」 */}
             {(shadow.data?.skip_counts && Object.keys(shadow.data.skip_counts).length > 0) && (
               <div className="mt-2 rounded-lg border border-border/40 px-3 py-2">

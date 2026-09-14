@@ -34,11 +34,15 @@ T0 = 1_700_000_000.0          # 统一纪元（秒）
 
 
 def _limits():
+    # [F98] toxic_streak=0 = 关闭毒性闸：本文件测「减仓腿精确平仓」的成交换手，
+    # 而测试里 100→101 的中价跳变会被判为毒性流（>toxic_bp），三连击后车道暂停
+    # ⇒ 与本文件无关地丢掉成交。显式关闭，避免测试随运营环境开关漂移。
     return LaneRiskLimits(trend_pause_bp=0.0, vol_pause_mult=0.0, vol_pause_sigma=0.0,
                           max_symbol_notional_ratio=1.0, max_net_directional_ratio=1.0,
                           max_net_exposure_ratio=1.0, max_quote_age_sec=90.0,
                           ofi_block_threshold=0.0, ofi_flatten_threshold=0.0,
-                          stop_loss_bp=0.0, max_one_side_seconds=10_000.0)
+                          stop_loss_bp=0.0, max_one_side_seconds=10_000.0,
+                          toxic_streak=0)
 
 
 def _state(qty=0.0, avg_px=0.0, avg_mid=0.0, opened_ts=0.0, bid=99.0, ask=101.0):

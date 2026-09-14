@@ -367,7 +367,12 @@ def lane_pause_reason(
     limits = limits if limits is not None else LaneRiskLimits()
     if equity <= 0:
         return True, "equity<=0"
-    if sigma_norm > limits.vol_pause_sigma:
+    # [F98 2026-09-14] σ 闸口径必须与 `check_side_allowed` 一致：**0 = 显式禁用**。
+    # 事故隐患：此前这里缺 `> 0` 守卫，而线上配置 `vol_pause_sigma=0.0`（表示关闭）
+    # ⇒ 一旦有人打开 `MM_LANE_LIMITS_ENFORCE`（配置里的 daily_loss_stop_pct=10、
+    # toxic_streak=3 都在暗示应当打开），σ>0 几乎恒成立 ⇒ **整车道永久停摆**，
+    # 表现为「策略突然不成交」，排查成本极高。同一参数在两道闸门里含义相反 = bug。
+    if limits.vol_pause_sigma > 0 and sigma_norm > limits.vol_pause_sigma:
         return True, f"vol_pause(sigma={sigma_norm:.2f})"
     if limits.toxic_streak and int(toxic_streak or 0) >= int(limits.toxic_streak):
         return True, f"toxic_streak({int(toxic_streak or 0)})"

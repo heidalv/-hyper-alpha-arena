@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -80,6 +81,11 @@ def replay_portfolio(
     # 使回放与实盘在同一状态、同一数据上逐桶推进——「实盘有没有漏成交」才可判定。
     init_states: Optional[Dict[str, Any]] = None,
     start_ts_ms: Optional[int] = None,
+    # [F98 2026-09-14] 车道级闸门（日亏全停 / 毒性流暂停）此前**回放里测不到**：
+    # `plan_tick` 的 day_pnl 由 `MM_LANE_LIMITS_ENFORCE` 门控，回放永远传 0
+    # ⇒ 配置里的 daily_loss_stop_pct=10 从未被任何实验覆盖。这里显式支持：
+    # 逐 UTC 日累计已实现盈亏并传入，闸门是否生效仍由 limits 决定。
+    enforce_lane_limits: bool = False,
 ) -> Dict[str, Any]:
     """按合并时间线回放多个标的，**共享库存账本**。"""
     from backend.services.market_maker.runner import SymbolState, plan_tick
@@ -138,6 +144,13 @@ def replay_portfolio(
     # 实盘/回放速率不一致时，用来判定差异在「报价行为」还是「成交判定」。
     side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
     skip_counts: Dict[str, int] = {}
+    # [F98] 车道级闸门：逐 UTC 日累计已实现盈亏（供 daily_loss_stop_pct）
+    _day_key: Optional[str] = None
+    _day_pnl = 0.0
+    lane_pause_counts: Dict[str, int] = {}
+    # [F98] 闸门「离触发有多远」的观测：最大单日亏损、最大毒性连击
+    max_daily_loss_usd = 0.0
+    max_toxic_streak = 0
     # [F94c] 风险实况：由**真实账本**逐快照统计（外部用成交日志重建会失真——
     # 实测重建值偏离真实值 2 倍以上，导致上限是否生效无法判断）
     max_net_usd = 0.0
@@ -147,6 +160,13 @@ def replay_portfolio(
     pending: Dict[str, float] = {"up": 0.0, "down": 0.0, "gross": 0.0}
 
     for ts in timeline:
+        # [F98] 车道级闸门输入：切换 UTC 日则重置日亏累计
+        if enforce_lane_limits:
+            _dk = time.strftime("%Y-%m-%d", time.gmtime(int(ts) / 1000.0))
+            if _dk != _day_key:
+                # 收尾上一天：记录最大单日亏损（闸门「离触发多远」的证据）
+                max_daily_loss_usd = min(max_daily_loss_usd, _day_pnl)
+                _day_key, _day_pnl = _dk, 0.0
         # [F94c] 每个快照开始时重建预留：按「加仓/减仓」区分（减仓腿只可能减掉现仓）
         pending["up"] = 0.0
         pending["down"] = 0.0
@@ -227,7 +247,13 @@ def replay_portfolio(
                 taker_fee_bp=4.0, maker_fee_bp=0.0, half_spread=half_spread,
                 sigma_norm=sigma, book=book, marks=marks,
                 ofi=ofi, pending=pending,
+                # [F98] 日亏闸输入（仅在显式要求时非零；否则与旧行为逐字一致）
+                day_pnl_usd=(_day_pnl if enforce_lane_limits else 0.0),
+                lane_limits_enforce=(True if enforce_lane_limits else None),
             )
+            if dec.lane_pause:
+                _lk = dec.lane_pause.split("(")[0]
+                lane_pause_counts[_lk] = lane_pause_counts.get(_lk, 0) + 1
             # [F94c] 新挂腿按加仓/减仓区分计入
             _u1, _d1, _g1 = _pending_contrib(states[s], marks.get(s, 0.0), _leg_nt)
             pending["up"] += _u1
@@ -246,12 +272,14 @@ def replay_portfolio(
                 side_counts["one"] += 1
             else:
                 side_counts["none"] += 1
+            max_toxic_streak = max(max_toxic_streak, int(states[s].toxic_streak or 0))
             for f in dec.fills:
                 # [F84] 队列份额截断观测：qty < 期望腿量 ⇒ 容量上限在约束
                 if f.qty * f.px < (fill_notional if _ratio <= 0
                                    else max(10.0, _ratio * running_equity)) * 0.9:
                     capped_fill_count += 1
                 running_equity += float(f.net_usd)
+                _day_pnl += float(f.net_usd)
                 notional_sum += f.qty * f.px
                 per_symbol[s]["fills"] += 1
                 per_symbol[s]["net_usd"] += f.net_usd
@@ -307,6 +335,11 @@ def replay_portfolio(
         # [F95] 行为计数（与实盘同口径）：定位实盘/回放速率差异来源
         "side_counts": side_counts,
         "skip_counts": dict(sorted(skip_counts.items(), key=lambda kv: -kv[1])[:12]),
+        # [F98] 车道级闸门触发次数（验证「配置的闸门是否真的在起作用」）
+        "lane_pause_counts": lane_pause_counts,
+        # [F98] 闸门裕度观测：最大单日亏损（USD，负值）与最大毒性连击
+        "max_daily_loss_usd": round(min(max_daily_loss_usd, _day_pnl), 2),
+        "max_toxic_streak": int(max_toxic_streak),
         "open_inventory_usd": round(gross, 2),
         "net_exposure_usd": round(book.net_notional(marks), 2),
         # [F94c] 风险实况（真实账本逐快照峰值）：用于验证上限是否真的兜住风险
