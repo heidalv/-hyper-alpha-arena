@@ -38,11 +38,14 @@ def _set_cap(monkeypatch, n: int):
 
 
 def test_cap_blocks_at_limit(monkeypatch):
+    """[验收轮3 语义更新] 中线开仓并发帽只数中线仓（车道化后长仓不占中线帽）。"""
     _set_cap(monkeypatch, 4)
     from backend.services.mlto.midlong_portfolio_risk import check_portfolio_open_allowed
 
-    positions = [_pos("AAA"), _pos("BBB", tier="long", nature="trend_follow"),
-                 _pos("CCC"), _pos("DDD", tier="long", nature="trend_follow")]
+    positions = [_pos("AAA", tier="mid", nature="swing"),
+                 _pos("BBB", tier="mid", nature="swing"),
+                 _pos("CCC", tier="mid", nature="swing"),
+                 _pos("DDD", tier="mid", nature="swing")]
     ok, why = check_portfolio_open_allowed(
         symbol="EEE", action="buy", portfolio=_portfolio(positions), new_notional=1000.0,
     )

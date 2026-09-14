@@ -57,7 +57,11 @@ def test_collect_midlong_positions_empty_when_portfolio_none():
 
 
 def test_gate_blocks_when_live_shaped_positions_injected(monkeypatch):
-    """注入 live 形状（交易所返回字段）的持仓后，组合闸必须按上限拦截。"""
+    """[验收轮3 语义更新] 注入 live 形状（交易所返回字段）的持仓后，组合闸必须按上限拦截。
+
+    车道化后：长车道开仓（long_lane=True）数长车道仓 vs 长车道帽；中线开仓数中线仓。
+    本用例持仓全为 trend_follow/position → 按长车道口径验证。
+    """
     from backend.config import settings
     from backend.services.mlto.midlong_portfolio_risk import (
         check_portfolio_open_allowed,
@@ -65,6 +69,7 @@ def test_gate_blocks_when_live_shaped_positions_injected(monkeypatch):
     )
     monkeypatch.setattr(settings, "MIDLONG_PORTFOLIO_GATE_ENABLED", True, raising=False)
     monkeypatch.setattr(settings, "MIDLONG_MAX_OPEN_POSITIONS", 3, raising=False)
+    monkeypatch.setattr(settings, "MIDLONG_MAX_LONG_LANE_POSITIONS", 3, raising=False)
     monkeypatch.setattr(settings, "MIDLONG_CORR_CLUSTER_SYMBOLS", "", raising=False)
 
     live_positions = [
@@ -80,6 +85,7 @@ def test_gate_blocks_when_live_shaped_positions_injected(monkeypatch):
         symbol="VIRTUAL", action="buy",
         portfolio={"balance": {"total_equity": 4710.0}, "positions": live_positions},
         new_notional=900.0,
+        long_lane=True,
     )
     assert not ok, f"3 笔实盘持仓 + 上限 3 时必须拦，实际放行：{why}"
     assert "midlong_open_positions" in why

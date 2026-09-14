@@ -24,13 +24,16 @@ MOD = "backend.services.mlto.midlong_portfolio_risk"
 
 
 def _fresh(monkeypatch, max_long_lane="8"):
-    monkeypatch.setenv("MIDLONG_MAX_OPEN_POSITIONS", "4")
-    monkeypatch.setenv("MIDLONG_MAX_LONG_LANE_POSITIONS", max_long_lane)
-    monkeypatch.setenv("MIDLONG_PORTFOLIO_GATE_ENABLED", "true")
-    monkeypatch.setenv("MIDLONG_MAX_NET_EXPOSURE_PCT", "1.5")
-    monkeypatch.setenv("MIDLONG_CORR_CLUSTER_MAX", "2")
-    monkeypatch.setenv("MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL")
-    monkeypatch.setenv("MIDLONG_MAX_SAME_SYMBOL_POSITIONS", "0")
+    # [验收轮4] 直接钉 settings 属性（env 已随用户指令 4→6，setenv 不影响已加载的 settings）
+    from backend.config import settings as _s
+    monkeypatch.setattr(_s, "MIDLONG_MAX_OPEN_POSITIONS", 4, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_MAX_LONG_LANE_POSITIONS", int(max_long_lane), raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_PORTFOLIO_GATE_ENABLED", True, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_MAX_NET_EXPOSURE_PCT", 1.5, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_CORR_CLUSTER_MAX", 2, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_CORR_CLUSTER_MAX_LONG", 3, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL", raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_MAX_SAME_SYMBOL_POSITIONS", 0, raising=False)
     mod = importlib.import_module(MOD)
     return importlib.reload(mod)
 
