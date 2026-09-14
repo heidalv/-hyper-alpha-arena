@@ -122,6 +122,40 @@ def compute_quote(
     )
 
 
+def seg_slice(labels, watermark_ms: int, snap_ms: int, *, created_ms=None,
+              tick_wall_ms=None) -> Tuple[int, int]:
+    """[F107 2026-09-14] 成交桶分片选择（**实盘与回放唯一口径**，纯函数）。
+
+    返回 `(i0, i1)`：本次判定可用的成交桶 = `labels[i0:i1]`。
+
+    为什么必须只用一个实现：这套口径先后错过两次，都造成实盘/模型系统性分叉——
+      - v1 `[ots[i], ots[i+1]]`：**前瞻**（拿挂单被刷新之后的成交判定它）；
+      - v2 `[ots[i-1], ots[i]]` **两端闭合**：每个桶同时落在相邻两轮分片里
+        ⇒ 同一批成交获得两次撞单机会（实测多算 ~1.5×）；
+      - v3（本实现，与实盘 tick 同构）：**下界半开、上界闭合**。
+
+    规则：
+      1. `labels > watermark_ms`（半开）——每个已落库的桶**恰好判定一次**；水位只在
+         **真读到桶**时前进 ⇒ 空分片不丢成交量（下一轮自动补收被跳过的标签）；
+      2. `labels <= snap_ms`（闭合）——只消费到本次决策所依据的快照那一桶，绝不把
+         "晚于该快照"的成交算进本次判定；
+      3. 可选**可见性**：`created_ms[k] <= tick_wall_ms` 的桶才算"当时已落库"。成交桶
+         是按**落库时刻**分桶的（`floor(flush/15s)`）且空桶不落行 ⇒ 一个桶在它自己的
+         标签时刻可能还不存在；实盘 tick 只能看到已落库的桶（实测落库滞后 1~13s、
+         网格填充率仅 47.5%）。不过滤就会用上"实盘当时还看不到"的成交 ⇒ 偏乐观。
+    """
+    import bisect
+
+    _wm = int(watermark_ms or 0)
+    i0 = bisect.bisect_right(labels, _wm)
+    i1 = bisect.bisect_right(labels, int(snap_ms or 0))
+    if created_ms is not None and tick_wall_ms is not None:
+        _tw = int(tick_wall_ms)
+        while i1 > i0 and int(created_ms[i1 - 1]) > _tw:
+            i1 -= 1
+    return i0, i1
+
+
 def sigma_norm_from_ranges(recent_ranges: List[float], baseline_range: float) -> float:
     """波动归一：近 N 期平均振幅 / 基准振幅 − 1，下限 0。"""
     if not recent_ranges or baseline_range <= 0:

@@ -23,6 +23,8 @@ from backend.services.market_maker.core import (
     LaneRiskLimits,
     QuoteParams,
     realized_vol_bp,
+    # [F107] 成交桶分片口径：实盘与回放共用同一个纯函数（口径分叉过两次，代价很大）
+    seg_slice,
 )
 # [F94c] 在挂腿风险预留口径必须与实盘 tick 完全一致（同一函数，避免两处漂移）
 from backend.services.market_maker.runner import pending_contrib as _pending_contrib  # noqa: E402
@@ -37,9 +39,11 @@ def _load_all(symbols: List[str], venue: str = DEFAULT_VENUE) -> Dict[str, Dict[
 
     out: Dict[str, Dict[str, np.ndarray]] = {}
     for s in symbols:
-        ots, bb, ba, tts, lo, hi, sv, bv = rp._load_series(s, venue)
+        # [F107] 一并取成交桶的落库时刻（可见性过滤要用）
+        ots, bb, ba, tts, lo, hi, sv, bv, tmk = rp._load_series(s, venue, None,
+                                                                with_created=True)
         out[s] = {"ots": ots, "bb": bb, "ba": ba, "tts": tts,
-                  "lo": lo, "hi": hi, "sv": sv, "bv": bv}
+                  "lo": lo, "hi": hi, "sv": sv, "bv": bv, "tmk": tmk}
     return out
 
 
@@ -86,8 +90,17 @@ def replay_portfolio(
     # ⇒ 配置里的 daily_loss_stop_pct=10 从未被任何实验覆盖。这里显式支持：
     # 逐 UTC 日累计已实现盈亏并传入，闸门是否生效仍由 limits 决定。
     enforce_lane_limits: bool = False,
+    # [F106 2026-09-14] 收集逐笔挂单序列（分布对比用；默认关闭，行为不变）
+    collect_quotes: bool = False,
+    # [F107 2026-09-14] 回放 tick 相对快照标签的滞后（毫秒）。实盘 tick 读的是
+    # "当时最新的快照"，而快照标签是它被采集的网格时刻 ⇒ 实盘看到的一切都滞后
+    # 这么多（实测数据龄中位 8.8s）。用它做**成交桶可见性过滤**：标签 ≤ 快照但
+    # `created_at > 快照标签 + 该滞后` 的桶，实盘当时**还没看到**，回放也不能用。
+    # `None` = 关闭过滤（历史行为，仅用于对照实验）。
+    tick_delay_ms: Optional[float] = 8800.0,
 ) -> Dict[str, Any]:
     """按合并时间线回放多个标的，**共享库存账本**。"""
+    from backend.services.market_maker.runner import SEG_BUCKET_MS as _SEG_BUCKET_MS
     from backend.services.market_maker.runner import SymbolState, plan_tick
 
     params = params or QuoteParams(w_base_bp=8.0, k_inv=0.6)
@@ -121,8 +134,13 @@ def replay_portfolio(
     vol_baseline: Dict[str, float] = compute_vol_baselines(_mid_series)
     for s in symbols:
         states[s].vol_baseline_bp = float(vol_baseline.get(s) or 0.0)
-    # [F103] 每币「上一段」成交明细（= 当前在挂单的存续期内成交），用于下一轮判定
-    prev_win: Dict[str, Any] = {}
+    # [F107] 每币成交桶**水位**（= 已消费到的最大桶标签；只在真读到桶时前进）。
+    # 与实盘 `SymbolState.last_seg_ms` 同构：半开下界 ⇒ 每个已落库的桶恰好判定一次，
+    # 空分片不丢成交量（下一轮补收）。
+    seg_wm: Dict[str, int] = {}
+    win_judged = 0        # 判定区间非空的次数
+    win_empty = 0         # 判定区间为空（该币分片内没有任何已落库桶）的次数
+    win_invisible = 0     # 分片内有桶但**当时还未落库**（实盘也看不到）的次数
     # 每个币的下一个快照下标
     idx = {s: 0 for s in symbols}
     # 合并时间线：所有币的快照时间戳并集（升序）
@@ -151,6 +169,12 @@ def replay_portfolio(
     _w_sum = {"bid": 0.0, "ask": 0.0}
     _w_n = 0
     _sigma_sum = 0.0
+    # [F106 2026-09-14] **逐笔挂单序列**（`collect_quotes=True` 时收集）。
+    # 动机：F99 起只有"均值"（avg_width_bp / side_counts），而 F106a 实测实盘挂宽的
+    # **完整分布**与均值差很远（中位 6.43bp，但单侧率高达 61.5%）——"均值相同"完全
+    # 可能是两种不同分布。要判定实盘成交少是"挂得更宽"还是"只挂单侧"，必须有
+    # 同窗口的**分布**。默认不收集（大扫描不付内存代价，行为逐字不变）。
+    quotes_log: List[Dict[str, Any]] = []
     # [F98] 车道级闸门：逐 UTC 日累计已实现盈亏（供 daily_loss_stop_pct）
     _day_key: Optional[str] = None
     _day_pnl = 0.0
@@ -217,28 +241,47 @@ def replay_portfolio(
                 book.positions.pop(s, None)
                 skips["data_gap"] = skips.get("data_gap", 0) + 1
                 continue
-            j0 = int(np.searchsorted(d["tts"], d["ots"][i], "left"))
-            j1 = int(np.searchsorted(d["tts"], d["ots"][i + 1], "right"))
-            _w_lo = float(d["lo"][j0:j1].min()) if j1 > j0 else 0.0
-            _w_hi = float(d["hi"][j0:j1].max()) if j1 > j0 else 0.0
-            _w_sv = float(d["sv"][j0:j1].sum()) if j1 > j0 else 0.0
-            _w_bv = float(d["bv"][j0:j1].sum()) if j1 > j0 else 0.0
-            # [F103 2026-09-14] **成交判定窗口必须用「上一段」而不是「本段」**。
-            # 旧口径：把 [ots[i], ots[i+1]) 交给 plan_tick，而 plan_tick 检验的是
-            # **上一轮挂出的单**（状态里的 quote）⇒ 挂单被拿"它被刷新之后才发生的
-            # 成交"来判定 ⇒ **前瞻偏差**，系统性多算成交。单标的 `replay.py` 没有
-            # 这个问题（它在同一轮内先算挂单、再用同段成交判定）。
-            # 现场证据：同窗口实盘成交只有该回放的 0.38~0.6×，且蒙特卡洛 12 个实现
-            # 分布极紧（107~119 vs 实盘 43）⇒ 不是"自然分叉"而是模型偏差。
-            # 修：用该币**上一段**（= 挂单存续期内）的成交明细判定，本段留到下一次。
-            _prev = prev_win.get(s)
-            prev_win[s] = (_w_lo, _w_hi, _w_sv, _w_bv)
-            if _prev is None:
-                continue          # 第一段没有"上一段"⇒不判定（下一段起正常）
-            seg_low, seg_high, seg_sell, seg_buy = _prev
-            # [F103] OFI 同样要退一段：迭代 i 时已知的是**被判定窗口**那一桶的流向
-            # （信息集约束），旧口径取 `ts <= ots[i]` 的最后一桶 = 尚未判定的那一桶。
-            _k = int(np.searchsorted(d["tts"], d["ots"][i], "left")) - 1
+            # [F107 2026-09-14] **成交桶分片：每个桶恰好判定一次**（与实盘 tick 同构）。
+            # 历史两版口径都不对：
+            #   v1 `[ots[i], ots[i+1]]` **前瞻**——拿"挂单被刷新之后才发生的成交"判定它；
+            #   v2（F103）`[ots[i-1], ots[i]]` **两端闭合**——每个桶同时属于相邻两轮分片
+            #      ⇒ 同一批成交获得**两次**撞单机会 ⇒ 系统性多算成交
+            #      （实测：该口径 65.4 笔/h vs 实盘 36 笔/h；单侧命中率 2.2×；空区间
+            #       0% vs 实盘 52%）。
+            # 实盘（runner.fetch_market）的口径才是唯一自洽的：
+            #   窗口 = `(水位, 当前快照标签]`——**下界半开**，水位只在**真读到桶**时前进
+            #   ⇒ ①每个已落库的桶恰好消费一次（不会两轮都算）；②水位不动时下一轮自动
+            #   补收被跳过的标签（空分片不丢成交量）；③判定对象就是"此刻状态里在挂的
+            #   那张单"（依据 = 上一快照），与"该桶落库时市场上真正在挂的单"一致。
+            # 现场数据缺陷：asterdex 成交桶只有 **47.5%** 的 15s 网格被填充
+            # （30s 轮询 + 15s flush + 空桶不落行）⇒ 约一半分片是空的；这是**数据层**
+            # 缺陷，实盘同样存在，回放必须**如实复现**，不能靠多算一个桶"补"回来。
+            _wm = seg_wm.get(s)
+            if _wm is None:
+                _wm = int(d["ots"][i]) - _SEG_BUCKET_MS      # 冷启动：只看当前桶
+            _snap = int(d["ots"][i])
+            _tw = (_snap + float(tick_delay_ms)) if tick_delay_ms is not None else None
+            _i0, _i1 = seg_slice(d["tts"], _wm, _snap,
+                                 created_ms=(d.get("tmk") if _tw is not None else None),
+                                 tick_wall_ms=_tw)
+            if _i1 <= _i0 and _tw is not None:
+                # 分片里有桶但**此刻都还没落库**（实盘同样看不到）
+                _r0, _r1 = seg_slice(d["tts"], _wm, _snap)
+                if _r1 > _r0:
+                    win_invisible += 1
+            if _i1 > _i0:
+                seg_wm[s] = int(d["tts"][_i1 - 1])          # 水位只前进到真读到的标签
+                seg_low = float(d["lo"][_i0:_i1].min())
+                seg_high = float(d["hi"][_i0:_i1].max())
+                seg_sell = float(d["sv"][_i0:_i1].sum())
+                seg_buy = float(d["bv"][_i0:_i1].sum())
+                win_judged += 1
+            else:
+                # 空分片：水位**不动**（下一轮补收），本判定区间为空
+                seg_low = seg_high = seg_sell = seg_buy = 0.0
+                win_empty += 1
+            # [F103] OFI：被判定窗口那一桶的流向（信息集约束；不能再取"尚未判定的那一桶"）
+            _k = (_i1 - 1) if _i1 > _i0 else -1
             ofi = 0.0
             if _k >= 0:
                 _b, _s = float(d["bv"][_k]), float(d["sv"][_k])
@@ -254,6 +297,10 @@ def replay_portfolio(
             pending["up"] = max(0.0, pending["up"] - _u0)
             pending["down"] = max(0.0, pending["down"] - _d0)
             pending["gross"] = max(0.0, pending["gross"] - _g0)
+            # [F106] 被判定挂单 = 重挂前的运行态挂单（与实盘 tick 的 _qb0/_qa0 同口径）
+            _qb0 = float(getattr(_st, "quote_bid", 0.0) or 0.0)
+            _qa0 = float(getattr(_st, "quote_ask", 0.0) or 0.0)
+            _qm0 = float(getattr(_st, "quote_mid", 0.0) or 0.0)
             dec, _meta = plan_tick(
                 state=states[s], mid=mid, seg_low=seg_low, seg_high=seg_high,
                 seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
@@ -301,6 +348,22 @@ def replay_portfolio(
             if dec.bid > 0 or dec.ask > 0:
                 _w_n += 1
                 _sigma_sum += float(sigma or 0.0)
+            # [F106] 逐笔挂单 + 被判定挂单的"穿越"细节（与实盘 cross_counts 同口径）
+            if collect_quotes:
+                quotes_log.append({
+                    "ts_ms": int(d["ots"][i]),
+                    "judged_ms": int(d["ots"][i - 1]),
+                    "symbol": s,
+                    "mid": mid, "sigma": round(float(sigma or 0.0), 4),
+                    "new_bid": dec.bid, "new_ask": dec.ask,
+                    "new_w_bid": round(float(dec.w_bid_bp or 0.0), 4),
+                    "new_w_ask": round(float(dec.w_ask_bp or 0.0), 4),
+                    "judged_bid": _qb0, "judged_ask": _qa0, "judged_mid": _qm0,
+                    "seg_low": seg_low, "seg_high": seg_high,
+                    "seg_sell": seg_sell, "seg_buy": seg_buy,
+                    "skip": str(dec.skip or ""),
+                    "n_fills": len(dec.fills),
+                })
             for f in dec.fills:
                 # [F84] 队列份额截断观测：qty < 期望腿量 ⇒ 容量上限在约束
                 if f.qty * f.px < (fill_notional if _ratio <= 0
@@ -384,4 +447,12 @@ def replay_portfolio(
         "final_equity": round(running_equity, 4),
         "capped_fill_count": capped_fill_count,
         "fills_log": fills_log,
+        # [F106] 逐笔挂单序列（仅 collect_quotes=True 时非空）
+        "quotes_log": quotes_log,
+        # [F107] 判定区间/可见性观测：空分片率与"当时还看不到"率直接量化了数据层
+        # 缺陷（成交桶只有 47.5% 的网格被填充）对成交数的影响，也是实盘/回放对齐证据。
+        "win_judged": win_judged,
+        "win_empty": win_empty,
+        "win_invisible": win_invisible,
+        "tick_delay_ms": tick_delay_ms,
     }

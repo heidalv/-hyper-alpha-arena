@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -96,8 +96,16 @@ class SymbolResult:
         }
 
 
-def _load_series(symbol: str, venue: str, start_ts: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """读取盘口快照与区间成交（毫秒时间戳）。"""
+def _load_series(symbol: str, venue: str, start_ts: Optional[int] = None,
+                 *, with_created: bool = False):
+    """读取盘口快照与区间成交（毫秒时间戳）。
+
+    [F107] `with_created=True` 时额外返回第 9 个数组 `tmk` = 每个成交桶的
+    **落库时刻**（`created_at`，毫秒）。为什么必要：asterdex 的成交桶是**按落库时刻
+    分桶**（`floor(flush_time/15s)`）且**空桶不落行** ⇒ 一个桶在它自己的标签时刻
+    **可能还不存在**。实盘 tick 只能看到"当时已落库"的桶；回放若不做这个可见性过滤，
+    就会用到实盘当刻还看不到的数据 ⇒ 系统性偏乐观。`tmk` 让回放与实盘逐刻对齐。
+    """
     from sqlalchemy import text
 
     from backend.core.tenant import system_identity
@@ -111,7 +119,8 @@ def _load_series(symbol: str, venue: str, start_ts: Optional[int] = None) -> Tup
                 " ORDER BY timestamp ASC"
             ), {"e": venue, "s": symbol}).mappings().all()
             tr = db.execute(text(
-                "SELECT timestamp, low_price, high_price, taker_sell_volume, taker_buy_volume"
+                "SELECT timestamp, low_price, high_price, taker_sell_volume, taker_buy_volume,"
+                " created_at"
                 " FROM market_trades_aggregated WHERE exchange=:e AND symbol=:s"
                 " ORDER BY timestamp ASC"
             ), {"e": venue, "s": symbol}).mappings().all()
@@ -127,6 +136,31 @@ def _load_series(symbol: str, venue: str, start_ts: Optional[int] = None) -> Tup
     if start_ts:
         m = ots >= int(start_ts)
         ots, bb, ba = ots[m], bb[m], ba[m]
+    if with_created:
+        # [F107] `created_at` 是 **naive** 时间戳，且列里存的是"本地墙钟"（实测与桶标签
+        # 的差 = 1~13s ✓）。直接用 `EXTRACT(EPOCH ...)` 会被当成 UTC ⇒ 整体偏 **8 小时**
+        # （实测 28807s ✗，会把所有桶都判成"当时还没落库"⇒ 回放 0 成交）。这里统一：
+        # 先按本地时区取 epoch；若与标签相差超过 1 小时（说明列语义是 UTC-naive），
+        # 再减去本地偏移。异常行（NULL）按"落后一个桶"保守处理。
+        _off_ms = int((datetime.now().astimezone().utcoffset() or timedelta(0))
+                      .total_seconds() * 1000)
+        _tmk: List[int] = []
+        for r in tr:
+            _lab = int(r["timestamp"])
+            _ca = r["created_at"]
+            if _ca is None:
+                _tmk.append(_lab + 15000)
+                continue
+            try:
+                _v = int(_ca.timestamp() * 1000)
+            except Exception:
+                _tmk.append(_lab + 15000)
+                continue
+            if _v - _lab > 3_600_000:
+                _v -= _off_ms
+            _tmk.append(_v)
+        tmk = np.array(_tmk, dtype=np.int64)
+        return ots, bb, ba, tts, lo, hi, sv, bv, tmk
     return ots, bb, ba, tts, lo, hi, sv, bv
 
 

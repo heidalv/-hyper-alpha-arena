@@ -1,93 +1,85 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789388485577,
+  "ts_ms": 1789389151382,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.842,
-  "run_id": "e97fa3e13f2b48fab1b27ddea672e20e",
-  "context_hash": "d93d5c8e5c3f29c14a3116b805bc042c13035d761938587e7d7d2da38950f1ea",
+  "consensus_score": 0.7,
+  "run_id": "5bcf54b01487441a80bff80460c6d8b6",
+  "context_hash": "cb017a6f462b279eb00b4721a3039467d9faa4b48b75504597380ad45c4927bf",
   "final": {
-    "direction": "bearish",
-    "strength": 5.0,
-    "confidence": 0.575,
-    "half_life_hours": 7.0,
+    "direction": "bullish",
+    "strength": 3,
+    "confidence": 0.5,
+    "half_life_hours": 12,
     "affected_symbols": [
-      "BTW"
+      "BZ"
     ],
-    "hedging_window_hours": 10.0,
+    "hedging_window_hours": 12,
     "position_adjustments": [
       {
-        "symbol": "BTW",
-        "action": "tighten_stops",
-        "reason": "gateio单所正资金费飙升至+0.363%/8h（约+397% APR），但binance/bybit资金费仍处于正常偏低水平（0.05–0.08%），呈交易所割裂；OI已-14%且过去1h OI再降-23.5%，表明多头正在主动减仓以规避高资金费成本；同时1h大跌-12.9%、1d跌-13.1%，但4h/1h趋势仍标记bullish，存在轧空后回调风险，应收紧止损并避免新增多头"
+        "symbol": "BZ",
+        "action": "no_new_short",
+        "reason": "BZ 四所资金费全负（bybit -0.299%/8h≈-328% APR，gateio -0.259%，asterdex -0.159%，binance -0.156%），新开空头需支付极端费率；且 24h 空头清算 $64,103 vs 多头仅 $326、全局多空比 0.368，逼空上行风险占优，不宜加入拥挤空头"
       },
       {
-        "symbol": "BTW",
-        "action": "no_new_long",
-        "reason": "即便4h趋势仍bullish，正资金费+1h -12.9%的反向波动表明多头拥挤正在被挤出现货/期货，叠加OI大幅下降（24h -14%），新增做多风险收益比恶化"
-      },
-      {
-        "symbol": "BTW",
+        "symbol": "BTCUSDT",
         "action": "none",
-        "reason": "当前组合中无BTW持仓，账户14仅持有BNB/BTC/ETH/SOL/UNI/XPL/XRP，无需对BTW做仓位调整"
+        "reason": "context 中 correlation_pairs 与 corr_to_btc 为空，无证据表明 BZ 资金费极值会传导至已持有的主流币多头组合，维持现有持仓"
       },
       {
-        "symbol": "BTW",
-        "action": "no_new_long",
-        "reason": "gateio 极端正费率 +0.363%/8h（≈+397% APR）显示多头拥挤付费（global_ls 0.711、top_pos_ls 1.996），且事件前 1h OI 名义 -23.5%（$124.7M→$95.4M）伴随价格 1h -12.92%，多头去杠杆/挤仓已在进行；30d +102.8% 高位回落风险大，禁止新开多。当前账本 11 笔持仓均不涉及 BTW，无需 reduce/hedge"
+        "symbol": "ETHUSDT",
+        "action": "none",
+        "reason": "缺乏 BZ 与主流币相关性数据，现有 ETH 多头（R+0.15）不受本事件直接冲击，不调节"
+      },
+      {
+        "symbol": "SOLUSDT",
+        "action": "none",
+        "reason": "全市场 24h 多空清算大体均衡（多头 $18.6M vs 空头 $20.2M），无系统性风险信号，SOL 多头不调节"
       }
     ],
     "analogues": [
       {
-        "event": "同pack内 funding.extreme 多样本（LSK/STEEM/POWR/CVC/GLM等）方向多为负（空头付费），部分极端正资金费如BSP +1.433%/8h、FATCOIN +1.414%/8h 通常伴随短期回调",
-        "outcome": "历史经验：单交易所极端正资金费往往是多头过度拥挤信号，常见后续OI下降+价格回落，半衰期约4–12h"
+        "event": "同窗口 LSK 多所资金费极负（bybit -2.0%/8h≈-2190% APR，sev4）",
+        "outcome": "数据不足：context 未提供该类极值后的价格演化结果"
       },
       {
-        "event": "BTW同期position.oi_jump -23.5%（1h）",
-        "outcome": "OI骤降伴随资金费飙升通常意味着杠杆多头平仓兑现成本，方向偏空但已被部分定价"
+        "event": "同窗口 STEEM 多所资金费极负（binance -1.256%/8h≈-1375% APR，sev4）",
+        "outcome": "数据不足：无后续走势样本可参照"
       },
       {
-        "event": "BTW 自身：1h OI 名义 -23.5%（$124,727,765→$95,360,285，ts 1789383600000，sev 3，dir -0.3）",
-        "outcome": "pack 内直接观测：伴随 1h 价格 -12.92%、24h OI -14.05%，杠杆多头快速去化、价格自 24h 高点 0.8 回落至 0.63624，与本费率极值事件的看空方向互相印证"
-      },
-      {
-        "event": "同期极端费率群体：LSK/STEEM/CVC/POWR 等多币种费率 -0.6%~-2.0%/8h（binance/bybit/asterdex/gateio，24h 内 200 事件）",
-        "outcome": "pack 未提供这些币后续价格结果，无法确认『费率极值→价格均值回归』的统计规律，不作为定量依据"
+        "event": "同窗口 BZ 自身 asterdex/binance -0.102%/8h、gateio -0.219%/8h 极值并存",
+        "outcome": "四所同步负费率，指向板块性空头拥挤而非单所噪声；后续结果待 1-3 个资金费周期验证"
       }
     ],
     "key_factors": [
-      "gateio BTW 资金费 +0.363%/8h（≈+397% APR），severity=3，但仅单一交易所极端",
-      "binance 0.0478%、bybit 0.0816% 仍处温和正值，跨所显著背离说明gateio局部拥挤",
-      "OI大幅下降：1h -23.5%（$124.7M→$95.4M），24h -14%，多头主动去杠杆",
-      "1h 跌幅 -12.9% 但 1d +1.59%、4h趋势仍bullish，存在超跌反弹与中期回调的拉锯",
-      "24h清算近持平（long 52.8k vs short 48.1k），未出现级联踩踏",
-      "持仓账户中无BTW敞口，冲击属机会型而非组合风险型",
-      "regime=ranging、confidence=0.3，技术面趋势信号弱",
-      "gateio BTW 费率 +0.3626%/8h 显著高于同币 binance 0.0478% / bybit 0.0816%，asterdex 已转负（-0.0126%），跨所费率分化意味着套利资金可能在一个 8h 结算周期内快速抹平极值",
-      "持仓结构偏多且拥挤：global_ls 0.711、top_pos_ls 1.996，叠加极端正费率，典型多头挤仓（long squeeze）前置条件",
-      "去杠杆已启动：事件前 1h OI -23.5%，24h OI -14.05%，价格 1h -12.92% 但 24h 仍 +1.59%，属高位杠杆清洗而非趋势反转确认",
-      "价格处于急涨后高位：30d +102.8%、7d +38.65%，rv30 年化 288.8%、1h ATR 9.8%，费率极值对小市值高波动标的的价格冲击被放大",
-      "24h 多空清算基本对称（long $52.8k vs short $48.1k），尚未出现单边清算级联，降低了升级为 critical 的概率",
-      "regime=ranging 且 confidence 仅 0.3，趋势信号可靠性低；市场快照 as_of(1789344000000) 早于事件 ts(1789387508126) 约 12.1 小时，存在数据时滞",
-      "universe 仅含 BTW，corr_to_btc 为空，缺乏向主流币账本（BNB/BTC/ETH/SOL/XRP 等现有持仓）传导的证据"
+      "BZ 四所资金费全部为负且 bybit 最深（-0.299%/8h≈-328% APR），空头方持续付费，拥挤度极端",
+      "持仓结构偏空：global_ls 0.368、top_pos_ls 0.423，但 24h 空头清算 $64,103 远超多头 $326，存在空头止损/逼空迹象",
+      "OI 24h +4.86% 至 $216M，叠加 7d +8.98%、30d +17.72%、RSI14 71.9 超买、4h EMA 趋势 bullish，上行挤压与高位回落双向波动风险并存",
+      "同窗口 LSK/STEEM/POWR/CVC 等多币出现更极端负费率，属跨币种空头拥挤环境，BZ 事件强度在同类中居中（sev3 vs 同类 sev4）",
+      "regime=ranging 且 confidence 仅 0.3，correlation_pairs/corr_to_btc 为空，跨币传导与趋势确认证据均不足，故置信度压低至 0.5"
     ],
-    "summary": "BTW在gateio出现极端正资金费（约+397% APR），属于多头过度拥挤信号；但同一时段binance/bybit资金费温和、OI 1h骤降-23.5%、价格1h -12.9%，表明杠杆多头正在主动平仓以规避资金费成本，方向略偏空（短期回调压力），但因：①仅单一交易所异常、②整体4h趋势仍bullish、③1d仍+1.59%、④无清算级联、⑤组合无BTW敞口，整体强度评为中等（4/10）、confidence偏低（0.55）。建议对BTW收紧止损、不新增多头；当前账户组合无需调整。受影响标的仅为BTW，半衰期约6h，避险窗口8h内有效。"
+    "summary": "BZ 在 bybit 触发 sev3 级极端负资金费（-0.299%/8h≈-328% APR），且四所同步为负（-0.102%~-0.299%/8h），表明空头拥挤并支付极端成本。结合价格上行背景（7d +8.98%、30d +17.72%、4h EMA bullish、RSI 71.9）、OI 24h +4.86% 与 24h 空头清算 $64,103 对多头 $326 的悬殊对比，首要方向性含义为逼空式上行风险（bullish），但强度仅给 3/10：事件在同类（LSK/STEEM/CVC 等 sev4 极值）中居中，且 regime 为低置信度 ranging、超买后亦存在回落风险。资金费极值随 8h 结算周期衰减，预计半衰期约 12 小时、避险/观察窗口 12 小时。组合当前未持有 BZ，对 BZ 给出 no_new_short（避免支付极端费率并暴露于挤压）；已持有的 BTC/ETH/SOL 等主流币多头因无相关性数据（correlation_pairs、corr_to_btc 为空）不主张调节，维持 none。模拟盘数据中无 BZ 历史同类事件后续结果，analogues 仅能列示同窗口共现极值、outcome 标记数据不足，故置信度取 0.5 而非更高。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的推理与 context 事实在机制上完全一致：资金费为负（bybit -0.299%/8h，四所全负）意味着空头付费、多头收_fee；global_ls=0.368（<1）表明持仓结构偏空而非偏多；24h 清算空头 $64,103 对多头 $326 的悬殊加上 7d +8.98%/30d +17.72%、4h EMA bullish，共同指向逼空式上行风险，故 bullish 方向有数据支撑。A 存在关键性事实错误：将 0.368 的多空比解读为 'skewed long'，并称负费率下 'longs pay shorts'、'receiving funding on a short is attractive'——这与负资金费的实际付费方向完全相反（负费率下空头付多头），其 no_new_long 建立在被颠倒的资金费机制之上，可信度受损。B 同时正确承认了限制因素（regime=ranging 且 confidence 仅 0.3、RSI14=71.9 超买双向风险、无 BZ 历史类比结果、corr_to_btc 为空），故强度仅 3、置信度 0.5 的克制设定合理。综合：B 的方向判断与证据链一致且机制正确，裁定 B；方向 bullish，强度 3，置信度略上调至 0.6（机制解读正确的确定性高于 B 自身的 0.5，但缺乏历史演化样本仍限制置信度）。"
+    }
   },
   "notes": [],
   "event": {
-    "id": 104621,
+    "id": 102627,
     "event_type": "funding.extreme",
-    "symbol": "BTW",
-    "ts_ms": 1789387508126,
+    "symbol": "BZ",
+    "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": -0.5,
-    "title": "gateio BTW 资金费 +0.363%/8h（≈+397% APR）",
+    "direction": 0.5,
+    "title": "bybit BZ 资金费 -0.299%/8h（≈-328% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 397.0,
-      "rate_8h": 0.003626,
-      "exchange": "gateio",
-      "rate_raw": 0.003626,
+      "apr_pct": -327.9,
+      "rate_8h": -0.00299466,
+      "exchange": "bybit",
+      "rate_raw": -0.00299466,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
