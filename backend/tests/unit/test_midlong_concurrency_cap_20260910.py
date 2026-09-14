@@ -91,9 +91,13 @@ def test_cap_zero_disables_check(monkeypatch):
 
 
 def test_deployed_cap_is_conservative():
-    """部署上限必须 ≤5（§38.6：6 笔同向在山寨齐跌中 单夜 -$155.48）。
+    """部署上限 ≤6。
 
-    若需放宽，请先更新 §38 的证据与观察期结论，再改这里。
+    [§38.6] 6 笔同向山寨齐跌单夜 -$155.48 的实证来自**修复前全尺寸仓**时代。
+    [验收轮4 2026-09-14 用户指令] 中线帽 4→6：当前中线开仓全部是 probe 缩仓
+    （窄带×0.25 + 位置×0.25，单仓 margin ~150-260），且并发帽已车道化（不与 E1
+    长仓混计），净敞口 150% 与簇帽仍兜底——风险口径已与 §38 时期不同，允许扩到 6。
+    若需进一步放宽，请先更新本注释与观察期结论。
     """
     env = ROOT / ".env"
     if not env.is_file():
@@ -103,9 +107,9 @@ def test_deployed_cap_is_conservative():
     if not m:
         return
     val = int(m.group(1))
-    assert 1 <= val <= 5, (
-        f"MIDLONG_MAX_OPEN_POSITIONS={val} 超出保守区间 [1,5]；"
-        "放宽前须更新 §38.6 的并发上限验证与观察期结论"
+    assert 1 <= val <= 6, (
+        f"MIDLONG_MAX_OPEN_POSITIONS={val} 超出保守区间 [1,6]；"
+        "放宽前须更新本测试的观察期结论"
     )
 
 
