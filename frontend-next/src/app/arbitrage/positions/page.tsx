@@ -136,6 +136,12 @@ function PositionsInner() {
   const netExposure = rows.reduce((s, p) => s + p.notional_usd * (p.qty > 0 ? 1 : -1), 0);
   const unreal = rows.reduce((s, p) => s + (p.unrealized_usd ?? 0), 0);
   const usePct = limitUsd > 0 ? (Math.abs(netExposure) / limitUsd) * 100 : 0;
+  // [F123] 杠杆读数：总敞口 Σ|仓位| 是**严格可约束**的口径（平仓只会减小它），
+  // 也是"一次市场同向波动会打掉多少权益"的直接倍数 ⇒ 必须在页面上可见
+  // （放宽组合净敞口上限到 6× 权益后，这一点尤其重要）。
+  const grossExposure = rows.reduce((s, p) => s + Math.abs(p.notional_usd), 0);
+  const grossPct = grossLimitUsd > 0 ? (grossExposure / grossLimitUsd) * 100 : 0;
+  const leverage = equity > 0 ? grossExposure / equity : 0;
 
   const universe = shadow.data?.symbols ?? detail.data?.meta?.symbols ?? [];
   const rate = report.data?.fill_rate_stats;
@@ -202,6 +208,12 @@ function PositionsInner() {
               value={`${fmtUsd(netExposure)} / ${fmtUsd(limitUsd)}`}
               sub={`利用率 ${usePct.toFixed(1)}% · 单币上限 ${fmtUsd(symLimitUsd)}（下单侧预留口径）`}
               tone={netExposure >= 0 ? "text-profit" : "text-loss"}
+            />
+            <Kpi
+              label="总敞口 / 杠杆"
+              value={`${fmtUsd(grossExposure)} · ${leverage.toFixed(1)}×`}
+              sub={`严格口径 Σ|仓位|，上限 ${fmtUsd(grossLimitUsd)}（已用 ${grossPct.toFixed(0)}%）`}
+              tone={grossPct > 80 ? "text-loss" : "text-foreground"}
             />
             <Kpi
               label="库存标的 / 宇宙"

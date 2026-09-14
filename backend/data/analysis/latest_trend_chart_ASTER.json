@@ -1,18 +1,88 @@
 {
   "task": "trend_chart_review",
   "symbol": "ASTER",
-  "ts_ms": 1789389938507,
+  "ts_ms": 1789391280854,
   "accepted": false,
-  "status": "skipped",
-  "consensus_score": 0.0,
-  "final": null,
+  "status": "ok",
+  "consensus_score": 0.18,
+  "final": {
+    "direction": "neutral",
+    "strength": 3.0,
+    "confidence": 0.475,
+    "structure": "日线呈宽幅区间震荡，重心下移后小幅企稳；周线结构未给出数据，4h处于近90期区间下沿附近连阳反弹，疑似区间下沿支撑反弹但尚未形成趋势反转",
+    "timeframe_alignment": "1d：EMA9/21仍低于EMA50/200，价格夹在EMA21（-1.07%）与EMA50（+2.70%）之间，方向中性偏弱，RSI49.1接近中线，摆动结构HH→LH→HL→HH→HL呈收敛震荡；4h：EMA9金叉EMA21但仍在EMA50下方，RSI62.7显示短线超买反弹，连阳3根但MACD柱为负（-0.0115），反弹力度有限；小时级EMA偏bullish但日线EMA偏bearish，多周期缺乏共振，处于方向选择窗口",
+    "key_levels": [
+      {
+        "level": 0.681,
+        "type": "support",
+        "note": "24h区间下沿/近90期4h区间14%位置的支撑"
+      },
+      {
+        "level": 0.7,
+        "type": "resistance",
+        "note": "24h区间上沿0.702附近，心理整数位0.70构成短期阻力"
+      },
+      {
+        "level": 0.72,
+        "type": "resistance",
+        "note": "估算1d EMA50附近（约+2.7%），中期多空分水岭"
+      },
+      {
+        "level": 0.66,
+        "type": "support",
+        "note": "1d回撤自90期高-19.6%对应的关键支撑区，破位则趋势转弱"
+      },
+      {
+        "level": 0.866,
+        "type": "resistance",
+        "note": "90期高点区域，由 1d 收盘 0.6968 与回撤自90期高 -19.6% 推算，上方主要套牢/派发区"
+      },
+      {
+        "level": 0.713,
+        "type": "resistance",
+        "note": "4h EMA50 一线，由 4h 收盘 0.6988 与 EMA50 偏移 -1.93% 推算，反弹能否转强的分水岭"
+      },
+      {
+        "level": 0.702,
+        "type": "resistance",
+        "note": "range_24h_high=0.702，即时阻力；pos24_pct=69.5 显示现价已贴近 24h 区间上沿"
+      },
+      {
+        "level": 0.681,
+        "type": "support",
+        "note": "range_24h_low=0.681，即时支撑；与推算的 1d EMA50（0.6968/1.027≈0.678）构成 0.678–0.681 支撑带"
+      },
+      {
+        "level": 0.666,
+        "type": "support",
+        "note": "1d EMA200，由 dist_ema200_pct=4.54% 推算（0.6968/1.0454≈0.666），中期多空生命线"
+      }
+    ],
+    "invalidation": "若4h跌破0.681（24h低点）并伴随放量（量z>0）确认，则区间下沿失守，看跌结构成立；若1d有效站上0.72上方并维持两日，则区间向上突破，看涨结构确立",
+    "position_advice": "no_new_long",
+    "key_factors": [
+      "4h RSI62.7超买区但MACD柱仍为负，反弹动量不持续",
+      "1d 摆动结构呈HH/LH/HL/HH/HL收敛形态，无明确趋势",
+      "量z 1d=-1.0、4h=-0.6，缩量反弹缺乏买盘跟进",
+      "24h清算长仓47537美元远超短仓433美元，持仓偏拥挤存在被动抛压",
+      "账户14近期在ASTER上累计亏损-85.84（n=34），是该账户最差交易标的",
+      "1h EMA偏bullish但1d EMA偏bearish，周期错配不宜追单",
+      "funding 8h在asterdex达0.0221%，高于中性，做多成本偏高",
+      "1w：53 根 K 线长期回落后的低位窄幅横盘，EMA9/21 走平粘合，近期小阳线伴随成交量较低前期温和放大，筑底迹象初现但未确认",
+      "1d：30d +16.06% vs 7d -9.75%，冲高回撤 -19.6%（自 90 期高），摆动 HH→LH→HL→HH→HL 属宽幅区间；RSI14=49.1、MACD 柱 +0.033221 中性略偏多",
+      "4h：ema_trend=bearish、MACD 柱 -0.011466 未翻正，但 RSI14=62.7、连阳=3、价格收复 EMA9（+0.63%）/EMA21（+0.08%），反弹修复推进中",
+      "量价背离：日线量z=-1.0、4h 量z=-0.6，反弹缩量，上攻动能与持续性存疑",
+      "24h 区间 0.681–0.702 收口、regime=ranging（confidence=0.3），方向选择临近但未给信号",
+      "资金费率温和正值（asterdex 0.0221%/8h）无极端挤压；24h 多头清算 47537 USD vs 空头 433 USD，杠杆多头已完成一轮清洗"
+    ],
+    "summary": "ASTER处于多周期方向分歧的区间震荡末端：日线EMA结构空头压制但价格位于EMA200上方+4.54%，长期趋势未坏；4h出现超跌反弹但量能不足、MACD未转正；小时级短暂转强但缺乏持续性。整体判断中性偏弱，建议不在当前位置新增多单，等待区间突破方向确认或回踩至0.66-0.68支撑区出现明确反转K线形态后再评估。鉴于该品种近期在策略账户上亏损严重且持仓拥挤，做多需严格止损，做空则需等待4h破位信号。"
+  },
   "charts": [
     "ASTER 1w (bars=53, last_close=0.6968)",
     "ASTER 1d (bars=230, last_close=0.6968)",
     "ASTER 4h (bars=110, last_close=0.6988)"
   ],
   "notes": [
-    "minimax: 输出中无可解析 JSON",
-    "glm_opencode: 输出中无可解析 JSON"
+    "双票均为中性：这是「都没方向」，不是交易共识，不升仲裁、不入账本"
   ]
 }

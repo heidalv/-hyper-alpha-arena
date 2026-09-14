@@ -1,97 +1,101 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789390737858,
+  "ts_ms": 1789391375365,
   "accepted": true,
   "status": "ok",
   "consensus_score": 0.7,
-  "run_id": "b78d9b9bb09f42e7be6c0854e36a52a3",
-  "context_hash": "256cae7bd2d661eabae6c5aca6737a9025ad1dd6c3659ac36658473b5f7faa94",
+  "run_id": "05d159b396a341c8ac459e3320a29948",
+  "context_hash": "bfc14117580a0b8bf95b356f79b26f1a5770b966fd5085dc89fd0769c2892a25",
   "final": {
     "direction": "bullish",
-    "strength": 4,
-    "confidence": 0.5,
+    "strength": 3,
+    "confidence": 0.4,
     "half_life_hours": 8,
     "affected_symbols": [
-      "GLM"
+      "HIVE",
+      "STEEM",
+      "LSK",
+      "POWR",
+      "CVC"
     ],
-    "hedging_window_hours": 12,
+    "hedging_window_hours": 8,
     "position_adjustments": [
       {
-        "symbol": "GLM",
-        "action": "no_new_short",
-        "reason": "bybit 资金费 -0.365%/8h（≈-399% APR），binance -0.628%、gateio -0.384% 同向极端负费率，空头拥挤：做空需持续支付资金费且面临挤压风险"
+        "symbol": "HIVE",
+        "action": "none",
+        "reason": "当前未持仓 HIVE；至数据截止（事件后约5小时）bybit HIVE 费率已回归 +0.005%/8h、binance 回升至 -0.0391%，极端负费率自行消退，剩余可交易优势有限，不建议追轧空行情"
       },
       {
         "symbol": "BTC",
         "action": "none",
-        "reason": "事件为 GLM 小市值币资金费异常，主流币未出现在资金费极端名单，现有 BTC 多头（+0.99%/+0.45%）不受直接影响"
+        "reason": "现有 BTC 多头（trend_e1/auto 各一笔）与 HIVE 负费率事件无直接交集；corr_to_btc 数据缺失，无板块传染证据，维持现有止损即可"
       },
       {
         "symbol": "ETH",
         "action": "none",
-        "reason": "GLM 资金费冲击未传导至主流币资金费结构，ETH 趋势持仓（+0.58%）维持不动"
+        "reason": "ETH 多头为 trend_e1 长线仓，与 HIVE 小币费率事件无关联证据，无需调节"
       },
       {
         "symbol": "SOL",
         "action": "none",
-        "reason": "SOL 未出现在极端资金费名单，两笔多头（+1.72%/+0.13%）与 GLM 事件无直接关联"
+        "reason": "SOL 两笔多头与受影响小币簇无关联证据，且 SOL 当前 upnl 为正（trend_e1 +1.46%），无需调节"
       },
       {
         "symbol": "BNB",
         "action": "none",
-        "reason": "BNB 未受 GLM 资金费异常影响，两笔多头小幅浮亏（-1.11%/-0.19%）由自身止损框架管理，无需因本事件加码"
-      },
-      {
-        "symbol": "XRP",
-        "action": "none",
-        "reason": "XRP 多头浮盈（+3.48%/+2.03%）且不在极端资金费名单，维持现有止盈止损纪律"
+        "reason": "BNB 两笔多头与事件币无关联；mid 仓剩余持有 3.7h 将按时间限制自然了结，无需额外干预"
       },
       {
         "symbol": "UNI",
         "action": "none",
-        "reason": "UNI 未受事件直接影响，持仓浮亏 -0.51% 在正常止损距离（4.18%）内，无需调整"
+        "reason": "UNI 多头与事件无关联证据，维持现有止损"
+      },
+      {
+        "symbol": "XRP",
+        "action": "none",
+        "reason": "XRP 两笔多头与事件无关联，mid 仓止损距离仅 0.17% 已很紧，无需再收紧"
       }
     ],
     "analogues": [
       {
-        "event": "同批次多所小市值币极端负资金费：LSK -1.0%~-2.0%/8h、STEEM -1.2%~-1.3%/8h、POWR -0.9%~-1.1%/8h、CVC -1.2%/8h（binance/bybit/gateio/asterdex 同向）",
-        "outcome": "context pack 未提供这些事件之后的后续价格验证数据，无法确认空头挤压是否兑现，数据不足"
+        "event": "本事件：bybit HIVE 资金费 -0.237%/8h（≈-259% APR，ts 1789373112896，sev3）",
+        "outcome": "pack 内可见的后续演化：约5小时后数据截止时 bybit HIVE 费率已回归 +0.005%/8h，其后另一条 HIVE 资金费事件（gateio -0.103%，sev2）严重度亦降级，极端拥挤基本自行消退；但 HIVE 无 K 线数据，无法确认价格端是否已兑现轧空上行"
       },
       {
-        "event": "GLM 三所同步极端负费率（binance -0.628%/bybit -0.365%/gateio -0.384%）叠加 24h 空头清算 $42,707 > 多头清算 $23,753",
-        "outcome": "近 24h GLM 价格 +3.79%（1d）、+7.26%（7d），空头清算已多于多头，与空头挤压修复方向一致；但为单一样本，不可外推"
+        "event": "同批次板块性负费率簇：LSK（bybit -2.0%）、STEEM（多所 -0.48%~-1.26%）、POWR（-0.49%~-1.14%）、CVC（binance -0.84%~-1.22%），同属社区/存储类老币",
+        "outcome": "指向板块性空头拥挤而非 HIVE 个币孤立事件，其中 STEEM 与 HIVE 板块关联最近；pack 内无这些币的后续价格结果，挤压兑现程度数据不足"
       }
     ],
     "key_factors": [
-      "GLM 三所资金费同步极端为负（bybit -0.365%/8h ≈-399% APR、binance -0.628%、gateio -0.384%），显著超过 0.1%/8h 阈值，指向空头头寸拥挤",
-      "负资金费下空头需向多头持续支付费用，历史上属反向偏多信号，存在空头挤压（short squeeze）上行风险；事件采集器亦标注 dir=0.5",
-      "GLM 已处于上行趋势：+3.79%(1d)/+7.26%(7d)，RSI14=66.5 偏强未极端，24h 空头清算 $42.7k 大于多头 $23.8k，与挤压修复一致",
-      "数据不一致警示：flows 层 GLM 当前 8h 资金费（binance -0.0998%、bybit +0.005%、gateio -0.0388%）远温和于事件快照值，可能为口径/时点差异，需降低置信度",
-      "系统性背景：同一时刻 LSK/POWR/STEEM/CVC/PUNDIX 等多币种同现极端负费率、BSP/FATCOIN 极端正费率，更像小市值板块性拥挤而非 GLM 个币独立冲击",
-      "当前组合 10 笔持仓（BNB/BTC/ETH/SOL/UNI/XRP）均不含 GLM，账户 gross exposure 100.9% 已满，事件直接敞口影响有限"
+      "极端负资金费（-259% APR）通常映射空头拥挤，存在轧空上行偏置，与事件自带 direction=0.5 一致，故方向取温和 bullish",
+      "费率衰减快：事件后约5小时 bybit HIVE 已回到 +0.005%/8h、binance 回升至 -0.0391%，极端状态基本自行消退，半衰期按 8h 资金费周期估计且偏短",
+      "同簇 LSK/STEEM/POWR/CVC 多所同步极端负费率（sev4），属板块性拥挤，HIVE 非孤例，事件独立冲击被稀释",
+      "market:HIVE 无 K 线，position_structure、HIVE 清算数据、corr_to_btc 均缺失，方向与强度缺价格验证，confidence 压至 0.4",
+      "组合 10 笔持仓全部为 BTC/ETH/SOL/BNB/UNI/XRP 主流多头，与事件币种零交集，直接传染与对冲需求有限",
+      "即便做多收资金费，HIVE 类小币流动性薄、插针风险高，且费率优势已消失，不建议借事件开新仓"
     ],
-    "summary": "GLM 三所资金费同现极端负值（bybit -0.365%/8h，binance -0.628%，gateio -0.384%，约 -400%~-690% APR），指向空头拥挤，属偏反向的短期利多信号；GLM 近 1d +3.79%、7d +7.26%，24h 空头清算（$42.7k）大于多头（$23.8k），与空头挤压修复方向一致。但置信度受两点压制：其一，flows 层 GLM 当前 8h 资金费（binance -0.0998%/bybit +0.005%）显著温和于事件快照，存在口径或时点不一致；其二，同批 LSK/POWR/STEEM/CVC 等多币种同步极端负费率，更像系统性小市值拥挤而非 GLM 个币独立冲击。当前持仓不含 GLM 且总敞口已满（100.9%），直接影响有限：建议仅对 GLM 施加 no_new_short（负费率下做空成本极高且有挤压风险），其余主流币持仓维持不动。信号强度中等（4/10），半衰期约 1 个资金费周期（8h），对冲观察窗口 12h；context pack 缺乏历史同类事件后续走势样本，故不据此新开多头。",
+    "summary": "单事件评估：bybit HIVE 资金费 -0.237%/8h（≈-259% APR，sev3）为典型的空头拥挤信号，带温和轧空上行偏置（bullish，强度 3/10）。但两条关键证据压低了可执行性：其一，数据截止（事件后约5小时）bybit HIVE 费率已自行回归 +0.005%/8h，随后 gateio 的 HIVE 负费率事件严重度由 3 降至 2，极端状态消退快，半衰期按 8h 资金费周期估计；其二，同一时刻 LSK/STEEM/POWR/CVC 等同板块老币在多所同步出现更极端的负费率（部分 sev4），说明这是板块性空头拥挤而非 HIVE 个币冲击，事件独立影响被稀释。数据不足提示：HIVE 无 K 线、无持仓结构与清算数据、无对 BTC 相关性，价格端验证缺失，故 confidence 仅 0.4。持仓影响评估：现有 10 笔持仓全部为 BTC/ETH/SOL/BNB/UNI/XRP 主流多头，与事件币种零交集，无需对冲或减仓，建议仅设置 8 小时观察窗口监控该负费率簇是否向主流币扩散；若扩散再评估 tighten_stops。",
     "arbitration": {
       "verdict": "B",
       "by": "glm_opencode_alt",
-      "rationale": "B 的事实链更准确且自洽。关键分歧在跨所资金费解读：A 声称 bybit -0.365%/gateio -0.384% 与 binance -0.0998% 不一致，但这是混用了两个时点——flows 层 as_of=1789257600000 比事件 ts=1789373112896 早约 32 小时；在事件同一时间戳上，事件列表显示三所同步深负（binance -0.628%、bybit -0.365%、gateio -0.384%），是同步拥挤而非分歧，B 正确识别了该口径差异并据此压低置信度。方向上，极端负费率指向空头拥挤，采集器本身标注 dir=0.5；GLM 24h 空头清算 $42.7k>多头 $23.7k、1d +3.79%/7d +7.26% 的动量与空头挤压修复方向一致，支持 B 的温和看多。B 的警示（同批 ~20 个小市值币同步极端、severity=3 低于同类、flows 快照更温和、组合无 GLM 敞口且 gross exposure 100.9% 已满）已吸收了 A 的有效论点，故 A 的 neutral 属于过度保守且含时点错配错误。B 仅提 no_new_short 而不新开多头，动作与证据强度匹配。"
+      "rationale": "B 的事实链更准确且与 pack 内数据自洽：(1) B 正确识别数据截止时（事件后约5小时）bybit HIVE 费率已回归 +0.005%/8h、后续 gateio HIVE 事件严重度降为 sev2，证明极端状态快速自行消退，这是 pack 内可直接观测的锚点；(2) B 正确指出同刻 LSK/STEEM/POWR/CVC 多所同步极端负费率（sev4），属板块性空头拥挤，负费率+direction=0.5 支持温和轧空上行偏置（bullish, 3/10），并以无 K 线、无 corr_to_btc 将 confidence 压至 0.4，谨慎合理；(3) 组合 10 笔持仓全为 BTC/ETH/SOL/BNB/UNI/XRP 多头，与事件币零交集，B 的全 none 处置与证据一致，且指出 XRP 止损距离已仅 0.17% 无需再收紧。反观 A：(a) 其核心论据'跨所严重分裂（gateio 近零/+0.005%）'存在数据误读——+0.005% 是截止时 bybit 的费率而非 gateio 事件时费率，gateio 随后还打出 -0.103%（sev2），事件时 bybit/binance 同为深度负值（-0.237%/-0.253%），分裂论不成立；(b) A 的 analogues 引用'2024年类似案例结果'与'未观测到对主流币传导'，均非 pack 内可验证事实；(c) A 自认事件局部非方向性，却对与事件无因果链的 XRP/BNB 提议 tighten_stops，逻辑自相矛盾且缺 pack 证据。两者均无 HIVE 价格验证，故方向置信度均应偏低，但 B 的温和 bullish 更有 pack 内依据。"
     }
   },
   "notes": [],
   "event": {
-    "id": 102638,
+    "id": 102641,
     "event_type": "funding.extreme",
-    "symbol": "GLM",
+    "symbol": "HIVE",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit GLM 资金费 -0.365%/8h（≈-399% APR）",
+    "title": "bybit HIVE 资金费 -0.237%/8h（≈-259% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -399.2,
-      "rate_8h": -0.0036457,
+      "apr_pct": -259.0,
+      "rate_8h": -0.00236507,
       "exchange": "bybit",
-      "rate_raw": -0.0036457,
+      "rate_raw": -0.00236507,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
