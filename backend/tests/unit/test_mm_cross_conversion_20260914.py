@@ -23,11 +23,44 @@ def test_runner_exposes_cross_counts():
     r = mmrunner.ShadowRunner(lane_id="t", venue="x", symbols=["BTC"])
     assert isinstance(r.cross_counts, dict)
     for k in ("cross_buy", "cross_sell", "fill_buy", "fill_sell",
-              "nofill_min_notional", "nofill_stale", "nofill_other"):
+              "nofill_min_notional", "nofill_stale", "nofill_other",
+              # [F107] 判定区间空/非空
+              "win_judged", "win_empty",
+              # [F134] 地板价减仓腿漏斗（引擎账内配对口径）
+              "floor_cross_fill", "floor_cross_nofill",
+              "floor_nocross", "floor_win_empty"):
         assert k in r.cross_counts, f"缺少计数键 {k}"
         assert r.cross_counts[k] == 0
     st = r.status()
     assert "cross_counts" in st
+
+
+def test_floor_funnel_is_wired_into_tick():
+    """[F134] 地板漏斗必须在 tick 里记账，且判据与 F105 的穿越条件一致。
+
+    背景：外部复算（挂单采样 + 墙钟配对）给出"地板时段 57% 转化"，但引擎自报
+    ~100% ✓ ⇒ 外部复算被**配对差（±15~30s）**污染，无法判定是否漏判 ✗。
+    唯一可信的口径是**引擎自己的配对**⇒ 把漏斗内建进 tick。
+    """
+    import inspect
+    _tick = mmrunner.ShadowRunner.tick
+    src = inspect.getsource(_tick)
+    assert "FLOOR_QUOTE_BP" in src, "必须使用统一的地板阈值常量"
+    assert 'self.cross_counts["floor_cross_fill"] += 1' in src
+    assert 'self.cross_counts["floor_cross_nofill"] += 1' in src
+    assert 'self.cross_counts["floor_nocross"] += 1' in src
+    assert 'self.cross_counts["floor_win_empty"] += 1' in src
+    # 判据必须复用与 plan_tick 对齐的 _hit_buy/_hit_sell（不能再造一套）
+    assert "_hit_buy or _hit_sell" in src
+    assert mmrunner.FLOOR_QUOTE_BP > 0
+
+
+def test_floor_threshold_sits_above_reduce_floor():
+    """阈值必须略高于 `min_width_reduce_bp`，否则偏斜/浮点会把地板腿漏掉。"""
+    from backend.services.market_maker.core import QuoteParams
+    qp = QuoteParams()
+    assert mmrunner.FLOOR_QUOTE_BP >= float(qp.min_width_reduce_bp)
+    assert mmrunner.FLOOR_QUOTE_BP <= 3.0, "不能把普通窄单也算成地板腿"
 
 
 def test_cross_condition_matches_plan_tick():

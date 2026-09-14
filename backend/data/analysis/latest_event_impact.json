@@ -1,111 +1,114 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789392348634,
+  "ts_ms": 1789393279678,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.821,
-  "run_id": "c068cf3d55d347dcbad6302ea94c5ba6",
-  "context_hash": "994146671e4318a39d7a295d777181382bded664a40da3203f8d341336b5b123",
+  "consensus_score": 0.819,
+  "run_id": "8884a79497aa4ae3b49a8c0bc69dfe22",
+  "context_hash": "9ea5797f892f343dcc4692808976f50bdb27ec1cdae7ae5293f96548d9b172e5",
   "final": {
     "direction": "bullish",
-    "strength": 3.0,
-    "confidence": 0.4,
-    "half_life_hours": 8.0,
+    "strength": 2.0,
+    "confidence": 0.325,
+    "half_life_hours": 15.0,
     "affected_symbols": [
-      "SIRENUSDT",
-      "SIREN"
+      "SHAZ"
     ],
-    "hedging_window_hours": 12.0,
+    "hedging_window_hours": 10.0,
     "position_adjustments": [
       {
-        "symbol": "SIRENUSDT",
+        "symbol": "SHAZ",
+        "action": "no_new_long",
+        "reason": "bybit funding at -0.334%/8h (≈-366% APR) implies shorts are paying longs heavily; this is a short-crowded/squeeze-prone setup. Direction signal mildly bullish but confidence is low given absence of price/K-line data, tiny/illiquid token profile, and no high-impact news catalyst. Avoid initiating new long exposure until price action confirms; existing longs could benefit from squeeze but risk of snap reversal is high."
+      },
+      {
+        "symbol": "SHAZ",
         "action": "no_new_short",
-        "reason": "Bybit 上 SIREN 资金费深度为负（-0.24%/8h，≈-263% APR），意味着空头拥挤、做空成本极高，历史上此类负费率极端常伴随短均值反弹；但 SIREN 1d 趋势 bearish（EMA200 偏离 -93.2%）、RV30 92% 且处于 ranging，方向性胜率偏低，应避免新增空头并对已有空头考虑收紧止损"
+        "reason": "bybit 资金费 -0.334%/8h（≈-366% APR），做空需持续支付负 carry（约1%/日）；且信号已在衰减（约5.5小时后 bybit 收敛至 -0.0499%）。缺少 SHAZ K线数据，方向性入场无法验证，仅保留受控多头吃 carry 的可能性，禁止新空。"
       },
       {
-        "symbol": "SIREN",
-        "action": "no_new_short",
-        "reason": "bybit 负资金费 -0.240%/8h（≈-263% APR）下做空需持续付费且存在逼空风险；多头虽获得正 carry，但 4h EMA 趋势 bearish、7d -11.29%、30d -14.56%，趋势与 carry 信号冲突，不构成开多依据，仅约束新空单"
-      },
-      {
-        "symbol": "BTCUSDT",
+        "symbol": "BTC",
         "action": "none",
-        "reason": "持仓中 BTC 多头与 SIREN 单币种资金费异常无直接传导证据；corr_to_btc 与 correlation_pairs 数据缺失，无法量化传染，维持不动"
+        "reason": "当前 BTC 多头持仓（trend_e1 + auto swing）与 SHAZ 无直接敞口重叠；pack 中 corr_to_btc 与相关性矩阵为空，极端 alt 负资金费向主流币的传导无证据，不做无依据调节。"
       },
       {
-        "symbol": "ETHUSDT",
+        "symbol": "ETH",
         "action": "none",
-        "reason": "同上：无 SIREN 相关性数据，事件为 SIREN/bybit 局部异象， majors 持仓不受直接影响"
+        "reason": "无 SHAZ 直接敞口；相关性数据缺失，系统性空头拥挤（多 alt 极端负费）尚无传导至 ETH 的证据（24h 清算多空大致均衡 20.4M vs 21.4M），维持现有仓位。"
       },
       {
-        "symbol": "SOLUSDT",
+        "symbol": "SOL",
         "action": "none",
-        "reason": "同上：无直接传导证据；全市场多空清算大体平衡（long 21.1M vs short 20.5M USD），无系统性去杠杆迹象"
+        "reason": "同上，无 SHAZ 敞口；清算面与新闻情绪（pos_ratio 0.5）均中性，无单边风险信号，持仓不动。"
       },
       {
-        "symbol": "BNBUSDT",
+        "symbol": "BNB",
         "action": "none",
-        "reason": "SIREN 资金费为 bybit 单所异象（asterdex/binance/gateio 均为 +0.005%/8h），未扩散至 majors，维持现有多头"
+        "reason": "无 SHAZ 敞口；两笔 BNB 多头中 swing 仓剩余持仓时限仅 3.2h，按既有时间规则自然处理，无需因本事件额外干预。"
       },
       {
-        "symbol": "UNIUSDT",
+        "symbol": "UNI",
         "action": "none",
-        "reason": "事件仅涉及 SIREN，持仓组合无 SIREN 敞口，无需调节"
+        "reason": "无 SHAZ 敞口；事件属小市值 alt 资金费结构问题，与 UNI 关联未证实，维持。"
       },
       {
-        "symbol": "XRPUSDT",
+        "symbol": "XRP",
         "action": "none",
-        "reason": "事件仅涉及 SIREN，持仓组合无 SIREN 敞口，无需调节"
+        "reason": "无 SHAZ 敞口；XRP trend 仓浮盈 +3.55% 且止损距离仅 1.88%，已有保护，事件无增量影响。"
       }
     ],
     "analogues": [
       {
-        "event": "bybit 多标的同期出现负费率极端（LSK -2.0%、POWR -1.14%、STEEM -1.24% 等），跨交易所同步",
-        "outcome": "表明非单标的特异事件，更可能是市场层面 risk-off / 空头过度拥挤 → 部分标的短期出现挤空反弹但持续性弱"
+        "event": "binance SHAZ 资金费 -0.100%/8h（≈-110% APR） (ts 1789377306121, sev 2)",
+        "outcome": "Earlier same-day negative funding extreme on the same token across another venue — consistent cross-venue crowding signal but price impact unverified (数据不足)."
       },
       {
-        "event": "SIREN 自身 RSI14 36.7 + 距 EMA200 -93.2%，处深度超卖区间",
-        "outcome": "负费率叠加深度超卖历史上 24-48h 内有反弹样本，但趋势已坏，反弹幅度通常 <10%"
+        "event": "LSK bybit 资金费 -2.000%/8h (≈-2190% APR) and binance/asterdex/gateio all deeply negative",
+        "outcome": "Cross-venue cluster of extreme negative funding on LSK; historical pattern: such clusters often precede short-squeeze but also coincide with sharp drawdowns as crowded shorts unwind violently. Outcome not directly observable in pack."
       },
       {
-        "event": "同一批次快照：LSK 在 bybit 资金费 -2.0%/8h（≈-2190% APR），且在 asterdex/binance/gateio 三所同步极端为负（-1.627%~-1.633%）",
-        "outcome": "结果数据不足：context pack 仅提供单一时点快照，无法观察该极端负费率后续价格路径；但可作横截面参照——SIREN 为 bybit 单所异象，而 LSK 为全所同步异象，后者才更像基本面性空头挤压"
+        "event": "STEEM multi-venue negative funding ~-1.25%/8h",
+        "outcome": "Same-day multi-venue negative funding cluster on STEEM; direction ambiguous without price tape."
       },
       {
-        "event": "同批次 12 个资金费极值中约 10 个为负（STEEM/CVC/POWR/ARK/UNITREE/FLY 等，-0.47%~-1.26%/8h），另见 BSP 正极端 +1.433%/8h",
-        "outcome": "结果数据不足：快照内无后续表现；仅能确认当前 alt 板块负费率拥挤为普遍现象，属环境性因子而非 SIREN 特有信号"
+        "event": "SHAZ binance 资金费 -0.100%/8h（≈-110% APR，事件后约1.2小时）",
+        "outcome": "资金费绝对值继续收敛：最新快照 bybit -0.0499% / binance -0.1883% / gateio 0.0%，极端负费呈数小时内快速衰减特征；因 market:SHAZ 无 K 线，对应价格结果不可观测。"
+      },
+      {
+        "event": "同批次多币极端负资金费（LSK -2.0%/8h、STEEM -1.25%/8h、CVC -0.80%~-1.22%/8h、POWR -0.46%~-1.14%/8h，集中于 bybit/binance/asterdex）",
+        "outcome": "属系统性空头拥挤而非 SHAZ 个币独有；24h 全市场清算 long 20.4M / short 21.4M 大致均衡，未出现单边挤压的已确认结局数据，结果未知。"
       }
     ],
     "key_factors": [
-      "SIREN 在 bybit 单交易所出现负费率极端（-0.24%/8h），其他三家交易所资金费正常为正 +0.05%，说明 bybit 存在局部空头拥挤或套利失衡",
-      "负资金费对空头收取，意味着做空者付费给多头，是潜在的中性偏多信号（空头挤压风险）",
-      "SIREN 价格 0.02499、EMA200 偏离 -93.2%，处深度超卖，RSI14=36.7，1d/7d/30d 均负收益",
-      "同期 24h 内全市场出现 13+ 个资金费极端事件，且 80% 为负费率，反映广泛空头拥挤，但 SIREN 强度（sev=3, -0.24%）明显弱于 LSK/POWR/STEEM（sev=4, -0.8~-2.0%）",
-      "无相关 BTC 联动数据，corr_to_btc 缺失，无法判断系统性还是孤立",
-      "无新闻/公告直接驱动 SIREN（high_impact_news_24h=0），事件为衍生品市场结构信号",
-      "交易所分化是核心特征：SIREN 仅 bybit 资金费极端为负（-0.240%/8h），而 asterdex/binance/gateio 三所均为 +0.005%/8h，表明这是单所永续合约的空头拥挤/定价异象，而非该币现货面的普遍利空，存在跨所 carry 套利与费率快速回归的条件",
-      "方向判断为弱偏多（反向逻辑）：极端负费率意味着空头付费、多头收费，历史上极端负费率常伴随短线逼空反弹；但 SIREN 趋势面偏空（4h EMA bearish、RSI14 36.7、7d -11.29%、30d -14.56%、regime=ranging 且置信度仅 0.3），两类信号冲突，故 strength 仅 3、confidence 仅 0.35",
-      "半衰期锚定资金费 8h 结算周期：费率极值通常在 1-2 个结算周期内均值回归，故 half_life_hours=8、避险窗口=8",
-      "组合层面无直接敞口：当前 9 个持仓全部为 majors（BTC/ETH/SOL/BNB/UNI/XRP）多头，不含 SIREN；账户 14 gross exposure 83.9% 偏高，但事件与 majors 无量化关联（corr_to_btc 与 correlation_pairs 层缺失，此为数据不足点）",
-      "环境背景：24h 事件 200 条，快照内资金费极值以 alt 负费率为主（LSK/STEEM/CVC/POWR 等），全市场清算多空接近平衡（21.1M vs 20.5M USD），未见系统性去杠杆，支持将该事件定性为局部异象而非市场级冲击"
+      "Cross-venue negative funding on SHAZ (bybit -0.334%, binance -0.100%, gateio 0) signals persistent short crowding — structurally bullish for price via squeeze pressure but only mildly so given bybit is the most extreme venue",
+      "Severity 3 (moderate) and APR ≈-366% is extreme in absolute terms but SHAZ is a small-cap/low-liquidity token where funding can stay dislocated without resolving",
+      "No K-line / price data available (数据不足) — cannot confirm whether squeeze is already underway or funding is reflecting an ongoing downtrend",
+      "Market-wide funding context: 24h liquidations roughly balanced (long 20.4M vs short 21.4M USD) and no high-impact news, so the event is idiosyncratic to SHAZ rather than systemic",
+      "Current book has no SHAZ exposure across accounts 14/147/149/156, so event is observation-only with no direct P&L impact",
+      "SHAZ bybit 资金费 -0.334%/8h（≈-366% APR），空头支付多头，负 carry 显著，反向看多为空头拥挤后的挤压风险",
+      "信号快速衰减：事件后约5.5小时 bybit 已收敛至 -0.0499%、binance -0.1883%、gateio 0.0%，跨所费率分歧大，典型小市值 alt 特征",
+      "market:SHAZ 无 K 线（数据不足），价格趋势与波动率不可评估，方向判断主要依赖资金费结构本身",
+      "同时刻多 alt 极端负费（LSK/STEEM/CVC/POWR/PUNDIX/GLM/ARK/FLY/UNITREE 等），为系统性环境而非 SHAZ 个币事件，削弱 SHAZ 专属信号强度",
+      "24h 清算多空均衡（long 20,420,503 / short 21,395,239 USD），新闻密度升至前日 1.69 倍但情绪中性（pos_ratio 0.5），无单边压力确认",
+      "当前 9 笔持仓（BTC/ETH/SOL/BNB/UNI/XRP，全多头）与 SHAZ 无重叠，直接敞口为零；跨币相关性数据缺失，间接传导无法量化"
     ],
-    "summary": "SIREN 在 bybit 出现 -0.24%/8h 的负资金费极端（≈-263% APR），但其他三家交易所费率正常为正，提示这是 bybit 局部空头拥挤而非全市场共识事件。SIREN 本身处于深度超卖（距 EMA200 -93.2%，RSI 36.7）且趋势 bearish，负费率叠加超卖历史上短期有反弹倾向，但持续性弱、方向性胜率不高。综合判断为温和偏多（中性偏多）信号，强度 3/10，因孤立交易所事件且标的流动性差、趋势已坏而信心有限。操作上避免新增空头，已有头寸建议收紧止损而非直接做多；若要参与反弹需严控仓位并设短止损。半衰期约 8h（一次资金费结算窗口），避险/观察窗口约 16h 覆盖两次结算。"
+    "summary": "Bybit SHAZ funding at -0.334%/8h (≈-366% APR) indicates heavy short crowding and mild bullish squeeze risk, but confidence is low (0.35) because (a) no price/K-line data is available to confirm trend, (b) SHAZ is a low-liquidity token where negative funding can persist without forcing a squeeze, and (c) no high-impact news or systemic catalyst is present. Direction is tentatively bullish with strength 2/10 and an estimated half-life of ~24h. No existing SHAZ positions in the book, so the actionable recommendation is simply no_new_long until price confirmation; no hedging required. Data gaps (price, volume, OI) are the main risk to this assessment."
   },
   "notes": [],
   "event": {
-    "id": 102656,
+    "id": 102655,
     "event_type": "funding.extreme",
-    "symbol": "SIREN",
+    "symbol": "SHAZ",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit SIREN 资金费 -0.240%/8h（≈-263% APR）",
+    "title": "bybit SHAZ 资金费 -0.334%/8h（≈-366% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -262.7,
-      "rate_8h": -0.00239887,
+      "apr_pct": -366.1,
+      "rate_8h": -0.00334312,
       "exchange": "bybit",
-      "rate_raw": -0.00239887,
+      "rate_raw": -0.00334312,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

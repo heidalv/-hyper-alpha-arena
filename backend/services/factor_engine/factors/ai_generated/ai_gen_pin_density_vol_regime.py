@@ -1,4 +1,4 @@
-"""AI因子: 插针密度波动环境因子 | 置信:58% | 插针密度 = max(upper,lower)/body 的20日滚动均值，衡量影线主导的高波动环境。在高插针密度环境下，短期收益更容易均值回归；低密度环境则动量延续。因子用密度分位与短期收益反向交互，捕捉波动环境切换下的收益方向。"""
+"""AI因子: 插针密度波动环境因子 | 置信:58% | 用影线相对实体的密度衡量市场插针活跃度，密度高时短期反转更强。将密度分位与短期收益反向交互，捕捉高噪声环境下的均值回归 alpha。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -6,15 +6,15 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 
 @register_factor()
-class PinDensityVolatilityRegime(BaseFactor):
-    """插针密度 = max(upper,lower)/body 的20日滚动均值，衡量影线主导的高波动环境。在高插针密度环境下，短期收益更容易均值回归；低密度环境则动量延续。因子用密度分位与短期收益反向交互，捕捉波动环境切换下的收益方向。"""
+class PinBarDensityVolatilityRegime(BaseFactor):
+    """用影线相对实体的密度衡量市场插针活跃度，密度高时短期反转更强。将密度分位与短期收益反向交互，捕捉高噪声环境下的均值回归 alpha。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_pin_density_vol_regime",
-            name="Pin Density Volatility Regime",
+            name="Pin Bar Density Volatility Regime",
             display_name="插针密度波动环境因子",
-            description="插针密度 = max(upper,lower)/body 的20日滚动均值，衡量影线主导的高波动环境。在高插针密度环境下，短期收益更容易均值回归；低密度环境则动量延续。因子用密度分位与短期收益反向交互，捕捉波动环境切换下的收益方向。",
+            description="用影线相对实体的密度衡量市场插针活跃度，密度高时短期反转更强。将密度分位与短期收益反向交互，捕捉高噪声环境下的均值回归 alpha。",
             category="technical",
             subcategory="volatility",
             version="1.0.0-ai",
@@ -25,8 +25,9 @@ class PinDensityVolatilityRegime(BaseFactor):
         body = (data['close'] - data['open']).abs() + 1e-9
         upper = data['high'] - data[['open','close']].max(axis=1)
         lower = data[['open','close']].min(axis=1) - data['low']
-        pin = (upper.combine(lower, max) / body).rolling(20).mean()
-        pin_z = (pin - pin.rolling(60).mean()) / (pin.rolling(60).std() + 1e-9)
-        ret5 = data['close'].pct_change(5)
-        result = (-pin_z.clip(-1, 1) * ret5.clip(-1, 1)).clip(-1, 1)
+        density = (data[['open','close']].max(axis=1) - data[['open','close']].min(axis=1) + 1e-9)
+        pin = (upper + lower) / body
+        dens = pin.rolling(20).mean()
+        ret = data['close'].pct_change(3)
+        result = (dens.rank(pct=True) * (-ret).clip(-1, 1)).rolling(5).mean().clip(-1, 1)
         return result

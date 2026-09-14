@@ -41,6 +41,9 @@ MAX_MAKER_FEE_BP = float(os.getenv("F60_MAX_MAKER_FEE_BP", "0.5"))  # 费率闸�
 # 事故背景：2026-08-18 之后 asterdex 的盘口/成交采集停止，最新快照已陈旧 22 天，
 # 若不加闸门，驱动器会拿 22 天前的价格挂单（BTC 64k vs 实际 78k）。
 MAX_DATA_AGE_SEC = float(os.getenv("MM_MAX_DATA_AGE_SEC", "180"))
+# [F134] "地板报价"判定阈值（bp）：挂单宽度 ≤ 该值视为贴地板的减仓腿
+# （`min_width_reduce_bp` 目前 1.0bp，取 1.5 留出浮点与偏斜余量）。
+FLOOR_QUOTE_BP = float(os.getenv("MM_FLOOR_QUOTE_BP", "1.5"))
 # 队列保守假设：价格需穿过挂单价多少 bp 才算我们成交（0=假设排在队列最前）
 PENETRATION_BP = float(os.getenv("F60_PENETRATION_BP", "0.0"))
 # [F92 2026-09-14] 成交桶网格：market_trades_aggregated 与盘口快照同为 15s 桶、
@@ -944,7 +947,10 @@ class ShadowRunner:
             "cross_buy": 0, "cross_sell": 0, "fill_buy": 0, "fill_sell": 0,
             "nofill_min_notional": 0, "nofill_stale": 0, "nofill_other": 0,
             # [F107] 判定区间空/非空（数据层缺陷导致的成交机会损失，可观测）
-            "win_judged": 0, "win_empty": 0}
+            "win_judged": 0, "win_empty": 0,
+            # [F134] 地板价减仓腿漏斗（引擎账内配对口径）：穿越后成交/未成交/未穿越/空区间
+            "floor_cross_fill": 0, "floor_cross_nofill": 0,
+            "floor_nocross": 0, "floor_win_empty": 0}
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
@@ -1497,6 +1503,26 @@ class ShadowRunner:
                     self.cross_counts["win_judged"] += 1
                 else:
                     self.cross_counts["win_empty"] += 1
+            # [F134] **地板价漏斗（引擎账内口径）**：宽度 ≤ `min_width_reduce_bp` 附近的
+            # 减仓腿是最安全、最赚钱的成交（模型里占一半），但外部复算难以判定它是否被
+            # 漏判（外部按墙钟配对，而引擎按**桶水位/分片**配对，两者可差 ±15~30s ✗）。
+            # 这里用引擎自己的配对记账：地板报价 → 穿越？ → 成交？
+            # 判据与 F105 的穿越计数逐条一致（本侧有挂单 + 该侧有主动量 + 区间价触及）。
+            _fw = 0.0
+            if _qb0 > 0:
+                _fw = (_qm0 - _qb0) / _qm0 * 1e4 if _qm0 > 0 else 0.0
+            elif _qa0 > 0:
+                _fw = (_qa0 - _qm0) / _qm0 * 1e4 if _qm0 > 0 else 0.0
+            if 0 < _fw <= FLOOR_QUOTE_BP:
+                if _hit_buy or _hit_sell:
+                    if dec.fills:
+                        self.cross_counts["floor_cross_fill"] += 1
+                    else:
+                        self.cross_counts["floor_cross_nofill"] += 1
+                elif _seg_low > 0 or _seg_high > 0:
+                    self.cross_counts["floor_nocross"] += 1
+                else:
+                    self.cross_counts["floor_win_empty"] += 1
             # [F102] 记入环形缓冲：判定用的挂单 vs 区间高低 + 成交数（审计"该成交却没成交"）
             self.recent_ticks.append({
                 "ts": round(now_ts, 1), "s": s,
