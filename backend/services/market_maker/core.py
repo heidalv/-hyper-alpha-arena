@@ -496,7 +496,11 @@ def check_side_allowed(
     """
     if equity <= 0:
         return False, "equity<=0"
-    if sigma_norm > limits.vol_pause_sigma:
+    # [F82 2026-09-14] vol_pause_sigma ≤ 0 = 显式禁用这道 sigma 闸。
+    # 现场：崩盘后实盘 sigma=1.6（30 天旧基准 1.14 虚高放大）> 1.5 ⇒ 双侧被
+    # 封数小时 0 成交，而回放用窗口自适应基准（sigma≈0.5）不受影响——
+    # 同窗口 212 笔 vs 实盘 4 笔的第二根因。进攻型配置显式置 0。
+    if limits.vol_pause_sigma > 0 and sigma_norm > limits.vol_pause_sigma:
         return False, f"vol_pause(sigma={sigma_norm:.2f})"
 
     q = book.qty(symbol)
