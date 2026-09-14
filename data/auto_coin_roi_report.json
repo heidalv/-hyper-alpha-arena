@@ -2,14 +2,6 @@
  "session_id": "fa_7e12e7a1b6",
  "weeks": [
   {
-   "week": "2026-W29",
-   "auto_pnl": 0.0,
-   "auto_n": 0,
-   "fixed_pnl": 3.9077,
-   "fixed_n": 139,
-   "roi_diff": -3.9077
-  },
-  {
    "week": "2026-W30",
    "auto_pnl": 0.0,
    "auto_n": 0,
@@ -68,11 +60,19 @@
   {
    "week": "2026-W37",
    "auto_pnl": 0.0,
+   "auto_n": 3,
+   "fixed_pnl": -19.0751,
+   "fixed_n": 32,
+   "roi_diff": 19.0751
+  },
+  {
+   "week": "2026-W38",
+   "auto_pnl": 0.0,
    "auto_n": 0,
-   "fixed_pnl": 0.0,
-   "fixed_n": 1,
-   "roi_diff": 0.0
+   "fixed_pnl": 7.5878,
+   "fixed_n": 3,
+   "roi_diff": -7.5878
   }
  ],
- "generated_at": "2026-09-07T08:00:03.878731"
+ "generated_at": "2026-09-14T08:00:01.020095"
 }

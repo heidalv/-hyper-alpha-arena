@@ -1,6 +1,6 @@
 {
   "agent": "execution_qa",
-  "ts_ms": 1789082101489,
+  "ts_ms": 1789341300721,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,23 +9,23 @@
   "credibility": {
     "agent": "execution_qa",
     "days": 60,
-    "n": 7,
-    "n_scored": 4,
-    "avg_score": 0.5,
-    "avg_brier": 0.24907424515624996,
+    "n": 10,
+    "n_scored": 6,
+    "avg_score": 0.3333333333333333,
+    "avg_brier": 0.2303145076041666,
     "by_kind": [
       {
         "kind": "exec_quality",
-        "n": 7,
-        "n_scored": 4,
-        "avg_score": 0.5,
-        "avg_brier": 0.24907424515624996,
-        "last_ms": 1788995704240
+        "n": 10,
+        "n_scored": 6,
+        "avg_score": 0.3333333333333333,
+        "avg_brier": 0.2303145076041666,
+        "last_ms": 1789254905735
       }
     ],
     "verdict": {
       "passed": false,
-      "reason": "已评分样本 4 < 30",
+      "reason": "已评分样本 6 < 30",
       "gate": {
         "min_scored": 30,
         "min_avg_score": 0.55,
@@ -39,65 +39,99 @@
     "per_account": [
       {
         "account_id": null,
-        "since_ms": 1788477302400,
-        "until_ms": 1789082102400,
-        "n_orders": 200,
+        "since_ms": 1788736500903,
+        "until_ms": 1789341300903,
+        "n_orders": 145,
         "notes": [
-          "1 笔成交缺基准价，未计入滑点",
+          "3 笔成交缺基准价，未计入滑点",
           "maker/taker 占比与下单延迟未落库（仅存在于仿真器内存），本轮不评估"
         ],
-        "n_filled": 115,
+        "n_filled": 79,
         "n_rejected": 0,
         "n_partial": 0,
         "reject_rate": 0.0,
         "partial_rate": 0.0,
-        "median_slippage_bp": 7.802,
-        "avg_slippage_bp": 9.402,
-        "p90_slippage_bp": 22.821,
-        "n_slippage_samples": 114,
+        "median_slippage_bp": 19.355,
+        "avg_slippage_bp": 17.291,
+        "p90_slippage_bp": 25.608,
+        "n_slippage_samples": 76,
         "slippage_by_type": {
           "market": {
-            "n": 112,
-            "median_bp": 7.8
+            "n": 75,
+            "median_bp": 19.4
           },
           "stop_loss": {
-            "n": 2,
-            "median_bp": 5.0
+            "n": 1,
+            "median_bp": -0.0
           }
         },
         "worst_symbols": [
           {
             "symbol": "ASTER",
-            "n": 10,
-            "median_bp": 19.99
+            "n": 8,
+            "median_bp": 22.19
           },
           {
             "symbol": "SOL",
             "n": 13,
-            "median_bp": 17.81
+            "median_bp": 20.2
+          },
+          {
+            "symbol": "VIRTUAL",
+            "n": 9,
+            "median_bp": 19.86
           },
           {
             "symbol": "BNB",
-            "n": 11,
-            "median_bp": 17.46
+            "n": 12,
+            "median_bp": 19.4
           },
           {
             "symbol": "XRP",
-            "n": 10,
-            "median_bp": 10.51
-          },
-          {
-            "symbol": "ETH",
-            "n": 20,
-            "median_bp": 7.66
+            "n": 9,
+            "median_bp": 18.85
           }
         ],
-        "avg_fee_bp": 3.991,
-        "n_fee_samples": 115
+        "avg_fee_bp": 3.999,
+        "n_fee_samples": 79
       }
     ],
     "n_usable": 1,
-    "issues": [],
+    "issues": [
+      {
+        "account_id": null,
+        "type": "slippage",
+        "value": 19.355,
+        "threshold": 8.0,
+        "worst": [
+          {
+            "symbol": "ASTER",
+            "n": 8,
+            "median_bp": 22.19
+          },
+          {
+            "symbol": "SOL",
+            "n": 13,
+            "median_bp": 20.2
+          },
+          {
+            "symbol": "VIRTUAL",
+            "n": 9,
+            "median_bp": 19.86
+          },
+          {
+            "symbol": "BNB",
+            "n": 12,
+            "median_bp": 19.4
+          },
+          {
+            "symbol": "XRP",
+            "n": 9,
+            "median_bp": 18.85
+          }
+        ]
+      }
+    ],
     "thresholds": {
       "slippage_bp": 8.0,
       "reject_rate": 0.05,
@@ -105,12 +139,14 @@
     }
   },
   "predictions": [
-    "bba2e2cd01124637b9562a7542e7f053"
+    "1d09b8ec742c487d87c7de141956647a"
   ],
   "advice": [],
   "experiments": [],
-  "errors": [],
-  "elapsed_sec": 12.623,
+  "errors": [
+    "advise: 'avg_bp'"
+  ],
+  "elapsed_sec": 2.415,
   "latest_path": null,
   "dry_run": false
 }

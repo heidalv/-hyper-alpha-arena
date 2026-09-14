@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789058102207,
+  "ts_ms": 1789348794265,
   "passed": false,
   "live_aster_requested": false,
   "live_allowed": false,
@@ -7,27 +7,28 @@
     {
       "name": "trend_drift",
       "ok": false,
-      "trend_drift": 2,
-      "weight_drift": 0,
-      "leverage_violations": 4,
-      "max_weight_deviation": 0.0866,
-      "max_ok": 0.02,
+      "trend_drift": 0,
+      "weight_drift": 3,
+      "leverage_violations": 0,
+      "max_weight_deviation": 0.1484,
+      "max_ok": 0.1,
       "accounts_checked": 1,
-      "as_of_bar": "2026-09-03",
-      "reason": "trend_drift=2（方向不符仓位数，要求 0）；leverage_violations=4（要求 0）；max|权重偏差|=0.0866 > 0.02"
+      "as_of_bar": "2026-09-12",
+      "reason": "max|权重偏差|=0.1484 > 0.1"
     },
     {
       "name": "run_days",
       "ok": false,
-      "days": 7.0,
+      "days": 12.0,
       "min_days": 28,
-      "reason": "模拟天数 7.0 < 28"
+      "reason": "模拟天数 12.0 < 28"
     },
     {
       "name": "fee_budget",
-      "ok": false,
-      "inconclusive": true,
-      "reason": "无 fee_summary；请补 edge_ledger 或设 TREND_E1_F4_SKIP_FEE=true"
+      "ok": true,
+      "fee_pct_week": 0.004648,
+      "max": 0.01,
+      "reason": null
     },
     {
       "name": "promotion_freeze",
@@ -44,8 +45,8 @@
     },
     {
       "name": "halt_tests",
-      "ok": false,
-      "reason": "缺少 halt_tests_ok.json；跑停机单测后 touch 或设 TREND_E1_F4_HALT_TESTS_OK=true"
+      "ok": true,
+      "reason": "halt_tests_ok.json 存在"
     }
   ],
   "note": "passed 只是资格；真下单还要 TREND_E1_LIVE_ASTER=true 与 live 账户列表"

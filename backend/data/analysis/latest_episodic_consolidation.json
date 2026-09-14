@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-10T21:30:00.946886+00:00",
+ "generated_at": "2026-09-13T21:30:00.559873+00:00",
  "days": 7,
  "rules": [
   {
@@ -7,18 +7,27 @@
    "regime": "ranging",
    "vol_bucket": "low",
    "direction": "long",
-   "n": 10,
-   "win_rate": 0.2,
-   "avg_pct": -1.77
+   "n": 15,
+   "win_rate": 0.4,
+   "avg_pct": -0.82
   },
   {
    "tier": "mid",
    "regime": "ranging",
    "vol_bucket": "low",
    "direction": "long",
+   "n": 6,
+   "win_rate": 0.0,
+   "avg_pct": -2.38
+  },
+  {
+   "tier": "mid",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "short",
    "n": 3,
    "win_rate": 0.0,
-   "avg_pct": -3.47
+   "avg_pct": -1.26
   },
   {
    "tier": "long",
@@ -30,6 +39,6 @@
    "avg_pct": -0.8
   }
  ],
- "lessons_text": "长线·震荡市·低波动·做多：10 笔 胜率20% 均盈-1.77%\n中线·震荡市·低波动·做多：3 笔 胜率0% 均盈-3.47%\n长线·趋势市·低波动·做多：3 笔 胜率33% 均盈-0.80%",
- "total_episodes": 23
+ "lessons_text": "长线·震荡市·低波动·做多：15 笔 胜率40% 均盈-0.82%\n中线·震荡市·低波动·做多：6 笔 胜率0% 均盈-2.38%\n中线·震荡市·低波动·做空：3 笔 胜率0% 均盈-1.26%\n长线·趋势市·低波动·做多：3 笔 胜率33% 均盈-0.80%",
+ "total_episodes": 33
 }

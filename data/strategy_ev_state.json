@@ -1,26 +1,26 @@
 {
   "clusters": {
     "scalp_ranging_mr": {
-      "n": 45,
-      "wins": 28,
-      "net_pnl": 4.299003,
-      "avg_net": 0.095533,
-      "mult": 1.2,
-      "decision": "premium",
-      "ev_per_trade": 0.095533,
-      "updated_at": 1789059900.6353765
+      "n": 0,
+      "wins": 0,
+      "net_pnl": 0.0,
+      "avg_net": 0.0,
+      "mult": 1.0,
+      "decision": "stable",
+      "ev_per_trade": 0.0,
+      "updated_at": 1789319101.6512282
     },
     "scalp_trend": {
-      "n": 349,
-      "wins": 94,
-      "net_pnl": -130.517928,
-      "avg_net": -0.373977,
+      "n": 258,
+      "wins": 60,
+      "net_pnl": -103.257022,
+      "avg_net": -0.400221,
       "mult": 0.5,
       "decision": "pause",
-      "ev_per_trade": -0.373977,
-      "updated_at": 1789059900.9052854
+      "ev_per_trade": -0.400221,
+      "updated_at": 1789319101.799895
     }
   },
   "strategies": {},
-  "updated_at": 1789059900.9285347
+  "updated_at": 1789319101.8009014
 }

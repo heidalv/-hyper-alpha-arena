@@ -1,0 +1,11 @@
+{
+ "day": "2026-09-12",
+ "ext:a188:XPL": {
+  "account_id": 188,
+  "symbol": "XPL",
+  "qty": 8000.0,
+  "first_seen": "2026-09-12 13:45:49",
+  "last_seen": "2026-09-12 13:45:49",
+  "source": "auto"
+ }
+}

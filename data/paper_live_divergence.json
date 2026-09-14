@@ -33,7 +33,15 @@
   },
   {
     "file": "backend/services/full_auto/midlong_executor.py",
-    "line": 539,
+    "line": 517,
+    "test": "getattr(session, 'trading_mode', None)",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_executor.py",
+    "line": 566,
     "test": "getattr(session, 'trading_mode', None)",
     "kind": "LOG/OTHER",
     "line_n": 1,
@@ -176,6 +184,14 @@
     "via_flag": false
   },
   {
+    "file": "backend/services/full_auto/mlto_cycle.py",
+    "line": 235,
+    "test": "_ab_on and (_trade_mode or 'paper').strip().lower() == 'paper' and _FR",
+    "kind": "LOG/OTHER",
+    "line_n": 1,
+    "via_flag": false
+  },
+  {
     "file": "backend/services/factor_engine/midlong_factor_route.py",
     "line": 352,
     "test": "score >= threshold",
@@ -200,8 +216,16 @@
     "via_flag": true
   },
   {
+    "file": "backend/services/factor_engine/midlong_factor_route.py",
+    "line": 399,
+    "test": "_ab not in ('1', 'true', 'yes', 'on') or (trading_mode or 'paper').strip().lower() != 'paper'",
+    "kind": "LOG/OTHER",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
     "file": "backend/services/mlto/brain.py",
-    "line": 1300,
+    "line": 1323,
     "test": "_tier_l != 'short' and str(_short_mode()) == 'regime_gated'",
     "kind": "LOG/OTHER",
     "line_n": 2,
@@ -209,7 +233,7 @@
   },
   {
     "file": "backend/services/mlto/brain.py",
-    "line": 1511,
+    "line": 1615,
     "test": "(os.getenv('MIDLONG_BRAIN_MODE', 'llm') or 'llm').strip().lower() != 'llm'",
     "kind": "LOG/OTHER",
     "line_n": 1,

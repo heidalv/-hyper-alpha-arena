@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from backend.services.coin_rank.features import _LIQUID_PREF, factor_soft, load_dc_ticker_rows, norm_sym
 
@@ -35,6 +35,10 @@ class RankResult:
     hist_avg_pnl_24h: Optional[float] = None
     hist_samples: int = 0
     rank: int = 0
+    # [2026-09-12 图信号试点] RTGNN 迁移第一阶（零训练）：领先-滞后分 + 动量加速度分
+    lead_score: Optional[float] = None
+    dm_score: Optional[float] = None
+    graph_score: Optional[float] = None
     raw: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -63,6 +67,9 @@ class RankResult:
             "hist_hit_rate": self.hist_hit_rate,
             "hist_avg_pnl_24h": self.hist_avg_pnl_24h,
             "hist_samples": self.hist_samples,
+            "lead_score": round(self.lead_score, 4) if self.lead_score is not None else None,
+            "dm_score": round(self.dm_score, 4) if self.dm_score is not None else None,
+            "graph_score": round(self.graph_score, 4) if self.graph_score is not None else None,
         }
 
 
@@ -81,6 +88,21 @@ def _percentile_ranks(values: List[float]) -> List[float]:
     return ranks
 
 
+def _graph_weights() -> Tuple[float, float]:
+    """(graph_weight, lead_weight)：settings 优先，缺省 0.10 / 0.60。"""
+    try:
+        from backend.config.settings import (
+            COIN_RANK_GRAPH_LEAD_WEIGHT,
+            COIN_RANK_GRAPH_WEIGHT,
+        )
+
+        gw = float(COIN_RANK_GRAPH_WEIGHT)
+        lw = float(COIN_RANK_GRAPH_LEAD_WEIGHT)
+        return max(0.0, min(1.0, gw)), max(0.0, min(1.0, lw))
+    except Exception:
+        return 0.10, 0.60
+
+
 def score_rows(
     rows: Dict[str, Dict[str, Any]],
     *,
@@ -88,8 +110,15 @@ def score_rows(
     apply_factor: bool = True,
     decay_map: Optional[Dict[str, float]] = None,
     hist_map: Optional[Dict[str, Dict[str, Any]]] = None,
+    graph_map: Optional[Dict[str, Dict[str, float]]] = None,
 ) -> List[RankResult]:
-    """对 DC rows 打分；可选子集 symbols。"""
+    """对 DC rows 打分；可选子集 symbols。
+
+    graph_map（图信号试点）：{SYM: {"lead": float, "dm": float}}，来自
+    coin_rank.graph_signal.compute_graph_signals。提供时按 COIN_RANK_GRAPH_WEIGHT
+    软融合进 base（与 factor_soft 同模式：base = (1−w)·base + w·graph_comp）。
+    """
+    gw, lw = _graph_weights()
     if symbols:
         want = {norm_sym(s) for s in symbols if s}
         items = [rows[s] for s in want if s in rows]
@@ -151,6 +180,22 @@ def score_rows(
                 fm_n = _clip01((float(fm) + 1.0) / 2.0)
                 base = 0.65 * base + 0.35 * fm_n
                 explain.append(f"factor={fm_n:.2f}")
+
+        # [2026-09-12 图信号试点] lead/dm 软融合（graph_map 缺币时跳过，零影响）
+        lead_s: Optional[float] = None
+        dm_s: Optional[float] = None
+        graph_comp: Optional[float] = None
+        if graph_map and sym in graph_map:
+            g = graph_map[sym]
+            try:
+                lead_s = _clip01(float(g.get("lead") or 0.0))
+                dm_s = _clip01(float(g.get("dm") or 0.0))
+                graph_comp = _clip01(lw * lead_s + (1.0 - lw) * dm_s)
+                if gw > 0:
+                    base = (1.0 - gw) * base + gw * graph_comp
+                explain.append(f"graph={graph_comp:.2f}(lead={lead_s:.2f},dm={dm_s:.2f})")
+            except (TypeError, ValueError):
+                lead_s = dm_s = graph_comp = None
 
         # TrapSoft：暴涨但短周期回吐 / 高波动低流动性
         trap = 0.0
@@ -215,6 +260,9 @@ def score_rows(
                 hist_hit_rate=hist_hit,
                 hist_avg_pnl_24h=hist_pnl,
                 hist_samples=hist_n,
+                lead_score=lead_s,
+                dm_score=dm_s,
+                graph_score=graph_comp,
                 raw=dict(r),
             )
         )

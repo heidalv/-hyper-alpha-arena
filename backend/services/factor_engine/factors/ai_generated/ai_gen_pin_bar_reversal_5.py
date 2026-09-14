@@ -1,4 +1,4 @@
-"""AI因子: 插针影线不对称反转 | 置信:62% | 用下影线与上影线的不对称度衡量买卖方防守强度，结合短期收益方向做反转：长下影主导(买方承接)后短期反弹概率高，长上影主导(卖方拒绝)后短期回落概率高。取3期滚动均值平滑噪声，输出[-1,1]。"""
+"""AI因子: 插针影线不对称反转 | 置信:60% | 计算上下影线不对称度(lower-upper)/body，取3期滚动均值后与短期收益方向交互：下影主导(买方防守)且近期下跌时给正分，预期反弹；上影主导(卖方拒绝)且近期上涨时给负分，预期回落。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -6,15 +6,15 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 
 @register_factor()
-class PinBarAsymmetryReversal(BaseFactor):
-    """用下影线与上影线的不对称度衡量买卖方防守强度，结合短期收益方向做反转：长下影主导(买方承接)后短期反弹概率高，长上影主导(卖方拒绝)后短期回落概率高。取3期滚动均值平滑噪声，输出[-1,1]。"""
+class PinBarAsymmetryReversal5(BaseFactor):
+    """计算上下影线不对称度(lower-upper)/body，取3期滚动均值后与短期收益方向交互：下影主导(买方防守)且近期下跌时给正分，预期反弹；上影主导(卖方拒绝)且近期上涨时给负分，预期回落。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_pin_bar_reversal_5",
-            name="Pin Bar Asymmetry Reversal",
+            name="Pin Bar Asymmetry Reversal 5",
             display_name="插针影线不对称反转",
-            description="用下影线与上影线的不对称度衡量买卖方防守强度，结合短期收益方向做反转：长下影主导(买方承接)后短期反弹概率高，长上影主导(卖方拒绝)后短期回落概率高。取3期滚动均值平滑噪声，输出[-1,1]。",
+            description="计算上下影线不对称度(lower-upper)/body，取3期滚动均值后与短期收益方向交互：下影主导(买方防守)且近期下跌时给正分，预期反弹；上影主导(卖方拒绝)且近期上涨时给负分，预期回落。",
             category="technical",
             subcategory="contrarian",
             version="1.0.0-ai",
@@ -25,7 +25,7 @@ class PinBarAsymmetryReversal(BaseFactor):
         body = (data['close'] - data['open']).abs() + 1e-9
         upper = data['high'] - data[['open','close']].max(axis=1)
         lower = data[['open','close']].min(axis=1) - data['low']
-        asym = (lower - upper) / body
+        asym = ((lower - upper) / body).rolling(3).mean()
         ret = data['close'].pct_change(3)
-        result = (asym.rolling(3).mean() * (1 - ret.rolling(3).mean().rank(pct=True) * 2)).clip(-1, 1)
+        result = (asym * (-ret)).rolling(5).mean().clip(-1, 1)
         return result

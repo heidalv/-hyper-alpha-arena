@@ -136,7 +136,9 @@ class TestToV3Weights:
     def test_empty_ics_falls_back(self):
         weights, enabled = to_v3_weights({})
         assert enabled is False
-        assert set(weights) == {"base", "flow", "whale", "news", "sector"}
+        # [2026-09-12 P2] 回退字典新增 graph 维度（权重 0 → compose 自动跳过，行为不变）
+        assert set(weights) == {"base", "flow", "whale", "news", "sector", "graph"}
+        assert weights["graph"] == 0.0
 
 
 # ─────────────────────────────────────────────────────────────

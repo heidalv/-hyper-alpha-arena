@@ -15,7 +15,8 @@
     "tpl_mid_reversion_ee142d",
     "tpl_mid_reversion_290af6",
     "auto_dfa9e3b348",
-    "auto_efd68a88ca"
+    "auto_efd68a88ca",
+    "tpl_long_swing_42c24a"
   ],
   "strategy_graduation": {
     "tpl_mid_reversion_a9e8e8": {
@@ -44,8 +45,8 @@
     },
     "tpl_mid_range_c1126e": {
       "status": "candidate",
-      "trades": 18,
-      "wr": 0.4444444444444444,
+      "trades": 19,
+      "wr": 0.42105263157894735,
       "dd": 0.026613047657884033
     },
     "tpl_mid_reversion_ee142d": {
@@ -68,8 +69,8 @@
     },
     "auto_dfa9e3b348": {
       "status": "graduated",
-      "trades": 23,
-      "wr": 0.5217391304347826,
+      "trades": 26,
+      "wr": 0.5,
       "dd": 0.017469716742091485
     },
     "auto_80cba52144": {
@@ -80,21 +81,27 @@
     },
     "auto_efd68a88ca": {
       "status": "graduated",
-      "trades": 66,
-      "wr": 0.515151515151515,
+      "trades": 75,
+      "wr": 0.5066666666666665,
       "dd": 0.049388618413643434
     },
     "tpl_long_swing_42c24a": {
-      "status": "candidate",
-      "trades": 17,
-      "wr": 0.7058823529411764,
+      "status": "graduated",
+      "trades": 36,
+      "wr": 0.5833333333333334,
       "dd": 0.025157842785055926
+    },
+    "tpl_long_swing_4e727e": {
+      "status": "candidate",
+      "trades": 15,
+      "wr": 1.0,
+      "dd": 0.0
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_ee142d": 121,
-    "tpl_mid_range_89e53b": 82,
-    "tpl_mid_reversion_290af6": 121
+    "tpl_mid_reversion_ee142d": 234,
+    "tpl_mid_range_89e53b": 169,
+    "tpl_mid_reversion_290af6": 234
   },
   "live_cooldown_until": {},
   "started_at": "2026-09-09T04:43:02.132140+00:00"

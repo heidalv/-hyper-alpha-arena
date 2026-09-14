@@ -937,6 +937,12 @@ class ShadowRunner:
         # 记录判定时**实际被检验的挂单**（重挂前的 quote）与区间高低/主动量、成交数。
         # 这是把「报价路径」与「判定路径」分开的直接证据（此前只能靠外部复算，不可靠）。
         self.recent_ticks: List[Dict[str, Any]] = []
+        # [F105 2026-09-14] 「穿越→成交」转化率累计（进程内）：残留的实盘/回放速率差
+        # 需要长窗口统计才能定位——短窗（12 tick）样本太小。分类：本侧穿越且成交 /
+        # 穿越但腿量低于最小名义 / 穿越但挂单被判陈旧清除（F89a）。
+        self.cross_counts: Dict[str, int] = {
+            "cross_buy": 0, "cross_sell": 0, "fill_buy": 0, "fill_sell": 0,
+            "nofill_min_notional": 0, "nofill_stale": 0, "nofill_other": 0}
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
@@ -1400,6 +1406,38 @@ class ShadowRunner:
                 self._w_n += 1
                 self._sigma_sum += float(sigma or 0.0)
             self._record_fills(dec)
+            # [F105] 穿越→成交转化率：本侧穿越（区间价触及挂单价，且该侧有主动量——
+            # 与 plan_tick 的成交条件**逐条对齐**，否则会把"无成交量的穿越"误记为异常）。
+            _seg_low = float(m.get("seg_low") or 0.0)
+            _seg_high = float(m.get("seg_high") or 0.0)
+            _seg_sell = float(m.get("seg_sell") or 0.0)
+            _seg_buy = float(m.get("seg_buy") or 0.0)
+            _hit_buy = _qb0 > 0 and _seg_sell > 0 and 0 < _seg_low < _qb0
+            _hit_sell = _qa0 > 0 and _seg_buy > 0 and _seg_high > _qa0
+            if _hit_buy:
+                self.cross_counts["cross_buy"] += 1
+            if _hit_sell:
+                self.cross_counts["cross_sell"] += 1
+            for _f in dec.fills:
+                if _f.side == "buy":
+                    self.cross_counts["fill_buy"] += 1
+                else:
+                    self.cross_counts["fill_sell"] += 1
+            if (_hit_buy or _hit_sell) and not dec.fills:
+                if "stale_quote" in str(dec.skip or ""):
+                    self.cross_counts["nofill_stale"] += 1
+                else:
+                    # 唯一其它可能：队列份额后的腿量低于最小名义（判定本身已通过）
+                    _mid = float(m.get("mid") or 0.0)
+                    _side = "buy" if _hit_buy else "sell"
+                    _avail = _seg_sell if _side == "buy" else _seg_buy
+                    from backend.services.market_maker.replay import QUEUE_SHARE as _QS
+                    _q = min(self.fill_notional / _mid if _mid > 0 else 0.0,
+                             _avail * _QS)
+                    if _q * _mid < 10.0:
+                        self.cross_counts["nofill_min_notional"] += 1
+                    else:
+                        self.cross_counts["nofill_other"] += 1
             # [F102] 记入环形缓冲：判定用的挂单 vs 区间高低 + 成交数（审计"该成交却没成交"）
             self.recent_ticks.append({
                 "ts": round(now_ts, 1), "s": s,
@@ -1595,6 +1633,8 @@ class ShadowRunner:
             "quoted_decisions": self._w_n,
             # [F102] 最近 tick 的成交判定输入（供审计漏判；60 条 ≈ 12 tick × 5 币）
             "recent_ticks": self.recent_ticks[-60:],
+            # [F105] 穿越→成交转化率累计（长窗口定位残留速率差）
+            "cross_counts": dict(self.cross_counts),
             # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
             # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
             "orphan_inventory": {s: round(float(st.qty), 8)

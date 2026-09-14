@@ -46,6 +46,12 @@ logger = logging.getLogger(__name__)
 MIN_ADV_USD = float(os.getenv("UNIVERSE_MIN_ADV_USD", "5000000"))
 MAX_UNIVERSE_SIZE = int(os.getenv("UNIVERSE_MAX_SIZE", "15"))
 MAX_PAIRWISE_CORR = float(os.getenv("UNIVERSE_MAX_PAIRWISE_CORR", "0.7"))
+# [2026-09-12 RTGNN 迁移 P3] 方向感知去重：除对称 |corr| 外，把"领先-滞后冗余"
+# 也作为冲突判据（A 强领先 B → 同质，只留其一）。默认关 = 旧行为。
+UNIVERSE_DEDUP_DIRECTIONAL: bool = os.getenv(
+    "UNIVERSE_DEDUP_DIRECTIONAL", "false"
+).strip().lower() in ("1", "true", "yes", "on")
+UNIVERSE_MAX_LEAD_REDUNDANT = float(os.getenv("UNIVERSE_MAX_LEAD_REDUNDANT", "0.30"))
 VOL_SWEET_LOW = float(os.getenv("UNIVERSE_VOL_SWEET_LOW", "0.60"))   # 年化波动率下限(60%)
 VOL_SWEET_HIGH = float(os.getenv("UNIVERSE_VOL_SWEET_HIGH", "2.00"))  # 年化波动率上限(200%)
 MIN_HISTORY_DAYS_SHADOW = float(os.getenv("UNIVERSE_MIN_HISTORY_DAYS", "7"))
@@ -92,6 +98,7 @@ class UniverseManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._state = None
+            cls._instance._lead_matrix_cache = None
             cls._instance._load_state()
         return cls._instance
 
@@ -295,6 +302,18 @@ class UniverseManager:
 
         results.sort(key=lambda r: r.composite_score, reverse=True)
         self._corr_matrix_cache = corr_df.corr() if corr_df.shape[1] >= 2 else None
+        # [2026-09-12 P3] 方向感知去重：领先-滞后冗余矩阵（失败降级对称去重，零影响）
+        self._lead_matrix_cache = None
+        if UNIVERSE_DEDUP_DIRECTIONAL and corr_df.shape[1] >= 2 and corr_df.shape[0] >= 10:
+            try:
+                from backend.services.coin_rank.graph_signal import pairwise_lead_matrix
+
+                self._lead_matrix_cache = pairwise_lead_matrix(
+                    {s: corr_df[s].dropna().to_numpy() for s in corr_df.columns},
+                    max_lag=6, min_bars=60,
+                )
+            except Exception as e:
+                logger.debug(f"[UniverseManager] lead 矩阵计算失败(降级对称去重): {e}")
         return results
 
     @staticmethod
@@ -311,8 +330,13 @@ class UniverseManager:
         return max(0.0, 1.0 - (annualized_vol - VOL_SWEET_HIGH) / span)
 
     def _step4_correlation_dedup(self, scored: List[UniverseSymbolResult]) -> List[UniverseSymbolResult]:
-        """STEP4: 按复合得分贪心选择，max(|corr|)>阈值与已选冲突则跳过。"""
+        """STEP4: 按复合得分贪心选择，max(|corr|)>阈值与已选冲突则跳过。
+
+        [2026-09-12 P3] UNIVERSE_DEDUP_DIRECTIONAL=true 时额外判据：与已选品种的
+        领先-滞后冗余度 > UNIVERSE_MAX_LEAD_REDUNDANT 也视为冲突（方向感知多样性）。
+        """
         corr_matrix = getattr(self, "_corr_matrix_cache", None)
+        lead_matrix = getattr(self, "_lead_matrix_cache", None)
         selected: List[UniverseSymbolResult] = []
         for r in scored:
             if r.status == "rejected":
@@ -329,9 +353,18 @@ class UniverseManager:
                         if c is not None and abs(float(c)) > MAX_PAIRWISE_CORR:
                             conflict = True
                             break
+            if not conflict and UNIVERSE_DEDUP_DIRECTIONAL and lead_matrix is not None \
+                    and r.symbol in lead_matrix.columns:
+                for s in selected:
+                    if s.symbol in lead_matrix.columns:
+                        v = lead_matrix.loc[r.symbol, s.symbol]
+                        if v is not None and float(v) > UNIVERSE_MAX_LEAD_REDUNDANT:
+                            conflict = True
+                            break
             if conflict:
                 r.status = "rejected"
-                r.reject_reason = f"与已选品种相关性>{MAX_PAIRWISE_CORR}"
+                r.reject_reason = f"与已选品种相关性>{MAX_PAIRWISE_CORR}" if not UNIVERSE_DEDUP_DIRECTIONAL else \
+                    f"与已选品种相关性>{MAX_PAIRWISE_CORR}或领先-滞后冗余>{UNIVERSE_MAX_LEAD_REDUNDANT}"
                 continue
             selected.append(r)
         return selected

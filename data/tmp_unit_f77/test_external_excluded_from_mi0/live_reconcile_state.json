@@ -1,0 +1,11 @@
+{
+ "day": "2026-09-12",
+ "ext:a188:VIRTUAL": {
+  "account_id": 188,
+  "symbol": "VIRTUAL",
+  "qty": 2222.0,
+  "first_seen": "2026-09-12 13:45:49",
+  "last_seen": "2026-09-12 13:45:49",
+  "source": "auto"
+ }
+}

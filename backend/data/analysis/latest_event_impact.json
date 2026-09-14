@@ -1,116 +1,93 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789132892175,
+  "ts_ms": 1789388485577,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.843,
-  "run_id": "3dbe585273b0471e9c5f76e2b176c02d",
-  "context_hash": "72e8b287ae53a7f8ed65141c4dd135fc844a1e1f32b6f2ef231827b07e35c809",
+  "consensus_score": 0.842,
+  "run_id": "e97fa3e13f2b48fab1b27ddea672e20e",
+  "context_hash": "d93d5c8e5c3f29c14a3116b805bc042c13035d761938587e7d7d2da38950f1ea",
   "final": {
     "direction": "bearish",
-    "strength": 3.0,
-    "confidence": 0.325,
-    "half_life_hours": 8.0,
+    "strength": 5.0,
+    "confidence": 0.575,
+    "half_life_hours": 7.0,
     "affected_symbols": [
-      "EMBER"
+      "BTW"
     ],
-    "hedging_window_hours": 4.0,
+    "hedging_window_hours": 10.0,
     "position_adjustments": [
       {
-        "symbol": "EMBER",
+        "symbol": "BTW",
+        "action": "tighten_stops",
+        "reason": "gateio单所正资金费飙升至+0.363%/8h（约+397% APR），但binance/bybit资金费仍处于正常偏低水平（0.05–0.08%），呈交易所割裂；OI已-14%且过去1h OI再降-23.5%，表明多头正在主动减仓以规避高资金费成本；同时1h大跌-12.9%、1d跌-13.1%，但4h/1h趋势仍标记bullish，存在轧空后回调风险，应收紧止损并避免新增多头"
+      },
+      {
+        "symbol": "BTW",
         "action": "no_new_long",
-        "reason": "资金费大幅为正（+0.363%/8h，≈+398% APR）表明多头拥挤、多头持仓成本极高，倾向于压制价格；当前不存在 EMBER 持仓，无新增多头敞口的理由"
+        "reason": "即便4h趋势仍bullish，正资金费+1h -12.9%的反向波动表明多头拥挤正在被挤出现货/期货，叠加OI大幅下降（24h -14%），新增做多风险收益比恶化"
       },
       {
-        "symbol": "EMBER",
-        "action": "no_new_short",
-        "reason": "缺乏 K 线/价格/成交量数据，无法确认短周期入场结构；且资金费极端值历史上常在下个 8h 周期被套利/强平修正，避免激进追空"
+        "symbol": "BTW",
+        "action": "none",
+        "reason": "当前组合中无BTW持仓，账户14仅持有BNB/BTC/ETH/SOL/UNI/XPL/XRP，无需对BTW做仓位调整"
       },
       {
-        "symbol": "EMBER",
+        "symbol": "BTW",
         "action": "no_new_long",
-        "reason": "gateio 资金费 +0.363%/8h（≈+398% APR），开多需承担约 1.09%/天 的负 carry，且正向极端资金费通常对应多头拥挤后的均值回归；market:EMBER 无 K 线，无法确认价格位置与动量，禁止追多"
-      },
-      {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "EMBER 属小币种局部资金费极化，corr_to_btc 与相关性数据缺失，无证据显示向大币种传导；当前 BTC 多头（R=0.13，dist_sl 7.47%）与该事件无直接关联，维持不动"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "同上，无 EMBER 敞口、无相关性证据，无需调节"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "同上，无 EMBER 敞口、无相关性证据，无需调节"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "同上，无 EMBER 敞口、无相关性证据，无需调节"
+        "reason": "gateio 极端正费率 +0.363%/8h（≈+397% APR）显示多头拥挤付费（global_ls 0.711、top_pos_ls 1.996），且事件前 1h OI 名义 -23.5%（$124.7M→$95.4M）伴随价格 1h -12.92%，多头去杠杆/挤仓已在进行；30d +102.8% 高位回落风险大，禁止新开多。当前账本 11 笔持仓均不涉及 BTW，无需 reduce/hedge"
       }
     ],
     "analogues": [
       {
-        "event": "gateio VTHO 资金费 -2.000%/8h（≈-2190% APR）",
-        "outcome": "负费率极端值通常在下个周期快速均值回归，方向反转或减弱"
+        "event": "同pack内 funding.extreme 多样本（LSK/STEEM/POWR/CVC/GLM等）方向多为负（空头付费），部分极端正资金费如BSP +1.433%/8h、FATCOIN +1.414%/8h 通常伴随短期回调",
+        "outcome": "历史经验：单交易所极端正资金费往往是多头过度拥挤信号，常见后续OI下降+价格回落，半衰期约4–12h"
       },
       {
-        "event": "bybit PUFFER 资金费 -1.640%/8h（≈-1796% APR）",
-        "outcome": "极端资金费持续 1-2 个 8h 周期后回落，对应价格在费率回归前后出现反转"
+        "event": "BTW同期position.oi_jump -23.5%（1h）",
+        "outcome": "OI骤降伴随资金费飙升通常意味着杠杆多头平仓兑现成本，方向偏空但已被部分定价"
       },
       {
-        "event": "bybit HORIZON 资金费 +0.778%/8h（≈+852% APR）",
-        "outcome": "正费率极端后价格承压，常见 8-24h 内出现回落或多头拥挤解除"
+        "event": "BTW 自身：1h OI 名义 -23.5%（$124,727,765→$95,360,285，ts 1789383600000，sev 3，dir -0.3）",
+        "outcome": "pack 内直接观测：伴随 1h 价格 -12.92%、24h OI -14.05%，杠杆多头快速去化、价格自 24h 高点 0.8 回落至 0.63624，与本费率极值事件的看空方向互相印证"
       },
       {
-        "event": "gateio VTHO 资金费 -2.000%/8h（≈-2190% APR，sev4）",
-        "outcome": "context 未提供该事件后续价格/资金费收敛数据，结果不可评估"
-      },
-      {
-        "event": "bybit PUFFER 资金费 -1.640%/8h（≈-1796% APR，sev4）",
-        "outcome": "context 未提供后续跟踪数据，结果不可评估"
-      },
-      {
-        "event": "bybit HORIZON 资金费 +0.778%/8h（≈+852% APR，sev4，dir=-0.5，与 EMBER 同为正向极端）",
-        "outcome": "context 未提供后续跟踪数据，结果不可评估；仅可确认系统将其标记为偏空方向信号"
+        "event": "同期极端费率群体：LSK/STEEM/CVC/POWR 等多币种费率 -0.6%~-2.0%/8h（binance/bybit/asterdex/gateio，24h 内 200 事件）",
+        "outcome": "pack 未提供这些币后续价格结果，无法确认『费率极值→价格均值回归』的统计规律，不作为定量依据"
       }
     ],
     "key_factors": [
-      "gateio EMBER 8h 资金费 +0.363%，远超 0.1% 阈值，约年化 +398% APR",
-      "severity=3（中等极端），低于同期多数 funding.extreme 事件（sev=4）",
-      "资金费方向 dir=-0.5 表示多头付息/空头收息，多头拥挤信号",
-      "context pack 中 funding_8h_pct 字段 EMBER=0.005（500% APR）口径，与 payload rate_8h=0.003632（397.7% APR）存在差异，数据一致性存疑",
-      "市场层 EMBER 无 K 线、相关性、持仓结构数据，技术面判断无法验证",
-      "24h 市场爆仓数据 long_liq≈39.1M / short_liq≈33.9M，方向略偏空但非主导",
-      "持仓组合中无 EMBER 敞口（仅有 BNB/BTC/SOL/UNI 多头），不需对现有仓位紧急调整",
-      "EMBER gateio 资金费 +0.363%/8h（≈+398% APR），显著高于 0.1%/8h 阈值（约 3.6 倍），多头端负 carry 极重",
-      "事件源标记 direction=-0.5，与同类正向极端资金费事件（SENSETIME +0.611%、STORJ +0.644%、HORIZON +0.778%、DELTA +0.506%，均 dir=-0.5）一致，即系统将正费率极值解读为偏空反指",
-      "严重度仅 sev3，且在 24h 内 200 条 funding.extreme、funding_extremes 榜单（VTHO -2.0%、PUFFER -1.64%、LSK -1.06% 等）中属中等强度，为小币种局部微观结构现象而非系统性冲击",
-      "数据矛盾：事件 rate_8h=0.363%，而 flows 层 funding_8h_pct.EMBER.gateio=0.005，两者口径/时点不一致，提示费率可能已快速回落，需以最新快照复核",
-      "market:EMBER 无 K 线，价格、波动率、趋势位置全部缺失，无法验证多头拥挤是否已开始出清",
-      "当前 4 笔持仓为 BTC/BNB/SOL/UNI 多头（gross 69.7%），EMBER 无敞口；corr_to_btc、position_structure、correlation_pairs 均为空，跨品种传导无证据",
-      "24h 清算多头 39.1M vs 空头 33.9M，轻度偏多头出清但幅度温和，不构成对存量多头的额外压力"
+      "gateio BTW 资金费 +0.363%/8h（≈+397% APR），severity=3，但仅单一交易所极端",
+      "binance 0.0478%、bybit 0.0816% 仍处温和正值，跨所显著背离说明gateio局部拥挤",
+      "OI大幅下降：1h -23.5%（$124.7M→$95.4M），24h -14%，多头主动去杠杆",
+      "1h 跌幅 -12.9% 但 1d +1.59%、4h趋势仍bullish，存在超跌反弹与中期回调的拉锯",
+      "24h清算近持平（long 52.8k vs short 48.1k），未出现级联踩踏",
+      "持仓账户中无BTW敞口，冲击属机会型而非组合风险型",
+      "regime=ranging、confidence=0.3，技术面趋势信号弱",
+      "gateio BTW 费率 +0.3626%/8h 显著高于同币 binance 0.0478% / bybit 0.0816%，asterdex 已转负（-0.0126%），跨所费率分化意味着套利资金可能在一个 8h 结算周期内快速抹平极值",
+      "持仓结构偏多且拥挤：global_ls 0.711、top_pos_ls 1.996，叠加极端正费率，典型多头挤仓（long squeeze）前置条件",
+      "去杠杆已启动：事件前 1h OI -23.5%，24h OI -14.05%，价格 1h -12.92% 但 24h 仍 +1.59%，属高位杠杆清洗而非趋势反转确认",
+      "价格处于急涨后高位：30d +102.8%、7d +38.65%，rv30 年化 288.8%、1h ATR 9.8%，费率极值对小市值高波动标的的价格冲击被放大",
+      "24h 多空清算基本对称（long $52.8k vs short $48.1k），尚未出现单边清算级联，降低了升级为 critical 的概率",
+      "regime=ranging 且 confidence 仅 0.3，趋势信号可靠性低；市场快照 as_of(1789344000000) 早于事件 ts(1789387508126) 约 12.1 小时，存在数据时滞",
+      "universe 仅含 BTW，corr_to_btc 为空，缺乏向主流币账本（BNB/BTC/ETH/SOL/XRP 等现有持仓）传导的证据"
     ],
-    "summary": "EMBER 在 gateio 出现 +0.363%/8h 的极端正资金费（约 +398% APR），方向上偏 bearish（多头拥挤、价格承压），但强度仅 3/10，confidence 0.35。原因：1) severity=3 在本次 funding.extreme 样本中偏中等；2) EMBER 缺失 K 线、持仓、相关性数据，无法从技术面确认；3) payload 给出的 397.7% APR 与 context 中 funding_8h_pct 的 500% APR 口径不一致，降低可信度；4) 历史同类极端费率事件半衰期通常 1-2 个 8h 周期（8-16h），影响窗口有限。组合中无 EMBER 持仓，建议不做新多、不激进追空，等待费率均值回归信号。当前主流币仓位（BNB/BTC/SOL/UNI）不需因 EMBER 事件主动调节。"
+    "summary": "BTW在gateio出现极端正资金费（约+397% APR），属于多头过度拥挤信号；但同一时段binance/bybit资金费温和、OI 1h骤降-23.5%、价格1h -12.9%，表明杠杆多头正在主动平仓以规避资金费成本，方向略偏空（短期回调压力），但因：①仅单一交易所异常、②整体4h趋势仍bullish、③1d仍+1.59%、④无清算级联、⑤组合无BTW敞口，整体强度评为中等（4/10）、confidence偏低（0.55）。建议对BTW收紧止损、不新增多头；当前账户组合无需调整。受影响标的仅为BTW，半衰期约6h，避险窗口8h内有效。"
   },
   "notes": [],
   "event": {
-    "id": 76245,
+    "id": 104621,
     "event_type": "funding.extreme",
-    "symbol": "EMBER",
-    "ts_ms": 1789130278714,
+    "symbol": "BTW",
+    "ts_ms": 1789387508126,
     "severity": 3,
     "direction": -0.5,
-    "title": "gateio EMBER 资金费 +0.363%/8h（≈+398% APR）",
+    "title": "gateio BTW 资金费 +0.363%/8h（≈+397% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 397.7,
-      "rate_8h": 0.003632,
+      "apr_pct": 397.0,
+      "rate_8h": 0.003626,
       "exchange": "gateio",
-      "rate_raw": 0.003632,
+      "rate_raw": 0.003626,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

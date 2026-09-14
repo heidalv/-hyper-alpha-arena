@@ -1,4 +1,4 @@
-"""AI因子: 插针影线不对称反转 | 置信:62% | 利用上下影线不对称度衡量买卖方防守强度：长下影(买方承接)预示反弹，长上影(卖方拒绝)预示回落。对不对称度做短期均值平滑并与近端收益方向交互，捕捉插针后的均值回归 alpha。"""
+"""AI因子: 插针影线不对称反转 | 置信:62% | 计算下影线与上影线的不对称度（下影主导代表买方防守，上影主导代表卖方拒绝），并对其做短期滚动平滑，捕捉插针后的均值回归方向。因子值越高代表近期下影承接越强，未来上涨概率更高。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,16 +7,16 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class PinBarAsymmetryReversal(BaseFactor):
-    """利用上下影线不对称度衡量买卖方防守强度：长下影(买方承接)预示反弹，长上影(卖方拒绝)预示回落。对不对称度做短期均值平滑并与近端收益方向交互，捕捉插针后的均值回归 alpha。"""
+    """计算下影线与上影线的不对称度（下影主导代表买方防守，上影主导代表卖方拒绝），并对其做短期滚动平滑，捕捉插针后的均值回归方向。因子值越高代表近期下影承接越强，未来上涨概率更高。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_pin_bar_asym_reversal",
             name="Pin Bar Asymmetry Reversal",
             display_name="插针影线不对称反转",
-            description="利用上下影线不对称度衡量买卖方防守强度：长下影(买方承接)预示反弹，长上影(卖方拒绝)预示回落。对不对称度做短期均值平滑并与近端收益方向交互，捕捉插针后的均值回归 alpha。",
+            description="计算下影线与上影线的不对称度（下影主导代表买方防守，上影主导代表卖方拒绝），并对其做短期滚动平滑，捕捉插针后的均值回归方向。因子值越高代表近期下影承接越强，未来上涨概率更高。",
             category="technical",
-            subcategory="contrarian",
+            subcategory="mean_reversion",
             version="1.0.0-ai",
             author="AI Generated (D7)",
         )
@@ -26,6 +26,5 @@ class PinBarAsymmetryReversal(BaseFactor):
         upper = data['high'] - data[['open','close']].max(axis=1)
         lower = data[['open','close']].min(axis=1) - data['low']
         asym = (lower - upper) / body
-        rev = data['close'].pct_change(3)
-        result = (asym.rolling(3).mean() * (-rev)).clip(-1, 1)
+        result = asym.rolling(3).mean().clip(-1, 1)
         return result

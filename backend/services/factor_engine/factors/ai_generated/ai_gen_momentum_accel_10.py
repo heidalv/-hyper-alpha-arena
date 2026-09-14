@@ -1,4 +1,4 @@
-"""AI因子: 多周期动量加速度 | 置信:60% | 短期动量与长期动量之差衡量动量加速度：短周期收益显著强于长周期均值时视为加速上行，反之加速下行。用波动率归一化后截断，捕捉趋势延续与拐点。"""
+"""AI因子: 动量加速度 | 置信:60% | 短期动量与中期动量的差值反映动量加速或衰减，加速上行预示趋势延续，加速下行预示趋势反转，经波动率标准化后输出方向性因子。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -6,15 +6,15 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 
 @register_factor()
-class MultiHorizonMomentumAcceleration(BaseFactor):
-    """短期动量与长期动量之差衡量动量加速度：短周期收益显著强于长周期均值时视为加速上行，反之加速下行。用波动率归一化后截断，捕捉趋势延续与拐点。"""
+class MomentumAcceleration(BaseFactor):
+    """短期动量与中期动量的差值反映动量加速或衰减，加速上行预示趋势延续，加速下行预示趋势反转，经波动率标准化后输出方向性因子。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_momentum_accel_10",
-            name="Multi-Horizon Momentum Acceleration",
-            display_name="多周期动量加速度",
-            description="短期动量与长期动量之差衡量动量加速度：短周期收益显著强于长周期均值时视为加速上行，反之加速下行。用波动率归一化后截断，捕捉趋势延续与拐点。",
+            name="Momentum Acceleration",
+            display_name="动量加速度",
+            description="短期动量与中期动量的差值反映动量加速或衰减，加速上行预示趋势延续，加速下行预示趋势反转，经波动率标准化后输出方向性因子。",
             category="technical",
             subcategory="momentum",
             version="1.0.0-ai",

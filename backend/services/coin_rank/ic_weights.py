@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────
 
 # 因子维度 —— 与 auto_coin_selector.scores_detail 键对齐：
-# V3 开启时写入 base_score/flow_score/whale_score/news_score/sector_rs_score
+# V3 开启时写入 base_score/flow_score/whale_score/news_score/sector_rs_score/graph_score
 # V3 关闭时写入五维 vol_score/trend_score/mom_score/vola_score/fund_score
 FACTOR_KEYS: List[str] = [
     "base_score",
@@ -52,6 +52,7 @@ FACTOR_KEYS: List[str] = [
     "whale_score",
     "news_score",
     "sector_rs_score",
+    "graph_score",  # [2026-09-12 图信号试点 P2] RTGNN-lite 模型分（缺样本→IC 0→自动排除）
     "vol_score",
     "trend_score",
     "mom_score",
@@ -66,6 +67,7 @@ _V3_KEY_MAP: Dict[str, str] = {
     "whale_score": "whale",
     "news_score": "news",
     "sector_rs_score": "sector",
+    "graph_score": "graph",
 }
 
 # 静态回退权重（与 auto_coin_selector._compose_v3_score 的默认值一致）
@@ -75,6 +77,7 @@ _DEFAULT_V3_WEIGHTS: Dict[str, float] = {
     "whale": 0.10,
     "news": 0.10,
     "sector": 0.05,
+    "graph": 0.0,  # [2026-09-12] 默认 0：不开 AUTO_COIN_GRAPH_SCORE_ENABLED 时零影响
 }
 
 _DEFAULT_MIN_SAMPLES = 30      # 与 factor_ic_evaluator 对齐

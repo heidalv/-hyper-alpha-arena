@@ -1,6 +1,6 @@
 {
   "agent": "signal_review",
-  "ts_ms": 1789084801276,
+  "ts_ms": 1789344000356,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,23 +9,23 @@
   "credibility": {
     "agent": "signal_review",
     "days": 60,
-    "n": 10,
-    "n_scored": 0,
-    "avg_score": null,
-    "avg_brier": null,
+    "n": 19,
+    "n_scored": 2,
+    "avg_score": 1.0,
+    "avg_brier": 0.079505,
     "by_kind": [
       {
         "kind": "source_edge",
-        "n": 10,
-        "n_scored": 0,
-        "avg_score": null,
-        "avg_brier": null,
-        "last_ms": 1788998582223
+        "n": 19,
+        "n_scored": 2,
+        "avg_score": 1.0,
+        "avg_brier": 0.079505,
+        "last_ms": 1789257758590
       }
     ],
     "verdict": {
       "passed": false,
-      "reason": "已评分样本 0 < 30",
+      "reason": "已评分样本 2 < 30",
       "gate": {
         "min_scored": 30,
         "min_avg_score": 0.55,
@@ -35,25 +35,25 @@
   },
   "findings": {
     "days": 30,
-    "scored_signals": 1399,
+    "scored_signals": 2081,
     "sources": [
       {
         "source": "dual:event_impact",
-        "n": 1251,
-        "hit_rate": 0.5092,
+        "n": 1880,
+        "hit_rate": 0.5032,
         "hit_ci": [
-          0.4815,
-          0.5368
+          0.4806,
+          0.5258
         ],
-        "avg_ret_bp": -17.95,
-        "avg_excess_bp": -16.32,
+        "avg_ret_bp": -23.25,
+        "avg_excess_bp": -23.65,
         "excess_ci_bp": [
-          -46.2,
-          13.56
+          -48.05,
+          0.76
         ],
-        "avg_brier": 0.2538,
-        "ic_strength": -0.2254,
-        "ic_confidence": 0.0807,
+        "avg_brier": 0.257,
+        "ic_strength": -0.1425,
+        "ic_confidence": 0.0331,
         "half_life_hours": null,
         "horizon_curve": [
           {
@@ -63,76 +63,76 @@
           },
           {
             "bucket_h": 4,
-            "n": 77,
-            "avg_excess_bp": -3.61
+            "n": 114,
+            "avg_excess_bp": -11.24
           },
           {
             "bucket_h": 12,
-            "n": 969,
-            "avg_excess_bp": -14.32
+            "n": 1459,
+            "avg_excess_bp": -28.42
           },
           {
             "bucket_h": 24,
-            "n": 187,
-            "avg_excess_bp": -45.68
+            "n": 286,
+            "avg_excess_bp": -13.93
           },
           {
             "bucket_h": 48,
-            "n": 15,
-            "avg_excess_bp": 158.05
+            "n": 17,
+            "avg_excess_bp": 132.0
           },
           {
             "bucket_h": 72,
-            "n": 1,
-            "avg_excess_bp": -69.58
+            "n": 2,
+            "avg_excess_bp": 27.07
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 1251,
-            "hit_rate": 0.5092,
-            "avg_excess_bp": -16.32
+            "n": 1880,
+            "hit_rate": 0.5032,
+            "avg_excess_bp": -23.65
           }
         ],
         "verdict": "scale_down",
-        "verdict_reason": "均值超额 -16.3bp 为负但不显著"
+        "verdict_reason": "均值超额 -23.6bp 为负但不显著"
       },
       {
         "source": "dual:trend_chart_review",
-        "n": 88,
-        "hit_rate": 0.2386,
+        "n": 141,
+        "hit_rate": 0.3546,
         "hit_ci": [
-          0.1617,
-          0.3374
+          0.2805,
+          0.4365
         ],
-        "avg_ret_bp": -196.94,
-        "avg_excess_bp": -146.55,
+        "avg_ret_bp": -114.0,
+        "avg_excess_bp": -80.01,
         "excess_ci_bp": [
-          -217.18,
-          -75.93
+          -131.41,
+          -28.6
         ],
-        "avg_brier": 0.2754,
-        "ic_strength": 0.2885,
-        "ic_confidence": 0.0622,
+        "avg_brier": 0.2624,
+        "ic_strength": 0.0802,
+        "ic_confidence": 0.0815,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 88,
-            "avg_excess_bp": -146.55
+            "n": 141,
+            "avg_excess_bp": -80.01
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 88,
-            "hit_rate": 0.2386,
-            "avg_excess_bp": -146.55
+            "n": 141,
+            "hit_rate": 0.3546,
+            "avg_excess_bp": -80.01
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -75.9bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -28.6bp < 0，显著为负"
       },
       {
         "source": "dual:daily_brief",
@@ -288,21 +288,21 @@
     "anomalies": [
       {
         "source": "dual:event_impact",
-        "n": 1251,
-        "hit_rate": 0.5092,
+        "n": 1880,
+        "hit_rate": 0.5032,
         "hit_ci": [
-          0.4815,
-          0.5368
+          0.4806,
+          0.5258
         ],
-        "avg_ret_bp": -17.95,
-        "avg_excess_bp": -16.32,
+        "avg_ret_bp": -23.25,
+        "avg_excess_bp": -23.65,
         "excess_ci_bp": [
-          -46.2,
-          13.56
+          -48.05,
+          0.76
         ],
-        "avg_brier": 0.2538,
-        "ic_strength": -0.2254,
-        "ic_confidence": 0.0807,
+        "avg_brier": 0.257,
+        "ic_strength": -0.1425,
+        "ic_confidence": 0.0331,
         "half_life_hours": null,
         "horizon_curve": [
           {
@@ -312,76 +312,76 @@
           },
           {
             "bucket_h": 4,
-            "n": 77,
-            "avg_excess_bp": -3.61
+            "n": 114,
+            "avg_excess_bp": -11.24
           },
           {
             "bucket_h": 12,
-            "n": 969,
-            "avg_excess_bp": -14.32
+            "n": 1459,
+            "avg_excess_bp": -28.42
           },
           {
             "bucket_h": 24,
-            "n": 187,
-            "avg_excess_bp": -45.68
+            "n": 286,
+            "avg_excess_bp": -13.93
           },
           {
             "bucket_h": 48,
-            "n": 15,
-            "avg_excess_bp": 158.05
+            "n": 17,
+            "avg_excess_bp": 132.0
           },
           {
             "bucket_h": 72,
-            "n": 1,
-            "avg_excess_bp": -69.58
+            "n": 2,
+            "avg_excess_bp": 27.07
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 1251,
-            "hit_rate": 0.5092,
-            "avg_excess_bp": -16.32
+            "n": 1880,
+            "hit_rate": 0.5032,
+            "avg_excess_bp": -23.65
           }
         ],
         "verdict": "scale_down",
-        "verdict_reason": "均值超额 -16.3bp 为负但不显著"
+        "verdict_reason": "均值超额 -23.6bp 为负但不显著"
       },
       {
         "source": "dual:trend_chart_review",
-        "n": 88,
-        "hit_rate": 0.2386,
+        "n": 141,
+        "hit_rate": 0.3546,
         "hit_ci": [
-          0.1617,
-          0.3374
+          0.2805,
+          0.4365
         ],
-        "avg_ret_bp": -196.94,
-        "avg_excess_bp": -146.55,
+        "avg_ret_bp": -114.0,
+        "avg_excess_bp": -80.01,
         "excess_ci_bp": [
-          -217.18,
-          -75.93
+          -131.41,
+          -28.6
         ],
-        "avg_brier": 0.2754,
-        "ic_strength": 0.2885,
-        "ic_confidence": 0.0622,
+        "avg_brier": 0.2624,
+        "ic_strength": 0.0802,
+        "ic_confidence": 0.0815,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 88,
-            "avg_excess_bp": -146.55
+            "n": 141,
+            "avg_excess_bp": -80.01
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 88,
-            "hit_rate": 0.2386,
-            "avg_excess_bp": -146.55
+            "n": 141,
+            "hit_rate": 0.3546,
+            "avg_excess_bp": -80.01
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -75.9bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -28.6bp < 0，显著为负"
       },
       {
         "source": "dual:daily_brief",
@@ -422,15 +422,15 @@
     ],
     "llm": {
       "accepted": false,
-      "consensus_score": 0.4,
-      "run_id": "be6ac6a61c264df195888e17471dd4ec",
+      "consensus_score": 0.084,
+      "run_id": "5ba4ed7faecf462e9f8f7720dd73f63a",
       "final": null
     }
   },
   "predictions": [
-    "16ee076ed3d04d28a68cf48b1852d7ee",
-    "bc8f45bd027c45bcabb9293f524de637",
-    "fd35e369b5744a138b10417781926e22"
+    "b39ebaf6fd674688988b8110ba9b2e2c",
+    "75728c71ecf34869924a959f0cd0fea1",
+    "7626b946f900486a9cc90e1ea9737375"
   ],
   "advice": [
     {
@@ -438,12 +438,12 @@
       "target": "dual:event_impact",
       "params": {
         "factor": 0.6,
-        "n": 1251,
-        "avg_excess_bp": -16.32,
+        "n": 1880,
+        "avg_excess_bp": -23.65,
         "half_life_hours": null,
-        "ic_strength": -0.2254
+        "ic_strength": -0.1425
       },
-      "reason": "均值超额 -16.3bp 为负但不显著",
+      "reason": "均值超额 -23.6bp 为负但不显著",
       "severity": 2,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -452,14 +452,14 @@
       "action": "disable_source",
       "target": "dual:trend_chart_review",
       "params": {
-        "n": 88,
-        "avg_excess_bp": -146.55,
+        "n": 141,
+        "avg_excess_bp": -80.01,
         "excess_ci_bp": [
-          -217.18,
-          -75.93
+          -131.41,
+          -28.6
         ]
       },
-      "reason": "超额 95% 上界 -75.9bp < 0，显著为负",
+      "reason": "超额 95% 上界 -28.6bp < 0，显著为负",
       "severity": 4,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -482,7 +482,7 @@
   ],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 134.196,
+  "elapsed_sec": 264.19,
   "latest_path": null,
   "dry_run": false
 }

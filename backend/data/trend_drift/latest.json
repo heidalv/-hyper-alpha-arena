@@ -1,103 +1,101 @@
 {
   "account_id": 14,
   "tier": "long",
-  "as_of_bar": "2026-09-03",
-  "computed_at": "2026-09-05T00:20:01.634365+00:00",
-  "equity": 4908.138965823412,
-  "trend_drift": 2,
-  "weight_drift": 0,
-  "leverage_violations": 4,
-  "missing": [
-    "SOL",
-    "BNB"
-  ],
+  "as_of_bar": "2026-09-12",
+  "computed_at": "2026-09-14T01:16:58.171221+00:00",
+  "equity": 4640.975984094441,
+  "trend_drift": 0,
+  "weight_drift": 3,
+  "leverage_violations": 0,
+  "missing": [],
   "extra": [],
   "wrong_side": [],
   "matched": [
     {
-      "symbol": "XRP",
-      "actual_weight": 0.03718302798705417,
-      "target_weight": 0.061960884789478164,
-      "deviation": -0.024777856802423996,
-      "target_stop": 1.158275,
-      "actual_sl": 1.158275,
+      "symbol": "SOL",
+      "actual_weight": 0.062050312277851453,
+      "target_weight": 0.10340372721354159,
+      "deviation": -0.041353414935690135,
+      "target_stop": 93.741,
+      "actual_sl": 96.4083,
       "add_count": 0
     },
     {
-      "symbol": "ETH",
-      "actual_weight": 0.058804343345995574,
-      "target_weight": 0.14535946242303255,
-      "deviation": -0.08655511907703697,
-      "target_stop": 2188.2255,
-      "actual_sl": 2188.2255,
+      "symbol": "XRP",
+      "actual_weight": 0.027979854159098216,
+      "target_weight": 0.07785725694206766,
+      "deviation": -0.04987740278296944,
+      "target_stop": 1.145765,
+      "actual_sl": 1.259617,
       "add_count": 0
     },
     {
       "symbol": "LINK",
-      "actual_weight": 0.049249104796008594,
+      "actual_weight": 0.07522931601202651,
       "target_weight": 0.1253658746556474,
-      "deviation": -0.07611676985963882,
-      "target_stop": 10.075599999999998,
-      "actual_sl": 10.075599999999998,
+      "deviation": -0.050136558643620904,
+      "target_stop": 11.33475,
+      "actual_sl": 11.33475,
       "add_count": 0
     },
     {
       "symbol": "BTC",
-      "actual_weight": 0.09924482256378554,
+      "actual_weight": 0.04318771281821449,
       "target_weight": 0.16537913531323725,
-      "deviation": -0.06613431274945171,
-      "target_stop": 72813.305,
-      "actual_sl": 75962.844989,
+      "deviation": -0.12219142249502277,
+      "target_stop": 74306.6,
+      "actual_sl": 74306.6,
+      "add_count": 0
+    },
+    {
+      "symbol": "BNB",
+      "actual_weight": 0.02571673918596319,
+      "target_weight": 0.17414555629099235,
+      "deviation": -0.14842881710502914,
+      "target_stop": 692.144,
+      "actual_sl": 692.144,
+      "add_count": 0
+    },
+    {
+      "symbol": "ETH",
+      "actual_weight": 0.04016336820053572,
+      "target_weight": 0.14535946242303255,
+      "deviation": -0.10519609422249683,
+      "target_stop": 2241.5395,
+      "actual_sl": 2327.846722,
       "add_count": 0
     }
   ],
-  "weight_drift_detail": [],
-  "leverage_violation_detail": [
+  "weight_drift_detail": [
     {
-      "id": 4617,
-      "symbol": "XRP",
-      "side": "long",
-      "notional": 182.49946853056304,
-      "weight": 0.03718302798705417,
-      "leverage": 4.0,
-      "sl_price": 1.158275,
-      "add_count": 0,
-      "opened_at": "2026-09-05 08:20:07.164184"
-    },
-    {
-      "id": 4616,
-      "symbol": "ETH",
-      "side": "long",
-      "notional": 288.61988893613955,
-      "weight": 0.058804343345995574,
-      "leverage": 5.0,
-      "sl_price": 2188.2255,
-      "add_count": 0,
-      "opened_at": "2026-09-05 08:20:04.063144"
-    },
-    {
-      "id": 4618,
-      "symbol": "LINK",
-      "side": "long",
-      "notional": 241.72145028121045,
-      "weight": 0.049249104796008594,
-      "leverage": 4.0,
-      "sl_price": 10.075599999999998,
-      "add_count": 0,
-      "opened_at": "2026-09-05 08:20:11.533829"
-    },
-    {
-      "id": 4601,
       "symbol": "BTC",
-      "side": "long",
-      "notional": 487.1073807815464,
-      "weight": 0.09924482256378554,
-      "leverage": 5.0,
-      "sl_price": 75962.844989,
-      "add_count": 0,
-      "opened_at": "2026-09-04 08:01:12.513020"
+      "actual_weight": 0.04318771281821449,
+      "target_weight": 0.16537913531323725,
+      "deviation": -0.12219142249502277,
+      "target_stop": 74306.6,
+      "actual_sl": 74306.6,
+      "add_count": 0
+    },
+    {
+      "symbol": "BNB",
+      "actual_weight": 0.02571673918596319,
+      "target_weight": 0.17414555629099235,
+      "deviation": -0.14842881710502914,
+      "target_stop": 692.144,
+      "actual_sl": 692.144,
+      "add_count": 0
+    },
+    {
+      "symbol": "ETH",
+      "actual_weight": 0.04016336820053572,
+      "target_weight": 0.14535946242303255,
+      "deviation": -0.10519609422249683,
+      "target_stop": 2241.5395,
+      "actual_sl": 2327.846722,
+      "add_count": 0
     }
   ],
+  "leverage_violation_detail": [],
   "target_positions": {
     "BTC": 1,
     "ETH": 1,
@@ -113,7 +111,7 @@
     "ETH": 0.14535946242303255,
     "SOL": 0.10340372721354159,
     "BNB": 0.17414555629099235,
-    "XRP": 0.061960884789478164,
+    "XRP": 0.07785725694206766,
     "DOGE": 0.0,
     "LINK": 0.1253658746556474,
     "AVAX": 0.0

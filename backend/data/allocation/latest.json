@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789078216890,
+  "ts_ms": 1789337401830,
   "bucket_weights": {
     "trend": 0.6,
     "cashflow": 0.3,
@@ -12,9 +12,9 @@
   },
   "credibility": {
     "n": 1,
-    "n_scored": 0,
-    "avg_score": null,
-    "avg_brier": null
+    "n_scored": 1,
+    "avg_score": 1.0,
+    "avg_brier": 0.022500000000000006
   },
   "credibility_scale": 0.5,
   "promotion_freeze": {

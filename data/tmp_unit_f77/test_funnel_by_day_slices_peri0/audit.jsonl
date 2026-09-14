@@ -1,0 +1,4 @@
+{"epoch": 1789106129.5697646, "outcome": "skip", "stage": "trend", "symbol": "BTC", "reason": "L1=sideways(score=1) < 阈值3，非 up 禁开"}
+{"epoch": 1789106159.5697646, "outcome": "skip", "stage": "trend", "symbol": "ETH", "reason": "L1=sideways(score=2) < 阈值3，非 up 禁开"}
+{"epoch": 1789106179.5697646, "outcome": "opened", "stage": "exec", "symbol": "BTC", "reason": "filled"}
+{"epoch": 1789188989.5697646, "outcome": "skip", "stage": "exec", "symbol": "UNI", "reason": "evaluate_and_execute_returned_false"}

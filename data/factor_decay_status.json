@@ -1,96 +1,96 @@
 {
   "_meta": {
     "version": 2,
-    "saved_at": "2026-09-11T15:18:55.459418+00:00"
+    "saved_at": "2026-09-14T12:12:52.458531+00:00"
   },
   "status": {
     "zscore": {
-      "current_ic": 0.0253,
-      "historical_ic": 0.044,
-      "decay_rate": -0.4246,
-      "half_life_days": 1.6,
-      "trend": "declining",
-      "recommendation": "reduce"
-    },
-    "obv": {
-      "current_ic": 0.0074,
-      "historical_ic": 0.0187,
-      "decay_rate": -0.6057,
-      "half_life_days": 1.1,
+      "current_ic": 0.0078,
+      "historical_ic": 0.0401,
+      "decay_rate": -0.8053,
+      "half_life_days": 0.9,
       "trend": "dead",
       "recommendation": "retire"
     },
+    "obv": {
+      "current_ic": 0.0276,
+      "historical_ic": 0.0203,
+      "decay_rate": 0.3613,
+      "half_life_days": 999,
+      "trend": "declining",
+      "recommendation": "reduce"
+    },
     "ema_trend": {
-      "current_ic": -0.0203,
-      "historical_ic": -0.0346,
-      "decay_rate": 0.412,
+      "current_ic": -0.0019,
+      "historical_ic": -0.0311,
+      "decay_rate": 0.9387,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "supertrend": {
-      "current_ic": 0.0245,
-      "historical_ic": 0.0131,
-      "decay_rate": 0.878,
+      "current_ic": 0.0284,
+      "historical_ic": 0.0145,
+      "decay_rate": 0.9521,
       "half_life_days": 999,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_hold_timeout": {
-      "current_ic": 0.1795,
-      "historical_ic": 0.2103,
-      "decay_rate": -0.1467,
-      "half_life_days": 4.7,
+      "current_ic": 0.1312,
+      "historical_ic": 0.2015,
+      "decay_rate": -0.349,
+      "half_life_days": 2.0,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_hold_volatility": {
-      "current_ic": 0.0253,
-      "historical_ic": 0.0268,
-      "decay_rate": -0.0563,
-      "half_life_days": 12.3,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": 0.0314,
+      "historical_ic": 0.0278,
+      "decay_rate": 0.128,
+      "half_life_days": 999,
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_long_sl_break": {
-      "current_ic": -0.0668,
-      "historical_ic": -0.0959,
-      "decay_rate": 0.3038,
+      "current_ic": -0.0344,
+      "historical_ic": -0.0892,
+      "decay_rate": 0.6142,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_long_sl_timeout": {
-      "current_ic": 0.0927,
-      "historical_ic": 0.0926,
-      "decay_rate": 0.0014,
+      "current_ic": 0.0989,
+      "historical_ic": 0.0927,
+      "decay_rate": 0.0672,
       "half_life_days": 999,
-      "trend": "stable",
+      "trend": "improving",
       "recommendation": "keep"
     },
     "ai_gen_lrr": {
-      "current_ic": 0.0298,
+      "current_ic": 0.0289,
       "historical_ic": 0.0293,
-      "decay_rate": 0.0175,
-      "half_life_days": 999,
+      "decay_rate": -0.0123,
+      "half_life_days": 56.3,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_mr": {
-      "current_ic": 0.0116,
-      "historical_ic": 0.0337,
-      "decay_rate": -0.6557,
-      "half_life_days": 1.1,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": -0.0041,
+      "historical_ic": 0.0298,
+      "decay_rate": -1.1369,
+      "half_life_days": 0.6,
+      "trend": "dead",
+      "recommendation": "retire"
     },
     "ai_gen_price_position": {
-      "current_ic": 0.0116,
-      "historical_ic": 0.0169,
-      "decay_rate": -0.3146,
-      "half_life_days": 2.2,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": -0.0074,
+      "historical_ic": 0.014,
+      "decay_rate": -1.5259,
+      "half_life_days": 0.5,
+      "trend": "dead",
+      "recommendation": "retire"
     },
     "ai_gen_regime_uncertainty": {
       "current_ic": 0.0924,
@@ -101,26 +101,26 @@
       "recommendation": "keep"
     },
     "ai_gen_bsq": {
-      "current_ic": -0.0213,
-      "historical_ic": -0.0253,
-      "decay_rate": 0.1576,
+      "current_ic": -0.0173,
+      "historical_ic": -0.0239,
+      "decay_rate": 0.275,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_corr_break": {
-      "current_ic": 0.0164,
-      "historical_ic": 0.0724,
-      "decay_rate": -0.7729,
-      "half_life_days": 0.9,
+      "current_ic": 0.023,
+      "historical_ic": 0.0681,
+      "decay_rate": -0.6632,
+      "half_life_days": 1.0,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_liquidity_squeeze": {
-      "current_ic": 0.0366,
-      "historical_ic": 0.0492,
-      "decay_rate": -0.2568,
-      "half_life_days": 2.7,
+      "current_ic": 0.0438,
+      "historical_ic": 0.049,
+      "decay_rate": -0.1054,
+      "half_life_days": 6.6,
       "trend": "declining",
       "recommendation": "reduce"
     },
@@ -133,284 +133,284 @@
       "recommendation": "retire"
     },
     "ai_gen_regime_unknown_contrarian": {
-      "current_ic": -0.077,
-      "historical_ic": -0.0626,
-      "decay_rate": -0.2305,
-      "half_life_days": 3.0,
+      "current_ic": -0.0806,
+      "historical_ic": -0.0639,
+      "decay_rate": -0.2605,
+      "half_life_days": 2.7,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_regime_unknown_vol": {
-      "current_ic": -0.0349,
-      "historical_ic": -0.0136,
-      "decay_rate": -1.5614,
+      "current_ic": -0.0435,
+      "historical_ic": -0.0168,
+      "decay_rate": -1.5957,
       "half_life_days": 0.4,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_ret_vol_ratio": {
-      "current_ic": -0.2338,
-      "historical_ic": -0.2595,
-      "decay_rate": 0.0991,
+      "current_ic": -0.2053,
+      "historical_ic": -0.2539,
+      "decay_rate": 0.1913,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_reversal_exhaustion": {
-      "current_ic": 0.0039,
-      "historical_ic": -0.0002,
-      "decay_rate": 4.0497,
-      "half_life_days": 999,
+      "current_ic": -0.0082,
+      "historical_ic": -0.0015,
+      "decay_rate": -4.5671,
+      "half_life_days": 0.2,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_short_break": {
-      "current_ic": 0.0118,
-      "historical_ic": 0.0298,
-      "decay_rate": -0.6033,
-      "half_life_days": 1.1,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": -0.0059,
+      "historical_ic": 0.0261,
+      "decay_rate": -1.2254,
+      "half_life_days": 0.6,
+      "trend": "dead",
+      "recommendation": "retire"
     },
     "ai_gen_short_sl_volume_confirm": {
-      "current_ic": -0.0386,
-      "historical_ic": -0.0411,
-      "decay_rate": 0.0591,
+      "current_ic": -0.0178,
+      "historical_ic": -0.0379,
+      "decay_rate": 0.5297,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_short_squeeze_guard": {
-      "current_ic": 0.1413,
-      "historical_ic": 0.1657,
-      "decay_rate": -0.1471,
-      "half_life_days": 4.7,
+      "current_ic": 0.1061,
+      "historical_ic": 0.1592,
+      "decay_rate": -0.3333,
+      "half_life_days": 2.1,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_short_timeout_avoid": {
-      "current_ic": -0.0688,
-      "historical_ic": -0.0739,
-      "decay_rate": 0.0691,
+      "current_ic": -0.0695,
+      "historical_ic": -0.0742,
+      "decay_rate": 0.0643,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_short_timeout_vol": {
-      "current_ic": -0.1437,
-      "historical_ic": -0.1665,
-      "decay_rate": 0.1367,
+      "current_ic": -0.1085,
+      "historical_ic": -0.16,
+      "decay_rate": 0.3222,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_shortsqueeze": {
-      "current_ic": -0.0118,
-      "historical_ic": 0.0076,
-      "decay_rate": -2.5476,
-      "half_life_days": 0.3,
+      "current_ic": -0.0383,
+      "historical_ic": 0.0027,
+      "decay_rate": -15.2625,
+      "half_life_days": 0.0,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_sl_break": {
-      "current_ic": 0.0963,
-      "historical_ic": 0.1194,
-      "decay_rate": -0.1936,
-      "half_life_days": 3.6,
+      "current_ic": 0.0673,
+      "historical_ic": 0.1142,
+      "decay_rate": -0.4106,
+      "half_life_days": 1.7,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_sl_break_retest": {
-      "current_ic": -0.2486,
-      "historical_ic": -0.2821,
-      "decay_rate": 0.1185,
+      "current_ic": -0.195,
+      "historical_ic": -0.272,
+      "decay_rate": 0.283,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_sl_early_warning": {
-      "current_ic": 0.0215,
-      "historical_ic": 0.0237,
-      "decay_rate": -0.0893,
-      "half_life_days": 7.8,
+      "current_ic": 0.0132,
+      "historical_ic": 0.022,
+      "decay_rate": -0.4023,
+      "half_life_days": 1.7,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_sl_unknown": {
-      "current_ic": 0.1064,
-      "historical_ic": 0.1279,
-      "decay_rate": -0.168,
-      "half_life_days": 4.1,
+      "current_ic": 0.0996,
+      "historical_ic": 0.1248,
+      "decay_rate": -0.2017,
+      "half_life_days": 3.4,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_sl_unknown_regime": {
-      "current_ic": 0.0089,
-      "historical_ic": 0.0054,
-      "decay_rate": 0.6647,
+      "current_ic": 0.0188,
+      "historical_ic": 0.0067,
+      "decay_rate": 1.8077,
       "half_life_days": 999,
-      "trend": "dead",
-      "recommendation": "retire"
+      "trend": "declining",
+      "recommendation": "reduce"
     },
     "ai_gen_sl_volume_break": {
-      "current_ic": 0.0057,
-      "historical_ic": 0.0179,
-      "decay_rate": -0.683,
-      "half_life_days": 1.0,
+      "current_ic": -0.0038,
+      "historical_ic": 0.0163,
+      "decay_rate": -1.2321,
+      "half_life_days": 0.6,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_sl_wick": {
-      "current_ic": -0.0798,
-      "historical_ic": -0.0833,
-      "decay_rate": 0.0418,
+      "current_ic": -0.0625,
+      "historical_ic": -0.0806,
+      "decay_rate": 0.2247,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_sl_wick_reversal": {
-      "current_ic": -0.0007,
-      "historical_ic": 0.0,
-      "decay_rate": -0.758,
-      "half_life_days": 0.9,
+      "current_ic": 0.0001,
+      "historical_ic": 0.0004,
+      "decay_rate": -0.2971,
+      "half_life_days": 2.3,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_stop_loss_ratio": {
-      "current_ic": 0.0564,
-      "historical_ic": 0.0881,
-      "decay_rate": -0.3599,
-      "half_life_days": 1.9,
+      "current_ic": 0.0257,
+      "historical_ic": 0.0811,
+      "decay_rate": -0.6829,
+      "half_life_days": 1.0,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_timeout_range": {
-      "current_ic": 0.0281,
-      "historical_ic": 0.0265,
-      "decay_rate": 0.0606,
+      "current_ic": 0.0429,
+      "historical_ic": 0.0288,
+      "decay_rate": 0.4905,
       "half_life_days": 999,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_timeout_rv": {
-      "current_ic": -0.1473,
-      "historical_ic": -0.1657,
-      "decay_rate": 0.1111,
+      "current_ic": -0.1181,
+      "historical_ic": -0.1609,
+      "decay_rate": 0.2663,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_timeout_sl_proximity": {
-      "current_ic": 0.2114,
-      "historical_ic": 0.2685,
-      "decay_rate": -0.2128,
-      "half_life_days": 3.3,
+      "current_ic": 0.1225,
+      "historical_ic": 0.2535,
+      "decay_rate": -0.5169,
+      "half_life_days": 1.3,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_timeout_squeeze": {
-      "current_ic": 0.1551,
-      "historical_ic": 0.1663,
-      "decay_rate": -0.0672,
-      "half_life_days": 10.3,
+      "current_ic": 0.1375,
+      "historical_ic": 0.1631,
+      "decay_rate": -0.1573,
+      "half_life_days": 4.4,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_timeout_volume": {
-      "current_ic": 0.0189,
-      "historical_ic": 0.0101,
-      "decay_rate": 0.8781,
+      "current_ic": 0.0227,
+      "historical_ic": 0.0109,
+      "decay_rate": 1.0791,
       "half_life_days": 999,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_timevol": {
-      "current_ic": -0.0097,
-      "historical_ic": -0.0279,
-      "decay_rate": 0.6513,
+      "current_ic": 0.0067,
+      "historical_ic": -0.0241,
+      "decay_rate": 1.2803,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_tmo": {
-      "current_ic": -0.2493,
-      "historical_ic": -0.2836,
-      "decay_rate": 0.1208,
+      "current_ic": -0.2038,
+      "historical_ic": -0.275,
+      "decay_rate": 0.2589,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_trend_weakness": {
-      "current_ic": 0.1434,
-      "historical_ic": 0.1659,
-      "decay_rate": -0.1355,
-      "half_life_days": 5.1,
+      "current_ic": 0.1012,
+      "historical_ic": 0.1584,
+      "decay_rate": -0.3613,
+      "half_life_days": 1.9,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_tslr": {
-      "current_ic": 0.1712,
-      "historical_ic": 0.2059,
-      "decay_rate": -0.1687,
-      "half_life_days": 4.1,
+      "current_ic": 0.1163,
+      "historical_ic": 0.1954,
+      "decay_rate": -0.4047,
+      "half_life_days": 1.7,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_ulsl": {
-      "current_ic": -0.148,
-      "historical_ic": -0.1874,
-      "decay_rate": 0.2102,
+      "current_ic": -0.0861,
+      "historical_ic": -0.1759,
+      "decay_rate": 0.5107,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_uncertainty_vola": {
-      "current_ic": 0.0267,
-      "historical_ic": 0.0305,
-      "decay_rate": -0.1246,
-      "half_life_days": 5.6,
+      "current_ic": 0.0252,
+      "historical_ic": 0.03,
+      "decay_rate": -0.1587,
+      "half_life_days": 4.4,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_unknown_regime_vol_adapt": {
-      "current_ic": -0.0168,
-      "historical_ic": -0.019,
-      "decay_rate": 0.115,
+      "current_ic": 0.0047,
+      "historical_ic": -0.0156,
+      "decay_rate": 1.3025,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "rsi": {
-      "current_ic": -0.0171,
-      "historical_ic": 0.0343,
-      "decay_rate": -1.4996,
-      "half_life_days": 0.5,
+      "current_ic": -0.0245,
+      "historical_ic": 0.0291,
+      "decay_rate": -1.8435,
+      "half_life_days": 0.4,
       "trend": "dead",
       "recommendation": "retire"
     },
     "macd": {
-      "current_ic": -0.0785,
-      "historical_ic": -0.1008,
-      "decay_rate": 0.2213,
+      "current_ic": -0.0501,
+      "historical_ic": -0.0947,
+      "decay_rate": 0.4713,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_vol_div": {
-      "current_ic": 0.0061,
-      "historical_ic": 0.0011,
-      "decay_rate": 4.5924,
-      "half_life_days": 999,
+      "current_ic": -0.0117,
+      "historical_ic": -0.0008,
+      "decay_rate": -10.9633,
+      "half_life_days": 0.1,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_voltrend": {
-      "current_ic": 0.0224,
-      "historical_ic": 0.0122,
-      "decay_rate": 0.8319,
+      "current_ic": 0.0483,
+      "historical_ic": 0.0165,
+      "decay_rate": 1.9295,
       "half_life_days": 999,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_a101_rev_long_1d": {
       "current_ic": 0.0602,
@@ -421,65 +421,65 @@
       "recommendation": "keep"
     },
     "ai_gen_holdtime_vol": {
-      "current_ic": 0.0151,
-      "historical_ic": 0.0187,
-      "decay_rate": -0.1922,
-      "half_life_days": 3.6,
+      "current_ic": 0.0143,
+      "historical_ic": 0.018,
+      "decay_rate": -0.2026,
+      "half_life_days": 3.4,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_master_close_volume": {
-      "current_ic": -0.0828,
-      "historical_ic": -0.0757,
-      "decay_rate": -0.0935,
-      "half_life_days": 7.4,
+      "current_ic": -0.0802,
+      "historical_ic": -0.0762,
+      "decay_rate": -0.0532,
+      "half_life_days": 13.0,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_short_sl_regime_unknown": {
-      "current_ic": 0.0235,
-      "historical_ic": 0.0011,
-      "decay_rate": 21.3467,
+      "current_ic": 0.0362,
+      "historical_ic": 0.0046,
+      "decay_rate": 6.9571,
       "half_life_days": 999,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_short_volume_divergence": {
-      "current_ic": 0.0564,
-      "historical_ic": 0.0602,
-      "decay_rate": -0.064,
-      "half_life_days": 10.8,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": 0.0636,
+      "historical_ic": 0.0607,
+      "decay_rate": 0.0486,
+      "half_life_days": 999,
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_slr": {
-      "current_ic": -0.1003,
-      "historical_ic": -0.1534,
-      "decay_rate": 0.3461,
+      "current_ic": -0.1051,
+      "historical_ic": -0.1501,
+      "decay_rate": 0.2996,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_staged_tp_guard": {
-      "current_ic": -0.022,
-      "historical_ic": -0.0325,
-      "decay_rate": 0.3238,
+      "current_ic": 0.0038,
+      "historical_ic": -0.0275,
+      "decay_rate": 1.1388,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_timeout_volume_ratio": {
-      "current_ic": -0.0042,
-      "historical_ic": -0.0264,
-      "decay_rate": 0.842,
+      "current_ic": 0.0084,
+      "historical_ic": -0.0225,
+      "decay_rate": 1.3752,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_unk_timeout": {
-      "current_ic": -0.0988,
-      "historical_ic": -0.1247,
-      "decay_rate": 0.2074,
+      "current_ic": -0.0757,
+      "historical_ic": -0.1189,
+      "decay_rate": 0.363,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
@@ -493,41 +493,41 @@
       "recommendation": "retire"
     },
     "ai_gen_unknown_regime_avoid": {
-      "current_ic": -0.059,
-      "historical_ic": -0.0641,
-      "decay_rate": 0.0794,
+      "current_ic": -0.0284,
+      "historical_ic": -0.0597,
+      "decay_rate": 0.5247,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_unknown_regime_guard": {
-      "current_ic": 0.0707,
-      "historical_ic": 0.0902,
-      "decay_rate": -0.2159,
-      "half_life_days": 3.2,
+      "current_ic": 0.047,
+      "historical_ic": 0.0854,
+      "decay_rate": -0.4499,
+      "half_life_days": 1.5,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_unknown_regime_vol": {
-      "current_ic": -0.0944,
-      "historical_ic": -0.1447,
-      "decay_rate": 0.3476,
+      "current_ic": -0.0576,
+      "historical_ic": -0.136,
+      "decay_rate": 0.5761,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_unknownreg": {
-      "current_ic": -0.1115,
-      "historical_ic": -0.1364,
-      "decay_rate": 0.1821,
+      "current_ic": -0.0747,
+      "historical_ic": -0.1292,
+      "decay_rate": 0.4216,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_vol_breakout_fade": {
-      "current_ic": -0.1831,
-      "historical_ic": -0.2082,
-      "decay_rate": 0.1203,
+      "current_ic": -0.1418,
+      "historical_ic": -0.2005,
+      "decay_rate": 0.293,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
@@ -542,57 +542,57 @@
     },
     "evo_seed_ts_rank50": {
       "current_ic": -0.1567,
-      "historical_ic": -0.1595,
-      "decay_rate": 0.0178,
+      "historical_ic": -0.1592,
+      "decay_rate": 0.0157,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "evo_seed_ts_rank20": {
-      "current_ic": -0.1446,
-      "historical_ic": -0.1547,
-      "decay_rate": 0.0651,
+      "current_ic": -0.1384,
+      "historical_ic": -0.153,
+      "decay_rate": 0.0956,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_timeout_risk": {
-      "current_ic": -0.1816,
-      "historical_ic": -0.2104,
-      "decay_rate": 0.1367,
+      "current_ic": -0.1534,
+      "historical_ic": -0.2044,
+      "decay_rate": 0.2494,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_timeout_contrarian": {
-      "current_ic": -0.022,
-      "historical_ic": -0.0135,
-      "decay_rate": -0.6347,
-      "half_life_days": 1.1,
+      "current_ic": -0.0432,
+      "historical_ic": -0.0169,
+      "decay_rate": -1.5555,
+      "half_life_days": 0.4,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_001": {
-      "current_ic": 0.0247,
+      "current_ic": 0.0321,
       "historical_ic": 0.031,
-      "decay_rate": -0.2019,
-      "half_life_days": 3.4,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "decay_rate": 0.0362,
+      "half_life_days": 999,
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_breakout_pullback": {
-      "current_ic": -0.0378,
-      "historical_ic": -0.0483,
-      "decay_rate": 0.216,
+      "current_ic": -0.0295,
+      "historical_ic": -0.0462,
+      "decay_rate": 0.362,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_hold_timeout_penalty": {
-      "current_ic": 0.0082,
-      "historical_ic": 0.0177,
-      "decay_rate": -0.535,
-      "half_life_days": 1.3,
+      "current_ic": -0.0098,
+      "historical_ic": 0.0138,
+      "decay_rate": -1.7124,
+      "half_life_days": 0.4,
       "trend": "dead",
       "recommendation": "retire"
     },
@@ -605,209 +605,209 @@
       "recommendation": "retire"
     },
     "ai_gen_regime_unknown_defense": {
-      "current_ic": -0.1189,
-      "historical_ic": -0.1509,
-      "decay_rate": 0.2121,
+      "current_ic": -0.0633,
+      "historical_ic": -0.1412,
+      "decay_rate": 0.5516,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_unknown_regime_stop": {
-      "current_ic": 0.1054,
-      "historical_ic": 0.1066,
-      "decay_rate": -0.0111,
-      "half_life_days": 62.4,
-      "trend": "stable",
+      "current_ic": 0.1147,
+      "historical_ic": 0.108,
+      "decay_rate": 0.0626,
+      "half_life_days": 999,
+      "trend": "improving",
       "recommendation": "keep"
     },
     "ai_gen_liq_quality": {
-      "current_ic": 0.0463,
-      "historical_ic": 0.031,
-      "decay_rate": 0.4925,
+      "current_ic": 0.0596,
+      "historical_ic": 0.0335,
+      "decay_rate": 0.7806,
       "half_life_days": 999,
       "trend": "improving",
       "recommendation": "keep"
     },
     "ai_gen_mrext": {
-      "current_ic": 0.0528,
-      "historical_ic": 0.102,
-      "decay_rate": -0.4824,
-      "half_life_days": 1.4,
+      "current_ic": 0.0683,
+      "historical_ic": 0.0993,
+      "decay_rate": -0.3121,
+      "half_life_days": 2.2,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_stability": {
-      "current_ic": -0.0821,
-      "historical_ic": -0.0936,
-      "decay_rate": 0.1226,
+      "current_ic": -0.0694,
+      "historical_ic": -0.0913,
+      "decay_rate": 0.2397,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_dust_squeeze": {
-      "current_ic": -0.131,
-      "historical_ic": -0.3228,
-      "decay_rate": 0.5941,
+      "current_ic": -0.1287,
+      "historical_ic": -0.3049,
+      "decay_rate": 0.5779,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_holdtime_penalty": {
-      "current_ic": -0.0956,
-      "historical_ic": -0.0942,
-      "decay_rate": -0.0146,
-      "half_life_days": 47.4,
+      "current_ic": -0.0964,
+      "historical_ic": -0.0946,
+      "decay_rate": -0.0189,
+      "half_life_days": 36.7,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_low_vol_momentum": {
-      "current_ic": -0.0192,
-      "historical_ic": -0.0374,
-      "decay_rate": 0.4858,
-      "half_life_days": 999,
+      "current_ic": -0.0679,
+      "historical_ic": -0.0421,
+      "decay_rate": -0.6141,
+      "half_life_days": 1.1,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_timeout": {
-      "current_ic": 0.0383,
-      "historical_ic": 0.0628,
-      "decay_rate": -0.3902,
-      "half_life_days": 1.8,
+      "current_ic": 0.0205,
+      "historical_ic": 0.0582,
+      "decay_rate": -0.6474,
+      "half_life_days": 1.1,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_trend_conf": {
-      "current_ic": -0.0537,
-      "historical_ic": -0.1045,
-      "decay_rate": 0.4866,
+      "current_ic": -0.0344,
+      "historical_ic": -0.098,
+      "decay_rate": 0.6492,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_vpr": {
-      "current_ic": 0.015,
-      "historical_ic": 0.0102,
-      "decay_rate": 0.4681,
-      "half_life_days": 999,
+      "current_ic": 0.0095,
+      "historical_ic": 0.01,
+      "decay_rate": -0.0505,
+      "half_life_days": 13.7,
+      "trend": "dead",
+      "recommendation": "retire"
+    },
+    "ai_gen_vqc": {
+      "current_ic": 0.0259,
+      "historical_ic": 0.0309,
+      "decay_rate": -0.1635,
+      "half_life_days": 4.2,
       "trend": "declining",
       "recommendation": "reduce"
     },
-    "ai_gen_vqc": {
-      "current_ic": 0.0059,
-      "historical_ic": 0.0307,
-      "decay_rate": -0.8068,
-      "half_life_days": 0.9,
-      "trend": "dead",
-      "recommendation": "retire"
-    },
     "ai_gen_volumereg": {
-      "current_ic": 0.0066,
-      "historical_ic": -0.0094,
-      "decay_rate": 1.7077,
+      "current_ic": 0.0436,
+      "historical_ic": -0.0032,
+      "decay_rate": 14.5717,
       "half_life_days": 999,
-      "trend": "dead",
-      "recommendation": "retire"
+      "trend": "improving",
+      "recommendation": "keep"
     },
     "ai_gen_slrisk": {
-      "current_ic": -0.0428,
-      "historical_ic": -0.0855,
-      "decay_rate": 0.4988,
+      "current_ic": -0.0059,
+      "historical_ic": -0.0766,
+      "decay_rate": 0.9229,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_voladj_momentum": {
-      "current_ic": 0.0206,
-      "historical_ic": 0.0568,
-      "decay_rate": -0.6377,
-      "half_life_days": 1.1,
+      "current_ic": 0.0334,
+      "historical_ic": 0.0549,
+      "decay_rate": -0.3918,
+      "half_life_days": 1.8,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_unknown_regime_breakout": {
-      "current_ic": -0.0021,
-      "historical_ic": -0.0034,
-      "decay_rate": 0.3789,
+      "current_ic": 0.0169,
+      "historical_ic": 0.0,
+      "decay_rate": 16.8667,
       "half_life_days": 999,
-      "trend": "dead",
-      "recommendation": "retire"
+      "trend": "declining",
+      "recommendation": "reduce"
     },
     "ai_gen_volume_flow": {
-      "current_ic": -0.0982,
-      "historical_ic": -0.1185,
-      "decay_rate": 0.1718,
+      "current_ic": -0.0828,
+      "historical_ic": -0.1159,
+      "decay_rate": 0.2861,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "momentum": {
-      "current_ic": -0.0804,
-      "historical_ic": -0.0942,
-      "decay_rate": 0.1465,
+      "current_ic": -0.0172,
+      "historical_ic": -0.0845,
+      "decay_rate": 0.7959,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "roc": {
-      "current_ic": -0.0804,
-      "historical_ic": -0.0942,
-      "decay_rate": 0.1465,
+      "current_ic": -0.0172,
+      "historical_ic": -0.0845,
+      "decay_rate": 0.7959,
       "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_002": {
-      "current_ic": -0.1071,
-      "historical_ic": -0.0743,
-      "decay_rate": -0.4415,
+      "current_ic": -0.1117,
+      "historical_ic": -0.0777,
+      "decay_rate": -0.438,
       "half_life_days": 1.6,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_regime_breakout": {
-      "current_ic": 0.2315,
-      "historical_ic": 0.247,
-      "decay_rate": -0.0626,
-      "half_life_days": 11.1,
+      "current_ic": 0.2237,
+      "historical_ic": 0.2448,
+      "decay_rate": -0.086,
+      "half_life_days": 8.1,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_vol_rev": {
-      "current_ic": 0.0592,
-      "historical_ic": 0.1662,
-      "decay_rate": -0.6441,
-      "half_life_days": 1.1,
-      "trend": "declining",
-      "recommendation": "reduce"
+      "current_ic": -0.02,
+      "historical_ic": 0.1478,
+      "decay_rate": -1.135,
+      "half_life_days": 0.6,
+      "trend": "dead",
+      "recommendation": "retire"
     },
     "ai_gen_timeout_penalty": {
       "current_ic": -0.0496,
       "historical_ic": -0.0496,
-      "decay_rate": -0.0,
-      "half_life_days": 4956239204152529.0,
+      "decay_rate": 0.0,
+      "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_003": {
-      "current_ic": -0.0704,
-      "historical_ic": -0.0637,
-      "decay_rate": -0.1056,
-      "half_life_days": 6.6,
+      "current_ic": -0.0171,
+      "historical_ic": -0.0552,
+      "decay_rate": 0.6905,
+      "half_life_days": 999,
       "trend": "dead",
       "recommendation": "retire"
     },
     "ai_gen_short_regime_filter": {
-      "current_ic": 0.0315,
-      "historical_ic": 0.0509,
-      "decay_rate": -0.3815,
-      "half_life_days": 1.8,
+      "current_ic": 0.0206,
+      "historical_ic": 0.0478,
+      "decay_rate": -0.5697,
+      "half_life_days": 1.2,
       "trend": "declining",
       "recommendation": "reduce"
     },
     "ai_gen_short_timeout": {
-      "current_ic": 0.2143,
-      "historical_ic": 0.1696,
-      "decay_rate": 0.2634,
+      "current_ic": 0.2332,
+      "historical_ic": 0.1772,
+      "decay_rate": 0.3159,
       "half_life_days": 999,
       "trend": "improving",
       "recommendation": "keep"
@@ -875,7 +875,13 @@
       0.017761,
       0.006383,
       0.017949,
-      0.002595
+      0.002595,
+      0.014482,
+      -0.003124,
+      0.010824,
+      -0.002752,
+      0.015266,
+      -0.001252
     ],
     "obv": [
       0.049548,
@@ -930,7 +936,13 @@
       0.013072,
       0.018665,
       0.015475,
-      0.024259
+      0.024259,
+      0.02489,
+      0.034169,
+      0.030899,
+      0.041066,
+      0.034752,
+      0.039128
     ],
     "ema_trend": [
       -0.026812,
@@ -985,7 +997,13 @@
       -0.017012,
       -0.002972,
       -0.010527,
-      0.010834
+      0.010834,
+      -0.004382,
+      0.02056,
+      -0.018529,
+      0.019467,
+      -0.0277,
+      0.011205
     ],
     "supertrend": [
       0.015133,
@@ -1040,7 +1058,13 @@
       0.027652,
       0.032572,
       0.027652,
-      0.030262
+      0.030262,
+      0.027652,
+      0.031677,
+      0.027652,
+      0.027542,
+      0.027652,
+      0.023432
     ],
     "ai_gen_hold_timeout": [
       0.220261,
@@ -1095,7 +1119,13 @@
       0.220261,
       0.079003,
       0.220261,
-      0.049946
+      0.049946,
+      0.220261,
+      0.026753,
+      0.220261,
+      0.036206,
+      0.220261,
+      0.018606
     ],
     "ai_gen_hold_volatility": [
       0.026832,
@@ -1150,7 +1180,13 @@
       0.026832,
       0.023658,
       0.026832,
-      0.017246
+      0.017246,
+      0.026832,
+      0.039333,
+      0.026832,
+      0.049721,
+      0.026832,
+      0.049721
     ],
     "ai_gen_long_sl_break": [
       -0.105977,
@@ -1205,7 +1241,13 @@
       -0.105977,
       0.010187,
       -0.105977,
-      0.034811
+      0.034811,
+      -0.105977,
+      0.044047,
+      -0.105977,
+      0.037605,
+      -0.105977,
+      0.059237
     ],
     "ai_gen_long_sl_timeout": [
       0.092495,
@@ -1260,7 +1302,13 @@
       0.092495,
       0.132512,
       0.092495,
-      0.111007
+      0.111007,
+      0.092495,
+      0.082163,
+      0.092495,
+      0.090644,
+      0.092495,
+      0.110322
     ],
     "ai_gen_lrr": [
       0.02659,
@@ -1315,7 +1363,13 @@
       0.032217,
       0.025402,
       0.032217,
-      0.025431
+      0.025431,
+      0.032217,
+      0.02542,
+      0.032217,
+      0.025663,
+      0.032217,
+      0.025905
     ],
     "ai_gen_mr": [
       0.014769,
@@ -1370,7 +1424,13 @@
       0.006579,
       -0.010896,
       0.005192,
-      -0.015017
+      -0.015017,
+      0.007808,
+      -0.015252,
+      0.006363,
+      -0.01781,
+      0.008545,
+      -0.01636
     ],
     "ai_gen_price_position": [
       -0.009969,
@@ -1425,9 +1485,21 @@
       0.008907,
       -0.007958,
       0.009937,
-      -0.011993
+      -0.011993,
+      0.011046,
+      -0.017858,
+      -0.002141,
+      -0.027587,
+      -0.005093,
+      -0.030768
     ],
     "ai_gen_regime_uncertainty": [
+      0.092442,
+      0.092442,
+      0.092442,
+      0.092442,
+      0.092442,
+      0.092442,
       0.092442,
       0.092442,
       0.092442,
@@ -1535,7 +1607,13 @@
       -0.027281,
       -0.021778,
       -0.032042,
-      -0.024756
+      -0.024756,
+      -0.043427,
+      -0.021466,
+      -0.012514,
+      -0.003793,
+      0.002629,
+      0.011078
     ],
     "ai_gen_corr_break": [
       0.094727,
@@ -1590,7 +1668,13 @@
       0.018642,
       0.000617,
       0.023103,
-      0.002802
+      0.002802,
+      0.032814,
+      0.015212,
+      0.042786,
+      0.008821,
+      0.061577,
+      0.023139
     ],
     "ai_gen_liquidity_squeeze": [
       0.064488,
@@ -1645,9 +1729,21 @@
       0.036801,
       0.034441,
       0.044036,
-      0.040034
+      0.040034,
+      0.052654,
+      0.050841,
+      0.052757,
+      0.044856,
+      0.043302,
+      0.038458
     ],
     "ai_gen_regime_unknown": [
+      -0.046541,
+      -0.046541,
+      -0.046541,
+      -0.046541,
+      -0.046541,
+      -0.046541,
       -0.046541,
       -0.046541,
       -0.046541,
@@ -1755,7 +1851,13 @@
       -0.057212,
       -0.108531,
       -0.057212,
-      -0.127817
+      -0.127817,
+      -0.057212,
+      -0.100691,
+      -0.057212,
+      -0.086934,
+      -0.057212,
+      -0.095539
     ],
     "ai_gen_regime_unknown_vol": [
       -0.00681,
@@ -1810,7 +1912,13 @@
       -0.00681,
       -0.066357,
       -0.00681,
-      -0.087421
+      -0.087421,
+      -0.00681,
+      -0.075782,
+      -0.00681,
+      -0.082008,
+      -0.00681,
+      -0.089795
     ],
     "ai_gen_ret_vol_ratio": [
       -0.267637,
@@ -1865,7 +1973,13 @@
       -0.267637,
       -0.151004,
       -0.267637,
-      -0.140286
+      -0.140286,
+      -0.267637,
+      -0.137731,
+      -0.267637,
+      -0.145886,
+      -0.267637,
+      -0.140163
     ],
     "ai_gen_reversal_exhaustion": [
       -0.002538,
@@ -1920,7 +2034,13 @@
       -0.002538,
       0.017866,
       -0.002538,
-      -0.017426
+      -0.017426,
+      -0.002538,
+      -0.004502,
+      -0.002538,
+      -0.018627,
+      -0.002538,
+      -0.046858
     ],
     "ai_gen_short_break": [
       0.036128,
@@ -1975,7 +2095,13 @@
       0.036128,
       -0.03698,
       0.036128,
-      -0.053371
+      -0.053371,
+      0.036128,
+      -0.050384,
+      0.036128,
+      -0.047359,
+      0.036128,
+      -0.05132
     ],
     "ai_gen_short_sl_volume_confirm": [
       -0.042117,
@@ -2030,7 +2156,13 @@
       -0.042117,
       -0.053713,
       -0.042117,
-      0.020207
+      0.020207,
+      -0.042117,
+      0.002918,
+      -0.042117,
+      0.020933,
+      -0.042117,
+      0.041868
     ],
     "ai_gen_short_squeeze_guard": [
       0.174762,
@@ -2085,7 +2217,13 @@
       0.174762,
       0.057715,
       0.174762,
-      0.042761
+      0.042761,
+      0.174762,
+      0.022686,
+      0.174762,
+      0.033077,
+      0.174762,
+      0.03109
     ],
     "ai_gen_short_timeout_avoid": [
       -0.07798,
@@ -2140,7 +2278,13 @@
       -0.07798,
       -0.056124,
       -0.07798,
-      -0.017542
+      -0.017542,
+      -0.07798,
+      -0.058017,
+      -0.07798,
+      -0.093399,
+      -0.07798,
+      -0.079623
     ],
     "ai_gen_short_timeout_vol": [
       -0.173789,
@@ -2195,7 +2339,13 @@
       -0.173789,
       -0.060646,
       -0.173789,
-      -0.060646
+      -0.060646,
+      -0.173789,
+      -0.03037,
+      -0.173789,
+      -0.039133,
+      -0.173789,
+      -0.024807
     ],
     "ai_gen_shortsqueeze": [
       0.012013,
@@ -2250,7 +2400,13 @@
       0.012013,
       -0.080109,
       0.012013,
-      -0.082851
+      -0.082851,
+      0.012013,
+      -0.081184,
+      0.012013,
+      -0.081184,
+      0.012013,
+      -0.117997
     ],
     "ai_gen_sl_break": [
       0.126876,
@@ -2305,7 +2461,13 @@
       0.126876,
       0.030708,
       0.126876,
-      -0.019294
+      -0.019294,
+      0.126876,
+      0.025621,
+      0.126876,
+      0.010099,
+      0.126876,
+      -0.008521
     ],
     "ai_gen_sl_break_retest": [
       -0.293966,
@@ -2360,7 +2522,13 @@
       -0.293966,
       -0.142168,
       -0.293966,
-      -0.121483
+      -0.121483,
+      -0.293966,
+      -0.074391,
+      -0.293966,
+      -0.07937,
+      -0.293966,
+      -0.062893
     ],
     "ai_gen_sl_early_warning": [
       0.022999,
@@ -2415,7 +2583,13 @@
       0.022999,
       0.028158,
       0.022999,
-      0.010921
+      0.010921,
+      0.022999,
+      0.007666,
+      0.022999,
+      -0.006375,
+      0.022999,
+      -0.023634
     ],
     "ai_gen_sl_unknown": [
       0.134242,
@@ -2470,7 +2644,13 @@
       0.134242,
       0.0623,
       0.134242,
-      0.080164
+      0.080164,
+      0.134242,
+      0.076139,
+      0.134242,
+      0.051885,
+      0.134242,
+      0.054571
     ],
     "ai_gen_sl_unknown_regime": [
       0.003438,
@@ -2525,7 +2705,13 @@
       0.003438,
       0.018679,
       0.003438,
-      0.051647
+      0.051647,
+      0.003438,
+      0.017793,
+      0.003438,
+      0.033598,
+      0.003438,
+      0.049214
     ],
     "ai_gen_sl_volume_break": [
       0.021257,
@@ -2580,7 +2766,13 @@
       0.021257,
       -0.04213,
       0.021257,
-      -0.053689
+      -0.053689,
+      0.021257,
+      -0.007287,
+      0.021257,
+      -0.01673,
+      0.021257,
+      -0.024339
     ],
     "ai_gen_sl_wick": [
       -0.084835,
@@ -2635,7 +2827,13 @@
       -0.084835,
       -0.062893,
       -0.084835,
-      -0.05166
+      -0.05166,
+      -0.084835,
+      -0.033642,
+      -0.084835,
+      -0.033642,
+      -0.084835,
+      -0.018853
     ],
     "ai_gen_sl_wick_reversal": [
       0.000633,
@@ -2690,7 +2888,13 @@
       0.000633,
       -0.01572,
       0.000633,
-      -0.006807
+      -0.006807,
+      0.000633,
+      -0.003706,
+      0.000633,
+      -0.003234,
+      0.000633,
+      0.027305
     ],
     "ai_gen_stop_loss_ratio": [
       0.09828,
@@ -2745,7 +2949,13 @@
       0.09828,
       -0.011495,
       0.09828,
-      -0.045823
+      -0.045823,
+      0.09828,
+      -0.032302,
+      0.09828,
+      -0.05805,
+      0.09828,
+      -0.086479
     ],
     "ai_gen_timeout_range": [
       0.026418,
@@ -2800,7 +3010,13 @@
       0.026418,
       0.040451,
       0.026418,
-      0.039535
+      0.039535,
+      0.026418,
+      0.064087,
+      0.026418,
+      0.076561,
+      0.026418,
+      0.076701
     ],
     "ai_gen_timeout_rv": [
       -0.172906,
@@ -2855,7 +3071,13 @@
       -0.172906,
       -0.08143,
       -0.172906,
-      -0.044093
+      -0.044093,
+      -0.172906,
+      -0.063554,
+      -0.172906,
+      -0.073994,
+      -0.172906,
+      -0.052921
     ],
     "ai_gen_timeout_sl_proximity": [
       0.285683,
@@ -2910,7 +3132,13 @@
       0.285683,
       0.015244,
       0.285683,
-      -0.085562
+      -0.085562,
+      0.285683,
+      -0.014587,
+      0.285683,
+      -0.019945,
+      0.285683,
+      -0.099047
     ],
     "ai_gen_timeout_squeeze": [
       0.170444,
@@ -2965,7 +3193,13 @@
       0.170444,
       0.112685,
       0.170444,
-      0.110026
+      0.110026,
+      0.170444,
+      0.097917,
+      0.170444,
+      0.105036,
+      0.170444,
+      0.096675
     ],
     "ai_gen_timeout_volume": [
       0.008269,
@@ -3020,7 +3254,13 @@
       0.008269,
       0.04875,
       0.008269,
-      0.051843
+      0.051843,
+      0.008269,
+      0.031322,
+      0.008269,
+      0.026705,
+      0.008269,
+      0.02717
     ],
     "ai_gen_timevol": [
       -0.034719,
@@ -3075,7 +3315,13 @@
       -0.034719,
       0.033728,
       -0.034719,
-      0.045909
+      0.045909,
+      -0.034719,
+      0.043471,
+      -0.034719,
+      0.047323,
+      -0.034719,
+      0.070604
     ],
     "ai_gen_tmo": [
       -0.293855,
@@ -3130,7 +3376,13 @@
       -0.293855,
       -0.136262,
       -0.293855,
-      -0.115887
+      -0.115887,
+      -0.293855,
+      -0.099901,
+      -0.293855,
+      -0.112204,
+      -0.293855,
+      -0.104576
     ],
     "ai_gen_trend_weakness": [
       0.17483,
@@ -3185,7 +3437,13 @@
       0.17483,
       0.068101,
       0.17483,
-      0.039566
+      0.039566,
+      0.17483,
+      0.01832,
+      0.17483,
+      0.016963,
+      0.17483,
+      -0.005249
     ],
     "ai_gen_tslr": [
       0.216379,
@@ -3240,7 +3498,13 @@
       0.216379,
       0.074799,
       0.216379,
-      0.038838
+      0.038838,
+      0.216379,
+      -0.005032,
+      0.216379,
+      -0.006886,
+      0.216379,
+      -0.020167
     ],
     "ai_gen_ulsl": [
       -0.201101,
@@ -3295,7 +3559,13 @@
       -0.201101,
       -0.021965,
       -0.201101,
-      0.010155
+      0.010155,
+      -0.201101,
+      0.048123,
+      -0.201101,
+      0.044935,
+      -0.201101,
+      0.063534
     ],
     "ai_gen_uncertainty_vola": [
       0.027353,
@@ -3345,6 +3615,12 @@
       0.02554,
       0.024873,
       0.024873,
+      0.024873,
+      0.02554,
+      0.024873,
+      0.02554,
+      0.024873,
+      0.02554,
       0.024873,
       0.02554,
       0.024873,
@@ -3405,7 +3681,13 @@
       -0.020488,
       0.004455,
       -0.020488,
-      -0.00346
+      -0.00346,
+      -0.020488,
+      0.030022,
+      -0.020488,
+      0.055269,
+      -0.020488,
+      0.06336
     ],
     "rsi": [
       0.024169,
@@ -3460,7 +3742,13 @@
       -0.024973,
       -0.040703,
       -0.0291,
-      -0.049161
+      -0.049161,
+      -0.00827,
+      -0.03527,
+      0.000201,
+      -0.036059,
+      0.010309,
+      -0.032251
     ],
     "macd": [
       -0.088181,
@@ -3515,7 +3803,13 @@
       -0.092447,
       -0.037912,
       -0.088199,
-      -0.036142
+      -0.036142,
+      -0.081988,
+      -0.014982,
+      -0.070658,
+      -0.010235,
+      -0.062852,
+      -0.005153
     ],
     "ai_gen_vol_div": [
       -0.02508,
@@ -3570,7 +3864,13 @@
       9.1e-05,
       -0.005604,
       -0.000606,
-      -0.007667
+      -0.007667,
+      -0.005162,
+      -0.009509,
+      -0.023325,
+      -0.025133,
+      -0.019259,
+      -0.021246
     ],
     "ai_gen_voltrend": [
       0.032386,
@@ -3625,9 +3925,21 @@
       0.025512,
       0.048676,
       0.027846,
-      0.055558
+      0.055558,
+      0.031724,
+      0.071721,
+      0.035022,
+      0.072821,
+      0.035489,
+      0.07901
     ],
     "ai_a101_rev_long_1d": [
+      0.060175,
+      0.060175,
+      0.060175,
+      0.060175,
+      0.060175,
+      0.060175,
       0.060175,
       0.060175,
       0.060175,
@@ -3735,7 +4047,13 @@
       0.019296,
       0.01496,
       0.019296,
-      0.019526
+      0.019526,
+      0.019296,
+      0.0109,
+      0.019296,
+      0.000696,
+      0.019296,
+      0.000696
     ],
     "ai_gen_master_close_volume": [
       -0.071864,
@@ -3790,7 +4108,13 @@
       -0.071864,
       -0.091183,
       -0.071864,
-      -0.085946
+      -0.085946,
+      -0.071864,
+      -0.063504,
+      -0.071864,
+      -0.098954,
+      -0.071864,
+      -0.103334
     ],
     "ai_gen_short_sl_regime_unknown": [
       -0.007964,
@@ -3845,7 +4169,13 @@
       -0.007964,
       0.087419,
       -0.007964,
-      0.077816
+      0.077816,
+      -0.007964,
+      0.077228,
+      -0.007964,
+      0.074598,
+      -0.007964,
+      0.084844
     ],
     "ai_gen_short_volume_divergence": [
       0.060696,
@@ -3900,7 +4230,13 @@
       0.060696,
       0.05501,
       0.060696,
-      0.074219
+      0.074219,
+      0.060696,
+      0.071205,
+      0.060696,
+      0.071205,
+      0.060696,
+      0.060866
     ],
     "ai_gen_slr": [
       -0.168865,
@@ -3955,7 +4291,13 @@
       -0.168865,
       0.002015,
       -0.168865,
-      0.009205
+      0.009205,
+      -0.168865,
+      -0.091693,
+      -0.168865,
+      -0.052851,
+      -0.168865,
+      -0.073536
     ],
     "ai_gen_staged_tp_guard": [
       -0.03628,
@@ -4010,7 +4352,13 @@
       -0.03628,
       0.008579,
       -0.03628,
-      0.0024
+      0.0024,
+      -0.03628,
+      0.073632,
+      -0.03628,
+      0.073632,
+      -0.03628,
+      0.061383
     ],
     "ai_gen_timeout_volume_ratio": [
       -0.03158,
@@ -4065,7 +4413,13 @@
       -0.03158,
       0.059852,
       -0.03158,
-      0.012303
+      0.012303,
+      -0.03158,
+      0.075408,
+      -0.03158,
+      0.048692,
+      -0.03158,
+      0.045933
     ],
     "ai_gen_unk_timeout": [
       -0.133765,
@@ -4120,9 +4474,21 @@
       -0.133765,
       -0.030673,
       -0.133765,
-      -0.054566
+      -0.054566,
+      -0.133765,
+      -0.005303,
+      -0.133765,
+      0.008772,
+      -0.133765,
+      -0.006586
     ],
     "ai_gen_unknown_regime": [
+      -0.016072,
+      -0.016072,
+      -0.016072,
+      -0.016072,
+      -0.016072,
+      -0.016072,
       -0.016072,
       -0.016072,
       -0.016072,
@@ -4230,7 +4596,13 @@
       -0.068178,
       -0.055668,
       -0.068178,
-      0.028974
+      0.028974,
+      -0.068178,
+      -8.2e-05,
+      -0.068178,
+      0.027309,
+      -0.068178,
+      0.056818
     ],
     "ai_gen_unknown_regime_guard": [
       0.092705,
@@ -4285,7 +4657,13 @@
       0.092705,
       0.033598,
       0.092705,
-      -0.008967
+      -0.008967,
+      0.092705,
+      0.005127,
+      0.092705,
+      0.005127,
+      0.092705,
+      -0.028718
     ],
     "ai_gen_unknown_regime_vol": [
       -0.160638,
@@ -4340,7 +4718,13 @@
       -0.160638,
       0.054087,
       -0.160638,
-      0.042766
+      0.042766,
+      -0.160638,
+      0.039583,
+      -0.160638,
+      0.051712,
+      -0.160638,
+      0.038575
     ],
     "ai_gen_unknownreg": [
       -0.143204,
@@ -4395,7 +4779,13 @@
       -0.143204,
       -0.04344,
       -0.143204,
-      -0.022325
+      -0.022325,
+      -0.143204,
+      0.015489,
+      -0.143204,
+      0.015489,
+      -0.143204,
+      0.003647
     ],
     "ai_gen_vol_breakout_fade": [
       -0.218243,
@@ -4450,9 +4840,21 @@
       -0.218243,
       -0.102253,
       -0.218243,
-      -0.080046
+      -0.080046,
+      -0.218243,
+      -0.054137,
+      -0.218243,
+      -0.054219,
+      -0.218243,
+      -0.036024
     ],
     "ai_a101_vol_mom_4h": [
+      -0.120225,
+      -0.120225,
+      -0.120225,
+      -0.120225,
+      -0.120225,
+      -0.120225,
       -0.120225,
       -0.120225,
       -0.120225,
@@ -4560,6 +4962,12 @@
       -0.162373,
       -0.15108,
       -0.162373,
+      -0.15108,
+      -0.162373,
+      -0.15108,
+      -0.162373,
+      -0.15108,
+      -0.162373,
       -0.15108
     ],
     "evo_seed_ts_rank20": [
@@ -4612,6 +5020,12 @@
       -0.158988,
       -0.158988,
       -0.125161,
+      -0.158988,
+      -0.117769,
+      -0.158988,
+      -0.117769,
+      -0.158988,
+      -0.117769,
       -0.158988,
       -0.117769,
       -0.158988,
@@ -4670,7 +5084,13 @@
       -0.223396,
       -0.102467,
       -0.219104,
-      -0.081703
+      -0.081703,
+      -0.221299,
+      -0.066161,
+      -0.221299,
+      -0.081311,
+      -0.221299,
+      -0.096009
     ],
     "ai_gen_timeout_contrarian": [
       -0.010578,
@@ -4725,7 +5145,13 @@
       -0.010578,
       -0.057264,
       -0.010578,
-      -0.070962
+      -0.070962,
+      -0.010578,
+      -0.085116,
+      -0.010578,
+      -0.07794,
+      -0.010578,
+      -0.087616
     ],
     "ai_gen_001": [
       0.031847,
@@ -4780,7 +5206,13 @@
       0.031847,
       0.034587,
       0.031847,
-      0.034587
+      0.034587,
+      0.031847,
+      0.030949,
+      0.031847,
+      0.030949,
+      0.031847,
+      0.030949
     ],
     "ai_gen_breakout_pullback": [
       -0.052579,
@@ -4835,7 +5267,13 @@
       -0.052579,
       -0.015621,
       -0.052579,
-      -0.004554
+      -0.004554,
+      -0.052579,
+      -0.000942,
+      -0.052579,
+      -0.000942,
+      -0.052579,
+      -0.010057
     ],
     "ai_gen_hold_timeout_penalty": [
       0.019411,
@@ -4890,9 +5328,21 @@
       0.019411,
       0.002047,
       0.019411,
-      -0.016154
+      -0.016154,
+      0.019411,
+      -0.052966,
+      0.019411,
+      -0.052966,
+      0.019411,
+      -0.07517
     ],
     "ai_gen_timeout_vol": [
+      -0.070108,
+      -0.070108,
+      -0.070108,
+      -0.070108,
+      -0.070108,
+      -0.070108,
       -0.070108,
       -0.070108,
       -0.070108,
@@ -5000,7 +5450,13 @@
       -0.162157,
       -0.016251,
       -0.162157,
-      0.040929
+      0.040929,
+      -0.162157,
+      0.038215,
+      -0.162157,
+      0.045751,
+      -0.162157,
+      0.069053
     ],
     "ai_gen_unknown_regime_stop": [
       0.111429,
@@ -5055,7 +5511,13 @@
       0.111429,
       0.090976,
       0.111429,
-      0.113761
+      0.113761,
+      0.111429,
+      0.131808,
+      0.111429,
+      0.127869,
+      0.111429,
+      0.125682
     ],
     "ai_gen_liq_quality": [
       0.042309,
@@ -5109,7 +5571,13 @@
       0.069964,
       0.060273,
       0.073798,
-      0.063401
+      0.063401,
+      0.061395,
+      0.052346,
+      0.053552,
+      0.047614,
+      0.061575,
+      0.05181
     ],
     "ai_gen_mrext": [
       0.150713,
@@ -5163,7 +5631,13 @@
       0.055806,
       0.053759,
       0.058073,
-      0.056421
+      0.056421,
+      0.057406,
+      0.0595,
+      0.090305,
+      0.078176,
+      0.099183,
+      0.074834
     ],
     "ai_gen_stability": [
       -0.075712,
@@ -5217,7 +5691,13 @@
       -0.06542,
       -0.071493,
       -0.061745,
-      -0.06724
+      -0.06724,
+      -0.046731,
+      -0.066964,
+      -0.070342,
+      -0.074063,
+      -0.082419,
+      -0.0879
     ],
     "ai_gen_dust_squeeze": [
       -0.420892,
@@ -5267,7 +5747,13 @@
       -0.083744,
       -0.077839,
       -0.080202,
-      -0.077435
+      -0.077435,
+      -0.079026,
+      -0.104958,
+      -0.18233,
+      -0.149765,
+      -0.252808,
+      -0.1988
     ],
     "ai_gen_holdtime_penalty": [
       -0.093674,
@@ -5320,6 +5806,12 @@
       -0.102715,
       -0.093674,
       -0.086122,
+      -0.093674,
+      -0.10238,
+      -0.093674,
+      -0.10238,
+      -0.093674,
+      -0.10238,
       -0.093674,
       -0.10238
     ],
@@ -5375,7 +5867,13 @@
       -0.046165,
       -0.053727,
       -0.037754,
-      -0.047594
+      -0.047594,
+      -0.063727,
+      -0.078261,
+      -0.085923,
+      -0.088238,
+      -0.091763,
+      -0.086131
     ],
     "ai_gen_timeout": [
       0.078094,
@@ -5429,7 +5927,13 @@
       0.078094,
       -0.029095,
       0.078094,
-      -0.029095
+      -0.029095,
+      0.078094,
+      -0.029095,
+      0.078094,
+      -0.029095,
+      0.078094,
+      -0.068933
     ],
     "ai_gen_trend_conf": [
       -0.099942,
@@ -5483,7 +5987,13 @@
       -0.025536,
       -0.01968,
       -0.026329,
-      -0.020116
+      -0.020116,
+      -0.015191,
+      -0.019327,
+      -0.059522,
+      -0.046339,
+      -0.062186,
+      -0.049729
     ],
     "ai_gen_vpr": [
       -0.000441,
@@ -5537,7 +6047,13 @@
       0.017348,
       0.005536,
       0.018784,
-      0.006703
+      0.006703,
+      0.020846,
+      0.005804,
+      0.013151,
+      0.003968,
+      0.004711,
+      -0.002102
     ],
     "ai_gen_vqc": [
       0.062043,
@@ -5591,7 +6107,13 @@
       0.011769,
       0.015017,
       0.015933,
-      0.017994
+      0.017994,
+      0.028049,
+      0.028815,
+      0.035818,
+      0.035609,
+      0.036832,
+      0.032695
     ],
     "ai_gen_volumereg": [
       0.000513,
@@ -5645,7 +6167,13 @@
       0.030697,
       0.033081,
       0.035267,
-      0.036395
+      0.036395,
+      0.051653,
+      0.056145,
+      0.068493,
+      0.056258,
+      0.03515,
+      0.033036
     ],
     "ai_gen_slrisk": [
       -0.104595,
@@ -5699,7 +6227,13 @@
       -0.017138,
       -0.010134,
       -0.022874,
-      -0.013736
+      -0.013736,
+      -0.001275,
+      0.012847,
+      -0.009401,
+      0.003413,
+      -0.005311,
+      0.004585
     ],
     "ai_gen_voladj_momentum": [
       0.099381,
@@ -5753,7 +6287,13 @@
       0.032471,
       0.019852,
       0.032298,
-      0.019082
+      0.019082,
+      0.029245,
+      0.016647,
+      0.053815,
+      0.028008,
+      0.067019,
+      0.03563
     ],
     "ai_gen_unknown_regime_breakout": [
       0.002448,
@@ -5807,7 +6347,13 @@
       0.002448,
       -0.042049,
       0.002448,
-      0.03042
+      0.03042,
+      0.002448,
+      0.04371,
+      0.002448,
+      0.04371,
+      0.002448,
+      0.080738
     ],
     "ai_gen_volume_flow": [
       -0.093594,
@@ -5861,7 +6407,13 @@
       -0.055219,
       -0.076481,
       -0.05744,
-      -0.078808
+      -0.078808,
+      -0.068952,
+      -0.093628,
+      -0.083397,
+      -0.114326,
+      -0.08843,
+      -0.110857
     ],
     "momentum": [
       -0.048774,
@@ -5915,7 +6467,13 @@
       -0.050251,
       -0.03955,
       -0.041115,
-      -0.038832
+      -0.038832,
+      -0.036788,
+      -0.040517,
+      0.022105,
+      -0.000617,
+      0.023009,
+      0.030193
     ],
     "roc": [
       -0.048774,
@@ -5969,7 +6527,13 @@
       -0.050251,
       -0.03955,
       -0.041115,
-      -0.038832
+      -0.038832,
+      -0.036788,
+      -0.040517,
+      0.022105,
+      -0.000617,
+      0.023009,
+      0.030193
     ],
     "ai_gen_002": [
       -0.065104,
@@ -6023,7 +6587,13 @@
       -0.065104,
       -0.177925,
       -0.065104,
-      -0.167018
+      -0.167018,
+      -0.065104,
+      -0.148563,
+      -0.065104,
+      -0.148563,
+      -0.065104,
+      -0.149689
     ],
     "ai_gen_regime_breakout": [
       0.254067,
@@ -6077,7 +6647,13 @@
       0.254067,
       0.172525,
       0.254067,
-      0.202431
+      0.202431,
+      0.254067,
+      0.192638,
+      0.254067,
+      0.192638,
+      0.254067,
+      0.206501
     ],
     "ai_gen_vol_rev": [
       0.120862,
@@ -6131,9 +6707,21 @@
       -0.025726,
       -0.04622,
       -0.018825,
-      -0.040541
+      -0.040541,
+      -0.03832,
+      -0.053804,
+      0.025284,
+      -0.012849,
+      0.02449,
+      -0.013059
     ],
     "ai_gen_timeout_penalty": [
+      -0.049626,
+      -0.049626,
+      -0.049626,
+      -0.049626,
+      -0.049626,
+      -0.049626,
       -0.049626,
       -0.049626,
       -0.049626,
@@ -6239,7 +6827,13 @@
       -0.058939,
       -0.094582,
       -0.058939,
-      -0.068233
+      -0.068233,
+      -0.058939,
+      0.06839,
+      -0.058939,
+      0.100358,
+      -0.058939,
+      0.118022
     ],
     "ai_gen_short_regime_filter": [
       0.05239,
@@ -6293,7 +6887,13 @@
       0.05239,
       0.012107,
       0.05239,
-      -0.039023
+      -0.039023,
+      0.05239,
+      -0.021658,
+      0.05239,
+      -0.021658,
+      0.05239,
+      0.014007
     ],
     "ai_gen_short_timeout": [
       0.154265,
@@ -6347,9 +6947,21 @@
       0.154265,
       0.325862,
       0.154265,
-      0.239891
+      0.239891,
+      0.154265,
+      0.350952,
+      0.154265,
+      0.322004,
+      0.154265,
+      0.322004
     ],
     "ai_gen_holdtime": [
+      -0.330932,
+      -0.330932,
+      -0.330932,
+      -0.330932,
+      -0.330932,
+      -0.330932,
       -0.330932,
       -0.330932,
       -0.330932,
@@ -6766,7 +7378,13 @@
       -0.041039,
       -0.060051,
       -0.041548,
-      -0.062771
+      -0.062771,
+      -0.009352,
+      -0.034678,
+      0.016372,
+      -0.014189,
+      0.023491,
+      -0.011459
     ],
     "rsi_vol_ratio": [
       -0.063395,
@@ -7029,6 +7647,12 @@
       0.087825,
       0.086315,
       0.087825,
+      0.086315,
+      0.087825,
+      0.086315,
+      0.087825,
+      0.086315,
+      0.087825,
       0.086315
     ],
     "ad_line": [
@@ -7230,19 +7854,40 @@
       0.277128,
       0.23792,
       0.162276,
-      -0.002965
+      -0.002965,
+      -0.13571,
+      -0.13571,
+      -0.13571
     ],
     "ai_gen_sl_volume_breakout": [
       0.173458,
       0.173458,
       0.173458,
-      0.278216
+      0.278216,
+      0.278216,
+      0.278216,
+      0.243221
     ],
     "ai_gen_tp_sl_imbalance": [
-      0.012515
+      0.012515,
+      -0.030847,
+      -0.030847,
+      -0.030847
     ],
     "ai_gen_hold_timeout_reversal": [
-      0.060733
+      0.060733,
+      -0.049037,
+      -0.023133,
+      -0.008376
+    ],
+    "ai_gen_price_volume_divergence": [
+      -0.210604,
+      -0.185013,
+      -0.213775
+    ],
+    "ai_gen_breakout_fail": [
+      0.323493,
+      0.318194
     ]
   }
 }

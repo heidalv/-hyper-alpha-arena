@@ -1,0 +1,8 @@
+{
+  "step": 20,
+  "path": "ckpt_step00000020.pkl",
+  "created_at": "2026-09-12T13:55:12",
+  "state_keys": [
+    "w"
+  ]
+}
