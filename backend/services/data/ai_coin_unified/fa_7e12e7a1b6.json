@@ -1,12 +1,12 @@
 {
   "mid": {
     "symbols": [],
-    "updated_at": 1789383597.8419511,
+    "updated_at": 1789394449.7883422,
     "reason": "resample age>=10800s from midlong_board min_conf=0.4"
   },
   "version": 1,
   "session_id": "fa_7e12e7a1b6",
-  "updated_at": 1789383597.8419511,
+  "updated_at": 1789394449.7883422,
   "short": {
     "symbols": [
       "DOGE"

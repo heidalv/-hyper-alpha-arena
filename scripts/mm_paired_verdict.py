@@ -239,6 +239,41 @@ def main() -> int:
               f"符号检验 p ≈ {csg['p']:.4f}")
         if cst["need_n"]:
             print(f"  （现金口径均值 t = {cst['t']:+.2f}；达到 |t|=2.5 需 ~{cst['need_n']} 趟）")
+    # [F150] 「稳定」判据：分时段一致性 + 累计曲线回吐 + 分币分散度。
+    # 单看一个累计数不足以称"稳定"（可能由单段行情贡献 ✗）⇒ 必须看跨时段一致性 ✓
+    if rows:
+        bmin = 15
+        bk = {}
+        for x in rows:
+            t = x["ts"]
+            key = t.replace(minute=(t.minute // bmin) * bmin, second=0, microsecond=0)
+            b = bk.setdefault(key, {"n": 0, "nt": 0.0, "net": 0.0})
+            v = float(x["notional"])
+            b["n"] += 1
+            b["nt"] += v
+            b["net"] += v * float(x["net_bp"] or 0.0) / 1e4
+        cum = peak = maxdd = 0.0
+        pos = neg = 0
+        for k in sorted(bk):
+            b = bk[k]
+            cum += b["net"]
+            peak = max(peak, cum)
+            maxdd = max(maxdd, peak - cum)
+            if b["n"] >= 3:
+                pos += 1 if b["net"] > 0 else 0
+                neg += 1 if b["net"] <= 0 else 0
+        print(f"\n  【稳定性】{len(bk)} 个 {bmin} 分钟桶：正 {pos} / 负 {neg}"
+              f"（仅计 ≥3 笔的桶）  累计曲线最大回吐 {maxdd:.3f}USD"
+              f"（占权益 {maxdd/max(1.0, r.equity)*100:.2f}%）")
+        per = {}
+        for x in rows:
+            p = per.setdefault(str(x["symbol"]), [0, 0.0])
+            v = float(x["notional"])
+            p[0] += 1
+            p[1] += v * float(x["net_bp"] or 0.0) / 1e4
+        npos = sum(1 for v in per.values() if v[1] > 0)
+        print(f"  分币为正 {npos}/{len(per)}：" + "  ".join(
+            f"{s} {v[1]:+.2f}$/{v[0]}笔" for s, v in sorted(per.items())))
 
     if args.no_model:
         return 0
