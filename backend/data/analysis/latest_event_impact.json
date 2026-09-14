@@ -1,64 +1,66 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789394260113,
+  "ts_ms": 1789394400342,
   "accepted": true,
   "status": "ok",
   "consensus_score": 0.7,
-  "run_id": "440e301e631d4aa1b5ca8b1d9088f3bb",
-  "context_hash": "341c3034ef6d428f8834c589ae1eeedf87744f100bcb8b8bc4b7355288e3cf3d",
+  "run_id": "13e1d0e24fad4f10b07a464c1be8fb8d",
+  "context_hash": "42ef497f1e60a3c06f57ce3855af21f4c67744a0c2076fd4e1973054740c6591",
   "final": {
-    "direction": "bullish",
+    "direction": "bearish",
     "strength": 4,
     "confidence": 0.4,
-    "half_life_hours": 12,
+    "half_life_hours": 8,
     "affected_symbols": [
-      "GLM"
+      "INDEX"
     ],
-    "hedging_window_hours": 24,
+    "hedging_window_hours": 8,
     "position_adjustments": [
       {
-        "symbol": "GLM",
-        "action": "no_new_short",
-        "reason": "gateio GLM 资金费 -0.384%/8h（≈-421% APR），且同刻 binance -0.628%、bybit -0.365% 均极端为负：空头每8h需付费、拥挤度高；GLM 价升（1d +3.79%、7d +7.26%、RSI14 66.5）且24h空头强平 35,090 USD > 多头 22,553 USD，轧空风险大于做空回报。当前无 GLM 持仓，不宜逆极端负费开新空。"
+        "symbol": "INDEX",
+        "action": "no_new_long",
+        "reason": "gateio 资金费 +0.3754%/8h（≈+411% APR，为 0.1% 阈值的 3.75 倍），新多头需承担极端费用且面临多头拥挤回撤/挤压风险；因 market:INDEX 无 K 线、缺价格趋势确认，反向做空亦不建议，仅冻结新多"
       }
     ],
     "analogues": [
       {
-        "event": "同刻（ts 1789373112896）多币种极端负资金费：LSK bybit -2.000%/8h、STEEM binance -1.256%/8h、CVC binance -1.220%/8h、POWR binance/bybit ≈-0.9%~-1.1%/8h",
-        "outcome": "数据不足：该批事件与待评估事件同时刻发生且无后续价量结果，无法作为已验证的历史同类样本，仅能确认小币种系统性拥挤空头环境"
+        "event": "同批次 funding.extreme：bybit BSP 资金费 +1.433%/8h（≈+1569% APR）、gateio FATCOIN +1.192%/8h",
+        "outcome": "同为正极端资金费（多头付费），context 中无后续价格与绩效回溯数据，无法验证均值回归结果，仅确认当前市场山寨币资金费极端分化"
+      },
+      {
+        "event": "同批次 funding.extreme：LSK/STEEM/CVC/POWR 等在 bybit/binance/asterdex 出现 -0.45% ~ -2.0%/8h 负极端资金费",
+        "outcome": "负极端集中在山寨币空头侧，与 INDEX 正极端并存，表明资金费拥挤呈币种级离散分布，非全市场单边过热；24h 全市场多头清算 20.82M vs 空头 22.07M 基本平衡"
       }
     ],
     "key_factors": [
-      "GLM 三所资金费同刻极端为负：gateio -0.384%/8h（事件本体）、binance -0.628%/8h、bybit -0.365%/8h，空头拥挤且做空需持续付费",
-      "价费背离：GLM ret_1d +3.79%、ret_7d +7.26%、RSI14 66.5，价格上行叠加极端负费构成轧空（short squeeze）条件，故方向偏多",
-      "24h GLM 空头强平 35,090 USD 高于多头 22,553 USD，空头已在承受挤压",
-      "费率时点不一致：flows 快照（as_of 1789257600000，早于事件约32h）显示 GLM gateio 仅 -0.0461%/8h、binance -0.064%，事件读数急剧恶化，可能是短时尖峰；且事件 ts 晚于 pack 数据截止约32h，市场快照相对事件滞后",
-      "同刻 LSK/STEEM/CVC/POWR/PUNDIX/FLY 等多币极端负费（另 BSP 极端正费 +1.433%/8h），提示小币种系统性做空压力，需警惕整体风险偏好恶化的外溢",
-      "组合未持有 GLM，现有 10 笔持仓均为主流币多头（acct14 毛敞口 100.6%），事件对现有账簿无直接冲击",
-      "缺失数据：BTC/大盘行情、GLM 与 BTC 相关性、ema_trend_4h、above_ema200_1d、ret_30d 均为空，且无历史同类极端负费事件的结果样本，无法交叉验证，故置信度压低至 0.4"
+      "INDEX 在 gateio 资金费 +0.3754%/8h ≈ +411% APR，达阈值 0.1% 的 3.75 倍，多头拥挤，反向（bearish）解读但仅为单因子信号",
+      "market 层 INDEX 无 K 线（缺失层已标注），无法用价格趋势/位置佐证方向，confidence 被动下调",
+      "资金费仅 gateio 单所记录，无其他交易所同币种资金费交叉验证（flows 中 INDEX 仅 gateio 0.3936%/8h），存在单所异常而非全市场共识的可能",
+      "8h 结算机制下极端资金费通常在 1-3 个结算周期内回归，持仓成本年化 411% 会快速侵蚀新多头期望收益",
+      "事件为单币种冲击：当前 10 笔持仓全为 BTC/ETH/SOL/BNB/XRP/UNI/ASTER 主流币多头（acct14 总敞口 100.6%），不含 INDEX，直接传染路径有限"
     ],
-    "summary": "GLM 在 gateio 出现 -0.384%/8h（≈-421% APR）极端负资金费，且 binance（-0.628%）与 bybit（-0.365%）同刻确认，为跨所空头拥挤信号；叠加 GLM 价格上行（1d +3.79%、7d +7.26%、RSI14 66.5）与24h空头强平（35,090 USD）高于多头（22,553 USD），构成偏多的轧空背离，故 direction=bullish、strength=4。但置信度仅 0.4：flows 层旧快照费率温和（gateio -0.0461%）、事件时间戳晚于数据截止约32h、同刻多山寨极端负费暗示系统性小币做空压力、且缺大盘与历史同类结果数据。资金费以8h为周期，极端读数通常在1~3个周期内回归，取半衰期12h、避险观察窗24h。组合未持有 GLM，对现有主力多头账簿无直接影响；建议 GLM 不开新空（做空需付费且挤压风险高），仅观察费率与价格是否延续背离，不据此对主流币持仓做调节。",
+    "summary": "INDEX 在 gateio 触发正极端资金费（+0.3754%/8h，≈+411% APR，阈值 3.75 倍，severity 3）：多头拥挤、新多成本极高，按资金费拥挤反转逻辑给 bearish（strength 4）。但 market:INDEX 无 K 线、且仅 gateio 单所数据，无法交叉验证价格趋势，confidence 降至 0.4。影响范围限于 INDEX 本身（半衰期按 1 个 8h 结算周期估计，避险/观察窗口 8 小时）；现有持仓组合（全为主流币多头，不含 INDEX）不受直接冲击，且全市场多空清算量基本平衡（20.8M/22.1M），无系统性传染证据。建议：INDEX 冻结新多（no_new_long），不追空（缺价格确认），8 小时后复评资金费是否回归；若后续补充 K 线与跨所资金费数据可上调 confidence。",
     "arbitration": {
       "verdict": "B",
       "by": "glm_opencode_alt",
-      "rationale": "B 的偏多判断有 context pack 中可直接验证的事实支撑：事件同刻（ts 1789373112896）GLM 三所资金费同步极端为负（gateio -0.384%、binance -0.628%、bybit -0.365%），叠加价格上行（1d +3.79%、7d +7.26%、RSI14 66.5）与 24h 空头强平 35,090 USD > 多头 22,553 USD，构成跨所空头拥挤+轧空的完整证据链；B 还正确指出 flows 快照（as_of 1789257600000）落后事件约 32 小时、且同刻多山寨极端负费属系统性现象，主动压低置信度至 0.4。反观 A：其 analogues 断言了 pack 中不存在的'历史结果'（同刻事件并无后续结果数据，属于引入外部假设）；其'gateio 存在特有 perp 偏差'的推理与事实矛盾——binance（-0.628%）比 gateio（-0.384%）更极端，并非 gateio 特异；且 A 方向判 neutral 却给出 no_new_long 的偏防御动作，与自身'理论偏多'的论述自相矛盾。A 唯一有价值的'系统性噪声'观点 B 已纳入并作为压低置信度的理由。故判 B，方向 bullish，强度取中等偏低（4/10），置信度 0.45 以反映系统性小币异常与数据时点错位的不确定性。"
+      "rationale": "B 更有依据：事件 payload 本身给出 direction=-0.5（正向极端资金费→多头拥挤→反向看空的系统约定），且 +0.3754%/8h 为阈值 0.1% 的 3.75 倍（APR +411%）是 context 中的客观事实，新多头持仓成本极高这一点不需要 K 线确认即成立，故 no_new_long 的成本论据扎实；B 同时正确指出 INDEX 仅 gateio 单所数据（flows 中 INDEX 只有 gateio 0.3936）、market:INDEX 无 K 线（缺失层已标注），并据此把 confidence 降到 0.4，态度克制。A 的 neutral 判断虽在数据质量层面有理，但其附加动作（对 BTC/ASTER 收紧止损）依赖'山寨负费率→系统性 de-risk 传导'的间接假设，context 中 24h 清算多空基本均衡（20.8M vs 22.1M USD）且组合无 INDEX 敞口，该传导缺乏直接证据，属过度外推。综合：采信 B 的 bearish 方向与冻结新多建议，但鉴于单所信号、无价格层佐证，强度宜从 4 降至 3，confidence 维持 0.4。"
     }
   },
   "notes": [],
   "event": {
-    "id": 102677,
+    "id": 102678,
     "event_type": "funding.extreme",
-    "symbol": "GLM",
+    "symbol": "INDEX",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio GLM 资金费 -0.384%/8h（≈-421% APR）",
+    "direction": -0.5,
+    "title": "gateio INDEX 资金费 +0.375%/8h（≈+411% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -420.9,
-      "rate_8h": -0.003844,
+      "apr_pct": 411.1,
+      "rate_8h": 0.003754,
       "exchange": "gateio",
-      "rate_raw": -0.003844,
+      "rate_raw": 0.003754,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

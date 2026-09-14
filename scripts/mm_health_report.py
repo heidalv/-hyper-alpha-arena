@@ -99,6 +99,25 @@ def main() -> int:
     else:
         wins.append((f"近 {args.hours:g}h", args.hours, since_era))
     wins.append(("全时代", 30.0 * 24.0, since_era))
+    # [F149] 必须同时给出**自最近一次配置变更以来**的窗口：`stats_since`（时代起点）
+    # 可能早于今天的全部修复（实测 11:50 ⇒ 把坏管道的亏损也算进"本时代"，
+    # 界面读数是 −0.19bp 而配置变更后的真实窗口是 +0.18bp ✗）。注意：**不能**直接把
+    # `stats_since` 前移来"修正"显示——它同时是日亏闸的裁剪依据（改动会放松风控 ✗）。
+    try:
+        from backend.services import lane_registry as _reg
+        _meta = (_reg.get_lane(lane_id) or {}).get("meta") or {}
+        _cands = [x.get("ts") for x in (_meta.get("ops_changes") or []) if x.get("ts")]
+        _ev = _meta.get("evolution") or {}
+        if _ev.get("last_change_ts"):
+            _cands.append(_ev["last_change_ts"])
+        if _cands:
+            import datetime as _dt
+            _lc = max(_dt.datetime.fromisoformat(str(t).replace("Z", "+00:00"))
+                      for t in _cands).astimezone()
+            _hrs = max(0.05, (time.time() - _lc.timestamp()) / 3600.0)
+            wins.append((f"自变更({_lc:%H:%M})", _hrs, _lc.isoformat()))
+    except Exception as _e:  # pragma: no cover
+        print(f"  （配置变更窗口计算失败: {_e}）")
     for tag, hrs, since in wins:
         a = lane_ledger.attribution(days=hrs / 24.0, lane_id=lane_id, since=since)
         t = a.get("total") or {}
