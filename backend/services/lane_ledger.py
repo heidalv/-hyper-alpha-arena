@@ -217,14 +217,23 @@ def record_fill(
     )
 
 
-def attribution(days: float = 7.0, lane_id: Optional[str] = None) -> Dict[str, Any]:
-    """按车道聚合六维（bp 用名义加权，另给美元口径）。"""
+def attribution(days: float = 7.0, lane_id: Optional[str] = None,
+                since: Optional[str] = None) -> Dict[str, Any]:
+    """按车道聚合六维（bp 用名义加权，另给美元口径）。
+
+    [2026-09-14 统计时代隔离] `since`（ISO 时间串）用于把统计口径钉在当前时代：
+    配置/账户重构后，旧时代（其它账户、其它参数族）的账本行不应继续污染
+    「今日/近 7 天/30 天」的展示口径。历史行仍保留在库中供审计。
+    """
     ensure_table()
     where = "WHERE ts >= now() - make_interval(secs => :secs)"
     params: Dict[str, Any] = {"secs": float(days) * 86400.0}
     if lane_id:
         where += " AND lane_id = :lane"
         params["lane"] = lane_id
+    if since:
+        where += " AND ts >= CAST(:since AS timestamptz)"
+        params["since"] = str(since)
     try:
         from sqlalchemy import text
 

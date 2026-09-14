@@ -1003,7 +1003,12 @@ class ShadowRunner:
         """影子期达标报告：从 lane_ledger 汇总 + 晋级判定。"""
         from backend.services import lane_ledger, lane_registry
 
-        attr = lane_ledger.attribution(days=days, lane_id=self.lane_id)
+        attr = lane_ledger.attribution(
+            days=days, lane_id=self.lane_id,
+            # [2026-09-14 统计时代隔离] 影子报告同样按当前时代起点裁剪，
+            # 否则「30 天」数字会把旧配置/旧账户时代的账本行混进来。
+            since=((getattr(self, "meta", None) or {}).get("stats_since")),
+        )
         # attribution 返回 {total, by_lane, by_symbol}；这里取 total 层
         total = attr.get("total") or {}
         per_symbol = {x["symbol"]: {

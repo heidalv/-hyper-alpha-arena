@@ -50,9 +50,35 @@ def _enrich_lanes(items: list) -> list:
     """
     from backend.services import lane_ledger
 
+    # [2026-09-14 统计时代隔离] 每个车道各自的「统计起点」：meta.stats_since。
+    # 配置/账户重构前的旧账本行不再计入该车道的今日/7 天口径（历史仍在库中）。
+    _since_of: Dict[str, Optional[str]] = {}
+    for _ln in items:
+        _s = ((_ln.get("meta") or {}) or {}).get("stats_since")
+        if _s:
+            _since_of[str(_ln.get("lane_id"))] = str(_s)
+
+    def _attr_map(days: float) -> Dict[str, Dict[str, Any]]:
+        out: Dict[str, Dict[str, Any]] = {}
+        try:
+            for r in (lane_ledger.attribution(days=days).get("by_lane") or []):
+                lid = str(r.get("lane_id"))
+                _s = _since_of.get(lid)
+                if _s:
+                    # 有统计起点的车道单独查询（按起点裁剪）
+                    sub = lane_ledger.attribution(days=days, lane_id=lid, since=_s)
+                    rows = sub.get("by_lane") or []
+                    if rows:
+                        out[lid] = rows[0]
+                    continue
+                out[lid] = r
+        except Exception as e:  # pragma: no cover
+            logger.warning("[LaneRoutes] 归因读取失败: %s", e)
+        return out
+
     try:
-        attr_1d = {r["lane_id"]: r for r in (lane_ledger.attribution(days=1.0).get("by_lane") or [])}
-        attr_7d = {r["lane_id"]: r for r in (lane_ledger.attribution(days=7.0).get("by_lane") or [])}
+        attr_1d = _attr_map(1.0)
+        attr_7d = _attr_map(7.0)
     except Exception as logger_err:  # pragma: no cover - 账本不可用时降级
         logger.warning("[LaneRoutes] 归因读取失败: %s", logger_err)
         attr_1d, attr_7d = {}, {}

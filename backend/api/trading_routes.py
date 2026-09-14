@@ -210,6 +210,9 @@ def account_unified(account_id: Optional[int] = None,
                              + s["slippage_usd"], 4)
         for k in ("pnl_usd", "fee_usd", "rebate_usd", "slippage_usd", "capital_usd"):
             s[k] = round(s[k], 4)
+    # [2026-09-14 清理] 账户级事件（开户/重置）没有策略归属，聚合出的
+    # 「(未标注)」空策略行不是策略分账——后端直接剔除，避免污染前端表格。
+    strat.pop("(未标注)", None)
 
     # 持仓：MM 来自车道账本；其它策略来自 rebate 监控
     mm_positions: List[Dict[str, Any]] = []
@@ -264,6 +267,27 @@ def account_unified(account_id: Optional[int] = None,
     }
 
 
+def _stats_since() -> Optional[str]:
+    """[2026-09-14 统计时代隔离] 中心统计起点 = 各车道 stats_since 的最新值。
+
+    配置/账户重构（换账户、换参数族）后，旧时代的账本行不应继续出现在
+    「今日 / 近 7 天」等展示口径里——否则总览数字会混着历史污染（实测：
+    $300 账户的今日盈亏里混入上午旧配置的 -$13.99）。历史行保留在库中供审计。
+    """
+    try:
+        from backend.services import lane_registry as reg
+
+        vals = []
+        for ln in (reg.list_lanes() or []):
+            s = ((ln.get("meta") or {}) or {}).get("stats_since")
+            if s:
+                vals.append(str(s))
+        return max(vals) if vals else None
+    except Exception as e:
+        logger.debug("[TradingHub] stats_since 解析失败: %s", e)
+        return None
+
+
 @router.get("/portfolio/summary")
 def portfolio_summary() -> Dict[str, Any]:
     """组合权益 / 今日盈亏 / 风险预算 / 熔断计数（总览页数据源）。"""
@@ -271,8 +295,9 @@ def portfolio_summary() -> Dict[str, Any]:
 
     equity, src = _resolve_equity()
     lanes = _lanes()
-    attr_1d = lane_ledger.attribution(days=1.0)
-    attr_7d = lane_ledger.attribution(days=7.0)
+    _since = _stats_since()
+    attr_1d = lane_ledger.attribution(days=1.0, since=_since)
+    attr_7d = lane_ledger.attribution(days=7.0, since=_since)
     total_1d = attr_1d.get("total") or {}
     total_7d = attr_7d.get("total") or {}
 
