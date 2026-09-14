@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789393119448,
+  "ts_ms": 1789396127967,
   "days": 30,
   "kpi": {
     "pnl": null,
@@ -30,7 +30,7 @@
   "rebate": {
     "n": 0,
     "notes": [
-      "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786801119271}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+      "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786804127560}]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
     ]
   },
   "carry_sim": {
@@ -62,7 +62,7 @@
     "note": "过门只是小资金资格，不等于自动开 Live"
   },
   "notes": [
-    "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786801119271}]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+    "rebate_performance_logs 读取失败: (psycopg.errors.UndefinedColumn) 字段 \"ts\" 不存在\nLINE 1: ...ogs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, update...\n                                                             ^\n[SQL: SELECT * FROM rebate_performance_logs WHERE EXTRACT(EPOCH FROM COALESCE(created_at, ts, updated_at)) * 1000 >= %(lo)s ORDER BY 1 DESC LIMIT 2000]\n[parameters: {'lo': 1786804127560}]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
     "maker_ratio 需指定 live 账户客户端，scorecard 不主动建连"
   ]
 }
