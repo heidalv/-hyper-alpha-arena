@@ -1,72 +1,109 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789391624698,
+  "ts_ms": 1789391822613,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "c6472de4a1fb4a69a30401f6405b05fa",
-  "context_hash": "e4586570d15d2ce500b51afa1be43e050b522096cab1220ca005cfa967b92d6e",
+  "consensus_score": 0.822,
+  "run_id": "1fc9caf9dd004419a70d57a45267481e",
+  "context_hash": "5522b38dde106a899bba2cff739b4f9fcfd6cca0070606080ed47588e0e8fb78",
   "final": {
-    "direction": "bullish",
-    "strength": 3,
-    "confidence": 0.3,
-    "half_life_hours": 5,
+    "direction": "bearish",
+    "strength": 3.5,
+    "confidence": 0.46,
+    "half_life_hours": 10.0,
     "affected_symbols": [
-      "MTL"
+      "PANW"
     ],
-    "hedging_window_hours": 8,
+    "hedging_window_hours": 12.0,
     "position_adjustments": [
       {
-        "symbol": "MTL",
-        "action": "no_new_short",
-        "reason": "bybit -0.311%/8h（-341% APR）且 binance/gateio 同步为负，空头侧拥挤、存在挤压风险；OI 仅 $3.37M 且 1h 内 -11.5% 快速进出，流动性薄，禁止新开空单；当前无 MTL 持仓，亦不建议追多（价格趋势数据不足）"
+        "symbol": "PANW",
+        "action": "tighten_stops",
+        "reason": "PANW bybit 资金费升至+0.221%/8h（约242% APR），虽绝对水平不算极端，但方向为负（拥挤多头），叠加7日跌幅-10%、30日趋势不明、4h RSI 41 偏弱，资金费高位暗示多头过热，存在long squeeze风险。鉴于该币不在主持仓列表且流动性不确定，仅对PANW本身建议收紧止损；账户实际未持仓BNB/BTC/ETH/SOL/UNI/XRP，与此事件相关性低，故均标none。"
+      },
+      {
+        "symbol": "PANW",
+        "action": "no_new_long",
+        "reason": "bybit 资金费 +0.221%/8h（≈+242% APR）为 0.1% 阈值的约 2.2 倍，开多需持续支付高费率且多头拥挤存在长仓挤压风险；叠加 7 日 -10.03% 下行趋势中的 24h +4.88% 反弹、1h EMA bearish，费率回落至阈值内前不开新多"
       },
       {
         "symbol": "BTC",
         "action": "none",
-        "reason": "代表现有主流币多头持仓组（BTC/ETH/SOL/BNB/UNI/XRP 共 9 笔）；本事件为 MTL 个币费率极值，相关性数据缺失（corr_to_btc 为空），无传导至主流币的证据，维持现有持仓与止损"
+        "reason": "账户 14 现有 BTC 多头持仓与 PANW 费率极值无直接关联，corr_to_btc 与相关性矩阵缺失、无传染证据，维持既有止损与时限管理"
+      },
+      {
+        "symbol": "ETH",
+        "action": "none",
+        "reason": "与 PANW 无直接关联且无相关性数据支撑联动判断，不因单一品种费率极值调整"
+      },
+      {
+        "symbol": "SOL",
+        "action": "none",
+        "reason": "与 PANW 无直接关联且无相关性数据支撑联动判断，不因单一品种费率极值调整"
+      },
+      {
+        "symbol": "BNB",
+        "action": "none",
+        "reason": "与 PANW 无直接关联且无相关性数据支撑联动判断，不因单一品种费率极值调整"
+      },
+      {
+        "symbol": "UNI",
+        "action": "none",
+        "reason": "与 PANW 无直接关联且无相关性数据支撑联动判断，不因单一品种费率极值调整"
+      },
+      {
+        "symbol": "XRP",
+        "action": "none",
+        "reason": "与 PANW 无直接关联且无相关性数据支撑联动判断，不因单一品种费率极值调整"
       }
     ],
     "analogues": [
       {
-        "event": "同一时刻 binance MTL 极端负费率 -0.173%/8h（sev 2）",
-        "outcome": "约 5 小时后最新快照 bybit 费率已回到 +0.0013%（近零），MTL 退出当前全市场费率极值前 12 名——本样本内同类极值呈快速衰减"
+        "event": "bybit BSP 资金费 +1.433%/8h（约1569% APR）同日触发",
+        "outcome": "同类极端正资金费，方向负向，多头拥挤通常在数小时内通过现货回落或短挤压释放"
       },
       {
-        "event": "同批次小市值币跨所极端负费率簇（LSK -2.0%、STEEM 约 -1.25%、CVC -1.22%、POWR -0.9%~-1.1%/8h）",
-        "outcome": "缺乏后续价格与清算结果数据，无法评估同类事件的历史兑现情况（数据不足）"
+        "event": "同期多币种负资金费极端（LSK/STEEM/CVC等）触发",
+        "outcome": "全市场短线情绪偏空，资金费极值集中爆发后波动率短期放大"
+      },
+      {
+        "event": "同一采集批次中 LSK(-2.0%/8h)、STEEM(-1.25%)、CVC(-1.22%)、POWR(-0.9%) 等出现更极端的资金费偏离",
+        "outcome": "context pack 未提供这些极值事件之后的价格与清算结果，无法评估同类费率极值的后续走势（数据不足）"
       }
     ],
     "key_factors": [
-      "bybit MTL 资金费 -0.311%/8h（≈-341% APR）：负费率=空头付费，指向空头侧拥挤，属挤压型（contrarian bullish）而非趋势信号",
-      "跨所一致性：同一时刻 binance -0.173%、gateio -0.1868% 同为负，非单所数据异常",
-      "事件已过约 5.1 小时，bybit 最新快照 +0.0013% 近零，MTL 退出当前极值榜单，极值处于快速衰减期，预计半衰期约 5 小时（一个 8h 费率周期内）",
-      "持仓结构不稳：OI 24h +26.38% 后 1h 名义 -11.5%（$3.97M→$3.52M），投机性仓位快速进出",
-      "信号混合：global_ls 1.596（多头账户占优）与负费率的空头拥挤含义相矛盾",
-      "24h 多空清算基本平衡（$25.9k vs $28.7k），挤仓尚未兑现，配合缺失的 K 线层（MTL 无价格数据），故置信度压低至 0.3、强度仅 3/10"
+      "PANW bybit 资金费 +0.221%/8h（≈242% APR），阈值0.1%已被突破",
+      "7日累计跌幅-10%，短期趋势偏弱",
+      "1日RSI 41.2 处于中性偏弱区域",
+      "1小时已有+2%反弹，短线可能继续技术性修复",
+      "30日动量、EMA200、EMA趋势4h数据缺失，趋势确认不足",
+      "24h资金费扫描3279币种，极端正负资金费集中爆发（全市场短线情绪不稳）",
+      "账户当前无PANW持仓，事件对组合直接影响有限",
+      "事件为 bybit PANW 资金费 +0.221%/8h（≈+242% APR），severity=3、事件方向 -0.5，仅为同批 LSK/STEEM/CVC 等 -1%~-2%/8h 级别极值的零头，属中等强度信号",
+      "正的极端资金费意味着多头拥挤并支付高费率，溢价结构回落时易触发多头去杠杆/长仓挤压，短期方向偏空；但费率极值本身不构成趋势性证据",
+      "PANW 行情背景：7 日 -10.03%、RSI14(1d)=41.2 的下行趋势内出现 24h +4.88%、1h +2.06% 的反弹，而 1h EMA 趋势为 bearish，反弹与拥挤多头并存提高回调概率",
+      "费率持续性存疑：flows.funding_8h_pct 层显示 PANW 三所均为 0.0，该层快照（as_of_ms=1789344000000）早于事件时间约 8.1 小时，无法确认极值是否已回落",
+      "持仓组合（9 个仓位均为 BNB/BTC/ETH/SOL/UNI/XRP）无 PANW 直接暴露；corr_to_btc 与 correlation_pairs 均缺失，跨品种传染无法量化；24h 全市场清算多空接近平衡（多头 2171 万 vs 空头 2047 万 USD），无单边挤压迹象",
+      "缺少历史同类资金费极值事件的后续结果数据，方向判断主要依赖费率结构与同期行情，故降低 confidence"
     ],
-    "summary": "单事件评估：bybit MTL 资金费 -0.311%/8h（-341% APR）为个币级负费率极值，同一时刻 binance（-0.173%）与 gateio（-0.1868%）同步为负，属跨所一致的多空失衡；负费率代表空头付费、空头侧拥挤，叠加 OI 24h +26.4% 后 1h 快速 -11.5% 的仓位进出，判定为短期温和的挤压型偏多信号（direction=bullish, strength=3）。事件发生约 5.1 小时后，最新快照 bybit 费率已回到 +0.0013%（近零）、MTL 退出当前全市场极值前 12 名，极值快速衰减，半衰期估计约 5 小时，避险/观察窗口按一个费率周期 8 小时计。24h 多空清算基本平衡（$25.9k vs $28.7k），挤压尚未兑现。影响范围限于 MTL：当前组合 9 笔持仓全部为主流币多头，与 MTL 无直接敞口，且相关性数据缺失无法评估传染，主流币持仓维持不动；对 MTL 仅禁止新开空单、不追多。重要提示：MTL 市场层缺失（无 K 线，价格趋势与挤压兑现度数据不足），故 confidence 仅 0.3；本信号属短周期费率事件，随下一次结算窗口自然衰减，无需大盘级对冲。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 更有依据。极端负资金费的规范解读是空头拥挤付费给多头，属逆向（挤压型）偏多信号；A 以'负费率=现货卖压'推出 bearish 且 confidence 0.62，但其自身承认 short squeeze 可能与 bybit 单所套利扭曲风险，因果链与置信度均不严谨。决定性证据：数据截止时（事件后约 5.1h）bybit MTL 最新快照费率已回归 +0.0013%（近零），且 MTL 已不在当前全市场费率极值前 12 名中，直接支持 B 的 ~5h 半衰期与 8h 观察窗，而 A 的 16h 半衰期/24h 避险窗与该实测衰减相矛盾。事件后 1h OI 名义 -11.5%（$3.97M→$3.52M）显示空头拥挤已在快速去化，与去化过程中的温和偏多（挤压残余）一致而非趋势性看空。组合无 MTL 敞口、9 笔持仓全为主流币多头且 corr_to_btc 为空无传导证据，B 的'禁新开空单、不追多、主流币持仓不动'比 A 的'不开新多+收紧止损'更贴合拥挤在空头侧这一事实。MTL 无 K 线价格数据、global_ls 1.596 与负费率信号矛盾、24h 多空爆仓基本平衡（$25.9k vs $28.7k）且挤压未兑现，故信号强度维持低位（3），置信度中低。"
-    }
+    "summary": "PANW在bybit出现极端正资金费（+0.221%/8h，≈242% APR），事件方向为bearish，强度3/10（绝对水平相对同期LSK/STEEM/CVC等-1%以上极端偏低）。拥挤多头+7日跌10%+RSI偏弱暗示短期long squeeze风险，但30日/EMA数据缺失且1h已有技术反弹，置信度仅0.42。半衰期约12小时，避险窗口约8小时。建议对PANW本身收紧止损；账户实际持仓为BTC/ETH/SOL/BNB/UNI/XRP，与PANW无直接相关性，按none处理。风险：若全市场资金费极值情绪扩散至大盘，可能间接压制BTC/ETH/SOL等高beta持仓，需留意联动。",
+    "risks": "数据不足：PANW 30日动量、200日EMA偏离、4h EMA趋势均为null，无法确认中期趋势；与BTC/ETH的相关性corr_to_btc为空，无法量化跨资产传染。若1h反弹延续，资金费可能快速回归正常，bearish信号失效。"
   },
   "notes": [],
   "event": {
-    "id": 102645,
+    "id": 102649,
     "event_type": "funding.extreme",
-    "symbol": "MTL",
+    "symbol": "PANW",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": 0.5,
-    "title": "bybit MTL 资金费 -0.311%/8h（≈-341% APR）",
+    "direction": -0.5,
+    "title": "bybit PANW 资金费 +0.221%/8h（≈+242% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -341.0,
-      "rate_8h": -0.00311406,
+      "apr_pct": 242.3,
+      "rate_8h": 0.00221323,
       "exchange": "bybit",
-      "rate_raw": -0.00311406,
+      "rate_raw": 0.00221323,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
