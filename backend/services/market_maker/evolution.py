@@ -172,6 +172,11 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
     fn = float(fill_notional or cur_params.get("fill_notional") or equity)
 
     data = _load_all(symbols, venue)
+    # [F88c] 规模化保护：多标的时每轮成本 ≈ 标的数 × 候选数 × 2 窗口；按标的数裁剪
+    # 候选上限，保证每日轮次在 ~20 分钟内完成（单标的 24、2 标的 16、≥3 标的 12）。
+    _n_sym = max(1, len(symbols))
+    _cap = 24 if _n_sym == 1 else (16 if _n_sym == 2 else 12)
+    max_candidates = min(int(max_candidates), _cap)
     primary = data[symbols[0]]
     cut = int((time.time() - float(window_days) * 86400.0) * 1000)
     a = int(np.searchsorted(primary["ots"], cut, "left"))
