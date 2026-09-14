@@ -19,13 +19,19 @@ from backend.services.market_maker import runner as mmrunner  # noqa: E402
 
 
 def test_fetch_market_uses_watermark():
-    """fetch_market 必须用 max(since_ms, 水位线) 做下界，并推进水位线。"""
+    """fetch_market 必须用「已消费桶标签」做下界并推进水位。
+
+    [F92 2026-09-14 更新] 下界不能再取 `since_ms`（墙钟，落在桶中间）——那正是
+    「只吃到 9% 成交」的根因；下界改由 `seg_window()` 按桶标签计算（见
+    test_mm_seg_window_20260914.py），水位落在持久化运行态 `last_seg_ms`。
+    """
     import inspect
     src = inspect.getsource(mmrunner.ShadowRunner.fetch_market)
-    assert "_seg_watermark" in src
-    assert "MAX(timestamp) AS mts" in src
-    assert "timestamp > :ts" in src
-    assert 'int(self._seg_watermark.get(s, 0))' in src
+    assert "seg_window(" in src, "窗口必须由 seg_window 统一计算"
+    assert "last_seg_ms" in src, "水位必须持久化在运行态"
+    assert "MAX(timestamp) AS mts" in src, "必须读回实际消费到的最大桶标签"
+    assert "timestamp > :lo AND timestamp <= :hi" in src, "桶区间必须是(开,闭]"
+    assert "_seg_watermark" in src, "保留进程内水位镜像（巡检可见）"
 
 
 def test_runner_has_watermark_state():

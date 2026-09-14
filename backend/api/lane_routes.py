@@ -354,3 +354,23 @@ def shadow_report(lane_id: str, days: float = 30.0) -> Dict[str, Any]:
     rep["as_of"] = datetime.now(timezone.utc).isoformat()
     return rep
 
+
+@router.get("/lanes/{lane_id}/reconcile")
+def lane_reconcile(lane_id: str) -> Dict[str, Any]:
+    """[F91] 双账对账：运行态持仓 vs 账本重建持仓（逐币）。
+
+    前端把 `ok=false` 显性告警——账本分叉会表现为「前端显示一个实盘并不存在的
+    持仓」（2026-09-14 实测 BTC $5.10 幽灵仓），这是必须立刻可见的异常，
+    而不是静默展示的普通数据。
+    """
+    from backend.services.market_maker.reconcile import compare_lane_books
+
+    try:
+        return compare_lane_books(lane_id=lane_id)
+    except Exception as e:      # 对账失败本身也是异常信号，如实上报
+        logger.warning("[lane_routes] reconcile 失败 %s: %s", lane_id, e)
+        return {"lane_id": lane_id, "ok": False, "checked": 0,
+                "mismatches": [], "rows": [], "error": str(e),
+                "as_of": datetime.now(timezone.utc).isoformat()}
+
+

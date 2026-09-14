@@ -43,6 +43,9 @@ MAX_MAKER_FEE_BP = float(os.getenv("F60_MAX_MAKER_FEE_BP", "0.5"))  # 费率闸�
 MAX_DATA_AGE_SEC = float(os.getenv("MM_MAX_DATA_AGE_SEC", "180"))
 # 队列保守假设：价格需穿过挂单价多少 bp 才算我们成交（0=假设排在队列最前）
 PENETRATION_BP = float(os.getenv("F60_PENETRATION_BP", "0.0"))
+# [F92 2026-09-14] 成交桶网格：market_trades_aggregated 与盘口快照同为 15s 桶、
+# 时间戳=桶起点，实测「桶结束 + ~1s」落库且不再回填。窗口必须锚在桶标签上。
+SEG_BUCKET_MS = int(os.getenv("MM_SEG_BUCKET_MS", "15000"))
 
 
 # ═══════════════════════ 纯逻辑层 ═══════════════════════
@@ -69,6 +72,9 @@ class SymbolState:
     spread_baseline: float = 0.0
     mid_hist: List[float] = field(default_factory=list)      # 近 N 期中价（趋势闸门）
     vol_baseline_bp: float = 0.0                             # 已实现波动基准（F71b）
+    # [F92 2026-09-14] 已消费到的成交桶标签（桶起点 ms）：窗口下界，持久化以便
+    # 重启后不漏桶。0 = 尚未消费（冷启动回退一个桶）。
+    last_seg_ms: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -82,6 +88,7 @@ class SymbolState:
             "spread_baseline": round(self.spread_baseline, 8),
             "mid_hist": [round(x, 10) for x in (self.mid_hist or [])[-240:]],
             "vol_baseline_bp": round(self.vol_baseline_bp, 4),
+            "last_seg_ms": int(self.last_seg_ms or 0),
         }
 
     @classmethod
@@ -102,6 +109,7 @@ class SymbolState:
             spread_baseline=float(d.get("spread_baseline") or 0.0),
             mid_hist=[float(x) for x in (d.get("mid_hist") or [])],
             vol_baseline_bp=float(d.get("vol_baseline_bp") or 0.0),
+            last_seg_ms=int(d.get("last_seg_ms") or 0),
         )
 
 
@@ -242,6 +250,39 @@ def check_fee_guard(maker_fee_bp: float, *, max_bp: float = MAX_MAKER_FEE_BP) ->
     if maker_fee_bp > max_bp:
         return False, f"maker_fee_too_high({maker_fee_bp:.2f}bp>{max_bp:.2f}bp)"
     return True, ""
+
+
+def seg_window(prev_label_ms: int, snap_ms: int, quote_ts: float = 0.0,
+               bucket_ms: int = SEG_BUCKET_MS) -> Tuple[int, int, int]:
+    """[F92 2026-09-14] 区间成交桶的取数窗口（纯函数，可单测）。
+
+    背景（重大漏单根因）：成交桶 `market_trades_aggregated` 按 15s 网格存储、
+    时间戳 = **桶起点**，而桶在「桶结束 + ~1s」才落库（实测探针）。此前下界用
+    `last_tick_ts`（**墙钟**，落在桶中间）⇒ `timestamp > 下界` 会系统性排除
+    「标签 ≤ 下界 < 标签+15s」的那个桶——实测实盘 8.9 笔/小时 vs 同窗口回放
+    101 笔/小时（**只吃到 9%**）。
+
+    正解：窗口两端都锚在**快照桶标签**（与回放同一时间网格），而不是墙钟：
+      - 下界 `lo` = 该币已消费到的最大桶标签（无则回退一个桶）；
+      - 上界 `hi` = 当前快照标签（只消费到「本次决策所依据的快照」那一桶为止，
+        保证不会把**未来**的成交算进本次判定）；
+      - 成交判定门槛 `qts_ms` = 挂单时间：桶 `[L, L+15)` 只有在其**结束时刻晚于
+        挂单时刻**时才可能打到我们的挂单（`timestamp + 15s > quote_ts`），否则
+        只消费不判定——这正是 F89a 幻影成交的同类护栏。
+
+    返回 `(lo, hi, qts_ms)`：SQL 用 `timestamp > lo AND timestamp <= hi`，并用
+    `FILTER (WHERE timestamp + bucket_ms > qts_ms)` 只为「挂单存续期内」的桶聚合
+    成交明细；水位推进到**实际读到的最大标签**（读不到就停住，下一个 tick 补收，
+    绝不漏桶）。
+    """
+    lo = int(prev_label_ms or 0)
+    _snap = int(snap_ms or 0)
+    if lo <= 0:
+        # 冷启动：回退一个桶，覆盖「上一 tick 所在桶」（含挂单后可能成交的尾巴）
+        lo = max(0, _snap - int(bucket_ms))
+    hi = max(lo, _snap)
+    qts_ms = int(float(quote_ts or 0.0) * 1000.0)
+    return lo, hi, qts_ms
 
 
 def check_data_freshness(snapshot_ts_ms: int, now_ts: float,
@@ -913,13 +954,14 @@ class ShadowRunner:
 
     # ── 行情 ──
     def fetch_market(self, since_ms: int) -> Dict[str, Dict[str, Any]]:
-        """读每个币的最新盘口 + 自水位线以来的区间成交汇总。
+        """读每个币的最新盘口 + 自「已消费桶标签」以来的区间成交汇总。
 
         [F81 2026-09-14] 成交桶水位线：market_trades_aggregated 按 **15 秒桶**存储、
-        时间戳=桶起点；此前 `timestamp > since_ms`（开区间）+ 15s tick 使桶起点
-        恰好落在边界时被系统性跳过——同窗口实测回放 212 笔 vs 实盘 4 笔（漏单 98%），
-        「一直亏损」的真因（几笔坏平仓主导了稀少的成交）。水位线保证每个成交桶
-        **恰好消费一次**（与回放 [left,right] 语义一致），迟到的桶也会被补收。
+        时间戳=桶起点，每个桶必须**恰好消费一次**（与回放 [left,right] 语义一致）。
+        [F92 2026-09-14] **下界不能再取墙钟**：`last_tick_ts` 落在桶中间，会系统性
+        排除「标签 ≤ 下界 < 标签+15s」的那个桶（实测实盘/同窗口回放 = 8.9/101 笔每小时，
+        只吃到 9% 的成交）。窗口两端改为锚在**快照桶标签**上（见 `seg_window`），
+        上界只到本次快照那一桶为止 ⇒ 不漏桶、不读半成品、不把未来成交算进来。
         """
         from sqlalchemy import text
 
@@ -935,37 +977,52 @@ class ShadowRunner:
                         " WHERE exchange=:e AND symbol=:s AND best_bid>0 AND best_ask>best_bid"
                         " ORDER BY timestamp DESC LIMIT 1"
                     ), {"e": self.venue, "s": s}).mappings().first()
-                    # [F81] 取数下界 = max(since_ms, 已消费桶水位) ⇒ 每桶恰好一次
-                    _wm = max(int(since_ms or 0), int(self._seg_watermark.get(s, 0)))
-                    tr = db.execute(text(
-                        "SELECT MIN(low_price) AS lo, MAX(high_price) AS hi,"
-                        " COALESCE(SUM(taker_sell_volume),0) AS sv,"
-                        " COALESCE(SUM(taker_buy_volume),0) AS bv,"
-                        " MAX(timestamp) AS mts"
-                        " FROM market_trades_aggregated"
-                        " WHERE exchange=:e AND symbol=:s AND timestamp > :ts"
-                    ), {"e": self.venue, "s": s, "ts": _wm}).mappings().first()
-                    if tr and tr["mts"] is not None:
-                        self._seg_watermark[s] = max(_wm, int(tr["mts"]))
                     if not ob:
                         continue
+                    snap_ms = int(ob["timestamp"])
+                    # [F92] 窗口锚在快照桶标签上（下界=已消费标签，上界=当前快照标签）
+                    st_seg = self.states.setdefault(s, SymbolState(symbol=s))
+                    _lo, _hi, _qts = seg_window(
+                        int(getattr(st_seg, "last_seg_ms", 0) or 0), snap_ms,
+                        float(getattr(st_seg, "quote_ts", 0.0) or 0.0))
+                    tr = db.execute(text(
+                        "SELECT MIN(low_price) FILTER (WHERE timestamp + :bk > :qts) AS lo,"
+                        " MAX(high_price) FILTER (WHERE timestamp + :bk > :qts) AS hi,"
+                        " COALESCE(SUM(taker_sell_volume) FILTER"
+                        "   (WHERE timestamp + :bk > :qts),0) AS sv,"
+                        " COALESCE(SUM(taker_buy_volume) FILTER"
+                        "   (WHERE timestamp + :bk > :qts),0) AS bv,"
+                        " MAX(timestamp) AS mts,"
+                        " COUNT(*) FILTER (WHERE timestamp + :bk > :qts) AS n_eff"
+                        " FROM market_trades_aggregated"
+                        " WHERE exchange=:e AND symbol=:s"
+                        " AND timestamp > :lo AND timestamp <= :hi"
+                    ), {"e": self.venue, "s": s, "lo": _lo, "hi": _hi,
+                        "bk": SEG_BUCKET_MS, "qts": _qts}).mappings().first()
+                    # 水位只前进，且只在**真读到桶**时前进（读不到就停住 → 下个 tick 补收）
+                    if tr and tr["mts"] is not None:
+                        st_seg.last_seg_ms = max(_lo, int(tr["mts"]))
+                        self._seg_watermark[s] = st_seg.last_seg_ms
                     best_bid, best_ask = float(ob["best_bid"]), float(ob["best_ask"])
                     mid = (best_bid + best_ask) / 2.0
-                    _sv = float(tr["sv"]) if tr else 0.0
-                    _bv = float(tr["bv"]) if tr else 0.0
+                    _n_eff = int(tr["n_eff"] or 0) if tr else 0
+                    _sv = float(tr["sv"]) if (tr and _n_eff) else 0.0
+                    _bv = float(tr["bv"]) if (tr and _n_eff) else 0.0
                     # [F86] 本桶主动流失衡 OFI∈[-1,1]（+1=全主动买）→ 流向毒性闸
                     _ofi = ((_bv - _sv) / (_bv + _sv)) if (_bv + _sv) > 0 else 0.0
                     out[s] = {
-                        "ts_ms": int(ob["timestamp"]),
+                        "ts_ms": snap_ms,
                         "mid": mid,
                         "half_spread": max(0.0, (best_ask - best_bid) / 2.0),
                         # 相对价差（波动归一的输入；与 F59 回放同口径）
                         "rel_spread": ((best_ask - best_bid) / mid) if mid > 0 else 0.0,
-                        "seg_low": float(tr["lo"]) if tr and tr["lo"] else 0.0,
-                        "seg_high": float(tr["hi"]) if tr and tr["hi"] else 0.0,
+                        "seg_low": float(tr["lo"]) if (tr and _n_eff and tr["lo"]) else 0.0,
+                        "seg_high": float(tr["hi"]) if (tr and _n_eff and tr["hi"]) else 0.0,
                         "seg_sell": _sv,
                         "seg_buy": _bv,
                         "ofi": _ofi,
+                        # [F92] 观测：窗口/生效桶数（前端「链路」可见性 + 巡检用）
+                        "seg_lo_ms": _lo, "seg_hi_ms": _hi, "seg_buckets": _n_eff,
                     }
                 # [F90 2026-09-14] 孤儿持仓估值行情：只取盘口（强制退出/估值用），
                 # **不消费成交桶**（该币不报价，水位线保持不动）。

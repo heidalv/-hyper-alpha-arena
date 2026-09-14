@@ -355,6 +355,7 @@ def open_positions(
     days: float = 30.0,
     marks: Optional[Dict[str, float]] = None,
     since: Optional[str] = None,
+    until: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """从账本成交重建各 (车道, 标的) 的当前持仓。
 
@@ -364,6 +365,10 @@ def open_positions(
 
     [2026-09-14 统计时代隔离] `since` = 统计时代起点：旧时代的成交行不再重建出
     仓位/归因（否则持仓页会残留旧配置的 6 币种行与旧已实现盈亏，实测 -$42.61）。
+
+    [F92 2026-09-14] `until` = 上界（含）：对账时把账本裁到「运行态快照那一刻」，
+    否则 tick 落在两次读取之间会产生**假分叉**（实测一次跳到 ±1 条腿 ≈ ±$300，
+    下一轮又自愈）——巡检误报会直接毁掉可信度。
     """
     ensure_table()
     where = "WHERE event = 'fill' AND ts >= now() - make_interval(secs => :secs)"
@@ -374,6 +379,9 @@ def open_positions(
     if since:
         where += " AND ts >= CAST(:since AS timestamptz)"
         params["since"] = str(since)
+    if until:
+        where += " AND ts <= CAST(:until AS timestamptz)"
+        params["until"] = str(until)
     try:
         from sqlalchemy import text
 
