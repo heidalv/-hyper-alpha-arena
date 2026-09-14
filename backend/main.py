@@ -1730,6 +1730,29 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] Universe管线注册失败: {e}")
 
+        # [2026-09-12 RTGNN 迁移] graph_rank 周度重训（周一 3:30，宇宙重建之后）。
+        # 模拟盘 DC 持续供数 → 每周滚动刷新 RTGNN-lite；失败 fail-closed 不影响主链。
+        try:
+            from backend.services.graph_rank.service import (
+                graph_rank_enabled,
+                run_graph_rank_retrain,
+            )
+            from backend.services.scheduler import task_scheduler
+
+            if graph_rank_enabled():
+                task_scheduler.start()
+                task_scheduler.add_cron_task(
+                    task_func=run_graph_rank_retrain,
+                    hour=3, minute=30, day_of_week="mon",
+                    task_id="graph_rank_retrain_weekly",
+                    max_instances=1,
+                )
+                logger.info("[async] graph_rank 周度重训已注册（周一3:30，仅当 GRAPH_RANK_ENABLED=true）")
+            else:
+                logger.info("[async] graph_rank 未启用（GRAPH_RANK_ENABLED=false），跳过重训注册")
+        except Exception as e:
+            logger.info(f"[async] graph_rank 重训注册失败: {e}")
+
         # 日志 / 审计清理：防 JSONL 与报告无限堆砌撑盘
         try:
             from backend.services.log_retention_service import run_log_retention
@@ -2455,10 +2478,15 @@ if _BACKEND_SERVE_WEB:
                 name="web-static-assets",
             )
 
-            @app.get("/{full_path:path}", include_in_schema=False)
+            @app.api_route("/{full_path:path}", methods=["GET", "HEAD"],
+                           include_in_schema=False)
             async def _serve_web_page(full_path: str):
                 """前端路由回退：/xxx → xxx.html；不存在则回 index.html。
-                /api、/ws 等后端路径已在此路由之前注册，优先匹配，不会被拦截。"""
+                /api、/ws 等后端路径已在此路由之前注册，优先匹配，不会被拦截。
+
+                [2026-09-14] 必须同时支持 **HEAD**：Next.js `<Link>` 预取用 HEAD，
+                只注册 GET 会让每次预取都返回 405（浏览器控制台刷满红色错误，
+                既噪声又掩盖真实错误）。"""
                 # 保护：未匹配到后端路由的 /api 请求应返回 404，而非前端页面
                 if full_path.startswith("api/") or full_path.startswith("ws"):
                     raise _HTTPException(status_code=404, detail="Not Found")

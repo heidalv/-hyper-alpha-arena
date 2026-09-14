@@ -247,6 +247,36 @@ export interface ShadowStatus {
   compound_ratio?: number;
   fill_notional?: number;
   account_equity?: number | null;
+  /** [F90] 孤儿持仓：已移出宇宙但运行态里仍有仓位的币种（正常为空） */
+  orphan_inventory?: Record<string, number>;
+  /** [F92] 本进程产能：窗口秒数、成交速率（现在跑多快）、各币已消费成交桶标签 */
+  process_window_sec?: number;
+  fills_per_hour?: number | null;
+  spread_buckets?: Record<string, number>;
+  as_of?: string | null;
+}
+
+/** [F91] 双账对账：运行态持仓 vs 账本重建持仓（ok=false 必须显性告警） */
+export interface ReconcileRow {
+  symbol: string;
+  runtime_qty: number;
+  ledger_qty: number;
+  diff_qty: number;
+  diff_usd: number;
+  mark_px: number;
+  ok: boolean;
+}
+
+export interface LaneReconcile {
+  lane_id: string;
+  venue?: string;
+  since?: string | null;
+  ok: boolean;
+  checked: number;
+  mismatches: ReconcileRow[];
+  rows: ReconcileRow[];
+  rt_only?: string[];
+  error?: string;
   as_of?: string | null;
 }
 
@@ -261,6 +291,41 @@ export interface ShadowReportPromotion {
   reason?: string;
 }
 
+export interface ShadowReportPerSymbol {
+  n: number;
+  net_bp: number;
+  spread_bp: number;
+  price_bp: number;
+  fee_bp: number;
+  notional: number;
+  net_usd: number;
+}
+
+/** [F75] 成交速率统计（时代口径）：per_symbol_hour = 笔/标的/小时 */
+export interface FillRateStats {
+  fills: number;
+  symbols: number;
+  span_hours: number;
+  per_symbol_hour: number | null;
+  first_ts?: string;
+  last_ts?: string;
+}
+
+export interface FillRateRatio {
+  ratio?: number | null;
+  actual_per_symbol_hour?: number | null;
+  baseline_per_symbol_hour?: number | null;
+  [key: string]: unknown;
+}
+
+export interface FlattenStats {
+  flattens?: number;
+  fills?: number;
+  flatten_share?: number | null;
+  flatten_price_bp?: number | null;
+  [key: string]: unknown;
+}
+
 export interface ShadowReport {
   lane_id: string;
   venue: string;
@@ -273,9 +338,15 @@ export interface ShadowReport {
   fee_bp: number | null;
   net_bp: number | null;
   net_usd: number | null;
-  per_symbol: Record<string, unknown>;
+  per_symbol: Record<string, ShadowReportPerSymbol>;
   daily: ShadowReportDaily[];
   maker_fee_bp: number;
+  // [F75/F85] 速率/平仓/回撤/权益（做市产能视图数据源）
+  fill_rate_ratio?: FillRateRatio | null;
+  fill_rate_stats?: FillRateStats | null;
+  flatten_stats?: FlattenStats | null;
+  max_dd_pct?: number | null;
+  equity?: number | null;
   // [F61 阶段2] promotion 现在与 lane 的 promotion 同形状（passed/failed/labels/progress_pct/ready/as_of）
   promotion?: PromotionState | null;
   as_of?: string | null;
@@ -587,6 +658,9 @@ export const tradingApi = {
     apiRequest<ShadowReport>(`/trading/lanes/${laneId}/shadow/report?days=${days}`),
   shadowTick: (laneId: string) =>
     apiRequest<ShadowStatus>(`/trading/lanes/${laneId}/shadow/tick`, { method: "POST" }),
+  /** [F91] 双账对账（运行态 vs 账本重建） */
+  laneReconcile: (laneId: string) =>
+    apiRequest<LaneReconcile>(`/trading/lanes/${laneId}/reconcile`),
 
   // 组合
   portfolioSummary: () => apiRequest<PortfolioSummary>("/trading/portfolio/summary"),

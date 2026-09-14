@@ -820,6 +820,9 @@ class ShadowRunner:
         # 用集合区分「在营」与「孤儿持仓」——孤儿必须计入风险并强制退出。
         self._symbol_set: set = set(self.symbols)
         self.last_tick_ts: float = 0.0
+        # [F92] 本进程首/末 tick：前端「本进程成交速率」数据源（时代速率会被
+        # 早期故障期稀释，用户要看的是**现在**跑多快）。
+        self._first_tick_ts: float = 0.0
         self.last_error: str = ""
         self.ticks: int = 0
         self.fills: int = 0
@@ -1130,6 +1133,8 @@ class ShadowRunner:
             return {"ok": False, "reason": reason, "decisions": []}
 
         now_ts = float(now_ts or time.time())
+        if not self._first_tick_ts:
+            self._first_tick_ts = now_ts
         since_ms = int((self.last_tick_ts or (now_ts - 60.0)) * 1000)
         try:
             market = self.fetch_market(since_ms)
@@ -1380,6 +1385,14 @@ class ShadowRunner:
             "fill_notional": self.fill_notional,
             "account_equity": self._read_account_equity() if self.account_id else None,
             "states": {s: st.to_dict() for s, st in self.states.items()},
+            # [F92] 本进程产能：前端「现在跑多快」——时代速率会被早期故障期稀释
+            "process_window_sec": round(
+                max(0.0, (self.last_tick_ts or 0.0) - (self._first_tick_ts or 0.0)), 1),
+            "fills_per_hour": (
+                round(self.fills / ((self.last_tick_ts - self._first_tick_ts) / 3600.0), 2)
+                if self._first_tick_ts and self.last_tick_ts > self._first_tick_ts else None),
+            "spread_buckets": {s: int(getattr(st, "last_seg_ms", 0) or 0)
+                               for s, st in self.states.items()},
             # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
             # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
             "orphan_inventory": {s: round(float(st.qty), 8)

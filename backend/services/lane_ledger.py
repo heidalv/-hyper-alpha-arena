@@ -349,6 +349,12 @@ def daily_series(lane_id: Optional[str] = None, days: float = 7.0,
         return []
 
 
+# [F92 2026-09-14] 「已平」阈值：重建持仓是浮点累加，残差可达 1e-11 量级。
+# 此前阈值 1e-15 ⇒ 尘埃仓位（对外四舍五入后 qty=0.0）仍保留 opened_ts，
+# 前端就出现「空仓 + 持有 7m28s」这种自相矛盾的行（用户直接看得到）。
+FLAT_EPS = 1e-10
+
+
 def open_positions(
     *,
     lane_id: Optional[str] = None,
@@ -432,9 +438,9 @@ def open_positions(
         st["points_usd"] += float(r["points_usd"] or 0.0)
         st["last_ts"] = r["ts"]
 
-        if abs(signed) < 1e-15:
+        if abs(signed) < FLAT_EPS:
             continue
-        if abs(st["qty"]) < 1e-15:
+        if abs(st["qty"]) < FLAT_EPS:
             st["qty"], st["avg_px"], st["avg_mid"] = signed, fill_px, mid_px
             st["opened_ts"] = r["ts"]
         elif st["qty"] * signed > 0:
@@ -444,7 +450,7 @@ def open_positions(
             st["qty"] += signed
         else:
             st["qty"] += signed
-            if abs(st["qty"]) < 1e-15:
+            if abs(st["qty"]) < FLAT_EPS:
                 st["qty"], st["avg_px"], st["avg_mid"], st["opened_ts"] = 0.0, 0.0, 0.0, None
             elif st["qty"] * signed > 0:
                 st["avg_px"], st["avg_mid"], st["opened_ts"] = fill_px, mid_px, r["ts"]
@@ -459,7 +465,7 @@ def open_positions(
         w = (lambda k: round(st[k] / n, 4) if n > 0 else 0.0)
         mark = float(marks.get(st["symbol"]) or 0.0)
         unreal_usd = 0.0
-        if abs(st["qty"]) > 1e-15 and mark > 0 and st["avg_mid"] > 0:
+        if abs(st["qty"]) > FLAT_EPS and mark > 0 and st["avg_mid"] > 0:
             unreal_usd = (mark - st["avg_mid"]) * st["qty"]
         hold_sec = 0.0
         if st["opened_ts"] is not None:

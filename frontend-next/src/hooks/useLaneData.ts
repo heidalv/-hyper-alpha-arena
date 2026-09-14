@@ -34,6 +34,7 @@ import type {
   DataSourcesResponse,
   CapitalPoolResponse,
   UnifiedAccountResponse,
+  LaneReconcile,
 } from "@/lib/trading-api";
 
 export interface PollResource<T> {
@@ -132,6 +133,11 @@ export function useShadowStatus(laneId: string): PollResource<ShadowStatus> {
 /** 影子期达标报告（30s） */
 export function useShadowReport(laneId: string, days: number): PollResource<ShadowReport> {
   return usePollingResource(() => tradingApi.shadowReport(laneId, days), 30_000, !!laneId);
+}
+
+/** [F91] 双账对账（运行态 vs 账本重建，30s）：ok=false 必须显性告警 */
+export function useReconcile(laneId: string): PollResource<LaneReconcile> {
+  return usePollingResource(() => tradingApi.laneReconcile(laneId), 30_000, !!laneId);
 }
 
 /** 持仓（30s，可过滤车道/标的） */
