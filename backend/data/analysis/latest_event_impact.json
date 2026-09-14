@@ -1,94 +1,71 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789395021414,
+  "ts_ms": 1789395296506,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.817,
-  "run_id": "219bd2e7fad44959bd969c0aab29d832",
-  "context_hash": "630dd3068bdbae714255f50947f383f88efe976924d2298d5142cc99fdd49e5f",
+  "consensus_score": 0.7,
+  "run_id": "b9f04f293f9d407f85f59deefec9e955",
+  "context_hash": "6b9af909385511cd42ad516a56e00460d530cf753bb6bc8f8e86dd6d6ee548d4",
   "final": {
-    "direction": "bearish",
-    "strength": 4.0,
-    "confidence": 0.4,
-    "half_life_hours": 7.0,
+    "direction": "bullish",
+    "strength": 4,
+    "confidence": 0.45,
+    "half_life_hours": 12,
     "affected_symbols": [
-      "GAIBUSDT",
-      "GAIB"
+      "POLYX"
     ],
-    "hedging_window_hours": 8.0,
+    "hedging_window_hours": 24,
     "position_adjustments": [
       {
-        "symbol": "GAIBUSDT",
-        "action": "no_new_long",
-        "reason": "gateio单交易所出现+385% APR极端正资金费，暗示现货卖压/空头拥挤，新增做多将承担高昂持仓成本且面临轧空后回吐风险"
+        "symbol": "POLYX",
+        "action": "no_new_short",
+        "reason": "四所 8h 资金费一致深度负值（gateio -0.212%/8h ≈-232% APR，asterdex -0.266%、bybit -0.248%、binance -0.214%），空头拥挤且做空承担负 carry 与轧空风险；组合当前无 POLYX 持仓，不建议新开空头，亦不因单一资金费信号追多。"
       },
       {
-        "symbol": "GAIBUSDT",
-        "action": "tighten_stops",
-        "reason": "该币种缺乏K线数据、市场深度未知，叠加资金费极端，市场结构不稳定，应收紧止损防止突发反转"
-      },
-      {
-        "symbol": "GAIB",
-        "action": "no_new_long",
-        "reason": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR），为 0.1%/8h 阈值的 3.5 倍，持有多头每结算周期支付约 0.35% 成本且多头拥挤存在均值回归风险；建议在费率回落至阈值附近前不开 GAIB 新多。组合现有 10 个持仓均为 ASTER/BNB/BTC/ETH/SOL/UNI/XRP 多头，不含 GAIB，无需减仓或对冲。"
+        "symbol": "BTC",
+        "action": "none",
+        "reason": "事件为 POLYX 局部资金费极端；现有 BTC 多头（trend_e1 名义 102 + auto 名义 789）无证据受直接影响，24h 全市场多空清算大体平衡（long 20.95M vs short 22.03M），主流币账簿维持现状。"
       }
     ],
     "analogues": [
       {
-        "event": "asterdex LSK 资金费 -1.021%/8h（约-1118% APR）",
-        "outcome": "同期多交易所LSK同步出现深度负费率，提示空头极度拥挤，后续常见费率回归及短期反弹"
+        "event": "同一时点（ts 1789373112896）universe 内多币资金费同步极端为负：LSK bybit -2.0%/8h、STEEM binance -1.256%/8h、CVC binance -1.220%/8h、POWR bybit -1.136%/8h、PUNDIX -0.684%/8h、GLM -0.628%/8h 等",
+        "outcome": "该批量极端负费率事件的历史后续价格走势数据不足，未提供结果样本"
       },
       {
-        "event": "bybit BSP 资金费 +1.433%/8h（约+1569% APR）",
-        "outcome": "单交易所极端正费率，历史上通常伴随现货抛压或套利平仓，短期价格承压"
-      },
-      {
-        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR），同一批 funding.extreme 事件中的正费率极端",
-        "outcome": "同被标记 direction=-0.5（偏空），即系统将极端正资金费归类为多头拥挤/回调风险信号；该事件后续价格结局在本 context 中无数据，未验证"
-      },
-      {
-        "event": "LSK/STEEM/CVC/POWR 在 binance/bybit/asterdex 同一时间窗出现 -0.5%~-2.0%/8h 极端负资金费",
-        "outcome": "均被标记 direction=+0.5（偏多），与 GAIB 正费率方向相反，属空头拥挤的镜像情形；后续价格结局无数据，未验证"
+        "event": "POLYX 自身 24h 内 4 交易所连续触发 funding.extreme（sev 3，含 ts 1789374310327 bybit -0.248%/8h）",
+        "outcome": "同期 POLYX 现货 1d +10.12%、7d +15.0%、RSI14 69.6，价格与深负费率背离，呈空头回补式上行；后续延续性数据不足"
       }
     ],
     "key_factors": [
-      "gateio单所GAIB费率+0.351%/8h，APR达+385%，超过阈值3.5倍",
-      "funding_universe扫描3279币种中GAIB排名靠前但并非最高，属中等偏高极端",
-      "gateio与binance费率差异显著（gateio 0.005% vs binance 0.0%），存在跨所套利空间",
-      "GAIB在当前universe中无K线数据，价格/成交量信息缺失，无法判断现货方向",
-      "同类事件如BSP同样为单交易所高正费率，短期对现货价格偏负面",
-      "24h全市场多空爆仓金额接近持平（约2095万vs2204万），系统性去杠杆压力中性",
-      "GAIB 在 gateio 资金费 +0.351%/8h（rate_raw=0.003512，≈+385% APR），超阈值（threshold_8h=0.001）3.5 倍，funding.extreme sev=3",
-      "market 层 GAIB 无 K 线（缺失层标注 market:GAIB: 无 K 线），价格趋势、波动与相关性均无法验证，是 confidence 压低的主因",
-      "flows 层快照 funding_8h_pct 显示 gateio GAIB=0.005，与事件 rate_raw=0.003512 存在时点/口径差异；binance GAIB=0.0，疑似 gateio 单所现象，跨所对冲空间与基差风险未知",
-      "组合 10 个持仓（ASTER/BNB/BTC/ETH/SOL/UNI/XRP 全多头，acct14 gross exposure 100.6%）与 GAIB 无交集，直接敞口为零，且 corr_to_btc 为空、无传导证据",
-      "同期全市场极端资金费以负值为主（LSK/STEEM/CVC/POWR/GLM/PUNDIX 等 -0.5%~-2.0%/8h），GAIB 正极端为少数派，或反映该币局部过热而非全市场风险偏好变化",
-      "极端资金费通常在 1-2 个结算周期（8-16h）内均值回归，故取 8h 半衰期与避险窗口；若下个结算周期费率仍极端需重新评估",
-      "持空 GAIB 可收取资金费（≈+385% APR）具套利吸引力，但在无 K 线、无法评估上行动量的前提下不建议执行，仅作为数据补齐后的候选"
+      "POLYX 四大交易所 8h 资金费一致深度为负（约 -232%~-291% APR），为跨所共识性空头拥挤而非单所噪音",
+      "价格与资金费显著背离：1d +10.12%、7d +15.0%、RSI14 69.6，但仍低于 EMA200 约 -5.65%，符合空头回补驱动的短线轧空结构",
+      "同一时点多个小盘币（LSK/STEEM/CVC/POWR/PUNDIX/GLM/T/CAP/FLY/UNITREE）资金费同步极端为负，属板块性空头拥挤现象；24h 高影响新闻为 0，未见明确独立催化",
+      "组合未持有 POLYX，10 笔在仓全部为多头且账户 14 毛敞口 100.6%，事件直接影响有限，但小盘 alt 空头拥挤若集中逆转可能带来联动波动",
+      "数据不足：corr_to_btc、position_structure、持仓量（OI）及历史同类极端负费率事件后的收益样本均缺失，限制方向判断置信度"
     ],
-    "summary": "GAIB在gateio出现+385% APR的极端正资金费，属于中等偏高极端水平（severity 3）。该信号通常意味着空头持仓拥挤或现货端存在抛压，套利者可能通过做空现货+做多永续来锁定收益，从而对现货价格形成短期压制。但由于GAIB缺乏K线数据、市场深度未知，且同类事件（如BSP单所+1569% APR）历史上影响半衰期较短（约4-8小时），整体冲击有限。鉴于数据不足，建议对GAIB不新增做多、收紧止损，但不建议激进做空或对冲（因方向不对称风险较高）。当前组合中无GAIB敞口，无需直接调整其他持仓。",
-    "risks": [
-      "market:GAIB 无K线数据，价格方向判断完全依赖资金费信号，存在盲区",
-      "单交易所信号可能由local套利或做市商行为驱动，未必反映全市场真实供需",
-      "funding极端事件半衰期短，6小时后可能完全失效，不宜过度解读",
-      "当前无GAIB持仓，单一信号不足以触发系统性对冲操作"
-    ]
+    "summary": "gateio POLYX 资金费 -0.212%/8h（≈-232% APR，sev 3）为跨四所一致的极端负费率事件。深负费率表明永续空头拥挤、多头持有成本为负；叠加 POLYX 现货 1d +10.12%、7d +15.0% 的上行动量（RSI 69.6，但仍低于 EMA200 约 5.65%），呈典型空头回补/轧空结构，方向评估为温和偏多（strength 4）。同一时点 LSK、STEEM、CVC、POWR 等多币资金费同步极端为负，属小盘 alt 板块性现象而非 POLYX 独有催化，且 24h 高影响新闻为 0。资金费极端通常在 1~3 个结算周期内均值回归，半衰期估 12h，观察/对冲窗口 24h。组合未持有 POLYX，直接影响有限：对 POLYX 建议不新开空头（负 carry + 轧空风险），现有主流币多头账簿无证据受累、维持现状。因相关性、持仓量与历史同类事件后续走势数据缺失，置信度降至 0.45。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的结论更贴合 context pack 事实且诚实标注数据缺口：四所资金费一致深负（事件中 gateio -0.212%/binance -0.214%/bybit -0.248%/asterdex -0.266% 每 8h）是 pack 内可验证的跨所共识空头拥挤，叠加 POLYX 1d +10.12%、7d +15.0% 的价格与深负费率背离，构成 B‘空头回补/轧空结构、温和偏多’判断的事实锚点；其 analogues 明确承认历史后续样本不足，未编造结果。A 的方向虽保守稳妥，但其类比事件（如‘2024-Q4 LSK 资金费持续 24-48h、无剧烈轧空’及‘2h 内未转正’）在 pack 中不存在，属于引入 context 之外假设；且 A 以 RSI 69.6 论证‘多头拥挤’与深负资金费所指示的空头拥挤定位信号自相矛盾。不过 B 的强度 4 略偏高：RSI14 69.6 已超买、价格仍低于 EMA200 约 5.65%、且同一时点 LSK/STEEM/CVC/POWR 等多币同步极端负费率属板块性现象而非 POLYX 独立催化，叠加 OI、corr_to_btc、历史同类事件收益样本均缺失，故我下调为温和偏多 strength 3、置信度 0.4。B 的 no_new_short 处置亦有 pack 事实支撑（空头承担约 -232% APR 负 carry 且价格已在轧空上行），组合无 POLYX 持仓、直接影响有限，两方实际账簿动作风险均低。"
+    }
   },
   "notes": [],
   "event": {
-    "id": 102676,
+    "id": 102684,
     "event_type": "funding.extreme",
-    "symbol": "GAIB",
+    "symbol": "POLYX",
     "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": -0.5,
-    "title": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR）",
+    "direction": 0.5,
+    "title": "gateio POLYX 资金费 -0.212%/8h（≈-232% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 384.6,
-      "rate_8h": 0.003512,
+      "apr_pct": -231.9,
+      "rate_8h": -0.002118,
       "exchange": "gateio",
-      "rate_raw": 0.003512,
+      "rate_raw": -0.002118,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
