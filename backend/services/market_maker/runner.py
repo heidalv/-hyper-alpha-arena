@@ -75,6 +75,17 @@ class SymbolState:
     # [F92 2026-09-14] 已消费到的成交桶标签（桶起点 ms）：窗口下界，持久化以便
     # 重启后不漏桶。0 = 尚未消费（冷启动回退一个桶）。
     last_seg_ms: int = 0
+    # [F102 2026-09-14] `mid_hist` 最后一次追加所用的**快照时间戳**。
+    # 缺陷现场：此前每个 tick 都无条件 append，而 tick 快于快照更新（实测 240 个
+    # 样本里只有 52~109 个**不同**中价，重复率 55~78%）⇒ 240 样本窗口覆盖的**墙钟
+    # 时间被拉长 2~4 倍**，两个依赖 mid_hist 的信号全部失真：
+    #   - 冻结行情检测 `slow_move_bp`（240 期单步最大移动）被拉长 ⇒ 更容易超过
+    #     frozen_max_move(8bp) ⇒ **冻结档（3bp 窄挂）很少生效**，实盘长期按 6~9bp 挂，
+    #     而回放（每快照一条、无重复）经常进入冻结档 ⇒ 实测实盘成交只有回放的 0.38×
+    #     （蒙特卡洛 12 个实现的分布 107~119 笔 vs 实盘 43 笔）；
+    #   - `vol_cur`（20 期已实现波动）被重复值注入 0 收益 ⇒ 波动低估。
+    # 修：仅在**快照更新**时追加（与回放「每快照一条」完全同口径）。
+    last_mid_src_ms: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -89,6 +100,7 @@ class SymbolState:
             "mid_hist": [round(x, 10) for x in (self.mid_hist or [])[-240:]],
             "vol_baseline_bp": round(self.vol_baseline_bp, 4),
             "last_seg_ms": int(self.last_seg_ms or 0),
+            "last_mid_src_ms": int(self.last_mid_src_ms or 0),
         }
 
     @classmethod
@@ -110,6 +122,7 @@ class SymbolState:
             mid_hist=[float(x) for x in (d.get("mid_hist") or [])],
             vol_baseline_bp=float(d.get("vol_baseline_bp") or 0.0),
             last_seg_ms=int(d.get("last_seg_ms") or 0),
+            last_mid_src_ms=int(d.get("last_mid_src_ms") or 0),
         )
 
 
@@ -912,11 +925,18 @@ class ShadowRunner:
         # [F95] 闸门拦截分布（进程内累计）：实盘「哪道闸门在吃成交」的可观测性
         self.skip_counts: Dict[str, int] = {}
         self.side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
-        # [F98] 挂宽均值（进程内累计）：k_vol>0 后挂宽随波动变化，必须能直接看到
+        # [F102] 最近若干 tick 的**成交判定输入快照**（环形缓冲，供审计"该成交却没成交"）。
+        # 记录的是判定时**实际被检验的挂单**（重挂前的 quote）与区间高低/主动量，
+        # 以及本 tick 判定出的成交数。这是把「报价路径」与「判定路径」分开的直接证据。
+        # [F98] 挂宽均值（进程内累计）：k_vol>0 后挂宽随宽度变化，必须能直接看到
         # 实盘实际挂多宽——否则「实盘成交比回放少」只能靠猜（挂宽是首要嫌疑）。
         self._w_sum = {"bid": 0.0, "ask": 0.0}
         self._w_n = 0
         self._sigma_sum = 0.0
+        # [F102] 最近若干 tick 的**成交判定输入快照**（环形，供审计"该成交却没成交"）：
+        # 记录判定时**实际被检验的挂单**（重挂前的 quote）与区间高低/主动量、成交数。
+        # 这是把「报价路径」与「判定路径」分开的直接证据（此前只能靠外部复算，不可靠）。
+        self.recent_ticks: List[Dict[str, Any]] = []
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
@@ -1316,9 +1336,18 @@ class ShadowRunner:
                 decisions.append({"symbol": s, "action": "pause", "skip": why,
                                   "data_age_sec": round(age, 1)})
                 continue
-            st.mid_hist.append(float(m["mid"]))
-            if len(st.mid_hist) > 240:
-                st.mid_hist = st.mid_hist[-240:]
+            # [F102] mid_hist 只在**快照更新**时追加（与回放"每快照一条"同口径）：
+            # 此前每 tick 无条件追加 ⇒ 重复率 55~78% ⇒ 冻结检测窗口被拉长 2~4 倍
+            # ⇒ 冻结档几乎不生效 ⇒ 实盘长期按 6~9bp 挂而回放按 3bp 挂 ⇒ 成交只有 0.38×。
+            _snap_ms_now = int(m.get("ts_ms") or 0)
+            if _snap_ms_now != int(st.last_mid_src_ms or 0):
+                st.mid_hist.append(float(m["mid"]))
+                st.last_mid_src_ms = _snap_ms_now
+                if len(st.mid_hist) > 240:
+                    st.mid_hist = st.mid_hist[-240:]
+            # [F102] 判定输入快照：被检验的挂单（重挂前的 quote）+ 区间高低/主动量
+            _qb0, _qa0, _qm0 = (float(st.quote_bid or 0.0), float(st.quote_ask or 0.0),
+                                float(st.quote_mid or 0.0))
             # [F94] 撤旧单 → 挂新单：先减掉本币旧的在挂腿，plan_tick 挂完后再加回
             # [F94c] 撤旧单 → 挂新单：按「加仓/减仓」区分先减掉本币旧贡献
             _u0, _d0, _g0 = pending_contrib(st, marks.get(s, 0.0), self.fill_notional)
@@ -1371,6 +1400,18 @@ class ShadowRunner:
                 self._w_n += 1
                 self._sigma_sum += float(sigma or 0.0)
             self._record_fills(dec)
+            # [F102] 记入环形缓冲：判定用的挂单 vs 区间高低 + 成交数（审计"该成交却没成交"）
+            self.recent_ticks.append({
+                "ts": round(now_ts, 1), "s": s,
+                "qb": round(_qb0, 8), "qa": round(_qa0, 8), "qm": round(_qm0, 8),
+                "lo": round(float(m.get("seg_low") or 0.0), 8),
+                "hi": round(float(m.get("seg_high") or 0.0), 8),
+                "vs": round(float(m.get("seg_sell") or 0.0), 4),
+                "vb": round(float(m.get("seg_buy") or 0.0), 4),
+                "nf": len(dec.fills), "skip": skip_key(dec.skip),
+            })
+            if len(self.recent_ticks) > 60:
+                self.recent_ticks = self.recent_ticks[-60:]
             self.fills += len(dec.fills)
             self.flattens += sum(1 for f in dec.fills if f.is_flatten)
             d = dec.to_dict()
@@ -1552,6 +1593,8 @@ class ShadowRunner:
                 "ask": round(self._w_sum["ask"] / self._w_n, 3) if self._w_n else None},
             "avg_sigma": round(self._sigma_sum / self._w_n, 3) if self._w_n else None,
             "quoted_decisions": self._w_n,
+            # [F102] 最近 tick 的成交判定输入（供审计漏判；60 条 ≈ 12 tick × 5 币）
+            "recent_ticks": self.recent_ticks[-60:],
             # [F90 2026-09-14] 孤儿持仓可见性（正常应为空）：宇宙外仍未平掉的仓位。
             # 非空 = 有仓位既未退出也未实现盈亏，前端/巡检必须能立刻看到。
             "orphan_inventory": {s: round(float(st.qty), 8)
