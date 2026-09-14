@@ -144,6 +144,11 @@ def replay_portfolio(
     # 实盘/回放速率不一致时，用来判定差异在「报价行为」还是「成交判定」。
     side_counts: Dict[str, int] = {"both": 0, "one": 0, "none": 0}
     skip_counts: Dict[str, int] = {}
+    # [F99] 与实盘同口径的挂宽/σ 观测：判定「实盘成交比回放少」时首要嫌疑是挂宽，
+    # 必须能直接对比（此前只能看实盘一侧，无法判定差异来源）。
+    _w_sum = {"bid": 0.0, "ask": 0.0}
+    _w_n = 0
+    _sigma_sum = 0.0
     # [F98] 车道级闸门：逐 UTC 日累计已实现盈亏（供 daily_loss_stop_pct）
     _day_key: Optional[str] = None
     _day_pnl = 0.0
@@ -273,6 +278,14 @@ def replay_portfolio(
             else:
                 side_counts["none"] += 1
             max_toxic_streak = max(max_toxic_streak, int(states[s].toxic_streak or 0))
+            # [F99] 挂宽观测：只统计真正挂出去的一侧（与实盘同口径）
+            if dec.bid > 0:
+                _w_sum["bid"] += float(dec.w_bid_bp or 0.0)
+            if dec.ask > 0:
+                _w_sum["ask"] += float(dec.w_ask_bp or 0.0)
+            if dec.bid > 0 or dec.ask > 0:
+                _w_n += 1
+                _sigma_sum += float(sigma or 0.0)
             for f in dec.fills:
                 # [F84] 队列份额截断观测：qty < 期望腿量 ⇒ 容量上限在约束
                 if f.qty * f.px < (fill_notional if _ratio <= 0
@@ -334,6 +347,12 @@ def replay_portfolio(
         "skipped": skips,
         # [F95] 行为计数（与实盘同口径）：定位实盘/回放速率差异来源
         "side_counts": side_counts,
+        # [F99] 挂宽/σ 均值（与实盘 status 同口径，用于直接对比）
+        "avg_width_bp": {
+            "bid": round(_w_sum["bid"] / _w_n, 3) if _w_n else None,
+            "ask": round(_w_sum["ask"] / _w_n, 3) if _w_n else None},
+        "avg_sigma": round(_sigma_sum / _w_n, 3) if _w_n else None,
+        "quoted_decisions": _w_n,
         "skip_counts": dict(sorted(skip_counts.items(), key=lambda kv: -kv[1])[:12]),
         # [F98] 车道级闸门触发次数（验证「配置的闸门是否真的在起作用」）
         "lane_pause_counts": lane_pause_counts,
