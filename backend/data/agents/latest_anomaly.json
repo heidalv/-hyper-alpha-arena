@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789396104735,
+  "ts_ms": 1789396921143,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 1031,
+    "n": 1032,
     "n_scored": 885,
     "avg_score": 0.984180790960452,
     "avg_brier": 0.12693693446327703,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 1031,
+        "n": 1032,
         "n_scored": 885,
         "avg_score": 0.984180790960452,
         "avg_brier": 0.12693693446327703,
-        "last_ms": 1789395805379
+        "last_ms": 1789396114910
       }
     ],
     "verdict": {
@@ -48,19 +48,19 @@
     "channels": {
       "price": {
         "score": 0.0689,
-        "ret_1h_pct": 0.0,
-        "ret_4h_pct": 0.367,
-        "ret_24h_pct": 1.425,
+        "ret_1h_pct": 0.287,
+        "ret_4h_pct": 0.655,
+        "ret_24h_pct": 1.716,
         "drawdown_24h_pct": 0.827,
-        "ret_zscore": 0.012,
+        "ret_zscore": 0.88,
         "n_bars": 168
       },
       "volume": {
         "score": 0.0,
-        "peak_abs_z": 0.942,
+        "peak_abs_z": 1.022,
         "n_symbols": 8,
         "by_symbol": {
-          "BTC": 0.338,
+          "BTC": 1.022,
           "ETH": 0.058,
           "SOL": -0.866,
           "BNB": -0.942,
@@ -72,7 +72,7 @@
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 1.391,
+        "peak_abs_z": 1.24,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -85,64 +85,64 @@
         ],
         "by_symbol": {
           "AVAX": {
-            "z": 1.2,
-            "latest_8h_pct": 0.01,
+            "z": 0.366,
+            "latest_8h_pct": 0.0049,
             "cusum": {
               "detected": true,
               "direction": 1
             }
           },
           "BNB": {
-            "z": 0.373,
-            "latest_8h_pct": 0.0069,
+            "z": -0.7,
+            "latest_8h_pct": -0.0019,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": 0.981,
-            "latest_8h_pct": 0.01,
+            "z": 0.174,
+            "latest_8h_pct": 0.0062,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": 0.205,
-            "latest_8h_pct": 0.0074,
+            "z": -0.662,
+            "latest_8h_pct": 0.0031,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": 0.894,
-            "latest_8h_pct": 0.01,
+            "z": 0.577,
+            "latest_8h_pct": 0.0084,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": 1.053,
-            "latest_8h_pct": 0.01,
+            "z": 0.437,
+            "latest_8h_pct": 0.006,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "SOL": {
-            "z": 1.391,
-            "latest_8h_pct": 0.01,
+            "z": 1.24,
+            "latest_8h_pct": 0.0091,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "XRP": {
-            "z": 0.947,
-            "latest_8h_pct": 0.01,
+            "z": 0.137,
+            "latest_8h_pct": 0.0043,
             "cusum": {
               "detected": true,
               "direction": -1
@@ -152,52 +152,52 @@
       },
       "open_interest": {
         "score": 0.0,
-        "peak_abs_z": 1.535,
+        "peak_abs_z": 0.66,
         "by_symbol": {
           "AVAX": {
-            "z": -1.535,
-            "n": 161
+            "z": -0.383,
+            "n": 162
           },
           "BNB": {
-            "z": -0.615,
-            "n": 161
+            "z": 0.66,
+            "n": 162
           },
           "BTC": {
-            "z": 0.139,
-            "n": 159
+            "z": 0.136,
+            "n": 160
           },
           "DOGE": {
-            "z": -0.717,
-            "n": 161
+            "z": 0.498,
+            "n": 162
           },
           "ETH": {
-            "z": -0.506,
-            "n": 159
+            "z": -0.386,
+            "n": 160
           },
           "LINK": {
             "z": -0.626,
             "n": 161
           },
           "SOL": {
-            "z": 0.252,
-            "n": 159
+            "z": 0.512,
+            "n": 160
           },
           "XRP": {
-            "z": -0.154,
-            "n": 161
+            "z": 0.302,
+            "n": 162
           }
         }
       },
       "liquidation": {
         "score": 0.6,
-        "latest_hour_usd": 5986853.93,
+        "latest_hour_usd": 5987747.85,
         "median_hour_usd": 1090820.24,
-        "zscore": 0.729,
+        "zscore": 0.73,
         "cusum": {
           "detected": true,
           "direction": 1,
           "s_pos": 14.76,
-          "s_neg": 0.29,
+          "s_neg": 0.283,
           "h": 5.0,
           "k": 0.5,
           "n": 168
@@ -209,19 +209,19 @@
         "stale_sources": [
           {
             "source": "liq_ws",
-            "age_h": 34.98
+            "age_h": 35.2
           },
           {
             "source": "news_events",
-            "age_h": 56.64
+            "age_h": 56.87
           },
           {
             "source": "okx_ann",
-            "age_h": 55.47
+            "age_h": 55.7
           },
           {
             "source": "whale_activities",
-            "age_h": 10.16
+            "age_h": 10.39
           }
         ],
         "n_sources": 12,
@@ -248,12 +248,12 @@
     }
   },
   "predictions": [
-    "c0a312666b3248b7aa1ed13e9fcfac4a"
+    "525de1754cf24e13ba7a57cd72339b57"
   ],
   "advice": [],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 12.007,
+  "elapsed_sec": 6.56,
   "latest_path": null,
   "dry_run": false
 }

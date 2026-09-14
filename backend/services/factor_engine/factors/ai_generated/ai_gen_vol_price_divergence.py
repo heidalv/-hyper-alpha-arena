@@ -1,4 +1,4 @@
-"""AI因子: 量价背离 | 置信:55% | 价格上涨但成交量萎缩(量价背离)预示动能衰竭，给负分；价格下跌但放量(恐慌抛售)可能反转，给正分。用收益与成交量变化的符号背离构造。"""
+"""AI因子: 量价背离因子 | 置信:55% | 价格短期涨幅与成交量变化方向不一致时提示反转。计算5日收益与5日成交量变化率的符号差异，量增价跌或量缩价涨均产生负向信号，量价同向则信号弱。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,14 +7,14 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class VolumePriceDivergence(BaseFactor):
-    """价格上涨但成交量萎缩(量价背离)预示动能衰竭，给负分；价格下跌但放量(恐慌抛售)可能反转，给正分。用收益与成交量变化的符号背离构造。"""
+    """价格短期涨幅与成交量变化方向不一致时提示反转。计算5日收益与5日成交量变化率的符号差异，量增价跌或量缩价涨均产生负向信号，量价同向则信号弱。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_vol_price_divergence",
             name="Volume Price Divergence",
-            display_name="量价背离",
-            description="价格上涨但成交量萎缩(量价背离)预示动能衰竭，给负分；价格下跌但放量(恐慌抛售)可能反转，给正分。用收益与成交量变化的符号背离构造。",
+            display_name="量价背离因子",
+            description="价格短期涨幅与成交量变化方向不一致时提示反转。计算5日收益与5日成交量变化率的符号差异，量增价跌或量缩价涨均产生负向信号，量价同向则信号弱。",
             category="technical",
             subcategory="volume",
             version="1.0.0-ai",
@@ -24,6 +24,6 @@ class VolumePriceDivergence(BaseFactor):
     def calculate(self, data):
         ret = data['close'].pct_change(5)
         vol_chg = data['volume'].pct_change(5)
-        vol_z = (vol_chg - vol_chg.rolling(20).mean()) / (vol_chg.rolling(20).std() + 1e-9)
-        result = (-ret * vol_z).rolling(5).mean().clip(-1, 1)
+        sign = (ret * vol_chg)
+        result = (-sign / (sign.abs() + 1e-9) * (ret.abs() / (ret.abs() + vol_chg.abs() + 1e-9))).clip(-1, 1)
         return result
