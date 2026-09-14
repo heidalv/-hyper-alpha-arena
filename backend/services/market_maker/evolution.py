@@ -386,8 +386,12 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
         **(entry_extra or {}),
     }
     _journal(entry)
+    # [F151] 返回值必须带上**稳健性表**与在位全窗读数：否则调用方（试运行脚本、
+    # 调度日志）只能看到决策理由里的一两个数字，无法复核门槛本身 ✗（实测 dry-run
+    # 打印"稳健性表未生成"其实是返回子集里没有它 ✗）。
     return {"ok": True, **{k: entry[k] for k in
-                           ("incumbent", "best", "decision", "applied", "mode")}}
+                           ("incumbent", "best", "decision", "applied", "mode",
+                            "incumbent_full", "robustness") if k in entry}}
 
 
 def check_and_rollback(lane_id: str = "mm_asterdex") -> Dict[str, Any]:

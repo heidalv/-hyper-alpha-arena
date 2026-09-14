@@ -1,66 +1,94 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789394400342,
+  "ts_ms": 1789395021414,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "13e1d0e24fad4f10b07a464c1be8fb8d",
-  "context_hash": "42ef497f1e60a3c06f57ce3855af21f4c67744a0c2076fd4e1973054740c6591",
+  "consensus_score": 0.817,
+  "run_id": "219bd2e7fad44959bd969c0aab29d832",
+  "context_hash": "630dd3068bdbae714255f50947f383f88efe976924d2298d5142cc99fdd49e5f",
   "final": {
     "direction": "bearish",
-    "strength": 4,
+    "strength": 4.0,
     "confidence": 0.4,
-    "half_life_hours": 8,
+    "half_life_hours": 7.0,
     "affected_symbols": [
-      "INDEX"
+      "GAIBUSDT",
+      "GAIB"
     ],
-    "hedging_window_hours": 8,
+    "hedging_window_hours": 8.0,
     "position_adjustments": [
       {
-        "symbol": "INDEX",
+        "symbol": "GAIBUSDT",
         "action": "no_new_long",
-        "reason": "gateio 资金费 +0.3754%/8h（≈+411% APR，为 0.1% 阈值的 3.75 倍），新多头需承担极端费用且面临多头拥挤回撤/挤压风险；因 market:INDEX 无 K 线、缺价格趋势确认，反向做空亦不建议，仅冻结新多"
+        "reason": "gateio单交易所出现+385% APR极端正资金费，暗示现货卖压/空头拥挤，新增做多将承担高昂持仓成本且面临轧空后回吐风险"
+      },
+      {
+        "symbol": "GAIBUSDT",
+        "action": "tighten_stops",
+        "reason": "该币种缺乏K线数据、市场深度未知，叠加资金费极端，市场结构不稳定，应收紧止损防止突发反转"
+      },
+      {
+        "symbol": "GAIB",
+        "action": "no_new_long",
+        "reason": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR），为 0.1%/8h 阈值的 3.5 倍，持有多头每结算周期支付约 0.35% 成本且多头拥挤存在均值回归风险；建议在费率回落至阈值附近前不开 GAIB 新多。组合现有 10 个持仓均为 ASTER/BNB/BTC/ETH/SOL/UNI/XRP 多头，不含 GAIB，无需减仓或对冲。"
       }
     ],
     "analogues": [
       {
-        "event": "同批次 funding.extreme：bybit BSP 资金费 +1.433%/8h（≈+1569% APR）、gateio FATCOIN +1.192%/8h",
-        "outcome": "同为正极端资金费（多头付费），context 中无后续价格与绩效回溯数据，无法验证均值回归结果，仅确认当前市场山寨币资金费极端分化"
+        "event": "asterdex LSK 资金费 -1.021%/8h（约-1118% APR）",
+        "outcome": "同期多交易所LSK同步出现深度负费率，提示空头极度拥挤，后续常见费率回归及短期反弹"
       },
       {
-        "event": "同批次 funding.extreme：LSK/STEEM/CVC/POWR 等在 bybit/binance/asterdex 出现 -0.45% ~ -2.0%/8h 负极端资金费",
-        "outcome": "负极端集中在山寨币空头侧，与 INDEX 正极端并存，表明资金费拥挤呈币种级离散分布，非全市场单边过热；24h 全市场多头清算 20.82M vs 空头 22.07M 基本平衡"
+        "event": "bybit BSP 资金费 +1.433%/8h（约+1569% APR）",
+        "outcome": "单交易所极端正费率，历史上通常伴随现货抛压或套利平仓，短期价格承压"
+      },
+      {
+        "event": "bybit BSP 资金费 +1.433%/8h（≈+1569% APR），同一批 funding.extreme 事件中的正费率极端",
+        "outcome": "同被标记 direction=-0.5（偏空），即系统将极端正资金费归类为多头拥挤/回调风险信号；该事件后续价格结局在本 context 中无数据，未验证"
+      },
+      {
+        "event": "LSK/STEEM/CVC/POWR 在 binance/bybit/asterdex 同一时间窗出现 -0.5%~-2.0%/8h 极端负资金费",
+        "outcome": "均被标记 direction=+0.5（偏多），与 GAIB 正费率方向相反，属空头拥挤的镜像情形；后续价格结局无数据，未验证"
       }
     ],
     "key_factors": [
-      "INDEX 在 gateio 资金费 +0.3754%/8h ≈ +411% APR，达阈值 0.1% 的 3.75 倍，多头拥挤，反向（bearish）解读但仅为单因子信号",
-      "market 层 INDEX 无 K 线（缺失层已标注），无法用价格趋势/位置佐证方向，confidence 被动下调",
-      "资金费仅 gateio 单所记录，无其他交易所同币种资金费交叉验证（flows 中 INDEX 仅 gateio 0.3936%/8h），存在单所异常而非全市场共识的可能",
-      "8h 结算机制下极端资金费通常在 1-3 个结算周期内回归，持仓成本年化 411% 会快速侵蚀新多头期望收益",
-      "事件为单币种冲击：当前 10 笔持仓全为 BTC/ETH/SOL/BNB/XRP/UNI/ASTER 主流币多头（acct14 总敞口 100.6%），不含 INDEX，直接传染路径有限"
+      "gateio单所GAIB费率+0.351%/8h，APR达+385%，超过阈值3.5倍",
+      "funding_universe扫描3279币种中GAIB排名靠前但并非最高，属中等偏高极端",
+      "gateio与binance费率差异显著（gateio 0.005% vs binance 0.0%），存在跨所套利空间",
+      "GAIB在当前universe中无K线数据，价格/成交量信息缺失，无法判断现货方向",
+      "同类事件如BSP同样为单交易所高正费率，短期对现货价格偏负面",
+      "24h全市场多空爆仓金额接近持平（约2095万vs2204万），系统性去杠杆压力中性",
+      "GAIB 在 gateio 资金费 +0.351%/8h（rate_raw=0.003512，≈+385% APR），超阈值（threshold_8h=0.001）3.5 倍，funding.extreme sev=3",
+      "market 层 GAIB 无 K 线（缺失层标注 market:GAIB: 无 K 线），价格趋势、波动与相关性均无法验证，是 confidence 压低的主因",
+      "flows 层快照 funding_8h_pct 显示 gateio GAIB=0.005，与事件 rate_raw=0.003512 存在时点/口径差异；binance GAIB=0.0，疑似 gateio 单所现象，跨所对冲空间与基差风险未知",
+      "组合 10 个持仓（ASTER/BNB/BTC/ETH/SOL/UNI/XRP 全多头，acct14 gross exposure 100.6%）与 GAIB 无交集，直接敞口为零，且 corr_to_btc 为空、无传导证据",
+      "同期全市场极端资金费以负值为主（LSK/STEEM/CVC/POWR/GLM/PUNDIX 等 -0.5%~-2.0%/8h），GAIB 正极端为少数派，或反映该币局部过热而非全市场风险偏好变化",
+      "极端资金费通常在 1-2 个结算周期（8-16h）内均值回归，故取 8h 半衰期与避险窗口；若下个结算周期费率仍极端需重新评估",
+      "持空 GAIB 可收取资金费（≈+385% APR）具套利吸引力，但在无 K 线、无法评估上行动量的前提下不建议执行，仅作为数据补齐后的候选"
     ],
-    "summary": "INDEX 在 gateio 触发正极端资金费（+0.3754%/8h，≈+411% APR，阈值 3.75 倍，severity 3）：多头拥挤、新多成本极高，按资金费拥挤反转逻辑给 bearish（strength 4）。但 market:INDEX 无 K 线、且仅 gateio 单所数据，无法交叉验证价格趋势，confidence 降至 0.4。影响范围限于 INDEX 本身（半衰期按 1 个 8h 结算周期估计，避险/观察窗口 8 小时）；现有持仓组合（全为主流币多头，不含 INDEX）不受直接冲击，且全市场多空清算量基本平衡（20.8M/22.1M），无系统性传染证据。建议：INDEX 冻结新多（no_new_long），不追空（缺价格确认），8 小时后复评资金费是否回归；若后续补充 K 线与跨所资金费数据可上调 confidence。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 更有依据：事件 payload 本身给出 direction=-0.5（正向极端资金费→多头拥挤→反向看空的系统约定），且 +0.3754%/8h 为阈值 0.1% 的 3.75 倍（APR +411%）是 context 中的客观事实，新多头持仓成本极高这一点不需要 K 线确认即成立，故 no_new_long 的成本论据扎实；B 同时正确指出 INDEX 仅 gateio 单所数据（flows 中 INDEX 只有 gateio 0.3936）、market:INDEX 无 K 线（缺失层已标注），并据此把 confidence 降到 0.4，态度克制。A 的 neutral 判断虽在数据质量层面有理，但其附加动作（对 BTC/ASTER 收紧止损）依赖'山寨负费率→系统性 de-risk 传导'的间接假设，context 中 24h 清算多空基本均衡（20.8M vs 22.1M USD）且组合无 INDEX 敞口，该传导缺乏直接证据，属过度外推。综合：采信 B 的 bearish 方向与冻结新多建议，但鉴于单所信号、无价格层佐证，强度宜从 4 降至 3，confidence 维持 0.4。"
-    }
+    "summary": "GAIB在gateio出现+385% APR的极端正资金费，属于中等偏高极端水平（severity 3）。该信号通常意味着空头持仓拥挤或现货端存在抛压，套利者可能通过做空现货+做多永续来锁定收益，从而对现货价格形成短期压制。但由于GAIB缺乏K线数据、市场深度未知，且同类事件（如BSP单所+1569% APR）历史上影响半衰期较短（约4-8小时），整体冲击有限。鉴于数据不足，建议对GAIB不新增做多、收紧止损，但不建议激进做空或对冲（因方向不对称风险较高）。当前组合中无GAIB敞口，无需直接调整其他持仓。",
+    "risks": [
+      "market:GAIB 无K线数据，价格方向判断完全依赖资金费信号，存在盲区",
+      "单交易所信号可能由local套利或做市商行为驱动，未必反映全市场真实供需",
+      "funding极端事件半衰期短，6小时后可能完全失效，不宜过度解读",
+      "当前无GAIB持仓，单一信号不足以触发系统性对冲操作"
+    ]
   },
   "notes": [],
   "event": {
-    "id": 102678,
+    "id": 102676,
     "event_type": "funding.extreme",
-    "symbol": "INDEX",
+    "symbol": "GAIB",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": -0.5,
-    "title": "gateio INDEX 资金费 +0.375%/8h（≈+411% APR）",
+    "title": "gateio GAIB 资金费 +0.351%/8h（≈+385% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 411.1,
-      "rate_8h": 0.003754,
+      "apr_pct": 384.6,
+      "rate_8h": 0.003512,
       "exchange": "gateio",
-      "rate_raw": 0.003754,
+      "rate_raw": 0.003512,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }
