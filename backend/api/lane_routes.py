@@ -302,6 +302,39 @@ def _runner_for(lane_id: str):
     return r
 
 
+@router.get("/lanes/{lane_id}/evolution")
+def lane_evolution(lane_id: str, limit: int = 20) -> Dict[str, Any]:
+    """[F88] 做市自进化日志：每轮候选/指标/决策/是否落地 + 自动回滚记录。
+
+    数据源 `data/mm_evolution_journal.jsonl`（append-only）；默认只出提案，
+    `MM_AUTO_EVOLVE=1` 才允许自动改配置。
+    """
+    from backend.services import lane_registry as reg
+    from backend.services.market_maker import evolution as evo
+
+    if not reg.get_lane(lane_id):
+        raise HTTPException(status_code=404, detail=f"车道不存在: {lane_id}")
+    rows = [r for r in evo.read_journal(limit=max(1, min(int(limit), 200)))
+            if r.get("lane_id") in (None, lane_id)]
+    last = rows[-1] if rows else None
+    return {
+        "lane_id": lane_id,
+        "auto_apply": bool(evo.evolve_enabled()),
+        "count": len(rows),
+        "last": last,
+        "items": rows,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.post("/lanes/{lane_id}/evolution/run")
+def lane_evolution_run(lane_id: str, window_days: float = 14.0) -> Dict[str, Any]:
+    """手动跑一轮自进化（调试/演示；仍受 MM_AUTO_EVOLVE 约束是否落地）。"""
+    from backend.services.market_maker import evolution as evo
+
+    return evo.run_evolution_round(lane_id, window_days=float(window_days))
+
+
 @router.get("/lanes/{lane_id}/shadow")
 def shadow_status(lane_id: str) -> Dict[str, Any]:
     """影子期实时状态：库存、挂单、本进程 tick/fill 计数。"""

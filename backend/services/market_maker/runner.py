@@ -1336,6 +1336,23 @@ def register_shadow_task(
             lane_id=lane_id, days=30,
         )
         logger.info("[F60] 影子期调度已注册: %s 每 %ss + 每日 00:10 归档", lane_id, interval)
+        # [F88 2026-09-14] 自进化闭环：每日 03:30 一轮（先回滚检查，再有界走查搜索）。
+        # 默认只出「提案」（MM_AUTO_EVOLVE=1 才允许自动改注册表），日志落
+        # data/mm_evolution_journal.jsonl；见 market_maker/evolution.py。
+        try:
+            from backend.services.market_maker import evolution as _mm_evo
+
+            task_scheduler.add_cron_task(
+                _mm_evo.evolution_task,
+                f"mm_evolution_{lane_id}",
+                1,
+                hour=3, minute=30,
+                lane_id=lane_id,
+            )
+            logger.info("[F88] 做市自进化调度已注册: %s 每日 03:30（apply=%s）",
+                        lane_id, _mm_evo.evolve_enabled())
+        except Exception as _e:
+            logger.warning("[F88] 自进化调度注册失败: %s", _e)
         return True
     except Exception as e:
         logger.warning("[F60] 影子期调度注册失败: %s", e)
