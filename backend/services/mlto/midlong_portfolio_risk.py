@@ -283,6 +283,11 @@ def check_portfolio_open_allowed(
         )
 
     # ── 相关簇同向上限 ──
+    # [验收轮2 2026-09-14] long_lane=True（E1 趋势 sleeve）时用长车道专属簇帽
+    # MIDLONG_CORR_CLUSTER_MAX_LONG（默认 3）：E1 核心宇宙 BTC/ETH/SOL 本就设计同持，
+    # 其相关性风险已由 portfolio vol-target（协方差加权）+ 车道 gross 帽处理；
+    # 旧全局帽 2 会让 SOL 在 BTC+ETH 持仓时永远开不出仓（实测 08:20 日任务 SOL 被拒）。
+    # mid 车道继续用全局 MIDLONG_CORR_CLUSTER_MAX=2（9/9 山寨齐跌实证）。
     cluster = set(_parse_cluster_symbols())
     if sym in cluster:
         same_dir = 0
@@ -292,7 +297,10 @@ def check_portfolio_open_allowed(
                 continue
             if _pos_dir(p.get("side")) == direction:
                 same_dir += 1
-        cap_n = _cfg_int("MIDLONG_CORR_CLUSTER_MAX", 2)
+        cap_n = _cfg_int(
+            "MIDLONG_CORR_CLUSTER_MAX_LONG" if long_lane else "MIDLONG_CORR_CLUSTER_MAX",
+            3 if long_lane else 2,
+        )
         if same_dir >= cap_n:
             return (
                 False,

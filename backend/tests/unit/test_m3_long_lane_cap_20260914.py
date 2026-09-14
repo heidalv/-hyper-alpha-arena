@@ -89,3 +89,67 @@ def test_long_lane_net_exposure_still_counts_all_midlong(monkeypatch):
     )
     assert ok is False
     assert "net_exposure" in reason
+
+
+# ── [验收轮2 2026-09-14] 长车道专属簇帽 ──
+
+def _fresh_cluster(monkeypatch, max_long=3):
+    monkeypatch.setenv("MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL")
+    monkeypatch.setenv("MIDLONG_CORR_CLUSTER_MAX", "2")
+    monkeypatch.setenv("MIDLONG_CORR_CLUSTER_MAX_LONG", str(max_long))
+    return _fresh(monkeypatch)
+
+
+def test_long_lane_cluster_cap_3_allows_btc_eth_sol(monkeypatch):
+    """E1 核心宇宙 BTC+ETH 已持 → SOL 开仓放行（长车道专属帽 3）。"""
+    mod = _fresh_cluster(monkeypatch, max_long=3)
+    positions = [_long_pos("BTC"), _long_pos("ETH")]
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="SOL", action="buy", positions=positions, new_notional=100.0,
+        long_lane=True,
+    )
+    assert ok is True, reason
+
+
+def test_mid_lane_keeps_cluster_cap_2(monkeypatch):
+    """mid 车道开仓仍受全局簇帽 2 约束（9/9 山寨齐跌实证不回退）。"""
+    mod = _fresh_cluster(monkeypatch)
+    positions = [_mid_pos("BTC"), _mid_pos("ETH")]
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="SOL", action="buy", positions=positions, new_notional=100.0,
+        long_lane=False,
+    )
+    assert ok is False
+    assert "corr_cluster" in reason
+
+
+def test_long_lane_cluster_cap_still_binds_at_3(monkeypatch):
+    """长车道簇帽 3 依然生效：BTC/ETH/SOL 三仓同向后再开 SOL → 拦。"""
+    mod = _fresh_cluster(monkeypatch, max_long=3)
+    positions = [_long_pos("BTC"), _long_pos("ETH"), _long_pos("SOL")]
+    ok, reason = mod.check_portfolio_open_allowed(
+        symbol="SOL", action="buy", positions=positions, new_notional=100.0,
+        long_lane=True,
+    )
+    assert ok is False
+    assert "corr_cluster" in reason
+
+
+def test_brain_long_batch_suppressed_when_e1_exclusive():
+    """[验收轮2] E1 独占时 mlto_cycle 不再派脑 tier=long 批次（源码护栏）。
+
+    背景：E1 独占后脑的 tier=long 论题在收口处必被拒，实测每 ~2-3 分钟白烧
+    一批 dual_call LLM（n=9、8 小时 0 成交）。源码必须显式检查 long_lane_exclusive。
+    """
+    from pathlib import Path
+
+    src = Path(backend_file()).read_text(encoding="utf-8")
+    assert "long_lane_exclusive" in src
+    assert "E1 独占长车道" in src
+    # 派发条件必须带 `and not _e1_exclusive`
+    assert "not _e1_exclusive" in src
+
+
+def backend_file():
+    import backend.services.full_auto.mlto_cycle as m
+    return m.__file__

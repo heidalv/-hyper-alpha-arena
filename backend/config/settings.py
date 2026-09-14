@@ -1068,7 +1068,15 @@ MIDLONG_NIBBLE_NET_EXPOSURE_PCT: float = float(
 # 相关簇同向持仓数上限
 MIDLONG_CORR_CLUSTER_SYMBOLS: str = os.getenv("MIDLONG_CORR_CLUSTER_SYMBOLS", "BTC,ETH,SOL")
 MIDLONG_CORR_CLUSTER_MAX: int = int(os.getenv("MIDLONG_CORR_CLUSTER_MAX", "2") or "2")
+# [验收轮2 2026-09-14] 长车道（E1）专属簇帽（默认 3=BTC/ETH/SOL 设计同持；0=关闭）
+MIDLONG_CORR_CLUSTER_MAX_LONG: int = int(
+    os.getenv("MIDLONG_CORR_CLUSTER_MAX_LONG", "3") or "3"
+)
 MIDLONG_MAX_OPEN_POSITIONS: int = int(os.getenv("MIDLONG_MAX_OPEN_POSITIONS", "4") or "4")
+# [M3 2026-09-14] 长车道独立并发帽（默认 8=TREND_MAX_POSITIONS；0=关闭）
+MIDLONG_MAX_LONG_LANE_POSITIONS: int = int(
+    os.getenv("MIDLONG_MAX_LONG_LANE_POSITIONS", "8") or "8"
+)
 # [P13 执行 2026-09-10] 每标的**同向**并发上限（0 = 关闭该闸）。
 # 依据 §61：同标的并发组均值 -2.39%/胜率 27.8% vs 单笔 +3.57%/35.9%，
 # bootstrap 均值差 -5.96%（95%CI [-10.83%, -1.51%]，留一法仍显著）。

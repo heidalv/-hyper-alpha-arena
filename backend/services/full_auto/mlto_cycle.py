@@ -331,7 +331,17 @@ def maintain_mlto_theses_for_session(
         logger.debug("[MidLongBrain] 长线固定币读取跳过: %s", _fs_err)
     try:
         from backend.config.settings import midlong_brain_enabled as _brain_long_now
-        if _brain_long_now() and run_long and _fixed_symbols_early:
+        # [验收轮2 2026-09-14] E1 独占长车道时，脑不再派 tier=long 批次：
+        # 新开在 place_order 收口处必被 E1 独占闸拒绝（仅记为提议），论题白烧
+        # dual_call LLM（实测每 ~2-3 分钟一批 n=9，8 小时 0 成交）。镜像 F38f
+        # 的空头提示策略——方向研判留给 E1 日任务，脑专注 mid/short 车道。
+        _e1_exclusive = False
+        try:
+            from backend.services.trend_e1_engine import long_lane_exclusive as _e1_lle
+            _e1_exclusive = bool(_e1_lle())
+        except Exception:
+            pass
+        if _brain_long_now() and run_long and _fixed_symbols_early and not _e1_exclusive:
             # [2026-09-07 解耦] 异步派发
             from backend.services.mlto.brain import run_midlong_brain_batch_async as _long_brain_async
             _long_brain_async(
@@ -343,6 +353,8 @@ def maintain_mlto_theses_for_session(
                 trading_mode=_trade_mode,
                 reserve_key=_reserve_key,
             )
+        elif _e1_exclusive and run_long:
+            logger.info("[MidLongBrain] E1 独占长车道：跳过脑 tier=long 批次（E1 日任务单主管理）")
     except Exception as _lb_err:
         logger.warning("[MidLongBrain] 长线批次异常: %s", _lb_err, exc_info=True)
 
