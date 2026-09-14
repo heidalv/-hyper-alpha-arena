@@ -78,9 +78,17 @@ def test_evaluate_passes_live_parity_flags():
 
 
 def test_robust_delays_span_measured_lag():
-    """口径网格必须覆盖实测滞后分布（p10≈1.6s、中位≈7.6s、p90≈13.5s）。"""
-    from backend.services.market_maker.evolution import ROBUST_DELAYS_MS
+    """口径网格必须取自**实测滞后分布**（p10≈1.6s、中位≈7.6s、p90≈13.5s）。
+
+    网格若取到分布之外（例如 17.6s），就会把所有变更都否掉 ✗；若全是同一点，
+    稳健性检查形同虚设 ✗。
+    """
+    from backend.services.market_maker.evolution import (
+        DEFAULT_TICK_DELAY_MS, ROBUST_DELAYS_MS)
 
     assert len(ROBUST_DELAYS_MS) >= 3
-    assert min(ROBUST_DELAYS_MS) <= 5000.0, "要覆盖偏早落库"
-    assert max(ROBUST_DELAYS_MS) >= 15000.0, "要覆盖偏晚落库"
+    assert min(ROBUST_DELAYS_MS) <= 2000.0, "要覆盖偏早落库（p10≈1.6s）"
+    assert max(ROBUST_DELAYS_MS) >= 13000.0, "要覆盖偏晚落库（p90≈13.5s）"
+    assert max(ROBUST_DELAYS_MS) <= 15000.0, "不应超出实测分布（否则成压力档）"
+    assert min(ROBUST_DELAYS_MS) in ROBUST_DELAYS_MS
+    assert DEFAULT_TICK_DELAY_MS == 7600.0, "默认口径应取实测中位"

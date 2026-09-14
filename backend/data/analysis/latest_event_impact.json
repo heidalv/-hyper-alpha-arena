@@ -1,92 +1,97 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789390285351,
+  "ts_ms": 1789390737858,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.838,
-  "run_id": "7c396540466e4ce0aebdd4d50d1fc08a",
-  "context_hash": "abe2edbc2b9f55449226fc8c3622415f71d38ac5b2f053a7bd47ab9b5be3f0b0",
+  "consensus_score": 0.7,
+  "run_id": "b78d9b9bb09f42e7be6c0854e36a52a3",
+  "context_hash": "256cae7bd2d661eabae6c5aca6737a9025ad1dd6c3659ac36658473b5f7faa94",
   "final": {
     "direction": "bullish",
-    "strength": 4.0,
-    "confidence": 0.46,
-    "half_life_hours": 7.0,
+    "strength": 4,
+    "confidence": 0.5,
+    "half_life_hours": 8,
     "affected_symbols": [
-      "CLUSDT",
-      "CL"
+      "GLM"
     ],
-    "hedging_window_hours": 8.0,
+    "hedging_window_hours": 12,
     "position_adjustments": [
       {
-        "symbol": "CLUSDT",
-        "action": "tighten_stops",
-        "reason": "bybit CL 资金费深度负值（-0.267%/8h，APR≈-292%），全网普遍负费（binance/asterdex/gateio 均负），说明空头拥挤、多头被付费持有；同时 OI 24h +23.6% 配合过去 1h +10.2% 的 OI 跳升，显示新增头寸快速堆积；24h 已有 36.2 万美元空单被清算（短清算远大于长清算），拥挤做空局面下任何反向波动都会触发更多空清算 → 短期偏 bullish（short squeeze 风险）。但 severity 仅 3 且为单交易所极端，未引发跨交易所联动异常，强度有限；当前账户未持有 CL 头寸，应避免在极端资金费/高 OI 跳升时追多，建议对已有 CL 多头（若有）收紧止损，无新仓位则观望。"
+        "symbol": "GLM",
+        "action": "no_new_short",
+        "reason": "bybit 资金费 -0.365%/8h（≈-399% APR），binance -0.628%、gateio -0.384% 同向极端负费率，空头拥挤：做空需持续支付资金费且面临挤压风险"
       },
       {
-        "symbol": "CL",
-        "action": "no_new_short",
-        "reason": "CL 四所资金费同向深度为负（bybit -0.267%/8h≈-292.4% APR、gateio -0.2375%、asterdex -0.1467%、binance -0.1451%），空头拥挤（global_ls 0.302、top_pos_ls 0.528）且 24h 空头清算 $362,012 约为多头 $55,149 的 6.6 倍，挤压风险已现；新开空头还需支付约 0.267%/8h 的资金费 carry，成本与尾部风险双高，故暂停新开空头。做多端因负资金费收取 carry，但缺 K 线验证价格趋势，不主动建议加多。"
+        "symbol": "BTC",
+        "action": "none",
+        "reason": "事件为 GLM 小市值币资金费异常，主流币未出现在资金费极端名单，现有 BTC 多头（+0.99%/+0.45%）不受直接影响"
+      },
+      {
+        "symbol": "ETH",
+        "action": "none",
+        "reason": "GLM 资金费冲击未传导至主流币资金费结构，ETH 趋势持仓（+0.58%）维持不动"
+      },
+      {
+        "symbol": "SOL",
+        "action": "none",
+        "reason": "SOL 未出现在极端资金费名单，两笔多头（+1.72%/+0.13%）与 GLM 事件无直接关联"
+      },
+      {
+        "symbol": "BNB",
+        "action": "none",
+        "reason": "BNB 未受 GLM 资金费异常影响，两笔多头小幅浮亏（-1.11%/-0.19%）由自身止损框架管理，无需因本事件加码"
+      },
+      {
+        "symbol": "XRP",
+        "action": "none",
+        "reason": "XRP 多头浮盈（+3.48%/+2.03%）且不在极端资金费名单，维持现有止盈止损纪律"
+      },
+      {
+        "symbol": "UNI",
+        "action": "none",
+        "reason": "UNI 未受事件直接影响，持仓浮亏 -0.51% 在正常止损距离（4.18%）内，无需调整"
       }
     ],
     "analogues": [
       {
-        "event": "过去 24h 同类型 bybit 极端负资金费（LSK -2.0%、STEEM -1.244%、POWR -1.136% 等 sev=4）",
-        "outcome": "多伴随短期空头挤压与价格反弹，但因多数为低流动性小币，持续性差、半衰期短"
+        "event": "同批次多所小市值币极端负资金费：LSK -1.0%~-2.0%/8h、STEEM -1.2%~-1.3%/8h、POWR -0.9%~-1.1%/8h、CVC -1.2%/8h（binance/bybit/gateio/asterdex 同向）",
+        "outcome": "context pack 未提供这些事件之后的后续价格验证数据，无法确认空头挤压是否兑现，数据不足"
       },
       {
-        "event": "CL 1h OI +10.2% 名义跳升（1789376400000）",
-        "outcome": "OI 跳升叠加深度负资金费通常预示短期 short squeeze 风险升高"
-      },
-      {
-        "event": "同 ts 跨交易所 CL 资金费（binance -0.101%、asterdex -0.101%、gateio -0.192%）",
-        "outcome": "全网负费但 bybit 单边显著更深，存在跨所套利与潜在价格快速回归"
-      },
-      {
-        "event": "同一 8h 窗口小市值币种集群性极端负资金费（LSK bybit -2.000%/8h、STEEM bybit -1.244%/8h、POWR bybit -1.136%/8h、CVC binance -0.8646%/8h 等）",
-        "outcome": "事件进行中，context 未提供后续价格/清算结局数据，无法验证空头挤压路径是否兑现"
-      },
-      {
-        "event": "CL 自身 1h OI 名义跳升 +10.2%（$317,827,254 → $350,235,360），24h OI +23.62%",
-        "outcome": "新仓位持续流入且账户结构显著偏空（global_ls 0.302），方向性结局未落地"
-      },
-      {
-        "event": "CL 较晚快照（ts 1789374923813）显示 asterdex/binance 资金费回落至 -0.101%/8h",
-        "outcome": "极端值出现均值回归迹象，支持半衰期约一个 8h 资金费周期的判断，但也削弱挤压即刻发生的确定性"
+        "event": "GLM 三所同步极端负费率（binance -0.628%/bybit -0.365%/gateio -0.384%）叠加 24h 空头清算 $42,707 > 多头清算 $23,753",
+        "outcome": "近 24h GLM 价格 +3.79%（1d）、+7.26%（7d），空头清算已多于多头，与空头挤压修复方向一致；但为单一样本，不可外推"
       }
     ],
     "key_factors": [
-      "bybit CL 资金费 -0.267%/8h（APR -292%），全交易所中最深",
-      "CL 24h OI 跳升 +23.62%，1h OI 名义再 +10.2%，新增头寸活跃",
-      "24h 短清算 $362K 远大于长清算 $55K，空头已被部分挤压",
-      "global L/S 0.302、top_pos L/S 0.528，整体偏多结构",
-      "缺失 CL K 线数据，无法确认价格趋势，仅基于资金费/持仓结构推断",
-      "severity=3，低于同批 LSK/STEEM/POWR 的 sev=4，强度有限",
-      "账户当前无 CL 持仓，无直接敞口需要调整",
-      "多所共振：CL 资金费在 bybit/gateio/asterdex/binance 四所同时深度为负，bybit 最深 -0.267%/8h，排除单所噪音",
-      "空头拥挤：global_ls 0.302、top_pos_ls 0.528，账户与头部持仓结构均显著偏空",
-      "挤压前兆：24h 空头清算 $362,012 vs 多头清算 $55,149（约 6.6 倍），空头已被动离场",
-      "OI 放大：24h OI +23.62% 且 1h 跳升 +10.2%（~$318M→$350M），拥挤空头叠加新资金流入，波动放大风险升高",
-      "carry 结构：负资金费下做空支付约 -292% APR，激励结构反向压制空头、利多多头",
-      "均值回归迹象：较晚快照 asterdex/binance CL 资金费已收窄至 -0.101%/8h，极端状态可能在 1-2 个结算周期内消退",
-      "数据缺口：market 层 CL 无 K 线（价格趋势无法验证）、correlation_pairs 为空（无法外溢至现有 BTC/ETH/SOL/BNB/XRP/UNI 多头账面）、context 无历史同类事件结局样本，故强度与置信度受限"
+      "GLM 三所资金费同步极端为负（bybit -0.365%/8h ≈-399% APR、binance -0.628%、gateio -0.384%），显著超过 0.1%/8h 阈值，指向空头头寸拥挤",
+      "负资金费下空头需向多头持续支付费用，历史上属反向偏多信号，存在空头挤压（short squeeze）上行风险；事件采集器亦标注 dir=0.5",
+      "GLM 已处于上行趋势：+3.79%(1d)/+7.26%(7d)，RSI14=66.5 偏强未极端，24h 空头清算 $42.7k 大于多头 $23.8k，与挤压修复一致",
+      "数据不一致警示：flows 层 GLM 当前 8h 资金费（binance -0.0998%、bybit +0.005%、gateio -0.0388%）远温和于事件快照值，可能为口径/时点差异，需降低置信度",
+      "系统性背景：同一时刻 LSK/POWR/STEEM/CVC/PUNDIX 等多币种同现极端负费率、BSP/FATCOIN 极端正费率，更像小市值板块性拥挤而非 GLM 个币独立冲击",
+      "当前组合 10 笔持仓（BNB/BTC/ETH/SOL/UNI/XRP）均不含 GLM，账户 gross exposure 100.9% 已满，事件直接敞口影响有限"
     ],
-    "summary": "bybit CL 出现深度负资金费（-292% APR）叠加 OI 24h +23.6% 和 1h +10.2% 的快速堆积，且 24h 已有 $362K 短清算被触发，提示空头拥挤、存在 short squeeze 倾向，方向偏 bullish。但因 severity=3、跨所联动不极端（binance/asterdex 仅 -0.101%）且缺失价格 K 线确认，强度与置信度有限，half-life 估计较短。账户当前无 CL 敞口，无需主动建仓；若已有 CL 多头应 tighten_stops，无仓位则保持 none 观望。"
+    "summary": "GLM 三所资金费同现极端负值（bybit -0.365%/8h，binance -0.628%，gateio -0.384%，约 -400%~-690% APR），指向空头拥挤，属偏反向的短期利多信号；GLM 近 1d +3.79%、7d +7.26%，24h 空头清算（$42.7k）大于多头（$23.8k），与空头挤压修复方向一致。但置信度受两点压制：其一，flows 层 GLM 当前 8h 资金费（binance -0.0998%/bybit +0.005%）显著温和于事件快照，存在口径或时点不一致；其二，同批 LSK/POWR/STEEM/CVC 等多币种同步极端负费率，更像系统性小市值拥挤而非 GLM 个币独立冲击。当前持仓不含 GLM 且总敞口已满（100.9%），直接影响有限：建议仅对 GLM 施加 no_new_short（负费率下做空成本极高且有挤压风险），其余主流币持仓维持不动。信号强度中等（4/10），半衰期约 1 个资金费周期（8h），对冲观察窗口 12h；context pack 缺乏历史同类事件后续走势样本，故不据此新开多头。",
+    "arbitration": {
+      "verdict": "B",
+      "by": "glm_opencode_alt",
+      "rationale": "B 的事实链更准确且自洽。关键分歧在跨所资金费解读：A 声称 bybit -0.365%/gateio -0.384% 与 binance -0.0998% 不一致，但这是混用了两个时点——flows 层 as_of=1789257600000 比事件 ts=1789373112896 早约 32 小时；在事件同一时间戳上，事件列表显示三所同步深负（binance -0.628%、bybit -0.365%、gateio -0.384%），是同步拥挤而非分歧，B 正确识别了该口径差异并据此压低置信度。方向上，极端负费率指向空头拥挤，采集器本身标注 dir=0.5；GLM 24h 空头清算 $42.7k>多头 $23.7k、1d +3.79%/7d +7.26% 的动量与空头挤压修复方向一致，支持 B 的温和看多。B 的警示（同批 ~20 个小市值币同步极端、severity=3 低于同类、flows 快照更温和、组合无 GLM 敞口且 gross exposure 100.9% 已满）已吸收了 A 的有效论点，故 A 的 neutral 属于过度保守且含时点错配错误。B 仅提 no_new_short 而不新开多头，动作与证据强度匹配。"
+    }
   },
   "notes": [],
   "event": {
-    "id": 102629,
+    "id": 102638,
     "event_type": "funding.extreme",
-    "symbol": "CL",
+    "symbol": "GLM",
     "ts_ms": 1789373112896,
     "severity": 3,
     "direction": 0.5,
-    "title": "bybit CL 资金费 -0.267%/8h（≈-292% APR）",
+    "title": "bybit GLM 资金费 -0.365%/8h（≈-399% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -292.4,
-      "rate_8h": -0.00267,
+      "apr_pct": -399.2,
+      "rate_8h": -0.0036457,
       "exchange": "bybit",
-      "rate_raw": -0.00267,
+      "rate_raw": -0.0036457,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

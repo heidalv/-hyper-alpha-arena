@@ -60,10 +60,14 @@ MAX_CANDIDATES = 24          # 覆盖当前完整单维网格（16）并留扩�
 ROLLBACK_HOURS = 12.0        # 变更后观察窗口
 ROLLBACK_NET_BP = -1.0       # 观察窗净 bp 低于此值 ⇒ 回滚
 # [F116 2026-09-14] 多口径稳健性检查用的"成交桶可见性滞后"网格（毫秒）。
-# 成交桶按落库时刻分桶（实测滞后中位 7.6s、p10 1.6s、p90 13.5s，网格只填 47.5%）
-# ⇒ 滞后假设本身是模型的一个自由度：实测 4.4/8.8/17.6s 下同一候选的全窗净额在
-# 0.46~2.20bp 间摆动（4.8×）✗。上线决策必须在这个网格上都不实质回退。
-ROBUST_DELAYS_MS = (4400.0, 8800.0, 17600.0)
+# 为什么需要：成交桶按**落库时刻**分桶（`floor(flush/15s)`）且 15s 网格只填 47.5%，
+# 实测落库滞后 = **中位 7.6s、p10 1.6s、p90 13.5s**。这个滞后是模型的一个自由度：
+# 实测同一配置在 4.4/8.8/17.6s 下的全窗净额在 0.46~2.20bp 间摆动（4.8×）✗。
+# 上线决策必须在这个网格上都不实质回退。
+# [F118] 网格取**实测分布**的分位点（p10/中位/p90）而不是等距三点：
+# 17.6s 已超出 p90 ⇒ 那是压力档而非中心情形，用它当门槛会否掉所有变更 ✗。
+ROBUST_DELAYS_MS = (1600.0, 7600.0, 13500.0)
+DEFAULT_TICK_DELAY_MS = 7600.0   # = 实测落库滞后中位（回放的默认可见性滞后）
 
 
 def evolve_enabled() -> bool:
@@ -287,7 +291,7 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
     _compound = float(cur_params.get("compound_ratio") or 0.0)
 
     def _evaluate(params_like: Dict[str, Any], slice_data: Dict[str, Any],
-                  delay_ms: float = 8800.0) -> Dict[str, Any]:
+                  delay_ms: float = DEFAULT_TICK_DELAY_MS) -> Dict[str, Any]:
         qp = QuoteParams(**{k: v for k, v in params_like.items()
                             if k in QuoteParams.__dataclass_fields__})
         lim = LaneRiskLimits(**{k: v for k, v in params_like.items()
