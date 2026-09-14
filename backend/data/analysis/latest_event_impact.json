@@ -1,126 +1,92 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789389917483,
+  "ts_ms": 1789390285351,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.829,
-  "run_id": "ede8d27bb56d44cc8ba9203b2d3fb547",
-  "context_hash": "1d3d6c2af0884414319cfe3a95ef2d1ba88b8241010e09227890428a61706ca8",
+  "consensus_score": 0.838,
+  "run_id": "7c396540466e4ce0aebdd4d50d1fc08a",
+  "context_hash": "abe2edbc2b9f55449226fc8c3622415f71d38ac5b2f053a7bd47ab9b5be3f0b0",
   "final": {
-    "direction": "bearish",
+    "direction": "bullish",
     "strength": 4.0,
-    "confidence": 0.525,
-    "half_life_hours": 14.0,
+    "confidence": 0.46,
+    "half_life_hours": 7.0,
     "affected_symbols": [
-      "PLAYUSDT",
-      "PLAY"
+      "CLUSDT",
+      "CL"
     ],
-    "hedging_window_hours": 16.0,
+    "hedging_window_hours": 8.0,
     "position_adjustments": [
       {
-        "symbol": "PLAYUSDT",
-        "action": "no_new_long",
-        "reason": "Gate.io funding spikes to +0.211%/8h (≈+231% APR) signal crowded longs / short hedge demand on a low-cap, high-vol name (ATR14≈10%, RV30≈87%). Expect mean-reversion / short-squeeze unwind risk; avoid adding long exposure until funding normalizes."
-      },
-      {
-        "symbol": "PLAYUSDT",
+        "symbol": "CLUSDT",
         "action": "tighten_stops",
-        "reason": "Even though we hold no PLAY position, the cross-exchange funding divergence (gateio 0.1165% vs binance 0.0453% vs asterdex 0.005%) plus 24h broad funding-extreme cluster (LSK, POWR, STEEM, CVC, GLM, BSP) signals elevated cascade/liquidation risk across alts; tighten stops on existing alt longs (BNB, SOL, UNI, XRP) on account 14 to limit contagion drawdown."
+        "reason": "bybit CL 资金费深度负值（-0.267%/8h，APR≈-292%），全网普遍负费（binance/asterdex/gateio 均负），说明空头拥挤、多头被付费持有；同时 OI 24h +23.6% 配合过去 1h +10.2% 的 OI 跳升，显示新增头寸快速堆积；24h 已有 36.2 万美元空单被清算（短清算远大于长清算），拥挤做空局面下任何反向波动都会触发更多空清算 → 短期偏 bullish（short squeeze 风险）。但 severity 仅 3 且为单交易所极端，未引发跨交易所联动异常，强度有限；当前账户未持有 CL 头寸，应避免在极端资金费/高 OI 跳升时追多，建议对已有 CL 多头（若有）收紧止损，无新仓位则观望。"
       },
       {
-        "symbol": "PLAY",
-        "action": "no_new_long",
-        "reason": "gateio 资金费 +0.2111%/8h（≈231% APR）为 0.1% 阈值的 2.1 倍，多头拥挤付高费、空头持高额 carry，短线多头挤压/套利抛压风险偏空；禁止新开多，仅可在套利框架下评估空单收 carry"
-      },
-      {
-        "symbol": "BTC",
-        "action": "none",
-        "reason": "事件为 PLAY 单币种费率异动，组合未持有 PLAY；PLAY 与 BTC 相关性数据缺失（corr_to_btc 为空），无联动证据，不调节现有 BTC 持仓"
-      },
-      {
-        "symbol": "ETH",
-        "action": "none",
-        "reason": "同上：事件仅涉及 PLAY，与主流币无相关性数据支持外推，持仓不调节"
-      },
-      {
-        "symbol": "SOL",
-        "action": "none",
-        "reason": "同上：单币种资金费异常，对 SOL 无直接传导证据"
-      },
-      {
-        "symbol": "BNB",
-        "action": "none",
-        "reason": "同上：BNB 两笔持仓（mid/trend）与 PLAY 事件无关联证据"
-      },
-      {
-        "symbol": "XRP",
-        "action": "none",
-        "reason": "同上：事件不涉及 XRP，不调节"
-      },
-      {
-        "symbol": "UNI",
-        "action": "none",
-        "reason": "同上：事件不涉及 UNI，不调节"
+        "symbol": "CL",
+        "action": "no_new_short",
+        "reason": "CL 四所资金费同向深度为负（bybit -0.267%/8h≈-292.4% APR、gateio -0.2375%、asterdex -0.1467%、binance -0.1451%），空头拥挤（global_ls 0.302、top_pos_ls 0.528）且 24h 空头清算 $362,012 约为多头 $55,149 的 6.6 倍，挤压风险已现；新开空头还需支付约 0.267%/8h 的资金费 carry，成本与尾部风险双高，故暂停新开空头。做多端因负资金费收取 carry，但缺 K 线验证价格趋势，不主动建议加多。"
       }
     ],
     "analogues": [
       {
-        "event": "gateio BSP funding +1.433%/8h (≈+1569% APR)",
-        "outcome": "Extreme positive funding on low-cap token typically precedes short-term top as long crowding exhausts; historically followed by sharp pullback within 24-48h as shorts collect carry and squeeze unwinds."
+        "event": "过去 24h 同类型 bybit 极端负资金费（LSK -2.0%、STEEM -1.244%、POWR -1.136% 等 sev=4）",
+        "outcome": "多伴随短期空头挤压与价格反弹，但因多数为低流动性小币，持续性差、半衰期短"
       },
       {
-        "event": "gateio FATCOIN funding +1.414%/8h (≈+1548% APR)",
-        "outcome": "Similar low-cap, single-venue funding spike; price often mean-reverts after funding peak as arbitrage/short-hedge flow caps further upside."
+        "event": "CL 1h OI +10.2% 名义跳升（1789376400000）",
+        "outcome": "OI 跳升叠加深度负资金费通常预示短期 short squeeze 风险升高"
       },
       {
-        "event": "Cross-exchange LSK funding extremes (-2.0% bybit vs -1.0% binance)",
-        "outcome": "When multiple venues simultaneously show extreme negative funding, signals broad short-crowding; brief reflexive bounces but underlying bias remains fragile."
+        "event": "同 ts 跨交易所 CL 资金费（binance -0.101%、asterdex -0.101%、gateio -0.192%）",
+        "outcome": "全网负费但 bybit 单边显著更深，存在跨所套利与潜在价格快速回归"
       },
       {
-        "event": "gateio FATCOIN 资金费 +1.6064%/8h（pack 内同类正费率极端，sev 4）",
-        "outcome": "数据不足：context 未提供该事件后续价格表现，无法验证均值回归规律"
+        "event": "同一 8h 窗口小市值币种集群性极端负资金费（LSK bybit -2.000%/8h、STEEM bybit -1.244%/8h、POWR bybit -1.136%/8h、CVC binance -0.8646%/8h 等）",
+        "outcome": "事件进行中，context 未提供后续价格/清算结局数据，无法验证空头挤压路径是否兑现"
       },
       {
-        "event": "bybit BSP 资金费 +1.433%/8h（pack 内同类正费率极端，sev 4）",
-        "outcome": "数据不足：context 未提供后续涨跌结果"
+        "event": "CL 自身 1h OI 名义跳升 +10.2%（$317,827,254 → $350,235,360），24h OI +23.62%",
+        "outcome": "新仓位持续流入且账户结构显著偏空（global_ls 0.302），方向性结局未落地"
       },
       {
-        "event": "LSK 多交易所资金费 -1.0%~-2.0%/8h（pack 内负费率极端簇，sev 4）",
-        "outcome": "数据不足：context 未提供后续价格表现"
+        "event": "CL 较晚快照（ts 1789374923813）显示 asterdex/binance 资金费回落至 -0.101%/8h",
+        "outcome": "极端值出现均值回归迹象，支持半衰期约一个 8h 资金费周期的判断，但也削弱挤压即刻发生的确定性"
       }
     ],
     "key_factors": [
-      "Gate.io PLAY funding at +0.211%/8h (~231% APR) is ~2.1x the 0.1% threshold, qualifying as 'extreme' but only severity 3 — moderate not maximum",
-      "Cross-exchange funding divergence on PLAY (gateio 0.1165% vs binance 0.0453% vs asterdex 0.005%) suggests localized Gate.io positioning, not a broad market move",
-      "PLAY is a micro-cap: last price ~$0.032, ATR14 ≈10.1% daily, RV30 ≈87% annualized — high-vol, low-liquidity profile amplifies funding shocks",
-      "24h funding-extreme cluster across many alts (LSK, POWR, STEEM, CVC, GLM, BSP, FATCOIN) indicates a regime of crowded one-sided positioning across the alt complex, raising cascade risk",
-      "1d return +4.73% but 7d -12.25% — the funding spike coincides with a short-term bounce inside a downtrend, classic late-stage squeeze signature",
-      "RSI14=44.2 is neutral, not overbought, slightly moderating the 'top is in' read",
-      "No direct PLAY exposure in current portfolio — impact is indirect (alt-complex contagion), reducing urgency",
-      "gateio PLAY 资金费 +0.2111%/8h（231% APR），为 threshold_8h 0.1% 的约 2.1 倍，severity 3、事件方向标签 -0.5（偏空）",
-      "费率较 flows 快照持续抬升：约 12 小时前 gateio 为 0.1165%/8h，事件时升至 0.2111%，过热在加速",
-      "跨所费率分化显著：gateio 0.1165% > binance 0.0453% > asterdex 0.005%，属单所局部过热而非全市场拥挤，方向信号强度打折",
-      "PLAY 1 日 +4.73% 但 7 日 -12.25%、RSI14 44.2，日线未极端超买；高波动小市值币（ATR14 10.14%/日、RV30 87.2%），费率极端下双向挤压风险大",
-      "组合 10 笔持仓全部为主流币（BNB/BTC/ETH/SOL/UNI/XRP），未持有 PLAY，事件直接敞口为零",
-      "24h 内全市场资金费极端事件密集（events_total_24h=200，多为负费率簇），PLAY 属个别正费率异动，非系统性信号"
+      "bybit CL 资金费 -0.267%/8h（APR -292%），全交易所中最深",
+      "CL 24h OI 跳升 +23.62%，1h OI 名义再 +10.2%，新增头寸活跃",
+      "24h 短清算 $362K 远大于长清算 $55K，空头已被部分挤压",
+      "global L/S 0.302、top_pos L/S 0.528，整体偏多结构",
+      "缺失 CL K 线数据，无法确认价格趋势，仅基于资金费/持仓结构推断",
+      "severity=3，低于同批 LSK/STEEM/POWR 的 sev=4，强度有限",
+      "账户当前无 CL 持仓，无直接敞口需要调整",
+      "多所共振：CL 资金费在 bybit/gateio/asterdex/binance 四所同时深度为负，bybit 最深 -0.267%/8h，排除单所噪音",
+      "空头拥挤：global_ls 0.302、top_pos_ls 0.528，账户与头部持仓结构均显著偏空",
+      "挤压前兆：24h 空头清算 $362,012 vs 多头清算 $55,149（约 6.6 倍），空头已被动离场",
+      "OI 放大：24h OI +23.62% 且 1h 跳升 +10.2%（~$318M→$350M），拥挤空头叠加新资金流入，波动放大风险升高",
+      "carry 结构：负资金费下做空支付约 -292% APR，激励结构反向压制空头、利多多头",
+      "均值回归迹象：较晚快照 asterdex/binance CL 资金费已收窄至 -0.101%/8h，极端状态可能在 1-2 个结算周期内消退",
+      "数据缺口：market 层 CL 无 K 线（价格趋势无法验证）、correlation_pairs 为空（无法外溢至现有 BTC/ETH/SOL/BNB/XRP/UNI 多头账面）、context 无历史同类事件结局样本，故强度与置信度受限"
     ],
-    "summary": "Gate.io PLAY funding spiked to ~+231% APR, indicating heavy long crowding on a micro-cap, high-vol name (ATR ~10%/day). Severity 3 and only moderate divergence across venues tempers the signal, but combined with a 24h cluster of alt funding extremes (LSK, POWR, STEEM, CVC, BSP) it flags elevated short-squeeze-unwind / liquidation cascade risk across alts. We have no direct PLAY position; impact is indirect via alt contagion. Action: do not initiate new PLAY longs, and tighten stops on existing alt longs (BNB/SOL/UNI/XRP) on account 14. Confidence is moderate (0.55) because PLAY is small-cap, the spike is single-venue, and no direct exposure exists — outcome is more a risk-management trigger than a directional PLAY trade."
+    "summary": "bybit CL 出现深度负资金费（-292% APR）叠加 OI 24h +23.6% 和 1h +10.2% 的快速堆积，且 24h 已有 $362K 短清算被触发，提示空头拥挤、存在 short squeeze 倾向，方向偏 bullish。但因 severity=3、跨所联动不极端（binance/asterdex 仅 -0.101%）且缺失价格 K 线确认，强度与置信度有限，half-life 估计较短。账户当前无 CL 敞口，无需主动建仓；若已有 CL 多头应 tighten_stops，无仓位则保持 none 观望。"
   },
   "notes": [],
   "event": {
-    "id": 104635,
+    "id": 102629,
     "event_type": "funding.extreme",
-    "symbol": "PLAY",
-    "ts_ms": 1789387508126,
+    "symbol": "CL",
+    "ts_ms": 1789373112896,
     "severity": 3,
-    "direction": -0.5,
-    "title": "gateio PLAY 资金费 +0.211%/8h（≈+231% APR）",
+    "direction": 0.5,
+    "title": "bybit CL 资金费 -0.267%/8h（≈-292% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": 231.2,
-      "rate_8h": 0.002111,
-      "exchange": "gateio",
-      "rate_raw": 0.002111,
+      "apr_pct": -292.4,
+      "rate_8h": -0.00267,
+      "exchange": "bybit",
+      "rate_raw": -0.00267,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

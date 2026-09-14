@@ -59,6 +59,11 @@ FULL_TOL = 0.02
 MAX_CANDIDATES = 24          # 覆盖当前完整单维网格（16）并留扩展余量
 ROLLBACK_HOURS = 12.0        # 变更后观察窗口
 ROLLBACK_NET_BP = -1.0       # 观察窗净 bp 低于此值 ⇒ 回滚
+# [F116 2026-09-14] 多口径稳健性检查用的"成交桶可见性滞后"网格（毫秒）。
+# 成交桶按落库时刻分桶（实测滞后中位 7.6s、p10 1.6s、p90 13.5s，网格只填 47.5%）
+# ⇒ 滞后假设本身是模型的一个自由度：实测 4.4/8.8/17.6s 下同一候选的全窗净额在
+# 0.46~2.20bp 间摆动（4.8×）✗。上线决策必须在这个网格上都不实质回退。
+ROBUST_DELAYS_MS = (4400.0, 8800.0, 17600.0)
 
 
 def evolve_enabled() -> bool:
@@ -127,10 +132,20 @@ def full_grid_size(current: Dict[str, Any]) -> int:
 def should_deploy(cand: Dict[str, Any], inc: Dict[str, Any],
                   *, min_fills: int = MIN_FILLS, max_dd_pct: float = MAX_DD_PCT,
                   min_improve_bp: float = MIN_IMPROVE_BP,
-                  min_improve_usd: float = MIN_IMPROVE_USD) -> Tuple[bool, str]:
+                  min_improve_usd: float = MIN_IMPROVE_USD,
+                  robust: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
     """护栏判定（纯函数，可单测）：候选是否可在验证窗替换在位配置。
 
     fail-closed：任何一项不满足即拒绝，并给出原因。
+
+    [F116 2026-09-14] `robust`（可选）= 多口径稳健性表
+    `{"delays_ms": [...], "cand_usd": [...], "inc_usd": [...]}`。
+    为什么必须加它：成交桶按**落库时刻**分桶（滞后 1~13s，网格只填 47.5%），
+    "哪笔成交打到哪张单"存在 ±15~30s 不确定性；实测把可见性滞后从 8.8s 换成
+    4.4s/17.6s，同一候选的全窗净额在 **0.46~2.20bp** 间摆动（4.8×）✗✗
+    ⇒ 单口径的"改进"很可能只是口径噪声。稳健性门槛：
+      · 每个口径下候选都不得比在位**实质回退**（容忍 FULL_TOL）；
+      · 且至少半数口径下候选更优。
     """
     if int(cand.get("fills") or 0) < int(min_fills):
         return False, f"样本不足({cand.get('fills')}<{min_fills})"
@@ -147,8 +162,24 @@ def should_deploy(cand: Dict[str, Any], inc: Dict[str, Any],
                        f"USD {c_usd:+.2f} vs {i_usd:+.2f})")
     if c_bp <= 0:
         return False, f"候选净边际非正({c_bp:+.3f}bp)"
+    if robust:
+        delays = list(robust.get("delays_ms") or [])
+        cu = [float(x or 0.0) for x in (robust.get("cand_usd") or [])]
+        iu = [float(x or 0.0) for x in (robust.get("inc_usd") or [])]
+        if delays and len(cu) == len(iu) == len(delays):
+            worse = [(d, c, i) for d, c, i in zip(delays, cu, iu)
+                     if c < i * (1.0 - FULL_TOL)]
+            if worse:
+                d0, c0, i0 = worse[0]
+                return False, (f"多口径不稳：滞后 {d0/1000:.1f}s 下净额 "
+                               f"${c0:.2f} < 在位 ${i0:.2f}×(1-{FULL_TOL})"
+                               f"（共 {len(worse)}/{len(delays)} 个口径回退）")
+            wins = sum(1 for c, i in zip(cu, iu) if c > i)
+            if wins * 2 < len(delays):
+                return False, f"多口径胜率不足({wins}/{len(delays)})"
     return True, (f"通过：净 {c_bp:+.3f}bp/{c_usd:+.2f}USD vs 在位 "
-                  f"{i_bp:+.3f}bp/{i_usd:+.2f}USD，fills={cand.get('fills')}")
+                  f"{i_bp:+.3f}bp/{i_usd:+.2f}USD，fills={cand.get('fills')}"
+                  + ("，多口径稳健" if robust else ""))
 
 
 def _params_from_meta(meta: Dict[str, Any]) -> Dict[str, Any]:
@@ -217,7 +248,7 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
         a2 = int(np.searchsorted(d["ots"], cut, "left"))
         t2 = int(np.searchsorted(d["tts"], cut, "left"))
         sub[s] = {k: d[k][a2:] for k in ("ots", "bb", "ba")}
-        for k in ("tts", "lo", "hi", "sv", "bv"):
+        for k in ("tts", "lo", "hi", "sv", "bv", "tmk"):
             sub[s][k] = d[k][t2:]
     # 训练/验证切分（时间顺序，无重叠）
     ots0 = sub[symbols[0]]["ots"]
@@ -240,19 +271,33 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
                 tm &= d["tts"] >= lo_ms
             if hi_ms is not None:
                 tm &= d["tts"] < hi_ms
-            for k in ("tts", "lo", "hi", "sv", "bv"):
+            for k in ("tts", "lo", "hi", "sv", "bv", "tmk"):
                 out[s][k] = d[k][tm]
         return out
 
     val_sub = _slice(split_ts, None)     # 验证窗（后段，用于「近期最优」选择）
 
-    def _evaluate(params_like: Dict[str, Any], slice_data: Dict[str, Any]) -> Dict[str, Any]:
+    # [F116 2026-09-14] 与实盘同源的波动基准与复利口径：
+    # 此前 `_evaluate` 只喂**切片**数据且不传 `vol_baseline` ⇒ `replay_portfolio` 会
+    # 用切片窗口现算基准 ⇒ 基准跟着最近波动走 ⇒ **σ 被系统性归零**（实测 σ=0 占 63%）
+    # ⇒ 挂宽变窄、成交变多 ⇒ 候选评分系统性偏乐观（F108c 的同一根因，这里更严重，
+    # 因为切片短）✗。实盘用的是注册表锚定值，必须显式传入。
+    # 同时补 `enforce_lane_limits`（实盘 .env 已武装）与复利腿量（compound_ratio）。
+    anchored_vb = dict((meta.get("replay_baseline") or {}).get("vol_baseline_bp") or {})
+    _compound = float(cur_params.get("compound_ratio") or 0.0)
+
+    def _evaluate(params_like: Dict[str, Any], slice_data: Dict[str, Any],
+                  delay_ms: float = 8800.0) -> Dict[str, Any]:
         qp = QuoteParams(**{k: v for k, v in params_like.items()
                             if k in QuoteParams.__dataclass_fields__})
         lim = LaneRiskLimits(**{k: v for k, v in params_like.items()
                                 if k in LaneRiskLimits.__dataclass_fields__})
         r = replay_portfolio(symbols, venue=venue, equity=equity, params=qp, limits=lim,
-                             fill_notional=fn, data=slice_data)
+                             fill_notional=fn, data=slice_data,
+                             vol_baseline=(anchored_vb or None),
+                             enforce_lane_limits=True,
+                             tick_delay_ms=delay_ms,
+                             fill_notional_ratio=(_compound if _compound > 0 else None))
         return {"fills": r["fills"], "net_bp": r.get("net_bp"),
                 "net_usd": r.get("net_usd"), "max_dd_pct": r.get("max_dd_pct"),
                 "flatten_share": r.get("flatten_share")}
@@ -293,8 +338,21 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
         inc_m = _evaluate(cur_params, val_sub)
 
     decision = {"deploy": False, "reason": "无候选（全窗口均不劣于在位的候选为空）"}
+    robust_tbl: Optional[Dict[str, Any]] = None
     if best is not None:
-        ok, why = should_deploy(best[1], inc_m)
+        # [F116] 上线前做**多口径稳健性**复核：同一候选在滞后 4.4/8.8/17.6s 三个口径下
+        # 都不得比在位实质回退（单口径的"改进"可能只是桶归属噪声，实测可摆动 4.8×）。
+        robust_tbl = {"delays_ms": list(ROBUST_DELAYS_MS), "cand_usd": [], "inc_usd": []}
+        try:
+            for _d in ROBUST_DELAYS_MS:
+                robust_tbl["cand_usd"].append(float(
+                    _evaluate(best[0], full_sub, _d).get("net_usd") or 0.0))
+                robust_tbl["inc_usd"].append(float(
+                    _evaluate(cur_params, full_sub, _d).get("net_usd") or 0.0))
+        except Exception as e:  # pragma: no cover
+            logger.warning("[F116] 稳健性复核失败(按不稳健处理): %s", e)
+            robust_tbl = None
+        ok, why = should_deploy(best[1], inc_m, robust=robust_tbl)
         changed = any(best[0].get(k) != cur_params.get(k) for k in GRID)
         if ok and changed:
             decision = {"deploy": True, "reason": why}
@@ -305,6 +363,8 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
 
     applied = False
     entry_extra: Dict[str, Any] = {"incumbent_full": inc_full}
+    if robust_tbl is not None:
+        entry_extra["robustness"] = robust_tbl
     if best is not None and decision["deploy"]:
         if evolve_enabled():
             applied = _apply_params(lane_id, meta, {k: best[0].get(k) for k in GRID},
