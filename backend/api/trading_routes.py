@@ -955,7 +955,7 @@ def config_fees() -> Dict[str, Any]:
 LANE_CONFIG_KEYS = ("w_base_bp", "min_width_bp", "min_width_reduce_bp", "max_width_bp",
                     "k_vol", "k_inv", "max_one_side_seconds", "vol_pause_sigma",
                     "max_net_directional_ratio", "max_net_exposure_ratio",
-                    "max_gross_notional_ratio")
+                    "max_gross_notional_ratio", "k_vol_sigma_cap")
 # [F94b 2026-09-14] 组合级敞口上限允许 **>1**（单位=权益倍数）：每个币的腿量就是
 # 1×权益，五标的并行做市天然需要多倍组合上限；把组合上限也压在 ≤1 会与
 # 「单币 = 1×权益」自相矛盾（实测该配置下真实净敞口冲到上限的 7.9 倍）。

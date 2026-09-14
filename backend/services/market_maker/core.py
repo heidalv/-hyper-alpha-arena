@@ -39,6 +39,9 @@ class QuoteParams:
     min_width_reduce_bp: float = 1.0  # 减仓侧下限：允许贴盘口，避免靠 taker 平仓
     max_width_bp: float = 60.0    # 上限，防止极端波动挂到天外
     k_vol: float = 0.5            # 波动放大系数
+    # [F97] σ 上限（0=不截断，旧行为逐字一致）：σ 无上界时半宽可被推到 14bp+，
+    # 远超真实边缘（实测当前 5 分钟波动可达基准的 5.4 倍）。
+    k_vol_sigma_cap: float = 0.0
     k_inv: float = float(os.getenv("MM_K_INV", "1.0"))            # 库存偏斜系数
     # [F80 2026-09-13] 冻结行情自适应挂宽：近 frozen_lookback 期的**单步最大移动**
     # （max|Δmid|）< frozen_max_move_bp ⇒ 判定行情冻结（微幅振荡、无穿越行情），
@@ -93,7 +96,14 @@ def compute_quote(
             and 0 < float(slow_range_bp) < float(params.frozen_max_move_bp)):
         base = float(params.frozen_width_bp)
     else:
-        base = params.w_base_bp * (1.0 + params.k_vol * max(0.0, sigma_norm))
+        # [F97 2026-09-14] σ 上限：`k_vol×σ` 原先**无上界**，实测 σ 可达 4~6
+        # （XRP 当前 5 分钟波动 = 基准的 5.4 倍）⇒ 半宽被推到 14bp（双边 28bp），
+        # 远超真实边缘。`k_vol_sigma_cap>0` 时先截断 σ 再放大（0=旧行为，逐字一致）。
+        _vol = max(0.0, sigma_norm)
+        _cap = float(getattr(params, "k_vol_sigma_cap", 0.0) or 0.0)
+        if _cap > 0:
+            _vol = min(_vol, _cap)
+        base = params.w_base_bp * (1.0 + params.k_vol * _vol)
     # 库存偏斜：多头库存 → 买价挂更远、卖价挂更近（鼓励减仓）
     w_bid = base * (1.0 + params.k_inv * inv_ratio)
     w_ask = base * (1.0 - params.k_inv * inv_ratio)

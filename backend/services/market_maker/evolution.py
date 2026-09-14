@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 JOURNAL_PATH = "data/mm_evolution_journal.jsonl"
 # 参数搜索的有界档位（每个键 = 候选值列表；当前值总在其中）
 GRID: Dict[str, List[Any]] = {
-    "w_base_bp": [3.0, 4.0, 5.0, 6.0, 8.0],
+    # [F97 2026-09-14] 补入 7.0：实测「USD-宽度」在 w5~w12 上是**中间峰值**曲线
+    # （4 折均值：w5 $22.2 / w6 $34.9 / w7 $28.5 / w8 $28.9 / w10 $24.1 / w12 $24.7），
+    # 而原网格 [3,4,5,6,8] 跳过了 7 —— 峰值附近必须有点，否则调参只能靠运气。
+    "w_base_bp": [3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
     "max_one_side_seconds": [600.0, 900.0, 1800.0],
     "k_inv": [0.6, 1.0],
     "frozen_max_move_bp": [5.0, 8.0, 12.0],
