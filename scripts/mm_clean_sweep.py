@@ -177,6 +177,19 @@ def main() -> int:
             sub[s][k] = d[k][t2:(t3 if t3 is not None else len(d[k]))]
     if until_ms:
         print(f"窗口终点 {args.until.strip()} ({until_ms}) —— 与实盘同窗口 ✓")
+    # [F213] 窗口**前**的 mid_hist 种子（与实盘 F109 的冷启动回填同口径 ✓）。
+    # 没有它，回放的 mid_hist 从空开始 ⇒ 冻结档在窗口前 20~30 分钟永不触发 ✗
+    # ⇒ 与实盘落在不同报价档位（F212 对拍：冻结 0.0% vs 78.2% ✗✗）。
+    seed: Dict[str, List[float]] = {}
+    for s in symbols:
+        d = data[s]
+        a2 = int(np.searchsorted(d["ots"], since_ms, "left"))
+        lo_i = max(0, a2 - 240)
+        ms = [float((d["bb"][k] + d["ba"][k]) / 2.0) for k in range(lo_i, a2)]
+        seed[s] = [x for x in ms if x > 0]
+    if any(seed.values()):
+        print(f"[F213] mid_hist 种子: "
+              + " ".join(f"{s}={len(seed[s])}" for s in symbols))
     n_ob = {s: len(sub[s]["ots"]) for s in symbols}
     n_tr = {s: len(sub[s]["tts"]) for s in symbols}
     span_h = 0.0
@@ -247,7 +260,8 @@ def main() -> int:
             r = replay_portfolio(symbols, venue=venue, equity=args.equity, params=qp, limits=lim,
                                  fill_notional=fn, data=sub, vol_baseline=(anchored_vb or None),
                                  enforce_lane_limits=True, tick_delay_ms=float(d),
-                                 fill_notional_ratio=(_leg if _leg > 0 else None))
+                                 fill_notional_ratio=(_leg if _leg > 0 else None),
+                                 mid_hist_seed=(seed or None))
             per.append({"delay_ms": d, "fills": r.get("fills"), "net_bp": r.get("net_bp"),
                         "net_usd": r.get("net_usd"), "max_dd_pct": r.get("max_dd_pct"),
                         "flatten_share": r.get("flatten_share"), "sec": round(time.time() - t1, 1),

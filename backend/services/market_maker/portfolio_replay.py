@@ -75,6 +75,7 @@ def replay_portfolio(
     params: Optional[QuoteParams] = None,
     limits: Optional[LaneRiskLimits] = None,
     fill_notional: float = 100.0,
+    mid_hist_seed: Optional[Dict[str, List[float]]] = None,
     max_gap_ms: int = 120_000,
     data: Optional[Dict[str, Dict[str, np.ndarray]]] = None,
     # [F84 2026-09-14] 复利模拟：>0 时每腿名义 = 该比例 × 运行权益（权益随已实现
@@ -114,6 +115,16 @@ def replay_portfolio(
     data = data or _load_all(symbols, venue)
 
     states = {s: SymbolState(symbol=s) for s in symbols}
+    # [F213 2026-09-15] **窗口前历史回填**（与实盘 F109 的 `backfill_mid_hist` 同口径 ✓）。
+    # 现场：回放从不回填 `mid_hist` ⇒ 窗口开始时它是空的 ⇒ `plan_tick` 里
+    # `if len(_hist) >= frozen_lookback+1` 不成立 ⇒ `slow_move_bp = 0`
+    # ⇒ **冻结档永不触发** ✗（同窗口实测：实盘冻结占比 78.2% vs 模型 0.0% ✗✗）。
+    # 而实盘启动时会把最近 240 期中价补齐 ⇒ 两侧**从第一个决策起就落在不同报价档位** ✗
+    # ⇒ 挂宽差 1.54 倍 ⇒ 穿越/成交差 0.6 倍（F212 对拍的真正解释 ✓）。
+    if mid_hist_seed:
+        for _s, _seed in mid_hist_seed.items():
+            if _s in states and _seed:
+                states[_s].mid_hist = [float(x) for x in _seed][-240:]
     # [F95] 影子对齐：以实盘运行态为初值（深拷贝，不改调用方对象）
     if init_states:
         for _s, _st in init_states.items():
