@@ -43,6 +43,21 @@ class QuoteParams:
     # 远超真实边缘（实测当前 5 分钟波动可达基准的 5.4 倍）。
     k_vol_sigma_cap: float = 0.0
     k_inv: float = float(os.getenv("MM_K_INV", "1.0"))            # 库存偏斜系数
+    # [F204 2026-09-15] 趋势**反向**偏斜（trend-fade skew）——与库存偏斜是**两个独立维度**。
+    #
+    # 为什么加它（账本实证，2915 笔、严格无未来函数）：
+    #   顺势成交（买在上涨 / 卖在下跌）实际净 **−4.053bp** ✗
+    #   逆势成交（买在下跌 / 卖在上涨）实际净 **+2.109bp** ✓   差 **6.16bp**
+    #   （重度逆势 +3.198bp；反事实：只剔除 |trend|>10bp 的顺势成交，保留 65% 名义，
+    #    账面从 −1.07bp 翻到 **+1.11bp** ✓）
+    # ⇒ 被动做市赚钱的方式是"**提供流动性吃回复**"，被"顺着走势打中"时才亏 ✗。
+    #   `k_inv` 按**库存**偏斜，管不到这一层；这里按**近期走势**偏斜：
+    #     上涨 ⇒ 买单挂更远（别追买 ✗）、卖单挂更近（顺势出货 ✓）
+    #     下跌 ⇒ 反过来
+    # 语义：`k_trend`=0（默认）= **逐字关闭**（旧行为完全不变 ✓）。
+    k_trend: float = 0.0
+    trend_skew_lookback: int = 60        # 回看期数（快照≈15s ⇒ 60 期 ≈ 15 分钟，与实证口径一致）
+    trend_skew_scale_bp: float = 20.0    # 净移动达到该值 ⇒ 偏斜打满（±1）
     # [F80 2026-09-13] 冻结行情自适应挂宽：近 frozen_lookback 期的**单步最大移动**
     # （max|Δmid|）< frozen_max_move_bp ⇒ 判定行情冻结（微幅振荡、无穿越行情），
     # 挂宽切到 frozen_width_bp。
@@ -77,6 +92,7 @@ def compute_quote(
     sigma_norm: float = 0.0,
     inv_ratio: float = 0.0,
     slow_range_bp: float = 0.0,
+    trend_bp: float = 0.0,
     params: QuoteParams = QuoteParams(),
 ) -> Optional[Quote]:
     """计算双边报价。
@@ -104,9 +120,22 @@ def compute_quote(
         if _cap > 0:
             _vol = min(_vol, _cap)
         base = params.w_base_bp * (1.0 + params.k_vol * _vol)
+    # [F204] 趋势反向偏斜（见 QuoteParams.k_trend 的证据说明）。
+    # 符号务必记住：**涨 ⇒ bid 挂远、ask 挂近**（= 双边整体下移 = 顺势出货 ✓）；
+    # 跌 ⇒ 反过来（= 整体上移 = 低吸 ✓）。写成反的会把边际从 +2bp 变成 −4bp ✗✗。
+    _kt = float(getattr(params, "k_trend", 0.0) or 0.0)
+    if _kt > 0 and trend_bp:
+        _scale = float(getattr(params, "trend_skew_scale_bp", 20.0) or 20.0)
+        _u = max(-1.0, min(1.0, float(trend_bp) / _scale)) if _scale > 0 else 0.0
+        _skew = _kt * _u
+        base_bid = base * max(0.05, 1.0 + _skew)
+        base_ask = base * max(0.05, 1.0 - _skew)
+    else:
+        base_bid = base
+        base_ask = base
     # 库存偏斜：多头库存 → 买价挂更远、卖价挂更近（鼓励减仓）
-    w_bid = base * (1.0 + params.k_inv * inv_ratio)
-    w_ask = base * (1.0 - params.k_inv * inv_ratio)
+    w_bid = base_bid * (1.0 + params.k_inv * inv_ratio)
+    w_ask = base_ask * (1.0 - params.k_inv * inv_ratio)
     # 宽度下限分侧：加仓侧守 min_width_bp（贴盘口实测为负），减仓侧可贴到
     # min_width_reduce_bp——否则库存到顶只能等超时用 taker 平仓，成本高一个量级。
     bid_floor = params.min_width_reduce_bp if inv_ratio < 0 else params.min_width_bp
@@ -543,19 +572,28 @@ def trend_move_bp(mid_hist: List[float], lookback: int = 20) -> float:
 
 def trend_blocked_side(mid_hist: List[float], trend_pause_bp: float,
                        lookback: int = 20) -> str:
-    """趋势过强时禁止**逆势侧**挂单，返回 "buy"/"sell"/""。
+    """趋势过强时禁止**顺势侧**挂单，返回 "buy"/"sell"/""。
 
-    逻辑：中价单边下跌时，买单会持续被逆选择（买了继续跌）→ 禁买；
-    单边上涨时，卖单被逆选择（卖了继续涨）→ 禁卖。
-    实测亏损平仓全部来自「下跌中买入后被迫平仓」，所以这道闸门正对着病灶。
+    [F204 2026-09-15] **符号修正**：本函数原来禁止的是**逆势侧**（跌→禁买、涨→禁卖），
+    依据是"实测亏损平仓全部来自下跌中买入后被迫平仓"。这个依据是**错的** ✗✗：
+      · 亏损之所以记在"下跌中买入"上，是因为账本把整段持仓的漂移记在**减仓那一笔**上
+        （`InventoryBook.apply_fill`：`realized_price_usd` 只在减仓腿结算 ⇒ 归因假象 ✗，
+        见 F187）——"买入"只是那笔减仓对应的开仓方向，不是亏损的原因；
+      · 直接按 2915 笔账本 + 严格无未来函数分组：**顺势成交 −4.053bp / 逆势成交 +2.109bp**
+        （差 6.16bp ✓，F199），逐笔 markout 也显示**全时段为负**、卖腿尤甚（F198b）；
+      · 旁证：F125 当年实测"打开 trend_pause 反而 −25~30%"，正是因为它封掉了赚钱的那一侧 ✓。
+
+    ⇒ 现在禁止**顺势侧**：上涨时禁买（别追涨 ✗）、下跌时禁卖（别杀跌 ✗）。
+      默认 `trend_pause_bp=0`（关闭）⇒ 线上行为不变 ✓；开启后方向与证据一致 ✓。
+      比它更柔和的版本是 `QuoteParams.k_trend` 的反向偏斜（不砍成交、只挪挂宽 ✓）。
     """
     if not trend_pause_bp or trend_pause_bp <= 0:
         return ""
     mv = trend_move_bp(mid_hist, lookback)
     if mv <= -abs(float(trend_pause_bp)):
-        return "buy"
+        return "sell"      # 下跌中"卖"是顺势 ✗（原来是 "buy"）
     if mv >= abs(float(trend_pause_bp)):
-        return "sell"
+        return "buy"       # 上涨中"买"是顺势 ✗（原来是 "sell"）
     return ""
 
 

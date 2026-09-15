@@ -314,10 +314,12 @@ def replay_symbol(
                          res, fold_buckets, fold_edges, n_folds, record, ots,
                          reason="stop_loss" if stop else "timeout")
 
-        # ② 报价（库存偏斜）
+        # ② 报价（库存偏斜 + [F204] 趋势反向偏斜）
         inv_ratio = book.inv_ratio(symbol, mid, limit_notional)
+        from backend.services.market_maker.core import trend_move_bp as _tmb
+        _trend_bp = _tmb(mid_hist, int(getattr(params, "trend_skew_lookback", 60) or 60))
         q = compute_quote(symbol=symbol, mid=mid, sigma_norm=sigma,
-                          inv_ratio=inv_ratio, params=params)
+                          inv_ratio=inv_ratio, trend_bp=_trend_bp, params=params)
         if q is None:
             res.skipped["no_quote"] = res.skipped.get("no_quote", 0) + 1
             continue

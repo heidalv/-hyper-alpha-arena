@@ -466,7 +466,7 @@ def plan_tick(
     from backend.services.market_maker.core import (
         InventoryBook, LaneRiskLimits, Position, QuoteParams, check_side_allowed,
         compute_quote, fill_side, lane_pause_reason, should_stop_loss,
-        trend_blocked_side, vol_regime_blocked,
+        trend_blocked_side, trend_move_bp, vol_regime_blocked,
     )
 
     params = params or QuoteParams()
@@ -682,8 +682,13 @@ def plan_tick(
                 if _mv > _maxmv:
                     _maxmv = _mv
         slow_move_bp = _maxmv
+    # [F204] 趋势反向偏斜用的"近期净移动"：与实证口径一致（回看 trend_skew_lookback 期，
+    # 快照≈15s ⇒ 默认 60 期 ≈ 15 分钟）。k_trend=0 时 compute_quote 内部直接跳过 ✓。
+    _trend_bp = trend_move_bp(
+        state.mid_hist, int(getattr(params, "trend_skew_lookback", 60) or 60))
     q = compute_quote(symbol=state.symbol, mid=mid, sigma_norm=sigma_norm,
-                      inv_ratio=inv_ratio, slow_range_bp=slow_move_bp, params=params)
+                      inv_ratio=inv_ratio, slow_range_bp=slow_move_bp,
+                      trend_bp=_trend_bp, params=params)
     if q is None:
         dec.skip = "no_quote"
         if dec.action != "flatten":
@@ -753,13 +758,20 @@ def plan_tick(
         pending_down_usd=float(_pend.get("down") or 0.0),
         pending_gross_usd=float(_pend.get("gross") or 0.0))
 
-    # [F71] 趋势闸门：单边行情里禁止逆势侧（下跌禁买、上涨禁卖）
+    # [F204 2026-09-15 符号修正] 趋势闸门：单边行情里禁止**顺势侧**
+    # （上涨禁买 = 别追涨 ✗、下跌禁卖 = 别杀跌 ✗）。
+    # 原来是反的（下跌禁买、上涨禁卖），依据"亏损平仓来自下跌中买入"——
+    # 那是账本归因假象（漂移记在减仓腿，见 F187）✗；2915 笔实证：顺势 −4.053bp /
+    # 逆势 +2.109bp（F199）。
     blocked = trend_blocked_side(state.mid_hist, limits.trend_pause_bp,
                                  limits.trend_lookback)
     # [F76 2026-09-12] 库存感知：趋势闸只封锁**加仓侧**。
     # 减仓侧在趋势里成交对持仓是**有利**的（多头在上涨中高价卖出、空头在
     # 下跌中低价回补）——此前减仓侧一并被封死，库存只能等超时 taker 平仓
     # （实盘平仓均价 -12.98bp，是亏损主因）。空仓时两侧都是加仓，语义不变。
+    # 注：这条豁免与 F204 的符号修正**正交** ✓ —— 反向之后它依旧正确：
+    #   多头 + 上涨 ⇒ blocked="buy"（加仓侧，不豁免）⇒ 仍封 ✗ ✓
+    #   空头 + 上涨 ⇒ blocked="buy"（回补=减仓侧）⇒ 豁免 ✓
     if blocked:
         _pos = local_book.qty(state.symbol)
         if _pos > 1e-12 and blocked == "sell":
@@ -767,9 +779,9 @@ def plan_tick(
         elif _pos < -1e-12 and blocked == "buy":
             blocked = ""          # 空头减仓侧（买），放行
     if blocked == "buy" and allow_buy:
-        allow_buy, why_buy = False, "trend_down"
+        allow_buy, why_buy = False, "trend_up"      # 上涨中禁买（顺势）
     elif blocked == "sell" and allow_sell:
-        allow_sell, why_sell = False, "trend_up"
+        allow_sell, why_sell = False, "trend_down"  # 下跌中禁卖（顺势）
 
     # [F86 2026-09-14] 流向毒性闸（学术）：按上一桶主动流失衡封锁**逆势加仓侧**。
     # 依据 Lu-Abergel 2018（市价单驱动的移动延续率 84.3% vs 撤单 27%）与
