@@ -57,7 +57,10 @@ def main() -> int:
             # [F189] 补进"出场地板"与"总上限"：前者是干净数据下唯一能把边际从负翻正的
             # 单旋钮（2.0→6.0 ⇒ −0.37/−0.5/−0.6bp 变 +0.68/+0.38/+0.31 ✓），后者会
             # **静默截断**所有宽度（`min(max_width_bp, ...)`）——两者都必须在体检里可见。
-            "min_width_reduce_bp", "min_width_bp", "max_width_bp")
+            "min_width_reduce_bp", "min_width_bp", "max_width_bp",
+            # [F217] 侧选择（新结构件）：side_mode=counter_trend 是"只在逆势侧挂单"的
+            # 结构性旋钮 ⇒ 体检必须能核对它是否生效（side_counts 里 one 应占绝大多数 ✓）。
+            "side_mode", "side_trend_min_bp")
     print("  " + "  ".join(f"{k}={params.get(k)}" for k in keys if k in params))
     lkeys = ("max_symbol_notional_ratio", "max_net_directional_ratio",
              "max_net_exposure_ratio", "max_gross_notional_ratio", "max_one_side_seconds",
