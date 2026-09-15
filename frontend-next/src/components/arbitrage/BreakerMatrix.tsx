@@ -149,7 +149,7 @@ export function BreakerMatrix({
                   <tr key={`${h.lane_id}-${h.breaker}`} className="border-b border-border/20">
                     <td className="font-medium">{h.lane_id}</td>
                     <td>{BREAKER_LABEL[h.breaker] ?? h.breaker}</td>
-                    <td className="text-right font-mono tabular-nums">{fmtNum(h.trips, 0)}</td>
+                    <td className="text-right font-mono tabular-nums">{fmtNum(h.trips ?? 0, 0)}</td>
                     <td className="text-muted-foreground">{h.last_ts ? fmtTime(h.last_ts) : "—"}</td>
                   </tr>
                 ))}

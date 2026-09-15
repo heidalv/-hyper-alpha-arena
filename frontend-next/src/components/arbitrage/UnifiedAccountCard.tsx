@@ -113,7 +113,7 @@ export function UnifiedAccountCard({
                     <td className={cn("text-right font-mono tabular-nums", signTone(s.pnl_usd))}>{fmtUsd(s.pnl_usd)}</td>
                     <td className="text-right font-mono tabular-nums text-muted-foreground">{fmtUsd(s.fee_usd)}</td>
                     <td className="text-right font-mono tabular-nums">{fmtUsd(s.capital_usd)}</td>
-                    <td className="text-right font-mono tabular-nums text-muted-foreground">{fmtNum(s.fills ?? s.entries, 0)}</td>
+                    <td className="text-right font-mono tabular-nums text-muted-foreground">{fmtNum(s.fills ?? s.entries ?? 0, 0)}</td>
                   </tr>
                 ))
               )}

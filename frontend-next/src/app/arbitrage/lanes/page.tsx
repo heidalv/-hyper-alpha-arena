@@ -502,7 +502,12 @@ function LaneDetail({ laneId }: { laneId: string }) {
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
               {Object.entries(config.data.params).map(([k, v]) => (
                 <span key={k} className="text-muted-foreground">
-                  {k} <span className="font-mono tabular-nums text-foreground">{fmtNum(v, 2)}</span>
+                  {/* 参数值的类型不保证是 number（可能为 null / 字符串 / 布尔）⇒
+                      不能直接喂给数值格式化函数（F195：曾因此让整页崩掉 ✗）。 */}
+                  {k}{" "}
+                  <span className="font-mono tabular-nums text-foreground">
+                    {typeof v === "number" ? fmtNum(v, 2) : String(v ?? "—")}
+                  </span>
                 </span>
               ))}
             </div>
