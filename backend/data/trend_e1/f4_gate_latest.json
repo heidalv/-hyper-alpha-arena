@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789348794265,
+  "ts_ms": 1789403701562,
   "passed": false,
   "live_aster_requested": false,
   "live_allowed": false,
@@ -26,7 +26,7 @@
     {
       "name": "fee_budget",
       "ok": true,
-      "fee_pct_week": 0.004648,
+      "fee_pct_week": 0.005355,
       "max": 0.01,
       "reason": null
     },

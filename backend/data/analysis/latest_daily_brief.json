@@ -1,14 +1,14 @@
 {
   "task": "daily_brief",
-  "ts_ms": 1789340568564,
+  "ts_ms": 1789426942098,
   "accepted": false,
   "status": "degraded",
   "consensus_score": 0.35,
-  "run_id": "5f605c53dd9342059fae705b37842fed",
-  "context_hash": "a6e89b9c931a24d377b879a0e15190a9e784b50e96e7e6756ebab8b7f7322839",
+  "run_id": "5779be7b69df4a33b86df86f91faaec8",
+  "context_hash": "e1406102e8c5935c7c432018f917d9f79fc7d1a5f6e8697674d79e991237bfbb",
   "final": null,
   "notes": [
-    "minimax: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)'}, 'request_id': '06f65e12d53e609f9929a01c4e1d20e1'}",
+    "minimax: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)'}, 'request_id': '06f7af941a279238aa459fafc79d7ab1'}",
     "单模型结论（glm_opencode），不得入 signal_ledger"
   ],
   "event": null

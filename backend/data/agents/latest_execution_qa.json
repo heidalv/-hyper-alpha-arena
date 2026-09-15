@@ -1,6 +1,6 @@
 {
   "agent": "execution_qa",
-  "ts_ms": 1789341300721,
+  "ts_ms": 1789427702130,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,23 +9,23 @@
   "credibility": {
     "agent": "execution_qa",
     "days": 60,
-    "n": 10,
-    "n_scored": 6,
-    "avg_score": 0.3333333333333333,
-    "avg_brier": 0.2303145076041666,
+    "n": 11,
+    "n_scored": 7,
+    "avg_score": 0.42857142857142855,
+    "avg_brier": 0.2115964365178571,
     "by_kind": [
       {
         "kind": "exec_quality",
-        "n": 10,
-        "n_scored": 6,
-        "avg_score": 0.3333333333333333,
-        "avg_brier": 0.2303145076041666,
-        "last_ms": 1789254905735
+        "n": 11,
+        "n_scored": 7,
+        "avg_score": 0.42857142857142855,
+        "avg_brier": 0.2115964365178571,
+        "last_ms": 1789341302972
       }
     ],
     "verdict": {
       "passed": false,
-      "reason": "已评分样本 6 < 30",
+      "reason": "已评分样本 7 < 30",
       "gate": {
         "min_scored": 30,
         "min_avg_score": 0.55,
@@ -39,42 +39,36 @@
     "per_account": [
       {
         "account_id": null,
-        "since_ms": 1788736500903,
-        "until_ms": 1789341300903,
-        "n_orders": 145,
+        "since_ms": 1788822902517,
+        "until_ms": 1789427702517,
+        "n_orders": 195,
         "notes": [
-          "3 笔成交缺基准价，未计入滑点",
           "maker/taker 占比与下单延迟未落库（仅存在于仿真器内存），本轮不评估"
         ],
-        "n_filled": 79,
+        "n_filled": 110,
         "n_rejected": 0,
         "n_partial": 0,
         "reject_rate": 0.0,
         "partial_rate": 0.0,
-        "median_slippage_bp": 19.355,
-        "avg_slippage_bp": 17.291,
-        "p90_slippage_bp": 25.608,
-        "n_slippage_samples": 76,
+        "median_slippage_bp": 18.293,
+        "avg_slippage_bp": 16.464,
+        "p90_slippage_bp": 29.411,
+        "n_slippage_samples": 110,
         "slippage_by_type": {
           "market": {
-            "n": 75,
-            "median_bp": 19.4
+            "n": 107,
+            "median_bp": 18.46
           },
           "stop_loss": {
-            "n": 1,
+            "n": 3,
             "median_bp": -0.0
           }
         },
         "worst_symbols": [
           {
             "symbol": "ASTER",
-            "n": 8,
-            "median_bp": 22.19
-          },
-          {
-            "symbol": "SOL",
-            "n": 13,
-            "median_bp": 20.2
+            "n": 12,
+            "median_bp": 20.4
           },
           {
             "symbol": "VIRTUAL",
@@ -82,18 +76,23 @@
             "median_bp": 19.86
           },
           {
-            "symbol": "BNB",
-            "n": 12,
+            "symbol": "SOL",
+            "n": 15,
             "median_bp": 19.4
           },
           {
             "symbol": "XRP",
-            "n": 9,
+            "n": 15,
             "median_bp": 18.85
+          },
+          {
+            "symbol": "ETH",
+            "n": 8,
+            "median_bp": 18.76
           }
         ],
-        "avg_fee_bp": 3.999,
-        "n_fee_samples": 79
+        "avg_fee_bp": 3.998,
+        "n_fee_samples": 110
       }
     ],
     "n_usable": 1,
@@ -101,18 +100,13 @@
       {
         "account_id": null,
         "type": "slippage",
-        "value": 19.355,
+        "value": 18.293,
         "threshold": 8.0,
         "worst": [
           {
             "symbol": "ASTER",
-            "n": 8,
-            "median_bp": 22.19
-          },
-          {
-            "symbol": "SOL",
-            "n": 13,
-            "median_bp": 20.2
+            "n": 12,
+            "median_bp": 20.4
           },
           {
             "symbol": "VIRTUAL",
@@ -120,14 +114,19 @@
             "median_bp": 19.86
           },
           {
-            "symbol": "BNB",
-            "n": 12,
+            "symbol": "SOL",
+            "n": 15,
             "median_bp": 19.4
           },
           {
             "symbol": "XRP",
-            "n": 9,
+            "n": 15,
             "median_bp": 18.85
+          },
+          {
+            "symbol": "ETH",
+            "n": 8,
+            "median_bp": 18.76
           }
         ]
       }
@@ -139,14 +138,14 @@
     }
   },
   "predictions": [
-    "1d09b8ec742c487d87c7de141956647a"
+    "ac052bdf40874ed4889a5594a593bd52"
   ],
   "advice": [],
   "experiments": [],
   "errors": [
     "advise: 'avg_bp'"
   ],
-  "elapsed_sec": 2.415,
+  "elapsed_sec": 4.654,
   "latest_path": null,
   "dry_run": false
 }

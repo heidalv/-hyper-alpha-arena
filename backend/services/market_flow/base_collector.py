@@ -26,6 +26,8 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional
 
 from backend.services.exchange.base_exchange_client import ExchangeTrade
+# [F171] 按成交自身时间戳分桶（修复"按落库时刻分桶"导致覆盖率仅 47.5% 的根因）
+from backend.services.market_flow.trade_buckets import BucketStats, TradeBucketStore
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,10 @@ class BaseMarketFlowCollector(ABC):
 
         # 数据缓冲（按 symbol）
         self.trade_buffers: Dict[str, TradeBuffer] = {}
+        # [F171] 按**成交自身时间戳**分桶的存储（生产路径用这个）
+        self.trade_buckets = TradeBucketStore(
+            window_ms=max(1, int(self.aggregation_window_seconds)) * 1000,
+            grace_buckets=2)
         self.latest_orderbook: Dict[str, Any] = {}
         self.latest_asset_ctx: Dict[str, Any] = {}
 
@@ -189,6 +195,10 @@ class BaseMarketFlowCollector(ABC):
         self._source_started.clear()
         self.subscribed_symbols = []
         self.trade_buffers = {}
+        # [F171] 重启时同时清空分桶存储（避免带旧桶跨进程状态）
+        self.trade_buckets = TradeBucketStore(
+            window_ms=max(1, int(self.aggregation_window_seconds)) * 1000,
+            grace_buckets=2)
 
         # 启动行情源线程
         symbols_to_run = list(self._pending_symbols)
@@ -252,35 +262,23 @@ class BaseMarketFlowCollector(ABC):
     # ── 子类把行情数据喂进来 ──
 
     def _on_trade(self, trade: ExchangeTrade) -> None:
-        """子类收到逐笔成交时调用，累加到对应 symbol 的 buffer。"""
+        """子类收到逐笔成交时调用，累加到**成交自身时间戳所在的桶**。
+
+        [F171 2026-09-14] 关键修复：此前累加到"当前（落库时刻）桶" ⇒ 30s 轮询下
+        一次轮询的成交全进同一个桶、相邻桶整片为空（覆盖率仅 47.5% ✗），且桶时间戳
+        最多偏差 15~30s ✗。现在交给 `TradeBucketStore` 按成交时间戳分桶 ✓。
+        """
         self.last_update_time["trades"] = time.time()
         symbol = trade.symbol
         price = Decimal(str(trade.price))
         size = Decimal(str(trade.size))
-        notional = price * size
 
+        now_ms = int(time.time() * 1000)
+        ts_ms = int(getattr(trade, "timestamp", 0) or now_ms)
         with self.buffer_lock:
-            buffer = self.trade_buffers.get(symbol)
-            if buffer is None:
-                buffer = TradeBuffer()
-                self.trade_buffers[symbol] = buffer
-
-            if trade.is_taker_buy:
-                buffer.taker_buy_volume += size
-                buffer.taker_buy_count += 1
-                buffer.taker_buy_notional += notional
-            else:
-                buffer.taker_sell_volume += size
-                buffer.taker_sell_count += 1
-                buffer.taker_sell_notional += notional
-
-            buffer.total_volume += size
-            buffer.total_notional += notional
-
-            if buffer.high_price is None or price > buffer.high_price:
-                buffer.high_price = price
-            if buffer.low_price is None or price < buffer.low_price:
-                buffer.low_price = price
+            self.trade_buckets.add(symbol, price=price, size=size,
+                                   is_taker_buy=bool(trade.is_taker_buy),
+                                   ts_ms=ts_ms, now_ms=now_ms)
 
         # 旁路：推送到事件总线（兼容旧 MarketDataHub 行为）
         try:
@@ -380,26 +378,36 @@ class BaseMarketFlowCollector(ABC):
         """
         将所有 symbol 的缓冲数据 flush 到数据库。
         与旧实现一致：每个 symbol 一个短事务。
+
+        [F171 2026-09-14] 成交**按成交时间戳分桶**落库：
+          · 只写**已结束**的桶（`label < 当前桶标签`）⇒ 做市判定永远不会读到半成品桶 ✓；
+          · 写的是**累计值** ⇒ 幂等 upsert，迟到的成交会补写进已写过的桶 ✓；
+          · 宽限期（2 个桶）后释放缓冲 ⇒ 内存有界 ✓。
+        盘口/资产指标的落库仍沿用"落库时刻对齐"的标签（它们是**点采样**，
+        语义与成交不同，本轮不改动 ✓）。
         """
-        symbols = list(self.subscribed_symbols)
-        if not symbols:
-            # 也处理已收到数据但尚未登记到 subscribed_symbols 的情况
-            with self.buffer_lock:
-                symbols = list(self.trade_buffers.keys())
+        now_ms = int(time.time() * 1000)
+        window_ms = self.aggregation_window_seconds * 1000
+        timestamp_ms = (now_ms // window_ms) * window_ms
+
+        with self.buffer_lock:
+            ready = self.trade_buckets.ready(now_ms=now_ms)
+            store_symbols = self.trade_buckets.symbols()
+        by_symbol: Dict[str, list] = {}
+        for sym, lab, stats in ready:
+            by_symbol.setdefault(sym, []).append((lab, stats))
+
+        symbols = sorted(set(self.subscribed_symbols) | set(by_symbol) | set(store_symbols))
         if not symbols:
             return
-
-        # 对齐到聚合窗口边界的时间戳
-        window_ms = self.aggregation_window_seconds * 1000
-        timestamp_ms = int(time.time() * 1000)
-        timestamp_ms = (timestamp_ms // window_ms) * window_ms
 
         flushed = 0
         from backend.database.connection import MarketSessionLocal
         for symbol in symbols:
             db = MarketSessionLocal()
             try:
-                self._flush_trades(db, symbol, timestamp_ms)
+                for lab, stats in by_symbol.get(symbol, []):
+                    self._flush_trade_bucket(db, symbol, lab, stats)
                 self._flush_orderbook(db, symbol, timestamp_ms)
                 self._flush_asset_metrics(db, symbol, timestamp_ms)
                 db.commit()
@@ -413,6 +421,9 @@ class BaseMarketFlowCollector(ABC):
                     logger.error("[%s] flush %s 失败: %s", self.exchange_id, symbol, e)
             finally:
                 db.close()
+
+        with self.buffer_lock:
+            self.trade_buckets.prune(now_ms=now_ms)
 
         if flushed > 0:
             logger.debug(
@@ -445,59 +456,80 @@ class BaseMarketFlowCollector(ABC):
             logger.warning("[%s] 深度列读取(重建器)失败: %s", getattr(self, "exchange_id", ""), e)
             return None, None
 
-    def _flush_trades(self, db, symbol: str, timestamp_ms: int) -> None:
-        """将 symbol 的 trade buffer 落库（upsert）。可被子类覆盖以适配 schema。"""
+    def _flush_trade_bucket(self, db, symbol: str, label_ms: int, stats) -> None:
+        """把**某个已结束的成交桶**（累计值）落库（upsert，幂等）。
+
+        [F171 2026-09-14] 与旧 `_flush_trades` 的区别：
+          · 桶标签由**成交自身时间戳**决定（调用方传入 ✓），不再用落库时刻；
+          · 数据来自 `TradeBucketStore` 的累计统计（不是"当前缓冲"）⇒ 迟到成交
+            再次写入时是**累加后的值**，不会覆盖丢失 ✓。
+        """
         from backend.database.models import MarketTradesAggregated
 
         # [v6-S2-1] 当前桶末帧前5档名义深度（无帧时 None，列保持 NULL）
         bid_depth_top5, ask_depth_top5 = self._current_depth_notional(symbol)
 
+        if stats is None or stats.total_volume == 0:
+            return
+        vwap = stats.vwap
+
+        existing = db.query(MarketTradesAggregated).filter(
+            MarketTradesAggregated.exchange == self.exchange_id,
+            MarketTradesAggregated.symbol == symbol,
+            MarketTradesAggregated.timestamp == label_ms,
+        ).first()
+
+        if existing:
+            existing.taker_buy_volume = stats.taker_buy_volume
+            existing.taker_sell_volume = stats.taker_sell_volume
+            existing.taker_buy_count = stats.taker_buy_count
+            existing.taker_sell_count = stats.taker_sell_count
+            existing.taker_buy_notional = stats.taker_buy_notional
+            existing.taker_sell_notional = stats.taker_sell_notional
+            existing.vwap = vwap
+            existing.high_price = stats.high_price
+            existing.low_price = stats.low_price
+            existing.bid_depth_top5 = bid_depth_top5
+            existing.ask_depth_top5 = ask_depth_top5
+        else:
+            db.add(MarketTradesAggregated(
+                exchange=self.exchange_id,
+                symbol=symbol,
+                timestamp=label_ms,
+                taker_buy_volume=stats.taker_buy_volume,
+                taker_sell_volume=stats.taker_sell_volume,
+                taker_buy_count=stats.taker_buy_count,
+                taker_sell_count=stats.taker_sell_count,
+                taker_buy_notional=stats.taker_buy_notional,
+                taker_sell_notional=stats.taker_sell_notional,
+                vwap=vwap,
+                high_price=stats.high_price,
+                low_price=stats.low_price,
+                bid_depth_top5=bid_depth_top5,
+                ask_depth_top5=ask_depth_top5,
+            ))
+
+    def _flush_trades(self, db, symbol: str, timestamp_ms: int) -> None:
+        """[兼容保留] 旧签名：把"当前桶"按**落库时刻**标签落库。
+
+        F171 之后生产路径改用 `_flush_trade_bucket`（按成交时间戳分桶）✓；
+        本方法保留给少数仍按旧语义调用的子类/脚本，行为与旧实现一致 ✓。
+        """
         with self.buffer_lock:
             buffer = self.trade_buffers.get(symbol)
             if not buffer or buffer.total_volume == 0:
                 return
-
-            vwap = None
-            if buffer.total_volume > 0:
-                vwap = buffer.total_notional / buffer.total_volume
-
-            existing = db.query(MarketTradesAggregated).filter(
-                MarketTradesAggregated.exchange == self.exchange_id,
-                MarketTradesAggregated.symbol == symbol,
-                MarketTradesAggregated.timestamp == timestamp_ms,
-            ).first()
-
-            if existing:
-                existing.taker_buy_volume = buffer.taker_buy_volume
-                existing.taker_sell_volume = buffer.taker_sell_volume
-                existing.taker_buy_count = buffer.taker_buy_count
-                existing.taker_sell_count = buffer.taker_sell_count
-                existing.taker_buy_notional = buffer.taker_buy_notional
-                existing.taker_sell_notional = buffer.taker_sell_notional
-                existing.vwap = vwap
-                existing.high_price = buffer.high_price
-                existing.low_price = buffer.low_price
-                existing.bid_depth_top5 = bid_depth_top5
-                existing.ask_depth_top5 = ask_depth_top5
-            else:
-                db.add(MarketTradesAggregated(
-                    exchange=self.exchange_id,
-                    symbol=symbol,
-                    timestamp=timestamp_ms,
-                    taker_buy_volume=buffer.taker_buy_volume,
-                    taker_sell_volume=buffer.taker_sell_volume,
-                    taker_buy_count=buffer.taker_buy_count,
-                    taker_sell_count=buffer.taker_sell_count,
-                    taker_buy_notional=buffer.taker_buy_notional,
-                    taker_sell_notional=buffer.taker_sell_notional,
-                    vwap=vwap,
-                    high_price=buffer.high_price,
-                    low_price=buffer.low_price,
-                    bid_depth_top5=bid_depth_top5,
-                    ask_depth_top5=ask_depth_top5,
-                ))
-
+            stats = BucketStats(
+                taker_buy_volume=buffer.taker_buy_volume,
+                taker_sell_volume=buffer.taker_sell_volume,
+                taker_buy_count=buffer.taker_buy_count,
+                taker_sell_count=buffer.taker_sell_count,
+                taker_buy_notional=buffer.taker_buy_notional,
+                taker_sell_notional=buffer.taker_sell_notional,
+                high_price=buffer.high_price, low_price=buffer.low_price,
+                total_volume=buffer.total_volume, total_notional=buffer.total_notional)
             buffer.reset()
+        self._flush_trade_bucket(db, symbol, timestamp_ms, stats)
 
     def _flush_orderbook(self, db, symbol: str, timestamp_ms: int) -> None:
         """
@@ -547,7 +579,8 @@ class BaseMarketFlowCollector(ABC):
             "exchange": self.exchange_id,
             "running": self.running,
             "symbols": list(self.subscribed_symbols),
-            "buffer_count": len(self.trade_buffers),
+            "buffer_count": len(self.trade_buckets.symbols()),
+            "pending_buckets": len(self.trade_buckets.ready(now_ms=int(time.time() * 1000))),
             "aggregation_window_s": self.aggregation_window_seconds,
             "healthy": self.is_healthy(),
             "last_update": dict(self.last_update_time),

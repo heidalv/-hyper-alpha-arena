@@ -254,7 +254,13 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
                             last_trade_id = trade_id
                 
                 # 30 秒轮询间隔（原 15s，进一步降频：全站共享 2400 req/min 上限， # market_flow 三通道合计需让出配额给 P0/P1/P2）
-                await asyncio.sleep(30)
+                # [F172 2026-09-14] 改回可配置、默认 **15s**：30s 轮询意味着一次抓取的
+                # ~30s 成交要挤进一个 15s 桶（旧分桶语义下 47.5% 网格为空 ✗）。
+                # 分桶已改为"按成交自身时间戳"（F171 ✓），轮询越快 ⇒ 桶越完整、
+                # 迟到补写越少 ✓。若遇到 429/418（限流）可用
+                # `ASTERDEX_TRADES_POLL_SEC=30` 调回 ✓（无需改代码）。
+                _poll_sec = float(os.getenv("ASTERDEX_TRADES_POLL_SEC", "15") or 15)
+                await asyncio.sleep(max(5.0, _poll_sec))
                 
             except asyncio.CancelledError:
                 raise

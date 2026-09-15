@@ -1,78 +1,33 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789398097622,
-  "accepted": true,
+  "ts_ms": 1789430331407,
+  "accepted": false,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "1c3e5de0598747d1bfcc1d5c5c5714be",
-  "context_hash": "e9cd886f664571bd39f112220cb98ff30aa5fc3b3e586e5c31721c34dd435e64",
-  "final": {
-    "direction": "bullish",
-    "strength": 3,
-    "confidence": 0.4,
-    "half_life_hours": 8,
-    "affected_symbols": [
-      "VTHO"
-    ],
-    "hedging_window_hours": 0,
-    "position_adjustments": [
-      {
-        "symbol": "VTHO",
-        "action": "none",
-        "reason": "当前持仓簿无 VTHO 敞口；事件本身为资金费极端（空付多），且已从 -0.390%/8h 衰减至 gateio -0.124% / binance -0.148%，不构成独立开仓依据，仅纳入监控"
-      },
-      {
-        "symbol": "BTCUSDT",
-        "action": "none",
-        "reason": "context 中 corr_to_btc 与 correlation_pairs 均为空，无证据表明该 VTHO 单币资金费事件会传导至主力币种；账户14 已 100.6% 总敞口全多头，但缺相关性数据不支持据此调整"
-      }
-    ],
-    "analogues": [
-      {
-        "event": "VTHO binance 资金费 -0.177%/8h（sev 2, ts 1789373112896）",
-        "outcome": "至数据截止已回落至 -0.148%/8h，极端程度持续衰减，未升级"
-      },
-      {
-        "event": "VTHO gateio 资金费 -0.107%/8h（sev 2, ts 1789378506863）",
-        "outcome": "至数据截止回落至 -0.124%/8h，与本次 -0.390% 事件同向但幅度更小，确认极端费率正在正常化"
-      },
-      {
-        "event": "LSK/STEEM/CVC/POWR 多交易所 sev-4 负资金费极端（ts 1789373112896）",
-        "outcome": "同批次多币种跨所负费率极端并存，显示小币种拥挤空头为市场性状态，部分币种极端可持续时间可能长于单所脉冲"
-      }
-    ],
-    "key_factors": [
-      "事件峰值 gateio VTHO 资金费 -0.390%/8h（≈-427% APR），空方付费，属拥挤空头信号，collector 标注 dir 0.5（偏多）",
-      "极端已在衰减：约15小时内从 -0.390% 降至 -0.107%~-0.177%，当前双所仅 -0.12%~-0.15%，挤压动能减弱，故 strength 仅给 3",
-      "VTHO OI 24h 下降 -17.44%（OI 约 646.9 万 USD），global_ls 0.912、top_pos_ls 1.37，呈去杠杆/空头部分回补迹象",
-      "市场层面 3280 币种扫描中出现大量小币 sev-4 负费率极端（LSK -2.0%、STEEM -1.25%、CVC -1.22% 等），为小币拥挤空头的普遍状态，方向解读需谨慎",
-      "数据不足：market 层 VTHO 无 K 线、无与 BTC 的相关性数据，无法验证价格行为与跨市场传导，confidence 压至 0.4",
-      "当前持仓 10 笔全为多单（ASTER/BNB/BTC/ETH/SOL/UNI/XRP），无 VTHO 敞口，该事件对现有组合无直接 P&L 影响"
-    ],
-    "summary": "单事件评估：VTHO 在 gateio 出现 -0.390%/8h 极端负资金费（≈-427% APR，severity 3），属空方极度拥挤信号，方向倾向偏多（挤压逻辑），但证据显示该极端正在快速正常化——约15小时内衰减至双所 -0.12%~-0.15%，且 OI 24h 下降 17.44% 表明去杠杆已在进行，故仅给温和偏多（strength 3、confidence 0.4），半衰期约 8 小时（与 8h 资金费周期一致）。组合当前无 VTHO 敞口、持仓集中于主力币种且缺相关性数据，避险窗口设为 0、不做持仓调节，仅建议监控后续资金费与 OI 变化；若费率再度走极端且 OI 回升，可重评挤压交易机会。数据不足项：VTHO 无 K 线、无相关性矩阵，价格侧验证缺失。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的事实链更扎实：时间线上焦点事件 gateio -0.390%（ts 1789344449113）发生在前，后续读数依次为 binance -0.177%（约8小时后）、gateio -0.107%（约9.5小时后），截至数据截止双所仅 -0.124%/-0.1482%，极端费率明确处于衰减正常化通道；A 的关键类比声称'-0.177% 之后进一步加深至 -0.39%、趋势延续'，把时间顺序读反了，其看空叙事的核心证据不成立。其次，collector 对负资金费事件统一标注 dir 0.5（拥挤空头→挤压偏多逻辑，正费率 BSP 事件标 -0.5 可反证该约定），B 的方向框架与之一致而 A 未理会。A 还把 pos_ratio 0.49（62 多 vs 64 空）的近乎中性新闻密度误读为'偏多矛盾'。持仓面 10 笔均为非 VTHO 多单、无敞口，B 的零动作+监控立场与组合事实吻合。方向上残余偏多动能有限：费率已回落至阈值（0.1%）附近、OI 24h -17.44% 显示去杠杆已在进行、VTHO 无 K 线且 corr_to_btc 为空无法验证价格行为，故 strength 降至 2、confidence 0.45。"
-    }
-  },
-  "notes": [],
+  "consensus_score": 0.138,
+  "run_id": "078e26a830f547bcb581d7b7916eb3b3",
+  "context_hash": "fb9b6613d1750d6ed74b923aade52245a78e53e9d6e40caf3c9c34e48e605f29",
+  "final": null,
+  "notes": [
+    "双票均为中性：这是「都没方向」，不是交易共识，不升仲裁、不入账本"
+  ],
   "event": {
-    "id": 98651,
-    "event_type": "funding.extreme",
-    "symbol": "VTHO",
-    "ts_ms": 1789344449113,
+    "id": 106931,
+    "event_type": "macro.scheduled",
+    "symbol": null,
+    "ts_ms": 1789581600000,
     "severity": 3,
-    "direction": 0.5,
-    "title": "gateio VTHO 资金费 -0.390%/8h（≈-427% APR）",
-    "source": "funding_collector",
+    "direction": null,
+    "title": "FOMC 将于 09-16 18:00 UTC 公布",
+    "source": "macro_events",
     "payload": {
-      "apr_pct": -427.0,
-      "rate_8h": -0.0039,
-      "exchange": "gateio",
-      "rate_raw": -0.0039,
-      "threshold_8h": 0.001,
-      "window_hours": 8.0
+      "event": "FOMC",
+      "actual": null,
+      "country": "US",
+      "forecast": null,
+      "macro_id": 3,
+      "previous": null,
+      "importance": 5,
+      "window_hours": 1.0
     }
   }
 }

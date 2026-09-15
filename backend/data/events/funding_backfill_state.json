@@ -326,9 +326,9 @@
 },
 "GRTUSDT": {
 "base": "GRT",
-"last_ts": 1789344000000,
-"rows": 1127,
-"checked_ms": 1789350361816
+"last_ts": 1789430400000,
+"rows": 1130,
+"checked_ms": 1789430545796
 },
 "1INCHUSDT": {
 "base": "1INCH",
@@ -350,21 +350,21 @@
 },
 "ANKRUSDT": {
 "base": "ANKR",
-"last_ts": 1789344000000,
-"rows": 1697,
-"checked_ms": 1789350364648
+"last_ts": 1789430400000,
+"rows": 1703,
+"checked_ms": 1789430549037
 },
 "RVNUSDT": {
 "base": "RVN",
-"last_ts": 1789344000000,
-"rows": 2253,
-"checked_ms": 1789350367248
+"last_ts": 1789430400000,
+"rows": 2259,
+"checked_ms": 1789430552257
 },
 "SFPUSDT": {
 "base": "SFP",
-"last_ts": 1789344000000,
-"rows": 1127,
-"checked_ms": 1789350369981
+"last_ts": 1789430400000,
+"rows": 1130,
+"checked_ms": 1789430555029
 },
 "COTIUSDT": {
 "base": "COTI",
@@ -416,27 +416,27 @@
 },
 "MTLUSDT": {
 "base": "MTL",
-"last_ts": 1789347600002,
-"rows": 1142,
-"checked_ms": 1789350372786
+"last_ts": 1789430400000,
+"rows": 1165,
+"checked_ms": 1789430559237
 },
 "OGNUSDT": {
 "base": "OGN",
-"last_ts": 1789344000000,
-"rows": 1729,
-"checked_ms": 1789350377036
+"last_ts": 1789430400000,
+"rows": 1735,
+"checked_ms": 1789430562194
 },
 "1000SHIBUSDT": {
 "base": "1000SHIB",
-"last_ts": 1789344000000,
-"rows": 1127,
-"checked_ms": 1789350379589
+"last_ts": 1789430400000,
+"rows": 1130,
+"checked_ms": 1789430565103
 },
 "GTCUSDT": {
 "base": "GTC",
-"last_ts": 1789344000000,
-"rows": 1127,
-"checked_ms": 1789350382567
+"last_ts": 1789430400000,
+"rows": 1130,
+"checked_ms": 1789430568432
 },
 "BTCDOMUSDT": {
 "base": "BTCDOM",
@@ -938,213 +938,213 @@
 },
 "STEEMUSDT": {
 "base": "STEEM",
-"last_ts": 1789344000000,
-"rows": 2418,
-"checked_ms": 1789350386076
+"last_ts": 1789430400000,
+"rows": 2424,
+"checked_ms": 1789430571419
 },
 "ILVUSDT": {
 "base": "ILV",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350389488
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430574398
 },
 "KASUSDT": {
 "base": "KAS",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350393362
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430577289
 },
 "BEAMXUSDT": {
 "base": "BEAMX",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350397545
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430581692
 },
 "1000BONKUSDT": {
 "base": "1000BONK",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350400276
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430584558
 },
 "PYTHUSDT": {
 "base": "PYTH",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350402788
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430588938
 },
 "SUPERUSDT": {
 "base": "SUPER",
-"last_ts": 1789344000000,
-"rows": 3578,
-"checked_ms": 1789350406649
+"last_ts": 1789430400000,
+"rows": 3584,
+"checked_ms": 1789430592116
 },
 "USTCUSDT": {
 "base": "USTC",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350409458
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430595195
 },
 "ONGUSDT": {
 "base": "ONG",
-"last_ts": 1789347600002,
-"rows": 2656,
-"checked_ms": 1789350412402
+"last_ts": 1789430400000,
+"rows": 2674,
+"checked_ms": 1789430598612
 },
 "ETHWUSDT": {
 "base": "ETHW",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350415163
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430601576
 },
 "JTOUSDT": {
 "base": "JTO",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350417718
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430604104
 },
 "1000SATSUSDT": {
 "base": "1000SATS",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350420490
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430607041
 },
 "AUCTIONUSDT": {
 "base": "AUCTION",
-"last_ts": 1789344000000,
-"rows": 2314,
-"checked_ms": 1789350423149
+"last_ts": 1789430400000,
+"rows": 2320,
+"checked_ms": 1789430609736
 },
 "1000RATSUSDT": {
 "base": "1000RATS",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350426028
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430613136
 },
 "ACEUSDT": {
 "base": "ACE",
-"last_ts": 1789344000000,
-"rows": 2509,
-"checked_ms": 1789350428733
+"last_ts": 1789430400000,
+"rows": 2515,
+"checked_ms": 1789430616884
 },
 "MOVRUSDT": {
 "base": "MOVR",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350431270
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430619450
 },
 "XAIUSDT": {
 "base": "XAI",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350434000
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430622272
 },
 "WIFUSDT": {
 "base": "WIF",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350436920
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430624989
 },
 "MANTAUSDT": {
 "base": "MANTA",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350439728
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430627840
 },
 "ONDOUSDT": {
 "base": "ONDO",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350442838
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430630467
 },
 "LSKUSDT": {
 "base": "LSK",
-"last_ts": 1789347600002,
-"rows": 3201,
-"checked_ms": 1789350447533
+"last_ts": 1789430400000,
+"rows": 3224,
+"checked_ms": 1789430633342
 },
 "ALTUSDT": {
 "base": "ALT",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350450247
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430636208
 },
 "JUPUSDT": {
 "base": "JUP",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350453194
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430638875
 },
 "ZETAUSDT": {
 "base": "ZETA",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350456119
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430641779
 },
 "RONINUSDT": {
 "base": "RONIN",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350459172
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430644873
 },
 "DYMUSDT": {
 "base": "DYM",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350463547
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430647899
 },
 "PIXELUSDT": {
 "base": "PIXEL",
-"last_ts": 1789344000000,
-"rows": 2291,
-"checked_ms": 1789350466202
+"last_ts": 1789430400000,
+"rows": 2297,
+"checked_ms": 1789430650782
 },
 "STRKUSDT": {
 "base": "STRK",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350469012
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430653737
 },
 "GLMUSDT": {
 "base": "GLM",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350471864
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430656525
 },
 "PORTALUSDT": {
 "base": "PORTAL",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350474702
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430659411
 },
 "AXLUSDT": {
 "base": "AXL",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350477557
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430662077
 },
 "METISUSDT": {
 "base": "METIS",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350480319
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430664931
 },
 "AEVOUSDT": {
 "base": "AEVO",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350483020
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430667748
 },
 "BOMEUSDT": {
 "base": "BOME",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350485765
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430672008
 },
 "ETHFIUSDT": {
 "base": "ETHFI",
-"last_ts": 1789344000000,
-"rows": 2252,
-"checked_ms": 1789350489478
+"last_ts": 1789430400000,
+"rows": 2258,
+"checked_ms": 1789430674868
 },
 "ENAUSDT": {
 "base": "ENA",
@@ -1982,345 +1982,345 @@
 },
 "ALPINEUSDT": {
 "base": "ALPINE",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350492345
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430677910
 },
 "B2USDT": {
 "base": "B2",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350495123
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430680777
 },
 "SYRUPUSDT": {
 "base": "SYRUP",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350497760
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430683685
 },
 "DOODUSDT": {
 "base": "DOOD",
-"last_ts": 1789344000000,
-"rows": 3437,
-"checked_ms": 1789350500470
+"last_ts": 1789430400000,
+"rows": 3443,
+"checked_ms": 1789430686774
 },
 "OGUSDT": {
 "base": "OG",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350503356
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430689466
 },
 "SKYAIUSDT": {
 "base": "SKYAI",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350515995
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430692575
 },
 "NXPCUSDT": {
 "base": "NXPC",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350518916
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430695298
 },
 "CVCUSDT": {
 "base": "CVC",
-"last_ts": 1789344000000,
-"rows": 2787,
-"checked_ms": 1789350531453
+"last_ts": 1789430400000,
+"rows": 2793,
+"checked_ms": 1789430706339
 },
 "AGTUSDT": {
 "base": "AGT",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350534419
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430709991
 },
 "AWEUSDT": {
 "base": "AWE",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350538483
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430712835
 },
 "BUSDT": {
 "base": "B",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350521991
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430698107
 },
 "SOONUSDT": {
 "base": "SOON",
-"last_ts": 1789344000000,
-"rows": 3328,
-"checked_ms": 1789350542812
+"last_ts": 1789430400000,
+"rows": 3334,
+"checked_ms": 1789430715364
 },
 "HUMAUSDT": {
 "base": "HUMA",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350545565
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430718284
 },
 "AUSDT": {
 "base": "A",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350548483
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430721498
 },
 "SOPHUSDT": {
 "base": "SOPH",
-"last_ts": 1789344000000,
-"rows": 2538,
-"checked_ms": 1789350551445
+"last_ts": 1789430400000,
+"rows": 2544,
+"checked_ms": 1789430724287
 },
 "MERLUSDT": {
 "base": "MERL",
-"last_ts": 1789344000000,
-"rows": 2547,
-"checked_ms": 1789350524808
+"last_ts": 1789430400000,
+"rows": 2553,
+"checked_ms": 1789430701018
 },
 "HYPEUSDT": {
 "base": "HYPE",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350555351
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430728048
 },
 "1000000BOBUSDT": {
 "base": "1000000BOB",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350558262
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430730997
 },
 "LAUSDT": {
 "base": "LA",
-"last_ts": 1789344000000,
-"rows": 3216,
-"checked_ms": 1789350561125
+"last_ts": 1789430400000,
+"rows": 3222,
+"checked_ms": 1789430733842
 },
 "HOMEUSDT": {
 "base": "HOME",
-"last_ts": 1789344000000,
-"rows": 2585,
-"checked_ms": 1789350564081
+"last_ts": 1789430400000,
+"rows": 2591,
+"checked_ms": 1789430736601
 },
 "RESOLVUSDT": {
 "base": "RESOLV",
-"last_ts": 1789344000000,
-"rows": 3017,
-"checked_ms": 1789350567145
+"last_ts": 1789430400000,
+"rows": 3023,
+"checked_ms": 1789430739354
 },
 "TAIKOUSDT": {
 "base": "TAIKO",
-"last_ts": 1789344000000,
-"rows": 2305,
-"checked_ms": 1789350570871
+"last_ts": 1789430400000,
+"rows": 2311,
+"checked_ms": 1789430742328
 },
 "SQDUSDT": {
 "base": "SQD",
-"last_ts": 1789344000000,
-"rows": 2650,
-"checked_ms": 1789350573663
+"last_ts": 1789430400000,
+"rows": 2656,
+"checked_ms": 1789430745241
 },
 "PUMPBTCUSDT": {
 "base": "PUMPBTC",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350576615
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430748017
 },
 "SPKUSDT": {
 "base": "SPK",
-"last_ts": 1789344000000,
-"rows": 2245,
-"checked_ms": 1789350527394
+"last_ts": 1789430400000,
+"rows": 2251,
+"checked_ms": 1789430703719
 },
 "MYXUSDT": {
 "base": "MYX",
-"last_ts": 1789344000000,
-"rows": 2721,
-"checked_ms": 1789350579718
+"last_ts": 1789430400000,
+"rows": 2727,
+"checked_ms": 1789430750914
 },
 "FUSDT": {
 "base": "F",
-"last_ts": 1789344000000,
-"rows": 2525,
-"checked_ms": 1789350583536
+"last_ts": 1789430400000,
+"rows": 2531,
+"checked_ms": 1789430753695
 },
 "NEWTUSDT": {
 "base": "NEWT",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350587625
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430756487
 },
 "HUSDT": {
 "base": "H",
-"last_ts": 1789344000000,
-"rows": 2362,
-"checked_ms": 1789350590625
+"last_ts": 1789430400000,
+"rows": 2368,
+"checked_ms": 1789430759273
 },
 "SAHARAUSDT": {
 "base": "SAHARA",
-"last_ts": 1789344000000,
-"rows": 2679,
-"checked_ms": 1789350593423
+"last_ts": 1789430400000,
+"rows": 2685,
+"checked_ms": 1789430762025
 },
 "ICNTUSDT": {
 "base": "ICNT",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350596250
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430765802
 },
 "BULLAUSDT": {
 "base": "BULLA",
-"last_ts": 1789344000000,
-"rows": 2421,
-"checked_ms": 1789350599219
+"last_ts": 1789430400000,
+"rows": 2427,
+"checked_ms": 1789430768812
 },
 "IDOLUSDT": {
 "base": "IDOL",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350601891
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430771764
 },
 "MUSDT": {
 "base": "M",
-"last_ts": 1789344000000,
-"rows": 2845,
-"checked_ms": 1789350604740
+"last_ts": 1789430400000,
+"rows": 2851,
+"checked_ms": 1789430774471
 },
 "PUMPUSDT": {
 "base": "PUMP",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350607553
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430777391
 },
 "CROSSUSDT": {
 "base": "CROSS",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350610417
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430779940
 },
 "AINUSDT": {
 "base": "AIN",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350613118
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430782900
 },
 "CUSDT": {
 "base": "C",
-"last_ts": 1789344000000,
-"rows": 2368,
-"checked_ms": 1789350616400
+"last_ts": 1789430400000,
+"rows": 2374,
+"checked_ms": 1789430786054
 },
 "VELVETUSDT": {
 "base": "VELVET",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350619039
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430789922
 },
 "TACUSDT": {
 "base": "TAC",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350621800
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430792931
 },
 "ERAUSDT": {
 "base": "ERA",
-"last_ts": 1789344000000,
-"rows": 2513,
-"checked_ms": 1789350624577
+"last_ts": 1789430400000,
+"rows": 2519,
+"checked_ms": 1789430795714
 },
 "TAUSDT": {
 "base": "TA",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350627979
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430798281
 },
 "CVXUSDT": {
 "base": "CVX",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350630864
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430800970
 },
 "SLPUSDT": {
 "base": "SLP",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350633958
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430803747
 },
 "ZORAUSDT": {
 "base": "ZORA",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350636578
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430807173
 },
 "TAGUSDT": {
 "base": "TAG",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350640098
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430810070
 },
 "ESPORTSUSDT": {
 "base": "ESPORTS",
-"last_ts": 1789344000000,
-"rows": 2621,
-"checked_ms": 1789350642783
+"last_ts": 1789430400000,
+"rows": 2627,
+"checked_ms": 1789430812874
 },
 "TREEUSDT": {
 "base": "TREE",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350645766
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430815570
 },
 "PLAYUSDT": {
 "base": "PLAY",
-"last_ts": 1789344000000,
-"rows": 2265,
-"checked_ms": 1789350648364
+"last_ts": 1789430400000,
+"rows": 2271,
+"checked_ms": 1789430818575
 },
 "NAORISUSDT": {
 "base": "NAORIS",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350651211
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430821511
 },
 "TOWNSUSDT": {
 "base": "TOWNS",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350653917
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430824350
 },
 "PROVEUSDT": {
 "base": "PROVE",
-"last_ts": 1789344000000,
-"rows": 2273,
-"checked_ms": 1789350656763
+"last_ts": 1789430400000,
+"rows": 2279,
+"checked_ms": 1789430827402
 },
 "ALLUSDT": {
 "base": "ALL",
-"last_ts": 1789344000000,
-"rows": 1121,
-"checked_ms": 1789350659633
+"last_ts": 1789430400000,
+"rows": 1124,
+"checked_ms": 1789430830016
 },
 "INUSDT": {
 "base": "IN",
-"last_ts": 1789344000000,
-"rows": 2260,
-"checked_ms": 1789350662313
+"last_ts": 1789430400000,
+"rows": 2266,
+"checked_ms": 1789430833830
 },
 "CARVUSDT": {
 "base": "CARV",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350665316
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430836666
 },
 "AIOUSDT": {
 "base": "AIO",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350668386
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430839264
 },
 "XNYUSDT": {
 "base": "XNY",
-"last_ts": 1789344000000,
-"rows": 2240,
-"checked_ms": 1789350672740
+"last_ts": 1789430400000,
+"rows": 2246,
+"checked_ms": 1789430841856
 },
 "USELESSUSDT": {
 "base": "USELESS",

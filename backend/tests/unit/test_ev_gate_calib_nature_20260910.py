@@ -215,8 +215,9 @@ def test_mid_enforce_key_declared_and_registered():
 
 
 def test_env_turns_mid_enforcement_on():
-    """线上应按用户决策生效（若这里失败，说明 .env 被改回/未加载）。"""
+    """[验收轮5 2026-09-15 语义更新] 线上按用户指令「实盘向模拟仓看齐」设为 false
+    （EV 闸整体影子放行，不再「EV 负就不开仓」）。若改回 true 请同步本测试。"""
     from backend.config import settings
 
-    assert settings.MIDLONG_EV_ENFORCE_MID is True, \
-        "线上应为 true（P7 决策）；若你已改回 false，请同步本测试"
+    assert settings.MIDLONG_EV_ENFORCE_MID is False, \
+        "线上应为 false（验收轮5 用户指令）；若你已改回 true，请同步本测试"
