@@ -108,6 +108,11 @@ def main() -> int:
                          "方向上限 ⇒ 只剩减仓侧可挂 ⇒ 单侧报价 71%%。缩小腿量是解开它的"
                          "**唯一不影响风险上限**的方向，故单独做成一个维度。")
     ap.add_argument("--json-out", default="logs/mm_clean_sweep.json")
+    ap.add_argument("--until", default="",
+                    help="窗口终点（ISO，含时区）。[F207] **同窗口对照是硬要求**："
+                         "本会话已三次因为拿「不同窗口/不同工况」的数字对比而得出错误结论 ✗"
+                         "（F196 挂宽、F206 成交规模）。要比实盘，就必须把窗口钉成实盘那一段 ✓。"
+                         "留空=到现在。")
     args = ap.parse_args()
 
     since_ms = parse_since(args.since)
@@ -154,13 +159,24 @@ def main() -> int:
     print(f"[数据] 载入 {len(symbols)} 标的耗时 {time.time()-t0:.1f}s")
 
     sub: Dict[str, Dict[str, np.ndarray]] = {}
+    # [F207] 支持 --until：把窗口钉成"实盘那一段"，否则任何实盘/模型对照都是错配 ✗
+    until_ms = None
+    if args.until.strip():
+        _u = datetime.fromisoformat(args.until.strip())
+        if _u.tzinfo is None:
+            _u = _u.replace(tzinfo=timezone.utc)
+        until_ms = int(_u.timestamp() * 1000)
     for s in symbols:
         d = data[s]
         a2 = int(np.searchsorted(d["ots"], since_ms, "left"))
         t2 = int(np.searchsorted(d["tts"], since_ms, "left"))
-        sub[s] = {k: d[k][a2:] for k in ("ots", "bb", "ba")}
+        a3 = int(np.searchsorted(d["ots"], until_ms, "left")) if until_ms else None
+        t3 = int(np.searchsorted(d["tts"], until_ms, "left")) if until_ms else None
+        sub[s] = {k: d[k][a2:(a3 if a3 is not None else len(d[k]))] for k in ("ots", "bb", "ba")}
         for k in ("tts", "lo", "hi", "sv", "bv", "tmk"):
-            sub[s][k] = d[k][t2:]
+            sub[s][k] = d[k][t2:(t3 if t3 is not None else len(d[k]))]
+    if until_ms:
+        print(f"窗口终点 {args.until.strip()} ({until_ms}) —— 与实盘同窗口 ✓")
     n_ob = {s: len(sub[s]["ots"]) for s in symbols}
     n_tr = {s: len(sub[s]["tts"]) for s in symbols}
     span_h = 0.0
@@ -247,7 +263,12 @@ def main() -> int:
                         "modes": r.get("quote_modes"),
                         # [F205b] **最终挂宽**（偏斜/地板之后）——与实盘 `avg_width_bp`
                         # 才是同一量；`avg_base_bp` 是偏斜前的基准，两者不可混比 ✗
-                        "avg_width_bp": r.get("avg_width_bp")})
+                        "avg_width_bp": r.get("avg_width_bp"),
+                        # [F206] 报价侧分布：实盘 13:12 实测 one/(both+one)=70% 单边 ✗，
+                        # 而单边 ⇒ 只挂**减仓侧** ⇒ 被 k_inv 腰斩 ⇒ 均值远低于"两侧都挂" ✗
+                        # ⇒ 解释"实盘比模型窄 1.6×"必须比这个分布，不能只比均值 ✓
+                        "side_counts": r.get("side_counts"),
+                        "skip_counts": r.get("skip_counts")})
         diff = {k: p[k] for k in sorted(p) if cur.get(k) != p[k]}
         rows.append({"params": {k: p[k] for k in sorted(p)}, "diff": diff, "per": per})
         tag = ",".join(f"{k}={v}" for k, v in diff.items()) or "(在位)"
