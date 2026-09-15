@@ -16,7 +16,7 @@
 | V5_MAX_DAILY_TRADES_PAPER | 模拟盘日开仓上限 | 10 | 2026-09-03 v3-P0 止血：60→10。原意图「高配额攒样本」在负期望下等于加速亏损，先降频再谈样本量 |
 | V5_MIN_RISK_REWARD | 中长线一体盈亏比硬约束 | 1.8 | 同上 |
 | V5_SCALP_MIN_RR | 短线 Live 盈亏比下限 | 2.0 | ★ 2026-09-02 P2.2：1.4→2.0。实测近14天 short tier 812 笔均盈 0.631/均亏 0.606，盈亏比仅 1.042、胜率 41.4%，该胜率下需 1.417 才打平——低 RR 是必亏的直接原因。回放定标（做多+pwin≥0.55，2680条，SL1.1%）：RR1.3=+25.4bp→RR2.3=+44.0bp。未取更高：RR≥3 时止盈命中率跌破 13%、持仓顶满 max_hold，收益来源变成持有 beta 而非止盈兑现 |
-| V5_TREND_MIN_RR | 中长线 Live 盈亏比下限 | 1.8 | 同上 |
+| V5_TREND_MIN_RR | 中长线 Live 盈亏比下限 | 1.6 | [验收轮5 2026-09-15 用户指令：实盘向模拟仓看齐] 1.8→1.6，与 paper 同口径；回滚=1.8 |
 | ENABLE_KELLY_POSITION | Kelly 仓位上限夹紧 | true | ARCHITECTURE §5 |
 | ENABLE_PORTFOLIO_RISK | 组合风险聚合（PortfolioRiskAggregator） | true | 2026-08-13 用户确认实况即意图（架构文档 v3 旧描述待同步） |
 | ENABLE_COORDINATOR | SystemCoordinator 自动触发进化/重训仲裁 | true | ARCHITECTURE §5 |
