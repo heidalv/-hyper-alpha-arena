@@ -182,6 +182,15 @@ def replay_portfolio(
     # 两边对"同一套参数会挂多宽"的认知就不一致 ✗，而当时没有任何同口径读数 ✗。
     _mode_counts: Dict[str, int] = {"normal": 0, "frozen": 0, "unknown": 0}
     _base_sum = 0.0
+    # [F208 2026-09-15] 与实盘 `cross_counts` **逐条同口径**的穿越/成交/空窗计数。
+    # 为什么必须有：同窗口、同配置下模型只判出 20~46 笔，而实盘 203 笔（挂宽可比 ✗✗）
+    # ⇒ 分歧在**成交判定**而非报价状态。要定位是"判定区间定义不同"还是"量聚合不同"，
+    # 唯一办法是让两侧用**同一组计数器**对拍（键名与实盘 runner 完全一致 ✓）。
+    cross_counts: Dict[str, int] = {
+        "cross_buy": 0, "cross_sell": 0, "fill_buy": 0, "fill_sell": 0,
+        "nofill_stale": 0, "nofill_min_notional": 0, "nofill_other": 0,
+        "win_judged": 0, "win_empty": 0,
+    }
     # [F106 2026-09-14] **逐笔挂单序列**（`collect_quotes=True` 时收集）。
     # 动机：F99 起只有"均值"（avg_width_bp / side_counts），而 F106a 实测实盘挂宽的
     # **完整分布**与均值差很远（中位 6.43bp，但单侧率高达 61.5%）——"均值相同"完全
@@ -352,6 +361,32 @@ def replay_portfolio(
                 side_counts["one"] += 1
             else:
                 side_counts["none"] += 1
+            # [F208] 穿越/成交/空窗计数（判据与实盘 runner.py:1594-1632 **逐条一致** ✓）：
+            # 本侧有挂单 + 该侧有主动量 + 区间价触及；成交按 dec.fills 的侧分。
+            _hit_buy = _qb0 > 0 and seg_sell > 0 and seg_low > 0 and seg_low < _qb0
+            _hit_sell = _qa0 > 0 and seg_buy > 0 and seg_high > _qa0
+            if _hit_buy:
+                cross_counts["cross_buy"] += 1
+            if _hit_sell:
+                cross_counts["cross_sell"] += 1
+            for _f in dec.fills:
+                cross_counts["fill_buy" if str(_f.side) == "buy" else "fill_sell"] += 1
+            if (_hit_buy or _hit_sell) and not dec.fills:
+                if "stale_quote" in str(dec.skip or ""):
+                    cross_counts["nofill_stale"] += 1
+                else:
+                    from backend.services.market_maker.replay import QUEUE_SHARE as _QS
+                    _avail = seg_sell if _hit_buy else seg_buy
+                    _q = min((_leg_now / mid) if mid > 0 else 0.0, _avail * _QS)
+                    if _q * mid < 10.0:
+                        cross_counts["nofill_min_notional"] += 1
+                    else:
+                        cross_counts["nofill_other"] += 1
+            if _qb0 > 0 or _qa0 > 0:
+                if seg_low > 0 or seg_high > 0:
+                    cross_counts["win_judged"] += 1
+                else:
+                    cross_counts["win_empty"] += 1
             max_toxic_streak = max(max_toxic_streak, int(states[s].toxic_streak or 0))
             # [F99] 挂宽观测：只统计真正挂出去的一侧（与实盘同口径）
             if dec.bid > 0:
@@ -452,6 +487,8 @@ def replay_portfolio(
         "quote_modes": dict(_mode_counts),
         "frozen_share": (round(_mode_counts.get("frozen", 0) / _w_n, 4) if _w_n else None),
         "avg_base_bp": round(_base_sum / _w_n, 3) if _w_n else None,
+        # [F208] 穿越/成交/空窗计数（键名与实盘 cross_counts 一致 ⇒ 同窗口对拍 ✓）
+        "cross_counts": dict(cross_counts),
         "skip_counts": dict(sorted(skip_counts.items(), key=lambda kv: -kv[1])[:12]),
         # [F98] 车道级闸门触发次数（验证「配置的闸门是否真的在起作用」）
         "lane_pause_counts": lane_pause_counts,

@@ -268,7 +268,9 @@ def main() -> int:
                         # 而单边 ⇒ 只挂**减仓侧** ⇒ 被 k_inv 腰斩 ⇒ 均值远低于"两侧都挂" ✗
                         # ⇒ 解释"实盘比模型窄 1.6×"必须比这个分布，不能只比均值 ✓
                         "side_counts": r.get("side_counts"),
-                        "skip_counts": r.get("skip_counts")})
+                        "skip_counts": r.get("skip_counts"),
+                        # [F208] 穿越/成交/空窗计数（键名与实盘 /shadow 的 cross_counts 一致）
+                        "cross_counts": r.get("cross_counts")})
         diff = {k: p[k] for k in sorted(p) if cur.get(k) != p[k]}
         rows.append({"params": {k: p[k] for k in sorted(p)}, "diff": diff, "per": per})
         tag = ",".join(f"{k}={v}" for k, v in diff.items()) or "(在位)"
