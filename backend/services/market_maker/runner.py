@@ -442,6 +442,14 @@ def plan_tick(
     # 回放**永远测不到** daily_loss_stop_pct / toxic_streak ⇒ 配置里的这两个
     # 数字从未被任何实验覆盖过（本次修复后才能真正 A/B）。
     lane_limits_enforce: Optional[bool] = None,
+    # [F176 2026-09-15] **被判定挂单**（可选）：`(bid, ask, mid)`。
+    # 为什么需要：F171 把成交桶改成"按成交自身时间戳分桶、**桶结束后才落库**" ✓
+    # （修复了覆盖率 47.5%→93.3% ✓），代价是桶会比 tick **晚 15~30s** 才可见 ✗。
+    # 若仍用"当前状态里的挂单"去判定，晚到的桶要么被 `quote_ts` 过滤器排除、
+    # 要么被算到**挂单存续期之外** ✗（实测实盘空分片率 47%→**85.7%** ✗✗、
+    # 成交从 184/h 掉到 27.5/h ✗）。正解是**延迟一档判定**：拿"L 个桶之前那张单"
+    # 去判"它当时真正存续的那段分片" ✓。默认 None = 沿用状态里的挂单（回放不变 ✓）。
+    judged_quote: Optional[Tuple[float, float, float]] = None,
 ) -> Tuple[TickDecision, Dict[str, Any]]:
     """一个 tick 的纯决策：成交判定 → 超时平仓 → 重挂新单。
 
@@ -495,17 +503,27 @@ def plan_tick(
     # 依然真实存在、必须照常检查成交。此前用 `bid>0 and ask>0` 作为总开关，
     # 结果库存到顶后减仓腿永远不被检查 → 只能等超时砸单（实测平仓占比
     # 从回放的 14% 涨到 32%，净期望因此转负）。
-    if state.quote_bid > 0 or state.quote_ask > 0:
+    # [F176] 被判定挂单：优先用调用方显式传入的"延迟一档"挂单 ✓（见参数说明），
+    # 否则沿用状态里的挂单（回放与旧行为完全一致 ✓）。
+    if judged_quote is not None:
+        _jq_bid, _jq_ask, _jq_mid = (float(judged_quote[0] or 0.0),
+                                    float(judged_quote[1] or 0.0),
+                                    float(judged_quote[2] or 0.0))
+    else:
+        _jq_bid, _jq_ask, _jq_mid = (float(state.quote_bid or 0.0),
+                                     float(state.quote_ask or 0.0),
+                                     float(state.quote_mid or 0.0))
+    if _jq_bid > 0 or _jq_ask > 0:
         pen = max(0.0, float(PENETRATION_BP)) / 1e4
-        hit_buy = (state.quote_bid > 0 and seg_taker_sell > 0
-                   and seg_low < state.quote_bid * (1.0 - pen))
-        hit_sell = (state.quote_ask > 0 and seg_taker_buy > 0
-                    and seg_high > state.quote_ask * (1.0 + pen))
+        hit_buy = (_jq_bid > 0 and seg_taker_sell > 0
+                   and seg_low < _jq_bid * (1.0 - pen))
+        hit_sell = (_jq_ask > 0 and seg_taker_buy > 0
+                    and seg_high > _jq_ask * (1.0 + pen))
         legs: List[Tuple[str, float]] = []
         if hit_buy:
-            legs.append(("buy", state.quote_bid))
+            legs.append(("buy", _jq_bid))
         if hit_sell:
-            legs.append(("sell", state.quote_ask))
+            legs.append(("sell", _jq_ask))
         # 固定基础币数量（而非固定美元名义）：否则一买一卖后残留差额，
         # 长期会漂移出不受控的方向性库存。与 F59 回放同口径。
         leg_qty = fill_notional / mid
@@ -524,7 +542,7 @@ def plan_tick(
         # 行情从挂单到成交的移动归入 price 维度。
         # 若用成交判定时的中价，行情下跌会把负值塞进 spread，
         # 看起来像「挂宽 8bp 却负价差」，实际是逆选择（总量不变，但归因不可读）。
-        ref_mid = state.quote_mid if state.quote_mid > 0 else mid
+        ref_mid = _jq_mid if _jq_mid > 0 else mid
         for side, px in legs:
             # [F75] 队列份额：与回放同口径（只能吃到区间主动量的一部分）
             _avail = float(seg_taker_sell if side == "buy" else seg_taker_buy)
@@ -954,6 +972,16 @@ class ShadowRunner:
         # [F85] 复利比例：>0 时每 tick 用模拟账户权益 × 比例 决定腿量（0=固定）
         self.compound_ratio: float = float(params.compound_ratio) if hasattr(
             params, "compound_ratio") and params.compound_ratio else 0.0
+        # [F176 2026-09-15] 挂单历史（每币最近若干条）：
+        # 成交桶改为"桶结束后才落库"（F171 ✓）后，桶比 tick 晚 15~30s 可见 ⇒
+        # 必须**延迟一档判定**：拿 L 个桶之前那张单，去判它当时真正存续的分片 ✓。
+        # 这里只保留内存（每 tick 重建即可，无需持久化 ✓）。
+        self._quote_hist: Dict[str, List[Dict[str, float]]] = {}
+        # L=0 ⇒ 完全旧行为（可用环境变量即时回退 ✓）
+        try:
+            self.judge_lag_buckets: int = max(0, int(os.getenv("MM_JUDGE_LAG_BUCKETS", "3")))
+        except Exception:
+            self.judge_lag_buckets = 3
 
     def _read_account_equity(self) -> float:
         """[F85] 读模拟账户当前权益（复利模式的腿量/上限基准）。
@@ -1138,6 +1166,25 @@ class ShadowRunner:
             logger.warning("[F60] save_states 失败: %s", e)
 
     # ── 行情 ──
+    def _lagged_quote(self, symbol: str, hi_ms: int) -> Optional[Dict[str, float]]:
+        """[F176] 取"依据标签 ≤ hi_ms 的最近一张挂单"（延迟判定的判定对象）。
+
+        为什么需要：成交桶现在"桶结束后才落库"（F171）⇒ 桶比 tick 晚 15~30s 可见，
+        若仍用**当前**挂单去判，晚到的桶会被 `quote_ts` 过滤器排除 ✗。
+        正确做法是回到"那张单当时存续的分片"：标签 ≤ 分片上界的最近一张单 ✓。
+        返回 None ⇒ 调用方传 `(0,0,0)` ⇒ 本 tick 不判成交（宁可漏判也不误判 ✓）。
+        """
+        hist = self._quote_hist.get(symbol) or []
+        best = None
+        for q in hist:
+            try:
+                if float(q.get("basis") or 0.0) <= float(hi_ms) and (
+                        best is None or float(q["basis"]) > float(best["basis"])):
+                    best = q
+            except Exception:
+                continue
+        return best
+
     def fetch_market(self, since_ms: int) -> Dict[str, Dict[str, Any]]:
         """读每个币的最新盘口 + 自「已消费桶标签」以来的区间成交汇总。
 
@@ -1166,10 +1213,27 @@ class ShadowRunner:
                         continue
                     snap_ms = int(ob["timestamp"])
                     # [F92] 窗口锚在快照桶标签上（下界=已消费标签，上界=当前快照标签）
+                    # [F176 2026-09-15] **延迟一档判定**：F171 之后成交桶"桶结束后才落库"
+                    # ⇒ 桶比 tick 晚 15~30s 可见 ✗；若仍按"当前快照"取上界，晚到的桶会被
+                    # `quote_ts` 过滤器排除（实测空分片率 47%→85.7%、成交 184→27.5/h ✗✗）。
+                    # 所以上界改为 `snap − L×15s`，并判定"那时真正在挂的那张单" ✓
+                    # （挂单历史见 `_quote_hist`，由 tick 循环维护 ✓）。L=0 则完全旧行为 ✓。
                     st_seg = self.states.setdefault(s, SymbolState(symbol=s))
+                    _L = int(getattr(self, "judge_lag_buckets", 0) or 0)
+                    _hi_use, _qts_use, _jq = snap_ms, float(
+                        getattr(st_seg, "quote_ts", 0.0) or 0.0), None
+                    if _L > 0:
+                        _hi_use = snap_ms - _L * SEG_BUCKET_MS
+                        _jq = self._lagged_quote(s, _hi_use)
+                        if _jq is not None:
+                            _qts_use = float(_jq.get("ts") or 0.0)
+                        # [F178] 安全网：过滤器的时间点**不得超过窗口上界**。
+                        # 延迟判定下，被判定挂单必然是在 `≤ hi` 之前挂出的 ⇒ 它的挂单时刻
+                        # 不可能晚于 hi ✗。若历史缺失/异常导致取到"当前挂单的 ts"，
+                        # 过滤器会把窗口里的桶**全部排除**（实测 n_eff 恒为 0 ✗✗）。
+                        _qts_use = min(float(_qts_use or 0.0), float(_hi_use) / 1000.0)
                     _lo, _hi, _qts = seg_window(
-                        int(getattr(st_seg, "last_seg_ms", 0) or 0), snap_ms,
-                        float(getattr(st_seg, "quote_ts", 0.0) or 0.0))
+                        int(getattr(st_seg, "last_seg_ms", 0) or 0), _hi_use, _qts_use)
                     tr = db.execute(text(
                         "SELECT MIN(low_price) FILTER (WHERE timestamp + :bk > :qts) AS lo,"
                         " MAX(high_price) FILTER (WHERE timestamp + :bk > :qts) AS hi,"
@@ -1208,6 +1272,11 @@ class ShadowRunner:
                         "ofi": _ofi,
                         # [F92] 观测：窗口/生效桶数（前端「链路」可见性 + 巡检用）
                         "seg_lo_ms": _lo, "seg_hi_ms": _hi, "seg_buckets": _n_eff,
+                        # [F176] 延迟判定用的"那时在挂的单"（bid, ask, mid）；无则 (0,0,0)
+                        "judged_quote": ((float(_jq.get("bid") or 0.0),
+                                          float(_jq.get("ask") or 0.0),
+                                          float(_jq.get("mid") or 0.0))
+                                         if _jq is not None else (0.0, 0.0, 0.0)),
                     }
                 # [F90 2026-09-14] 孤儿持仓估值行情：只取盘口（强制退出/估值用），
                 # **不消费成交桶**（该币不报价，水位线保持不动）。
@@ -1411,6 +1480,14 @@ class ShadowRunner:
             # [F102] 判定输入快照：被检验的挂单（重挂前的 quote）+ 区间高低/主动量
             _qb0, _qa0, _qm0 = (float(st.quote_bid or 0.0), float(st.quote_ask or 0.0),
                                 float(st.quote_mid or 0.0))
+            # [F179 2026-09-15] 观测口径必须与**判定对象**一致：F176 之后 `plan_tick`
+            # 判的是"延迟一档的那张单"（`m["judged_quote"]`）⇒ 穿越/地板/对照计数也必须
+            # 用它 ✓，否则会出现"成交数 > 穿越数"这种自相矛盾的读数（实测 36 笔成交 /
+            # 43 次穿越 ✗）。未启用延迟（L=0）时等于旧行为 ✓。
+            if self.judge_lag_buckets > 0:
+                _jq_obs = m.get("judged_quote") or (0.0, 0.0, 0.0)
+                _qb0, _qa0, _qm0 = (float(_jq_obs[0] or 0.0), float(_jq_obs[1] or 0.0),
+                                    float(_jq_obs[2] or 0.0))
             # [F94] 撤旧单 → 挂新单：先减掉本币旧的在挂腿，plan_tick 挂完后再加回
             # [F94c] 撤旧单 → 挂新单：按「加仓/减仓」区分先减掉本币旧贡献
             _u0, _d0, _g0 = pending_contrib(st, marks.get(s, 0.0), self.fill_notional)
@@ -1437,7 +1514,22 @@ class ShadowRunner:
                 # [§82/P5-A] 日亏闸输入：本 UTC 日车道已实现净额（关闭时不参与判定）
                 day_pnl_usd=(day_pnl if lane_limits_enforce_enabled() else 0.0),
                 pending=_pending,
+                # [F176] 延迟一档判定：用"那时真正在挂的那张单"（见 _lagged_quote）
+                judged_quote=(m.get("judged_quote") if self.judge_lag_buckets > 0 else None),
             )
+            # [F176] 维护挂单历史：记录本 tick 新挂单（依据标签 = 本 tick 的快照标签 ✓）
+            try:
+                _bh = self._quote_hist.setdefault(s, [])
+                if dec.bid > 0 or dec.ask > 0:
+                    _bh.append({"basis": float(m.get("ts_ms") or 0.0),
+                                "bid": float(dec.bid or 0.0),
+                                "ask": float(dec.ask or 0.0),
+                                "mid": float(m.get("mid") or 0.0),
+                                "ts": float(st.quote_ts or now_ts)})
+                if len(_bh) > 12:
+                    del _bh[:-12]
+            except Exception:
+                pass
             # [F94] 本币新挂单计入在挂风险（供同 tick 后续币种判定）
             # [F94c] 本币新挂单按「加仓/减仓」计入在挂风险（供同 tick 后续币种判定）
             _u1, _d1, _g1 = pending_contrib(st, marks.get(s, 0.0), self.fill_notional)
@@ -1539,6 +1631,9 @@ class ShadowRunner:
                 "qb": round(_qb0, 8), "qa": round(_qa0, 8), "qm": round(_qm0, 8),
                 "lo": round(float(m.get("seg_low") or 0.0), 8),
                 "hi": round(float(m.get("seg_high") or 0.0), 8),
+                # [F178] 延迟判定诊断：是否找到"那时在挂的单"、窗口上下界、过滤器时间点
+                "jq": (1 if (m.get("judged_quote") and float(m["judged_quote"][0]) > 0) else 0),
+                "wl": int(m.get("seg_lo_ms") or 0), "wh": int(m.get("seg_hi_ms") or 0),
                 "vs": round(float(m.get("seg_sell") or 0.0), 4),
                 "vb": round(float(m.get("seg_buy") or 0.0), 4),
                 "nf": len(dec.fills), "skip": skip_key(dec.skip),

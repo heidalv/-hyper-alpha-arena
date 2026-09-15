@@ -25,6 +25,14 @@
   },
   {
     "file": "backend/services/full_auto/midlong_executor.py",
+    "line": 420,
+    "test": "not authority_allows_open(auth, source, trading_mode=trading_mode)",
+    "kind": "GUARD",
+    "line_n": 3,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_executor.py",
     "line": 48,
     "test": "mode != 'live' or bool(PAPER_FAST_TRIAL)",
     "kind": "LOG/OTHER",
@@ -33,7 +41,7 @@
   },
   {
     "file": "backend/services/full_auto/midlong_executor.py",
-    "line": 517,
+    "line": 528,
     "test": "getattr(session, 'trading_mode', None)",
     "kind": "LOG/OTHER",
     "line_n": 1,
@@ -41,10 +49,18 @@
   },
   {
     "file": "backend/services/full_auto/midlong_executor.py",
-    "line": 566,
+    "line": 577,
     "test": "getattr(session, 'trading_mode', None)",
     "kind": "LOG/OTHER",
     "line_n": 1,
+    "via_flag": false
+  },
+  {
+    "file": "backend/services/full_auto/midlong_executor.py",
+    "line": 163,
+    "test": "src == 'factor_route' and (trading_mode or 'paper').strip().lower() == 'paper'",
+    "kind": "LOG/OTHER",
+    "line_n": 2,
     "via_flag": false
   },
   {

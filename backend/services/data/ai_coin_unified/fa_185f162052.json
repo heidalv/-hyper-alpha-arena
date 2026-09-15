@@ -1,17 +1,17 @@
 {
   "short": {
-    "symbols": [
-      "APT"
-    ],
-    "updated_at": 1788719017.0719597,
-    "reason": "quality_scrub_20260907"
+    "symbols": [],
+    "updated_at": 1789431257.1691346,
+    "reason": "selector_inject"
   },
   "version": 1,
   "session_id": "fa_185f162052",
-  "updated_at": 1788886186.0267594,
+  "updated_at": 1789442171.5752573,
   "mid": {
-    "symbols": [],
-    "updated_at": 1788886186.0267594,
+    "symbols": [
+      "BTC"
+    ],
+    "updated_at": 1789442171.5752573,
     "reason": "resample age>=10800s from midlong_board min_conf=0.4"
   }
 }

@@ -1,8 +1,35 @@
 {
   "by_tier": {
+    "mid": {
+      "n": 38,
+      "usd": 74.09,
+      "win_rate": 0.474,
+      "big_loss_n": 8,
+      "pattern_n": 10,
+      "pattern_usd": -145.55,
+      "pattern_rate": 0.263,
+      "giveback_pct_sum": 37.52,
+      "median_giveback_pct": 3.88,
+      "gate_split": {
+        "allow": {
+          "n": 6,
+          "usd": 0.69,
+          "pattern_n": 1,
+          "pattern_rate": 0.167,
+          "pattern_usd": -12.37
+        },
+        "block": {
+          "n": 32,
+          "usd": 73.4,
+          "pattern_n": 9,
+          "pattern_rate": 0.281,
+          "pattern_usd": -133.17
+        }
+      }
+    },
     "long": {
       "n": 32,
-      "usd": -85.12,
+      "usd": -82.71,
       "win_rate": 0.562,
       "big_loss_n": 9,
       "pattern_n": 8,
@@ -20,43 +47,16 @@
         },
         "block": {
           "n": 28,
-          "usd": -74.68,
+          "usd": -72.26,
           "pattern_n": 8,
           "pattern_rate": 0.286,
           "pattern_usd": -144.56
         }
       }
-    },
-    "mid": {
-      "n": 29,
-      "usd": -26.18,
-      "win_rate": 0.379,
-      "big_loss_n": 6,
-      "pattern_n": 9,
-      "pattern_usd": -114.07,
-      "pattern_rate": 0.31,
-      "giveback_pct_sum": 32.85,
-      "median_giveback_pct": 3.81,
-      "gate_split": {
-        "allow": {
-          "n": 6,
-          "usd": 0.69,
-          "pattern_n": 1,
-          "pattern_rate": 0.167,
-          "pattern_usd": -12.37
-        },
-        "block": {
-          "n": 23,
-          "usd": -26.87,
-          "pattern_n": 8,
-          "pattern_rate": 0.348,
-          "pattern_usd": -101.69
-        }
-      }
     }
   },
-  "pattern_n": 17,
-  "pattern_usd": -258.63,
+  "pattern_n": 18,
+  "pattern_usd": -290.11,
   "worst5": [
     {
       "symbol": "VIRTUAL",
@@ -73,6 +73,13 @@
       "reason": "thesis_invalidation"
     },
     {
+      "symbol": "XPL",
+      "tier": "mid",
+      "peak_pct": 0.61,
+      "usd": -31.48,
+      "reason": "thesis_should_close"
+    },
+    {
       "symbol": "XRP",
       "tier": "long",
       "peak_pct": 1.25,
@@ -85,13 +92,6 @@
       "peak_pct": 0.82,
       "usd": -25.16,
       "reason": "thesis_should_close"
-    },
-    {
-      "symbol": "SOL",
-      "tier": "long",
-      "peak_pct": 1.68,
-      "usd": -23.08,
-      "reason": "trend_broken: 原始多头论点已失效。开仓时依"
     }
   ],
   "gate": {
@@ -105,46 +105,46 @@
       "big_loss_n": 0
     },
     "block": {
-      "n": 51,
-      "usd": -101.54,
-      "win_rate": 0.431,
-      "pattern_n": 16,
-      "pattern_rate": 0.314,
-      "pattern_usd": -246.26,
-      "big_loss_n": 15
+      "n": 60,
+      "usd": 1.13,
+      "win_rate": 0.483,
+      "pattern_n": 17,
+      "pattern_rate": 0.283,
+      "pattern_usd": -277.74,
+      "big_loss_n": 17
     }
   },
   "by_family": {
     "long_swing": {
-      "n": 17,
-      "usd": -171.5,
-      "win_rate": 0.412,
+      "n": 16,
+      "usd": -177.53,
+      "win_rate": 0.375,
       "pattern_n": 5,
-      "pattern_rate": 0.294,
+      "pattern_rate": 0.312,
       "pattern_usd": -95.42
-    },
-    "mid_range": {
-      "n": 15,
-      "usd": -13.44,
-      "win_rate": 0.4,
-      "pattern_n": 6,
-      "pattern_rate": 0.4,
-      "pattern_usd": -63.83
     },
     "auto": {
       "n": 22,
-      "usd": 21.8,
+      "usd": 44.11,
       "win_rate": 0.5,
       "pattern_n": 5,
       "pattern_rate": 0.227,
       "pattern_usd": -98.47
     },
+    "mid_range": {
+      "n": 22,
+      "usd": 58.94,
+      "win_rate": 0.5,
+      "pattern_n": 7,
+      "pattern_rate": 0.318,
+      "pattern_usd": -95.31
+    },
     "trend_e1": {
-      "n": 7,
-      "usd": 51.85,
-      "win_rate": 0.714,
+      "n": 10,
+      "usd": 65.86,
+      "win_rate": 0.8,
       "pattern_n": 1,
-      "pattern_rate": 0.143,
+      "pattern_rate": 0.1,
       "pattern_usd": -0.9
     }
   },
@@ -152,30 +152,30 @@
     {
       "name": "mid 模式 USD ≥ 0",
       "ok": false,
-      "detail": "mid pattern_usd=-114.07"
+      "detail": "mid pattern_usd=-145.55"
     },
     {
       "name": "mid 大亏笔数 ≤ 8",
       "ok": true,
-      "detail": "mid big_loss_n=6"
+      "detail": "mid big_loss_n=8"
     },
     {
       "name": "门放行集模式率 < 门拦截集",
       "ok": true,
-      "detail": "allow=0.1 vs block=0.314"
+      "detail": "allow=0.1 vs block=0.283"
     },
     {
       "name": "门放行集模式 USD/笔 优于门拦截集",
       "ok": true,
-      "detail": "allow=-12.37/10 vs block=-246.26/51"
+      "detail": "allow=-12.37/10 vs block=-277.74/60"
     },
     {
       "name": "long 车道豁免正确（反事实：被拦集更赚）",
-      "ok": false,
-      "detail": "long 放行 $-10.45/4 vs 拦截 $-74.68/28"
+      "ok": true,
+      "detail": "long 放行 $-10.45/4 vs 拦截 $-72.26/28"
     }
   ],
-  "generated_at": "2026-09-14T01:07:13.671421+00:00",
+  "generated_at": "2026-09-15T01:06:48.962404+00:00",
   "days": 14,
-  "n": 61
+  "n": 70
 }

@@ -1,20 +1,12 @@
 {
-  "n": 188,
-  "mismatch_n": 94,
-  "mismatch_rate": 0.5,
-  "over_max_n": 18,
+  "n": 194,
+  "mismatch_n": 90,
+  "mismatch_rate": 0.464,
+  "over_max_n": 16,
   "max_reduce_max": 3,
   "missing_final_n": 0,
   "dup_final_n": 4,
   "worst": [
-    {
-      "id": 3113,
-      "symbol": "BTC",
-      "tier": "mid",
-      "n_partial": 10,
-      "reduce_count": 0,
-      "closed_at": "2026-08-16 02:15:06.596640"
-    },
     {
       "id": 4600,
       "symbol": "ETH",
@@ -46,18 +38,26 @@
       "n_partial": 6,
       "reduce_count": 0,
       "closed_at": "2026-09-04 00:00:12.533815"
+    },
+    {
+      "id": 4599,
+      "symbol": "LINK",
+      "tier": "long",
+      "n_partial": 6,
+      "reduce_count": 0,
+      "closed_at": "2026-09-03 22:40:04.070430"
     }
   ],
   "verdicts": [
     {
       "name": "reduce_count 与减仓事件数一致率 ≥95%",
       "ok": false,
-      "detail": "不一致 94/188"
+      "detail": "不一致 90/194"
     },
     {
       "name": "无仓位超过单仓减仓上限",
       "ok": false,
-      "detail": "> 3 次的仓位 18 笔"
+      "detail": "> 3 次的仓位 16 笔"
     },
     {
       "name": "已平仓仓位均有终局事件",
@@ -65,6 +65,6 @@
       "detail": "缺终局事件 0 笔"
     }
   ],
-  "generated_at": "2026-09-14T01:07:24.672259+00:00",
+  "generated_at": "2026-09-15T01:06:59.339943+00:00",
   "days": 30
 }

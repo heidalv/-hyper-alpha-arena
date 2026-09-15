@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-14T01:07:19.322384+00:00",
+  "generated_at": "2026-09-15T01:06:54.477610+00:00",
   "start": "2026-07-01",
-  "n": 286,
+  "n": 299,
   "cells": {
     "2026-07|mid|block": {
       "n": 61,
@@ -74,14 +74,14 @@
       "pattern_rate": 0.0625
     },
     "2026-09|mid|block": {
-      "n": 22,
-      "usd": -29.11,
-      "mean_pct": -0.5002,
-      "win_rate": 0.273,
-      "big_loss_n": 6,
-      "pattern_n": 8,
-      "pattern_usd": -101.69,
-      "pattern_rate": 0.3636
+      "n": 32,
+      "usd": 73.4,
+      "mean_pct": 0.0659,
+      "win_rate": 0.438,
+      "big_loss_n": 8,
+      "pattern_n": 9,
+      "pattern_usd": -133.17,
+      "pattern_rate": 0.2812
     },
     "2026-09|mid|allow": {
       "n": 6,
@@ -94,14 +94,14 @@
       "pattern_rate": 0.1667
     },
     "2026-09|long|block": {
-      "n": 25,
-      "usd": -86.27,
-      "mean_pct": -0.0212,
-      "win_rate": 0.48,
+      "n": 28,
+      "usd": -72.26,
+      "mean_pct": 0.3143,
+      "win_rate": 0.536,
       "big_loss_n": 9,
       "pattern_n": 8,
       "pattern_usd": -144.56,
-      "pattern_rate": 0.32
+      "pattern_rate": 0.2857
     },
     "2026-09|long|allow": {
       "n": 4,
@@ -117,27 +117,27 @@
   "bootstrap": {
     "mid|全期": {
       "n_allow": 27,
-      "n_block": 191,
+      "n_block": 201,
       "mean_pct": {
-        "obs": 1.0784,
-        "lo": 0.0638,
-        "hi": 2.1903,
+        "obs": 1.0007,
+        "lo": 0.0093,
+        "hi": 2.1056,
         "significant": true
       },
       "big_rate": {
-        "obs": 0.0012,
-        "lo": -0.1096,
-        "hi": 0.1328,
+        "obs": -0.0033,
+        "lo": -0.115,
+        "hi": 0.1349,
         "significant": false
       },
       "pattern_rate": {
-        "obs": -0.083,
-        "lo": -0.178,
-        "hi": 0.0386,
+        "obs": -0.0802,
+        "lo": -0.1769,
+        "hi": 0.0409,
         "significant": false
       },
       "usd_allow": 23.5,
-      "usd_block": -99.3
+      "usd_block": 3.21
     },
     "mid|2026-07": {
       "n_allow": 5,
@@ -189,51 +189,51 @@
     },
     "mid|2026-09": {
       "n_allow": 6,
-      "n_block": 22,
+      "n_block": 32,
       "mean_pct": {
-        "obs": 1.9217,
-        "lo": -0.3623,
-        "hi": 4.3835,
+        "obs": 1.3557,
+        "lo": -0.7638,
+        "hi": 3.7914,
         "significant": false
       },
       "big_rate": {
-        "obs": -0.2727,
-        "lo": -0.4545,
-        "hi": -0.0909,
+        "obs": -0.25,
+        "lo": -0.4062,
+        "hi": -0.0938,
         "significant": true
       },
       "pattern_rate": {
-        "obs": -0.197,
-        "lo": -0.5,
-        "hi": 0.197,
+        "obs": -0.1146,
+        "lo": -0.4062,
+        "hi": 0.25,
         "significant": false
       },
       "usd_allow": 0.69,
-      "usd_block": -29.11
+      "usd_block": 73.4
     },
     "long|全期": {
       "n_allow": 6,
-      "n_block": 62,
+      "n_block": 65,
       "mean_pct": {
-        "obs": 0.5994,
-        "lo": -1.0273,
-        "hi": 2.3653,
+        "obs": 0.4661,
+        "lo": -1.1521,
+        "hi": 2.2741,
         "significant": false
       },
       "big_rate": {
-        "obs": -0.1774,
-        "lo": -0.2742,
-        "hi": -0.0968,
+        "obs": -0.1692,
+        "lo": -0.2615,
+        "hi": -0.0923,
         "significant": true
       },
       "pattern_rate": {
-        "obs": -0.1935,
-        "lo": -0.3065,
-        "hi": -0.0968,
+        "obs": -0.1846,
+        "lo": -0.2923,
+        "hi": -0.1077,
         "significant": true
       },
       "usd_allow": -12.52,
-      "usd_block": -29.73
+      "usd_block": -15.72
     },
     "long|2026-07": {
       "n_allow": 2,
@@ -261,27 +261,27 @@
     },
     "long|2026-09": {
       "n_allow": 4,
-      "n_block": 25,
+      "n_block": 28,
       "mean_pct": {
-        "obs": 1.4787,
-        "lo": -0.9794,
-        "hi": 3.9011,
+        "obs": 1.1432,
+        "lo": -1.3366,
+        "hi": 3.5895,
         "significant": false
       },
       "big_rate": {
-        "obs": -0.36,
-        "lo": -0.56,
-        "hi": -0.2,
+        "obs": -0.3214,
+        "lo": -0.5,
+        "hi": -0.1429,
         "significant": true
       },
       "pattern_rate": {
-        "obs": -0.32,
-        "lo": -0.52,
-        "hi": -0.16,
+        "obs": -0.2857,
+        "lo": -0.4643,
+        "hi": -0.1429,
         "significant": true
       },
       "usd_allow": -10.45,
-      "usd_block": -86.27
+      "usd_block": -72.26
     }
   }
 }

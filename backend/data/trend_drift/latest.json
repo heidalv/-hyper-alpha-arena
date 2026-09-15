@@ -1,97 +1,70 @@
 {
   "account_id": 14,
   "tier": "long",
-  "as_of_bar": "2026-09-12",
-  "computed_at": "2026-09-14T01:16:58.171221+00:00",
-  "equity": 4640.975984094441,
+  "as_of_bar": "2026-09-13",
+  "computed_at": "2026-09-15T00:20:01.800626+00:00",
+  "equity": 4732.726128427983,
   "trend_drift": 0,
-  "weight_drift": 3,
+  "weight_drift": 2,
   "leverage_violations": 0,
   "missing": [],
   "extra": [],
   "wrong_side": [],
   "matched": [
     {
-      "symbol": "SOL",
-      "actual_weight": 0.062050312277851453,
-      "target_weight": 0.10340372721354159,
-      "deviation": -0.041353414935690135,
-      "target_stop": 93.741,
-      "actual_sl": 96.4083,
-      "add_count": 0
-    },
-    {
-      "symbol": "XRP",
-      "actual_weight": 0.027979854159098216,
-      "target_weight": 0.07785725694206766,
-      "deviation": -0.04987740278296944,
-      "target_stop": 1.145765,
-      "actual_sl": 1.259617,
-      "add_count": 0
-    },
-    {
-      "symbol": "LINK",
-      "actual_weight": 0.07522931601202651,
-      "target_weight": 0.1253658746556474,
-      "deviation": -0.050136558643620904,
-      "target_stop": 11.33475,
-      "actual_sl": 11.33475,
-      "add_count": 0
-    },
-    {
       "symbol": "BTC",
-      "actual_weight": 0.04318771281821449,
+      "actual_weight": 0.021556081240757172,
       "target_weight": 0.16537913531323725,
-      "deviation": -0.12219142249502277,
-      "target_stop": 74306.6,
-      "actual_sl": 74306.6,
+      "deviation": -0.14382305407248008,
+      "target_stop": 74660.195,
+      "actual_sl": 74660.195,
       "add_count": 0
     },
     {
       "symbol": "BNB",
-      "actual_weight": 0.02571673918596319,
+      "actual_weight": 0.025289502458829577,
       "target_weight": 0.17414555629099235,
-      "deviation": -0.14842881710502914,
-      "target_stop": 692.144,
-      "actual_sl": 692.144,
+      "deviation": -0.14885605383216277,
+      "target_stop": 693.1925,
+      "actual_sl": 693.1925,
+      "add_count": 0
+    },
+    {
+      "symbol": "SOL",
+      "actual_weight": 0.047013007503015944,
+      "target_weight": 0.10340372721354159,
+      "deviation": -0.056390719710525644,
+      "target_stop": 94.149,
+      "actual_sl": 101.15924767,
       "add_count": 0
     },
     {
       "symbol": "ETH",
-      "actual_weight": 0.04016336820053572,
+      "actual_weight": 0.08185361553847371,
       "target_weight": 0.14535946242303255,
-      "deviation": -0.10519609422249683,
-      "target_stop": 2241.5395,
-      "actual_sl": 2327.846722,
+      "deviation": -0.06350584688455883,
+      "target_stop": 2248.0299999999997,
+      "actual_sl": 2432.2556,
       "add_count": 0
     }
   ],
   "weight_drift_detail": [
     {
       "symbol": "BTC",
-      "actual_weight": 0.04318771281821449,
+      "actual_weight": 0.021556081240757172,
       "target_weight": 0.16537913531323725,
-      "deviation": -0.12219142249502277,
-      "target_stop": 74306.6,
-      "actual_sl": 74306.6,
+      "deviation": -0.14382305407248008,
+      "target_stop": 74660.195,
+      "actual_sl": 74660.195,
       "add_count": 0
     },
     {
       "symbol": "BNB",
-      "actual_weight": 0.02571673918596319,
+      "actual_weight": 0.025289502458829577,
       "target_weight": 0.17414555629099235,
-      "deviation": -0.14842881710502914,
-      "target_stop": 692.144,
-      "actual_sl": 692.144,
-      "add_count": 0
-    },
-    {
-      "symbol": "ETH",
-      "actual_weight": 0.04016336820053572,
-      "target_weight": 0.14535946242303255,
-      "deviation": -0.10519609422249683,
-      "target_stop": 2241.5395,
-      "actual_sl": 2327.846722,
+      "deviation": -0.14885605383216277,
+      "target_stop": 693.1925,
+      "actual_sl": 693.1925,
       "add_count": 0
     }
   ],
@@ -101,9 +74,9 @@
     "ETH": 1,
     "SOL": 1,
     "BNB": 1,
-    "XRP": 1,
+    "XRP": 0,
     "DOGE": 0,
-    "LINK": 1,
+    "LINK": 0,
     "AVAX": 0
   },
   "target_weights": {
@@ -111,9 +84,9 @@
     "ETH": 0.14535946242303255,
     "SOL": 0.10340372721354159,
     "BNB": 0.17414555629099235,
-    "XRP": 0.07785725694206766,
+    "XRP": 0.0,
     "DOGE": 0.0,
-    "LINK": 0.1253658746556474,
+    "LINK": 0.0,
     "AVAX": 0.0
   },
   "rules": {
