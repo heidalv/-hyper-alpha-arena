@@ -34,8 +34,8 @@
 | ARBITRAGE_ENABLED | V3 统计套利总开关 | false | README §套利开关语义 |
 | RISK_ENGINE_ENABLED | 风险引擎主开关 | true | 安全关键 flag |
 | LIVE_SCALP_VETO_FAIL_OPEN | Live 短线否决层 fail-open（禁止） | false | 三周期整改：Live 下必须 fail-closed |
-| LIVE_ORCHESTRATOR_HARD_GATE | Live 编排器硬门禁 | true | |
-| LIVE_DIRECTION_COHERENCE_MODE | Live 方向一致性模式 | enforce | |
+| LIVE_ORCHESTRATOR_HARD_GATE | Live 编排器硬门禁 | false | [验收轮5 2026-09-15 用户指令：实盘向模拟仓看齐] true→false（frozen/wait 改软缩仓，同 paper）；回滚=true |
+| LIVE_DIRECTION_COHERENCE_MODE | Live 方向一致性模式 | audit | [验收轮5 2026-09-15 用户指令：实盘向模拟仓看齐] enforce→audit（只审计不拦单，同 paper）；回滚=enforce |
 | LEGACY_RISK_HARD_ROLLBACK | 旧风控硬回滚 | false | |
 | CONSECUTIVE_LOSS_PROTECTION_ENABLED | 连续亏损保护 | false | |
 | SCALP_DAILY_OPEN_CAP | 短线日开仓配额 | 20 | 2026-09-03 v3-P0 止血：150→20。历史：08-23 由 60 上调到 150，其间 `--fix-doc` 曾误把文档回写成 60；实盘另有 LIVE_SCALP_DAILY_OPEN_CAP=30 与 V5_MAX_DAILY_TRADES_LIVE=12 两道更紧的闸 |
@@ -82,7 +82,7 @@
 | FUSION_PWIN_EXPLORE_DAILY_QUOTA_PAPER | 模拟盘探索配额 | 120 | ★ 按「够重训一批」给量，对齐历史日均开仓（30~100 笔） |
 | FUSION_PROBE_MIN_PWIN_PAPER | 模拟盘探针门槛 | 0.42 | ★ 刻意低于分档最低档 0.55——探针只在 pwin<地板 时进入，不低于地板则数学上不可命中 |
 | FUSION_PROBE_DAILY_QUOTA_PAPER | 模拟盘探针日配额 | 60 | ★ G18 关闭探针的立论「样本已足够、无需靠它攒数据」只对信号样本成立，成交样本（滑点/实际成交价/真实 PnL/退出行为）只能靠真实下单产生 |
-| FUSION_PROBE_DAILY_QUOTA_LIVE | 实盘探针日配额 | 0 | 沿用 G18 关闭 |
+| FUSION_PROBE_DAILY_QUOTA_LIVE | 实盘探针日配额 | 60 | [验收轮5 2026-09-15 用户指令：实盘向模拟仓看齐] 0→60，与 paper 同档；回滚=0 |
 | SCALP_META_GATE_AUC | meta 模型 usable 判定的 AUC 门槛 | 0.60 | 低于此值模型判不可用 → 走上面的 UNUSABLE_MODE |
 | SCALP_META_LOAD_WINDOW_DAYS | meta 训练样本分批读取窗口（天） | 5 | ★ F15 新增。60 天切 12 批短事务，避免 35 万行单事务撞 DB_IDLE_IN_TXN_TIMEOUT_MS |
 | SCALP_SHORT_LIVE_STRICT | 短线实盘严格模式 | false | |
