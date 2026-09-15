@@ -80,6 +80,16 @@ def main() -> int:
         print(f"  挂宽(半宽bp): 买={aw.get('bid')} 卖={aw.get('ask')} 平均σ={st.get('avg_sigma')} "
               f"报价决策={st.get('quoted_decisions')}")
         print(f"  报价侧分布: {st.get('side_counts')}")
+        # [F205] 报价**分支**读数：F189 的失败是"参数改了但没生效"（模型以为挂 13bp，
+        # 实盘因冻结档只挂 5.5/4.7bp ✗）⇒ 这里直接把分支占比与基准宽度摊开，
+        # `avg_base_bp` 应能对上 `w_base_bp×(1+k_vol×σ)`（正常档）或 `frozen_width_bp`（冻结档）✓。
+        _fs = st.get("frozen_share")
+        _qm = st.get("quote_modes") or {}
+        if _fs is not None or _qm:
+            print(f"  报价分支: 冻结档占比="
+                  f"{'—' if _fs is None else format(float(_fs) * 100, '.1f') + '%'}"
+                  f"  明细={_qm}  基准半宽均值={st.get('avg_base_bp')}"
+                  f"  （对照：w_base={params.get('w_base_bp')} / frozen_width={params.get('frozen_width_bp')}）")
         print(f"  闸门拦截: {st.get('skip_counts')}")
         print(f"  孤儿持仓: {st.get('orphan_inventory')}  错误: {st.get('last_error') or '无'}")
     except Exception as e:

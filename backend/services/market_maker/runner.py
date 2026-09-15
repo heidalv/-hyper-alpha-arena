@@ -197,6 +197,11 @@ class TickDecision:
     skip_side: str = ""
     vol_bp: float = 0.0            # 当前已实现波动（bp，F71b）
     lane_pause: str = ""           # [§82/P5-A] 车道级暂停原因（空=未暂停）
+    # [F205 2026-09-15] 报价分支（normal/frozen）与该分支的基准半宽 —— 观测用。
+    # 目的：让"模型参数 → 实盘行为"可核对（F189 的失败正是因为模型与实盘
+    # 在冻结档上的占比不同 ✗，而此前这个量完全不可见）。
+    quote_mode: str = ""
+    base_bp: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -208,6 +213,7 @@ class TickDecision:
             "fills": [f.to_dict() for f in self.fills],
             "skip": self.skip, "skip_side": self.skip_side,
             "lane_pause": self.lane_pause,
+            "quote_mode": self.quote_mode, "base_bp": round(self.base_bp, 4),
         }
 
 
@@ -820,6 +826,9 @@ def plan_tick(
     dec.ask = q.ask if allow_sell else 0.0
     dec.w_bid_bp = q.w_bid_bp if allow_buy else 0.0
     dec.w_ask_bp = q.w_ask_bp if allow_sell else 0.0
+    # [F205] 把报价分支带出来（即使某一侧被闸门挡掉，分支信息仍然有效 ✓）
+    dec.quote_mode = q.mode
+    dec.base_bp = q.base_bp
     if not allow_buy or not allow_sell:
         dec.skip = (why_buy if not allow_buy else why_sell).split("(")[0]
         dec.skip_side = "buy" if not allow_buy else "sell"
@@ -966,6 +975,12 @@ class ShadowRunner:
         self._w_sum = {"bid": 0.0, "ask": 0.0}
         self._w_n = 0
         self._sigma_sum = 0.0
+        # [F205 2026-09-15] 报价**分支**观测：冻结档（`frozen_width_bp`）与正常档的命中占比
+        # + 基准半宽均值。F189 的教训：模型以为 `w_base_bp=12` 生效（挂 ~13bp），
+        # 实盘却因冻结档实际只挂 5.5/4.7bp ✗ ⇒ 拿"改了但没生效"的配置承担了 −$63.8 敞口 ✗✗。
+        # 这两个读数让"参数→行为"当场可核对，不必再从平均挂宽反推 ✓。
+        self._mode_counts: Dict[str, int] = {"normal": 0, "frozen": 0, "unknown": 0}
+        self._base_sum = 0.0
         # [F102] 最近若干 tick 的**成交判定输入快照**（环形，供审计"该成交却没成交"）：
         # 记录判定时**实际被检验的挂单**（重挂前的 quote）与区间高低/主动量、成交数。
         # 这是把「报价路径」与「判定路径」分开的直接证据（此前只能靠外部复算，不可靠）。
@@ -1566,6 +1581,10 @@ class ShadowRunner:
             if dec.bid > 0 or dec.ask > 0:
                 self._w_n += 1
                 self._sigma_sum += float(sigma or 0.0)
+                # [F205] 分支占比与基准宽度：与挂宽均值同口径（只统计真正挂了单的决策 ✓）
+                _m = dec.quote_mode or "unknown"
+                self._mode_counts[_m] = self._mode_counts.get(_m, 0) + 1
+                self._base_sum += float(dec.base_bp or 0.0)
             self._record_fills(dec)
             # [F105] 穿越→成交转化率：本侧穿越（区间价触及挂单价，且该侧有主动量——
             # 与 plan_tick 的成交条件**逐条对齐**，否则会把"无成交量的穿越"误记为异常）。
@@ -1833,6 +1852,11 @@ class ShadowRunner:
                 "ask": round(self._w_sum["ask"] / self._w_n, 3) if self._w_n else None},
             "avg_sigma": round(self._sigma_sum / self._w_n, 3) if self._w_n else None,
             "quoted_decisions": self._w_n,
+            # [F205] 报价分支观测（冻结档占比 + 基准半宽均值）：核对"参数→行为"是否一致 ✓
+            "quote_modes": dict(self._mode_counts),
+            "frozen_share": (round(self._mode_counts.get("frozen", 0) / self._w_n, 4)
+                             if self._w_n else None),
+            "avg_base_bp": round(self._base_sum / self._w_n, 3) if self._w_n else None,
             # [F102] 最近 tick 的成交判定输入（供审计漏判；60 条 ≈ 12 tick × 5 币）
             "recent_ticks": self.recent_ticks[-60:],
             # [F105] 穿越→成交转化率累计（长窗口定位残留速率差）

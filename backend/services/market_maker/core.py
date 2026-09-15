@@ -83,6 +83,14 @@ class Quote:
     w_bid_bp: float
     w_ask_bp: float
     reason: str = ""
+    # [F205 2026-09-15] 报价**分支**与**基准半宽**：观测用。
+    # 为什么必须有：模型（回放）与实盘用的都是同一套 `compute_quote` ✓，但
+    # `frozen_width_bp` 那个冻结档会让 `w_base_bp` **完全不参与**报价 ——
+    # F189 的教训就是"模型以为挂 12bp（w_base=12 生效），实盘因冻结档实际只挂 5.5/4.7bp" ✗✗，
+    # 结果拿着一个"改了但没生效"的配置承担了真实敞口（−$63.8）✗。
+    # ⇒ 把分支名与基准宽度显式带出来，体检里就能直接核对"参数→行为"✓。
+    mode: str = "normal"          # "normal" | "frozen"
+    base_bp: float = 0.0          # 该分支产出的基准半宽（未经库存/趋势偏斜与地板钳制）
 
 
 def compute_quote(
@@ -111,6 +119,7 @@ def compute_quote(
     if (params.frozen_width_bp is not None and float(params.frozen_width_bp) > 0
             and 0 < float(slow_range_bp) < float(params.frozen_max_move_bp)):
         base = float(params.frozen_width_bp)
+        _mode = "frozen"
     else:
         # [F97 2026-09-14] σ 上限：`k_vol×σ` 原先**无上界**，实测 σ 可达 4~6
         # （XRP 当前 5 分钟波动 = 基准的 5.4 倍）⇒ 半宽被推到 14bp（双边 28bp），
@@ -120,6 +129,7 @@ def compute_quote(
         if _cap > 0:
             _vol = min(_vol, _cap)
         base = params.w_base_bp * (1.0 + params.k_vol * _vol)
+        _mode = "normal"
     # [F204] 趋势反向偏斜（见 QuoteParams.k_trend 的证据说明）。
     # 符号务必记住：**涨 ⇒ bid 挂远、ask 挂近**（= 双边整体下移 = 顺势出货 ✓）；
     # 跌 ⇒ 反过来（= 整体上移 = 低吸 ✓）。写成反的会把边际从 +2bp 变成 −4bp ✗✗。
@@ -147,7 +157,8 @@ def compute_quote(
         bid=float(mid) * (1.0 - w_bid / 1e4),
         ask=float(mid) * (1.0 + w_ask / 1e4),
         w_bid_bp=round(w_bid, 4), w_ask_bp=round(w_ask, 4),
-        reason=f"base={base:.2f}bp sigma={sigma_norm:.2f} inv={inv_ratio:.2f}",
+        reason=f"base={base:.2f}bp sigma={sigma_norm:.2f} inv={inv_ratio:.2f} mode={_mode}",
+        mode=_mode, base_bp=round(float(base), 4),
     )
 
 
