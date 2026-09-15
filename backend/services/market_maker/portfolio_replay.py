@@ -191,6 +191,14 @@ def replay_portfolio(
         "nofill_stale": 0, "nofill_min_notional": 0, "nofill_other": 0,
         "win_judged": 0, "win_empty": 0,
     }
+    # [F211 2026-09-15] 延迟判定：逐 tick 的挂单历史 + 开关。
+    # 实盘用 `ShadowRunner._lagged_quote()`（runner.py:1196）取"**被判定桶那时在挂的**那张单" ✓；
+    # 模型此前拿的是状态里最新那张 ✗ ⇒ 等桶可见时挂单已换 2~3 轮 ⇒ 配对失配 ✗✗。
+    # 默认开启（忠于实盘 ✓）；`MM_REPLAY_JUDGE_LAG=0` 可回退旧行为做 A/B 对照 ✓。
+    import os as _os
+    _lag_env = (_os.getenv("MM_REPLAY_JUDGE_LAG", "1") or "1").strip().lower()
+    replay_judge_lag = _lag_env not in ("0", "false", "no", "off")
+    qhist: Dict[str, list] = {}
     # [F106 2026-09-14] **逐笔挂单序列**（`collect_quotes=True` 时收集）。
     # 动机：F99 起只有"均值"（avg_width_bp / side_counts），而 F106a 实测实盘挂宽的
     # **完整分布**与均值差很远（中位 6.43bp，但单侧率高达 61.5%）——"均值相同"完全
@@ -323,6 +331,22 @@ def replay_portfolio(
             _qb0 = float(getattr(_st, "quote_bid", 0.0) or 0.0)
             _qa0 = float(getattr(_st, "quote_ask", 0.0) or 0.0)
             _qm0 = float(getattr(_st, "quote_mid", 0.0) or 0.0)
+            # [F211 2026-09-15] **被判定挂单必须取"当时在挂的那张"** —— 与实盘
+            # `ShadowRunner._lagged_quote()`（runner.py:1196）同语义 ✓。
+            # 现场：模型的判定区间会**等桶落库**才消费（`tmk` 可见性 ✓，水位不动 ✓），
+            # 但它拿去判定的是**状态里最新那张挂单**（上面 `_qb0/_qa0/_qm0` = 上一 tick
+            # 刚挂的）✗ —— 而等桶可见时已经过去 2~3 个 tick、挂单换了好几轮 ⇒
+            # **"新的挂单价"配"旧的桶"** ⇒ 穿越判定系统性失配 ✗✗
+            # （同窗口实测：模型 46 笔 vs 实盘 203 笔，是本次"模型看不实盘陷阱"的主嫌疑）。
+            # 修法：留一份逐 tick 的挂单历史，按**被判定桶的时刻**取当时在挂的那张 ✓。
+            _jq = None
+            for _e in qhist.get(s) or []:
+                if _e[0] <= (_snap / 1000.0) + 1e-6:
+                    _jq = _e
+                else:
+                    break
+            if _jq is not None:
+                _qb0, _qa0, _qm0 = float(_jq[1]), float(_jq[2]), float(_jq[3])
             dec, _meta = plan_tick(
                 state=states[s], mid=mid, seg_low=seg_low, seg_high=seg_high,
                 seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
@@ -336,10 +360,19 @@ def replay_portfolio(
                 taker_fee_bp=4.0, maker_fee_bp=0.0, half_spread=half_spread,
                 sigma_norm=sigma, book=book, marks=marks,
                 ofi=ofi, pending=pending,
+                # [F211] 延迟判定：把"当时在挂的那张单"交给 plan_tick 做成交判定 ✓
+                judged_quote=((_jq[1], _jq[2], _jq[3]) if (_jq is not None and replay_judge_lag)
+                              else None),
                 # [F98] 日亏闸输入（仅在显式要求时非零；否则与旧行为逐字一致）
                 day_pnl_usd=(_day_pnl if enforce_lane_limits else 0.0),
                 lane_limits_enforce=(True if enforce_lane_limits else None),
             )
+            # [F211] 记下本次决策后的挂单，供后续 tick 按时刻回取 ✓
+            qhist.setdefault(s, []).append(
+                (float(_snap) / 1000.0, float(dec.bid or 0.0),
+                 float(dec.ask or 0.0), float(mid or 0.0)))
+            if len(qhist[s]) > 512:
+                del qhist[s][:-256]
             if dec.lane_pause:
                 _lk = dec.lane_pause.split("(")[0]
                 lane_pause_counts[_lk] = lane_pause_counts.get(_lk, 0) + 1
