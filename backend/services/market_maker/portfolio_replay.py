@@ -176,6 +176,12 @@ def replay_portfolio(
     _w_sum = {"bid": 0.0, "ask": 0.0}
     _w_n = 0
     _sigma_sum = 0.0
+    # [F205b 2026-09-15] 报价**分支**观测：字段名与实盘 `/shadow` 的
+    # `quote_modes / frozen_share / avg_base_bp` **完全一致** ✓ ——
+    # 这样"模型 vs 实盘"可以逐项对照。为什么必须对照：F189 上线崩掉（−$63.8）时，
+    # 两边对"同一套参数会挂多宽"的认知就不一致 ✗，而当时没有任何同口径读数 ✗。
+    _mode_counts: Dict[str, int] = {"normal": 0, "frozen": 0, "unknown": 0}
+    _base_sum = 0.0
     # [F106 2026-09-14] **逐笔挂单序列**（`collect_quotes=True` 时收集）。
     # 动机：F99 起只有"均值"（avg_width_bp / side_counts），而 F106a 实测实盘挂宽的
     # **完整分布**与均值差很远（中位 6.43bp，但单侧率高达 61.5%）——"均值相同"完全
@@ -355,6 +361,10 @@ def replay_portfolio(
             if dec.bid > 0 or dec.ask > 0:
                 _w_n += 1
                 _sigma_sum += float(sigma or 0.0)
+                # [F205b] 与实盘 runner 同口径：只统计真正挂了单的决策 ✓
+                _m = dec.quote_mode or "unknown"
+                _mode_counts[_m] = _mode_counts.get(_m, 0) + 1
+                _base_sum += float(dec.base_bp or 0.0)
             # [F106] 逐笔挂单 + 被判定挂单的"穿越"细节（与实盘 cross_counts 同口径）
             if collect_quotes:
                 quotes_log.append({
@@ -438,6 +448,10 @@ def replay_portfolio(
             "ask": round(_w_sum["ask"] / _w_n, 3) if _w_n else None},
         "avg_sigma": round(_sigma_sum / _w_n, 3) if _w_n else None,
         "quoted_decisions": _w_n,
+        # [F205b] 报价分支（与实盘 /shadow 同名字段 ⇒ 可直接 diff）
+        "quote_modes": dict(_mode_counts),
+        "frozen_share": (round(_mode_counts.get("frozen", 0) / _w_n, 4) if _w_n else None),
+        "avg_base_bp": round(_base_sum / _w_n, 3) if _w_n else None,
         "skip_counts": dict(sorted(skip_counts.items(), key=lambda kv: -kv[1])[:12]),
         # [F98] 车道级闸门触发次数（验证「配置的闸门是否真的在起作用」）
         "lane_pause_counts": lane_pause_counts,

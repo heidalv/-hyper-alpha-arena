@@ -239,7 +239,15 @@ def main() -> int:
                         # 能直接回答"亏损来自被动被逆向选择，还是来自主动平仓的滑点"✗✓
                         "maker_bp": r.get("maker_net_bp"), "flatten_bp": r.get("flatten_net_bp"),
                         "flattens": r.get("flattens"), "notional": r.get("notional"),
-                        "pos_sym": r.get("positive_symbols")})
+                        "pos_sym": r.get("positive_symbols"),
+                        # [F205b] 报价分支：与实盘 /shadow 同名字段 ⇒ 可直接对照
+                        # （F189 的失败正是两边对"同一参数挂多宽"的认知不一致 ✗）
+                        "frozen_share": r.get("frozen_share"),
+                        "avg_base_bp": r.get("avg_base_bp"),
+                        "modes": r.get("quote_modes"),
+                        # [F205b] **最终挂宽**（偏斜/地板之后）——与实盘 `avg_width_bp`
+                        # 才是同一量；`avg_base_bp` 是偏斜前的基准，两者不可混比 ✗
+                        "avg_width_bp": r.get("avg_width_bp")})
         diff = {k: p[k] for k in sorted(p) if cur.get(k) != p[k]}
         rows.append({"params": {k: p[k] for k in sorted(p)}, "diff": diff, "per": per})
         tag = ",".join(f"{k}={v}" for k, v in diff.items()) or "(在位)"
@@ -256,7 +264,8 @@ def main() -> int:
     print("汇总（Δ 相对在位；'全口径不劣'= 每个滞后下 USD 都不低于在位的 98%）")
     print("=" * 118)
     print(f"{'候选':<40}" + "".join(f"{'ΔUSD@' + f'{d/1000:.1f}s':>11}" for d in delays)
-          + f"{'Δbp均值':>10}{'被动腿bp':>10}{'平仓腿bp':>10}{'名义$':>10}{'正币':>5}{'判定':>10}")
+          + f"{'Δbp均值':>10}{'被动腿bp':>10}{'平仓腿bp':>10}{'名义$':>10}{'正币':>5}"
+          + f"{'冻结%':>7}{'基准bp':>8}{'挂宽bp':>8}{'判定':>10}")
     summary = []
     for r in rows:
         tag = ",".join(f"{k}={v}" for k, v in r["diff"].items()) or "(在位)"
@@ -282,9 +291,19 @@ def main() -> int:
         fl = sum(fl_vals) / len(fl_vals) if fl_vals else 0.0
         ntl = [float(e["notional"] or 0) for e in r["per"]]
         ps = [int(e["pos_sym"] or 0) for e in r["per"]]
+        # [F205b] 模型侧的报价分支（冻结档占比 / 基准半宽），与实盘 /shadow 对照 ✓
+        fz = [float(e["frozen_share"]) for e in r["per"] if e.get("frozen_share") is not None]
+        bb = [float(e["avg_base_bp"]) for e in r["per"] if e.get("avg_base_bp") is not None]
+        # [F205b] 最终挂宽（买/卖均值）——与实盘 avg_width_bp 同一量 ✓
+        wz = [e["avg_width_bp"] or {} for e in r["per"]]
+        _wv = [float(v) for w in wz for v in ((w.get("bid"), w.get("ask")) if isinstance(w, dict) else ())
+               if v is not None]
+        wr = (sum(_wv) / len(_wv)) if _wv else float("nan")
         line = f"{tag:<40}" + "".join(f"{x:>+11.2f}" for x in dusd)
         line += (f"{sum(dbp)/len(dbp):>+10.3f}{mk:>+10.3f}{fl:>+10.3f}"
-                 f"{sum(ntl)/len(ntl):>10.0f}{max(ps) if ps else 0:>5}{verdict:>10}")
+                 f"{sum(ntl)/len(ntl):>10.0f}{max(ps) if ps else 0:>5}"
+                 f"{(100*sum(fz)/len(fz) if fz else float('nan')):>7.1f}"
+                 f"{(sum(bb)/len(bb) if bb else float('nan')):>8.2f}{wr:>8.2f}{verdict:>10}")
         print(line)
         summary.append({"params": r["params"], "diff": r["diff"], "per": r["per"],
                         "d_usd": dusd, "d_bp": dbp, "verdict": verdict})

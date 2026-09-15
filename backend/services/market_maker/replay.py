@@ -56,6 +56,10 @@ class SymbolResult:
     covered_days: float = 0.0     # 有效覆盖时长（剔除断流缺口）
     vol_baseline_bp: float = 0.0  # 该窗口的已实现波动中位数（F71b 基准）
     fill_log: List[Dict[str, Any]] = field(default_factory=list)  # 逐笔日志（组合分析用）
+    # [F205b 2026-09-15] 报价分支观测（与实盘 /shadow、portfolio_replay 同口径同字段名 ✓）
+    quote_modes: Dict[str, int] = field(default_factory=dict)
+    quoted_decisions: int = 0
+    avg_base_bp: float = 0.0
 
     @property
     def net_bp(self) -> float:
@@ -93,6 +97,13 @@ class SymbolResult:
             "window_days": round(self.window_days, 3),
             "covered_days": round(self.covered_days, 3),
             "vol_baseline_bp": round(self.vol_baseline_bp, 4),
+            # [F205b] 报价分支（与实盘 /shadow 同名字段 ⇒ 可直接 diff）
+            "quote_modes": dict(self.quote_modes),
+            "quoted_decisions": self.quoted_decisions,
+            "frozen_share": (round(self.quote_modes.get("frozen", 0) / self.quoted_decisions, 4)
+                             if self.quoted_decisions else None),
+            "avg_base_bp": (round(self.avg_base_bp / self.quoted_decisions, 3)
+                            if self.quoted_decisions else None),
         }
 
 
@@ -320,6 +331,12 @@ def replay_symbol(
         _trend_bp = _tmb(mid_hist, int(getattr(params, "trend_skew_lookback", 60) or 60))
         q = compute_quote(symbol=symbol, mid=mid, sigma_norm=sigma,
                           inv_ratio=inv_ratio, trend_bp=_trend_bp, params=params)
+        if q is not None:
+            # [F205b] 报价分支计数（与实盘同口径：只统计真正产出报价的决策 ✓）
+            _m = getattr(q, "mode", "") or "unknown"
+            res.quote_modes[_m] = res.quote_modes.get(_m, 0) + 1
+            res.quoted_decisions += 1
+            res.avg_base_bp += float(getattr(q, "base_bp", 0.0) or 0.0)
         if q is None:
             res.skipped["no_quote"] = res.skipped.get("no_quote", 0) + 1
             continue
