@@ -789,6 +789,25 @@ def plan_tick(
     elif blocked == "sell" and allow_sell:
         allow_sell, why_sell = False, "trend_down"  # 下跌中禁卖（顺势）
 
+    # [F217 2026-09-15] **侧选择**（结构性旋钮）：`side_mode="counter_trend"` 时，
+    # **只**在逆势侧挂单（涨了只挂卖 = 卖 rip ✓、跌了只挂买 = 买 dip ✓）。
+    # 证据链（全部修复后模型/账本实测）：
+    #   · 被动入场腿的逆向选择 ≈ −0.84bp 是全部剩余亏损（F216，平仓腿已归零 ✓）；
+    #   · 逐笔 markout：买腿 30 分钟转正 +1.90bp ✓、卖腿 −4.51 ✗（F198b）；
+    #   · 顺势/逆势分组：逆势 +2.11bp、顺势 −4.05bp（F199，事后口径 ⇒ 只能当方向
+    #     参考 ✗）；宽度不对称版（k_trend）已在修复后模型上否掉（F215① 劣 ✓）
+    #     ⇒ 硬性侧选择是剩下的唯一"改入场符号"的杠杆 ✓。
+    # 与趋势闸（trend_pause_bp）的区别：它是**不对称禁令**（只禁顺势侧、逆势侧仍与
+    # 对侧共存）；本旋钮是**只留逆势侧**（更彻底 ✓）。`side_trend_min_bp` 是触发下限：
+    # |趋势| 低于它时仍双边挂（避免噪声把车道切成单边 ✗）。
+    _side_mode = str(getattr(params, "side_mode", "both") or "both")
+    if _side_mode == "counter_trend":
+        _min_bp = float(getattr(params, "side_trend_min_bp", 0.0) or 0.0)
+        if _trend_bp > _min_bp and allow_buy:
+            allow_buy, why_buy = False, "ct_trend_up"   # 涨 ⇒ 只挂卖（别买 ✗）
+        elif _trend_bp < -_min_bp and allow_sell:
+            allow_sell, why_sell = False, "ct_trend_down"  # 跌 ⇒ 只挂买（别卖 ✗）
+
     # [F86 2026-09-14] 流向毒性闸（学术）：按上一桶主动流失衡封锁**逆势加仓侧**。
     # 依据 Lu-Abergel 2018（市价单驱动的移动延续率 84.3% vs 撤单 27%）与
     # Barzykin et al. 2025 逆向选择框架；本项目实证 OFI<-0.5 后 86.5% 继续下跌。

@@ -58,6 +58,12 @@ class QuoteParams:
     k_trend: float = 0.0
     trend_skew_lookback: int = 60        # 回看期数（快照≈15s ⇒ 60 期 ≈ 15 分钟，与实证口径一致）
     trend_skew_scale_bp: float = 20.0    # 净移动达到该值 ⇒ 偏斜打满（±1）
+    # [F217 2026-09-15] **侧选择**（结构性旋钮）：
+    #   "both"（默认 = 旧行为）/ "counter_trend"（**只**在逆势侧挂单：
+    #   涨了只挂卖、跌了只挂买 —— 依据见 runner.py 的 F217 注释与 F216/F198b/F199）。
+    # `side_trend_min_bp`：|近期净移动| 低于它时仍双边挂（防噪声把车道切成单边 ✗）。
+    side_mode: str = "both"
+    side_trend_min_bp: float = 0.0
     # [F80 2026-09-13] 冻结行情自适应挂宽：近 frozen_lookback 期的**单步最大移动**
     # （max|Δmid|）< frozen_max_move_bp ⇒ 判定行情冻结（微幅振荡、无穿越行情），
     # 挂宽切到 frozen_width_bp。
