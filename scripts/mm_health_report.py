@@ -53,7 +53,11 @@ def main() -> int:
 
     _hr("① 参数（0 的特殊含义：多数字段 0 = 显式关闭）")
     keys = ("w_base_bp", "k_vol", "k_vol_sigma_cap", "k_inv", "frozen_width_bp",
-            "frozen_max_move_bp", "frozen_lookback", "fill_notional", "compound_ratio")
+            "frozen_max_move_bp", "frozen_lookback", "fill_notional", "compound_ratio",
+            # [F189] 补进"出场地板"与"总上限"：前者是干净数据下唯一能把边际从负翻正的
+            # 单旋钮（2.0→6.0 ⇒ −0.37/−0.5/−0.6bp 变 +0.68/+0.38/+0.31 ✓），后者会
+            # **静默截断**所有宽度（`min(max_width_bp, ...)`）——两者都必须在体检里可见。
+            "min_width_reduce_bp", "min_width_bp", "max_width_bp")
     print("  " + "  ".join(f"{k}={params.get(k)}" for k in keys if k in params))
     lkeys = ("max_symbol_notional_ratio", "max_net_directional_ratio",
              "max_net_exposure_ratio", "max_gross_notional_ratio", "max_one_side_seconds",

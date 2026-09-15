@@ -269,9 +269,13 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
                     from backend.services.kline_collectors import _AsterdexRateLimiter
                     _AsterdexRateLimiter.note_banned()
                 backoff = 120 if self._rate_limited(e) else 10
+                # [F191 2026-09-15] 必须带 exc_info：此前只打 `str(e)` ⇒ 08:01 起
+                # 每个 symbol 每轮都抛 `KeyError(<币种>)`，日志里只有 `异常: 'XRP'` ✗，
+                # 无法定位到具体行（3612 次/5 小时）⇒ 排障成本极高。异常路径的日志
+                # 属于"过程可观测"的一部分，不能省栈。
                 logger.warning(
                     "[asterdex] poll_trades %s 异常: %s，%ds 后重试",
-                    ccxt_symbol, e, backoff,
+                    ccxt_symbol, e, backoff, exc_info=True,
                 )
                 await asyncio.sleep(backoff)
 

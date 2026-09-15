@@ -20,9 +20,13 @@ from backend.services.market_maker import evolution as evo  # noqa: E402
 
 
 def _cur():
+    # [F189] 必须含 `min_width_reduce_bp`：它已是 GRID 维度之一 ✓，fixture 若缺这个键，
+    # `candidate_grid` 会把它当成"未设值"（None）⇒ 每个候选都被判为一次变更 ⇒
+    # `full_grid_size` 被多算，且"在位配置"行携带 None 会被下一条边界测试拒绝 ✗。
     return {"w_base_bp": 6.0, "max_one_side_seconds": 900.0, "k_inv": 1.0,
             "frozen_max_move_bp": 8.0, "ofi_block_threshold": 0.5,
-            "frozen_width_bp": 3.0, "frozen_lookback": 240, "k_vol": 0.0}
+            "frozen_width_bp": 3.0, "frozen_lookback": 240, "k_vol": 0.0,
+            "min_width_reduce_bp": 2.0}
 
 
 def test_every_grid_dimension_is_covered():

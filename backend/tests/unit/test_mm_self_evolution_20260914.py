@@ -16,10 +16,13 @@ from backend.services.market_maker import evolution as ev  # noqa: E402
 
 def test_grid_is_bounded_and_contains_incumbent():
     """候选必须包含在位配置，且每维只做有限档位变化（防跳变）。"""
-    # 与线上一致的全量当前配置（含 F88b 新增的冻结档/波动缩放维度）
+    # 与线上一致的全量当前配置（含 F88b 新增的冻结档/波动缩放维度，以及 F189 的
+    # `min_width_reduce_bp` —— 少一个键就会让"在位配置"行携带 None ⇒ 被下面的
+    # 有界档位断言拒绝 ✗，而真正要守的不变量是"每个候选的每个维度都落在网格内" ✓）
     cur = {"w_base_bp": 6.0, "k_inv": 1.0, "max_one_side_seconds": 900.0,
            "frozen_max_move_bp": 8.0, "ofi_block_threshold": 0.5,
-           "frozen_width_bp": 3.0, "frozen_lookback": 240, "k_vol": 0.0}
+           "frozen_width_bp": 3.0, "frozen_lookback": 240, "k_vol": 0.0,
+           "min_width_reduce_bp": 2.0}
     grid = ev.candidate_grid(cur)
     assert any(all(c.get(k) == cur[k] for k in cur) for c in grid), "缺在位配置"
     assert 1 < len(grid) <= 40, f"候选数异常: {len(grid)}"

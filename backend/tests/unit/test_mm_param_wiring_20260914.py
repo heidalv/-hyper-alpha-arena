@@ -75,6 +75,14 @@ def _scenarios():
     b["book"].positions["BTC"] = Position(qty=2.0, avg_px=110.0, avg_mid=110.0,
                                          opened_ts=now - 60, last_ts=now)
     add("高波动", sigma_norm=3.0)
+    # [F193 2026-09-15] 补"中高波动（未触发 σ 闸）"场景。
+    # 为什么必须补：F189 把**运行态** `vol_pause_sigma` 从 0（关闭）改成 1.0（armed）✓，
+    # 于是上面那个 `sigma_norm=3.0` 的场景在所有探针下都直接"暂停该币"✗ ⇒ 决策对
+    # 任何下游旋钮都一样 ⇒ `k_vol` 被**误判成死旋钮** ✗✗。
+    # 教训（与 F121 同源）：接线探针必须保证"被测旋钮在**至少一个场景**里可观测"，
+    # 否则闸门一 armed，被它挡在后面的旋钮就会集体"假死" ✓。
+    # σ=0.5：高于 0 足以让 `k_vol` 改变挂宽 ✓，又低于任何合理的暂停阈值（现网 1.0）✓。
+    add("中高波动(未触发σ闸)", sigma_norm=0.5)
     c = add("毒性连击", state=_state(mid_hist=list(base_hist), vol_baseline_bp=1.5,
                                  toxic_streak=9))
     add("挂单陈旧", state=_state(mid_hist=list(base_hist), vol_baseline_bp=1.5,

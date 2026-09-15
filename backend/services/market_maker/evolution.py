@@ -33,7 +33,19 @@ GRID: Dict[str, List[Any]] = {
     # [F97 2026-09-14] 补入 7.0：实测「USD-宽度」在 w5~w12 上是**中间峰值**曲线
     # （4 折均值：w5 $22.2 / w6 $34.9 / w7 $28.5 / w8 $28.9 / w10 $24.1 / w12 $24.7），
     # 而原网格 [3,4,5,6,8] 跳过了 7 —— 峰值附近必须有点，否则调参只能靠运气。
-    "w_base_bp": [3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+    #
+    # [F189 2026-09-15] 上限从 8.0 扩到 **16.0**：数据修复后（F171）首次用**干净数据**
+    # 重扫宽度，排序与旧口径**相反** —— 旧口径说"越窄越好"（w4 优于 w5），干净口径是
+    # **越宽越好直到 w12~16**（4.84h、3 口径：w4 −$15~−25 / w12 −$2.4~−4.6 /
+    # w16 −$1.6~−3.4）✗✓。若网格上限仍是 8.0，自进化下一天就会把 w=12 的配置
+    # "修回" ≤8 ⇒ 必须同步扩网格，否则人工结论会被自动流程覆盖 ✗。
+    "w_base_bp": [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 16.0],
+    # [F189] 新增维度：**减仓侧宽度下限**。此前它只被人工设定过一次（1.0→2.0），
+    # 从未进过搜索网格。干净数据下它是**唯一能把边际从负翻正**的单旋钮：
+    # 2.0 → 6.0 使 3 口径净 bp 从 −0.37/−0.5/−0.6 变成 **+0.68/+0.38/+0.31** ✓✓
+    # （机制：F132 实测出场腿中位只有 1~2bp 地板价，往返价差被压到 ~3.5bp ✗；
+    #  而 F188 实测"能打到挂单的大动之后是顺势延续"⇒ 窄出场 = 直接把边际送掉 ✗）。
+    "min_width_reduce_bp": [2.0, 4.0, 6.0, 8.0],
     "max_one_side_seconds": [600.0, 900.0, 1800.0],
     "k_inv": [0.6, 1.0],
     "frozen_max_move_bp": [5.0, 8.0, 12.0],
@@ -56,7 +68,9 @@ MIN_IMPROVE_USD = 0.30       # 或净额至少改进（USD）
 # 否掉真实改进（如 ofi_block=0.0 全窗 −2% 但验证窗 +$5.8 被拒）。改为允许 2% 回退，
 # 且**净 bp 不劣**即可进入候选池；最终是否上线仍由验证窗改进决定（纪律不放宽）。
 FULL_TOL = 0.02
-MAX_CANDIDATES = 24          # 覆盖当前完整单维网格（16）并留扩展余量
+MAX_CANDIDATES = 32          # [F189] 由 24 提到 32：网格新增 `min_width_reduce_bp` 且
+                             # w_base 上限扩到 16 ⇒ 完整单维网格 25 个候选，上限必须覆盖
+                             # 它（否则又回到"按序截断 = 某些维度永久不被评估"的旧缺陷 ✗）
 ROLLBACK_HOURS = 12.0        # 变更后观察窗口
 ROLLBACK_NET_BP = -1.0       # 观察窗净 bp 低于此值 ⇒ 回滚
 # [F180 2026-09-15] 多口径稳健性检查用的"成交桶可见性滞后"网格（毫秒）。
@@ -243,6 +257,22 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
     _rotate = int(datetime.now(timezone.utc).timetuple().tm_yday)
     primary = data[symbols[0]]
     cut = int((time.time() - float(window_days) * 86400.0) * 1000)
+    # [F189 2026-09-15] 可把窗口起点**钉在数据修复时刻之后**（`MM_EVOLUTION_SINCE`）。
+    # 为什么必须提供：F171/F176 之前写入的成交桶是按**落库时刻**分桶的 ✗ ⇒ 用它们
+    # 训练/验证，等于继续在**被高估 ~2.5bp 的口径**上调参（F181 实测），而自进化是
+    # 会自动改注册表的流程 ⇒ 那个偏差会直接变成真实配置变更 ✗。默认未设 ⇒ 行为不变 ✓。
+    _since_env = (os.getenv("MM_EVOLUTION_SINCE") or "").strip()
+    if _since_env:
+        try:
+            _dt = datetime.fromisoformat(_since_env)
+            if _dt.tzinfo is None:
+                _dt = _dt.replace(tzinfo=timezone.utc)
+            _since_ms = int(_dt.timestamp() * 1000)
+            if _since_ms > cut:
+                logger.info("自进化窗口起点被钉到 %s（%d）", _since_env, _since_ms)
+                cut = _since_ms
+        except Exception as _e:  # pragma: no cover
+            logger.warning("MM_EVOLUTION_SINCE 解析失败(%s): %s", _since_env, _e)
     a = int(np.searchsorted(primary["ots"], cut, "left"))
     sub = {}
     for s in symbols:

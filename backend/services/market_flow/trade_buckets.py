@@ -96,12 +96,23 @@ class TradeBucketStore:
             if buf is None:
                 buf = BucketStats()
                 self.open[symbol] = buf
-                self.open_label[symbol] = lab
             # 若上一个"当前桶"已经跨桶（说明 promote 尚未跑），先归位
             elif self.open_label.get(symbol) != lab:
+                # [F192 2026-09-15 修 KeyError]
+                # 这里必须**重新取/重建**缓冲：`_promote_symbol` 会把已结束的
+                # "当前桶"移入 `closed` 并从 `self.open` 中 **pop 掉** ✓ ⇒ 紧接着的
+                # `self.open[symbol]` 必然 KeyError ✗（实测：08:01 起每个币每轮都抛，
+                # 5 小时 3612 次，且异常发生在 `_on_trade` 内 ⇒ **同一批成交里
+                # 之后的成交全部丢失** ✗✗ —— 这是"链路无断点"的直接破口）。
+                # 语义上也更正确：被 promote 走的是 `open_label < cur ≤ lab` 那个
+                # **已结束**的桶 ✓，新的 `lab` 桶本来就该从空开始 ✓（两者不可能同标签，
+                # 因为 promote 只搬运 `label < cur` 的桶 ✓）。
                 self._promote_symbol(symbol, cur)
-                buf = self.open[symbol]
-                self.open_label[symbol] = lab
+                buf = self.open.get(symbol)
+                if buf is None:
+                    buf = BucketStats()
+                    self.open[symbol] = buf
+            self.open_label[symbol] = lab
         else:
             buf = self.closed.setdefault(symbol, {}).setdefault(lab, BucketStats())
         buf.add(price=price, size=size, is_taker_buy=is_taker_buy)
