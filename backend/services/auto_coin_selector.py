@@ -5594,13 +5594,32 @@ def _midlong_board_approve_candidates(
     fixed: Set[str],
     min_conf: float,
     limit: int = 40,
+    min_liquidity: Optional[float] = None,
 ) -> List[tuple]:
-    """平台看板 midlong approve 候选：(symbol, confidence)，已排除固定长线白名单。"""
+    """平台看板 midlong approve 候选：(symbol, confidence)，已排除固定长线白名单。
+
+    [调研轮8] 新增 **流动性下限** `min_liquidity`（看板自带的 `market_scores.liquidity`
+    0~1 分）。原因：看板的 midlong approve 里混着**本所几乎无法交易**的标的
+    （实测 AMAT/APE liquidity=0.25、FET=0.71；同一批 FET/AMAT 在 VIP跟投路径被
+    「24h成交额 < 试仓下限 $500k」硬拒），于是 AI 中线候选永远是"选了也下不了单"。
+    在候选层就按流动性过滤，选出来的才是真能交易的标的。0=关闭该过滤（回滚）。
+
+    默认值取 `MIDLONG_AI_MIN_LIQUIDITY`（默认 0.5）；调用方可显式覆盖。
+    """
     from sqlalchemy import text as _sa_text
+
+    if min_liquidity is None:
+        try:
+            from backend.config.settings import MIDLONG_AI_MIN_LIQUIDITY as _ml
+            min_liquidity = float(_ml if _ml is not None else 0.5)
+        except Exception:
+            min_liquidity = 0.5
 
     rows = db.execute(
         _sa_text(
-            "SELECT symbol, confidence FROM coin_select_candidates "
+            "SELECT symbol, confidence, "
+            "       COALESCE((market_scores ->> 'liquidity')::float, NULL) AS liq "
+            "FROM coin_select_candidates "
             "WHERE listed IS TRUE "
             "AND horizon = 'midlong' "
             "AND lower(ai_verdict) = 'approve' "
@@ -5612,16 +5631,35 @@ def _midlong_board_approve_candidates(
     ).all()
     out: List[tuple] = []
     seen: Set[str] = set()
+    dropped_liq: List[str] = []
     for r in rows:
         sym = str(r[0] or "").strip().upper()
         if not sym or sym in seen or sym in fixed:
             continue
-        seen.add(sym)
         try:
             conf = float(r[1]) if r[1] is not None else 0.0
         except (TypeError, ValueError):
             conf = 0.0
+        if min_liquidity and min_liquidity > 0:
+            _liq = None
+            try:
+                # 兼容只返回 (symbol, confidence) 两列的旧调用/桩：无第三列时按缺失处理
+                _raw_liq = r[2] if len(r) > 2 else None
+                if _raw_liq is not None:
+                    _liq = float(_raw_liq)
+            except (TypeError, ValueError, IndexError):
+                _liq = None
+            # 缺失流动性分数按 fail-open 放行（老数据无该字段时不误杀）
+            if _liq is not None and _liq < float(min_liquidity):
+                dropped_liq.append(f"{sym}({_liq:.2f})")
+                continue
+        seen.add(sym)
         out.append((sym, conf))
+    if dropped_liq:
+        logger.info(
+            "[AutoCoinSelector] 中线 AI 候选流动性过滤 <.2f：剔除 %s（看板自带 liquidity 分）",
+            float(min_liquidity), dropped_liq[:8],
+        )
     return out
 
 

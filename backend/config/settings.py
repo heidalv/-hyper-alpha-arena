@@ -2766,6 +2766,11 @@ MIDLONG_MID_AI_CANDIDATES_ENABLED: bool = os.getenv(
 # 现在把配额拆开：固定币走原游标（batch − ai_slots），AI 币走自己的游标且每 tick
 # 最多 ai_slots 个（默认 1，0=不扫 AI）。固定币轮转不被挤占，AI 候选每轮都轮得到。
 MIDLONG_MID_AI_SCAN_SLOTS: int = int(os.getenv("MIDLONG_MID_AI_SCAN_SLOTS", "1") or "0")
+# [2026-09-16 调研轮8] AI 中线候选的**流动性下限**（取看板 market_scores.liquidity 0~1）。
+# 看板 midlong approve 里混着本所几乎无法交易的标的（实测 AMAT/APE=0.25、FET=0.71），
+# 同一批在 VIP跟投路径被「24h成交额 < 试仓下限 $500k」硬拒 ⇒ AI 中线永远"选了也下不了单"。
+# 默认 0.5；0 = 关闭该过滤（回滚）。
+MIDLONG_AI_MIN_LIQUIDITY: float = float(os.getenv("MIDLONG_AI_MIN_LIQUIDITY", "0.5") or "0")
 
 # [2026-09-08] 长线 AI 选币（用户指令：长线也引入 AI 选币）。复用 midlong 看板 approve
 # 候选，但门槛更高（长线持仓数天、要更高置信）、槽位更少（更精选）。默认关，会话级开关

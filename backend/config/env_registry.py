@@ -275,6 +275,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_CORR_CLUSTER_MAX_LONG",
     "MIDLONG_FUNDING_ABS_WARN",
     "MIDLONG_FUNDING_HOLD_HOURS",
+    # [2026-09-16 调研轮8] AI 中线候选流动性下限（看板 liquidity 分；0=关闭）
+    "MIDLONG_AI_MIN_LIQUIDITY",
     # [2026-09-16 调研轮8] AI 中线候选总闸（false=中线只用固定币，等价 2026-09-04 旧行为）
     "MIDLONG_MID_AI_CANDIDATES_ENABLED",
     "MIDLONG_LONG_AI_CANDIDATES_ENABLED",
