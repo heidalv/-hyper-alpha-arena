@@ -62,10 +62,24 @@ def test_ai_slots_still_leave_majority_to_fixed():
 
 
 def test_concurrency_guard_untouched():
-    """并发帽必须仍在保守区间 [1,6]（9/9 夜大亏的护栏，不做放开）。"""
+    """[调研轮36 2026-09-17 更新] 并发帽护栏由"硬区间 [1,6]"升级为**风险当量**口径。
+
+    轮36 用户授权 C1：mid 并发帽 6→8。放宽的依据是单笔风险已结构性变小
+    （轮23 止损 4.5%→1.5%、轮28 单币名义 0.35→0.15 权益 ⇒ 单笔最大风险 0.225% 权益；
+    8 笔打满 ≈1.8% 权益，远低于 9/9 夜设 [1,6] 时的 ≈9.45%）。
+    故此处不再硬编码 [1,6]，而是校验：
+      ① 帽值在 [1,8] 内；
+      ② **并发帽 × 单笔风险 ≤ 2.5% 权益**（防止"单笔风险放大后还继续抬并发"）。
+    完整的观察期结论与风险当量断言见 `test_midlong_concurrency_cap_20260910.py`。
+    """
     e = _env()
     v = int(e.get("MIDLONG_MAX_OPEN_POSITIONS", "6"))
-    assert 1 <= v <= 6, f"MIDLONG_MAX_OPEN_POSITIONS={v} 超出保守区间 [1,6]"
+    assert 1 <= v <= 8, f"MIDLONG_MAX_OPEN_POSITIONS={v} 超出本轮观察期区间 [1,8]"
+    per_trade = (float(e.get("PC_MAX_WEIGHT_PER_SYMBOL_MID", "0.15"))
+                 * float(e.get("MIDLONG_SL_MAX_PCT_MID", "0.015")))
+    assert v * per_trade <= 0.025, (
+        f"并发帽 {v} × 单笔风险 {per_trade:.3%} = {v * per_trade:.2%} 权益 > 2.5% 上限"
+    )
 
 
 def test_tier_margin_env_overridable_with_same_default(monkeypatch):

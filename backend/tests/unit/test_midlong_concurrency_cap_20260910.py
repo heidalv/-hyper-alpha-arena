@@ -101,6 +101,15 @@ def test_deployed_cap_is_conservative():
     （窄带×0.25 + 位置×0.25，单仓 margin ~150-260），且并发帽已车道化（不与 E1
     长仓混计），净敞口 150% 与簇帽仍兜底——风险口径已与 §38 时期不同，允许扩到 6。
     若需进一步放宽，请先更新本注释与观察期结论。
+
+    [调研轮36 2026-09-17 用户授权 C1] 中线帽 6→8。**观察期结论（本轮更新）**：
+      ① 单笔风险已结构性变小：轮23 硬止损 4.5%→1.5%、轮28 单币名义上限 0.35→0.15 权益
+         ⇒ 单笔最大风险 ≈ 0.15 × 权益 × 1.5% = **0.225% 权益**；8 笔同时打满 ≈ **1.8% 权益**，
+         远低于 9/9 夜设 [1,6] 时的 6 × 0.35 × 4.5% ≈ **9.45% 权益**（风险当量反而更保守）；
+      ② 机会成本实测（轮35 反事实，24h/21 事件）：被并发帽拦掉的候选 12h **+0.22%**、
+         胜率 **65%**、仅 **5%** 会触及 2% 止损 ⇒ 卡在 6 是在持续丢钱。
+    ⇒ 护栏从"硬区间 [1,6]"升级为**风险当量断言**（见下），既允许本次放宽，
+       也防止未来在单笔风险放大时继续抬高并发。
     """
     env = ROOT / ".env"
     if not env.is_file():
@@ -110,9 +119,25 @@ def test_deployed_cap_is_conservative():
     if not m:
         return
     val = int(m.group(1))
-    assert 1 <= val <= 6, (
-        f"MIDLONG_MAX_OPEN_POSITIONS={val} 超出保守区间 [1,6]；"
-        "放宽前须更新本测试的观察期结论"
+    assert 1 <= val <= 8, (
+        f"MIDLONG_MAX_OPEN_POSITIONS={val} 超出本轮观察期区间 [1,8]；"
+        "放宽前须更新本测试的观察期结论与风险当量计算"
+    )
+    # ── 风险当量护栏：并发帽 × 单笔风险上限 ≤ 2.5% 权益 ──
+    # 单笔风险上限 = 单币名义上限(权益占比) × 硬止损距离
+    env_txt = env.read_text(encoding="utf-8")
+
+    def _f(key, default):
+        mm = re.search(rf"^{key}\s*=\s*([0-9.]+)", env_txt, re.M)
+        return float(mm.group(1)) if mm else default
+
+    _notional_cap = _f("PC_MAX_WEIGHT_PER_SYMBOL_MID", 0.15)
+    _sl_cap = _f("MIDLONG_SL_MAX_PCT_MID", 0.015)
+    _per_trade = _notional_cap * _sl_cap
+    _worst = val * _per_trade
+    assert _worst <= 0.025, (
+        f"并发帽 {val} × 单笔风险 {_per_trade:.3%} = {_worst:.2%} 权益，超过 2.5% 上限；"
+        "要么收窄单币名义/止损，要么降低并发帽"
     )
 
 
