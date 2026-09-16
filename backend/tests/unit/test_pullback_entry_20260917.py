@@ -92,5 +92,52 @@ def test_wired_into_entry_path():
     src = inspect.getsource(mh)
     assert "pullback_entry" in src and "pullback_wait" in src, "回踩入场未接线"
     idx = src.index("pullback_entry import evaluate")
-    window = src[idx:idx + 1600]
+    window = src[idx:idx + 2200]
     assert "return False" in window, "等待时应跳过本轮成交（信号保留）"
+    assert "range_mid" in window, "区间中位未接入（自适应目标价）"
+
+
+# ── [调研轮19 v2] 按区间位置自适应目标价（提高开仓准确率）──────────────
+def test_good_side_uses_base_offset():
+    """多头在 24h 中位之下（有利半区）⇒ 用基础 0.3% 档。"""
+    wait, why = pb.evaluate(key="k", side="buy", price=99.0, range_mid=100.0, now=1000.0)
+    assert wait is True
+    assert "不利半区" not in why
+    tgt = pb.pending_snapshot()["k"]["target"]
+    assert tgt == pytest.approx(99.0 * 0.997)
+
+
+def test_adverse_side_targets_range_mid():
+    """多头在 24h 中位之上（不利半区，实测胜率 26%）⇒ 目标改成区间中位。"""
+    wait, why = pb.evaluate(key="k", side="buy", price=101.0, range_mid=100.0, now=1000.0)
+    assert wait is True and "不利半区" in why, why
+    tgt = pb.pending_snapshot()["k"]["target"]
+    assert tgt == pytest.approx(100.0, rel=1e-6), "目标应落在区间中位"
+
+
+def test_adverse_side_target_is_capped():
+    """中位离得太远时按 MAX_PCT（默认 2%）夹住，避免永远等不到。"""
+    wait, _ = pb.evaluate(key="k", side="buy", price=110.0, range_mid=100.0, now=1000.0)
+    assert wait is True
+    tgt = pb.pending_snapshot()["k"]["target"]
+    assert tgt == pytest.approx(110.0 * 0.98)   # 夹在 2%
+
+
+def test_no_range_mid_falls_back_to_base():
+    wait, why = pb.evaluate(key="k", side="buy", price=100.0, range_mid=None, now=1000.0)
+    assert wait is True and "不利半区" not in why
+    assert pb.pending_snapshot()["k"]["target"] == pytest.approx(100.0 * 0.997)
+
+
+def test_short_adverse_side_is_below_mid():
+    """空头在中位之下（不利半区）⇒ 等反弹到中位再成交。"""
+    wait, why = pb.evaluate(key="k", side="sell", price=99.0, range_mid=100.0, now=1000.0)
+    assert wait is True and "不利半区" in why, why
+    assert pb.pending_snapshot()["k"]["target"] == pytest.approx(100.0, rel=1e-6)
+
+
+def test_timeout_still_falls_back_with_adaptive_target():
+    """自适应目标也必须保留超时市价兜底（不丢单）。"""
+    pb.evaluate(key="k", side="buy", price=101.0, range_mid=100.0, now=1000.0)
+    wait, why = pb.evaluate(key="k", side="buy", price=101.5, now=1000.0 + 1800)
+    assert wait is False and "市价兜底" in why

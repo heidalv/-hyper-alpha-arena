@@ -1275,9 +1275,18 @@ def try_execute_independent_agent_open(
         except Exception:
             _pb_px = 0.0
         if _pb_px > 0:
+            _pb_mid = 0.0
+            try:
+                _ind = (_pb_blk or {}).get("indicators_1h") or {}
+                _hs = list(_ind.get("highs") or [])[-24:]
+                _ls = list(_ind.get("lows") or [])[-24:]
+                if _hs and _ls:
+                    _pb_mid = (max(float(x) for x in _hs) + min(float(x) for x in _ls)) / 2.0
+            except Exception:
+                _pb_mid = 0.0
             _pb_wait, _pb_why = _pb_evaluate(
                 key=f"{getattr(session, 'session_id', '')}:{_sym_u}:{tier}:{_act}",
-                side=_act, price=_pb_px,
+                side=_act, price=_pb_px, range_mid=(_pb_mid or None),
             )
             if _pb_wait:
                 logger.info("[PullbackEntry] %s %s %s", _sym_u, _act, _pb_why)

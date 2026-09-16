@@ -76,6 +76,7 @@ def evaluate(
     key: str,
     side: str,
     price: float,
+    range_mid: Optional[float] = None,
     now: Optional[float] = None,
     enabled: Optional[bool] = None,
     pct: Optional[float] = None,
@@ -83,8 +84,20 @@ def evaluate(
 ) -> Tuple[bool, str]:
     """返回 `(是否等待, 原因)`。纯逻辑，便于契约测试。
 
-    * 返回 True ⇒ 本轮不成交（登记/继续等待），**信号保留**；
-    * 返回 False ⇒ 走原成交路径（市价）。
+    [调研轮19 v2] **按"区间位置"自适应目标价**（提高开仓准确率，仍不加门禁）：
+    10 天 65 笔实测（按入场时 24h 区间分位分组）：
+
+        分位 0-20%:  n=5   MFE4h +1.08%  MAE4h −0.73%  均PnL +5.04  胜率 80%
+        分位 20-40%: n=17  MFE4h +1.56%  MAE4h −1.23%  均PnL −3.56  胜率 41%
+        分位 40-60%: n=26  MFE4h +0.67%  MAE4h −1.27%  均PnL −6.71  胜率 27%
+        分位 60-80%: n=13  MFE4h +0.28%  MAE4h −2.08%  均PnL −6.03  胜率 46%
+        多头低半区(<50%): 胜率 48%、MAE4h −0.97% ｜ 多头高半区(≥50%): 胜率 26%、MAE4h −1.58%
+
+    ⇒ 同一批信号里，"买在区间上半区"是准确率崩塌的主因（胜率 26% vs 48%）。
+    故：**若信号价位于不利半区**（多头在 24h 中位之上 / 空头在中位之下），
+    把目标价设为**区间中位**（等回踩到中位再成交）；位于有利半区则用基础档（0.3%）。
+    目标回撤夹在 `MIDLONG_PULLBACK_ENTRY_MAX_PCT`（默认 2%）内，避免等不到；
+    超时（默认 30min）一律市价兜底 —— **成交笔数不减，只是把成交价挪到更好的位置**。
     """
     cfg = pullback_config()
     _on = cfg["enabled"] if enabled is None else bool(enabled)
@@ -105,12 +118,27 @@ def evaluate(
 
     st = _PENDING.get(key)
     if st is None:
-        target = px * (1.0 - _pct) if is_long else px * (1.0 + _pct)
+        eff_pct = _pct
+        why_extra = ""
+        try:
+            mid = float(range_mid) if range_mid else 0.0
+        except (TypeError, ValueError):
+            mid = 0.0
+        if mid > 0:
+            # 不利半区 ⇒ 目标取区间中位（等回踩/反弹到中位）
+            adverse = (px > mid) if is_long else (px < mid)
+            if adverse:
+                _max = float(os.getenv("MIDLONG_PULLBACK_ENTRY_MAX_PCT", "0.02") or 0.02)
+                eff_pct = min(max(abs(px - mid) / px, _pct), max(_pct, _max))
+                why_extra = f"，信号位于不利半区（中位 {mid:.6f}）→ 等回到中位"
+        target = px * (1.0 - eff_pct) if is_long else px * (1.0 + eff_pct)
         _PENDING[key] = {
             "target": target, "deadline": _now + _ttl, "created": _now,
             "signal_px": px, "side": 1.0 if is_long else -1.0, "waited": 0,
+            "eff_pct": eff_pct,
         }
-        return True, f"登记回踩 target={target:.6f}（信号价 {px:.6f}，−{_pct*100:.2f}%）"
+        return True, (f"登记回踩 target={target:.6f}（信号价 {px:.6f}，"
+                      f"−{eff_pct*100:.2f}%）{why_extra}")
 
     st["waited"] = float(st.get("waited", 0)) + 1
     target = float(st["target"])
