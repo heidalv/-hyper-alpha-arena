@@ -6,6 +6,7 @@ Paper Trading Engine — 内置模拟交易引擎
 """
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
@@ -3245,6 +3246,11 @@ class PaperTradingEngine:
             try:
                 _new_policy, _chg = _xp.refreshed_policy(policy, lane)
                 if _chg:
+                    # [调研轮7 修正] 把合并后的策略**写回快照**（es["exit_policy"]），
+                    # 而不是只替换内存变量：① 幂等——下一 tick 不再重复检测/追加历史；
+                    # ② 鲁棒——本 tick 后续任何异常都不会让刷新"看起来生效、实际没生效"
+                    #   （首版只改内存变量，实测出现 chg 非空但 verdict=hold/ok，
+                    #    即刷新被静默吞掉、SOL 该平没平）。
                     _hist = es.get("exit_policy_history")
                     if not isinstance(_hist, list):
                         _hist = []
@@ -3254,14 +3260,21 @@ class PaperTradingEngine:
                     })
                     es["exit_policy_history"] = _hist[-5:]
                     es["exit_policy_refreshed_at"] = time.time()
+                    es["exit_policy"] = _new_policy.to_dict()
                     pos.exit_state_json = _json_ep.dumps(es, ensure_ascii=False)
-                    logger.info(
-                        f"[Paper][ExitPolicy] 刷新存量仓策略 {pos.symbol} {side} lane={lane} "
-                        f"changes={_chg}"
-                    )
                     policy = _new_policy
+                    # 注意：`side` 在本函数后段才赋值（~3280 行），此处只能用 pos.side，
+                    # 否则 UnboundLocalError 会被外层 except 吞掉（调研轮7 实测踩过）。
+                    logger.info(
+                        f"[Paper][ExitPolicy] 刷新存量仓策略 {pos.symbol} "
+                        f"{getattr(pos, 'side', '?')} lane={lane} changes={list(_chg)}"
+                    )
             except Exception as _rf_err:
-                logger.debug(f"[Paper][ExitPolicy] 存量仓刷新跳过(fail-open): {_rf_err}")
+                # 必须可见：静默 fail-open 会让"刷新没生效"伪装成"策略本来就该 hold"
+                logger.warning(
+                    f"[Paper][ExitPolicy] 存量仓刷新失败(fail-open，本 tick 用旧快照) "
+                    f"{getattr(pos, 'symbol', '?')}: {type(_rf_err).__name__}: {_rf_err}"
+                )
 
         # 持仓时长（opened_at 为库内 naive 北京钟面 → UTC）
         elapsed = 0.0

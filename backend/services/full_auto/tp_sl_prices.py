@@ -161,4 +161,28 @@ def compute_initial_tp_sl_prices(
         if tp_sl_source == "fixed_fallback":
             tp_sl_source = "tier_default_atr"
 
+    # [2026-09-16 调研轮7] 止损距离**价格层**封顶（mid 2% / long 3%）。
+    # 本函数是挂单 TP/SL 价格的权威计算点，`_vol_mult = ATR/1%`（上限 3.0）会把
+    # tier 默认 SL 放大 0.7~3.0 倍 —— 实测 mid 3.5%×1.33=**4.67%**、long 6.5%，
+    # 而赢家最大逆行 MAE 只有 1.20%（n=18）⇒ avg_loss(-17.10) > avg_win(+13.90)。
+    # 入场执行层（midlong_helpers）同款上限**覆盖不到**这里的放大，故必须在此封顶。
+    # 回滚：MIDLONG_MAX_SL_PCT_MID / _LONG = 0。
+    try:
+        from backend.services.mlto.midlong_trade_design import clamp_stop_distance as _clamp_sl
+        if sl_price and ref_price > 0:
+            _dist = abs(float(sl_price) - float(ref_price)) / float(ref_price)
+            _cap_dist, _cap_why = _clamp_sl(_dist, tier)
+            if _cap_dist and _cap_dist < _dist:
+                if str(action).lower() == "buy":
+                    sl_price = round(float(ref_price) * (1 - float(_cap_dist)), 6)
+                else:
+                    sl_price = round(float(ref_price) * (1 + float(_cap_dist)), 6)
+                tp_sl_source = f"{tp_sl_source}+sl_capped@{float(_cap_dist):.2%}"
+                logger.info(
+                    "[TP/SL] %s %s tier=%s 止损距离封顶 %.2f%%→%.2f%% (%s)",
+                    sym or "?", action, tier, _dist * 100, float(_cap_dist) * 100, _cap_why,
+                )
+    except Exception as _cap_err:  # noqa: BLE001 — 封顶异常不得影响下单
+        logger.debug("[TP/SL] 止损距离封顶跳过: %s", _cap_err)
+
     return (tp_price, sl_price, tp_sl_source)
