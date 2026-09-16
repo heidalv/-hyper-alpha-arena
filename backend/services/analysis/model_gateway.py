@@ -731,9 +731,22 @@ class ModelGateway:
         实测就是这种状态：MiniMax 无 key + GLM 401。改为候选池后，缺几条补几条。
 
         [2026-09-05] 候选池首位 deepseek → glm_opencode_alt（deepseek 全面退役）。
+
+        [调研轮11 2026-09-16] **默认候选池去掉本地 ollama**：`LLM_LOCAL_FIRST_DISABLED=true`
+        （本地已停用）时，本地票不再作为降级候选——否则主传输一失败就回落到本地，
+        每次白等 26~54s 再失败（实测 `midlong_thesis` 42.7s 失败、`event_impact` 13.7s），
+        而这些恰恰是关键路径。要恢复本地票：`LLM_LOCAL_FIRST_DISABLED=false`。
         """
-        raw = _env("ANALYSIS_FALLBACK_TRANSPORTS", "glm_opencode_alt,ollama,ollama2")
-        return [x.strip() for x in raw.split(",") if x.strip() in TRANSPORTS]
+        raw = _env("ANALYSIS_FALLBACK_TRANSPORTS", "glm_opencode_alt,deepseek,minimax")
+        names = [x.strip() for x in raw.split(",") if x.strip() in TRANSPORTS]
+        try:
+            if str(os.getenv("LLM_LOCAL_FIRST_DISABLED", "true")).strip().lower() in (
+                "1", "true", "yes", "on",
+            ):
+                names = [n for n in names if n not in ("ollama", "ollama2")]
+        except Exception:
+            pass
+        return names
 
     # ------------------------------------------------------------------ single call
     def call(
