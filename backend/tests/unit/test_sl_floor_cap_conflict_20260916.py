@@ -165,5 +165,11 @@ def test_deployed_env_keys_present():
     from dotenv import load_dotenv
 
     load_dotenv(str(ROOT / ".env"), override=False)
-    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_MID", "0")) == pytest.approx(0.02)
+    # [调研轮23 2026-09-17] mid 上限 0.02 → **0.015**：出场结构网格（14 天 41 笔）
+    # 显示 SL 1.0-1.5% 档比 2.0% 档好约 $95-100 且跨 TP 结构一致；轮7 反事实
+    # （cap=1.5% 时 0/18 赢家被误杀、区间净额 +110.28 vs 2% 的 +73.54）交叉支持。
+    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_MID", "0")) == pytest.approx(0.015)
+    assert float(os.environ.get("MIDLONG_MAX_SL_PCT_MID", "0")) == pytest.approx(0.015), (
+        "两个拼写必须一致（引擎层与提案层），否则上下限会打架"
+    )
     assert float(os.environ.get("MIDLONG_SL_MAX_PCT_LONG", "0")) == pytest.approx(0.03)
