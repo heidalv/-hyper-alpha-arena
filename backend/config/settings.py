@@ -2404,6 +2404,20 @@ MIDLONG_THESIS_INV_REQUIRE_CLOSE: bool = os.getenv(
 MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT: float = float(
     os.getenv("MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT", "0.02"))
 MIDLONG_THESIS_INV_CONFIRM_TF: str = os.getenv("MIDLONG_THESIS_INV_CONFIRM_TF", "1h")
+# [调研轮19 2026-09-17] **回踩入场**：同一批信号等一个小回撤再成交（非门禁、不丢单）。
+# 依据（近 7 天 35 笔开仓，15m K 线）：入场后 1h 内 **80% 出现回踩**（均值 +1.11%，
+# 中位 +0.88%），而入场后前 4h **MFE +0.24% vs MAE −1.68%** ⇒ 市价成交 = 买局部高点；
+# 挂 entry×(1−0.3%) 限价：74% 成交、平均改善 0.30%（−0.5% 档：69% / 0.50%）。
+# 语义：首见信号登记目标价与截止；命中目标或超过截止（默认 30min）即走原成交路径
+# （超时=市价兜底，交易照做），故**不减少成交笔数**，只改善成交价与 MAE。
+# 回滚：MIDLONG_PULLBACK_ENTRY_ENABLED=false（或 PCT=0）。
+MIDLONG_PULLBACK_ENTRY_ENABLED: bool = os.getenv(
+    "MIDLONG_PULLBACK_ENTRY_ENABLED", "true"
+).lower() in ("1", "true", "yes", "on")
+MIDLONG_PULLBACK_ENTRY_PCT: float = float(
+    os.getenv("MIDLONG_PULLBACK_ENTRY_PCT", "0.003"))
+MIDLONG_PULLBACK_ENTRY_TIMEOUT_S: int = int(
+    os.getenv("MIDLONG_PULLBACK_ENTRY_TIMEOUT_S", "1800"))
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。

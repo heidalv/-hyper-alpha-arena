@@ -1260,6 +1260,37 @@ def try_execute_independent_agent_open(
             pass
         return False
 
+    # ── [调研轮19 2026-09-17] 回踩入场：同一批信号等一个小回撤再成交（非门禁、不丢单）──
+    # 依据（近 7 天 35 笔，15m K 线）：入场后 1h 内 **80% 出现回踩**（均值 +1.11%），
+    # 而入场后前 4h MFE +0.24% vs MAE −1.68% ⇒ 市价成交等于买局部高点。
+    # 挂 entry×(1−0.3%) 限价：74% 成交、平均改善 0.30%。超时（默认 30min）即市价兜底。
+    # 回滚：MIDLONG_PULLBACK_ENTRY_ENABLED=false。
+    try:
+        from backend.services.full_auto.pullback_entry import evaluate as _pb_evaluate
+        _pb_px = 0.0
+        try:
+            _pb_blk = (market_summary or {}).get(_sym_u) or {}
+            if isinstance(_pb_blk, dict):
+                _pb_px = float(_pb_blk.get("current_price") or _pb_blk.get("price") or 0)
+        except Exception:
+            _pb_px = 0.0
+        if _pb_px > 0:
+            _pb_wait, _pb_why = _pb_evaluate(
+                key=f"{getattr(session, 'session_id', '')}:{_sym_u}:{tier}:{_act}",
+                side=_act, price=_pb_px,
+            )
+            if _pb_wait:
+                logger.info("[PullbackEntry] %s %s %s", _sym_u, _act, _pb_why)
+                try:
+                    host.append_event(session, "pullback_wait",
+                                      f"[回踩入场] {_sym_u} {_act}: {_pb_why}")
+                except Exception:
+                    pass
+                _audit_skip(f"pullback_wait:{_pb_why}")
+                return False
+    except Exception as _pb_err:  # noqa: BLE001
+        logger.debug("[PullbackEntry] 跳过(fail-open 照常成交): %s", _pb_err)
+
     try:
         _ok = bool(_eval(
             db=db,
