@@ -1440,6 +1440,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "SYMBOL_LEVERAGE_DEFAULT",       # 未列入币种的档位（默认 3）
     "POSITION_CONSTRUCTION_ENFORCE", # 仓位构造单一权威硬帽（默认 true）
     "PC_VOL_TARGET", "PC_MAX_WEIGHT_PER_SYMBOL", "PC_RISK_PER_TRADE_PCT", "PC_MAX_LEVERAGE", "PC_CLUSTER_CAP",
+    # [调研轮26 2026-09-17] 按层覆盖（position_construction._lane_param 动态拼键：PC_<X>_<LANE> → PC_<X>）
+    "PC_MAX_WEIGHT_PER_SYMBOL_LONG",
     "PC_GROSS_CAP", "PC_CONF_SCALE_MIN",  # 全局默认；PC_<PARAM>_<LANE> 按车道覆盖（见 KNOWN_FLAG_PATTERNS）
     "EXIT_POLICY_ENFORCE",           # ExitPolicy 车道声明层（默认 true）；EXIT_POLICY_<LANE>_<PARAM> 见 KNOWN_FLAG_PATTERNS
     # [2026-09-16 调研轮7] 存量仓随车道重标定刷新利润保护参数（止损字段保持快照值；false=回滚）
