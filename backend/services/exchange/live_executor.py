@@ -173,6 +173,9 @@ class LiveExecutor(ExecutionChannel):
                     trade_nature=getattr(ctx, "trade_nature", None),
                     timeframe_tier=getattr(ctx, "timeframe_tier", None),
                     reduce_only=bool(getattr(ctx, "reduce_only", False)),
+                    # [调研轮9] 传 symbol/session，使「AI 受管标的窄口径解封」可判定（实盘同口径）
+                    symbol=getattr(ctx, "symbol", None),
+                    session_id=getattr(ctx, "session_id", None),
                 )
                 if _sc_block:
                     return OrderResult(
