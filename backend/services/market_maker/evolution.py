@@ -73,6 +73,14 @@ MAX_CANDIDATES = 32          # [F189] 由 24 提到 32：网格新增 `min_width
                              # 它（否则又回到"按序截断 = 某些维度永久不被评估"的旧缺陷 ✗）
 ROLLBACK_HOURS = 12.0        # 变更后观察窗口
 ROLLBACK_NET_BP = -1.0       # 观察窗净 bp 低于此值 ⇒ 回滚
+# [F307 2026-09-16] 触发回滚所需的最小成交笔数。此前是内联字面量 30；
+# 抽成常量是为了让它与 ROLLBACK_NET_BP 一起被审计（阈值与样本量必须成对评估：
+# "净 bp 低于 −1" 在 n=30 与 n=300 下的可信度完全不同）。
+ROLLBACK_MIN_SAMPLES = 30
+# [F307 2026-09-16] 回滚冷却：同一车道的**成功**回滚在此窗口内只允许一次。
+# 现场依据：2026-09-16 05:03→06:10Z 连续触发 5 次，把 w_base_bp 在 8/12/30 之间
+# 反复改写——回滚推进了 last_change_ts，但新窗口里仍是那几行亏损腿 ⇒ 条件持续成立。
+ROLLBACK_COOLDOWN_HOURS = 12.0
 # [F180 2026-09-15] 多口径稳健性检查用的"成交桶可见性滞后"网格（毫秒）。
 # 语义已随 F171 变化：成交桶改为"**桶结束后才落库**"（修复覆盖率 47.5%→93.3% ✓）⇒
 # 实测落库滞后 = **中位 25.1s、p10 18.2s、p90 31.8s、max 38.7s**（此前是 1~13s）。
@@ -422,8 +430,64 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
                             "incumbent_full", "robustness") if k in entry}}
 
 
+def _rollback_applied_scope(meta: Dict[str, Any]) -> Dict[str, Any]:
+    """回滚**实际会写入**的键值：`{k: prev[k] for k in GRID if prev.get(k) is not None}`。
+
+    为什么必须单独算一遍：`_apply_params` 用 `p.update(new_params)` 合并，
+    而 `new_params` 只取 `{k: prev.get(k) for k in GRID}` —— 即**只有 GRID 里的键**
+    会被写。此前日志直接 `"restored": prev`，把 prev 的**全部**键当成"已恢复"打印。
+    现场后果（2026-09-16）：`prev_params` 是局部快照（如 `{"w_base_bp": 12.0}`），
+    日志却打印它，读者无法分辨"恢复了一个键"还是"恢复了整个网格"。**日志不得
+    比实际写入的范围更大**，否则事后追溯会误判配置来源。
+    """
+    prev = dict(meta.get("evolution") or {}).get("prev_params") or {}
+    return {k: prev.get(k) for k in GRID if prev.get(k) is not None}
+
+
+def _last_rollback_ts(lane_id: str) -> Optional[datetime]:
+    """最近一次**成功**的 auto_rollback 时间（读 append-only 日志）。
+
+    用于冷却：同一车道的回滚在 `ROLLBACK_COOLDOWN_HOURS` 内只允许发生一次。
+    读日志而非注册表，是因为日志是 append-only 的历史事实，注册表只存最新状态。
+    """
+    try:
+        if not os.path.exists(JOURNAL_PATH):
+            return None
+        last: Optional[datetime] = None
+        with open(JOURNAL_PATH, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                if (e.get("event") == "auto_rollback" and e.get("applied")
+                        and e.get("lane_id") == lane_id and e.get("ts")):
+                    try:
+                        last = datetime.fromisoformat(str(e["ts"]))
+                    except Exception:
+                        continue
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        return last
+    except Exception as e:      # 读日志失败不得阻断回滚判定（fail-open 到"无冷却"）
+        logger.debug("[evolution] 读回滚日志失败: %s", e)
+        return None
+
+
 def check_and_rollback(lane_id: str = "mm_asterdex") -> Dict[str, Any]:
-    """自动回滚：变更后观察窗内实盘滚动净 bp 跌破阈值 ⇒ 恢复 prev_params。"""
+    """自动回滚：变更后观察窗内实盘滚动净 bp 跌破阈值 ⇒ 恢复 prev_params。
+
+    三道闸（fail-closed），顺序有意为之：
+      1. **总开关只读**：`MM_AUTO_EVOLVE` 关闭 ⇒ 只做判定与报告，绝不写注册表。
+         （F253 契约①；`.env` 也写着"0=只出提案"。此前回滚路径不看总开关 ✗）
+      2. **null 中止**：`prev_params` 里任一 GRID 键是 None ⇒ 中止回滚。
+         F253 现场：全 null 的旧 prev 被写回 ⇒ `w_base_bp=None`、`frozen_max_move=None`
+         ⇒ 下一次 runner 重建在 `compute_quote` 直接 TypeError。宁可保持现状。
+      3. **冷却**：同一车道的成功回滚在 `ROLLBACK_COOLDOWN_HOURS` 内只允许一次。
+    """
     from backend.services import lane_ledger, lane_registry as reg
 
     lane = reg.get_lane(lane_id)
@@ -434,6 +498,7 @@ def check_and_rollback(lane_id: str = "mm_asterdex") -> Dict[str, Any]:
     prev = ev.get("prev_params")
     if not prev:
         return {"ok": True, "action": "none", "reason": "无历史变更（无需回滚）"}
+
     try:
         attr = lane_ledger.attribution(days=float(ROLLBACK_HOURS) / 24.0, lane_id=lane_id,
                                        since=ev.get("last_change_ts"))
@@ -442,19 +507,59 @@ def check_and_rollback(lane_id: str = "mm_asterdex") -> Dict[str, Any]:
         net_bp = float(total.get("net_bp") or 0.0)
     except Exception as e:
         return {"ok": False, "reason": f"账本读取失败: {e}"}
-    if n < 30:
+    if n < ROLLBACK_MIN_SAMPLES:
         return {"ok": True, "action": "none",
-                "reason": f"样本不足({n}<30)，继续观察", "net_bp": net_bp}
+                "reason": f"样本不足({n}<{ROLLBACK_MIN_SAMPLES})，继续观察", "net_bp": net_bp}
     if net_bp >= ROLLBACK_NET_BP:
         return {"ok": True, "action": "none",
                 "reason": f"变更后 {n} 笔净 {net_bp:+.3f}bp，未触发回滚", "net_bp": net_bp}
+
+    # ── 闸 2：null 中止（F253 契约②）──
+    # 放在阈值判定**之后**：只有真的要做动作时才中止，否则会掩盖"样本不足/
+    # 未触发"这些诊断结论（把每种情形都报成 aborted 同样是误导）。
+    dirty = sorted(k for k in GRID if k in (prev or {}) and prev.get(k) is None)
+    if dirty:
+        return {"ok": False, "action": "aborted", "net_bp": net_bp, "samples": n,
+                "null_keys": dirty,
+                "reason": (f"prev_params 含 null（{','.join(dirty)}）⇒ 中止回滚；"
+                           "写回 null 会让 runner 重建时 TypeError（F253 现场）")}
+
+    # ── 闸 3：冷却（F307）──
+    # 位置同样关键：在阈值判定之后、动作之前。若放在函数开头会短路上面的诊断分支
+    # （本实现初版就是这个错误，把"样本不足/未触发"全报成 cooldown）。
+    last_rb = _last_rollback_ts(lane_id)
+    if last_rb is not None:
+        age_h = (datetime.now(timezone.utc) - last_rb).total_seconds() / 3600.0
+        if age_h < float(ROLLBACK_COOLDOWN_HOURS):
+            return {"ok": True, "action": "cooldown", "net_bp": net_bp, "samples": n,
+                    "reason": (f"触发条件已满足（{n} 笔净 {net_bp:+.3f}bp），但距上次"
+                               f"回滚 {age_h:.2f}h < {ROLLBACK_COOLDOWN_HOURS}h，"
+                               f"冷却中（不重复改配置）"),
+                    "last_rollback_ts": last_rb.isoformat()}
+
+    # ── 闸 1：总开关只读（F253 契约①）──
+    # 放在这里（而非函数开头）：关闭时仍然把完整判定结论报出来，便于观察；
+    # 只是**不写**。这样"提案模式"下也能看到"现在是否会触发回滚"。
+    if not evolve_enabled():
+        return {"ok": True, "action": "none", "read_only": True,
+                "net_bp": net_bp, "samples": n,
+                "reason": (f"MM_AUTO_EVOLVE 未开启 ⇒ 只读不写（判定：{n} 笔净 "
+                           f"{net_bp:+.3f}bp 已跌破 {ROLLBACK_NET_BP}，"
+                           f"开启后才会回滚）")}
+
+    # 只恢复 GRID 内、且 prev 里确实有值的键（与 _apply_params 的合并语义一致）
+    restore_scope = _rollback_applied_scope(meta)
     ok = _apply_params(lane_id, meta, {k: prev.get(k) for k in GRID},
                        prev={k: (meta.get("params") or {}).get(k) for k in GRID},
                        reason=f"auto_rollback(net_bp={net_bp:+.3f}<{ROLLBACK_NET_BP})")
+    # [F307] `restored` 只报**实际写入范围**（此前直接打印 prev ⇒ 范围虚大）
     _journal({"ts": datetime.now(timezone.utc).isoformat(), "lane_id": lane_id,
               "event": "auto_rollback", "net_bp": net_bp, "applied": bool(ok),
-              "restored": prev})
-    return {"ok": bool(ok), "action": "rollback", "net_bp": net_bp, "restored": prev}
+              "samples": n, "restored": restore_scope,
+              "restored_keys": sorted(restore_scope.keys()),
+              "prev_snapshot_keys": sorted((prev or {}).keys())})
+    return {"ok": bool(ok), "action": "rollback", "net_bp": net_bp,
+            "samples": n, "restored": restore_scope}
 
 
 def evolution_task(lane_id: str = "mm_asterdex") -> Dict[str, Any]:
