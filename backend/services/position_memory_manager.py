@@ -1859,6 +1859,37 @@ class PositionMemoryManager:
             else:
                 tp_price = round(price * (1 - tp_base), 6)
 
+        # [调研轮15 2026-09-16] **第三层止损封顶（最后一公里）**。
+        # 前两层（`midlong_helpers` 入场声明、`tp_sl_prices` 价格计算）都已按
+        # `MIDLONG_MAX_SL_PCT_*` 封顶，但**实际挂到仓位的 sl_price 是本函数算的**：
+        # swing 的 `min_sl_pct=0.955` 是"硬下限"，逻辑是「AI 给的止损比 4.5% 更紧
+        # → 拉到 4.5%」，于是声明 2.00% 的仓实际挂着 4.55~4.70%（实测 4689 XRP /
+        # 4690 BTC 开仓日志：declared sl=2.00% → PosMgr SL 4.55%），
+        # 直接抵消了轮7 那个最大幅度的修复（赢家最大逆行 1.20% vs 止损 4.5%）。
+        # 此处按 tier 收口：mid ≤2% / long ≤3%；short/scalp 不受影响（原逻辑保留）。
+        # 安全性：2% 仍远小于任何杠杆档的爆仓距离（`_ensure_sl_inside_liq` 继续兜底）。
+        # 回滚：MIDLONG_MAX_SL_PCT_MID / _LONG = 0。
+        try:
+            from backend.services.mlto.midlong_trade_design import clamp_stop_distance as _clamp_sl
+            _t = str(tier or "").strip().lower()
+            _cap_tier = ("mid" if _t in ("mid", "swing")
+                         else "long" if _t in ("long", "trend_follow", "position")
+                         else "short")
+            if sl_price and price > 0:
+                _dist = abs(float(sl_price) - float(price)) / float(price)
+                _cap_dist, _cap_why = _clamp_sl(_dist, _cap_tier)
+                if _cap_dist and _cap_dist < _dist:
+                    sl_price = round(
+                        float(price) * (1 - float(_cap_dist)) if side == "buy"
+                        else float(price) * (1 + float(_cap_dist)), 6
+                    )
+                    logger.info(
+                        "[PosMgr] 止损封顶 tier=%s nature=%s %.2f%%→%.2f%% (%s)",
+                        tier, nature, _dist * 100, float(_cap_dist) * 100, _cap_why,
+                    )
+        except Exception as _cap_err:  # noqa: BLE001 — 封顶异常不得影响开仓
+            logger.debug("[PosMgr] 止损封顶跳过: %s", _cap_err)
+
         return tp_price, sl_price
 
     def _evaluate_transitions(self, db: Session, mental, personality=None):
