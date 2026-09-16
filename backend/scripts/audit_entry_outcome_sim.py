@@ -58,33 +58,35 @@ def bars(sym):
     return out
 
 
-def run_exit(entry, is_long, bars_after, max_bars):
+def run_exit(entry, is_long, bars_after, max_bars, sl_pct=None, tp=None):
     """返回 (收益率(价格口径, 已扣成本), 出场原因)。"""
-    stop = entry * (1 - args.sl_pct) if is_long else entry * (1 + args.sl_pct)
+    _sl = args.sl_pct if sl_pct is None else sl_pct
+    _tp = TP if tp is None else tp
+    stop = entry * (1 - _sl) if is_long else entry * (1 + _sl)
     left = 1.0
     realized = 0.0
     tp_i = 0
     for b in bars_after[:max_bars]:
         if is_long:
             if b["l"] <= stop:                      # 先判止损（保守）
-                realized += left * (-args.sl_pct)
+                realized += left * (-_sl)
                 left = 0.0
                 return realized - args.fees, "sl"
-            while tp_i < len(TP) and b["h"] >= entry * (1 + TP[tp_i][0]):
-                w = min(TP[tp_i][1], left)
-                realized += w * TP[tp_i][0]
+            while tp_i < len(_tp) and b["h"] >= entry * (1 + _tp[tp_i][0]):
+                w = min(_tp[tp_i][1], left)
+                realized += w * _tp[tp_i][0]
                 left -= w
                 tp_i += 1
                 if left <= 1e-9:
                     return realized - args.fees, "tp"
         else:
             if b["h"] >= stop:
-                realized += left * (-args.sl_pct)
+                realized += left * (-_sl)
                 left = 0.0
                 return realized - args.fees, "sl"
-            while tp_i < len(TP) and b["l"] <= entry * (1 - TP[tp_i][0]):
-                w = min(TP[tp_i][1], left)
-                realized += w * TP[tp_i][0]
+            while tp_i < len(_tp) and b["l"] <= entry * (1 - _tp[tp_i][0]):
+                w = min(_tp[tp_i][1], left)
+                realized += w * _tp[tp_i][0]
                 left -= w
                 tp_i += 1
                 if left <= 1e-9:
@@ -169,3 +171,24 @@ for x in (0.003, 0.005, 0.008, 0.012):
 
 print("\n注：V1 = 回踩不到就放弃（方案B）；V2 = 回踩不到转市价（方案A）。")
 print("    三方案共用同一出场模型 ⇒ 差异只来自入场。")
+
+# ── D2：出场结构网格（同一批 V0 入场，只改出场）──
+print("\n== D2 出场结构网格（同一批 V0 入场，只改 SL×TP）==")
+LADDERS = {
+    "0.8/1.6/3.0(30/30/40)": [(0.008, 0.3), (0.016, 0.3), (0.030, 0.4)],
+    "0.5/1.0/2.0(30/30/40)": [(0.005, 0.3), (0.010, 0.3), (0.020, 0.4)],
+    "0.5全平": [(0.005, 1.0)],
+    "0.8全平": [(0.008, 1.0)],
+    "1.2全平": [(0.012, 1.0)],
+    "1.6全平": [(0.016, 1.0)],
+}
+print(f"{'SL \\ TP':<10}" + "".join(f"{k[:14]:>16}" for k in LADDERS))
+for sl in (0.010, 0.015, 0.020, 0.030):
+    row = []
+    for _, tp in LADDERS.items():
+        tot = sum(s["notional"] * run_exit(s["sig"], s["long"], s["seg"], s["max_bars"],
+                                          sl_pct=sl, tp=tp)[0] for s in samples)
+        row.append(tot)
+    best = max(row)
+    print(f"{sl*100:>5.1f}%    " + "".join(f"{v:>15.1f}{'*' if v == best else ' '}" for v in row))
+print("（* = 该行最优；样本仅 35 笔，差异 <$20 不宜当真差异）")
