@@ -4,21 +4,49 @@ from __future__ import annotations
 import time
 
 
-def test_corr_cluster_blocks_third_same_dir():
+def _pos(symbol, side="long", tier="long", nature="trend_follow", size=1.0, px=100.0):
+    return {"symbol": symbol, "side": side, "size": size, "entry_price": px,
+            "mark_price": px, "trade_nature": nature, "timeframe_tier": tier}
+
+
+def test_corr_cluster_cap_is_lane_specific():
+    """[调研轮16 2026-09-16 更新] 簇帽**车道化**后的正确语义。
+
+    原断言（"第三次同向必被拒"）在 `long_lane=True` + `.env`
+    `MIDLONG_CORR_CLUSTER_MAX_LONG=3` 下已不成立 —— 这是《垃圾收拾_验收扫描报告_第二轮》
+    N2 的**有意决定**：E1 核心宇宙就是 BTC/ETH/SOL，旧的全量 cap=2 让 SOL 在
+    BTC/ETH 持仓时永远开不出来。长车道放行 3 个，中线仍守 2 个（9/9 山寨齐跌实证）。
+    """
     from backend.services.mlto.midlong_portfolio_risk import check_portfolio_open_allowed
 
-    positions = [
-        {"symbol": "BTC", "side": "long", "size": 0.1, "entry_price": 100000,
-         "mark_price": 100000, "trade_nature": "trend_follow", "timeframe_tier": "long"},
-        {"symbol": "ETH", "side": "long", "size": 1.0, "entry_price": 3000,
-         "mark_price": 3000, "trade_nature": "trend_follow", "timeframe_tier": "long"},
-    ]
-    portfolio = {"balance": {"total_equity": 100000}, "positions": positions}
+    two_long = [_pos("BTC"), _pos("ETH")]
+
+    # ── 长车道：cap=3 ⇒ 第三个簇内同向仓允许（N2 决策）──
     ok, why = check_portfolio_open_allowed(
-        symbol="SOL", action="buy", portfolio=portfolio, new_notional=5000,
+        symbol="SOL", action="buy",
+        portfolio={"balance": {"total_equity": 100000}, "positions": two_long},
+        new_notional=5000, long_lane=True,
     )
-    assert not ok, why
-    assert "corr_cluster" in why
+    assert ok, f"长车道 cap=3 时第三个簇内同向仓应放行，实际被拒: {why}"
+
+    # ── 长车道已满 3 个 ⇒ 第 4 个被簇帽拒绝 ──
+    three_long = [_pos("BTC"), _pos("ETH"), _pos("SOL")]
+    ok2, why2 = check_portfolio_open_allowed(
+        symbol="SOL", action="buy",
+        portfolio={"balance": {"total_equity": 100000}, "positions": three_long},
+        new_notional=5000, long_lane=True,
+    )
+    assert not ok2 and "corr_cluster" in why2, why2
+
+    # ── 中线：cap=2 ⇒ 第三个簇内同向仓仍被拒（原意图保留）──
+    two_mid = [_pos("BTC", tier="mid", nature="swing"),
+               _pos("ETH", tier="mid", nature="swing")]
+    ok3, why3 = check_portfolio_open_allowed(
+        symbol="SOL", action="buy",
+        portfolio={"balance": {"total_equity": 100000}, "positions": two_mid},
+        new_notional=5000, long_lane=False,
+    )
+    assert not ok3 and "corr_cluster" in why3, why3
 
 
 def test_net_exposure_blocks(monkeypatch):

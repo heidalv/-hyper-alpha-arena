@@ -1083,6 +1083,26 @@ MIDLONG_MAX_SL_PCT_LONG: float = float(os.getenv("MIDLONG_MAX_SL_PCT_LONG", "0.0
 MIDLONG_SL_MAX_PCT: float = float(os.getenv("MIDLONG_SL_MAX_PCT", "0"))
 MIDLONG_SL_MAX_PCT_MID: float = float(os.getenv("MIDLONG_SL_MAX_PCT_MID", "0.02"))
 MIDLONG_SL_MAX_PCT_LONG: float = float(os.getenv("MIDLONG_SL_MAX_PCT_LONG", "0.03"))
+# [调研轮16 2026-09-16] **AI 候选的策略按需供给**（修「AI 选币 100% 开不了仓」）。
+# 事实：AI 候选池（mid=APT/DOT、long=FET/APT）与策略宇宙（9 个固定币）零交集，
+# 而 exec 层要求 (primary_symbol, timeframe_tier, status=active) 的 AIStrategy 行
+# ⇒ DOT 近 7 天 25 次提案全部 `eval_false:no_active_strategy`（proposal_execution.py:93），
+# 且建策略链（auto_create_strategy / bg_create_strategy）**全仓无调用点**。
+# 处置：真走到开仓时为 AI 候选克隆一条策略（配置取同账户同层母本）。
+#   · MIDLONG_AI_AUTOCREATE_STRATEGY  开关（false = 完全回滚旧行为）
+#   · MIDLONG_AI_AUTOCREATE_MAX_PER_DAY 每日上限（0 = 关闭）
+#   · MIDLONG_AI_AUTOCREATE_LIVE      实盘是否允许（默认 false，实盘从严）
+# 风险边界：只解锁"允许评估"，入场仍须过论题 + 全部既有入场闸。
+MIDLONG_AI_AUTOCREATE_STRATEGY: bool = (
+    os.getenv("MIDLONG_AI_AUTOCREATE_STRATEGY", "true").strip().lower()
+    in ("1", "true", "yes", "on", "y", "t")
+)
+MIDLONG_AI_AUTOCREATE_MAX_PER_DAY: int = int(
+    os.getenv("MIDLONG_AI_AUTOCREATE_MAX_PER_DAY", "3"))
+MIDLONG_AI_AUTOCREATE_LIVE: bool = (
+    os.getenv("MIDLONG_AI_AUTOCREATE_LIVE", "false").strip().lower()
+    in ("1", "true", "yes", "on", "y", "t")
+)
 MIDLONG_RISK_PCT: float = float(os.getenv("MIDLONG_RISK_PCT", "0.01"))
 # 杠杆：中长线升级禁止另设。开仓走动态杠杆 + 已有仓统一杠杆；
 # leverage_authority 仅作上限钳制，不是按周期固定分配。

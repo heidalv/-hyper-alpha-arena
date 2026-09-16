@@ -6,25 +6,36 @@ from unittest.mock import MagicMock
 
 
 def test_midlong_board_approve_filters_fixed_and_min_conf():
+    """[调研轮16 2026-09-16 更新] 桩需返回**真实查询的 5 列**。
+
+    轮10 把候选口径改成"窗口内每个 symbol 最近一次判定"，SQL 返回
+    `(sym, confidence, verdict, liquidity, created_at)`；旧桩只给 2 列，
+    于是生产代码读 `r[2]`（verdict）时 IndexError —— 桩比 SQL 旧，
+    属于"测试没跟上口径"，不是生产缺陷。同时补上轮10 新增的两条语义
+    （verdict 候选集 + 流动性下限）的断言。
+    """
     from backend.services import auto_coin_selector as m
 
     db = MagicMock()
+    # 顺序 = SQL：upper(symbol), confidence, verdict, liquidity, created_at
     db.execute.return_value.all.return_value = [
-        ("BTC", 0.9),      # fixed → drop
-        ("TON", 0.7),
-        ("AAA", 0.55),     # below min_conf → SQL already filters, but keep defensive
-        ("XMR", 0.65),
-        ("ton", 0.8),      # dup case
+        ("BTC", 0.90, "approve", 0.99, None),   # 固定币 → 剔除
+        ("TON", 0.80, "approve", 0.85, None),   # 保留（conf 最高）
+        ("XMR", 0.65, "watch", 0.70, None),     # watch ∈ 候选集（轮10）
+        ("AAA", 0.55, "approve", 0.90, None),   # conf < min_conf → 剔除
+        ("JUNK", 0.95, "approve", 0.20, None),  # 流动性 0.20 < 0.5 → 剔除
+        ("REJ", 0.95, "reject", 0.95, None),    # verdict ∉ 候选集 → 剔除
     ]
     out = m._midlong_board_approve_candidates(
-        db, fixed={"BTC", "ETH"}, min_conf=0.60,
+        db, fixed={"BTC", "ETH"}, min_conf=0.60, min_liquidity=0.5,
     )
-    # function relies on SQL filter for min_conf; our mock returns AAA anyway
     syms = [s for s, _ in out]
-    assert "BTC" not in syms
-    assert syms[0] == "TON"
-    assert "XMR" in syms
-    assert len([s for s in syms if s == "TON"]) == 1
+    assert "BTC" not in syms, "固定币必须被剔除"
+    assert syms[0] == "TON", "按 confidence 降序，最高分在前"
+    assert "XMR" in syms, "watch 属于候选集（只认 approve = 永久空池）"
+    assert "JUNK" not in syms, "流动性低于下限的标的不该进候选"
+    assert "REJ" not in syms, "reject 不进候选池"
+    assert set(syms) == {"TON", "XMR"}
 
 
 def test_force_adopt_ai_mid_writes_sticky(tmp_path, monkeypatch):
@@ -102,7 +113,11 @@ def test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky(tmp_path, monkeypa
         if "timeframe_tier = 'mid'" in q and "DISTINCT" in q:
             return _FakeResult(rows=[])
         if "coin_select_candidates" in q:
-            return _FakeResult(rows=[("TON", 0.7), ("XMR", 0.65)])
+            # [调研轮16 2026-09-16] 列数必须与真实 SQL 一致：
+            # upper(symbol), confidence, verdict, liquidity, created_at
+            # （旧的 2 列桩会在读 verdict 时 IndexError，异常被吞成"查询失败"→ 空候选）
+            return _FakeResult(rows=[("TON", 0.7, "approve", 0.90, None),
+                                     ("XMR", 0.65, "watch", 0.80, None)])
         return _FakeResult()
 
     db = MagicMock()

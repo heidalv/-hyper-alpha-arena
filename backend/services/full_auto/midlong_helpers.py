@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from backend.services.mlto import pnl_basis as _pnl_basis
@@ -158,6 +159,263 @@ def build_midlong_helpers_host(svc) -> MidlongHelpersHost:
     )
 
 
+# ══════════════════════════════════════════════════════════════════════
+# [调研轮16 2026-09-16] **AI 候选的策略按需供给** —— 修「AI 选币 100% 开不了仓」
+#
+# 事实链（`data/midlong_direction_audit.jsonl` 近 7 天 + DB，session=fa_7e12e7a1b6）：
+#   * AI 候选池：mid=['APT','DOT']、long=['FET','APT']；
+#   * 策略宇宙：恰好 9 个固定币（BTC,ETH,SOL,BNB,VIRTUAL,ASTER,XPL,UNI,XRP）——
+#     **与候选池零交集**；
+#   * DOT 25 行、全部 `skip@exec eval_false:no_active_strategy`
+#     （`proposal_execution.py:93`，`block_layer=proposal_execution`）：
+#     提案在进入**任何风险闸之前**就被丢弃；
+#   * 建策略链路 `auto_create_strategy` → `auto_launch_strategy` 与
+#     `bg_create_strategy` **全仓无调用点**（后者自带"已废弃，不应被调用"告警）。
+# ⇒ 结论："AI 选币"选出来的币在执行层永远找不到 (symbol, tier) 策略行，
+#   与论题质量、与任何风险闸都无关 —— 这是**策略供给缺口**，不是风控。
+#
+# 处置：真的走到开仓时**按需补一条策略行**（克隆同账户同层现役策略的配置，
+# 使杠杆/仓位口径/因子集合与现役一致），四重约束：
+#   1. `MIDLONG_AI_AUTOCREATE_STRATEGY`（默认 true；false = 完全回滚旧行为）；
+#   2. `MIDLONG_AI_AUTOCREATE_MAX_PER_DAY`（默认 3；0 = 关闭）封住扩张速度；
+#   3. **只对 AI 候选池内的 symbol 生效**（固定币与其它 symbol 一律不动）；
+#   4. 实盘默认关闭（`MIDLONG_AI_AUTOCREATE_LIVE=false`，沿用项目"实盘从严"口径）。
+# 风险边界不变：新策略只解锁"允许评估"，开仓仍须过论题 + 全部既有入场闸
+# （相关性簇 / 组合预算 / 位置闸 / regime / 持久性…）；异常一律保持历史行为（拒绝）。
+# ══════════════════════════════════════════════════════════════════════
+_AI_STRAT_ID_PREFIX = "ai_auto_"
+_AI_POOL_CACHE: Dict[str, Any] = {"key": "", "ts": 0.0, "syms": frozenset()}
+
+
+def ai_autocreate_config() -> Dict[str, Any]:
+    """按需建策略的配置。
+
+    **以 env 为准**（`.env` 由启动期 load_dotenv 注入 `os.environ`），默认值为字面量
+    —— 与本文件既有 `_cfg_bool_env(name, True)` 的约定一致；`settings.py` 里同名声明
+    只用于 §73.4「凡环境键必须声明」的可查阅性。
+
+    为什么不把 settings 属性当默认值：settings 在 **import 期**一次性读 env，
+    若首次导入发生在 env 被临时改动的上下文（单测、脚本），默认值会被永久污染，
+    开关将静默失效 —— 这类"配置了却不生效"正是本项目反复吃亏的形态。
+    """
+    enabled = _cfg_bool_env("MIDLONG_AI_AUTOCREATE_STRATEGY", True)
+    allow_live = _cfg_bool_env("MIDLONG_AI_AUTOCREATE_LIVE", False)
+    raw = os.getenv("MIDLONG_AI_AUTOCREATE_MAX_PER_DAY")
+    if raw is None or str(raw).strip() == "":
+        max_per_day = 3
+    else:
+        try:
+            max_per_day = max(0, int(str(raw).strip()))
+        except (TypeError, ValueError):
+            logger.warning(
+                "[AIStrat] MIDLONG_AI_AUTOCREATE_MAX_PER_DAY=%r 无法识别，按 3 处理", raw)
+            max_per_day = 3
+    return {"enabled": enabled, "allow_live": allow_live, "max_per_day": max_per_day}
+
+
+def ai_pool_symbols(db: Session, session, tier: str, *, ttl: float = 60.0) -> set:
+    """当前 AI 候选池（mid/long）——与扫描批次同源，带 60s 进程内缓存。
+
+    exec 路径每个 tick 都会问一次，故加短 TTL 缓存；读失败时返回空集
+    （fail-closed：不补策略 = 保持历史行为，绝不因本闸异常而多开仓）。
+    """
+    _tier = (tier or "mid").strip().lower()
+    if _tier not in ("mid", "long"):
+        return set()
+    _sid = str(getattr(session, "session_id", "") or "")
+    _key = f"{_sid}:{_tier}"
+    _now = time.time()
+    if (_AI_POOL_CACHE.get("key") == _key
+            and (_now - float(_AI_POOL_CACHE.get("ts") or 0.0)) < ttl):
+        return set(_AI_POOL_CACHE.get("syms") or set())
+    try:
+        from backend.services.auto_coin_selector import (
+            get_ai_long_candidates_for_session, get_ai_mid_candidates_for_session,
+        )
+        _fn = (get_ai_mid_candidates_for_session if _tier == "mid"
+               else get_ai_long_candidates_for_session)
+        syms = frozenset(str(s).upper() for s in (_fn(_sid, db=db) or []))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AIStrat] AI 候选池读取失败(不补策略): %s", exc)
+        return set()
+    _AI_POOL_CACHE.update({"key": _key, "ts": _now, "syms": syms})
+    return set(syms)
+
+
+def count_ai_provisioned_today(db: Session) -> int:
+    """今日已按需创建的策略数（按命名前缀计数）。**读失败按超限处理**（不建）。"""
+    from backend.database.models import AIStrategy as _AIS
+    try:
+        from sqlalchemy import func as _f
+
+        _start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        return int(
+            db.query(_f.count(_AIS.id)).filter(
+                _AIS.strategy_id.like(f"{_AI_STRAT_ID_PREFIX}%"),
+                _AIS.created_at >= _start,
+            ).scalar() or 0
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[AIStrat] 今日计数失败，按超限处理(不建策略): %s", exc)
+        return 10 ** 6
+
+
+def pick_strategy_donor(db: Session, account_id: int, tier: str):
+    """选配置母本：同账户同层 active 策略，优先 full_auto（与本车道一致）。"""
+    from backend.database.models import AIStrategy as _AIS
+
+    _q = db.query(_AIS).filter(
+        _AIS.account_id == account_id,
+        _AIS.timeframe_tier == tier,
+        _AIS.status == "active",
+        _AIS.primary_symbol.isnot(None),
+    )
+    try:
+        _best = (_q.filter(_AIS.auto_mode == "full_auto")
+                 .order_by(_AIS.updated_at.desc()).first())
+        if _best is not None:
+            return _best
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AIStrat] 母本优选查询失败(回退任意 active): %s", exc)
+    try:
+        return _q.order_by(_AIS.updated_at.desc()).first()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AIStrat] 母本查询失败: %s", exc)
+        return None
+
+
+def build_cloned_strategy(donor, *, symbol: str, tier: str, account_id: int,
+                          session_id: str = ""):
+    """克隆母本配置生成新策略行（**未入库**）。字段面 = 下游实际读取面。
+
+    不继承 `genome`：母本 genome 可能内嵌原 symbol 的模板绑定
+    （`paper_execution` 会取 `genome["source_template_id"]`），跨 symbol 继承
+    语义不成立，故置空并记进 description 以便追溯。
+    """
+    import uuid
+
+    from backend.database.models import AIStrategy as _AIS
+
+    _sym = str(symbol).upper()
+    _sid = f"{_AI_STRAT_ID_PREFIX}{_sym.lower()}{tier}_{uuid.uuid4().hex[:4]}"[:50]
+
+    def _cp(name, default=None):
+        return getattr(donor, name, default)
+
+    return _AIS(
+        strategy_id=_sid,
+        name=f"[AI精选] {_sym} {tier}"[:200],
+        description=(
+            f"[调研轮16 2026-09-16] AI 选币候选按需建策略：symbol={_sym} tier={tier} "
+            f"account={account_id} session={session_id} "
+            f"donor={getattr(donor, 'strategy_id', '-')}（克隆其杠杆/仓位/因子口径；"
+            f"不继承 genome）"
+        )[:2000],
+        account_id=account_id,
+        primary_symbol=_sym,
+        timeframe_tier=tier,
+        status="active",
+        auto_mode=_cp("auto_mode", "full_auto") or "full_auto",
+        max_position_size=_cp("max_position_size"),
+        stop_loss_pct=_cp("stop_loss_pct"),
+        take_profit_pct=_cp("take_profit_pct"),
+        max_leverage=_cp("max_leverage"),
+        default_leverage=_cp("default_leverage"),
+        leverage_mode=_cp("leverage_mode"),
+        enabled_factors=_cp("enabled_factors"),
+        factor_weights=_cp("factor_weights"),
+        trigger_mode=_cp("trigger_mode"),
+        trigger_interval=_cp("trigger_interval"),
+        signal_pool_ids=_cp("signal_pool_ids"),
+        genome=None,
+    )
+
+
+def provision_ai_strategy(db: Session, session, sym_u: str, tier: str,
+                          *, account_id: Optional[int] = None,
+                          host: Any = None):
+    """AI 候选按需补策略；返回新建的 AIStrategy 或 None（None = 保持历史行为）。"""
+    _tier = (tier or "mid").strip().lower()
+    if _tier not in ("mid", "long"):
+        return None
+    _sym = str(sym_u or "").upper()
+    if not _sym:
+        return None
+
+    cfg = ai_autocreate_config()
+    if not cfg["enabled"] or cfg["max_per_day"] <= 0:
+        logger.info(
+            "[AIStrat] %s tier=%s 未建策略：开关关闭(enabled=%s, max_per_day=%s)",
+            _sym, _tier, cfg["enabled"], cfg["max_per_day"])
+        return None
+
+    _mode = (getattr(session, "trading_mode", "") or "paper").strip().lower()
+    if _mode != "paper" and not cfg["allow_live"]:
+        logger.info(
+            "[AIStrat] %s tier=%s 未建策略：实盘按需建策略未开启"
+            "（MIDLONG_AI_AUTOCREATE_LIVE=false，实盘从严）", _sym, _tier)
+        return None
+
+    if _sym not in ai_pool_symbols(db, session, _tier):
+        return None  # 只对当前 AI 候选池内的 symbol 生效
+
+    if account_id is None:
+        try:
+            account_id = (getattr(session, "paper_account_id", None)
+                          or getattr(session, "account_id", None))
+        except Exception:  # noqa: BLE001
+            account_id = None
+    if not account_id:
+        logger.warning("[AIStrat] %s tier=%s 未建策略：拿不到 account_id", _sym, _tier)
+        return None
+
+    _n = count_ai_provisioned_today(db)
+    if _n >= cfg["max_per_day"]:
+        logger.info(
+            "[AIStrat] %s tier=%s 未建策略：今日已达上限 %d/%d",
+            _sym, _tier, _n, cfg["max_per_day"])
+        return None
+
+    donor = pick_strategy_donor(db, int(account_id), _tier)
+    if donor is None:
+        logger.warning(
+            "[AIStrat] %s tier=%s 未建策略：账户 %s 无同层 active 母本可克隆",
+            _sym, _tier, account_id)
+        return None
+
+    row = build_cloned_strategy(
+        donor, symbol=_sym, tier=_tier, account_id=int(account_id),
+        session_id=str(getattr(session, "session_id", "") or ""),
+    )
+    db.add(row)
+    db.flush()
+
+    # 让本会话立即认得它（与 resolve_independent_strategy 的跨账户分支同口径）
+    try:
+        _ids = list(getattr(session, "active_strategy_ids", None) or [])
+        if row.strategy_id not in _ids:
+            _ids.append(row.strategy_id)
+            session.active_strategy_ids = _ids
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AIStrat] active_strategy_ids 回写失败(非致命): %s", exc)
+
+    logger.warning(
+        "[AIStrat] 为 AI 候选按需建策略 %s tier=%s sid=%s (母本=%s, 今日第 %d/%d 个)",
+        _sym, _tier, row.strategy_id,
+        getattr(donor, "strategy_id", "-"), _n + 1, cfg["max_per_day"],
+    )
+    try:
+        _emit = getattr(host, "append_event", None)
+        if callable(_emit):
+            _emit(session, "ai_strategy_provisioned",
+                  f"🌟 AI 选币 {_sym}[{_tier}] 无可用策略 → 已按需建 "
+                  f"{row.strategy_id[:14]}（母本 {str(getattr(donor, 'strategy_id', ''))[:10]}，"
+                  f"今日第 {_n + 1}/{cfg['max_per_day']} 个）")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AIStrat] 事件写入失败(非致命): %s", exc)
+    return row
+
+
 def resolve_independent_strategy(
     db: Session, session, sym_u: str, tier: str, host: MidlongHelpersHost,
 ):
@@ -222,6 +480,22 @@ def resolve_independent_strategy(
                 except Exception:
                     pass
             return strat
+
+    # [调研轮16 2026-09-16] 最后一道：AI 候选**按需供给策略**。
+    # 走到这里说明该 symbol 在本账户/本层没有任何 active 策略；若它正是 AI 选币
+    # 选出来的候选（如 DOT/APT/FET），历史上就此被 `no_active_strategy` 永久拒绝
+    # （实测 DOT 7 天 25 次全因此被丢弃）。这里补一条克隆策略使其可被评估——
+    # 只解锁"允许评估"，入场仍须过论题与全部既有闸门。
+    # 异常时**保持历史行为**（返回 None = 仍拒绝），不让本闸成为新的放行口。
+    try:
+        _prov = provision_ai_strategy(
+            db, session, sym_u, tier, account_id=account_id, host=host,
+        )
+        if _prov is not None:
+            return _prov
+    except Exception as _prov_err:  # noqa: BLE001
+        logger.warning("[AIStrat] %s tier=%s 按需建策略异常(保持拒绝): %s",
+                       sym_u, tier, _prov_err)
     return None
 
 def try_execute_independent_agent_open(

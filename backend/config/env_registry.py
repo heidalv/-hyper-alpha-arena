@@ -620,6 +620,10 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 4.67% = nature 硬下限 4.5%）。两者都登记，消除"配置了却不生效"的死键盲区。
     "MIDLONG_SL_MAX_PCT_MID",
     "MIDLONG_SL_MAX_PCT",
+    # [调研轮16 2026-09-16] AI 候选策略按需供给（开关 / 每日上限 / 实盘许可）
+    "MIDLONG_AI_AUTOCREATE_STRATEGY",
+    "MIDLONG_AI_AUTOCREATE_MAX_PER_DAY",
+    "MIDLONG_AI_AUTOCREATE_LIVE",
     # [§95 2026-09-11 / 目标③] 抑制上限（0=关闭）+ 计数窗口小时（默认 24）
     "EXIT_SUPPRESS_MAX_COUNT",
     "EXIT_SUPPRESS_WINDOW_H",

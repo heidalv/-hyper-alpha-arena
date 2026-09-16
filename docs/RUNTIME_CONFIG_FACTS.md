@@ -795,3 +795,43 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
   （只读；会打印每笔 SL 距离、上限、以及"套用上限是否立刻触发"）。上线前实测：
   存量 6/6 超上限，**立即被打掉的 = 0**。
 - 契约测试：`backend/tests/unit/test_sl_floor_cap_conflict_20260916.py`（13 例）。
+
+## AI 选币为什么"选了也开不了仓"：策略按需供给（2026-09-16 调研轮16）
+
+> 症状：AI 选币链路全通（候选进入扫描批次、论题也产出），但 `paper_positions.entry_source`
+> 近 7 天**没有任何 auto_coin 来源的开仓**。
+
+按 symbol 归因审计 JSONL（`data/midlong_direction_audit.jsonl`，session=`fa_7e12e7a1b6`）：
+
+| symbol | 7 天行数 | 去向 | 拦截原因 |
+| --- | --- | --- | --- |
+| DOT | 25 | 全部 `skip@exec` | `eval_false:no_active_strategy`（`block_layer=proposal_execution`） |
+| FET | 31 | 全部 `skip@writer` | `regime_extreme×26` / `long_regime_block×5`（方向闸，合法） |
+| TIA | 51 | 全部 `skip@writer` | `long_regime_block×51`（同上） |
+
+**根因**：`proposal_execution.py:93` 要求
+`ai_strategies(primary_symbol=sym, timeframe_tier=tier, status='active')` 存在，
+而 AI 候选池（mid=APT/DOT、long=FET/APT）与策略宇宙（恰好 9 个固定币
+BTC/ETH/SOL/BNB/VIRTUAL/ASTER/XPL/UNI/XRP）**零交集**；且建策略链路
+`auto_create_strategy` → `auto_launch_strategy` 与 `bg_create_strategy`
+（自带"已废弃，不应被调用"）**全仓无调用点**。⇒ AI 选中的币 100% 死在
+"没有策略行"，**与论题质量、与任何风险闸都无关**。
+
+| 配置键 | 声明意图 | 期望值 | 备注 |
+| --- | --- | --- | --- |
+| MIDLONG_AI_AUTOCREATE_STRATEGY | AI 候选按需补策略总开关 | true | false = 完全回滚旧行为（AI 选币仍会被拒） |
+| MIDLONG_AI_AUTOCREATE_MAX_PER_DAY | 每日最多新建几个 AI 策略 | 3 | 0 = 关闭；封住交易面扩张速度 |
+| MIDLONG_AI_AUTOCREATE_LIVE | 实盘是否允许按需建策略 | false | 沿用项目"实盘从严"口径；实盘需显式开启 |
+
+- 生成物：`strategy_id` 前缀 `ai_auto_<sym><tier>_<hex4>`，配置**克隆同账户同层
+  现役母本**（杠杆/仓位口径/因子集合一致），**不继承 `genome`**（母本 genome 内嵌
+  原 symbol 的模板绑定，跨 symbol 无意义）。
+- 只对**当前 AI 候选池内**的 symbol 生效；固定币与其它车道一律不受影响。
+- 风险边界不变：新策略只解锁"允许评估"，开仓仍须过论题 + 全部既有入场闸
+  （相关性簇 / 组合预算 / 位置闸 / regime / 持久性）。
+- 失败方向：候选池读取失败 ⇒ 不补策略；计数读取失败 ⇒ 按超限处理；任何异常 ⇒
+  保持历史行为（拒绝）。
+- 只读体检：`python backend/scripts/diag_strategy_coverage.py --show-config`
+  （列出 AI 候选池、策略宇宙覆盖、以及"选了也开不了"的缺口清单）。
+- 契约测试：`backend/tests/unit/test_ai_strategy_provision_20260916.py`（16 例，含
+  "只定义不接线 = 没修"的接线护栏）。
