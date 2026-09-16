@@ -455,6 +455,15 @@ class OllamaTransport(Transport):
         return base[: -len("/v1")] if base.endswith("/v1") else base
 
     def _resolve(self):
+        # [调研轮11 2026-09-16 用户澄清] 本地 Ollama 已停用（一律走线上 MiniMax/GLM）。
+        # 必须**同时**拦住 DB 解析与 env 兜底构造：否则即使 DB 配置停用，下面仍会按
+        # `OLLAMA_BASE_URL` 构造 cfg 去打本地端口 —— 实测每次白等 26~54s
+        # （近 6h `qwen3:14b/ollama` 失败 13 次、均 49.6s）再降级云端。
+        # 回滚：`LLM_LOCAL_FIRST_DISABLED=false`。
+        if str(os.getenv("LLM_LOCAL_FIRST_DISABLED", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        ):
+            return None
         if self._cfg is not None and time.time() - self._cfg_ts < 300:
             return self._cfg
         cfg = None
@@ -510,6 +519,11 @@ class OllamaTransport(Transport):
         """
         import urllib.request
 
+        # [调研轮11] 本地 Ollama 已停用 → 直接判"不可用"，不探活、不发起调用
+        if str(os.getenv("LLM_LOCAL_FIRST_DISABLED", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        ):
+            return False, "本地 Ollama 已停用（LLM_LOCAL_FIRST_DISABLED=true），一律走线上 LLM"
         want = self.model_name()
         try:
             with urllib.request.urlopen(self._base_host() + "/api/tags", timeout=3) as resp:

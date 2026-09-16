@@ -890,6 +890,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "LLM_MAX_CALLS_PER_CYCLE",
     "LLM_REASONING_USE_STREAM",
     "LLM_SEMANTIC_CACHE_ENABLED",
+    # [2026-09-16 调研轮11] 本地 Ollama 停用（true=一律走线上；false=恢复本地优先+云端降级）
+    "LLM_LOCAL_FIRST_DISABLED",
     "LLM_SEMAPHORE_WAIT_SECONDS",
     "LLM_STREAM_MAX_TOKENS",
     "LLM_STREAM_PROMPT_CHARS",

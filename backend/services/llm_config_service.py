@@ -1101,6 +1101,34 @@ def get_llm_config_local_first(
             resolved_tenant = None
 
     local: Optional[LLMConfig] = None
+    # [调研轮11 2026-09-16 用户澄清] **本地 Ollama 早已停用，一律走线上 LLM（MiniMax / GLM）**。
+    # 但代码的 local_first 仍按 provider='ollama' 解析（DB 里 3 条 ollama 配置
+    # `is_active='true'` 未清），实测后果：近 6h `qwen3:14b/ollama` 失败 13 次、
+    # **平均每次白等 49.6 秒**（24h 共 66 条 ollama 记录），而真正在用的是
+    # `MiniMax-M3`（998 次/24h, avg 10s）与 `zai-coding-plan/glm-5.3*`（GLM/OpenCode）。
+    # 在关键路径（midlong_thesis 平均 84s）上再叠一次 50s 白等不可接受。
+    # 故默认**短路本地解析**：直接返回 (None, cloud) ⇒ 单段走线上。
+    # 回滚：`LLM_LOCAL_FIRST_DISABLED=false`（恢复"本地优先+云端降级"）。
+    _local_first_off = str(os.getenv("LLM_LOCAL_FIRST_DISABLED", "true")).strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    if _local_first_off:
+        cloud_only: Optional[LLMConfig] = None
+        try:
+            cloud_only = get_llm_config_for_usage(
+                usage, account_id=None, tier=tier, tenant_id=resolved_tenant,
+                exclude_provider="ollama",
+            )
+        except Exception as e:
+            logger.debug("[LLM] local_first(短路) 云端解析失败: %s", e)
+        if cloud_only is None:
+            # 没有云端可用时才回退尝试本地（避免把链路彻底断掉）
+            logger.warning(
+                "[LLM] usage=%s 无云端配置可用，回退尝试本地 provider（请检查 LLM 配置）", usage,
+            )
+        else:
+            return None, cloud_only
+
     try:
         local = get_llm_config_for_usage(
             usage, account_id=None, tier=tier,
