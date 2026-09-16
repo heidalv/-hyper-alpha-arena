@@ -366,6 +366,24 @@ COIN_SELECT_ADMIN_TENANT_ID: int = int(os.getenv("COIN_SELECT_ADMIN_TENANT_ID", 
 COIN_SELECT_PLATFORM_ENABLED: bool = os.getenv(
     "COIN_SELECT_PLATFORM_ENABLED", "true"
 ).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _coin_select_platform_scheduler_default() -> bool:
+    """[2026-09-16 调研轮7 缺陷 D0] 平台选币看板调度器默认跟随消费方总闸。
+
+    实测：`AUTO_COIN_ENABLED=false`（注入调度器不启动）时，CoinSelectPlatformScheduler
+    仍每轮满负荷生成候选（894~2,220/天）+ 4.38h 内 **1,899 次 LLM 调用**（全部 caller
+    之首），而 `coin_select_adoptions` 仅 2 行、两个会话 `auto_coin_symbols=[]`
+    ⇒ 纯烧 LLM 预算与墙钟。故默认「无消费方即不跑」，可用
+    `COIN_SELECT_PLATFORM_SCHEDULER_ENABLED=true` 单独开启（例如只想要网页看板）。
+    """
+    _raw = os.getenv("COIN_SELECT_PLATFORM_SCHEDULER_ENABLED", "").strip().lower()
+    if _raw == "":
+        return bool(os.getenv("AUTO_COIN_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on"))
+    return _raw in ("1", "true", "yes", "on")
+
+
+COIN_SELECT_PLATFORM_SCHEDULER_ENABLED: bool = _coin_select_platform_scheduler_default()
 # 会话 AutoCoin：platform_board=只跟投管理员 VIP 短线看板（统一默认）；legacy=旧独立扫描
 AUTO_COIN_SOURCE: str = os.getenv("AUTO_COIN_SOURCE", "platform_board").strip().lower()
 # [2026-09-01 选币质量审计根治] 看板跟投 24h 成交量硬门（USD）：低于下限视为

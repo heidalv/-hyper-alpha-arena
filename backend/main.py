@@ -410,6 +410,19 @@ async def _slow_request_profiler(request, call_next):
             )
     return resp
 
+
+# [F226b 2026-09-15] `/api/*` 一律 `no-store`：权益/账户/成交这类数字**必须每次跟随**。
+# 现场：修正权益口径并重启后，用户看到的仍是旧数字（原话"还是300 没有跟随 账户实际显示"）
+# —— 响应里没有任何 `Cache-Control`/`ETag`/`Last-Modified`，浏览器可以复用已缓存的
+# 200 JSON，用户因此无法区分"后端没更新"和"页面坏了" ✗。加上 no-store 后
+# 每次轮询都是真读数，页面数字与接口/账户必然一致 ✓。
+@app.middleware("http")
+async def _api_no_store(request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+    return resp
 # [阶段0] 静态文件挂载(/static /assets)已删(前后端分离,后端不再托管前端) # [阶段0] frontend_watcher_thread / last_build_time 全局已删 # [阶段0] build_frontend() 函数已删(后端不再构建前端,由 CI/Vercel 等独立构建) # [阶段0] watch_frontend_files() 轮询热构建函数已删
 
 def _ensure_columns_safe(eng, inspector, columns=None):
@@ -1362,13 +1375,25 @@ def on_startup():
 
         # VIP 共用 AI 选币（平台看板，管理员 LLM）
         try:
-            from backend.config.settings import COIN_SELECT_PLATFORM_ENABLED
-            if COIN_SELECT_PLATFORM_ENABLED:
+            from backend.config.settings import (
+                COIN_SELECT_PLATFORM_ENABLED,
+                COIN_SELECT_PLATFORM_SCHEDULER_ENABLED,
+            )
+            # [2026-09-16 调研轮7 缺陷 D0] 调度器跟随消费方总闸：AUTO_COIN_ENABLED=false
+            # 时本调度器仍满负荷跑（894~2,220 候选/天、4.38h 内 1,899 次 LLM 调用、全部
+            # caller 之首），而采纳表仅 2 行、会话 auto_coin_symbols=[] ⇒ 纯烧预算。
+            # 显式 COIN_SELECT_PLATFORM_SCHEDULER_ENABLED=true 可单独开启（如只看网页看板）。
+            if COIN_SELECT_PLATFORM_ENABLED and COIN_SELECT_PLATFORM_SCHEDULER_ENABLED:
                 from backend.services.coin_select_platform_service import coin_select_platform_scheduler
                 await coin_select_platform_scheduler.start()
                 logger.info("[async] CoinSelectPlatformScheduler 已启动")
             else:
-                logger.info("[async] CoinSelectPlatformScheduler 已禁用")
+                logger.info(
+                    "[async] CoinSelectPlatformScheduler 已禁用"
+                    f"（平台开关={COIN_SELECT_PLATFORM_ENABLED} "
+                    f"调度器开关={COIN_SELECT_PLATFORM_SCHEDULER_ENABLED}；"
+                    "消费方 AUTO_COIN_ENABLED=false 时默认不跑以免空烧 LLM）"
+                )
         except Exception as e:
             logger.info(f"[async] CoinSelectPlatformScheduler 启动失败: {e}")
 

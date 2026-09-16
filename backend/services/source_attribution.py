@@ -536,7 +536,10 @@ def llm_arbitrate_conflict(*, symbol: str, direction: str, thesis_dir: str,
         resp = call_llm_api_sync(
             cfg, messages=[{"role": "user", "content": prompt}],
             temperature=0, max_tokens=120, response_format={"type": "json_object"},
-            timeout_s=8, caller="fusion_arbitrate",
+            # [2026-09-16 调研轮7 缺陷 S] 形参名是 `timeout`（无 **kwargs），此前写
+            # `timeout_s=8` ⇒ 必然 TypeError → 被下面 logger.debug 吞掉 ⇒ 短线 thesis
+            # 仲裁恒失败（恒拒单）。scalp 车道当前停摆故为潜伏缺陷，接线前必修。
+            timeout=8, caller="fusion_arbitrate",
         )
         content = (resp or {}).get("content") or ""
         import re as _re

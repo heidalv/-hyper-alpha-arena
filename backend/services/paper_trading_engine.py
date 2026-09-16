@@ -1846,10 +1846,39 @@ class PaperTradingEngine:
             pos_query = pos_query.filter(PaperPosition.trade_nature == trade_nature)
         if strategy_id:
             pos_query = pos_query.filter(PaperPosition.strategy_id == strategy_id)
-        pos = pos_query.first()
+        # [2026-09-16 调研轮7 缺陷 HAA-ACC-01] 平仓幂等/防重：
+        #  (a) `populate_existing()` —— SQLAlchemy 身份映射默认**不会覆盖已加载属性**，
+        #      同一 Session 早先读过该仓（出场栈评估阶段），后续 query 会拿到**陈旧对象**
+        #      （status 仍是 open）⇒ 两条出场通道各生成一笔全量平仓单、各记一次 PnL。
+        #      实测：VIRTUAL 4638 的两笔全量平仓单（23479/23480，相隔 15s，分别来自
+        #      `sl` 与 `thesis_invalidation`）把真实 -41.88 记成 -82.43，多计 -40.55 USD；
+        #      12 条同类重复合计 -72.37 USD（1.574% 净值，经 `_recalc_balance` 进入权益）。
+        #  (b) `with_for_update()` —— 行锁把并发平仓串行化（SQLite 等方言自动忽略）。
+        #  (c) 拿到行后**复核 status/size**：已平或已无量 → 直接返回 None，绝不建第二笔单。
+        # 回滚：PAPER_CLOSE_IDEMPOTENT=false（退化为旧的 first() 语义）。
+        _idem = str(os.getenv("PAPER_CLOSE_IDEMPOTENT", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+        if _idem:
+            try:
+                pos = pos_query.populate_existing().with_for_update().first()
+            except Exception:  # 方言不支持 FOR UPDATE → 至少强制刷新
+                pos = pos_query.populate_existing().first()
+        else:
+            pos = pos_query.first()
         if not pos:
             logger.warning(f"[Paper] 无持仓可平: {symbol} {side}"
                            f"{' strategy=' + strategy_id if strategy_id else ''}")
+            return None
+        if _idem and (
+            str(getattr(pos, "status", "") or "").lower() != "open"
+            or float(getattr(pos, "size", 0) or 0) <= 0
+        ):
+            logger.warning(
+                f"[Paper] 平仓幂等拦截(已平/无量): {symbol} {side} "
+                f"pos_id={getattr(pos, 'id', None)} status={getattr(pos, 'status', None)} "
+                f"size={getattr(pos, 'size', None)} reason={reason}"
+            )
             return None
 
         bal = db.query(PaperBalance).filter(PaperBalance.account_id == account_id).first()
