@@ -2418,6 +2418,16 @@ MIDLONG_PULLBACK_ENTRY_PCT: float = float(
     os.getenv("MIDLONG_PULLBACK_ENTRY_PCT", "0.003"))
 MIDLONG_PULLBACK_ENTRY_TIMEOUT_S: int = int(
     os.getenv("MIDLONG_PULLBACK_ENTRY_TIMEOUT_S", "1800"))
+# [调研轮37 2026-09-17] **模板族策略禁止开空**（用户指令「做空要认真做」的第 1 刀）。
+# 30 天实测：mid 空单 n=38 净 −68.60、均 **−1.81**、胜率 **26%**（多单对照 −0.58 / 47%）；
+# 按来源拆 **`tpl_模板` 空单 27 笔均 −2.12、胜率 30%** 为最大贡献者；模板族在多头侧
+# 同样是最大亏损源（long −127/21 笔）。空头"分位→收益"曲线（位置闸拦下的 420 行样本）
+# 显示低分位 12h −0.71%/胜率 20%、放行的 ≥40 分位同样亏 ⇒ 无可调阈值解决的正区间，
+# 故先掐"来源 + 规模"。语义：只拦「做空 + 解析到 tpl_ 策略行」；多头与非模板空单不受影响。
+# 回滚：MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=false。
+MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES: bool = os.getenv(
+    "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES", "true"
+).lower() in ("1", "true", "yes", "on")
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。

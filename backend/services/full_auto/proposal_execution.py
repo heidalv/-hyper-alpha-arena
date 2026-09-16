@@ -93,6 +93,30 @@ def evaluate_and_execute_proposal(
         _mark_block("no_active_strategy", detail=f"tier={tier}")
         return False
 
+    # ── [调研轮37 2026-09-17] **空头来源限制：模板族策略不得开空** ──
+    # 依据（30 天实测，用户指令「做空要认真做」）：
+    #   * mid 空单整体：n=38 净 −68.60、均 **−1.81**、胜率 **26%**（多单对照均 −0.58 / 47%）；
+    #     路径上逆行 +0.98% vs 顺行 0.22%（4.5 倍）；
+    #   * 按来源拆：**`tpl_模板` 空单 27 笔、均 −2.12、胜率 30%** 是最大贡献者；
+    #   * 空头"分位→收益"曲线（用位置闸拦下的 420 行空单做样本）：低分位 12h −0.71%/胜率 20%，
+    #     被放行的 ≥40 分位同样亏 ⇒ **当前没有任何分位区间为正**，故不能靠调分位阈值解决；
+    #   * 模板族在多头侧同样是最大亏损来源（long −127/21 笔）⇒ 让它**只提供证据、不驱动做空**。
+    # 语义：仅拦**做空**且**解析到模板族策略**的开仓；多头与非模板来源空单不受影响。
+    # 回滚：MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=false。
+    if action in ("sell",):
+        try:
+            from backend.config.settings import MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES as _sbt
+        except Exception:
+            _sbt = True
+        _sid_now = str(getattr(strat, "strategy_id", "") or "")
+        if _sbt and _sid_now.startswith("tpl_"):
+            logger.info(
+                "[Agent独立] %s tier=%s 模板族策略禁止开空（sid=%s）",
+                sym_u, tier, _sid_now[:14],
+            )
+            _mark_block("short_template_source_block", detail=f"sid={_sid_now[:14]}")
+            return False
+
     _trade_mode = host.session_trading_mode(session)
     account_id = int(getattr(session, "paper_account_id", None) or getattr(session, "account_id", None) or 0)
     mkt = (market_summary or {}).get(sym_u) or {}

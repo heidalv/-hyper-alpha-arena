@@ -428,6 +428,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT",
     "MIDLONG_THESIS_INV_CONFIRM_TF",
     # [调研轮19 2026-09-17] 回踩入场（同一批信号等小回撤再成交；超时市价兜底，非门禁）
+    # [调研轮37 2026-09-17] 模板族策略禁止开空（做空专项；可回滚）
+    "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES",
     "MIDLONG_PULLBACK_ENTRY_ENABLED",
     "MIDLONG_PULLBACK_ENTRY_PCT",
     "MIDLONG_PULLBACK_ENTRY_TIMEOUT_S",
