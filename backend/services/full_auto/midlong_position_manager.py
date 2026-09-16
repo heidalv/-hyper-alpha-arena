@@ -215,6 +215,99 @@ def _tier_of(position: Dict[str, Any]) -> str:
     return "mid"
 
 
+def thesis_invalidation_semantics_ok(
+    *, position: Dict[str, Any], ipx: float, side: str,
+) -> Tuple[bool, str]:
+    """[调研轮18 2026-09-16] **让失效价触发与失效条件原文的语义对齐**（少砍早单）。
+
+    这不是"加一道门禁"，而是**修一处实现与规格不一致**：
+
+    30 天 6 笔 `thesis_invalidation` 平仓，逐笔把 `exit_state_json.invalidation_condition`
+    原文与实现对照 —— 原文写的都是**收盘**条件：
+
+      * `日线/4h收盘跌破5.931且无法收回，则多头修复判断作废`
+      * `日线收盘跌破705（1d EMA21）则HH→HL结构破坏`
+      * `4h收盘放量跌破100.19（24h低点+100整数关口）…`
+
+    而实现是 **mark 价一碰就平**（原 `resolve_thesis_hard_exit`）。逐笔回放结果：
+    **6 笔里 4 笔的 1h 收盘仍在失效价之内**（= 原文条件从未成立就被平掉），
+    其中 UNI 平仓价甚至**已在失效价之上**；这 4 笔出场后价格分别走高
+    （24h 高 +10.9% / +3.8% / +5.5% / +3.8%）。另 2 笔（SOL/VIRTUAL）1h 收盘确实
+    收破，出场正确（VIRTUAL 之后继续跌 −9.1%）。⇒ 按原文口径修，可少砍 4/6 早单，
+    且**不动**真正破位的 2 笔。
+
+    ## 对齐口径
+
+    1. **剧烈破位不等收盘**：`|mark/ipx − 1| ≥ MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT`
+       （默认 2%）⇒ 立即触发（原文的"无法收回"语义）；
+    2. **收盘确认**：`MIDLONG_THESIS_INV_CONFIRM_TF`（默认 1h）**已收盘** K 线
+       收在失效价之外 ⇒ 触发（与原文"收盘跌破"一致）；
+    3. 否则本轮不触发，下一 tick 复核。
+
+    ## 安全性
+
+    不触发**不等于取消保护**：硬止损（轮15b 后 mid ≤2%）、追踪止损、分段止盈、
+    组合风控全部照旧生效 —— 这里只是不再用"瞬时触碰"提前砍仓。异常时保持旧行为
+    （触发），避免把风险敞口留在无人看管的状态。
+
+    回滚：`MIDLONG_THESIS_INV_REQUIRE_CLOSE=false`。
+    """
+    try:
+        from backend.config.settings import MIDLONG_THESIS_INV_REQUIRE_CLOSE as _on
+    except Exception:
+        _on = True
+    if not _on:
+        return True, "semantics_off(触碰即平)"
+    try:
+        mark = float(position.get("mark_price") or position.get("current_price") or 0)
+        if mark <= 0 or ipx <= 0:
+            return True, "no_mark"
+        _side = str(side or "").lower()
+        depth = (ipx - mark) / ipx if _side == "long" else (mark - ipx) / ipx
+        try:
+            from backend.config.settings import MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT as _esc
+        except Exception:
+            _esc = 0.02
+        _esc = float(_esc if _esc is not None else 0.02)
+        if _esc > 0 and depth >= _esc:
+            return True, f"剧烈破位 depth={depth*100:.2f}%≥{_esc*100:.2f}%（不等收盘）"
+        try:
+            from backend.config.settings import MIDLONG_THESIS_INV_CONFIRM_TF as _tf
+        except Exception:
+            _tf = "1h"
+        _tf = str(_tf or "1h")
+        sym = str(position.get("symbol") or "").upper()
+        try:
+            from backend.services.market_data import get_kline_data
+            rows = get_kline_data(sym, period=_tf, count=3) or []
+        except Exception as _kerr:  # noqa: BLE001
+            return True, f"kline_unavailable:{type(_kerr).__name__}"
+        closed = 0.0
+        if len(rows) >= 2:   # 末根可能仍在形成 ⇒ 取最后一根已收盘
+            try:
+                closed = float(rows[-2].get("close") or 0)
+            except (TypeError, ValueError, IndexError):
+                closed = 0.0
+        if not closed:
+            for r in rows:
+                try:
+                    c = float(r.get("close") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if c > 0:
+                    closed = c
+        if not closed:
+            return True, "no_closed_bar"
+        if (_side == "long" and closed < ipx) or (_side == "short" and closed > ipx):
+            return True, f"{_tf}收盘={closed:.6f} 已破 {ipx:.6f}"
+        return False, (f"条件未成立: mark={mark:.6f} 瞬时穿透 {depth*100:.2f}%"
+                       f"（剧烈破位线 {_esc*100:.2f}% 未到）且 {_tf} 收盘={closed:.6f} "
+                       f"未破 {ipx:.6f} —— 按原文『收盘跌破』本轮不触发")
+    except Exception as _e:  # noqa: BLE001
+        logger.warning("[MidLong] thesis_invalidation_semantics_ok 异常(保持旧行为): %s", _e)
+        return True, "semantics_error_keep_old"
+
+
 def resolve_thesis_hard_exit(
     session_id: str,
     position: Dict[str, Any],
@@ -262,7 +355,14 @@ def resolve_thesis_hard_exit(
                 side == "short" and mark > float(ipx)
             )
             if hit:
-                return ("thesis_invalidation", th)
+                # [调研轮18] 与失效条件原文对齐（原文是"收盘跌破"，实现曾是"触碰即平"）：
+                # 条件未成立则本轮不触发，保护交回硬止损/追踪/分段止盈（少砍早单）。
+                _ok, _why = thesis_invalidation_semantics_ok(
+                    position=position, ipx=float(ipx), side=side,
+                )
+                if _ok:
+                    return ("thesis_invalidation", th)
+                logger.info("[MidLong] %s %s %s", sym, side, _why)
         # [2026-09-07] 退出传导（周期联动）：本档论题未触发时，若长线论题
         # should_close 且与仓位同向 → 中线/日内同向仓跟随离场（高周期破坏向下传导）。
         if tier in ("mid", "short"):

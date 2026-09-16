@@ -2389,6 +2389,21 @@ MIDLONG_POSITION_MGMT_ENABLED: bool = os.getenv("MIDLONG_POSITION_MGMT_ENABLED",
 MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED: bool = os.getenv(
     "MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [调研轮18 2026-09-16] **失效价触发与条件原文的语义对齐**（少砍早单；不是新增门禁）。
+# 30 天 6 笔 thesis_invalidation 平仓：失效条件原文全是"**收盘**跌破 X"，而实现是
+# mark 价触碰即平 ⇒ 逐笔回放 **4/6 的 1h 收盘仍在失效价之内**（原文条件从未成立就被砍），
+# 这 4 笔出场后 24h 分别走高 +10.9%/+3.8%/+5.5%/+3.8%；另 2 笔（SOL/VIRTUAL）收盘
+# 确实收破、出场正确（VIRTUAL 之后继续跌 −9.1%）。
+#   ① |mark−ipx|/ipx ≥ ESCAPE_DEPTH_PCT ⇒ 剧烈破位立即触发（对应原文"无法收回"）；
+#   ② CONFIRM_TF 的**已收盘** K 线收在失效价之外 ⇒ 触发（对应原文"收盘跌破"）。
+# 安全性：不触发≠取消保护 —— 硬止损（mid ≤2%）/追踪/分段止盈/组合风控照旧生效。
+# 回滚：MIDLONG_THESIS_INV_REQUIRE_CLOSE=false（回到"触碰即平"旧口径）。
+MIDLONG_THESIS_INV_REQUIRE_CLOSE: bool = os.getenv(
+    "MIDLONG_THESIS_INV_REQUIRE_CLOSE", "true"
+).lower() in ("1", "true", "yes", "on")
+MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT: float = float(
+    os.getenv("MIDLONG_THESIS_INV_ESCAPE_DEPTH_PCT", "0.02"))
+MIDLONG_THESIS_INV_CONFIRM_TF: str = os.getenv("MIDLONG_THESIS_INV_CONFIRM_TF", "1h")
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。

@@ -820,7 +820,7 @@ BTC/ETH/SOL/BNB/VIRTUAL/ASTER/XPL/UNI/XRP）**零交集**；且建策略链路
 | 配置键 | 声明意图 | 期望值 | 备注 |
 | --- | --- | --- | --- |
 | MIDLONG_AI_AUTOCREATE_STRATEGY | AI 候选按需补策略总开关 | true | false = 完全回滚旧行为（AI 选币仍会被拒） |
-| MIDLONG_AI_AUTOCREATE_MAX_PER_DAY | 每日最多新建几个 AI 策略 | 3 | 0 = 关闭；封住交易面扩张速度 |
+| MIDLONG_AI_AUTOCREATE_MAX_PER_DAY | 每日最多新建几个 AI 策略 | 8 | 0 = 关闭；[调研轮18] 3→8（放开 AI 选币落地容量） |
 | MIDLONG_AI_AUTOCREATE_LIVE | 实盘是否允许按需建策略 | false | 沿用项目"实盘从严"口径；实盘需显式开启 |
 
 - 生成物：`strategy_id` 前缀 `ai_auto_<sym><tier>_<hex4>`，配置**克隆同账户同层
@@ -865,3 +865,35 @@ status='active')` 存在。三个例程会**清空某 (账户, 币, 层) 的 act
   —— 按"实盘从严"不在本轮自动复活（可能是健康/生命周期有意暂停），但每次启动会有
   WARNING 提示；若要让实盘恢复该币交易，需显式重建/恢复策略。
 - 契约测试：`backend/tests/unit/test_strategy_dedup_keeper_20260916.py`（9 例）。
+
+## 放开「少开单」类软限额 + 放大资金利用率（2026-09-16 调研轮18）
+
+> 用户定调：**遇到问题不要反射式地加门禁、抬阈值**；先找"哪一道限制该放开、哪一处
+> 产能没用上"。本轮用 `backend/scripts/audit_block_counterfactual.py`（只读反事实）
+> 把三类拦截分别量了一遍，**只放开证据支持的那一类**：
+
+| 被拦类型（96h） | 行数 | 反事实（放行后 24h） | 处置 |
+| --- | --- | --- | --- |
+| `midlong_portfolio_block`（**容量类**） | 1656 | 多头 **+1.62%**、胜率 **81.2%**、仅 15% 触及 2% 止损 | **放开**（见下表） |
+| `midlong_cooldown_block`（冷却） | 620 | −6.70%、胜率 0%、74% 触及 2% 止损 | 不动（拦得对） |
+| `location_gate_veto`（位置闸） | 1423 | −1.04%、胜率 20%、76% 触及 2% 止损 | 不动（拦得对） |
+
+容量类子原因分布：`corr_cluster long (BTC,ETH,SOL)` **959 行（58%）**、
+`midlong_open_positions` 664 行。
+
+| 配置键 | 声明意图 | 期望值 | 备注 |
+| --- | --- | --- | --- |
+| MIDLONG_CORR_CLUSTER_MAX | 中线相关簇同向上限 | 3 | [轮18] 2→3；长车道早已因 N2（E1 核心宇宙 BTC/ETH/SOL 需能同持）为 3 |
+| MIDLONG_MID_AI_SCAN_SLOTS | 中线扫描里给 AI 候选的名额 | 2 | [轮18] 1→2；必须**严格小于** MIDLONG_SCAN_BATCH(3)，固定币保持多数轮次 |
+| MIDLONG_AI_AUTOCREATE_MAX_PER_DAY | 每日最多新建几个 AI 策略 | 8 | [轮18] 3→8 |
+| MIDLONG_MAX_NET_EXPOSURE_PCT | 净敞口上限（占权益） | 2.0 | [轮18] 1.5→2.0；放开容量后不被敞口帽立刻重新绑住（实测当前约 101%） |
+| MIDLONG_TIER_MARGIN_PCT_MID | 中线单仓保证金占权益比例 | 0.10 | [轮18] **由硬编码改为可配**（默认仍 0.08）；同族可配键 `_SHORT`(0.03)/`_LONG`(0.15) |
+
+**明确不动**（尊重既有安全决定 / 证据不支持）：
+- `MIDLONG_MAX_OPEN_POSITIONS=6`：`test_midlong_concurrency_cap_20260910.py` 明文护栏
+  区间 **[1,6]**，依据 9/9 夜大亏；
+- 一切风险闸（止损上限、位置闸、regime、持久性、熔断、冷却）保持原样。
+
+回滚：把上表五个键改回旧值即可（行为全部由 env 驱动，无需改码）。
+契约测试：`backend/tests/unit/test_capacity_loosening_20260916.py`（4 例，含
+"AI 名额仍少于扫描批次"与"并发帽仍在 [1,6]"两条边界护栏）。

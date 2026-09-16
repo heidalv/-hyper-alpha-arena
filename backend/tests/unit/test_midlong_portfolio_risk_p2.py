@@ -9,19 +9,26 @@ def _pos(symbol, side="long", tier="long", nature="trend_follow", size=1.0, px=1
             "mark_price": px, "trade_nature": nature, "timeframe_tier": tier}
 
 
-def test_corr_cluster_cap_is_lane_specific():
-    """[调研轮16 2026-09-16 更新] 簇帽**车道化**后的正确语义。
+def test_corr_cluster_cap_is_lane_specific(monkeypatch):
+    """[调研轮18 2026-09-16 更新] 簇帽**车道化**语义（显式注入帽值，与部署值解耦）。
 
-    原断言（"第三次同向必被拒"）在 `long_lane=True` + `.env`
-    `MIDLONG_CORR_CLUSTER_MAX_LONG=3` 下已不成立 —— 这是《垃圾收拾_验收扫描报告_第二轮》
-    N2 的**有意决定**：E1 核心宇宙就是 BTC/ETH/SOL，旧的全量 cap=2 让 SOL 在
-    BTC/ETH 持仓时永远开不出来。长车道放行 3 个，中线仍守 2 个（9/9 山寨齐跌实证）。
+    旧断言依赖 `.env` 里中线帽=2；轮18 已按证据放开到 3（96h 反事实：被容量类拦截的
+    多头 24h +1.62%、胜率 81.2%、仅 15% 触及 2% 止损；长车道早已因 N2 为 3）。
+    这里改为**显式 monkeypatch** 帽值 → 测"车道隔离 + 阈值生效"这套逻辑本身，
+    部署值另由 `test_capacity_loosening_20260916.py` 锁定。
     """
+    from backend.config import settings as _s
     from backend.services.mlto.midlong_portfolio_risk import check_portfolio_open_allowed
 
-    two_long = [_pos("BTC"), _pos("ETH")]
+    monkeypatch.setattr(_s, "MIDLONG_CORR_CLUSTER_MAX", 2, raising=False)
+    monkeypatch.setattr(_s, "MIDLONG_CORR_CLUSTER_MAX_LONG", 3, raising=False)
 
-    # ── 长车道：cap=3 ⇒ 第三个簇内同向仓允许（N2 决策）──
+    two_long = [_pos("BTC"), _pos("ETH")]
+    three_long = [_pos("BTC"), _pos("ETH"), _pos("SOL")]
+    two_mid = [_pos("BTC", tier="mid", nature="swing"),
+               _pos("ETH", tier="mid", nature="swing")]
+
+    # ── 长车道 cap=3：第三个簇内同向仓放行 ──
     ok, why = check_portfolio_open_allowed(
         symbol="SOL", action="buy",
         portfolio={"balance": {"total_equity": 100000}, "positions": two_long},
@@ -29,8 +36,7 @@ def test_corr_cluster_cap_is_lane_specific():
     )
     assert ok, f"长车道 cap=3 时第三个簇内同向仓应放行，实际被拒: {why}"
 
-    # ── 长车道已满 3 个 ⇒ 第 4 个被簇帽拒绝 ──
-    three_long = [_pos("BTC"), _pos("ETH"), _pos("SOL")]
+    # ── 长车道已满 3 个 ⇒ 第 4 个被簇帽拒 ──
     ok2, why2 = check_portfolio_open_allowed(
         symbol="SOL", action="buy",
         portfolio={"balance": {"total_equity": 100000}, "positions": three_long},
@@ -38,9 +44,7 @@ def test_corr_cluster_cap_is_lane_specific():
     )
     assert not ok2 and "corr_cluster" in why2, why2
 
-    # ── 中线：cap=2 ⇒ 第三个簇内同向仓仍被拒（原意图保留）──
-    two_mid = [_pos("BTC", tier="mid", nature="swing"),
-               _pos("ETH", tier="mid", nature="swing")]
+    # ── 中线 cap=2 ⇒ 第三个簇内同向仓被拒（车道隔离：不看长车道帽）──
     ok3, why3 = check_portfolio_open_allowed(
         symbol="SOL", action="buy",
         portfolio={"balance": {"total_equity": 100000}, "positions": two_mid},

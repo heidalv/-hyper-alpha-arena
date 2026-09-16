@@ -18,6 +18,7 @@
 """
 
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -211,9 +212,15 @@ TIER_LEVERAGE = {
 }
 TIER_MARGIN_PCT = {
     # 单仓保证金占权益比例（直接金额控制，不再用名义百分比）
-    "scalp": 0.03,      # 短线 3% ≈ $14（快进快出，小仓位高频）
-    "swing": 0.08,      # 中线 8% ≈ $39（适中仓位）
-    "trend_follow": 0.15, # 长线 15% ≈ $72（大仓位趋势跟踪）
+    # [调研轮18 2026-09-16] 改为**可配**（默认值 = 原硬编码值，行为不变；回滚=删键或置回原值）。
+    # 背景：容量类拦截 `midlong_portfolio_block` 96h 1656 行（头号是 corr_cluster 959 行），
+    # 反事实显示被拦多头 24h +1.62%、胜率 81.2%、仅 15% 会触及 2% 止损 ⇒ 容量与资金
+    # 利用率是可以放开的（用户明确方向："放开少开单类软限额 + 放大资金利用率"）。
+    # 口径：单仓保证金 = 权益 × 本比例；仍受并发帽（MIDLONG_MAX_OPEN_POSITIONS）、
+    # 相关性簇帽、净敞口帽（MIDLONG_MAX_NET_EXPOSURE_PCT）与补仓预留共同约束。
+    "scalp": float(os.getenv("MIDLONG_TIER_MARGIN_PCT_SHORT", "0.03")),
+    "swing": float(os.getenv("MIDLONG_TIER_MARGIN_PCT_MID", "0.08")),
+    "trend_follow": float(os.getenv("MIDLONG_TIER_MARGIN_PCT_LONG", "0.15")),
 }
 TIER_RESERVE_MULT = {
     # 补仓/滚仓资金预留倍数（初始保证金 × 倍数 = 该仓位总资金需求）
