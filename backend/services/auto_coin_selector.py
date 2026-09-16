@@ -5605,6 +5605,22 @@ def _midlong_board_approve_candidates(
     在候选层就按流动性过滤，选出来的才是真能交易的标的。0=关闭该过滤（回滚）。
 
     默认值取 `MIDLONG_AI_MIN_LIQUIDITY`（默认 0.5）；调用方可显式覆盖。
+
+    [调研轮10 2026-09-16] **候选口径重定义（修「中/长线 AI 池长期为空」）**
+
+    实测（72h，流动性 ≥0.35 的非固定币，取每个 symbol 最新判定）：
+      * **approve: 0 个**（看板的 approve 全给了低流动性标的：AMAT/CRCL/ALICE/APE…）；
+      * watch: 8 个（DOT/FET/ARB/LINK/TIA/ADA/AVAX/TON）；
+      * reject: 6 个。
+    即"只认 approve"等于**永久空池**。故：
+      1. 候选 verdict 集合改为可配 `MIDLONG_AI_CANDIDATE_VERDICTS`（默认 `approve,watch`）——
+         watch 是"值得观察"，正是候选池该有的语义；**最终是否开仓仍由主脑论题 +
+         全部入场闸决定**（`MIDLONG_NO_THESIS_NO_OPEN=true`，本轮不放松任何入场闸）；
+      2. 取窗口内**每个 symbol 最近一次判定**（避免"曾经 approve、后来 reject"被复活）；
+      3. 忽略 `valid_until`（那是**看板展示用 4h TTL**，与持仓数小时~数天的选币视野不匹配；
+         改用 `MIDLONG_AI_APPROVAL_WINDOW_H`（默认 24h）约束新鲜度）；
+      4. 仍要求流动性 ≥ `MIDLONG_AI_MIN_LIQUIDITY`、confidence ≥ min_conf、非固定币。
+    窗口置 0 → 回退旧的「只看最新一批 listed」行为（完全回滚）。
     """
     from sqlalchemy import text as _sa_text
 
@@ -5614,6 +5630,70 @@ def _midlong_board_approve_candidates(
             min_liquidity = float(_ml if _ml is not None else 0.5)
         except Exception:
             min_liquidity = 0.5
+
+    try:
+        _win_h = int(os.environ.get("MIDLONG_AI_APPROVAL_WINDOW_H", "24") or 0)
+    except (TypeError, ValueError):
+        _win_h = 24
+    _verdicts = {
+        v.strip().lower()
+        for v in str(os.environ.get("MIDLONG_AI_CANDIDATE_VERDICTS", "approve,watch")).split(",")
+        if v.strip()
+    } or {"approve"}
+
+    if _win_h > 0:
+        rows = db.execute(
+            _sa_text(
+                "SELECT DISTINCT ON (upper(symbol)) upper(symbol) AS sym, confidence, "
+                "       lower(ai_verdict) AS verdict, "
+                "       COALESCE((market_scores ->> 'liquidity')::float, NULL) AS liq, created_at "
+                "FROM coin_select_candidates "
+                "WHERE horizon = 'midlong' "
+                "  AND created_at > NOW() - (:win_h * INTERVAL '1 hour') "
+                "ORDER BY upper(symbol), created_at DESC "
+                "LIMIT :lim"
+            ),
+            {"win_h": int(_win_h), "lim": int(limit) * 4},
+        ).all()
+        out: List[tuple] = []
+        dropped_liq: List[str] = []
+        for r in rows:
+            sym = str(r[0] or "").strip().upper()
+            if not sym or sym in fixed:
+                continue
+            if str(r[2] or "").lower() not in _verdicts:
+                continue
+            try:
+                conf = float(r[1]) if r[1] is not None else 0.0
+            except (TypeError, ValueError):
+                conf = 0.0
+            if conf < float(min_conf):
+                continue
+            if min_liquidity and min_liquidity > 0:
+                try:
+                    _liq = float(r[3]) if r[3] is not None else None
+                except (TypeError, ValueError, IndexError):
+                    _liq = None
+                if _liq is not None and _liq < float(min_liquidity):
+                    dropped_liq.append(f"{sym}({_liq:.2f})")
+                    continue
+            out.append((sym, conf))
+        out.sort(key=lambda x: -x[1])
+        if dropped_liq:
+            logger.info(
+                "[AutoCoinSelector] 中线 AI 候选流动性过滤 <%.2f：剔除 %s（窗口 %dh）",
+                float(min_liquidity), dropped_liq[:8], _win_h,
+            )
+        if out:
+            logger.info(
+                "[AutoCoinSelector] 中线 AI 候选(窗口 %dh, verdict∈%s, min_conf=%.2f) n=%d -> %s",
+                _win_h, sorted(_verdicts), float(min_conf), len(out), [s for s, _c in out][:8],
+            )
+            return out[: int(limit)]
+        logger.info(
+            "[AutoCoinSelector] 窗口 %dh 内无合格 midlong 候选(verdict∈%s, min_conf=%.2f)，回退最新一批口径",
+            _win_h, sorted(_verdicts), float(min_conf),
+        )
 
     rows = db.execute(
         _sa_text(

@@ -279,6 +279,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_FUNDING_HOLD_HOURS",
     # [2026-09-16 调研轮8] AI 中线候选流动性下限（看板 liquidity 分；0=关闭）
     "MIDLONG_AI_MIN_LIQUIDITY",
+    # [2026-09-16 调研轮10] 中/长线 AI 候选口径：verdict 集合 + 新鲜度窗口（小时）
+    "MIDLONG_AI_CANDIDATE_VERDICTS",
+    "MIDLONG_AI_APPROVAL_WINDOW_H",
     # [2026-09-16 调研轮8] AI 中线候选总闸（false=中线只用固定币，等价 2026-09-04 旧行为）
     "MIDLONG_MID_AI_CANDIDATES_ENABLED",
     "MIDLONG_LONG_AI_CANDIDATES_ENABLED",
@@ -1398,6 +1401,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "TREND_E1_DRY_RUN",              # 只打印动作
     "TREND_E1_ADOPT_LEGACY_LONGS",   # 接管核心币"应持"的存量非 E1 长仓（默认 true）
     "TREND_E1_LONG_LANE_EXCLUSIVE",  # E1 独占长车道（默认随 TREND_E1_ENABLED）
+    # [2026-09-16 调研轮10] E1 独占的 AI 例外（AI 选出的长线标的可新开；false=完全独占）
+    "TREND_E1_LONG_LANE_AI_EXCEPTION",
     "LIVE_LEVERAGE_FAIL_CLOSE",      # 实盘杠杆对齐失败即拒绝开仓（默认 true）
     "SYMBOL_LEVERAGE_ENABLED",       # 币种杠杆总开关（默认 true；关闭回落旧 requested 行为）
     "SYMBOL_LEVERAGE_MAP",           # 币种杠杆档位 "BTC:5,ETH:5,SOL:4"

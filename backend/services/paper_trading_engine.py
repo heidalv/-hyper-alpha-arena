@@ -1022,7 +1022,12 @@ class PaperTradingEngine:
             if add_type not in ("reduce", "close"):
                 try:
                     from backend.services.trend_e1_engine import long_lane_open_allowed as _e1_gate
-                    _e1_ok, _e1_reason = _e1_gate(timeframe_tier, trade_nature, position_metadata, add_type)
+                    _e1_ok, _e1_reason = _e1_gate(
+                        timeframe_tier, trade_nature, position_metadata, add_type,
+                        # [调研轮10] 传 symbol/session：AI 长线选币标的走窄口径例外
+                        symbol=symbol,
+                        session_id=str(getattr(session, "session_id", "") or "") or None,
+                    )
                     if not _e1_ok:
                         logger.info(f"[Paper][TrendE1] 拒开 {symbol} {side} tier={timeframe_tier}: {_e1_reason}")
                         return {

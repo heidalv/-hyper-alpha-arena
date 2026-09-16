@@ -146,8 +146,17 @@ def is_e1_metadata(position_metadata: Optional[Dict[str, Any]]) -> bool:
 
 
 def long_lane_open_allowed(timeframe_tier: Optional[str], trade_nature: Optional[str],
-                           position_metadata: Optional[Dict[str, Any]], add_type: Optional[str] = None) -> tuple[bool, str]:
-    """paper place_order 收口处调用：E1 独占长车道时，非 E1 来源的 tier=long 新开仓被拒（加仓/平仓不管）。"""
+                           position_metadata: Optional[Dict[str, Any]], add_type: Optional[str] = None,
+                           symbol: Optional[str] = None,
+                           session_id: Optional[str] = None) -> tuple[bool, str]:
+    """paper place_order 收口处调用：E1 独占长车道时，非 E1 来源的 tier=long 新开仓被拒（加仓/平仓不管）。
+
+    [调研轮10 2026-09-16] **AI 长线选币窄口径例外**：E1 独占会让「AI 选出来的长线标的」
+    永远只记为提议、开不出仓（用户目标是中/长线 AI 选币都要能工作）。
+    故当 `symbol` 属于会话 AI 长线池（AI 选币产出）时放行，**且只放行这一种来源**：
+    非 E1 且非 AI 的 long 新开仍一律拒绝。
+    回滚：`TREND_E1_LONG_LANE_AI_EXCEPTION=false`。
+    """
     if not long_lane_exclusive():
         return True, ""
     if add_type in ("reduce", "close"):
@@ -158,6 +167,20 @@ def long_lane_open_allowed(timeframe_tier: Optional[str], trade_nature: Optional
         return True, ""
     if is_e1_metadata(position_metadata):
         return True, ""
+    # AI 选币标的例外（默认开；判定失败按"非 AI"处理=保持原独占行为）
+    try:
+        _ai_exc = str(os.getenv("TREND_E1_LONG_LANE_AI_EXCEPTION", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        _ai_exc = True
+    if _ai_exc and symbol:
+        try:
+            from backend.services.auto_coin_selector import is_auto_coin_symbol as _iacs
+            if _iacs(str(symbol).upper(), session_id):
+                return True, "AI 长线选币标的（E1 独占例外）"
+        except Exception:
+            pass
     return False, "长车道由 E1 趋势引擎独占（TREND_E1_LONG_LANE_EXCLUSIVE）：非 E1 来源的 long 新开仓仅记为提议"
 
 
