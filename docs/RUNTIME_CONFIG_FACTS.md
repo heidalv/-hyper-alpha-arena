@@ -245,8 +245,8 @@ task 名必须已注册、每个 task 的 template 与 required 类型自洽、�
 
 | 配置键 | 声明意图 | 期望值 | 备注 |
 | --- | --- | --- | --- |
-| ANALYSIS_LOCAL_TRANSPORTS | 免配额的本地传输名单 | ollama,ollama2 | 本地不走供应商 Key，无 5h 窗 / 周配额 / 峰时倍率 |
-| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 | glm_opencode_alt,ollama,ollama2 | [2026-09-11] 与 .env 对齐：sidecar 崩溃窗口由 glm_opencode_alt 顶替 |
+| ANALYSIS_LOCAL_TRANSPORTS | 免配额的本地传输名单 |  | [2026-09-16 调研轮11] **本地 Ollama 已停用**（用户决定：全部走线上 LLM）⇒ 名单清空（期望值留空 = 与 .env 一致）；`LLM_LOCAL_FIRST_DISABLED=true` 同步把 ollama 从主/备链路剥掉 |
+| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 | glm_opencode_alt,deepseek,minimax | [2026-09-16 调研轮14 方案A] 与 `.env` 对齐：主票改为 `minimax,deepseek`（GLM 只在分歧时当仲裁），备链 = GLM 备用 → deepseek → minimax；ollama 已摘除 |
 | ANALYSIS_OLLAMA_MODEL | 本地票模型 | qwen3:14b | |
 | ANALYSIS_OLLAMA2_MODEL | 第二条本地票模型 | qwen2.5:7b-instruct-q4_K_M | 必须与上一条不同模型，否则退化为单票 |
 
@@ -763,3 +763,35 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 | E5_SHADOW_ENABLED | E5 事件影子车道 | false | 停空转 |
 | AGENT_PARAM_SEARCH_ENABLED | 周日 ParamSearch 重任务 | false | 停 |
 | ALLOCATOR_APPLY | 分配器写入 runtime_tuning | false | false 时不再注册每日空转 |
+
+## 止损距离：上限赢过 nature 硬下限（2026-09-16 调研轮15b）
+
+> 症状：mid 仓硬止损距离 **4.67%**、long 仓 **6.50%**，而赢家持仓期最大逆行（MAE）
+> 只有 **1.20%**（n=18，`trough_pnl_pct` 价格口径）⇒ 止损"远到不会响"：90 天 34 笔里
+> `sl` 通道 0 笔（§87），亏损只能走到 4.5% 才被砍。24h 归因 `sl` n=3 净 **−105.20**
+> 是最大亏损源。
+
+**根因是两处叠加，都不在上游**：
+
+1. `paper_trading_engine._enforce_min_sl()` 按 nature 硬下限把 SL 拉回
+   swing 4.5% / position 5.5% / trend_follow 6.5% —— 上游三层封顶（提案层
+   `clamp_stop_distance`、价格层 `tp_sl_prices`、`PositionMemoryManager._calc_tp_sl`）
+   在下单时生效，**下一个保护 tick 就被推翻**。实测 6 笔未平仓 SL 距离全部等于该下限。
+2. 键名两种拼写不一致：提案层 `MIDLONG_MAX_SL_PCT_<TIER>`（轮7）、引擎收口层
+   `MIDLONG_SL_MAX_PCT_<TIER>`（§88）。mid 层只配了前者 ⇒ 引擎 `cap=0`，上限静默失效。
+
+| 配置键 | 声明意图 | 期望值 | 备注 |
+| --- | --- | --- | --- |
+| MIDLONG_SL_MAX_PCT_MID | **引擎层**中线 SL 距离上限（每 tick + 下单收口） | 0.02 | env-only（`test_cap_off_by_default` 锁定）；显式 0=关闭 |
+| MIDLONG_SL_MAX_PCT_LONG | 引擎层长线 SL 距离上限 | 0.03 | §88（2026-09-11）P29-A 决策；与 `_MID` 同族 |
+| MIDLONG_MAX_SL_PCT_MID | **提案层**中线 SL 距离上限 | 0.02 | 轮7；两种拼写现在都认（显式 0 不再回退另一键） |
+| MIDLONG_MAX_SL_PCT_LONG | 提案层长线 SL 距离上限 | 0.03 | 同上 |
+
+- 冲突规则：**上限比下限更紧时上限赢**（下限降为上限值）——盯的是"亏得起多少"，
+  不是"噪音有多大"。未配置上限（0）时行为与历史完全一致。
+- 只夹"过远"一侧：保本/盈利侧止损（long: SL>entry；short: SL<entry）永不被触碰。
+- 回滚：把对应键显式置 0 ⇒ 下一 tick `_enforce_min_sl` 会把 SL 拉回旧下限（**自愈**）。
+- 体检入口：`python backend/scripts/audit_sl_distance_cap.py --account 14`
+  （只读；会打印每笔 SL 距离、上限、以及"套用上限是否立刻触发"）。上线前实测：
+  存量 6/6 超上限，**立即被打掉的 = 0**。
+- 契约测试：`backend/tests/unit/test_sl_floor_cap_conflict_20260916.py`（13 例）。
