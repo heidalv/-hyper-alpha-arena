@@ -1049,6 +1049,12 @@ MIDLONG_ATR_SIZING_ENABLED: bool = os.getenv("MIDLONG_ATR_SIZING_ENABLED", "true
 MIDLONG_ATR_SL_MULT: float = float(os.getenv("MIDLONG_ATR_SL_MULT", "1.5"))
 # [2026-09-11] ATR 地板抬升上限（×原 SL；0=不设限，旧口径）。
 MIDLONG_ATR_FLOOR_MAX_LIFT: float = float(os.getenv("MIDLONG_ATR_FLOOR_MAX_LIFT", "2.0"))
+# [2026-09-16 调研轮7] 硬止损距离上限（价格口径）：mid 2% / long 3%。
+# 依据：9/11 后 mid+long n=34，赢家最大逆行 1.20%、输家 2.56~4.85%，而现役 SL 4.5~4.85%
+# ⇒ avg_loss(-17.10) > avg_win(+13.90)、打平需胜率 55.2% 实际 52.9%。
+# 反事实 cap=2% → 误杀赢家 0/18、区间净额 -23.49 → +73.54。0 = 关闭（回滚旧行为）。
+MIDLONG_MAX_SL_PCT_MID: float = float(os.getenv("MIDLONG_MAX_SL_PCT_MID", "0.02"))
+MIDLONG_MAX_SL_PCT_LONG: float = float(os.getenv("MIDLONG_MAX_SL_PCT_LONG", "0.03"))
 MIDLONG_RISK_PCT: float = float(os.getenv("MIDLONG_RISK_PCT", "0.01"))
 # 杠杆：中长线升级禁止另设。开仓走动态杠杆 + 已有仓统一杠杆；
 # leverage_authority 仅作上限钳制，不是按周期固定分配。

@@ -33,6 +33,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+# [2026-09-16 调研轮7] Windows 控制台默认 cp936(GBK)：本套件打印 ✅/❌ 汇总行会在
+# 最后一步崩溃（实测 exit=1 且看不到任何子项结果）→ 审计"看着失败"其实是编码。
+# 子进程侧另经 subprocess env PYTHONIOENCODING=utf-8 强制。
+try:  # pragma: no cover
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 OUT_DIR = ROOT / "data" / "audit_reports"
 
 #: (标识, 命令行参数, 说明)  —— 全部只读
@@ -116,6 +124,10 @@ def run_suite(*, timeout: int = 600, write: bool = True) -> dict:
             proc = subprocess.run(
                 [sys.executable, *argv], cwd=str(ROOT), capture_output=True, text=True,
                 encoding="utf-8", errors="replace", timeout=timeout,
+                # [2026-09-16 调研轮7] 强制子进程 stdout/stderr 用 UTF-8：Windows 控制台默认
+                # cp936(GBK)，子脚本打印 ✅/❌ 会抛 UnicodeEncodeError → rc=1 → 例行审计
+                # 报「FAIL」但其实是编码崩溃（实测 dead_keys 天天假 FAIL，真失败被淹没）。
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
             rc, out = proc.returncode, (proc.stdout or "") + (proc.stderr or "")
         except subprocess.TimeoutExpired:

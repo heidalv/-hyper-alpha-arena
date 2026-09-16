@@ -280,6 +280,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MAX_LONG_LANE_POSITIONS",
     # [P13 执行 2026-09-10] 每标的同向并发上限（0=关闭）
     "MIDLONG_MAX_SAME_SYMBOL_POSITIONS",
+    # [调研轮7 2026-09-16] 硬止损距离上限（价格口径；0=关闭回滚）
+    "MIDLONG_MAX_SL_PCT_MID",
+    "MIDLONG_MAX_SL_PCT_LONG",
     # [P12 执行 2026-09-10] 组合闸名义口径开关（默认 true=与 PositionConstruction 同口径）
     "MIDLONG_PORTFOLIO_NOTIONAL_ALIGNED",
     "MIDLONG_MIN_NET_RR",
@@ -554,6 +557,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_LOCATION_PAPER_SHRINK_ENABLED",
     # [M4 2026-09-14] paper 位置闸缩仓倍数（0.25）
     "MIDLONG_LOCATION_PAPER_SHRINK_MULT",
+    # [2026-09-16 调研轮7] 追高天花板（24h 区间分位 ≥ 该值 → paper 也硬否决；0=关闭）
+    "MIDLONG_LOCATION_PAPER_SHRINK_CEILING",
     # [§78 补登记 2026-09-11] 位置闸"延后到长线闸"开关（交叉验证工具发现：有读取方但未登记）
     "MIDLONG_LOCATION_DEFER_TO_LONG_GATE",
     "MIDLONG_CHOP_MODE",
@@ -588,6 +593,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [§82 执行 2026-09-11 / 决策 P5-A] 车道级风控闸门开关（默认 false：
     # toxic_streak / 日亏闸在接线前**从未生效**，打开后影子证据基线变保守）
     "MM_LANE_LIMITS_ENFORCE",
+    # [2026-09-16 调研轮7] MM 车道自进化开关/纪元（.env 已存在但未登记 → 死键审计交叉验证失败）
+    "MM_AUTO_EVOLVE",
+    "MM_EVOLUTION_SINCE",
     # [§84 执行 2026-09-11 / 决策 P27-A / 缺陷 #69] 熔断证据新鲜度（天；0=关闭约束）
     "BREAKER_EVIDENCE_STALE_DAYS",
     # [§88 执行 2026-09-11 / 决策 P29-A] long 层 SL 距离上限（0=关闭）
@@ -958,6 +966,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MID_VIA_FACTOR_ROUTE",
     # [M5 2026-09-14] 因子路由 A/B 车道（脑开启时 paper 并行自开；false=旧行为）
     "MIDLONG_MID_FACTOR_ROUTE_AB",
+    # [2026-09-16 调研轮7] mid 4h 单周期反转离场开关（false=回滚到双周期复查）
+    "MIDLONG_MID_4H_REVERSAL_EXIT",
     "MIDLONG_BRAIN_MODE",
     "MIDLONG_THESIS_TTL_MID_S",
     "MIDLONG_THESIS_TTL_LONG_S",
@@ -1384,6 +1394,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "PC_VOL_TARGET", "PC_MAX_WEIGHT_PER_SYMBOL", "PC_RISK_PER_TRADE_PCT", "PC_MAX_LEVERAGE", "PC_CLUSTER_CAP",
     "PC_GROSS_CAP", "PC_CONF_SCALE_MIN",  # 全局默认；PC_<PARAM>_<LANE> 按车道覆盖（见 KNOWN_FLAG_PATTERNS）
     "EXIT_POLICY_ENFORCE",           # ExitPolicy 车道声明层（默认 true）；EXIT_POLICY_<LANE>_<PARAM> 见 KNOWN_FLAG_PATTERNS
+    # [2026-09-16 调研轮7] 存量仓随车道重标定刷新利润保护参数（止损字段保持快照值；false=回滚）
+    "EXIT_POLICY_REFRESH_OPEN",
     "LIVE_NATIVE_TRAILING_STOP",     # live 侧 ExitPolicy trailing 激活时挂交易所原生 TRAILING_STOP_MARKET（默认 false）
     "ANALYSIS_UNIVERSE",             # context pack 币池（默认 BTC,ETH,SOL,BNB,XRP,DOGE,ADA,AVAX）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）

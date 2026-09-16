@@ -3208,6 +3208,31 @@ class PaperTradingEngine:
         policy = _xp.policy_from_exit_state(es, lane)
         if not policy.enabled:
             return False
+        # [2026-09-16 调研轮7] 存量仓策略刷新：车道重标定（trail/min_roi/TP/time_limit）
+        # 对开仓快照永不生效 → 同账户新旧策略并存、旧仓按已证伪档位出场（实测 XRP 4683
+        # +4.42% ROI 仍用 trail 3.0/1.5）。刷新只动利润保护字段，止损字段保持快照值。
+        # 回滚：EXIT_POLICY_REFRESH_OPEN=false。
+        if _xp.refresh_enabled():
+            try:
+                _new_policy, _chg = _xp.refreshed_policy(policy, lane)
+                if _chg:
+                    _hist = es.get("exit_policy_history")
+                    if not isinstance(_hist, list):
+                        _hist = []
+                    _hist.append({
+                        "ts": time.time(), "reason": "lane_recalibration",
+                        "changes": _chg,
+                    })
+                    es["exit_policy_history"] = _hist[-5:]
+                    es["exit_policy_refreshed_at"] = time.time()
+                    pos.exit_state_json = _json_ep.dumps(es, ensure_ascii=False)
+                    logger.info(
+                        f"[Paper][ExitPolicy] 刷新存量仓策略 {pos.symbol} {side} lane={lane} "
+                        f"changes={_chg}"
+                    )
+                    policy = _new_policy
+            except Exception as _rf_err:
+                logger.debug(f"[Paper][ExitPolicy] 存量仓刷新跳过(fail-open): {_rf_err}")
 
         # 持仓时长（opened_at 为库内 naive 北京钟面 → UTC）
         elapsed = 0.0

@@ -309,6 +309,24 @@ def try_execute_independent_agent_open(
     except Exception as _norm_err:
         logger.debug("[MidLong] nature 归一跳过: %s", _norm_err)
     # 固定币守卫仅拦长线；中线 AI 选币允许非白名单
+    # [2026-09-16 调研轮7] 止损距离上限（mid 2% / long 3%）：调研发现现役 SL 4.5~4.85%
+    # 是赢家最大逆行深度(1.20%)的约 4 倍，导致 avg_loss > avg_win、期望为负；
+    # 反事实把上限设 2% → 误杀赢家 0/18、区间净额 -23.49 → +73.54。
+    # 详见 midlong_trade_design.clamp_stop_distance。回滚：MIDLONG_MAX_SL_PCT_* = 0。
+    try:
+        from backend.services.mlto.midlong_trade_design import clamp_stop_distance as _clamp_sl
+        _sl_capped, _sl_cap_why = _clamp_sl(sl_pct, _tier_l)
+        if float(_sl_capped or 0) != float(sl_pct or 0):
+            logger.info(
+                "[MidLongSL] %s %s tier=%s %s", _sym_u, _act, _tier_l, _sl_cap_why,
+            )
+            try:
+                host.append_event(session, "midlong_sl_capped", f"[止损距离上限] {_sym_u}: {_sl_cap_why}")
+            except Exception:
+                pass
+        sl_pct = float(_sl_capped or 0)
+    except Exception as _cl_err:
+        logger.debug("[MidLongSL] 止损上限跳过(fail-open): %s", _cl_err)
     if _tier_l == "long" or _tn_l in ("trend_follow", "position"):
         try:
             from backend.services.auto_coin_selector import get_fixed_symbols_for_session

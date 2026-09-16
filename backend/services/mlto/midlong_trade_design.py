@@ -271,3 +271,57 @@ def apply_structure_atr_floor(
             )
         return floor, f"sl {sl:.2%}→{floor:.2%} (ATR×mult floor)"
     return sl, "ok"
+
+
+def clamp_stop_distance(sl_pct: float, tier: str) -> Tuple[float, str]:
+    """[2026-09-16 调研轮7] 硬止损距离**上限**：让「单笔风险」与「盈利潜力」同量级。
+
+    ## 数据依据（account 14，2026-09-11 后 mid+long，n=34；口径 `trough_pnl_pct`
+    = **未杠杆价格**百分比，即真实逆行深度）
+
+    | 组 | MAE(价格) p50 | p80 | p90 | max |
+    |---|---|---|---|---|
+    | 赢家（n=18） | 0.69% | 0.85% | 1.04% | **1.20%** |
+    | 输家（n=16） | 2.56% | 3.91% | 4.23% | **4.85%** |
+
+    而现役硬止损距离实测 **4.50~4.85%**（ASTER 4.50 / ETH 4.58 / SOL 4.67 / XRP 4.74）
+    ——是「赢家最大逆行深度」的 **约 4 倍**。即：赢家几乎从不深水（≤1.2%），
+    输家却一路走到 4.5% 才被砍，于是 avg_loss(-17.10) > avg_win(+13.90)，
+    打平需胜率 55.2% 而实际 52.9% → 期望 -0.69/笔。
+
+    ## 反事实（同一批成交只改止损上限，其余不变）
+
+    | 止损上限 | 误杀赢家 | 区间净额 |
+    |---|---|---|
+    | 1.5% | 0/18 | -23.49 → **+110.28** |
+    | **2.0%** | **0/18** | -23.49 → **+73.54** |
+    | 2.5% | 0/18 | -29.19 → +40.53 |
+    | 4.0% | 0/18 | -23.49 → -21.81（≈现状） |
+
+    取 2.0%（mid）：距观测到的赢家最大 MAE(1.20%) 有 0.8pp 余量，
+    同时把输家损失砍掉约 2/3。long 取 3.0%（趋势车道需更多呼吸空间，
+    且 E1 走 Chandelier 不经本函数）。
+
+    ## 语义
+
+    只**收窄**不止损放：`sl_pct <= cap` 原样返回；`cap<=0` = 关闭（回滚旧行为）；
+    tier 不在 mid/long 时不适用。异常 fail-open（返回原值），避免闸自身成为停摆源。
+    回滚：`MIDLONG_MAX_SL_PCT_MID=0` / `MIDLONG_MAX_SL_PCT_LONG=0`。
+    """
+    try:
+        t = str(tier or "").strip().lower()
+        if t == "mid":
+            cap = _cfg_float("MIDLONG_MAX_SL_PCT_MID", 0.02)
+        elif t == "long":
+            cap = _cfg_float("MIDLONG_MAX_SL_PCT_LONG", 0.03)
+        else:
+            return float(sl_pct or 0), f"tier={t or '?'} 不适用"
+        sl = float(sl_pct or 0)
+        if cap <= 0:
+            return sl, "cap_off"
+        if sl <= 0 or sl <= cap:
+            return sl, "ok"
+        return cap, f"sl {sl:.2%}→{cap:.2%} (止损距离上限 {t} cap={cap:.2%})"
+    except Exception as exc:  # noqa: BLE001 — 闸自身异常必须放行
+        logger.debug("[MidLongSL] clamp_stop_distance 异常(fail-open): %s", exc)
+        return float(sl_pct or 0), f"clamp_err:{exc}"

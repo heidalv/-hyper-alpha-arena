@@ -18,6 +18,15 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+# [2026-09-16 调研轮7] Windows 控制台默认 cp936(GBK)：打印 ✅/❌ 会抛 UnicodeEncodeError
+# → 脚本 rc=1 → 例行审计误报 FAIL、真失败被淹没。守卫 stdout/stderr 为 UTF-8。
+try:  # pragma: no cover
+    import sys as _sys_utf8
+
+    _sys_utf8.stdout.reconfigure(encoding="utf-8", errors="replace")
+    _sys_utf8.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # 视为「安全闸/风控」的函数名特征
 GATE_NAME = re.compile(

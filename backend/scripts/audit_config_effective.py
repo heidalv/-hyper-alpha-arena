@@ -30,6 +30,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+# [2026-09-16 调研轮7] Windows 控制台默认 cp936(GBK)：打印 ✅/❌ 会抛 UnicodeEncodeError
+# → 脚本 rc=1 → 例行审计误报 FAIL、真失败被淹没。守卫 stdout/stderr 为 UTF-8。
+try:  # pragma: no cover
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # 与「安全/风控/闸门」相关的键名特征（这些键的偏差优先级最高）
 SAFETY_HINT = re.compile(
     r"(MAX|MIN|LIMIT|ENABLE|ENABLED|GATE|GUARD|THRESHOLD|RISK|STOP|CAP|COOL|"

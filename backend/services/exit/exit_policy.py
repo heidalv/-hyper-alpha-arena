@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
@@ -328,3 +328,71 @@ def policy_from_exit_state(exit_state_json: Any, lane: str) -> ExitPolicy:
     except Exception as exc:
         logger.debug("[ExitPolicy] 解析 exit_state_json.exit_policy 失败，用车道默认: %s", exc)
     return ExitPolicy.for_lane(lane)
+
+
+# ── [2026-09-16 调研轮7] 存量仓策略刷新 ──────────────────────────────
+#: 刷新时**保持不变**的字段：止损相关的风险边界在开仓时即已生效（价已挂到
+#: pos.sl_price），事后刷新不得移动它——只刷新「利润保护」参数。
+REFRESH_KEEP_FIELDS: Tuple[str, ...] = ("sl_pct", "structural_stop", "lane", "enabled")
+
+#: 参与刷新的利润保护字段（顺序用于日志/变更明细）
+REFRESH_PROTECT_FIELDS: Tuple[str, ...] = (
+    "trailing_activation_pct", "trailing_callback_pct", "min_roi",
+    "tp_stages", "tp_pct", "time_limit_sec", "safety_net_cap",
+)
+
+
+def refresh_enabled() -> bool:
+    """[2026-09-16 调研轮7] 存量仓是否随车道重标定刷新利润保护参数（默认开）。
+
+    ## 为什么必须刷新
+
+    ExitPolicy 在**开仓时快照**进 `exit_state_json`，此后持仓终身沿用 ⇒ 车道的
+    参数重标定（如 9/16 验收轮6 的 trail 1.0/0.5、min_roi、TP 0.8/1.6/3.0）对
+    存量仓**永不生效**。实测（2026-09-16 10:0x，account 14）：
+
+      * XRP 4683 浮盈 +4.42% ROI，仍用旧 trail 3.0%/1.5%（4× 杠杆 ≈ 12% ROI 才激活）
+        ⇒ 价格一回头浮盈必然回吐；
+      * SOL 4681 持有 20.3h、ROI -12.26%，快照 `min_roi=[]` ⇒ 无「赚不到就走」兜底；
+      * 同时刻新开的 BNB 4685 已带新参数（trail 1.0/0.5 + min_roi + TP 0.8/1.6/3.0）。
+
+    即：同一个账户里新旧策略并存，旧仓继续按**已被证伪**的档位出场——这正是
+    「浮盈回撤到负、死扛单」的结构性来源之一。
+
+    ## 语义
+
+    只刷新利润保护字段；`sl_pct` / `structural_stop` / `enabled` 保持快照值
+    （止损边界不在盘后被移动）。刷新会写 `exit_state_json.exit_policy_history`
+    （最近 5 条）以便事后审计「这笔仓何时换了规则、换了什么」。
+
+    回滚：`EXIT_POLICY_REFRESH_OPEN=false`。
+    """
+    try:
+        return str(os.getenv("EXIT_POLICY_REFRESH_OPEN", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return True
+
+
+def refreshed_policy(snap: ExitPolicy, lane: str) -> Tuple[ExitPolicy, Dict[str, Any]]:
+    """把车道**当前**的利润保护参数套到存量仓快照上（止损字段保持快照值）。
+
+    返回 `(合并后的策略, 变更明细)`；无变更时变更明细为 `{}`（调用方据此免写库）。
+    """
+    cur = ExitPolicy.for_lane(lane)
+    merged = replace(snap)
+    changes: Dict[str, Any] = {}
+    for f in REFRESH_PROTECT_FIELDS:
+        old = getattr(snap, f, None)
+        new = getattr(cur, f, None)
+        if old != new:
+            changes[f] = {"from": _jsonable(old), "to": _jsonable(new)}
+            merged = replace(merged, **{f: new})
+    return merged, changes
+
+
+def _jsonable(v: Any) -> Any:
+    if isinstance(v, tuple):
+        return [list(x) if isinstance(x, tuple) else x for x in v]
+    return v
