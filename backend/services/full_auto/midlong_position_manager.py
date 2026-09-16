@@ -710,6 +710,41 @@ def _rule_direction(symbol: str, position: Dict[str, Any],
     return {"action": "hold", "reasoning": f"多周期趋势支持（4h={tf4} 1d={tf1}）"}
 
 
+def _four_h_vote(symbol: str, market_summary: Dict[str, Any]) -> str:
+    """4h 单周期方向投票（bullish/bearish/mixed）。
+
+    [2026-09-16 验收轮6] 供 ⑥b 4h 反转离场使用：与 _rule_direction 同口径，
+    但只看 4h——中线仓不应等 1d 也反转才走（两日 giveback ~303 的教训：
+    4h 已反转、1d 未反转的窗口里仓位从峰值回撤殆尽并打到 SL）。
+    """
+    md = (market_summary or {}).get(str(symbol).upper()) or (market_summary or {}).get(str(symbol)) or {}
+    if not isinstance(md, dict):
+        md = {}
+    i4 = md.get("indicators_4h") if isinstance(md.get("indicators_4h"), dict) else {}
+    orch = md.get("orchestrator") if isinstance(md.get("orchestrator"), dict) else {}
+    return _tf_vote(orch.get("mid_bias"), i4.get("macd"), i4.get("trend"))
+
+
+def _mid_4h_reversal_reason(
+    symbol: str, position: Dict[str, Any], market_summary: Dict[str, Any],
+    *, pos_tier: str, side: str, hold_hours: float, pnl_pct: float,
+) -> Optional[str]:
+    """⑥b 判定（纯函数）：mid 仓 4h 单周期反转且论点未兑现 → 返回离场理由，否则 None。
+
+    [2026-09-16 验收轮6] 条件：开关开 + tier=mid + 持有≥2h + 4h 投票反向
+    + 浮盈≤+0.3%（保证金口径）。factor_route 仓同样适用（不再跳过）。
+    """
+    if not _cfg_bool("MIDLONG_MID_4H_REVERSAL_EXIT", True):
+        return None
+    if pos_tier != "mid" or hold_hours < 2.0:
+        return None
+    _tf4 = _four_h_vote(symbol, market_summary)
+    _opp4 = (_tf4 == "bearish" and side == "long") or (_tf4 == "bullish" and side == "short")
+    if not _opp4 or pnl_pct > 0.003:
+        return None
+    return f"4h={_tf4} 与{side}相悖 持有{hold_hours:.1f}h 浮盈{pnl_pct*100:+.2f}% 论点未兑现"
+
+
 def _dim_direction(
     db, *, account_id, symbol: str, position: Dict[str, Any],
     market_summary: Dict[str, Any], analyst_reports: Dict[str, Any],
@@ -1389,6 +1424,35 @@ def manage_position(
                 sym, side, pnl_pct * 100, hold_hours, rev["channel"], rev["reason"],
             )
             return _summary(f"反转离场: {rev['reason']}", action="manage_close")
+
+    # ═══ ⑥b 4h 单周期反转离场（mid 专用，规则，每 tick）═══
+    # [2026-09-16 验收轮6] 两日亏损审计（23 笔 / giveback ~303）：探针仓峰值仅
+    # +0.2~0.5% ROI，TP/trailing 永不触发；_rule_direction 又要求 4h+1d 双周期
+    # 同反才平 → 短期趋势已反转时仍死扛到 SL，止损后还立刻重开同向（churn）。
+    # 中线仓「短周期转向即走」：4h 反向 + 持有≥2h + 浮盈≤+0.3%（论点未兑现）→ 离场。
+    # 对 factor_route 仓同样生效——原 M1-B 让因子仓跳过一切方向复查，正是死扛根源
+    # （当前 5 笔 open 死扛仓全部是 factor_route）。浮盈>+0.3% 的仓交给 trailing/
+    # min_roi 管理，不在此砍。通道熔断（wr<40%）与其它出场通道同样适用，可自纠偏。
+    _r4_detail = _mid_4h_reversal_reason(
+        sym, position, market_summary,
+        pos_tier=pos_tier, side=side, hold_hours=hold_hours, pnl_pct=pnl_pct,
+    )
+    if _r4_detail:
+        if _channel_shadowed("reversal_4h", pos_tier):
+            logger.info(
+                "[MidLong] stage=manage symbol=%s 4h反转离场被通道熔断拦截: %s",
+                sym, _r4_detail,
+            )
+            _sig["exit"] = "breaker_shadow_reversal_4h"
+        else:
+            _exec_close(db, account_id=account_id, position=position,
+                        reason="reversal_4h", host=host, session=session)
+            logger.info(
+                "[MidLong] stage=manage symbol=%s pos=%s pnl=%+.1f%% hold=%.1fh "
+                "direction=skipped pyramid=skipped review=skipped staged_tp=skipped exit=reversal_4h reason=%s",
+                sym, side, pnl_pct * 100, hold_hours, _r4_detail,
+            )
+            return _summary(f"4h反转离场: {_r4_detail}", action="manage_close")
 
     # ═══ ⑤ 分批止盈（规则，每 tick）═══
     staged = _dim_staged_tp(db, host=host, session=session, account_id=account_id,

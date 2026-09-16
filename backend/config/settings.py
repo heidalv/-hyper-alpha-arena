@@ -2341,6 +2341,13 @@ MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED: bool = os.getenv(
 MIDLONG_CONTROLLED_DCA_ENABLED: bool = os.getenv(
     "MIDLONG_CONTROLLED_DCA_ENABLED", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [2026-09-16 验收轮6] mid 4h 单周期反转离场：4h 投票反向 + 持有≥2h +
+# 浮盈≤+0.3%（保证金口径）→ reversal_4h 平仓。两日 giveback ~303 的死扛主因
+# 是方向复查要求 4h+1d 双反（且 factor_route 仓跳过一切方向复查）。
+# false=回滚到仅双周期 _rule_direction 复查。
+MIDLONG_MID_4H_REVERSAL_EXIT: bool = os.getenv(
+    "MIDLONG_MID_4H_REVERSAL_EXIT", "true"
+).lower() in ("1", "true", "yes", "on")
 # 模式 B 整体执行节流（秒）：0=随 tick（默认 ~120s）；>0 则两次分析间隔不小于该值。
 # 注意：即使为 0，规则维度（分批止盈/反转离场）仍每 tick 跑；LLM 维度受
 # MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC 单独节流。

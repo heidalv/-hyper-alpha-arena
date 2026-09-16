@@ -112,11 +112,21 @@ def test_precedence_structural_then_sl_then_tp():
     assert v8.is_close and v8.reason == "tp_pct"
 
 
-def test_mid_lane_trailing_defaults_raised():
-    """中线 trail 激活抬到 4%，避免 2.5% 就锁利短线化。"""
+def test_mid_lane_round6_recalibration():
+    """[2026-09-16 验收轮6] 中线出场档位按 9/14-9/16 实测重标定。
+
+    两日 23 笔平仓 peak 合计 ~296 美元、giveback ~302.88（ASTER 峰值+0.21%→SL
+    -38.66、VIRTUAL +0.54%→SL -38.45）：旧档位（TP1=2%、trail 4%/1.5%）按「价格
+    走 2%+」校准，而探针仓峰值只有 0.2~0.5% → 止盈永不触发、止损必然吃到。
+    新口径：trail 1.0/0.5、TP 档 0.8/1.6/3.0、min_roi 12h<0.5%→24h<0.0 强平、
+    time_limit 48h（对齐 TIER_MID_MAX_HOLD_SEC=172800）。回滚 = 改回旧值。
+    """
     mid = xp.ExitPolicy.for_lane("mid")
-    assert mid.trailing_activation_pct == pytest.approx(4.0)
-    assert mid.trailing_callback_pct == pytest.approx(1.5)
+    assert mid.trailing_activation_pct == pytest.approx(1.0)
+    assert mid.trailing_callback_pct == pytest.approx(0.5)
+    assert mid.tp_stages == (0.8, 1.6, 3.0)
+    assert mid.min_roi == ((43200, 0.5), (86400, 0.0))
+    assert mid.time_limit_sec == 172800
 
 
 def test_time_limit_and_min_roi_decay():

@@ -733,8 +733,8 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 | MIDLONG_BRAIN_MODE | 中长线唯一主脑模式 | llm | 唯一合法值 llm；去掉 hybrid 口子，避免半接入 |
 | MIDLONG_THESIS_TTL_MID_S | 中线论题最长沉默（秒） | 14400 | 成功票才吃满；失败票见 FAIL_BACKOFF |
 | MIDLONG_THESIS_TTL_LONG_S | 长线论题最长沉默（秒） | 28800 | 成功票才吃满；失败票见 FAIL_BACKOFF |
-| MIDLONG_THESIS_FAIL_BACKOFF_MID_S | 中线失败票短退避 | 1200 | 低分票不得锁死 4h |
-| MIDLONG_THESIS_FAIL_BACKOFF_LONG_S | 长线失败票短退避 | 2400 | 低分票不得锁死 8h |
+| MIDLONG_THESIS_FAIL_BACKOFF_MID_S | 中线失败票退避（秒） | 7200 | [2026-09-16 验收轮6] 1200→7200：止损/论题失败后 2h 内禁止重提同币（churn 修复 D） |
+| MIDLONG_THESIS_FAIL_BACKOFF_LONG_S | 长线失败票退避（秒） | 14400 | [2026-09-16 验收轮6] 2400→14400：4h 内禁止重提同币（churn 修复 D） |
 | MIDLONG_WATCH_SHOCK_PCT_MID | 中线现价冲击阈值 | 0.012 | 同根 4h K 内涨跌超 1.2% 重问 |
 | MIDLONG_WATCH_SHOCK_PCT_LONG | 长线现价冲击阈值 | 0.025 | 同日涨跌超 2.5% 重问 |
 | MIDLONG_WATCH_CHASE_PCT_MID | 中线追高阈值 | 0.015 | [2026-09-11 F38k] 与 LONG 对齐：旧 0.8% 把 learned 闸唯一盈利档（chop 区间上沿突破）系统性拦住 |

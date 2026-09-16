@@ -152,10 +152,15 @@ class ExitPolicy:
 _DEFAULTS: Dict[str, Dict[str, Any]] = {
     "short": dict(sl_pct=0.6, tp_pct=1.2, time_limit_sec=5400, trailing_activation_pct=0.7, trailing_callback_pct=0.3,
                   structural_stop="none", min_roi=((2700, 0.30), (4200, 0.10)), tp_stages=(0.5, 0.9, 1.2)),
-    # [2026-09-07] trail 激活 2.5%→4.0%、callback 1.2→1.5：实测 mid 在 2.5% 就锁利，
-    # 均持仓 ~8.5h，行为像短线；抬高激活门槛让中线有兑现窗口。
-    "mid": dict(sl_pct=3.0, tp_pct=None, time_limit_sec=172800, trailing_activation_pct=4.0, trailing_callback_pct=1.5,
-                structural_stop="price", min_roi=((86400, 0.8), (129600, 0.2)), tp_stages=(2.0, 3.5, 5.5)),
+    # [验收轮6 2026-09-16 用户实测反馈] trail 激活 4.0%→1.0%、callback 1.5→0.5、
+    # tp_stages 2/3.5/5.5→0.8/1.6/3.0、min_roi 打开（12h<0.5%走、24h<0走）、
+    # time_limit 7d→48h。依据：9/14-9/16 共 23 笔平仓 peak 合计 296 美元、
+    # 回撤掉 302.88（ASTER 峰值+0.21%→SL -38.66、VIRTUAL +0.54%→SL -38.45）——
+    # 旧档位（TP1=2%、trail 4%）按"价格走 2%+"校准，而探针仓实际峰值只有
+    # 0.2~0.5%，止盈永远摸不到、止损 -4.66% 必然吃到。新口径锁小利润 +
+    # 时间递减 ROI 兜底（赚不到钱就离场，不再死扛）。
+    "mid": dict(sl_pct=3.0, tp_pct=None, time_limit_sec=172800, trailing_activation_pct=1.0, trailing_callback_pct=0.5,
+                structural_stop="price", min_roi=((43200, 0.5), (86400, 0.0)), tp_stages=(0.8, 1.6, 3.0)),
     "long": dict(sl_pct=None, tp_pct=None, time_limit_sec=None, trailing_activation_pct=None, trailing_callback_pct=None,
                  structural_stop="chandelier", min_roi=(), tp_stages=(8.0, 15.0, 25.0)),
     "research": dict(sl_pct=2.0, tp_pct=4.0, time_limit_sec=86400, trailing_activation_pct=2.0, trailing_callback_pct=1.0,

@@ -249,6 +249,20 @@ def _paper_shrink_mult() -> float:
         return 0.25
 
 
+def _paper_shrink_ceiling() -> Optional[float]:
+    """[2026-09-16 验收轮6] paper 缩仓天花板：24h 区间分位 ≥ 该值 → 连缩仓都不放行，硬 veto。
+
+    两日亏损审计：ASTER/VIRTUAL 在 83~90% 分位追多开仓，是最大 giveback 来源
+    （追顶开的仓论点无法兑现，峰值 +0.2~0.5% 就掉头）。60-70% 档仍缩仓×0.25
+    收集样本；≥70% 直接否决（追顶无样本价值）。0 = 关闭（回滚到纯缩仓放行）。
+    """
+    try:
+        v = float(os.getenv("MIDLONG_LOCATION_PAPER_SHRINK_CEILING", "70") or 70)
+    except (TypeError, ValueError):
+        v = 70.0
+    return None if v <= 0 else v
+
+
 def location_gate_check(
     symbol: str,
     action: str,
@@ -314,10 +328,19 @@ def location_gate_check(
     # 1) 区间位置
     if pos_pct is not None and not _defer_pos:
         if act == "buy" and pos_pct >= max_long:
-            return _veto(
+            _v = (
                 f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≥{max_long:.0f}% 高位追多"
                 f"（实测该带 24h 胜率 0.15-0.23）"
             )
+            _ceil = _paper_shrink_ceiling()
+            if _paper_shrink and _ceil is not None and pos_pct >= _ceil:
+                _d3 = dict(detail)
+                _d3["paper_shrink_ceiling"] = _ceil
+                return False, (
+                    f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≥追高天花板{_ceil:.0f}% 硬否决"
+                    f"（paper 不追顶；<{_ceil:.0f}% 仍缩仓放行收集样本）"
+                ), _d3
+            return _veto(_v)
         if act == "sell" and pos_pct <= min_short:
             return _veto(
                 f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≤{min_short:.0f}% 低位追空"
