@@ -316,11 +316,36 @@ _LIQUID_PREF = (
 )
 
 
+def _candidate_liquidity(c: Dict[str, Any]) -> Optional[float]:
+    """[调研轮8] 从候选里取流动性分（看板自算的 0~1 分，market_scores.liquidity）。"""
+    for src in (c.get("market_scores"), c.get("market_scores_json"), c.get("raw_json")):
+        if isinstance(src, dict) and src.get("liquidity") is not None:
+            try:
+                return float(src["liquidity"])
+            except (TypeError, ValueError):
+                pass
+    v = c.get("liquidity")
+    try:
+        return float(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _fail_closed_filter(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """候选白名单过滤：只保留数据中心 symbol_catalog(status=trading) 中的 symbol。
 
     catalog 读取失败时降级为内置流动性偏好白名单（仍 fail-closed，不放任陌生 symbol）。
+
+    [调研轮8] 追加**流动性下限**：catalog 里仍混着本所几乎无法交易的标的
+    （实测 CRCL liquidity=0.0026、ALICE/AIO=0.25 都会被 AI approve 进看板），
+    同一批在下游被「24h成交额 < 试仓下限 $500k」硬拒 ⇒ 看板 approve 全是"下不了单"的名字。
+    在此按看板自算的 liquidity 分过滤，使 approve 列表天然可交易。
+    缺失该字段 → fail-open 放行（老候选/无评分链路不误杀）。0=关闭（回滚）。
     """
+    try:
+        _min_liq = float(os.environ.get("COIN_SELECT_PLATFORM_MIN_LIQUIDITY", "0.35") or 0.0)
+    except (TypeError, ValueError):
+        _min_liq = 0.35
     trading_set: set = set()
     try:
         from backend.services.kline_sync_meta import list_catalog_symbols
@@ -335,15 +360,26 @@ def _fail_closed_filter(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]
     if not trading_set:
         trading_set = {s for s in _LIQUID_PREF}
     dropped = []
+    dropped_liq = []
     kept: List[Dict[str, Any]] = []
     for c in candidates:
         sym = str(c.get("symbol") or "").strip().upper()
-        if sym and sym in trading_set:
-            kept.append(c)
-        else:
+        if not sym or sym not in trading_set:
             dropped.append(sym)
+            continue
+        if _min_liq > 0:
+            _liq = _candidate_liquidity(c)
+            if _liq is not None and _liq < _min_liq:
+                dropped_liq.append(f"{sym}({_liq:.3f})")
+                continue
+        kept.append(c)
     if dropped:
         logger.warning("[CoinSelectPlatform] fail-closed 剔除 %d 个非 catalog symbol: %s", len(dropped), dropped[:12])
+    if dropped_liq:
+        logger.warning(
+            "[CoinSelectPlatform] 流动性下限过滤（<%.2f）剔除 %d 个候选: %s",
+            _min_liq, len(dropped_liq), dropped_liq[:12],
+        )
     return kept
 
 

@@ -112,6 +112,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "COIN_SELECT_PLATFORM_ENABLED",
     # [2026-09-16 调研轮7] 平台选币看板调度器开关（默认跟随 AUTO_COIN_ENABLED；true=单独开启）
     "COIN_SELECT_PLATFORM_SCHEDULER_ENABLED",
+    # [2026-09-16 调研轮8] 看板候选流动性下限（剔除 catalog 内几乎无法交易的标的；0=关闭）
+    "COIN_SELECT_PLATFORM_MIN_LIQUIDITY",
     "COIN_SELECT_SCAN_INTERVAL_SEC",
     "COLD_EXCHANGE_MAX_REQ_PER_MIN",
     "COLD_EXCHANGE_MAX_REQ_PER_MIN_OKX",
