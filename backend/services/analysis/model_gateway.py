@@ -644,7 +644,11 @@ def merge_outputs(a: Dict[str, Any], b: Dict[str, Any], weight_a: float = 0.5) -
 
 
 # --------------------------------------------------------------------------- gateway
-AUTH_COOLDOWN_SEC = 1800.0  # 鉴权失败后 30 分钟内不再重试该传输（省配额、省时间）
+# [调研轮12] 鉴权失败冷却：默认 30 分钟 → 改为可配置，默认 10 分钟。
+# 教训：2026-09-16 sidecar 未注入 ZAI key，GLM 每票 3 秒鉴权失败 → 触发 30 分钟冷却；
+# 凭据修好后仍被"罚站"半小时（实测 15:11 最后一次失败 → 15:15 修好 → 直到重启才恢复）。
+# 冷却的目的是省配额，不是让修好的链路继续闲置。
+AUTH_COOLDOWN_SEC = float(os.getenv("ANALYSIS_AUTH_COOLDOWN_SEC", "600") or "600")
 _AUTH_ERR = re.compile(r"authentication|unauthorized|invalid[_ ]api[_ ]key|401|forbidden|403", re.I)
 
 

@@ -1380,7 +1380,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "ANALYSIS_FALLBACK_TRANSPORTS",  # 主票缺席时的顶替候选（默认 deepseek,ollama）
     "ANALYSIS_OLLAMA_MODEL",         # 本地票模型（默认 qwen3:14b）
     "ANALYSIS_OLLAMA2_MODEL",        # 第二条本地票模型（须与上一条不同，默认 qwen2.5:7b）
-    "ANALYSIS_LOCAL_TRANSPORTS",     # 免配额的本地传输名单（默认 ollama,ollama2）
+    "ANALYSIS_LOCAL_TRANSPORTS",
+    # [2026-09-16 调研轮12] 传输鉴权失败冷却秒数（默认 600）
+    "ANALYSIS_AUTH_COOLDOWN_SEC",     # 免配额的本地传输名单（默认 ollama,ollama2）
     # ── [2026-09-03 v3 方向1 p1-trend-engine] E1 趋势引擎 / PositionConstruction / ExitPolicy ──
     "TREND_CORE_SYMBOLS",            # E1 核心币（默认 BTC,ETH,SOL,BNB,XRP,DOGE,LINK,AVAX）
     "TREND_EXEC_LAG_DAYS",           # 实盘执行延迟天数（1 = 回测验证口径）
