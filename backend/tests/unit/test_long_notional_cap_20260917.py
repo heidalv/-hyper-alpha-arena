@@ -50,10 +50,21 @@ def test_only_long_lane_affected():
 
     pc = importlib.reload(pc)
     assert pc.LaneLimits.for_lane("long").max_weight_per_symbol == pytest.approx(0.10)
-    assert pc.LaneLimits.for_lane("mid").max_weight_per_symbol == pytest.approx(0.35), (
-        "mid 车道不得被顺手收紧（本轮证据只支持 long）"
+    # [调研轮28] mid 也按同源机制收紧（0.15 = $681）：30 天分档证据见 .env 注释
+    assert pc.LaneLimits.for_lane("mid").max_weight_per_symbol == pytest.approx(0.15)
+    assert pc.LaneLimits.for_lane("short").max_weight_per_symbol == pytest.approx(0.35), (
+        "short 车道不得被顺手收紧（本轮证据只支持 long/mid）"
     )
-    assert pc.LaneLimits.for_lane("short").max_weight_per_symbol == pytest.approx(0.35)
+
+
+def test_mid_cap_deployed_and_targets_losing_band():
+    """mid 上限 0.15：恰好约束 $600-900 亏损档、不碰盈利的 $300-600 档。"""
+    e = _load_env()
+    assert float(e.get("PC_MAX_WEIGHT_PER_SYMBOL_MID", "0.35")) == pytest.approx(0.15)
+    eq = 4541.0
+    assert 681 * 0.85 < eq * 0.15 < 681 * 1.15   # ≈$681
+    assert eq * 0.15 < 900, "上限必须落在 $600-900 档之内，否则约束不到亏损档"
+    assert eq * 0.15 > 300, "上限不得低到碰掉盈利的 $300-600 档"
 
 
 def test_cap_is_wired_into_production_paths():
