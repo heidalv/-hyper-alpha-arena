@@ -35,10 +35,17 @@ _RECYCLE_EVENT = "opencode recycle"
 
 
 def _recycle_every() -> int:
+    """每 N 次成功调用后轮换 sidecar（0=不轮换）。
+
+    [调研轮12 2026-09-16] 默认由 8 提到 **60**：8 是针对"~11 次必崩"的保守规避，
+    代价是 GLM 每天约 97 次重建（每次 20~40s 不可用）。根因（每请求泄漏监听器 →
+    撞 EventTarget 上限）已由 `scripts/opencode_patch_maxlisteners.js` 预载补丁处理，
+    故轮换降级为**兜底**，频率降一个数量级。置 0 可完全关闭轮换。
+    """
     try:
-        return int(os.getenv("OPENCODE_RECYCLE_EVERY", "8"))
+        return int(os.getenv("OPENCODE_RECYCLE_EVERY", "60"))
     except ValueError:
-        return 8
+        return 60
 
 
 def _note_call_start() -> None:
@@ -210,8 +217,22 @@ def _should_stream_agent_message(model_slug: str, user_text: str, session_title:
     )
 
 
+def recycle_in_progress() -> bool:
+    """[调研轮12] 是否正在轮换 sidecar（含等待在途请求的空窗）。
+
+    用途：轮换期间 sidecar 可能随时不可达，调用方应**立即失败并切到别的传输**，
+    而不是等 100~150s 超时（这正是 GLM 调用看起来"又慢又失败"的观感来源）。
+    """
+    with _RECYCLE_LOCK:
+        return bool(_recycle_scheduled)
+
+
 def health_check() -> bool:
     global _last_error, _last_ok_ts
+    # [调研轮12] 轮换中直接判不可用（不探活、不阻塞）→ 上层快速换传输
+    if recycle_in_progress():
+        _last_error = "recycle in progress"
+        return False
     url = _server_url()
     try:
         # trust_env=False：sidecar 恒为本地 127.0.0.1，禁止走系统/Privoxy 代理

@@ -50,6 +50,16 @@ try {
     }
 
     Set-Location $Root
+    # [调研轮12 2026-09-16] 预载补丁抬高事件监听器上限：根治「每请求泄漏监听器 →
+    # 撞 EventTarget 上限 10 → 进程崩溃」，从而不再依赖「每 8 次调用重建 sidecar」
+    # 的规避手段（那正是 GLM 每天约 1 小时不可用的根因）。
+    $patchJs = Join-Path $PSScriptRoot "opencode_patch_maxlisteners.js"
+    if (Test-Path $patchJs) {
+        $env:NODE_OPTIONS = "--require `"$patchJs`""
+        Write-TaskLog "NODE_OPTIONS=$($env:NODE_OPTIONS)"
+    } else {
+        Write-TaskLog "WARN: patch js not found: $patchJs"
+    }
     Write-TaskLog "starting sidecar on port $port (exe=$OpencodeExe)"
     & $OpencodeExe serve --port $port --hostname 127.0.0.1 2>&1 | ForEach-Object { Out-File -Append -Encoding utf8 $TaskLog -InputObject $_ }
     $code = $LASTEXITCODE
