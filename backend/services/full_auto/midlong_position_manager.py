@@ -308,6 +308,41 @@ def thesis_invalidation_semantics_ok(
         return True, "semantics_error_keep_old"
 
 
+def thesis_should_close_allowed(db, *, position: Dict[str, Any], thesis, tier: str):
+    """[调研轮20 2026-09-17] `should_close` 是否允许平仓 —— **全路径共用**的 F39 确认入口。
+
+    ## 缺陷（实测）
+
+    F39 确认闸（`thesis_should_close_confirmed`，2026-09-12 基于 163 笔亏损平仓的反事实）
+    此前**只装在 `manage_position` 一条路径**上；而"每 tick 全仓哨兵"
+    （`full_auto_trading_service` 里直接调 `resolve_thesis_hard_exit` 后 `close_position`）
+    **完全没有确认**。生产日志佐证：近 24h `反转确认闸拦截 / thesis_close_blocked /
+    should_close 等待价格确认 / should_close_recovered` **全部 0 次**，而 14 天里
+    `thesis_should_close` 平仓 16 笔、均亏 **−8.04**（合计 −128.59）。
+
+    ⇒ 同一个保护只装一条路径 = 等于没装。本函数把它收敛成**单一入口**，供两条路径共用。
+
+    语义完全沿用 F39（不改判据）：价格已突破同向失效价 / 论题方向翻反 / min_hold 已满
+    且仍浮亏 / 紧急亏损 —— 任一满足才允许平仓；否则 (False, 原因)，由调用方保留仓位、
+    继续走其它保护（硬止损/追踪/分段止盈）。
+    开关：`MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED`（false = 回到无确认旧行为）。
+    """
+    try:
+        from backend.config.settings import MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED as _on
+    except Exception:
+        _on = True
+    if not _on:
+        return True, "f39_off"
+    try:
+        return thesis_should_close_confirmed(
+            db, position=position, thesis=thesis, tier=tier,
+            pnl_pct=_pnl_pct_of(position), hold_hours=_held_hours(position, db),
+        )
+    except Exception as _e:  # noqa: BLE001
+        logger.warning("[MidLong] thesis_should_close_allowed 异常(fail-open 放行): %s", _e)
+        return True, "f39_error_fail_open"
+
+
 def resolve_thesis_hard_exit(
     session_id: str,
     position: Dict[str, Any],

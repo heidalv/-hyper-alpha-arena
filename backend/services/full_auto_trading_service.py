@@ -3952,22 +3952,49 @@ class FullAutoTradingService:
                     _hit = _th_exit(_sid, pos)
                     if _hit:
                         _reason, _th = _hit
-                        paper_engine.close_position(
-                            db, acct_id, sym, pos.get("side"),
-                            reason=str(_reason)[:120],
-                            strategy_id=pos.get("strategy_id"),
-                            position_id=pos.get("id"),
-                            trade_nature=nature or None,
-                        )
-                        _th_ack(
-                            _th, reason=_reason, symbol=sym,
-                            tier=_th_tier_of(pos), side=pos.get("side"),
-                        )
-                        logger.info(
-                            "[MidLongExit] 论题硬离场 %s %s reason=%s",
-                            sym, pos.get("side"), _reason,
-                        )
-                        continue
+                        # [调研轮20 2026-09-17] `should_close` 必须过 **F39 反转确认闸**：
+                        # 此前本哨兵直接平仓、完全绕过确认（F39 只装在 manage_position），
+                        # 实测近 24h 确认闸 0 次触发，而 14 天 thesis_should_close 平仓
+                        # 16 笔均亏 −8.04。未确认 ⇒ 不平仓，继续走下面的其它保护。
+                        if str(_reason) == "thesis_should_close":
+                            try:
+                                from backend.services.full_auto.midlong_position_manager import (
+                                    thesis_should_close_allowed as _f39_allowed,
+                                )
+                                _f39_ok, _f39_why = _f39_allowed(
+                                    db, position=pos, thesis=_th, tier=_th_tier_of(pos),
+                                )
+                            except Exception as _f39_err:  # noqa: BLE001
+                                _f39_ok, _f39_why = True, f"f39_skip:{_f39_err}"
+                            if not _f39_ok:
+                                logger.info(
+                                    "[MidLongExit] should_close 待确认(%s) — 哨兵本轮不平仓 %s",
+                                    _f39_why, sym,
+                                )
+                                try:
+                                    session_ev = getattr(session, "session_id", "")
+                                    logger.debug("[MidLongExit] f39 wait sym=%s sid=%s",
+                                                 sym, session_ev)
+                                except Exception:
+                                    pass
+                                _th = None
+                        if _th is not None:
+                            paper_engine.close_position(
+                                db, acct_id, sym, pos.get("side"),
+                                reason=str(_reason)[:120],
+                                strategy_id=pos.get("strategy_id"),
+                                position_id=pos.get("id"),
+                                trade_nature=nature or None,
+                            )
+                            _th_ack(
+                                _th, reason=_reason, symbol=sym,
+                                tier=_th_tier_of(pos), side=pos.get("side"),
+                            )
+                            logger.info(
+                                "[MidLongExit] 论题硬离场 %s %s reason=%s",
+                                sym, pos.get("side"), _reason,
+                            )
+                            continue
             except Exception as _th_ex:
                 logger.debug("[MidLongExit] 论题哨兵跳过 %s: %s", sym, _th_ex)
 
