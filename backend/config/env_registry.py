@@ -1269,8 +1269,6 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MASTER_SCALP_EXIT_WHITELIST",
     "SCALP_MASTER_HARD_BLOCK",
     "SCALP_OPEN_DISABLED",
-    # [2026-09-16 调研轮9] 短线车道窄口径解封：只放行 AI 受管标的（true=默认）
-    "SCALP_AI_ONLY_OPEN",
     "SCALP_MAX_OPENS_PER_TICK",
     "SCALP_META_COST",
     "SCALP_META_DEDUP_SEC",

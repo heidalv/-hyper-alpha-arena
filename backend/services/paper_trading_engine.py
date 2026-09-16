@@ -994,13 +994,6 @@ class PaperTradingEngine:
                     from backend.services.full_auto.scalp_open_gate import scalp_new_open_blocked
                     _sc_block, _sc_reason = scalp_new_open_blocked(
                         add_type, trade_nature, timeframe_tier,
-                        # [调研轮9] 传 symbol/session，使「AI 受管标的窄口径解封」可判定
-                        symbol=symbol,
-                        session_id=str(
-                            getattr(session, "session_id", "")
-                            or getattr(pos, "session_id", "")
-                            or ""
-                        ) or None,
                     )
                     if _sc_block:
                         logger.info(

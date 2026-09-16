@@ -610,56 +610,21 @@ def execute_master_decisions(
         try:
             from backend.config.settings import SCALP_MASTER_HARD_BLOCK, SCALP_OPEN_DISABLED
             if action in ("buy", "sell", "pyramid", "dca"):
-                # [调研轮9 2026-09-16] 与 scalp_open_gate 对齐：**窄口径解封 AI 受管标的**。
-                # 此前这里把 intraday 也一并硬停，而 scalp_open_gate 已对 intraday 网开一面
-                # （INTRADAY_LLM_ENABLED）→ 两闸不一致 ⇒ 即使总闸放开也开不出单。现在两边
-                # 同口径：① 旧因子 scalp 路径永远拦；② AI 受管标的放行（SCALP_AI_ONLY_OPEN）；
-                # ③ 非 AI 的 intraday 仅在「日内波段总闸开 且 非 AI-only 模式」时放行。
-                _ai_only = False
-                _is_ai_sym = False
-                try:
-                    from backend.services.full_auto.scalp_open_gate import (
-                        ai_only_open_enabled as _ai_only_fn,
-                        intraday_lane_enabled as _intraday_fn,
-                        is_ai_managed_symbol as _is_ai_fn,
-                    )
-                    _ai_only = bool(_ai_only_fn())
-                    _is_ai_sym = bool(_is_ai_fn(sym, getattr(session, "session_id", "") or ""))
-                    _intraday_on = bool(_intraday_fn())
-                except Exception:
-                    _intraday_on = False
-                _nat_l = str(_dec_nature_raw or "").lower()
-                _is_scalp_nature = bool(scalp_factor_router.is_scalp_nature(_dec_nature_raw))
                 if SCALP_OPEN_DISABLED and (
-                    _is_scalp_nature or _nat_l in ("scalp", "intraday")
+                    scalp_factor_router.is_scalp_nature(_dec_nature_raw)
+                    or str(_dec_nature_raw or "").lower() in ("scalp", "intraday")
                 ):
-                    _legacy_factor_scalp = (_nat_l == "scalp") or (
-                        _is_scalp_nature and _nat_l != "intraday"
-                    )
-                    _allow = False
-                    if not _legacy_factor_scalp:
-                        if _is_ai_sym:
-                            _allow = True
-                        elif _nat_l == "intraday" and _intraday_on and not _ai_only:
-                            _allow = True
-                    if not _allow:
-                        logger.info(
-                            "[FullAuto][ScalpLane] 短线新开已硬停，跳过 %s %s nature=%s "
-                            "(ai_only=%s ai_sym=%s intraday_on=%s)",
-                            sym, action, _dec_nature_raw, _ai_only, _is_ai_sym, _intraday_on,
-                        )
-                        continue
                     logger.info(
-                        "[FullAuto][ScalpLane] 窄口径放行 AI 受管标的 %s %s nature=%s",
+                        "[FullAuto][ScalpLane] 短线新开已硬停，跳过 %s %s nature=%s",
                         sym, action, _dec_nature_raw,
                     )
+                    continue
                 if SCALP_MASTER_HARD_BLOCK and scalp_factor_router.is_scalp_nature(_dec_nature_raw):
-                    if not (_is_ai_sym and not _ai_only):
-                        logger.debug(
-                            "[FullAuto][ScalpLane] Master 跳过 %s %s nature=%s（由 ScalpExecutionLane 负责）",
-                            sym, action, _dec_nature_raw,
-                        )
-                        continue
+                    logger.debug(
+                        "[FullAuto][ScalpLane] Master 跳过 %s %s nature=%s（由 ScalpExecutionLane 负责）",
+                        sym, action, _dec_nature_raw,
+                    )
+                    continue
         except Exception:
             pass
 
