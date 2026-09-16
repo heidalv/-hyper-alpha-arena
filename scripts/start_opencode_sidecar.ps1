@@ -14,15 +14,31 @@ function Write-TaskLog([string]$msg) {
 
 try {
     if (Test-Path $EnvFile) {
-        Get-Content $EnvFile | ForEach-Object {
-            if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }
-            $pair = $_ -split '=', 2
-            if ($pair.Count -eq 2) {
-                try { Set-Item -Path ("Env:" + $pair[0].Trim()) -Value $pair[1].Trim() } catch {}
+        # [调研轮12 2026-09-16 根因修复] 原实现用 `Set-Item Env:` 逐行注入，实测
+        # `ZAI key present=False` —— 而 opencode.json 的 zai provider 是
+        # `options.apiKey = {env:ZAI_CODING_PLAN_API_KEY}`，key 必须来自**进程环境**。
+        # 结果：sidecar 每个 GLM 请求都拿不到凭据，z.ai 返回
+        #   {"error":{"code":"1001","message":"Authentication parameter not received in Header"}}
+        # → 响应 parts 为空 → 该票 3 秒失败（MiniMax 顶上），表现为「GLM 持续不稳」。
+        # 改为 .NET 显式以 UTF-8 读取 + SetEnvironmentVariable('Process')，并逐键回读校验。
+        $lines = [System.IO.File]::ReadAllLines($EnvFile, [System.Text.Encoding]::UTF8)
+        $applied = 0
+        foreach ($line in $lines) {
+            if ($line -match '^\s*#' -or $line -match '^\s*$') { continue }
+            $idx = $line.IndexOf('=')
+            if ($idx -le 0) { continue }
+            $k = $line.Substring(0, $idx).Trim()
+            $v = $line.Substring($idx + 1).Trim()
+            if ($k -match '^[A-Za-z_][A-Za-z0-9_]*$' -and $v.Length -gt 0) {
+                try {
+                    [System.Environment]::SetEnvironmentVariable($k, $v, 'Process')
+                    $applied++
+                } catch {}
             }
         }
         if ($env:OPENCODE_PORT) { $port = [int]$env:OPENCODE_PORT }
-        Write-TaskLog ("env loaded, ZAI key present=" + [bool]$env:ZAI_CODING_PLAN_API_KEY)
+        $zai = [System.Environment]::GetEnvironmentVariable('ZAI_CODING_PLAN_API_KEY', 'Process')
+        Write-TaskLog ("env loaded ($applied keys), ZAI key present=" + [bool]$zai + " len=" + ($(if ($zai) { $zai.Length } else { 0 })))
     }
 
     # 幂等守卫：TCP 连通即视为已在线（计划任务每 5 分钟重入 + 手动启动共存安全）
