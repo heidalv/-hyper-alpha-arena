@@ -275,7 +275,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_CORR_CLUSTER_MAX_LONG",
     "MIDLONG_FUNDING_ABS_WARN",
     "MIDLONG_FUNDING_HOLD_HOURS",
+    # [2026-09-16 调研轮8] AI 中线候选总闸（false=中线只用固定币，等价 2026-09-04 旧行为）
+    "MIDLONG_MID_AI_CANDIDATES_ENABLED",
     "MIDLONG_LONG_AI_CANDIDATES_ENABLED",
+    # [2026-09-16 调研轮8] AI 中线候选每 tick 扫描配额（0=不扫 AI；默认 1）
+    "MIDLONG_MID_AI_SCAN_SLOTS",
     "MIDLONG_MAX_NET_EXPOSURE_PCT",
     "MIDLONG_MAX_OPEN_POSITIONS",
     # [M3 2026-09-14] 长车道（E1 趋势 sleeve）独立并发帽（默认 8=TREND_MAX_POSITIONS；0=关闭）
@@ -598,6 +602,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [2026-09-16 调研轮7] MM 车道自进化开关/纪元（.env 已存在但未登记 → 死键审计交叉验证失败）
     "MM_AUTO_EVOLVE",
     "MM_EVOLUTION_SINCE",
+    # [2026-09-16 调研轮8] MM 车道 ticker（.env 已存在但未登记 → 死键审计交叉验证失败）
+    "MM_LANE_TICKER",
     # [§84 执行 2026-09-11 / 决策 P27-A / 缺陷 #69] 熔断证据新鲜度（天；0=关闭约束）
     "BREAKER_EVIDENCE_STALE_DAYS",
     # [§88 执行 2026-09-11 / 决策 P29-A] long 层 SL 距离上限（0=关闭）

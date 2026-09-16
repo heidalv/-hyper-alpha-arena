@@ -5318,6 +5318,21 @@ def set_fixed_symbols_by_tier(
         return {"success": False, "error": str(e)}
 
 
+#: [调研轮8] 固定币查询失败登记（session_id -> 失败时间戳）。
+#: 用途：区分「查询失败 → 空集」与「会话本来就没有固定币 → 空集」。前者若被下游
+#: 当成后者，"全部 mid 减去空集"会把固定币仓算成 AI 槽位 → ai_mid_slot_full 假满。
+_FIXED_SYMBOLS_FAILED: Dict[str, float] = {}
+
+
+def fixed_symbols_query_failed_recently(session_id: str, within_sec: float = 120.0) -> bool:
+    """[调研轮8] 最近是否发生过固定币查询失败（供槽位判定改走正向识别）。"""
+    try:
+        ts = float(_FIXED_SYMBOLS_FAILED.get(str(session_id)) or 0.0)
+    except Exception:
+        return False
+    return bool(ts and (time.time() - ts) <= float(within_sec))
+
+
 def get_fixed_symbols_for_session(
     session_id: str,
     db: Optional[Session] = None,
@@ -5329,6 +5344,10 @@ def get_fixed_symbols_for_session(
       - "short"|"mid"|"long"：该周期固定币（by_tier 非空用 by_tier，否则回退 symbols）
       - None：三周期并集（运维/进化）；无 by_tier 时回退 symbols
     始终减去 AI 污染（短线 auto + 历史 AI；中线 sticky 在 mid 时减去）。
+
+    [调研轮8] 失败路径：返回空集时**同时登记** `_FIXED_SYMBOLS_FAILED`，
+    供调用方区分「查询失败」与「该会话本来就没有固定币」——若不区分，
+    下游会把固定币仓误算成 AI 槽位（ai_mid_slot_full 假满，AI 永不注入）。
     """
     try:
         from sqlalchemy import text as _sa_text
@@ -5396,13 +5415,54 @@ def get_fixed_symbols_for_session(
                 pass
         return fixed
     except Exception as e:
-        logger.warning(f"[AutoCoinSelector] get_fixed_symbols_for_session 查询失败 {session_id}: {e}")
+        # [调研轮8] 失败必须**显式可见**且带专用标记：本函数的空集返回会被下游当作
+        # "没有固定币" ⇒ AI 槽位把固定币仓也算进去 ⇒ 假满。此处登记失败标记，
+        # 调用方据此改走正向识别（只统计确实在 AI 候选里的持仓）。
+        _FIXED_SYMBOLS_FAILED[str(session_id)] = time.time()
+        logger.warning(
+            "[AutoCoinSelector] get_fixed_symbols_for_session 查询失败(fixed_symbols_query_failed) "
+            "%s: %s", session_id, e,
+        )
+        if db is not None:
+            try:
+                from backend.database.connection import SessionLocal as _RetryLocal
+                _rdb = _RetryLocal()
+                try:
+                    _rdb.connection().exec_driver_sql("SET app.is_admin = 'on'")
+                except Exception:
+                    pass
+                try:
+                    _row = _rdb.execute(
+                        __import__("sqlalchemy").text(
+                            "SELECT fixed_symbols_by_tier FROM full_auto_sessions "
+                            "WHERE session_id = :sid"
+                        ),
+                        {"sid": session_id},
+                    ).first()
+                    if _row:
+                        _by_tier = _parse_by_tier_map(_row[0])
+                        _t = str(tier or "").strip().lower() or None
+                        if _t in _FIXED_TIERS:
+                            return {str(s).strip().upper() for s in _by_tier.get(_t, []) if s}
+                        return {
+                            str(s).strip().upper()
+                            for k in _FIXED_TIERS
+                            for s in _by_tier.get(k, [])
+                            if s
+                        }
+                finally:
+                    _rdb.close()
+            except Exception as _rt_err:
+                logger.warning(
+                    "[AutoCoinSelector] fixed_symbols 独立 session 重试仍失败 %s: %s",
+                    session_id, _rt_err,
+                )
         return set()
 
 
 def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None,
-                                exclude_symbols=None) -> int:
-    """open 的 tier=mid 持仓数（AI 中线单分通道计数）。
+                                exclude_symbols=None, include_symbols=None) -> int:
+    """open 的 tier=mid 持仓中属于 **AI 通道**的数量。
 
     [2026-08-10 问题三] 修复前 mid lane 全禁、中长线一律归一成 long，不存在 mid
     持仓；修复后 mid 持仓只可能来自 AI 中线候选，timeframe_tier='mid' 即通道标记，
@@ -5414,6 +5474,12 @@ def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None,
     永不注入（用户观察「升级 AI 选币后没有成交」的直接机制之一）。
     修复：与长线路径同口径（§5903 只计 AI 选的），exclude_symbols（=固定币集合）
     不占 AI 槽位。
+
+    [调研轮8 2026-09-16] **正向识别**（include_symbols）：`exclude_symbols` 依赖
+    `get_fixed_symbols_for_session` 成功返回；该函数异常时返回**空集**，于是
+    "全部 mid 减去空集"把固定币仓也算成 AI ⇒ 槽位恒满（实测 open=4>max=3）。
+    现在调用方可改用 `include_symbols`（只统计确实在 AI 候选里的 symbol），
+    使槽位判定不再依赖固定币集合是否可读。include 优先于 exclude。
     """
     try:
         from sqlalchemy import text as _sa_text
@@ -5434,8 +5500,14 @@ def count_open_ai_mid_positions(db: Optional[Session] = None, account_id=None,
             if account_id is not None:
                 _sql += " AND account_id = :acc"
                 _params["acc"] = int(account_id)
+            _incl = [str(s).upper() for s in (include_symbols or []) if s]
             _excl = [str(s).upper() for s in (exclude_symbols or []) if s]
-            if _excl:
+            if _incl:
+                _ph = ", ".join(f":in{i}" for i in range(len(_incl)))
+                _sql += f" AND upper(symbol) IN ({_ph})"
+                for i, s in enumerate(_incl):
+                    _params[f"in{i}"] = s
+            elif _excl:
                 _ph = ", ".join(f":ex{i}" for i in range(len(_excl)))
                 _sql += f" AND upper(symbol) NOT IN ({_ph})"
                 for i, s in enumerate(_excl):
@@ -5710,9 +5782,30 @@ def get_ai_mid_candidates_for_session(
             # [验收轮4 2026-09-14] 固定币不占 AI 槽位（README 契约 + 长线路径同口径），
             # 否则脑在固定币上开的 mid 仓会误占满 AI 槽位（ai_mid_slot_full 假满）。
             _fixed = get_fixed_symbols_for_session(session_id, db=None, tier="mid")
-            _open_mid_n = count_open_ai_mid_positions(
-                db=db, account_id=_acc_id, exclude_symbols=_fixed,
-            )
+            if _fixed or not fixed_symbols_query_failed_recently(session_id):
+                # 正常路径（含「会话本来就没有固定币」：此时全部 mid 仓确实都算 AI）
+                _open_mid_n = count_open_ai_mid_positions(
+                    db=db, account_id=_acc_id, exclude_symbols=_fixed,
+                )
+            else:
+                # [调研轮8] 固定币集合不可得（查询异常 → 空集）：**绝不能用
+                # "全部 mid 减去空集"当 AI 占用**——固定币仓会被误算成 AI 槽位，
+                # 直接导致 ai_mid_slot_full 假满、AI 永不注入（本函数的设计初衷）。
+                # 改用正向识别：只统计确实在 AI 候选（sticky）里的 mid 持仓。
+                _sticky_now = _load_ai_mid_sticky(session_id)
+                _known_ai = {
+                    str(s).strip().upper()
+                    for s in (_sticky_now.get("symbols") or [])
+                    if s
+                }
+                _open_mid_n = count_open_ai_mid_positions(
+                    db=db, account_id=_acc_id, include_symbols=_known_ai,
+                )
+                logger.warning(
+                    "[AutoCoinSelector] fixed(mid) 集合不可得 → 槽位改用正向识别 "
+                    "include=%s open_ai_mid=%d session=%s (避免 ai_mid_slot_full 假满)",
+                    sorted(_known_ai), _open_mid_n, session_id,
+                )
             _free = max(0, _max_slots - _open_mid_n)
             if _free <= 0:
                 logger.info(

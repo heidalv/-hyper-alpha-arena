@@ -75,7 +75,10 @@ def test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky(tmp_path, monkeypa
         "get_fixed_symbols_for_session",
         lambda sid, db=None, tier=None: {"BTC"},
     )
-    monkeypatch.setattr(m, "count_open_ai_mid_positions", lambda db=None, account_id=None: 0)
+    monkeypatch.setattr(
+        m, "count_open_ai_mid_positions",
+        lambda db=None, account_id=None, exclude_symbols=None, include_symbols=None: 0,
+    )
 
     class _FakeResult:
         def __init__(self, rows=None, scalar=None, first=None):
@@ -109,4 +112,7 @@ def test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky(tmp_path, monkeypa
     assert picked == ["TON", "XMR"]
     sticky = m._load_ai_mid_sticky("fa_test")
     assert "midlong_board" in sticky["reason"]
-    assert sticky["symbols"] == ["TON", "XMR"]
+    # [调研轮8] 落盘前会经 AiCoinUnified 目录过滤（不可交易的 symbol 会被丢弃，
+    # 实测日志：`[AiCoinUnified] drop not-in-catalog: ['XMR']`）。因此只断言
+    # **看板主源胜出**（TON 在列且来源正确），不再要求被目录过滤掉的 XMR 也在 sticky 里。
+    assert "TON" in sticky["symbols"]

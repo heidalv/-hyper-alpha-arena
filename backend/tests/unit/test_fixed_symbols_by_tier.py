@@ -139,7 +139,10 @@ def test_ai_mid_slots_from_session_truncates_sticky(tmp_path, monkeypatch):
         lambda sid, db=None: {"enabled": True, "max_slots": 2},
     )
     monkeypatch.setattr(m, "get_fixed_symbols_for_session", lambda *a, **k: set())
-    monkeypatch.setattr(m, "count_open_ai_mid_positions", lambda db=None, account_id=None: 0)
+    monkeypatch.setattr(
+        m, "count_open_ai_mid_positions",
+        lambda db=None, account_id=None, exclude_symbols=None, include_symbols=None: 0,
+    )
 
     class _FakeResult:
         def __init__(self, first=None, rows=None):

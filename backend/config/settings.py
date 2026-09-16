@@ -2759,6 +2759,13 @@ AUTO_COIN_MID_MAX_SLOTS: int = int(os.getenv("AUTO_COIN_MID_MAX_SLOTS", "3") or 
 MIDLONG_MID_AI_CANDIDATES_ENABLED: bool = os.getenv(
     "MIDLONG_MID_AI_CANDIDATES_ENABLED", "false"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [2026-09-16 调研轮8] AI 中线候选在**每 tick 扫描批次**里的独立配额。
+# 背景：2026-09-04 把 MIDLONG_MID_AI_CANDIDATES_ENABLED 关成 false，原因是
+# "AI 币与固定币共用同一滚动游标（mid_universe = 固定 ∪ AI），AI 的 3 个名额
+#  独占一整轮、固定币被挤到下一轮"，于是 AI 选币**彻底不参与扫描**（选了不下单）。
+# 现在把配额拆开：固定币走原游标（batch − ai_slots），AI 币走自己的游标且每 tick
+# 最多 ai_slots 个（默认 1，0=不扫 AI）。固定币轮转不被挤占，AI 候选每轮都轮得到。
+MIDLONG_MID_AI_SCAN_SLOTS: int = int(os.getenv("MIDLONG_MID_AI_SCAN_SLOTS", "1") or "0")
 
 # [2026-09-08] 长线 AI 选币（用户指令：长线也引入 AI 选币）。复用 midlong 看板 approve
 # 候选，但门槛更高（长线持仓数天、要更高置信）、槽位更少（更精选）。默认关，会话级开关

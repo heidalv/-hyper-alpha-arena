@@ -17,6 +17,65 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def plan_mid_scan_batch(
+    *,
+    mid_universe: List[str],
+    ai_scan: List[str],
+    fixed_mid: set,
+    batch_n: int,
+    ai_slots: int,
+    fix_cursor: int = 0,
+    ai_cursor: int = 0,
+) -> dict:
+    """[2026-09-16 调研轮8] 把每 tick 的中线扫描批次拆成「固定币配额 + AI 配额」。
+
+    ## 为什么必须拆（修「AI 选了不下单」）
+
+    原实现 `mid_universe = 固定 ∪ AI`，两者**共用同一个滚动游标**、每 tick 取 batch 个。
+    2026-09-04 的复盘记录：AI 那 3 个名额会独占整整一轮，把固定币挤到下一轮，且
+    AVAX/LINK 在 active 取不到 K 线 → 约 1/4 扫描算力空转。当时的处置是把
+    `MIDLONG_MID_AI_CANDIDATES_ENABLED` 关成 false —— 副作用是 **AI 选币彻底不参与
+    扫描**（`get_ai_mid_candidates_for_session` 明明返回 FET/AMAT，却没有 tick 去看它们），
+    这正是用户观察到的「AI 选币选了不下单」。
+
+    拆配额后：
+      * 固定币走原游标，占 `batch_n - ai_slots` 个名额（轮转不被 AI 挤占）；
+      * AI 币走**独立游标**，占 `ai_slots` 个名额（默认 1，0=不扫 AI=旧行为）；
+      * AI 名单里与固定币重名的会被剔除（固定币本就每轮都在扫，无需重复）。
+
+    返回 `{"batch": [...], "next_fix_cursor": int, "next_ai_cursor": int}`。
+    纯函数：无 DB、无副作用，便于契约测试。
+    """
+    _ai_slots = max(0, int(ai_slots or 0))
+    _batch_n = max(1, int(batch_n or 1))
+    _fixed_set = {str(s).upper() for s in (fixed_mid or set()) if s}
+    _ai_list: List[str] = []
+    for s in (ai_scan or []):
+        _u = str(s or "").upper()
+        if _u and _u not in _fixed_set and _u not in _ai_list:
+            _ai_list.append(_u)
+    _fix_list: List[str] = []
+    for s in (mid_universe or []):
+        _u = str(s or "").upper()
+        if _u and _u not in _ai_list and _u not in _fix_list:
+            _fix_list.append(_u)
+
+    _n_ai = min(_ai_slots, len(_ai_list))
+    _n_fix = max(0, min(_batch_n - _n_ai, len(_fix_list)))
+    batch: List[str] = []
+    if _fix_list and _n_fix:
+        batch += [_fix_list[(int(fix_cursor) + i) % len(_fix_list)] for i in range(_n_fix)]
+        next_fix = (int(fix_cursor) + _n_fix) % len(_fix_list)
+    else:
+        next_fix = int(fix_cursor) % max(1, len(_fix_list))
+    if _ai_list and _n_ai:
+        batch += [_ai_list[(int(ai_cursor) + i) % len(_ai_list)] for i in range(_n_ai)]
+        next_ai = (int(ai_cursor) + _n_ai) % len(_ai_list)
+    else:
+        next_ai = int(ai_cursor) % max(1, len(_ai_list))
+    return {"batch": batch, "next_fix_cursor": next_fix, "next_ai_cursor": next_ai}
+
+
 def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick: int) -> None:
     """中长线 tick：市场扫描 + LLM 论题批次 + 持仓主动退出。"""
     self = svc
@@ -283,11 +342,25 @@ def run_midlong_independent(svc: "FullAutoTradingService", session_id: str, tick
         if _run_mid and _mid_universe:
             if not hasattr(self, "_midlong_ai_mid_cursor"):
                 self._midlong_ai_mid_cursor = {}
-            _mid_cur = int(self._midlong_ai_mid_cursor.get(session_id, 0) or 0)
-            _n_mid = min(_batch_n, len(_mid_universe))
-            _mid_batch = [_mid_universe[(_mid_cur + i) % len(_mid_universe)] for i in range(_n_mid)]
-            _sym_one.extend(_mid_batch)
-            self._midlong_ai_mid_cursor[session_id] = (_mid_cur + _n_mid) % len(_mid_universe)
+            if not hasattr(self, "_midlong_ai_cand_cursor"):
+                self._midlong_ai_cand_cursor = {}
+            try:
+                from backend.config.settings import MIDLONG_MID_AI_SCAN_SLOTS as _ai_slots_cfg
+                _ai_slots = max(0, int(_ai_slots_cfg if _ai_slots_cfg is not None else 1))
+            except Exception:
+                _ai_slots = 1
+            _plan = plan_mid_scan_batch(
+                mid_universe=_mid_universe,
+                ai_scan=_ai_mid_scan,
+                fixed_mid=_fixed_mid,
+                batch_n=_batch_n,
+                ai_slots=_ai_slots,
+                fix_cursor=int(self._midlong_ai_mid_cursor.get(session_id, 0) or 0),
+                ai_cursor=int(self._midlong_ai_cand_cursor.get(session_id, 0) or 0),
+            )
+            self._midlong_ai_mid_cursor[session_id] = _plan["next_fix_cursor"]
+            self._midlong_ai_cand_cursor[session_id] = _plan["next_ai_cursor"]
+            _sym_one.extend(_plan["batch"])
         _sym_one = list(dict.fromkeys(_sym_one))
         _trade_mode = (getattr(session, "trading_mode", None) or "paper").strip().lower()
         logger.info(
