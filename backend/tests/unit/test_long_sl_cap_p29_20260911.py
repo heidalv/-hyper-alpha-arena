@@ -59,14 +59,20 @@ def test_tier_specific_then_global_fallback(monkeypatch):
 
 
 def test_deployed_effective_values_match_p29_decision():
-    """**生效值断言**：当前部署应当是 P29-C 决定的参数（0.03 / 0.0075）。
+    """**生效值断言**：当前部署应当是 P29-C 决定的参数（0.03 / 0.0125）。
 
     这条用例是"决策落地"的机器凭据：改回来就会红。
+
+    [调研轮15b 2026-09-16] 第二项由 0.0075 → **0.0125**：防御期遗留的 0.0075 把 E1
+    仓位压到 vol-target 目标的 30-40%（BTC fill 0.043 vs 目标 0.165，weight_drift
+    永久超标 —— "E1 欠配 4 倍"），已在《垃圾收拾_验收扫描报告_第二轮》N1 中决定改
+    0.0125（对齐车道默认 + TREND_RISK_PER_TRADE_PCT + 回测设计）并落地到 .env。
+    本条断言锁的是**当前生效决策**，不是 9/11 那天的快照。
     """
     from dotenv import load_dotenv
     load_dotenv(r"D:\001Alpha\Hyper-Alpha-Arena\.env", override=False)
     assert float(os.environ.get("MIDLONG_SL_MAX_PCT_LONG", "0")) == pytest.approx(0.03)
-    assert float(os.environ.get("PC_RISK_PER_TRADE_PCT_LONG", "0")) == pytest.approx(0.0075)
+    assert float(os.environ.get("PC_RISK_PER_TRADE_PCT_LONG", "0")) == pytest.approx(0.0125)
     assert P.sl_max_pct_for_tier("long") == pytest.approx(0.03)
 
 

@@ -1519,7 +1519,41 @@ def execute_master_decisions(
                     _MIN_SL = {"scalp": 0.025, "intraday": 0.035,
                                "swing": 0.045, "position": 0.055,
                                "trend_follow": 0.065}
-                    if sl_new and entry_p > 0:
+                    # [调研轮15b 2026-09-16] 层上限（MIDLONG_SL_MAX_PCT_<TIER>）比 nature
+                    # 下限更紧时**以上限为准**：否则 AI 主动收紧的 SL 会被"最小距离"重新
+                    # 推远（线上 mid 实测 4.67% 正是 swing 4.5% 下限所致，与 §87 审计
+                    # "SL 中位 6.52% / sl 通道 0 笔"同源）。上限未配置时行为不变。
+                    _pte = None
+                    try:
+                        from backend.services.paper_trading_engine import (
+                            PaperTradingEngine as _pte,
+                        )
+                    except Exception:
+                        _pte = None
+                    _pos_tier_adj = (
+                        pos.get("timeframe_tier") if isinstance(pos, dict) else None
+                    ) or trade_nature
+                    if sl_new and entry_p > 0 and _pte is not None:
+                        try:
+                            _cap_d = _pte.sl_max_pct_for_tier(_pos_tier_adj)
+                            _min_d = _MIN_SL.get(trade_nature, 0.025)
+                            if _cap_d > 0 and _min_d > _cap_d:
+                                logger.info(
+                                    "[FullAuto] SL 调整下限让位于层上限 %s[%s]: %.2f%%→%.2f%%",
+                                    sym, _pos_tier_adj, _min_d * 100, _cap_d * 100,
+                                )
+                                _min_d = _cap_d
+                            if pos_side in ("long", "buy"):
+                                _floor = round(entry_p * (1 - _min_d), 6)
+                                if sl_new > _floor:
+                                    sl_new = _floor
+                            else:
+                                _floor = round(entry_p * (1 + _min_d), 6)
+                                if sl_new < _floor:
+                                    sl_new = _floor
+                        except Exception as _cap_err:
+                            logger.debug("[FullAuto] SL 调整下限/上限处理异常: %s", _cap_err)
+                    elif sl_new and entry_p > 0:
                         _min_d = _MIN_SL.get(trade_nature, 0.025)
                         if pos_side in ("long", "buy"):
                             _floor = round(entry_p * (1 - _min_d), 6)
@@ -1529,6 +1563,21 @@ def execute_master_decisions(
                             _floor = round(entry_p * (1 + _min_d), 6)
                             if sl_new < _floor:
                                 sl_new = _floor
+
+                    # 上限收口：只夹"过远"一侧，盈利侧/保本止损不受影响
+                    if sl_new and entry_p > 0 and _pte is not None:
+                        try:
+                            _sl_c, _sl_c_clamped, _sl_c_why = _pte.clamp_sl_price(
+                                sl_new, side=pos_side, entry=entry_p,
+                                tier=_pos_tier_adj)
+                            if _sl_c_clamped:
+                                logger.info(
+                                    "[FullAuto] AI 调 SL 超上限收窄 %s[%s]: %s → %s（%s）",
+                                    sym, _pos_tier_adj, sl_new, _sl_c, _sl_c_why,
+                                )
+                                sl_new = _sl_c
+                        except Exception as _cap2_err:
+                            logger.debug("[FullAuto] SL 上限收窄异常: %s", _cap2_err)
 
                     if tp_new or sl_new:
                         pos_id = pos.get("id")

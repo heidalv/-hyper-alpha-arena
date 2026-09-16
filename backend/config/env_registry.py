@@ -615,6 +615,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "BREAKER_EVIDENCE_STALE_DAYS",
     # [§88 执行 2026-09-11 / 决策 P29-A] long 层 SL 距离上限（0=关闭）
     "MIDLONG_SL_MAX_PCT_LONG",
+    # [调研轮15b 2026-09-16] mid 层同键 + 全局回退键：mid 层此前**只有**另一种拼写
+    # MIDLONG_MAX_SL_PCT_MID ⇒ 引擎收口层 cap=0，上限静默失效（实测 mid SL 距离
+    # 4.67% = nature 硬下限 4.5%）。两者都登记，消除"配置了却不生效"的死键盲区。
+    "MIDLONG_SL_MAX_PCT_MID",
+    "MIDLONG_SL_MAX_PCT",
     # [§95 2026-09-11 / 目标③] 抑制上限（0=关闭）+ 计数窗口小时（默认 24）
     "EXIT_SUPPRESS_MAX_COUNT",
     "EXIT_SUPPRESS_WINDOW_H",

@@ -1073,6 +1073,16 @@ MIDLONG_ATR_FLOOR_MAX_LIFT: float = float(os.getenv("MIDLONG_ATR_FLOOR_MAX_LIFT"
 # 反事实 cap=2% → 误杀赢家 0/18、区间净额 -23.49 → +73.54。0 = 关闭（回滚旧行为）。
 MIDLONG_MAX_SL_PCT_MID: float = float(os.getenv("MIDLONG_MAX_SL_PCT_MID", "0.02"))
 MIDLONG_MAX_SL_PCT_LONG: float = float(os.getenv("MIDLONG_MAX_SL_PCT_LONG", "0.03"))
+# [调研轮15b 2026-09-16] §88（2026-09-11）在**引擎下单收口点**新增的"止损距离上限"
+# 用的键名，与上面的 MIDLONG_MAX_SL_PCT_* 是**同一语义的两种拼写**。此处显式声明
+# （§73.4：凡 settings 会读的键必须声明，否则静默失效）：
+#   · 提案层 midlong_trade_design.clamp_stop_distance 两种拼写都认（显式 0 = 关闭）；
+#   · 引擎层 paper_trading_engine.sl_max_pct_for_tier 只认下面这种（env-only，
+#     `test_cap_off_by_default` 锁定该语义），因此**必须在 .env 显式配置**才生效。
+# 冲突规则：上限比 nature 硬下限更紧时**上限赢**（见 _enforce_min_sl 注释）。
+MIDLONG_SL_MAX_PCT: float = float(os.getenv("MIDLONG_SL_MAX_PCT", "0"))
+MIDLONG_SL_MAX_PCT_MID: float = float(os.getenv("MIDLONG_SL_MAX_PCT_MID", "0.02"))
+MIDLONG_SL_MAX_PCT_LONG: float = float(os.getenv("MIDLONG_SL_MAX_PCT_LONG", "0.03"))
 MIDLONG_RISK_PCT: float = float(os.getenv("MIDLONG_RISK_PCT", "0.01"))
 # 杠杆：中长线升级禁止另设。开仓走动态杠杆 + 已有仓统一杠杆；
 # leverage_authority 仅作上限钳制，不是按周期固定分配。

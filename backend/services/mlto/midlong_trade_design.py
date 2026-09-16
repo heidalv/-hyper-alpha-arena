@@ -273,6 +273,29 @@ def apply_structure_atr_floor(
     return sl, "ok"
 
 
+def _cfg_float_any(names: Tuple[str, ...], default: float) -> float:
+    """按顺序取第一个**被显式声明**的配置键（显式 0 = 关闭，不再回退下一个键）。
+
+    [调研轮15b 2026-09-16] 起因：同一语义存在两种拼写 —— 提案层用
+    `MIDLONG_MAX_SL_PCT_<TIER>`（轮7 加入），引擎收口层用
+    `MIDLONG_SL_MAX_PCT_<TIER>`（§88 2026-09-11 加入）。只认一种拼写会静默
+    失效（实测 mid 层只配了前者 ⇒ 引擎收口层 cap=0 ⇒ 上限形同虚设）。
+    """
+    try:
+        from backend.config import settings
+    except Exception:
+        return default
+    for name in names:
+        _v = getattr(settings, name, None)
+        if _v is None or str(_v).strip() == "":
+            continue
+        try:
+            return max(0.0, float(_v))
+        except (TypeError, ValueError):
+            continue
+    return default
+
+
 def clamp_stop_distance(sl_pct: float, tier: str) -> Tuple[float, str]:
     """[2026-09-16 调研轮7] 硬止损距离**上限**：让「单笔风险」与「盈利潜力」同量级。
 
@@ -311,9 +334,11 @@ def clamp_stop_distance(sl_pct: float, tier: str) -> Tuple[float, str]:
     try:
         t = str(tier or "").strip().lower()
         if t == "mid":
-            cap = _cfg_float("MIDLONG_MAX_SL_PCT_MID", 0.02)
+            cap = _cfg_float_any(
+                ("MIDLONG_MAX_SL_PCT_MID", "MIDLONG_SL_MAX_PCT_MID"), 0.02)
         elif t == "long":
-            cap = _cfg_float("MIDLONG_MAX_SL_PCT_LONG", 0.03)
+            cap = _cfg_float_any(
+                ("MIDLONG_MAX_SL_PCT_LONG", "MIDLONG_SL_MAX_PCT_LONG"), 0.03)
         else:
             return float(sl_pct or 0), f"tier={t or '?'} 不适用"
         sl = float(sl_pct or 0)

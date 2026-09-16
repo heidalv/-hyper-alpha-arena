@@ -449,17 +449,40 @@ class PaperTradingEngine:
             pass
 
     @staticmethod
-    def _enforce_min_sl(pos, entry: float, nature: str) -> None:
+    def _enforce_min_sl(pos, entry: float, nature: str,
+                        tier: Optional[str] = None) -> None:
         """确保 SL 距离不低于硬性最小值（防止被保本/追踪压得太紧）。
 
         2026-04-27 修复：保本止损已将 SL 推到盈利侧（long: SL>entry, short: SL<entry）
         时不应被本函数拉回亏损侧，否则保本保护形同虚设。
+
+        [调研轮15b 2026-09-16] **与层上限冲突时上限赢**。此前 mid/swing 下限 4.5%、
+        long/trend_follow 6.5% 是"无脑硬下限"，于是本函数在每个保护 tick 把上游三层
+        封顶（提案层 clamp_stop_distance / 价格层 tp_sl_prices / PosMgr._calc_tp_sl）
+        已经压到 2%~3% 的 SL **重新拉回 4.5%~6.5%** —— 实测线上 6 笔未平仓 SL 距离
+        4.67~6.50% 全部等于该下限，是"止损远到不会响"（赢家 MAE 仅 1.2%，
+        §87 审计：SL 中位 6.52% ⇒ sl 通道 0 笔）的**唯一存活原因**。
+        上限（`MIDLONG_SL_MAX_PCT_<TIER>`，显式配置才生效）比下限更紧时以下限=上限
+        收口；上限未配置（0）时行为与历史完全一致（回滚位）。
         """
         min_dist = PaperTradingEngine._MIN_SL_DISTANCE_BY_NATURE.get(nature, 0.025)
         # 震荡均值回归单（scalp_mr_ 前缀）用专用小止损下限，避免被 2.5% 硬拉宽而破坏
         # "小止损小止盈"的正期望结构。
-        if str(getattr(pos, "strategy_id", "") or "").startswith("scalp_mr_"):
+        _is_mr = str(getattr(pos, "strategy_id", "") or "").startswith("scalp_mr_")
+        if _is_mr:
             min_dist = PaperTradingEngine._MR_MIN_SL_DISTANCE
+        # 层上限优先：只有当它比 nature 下限更紧时才覆盖（等价于"两者取更紧者"）。
+        _tier = tier or getattr(pos, "timeframe_tier", None) or ""
+        try:
+            _cap = PaperTradingEngine.sl_max_pct_for_tier(_tier)
+        except Exception:
+            _cap = 0.0
+        if _cap > 0 and min_dist > _cap:
+            logger.info(
+                "[Paper] SL 下限让位于层上限: tier=%s nature=%s floor %.2f%%→%.2f%%",
+                _tier or "?", nature, min_dist * 100, _cap * 100,
+            )
+            min_dist = _cap
         if not pos.sl_price or entry <= 0:
             return
         sl = float(pos.sl_price)
@@ -3831,7 +3854,29 @@ class PaperTradingEngine:
             logger.debug(f"[Paper][v2] DynamicStopManager 追踪异常(非致命): {_dsm_err}")
 
         # ── 硬性 SL 最小距离保护（防止 DSM 压死 SL）──
-        self._enforce_min_sl(pos, entry, _nature)
+        self._enforce_min_sl(pos, entry, _nature, _pos_tier)
+
+        # ── [调研轮15b 2026-09-16] 层上限随 tick 收窄（只夹"过远"一侧）──
+        # `_enforce_min_sl` 只负责"别太紧"；本块负责"别太远"。二者同 tick 相邻执行，
+        # 且下限已让位于上限（见 `_enforce_min_sl`），因此最终 SL 距离 = 上限。
+        # 未配置 `MIDLONG_SL_MAX_PCT_<TIER>` 时 cap=0 ⇒ 本块完全不动（回滚位）；
+        # 保本/盈利侧止损（long: SL>entry, short: SL<entry）永远不受影响。
+        try:
+            _sl2, _sl_clamped, _sl_why = self.clamp_sl_price(
+                getattr(pos, "sl_price", None),
+                side=getattr(pos, "side", ""),
+                entry=entry,
+                tier=_pos_tier,
+            )
+            if _sl_clamped:
+                logger.info(
+                    "[Paper] SL 距离超上限，随 tick 收窄 %s %s tier=%s: %s → %s（%s）",
+                    getattr(pos, "symbol", "?"), getattr(pos, "side", ""),
+                    _pos_tier, getattr(pos, "sl_price", None), _sl2, _sl_why,
+                )
+                pos.sl_price = _sl2
+        except Exception as _sl_cap_err:
+            logger.debug("[Paper] SL 上限收窄异常(非致命): %s", _sl_cap_err)
 
         # ════════════════════════════════════════════════════════════════════
         # Phase B+C: 统一分段止盈 + 利润回撤 + 追踪 + 止盈安全网 (ATR 自适应)
