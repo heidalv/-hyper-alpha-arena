@@ -374,3 +374,28 @@ def lane_reconcile(lane_id: str) -> Dict[str, Any]:
                 "as_of": datetime.now(timezone.utc).isoformat()}
 
 
+@router.post("/lanes/{lane_id}/reload_states")
+def lane_reload_states(lane_id: str) -> Dict[str, Any]:
+    """[F301 2026-09-16] 让运行中的车道**立刻**把运行态与账本对齐。
+
+    为什么需要这个端点：车道的持仓可能被进程之外的动作改变（操作性平仓、对账写
+    调整腿、手工补账本）。`load_states()` 只在启动时跑，运行中的进程持有内存态，
+    并会在下一次 `save_states` 把陈旧库存写回数据库 ⇒ 账本上的平仓被"复活"，
+    随后触发**重复平仓**（2026-09-16 实测：ADA 被平两次，凭空多出一个 −154 的
+    空头，前端显示 −$29.98）。
+
+    调用后返回对账摘要（`corrected` 列出被账本纠正的币）。**不重启进程、不动行情**。
+    """
+    from backend.services.market_maker.runner import get_runner
+
+    try:
+        r = get_runner(lane_id)
+        res = r.reload_states()
+        return {"ok": True, "lane_id": lane_id, "reconcile": res,
+                "as_of": datetime.now(timezone.utc).isoformat()}
+    except Exception as e:
+        logger.warning("[lane_routes] reload_states 失败 %s: %s", lane_id, e)
+        return {"ok": False, "lane_id": lane_id, "error": str(e),
+                "as_of": datetime.now(timezone.utc).isoformat()}
+
+

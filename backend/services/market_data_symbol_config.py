@@ -44,6 +44,47 @@ def normalize_symbols(value: Any) -> list[str]:
     return symbols
 
 
+def lane_symbols(*, statuses: tuple[str, ...] = ("active",)) -> tuple[list[str], list[str]]:
+    """[F302 2026-09-16] 车道正在交易的标的（`lane_registry.meta.symbols`）。
+
+    为什么必须并入行情采集的标的来源：
+      车道的标的宇宙由 `lane_registry.meta.symbols` 决定（`get_runner` 读它），
+      而**行情采集**此前只看 `full_auto_sessions` / 系统配置里的用户自选
+      ⇒ 两者**结构性解耦**。现场后果（2026-09-16）：`mm_asterdex` 的宇宙从
+      LINK/ADA 换成 ZEC/ASTER/SOL/DOGE/TAO 后，`market_orderbook_snapshots`
+      里**依然只有旧标的**（ZEC/ASTER/TAO 一行都没有），于是：
+        · `replay._load_series` 读不到它们的历史 ⇒ 回放/验收全瞎；
+        · `mm_anchor_vol_baseline.py` 对它们恒返回 0.0 ⇒ σ 闸基准无效；
+        · `runner.backfill_mid_hist` 补不到冷启动窗口。
+
+    返回 `(symbols, sources)`；sources 用于诊断（哪些车道贡献了标的）。
+    任何异常 ⇒ 返回空（不阻断其它来源，采集宁可少也不要挂）。
+    """
+    try:
+        with SessionLocal() as db:
+            rows = db.execute(text(
+                "SELECT lane_id, status, meta_json FROM lane_registry"
+                " WHERE status = ANY(:st)"
+            ), {"st": list(statuses)}).mappings().all()
+    except Exception:
+        return [], []
+
+    out: list[str] = []
+    sources: list[str] = []
+    for r in rows:
+        meta = r.get("meta_json")
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = {}
+        syms = normalize_symbols((meta or {}).get("symbols"))
+        if syms:
+            out.extend(syms)
+            sources.append("lane_registry.%s" % r.get("lane_id"))
+    return normalize_symbols(out), sources
+
+
 def resolve_configured_symbols(env_name: str, *, fallback_env_name: str | None = None) -> tuple[list[str], dict[str, Any]]:
     """Resolve symbols for market-data services.
 
@@ -109,12 +150,23 @@ def resolve_configured_symbols(env_name: str, *, fallback_env_name: str | None =
                 configured_sources.append("full_auto_sessions.auto_coin_symbols")
                 configured_symbols.extend(auto_symbols)
 
+    # [F302 2026-09-16] 并入**车道正在交易的标的**。
+    # 动机：车道宇宙由 `lane_registry.meta.symbols` 决定，而行情采集此前只看
+    # 会话/用户自选 ⇒ 换宇宙后行情跟不上（现场：ZEC/ASTER/TAO 无快照 ⇒ 回放瞎、
+    # vol 基准恒 0、冷启动窗口补不到）。放在会话之后并入，语义是"用户交易的东西
+    # ∪ 车道交易的东西"，两边都不断供。
+    lane_syms, lane_srcs = lane_symbols()
+    if lane_syms:
+        configured_symbols.extend(lane_syms)
+        configured_sources.extend(lane_srcs)
+
     symbols = normalize_symbols(configured_symbols)
     if symbols:
         return symbols, {
             "mode": "account_selected",
             "source": configured_sources,
             "session_id": session_id,
+            "lane_symbols": lane_syms,
             "symbols": symbols,
         }
 
@@ -126,6 +178,7 @@ def resolve_configured_symbols(env_name: str, *, fallback_env_name: str | None =
             "env": fallback_env_name,
             "reason": "no_running_session_symbols",
             "error": db_error,
+            "lane_symbols": lane_syms,
             "symbols": fallback_symbols,
         }
 

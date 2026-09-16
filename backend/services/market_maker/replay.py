@@ -280,6 +280,7 @@ def replay_symbol(
             _record_fill(symbol=symbol, side=side, qty=qty, fill_px=px,
                          mid_px=mid, fee_rate=TAKER_FEE_BP / 1e4,
                          notional=d["notional"], ts_ms=ots[i],
+                         position_id=str(d.get("position_id") or ""),
                          meta={"reason": reason} if reason else None)
 
     for i in range(n - 1):
@@ -434,7 +435,8 @@ def replay_symbol(
             if record:
                 _record_fill(symbol=symbol, side=leg_side, qty=fill_qty, fill_px=px,
                              mid_px=mid, fee_rate=params_maker_fee(venue),
-                             notional=d["notional"], ts_ms=ots[i])
+                             notional=d["notional"], ts_ms=ots[i],
+                             position_id=str(d.get("position_id") or ""))
 
     res.avg_hold_snapshots = (hold_snaps / cycles) if cycles > 0 else 0.0
     res.net_usd = res.spread_usd + res.price_usd + res.fee_usd
@@ -459,18 +461,28 @@ def params_maker_fee(venue: str) -> float:
 
 
 def _record_fill(*, symbol: str, side: str, qty: float, fill_px: float, mid_px: float,
-                 fee_rate: float, notional: float, ts_ms: int) -> None:
-    """把影子期成交写入六维账本（失败不抛）。"""
+                 fee_rate: float, notional: float, ts_ms: int,
+                 position_id: str = "",
+                 meta: Optional[Dict[str, Any]] = None) -> None:
+    """把影子期成交写入六维账本（失败不抛）。
+
+    [F279 2026-09-16] 带上 `position_id`（库存周期）：否则回放写入的账本行
+    同样无法配对开/平腿，与实盘影子路径口径不一致。
+    """
     try:
         from datetime import datetime, timezone
 
         from backend.services import lane_ledger
 
+        _meta = {"source": "F59_replay", "notional": round(notional, 4)}
+        if meta:
+            _meta.update(meta)
         lane_ledger.record_fill(
             lane_id="mm_asterdex", symbol=symbol, side=side, qty=qty,
             fill_px=fill_px, mid_px=mid_px, fee_rate=fee_rate,
+            position_id=(position_id or None),
             ts=datetime.fromtimestamp(int(ts_ms) / 1000.0, tz=timezone.utc),
-            meta={"source": "F59_replay", "notional": round(notional, 4)},
+            meta=_meta,
         )
     except Exception as e:
         logger.debug("[F59] record_fill 失败: %s", e)

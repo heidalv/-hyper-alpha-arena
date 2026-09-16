@@ -486,10 +486,36 @@ async def _run_collectors(stop: asyncio.Event) -> None:
         if not active_exchanges:
             active_exchanges = ["asterdex"]
         cvd_window = getattr(_settings, "CVD_AGGREGATION_WINDOW_SECONDS", 15)
+        # [F302 2026-09-16] 盘口/成交采集的标的**不再硬编码**。
+        # 现场：这里原本写死 10 个币（BTC/ETH/SOL/ADA/BNB/XRP/DOGE/AVAX/LINK/UNI），
+        # 于是 `market_orderbook_snapshots` 永远只有这些——`mm_asterdex` 的车道宇宙
+        # 换成 ZEC/ASTER/SOL/DOGE/TAO 后，ZEC/ASTER/TAO **一行快照都没有** ⇒
+        # 回放读不到历史（`replay._load_series`）、vol 基准锚定恒返回 0.0、
+        # 冷启动 `backfill_mid_hist` 补不到窗口。
+        # 现在走统一解析（会话自选 ∪ 用户配置 ∪ **车道注册表**），
+        # 解不出来时回退到原硬编码列表（行为与旧版逐字一致，不会因解析失败断供）。
+        _fallback_syms = ["BTC", "ETH", "SOL", "ADA", "BNB", "XRP", "DOGE",
+                          "AVAX", "LINK", "UNI"]
+        try:
+            from backend.services.market_data_symbol_config import (
+                resolve_configured_symbols,
+            )
+
+            _resolved, _res_meta = resolve_configured_symbols(
+                "MARKET_FLOW_SYMBOLS",
+                fallback_env_name="MARKET_FLOW_FALLBACK_SYMBOLS",
+            )
+            logger.info("[DataCenter] market_flow symbols resolved: %s (sources=%s)",
+                        _resolved, (_res_meta or {}).get("source"))
+        except Exception as _se:
+            _resolved = []
+            logger.info("[DataCenter] market_flow symbol resolve failed (%s), "
+                        "falling back to the static list", _se)
+        _flow_syms = list(_resolved) or list(_fallback_syms)
         symbols_map = {}
         for ex in active_exchanges:
             if ex in ("asterdex", "binance"):
-                symbols_map[ex] = ["BTC", "ETH", "SOL", "ADA", "BNB", "XRP", "DOGE", "AVAX", "LINK", "UNI"]
+                symbols_map[ex] = list(_flow_syms)
             else:
                 symbols_map[ex] = None
         results = market_flow_registry.start_all(
