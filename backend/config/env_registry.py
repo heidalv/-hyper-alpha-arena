@@ -624,6 +624,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_AI_AUTOCREATE_STRATEGY",
     "MIDLONG_AI_AUTOCREATE_MAX_PER_DAY",
     "MIDLONG_AI_AUTOCREATE_LIVE",
+    # [调研轮17 2026-09-16] 模板策略复用守卫（该层已有 active 时不再新建，抑制
+    # "新建→被去重归档"的 churn，避免归档时刻清空某层 active）
+    "HEALTH_TEMPLATE_REUSE_GUARD",
     # [§95 2026-09-11 / 目标③] 抑制上限（0=关闭）+ 计数窗口小时（默认 24）
     "EXIT_SUPPRESS_MAX_COUNT",
     "EXIT_SUPPRESS_WINDOW_H",

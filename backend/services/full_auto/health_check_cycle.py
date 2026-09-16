@@ -79,6 +79,27 @@ class HealthCheckHost:
     invalidate_session_status_cache: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
+def template_strategy_creation_decision(
+    *, has_template: bool, has_active_tier: bool, reuse_guard: bool = True,
+) -> tuple:
+    """[调研轮17 2026-09-16] 模板策略**是否新建**的纯决策（便于契约测试）。
+
+    返回 `(是否创建, 原因)`；原因 ∈ {create, same_template, reuse_active}。
+
+    背景（实测 acct14）：原逻辑"同模板不存在就建"——模板榜首随行情变化，于是每个
+    symbol/层每 30-40 分钟新建一条；而启动去重按 `created_at` 只保留最早的一条，
+    **新建的那条必然被归档**（纯 churn：archived 累积到 556/788/926 条），
+    且归档那一刻正是"某层 active 被清空 ⇒ 提案静默死于 `no_active_strategy`"的时刻。
+    故：该层已有 active 时不再新建（模板切换属生命周期/进化决策，不在这里插入）。
+    回滚：`HEALTH_TEMPLATE_REUSE_GUARD=false`（回到旧行为）。
+    """
+    if has_active_tier and reuse_guard:
+        return False, "reuse_active"
+    if has_template:
+        return False, "same_template"
+    return True, "create"
+
+
 def build_health_check_host(svc) -> HealthCheckHost:
     return HealthCheckHost(
         active_db_sessions=svc._active_db_sessions,
@@ -823,6 +844,8 @@ def run_health_check(
             strategy_library.load_templates(db)
             _template_signals_count = 0
             _template_strategies_created = 0
+            # [调研轮17] 因"该层已有 active 策略"而跳过模板新建的次数（churn 抑制计数）
+            _template_reuse_skipped = 0
 
             for _sym in session.symbols:
                 _regime_info = regime_classifications.get(_sym)
@@ -933,7 +956,35 @@ def run_health_check(
                                     (s.genome or {}).get("source_template_id") == _best.template_id
                                     for s in _existing
                                 )
-                                if not _has_template:
+                                # ── [调研轮17 2026-09-16] 已有 active 同层策略 ⇒ 不再新建 ──
+                                # 原逻辑只看"同模板是否已存在"：模板榜首随行情变化 ⇒ 每个
+                                # symbol/层每 30-40 分钟就新建一条，而启动去重按 created_at
+                                # 只保留最早的一条 ⇒ **新建的那条必然被归档**（纯 churn，实测
+                                # acct14 累积 archived 556/788/926 条），且归档那一刻正是
+                                # "某层 active 被清空 → 提案静默死于 no_active_strategy" 的时刻。
+                                # 已有 active 时改由既有策略承担该层交易（模板切换属生命周期决策）。
+                                # 回滚：HEALTH_TEMPLATE_REUSE_GUARD=false。
+                                _reuse_guard = str(
+                                    os.getenv("HEALTH_TEMPLATE_REUSE_GUARD", "true")
+                                ).strip().lower() in ("1", "true", "yes", "on", "y", "t")
+                                _has_active_tier = any(
+                                    str(getattr(s, "timeframe_tier", None) or "mid").lower() == _tier
+                                    and str(getattr(s, "status", "") or "").lower() == "active"
+                                    for s in _existing
+                                )
+                                _do_create, _why = template_strategy_creation_decision(
+                                    has_template=_has_template,
+                                    has_active_tier=_has_active_tier,
+                                    reuse_guard=_reuse_guard,
+                                )
+                                if not _do_create:
+                                    if _why == "reuse_active":
+                                        _template_reuse_skipped += 1
+                                        logger.debug(
+                                            "[FullAuto] 复用既有 active 策略，跳过模板新建 %s/%s",
+                                            _sym, _tier,
+                                        )
+                                else:
                                     _new_sid = strategy_library.create_strategy_from_template(
                                         db, _best.template_id,
                                         _strat_acct, _sym
@@ -954,6 +1005,8 @@ def run_health_check(
                     f"[FullAuto] 策略库匹配: {_template_signals_count} 个模板信号 "
                     f"覆盖 {len(session.symbols)} symbols"
                     + (f", 创建 {_template_strategies_created} 个新策略" if _template_strategies_created else "")
+                    + (f", 复用既有 active 跳过 {_template_reuse_skipped} 次模板新建"
+                       if _template_reuse_skipped else "")
                 )
             if _template_strategies_created > 0:
                 host.safe_commit(db, "template_strategies_created")

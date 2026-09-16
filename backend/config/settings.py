@@ -3099,6 +3099,15 @@ PAPER_SKIP_STRATEGY_TERMINATE: bool = os.getenv(
 PAPER_MAX_ACTIVE_STRATEGIES_PER_SYMBOL: int = int(
     os.getenv("PAPER_MAX_ACTIVE_STRATEGIES_PER_SYMBOL", "5")
 )
+# [调研轮17 2026-09-16] 模板策略**复用守卫**：该 (币, 层) 已有 active 策略时不再新建。
+# 事实：模板榜首随行情变化 ⇒ 旧逻辑每 30-40 分钟为同一 symbol/层新建一条，而启动去重
+# 只保留最早的一条 ⇒ 新建的必然被归档（纯 churn，acct14 已累积 archived 556/788/926 条），
+# 且归档时刻正是"某层 active 被清空 ⇒ 提案静默死于 no_active_strategy"的时刻。
+# 实测受害者：acct188 UNI/XRP（24h 内 64 行被丢弃）、acct14 SOL 中线（23:11 被 cap 暂停）。
+# 回滚：`HEALTH_TEMPLATE_REUSE_GUARD=false`（恢复"同模板不存在就建"的旧行为）。
+HEALTH_TEMPLATE_REUSE_GUARD: bool = os.getenv(
+    "HEALTH_TEMPLATE_REUSE_GUARD", "true"
+).strip().lower() in ("true", "1", "yes", "on")
 # TrendAgent 开仓最低评分：实盘默认 50，纸盘略放宽便于观察
 TREND_MIN_SCORE_TO_OPEN: int = int(os.getenv("TREND_MIN_SCORE_TO_OPEN", "50"))
 PAPER_TREND_MIN_SCORE_TO_OPEN: int = int(os.getenv("PAPER_TREND_MIN_SCORE_TO_OPEN", "40"))

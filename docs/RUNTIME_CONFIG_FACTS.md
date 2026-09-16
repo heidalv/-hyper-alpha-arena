@@ -805,9 +805,9 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 
 | symbol | 7 天行数 | 去向 | 拦截原因 |
 | --- | --- | --- | --- |
-| DOT | 25 | 全部 `skip@exec` | `eval_false:no_active_strategy`（`block_layer=proposal_execution`） |
-| FET | 31 | 全部 `skip@writer` | `regime_extreme×26` / `long_regime_block×5`（方向闸，合法） |
-| TIA | 51 | 全部 `skip@writer` | `long_regime_block×51`（同上） |
+| `DOT` | 25 | 全部 `skip@exec` | `eval_false:no_active_strategy`（`block_layer=proposal_execution`） |
+| `FET` | 31 | 全部 `skip@writer` | `regime_extreme×26` / `long_regime_block×5`（方向闸，合法） |
+| `TIA` | 51 | 全部 `skip@writer` | `long_regime_block×51`（同上） |
 
 **根因**：`proposal_execution.py:93` 要求
 `ai_strategies(primary_symbol=sym, timeframe_tier=tier, status='active')` 存在，
@@ -835,3 +835,33 @@ BTC/ETH/SOL/BNB/VIRTUAL/ASTER/XPL/UNI/XRP）**零交集**；且建策略链路
   （列出 AI 候选池、策略宇宙覆盖、以及"选了也开不了"的缺口清单）。
 - 契约测试：`backend/tests/unit/test_ai_strategy_provision_20260916.py`（16 例，含
   "只定义不接线 = 没修"的接线护栏）。
+
+## 策略生命周期安全网：不要让某 (币, 层) 变成"零 active"（2026-09-16 调研轮17）
+
+> 症状：审计里出现 `eval_false:no_active_strategy`。近 24h 共 **88 行**，按会话/symbol：
+> `fa_185f162052`(live,188) UNI ×54 / XRP ×10；`fa_7e12e7a1b6`(paper,14) DOT ×25
+> （DOT 已被轮16 的策略按需供给修掉）。**提案在进入任何风险闸之前就被丢弃**，
+> 且日志里只留一行，像"选币没选出来"，排查成本极高。
+
+`proposal_execution.py:93` 要求 `ai_strategies(primary_symbol, timeframe_tier,
+status='active')` 存在。三个例程会**清空某 (账户, 币, 层) 的 active**：
+
+| 机制 | 旧行为 | 后果（实测） | 本轮处置 |
+| --- | --- | --- | --- |
+| 启动去重 `cleanup_duplicate_strategies` | keeper 盲取 `created_at` 最早那条 | 若那条是 paused ⇒ 同组 active 全被归档。09-16 22:26 归档 22 条后 acct188 UNI/XRP 各只剩 1 条 paused | keeper **优先 active**（同状态内仍取最早） |
+| 模拟盘封顶 `cap_paper_active_strategies` | cap 之外按 id 倒序一律暂停 | 09-16 23:11 `paper cap SOL: kept 5 active, paused 2` 把 SOL **中线**唯一 active 暂停 ⇒ 该层零 active | 暂停前检查：**不得暂停某层最后一条 active** |
+| 模板建策略 `health_check_cycle` Step 3 | 只判"同模板是否存在" ⇒ 模板榜首一变就新建 | 每 30-40 分钟新建一条，而去重只保留最早一条 ⇒ **新建的必然被归档**（纯 churn：acct14 archived 556/788/926 条），归档时刻即清空 active 的时刻 | 新增复用守卫：**该层已有 active 就不新建** |
+
+| 配置键 | 声明意图 | 期望值 | 备注 |
+| --- | --- | --- | --- |
+| HEALTH_TEMPLATE_REUSE_GUARD | 模板策略复用守卫（已有 active 就不新建） | true | false = 回到"同模板不存在就建"的旧行为 |
+
+- **不变量**：会话的交易 symbol（`session.symbols + auto_coin_symbols`）至少有一层 active 策略。
+  去重后自动检测并 WARNING（只告警不改状态：paused 可能是健康判定）；
+  随时可用 `python backend/scripts/diag_strategy_coverage.py` 查看（D 段）。
+- 数据修复（一次性）：acct14 `auto_dfa9e3b348`（SOL 中线，6 笔成交历史，23:11 被 cap
+  机械暂停）已恢复 active 并回写会话 `active_strategy_ids`。
+- **未修**：acct188（实盘，余额 0、当前不交易）的 UNI/VIRTUAL/XPL/XRP/SYN 仍三层无 active
+  —— 按"实盘从严"不在本轮自动复活（可能是健康/生命周期有意暂停），但每次启动会有
+  WARNING 提示；若要让实盘恢复该币交易，需显式重建/恢复策略。
+- 契约测试：`backend/tests/unit/test_strategy_dedup_keeper_20260916.py`（9 例）。

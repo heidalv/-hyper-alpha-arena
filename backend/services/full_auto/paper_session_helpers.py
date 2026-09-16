@@ -300,7 +300,23 @@ def cap_paper_active_strategies(
         if len(group) <= cap:
             continue
         group.sort(key=lambda s: int(getattr(s, "id", 0) or 0), reverse=True)
+        # [调研轮17 2026-09-16] **不得暂停某 (symbol, tier) 的最后一条 active**。
+        # 原实现按 id 倒序在 cap 之外一律暂停；若某层的策略恰好都排在 cap 之外，
+        # 该 (币, 层) 就变成零 active ⇒ 提案静默死于 `eval_false:no_active_strategy`
+        # （实测 09-16 23:11 `paper cap SOL: kept 5 active, paused 2` 之后
+        #  acct14 的 SOL **中线**零 active，而 SOL 中线正是当时在跑的车道）。
+        _tier_alive: Dict[str, int] = defaultdict(int)
+        for st in group:
+            _tier_alive[str(getattr(st, "timeframe_tier", None) or "mid").lower()] += 1
         for st in group[cap:]:
+            _st_tier = str(getattr(st, "timeframe_tier", None) or "mid").lower()
+            if _tier_alive.get(_st_tier, 0) <= 1:
+                logger.warning(
+                    "[FullAuto] paper cap %s: 跳过暂停 %s（tier=%s 的最后一条 active，"
+                    "暂停会让该层静默开不出单）", sym, str(st.strategy_id)[:10], _st_tier,
+                )
+                continue
+            _tier_alive[_st_tier] -= 1
             st.status = "paused"
             sid_str = str(st.strategy_id)
             if sid_str in active_ids:
@@ -416,14 +432,61 @@ def cleanup_duplicate_strategies(db, host: PaperSessionHost):
         for key, strats in groups.items():
             if len(strats) <= 1:
                 continue
+            # [调研轮17 2026-09-16] **keeper 必须优先选 active**。
+            # 原实现盲取 `strats[0]`（created_at 最早的一条）；若那条恰好是 paused，
+            # 就会把同组所有 active 全部归档 ⇒ 该 (账户, 币, 层) 变成**零 active**，
+            # 该 symbol 的提案随即以 `eval_false:no_active_strategy` 静默死掉
+            # （实测 09-16 22:26 去重后 acct188 UNI/XRP 各只剩 1 条 paused、其余 archived，
+            #  24h 内 UNI 54 行 / XRP 10 行因此被丢弃）。
+            # 排序键：active 优先，其次 created_at 升序（同状态内仍保留最早的一条）。
+            strats.sort(key=lambda s: (
+                0 if str(s.status or "").lower() == "active" else 1,
+                str(getattr(s, "created_at", "") or ""),
+            ))
             keeper = strats[0]
             for dup in strats[1:]:
                 dup.status = "archived"
                 archived_ids.append(dup.strategy_id)
                 logger.warning(
-                    f"[FullAuto] 启动去重: 归档 {dup.strategy_id[:10]} "
-                    f"({dup.primary_symbol}/{dup.timeframe_tier})，保留 {keeper.strategy_id[:10]}"
+                    f"[FullAuto] 启动去重: 归档 {dup.strategy_id[:10]}"
+                    f"({dup.primary_symbol}/{dup.timeframe_tier})，"
+                    f"保留 {keeper.strategy_id[:10]}(status={keeper.status})"
                 )
+
+        # ── [调研轮17] 零 active 检测：会话的交易 symbol 在其层必须有 ≥1 条 active ──
+        # 去重/健康暂停/生命周期暂停都可能把某个 (币, 层) 的 active 清空，而症状只是
+        # 审计里一行 `no_active_strategy` —— 静默且难发现。这里在每次去重后显式列出，
+        # 让"某币静默开不出单"在日志里可见（只告警，不改状态：paused 可能是健康判定）。
+        try:
+            _running = db.query(FullAutoSession).filter(
+                FullAutoSession.status.in_(["running", "defensive"])
+            ).all()
+            _gaps = []
+            for _s in _running:
+                _acct = (getattr(_s, "paper_account_id", None)
+                         or getattr(_s, "account_id", None))
+                _syms = {str(x).upper() for x in (list(_s.symbols or [])
+                                                  + list(getattr(_s, "auto_coin_symbols", None) or [])) if x}
+                if not _acct or not _syms:
+                    continue
+                _rows = db.query(AIStrategy).filter(
+                    AIStrategy.account_id == _acct,
+                    AIStrategy.status == "active",
+                ).all()
+                _have = {(str(r.primary_symbol or "").upper(),
+                          str(r.timeframe_tier or "mid").lower()) for r in _rows}
+                for _sym in sorted(_syms):
+                    _miss = [t for t in ("short", "mid", "long") if (_sym, t) not in _have]
+                    if len(_miss) == 3:
+                        _gaps.append(f"{_s.session_id}:{_sym}")
+            if _gaps:
+                logger.warning(
+                    "[FullAuto] ⚠️ 零 active 策略的会话 symbol（该币在该层开不出单，"
+                    "审计会记 no_active_strategy）: %s", _gaps[:12],
+                )
+        except Exception as _gap_err:
+            logger.debug(f"[FullAuto] 零 active 检测跳过: {_gap_err}")
+
 
         if archived_ids:
             sessions = db.query(FullAutoSession).filter(

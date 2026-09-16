@@ -138,6 +138,36 @@ def main() -> int:
         print(f"\n  缺口 {len(gaps)} 个: {gaps}")
         print("  说明：这些 symbol 无论论题/闸门多好，都会在 proposal_execution "
               "第 93 行被丢弃（不消耗风险预算，但也永不成交）。")
+
+        # ── D. 会话 symbol 的策略不变量（零 active = 该币静默开不出单）──────
+        print("\n== D. 不变量：会话交易 symbol 是否都有 active 策略 ==")
+        broken = []
+        for s in db.query(FullAutoSession).filter(
+            FullAutoSession.status.in_(["running", "defensive"])
+        ).all():
+            _acct = getattr(s, "paper_account_id", None) or getattr(s, "account_id", None)
+            _syms = sorted({str(x).upper() for x in (
+                list(s.symbols or []) + list(getattr(s, "auto_coin_symbols", None) or []))
+                if x})
+            if not _acct or not _syms:
+                continue
+            _have = {(str(r.primary_symbol or "").upper(),
+                      str(r.timeframe_tier or "mid").lower())
+                     for r in rows if int(getattr(r, "account_id", 0) or 0) == int(_acct)}
+            print(f"  {s.session_id} (acct={_acct}, {len(_syms)} symbols):")
+            for _sym in _syms:
+                _miss = [t for t in ("short", "mid", "long") if (_sym, t) not in _have]
+                if len(_miss) == 3:
+                    print(f"     ❌ {_sym:<9} 三层全无 active ⇒ 该币开不出单")
+                    broken.append(f"{s.session_id}:{_sym}")
+                elif _miss:
+                    print(f"     ⚠️ {_sym:<9} 缺 {'/'.join(_miss)}（其它层可用）")
+        if broken:
+            print(f"\n  **不变量破坏 {len(broken)} 处**: {broken}")
+            print("  成因常见于：启动去重 keeper 选了 paused 那条（调研轮17 已修）／"
+                  "健康或生命周期暂停最后一条 active。检测只报警，不自动改状态。")
+        else:
+            print("\n  ✅ 所有会话 symbol 均至少有一层 active 策略")
     finally:
         db.close()
     return 0
