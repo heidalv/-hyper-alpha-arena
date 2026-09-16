@@ -64,8 +64,34 @@ class _FakeUsageResolver:
         return self.by_key.get((usage, provider))
 
 
-def test_local_first_basic(monkeypatch):
+def test_local_first_short_circuits_to_cloud_when_disabled(monkeypatch):
+    """[调研轮16 2026-09-16 更新] 部署态 = **短路本地**，直接走线上（云端优先）。
+
+    用户澄清：本地 Ollama 早已停用，一律走线上 LLM（MiniMax / GLM）。代码据此在
+    `LLM_LOCAL_FIRST_DISABLED=true`（默认）且有云端可用时直接返回 `(None, cloud)`，
+    不再解析/等待 ollama —— 实测近 6h `qwen3:14b/ollama` 失败 13 次、**每次白等 49.6s**，
+    而中长线论题单次已 84s，不可再叠一段空等。
+    原断言（`l.id == 84`，本地优先）已被该决策取代；回滚路径见下一条用例。
+    """
     from backend.services import llm_config_service as svc
+
+    monkeypatch.setenv("LLM_LOCAL_FIRST_DISABLED", "true")
+    local = _cfg(84, "ollama", "qwen3:14b")
+    cloud = _cfg(17, "deepseek", "deepseek-v4-flash")
+    monkeypatch.setattr(svc, "get_llm_config_for_usage", _FakeUsageResolver({
+        ("kline_analysis", "ollama"): local,
+        ("kline_analysis", None): cloud,
+    }))
+    l, c = svc.get_llm_config_local_first("kline_analysis", tenant_id=326)
+    assert l is None, "本地已停用：不得再把 ollama 解析成主段（会白等 ~50s）"
+    assert c is not None and c.id == 17, "必须回落到线上配置"
+
+
+def test_local_first_rollback_switch_restores_local_preference(monkeypatch):
+    """回滚位：`LLM_LOCAL_FIRST_DISABLED=false` ⇒ 恢复"本地优先 + 云端降级"。"""
+    from backend.services import llm_config_service as svc
+
+    monkeypatch.setenv("LLM_LOCAL_FIRST_DISABLED", "false")
     local = _cfg(84, "ollama", "qwen3:14b")
     cloud = _cfg(17, "deepseek", "deepseek-v4-flash")
     monkeypatch.setattr(svc, "get_llm_config_for_usage", _FakeUsageResolver({
@@ -90,7 +116,14 @@ def test_local_first_no_local_returns_cloud(monkeypatch):
 
 
 def test_local_first_same_config_no_fallback(monkeypatch):
+    """回滚位（`LLM_LOCAL_FIRST_DISABLED=false`）下：主备同一条配置 ⇒ 无降级段。
+
+    [调研轮16] 该语义只在"本地优先"生效时才有意义；部署态已短路本地，
+    故用例显式打开回滚位来锁这条契约。
+    """
     from backend.services import llm_config_service as svc
+
+    monkeypatch.setenv("LLM_LOCAL_FIRST_DISABLED", "false")
     only = _cfg(84, "ollama", "qwen3:14b")
     monkeypatch.setattr(svc, "get_llm_config_for_usage", _FakeUsageResolver({
         ("journal", "ollama"): only,

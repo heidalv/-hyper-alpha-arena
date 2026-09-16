@@ -173,14 +173,39 @@ def test_中线路由按交易模式取阈值():
     assert "FACTOR_ROUTE_ENTRY_THRESHOLD_LIVE" in src
 
 
-# ───────────────── 中线宇宙：只用固定币 ─────────────────
+# ───────────────── 中线宇宙：固定币为主 + AI 候选独立配额 ─────────────────
 
-def test_中线只扫固定币():
-    from backend.config.settings import MIDLONG_MID_AI_CANDIDATES_ENABLED
-    assert MIDLONG_MID_AI_CANDIDATES_ENABLED is False, (
-        "AI 候选重新并入中线宇宙 —— 每 tick 只扫 MIDLONG_SCAN_BATCH 个币，"
-        "AI 那几个名额会挤占固定币的扫描轮次，且实测选出的 AVAX/LINK "
-        "在 active 所取不到 K 线（0 根）"
+def test_中线AI候选只占独立配额不得挤占固定币():
+    """[调研轮16 2026-09-16 更新] 由"只扫固定币"改为**配额护栏**。
+
+    原断言（`MIDLONG_MID_AI_CANDIDATES_ENABLED is False`）依据两条：
+      ① AI 名额会挤占固定币的扫描轮次；
+      ② 实测选出的 AVAX/LINK 在 active 所取不到 K 线（0 根）。
+    两条都已由**更精确的机制**解决，故策略改为"并入但限配额"（`.env` 同步记录）：
+      ① → `midlong_loop.plan_mid_scan_batch` 拆出独立配额，固定币轮转不被挤占；
+      ② → 候选层流动性下限 `MIDLONG_AI_MIN_LIQUIDITY=0.5`，取不到行情的标的直接剔除
+           （轮8 实测同批 FET/AMAT 被"24h 成交额 < $500k"硬拒）。
+    本护栏锁的是**边界**：AI 名额必须 ≥1 且**严格小于**扫描批次（固定币始终占多数），
+    且流动性下限必须 >0 —— 任一条被放松即红。回滚：`MIDLONG_MID_AI_CANDIDATES_ENABLED=false`。
+    """
+    from backend.config.settings import (
+        MIDLONG_AI_MIN_LIQUIDITY,
+        MIDLONG_MID_AI_CANDIDATES_ENABLED,
+        MIDLONG_MID_AI_SCAN_SLOTS,
+        MIDLONG_SCAN_BATCH,
+    )
+
+    assert MIDLONG_MID_AI_CANDIDATES_ENABLED is True, (
+        "AI 选币已被并入中线宇宙（用户明确要求中线/长线选币可用）；"
+        "如需回滚请显式设 MIDLONG_MID_AI_CANDIDATES_ENABLED=false 并同步本用例"
+    )
+    assert int(MIDLONG_MID_AI_SCAN_SLOTS) >= 1, "并入却不给名额 = 选币结果永远排不进扫描"
+    assert int(MIDLONG_MID_AI_SCAN_SLOTS) < int(MIDLONG_SCAN_BATCH), (
+        f"AI 名额 {MIDLONG_MID_AI_SCAN_SLOTS} 不得占满扫描批次 {MIDLONG_SCAN_BATCH}"
+        "（固定币必须保持多数轮次，否则回到'挤占固定币'的老问题）"
+    )
+    assert float(MIDLONG_AI_MIN_LIQUIDITY) > 0, (
+        "候选层流动性下限被关掉 ⇒ 会重新选出行情取不到的标的（AVAX/LINK 0 根 K 线）"
     )
 
 

@@ -49,13 +49,33 @@ def _ms(price, highs, lows, chg24=None):
 
 
 def test_location_paper_shrink_allows_high_long(monkeypatch):
+    """[调研轮16 2026-09-16 更新] 追高天花板（≥70 分位）**paper 也硬否决**。
+
+    本用例原用 80 分位（108/区间[100,110]）断言"paper 缩仓放行"，但验收轮6 已加
+    天花板 `MIDLONG_LOCATION_PAPER_SHRINK_CEILING=70`：分位 ≥70% 属"追顶"，
+    连样本价值都没有（gate-edge 审计：被拦 −84 vs 放行 +23.5 USD）；
+    60–70% 之间仍缩仓 ×0.25 收样本 —— 下面两条分别锁这两档。
+    """
     mod = _lg_fresh(monkeypatch)
-    ok, reason, detail = mod.location_gate_check(
+
+    # ① 80 分位 ≥ 天花板 70 ⇒ paper 也硬拒
+    ok_hi, reason_hi, detail_hi = mod.location_gate_check(
         "BTC", "buy", tier="mid", regime="ranging",
         market_summary=_ms(108.0, [110.0] * 24, [100.0] * 24),
         paper_mode=True,
     )
-    assert ok is True
+    assert ok_hi is False, "≥70 分位属追顶，paper 也不该放行"
+    assert "追高天花板70%" in reason_hi, reason_hi
+    assert detail_hi.get("paper_shrink_ceiling") == pytest.approx(70.0)
+    assert "paper_shrink_mult" not in detail_hi, "硬拒时不应走缩仓放行路径"
+
+    # ② 65 分位（> max_long 60 但 < 天花板 70）⇒ paper 缩仓放行收样本
+    ok, reason, detail = mod.location_gate_check(
+        "BTC", "buy", tier="mid", regime="ranging",
+        market_summary=_ms(106.5, [110.0] * 24, [100.0] * 24),
+        paper_mode=True,
+    )
+    assert ok is True, f"60–70 分位应缩仓放行收样本，实际: {reason}"
     assert "paper 缩仓" in reason
     assert detail["paper_shrink_mult"] == pytest.approx(0.25)
     assert "location_gate_veto" in detail["paper_shrink_veto_reason"]
