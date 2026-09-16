@@ -401,7 +401,9 @@ def execute_midlong_open(
                 source=str(source or ""),
                 authority=auth,
                 action="hold",
-                direction=hub_dir or "",
+                # [调研轮32/33] 方向性闸（*=regime_block / 追多追空）本身不设 hub_dir
+                # ⇒ 用 reason 文本补方向，否则事后无法做反事实复盘（详见文件末尾注释）
+                direction=(hub_dir or _dir_from_reason(_reason)),
                 score=int(confidence or 0),
                 regime=_regime,
                 mode=hub_mode or "",
@@ -665,3 +667,24 @@ def execute_midlong_open(
             entry_source=str(source or ""),
         )
     )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# [调研轮32/33 2026-09-17] 审计方向补全：让"方向性闸"的拦截可复盘
+#
+# 缺陷（轮31 实测 96h）：`midlong_long_regime_block` 276 行、`midlong_short_regime_block`
+# 537 行的审计 `direction` **全为空**（写入点取 `hub_dir`，而这两个闸不设它），
+# 但它们本质是方向性闸（一个只拦多头、一个只拦空头，reason 文本里就写着"多头/空头"）。
+# 后果：`backend/scripts/audit_block_counterfactual.py` 因"方向不可知"**拒绝猜测**（这是对的设计），
+# 于是"这道闸拦得对不对"永远无法复盘 —— long 车道为何 0/8 空仓也就无法回答。
+#
+# 口径：只做**文本显式方向**的映射；推断不出返回空串（保持"方向不可知"，绝不猜）。
+# ══════════════════════════════════════════════════════════════════════
+def _dir_from_reason(reason: str) -> str:
+    """从拦截原因文本推断方向：long_regime/多头/追多 → long；short_regime/空头/追空 → short。"""
+    r = str(reason or "")
+    if "long_regime_block" in r or "多头" in r or "追多" in r:
+        return "long"
+    if "short_regime_block" in r or "空头" in r or "追空" in r:
+        return "short"
+    return ""
