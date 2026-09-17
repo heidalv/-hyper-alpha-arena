@@ -113,7 +113,27 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
 
         strat = host.ensure_bound_strategy(db, strat)
         if strat is None:
-            logger.warning("[FullAuto] _execute_paper_trade: 策略对象无效或已 detach")
+            # [轮60 2026-09-17] 补可见性：此前只打 WARNING、不登记 block 原因，
+            # 于是 AAVE 反复被拒在审计里只显示通用兜底码 paper_trade_false
+            # （见 proposal_execution.py:417-424 —— 该码只在"下游未登记更具体原因"时才写）。
+            # 真实原因极可能是「策略对象无效或已 detach」，与轮16 修的
+            # no_active_strategy 同类。这里显式登记，让原因可见。
+            _sym_dbg = ""
+            try:
+                _sym_dbg = str((decision or {}).get("symbol") or (decision or {}).get("_symbol") or "")
+            except Exception:
+                _sym_dbg = ""
+            logger.warning("[FullAuto] _execute_paper_trade: 策略对象无效或已 detach (sym=%s)", _sym_dbg or "?")
+            try:
+                from backend.services.mlto.open_block_reason import mark_open_block as _mob
+                _mob("strategy_detached", detail=f"ensure_bound_strategy->None sym={_sym_dbg or '?'}")
+            except Exception:
+                pass
+            try:
+                from backend.services.full_auto.proposal_execution import _mark_block as _mb
+                _mb("strategy_detached", detail=f"ensure_bound_strategy->None sym={_sym_dbg or '?'}")
+            except Exception:
+                pass
             return False
 
         symbol = strat.primary_symbol
