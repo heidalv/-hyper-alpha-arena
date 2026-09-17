@@ -87,10 +87,40 @@ def init_db() -> None:
 
 
 def _period_to_cycle(period: Optional[str]) -> str:
-    p = (period or "").lower()
-    if p in ("4h", "8h", "1d"):
+    """K 线周期 → V7 记忆的周期档（S/M/L）。
+
+    [轮51 2026-09-17 目标④ 学习进化层语义对齐] 此前这里是**第三套**独立词表：
+        4h/8h/1d → "L"，15m/30m/1h/2h → "M"，其余 → "S"
+    它与另外两层冲突 —— 同一个"中"字在三层指三个不同周期：
+        因子发现：4h = "midlong"(中期)
+        调度 V7 ：15m = "中周期"
+        学习层  ：15m/30m/1h/2h = "M"(中期)
+        策略层  ：mid 车道实际中位持仓 3.2h（= 日内）
+    现在改为**从唯一真源 `backend/config/cycle_semantics.py` 派生**，字母含义重定为：
+        S = 短线（分钟级，1m/3m/5m —— 已判死的车道）
+        M = **日内**（15m/30m/1h/2h，前瞻 1.5–2h）  ← 原标签"中期"是错的
+        L = **长期趋势**（4h 及以上，前瞻 24h–3d）
+    行为差异仅一处：`1w`/`1M` 此前落进 "S"（明显错误，月线不是短线），现归 "L"。
+    存量 `v7_lessons.cycle` 值不改写（检索按原值继续可用）。
+    """
+    p = (period or "").strip()
+    if not p:
+        return "S"
+    try:
+        from backend.config.cycle_semantics import INTRADAY, TREND, period_to_cycle
+        cyc = period_to_cycle(p)
+        if cyc == INTRADAY:
+            # 分钟级（1m/3m/5m）仍算短线；15m 及以上算日内
+            return "S" if p.lower() in ("1m", "3m", "5m") else "M"
+        if cyc == TREND:
+            return "L"
+    except Exception:
+        pass
+    # 真源不可用时退回历史词表（fail-safe，绝不因语义模块把链路打断）
+    low = p.lower()
+    if low in ("4h", "8h", "1d"):
         return "L"
-    if p in ("15m", "30m", "1h", "2h"):
+    if low in ("15m", "30m", "1h", "2h"):
         return "M"
     return "S"
 

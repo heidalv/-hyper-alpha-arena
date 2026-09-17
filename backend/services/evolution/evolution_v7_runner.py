@@ -20,10 +20,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 # 三周期映射到现有因子进化周期：
-#   L 大周期方向背景 -> 4h（可扩展 8h/1d）
-#   M 中周期结构择时 -> 15m（可扩展 1h/30m）
-#   S 小周期触发执行 -> 5m（可扩展 1m）
-DEFAULT_PERIODS = ["4h", "15m", "5m"]
+#   L 长期趋势方向背景 -> 4h（可扩展 8h/1d）
+#   M **日内**结构择时 -> 15m（可扩展 1h/30m）
+#   S 短线触发执行 -> 5m（可扩展 1m）
+# [轮51 2026-09-17 目标④] 补入 1h：1h 此前**没有进化调度**（main.py 原本只有
+# 4h/5m/15m），因此 V7 记忆从不记录 1h 教训；现已新增 factor_evolution_intraday_1h_daily
+# （每日 05:00），默认周期同步纳入 1h。语义真源见 backend/config/cycle_semantics.py。
+DEFAULT_PERIODS = ["4h", "1h", "15m", "5m"]
 VALID_PERIODS = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "1d"}
 
 
