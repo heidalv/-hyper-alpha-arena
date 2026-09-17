@@ -1791,6 +1791,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "V5_TREND_MIN_RR_PAPER",
     "WHALE_LLM_MIN_INTERVAL_SEC",
     "WHALE_LLM_MIN_USD",
+    # [轮47 2026-09-17] IC-WFO 单币判据阈值（factor_wfo.py 读取）。
+    # 注意：SYSTEM_PREFIXES 里的 "WFO_" 只覆盖 find_unknown_flags 之外的另一套校验，
+    # 本白名单才是 find_unknown_flags 的判据 —— 故必须在此显式登记。
+    "WFO_IC_MAX_DECAY",
+    "WFO_IC_MAX_P",
+    "WFO_IC_MIN_OOS_IC",
     "WS_DELTA_MODE",
 })
 

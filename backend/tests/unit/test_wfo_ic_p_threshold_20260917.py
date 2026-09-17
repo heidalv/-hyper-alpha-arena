@@ -90,9 +90,21 @@ def test_threshold_semantics_change_verdict(monkeypatch):
 
 
 def test_settings_declares_the_switch():
-    """§73.4：settings 侧必须有声明（此前整族 WFO_IC_* 都没声明）。"""
+    """§73.4：settings 侧必须有声明（此前整族 WFO_IC_* 都没声明）。
+
+    注意：只断言"声明存在 + 类型正确 + 源码默认值为 0.05"，
+    **不断言运行时取值** —— 该键允许通过 .env 调档（轮47 已部署 0.15），
+    断言运行时值会让测试在每次调档时误报。
+    """
+    import inspect
     from backend.config import settings as S
-    assert hasattr(S, "WFO_IC_MAX_P"), "settings 未声明 WFO_IC_MAX_P"
-    assert float(S.WFO_IC_MAX_P) == pytest.approx(0.05)
-    assert hasattr(S, "WFO_IC_MIN_OOS_IC")
-    assert hasattr(S, "WFO_IC_MAX_DECAY")
+
+    for name in ("WFO_IC_MAX_P", "WFO_IC_MIN_OOS_IC", "WFO_IC_MAX_DECAY"):
+        assert hasattr(S, name), f"settings 未声明 {name}"
+        assert isinstance(getattr(S, name), float), f"{name} 应为 float"
+
+    # 代码默认值契约：源码里必须写死 0.05 作为 fallback
+    src = inspect.getsource(S)
+    assert 'WFO_IC_MAX_P", "0.05"' in src, "settings 的 WFO_IC_MAX_P 代码默认值应为 0.05"
+    assert 'WFO_IC_MIN_OOS_IC", "0.01"' in src, "settings 的 WFO_IC_MIN_OOS_IC 代码默认值应为 0.01"
+    assert 'WFO_IC_MAX_DECAY", "0.50"' in src, "settings 的 WFO_IC_MAX_DECAY 代码默认值应为 0.50"
