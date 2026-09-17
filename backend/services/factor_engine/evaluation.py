@@ -58,10 +58,17 @@ def information_coefficient(
     mask = np.isfinite(a) & np.isfinite(b)
     if mask.sum() < 5:
         return 0.0
+    # [轮49 2026-09-17] 退化短路：常数输入的相关无定义。老路径会走完 scipy 的
+    # NaN 扫描 + 排序，再靠 np.isfinite 丢弃结果（实测一次评估里 441 次调用
+    # 100% 命中 ConstantInputWarning）。这里提前返回 **同一个值 0.0**，只是省掉计算。
+    _av = a[mask]
+    _bv = b[mask]
+    if _av.std() == 0.0 or _bv.std() == 0.0:
+        return 0.0
     if method == "spearman":
-        r, _ = stats.spearmanr(a[mask], b[mask])
+        r, _ = stats.spearmanr(_av, _bv)
         return float(r) if np.isfinite(r) else 0.0
-    r, _ = stats.pearsonr(a[mask], b[mask])
+    r, _ = stats.pearsonr(_av, _bv)
     return float(r) if np.isfinite(r) else 0.0
 
 
@@ -97,11 +104,70 @@ def time_series_ic(
     _step = window if int(step) <= 0 else max(1, int(step))
     _f = df["f"].values
     _r = df["r"].values
+    # [轮49] 向量化快路径（与老路径数值等价，见 _rolling_spearman_batch）。
+    # 触发条件：spearman + 开关开启；任何异常都退回老路径（fail-safe）。
+    if method == "spearman" and _rolling_fast_enabled():
+        try:
+            _starts = np.fromiter(
+                (i - window for i in range(window, len(df) + (1 if _step > 1 else 0), _step)),
+                dtype=np.int64, count=-1,
+            )
+            return _rolling_spearman_batch(_f, _r, _starts, window)
+        except Exception:
+            pass
     ics = []
     for i in range(window, len(df) + (1 if _step > 1 else 0), _step):
         ics.append(information_coefficient(
             _f[i - window:i], _r[i - window:i], method=method))
     return np.array(ics)
+
+
+_ROLLING_FAST_ENV = "FACTOR_EVAL_ROLLING_FAST"
+
+
+def _rolling_fast_enabled() -> bool:
+    """[轮49] 向量化滚动 IC 开关（默认 true；置 0/false/off 回退逐窗 scipy 老路径）。"""
+    import os
+    return str(os.getenv(_ROLLING_FAST_ENV, "true") or "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _rolling_spearman_batch(_f: np.ndarray, _r: np.ndarray,
+                            starts: np.ndarray, window: int) -> np.ndarray:
+    """向量化滚动 Spearman —— 与逐窗 `information_coefficient(..., "spearman")` **数值等价**。
+
+    [轮49 2026-09-17] 背景：`time_series_ic` 的 step=1 重叠滑窗是 n 根 bar 调 n 次
+    `scipy.stats.spearmanr`；py-spy 实测该调用栈是因子评估的**唯一 CPU 热点**
+    （`max → _contains_nan → spearmanr`），GPU 全程闲置。6770 根 × 9 品种 × 71 候选
+    即几十万次 scipy 调用。
+
+    等价性依据：
+    - Spearman = 窗口内平均秩的 Pearson 相关（`rankdata` 默认平均秩，与 `spearmanr`
+      的并列处理一致）；
+    - 任一输入为常数 ⇒ 分母 0 ⇒ 返回 **0.0**。老路径此时 `spearmanr` 返回 NaN，
+      再被 `information_coefficient` 的 `np.isfinite` 判为 0.0 —— 同值；
+    - 窗口内样本数 = window ≥ 5（调用方已保证），与 `mask.sum() < 5 → 0.0` 不冲突。
+    """
+    idx = np.asarray(starts, dtype=np.int64)
+    if idx.size == 0:
+        return np.array([])
+    from numpy.lib.stride_tricks import sliding_window_view
+    # 约定：starts 传的是**窗口起点** s（即老路径的 i - window）。
+    # sliding_window_view(_f, window) 的第 k 行 = _f[k : k+window]，故直接用 s 取行。
+    # （注意别再减一次 window —— 双重相减会让整条 IC 序列前移一个窗。）
+    Fw = sliding_window_view(_f, window)[idx]
+    Rw = sliding_window_view(_r, window)[idx]
+    Fr = stats.rankdata(Fw, axis=1)
+    Rr = stats.rankdata(Rw, axis=1)
+    Fc = Fr - Fr.mean(axis=1, keepdims=True)
+    Rc = Rr - Rr.mean(axis=1, keepdims=True)
+    num = np.einsum("ij,ij->i", Fc, Rc)
+    den = np.sqrt(np.einsum("ij,ij->i", Fc, Fc) * np.einsum("ij,ij->i", Rc, Rc))
+    out = np.zeros(idx.size, dtype=float)
+    ok = den > 0
+    out[ok] = num[ok] / den[ok]
+    return out
 
 
 def compute_icir(ic_series: np.ndarray) -> float:

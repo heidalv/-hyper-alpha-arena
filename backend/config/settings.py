@@ -1212,6 +1212,16 @@ FACTOR_EVO_INTRADAY_1H_ENABLED: bool = os.getenv("FACTOR_EVO_INTRADAY_1H_ENABLED
     "true", "1", "yes", "on",
 )
 
+# [轮49 2026-09-17] 因子评估性能：滚动 IC 向量化。
+# 背景：py-spy 实测 `time_series_ic` 的 step=1 重叠滑窗是因子评估的**唯一 CPU 热点**
+# （调用栈 max → scipy._contains_nan → spearmanr），n 根 bar 调 n 次 scipy；
+# 6770 根 × 9 品种 × 71 候选即几十万次调用，GPU 全程闲置。
+# 向量化后与逐窗 scipy **数值等价**（rtol=0, atol=1e-12；覆盖随机/并列/NaN/step 多分支），
+# 实测加速 ~225×。回滚：置 false → 回到逐窗 scipy 老路径。
+FACTOR_EVAL_ROLLING_FAST: bool = os.getenv("FACTOR_EVAL_ROLLING_FAST", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+
 # S2-1：把量化简报（多周期一致性/结构位/数据完整度）注入 Swing/Trend prompt
 MIDLONG_QUANT_BRIEF_IN_PROMPT: bool = os.getenv("MIDLONG_QUANT_BRIEF_IN_PROMPT", "true").lower() in (
     "true", "1", "yes", "on",

@@ -1800,6 +1800,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [轮48 2026-09-17 目标④] 周期语义对齐（config/cycle_semantics.py + main.py 读取）
     "FACTOR_EVO_INTRADAY_1H_ENABLED",
     "FACTOR_EVO_INTRADAY_PERIODS",
+    # [轮49 2026-09-17] 因子评估性能开关（factor_engine/evaluation.py 读取）
+    "FACTOR_EVAL_ROLLING_FAST",
     "WS_DELTA_MODE",
 })
 
