@@ -1233,6 +1233,15 @@ FACTOR_EVO_JOB_REGISTRY: bool = os.getenv("FACTOR_EVO_JOB_REGISTRY", "true").low
     "true", "1", "yes", "on",
 )
 
+# [轮58 2026-09-17] 方向生成看盘面：趋势 regime 下反转因子反号。
+# 根因：midlong_factor_route.py 全文没有 regime —— 方向生成对盘面一无所知；
+# 而因子池存活的全是反转因子(seed_rev*)，上涨行情里持续输出 short，
+# 被下游 midlong_short_regime_block（日线 up 不许做空）全拒 -> 09-14 时 exec=0。
+# true = 趋势 regime 下反转因子反号（等价切动量口径）；false = 原行为（回滚）。
+MIDLONG_ROUTE_TREND_INVERT_REVERSAL: bool = os.getenv(
+    "MIDLONG_ROUTE_TREND_INVERT_REVERSAL", "true"
+).lower() in ("true", "1", "yes", "on")
+
 # S2-1：把量化简报（多周期一致性/结构位/数据完整度）注入 Swing/Trend prompt
 MIDLONG_QUANT_BRIEF_IN_PROMPT: bool = os.getenv("MIDLONG_QUANT_BRIEF_IN_PROMPT", "true").lower() in (
     "true", "1", "yes", "on",

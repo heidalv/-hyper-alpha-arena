@@ -148,6 +148,49 @@ def _factor_history(
         return None
 
 
+# [轮58 2026-09-17] 趋势 regime 下反转因子反号。
+#
+# 根因（实测）：本模块**全文没有 regime** —— 方向生成对盘面一无所知。
+# 而因子池里存活的全是反转因子（seed_rev5/10/20/50，ICIR 全正；动量 seed_mom* 全被
+# 隔离），于是它在上涨行情里持续输出 short；下游 midlong_short_regime_block
+# （日线 regime=up 不许做空）再把它全拒 —— 两个模块各自都"对"，合起来 09-14 时
+# exec=0、一笔不成交。实测：09-14 时 paper 候选 dir=short 141 / long 18。
+#
+# 修法：趋势 regime 下，反转因子的信号是错的（均值回归在趋势里被反复打脸），
+# 因此**反号使用**（等价于切换到动量口径）；震荡/未知 regime 下保持原样。
+#   abstain 会让 weight_sum=0 → no_valid_votes → 照样不成交，故不采用。
+# 默认 true 生效；回滚 = MIDLONG_ROUTE_TREND_INVERT_REVERSAL=false。
+_TREND_REGIMES = frozenset({"up", "down", "bull", "bear", "bullish", "bearish",
+                            "trend", "trending", "trend_up", "trend_down"})
+
+
+def _trend_invert_enabled() -> bool:
+    try:
+        return str(os.getenv("MIDLONG_ROUTE_TREND_INVERT_REVERSAL", "true") or "").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return True
+
+
+def _is_reversal_factor(rec: dict) -> bool:
+    """source 首段含 'rev' 视为反转类因子（池内口径：rev5/rev10/rev20/rev50/seed_rev*）。"""
+    try:
+        head = str(rec.get("source") or "").split("|")[0].strip().lower()
+        return "rev" in head
+    except Exception:
+        return False
+
+
+def _cached_regime_for(symbol: str) -> str:
+    """尽力取日线 regime；取不到返回空串（空 ⇒ 不反号，保持原行为）。"""
+    try:
+        from backend.services.full_auto.midlong_executor import get_cached_regime
+        return str(get_cached_regime(symbol) or "").strip().lower()
+    except Exception:
+        return ""
+
+
 def _zscore_last(vals: np.ndarray) -> Optional[float]:
     finite = vals[np.isfinite(vals)]
     if len(finite) < 20:
@@ -287,6 +330,11 @@ def factor_route_decide(
     # 因子跳过（orient=0），不再按 sign(ic) 反手——弱负 IC 反手是碎信号放大器。
     _ic_abs_min = float(_cfg("FACTOR_ROUTE_IC_ABS_MIN", 0.02))
     _neg_ic_n = 0
+    # [轮58 2026-09-17] 趋势 regime 下反转因子反号所需的两个上下文（见文件上方说明）
+    _invert_on = _trend_invert_enabled()
+    _regime_now = _cached_regime_for(sym) if _invert_on else ""
+    if _invert_on and _regime_now in _TREND_REGIMES:
+        out["trend_invert_regime"] = _regime_now
     for rec in active:
         fid = str(rec.get("factor_id") or "")
         scores = rec.get("scores") or {}
@@ -322,7 +370,16 @@ def factor_route_decide(
         # 当前 ic 符号）——与 combo_weights 权重同一套符号规则，防两处漂移。
         orient = float(scores.get("expected_sign") or (1 if ic >= 0 else -1))
         vote = orient * float(np.clip(z, -2.0, 2.0))
-        votes[fid] = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4)}
+        # [轮58 2026-09-17] 趋势 regime 下反转因子反号（见文件上方 _TREND_REGIMES 说明）。
+        # 只改 vote 的符号，usable/weighted/weight_sum 口径不变 ⇒ 不会把路由关死。
+        _inv = False
+        if _invert_on and _regime_now in _TREND_REGIMES and _is_reversal_factor(rec):
+            vote = -vote
+            _inv = True
+        _rec_vote = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4)}
+        if _inv:
+            _rec_vote["trend_inverted"] = True
+        votes[fid] = _rec_vote
         weighted += w * vote
         weight_sum += w
         usable += 1
