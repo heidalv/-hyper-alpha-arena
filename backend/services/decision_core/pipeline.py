@@ -351,6 +351,29 @@ def evaluate_midlong_open(
         except Exception as err:
             logger.warning("[MidLongEvGate] 跳过(fail-open，EV 闸本次未生效): %s", err)
 
+    # ── [调研轮39 2026-09-17] **空头风险形状：空单规模按比例缩**（做空专项第 2 刀）──
+    # 依据（30 天实测，用户指令「做空要认真做」）：
+    #   * mid 空单 n=38 净 −68.60、均 −1.81、胜率 26%（多单对照 −0.58 / 47%）；
+    #   * 路径上**逆行 +0.98% vs 顺行 0.22%（4.5 倍）** ⇒ 同样规模下空单更吃亏；
+    #   * 空头分位曲线（位置闸拦下的 420 行样本）显示**没有可调阈值解决的正区间**
+    #     ⇒ 在"来源（轮37 禁模板族开空）+ 位置（轮38 只在高位 40→60）"之外，
+    #       再按比例缩小空单规模，属于**风险形状**修正：**不减少笔数**。
+    # 开关：MIDLONG_SHORT_SIZE_MULT（默认 0.5；>=1 或 0 表示不缩，回滚位）。
+    if allowed and action in ("sell",):
+        try:
+            import os as _os_sz
+            _sm_cfg = float(_os_sz.getenv("MIDLONG_SHORT_SIZE_MULT", "0.5") or 0.5)
+        except Exception:
+            _sm_cfg = 0.5
+        if 0.0 < _sm_cfg < 1.0:
+            _sm_before = float(adjustments.get("size_multiplier") or 1.0)
+            adjustments["size_multiplier"] = round(_sm_before * _sm_cfg, 4)
+            adjustments["short_size_mult"] = _sm_cfg
+            logger.info(
+                "[ShortRiskShape] %s %s 空单规模 ×%.2f（%.3f→%.3f）",
+                symbol, action, _sm_cfg, _sm_before, adjustments["size_multiplier"],
+            )
+
     return allowed, reason, adjustments
 
 

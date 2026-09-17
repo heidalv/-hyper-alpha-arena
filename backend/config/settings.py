@@ -2428,6 +2428,12 @@ MIDLONG_PULLBACK_ENTRY_TIMEOUT_S: int = int(
 MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES: bool = os.getenv(
     "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [调研轮39 2026-09-17] **做空第 2 刀：空单规模乘子**（风险形状，不减笔数）。
+# 依据：mid 空单 n=38 净 −68.60、均 −1.81、胜率 26%（多单 −0.58/47%）；空单逆行 +0.98%
+# vs 顺行 0.22%（4.5 倍）；空头分位曲线（420 行样本）无正区间 ⇒ 在"来源/位置"两刀之外
+# 再按比例缩规模。应用点：decision_core.pipeline 收口处 adjustments.size_multiplier × 本值
+# （仅 action=sell）。回滚：>=1 或 0 = 不缩。
+MIDLONG_SHORT_SIZE_MULT: float = float(os.getenv("MIDLONG_SHORT_SIZE_MULT", "0.5"))
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。
