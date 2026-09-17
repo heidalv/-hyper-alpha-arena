@@ -1802,6 +1802,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "FACTOR_EVO_INTRADAY_PERIODS",
     # [轮49 2026-09-17] 因子评估性能开关（factor_engine/evaluation.py 读取）
     "FACTOR_EVAL_ROLLING_FAST",
+    # [轮50 2026-09-17] 因子进化任务的 job_registry 可见性接线（evo_subprocess.py / main.py 读取）
+    "FACTOR_EVO_JOB_REGISTRY",
     "WS_DELTA_MODE",
 })
 

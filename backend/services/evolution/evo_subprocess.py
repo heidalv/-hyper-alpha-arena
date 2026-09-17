@@ -59,9 +59,44 @@ def main(argv=None) -> int:
     logger.info("[EvoSubprocess] 启动 period=%s quick=%s", args.period, args.quick)
     from backend.services.evolution.factor_evolution_loop import run_factor_evolution_loop
 
-    report = run_factor_evolution_loop(period=args.period, quick=args.quick, source="subprocess")
+    # [轮50 2026-09-17] 可见性接线：进化任务此前**从不写 job_registry**，导致
+    # 无论成功/失败/超时，在所有健康检查与 ops 面板上都是隐形的 —— 失败只落进
+    # logs/evo_subprocess.log 的一行 INFO，无人告警（用户 2026-09-17 指出：
+    # "要是明早自动跑有问题，还是发现不了"）。
+    # 这里登记元数据（expected_interval_sec=24h，用于陈旧判定）并用 job_run 包裹：
+    #   成功 → 记 ok + duration_ms；异常/error → 记 error + _alert_failure + 抛出。
+    # 回滚：FACTOR_EVO_JOB_REGISTRY=false（跳过接线，回到纯日志行为）。
+    _job_name = f"factor_evolution_{args.period}"
+    _cm = None
+    try:
+        if str(os.getenv("FACTOR_EVO_JOB_REGISTRY", "true")).strip().lower() in ("1", "true", "yes", "on"):
+            from backend.services.ops.job_registry import job_run, register_job
+            register_job(
+                _job_name,
+                cadence="daily",
+                description=f"因子进化（{args.period} 周期，出进程完整 WFO/门禁）",
+                owner="factor_evolution",
+                expected_interval_sec=24 * 3600,
+            )
+            _cm = job_run(_job_name)
+    except Exception as _reg_err:  # noqa: BLE001
+        logger.warning("[EvoSubprocess] job_registry 接线失败（不影响进化）: %s", _reg_err)
+    if _cm is None:
+        import contextlib
+        _cm = contextlib.nullcontext()
+
+    try:
+        with _cm:
+            report = run_factor_evolution_loop(period=args.period, quick=args.quick, source="subprocess")
+            _err = report.get("error")
+            if _err:
+                # 让 job_registry 记 error + 告警（此前只靠退出码 1，外部看不见）
+                raise RuntimeError(f"evolution reported error: {_err}")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[EvoSubprocess] period=%s 失败: %s", args.period, exc)
+        return 1
     logger.info("[EvoSubprocess] 完成 period=%s %s", args.period, str(report)[:500])
-    return 0 if not report.get("error") else 1
+    return 0
 
 
 def make_subprocess_task(period: str, fallback_fn):

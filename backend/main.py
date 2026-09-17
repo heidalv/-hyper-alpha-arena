@@ -1507,6 +1507,31 @@ def on_startup():
                 logger.info("[async] 已注册日内 1h 因子进化（每日 05:00）")
             else:
                 logger.info("[async] FACTOR_EVO_INTRADAY_1H_ENABLED=false，跳过 1h 因子日进化注册")
+
+            # [轮50 2026-09-17] 把因子进化任务登记进 job_registry（可见性）。
+            # 此前进化跑在分离子进程里、**从不写 job_registry**，因此无论成功失败，
+            # 在 ops 面板 / 陈旧性检查 / 失败告警里**全是隐形的**（失败只落进
+            # logs/evo_subprocess.log 一行 INFO）。登记后 expected_interval_sec=24h，
+            # "超过 24h 没跑" 或 "跑了但 error" 都会变成 stale / 失败告警。
+            # 回滚：FACTOR_EVO_JOB_REGISTRY=false。
+            try:
+                if str(os.getenv("FACTOR_EVO_JOB_REGISTRY", "true")).strip().lower() in ("1", "true", "yes", "on"):
+                    from backend.services.ops.job_registry import register_job as _reg_job
+                    for _p, _desc, _on in (
+                        ("4h", "因子进化（4h 周期，出进程）", True),
+                        ("15m", "因子进化（15m 周期，出进程）", True),
+                        ("1h", "因子进化（1h 周期，出进程）", bool(_1h_evo_on)),
+                        ("5m", "因子进化（5m 周期，出进程；受 SCALP_RESEARCH_ENABLED 门控）",
+                         bool(_scalp_research_on)),
+                    ):
+                        if _on:
+                            _reg_job(f"factor_evolution_{_p}", cadence="daily",
+                                     description=_desc, owner="factor_evolution",
+                                     expected_interval_sec=24 * 3600)
+                    logger.info("[async] 因子进化任务已登记进 job_registry（4h/15m/1h%s）",
+                                "/5m" if _scalp_research_on else "")
+            except Exception as _jr_err:  # noqa: BLE001
+                logger.warning("[async] job_registry 登记失败（不影响调度）: %s", _jr_err)
             # V7 长期记忆维护（每日 06:50；只退役从未被检索且超 30 天的观察态教训）
             task_scheduler.add_cron_task(
                 task_func=run_v7_memory_maintenance,

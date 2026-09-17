@@ -1222,6 +1222,17 @@ FACTOR_EVAL_ROLLING_FAST: bool = os.getenv("FACTOR_EVAL_ROLLING_FAST", "true").l
     "true", "1", "yes", "on",
 )
 
+# [轮50 2026-09-17] 因子进化任务的 job_registry 可见性接线。
+# 背景（用户 2026-09-17 指出）：进化跑在分离子进程里、**从不写 job_registry**，
+# 于是无论成功/失败/超时，在 ops 面板、陈旧性检查、失败告警里**全是隐形的** ——
+# 失败只落进 logs/evo_subprocess.log 的一行 INFO，无人发现。
+# 开启后：任务在启动时登记（expected_interval=24h），运行经 job_run 包裹，
+# 成功记 ok+duration，异常/error 记 error 并触发 _alert_failure。
+# 回滚：置 false → 回到纯日志行为。
+FACTOR_EVO_JOB_REGISTRY: bool = os.getenv("FACTOR_EVO_JOB_REGISTRY", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+
 # S2-1：把量化简报（多周期一致性/结构位/数据完整度）注入 Swing/Trend prompt
 MIDLONG_QUANT_BRIEF_IN_PROMPT: bool = os.getenv("MIDLONG_QUANT_BRIEF_IN_PROMPT", "true").lower() in (
     "true", "1", "yes", "on",
