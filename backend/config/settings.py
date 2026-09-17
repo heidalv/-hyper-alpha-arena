@@ -1197,6 +1197,21 @@ WFO_IC_MAX_P: float = float(os.getenv("WFO_IC_MAX_P", "0.05"))            # 单�
 WFO_IC_MIN_OOS_IC: float = float(os.getenv("WFO_IC_MIN_OOS_IC", "0.01"))  # OOS IC 均值下限
 WFO_IC_MAX_DECAY: float = float(os.getenv("WFO_IC_MAX_DECAY", "0.50"))    # 相对训练 IC 衰退率上限
 
+# [轮48 2026-09-17 目标④「日内 + 长期趋势」] 周期语义对齐开关。
+# 背景：中线车道**硬契约**要求 indicators_1h（decision_core/data_contract.py:13）、
+# 消费周期含 15m/1h（full_auto/midlong_helpers.py:1815），但因子库里
+# 15m 20 个、1h 24 个，**全部被错标 horizon=scalp、0 candidate / 0 active**，
+# 且 1h **从来没有进化调度**（main.py 只有 4h/5m/15m）。
+# 语义真源见 backend/config/cycle_semantics.py。
+# FACTOR_EVO_INTRADAY_PERIODS：把这些周期改标为 horizon=intraday（默认空 = 维持现状）。
+#   建议值 "15m,1h"。只接受日内侧周期，越界项被忽略。
+FACTOR_EVO_INTRADAY_PERIODS: str = os.getenv("FACTOR_EVO_INTRADAY_PERIODS", "")
+# FACTOR_EVO_INTRADAY_1H_ENABLED：是否注册 1h 因子日进化（默认 true）。
+#   回滚：置 false 即跳过注册，无需改代码。
+FACTOR_EVO_INTRADAY_1H_ENABLED: bool = os.getenv("FACTOR_EVO_INTRADAY_1H_ENABLED", "true").lower() in (
+    "true", "1", "yes", "on",
+)
+
 # S2-1：把量化简报（多周期一致性/结构位/数据完整度）注入 Swing/Trend prompt
 MIDLONG_QUANT_BRIEF_IN_PROMPT: bool = os.getenv("MIDLONG_QUANT_BRIEF_IN_PROMPT", "true").lower() in (
     "true", "1", "yes", "on",

@@ -1453,6 +1453,7 @@ def on_startup():
                 run_online_weight_update,
                 run_scalp_factor_evolution_loop,
                   run_mid_factor_evolution_loop,
+                  run_intraday_1h_factor_evolution_loop,
                   run_v7_memory_maintenance,
             )
             from backend.services.scheduler import task_scheduler
@@ -1486,6 +1487,26 @@ def on_startup():
                 task_id="factor_evolution_mid_15m_daily_v7",
                 max_instances=1,
             )
+            # [轮48 2026-09-17 目标④] 日内 1h 完整进化（凌晨5点，避开 3/4/6 点三档）。
+            # 根因：中线车道的**硬契约**要求 indicators_1h（decision_core/data_contract.py:13），
+            # 消费周期也含 1h（full_auto/midlong_helpers.py:1815），但 1h **从来没有进化调度**
+            # —— main.py 只有 4h/5m/15m，evolution_scheduler._evo_minutes 也只有
+            # {"1m","15m","5m","4h"}。后果：因子库里 1h 仅 24 个，全部来自 2026-08-16
+            # 一次性灌入、全被错标 horizon=scalp、全部 rejected，**0 candidate / 0 active**
+            # —— 车道在消费 1h 数据，却一个 1h 因子都没有。
+            # 机器本身支持 1h：_PERIOD_SPLIT_DAYS["1h"]=(150,45,30)、_PERIOD_FWD_BARS["1h"]=2。
+            # 回滚：FACTOR_EVO_INTRADAY_1H_ENABLED=false（跳过注册），或删除本段。
+            from backend.config.settings import FACTOR_EVO_INTRADAY_1H_ENABLED as _1h_evo_on
+            if _1h_evo_on:
+                task_scheduler.add_cron_task(
+                    task_func=make_subprocess_task("1h", run_intraday_1h_factor_evolution_loop),
+                    hour=5, minute=0,
+                    task_id="factor_evolution_intraday_1h_daily",
+                    max_instances=1,
+                )
+                logger.info("[async] 已注册日内 1h 因子进化（每日 05:00）")
+            else:
+                logger.info("[async] FACTOR_EVO_INTRADAY_1H_ENABLED=false，跳过 1h 因子日进化注册")
             # V7 长期记忆维护（每日 06:50；只退役从未被检索且超 30 天的观察态教训）
             task_scheduler.add_cron_task(
                 task_func=run_v7_memory_maintenance,

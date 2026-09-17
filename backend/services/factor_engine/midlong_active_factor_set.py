@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 # 中长线 IC 退役阈值（时间框架更长、样本更少 → 门槛略低于短线）
 _RETIRE_ABS_IC = float(os.getenv("MIDLONG_ACTIVE_RETIRE_ABS_IC", "0.012"))
 _HORIZON = "midlong"
+# [轮48 2026-09-17 目标④] 本集合同时接纳「日内」档（horizon=intraday）。
+# 依据：中线车道实际中位持仓 3.2h、94% < 24h（= 日内），其消费的周期是
+# midlong_helpers.py:1815 的 ("15m","1h","4h","1d") —— 15m/1h 日内因子正是它的弹药。
+# 原判据只认 "midlong"，把日内因子挡在门外（因子库：15m 20 个 / 1h 24 个，
+# 0 candidate、0 active）。默认无 intraday 记录时行为与改动前逐位一致。
+_ACCEPTED_HORIZONS = ("midlong", "intraday")
 
 
 def _resolve_tenant_id() -> "int | None":
@@ -42,7 +48,8 @@ def _resolve_tenant_id() -> "int | None":
 
 
 def _is_midlong(rec: Dict[str, Any]) -> bool:
-    return str((rec.get("extra") or {}).get("horizon") or "scalp").lower() == _HORIZON
+    """[轮48] 接纳 midlong 与 intraday 两档（见 _ACCEPTED_HORIZONS 注释）。"""
+    return str((rec.get("extra") or {}).get("horizon") or "scalp").lower() in _ACCEPTED_HORIZONS
 
 
 class MidLongActiveFactorSet:

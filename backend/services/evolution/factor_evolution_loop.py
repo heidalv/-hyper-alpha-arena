@@ -3514,11 +3514,42 @@ def _run_evolution_loop_impl(symbols, period, quick, t0) -> dict:
 
 _SHORT_HORIZON_PERIODS = frozenset({"1m", "3m", "5m", "15m"})
 _SHORT_FACTOR_PREFIX = "s5m_"
+# [轮48 2026-09-17 目标④] 「日内」档前缀（与 s5m_ 短线档隔离）
+_INTRADAY_FACTOR_PREFIX = "intra_"
 
 
 def _tag_one_short_horizon(factor: dict, period: str | None) -> dict:
-    """短周期因子打 s5m_ 前缀 + source 含 horizon=scalp（与 4h 池隔离）。"""
+    """短周期因子打 s5m_ 前缀 + source 含 horizon=scalp（与 4h 池隔离）。
+
+    [轮48 2026-09-17 目标④「日内 + 长期趋势」] 新增「日内」档：
+    当周期出现在 `FACTOR_EVO_INTRADAY_PERIODS`（默认空 = 关闭）时，改打
+    `horizon=intraday` + `intra_` 前缀，**不再误标为 scalp**。
+
+    根因（实测）：15m 此前被打 `horizon=scalp`，而 `scalp_active_factor_set._is_scalp`
+    的判据是 `horizon != "midlong"`、`midlong_active_factor_set._is_midlong` 是
+    `horizon == "midlong"` —— 于是 15m 因子必然落进**已判死的短线池**，
+    永远无法进入交易（因子库现状：15m 20 个 / 1h 24 个，0 candidate、0 active）。
+    语义依据见 `backend/config/cycle_semantics.py`。
+
+    默认（列表为空）行为与改动前逐位一致。
+    """
     p = period or DEFAULT_PERIOD
+    # ── 日内档（默认关闭）──
+    try:
+        from backend.config.cycle_semantics import INTRADAY, is_intraday_tagged_period
+        if is_intraday_tagged_period(p):
+            fid = str(factor.get("factor_id") or "")
+            if fid and not fid.startswith(_INTRADAY_FACTOR_PREFIX):
+                factor["factor_id"] = f"{_INTRADAY_FACTOR_PREFIX}{fid}"
+            if factor.get("expr_id") and not str(factor["expr_id"]).startswith(_INTRADAY_FACTOR_PREFIX):
+                factor["expr_id"] = f"{_INTRADAY_FACTOR_PREFIX}{factor['expr_id']}"
+            src = str(factor.get("source") or "")
+            tag = f"horizon={INTRADAY}|period={p}"
+            if tag not in src:
+                factor["source"] = f"{src}|{tag}" if src else tag
+            return factor
+    except Exception:
+        pass  # 语义模块不可用时退回历史行为，不影响主链路
     if p not in _SHORT_HORIZON_PERIODS:
         return factor
     fid = str(factor.get("factor_id") or "")
@@ -3576,6 +3607,29 @@ def run_v7_memory_health() -> dict:
         return stats()
     except Exception as e:
         return {"error": str(e)}
+
+
+def run_intraday_1h_factor_evolution_loop(symbols=None, source: str | None = None) -> dict:
+    """[轮48 2026-09-17 目标④] 日内 1h 完整进化入口。
+
+    为什么需要它：中线车道的**硬契约**要求 indicators_1h
+    （`backend/services/decision_core/data_contract.py:13`），消费周期也含 1h
+    （`backend/services/full_auto/midlong_helpers.py:1815`），但 1h 此前
+    **从来没有进化调度** —— main.py 只有 4h(03:00)/5m(04:00)/15m(06:00)，
+    `evolution_scheduler._evo_minutes` 也只有 {"1m","15m","5m","4h"}。
+    后果：因子库 1h 仅 24 个，全来自 2026-08-16 一次性灌入、被错标 horizon=scalp、
+    全部 rejected，**0 candidate / 0 active**。
+
+    机器本身支持 1h：`_PERIOD_SPLIT_DAYS["1h"]=(150,45,30)`、
+    `_PERIOD_FWD_BARS["1h"]=2`（前瞻 2h，与日内持仓节奏一致）。
+
+    调度：main.py cron 每日 05:00（避开 3/4/6 点三档），
+    受 `FACTOR_EVO_INTRADAY_1H_ENABLED`（默认 true）门控。
+    """
+    logger.info("[FactorEvo] ═══ 日内 1h 完整进化启动（非 quick）═══")
+    return run_factor_evolution_loop(symbols=symbols, period="1h", quick=False,
+                                     source=source or "intraday_1h_cron")
+
 
 def run_online_weight_update(symbols=None) -> dict:
     # [2026-08-31 修复] lookback=500 触发深度门槛告警(need=5450)且权重口径过短；

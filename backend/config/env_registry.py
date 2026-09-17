@@ -1797,6 +1797,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "WFO_IC_MAX_DECAY",
     "WFO_IC_MAX_P",
     "WFO_IC_MIN_OOS_IC",
+    # [轮48 2026-09-17 目标④] 周期语义对齐（config/cycle_semantics.py + main.py 读取）
+    "FACTOR_EVO_INTRADAY_1H_ENABLED",
+    "FACTOR_EVO_INTRADAY_PERIODS",
     "WS_DELTA_MODE",
 })
 

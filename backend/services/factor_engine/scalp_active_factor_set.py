@@ -28,8 +28,17 @@ _RETIRE_ICIR = float(os.getenv("SCALP_ACTIVE_RETIRE_ICIR", "0.3"))
 
 
 def _is_scalp(rec: Dict[str, Any]) -> bool:
-    """非 midlong 标签的（含未标记）都归短线，避免与中长线因子集混淆。"""
-    return str((rec.get("extra") or {}).get("horizon") or "scalp").lower() != "midlong"
+    """非 midlong 标签的（含未标记）都归短线，避免与中长线因子集混淆。
+
+    [轮48 2026-09-17 目标④] 「日内」档（`horizon=intraday`）**不再算作短线**：
+    该档由中线车道消费（实测中线中位持仓 3.2h = 日内），若继续归入短线池，
+    就会落进已判死（SCALP_OPEN_DISABLED=true / SCALP_RESEARCH_ENABLED=false）的车道
+    —— 这正是 15m 因子 0 candidate / 0 active 的结构性原因之一。
+    语义依据见 `backend/config/cycle_semantics.py`。
+    默认无任何记录带 intraday 标签时，本函数行为与改动前逐位一致。
+    """
+    h = str((rec.get("extra") or {}).get("horizon") or "scalp").lower()
+    return h not in ("midlong", "intraday")
 
 
 def _resolve_tenant_id() -> Optional[int]:
