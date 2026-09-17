@@ -1188,6 +1188,15 @@ FACTOR_SCORER_MIDLONG_FWD_4H: int = int(os.getenv("FACTOR_SCORER_MIDLONG_FWD_4H"
 FACTOR_SCORER_MIDLONG_FWD_1D: int = int(os.getenv("FACTOR_SCORER_MIDLONG_FWD_1D", "3"))    # ≈3天
 FACTOR_SCORER_MIDLONG_MIN_SHARPE: float = float(os.getenv("FACTOR_SCORER_MIDLONG_MIN_SHARPE", "0.4"))
 
+# [轮46 2026-09-17 §73.4 补齐] IC-WFO 晋升判据阈值。此前整族 WFO_IC_* 只由
+# backend/services/evolution/factor_wfo.py 直接 os.getenv 读取、settings 未声明
+# （死键校验被 SYSTEM_PREFIXES 的 "WFO_" 前缀覆盖，但 settings 侧缺单一声明源）。
+# 三个判据里原本只有 p 是硬编码常量，现补 WFO_IC_MAX_P 供晋升闸门调档；
+# 默认值全部 = 原行为（0.05/0.01/0.50），改动需显式设置 env。
+WFO_IC_MAX_P: float = float(os.getenv("WFO_IC_MAX_P", "0.05"))            # 单边 t 检验显著性上限
+WFO_IC_MIN_OOS_IC: float = float(os.getenv("WFO_IC_MIN_OOS_IC", "0.01"))  # OOS IC 均值下限
+WFO_IC_MAX_DECAY: float = float(os.getenv("WFO_IC_MAX_DECAY", "0.50"))    # 相对训练 IC 衰退率上限
+
 # S2-1：把量化简报（多周期一致性/结构位/数据完整度）注入 Swing/Trend prompt
 MIDLONG_QUANT_BRIEF_IN_PROMPT: bool = os.getenv("MIDLONG_QUANT_BRIEF_IN_PROMPT", "true").lower() in (
     "true", "1", "yes", "on",

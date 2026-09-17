@@ -44,6 +44,12 @@ _WFO_IC_STEP_DAYS = int(os.getenv("WFO_IC_STEP_DAYS", "7"))
 _WFO_IC_MIN_OOS_IC = float(os.getenv("WFO_IC_MIN_OOS_IC", "0.01"))
 _WFO_IC_MAX_DECAY = float(os.getenv("WFO_IC_MAX_DECAY", "0.50"))  # 衰退率 <50% 视为稳定
 _WFO_IC_MIN_WINDOWS = int(os.getenv("WFO_IC_MIN_WINDOWS", "3"))
+# [轮46 2026-09-17] 单边 t 检验 p 的显著性阈值。此前**硬编码 0.05**（唯一无开关的判据），
+# 实测它是唯一普遍性杀手：181 条"失败币"记录中 100% 都有 p ≥ 0.05，
+# 而 IC（62% 达标）与衰退率（56% 达标）都不是主因；
+# 41 个晋级候选在 p<0.05 下通过 0 个，与线上连续 7 天 promoted=0 完全吻合。
+# 默认 0.05 = 原行为，改动它需显式设置 env（回滚：删除该键或置 0.05）。
+_WFO_IC_MAX_P = float(os.getenv("WFO_IC_MAX_P", "0.05"))
 
 # [2026-09-03 审查修正 B] IC-WFO 窗口按周期分档。原 60/15/7 天是 4h 档口径，对
 # 5m（进化取数 50 天）/15m（70 天）永远凑不出一个窗 → insufficient_windows:0 →
@@ -434,7 +440,7 @@ def run_factor_wfo_ic(
 
     判据（全配置化）：
         - OOS IC 均值 ≥ WFO_IC_MIN_OOS_IC（默认 0.01）
-        - OOS IC 单边 t 检验 p < 0.05（显著性）
+        - OOS IC 单边 t 检验 p < WFO_IC_MAX_P（默认 0.05；[轮46] 此前为硬编码 0.05）
         - 相对训练 IC 衰退率 < 50%（WFO_IC_MAX_DECAY，|train|−|oos| 相对 |train|）
 
     返回 dict：{passed, skipped, oos_ic_series, train_ic_series, oos_ic_mean,
@@ -544,7 +550,7 @@ def run_factor_wfo_ic(
 
         passed = (
             oos_mean >= _WFO_IC_MIN_OOS_IC
-            and oos_p < 0.05
+            and oos_p < _WFO_IC_MAX_P
             and decay_rate < _WFO_IC_MAX_DECAY
         )
         result = {
