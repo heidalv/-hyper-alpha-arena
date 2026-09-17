@@ -191,6 +191,35 @@ def _cached_regime_for(symbol: str) -> str:
         return ""
 
 
+def _resolve_regime(symbol: str, market_summary=None) -> str:
+    """[轮59] 尽力取 regime：缓存 -> 现场 classify_regime。取不到返回 ""（=> 不反号，保持原行为）。"""
+    # [轮59e] 首选与拦截门**同一个源**：midlong_circuit_gate._daily_regime。
+    # 轮59d 实测：classify_regime 给 "ranging"，而门用 _daily_regime 给 "up" ——
+    # 两个源不一致会让反号永不触发（门说趋势、我以为震荡）。
+    try:
+        from backend.services.full_auto.midlong_circuit_gate import _daily_regime
+        r = str(_daily_regime(symbol) or "").strip().lower()
+        if r:
+            return r
+    except Exception:
+        pass
+    try:
+        from backend.services.full_auto.midlong_executor import get_cached_regime
+        r = str(get_cached_regime(symbol) or "").strip().lower()
+        if r:
+            return r
+    except Exception:
+        pass
+    try:
+        from backend.services.decision_core.regime_agent import classify_regime
+        ms = {}
+        if isinstance(market_summary, dict):
+            ms = market_summary.get(symbol) or {}
+        return str(classify_regime(ms if isinstance(ms, dict) else {}).regime or "").strip().lower()
+    except Exception:
+        return ""
+
+
 def _zscore_last(vals: np.ndarray) -> Optional[float]:
     finite = vals[np.isfinite(vals)]
     if len(finite) < 20:
@@ -332,7 +361,9 @@ def factor_route_decide(
     _neg_ic_n = 0
     # [轮58 2026-09-17] 趋势 regime 下反转因子反号所需的两个上下文（见文件上方说明）
     _invert_on = _trend_invert_enabled()
-    _regime_now = _cached_regime_for(sym) if _invert_on else ""
+    # [轮59 修正] 轮58 用的 _cached_regime_for 实测对全部币返回空串 ⇒ 反号分支从不执行。
+    # 改为 _resolve_regime：缓存 → 现场 classify_regime（抄 midlong_executor.py:519-528）。
+    _regime_now = _resolve_regime(sym, market_summary) if _invert_on else ""
     if _invert_on and _regime_now in _TREND_REGIMES:
         out["trend_invert_regime"] = _regime_now
     for rec in active:
@@ -373,7 +404,11 @@ def factor_route_decide(
         # [轮58 2026-09-17] 趋势 regime 下反转因子反号（见文件上方 _TREND_REGIMES 说明）。
         # 只改 vote 的符号，usable/weighted/weight_sum 口径不变 ⇒ 不会把路由关死。
         _inv = False
-        if _invert_on and _regime_now in _TREND_REGIMES and _is_reversal_factor(rec):
+        # [轮59 修正] 判据从"名字含 rev"改为 **orient < 0**（已被反手使用的因子）。
+        # 轮58 实测作废：中线实际消费的 16 个因子全是 registry 公式因子
+        # （macd/momentum/vwap/obv/sma_cross/supertrend），名字里没有 rev，但 IC 全负
+        # ⇒ expected_sign=-1 ⇒ 趋势指标被反手成逆势信号 ⇒ 上涨行情一致投空。
+        if _invert_on and _regime_now in _TREND_REGIMES and orient < 0:
             vote = -vote
             _inv = True
         _rec_vote = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4)}
