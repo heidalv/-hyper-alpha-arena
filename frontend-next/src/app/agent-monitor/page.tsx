@@ -82,7 +82,7 @@ export default function AgentMonitorPage() {
       <PageHeader
         icon={<Radar className="w-4 h-4" />}
         title="Agent 运行监控"
-        subtitle="LLM 论题主脑 · 日内波段/中线/长线三车道 · 哨兵盯盘"
+        subtitle="LLM 论题主脑 · 日内波段(=中线) / 长线趋势 两车道 · 哨兵盯盘"
         refreshHint="会话状态 15s 轮询"
         breadcrumb={[{ label: "交易核心" }, { label: "Agent 监控" }]}
         actions={
@@ -307,16 +307,16 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
   const findJob = (pattern: string) => jobs.find((j: any) => j.id?.includes(pattern));
   const midlongJob = findJob("midlong");
 
+  // [轮55 2026-09-17 用户口径] 「日内波段」**就是中线**，两者是同一件事，不能拆成两张卡。
+  // 依据：中线车道实测中位持仓 3.2h、94% < 24h（= 日内），唯一真长周期的是长线车道。
+  // 因此本页只展示**两条**车道：日内波段(=mid) 与 长线趋势(long)。
+  // 原 `short`(短线/scalp) 车道已判负期望关停（SCALP_OPEN_DISABLED=true /
+  // SCALP_RESEARCH_ENABLED=false），其卡片不再展示 —— 此前前端错把它命名为
+  // 「日内波段」，造成「日内波段」与「中线波段」两张卡并存、语义打架。
   const laneCards = [
     {
-      key: "short", name: "日内波段", icon: Zap, color: "primary" as const,
-      engine: labels.short ?? "日内波段 · LLM 论题（1h）",
-      interval: intervals.short, lane: lanes.short,
-      desc: "持仓 2-12h · 每币冷却 4h · TP 3.5% / SL 2%",
-    },
-    {
-      key: "mid", name: "中线波段", icon: Boxes, color: "profit" as const,
-      engine: labels.mid ?? "中线 LLM 论题主脑",
+      key: "mid", name: "日内波段", icon: Boxes, color: "profit" as const,
+      engine: labels.mid ?? "日内波段（中线）LLM 论题主脑",
       interval: intervals.mid, lane: lanes.mid,
       desc: "持仓 12h-48h · 论题 4h TTL · 18h 无进展复盘",
     },
@@ -336,26 +336,26 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
         <StatusPill label="会话" ok={!!runningSession} detail={runningSession ? `${runningSession.account_name} · ${runningSession.status}` : "无活跃会话"} />
         <StatusPill label="调度任务" ok={jobs.length > 0} detail={`${jobs.length} 个 job`} />
         <StatusPill label="主脑" ok={tickIntervals.data?.brain_mode === "llm"} detail={tickIntervals.data?.brain_mode === "llm" ? "LLM 论题驱动" : "未启用"} />
-        <StatusPill label="日内波段" ok={!!tickIntervals.data?.intraday_enabled} detail={tickIntervals.data?.intraday_enabled ? `${intervals.short}s/tick` : "已停用"} />
+        <StatusPill label="日内波段" ok={!!runningSession} detail={`${intervals.mid}s/tick`} />
       </div>
 
       {/* 风控冻结状态（组合预算止血可见性：全局/账户/策略/交易对四级） */}
       <PortfolioBudgetBanner state={pbState.data} />
 
-      {/* ── 三车道卡片：活着吗？在干什么？赚了还是亏了？ ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* ── 两车道卡片：日内波段(=中线) 与 长线趋势 ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {laneCards.map((t) => {
           const lane = t.lane;
-          const isLive = t.key === "short" ? !!tickIntervals.data?.intraday_enabled : true;
+          const isLive = true;   // [轮55] 已无"依赖 intraday_enabled 才存活"的车道（短线卡已移除）
           return (
             <Card key={t.key} className="p-4 space-y-2.5 relative overflow-hidden">
               <div className={cn("absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl opacity-10",
-                t.color === "primary" ? "bg-primary" : t.color === "profit" ? "bg-profit" : "bg-warning")} />
+                t.color === "profit" ? "bg-profit" : "bg-warning")} />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center",
-                    t.color === "primary" ? "bg-primary/10" : t.color === "profit" ? "bg-profit/10" : "bg-warning/10")}>
-                    <t.icon className={cn("w-4 h-4", t.color === "primary" ? "text-primary" : t.color === "profit" ? "text-profit" : "text-warning")} />
+                    t.color === "profit" ? "bg-profit/10" : "bg-warning/10")}>
+                    <t.icon className={cn("w-4 h-4", t.color === "profit" ? "text-profit" : "text-warning")} />
                   </div>
                   <div>
                     <div className="text-sm font-medium flex items-center gap-1.5">
@@ -442,7 +442,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
                   const holdLabel = Number.isFinite(holdH)
                     ? (holdH >= 24 ? `${(holdH / 24).toFixed(1)}天` : `${holdH.toFixed(1)}h`)
                     : "—";
-                  const tierLabel: Record<string, string> = { short: "日内", mid: "中线", long: "长线" };
+                  const tierLabel: Record<string, string> = { short: "短线(已停)", mid: "日内波段", long: "长线趋势" };
                   return (
                     <tr key={p.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
                       <td className="px-4 py-2 font-medium">
@@ -500,7 +500,7 @@ function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: an
   const lastUpdate = theses.length
     ? new Date(Math.max(...theses.map((t: any) => new Date(t.updated_at ?? 0).getTime()))).toLocaleTimeString("zh-CN", { hour12: false })
     : "--";
-  const tierName: Record<string, string> = { short: "日内", mid: "中线", long: "长线" };
+  const tierName: Record<string, string> = { short: "短线(已停)", mid: "日内波段", long: "长线趋势" };
 
   return (
     <Card className="p-4">
@@ -509,7 +509,7 @@ function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: an
           <Brain className="w-4 h-4 text-warning" /> 论题台账 · LLM 主脑
         </span>
         <div className="flex items-center gap-1.5">
-          {["all", "short", "mid", "long"].map((f) => (
+          {["all", "mid", "long"].map((f) => (
             <button key={f} onClick={() => setTierFilter(f)}
               className={cn("px-2 py-0.5 text-xs rounded cursor-pointer transition-colors",
                 tierFilter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
@@ -591,7 +591,7 @@ function TierActivityPanels({ sessionId }: { sessionId?: string }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <TierActivityColumn title="日内波段" items={acts.short ?? []} color="primary" icon={Zap} />
+      <TierActivityColumn title="日内波段" items={acts.mid ?? []} color="profit" icon={Boxes} />
       <TierActivityColumn title="中线(论题)" items={acts.mid ?? []} color="profit" icon={Boxes} />
       <TierActivityColumn title="固定长线" items={acts.long ?? []} color="warning" icon={Boxes} />
     </div>
@@ -1069,7 +1069,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
         />
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: labels.short ?? "日内波段", val: intervals.short, color: "text-primary" },
+            { label: labels.mid ?? "日内波段", val: intervals.mid, color: "text-profit" },
             { label: labels.mid ?? "AI中线", val: intervals.mid ?? intervals.long, color: "text-profit" },
             { label: labels.long ?? "固定长线", val: intervals.long, color: "text-warning" },
           ].map(t => (
