@@ -431,6 +431,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [调研轮37/39 2026-09-17] 做空专项：模板族禁开空 + 空单规模乘子
     "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES",
     "MIDLONG_SHORT_SIZE_MULT",
+    # [调研轮40 2026-09-17] 模板族治理：退出 long 车道（tpl_long 21 笔均 −6.06）
+    "MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES",
     "MIDLONG_PULLBACK_ENTRY_ENABLED",
     "MIDLONG_PULLBACK_ENTRY_PCT",
     "MIDLONG_PULLBACK_ENTRY_TIMEOUT_S",
