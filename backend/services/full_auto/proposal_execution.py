@@ -103,19 +103,36 @@ def evaluate_and_execute_proposal(
     #   * 模板族在多头侧同样是最大亏损来源（long −127/21 笔）⇒ 让它**只提供证据、不驱动做空**。
     # 语义：仅拦**做空**且**解析到模板族策略**的开仓；多头与非模板来源空单不受影响。
     # 回滚：MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=false。
-    if action in ("sell",):
+    if action in ("sell",) or str(tier or "").lower() == "long":
         try:
-            from backend.config.settings import MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES as _sbt
-        except Exception:
-            _sbt = True
-        _sid_now = str(getattr(strat, "strategy_id", "") or "")
-        if _sbt and _sid_now.startswith("tpl_"):
-            logger.info(
-                "[Agent独立] %s tier=%s 模板族策略禁止开空（sid=%s）",
-                sym_u, tier, _sid_now[:14],
+            from backend.config.settings import (
+                MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES as _lbt,
+                MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES as _sbt,
             )
-            _mark_block("short_template_source_block", detail=f"sid={_sid_now[:14]}")
-            return False
+        except Exception:
+            _sbt, _lbt = True, True
+        _sid_now = str(getattr(strat, "strategy_id", "") or "")
+        if _sid_now.startswith("tpl_"):
+            if action in ("sell",) and _sbt:
+                logger.info(
+                    "[Agent独立] %s tier=%s 模板族策略禁止开空（sid=%s）",
+                    sym_u, tier, _sid_now[:14],
+                )
+                _mark_block("short_template_source_block", detail=f"sid={_sid_now[:14]}")
+                return False
+            # ── [调研轮40 2026-09-17] **模板族退出 long 车道** ──
+            # 依据（30 天按来源 × 车道）：`tpl_模板` long **21 笔净 −127.29、均 −6.06**，
+            # 是该车道唯一的大额亏损格；而 long 车道唯一为正的是 `trend_e1`（+29.80、胜率 64%）
+            # 与 `auto_全自动`（+11.60）。mid 侧模板族基本打平（85 笔均 −0.52）⇒
+            # 让模板族**只做 mid**，退出 long（空头侧已在轮37 掐掉）。
+            # 回滚：MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false。
+            if str(tier or "").lower() == "long" and _lbt:
+                logger.info(
+                    "[Agent独立] %s tier=long 模板族策略禁止开多（sid=%s）",
+                    sym_u, _sid_now[:14],
+                )
+                _mark_block("long_template_source_block", detail=f"sid={_sid_now[:14]}")
+                return False
 
     _trade_mode = host.session_trading_mode(session)
     account_id = int(getattr(session, "paper_account_id", None) or getattr(session, "account_id", None) or 0)

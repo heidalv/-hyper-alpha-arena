@@ -50,11 +50,11 @@ class _Host:
                                timeframe_tier=tier, account_id=14)
 
 
-def _call(host, action="sell"):
+def _call(host, action="sell", tier="mid"):
     """调用被测函数；**后续环节**（无 db / 无真实依赖）的异常不影响断言。"""
     try:
         return pe.evaluate_and_execute_proposal(
-            db=None, session=_session(), proposal=_proposal(action),
+            db=None, session=_session(), proposal=_proposal(action, tier=tier),
             market_summary={}, host=host, session_mode="running",
         )
     except Exception:  # noqa: BLE001
@@ -103,3 +103,30 @@ def test_switch_off_is_rollback(monkeypatch, _capture_blocks):
     monkeypatch.setattr(s, "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES", False, raising=False)
     _call(_Host("tpl_mid_range_abc123"), "sell")
     assert not any(c == "short_template_source_block" for c, _ in _capture_blocks)
+
+
+# ── [调研轮40 2026-09-17] 模板族治理：退出 long 车道 ──────────────────
+def test_template_long_lane_is_blocked(_capture_blocks):
+    """模板族 + tier=long ⇒ 拦（tpl_long 21 笔均 −6.06，是该车道最大亏损格）。"""
+    _call(_Host("tpl_long_swing_5febbb", ), "buy", tier="long")
+    assert any(c == "long_template_source_block" for c, _ in _capture_blocks), _capture_blocks
+
+
+def test_template_mid_lane_still_allowed(_capture_blocks):
+    """模板族 + mid ⇒ **不拦**（mid 侧基本打平，仍保留其交易）。"""
+    _call(_Host("tpl_mid_range_abc123"), "buy", tier="mid")
+    assert not any(c == "long_template_source_block" for c, _ in _capture_blocks), _capture_blocks
+
+
+def test_non_template_long_lane_still_allowed(_capture_blocks):
+    """非模板来源的 long 不拦（trend_e1 +29.80 / auto_全自动 +11.60 是长线唯一为正的来源）。"""
+    _call(_Host("trend_e1:BTC"), "buy", tier="long")
+    assert not any(c == "long_template_source_block" for c, _ in _capture_blocks), _capture_blocks
+
+
+def test_long_block_switch_off_rollback(monkeypatch, _capture_blocks):
+    from backend.config import settings as s
+
+    monkeypatch.setattr(s, "MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES", False, raising=False)
+    _call(_Host("tpl_long_swing_5febbb"), "buy", tier="long")
+    assert not any(c == "long_template_source_block" for c, _ in _capture_blocks)

@@ -2434,6 +2434,15 @@ MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES: bool = os.getenv(
 # 再按比例缩规模。应用点：decision_core.pipeline 收口处 adjustments.size_multiplier × 本值
 # （仅 action=sell）。回滚：>=1 或 0 = 不缩。
 MIDLONG_SHORT_SIZE_MULT: float = float(os.getenv("MIDLONG_SHORT_SIZE_MULT", "0.5"))
+# [调研轮40 2026-09-17] **模板族退出 long 车道**（模板族治理第 1 步）。
+# 依据（30 天 按来源 × 车道）：`tpl_模板` long **21 笔净 −127.29、均 −6.06** 是该车道最大亏损格；
+# long 车道唯一为正的是 `trend_e1`（+29.80、胜率 64%）与 `auto_全自动`（+11.60）；
+# mid 侧模板族基本打平（85 笔均 −0.52）⇒ 让模板族**只做 mid**（空头侧已在轮37 掐掉）。
+# 语义：仅拦「tier=long + 解析到 tpl_ 策略行」的开仓；mid/其它来源不受影响。
+# 回滚：MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false。
+MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES: bool = os.getenv(
+    "MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES", "true"
+).lower() in ("1", "true", "yes", "on")
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。
