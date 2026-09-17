@@ -500,12 +500,26 @@ def rolling_decay(
                 "neg_streak": 0, "decayed": False}
     f = df["f"].values
     r = df["r"].values
-    ics = []
-    i = 0
-    while i + window <= len(df):
-        ics.append(information_coefficient(f[i:i + window], r[i:i + window], method=method))
-        i += step
-    window_ics = np.array(ics)
+    # [轮53 2026-09-17] 向量化快路径：rolling_decay 的逐窗循环是评估阶段**剩余**的
+    # CPU 热点（step=7、6770 根 ≈ 967 次/币 × 9 币 × 68 候选 ≈ 59 万次 scipy 调用），
+    # 未被轮49 的 time_series_ic 快路径覆盖。这里复用同一个已验证等价的助手。
+    # 条件：spearman + 开关开 + window>=5（window<5 时老路径走 information_coefficient
+    # 的 mask.sum()<5 → 0.0，而快路径会算真实相关，故必须排除）。
+    if method == "spearman" and window >= 5 and _rolling_fast_enabled():
+        try:
+            _starts = np.arange(0, len(df) - window + 1, max(1, int(step)), dtype=np.int64)
+            window_ics = _rolling_spearman_batch(f, r, _starts, window)
+        except Exception:
+            window_ics = None
+    else:
+        window_ics = None
+    if window_ics is None:
+        ics = []
+        i = 0
+        while i + window <= len(df):
+            ics.append(information_coefficient(f[i:i + window], r[i:i + window], method=method))
+            i += step
+        window_ics = np.array(ics)
     if len(window_ics) < 2:
         return {"window_ics": window_ics, "trend_slope": 0.0, "decay_p": 1.0,
                 "first_half_mean_ic": float(np.mean(window_ics)) if len(window_ics) else 0.0,

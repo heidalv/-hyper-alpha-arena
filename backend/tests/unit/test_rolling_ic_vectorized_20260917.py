@@ -146,3 +146,62 @@ def test_fast_path_is_actually_faster(monkeypatch):
     speedup = t_legacy / max(t_fast, 1e-9)
     print(f"\n[bench] n={n} legacy={t_legacy:.3f}s fast={t_fast:.4f}s speedup={speedup:.1f}x")
     assert speedup > 5.0, f"加速比仅 {speedup:.1f}x，低于 5x 门槛"
+
+
+# ── [轮53] rolling_decay 的同类逐窗循环（评估阶段剩余热点）────────────────
+
+def _legacy_decay(f, r, window, step):
+    """复刻 rolling_decay 的老逐窗路径。"""
+    from backend.services.factor_engine.evaluation import information_coefficient
+    df = pd.DataFrame({"f": f, "r": r}).dropna()
+    fv, rv = df["f"].values, df["r"].values
+    ics, i = [], 0
+    while i + window <= len(df):
+        ics.append(information_coefficient(fv[i:i + window], rv[i:i + window], method="spearman"))
+        i += step
+    return np.array(ics)
+
+
+def test_rolling_decay_equivalence(monkeypatch):
+    """rolling_decay 快路径必须与逐窗 scipy 逐元素一致（含多个 window/step 组合）。"""
+    from backend.services.factor_engine.evaluation import rolling_decay
+    rng = np.random.default_rng(4242)
+    n = 1200
+    f = rng.normal(size=n)
+    r = rng.normal(size=n)
+    f[::91] = np.nan          # 含 NaN，验证 dropna 对齐
+    fs, rs = pd.Series(f), pd.Series(r)
+    for window, step in ((20, 7), (10, 3), (30, 1), (5, 5)):
+        monkeypatch.setenv("FACTOR_EVAL_ROLLING_FAST", "0")
+        legacy = _legacy_decay(fs.values, rs.values, window, step)
+        monkeypatch.setenv("FACTOR_EVAL_ROLLING_FAST", "1")
+        got = rolling_decay(fs, rs, window=window, step=step)["window_ics"]
+        np.testing.assert_allclose(got, legacy, rtol=0, atol=1e-12,
+                                   err_msg=f"window={window} step={step} 不一致")
+
+
+def test_rolling_decay_window_below_5_falls_back(monkeypatch):
+    """window<5 必须走老路径（那里 information_coefficient 的 mask.sum()<5 规则生效）。"""
+    from backend.services.factor_engine.evaluation import rolling_decay
+    rng = np.random.default_rng(11)
+    f = pd.Series(rng.normal(size=300))
+    r = pd.Series(rng.normal(size=300))
+    for flag in ("0", "1"):
+        monkeypatch.setenv("FACTOR_EVAL_ROLLING_FAST", flag)
+        ics = rolling_decay(f, r, window=4, step=2)["window_ics"]
+        assert np.all(ics == 0.0), f"flag={flag}: window<5 应全为 0.0"
+
+
+def test_rolling_decay_faster(monkeypatch):
+    import time
+    from backend.services.factor_engine.evaluation import rolling_decay
+    rng = np.random.default_rng(5)
+    n = 3000
+    f = pd.Series(rng.normal(size=n))
+    r = pd.Series(rng.normal(size=n))
+    monkeypatch.setenv("FACTOR_EVAL_ROLLING_FAST", "0")
+    t0 = time.perf_counter(); rolling_decay(f, r, window=20, step=7); tl = time.perf_counter() - t0
+    monkeypatch.setenv("FACTOR_EVAL_ROLLING_FAST", "1")
+    t0 = time.perf_counter(); rolling_decay(f, r, window=20, step=7); tf = time.perf_counter() - t0
+    print(f"\n[bench-decay] legacy={tl:.3f}s fast={tf:.4f}s speedup={tl/max(tf,1e-9):.0f}x")
+    assert tl / max(tf, 1e-9) > 5.0
