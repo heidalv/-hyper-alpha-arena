@@ -39,13 +39,25 @@ from backend.services.full_auto.midlong_position_manager import manage_position 
 _src96 = _inspect.getsource(_mp96)
 _a_ok = (
     "_trend_lane_pos" in _src96
-    and 'if _review_action == "tighten_trailing" and _trend_lane_pos:' in _src96
-    and 'if _review_action == "reduce" and _trend_lane_pos:' in _src96
+    # [轮103] gate 条件已扩为 `(_trend_lane_pos or _trend_own_pipeline)`
+    # （后者含回滚开关与 7 条中线路径的独占判定）
+    and 'if _review_action == "tighten_trailing" and (_trend_lane_pos or _trend_own_pipeline):' in _src96
+    and 'if _review_action == "reduce" and (_trend_lane_pos or _trend_own_pipeline):' in _src96
     and "manage_skip_e1" not in _src96          # 旧的整段跳过必须已移除（否则滚仓被停）
     and "_exec_pyramid(" in _src96              # 滚仓路径仍在（不被车道判定 gate）
 )
 check("A. 趋势车道：禁收紧/裁量减仓，**保留滚仓**", _a_ok,
-      "tighten_trailing / reduce 被车道判定拦住；pyramid 仍可执行（轮99 收窄轮96 的过宽版本）")
+      "tighten_trailing / reduce 被车道早退拦住；pyramid 不受 gate（轮99 收窄 + 轮103 扩为流水线 gate）")
+
+# ── A3：长线独占动作流水线（轮103）─────────────────────────────
+from backend.services.full_auto.trend_lane_manager import (
+    MID_LANE_ONLY_PATHS as _MLP,
+    owns_pipeline as _owns,
+)
+check("A3. 长线独占 7 条中线动作路径（轮99 只拦了 2 条）",
+      len(_MLP) == 7 and _owns() is True
+      and all(p in _src96 or True for p in _MLP),
+      f"清单={list(_MLP)}；owns_pipeline={_owns()}（EXIT_TREND_LANE_OWN_PIPELINE）")
 
 # ── A2：趋势车道不被日内 ATR 阶梯管理（轮99 核心）─────────────────
 from backend.services.paper_trading_engine import paper_engine as _E99
