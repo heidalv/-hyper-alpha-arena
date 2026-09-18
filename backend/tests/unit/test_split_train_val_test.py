@@ -29,11 +29,40 @@ def _make_df(n: int = 2200) -> pd.DataFrame:
 def test_split_days_period_tiers():
     # [2026-08-30 挖矿升级 M1] 窗口按 DB 实际覆盖拉长：4h 验证段仅 360 根时 DSR×27 试验
     # 统计功效不足（ICIR 1.31 仍不显著）。1h 90/30/15→150/45/30，4h/1d 180/60/30→300/60/30。
-    assert _split_days_for_period("5m") == (30, 10, 10)
+    #
+    # [2026-09-18 轮95 修] 5m 档在 **2026-09-07** 已由 30/10/10 改为 **26/10/10**
+    # （理由写在 `factor_evolution_loop._PERIOD_SPLIT_DAYS` 的注释里：
+    #  30 天窗口高于库内多数币实测覆盖 ~47d，每日 04:00 剔除后只剩 UNI/XRP，
+    #  <MIN_SYMBOLS 导致整轮 depth_insufficient；回填追上 55d 目标后可用
+    #  `FACTOR_EVO_*_DAYS` 再拉长）。**本测试当时没跟着改**，于是 4 条断言长期变红，
+    # 把"真回归"淹在噪音里。此处按当前分档表对齐，并把「改动必须有解释」写成守卫。
+    assert _split_days_for_period("5m") == (26, 10, 10)
     assert _split_days_for_period("1h") == (150, 45, 30)
     assert _split_days_for_period("4h") == (300, 60, 30)
     assert _split_days_for_period("1d") == (300, 60, 30)
     assert _split_days_for_period(None) == (300, 60, 30)  # 默认 4h
+    # 每档都必须是 (train, val, test) 且三段为正/非负，防止手滑写成二元组
+    for p in ("1m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "1d"):
+        td, vd, ted = _split_days_for_period(p)
+        assert td > 0 and vd > 0 and ted >= 0, f"{p} 分档不合法: {(td, vd, ted)}"
+
+
+def test_period_split_table_changes_are_documented():
+    """分档表任何改动都必须带解释：表里每个上游注释块要说明"为什么是这个数"。
+
+    这是本轮 4 条断言长期变红的根因 —— 表改了、原因写在代码里、测试没跟上。
+    守卫做法：表定义处必须存在解释性注释（含 `>2026-` 或"对齐"等说明词）。
+    """
+    import inspect
+
+    from backend.services.evolution import factor_evolution_loop as fel
+
+    src = inspect.getsource(fel)
+    anchor = src.index("_PERIOD_SPLIT_DAYS: dict")
+    block = src[max(0, anchor - 900): anchor]
+    assert any(k in block for k in ("对齐", "覆盖", "回填", "目标")), (
+        "_PERIOD_SPLIT_DAYS 上方缺少解释性注释：改档位时请写明依据"
+    )
 
 
 def test_split_days_env_override():
@@ -47,12 +76,15 @@ def test_lookback_period():
     # +50 安全缓冲（与 _lookback_for_period 实现对齐）；天数随 M1 分档表
     assert _lookback_for_period("4h") == (300 + 60 + 30) * 6 + 50    # 2390
     assert _lookback_for_period("1h") == (150 + 45 + 30) * 24 + 50   # 5450
-    assert _lookback_for_period("5m") == (30 + 10 + 10) * 288 + 50   # 14450
-    # 与分档表恒等（防两处各改一处）
-    for p in ("5m", "1h", "4h", "1d"):
+    # 与分档表恒等（防两处各改一处）—— 5m 的绝对根数不再写死，
+    # 因为它是"随回填墙浮动"的值（见 _PERIOD_SPLIT_DAYS 注释），写死会随窗口调整再度变红。
+    for p in ("1m", "5m", "15m", "30m", "1h", "2h", "4h", "8h", "1d"):
         td, vd, ted = _split_days_for_period(p)
-        bpd = {"5m": 288, "1h": 24, "4h": 6, "1d": 1}[p]
-        assert _lookback_for_period(p) == (td + vd + ted) * bpd + 50
+        bpd = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48, "1h": 24,
+               "2h": 12, "4h": 6, "8h": 3, "1d": 1}[p]
+        assert _lookback_for_period(p) == (td + vd + ted) * bpd + 50, (
+            f"{p} 的 lookback 与分档表不一致（两处各改了一处）"
+        )
 
 
 def test_split_train_val_test_4h():
@@ -159,14 +191,18 @@ def test_load_data_uses_period_lookback():
 
 
 def test_required_coverage_days_5m():
-    assert _required_coverage_days("5m") == 50  # 30+10+10
+    """覆盖天数必须与分档表恒等（不写死数字：5m 的 train 窗口随回填墙浮动）。"""
+    td, vd, ted = _split_days_for_period("5m")
+    assert _required_coverage_days("5m") == td + vd + ted
+    assert _required_coverage_days("4h") == 300 + 60 + 30
 
 
 def test_check_split_depth_short_fails():
     depth = _check_split_depth({"BTC": _make_df(500)}, "5m")
     assert depth["ok"] is False
     assert "BTC" in depth["short_symbols"]
-    assert depth["need_days"] == 50
+    td, vd, ted = _split_days_for_period("5m")
+    assert depth["need_days"] == td + vd + ted
 
 
 def test_check_split_depth_ok():
