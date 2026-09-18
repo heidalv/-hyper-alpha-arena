@@ -72,6 +72,10 @@ class LearnedWeightingConfig:
     train_lookback_days: int = field(default_factory=lambda: _env_int("LEARNED_TRAIN_LOOKBACK_DAYS", 90))
     min_ic_to_include: float = field(default_factory=lambda: _env_float("LEARNED_MIN_IC", 0.015))
     purge_bars: int = field(default_factory=lambda: _env_int("LEARNED_PURGE_BARS", 5))
+    # [轮78 P1-13] 样本外 IC 门槛可配。原为字面量 0.02：
+    # 「同类旋钮都是 env 可配」这一约定在此处被破坏，导致线上想收紧/放宽
+    # 准入尺度只能改代码。默认值保持 0.02，行为不变。
+    min_val_ic: float = field(default_factory=lambda: _env_float("LEARNED_MIN_VAL_IC", 0.02))
     model_dir: str = field(default_factory=lambda: _env_str("LEARNED_MODEL_DIR", os.path.join(".", "data", "ml_models", "factor")))
 
 
@@ -200,14 +204,57 @@ class LearnedFactorWeighting:
             return False
         feat_cols = [c for c in df.columns]
 
+        # [轮78 P1-13 修前视] 先切分，**再**在训练段内做特征筛选。
+        #
+        # 旧顺序是反的：`min_ic_to_include` 用 `aligned`（**含后面的校验段**）
+        # 逐列算 `_x.corr(_y)` 来挑特征，而紧接着的 `_va`（校验段）又被用来
+        # 接受/拒绝模型 —— 等于「用考试题挑重点，再用同一批题打分」，
+        # val_IC 因此系统性偏乐观，门槛失去意义。
+        # 佐证：接受的 val_IC 中位 0.179、最大 0.9727（1036 次里 72 次 > 0.5）——
+        # 对 5 根 15m 的加密收益而言不可能。
+        #
+        # 现在：切分 → 只用 `_tr` 选特征 → 用 `_tr` 拟合 → `_va` 只作样本外评估。
+        _n = len(aligned)
+        _split = int(_n * 0.8)
+        _purge = max(1, int(self.config.purge_bars or 5))
+        _train_end = max(_split - _purge, 30)
+        if _n - _split < 15:
+            logger.info("[LearnedWeighting] 校验段过短(%d)，跳过训练", _n - _split)
+            return False
+        _tr = aligned.iloc[:_train_end]
+        _va = aligned.iloc[_split:]
+
+        # ── 上采样导致的跨切分重复行检测 ──
+        # `DDGDA_ENABLED=true` 时重放行被复制 1-5×（activation_service 的 concat），
+        # 相同 bar 会同时出现在训练段与校验段；`purge_bars` 只按**位置**剔除，
+        # 对「复制行」无效。这里显式检测：命中则在日志里报出，
+        # 让 val_IC 的可信度可被质疑（不静默）。
+        try:
+            _key_cols = [c for c in feat_cols][:12]
+            if _key_cols and len(_tr) and len(_va):
+                _tr_keys = set(map(tuple, _tr[_key_cols].round(10).to_numpy().tolist()))
+                _dup = sum(
+                    1 for k in map(tuple, _va[_key_cols].round(10).to_numpy().tolist())
+                    if k in _tr_keys
+                )
+                if _dup:
+                    logger.warning(
+                        "[LearnedWeighting] 校验段有 %d/%d 行与训练段重复（疑似 DDGDA 上采样复制行）"
+                        "—— val_IC 会偏乐观，请把 DDGDA_ENABLED 关闭或对样本去重",
+                        _dup, len(_va),
+                    )
+        except Exception as _dup_err:      # noqa: BLE001
+            logger.debug("[LearnedWeighting] 重复行检测跳过: %s", _dup_err)
+
         # [P1-11] min_ic_to_include 生效：低 IC 因子不进模型（此前为死配置）
+        # [轮78] 只在**训练段**上计算相关性（原用整段 aligned，含校验段 → 前视）
         try:
             _min_ic = float(self.config.min_ic_to_include or 0.0)
-            if _min_ic > 0 and len(aligned) > 30:
+            if _min_ic > 0 and len(_tr) > 30:
                 _keep = []
                 for _c in feat_cols:
-                    _x = aligned[_c].astype(float)
-                    _y = aligned["__y__"].astype(float)
+                    _x = _tr[_c].astype(float)
+                    _y = _tr["__y__"].astype(float)
                     if _x.std() < 1e-12 or _y.std() < 1e-12:
                         continue
                     _ic = float(_x.corr(_y))
@@ -220,17 +267,6 @@ class LearnedFactorWeighting:
         if not feat_cols:
             logger.info("[LearnedWeighting] min_ic 筛选后无可用因子，跳过训练")
             return False
-
-        # [P1-11] 时间切分：前 80% fit（尾部再剔除 purge_bars embargo），后 20% 校验
-        _n = len(aligned)
-        _split = int(_n * 0.8)
-        _purge = max(1, int(self.config.purge_bars or 5))
-        _train_end = max(_split - _purge, 30)
-        if _n - _split < 15:
-            logger.info("[LearnedWeighting] 校验段过短(%d)，跳过训练", _n - _split)
-            return False
-        _tr = aligned.iloc[:_train_end]
-        _va = aligned.iloc[_split:]
 
         self.feature_columns = feat_cols
         # learn 处理器仅在训练集 fit（防前视）
@@ -251,10 +287,15 @@ class LearnedFactorWeighting:
                     _val_ic = 0.0
             except Exception:
                 _val_ic = 0.0
-            _min_val_ic = 0.02
+            # [轮78 P1-13] 门槛改为可配（默认 0.02 不变）。
+            # 注意 val_IC 现在才是**真正的样本外**：特征筛选已移到训练段内，
+            # 校验段不再参与任何选择。因此同一数据下这个数值会比修复前更低，
+            # 这是「去掉乐观偏差」的正常结果，不是模型变差。
+            _min_val_ic = float(getattr(self.config, "min_val_ic", 0.02) or 0.02)
             if _val_ic < _min_val_ic:
                 logger.warning(
-                    "[LearnedWeighting] 校验 IC=%.4f < %.2f，丢弃新模型（保留旧模型）",
+                    "[LearnedWeighting] 样本外 IC=%.4f < %.4f，丢弃新模型（保留旧模型）"
+                    "｜门槛可用 LEARNED_MIN_VAL_IC 调整",
                     _val_ic, _min_val_ic,
                 )
                 return False
