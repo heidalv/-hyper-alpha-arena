@@ -158,8 +158,12 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                     or ""
                 )
                 if _src_tpl:
-                    if not hasattr(self, "_template_recent_opens"):
-                        host.template_recent_opens = {}  # tpl_id → [(ts, symbol, side), ...]
+                    # [轮67 修] 原为 `hasattr(self, "_template_recent_opens")` ——
+                    # 本函数是模块级函数（无 self），首个 hasattr 即抛 NameError，
+                    # 被下方 `logger.debug` 吞掉 → 本段「同模板齐发」限流从未生效，
+                    # 单一信号源可以一次填满整个 tier 预算。
+                    # 窗口字典由 Host 契约提供（`:22 template_recent_opens`，
+                    # 在 `:39-43` 保证存在），直接用即可。
                     _now = time.time()
                     _recent = [
                         t for t in host.template_recent_opens.get(_src_tpl, [])

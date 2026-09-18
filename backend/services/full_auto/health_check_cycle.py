@@ -692,7 +692,12 @@ def run_health_check(
                     from backend.config.settings import STRICT_DATA_GATE
                     if STRICT_DATA_GATE:
                         from backend.services.data_readiness_gate import assess_symbol_data
-                        _snap_gate = getattr(self, "_last_unified_snapshot", None)
+                        # [轮67 修] 原为 `getattr(self, "_last_unified_snapshot", None)` ——
+                        # 本函数是**模块级函数**（无 self），首个 getattr 即抛 NameError，
+                        # 被下方 `logger.debug` 吞掉 → STRICT_DATA_GATE 从未生效，
+                        # 策略会在数据未就绪的标的上被创建。快照按本模块既有口径取自 host
+                        # （对照 `:111 last_unified_snapshot=getattr(svc, "_last_unified_snapshot", None)`）。
+                        _snap_gate = getattr(host, "last_unified_snapshot", None)
                         _rep_gate = assess_symbol_data(
                             symbol,
                             snapshot=_snap_gate,

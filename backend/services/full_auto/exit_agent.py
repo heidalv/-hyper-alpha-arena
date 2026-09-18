@@ -82,6 +82,11 @@ def run_exit_pass(db, positions: List[Dict[str, Any]], market_summary: Dict[str,
                 "kind": "time_stop", "hold_hours": round(hold_sec / 3600, 1),
                 "pnl_pct": round(pnl_pct, 3),
                 "reason": f"持仓 {hold_sec / 3600:.1f}h 超过 tier 上限 {_max_hold_sec(tier) / 3600:.1f}h",
+                # [轮67 修] 执行路径需要 account_id / trade_nature 才能定位仓位
+                # （paper_engine.close_position 的签名要求 account_id+symbol+side，
+                # 且多周期同币同向并存时必须给 trade_nature 以防平错腿）。
+                "account_id": p.get("account_id"),
+                "trade_nature": p.get("trade_nature"),
             })
 
     # 2) 同向叠加预警（单方向 ≥ 6 个持仓）
@@ -109,9 +114,28 @@ def run_exit_pass(db, positions: List[Dict[str, Any]], market_summary: Dict[str,
         for a in advice:
             if a["kind"] != "time_stop" or not a.get("position_id"):
                 continue
+            # [轮67 修] 原实现只传 db=/position_id=/reason=，而 close_position 的签名是
+            # `(db, account_id, symbol, side, ...)` —— 每次调用都在碰 DB 之前抛
+            # TypeError("missing a required argument: 'account_id'")，被下方 except
+            # 降级成 warning，于是 `EXIT_AGENT_EXECUTE=true` 承诺的
+            # 「时间止损经现有 close 路径平仓」静默无效，executed 恒为 0。
+            _acct = a.get("account_id")
+            if not _acct:
+                logger.warning(
+                    "[ExitAgent] 时间止损跳过 #%s：缺 account_id（无法定位仓位）",
+                    a.get("position_id"),
+                )
+                continue
             try:
                 res = paper_engine.close_position(
-                    db=db, position_id=int(a["position_id"]), reason="exit_agent_time_stop",
+                    db=db,
+                    account_id=int(_acct),
+                    symbol=a["symbol"],
+                    side=a["side"],
+                    reason="exit_agent_time_stop",
+                    position_id=int(a["position_id"]),
+                    # 多周期同币同向并存时用于精确平腿（position_id 优先，此为兜底）
+                    trade_nature=a.get("trade_nature"),
                 )
                 if res:
                     executed += 1
