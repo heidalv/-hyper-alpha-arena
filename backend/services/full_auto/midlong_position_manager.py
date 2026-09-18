@@ -1882,6 +1882,14 @@ def run_position_management_for_session(
     供独立 midlong 循环 / 其他调度点复用（当前 mlto_cycle._trend_one 按 symbol
     单仓调用 manage_position；本函数是聚合版本，方便未来把持仓管理从 TrendAgent
     并行流中拆出独立调度）。
+
+    ⚠️ [2026-09-18 轮93 P2-12] **当前全仓无任何调用者**（`grep` 全库只有本定义）。
+    实际生效的是 `mlto_cycle._trend_one` 里按 symbol 逐个调用的 `manage_position`
+    （模式 B 的单仓形态）。本函数**不是**死代码意义上的"不可达"（它是可调用的公开
+    入口、逻辑也正确），但把它当成已接线的能力是错的 —— 例如"持仓管理已拆成独立
+    调度"这种说法在本函数被真正调用之前不成立。
+    若将来接线：请同时更新 `backend/tests/unit/test_dead_entrypoints_20260918.py`
+    里钉住"无调用者"的那条断言，避免文档与事实再次分叉。
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 

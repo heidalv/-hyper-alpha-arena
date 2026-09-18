@@ -139,47 +139,24 @@ def run_trading_cycle(
                     f"策略 {len(session.active_strategy_ids or [])}->{len(active_ids)}, "
                     f"symbols={sorted(selected_symbols_for_tick)}"
                 )
-        elif MIDLONG_AI_MANDATORY and len(active_ids) > max_strategies:
-            rows = (
-                db.query(
-                    _AIStrategy.strategy_id,
-                    _AIStrategy.primary_symbol,
-                    _AIStrategy.timeframe_tier,
-                )
-                .filter(_AIStrategy.strategy_id.in_(active_ids))
-                .order_by(_AIStrategy.primary_symbol.asc(), _AIStrategy.timeframe_tier.asc())
-                .all()
-            )
-            midlong_rows = [
-                (sid, (sym or "").upper(), (tier or "mid").lower())
-                for sid, sym, tier in rows
-                if sid and (sym or "").strip()
-                and (tier or "mid").lower()
-                in (getattr(self, "_current_ai_tiers", None) or ["mid", "long"])
-            ]
-            short_rows = [
-                (sid, (sym or "").upper(), (tier or "short").lower())
-                for sid, sym, tier in rows
-                if sid and (sym or "").strip() and (tier or "short").lower() == "short"
-            ]
-            midlong_ids = [sid for sid, _sym, _t in midlong_rows]
-            budget = max(0, max_strategies - len(midlong_ids))
-            short_ids: list = []
-            if budget > 0 and short_rows:
-                start = ((max(tick, 1) - 1) * budget) % len(short_rows)
-                picked = (short_rows + short_rows)[start:start + budget]
-                short_ids = [sid for sid, _sym, _t in picked]
-            active_ids = list(dict.fromkeys(midlong_ids + short_ids)) or active_ids[:max_strategies]
-            selected_symbols_for_tick = {
-                _sym for _sid, _sym, _t in (midlong_rows + short_rows)
-                if _sid in active_ids and _sym
-            }
-            logger.info(
-                f"[FullAuto] tick#{tick} 中长线优先限流: "
-                f"mid/long={len(midlong_ids)} short={len(short_ids)} "
-                f"symbols={sorted(selected_symbols_for_tick)}"
-            )
-        
+        # [2026-09-18 轮93 修 P2-12] 此处原有第三个分支
+        #     elif MIDLONG_AI_MANDATORY and len(active_ids) > max_strategies:
+        #         ... 中长线优先限流（mid/long 全保 + 余量轮转给 short）...
+        # 它是**永远进不去**的死代码，已删除。证明（穷举全部 flag 组合）：
+        #   · `_full_symbol_coverage = FULLAUTO_AI_DOMINANT or MIDLONG_AI_MANDATORY`（:85）
+        #   · 走到 elif 的先决条件是上一分支 `not _full_symbol_coverage and ...` 为假；
+        #     若 `_full_symbol_coverage` 为假（两个 flag 都假），则 elif 里的
+        #     `MIDLONG_AI_MANDATORY` 必为假 → 不成立；
+        #     若 `_full_symbol_coverage` 为真，则 :87 令 `max_strategies = len(active_ids)`，
+        #     （`active_ids` 已在 :79-81 保证非空）于是 `len(active_ids) > max_strategies`
+        #     退化成 `len(active_ids) > len(active_ids)` = 恒 False → 也不成立。
+        # 语义上也确实该删：`MIDLONG_AI_MANDATORY` 的含义就是"AI 强制参与 ⇒ 全币种全策略
+        # 覆盖"，与"按预算轮转限流"互相排斥；:199 的 `if _full_symbol_coverage:`
+        # 和 :206 的 `elif not FULLAUTO_AI_DOMINANT:` 同向印证了这一点
+        # （限流出的 `selected_symbols_for_tick` 在该模式下根本没人消费）。
+        # 若将来确实想要"中长线优先限流"，正确做法是把 :87 的
+        # `max_strategies = len(active_ids)` 换成显式预算，而不是复活这个分支。
+
         _t0 = time.time()
         symbols = list(session.symbols or [])
         # [2026-08-28 AI选币归一] 决策宇宙并入 AI 选币统一状态（短+中），
