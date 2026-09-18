@@ -1123,6 +1123,17 @@ def run_health_check(
         _paused_any = (session.status == "paused")
 
         # ── 4.6 风控巡检 (per-symbol + 全局极端安全网) ──
+        # [轮84 说明 P2-4] 这是一个三选一分支，而 `check_per_symbol_risk`
+        # （per-symbol 日亏冻结 + 全局极端安全网）**只挂在最后一个 else**。
+        # 实测当前配置下它永不执行：
+        #   · `data/lock_strength.json` → `paper.strength = 0`
+        #   · `lock_strength_service._build_profile`：`disable = s < 8` → `disable_loss_locks=True`
+        #   · `_paper_loss_locks_disabled()` 因此恒为 True → 命中上面那个 elif
+        # 即：**「按币日亏冻结」这一整层在当前配置下不生效**，
+        # 且同一 profile 里的 `global_extreme_drawdown/daily_loss_pct` 也随之不可达。
+        #
+        # 这是配置语义（strength<8 = 关闭亏损锁）而非代码 bug，故**不擅自改变行为**；
+        # 但把它**显式记进日志**，让「某层风控没在跑」可查，而不是靠读代码才发现。
         if _paused_any:
             # 暂停期间不跑亏损锁 / 自动解锁 / 防守切换（它们会把 paused 改回 running 或 defensive）；
             # 但下面的持仓治理 / 子仓对账 / ExitAgent 出场巡检**照常执行**。
@@ -1132,10 +1143,16 @@ def run_health_check(
                     getattr(session, "pause_reason", None) or "未标注原因",
                 )
         elif host.live_constitutional_enabled(session):
+            logger.info(
+                "[FullAuto] 风控巡检分支=live_constitutional（per-symbol 日亏冻结本次不执行）")
             host.check_live_constitutional_session_risk(db, session)
         elif host.paper_loss_locks_disabled(session):
+            logger.info(
+                "[FullAuto] 风控巡检分支=paper_auto_unlock（per-symbol 日亏冻结本次不执行；"
+                "因 lock_strength「亏损锁」已关闭，见 data/lock_strength.json）")
             host.paper_auto_unlock_session(db, session)
         else:
+            logger.info("[FullAuto] 风控巡检分支=per_symbol_risk（含全局极端安全网）")
             risk_result = host.check_per_symbol_risk(db, session)
 
             if risk_result.global_freeze:
