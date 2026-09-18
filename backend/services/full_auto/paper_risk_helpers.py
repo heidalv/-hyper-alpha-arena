@@ -79,4 +79,23 @@ def tiny_close_allowed_by_hardfact(
         )
         return bool(hf.allow), hf.detail
     except Exception as _e:
-        return True, f"tiny-close guard error: {_e}"
+        # [2026-09-18 轮90 修 P2-10] 原为 `return True, f"tiny-close guard error: {_e}"`
+        # —— 微仓硬事实闸门 **fail-OPEN**。
+        #
+        # 该闸门存在的意义是「别把微仓小亏秒平」（`master_running_close_tiny` 小亏秒平
+        # 是历史事故，见 `master_execution.py:2723-2724` 的注释），复核内容是最短持有、
+        # `MASTER_CLOSE_TINY_DISABLED_TIERS`、以及 `master_close` 硬阈值。所以
+        # 「算不出来就别平」才是它的既定姿态：不放行 ⇒ 持有 ⇒ 交给 SL/TP 管理，
+        # 与 `if not _tc_ok: append_event("close_tiny_hold"); continue` 的正常拒绝分支
+        # 走**完全同一条**路径，且 SL 是独立安全网 —— 不存在「该平不平导致爆仓」的
+        # 反向风险，因为平掉一个微仓本来就不可能降低清算风险。
+        #
+        # 附带修掉"静默"：调用方只在**拒绝**分支打印 detail
+        # （`master_execution.py:2729-2730` / `:2789-2790`），原写法放行时那句
+        # `tiny-close guard error: …` 根本没人打印，异常因此长期不可见。
+        # 改为拒绝后，错误自动出现在 `close_tiny_hold` 事件里。
+        logger.warning(
+            "[PaperRisk] 微仓硬事实复核异常（拦截，交 SL/TP 管理）account=%s: %s",
+            account_id, _e,
+        )
+        return False, f"tiny-close guard error (已拦截): {_e}"
