@@ -629,6 +629,198 @@ try:
 except Exception as e:
     check("P1-8 路由结论验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮104  BTC #4712 幽灵止盈：四道防线 + 账本回滚 ────────────────────
+print("\n── 轮104  BTC #4712 幽灵止盈事故（方向反转的 TP）──")
+try:
+    import ast as _ast104
+
+    _root104 = os.path.dirname(os.path.abspath(__file__))
+    _pte104_path = os.path.join(_root104, "backend/services/paper_trading_engine.py")
+    _pmm104_path = os.path.join(_root104, "backend/services/position_memory_manager.py")
+    _pte_src104 = io.open(_pte104_path, encoding="utf-8").read()
+    _pmm_src104 = io.open(_pmm104_path, encoding="utf-8").read()
+
+    from backend.services.paper_trading_engine import PaperTradingEngine as _PTE104
+    from backend.services.position_memory_manager import (
+        MemoryInsight as _MI104,
+        PositionMemoryManager as _PMM104,
+    )
+
+    _eng104 = _PTE104()
+    _pmm104 = _PMM104()
+
+    # 事故现场常量（DB 实证）
+    _PHANTOM_TP = 65689.42793
+    _INCIDENT_SL = 80788.191962
+    _ENTRY = 78492.80372019952
+    _MARK = 80808.3
+
+    # ① 根因：side 词表归一
+    _long = _pmm104._calc_tp_sl("long", 1000.0, 10, 0.015, 0, 0,
+                                _MI104(symbol_win_rate=0.4), tier="long")
+    _buy = _pmm104._calc_tp_sl("buy", 1000.0, 10, 0.015, 0, 0,
+                               _MI104(symbol_win_rate=0.4), tier="long")
+    check("① `_calc_tp_sl` long/buy 完全等价，且多头 TP>价>SL",
+          _long == _buy and _long[0] > 1000.0 > _long[1] > 0,
+          f"long={_long}  buy={_buy}（事故前 long 会走空头分支 → TP 在下方）")
+    _short = _pmm104._calc_tp_sl("short", 1000.0, 10, 0.015, 0, 0,
+                                 _MI104(symbol_win_rate=0.4), tier="long")
+    check("① `_calc_tp_sl` short/sell 等价，且空头 TP<价<SL",
+          _short == _pmm104._calc_tp_sl("sell", 1000.0, 10, 0.015, 0, 0,
+                                        _MI104(symbol_win_rate=0.4), tier="long")
+          and _short[1] > 1000.0 > _short[0],
+          f"short={_short}")
+
+    def _raw_side_eq(src: str, fn_name: str):
+        tree = _ast104.parse(src)
+        node = next(n for n in _ast104.walk(tree)
+                    if isinstance(n, _ast104.FunctionDef) and n.name == fn_name)
+        return [(x.lineno, _ast104.unparse(x)) for x in _ast104.walk(node)
+                if isinstance(x, _ast104.Compare)
+                for op, c in zip(x.ops, x.comparators)
+                if isinstance(op, _ast104.Eq) and isinstance(c, _ast104.Constant)
+                and c.value in ("buy", "sell")]
+
+    check("① 源码级：`_calc_tp_sl` 无裸方向比较（AST，不受注释干扰）",
+          _raw_side_eq(_pmm_src104, "_calc_tp_sl") == [],
+          "事故根因 = `if side == \"buy\"` 遇上 side=\"long\"")
+    check("① 源码级：`evaluate_dca` 同类漏洞同时修掉（expected_bias / pos_side 反向）",
+          _raw_side_eq(_pmm_src104, "evaluate_dca") == []
+          and "_side_is_long" in _pmm_src104,
+          "midlong 调用方传的是 \"long\"/\"short\"，旧比较会让多头仓按空头判定")
+
+    # ② 写入侧：safe_tp_price
+    check("② `safe_tp_price` 拦住事故值（多头 TP 低于开仓价 16.31%）",
+          _PTE104.safe_tp_price(_PHANTOM_TP, side="long", market=_MARK,
+                                entry=_ENTRY) == 0.0,
+          f"TP={_PHANTOM_TP} entry={_ENTRY} → 拒绝（返回 0 = 不写）")
+    check("② `safe_tp_price` 放行合法 TP，且不误伤「已越过 TP 的正常触发」",
+          _PTE104.safe_tp_price(90000.0, side="long", market=_MARK, entry=_ENTRY) == 90000.0
+          and _PTE104.safe_tp_price(80000.0, side="long", market=_MARK,
+                                    entry=_ENTRY) == 80000.0,
+          "判据用 entry（多空分界）而非现价 —— 否则正常触发会被误判非法")
+    check("② `safe_tp_price` 取价不可信/信息不足时按原值放行（失败不阻断止盈管理）",
+          _PTE104.safe_tp_price(_PHANTOM_TP, side="long", market=0.0, entry=0.0) == _PHANTOM_TP
+          and _PTE104.safe_tp_price(_PHANTOM_TP, side="long", market=1.0,
+                                    entry=_ENTRY) == _PHANTOM_TP,
+          "市价缺失 或 与 entry 偏离>50% → 不做方向判定")
+
+    # ③ 触发侧 + 车道
+    _pos104 = type("P", (), {"symbol": "BTC", "side": "long", "entry_price": _ENTRY,
+                             "timeframe_tier": "long", "trade_nature": "trend_follow",
+                             "tp_price": _PHANTOM_TP})()
+    check("③ `tp_direction_illegal` 判定事故 TP 非法（秒级快路径/官方TP/时限兜底/v2 各判一次）",
+          _eng104.tp_direction_illegal(_pos104, _PHANTOM_TP, _MARK) is True)
+
+    def _calls104(name: str):
+        tree = _ast104.parse(_pte_src104)
+        return [n.lineno for n in _ast104.walk(tree)
+                if isinstance(n, _ast104.Call)
+                and ((isinstance(n.func, _ast104.Attribute) and n.func.attr == name)
+                     or getattr(n.func, "id", None) == name)]
+
+    check("③ 引擎接线完整：`safe_tp_price` 5 处 / `tp_direction_illegal` 4 处",
+          len(_calls104("safe_tp_price")) == 5 and len(_calls104("tp_direction_illegal")) == 4,
+          f"safe_tp_price={len(_calls104('safe_tp_price'))} "
+          f"tp_direction_illegal={len(_calls104('tp_direction_illegal'))}")
+
+    _tp_trend = _eng104.add_order_tp_decision(
+        type("P", (), {"symbol": "BTC", "side": "long", "entry_price": 1000.0,
+                       "timeframe_tier": "long", "trade_nature": "trend_follow"})(),
+        1162.5, 1000.0)
+    _tp_mid_ok = _eng104.add_order_tp_decision(
+        type("P", (), {"symbol": "BNB", "side": "long", "entry_price": 1000.0,
+                       "timeframe_tier": "mid", "trade_nature": "swing"})(),
+        1030.0, 1000.0)
+    _tp_mid_bad = _eng104.add_order_tp_decision(
+        type("P", (), {"symbol": "BNB", "side": "long", "entry_price": _ENTRY,
+                       "timeframe_tier": "mid", "trade_nature": "swing"})(),
+        _PHANTOM_TP, _MARK)
+    check("④ 加仓合并路径：长线车道清空固定 TP / 中车道写合法 TP / 中车道拒反向 TP",
+          _tp_trend == (None, "trend_lane_clear")
+          and _tp_mid_ok[1] == "write"
+          and _tp_mid_bad == (None, "inverted_reject"),
+          f"long={_tp_trend} mid_ok={_tp_mid_ok} mid_bad={_tp_mid_bad}"
+          "（长线 tp_pct=null：出场=规则失效/Chandelier，盈利靠滚仓）")
+
+    _body104 = _pte_src104[_pte_src104.index("def reprice_position("):]
+    _tpblk104 = _body104[_body104.index("if not hit and pos.tp_price"):]
+    check("④ 秒级快路径也按车道跳过固定 TP（与 _run_v2_protection 一致）",
+          "_is_trend_lane_member" in _tpblk104[: _tpblk104.index("if hit:")],
+          "事故的行刑者就是这条 4.4 秒后触发的路径")
+except Exception as e:
+    check("轮104 四道防线验证执行", False, f"{type(e).__name__}: {e}")
+
+# ── 轮104 账本回滚实测（DB）──────────────────────────────────────────
+print("\n── 轮104  BTC #4712 账本回滚（DB 实测）──")
+try:
+    from backend.database.connection import SessionLocal as _SL104
+    from sqlalchemy import text as _text104
+
+    _db104 = _SL104()
+    try:
+        _db104.execute(_text104("select set_config('app.is_admin','on',false)"))
+        _p = _db104.execute(_text104("""
+            SELECT p.status, p.tp_price, p.sl_price, p.close_price, p.close_reason,
+                   p.unrealized_pnl, p.entry_price, p.mark_price,
+                   (SELECT COUNT(*) FROM paper_orders o
+                     WHERE o.symbol=p.symbol AND o.status='pending'
+                       AND o.order_type='stop_loss')
+            FROM paper_positions p WHERE p.id=4712""")).fetchone()
+        # 回滚后后端会立刻按**长线车道**重新管理该仓（实测 02:33 挂出新的 stop_loss），
+        # 所以断言的是**不变量**而不是某个具体止损值：
+        #   open + TP 为空 + 止损在多头的正确一侧（低于开仓价且低于现价）+ close_* 已清空。
+        check("持仓 #4712 已回滚为 open，TP 为空，止损位于多头正确一侧",
+              _p and str(_p[0]) == "open" and _p[1] is None
+              and 0 < float(_p[2]) < float(_p[6]) < float(_p[7])
+              and _p[3] is None and _p[4] is None
+              and int(_p[8] or 0) >= 1,
+              f"status={_p[0]} tp={_p[1]} sl={_p[2]} entry={_p[6]} mark={_p[7]} "
+              f"close_price={_p[3]} close_reason={_p[4]} upnl={_p[5]} "
+              f"attached_sl_orders={_p[8]}"
+              "（事故时 sl=80788.19 在开仓价**上方**；现在 76138.02 = entry×0.97 = 多头分支）")
+        _md = _db104.execute(_text104("""
+            SELECT COUNT(*) FROM position_exit_events
+            WHERE id IN (26298, 26299)
+              AND COALESCE(metadata_json,'') LIKE '%rotation104_phantom_tp_rollback%'""")).scalar()
+        check("事故的 2 条 exit 事件已标注回滚（不再被当成真实离场统计）",
+              int(_md or 0) == 2,
+              "26299 hard_line_close(stop_kind=profit_lock) / 26298 final_trade_outcome")
+        _o = _db104.execute(_text104("""
+            SELECT status, pnl, fee FROM paper_orders WHERE id=23848""")).fetchone()
+        check("幽灵平仓单 23848 已注销（cancelled，pnl/fee 清零）",
+              _o and str(_o[0]) == "cancelled" and _o[1] is None and float(_o[2] or 0) == 0,
+              f"status={_o[0]} pnl={_o[1]} fee={_o[2]}")
+        _b = _db104.execute(_text104("""
+            SELECT initial_balance, total_equity, frozen_margin, available_balance
+            FROM paper_balances WHERE account_id=14""")).fetchone()
+        _sum = _db104.execute(_text104("""
+            SELECT COALESCE(SUM(pnl),0), COALESCE(SUM(fee),0) FROM paper_orders
+            WHERE account_id=14 AND created_at >= (
+                SELECT last_reset_at FROM paper_balances WHERE account_id=14)""")).fetchone()
+        # 用**表里已存的** frozen_margin 对账：`_recalc_balance` 在净额模式下按币种聚合
+        # （`paper_netting.aggregate_rows_to_net`）算保证金，与行级 SUM(margin) 有细微差，
+        # 行级求和作为基准会误报。funding 也要并入（FUNDING_SETTLE_APPLY_PNL=true 时）。
+        _fund = 0.0
+        try:
+            from backend.config.settings import FUNDING_SETTLE_APPLY_PNL as _fap
+            if _fap:
+                _fund = float(_db104.execute(_text104("""
+                    SELECT COALESCE(SUM(payment),0) FROM paper_funding_ledger
+                    WHERE account_id=14 AND settled_at >= (
+                        SELECT last_reset_at FROM paper_balances WHERE account_id=14)""")).scalar() or 0)
+        except Exception:       # noqa: BLE001
+            _fund = 0.0
+        _expect_avail = float(_b[0]) + float(_sum[0]) + _fund - float(_sum[1]) - float(_b[2])
+        check("账户 14 余额与公式一致（initial + Σpnl + funding − Σfee − frozen）",
+              abs(_expect_avail - float(_b[3])) < 0.02,
+              f"公式={_expect_avail:.2f} 实际={float(_b[3]):.2f} funding={_fund:.2f} "
+              f"frozen={float(_b[2]):.2f} equity={float(_b[1]):.2f}")
+    finally:
+        _db104.close()
+except Exception as e:
+    check("轮104 账本回滚验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

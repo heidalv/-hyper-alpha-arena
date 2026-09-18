@@ -162,12 +162,29 @@ try:
         d = json.loads(esj) if isinstance(esj, str) else (esj or {})
         _pct_entry = (float(s) / float(e) - 1) * 100
         _pct_mark = (float(s) / float(m) - 1) * 100
-        check("BTC #4712 止损已放回结构位区间（锁 +2.5%，留 ≥3% 呼吸空间）",
-              _pct_entry > 2.0 and _pct_mark < -2.5,
-              f"SL={float(s):.2f} 距入场 {_pct_entry:+.3f}% 距现价 {_pct_mark:+.3f}%")
+        # [轮104 更新] 轮96 的原判据是「SL 距入场 > +2.0%（锁 +2.5% 利润）」，
+        # 但该口径已被两件事合法地推翻：
+        #   ① 09-19 01:50 的滚仓把 entry 从 76464.51 加权到 78492.80 ——
+        #      同一个 SL 的"距入场百分比"随分母改变，不再代表"锁了多少利润"；
+        #   ② 长线车道的**最小止损距离**守卫（`_MIN_SL_DISTANCE_BY_NATURE` /
+        #      层上限 `MIDLONG_MAX_SL_PCT_LONG`=3%）在回滚后把贴着成本的结构位
+        #      76138→ 拉出到 entry×0.97 = 76138.019609（6 位小数完全吻合）。
+        # 所以这里改判**不变量**：① 止损必须在多头的正确一侧（低于开仓价）；
+        # ② 必须留够呼吸空间（距现价 ≥2.5%，即没有被收紧成"1% 收割位"）。
+        check("BTC #4712 止损在多头的正确一侧（低于开仓价，非反向/非锁利收割位）",
+              _pct_entry < 0,
+              f"SL={float(s):.2f} 距入场 {_pct_entry:+.3f}%"
+              "（事故值 80788.19 是 +2.92%，方向反转）")
+        check("BTC #4712 止损留足呼吸空间（距现价 ≤−2.5%）",
+              _pct_mark < -2.5,
+              f"SL={float(s):.2f} 距现价 {_pct_mark:+.3f}%")
         check("BTC #4712 人工处置已留痕",
               bool(d.get("trailing_suppressed")),
               json.dumps(d.get("trailing_suppressed"), ensure_ascii=False)[:160])
+        check("BTC #4712 轮104 幽灵止盈回滚已留痕",
+              bool((d.get("manual_repair") or {}).get("rotation104_phantom_tp_rollback")),
+              json.dumps((d.get("manual_repair") or {}).get("rotation104_phantom_tp_rollback"),
+                         ensure_ascii=False)[:200])
     else:
         check("BTC #4712 仍在册（若已按新止损成交则跳过）", True,
               "该仓位已不在 open 状态 —— 说明它已按处置后的止损离场")

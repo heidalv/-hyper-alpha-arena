@@ -672,6 +672,124 @@ class PaperTradingEngine:
         return s if s > m else 0.0
 
     @staticmethod
+    def safe_tp_price(tp_price, *, side: str, market: float, entry: float = 0.0) -> float:
+        """**止盈侧不变式**：多头 TP 必须高于 entry（现价），空头 TP 必须低于 entry。
+
+        ## 为什么必须有这道闸（2026-09-19 轮104 事故，`safe_sl_price` 的镜像）
+
+        BTC 长线仓 #4712：滚仓 `buy 0.00165536 @80968.54` 成交后写入
+        `tp=65689.43 / sl=80788.19`（**方向全反**：TP 在市价下方 19%、SL 几乎贴市价）。
+        4 秒后秒级硬 TP 判定 `现价 80808 ≥ tp 65689` 立即成立 →
+        `close_position(fill_price_override=min(tp, mkt)=65689.43)` →
+        **按一个从未存在的价格"止盈平仓"**，并凭空记 −41.45 亏损。
+        账户权益 4626.73 → 4574.66。
+
+        根因在 `position_memory_manager._calc_tp_sl`（只认 `side=="buy"`，
+        而加仓/补仓传的是 `"long"` → 走空头分支；已在本轮修正）。
+        本函数是**收口层的第二道防线**：即使上游再算错方向，也写不进、触发不了。
+
+        返回 0 的语义 = 「不要更新 TP」（与 `safe_sl_price` 的 0 语义一致）。
+        市价/入场价不可信时按原值放行，避免因取价失败而放弃止盈管理。
+
+        注：判据用 **entry**（多空的分界），不用现价 ——
+        现价在触发那一刻本来就应当越过 TP，用现价会把**正常触发**误判成非法。
+        """
+        t = _as_float_or_none(tp_price)
+        if t is None or t <= 0:
+            return 0.0
+        e = _as_float_or_none(entry)
+        if e is None or e <= 0:
+            # 没有入场价就没有多空分界，退回现价判定（多头 TP 在市价上方才合法）
+            m = _as_float_or_none(market)
+            if m is None or m <= 0:
+                return t
+            return t if (t > m if str(side or "").lower() in ("long", "buy") else t < m) else 0.0
+        m = _as_float_or_none(market)
+        if m is not None and m > 0 and abs(m - e) / e > _SANITY_MAX_DEV:
+            return t          # 取价不可信 → 不做方向判定（与 safe_sl_price 同口径）
+        if str(side or "").lower() in ("long", "buy"):
+            return t if t > e else 0.0
+        return t if t < e else 0.0
+
+    def add_order_tp_decision(self, existing, order_tp, market: float = 0.0):
+        """加仓/补仓合并时，订单的 TP 该不该写进持仓？→ `(tp值, action)`。
+
+        action ∈ {"trend_lane_clear", "inverted_reject", "write", "keep"}。
+
+        ## 为什么单独抽出来（2026-09-19 轮104）
+
+        加仓合并路径（`place_order` 的 `existing.tp_price = order.tp_price`）
+        直接赋值、绕过了 `update_position_tp_sl` 的两道闸，是 BTC #4712 的写入现场。
+        抽成纯决策方法的目的与 `_should_run_unified_staged_tp` 相同：
+          ① 判定与调用点分离，单测可直接断言（不必构造整个下单环境）；
+          ② 让"长线车道没有固定 TP"这条契约只有**一处**定义。
+
+        ## 两类处置
+
+        1. **长线车道 → 清空**（`trend_lane_clear`）。
+           修好方向之后 `_calc_tp_sl` 会给出 `new_avg × 1.1625`
+           （trend_follow 的 tp_base = 6.5% × 2.5）—— 一个**可达**的固定止盈，
+           会被 `_enforce_max_hold_timeout` 的 Layer-0 硬 TP 判定在 +16.25% 整仓平掉。
+           这与车道自身的定义冲突：
+             · `trend_e1_engine._adopt_position` 明写「趋势仓不设固定 TP
+               （让利润奔跑；唯一出场 = 规则失效 / Chandelier）」并置 None；
+             · 车道 `ExitPolicy.for_lane("long").tp_pct` 就是 **null**；
+             · 长线车道的盈利引擎是**滚仓**，不是定点止盈。
+        2. **方向非法 → 拒绝**（`inverted_reject`）：多头 TP 在开仓价下方
+           （或空头在上方）一律不写，保留原值 —— 事故值 65689.43 vs 开仓 78492.80。
+        """
+        if existing is None:
+            return None, "keep"
+        try:
+            _is_trend = bool(self._is_trend_lane_member(
+                existing,
+                getattr(existing, "timeframe_tier", None),
+                getattr(existing, "trade_nature", None),
+            ))
+        except Exception:
+            _is_trend = False
+        if _is_trend:
+            return None, "trend_lane_clear"
+        _t = _as_float_or_none(order_tp)
+        if _t is None or _t <= 0:
+            return None, "keep"
+        _safe = self.safe_tp_price(
+            _t,
+            side=str(getattr(existing, "side", "") or "").strip().lower(),
+            market=market,
+            entry=_as_float_or_none(getattr(existing, "entry_price", None)) or 0.0,
+        )
+        if _safe <= 0 and (_as_float_or_none(market) or 0.0) > 0:
+            return None, "inverted_reject"
+        return (_safe or _t), "write"
+
+    def tp_direction_illegal(self, pos, tp_price, market: float = 0.0) -> bool:
+        """[2026-09-19 轮104] **触发侧**第二道闸：TP 落在开仓价错误一侧 → 拒绝成交。
+
+        写入侧（`update_position_tp_sl` / `evaluate_pyramid` 链路）已由 `safe_tp_price`
+        把门，但存量仓位的历史脏 TP（例如 BTC #4712 那样在修复前写进去的）
+        仍会躺在库里面；只要它还在，任何一次 tick 都可能拿它当成交价平仓。
+        因此在**三个 TP 触发点**统一再判一次：方向非法 → 拒绝触发 + ERROR 留痕。
+
+        信息不足（缺 entry / 缺 TP / 取价不可信）一律**不拦截** ——
+        本闸只拦"确定反向"的 TP，不做任何推测性阻断。
+        """
+        _t = _as_float_or_none(tp_price)
+        _e = _as_float_or_none(getattr(pos, "entry_price", None))
+        if _t is None or _t <= 0 or _e is None or _e <= 0:
+            return False
+        _ok = self.safe_tp_price(
+            _t, side=str(getattr(pos, "side", "") or ""), market=market, entry=_e)
+        if _ok > 0:
+            return False
+        logger.error(
+            "[Paper] TP 触发被止盈侧不变式拦截（方向非法，拒绝按该价成交）: "
+            "%s %s TP=%.6f 开仓=%s 市价=%s —— 请检查该仓 TP 写入来源",
+            getattr(pos, "symbol", "?"), getattr(pos, "side", "?"), _t, _e, market,
+        )
+        return True
+
+    @staticmethod
     def rebase_peak_pct_for_entry(pos, old_entry: float, new_entry: float) -> None:
         """加仓导致均价变化时，把 `peak_pnl_pct` 按**同一峰值价格**换算到新均价。
 
@@ -1564,6 +1682,23 @@ class PaperTradingEngine:
                 order.sl_price = _sl2
             if hasattr(order, "trade_nature"):
                 order.trade_nature = trade_nature or "swing"
+            # [2026-09-19 轮104] 下单收口点补齐**止盈侧**校验。
+            # 上面只夹了 SL（clamp_sl_price），TP 侧此前完全没有不变式，
+            # 反向 TP 可以一路写进订单 → 持仓 → 秒级硬 TP 判定按它成交（#4712）。
+            # 方向非法的 TP 一律丢弃（**没有 TP 也好过反向 TP**：反向 TP 不是止盈，
+            # 而是一条"按任意价立即成交"的指令）。
+            if tp_price:
+                _tp_ok = self.safe_tp_price(tp_price, side=side, market=price, entry=price)
+                if _tp_ok <= 0:
+                    logger.error(
+                        "[Paper] 下单 TP 被止盈侧不变式拦截（丢弃该 TP）: %s %s "
+                        "TP=%s 开仓价=%s —— 多头 TP 必须在开仓价上方、空头在下方",
+                        symbol, side, tp_price, price,
+                    )
+                    tp_price = None
+                    order.tp_price = None
+                else:
+                    order.tp_price = _tp_ok
             db.add(order)
             db.flush()
 
@@ -1795,10 +1930,46 @@ class PaperTradingEngine:
             existing.liquidation_price = self._calc_liquidation_price(
                 existing.entry_price, existing.side, existing.leverage
             )
-            if order.tp_price:
-                existing.tp_price = order.tp_price
+            # ── [2026-09-19 轮104] 加仓/补仓合并时的 TP/SL 双向不变式 ──
+            # 这是 BTC #4712 事故的**写入现场**：`position_memory_manager._calc_tp_sl`
+            # 因为只认 `side=="buy"` 而加仓传的是 `"long"`，走空头分支算出
+            # tp=65689（在市价下方 19%）、sl=80788（贴着市价）。
+            # 这里直接赋值、绕过了 `update_position_tp_sl` 的两道闸，
+            # 于是脏 TP 落库，4 秒后被秒级硬 TP 判定按它成交并虚记 −41.45。
+            # 现在在**入口**收口：方向非法的值一律不写，保留原值并留 ERROR。
+            _side_add = str(getattr(existing, "side", "") or "").strip().lower()
+            _entry_add = float(getattr(existing, "entry_price", 0) or 0)
+            _mkt_add = _as_float_or_none(current_price) or 0.0
+            _tp_add, _tp_action = self.add_order_tp_decision(existing, order.tp_price, _mkt_add)
+            if _tp_action == "trend_lane_clear":
+                if existing.tp_price:
+                    logger.info(
+                        "[Paper] 长线车道加仓：清除固定 TP %s（%s %s，"
+                        "车道声明 tp_pct=null，出场=规则失效/Chandelier）",
+                        existing.tp_price, existing.symbol, existing.side,
+                    )
+                existing.tp_price = None
+            elif _tp_action == "inverted_reject":
+                logger.error(
+                    "[Paper] 加仓TP被止盈侧不变式拦截（拒绝写入）: %s %s "
+                    "目标TP=%s 开仓=%s 市价=%s 保持原TP=%s",
+                    existing.symbol, existing.side, order.tp_price,
+                    _entry_add, _mkt_add, existing.tp_price,
+                )
+            elif _tp_action == "write":
+                existing.tp_price = _tp_add
             if order.sl_price:
-                existing.sl_price = order.sl_price
+                _safe_sl_add = self.safe_sl_price(
+                    order.sl_price, side=_side_add, market=_mkt_add, entry=_entry_add)
+                if _safe_sl_add <= 0 and _mkt_add > 0:
+                    logger.error(
+                        "[Paper] 加仓SL被保护侧不变式拦截（拒绝写入）: %s %s "
+                        "目标SL=%s 开仓=%s 市价=%s 保持原SL=%s",
+                        existing.symbol, existing.side, order.sl_price,
+                        _entry_add, _mkt_add, existing.sl_price,
+                    )
+                else:
+                    existing.sl_price = _safe_sl_add or order.sl_price
             existing.unrealized_pnl = self._calc_unrealized_pnl(
                 existing.entry_price, current_price, existing.size, existing.side
             )
@@ -1845,6 +2016,22 @@ class PaperTradingEngine:
                 except Exception: pass
         else:
             liq_price = self._calc_liquidation_price(fill_price, pos_side, order.leverage)
+            # [2026-09-19 轮104] 建仓瞬间再验一次方向：成交价可能因滑点偏离下单参考价
+            # （多头 price=100/TP=101 合法，但 fill=101.5 会让 TP 落回开仓价下方 → 反向 TP）。
+            # 这里以**权威入场价 fill_price** 复验，不合法就丢弃该 TP。
+            _tp_open = order.tp_price
+            if _tp_open:
+                _tp_open_ok = self.safe_tp_price(
+                    _tp_open, side=pos_side, market=current_price, entry=fill_price)
+                if _tp_open_ok <= 0:
+                    logger.error(
+                        "[Paper] 建仓TP被止盈侧不变式拦截（丢弃）: %s %s TP=%s "
+                        "成交价=%s（滑点致方向非法）",
+                        order.symbol, pos_side, _tp_open, fill_price,
+                    )
+                    _tp_open = None
+                else:
+                    _tp_open = _tp_open_ok
             _pos_kwargs = dict(
                 account_id=order.account_id,
                 symbol=order.symbol,
@@ -1857,7 +2044,7 @@ class PaperTradingEngine:
                 margin=margin_needed,
                 original_margin=margin_needed,
                 liquidation_price=liq_price,
-                tp_price=order.tp_price,
+                tp_price=_tp_open,
                 sl_price=order.sl_price,
                 strategy_id=order.strategy_id,
                 timeframe_tier=timeframe_tier,
@@ -2939,6 +3126,9 @@ class PaperTradingEngine:
             self._tp_levels_cache.pop(pos.id, None)
             return True
         if trigger == PaperTriggerReason.TAKE_PROFIT and pos.tp_price:
+            # [轮104] 触发侧不变式：方向非法的 TP 绝不成交（BTC #4712 幽灵止盈）
+            if self.tp_direction_illegal(pos, pos.tp_price, float(current_price or 0)):
+                return False
             trigger_order = self._find_attached_order(db, pos, "take_profit")
             self.close_position(
                 db, pos.account_id, pos.symbol, pos.side,
@@ -2978,6 +3168,9 @@ class PaperTradingEngine:
                     tp_price = float(pos.tp_price)
                     hit_tp = (pos.side == "long" and current_price >= tp_price) or \
                              (pos.side == "short" and current_price <= tp_price)
+                    if hit_tp and self.tp_direction_illegal(pos, tp_price, current_price):
+                        # [轮104] 脏 TP：记录后跳过，不按该价成交
+                        hit_tp = False
                     if hit_tp:
                         logger.info(
                             f"[Paper] 官方TP优先触发: {pos.symbol} {pos.side} "
@@ -4133,6 +4326,9 @@ class PaperTradingEngine:
         if pos.tp_price and not _v2_long_managed:
             hit_tp = (pos.side == "long" and current_price >= pos.tp_price) or \
                      (pos.side == "short" and current_price <= pos.tp_price)
+            if hit_tp and self.tp_direction_illegal(pos, pos.tp_price, current_price):
+                # [轮104] 脏 TP：拒绝按反向价成交
+                hit_tp = False
             if hit_tp:
                 logger.info(f"[Paper][v2] TP 触发: {pos.symbol} {pos.side} @{current_price} TP={pos.tp_price}")
                 self.close_position(
@@ -5658,10 +5854,28 @@ class PaperTradingEngine:
         changed = False
         if tp_price is not None:
             old_tp = pos.tp_price
-            pos.tp_price = tp_price
-            changed = True
-            logger.info(f"[Paper] AI调整TP: {pos.symbol} {pos.side} "
-                        f"TP {old_tp}→{tp_price}")
+            # [2026-09-19 轮104] 止盈侧不变式（`safe_sl_price` 的镜像）。
+            # BTC #4712 滚仓后写入 tp=65689 而市价 80808（多头 TP 在市价下方 19%），
+            # 4 秒后被秒级硬 TP 判定按这个**从未存在的价格**"止盈"平仓并虚记亏损。
+            # 这里拒绝一切落在开仓价错误一侧的 TP；拒绝时**不 return**，
+            # 以免把同一次调用里的 SL 调整一起吞掉。
+            _side_tp = str(getattr(pos, "side", "long") or "long").lower()
+            _mkt_tp = _as_float_or_none(getattr(pos, "mark_price", None)) or 0.0
+            _safe_tp = self.safe_tp_price(
+                tp_price, side=_side_tp, market=_mkt_tp,
+                entry=_as_float_or_none(getattr(pos, "entry_price", None)) or 0.0)
+            if _safe_tp <= 0 and _mkt_tp > 0:
+                logger.error(
+                    "[Paper] AI调整TP 被止盈侧不变式拦截（方向非法，拒绝写入）: "
+                    "%s %s 目标TP=%.6f 市价=%s 开仓=%s",
+                    pos.symbol, pos.side, float(tp_price or 0), _mkt_tp,
+                    getattr(pos, "entry_price", None),
+                )
+            else:
+                pos.tp_price = _safe_tp or tp_price
+                changed = True
+                logger.info(f"[Paper] AI调整TP: {pos.symbol} {pos.side} "
+                            f"TP {old_tp}→{pos.tp_price}")
         if sl_price is not None:
             old_sl = pos.sl_price
             # [2026-08-27 止损失效修复] SL 只收紧不放宽：8/26-27 实测 UNI swing 的 SL
@@ -6053,9 +6267,27 @@ class PaperTradingEngine:
                   (pos.side == "short" and current_price >= float(pos.sl_price))
             reason = self.sl_reason_for_position(pos, current_price) if hit else "sl"
         if not hit and pos.tp_price and float(pos.tp_price) > 0:
-            hit = (pos.side == "long" and current_price >= float(pos.tp_price)) or \
-                  (pos.side == "short" and current_price <= float(pos.tp_price))
-            reason = "tp"
+            # ── [2026-09-19 轮104] 秒级快路径：趋势车道不做定点止盈 ──
+            # 这条路径正是 BTC #4712 的**行刑者**（滚仓后 4.4 秒按 65689.43 成交）。
+            # 慢速 tick 的 `_run_v2_protection` 早已按车道跳过本层固定 TP
+            # （见 L4266 注释「V2 长线仓跳过本层固定 TP 关闭」），
+            # 但秒级快路径**从未**继承这条契约 —— 与轮99 同型的"契约没落到真正触发的路径上"。
+            # 车道契约（`trend_e1_engine._adopt_position` / `ExitPolicy.for_lane("long").tp_pct=None`）：
+            # 长线仓不设固定 TP，唯一出场 = 规则失效 / Chandelier；Layer-0 failsafe 仍在
+            # `_enforce_max_hold_timeout`（慢速 tick）里兜底。
+            if self._is_trend_lane_member(
+                    pos, getattr(pos, "timeframe_tier", None),
+                    getattr(pos, "trade_nature", None)):
+                self._log_trend_lane_skip_once(pos, True)
+            else:
+                hit = (pos.side == "long" and current_price >= float(pos.tp_price)) or \
+                      (pos.side == "short" and current_price <= float(pos.tp_price))
+                # [轮104] 触发侧不变式：方向非法的 TP 绝不成交，光靠下面的 min/max
+                # 成交价修正救不了 —— 多头取 min(tp, mkt) 恰好选中那个反向的 tp 本身
+                # （65689 < 80808），"修正"反而确认了幽灵价。唯一正确处置是拒绝成交。
+                if hit and self.tp_direction_illegal(pos, pos.tp_price, current_price):
+                    hit = False
+                reason = "tp"
         if hit:
             _px_attr = "sl_price" if reason in ("sl", "breakeven_sl") else "tp_price"
             # ── [2026-09-18 轮96 修 Fix C] min_hold 内拒付「追踪派生」止损 ──

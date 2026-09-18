@@ -1840,7 +1840,23 @@ class PositionMemoryManager:
         _min_sl_price_mult = cfg["min_sl_pct"]  # 多头: price * min_sl_pct（如 0.945）
         _min_tp_price_mult = cfg["min_tp_pct"]  # 多头: price * min_tp_pct（如 1.05）
 
-        if side == "buy":
+        # ── [2026-09-19 轮104 修] side 词表归一 ──────────────────────────────
+        # 本函数原来只认 `side == "buy"`，而**加仓/补仓两条路径传进来的是
+        # "long"/"short"**（`midlong_position_manager._pos_direction()`、
+        # `master_execution` 的同一套归一）。于是多头仓走到 else（空头分支）：
+        #     sl_price = price × (1 + sl_base)   → 止损跑到市价**上方**
+        #     tp_price = price × (1 − tp_base)   → 止盈跑到市价**下方**
+        # 两值互换，且方向全错。
+        #
+        # 实证（2026-09-19 01:50，BTC #4712，paper 也走同一条代码）：
+        #   滚仓 buy 0.00165536 @80968.54 成交 → 写 tp=65689.43 / sl=80788.19
+        #   → 4 秒后硬 TP 判定（现价 80808 ≥ tp 65689）立即成立
+        #   → 按 65689.43 成交「平仓」，凭空记 −41.45 亏损。
+        # 之所以潜伏至今：**滚仓路径此前几乎从不触发**（近 30 天长线平均加仓 0.06 次），
+        # 轮99/102 恢复滚仓后它才第一次真正跑起来。
+        _is_long = str(side or "").strip().lower() in ("buy", "long")
+
+        if _is_long:
             # 多头：SL 在下方（< price），TP 在上方（> price）
             _hard_floor_sl = price * _min_sl_price_mult    # 硬下限 SL 价（如 94.5）
             _hard_floor_tp = price * _min_tp_price_mult    # 硬下限 TP 价（如 105）
@@ -1887,7 +1903,7 @@ class PositionMemoryManager:
                 _cap_dist, _cap_why = _clamp_sl(_dist, _cap_tier)
                 if _cap_dist and _cap_dist < _dist:
                     sl_price = round(
-                        float(price) * (1 - float(_cap_dist)) if side == "buy"
+                        float(price) * (1 - float(_cap_dist)) if _is_long
                         else float(price) * (1 + float(_cap_dist)), 6
                     )
                     logger.info(
@@ -2185,11 +2201,23 @@ class PositionMemoryManager:
             return self._skip_plan(symbol, side,
                 f"亏损{pnl_pct:.1%}过深(>{DCA_MAX_LOSS_PCT:.1%})，应止损而非补仓")
 
+        # ── [2026-09-19 轮104 修] side 词表归一（同 `_calc_tp_sl` 的根因，同一批修）──
+        # 本函数原样比较 `side == "buy"`，但 `midlong_position_manager._exec_controlled_dca`
+        # 传进来的是 `_pos_direction()` 归一后的 **"long"/"short"**（实证：滚仓路径
+        # 传给 `_calc_tp_sl` 的就是 "long"，见 BTC #4712）。
+        # 后果有两处，均静默：
+        #   ① `expected_bias` 反了 → 多头仓要求编排器给 "bearish" 才允许补仓；
+        #   ② `pos_side` 反了 → 「同方向总敞口」统计的是**反方向**的保证金，
+        #      既可能放过超敞口补仓，也可能因反方向仓位误拦。
+        # 同一文件里 `trend_pyramid_gate`(L325)、`side_norm`(L2133/2299) 早已归一，
+        # 只有这里漏了 —— 属于同一 bug 的不同落点。
+        _side_is_long = str(side or "").strip().lower() in ("buy", "long")
+
         # 方向确认：编排器中长线是否仍支持原方向
         if orchestrator_decision and isinstance(orchestrator_decision, dict):
             long_bias = orchestrator_decision.get("long_bias", "")
             mid_bias = orchestrator_decision.get("mid_bias", "")
-            expected_bias = "bullish" if side == "buy" else "bearish"
+            expected_bias = "bullish" if _side_is_long else "bearish"
             support = sum(1 for b in [long_bias, mid_bias] if b == expected_bias)
             if support < 1:
                 return self._skip_plan(symbol, side,
@@ -2197,7 +2225,7 @@ class PositionMemoryManager:
         elif orchestrator_decision and hasattr(orchestrator_decision, 'long_view'):
             long_bias = getattr(orchestrator_decision.long_view, 'bias', '')
             mid_bias = getattr(orchestrator_decision.mid_view, 'bias', '')
-            expected_bias = "bullish" if side == "buy" else "bearish"
+            expected_bias = "bullish" if _side_is_long else "bearish"
             support = sum(1 for b in [long_bias, mid_bias] if b == expected_bias)
             if support < 1:
                 return self._skip_plan(symbol, side,
@@ -2221,9 +2249,9 @@ class PositionMemoryManager:
             except (ValueError, TypeError):
                 pass
 
-        # 同方向总敞口检查
+        # 同方向总敞口检查（[轮104] pos_side 用归一后的方向，见上方 _side_is_long 注释）
         from backend.database.models import PaperPosition
-        pos_side = "long" if side == "buy" else "short"
+        pos_side = "long" if _side_is_long else "short"
         same_dir_margin = sum(
             float(p.margin or 0) for p in db.query(PaperPosition).filter(
                 PaperPosition.account_id == account_id,
