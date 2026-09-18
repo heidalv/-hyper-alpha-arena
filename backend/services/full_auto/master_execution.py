@@ -191,6 +191,36 @@ def build_master_execution_host(svc) -> MasterExecutionHost:
     return host
 
 
+def _emit_block_event(host, session, event: str, message: str,
+                      *, sym: str = "", action: str = "") -> None:
+    """记录「拦截」事件，**失败不影响裁决**。
+
+    ## 为什么需要它（轮82，P2-3 及 6 个同类点）
+
+    多处风控写成：
+
+        try:
+            if <冻结/超预算/方向冲突>:
+                host.append_event(session, "xxx_block", "...")   # ← 可能抛
+                continue                                          # ← 与副作用同处一个 try
+        except Exception:
+            pass                                                  # ← 静默
+
+    `append_event` 抛异常时，`continue` **不会执行** ——
+    「拦截」直接变成「放行」，而且一行日志都没有。风控被自己的日志副作用关掉了。
+
+    现在统一：判定归判定，记录归记录。记录失败降级为一条 WARNING，
+    裁决（continue/return）照原样发生。
+    """
+    try:
+        host.append_event(session, event, message)
+    except Exception as _ev_err:      # noqa: BLE001
+        logger.warning(
+            "[FullAuto] 拦截事件记录失败(仍拦截) %s %s %s: %s",
+            event, sym or "-", action or "-", _ev_err,
+        )
+
+
 def _resolve_training_allowed_symbols(host) -> set:
     """解析「训练期允许新开仓的 symbol 集合」（空集 = 不限制）。
 
@@ -2227,20 +2257,31 @@ def execute_master_decisions(
                     f"⛔ {sym} {action} V5门控异常拦截: {str(_v5_err)[:80]}")
                 continue
 
+            # [轮82 修 P2-3] 判定与副作用分离：先算「是否冻结」，再尝试记事件。
+            # 旧写法把 `continue` 与 `host.append_event(...)` 放在**同一个 try** 内，
+            # 而 `append_event` 抛异常时被 `except Exception: pass` 吞掉 ——
+            # 「编排器冻结=拦截」于是变成「放行」，且**一行日志都没有**。
+            # 冻结是风控动作，必须生效；事件记录失败只能降级为日志，不能反过来放行。
+            _orch_frozen = False
             try:
                 from backend.config.settings import get_orchestrator_hard_gate
                 if get_orchestrator_hard_gate(mode):
                     _mkt_fz = (market_summary or {}).get(sym, {})
                     _orch_fz = _mkt_fz.get("orchestrator", {}) if isinstance(_mkt_fz, dict) else {}
                     if isinstance(_orch_fz, dict) and _orch_fz.get("action") == "frozen":
-                        host.append_event(session, "orchestrator_frozen_block",
-                            f"🔒 编排器冻结拦截 {sym} {action}: frozen 状态，不允许新开仓 | "
-                            f"{str(_orch_fz.get('reasoning', ''))[:60]}")
-                        logger.info(
-                            f"[FullAuto] 编排器冻结拦截 {sym} {action}: orch=frozen")
-                        continue
-            except Exception:
-                pass
+                        _orch_frozen = True
+                        _fz_reason = str(_orch_fz.get("reasoning", ""))[:60]
+            except Exception as _fz_err:
+                # 判定本身失败：不擅自拦截（保持原语义），但必须可见
+                logger.warning(
+                    "[FullAuto] 编排器冻结判定异常(未拦截) %s %s: %s", sym, action, _fz_err)
+                _orch_frozen = False
+            if _orch_frozen:
+                _emit_block_event(host, session, "orchestrator_frozen_block",
+                    f"🔒 编排器冻结拦截 {sym} {action}: frozen 状态，不允许新开仓 | {_fz_reason}",
+                    sym=sym, action=action)
+                logger.info(f"[FullAuto] 编排器冻结拦截 {sym} {action}: orch=frozen")
+                continue
 
         # 持仓超时：不在此强制改 hold→close，由 hold_timeout_review_queue + LLM 复审决定
 
@@ -2967,15 +3008,22 @@ def execute_master_decisions(
 
         elif action in ("buy", "sell") and mode == "running":
             # ── Pace 开平对称：shadow 平仓时禁止新开仓 ──
+            # [轮82 修] 与 P2-3 同类：`append_event` 与 `continue` 同处一个 try，
+            # 记录失败会被 `except: pass` 吞掉 → 「Pace shadow 对称禁开」变成放行且无日志。
+            # 改为「先判定，再记录」，记录失败不影响拦截。
+            _pace_block = False
             try:
                 from backend.services.paper_pace_controller import paper_pace_controller
-                if paper_pace_controller.blocks_new_opens_symmetric():
-                    host.append_event(session, "pace_symmetric_block",
-                        f"⛔ Pace shadow 对称禁开 {sym} {action}")
-                    logger.info(f"[FullAuto] Pace 对称禁开 {sym} {action}")
-                    continue
-            except Exception:
-                pass
+                _pace_block = bool(paper_pace_controller.blocks_new_opens_symmetric())
+            except Exception as _pace_err:      # noqa: BLE001
+                logger.warning(
+                    "[FullAuto] Pace 对称禁开判定异常(未拦截) %s %s: %s", sym, action, _pace_err)
+            if _pace_block:
+                _emit_block_event(host, session, "pace_symmetric_block",
+                                  f"⛔ Pace shadow 对称禁开 {sym} {action}",
+                                  sym=sym, action=action)
+                logger.info(f"[FullAuto] Pace 对称禁开 {sym} {action}")
+                continue
 
             # ── 三层预算检查（2026-06-18）──
             # 该 nature 所属层的预算是否够开这仓
@@ -2989,32 +3037,38 @@ def execute_master_decisions(
                     getattr(session, "paper_account_id", None)
                     or getattr(session, "account_id", None)
                 )
+                # [轮82 修] 判定与记录分离：原实现把 append_event 与 continue 放在同一个
+                # try 内，`except: pass` 会把「预算已满」变成放行（且无日志）。
+                _budget_block = None
                 if _equity > 0 and _req_margin > 0:
                     _bf = budget_service.scale_factor_for_layer(
                         tier or _dec_nature_raw, _equity, _tm,
                         account_id=_budget_acct,
                     )
                     if _bf <= 0:
-                        host.append_event(session, "layer_budget_block",
-                            f"📊 {_layer}层预算已满，跳过 {sym} {action}")
-                        continue
-                    if _bf < 1.0:
+                        _budget_block = f"📊 {_layer}层预算已满，跳过 {sym} {action}"
+                    elif _bf < 1.0:
                         dec["size_multiplier"] = float(dec.get("size_multiplier") or 1.0) * _bf
                     elif not budget_service.can_open(
                         tier or "mid", _req_margin, _equity, _tm,
                         account_id=_budget_acct,
                     ):
-                        host.append_event(session, "layer_budget_block",
-                            f"📊 {_layer}层预算不足，跳过 {sym} {action}")
-                        continue
-            except Exception:
-                pass
+                        _budget_block = f"📊 {_layer}层预算不足，跳过 {sym} {action}"
+                if _budget_block:
+                    _emit_block_event(host, session, "layer_budget_block",
+                                      _budget_block, sym=sym, action=action)
+                    continue
+            except Exception as _bg_err:
+                # 判定异常：保持原语义（不拦截），但必须可见
+                logger.warning(
+                    "[FullAuto] 层预算判定异常(未拦截) %s %s: %s", sym, action, _bg_err)
             # [轮79] 不再只依赖 host 字段（它在独立调度器下恒为空 → 守卫失效）。
             # 缓存到局部，避免循环内反复读缓存。
             _train_allowed = _training_allowed_cache
             if _train_allowed and sym.upper() not in _train_allowed:
-                host.append_event(session, "training_universe_block",
-                    f"⛔ 训练期非目标币禁开 {sym} {action}")
+                _emit_block_event(host, session, "training_universe_block",
+                                  f"⛔ 训练期非目标币禁开 {sym} {action}",
+                                  sym=sym, action=action)
                 logger.info(f"[FullAuto] 训练期禁开非目标币 {sym} {action}")
                 continue
 
@@ -3274,11 +3328,19 @@ def execute_master_decisions(
                             confidence=confidence, trading_mode=mode,
                         )
                         if _orch_blk:
-                            host.append_event(session, "orchestrator_gate_block",
+                            # [轮82 修] 与 P2-3 同类：append_event / clear_deferred_signal /
+                            # continue 同处一个 try，记录失败会让拦截被 `except` 吞掉。
+                            _emit_block_event(host, session, "orchestrator_gate_block",
                                 f"⛔ 编排器拦截 {sym} {action}: wait | "
-                                f"冷却排队已取消 — {_orch_why[:60]}")
-                            host.clear_deferred_signal(
-                                account_id, sym, action, _dec_tier_for_cd)
+                                f"冷却排队已取消 — {_orch_why[:60]}",
+                                sym=sym, action=action)
+                            try:
+                                host.clear_deferred_signal(
+                                    account_id, sym, action, _dec_tier_for_cd)
+                            except Exception as _cds2_err:      # noqa: BLE001
+                                logger.warning(
+                                    "[FullAuto] clear_deferred_signal 失败(仍拦截) %s %s: %s",
+                                    sym, action, _cds2_err)
                             logger.info(
                                 f"[FullAuto] 编排器wait，不排队延迟信号 {sym} {action}[{_dec_tier_for_cd}]"
                             )
@@ -3364,6 +3426,12 @@ def execute_master_decisions(
                         f"[FullAuto] tier_circuit_breaker 检查异常: {_tier_cb_err}")
 
                 # ── 编排器硬门控 ──
+                # [轮82 修] 判定与记录分离。原实现 append_event / clear_deferred_signal /
+                # continue 全在同一个 try 内，`except: pass` 会把这些副作用与**拦截本身**
+                # 一起吞掉 → 编排器说「不许开」却被放行且无日志。
+                _orch_blk = False
+                _orch_why = ""
+                _orch_action = "wait"
                 try:
                     _orch_blk, _orch_why = host.orchestrator_blocks_open(
                         sym, action, market_summary, tier, confidence=confidence,
@@ -3374,15 +3442,25 @@ def execute_master_decisions(
                         _orch_action = (
                             _orch.get("action") if isinstance(_orch, dict) else "wait"
                         )
-                        host.append_event(session, "orchestrator_gate_block",
-                            f"⛔ 编排器拦截 {sym} {action}: {_orch_action} | "
-                            f"{str(_orch.get('reasoning', '') if isinstance(_orch, dict) else _orch_why)[:80]}")
+                except Exception as _og_err:
+                    logger.warning(
+                        "[FullAuto] 编排器硬门控判定异常(未拦截) %s %s: %s",
+                        sym, action, _og_err)
+                    _orch_blk = False
+                if _orch_blk:
+                    _emit_block_event(host, session, "orchestrator_gate_block",
+                        f"⛔ 编排器拦截 {sym} {action}: {_orch_action} | "
+                        f"{str((_orch.get('reasoning', '') if isinstance(_orch, dict) else _orch_why))[:80]}",
+                        sym=sym, action=action)
+                    try:
                         host.clear_deferred_signal(account_id, sym, action, tier)
-                        logger.info(f"[FullAuto] 编排器硬门控拦截 {sym} {action}: "
-                                    f"orch={_orch_action}")
-                        continue
-                except Exception:
-                    pass
+                    except Exception as _cds_err:      # noqa: BLE001
+                        logger.warning(
+                            "[FullAuto] clear_deferred_signal 失败(仍拦截) %s %s: %s",
+                            sym, action, _cds_err)
+                    logger.info(f"[FullAuto] 编排器硬门控拦截 {sym} {action}: "
+                                f"orch={_orch_action}")
+                    continue
 
                 # ── DCP tier 方向约束（替代 neutral 无条件放行）──
                 try:
@@ -3402,35 +3480,44 @@ def execute_master_decisions(
                         trading_mode=mode,
                     )
                     if not _dcp_tier.allowed:
-                        host.append_event(session, "direction_gate_block",
-                            f"⛔ DCP tier拦截 {sym}[{tier}] {action}: {_dcp_tier.reason[:80]}")
+                        # [轮82 修] 判定与记录分离（原 append_event 与 continue 同 try，
+                        # 记录失败会被 `except: pass` 变成放行且无日志）
+                        _emit_block_event(host, session, "direction_gate_block",
+                            f"⛔ DCP tier拦截 {sym}[{tier}] {action}: {_dcp_tier.reason[:80]}",
+                            sym=sym, action=action)
                         logger.info(
                             f"[FullAuto] DCP tier拦截 {sym} {action} tier={tier}: "
                             f"{_dcp_tier.rule}"
                         )
                         continue
-                except Exception:
-                    pass
+                except Exception as _dcp_err:
+                    logger.warning(
+                        "[FullAuto] DCP tier判定异常(未拦截) %s %s: %s", sym, action, _dcp_err)
 
                 # ── [Phase7] 趋势锁定：trend_follow/position 性质时禁止反向开仓 ──
+                # [轮82 修] 原实现把 append_event 放在 for 循环内、continue 在循环外，
+                # 两者同处一个 try：记录失败 → `except: pass` → `_same_dir_trend` 仍为 False
+                # → **趋势锁定被跳过**。现改为先收集冲突方向，再统一记录与拦截。
+                _trend_conflict_side = ""
                 try:
                     if trade_nature in ("trend_follow", "position"):
-                        # 检查同 symbol 是否已有同方向趋势仓
-                        _same_dir_trend = False
+                        _want_side = "long" if action == "buy" else "short"
                         for _ep in (positions_list or []):
-                            if _ep.get("symbol") == sym:
-                                _ep_side = _ep.get("side", "")
-                                _want_side = "long" if action == "buy" else "short"
-                                if _ep_side != _want_side:
-                                    host.append_event(session, "trend_lock_block",
-                                        f"🔒 趋势锁定拦截 {sym} {action}: "
-                                        f"已有{_ep_side}趋势仓，禁止反向开仓")
-                                    _same_dir_trend = True
-                                    break
-                        if _same_dir_trend:
-                            continue
-                except Exception:
-                    pass
+                            if _ep.get("symbol") != sym:
+                                continue
+                            _ep_side = _ep.get("side", "")
+                            if _ep_side != _want_side:
+                                _trend_conflict_side = _ep_side
+                                break
+                except Exception as _tl_err:
+                    logger.warning(
+                        "[FullAuto] 趋势锁定判定异常(未拦截) %s %s: %s", sym, action, _tl_err)
+                if _trend_conflict_side:
+                    _emit_block_event(host, session, "trend_lock_block",
+                        f"🔒 趋势锁定拦截 {sym} {action}: "
+                        f"已有{_trend_conflict_side}趋势仓，禁止反向开仓",
+                        sym=sym, action=action)
+                    continue
 
                 # ── [Phase7] 手续费成本门槛：预期利润不足手续费 3 倍时跳过 ──
                 try:
@@ -3449,15 +3536,18 @@ def execute_master_decisions(
                                 f"💸 手续费门槛拦截 {sym} {action}: "
                                 f"预期利润${_est_profit:.2f}<手续费${_est_fee:.2f}×3"
                             )
-                            host.append_event(session, "fee_threshold_block", _msg)
+                            # [轮82 修] 判定与记录分离
+                            _emit_block_event(host, session, "fee_threshold_block", _msg,
+                                              sym=sym, action=action)
                             try:
                                 from backend.services.block_report_aggregator import record_block
                                 record_block("fee_threshold", _msg)
                             except Exception:
                                 pass
                             continue
-                except Exception:
-                    pass
+                except Exception as _fee_err:
+                    logger.warning(
+                        "[FullAuto] 手续费门槛判定异常(未拦截) %s %s: %s", sym, action, _fee_err)
 
                 # P2-2: 历史表现门控 — 阻止在已知亏损方向开仓
                 try:

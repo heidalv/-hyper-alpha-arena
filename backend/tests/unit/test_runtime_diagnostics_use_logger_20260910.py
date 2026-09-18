@@ -116,9 +116,16 @@ def test_zero_load_guard_is_wired_into_discover(monkeypatch, caplog):
     [变异测试实证] 把 `discover_and_load_all()` 里的 `self._check_zero_load(...)` 一行删掉，
     只测助手的用例**依然全绿** —— 运行时接线当时是对的（线上启动日志可见告警），
     但没有任何测试守它。本用例走真实入口、把分类加载打成 0，断言告警确实发出。
+
+    [轮82 补] 必须先清**目录指纹缓存**：轮77 给 `discover_and_load_all` 加了
+    「目录未变则复用已加载因子」的短路，缓存命中时不会走到 `_load_category`，
+    于是本用例会拿到 262 而不是被打成 0 的 0（实测）。
+    清缓存后行为与加缓存前一致，接线守卫仍然有效。
     """
+    from backend.services.factor_engine import factor_loader as _fl
     from backend.services.factor_engine.factor_loader import FactorLoader
 
+    _fl._DISCOVERY_CACHE.clear()
     loader = FactorLoader()
     monkeypatch.setattr(loader, "_load_category", lambda _d: 0)  # 模拟"扫到文件但注册 0"
     with caplog.at_level(logging.WARNING):
