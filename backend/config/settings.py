@@ -2755,6 +2755,13 @@ def midlong_new_open_halted() -> bool:
 # [M8 2026-08-21] 默认 2→3：活跃因子掉到门槛以下应暂停而不是硬开。
 # 顺序依赖已满足（item14 AST 桥接中线落地，中线弹药=公式+registry+AST 三源）。
 FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "3") or "3")
+# [轮107 2026-09-19] 主脑上下文是否包含**因子层**（context_pack.build_factor_layer）。
+# 现役主脑走 `context_pack.build("midlong_thesis")`，此前 5 个层里一个因子字段都没有
+# （因子注入只写在已下线的旧 orchestrator→qual_layer 链路上）。默认 true；
+# 只对 `midlong_thesis` 任务默认开启，其余任务需显式 layers=(..., "factors")。
+CONTEXT_PACK_FACTORS_ENABLED: bool = (
+    os.getenv("CONTEXT_PACK_FACTORS_ENABLED", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
 # [轮105 2026-09-19] AST 同族去重：按结构签名（数值常量归一）识别"只差窗口"的重复因子，
@@ -2763,8 +2770,7 @@ MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "
 MIDLONG_AST_BRIDGE_DEDUP: bool = (os.getenv("MIDLONG_AST_BRIDGE_DEDUP", "true") or "true").strip().lower() in (
     "1", "true", "yes", "on",
 )
-# [轮105 2026-09-19] AST 桥接因子的 IC 幅度封顶（`midlong_factor_route` 用）。
-# 桥接把 **ICIR**（~1.3）塞进 `scores["ic_mean"]` 当幅度代理，路由又乘一次
+# [轮105 2026-09-19] AST 桥接因子的 IC 幅度封顶（`midlong_factor_route` 用）。# 桥接把 **ICIR**（~1.3）塞进 `scores["ic_mean"]` 当幅度代理，路由又乘一次
 # `abs(ic) * runtime_weight` ⇒ 票权是公式因子（IC ~0.11）的 ~7 倍。默认 0.15
 # ≈ 公式因子 |IC| 中位量级；0 = 不封顶（回滚）。
 FACTOR_ROUTE_AST_IC_CAP: float = float(os.getenv("FACTOR_ROUTE_AST_IC_CAP", "0.15") or "0.15")

@@ -89,12 +89,27 @@ class ContextPack:
         率提升 4.3 倍）。layers 序列化保持稳定 key 顺序，让相同数据前缀可命中。
         """
         layers = json.loads(json.dumps(self.layers, ensure_ascii=False, default=str))
+
+        def _trim_factor_route(L: Dict[str, Any]) -> None:
+            """[轮107] 因子层先砍路由明细（保留 action/score 概览）。"""
+            for v in (L.get("factors", {}).get("symbols") or {}).values():
+                if isinstance(v, dict):
+                    v.pop("route", None)
+
+        def _trim_factor_symbols(L: Dict[str, Any]) -> None:
+            """再只留第一个币的因子证据。"""
+            fs = L.get("factors")
+            if isinstance(fs, dict):
+                fs["symbols"] = dict(list((fs.get("symbols") or {}).items())[:1])
+
         trims = [
             lambda L: L.get("flows", {}).update({"events": (L.get("flows", {}).get("events") or [])[:12]}),
             lambda L: L.get("market", {}).pop("correlation_pairs", None),
             lambda L: L.get("positions", {}).update({"open": (L.get("positions", {}).get("open") or [])[:10]}),
             lambda L: L.get("flows", {}).update({"events": (L.get("flows", {}).get("events") or [])[:4]}),
             lambda L: L.get("performance", {}).pop("signal_sources", None),
+            _trim_factor_route,
+            _trim_factor_symbols,
             lambda L: L.get("market", {}).update({"symbols": dict(list((L.get("market", {}).get("symbols") or {}).items())[:6])}),
             lambda L: L.get("positions", {}).update({"open": []}),
         ]
@@ -700,12 +715,176 @@ def build_config_layer(errors: List[str]) -> Dict[str, Any]:
         return {}
 
 
+# --------------------------------------------------------------------------- factor layer
+def build_factor_layer(
+    symbols: Sequence[str],
+    errors: List[str],
+    *,
+    market_layer: Optional[Dict[str, Any]] = None,
+    flows_layer: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """[轮107 2026-09-19] 中长线**因子证据层** —— 主脑 prompt 此前完全没有因子。
+
+    ## 为什么必须补这一层
+
+    现役主脑（`mlto/brain.py`）用的上下文是 `context_pack.build("midlong_thesis")`，
+    而它的 5 个层（market / flows / positions / performance / config）里
+    **没有任何因子字段**；写好的因子注入只存在于 `mlto/qual_layer`
+    ——那条路属于**旧 orchestrator（9/5 已下线）**，主脑根本不经过。
+    实测后果：主脑做中/长线方向判断时，看不到"量化层在用什么因子、方向如何、结论是什么"。
+
+    本层给每个币放三样东西（都是**只读证据**，不是指令）：
+
+      · ``active``  —— 活跃中长线因子的当前读数 + **方向语义**
+        （`sign=-1` 表示该因子 IC<0、量化层**反着用**：读数越高越看空）；
+      · ``route``   —— 中线因子路由的结论（action / score / 前几票），
+        即"量化层真正会做的方向"；
+      · ``brief``   —— `MidLongQuantBrief`（对齐分 / 证据可用率 / 缺失项，
+        零 LLM）。该模块此前**全库没有生产调用方**，这里首次接入。
+
+    成本：每币 1 次 `build_snapshot`（因子已在别处缓存 K 线）+ 1 次路由判定；
+    只对传入的 `symbols` 计算（主脑是 1~2 个币）。
+    关掉本层：`CONTEXT_PACK_FACTORS_ENABLED=false`。
+    """
+    try:
+        from backend.config import settings as _st
+        if not bool(getattr(_st, "CONTEXT_PACK_FACTORS_ENABLED", True)):
+            return {}
+    except Exception:
+        pass
+
+    out: Dict[str, Any] = {"role": "证据，非指令", "symbols": {}}
+    try:
+        from backend.services.factor_engine.midlong_active_factor_set import (
+            midlong_active_factor_set as _mlset,
+        )
+    except Exception as _imp_err:
+        errors.append(f"factors: 活跃因子集不可用 {_imp_err}")
+        return {}
+    try:
+        from backend.services.factor_engine.midlong_factor_route import factor_route_decide as _route
+    except Exception:
+        _route = None
+    try:
+        from backend.services.mid_long_quant_brief import mid_long_quant_brief_builder as _qbld
+    except Exception:
+        _qbld = None
+
+    _mrows = (market_layer or {}).get("symbols") or {}
+    _fund = (flows_layer or {}).get("funding_8h_pct") or {}
+
+    for sym in symbols:
+        sym_u = str(sym).upper()
+        row = _mrows.get(sym_u) or {}
+        _px = 0.0
+        try:
+            _px = float(row.get("last") or 0.0)
+        except (TypeError, ValueError):
+            _px = 0.0
+        entry: Dict[str, Any] = {}
+
+        # ① 因子读数 + 方向语义
+        try:
+            snap = _mlset.build_snapshot(sym_u)
+            meta = snap.get("meta") if isinstance(snap.get("meta"), dict) else {}
+            ranked: List[Dict[str, Any]] = []
+            for tf in ("4h", "1d"):
+                for fid, val in (snap.get(tf) or {}).items():
+                    m = meta.get(fid) or {}
+                    try:
+                        _v = float(val)
+                    except (TypeError, ValueError):
+                        continue
+                    try:
+                        _ic = float(m.get("ic") or 0.0)
+                    except (TypeError, ValueError):
+                        _ic = 0.0
+                    try:
+                        _sg = int(m.get("sign") or 1)
+                    except (TypeError, ValueError):
+                        _sg = 1
+                    ranked.append({
+                        "id": str(fid)[:32], "tf": tf, "value": round(_v, 5),
+                        "ic": round(_ic, 4), "sign": _sg,
+                        # inv=true → 该因子 IC<0，量化层反着用（读数越高越看空）
+                        "inv": _sg < 0,
+                    })
+            # 按 |IC| 排（预测力），不要按原始量纲 —— 否则 macd(312) 永远霸榜
+            ranked.sort(key=lambda x: -abs(x.get("ic") or 0))
+            if ranked:
+                entry["active"] = {"count": int(snap.get("count") or len(ranked)),
+                                   "top": ranked[:8],
+                                   "note": "inv=true 的因子 IC<0，量化层反着用（读数越高越看空）"}
+        except Exception as _snap_err:
+            errors.append(f"factors:{sym_u}: 快照失败 {str(_snap_err)[:80]}")
+
+        # ② 因子路由结论（量化层真正会做的方向）
+        if _route is not None and _px > 0:
+            try:
+                r = _route(sym_u, {sym_u: {"current_price": _px, "data_reliable": True}}, "paper")
+                _votes = r.get("votes") or {}
+                _tv = sorted(
+                    [(k, v) for k, v in _votes.items() if isinstance(v, dict)
+                     and isinstance(v.get("vote"), (int, float))],
+                    key=lambda kv: -abs(kv[1]["vote"]),
+                )[:6]
+                entry["route"] = {
+                    "action": r.get("action"), "score": r.get("score"),
+                    "n": len(_votes),
+                    "top": [{"id": str(k)[:32], "vote": v.get("vote")} for k, v in _tv],
+                    **({"regime_inverted": r.get("trend_invert_regime")}
+                       if r.get("trend_invert_regime") else {}),
+                }
+            except Exception as _rt_err:
+                errors.append(f"factors:{sym_u}: 路由失败 {str(_rt_err)[:80]}")
+
+        # ③ 零 LLM 量化简报（对齐分/证据可用率/缺失项）
+        if _qbld is not None:
+            try:
+                _ind_1h = {"rsi": row.get("rsi14_1h"), "ema_trend": row.get("ema_trend_1h")}
+                _ind_4h = {"rsi": row.get("rsi14_4h"), "ema_trend": row.get("ema_trend_4h")}
+                _ind_1d = {"rsi": row.get("rsi14_1d"), "atr_pct": row.get("atr14_1d_pct")}
+                _fr = (_fund.get(sym_u) or {})
+                _md = {
+                    "indicators_1h": {k: v for k, v in _ind_1h.items() if v is not None},
+                    "indicators_4h": {k: v for k, v in _ind_4h.items() if v is not None},
+                    "indicators_1d": {k: v for k, v in _ind_1d.items() if v is not None},
+                    "adx_1d": row.get("adx_1d"),
+                    "trend_1w": row.get("trend_1w"),
+                    "funding_rate": (list(_fr.values())[0] if _fr else None),
+                    "market_cycle": row.get("regime") or row.get("market_cycle"),
+                    "swing_low": row.get("range_24h_low"),
+                    "swing_high": row.get("range_24h_high"),
+                }
+                _b = _qbld.build(sym_u, _md, orchestrator=None, side_hint="long").to_dict()
+                entry["brief"] = {
+                    "direction": _b.get("direction"),
+                    "alignment_score": _b.get("alignment_score"),
+                    "evidence_available_ratio": _b.get("evidence_available_ratio"),
+                    "missing_data": (_b.get("missing_data") or [])[:8],
+                    "structure_levels": _b.get("structure_levels") or {},
+                }
+            except Exception as _qb_err:
+                errors.append(f"factors:{sym_u}: 简报失败 {str(_qb_err)[:80]}")
+
+        if entry:
+            out["symbols"][sym_u] = entry
+
+    if not out["symbols"]:
+        return {}
+    return out
+
+
 # --------------------------------------------------------------------------- build
 def build(task: str, *, symbols: Optional[Sequence[str]] = None, layers: Optional[Sequence[str]] = None,
           events_hours: float = 24.0) -> ContextPack:
     """构建 context pack。layers 缺省 = 全部五层；事件评估任务可只取 market+flows。"""
     syms = list(symbols) if symbols else universe()
-    want = set(layers or ("market", "flows", "positions", "performance", "config"))
+    # [轮107] 主脑的中长线论文任务默认带上因子层（其余任务按需显式传 layers）
+    _default_layers = ("market", "flows", "positions", "performance", "config")
+    if str(task or "") == "midlong_thesis":
+        _default_layers = _default_layers + ("factors",)
+    want = set(layers or _default_layers)
     errors: List[str] = []
     out: Dict[str, Any] = {"universe": syms}
     t0 = time.time()
@@ -719,6 +898,11 @@ def build(task: str, *, symbols: Optional[Sequence[str]] = None, layers: Optiona
         out["performance"] = build_performance_layer(errors)
     if "config" in want:
         out["config"] = build_config_layer(errors)
+    if "factors" in want:
+        _fl = build_factor_layer(syms, errors, market_layer=out.get("market"),
+                                 flows_layer=out.get("flows"))
+        if _fl:
+            out["factors"] = _fl
     cutoff = int(time.time() * 1000)
     m_as_of = (out.get("market") or {}).get("as_of_ms")
     if m_as_of:

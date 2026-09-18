@@ -1028,6 +1028,69 @@ try:
 except Exception as e:
     check("轮106 因子注入验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮107  主脑上下文因子层（长线/中线主脑此前看不到任何因子）──────────
+print("\n── 轮107  主脑上下文因子层（context_pack factors）──")
+try:
+    from backend.services.analysis import context_pack as _CP107
+
+    _pack107 = _CP107.build("midlong_thesis", symbols=["BTC"])
+    _fl107 = _pack107.layers.get("factors") or {}
+    _f107 = (_fl107.get("symbols") or {}).get("BTC") or {}
+    check("① 主脑论文任务默认带因子层（此前 5 层里一个因子字段都没有）",
+          bool(_f107) and all(k in _f107 for k in ("active", "route", "brief")),
+          f"层键={sorted(_fl107.keys())} 币键={sorted(_f107.keys())}")
+
+    _p107b = _CP107.build("daily_brief", symbols=["BTC"])
+    check("② 其余任务默认不带因子层（每币一次快照+路由，不给全 universe 白跑）",
+          "factors" not in _p107b.layers,
+          f"daily_brief layers={sorted(_p107b.layers.keys())}")
+
+    _top107 = (_f107.get("active") or {}).get("top") or []
+    _ics107 = [abs(r.get("ic") or 0) for r in _top107]
+    check("③ active 带方向语义（sign/inv）且按 |IC| 排序（不按原始量纲）",
+          bool(_top107) and _ics107 == sorted(_ics107, reverse=True)
+          and all(r.get("inv") is (r.get("sign") < 0) for r in _top107),
+          f"top1={_top107[0] if _top107 else None} | 条数={len(_top107)}")
+
+    _rt107 = _f107.get("route") or {}
+    check("④ 因子路由结论进 prompt（中线量化层真正会做的方向）",
+          _rt107.get("action") in ("buy", "sell", "hold") and _rt107.get("n"),
+          f"action={_rt107.get('action')} score={_rt107.get('score')} n={_rt107.get('n')} "
+          f"regime_inverted={_rt107.get('regime_inverted')}")
+
+    _br107 = _f107.get("brief") or {}
+    check("⑤ MidLongQuantBrief 首次接入生产（此前全库无调用方）",
+          isinstance(_br107.get("alignment_score"), int)
+          and "evidence_available_ratio" in _br107,
+          f"direction={_br107.get('direction')} alignment={_br107.get('alignment_score')}/15 "
+          f"avail={_br107.get('evidence_available_ratio')} "
+          f"missing={(_br107.get('missing_data') or [])[:4]}")
+
+    _txt107 = _pack107.to_prompt_text(40000)
+    check("⑥ 因子层确实渲染进 prompt 文本，且可被预算裁剪（不抛异常）",
+          '"factors"' in _txt107 and '"inv"' in _txt107
+          and isinstance(_pack107.to_prompt_text(10), str),
+          f"prompt 长度={len(_txt107)}")
+
+    try:
+        from backend.config.settings import CONTEXT_PACK_FACTORS_ENABLED as _cpe107
+    except Exception:
+        _cpe107 = None
+    check("⑦ 因子层开关可读（CONTEXT_PACK_FACTORS_ENABLED，默认 true）",
+          _cpe107 is True, f"settings.CONTEXT_PACK_FACTORS_ENABLED={_cpe107}")
+
+    # 中线（短线主控）那条 prompt 路径本来就是**定向**的，不是同类缺陷 —— 取证留存
+    _ta107 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/trading_analysts.py"),
+                     encoding="utf-8").read()
+    check("⑧ 中线/短线主控 prompt 的因子块本来就是定向读数（无同类缺陷）",
+          "方向={payload.get('direction_label'" in _ta107
+          and "factor veto" in _ta107,
+          "`_build_factor_signals_prompt_block` 注入的是 direction_label/signal_score/confidence，"
+          "不是原始因子值 ⇒ 不需要方向标注")
+except Exception as e:
+    check("轮107 主脑因子层验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",
