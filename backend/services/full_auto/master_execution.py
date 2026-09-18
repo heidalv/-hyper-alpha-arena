@@ -531,6 +531,14 @@ def execute_master_decisions(
     _pending_logs: list = []       # AIDecisionLog 对象列表
 
     for dec in decisions:
+        # [轮80 P2-1] 每次迭代开头显式复位快照/日志句柄。
+        # 必须在**循环头**复位而不是中途：`_snap_entry = snap` 在下方 try 内，
+        # 若该 try 提前失败，变量会未定义 → 后续 `mark_master_decision_executed(_snap_entry, ...)`
+        # 抛 NameError。原先的复位位置（AIDecisionLog 段）在赋值**之后**，
+        # 反而把刚拿到的快照覆盖成 None，导致 `DecisionSnapshot.executed` 永不置位。
+        _snap_entry = None
+        _dec_log_entry = None
+
         # 优化：只在上一轮交易确实发生了仓位变更时才 rollback
         try:
             if _position_dirty:
@@ -1365,8 +1373,13 @@ def execute_master_decisions(
 
         # ── 写入 AIDecisionLog（批量收集，统一提交）──
         # 注意：executed 初始均写 "false"；实际下单成功后由执行段更新为 "true"
-        _dec_log_entry = None   # 用于后续执行成功时回写 executed=true
-        _snap_entry = None      # 对应 DecisionSnapshot，与 _dec_log_entry 同步回写
+        # [轮80 修 P2-1] 此处原先还有一行 `_snap_entry = None` —— 它**覆盖了上方刚赋值的快照**
+        # （`:1361 _snap_entry = snap`），使后续 8 处
+        # `host.mark_master_decision_executed(_snap_entry, ...)` 一律收到 None，
+        # `DecisionSnapshot.executed` 永不置位；而 `executed == True` 是学习侧
+        # dataset_builder / experience_retriever / trade_attribution 的硬过滤条件
+        # → master 车道的决策从不进入学习数据（静默丢失）。
+        # 两个句柄现在都在**循环头**复位（见 `for dec in decisions:` 下方）。
         try:
             # 暴露每个分支跳过的原因，定位为什么没写日志
             if not _account:
@@ -3061,6 +3074,18 @@ def execute_master_decisions(
             # _same_side_open_count 统计，此处不再需要单独日志）
 
             if action == "pyramid" and _same_dir_pos:
+                # ⚠️ [轮80 审计复核] 本块及其后的 dca 块在此处**不可达**，但这是**冗余**而非缺陷：
+                # 同一个 `for dec in decisions:` 里，顶层分支链已在上方处理过加仓/补仓 ——
+                #   `:2809 elif action == "pyramid" and mode == "running" and pos:`  ← 真正生效的实现
+                #   `:2895 elif action == "dca"     and mode == "running" and pos:`
+                # 而本块所在的外层条件（`:2968 elif action in ("buy", "sell")`）要求 action 是
+                # buy/sell，与 `action == "pyramid"` 互斥 —— 所以 AI 输出 pyramid/dca 时，
+                # 命中上层分支后根本不会走到这里。
+                #
+                # 审计原文称「AI 输出 pyramid/dca 会静默落空、加仓功能整段失效」——**不成立**，
+                # 那是只看到嵌套副本、漏看了上方的真实现（同文件内的重复代码正是这类误判的温床）。
+                # 本块属于历史遗留副本：删掉风险大于收益（170 行含多条风控子分支），
+                # 故保留原样并在此标注，避免后来者再把它当成唯一实现。
                 # ── 顺势加仓（金字塔）— 先经过趋势门控，再 evaluate_pyramid ──
                 # v3 整改: rebound gate — 刚减仓未满冷却 → 抑制加仓（防 reduce→rebuild 死亡螺旋）
                 try:
