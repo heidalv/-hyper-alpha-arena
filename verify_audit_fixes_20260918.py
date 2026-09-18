@@ -469,6 +469,131 @@ try:
 except Exception as e:
     check("P2 批次验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮87-94：P2 收尾批次（时间单位 / 孤儿快照 / 层预算 / 微仓闸 / 文案 / 死分支 / 环境治理）──
+print("\n── P2 收尾批次（P2-13/7/9/10/6/8/12/14）──")
+try:
+    import json as _json
+
+    def _read(rel):
+        return io.open(os.path.join(_root, rel), encoding="utf-8").read()
+
+    def _live(text):
+        """剥掉整行注释，避免匹配到"引用旧写法"的说明文字。"""
+        return '\n'.join(l for l in text.splitlines() if not l.lstrip().startswith('#'))
+
+    # P2-13 ML 特征引擎的时间索引
+    from backend.services.ml.activation_service import _epoch_like_to_utc
+    import pandas as _pd
+    _ts = _epoch_like_to_utc(_pd.Series([1789739100]))
+    check("K 线 epoch 秒不再被当纳秒解（P2-13）",
+          str(_ts.iloc[0]) == "2026-09-18 13:45:00+00:00",
+          f"1789739100 → {_ts.iloc[0]}（旧写法会落到 1970-01-01）")
+
+    # P2-7 孤儿快照检测
+    # 用 AST 找真正的 `IfExp(test=Constant(False))`：源码里多处**引用**了旧写法
+    # （docstring 与注释），文本匹配会命中说明文字（本项目已多次踩过这个坑）。
+    import ast as _ast
+    from backend.services.full_auto_trading_service import orphan_snapshot_stats
+    _svc3 = _read("backend/services/full_auto_trading_service.py")
+    _tree = _ast.parse(_svc3)
+    _disabled = [n.lineno for n in _ast.walk(_tree)
+                 if isinstance(n, _ast.IfExp) and isinstance(n.test, _ast.Constant)
+                 and n.test.value is False]
+    _svc3_live = _live(_svc3)
+    _two_step = ("SELECT session_id, COUNT(*) FROM decision_snapshots" in _svc3_live
+                 and "SELECT id FROM full_auto_sessions" in _svc3_live
+                 and "NOT IN (SELECT id FROM full_auto_sessions)" not in _svc3_live)
+    check("孤儿快照检测真的会跑、会报（P2-7）",
+          not _disabled and _two_step
+          and orphan_snapshot_stats({10: 5524, 99: 3}, {10}) == (3, [99]),
+          f"AST 中被 if False 禁用的表达式: {_disabled or '无'}；跨库 NOT IN 已拆成两步集合差")
+
+    # P2-9 层预算 fail-closed
+    _pe = _live(_read("backend/services/full_auto/proposal_execution.py"))
+    _pe_blk = _pe[_pe.index("_bf = budget_service.scale_factor_for_layer"):]
+    _pe_blk = _pe_blk[:_pe_blk.index("_mtf_mult")]
+    check("层预算闸门不再静默 fail-OPEN（P2-9）",
+          "except Exception as _bud_err:" in _pe_blk and "return False" in _pe_blk
+          and '_mark_block("budget_error"' in _pe_blk,
+          "本层是唯一的层额度拦截点，异常必须拦截并登记原因")
+
+    # P2-10 微仓硬事实闸门（注释必须一起剥掉：注释里引用了旧写法 return True）
+    _prh_live = _live(_read("backend/services/full_auto/paper_risk_helpers.py"))
+    _prh_exc = _prh_live[_prh_live.index("except Exception as _e:"):]
+    check("微仓硬事实闸门异常时不再放行（P2-10）",
+          "return True" not in _prh_exc and "return False" in _prh_exc
+          and "微仓硬事实复核异常" in _prh_exc,
+          f"异常分支返回: {'False（拦截）' if 'return False' in _prh_exc else '?'}；"
+          "不放行 ⇒ 持有 ⇒ 交 SL/TP，错误会出现在 close_tiny_hold 事件里")
+
+    # P2-6 AI 选币隔离闸门文案（只看**判定块**本身，不看说明文字）
+    from backend.config.settings import AUTO_COIN_ALLOWED_NATURES as _ACAN
+    from backend.services.sub_position_manager import _nature_display_names
+    _spm_live = _live(_read("backend/services/sub_position_manager.py"))
+    _gate = _spm_live[_spm_live.index("if _is_ai_coin:"):_spm_live.index("except ImportError as _imp_err:")]
+    _label = _nature_display_names(set(_ACAN))
+    check("AI 选币闸门文案与 settings 不再自相矛盾（P2-6）",
+          "只允许短线/中线交易" not in _gate
+          and "_nature_display_names(" in _gate
+          and _label == ["日内(scalp)"],
+          f"AUTO_COIN_ALLOWED_NATURES={sorted(_ACAN)} → 文案 {_label}（旧文案写死「短线/中线」）")
+    check("AI 选币闸门两条静默 fail-open 已可见（P2-6）",
+          "except Exception as _db_err:" in _spm_live and "except ImportError as _imp_err:" in _spm_live)
+
+    # P2-8 手续费只扣一次
+    _svc3_process = _live(_svc3)
+    _stats = _svc3_process[_svc3_process.index("def _calc_strategy_stats("):
+                           _svc3_process.index("def _build_strategy_info(")]
+    check("分批平仓手续费不再被扣两次（P2-8）",
+          "total_pnl -= _close_fees" not in _stats
+          and "_extra_fee = _close_fees - _partial_fee_in_positions" in _stats
+          and "if _extra_fee < 0:" in _stats,
+          "只补扣「账本总额 − 仓位行已扣额」；负差额钳到 0")
+
+    # P2-12 死分支
+    _loop = _live(_read("backend/services/full_auto/loops/trading_cycle_loop.py"))
+    _mpm = _read("backend/services/full_auto/midlong_position_manager.py")
+    check("恒 False 的中长线限流分支已删（P2-12）",
+          "elif MIDLONG_AI_MANDATORY and len(active_ids) > max_strategies" not in _loop
+          and "中长线优先限流: " not in _loop,
+          "证明写在原处注释里：len(active_ids) > len(active_ids)")
+    check("未接线的批量入口已明确标注（P2-12）",
+          "当前全仓无任何调用者" in _mpm)
+
+    # P2-14 环境变量治理反向校验
+    from backend.config.env_registry import env_governance_report as _egr
+    _rep = _egr()
+    _over = [k for k in ("read_but_unregistered", "undeclared_switches")
+             if len(_rep[k]) > _rep["baseline"][k]]
+    check("环境变量「读但未登记」方向可校验（P2-14）",
+          not _over,
+          f"代码读 {_rep['code_read']} / 已登记 {_rep['registered']} / "
+          f"读但未登记 {len(_rep['read_but_unregistered'])}（基线 {_rep['baseline']['read_but_unregistered']}）/ "
+          f"未声明开关 {len(_rep['undeclared_switches'])}")
+    # 数据库侧：孤儿快照实测（跨库两步查询）
+    try:
+        from sqlalchemy import text as _text
+        from backend.database.connection import AnalyticsSessionLocal, SessionLocal
+        _a = AnalyticsSessionLocal()
+        try:
+            _bucket = {int(r[0]): int(r[1]) for r in _a.execute(_text(
+                "SELECT session_id, COUNT(*) FROM decision_snapshots "
+                "WHERE session_id IS NOT NULL GROUP BY session_id")).fetchall()}
+        finally:
+            _a.close()
+        _d = SessionLocal()
+        try:
+            _live_ids = {int(r[0]) for r in _d.execute(_text("SELECT id FROM full_auto_sessions")).fetchall()}
+        finally:
+            _d.close()
+        _tot, _ids = orphan_snapshot_stats(_bucket, _live_ids)
+        check("孤儿快照实测（跨库两步查询可跑通）", True,
+              f"快照分属 {sorted(_bucket)}，在线 session {sorted(_live_ids)} → 孤儿 {_tot} 条 {_ids}")
+    except Exception as _oerr:
+        check("孤儿快照实测（跨库两步查询可跑通）", False, f"{type(_oerr).__name__}: {_oerr}")
+except Exception as e:
+    check("P2 收尾批次验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions"):

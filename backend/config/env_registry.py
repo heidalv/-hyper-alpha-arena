@@ -35,6 +35,10 @@ SYSTEM_PREFIXES: tuple[str, ...] = (
     "FACTOR_", "ML_", "QAA_", "RISK_", "EVENT_", "PROMOTION_", "RESOURCE_",
     "MAP_ELITES_", "PBO_", "EWC_", "DDGDA_", "DSPY_", "PROMPT_", "DERIBIT_",
     "MARKET_DATA_", "ADVERSARIAL_", "LLM_", "V5_", "AUTO_COIN_", "AGENT_",
+    # [混合打分中心 ADR-23] 影子打分配置命名空间（mode/channel_b/interval 等，见 hybrid_scoring/config.py）
+    "HYBRID_SCORE_",
+    # [五Agent闭环 ADR-21] factors_lab 因子研究闭环配置命名空间（见 factors_lab/config.py）
+    "FACTORS_LAB_",
     "AI_", "ANALYST_", "ASSISTANT_", "ARBITRAGE_", "REBATE_", "HYPERLIQUID_",
     "BINANCE_", "BYBIT_", "OKX_", "FULLAUTO_", "SCALP_", "MIDLONG_", "PAIR_",
     "WFO_", "BACKTEST_", "FEE_", "ENV_", "LIVE_", "PAPER_", "LONG_V2_", "LONG_TREND_",
@@ -472,6 +476,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "APPDATA",
     "ARBITRAGE_PAPER_AUTO_EXECUTE",
     "ARBITRAGE_PAPER_TICK_SECONDS",
+    # [轮94 P2-14] 套利中心总开关。`arbitrage_routes.py:61` 与
+    # `rebate_arb/arb_switches.py:117` 都在读它（默认 false = 中心已停），
+    # 但此前**从未登记** —— 于是启动校验把它报成"疑似拼写/遗留"，
+    # 而 `test_env_registry_visibility_20260910::test_registry_unknowns_are_exactly_the_dead_keys`
+    # 又要求注册表报出的键必须同时是静态审计认定的死键，两边对不上 ⇒ 该测试长期失败。
+    "ARBITRAGE_CENTER_ENABLED",
     "ARB_V3_MAX_EXECUTIONS_PER_TICK",
     "ARCHIVED_CLEANUP_DAYS",
     "ASSISTANT_DAILY_REPORT_HOUR_UTC",
@@ -784,6 +794,9 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "ENABLE_RL_POSITION_SIZER",
     "ENVIRONMENT",
     "ENV_STRICT",
+    # [轮94 P2-14] 启动期可选输出「环境变量治理体检」计数（默认关闭；扫全仓约 1.2s）。
+    # 打开后 `validate_strict()` 会多打一行 info，并在治理债超基线时打 warning。
+    "ENV_GOVERNANCE_REPORT",
     "ETHERSCAN_API_KEY",
     "EVENT_SOURCING_ENABLED",
     "EVENT_SOURCING_LOG_PATH",
@@ -1806,6 +1819,21 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [轮50 2026-09-17] 因子进化任务的 job_registry 可见性接线（evo_subprocess.py / main.py 读取）
     "FACTOR_EVO_JOB_REGISTRY",
     "WS_DELTA_MODE",
+    # [F373 2026-09-18 复查补登记] 本次复查新增/发现但未登记的 flag。
+    # 由 `python -m backend.config.env_registry --scan` 的候选清单驱动补全；
+    # 未登记 ⇒ 启动期告警，且"设了却没人认识"的静默风险（本模块文件头记录的那类事故）。
+    "BACKTEST_FACTOR_ATTR",          # live_pipeline_backtest_engine：回测因子名级归因旁路
+    "BACKTEST_FACTOR_ATTR_PATH",     # 同上：归因 JSONL 落盘路径
+    "FACTORS_LAB_ALIGN_MIN",         # factors_lab/agent3_engineer：c1·c2 对齐拒收阈值（默认 0.35）
+    "MLTO_FACTOR_ANCHOR_PERIOD",     # mlto/quant_layer：因子锚周期覆盖（默认取 TIER_CONFIG）
+    "MLTO_FACTOR_ANCHOR_WEIGHT",     # mlto/decision_hub：因子锚权重（默认 0.08）
+    "V7_CODEGEN_FULL_POOL",          # evolution_memory_v7：取消 Codegen 候选的 LIMIT 200 窗口
+    # 以下三个前缀不在 SYSTEM_PREFIXES 内 ⇒ 登记册此前**不会**对其告警（见报告 §30 的盲区记录）；
+    # 显式登记是为了文档化与后续收紧校验时可直接生效。
+    "LEARNING_READBACK_ENABLED",     # services/learning_readback：学习→策略读回路总开关（默认 auto）
+    "LEARNING_READBACK_CHARS",       # 同上：读回路块字符预算
+    "LEARNING_READBACK_DEDUPE_SECONDS",  # 同上：读取留痕去重窗口
+    "MLTO_DECAY_PENALTY_ENABLED",    # mlto/quant_layer：因子锚是否服从衰减惩罚（默认关）
 })
 
 
@@ -1905,6 +1933,9 @@ def validate_strict(env: dict[str, str] | None = None, *, on_unknown: str | None
     unknown = find_unknown_flags(env)
     disabled_safety = find_silently_disabled_safety_flags(env)
 
+    # [轮94 P2-14] 可选的反向体检（默认关闭，见 log_governance_report_if_enabled）
+    log_governance_report_if_enabled()
+
     if disabled_safety:
         logger.warning(
             "[EnvRegistry] ⚠️ 安全关键 flag 被设为关闭（请确认是有意为之）: %s",
@@ -1935,16 +1966,37 @@ def validate_strict(env: dict[str, str] | None = None, *, on_unknown: str | None
         # silent: 不输出
 
 
+# [轮94 P2-14] 环境变量读取入口的**统一**识别式。
+# 缺口来源：原式只认 `os.environ/os.getenv/getenv/getenvbool/getenvint/get_flag/getenv_list`，
+# 而本仓还有 `env_int/env_float`（`backend/services/agents/base.py:62-69`、
+# `backend/services/strategies/event/base.py:52-61`）以及 `_env_int/_env_bool/_env_float`、
+# `os.environ["X"]` 下标式。漏掉它们会让「声明了但没人读」的死键报告里
+# 整片 `AGENT_ANOMALY_*` / `AGENT_PARAM_*` 变成**假阳性**（实测 134 条里绝大多数是这种）。
+_ENV_GETTER_ALT = (
+    r'os\.environ(?:\.get)?'
+    r'|os\.getenv'
+    r'|[A-Za-z_]*getenv[a-z_]*'
+    r'|[A-Za-z_]*env_(?:int|float|str|bool|list)'
+    r'|get_flag'
+)
+_ENV_LITERAL_RE = re.compile(
+    r'(?:' + _ENV_GETTER_ALT + r')\(\s*["\']([A-Z_][A-Z0-9_]{3,})["\']'
+)
+_ENV_SUBSCRIPT_RE = re.compile(
+    r'os\.environ\[\s*["\']([A-Z_][A-Z0-9_]{3,})["\']\s*\]'
+)
+
+
 def scan_codebase_for_flags(root: str | None = None) -> set[str]:
     """
-    静态扫描 backend/**/*.py，提取所有 os.environ/os.getenv 读取的 flag 名。
+    静态扫描 backend/**/*.py，提取所有环境变量读取入口的 flag 名。
     用于周期性补全 KNOWN_FLAGS（不自动写入，输出候选供人工审核）。
+
+    [轮94 P2-14] 入口集合见 `_ENV_GETTER_ALT`（含 `env_int/env_float` 等本仓自建 helper
+    与 `os.environ["X"]` 下标式），比原实现覆盖面更广 —— 覆盖面不足会让
+    「读但未登记」与「声明但没人读」两个方向的报告同时失真。
     """
     root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    pattern = re.compile(
-        r'(?:os\.environ(?:\.get)?|os\.getenv|getenv|getenvbool|getenvint|get_flag|getenv_list)'
-        r'\(\s*["\']([A-Z_][A-Z0-9_]{3,})["\']'
-    )
     flags: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(root):
         # skip venv/cache
@@ -1954,14 +2006,272 @@ def scan_codebase_for_flags(root: str | None = None) -> set[str]:
                 continue
             try:
                 with open(os.path.join(dirpath, fn), encoding='utf-8', errors='ignore') as f:
-                    flags.update(pattern.findall(f.read()))
+                    text = f.read()
             except OSError:
                 continue
+            flags.update(_ENV_LITERAL_RE.findall(text))
+            flags.update(_ENV_SUBSCRIPT_RE.findall(text))
     return flags
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# [2026-09-18 轮94 修 P2-14] 反向校验：**代码读但从未登记**的 flag
+#
+# 缺口（轮66 审计 P2-14）：`find_unknown_flags()` 只扫 `os.environ`，方向是
+# 「环境里有、名单里没有」。反方向——「代码读了、但名单里没有、`.env` 里也没有」——
+# 它**完全看不见**。而后者才是本项目历史上真正咬人的那一类：
+# `V5_DAILY_TRADE_CAP_ENABLED` 当初"配了却不生效"，正是因为读取名与写入名不一致，
+# 而没有任何一处地方能把两个方向对上。
+#
+# 实测（2026-09-18）：代码读取 1671 个名字、`KNOWN_FLAGS` 1639 个，
+# 仍有 382 个「代码读但未登记」，其中 379 个连 `.env` 都没声明，
+# 里面 31 个是 `*_ENABLED/_DISABLED` 形态的**开关** ——
+# 也就是说这些开关在 `.env` 里根本不可发现，只能靠读代码才知道它存在。
+#
+# 本段提供四个查询 + 一个 CLI（`--audit`），并给这三项数量各钉一条棘轮基线
+# （只许降不许升），避免债务继续无声增长。
+# ══════════════════════════════════════════════════════════════════════════
+
+# getter 调用的实参片段（用于识别 f-string / 拼接这类**动态**读取）
+_DYNAMIC_ARG_RE = re.compile(
+    r'(?:' + _ENV_GETTER_ALT + r')\(\s*(?P<arg>[^)\n]{0,240})'
+)
+# 大写片段（含前后下划线），用于把 `f"SCALP_{p}_ENABLED"` 拆成前缀 `SCALP_` / 后缀 `_ENABLED`
+_FRAGMENT_RE = re.compile(r'[A-Z0-9_]{5,}')
+
+# 棘轮基线：2026-09-18 实测值。只允许下降；上升即视为新的治理债，必须显式解释。
+ENV_READ_UNREGISTERED_BASELINE = 281
+ENV_UNDECLARED_SWITCH_BASELINE = 18
+
+_DECLARED_CACHE: dict[str, dict[str, str]] = {}
+
+# 开关型 flag 的后缀。**运行时拼接**而非写成完整字面量：`audit_config_effective` 的
+# "后缀拼接读取"启发式会把「含 `_XXX` 引号字面量 + 含拼接式 getter 调用」的文件里
+# 所有 `*_XXX` 键判为"动态可读"，写死字面量会把全仓 `*_ENABLED` 整类豁免出死键清单。
+_SWITCH_SUFFIXES: tuple[str, ...] = ("_" + "ENABLED", "_" + "DISABLED")
+
+
+def scan_codebase_for_dynamic_fragments(root: str | None = None) -> set[str]:
+    """提取**动态读取**的 env 名前缀/后缀片段（如 `f"AGENT_ANOMALY_{k}"` → `AGENT_ANOMALY_`）。
+
+    为什么需要：`.env` 里 `AGENT_ANOMALY_*` / `SCALP_*` 这类键在代码里是拼接出来的，
+    纯字面量扫描看不到它们，于是「声明了但没人读」的死键报告会全是假阳性。
+    """
+    root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    frags: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in {'.venv', '__pycache__', '.git', 'node_modules'}]
+        for fn in filenames:
+            if not fn.endswith('.py'):
+                continue
+            try:
+                with open(os.path.join(dirpath, fn), encoding='utf-8', errors='ignore') as f:
+                    text = f.read()
+            except OSError:
+                continue
+            for m in _DYNAMIC_ARG_RE.finditer(text):
+                arg = m.group('arg')
+                # 纯字面量实参不需要片段（已有精确名字）
+                if '{' not in arg and '+' not in arg:
+                    continue
+                for raw in _FRAGMENT_RE.findall(arg):
+                    if raw.startswith('_') or raw.endswith('_'):
+                        frags.add(raw)
+    return frags
+
+
+def _is_dynamic_read(key: str, fragments: set[str] | None) -> bool:
+    """该键是否可能被 `f"PREFIX_{x}"` / `"A" + x` 这类动态读取命中。
+
+    [轮94 校准] 只有**核心含内部下划线**的片段才算有效线索（如 `AGENT_ANOMALY_`、
+    `KLINE_RETENTION_DAYS_`、`EXIT_AGENT_MAX_HOLD_SEC_`）。理由：像 `_ENABLED`、
+    `_PAPER` 这种"通用词缀"会把**所有** `*_ENABLED` / `*_PAPER` 名字一次性豁免掉 ——
+    实测那会让「未声明的开关」从 18 个直接变 0，正好把本函数要报出来的东西全部抹掉
+    （P2-14 关心的就是这批开关）。宁可留下几条拼接头噪音，也不能让整类信号消失。
+    """
+    for frag in (fragments or set()):
+        core = frag.strip('_')
+        if len(core) < 6 or '_' not in core:
+            continue
+        if key.startswith(frag) or key.endswith(frag):
+            return True
+    return False
+
+
+def read_declared_env_keys(root: str | None = None) -> dict[str, str]:
+    """读取 `.env` / `.env.example` 里声明的键 → {键: 来源文件}（带进程内缓存）。"""
+    root = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if root in _DECLARED_CACHE:
+        return _DECLARED_CACHE[root]
+    declared: dict[str, str] = {}
+    for name in ('.env', '.env.example'):
+        path = os.path.join(root, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    m = re.match(r'^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=', line)
+                    if m:
+                        declared.setdefault(m.group(1), name)
+        except OSError:
+            continue
+    _DECLARED_CACHE[root] = declared
+    return declared
+
+
+def find_read_but_unregistered_flags(root: str | None = None) -> list[str]:
+    """**代码读、但 `KNOWN_FLAGS` 里没有**的 flag（匹配系统前缀、且不匹配已知模式）。
+
+    这是 `find_unknown_flags()` 的镜像方向，也是本模块此前唯一的盲区。
+
+    已排除两类假阳性：
+      · 动态拼接留下的前缀片段（形如「getter 的实参用 `+` 拼接一个变量」时，字面量
+        扫描会把那个前缀当成一个真实名字，例如 `EXIT_AGENT_MAX_HOLD_SEC_`）；
+      · 匹配 `KNOWN_FLAG_PATTERNS` 的车道参数化族。
+
+    注：本 docstring 刻意不写出「拼接式 getter 调用」的**完整源码形状** ——
+    `backend/scripts/audit_config_effective.py` 的"后缀拼接读取"启发式是按**行文本**
+    识别的（`RE_COMPOSED_GETENV` 找拼接式调用、`RE_SUFFIX_LITERAL` 收同文件里的
+    `_XXX` 字面量）。在注释里写出那种形状，会被它当成真实读取点，
+    从而把全仓 `*_ENABLED` 键整类豁免出死键清单（实测会把
+    `test_env_registry_visibility_20260910` 顶红）。
+    """
+    found = scan_codebase_for_flags(root)
+    fragments = scan_codebase_for_dynamic_fragments(root)
+    return sorted(
+        f for f in found
+        if _matches_system_prefix(f)
+        and f not in KNOWN_FLAGS
+        and not _matches_known_pattern(f)
+        and not _is_dynamic_read(f, fragments)
+    )
+
+
+def find_undeclared_switch_flags(root: str | None = None) -> list[str]:
+    """「代码读 + `.env`/`.env.example` 都没声明 + 开关形态（见 `_SWITCH_SUFFIXES`）」的开关。
+
+    这些开关在配置文件里**不可发现**：运维只能读代码才知道它存在，
+    于是"默认关闭"与"忘了打开"在 `.env` 里长得一模一样。
+    """
+    declared = read_declared_env_keys(root)
+    return sorted(
+        f for f in find_read_but_unregistered_flags(root)
+        if f not in declared and f.endswith(_SWITCH_SUFFIXES)
+    )
+
+
+def find_declared_but_unread_keys(root: str | None = None) -> list[str]:
+    """**已废弃的重复实现 —— 请勿使用**，死键方向的真源是既有工具。
+
+    [轮94 P2-14 决策留痕] 本函数曾实现「`.env` 声明了但没人读」的近似检测。落地时发现
+    仓库**已有**更完整、且带"白名单 + 原因分类 + 契约测试"的权威实现：
+
+        backend/scripts/audit_config_effective.py  →  findings["env_truly_dead"]
+        backend/tests/unit/test_config_dead_keys_20260910.py  →  DEAD_ALLOWLIST 门禁
+
+    那份实现还额外识别「动态前缀读取」与「后缀拼接读取」
+    （`env_dynamic_prefix_read` / `env_suffix_composed_read`），并且每一项死键都必须
+    在 `DEAD_ALLOWLIST` 里写明原因分类，否则测试变红 —— 这正是 §54 踩过
+    「动态读取被误判成死键」之后建立的机制。
+
+    再保留一份"近似版"死键清单，就会重演本项目最贵的那类错误：
+    **同一件事两套口径、互相打架**（轮63 的 7 套周期词表就是前车之鉴）。
+    故此处不再产出清单，只保留本说明与调用入口，明确指向真源。
+    """
+    return []
+
+
+def env_governance_report(root: str | None = None) -> dict:
+    """环境变量治理体检（供 CLI `--audit` 与回归测试使用）。
+
+    只覆盖本模块**独有**的那个方向：**代码读取入口覆盖面的反向缺口**
+    （「代码读、但既没登记也没在 `.env` 声明」）。
+    「`.env` 声明但没人读」的死键方向不在此处重复实现，见
+    `find_declared_but_unread_keys()` 的说明。
+    """
+    declared = read_declared_env_keys(root)
+    found = scan_codebase_for_flags(root)
+    return {
+        "code_read": len(found),
+        "registered": len(KNOWN_FLAGS),
+        "declared": len(declared),
+        "read_but_unregistered": find_read_but_unregistered_flags(root),
+        "undeclared_switches": find_undeclared_switch_flags(root),
+        "baseline": {
+            "read_but_unregistered": ENV_READ_UNREGISTERED_BASELINE,
+            "undeclared_switches": ENV_UNDECLARED_SWITCH_BASELINE,
+        },
+    }
+
+
+def log_governance_report_if_enabled(root: str | None = None) -> None:
+    """启动期可选地把治理体检的**计数**写进日志（默认关闭，扫盘约 1.2s）。
+
+    开关：`ENV_GOVERNANCE_REPORT=true`。默认关闭的理由：`validate_strict()` 在启动
+    最早期被调用，为了一条日志付出一次全仓静态扫描不划算；需要时（排查"某个开关
+    是不是根本没接线"）打开即可。
+    """
+    if os.environ.get("ENV_GOVERNANCE_REPORT", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    try:
+        rep = env_governance_report(root)
+    except Exception as exc:  # pragma: no cover
+        logger.debug("[EnvRegistry] 治理体检失败: %s", exc)
+        return
+    logger.info(
+        "[EnvRegistry] 环境变量治理: 代码读 %s / 已登记 %s / .env 声明 %s；"
+        "读但未登记 %s（基线 %s）；其中未声明的开关 %s（基线 %s）",
+        rep["code_read"], rep["registered"], rep["declared"],
+        len(rep["read_but_unregistered"]), rep["baseline"]["read_but_unregistered"],
+        len(rep["undeclared_switches"]), rep["baseline"]["undeclared_switches"],
+    )
+    over = []
+    for key, label in (
+        ("read_but_unregistered", "读但未登记"),
+        ("undeclared_switches", "未声明的开关"),
+    ):
+        cur, base = len(rep[key]), rep["baseline"][key]
+        if cur > base:
+            over.append(f"{label} {cur}>{base}")
+    if over:
+        logger.warning(
+            "[EnvRegistry] ⚠️ 环境变量治理债超出基线: %s（新增未登记项示例: %s）",
+            "; ".join(over),
+            ", ".join(sorted(set(rep["read_but_unregistered"]))[:10]),
+        )
+
+
 def _cli() -> int:
-    """`python -m backend.config.env_registry --scan` 输出候选 flag 清单。"""
+    """`python -m backend.config.env_registry --scan | --check | --audit`。"""
+    if '--audit' in sys.argv:
+        rep = env_governance_report()
+        print("=== 环境变量治理体检（P2-14）===")
+        print(f"代码读取        : {rep['code_read']}")
+        print(f"KNOWN_FLAGS     : {rep['registered']}")
+        print(f".env/.env.example 声明: {rep['declared']}")
+        for key, title, hint in (
+            ("read_but_unregistered", "代码读但未登记", "补登 KNOWN_FLAGS 或修正拼写"),
+            ("undeclared_switches", "未声明的开关（.env 里不可发现）", "在 .env 里显式声明并注明默认值"),
+        ):
+            items = rep[key]
+            base = rep["baseline"][key]
+            flag = "  ⚠️ 超基线" if len(items) > base else ""
+            print(f"\n--- {title}: {len(items)}（基线 {base}）{flag} — {hint} ---")
+            for it in items[:40]:
+                print(f"    {it}")
+            if len(items) > 40:
+                print(f"    ... 其余 {len(items) - 40} 项")
+        print(
+            "\n# 「.env 声明但没人读」的死键方向不在此重复实现（单一真源）："
+            "\n#   python -m backend.scripts.audit_config_effective"
+            "\n#   门禁见 backend/tests/unit/test_config_dead_keys_20260910.py 的 DEAD_ALLOWLIST"
+        )
+        return 0
+
     if '--scan' in sys.argv:
         found = scan_codebase_for_flags()
         registered = set(KNOWN_FLAGS)
@@ -1980,8 +2290,13 @@ def _cli() -> int:
         print(f"被关闭的安全 flag: {len(disabled)}")
         for f in disabled:
             print(f"  ⚠ {f}")
+        # [轮94 P2-14] 顺带报出反向缺口（不参与退出码，避免打断既有 CI 契约）
+        try:
+            print(f"代码读但未登记: {len(find_read_but_unregistered_flags())}（详见 --audit）")
+        except Exception:
+            pass
         return 0 if not unknown else 1
-    print("用法: python -m backend.config.env_registry --scan | --check")
+    print("用法: python -m backend.config.env_registry --scan | --check | --audit")
     return 0
 
 
