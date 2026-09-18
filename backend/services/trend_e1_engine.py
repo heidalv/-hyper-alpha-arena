@@ -414,6 +414,11 @@ def _run_account(db, account_id: int, tg: Dict[str, Any], rules, do_exec: bool) 
             price = close
         sd = ((close - float(stop)) / close) if (stop and close > 0 and float(stop) < close) else t.get("initial_stop_distance_pct")
         opens = pc.open_notionals(db, account_id, sym, lane="long")
+        # [轮72] 读不到在手敞口 → 跳过开仓（不得按零敞口构造，否则帽额被整额叠加）
+        if not opens.get("ok", False):
+            _act(actions, "skip_open", symbol=s,
+                 reason="在手敞口读取失败，跳过开仓（fail-closed）")
+            continue
         plan = pc.construct(
             lane="long", symbol=sym, equity=sleeve_equity, price=price, realized_vol=t.get("realized_vol"),
             stop_distance_pct=sd, base_weight=tw, symbol_open_notional=opens["symbol"],

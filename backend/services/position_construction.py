@@ -341,17 +341,38 @@ def clamp(
 
 def open_notionals(db, account_id: int, symbol: str, lane: Optional[str] = None,
                    clusters: Optional[Dict[str, Sequence[str]]] = None) -> Dict[str, float]:
-    """同账户在手名义：同币 / 同簇 / 同车道 / 全部（paper_positions status=open）。"""
+    """同账户在手名义：同币 / 同簇 / 同车道 / 全部（paper_positions status=open）。
+
+    ## 返回值的 `ok` 字段（**调用方必须检查**）
+
+    多一个键 `ok`：
+      - `True`  → 数字可信；
+      - `False` → **读取失败**，四个数字都是占位的 0，语义不是「没有在手仓位」。
+
+    ## 为什么必须区分（轮72 修）
+
+    旧实现在任何 DB 异常下都返回全 0 且只记 DEBUG。调用方把这些 0 当作「在手名义」
+    喂给 `clamp()`，于是 `room = cap − 0 = cap` —— **帽额被整额叠加在真实仓位之上**
+    而不是夹紧，等于「被声明为所有车道必经的唯一权威」被静默绕过，日志里没有 error。
+
+    仓内已有同类处置先例：`paper_trading_engine.py:2208-2211` 把等价吞噬从 debug
+    升为 warning，理由正是「fail-open 必须可见」。这里进一步给出机器可判的 `ok`。
+
+    无法读到在手敞口时**不应**当作「零敞口」放行 —— 那正是最需要收紧的时刻。
+    """
     from sqlalchemy import text
 
-    out = {"symbol": 0.0, "cluster": 0.0, "lane": 0.0, "total": 0.0}
+    out = {"symbol": 0.0, "cluster": 0.0, "lane": 0.0, "total": 0.0, "ok": False}
     try:
         rows = db.execute(text(
             "SELECT symbol, timeframe_tier, trade_nature, size, mark_price, entry_price FROM paper_positions "
             "WHERE account_id = :a AND status = 'open'"), {"a": int(account_id)}).fetchall()
     except Exception as exc:
-        logger.debug("[PositionConstruction] 读取在手名义失败: %s", exc)
+        # 升级为 warning：静默 fail-open 是这张表的已知事故形态
+        logger.warning(
+            "[PositionConstruction] 读取在手名义失败，敞口帽不可信（ok=False）: %s", exc)
         return out
+    out["ok"] = True
     base = _base(symbol)
     cl = cluster_of(symbol, clusters)
     for r in rows:

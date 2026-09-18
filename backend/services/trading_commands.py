@@ -282,6 +282,12 @@ def _v3_position_construction_live(
         _d = decision or {}
         _lane = _pc.normalize_lane(_d.get("timeframe_tier") or _d.get("tier"), _d.get("trade_nature") or _d.get("nature"))
         _open = _pc.open_notionals(db, int(getattr(account, "id", 0) or 0), symbol, lane=_lane)
+        # [轮72] 读不到在手敞口 → 拒绝，不得当「零敞口」放行（否则帽额被整额叠加）。
+        if not _open.get("ok", False):
+            logger.warning(
+                "[PositionConstruction][%s] 拒单 %s lane=%s: 在手敞口读取失败（fail-closed）",
+                str(exchange).upper(), symbol, _lane)
+            return order_value, leverage, 0.0, "PositionConstruction: 在手敞口读取失败"
         _sd = None
         _sl = _d.get("stop_loss") or _d.get("sl_price")
         try:

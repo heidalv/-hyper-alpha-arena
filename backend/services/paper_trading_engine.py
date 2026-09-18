@@ -1177,6 +1177,21 @@ class PaperTradingEngine:
                         if _pc_px and _pc_px > 0 and quantity and quantity > 0:
                             _lane = _pc.normalize_lane(timeframe_tier, trade_nature)
                             _open = _pc.open_notionals(db, account_id, symbol, lane=_lane)
+                            # [轮72 修 fail-open] 读不到在手敞口时**不得**当作「零敞口」放行：
+                            # 那会让 clamp 把整额帽额叠加在真实仓位之上，等于绕过单一权威。
+                            # （旧实现只在 open_notionals 内部记 DEBUG，调用方无从分辨。）
+                            if not _open.get("ok", False):
+                                logger.warning(
+                                    f"[Paper][PositionConstruction] 拒单 {symbol} {side} lane={_lane}: "
+                                    f"在手敞口读取失败，无法夹紧名义/杠杆（fail-closed）")
+                                return {
+                                    "success": False, "blocked": True,
+                                    "blocked_layer": "position_construction",
+                                    "blocked_by": "position_construction",
+                                    "reason": "在手敞口读取失败，按 fail-closed 拒绝（避免未夹紧下单）",
+                                    "reason_code": "position_construction_exposure_unreadable",
+                                    "position_construction": {"lane": _lane, "open_notionals_ok": False},
+                                }
                             _sd = None
                             if sl_price and sl_price > 0:
                                 _sd = abs(float(_pc_px) - float(sl_price)) / float(_pc_px)
