@@ -26,6 +26,11 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+# [轮85 P2-11] 跨进程循环锁的「文件系统故障」哨兵（区别于 None = 锁竞争）。
+# 用一个私有哨兵对象而不是 False/""：`None` 已被「别的进程持锁」占用，
+# 复用会让调用方无法分辨，正是本缺陷的成因。
+_LOCK_FS_FAULT = object()
+
 
 class FullAutoTradingService:
     """全自动交易服务（单例）"""
@@ -3652,6 +3657,16 @@ class FullAutoTradingService:
         跨平台：Linux/Mac 用 fcntl.flock，Windows 用 msvcrt.locking。
         （2026-06-11 修复：Windows 无 fcntl 模块，旧代码 ImportError 后误判
         "其他进程在执行"，导致每个 tick 都被跳过、AI 策略完全停摆。）
+
+        返回值有三态：
+        - 文件句柄 → 拿到锁；
+        - `None` → **锁竞争**（别的进程持锁），正常让位；
+        - `_LOCK_FS_FAULT` → **文件系统故障**（权限/只读/ENOSPC），是故障不是让位。
+
+        [轮85 P2-11] 后两者必须区分：旧实现把 `PermissionError, OSError` 与
+        `BlockingIOError` 合并成同一个 `except` 并静默 `return None`，
+        调用方于是打印「其他进程正在执行统一循环」—— 把故障说成正常让位，
+        而实际后果是**所有 full-auto tick 停摆**且没人会去查权限或磁盘。
         """
         lock_fd = None
         try:
@@ -3669,14 +3684,30 @@ class FullAutoTradingService:
             lock_fd.write(f"{os.getpid()} {time.time():.0f}\n")
             lock_fd.flush()
             return lock_fd
-        except (BlockingIOError, PermissionError, OSError):
-            # 锁确实被其他进程持有 → 本 tick 让位
+        except BlockingIOError:
+            # 锁确实被其他进程持有 → 本 tick 让位（正常并发让位，不是故障）
             try:
                 if lock_fd is not None:
                     lock_fd.close()
             except Exception:
                 pass
             return None
+        except (PermissionError, OSError) as _fs_err:
+            # [轮85 修 P2-11] 文件系统故障（权限 / 只读目录 / ENOSPC / 路径不存在）
+            # 与「别的进程持锁」是两件事，旧实现把二者合并进同一个 except 并静默 return None，
+            # 于是调用方打印「其他进程正在执行统一循环」—— 把故障说成正常让位，
+            # 而实际上**所有 full-auto tick 都会停摆**且没人会去查权限/磁盘。
+            # 现返回显式哨兵，让调用方按「故障」记录（仍跳过本 tick，避免双执行）。
+            try:
+                if lock_fd is not None:
+                    lock_fd.close()
+            except Exception:
+                pass
+            logger.warning(
+                "[FullAuto] 跨进程循环锁**文件系统故障**（非锁竞争）session=%s: %s: %s",
+                session_id, type(_fs_err).__name__, _fs_err,
+            )
+            return _LOCK_FS_FAULT
         except Exception as lock_err:
             # 平台锁机制不可用：退化为进程内防重入（_unified_loop_running 已兜底），
             # 绝不能因此跳过 tick
@@ -3733,6 +3764,13 @@ class FullAutoTradingService:
             return
 
         process_lock = self._try_acquire_unified_loop_process_lock(session_id)
+        if process_lock is _LOCK_FS_FAULT:
+            # [轮85 P2-11] 锁的**文件系统故障**：跳过本 tick（避免双执行），
+            # 但不得说成「其他进程正在执行」—— 那会把权限/磁盘问题掩盖成正常让位。
+            logger.error(
+                "[FullAuto] 因锁目录/权限/磁盘故障跳过统一循环调度 %s"
+                "（请检查 data/locks 权限与磁盘空间；反复出现即全线 tick 停摆）", session_id)
+            return
         if process_lock is None:
             logger.info(f"[FullAuto] 其他进程正在执行统一循环，跳过本次调度 {session_id}")
             return
