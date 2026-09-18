@@ -165,6 +165,30 @@ def get_rules(nature: str) -> Dict[str, Any]:
     return NATURE_RULES.get(normalize_nature(nature), NATURE_RULES["swing"])
 
 
+def _nature_display_names(natures) -> List[str]:
+    """把 trade_nature 集合翻成人读车道名，供拒绝文案使用。
+
+    [2026-09-18 轮91 修 P2-6] 此前 `_verdict` 的文案里硬编码了「短线/中线」，
+    而 `settings.AUTO_COIN_ALLOWED_NATURES` 的实际值是 `{"scalp"}`，于是运行时
+    输出了「只允许短线/中线交易(允许: ['scalp']，当前: swing)」这种自相矛盾的话。
+    展示名一律从 `lane_semantics`（车道语义唯一真源，见轮63）推导：
+    未登记的 nature 原样输出，绝不编造一个不存在的车道名。
+    """
+    out: List[str] = []
+    try:
+        from backend.config.lane_semantics import get_spec, lane_for_nature
+    except Exception:  # pragma: no cover - 真源不可用时降级为原始值
+        return [str(n) for n in sorted(natures or [])]
+    for n in sorted(natures or []):
+        lane = lane_for_nature(n)
+        if lane is None:
+            out.append(str(n))
+        else:
+            label = get_spec(lane).label
+            out.append(f"{label}({n})" if str(n) != label else label)
+    return out or ["(空集合，即不允许任何 nature)"]
+
+
 class SubPositionManager:
     """虚拟子仓位审核层"""
 
@@ -376,7 +400,7 @@ class SubPositionManager:
             reason = f"{symbol} 已有 {nature} 子仓位，不能重复开仓"
             return self._verdict(False, reason, "open", symbol, nature, db=db, account_id=account_id)
 
-        # 3b. AI 自动选币强制隔离：只允许短线(intraday)和中线(swing)，严禁长线
+        # 3b. AI 自动选币强制隔离：只允许 settings.AUTO_COIN_ALLOWED_NATURES 里列出的 nature
         # [2026-07-20 修复 — 用户反馈"之前改了好几次都没成功"的根因]
         # 此前这里有个 (PAPER_FAST_TRIAL or agent_independent) 的豁免分支，理由是
         # "TrendAgent 已放行→允许试单"——但 PAPER_FAST_TRIAL 默认跟随
@@ -388,7 +412,15 @@ class SubPositionManager:
         # 的最终执行闸互相矛盾。现在改为无条件硬闸：AI 选币永远不允许开
         # trend_follow/position，不因 PAPER_FAST_TRIAL/agent_independent 而放行，
         # 与"长线只做会话固定交易对"的要求保持单一、无例外的口径。
-        # 不影响短线(intraday)/中线(swing)：AUTO_COIN_ALLOWED_NATURES 本就包含这两者。
+        #
+        # [2026-09-18 轮91 修 P2-6] 原文案与注释残留了旧口径，且与 settings 的实际取值
+        # 自相矛盾：这里写"只允许短线(intraday)/中线(swing)"、"AUTO_COIN_ALLOWED_NATURES
+        # 本就包含这两者"，而 `settings.py:3009` 的实际值是
+        # `frozenset({"scalp"})`（同处注释已说明理由：中线已并入长线 mid_view，
+        # auto-coin 选出的币只进短线 scalp，由 scalp_loop.py 独立线程处理）。
+        # 于是运行时输出成了「只允许短线/中线交易(允许: ['scalp']，当前: swing)」——
+        # 一句自己打自己的话，排障时无法判断到底是配置没生效还是代码没生效。
+        # 现在展示名统一由 lane_semantics 真源推导，不再在文案里硬编码车道名。
         try:
             from backend.services.auto_coin_selector import is_auto_coin_symbol
             from backend.config.settings import AUTO_COIN_ALLOWED_NATURES
@@ -419,19 +451,32 @@ class SubPositionManager:
                             if s
                         }
                         _is_ai_coin = _sym_u in _db_auto
-                except Exception:
-                    pass
+                except Exception as _db_err:
+                    # [轮91 修 P2-6] 原为裸 `except: pass`。这里保持**放行**方向
+                    # （内存判定说不像 AI 币，库查不了就不升级为"AI 币"——否则一次
+                    # 数据库抖动会把手工固定交易对的长线开仓全部误拦），但必须留痕：
+                    # 这是一个"可能漏判"的窗口，静默等于下次事故时无线索。
+                    logger.warning(
+                        "[SubPos] %s 的 AI 选币库兜底查询失败(按非AI币处理，可能漏判): %s",
+                        symbol, _db_err,
+                    )
             if _is_ai_coin:
                 _allowed = set(AUTO_COIN_ALLOWED_NATURES)
                 if nature not in _allowed:
                     reason = (
-                        f"{symbol} 是AI自动选币，只允许短线/中线交易"
-                        f"(允许: {sorted(_allowed)}，"
-                        f"当前: {nature})"
+                        f"{symbol} 是AI自动选币，只允许"
+                        f"{'、'.join(_nature_display_names(_allowed))}车道"
+                        f"（settings.AUTO_COIN_ALLOWED_NATURES={sorted(_allowed)}，"
+                        f"当前 nature={nature}）"
                     )
                     return self._verdict(False, reason, "open", symbol, nature, db=db, account_id=account_id)
-        except ImportError:
-            pass  # 自动选币模块不可用时放行
+        except ImportError as _imp_err:
+            # [轮91 修 P2-6] 原为裸 `except ImportError: pass`。自动选币模块不可用时
+            # 这道"最后一道闸"整段消失，必须让人看得见。
+            logger.warning(
+                "[SubPos] AI 选币隔离闸门不可用（模块导入失败），本次开仓未做该检查: %s",
+                _imp_err,
+            )
 
         # 4. 手续费+滑点门卫（综合成本校验）
         if notional_usd > 0 and tp_pct > 0:
