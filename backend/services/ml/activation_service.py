@@ -128,6 +128,22 @@ def _get_continual_helpers():
     return _replay_buffer, _replay_trainer, _ewc_trainer
 
 
+def _epoch_like_to_utc(series: pd.Series) -> pd.Series:
+    """K 线时间列 → tz-aware UTC 索引。
+
+    2026-09-18（轮87 修 P2-13）：`crypto_klines.timestamp` 是 int4 **epoch 秒**
+    （实测 BTC/15m 末行 `1789739100`），此前直接 `pd.to_datetime(x, utc=True)`
+    少了 `unit="s"`，pandas 按**纳秒**解释 → 全部 K 线落到 1970-01-01
+    （磁盘产物 `data/factor_matrices/BTC_15m.csv` 的索引正是 1970，可作旁证）。
+    仓内其它转换器都显式带 `unit=`（`data_center.py:199` 用 `"s"`、
+    `technical_indicators.py:239` 用 `"ms"`、`midlong_walk_forward_hook.py:97` 用 `"s"`），
+    只此一处漏。数值列一律按 epoch 秒解，字符串/datetime 交给 pandas 通用解析。
+    """
+    if pd.api.types.is_numeric_dtype(series):
+        return pd.to_datetime(series, unit="s", utc=True, errors="coerce")
+    return pd.to_datetime(series, utc=True, errors="coerce")
+
+
 def _load_klines_df(symbol: str) -> Optional[pd.DataFrame]:
     try:
         from backend.services.kline_data_service import kline_service
@@ -139,10 +155,10 @@ def _load_klines_df(symbol: str) -> Optional[pd.DataFrame]:
             return None
         df = pd.DataFrame(raw)
         if "timestamp" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+            df["timestamp"] = _epoch_like_to_utc(df["timestamp"])
             df = df.set_index("timestamp").sort_index()
         elif "time" in df.columns:
-            df["time"] = pd.to_datetime(df["time"], utc=True, errors="coerce")
+            df["time"] = _epoch_like_to_utc(df["time"])
             df = df.set_index("time").sort_index()
         for col in ("open", "high", "low", "close", "volume"):
             if col in df.columns:
