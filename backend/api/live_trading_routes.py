@@ -422,7 +422,24 @@ def list_live_accounts(db: Session = Depends(get_db)):
 
 @router.get("/readiness")
 def live_readiness(db: Session = Depends(get_db)):
-    """M7 实盘就绪检查：五项全绿才允许实盘开关。"""
+    """M7 实盘就绪检查：全绿才允许实盘开关。
+
+    [轮98 · P1-8] 新增第 6 项 `sub_position_tracking`：`LIVE_SUB_POSITION_TRACKING`
+    决定实盘下单/平仓是否**更新 LPM 子仓位账本**。
+      · true  → 本地按 trade_nature 分层记账，对交易所只发净差额单（GAP-4 目标状态）；
+      · false → 直发交易所单，**账本不动** ⇒ 本地记账与交易所实仓漂移，
+                且 `_apply_leverage`（杠杆对齐）只装在 LPM 路径上，旧路径历史上从未执行过
+                （XPL 事故的根因）。
+    该键此前既没写进 `.env` 也没登记 `KNOWN_FLAGS`，默认 false 而无人可见 ——
+    "开实盘"与"要记账"这两件事必须绑在同一个门禁里。
+    """
+    import os as _os
+
+    def _tracking_on() -> bool:
+        return _os.getenv("LIVE_SUB_POSITION_TRACKING", "false").strip().lower() in (
+            "true", "1", "yes", "on",
+        )
+
     accounts = db.query(Account).filter(Account.trading_mode == "live").all()
     if not accounts:
         return {
@@ -430,6 +447,8 @@ def live_readiness(db: Session = Depends(get_db)):
             "checks": {
                 "api_keys": False,
                 "account_active": False,
+                # 无实盘账户也如实报出开关状态（诊断信息，不参与 ready 判定）
+                "sub_position_tracking": _tracking_on(),
                 "c7_reconcile_drift": -1,
                 "conditional_order_backtest": "not_run",
                 "promotion_samples": "insufficient",
@@ -444,6 +463,7 @@ def live_readiness(db: Session = Depends(get_db)):
     checks = {
         "api_keys": keys_ok,
         "account_active": active_ok,
+        "sub_position_tracking": _tracking_on(),
         "c7_reconcile_drift": -1,          # 待事件源对账清零（-1=未验证）
         "conditional_order_backtest": "not_run",
         "promotion_samples": "insufficient",
@@ -451,7 +471,8 @@ def live_readiness(db: Session = Depends(get_db)):
     return {
         "ready": False,  # 任何未验证项都不允许实盘
         "checks": checks,
-        "message": "实盘前必须：配置Key、启用账户、C7对账清零、条件单回测通过、晋升样本充足",
+        "message": "实盘前必须：配置Key、启用账户、开启 LIVE_SUB_POSITION_TRACKING"
+                   "（否则账本不更新）、C7对账清零、条件单回测通过、晋升样本充足",
     }
 
 

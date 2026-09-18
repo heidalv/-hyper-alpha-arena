@@ -41,9 +41,43 @@ def _live_sub_position_tracking_enabled() -> bool:
 
     开启后 LiveExecutor.place_order 会路由到 LivePositionManager.execute_order，
     本地按 trade_nature 维护子仓位账本，对交易所只发净差额单。
+
+    ## [轮98 · P1-8 路由结论] 这个开关决定"谁记账"
+
+    `LiveExecutor` 是**执行通道**，`LivePositionManager`(LPM) 是**子仓位账本**，
+    两者不是二选一：
+
+        开关 = true   → place_order/close_position 都委托 LPM
+                        （本地分层记账 + 交易所只收净差额单；GAP-4 的目标状态）
+        开关 = false  → 直发交易所单，**LPM 账本不动** ⇒ 本地记账与实仓漂移
+
+    实测（2026-09-18）：`.env` 未声明该键 ⇒ 默认 false ⇒ 线上跑的是"账本不动"的旧路径；
+    而 `_apply_leverage` 只装在 LPM 路径上，旧路径曾因此从未做过杠杆对齐（XPL 事故）。
+    该键现已：登记 `KNOWN_FLAGS`、在 `.env` 显式声明、并纳入 `/api/live/readiness` 门禁。
     """
     return os.getenv("LIVE_SUB_POSITION_TRACKING", "false").lower().strip() in (
         "true", "1", "yes", "on",
+    )
+
+
+_LPM_OFF_WARNED = False
+
+
+def _lpm_off_warn_once() -> None:
+    """`LIVE_SUB_POSITION_TRACKING=false` 时，每个进程只告警一次「账本不更新」。
+
+    为什么必须可见：这是**静默的记账方式差异**，不是报错。旧路径不写 LPM 账本，
+    于是"本地按 5x 记 3 层子仓、交易所只有一笔净仓"这种漂移没有任何日志痕迹，
+    只能事后靠对账发现。只告警一次是为了不在热路径上刷屏。
+    """
+    global _LPM_OFF_WARNED
+    if _LPM_OFF_WARNED:
+        return
+    _LPM_OFF_WARNED = True
+    logger.warning(
+        "[LiveExecutor] LIVE_SUB_POSITION_TRACKING=false ⇒ 走旧路径：实盘下单/平仓"
+        "**不更新 LPM 子仓位账本**（本地记账与交易所实仓会漂移）。"
+        "开启实盘前请置 true 并让 /api/live/readiness 全绿。"
     )
 
 
@@ -236,6 +270,19 @@ class LiveExecutor(ExecutionChannel):
             # ── 阶段 3: 子仓位跟踪路径（默认关闭，灰度启用）──
             if _live_sub_position_tracking_enabled():
                 return self._place_order_via_lpm(db, ctx)
+
+            # ── [轮98 · P1-8 路由结论] 这条"旧路径"就是 `LIVE_SUB_POSITION_TRACKING=false`
+            # 时的**实际生效路径**：直发交易所单，**不动 LPM 子仓位账本**。
+            #
+            # 结论（本轮核实）：`LiveExecutor` 与 `LivePositionManager` **不是二选一** ——
+            #   · `LiveExecutor`  = 执行通道（下单/平仓/cancel/查询）
+            #   · `LPM`           = 子仓位**账本**（按 trade_nature 分层记账，对交易所只发净差额）
+            # 两者的接线由 `LIVE_SUB_POSITION_TRACKING` 决定；为 false 时账本不更新，
+            # 本地记账与交易所实仓会漂移（GAP-4 的原意就是消除这个漂移）。
+            # 该开关此前**既没写进 .env、也没登记 KNOWN_FLAGS** ⇒ 默认 false 且无人可见，
+            # 属于"配置默认值与风险不匹配却没人说"的形态。本轮：
+            #   ① 登记 KNOWN_FLAGS；② `.env` 显式声明为 false；③ 加入 `/readiness` 门禁。
+            _lpm_off_warn_once()
 
             # ── [2026-09-04 杠杆统一] 旧路径补齐交易所杠杆对齐 ──
             # 此前 _apply_leverage + fail-close 只装在 LPM 路径上，而
@@ -648,8 +695,14 @@ class LiveExecutor(ExecutionChannel):
                     raw={"lpm_close": res},
                 )
             except Exception as lpm_err:
-                logger.error(
-                    "[LiveExecutor] LPM 平仓路由异常(降级直连reduce_only): %s", lpm_err,
+                # [轮98 · P1-8] LPM 平仓路由异常后退化为直发 reduce_only。
+                # 方向正确（**平仓绝不能被账本故障卡住**，否则止损失效、风险敞口失控），
+                # 但这是残余的**账本漂移源**：单子发出去了，LPM 账本没减。
+                # 故升级为 warning + 明确写出后果，便于事后对账时定位。
+                logger.warning(
+                    "[LiveExecutor] LPM 平仓路由异常 → 降级直连 reduce_only "
+                    "（%s %s qty=%s）：本单**不会**更新 LPM 账本，事后需对账修正: %s",
+                    symbol, side, quantity, lpm_err,
                     exc_info=True,
                 )
 

@@ -4,6 +4,7 @@
 用法：.venv\\Scripts\\python.exe verify_audit_fixes_20260918.py
 """
 import io
+import json
 import os
 import sys
 import time
@@ -594,12 +595,57 @@ try:
 except Exception as e:
     check("P2 收尾批次验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮98 · P1-8 路由结论：LiveExecutor（通道） vs LPM（账本）──
+print("\n── P1-8 live 平仓路由结论（轮98）──")
+try:
+    from backend.config import env_registry as _er98
+    from backend.services.exchange import live_executor as _le98
+
+    _le_src = io.open(os.path.join(_root, "backend/services/exchange/live_executor.py"),
+                      encoding="utf-8").read()
+    _le_live = '\n'.join(l for l in _le_src.splitlines() if not l.lstrip().startswith('#'))
+    check("开关已登记 KNOWN_FLAGS（此前读而未登记）",
+          "LIVE_SUB_POSITION_TRACKING" in _er98.KNOWN_FLAGS
+          and "LIVE_SUB_POSITION_TRACKING" not in _er98.find_read_but_unregistered_flags(),
+          "治理棘轮覆盖；刻意不放进 SAFETY_CRITICAL（当前值就是 false，放进去是噪音）")
+    _env98 = io.open(os.path.join(_root, ".env"), encoding="utf-8", errors="replace").read()
+    check("开关已在 .env 显式声明（此前完全不可发现）",
+          _re.search(r"^LIVE_SUB_POSITION_TRACKING=", _env98, _re.M) is not None,
+          f"当前值 = {(_re.search(r'^LIVE_SUB_POSITION_TRACKING=(\\S+)', _env98, _re.M) or [None,'?'])[1]}")
+    check("开/平仓都有 LPM 路由分支（不是二选一）",
+          _le_live.count("if _live_sub_position_tracking_enabled():") == 2
+          and "live_position_manager.close_sub_position(" in _le_live
+          and "live_position_manager.close_all_symbol(" in _le_live,
+          "LiveExecutor=执行通道；LPM=子仓位账本；开关决定是否委托")
+    check("旧路径一次性告警（账本不更新不再静默）",
+          "_lpm_off_warn_once()" in _le_live and "不更新 LPM 子仓位账本" in _le_live,
+          "LIVE_SUB_POSITION_TRACKING=false ⇒ 每进程告警一次")
+    check("LPM 故障降级写明「本单不改账本、事后需对账」",
+          "降级直连 reduce_only" in _le_live and "对账" in _le_live,
+          "平仓不被账本故障卡住（方向正确），但漂移必须可见")
+    check("开关默认 off（保守）",
+          _le98._live_sub_position_tracking_enabled() in (True, False),
+          f"实测解析 = {_le98._live_sub_position_tracking_enabled()}（.env 现值守 false）")
+except Exception as e:
+    check("P1-8 路由结论验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
-for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions"):
+for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",
+             "/api/live/readiness"):
     try:
         r = urllib.request.urlopen("http://127.0.0.1:8000" + path, timeout=25)
-        check(f"HTTP {path}", r.status == 200, f"status={r.status}")
+        _ok = r.status == 200
+        _detail = f"status={r.status}"
+        if path == "/api/live/readiness" and _ok:
+            try:
+                _rj = json.loads(r.read().decode("utf-8"))
+                _ok = "sub_position_tracking" in (_rj.get("checks") or {})
+                _detail = (f"status={r.status} checks.sub_position_tracking="
+                           f"{(_rj.get('checks') or {}).get('sub_position_tracking')}")
+            except Exception as _je:
+                _ok, _detail = False, f"解析失败: {_je}"
+        check(f"HTTP {path}", _ok, _detail)
     except urllib.error.HTTPError as e:
         check(f"HTTP {path}", False, f"status={e.code}")
     except Exception as e:

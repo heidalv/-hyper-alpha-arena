@@ -911,6 +911,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "LIVE_CONSTITUTIONAL_RISK_ENABLED",
     "LIVE_DIRECTION_COHERENCE_MODE",
     "LIVE_MODE",
+    # [轮98 · P1-8 路由结论] 实盘子仓位账本开关：决定 LiveExecutor 是否把下单/平仓
+    # 委托给 LivePositionManager（true=LPM 记账；false=直发交易所、**账本不更新**）。
+    # 此前既没写进 .env 也未登记 ⇒ 默认 false 且无人可见（"开实盘"与"要记账"被拆散了）。
+    # 注：刻意**不**放进 SAFETY_CRITICAL_FLAGS —— 它的当前值就是 false（本机跑 paper），
+    # 放进去会让启动日志每次都报"安全关键 flag 被关闭"，把噪音当信号。
+    "LIVE_SUB_POSITION_TRACKING",
     "LIVE_MODE_RISK_GUARDED",
     "LIVE_ORCHESTRATOR_HARD_GATE",
     "LIVE_SCALP_VETO_FAIL_OPEN",
