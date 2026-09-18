@@ -26,16 +26,53 @@ def check(name: str, passed: bool, detail: str = "") -> None:
 
 print('── 轮96 四项修复（运行中后端）──')
 
-# ── A：E1 独占守卫 ──────────────────────────────────────────────
-from backend.services.full_auto.midlong_position_manager import manage_position
-_e1_pos = {"id": 4712, "symbol": "BTC", "side": "long",
-           "exit_state": {"entry_source": "trend_e1"}}
-_out = manage_position(None, host=None, session=None, account_id=14, symbol="BTC",
-                       position=_e1_pos, market_summary={}, analyst_reports={},
-                       trading_mode="paper")
-check("A. E1 趋势仓被 midlong 管理器跳过",
-      _out.get("action") == "manage_skip_e1",
-      f"action={_out.get('action')} hold_reason={_out.get('hold_reason')}")
+# ── A：趋势车道策略（轮96 建立、轮99 收窄）──────────────────────
+# 轮96 的第一版是"整个 midlong 管理器跳过 E1"，**过宽** —— 它把**滚仓**一起停掉了
+# （实测长线平均加仓 0.06 次）。轮99 按车道契约收窄为：
+#   ✅ 允许 规则失效退出 + 滚仓(pyramid)
+#   ⛔ 禁止 tighten_trailing 收紧追踪止损、reduce 裁量减仓
+# 因此这里改为断言**收窄后的策略**，而不是旧的 `manage_skip_e1` 早退。
+import inspect as _inspect
+
+from backend.services.full_auto.midlong_position_manager import manage_position as _mp96
+
+_src96 = _inspect.getsource(_mp96)
+_a_ok = (
+    "_trend_lane_pos" in _src96
+    and 'if _review_action == "tighten_trailing" and _trend_lane_pos:' in _src96
+    and 'if _review_action == "reduce" and _trend_lane_pos:' in _src96
+    and "manage_skip_e1" not in _src96          # 旧的整段跳过必须已移除（否则滚仓被停）
+    and "_exec_pyramid(" in _src96              # 滚仓路径仍在（不被车道判定 gate）
+)
+check("A. 趋势车道：禁收紧/裁量减仓，**保留滚仓**", _a_ok,
+      "tighten_trailing / reduce 被车道判定拦住；pyramid 仍可执行（轮99 收窄轮96 的过宽版本）")
+
+# ── A2：趋势车道不被日内 ATR 阶梯管理（轮99 核心）─────────────────
+from backend.services.paper_trading_engine import paper_engine as _E99
+
+
+class _P99:
+    pass
+
+
+_p99 = _P99()
+_p99.id, _p99.symbol, _p99.side = 1, "BTC", "long"
+_p99.timeframe_tier, _p99.trade_nature = "long", "trend_follow"
+_p99.exit_state_json = "{}"
+_p99_mid = _P99()
+_p99_mid.id, _p99_mid.symbol, _p99_mid.side = 2, "XRP", "long"
+_p99_mid.timeframe_tier, _p99_mid.trade_nature = "mid", "swing"
+_p99_mid.exit_state_json = "{}"
+check("A2. 趋势车道跳过中短线口径的统一分段止盈（轮99）",
+      _E99._is_trend_lane_member(_p99) is True
+      and _E99._should_run_unified_staged_tp(_p99) is False
+      and _E99._should_run_unified_staged_tp(_p99_mid) is True,
+      f"long/trend_follow → run_ladder={_E99._should_run_unified_staged_tp(_p99)}；"
+      f"mid/swing → run_ladder={_E99._should_run_unified_staged_tp(_p99_mid)}")
+check("A2. 车道判定与入场闸解耦（LONG_TREND_V2=0 也得成立）",
+      __import__("backend.services.long_trend_v2", fromlist=["x"]).long_v2_enabled() is False
+      and _E99._is_trend_lane_member(_p99) is True,
+      "旧实现用 long_v2_enabled()（入场闸）当车道判据 ⇒ 恒 False ⇒ 长线跑日内阶梯")
 
 # ── B：车道最小收紧带宽 ─────────────────────────────────────────
 from backend.services.full_auto.midlong_position_manager import clamp_tighten_band
