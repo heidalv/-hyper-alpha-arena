@@ -2549,6 +2549,22 @@ MIDLONG_TIGHTEN_MIN_BAND_PCT_SHORT: float = float(os.getenv("MIDLONG_TIGHTEN_MIN
 MIDLONG_MIN_LOCK_PROFIT_PCT_LONG: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_LONG", "0.025"))
 MIDLONG_MIN_LOCK_PROFIT_PCT_MID: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_MID", "0.005"))
 MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT", "0.0"))
+
+# [2026-09-18 轮99] 趋势车道（long / trend_follow / position / E1）是否跳过
+# "中短线口径"的日内保护块（统一分段止盈 / 保本推进 / 硬软回撤 / 追踪止损 + ExitPolicy 层）。
+#
+# 为什么需要这个开关：这条跳过**早已写在代码里**（`paper_trading_engine` 的
+# `if _v2_unified_on and not _v2_long_managed:`，注释写明"长线仓跳过统一分段止盈"），
+# 但当时把判定绑在**入场闸** `LONG_TREND_V2` 上（`.env` 现为 0，且主脑接管后再否决一次）
+# ⇒ 恒 False ⇒ 规则从未生效。实测长线 48 笔：中位持仓 13.6h、中位实现 +0.53%、
+# 出场事件里照样出现 staged_tp1(+3.83%)/staged_tp2(+5.80%)，
+# 而车道声明的档位是 tp_stages=[8,15,25]%。
+#
+# true （默认）= 趋势车道按契约走：出场 = Chandelier 结构止损 / 规则失效 / 硬层 failsafe；
+# false        = 回滚到旧行为（所有车道共享 ATR 阶梯）。
+EXIT_TREND_LANE_SKIP_INTRADAY: bool = str(
+    os.getenv("EXIT_TREND_LANE_SKIP_INTRADAY", "true")
+).strip().lower() in ("1", "true", "yes", "on")
 # [DEPRECATED — 阶段4] 原 SwingAgent 独立分支的 QuantBrief 对齐阈值；该分支已删除，
 # 中线对齐现由 long thesis 的 mid_view + decision_hub mid_timing 权重统一处理。
 # 保留变量定义避免 env_registry/旧调用点报 AttributeError；新代码不应再读取。

@@ -139,18 +139,36 @@ def test_long_lane_cluster_cap_still_binds_at_3(monkeypatch):
 
 
 def test_brain_long_batch_suppressed_when_e1_exclusive():
-    """[验收轮2] E1 独占时 mlto_cycle 不再派脑 tier=long 批次（源码护栏）。
+    """[验收轮2 → 轮99 修订] E1 独占时长线批次的派发口径。
 
-    背景：E1 独占后脑的 tier=long 论题在收口处必被拒，实测每 ~2-3 分钟白烧
-    一批 dual_call LLM（n=9、8 小时 0 成交）。源码必须显式检查 long_lane_exclusive。
+    ## 历史
+
+    验收轮2 曾要求"E1 独占时 mlto_cycle 不再派脑 tier=long 批次"（起因：脑的
+    tier=long 论题在收口处必被 E1 独占闸拒，实测每 ~2-3 分钟白烧一批 dual_call LLM）。
+
+    ## 现状（用户 2026-09-18 裁决，见 `mlto_cycle.py:343-346` 的注释）
+
+        [2026-09-18 撤销验收轮2的整段跳过] 用户裁决：**分析不许省**。
+        脑长线批次恢复全频率派发（分析/论题/持仓管理视角照常产出）；
+        下单仍被 E1 独占闸拒绝，**交易权不变**。
+
+    所以源码里那条 `and not _e1_exclusive` 是**被用户明确撤销**的，本测试若继续
+    断言它会长期变红（红的测试会淹没真回归）。现在改为断言**当前裁决**：
+      ① E1 独占判定本身仍在（`long_lane_exclusive` 被显式检查）；
+      ② 长线批次**照常派发**（分析不省）；
+      ③ "交易权在 E1" 这一点由 `long_lane_open_allowed` 保证（另有用例覆盖）。
     """
     from pathlib import Path
 
     src = Path(backend_file()).read_text(encoding="utf-8")
-    assert "long_lane_exclusive" in src
-    assert "E1 独占长车道" in src
-    # 派发条件必须带 `and not _e1_exclusive`
-    assert "not _e1_exclusive" in src
+    assert "long_lane_exclusive" in src, "E1 独占判定被删掉了"
+    assert "E1 独占长车道" in src, "E1 独占的说明性日志被删掉了（状态不可见）"
+    # 当前裁决：不再因 E1 独占而跳过派发
+    assert "not _e1_exclusive" not in src, (
+        "用户 2026-09-18 已裁决「分析不许省」，长线批次不应再被整段跳过；"
+        "若要恢复跳过，请先确认该裁决是否仍然有效"
+    )
+    assert "_brain_long_now() and run_long" in src, "长线批次派发条件缺失"
 
 
 def backend_file():

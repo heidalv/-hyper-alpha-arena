@@ -1099,6 +1099,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MIN_LOCK_PROFIT_PCT_LONG",
     "MIDLONG_MIN_LOCK_PROFIT_PCT_MID",
     "MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT",
+    # [轮99] 趋势车道跳过"中短线口径"日内保护块（分段止盈/保本/回撤/追踪 + ExitPolicy 层）
+    "EXIT_TREND_LANE_SKIP_INTRADAY",
     "MIDLONG_TRANCHE_ENTRY_ENABLED",
     "MLTO_AI_GOVERNED",
     "MLTO_AI_GOVERNED_WEIGHT",

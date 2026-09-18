@@ -3609,6 +3609,92 @@ class PaperTradingEngine:
                 pass
         return False
 
+    # ════════════════════════════════════════════════════════════════════════
+    # [2026-09-18 轮99] 趋势车道成员判定 + 跳过日内保护的可见性
+    # ════════════════════════════════════════════════════════════════════════
+    TREND_LANE_NATURES = ("trend_follow", "position")
+    _TREND_SKIP_LOGGED: set = set()          # 已打印过"跳过日内保护"的仓位 id（有界）
+
+    @classmethod
+    def _is_trend_lane_member(cls, pos, tier=None, nature=None) -> bool:
+        """该仓位是否属**趋势车道**（long / trend_follow / position / E1）。
+
+        ## 为什么必须与开关解耦（轮99）
+
+        旧判定把"车道成员"绑在 `long_v2_enabled()`（= 入场闸 `LONG_TREND_V2` 且主脑未接管）
+        上，而 `.env` 里 `LONG_TREND_V2=0` + 主脑已接管 ⇒ 恒 False
+        ⇒ "长线仓跳过中短线口径止盈/保本/追踪/回撤"这条规则**从未生效**，
+        长线仓被 ATR(1h) 阶梯在 +3.8%/+5.8% 分批止盈、并把止损拖到成本上方 1%~2%。
+
+        **入场闸是入场闸，车道是车道**：一个仓位属不属于趋势车道，
+        只由它自身的 (tier, nature, entry_source) 决定，与任何开关无关。
+
+        回滚开关 `EXIT_TREND_LANE_SKIP_INTRADAY`（默认 true）；关掉即恢复旧行为
+        （所有车道共享 ATR 阶梯）。
+        """
+        try:
+            from backend.config import settings as _st
+            if not bool(getattr(_st, "EXIT_TREND_LANE_SKIP_INTRADAY", True)):
+                return False
+        except Exception:
+            pass
+        _tier = str(tier if tier is not None else getattr(pos, "timeframe_tier", "") or "").strip().lower()
+        _nature = str(nature if nature is not None else getattr(pos, "trade_nature", "") or "").strip().lower()
+        if _tier == "long" or _nature in cls.TREND_LANE_NATURES:
+            return True
+        # E1 趋势仓：契约明写"唯一出场 = 规则失效 / Chandelier"，无论上面两个字段如何都必须算成员
+        try:
+            from backend.services.trend_e1_engine import is_e1_position as _is_e1
+            return bool(_is_e1(pos))
+        except Exception:
+            return False
+
+    def _should_run_unified_staged_tp(self, pos) -> bool:
+        """本仓位是否该跑"中短线口径"的统一分段止盈（ATR 阶梯）。
+
+        趋势车道（long / trend_follow / position / E1）→ False。
+        抽成独立方法有两个目的：
+          ① 判定与调用点分离，便于单测直接断言（不必构造整个 tick 环境）；
+          ② 让"长线不跑日内阶梯"这条契约只有**一处**定义，不会出现
+             "注释说跳过、条件写成别的变量"的再次脱节（轮99 的根因）。
+        """
+        try:
+            return not self._is_trend_lane_member(
+                pos,
+                getattr(pos, "timeframe_tier", None),
+                getattr(pos, "trade_nature", None),
+            )
+        except Exception:
+            # 判定异常时按"跑"处理（= 旧行为），宁可多一层保护也不要静默失去保护
+            return True
+
+    @classmethod
+    def _log_trend_lane_skip_once(cls, pos, is_member: bool) -> None:
+        """趋势车道跳过日内保护时，每个仓位打一条 INFO 说明"为什么没做分档止盈"。
+
+        为什么要日志：这条跳过会让人误以为"系统没在管这个仓"，
+        而实际是**按车道契约交给 Chandelier / 规则失效**。没有这条日志，
+        排查时只能看到"仓位不动"，与"保护失效"无法区分。
+        """
+        if not is_member:
+            return
+        try:
+            _pid = int(getattr(pos, "id", 0) or 0)
+            if not _pid or _pid in cls._TREND_SKIP_LOGGED:
+                return
+            if len(cls._TREND_SKIP_LOGGED) >= 2048:      # 有界，绝不无界增长
+                cls._TREND_SKIP_LOGGED.clear()
+            cls._TREND_SKIP_LOGGED.add(_pid)
+            logger.info(
+                "[Paper][轮99] %s %s 属趋势车道（tier=%s nature=%s）→ 跳过统一分段止盈/"
+                "保本/硬软回撤/追踪（中短线口径）与 ExitPolicy 层；"
+                "出场只由 Chandelier 结构止损 / 规则失效 / 硬层 failsafe 决定",
+                getattr(pos, "symbol", "?"), getattr(pos, "side", ""),
+                getattr(pos, "timeframe_tier", None), getattr(pos, "trade_nature", None),
+            )
+        except Exception:
+            pass
+
     def _run_v2_protection(self, db, pos, entry, current_price, profit_pct, _nature):
         """v2 利润保护系统 — 基于 TP 进度的分层保护
 
@@ -3694,15 +3780,36 @@ class PaperTradingEngine:
         # 的 decide_long（结构破坏/周线 Chandelier/极端回撤60-80%/30d no_progress/
         # 结构目标减半）。本函数内所有短中线口径的止盈/保本/追踪/回撤保护一律跳过，
         # 只保留 _enforce_max_hold_timeout 的 SL/TP(failsafe)/liq 硬层。
-        _v2_long_managed = False
-        try:
-            from backend.services.long_trend_v2 import long_v2_enabled as _lv2_enabled_fn
-            _v2_long_managed = bool(_lv2_enabled_fn()) and (
-                str(_pos_nature or "").lower() in ("trend_follow", "position")
-                or str(_pos_tier or "").lower() == "long"
-            )
-        except Exception:
-            pass
+        #
+        # ══════════════════════════════════════════════════════════════════════
+        # [2026-09-18 轮99 修] 上面这条"长线跳过"**从未生效过**，根因是判定绑错了开关
+        # ══════════════════════════════════════════════════════════════════════
+        # 旧实现：
+        #     _v2_long_managed = long_v2_enabled() and (nature 是长线 or tier == long)
+        # 而 `long_v2_enabled()` 读的是**入场闸** `LONG_TREND_V2`（`.env` 现为 **0**），
+        # 且主脑模式（`MIDLONG_BRAIN_MODE`）开启时还会再静默否决一次
+        # （见 `long_trend_v2.py:long_v2_enabled` 的 §58 注释）⇒ 两个条件都指向 False
+        # ⇒ `_v2_long_managed` 对**任何**长线仓恒为 False
+        # ⇒ 长线仓照样跑"中短线口径"的统一分段止盈/保本/硬软回撤/追踪。
+        #
+        # 实测后果（account 14 近 30 天，长线 48 笔）：
+        #   · 中位持仓 **13.56h**（车道设计 24–168h）、中位实现 **+0.53%**；
+        #   · 出场事件里长线仓照样出现 `staged_tp1`（**+3.83%**）与 `staged_tp2`（**+5.80%**）
+        #     —— 那是 ATR(1h) 阶梯（`tp1_mult=2.0`/`tp2_mult=3.0`）；
+        #   · 每次分档后把止损拖到 `entry + 0.8×ATR`（≈成本上方 1%~2%）
+        #     ⇒ 一次 2% 级正常回撤就把整笔趋势仓按"微利"平掉
+        #     （4 笔 long 以 +1.14%/+2.05%/+2.11%/+4.33% 收场，reason=breakeven_tp）；
+        #   · 而车道自己声明的档位是 `exit_policy.tp_stages=[8,15,25]%` —— 声明与执行完全脱节
+        #     （`exit_policy.py:22` 明确写着"本模块**只声明**档位"）。
+        #
+        # 修法：把"是否属趋势车道"与**入场闸开关彻底解耦** —— 车道成员身份只由
+        # 仓位自身的 (tier, nature, E1 标记) 决定：
+        #     tier == "long"  或  nature ∈ (trend_follow, position)  或  E1 仓位(entry_source=trend_e1)
+        # 成员 ⇒ 本函数内所有中短线口径的止盈/保本/追踪/回撤 + ExitPolicy 层**一律跳过**，
+        # 只保留硬层（failsafe SL/TP/liq/超时）与车道自己的 Chandelier/规则失效退出。
+        # 回滚：`EXIT_TREND_LANE_SKIP_INTRADAY=false`（settings.py 已声明 + 已登记 env_registry）。
+        _v2_long_managed = self._is_trend_lane_member(pos, _pos_tier, _pos_nature)
+        self._log_trend_lane_skip_once(pos, _v2_long_managed)
 
         # ── [2026-09-03 v3 方向1] ExitPolicy 车道声明层（三重屏障收敛）──
         # 结构失效价 / 硬 SL·TP 口径 / time_limit / 时间递减 ROI / trailing 激活-回撤，在硬层之后、利润管理器之前
@@ -4127,9 +4234,10 @@ class PaperTradingEngine:
         except Exception:
             _v2_unified_on, _tp_cap = True, 0.80
 
-        if _v2_unified_on and not _v2_long_managed:
+        if _v2_unified_on and self._should_run_unified_staged_tp(pos):
             # [2026-08-24 long_trend_v2] V2 长线仓跳过统一分段止盈/保本/硬软回撤/追踪
             # （中短线口径；设计 V2 §4.3.3-4.3.5 废除长线的 50% 进度推保本与分档 TP）。
+            # [轮99] 这条"长线跳过"此前**从未生效** —— 见 `_is_trend_lane_member` 的说明。
             # [2026-08-22 M0-10] stale-decision 防护：profit_manager/DSM 的 result
             # 在 tick 开头基于旧尺寸/状态计算，而统一分段止盈可能在本 tick 已减仓/平仓；
             # 尺寸变化后继续应用旧 result 会造成同 tick 双重减仓。此处先记尺寸，

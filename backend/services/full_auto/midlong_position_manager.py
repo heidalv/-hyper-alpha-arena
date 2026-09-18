@@ -1433,43 +1433,51 @@ def manage_position(
     if not position:
         return _out
 
-    # ── [2026-09-18 轮96 修 Fix A] E1 长车道独占：**本管理器不得管理 E1 趋势仓** ──
-    # `trend_e1_engine` 的模块文档（`:5-23`）声明得清清楚楚：
+    # ── [2026-09-18 轮96 修 Fix A / 轮99 收窄] 趋势车道只允许「规则失效」与「滚仓」──
+    # `trend_e1_engine` 的模块文档（`:5-23`）声明：
     #     出场 = 规则失效 或 收盘 < Chandelier(最高收盘 − 3×ATR20)
     #     `long_trend_v2.manage_long_position（midlong 循环）跳过`，不再双重管理
     #     `paper 引擎 max_hold 复审跳过`；**唯一出场 = 规则失效 / Chandelier**
-    # 但实现侧只在三处设了守卫：`long_lane_open_allowed`（只管开仓）、
-    # `paper_trading_engine:2955`（只管 max_hold）、`position_exit_orchestrator:63-65`
-    # （只管 PEO 分档 TP/trailing）。**本模块全文没有一处 `is_e1_position`** ——
-    # 于是"midlong 循环跳过 E1"只是文档承诺，代码里没人执行。
+    # 但实现侧只在三处设了守卫（只管开仓 / 只管 max_hold / 只管 PEO），
+    # **本模块全文没有一处 `is_e1_position`** ⇒ "midlong 循环跳过 E1"只是文档承诺。
     #
-    # 后果（2026-09-18 实测，见 reports/_轮96_长线趋势仓被收紧止损收割事故复盘_20260918.md）：
-    # E1 趋势仓照样进本函数，趋势复查给出 `tighten_trailing` 时按
-    # `SL = 现价 − 2×volatility_value`（ETH/LINK 实测 ≈1%）把止损拉到贴近市价，
-    # 下一轮 1% 级正常回撤即把一笔**设计持仓 3–7 天**的趋势仓按 +3%~+6% 微利全平
-    # （4 笔 trend_follow 全部 `close_reason=breakeven_tp`，持仓仅 9.4–13.6h）。
+    # 后果（2026-09-18 实测，见 reports/_轮96_..._事故复盘.md）：
+    # 趋势复查给出 `tighten_trailing` 时按 `SL = 现价 − 2×volatility_value`（≈1%）
+    # 把止损拉到贴近市价 ⇒ 下一轮 1% 级回撤即把设计持仓 3–7 天的趋势仓按 +3%~+6% 全平。
     #
-    # 守卫失败方向说明：`is_e1_position` 自身是纯读状态、内部已吞异常并返回 bool，
-    # 这里的 try 只防 import 失败。import 失败时按"非 E1"继续（= 今天的行为），
-    # 并留 WARNING —— 不在此处 fail-closed 是因为那会连带把 mid 车道的正常管理也停掉，
-    # 而 import 失败本身已经意味着 E1 引擎整条链断了，会有其它告警。
+    # ⚠️ 轮99 收窄：轮96 的第一版是"整个管理器跳过 E1"，**过宽** ——
+    # 它连**滚仓(pyramid)**一起停掉了，而用户明确要求"长线趋势是滚仓盈利为目的的"
+    # （实测近 30 天长线平均加仓 0.06 次 ≈ 从不加仓）。
+    # 现在的语义按车道契约精确划分：
+    #     ✅ 允许：论题规则失效退出（= "规则失效"，下方 thesis 块）
+    #     ✅ 允许：滚仓/加仓（pyramid 门控链）
+    #     ⛔ 禁止：`tighten_trailing` 收紧追踪止损（把趋势仓变成日内仓的元凶）
+    #     ⛔ 禁止：`reduce` 裁量减仓（趋势仓应"失效即全平"或跟随 Chandelier，不做千刀万剐）
+    # 回滚：`EXIT_TREND_LANE_SKIP_INTRADAY=false`（与引擎侧同一开关，语义一致）。
+    _trend_lane_pos = False
     try:
         from backend.services.trend_e1_engine import is_e1_position as _is_e1_pos
-        if _is_e1_pos(position):
-            logger.info(
-                "[MidLong] %s 属 E1 独占长车道（唯一出场=规则失效/Chandelier），"
-                "本管理器跳过：不滚仓/不收紧止损/不减仓", sym,
-            )
-            return {
-                "action": "manage_skip_e1", "score": 0, "direction": "manage",
-                "reasoning": "E1 独占长车道，交 Chandelier 管理",
-                "hold_reason": "e1_exclusive_lane_skip",
-            }
+        _trend_lane_pos = bool(_is_e1_pos(position))
     except Exception as _e1_err:
         logger.warning(
-            "[MidLong] E1 独占判定不可用（按非 E1 继续，存在误管 E1 趋势仓的风险）: %s",
+            "[MidLong] E1 独占判定不可用（按非 E1 继续，存在误收紧 E1 趋势仓的风险）: %s",
             _e1_err,
         )
+    if not _trend_lane_pos:
+        # 非 E1 但仍是趋势车道（tier=long / nature=trend_follow|position）同样适用
+        try:
+            _tier_p = str(position.get("timeframe_tier") or "").strip().lower()
+            _nat_p = str(position.get("trade_nature") or "").strip().lower()
+            _trend_lane_pos = _tier_p == "long" or _nat_p in ("trend_follow", "position")
+        except Exception:
+            _trend_lane_pos = False
+    if _trend_lane_pos:
+        try:
+            from backend.config import settings as _st99
+            if not bool(getattr(_st99, "EXIT_TREND_LANE_SKIP_INTRADAY", True)):
+                _trend_lane_pos = False
+        except Exception:
+            pass
 
     # [2026-09-05] LLM 主脑：论题 should_close / 失效价优先于叙事复查。
     # 硬止损、组合超限、吊灯减仓仍走下方规则，不等 LLM。
@@ -1883,6 +1891,17 @@ def manage_position(
             _why = "规则直通" if (_pyr_direct and _pyr_action != "add") else "LLM add"
             return _summary(f"顺势滚仓执行({_why}): {pyr.get('reasoning') or ''}", action="manage_pyramid")
 
+    # ⛔ [轮99] 趋势车道禁止收紧追踪止损：这正是把趋势仓降级成日内仓的元凶
+    # （`SL = 现价 − 2×短周期ATR` ≈1%，一轮正常回撤即收割，实测 4 笔 long 全中）。
+    # 车道契约里趋势仓的止损只由 Chandelier 上移（`trend_e1_engine` 日任务）。
+    if _review_action == "tighten_trailing" and _trend_lane_pos:
+        logger.info(
+            "[MidLong] %s tier=%s 属趋势车道 → 忽略 tighten_trailing（%s）；"
+            "止损只由 Chandelier 结构位上移（轮99）",
+            sym, position.get("timeframe_tier"), _reason_base,
+        )
+        return _summary(f"趋势车道忽略收紧止损请求: {_reason_base}", action="manage_trend_skip_tighten")
+
     if _review_action == "tighten_trailing":
         _trend_adj = review.get("trend_adjustment") or {}
         _atr_mult = float(_trend_adj.get("trailing_atr_mult") or 0)
@@ -1933,6 +1952,19 @@ def manage_position(
 
     # [P1-2] 减仓不对称治理：浮盈时 LLM reduce 降级为 hold（趋势未破坏不砍盈利仓），
     # 仅浮亏或平盘时允许执行减仓。
+    #
+    # ⛔ [轮99] 趋势车道**禁止裁量减仓**：实测长线仓被反复 `reduce` 千刀万剐 ——
+    # #4659 BTC 减 6 次（size 0.002615→0.000071，剩 2.7%）、#4660 BNB 减 5 次（剩 4.5%）、
+    # #4678 ETH 减 3 次（剩 12.5%），峰值分别只有 +2.7%/+0.4%/+0.3%。
+    # 车道契约是"失效即全平（规则失效）或跟随 Chandelier"，不是按 40%~50% 反复削仓。
+    if _review_action == "reduce" and _trend_lane_pos:
+        logger.info(
+            "[MidLong] %s tier=%s 属趋势车道 → 忽略裁量减仓（%s）；"
+            "出场交「规则失效全平 / Chandelier」（轮99）",
+            sym, position.get("timeframe_tier"), _reason_base,
+        )
+        return _summary(f"趋势车道忽略裁量减仓: {_reason_base}", action="manage_trend_skip_reduce")
+
     if _review_action == "reduce":
         if pnl_pct <= 0:
             _exec_reduce(db, account_id=account_id, position=position,
