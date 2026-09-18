@@ -2529,6 +2529,26 @@ MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL: float = float(
 # [P0-2] 浮盈 tighten 保护：保证金口径浮盈 > 此值时，收紧 SL 不得越过 entry±MIDLONG_TIGHTEN_SL_FLOOR
 MIDLONG_TIGHTEN_PROFIT_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_PROFIT_FLOOR", "0.015"))
 MIDLONG_TIGHTEN_SL_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_SL_FLOOR", "0.01"))
+
+# [2026-09-18 轮96 修 Fix B] 车道**最小收紧带宽**：追踪止损与现价的距离下限。
+# 事故：`tighten_trailing` 的带宽是 `现价 × volatility_value(短周期) × trailing_atr_mult`，
+# ETH/LINK 实测 ≈1% 价格 —— 用在"最短持仓 12h、设计持仓 3–7 天"的车道上，
+# 一轮正常回撤就把趋势仓收割（2026-09-18 实测 7 笔，峰值仅 +1.3%~+6.0%）。
+# 说明：这三个键经 `midlong_position_manager._cfg_float` 读取（settings 优先、env 兜底），
+# 故**必须**在此声明，否则设了 env 也不生效（settings 属性缺失时返回函数默认值）。
+MIDLONG_TIGHTEN_MIN_BAND_PCT_LONG: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_BAND_PCT_LONG", "0.03"))
+MIDLONG_TIGHTEN_MIN_BAND_PCT_MID: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_BAND_PCT_MID", "0.01"))
+MIDLONG_TIGHTEN_MIN_BAND_PCT_SHORT: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_BAND_PCT_SHORT", "0.0"))
+
+# [2026-09-18 轮96 修 Fix C] 拒付追踪派生止损后，回退到哪个止损位时的**最小锁定利润**。
+# 语义：回退位 = `max(结构位, 入场×(1+本值))`（多头；空头对称）。
+# 为什么不能只用结构位：E1 的 Chandelier 长期在入场价**之下**（趋势车道本来就允许
+# 利润回吐到结构位），直接回退会把已经锁定的利润全部还回去。这个地板把
+# "给足呼吸空间"与"不把已锁利润交回去"两件事同时钉住；本轮人工处置 BTC #4712
+# 用的就是这个数（+2.5%）。
+MIDLONG_MIN_LOCK_PROFIT_PCT_LONG: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_LONG", "0.025"))
+MIDLONG_MIN_LOCK_PROFIT_PCT_MID: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_MID", "0.005"))
+MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT: float = float(os.getenv("MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT", "0.0"))
 # [DEPRECATED — 阶段4] 原 SwingAgent 独立分支的 QuantBrief 对齐阈值；该分支已删除，
 # 中线对齐现由 long thesis 的 mid_view + decision_hub mid_timing 权重统一处理。
 # 保留变量定义避免 env_registry/旧调用点报 AttributeError；新代码不应再读取。

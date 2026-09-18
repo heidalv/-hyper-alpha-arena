@@ -610,6 +610,55 @@ def _held_hours(position: Dict[str, Any], db=None) -> float:
     return float(position.get("hold_hours", 0) or 0)
 
 
+def clamp_tighten_band(
+    *, side: str, mark: float, new_sl: float, tier: str,
+) -> "tuple[float, str]":
+    """[2026-09-18 轮96 修 Fix B] 车道**最小收紧带宽**：把过近的追踪止损放宽。
+
+    返回 `(可能被放宽后的 new_sl, 说明文字或空串)`。
+
+    为什么需要：`tighten_trailing` 的带宽是
+        `mark × market_summary[sym].volatility_value × trailing_atr_mult`
+    而 `volatility_value` 是**短周期**波动率（ETH/LINK 实测 ≈0.5%），
+    `trailing_atr_mult` 默认 2.0 ⇒ 带宽 ≈ **1% 价格**。
+    对"最短持仓 12h、设计持仓 3–7 天"的车道，1% 回撤是噪音不是趋势反转：
+    2026-09-18 实测 4 笔 `trend_follow`（+3.0%~+6.0% 峰值，持仓仅 9.4–13.6h）
+    与 3 笔 mid 全部在止损线附近被收割，`close_reason` 清一色 `breakeven_tp`
+    （见 `reports/_轮96_长线趋势仓被收紧止损收割事故复盘_20260918.md`）。
+
+    下限取 `MIDLONG_TIGHTEN_MIN_BAND_PCT_<TIER>`（在 `settings.py` 声明，
+    经 `_cfg_float` 读取 —— settings 优先、env 兜底）；未配置时按车道默认
+    （long 3%、mid 1%、short 0=不设限）。方向语义：
+      · 只**放宽**本次提议（多头把止损往下放、空头往上放），
+        **绝不主动下调已有的更高止损** —— 是否接受这个更宽的值由
+        `paper_engine.update_position_tp_sl` 的"只收紧不放宽"规则裁决，
+        所以本函数不可能把保护撤掉。
+      · 无法解析的 tier → 不设限（保持原行为），避免因配置缺失改变语义。
+    """
+    try:
+        _tier = str(tier or "").strip().lower()
+        _pct = _cfg_float(f"MIDLONG_TIGHTEN_MIN_BAND_PCT_{_tier.upper()}", 0.0)
+        if _pct <= 0:
+            _pct = {"long": 0.03, "mid": 0.01}.get(_tier, 0.0)
+        _mark = float(mark or 0)
+        _sl = float(new_sl or 0)
+        if _pct <= 0 or _mark <= 0 or _sl <= 0:
+            return _sl, ""
+        _is_long = str(side or "").lower() in ("long", "buy")
+        _floor_sl = _mark * (1 - _pct) if _is_long else _mark * (1 + _pct)
+        _too_close = (_sl > _floor_sl) if _is_long else (_sl < _floor_sl)
+        if not _too_close:
+            return _sl, ""
+        return _floor_sl, (
+            f"tier={_tier} tighten 带宽不足保护: 提议 SL={_sl:.6f} "
+            f"距现价 {abs(_mark - _sl) / _mark * 100:.3f}% < 下限 {_pct * 100:.2f}% "
+            f"→ 放宽到 {_floor_sl:.6f}（Fix B 车道最小带宽）"
+        )
+    except Exception as _e:  # pragma: no cover - 纯计算，不应发生
+        logger.debug("[MidLong] clamp_tighten_band 异常(按原值): %s", _e)
+        return float(new_sl or 0), ""
+
+
 def _pnl_pct_of(position: Dict[str, Any]) -> float:
     """浮盈百分比（小数，如 0.042=+4.2%）。
 
@@ -1111,6 +1160,9 @@ def _exec_tighten(db, *, account_id, position, new_sl, host, session, tp_price=N
         from backend.services.paper_trading_engine import paper_engine
         ok = paper_engine.update_position_tp_sl(
             db, int(pid), tp_price=tp_price, sl_price=new_sl,
+            # [轮96 Fix C] 标注来源：这是**追踪派生**止损（随行情贴近市价），
+            # 不是结构位。paper 引擎会在该仓位的 min_hold 保护期内拒付它。
+            sl_source="trailing",
         )
         if ok:
             sym = str(position.get("symbol", "") or "").upper()
@@ -1380,6 +1432,44 @@ def manage_position(
         )
     if not position:
         return _out
+
+    # ── [2026-09-18 轮96 修 Fix A] E1 长车道独占：**本管理器不得管理 E1 趋势仓** ──
+    # `trend_e1_engine` 的模块文档（`:5-23`）声明得清清楚楚：
+    #     出场 = 规则失效 或 收盘 < Chandelier(最高收盘 − 3×ATR20)
+    #     `long_trend_v2.manage_long_position（midlong 循环）跳过`，不再双重管理
+    #     `paper 引擎 max_hold 复审跳过`；**唯一出场 = 规则失效 / Chandelier**
+    # 但实现侧只在三处设了守卫：`long_lane_open_allowed`（只管开仓）、
+    # `paper_trading_engine:2955`（只管 max_hold）、`position_exit_orchestrator:63-65`
+    # （只管 PEO 分档 TP/trailing）。**本模块全文没有一处 `is_e1_position`** ——
+    # 于是"midlong 循环跳过 E1"只是文档承诺，代码里没人执行。
+    #
+    # 后果（2026-09-18 实测，见 reports/_轮96_长线趋势仓被收紧止损收割事故复盘_20260918.md）：
+    # E1 趋势仓照样进本函数，趋势复查给出 `tighten_trailing` 时按
+    # `SL = 现价 − 2×volatility_value`（ETH/LINK 实测 ≈1%）把止损拉到贴近市价，
+    # 下一轮 1% 级正常回撤即把一笔**设计持仓 3–7 天**的趋势仓按 +3%~+6% 微利全平
+    # （4 笔 trend_follow 全部 `close_reason=breakeven_tp`，持仓仅 9.4–13.6h）。
+    #
+    # 守卫失败方向说明：`is_e1_position` 自身是纯读状态、内部已吞异常并返回 bool，
+    # 这里的 try 只防 import 失败。import 失败时按"非 E1"继续（= 今天的行为），
+    # 并留 WARNING —— 不在此处 fail-closed 是因为那会连带把 mid 车道的正常管理也停掉，
+    # 而 import 失败本身已经意味着 E1 引擎整条链断了，会有其它告警。
+    try:
+        from backend.services.trend_e1_engine import is_e1_position as _is_e1_pos
+        if _is_e1_pos(position):
+            logger.info(
+                "[MidLong] %s 属 E1 独占长车道（唯一出场=规则失效/Chandelier），"
+                "本管理器跳过：不滚仓/不收紧止损/不减仓", sym,
+            )
+            return {
+                "action": "manage_skip_e1", "score": 0, "direction": "manage",
+                "reasoning": "E1 独占长车道，交 Chandelier 管理",
+                "hold_reason": "e1_exclusive_lane_skip",
+            }
+    except Exception as _e1_err:
+        logger.warning(
+            "[MidLong] E1 独占判定不可用（按非 E1 继续，存在误管 E1 趋势仓的风险）: %s",
+            _e1_err,
+        )
 
     # [2026-09-05] LLM 主脑：论题 should_close / 失效价优先于叙事复查。
     # 硬止损、组合超限、吊灯减仓仍走下方规则，不等 LLM。
@@ -1797,8 +1887,10 @@ def manage_position(
         _trend_adj = review.get("trend_adjustment") or {}
         _atr_mult = float(_trend_adj.get("trailing_atr_mult") or 0)
         _new_sl = None
+        _mark_for_band = 0.0
         if _atr_mult > 0:
             mark = float(position.get("mark_price", 0) or position.get("entry_price", 0) or 0)
+            _mark_for_band = mark
             _sym_mkt = market_summary.get(sym) or {}
             _atr_pct = 0.02
             if isinstance(_sym_mkt, dict):
@@ -1808,6 +1900,25 @@ def manage_position(
                 _new_sl = mark - _band
             else:
                 _new_sl = mark + _band
+        # ── [2026-09-18 轮96 修 Fix B] 车道**最小收紧带宽**（抽成可测的纯函数）──
+        # 上面那个 `_band = mark × volatility_value × trailing_atr_mult` 用的是
+        # **短周期**波动率（ETH/LINK 实测 ≈0.5%）× 2.0 ⇒ 带宽 ≈1% 价格。
+        # 对"最短持仓 12h / 设计持仓 3–7 天"的车道来说，1% 回撤是噪音不是反转：
+        # 2026-09-18 实测 4 笔 trend_follow + 3 笔 mid 全部在这条线附近被收割
+        # （峰值 +1.3%~+6.0%，平仓时 retention 0.62~0.88）。
+        # 故设车道下限：收紧后的止损与**现价**距离不得小于 `MIDLONG_TIGHTEN_MIN_BAND_PCT_<TIER>`
+        # （long 默认 3%、mid 默认 1%、short 默认 0=不设限）。
+        # 只**放松**本次提议（绝不主动下调已有的更高止损），所以不产生"把保护撤掉"的风险。
+        if _new_sl and _new_sl > 0 and _mark_for_band > 0:
+            _band_tier = str(
+                position.get("timeframe_tier")
+                or ("long" if nature in ("trend_follow", "position") else "mid")
+            ).strip().lower()
+            _new_sl, _band_note = clamp_tighten_band(
+                side=side, mark=_mark_for_band, new_sl=_new_sl, tier=_band_tier,
+            )
+            if _band_note:
+                logger.info("[MidLong] %s %s", sym, _band_note)
         _tight_ok = False
         if _new_sl and _new_sl > 0:
             _tight_ok = _exec_tighten(db, account_id=account_id, position=position,

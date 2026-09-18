@@ -5433,8 +5433,22 @@ class PaperTradingEngine:
         self, db: Session, position_id: int,
         tp_price: Optional[float] = None,
         sl_price: Optional[float] = None,
+        sl_source: str = "",
     ) -> bool:
-        """AI 主动调整指定持仓的 TP/SL 价位，返回是否成功"""
+        """AI 主动调整指定持仓的 TP/SL 价位，返回是否成功
+
+        [2026-09-18 轮96 修 Fix C] 新增 `sl_source`：标记这次止损是**谁**写进来的。
+          · `"trailing"` = 追踪派生（tighten_trailing / trailing_lock / 保本推进）
+            —— 这类止损会随行情一路贴近市价，本质是"锁利工具"，不是"保护工具"；
+          · `"structural"` = 结构位（Chandelier / 初始 SL / 人工处置）；
+          · `""`（默认）= 未标注，按结构位对待（保持既有行为）。
+
+        为什么必须区分：追踪派生止损一旦被拉到成本之上，就成了**绕过 min_hold 的平仓通道** ——
+        硬线成交不看最短持仓（`unified_exit_state_machine:10` 明示"硬事实直通不可拦截"），
+        于是"72h 内不许主动平"的纪律被"把止损挪到 1% 之外"轻易绕开。
+        实测 2026-09-18：4 笔 trend_follow 在 9.4–13.6h 内被此类止损全平。
+        `reprice_position` 会据此在 min_hold 内**拒付**追踪派生止损（改回结构位）。
+        """
         from backend.database.models import PaperPosition
 
         pos = db.query(PaperPosition).filter(
@@ -5501,9 +5515,12 @@ class PaperTradingEngine:
                     self._ensure_sl_inside_liq(pos)
                 except Exception as _liq_err:
                     logger.debug(f"[Paper] update_tp_sl liq 守卫跳过: {_liq_err}")
+                # [轮96 Fix C] 留痕：这次止损是谁写的（供 reprice_position 的 min_hold 拒付判定）
+                self._stamp_sl_source(pos, sl_source, old_value=old_sl)
                 changed = True
                 logger.info(f"[Paper] AI调整SL: {pos.symbol} {pos.side} "
-                            f"SL {old_sl}→{pos.sl_price}")
+                            f"SL {old_sl}→{pos.sl_price}"
+                            f"{f' source={sl_source}' if sl_source else ''}")
 
         if changed:
             self._sync_attached_orders(db, pos)
@@ -5515,7 +5532,208 @@ class PaperTradingEngine:
                 logger.debug("[Paper] live tpsl sync skip: %s", _sync_err)
         return changed
 
+    def _record_sl_defer_event(self, db, pos, info: dict) -> None:
+        """[轮96 Fix C] 把「SL 在保护期内被拒付」登记成 `position_exit_events` 一行。
+
+        为什么要落库而不是只打日志：这是一次**本该发生的平仓被系统主动拦下**，
+        属于必须可审计的动作；日志会被轮转，事件表不会。
+        """
+        from backend.database.models import PositionExitEvent
+        _ev = PositionExitEvent(
+            position_id=int(getattr(pos, "id", 0) or 0),
+            account_id=int(getattr(pos, "account_id", 0) or 0),
+            strategy_id=getattr(pos, "strategy_id", None),
+            symbol=getattr(pos, "symbol", ""),
+            side=getattr(pos, "side", ""),
+            trade_nature=getattr(pos, "trade_nature", None),
+            event_type="sl_deferred_min_hold",
+            price=float(getattr(pos, "mark_price", 0) or 0),
+            pnl=float(getattr(pos, "unrealized_pnl", 0) or 0),
+            close_ratio=0.0,
+            peak_pnl_at_event=float(getattr(pos, "peak_unrealized_pnl", 0) or 0),
+            peak_pnl_pct_at_event=float(getattr(pos, "peak_pnl_pct", 0) or 0),
+            pnl_at_event=float(getattr(pos, "unrealized_pnl", 0) or 0),
+            pnl_pct_at_event=self._position_pnl_pct(pos),
+            exit_channel="sl_deferred",
+            metadata_json=json.dumps(info or {}, ensure_ascii=False, default=str)[:4000],
+        )
+        db.add(_ev)
+        db.commit()
+
     # ── 定时更新（供 scheduler 调用）────────────────
+
+    # ════════════════════════════════════════════════════════════════════════
+    # [2026-09-18 轮96 修 Fix C] 追踪派生止损的**来源留痕** + min_hold 内拒付
+    # ════════════════════════════════════════════════════════════════════════
+    SL_META_KEY = "sl_meta"
+
+    @classmethod
+    def _stamp_sl_source(cls, pos, source: str, *, old_value=None) -> None:
+        """把「这次止损是谁写的」写进 `exit_state_json.sl_meta`（失败不影响交易）。"""
+        if not source:
+            return
+        try:
+            import json as _json
+
+            from backend.utils.db_datetime import utc_now_for_db
+            _raw = getattr(pos, "exit_state_json", None)
+            _es = _json.loads(_raw) if isinstance(_raw, str) and _raw.strip() else (
+                _raw if isinstance(_raw, dict) else {}
+            )
+            _es = dict(_es or {})
+            _es[cls.SL_META_KEY] = {
+                "source": str(source)[:32],
+                "value": float(getattr(pos, "sl_price", 0) or 0),
+                "prev": float(old_value or 0),
+                "set_at": utc_now_for_db().isoformat(),
+            }
+            pos.exit_state_json = _json.dumps(_es, ensure_ascii=False)
+        except Exception as _se:
+            logger.debug("[Paper] sl_meta 留痕失败(不影响交易): %s", _se)
+
+    @staticmethod
+    def _min_lock_profit_pct(tier: str) -> float:
+        """车道「最小锁定利润」：拒付追踪派生止损时，回退位不得让已锁利润低于它。
+
+        [轮96 Fix C] 见 `settings.MIDLONG_MIN_LOCK_PROFIT_PCT_*` 的说明。
+        读不到配置时按车道默认（long 2.5% / mid 0.5% / short 0）。
+        """
+        try:
+            from backend.config import settings as _st
+            _v = getattr(_st, f"MIDLONG_MIN_LOCK_PROFIT_PCT_{str(tier or '').upper()}", None)
+            if _v is not None:
+                return max(0.0, float(_v))
+        except Exception:
+            pass
+        return {"long": 0.025, "mid": 0.005}.get(str(tier or "").lower(), 0.0)
+
+    @staticmethod
+    def sl_meta_of(pos) -> dict:
+        """读回 `sl_meta`；读不到返回空 dict（= 按结构位对待）。"""
+        try:
+            import json as _json
+            _raw = getattr(pos, "exit_state_json", None)
+            _es = _json.loads(_raw) if isinstance(_raw, str) and _raw.strip() else (
+                _raw if isinstance(_raw, dict) else {}
+            )
+            _m = (_es or {}).get("sl_meta")
+            return _m if isinstance(_m, dict) else {}
+        except Exception:
+            return {}
+
+    def _sl_min_hold_verdict(self, pos, current_price: float) -> tuple:
+        """判断「这笔止损该不该在最短持仓期内被拒付」。
+
+        返回 `(defer: bool, info: dict)`；`defer=True` 表示**不要成交**。
+
+        规则（全部满足才拒付，任何一条不满足都按正常止损成交）：
+          1. 该止损的来源标记为 `trailing`（追踪派生）；
+          2. 持仓时长 < 本车道 `TIER_PROTECTION_PARAMS[tier].min_hold_sec`；
+          3. 该止损位于**盈利区**（多头在成本之上）—— 亏损失效的止损永远直接成交；
+          4. 未触及保护期内的紧急亏损阈值 `min_hold_emergency_loss_pct`；
+          5. 存在可回退的**结构位**（`exit_state_json.structural_stop_price`）——
+             否则回退后下一 tick 会再次触发、形成死循环，故此时照常成交。
+
+        失败方向：任何异常/信息缺失一律 `defer=False`（照常止损）。
+        真实止损绝不因为"状态读不出来"而被挡住 —— 这是保护侧该有的方向。
+        """
+        info = {"defer": False, "why": ""}
+        try:
+            meta = self.sl_meta_of(pos)
+            if str(meta.get("source") or "") != "trailing":
+                info["why"] = "非追踪派生止损"
+                return False, info
+
+            tier = str(getattr(pos, "timeframe_tier", None)
+                       or ("long" if str(getattr(pos, "trade_nature", "") or "").lower()
+                           in ("trend_follow", "position") else "mid")).strip().lower()
+            from backend.config.settings import TIER_PROTECTION_PARAMS
+            _tp = TIER_PROTECTION_PARAMS.get(tier) or {}
+            min_hold = float(_tp.get("min_hold_sec") or 0)
+            if min_hold <= 0:
+                info["why"] = f"tier={tier} 无保护期"
+                return False, info
+
+            from backend.utils.db_datetime import db_dt_for_age
+            from datetime import datetime as _dt, timezone as _tz
+            opened = db_dt_for_age(getattr(pos, "opened_at", None))
+            if opened is None:
+                info["why"] = "无开仓时间"
+                return False, info
+            held_sec = (_dt.now(_tz.utc) - opened).total_seconds()
+            if held_sec >= min_hold:
+                info["why"] = f"已过保护期 ({held_sec/3600:.1f}h ≥ {min_hold/3600:.1f}h)"
+                return False, info
+
+            entry = float(getattr(pos, "entry_price", 0) or 0)
+            side = str(getattr(pos, "side", "") or "").lower()
+            is_long = side in ("long", "buy")
+            if entry <= 0 or current_price <= 0:
+                info["why"] = "无入场价/市价"
+                return False, info
+            # 条件 3：止损在盈利区（多头：市价仍在成本之上；空头对称）
+            in_profit = (current_price > entry) if is_long else (current_price < entry)
+            if not in_profit:
+                info["why"] = "止损位于亏损区（按真实止损成交）"
+                return False, info
+
+            # 条件 4：紧急亏损阈值（保证金口径），与 unified_exit_state_machine 的保护层同口径
+            _emg = float(_tp.get("min_hold_emergency_loss_pct") or 0)
+            margin = float(getattr(pos, "margin", 0) or 0)
+            upnl = float(getattr(pos, "unrealized_pnl", 0) or 0)
+            if _emg > 0 and margin > 0 and upnl < 0:
+                loss_pct = abs(upnl) / margin * 100.0
+                if loss_pct >= _emg:
+                    info["why"] = f"触及紧急亏损 {loss_pct:.2f}% ≥ {_emg}%"
+                    return False, info
+
+            # 条件 5：必须能回退到结构位
+            try:
+                import json as _json
+                _raw = getattr(pos, "exit_state_json", None)
+                _es = _json.loads(_raw) if isinstance(_raw, str) and _raw.strip() else (
+                    _raw if isinstance(_raw, dict) else {}
+                )
+                _structural = float((_es or {}).get("structural_stop_price") or 0)
+            except Exception:
+                _structural = 0.0
+            if _structural <= 0:
+                info["why"] = "无结构位可回退（防死循环，按止损成交）"
+                return False, info
+            # 回退位 = max(结构位, 入场×(1+最小锁定利润))（多头；空头对称）。
+            # 只用结构位是不够的：E1 的 Chandelier 会长期在入场价之下，
+            # 直接回退等于把已锁定的利润全部还回去（与"放回结构位但保留锁利"的要求冲突）。
+            _min_lock = self._min_lock_profit_pct(tier)
+            if _min_lock > 0 and entry > 0:
+                _lock_sl = entry * (1 + _min_lock) if is_long else entry * (1 - _min_lock)
+                _restore = max(_structural, _lock_sl) if is_long else min(_structural, _lock_sl)
+                # 锁利地板必须仍在市价的止损侧，否则会被下一次 tick 立刻触发
+                if is_long and _restore >= current_price:
+                    _restore = _structural
+                if (not is_long) and _restore <= current_price:
+                    _restore = _structural
+            else:
+                _restore = _structural
+            _structural = _restore
+            # 结构位必须在市价的止损侧，否则回退无意义（可能立即再次触发）
+            if is_long and _structural >= current_price:
+                info["why"] = "结构位在市价错误一侧"
+                return False, info
+            if (not is_long) and _structural <= current_price:
+                info["why"] = "结构位在市价错误一侧"
+                return False, info
+
+            info.update({
+                "defer": True, "why": "min_hold 内追踪派生止损拒付",
+                "tier": tier, "held_hours": round(held_sec / 3600.0, 2),
+                "min_hold_hours": round(min_hold / 3600.0, 1),
+                "structural_stop": _structural, "sl": float(getattr(pos, "sl_price", 0) or 0),
+                "peak_pnl_pct": float(getattr(pos, "peak_pnl_pct", 0) or 0),
+            })
+            return True, info
+        except Exception as _ve:
+            logger.debug("[Paper] min_hold 拒付判定异常(按正常止损成交): %s", _ve)
+            return False, {"defer": False, "why": f"判定异常: {_ve}"}
 
     def update_single_position(self, db: Session, pos) -> None:
         """单持仓短事务更新 — 减少锁持有时间，避免连接池耗尽。
@@ -5644,6 +5862,44 @@ class PaperTradingEngine:
             reason = "tp"
         if hit:
             _px_attr = "sl_price" if reason in ("sl", "breakeven_sl") else "tp_price"
+            # ── [2026-09-18 轮96 修 Fix C] min_hold 内拒付「追踪派生」止损 ──
+            # 硬线成交不看最短持仓（`unified_exit_state_machine:10`：硬事实直通不可拦截），
+            # 于是"把止损收紧到成本上方 1%"就成了绕过 72h 纪律的平仓通道。
+            # 2026-09-18 实测：4 笔 trend_follow 在 9.4–13.6h 内以此方式全平。
+            # 处理：若是追踪派生止损、且仍在保护期内、且止损位于盈利区 ⇒ 不成交，
+            # 把止损回退到**结构位**（Chandelier 等），让仓位继续按设计持有。
+            # 真实止损（亏损区/结构性/紧急）一律照常成交 —— 见 _sl_min_hold_verdict。
+            if _px_attr == "sl_price":
+                _defer, _dinfo = self._sl_min_hold_verdict(pos, current_price)
+                if _defer:
+                    logger.warning(
+                        "[Paper][Fast] SL 拒付（min_hold 内追踪派生止损）: %s %s "
+                        "held=%.2fh < %.1fh, SL=%.6f → 回退结构位 %.6f (%s)",
+                        pos.symbol, pos.side, _dinfo.get("held_hours", 0.0),
+                        _dinfo.get("min_hold_hours", 0.0), _dinfo.get("sl", 0.0),
+                        _dinfo.get("structural_stop", 0.0), _dinfo.get("why", ""),
+                    )
+                    try:
+                        self._stamp_sl_source(pos, "structural",
+                                              old_value=_dinfo.get("sl"))
+                        pos.sl_price = float(_dinfo.get("structural_stop") or 0)
+                        db.commit()
+                    except Exception as _rb:
+                        logger.warning("[Paper][Fast] SL 回退结构位失败: %s", _rb)
+                    try:
+                        self._record_sl_defer_event(db, pos, _dinfo)
+                    except Exception as _dve:
+                        logger.debug("[Paper] SL 拒付事件登记失败: %s", _dve)
+                    # 仓位仍在册（浮动盈亏刚被更新过），本 tick 的余额重算不能省
+                    try:
+                        _bal_d = db.query(PaperBalance).filter(
+                            PaperBalance.account_id == pos.account_id).first()
+                        if _bal_d:
+                            self._recalc_balance(db, _bal_d)
+                            db.commit()
+                    except Exception as _bde:
+                        logger.debug("[Paper][Fast] SL 拒付后余额重算跳过: %s", _bde)
+                    return
             logger.info(
                 f"[Paper][Fast] {reason.upper()} 触发: {pos.symbol} {pos.side} "
                 f"@{current_price} {_px_attr}={getattr(pos, _px_attr, 0)}"

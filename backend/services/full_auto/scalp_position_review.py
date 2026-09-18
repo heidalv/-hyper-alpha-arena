@@ -216,7 +216,12 @@ def run_scalp_position_review(
                 side_mult = 1 if side in ("long", "buy") else -1
                 improves = (side_mult > 0 and new_sl > cur_sl) or (side_mult < 0 and (cur_sl <= 0 or new_sl < cur_sl))
                 if improves:
-                    ok = paper_engine.update_position_tp_sl(db, pos_id, sl_price=new_sl)
+                    ok = paper_engine.update_position_tp_sl(
+                        db, pos_id, sl_price=new_sl,
+                        # [轮96 Fix C] 复查给出的收紧属追踪派生，标注来源以便
+                        # paper 引擎在 min_hold 保护期内拒付（短线车道保护期 2h）。
+                        sl_source="trailing",
+                    )
                     acted["executed"] = bool(ok)
                     logger.info(
                         "[PostFill][ScalpReview] %s %s SL收紧→%.6f (%s) %s",

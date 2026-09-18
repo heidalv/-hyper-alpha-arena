@@ -4264,6 +4264,9 @@ class FullAutoTradingService:
                     elif _v2d.get("action") == "tighten_sl" and _v2d.get("new_sl"):
                         paper_engine.update_position_tp_sl(
                             db, int(pos.get("id") or 0), sl_price=float(_v2d["new_sl"]),
+                            # [轮96 Fix C] ATR 追踪派生止损：标注来源，
+                            # 使 paper 引擎能在该仓位 min_hold 保护期内拒付它。
+                            sl_source="trailing",
                         )
                         logger.info("[MidLongExit][V2] 收紧止损 %s SL→%s", sym, _v2d["new_sl"])
                         log_long_action(sym, "tighten_sl", f"SL→{_v2d['new_sl']}")
@@ -4449,6 +4452,9 @@ class FullAutoTradingService:
                     elif exit_decision.action == "tighten_sl" and exit_decision.new_sl_price:
                         paper_engine.update_position_tp_sl(
                             db, pos_id, sl_price=exit_decision.new_sl_price,
+                            # [轮96 Fix C] 状态机给出的 tighten_sl 来自
+                            # tier_exit_strategies 的追踪/保本推进 ⇒ 追踪派生。
+                            sl_source="trailing",
                         )
                         logger.info("[MidLongExit] 收紧止损 %s: SL→%s", sym, exit_decision.new_sl_price)
                 except Exception as _c_err:

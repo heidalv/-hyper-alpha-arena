@@ -199,7 +199,12 @@ class PositionExitOrchestrator:
                 _sm_decision = exit_state_machine.submit(_req, _ctx)
                 if _sm_decision and _sm_decision.action == ExitAction.TIGHTEN_SL.value and _sm_decision.new_sl_price:
                     # breakeven push：更新 SL
-                    paper_engine.update_position_tp_sl(db, int(pid), sl_price=_sm_decision.new_sl_price)
+                    # [轮96 Fix C] 状态机的 tighten_sl 属**追踪派生**（保本推进/追踪锁利），
+                    # 标注来源以便 paper 引擎在该仓位 min_hold 保护期内拒付它。
+                    paper_engine.update_position_tp_sl(
+                        db, int(pid), sl_price=_sm_decision.new_sl_price,
+                        sl_source="trailing",
+                    )
                     self._event(append_event, session, "lifecycle_breakeven",
                                 f"{sym}[{nature}] breakeven SL→${_sm_decision.new_sl_price:.4f}")
                     changes += 1
@@ -267,7 +272,12 @@ class PositionExitOrchestrator:
                                 f"{sym}[{nature}] trailing hit 全平 PnL=${res.get('pnl', 0):+.2f}")
 
             elif decision.action == "trailing_update" and decision.suggested_sl_price:
-                paper_engine.update_position_tp_sl(db, int(pid), sl_price=decision.suggested_sl_price)
+                # [轮96 Fix C] nature_staged_tp 的 trailing 派生止损：标注来源，
+                # 使 paper 引擎能在该仓位 min_hold 保护期内拒付它。
+                paper_engine.update_position_tp_sl(
+                    db, int(pid), sl_price=decision.suggested_sl_price,
+                    sl_source="trailing",
+                )
                 self._event(append_event, session, "nature_trailing_update",
                             f"{sym}[{nature}] trailing SL→${decision.suggested_sl_price}")
 

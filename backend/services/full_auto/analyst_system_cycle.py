@@ -335,6 +335,9 @@ def run_analyst_system_unified(
                         try:
                             paper_engine.update_position_tp_sl(
                                 db, _pid, sl_price=_decision.suggested_sl_price,
+                                # [轮96 Fix C] trailing 派生止损：标注来源，
+                                # 使 paper 引擎能在该仓位 min_hold 保护期内拒付它。
+                                sl_source="trailing",
                             )
                             logger.debug(
                                 f"[FullAuto][P2.D14] {_sym_lp} trailing SL "
