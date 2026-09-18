@@ -23,6 +23,42 @@ from .factor_registry import FactorRegistry
 logger = logging.getLogger(__name__)
 
 
+# ── 目录指纹缓存（轮77 P1-10）─────────────────────────────────────────────
+#
+# 为什么需要：`discover_and_load_all()` 每次调用都要**重读并重导入 242 个模块**
+# （实测 0.212s/次、344KB 源码、259 个因子以 override=True 重注册；新建
+# `FactorEngine()` 同样 0.223s）。而调用方里有**按符号循环**构造引擎的写法
+# （`strategy_intelligence_engine.py:72/244`），等于每个符号白付一次全量扫描。
+#
+# 缓存键 = 目录下所有因子文件的 (相对路径, mtime_ns, size) 指纹：
+#   · 指纹不变 → 跳过重扫（同一进程内的重复构造因此接近免费）；
+#   · 文件新增/修改/删除 → 指纹变化 → 正常重扫（不牺牲热加载正确性）。
+# 缓存的是**类对象**（模块只导入一次），每个实例仍往自己的 registry 注册一份，
+# 保持「每个 FactorLoader 拥有独立注册表」这一既有契约不变。
+_DISCOVERY_CACHE: Dict[str, tuple] = {}
+_DISCOVERY_CACHE_MAX = 4          # 正常只有 1 个 factors 目录；留余量防路径变体撑爆
+
+
+def _dir_signature(factors_dir: Path) -> tuple:
+    """目录指纹：所有因子 .py 的 (相对路径, mtime_ns, size)。"""
+    items = []
+    try:
+        for category_dir in sorted(p for p in factors_dir.iterdir() if p.is_dir()):
+            if category_dir.name.startswith('_'):
+                continue          # 与加载逻辑一致：跳过 _ai_gen_quarantine 等
+            for py_file in sorted(category_dir.glob('*.py')):
+                if py_file.name.startswith('__'):
+                    continue
+                try:
+                    st = py_file.stat()
+                    items.append((str(py_file.relative_to(factors_dir)), st.st_mtime_ns, st.st_size))
+                except OSError:
+                    items.append((str(py_file.relative_to(factors_dir)), -1, -1))
+    except OSError:
+        return ()
+    return tuple(items)
+
+
 class FactorLoader:
     """因子自动加载器"""
     
@@ -31,6 +67,8 @@ class FactorLoader:
         self.loaded_factors: Dict[str, Type[BaseFactor]] = {}
         # [§64] 加载失败清单：让"少了几个因子"可查（原先只在 stdout 里一闪而过）
         self.failed_files: List[str] = []
+        # [轮77] 本次是否走了缓存（供测试/诊断观察）
+        self.cache_hit: bool = False
     
     def discover_and_load_all(self) -> int:
         """
@@ -44,6 +82,22 @@ class FactorLoader:
         if not factors_dir.exists():
             logger.error("[FactorLoader] 因子目录不存在: %s", factors_dir)
             return 0
+
+        # ── 缓存命中：目录指纹未变就不重扫/重导入 ──
+        _key = str(factors_dir.resolve())
+        _sig = _dir_signature(factors_dir)
+        _cached = _DISCOVERY_CACHE.get(_key)
+        if _cached is not None and _cached[0] == _sig and _sig:
+            _factors = _cached[1]
+            for _fid, _cls in _factors.items():
+                self.loaded_factors[_fid] = _cls
+                self.registry.register(_cls, override=True)
+            self.cache_hit = True
+            logger.debug(
+                "[FactorLoader] 目录指纹未变，复用已加载的 %d 个因子（跳过 242 个模块重扫）",
+                len(_factors),
+            )
+            return len(_factors)
         
         count = 0
         scanned_py = 0
@@ -72,6 +126,15 @@ class FactorLoader:
                 len(self.failed_files), ", ".join(sorted(set(self.failed_files))[:20]),
             )
         logger.info("[FactorLoader] 因子加载合计: %d（失败文件 %d）", count, len(self.failed_files))
+        # [轮77] 仅当**没有失败文件**时写缓存：失败清单意味着这次加载不完整，
+        # 缓存它会把这些因子在整个进程生命周期内静默锁死为缺失。
+        if not self.failed_files and self.loaded_factors:
+            try:
+                if len(_DISCOVERY_CACHE) >= _DISCOVERY_CACHE_MAX:
+                    _DISCOVERY_CACHE.clear()
+                _DISCOVERY_CACHE[_key] = (_sig, dict(self.loaded_factors))
+            except Exception as _cache_err:      # noqa: BLE001
+                logger.debug("[FactorLoader] 写目录指纹缓存失败(非致命): %s", _cache_err)
         return count
     
     def _check_zero_load(self, count: int, scanned_py: int) -> None:
