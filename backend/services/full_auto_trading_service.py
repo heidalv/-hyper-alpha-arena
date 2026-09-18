@@ -1640,7 +1640,7 @@ class FullAutoTradingService:
                 pass
 
         def _calc_strategy_stats(strategy_id: str) -> dict:
-            """单策略统计（paper 模式：PaperPosition 唯一源，含分批 PnL - 已扣分批 fee）
+            """单策略统计（paper 模式：PaperPosition 唯一源，含分批 PnL - 分批 fee）
 
             PnL 口径：
             - 剩余仓位算术 PnL：``(close/mark - entry) * 剩余 size``（按方向取反）
@@ -1650,10 +1650,21 @@ class FullAutoTradingService:
               ``PaperBalance.total_fee_paid`` 找到，因此单策略视图会比
               session 真账户权益差略偏乐观（差异 = 全平笔数 × taker fee）。
             - 若需 100% 精确，需改走 PaperTrade 流水聚合，代价较大暂不做。
+
+            [2026-09-18 轮92 修 P2-8] 上面这条「最后一笔全平费不在 PaperPosition」
+            的补扣（M1-2，见本函数尾部 `_close_fees`）此前是**按订单账本总额再扣一遍**，
+            而仓位行的 ``partial_fee_paid`` 已经在 `pos_pnl` 里扣过一次 —— 同一笔分批费
+            被扣两次，单策略 PnL 被系统性低估。
+            实测（account 14）：账户分批费合计 9.8754，而"close_reason 非空"的订单
+            fee 合计 98.3977 是它的**超集**（`paper_trading_engine.py:2515-2537` 在累加
+            `partial_fee_paid` 的同一次调用里就写了 `PaperOrder(fee=partial_fee,
+            close_reason=...)`，两者是同一笔钱的两种记账），故双层相减必然重复。
+            现在只补扣「账本总额 − 仓位行已扣额」的差额，手续费严格扣一次。
             """
             total_trades = 0
             wins = 0
             total_pnl = 0.0
+            _partial_fee_in_positions = 0.0
 
             if trading_mode != "paper":
                 st_pnl = db.query(sa_func.coalesce(sa_func.sum(StrategyTrade.pnl), 0)).filter(
@@ -1673,6 +1684,7 @@ class FullAutoTradingService:
                     total_trades += 1
                     partial_pnl = float(pos.partial_realized_pnl or 0)
                     partial_fee = float(pos.partial_fee_paid or 0)
+                    _partial_fee_in_positions += partial_fee
                     pos_pnl = 0.0
 
                     if pos.status in ("closed", "liquidated"):
@@ -1703,6 +1715,14 @@ class FullAutoTradingService:
                 # [2026-08-22 M1-2] 漏扣全平费修复：最后一笔全平的 fee 不落在
                 # PaperPosition，原实现只扣分批费、对"单策略视角 PnL"系统性偏乐观。
                 # 这里按策略汇总扣掉全部平仓类订单（close_reason 非空且非 rejected）的手续费。
+                #
+                # [2026-09-18 轮92 修 P2-8] 上面的 pos_pnl 已经扣过
+                # `partial_fee_paid`，而 order 账本里的平仓单 fee 是它的**超集**
+                # （同一笔分批费在写仓位行的同时就写了订单行，见
+                # `paper_trading_engine.py:2515-2537`）。原先无条件
+                # `total_pnl -= _close_fees` 会把分批费扣两次。
+                # 改为只补扣差额：账本总额 − 仓位行已扣额 = 尚未计入的（主要是全平费）。
+                # 若账本反而不完整（差额为负），说明仓位行口径已经更保守，补 0 即可，绝不倒加钱。
                 try:
                     from backend.database.models import PaperOrder as _PO
                     _close_fees = float(
@@ -1716,7 +1736,15 @@ class FullAutoTradingService:
                             ),
                         ).scalar() or 0
                     )
-                    total_pnl -= _close_fees
+                    _extra_fee = _close_fees - _partial_fee_in_positions
+                    if _extra_fee < 0:
+                        logger.debug(
+                            "[FullAuto] 平仓费账本(%s 策略 %s)小于仓位行分批费合计(%s)，"
+                            "按仓位行口径（不补扣）",
+                            _close_fees, strategy_id, _partial_fee_in_positions,
+                        )
+                        _extra_fee = 0.0
+                    total_pnl -= _extra_fee
                 except Exception as _cf_err:
                     logger.debug(f"[FullAuto] 全平费扣除跳过 {strategy_id}: {_cf_err}")
 
