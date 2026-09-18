@@ -1464,13 +1464,19 @@ def manage_position(
             _e1_err,
         )
     if not _trend_lane_pos:
-        # 非 E1 但仍是趋势车道（tier=long / nature=trend_follow|position）同样适用
+        # 非 E1 但仍是长线车道（tier=long / nature=trend_follow|position）同样适用。
+        # [轮100] 归属判定统一走车道策略真源（`config/lane_policy.py`），
+        # 不再在各模块各写一份 (tier, nature) 元组 —— 那正是"中长线合并"的病根。
         try:
+            from backend.config.lane_policy import is_long_lane as _is_long_lane
+            _trend_lane_pos = bool(_is_long_lane(
+                tier=position.get("timeframe_tier"),
+                nature=position.get("trade_nature"),
+            ))
+        except Exception:
             _tier_p = str(position.get("timeframe_tier") or "").strip().lower()
             _nat_p = str(position.get("trade_nature") or "").strip().lower()
             _trend_lane_pos = _tier_p == "long" or _nat_p in ("trend_follow", "position")
-        except Exception:
-            _trend_lane_pos = False
     if _trend_lane_pos:
         try:
             from backend.config import settings as _st99
@@ -1726,7 +1732,19 @@ def manage_position(
             logger.debug("[MidLong] stage=manage %s 补仓维度异常: %s", sym, _dca_dim_err)
 
     # ═══ LLM 维度（①②③）节流：复用 exit_state_json.last_trend_review_ts ═══
+    # [轮100] 复查节奏按**车道**取（中线默认 4h、长线默认 4h→可独立调）：
+    # 中线(12–48h)与长线(3–7天)的时间尺度差 4~14 倍，共用一个节奏必然有一边不合适
+    # （4h 对长线是"每 1/40 生命复查一次"）。真源见 config/lane_policy.py。
     _llm_interval = _cfg_int("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", 900)
+    try:
+        from backend.config.lane_policy import resolve as _lane_resolve
+        _lane_pol = _lane_resolve(
+            tier=_tier_of(position), nature=position.get("trade_nature"),
+        )
+        if _lane_pol is not None and int(getattr(_lane_pol, "review_interval_sec", 0) or 0) > 0:
+            _llm_interval = int(_lane_pol.review_interval_sec)
+    except Exception as _lane_err:
+        logger.debug("[MidLong] 车道复查节奏解析失败(用通用键): %s", _lane_err)
     _last_llm = _last_llm_run_ts.get(_key, 0.0)
     _llm_due = (_now - _last_llm) >= _llm_interval
     # [M1-B] _db_pos/_state 已在出场分流处提前加载，此处只做节流合并

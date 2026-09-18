@@ -2540,6 +2540,34 @@ MIDLONG_TIGHTEN_MIN_BAND_PCT_LONG: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_
 MIDLONG_TIGHTEN_MIN_BAND_PCT_MID: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_BAND_PCT_MID", "0.01"))
 MIDLONG_TIGHTEN_MIN_BAND_PCT_SHORT: float = float(os.getenv("MIDLONG_TIGHTEN_MIN_BAND_PCT_SHORT", "0.0"))
 
+# ══════════════════════════════════════════════════════════════════════════
+# [2026-09-19 轮100] 中线 / 长线**分车道**配置（用户指出：两者周期是两个概念）
+#
+# 背景：`MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC`（复查节奏）与
+# `MIDLONG_ATR_SL_MULT`（入场止损 ATR 倍数）此前是**两条车道共用的同一个键**。
+# 共用在这两处尤其荒谬：
+#   · 复查节奏：4h 对中线(12–48h)是"每 1/3 生命复查一次"，
+#     对长线(3–7 天)是"每 1/40 生命复查一次"——一个节奏不可能同时服务两个尺度；
+#   · 入场止损倍数：中线 12h 与长线 3–7 天的初始止损不该用同一个 ATR 倍数
+#     （长线的结构止损是 Chandelier 3×ATR20(日线)）。
+# 现拆成车道专属键；**默认值 = 原共用值**（行为不变），运维可独立调。
+# 真源与"合并检测"见 `backend/config/lane_policy.py`。
+# ══════════════════════════════════════════════════════════════════════════
+MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID: int = int(
+    os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID")
+    or os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", "14400")
+)
+MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_LONG: int = int(
+    os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_LONG")
+    or os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", "14400")
+)
+MIDLONG_ATR_SL_MULT_MID: float = float(
+    os.getenv("MIDLONG_ATR_SL_MULT_MID") or os.getenv("MIDLONG_ATR_SL_MULT", "1.5")
+)
+MIDLONG_ATR_SL_MULT_LONG: float = float(
+    os.getenv("MIDLONG_ATR_SL_MULT_LONG") or os.getenv("MIDLONG_ATR_SL_MULT", "1.5")
+)
+
 # [2026-09-18 轮96 修 Fix C] 拒付追踪派生止损后，回退到哪个止损位时的**最小锁定利润**。
 # 语义：回退位 = `max(结构位, 入场×(1+本值))`（多头；空头对称）。
 # 为什么不能只用结构位：E1 的 Chandelier 长期在入场价**之下**（趋势车道本来就允许

@@ -3638,10 +3638,21 @@ class PaperTradingEngine:
                 return False
         except Exception:
             pass
-        _tier = str(tier if tier is not None else getattr(pos, "timeframe_tier", "") or "").strip().lower()
-        _nature = str(nature if nature is not None else getattr(pos, "trade_nature", "") or "").strip().lower()
-        if _tier == "long" or _nature in cls.TREND_LANE_NATURES:
-            return True
+        # [轮100] 车道归属不再用散落的 (tier, nature) 元组判断，统一走车道策略真源
+        # （`config/lane_policy.py`）——"中线/长线是两个概念"这件事只能有一处定义。
+        try:
+            from backend.config.lane_policy import is_long_lane as _is_long_lane
+            _t = tier if tier is not None else getattr(pos, "timeframe_tier", None)
+            _n = nature if nature is not None else getattr(pos, "trade_nature", None)
+            if _is_long_lane(tier=_t, nature=_n):
+                return True
+        except Exception:
+            # 真源不可用时退回等价的内联判断（失败方向：仍按趋势车道处理，
+            # 宁可少用日内阶梯，也不要让长线被日内阶梯管）
+            _tier = str(tier if tier is not None else getattr(pos, "timeframe_tier", "") or "").strip().lower()
+            _nature = str(nature if nature is not None else getattr(pos, "trade_nature", "") or "").strip().lower()
+            if _tier == "long" or _nature in cls.TREND_LANE_NATURES:
+                return True
         # E1 趋势仓：契约明写"唯一出场 = 规则失效 / Chandelier"，无论上面两个字段如何都必须算成员
         try:
             from backend.services.trend_e1_engine import is_e1_position as _is_e1
