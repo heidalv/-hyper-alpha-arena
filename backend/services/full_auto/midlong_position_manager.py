@@ -1489,9 +1489,29 @@ def manage_position(
     # 硬止损、组合超限、吊灯减仓仍走下方规则，不等 LLM。
     # 开平同权：触发后写事件并复位 should_close，防重复平仓。
     # [2026-09-07] 判定抽到 resolve_thesis_hard_exit（与 active_exit 哨兵同口径）。
+    # [轮102 阶段3] 长线车道"允许做什么"的判定归属已抽到
+    # `full_auto/trend_lane_manager.py`（纯函数）：本处只用它的结论，
+    # 不再把「长线禁止 tighten/reduce、允许规则失效与滚仓」散在 2000 行里。
     try:
         _sid = str(getattr(session, "session_id", "") or "")
         _hit = resolve_thesis_hard_exit(_sid, position)
+        if _hit:
+            _reason, _th = _hit
+            _lane_dec = None
+            if _trend_lane_pos:
+                try:
+                    from backend.services.full_auto.trend_lane_manager import decide as _trend_decide
+                    _lane_dec = _trend_decide(thesis_reason=str(_reason or ""))
+                except Exception as _tl_err:
+                    logger.debug("[MidLong] 车道决策模块不可用(按旧路径继续): %s", _tl_err)
+            # [轮102] 长线车道：只有**规则失效**允许直接全平；LLM 裁量（should_close）
+            # 一律走下方 F39 闸，且裁量平仓在长线属于"需过闸"的动作
+            # （`_lane_dec.detail["requires_confirm_gate"]`）。
+            if _lane_dec is not None and not _lane_dec.allowed:
+                logger.info("[MidLong] %s tier=%s 车道决策=%s（%s）→ 不走论题平仓",
+                            sym, position.get("timeframe_tier"),
+                            _lane_dec.action, _lane_dec.reason)
+                _hit = None
         if _hit:
             _reason, _th = _hit
             # [2026-09-12 F39] flag-only should_close 反转确认闸：行情未反转（无价格
