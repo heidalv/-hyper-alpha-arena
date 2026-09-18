@@ -191,6 +191,39 @@ def build_master_execution_host(svc) -> MasterExecutionHost:
     return host
 
 
+def _resolve_training_allowed_symbols(host) -> set:
+    """解析「训练期允许新开仓的 symbol 集合」（空集 = 不限制）。
+
+    ## 轮79 修：原实现让训练期限制在独立调度器下失效
+
+    `host.training_allowed_symbols` 只有一条写入路径 ——
+    `loops/trading_cycle_loop.py:24` 的 `_apply_training_phase_tick_constraints`，
+    而它只在 `_run_trading_cycle()` 里被调用（`:76`）。可是
+    `coordinator_loop.py:101-104` 在 `MIDLONG_AGENT_INDEPENDENT_SCHEDULER=true`
+    时把 `_ai` 过滤成 `["short"]`，再被 `SCALP_OPEN_DISABLED=true` 清空
+    → `_run_trading_cycle` **永不执行** → 该字段永远是空集。
+
+    而守卫写的是 `if _train_allowed and sym not in _train_allowed:`
+    —— **空集等于不限制**，于是 `data/training_phase.json` 里
+    `active=true, symbols=[BTC,ETH,SOL,BNB,ASTER]` 期间，master 车道可以开任意标的。
+
+    现在直接从 `training_phase_service` 取值（其 `load_state` 自带 5s 缓存，
+    每 tick 调用的开销可忽略），host 字段作为优先来源保留，
+    两者都为空才视为「不限制」。
+    """
+    _from_host = getattr(host, "training_allowed_symbols", None)
+    if _from_host:
+        return set(_from_host)
+    try:
+        from backend.services.training_phase_service import is_active, target_symbols
+        if not is_active():
+            return set()
+        return {str(s).upper() for s in (target_symbols() or [])}
+    except Exception as _tp_err:      # noqa: BLE001
+        logger.debug("[FullAuto] 训练期 symbol 集合解析失败(视为不限制): %s", _tp_err)
+        return set()
+
+
 def execute_master_decisions(
     db: Session,
     session,
@@ -220,6 +253,15 @@ def execute_master_decisions(
     from backend.services.scalp_factor_router import scalp_factor_router
     # 优化：DecisionSnapshot/AIDecisionLog imports 提升到顶层（减少循环内重复 import）
     from backend.database.models import DecisionSnapshot, AIDecisionLog
+
+    # [轮79] 训练期 symbol 限制：在**本函数入口**解析一次（不再依赖 host 字段，
+    # 该字段只在 _run_trading_cycle 里写入，而独立调度器下该函数不执行）。
+    _training_allowed_cache = _resolve_training_allowed_symbols(host)
+    if _training_allowed_cache:
+        logger.info(
+            "[FullAuto] 训练期生效：仅允许新开 %s（共 %d 个）",
+            sorted(_training_allowed_cache), len(_training_allowed_cache),
+        )
 
     # ── 预计算编排器 frozen/wait 状态（同一 tick 内 market_summary 不变）──
     _precomputed_orch_state: Dict[str, str] = {}  # sym.upper() → "frozen"|"wait"|"ok"
@@ -1255,8 +1297,36 @@ def execute_master_decisions(
                 "layer": "master",
                 "rule": dec.get("_gate_rule") or "master",
             }
+            _fvotes = []
+            try:
+                from backend.database.models import ATASFactorCache as _AFC
+                _fc_rows = (db.query(_AFC)
+                            .filter(_AFC.cache_key == f"{sym}_15m_composite")
+                            .order_by(_AFC.id.desc()).limit(1).all())
+                if _fc_rows:
+                    _payload = _fc_rows[0].value or {}
+                    if isinstance(_payload, dict):
+                        # [F322 2026-09-18 复查修复] 生产端 `v3_factor_pipeline.py:386` 写的是
+                        # `factor_contrib`，而此处只认 `top_factors`/`factors` ⇒ `_top` 恒为 []
+                        # 且 `isinstance([], list)` 为真 ⇒ 永不落到 composite 兜底 ⇒
+                        # `decision_snapshot.factor_votes` **永远为空**（"写必有读"被键名错位破坏）。
+                        # 修法：接受真实键名 + 空列表时继续走兜底；字段名做容错。
+                        _top = (_payload.get("top_factors")
+                                or _payload.get("factors")
+                                or _payload.get("factor_contrib") or [])
+                        if isinstance(_top, list) and _top:
+                            _fvotes = [
+                                f"{t.get('name') or t.get('factor') or t.get('factor_id') or '?'}"
+                                f":{t.get('signal') or t.get('direction') or t.get('vote') or '?'}"
+                                for t in _top if isinstance(t, dict)
+                            ][:8]
+                        elif isinstance(_payload.get("direction_label"), str):
+                            _fvotes = [f"composite:{_payload.get('direction_label')}"]
+            except Exception:
+                _fvotes = []
             snap = decision_snapshot_writer.build(
                 session_id=session.id if hasattr(session, "id") else None,
+                factor_votes=_fvotes,
                 strategy_id=_resolved_sid,
                 symbol=sym,
                 tier=tier,
@@ -2926,7 +2996,9 @@ def execute_master_decisions(
                         continue
             except Exception:
                 pass
-            _train_allowed = getattr(host, "training_allowed_symbols", set())
+            # [轮79] 不再只依赖 host 字段（它在独立调度器下恒为空 → 守卫失效）。
+            # 缓存到局部，避免循环内反复读缓存。
+            _train_allowed = _training_allowed_cache
             if _train_allowed and sym.upper() not in _train_allowed:
                 host.append_event(session, "training_universe_block",
                     f"⛔ 训练期非目标币禁开 {sym} {action}")
