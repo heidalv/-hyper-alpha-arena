@@ -412,6 +412,63 @@ try:
 except Exception as e:
     check("P2 验证执行", False, f"{type(e).__name__}: {e}")
 
+print("\n── P2 风控拦截的副作用隔离 / 权益分母 / 分支遮蔽 / 锁故障分类 ──")
+try:
+    _root = os.path.dirname(os.path.abspath(__file__))
+
+    # P2-3 及其 6 处同类：判定 try 内不得有拦截性 append_event
+    _me3 = io.open(os.path.join(_root, "backend/services/full_auto/master_execution.py"), encoding="utf-8").read()
+    _lines3 = _me3.splitlines()
+    _risky = []
+    for _i, _l in enumerate(_lines3):
+        if not _re.match(r'\s*try:\s*$', _l):
+            continue
+        _ind = len(_l) - len(_l.lstrip())
+        _j, _body = _i + 1, []
+        while _j < len(_lines3):
+            _lj = _lines3[_j]
+            if _lj.strip() and (len(_lj) - len(_lj.lstrip())) <= _ind and _re.match(r'\s*(except|finally)', _lj):
+                break
+            if _lj.strip() and (len(_lj) - len(_lj.lstrip())) < _ind:
+                break
+            _body.append(_lj)
+            _j += 1
+        _txt = '\n'.join(_body)
+        if (_re.search(r'\b(continue|return)\b', _txt) and 'append_event' in _txt
+                and _j < len(_lines3) and _re.match(r'\s*except\s+Exception\s*:\s*$', _lines3[_j])
+                and _j + 1 < len(_lines3) and _lines3[_j + 1].strip() == 'pass'):
+            _risky.append(_i + 1)
+    check("风控拦截不再被自己的日志副作用关掉（7 处已修）", not _risky,
+          f"剩余同类风险点: {_risky}" if _risky else "0 处（_emit_block_event 统一记录）")
+
+    # P2-5 权益分母
+    _sr = io.open(os.path.join(_root, "backend/services/full_auto/symbol_risk.py"), encoding="utf-8").read()
+    _m = _re.search(r'^def check_per_symbol_risk\(.*?(?=^def |\Z)', _sr, _re.S | _re.M)
+    _sr_body = '\n'.join(l for l in _m.group(0).splitlines() if not l.lstrip().startswith('#'))
+    check("不再用编造的权益当风控分母",
+          '10000.0' not in _sr_body and '_equity_known' in _sr_body,
+          "权益不可用时跳过按百分比的判据；回撤安全网（与权益无关）仍生效")
+    check("权益读取失败有告警", '权益读取异常' in _sr and '权益不可用' in _sr)
+
+    # P2-4 分支遮蔽（可观测）
+    _hc2 = io.open(os.path.join(_root, "backend/services/full_auto/health_check_cycle.py"), encoding="utf-8").read()
+    check("风控巡检四个分支都能看出走了哪个",
+          all(k in _hc2 for k in ("风控巡检分支=live_constitutional",
+                                  "风控巡检分支=paper_auto_unlock",
+                                  "风控巡检分支=per_symbol_risk")),
+          "per-symbol 层被 lock_strength 配置遮蔽，现可查")
+
+    # P2-11 锁故障 vs 竞争
+    from backend.services.full_auto_trading_service import _LOCK_FS_FAULT
+    _svc2 = io.open(os.path.join(_root, "backend/services/full_auto_trading_service.py"), encoding="utf-8").read()
+    check("锁的「文件系统故障」与「锁竞争」已分开",
+          'except BlockingIOError:' in _svc2 and 'except (PermissionError, OSError)' in _svc2
+          and 'except (BlockingIOError, PermissionError, OSError)' not in _svc2
+          and _LOCK_FS_FAULT is not None,
+          "故障记 ERROR 并指向 data/locks；竞争仍 INFO「其他进程正在执行」")
+except Exception as e:
+    check("P2 批次验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions"):
