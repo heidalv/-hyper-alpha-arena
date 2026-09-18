@@ -59,6 +59,10 @@ const EXACT: Record<string, string> = {
   trailing_stop: "追踪止损",
   signal_exit: "信号退出",
   reversal: "反向平仓",
+  // [2026-09-19 轮104] 事故回滚标记：BTC #4712 幽灵止盈（TP 方向反转）的平仓单
+  // 被置为 cancelled 并打上这个 close_reason；展示层要让人一眼看出"这笔不算数"，
+  // 而不是把机器码原样抛到界面上。
+  rotation104_phantom_tp_rollback: "已撤销·幽灵止盈回滚",
 };
 
 // 动态码：前缀 → 中文（顺序即优先级，先匹配先生效）
