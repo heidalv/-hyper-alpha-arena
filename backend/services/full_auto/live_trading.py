@@ -670,6 +670,17 @@ def execute_live_trade(
             return bool(_ores.success)
 
         # 原路径（默认）
+        #
+        # [轮74] 诚实性修复。`place_ai_driven_order()` 声明为 `-> None` 且内部只记日志、
+        # 对失败不做任何返回（实测该函数与两个下游共有 ~20 处无值 `return`），
+        # 因此本路径**无法确认成交**。旧实现却在此处无条件写
+        # `live_trade: "实盘下单已提交"` 并 `return True` —— 把「路由动作已发生」
+        # 谎报成「实盘下单成功」，于是 cooldown/去重闸门与 UI 都以为仓已开。
+        #
+        # 现改为：
+        #   1) 事件文案如实说明「已路由、成交结果以交易所回报为准」，不再声称成功；
+        #   2) 返回值改为 None（= 未知），调用方若要确认成交请走上面的统一执行器路径
+        #      （`_ores.success` 是真实结果）。
         from backend.services.trading_commands import place_ai_driven_order
 
         trigger_ctx: Dict[str, Any] = {
@@ -685,9 +696,14 @@ def execute_live_trade(
 
         symbol = decision.get("symbol", "?")
         operation = decision.get("operation", "?")
-        _safe_append_event(db, session, host, "live_trade",
-            f"实盘下单已提交: {symbol} {operation}")
-        return True
+        _safe_append_event(db, session, host, "live_trade_routed",
+            f"实盘下单已路由(未确认成交): {symbol} {operation}")
+        logger.info(
+            "[FullAuto] live 下单走 legacy 路由 %s %s —— 该路径不返回成交结果，"
+            "不记 executed=True（如需确认成交请启用统一执行器路径）",
+            symbol, operation,
+        )
+        return None
     except Exception as e:
         logger.error(f"[FullAuto] 实盘交易执行异常: {e}", exc_info=True)
         _safe_append_event(db, session, host, "live_trade_error", str(e)[:100])

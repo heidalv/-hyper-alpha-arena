@@ -232,12 +232,23 @@ def run_scalp_position_review(
                     strategy_id=getattr(pos, "strategy_id", None),
                     trade_nature="scalp",
                 )
-                acted["executed"] = bool(res)
-                logger.info(
-                    "[PostFill][ScalpReview] %s %s 全平(%s): %s pnl=%.2f",
-                    symbol, side, decision.source, decision.reason,
-                    float((res or {}).get("pnl") or 0),
-                )
+                # [轮74] 不得再用 `bool(res)`：dict 恒为真，会把 live 的
+                # status="error"/"blocked" 读成「已平」。按结果判定。
+                from backend.services.exit.exit_types import close_result_succeeded
+                if close_result_succeeded(res):
+                    acted["executed"] = True
+                    logger.info(
+                        "[PostFill][ScalpReview] %s %s 全平(%s): %s pnl=%s",
+                        symbol, side, decision.source, decision.reason,
+                        (res or {}).get("pnl"),
+                    )
+                else:
+                    acted["executed"] = False
+                    acted["error"] = f"平仓未确认成交 status={(res or {}).get('status')}"
+                    logger.warning(
+                        "[PostFill][ScalpReview] %s %s 平仓未确认成交 status=%s —— 不记 executed",
+                        symbol, side, (res or {}).get("status"),
+                    )
             elif decision.action == ExitAction.REDUCE.value:
                 # 分批止盈统一归引擎 _run_unified_staged_tp（含可行性门），此处不执行
                 acted["executed"] = False

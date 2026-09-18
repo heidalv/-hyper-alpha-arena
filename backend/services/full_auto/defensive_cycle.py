@@ -326,7 +326,11 @@ def run_defensive_verdicts(
                         reason="defensive_reduce", strategy_id=def_strategy_id,
                         trade_nature=pos.get("trade_nature"))
 
-            if result:
+            # [轮74] 原为 `if result:` —— dict 恒为真，live 的 status="error"/"blocked"
+            # 也会走进下面的成功分支：写事件、累加 total_trades、记冷却。
+            # 现按结果判定；未确认成交时不写成功事件、不动计数。
+            from backend.services.exit.exit_types import close_result_succeeded
+            if close_result_succeeded(result):
                 pnl = result.get("pnl", 0)
                 closed_fully = result.get("closed_fully", False)
                 act_desc = "全平(微仓)" if closed_fully else "减仓50%"

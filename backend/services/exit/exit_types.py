@@ -133,3 +133,44 @@ class ExitDecision:
 def make_hold(position_id: int, reason: str = "") -> ExitDecision:
     """便捷构造 hold 决策。"""
     return ExitDecision(position_id=position_id, action=ExitAction.HOLD.value, reason=reason)
+
+
+# ─────────────────────────── 平仓结果判定 ───────────────────────────
+
+#: 视为「确实成交」的状态词（小写）。live 侧 LiveExecutor、paper 侧引擎各用一套叫法，
+#: 这里做并集；**不在集合里的一律算未确认成交**（宁可不记成功，也不虚报）。
+CLOSE_OK_STATUSES = frozenset({
+    "filled", "closed", "ok", "success", "partial", "partially_filled",
+})
+
+
+def close_result_succeeded(result) -> bool:
+    """平仓/减仓调用是否**确认成交**。
+
+    ## 为什么需要统一判定（轮74 修）
+
+    `_close_position_live_aware` 返回的是 **dict**，而 dict 恒为真 ——
+    调用方原先的 `bool(res)`（`scalp_position_review.py:235`）与
+    `res.get("closed_fully", False)`（`defensive_cycle.py:331`）
+    会把 `status="error"` / `"blocked"` / `"rejected"` 也读成平仓成功，
+    于是：实盘平仓失败被记成成功事件、冷却闸门挡住诚实重试、PnL 归因被污染。
+
+    判定顺序（从严）：
+      1. 显式 `success` 字段（`_close_position_live_aware` 已给出）优先；
+      2. 否则看 `status` 是否属于 :data:`CLOSE_OK_STATUSES`；
+      3. 两者都缺（老 paper 路径的 dict / None）→ 按「有 pnl 或 closed_fully 字段」
+         视为 paper 引擎的成功返回；`None`/`{}` 视为未确认。
+    """
+    if result is None:
+        return False
+    if not isinstance(result, dict):
+        # 非 dict（对象/真值）：交给真值判断，保持旧路径兼容
+        return bool(result)
+
+    if "success" in result:
+        return bool(result.get("success"))
+    status = str(result.get("status") or "").strip().lower()
+    if status:
+        return status in CLOSE_OK_STATUSES
+    # 老 paper 路径：没有 status 也没有 success，但带回执字段
+    return any(k in result for k in ("pnl", "closed_fully", "position_id", "id"))

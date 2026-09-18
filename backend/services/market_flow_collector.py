@@ -344,40 +344,61 @@ class MarketFlowCollector:
             self._subscribe_symbol(symbol)
 
     def _subscribe_symbol(self, symbol: str):
-        """Subscribe to all data streams for a symbol"""
+        """Subscribe to all data streams for a symbol.
+
+        ## 轮75 修：注册必须在订阅**之前**
+
+        旧实现把 `self.subscribed_symbols.append(symbol)` 放在三次 `subscribe()`
+        **之后**（原 :376），而 `hyperliquid/info.py` 的 `subscribe()` 对不在
+        Hyperliquid 永续列表里的 coin 会抛 `KeyError`（未加保护的
+        `self.name_to_coin[coin]`）。于是：
+
+        - 第一个 `subscribe({"type":"trades",...})` 就抛 `KeyError('COTI')`；
+        - 控制流跳到 `except`，**append 不可达** → 该 symbol 从未进入订阅表；
+        - `_flush_trades` 迭代 `subscribed_symbols` → 这些 symbol 的成交**永不落库**；
+        - 下游 CVD 取不到数据返回 None，`signal_detection_service` 直接 `return None`
+          → 流量信号永不触发（静默，无 error 级痕迹）。
+
+        实测：COTI/MU 在任何交易所、30 天内 0 行 `market_trades_aggregated`；
+        SYN/PLAY 有 binance+asterdex 但无 hyperliquid。
+
+        现改为：**先把该 symbol 记为已订阅**（这样即便部分通道失败，
+        其它通道的数据仍会被 flush），再逐通道订阅，并把每个通道的失败
+        单独 warning 报出（不再被一个失败掩盖全部）。
+        """
         if not self.info:
             return
 
-        try:
-            # Initialize buffer
-            self.trade_buffers[symbol] = TradeBuffer()
-
-            # Subscribe to trades
-            trades_id = self.info.subscribe(
-                {"type": "trades", "coin": symbol},
-                lambda msg, s=symbol: self._on_trades(s, msg)
-            )
-            self.subscription_ids[symbol]["trades"] = trades_id
-
-            # Subscribe to L2 orderbook
-            l2_id = self.info.subscribe(
-                {"type": "l2Book", "coin": symbol},
-                lambda msg, s=symbol: self._on_l2book(s, msg)
-            )
-            self.subscription_ids[symbol]["l2Book"] = l2_id
-
-            # Subscribe to asset context (OI, funding, etc.)
-            ctx_id = self.info.subscribe(
-                {"type": "activeAssetCtx", "coin": symbol},
-                lambda msg, s=symbol: self._on_asset_ctx(s, msg)
-            )
-            self.subscription_ids[symbol]["activeAssetCtx"] = ctx_id
-
+        if symbol not in self.subscribed_symbols:
             self.subscribed_symbols.append(symbol)
-            logger.info(f"Subscribed to market flow data for {symbol}")
+        self.subscription_ids.setdefault(symbol, {})
+        self.trade_buffers.setdefault(symbol, TradeBuffer())
 
-        except Exception as e:
-            logger.error(f"Failed to subscribe {symbol}: {e}")
+        _streams = (
+            ("trades", {"type": "trades", "coin": symbol},
+             lambda msg, s=symbol: self._on_trades(s, msg)),
+            ("l2Book", {"type": "l2Book", "coin": symbol},
+             lambda msg, s=symbol: self._on_l2book(s, msg)),
+            ("activeAssetCtx", {"type": "activeAssetCtx", "coin": symbol},
+             lambda msg, s=symbol: self._on_asset_ctx(s, msg)),
+        )
+        _failed = []
+        for _name, _payload, _cb in _streams:
+            try:
+                self.subscription_ids[symbol][_name] = self.info.subscribe(_payload, _cb)
+            except Exception as e:      # noqa: BLE001
+                _failed.append(_name)
+                logger.warning(
+                    "MarketFlow 订阅通道失败 %s/%s: %s（symbol 仍视为已订阅，"
+                    "其它通道数据照常落库）", symbol, _name, e,
+                )
+        if _failed:
+            logger.warning(
+                "MarketFlow %s 部分通道未订阅: %s（该 symbol 在 Hyperliquid 可能不存在，"
+                "成交流将由其它交易所补齐）", symbol, ",".join(_failed),
+            )
+        else:
+            logger.info(f"Subscribed to market flow data for {symbol}")
 
     def _unsubscribe_symbol(self, symbol: str):
         """Unsubscribe from all data streams for a symbol"""

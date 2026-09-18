@@ -2734,6 +2734,108 @@ class FullAutoTradingService:
         env.attach_to_dec(dec)
         return env.to_dict()
 
+    _PERSISTENCE_STATE_FILE = "data/midlong_persistence_state.json"
+
+    def _persistence_state_load(self) -> None:
+        """[2026-09-18 修复] 持续性计数此前纯内存——后端重启即清零，频繁重启时
+        "连续 N tick"反复重新等待，加剧同向决策无限重试（WLFI 实证：重启窗口期
+        每2分钟重复 buy 且永不成交）。启动时从文件恢复。"""
+        import json as _json
+        import os as _os
+        try:
+            if _os.path.exists(self._PERSISTENCE_STATE_FILE):
+                data = _json.loads(open(self._PERSISTENCE_STATE_FILE, encoding="utf-8").read())
+                if isinstance(data, dict) and data.get("_ts", 0) > time.time() - 6 * 3600:
+                    # 只恢复 6h 内的计数（过期视为陈旧市场，重新积累）
+                    self._midlong_persistence_state = {
+                        k: v for k, v in (data.get("states") or {}).items() if isinstance(v, dict)}
+        except Exception:
+            pass
+
+    def _persistence_state_save(self) -> None:
+        import json as _json
+        try:
+            with open(self._PERSISTENCE_STATE_FILE, "w", encoding="utf-8") as fh:
+                _json.dump({"_ts": time.time(), "states": self._midlong_persistence_state},
+                           fh, ensure_ascii=False)
+        except Exception:
+            pass
+
+    _BLOCK_STREAK_FILE = "data/proposal_block_streaks.json"
+    _BLOCK_STREAK_TRIGGER = 5      # 连续同因拦截次数阈值
+    _BLOCK_COOLDOWN_SEC = 30 * 60  # 触发后冷却时长
+
+    def _block_streaks_load(self) -> None:
+        import json as _json
+        try:
+            import os as _os
+            if _os.path.exists(self._BLOCK_STREAK_FILE):
+                data = _json.loads(open(self._BLOCK_STREAK_FILE, encoding="utf-8").read())
+                self._proposal_block_streaks = data.get("streaks") or {}
+                self._proposal_block_cooldowns = data.get("cooldowns") or {}
+        except Exception:
+            pass
+
+    def _block_streaks_save(self) -> None:
+        import json as _json
+        try:
+            with open(self._BLOCK_STREAK_FILE, "w", encoding="utf-8") as fh:
+                _json.dump({"streaks": self._proposal_block_streaks,
+                            "cooldowns": self._proposal_block_cooldowns}, fh, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def _record_proposal_block(self, sym: str, tier: str, code: str) -> bool:
+        """[2026-09-18 修复·WLFI回环] 连续同因拦截计数；达阈值进入冷却。
+
+        根因（midlong_direction_audit 实证）：WLFI 39 次拒单=decision_price_stale×7 +
+        strategy_detached×7 等同因重复，无冷却导致每2分钟重试永不成交、快照刷屏。
+        """
+        import time as _t
+        try:
+            if not hasattr(self, "_proposal_block_streaks"):
+                self._proposal_block_streaks = {}
+                self._proposal_block_cooldowns = {}
+                self._block_streaks_load()
+            key = f"{(sym or '').upper()}:{tier or '?'}"
+            st = self._proposal_block_streaks.get(key) or {}
+            if st.get("code") == code and _t.time() - float(st.get("ts") or 0) < 2 * 3600:
+                st["count"] = int(st.get("count") or 0) + 1
+            else:
+                st = {"code": code, "count": 1}
+            st["ts"] = _t.time()
+            self._proposal_block_streaks[key] = st
+            triggered = False
+            if st["count"] >= self._BLOCK_STREAK_TRIGGER:
+                self._proposal_block_cooldowns[key] = {
+                    "code": code, "until": _t.time() + self._BLOCK_COOLDOWN_SEC}
+                logger.warning(
+                    "[BlockCooldown] %s tier=%s 连续%d次同因拦截(%s)，冷却%d分钟",
+                    sym, tier, st["count"], code, self._BLOCK_COOLDOWN_SEC // 60)
+                triggered = True
+            self._block_streaks_save()
+            return triggered
+        except Exception:
+            return False
+
+    def _proposal_block_cooldown_active(self, sym: str, tier: str) -> Optional[Dict]:
+        import time as _t
+        try:
+            if not hasattr(self, "_proposal_block_streaks"):
+                self._proposal_block_streaks = {}
+                self._proposal_block_cooldowns = {}
+                self._block_streaks_load()
+            key = f"{(sym or '').upper()}:{tier or '?'}"
+            cd = self._proposal_block_cooldowns.get(key)
+            if cd and float(cd.get("until") or 0) > _t.time():
+                return cd
+            if cd:
+                self._proposal_block_cooldowns.pop(key, None)
+                self._block_streaks_save()
+            return None
+        except Exception:
+            return None
+
     def _midlong_persistence_allow(self, sym: str, trade_nature: str, action: str) -> bool:
         """同 symbol+nature 需连续 MIDLONG_PERSISTENCE_TICKS 个 tick 同向才放行开仓。"""
         try:
@@ -2743,13 +2845,18 @@ class FullAutoTradingService:
             ticks = 1
         if ticks <= 1 or action not in ("buy", "sell"):
             return True
+        if not getattr(self, "_persistence_loaded", False):
+            self._persistence_state_load()
+            self._persistence_loaded = True
         key = f"{(sym or '').upper()}:{trade_nature or 'unknown'}"
         state = self._midlong_persistence_state.get(key, {})
         if state.get("action") == action:
             state["count"] = int(state.get("count") or 0) + 1
         else:
             state = {"action": action, "count": 1}
+        state["ts"] = time.time()
         self._midlong_persistence_state[key] = state
+        self._persistence_state_save()
         return int(state.get("count") or 0) >= ticks
 
     @staticmethod
@@ -4636,6 +4743,35 @@ class FullAutoTradingService:
         except Exception:
             pass
 
+        # [2026-09-17 数据补齐修复] unified.mid 是「3h 看板重采样快照」，可能为空；
+        # 而 mid 车道实际交易的是 sticky 权威源（get_ai_mid_candidates_for_session，
+        # 与 lanes/tier-status 同源）。此前只并入 unified，导致 AI 中线币（如 WIF/TIA）
+        # 在看板空窗期不进交易宇宙 → P0 分钟级 K 线/盘口订阅停采 → 1m 过期后
+        # 反被 filter_tradeable_ai_symbols 剔除（注入自蒸发）。此处与决策层对齐。
+        try:
+            from backend.services.auto_coin_selector import (
+                get_ai_long_candidates_for_session,
+                get_ai_mid_candidates_for_session,
+            )
+            for s in get_ai_mid_candidates_for_session(session.session_id, db=db) or []:
+                _add(s)
+            for s in get_ai_long_candidates_for_session(session.session_id, db=db) or []:
+                _add(s)
+        except Exception:
+            pass
+
+        # [2026-09-18] 看板候选并入采集宇宙：仍在 24h 判定窗内的 mid/long 候选
+        # 持续采 K线/盘口——切断「池淘汰→脱离宇宙→停采→1m 过期→进不了池」自锁。
+        try:
+            from backend.services.auto_coin_selector import _midlong_board_approve_candidates
+            for tier in ("mid", "long"):
+                for s, _c in _midlong_board_approve_candidates(
+                    db, fixed=set(), min_conf=0.0, min_liquidity=0, horizons=(tier,)
+                ) or []:
+                    _add(s)
+        except Exception:
+            pass
+
         # 兼容兜底：固定+AI 都空时回退旧 symbols 并集
         if not merged:
             for s in (getattr(session, "symbols", None) or []):
@@ -4844,8 +4980,25 @@ class FullAutoTradingService:
         quantity: Optional[float] = None, trade_nature: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """平仓/减仓统一入口：live 会话走 LiveExecutor（经 LPM 账本），
-        paper 走 paper_engine。返回与 paper_engine 兼容的 dict（pnl live 侧
-        由交易所回填，此处 0）。"""
+        paper 走 paper_engine。返回与 paper_engine 兼容的 dict。
+
+        ## 轮74 修：失败曾被记成成功
+
+        旧实现从**请求**而非**结果**合成返回值：
+
+            "closed_fully": quantity is None,     # 请求说「全平」就报全平
+
+        于是调用方 `bool(res)`（`scalp_position_review.py:235`）与
+        `result.get("closed_fully", False)`（`defensive_cycle.py:331`）
+        会把 `status="error"`/`"blocked"`/`"rejected"` 也读成**平仓成功**：
+
+        - `live_trade` 事件与 `persist_tcp_snapshot(executed=True)` 声称有实盘成交；
+        - 冷却/去重闸门与 UI 把仍在交易所的仓位当已平 → 挡住诚实重试；
+        - PnL 归因被污染（一笔没发生的平仓被计入）。
+
+        现在：`closed_fully` 只在**结果确认成交**时为真；`success` 显式给出；
+        非成功状态一律 warning，并把 `status` 原样带出供调用方判读。
+        """
         if self._is_live_trading_session(session):
             from backend.services.exchange.live_executor import LiveExecutor
             res = LiveExecutor().close_position(
@@ -4853,10 +5006,25 @@ class FullAutoTradingService:
                 reason=reason, quantity=quantity,
                 strategy_id=strategy_id, trade_nature=trade_nature,
             )
+            status = str(getattr(res, "status", None) or getattr(res, "state", None) or "").strip().lower()
+            # 交易所侧 PnL 由回填任务写入；此处不臆造（旧实现硬编码 0.0 同样误导）
+            pnl = getattr(res, "pnl", None)
+            # 判定口径与调用方共用一处（exit_types.close_result_succeeded）
+            from backend.services.exit.exit_types import CLOSE_OK_STATUSES
+            ok = status in CLOSE_OK_STATUSES
+            if not ok:
+                logger.warning(
+                    "[FullAuto] live 平仓未确认成交 %s %s status=%r qty=%s reason=%s —— "
+                    "按「未平」上报（不写成功事件、不置 closed_fully）",
+                    symbol, side, status or None, quantity, reason,
+                )
             return {
-                "status": str(getattr(res, "status", "error") or "error"),
-                "pnl": 0.0,
-                "closed_fully": quantity is None,
+                "status": status or "unknown",
+                "success": ok,
+                "pnl": float(pnl) if pnl is not None else None,
+                # 只有确认成交且请求为全平，才算全平
+                "closed_fully": bool(ok and quantity is None),
+                "live": True,
             }
         from backend.services.paper_trading_engine import paper_engine
         return paper_engine.close_position(
@@ -4933,11 +5101,19 @@ class FullAutoTradingService:
         run_rule_based_defensive(db, session, positions_list, market_summary, build_defensive_host(self))
 
     def _execute_live_trade(self, db: Session, session, strat, decision: dict):
+        """转发到 live 执行器，**并把结果返回给调用方**。
+
+        [轮74 修] 旧实现漏了 `return`：`execute_live_trade` 返回 `bool`，本方法却
+        吞掉它。于是 `:5069` 的 `return bool(self._execute_live_trade(...))`
+        **恒为 False** —— live 会话即使下单成功也被判为失败，
+        调用方的记账/计数/后续分支全部走失败路径（且与
+        `live_trading.py` 旧代码「无条件 return True 宣称成功」正好相反）。
+        """
         from backend.services.full_auto.live_trading import (
             build_live_trading_host,
             execute_live_trade,
         )
-        execute_live_trade(db, session, strat, decision, build_live_trading_host(self))
+        return execute_live_trade(db, session, strat, decision, build_live_trading_host(self))
 
     def _is_reduce_cooldown_exempt(self, pos: dict, reason_tag: str = "") -> bool:
         """判断是否豁免减仓冷却检查"""
