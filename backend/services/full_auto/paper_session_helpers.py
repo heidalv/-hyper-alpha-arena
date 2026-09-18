@@ -17,6 +17,42 @@ logger = logging.getLogger(__name__)
 _prev_loss_lock_status_map: dict = {}
 
 
+def _stop_kind_of(p) -> str:
+    """[轮97] 离场性质：`profit_lock`（止损位在成本盈利侧） / `protective` / `""`。
+
+    系统只有一条 SL 线，它在成本之上时是**锁利型**（回吐到该线成交，
+    pnl>0 会被 `normalize_close_reason` 改写成 `breakeven_tp`），
+    在成本之下时才是**保护型**。`close_reason` 无法区分这两者
+    （实测 account 14 近 30 天 147 笔 `breakeven_tp` 全是锁利型，
+    同时段没有一笔走到 TP 目标），故在展示层派生这个字段。
+    """
+    try:
+        entry = float(getattr(p, "entry_price", 0) or 0)
+        sl = float(getattr(p, "sl_price", 0) or 0)
+        if entry <= 0 or sl <= 0:
+            return ""
+        side = str(getattr(p, "side", "") or "").lower()
+        if side in ("long", "buy"):
+            return "profit_lock" if sl > entry else "protective"
+        return "profit_lock" if sl < entry else "protective"
+    except Exception:
+        return ""
+
+
+def _stop_vs_entry_pct_of(p) -> Optional[float]:
+    """止损位相对入场价的百分比（多头为正=盈利侧）；信息不足返回 None。"""
+    try:
+        entry = float(getattr(p, "entry_price", 0) or 0)
+        sl = float(getattr(p, "sl_price", 0) or 0)
+        if entry <= 0 or sl <= 0:
+            return None
+        side = str(getattr(p, "side", "") or "").lower()
+        sign = 1.0 if side in ("long", "buy") else -1.0
+        return round((sl / entry - 1) * 100.0 * sign, 4)
+    except Exception:
+        return None
+
+
 def _should_reset_loss_protection(session) -> bool:
     """只有 session 从 paused→running 真实转换时才重置心态状态。
 
@@ -367,6 +403,13 @@ def get_trade_history(db, session, host: PaperSessionHost) -> list:
                 "leverage": float(p.leverage or 1),
                 "pnl": pnl,
                 "close_reason": p.close_reason or "",
+                # [轮97] 离场性质派生字段：系统只有一条 SL 线，
+                # 它在成本之上时是**锁利型**（回吐成交，pnl>0 被改写成 breakeven_tp），
+                # 在成本之下时才是**保护型**。`close_reason` 字符串不能改（会连带改
+                # edge_ledger/reentry_cooldown/breaker 的行为），故在这里派生给人看。
+                # 用户提问"盈利单，你按照止损出了是怎么回事"就是这个混淆。
+                "stop_kind": _stop_kind_of(p),
+                "stop_vs_entry_pct": _stop_vs_entry_pct_of(p),
                 "timeframe_tier": p.timeframe_tier or "",
                 "trade_nature": p.trade_nature or "",
                 "opened_at": host.utc_iso(p.opened_at),

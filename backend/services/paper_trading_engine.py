@@ -195,7 +195,20 @@ class PaperTradingEngine:
 
     @staticmethod
     def normalize_close_reason(reason: str, pnl: float) -> str:
-        """按实际盈亏修正平仓标签，避免移动止损/保本止损盈利出场仍显示「止损」。"""
+        """按实际盈亏修正平仓标签，避免移动止损/保本止损盈利出场仍显示「止损」。
+
+        ## ⚠️ 这张表是"止损"与"止盈"混在一起的历史原因（轮97 复核）
+
+        `reason='sl'` 且 `pnl>0` ⇒ 改写成 `breakeven_tp`。也就是说
+        **账本里的 `breakeven_tp` 其实是"锁利型止损成交"，不是"走到 TP 目标的止盈"**。
+        实测 account 14 近 30 天：`breakeven_tp` 147 笔，147 笔的止损位都在成本**盈利侧**，
+        PnL 合计 +533.74；同时段**没有任何一笔**通过 TP 目标止盈。
+
+        本函数保留原语义（`edge_ledger` / `reentry_cooldown` / channel breaker 都按
+        字符串匹配，改字符串=改行为）。要区分"锁利离场"与"保护离场"请读
+        `stop_kind()` / `stop_vs_entry_pct()` 写入的 `stop_kind` 附加字段，
+        或看日志里的 `[锁利型止损 …]` / `[保护型止损 …]` 标记。
+        """
         r = str(reason or "manual")
         if r == "ai_take_profit" and pnl < 0:
             return "ai_cut_loss"
@@ -335,6 +348,57 @@ class PaperTradingEngine:
             return entry * (1.0 + peak_pct)
         return entry * (1.0 - peak_pct)
 
+    @staticmethod
+    def stop_kind(pos, fill_price: Optional[float] = None) -> str:
+        """判断这次成交用的止损是**锁利型**还是**保护型**（轮97）。
+
+        ## 为什么必须区分（用户 2026-09-18 提问："盈利单，你按照止损出了是怎么回事"）
+
+        系统里只有**一条**止损线 `sl_price`，它同时承担两种角色：
+
+        | 角色 | 位置 | 成交时 |
+        |---|---|---|
+        | 保护型止损 | 在成本**亏损侧** | 真亏 → `reason='sl'` |
+        | 锁利型止损 | 在成本**盈利侧** | 回吐到该线 → `pnl>0` → 被 `normalize_close_reason` 改写成 `breakeven_tp` |
+
+        于是账本上"止盈"与"止损"混为一谈。实测 account 14 近 30 天：
+          · `breakeven_tp` **147 笔，147 笔全是锁利型**（PnL 合计 +533.74）；
+          · `sl` 218 笔里还有 **82 笔**止损位在盈利侧（成交在亏损侧 = 滑点/跳空穿过锁利位）。
+        也就是说**没有任何一笔是通过 TP 目标止盈的**，用户看到的"盈利单按止损出"是真实写照。
+
+        `close_reason` 字符串**保持不变**（`edge_ledger` / `reentry_cooldown` /
+        channel breaker 都按字符串匹配，改字符串会连带改行为）；
+        本函数只产出**附加标记** `profit_lock` / `protective`，写进退出事件与日志，
+        供人读与归因使用。
+
+        返回 `""` 表示信息不足（无入场价/无止损）。
+        """
+        try:
+            entry = float(getattr(pos, "entry_price", 0) or 0)
+            sl = float(getattr(pos, "sl_price", 0) or 0)
+            if entry <= 0 or sl <= 0:
+                return ""
+            side = str(getattr(pos, "side", "") or "").lower()
+            if side in ("long", "buy"):
+                return "profit_lock" if sl > entry else "protective"
+            return "profit_lock" if sl < entry else "protective"
+        except Exception:
+            return ""
+
+    @staticmethod
+    def stop_vs_entry_pct(pos) -> Optional[float]:
+        """止损位相对入场价的百分比（多头为正=盈利侧）；信息不足返回 None。"""
+        try:
+            entry = float(getattr(pos, "entry_price", 0) or 0)
+            sl = float(getattr(pos, "sl_price", 0) or 0)
+            if entry <= 0 or sl <= 0:
+                return None
+            side = str(getattr(pos, "side", "") or "").lower()
+            sign = 1.0 if side in ("long", "buy") else -1.0
+            return round((sl / entry - 1) * 100.0 * sign, 4)
+        except Exception:
+            return None
+
     def _record_exit_event(
         self,
         db,
@@ -391,6 +455,19 @@ class PaperTradingEngine:
             _rev_s = (str(_rev)[:40] if _rev is not None else None)
             _ch_s = (str(exit_channel)[:80] if exit_channel is not None else None)
             _etype = str(event_type or "")[:40]
+            # ── [轮97 修] 给"止损成交"打上锁利/保护标记 ──
+            # 用户提问"盈利单，你按照止损出了是怎么回事"：系统只有一条 SL 线，
+            # 它在成本之上时是**锁利型**（回吐到该线成交，pnl>0 → 被改写成
+            # `breakeven_tp`），在成本之下时才是**保护型**。两者此前在事件流里
+            # 完全无法区分（实测 30 天 147 笔 breakeven_tp 全是锁利型）。
+            # 这里只加**附加字段**，不动 `exit_channel`/`close_reason` 语义，
+            # 以免影响按字符串匹配的 edge_ledger / reentry_cooldown / breaker。
+            _meta = dict(metadata or {})
+            if _etype in ("final_trade_outcome", "partial_exit_event", "hard_line_close"):
+                _sk = self.stop_kind(pos)
+                if _sk:
+                    _meta.setdefault("stop_kind", _sk)
+                    _meta.setdefault("stop_vs_entry_pct", self.stop_vs_entry_pct(pos))
             event = PositionExitEvent(
                 position_id=int(getattr(pos, "id", 0) or 0),
                 account_id=int(getattr(pos, "account_id", 0) or 0),
@@ -413,7 +490,7 @@ class PaperTradingEngine:
                 health_regime=getattr(pos, "health_regime", None),
                 reversal_level=_rev_s,
                 exit_channel=_ch_s,
-                metadata_json=json.dumps(metadata or {}, ensure_ascii=False),
+                metadata_json=json.dumps(_meta, ensure_ascii=False),
             )
             db.add(event)
         except Exception as event_err:
@@ -5900,9 +5977,20 @@ class PaperTradingEngine:
                     except Exception as _bde:
                         logger.debug("[Paper][Fast] SL 拒付后余额重算跳过: %s", _bde)
                     return
+            # [轮97] 止损成交必须让人一眼分清"锁利"还是"保护"：
+            # 同一条 SL 线在成本之上时是锁利型（回吐成交、pnl>0 → reason 被改写
+            # 成 breakeven_tp），在成本之下时才是保护型。此前日志只写 "SL 触发"，
+            # 运维无法分辨"盈利单为什么按止损出"。
+            _sk_log = self.stop_kind(pos) if _px_attr == "sl_price" else ""
+            _sk_pct = self.stop_vs_entry_pct(pos) if _sk_log else None
+            _sk_txt = ""
+            if _sk_log == "profit_lock":
+                _sk_txt = f" [锁利型止损 止损位在成本{_sk_pct:+.2f}%处]"
+            elif _sk_log == "protective":
+                _sk_txt = f" [保护型止损 止损位在成本{_sk_pct:+.2f}%处]"
             logger.info(
                 f"[Paper][Fast] {reason.upper()} 触发: {pos.symbol} {pos.side} "
-                f"@{current_price} {_px_attr}={getattr(pos, _px_attr, 0)}"
+                f"@{current_price} {_px_attr}={getattr(pos, _px_attr, 0)}{_sk_txt}"
             )
             # [2026-09-18 幽灵成交修复] 成交价不得优于市价：正常情况 SL 在市价的止损侧
             # （多头 SL ≤ 现价），用 SL 价成交是「成交在该线」的正常语义；但若 SL 落在
