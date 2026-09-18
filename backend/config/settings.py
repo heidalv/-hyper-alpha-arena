@@ -2757,6 +2757,23 @@ def midlong_new_open_halted() -> bool:
 FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FACTORS", "3") or "3")
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
+# [轮105 2026-09-19] AST 同族去重：按结构签名（数值常量归一）识别"只差窗口"的重复因子，
+# 同族只桥接 |ICIR| 最大的一条。实测 5 条 AST 里有 4 条是 `-1×mean(returns,N)` 的
+# N 变体 —— 一个信号被计 5 票，八币被一致投空。false = 回滚到不去重。
+MIDLONG_AST_BRIDGE_DEDUP: bool = (os.getenv("MIDLONG_AST_BRIDGE_DEDUP", "true") or "true").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+# [轮105 2026-09-19] AST 桥接因子的 IC 幅度封顶（`midlong_factor_route` 用）。
+# 桥接把 **ICIR**（~1.3）塞进 `scores["ic_mean"]` 当幅度代理，路由又乘一次
+# `abs(ic) * runtime_weight` ⇒ 票权是公式因子（IC ~0.11）的 ~7 倍。默认 0.15
+# ≈ 公式因子 |IC| 中位量级；0 = 不封顶（回滚）。
+FACTOR_ROUTE_AST_IC_CAP: float = float(os.getenv("FACTOR_ROUTE_AST_IC_CAP", "0.15") or "0.15")
+# [轮105 2026-09-19] "趋势 regime 反号"是否覆盖**构造上反转**的 AST 因子
+# （根节点 ×(-1) 且子树用 returns）。轮58/59 的判据 `orient < 0` 选不中它们
+# （expected_sign 恒 +1），而它们含义同样是逆势。false = 回滚。
+MIDLONG_ROUTE_TREND_INVERT_AST: bool = (
+    os.getenv("MIDLONG_ROUTE_TREND_INVERT_AST", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 # [2026-09-01 断层根治] 短线 AST 桥接上限（ScalpActiveFactorSet._tradable_ast_bridge）
 SCALP_AST_BRIDGE_MAX: int = int(os.getenv("SCALP_AST_BRIDGE_MAX", "10") or "10")
 # [M3 2026-08-21] 运行时因子路由 K 线源：默认 "active"（与成交同所，trade 用途

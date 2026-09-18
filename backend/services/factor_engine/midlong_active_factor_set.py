@@ -116,7 +116,20 @@ class MidLongActiveFactorSet:
 
     @staticmethod
     def _tradable_ast_bridge() -> List[Dict[str, Any]]:
-        """[item14] 进化仓 TRADABLE AST → 中线 kind="ast" 记录（上限可配）。"""
+        """[item14] 进化仓 TRADABLE AST → 中线 kind="ast" 记录（上限可配）。
+
+        ## [轮105 2026-09-19] 同族去重
+
+        实测桥接进来的 5 条 AST 里有 **4 条是同一个信号只差窗口**：
+
+            -1×decay_linear(returns,20) / -1×mean(returns,20/10/50/5)
+
+        即"负收益率均值"这一个短周期反转信号被计了 5 票，且因为 `ic_mean` 装的是
+        ICIR（~1.3，而公式因子 IC ~0.11），在 `midlong_factor_route` 里票权是
+        macd 的 ~7 倍 —— 八币被一致投空。这里按**结构签名**（数值常量归一为 `#`）
+        去重，同族只保留 |ICIR| 最大的一条；被丢掉的仍在进化仓里，只是不进中线投票。
+        与 `midlong_factor_route._structure_signature` 同一套规则。
+        """
         try:
             from backend.services.factor_engine.active_set_policy import (
                 ActiveSetRole,
@@ -130,7 +143,23 @@ class MidLongActiveFactorSet:
             _cap = max(0, int(MIDLONG_AST_BRIDGE_MAX))
         except Exception:
             _cap = 10
-        out: List[Dict[str, Any]] = []
+        try:
+            from backend.config.settings import MIDLONG_AST_BRIDGE_DEDUP as _dd
+            _dedup = bool(_dd)
+        except Exception:
+            _dedup = True
+        try:
+            from backend.services.factor_engine.midlong_factor_route import (
+                _structure_signature as _sig,
+            )
+        except Exception:
+            _dedup = False
+
+            def _sig(_e):        # pragma: no cover - 真源不可用时退回"不去重"
+                return ""
+
+        # 先按 |ICIR| 降序，保证去重时留下的永远是同族里最强的那条
+        _prepared = []
         for r in rows or []:
             fid = str(r.get("factor_id") or "")
             ast = r.get("expr_ast")
@@ -146,6 +175,21 @@ class MidLongActiveFactorSet:
             src = str(r.get("source") or "")
             if fid.startswith("s5m_") or "horizon=scalp" in src:
                 continue
+            _prepared.append((abs(float(r.get("icir") or 0.0)), fid, ast, r))
+
+        out: List[Dict[str, Any]] = []
+        _seen: Dict[str, str] = {}
+        for _abs_icir, fid, ast, r in sorted(_prepared, key=lambda x: -x[0]):
+            if _dedup:
+                _s = _sig(ast)
+                if _s and _s in _seen:
+                    logger.info(
+                        "[MidLongActiveSet] AST 同族去重: %s(|ICIR|=%.3f) 与 %s 同结构，跳过桥接",
+                        fid, _abs_icir, _seen[_s],
+                    )
+                    continue
+                if _s:
+                    _seen[_s] = fid
             icir = float(r.get("icir") or 0.0)
             out.append({
                 "factor_id": f"evo_{fid}",
@@ -543,7 +587,15 @@ class MidLongActiveFactorSet:
                         "grade": r.get("grade"),
                         "timeframe": (r.get("extra") or {}).get("timeframe"),
                         "ic_mean": r.get("scores", {}).get("ic_mean"),
-                        "runtime_weight": weights.get(r["factor_id"], 1.0),
+                        # [F348 2026-09-18 口径一致] 旧默认值 1.0 会**骗读数**：投票路径
+                        # （本文件 :108 `wmap.get(_fid, 0.0)`）对"权重文件里查不到"的因子
+                        # 取 0.0（fail-closed），而这里的自检/运维视图却报 1.0（满权）。
+                        # 于是"某因子实际权重"在仪表盘上比投票时大一个量级，且方向相反
+                        # （0 → 1.0）。改为与投票路径同口径 0.0；真要区分"未测"请读
+                        # `fid in weights`。实测中线 16 个活跃因子里 4 个 evo_* 不在权重
+                        # 文件中（本行旧口径把它们显示成 1.0，实际票权 0.039~0.051）。
+                        "runtime_weight": weights.get(r["factor_id"], 0.0),
+                        "runtime_weight_measured": r["factor_id"] in weights,
                     }
                     for r in active
                 ],

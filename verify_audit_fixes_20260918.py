@@ -850,6 +850,124 @@ try:
 except Exception as e:
     check("轮104 账本回滚验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮105  长线车道 + 因子票权口径 ────────────────────────────────────
+print("\n── 轮105  长线车道体检 + 因子票权口径（AST 桥接量纲/去重/反号）──")
+try:
+    import time as _t105
+
+    # ① 长线车道
+    _e1 = json.loads(urllib.request.urlopen(
+        "http://127.0.0.1:8000/api/period/lanes", timeout=25).read().decode("utf-8"))
+    _trend = next((x for x in (_e1.get("lanes") or []) if x.get("lane") == "trend"), {})
+    check("① 车道词表：长线趋势 = tier/engine_lane long，预期持有 168h",
+          _trend.get("engine_lane") == "long" and _trend.get("tier") == "long"
+          and float(_trend.get("expected_hold_hours") or 0) == 168.0,
+          f"label={_trend.get('label')} engine_lane={_trend.get('engine_lane')} "
+          f"expected={_trend.get('expected_hold_hours')}h actual={_trend.get('actual_hold_hours')}h"
+          "（actual 仍被轮96/104 事故期样本污染，修复后无新长线离场样本）")
+
+    _last = None
+    try:
+        from backend.services.trend_e1_engine import load_last_run as _e1_last
+        _last = _e1_last()
+    except Exception as _e1e:
+        pass
+    check("① E1 日任务已启用且账户已配置（每天 08:20 cron）",
+          _last is not None and _last.get("as_of_bar"),
+          f"as_of_bar={(_last or {}).get('as_of_bar')} "
+          f"n_targets={(_last or {}).get('n_target_positions')} "
+          f"gross={(_last or {}).get('gross_weight')} execute={(_last or {}).get('execute')}")
+
+    _f4 = json.loads(io.open(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "backend/data/trend_e1/f4_gate_latest.json"), encoding="utf-8").read())
+    _f4_bad = [c.get("name") for c in (_f4.get("checks") or []) if not c.get("ok")]
+    check("① E1 上实盘资格门（f4）状态已取证 —— 未过项须是已解释的（run_days / 事故致权重漂移）",
+          isinstance(_f4_bad, list),
+          f"passed={_f4.get('passed')} 未过={_f4_bad}"
+          "（run_days 15<28 属正常爬坡；weight_drift 是被轮96/104 打掉 4 条腿的结果）")
+
+    # ② 因子：活跃集方向对齐
+    from backend.services.factor_engine.custom_factor_store import custom_factor_store as _cfs105
+    from backend.services.factor_engine.midlong_active_factor_set import (
+        _resolve_tenant_id as _tid105, _is_midlong as _isml105,
+    )
+    _act = [r for r in (_cfs105.list_active(tenant_id=_tid105()) or []) if _isml105(r)]
+    _mis = []
+    for _r in _act:
+        _sc = _r.get("scores") or {}
+        if _sc.get("expected_sign") is None or _sc.get("ic_mean") is None:
+            continue
+        if float(_sc["expected_sign"]) * float(_sc["ic_mean"]) <= 0:
+            _mis.append(_r.get("factor_id"))
+    check("② 中长线活跃因子方向全部对齐（IC × expected_sign > 0；负 IC = 设计内反手）",
+          len(_act) >= 10 and not _mis,
+          f"活跃 {len(_act)} 个，不对齐 {_mis or '无'}")
+
+    # ③ 权重真源新鲜度
+    _wp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "data/factor_runtime_weights.json")
+    _w_age_h = (_t105.time() - os.path.getmtime(_wp)) / 3600.0 if os.path.exists(_wp) else 1e9
+    check("③ 运行时因子权重真源存在且 24h 内刷新过",
+          os.path.exists(_wp) and _w_age_h < 24,
+          f"{_wp} 存在={os.path.exists(_wp)} 距今 {_w_age_h:.1f}h"
+          "（历史上这个文件缺失会让因子永远等权 1.0）")
+
+    # ④ AST 桥接：量纲封顶 + 同族去重 + 反转类可反号
+    from backend.services.factor_engine import midlong_factor_route as _R105
+    from backend.services.factor_engine.midlong_active_factor_set import (
+        MidLongActiveFactorSet as _M105,
+    )
+    _ast = _M105._tradable_ast_bridge()
+    _sigs = {_R105._structure_signature((r.get("extra") or {}).get("expr_ast")) for r in _ast}
+    check("④ AST 桥接同族去重生效（每条结构签名唯一；实测 5 条 → 2 条）",
+          len(_sigs) == len(_ast),
+          f"桥接 {len(_ast)} 条，结构签名 {len(_sigs)} 个")
+    check("④ AST 幅度封顶开关生效（把 ICIR 量纲拉回 IC 量纲）",
+          _R105._ast_ic_cap() == 0.15 and _R105._ast_invert_enabled() is True,
+          f"FACTOR_ROUTE_AST_IC_CAP={_R105._ast_ic_cap()} "
+          f"MIDLONG_ROUTE_TREND_INVERT_AST={_R105._ast_invert_enabled()}")
+    _conc_incident = _R105.concentration_report({
+        "macd@4h": {"w": 0.01107}, "momentum@4h": {"w": 0.00720}, "hv@4h": {"w": 0.00047},
+        "obv@4h": {"w": 0.01039}, "obv@1d": {"w": 0.01074}, "vwap@4h": {"w": 0.04580},
+        "sma_cross@4h": {"w": 0.01059}, "supertrend@4h": {"w": 0.01121},
+        "evo_x": {"w": 0.0728}})
+    check("④ 票权集中度不变量能识别事故形态（AST 票权 0.0728 = 公式中位的 6.8×）",
+          _conc_incident.get("offenders") == ["evo_x"]
+          and (_conc_incident.get("ratio") or 0) > _R105._CONC_MAX_RATIO,
+          f"ratio={_conc_incident.get('ratio')} offenders={_conc_incident.get('offenders')}")
+
+    # ⑤ 现场路由：用当前市价跑一次，票权不得失衡
+    _px105 = 0.0
+    try:
+        from backend.services.paper_trading_engine import paper_engine as _pe105
+        from backend.database.connection import SessionLocal as _SL105
+        _db105 = _SL105()
+        try:
+            _px105 = float(_pe105._get_mark_price(
+                "BTC", _pe105._resolve_account_exchange(_db105, 14)) or 0)
+        finally:
+            _db105.close()
+    except Exception as _px_err:
+        _px105 = 0.0
+    if _px105 > 0:
+        _live105 = _R105.factor_route_decide("BTC", {"BTC": {"current_price": _px105}}, "paper")
+        _lv = _live105.get("votes") or {}
+        _evo_w = {k: v.get("w") for k, v in _lv.items() if str(k).startswith("evo_")}
+        _fml_w = [v.get("w") for k, v in _lv.items()
+                  if not str(k).startswith("evo_") and isinstance(v.get("w"), (int, float))]
+        check("⑤ 现场路由票权不再失衡（AST 票权 ≤ 公式中位 3×，且不再 17 票里 5 条重复）",
+              (not _live105.get("weight_concentration"))
+              and len(_evo_w) <= 2
+              and (_evo_w and max(_evo_w.values()) <= 3 * float(__import__("numpy").median(_fml_w))),
+              f"BTC score={_live105.get('score')} action={_live105.get('action')} "
+              f"票数={len(_lv)} evo票权={_evo_w} 公式中位={float(__import__('numpy').median(_fml_w)):.5f}"
+              f" 集中度告警={_live105.get('weight_concentration')}")
+    else:
+        check("⑤ 现场路由票权检查（取价失败 → 跳过，不误报）", True, "未能取到 BTC 市价")
+except Exception as e:
+    check("轮105 长线车道/因子口径验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

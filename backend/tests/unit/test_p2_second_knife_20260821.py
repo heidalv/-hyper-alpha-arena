@@ -167,6 +167,11 @@ class TestItem13ExpectedSign:
         monkeypatch.setattr(mafs, "midlong_active_factor_set", _FakeSet())
         monkeypatch.setattr(_s, "FACTOR_ROUTE_MIN_ACTIVE_FACTORS", 1, raising=False)
         monkeypatch.setattr(_s, "FACTOR_ROUTE_ENTRY_THRESHOLD", 0.2, raising=False)
+        # [轮105 2026-09-19 测试隔离] 本用例只验"orient 读 expected_sign"，
+        # 但轮58/59 的「趋势 regime 下反转因子反号」会在 regime=up 时把票翻正
+        # （实测 BTC 现在就是 regime=up ⇒ 不隔离时断言 sell 会得到 buy）。
+        # 把 regime 钉在非趋势值，让本用例只测它声称要测的东西。
+        monkeypatch.setattr(mrf, "_resolve_regime", lambda s, ms=None: "ranging")
         # 因子值强正 z（递增序列尾部）→ 无 expected_sign 时 vote=+；
         # 锁定 -1 后应为 -
         monkeypatch.setattr(

@@ -182,6 +182,114 @@ def _is_reversal_factor(rec: dict) -> bool:
         return False
 
 
+# ── [轮105 2026-09-19] 进化仓 AST 因子的三个口径修正 ──────────────────────
+#
+# 实测（轮105 体检，BTC/ETH/SOL/BNB/LINK/XRP/DOGE/AVAX 八币同时）：
+#   1. `_tradable_ast_bridge` 把 **ICIR 塞进 `scores["ic_mean"]`** 当"权重幅度代理"
+#      （见其 docstring），而本模块 `w = abs(ic) * runtime_weight` **又乘一次**：
+#        evo_2e6e556cd8f21fae: ic=1.307 × w文件 0.0557 = **0.0728**
+#        macd@4h（领头公式因子）: ic=0.114 × w文件 0.0852 = **0.0097**
+#      ⇒ 量纲不同（IC ~0.1 vs ICIR ~1.3）却被当成同一把尺子，AST 票权被放大 ~7 倍。
+#   2. 桥接过来的 5 条 AST 实测是**同一个信号的 5 个近似重复**：
+#        -1×decay_linear(returns,20) / -1×mean(returns,20/10/50/5)
+#      ⇒ 一个"负收益率均值"（短周期反转）被计 5 票。
+#   3. 它们的 `expected_sign` 恒为 +1，而轮58/59 的"趋势 regime 反号"只作用于
+#      `orient < 0` ⇒ **恰好把反转类 AST 因子排除在外**；趋势行情里它们以最大票权
+#      持续逆势投票（实测 z = −2.7 ~ −4.7，全部撞上 ±2 截断 → 全部 −2.0，
+#      八币合成 score ≈ −0.54 ~ −0.81，全部 sell）。
+#
+# 本段修 ①（幅度封顶）与 ③（反号范围）；② 在 `midlong_active_factor_set._tradable_ast_bridge`
+# 去重。三者都可单独回滚：
+#   FACTOR_ROUTE_AST_IC_CAP（默认 0.15，0 = 不封顶）
+#   MIDLONG_ROUTE_TREND_INVERT_AST（默认 true，复用轮58 总开关）
+#
+# 第 ④ 条不变量：任一因子实际票权不得超过公式因子票权中位数的 `_CONC_MAX_RATIO` 倍，
+# 超了在决策输出里带 `weight_concentration` 并告警一次（轮105 前这个失衡完全不可见）。
+_CONC_MAX_RATIO = 3.0
+_CONC_WARNED = False
+
+
+def _ast_ic_cap() -> float:
+    """AST 桥接因子的 IC 幅度封顶（把 ICIR 量纲拉回公式因子的 IC 量纲）。
+
+    默认 0.15 ≈ 公式因子 |IC| 的中位量级（实测 12 个活跃因子 |IC| 0.051~0.473，
+    中位 ≈ 0.111）。0 = 关闭封顶（回滚到旧行为）。
+    """
+    try:
+        return max(0.0, float(os.getenv("FACTOR_ROUTE_AST_IC_CAP", "0.15")))
+    except Exception:
+        return 0.15
+
+
+def _ast_invert_enabled() -> bool:
+    """反转类 AST 因子是否也纳入"趋势 regime 反号"（默认 true）。"""
+    try:
+        return str(os.getenv("MIDLONG_ROUTE_TREND_INVERT_AST", "true") or "").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return True
+
+
+def _ast_leading_negation(expr) -> bool:
+    """DSL 根节点是否「×(-1)」结构（进化仓反转类因子的写法）。"""
+    if not isinstance(expr, dict) or str(expr.get("op") or "") != "mul":
+        return False
+    args = expr.get("args")
+    if not isinstance(args, (list, tuple)) or not args:
+        return False
+    head = args[0]
+    try:
+        return isinstance(head, dict) and float(head.get("c")) == -1.0
+    except (TypeError, ValueError):
+        return False
+
+
+def _ast_tree_uses(expr, field: str) -> bool:
+    if isinstance(expr, dict):
+        if str(expr.get("f") or "") == field:
+            return True
+        return any(_ast_tree_uses(v, field) for v in expr.values())
+    if isinstance(expr, (list, tuple)):
+        return any(_ast_tree_uses(v, field) for v in expr)
+    return False
+
+
+def _is_contrarian_ast(rec: dict) -> bool:
+    """AST 桥接因子是否**构造上就是反转类**：根节点 ×(-1) 且子树用到 returns。
+
+    为什么必须单独判：这类因子 `expected_sign` 恒 +1（并非被反手使用），
+    所以轮58/59 的 `orient < 0` 判据永远选不中它们 —— 但它们的**含义**就是
+    "近期收益为负 → 看多"，在趋势行情里与 `orient < 0` 的反手因子一样是逆势的。
+    """
+    extra = rec.get("extra") or {}
+    if str(extra.get("kind") or "") != "ast":
+        return False
+    expr = extra.get("expr_ast")
+    return _ast_leading_negation(expr) and _ast_tree_uses(expr, "returns")
+
+
+def _structure_signature(expr) -> str:
+    """AST 结构签名：数值常量归一为 `#`，用于识别"只差窗口"的重复因子。
+
+    例：`-1×mean(returns,5)` 与 `-1×mean(returns,50)` → 同一签名。
+    """
+    if isinstance(expr, dict):
+        parts = []
+        for k in sorted(expr.keys()):
+            val = expr[k]
+            if k == "c" and isinstance(val, (int, float)) and not isinstance(val, bool):
+                parts.append("c=#")
+            elif k == "args" and isinstance(val, (list, tuple)):
+                parts.append("args=[" + ",".join(_structure_signature(x) for x in val) + "]")
+            else:
+                parts.append(f"{k}={_structure_signature(val)}")
+        return "{" + ",".join(parts) + "}"
+    if isinstance(expr, (list, tuple)):
+        return "[" + ",".join(_structure_signature(x) for x in expr) + "]"
+    return str(expr)
+
+
 def _cached_regime_for(symbol: str) -> str:
     """尽力取日线 regime；取不到返回空串（空 ⇒ 不反号，保持原行为）。"""
     try:
@@ -388,7 +496,18 @@ def factor_route_decide(
         # 会被 `or` 还原成满权 1.0，归零因子照常参与投票。改为只在字段缺失
         # （None）时才用中性默认值 1.0，显式的 0 如实传递。
         _rw = rec.get("runtime_weight")
-        w = abs(ic) * (1.0 if _rw is None else float(_rw))
+        _rw_v = 1.0 if _rw is None else float(_rw)
+        # [轮105] AST 桥接因子的 `ic_mean` 装的是 **ICIR**（见 _tradable_ast_bridge），
+        # 量纲与公式因子的 IC 不同；按 `_ast_ic_cap()` 封顶后再乘，避免票权被放大 ~7 倍。
+        _astra = rec.get("extra") or {}
+        _is_ast_rec = str(_astra.get("kind") or "") == "ast"
+        _amp = abs(ic)
+        _amp_capped = None
+        if _is_ast_rec:
+            _cap = _ast_ic_cap()
+            if _cap > 0 and _amp > _cap:
+                _amp_capped, _amp = _cap, _cap
+        w = _amp * _rw_v
         vals = _factor_history(rec, sym)
         if vals is None:
             votes[fid] = {"z": None, "vote": None, "skip": "no_history"}
@@ -408,10 +527,17 @@ def factor_route_decide(
         # 轮58 实测作废：中线实际消费的 16 个因子全是 registry 公式因子
         # （macd/momentum/vwap/obv/sma_cross/supertrend），名字里没有 rev，但 IC 全负
         # ⇒ expected_sign=-1 ⇒ 趋势指标被反手成逆势信号 ⇒ 上涨行情一致投空。
-        if _invert_on and _regime_now in _TREND_REGIMES and orient < 0:
+        # [轮105] 再补一类：**构造上就是反转**的 AST 因子（-1×mean(returns,N)）。
+        # 它们 expected_sign 恒 +1，`orient < 0` 永远选不中，但含义同样是逆势——
+        # 实测八币在趋势 regime 下被它们以最大票权一致投空。
+        _inv_ast = _is_ast_rec and _ast_invert_enabled() and _is_contrarian_ast(rec)
+        if _invert_on and _regime_now in _TREND_REGIMES and (orient < 0 or _inv_ast):
             vote = -vote
             _inv = True
-        _rec_vote = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4)}
+        _rec_vote = {"z": round(z, 3), "vote": round(vote, 3), "ic": round(ic, 4),
+                     "w": round(w, 6)}
+        if _amp_capped is not None:
+            _rec_vote["ic_capped"] = round(_amp_capped, 4)
         if _inv:
             _rec_vote["trend_inverted"] = True
         votes[fid] = _rec_vote
@@ -455,11 +581,67 @@ def factor_route_decide(
         out["tp_pct"] = _tp
         out["sltp_note"] = _note
     out["confidence"] = int(np.clip(50 + abs(score) * 30, 0, 80))
+    # [轮105] 票权集中度不变量：任一因子（尤其 AST 桥接）的实际票权
+    # `abs(ic) × runtime_weight` 不得超公式因子票权中位数的 `_CONC_MAX_RATIO` 倍。
+    # 为什么要有这条：轮105 实测 AST 因子的票权曾是 macd 的 7.5 倍，
+    # 而**在决策输出里完全看不见** —— 只看 score 无法发现"一个信号占了半票"。
+    _conc = concentration_report(votes)
+    if _conc.get("offenders"):
+        out["weight_concentration"] = _conc
+        _warn_concentration_once(sym, _conc)
     _vote_str = " ".join(
         "%s:%s" % (k, v.get("vote")) for k, v in votes.items() if v.get("vote") is not None
     )
     out["reason"] = "factor_route score=%+.3f n=%d votes=%s" % (score, len(votes), _vote_str)
     return out
+
+
+def concentration_report(votes: Dict[str, Any], max_ratio: float = _CONC_MAX_RATIO) -> Dict[str, Any]:
+    """票权集中度：AST 桥接因子票权 / 公式因子票权中位数。
+
+    输入是 `factor_route_decide` 产出的 `votes`（每条含 `w`），因此不额外求值。
+    返回 `{"formula_median_w", "max_ast_w", "ratio", "offenders"}`；
+    `offenders` 非空即表示"某个 AST 因子的票权超过公式因子中位数的 max_ratio 倍"。
+    """
+    formula, ast = [], []
+    for fid, v in (votes or {}).items():
+        if not isinstance(v, dict):
+            continue
+        _w = v.get("w")
+        if not isinstance(_w, (int, float)):
+            continue
+        (ast if str(fid).startswith("evo_") else formula).append(float(_w))
+    if not formula or not ast:
+        return {"formula_median_w": None, "max_ast_w": None, "ratio": None, "offenders": []}
+    _med = float(np.median(formula))
+    _max_ast = max(ast)
+    _ratio = (_max_ast / _med) if _med > 0 else float("inf")
+    offenders = sorted(
+        fid for fid, v in (votes or {}).items()
+        if str(fid).startswith("evo_") and isinstance(v, dict)
+        and isinstance(v.get("w"), (int, float))
+        and (_med > 0 and float(v["w"]) > _med * max_ratio)
+    )
+    return {
+        "formula_median_w": round(_med, 6),
+        "max_ast_w": round(_max_ast, 6),
+        "ratio": (round(_ratio, 3) if _ratio != float("inf") else None),
+        "offenders": offenders,
+    }
+
+
+def _warn_concentration_once(symbol: str, conc: Dict[str, Any]) -> None:
+    """票权集中告警：每进程只打一次，避免每 tick 刷屏。"""
+    global _CONC_WARNED
+    if _CONC_WARNED:
+        return
+    _CONC_WARNED = True
+    logger.warning(
+        "[FactorRoute] 票权集中度异常 %s: AST 最大票权 %.6f / 公式中位 %.6f = %s×（阈值 %.1f×）"
+        " offenders=%s —— 检查 AST 桥接的 ic_mean 量纲与同族去重",
+        symbol, conc.get("max_ast_w") or 0.0, conc.get("formula_median_w") or 0.0,
+        conc.get("ratio"), _CONC_MAX_RATIO, conc.get("offenders"),
+    )
 
 
 def factor_route_open(
