@@ -719,10 +719,11 @@ try:
                 and ((isinstance(n.func, _ast104.Attribute) and n.func.attr == name)
                      or getattr(n.func, "id", None) == name)]
 
-    check("③ 引擎接线完整：`safe_tp_price` 5 处 / `tp_direction_illegal` 4 处",
-          len(_calls104("safe_tp_price")) == 5 and len(_calls104("tp_direction_illegal")) == 4,
+    check("③ 引擎接线完整：`safe_tp_price` 6 处 / `tp_direction_illegal` 4 处",
+          len(_calls104("safe_tp_price")) == 6 and len(_calls104("tp_direction_illegal")) == 4,
           f"safe_tp_price={len(_calls104('safe_tp_price'))} "
-          f"tp_direction_illegal={len(_calls104('tp_direction_illegal'))}")
+          f"tp_direction_illegal={len(_calls104('tp_direction_illegal'))}"
+          "（下单收口 2 处：订单创建时 + 取到真实市价后 —— 市价单 price=None，前者会空转）")
 
     _tp_trend = _eng104.add_order_tp_decision(
         type("P", (), {"symbol": "BTC", "side": "long", "entry_price": 1000.0,
@@ -742,6 +743,12 @@ try:
           and _tp_mid_bad == (None, "inverted_reject"),
           f"long={_tp_trend} mid_ok={_tp_mid_ok} mid_bad={_tp_mid_bad}"
           "（长线 tp_pct=null：出场=规则失效/Chandelier，盈利靠滚仓）")
+
+    _body104 = _pte_src104[_pte_src104.index("def place_order("):]
+    check("③ 下单收口在**取到真实市价后**复验 TP（市价单 price=None，创建时那次会空转）",
+          _body104.index("current_price = self._get_current_price(order.symbol, exchange)")
+          < _body104.index("_ref_entry = float(order.price) if (order.price"),
+          "实证：滚仓单 23846 在 DB 里 price=None，只有 filled_price")
 
     _body104 = _pte_src104[_pte_src104.index("def reprice_position("):]
     _tpblk104 = _body104[_body104.index("if not hit and pos.tp_price"):]
@@ -786,6 +793,28 @@ try:
         check("事故的 2 条 exit 事件已标注回滚（不再被当成真实离场统计）",
               int(_md or 0) == 2,
               "26299 hard_line_close(stop_kind=profit_lock) / 26298 final_trade_outcome")
+        # ── 历史同类出血基线 + 修复后零新增（棘轮）──
+        _hist = _db104.execute(_text104("""
+            SELECT COUNT(*) FROM paper_positions p
+            WHERE p.status='closed' AND p.close_price > 0 AND p.entry_price > 0
+              AND p.close_reason='tp'
+              AND ( (p.side='long'  AND p.close_price < p.entry_price)
+                 OR (p.side='short' AND p.close_price > p.entry_price) )""")).scalar()
+        check("历史「reason=tp 却成交在亏损侧」样本已存档（80 笔 / ≈−903，2026-07-08~08-23）",
+              int(_hist or 0) >= 78,
+              f"当前 {int(_hist or 0)} 笔（账户 14:46 / 149:29 / 156:5；tier: short/scalp 51、"
+              "research/pair_research 29）；中位持仓 26.5 秒、全部无加仓 ⇒ 开仓即被反向 TP 秒平")
+        _new = _db104.execute(_text104("""
+            SELECT COUNT(*) FROM paper_positions p
+            WHERE p.status='closed' AND p.close_price > 0 AND p.entry_price > 0
+              AND p.close_reason='tp'
+              AND p.closed_at >= TIMESTAMP '2026-09-19 02:42:00'
+              AND ( (p.side='long'  AND p.close_price < p.entry_price)
+                 OR (p.side='short' AND p.close_price > p.entry_price) )""")).scalar()
+        check("修复上线（2026-09-19 02:41 重启，boot_git_hash=93fdb25）后**零新增**反向 TP 平仓",
+              int(_new or 0) == 0,
+              f"closed_at ≥ 02:42 的反向 TP 平仓数 = {int(_new or 0)}"
+              "（落点：下单收口取价后复验 / 建仓 / 加仓合并 / AI改TP / 4 个触发点）")
         _o = _db104.execute(_text104("""
             SELECT status, pnl, fee FROM paper_orders WHERE id=23848""")).fetchone()
         check("幽灵平仓单 23848 已注销（cancelled，pnl/fee 清零）",

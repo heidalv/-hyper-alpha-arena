@@ -336,16 +336,34 @@ def _calls_in(path: str):
 
 
 def test_engine_wires_both_tp_guards():
-    """写入侧 4 处 + 触发侧 4 处 + 定义内部 1 次自用。
+    """写入侧 6 处 + 触发侧 4 处 + 定义内部 1 次自用。
 
     数字是**棘轮**：将来改动必须同步改这里，避免闸门被悄悄摘掉。
+    6 处 = `tp_direction_illegal` 内部(1) + 下单收口(2：订单创建时 & 取到市价后)
+         + 建仓(1) + 加仓合并(1) + `update_position_tp_sl`(1)。
     """
     calls = _calls_in(TREND_E1_ENGINE)
     by_name = {}
     for name, lineno in calls:
         by_name.setdefault(name, []).append(lineno)
-    assert len(by_name.get("safe_tp_price", [])) == 5, by_name
+    assert len(by_name.get("safe_tp_price", [])) == 6, by_name
     assert len(by_name.get("tp_direction_illegal", [])) == 4, by_name
+
+
+def test_order_choke_point_rechecks_after_price_is_known():
+    """市价单的 `price` 是 None ⇒ 订单创建时那次校验空转，必须在取到市价后复验。
+
+    实证：滚仓单 23846 在 DB 里 `price=None`，只有 `filled_price`；
+    全库扫查的 94 笔"tp 却在亏损侧成交"全部来自各类入场路径直接带入的反向 TP。
+    """
+    src = open(os.path.join(_repo_root(), TREND_E1_ENGINE), encoding="utf-8").read()
+    body = src[src.index("def place_order("):]
+    i_price = body.index("current_price = self._get_current_price(order.symbol, exchange)")
+    i_recheck = body.index("_ref_entry = float(order.price) if (order.price")
+    i_order = body.index("order = PaperOrder(")
+    assert i_order < i_price < i_recheck, (
+        "复验必须在真实市价到手之后（且晚于订单创建），否则市价单仍然空转")
+    assert "safe_tp_price" in body[i_recheck: i_recheck + 800]
 
 
 def test_engine_tp_guard_sites_are_the_four_known_paths():

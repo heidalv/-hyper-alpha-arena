@@ -1758,6 +1758,29 @@ class PaperTradingEngine:
                 logger.error(f"[Paper] 市价单取消，无法获取价格: {e}")
                 return None
 
+        # ── [2026-09-19 轮104 续] 止盈侧不变式（**取到真实市价之后**再判一次）──
+        # 订单创建时那次校验用的是 `price`，而**市价单的 price 就是 None**
+        # （DB 实证：滚仓单 23846 `price=None`，只有 filled_price）⇒ 那次校验对市价单是空转。
+        # 这里在真实市价到手后复验，把"开仓即被反向 TP 秒平"这条历史出血口堵死：
+        # 全库扫查发现 94 笔 `close_reason=tp` 却成交在**亏损侧**（合计 −895.88，
+        # 中位持仓 26.5 秒，80/94 无加仓），全部来自各类入场路径直接带入的反向 TP。
+        # 判据参考价：限价单用自身 `price`（耐心挂单的入场基准），市价单用 `current_price`。
+        _ref_entry = float(order.price) if (order.price and float(order.price) > 0) else float(current_price or 0)
+        if order.tp_price:
+            _tp_choke = self.safe_tp_price(
+                order.tp_price, side=str(side or ""), market=float(current_price or 0),
+                entry=_ref_entry)
+            if _tp_choke <= 0 and float(current_price or 0) > 0:
+                logger.error(
+                    "[Paper] 下单 TP 被止盈侧不变式拦截（丢弃该 TP）: %s %s TP=%s "
+                    "参考入场=%s 市价=%s —— 多头 TP 必须在开仓价上方、空头在下方",
+                    symbol, side, order.tp_price, _ref_entry, current_price,
+                )
+                order.tp_price = None
+                tp_price = None      # 入参副本同步（位置构造随后改用 order.tp_price）
+            else:
+                order.tp_price = _tp_choke or order.tp_price
+
         # 动态滑点：按订单规模、子仓类型计算
         _open_notional_est = order.quantity * current_price
         _slip = _calc_slip(_open_notional_est, trade_nature or "swing", is_sl=False)
