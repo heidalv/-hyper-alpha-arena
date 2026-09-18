@@ -202,10 +202,12 @@ class SubPositionManager:
             age_hours = 0.0
             if p.opened_at:
                 try:
-                    opened = p.opened_at
-                    if opened.tzinfo is None:
-                        opened = opened.replace(tzinfo=timezone.utc)
-                    age_hours = (datetime.now(timezone.utc) - opened).total_seconds() / 3600.0
+                    # [轮71 修时区] TIMESTAMP 列存的是本地钟面；旧写法把 naive 当 UTC →
+                    # 持仓时长差 8h 且可能为负。统一走 db_dt_for_age 归一化。
+                    from backend.utils.db_datetime import db_dt_for_age
+                    opened = db_dt_for_age(p.opened_at)
+                    if opened is not None:
+                        age_hours = (datetime.now(timezone.utc) - opened).total_seconds() / 3600.0
                 except Exception:
                     pass
 
@@ -213,11 +215,12 @@ class SubPositionManager:
             cooldown_remaining_h = 0.0
             if last_reduce_ts:
                 try:
-                    lr = last_reduce_ts
-                    if lr.tzinfo is None:
-                        lr = lr.replace(tzinfo=timezone.utc)
-                    elapsed_h = (datetime.now(timezone.utc) - lr).total_seconds() / 3600.0
-                    cooldown_remaining_h = max(0, rules["reduce_cooldown_hours"] - elapsed_h)
+                    # [轮71 修时区] 同上：否则「刚减过仓」会被算成 -8h 前。
+                    from backend.utils.db_datetime import db_dt_for_age
+                    lr = db_dt_for_age(last_reduce_ts)
+                    if lr is not None:
+                        elapsed_h = (datetime.now(timezone.utc) - lr).total_seconds() / 3600.0
+                        cooldown_remaining_h = max(0, rules["reduce_cooldown_hours"] - elapsed_h)
                 except Exception:
                     pass
 
@@ -276,10 +279,11 @@ class SubPositionManager:
             age_hours = 0.0
             if p.opened_at:
                 try:
-                    opened = p.opened_at
-                    if opened.tzinfo is None:
-                        opened = opened.replace(tzinfo=timezone.utc)
-                    age_hours = (datetime.now(timezone.utc) - opened).total_seconds() / 3600.0
+                    # [轮71 修时区] 同 get_sub_positions：naive 本地钟面不得当 UTC。
+                    from backend.utils.db_datetime import db_dt_for_age
+                    opened = db_dt_for_age(p.opened_at)
+                    if opened is not None:
+                        age_hours = (datetime.now(timezone.utc) - opened).total_seconds() / 3600.0
                 except Exception:
                     pass
 
@@ -494,17 +498,21 @@ class SubPositionManager:
         last_reduce = getattr(pos, "last_reduce_at", None)
         if last_reduce:
             try:
-                lr = last_reduce
-                if lr.tzinfo is None:
-                    lr = lr.replace(tzinfo=timezone.utc)
-                elapsed_h = (datetime.now(timezone.utc) - lr).total_seconds() / 3600.0
-                cooldown = rules["reduce_cooldown_hours"]
-                if elapsed_h < cooldown:
-                    reason = (
-                        f"{symbol}[{nature}] 减仓冷却中: "
-                        f"距上次{elapsed_h:.1f}h < {cooldown}h"
-                    )
-                    return self._verdict(False, reason, "reduce", symbol, nature, db=db, account_id=_aid)
+                # [轮71 修时区] 旧写法 `lr.replace(tzinfo=timezone.utc)` 把本地钟面当 UTC，
+                # 与 now(utc) 相减得 **-8h** →「距上次 -8.0h < 1.0h」恒成立 →
+                # 任何减仓之后，该仓位的分段止盈/风险减仓在 `冷却+8h` 内被静默拒绝
+                # （scalp 0.5h→8.5h、intraday 1h→9h、trend_follow 24h→32h）。
+                from backend.utils.db_datetime import db_dt_for_age
+                lr = db_dt_for_age(last_reduce)
+                if lr is not None:
+                    elapsed_h = (datetime.now(timezone.utc) - lr).total_seconds() / 3600.0
+                    cooldown = rules["reduce_cooldown_hours"]
+                    if elapsed_h < cooldown:
+                        reason = (
+                            f"{symbol}[{nature}] 减仓冷却中: "
+                            f"距上次{elapsed_h:.1f}h < {cooldown}h"
+                        )
+                        return self._verdict(False, reason, "reduce", symbol, nature, db=db, account_id=_aid)
             except Exception:
                 pass
 

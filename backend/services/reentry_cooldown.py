@@ -381,7 +381,13 @@ def _durable_reopen_blocked(
             {"short": "1800", "mid": "1800", "long": "3600"}.get(_tier, "1800"),
         ))
         lookback = max(cooldown_sec, loss_floor)
-        since = datetime.now(timezone.utc) - timedelta(seconds=lookback)
+        # [轮71 修时区] `closed_at` 是**本地时区 naive**（本文件 :430-439 的 elapsed 计算
+        # 已按 Asia/Shanghai 正确处理并留了 2026-08-02 ONDO 的事故记录）。
+        # 但这里的 SQL 过滤仍拿 aware-UTC 当比较值：psycopg 会把它按会话时区落成
+        # 本地钟面 +8h，使窗口被**放宽 8 小时**（4h 冷却→实际取 12h 内样本）。
+        # 下游 `elapsed < cooldown` 仍会正确判掉多余行，故不是漏挡，而是白查一批行
+        # 且语义与注释不符。改用本地钟面，与该文件既有的 elapsed 口径一致。
+        since = datetime.now() - timedelta(seconds=lookback)
         sym_u = (symbol or "").strip().upper()
 
         db = SessionLocal()
