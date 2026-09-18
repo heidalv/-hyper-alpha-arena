@@ -275,6 +275,143 @@ try:
 except Exception as e:
     check("敞口 fail-closed 验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮74-80 的后续修复 ────────────────────────────────────────────────
+print("\n── P1-8  实盘执行结果诚实性 ──")
+try:
+    from backend.services.exit.exit_types import close_result_succeeded
+    bad = [s for s in ("error", "blocked", "rejected", "failed", "unknown")
+           if close_result_succeeded({"status": s})]
+    good = [s for s in ("filled", "closed", "ok", "success")
+            if not close_result_succeeded({"status": s})]
+    check("失败状态不得判为成功", not bad, f"误判: {bad}" if bad else "error/blocked/rejected/failed/unknown 全部 False")
+    check("成功状态判为成功", not good, f"漏判: {good}" if good else "filled/closed/ok/success 全部 True")
+    check("None / 空 dict 判为未确认",
+          close_result_succeeded(None) is False and close_result_succeeded({}) is False)
+
+    _root = os.path.dirname(os.path.abspath(__file__))
+    _sc = io.open(os.path.join(_root, "backend/services/full_auto/scalp_position_review.py"), encoding="utf-8").read()
+    _sc = _re.sub(r'#.*', '', _sc)
+    check("调用方不再用 bool(res) 判 dict", "bool(res)" not in _sc)
+    _svc = io.open(os.path.join(_root, "backend/services/full_auto_trading_service.py"), encoding="utf-8").read()
+    check("_execute_live_trade 已 return 结果",
+          "return execute_live_trade(" in _svc,
+          "旧实现吞掉 bool → 调用方 bool() 恒 False")
+except Exception as e:
+    check("实盘诚实性验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P1-9  Flow 订阅：注册必须早于 subscribe ──")
+try:
+    from unittest.mock import MagicMock as _MM
+
+    from backend.services.market_flow_collector import MarketFlowCollector
+
+    class _BadInfo:
+        def subscribe(self, payload, cb):
+            raise KeyError(payload.get("coin"))
+
+    _c = MarketFlowCollector()
+    _c.info = _BadInfo()
+    _c.subscribed_symbols, _c.subscription_ids, _c.trade_buffers = [], {}, {}
+    _c._subscribe_symbol("COTI")
+    check("订阅抛 KeyError 后 symbol 仍被登记", "COTI" in _c.subscribed_symbols,
+          "旧实现 append 在 subscribe 之后 → 不可达 → 成交永不落库")
+except Exception as e:
+    check("Flow 订阅验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P1-12  paused 会话仍执行持仓治理 ──")
+try:
+    _hc = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "backend/services/full_auto/health_check_cycle.py"), encoding="utf-8").read()
+    _hc_code = "\n".join(l for l in _hc.splitlines() if not l.lstrip().startswith('#'))
+    check("不再整轮 return",
+          not _re.search(r'if\s+session\.status\s*==\s*["\']paused["\']\s*:\s*\n\s*return\b', _hc_code))
+    check("paused 时强制不开新仓",
+          "if _session_paused and should_run:" in _hc and "_session_paused = (session.status == \"paused\")" in _hc)
+    check("任何 paused 都免于自动解锁", "if _paused_any:" in _hc,
+          "否则人工 pause 会被 paper_auto_unlock_session 静默恢复交易")
+except Exception as e:
+    check("paused 治理验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P1-10  factor loader 目录指纹缓存 ──")
+try:
+    from backend.services.factor_engine.factor_loader import (
+        FactorLoader as _FL,
+        _DISCOVERY_CACHE,
+    )
+    _DISCOVERY_CACHE.clear()
+    _t = time.time()
+    _a = _FL()
+    _n1 = _a.discover_and_load_all()
+    _cold = time.time() - _t
+    _t = time.time()
+    _b = _FL()
+    _n2 = _b.discover_and_load_all()
+    _warm = time.time() - _t
+    check("第二次命中缓存且因子数一致", _b.cache_hit and _n1 == _n2,
+          f"冷 {_cold*1000:.0f}ms → 热 {_warm*1000:.0f}ms（{_cold/max(_warm,1e-9):.1f}x），因子数 {_n1}")
+except Exception as e:
+    check("factor loader 缓存验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P1-13  学习层 val_IC 样本外 + 门槛可配 ──")
+try:
+    from backend.services.factor_engine.learned_weighting import LearnedWeightingConfig as _LWC
+    check("min_val_ic 默认 0.02", abs(_LWC().min_val_ic - 0.02) < 1e-9)
+    os.environ["LEARNED_MIN_VAL_IC"] = "0.05"
+    check("min_val_ic 可经 env 覆盖", abs(_LWC().min_val_ic - 0.05) < 1e-9)
+    os.environ.pop("LEARNED_MIN_VAL_IC", None)
+
+    _lw = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "backend/services/factor_engine/learned_weighting.py"), encoding="utf-8").read()
+    _lw_code = "\n".join(l for l in _lw.splitlines() if not l.lstrip().startswith('#'))
+    check("切分早于特征筛选",
+          _lw_code.find("_tr = aligned.iloc[:_train_end]") < _lw_code.find("float(self.config.min_ic_to_include"),
+          "否则特征筛选会偷看校验段（val_IC 偏乐观）")
+    check("特征筛选只用训练段", "_tr[_c]" in _lw_code and "aligned[_c]" not in _lw_code)
+except Exception as e:
+    check("学习层样本外验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P1  训练期标的限制不再失效 ──")
+try:
+    from backend.services.full_auto.master_execution import _resolve_training_allowed_symbols as _rtas
+
+    class _H:
+        pass
+
+    _got = _rtas(_H())
+    from backend.services.training_phase_service import is_active as _tpa
+    if _tpa():
+        check("训练期 active 时解析出非空限制", bool(_got), f"allowed={sorted(_got)}")
+    else:
+        check("训练期未启用 → 不限制", _got == set())
+    _me = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "backend/services/full_auto/master_execution.py"), encoding="utf-8").read()
+    check("不再只依赖 host 字段",
+          "getattr(host, \"training_allowed_symbols\", set())" not in _me
+          and "_training_allowed_cache = _resolve_training_allowed_symbols(host)" in _me,
+          "该字段在独立调度器配置下恒为空 → 空集等于不限制 → 守卫失效")
+except Exception as e:
+    check("训练期限制验证执行", False, f"{type(e).__name__}: {e}")
+
+print("\n── P2  master 决策快照回写 + pyramid/dca 可达性 ──")
+try:
+    _me2 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "backend/services/full_auto/master_execution.py"), encoding="utf-8").read()
+    _me2_code = "\n".join(l for l in _me2.splitlines() if not l.lstrip().startswith('#'))
+    _lines2 = _me2.splitlines()
+    _ia = next(i for i, l in enumerate(_lines2) if _re.match(r'\s*_snap_entry = snap\s*$', l))
+    _over = [i + 1 for i, l in enumerate(_lines2)
+             if i > _ia and _re.match(r'\s*_snap_entry = None\s*$', l)]
+    check("快照句柄不被同轮覆盖", not _over, f"覆盖行: {_over}" if _over else "DecisionSnapshot.executed 得以置位")
+    _n_calls = len(_re.findall(r'mark_master_decision_executed\(\s*_snap_entry', _me2_code))
+    check("8 处回写点仍在", _n_calls == 8, f"实际 {_n_calls}")
+
+    _top = [l for l in _lines2
+            if len(l) - len(l.lstrip()) == 8 and _re.match(r'\s*elif action == "(pyramid|dca)"', l)]
+    check("顶层 pyramid/dca 实现可达（P2-2 更正）", len(_top) == 2,
+          f"顶层分支 {len(_top)} 个 —— 审计原称不可达，实为嵌套冗余副本")
+except Exception as e:
+    check("P2 验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions"):
