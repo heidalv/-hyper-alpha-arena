@@ -213,20 +213,72 @@ def funding_net_rr_ok(
     return True, net_rr, f"net_rr={net_rr:.2f}{_unknown_tag}"
 
 
+def atr_sl_mult_for(lane: Optional[str] = None) -> float:
+    """**按车道**取入场止损的 ATR 倍数（轮101 值分离）。
+
+    为什么要按车道：`MIDLONG_ATR_SL_MULT`（默认 1.5）此前是中线与长线**共用的一个键** —
+    中线 12–48h 的初始止损与长线 3–7 天的初始止损不该同一个倍数。
+    长线的结构止损是 Chandelier = 高峰 − 3×ATR20(日线)，
+    入场地板取同一口径（3.0×ATR(1d)）才自洽；中线保持 1.5。
+    真源：`backend/config/lane_policy.py` 的 `entry_sl_atr_mult`。
+    未给车道（或真源不可用）时回退旧共用键 —— 行为与拆键前一致。
+    """
+    _legacy = _cfg_float("MIDLONG_ATR_SL_MULT", 1.5)
+    if not lane:
+        return _legacy
+    try:
+        from backend.config.lane_policy import policy_for
+        return float(policy_for(lane).entry_sl_atr_mult)
+    except Exception:
+        return _legacy
+
+
+def _lane_of_tier(tier: Optional[str]) -> Optional[str]:
+    """tier → 执行车道（mid / long）；无法判定返回 None。"""
+    try:
+        from backend.config.lane_policy import lane_of
+        return lane_of(tier=tier)
+    except Exception:
+        return None
+
+
+def risk_ref_atr_mult() -> float:
+    """**风险标尺**的 ATR 倍数 —— 刻意**不按车道**分（轮101 修正）。
+
+    为什么它必须共用：`atr_size_multiplier` 的语义是
+    「止损比波动率所要求的更宽 ⇒ 按比例缩仓」，即 **控制每笔的风险**。
+    风险标尺一旦跟着车道的"结构止损倍数"一起放大，宽止损就换不来缩仓 ——
+    风险随止损同步膨胀。实测（ATR(1d)=3%、原 SL=6%）：
+
+        只改结构倍数（错误做法）:  floor 6%→9%, ref=3×ATR=9% ⇒ mult=1.00 ⇒ 风险 9%
+        结构倍数 + 风险标尺分开:  floor 6%→9%, ref=1.5×ATR=4.5% ⇒ mult=0.50 ⇒ 风险 4.5%
+
+    后者才与中线（SL 6% × 0.75 = 4.5%）可比 —— 两条车道的**止损位置**不同，
+    但**每笔风险**必须同量级。可经 `MIDLONG_RISK_REF_ATR_MULT` 覆盖（默认 1.5 = 旧行为）。
+    """
+    return _cfg_float("MIDLONG_RISK_REF_ATR_MULT", 1.5)
+
+
 def atr_size_multiplier(
     *,
     sl_pct: float,
     atr_1d_pct: Optional[float],
     risk_pct: Optional[float] = None,
+    tier: Optional[str] = None,
 ) -> Tuple[float, str]:
-    """按 ATR/止损距离给出仓位乘子（只缩不放大，夹在 0.25~1.0）。"""
+    """按 ATR/止损距离给出仓位乘子（只缩不放大，夹在 0.25~1.0）。
+
+    `tier` 参数保留但**不参与**风险标尺计算（见 `risk_ref_atr_mult` 的说明）：
+    它只用于日志/未来扩展，避免调用方以为"按车道缩仓"存在。
+    """
     if not _cfg_bool("MIDLONG_ATR_SIZING_ENABLED", True):
         return 1.0, "atr_sizing_off"
     sl = float(sl_pct or 0)
     if sl <= 0:
         return 1.0, "no_sl"
     atr = float(atr_1d_pct or 0)
-    atr_mult = _cfg_float("MIDLONG_ATR_SL_MULT", 1.5)
+    # [轮101 修正] 风险标尺**不按车道**：止损越宽 ⇒ 仓位越小（风险守恒）
+    atr_mult = risk_ref_atr_mult()
     risk = float(risk_pct if risk_pct is not None else _cfg_float("MIDLONG_RISK_PCT", 0.01))
     ref = atr * atr_mult if atr > 0 else 0.0
     if ref <= 0:
@@ -244,6 +296,7 @@ def apply_structure_atr_floor(
     *,
     sl_pct: float,
     atr_1d_pct: Optional[float],
+    tier: Optional[str] = None,
 ) -> Tuple[float, str]:
     """止损至少覆盖 ATR×mult，避免长线被日噪音波扫。
 
@@ -253,11 +306,15 @@ def apply_structure_atr_floor(
     （UNI 19:11 实测，入场链死锁）。政策口径证据（ExitPolicy SL6% 反事实
     +8.1%/笔）支持「SL 不要无限放宽」。超过 2× 的抬升交给 ATR 仓位收缩
     （atr_size_multiplier）而非无限放宽止损距离。置 0 = 不设上限（旧口径）。
+
+    [轮101 值分离] `ATR×mult` 的倍数按车道取：中线 1.5（12–48h）、长线 3.0
+    （3–7 天，与 Chandelier 3×ATR20(日线) 同口径）。tier 省略时回退旧共用键。
     """
     atr = float(atr_1d_pct or 0)
     if atr <= 0:
         return float(sl_pct or 0), "no_atr"
-    floor = atr * _cfg_float("MIDLONG_ATR_SL_MULT", 1.5)
+    _mult = atr_sl_mult_for(_lane_of_tier(tier))
+    floor = atr * _mult
     sl = float(sl_pct or 0)
     if floor > sl:
         max_lift = _cfg_float("MIDLONG_ATR_FLOOR_MAX_LIFT", 2.0)

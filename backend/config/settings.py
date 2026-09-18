@@ -2567,6 +2567,11 @@ MIDLONG_ATR_SL_MULT_MID: float = float(
 MIDLONG_ATR_SL_MULT_LONG: float = float(
     os.getenv("MIDLONG_ATR_SL_MULT_LONG") or os.getenv("MIDLONG_ATR_SL_MULT", "1.5")
 )
+# [轮101] **风险标尺**的 ATR 倍数：`atr_size_multiplier` 用它判断"止损是否比波动率所要求的更宽"，
+# 从而按比例缩仓。它刻意**不按车道分** —— 风险标尺一旦跟着车道的结构止损倍数一起放大，
+# 宽止损就换不来缩仓、风险随止损同步膨胀（实测 4.5% → 9%，翻倍）。
+# 即：两条车道的**止损位置**不同，**每笔风险**必须同量级。默认 1.5 = 旧行为。
+MIDLONG_RISK_REF_ATR_MULT: float = float(os.getenv("MIDLONG_RISK_REF_ATR_MULT", "1.5"))
 
 # [2026-09-18 轮96 修 Fix C] 拒付追踪派生止损后，回退到哪个止损位时的**最小锁定利润**。
 # 语义：回退位 = `max(结构位, 入场×(1+本值))`（多头；空头对称）。

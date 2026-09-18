@@ -537,6 +537,22 @@ def try_execute_independent_agent_open(
     _session_id_aud = str(getattr(session, "session_id", "") or "")
 
     def _audit_skip(_reason: str, *, stage: str = "exec") -> None:
+        # [2026-09-18 解冻·选项E] 在执行链的**统一审计出口**登记否决原因，供 brain 的
+        # open_execute_false 事件消费（该事件此前完全没有 reason 字段）。
+        # 放在这里而不是逐个 `return False`：7 个内部闸（固定币守卫/MTF/冷却/费率/组合/预算/回踩）
+        # 全部走本函数，一处即全覆盖。只写审计侧标记，**不改变任何交易判定**。
+        try:
+            from backend.services.mlto.open_block_reason import (
+                mark_open_block,
+                remember_open_block,
+            )
+            mark_open_block(str(_reason or "exec_block"), layer="midlong_helpers")
+            # 额外按 (symbol, tier) 留一份：本函数末尾的 record_exec_false_audit() 会 take 掉
+            # ContextVar 版，上层 brain 取不到（见 open_block_reason 顶部注释）。
+            remember_open_block(_sym_u, str(tier or ""), str(_reason or "exec_block"),
+                                layer="midlong_helpers")
+        except Exception:
+            pass
         try:
             from backend.services.mlto.midlong_direction_audit import (
                 record_decision_audit,
@@ -848,8 +864,9 @@ def try_execute_independent_agent_open(
                     market_summary.setdefault(_sym_u, _ms_td)
                     market_summary[_sym_u]["atr_1d_pct"] = _atr
             _sl_before_floor = float(sl_pct or 0)
+            # [轮101] ATR 倍数按车道取（中线 1.5 / 长线 3.0，与 Chandelier 同口径）
             sl_pct, _atr_floor_why = apply_structure_atr_floor(
-                sl_pct=_sl_before_floor, atr_1d_pct=_atr,
+                sl_pct=_sl_before_floor, atr_1d_pct=_atr, tier=tier,
             )
             if "→" in str(_atr_floor_why):
                 logger.info("[MidLongATR] %s %s", _sym_u, _atr_floor_why)
@@ -903,7 +920,7 @@ def try_execute_independent_agent_open(
                     _audit_skip(f"midlong_funding_block:{_fr_why}")
                     return False
             _atr_sz, _atr_sz_why = atr_size_multiplier(
-                sl_pct=float(sl_pct or 0), atr_1d_pct=_atr,
+                sl_pct=float(sl_pct or 0), atr_1d_pct=_atr, tier=tier,
             )
             _atr_size_mult *= float(_atr_sz or 1.0)
             if _atr_size_mult < 0.999:
@@ -1462,6 +1479,18 @@ def record_exec_false_audit(*, symbol: str, tier: str, action: str, session=None
         _blk = {}
     _code = str(_blk.get("code") or "").strip()
     reason = f"eval_false:{_code}" if _code else "evaluate_and_execute_returned_false"
+    # [2026-09-18 解冻·选项E 补全] 这里拿到了**真实原因**，但 take() 已把它从 ContextVar 清空
+    # ⇒ 上层 brain 的 `open_execute_false` 事件读不到（实测 13:12:59 的 1000PEPE 落到 `<未登记>`，
+    # 真实原因是 `[V5Gate] BLOCK rule=regime_extreme`，由 proposal_execution 登记后被本函数取走）。
+    # 本函数是 `evaluate_and_execute` 返回 False 的**终端汇合点** ⇒ 在此再留一份按 (symbol,tier)
+    # 归位的副本，即可让上层读到，覆盖所有经此汇合的路径（含 V5Gate / paper_execution / 裸 return False）。
+    try:
+        from backend.services.mlto.open_block_reason import remember_open_block
+        remember_open_block(symbol, tier, reason,
+                            detail=str(_blk.get("detail") or ""),
+                            layer=str(_blk.get("layer") or "exec_false"))
+    except Exception:
+        pass
     try:
         from backend.services.mlto.midlong_direction_audit import record_decision_audit
         record_decision_audit(

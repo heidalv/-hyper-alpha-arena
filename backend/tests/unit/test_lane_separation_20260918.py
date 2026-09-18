@@ -194,16 +194,34 @@ def test_new_lane_keys_are_registered_in_env_registry():
 # ══════════════════════════════════════════════════════════════════
 
 
-def test_split_keys_default_to_the_legacy_shared_values():
-    """拆键不能顺手改行为：专属键未设置时 = 原共用键的当前值。"""
+def test_split_keys_keep_the_legacy_fallback():
+    """拆键必须保留"回退旧共用键"的语义（未迁移的部署行为不变）。
+
+    轮100 立键时两车道默认值都等于旧共用值；轮101 阶段2 **有意**把长线的
+    入场止损倍数改成 3.0 —— 所以这里不再断言"两车道默认相等"，
+    改为断言**回退机制仍在**：settings 里的表达式必须是
+    `os.getenv("..._LANE") or os.getenv("共用键")`。
+    """
+    src = (ROOT / "backend" / "config" / "settings.py").read_text(encoding="utf-8")
+    for key in ("MIDLONG_ATR_SL_MULT_MID", "MIDLONG_ATR_SL_MULT_LONG",
+                "MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID",
+                "MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_LONG"):
+        seg = src[src.index(f"{key}: "):][:400]        # 固定窗口，别按 ")" 切（会切在半截）
+        assert f'os.getenv("{key}")' in seg, f"{key} 未优先读车道专属键"
+        assert ('os.getenv("MIDLONG_ATR_SL_MULT"' in seg
+                or 'os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC"' in seg), (
+            f"{key} 丢了旧共用键回退 ⇒ 未迁移部署会静默改行为"
+        )
+
+
+def test_mid_side_value_is_unchanged_by_stage2():
+    """阶段2 只该改长线（与中线）；中线两项维持原值，避免顺手改到中线。"""
     import os
     from backend.config import settings as _st
-    legacy_iv = int(os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", "14400"))
-    legacy_atr = float(os.getenv("MIDLONG_ATR_SL_MULT", "1.5"))
-    assert _st.MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID == legacy_iv
-    assert _st.MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_LONG == legacy_iv
-    assert _st.MIDLONG_ATR_SL_MULT_MID == pytest.approx(legacy_atr)
-    assert _st.MIDLONG_ATR_SL_MULT_LONG == pytest.approx(legacy_atr)
+    assert _st.MIDLONG_ATR_SL_MULT_MID == pytest.approx(
+        float(os.getenv("MIDLONG_ATR_SL_MULT", "1.5")))
+    assert _st.MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID == int(
+        os.getenv("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC", "14400"))
 
 
 def test_separation_report_shape():
@@ -213,6 +231,90 @@ def test_separation_report_shape():
     # 报告要能回答"哪些字段两车道当前同值"（这是调参清单）
     assert isinstance(rep["merged_fields"], list)
     assert rep["shared_key_baseline"] == lp.SHARED_FALLBACK_BASELINE
+
+
+# ══════════════════════════════════════════════════════════════════
+# 阶段2：**值分离**（轮101）
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_stage2_values_are_lane_specific():
+    """三处最荒谬的共用值必须已按车道分开（`.env` 层面）。"""
+    mid, lng = lp.policy_for(lp.LANE_MID), lp.policy_for(lp.LANE_LONG)
+    # ① 入场止损 ATR 倍数：中线 1.5 / 长线 3.0（与 Chandelier 同口径）
+    assert mid.entry_sl_atr_mult == pytest.approx(1.5)
+    assert lng.entry_sl_atr_mult == pytest.approx(3.0)
+    # ② 中线恢复自己的时间尺度（原被 .env 拉成与长线相同的 7 天）
+    assert mid.max_hold_sec == 48 * 3600, f"中线 max_hold={mid.max_hold_sec/3600}h，应恢复 48h"
+    assert lng.max_hold_sec == 168 * 3600
+    assert mid.max_hold_sec != lng.max_hold_sec
+
+
+def test_stage2_keys_declared_in_env_file():
+    env = (ROOT / ".env").read_text(encoding="utf-8", errors="replace")
+    for key, val in (("MIDLONG_ATR_SL_MULT_MID", "1.5"),
+                     ("MIDLONG_ATR_SL_MULT_LONG", "3.0"),
+                     ("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_MID", "14400"),
+                     ("MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC_LONG", "14400"),
+                     ("TIER_MID_MAX_HOLD_SEC", "172800")):
+        m = re.search(rf"^{key}=(\S+)", env, re.M)
+        assert m, f"{key} 未在 .env 声明"
+        assert m.group(1) == val, f"{key}={m.group(1)}，期望 {val}"
+
+
+def test_long_lane_gets_a_wider_stop_than_mid():
+    """结构止损位置必须按车道不同（长线更宽，给趋势呼吸空间）。"""
+    from backend.services.mlto.midlong_trade_design import apply_structure_atr_floor
+    mid_sl, _ = apply_structure_atr_floor(sl_pct=0.06, atr_1d_pct=0.03, tier="mid")
+    lng_sl, _ = apply_structure_atr_floor(sl_pct=0.06, atr_1d_pct=0.03, tier="long")
+    assert mid_sl == pytest.approx(0.06), "中线不该被抬升（地板 4.5% < 6%）"
+    assert lng_sl == pytest.approx(0.09), f"长线应抬到 3×ATR=9%，实得 {lng_sl:.2%}"
+    assert lng_sl > mid_sl
+
+
+def test_per_trade_risk_is_lane_invariant():
+    """**关键不变式**：止损位置可以按车道不同，但每笔风险必须同量级。
+
+    这条是我在轮101 差点做错的地方：最初把 `atr_size_multiplier` 的风险标尺
+    也一起按车道放大（ref = 3×ATR），于是宽止损换不来缩仓 ——
+    长线每笔风险 9%、中线 4.5%，**翻倍**。风险标尺必须独立于结构止损倍数。
+    """
+    from backend.services.mlto.midlong_trade_design import (
+        apply_structure_atr_floor,
+        atr_size_multiplier,
+    )
+    risks = {}
+    for tier in ("mid", "long"):
+        sl, _ = apply_structure_atr_floor(sl_pct=0.06, atr_1d_pct=0.03, tier=tier)
+        mult, _ = atr_size_multiplier(sl_pct=sl, atr_1d_pct=0.03, tier=tier)
+        risks[tier] = sl * mult
+    assert risks["mid"] == pytest.approx(risks["long"], rel=1e-6), (
+        f"两车道每笔风险不一致: {risks}（宽止损必须换来缩仓）"
+    )
+    assert risks["mid"] == pytest.approx(0.045, rel=1e-6)
+
+
+def test_risk_yardstick_does_not_follow_the_lane():
+    """源码守卫：风险标尺不得按车道取值。
+
+    若有人把 `atr_size_multiplier` 里的 `risk_ref_atr_mult()` 又改成
+    `atr_sl_mult_for(lane)`，本测试变红 —— 那正是会让风险翻倍的改动。
+    """
+    src = (ROOT / "backend" / "services" / "mlto" / "midlong_trade_design.py").read_text(encoding="utf-8")
+    body = src[src.index("def atr_size_multiplier("):]
+    body = body[: body.index("def apply_structure_atr_floor(")]
+    live = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    assert "risk_ref_atr_mult()" in live
+    assert "atr_sl_mult_for(" not in live, (
+        "风险标尺跟了车道的结构止损倍数 ⇒ 宽止损换不来缩仓，风险随止损膨胀"
+    )
+
+
+def test_risk_yardstick_key_is_registered():
+    from backend.config import settings as _st
+    from backend.config import env_registry as er
+    assert hasattr(_st, "MIDLONG_RISK_REF_ATR_MULT")
+    assert "MIDLONG_RISK_REF_ATR_MULT" in er.KNOWN_FLAGS
 
 
 # ══════════════════════════════════════════════════════════════════

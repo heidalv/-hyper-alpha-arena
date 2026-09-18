@@ -501,7 +501,10 @@ def _llm_stops(
         if not isinstance(_ms, dict):
             _ms = {}
         _atr = estimate_atr_1d_pct(_ms)
-        sl, why = apply_structure_atr_floor(sl_pct=llm_sl, atr_1d_pct=_atr)
+        # [轮101] ATR 倍数按车道取（中线 1.5 / 长线 3.0）—— packet.tier 即车道档位
+        sl, why = apply_structure_atr_floor(
+            sl_pct=llm_sl, atr_1d_pct=_atr, tier=getattr(packet, "tier", None),
+        )
         if "→" in str(why):
             logger.info(
                 "[MLTO-LLMSL] %s %s %s", packet.symbol, packet.tier, why
