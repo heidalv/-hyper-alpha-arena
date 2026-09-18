@@ -107,14 +107,25 @@ def test_rolling_window_cap():
 
 
 # ── 3. SL 只收紧不放宽(止损失效修复) ──
+# [2026-09-18] 补 mark_price/entry_price：原 fixture 未设这两个字段，MagicMock 属性被
+# float() 强转成 1.0 → 形成「entry=1.0 / SL=95.0」的荒谬组合，恰好触发新增的
+# **保护侧不变式**（多头 SL 必须在现价下方）而被拒。该不变式是为修 BNB #4715
+# 幽灵成交事故加的，不应为了迁就 mock 而放宽，故这里把 fixture 补齐成真实形状。
+def _mk_sl_pos(sl_price: float):
+    pos = MagicMock()
+    pos.symbol = "TEST"; pos.side = "long"; pos.status = "open"
+    pos.sl_price = sl_price
+    pos.tp_price = None
+    pos.entry_price = 100.0
+    pos.mark_price = 100.0   # 现价在开仓价附近 → 保护侧判定可用
+    return pos
+
+
 def test_sl_widen_rejected():
     os.environ["MIDLONG_ALLOW_SL_WIDEN"] = "false"
     from backend.services.paper_trading_engine import PaperTradingEngine
     eng = PaperTradingEngine.__new__(PaperTradingEngine)
-    pos = MagicMock()
-    pos.symbol = "TEST"; pos.side = "long"; pos.status = "open"
-    pos.sl_price = 90.0  # 现有 SL(收紧方向)
-    pos.tp_price = None
+    pos = _mk_sl_pos(90.0)  # 现有 SL(收紧方向)
     db = MagicMock()
     db.query.return_value.filter.return_value.first.return_value = pos
     ok = eng.update_position_tp_sl(db, 1, sl_price=80.0)  # 放宽 → 拒
@@ -126,13 +137,10 @@ def test_sl_tighten_allowed():
     os.environ["MIDLONG_ALLOW_SL_WIDEN"] = "false"
     from backend.services.paper_trading_engine import PaperTradingEngine
     eng = PaperTradingEngine.__new__(PaperTradingEngine)
-    pos = MagicMock()
-    pos.symbol = "TEST"; pos.side = "long"; pos.status = "open"
-    pos.sl_price = 90.0
-    pos.tp_price = None
+    pos = _mk_sl_pos(90.0)
     db = MagicMock()
     db.query.return_value.filter.return_value.first.return_value = pos
-    ok = eng.update_position_tp_sl(db, 1, sl_price=95.0)  # 收紧 → 允许
+    ok = eng.update_position_tp_sl(db, 1, sl_price=95.0)  # 收紧(且低于现价) → 允许
     assert ok is True
     assert pos.sl_price == 95.0
 

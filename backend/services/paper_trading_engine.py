@@ -9,7 +9,7 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -101,6 +101,26 @@ def _clamp_leverage_by_tier(leverage: float, tier, symbol=None) -> float:
         钳制后的杠杆: 不低于 1,不高于该 tier 的 cap。
     """
     return _resolve_lev_authority(tier=tier, requested=leverage, symbol=symbol)
+
+
+def _as_float_or_none(v) -> Optional[float]:
+    """宽容取数：非数值（None / MagicMock / 字符串垃圾 / NaN）一律返回 None。
+
+    用于**保护侧不变式**的市价取值：判定必须建立在真实可用的价格上，
+    取不到时应放行（沿用既有语义），绝不能因为取数失败而阻断止损管理。
+    放在模块级是为了让判定函数本身不依赖具体对象的属性形状。
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if f != f:  # NaN（float('nan') != 自身）
+        return None
+    return f
+
+
+# 现价与开仓价的最大允许偏离：超过即认为取到的价不可信（含 Mock 被强转成 1.0 这类假数值）
+_SANITY_MAX_DEV = 0.5
 
 
 class PaperTradingEngine:
@@ -529,6 +549,91 @@ class PaperTradingEngine:
             except (TypeError, ValueError):
                 continue
         return 0.0
+
+    @staticmethod
+    def safe_sl_price(sl_price, *, side: str, market: float, entry: float = 0.0) -> float:
+        """保护侧不变式：多头 SL 必须低于现价、空头 SL 必须高于现价。
+
+        ## 为什么必须有这道闸（2026-09-18 实盘事故）
+
+        BNB 长线仓 #4715（entry=742.52）在**加仓后 0.55 秒**被平在 764.33，
+        账面 +12.11。实际当时 BNB 只在 750–756 成交，764.33 是**从未存在的价格**。
+
+        成因链：
+          1. 峰值以 `peak_pnl_pct`（相对 entry 的百分比）持久化；
+          2. 加仓把 entry 从 737.57 加权平均到 742.52，但 `peak_pnl_pct` 未换算，
+             仍保留按旧 entry 算出的比例；
+          3. 下一 tick 用 `entry × (1 + peak_pnl_pct)` 反推峰值价 → 得到**幽灵峰值**
+             775.97（真实最高仅 759.98）；
+          4. 保本推进处的「峰值追踪融合」取 `peak_px × (1-1.5%) = 764.33` 写入 SL；
+          5. 该 SL 在现价 751.0 **之上**，`current_price <= sl_price` 恒真 → 立即触发；
+          6. `close_position(fill_price_override=sl_price)` 用 SL 价而非市价成交 →
+             **幽灵成交**，虚增 PnL。
+
+        本函数在第 4 步拦截：任何会被写到现价错误一侧的 SL 一律拒绝（返回 0 表示不更新）。
+        合法方向（多头 SL 上移 / 空头 SL 下移）完全不受影响。
+
+        返回 0 的语义 = 「不要更新 SL」。**市价取不到或明显不可信时按原值放行**，
+        以免因一次取价失败/坏值而放弃止损管理：
+
+          - 非数值（None / 垃圾字符串 / NaN）→ 放行；
+          - 与 entry 偏离超过 `_SANITY_MAX_DEV`（50%）→ 视为坏值，放行。
+            这同时挡掉"MagicMock 之类对象被 float() 强转成 1.0"这种假数值。
+        """
+        s = _as_float_or_none(sl_price)
+        if s is None or s <= 0:
+            return 0.0
+        m = _as_float_or_none(market)
+        if m is None or m <= 0:
+            return s          # 市价不可用 → 放行，不阻断既有逻辑
+        e = _as_float_or_none(entry)
+        if e is not None and e > 0 and abs(m - e) / e > _SANITY_MAX_DEV:
+            # 现价与开仓价偏离过大（含被强转的假数值）→ 认为不可信，不做方向判定
+            return s
+        if str(side or "").lower() in ("long", "buy"):
+            return s if s < m else 0.0
+        return s if s > m else 0.0
+
+    @staticmethod
+    def rebase_peak_pct_for_entry(pos, old_entry: float, new_entry: float) -> None:
+        """加仓导致均价变化时，把 `peak_pnl_pct` 按**同一峰值价格**换算到新均价。
+
+        `peak_pnl_pct` 是 `峰值价/entry − 1` 的比例，只在 entry 不变时有意义。
+        加仓抬高均价后若不同步换算，用新 entry 反推峰值会系统性**高估**峰值价
+        （实测 775.97 vs 真实 759.98），进而把保本/追踪止损推到现价之上 ——
+        即 #4715 事故的直接触发条件。
+
+        保持「峰值价格」不变，只改比例口径：
+
+            peak_new_pct = peak_old_pct + (old_entry − new_entry) / new_entry      # long
+            peak_new_pct = peak_old_pct + (new_entry − old_entry) / new_entry      # short
+
+        无历史峰值（pct ≤ 0）或参数非法时不动。
+        """
+        try:
+            oe = float(old_entry or 0)
+            ne = float(new_entry or 0)
+            pct = float(getattr(pos, "peak_pnl_pct", 0.0) or 0.0)
+            if oe <= 0 or ne <= 0 or pct <= 0:
+                return
+            if abs(oe - ne) < 1e-12:
+                return
+            if str(getattr(pos, "side", "")).lower() in ("long", "buy"):
+                peak_price = oe * (1.0 + pct)
+                new_pct = peak_price / ne - 1.0
+            else:
+                peak_price = oe * (1.0 - pct)
+                new_pct = 1.0 - peak_price / ne
+            pos.peak_pnl_pct = float(max(0.0, new_pct))
+            # 美元口径峰值同样按新仓量重算（旧峰值是在更小仓量下产生的）
+            _peak_usd = float(getattr(pos, "peak_unrealized_pnl", 0.0) or 0.0)
+            _size = float(getattr(pos, "size", 0.0) or 0.0)
+            if _peak_usd > 0 and _size > 0:
+                _px_delta = (peak_price - ne) if str(getattr(pos, "side", "")).lower() in ("long", "buy") \
+                    else (ne - peak_price)
+                pos.peak_unrealized_pnl = float(max(0.0, _px_delta * _size))
+        except Exception as exc:
+            logger.debug("[Paper] peak 换算失败(非致命): %s", exc)
 
     @staticmethod
     def clamp_sl_price(sl_price, *, side: str, entry: float, tier: str):
@@ -1578,6 +1683,7 @@ class PaperTradingEngine:
         if existing:
             # ── 同 trade_nature 内合并 (add/dca) ──
             total_size = existing.size + order.quantity
+            _old_entry = float(existing.entry_price or 0)
             existing.entry_price = (
                 (existing.entry_price * existing.size + fill_price * order.quantity) / total_size
             )
@@ -1615,6 +1721,11 @@ class PaperTradingEngine:
             # tp_level_reached 基于旧均价，新均价下需重新评估
             if hasattr(existing, 'tp_level_reached'):
                 existing.tp_level_reached = 0
+            # [2026-09-18 幽灵峰值修复] peak_pnl_pct / peak_unrealized_pnl 同样基于旧均价，
+            # 必须按**同一峰值价格**换算到新均价。不改会造成「峰值价被高估 → 保本止损被推到
+            # 现价之上 → 下一 tick 以该止损价幽灵成交」（BNB #4715，加仓后 0.55s 被平在 764.33，
+            # 而当时真实价 751）。详见 safe_sl_price 的注释。
+            self.rebase_peak_pct_for_entry(existing, _old_entry, float(existing.entry_price or 0))
             # 清除 DSM 追踪止损内部状态（trailing_high/low, activation_hit）
             self._peak_profit_cache.pop(existing.id, None)
             try:
@@ -3115,7 +3226,7 @@ class PaperTradingEngine:
                     # 可行性门拦截（minNotional/费用预算）：档位不消费，下 tick 重试
                     return False
                 pos.tp_level_reached = 1
-                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
+                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1", market=current_price)
                 logger.info(
                     f"[Paper][v2-Unified] 两档模式TP1: {pos.symbol} {_side} "
                     f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}, 平40%, SL→保本"
@@ -3140,7 +3251,7 @@ class PaperTradingEngine:
                 # 追踪止损应位于 peak 上方（朝 entry 方向），漏乘会把 SL 放到现价下方 →
                 # 下一次判定立即触发并以低于市价成交，虚增空单浮盈。
                 _new_sl = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
-                self._tighten_sl_unified(pos, _new_sl, "staged_tp3")
+                self._tighten_sl_unified(pos, _new_sl, "staged_tp3", market=current_price)
                 logger.info(
                     f"[Paper][v2-Unified] TP3 触发: {pos.symbol} {_side} "
                     f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp3_mult']}, "
@@ -3156,7 +3267,7 @@ class PaperTradingEngine:
                     return False  # 可行性门拦截：档位不消费，下 tick 重试
                 pos.tp_level_reached = 2
                 _tp1_price = _entry + _atr_price * _params["tp1_mult"] * _side_dir
-                self._tighten_sl_unified(pos, _tp1_price + _atr_price * 0.5 * _side_dir, "staged_tp2")
+                self._tighten_sl_unified(pos, _tp1_price + _atr_price * 0.5 * _side_dir, "staged_tp2", market=current_price)
                 logger.info(
                     f"[Paper][v2-Unified] TP2 触发: {pos.symbol} {_side} "
                     f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp2_mult']}, "
@@ -3171,7 +3282,7 @@ class PaperTradingEngine:
                 if _closed is None:
                     return False  # 可行性门拦截：档位不消费，下 tick 重试
                 pos.tp_level_reached = 1
-                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1")
+                self._tighten_sl_unified(pos, _entry + _atr_price * 0.8 * _side_dir, "staged_tp1", market=current_price)
                 logger.info(
                     f"[Paper][v2-Unified] TP1 触发: {pos.symbol} {_side} "
                     f"Δ={_price_change_atr:.2f}ATR ≥ {_params['tp1_mult']}, 平25%, SL→保本")
@@ -3218,21 +3329,36 @@ class PaperTradingEngine:
         if _tp3_done and _peak_price > 0:
             # [P0-7 方向修复] 同 TP3：空单追踪止损须乘 _side_dir，避免 SL 落在现价下方。
             _new_trail = _peak_price - _atr_price * _params["trail_mult"] * _side_dir
-            self._tighten_sl_unified(pos, _new_trail, "unified_trailing")
+            self._tighten_sl_unified(pos, _new_trail, "unified_trailing", market=current_price)
 
         return False
 
-    def _tighten_sl_unified(self, pos, new_sl: float, reason: str) -> None:
+    def _tighten_sl_unified(self, pos, new_sl: float, reason: str,
+                            market: Optional[float] = None) -> None:
         """把 SL 向 entry 有利方向收紧 (long 取较大, short 取较小), 只收紧不放宽。
 
         与 _enforce_min_sl 配合: 此处先收紧, _enforce_min_sl 保证不会被压到
         小于最小距离。对 short, sl_price 从 None/0 视作 +inf, 任何有限值都算收紧。
+
+        [2026-09-18] 另加**保护侧不变式**：SL 不得落到现价错误一侧。
+        `market` 优先用调用方传入的**本 tick 现价**（权威，与触发判定同源）；
+        未传时退回 `pos.mark_price`；两者都拿不到则不拦截（不因取价失败放弃止损管理）。
         """
         try:
             _side = str(getattr(pos, "side", "long")).lower()
             _new = float(new_sl)
             if _new <= 0:
                 return
+            _market = float(market or 0) or float(getattr(pos, "mark_price", 0) or 0)
+            _safe = self.safe_sl_price(_new, side=_side, market=_market,
+                                       entry=_as_float_or_none(getattr(pos, "entry_price", None)) or 0.0)
+            if _safe <= 0 and _market > 0:
+                logger.warning(
+                    "[Paper][v2-Unified] SL 收紧被保护侧不变式拦截(%s): %s %s 目标=%s 现价=%s",
+                    reason, getattr(pos, "symbol", "?"), _side, _new, _market,
+                )
+                return
+            _new = _safe if _safe > 0 else _new
             _cur = float(getattr(pos, "sl_price", 0) or 0)
             if _side in ("long", "buy"):
                 if _new > _cur:
@@ -3354,7 +3480,18 @@ class PaperTradingEngine:
             return True
         if verdict.action == "tighten_sl" and verdict.new_sl:
             old_sl = pos.sl_price
-            pos.sl_price = float(verdict.new_sl)
+            # [2026-09-18] 保护侧不变式：ExitPolicy 给出的新 SL 若落在现价错误一侧，
+            # 下一 tick 立即触发并以该价幽灵成交（#4715）。拒绝并记 warning。
+            _safe_new_sl = self.safe_sl_price(
+                verdict.new_sl, side=side, market=float(current_price or 0),
+                entry=float(getattr(pos, "entry_price", 0) or 0))
+            if _safe_new_sl <= 0 and float(current_price or 0) > 0:
+                logger.warning(
+                    "[Paper][ExitPolicy] tighten_sl 被保护侧不变式拦截：%s %s 目标SL=%s 现价=%s",
+                    pos.symbol, side, verdict.new_sl, current_price,
+                )
+                return False
+            pos.sl_price = float(_safe_new_sl or verdict.new_sl)
             try:
                 self._ensure_sl_inside_liq(pos)
             except Exception:
@@ -3632,7 +3769,7 @@ class PaperTradingEngine:
                     if _remaining and _dd_action.get("new_sl"):
                         # [P0-7 单调] 走 _tighten_sl_unified（long 只升/short 只降），
                         # 直接赋值会把回撤后的更低 SL 反向放宽已锁利润位。
-                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_drawdown_partial")
+                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_drawdown_partial", market=current_price)
                         db.commit()
                         logger.info(
                             f"[Paper][D6] 剩余仓位 SL 收紧: {pos.symbol} {pos.side} "
@@ -3691,7 +3828,7 @@ class PaperTradingEngine:
                     ).first()
                     if _remaining and _dd_action.get("new_sl"):
                         # [P0-7 单调] 同 partial_close：单调收紧，不直接赋值。
-                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_stage_close")
+                        self._tighten_sl_unified(_remaining, _dd_action["new_sl"], "profit_stage_close", market=current_price)
                         _remaining.peak_unrealized_pnl = self._calc_unrealized_pnl(
                             float(_remaining.entry_price), float(current_price),
                             float(_remaining.size or 0), _remaining.side
@@ -3705,7 +3842,7 @@ class PaperTradingEngine:
                     _new_sl = _dd_action.get("new_sl")
                     if _new_sl:
                         # [P0-7 单调] 保本 SL 同样只朝有利方向推进。
-                        self._tighten_sl_unified(pos, float(_new_sl), "breakeven_sl")
+                        self._tighten_sl_unified(pos, float(_new_sl), "breakeven_sl", market=current_price)
                         logger.info(
                             f"[Paper][D7] 保本SL推进: {pos.symbol} {pos.side} "
                             f"SL→{pos.sl_price:.6f} reason={_dd_action.get('reason')}")
@@ -3717,7 +3854,7 @@ class PaperTradingEngine:
                     if _min_hold_ok or peak > position_value * 0.03:
                         if _dd_action.get("new_sl"):
                             # [P0-7 单调] 收紧 SL 走单调守卫，防止回撤时把锁利位往下调。
-                            self._tighten_sl_unified(pos, _dd_action["new_sl"], "profit_drawdown_tighten")
+                            self._tighten_sl_unified(pos, _dd_action["new_sl"], "profit_drawdown_tighten", market=current_price)
                             logger.info(
                                 f"[Paper][D6] 盈利回撤-锁利: {pos.symbol} {pos.side} "
                                 f"peak=${peak:.2f} → upnl=${current_upnl:.2f}, "
@@ -3960,13 +4097,28 @@ class PaperTradingEngine:
                             f"保本→{_sl:.6f} 峰值追踪→{_cand:.6f} (PROFIT-1)"
                         )
                         _sl = _cand
-                if pos.side == "long" and _sl > old_sl:
+                # [2026-09-18 幽灵峰值修复] 保护侧不变式：SL 若落在现价的错误一侧，
+                # 下一 tick 必然触发，且会以 SL 价（而非市价）成交 → 幽灵成交。
+                # 这里是 BNB #4715 事故的写入点，必须拦截。
+                _sl = self.safe_sl_price(_sl, side=getattr(pos, "side", ""),
+                                         market=float(current_price or 0),
+                                         entry=float(getattr(pos, "entry_price", 0) or 0))
+                if _sl <= 0:
+                    logger.warning(
+                        "[Paper][v2] 保本推进被保护侧不变式拦截：%s %s 目标SL=%s 现价=%s "
+                        "（峰值可能已失真，跳过本次 SL 更新）",
+                        getattr(pos, "symbol", "?"), getattr(pos, "side", ""),
+                        getattr(result, "sl_price", None), current_price,
+                    )
+                    return False
+                _side_p = str(getattr(pos, "side", "")).lower()
+                if _side_p == "long" and _sl > old_sl:
                     pos.sl_price = _sl
                     pos.trailing_stop_price = None
                     logger.info(
                         f"[Paper][v2] 保本推进: {pos.symbol} {pos.side} "
                         f"SL→{_sl:.6f}")
-                elif pos.side == "short" and (old_sl == 0 or _sl < old_sl):
+                elif _side_p == "short" and (old_sl == 0 or _sl < old_sl):
                     pos.sl_price = _sl
                     pos.trailing_stop_price = None
                     logger.info(
@@ -3989,10 +4141,19 @@ class PaperTradingEngine:
             # [2026-08-22 M1-6] 单调守卫：锁利 SL 只许收紧（long 升 / short 降），
             # 回撤时不得反向放宽已锁利润位（原直接赋值 → 可能回摆）。
             if result.sl_price:
-                _new_sl = float(result.sl_price)
+                # [2026-09-18] 保护侧不变式优先于单调守卫：落在现价错误一侧的 SL 直接拒绝，
+                # 否则会在下一 tick 立刻触发并以该 SL 价幽灵成交（BNB #4715 事故）。
+                _new_sl = self.safe_sl_price(result.sl_price, side=getattr(pos, "side", ""),
+                                             market=float(current_price or 0),
+                                             entry=float(getattr(pos, "entry_price", 0) or 0))
                 _old_sl = float(getattr(pos, "sl_price", 0) or 0)
                 _is_long = str(getattr(pos, "side", "long") or "long").lower() == "long"
-                if _old_sl <= 0:
+                if _new_sl <= 0:
+                    logger.warning(
+                        "[Paper][v2] 分批锁利 SL 被保护侧不变式拦截：%s %s 目标SL=%s 现价=%s",
+                        pos.symbol, pos.side, result.sl_price, current_price,
+                    )
+                elif _old_sl <= 0:
                     pos.sl_price = _new_sl
                 elif _is_long and _new_sl > _old_sl:
                     pos.sl_price = _new_sl
@@ -4771,22 +4932,90 @@ class PaperTradingEngine:
         return result
 
     def get_orders(self, db: Session, account_id: int, status: Optional[str] = None, limit: int = 50) -> List[Dict]:
-        from backend.database.models import PaperOrder, PaperPosition
+        """订单历史（含开仓价回退）。
+
+        [2026-09-18 性能] 原实现对**该账户全部** `paper_positions` 做 ORM 实体物化，
+        只为极少数缺 `entry_price` 的订单查一次开仓价。实测（账号 14）：
+        3,124 行 → 一次调用 **84.5ms**（其中 SQL 25ms、SQLAlchemy 造 3,124 个对象约 60ms），
+        而该端点被前端每 5s 轮询一次。改为：
+          1. 先算出真正需要回退的订单（缺 entry_price 且回放推断不出）；
+          2. 只为这些订单涉及的 `(symbol, side)` 组合取 **6 列投影**（不建实体）；
+          3. 时间窗/策略匹配等判定仍由 `_resolve_entry_from_positions` 原样执行。
+        口径不变：候选集是原候选集的**超集**判定等价（解析器只按 symbol+side 过滤）。
+        """
+        from backend.database.models import PaperOrder
+
         q = db.query(PaperOrder).filter(PaperOrder.account_id == account_id)
         if status:
             q = q.filter(PaperOrder.status == status)
         orders = q.order_by(PaperOrder.id.desc()).limit(limit).all()
-        positions = db.query(PaperPosition).filter(
-            PaperPosition.account_id == account_id
-        ).all()
         entry_fallback = self._build_entry_price_fallback(orders)
-        result = []
+
+        # 先物化订单字典（与原实现同序、同次数），并挑出需要持仓候选的订单
+        materialized: List[Tuple[Any, Dict]] = []
+        need_candidates: List[Any] = []
         for o in orders:
             d = self._order_to_dict(o)
+            materialized.append((o, d))
+            if not d.get("entry_price") and not entry_fallback.get(o.id):
+                need_candidates.append(o)
+
+        candidates = (
+            self._load_entry_price_candidates(db, account_id, need_candidates)
+            if need_candidates else []
+        )
+
+        result = []
+        for o, d in materialized:
             if not d.get("entry_price"):
-                d["entry_price"] = entry_fallback.get(o.id) or self._resolve_entry_from_positions(o, positions)
+                d["entry_price"] = (
+                    entry_fallback.get(o.id)
+                    or self._resolve_entry_from_positions(o, candidates)
+                )
             result.append(d)
         return result
+
+    def _load_entry_price_candidates(
+        self, db: Session, account_id: int, orders: List[Any]
+    ) -> List[Any]:
+        """按 `(symbol, side)` 取开仓价回退所需的最小列集（不构造 ORM 实体）。
+
+        - 只有**平仓单**（`close_reason` 非空）才可能用到持仓候选；
+          其余订单 `_resolve_entry_from_positions` 直接返回 `filled_price`，无需候选。
+        - 侧向映射沿用 `_position_side_from_close_order`，与解析器口径一致。
+        - 不下推任何时间语义：`opened_at/closed_at` 的判断仍在解析器里原样执行。
+        """
+        from backend.database.models import PaperPosition
+
+        pairs: set = set()
+        for o in orders:
+            if not getattr(o, "close_reason", None) or not getattr(o, "symbol", None):
+                continue
+            pairs.add((o.symbol, self._position_side_from_close_order(o.side)))
+        if not pairs:
+            return []
+
+        symbols = sorted({s for s, _ in pairs})
+        sides = sorted({sd for _, sd in pairs})
+        rows = (
+            db.query(
+                PaperPosition.symbol,
+                PaperPosition.side,
+                PaperPosition.strategy_id,
+                PaperPosition.entry_price,
+                PaperPosition.opened_at,
+                PaperPosition.closed_at,
+            )
+            .filter(
+                PaperPosition.account_id == account_id,
+                PaperPosition.symbol.in_(symbols),
+                PaperPosition.side.in_(sides),
+            )
+            .all()
+        )
+        # symbol+side 需精确配对，避免 (A, long) 与 (B, short) 交叉命中
+        return [r for r in rows if (r.symbol, r.side) in pairs]
+
 
     @staticmethod
     def _position_side_from_close_order(side: str) -> str:
@@ -5237,7 +5466,20 @@ class PaperTradingEngine:
                     pos.symbol, pos.side, _cur_sl, _new_sl,
                 )
             else:
-                pos.sl_price = sl_price
+                # [2026-09-18] 保护侧不变式：除 liq 内侧外，还必须在**现价**的止损侧。
+                # 取价一律走 _as_float_or_none：市价不可用（None/Mock/垃圾值）时放行，
+                # 不因为取数失败而阻断 AI 的止损调整。
+                _mkt_u = _as_float_or_none(getattr(pos, "mark_price", None)) or 0.0
+                _safe_sl = self.safe_sl_price(
+                    sl_price, side=_side_sl, market=_mkt_u,
+                    entry=_as_float_or_none(getattr(pos, "entry_price", None)) or 0.0)
+                if _safe_sl <= 0 and _mkt_u > 0:
+                    logger.warning(
+                        "[Paper] AI调整SL 被保护侧不变式拦截: %s %s 目标=%.6f 市价=%s",
+                        pos.symbol, pos.side, float(sl_price or 0), _mkt_u,
+                    )
+                    return False
+                pos.sl_price = _safe_sl or sl_price
                 # [P0-7 结构性加固] 所有 AI/紧急 SL 调整必须位于爆仓价内侧（含紧急 SL 路径），
                 # 否则高杠杆下 SL 永不先触发。_ensure_sl_inside_liq 会自动把越界 SL 钳回 liq 内侧。
                 try:
@@ -5391,11 +5633,28 @@ class PaperTradingEngine:
                 f"[Paper][Fast] {reason.upper()} 触发: {pos.symbol} {pos.side} "
                 f"@{current_price} {_px_attr}={getattr(pos, _px_attr, 0)}"
             )
+            # [2026-09-18 幽灵成交修复] 成交价不得优于市价：正常情况 SL 在市价的止损侧
+            # （多头 SL ≤ 现价），用 SL 价成交是「成交在该线」的正常语义；但若 SL 落在
+            # 现价错误一侧（#4715 事故），用 SL 价成交就凭空造出一个不存在的价格。
+            # 这里强制用「市价 / 触发线」中对持仓不利的那个，保证成交价永远是可成交的。
+            _trigger_px = float(getattr(pos, _px_attr) or 0)
+            _mkt = float(current_price or 0)
+            if _trigger_px > 0 and _mkt > 0:
+                _is_long_pos = str(getattr(pos, "side", "")).lower() in ("long", "buy")
+                _fill = min(_trigger_px, _mkt) if _is_long_pos else max(_trigger_px, _mkt)
+                if abs(_fill - _trigger_px) > 1e-9:
+                    logger.warning(
+                        "[Paper][Fast] %s %s 触发线 %s 落在市价 %s 的错误一侧，"
+                        "成交价按市价修正（防幽灵成交）",
+                        pos.symbol, pos.side, _trigger_px, _mkt,
+                    )
+            else:
+                _fill = _trigger_px or _mkt
             self.close_position(
                 db, pos.account_id, pos.symbol, pos.side,
                 reason=reason,
                 strategy_id=getattr(pos, "strategy_id", None),
-                fill_price_override=float(getattr(pos, _px_attr) or 0),
+                fill_price_override=_fill,
             )
             # ── [PostFill §3.5 2026-08-31] 硬线全平补登 ExitSource 事件 ──
             self._record_hard_line_exit_source(db, pos, reason)
