@@ -32,6 +32,25 @@ logger = logging.getLogger(__name__)
 _LOCK_FS_FAULT = object()
 
 
+def orphan_snapshot_stats(
+    snap_by_session: Dict[int, int], live_ids: Set[int]
+) -> "tuple[int, List[int]]":
+    """孤儿决策快照 = `decision_snapshots.session_id` 不在 `full_auto_sessions.id` 中。
+
+    返回 `(孤儿快照总条数, 升序的孤儿 session_id 列表)`。
+
+    [轮88 P2-7] 抽成纯函数是为了可测：`decision_snapshots` 在 AnalyticsBase
+    （`alpha_analytics`），`full_auto_sessions` 在 Core（`alpha_arena`），**两个物理库**，
+    跨库 `NOT IN (SELECT ...)` 无法用单条 SQL 表达，只能两边各查一次后在 Python 里求差。
+    这段"求差"以前是 `if False else None`（恒为 None，且结果从未被打印），
+    所以必须由回归测试钉住，而不是留在内联表达式里。
+    """
+    bucket = {int(k): int(v) for k, v in (snap_by_session or {}).items()}
+    live = {int(x) for x in (live_ids or set())}
+    orphan_ids = sorted(s for s in bucket if s not in live)
+    return sum(bucket[s] for s in orphan_ids), orphan_ids
+
+
 class FullAutoTradingService:
     """全自动交易服务（单例）"""
 
@@ -2135,6 +2154,7 @@ class FullAutoTradingService:
                 # DecisionSnapshot / AIDecisionLog 属于 AnalyticsBase，需使用
                 # AnalyticsSessionLocal 查询；否则通过 Core DB 会话会触发跨库路由问题
                 _ana_db = None
+                _snap_by_session: Dict[int, int] = {}
                 try:
                     from backend.database.connection import AnalyticsSessionLocal
                     _ana_db = AnalyticsSessionLocal()
@@ -2146,20 +2166,55 @@ class FullAutoTradingService:
                         _ana_db.query(_sa_func.count(AIDecisionLog.id))
                         .filter(AIDecisionLog.created_at >= _yesterday).scalar() or 0
                     )
-                except Exception:
+                    # P2-7 孤儿快照检测的第一步：Analytics 库里按 session_id 计数。
+                    # 必须在 Analytics session 上跑 —— decision_snapshots 属于
+                    # AnalyticsBase（alpha_analytics），用 Core 的 db 查会跨库路由失败。
+                    _snap_by_session = {
+                        int(r[0]): int(r[1])
+                        for r in _ana_db.execute(
+                            sa_text(
+                                "SELECT session_id, COUNT(*) FROM decision_snapshots "
+                                "WHERE session_id IS NOT NULL GROUP BY session_id"
+                            )
+                        ).fetchall()
+                    }
+                except Exception as _ana_err:
                     _snap_24h = 0
                     _log_24h = 0
+                    _snap_by_session = {}
+                    logger.debug(f"[FullAuto] 健康摘要 Analytics 查询失败: {_ana_err}")
                 finally:
                     if _ana_db is not None:
                         try:
                             _ana_db.close()
                         except Exception:
                             pass
-                # 孤儿快照检测：session_id 不在 full_auto_sessions 中
-                _orphan = db.execute(
-                    "SELECT COUNT(*) FROM decision_snapshots ds WHERE ds.session_id IS NOT NULL "
-                    "AND ds.session_id NOT IN (SELECT id FROM full_auto_sessions)"
-                ).scalar() if False else None
+                # 孤儿快照检测（session_id 不在 full_auto_sessions 中）
+                #
+                # 2026-09-18（轮88 修 P2-7）：原写法为
+                #     db.execute("SELECT COUNT(*) FROM decision_snapshots ds ... "
+                #                "AND ds.session_id NOT IN (SELECT id FROM full_auto_sessions)") \
+                #         .scalar() if False else None
+                # 三处都错：
+                #   ① `if False else None` 让它恒为 None，且 `_orphan` 从未出现在任何
+                #      日志里（算了却不打印）→ 孤儿快照长期不可见；
+                #   ② `decision_snapshots` 在 AnalyticsBase（alpha_analytics），
+                #      `full_auto_sessions` 在 Core（alpha_arena）—— **两个物理库**，
+                #      跨库 `NOT IN (SELECT ...)` 在单条 SQL 里根本不可能成立；
+                #   ③ `db.execute("裸 SQL 字符串")` 在 SQLAlchemy 2.x 需要 `text()` 包装。
+                # 改为两步集合差：Analytics 侧按 session_id 计数（上一段已取），
+                # Core 侧取合法 id，Python 里求差集。任一步失败按 0 记，摘要不阻塞启动。
+                _orphan = 0
+                _orphan_ids: List[int] = []
+                try:
+                    _live_ids = {
+                        int(r[0]) for r in db.execute(
+                            sa_text("SELECT id FROM full_auto_sessions")
+                        ).fetchall()
+                    }
+                    _orphan, _orphan_ids = orphan_snapshot_stats(_snap_by_session, _live_ids)
+                except Exception as _orph_err:
+                    logger.debug(f"[FullAuto] 孤儿快照检测失败（不影响主流程）: {_orph_err}")
                 logger.warning(
                     "════════════════════════════════════════════════════════"
                 )
@@ -2169,6 +2224,13 @@ class FullAutoTradingService:
                 logger.warning(f"[FullAuto] 全自动会话状态: {_status_str}")
                 logger.warning(f"[FullAuto] 24h 决策快照: {_snap_24h} 条")
                 logger.warning(f"[FullAuto] 24h AI 决策日志: {_log_24h} 条")
+                if _orphan:
+                    logger.warning(
+                        f"[FullAuto] ⚠️  孤儿决策快照: {_orphan} 条，分属 "
+                        f"{len(_orphan_ids)} 个已不存在的 session_id "
+                        f"{_orphan_ids[:5]}{' …' if len(_orphan_ids) > 5 else ''}"
+                        f"（自反思/经验库会检索到这些脏数据，需清理）"
+                    )
                 if not sessions:
                     logger.warning(
                         "[FullAuto] ⚠️  当前没有任何 running/defensive/paused 会话，"
