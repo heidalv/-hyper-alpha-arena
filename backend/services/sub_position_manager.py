@@ -589,10 +589,32 @@ class SubPositionManager:
         self, db: Session, account_id: int, symbol: str,
         exchange_qty: float = 0, exchange_side: str = "",
     ) -> Dict[str, Any]:
-        """对账: 子仓合计 vs 交易所仓位。"""
+        """对账: 子仓合计 vs 交易所仓位。
+
+        `exchange_qty` 为**带符号**数量（调用方口径：long 正 / short 负，
+        见 `full_auto/health_check_cycle.py:1207-1210`）。
+
+        ## 轮69 修复：此前对空头与「交易所已平」两种情形完全失明
+
+        旧实现唯一的门槛是 `if exchange_qty > 0:` —— 于是：
+
+        - **空头**（传入负数）整段被跳过，永远返回 `matched: True`；
+        - **交易所已平但内部仍有仓**（传入 0）同样被跳过，漏报正是最该报的背离。
+
+        对账是唯一能发现「漏成交 / 平仓没减仓 / 交易所被手动平掉」的检查，
+        对主力车道失明等于这层保护不存在。
+
+        另修：内部子仓方向不一致（同币既有多也有空）此前无声通过，现显式判不一致。
+        """
         subs = self.get_sub_positions(db, account_id, symbol)
         internal_qty = sum(s["size"] for s in subs)
         internal_side = subs[0]["side"] if subs else ""
+        _sides = {str(s.get("side") or "").lower() for s in subs}
+        _internal_mixed = len(_sides) > 1
+
+        _ex_qty_signed = float(exchange_qty or 0)
+        _ex_abs = abs(_ex_qty_signed)
+        _has_internal = bool(subs)
 
         result = {
             "symbol": symbol,
@@ -605,15 +627,42 @@ class SubPositionManager:
             "natures": [s["trade_nature"] for s in subs],
         }
 
-        if exchange_qty > 0:
-            diff = abs(internal_qty - exchange_qty)
-            if diff / max(exchange_qty, 1e-8) > 0.01:
-                result["matched"] = False
-                logger.warning(
-                    f"[SubPosMgr] 对账不一致 {symbol}: "
-                    f"内部={internal_qty:.6f} 交易所={exchange_qty:.6f} "
-                    f"差额={diff:.6f}"
-                )
+        def _flag(reason: str, **extra) -> None:
+            result["matched"] = False
+            result["mismatch_reason"] = reason
+            result.update(extra)
+            logger.warning(
+                f"[SubPosMgr] 对账不一致 {symbol}: {reason} "
+                f"内部={internal_qty:.6f}({internal_side or '-'}) "
+                f"交易所={_ex_qty_signed:.6f}({exchange_side or 'flat'})"
+            )
+
+        # 方向：内部同币不得既多又空
+        if _internal_mixed:
+            _flag("内部子仓方向不一致", internal_sides=sorted(_sides))
+            return result
+
+        # ① 交易所已平（或未上报），但内部仍持 ① 有仓 → 背离
+        if _ex_abs <= 1e-12:
+            if _has_internal:
+                _flag("交易所无仓位但内部仍持仓")
+            return result
+
+        # ② 内部无仓，交易所却有仓 → 背离（漏记开仓）
+        if not _has_internal:
+            _flag("交易所持仓但内部无子仓记录")
+            return result
+
+        # ③ 方向相反
+        _ex_side = "long" if _ex_qty_signed > 0 else "short"
+        if internal_side and _ex_side != internal_side:
+            _flag("方向相反", exchange_derived_side=_ex_side)
+            return result
+
+        # ④ 数量不符（用绝对值比，方向已在 ③ 校验）
+        diff = abs(internal_qty - _ex_abs)
+        if diff / max(_ex_abs, 1e-8) > 0.01:
+            _flag("数量不符", diff=diff)
 
         return result
 

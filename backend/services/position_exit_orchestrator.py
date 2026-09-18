@@ -130,7 +130,18 @@ class PositionExitOrchestrator:
                 from backend.services.exit.unified_exit_state_machine import PositionExitState
                 # 构造 PositionContext（从持仓 + state 读取）
                 _tier = (p.get("timeframe_tier") or ("long" if nature in ("trend_follow", "position") else "mid")).lower()
-                _pnl_pct = state.peak_pnl_pct  # 用 nature_staged_tp 已算的 peak
+                # [轮69 修单位错配] `peak_pnl_pct` 在**本函数上游是分数**（0.05 = +5%）：
+                #   ・`nature_staged_tp.pnl_pct()` 返回 `(cur-entry)/entry`（分数），
+                #     并据此反推峰值价 `entry*(1+pct)`（`nature_staged_tp.py:129`）；
+                #   ・`:118 db_pos.peak_pnl_pct = max(..., state.peak_pnl_pct)` 与
+                #     `paper_positions.peak_pnl_pct`（实测 0.0301 = 3.01%）同尺度。
+                # 而 `PositionContext` 的契约是**百分数**（`exit_types.py:85-86` 注明
+                # 「浮盈亏百分比」；`tier_exit_strategies.py:274` 显式 `/100` 转回分数，
+                # `:263` 与 `0.3`（=0.3%）比较）。
+                # 同一 context 里 `unrealized_pnl_pct` 已是百分数（下一行 ×100），
+                # 此前只漏了 peak → `drawdown = peak - unrealized` 恒为负
+                # （如 0.05 - 5.0），追踪/回撤出场永不触发，ranging 例外恒被取用。
+                _pnl_pct = float(state.peak_pnl_pct or 0.0) * 100.0
                 _current_pnl = ((mark - entry) / entry * 100) if side in ("long", "buy") else ((entry - mark) / entry * 100)
                 # 读 invalidation_condition（S2-5c 写入的）
                 _invalidation = state_data.get("invalidation_condition", "")
