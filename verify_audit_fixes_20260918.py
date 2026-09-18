@@ -968,6 +968,66 @@ try:
 except Exception as e:
     check("轮105 长线车道/因子口径验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮106  因子 → LLM 注入的方向语义 ──────────────────────────────────
+print("\n── 轮106  长线因子注入 LLM（方向语义 / 排序 / 兼容性）──")
+try:
+    from backend.services.factor_engine.midlong_active_factor_set import (
+        midlong_active_factor_set as _ml106,
+    )
+    _snap106 = _ml106.build_snapshot("BTC")
+    check("① 注入链路通：build_snapshot 在 4h/1d 都有读数",
+          int(_snap106.get("count") or 0) > 0
+          and bool(_snap106.get("4h")) and bool(_snap106.get("1d")),
+          f"count={_snap106.get('count')} 4h={len(_snap106.get('4h') or {})} "
+          f"1d={len(_snap106.get('1d') or {})}")
+
+    _meta106 = _snap106.get("meta") or {}
+    check("② 快照带方向语义 meta（sign/ic），且键与显示键一致",
+          bool(_meta106) and all(
+              k in _meta106 for tf in ("4h", "1d") for k in (_snap106.get(tf) or {})),
+          f"meta {len(_meta106)} 条；registry 因子同时登记裸 id 与 @tf 后缀两种键")
+    check("② AST 因子的 meta.ic 已按 FACTOR_ROUTE_AST_IC_CAP 封顶（ICIR 不得冒充 IC）",
+          all(m.get("ic_capped") for k, m in _meta106.items() if str(k).startswith("evo_"))
+          or not any(str(k).startswith("evo_") for k in _meta106),
+          str({k: v for k, v in list(_meta106.items()) if str(k).startswith("evo_")})[:200])
+
+    class _Pkt106:
+        symbol = "BTC"
+        tier = "long"
+        quant_brief = {}
+        analyst_reports = {}
+        portfolio = {}
+        orchestrator = {"bias": "bullish"}
+
+        def __init__(self, ms):
+            self.market_summary_sym = ms
+
+    import backend.services.mlto.qual_layer as _ql106
+    _ms106 = {"midlong_factors": _snap106, "current_price": 81150.0,
+              "framework_signals": "bullish"}
+    _brief106 = _ql106._build_market_brief(_Pkt106(_ms106))
+    _fline = next((ln for ln in _brief106.splitlines() if "中长线因子证据" in ln), "")
+    _sline = next((ln for ln in _brief106.splitlines() if "方向语义" in ln), "")
+    check("③ prompt 行渲染出来且标了『反向』（IC<0 的因子量化层反着用）",
+          bool(_fline) and "(反向)" in _fline and bool(_sline),
+          (_fline or "（没有因子行！）")[:320])
+    _seg106 = _fline.split("4h[", 1)[1].split("]", 1)[0] if "4h[" in _fline else ""
+    _order106 = [x.strip().split("=")[0] for x in _seg106.split(",") if x.strip()]
+    check("③ 排序按 |IC| 而非原始量纲（vwap |IC|=0.47 排在 macd=312 之前）",
+          bool(_order106) and _order106[0] == "vwap",
+          f"4h 顺序={_order106[:6]}")
+
+    _old106 = {k: v for k, v in _snap106.items() if k != "meta"}
+    _brief_old = _ql106._build_market_brief(
+        _Pkt106({"midlong_factors": _old106, "current_price": 81150.0}))
+    check("④ 向后兼容：无 meta 的旧快照仍能渲染，且 4h/1d 的值仍是 float",
+          "中长线因子证据" in _brief_old
+          and all(isinstance(v, float) for tf in ("4h", "1d")
+                  for v in (_snap106.get(tf) or {}).values()),
+          "`midlong_helpers` 的 SignalTradeFeedback 记录依赖 float")
+except Exception as e:
+    check("轮106 因子注入验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

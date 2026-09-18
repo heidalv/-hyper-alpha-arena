@@ -532,6 +532,62 @@ class MidLongActiveFactorSet:
             except Exception as e:
                 logger.debug(f"[MidLongFactorSet] {symbol} 公式因子快照失败: {e}")
         out["count"] = n
+        # ── [轮106 2026-09-19] 注入**方向语义**（零成本，不额外算因子）──────────────
+        # 问题：`qual_layer` 把 `4h/1d` 的**原始读数**渲染进长线/中线 LLM 提示词，
+        # 而量化层对 IC<0 的因子是按**反向着**使用的（`expected_sign=-1`）。
+        # 实测注入行 `4h[macd=+312.086 hv=+78.854 obv=+29.029 ...]` 里前 6 个有 5 个是
+        # 反向因子 —— LLM 看到"MACD 大正"会读成动能强多头，而因子路由对同一读数投的是
+        # **空票**（macd@4h IC=-0.114 → orient=-1）。这是"注入的证据方向与量化层相反"。
+        # 另一个后果是排序：按 |原始值| 排前 6 会被量纲最大的因子（macd 312 vs SOL 1.18）
+        # 长期占满，与预测力无关。
+        # 这里只附上每个因子**已有的** locked sign 与 |IC|（不重算任何因子），
+        # 供 prompt 渲染方向标注与按预测力排序；`4h`/`1d` 的原始 float 结构保持不变
+        # （`midlong_helpers` 的 SignalTradeFeedback 记录依赖它是 float）。
+        try:
+            # AST 桥接的 `ic_mean` 装的是 ICIR（见 `_tradable_ast_bridge`），
+            # 与路由的票权封顶同一把尺子（`FACTOR_ROUTE_AST_IC_CAP`），否则它会
+            # 在 prompt 的 |IC| 排序里长期霸榜（1.307 vs 公式因子 0.11）。
+            _ast_cap = 0.15
+            try:
+                from backend.services.factor_engine.midlong_factor_route import (
+                    _ast_ic_cap as _cap_fn,
+                )
+                _ast_cap = float(_cap_fn())
+            except Exception:
+                pass
+
+            _meta: Dict[str, Dict[str, Any]] = {}
+            for _rec in active:
+                _fid = str(_rec.get("factor_id") or "")
+                if not _fid:
+                    continue
+                _sc = _rec.get("scores") or {}
+                try:
+                    _ic_raw = float(_sc.get("ic_mean") or 0.0)
+                except (TypeError, ValueError):
+                    _ic_raw = 0.0
+                _sg = _sc.get("expected_sign")
+                try:
+                    _sg = int(_sg) if _sg is not None else (1 if _ic_raw >= 0 else -1)
+                except (TypeError, ValueError):
+                    _sg = 1 if _ic_raw >= 0 else -1
+                _is_ast = str((_rec.get("extra") or {}).get("kind") or "") == "ast"
+                _ic = min(abs(_ic_raw), _ast_cap) if (_is_ast and _ast_cap > 0) else abs(_ic_raw)
+                _entry = {
+                    "sign": _sg if _sg != 0 else 1,
+                    "ic": round(_ic, 4),
+                    **({"ic_capped": round(_ast_cap, 4)} if _is_ast and _ast_cap > 0 else {}),
+                }
+                # 键要与 `out[tf]` 里的**显示键**一致：registry 因子算出来的值用的是
+                # 裸 registry id（`macd`），而 store 的 factor_id 带周期后缀（`macd@4h`）。
+                # 两处都登记，渲染端按显示键查得到。
+                for _k in {_fid, _fid.split("@", 1)[0]}:
+                    if _k:
+                        _meta[_k] = _entry
+            if _meta:
+                out["meta"] = _meta
+        except Exception as _meta_err:      # noqa: BLE001 — 语义标注失败不得影响注入
+            logger.debug(f"[MidLongFactorSet] 方向语义标注跳过: {_meta_err}")
         return out
 
     @staticmethod

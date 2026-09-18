@@ -171,6 +171,46 @@ def test_concentration_ignores_skipped_votes():
     assert rep["offenders"] == [] and rep["formula_median_w"] is None
 
 
+def test_ast_weight_is_clamped_by_construction(monkeypatch):
+    """[轮106] 不变量必须**按构造成立**，而不是只告警。
+
+    实测：轮105 只加告警，第二天权重文件刷新后 AST 票权就变成公式中位的 3.9×。
+    所以路由在投票前预扫票权，把 AST 钳到「公式中位 × _CONC_MAX_RATIO」以内。
+    """
+    import numpy as np
+
+    import backend.config.settings as _s
+    import backend.services.factor_engine.midlong_active_factor_set as mafs
+
+    class _FakeSet:
+        def get_active_factors(self):
+            return [
+                {"factor_id": "f1@4h", "scores": {"ic_mean": 0.10, "expected_sign": -1},
+                 "runtime_weight": 0.01, "extra": {"timeframe": "4h", "kind": "registry"}},
+                {"factor_id": "f2@4h", "scores": {"ic_mean": 0.10, "expected_sign": 1},
+                 "runtime_weight": 0.01, "extra": {"timeframe": "4h", "kind": "registry"}},
+                # AST 的 ic_mean 实为 ICIR(1.0)：封顶后票权 0.15×0.2 = 0.03，
+                # 仍是公式因子（0.10×0.01 = 0.001）的 30 倍 → 必须被钳到 0.003
+                {"factor_id": "evo_x", "scores": {"ic_mean": 1.0, "expected_sign": 1},
+                 "runtime_weight": 0.2,
+                 "extra": {"kind": "ast", "timeframe": "4h", "expr_ast": AST_MEAN5}},
+            ]
+
+    monkeypatch.setattr(mafs, "midlong_active_factor_set", _FakeSet())
+    monkeypatch.setattr(_s, "FACTOR_ROUTE_MIN_ACTIVE_FACTORS", 1, raising=False)
+    monkeypatch.setattr(R, "_resolve_regime", lambda s, ms=None: "ranging")
+    monkeypatch.setattr(R, "_factor_history", lambda rec, sym: np.linspace(0.0, 3.0, 200))
+    monkeypatch.setattr(R, "_dynamic_sl_tp", lambda s: (0.05, 0.10, "t"))
+
+    out = R.factor_route_decide("BTC", {"BTC": {"current_price": 100.0}})
+    assert out.get("ast_weight_clamped"), out
+    _ast_w = out["votes"]["evo_x"]["w"]
+    _f_w = [v["w"] for k, v in out["votes"].items() if not str(k).startswith("evo_")]
+    assert _ast_w <= R._CONC_MAX_RATIO * float(np.median(_f_w)) + 1e-9, (_ast_w, _f_w)
+    assert out["votes"]["evo_x"].get("w_clamped_from") == pytest.approx(0.03), out["votes"]["evo_x"]
+    assert R.concentration_report(out["votes"])["offenders"] == []
+
+
 # ══════════════════════════════════════════════════════════════════════
 # 源码级棘轮：三处修复都还在
 # ══════════════════════════════════════════════════════════════════════

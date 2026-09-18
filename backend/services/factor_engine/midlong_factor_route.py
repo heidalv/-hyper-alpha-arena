@@ -474,6 +474,46 @@ def factor_route_decide(
     _regime_now = _resolve_regime(sym, market_summary) if _invert_on else ""
     if _invert_on and _regime_now in _TREND_REGIMES:
         out["trend_invert_regime"] = _regime_now
+
+    # ── [轮106] 票权预扫：让「集中度不变量」**按构造成立**，而不是只告警 ──────────
+    # 轮105 只加告警，实测第二天权重文件刷新后立刻被打破：
+    #   AST 票权 0.0201 / 公式中位 0.0051 = **3.9×**（阈值 3×）。
+    # 根因是权重文件本身会重写（AST 那两条文件的权重涨、公式因子整体降），
+    # 而 AST 的幅度是 ICIR 代理 ⇒ 两边量纲不同，任何固定 cap 都挡不住文件的漂移。
+    # 所以这里把 AST 票权**钳到「公式因子票权中位数 × _CONC_MAX_RATIO」**以内，
+    # 与 `concentration_report` 用同一把尺子（不变量即代码）。
+    _w_pre: Dict[str, Dict[str, Any]] = {}
+    for _rec in active:
+        _fid = str(_rec.get("factor_id") or "")
+        _sc = _rec.get("scores") or {}
+        try:
+            _ic_x = float(_sc.get("ic_mean") or 0.0)
+        except (TypeError, ValueError):
+            _ic_x = 0.0
+        _rw_x = _rec.get("runtime_weight")
+        _rw_xv = 1.0 if _rw_x is None else float(_rw_x)
+        _is_ast_x = str((_rec.get("extra") or {}).get("kind") or "") == "ast"
+        _amp_x = abs(_ic_x)
+        _capped_x = None
+        if _is_ast_x:
+            _cap_x = _ast_ic_cap()
+            if _cap_x > 0 and _amp_x > _cap_x:
+                _capped_x, _amp_x = _cap_x, _cap_x
+        _w_pre[_fid] = {"w": _amp_x * _rw_xv, "ast": _is_ast_x, "ic": _ic_x,
+                        "ic_capped": _capped_x}
+    _fw = [v["w"] for v in _w_pre.values() if not v["ast"] and v["w"] > 0]
+    _conc_cap = (float(np.median(_fw)) * _CONC_MAX_RATIO) if _fw else None
+    _clamped_n = 0
+    if _conc_cap is not None:
+        for _fid, _v in _w_pre.items():
+            if _v["ast"] and _v["w"] > _conc_cap:
+                _v["w_clamped"] = round(_v["w"], 6)
+                _v["w"] = _conc_cap
+                _clamped_n += 1
+    if _clamped_n:
+        out["ast_weight_clamped"] = {"n": _clamped_n,
+                                     "cap": round(float(_conc_cap), 6)}
+
     for rec in active:
         fid = str(rec.get("factor_id") or "")
         scores = rec.get("scores") or {}
@@ -508,6 +548,11 @@ def factor_route_decide(
             if _cap > 0 and _amp > _cap:
                 _amp_capped, _amp = _cap, _cap
         w = _amp * _rw_v
+        # [轮106] 用预扫结果（同一套公式 + 集中度钳制），保证不变量按构造成立
+        _wrec = _w_pre.get(fid) or {}
+        if isinstance(_wrec.get("w"), (int, float)):
+            w = float(_wrec["w"])
+        _w_clamped = _wrec.get("w_clamped")
         vals = _factor_history(rec, sym)
         if vals is None:
             votes[fid] = {"z": None, "vote": None, "skip": "no_history"}
@@ -538,6 +583,8 @@ def factor_route_decide(
                      "w": round(w, 6)}
         if _amp_capped is not None:
             _rec_vote["ic_capped"] = round(_amp_capped, 4)
+        if _w_clamped is not None:
+            _rec_vote["w_clamped_from"] = float(_w_clamped)
         if _inv:
             _rec_vote["trend_inverted"] = True
         votes[fid] = _rec_vote

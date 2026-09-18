@@ -425,24 +425,59 @@ def _build_market_brief(packet) -> str:
     mf = ms.get("midlong_factors")
     if isinstance(mf, dict) and mf.get("count"):
         # v6 M4：因子只作 LLM 证据摘要（禁止进 Hub 投票），给深度分析看读数
+        # [轮106 2026-09-19] 方向语义 + 按预测力排序（见 `build_snapshot` 的说明）：
+        #   ① 标 `sign=-1`（IC<0）的因子在量化层是**反着用**的 → prompt 里必须标「反向」，
+        #      否则 LLM 会把 `macd=+312`(IC=-0.114) 读成多头，而路由投的是空票；
+        #   ② 排序改用 |IC|（预测力）而不是 |原始值| —— 否则前 6 名长期被量纲最大的
+        #      因子刷屏（macd 312 / hv 78.9 vs SOL 的 macd 1.18），与信息量无关。
         bits = [f"count={mf.get('count')}"]
+        _meta = mf.get("meta") if isinstance(mf.get("meta"), dict) else {}
+        _inv_labels: List[str] = []
         for tf in ("4h", "1d"):
             vals = mf.get(tf) or {}
             if not isinstance(vals, dict) or not vals:
                 continue
             ranked = []
-            for k, v in list(vals.items())[:12]:
+            for k, v in vals.items():
                 try:
-                    ranked.append((str(k), float(v)))
+                    _fv = float(v)
                 except (TypeError, ValueError):
                     continue
-            ranked.sort(key=lambda x: abs(x[1]), reverse=True)
-            top = ", ".join(f"{k}={v:+.3f}" for k, v in ranked[:6])
+                _m = _meta.get(str(k)) or {}
+                try:
+                    _ic = abs(float(_m.get("ic") or 0.0))
+                except (TypeError, ValueError):
+                    _ic = 0.0
+                try:
+                    _sg = int(_m.get("sign") or 1)
+                except (TypeError, ValueError):
+                    _sg = 1
+                ranked.append((str(k), _fv, _ic, _sg))
+            if not ranked:
+                continue
+            # 有 meta → 按 |IC| 排（跨币可比）；无 meta → 退回旧的按 |值| 排
+            ranked.sort(key=(lambda x: x[2]) if _meta else (lambda x: abs(x[1])), reverse=True)
+            top6 = ranked[:6]
+            _inv_labels += [k for k, _v, _i, _s in top6 if _s < 0]
+            _parts = []
+            for k, v, _i, _s in top6:
+                _m = _meta.get(k) or {}
+                _tag = ""
+                if _s < 0:
+                    _tag += "(反向)"
+                if _m.get("ic_capped"):
+                    # AST 桥接的 ic 是 ICIR 代理（已按 FACTOR_ROUTE_AST_IC_CAP 封顶），
+                    # 不能让 LLM 误以为它比公式因子"更权威"。
+                    _tag += "(ICIR代理)"
+                _parts.append(f"{k}={v:+.4g}{_tag}")
+            top = ", ".join(_parts)
             if top:
                 bits.append(f"{tf}[{top}]")
         fw_sig = ms.get("framework_signals") or ms.get("orch_bias") or orch.get("bias")
         if fw_sig is not None:
             bits.append(f"framework_ref={fw_sig}")
+        if _inv_labels:
+            bits.append("方向语义: 标『反向』者 IC<0，量化层反着用（读数越高越看空）")
         lines.append("中长线因子证据(仅供分析,不投票): " + " | ".join(bits))
     reports = packet.analyst_reports or {}
     if isinstance(reports, dict) and reports:
