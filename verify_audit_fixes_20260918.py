@@ -205,6 +205,76 @@ try:
 except Exception as e:
     check("PnL 口径验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── P1 时区（轮71）────────────────────────────────────────────────────
+print("\n── P1  TIMESTAMP 读侧时区（本地 naive 不得当 UTC）──")
+try:
+    import re as _re
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    from backend.utils.db_datetime import db_dt_for_age
+
+    now_local = _dt.now()
+    now_utc = now_local.astimezone(_tz.utc)
+    naive_from_db = now_local.replace(tzinfo=None)
+
+    old_h = (now_utc - naive_from_db.replace(tzinfo=_tz.utc)).total_seconds() / 3600.0
+    new_h = (now_utc - db_dt_for_age(naive_from_db)).total_seconds() / 3600.0
+    check("时长计算不再差 8 小时", (-8.01 < old_h < -7.99) and abs(new_h) < 0.01,
+          f"旧算法 elapsed={old_h:.2f}h（刚写入即 -8h）→ 新算法 {new_h:.4f}h")
+
+    cd_h = 1.0
+    two_h_ago = (now_local - _td(hours=2)).replace(tzinfo=None)
+    old_2h = (now_utc - two_h_ago.replace(tzinfo=_tz.utc)).total_seconds() / 3600.0
+    new_2h = (now_utc - db_dt_for_age(two_h_ago)).total_seconds() / 3600.0
+    check("减仓冷却不再被拉长 8h",
+          (old_2h < cd_h) and (new_2h >= cd_h),
+          f"距上次 2h / 冷却 {cd_h}h：旧={old_2h:.1f}h→仍判冷却中(错)；新={new_2h:.1f}h→放行(对)")
+
+    _root = os.path.dirname(os.path.abspath(__file__))
+    _spm = io.open(os.path.join(_root, "backend/services/sub_position_manager.py"), encoding="utf-8").read()
+    _spm_code = _re.sub(r'#.*', '', _spm)
+    check("sub_position_manager 四处站点均归一化",
+          (not _re.search(r'\.replace\(tzinfo=timezone\.utc\)', _spm_code))
+          and _spm_code.count("db_dt_for_age") >= 4,
+          f"db_dt_for_age 使用 {_spm_code.count('db_dt_for_age')} 处；无裸 replace(tzinfo=utc)")
+
+    _rc = io.open(os.path.join(_root, "backend/services/reentry_cooldown.py"), encoding="utf-8").read()
+    check("reentry_cooldown 截止值与本地钟面同尺度",
+          "since = datetime.now() - timedelta(seconds=lookback)" in _rc)
+except Exception as e:
+    check("时区验证执行", False, f"{type(e).__name__}: {e}")
+
+# ── P1 敞口 fail-closed（轮72）─────────────────────────────────────────
+print("\n── P1  在手敞口读取失败必须 fail-closed ──")
+try:
+    from unittest.mock import MagicMock
+
+    from backend.services.position_construction import open_notionals
+
+    _db_ok = MagicMock()
+    _db_ok.execute.return_value.fetchall.return_value = [("BTC", "long", "trend_follow", 1.0, 100.0, 100.0)]
+    ok_res = open_notionals(_db_ok, 14, "BTC", lane="long")
+
+    _db_bad = MagicMock()
+    _db_bad.execute.side_effect = RuntimeError("relation does not exist")
+    bad_res = open_notionals(_db_bad, 14, "BTC", lane="long")
+
+    check("成功时 ok=True 且数字可信", ok_res.get("ok") is True and ok_res["total"] == 100.0,
+          f"ok={ok_res.get('ok')} total={ok_res['total']}")
+    check("DB 异常时 ok=False（与「零敞口」可区分）", bad_res.get("ok") is False,
+          f"ok={bad_res.get('ok')} —— 裸数字 {bad_res['total']} 与无仓位时相同，只能靠 ok 分辨")
+
+    _root = os.path.dirname(os.path.abspath(__file__))
+    _sites = [("backend/services/paper_trading_engine.py", '_open.get("ok", False)'),
+              ("backend/services/trading_commands.py", '_open.get("ok", False)'),
+              ("backend/services/trend_e1_engine.py", 'opens.get("ok", False)')]
+    missing = [rel for rel, needle in _sites
+               if needle not in io.open(os.path.join(_root, rel), encoding="utf-8").read()]
+    check("三个调用点均已 fail-closed", not missing,
+          "、".join(missing) if missing else "paper_trading_engine / trading_commands / trend_e1_engine")
+except Exception as e:
+    check("敞口 fail-closed 验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions"):
