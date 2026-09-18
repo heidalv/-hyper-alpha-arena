@@ -2752,17 +2752,21 @@ class TrendCycle(Base):
 
 
 class PeriodDailyReport(Base):
-    """三周期统一日报（2026-08-19 报告观测体系）。
+    """双车道统一日报（2026-08-19 建立，2026-09-18 轮63 收敛为车道口径）。
 
-    每 (report_date, account_id, horizon) 一行；horizon=scalp/midlong/long。
-    payload_json 存规则统计（交易/持仓/动作/亏损归因），llm_summary 存 LLM 定性分析（可选）。
+    每 (report_date, account_id, lane) 一行；lane=intraday（日内，含中线槽位）/ trend（长线趋势）。
+    payload_json 存规则统计（周期身份/交易/持仓/动作/亏损归因），llm_summary 存该车道的 LLM 定性分析。
+
+    `horizon` 为 2026-08-19 起的旧列，保留作兼容别名，写入值与 lane 相同
+    （历史行的 scalp/midlong/long 由迁移 add_period_lane_column 回填为规范车道名）。
     """
     __tablename__ = "period_daily_reports"
 
     id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
     report_date = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD
-    horizon = Column(String(16), nullable=False, index=True)       # scalp / midlong / long
+    horizon = Column(String(16), nullable=False, index=True)       # [兼容别名] 同 lane
+    lane = Column(String(16), nullable=True, index=True)           # intraday / trend / research
     payload_json = Column(Text, nullable=True)
     llm_summary = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())

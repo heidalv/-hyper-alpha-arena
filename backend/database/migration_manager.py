@@ -57,6 +57,7 @@ MIGRATIONS = [
     "add_funding_ledger_tier.py",  # P0-8: paper_funding_ledger.tier 资金费口径审计
     "add_coordinator_runtime_state.py",  # P1-5: system_coordinator_state.runtime_state_json
     "add_period_daily_reports.py",  # 2026-08-19 三周期统一日报表
+    "add_period_lane_column.py",  # 2026-09-18 轮63: 日报表新增 lane 列 + 回填历史行（双车道口径）
 ]
 
 

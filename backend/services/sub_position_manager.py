@@ -25,11 +25,21 @@ logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════
 #  每种 trade_nature 的管理规则
+#
+#  [轮63 2026-09-18] `label` 是**给人看的展示名**，此前 scalp 与 intraday 都叫「日内」，
+#  而交易引擎的「日内波段」(中线槽位) 用的是 swing/tier=mid —— 于是同一个词在两类模块里
+#  指向不同对象，报告与 UI 无从对齐。现按车道口径唯一命名：
+#      intraday  = 日内波段（中线槽位，主看 1h）
+#      swing     = 中线波段（同上一条车道的引擎标签）
+#      scalp     = 短线（已停用，仅存量）
+#      trend_follow / position = 长线趋势（主看 4h）
+#  规则数值一律未改（本处只动展示名，不改任何风控/持仓行为）。
+#  车道归属的唯一真源见 `backend/config/lane_semantics.py`。
 # ═══════════════════════════════════════════════════════
 
 NATURE_RULES: Dict[str, Dict[str, Any]] = {
     "position": {
-        "label": "长线持仓",
+        "label": "长线趋势·持仓",
         "expected_hold_hours": 168,
         "reduce_cooldown_hours": 48,
         "min_profit_for_reduce_pct": 0.08,
@@ -43,7 +53,7 @@ NATURE_RULES: Dict[str, Dict[str, Any]] = {
         "position_weight": 0.60,
     },
     "trend_follow": {
-        "label": "趋势跟随",
+        "label": "长线趋势",
         "expected_hold_hours": 168,
         "reduce_cooldown_hours": 24,
         "min_profit_for_reduce_pct": 0.05,
@@ -57,7 +67,7 @@ NATURE_RULES: Dict[str, Dict[str, Any]] = {
         "position_weight": 0.50,
     },
     "swing": {
-        "label": "波段",
+        "label": "日内波段（中线槽位）",
         "expected_hold_hours": 24,
         "reduce_cooldown_hours": 6,
         "min_profit_for_reduce_pct": 0.02,
@@ -70,7 +80,7 @@ NATURE_RULES: Dict[str, Dict[str, Any]] = {
         "position_weight": 0.30,
     },
     "intraday": {
-        "label": "日内",
+        "label": "日内波段",
         "expected_hold_hours": 4,
         "reduce_cooldown_hours": 1,
         "min_profit_for_reduce_pct": 0.0,
@@ -83,7 +93,7 @@ NATURE_RULES: Dict[str, Dict[str, Any]] = {
         "position_weight": 0.20,
     },
     "scalp": {
-        "label": "日内",
+        "label": "短线（已停用·仅存量）",
         # [2026-07-31] 名义 expected=3h，实际开仓还会被 runtime 复审点（常 2h×节奏）再砍。
         # 禁止 Master AI 延长；超时硬平。旧 8h 与 MR 快进快出冲突，并造成假「AI已延长」。
         "expected_hold_hours": 3,
@@ -106,6 +116,12 @@ _NATURE_ALIAS: Dict[str, str] = {}
 MAX_SUB_POSITIONS_PER_SYMBOL = 3
 
 # nature → timeframe_tier 映射 (兼容旧架构)
+#
+# [轮63 2026-09-18] 这是**引擎存储档位**（写进 paper_positions.timeframe_tier），
+# 不是报告车道。二者刻意不同：scalp 与 intraday 在引擎里同属 short 档，
+# 但在报告里同属「日内」车道；而 swing 在引擎里是 mid、在报告里同样是「日内」。
+# 车道归属（报告/风控/展示用）的唯一真源是 `backend/config/lane_semantics.py`，
+# 此处只负责引擎档位，两者不要互相推导。
 NATURE_TO_TIER = {
     "scalp": "short",
     "intraday": "short",

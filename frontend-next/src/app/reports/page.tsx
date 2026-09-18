@@ -17,8 +17,8 @@ export default function ReportsPage() {
       <div className="space-y-4">
         <PageHeader
           icon={<Activity className="w-4 h-4" />}
-          title="周期报告（日报 / 周报）"
-          subtitle="短线 / 中线 / 长线 三周期 · 含亏损归因 · 日报每日 08:05、周报每周一 08:30 后台生成"
+          title="周期报告"
+          subtitle="两条车道各自成段 · 日内（中线槽位，主看 1h） / 长线趋势（主看 4h）· 含周期身份、持仓时长与亏损归因 · 日报每日 08:05、周报每周一 08:30 后台生成"
           breadcrumb={[{ label: "市场 & 分析" }, { label: "周期报告" }]}
         />
         <LongReportsPanel />

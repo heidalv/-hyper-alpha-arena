@@ -63,28 +63,22 @@ def enforce_enabled() -> bool:
 
 
 def normalize_lane(tier: Optional[str], nature: Optional[str] = None) -> str:
-    t = (tier or "").strip().lower()
-    n = (nature or "").strip().lower()
-    if n == "arbitrage" or t in ("arb", "arbitrage"):
-        return "arb"
-    if t in LANES:
-        return t
-    # tier 别名（各旧轨叫法不一）
-    if t in ("scalp", "intraday", "shortterm", "short_term"):
-        return "short"
-    if t in ("swing", "midterm", "mid_term", "medium"):
-        return "mid"
-    if t in ("trend", "longterm", "long_term", "position"):
-        return "long"
-    if n in ("scalp", "intraday"):
-        return "short"
-    if n == "swing":
-        return "mid"
-    if n in ("trend_follow", "position"):
-        return "long"
-    if n in ("research", "pair_research"):
-        return "research"
-    return "mid"
+    """把任意旧轨写法的 (tier, nature) 归到引擎车道名（short/mid/long/research/arb）。
+
+    [轮63 2026-09-18] 别名表与判定顺序整体搬到唯一真源
+    `backend/config/lane_semantics.normalize_engine_lane()`，本函数不再自己维护 if/elif。
+    两份表并存正是历史上「日内」在不同模块指向不同对象的原因
+    （`intraday` 一度被这条函数判成 short、被 UI 判成 mid）。
+
+    判定顺序与旧实现逐字一致（规范车道名 → 套利别名 → tier 别名 → nature 别名 → mid），
+    已用 55 组输入做过等价性回归，不改变任何既有权重曲线。
+
+    注意本函数返回的是**引擎车道**（`short` 含短线存量 + 日内），
+    报告/展示用的「日内 / 长线趋势」双车道请用 `lane_semantics.resolve_lane()`。
+    """
+    from backend.config import lane_semantics as lane_sem
+
+    return lane_sem.normalize_engine_lane(tier, nature, lanes=LANES, default="mid")
 
 
 @dataclass
