@@ -404,21 +404,46 @@ def check_per_symbol_risk(db: Session, session, host: SymbolRiskHost) -> PerSymb
     # ── Layer 1: per-symbol 日亏损检查（P0-E: tier 归因，只冻亏损所属周期）──
     symbol_pnl = host.symbol_daily_pnl.get(sid, {})
     tier_pnl = host.symbol_tier_daily_pnl.get(sid, {})
+    # [轮83 修 P2-5] 不得用**编造的权益**当分母。
+    #
+    # 旧实现在读取失败/无余额行时 `except: pass`（无日志）然后
+    # `total_equity = 10000.0  # fallback`。而两处冻结判据都是
+    # `loss_pct = abs(pnl) / total_equity`：
+    #   · 真实权益 < 10000 → 分母被放大 → loss_pct 偏小 → **该冻结的币冻不住**；
+    #   · 真实权益 > 10000 → 分母被缩小 → 过度冻结。
+    # 即「风控阈值随账户规模随机失真」，且失败本身完全不可见。
+    #
+    # `paper_engine.get_balance` 在**没有 PaperBalance 行**时返回 None（不是异常），
+    # 这正是 fallback 被触发的主因。现在：
+    #   1. 记 warning（失败必须可见）；
+    #   2. 权益未知时**跳过**按权益百分比的两条判据（不编数字）；
+    #   3. 但 Layer 2a 的**回撤**判据与权益无关，必须照常生效（原先因 return 而丢失）。
     total_equity = 0.0
+    _equity_known = False
     try:
         trading_acct = host.get_trading_account_id(db, session)
         from backend.services.paper_trading_engine import paper_engine
         bal = paper_engine.get_balance(db, trading_acct) or {}
-        total_equity = float(bal.get("total_equity", 0))
-    except Exception:
-        pass
-    if total_equity <= 0:
-        total_equity = 10000.0  # fallback
+        total_equity = float(bal.get("total_equity", 0) or 0)
+        _equity_known = total_equity > 0
+    except Exception as _eq_err:      # noqa: BLE001
+        logger.warning(
+            "[SymbolRisk] 权益读取异常，按权益百分比的冻结节流将跳过（仍执行回撤安全网）: %s",
+            _eq_err,
+        )
+    if not _equity_known:
+        logger.warning(
+            "[SymbolRisk] 权益不可用（无 PaperBalance 行或为 0），"
+            "跳过「按权益百分比」的 per-symbol / 全局日亏损冻结，"
+            "避免用编造分母得出错误阈值；回撤安全网不受影响",
+        )
 
     if tier_pnl:
         # tier 归因数据可用：按 (symbol, tier) 精确冻结（绝不跨周期）
         tier_loss_items = [(k, p) for k, p in tier_pnl.items() if p < 0]
         for k, pnl in tier_loss_items:
+            if not _equity_known:
+                break          # 无分母 → 不做百分比判定（不编数字）
             _sym, _tier = k.split("|", 1)
             loss_pct = abs(pnl) / total_equity
             if loss_pct < symbol_loss_pct:
@@ -434,7 +459,7 @@ def check_per_symbol_risk(db: Session, session, host: SymbolRiskHost) -> PerSymb
                 f"超过阈值 {symbol_loss_pct*100:.0f}%"
             )
             result.symbol_reasons[_sym] = "; ".join(x for x in (_prev, _new) if x)
-    else:
+    elif _equity_known:
         # tier 归因不可用（旧数据）→ 回退旧行为：symbol 级整体判断（冻结全部周期）
         for symbol, pnl in symbol_pnl.items():
             if pnl >= 0:
