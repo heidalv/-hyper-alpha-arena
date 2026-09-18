@@ -196,8 +196,23 @@ def run_health_check(
         if session.status not in ("running", "defensive", "paused"):
             return
 
-        if session.status == "paused":
-            return
+        # [轮76 修 P1-12] 原为 `if session.status == "paused": return` ——
+        # 会话一旦暂停，整轮巡检**全部跳过**：日盈亏核算、回撤复查、子仓对账、
+        # ExitAgent 时间止损巡检全部不跑。而 `:1060` 的注释明写「不 return：后续持仓治理 /
+        # 平仓巡检照常，只是不再新开仓」——DD 硬闸自己把状态置为 paused 后正是依赖这句话
+        # 让治理继续；于是同一份代码里「暂停」有两种互相矛盾的语义：
+        #   · DD 硬闸触发的 paused → 治理照常（注释描述的行为）
+        #   · 任何其它来源的 paused（人工 /api/full-auto pause、亏损锁）→ 治理完全停摆
+        # 后果：风险最高（已触发硬闸或人工急停）时，持仓反而**失去**出场巡检与对账。
+        #
+        # 现统一为「暂停 = 只停新开仓，治理照常」，与注释一致。
+        # 新开仓由下方 should_run（`_session_paused` 参与）与 :1097 的保护块共同约束。
+        _session_paused = (session.status == "paused")
+        if _session_paused:
+            logger.info(
+                "[FullAuto] 会话处于 paused（%s）→ 只跑持仓治理/出场巡检，不新开仓",
+                getattr(session, "pause_reason", None) or "未标注原因",
+            )
 
         _label = "维护巡检" if maintenance_only else "健康检查"
         logger.info(f"[FullAuto] {_label}开始: {session_id} (status={session.status})")
@@ -638,6 +653,14 @@ def run_health_check(
             _unified_pause_sym = _is_frozen_sym
             
             should_run = len(recommended) > 0
+            # [轮76 P1-12] 会话暂停（人工 pause / 亏损锁 / 硬闸）→ 本轮只治仓不开新仓。
+            # 这是「暂停」的唯一硬语义，替代原先「整轮 return」（那样连治理都停了）。
+            if _session_paused and should_run:
+                should_run = False
+                logger.info(
+                    "[FullAuto] %s 会话 paused，跳过新策略创建（仍执行持仓治理/出场巡检）",
+                    symbol,
+                )
             existing_sids = existing_symbol_map.get(symbol, [])
             
             # ── 按 tier 独立处理已有策略的暂停/恢复 ──
@@ -1092,11 +1115,22 @@ def run_health_check(
             session.status == "paused"
             and (getattr(session, "pause_reason", None) or "") == "drawdown_limit"
         )
+        # [轮76 P1-12] 任何来源的 paused 都必须免于「自动解锁 / 防守切换」——
+        # 它们会把 paused 改回 running 或 defensive（`paper_auto_unlock_session`
+        # 的名字就说明了它要解锁）。原先只有 drawdown_limit 一种原因受保护，
+        # 一旦把「paused 不再整轮 return」，其它原因（人工 /api/full-auto pause、
+        # 亏损锁）就会落进 auto-unlock 分支被**静默恢复交易** —— 那是用户明确不想要的。
+        _paused_any = (session.status == "paused")
 
         # ── 4.6 风控巡检 (per-symbol + 全局极端安全网) ──
-        if _dd_paused:
-            # 回撤硬闸期间不跑亏损锁 / 自动解锁 / 防守切换（它们会把 paused 改回 running 或 defensive）
-            pass
+        if _paused_any:
+            # 暂停期间不跑亏损锁 / 自动解锁 / 防守切换（它们会把 paused 改回 running 或 defensive）；
+            # 但下面的持仓治理 / 子仓对账 / ExitAgent 出场巡检**照常执行**。
+            if not _dd_paused:
+                logger.info(
+                    "[FullAuto] 会话 paused(%s) → 跳过自动解锁/防守切换，仅执行持仓治理",
+                    getattr(session, "pause_reason", None) or "未标注原因",
+                )
         elif host.live_constitutional_enabled(session):
             host.check_live_constitutional_session_risk(db, session)
         elif host.paper_loss_locks_disabled(session):
