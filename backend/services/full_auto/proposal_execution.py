@@ -256,8 +256,19 @@ def _evaluate_and_execute_proposal_inner(
             return False
         if _bf < 1.0:
             dec["size_multiplier"] = float(dec.get("size_multiplier") or 1.0) * _bf
-    except Exception:
-        pass
+    except Exception as _bud_err:
+        # [2026-09-18 轮89 修 P2-9] 原为 `except Exception: pass` —— 层预算闸门
+        # 静默 fail-OPEN。本层是**唯一**的层额度拦截点：与 master_execution 不同，
+        # 这里没有配套的 `can_open()` 硬闸门，`_bf <= 0`（层用量 ≥ 额度的 100%）
+        # 就是「预算已满 → 不开新仓」的全部实现。调用方 `build_portfolio_for_agents`
+        # 或预算服务一旦抛错，层已满也会按**原始满仓**下单，等于绕过 `layer_allocations`。
+        # 故改为 fail-CLOSED（与 paper_execution.py 的统一风控异常同姿态），
+        # 并且把原因登记进漏斗审计，避免"拦了但没人知道为什么"。
+        logger.warning(
+            "[BudgetService] 层预算判定异常(拦截) %s tier=%s: %s", sym_u, tier, _bud_err
+        )
+        _mark_block("budget_error", detail=f"tier={tier} err={type(_bud_err).__name__}")
+        return False
 
     # ── S1-3 叠加 MTF 缩仓（逆高周期弱反向）——乘在预算/风控缩仓之上 ──
     try:

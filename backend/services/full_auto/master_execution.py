@@ -3039,6 +3039,11 @@ def execute_master_decisions(
                 )
                 # [轮82 修] 判定与记录分离：原实现把 append_event 与 continue 放在同一个
                 # try 内，`except: pass` 会把「预算已满」变成放行（且无日志）。
+                # [轮89 修 P2-9] `_equity > 0 and _req_margin > 0` 不成立时整段闸门被跳过，
+                # 原来完全无声。这里与 proposal_execution 的分工不同：本处**保留不拦截**
+                # （下方 `can_open()` 是同一 try 内的硬闸门，且 `_req_margin` 未知时
+                # `can_open` 也无从判定），但必须留下可查的痕迹，否则"层额度没生效"
+                # 与"层额度足够"在日志里长得一样。
                 _budget_block = None
                 if _equity > 0 and _req_margin > 0:
                     _bf = budget_service.scale_factor_for_layer(
@@ -3054,6 +3059,11 @@ def execute_master_decisions(
                         account_id=_budget_acct,
                     ):
                         _budget_block = f"📊 {_layer}层预算不足，跳过 {sym} {action}"
+                else:
+                    logger.debug(
+                        "[FullAuto] 层预算闸门跳过(分母/分子未知) %s %s: equity=%.2f req_margin=%.2f",
+                        sym, action, _equity, _req_margin,
+                    )
                 if _budget_block:
                     _emit_block_event(host, session, "layer_budget_block",
                                       _budget_block, sym=sym, action=action)
