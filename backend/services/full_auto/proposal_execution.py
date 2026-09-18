@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Tuple
 
@@ -24,6 +25,9 @@ class ProposalExecutionHost:
     safe_commit: Callable = field(repr=False, default=lambda *a, **k: True)
     execute_paper_trade: Callable = field(repr=False, default=lambda *a, **k: False)
     record_midlong_factor_snapshots: Callable = field(repr=False, default=lambda *a, **k: None)
+    block_cooldown_active: Callable = field(repr=False, default=lambda *a, **k: None)
+    record_proposal_block: Callable = field(repr=False, default=lambda *a, **k: None)
+    auto_create_strategy: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
 def build_proposal_execution_host(svc) -> ProposalExecutionHost:
@@ -40,6 +44,9 @@ def build_proposal_execution_host(svc) -> ProposalExecutionHost:
         safe_commit=svc._safe_commit,
         execute_paper_trade=svc._execute_paper_trade,
         record_midlong_factor_snapshots=svc._record_midlong_factor_snapshots,
+        block_cooldown_active=svc._proposal_block_cooldown_active,
+        record_proposal_block=svc._record_proposal_block,
+        auto_create_strategy=svc._auto_create_strategy,
     )
 
 
@@ -53,6 +60,47 @@ def _mark_block(code: str, *, detail: str = "") -> None:
 
 
 def evaluate_and_execute_proposal(
+    *,
+    db: Session,
+    session,
+    proposal,
+    market_summary: dict,
+    host: ProposalExecutionHost,
+    session_mode: str = "running",
+    strat=None,
+) -> bool:
+    """[2026-09-18 WLFI回环修复] 外层守卫：同因重复拦截冷却。
+
+    连续 N 次以同一原因被拦（如 decision_price_stale / strategy_detached）→
+    冷却期内直接跳过（不再写快照不再尝试），杜绝"每2分钟重试永不成交"回环。
+    """
+    try:
+        _cd = (getattr(host, "block_cooldown_active", None) or
+               (lambda s, t: None))(proposal.symbol, proposal.tier)
+        if _cd:
+            logger.info(
+                "[BlockCooldown] %s tier=%s 冷却中(因%s，剩%.0f分钟) 跳过本轮",
+                proposal.symbol, proposal.tier, _cd.get("code"),
+                max(0.0, (_cd.get("until") or 0) - time.time()) / 60)
+            return False
+    except Exception:
+        pass
+    _ok_inner = _evaluate_and_execute_proposal_inner(
+        db=db, session=session, proposal=proposal, market_summary=market_summary,
+        host=host, session_mode=session_mode, strat=strat)
+    if not _ok_inner:
+        try:
+            from backend.services.mlto.open_block_reason import peek_open_block
+            _blk = peek_open_block() or {}
+            _rec = getattr(host, "record_proposal_block", None)
+            if _rec and _blk.get("code"):
+                _rec(proposal.symbol, proposal.tier, str(_blk.get("code")))
+        except Exception:
+            pass
+    return _ok_inner
+
+
+def _evaluate_and_execute_proposal_inner(
     *,
     db: Session,
     session,
@@ -88,6 +136,20 @@ def evaluate_and_execute_proposal(
 
     if strat is None:
         strat = host.resolve_independent_strategy(db, session, sym_u, tier)
+    if not strat:
+        # [2026-09-18 修复·注入币策略竞态] 注入时自动建的策略可能已被生命周期清理
+        # （归档/删除）——提案却已推进到执行段（WLFI 实证：strategy_detached×7）。
+        # 此处自动补建一次再解析；配合 BlockCooldown（连续失败5次冷却）防重建风暴。
+        try:
+            _ac = getattr(host, "auto_create_strategy", None)
+            _mkt_i = (market_summary or {}).get(sym_u)
+            if callable(_ac) and isinstance(_mkt_i, dict):
+                _created = _ac(db, session, sym_u, dict(_mkt_i))
+                if _created:
+                    logger.info("[Agent独立] %s tier=%s 策略缺位已补建 %s", sym_u, tier, str(_created)[:18])
+                    strat = host.resolve_independent_strategy(db, session, sym_u, tier)
+        except Exception as _ac_err:
+            logger.debug("[Agent独立] %s 策略补建失败: %s", sym_u, str(_ac_err)[:100])
     if not strat:
         logger.info("[Agent独立] %s tier=%s 无 active 策略", sym_u, tier)
         _mark_block("no_active_strategy", detail=f"tier={tier}")
