@@ -419,9 +419,10 @@ class KlineDataService:
         _fresh_gate_on = os.getenv(
             "KLINE_AGG_FRESHNESS_GATE_ENABLED", "true"
         ).strip().lower() not in ("0", "false", "no", "off")
-        from backend.services.data_center import PERIOD_SECONDS as _PS
-        period_sec = float(_PS.get(period, 3600))
-        fresh_window = period_sec * 2 + 60
+        # [轮67] 阈值改走 data_center 的唯一权威 `kline_fresh_window_sec`，
+        # 不再本地重写 `period_sec*2+60`（两处各写一遍会让「后端判新鲜、这里判过期」悄悄分歧）。
+        from backend.services.data_center import kline_fresh_window_sec
+        fresh_window = kline_fresh_window_sec(period)
 
         def _fresh(rows: List[Dict[str, Any]]) -> bool:
             if not _fresh_gate_on:

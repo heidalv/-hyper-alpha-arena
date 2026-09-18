@@ -69,6 +69,36 @@ def build_analyst_system_host(svc) -> AnalystSystemHost:
     )
 
 
+def resolve_trading_mode(session) -> str:
+    """由 session 解析**交易模式**（paper / live）。
+
+    ## 为什么需要这个函数（轮67 修 P0-3）
+
+    这里原先写的是 `mode = session.status`，而 `status` 是**会话运行状态**
+    （running / defensive / paused），从来不是交易模式。该值一路传到
+    `host.execute_master_decisions(..., mode)`，使其中所有 `mode == "live"` 分支
+    永远不可达 —— 包括：
+
+      - live 会话的 AI 平仓改走 `paper_engine.close_position`（交易所仓位根本没减，
+        本地账本与交易所背离）；
+      - `LIVE_DAILY_OPEN_CAP` 在 master 车道无法执行（唯一检查点死在该分支内）；
+      - `resolve_relief(mode="paper")` 写死，使 live 开仓阈值被当作 paper 试单期放宽。
+
+    `mlto_cycle.py:176-179` 早就对该值做了防御性重推（`if _trade_mode in
+    ("running","defensive","paused"): _trade_mode = session.trading_mode`），
+    本函数把同一口径收敛到一处，供本模块所有调用点复用。
+
+    容错：`session.trading_mode` 缺失或为空时退回 `"paper"` —— 与仓内
+    `paper_execution` / `master_execution` 的 `(mode or "paper")` 兜底一致。
+    绝不返回 status 值（那正是本 bug 的形态）。
+    """
+    raw = str(getattr(session, "trading_mode", "") or "").strip().lower()
+    if raw in ("live", "paper"):
+        return raw
+    # trading_mode 未配置/异常：仅当它是明确的模式名时才用，否则保守按 paper
+    return raw if raw in ("live", "paper") else "paper"
+
+
 def run_analyst_system(
     db: Session,
     session,
@@ -90,7 +120,9 @@ def run_analyst_system(
     # rollback / 上一 tick 的 db.close 会使 _master_strat_cache 中的 AIStrategy detach
     host.clear_master_strat_cache()
 
-    mode = session.status
+    # [轮67 修 P0-3] 原为 `mode = session.status`（status 是 running/defensive/paused，
+    # 不是交易模式）→ master 决策里所有 `mode == "live"` 分支永不可达。见 resolve_trading_mode。
+    mode = resolve_trading_mode(session)
     account = db.query(Account).filter(Account.id == session.account_id).first()
     if not account:
         return
@@ -120,7 +152,9 @@ def run_analyst_system_unified(
     from backend.database.models import AIStrategy as _AIStrategy, Account as _AcctModel
     from backend.services.trading_analysts import analyst_system, merge_reports_with_tier_slices
 
-    mode = session.status
+    # [轮67 修 P0-3] 同 run_analyst_system：必须是交易模式，不是会话状态。
+    # 该值还会被当作 trading_mode 传给 maintain_mlto_theses_for_session 等下游。
+    mode = resolve_trading_mode(session)
 
     try:
         from backend.services.paper_trading_engine import paper_engine

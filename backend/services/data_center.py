@@ -77,6 +77,19 @@ PERIOD_SECONDS: dict[str, int] = {
 # 秒级 ticker 最大可接受年龄（asterdex ticker poller 2s 通道，5s 内视为新鲜）
 TICKER_MAX_AGE_SEC: float = 5.0
 
+
+def kline_fresh_window_sec(period: str, *, period_sec: Optional[int] = None) -> float:
+    """K 线「交易用途」新鲜度阈值：`2×周期 + 60s`。
+
+    [轮67] 收敛为**唯一权威**。此前同一个阈值在 3 处各写一遍
+    （`data_center.KlineResult.is_fresh`、`api/data_center_routes.py:50`、
+    `kline_data_service.py:424`），任一处调整都会让「后端判新鲜、路由判过期」
+    这类分歧悄悄出现 —— 与轮63 收敛周期词表是同一类问题。
+    """
+    p = period_sec if period_sec is not None else PERIOD_SECONDS.get(period, 300)
+    return float(p) * 2.0 + 60.0
+
+
 # 跨进程 DC ticker 拉取缓存（TTL 1s，防每请求都打 DC HTTP）
 _DC_TICKER_CACHE: dict = {}
 _DC_TICKER_CACHE_TTL_SEC: float = 1.0
@@ -121,6 +134,7 @@ class KlineResult:
     stale_sec: Optional[float] = None  # 最新一根相对现在的滞后秒数
     purpose: str = "research"          # trade | research
     closed_only: bool = False          # [P0-5] True=已剔除未收盘 forming bar
+    bounded_history: bool = False      # [轮67] True=调用方显式给了 start/end 历史区间
 
     def __post_init__(self):
         self.count = len(self.rows)
@@ -138,12 +152,44 @@ class KlineResult:
 
     @property
     def is_fresh(self) -> bool:
-        """是否满足交易用途新鲜度（按周期动态阈值）。"""
+        """是否满足交易用途新鲜度（按周期动态阈值）。
+
+        [轮67 修复] **显式限定了历史区间（start/end 都有）时不做新鲜度判定。**
+
+        旧实现在调用方已传入 `start`/`end` 时，仍拿「所请求窗口内最新一根 bar」
+        去和 wall-clock now 比较 —— 读历史区间必然判为「过期」，于是整段被清空。
+        实测：`get_klines("BTC","1d", start=2026-01-01, end=2026-03-01, purpose="trade")`
+        返回 0 行，同一调用 purpose="research" 返回 60 行。
+
+        新鲜度的语义是「现在能不能拿它做决策」；调用方既然点名要 2026 年 1–3 月，
+        就说明不需要「最新」，判定不适用。仓内已有先例记录同类损失
+        （`scalp_signal_logger.py:207-213` 记载 57,000 条信号标签因此丢失）。
+        """
+        if self.bounded_history:
+            return True
         if self.stale_sec is None:
             return False
+        return self.stale_sec <= kline_fresh_window_sec(self.period)
+
+    @property
+    def lag_sec(self) -> Optional[float]:
+        """**采集滞后**（相对 bar 收盘），而非相对 bar 开盘的年龄。
+
+        `stale_sec` 是「相对 bar 开盘时间」的差值：`closed_only` 读到的最后一根
+        已收盘 bar，其开盘时间天然比 now 早 `1P..2P`，所以 `stale_sec` 里混着
+        一个周期量级的固有偏移，用它判断「采集是否滞后」会偏保守。
+
+        `lag_sec` 扣掉一个周期，得到与新鲜度阈值同量纲的口径：
+        - `closed_only=True`（trade 默认）→ `stale_sec - P`（该 bar 刚收盘时的 lag）；
+        - 否则 → `stale_sec`（正在成形的 bar 开盘至今）。
+
+        仅作观测/诊断口径，不改判定（判定仍用 `stale_sec` 与同一阈值比较，
+        保持与既有阈值/测试一致，避免静默放宽闸门）。
+        """
+        if self.stale_sec is None:
+            return None
         period_sec = PERIOD_SECONDS.get(self.period, 300)
-        # 允许最多 2 根周期 + 60s 缓冲；过期则不可用于决策
-        return self.stale_sec <= (period_sec * 2 + 60)
+        return max(0.0, self.stale_sec - (period_sec if self.closed_only else 0))
 
     def to_dataframe(self) -> pd.DataFrame:
         """转 DataFrame（index=datetime, OHLCV 列）。"""
@@ -275,18 +321,25 @@ class UnifiedMarketDataCenter:
             exchanges = [exchange] if exchange else ["asterdex"]
             best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges, closed_only=closed_only)
             best.purpose = "trade"
+            # [轮67] 调用方显式点名了历史区间（start 且 end 都有）→ 该请求要的就是历史，
+            # 新鲜度判定不适用（详见 KlineResult.is_fresh 的说明）。
+            best.bounded_history = bool(start_ts and end_ts)
             # 交易用途：过期不静默换所，返回空结果（调用方应拒开仓）
             if best.count > 0 and not best.is_fresh:
                 _warn_throttled(
                     f"kline_stale:{symbol}:{period}:{best.exchange}",
-                    "[DataCenter] %s/%s@%s 数据过期 stale=%.0fs，trade 用途返回不可用",
+                    "[DataCenter] %s/%s@%s 数据过期 stale=%.0fs（阈值 %.0fs），trade 用途返回不可用",
                     symbol, period, best.exchange, best.stale_sec or -1,
+                    kline_fresh_window_sec(period),
                 )
-                best = KlineResult(symbol=symbol, period=period, exchange=exchange or "", rows=[], purpose="trade")
+                best = KlineResult(symbol=symbol, period=period, exchange=exchange or "",
+                                   rows=[], purpose="trade",
+                                   bounded_history=best.bounded_history)
         else:
             exchanges = [exchange] if exchange else ALL_EXCHANGES
             best = self._query_best_exchange(symbol, period, count, start_ts, end_ts, exchanges, closed_only=closed_only)
             best.purpose = "research"
+            best.bounded_history = bool(start_ts and end_ts)
 
         if best.count > 0:
             self._set_cache(cache_key, best)

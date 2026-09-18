@@ -120,7 +120,14 @@ class TierParallelExecutor:
         )
         from backend.database.models import AIStrategy as _AIStrategy
 
-        mode = session.status
+        # [轮67 修 P0-3] 原为 `mode = session.status`（running/defensive/paused），
+        # 而该值下游一律按**交易模式**消费 —— `analyst_system.run_full_analysis(mode=...)`
+        # → `dual_agent_coordinator.coordinate(mode=...)`，且兄弟闸门
+        # （`full_auto/execution_gates.py:82`、`tp_sl_gates.py:78`、`lock_strength_service.py:73`
+        # 等）都在做 `mode == "live"` / `mode == "paper"` 判定。
+        # 传 status 会让这些判定全部落到既非 live 也非 paper 的第三态。
+        from backend.services.full_auto.analyst_system_cycle import resolve_trading_mode
+        mode = resolve_trading_mode(session)
         now = time.time()
 
         strats_by_tier: Dict[str, List] = {"short": [], "mid": [], "long": []}

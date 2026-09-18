@@ -46,8 +46,13 @@ _AGG_TTL = 3600.0
 
 
 def _fresh_stale_limit_sec(period: str) -> float:
-    """与 data_center.is_fresh 同口径：stale ≤ period*2 + 60s 视为新鲜。"""
-    return float(_PERIOD_SECONDS.get(period, 3600)) * 2.0 + 60.0
+    """新鲜度阈值（委托 data_center 的唯一权威，避免两处口径漂移）。
+
+    [轮67] 原为本地再写一遍 `period*2+60`；现统一走 `kline_fresh_window_sec`，
+    与 `KlineResult.is_fresh` 永远一致。
+    """
+    from backend.services.data_center import kline_fresh_window_sec
+    return kline_fresh_window_sec(period)
 
 
 def _compute_aggregates() -> None:
