@@ -1630,8 +1630,27 @@ def manage_position(
             _out["hold_reason"] = reason
         return _out
 
+    # ═══ 长线车道：独占动作流水线（轮103 阶段3b）═══
+    # 轮99 只拦住了 tighten_trailing / reduce 两条，而本函数实际有 7 条动作路径；
+    # 长线仓此前照样在跑另 5 条（叙事反转 / 4h反转 / 分批止盈 / 逆势补仓 / 方向破坏离场）
+    # —— 那就是"长线被当日内单"的剩余部分。
+    # 判据与清单：`full_auto/trend_lane_manager.MID_LANE_ONLY_PATHS`（测试会核对源码一致）。
+    _trend_own_pipeline = False
+    if _trend_lane_pos:
+        try:
+            from backend.services.full_auto.trend_lane_manager import (
+                note_skipped_paths as _tl_note,
+                owns_pipeline as _tl_owns,
+            )
+            _trend_own_pipeline = bool(_tl_owns())
+            if _trend_own_pipeline:
+                _tl_note(int(position.get("id") or 0), sym, logger)
+        except Exception as _tl2_err:
+            logger.debug("[MidLong] 车道流水线开关不可用(按轮99 行为): %s", _tl2_err)
+
     # ═══ ⑥ 反转 / 无进展离场（规则，每 tick）═══
-    rev = _dim_reversal(position, market_summary)
+    # [轮103] 中线专属：长线车道的反转出场由论题失效价 / Chandelier 负责
+    rev = {"action": "hold", "channel": "", "reason": ""} if _trend_own_pipeline else _dim_reversal(position, market_summary)
     _sig["exit"] = rev["channel"] or "no"
     if _is_factor_pos:
         # [M1-B] 因子仓不执行 bias_reversal/no_progress 叙事平仓。
@@ -1692,7 +1711,7 @@ def manage_position(
     # 对 factor_route 仓同样生效——原 M1-B 让因子仓跳过一切方向复查，正是死扛根源
     # （当前 5 笔 open 死扛仓全部是 factor_route）。浮盈>+0.3% 的仓交给 trailing/
     # min_roi 管理，不在此砍。通道熔断（wr<40%）与其它出场通道同样适用，可自纠偏。
-    _r4_detail = _mid_4h_reversal_reason(
+    _r4_detail = None if _trend_own_pipeline else _mid_4h_reversal_reason(
         sym, position, market_summary,
         pos_tier=pos_tier, side=side, hold_hours=hold_hours, pnl_pct=pnl_pct,
     )
@@ -1714,8 +1733,12 @@ def manage_position(
             return _summary(f"4h反转离场: {_r4_detail}", action="manage_close")
 
     # ═══ ⑤ 分批止盈（规则，每 tick）═══
-    staged = _dim_staged_tp(db, host=host, session=session, account_id=account_id,
-                            position=position, market_summary=market_summary)
+    # [轮103] 中线专属：长线的分档档位是 8/15/25%（别处声明），
+    # 这套 15min 尺度的分批止盈用在长线上就是"过早止盈"。
+    staged = ({"action": "hold", "channel": "", "reason": "", "ratio": 0.0}
+              if _trend_own_pipeline else
+              _dim_staged_tp(db, host=host, session=session, account_id=account_id,
+                             position=position, market_summary=market_summary))
     _sig["staged_tp"] = staged["channel"] or "no"
     if staged["action"] == "reduce":
         _exec_reduce(db, account_id=account_id, position=position,
@@ -1736,7 +1759,8 @@ def manage_position(
         return _summary(f"追踪止损触发: {staged['reason']}", action="manage_close")
 
     # ═══ ④ 受控逆势补仓（F40：行情未反转时替代「小亏全平」）═══
-    if _cfg_bool("MIDLONG_CONTROLLED_DCA_ENABLED", True):
+    # [轮103] 中线专属：逆势补仓（摊平）不是趋势车道的工具 —— 趋势车道只做**顺势**滚仓。
+    if (not _trend_own_pipeline) and _cfg_bool("MIDLONG_CONTROLLED_DCA_ENABLED", True):
         try:
             _dca = _dim_controlled_dca(
                 db, account_id=account_id, position=position, host=host, session=session,
@@ -1827,7 +1851,18 @@ def manage_position(
     _reason_base = str(review.get("reasoning") or "")[:200]
 
     # ═══ 决策合并（单一优先级：close > pyramid(add) > tighten > reduce[仅浮亏] > hold）═══
-    if _review_action == "close":
+    # [轮103] 长线车道跳过 ① 复查给出的 close（`direction_close`）：
+    # 那是**中线口径**的趋势复查（15min/4h 尺度）—— 长线的出场是论题失效价与 Chandelier。
+    # 注意 `_trend_own_pipeline` 为真时 `_review_action` 仍会被计算（有 LLM 成本），
+    # 但只有 add 那一支会被采纳（见下方滚仓块）。
+    if _review_action == "close" and _trend_own_pipeline:
+        logger.info(
+            "[MidLong] %s tier=%s 长线车道忽略复查 close(%s) —— 出场交「论题失效价 / Chandelier」（轮103）",
+            sym, position.get("timeframe_tier"), _reason_base,
+        )
+        _sig["exit"] = "skip_review_close_trend_lane"
+
+    if _review_action == "close" and not _trend_own_pipeline:
         # [2026-08-22 M0-11] 复查平仓必须尊重 tier min_hold（mid 12h / long 72h，
         # TIER_PROTECTION_PARAMS 契约），否则 1-4h 内被规则复查碎平。
         # 实测证据（_audit_exit_channels）：swing 的 trend_broken 58 笔均持 1.0h
@@ -1932,7 +1967,8 @@ def manage_position(
     # ⛔ [轮99] 趋势车道禁止收紧追踪止损：这正是把趋势仓降级成日内仓的元凶
     # （`SL = 现价 − 2×短周期ATR` ≈1%，一轮正常回撤即收割，实测 4 笔 long 全中）。
     # 车道契约里趋势仓的止损只由 Chandelier 上移（`trend_e1_engine` 日任务）。
-    if _review_action == "tighten_trailing" and _trend_lane_pos:
+    # [轮103] gate 条件扩为 `_trend_own_pipeline`（含回滚开关）。
+    if _review_action == "tighten_trailing" and (_trend_lane_pos or _trend_own_pipeline):
         logger.info(
             "[MidLong] %s tier=%s 属趋势车道 → 忽略 tighten_trailing（%s）；"
             "止损只由 Chandelier 结构位上移（轮99）",
@@ -1995,7 +2031,7 @@ def manage_position(
     # #4659 BTC 减 6 次（size 0.002615→0.000071，剩 2.7%）、#4660 BNB 减 5 次（剩 4.5%）、
     # #4678 ETH 减 3 次（剩 12.5%），峰值分别只有 +2.7%/+0.4%/+0.3%。
     # 车道契约是"失效即全平（规则失效）或跟随 Chandelier"，不是按 40%~50% 反复削仓。
-    if _review_action == "reduce" and _trend_lane_pos:
+    if _review_action == "reduce" and (_trend_lane_pos or _trend_own_pipeline):
         logger.info(
             "[MidLong] %s tier=%s 属趋势车道 → 忽略裁量减仓（%s）；"
             "出场交「规则失效全平 / Chandelier」（轮99）",

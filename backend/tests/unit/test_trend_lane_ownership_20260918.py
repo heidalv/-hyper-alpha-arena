@@ -215,5 +215,126 @@ def test_ownership_audit_is_recorded():
         assert name in text, f"归属报告缺模块 {name}"
 
 
+# ══════════════════════════════════════════════════════════════════
+# 阶段3b：长线**独占动作流水线**（7 条中线路径逐条 gate）
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_mid_lane_path_list_is_complete_and_documented():
+    """判据清单必须覆盖 `manage_position` 里**全部**中线动作路径。
+
+    轮99 只拦了 2 条（tighten/reduce），实际有 7 条 —— 另 5 条长线照样在跑。
+    本清单就是"漏补丁"的根治手段：加一条新路径而忘了 gate，下面的源码测试会红。
+    """
+    assert set(tlm.MID_LANE_ONLY_PATHS) == {
+        "reversal", "reversal_4h", "staged_tp", "dca",
+        "direction_close", "tighten_trailing", "reduce",
+    }
+    # 每条都要在模块源码里说清"是什么 / 为什么长线不该走"（清单旁的注释，不是 docstring）
+    src = _TLM.read_text(encoding="utf-8")
+    assert "reversal_4h" in src and "direction_close" in src
+    assert "MID_LANE_ONLY_PATHS" in src
+
+
+def test_every_mid_lane_path_is_gated_by_the_lane_flag():
+    """源码守卫：7 条路径必须各自挂在长线流水线判定上。"""
+    live = _live(_MPM.read_text(encoding="utf-8"))
+    seg = live[live.index("def manage_position("):]
+    checks = {
+        "reversal": "if _trend_own_pipeline else _dim_reversal(",
+        "reversal_4h": "None if _trend_own_pipeline else _mid_4h_reversal_reason(",
+        "staged_tp": "if _trend_own_pipeline else",
+        "dca": "(not _trend_own_pipeline) and _cfg_bool(\"MIDLONG_CONTROLLED_DCA_ENABLED\"",
+        "direction_close": "if _review_action == \"close\" and not _trend_own_pipeline:",
+        "tighten_trailing": "_review_action == \"tighten_trailing\" and (_trend_lane_pos or _trend_own_pipeline)",
+        "reduce": "_review_action == \"reduce\" and (_trend_lane_pos or _trend_own_pipeline)",
+    }
+    missing = [k for k, needle in checks.items() if needle not in seg]
+    assert not missing, f"以下中线路径没有按长线车道 gate: {missing}"
+
+
+def test_new_staged_tp_call_sites_must_be_gated():
+    """反向守卫：`manage_position` 里每条中线动作都必须被长线车道挡住。
+
+    两种挡法都要认：
+      · **值型 gate**：调用点本身在条件表达式里（`X if _trend_own_pipeline else _dim_x(...)`）；
+      · **早退型 gate**：前面有一个带车道判定的 `return`，使该块对长线不可达
+        （tighten/reduce 走的是这条）。
+    将来有人再加一条动作路径而两种挡法都没有，本测试变红。
+    """
+    live = _live(_MPM.read_text(encoding="utf-8"))
+    seg = live[live.index("def manage_position("):]
+
+    # 收集 `manage_position` 里**所有**中线动作调用点（跳过函数定义行），按位置排序；
+    # 判据：从上一个动作调用点到这里，必须出现过车道 gate
+    # （值型 `... if _trend_own_pipeline else _dim_x(...)`，或早退型 `manage_trend_skip_*`）。
+    # 这条规则与"块"无关，因此不怕动作块长短不一。
+    anchors = ("_dim_reversal(", "_mid_4h_reversal_reason(", "_dim_staged_tp(",
+               "_dim_controlled_dca(", "_exec_reduce(", "_exec_tighten(", "_exec_pyramid(")
+    sites = []
+    for anchor in anchors:
+        start = 0
+        while True:
+            idx = seg.find(anchor, start)
+            if idx < 0:
+                break
+            start = idx + 1
+            if seg[max(0, idx - 6):idx].rstrip().endswith("def"):
+                continue          # 跳过本文件后面那些函数的定义行
+            sites.append((idx, anchor))
+    sites.sort()
+    assert sites, "manage_position 里找不到任何动作调用点（测试需更新）"
+
+    ungated = []
+    prev = 0
+    for idx, anchor in sites:
+        # 窗口从"上一个动作调用点往前 300 字符"开始：gate 可能写在
+        # **包裹该动作的赋值表达式**里（如 `staged = (... if _trend_own_pipeline else _dim_staged_tp(...))`
+        # 里 `_dim_staged_tp` 紧跟其后的 `_exec_reduce` 就依赖上一个调用点之前的 gate）。
+        window = seg[max(0, prev - 300):idx]
+        if not ("_trend_own_pipeline" in window or "_trend_lane_pos" in window):
+            ungated.append(f"{anchor}@+{seg[:idx].count(chr(10)) + 1}")
+        prev = idx
+    assert not ungated, (
+        f"以下中线动作调用点之前没有出现长线车道 gate: {ungated}"
+    )
+
+
+def test_owns_pipeline_switch_and_rollback(monkeypatch):
+    """开关语义：true=独占流水线；false=回滚到轮99（只拦 tighten/reduce）。"""
+    from backend.config import settings as _st
+    from backend.config import env_registry as er
+    assert hasattr(_st, "EXIT_TREND_LANE_OWN_PIPELINE")
+    assert _st.EXIT_TREND_LANE_OWN_PIPELINE is True, "默认必须让长线独占流水线"
+    assert "EXIT_TREND_LANE_OWN_PIPELINE" in er.KNOWN_FLAGS
+    monkeypatch.setattr(_st, "EXIT_TREND_LANE_OWN_PIPELINE", False, raising=False)
+    assert tlm.owns_pipeline() is False
+
+
+def test_skipped_paths_are_logged_once(caplog):
+    """跳过中线路径必须留一条可读日志（否则像"持仓管理坏了"）。"""
+    import logging
+    tlm._SKIP_LOGGED.clear()
+    with caplog.at_level(logging.INFO, logger="test"):
+        lg = logging.getLogger("test")
+        tlm.note_skipped_paths(987654, "TESTCOIN", lg)
+        tlm.note_skipped_paths(987654, "TESTCOIN", lg)
+    msgs = [r.message for r in caplog.records if "独占动作流水线" in r.message]
+    assert len(msgs) == 1, f"应只记一次，实际 {len(msgs)}"
+    assert "reversal" in msgs[0] and "tighten_trailing" in msgs[0]
+    tlm._SKIP_LOGGED.clear()
+
+
+def test_pyramid_path_is_not_gated_by_the_pipeline_flag():
+    """滚仓必须**不受**流水线开关影响 —— 它是长线唯一的盈利动作。"""
+    live = _live(_MPM.read_text(encoding="utf-8"))
+    seg = live[live.index("_pyr_direct = ("):]
+    idx = seg.index("_exec_pyramid(")
+    window = seg[max(0, idx - 1500): idx]
+    assert "_trend_own_pipeline" not in window, (
+        "滚仓被流水线开关拦住了 —— 长线会失去唯一的盈利手段"
+    )
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))

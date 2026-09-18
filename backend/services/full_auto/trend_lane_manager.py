@@ -131,3 +131,71 @@ def is_forbidden(action: Optional[str]) -> bool:
 def allowed_actions() -> tuple:
     """长线车道允许的动作集合（文档化用途，测试会钉住）。"""
     return (ACT_HOLD, ACT_PYRAMID, ACT_THESIS_EXIT)
+
+
+# ── 中线专属的**动作流水线**（长线一条都不该走）────────────────────────────
+# [轮103 阶段3b] 轮99 只拦住了 `tighten_trailing` 与 `reduce` 两条，
+# 而 `midlong_position_manager.manage_position` 里实际有 **7 条**动作路径。
+# 逐条列举（括号内是轮103 之前的实测行号与机制）：
+#
+#   reversal         :1633  ⑥ 叙事反转离场（bias_reversal / no_progress）
+#   reversal_4h      :1687  ⑥b 4h 单周期反转（注释自称"mid 专用"，但**没有 gate**）
+#   staged_tp        :1716  ⑤ 分批止盈（与 `_run_v2_protection` 的 ATR 阶梯**是两套实现**）
+#   dca              :1738  ④ 受控逆势补仓（摊平 —— 趋势车道不做）
+#   direction_close  :1830  ① 复查 close → 方向破坏离场（中线口径的趋势复查）
+#   tighten_trailing :1935  收紧追踪止损（1% 带宽，2026-09-18 事故机制）
+#   reduce           :1998  裁量减仓（#4659 被减 6 次只剩 2.7%）
+#
+# 本清单是**判据**：`test_trend_lane_ownership` 会核对源码里这些路径是否都按车道 gate，
+# 并断言清单与源码一致 —— 将来在 `manage_position` 里新增一条动作路径而忘了 gate，
+# 测试就会变红（这正是轮96/轮99 反复漏补丁的根治手段）。
+MID_LANE_ONLY_PATHS: tuple = (
+    "reversal",
+    "reversal_4h",
+    "staged_tp",
+    "dca",
+    "direction_close",
+    "tighten_trailing",
+    "reduce",
+)
+
+
+def owns_pipeline() -> bool:
+    """长线车道是否**独占自己的动作流水线**（跳过上表全部中线路径）。
+
+    开关 `EXIT_TREND_LANE_OWN_PIPELINE`（默认 true）。
+    置 false = 回到轮99 的行为（只拦 tighten/reduce，其余中线路径照跑）——
+    回滚位，用于对照与灰度。
+    """
+    try:
+        from backend.config import settings as _st
+        return bool(getattr(_st, "EXIT_TREND_LANE_OWN_PIPELINE", True))
+    except Exception:
+        return True
+
+
+_SKIP_LOGGED: set = set()
+
+
+def note_skipped_paths(position_id: int, symbol: str = "", logger=None) -> None:
+    """每个长线仓**首次**跳过中线路径时打一条 INFO，说明跳过了哪些、为什么。
+
+    为什么要日志：否则运维看到"这个仓位除了滚仓什么都不做"，
+    会误判成"持仓管理坏了"；而实际是按车道契约交给 Chandelier / 规则失效。
+    """
+    try:
+        _pid = int(position_id or 0)
+        if not _pid or _pid in _SKIP_LOGGED:
+            return
+        if len(_SKIP_LOGGED) >= 2048:      # 有界，绝不无界增长
+            _SKIP_LOGGED.clear()
+        _SKIP_LOGGED.add(_pid)
+        _msg = (
+            "[TrendLane] %s(#%s) 属长线趋势车道 → 独占动作流水线：跳过中线专属路径 %s；"
+            "本车道只做「规则失效退出 / Chandelier / 滚仓」"
+            % (symbol or "?", _pid, "/".join(MID_LANE_ONLY_PATHS))
+        )
+        if logger is not None:
+            logger.info(_msg)
+    except Exception:
+        pass

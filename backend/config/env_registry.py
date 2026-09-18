@@ -1101,6 +1101,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT",
     # [轮99] 趋势车道跳过"中短线口径"日内保护块（分段止盈/保本/回撤/追踪 + ExitPolicy 层）
     "EXIT_TREND_LANE_SKIP_INTRADAY",
+    # [轮103] 长线车道独占动作流水线（跳过 7 条中线专属路径；false=回滚到轮99）
+    "EXIT_TREND_LANE_OWN_PIPELINE",
     # [轮100] 中线 / 长线**分车道**配置（复查节奏、入场止损 ATR 倍数）
     # 原为两车道共用键 MIDLONG_POSITION_MGMT_LLM_INTERVAL_SEC / MIDLONG_ATR_SL_MULT，
     # 现已拆开车道专属键（默认值 = 原共用值，行为不变）。真源见 config/lane_policy.py。

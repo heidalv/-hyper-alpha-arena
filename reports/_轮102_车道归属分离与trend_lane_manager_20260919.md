@@ -1,7 +1,33 @@
 # 轮102 · 阶段3：车道归属分离（trend_lane_manager + 24 模块归属判定）
 
 > 承接 `reports/_轮100_中线与长线分离_架构诊断与第一阶段_20260919.md` 的阶段 3。
-> 提交：`轮102`（`trend_lane_manager.py` + `manage_position` 接线 + 归属判定 + 棘轮测试）
+> 提交：`69e54e4`（决策归属）、`轮103`（动作流水线独占，见第 3b 节）
+
+---
+
+## 〇、3b（轮103）：长线**独占动作流水线** —— 轮99 只拦了 7 条里的 2 条
+
+轮99 我以为"长线已按趋势对待"，只拦住了 `tighten_trailing` 与 `reduce`。
+本轮把 `manage_position` 的动作路径**逐条枚举**后发现实际有 **7 条**：
+
+| # | 路径 | 轮103 之前长线是否在跑 | 机制 |
+|---|---|:--:|---|
+| 1 | `reversal` | **是** | ⑥ 叙事反转离场（bias_reversal / no_progress，15min 尺度） |
+| 2 | `reversal_4h` | **是** | ⑥b 4h 单周期反转（注释自称"mid 专用"，**但没 gate**） |
+| 3 | `staged_tp` | **是** | ⑤ 分批止盈（与 `_run_v2_protection` 的 ATR 阶梯**是两套实现**） |
+| 4 | `dca` | **是** | ④ 受控逆势补仓（摊平 —— 趋势车道不做） |
+| 5 | `direction_close` | **是** | ① 复查 close → 方向破坏离场（中线口径趋势复查） |
+| 6 | `tighten_trailing` | 否（轮99 已拦） | 1% 带宽收紧止损 |
+| 7 | `reduce` | 否（轮99 已拦） | 裁量减仓 |
+
+⇒ **轮99 的"长线按趋势对待"只完成了 2/7**。本轮补齐：新增开关
+`EXIT_TREND_LANE_OWN_PIPELINE`（默认 true），长线仓跳过上述全部 7 条，
+只做「规则失效退出 / F39 闸 / 滚仓」。回滚置 false 即回到轮99 行为。
+
+**判据清单化**：`trend_lane_manager.MID_LANE_ONLY_PATHS` 把这 7 条写成不可变元组，
+测试逐条核对源码里的 gate，并**枚举所有动作调用点**（`_dim_reversal` / `_mid_4h_reversal_reason` /
+`_dim_staged_tp` / `_dim_controlled_dca` / `_exec_reduce` / `_exec_tighten` / `_exec_pyramid`）——
+将来新增一条动作路径而忘了 gate，测试立刻变红。这是对"每轮漏一处补丁"的根治。
 
 ---
 

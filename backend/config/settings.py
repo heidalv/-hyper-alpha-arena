@@ -2598,6 +2598,20 @@ MIDLONG_MIN_LOCK_PROFIT_PCT_SHORT: float = float(os.getenv("MIDLONG_MIN_LOCK_PRO
 EXIT_TREND_LANE_SKIP_INTRADAY: bool = str(
     os.getenv("EXIT_TREND_LANE_SKIP_INTRADAY", "true")
 ).strip().lower() in ("1", "true", "yes", "on")
+
+# [2026-09-19 轮103 阶段3b] 长线车道是否**独占自己的动作流水线**。
+#
+# 背景：轮99 只拦住了 `tighten_trailing` 与 `reduce` 两条，而
+# `midlong_position_manager.manage_position` 实际有 **7 条**动作路径
+# （另 5 条：叙事反转 / 4h反转 / 分批止盈 / 逆势补仓 / 方向破坏离场），
+# 长线仓此前照样在跑 —— 这就是"长线被当日内单"的剩余部分。
+# 清单与判据见 `services/full_auto/trend_lane_manager.MID_LANE_ONLY_PATHS`。
+#
+# true （默认）= 长线只做「规则失效退出 / Chandelier / 滚仓」；
+# false        = 回到轮99 行为（只拦 tighten/reduce），回滚位。
+EXIT_TREND_LANE_OWN_PIPELINE: bool = str(
+    os.getenv("EXIT_TREND_LANE_OWN_PIPELINE", "true")
+).strip().lower() in ("1", "true", "yes", "on")
 # [DEPRECATED — 阶段4] 原 SwingAgent 独立分支的 QuantBrief 对齐阈值；该分支已删除，
 # 中线对齐现由 long thesis 的 mid_view + decision_hub mid_timing 权重统一处理。
 # 保留变量定义避免 env_registry/旧调用点报 AttributeError；新代码不应再读取。

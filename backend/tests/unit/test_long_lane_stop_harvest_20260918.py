@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -60,19 +61,23 @@ def _strip_comments(src: str) -> str:
 
 
 def test_trend_lane_ignores_tighten_and_reduce_but_keeps_pyramid():
-    """[轮99 收窄] 趋势车道只禁「收紧止损」与「裁量减仓」，**保留滚仓**。
+    """[轮99 收窄 / 轮103 扩为流水线 gate] 趋势车道只禁「收紧止损」与「裁量减仓」，**保留滚仓**。
 
     轮96 的第一版是"整个管理器跳过 E1"，过宽 —— 它把**滚仓**也一起停掉了，
     而车道的目的正是「滚仓盈利」（实测近 30 天长线平均加仓 0.06 次 ≈ 从不加仓）。
-    现在按车道契约精确划分：允许规则失效退出 + 滚仓；禁止 tighten/裁量 reduce。
+    轮99 按车道契约精确划分；轮103 又把 gate 条件扩成
+    `(_trend_lane_pos or _trend_own_pipeline)`（后者含回滚开关与 7 条中线路径的独占判定）。
     """
     src = _MPM.read_text(encoding="utf-8")
     live = _strip_comments(src)
     # 旧的"整段跳过"必须消失
     assert "manage_skip_e1" not in live, "过宽的整段跳过仍在（会一并停掉滚仓）"
-    # 两处精确跳过必须存在
-    assert 'if _review_action == "tighten_trailing" and _trend_lane_pos:' in live
-    assert 'if _review_action == "reduce" and _trend_lane_pos:' in live
+    # 两处精确跳过必须存在（接受 `or _trend_own_pipeline` 的扩展形式）
+    for action in ("tighten_trailing", "reduce"):
+        assert re.search(
+            rf'if _review_action == "{action}" and \(_trend_lane_pos or _trend_own_pipeline\):',
+            live,
+        ), f"{action} 的车道早退 gate 缺失或形式不对"
     assert "manage_trend_skip_tighten" in live and "manage_trend_skip_reduce" in live
     # 滚仓路径不得被车道判定拦掉：pyramid 块在用 `_trend_lane_pos` 之前（不 gate）
     _i_pyr = live.index("_exec_pyramid(")
@@ -84,17 +89,20 @@ def test_trend_lane_flag_is_before_the_gated_blocks():
     """车道标记必须在两个被 gate 的动作块之前算出来。"""
     live = _strip_comments(_MPM.read_text(encoding="utf-8"))
     _i_flag = live.index("_trend_lane_pos = False")
-    _i_tight = live.index('if _review_action == "tighten_trailing" and _trend_lane_pos:')
-    _i_red = live.index('if _review_action == "reduce" and _trend_lane_pos:')
+    _i_own = live.index("_trend_own_pipeline = False")
+    _i_tight = live.index('if _review_action == "tighten_trailing" and (_trend_lane_pos or _trend_own_pipeline):')
+    _i_red = live.index('if _review_action == "reduce" and (_trend_lane_pos or _trend_own_pipeline):')
     assert _i_flag < _i_tight and _i_flag < _i_red
+    assert _i_own < _i_tight and _i_own < _i_red
 
 
 def test_trend_lane_flag_covers_e1_and_long_labels():
     """车道标记来源：E1 标记 + tier=long / nature=trend_follow|position + 回滚开关。"""
     live = _strip_comments(_MPM.read_text(encoding="utf-8"))
-    seg = live[live.index("_trend_lane_pos = False"): live.index('if _review_action == "tighten_trailing" and _trend_lane_pos:')]
+    seg = live[live.index("_trend_lane_pos = False"):
+               live.index('if _review_action == "tighten_trailing" and (_trend_lane_pos or _trend_own_pipeline):')]
     assert "is_e1_position" in seg
-    assert '"long"' in seg and "trend_follow" in seg and "position" in seg
+    assert "lane_policy" in seg, "轮100 起车道归属统一走真源"
     assert "EXIT_TREND_LANE_SKIP_INTRADAY" in seg, "回滚开关必须生效"
 
 
