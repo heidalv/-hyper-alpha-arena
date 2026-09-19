@@ -1289,6 +1289,73 @@ try:
 except Exception as e:
     check("轮110 中线止盈重标验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮111  中线入场质量：同币冷却（用 158 笔实测分桶）─────────────────
+print("\n── 轮111  中线同币冷却（刚平完就重开 = 实测最差一档）──")
+try:
+    from backend.services.full_auto.midlong_executor import reentry_cooldown_verdict as _rc111
+    from datetime import datetime as _dt111, timedelta as _td111
+
+    _now111 = _dt111(2026, 9, 19, 12, 0, 0)
+    _in_cd = [_rc111(_now111 - _td111(hours=h), _now111, 7200)[0] for h in (0.0, 1.0, 1.99)]
+    _out_cd = [_rc111(_now111 - _td111(hours=h), _now111, 7200)[0] for h in (2.0, 6.0, 48.0)]
+    check("① 纯判定：2h 内拦、2h 外放行、无前次放行、0=关、坏时间戳 fail-open",
+          _in_cd == [False, False, False] and _out_cd == [True, True, True]
+          and _rc111(None, _now111, 7200)[0] is True
+          and _rc111(_now111, _now111, 0)[0] is True
+          and _rc111("bad", _now111, 7200)[0] is True,
+          "边界已钉：首次开仓是实测最好一档(+0.774%/胜率0.800)，绝不能拦")
+
+    from backend.config.settings import MIDLONG_MID_REENTRY_COOLDOWN_SEC as _cd111
+    _exe111 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "backend/services/full_auto/midlong_executor.py"),
+                      encoding="utf-8").read()
+    _i111 = _exe111.index("中线同币**冷却**")
+    _blk111 = _exe111[_i111: _i111 + 2000]
+    check("② 接线只在 tier=mid、在 Single Writer 内、查询异常 fail-open",
+          _cd111 == 7200.0
+          and 'if str(tier or "").lower() == "mid":' in _blk111
+          and "mid_reentry_wait_ok(db, sym_u" in _blk111
+          and '_wait_ok, _wait_why = True, ""' in _blk111,
+          f"MIDLONG_MID_REENTRY_COOLDOWN_SEC={_cd111}（0=关闭）")
+
+    # ③ 现场样本自证：0–2h 档 vs 去掉后的均值（同一口径）
+    _db111 = _SL109()
+    try:
+        _db111.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _rows111 = _db111.execute(_t109("""
+            SELECT symbol, opened_at, closed_at, entry_price, close_price, side, size
+            FROM paper_positions
+            WHERE timeframe_tier='mid' AND status='closed'
+              AND opened_at >= now() - interval '30 days'
+              AND entry_price > 0 AND close_price > 0
+            ORDER BY symbol, opened_at""")).fetchall()
+    finally:
+        _db111.close()
+
+    _bysym111 = {}
+    for _r in _rows111:
+        _e, _c = float(_r[3]), float(_r[4])
+        _fin = ((_c / _e - 1.0) if str(_r[5]).lower() in ("long", "buy") else (_e - _c) / _e) * 100
+        _bysym111.setdefault(str(_r[0]).upper(), []).append(
+            {"op": _r[1], "cl": _r[2], "fin": _fin})
+    _cold111, _rest111 = [], []
+    for _sym, _lst in _bysym111.items():
+        _lst.sort(key=lambda x: x["op"])
+        for _i, _x in enumerate(_lst):
+            _prev = [_lst[_j]["cl"] for _j in range(_i) if _lst[_j]["cl"]]
+            _gap = min(((_x["op"] - _t).total_seconds() / 3600.0 for _t in _prev), default=None)
+            (_cold111 if (_gap is not None and _gap < 2.0) else _rest111).append(_x["fin"])
+    _m_all = (sum(_cold111) + sum(_rest111)) / max(len(_cold111) + len(_rest111), 1)
+    _m_cold = sum(_cold111) / max(len(_cold111), 1)
+    _m_rest = sum(_rest111) / max(len(_rest111), 1)
+    check("③ 现场分桶复算：0–2h 档显著更差、去掉后均值抬升",
+          _m_cold < _m_all < _m_rest,
+          f"全样本 n={len(_cold111)+len(_rest111)} 均值 {_m_all:+.3f}% | "
+          f"0–2h n={len(_cold111)} 均值 {_m_cold:+.3f}% | "
+          f"去掉后 n={len(_rest111)} 均值 {_m_rest:+.3f}%")
+except Exception as e:
+    check("轮111 中线同币冷却验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

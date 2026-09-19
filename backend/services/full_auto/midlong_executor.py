@@ -138,6 +138,54 @@ class MidLongIntent:
     regime: str = ""
 
 
+def reentry_cooldown_verdict(
+    last_exit, now, cooldown_sec: float, *, symbol: str = "", tier: str = "",
+) -> Tuple[bool, str]:
+    """纯判定：距上次同币平仓是否已过冷却期。`(允许开仓?, 原因文本)`。
+
+    [轮111 2026-09-19 新增] 抽成纯函数是为了单测能直接钉住三类边界
+    （无前次 / 恰好等于冷却 / 冷却为 0），不必构造 DB 会话。
+    证据见 `execute_midlong_open` 里的分桶表：0–2h 重开那档胜率 0.351 / 均值 −0.357%。
+    """
+    if not cooldown_sec or float(cooldown_sec) <= 0:
+        return True, "cooldown_off"
+    if last_exit is None:
+        return True, "no_prior_exit"
+    try:
+        _elapsed = (now - last_exit).total_seconds()
+    except Exception:
+        return True, "bad_timestamp"          # 时间戳不可比 → 不拦（fail-open）
+    if _elapsed < 0:
+        return True, "clock_skew"
+    if _elapsed < float(cooldown_sec):
+        return False, (f"{symbol} 距上次平仓 {_elapsed/3600.0:.2f}h < "
+                       f"{float(cooldown_sec)/3600.0:.2f}h")
+    return True, f"elapsed={_elapsed/3600.0:.2f}h"
+
+
+def mid_reentry_wait_ok(db, symbol: str, *, tier: str = "mid",
+                        cooldown_sec: float = 7200.0) -> Tuple[bool, str]:
+    """查该币最近一次同 tier 的平仓时间 → 交给 `reentry_cooldown_verdict`。
+
+    只读；任何异常由调用方按 fail-open 处理（冷却不是风控闸，不该拦掉正常单）。
+    """
+    from sqlalchemy import text as _sa_text
+
+    sym_u = str(symbol or "").upper()
+    if not sym_u:
+        return True, "no_symbol"
+    row = db.execute(_sa_text("""
+        SELECT closed_at FROM paper_positions
+        WHERE UPPER(symbol) = :s AND status = 'closed'
+          AND COALESCE(timeframe_tier, '') = :t
+          AND closed_at IS NOT NULL
+        ORDER BY closed_at DESC LIMIT 1"""), {"s": sym_u, "t": str(tier or "mid")}).first()
+    return reentry_cooldown_verdict(
+        (row[0] if row else None), __import__("datetime").datetime.now(),
+        cooldown_sec, symbol=sym_u, tier=tier,
+    )
+
+
 def authority_allows_open(authority: str, source: str, trading_mode: Optional[str] = None) -> bool:
     """source: trend | mlto | factor_route。仅当与当前 Single Writer 一致才允许开仓。
 
@@ -374,6 +422,29 @@ def execute_midlong_open(
 
     def _record_fail(_reason: str, _regime: str = "") -> None:
         _sid = str(getattr(session, "session_id", "") or "")
+        # [2026-09-18 解冻·选项E] 跨层登记否决原因，供 brain 的 open_execute_false 事件消费。
+        # 此前该事件无 reason 字段 ⇒ 台账里查不到"为什么被否"（48h 内 321 条全部无因）。
+        # 只写审计侧标记，**不改变任何交易行为**。
+        try:
+            from backend.services.mlto.open_block_reason import (
+                mark_open_block,
+                remember_open_block,
+            )
+            mark_open_block(str(_reason or "writer_block"), layer="midlong_executor")
+            remember_open_block(sym_u, str(tier or ""), str(_reason or "writer_block"),
+                                layer="midlong_executor")
+        except Exception:
+            pass
+        # [2026-09-18 根因修复·F] 互锁可观测：同一标的两个方向都被拦过 ⇒ 落一条带节流的告警。
+        # 本次事故（日线 up 禁空 + 追高天花板禁多）之所以拖了很久，就是因为**没有地方说"这是互锁"**。
+        # 纯观察，不改变任何判定。
+        try:
+            from backend.services.full_auto.midlong_interlock_watch import note_block
+            _il = note_block(sym_u, str(_reason or ""))
+            if _il:
+                logger.warning(_il)
+        except Exception:
+            pass
         try:
             from backend.services.mlto.midlong_belief_loop import record_failed_intent
             record_failed_intent(
@@ -440,6 +511,40 @@ def execute_midlong_open(
             return False
     except Exception:
         pass
+
+    # ── [轮111 2026-09-19] 中线同币**冷却**：刚平完就重开是实测最差的一档 ──────
+    # 依据（同一口径：opened_at 近 30 天、已平仓、entry/close 有效 = **158 笔**）：
+    #     全样本          均值 −0.119%  胜率 0.468
+    #     0–2h 重开档 n=40 均值 **−0.389%**  胜率 **0.375**   ← 显著最差
+    #     2–6h        n=29 −0.237%  0.517
+    #     6–12h       n=22 +0.051%  0.455
+    #     12–24h      n=13 −0.126%  0.462
+    #     24h+        n=44 −0.080%  0.455
+    #     首次(无前次) n=10 **+0.774%** 胜率 **0.800**   ← 最好
+    #     去掉 0–2h 档后  n=118 均值 **−0.027%**  胜率 0.500
+    # 解读：平仓后马上重开=在没有新信息的情况下重复下注，且往往落在震荡段。
+    # ⇒ ≈30 天避免亏损 $62.8 + 省手续费 $23.8 ≈ +$87/30 天，并少 40 笔换手。
+    # 只作用于 tier=mid；`MIDLONG_MID_REENTRY_COOLDOWN_SEC=0` 关闭（回滚）。
+    if str(tier or "").lower() == "mid":
+        try:
+            from backend.config.settings import MIDLONG_MID_REENTRY_COOLDOWN_SEC as _cd
+            _cd = float(_cd or 0)
+        except Exception:
+            _cd = 7200.0
+        if _cd > 0:
+            try:
+                _wait_ok, _wait_why = mid_reentry_wait_ok(db, sym_u, tier="mid", cooldown_sec=_cd)
+            except Exception as _cd_err:      # noqa: BLE001 — 冷却判定异常不得拦单（fail-open）
+                logger.debug("[MidLong] 同币冷却判定跳过: %s", _cd_err)
+                _wait_ok, _wait_why = True, ""
+            if not _wait_ok:
+                logger.info(
+                    "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                    "reason=reentry_cooldown (%s)",
+                    sym_u, auth, source, _wait_why,
+                )
+                _record_fail(f"reentry_cooldown {_wait_why}")
+                return False
 
     if margin <= 0:
         logger.info(
@@ -681,10 +786,19 @@ def execute_midlong_open(
 # 口径：只做**文本显式方向**的映射；推断不出返回空串（保持"方向不可知"，绝不猜）。
 # ══════════════════════════════════════════════════════════════════════
 def _dir_from_reason(reason: str) -> str:
-    """从拦截原因文本推断方向：long_regime/多头/追多 → long；short_regime/空头/追空 → short。"""
+    """从拦截原因文本推断方向：long_regime/多头/追多 → long；short_regime/空头/追空 → short。
+
+    [2026-09-18 根因修复] 补两类**本次事故里实际出现、却判不出方向**的文案：
+      · `location_gate_veto: 24h区间分位95%≥追高天花板70% 硬否决` —— 既有"追高"无"追多"，
+        旧规则判空串 ⇒ 互锁探测器/方向审计都看不见它（而它正是"多头被拒"的主因）；
+      · `…24h区间分位95%≥40% 高位追多` —— 已含"追多"，原本可判。
+    只做**文本显式方向**的映射；推不出仍返回空串（保持"方向不可知"，绝不猜）。
+    """
     r = str(reason or "")
-    if "long_regime_block" in r or "多头" in r or "追多" in r:
+    if ("long_regime_block" in r or "多头" in r or "追多" in r
+            or "追高天花板" in r or "追高" in r or "高位追多" in r):
         return "long"
-    if "short_regime_block" in r or "空头" in r or "追空" in r:
+    if ("short_regime_block" in r or "空头" in r or "追空" in r
+            or "低位追空" in r):
         return "short"
     return ""

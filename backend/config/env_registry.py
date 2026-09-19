@@ -1058,6 +1058,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "CONTEXT_PACK_FACTORS_ENABLED",      # 轮107：主脑上下文因子层开关
     "MIDLONG_MIN_SIZE_MULT",             # 轮108：缩仓链地板（低于则诚实拒绝）
     "MIDLONG_MID_FACTOR_ROUTE_SHADOW",   # 轮109：因子路由影子档（只决策不开仓）
+    "MIDLONG_MID_REENTRY_COOLDOWN_SEC",  # 轮111：中线同币冷却（0=关）
     "FACTOR_CRITIC_ENABLED",
     "FACTOR_CRITIC_MODEL",
     "FACTOR_ROUTE_ENTRY_THRESHOLD",
