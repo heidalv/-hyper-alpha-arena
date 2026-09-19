@@ -113,6 +113,15 @@ def run_committee(
         card = parsed.get("decision_card") if isinstance(parsed.get("decision_card"), dict) else {}
 
         # ── 落库 brain_theses（source=committee_shadow；只写不控制）──
+        #
+        # ⚠️ [轮113 2026-09-19] **本表已停写（最后一行 2026-08-31），不要再拿它做归因**。
+        # 实测：`brain_theses` 全表 1069 行、`source` 全是 `committee_shadow`、
+        # `created_at`/`updated_at` 都停在 08-31 ⇒ 委员会影子早已停跑，本表是**冻结快照**。
+        # 陷阱在于它**仍能按 thesis_id 命中**（它与活表 `mlto_thesis` 共用同一批 id），
+        # 于是"positions ⋈ brain_theses"能查出结果、但**置信度是 8 月的陈旧值**——
+        # 轮112 的置信度归因就是这样拿了假数据（详见该轮报告 §10.3 的更正）。
+        # **活表 = `alpha_analytics.mlto_thesis`（另一个库，跨库 SQL join 不可用，
+        # 必须两次查询）**；本表只在 `COMMITTEE_CONTROL_ENABLED=true` 时被读回。
         try:
             from sqlalchemy import text
             from backend.database.connection import SessionLocal

@@ -1411,6 +1411,88 @@ try:
 except Exception as e:
     check("轮112 入场特征/反证验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮113  归因链路：活表/死表纪律 + 覆盖率更正 ──────────────────────
+print("\n── 轮113  归因链路纪律（brain_theses 冻结陷阱 / 活表 mlto_thesis）──")
+try:
+    from backend.database.connection import AnalyticsSessionLocal as _ASL113
+
+    _db113 = _SL109()
+    try:
+        _db113.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _bt113 = _db113.execute(_t109("""
+            SELECT COUNT(*), MAX(created_at)::date, COUNT(DISTINCT source)
+            FROM brain_theses""")).fetchone()
+        _cov113 = _db113.execute(_t109("""
+            SELECT COALESCE(exit_state_json::json->>'entry_source','(无)') AS src,
+                   COUNT(*), COUNT(exit_state_json::json->'open_metadata'->>'thesis_id')
+            FROM paper_positions
+            WHERE timeframe_tier='mid'
+              AND opened_at >= GREATEST(now() - interval '7 days', TIMESTAMP '2026-09-06')
+            GROUP BY 1""")).fetchall()
+        _hist113 = _db113.execute(_t109("""
+            SELECT COUNT(*), COUNT(exit_state_json::json->'open_metadata'->>'thesis_id')
+            FROM paper_positions
+            WHERE timeframe_tier='mid' AND opened_at >= now() - interval '30 days'
+              AND opened_at < TIMESTAMP '2026-09-06'""")).fetchone()
+    finally:
+        _db113.close()
+
+    check("① `brain_theses` 已冻结（委员会影子停写）—— 不得再用于归因",
+          _bt113 and int(_bt113[0]) > 0 and str(_bt113[1]) == "2026-08-31"
+          and int(_bt113[2]) == 1,
+          f"{int(_bt113[0])} 行 / source 数 {int(_bt113[2])} / 最后写入 {_bt113[1]}"
+          "（与 mlto_thesis 共用 thesis_id ⇒ 按 id join 能查出**陈旧**置信度，"
+          "轮112 就是这样拿了假数据）")
+
+    _cov_str = "; ".join(f"{r[0]}: {int(r[2])}/{int(r[1])}" for r in _cov113)
+    _mlto113 = next((r for r in _cov113 if str(r[0]) == "mlto"), None)
+    check("② 活表臂覆盖率 100%（09-06 接线后）；factor_route 允许 1 笔例外",
+          _mlto113 is not None and int(_mlto113[1]) == int(_mlto113[2]),
+          _cov_str + "（例外已核实：#4691 DOT，脑没分析该币 ⇒ 取不到 thesis）")
+
+    check("③ 更正「39% 覆盖率」：那是 30 天窗口混了接线前的历史",
+          _hist113 is not None and int(_hist113[1]) == 0,
+          f"接线前（≥30 天窗口内 09-06 之前）n={int(_hist113[0])} 笔、带 thesis_id "
+          f"{int(_hist113[1])} 笔 ⇒ 缺口是历史遗留，不是现役缺陷")
+
+    # ⚠️ 这一步**必须两次查询**：`paper_positions` 在 core 库、`mlto_thesis` 在 analytics 库，
+    # SQL 层跨库 join 不可用（第一次写这段时正是踩了这个坑 → UndefinedTable）。
+    _tids113 = []
+    _db113b = _SL109()
+    try:
+        _db113b.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _tids113 = [str(_r[0]) for _r in _db113b.execute(_t109("""
+            SELECT DISTINCT exit_state_json::json->'open_metadata'->>'thesis_id'
+            FROM paper_positions
+            WHERE timeframe_tier='mid' AND opened_at >= now() - interval '3 days'
+              AND exit_state_json::json->'open_metadata'->>'thesis_id' IS NOT NULL""")).fetchall()
+                     if _r[0]]
+    finally:
+        _db113b.close()
+    _ana113 = _ASL113()
+    try:
+        _live113 = _ana113.execute(_t109("""
+            SELECT COUNT(*), MAX(updated_at) FROM mlto_thesis
+            WHERE thesis_id = ANY(:t)"""), {"t": _tids113}).fetchone()
+    finally:
+        _ana113.close()
+    check("④ 活表 `alpha_analytics.mlto_thesis` 新鲜且可解析（跨库 ⇒ 必须两次查询）",
+          bool(_tids113) and _live113 and int(_live113[0]) == len(_tids113)
+          and _live113[1] is not None,
+          f"近 3 天中线引用 {len(_tids113)} 个 thesis_id → 活表命中 {int(_live113[0])} 个，"
+          f"最新 updated_at={_live113[1]}（覆盖率 {int(_live113[0])}/{len(_tids113)}）")
+
+    _dm113 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/mlto/db_models.py"), encoding="utf-8").read()
+    _cs113 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/mlto/committee_shadow.py"), encoding="utf-8").read()
+    check("⑤ 代码里已写明「活表/死表」纪律（防止下一个归因再踩同一个坑）",
+          "活表" in _dm113 and "冻结快照" in _dm113 and "两次查询" in _dm113
+          and "已停写" in _cs113 and "不要再拿它做归因" in _cs113,
+          "db_models.MltoThesis 文档 + committee_shadow 写入点告警")
+except Exception as e:
+    check("轮113 归因链路验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

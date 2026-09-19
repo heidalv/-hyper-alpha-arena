@@ -16,6 +16,22 @@ except ImportError:
 
 
 class MltoThesis(AnalyticsBase):
+    """**中长线论题的活表**（`alpha_analytics.mlto_thesis`）。
+
+    ⚠️ [轮113 2026-09-19 归因纪律] 做"仓位 → 论题 → 置信度"的归因时，**必须**查本表，
+    不能查 `alpha_arena.brain_theses`：
+
+      · `brain_theses` 是**委员会影子**的落库表，实测最后一行停在 **2026-08-31**
+        （1069 行、source 全为 `committee_shadow`），是**冻结快照**；
+      · 但它与活表**共用同一批 thesis_id**，所以"positions ⋈ brain_theses"能查出结果、
+        却给出 8 月的陈旧 `llm_conviction` —— 轮112 的归因就是这样拿了假数据；
+      · 本表在**另一个库**（analytics），跨库 SQL join 不可用 ⇒ 归因要两次查询：
+        先从 `paper_positions.exit_state_json.open_metadata.thesis_id` 取 id，
+        再用 `AnalyticsSessionLocal` 查本表。
+      · 另注：thesis 按 (session, symbol, tier) **复用并原地更新**，所以
+        "9 个 thesis 对应 71 笔开仓"是正常的 —— 同一 thesis_id 会服务多笔入场。
+    """
+
     __tablename__ = "mlto_thesis"
 
     id = Column(Integer, primary_key=True, index=True)
