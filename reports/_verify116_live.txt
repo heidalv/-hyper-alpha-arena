@@ -1,0 +1,14 @@
+== /api/full-auto/tier-status/fa_7e12e7a1b6 ==
+   tier_budget_allocation = {'short': 0.0, 'mid': 0.35, 'long': 0.5}
+   short  label=短线 budget=None max_margin=None margin_used=0 positions=0
+   mid    label=AI中线 budget=None max_margin=None margin_used=0 positions=0
+   long   label=固定长线 budget=None max_margin=None margin_used=239.09 positions=4
+
+== /api/health boot ==
+    ded6a95 ded6a95 matches= True
+
+== tiers.long 完整字段 ==
+   {"label": "固定长线", "strategy_count": 11, "active_count": 3, "paused_count": 8, "position_count": 4, "position_count_mid": 0, "position_count_long_only": 4, "margin_used": 239.09, "budget_allocated": 2337.6, "budget_max": 2337.6, "budget_utilization": 10.2, "symbols": ["ASTER", "BNB", "BTC", "ETH", "SOL", "UNI", "VIRTUAL", "XPL", "XRP"]}
+
+== tiers.short 完整字段 ==
+   {"label": "短线", "strategy_count": 16, "active_count": 7, "paused_count": 9, "position_count": 0, "position_count_mid": 0, "position_count_long_only": 0, "margin_used": 0, "budget_allocated": 0.0, "budget_max": 0.0, "budget_utilization": 0, "symbols": ["ASTER", "BNB", "BTC", "ETH", "SOL", "UNI", "VIRTUAL", "XPL", "XRP"]}
