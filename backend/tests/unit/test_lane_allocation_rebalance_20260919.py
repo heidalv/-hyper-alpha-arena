@@ -48,9 +48,15 @@ def _src(rel: str) -> str:
 # ══════════════════════════════════════════════════════════════════════
 
 def test_allocations_match_the_two_lane_model():
+    """[轮117 2026-09-19 修正] mid 0.35 / long 0.50 → **0.40 / 0.45**（不偏斜）。
+
+    轮116 的偏斜建立在 **30 天混账** 上（跨 5 个配置时代：30 天净 −80.80 vs
+    09-18 之后净 +20.69）。用户指出方法错误后按时代重算，现役时代两车道都为正、
+    但只有 48 笔 ⇒ 不足以支撑偏斜，故改为近乎对半。
+    """
     from backend.config.settings import TIER_BUDGET_ALLOCATION as A, TIER_MAX_MARGIN_PCT as M
-    assert A == {"short": 0.0, "mid": 0.35, "long": 0.50}, A
-    assert M == {"short": 0.0, "mid": 0.35, "long": 0.50}, M
+    assert A == {"short": 0.0, "mid": 0.40, "long": 0.45}, A
+    assert M == {"short": 0.0, "mid": 0.40, "long": 0.45}, M
     assert sum(A.values()) == pytest.approx(0.85), "总分配保持 0.85（安全边际 0.15 不变）"
 
 
@@ -73,7 +79,7 @@ def test_env_file_carries_the_reallocation():
     env = io.open(os.path.join(_ROOT, ".env"), encoding="utf-8",
                   errors="replace").read()
     for kv in ("TIER_SHORT_BUDGET=0.0", "TIER_SHORT_MAX_MARGIN=0.0",
-               "TIER_MID_BUDGET=0.35", "TIER_LONG_BUDGET=0.50",
+               "TIER_MID_BUDGET=0.40", "TIER_LONG_BUDGET=0.45",
                "LAYER_BUDGET_SCALP=0.0", "LAYER_BUDGET_TREND=0.85"):
         assert kv in env, f".env 缺 {kv}（本轮重新分配的契约）"
 
@@ -200,5 +206,5 @@ def test_tier_utilization_is_exposed():
     u = BS.get_tier_utilization(4676.0, "paper", 14)
     assert set(u) == {"short", "mid", "long"}
     assert u["short"]["retired"] is True and u["short"]["cap"] == 0.0
-    assert u["mid"]["alloc"] == pytest.approx(0.35)
-    assert u["long"]["alloc"] == pytest.approx(0.50)
+    assert u["mid"]["alloc"] == pytest.approx(0.40)
+    assert u["long"]["alloc"] == pytest.approx(0.45)

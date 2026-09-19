@@ -2772,7 +2772,14 @@ CONTEXT_PACK_FACTORS_ENABLED: bool = (
 # `size_multiplier` 低于此值 → 诚实拒绝（写 `size_below_floor` 进漏斗审计），
 # 不再默默下一张名义≈0 的单。实测线上出现 `×0.25 × ×0.00` = 0.25% 名义、
 # 而 `[MidLongBrain] 候选=3 成交=0` 连续数小时无原因可查。0 = 关闭地板。
-MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.05") or "0.05")
+#
+# [轮117 2026-09-19 调 0.05 → 0.02] 修好分档系数量纲后，正常档位的乘积是
+#   BUILD  0.30 × V5 0.25 = 0.075
+#   NIBBLE 0.15 × V5 0.25 = 0.0375   ← 0.05 会把**试探档**整档杀掉
+# 两者对应的真实名义（按 PositionConstruction 风险预算 base ≈ $700）分别是
+# $52 / $26 —— 是**正常小仓**，不是当年要拒的"名义≈0"（0.0005×$700 = $0.35）。
+# 地板降到 0.02（≈ $14）后，既不再误杀试探档，也仍然拦住病态乘积。
+MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.02") or "0.02")
 # [轮109 2026-09-19] 因子路由**影子档**：`MIDLONG_MID_VIA_FACTOR_ROUTE=false` 时
 # 不再开仓，但仍逐币决策并记 `[FactorRouteShadow]`（证据不断）。
 # 依据：`entry_source=factor_route` 34 笔净 −103.55（笔均 −3.05），
@@ -2851,6 +2858,17 @@ FACTOR_ROUTE_TRANCHE_MARGIN_PCT: float = float(
 )
 # [2026-09-06] 主脑开仓默认保证金占权益比。切勿用 1.0：ranging 探针会再 ×0.25，
 # 再乘杠杆后名义轻松 >100% 权益，被 PB 集中度闸误杀（实测 BTC 125%>60%）。
+# [轮117 2026-09-19] 主脑分档系数**改由 tranche_gate 单一来源给出**（默认 true）。
+# 根因：`brain.maybe_open` 此前把下面那个**保证金占权益比**（0.12）当作分档系数往下传，
+# 而下游 `proposal_execution`（size_multiplier ×= tranche）与 `midlong_helpers`
+# （estimate_open_notional_aligned(tranche_mult=...)）都按**分档系数**消费它：
+#   0.12 × V5Gate 0.25 = **0.030 < MIDLONG_MIN_SIZE_MULT** ⇒ 每次中线开仓都撞
+#   `[SizeFloor] BLOCK`，**中线被冻结一整天**（线上 13:12–14:03 连续 6 次）。
+# 分档系数的设计值在 `mlto/tranche_gate.compute_margin_pct()`（BUILD 0.30/0.30/0.20/0.10）。
+# false = 退回旧行为（仅用于对照实验）。
+MIDLONG_TRANCHE_FROM_GATE: bool = (
+    os.getenv("MIDLONG_TRANCHE_FROM_GATE", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 MIDLONG_BRAIN_OPEN_MARGIN_PCT: float = float(
     os.getenv("MIDLONG_BRAIN_OPEN_MARGIN_PCT", "0.12") or "0.12"
 )

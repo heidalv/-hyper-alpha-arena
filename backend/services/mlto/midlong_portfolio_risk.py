@@ -159,13 +159,18 @@ def estimate_open_notional(
     sl_pct: float = 0.0,
     risk_pct: float = 0.01,
 ) -> float:
-    """估计本笔开仓名义，口径对齐真实成交。
+    """估计本笔开仓名义（**旧口径/诊断用**，见下）。
 
-    MLTO 的 tranche_margin_pct 是「占权益的保证金比例」（如 NIBBLE 0.15、BUILD 0.30，
-    探针再 ×0.5）。真实名义 ≈ equity × margin_frac × leverage。
-
-    旧口径用 equity×risk_pct/SL×tranche，会把 $350 的成交估成 ~$6，导致闸口形同虚设。
-    当 margin_frac≈1.0（非 MLTO「不缩仓」默认）时退回风险预算公式，避免当成 100% 保证金。
+    ⚠️ [轮117 2026-09-19 更正] 本条 docstring 曾写"MLTO 的 tranche_margin_pct 是
+    「占权益的保证金比例」（如 NIBBLE 0.15、BUILD 0.30）" —— 那句话把**分档系数**与
+    **保证金比例**混为一谈，正是"中线被冻结"的病根：`brain.maybe_open` 照它传了
+    0.12（保证金占比），而下游按分档系数消费 ⇒ 0.12 × V5 0.25 = 0.030 < 地板 0.05
+    ⇒ 每次开仓都被 `[SizeFloor] BLOCK`。
+    现行语义（唯一）：`tranche_margin_pct = 分档系数`（占**计划仓位**的比例），
+    单一来源 `mlto/tranche_gate.compute_margin_pct()`；保证金"占净值上限"由
+    `risk_constitution.MAX_SINGLE_TRADE_MARGIN_PCT` 硬顶负责。
+    本函数（equity×margin_frac×leverage）只保留给诊断日志与一键回滚；
+    **闸的正式输入**是同口径的 `estimate_open_notional_aligned()`（P12 起）。
     """
     eq = float(equity or 0)
     if eq <= 0:

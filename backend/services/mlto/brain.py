@@ -86,6 +86,50 @@ def _tier3(tier) -> str:
     return "mid"
 
 
+def _short_gate_hint(symbol: str, tier: str) -> str:
+    """[2026-09-18 根因修复·方向语义] 空头会被 regime 闸拦时，应注入的**硬约束**文本。
+
+    为什么抽成函数：原先是内联在 prompt 拼装处的一大段，**只能做源码文本断言**；
+    而"文本存在"≠"条件在真实分支下成立"（我这一轮就因为漏了 `regime 未知` 这一档
+    而写出过错误的条件）。抽出来后可以**直接对条件与文案做单测**。
+
+    口径与 `full_auto/midlong_circuit_gate` 的准入**同源**（不另写一套）：
+      · `short` 档豁免（日内波段自己的路径）⇒ 不注入；
+      · `MIDLONG_SHORT_MODE=regime_gated` 下，**日线 regime=空（不可判）也会 fail-closed
+        拦截**（`midlong_short_regime_unknown`）⇒ 必须同样注入（这是我第一版的漏洞）；
+      · `down` 才放行 ⇒ 不注入；
+      · 其它模式/异常 ⇒ 返回 ""（fail-safe：不注入也不改变既有行为）。
+    """
+    try:
+        if _tier3(tier) == "short":
+            return ""
+        from backend.services.full_auto.midlong_circuit_gate import (
+            _daily_regime,
+            _short_mode,
+        )
+        if str(_short_mode()) != "regime_gated":
+            return ""
+        reg = str(_daily_regime(str(symbol or "").upper()) or "").strip().lower()
+        if reg == "down":
+            return ""
+        if not reg:
+            _why = ("日线 regime **不可判**（数据不足），闸门对此 fail-closed —— "
+                    "空头同样会被全部拦截")
+            _reg_txt = "不可判"
+        else:
+            _why = f"日线 regime={reg}（非下行），空头开仓会被 regime 闸**全部拦截**"
+            _reg_txt = reg
+        return (
+            f"【风控硬约束】当前 {symbol} {_why}。"
+            "因此：**direction 必须写 neutral**（bearish 观点请写进 reasoning 字段，"
+            "不要写进 direction）——direction 会被下游当作可执行意图，"
+            "写 short 只会产生必然被拒的提案，并压低本币多头提案的评分。"
+            f"（本币日线 regime={_reg_txt}）要做请评估多头，否则观望。"
+        )
+    except Exception:  # noqa: BLE001 — 注入失败不得影响主链路
+        return ""
+
+
 def thesis_ttl_s(tier: str) -> int:
     try:
         from backend.config.settings import (
@@ -1066,6 +1110,25 @@ def _consolidated_lessons_feed() -> str:
         return ""
 
 
+def _factor_system_lessons_feed() -> str:
+    """[F345 2026-09-18 学习→策略读回路] 让**实际下单**的中长线脑读到另一套学习。
+
+    实测（报告 §15）：MLTO 只读它自己那套（reflexion/episodes/wisdom/consolidated），
+    对 **v7 硬指标教训池 / 因子运行时权重 / 衰减退役** 的读取命中为 0 ⇒ 两套学习各自闭环，
+    "学习只写不读"。本函数把 v7 分层教训 + 因子治理现状注入 `extras`。
+
+    开关：`LEARNING_READBACK_ENABLED`（默认 `auto` = 本车道**关**，与今日逐字节一致；
+    置 1 启用）。`extras` 会被 `json.dumps(...)[:_BRAIN_EXTRAS_CHAR_BUDGET]` 截断，
+    因此该键**放在 extras 前部**，避免长尾键被截掉后"算了但没人看见"。
+    """
+    try:
+        from backend.services.learning_readback import decision_block
+        return decision_block(lane="mlto", limit=6)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[MidLongBrain] 学习读回路跳过: %s", str(exc)[:160])
+        return ""
+
+
 def _high_severity_events(symbol: str) -> List[Dict[str, Any]]:
     try:
         from backend.services.analysis import ledgers
@@ -1180,6 +1243,10 @@ def build_feed(
         "chart_role": "附加证据。缺失或 source=none 不阻止分析、也不等于必须观望。",
         "watch_rule": "循环每 45 秒看现价、决策 K 收盘、失效价。行情变了立刻重问，不是等到 TTL。",
         "daily_brief": _brief_view(symbol),
+        # [F345 2026-09-18] 学习→策略读回路：v7 硬指标教训 + 因子治理现状。
+        # 默认关（LEARNING_READBACK_ENABLED=auto 时本车道不启用）⇒ 关时返回 ""，
+        # 与历史 prompt 逐字节一致；置 1 即可生效。
+        "factor_system_lessons": _factor_system_lessons_feed(),
         "factor_route": factor_ev,
         "long_trend_v2": v2_ev,
         "trend_e1": _e1_evidence(),
@@ -1307,29 +1374,39 @@ def refresh_thesis(
         )
         pack = feed["pack"]
         extras = feed["extras"]
+        # [F345 2026-09-18 禁止静默退化] extras 明文按字符数硬截断，此前**截断无任何日志**
+        # ⇒ 尾部键（如后加的读回路块）可能被悄悄切掉，而调用方以为"已经喂给主脑了"。
+        # 这里只加告警、不改输出字节；实测当前 extras 约 8-12k 字符 < 60000 预算。
+        _extras_json = json.dumps(extras, ensure_ascii=False, default=str)
+        if len(_extras_json) > _BRAIN_EXTRAS_CHAR_BUDGET:
+            logger.warning(
+                "[MidLongBrain] extras 超预算被截断: %d > %d 字符 ⇒ 尾部键对主脑不可见: %s %s",
+                len(_extras_json), _BRAIN_EXTRAS_CHAR_BUDGET, symbol, tier,
+            )
+            _extras_json = _extras_json[:_BRAIN_EXTRAS_CHAR_BUDGET]
         user = (
             f"【标的】{symbol}  【周期】{tier}\n\n"
             + pack.to_prompt_text(_BRAIN_CONTEXT_TOKEN_BUDGET)
             + "\n\n【本币附加证据】\n"
-            + json.dumps(extras, ensure_ascii=False, default=str)[:_BRAIN_EXTRAS_CHAR_BUDGET]
+            + _extras_json
         )
-        # [2026-09-11] 风控提示注入：mid/long 空头被 regime 闸拦截（仅日线 down 放行）
-        # 时提前告知主脑，避免 LLM 反复提案「必然被拒」的空头（实测 midlong_short_
-        # regime_block 单日 111 次，浪费 LLM 调用且污染统计）。direction 仍如实写，
-        # 只约束 recommend_open=true 的空头提案。
-        try:
-            from backend.services.full_auto.midlong_circuit_gate import _daily_regime, _short_mode
-            _tier_l = _tier3(tier)
-            if _tier_l != "short" and str(_short_mode()) == "regime_gated":
-                _reg_hint = _daily_regime(symbol)
-                if _reg_hint and _reg_hint != "down":
-                    user += (
-                        f"\n\n【风控提示】当前 {symbol} 日线 regime={_reg_hint}（非下行），"
-                        "空头开仓会被 regime 闸全部拦截：direction 可写 bearish，"
-                        "但 recommend_open=true 的空头论题不会成交。优先评估多头或观望。"
-                    )
-        except Exception:
-            pass
+        # [2026-09-11] 风控提示注入：mid/long 空头被 regime 闸拦截时提前告知主脑，
+        # 避免 LLM 反复提案「必然被拒」的空头。
+        #
+        # [2026-09-18 根因修复·方向语义] 旧文案写「direction 可写 bearish，但
+        # recommend_open=true 的空头论题不会成交」——**这句许可是失效的根源**：
+        #   ① 下游把 thesis.direction 当**可执行意图**用，即便 recommend_open=false
+        #      也会走闸并被 midlong_short_regime_block 拒；
+        #   ② 实测 LLM 仍提 `recommend_open=true` 的空头（快照 id=461133/461134）；
+        #   ③ 更隐蔽的连带伤害：持久 short 让 quant_layer 把 llm_qual 夹到 ≤0.45
+        #      ⇒ 在 ai_governed 下压低 composite ⇒ 连该币合规多头也被拖成 WAIT。
+        # 实测（近 3h、133 条）：short 100 / long 25 / neutral 8，dir_src 全 llm_brain，
+        # 其中单一标的 VIRTUAL 占 80 条 ⇒ 绝大多数是"必被拒的空头"。
+        # 文案逻辑抽到 `_short_gate_hint()` 以便**单测直接断言**（原来是内联的，
+        # 只能做源码文本断言 —— 而文本断言正是我这一轮栽过的坑，见 §11.4）。
+        _hint_txt = _short_gate_hint(symbol, tier)
+        if _hint_txt:
+            user += "\n\n" + _hint_txt
         gw = get_model_gateway()
         cres = gw.dual_call(
             "midlong_thesis",
@@ -1796,11 +1873,50 @@ def maybe_open(
     # 否则日内仓 100% 被盈亏比门卡死（UNI 实证）。SL 不动（风险口径不变）。
     if nature == "intraday" and sl > 0 and tp / sl < 2.0:
         tp = round(sl * 2.2, 6)
+    # ── [轮117 2026-09-19 修「中线被冻结」：量纲用错] ──────────────────────
+    # 这里此前传的是 `MIDLONG_BRAIN_OPEN_MARGIN_PCT`（**占权益的保证金比例**，0.12），
+    # 但下游两处消费方都把它当**分档系数**（fraction of the full intended position）用：
+    #   * `proposal_execution`：`dec["size_multiplier"] *= tranche`；
+    #   * `midlong_helpers`：`estimate_open_notional_aligned(tranche_mult=tranche)`。
+    # 设计值在 `tranche_gate.compute_margin_pct()`：BUILD 0.30/0.30/0.20/0.10、NIBBLE 0.15/0.10。
+    #
+    # 实测后果（`reports/_probe117b.txt`）：
+    #   0.12（brain margin）× 0.25（V5Gate 缩仓）= **0.030 < MIDLONG_MIN_SIZE_MULT(0.05)**
+    #   ⇒ 每一次中线开仓都撞 `[SizeFloor] BLOCK`（线上 13:12–14:03 连续 6 次），
+    #   **中线因此冻结一整天**；而 09-18/09-19 那些 $690 名义的中线仓，是这套量纲还没咬合时开的。
+    #
+    # 保证金「占净值上限」由 `risk_constitution.MAX_SINGLE_TRADE_MARGIN_PCT`（硬顶 20%）负责，
+    # 不该占用分档系数这个槽位。分档系数由 `tranche_gate` 单一来源给出。
+    # 回滚：`MIDLONG_TRANCHE_FROM_GATE=false` → 退回旧的 margin-% 行为（仅对照用）。
     try:
-        from backend.config.settings import MIDLONG_BRAIN_OPEN_MARGIN_PCT
-        margin = float(MIDLONG_BRAIN_OPEN_MARGIN_PCT or 0.12)
+        from backend.config.settings import MIDLONG_TRANCHE_FROM_GATE as _tfg
     except Exception:
-        margin = 0.12
+        _tfg = True
+    if _tfg:
+        try:
+            from backend.services.mlto.tranche_gate import compute_margin_pct as _cmp
+
+            class _HubStub:  # compute_margin_pct 只读 hub.action
+                # 主脑路径是"决定开仓"（没有 decision_hub 的 WAIT/NIBBLE 分档）⇒ 按 BUILD 取档；
+                # 论题自己标了 recommend_open=0 时退到 NIBBLE（试探档），保持"证据不足先小仓"的语义。
+                action = "BUILD" if bool(getattr(thesis, "recommend_open", True)) else "NIBBLE"
+
+            margin = float(_cmp(thesis, _HubStub(), False) or 0.0)
+            if margin <= 0:
+                # stage≥3 = 该论题的分档已用尽 ⇒ 交给下游按"tranche 耗尽"诚实拒绝（不静默放大）
+                logger.info(
+                    "[MidLongBrain] %s %s 分档已用尽(tranche_stage=%s) ⇒ 本轮不开",
+                    symbol, tier, getattr(thesis, "tranche_stage", "?"),
+                )
+        except Exception as _t_err:
+            logger.warning("[MidLongBrain] 分档系数取值失败，按设计首档 0.30 兜底: %s", _t_err)
+            margin = 0.30
+    else:
+        try:
+            from backend.config.settings import MIDLONG_BRAIN_OPEN_MARGIN_PCT
+            margin = float(MIDLONG_BRAIN_OPEN_MARGIN_PCT or 0.12)
+        except Exception:
+            margin = 0.12
     # [2026-09-07] 周期联动：中性市日内波段保证金 ×0.5（严格一致矩阵的降仓档）
     try:
         from backend.services.full_auto.cycle_coordinator import cycle_size_mult
@@ -1817,6 +1933,17 @@ def maybe_open(
 
     db = SessionLocal()
     try:
+        # [2026-09-18 解冻·选项E] 先在**本次尝试之前**清空跨层否决原因登记，避免取到陈旧值；
+        # execute 内部各层用 open_block_reason.mark_open_block() 写入本次的具体原因（后写覆盖先写）。
+        try:
+            from backend.services.mlto.open_block_reason import (
+                clear_last_open_block as _clr_last,
+                clear_open_block as _clr_blk,
+            )
+            _clr_blk()
+            _clr_last(str(symbol or ""), str(tier or ""))
+        except Exception:
+            pass
         opened = bool(execute_midlong_open(
             host=host,
             db=db,
@@ -1851,6 +1978,20 @@ def maybe_open(
                 "[MidLongBrain] execute_false %s %s dir=%s thesis=%s (见 stage=fuse 日志)",
                 symbol, tier, thesis.direction, thesis.thesis_id,
             )
+            # [选项E] 取本次尝试登记的否决原因：
+            #  ① 先读按 (symbol,tier) 留存的副本（执行链**内部**的闸只能从这里取到，
+            #     因为 midlong_helpers.record_exec_false_audit() 会 take 掉 ContextVar 版）；
+            #  ② 再回退到 ContextVar 版（fuse 层/更外层用）；两者都空 ⇒ 显式写 `<未登记>`。
+            _obr_blk: Dict[str, Any] = {}
+            try:
+                from backend.services.mlto.open_block_reason import (
+                    last_open_block,
+                    peek_open_block,
+                )
+                _obr_blk = (last_open_block(str(symbol or ""), str(tier or ""))
+                            or peek_open_block() or {})
+            except Exception:
+                _obr_blk = {}
             _emit_open_execute_false(
                 thesis.thesis_id,
                 {
@@ -1858,6 +1999,14 @@ def maybe_open(
                     "tier": tier,
                     "direction": thesis.direction,
                     "action": action,
+                    # [2026-09-18 解冻·选项E] 补 `reason`：此前该事件**没有任何原因字段**
+                    # （实测近 48h 321 条 open_execute_false 全部无因，其中 160 条是 mid 做多）
+                    # ⇒ "多头为什么被否"在台账里是空的，只能靠翻日志。
+                    # 原因由执行链各层经 open_block_reason.mark_open_block() 登记；
+                    # **未登记时写显式的 `<未登记>`，绝不猜测**（与原模块"不得猜"的纪律一致）。
+                    "reason": str(_obr_blk.get("code") or "") or "<未登记>",
+                    "reason_detail": str(_obr_blk.get("detail") or "")[:200],
+                    "reason_layer": str(_obr_blk.get("layer") or ""),
                 },
             )
         return opened

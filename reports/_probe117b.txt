@@ -1,0 +1,49 @@
+== 1. 相关配置 ==
+   MIDLONG_BRAIN_OPEN_MARGIN_PCT    .env='0.12'
+   MIDLONG_MIN_SIZE_MULT            .env=None
+   MIDLONG_RISK_PCT                 .env='0.01'
+   MIDLONG_MAX_SL_PCT_MID           .env='0.015'
+   V5_SCALP_MIN_CONFIDENCE          .env='55'
+   生效: MIDLONG_BRAIN_OPEN_MARGIN_PCT=0.12 MIDLONG_MIN_SIZE_MULT=0.05
+
+== 2. cycle_size_mult（周期联动乘子）对当前盘面的取值 ==
+   样本币: ['ASTER', 'BNB', 'BTC', 'DOT', 'ETH', 'LINK', 'SOL', 'UNI']
+     ASTER      long  → 1.0
+     ASTER      short → 1.0
+     BNB        long  → 1.0
+     BNB        short → 1.0
+     BTC        long  → 1.0
+     BTC        short → 1.0
+     DOT        long  → 1.0
+     DOT        short → 1.0
+     ETH        long  → 1.0
+     ETH        short → 1.0
+     LINK       long  → 1.0
+     LINK       short → 1.0
+     SOL        long  → 1.0
+     SOL        short → 1.0
+     UNI        long  → 1.0
+     UNI        short → 1.0
+
+== 3. tranche_gate 设计值（应当是分档系数 0.30/0.30/0.20/0.10）==
+     action=BUILD   stage=0 → 0.3
+     action=BUILD   stage=1 → 0.3
+     action=BUILD   stage=2 → 0.2
+     action=BUILD   stage=3 → 0.0
+     action=NIBBLE  stage=0 → 0.15
+     action=NIBBLE  stage=1 → 0.1
+     action=NIBBLE  stage=2 → 0.1
+     action=NIBBLE  stage=3 → 0.1
+     action=WAIT    stage=0 → 0.0
+     action=WAIT    stage=1 → 0.0
+     action=WAIT    stage=2 → 0.0
+     action=WAIT    stage=3 → 0.0
+
+== 4. 现在这条链的乘积（brain 现值 × V5 0.25）==
+   brain margin = 0.12 × cycle(1.0) = 0.12
+     现状: brain(0.120) × V5(0.25) = 0.0300 < 地板 0.05 ⇒ 拒单
+     现状: brain(0.120) × V5(1.0) = 0.1200 ≥ 地板 ⇒ 可开
+     修复后: tranche(0.30) × cycle(1.0) = 0.300 × V5(0.25) = 0.0750 ≥ 地板 ⇒ 可开
+     修复后: tranche(0.30) × cycle(1.0) = 0.300 × V5(1.0) = 0.3000 ≥ 地板 ⇒ 可开
+     修复后: tranche(0.15) × cycle(1.0) = 0.150 × V5(0.25) = 0.0375 < 地板 0.05 ⇒ 仍拒单
+     修复后: tranche(0.15) × cycle(1.0) = 0.150 × V5(1.0) = 0.1500 ≥ 地板 ⇒ 可开

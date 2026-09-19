@@ -1743,6 +1743,88 @@ try:
 except Exception as e:
     check("轮116 车道重新分配验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮117  中线解冻（量纲）+ 时代口径修正（用户：别用错的历史评价）────────
+print("\n── 轮117  分档系数量纲修正（中线解冻）+ 按时代重算比例 ──")
+try:
+    _root117 = os.path.dirname(os.path.abspath(__file__))
+    _brain117 = io.open(os.path.join(_root117, "backend/services/mlto/brain.py"),
+                        encoding="utf-8").read()
+    from backend.services.mlto.tranche_gate import compute_margin_pct as _cmp117
+    from backend.config.settings import (
+        MIDLONG_MIN_SIZE_MULT as _floor117, MIDLONG_TRANCHE_FROM_GATE as _tfg117,
+        TIER_BUDGET_ALLOCATION as _A117,
+    )
+
+    class _T117:
+        tranche_stage = 0
+
+    class _H117:
+        action = "BUILD"
+
+    class _HN117:
+        action = "NIBBLE"
+
+    _build = _cmp117(_T117(), _H117(), False)
+    _nib = _cmp117(_T117(), _HN117(), False)
+    check("① 分档系数的设计值在位（BUILD 0.30 / NIBBLE 0.15，唯一来源 tranche_gate）",
+          _build == 0.30 and _nib == 0.15,
+          f"BUILD={_build} NIBBLE={_nib}；主脑路径已改为从这里取值（回滚 "
+          f"MIDLONG_TRANCHE_FROM_GATE={_tfg117}）")
+
+    # 剥注释后的可执行文本：默认路径必须是 compute_margin_pct
+    _i117 = _brain117.index("轮117 2026-09-19 修「中线被冻结」")
+    _seg117 = _brain117[_i117:_i117 + 2600]
+    _code117 = "\n".join(l for l in _seg117.splitlines() if not l.strip().startswith("#"))
+    check("② 默认路径走 tranche_gate（保证金占比只留在 else 回滚分支）",
+          "compute_margin_pct" in _code117
+          and _code117.index("compute_margin_pct") < _code117.index("MIDLONG_BRAIN_OPEN_MARGIN_PCT")
+          and "MIDLONG_TRANCHE_FROM_GATE" in _code117,
+          "brain.maybe_open 此前把 0.12（保证金占比）当分档系数传下去")
+
+    check("③ 量纲自证：正常档位的乘积必须高于地板（旧量纲 0.12×0.25=0.030 会被拒）",
+          _build * 0.25 >= _floor117 and _nib * 0.25 >= _floor117
+          and 0.12 * 0.25 < _floor117,
+          f"BUILD×V5(0.25)={_build*0.25:.4f}、NIBBLE×V5=0.0375、地板={_floor117}；"
+          "旧量纲 0.030 落在拒绝区（这正是中线冻结的现场）")
+
+    check("④ 比例按**时代**重算，撤回 30 天混账的偏斜（0.35/0.50 → 0.40/0.45）",
+          abs(float(_A117["mid"]) - 0.40) < 1e-9 and abs(float(_A117["long"]) - 0.45) < 1e-9
+          and abs(float(_A117["mid"]) - float(_A117["long"])) <= 0.05,
+          f"TIER_BUDGET_ALLOCATION={_A117}；30 天净 −80.80（n=1047，跨 5 个配置时代）"
+          " vs 09-18 之后净 +20.69（n=48）⇒ 48 笔不足以支撑偏斜")
+
+    # ⑤ 现场：现役时代的净值 + 中线最后一次尝试的拒绝原因
+    _db117 = _SL109()
+    try:
+        _db117.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _era117 = _db117.execute(_t109("""
+            SELECT COUNT(*),
+                   ROUND(SUM((CASE WHEN side IN ('long','buy') THEN close_price/entry_price-1
+                                  ELSE 1-close_price/entry_price END)
+                             * size * entry_price / leverage)::numeric, 2),
+                   ROUND(AVG((CASE WHEN side IN ('long','buy') THEN close_price/entry_price-1
+                                   ELSE 1-close_price/entry_price END)*100)::numeric, 3)
+            FROM paper_positions
+            WHERE account_id=14 AND status='closed' AND entry_price>0 AND close_price>0
+              AND opened_at >= now() - interval '2 days'""")).fetchone()
+        _last117 = _db117.execute(_t109("""
+            SELECT closed_at, symbol, timeframe_tier,
+                   ROUND(((CASE WHEN side IN ('long','buy') THEN close_price/entry_price-1
+                                ELSE 1-close_price/entry_price END)*100)::numeric,2)
+            FROM paper_positions
+            WHERE account_id=14 AND status='closed' AND entry_price>0 AND close_price>0
+              AND timeframe_tier='mid'
+            ORDER BY closed_at DESC LIMIT 1""")).fetchone()
+    finally:
+        _db117.close()
+    check("⑤ 现役时代（近 2 天按 opened_at）账户净额为正 —— 30 天的负值来自已停车道/已删路径",
+          _era117 and int(_era117[0]) > 0 and float(_era117[1]) > 0,
+          f"n={int(_era117[0])} 净={_era117[1]} 笔均={_era117[2]}%；"
+          f"中线最近一笔平仓 {_last117[0]} {_last117[1]} {_last117[2]}%"
+          if _era117 else "查询失败")
+except Exception as e:
+    check("轮117 中线解冻验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

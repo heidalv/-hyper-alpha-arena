@@ -1,0 +1,26 @@
+== 活表 mlto_thesis：tranche_stage 分布（按 tier）==
+   tier=long   stage=0 n= 25 最后更新=2026-09-19 16:05:01.108172
+   tier=long   stage=1 n=  1 最后更新=2026-08-13 00:17:44.549681
+   tier=long   stage=3 n=  1 最后更新=2026-08-13 00:14:41.450793
+   tier=mid    stage=0 n=102 最后更新=2026-09-19 16:07:02.148003
+   tier=mid    stage=1 n=  6 最后更新=2026-08-14 02:28:08.106513
+   tier=mid    stage=2 n=  3 最后更新=2026-08-12 09:22:33.953285
+   tier=short  stage=0 n= 17 最后更新=2026-09-16 14:48:20.132392
+
+== 最近的 mid 论题明细（stage / conviction / recommend_open / direction）==
+   列: created_at, updated_at, open_readiness, mid_view_json, regime_suggestion_json, sl_pct, tp_pct, stable_since, recommend_open, should_close, accepted, expires_at, review_count, id, tranche_stage, llm_conviction, hub_composite, hub_adjusted, consistency, prompt_version, thesis_id, session_id, symbol, tier, direction, thesis_summary, regime_hash, invalidation_json, missing_evidence_json, owm_weights_json, reasoning_snapshot, wisdom_ids_json, analysis_run_id
+   952c4c12-77c2-4000-ba42-e0e67cb5e077 | ASTER | mid | 0 | 45 | long | 1 | 2026-09-19 16:07:02.148003
+   58fe9334-3168-44f8-9304-ee315309621e | SOL | mid | 0 | 49 | neutral | 0 | 2026-09-19 16:04:02.662907
+   107ec69a-5f1d-4b10-86ad-3f9ba04c917d | LINK | mid | 0 | 52 | long | 0 | 2026-09-19 16:01:07.795638
+   25e9c215-6a81-47dc-b275-381825a23682 | BTC | mid | 0 | 40 | neutral | 0 | 2026-09-19 16:00:45.994353
+   a41252bc-8f2d-49c0-aec1-3aeaecd03e0c | ADA | mid | 0 | 42 | neutral | 0 | 2026-09-19 15:57:11.095067
+   310d9258-2d74-4f84-a32b-78c72ed8f4c7 | BNB | mid | 0 | 43 | neutral | 0 | 2026-09-19 15:40:25.227146
+   943a6a5c-2773-4ac1-8949-f46969d5642d | DOGE | mid | 0 | 36 | neutral | 0 | 2026-09-19 15:38:32.177983
+   ee23a83c-e261-41b4-a86e-48e3d8224060 | XRP | mid | 0 | 39 | neutral | 0 | 2026-09-19 15:38:17.156073
+   a8ffbab4-8002-4ed8-a31f-0f778a6dae6d | XPL | mid | 0 | 34 | neutral | 0 | 2026-09-19 15:37:51.103518
+   b7cf1540-c0d0-4ce1-8205-102f654c222a | VIRTUAL | mid | 0 | 35 | neutral | 0 | 2026-09-19 15:31:43.742995
+   982fc260-f1d4-400c-9f19-9cf054fcec3c | UNI | mid | 0 | 45 | long | 1 | 2026-09-19 15:09:23.837841
+   0c1e5511-8c06-47c2-9bd9-2541949c4ad5 | ETH | mid | 0 | 52 | long | 0 | 2026-09-19 14:59:05.319565
+   c364f035-2b96-4795-9228-a5953abac7e0 | 1000PEPE | mid | 0 | 45 | long | 1 | 2026-09-19 12:07:44.905166
+   15c01156-56bf-4b5b-885e-e528ef83943f | LIT | mid | 0 | 52 | long | 1 | 2026-09-19 09:14:10.373433
+   8dbd7ed7-d779-4513-899e-9c87f74f6896 | DOT | mid | 0 | 39 | neutral | 0 | 2026-09-19 08:44:12.647738
