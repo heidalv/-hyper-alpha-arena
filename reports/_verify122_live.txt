@@ -1,0 +1,34 @@
+== 会话 AI 中线池（落盘）==
+   mid  = {'symbols': ['SYN', 'ZEC', 'WLFI'], 'updated_at': 1789833179.9426713, 'reason': 'retention kept=3 evicted=[] added=[] from midlong_board min_conf=0.4'}
+   long = {'symbols': ['SYN'], 'updated_at': 1789833180.0253112, 'reason': 'retention kept=1 evicted=[] added=[] from long_board min_conf=0.5'}
+
+== 函数返回 vs 看板最新一轮 ==
+   get_ai_mid_candidates_for_session = ['SYN', 'ZEC', 'WLFI']
+   看板最新一轮（horizon=mid）:
+       ('SYN', 0.62, 'approve')
+       ('ICP', 0.6, 'approve')
+       ('WLFI', 0.5, 'watch')
+       ('ZEC', 0.45, 'watch')
+       ('APT', 0.45, 'watch')
+       ('DOGE', 0.3, 'reject')
+
+== ZEC 现状 ==
+    ('tpl_mid_reversion_a9e8e8', 'paused', 'mid')
+    ('tpl_short_range_a0d282', 'paused', 'short')
+   近 30 分钟 ZEC 相关事件:
+
+== 论题状态（AI 池币 vs 看板 approve 的 ICP）==
+    ('SYN', 0, 0, datetime.datetime(2026, 9, 19, 23, 56, 33, 263167), datetime.datetime(2026, 9, 20, 0, 26, 33, 263167))
+    ('WLFI', 0, 0, datetime.datetime(2026, 9, 19, 23, 33, 24, 10009), datetime.datetime(2026, 9, 20, 0, 3, 24, 9005))
+    ('ZEC', 1, 1, datetime.datetime(2026, 9, 19, 20, 56, 59, 778968), datetime.datetime(2026, 9, 20, 0, 56, 59, 778968))
+
+== 看板扫描表（换代时间）==
+    ('failed', datetime.datetime(2026, 8, 3, 6, 45, 31, 27580), 1)
+    ('done', datetime.datetime(2026, 9, 19, 15, 52, 59, 879583), 2604)
+    ('running', None, 149)
+
+== 当前 mid 持仓（本轮的试探仓）==
+    (4739, 'BTC', 'mid', Decimal('397.44'), Decimal('-1.02'), datetime.datetime(2026, 9, 19, 23, 55, 23, 712457))
+    (4738, 'SOL', 'mid', Decimal('420.12'), Decimal('-1.28'), datetime.datetime(2026, 9, 19, 23, 55, 19, 769172))
+    (4737, 'ETH', 'mid', Decimal('413.94'), Decimal('-1.60'), datetime.datetime(2026, 9, 19, 23, 55, 8, 23303))
+    (4733, 'ASTER', 'mid', Decimal('703.66'), Decimal('3.33'), datetime.datetime(2026, 9, 19, 16, 56, 48, 581585))
