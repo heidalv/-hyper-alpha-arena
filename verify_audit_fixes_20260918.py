@@ -1609,8 +1609,9 @@ try:
           "host 显式接线 + 成功分支调用；清理失败不影响下单")
 
     check("④ 过期状态不再残留在文件里（现场 12 条冷却有 10 条是过期残留）",
-          "如果不存在" not in _svc115 and 'if float((v or {}).get("until") or 0) > _now}' in _svc115
-          and "超 2h" in _svc115,
+          'if float((v or {}).get("until") or 0) > _now}' in _svc115
+          and "超过 2h 没更新" in _svc115
+          and "_block_streaks_save" in _svc115,
           "落盘前 prune：过期冷却 + 超 2h 未更新的计数")
 
     check("⑤ 冻结台账双向可见（现场 387 条 freeze / **0** 条 unfreeze）",
@@ -1618,20 +1619,37 @@ try:
           and "thaw_events" in _fc115,
           "惰性过期那一刻补 expire 事件（每冻结只写一次）+ status() 给出 freeze/thaw 计数")
 
-    # ⑥ 现场读数：此刻有多少 (symbol,tier) 在冷却、streak 是否还在棘轮上
-    _st115 = json.loads(io.open(os.path.join(_root115, "data/proposal_block_streaks.json"),
-                                encoding="utf-8").read())
+    # ⑥ 现场读数 + **行为**验证：把线上状态文件喂给服务，save 一次后必须只剩生效项
+    import tempfile as _tf115
+    _live115 = json.loads(io.open(os.path.join(_root115, "data/proposal_block_streaks.json"),
+                                  encoding="utf-8").read())
     _now115 = time.time()
-    _act115 = {k: v for k, v in (_st115.get("cooldowns") or {}).items()
+    _act115 = {k: v for k, v in (_live115.get("cooldowns") or {}).items()
                if float((v or {}).get("until") or 0) > _now115}
-    _over115 = {k: v for k, v in (_st115.get("streaks") or {}).items()
+    _over115 = {k: v for k, v in (_live115.get("streaks") or {}).items()
                 if int((v or {}).get("count") or 0) >= _SVC115._BLOCK_STREAK_TRIGGER}
-    check("⑥ 状态文件不再积累「过期冷却」与「≥阈值计数」",
-          len(_st115.get("cooldowns") or {}) == len(_act115),
-          f"冷却条目 {len(_st115.get('cooldowns') or {})} 条、其中生效 {len(_act115)} 条 "
-          f"{sorted(_act115)}；stale 残留 0 条"
-          + (f"；计数仍≥阈值 {sorted(_over115)}（修复上线前积累的，解冻后即归零）"
-             if _over115 else ""))
+    _tmp115 = os.path.join(_tf115.gettempdir(), "_verify115_streaks.json")
+    io.open(_tmp115, "w", encoding="utf-8").write(
+        json.dumps(_live115, ensure_ascii=False))
+    _svc_o115 = _SVC115.__new__(_SVC115)
+    _svc_o115._proposal_block_streaks = {}
+    _svc_o115._proposal_block_cooldowns = {}
+    _svc_o115._BLOCK_STREAK_FILE = _tmp115
+    _svc_o115._block_streaks_load()
+    _svc_o115._block_streaks_save()
+    _clean115 = json.loads(io.open(_tmp115, encoding="utf-8").read())
+    _exp_left = [k for k, v in (_clean115.get("cooldowns") or {}).items()
+                 if float((v or {}).get("until") or 0) <= time.time()]
+    check("⑥ 把线上状态文件喂进去 save 一次 ⇒ 过期冷却/超期计数被清干净",
+          not _exp_left
+          and len(_clean115.get("cooldowns") or {}) == len(_act115)
+          and len(_clean115.get("streaks") or {}) <= len(_over115),
+          f"线上文件：冷却 {len(_live115.get('cooldowns') or {})} 条（生效 {len(_act115)}: "
+          f"{sorted(_act115)}）、计数≥阈值 {len(_over115)} 个；"
+          f"prune 后：冷却 {len(_clean115.get('cooldowns') or {})} 条、"
+          f"计数 {len(_clean115.get('streaks') or {})} 个、过期残留 {len(_exp_left)} 个。"
+          "运行中的进程在下一次装配/保存时同样被清；"
+          "计数≥阈值的那批是修复上线前积累的，各自下一次同因拦截即自动归零")
 
     # ⑦ 回滚开关在位
     from backend.config.settings import PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM as _thaw115
