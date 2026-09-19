@@ -109,11 +109,27 @@ def test_source_has_probe_clamp_branch():
     assert "size_below_floor" in seg, "算不出名义时仍必须诚实拒绝"
 
 
-def test_sl_pct_is_passed_down_for_notional_math():
+def test_notional_sl_pct_is_passed_down_without_kwarg_collision():
+    """键名必须是 `notional_sl_pct`。
+
+    用裸 `sl_pct` 会撞 `TradeProposal.from_agent(sl_pct=...)` 的形参 ⇒
+    `from_agent() got multiple values for argument 'sl_pct'`，实测（16:44:21）把
+    **所有**中线/长线开仓打成"开仓失败"，比缩仓本身更致命。
+    """
     src = _src("backend/services/full_auto/midlong_helpers.py")
     i = src.index('"tranche_margin_pct": _tranche_mult,')
-    seg = src[i:i + 700]
-    assert '"sl_pct"' in seg, "proposal.extra 必须带 sl_pct，否则算不出 base notional"
+    seg = src[i:i + 900]
+    assert '"notional_sl_pct"' in seg, "必须以 notional_sl_pct 下传"
+    assert '"sl_pct":' not in seg, "不得再出现裸 sl_pct 键（会 got multiple values）"
+    # 端到端：真的能构造 proposal（回归 16:44 的 got multiple values）
+    from backend.services.decision_core.proposal import TradeProposal
+    _p = TradeProposal.from_agent(
+        sym="ASTER", tier="mid", action="buy", confidence=50,
+        trade_nature="swing", sl_pct=0.015, tp_pct=0.03,
+        source_lane="swing_independent",
+        tranche_margin_pct=0.05, notional_sl_pct=0.015,
+    )
+    assert (_p.extra or {}).get("notional_sl_pct") == 0.015
 
 
 def test_chain_reproduces_the_freeze_and_the_clamp():
@@ -152,4 +168,5 @@ def test_evidence_is_documented_in_settings():
     i = src.index("MIDLONG_MIN_PROBE_NOTIONAL_USD: float")
     seg = src[i - 1200:i]
     assert "0.0014" in seg and "冻结" in seg, "必须把六层叠乘的现场证据留在旁边"
+
 

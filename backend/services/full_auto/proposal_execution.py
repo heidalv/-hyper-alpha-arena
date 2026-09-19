@@ -362,7 +362,9 @@ def _evaluate_and_execute_proposal_inner(
         # 关闭：`MIDLONG_MIN_PROBE_NOTIONAL_USD=0` ⇒ 回到"算不出/过小就拒绝"。
         _sl_dec = 0.0
         try:
-            _sl_dec = float((getattr(proposal, "extra", None) or {}).get("sl_pct") or 0)
+            _ex = getattr(proposal, "extra", None) or {}
+            # 键名 `notional_sl_pct`（刻意区别于 from_agent 的 sl_pct 形参，避免重复传参）
+            _sl_dec = float(_ex.get("notional_sl_pct") or _ex.get("sl_pct") or 0)
         except Exception:
             _sl_dec = 0.0
         _base_notional = 0.0
