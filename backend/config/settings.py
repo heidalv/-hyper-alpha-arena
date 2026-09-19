@@ -2767,6 +2767,14 @@ CONTEXT_PACK_FACTORS_ENABLED: bool = (
 # 不再默默下一张名义≈0 的单。实测线上出现 `×0.25 × ×0.00` = 0.25% 名义、
 # 而 `[MidLongBrain] 候选=3 成交=0` 连续数小时无原因可查。0 = 关闭地板。
 MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.05") or "0.05")
+# [轮109 2026-09-19] 因子路由**影子档**：`MIDLONG_MID_VIA_FACTOR_ROUTE=false` 时
+# 不再开仓，但仍逐币决策并记 `[FactorRouteShadow]`（证据不断）。
+# 依据：`entry_source=factor_route` 34 笔净 −103.55（笔均 −3.05），
+# 同期 `mlto` 28 笔净 +98.52（笔均 +3.52）；中线 62 笔合计净 −5.03。
+# 要彻底静默：false。
+MIDLONG_MID_FACTOR_ROUTE_SHADOW: bool = (
+    os.getenv("MIDLONG_MID_FACTOR_ROUTE_SHADOW", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
 # [轮105 2026-09-19] AST 同族去重：按结构签名（数值常量归一）识别"只差窗口"的重复因子，

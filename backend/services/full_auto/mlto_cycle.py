@@ -35,7 +35,6 @@ class MltoCycleHost:
     get_trading_account_id: Callable = field(repr=False, default=lambda *a, **k: 0)
     evaluate_and_execute_proposal: Callable = field(repr=False, default=lambda *a, **k: False)
 
-
 def build_mlto_cycle_host(svc) -> MltoCycleHost:
     lock = getattr(svc, "_mlto_handled_lock", None)
     if lock is None:
@@ -258,6 +257,38 @@ def maintain_mlto_theses_for_session(
                             logger.warning("[FactorRouteAB] %s 决策异常: %s", _m, _fr_err, exc_info=True)
             except Exception as _ab_err:
                 logger.warning("[FactorRouteAB] A/B 车道跳过: %s", _ab_err)
+
+            # ── [轮109 2026-09-19] 因子路由**影子档**：只决策、只记日志、不开仓 ──
+            # 为什么要有这一档：A/B 实盘证据已经给出判决 ——
+            #   `entry_source=factor_route` 34 笔：毛利 −83.33、手续费 20.22、**净 −103.55**
+            #   （笔均净 −3.05）；同期 `mlto` 28 笔 **净 +98.52**（笔均 +3.52）。
+            #   中线整体 62 笔：毛利 +31.78 − 费 36.81 = **净 −5.03** ⇒ 这一条路径就是全部亏损来源。
+            # 所以把 `MIDLONG_MID_VIA_FACTOR_ROUTE` 关掉止血；但**证据不能断**，
+            # 否则以后无法回答"关对了没有/要不要再开"。`MIDLONG_MID_FACTOR_ROUTE_SHADOW`
+            # （默认 true）在 VIA=false 时继续逐币决策 + 记 `[FactorRouteShadow]`，
+            # 只把 `opened` 去掉。要彻底静默：SHADOW=false。
+            try:
+                import os as _os_sh
+                _shadow_on = (_os_sh.getenv("MIDLONG_MID_FACTOR_ROUTE_SHADOW", "true") or "true"
+                              ).strip().lower() in ("1", "true", "yes", "on")
+                if (not _FR) and _ab_on and _shadow_on and _mid_syms and (
+                        (_trade_mode or "paper").strip().lower() == "paper"):
+                    from backend.services.factor_engine.midlong_factor_route import (
+                        factor_route_decide as _frd_sh,
+                    )
+                    for _m in _mid_syms:
+                        try:
+                            _sh_dec = _frd_sh(_m, market_summary, trading_mode=_trade_mode)
+                            logger.info(
+                                "[FactorRouteShadow] %s action=%s score=%s gate=%s | %s",
+                                _m, _sh_dec.get("action"), _sh_dec.get("score"),
+                                _sh_dec.get("gate") or _sh_dec.get("reason"),
+                                (_sh_dec.get("reason") or "")[:110],
+                            )
+                        except Exception as _sh_err:
+                            logger.debug("[FactorRouteShadow] %s 决策异常: %s", _m, _sh_err)
+            except Exception as _sh_outer:
+                logger.debug("[FactorRouteShadow] 影子档跳过: %s", _sh_outer)
         elif _FR and _mid_syms:
             for _m in _mid_syms:
                 if not _reserve_key(f"{_m}:mid"):
@@ -341,8 +372,10 @@ def maintain_mlto_theses_for_session(
             _e1_exclusive = bool(_e1_lle())
         except Exception:
             pass
-        if _brain_long_now() and run_long and _fixed_symbols_early and not _e1_exclusive:
-            # [2026-09-07 解耦] 异步派发
+        # [2026-09-18 撤销验收轮2的整段跳过] 用户裁决：分析不许省。脑长线批次恢复
+        # 全频率派发（分析/论题/持仓管理视角照常产出）；下单仍被 E1 独占闸拒绝，
+        # 交易权不变。频率/触发式调度如需调整必须先出数据方案经用户确认。
+        if _brain_long_now() and run_long and _fixed_symbols_early:
             from backend.services.mlto.brain import run_midlong_brain_batch_async as _long_brain_async
             _long_brain_async(
                 host=host,
@@ -354,7 +387,7 @@ def maintain_mlto_theses_for_session(
                 reserve_key=_reserve_key,
             )
         elif _e1_exclusive and run_long:
-            logger.info("[MidLongBrain] E1 独占长车道：跳过脑 tier=long 批次（E1 日任务单主管理）")
+            logger.info("[MidLongBrain] E1 独占长车道（脑长线批次仍派发：分析/论题产出，交易权在 E1）")
     except Exception as _lb_err:
         logger.warning("[MidLongBrain] 长线批次异常: %s", _lb_err, exc_info=True)
 

@@ -1145,6 +1145,98 @@ try:
 except Exception as e:
     check("轮108 中线体检验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮109  中线根因：因子路由入场路径吃掉全部毛利 ─────────────────────
+print("\n── 轮109  中线根因修复（止血 + 影子档 + 锁利地板）──")
+try:
+    from backend.database.connection import SessionLocal as _SL109
+    from sqlalchemy import text as _t109
+
+    _db109 = _SL109()
+    try:
+        _db109.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _mid109 = _db109.execute(_t109("""
+            WITH p AS (
+              SELECT id, symbol, opened_at, closed_at, unrealized_pnl,
+                     COALESCE(exit_state_json::json->>'entry_source','(无)') AS src
+              FROM paper_positions
+              WHERE timeframe_tier='mid' AND opened_at >= now() - interval '7 days'
+            ), f AS (
+              SELECT p.id, SUM(o.fee) AS fee
+              FROM p JOIN paper_orders o
+                ON o.symbol=(SELECT symbol FROM paper_positions WHERE id=p.id) AND o.account_id=14
+               AND o.created_at BETWEEN (SELECT opened_at FROM paper_positions WHERE id=p.id) - interval '1 min'
+                                    AND COALESCE((SELECT closed_at FROM paper_positions WHERE id=p.id), now()) + interval '1 min'
+              GROUP BY p.id
+            )
+            SELECT COUNT(*), ROUND(SUM(p.unrealized_pnl)::numeric,2),
+                   ROUND(SUM(COALESCE(f.fee,0))::numeric,2),
+                   ROUND((SUM(p.unrealized_pnl)-SUM(COALESCE(f.fee,0)))::numeric,2)
+            FROM p LEFT JOIN f ON f.id=p.id""")).fetchone()
+        _n109, _gross109, _fee109, _net109 = _mid109
+        check("① 中线 7 天账：毛利被手续费吃掉（修复对象就是这个差值）",
+              _n109 and _n109 > 0,
+              f"{int(_n109)} 笔：毛利 {_gross109} − 手续费 {_fee109} = **净 {_net109}**"
+              "（笔均毛 0.513 < 笔均费 0.594 ⇒ 结构性负期望）")
+
+        _src109 = _db109.execute(_t109("""
+            WITH p AS (
+              SELECT id, symbol, opened_at, closed_at, unrealized_pnl,
+                     COALESCE(exit_state_json::json->>'entry_source','(无)') AS src
+              FROM paper_positions
+              WHERE timeframe_tier='mid' AND opened_at >= now() - interval '7 days'
+            ), f AS (
+              SELECT p.id, SUM(o.fee) AS fee
+              FROM p JOIN paper_orders o
+                ON o.symbol=(SELECT symbol FROM paper_positions WHERE id=p.id) AND o.account_id=14
+               AND o.created_at BETWEEN (SELECT opened_at FROM paper_positions WHERE id=p.id) - interval '1 min'
+                                    AND COALESCE((SELECT closed_at FROM paper_positions WHERE id=p.id), now()) + interval '1 min'
+              GROUP BY p.id
+            )
+            SELECT p.src, COUNT(*), ROUND(SUM(p.unrealized_pnl)::numeric,2),
+                   ROUND(SUM(COALESCE(f.fee,0))::numeric,2),
+                   ROUND((SUM(p.unrealized_pnl)-SUM(COALESCE(f.fee,0)))::numeric,2)
+            FROM p LEFT JOIN f ON f.id=p.id GROUP BY 1 ORDER BY 5 DESC""")).fetchall()
+        _rows109 = {str(r[0]): r for r in _src109}
+        _fr109 = _rows109.get("factor_route")
+        _ml109 = _rows109.get("mlto")
+        check("② 根因定位：factor_route 入场路径净额为负、mlto 为正",
+              _fr109 is not None and float(_fr109[4]) < 0 and _ml109 is not None
+              and float(_ml109[4]) > 0,
+              "; ".join(f"{r[0]}: {int(r[1])} 笔 毛{r[2]} 费{r[3]} **净{r[4]}**" for r in _src109))
+    finally:
+        _db109.close()
+
+    # ③ 止血：.env 关掉因子路由中线实开，并保留影子档
+    _env109 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+                      encoding="utf-8", errors="replace").read()
+    _via109 = [ln for ln in _env109.splitlines()
+               if ln.strip().startswith("MIDLONG_MID_VIA_FACTOR_ROUTE")]
+    check("③ MIDLONG_MID_VIA_FACTOR_ROUTE=false（止血，可回滚）",
+          bool(_via109) and _via109[-1].split("=", 1)[1].strip().lower() == "false",
+          _via109[-1] if _via109 else "（缺省）")
+    try:
+        from backend.config.settings import MIDLONG_MID_FACTOR_ROUTE_SHADOW as _sh109
+    except Exception:
+        _sh109 = None
+    _cycl109 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "backend/services/full_auto/mlto_cycle.py"),
+                       encoding="utf-8").read()
+    _i_sh109 = _cycl109.index("_shadow_on = (")
+    _blk109 = _cycl109[_i_sh109: _cycl109.index("_sh_outer", _i_sh109)]
+    check("③ 影子档仍在记证据（只 decide 不开仓）",
+          _sh109 is True and "[FactorRouteShadow]" in _blk109
+          and "factor_route_decide" in _blk109 and "factor_route_open" not in _blk109,
+          "MIDLONG_MID_FACTOR_ROUTE_SHADOW=true → 逐币决策 + 日志，opened 语义被去掉")
+
+    # ④ 锁利地板
+    from backend.services.paper_trading_engine import paper_engine as _pe109
+    _lock109 = _pe109._min_lock_profit_pct("mid")
+    check("④ 中线锁利地板 0.5% → 1.0%（往返手续费仅 0.04%，0.5% 等于 +1% 就截断赢单）",
+          abs(float(_lock109) - 0.010) < 1e-9,
+          f"_min_lock_profit_pct('mid')={_lock109}（长线仍 {_pe109._min_lock_profit_pct('long')}）")
+except Exception as e:
+    check("轮109 中线根因验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

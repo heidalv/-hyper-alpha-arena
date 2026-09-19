@@ -209,10 +209,17 @@ def test_band_keys_are_declared_in_settings():
 
 
 def test_min_lock_defaults_match_lane_design():
-    """锁利地板默认值：long 2.5%（用户确认的人工处置口径）、mid 0.5%、short 0。"""
+    """锁利地板：long 2.5%（用户确认的人工处置口径）、**mid 1.0%**、short 0。
+
+    [轮109 2026-09-19 更新] mid 0.5% → **1.0%**。原 0.5% 的口径下，实测中线
+    锁利离场有 12/14 笔落在"峰值 −0.5pp"（即 +0.4%~1.4% 就落袋，中位持仓 3.4h），
+    而中线 7 天 62 笔的账是 **毛利 +31.78 − 费 36.81 = 净 −5.03**：
+    往返手续费只有 0.04%（笔均 0.594/名义 1484.9），0.5% 的锁利等于把赢单
+    在 +1% 就截断，同时让亏损单按 −1.7% 走 ⇒ 结构性负期望。
+    """
     from backend.services.paper_trading_engine import paper_engine
     assert paper_engine._min_lock_profit_pct("long") == pytest.approx(0.025)
-    assert paper_engine._min_lock_profit_pct("mid") == pytest.approx(0.005)
+    assert paper_engine._min_lock_profit_pct("mid") == pytest.approx(0.010)
     assert paper_engine._min_lock_profit_pct("short") == pytest.approx(0.0)
 
 
