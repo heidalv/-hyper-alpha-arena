@@ -1,0 +1,55 @@
+轮116: 短线配额回收 + 车道资金重新分配 + tier 阀口接线
+
+用户原话：「短线没有，自己分配比例，阀口都没动过，这个就不对了。马上进行深度的
+调研和维修，重新分配」
+
+## 调研结论（reports/_probe116*.txt）
+1. 车道模型已经是两条、预算层还停在三车道：
+   轮63（2026-09-18 用户确认）写死 —— 交易只有 intraday(日内, tier=mid) 与
+   trend(长线趋势, tier=long)，且"scalp 不再是独立车道：短线车道已停(2026-09-17)"。
+   但预算表里 short 仍占 tier 0.25 + layer 0.35，而该车道实测 30 天 853 笔
+   净 -201.55、胜率 0.393、笔均 -0.122%（最后一笔 09-05）⇒ 配额从未回收/重分配。
+2. 同一算式四处各自重算：budget_service.get_tier_cap（**零调用者**）、
+   master_execution（真的在拦单）、tier_parallel_executor、full_auto_routes。
+3. 静默兜底：get_tier_cap 的 `else: tier_l="mid"` 让 '1h'/'15m'/… 拿到 mid 的配额，
+   而 tier_to_layer 对它们返回 None ⇒"不占任何层额度却有一个看起来存在的上限"；
+   NATURE_TO_LAYER['intraday']='scalp' 还把日内的钱记进已停的 scalp 池。
+4. 当日真实占用：equity 4676，scalp 层 0/1637（闲置 100%）、trend 层 239/3040（7.9%）
+   ⇒ 上限不是约束，"声明与实际脱节"才是问题。
+
+## 重新分配（总分配 0.85 不变，安全边际 0.15 不变）
+  TIER_SHORT_BUDGET/MAX_MARGIN   0.25 → 0.00（车道已停 + 实测定为无边际）
+  TIER_MID_BUDGET/MAX_MARGIN     0.25 → 0.35（mlto 臂 30 天 38 笔 +41.79）
+  TIER_LONG_BUDGET/MAX_MARGIN    0.35 → 0.50（trend_e1 臂 22 笔 +45.44，笔均 +1.128%）
+  LAYER_BUDGET_SCALP             0.35 → 0.00（层随车道退役）
+  LAYER_BUDGET_TREND             0.65 → 0.85（必须 ≥ mid+long 的 tier 之和，
+                                          否则层上限盖住 tier 阀口）
+  释放的 0.25 按两车道"最好的臂"净额占比分（45.44:41.79 ≈ 52%:48%）。
+  .env 覆盖层由 scripts/_apply_env_rotation116.py 写入；回滚=删掉那 8 行。
+
+## 一起修掉的四处结构问题
+1. tier 配额收敛到 budget_service.get_tier_cap（唯一实现），三处调用方改造完成；
+2. tier 阀口真的接线：get_layer_budget(tier=)/can_open/scale_factor_for_layer
+   改为**层与 tier 取更严**（此前独立开仓路径只看层）；
+3. 未知 tier → fail-closed 0（+限流告警）；**研究车道刻意区分**：
+   research/pair_research/arb 不预算、不缩仓（保持原语义 1.0）；
+4. NATURE_TO_LAYER: scalp/intraday → trend 层；新增 tier_for_position() 以
+   lane_semantics 为车道真源（存量 intraday 存 tier='short'，算钱归 mid 桶）。
+另修 scale_factor_for_layer 语义：显式 0 配额必须返回 0.0（原 `cap<=0 → 1.0`
+让"配额=0"等价于"完全不限仓"）；equity<=0 仍返回 1.0，不制造新硬拦。
+
+## 上线后实测
+  short: cap 0 / 乘子 0.0 / can_open False（硬拒）
+  mid  : 层 3974.73、tier 1636.65、乘子 1.0
+  long : 层 3974.73、tier 2338.07、已用 239.09（10.2%）、乘子 1.0
+  can_open('1h') = False（脏标签不再能开仓）
+
+## 验证
+新增 test_lane_allocation_rebalance_20260919.py(14)；test_midlong_remediation 两处
+映射断言按轮63 更新；相关回归全绿；verify 新增轮116 段 8 项；报告 §十四。
+
+## 已知（先于本轮存在的红灯，非本轮引入，已用 git stash 对 HEAD 复现）
+  - test_phase0_changes::test_hard_gate_default_true：.env 里
+    LIVE_ORCHESTRATOR_HARD_GATE=false 覆盖了代码默认值（风控姿态，待用户口径）
+  - test_log_and_import_hygiene + test_tranche_fix 同进程跑时 4 项失败：
+    前者 import backend.main 会安装 _module_alias 的 import finder 且不还原

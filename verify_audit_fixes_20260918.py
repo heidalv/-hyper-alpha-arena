@@ -1640,16 +1640,17 @@ try:
     _clean115 = json.loads(io.open(_tmp115, encoding="utf-8").read())
     _exp_left = [k for k, v in (_clean115.get("cooldowns") or {}).items()
                  if float((v or {}).get("until") or 0) <= time.time()]
+    _stale_left = [k for k, v in (_clean115.get("streaks") or {}).items()
+                   if _now115 - float((v or {}).get("ts") or 0) >= 2 * 3600]
     check("⑥ 把线上状态文件喂进去 save 一次 ⇒ 过期冷却/超期计数被清干净",
-          not _exp_left
-          and len(_clean115.get("cooldowns") or {}) == len(_act115)
-          and len(_clean115.get("streaks") or {}) <= len(_over115),
+          not _exp_left and not _stale_left
+          and len(_clean115.get("cooldowns") or {}) == len(_act115),
           f"线上文件：冷却 {len(_live115.get('cooldowns') or {})} 条（生效 {len(_act115)}: "
-          f"{sorted(_act115)}）、计数≥阈值 {len(_over115)} 个；"
-          f"prune 后：冷却 {len(_clean115.get('cooldowns') or {})} 条、"
-          f"计数 {len(_clean115.get('streaks') or {})} 个、过期残留 {len(_exp_left)} 个。"
-          "运行中的进程在下一次装配/保存时同样被清；"
-          "计数≥阈值的那批是修复上线前积累的，各自下一次同因拦截即自动归零")
+          f"{sorted(_act115)}）、计数≥阈值 {len(_over115)} 个；prune 后："
+          f"冷却 {len(_clean115.get('cooldowns') or {})} 条、计数 "
+          f"{len(_clean115.get('streaks') or {})} 个（近 2h 内的正常计数保留）、"
+          f"过期残留 {len(_exp_left)} / 超期计数 {len(_stale_left)}。"
+          "运行中的进程在下一次装配/保存时同样被清")
 
     # ⑦ 回滚开关在位
     from backend.config.settings import PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM as _thaw115
@@ -1673,6 +1674,7 @@ try:
     from backend.services.budget_service import (
         budget_service as _BS116, normalize_tier as _nt116,
         NATURE_TO_LAYER as _N2L116, tier_for_position as _tfp116,
+        is_research_tier as _is_res116,
     )
 
     check("① 配额与轮63 的两车道口径对齐（short 退役 / intraday=mid / trend=long）",
@@ -1707,8 +1709,7 @@ try:
     check("④b 研究车道 ≠ 未知标签：刻意不预算 ⇒ 不缩仓（1.0），但也没有配额",
           _BS116.scale_factor_for_layer("pair_research", _eq116) == 1.0
           and _BS116.get_tier_cap("pair_research", _eq116) == 0.0
-          and _BS116.is_research_tier("pair_research")
-          and not _BS116.is_research_tier("1h"),
+          and _is_res116("pair_research") and not _is_res116("1h"),
           "原语义（tier_to_layer is None → 1.0）对研究车道是对的；本轮只把"
           "『刻意不预算』与『没人认识的脏标签』分开")
 
