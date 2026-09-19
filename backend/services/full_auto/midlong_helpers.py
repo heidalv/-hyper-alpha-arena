@@ -959,6 +959,17 @@ def try_execute_independent_agent_open(
         _tranche_mult = max(0.0, min(1.0, float(_tranche_mult) * float(_atr_size_mult or 1.0)))
     except Exception:
         pass
+    # [轮117 2026-09-19 乘子链留痕] 中线"开不出来"排查时，日志里只有各层的 `size×0.xx`
+    # 与最终乘积，缺"**这个值从哪来**"。这里把入参/ATR 项/出参一次打全，
+    # 以后任何"被压成 0"都能一眼定位是哪一层（而不是靠反推）。
+    try:
+        logger.info(
+            "[TrancheChain] %s tier=%s tranche_in=%.4f atr_mult=%.3f → tranche_out=%.4f",
+            _sym_u, tier, float(tranche_margin_pct or 0), float(_atr_size_mult or 1.0),
+            float(_tranche_mult),
+        )
+    except Exception:
+        pass
 
     # ── P2：净方向敞口 + 相关簇同向上限（在仓位乘子确定后估名义）──
     if _act in ("buy", "sell") and (

@@ -623,6 +623,14 @@ def execute_midlong_open(
             trading_mode=_tm or "paper",
             tranche_margin_pct=margin,
         )
+        # [轮117 2026-09-19 乘子链留痕] regime 层对分档系数的实际作用（进/出）
+        try:
+            logger.info(
+                "[TrancheChain] %s tier=%s regime=%s(%s) margin→%.4f",
+                sym_u, tier, regime, reg_reason, float(margin or 0),
+            )
+        except Exception:
+            pass
         if act not in ("buy", "sell"):
             logger.info(
                 "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
