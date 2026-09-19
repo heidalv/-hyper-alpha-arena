@@ -1,0 +1,40 @@
+boot_git_hash = bd46b60 | code_git_head = bd46b60 | matches = True
+boot(local) = 2026-09-19 14:27:19.442000
+
+== boot 之后的 open_execute_false（应全部带具体原因）==
+
+== boot 之后 通用串 / 总数 ==
+    (0, 0)
+
+== 修复前后 24h 对照（通用串占比）==
+    (75, 157)
+
+== 冷却表现状（cooldowns）==
+    ZEC:mid {'code': 'v5gate', 'until': 1789728003.41302}
+    AAVE:mid {'code': 'v5gate', 'until': 1789758249.5094562}
+    ASTER:long {'code': 'long_template_source_block', 'until': 1789770841.3188987}
+    BNB:long {'code': 'long_template_source_block', 'until': 1789770847.408736}
+    UNI:long {'code': 'long_template_source_block', 'until': 1789771922.7689252}
+    SOL:long {'code': 'long_template_source_block', 'until': 1789776582.416533}
+    ETH:long {'code': 'long_template_source_block', 'until': 1789779004.669819}
+    TIA:mid {'code': 'v5gate', 'until': 1789781406.1721513}
+    DOT:mid {'code': 'strategy_detached', 'until': 1789781418.3649635}
+    LIT:mid {'code': 'strategy_detached', 'until': 1789783947.1142466}
+    1000PEPE:mid {'code': 'size_below_floor', 'until': 1789797439.342082}
+    ASTER:mid {'code': 'size_below_floor', 'until': 1789799581.6484125}
+
+== 最近 48h 的 midlong_cooldown_block 事件（既有 reentry_cooldown 仍在拦）==
+    (datetime.datetime(2026, 9, 19, 14, 26, 35, 814638), 'eval_false:cooldown:size_below_floor')
+    (datetime.datetime(2026, 9, 19, 5, 48, 2, 163148), 'midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩25分钟）——避免信号未变时重复付手续费')
+    (datetime.datetime(2026, 9, 19, 1, 7, 11, 91305), 'midlong_cooldown_block:DB耐久冷却: ASTER 刚sl平long仓（18分钟前 pnl=-12.39），抑制同向再开约剩11分钟')
+    (datetime.datetime(2026, 9, 19, 1, 2, 30, 913715), 'midlong_cooldown_block:刚平多仓(tier=mid)未满60分钟，抑制同向再开（约剩46分钟）——避免信号未变时重复付手续费')
+    (datetime.datetime(2026, 9, 18, 21, 42, 42, 996297), 'midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩29分钟）——避免信号未变时重复付手续费')
+    (datetime.datetime(2026, 9, 18, 16, 49, 51, 380038), 'midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩28分钟）——避免信号未变时重复付手续费')
+
+== 14:26:35 那条事件的完整 payload（同日同类事件此前只有通用串 + 空 detail）==
+   2026-09-19 14:26:35.814638
+   {"symbol": "ASTER", "tier": "mid", "direction": "long", "action": "buy", "reason": "eval_false:cooldown:size_below_floor", "reason_detail": "同因拦截已达阈值进入冷却(原原因=size_below_floor) 剩6分钟", "reason_layer": "proposal_execution"}
+
+== 对照：修复前最后一条通用串（09-19 14:10:00）==
+   2026-09-19 14:10:00.297713
+   {"symbol": "ASTER", "tier": "mid", "direction": "long", "action": "buy", "reason": "evaluate_and_execute_returned_false", "reason_detail": "", "reason_layer": "exec_false"}
