@@ -1059,6 +1059,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_MIN_SIZE_MULT",             # 轮108：缩仓链地板（低于则诚实拒绝）
     "MIDLONG_MIN_PROBE_NOTIONAL_USD",    # 轮117：叠乘后名义过小 ⇒ 抬到最小试探仓而不是拒绝
     "MIDLONG_NEUTRAL_PROBE_ENABLED",     # 轮120：中性/等回踩论题的小仓试探（用户拍板）
+    "MIDLONG_AI_CANDIDATE_TRADABLE_FILTER",  # 轮123：AI 候选可交易性过滤（默认 false）
     "MIDLONG_CIRCUIT_PAPER_LOCK",        # 轮120：恢复单币连亏冻结（只冻亏钱的那个币）
     "MIDLONG_TRANCHE_FROM_GATE",         # 轮117：分档系数改由 tranche_gate 单一来源
     "MIDLONG_MID_FACTOR_ROUTE_SHADOW",   # 轮109：因子路由影子档（只决策不开仓）
@@ -2350,4 +2351,5 @@ def _cli() -> int:
 
 if __name__ == "__main__":
     sys.exit(_cli())
+
 

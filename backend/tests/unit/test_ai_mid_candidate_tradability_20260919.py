@@ -23,12 +23,15 @@ def _src(rel):
 
 
 def test_helper_exists_and_is_wired():
+    """[轮123 更新] 过滤仍在，但**默认关闭**（轮118 的判据过紧，把整条 AI 车道清零）。"""
     src = _src("backend/services/auto_coin_selector.py")
     assert "def _filter_tradable_mid_candidates(" in src
-    assert "_filter_tradable_mid_candidates(db, session_id, picked)" in src, "必须在返回前接线"
-    i = src.index("轮118 2026-09-19] AI 候选必须")
-    seg = src[i:i + 1200]
-    assert "strategy_detached" in seg and "候选=1 成交=0" in seg, "必须留下现场证据"
+    assert "_filter_tradable_mid_candidates(db, session_id, picked)" in src, "仍可在开关下启用"
+    i = src.index("轮123 2026-09-19 改为默认关闭")
+    seg = src[i:i + 1500]
+    assert 'MIDLONG_AI_CANDIDATE_TRADABLE_FILTER", "false"' in seg, "默认必须是 false"
+    assert "扫描侧" in seg, "必须写明保护改由扫描侧承担（补建 + active + 可绑定）"
+    assert "候选=0" in seg or "picked=['SYN','ZEC','DOGE'] → []" in seg, "留下现场证据"
 
 
 def test_filter_keeps_session_symbols_and_strategy_symbols(tmp_path):

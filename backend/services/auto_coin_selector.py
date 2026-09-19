@@ -6209,23 +6209,31 @@ def get_ai_mid_candidates_for_session(
             ),
         )
         picked = [s for s in full_watch if s not in _open_mid][:_free]
-        # ── [轮118 2026-09-19] AI 候选必须**真能交易**才占名额 ──────────────
-        # 现场（`reports/_probe118h.txt`）：AI 选币给出 AVAX/SYN/ZEC，**三个都没有
-        # mid 独立策略**；其中 ZEC 还是唯一 `recommend_open=1` 的币 ⇒ 每 3 分钟进一次
-        # 执行层、抛 `strategy_detached`、装配 30 分钟冷却（24 轮 `候选=1 成交=0`），
-        # 用户看到的就是"中线整条车道冻住"。
-        # 判据：**在会话标的内**（会被自动建策略）**或**已有 active 的 mid 策略。
-        # 两者都不满足 ⇒ 选进来也开不出来，只是占名额 + 造审计噪音。
+        # ── [轮123 2026-09-19 改为默认关闭] 轮118 加的"可交易性过滤"**过紧**：
+        # 判据是「在会话标的内 或 已有 active mid 策略」，而 AI 选币的标的
+        # （SYN/ZEC/DOGE/WLFI/ICP/APT）**两条都不满足** ⇒ 整条 AI 中线车道被清零
+        # （实测 `picked=['SYN','ZEC','DOGE'] → []`、`候选=0`）——而"开白名单外的
+        # AI 选币"正是这条车道存在的意义。
+        # 保护改由**扫描侧**承担（轮123）：入口会为缺策略的标的**先补建**，
+        # 再要求 active + 可绑定，做不到才跳过 ⇒ ZEC 那种 paused/跨账户绑不上的
+        # 情形照样被挡，但正常 AI 选币能开出来。
+        # 开关 `MIDLONG_AI_CANDIDATE_TRADABLE_FILTER=true` 可恢复这道过滤。
         try:
-            _tradable_ok = _filter_tradable_mid_candidates(db, session_id, picked)
-            if _tradable_ok != picked:
-                logger.info(
-                    "[AutoCoinSelector] AI 中线候选可交易性过滤 picked=%s → %s"
-                    "（无策略且不在会话标的内的币会被剔除）", picked, _tradable_ok,
-                )
-                picked = _tradable_ok
-        except Exception as _tr_err:
-            logger.debug("[AutoCoinSelector] 可交易性过滤跳过(fail-open): %s", _tr_err)
+            _trf_on = str(os.getenv("MIDLONG_AI_CANDIDATE_TRADABLE_FILTER", "false")
+                          ).strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            _trf_on = False
+        if _trf_on:
+            try:
+                _tradable_ok = _filter_tradable_mid_candidates(db, session_id, picked)
+                if _tradable_ok != picked:
+                    logger.info(
+                        "[AutoCoinSelector] AI 中线候选可交易性过滤 picked=%s → %s"
+                        "（MIDLONG_AI_CANDIDATE_TRADABLE_FILTER=true）", picked, _tradable_ok,
+                    )
+                    picked = _tradable_ok
+            except Exception as _tr_err:
+                logger.debug("[AutoCoinSelector] 可交易性过滤跳过(fail-open): %s", _tr_err)
         logger.info(
             "[AutoCoinSelector] AI 中线候选 retention session=%s source=%s "
             "watch=%s picked=%s kept=%s evicted=%s added=%s (open_mid=%d free=%d)",
