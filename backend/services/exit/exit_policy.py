@@ -159,8 +159,18 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
     # 旧档位（TP1=2%、trail 4%）按"价格走 2%+"校准，而探针仓实际峰值只有
     # 0.2~0.5%，止盈永远摸不到、止损 -4.66% 必然吃到。新口径锁小利润 +
     # 时间递减 ROI 兜底（赚不到钱就离场，不再死扛）。
+    #
+    # [轮110 2026-09-19 用 30 天真实样本重标] tp_stages 0.8/1.6/3.0 → **2.5/4.0/6.0**。
+    # 依据（159 笔中线已平仓，真实 MFE/MAE 网格回测，已扣 0.04% 往返费）：
+    #   · 现行 SL1.5%/TP0.8% = **−0.175%/笔**（0.8% 那一列在 7×8 网格里全场最差）；
+    #   · 保留的 mlto 臂上，SL1.5%/TP2.5% = **+0.237%/笔**、TP4.0% = +0.386、TP6.0% = +0.399；
+    #   · mlto 臂 MFE 分位：P50=1.41%、P75=2.46%、P85=3.67%、P90=3.85%、P95=4.52%
+    #     ⇒ 首档取 **P75**（2.5%）、二档≈P90（4.0%）、三档放到 P95 之外（6.0%）让尾部奔跑；
+    #   · 旧 0.8% 首档的含义是"在 MFE 中位数附近止盈"——赢单被截断、亏损单仍按 −1.7% 走。
+    # 注意：**放宽止损没有用**（同一个网格 SL1.5/2.0/3.0/4.0 → +0.237/+0.245/+0.158/+0.058），
+    # 所以 SL 保持 1.5%，本次只动止盈档位 ⇒ 每笔风险不变，**不需要重算仓位乘子**。
     "mid": dict(sl_pct=3.0, tp_pct=None, time_limit_sec=172800, trailing_activation_pct=1.0, trailing_callback_pct=0.5,
-                structural_stop="price", min_roi=((43200, 0.5), (86400, 0.0)), tp_stages=(0.8, 1.6, 3.0)),
+                structural_stop="price", min_roi=((43200, 0.5), (86400, 0.0)), tp_stages=(2.5, 4.0, 6.0)),
     "long": dict(sl_pct=None, tp_pct=None, time_limit_sec=None, trailing_activation_pct=None, trailing_callback_pct=None,
                  structural_stop="chandelier", min_roi=(), tp_stages=(8.0, 15.0, 25.0)),
     "research": dict(sl_pct=2.0, tp_pct=4.0, time_limit_sec=86400, trailing_activation_pct=2.0, trailing_callback_pct=1.0,

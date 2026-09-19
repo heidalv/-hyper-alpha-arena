@@ -215,7 +215,10 @@ RECOMMENDED: Dict[str, Dict[str, object]] = {
         "review_interval_sec": 3600 * 4,        # 4h：中线 12–48h，复查须占其生命的 1/3~1/12
         "min_hold_sec": 3600 * 12,
         "max_hold_sec": 3600 * 48,              # 中线不该是 7 天（当前 .env 把它拉到了 7 天）
-        "tp_stages": (0.8, 1.6, 3.0),
+        # [轮110 2026-09-19] 0.8/1.6/3.0 → **2.5/4.0/6.0**（用 30 天真实样本重标，
+        # 见 `services/exit/exit_policy.py` 的 `mid` 注释：0.8% 首档等于"在 MFE
+        # 中位数附近止盈"，网格回测 −0.175%/笔 → 2.5% 首档 +0.237%/笔）。
+        "tp_stages": (2.5, 4.0, 6.0),
         "structural_stop": "price",
         "entry_sl_atr_mult": 1.5,
         "allow_add": False,                     # 中线不做金字塔滚仓

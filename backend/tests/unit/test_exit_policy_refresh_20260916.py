@@ -44,11 +44,13 @@ def _old_mid_snapshot() -> xp.ExitPolicy:
 def test_refresh_swaps_protection_keeps_stop():
     snap = _old_mid_snapshot()
     merged, chg = xp.refreshed_policy(snap, "mid")
-    # 利润保护被刷新到车道当前值（代码默认：验收轮6 重标定）
+    # 利润保护被刷新到车道当前值（代码默认：验收轮6 重标定 + 轮110 档位重标）
     assert merged.trailing_activation_pct == pytest.approx(1.0)
     assert merged.trailing_callback_pct == pytest.approx(0.5)
     assert merged.min_roi == ((43200, 0.5), (86400, 0.0))
-    assert merged.tp_stages == (0.8, 1.6, 3.0)
+    # [轮110 2026-09-19] 0.8/1.6/3.0 → 2.5/4.0/6.0：首档贴着 MFE 中位数(1.41%)
+    # 是 7×8 网格里最差的一列（−0.175%/笔），抬到 MFE P75(2.46%) 后 +0.237%/笔。
+    assert merged.tp_stages == (2.5, 4.0, 6.0)
     assert merged.time_limit_sec == 172800
     # 止损边界保持快照值（不盘后移动）
     assert merged.sl_pct == pytest.approx(4.67)

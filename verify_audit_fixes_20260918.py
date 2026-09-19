@@ -1237,6 +1237,58 @@ try:
 except Exception as e:
     check("轮109 中线根因验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮110  中线止盈档位重标（用 30 天真实样本的 MFE/MAE 网格）─────────
+print("\n── 轮110  中线止损/止盈重标（网格回测 → 只动止盈、不动止损）──")
+try:
+    from backend.services.exit.exit_policy import ExitPolicy as _XP110
+    _pol110 = _XP110.for_lane("mid")
+    check("① 运行时 ExitPolicy(mid).tp_stages = 2.5/4.0/6.0（原 0.8/1.6/3.0）",
+          tuple(_pol110.tp_stages) == (2.5, 4.0, 6.0),
+          f"tp_stages={_pol110.tp_stages} sl_pct={_pol110.sl_pct} "
+          f"trailing={_pol110.trailing_activation_pct}/{_pol110.trailing_callback_pct}")
+
+    from backend.config.lane_policy import LANE_LONG as _LM110, LANE_MID as _LD110, RECOMMENDED as _RC110
+    check("② 设计意图与执行一致（lane_policy.RECOMMENDED[mid] 同步改）",
+          tuple(_RC110[_LD110]["tp_stages"]) == (2.5, 4.0, 6.0),
+          f"mid={_RC110[_LD110]['tp_stages']} long={_RC110[_LM110]['tp_stages']}"
+          "（两条车道量级仍分开）")
+
+    from backend.config.settings import MIDLONG_MAX_SL_PCT_MID as _cap110
+    check("③ 止损**未动**（网格里放宽更差：1.5%→+0.237 vs 3.0%→+0.158，"
+          "且本轮不动风险就不必重算仓位乘子）",
+          abs(float(_cap110) - 0.015) < 1e-9,
+          f"MIDLONG_MAX_SL_PCT_MID={_cap110}")
+
+    # ④ 现场样本自证：MLTO 臂 vs factor_route 臂的 MFE 分位与网格结论
+    _db110 = _SL109()
+    try:
+        _db110.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _q110 = _db110.execute(_t109("""
+            SELECT COUNT(*),
+                   ROUND(percentile_cont(0.5)  WITHIN GROUP (ORDER BY peak_pnl_pct*100)::numeric,2),
+                   ROUND(percentile_cont(0.75) WITHIN GROUP (ORDER BY peak_pnl_pct*100)::numeric,2),
+                   ROUND(percentile_cont(0.9)  WITHIN GROUP (ORDER BY peak_pnl_pct*100)::numeric,2),
+                   ROUND((AVG(close_price/entry_price-1)*100)::numeric,3)
+            FROM paper_positions
+            WHERE timeframe_tier='mid' AND status='closed' AND side='long'
+              AND entry_price>0 AND close_price>0
+              AND closed_at >= now() - interval '30 days'
+              AND COALESCE(exit_state_json::json->>'entry_source','')='mlto'""")).fetchone()
+        check("④ mlto 臂 30 天 MFE 分位（首档 2.5% = P75 的实测依据）",
+              _q110 and _q110[0] and float(_q110[1]) > 0.8,
+              f"n={int(_q110[0])} MFE P50={_q110[1]}% P75={_q110[2]}% P90={_q110[3]}% "
+              f"实际终局均值 {_q110[4]}%（旧首档 0.8% 就卡在 P50 附近）")
+    finally:
+        _db110.close()
+
+    _env110 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+                      encoding="utf-8", errors="replace").read()
+    check("⑤ .env 覆盖已写入（可回滚：删掉该行即回到 ExitPolicy 默认）",
+          "EXIT_POLICY_MID_TP_STAGES=2.5,4.0,6.0" in _env110,
+          "EXIT_POLICY_MID_TP_STAGES=2.5,4.0,6.0")
+except Exception as e:
+    check("轮110 中线止盈重标验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",
