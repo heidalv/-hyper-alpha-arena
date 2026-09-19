@@ -1,0 +1,246 @@
+可用列: updated_at, open_readiness, mid_view_json, regime_suggestion_json, stable_since, recommend_open, should_close, accepted, expires_at, review_count, llm_conviction, hub_composite, hub_adjusted, consistency, symbol, tier, direction, thesis_summary, invalidation_json, missing_evidence_json, reasoning_snapshot
+
+===== 1000PEPE  accepted=1 rec_open=1 readiness=0 conv=45 dir=long consistency=0.0 hub=0.0/0.0 reviews=9 stable_since=2026-09-04 05:42:23.546727
+  missing_evidence: ["rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 因子层缺失", "rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.00358,"condition":"4h收盘跌破0.00358则多头结构失效"},"entry_zone":{"low":0.00360,"high":0.00372},"missing_evidence":["chart_review源=none，缺图审","rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 因子层缺失","taker_bs字段null","日线 regime=ranging（与 daily_brief up 不一致），regime 标签置信 0.3 偏低"],"sl_pct":0.057,"tp_pct":0.10,"thesis_summary":"日线偏多结构（EMA200上方+10%、30d+20%、L1=up、4h/1h EMA bullish）但 mid·ranging·low_vol 历史 long 胜率53%、均盈-0.20%，无稳定 edge；多头拥挤（global_ls 1.96、OI 24h+9%、top_pos_ls 2.385）且现价 0.003778 紧贴 24h 高点 0.00388，追入风险收益不对称；按风控硬约束 direction 写 neutral，待回踩 0.003
+  mid_view: null
+
+===== AAVE  accepted=0 rec_open=0 readiness=0 conv=40 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=5 stable_since=2026-08-31 01:11:37.173366
+  missing_evidence: ["因子系统处于regime=ranging低波动"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":4,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":127.07,"condition":"4h收盘跌破127.07（24h swing low）则多头结构作废"},"entry_zone":{"low":133.5,"high":137.5},"missing_evidence":["chart_review缺失（source=none）","daily_brief已stale（22h）","无OI_24h变化","无taker_buy_sell数据","无宏观/V2完整快照","因子系统处于regime=ranging低波动"],"sl_pct":0.057,"tp_pct":0.1,"thesis_summary":"AAVE 24h已+9%、现价140.23已显著脱离入场区上沿137.5约2.7美元（≈0.47×ATR，逼近1×ATR边缘），结构偏多但震荡市+低波动历史胜率仅38-50%且均盈为负，rsi14_1h=68.1偏强、pos24=96.2%极高位、global_ls 1.39/top_pos_ls 2.61显示多空对立而非方向性拥挤，多项证据不支持追多。direction按风控硬约束保持neutral（避免bearish被regime闸拦截且当前结构非空）；现价相对入场区已脱离超1×ATR且赔率不足，recommend_open
+  mid_view: null
+
+===== ADA  accepted=0 rec_open=0 readiness=0 conv=40 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=4 stable_since=2026-08-29 00:35:40.053860
+  missing_evidence: ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.2130,"condition":"4h收盘跌破24h低点0.213且放量，或日线收盘失守0.2234 EMA9/21密集区"},"entry_zone":{"low":0.2130,"high":0.2180},"missing_evidence":["rsi_4h","macd_hist_1h","vol_ratio_1h","adx_1d","trend_1w","fear_greed","daily_brief_text（stale/未accepted）","taker_bs（方向未知）","chart_review两人方向标签分歧（A bullish / B neutral）"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"ADA日线regime=up拦截空头；现价0.2262已远离下方入场区0.213-0.218约3.6%（约0.75×ATR_1d=4.76%），4h RSI14=62.4尚可但图审给出RSI14=80.8的严重超买读数且连阳=0、摆动结构走钝；因子系统route=buy但score仅0.355且图审V2 L1=sideways/score=-1、长线V2 would_open=false，多空证据未共振。策略上仅
+  mid_view: null
+
+===== AERO  accepted=0 rec_open=None readiness=0 conv=82 dir=long consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-29 20:09:59.181095
+  missing_evidence: ["K线regime结构化字段", "当前价", "更长期趋势分析", "成交量数据"]
+  reasoning: 
+  mid_view: null
+
+===== AKE  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=2 stable_since=2026-09-04 05:50:54.202647
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== APT  accepted=0 rec_open=0 readiness=0 conv=33 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-02 21:06:50.972756
+  missing_evidence: []
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"price":0.605,"condition":"4h收盘跌破0.605且1h EMA翻空，则多头论题作废"},"entry_zone":{"low":0.605,"high":0.645},"missing_evidence":["chart_review缺失（source=none）","daily_brief已stale>18h","APT funding/OI数据缺失（仅BTC有position_structure）","APT corr/BTC实时相关性未给（仅0.6静态）","factor_route返回no_price无法用作证据"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"APT连日强势+14%/+14.3%/+23.3%，但日线仍处EMA200下方-11.22%，regime=chop非纯趋势。现价0.6812位于24h上沿84%位置（0.5765-0.7017），1h/4h EMA虽bullish但已远离合理回踩区。理想做多入场0.605-0.645，若按现价追多止损至0.605需承受≈11%回撤，盈亏比极差。中线·震荡市·低波动·做多历史胜率仅50%、均盈-0.30%，且回测胜率93%但均盈<1%——追入性价比差。regime=ch
+  mid_view: null
+
+===== ARB  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=6 stable_since=2026-09-01 00:56:14.626814
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== ASTER  accepted=1 rec_open=0 readiness=0 conv=47 dir=long consistency=0.0 hub=0.0/0.0 reviews=150 stable_since=2026-09-05 11:16:46.331941
+  missing_evidence: ["adx_1d", "trend_1w", "fear_greed", "rsi_4h"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bullish","strength":4,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":0.7145,"condition":"4h收盘跌破0.7413且1d收盘跌破0.7145，伴随量能放大，则多头论题作废"},"entry_zone":{"low":0.7400,"high":0.7560},"missing_evidence":["adx_1d","trend_1w","fear_greed","rsi_4h","funding_24h_change","oi_aster"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"日线EMA全多头排列+1d站上EMA200上方14.29%+V2 L1=up，长期结构偏多；但4h RSI=85.9严重超买、1d RSI=62.5中性偏强出现动能背离、4h量价转差（量z=+2.3但连阳=0）、图审源历史hit_rate仅0.325、本币为账户14近14日最大亏损来源(-96.3/13笔)、同向14日累计-68.98，要求更强二次确认。现价0.7677已高于入场区上沿0.7560且距24h高点0.7915仅3.1%（<0.5×ATR=0.0206×0.5≈1%，追高位置不理想）；已有long仓(3x,upnl+1.16%,R=0.77,age 3.2h,dist_sl=2.63%)结构完好，持有续盈
+  mid_view: null
+
+===== ATOM  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-03 05:21:39.203045
+  missing_evidence: ["缺 rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.32,"recommend_open":false,"should_close":false,"invalidation":{"price":1.64,"condition":"4h收盘跌破结构低点1.645且1h/4h EMA趋势翻空"},"entry_zone":{"low":1.70,"high":1.74},"missing_evidence":["chart_review:source=none，缺图审证据","daily_brief:as_of 13h 前，未被接受","factor_route:score=0,reason=no_price 未给可信投票","V2 L1=sideways 不给方向","缺 rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"日线 regime=up，但 ATOM 实际结构 ranging（confidence 0.3），现价 1.757 紧贴 EMA200（距+1.95%），处于区间高位（24h high 1.773、low 1.645），RSI14_1d 61.2 / 1h 67.1 偏上行末端；多周期 EMA 全 bullish、ret_30d +16.55%、BTC 强势（corr 0.34）牵引多头，但 RV30 年
+  mid_view: null
+
+===== AVAX  accepted=0 rec_open=0 readiness=0 conv=45 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-04 17:04:45.229738
+  missing_evidence: ["4h RSI、MACD柱、1h量比、ADX、周线趋势、恐惧贪婪指数缺失", "无高影响新闻驱动（n=0）"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bullish","strength":5,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":7.39,"condition":"4h收盘跌破7.39（前期箱体下沿）且日线跌破6.82（前低支撑），则本轮周线低位修复反弹论题作废"},"entry_zone":{"low":7.85,"high":8.25},"missing_evidence":["chart_review与本币spot_price不一致：附加证据spot=9.394，主pack last=9.071，存在数据快照差，需确认实时现价","daily_brief rejected/empty（age 15.97h）","factor_route无价格(no_price)未给明确vote","long_trend_v2 L1=sideways、score=0","未提供订单簿深度、CVD、清算热力分布"],"sl_pct":0.06,"tp_pct":0.12,"thesis_summary":"周线深度回撤低位修复中，1d/4h共振反弹、站上EMA200，但4h RSI=95.7极度超买、6连阳、量能负z、持仓L/S=2.58多头拥挤、24h已涨+15.38%透支明显。regime=up禁止做空，多头方向虽正确但现价已远离理想回踩区7.39-7.89，追入风险回报差。等待4h回踩至7.85-8.25区间（与1d EMA9/2
+  mid_view: null
+
+===== BNB  accepted=0 rec_open=0 readiness=0 conv=43 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=120 stable_since=2026-09-05 11:17:13.455825
+  missing_evidence: ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction": "neutral", "strength": 4, "confidence": 0.45, "recommend_open": false, "should_close": false, "invalidation": {"price": 745.33, "condition": "1d收盘跌破745.33（24h低点）且4h继续收出LL，则顶部派发确认、论题作废；反之若放量站上769.57则转为多头延续信号"}, "entry_zone": {"low": 745.0, "high": 758.0}, "missing_evidence": ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed", "daily_brief（age 16.35h已stale且未accepted）", "图审实际无图片读取，结构判断仅由context pack数值推导"], "sl_pct": 0.057, "tp_pct": 0.052, "thesis_summary": "BNB中期背景偏多（1w/1d EMA多头、距EMA200 +19.74%、ret_30d +16.94%、V2 L1=up score=4.0），但日线regime=up约束空头开仓。当前770处1d 90期区间上沿（位置93%、回撤仅-2.1%）属'大周期多、小周期钝化'顶部结构：1d量z=-1.8连阳缩量、4h RSI14=78超买、摆动结构LH→
+  mid_view: null
+
+===== BTC  accepted=1 rec_open=0 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=191 stable_since=2026-09-05 11:16:54.560828
+  missing_evidence: ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bullish","strength":5,"confidence":0.55,"recommend_open":false,"should_close":false,"invalidation":{"price":76937,"condition":"1d收盘跌破EMA21（约76937）且伴随MACD柱转负、量能放大，则多头论题作废"},"entry_zone":{"low":79380,"high":80460},"missing_evidence":["daily_brief已15.8h接近stale","图审age_note提示开仓闸另查signal_ledger新鲜度","E1日任务未提供最新任务列表","缺相关性矩阵（corr_to_btc为空）"],"sl_pct":0.05,"tp_pct":0.08,"thesis_summary":"BTC三周期方向短期共振偏多（1w修复/1d突破前期LH/4h超买），现价81490紧贴24h阻力81732与前高压力区，1d量能萎缩不支持直接追多。regime=up允许多头，但4h RSI=88.9严重超买、OI+4.37%但量z=-1.9、24h空头挤压已兑现4630万，多头追入性价比低。账户14已持BTC long（upnl +3.83%, R=1.28, 距止损6.58%）属同向敞口，不追加。合理多头入场区设在79380-80460（EMA9-21动态支撑+24h区间下半部），距现价约-1.3%~-4.3%，等待4h RSI回落至60以下且价格回调
+  mid_view: null
+
+===== BTR  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-04 12:43:25.493659
+  missing_evidence: ["K线结构", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== BULLA  accepted=1 rec_open=1 readiness=0 conv=42 dir=short consistency=0.0 hub=0.0/0.0 reviews=5 stable_since=2026-09-18 06:26:41.506104
+  missing_evidence: ["无同方向近期交易样本(n=0)"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bearish","strength":4,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":0.110,"condition":"4h收盘重新站上0.110且1h EMA trend翻多，则空头论题作废"},"entry_zone":{"low":0.0875,"high":0.0965},"missing_evidence":["chart_review缺失(source=none)","daily_brief未接受(accepted=false)","无OI数据，BULLA funding仅gateio/asterdex/binance三家","无同方向近期交易样本(n=0)","图审缺失无法确认结构"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"30日+434%后24h急跌-11.6%、1h趋势转bear、RSI 1h回落至45.7、24h位置仅18.9%偏低，叠加资金费年化~135%显示多头拥挤且出现12美元长清算，盘面短期偏空；但日线regime=up会拦截所有空头开仓，且图审/日简报缺失、无OI、同向样本为零，无法满足执行证据门槛，保持观望。方向仍判bearish，待日线regime翻down或回踩0.0875-0.0965区且1h趋势确认转弱再考虑。","key_factors":["30日+434%后1日-11.6%回
+  mid_view: null
+
+===== BZ  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=3 stable_since=2026-09-03 17:40:35.218905
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== CRCL  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=2 stable_since=2026-09-03 16:29:06.343726
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== DOGE  accepted=0 rec_open=0 readiness=0 conv=40 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=18 stable_since=2026-09-03 07:13:53.589785
+  missing_evidence: ["多周期趋势共振缺失：1w中性、1d多头排列但MACD柱近零、4h严重超买RSI85.2", "rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.085,"condition":"4h收盘跌破0.085并伴随放量，则短期反弹结构走坏，论题作废"},"entry_zone":{"low":0.0863,"high":0.0878},"missing_evidence":["图审共识_score仅0.141，accepted=false","日简报缺失（direction=null，stale虽否但内容空）","long_trend_v2 L1=sideways未给明确score","多周期趋势共振缺失：1w中性、1d多头排列但MACD柱近零、4h严重超买RSI85.2","量能不足：4h量z=-0.6、1d量z=-0.9，缺乏突破催化","多空比global_ls=2.172/top_pos_ls=3.929偏多头拥挤，反向风险"],"sl_pct":0.05,"tp_pct":0.08,"thesis_summary":"DOGE处长周期深度回撤后低位宽幅震荡：周线自90期高回撤-79.9%处历史底部区域，日线EMA多头排列但MACD柱几近归零且距EMA200仍-1.52%，4h RSI 85.2严重超买面临回吐；三周期方向背离无共振。现价0.08783已位于24h区间上沿附近，量能萎缩+多空比偏拥挤+OI累积，开多赔率差。regime
+  mid_view: null
+
+===== DOT  accepted=0 rec_open=0 readiness=0 conv=39 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=2 stable_since=2026-09-19 06:02:37.785411
+  missing_evidence: ["trend_1w/rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/fear_greed 缺失", "alignment_score=5 证据薄弱", "24h DOT 空头清算 80.8k vs 多头 14.1k 显示空头被挤压，但需现价站稳 swing_high 才确认", "rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.4,"recommend_open":false,"should_close":false,"invalidation":{"price":1.072,"condition":"4h收盘跌破swing_low 1.0886且1d收于EMA200下方则结构转弱"},"entry_zone":{"low":1.108,"high":1.135},"missing_evidence":["chart_review(source=none)","factor_route score=0 无方向","daily_brief direction=null","V2 L1 sideways","E1 无方向","trend_1w/rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/fear_greed 缺失","alignment_score=5 证据薄弱","24h DOT 空头清算 80.8k vs 多头 14.1k 显示空头被挤压，但需现价站稳 swing_high 才确认"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"DOT 30d+35%大幅领涨，1d RSI 70.3 触及超买区域，现价 1.1395 正卡在 swing_high 1.1653 下方；4h inv 因子（supertrend/macd/sma_cross/obv）读数反向预警回吐。但日线 r
+  mid_view: null
+
+===== ETH  accepted=1 rec_open=0 readiness=0 conv=43 dir=long consistency=0.0 hub=0.0/0.0 reviews=128 stable_since=2026-09-05 11:17:09.699521
+  missing_evidence: ["无 4h RSI/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 数据"]
+  reasoning: [minimax/MiniMax-M3] {"direction": "neutral", "strength": 4, "confidence": 0.35, "recommend_open": false, "should_close": false, "invalidation": {"price": 2482.0, "condition": "日线收跌破2482（周线前低/突破点）或4h跌破2510整理下沿并伴随放量阴线，多头反弹结构作废"}, "entry_zone": {"low": 2565.0, "high": 2610.0}, "missing_evidence": ["daily_brief 被拒(stale 或未接受)", "factor_route 因 no_price 返回 hold", "无 4h RSI/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 数据", "无 taker_buy_sell 数据", "无图审 live（仅 latest_trend_chart 静态快照）"], "sl_pct": 0.056, "tp_pct": 0.105, "thesis_summary": "ETH 三周期 EMA 共振偏多、日线沿 EMA21 连阳 4 根、24h 空头清算占优，但现价 (W/4h RSI=81/82 双超买、1d 量 z=-2.3 放量跟进不足、regime=ranging(conf 0.3) 与 trend 跟随存在冲突，加上同向 14d 已亏 -55.58 美元(胜率 4
+  mid_view: null
+
+===== FIL  accepted=1 rec_open=1 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=4 stable_since=2026-09-02 02:33:18.267383
+  missing_evidence: []
+  reasoning: [minimax/MiniMax-M3] {"direction":"bearish","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"price":0.835,"condition":"4h收盘站上0.835则空头结构论题作废"},"entry_zone":{"low":0.754,"high":0.778},"missing_evidence":["chart_review(source=none)","FIL OI与global_ls/top_pos_ls/taker_bs","daily_brief未accepted"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"FIL日线chop、4h EMA仍bearish、处EMA200下方-4.5%、1h RSI 59.1偏强但4h结构未配合；ranging+低波动下做空历史胜率仅33%，盈亏比差；日线regime=chop拦截空头开仓；当前无仓，空头论题不被风控接受，观望为主。若4h放量跌破0.754再考虑重新评估。","key_factors":["日线regime=chop拦截空头","4h EMA趋势bearish但1h bullish分化","价格位于EMA200下方-4.5%","ranging低波动做空历史胜率33%","24h短清算占绝对多数（$298k vs $85k）"],"summary":"FIL方向偏空但regime
+  mid_view: null
+
+===== HYPE  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-04 15:52:39.285952
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== INJ  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-31 18:48:28.192892
+  missing_evidence: ["K线结构化字段", "因子上下文", "当前价格"]
+  reasoning: 
+  mid_view: null
+
+===== IP  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=4 stable_since=2026-08-31 12:43:44.991234
+  missing_evidence: ["K线结构", "因子上下文", "历史价格区间", "成交量数据"]
+  reasoning: 
+  mid_view: null
+
+===== LINK  accepted=1 rec_open=0 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=15 stable_since=2026-09-04 17:04:47.852758
+  missing_evidence: ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction": "neutral", "strength": 4, "confidence": 0.45, "recommend_open": false, "should_close": false, "invalidation": {"price": 11.25, "condition": "日线收盘跌破11.25（周线颈线/前低），周线双底突破结构作废"}, "entry_zone": {"low": 11.75, "high": 12.10}, "missing_evidence": ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed", "图审已是最新但4h RSI极端超买+缩量上攻,入场性价比数据残缺"], "sl_pct": 0.057, "tp_pct": 0.052, "thesis_summary": "中期周线双底+颈线放量突破结构完好,日线站上全部均线、1d/4h趋势共振向上;但现价12.522已突破前高压力区12.49附近,4h RSI极端超买(触及100)、1h RSI 69.1、上攻缩量(1d量z=-1.4),追多性价比低。regime=ranging+confidence=0.3,趋势延续性存疑。账户14已持有LINK趋势多单(notional 222,lev 4,R=0.44,upnl+1.32%),新开仓会显著放大同向敞口且违反趋势_e1互斥。等待回踩11.75-12.10(日线EMA21
+  mid_view: null
+
+===== LIT  accepted=1 rec_open=1 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-19 09:14:10.353251
+  missing_evidence: ["1h EMA 转空、24h 回撤-2.69%，短线动能与日线趋势背离"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bullish","strength":5,"confidence":0.55,"recommend_open":false,"should_close":false,"invalidation":{"price":4.10,"condition":"日线收盘跌破4.10（前低/EMA200与结构支撑区域），多头趋势破坏则论题作废"},"entry_zone":{"low":4.62,"high":4.82},"missing_evidence":["chart_review不可用（source=none）","daily_brief未被接受，无regime/direction","factor_route score=0且reason=no_price（缺价）","图审缺失，无法确认4h回调是否结束"],"sl_pct":0.06,"tp_pct":0.12,"thesis_summary":"LIT中期趋势仍为多头结构：30日+77.68%，远在日线EMA200之上（+116.58%），4h EMA趋势bullish，RSI14日线62中性偏强。但4h出现回撤信号：24h已跌-2.69%、1h EMA转bearish、1h RSI回落至44.2，且当前为ranging regime（置信度仅0.3）。LIT与BTC相关性仅0.11，BTC强势（+5.29%/7d）暂不构成直接传导。现价4.7342正卡在24h区间下沿附近（low 4.7048 / high 5.1713），距建议入场区上沿4.82仅约1.
+  mid_view: null
+
+===== LTC  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-30 19:34:25.555100
+  missing_evidence: ["K线regime结构化字段", "因子上下文", "当前价", "明确的交易逻辑"]
+  reasoning: 
+  mid_view: null
+
+===== MAGMA  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-30 10:59:03.791887
+  missing_evidence: ["K线regime结构化字段", "因子上下文", "当前价", "明确的交易逻辑"]
+  reasoning: 
+  mid_view: null
+
+===== MOVR  accepted=0 rec_open=None readiness=0 conv=25 dir=long consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-29 19:34:55.543345
+  missing_evidence: ["K线regime结构化字段", "当前价格及关键支撑阻力位", "历史因子表现及回测统计", "成交量/波动率数据", "明确的入场止盈止损规则"]
+  reasoning: 
+  mid_view: null
+
+===== MSTR  accepted=0 rec_open=0 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-17 22:33:10.044759
+  missing_evidence: ["K线:1h", "K线:4h", "K线:1h", "K线:4h", "K线:1h", "K线:4h"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"bullish","strength":6,"confidence":0.55,"recommend_open":false,"should_close":false,"invalidation":{"price":118.5,"condition":"4h收盘跌破118.5且1h结构转弱则论题作废"},"entry_zone":{"low":124.5,"high":130.5},"missing_evidence":["图审(source=none)","K线:1h","K线:4h","daily_brief未被接受","factor_route:no_price","long_trend_v2:L1=unknown","trend_e1未返回"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"MSTR 30日+32.6%仍处中期上行结构，但现价128.71位于日EMA200下方（-0.69%），7日回撤-7.43%、1日-0.36%，呈高位回吐；BTC regime=ranging且MSTR与BTC相关性为负(-0.26)，MSTR走出了独立弱势。1d RSI 54.3 中性、ATR4.87%波动大；持仓端global_ls=2.012、top_pos_ls=2.602显示多头拥挤且OI 24h +26.53%，但短线短清算占优（16140 vs 8479），拥挤多头短期有挤压风险。中线方向仍偏多但需回踩企稳再入；现价128.71虽落在入场区[124.5,13
+  mid_view: null
+
+===== MU  accepted=0 rec_open=0 readiness=0 conv=33 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=0 stable_since=2026-09-18 13:51:47.528838
+  missing_evidence: ["above_ema200_1d/dist_ema200_pct=null", "rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed缺失", "1d EMA200 趋势确认缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"price":975.0,"condition":"4h收盘跌破975（24h swing low）则论题作废"},"entry_zone":{"low":995.0,"high":1006.0},"missing_evidence":["chart_review(source=none)","daily_brief(symbol_view=null)","long_trend_v2.L1=unknown","factor_route.reason=no_price(无score)","above_ema200_1d/dist_ema200_pct=null","rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed缺失","1d EMA200 趋势确认缺失"],"sl_pct":0.05,"tp_pct":0.08,"thesis_summary":"MU 现报 1008.4，处在日内高位区域（24h range 979.3–1019.6，pos24=72.2%）；1h/4h EMA 偏多但 regime=ranging 且 confidence=0.3，1d EMA200 与 dist 缺失无法确认趋势背景。因子路由 score=0（reaso
+  mid_view: null
+
+===== NEAR  accepted=0 rec_open=None readiness=0 conv=95 dir=long consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-01 08:29:48.963060
+  missing_evidence: ["K线regime结构化字段", "当前价", "更长期趋势分析"]
+  reasoning: 
+  mid_view: null
+
+===== ONDO  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-02 16:09:56.213390
+  missing_evidence: ["K线结构", "因子上下文", "当前价格"]
+  reasoning: 
+  mid_view: null
+
+===== PLAY  accepted=1 rec_open=0 readiness=0 conv=42 dir=short consistency=0.0 hub=0.0/0.0 reviews=7 stable_since=2026-09-17 22:33:33.765900
+  missing_evidence: []
+  reasoning: [minimax/MiniMax-M3] {"direction":"bearish","strength":5,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":0.0289,"condition":"4h收盘站上24h区间上沿且站稳EMA200动态阻力，短线转多则空头论题作废"},"entry_zone":{"low":0.0251,"high":0.0264},"missing_evidence":["chart_review: source=none，缺图审","daily_brief: accepted=false / 空内容，缺日简报","factor_route: score=0 / reason=no_price，缺因子分","long_trend_v2: l1=down 已有，但 E1 任务输出缺失","position_structure: PLAY 缺 OI / global_ls / taker_bs","PLAY 缺 24h 清算与近 7d 成交额/量能分布","funding: 多家所 funding 极端但仅 asterdex/binance/gateio 三家，缺乏 bybit/okx/hyperliquid 交叉验证"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"PLAY 1d 距 EMA200 -48%、7d -13.3%、30d -27.5%，1d/4h/1h 三周期
+  mid_view: null
+
+===== SKHY  accepted=0 rec_open=0 readiness=0 conv=20 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-04 05:40:39.356762
+  missing_evidence: ["K线regime字段", "因子上下文", "当前价格", "ATR/波动率", "关键支撑阻力位", "成交量数据", "资金费率/多空比"]
+  reasoning: 
+  mid_view: null
+
+===== SOL  accepted=1 rec_open=0 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=130 stable_since=2026-09-05 11:16:51.248257
+  missing_evidence: ["rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction": "bullish", "strength": 6, "confidence": 0.55, "recommend_open": false, "should_close": false, "invalidation": {"price": 100.46, "condition": "1d收盘跌破100.46（1w前低/EMA9区域）且4h同步跌破101.56（1d EMA21），趋势结构作废"}, "entry_zone": {"low": 104.38, "high": 107.5}, "missing_evidence": ["daily_brief未接受(stale/accepted=false)", "rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d缺失", "无图审独立现价K线、仅有文件快照"], "sl_pct": 0.057, "tp_pct": 0.12, "thesis_summary": "周线深度回撤修复后日线/4h趋势共振偏多，但现价111.85已处于1d区间97%/4h区间95%极端高位，4h RSI=89.9极端超买、1d缩量创新高（量z=-2.9），直接追入性价比极差。中期趋势未坏，等回踩104.4-107.5（24h区间下沿+1d EMA密集区）再考虑加仓；已有趋势多单R=-0.47、距SL仅1.61%继续持有观察，不在现价加仓。", "key_factors": ["周线EMA9/21已转正、日线EMA多头排列+站上EMA200+30.5%，中期
+  mid_view: null
+
+===== SUI  accepted=0 rec_open=0 readiness=0 conv=40 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=5 stable_since=2026-09-03 12:40:20.848195
+  missing_evidence: ["rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_geed 缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.729,"condition":"4h收盘跌破swing_low 0.7293则多头结构破坏"},"entry_zone":{"low":0.755,"high":0.772},"sl_pct":0.05,"tp_pct":0.1,"missing_evidence":["chart_review source=none","daily_brief stale 22.5h 未被接受","factor_route score=0 reason=no_price","long_trend_v2 l1=sideways score=0","rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_geed 缺失","图审缺失"],"thesis_summary":"日线regime=chop空头闸拒，观点虽偏空（1h RSI 73.3超买、pos24=95.2%处区间顶、global_ls 2.292多头拥挤、OI 24h +13.64%放量、24h空头清算42.8万vs多头1.9万挤压放空头），但regime不允许做空，方向只能neutral。现价0.8153高于建议入场区0.755-0.772上沿+1×ATR以上，不允许追多；同样因regime不
+  mid_view: null
+
+===== SYN  accepted=0 rec_open=0 readiness=0 conv=36 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=0 stable_since=2026-09-19 19:53:07.240406
+  missing_evidence: ["1h MACD_hist、vol_ratio、ADX_1d、trend_1w等数据残缺", "similar_episodes 5次ranging+neutral均未开仓，缺历史方向性样本"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.208,"condition":"4h收盘跌破0.208结构回踩区下沿则多头论题作废；若向上突破0.277并站稳则可重新评估追多"},"entry_zone":{"low":0.215,"high":0.235},"missing_evidence":["chart_review缺失，无法判断K线形态/量价配合","日简报stale且accepted=false，缺乏regime/direction背景","factor_route返回no_price，主因子投票空缺","1h MACD_hist、vol_ratio、ADX_1d、trend_1w等数据残缺","OI/资金费SYN仅2家(asterdex/binance)，覆盖不全","similar_episodes 5次ranging+neutral均未开仓，缺历史方向性样本"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"SYN 7日+193%、30日+119%后RSI 86.7极端超买、ATR 13.66%波动率极高（rv30=229%），现价0.236已远离24h低点0.172约37%、距24h高点0.277仅17%；日线regime=up硬约束下空头被闸拦截，多头追入风险收益比差
+  mid_view: null
+
+===== TAO  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-29 01:32:14.538705
+  missing_evidence: ["4h/1d级别的趋势信号", "ADX值", "当前价", "因子上下文"]
+  reasoning: 
+  mid_view: null
+
+===== TIA  accepted=1 rec_open=1 readiness=0 conv=52 dir=long consistency=0.0 hub=0.0/0.0 reviews=8 stable_since=2026-09-01 04:00:28.925283
+  missing_evidence: ["日简报为空（summary空、direction null）", "1h RSI71.4偏超买，短线回吐风险未定价"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":0.31,"condition":"1w收盘跌破0.31并伴随放量，则低位筑底假设破败，多头论题作废"},"entry_zone":{"low":0.36,"high":0.38},"missing_evidence":["图审source=none/accepted=false，三周期非共振，无法确认趋势","daily_brief accepted=false、direction=null","V2 L1=sideways、score=0.0，趋势未确认","factor_route no_price，no_price原因缺失价格快照","E1日任务未触发","无OI/资金费率方向性拥挤证据（funding中性偏正但未极端）","regime=ranging+confidence=0.3，方向性edge薄弱","trend_chart_review历史命中34.6%、avg_ret负，信号源近期偏弱"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"TIA日线regime=up约束下只能评估多头，但三周期非共振（1w EMA21压制、1d EMA200仍负偏离、4h反弹后MACD转负RSI39）、量能z全负、资金费中性、24h清算对称、regime=
+  mid_view: null
+
+===== UNI  accepted=0 rec_open=0 readiness=0 conv=43 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=200 stable_since=2026-09-05 11:17:38.978154
+  missing_evidence: ["regime=ranging/conf=0.3与强势突破趋势矛盾，缺更高级别regime确认", "1h/4h部分技术指标缺失(rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed)", "近两笔同向连亏(-1.83%/-2.09%/-1.82%)，同方向短期负反馈"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":7.78,"condition":"周线收线跌破7.78则中期突破结构作废，论题作废"},"entry_zone":{"low":8.30,"high":8.55},"missing_evidence":["regime=ranging/conf=0.3与强势突破趋势矛盾，缺更高级别regime确认","日线量z=-1.5缩量上涨，量价配合证据不足","1h/4h部分技术指标缺失(rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed)","图审recent_trend_chart hit_rate仅32.5%、avg_excess_bp=-98.6，趋势延续性证据欠佳","近两笔同向连亏(-1.83%/-2.09%/-1.82%)，同方向短期负反馈"],"sl_pct":0.055,"tp_pct":0.12,"thesis_summary":"周线放量长阳+47.87%突破长期下降趋势、三周期EMA多头排列，中期趋势完好；但现价8.949已远离4h EMA21，且处于末段加速：4h RSI=91.7极度超买、1h RSI已回落至52.2、global L/S=2.09多头拥挤、hyperliquid funding极端+130% 
+  mid_view: null
+
+===== USELESS  accepted=0 rec_open=0 readiness=0 conv=33 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=5 stable_since=2026-09-18 07:29:57.799046
+  missing_evidence: ["high_severity_events空列表"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"price":0.215,"condition":"4h收盘跌破0.215（24h低点下方+EMA结构失守）则多头思路作废"},"entry_zone":{"low":0.235,"high":0.252},"missing_evidence":["chart_review source=none,无图审","daily_brief未accepted,无regime/direction","factor_route score=0 no_price,因子分空","OI/LS/top_pos_ls/taker_bs缺失","position_structure仅有BTC,USELESS无OI","correlation_pairs空,仅给corr_to_btc=0.43","funding_8h_pct USELESS多家缺失(binance/bybit/gateio仅0.005, asterdex 0.0169, hyperliquid 0.0177)","high_severity_events空列表"],"sl_pct":0.08,"tp_pct":0.18,"thesis_summary":"USELESS 日线 regime=up 禁止做空；现价 0.24267 处 24h 区间下沿、1h 已转 bea
+  mid_view: null
+
+===== VIRTUAL  accepted=0 rec_open=0 readiness=0 conv=43 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=209 stable_since=2026-09-05 11:17:30.358466
+  missing_evidence: ["rsi_4h", "macd_hist_1h", "vol_ratio_1h", "adx_1d", "trend_1w", "fear_greed"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":0.62,"condition":"4h收盘跌破0.62且日线收于0.58下方，结构转为下行破位则论题作废"},"entry_zone":{"low":0.6504,"high":0.6849},"missing_evidence":["rsi_4h","macd_hist_1h","vol_ratio_1h","adx_1d","trend_1w","fear_greed","图审源trend_chart_review历史命中率仅0.326、负期望已计入折扣"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"VIRTUAL周线深度回撤后低位宽幅筑底，日线regime=chop，4h RSI 83.9严重超买且无量反弹；三周期无共振、多周期一致性=不明；因子route=hold(score -0.109)、图审final=neutral(consensus 0.134/0.375)、brief=neutral；本币14d long侧6笔-79.17胜率33%无同向支撑，short被日线regime=chop闸拦截。多空均不执行，观望等待4h回调企稳或放量突破0.72再做方向选择。","key_factors":["日线regime=chop,sho
+  mid_view: null
+
+===== WIF  accepted=0 rec_open=0 readiness=0 conv=36 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=5 stable_since=2026-09-17 15:11:06.706389
+  missing_evidence: ["1d/4h K线数据缺失，短周期入场时机无法独立验证"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.38,"recommend_open":false,"should_close":false,"invalidation":{"price":0.1717,"condition":"4h收盘跌破0.1717且放量则短线偏空论题启动；周线收盘连续2周跌破0.19则筑底失败"},"entry_zone":{"low":0.178,"high":0.187},"missing_evidence":["1d/4h K线数据缺失，短周期入场时机无法独立验证","图审结构1w偏多但1d/4h缺失，三周期共振无法判定","现货/合约盘口深度、OI、taker买卖比缺失","资金费跨交易所分歧（bybit负、其余正），无一致拥挤信号","资金费率与未平仓合约量的最新变化数据","BTC日线图审相关性影响未量化"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"WIF处于自90期高点-91.4%深度回撤后的低位宽幅震荡：周线EMA9>EMA21给出弱反弹信号，但EMA50仍-44.96%深负、MACD微负、量能萎缩(z=-0.8)、摆动结构LL/LH无底部抬升，叠加1d/4h数据缺失无法确认短端入场、且日线regime=chop拦截空头；多空证据打平、不见倾斜，观望为主。当前无持仓，不触发离场。若周线守稳0.19并放量站上0.1925-0.20，可升级多头试仓；现价0.1861已贴近入场区下沿但缺乏短周期
+  mid_view: null
+
+===== WLFI  accepted=1 rec_open=1 readiness=0 conv=40 dir=short consistency=0.0 hub=0.0/0.0 reviews=4 stable_since=2026-09-17 23:15:22.739785
+  missing_evidence: []
+  reasoning: [minimax/MiniMax-M3] {"direction":"bearish","strength":4,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.0620,"condition":"4h收盘站上0.0620则空头论题作废"},"entry_zone":{"low":0.0556,"high":0.0585},"missing_evidence":["chart_review缺失（source=none）","OI/资金费极值未确认空头拥挤","日简报stale>18h"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"WLFI中长期结构偏弱（距EMA200-19.35%、30日-4.34%），4h EMA虽偏多但1h EMA已转空，regime=chop且日线处于区间中位附近。当前空头论题：需现价反弹至0.0585以上回测失败再考虑介入，而现价0.05799贴近日内中位偏低，距离做空入场区下沿0.0556过近（约0.5×ATR内），但上方0.0585-0.0620为日线阻力区，结构上看更适合反弹做空。然而regime闸拦截空头开仓不会成交，OI/资金费无极端信号、无图审确认，且现有持仓并未涉及WLFI，故维持bearish方向但不开仓，等待反弹至阻力区或结构转弱信号。","key_factors":["EMA200偏离-19.35%中长期偏弱","30日收益-4.34%结构下行","日线reg
+  mid_view: null
+
+===== XMR  accepted=0 rec_open=0 readiness=0 conv=30 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-09-03 20:38:54.883475
+  missing_evidence: ["K线 regime 结构化字段", "因子上下文", "当前价"]
+  reasoning: 
+  mid_view: null
+
+===== XPL  accepted=0 rec_open=0 readiness=0 conv=40 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=158 stable_since=2026-09-05 11:17:36.245243
+  missing_evidence: ["相似历史5次ranging/low波动/neutral均未开仓且无结局样本，参考价值有限"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.42,"recommend_open":false,"should_close":false,"invalidation":{"price":0.0877,"condition":"4h收盘跌破0.0877则4h反弹结构破坏，论题作废"},"entry_zone":{"low":0.0865,"high":0.0895},"missing_evidence":["图审虽accepted=false但consensus=0.141太弱，缺乏有效方向证据","daily_brief age=16.3h、stale=false但accepted=false，方向缺失","funding_8h_pct对XPL覆盖不全（仅5/6所），OI数据缺失","因子路由sell=-0.29与4h EMA bullish结构信号打架，未形成共振","相似历史5次ranging/low波动/neutral均未开仓且无结局样本，参考价值有限"],"sl_pct":0.057,"tp_pct":0.052,"thesis_summary":"XPL处于长期下跌后低位宽幅震荡(chop regime)，4h虽EMA多头排列、RSI71反弹至24h上沿0.095附近，但1d受EMA200(-2.47%)压制、摆动结构LL/LH偏弱、量能z=-1.2萎缩、ranging+confidence=0.3，且因子路由sell(-0.29)与V2 L1=sideways(-1.
+  mid_view: null
+
+===== XRP  accepted=0 rec_open=0 readiness=0 conv=42 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=112 stable_since=2026-09-05 11:17:17.384678
+  missing_evidence: ["1w/4h EMA200 数值缺失", "1w EMA200 与 4h EMA200 数值缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":4,"confidence":0.45,"recommend_open":false,"should_close":false,"invalidation":{"price":1.3155,"condition":"4h收盘跌破24h低点1.3155且放量，则短线偏多结构作废"},"entry_zone":{"low":1.3739,"high":1.4277},"missing_evidence":["daily_brief 缺失/未接受","1w/4h EMA200 数值缺失","跨市场相关性 pairs 部分为空"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"XRP 日线 regime=up 限制只评估多头。三周期同向偏多但强度不足：1w 处区间下沿超跌反弹、EMA50 上方 -6.23% 仍压制；1d 站上全部均线但 MACD 柱 -0.007444 未转正、量 z=-1.9 缩量构成量价背离；4h RSI14=85.6 严重超买、短线过热。global_ls=2.341 多头拥挤 + OI 24h +13.79%，24h 上涨由空头回补驱动（空清算 208万 > 多清算 109万），属反弹中后段而非趋势启动。XRP 近 14d long 侧亏损 -49.31 且 4 连败，连败风险升高，不宜新开多。等回踩 1.3155 支撑企稳或放量突破 1.4277 再评估。","key_factors":["日线 regim
+  mid_view: null
+
+===== ZEC  accepted=1 rec_open=1 readiness=0 conv=43 dir=long consistency=0.0 hub=0.0/0.0 reviews=12 stable_since=2026-09-04 17:04:50.571806
+  missing_evidence: ["rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 缺失"]
+  reasoning: [minimax/MiniMax-M3] {"direction":"neutral","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"price":1420.0,"condition":"4h收盘跌破1436(24h swing low)且失守EMA200日线动态支撑则多头论题作废"},"entry_zone":{"low":1505.0,"high":1545.0},"missing_evidence":["chart_review: source=none","daily_brief accepted=false (stale/symbol_view缺失)","factor_route score=0 reason=no_price","rsi_4h/macd_hist_1h/vol_ratio_1h/adx_1d/trend_1w/fear_greed 缺失","taker_bs 数据缺失"],"sl_pct":0.05,"tp_pct":0.1,"thesis_summary":"ZEC 1D regime=up，结构上仍处强势（7d+36.9%, 30d+167%, above EMA200 +170%），但日线 RSI 72.5 已超买，1h RSI 53 走平，regime 标 ranging/confidence 0.3，factor_route 因 no_price 给 0 分，量价因子（macd/obv/vwap/supe
+  mid_view: null
+
+===== ZKP  accepted=0 rec_open=0 readiness=0 conv=20 dir=neutral consistency=0.0 hub=0.0/0.0 reviews=1 stable_since=2026-08-31 12:28:25.419295
+  missing_evidence: ["当前4h/1d K线 regime 结构化字段", "EMA9/EMA21/EMA50具体数值及排列", "成交量与动量因子", "关键支撑阻力位", "市场宏观/新闻context"]
+  reasoning: 
+  mid_view: null
