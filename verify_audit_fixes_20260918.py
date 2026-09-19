@@ -13,6 +13,17 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+# [轮114 2026-09-19] 上一行的 setdefault 只对**子进程**生效：本进程的 stdout 编码在
+# 解释器启动时就定死了，之后再改环境变量无效。在 GBK 控制台下（Windows 默认），
+# 任何含 `⇒`/`⚠️`/`−` 的输出会直接 `UnicodeEncodeError`，而异常被各段的
+# `except Exception` 吞掉 ⇒ 整段 check 被打成"失败"。
+# 轮114 实测：一次全量运行里 **9 项假失败**（轮104/107/108/109/112/113/114…）
+# 全部由这一条造成，与代码无关。显式重配 stdout 后，脚本在任何控制台都能跑。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 OK = "  [OK]  "
 BAD = "  [!!]  "
