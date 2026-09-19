@@ -2500,8 +2500,14 @@ def run_midlong_open_sweep(
             if callable(_resolve):
                 _db_s = SessionLocal()
                 try:
-                    if _resolve(_db_s, session, sym, tier_l) is None:
-                        _bump("no_strategy")
+                    _strat = _resolve(_db_s, session, sym, tier_l)
+                    # [轮122 2026-09-19 ZEC 根除] 解析到的策略**必须是 active**。
+                    # 实测：ZEC 有 `tpl_mid_reversion_a9e8e8` 但 **status=paused**
+                    # ⇒ 入口解析拿到对象（非 None）就放行，执行层却要 active
+                    # ⇒ `strategy_detached` ⇒ 5 次同因 ⇒ 30 分钟冷却 ⇒ 无限循环。
+                    _st_status = str(getattr(_strat, "status", "") or "").lower()
+                    if _strat is None or (_st_status and _st_status != "active"):
+                        _bump("no_strategy" if _strat is None else "strategy_inactive")
                         _now = time.time()
                         if _now - float(_no_strategy_logged.get(sym) or 0) > 1800:
                             _no_strategy_logged[sym] = _now

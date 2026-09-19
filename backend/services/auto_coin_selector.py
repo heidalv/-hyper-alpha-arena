@@ -5668,6 +5668,38 @@ def force_adopt_ai_long_symbol(session_id: str, symbol: str, *, max_slots: int =
     return {"success": True, "symbol": sym, "ai_long_watch": merged}
 
 
+def _rank_mid_pool(
+    *,
+    cands: List[tuple],
+    sticky_syms: List[str],
+    manual_alive: bool,
+    max_slots: int,
+) -> tuple:
+    """[轮122 2026-09-19] 中线 AI 池的**名额分配**（纯函数，便于契约测试）。
+
+    规则：合格集合 = 本轮看板候选 ∪ 仍在任且仍合格的 sticky（`manual_adopt` 24h 内
+    额外豁免）；按**置信度降序**取前 `max_slots`（同分按币名，保证确定性）。
+    返回 `(kept, evicted, full_watch, added)`。
+
+    为什么必须按置信度而不是"在任者先占满"：实测池满 3 且 `evicted=[]`，
+    看板 approve 的 ICP(0.60) 永远进不来，watch 的 ZEC(0.45)/WLFI(0.40) 永久占位
+    ⇒ 用户看到的"AI 选币名单和真选币对不上"（`reports/_probe122.txt`）。
+    """
+    _conf = {str(s).upper(): float(c or 0.0) for s, c in (cands or [])}
+    sticky_u = [str(s).upper() for s in (sticky_syms or []) if s]
+    _alive = {s: _conf.get(s, 0.0) for s in sticky_u if (s in _conf or manual_alive)}
+    _merged = dict(_alive)
+    for s, c in _conf.items():
+        _merged.setdefault(s, c)
+    _ranked = [s for s, _ in sorted(_merged.items(), key=lambda kv: (-kv[1], kv[0]))][
+        : max(0, int(max_slots or 0))
+    ]
+    kept = [s for s in _ranked if s in _alive]
+    evicted = [s for s in sticky_u if s not in _ranked]
+    added = [s for s in _ranked if s not in kept]
+    return kept, evicted, list(_ranked), added
+
+
 def _midlong_board_approve_candidates(
     db: Session,
     *,
@@ -6130,21 +6162,17 @@ def get_ai_mid_candidates_for_session(
         _manual_alive = (
             "manual_adopt" in sticky_reason and (time.time() - sticky_ts) < 86400
         )
-        kept: List[str] = []
-        evicted: List[str] = []
-        for s in sticky_syms:
-            if s in _qual or _manual_alive:
-                kept.append(s)
-            else:
-                evicted.append(s)
-        kept = kept[:_max_slots]
-        full_watch: List[str] = list(kept)
-        for _s, _c in _cands:
-            if len(full_watch) >= _max_slots:
-                break
-            if _s not in full_watch:
-                full_watch.append(_s)
-        added = [s for s in full_watch if s not in kept]
+        # [轮122 2026-09-19 修「AI 选币名单和真选币对不上」] 名额按**置信度**分配。
+        # 现场（`reports/_probe122.txt`）：看板真源最新一轮 `ICP approve 0.60 / SYN approve 0.62`，
+        # 而 `MIDLONG_AI_CANDIDATE_VERDICTS` 默认 `"approve,watch"` ⇒ ZEC/watch 0.45、
+        # WLFI/watch 0.40 也算"合格"；旧逻辑「在任者先占满 kept[:max_slots]」让池子
+        # 恒等于上一轮名单（落盘 reason 实测 `kept=3 evicted=[] added=[]`），
+        # **approve 的 ICP 连名额都挤不进去**，watch 的 ZEC/WLFI 永久占位 ——
+        # 这正是用户说的"名单根本没打通"。改为「合格集合按置信度取前 N」。
+        kept, evicted, full_watch, added = _rank_mid_pool(
+            cands=_cands, sticky_syms=sticky_syms, manual_alive=_manual_alive,
+            max_slots=_max_slots,
+        )
         # [2026-09-18] 单一事实源：以「写过滤后实际落盘的集合」为准返回。
         # 此前返回过滤前的 full_watch → lanes/前端显示 PLAY 等实际进不了池的币，
         # 与统一状态层（空）形成两套真相（用户实测看板/会话对不上的根源）。
