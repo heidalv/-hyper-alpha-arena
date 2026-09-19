@@ -1,0 +1,21 @@
+扫描宇宙 = 固定mid(9) ∪ AI_mid(3) = ['ASTER', 'AVAX', 'BNB', 'BTC', 'ETH', 'SOL', 'SYN', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'ZEC']
+
+币          来源     accepted rec_open mid策略   持仓    更新时间              判定
+ASTER      固定     1        0        有       有     09-19 20:10      主脑说不开(rec=0) / 已有持仓
+AVAX       AI     0        0        无       -     09-19 23:00      共识未通过(accepted=0) / **无mid策略**
+BNB        固定     0        0        有       -     09-19 23:22      共识未通过(accepted=0)
+BTC        固定     1        0        有       -     09-19 22:46      主脑说不开(rec=0)
+ETH        固定     1        0        有       -     09-19 20:02      主脑说不开(rec=0)
+SOL        固定     1        0        有       -     09-19 20:03      主脑说不开(rec=0)
+SYN        AI     0        0        无       -     09-19 23:24      共识未通过(accepted=0) / **无mid策略**
+UNI        固定     0        0        有       -     09-19 23:13      共识未通过(accepted=0)
+VIRTUAL    固定     0        0        有       -     09-19 23:16      共识未通过(accepted=0)
+XPL        固定     0        0        有       -     09-19 23:19      共识未通过(accepted=0)
+XRP        固定     0        0        有       -     09-19 23:19      共识未通过(accepted=0)
+ZEC        AI     1        1        无       -     09-19 20:56      候选 / **无mid策略**
+
+== 说明 ==
+   accepted   = consensus_is_tradeable(...)（brain.py:1462）
+   recommend_open = accepted and LLM 的 recommend_open（brain.py:1629）
+   ⇒ 9 个固定币全部不是候选：要么共识未通过，要么主脑 LLM 自己说别开。
+   ⇒ 唯一 rec_open=1 的是 AI 选币 ZEC，而它**没有 mid 策略**（僵尸候选）。

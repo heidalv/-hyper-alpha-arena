@@ -1,0 +1,18 @@
+== 清洗（伪固定AI币）==
+    {'removed': [], 'kept': ['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'], 'changed': False, 'by_tier': {'short': ['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'], 'mid': ['ETH', 'BTC', 'SOL', 'BNB', 'VIRTUAL', 'XRP', 'XPL', 'ASTER', 'UNI'], 'long': ['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP']}}
+
+== 固定币（tier 维度）==
+   tier=mid   → ['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP']
+   tier=long  → ['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP']
+   tier=short → ['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP']
+
+== AI 中线候选 ==
+    ['SYN', 'ZEC', 'AVAX']
+
+== 会话 symbols 列 ==
+    (['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'],)
+
+== 结论：mid 扫描宇宙 = 固定mid ∪ AI_mid ∪ mid持仓续管 ==
+   固定mid: ['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP']
+   AI_mid  : ['AVAX', 'SYN', 'ZEC']
+   并集    : ['ASTER', 'AVAX', 'BNB', 'BTC', 'ETH', 'SOL', 'SYN', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'ZEC']

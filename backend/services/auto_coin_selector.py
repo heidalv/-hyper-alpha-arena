@@ -806,6 +806,22 @@ class AutoCoinSelector:
         candidates.sort(key=lambda x: x.score, reverse=True)
         for i, c in enumerate(candidates):
             c.rank = i + 1
+
+        # [混合打分中心 ADR-23] 影子打分钩子：默认 shadow 只计算只落盘（节流+后台线程，
+        # 零阻塞零影响）；fusion 晋级后经 fusion_blend 消费（权重封顶，见 hybrid_scoring.service）。
+        try:
+            from backend.services.hybrid_scoring import service as _hybrid_svc
+            _hybrid_svc.maybe_shadow_hook(
+                [c.symbol for c in candidates[: _hybrid_svc.config.max_symbols()]])
+            if _hybrid_svc.config.mode() == "fusion":
+                for c in candidates:
+                    c.score = _hybrid_svc.fusion_blend(c.symbol, c.score)
+                candidates.sort(key=lambda x: x.score, reverse=True)
+                for i, c in enumerate(candidates):
+                    c.rank = i + 1
+        except Exception as _hybrid_err:  # noqa: BLE001
+            logger.debug("[AutoCoinSelector] hybrid 影子钩子跳过: %s", str(_hybrid_err)[:120])
+
         logger.info(
             f"[AutoCoinSelector] Phase 1 RankEngine done: {len(candidates)} candidates "
             f"top={[c.symbol for c in candidates[:5]]}"
@@ -5588,6 +5604,70 @@ def _mirror_unified_short(session_id: str, symbols: List[str]) -> None:
         logger.debug("[AutoCoinSelector] mirror unified short fail %s: %s", session_id, e)
 
 
+def _load_ai_long_sticky(session_id: str) -> Dict[str, Any]:
+    """[2026-09-17] AI 长线 sticky 读统一状态层 tier=long（与 mid 同构）。"""
+    try:
+        from backend.services.ai_coin_unified import get_tier_state
+        _s = get_tier_state(session_id, "long")
+        if _s and _s.get("symbols"):
+            return {
+                "symbols": _s.get("symbols") or [],
+                "updated_at": float(_s.get("updated_at") or 0),
+                "reason": str(_s.get("reason") or ""),
+            }
+    except Exception as e:
+        logger.debug("[AutoCoinSelector] load ai_long sticky(unified) fail %s: %s", session_id, e)
+    return {}
+
+
+def _save_ai_long_sticky(session_id: str, symbols: List[str], *, reason: str) -> None:
+    """[2026-09-17] AI 长线 sticky 写统一状态层 tier=long。"""
+    try:
+        from backend.services.ai_coin_unified import set_tier_symbols
+        set_tier_symbols(session_id, "long", symbols, reason=reason)
+    except Exception as e:
+        logger.warning("[AutoCoinSelector] save ai_long sticky fail %s: %s", session_id, e)
+
+
+def force_adopt_ai_long_symbol(session_id: str, symbol: str, *, max_slots: int = 2) -> Dict[str, Any]:
+    """[2026-09-17] VIP 人工采纳长线：写入 AI 长线 sticky，不进固定长线表、不占中线槽。"""
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return {"success": False, "error": "symbol required"}
+    long_cfg = get_session_long_ai_config(session_id)
+    if not long_cfg.get("enabled"):
+        return {
+            "success": False,
+            "error": "会话未开启长线AI选币（auto_coin_long_enabled），无法采纳",
+        }
+    try:
+        from backend.config.settings import AUTO_COIN_LONG_MAX_SLOTS
+        _max = max(1, int(max_slots or long_cfg.get("max_slots") or AUTO_COIN_LONG_MAX_SLOTS or 2))
+    except Exception:
+        _max = max(1, int(max_slots or long_cfg.get("max_slots") or 2))
+    _max = max(1, min(4, _max))
+
+    fixed = get_fixed_symbols_for_session(session_id, db=None, tier="long")
+    if sym in fixed:
+        return {
+            "success": True,
+            "symbol": sym,
+            "skipped": "already_fixed_long",
+            "note": "已在长线固定币表，无需占 AI 长线槽",
+        }
+
+    sticky = _load_ai_long_sticky(session_id)
+    cur = [
+        str(s).strip().upper()
+        for s in (sticky.get("symbols") or [])
+        if s and str(s).strip().upper() not in fixed
+    ]
+    merged = [sym] + [s for s in cur if s != sym]
+    merged = merged[:_max]
+    _save_ai_long_sticky(session_id, merged, reason="manual_adopt midlong_board")
+    return {"success": True, "symbol": sym, "ai_long_watch": merged}
+
+
 def _midlong_board_approve_candidates(
     db: Session,
     *,
@@ -5595,32 +5675,18 @@ def _midlong_board_approve_candidates(
     min_conf: float,
     limit: int = 40,
     min_liquidity: Optional[float] = None,
+    horizons: tuple = ("mid", "midlong"),
 ) -> List[tuple]:
-    """平台看板 midlong approve 候选：(symbol, confidence)，已排除固定长线白名单。
+    """平台看板 approve 候选：(symbol, confidence)，已排除固定白名单。
 
-    [调研轮8] 新增 **流动性下限** `min_liquidity`（看板自带的 `market_scores.liquidity`
-    0~1 分）。原因：看板的 midlong approve 里混着**本所几乎无法交易**的标的
-    （实测 AMAT/APE liquidity=0.25、FET=0.71；同一批 FET/AMAT 在 VIP跟投路径被
-    「24h成交额 < 试仓下限 $500k」硬拒），于是 AI 中线候选永远是"选了也下不了单"。
-    在候选层就按流动性过滤，选出来的才是真能交易的标的。0=关闭该过滤（回滚）。
+    [2026-09-17] 看板拆双周期（mid|long）后按 horizon 取数；保留 'midlong'
+    兼容历史在架行（下一轮成功扫描会整体下架旧口径）。
 
-    默认值取 `MIDLONG_AI_MIN_LIQUIDITY`（默认 0.5）；调用方可显式覆盖。
-
-    [调研轮10 2026-09-16] **候选口径重定义（修「中/长线 AI 池长期为空」）**
-
-    实测（72h，流动性 ≥0.35 的非固定币，取每个 symbol 最新判定）：
-      * **approve: 0 个**（看板的 approve 全给了低流动性标的：AMAT/CRCL/ALICE/APE…）；
-      * watch: 8 个（DOT/FET/ARB/LINK/TIA/ADA/AVAX/TON）；
-      * reject: 6 个。
-    即"只认 approve"等于**永久空池**。故：
-      1. 候选 verdict 集合改为可配 `MIDLONG_AI_CANDIDATE_VERDICTS`（默认 `approve,watch`）——
-         watch 是"值得观察"，正是候选池该有的语义；**最终是否开仓仍由主脑论题 +
-         全部入场闸决定**（`MIDLONG_NO_THESIS_NO_OPEN=true`，本轮不放松任何入场闸）；
-      2. 取窗口内**每个 symbol 最近一次判定**（避免"曾经 approve、后来 reject"被复活）；
-      3. 忽略 `valid_until`（那是**看板展示用 4h TTL**，与持仓数小时~数天的选币视野不匹配；
-         改用 `MIDLONG_AI_APPROVAL_WINDOW_H`（默认 24h）约束新鲜度）；
-      4. 仍要求流动性 ≥ `MIDLONG_AI_MIN_LIQUIDITY`、confidence ≥ min_conf、非固定币。
-    窗口置 0 → 回退旧的「只看最新一批 listed」行为（完全回滚）。
+    [调研轮8] 流动性下限 min_liquidity：看板 approve 混着本所无法交易的标的
+    （AMAT/APE liquidity=0.25），候选层即过滤；0=关闭。
+    [调研轮10 2026-09-16] 候选口径：verdict∈approve,watch（可配）；取窗口内每 symbol
+    最近一次判定；MIDLONG_AI_APPROVAL_WINDOW_H（默认24h）约束新鲜度；流动性/置信度
+    达标、非固定币。最终开仓仍由主脑论题+全部入场闸决定。
     """
     from sqlalchemy import text as _sa_text
 
@@ -5648,12 +5714,13 @@ def _midlong_board_approve_candidates(
                 "       lower(ai_verdict) AS verdict, "
                 "       COALESCE((market_scores ->> 'liquidity')::float, NULL) AS liq, created_at "
                 "FROM coin_select_candidates "
-                "WHERE horizon = 'midlong' "
+                "WHERE horizon = ANY(:hzs) "
                 "  AND created_at > NOW() - (:win_h * INTERVAL '1 hour') "
+                "  AND (listed IS TRUE OR created_at > NOW() - INTERVAL '4 hours') "
                 "ORDER BY upper(symbol), created_at DESC "
                 "LIMIT :lim"
             ),
-            {"win_h": int(_win_h), "lim": int(limit) * 4},
+            {"hzs": [str(h).lower() for h in (horizons or ("mid",))], "win_h": int(_win_h), "lim": int(limit) * 4},
         ).all()
         out: List[tuple] = []
         dropped_liq: List[str] = []
@@ -5701,13 +5768,13 @@ def _midlong_board_approve_candidates(
             "       COALESCE((market_scores ->> 'liquidity')::float, NULL) AS liq "
             "FROM coin_select_candidates "
             "WHERE listed IS TRUE "
-            "AND horizon = 'midlong' "
+            "AND horizon = ANY(:hzs) "
             "AND lower(ai_verdict) = 'approve' "
             "AND COALESCE(confidence, 0) >= :min_conf "
             "ORDER BY confidence DESC NULLS LAST "
             "LIMIT :lim"
         ),
-        {"min_conf": float(min_conf), "lim": int(limit)},
+        {"hzs": [str(h).lower() for h in (horizons or ("mid",))], "min_conf": float(min_conf), "lim": int(limit)},
     ).all()
     out: List[tuple] = []
     seen: Set[str] = set()
@@ -5833,6 +5900,38 @@ def force_adopt_ai_mid_symbol(session_id: str, symbol: str, *, max_slots: int = 
     return {"success": True, "symbol": sym, "ai_mid_watch": merged}
 
 
+def _filter_tradable_mid_candidates(db, session_id: str, syms: List[str]) -> List[str]:
+    """[轮118 2026-09-19] 只保留"真能开出仓"的 AI 中线候选。
+
+    保留条件（任一）：在会话 `symbols` 内（执行层会自动建策略）**或**已有 active 的
+    `timeframe_tier='mid'` 策略。均不满足 ⇒ AI 选进来也只会撞 `strategy_detached`
+    （ZEC/AVAX/SYN 实测，见 `reports/_probe118h.txt`）。
+    查询失败 **fail-open**（返回原列表）：候选过滤不是风控闸，不该因查询问题清空池子。
+    """
+    try:
+        from sqlalchemy import text as _sa_text
+        _rows = db.execute(_sa_text(
+            "SELECT symbols FROM full_auto_sessions WHERE session_id=:s"
+        ), {"s": session_id}).fetchone()
+        _sess_syms = set()
+        if _rows and _rows[0]:
+            _val = _rows[0]
+            if isinstance(_val, str):
+                import json as _json
+                try:
+                    _val = _json.loads(_val)
+                except Exception:
+                    _val = []
+            _sess_syms = {str(x).upper() for x in (_val or [])}
+        _have = {str(r[0]).upper() for r in db.execute(_sa_text(
+            "SELECT DISTINCT primary_symbol FROM ai_strategies "
+            "WHERE status='active' AND timeframe_tier='mid'"
+        )).fetchall()}
+        return [s for s in syms if str(s).upper() in _sess_syms or str(s).upper() in _have]
+    except Exception:
+        return list(syms or [])
+
+
 def get_ai_mid_candidates_for_session(
     session_id: str,
     db: Optional[Session] = None,
@@ -5866,7 +5965,10 @@ def get_ai_mid_candidates_for_session(
                 else (mid_cfg.get("max_slots") or AUTO_COIN_MID_MAX_SLOTS or 3)
             )
             _max_slots = max(1, min(5, int(_raw_slots)))
-            _resample = max(3600, int(AUTO_COIN_MID_RESAMPLE_SEC or 10800))  # 至少 1h
+            # [2026-09-17] 硬下限 1h→10min：看板 30min 一轮，1h 下限会让 AI 池
+            # 永远滞后看板一整轮以上（实测「看板与池对不上」）。10min 只防抖；
+            # 池是观察池，真实开仓仍由论题+全部入场闸决定。
+            _resample = max(600, int(AUTO_COIN_MID_RESAMPLE_SEC or 10800))
             _min_conf = float(MIDLONG_AI_MIN_CONF or 0.60)
         except Exception:
             _raw_slots = (
@@ -5955,8 +6057,24 @@ def get_ai_mid_candidates_for_session(
             ]
             sticky_ts = float(sticky.get("updated_at") or 0)
             age = time.time() - sticky_ts if sticky_ts > 0 else 1e18
-            # 旧版「from auto_coin」sticky 立即失效，强制改读看板
-            if sticky_syms and age < _resample and sticky_from_board:
+            # [2026-09-17] 看板代际驱动：最新一轮完成的扫描晚于 sticky 写入 → 看板
+            # 已换代，sticky 视为过期立即重采（池子跟随「最新看板」，而非自己的计时器；
+            # _resample 只防同代抖动）。用户实测：按计时器跟随会让池滞后看板一整轮。
+            try:
+                _board_ts = float(db.execute(_sa_text(
+                    "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(finished_at)), 0) "
+                    "FROM coin_select_scans WHERE status = 'done'"
+                )).scalar() or 0)
+            except Exception:
+                _board_ts = 0.0
+            # [2026-09-17] _resample 语义降级为「查询节流」：节流窗内且看板未换代
+            # → 沿用 sticky（免高频查库）。真正的轮换在换代/到期后的留存式评估里做。
+            if (
+                sticky_syms
+                and age < _resample
+                and sticky_from_board
+                and sticky_ts >= _board_ts
+            ):
                 picked = [s for s in sticky_syms if s not in _open_mid][:_free]
                 logger.info(
                     "[AutoCoinSelector] AI 中线候选 sticky(board) session=%s picked=%s "
@@ -5966,9 +6084,10 @@ def get_ai_mid_candidates_for_session(
                 )
                 return picked
 
-            # 到期重算：主源 = 平台看板 midlong approve
+            # 到期重算：主源 = 平台看板（horizon=mid，兼容历史 midlong 行）
             _cands = _midlong_board_approve_candidates(
                 db, fixed=_fixed, min_conf=_min_conf,
+                horizons=("mid", "midlong"),
             )
             _source = "midlong_board"
             if not _cands:
@@ -6001,23 +6120,76 @@ def get_ai_mid_candidates_for_session(
             if _owns_db:
                 db.close()
 
-        full_watch: List[str] = []
+        # [2026-09-17] 留存式轮换（科学衰减，替代定时换血）：
+        #   在任者保留——最新看板判定（24h 窗口）仍 approve/watch 即留任；
+        #   被看板 reject / 跌出 24h 窗口 → 立即淘汰；
+        #   手动采纳的币 24h 内不因「不在看板」被清（尊重人工意图）；
+        #   腾出的槽位按置信度补新候选。轮换速度=证据衰减速度，
+        #   与日内 12-48h / 持仓周期天然匹配，不会「入池即被轮走永远开不了仓」。
+        _qual = {s: float(c) for s, c in _cands}
+        _manual_alive = (
+            "manual_adopt" in sticky_reason and (time.time() - sticky_ts) < 86400
+        )
+        kept: List[str] = []
+        evicted: List[str] = []
+        for s in sticky_syms:
+            if s in _qual or _manual_alive:
+                kept.append(s)
+            else:
+                evicted.append(s)
+        kept = kept[:_max_slots]
+        full_watch: List[str] = list(kept)
         for _s, _c in _cands:
-            if _s in full_watch:
-                continue
-            full_watch.append(_s)
             if len(full_watch) >= _max_slots:
                 break
+            if _s not in full_watch:
+                full_watch.append(_s)
+        added = [s for s in full_watch if s not in kept]
+        # [2026-09-18] 单一事实源：以「写过滤后实际落盘的集合」为准返回。
+        # 此前返回过滤前的 full_watch → lanes/前端显示 PLAY 等实际进不了池的币，
+        # 与统一状态层（空）形成两套真相（用户实测看板/会话对不上的根源）。
+        try:
+            from backend.services.ai_coin_unified import filter_tradeable_ai_symbols as _ftas
+            _persisted_watch = _ftas(full_watch)
+        except Exception:
+            _persisted_watch = full_watch
+        if _persisted_watch != full_watch:
+            logger.info(
+                "[AutoCoinSelector] AI 中线池写过滤差异 watch=%s persisted=%s",
+                full_watch, _persisted_watch,
+            )
+            full_watch = _persisted_watch
+        # 总是落盘（touch）：重挂节流窗，避免换代后每个 tick 重复评估
         _save_ai_mid_sticky(
             session_id, full_watch,
-            reason=f"resample age>={_resample}s from {_source} min_conf={_min_conf}",
+            reason=(
+                f"retention kept={len(kept)} evicted={evicted} added={added} "
+                f"from {_source} min_conf={_min_conf}"
+            ),
         )
         picked = [s for s in full_watch if s not in _open_mid][:_free]
+        # ── [轮118 2026-09-19] AI 候选必须**真能交易**才占名额 ──────────────
+        # 现场（`reports/_probe118h.txt`）：AI 选币给出 AVAX/SYN/ZEC，**三个都没有
+        # mid 独立策略**；其中 ZEC 还是唯一 `recommend_open=1` 的币 ⇒ 每 3 分钟进一次
+        # 执行层、抛 `strategy_detached`、装配 30 分钟冷却（24 轮 `候选=1 成交=0`），
+        # 用户看到的就是"中线整条车道冻住"。
+        # 判据：**在会话标的内**（会被自动建策略）**或**已有 active 的 mid 策略。
+        # 两者都不满足 ⇒ 选进来也开不出来，只是占名额 + 造审计噪音。
+        try:
+            _tradable_ok = _filter_tradable_mid_candidates(db, session_id, picked)
+            if _tradable_ok != picked:
+                logger.info(
+                    "[AutoCoinSelector] AI 中线候选可交易性过滤 picked=%s → %s"
+                    "（无策略且不在会话标的内的币会被剔除）", picked, _tradable_ok,
+                )
+                picked = _tradable_ok
+        except Exception as _tr_err:
+            logger.debug("[AutoCoinSelector] 可交易性过滤跳过(fail-open): %s", _tr_err)
         logger.info(
-            "[AutoCoinSelector] AI 中线候选 resample session=%s source=%s "
-            "watch=%s picked=%s (open_mid=%d free=%d min_conf=%.2f)",
-            session_id, _source, full_watch, picked,
-            _open_mid_n, _free, _min_conf,
+            "[AutoCoinSelector] AI 中线候选 retention session=%s source=%s "
+            "watch=%s picked=%s kept=%s evicted=%s added=%s (open_mid=%d free=%d)",
+            session_id, _source, full_watch, picked, kept, evicted, added,
+            _open_mid_n, _free,
         )
         return picked
     except Exception as e:
@@ -6138,18 +6310,111 @@ def get_ai_long_candidates_for_session(
                 )
                 return []
 
-            # 主源：平台看板 midlong approve（更高置信门槛，排除固定长线 + 已开长线）
-            _cands = _midlong_board_approve_candidates(db, fixed=_fixed_long, min_conf=_min_conf)
-            picked: List[str] = []
+            # [2026-09-17] AI 长线 sticky：窗口内沿用（与中线同构），支持 VIP 手动采纳
+            try:
+                _resample_l = int(
+                    os.environ.get(
+                        "AUTO_COIN_LONG_RESAMPLE_SEC",
+                        str(int(os.environ.get("AUTO_COIN_MID_RESAMPLE_SEC", "10800") or 10800)),
+                    )
+                    or 10800
+                )
+            except (TypeError, ValueError):
+                _resample_l = 10800
+            _sticky_l = _load_ai_long_sticky(session_id)
+            _sticky_l_syms = [
+                str(s).strip().upper()
+                for s in (_sticky_l.get("symbols") or [])
+                if s and str(s).strip().upper() not in _fixed_long
+            ]
+            _sticky_l_reason = str(_sticky_l.get("reason") or "")
+            _sticky_l_ts = float(_sticky_l.get("updated_at") or 0)
+            _sticky_l_age = time.time() - _sticky_l_ts if _sticky_l_ts > 0 else 1e18
+            # [2026-09-17] 看板代际（与中线同构）：最新完成扫描的时间戳
+            try:
+                _board_ts_l = float(db.execute(_sa_text(
+                    "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(finished_at)), 0) "
+                    "FROM coin_select_scans WHERE status = 'done'"
+                )).scalar() or 0)
+            except Exception:
+                _board_ts_l = 0.0
+            # [2026-09-17] _resample 语义=查询节流（与中线同构）：窗内且看板未换代沿用
+            if (
+                _sticky_l_syms
+                and _sticky_l_age < _resample_l
+                and ("board" in _sticky_l_reason or "manual_adopt" in _sticky_l_reason)
+                and _sticky_l_ts >= _board_ts_l
+            ):
+                picked = [s for s in _sticky_l_syms if s not in _open_long_all][:_free]
+                logger.info(
+                    "[AutoCoinSelector] AI 长线候选 sticky(board) session=%s picked=%s "
+                    "age=%.0fs<%ds (open_long=%d free=%d reason=%s)",
+                    session_id, picked, _sticky_l_age, _resample_l,
+                    len(_open_long), _free, _sticky_l_reason[:80],
+                )
+                return picked
+
+            # 主源：平台看板（horizon=long，兼容历史 midlong 行；更高置信门槛，排除固定长线+已开长线）
+            _cands = _midlong_board_approve_candidates(
+                db, fixed=_fixed_long, min_conf=_min_conf,
+                horizons=("long", "midlong"),
+            )
+            if not _cands and _sticky_l_syms:
+                picked = [s for s in _sticky_l_syms if s not in _open_long_all][:_free]
+                logger.info(
+                    "[AutoCoinSelector] AI 长线主源空，宽限沿用 sticky=%s session=%s",
+                    picked, session_id,
+                )
+                return picked
+            # [2026-09-17] 留存式轮换（与中线同构）：在任者最新判定仍合格即留任，
+            # reject/超窗淘汰，手动采纳 24h 宽限，空位按置信度补位。
+            _qual_l = {s: float(c) for s, c in _cands}
+            _manual_alive_l = (
+                "manual_adopt" in _sticky_l_reason
+                and (time.time() - _sticky_l_ts) < 86400
+            )
+            kept_l: List[str] = []
+            evicted_l: List[str] = []
+            for s in _sticky_l_syms:
+                if s in _qual_l or _manual_alive_l:
+                    kept_l.append(s)
+                else:
+                    evicted_l.append(s)
+            kept_l = kept_l[:_max_slots]
+            full_watch: List[str] = list(kept_l)
             for _s, _c in _cands:
-                if _s in _open_long_all or _s in picked:  # 已持仓(固定+AI)的币不重复开
-                    continue
-                picked.append(_s)
-                if len(picked) >= _free:
+                if len(full_watch) >= _max_slots:
                     break
+                if _s not in full_watch:
+                    full_watch.append(_s)
+            added_l = [s for s in full_watch if s not in kept_l]
+            # [2026-09-18] 单一事实源（与中线同构）：返回写过滤后实际落盘的集合
+            try:
+                from backend.services.ai_coin_unified import filter_tradeable_ai_symbols as _ftas_l
+                _persisted_l = _ftas_l(full_watch)
+            except Exception:
+                _persisted_l = full_watch
+            if _persisted_l != full_watch:
+                logger.info(
+                    "[AutoCoinSelector] AI 长线池写过滤差异 watch=%s persisted=%s",
+                    full_watch, _persisted_l,
+                )
+                full_watch = _persisted_l
+            # 总是落盘（touch）：重挂节流窗（与中线同构）
+            if full_watch:
+                _save_ai_long_sticky(
+                    session_id, full_watch,
+                    reason=(
+                        f"retention kept={len(kept_l)} evicted={evicted_l} "
+                        f"added={added_l} from long_board min_conf={_min_conf}"
+                    ),
+                )
+            picked = [s for s in full_watch if s not in _open_long_all][:_free]
             logger.info(
-                "[AutoCoinSelector] AI 长线候选 session=%s picked=%s (open_long=%d free=%d min_conf=%.2f)",
-                session_id, picked, len(_open_long), _free, _min_conf,
+                "[AutoCoinSelector] AI 长线候选 retention session=%s watch=%s picked=%s "
+                "kept=%s evicted=%s added=%s (open_long=%d free=%d)",
+                session_id, full_watch, picked, kept_l, evicted_l, added_l,
+                len(_open_long), _free,
             )
             return picked
         finally:

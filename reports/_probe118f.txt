@@ -1,0 +1,14 @@
+== 会话 fa_7e12e7a1b6 的标的清单 ==
+    {'session_id': 'fa_7e12e7a1b6', 'symbols': ['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'], 'auto_coin_enabled': False, 'status': 'running', 'updated_at': datetime.datetime(2026, 9, 19, 23, 25, 13, 210397)}
+
+== 固定 mid 标的（get_fixed_symbols_for_session）==
+   (失败) ImportError cannot import name 'get_fixed_symbols_for_session' from 'backend.services.full_auto.mlto_cycle' (D:\001Alpha\Hyper-Alpha-Arena\backend\services\full_auto\mlto_cycle.py)
+
+== AI 中线候选（get_ai_mid_candidates_for_session）==
+   (直接导入失败) ImportError cannot import name 'get_ai_mid_candidates_for_session' from 'backend.services.ai_coin_unified' (D:\001Alpha\Hyper-Alpha-Arena\backend\services\ai_coin_unified.p
+   mlto_cycle 里有: None
+
+== 会话标的表（session_symbols / 固定币表）==
+   [session_symbols] 不存在/不可读: ProgrammingError
+   [fixed_symbols] 不存在/不可读: InternalError
+   [session_fixed_symbols] 不存在/不可读: InternalError
