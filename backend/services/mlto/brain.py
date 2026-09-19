@@ -2525,28 +2525,67 @@ def run_midlong_open_sweep(
                         except Exception:
                             _ok_bind = False
                     if _strat is None or (not _ok_bind):
-                        _bump("no_strategy" if _strat is None else (
-                            "strategy_inactive" if _st_status not in ("", "active")
-                            else "strategy_unbound"))
-                        _now = time.time()
-                        if _now - float(_no_strategy_logged.get(sym) or 0) > 1800:
-                            _no_strategy_logged[sym] = _now
-                            logger.info(
-                                "[MidLongBrain] 开仓扫描跳过 %s %s：解析不到独立策略"
-                                "（僵尸候选；不再进入执行层制造 strategy_detached 循环）",
-                                sym, tier_l,
-                            )
+                        # ── [轮123 2026-09-19] 无策略时**先补建**（与执行层同模式）──────
+                        # 旧行为：直接跳过 ⇒ AI 选币的标的大多不在会话白名单里、也没有
+                        # 现成策略 ⇒ **整条 AI 中线车道被清零**（实测 00:18–00:21
+                        # `picked=['SYN','WLFI','ZEC'] → []`、`候选=0`）。
+                        # 执行层本来就有"策略缺位即补建"（2026-09-18 修复），这里补齐入口侧：
+                        # 补建成功且可绑定 ⇒ 放行；仍不可用 ⇒ 记因跳过（ZEC 的 paused/
+                        # 跨账户不可绑定情形由上面的 `_ok_bind` 继续挡住，不会回到无限循环）。
+                        _created_ok = False
+                        if _strat is None:
                             try:
-                                from backend.services.mlto.midlong_direction_audit import (
-                                    record_decision_audit as _rda,
+                                _ac_fn = getattr(host, "auto_create_strategy", None)
+                                _mkt_i = (market_summary or {}).get(sym)
+                                if callable(_ac_fn) and isinstance(_mkt_i, dict):
+                                    _nw = _ac_fn(_db_s, session, sym, dict(_mkt_i))
+                                    if _nw is not None:
+                                        _strat2 = _resolve(_db_s, session, sym, tier_l)
+                                        _st2 = str(getattr(_strat2, "status", "") or "").lower()
+                                        _sid2 = str(getattr(_strat2, "strategy_id", "") or "")
+                                        _acct2 = int(getattr(_strat2, "account_id", 0) or 0)
+                                        _acct_t2 = (getattr(session, "paper_account_id", None)
+                                                    or getattr(session, "account_id", None))
+                                        _sess_ids2 = {str(x) for x in (
+                                            getattr(session, "active_strategy_ids", None) or [])}
+                                        _created_ok = bool(
+                                            _strat2 is not None and _st2 in ("", "active")
+                                            and ((_sid2 and _sid2 in _sess_ids2)
+                                                 or (_acct_t2 is not None
+                                                     and _acct2 == int(_acct_t2))))
+                                    if _created_ok:
+                                        logger.info(
+                                            "[MidLongBrain] 开仓扫描 %s %s：策略缺位已补建并绑定",
+                                            sym, tier_l,
+                                        )
+                            except Exception as _ac_err:
+                                logger.debug("[MidLongBrain] 扫描侧补建策略跳过 %s: %s",
+                                             sym, _ac_err)
+                        # 可用性判定：原有可绑定策略，或**本轮刚补建并绑定成功**
+                        _usable = bool(_ok_bind or _created_ok)
+                        if not _usable:
+                            _bump("no_strategy" if _strat is None else (
+                                "strategy_inactive" if _st_status not in ("", "active")
+                                else "strategy_unbound"))
+                            _now = time.time()
+                            if _now - float(_no_strategy_logged.get(sym) or 0) > 1800:
+                                _no_strategy_logged[sym] = _now
+                                logger.info(
+                                    "[MidLongBrain] 开仓扫描跳过 %s %s：策略不可用"
+                                    "（无/非 active/绑不上；不再进入执行层制造 "
+                                    "strategy_detached 循环）", sym, tier_l,
                                 )
-                                _rda(outcome="skip", stage="sweep", symbol=sym,
-                                     reason="sweep_skip:no_strategy",
-                                     session_id=sid, tier=tier_l, action="hold",
-                                     authority="mlto")
-                            except Exception:
-                                pass
-                        continue
+                                try:
+                                    from backend.services.mlto.midlong_direction_audit import (
+                                        record_decision_audit as _rda,
+                                    )
+                                    _rda(outcome="skip", stage="sweep", symbol=sym,
+                                         reason="sweep_skip:no_strategy",
+                                         session_id=sid, tier=tier_l, action="hold",
+                                         authority="mlto")
+                                except Exception:
+                                    pass
+                            continue
                 finally:
                     _db_s.close()
         except Exception:
