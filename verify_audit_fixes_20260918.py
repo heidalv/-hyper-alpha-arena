@@ -1581,6 +1581,67 @@ try:
 except Exception as e:
     check("轮113 归因链路验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮115  同因拦截冷却的「解冻」语义（用户：只冻不解 / 全局冻结不解冻）────
+print("\n── 轮115  冷却必须会解冻（棘轮修复 + 台账双向可见）──")
+try:
+    _root115 = os.path.dirname(os.path.abspath(__file__))
+    _svc115 = io.open(os.path.join(_root115, "backend/services/full_auto_trading_service.py"),
+                      encoding="utf-8").read()
+    _pe115 = io.open(os.path.join(_root115, "backend/services/full_auto/proposal_execution.py"),
+                     encoding="utf-8").read()
+    _fc115 = io.open(os.path.join(_root115, "backend/services/risk_management/freeze_coordinator.py"),
+                     encoding="utf-8").read()
+
+    from backend.services.full_auto_trading_service import FullAutoTradingService as _SVC115
+    check("① 装配冷却时计数归零（旧实现停在 ≥5 ⇒ 解冻后一次尝试就再冻 30 分钟）",
+          "_thaw" in _svc115 and 'st["count"] = 0' in _svc115
+          and "只冻不解" in _svc115,
+          "现场：ASTER:mid 三次装配的连续计数 5→6→7，相邻装配间隔 45.3/31.8 分钟")
+
+    check("② 确定性拒绝不冷却（策略/配置类，重试不改变结果）",
+          "long_template_source_block" in _SVC115._BLOCK_COOLDOWN_SKIP_CODES
+          and "short_template_source_block" in _SVC115._BLOCK_COOLDOWN_SKIP_CODES,
+          "BNB/SOL/ASTER:long 的计数涨到 25/21/16（≈10.5h/8.5h/6h 冻在轮40 的配置决定上）")
+
+    check("③ 成功即解冻（此前没有任何成功路径清状态）",
+          "clear_proposal_block=svc._clear_proposal_block" in _pe115
+          and "_clr(proposal.symbol, proposal.tier)" in _pe115,
+          "host 显式接线 + 成功分支调用；清理失败不影响下单")
+
+    check("④ 过期状态不再残留在文件里（现场 12 条冷却有 10 条是过期残留）",
+          "如果不存在" not in _svc115 and 'if float((v or {}).get("until") or 0) > _now}' in _svc115
+          and "超 2h" in _svc115,
+          "落盘前 prune：过期冷却 + 超 2h 未更新的计数")
+
+    check("⑤ 冻结台账双向可见（现场 387 条 freeze / **0** 条 unfreeze）",
+          '"expire"' in _fc115 and "387 条事件、0 条解冻" in _fc115
+          and "thaw_events" in _fc115,
+          "惰性过期那一刻补 expire 事件（每冻结只写一次）+ status() 给出 freeze/thaw 计数")
+
+    # ⑥ 现场读数：此刻有多少 (symbol,tier) 在冷却、streak 是否还在棘轮上
+    _st115 = json.loads(io.open(os.path.join(_root115, "data/proposal_block_streaks.json"),
+                                encoding="utf-8").read())
+    _now115 = time.time()
+    _act115 = {k: v for k, v in (_st115.get("cooldowns") or {}).items()
+               if float((v or {}).get("until") or 0) > _now115}
+    _over115 = {k: v for k, v in (_st115.get("streaks") or {}).items()
+                if int((v or {}).get("count") or 0) >= _SVC115._BLOCK_STREAK_TRIGGER}
+    check("⑥ 状态文件不再积累「过期冷却」与「≥阈值计数」",
+          len(_st115.get("cooldowns") or {}) == len(_act115),
+          f"冷却条目 {len(_st115.get('cooldowns') or {})} 条、其中生效 {len(_act115)} 条 "
+          f"{sorted(_act115)}；stale 残留 0 条"
+          + (f"；计数仍≥阈值 {sorted(_over115)}（修复上线前积累的，解冻后即归零）"
+             if _over115 else ""))
+
+    # ⑦ 回滚开关在位
+    from backend.config.settings import PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM as _thaw115
+    from backend.config.env_registry import KNOWN_FLAGS as _KF115
+    check("⑦ 回滚开关在位且已登记（false = 回到旧棘轮，仅用于对照）",
+          _thaw115 is True and "PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM" in _KF115,
+          f"PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM={_thaw115}")
+except Exception as e:
+    check("轮115 冷却解冻验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

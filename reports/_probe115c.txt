@@ -1,0 +1,53 @@
+共 387 条事件（1789124684.2808788 → 1789756579.5286946）
+kind 分布: {'freeze': 140, 'freeze_per_symbol': 247}
+
+== 按 (account, strategy, symbol) 的 freeze / unfreeze 配对 ==
+   (0, 'scalp', 'BTC')                                  freeze=124 unfreeze=  0 首=09-11 19:04 末=09-19 02:36  未解冻=是
+   (188, 'per_symbol_risk', 'VIRTUAL')                  freeze= 48 unfreeze=  0 首=09-15 09:27 末=09-17 13:32  未解冻=是
+   (188, 'per_symbol_risk', 'XPL')                      freeze= 39 unfreeze=  0 首=09-15 09:27 末=09-17 11:57  未解冻=是
+   (188, 'per_symbol_risk', 'XRP')                      freeze= 39 unfreeze=  0 首=09-15 09:47 末=09-17 11:11  未解冻=是
+   (188, 'per_symbol_risk', 'UNI')                      freeze= 35 unfreeze=  0 首=09-15 09:47 末=09-17 11:04  未解冻=是
+   (188, 'per_symbol_risk', 'ASTER')                    freeze= 29 unfreeze=  0 首=09-15 09:27 末=09-17 11:04  未解冻=是
+   (188, 'per_symbol_risk', 'BNB')                      freeze= 23 unfreeze=  0 首=09-15 09:47 末=09-17 11:04  未解冻=是
+   (188, 'per_symbol_risk', 'SOL')                      freeze= 20 unfreeze=  0 首=09-15 11:10 末=09-17 09:04  未解冻=是
+   (0, 'scalp', 'SOL')                                  freeze= 16 unfreeze=  0 首=09-11 19:04 末=09-18 23:18  未解冻=是
+   (188, 'per_symbol_risk', 'ETH')                      freeze= 14 unfreeze=  0 首=09-15 11:10 末=09-17 09:04  未解冻=是
+
+== 最后一次事件是 freeze 的键（= 可能仍冻着）==
+   (0, 'scalp', 'BTC')                                  最后事件=09-19 02:36 why=drawdown 99.00σ
+   (0, 'scalp', 'SOL')                                  最后事件=09-18 23:18 why=drawdown 5.00σ
+   (188, 'per_symbol_risk', 'VIRTUAL')                  最后事件=09-17 13:32 why=K线数据老旧(11.3小时)，自动冻结 (paused=2)
+   (188, 'per_symbol_risk', 'ASTER')                    最后事件=09-17 11:04 why=K线数据老旧(27.6小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'XPL')                      最后事件=09-17 11:57 why=K线数据老旧(22.9小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'BNB')                      最后事件=09-17 11:04 why=K线数据老旧(32.6小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'UNI')                      最后事件=09-17 11:04 why=K线数据老旧(25.1小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'XRP')                      最后事件=09-17 11:11 why=K线数据老旧(26.9小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'ETH')                      最后事件=09-17 09:04 why=K线数据老旧(34.0小时)，自动冻结 (paused=3)
+   (188, 'per_symbol_risk', 'SOL')                      最后事件=09-17 09:04 why=K线数据老旧(32.5小时)，自动冻结 (paused=3)
+
+== 明细（最后 25 条）==
+   09-18 23:18:21 freeze     acct=0 scalp                  SOL       drawdown 5.00σ
+   09-18 23:18:21 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-18 23:18:21 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-18 23:38:08 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-18 23:38:09 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-18 23:48:13 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-18 23:48:13 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:19:59 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:19:59 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:26:35 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:26:35 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:58:13 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 00:58:13 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:03:29 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:03:29 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:23:31 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:23:31 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:37:33 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 01:37:33 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:04:56 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:04:56 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:09:20 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:09:20 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:36:19 freeze     acct=0 scalp                  BTC       drawdown 99.00σ
+   09-19 02:36:19 freeze     acct=0 scalp                  BTC       drawdown 99.00σ

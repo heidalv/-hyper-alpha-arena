@@ -1,0 +1,28 @@
+== account 14 各策略的 drawdown σ 判据现场 ==
+   acct=14   strategy=mid              -> {'ratio': 51.0815, 'sigma': 5.8588, 'drawdown': 299.2766, 'peak': 15.0462, 'last_value': -284.2303, 'n_samples': 1053, 'last_sample_ts': '2026-09-19 11:17:55', 'age_hours': 3.673}
+   acct=0    strategy=mid              -> None
+   acct=188  strategy=mid              -> None
+   acct=14   strategy=long             -> {'ratio': 51.0815, 'sigma': 5.8588, 'drawdown': 299.2766, 'peak': 15.0462, 'last_value': -284.2303, 'n_samples': 1053, 'last_sample_ts': '2026-09-19 11:17:55', 'age_hours': 3.673}
+   acct=0    strategy=long             -> None
+   acct=188  strategy=long             -> None
+   acct=14   strategy=trend            -> {'ratio': 51.0815, 'sigma': 5.8588, 'drawdown': 299.2766, 'peak': 15.0462, 'last_value': -284.2303, 'n_samples': 1053, 'last_sample_ts': '2026-09-19 11:17:55', 'age_hours': 3.673}
+   acct=0    strategy=trend            -> None
+   acct=188  strategy=trend            -> None
+   acct=14   strategy=swing            -> {'ratio': 51.0815, 'sigma': 5.8588, 'drawdown': 299.2766, 'peak': 15.0462, 'last_value': -284.2303, 'n_samples': 1053, 'last_sample_ts': '2026-09-19 11:17:55', 'age_hours': 3.673}
+   acct=0    strategy=swing            -> None
+   acct=188  strategy=swing            -> None
+   acct=14   strategy=scalp            -> {'ratio': 134.9949, 'sigma': 1.2498, 'drawdown': 168.7184, 'peak': 9.0491, 'last_value': -159.6693, 'n_samples': 853, 'last_sample_ts': '2026-09-08 16:05:59', 'age_hours': 262.872}
+   acct=0    strategy=scalp            -> None
+   acct=188  strategy=scalp            -> None
+   acct=14   strategy=per_symbol_risk  -> {'ratio': 51.0815, 'sigma': 5.8588, 'drawdown': 299.2766, 'peak': 15.0462, 'last_value': -284.2303, 'n_samples': 1053, 'last_sample_ts': '2026-09-19 11:17:55', 'age_hours': 3.673}
+   acct=0    strategy=per_symbol_risk  -> None
+   acct=188  strategy=per_symbol_risk  -> None
+
+== account 14 近 30 天按策略的平仓样本（σ 的输入）==
+    ('scalp', 'short', 850, datetime.datetime(2026, 8, 20, 22, 25, 11, 380993), datetime.datetime(2026, 9, 5, 10, 7, 49, 118718))
+    ('swing', 'mid', 152, datetime.datetime(2026, 8, 20, 22, 41, 5, 555200), datetime.datetime(2026, 9, 19, 11, 17, 55, 757369))
+    ('trend_follow', 'long', 41, datetime.datetime(2026, 8, 23, 23, 0, 43, 277387), datetime.datetime(2026, 9, 18, 21, 55, 26, 804846))
+    ('position', 'long', 7, datetime.datetime(2026, 9, 1, 0, 25, 11, 535366), datetime.datetime(2026, 9, 11, 23, 54, 47, 388782))
+    ('intraday', 'short', 3, datetime.datetime(2026, 9, 8, 12, 38, 42, 494909), datetime.datetime(2026, 9, 8, 16, 5, 59, 394599))
+
+== account 0 / 188 近 30 天平仓样本（σ 会不会是 1–2 个样本算出来的）==

@@ -2860,6 +2860,15 @@ class FullAutoTradingService:
     _BLOCK_STREAK_TRIGGER = 5      # 连续同因拦截次数阈值
     _BLOCK_COOLDOWN_SEC = 30 * 60  # 触发后冷却时长
 
+    # [轮115 2026-09-19] **确定性拒绝**清单：只有"策略 id 前缀 + 车道 + 配置开关"参与
+    # 判定的策略类拒绝，重试多少次结果都一样 ⇒ 冷却没有任何止损价值，只有
+    # "永远不解冻"的副作用（线上实证见 `_record_proposal_block` 的注释）。
+    # 置空 = 回到旧行为（所有原因一律冷却）。
+    _BLOCK_COOLDOWN_SKIP_CODES = (
+        "long_template_source_block",    # 轮40：模板族退出 long 车道（配置决定）
+        "short_template_source_block",   # 轮37：模板族禁止开空（配置决定）
+    )
+
     def _block_streaks_load(self) -> None:
         import json as _json
         try:
@@ -2872,19 +2881,58 @@ class FullAutoTradingService:
             pass
 
     def _block_streaks_save(self) -> None:
+        """落盘前**清理过期状态**。
+
+        [轮115 2026-09-19] 原实现原样落盘 ⇒ 线上 `cooldowns` 12 条里有 10 条是
+        "已过期 57 ~ 1214 分钟"的残留（`_proposal_block_cooldown_active` 只在
+        **恰好查询到该 key** 时才 pop，没人扫的键永远留着）。
+        后果是文件本身在说谎：看起来像"一堆币被永久冻结"，其实只是没人清理。
+        """
         import json as _json
         try:
+            _now = time.time()
+            self._proposal_block_cooldowns = {
+                k: v for k, v in (self._proposal_block_cooldowns or {}).items()
+                if float((v or {}).get("until") or 0) > _now}
+            # streak 超过 2h 没更新 ⇒ 下次同因也只会重置为 1，留着只会误导
+            self._proposal_block_streaks = {
+                k: v for k, v in (self._proposal_block_streaks or {}).items()
+                if _now - float((v or {}).get("ts") or 0) < 2 * 3600}
             with open(self._BLOCK_STREAK_FILE, "w", encoding="utf-8") as fh:
                 _json.dump({"streaks": self._proposal_block_streaks,
                             "cooldowns": self._proposal_block_cooldowns}, fh, ensure_ascii=False)
         except Exception:
             pass
 
-    def _record_proposal_block(self, sym: str, tier: str, code: str) -> bool:
-        """[2026-09-18 修复·WLFI回环] 连续同因拦截计数；达阈值进入冷却。
+    def _cooldown_summary(self) -> str:
+        """[轮115] **全局读数**：现在有多少 (symbol,tier) 在冷却中。
 
-        根因（midlong_direction_audit 实证）：WLFI 39 次拒单=decision_price_stale×7 +
-        strategy_detached×7 等同因重复，无冷却导致每2分钟重试永不成交、快照刷屏。
+        用户的原始抱怨是"单交易对冷却，却弄成全局冻结不解冻" —— 单看每个币都只是
+        "一个 30 分钟窗口"，但 12 个键叠起来就覆盖了整个可交易集合。
+        装配冷却时把这句话打出来，"是不是全局冻结"一眼可判。
+        """
+        try:
+            _now = time.time()
+            _act = {k: v for k, v in (self._proposal_block_cooldowns or {}).items()
+                    if float((v or {}).get("until") or 0) > _now}
+            if not _act:
+                return "当前无 (symbol,tier) 处于冷却"
+            _by: Dict[str, list] = {}
+            for k, v in _act.items():
+                _by.setdefault(str((v or {}).get("code") or "?"), []).append(k)
+            return "当前处于冷却 %d 个 (symbol,tier)：%s" % (
+                len(_act),
+                "; ".join(f"{c}×{len(ks)}({','.join(sorted(ks))})"
+                          for c, ks in sorted(_by.items())))
+        except Exception:
+            return ""
+
+    def _clear_proposal_block(self, sym: str, tier: str) -> bool:
+        """[轮115 2026-09-19] **成功即解冻**：清掉该 (symbol,tier) 的连续计数与冷却。
+
+        此前**没有任何成功路径清状态** ⇒ 一个币哪怕后来成交了，它历史累积的计数
+        仍在（旧实现下计数永不回落），下一次同因拦截立刻又冻上 30 分钟。
+        这是"解冻"的正确触发点：条件真的消失了（单子下出去了），状态就该归零。
         """
         import time as _t
         try:
@@ -2893,6 +2941,72 @@ class FullAutoTradingService:
                 self._proposal_block_cooldowns = {}
                 self._block_streaks_load()
             key = f"{(sym or '').upper()}:{tier or '?'}"
+            _st = self._proposal_block_streaks.pop(key, None)
+            _cd = self._proposal_block_cooldowns.pop(key, None)
+            if _st or _cd:
+                logger.info(
+                    "[BlockCooldown] %s tier=%s **冷却解除**（本次开仓成功；清掉残留状态"
+                    "原原因=%s 计数=%s）", sym, tier,
+                    (_cd or {}).get("code") or "-", (_st or {}).get("count"))
+                self._block_streaks_save()
+                return True
+            return False
+        except Exception:
+            return False
+
+    def _record_proposal_block(self, sym: str, tier: str, code: str) -> bool:
+        """[2026-09-18 修复·WLFI回环] 连续同因拦截计数；达阈值进入冷却。
+
+        根因（midlong_direction_audit 实证）：WLFI 39 次拒单=decision_price_stale×7 +
+        strategy_detached×7 等同因重复，无冷却导致每2分钟重试永不成交、快照刷屏。
+
+        ── [轮115 2026-09-19 修「只冻不解」] ──────────────────────────────
+        用户反馈："设计的冷却好像从来都没有解冻过。只冻不解，并且单交易对冷却，
+        但是弄个全局冻结不解冻。" 现场证据（`reports/_probe115b.txt`）：
+
+          * `ASTER:mid` 三次装配冷却时打印的连续计数是 **5 → 6 → 7**（从不回落），
+            相邻装配间隔 45.3 / 31.8 分钟 ≈ 冷却窗口 + 一个扫描周期 ⇒
+            **解冻后只放行一次尝试就立刻重新冻上**；
+          * `BNB/SOL/ASTER:long` 的计数已涨到 **25 / 21 / 16**（各含 20/16/11 次重新装配）
+            ⇒ 累计冻结 ≈ 10.5h / 8.5h / 6h，且原因（模板族退出 long 车道）是**配置决定**，
+            重试永远不可能成功 —— 纯损失；
+          * 12 个 (symbol,tier) 的计数 ≥5，合起来覆盖了整个可交易集合 ⇒ 看起来像"全局冻结"。
+
+        两个改动：
+          ① 装配冷却时把计数**归零**：解冻后重新拥有完整预算（5 次尝试），
+             而不是"1 次尝试 → 再冻 30 分钟"。回环抑制仍然成立（30 分钟最多 5 次重试，
+             对照旧行为每 2 分钟一次）。
+          ② 确定性拒绝（`_BLOCK_COOLDOWN_SKIP_CODES`）**不再冷却**：策略/配置类拒绝，
+             重试不改变结果，冷却只有副作用。
+
+        回滚：`.env` `PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM=false`（回到旧棘轮）。
+        """
+        import time as _t
+        try:
+            if not hasattr(self, "_proposal_block_streaks"):
+                self._proposal_block_streaks = {}
+                self._proposal_block_cooldowns = {}
+                self._block_streaks_load()
+            try:
+                from backend.config.settings import (
+                    PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM as _thaw,
+                )
+                _thaw = bool(_thaw)
+            except Exception:
+                _thaw = True
+            key = f"{(sym or '').upper()}:{tier or '?'}"
+
+            # ② 确定性拒绝：不冷却（2h 只留一行日志，避免刷屏）
+            if str(code or "") in self._BLOCK_COOLDOWN_SKIP_CODES:
+                if not hasattr(self, "_block_skip_logged"):
+                    self._block_skip_logged = {}
+                if _t.time() - float(self._block_skip_logged.get(key) or 0) > 2 * 3600:
+                    self._block_skip_logged[key] = _t.time()
+                    logger.info(
+                        "[BlockCooldown] %s tier=%s 属于确定性拒绝(%s，策略/配置类)"
+                        "—— 重试不改变结果，**不冷却**", sym, tier, code)
+                return False
+
             st = self._proposal_block_streaks.get(key) or {}
             if st.get("code") == code and _t.time() - float(st.get("ts") or 0) < 2 * 3600:
                 st["count"] = int(st.get("count") or 0) + 1
@@ -2905,9 +3019,15 @@ class FullAutoTradingService:
                 self._proposal_block_cooldowns[key] = {
                     "code": code, "until": _t.time() + self._BLOCK_COOLDOWN_SEC}
                 logger.warning(
-                    "[BlockCooldown] %s tier=%s 连续%d次同因拦截(%s)，冷却%d分钟",
-                    sym, tier, st["count"], code, self._BLOCK_COOLDOWN_SEC // 60)
+                    "[BlockCooldown] %s tier=%s 连续%d次同因拦截(%s)，冷却%d分钟%s",
+                    sym, tier, st["count"], code, self._BLOCK_COOLDOWN_SEC // 60,
+                    "（计数归零 ⇒ 解冻后重新拥有完整预算）" if _thaw else "")
+                if _thaw:
+                    # ① 计数归零 —— 这是"只冻不解"的直接解药
+                    st["count"] = 0
+                    st["ts"] = _t.time()
                 triggered = True
+                logger.info("[BlockCooldown] %s", self._cooldown_summary())
             self._block_streaks_save()
             return triggered
         except Exception:
@@ -2927,6 +3047,11 @@ class FullAutoTradingService:
             if cd:
                 self._proposal_block_cooldowns.pop(key, None)
                 self._block_streaks_save()
+                # [轮115] **解冻要看得见**：此前"冷却结束"没有任何日志，
+                # 用户只看到"冻"、看不到"解冻"，自然会问"是不是从来没解冻过"。
+                logger.info(
+                    "[BlockCooldown] %s tier=%s **冷却结束**（原原因=%s），恢复尝试",
+                    sym, tier, (cd or {}).get("code") or "-")
             return None
         except Exception:
             return None

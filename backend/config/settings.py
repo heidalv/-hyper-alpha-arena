@@ -2781,6 +2781,17 @@ MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.05") 
 MIDLONG_MID_FACTOR_ROUTE_SHADOW: bool = (
     os.getenv("MIDLONG_MID_FACTOR_ROUTE_SHADOW", "true") or "true"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [轮115 2026-09-19] 同因拦截冷却的**解冻语义**（默认 true = 已修好的行为）。
+# 现场（reports/_probe115b.txt）：`ASTER:mid` 三次装配时打印的连续计数是 5→6→7
+# （从不回落），相邻装配间隔 45.3/31.8 分钟 ≈ 冷却窗口 + 一个扫描周期 ⇒
+# **解冻后只放行一次尝试就立刻重新冻上**；`BNB/SOL/ASTER:long` 的计数涨到 25/21/16
+# （≈10.5h/8.5h/6h 冻结），而原因是配置决定（模板族退出 long 车道）⇒ 永远不可能成功。
+# true  = 装配冷却时计数归零（解冻后重新拥有完整 5 次预算）+ 成功即清状态
+#         + 确定性拒绝（long/short_template_source_block）不再冷却。
+# false = 回到旧棘轮（计数不归零、确定性拒绝也冷却），仅用于对照/回滚。
+PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM: bool = (
+    os.getenv("PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 # [轮111→114 2026-09-19] 中线同币冷却：**不新增开关**。
 # 轮111 曾在 `execute_midlong_open` 里加过一道 `MIDLONG_MID_REENTRY_COOLDOWN_SEC` 闸，
 # 轮114 评估后**撤回**——它重复了既有的 `reentry_cooldown.reopen_blocked`

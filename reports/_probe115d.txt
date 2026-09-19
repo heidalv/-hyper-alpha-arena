@@ -1,0 +1,47 @@
+== 账户 ==
+    (7, '套利测试', Decimal('10000.00'), Decimal('0.00'))
+    (14, '小资金', Decimal('500.00'), Decimal('0.00'))
+    (146, 'default AI Trader', Decimal('10000.00'), Decimal('0.00'))
+    (147, '[已归档-测试残留] K线研究AAVE', Decimal('5000.00'), Decimal('0.00'))
+    (149, '[已归档-测试残留] AI选币策略研究', Decimal('10000.00'), Decimal('0.00'))
+    (154, '主模拟盘-202608', Decimal('50000.00'), Decimal('0.00'))
+    (155, '模拟资金池-202608', Decimal('50000.00'), Decimal('0.00'))
+    (156, '150u', Decimal('150.00'), Decimal('0.00'))
+    (179, '_p1_del_test', Decimal('500.00'), Decimal('0.00'))
+    (180, '_del_repro', Decimal('500.00'), Decimal('0.00'))
+    (181, '_deleted_181__authfb_test_A', Decimal('500.00'), Decimal('0.00'))
+    (182, '_authfb_test_B', Decimal('500.00'), Decimal('0.00'))
+    (183, '_deleted_183__e2e_live_bind', Decimal('10000.00'), Decimal('0.00'))
+    (184, '_deleted_184__e2e_resolve', Decimal('10000.00'), Decimal('0.00'))
+    (185, '_deleted_185__e2e_resolve', Decimal('10000.00'), Decimal('0.00'))
+    (186, 'BTC', Decimal('10000.00'), Decimal('0.00'))
+    (187, '_mt_test_tmp', Decimal('100.00'), Decimal('0.00'))
+    (188, 'BTC', Decimal('10000.00'), Decimal('0.00'))
+    (189, '_p2_e2e_test', Decimal('1000.00'), Decimal('0.00'))
+
+== 全自动会话（最近的）==
+    (12, 'fa_185f162052', 188, None, ['ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'], 'moderate', 'ai_dynamic', 'live', False, ['DOGE', 'SYN'], None, {'reason': '低波动(0.8) 回撤极小(0.1%) → 适度放开', 'adjusted_at': '2026-09-17T06:37:56.623621+00:00', 'effect
+    (10, 'fa_7e12e7a1b6', 14, 14, ['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'], 'conservative', 'ai_dynamic', 'paper', False, ['DOGE', 'SYN'], None, {'reason': '高波动(0.9) 或 回撤过大(61.0%) → 收紧风控', 'adjusted_at': '2026-09-19T06:56:41.406046+00:
+
+== account 0 / 188 上还有没有持仓或近期活动 ==
+   acct=0: 持仓=0 历史=0 最后平仓=None
+   acct=188: 持仓=0 历史=0 最后平仓=None
+
+== account 14（用户的实盘/纸面账户）==
+    (4732, 'LINK', 'long', 'open', 'long', datetime.datetime(2026, 9, 19, 8, 20, 13, 348798), 12.325392883000001)
+    (4731, 'SOL', 'long', 'open', 'long', datetime.datetime(2026, 9, 19, 8, 20, 9, 682758), 113.39441611000001)
+    (4730, 'ETH', 'long', 'open', 'long', datetime.datetime(2026, 9, 19, 8, 20, 4, 515229), 2621.4580634100002)
+    (4712, 'BTC', 'long', 'open', 'long', datetime.datetime(2026, 9, 18, 8, 20, 2, 686218), 78492.80372019952)
+
+== 风控冻结的权威状态（portfolio_budget / freeze_coordinator）==
+   active_freeze_count = 0
+   budget = {"enabled": true, "global_frozen": false, "account_frozen": {}, "strategy_frozen": {}, "trigger_count": {}}
+
+== PerSymbolRisk 的日亏冻结状态（account 14，若可读）==
+   (读取失败) ProgrammingError (psycopg.errors.UndefinedColumn) 字段 "strategy_type" 不存在
+LINE 2: ...      SELECT strategy_id, primary_symbol, status, strategy_t...
+                                                             ^
+[SQL: 
+        SELECT strategy_id, primary_symbol, status, strategy_type
+        FROM ai_strategies WHERE status='paused' ORDER BY strategy_id DESC LIMIT 20]
+(Background on this error at: https://sqlalche.me/e/20/f405)

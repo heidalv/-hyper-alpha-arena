@@ -92,14 +92,28 @@ def is_frozen(account_id: int, strategy: str, symbol: str) -> bool:
 
     sym = str(symbol or "").upper()
     now = time.time()
-    key = (int(account_id or 0), str(strategy or ""), sym)
+    key = (int(account_id or 0), str(strategy or ""), str(sym))
     # 惰性过期：读组合预算的实际状态（权威）
     until = portfolio_budget._key_frozen_until.get(key, 0.0)
     if until > now:
         return True
     # 到期：清台账残留
+    # [轮115 2026-09-19 修「台账只冻不解」] 台账 `data/freeze_events.jsonl` 实测
+    # **387 条事件、0 条解冻**（`kind` 只有 freeze / freeze_per_symbol）——
+    # 因为解冻走的是"惰性过期"（这里直接 pop），**从来不写事件**；
+    # 唯一会写 unfreeze 的 `unfreeze()` 只被"修复链/人工"调用，实际从没被调到。
+    # 于是任何读台账的人（含前端 `recent_events`）看到的都是"只冻不解、永远不解冻"。
+    # 这里在状态真正翻转为未冻结的那一刻补一条 `expire` 事件（每个冻结只写一次）。
+    # 注意：`_push_event` 自己要拿 `_FREEZE_LOCK`，必须**在锁外**调用
+    # （本文件 2026-09-02 的自锁死教训：普通 Lock 不可重入）。
+    _expired = None
     with _FREEZE_LOCK:
-        _FREEZES.pop(key, None)
+        _expired = _FREEZES.pop(key, None)
+    if _expired:
+        _push_event(
+            "expire", account_id, strategy, sym,
+            f"冷却到期自动解冻（原原因={str(_expired.get('why') or '')[:80]}）",
+        )
     return False
 
 
@@ -122,10 +136,20 @@ def status() -> Dict[str, Any]:
                 }
             )
     pb = portfolio_budget.status()
+    # [轮115] 冻结/解冻事件必须**成对可见**：只报 active_freeze 会让人以为"只冻不解"
+    _kinds: Dict[str, int] = {}
+    for _e in _EVENT_LOG:
+        _kinds[str(_e.get("kind") or "?")] = _kinds.get(str(_e.get("kind") or "?"), 0) + 1
     return {
         "active_freeze_count": len(active),
         "active_freeze": sorted(active, key=lambda x: -x["remaining_s"]),
         "recent_events": list(reversed(_EVENT_LOG[-50:])),
+        # [轮115] 台账口径：freeze vs 解冻（unfreeze/expire）各多少条。
+        # 若 freeze ≫ 解冻，说明"解冻没被记录"或"确实一直冻着"——两者必须能分辨。
+        "event_kinds": _kinds,
+        "freeze_events": sum(v for k, v in _kinds.items() if k.startswith("freeze")),
+        "thaw_events": sum(v for k, v in _kinds.items()
+                           if k.startswith("unfreeze") or k.startswith("expire")),
         # 组合预算原始状态（全局/账户级仅供监控——设计上不应再有自动触发）
         "budget": {
             "enabled": pb.get("enabled"),

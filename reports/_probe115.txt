@@ -1,0 +1,114 @@
+== 1. proposal_block_streaks.json 全量（含过期与否）==
+   now = 2026-09-19 14:54:16
+
+   [streaks] 同因连续计数（count >= 5 就会再次触发冷却）
+     BNB:long       code=long_template_source_block   count= 25 最后一次=09-19 06:04 (8.8h 前)
+     SOL:long       code=long_template_source_block   count= 21 最后一次=09-19 07:39 (7.2h 前)
+     ASTER:long     code=long_template_source_block   count= 16 最后一次=09-19 06:04 (8.8h 前)
+     ZEC:mid        code=v5gate                       count= 10 最后一次=09-18 18:10 (20.7h 前)
+     AAVE:mid       code=v5gate                       count=  8 最后一次=09-19 02:34 (12.3h 前)
+     ASTER:mid      code=size_below_floor             count=  7 最后一次=09-19 14:34 (0.3h 前)
+     DOT:mid        code=strategy_detached            count=  6 最后一次=09-19 09:00 (5.9h 前)
+     UNI:long       code=long_template_source_block   count=  5 最后一次=09-19 14:50 (0.1h 前)
+     1000PEPE:mid   code=size_below_floor             count=  5 最后一次=09-19 13:27 (1.4h 前)
+     TIA:mid        code=v5gate                       count=  5 最后一次=09-19 09:00 (5.9h 前)
+     ETH:long       code=long_template_source_block   count=  5 最后一次=09-19 08:20 (6.6h 前)
+     LIT:mid        code=strategy_detached            count=  5 最后一次=09-19 09:42 (5.2h 前)
+     BNB:mid        code=size_below_floor             count=  4 最后一次=09-19 13:54 (1.0h 前)
+     XPL:mid        code=decision_price_stale         count=  1 最后一次=09-18 12:42 (26.2h 前)
+     LINK:mid       code=v5gate                       count=  1 最后一次=09-18 22:54 (16.0h 前)
+     UNI:mid        code=size_below_floor             count=  1 最后一次=09-19 13:12 (1.7h 前)
+
+   [cooldowns] 冷却窗口
+     1000PEPE:mid   code=size_below_floor             until=09-19 13:57 (已过期 57 分钟（仍留在文件里）)
+     AAVE:mid       code=v5gate                       until=09-19 03:04 (已过期 710 分钟（仍留在文件里）)
+     ASTER:long     code=long_template_source_block   until=09-19 06:34 (已过期 500 分钟（仍留在文件里）)
+     ASTER:mid      code=size_below_floor             until=09-19 15:04 (还剩 10 分钟)
+     BNB:long       code=long_template_source_block   until=09-19 06:34 (已过期 500 分钟（仍留在文件里）)
+     DOT:mid        code=strategy_detached            until=09-19 09:30 (已过期 324 分钟（仍留在文件里）)
+     ETH:long       code=long_template_source_block   until=09-19 08:50 (已过期 364 分钟（仍留在文件里）)
+     LIT:mid        code=strategy_detached            until=09-19 10:12 (已过期 282 分钟（仍留在文件里）)
+     SOL:long       code=long_template_source_block   until=09-19 08:09 (已过期 405 分钟（仍留在文件里）)
+     TIA:mid        code=v5gate                       until=09-19 09:30 (已过期 324 分钟（仍留在文件里）)
+     UNI:long       code=long_template_source_block   until=09-19 15:20 (还剩 26 分钟)
+     ZEC:mid        code=v5gate                       until=09-18 18:40 (已过期 1214 分钟（仍留在文件里）)
+
+== 2. 近 7 天 mid/long 开仓尝试的「被封」构成（按 reason 归一）==
+    (None, 823, datetime.date(2026, 9, 12), datetime.datetime(2026, 9, 18, 12, 55, 58, 278249))
+    ('(无信息)', 78, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 19, 14, 10, 0, 297713))
+    ('eval_false:long_template_source_block', 42, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 19, 14, 37, 34, 909566))
+    ('eval_false:v5gate', 21, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 19, 8, 12, 23, 160584))
+    ('eval_false:size_below_floor', 6, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 14, 3, 2, 279569))
+    ('eval_false:paper_trade_false', 3, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 12, 54, 56, 713810))
+    ('eval_false:no_active_strategy', 3, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 12, 12, 21, 878252))
+    ('regime_extreme', 3, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 18, 14, 9, 7, 62896))
+    ('cooldown(被冷却挡)', 2, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 14, 31, 32, 209221))
+    ('midlong_cooldown_block:DB耐久冷却: ASTER 刚sl平long仓（18分钟前 pnl=-12.39），抑制同向再开约剩11分钟', 1, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 1, 7, 11, 91305))
+    ('<未登记>', 1, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 18, 13, 12, 59, 898294))
+    ('midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩25分钟）——避免信号未变时重复付手续费', 1, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 5, 48, 2, 163148))
+    ('eval_false:strategy_detached', 1, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 9, 15, 4, 666678))
+    ('eval_false:decision_price_stale', 1, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 9, 21, 2, 313385))
+    ('midlong_cooldown_block:刚平多仓(tier=mid)未满60分钟，抑制同向再开（约剩46分钟）——避免信号未变时重复付手续费', 1, datetime.date(2026, 9, 19), datetime.datetime(2026, 9, 19, 1, 2, 30, 913715))
+    ('midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩29分钟）——避免信号未变时重复付手续费', 1, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 18, 21, 42, 42, 996297))
+    ('midlong_cooldown_block:刚平多仓(tier=mid)未满30分钟，抑制同向再开（约剩28分钟）——避免信号未变时重复付手续费', 1, datetime.date(2026, 9, 18), datetime.datetime(2026, 9, 18, 16, 49, 51, 380038))
+
+== 3. 每个币的「冻结覆盖率」：近 7 天被 cooldown 挡掉的尝试占比 ==
+     UNI        尝试= 216 其中因冷却=   2 (  0.9%) 天数=8 2026-09-12 15:04:11.262317 → 2026-09-19 14:37:34.909566
+     ASTER      尝试= 150 其中因冷却=   4 (  2.7%) 天数=6 2026-09-13 01:08:42.111163 → 2026-09-19 14:31:32.209221
+     BNB        尝试= 128 其中因冷却=   0 (  0.0%) 天数=6 2026-09-12 15:06:50.921261 → 2026-09-19 13:54:29.370807
+     ETH        尝试=  88 其中因冷却=   0 (  0.0%) 天数=4 2026-09-13 05:18:14.745916 → 2026-09-19 08:04:08.048510
+     SOL        尝试=  85 其中因冷却=   1 (  1.2%) 天数=6 2026-09-13 06:56:37.676047 → 2026-09-19 07:39:42.437589
+     XRP        尝试=  83 其中因冷却=   0 (  0.0%) 天数=4 2026-09-13 04:40:34.678049 → 2026-09-18 12:54:47.806499
+     BTC        尝试=  56 其中因冷却=   0 (  0.0%) 天数=5 2026-09-12 15:05:40.773772 → 2026-09-18 07:59:28.178328
+     AAVE       尝试=  33 其中因冷却=   0 (  0.0%) 天数=3 2026-09-17 02:31:30.520170 → 2026-09-19 02:43:26.304426
+     ZEC        尝试=  27 其中因冷却=   0 (  0.0%) 天数=1 2026-09-18 02:47:34.158513 → 2026-09-18 18:10:03.423668
+     VIRTUAL    尝试=  26 其中因冷却=   0 (  0.0%) 天数=2 2026-09-16 04:58:57.354133 → 2026-09-17 02:02:37.685933
+     XPL        尝试=  24 其中因冷却=   0 (  0.0%) 天数=4 2026-09-13 20:17:38.925899 → 2026-09-18 12:36:58.156537
+     APT        尝试=  18 其中因冷却=   0 (  0.0%) 天数=2 2026-09-16 18:31:55.671531 → 2026-09-17 11:57:27.013754
+     TIA        尝试=  15 其中因冷却=   0 (  0.0%) 天数=3 2026-09-16 16:53:03.972420 → 2026-09-19 08:45:27.049946
+     1000PEPE   尝试=  12 其中因冷却=   0 (  0.0%) 天数=2 2026-09-18 11:33:23.318905 → 2026-09-19 13:23:51.926323
+     LINK       尝试=   8 其中因冷却=   0 (  0.0%) 天数=2 2026-09-17 22:47:23.406640 → 2026-09-18 22:54:39.736524
+     AMAT       尝试=   6 其中因冷却=   0 (  0.0%) 天数=1 2026-09-16 13:53:03.869642 → 2026-09-16 14:59:28.687984
+     FIL        尝试=   5 其中因冷却=   0 (  0.0%) 天数=1 2026-09-17 21:03:32.305776 → 2026-09-17 22:08:51.356919
+     DOT        尝试=   4 其中因冷却=   0 (  0.0%) 天数=1 2026-09-19 06:03:17.856499 → 2026-09-19 07:39:12.656059
+     WLFI       尝试=   2 其中因冷却=   0 (  0.0%) 天数=1 2026-09-17 23:16:20.919136 → 2026-09-17 23:53:58.324773
+     LIT        尝试=   2 其中因冷却=   0 (  0.0%) 天数=1 2026-09-19 09:15:04.666678 → 2026-09-19 09:45:33.230104
+
+== 4. 冷却是「整段冻住」还是「冻一下放一下」：冷却拦截的相邻间隔分布 ==
+     n / 中位间隔(分) / 最短 / 最长 = (4, Decimal('391.6'), Decimal('4.7'), Decimal('799.4'))
+
+== 5. 有没有全局冻结：同期 mid 的开仓尝试是否**整体**归零 ==
+    (datetime.datetime(2026, 9, 19, 14, 0), 4, 2, 1)
+    (datetime.datetime(2026, 9, 19, 13, 0), 8, 0, 3)
+    (datetime.datetime(2026, 9, 19, 12, 0), 5, 0, 3)
+    (datetime.datetime(2026, 9, 19, 11, 0), 2, 0, 2)
+    (datetime.datetime(2026, 9, 19, 10, 0), 4, 0, 3)
+    (datetime.datetime(2026, 9, 19, 9, 0), 7, 0, 4)
+    (datetime.datetime(2026, 9, 19, 8, 0), 6, 0, 3)
+    (datetime.datetime(2026, 9, 19, 7, 0), 4, 0, 2)
+    (datetime.datetime(2026, 9, 19, 6, 0), 5, 0, 3)
+    (datetime.datetime(2026, 9, 19, 5, 0), 3, 1, 2)
+    (datetime.datetime(2026, 9, 19, 4, 0), 2, 0, 1)
+    (datetime.datetime(2026, 9, 19, 3, 0), 1, 0, 1)
+    (datetime.datetime(2026, 9, 19, 2, 0), 3, 0, 1)
+    (datetime.datetime(2026, 9, 19, 1, 0), 4, 2, 2)
+    (datetime.datetime(2026, 9, 19, 0, 0), 2, 0, 1)
+    (datetime.datetime(2026, 9, 18, 22, 0), 2, 0, 2)
+    (datetime.datetime(2026, 9, 18, 21, 0), 2, 1, 2)
+    (datetime.datetime(2026, 9, 18, 19, 0), 1, 0, 1)
+    (datetime.datetime(2026, 9, 18, 18, 0), 1, 0, 1)
+    (datetime.datetime(2026, 9, 18, 17, 0), 2, 0, 1)
+    (datetime.datetime(2026, 9, 18, 16, 0), 2, 1, 2)
+    (datetime.datetime(2026, 9, 18, 15, 0), 2, 0, 1)
+    (datetime.datetime(2026, 9, 18, 13, 0), 1, 0, 1)
+    (datetime.datetime(2026, 9, 18, 12, 0), 7, 0, 5)
+    (datetime.datetime(2026, 9, 18, 11, 0), 6, 0, 4)
+    (datetime.datetime(2026, 9, 18, 10, 0), 5, 0, 4)
+    (datetime.datetime(2026, 9, 18, 9, 0), 8, 0, 3)
+    (datetime.datetime(2026, 9, 18, 8, 0), 8, 0, 4)
+    (datetime.datetime(2026, 9, 18, 7, 0), 8, 0, 4)
+    (datetime.datetime(2026, 9, 18, 6, 0), 7, 0, 4)
+    (datetime.datetime(2026, 9, 18, 5, 0), 8, 0, 4)
+    (datetime.datetime(2026, 9, 18, 4, 0), 6, 0, 4)
+    (datetime.datetime(2026, 9, 18, 3, 0), 15, 0, 5)
+    (datetime.datetime(2026, 9, 18, 2, 0), 4, 0, 4)

@@ -27,6 +27,7 @@ class ProposalExecutionHost:
     record_midlong_factor_snapshots: Callable = field(repr=False, default=lambda *a, **k: None)
     block_cooldown_active: Callable = field(repr=False, default=lambda *a, **k: None)
     record_proposal_block: Callable = field(repr=False, default=lambda *a, **k: None)
+    clear_proposal_block: Callable = field(repr=False, default=lambda *a, **k: None)
     auto_create_strategy: Callable = field(repr=False, default=lambda *a, **k: None)
 
 
@@ -46,6 +47,7 @@ def build_proposal_execution_host(svc) -> ProposalExecutionHost:
         record_midlong_factor_snapshots=svc._record_midlong_factor_snapshots,
         block_cooldown_active=svc._proposal_block_cooldown_active,
         record_proposal_block=svc._record_proposal_block,
+        clear_proposal_block=svc._clear_proposal_block,
         auto_create_strategy=svc._auto_create_strategy,
     )
 
@@ -108,6 +110,17 @@ def evaluate_and_execute_proposal(
     _ok_inner = _evaluate_and_execute_proposal_inner(
         db=db, session=session, proposal=proposal, market_summary=market_summary,
         host=host, session_mode=session_mode, strat=strat)
+    if _ok_inner:
+        # [轮115 2026-09-19 成功即解冻] 此前**没有任何成功路径**清连续同因计数/冷却
+        # ⇒ 一个币后来成交了，历史计数仍在，下一次同因拦截立刻又冻 30 分钟
+        # （线上：ASTER:mid 计数 5→6→7 永不回落）。这里的"条件真的消失了"是唯一
+        # 语义正确的解冻触发点。清理失败绝不影响下单结果。
+        try:
+            _clr = getattr(host, "clear_proposal_block", None)
+            if callable(_clr):
+                _clr(proposal.symbol, proposal.tier)
+        except Exception:
+            pass
     if not _ok_inner:
         try:
             from backend.services.mlto.open_block_reason import peek_open_block
