@@ -657,16 +657,24 @@ def record_midlong_outcome(
 ) -> None:
     """平仓后记录净盈亏（调用方传 net=pnl-fee），更新熔断状态。
 
-    [2026-09-11 用户指令] 模拟账户直接返回：不做任何亏损触发的冷却/熔断记账
-    （纸面亏损=训练数据，记了也只会在开仓侧被同一判据跳过）。
+    [轮120 2026-09-19 **用户拍板恢复**] 原注释写着
+    「[2026-09-11 用户指令] 模拟账户直接返回：不做任何亏损触发的冷却/熔断记账」
+    —— 后果实测：状态文件 `data/midlong_circuit_state.json` **9 天没写**
+    （mtime 09-10 20:48），今天 UNI 连吃 3 个 SL（−13.43）也没有得到"单币 12h 冷却"。
+    用户 2026-09-19 明确口径：「单币亏钱，就是冻结单个亏钱的币」⇒ 恢复记账。
+    **粒度不变**：只按 (account, symbol) 记账与禁开，**不引入任何全局冻结**
+    （全局只在 `tier_circuit_breaker` 日亏预算 / 极端 regime 触发）。
+    回滚：`MIDLONG_CIRCUIT_PAPER_LOCK=false` → 回到 09-11 的"paper 不记账"。
     """
     try:
         if not _env_b("MIDLONG_CIRCUIT_ENABLED", True):
             return
-        from backend.services.risk_management.loss_lock_policy import loss_locks_disabled
+        # [轮120] paper 恢复记账；显式开关保留回滚能力
+        if not _env_b("MIDLONG_CIRCUIT_PAPER_LOCK", True):
+            from backend.services.risk_management.loss_lock_policy import loss_locks_disabled
 
-        if loss_locks_disabled(account_id):
-            return
+            if loss_locks_disabled(account_id):
+                return
         _load()
         key = _acct_key(account_id, symbol)
         today = _today()

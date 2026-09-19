@@ -2787,6 +2787,21 @@ MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.02") 
 # 乘子没有绝对含义，名义才有：base = equity × MIDLONG_RISK_PCT / sl_pct。
 # 低于本值时把仓位**抬到该名义**（而不是拒绝）—— 该车道本就开着
 # `MIDLONG_ALLOW_RANGE_PROBE`（不利行情用小仓试探、攒证据）；$13 的仓位攒不到证据。
+# [轮120 2026-09-19 用户拍板「允许小仓位」] 中性论题的小仓试探总开关（默认 true）。
+# 现场（reports/_probe119.txt）：9 个固定币全部 neutral / 等回踩 ⇒ 候选=0 ⇒ 中线整天不开。
+# true 时两条小仓路径：
+#   * 方向明确但 `recommend_open=false`（模型在等回踩）⇒ NIBBLE 档（0.15）市价试探；
+#   * `direction=neutral` 且 `regime=up/down` ⇒ 用 regime 定向后小仓试探（**震荡不猜方向**）。
+# 尺寸仍由分档系数保证"小仓"，且照旧过 V5/预算/组合/宪法全部闸门。
+# false = 回到"只开 accepted+recommend_open"的旧行为。
+MIDLONG_NEUTRAL_PROBE_ENABLED: bool = (
+    os.getenv("MIDLONG_NEUTRAL_PROBE_ENABLED", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
+# [轮120] 单币连亏冻结恢复（用户口径：单币亏钱只冻那个币）。false = 回到 09-11 的
+# "paper 不做亏损冻结记账"；粒度不变，**不引入任何全局冻结**。
+MIDLONG_CIRCUIT_PAPER_LOCK: bool = (
+    os.getenv("MIDLONG_CIRCUIT_PAPER_LOCK", "true") or "true"
+).strip().lower() in ("1", "true", "yes", "on")
 MIDLONG_MIN_PROBE_NOTIONAL_USD: float = float(
     os.getenv("MIDLONG_MIN_PROBE_NOTIONAL_USD", "60") or "60"
 )

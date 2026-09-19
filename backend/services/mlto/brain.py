@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import logging
 import os
 import threading
@@ -2396,13 +2397,73 @@ def run_midlong_open_sweep(
         except Exception:
             pass
         dto = thesis_store.get(sid, sym, tier_l)
-        if dto is None or not bool(getattr(dto, "accepted", False)):
+        if dto is None:
             _bump("no_thesis")
             continue
-        if not bool(getattr(dto, "recommend_open", False)):
-            # 论题自己说"别开"（主脑判断），不是闸门拦的 —— 必须在日志里区分开
-            _bump("not_recommended")
-            continue
+        _dir_raw = str(getattr(dto, "direction", "") or "").strip().lower()
+        # ── [轮120 2026-09-19 用户拍板「允许小仓位」] 两条小仓试探路径 ──────────
+        # 现场（`reports/_probe119.txt`）：9 个固定币全部"等回踩/中性"⇒ 候选=0
+        # ⇒ 中线整天一单不开。用户口径：中线应当能开，除非极端反转；允许小仓位。
+        #   (a) 方向明确但 `recommend_open=false`（=模型在"等回踩"）⇒ NIBBLE 档市价试探；
+        #   (b) `direction=neutral` ⇒ **用 regime 定方向**（up→long / down→short），
+        #       震荡/未知**不猜方向**（没有方向优势就不下注）。
+        # 尺寸由分档系数保证是"小仓"（recommend_open=False ⇒ tranche_gate 走 NIBBLE 0.15 档），
+        # 且照旧过全部风控闸（V5/预算/组合/宪法）；每一步都写显式审计 `probe_entry:*`。
+        _probe_why = ""
+        if not bool(getattr(dto, "accepted", False)) or not bool(
+            getattr(dto, "recommend_open", False)
+        ):
+            try:
+                from backend.config.settings import MIDLONG_NEUTRAL_PROBE_ENABLED as _pn
+            except Exception:
+                _pn = True
+            _probe_dir = ""
+            if _dir_raw in ("long", "short"):
+                _probe_why = "waiting_pullback"
+                _probe_dir = _dir_raw
+            elif _pn:
+                try:
+                    _ms = (market_summary or {}).get(sym) or {}
+                    _reg = str((_ms or {}).get("regime") or "").strip().lower()
+                except Exception:
+                    _reg = ""
+                if _reg in ("up", "bull", "bullish"):
+                    _probe_dir, _probe_why = "long", f"neutral_regime_{_reg}"
+                elif _reg in ("down", "bear", "bearish"):
+                    _probe_dir, _probe_why = "short", f"neutral_regime_{_reg}"
+            if not _probe_dir:
+                _bump("no_thesis" if dto is None else
+                      ("no_direction" if not _pn else "probe_no_regime"))
+                if not bool(getattr(dto, "recommend_open", False)):
+                    _bump("not_recommended")
+                continue
+            # 试探：只改本次调用用的副本（不动落库论题）
+            try:
+                dto = copy.copy(dto)
+                dto.direction = _probe_dir
+                dto.recommend_open = False   # ⇒ NIBBLE 档（小仓）
+            except Exception:
+                pass
+            logger.info(
+                "[MidLongBrain] 小仓试探 %s %s dir=%s 原因=%s（原 accepted=%s rec_open=%s）",
+                sym, tier_l, _probe_dir, _probe_why,
+                getattr(dto, "accepted", None), getattr(dto, "recommend_open", None),
+            )
+            try:
+                from backend.services.mlto.midlong_direction_audit import (
+                    record_decision_audit as _rda_p,
+                )
+                _rda_p(outcome="probe", stage="sweep", symbol=sym,
+                       reason=f"probe_entry:{_probe_why}", session_id=sid,
+                       tier=tier_l, action=("buy" if _probe_dir == "long" else "sell"),
+                       authority="mlto")
+            except Exception:
+                pass
+            _bump("probe")
+        else:
+            if not bool(getattr(dto, "recommend_open", False)):
+                _bump("not_recommended")
+                continue
         if not thesis_is_fresh(dto):
             _bump("stale")
             continue

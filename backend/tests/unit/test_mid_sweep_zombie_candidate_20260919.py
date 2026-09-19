@@ -74,19 +74,27 @@ def _src(rel):
 # ① 僵尸候选不再进执行层 + 日志能区分"谁拦的"
 # ══════════════════════════════════════════════════════════════════════
 
-def test_sweep_skips_candidates_without_strategy():
-    src = _src("backend/services/mlto/brain.py")
+def _sweep_src():
+    """取 `run_midlong_open_sweep` 的**整个函数体**（到下一个顶层 def 为止）。
+
+    不要用固定长度窗口：本轮（轮120）在函数里加了小仓试探分支后，
+    原来的 6000 字符窗口就切不到后半段了（测试假红过一次）。
+    """
+    src = _src("backend/services/mlt o/brain.py".replace(" ", ""))
     i = src.index("def run_midlong_open_sweep(")
-    seg = src[i:i + 6000]
+    j = src.find("\ndef ", i + 10)
+    return src[i: j if j > 0 else len(src)]
+
+
+def test_sweep_skips_candidates_without_strategy():
+    seg = _sweep_src()
     assert "resolve_independent_strategy" in seg, "必须在扫描入口解析独立策略"
     assert "sweep_skip:no_strategy" in seg, "跳过必须留审计（否则又是一条无信息事件）"
     assert "_bump(\"no_strategy\")" in seg
 
 
 def test_sweep_log_distinguishes_reasons():
-    src = _src("backend/services/mlto/brain.py")
-    i = src.index("def run_midlong_open_sweep(")
-    seg = src[i:i + 6000]
+    seg = _sweep_src()
     for k in ("no_thesis", "not_recommended", "stale", "has_position", "no_strategy"):
         assert f'"{k}"' in seg, f"扫描统计缺少分类 {k}"
     assert "未进候选" in seg, "日志必须把分类打出来"
