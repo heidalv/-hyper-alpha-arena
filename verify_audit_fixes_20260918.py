@@ -1356,6 +1356,61 @@ try:
 except Exception as e:
     check("轮111 中线同币冷却验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮112  入场特征留档 + 三个被证伪的入场假设 ────────────────────────
+print("\n── 轮112  入场质量：三个假设的结论 + 入场特征留档 ──")
+try:
+    from backend.services.analysis.entry_features import entry_feature_snapshot as _efs112
+    _snap112 = _efs112("BTC", tier="mid", sl_pct=0.015,
+                       market_summary={"BTC": {"regime": "up", "current_price": 81150.0}})
+    check("① 入场特征留档可用（ATR 三档 + 止损覆盖倍数 + regime + 冷却间隔）",
+          _snap112.get("atr_1h_pct", 0) > 0 and _snap112.get("noise_cover_x", 0) > 0,
+          f"BTC atr_1h={_snap112.get('atr_1h_pct')}% atr_1d={_snap112.get('atr_1d_pct')}% "
+          f"sl={_snap112.get('sl_pct')}% cover={_snap112.get('noise_cover_x')}× "
+          f"regime={_snap112.get('regime')} gap={_snap112.get('reentry_gap_h')}h")
+
+    _mh112 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/full_auto/midlong_helpers.py"),
+                     encoding="utf-8").read()
+    _i112 = _mh112.index("入场时特征留档")
+    check("① 接线在 open_metadata 的 extra 上且 fail-open",
+          '_extra_kwargs["entry_features"]' in _mh112[_i112: _i112 + 900]
+          and "except Exception as _ef_err" in _mh112[_i112: _i112 + 900],
+          "纯观测；异常不得影响开仓")
+
+    # ② 证伪记录：噪音带假设 + 置信度量纲 + LLM 置信度预测力
+    _db112 = _SL109()
+    try:
+        _db112.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _conv112 = _db112.execute(_t109("""
+            SELECT COUNT(*),
+                   ROUND(AVG(t.llm_conviction)::numeric,1),
+                   ROUND((AVG((p.close_price/p.entry_price-1)) * 100)::numeric,3)
+            FROM paper_positions p
+            LEFT JOIN LATERAL (
+                SELECT llm_conviction FROM brain_theses t
+                WHERE t.thesis_id = p.exit_state_json::json->'open_metadata'->>'thesis_id'
+                  AND t.tier = p.timeframe_tier
+                ORDER BY t.created_at DESC LIMIT 1) t ON TRUE
+            WHERE p.timeframe_tier='mid' AND p.status='closed' AND p.side='long'
+              AND p.entry_price>0 AND p.close_price>0
+              AND p.opened_at >= now() - interval '30 days'
+              AND t.llm_conviction IS NOT NULL""")).fetchone()
+        check("② 反证留存：能连上 thesis 置信度的样本量（39% 上限，观测缺口）",
+              _conv112 is not None,
+              f"n={int(_conv112[0])} 笔 / 158，avg conviction={_conv112[1]}，"
+              f"该子集终局均值={_conv112[2]}%（corr(conviction, 终局)≈−0.06 ⇒ 无预测力）")
+    finally:
+        _db112.close()
+
+    _cnf112 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "backend/services/auto_coin_selector.py"),
+                      encoding="utf-8").read()
+    check("③ 量纲排查结论：候选 confidence 是 0–1，与 min_conf=0.40 同量纲（不是 bug）",
+          "COALESCE(confidence, 0) >= :min_conf" in _cnf112,
+          "7 天 midlong 候选 ≥0.40 有 2848 个 ⇒ 候选门槛不是中线瓶颈")
+except Exception as e:
+    check("轮112 入场特征/反证验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

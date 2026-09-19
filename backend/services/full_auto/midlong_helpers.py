@@ -1213,6 +1213,20 @@ def try_execute_independent_agent_open(
     except Exception:
         pass
 
+    # [轮112 2026-09-19] 入场时特征留档（**纯观测**，不参与判定）。
+    # 依据：轮110/111 两次想验证"入场质量门槛"都卡在特征缺失上 ——
+    # `open_metadata` 里没有 ATR/波动率，regime/冷却间隔/置信度散在别的表，
+    # 且只有 39% 的仓位连得上 thesis。这里把入场那一刻的尺度落到 open_metadata，
+    # 后续归因直接用库内数据即可。失败一律不影响开仓。
+    try:
+        from backend.services.analysis.entry_features import entry_feature_snapshot as _efs
+        _extra_kwargs["entry_features"] = _efs(
+            sym_u, tier=_tier_l or "mid", sl_pct=sl_pct,
+            market_summary=market_summary, db=db,
+        )
+    except Exception as _ef_err:
+        logger.debug("[EntryFeatures] %s 留档跳过: %s", _sym_u, _ef_err)
+
     # [2026-09-16 调研轮7] 止损距离上限（mid 2% / long 3%）——**必须放在最后**：
     # 本函数内 tier=long 分支的 ATR 地板（apply_structure_atr_floor）会把 sl_pct
     # 二次抬高，若上限提前应用就被绕过（实测 E1 6.5% = 3.0% 上限的 2.17×）。
