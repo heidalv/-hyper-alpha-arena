@@ -41,8 +41,16 @@ def test_base_key_is_not_the_effective_source(monkeypatch):
 
 
 def test_current_effective_values_are_documented():
-    """把当前生效值写死在测试里：改动它们（无论通过 env 还是代码默认）都必须显式改这个断言。"""
-    assert _get_cooldown_sec("mid") == 1800, "mid 生效冷却（当前 30min）"
+    """把当前生效值写死在测试里：改动它们（无论通过 env 还是代码默认）都必须显式改这个断言。
+
+    [轮114 2026-09-19] mid 30min → **2h**（`.env` `TIER_MID_COOLDOWN_SEC=7200`）。
+    依据是轮111 的 158 笔实测分桶（0–2h 重开档 均值 −0.389%/胜率 0.375，为最差一档；
+    去掉该档后 118 笔均值 −0.027%/胜率 0.500）：轮111 曾为此新写一道闸，
+    轮114 发现既有 `reentry_cooldown` 早就在做同一件事，故撤回新闸、只调这个生效值。
+    注意"SL 后 mid 2h / 亏损 mid 4h"是**另外**两个更长的窗口（`_durable_reopen_blocked`），
+    不在本断言范围内。
+    """
+    assert _get_cooldown_sec("mid") == 7200, "mid 生效冷却（轮114 起 2h；30min 档实测最差）"
     assert _get_cooldown_sec("long") == 14400, "long 生效冷却（当前 240min）"
     assert _get_cooldown_sec("short") == 14400, "short 生效冷却（当前 240min）"
 

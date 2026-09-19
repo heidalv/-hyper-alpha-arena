@@ -602,7 +602,13 @@ TIER_PROTECTION_PARAMS = {
         "drawdown_activate":   2.00,                                                   # 利润达保证金200%才激活
         "min_hold_emergency_loss_pct": float(os.getenv("TIER_MID_MIN_HOLD_EMERGENCY_LOSS_PCT", "6")),
         "tight_trail_start":   0.92,
-        "cooldown_sec":        int(os.getenv("TIER_MID_COOLDOWN_SEC", "1800")),        # 30 min
+        # [轮114 2026-09-19] 同向冷却基准 30min → **2h**（`.env` TIER_MID_COOLDOWN_SEC=7200）。
+        # 依据（158 笔中线已平仓，按"距上次同币平仓的间隔"分桶）：
+        #   0–2h n=40 均值 **−0.389%** 胜率 **0.375**（显著最差）；去掉该档后
+        #   n=118 均值 **−0.027%** 胜率 0.500 ⇒ 刚平完就重开 = 无新信息下重复下注。
+        # 注：亏损平仓 (`REENTRY_LOSS_COOLDOWN_SEC_MID`=4h) 与 SL 平仓
+        # (`REENTRY_SL_COOLDOWN_SEC_MID`=2h) 另有更长窗口，本项只是**基准**那一档。
+        "cooldown_sec":        int(os.getenv("TIER_MID_COOLDOWN_SEC", "7200")),        # 2 hours
     },
     "long": {
         # [2026-07-17 修复] 此前 2h 的最短保护期离"长线"名不副实——TrendAgent/MLTO
@@ -2775,16 +2781,11 @@ MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.05") 
 MIDLONG_MID_FACTOR_ROUTE_SHADOW: bool = (
     os.getenv("MIDLONG_MID_FACTOR_ROUTE_SHADOW", "true") or "true"
 ).strip().lower() in ("1", "true", "yes", "on")
-# [轮111 2026-09-19] 中线**同币冷却**：距上次同币平仓不足此秒数 → 拒绝重开。
-# 依据（同一口径：opened_at 近 30 天、已平仓、entry/close 有效 = 158 笔）：
-#   全样本      均值 −0.119%  胜率 0.468
-#   0–2h 重开档 n=40  均值 **−0.389%**  胜率 **0.375**   ← 显著最差
-#   去掉该档后  n=118 均值 **−0.027%**  胜率 0.500
-# ⇒ ≈30 天避免亏损 $62.8 + 省手续费 $23.8 ≈ **+$87/30 天**，并少 40 笔换手。
-# 只作用于 tier=mid；0 = 关闭（回滚）。
-MIDLONG_MID_REENTRY_COOLDOWN_SEC: float = float(
-    os.getenv("MIDLONG_MID_REENTRY_COOLDOWN_SEC", "7200") or "7200"
-)
+# [轮111→114 2026-09-19] 中线同币冷却：**不新增开关**。
+# 轮111 曾在 `execute_midlong_open` 里加过一道 `MIDLONG_MID_REENTRY_COOLDOWN_SEC` 闸，
+# 轮114 评估后**撤回**——它重复了既有的 `reentry_cooldown.reopen_blocked`
+# （按 tier/account 隔离 + 连亏倍率 + close_reason 感知 + DB 耐久冷却，24h 拦截榜首）。
+# 冷却窗口改为调整既有配置：`TIER_MID_COOLDOWN_SEC`（见 TIER_PROTECTION_PARAMS["mid"]）。
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
 # [轮105 2026-09-19] AST 同族去重：按结构签名（数值常量归一）识别"只差窗口"的重复因子，

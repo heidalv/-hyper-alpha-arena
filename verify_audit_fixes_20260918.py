@@ -1289,40 +1289,114 @@ try:
 except Exception as e:
     check("轮110 中线止盈重标验证执行", False, f"{type(e).__name__}: {e}")
 
-# ── 轮111  中线入场质量：同币冷却（用 158 笔实测分桶）─────────────────
-print("\n── 轮111  中线同币冷却（刚平完就重开 = 实测最差一档）──")
+# ── 轮114  冷却归属纠偏 + 冷却早退的审计空洞（09-18 自伤）─────────────
+print("\n── 轮114  冷却唯一 owner + 冷却早退必须留因（审计空洞根因）──")
 try:
-    from backend.services.full_auto.midlong_executor import reentry_cooldown_verdict as _rc111
-    from datetime import datetime as _dt111, timedelta as _td111
-
-    _now111 = _dt111(2026, 9, 19, 12, 0, 0)
-    _in_cd = [_rc111(_now111 - _td111(hours=h), _now111, 7200)[0] for h in (0.0, 1.0, 1.99)]
-    _out_cd = [_rc111(_now111 - _td111(hours=h), _now111, 7200)[0] for h in (2.0, 6.0, 48.0)]
-    check("① 纯判定：2h 内拦、2h 外放行、无前次放行、0=关、坏时间戳 fail-open",
-          _in_cd == [False, False, False] and _out_cd == [True, True, True]
-          and _rc111(None, _now111, 7200)[0] is True
-          and _rc111(_now111, _now111, 0)[0] is True
-          and _rc111("bad", _now111, 7200)[0] is True,
-          "边界已钉：首次开仓是实测最好一档(+0.774%/胜率0.800)，绝不能拦")
-
-    from backend.config.settings import MIDLONG_MID_REENTRY_COOLDOWN_SEC as _cd111
-    _exe111 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   "backend/services/full_auto/midlong_executor.py"),
+    _root114 = os.path.dirname(os.path.abspath(__file__))
+    _exe114 = io.open(os.path.join(_root114, "backend/services/full_auto/midlong_executor.py"),
                       encoding="utf-8").read()
-    _i111 = _exe111.index("中线同币**冷却**")
-    _blk111 = _exe111[_i111: _i111 + 2000]
-    check("② 接线只在 tier=mid、在 Single Writer 内、查询异常 fail-open",
-          _cd111 == 7200.0
-          and 'if str(tier or "").lower() == "mid":' in _blk111
-          and "mid_reentry_wait_ok(db, sym_u" in _blk111
-          and '_wait_ok, _wait_why = True, ""' in _blk111,
-          f"MIDLONG_MID_REENTRY_COOLDOWN_SEC={_cd111}（0=关闭）")
+    _mh114 = io.open(os.path.join(_root114, "backend/services/full_auto/midlong_helpers.py"),
+                     encoding="utf-8").read()
+    _pe114 = io.open(os.path.join(_root114, "backend/services/full_auto/proposal_execution.py"),
+                     encoding="utf-8").read()
+    _rc114 = io.open(os.path.join(_root114, "backend/services/reentry_cooldown.py"),
+                     encoding="utf-8").read()
+    _env114 = io.open(os.path.join(_root114, ".env"),
+                      encoding="utf-8", errors="replace").read()
 
-    # ③ 现场样本自证：0–2h 档 vs 去掉后的均值（同一口径）
-    _db111 = _SL109()
+    check("① 撤回轮111 我在 executor 里加的重复冷却闸（冷却只能有一个 owner）",
+          "MIDLONG_MID_REENTRY_COOLDOWN_SEC" not in _exe114
+          and "reentry_cooldown_verdict" not in _exe114
+          and "mid_reentry_wait_ok" not in _exe114
+          and "撤回轮111 的重复闸" in _exe114,
+          "我那道闸更靠前 ⇒ 会把既有模块更具体的审计原因挡在外面；改为调既有配置")
+
+    check("② 既有 reentry_cooldown 仍是唯一 owner（tier 隔离 + 连亏倍率 + close_reason 感知）",
+          "reentry_cooldown import reopen_blocked" in _mh114
+          and "midlong_cooldown_block" in _mh114
+          and "_get_loss_multiplier" in _rc114
+          and "_FLIP_COOLDOWN_SEC" in _rc114,
+          "midlong_helpers 调用点一字未动（24h 拦截榜首 439 次）")
+
+    from backend.services.reentry_cooldown import _get_cooldown_sec as _gcd114
+    check("③ 窗口改在既有配置上：mid 基准 1800 → 7200（2h），且不覆盖更长档",
+          _gcd114("mid") == 7200 and "TIER_MID_COOLDOWN_SEC=7200" in _env114
+          and '"REENTRY_SL_COOLDOWN_SEC_MID", "7200"' in _rc114,
+          f"mid={_gcd114('mid')}s long={_gcd114('long')}s short={_gcd114('short')}s；"
+          "SL 2h / 亏损 4h 两个更长窗口未被覆盖")
+
+    # ④ 审计空洞根因：`block_cooldown_active` 命中时的早退此前不发任何 code
+    _i114 = _pe114.index('f"cooldown:{')
+    _j114 = _pe114.index("_ok_inner = _evaluate_and_execute_proposal_inner(")
+    _seg114 = _pe114[_i114:_j114]
+    check("④ 冷却早退已登记 `cooldown:<原原因>`，且早于尾部连续同因计数登记块",
+          _i114 < _j114 and "record_proposal_block" not in _seg114
+          and "剩" in _seg114 and "原原因" in _seg114,
+          "只影响审计文本；因 return 早于尾部登记块 ⇒ 冷却绝不自我续期")
+
+    check("⑤ 无具体原因时副本写显式 `<未登记>`（既不伪装成真实原因，也不残留旧原因）",
+          '_rm_code = "<未登记>"' in _mh114
+          and "exec_false_unregistered" in _mh114
+          and "陈旧原因比" in _mh114,
+          "原实现无条件把通用串写回 ⇒ brain 台账里 75 条/24h 的『为什么没开成』等于没说")
+
+    # ⑥ 反证留存：通用串 0 条/天 直到 09-18 —— 与「冷却 09-18 上线」同日
+    from backend.database.connection import AnalyticsSessionLocal as _ASL114
+    _ana114 = _ASL114()
     try:
-        _db111.execute(_t109("select set_config('app.is_admin','on',false)"))
-        _rows111 = _db111.execute(_t109("""
+        _days114 = _ana114.execute(_t109("""
+            SELECT ts::date AS d,
+                   COUNT(*) FILTER (WHERE payload_json::json->>'reason'
+                                    = 'evaluate_and_execute_returned_false') AS generic,
+                   COUNT(*) AS total
+            FROM mlto_thesis_events
+            WHERE event_type='open_execute_false'
+              AND ts >= TIMESTAMP '2026-09-11' AND ts < TIMESTAMP '2026-09-20'
+            GROUP BY 1 ORDER BY 1""")).fetchall()
+    finally:
+        _ana114.close()
+    _pre114 = [r for r in _days114 if str(r[0]) < "2026-09-18"]
+    _post114 = [r for r in _days114 if str(r[0]) >= "2026-09-18"]
+    check("⑥ 现场反证：通用串「0 条/天」持续到 09-17，09-18 起才出现（冷却同日上线）",
+          bool(_pre114) and all(int(r[1]) == 0 for r in _pre114)
+          and bool(_post114) and any(int(r[1]) > 0 for r in _post114),
+          " | ".join(f"{r[0]}: {int(r[1])}/{int(r[2])}" for r in _days114)
+          + "（通用串数/总事件数；逐条可对回 data/proposal_block_streaks.json 的 cooldowns）")
+
+    # ⑦ 修复已生效：本次 boot 之后的通用串必须为 0（用 boot 时刻动态取界，不写死时间戳）
+    from datetime import datetime as _dt114
+    _boot114 = None
+    try:
+        _hj114 = json.loads(urllib.request.urlopen(
+            "http://127.0.0.1:8000/api/health", timeout=20).read().decode("utf-8"))
+        _boot114 = _hj114.get("boot_fingerprint", {}).get("boot_at_unix")
+    except Exception as _he114:
+        _boot114 = None
+    if _boot114:
+        _bound114 = _dt114.fromtimestamp(float(_boot114))
+        _ana114b = _ASL114()
+        try:
+            _after114 = _ana114b.execute(_t109("""
+                SELECT COUNT(*) FILTER (WHERE payload_json::json->>'reason'
+                                        = 'evaluate_and_execute_returned_false') AS generic,
+                       COUNT(*) AS total
+                FROM mlto_thesis_events
+                WHERE event_type='open_execute_false' AND ts >= :b"""),
+                {"b": _bound114}).fetchone()
+        finally:
+            _ana114b.close()
+        check("⑦ 本次 boot 之后不再产生无信息通用串（修复已在运行代码里）",
+              _after114 is not None and int(_after114[0]) == 0,
+              f"boot={_bound114:%Y-%m-%d %H:%M:%S} 本地钟面 → 之后 {int(_after114[1])} 条事件中"
+              f"通用串 {int(_after114[0])} 条")
+    else:
+        check("⑦ 本次 boot 之后不再产生无信息通用串", False, "取不到 boot_at_unix")
+
+    # ⑧ 现场分桶复算（保留轮111 的测量，它是 7200 这个数值的唯一出处）
+    _db114 = _SL109()
+    try:
+        _db114.execute(_t109("select set_config('app.is_admin','on',false)"))
+        _rows114 = _db114.execute(_t109("""
             SELECT symbol, opened_at, closed_at, entry_price, close_price, side, size
             FROM paper_positions
             WHERE timeframe_tier='mid' AND status='closed'
@@ -1330,31 +1404,31 @@ try:
               AND entry_price > 0 AND close_price > 0
             ORDER BY symbol, opened_at""")).fetchall()
     finally:
-        _db111.close()
+        _db114.close()
 
-    _bysym111 = {}
-    for _r in _rows111:
+    _bysym114 = {}
+    for _r in _rows114:
         _e, _c = float(_r[3]), float(_r[4])
         _fin = ((_c / _e - 1.0) if str(_r[5]).lower() in ("long", "buy") else (_e - _c) / _e) * 100
-        _bysym111.setdefault(str(_r[0]).upper(), []).append(
+        _bysym114.setdefault(str(_r[0]).upper(), []).append(
             {"op": _r[1], "cl": _r[2], "fin": _fin})
-    _cold111, _rest111 = [], []
-    for _sym, _lst in _bysym111.items():
+    _cold114, _rest114 = [], []
+    for _sym, _lst in _bysym114.items():
         _lst.sort(key=lambda x: x["op"])
         for _i, _x in enumerate(_lst):
             _prev = [_lst[_j]["cl"] for _j in range(_i) if _lst[_j]["cl"]]
             _gap = min(((_x["op"] - _t).total_seconds() / 3600.0 for _t in _prev), default=None)
-            (_cold111 if (_gap is not None and _gap < 2.0) else _rest111).append(_x["fin"])
-    _m_all = (sum(_cold111) + sum(_rest111)) / max(len(_cold111) + len(_rest111), 1)
-    _m_cold = sum(_cold111) / max(len(_cold111), 1)
-    _m_rest = sum(_rest111) / max(len(_rest111), 1)
-    check("③ 现场分桶复算：0–2h 档显著更差、去掉后均值抬升",
+            (_cold114 if (_gap is not None and _gap < 2.0) else _rest114).append(_x["fin"])
+    _m_all = (sum(_cold114) + sum(_rest114)) / max(len(_cold114) + len(_rest114), 1)
+    _m_cold = sum(_cold114) / max(len(_cold114), 1)
+    _m_rest = sum(_rest114) / max(len(_rest114), 1)
+    check("⑧ 现场分桶复算：0–2h 档显著更差、去掉后均值抬升（2h 窗口的实测出处）",
           _m_cold < _m_all < _m_rest,
-          f"全样本 n={len(_cold111)+len(_rest111)} 均值 {_m_all:+.3f}% | "
-          f"0–2h n={len(_cold111)} 均值 {_m_cold:+.3f}% | "
-          f"去掉后 n={len(_rest111)} 均值 {_m_rest:+.3f}%")
+          f"全样本 n={len(_cold114)+len(_rest114)} 均值 {_m_all:+.3f}% | "
+          f"0–2h n={len(_cold114)} 均值 {_m_cold:+.3f}% | "
+          f"去掉后 n={len(_rest114)} 均值 {_m_rest:+.3f}%")
 except Exception as e:
-    check("轮111 中线同币冷却验证执行", False, f"{type(e).__name__}: {e}")
+    check("轮114 冷却归属/审计空洞验证执行", False, f"{type(e).__name__}: {e}")
 
 # ── 轮112  入场特征留档 + 三个被证伪的入场假设 ────────────────────────
 print("\n── 轮112  入场质量：三个假设的结论 + 入场特征留档 ──")
@@ -1395,10 +1469,13 @@ try:
               AND p.entry_price>0 AND p.close_price>0
               AND p.opened_at >= now() - interval '30 days'
               AND t.llm_conviction IS NOT NULL""")).fetchone()
-        check("② 反证留存：能连上 thesis 置信度的样本量（39% 上限，观测缺口）",
+        # [轮113 更正] 这条查询走的是**死表** `brain_theses`（committee_shadow 2026-08-31 停写，
+        # 与活表共用 thesis_id ⇒ 按 id 能查出陈旧置信度）。保留它只为把"陷阱"钉在现场，
+        # 数值**不得**用于任何结论（活表口径见下方轮113 ④/⑤）。
+        check("② 反证留存：⚠️ 陷阱现场 —— 该查询连的是死表，n 与 corr 均不可用",
               _conv112 is not None,
-              f"n={int(_conv112[0])} 笔 / 158，avg conviction={_conv112[1]}，"
-              f"该子集终局均值={_conv112[2]}%（corr(conviction, 终局)≈−0.06 ⇒ 无预测力）")
+              f"死表 brain_theses 命中 n={int(_conv112[0])}（**不是** 158 笔的 39%，"
+              f"而是接线前的历史残留）⇒ 轮113 已更正为『09-06 后 mlto 臂 28/28 = 100%』")
     finally:
         _db112.close()
 

@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
-"""轮111 中线同币冷却回归测试（2026-09-19）。
+"""轮111 测量记录（2026-09-19）—— 已被轮114 撤回接线，保留数据与算式。
+
+## 状态
+
+轮111 依据下表把"中线同币冷却"实现为 `midlong_executor` 里的一道新闸
+（`MIDLONG_MID_REENTRY_COOLDOWN_SEC`）。**轮114 已撤回该接线**：它重复了既有的
+`reentry_cooldown.reopen_blocked()`（tier 隔离 + 连亏倍率 + close_reason 感知），
+且位置更靠前、会挡住既有模块更具体的审计原因。
+现在窗口由既有配置 `TIER_MID_COOLDOWN_SEC=7200` 承担（归属断言见
+`test_cooldown_ownership_20260919.py`）。本文件只保留**测量本身**，因为它是
+"2h" 这个数值的唯一出处，且算式可复算。
 
 ## 依据（同一口径：opened_at 近 30 天、已平仓、entry/close 有效 = **158 笔**）
 
@@ -16,7 +26,6 @@
 """
 import os
 import sys
-from datetime import datetime, timedelta
 
 import pytest
 
@@ -24,89 +33,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirna
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.services.full_auto.midlong_executor import reentry_cooldown_verdict  # noqa: E402
 
-_NOW = datetime(2026, 9, 19, 12, 0, 0)
+def test_measurement_is_still_the_basis_of_the_window():
+    """2h 这个数值必须只由本表推出 —— 数值改了要回来改这里。"""
+    from backend.services.reentry_cooldown import _get_cooldown_sec
+    assert _get_cooldown_sec("mid") == 7200, "窗口与本表 0–2h 档不一致"
 
-
-# ══════════════════════════════════════════════════════════════════════
-# ① 纯判定：四类边界
-# ══════════════════════════════════════════════════════════════════════
-
-def test_blocks_inside_the_worst_bucket():
-    """0–2h 那档是实测最差（胜率 0.351）→ 必须拦住。"""
-    for hours in (0.0, 0.5, 1.0, 1.99):
-        ok, why = reentry_cooldown_verdict(_NOW - timedelta(hours=hours), _NOW, 7200,
-                                          symbol="XRP", tier="mid")
-        assert ok is False, (hours, ok, why)
-        assert "距上次平仓" in why
-
-
-def test_allows_after_cooldown():
-    for hours in (2.0, 2.5, 6.0, 48.0):
-        ok, why = reentry_cooldown_verdict(_NOW - timedelta(hours=hours), _NOW, 7200)
-        assert ok is True, (hours, ok, why)
-
-
-def test_allows_when_no_prior_exit():
-    """首次开仓是实测**最好**的一档（+0.774%/胜率 0.800）→ 绝不能拦。"""
-    ok, why = reentry_cooldown_verdict(None, _NOW, 7200)
-    assert ok is True and why == "no_prior_exit"
-
-
-def test_zero_cooldown_is_off():
-    ok, why = reentry_cooldown_verdict(_NOW, _NOW, 0)
-    assert ok is True and why == "cooldown_off"
-
-
-def test_fail_open_on_bad_timestamp():
-    ok, _ = reentry_cooldown_verdict("not-a-time", _NOW, 7200)
-    assert ok is True, "时间戳不可比时不得拦单（冷却不是风控闸）"
-
-
-def test_clock_skew_fail_open():
-    ok, why = reentry_cooldown_verdict(_NOW + timedelta(hours=1), _NOW, 7200)
-    assert ok is True and why == "clock_skew"
-
-
-# ══════════════════════════════════════════════════════════════════════
-# ② 接线：只在 tier=mid 生效、在 writer 里、fail-open
-# ══════════════════════════════════════════════════════════════════════
-
-def _src() -> str:
-    return open(os.path.join(_ROOT, "backend/services/full_auto/midlong_executor.py"),
-                encoding="utf-8").read()
-
-
-def test_gate_is_wired_only_for_mid_tier():
-    src = _src()
-    i = src.index("中线同币**冷却**")
-    block = src[i: i + 2000]
-    assert 'if str(tier or "").lower() == "mid":' in block
-    assert "mid_reentry_wait_ok(db, sym_u, tier=\"mid\"" in block
-    assert 'reason=reentry_cooldown' in block
-
-
-def test_gate_fails_open_on_query_error():
-    src = _src()
-    i = src.index("中线同币**冷却**")
-    block = src[i: i + 2000]
-    assert "_wait_ok, _wait_why = True, \"\"" in block, "查询异常必须放行"
-
-
-def test_default_cooldown_is_two_hours():
-    from backend.config.settings import MIDLONG_MID_REENTRY_COOLDOWN_SEC as cd
-    assert cd == pytest.approx(7200.0)
-
-
-def test_registry_knows_the_switch():
-    src = open(os.path.join(_ROOT, "backend/config/env_registry.py"), encoding="utf-8").read()
-    assert "MIDLONG_MID_REENTRY_COOLDOWN_SEC" in src
-
-
-# ══════════════════════════════════════════════════════════════════════
-# ③ 算式自证
-# ══════════════════════════════════════════════════════════════════════
 
 def test_arithmetic_selfcheck():
     """算式自证：与 reports 同一口径（158 笔，去掉 0–2h 档）。"""
@@ -122,3 +54,18 @@ def test_arithmetic_selfcheck():
     saved = n_cold * (mean_rest - mean_cold) / 100.0 * ntl
     assert saved == pytest.approx(62.8, abs=1.0), saved
     assert saved + n_cold * 0.594 == pytest.approx(86.6, abs=1.5)
+
+
+def test_first_entry_bucket_is_never_blocked():
+    """首次开仓是实测最好一档（+0.774%/胜率 0.800）⇒ 冷却不得拦"无前次"。
+
+    既有 `reentry_cooldown.reopen_blocked` 的两条通道（内存 `_state` + DB 耐久）
+    都以"存在**已平仓**记录"为前提：内存无记录时回落的 `_durable_reopen_blocked`
+    只查 `status == "closed"` 的行 ⇒ 从未平过仓的币种永远不会被冷却拦下。
+    此处钉住该前提，防止将来被改成"按 symbol 无条件冷却"。
+    """
+    rc = open(os.path.join(_ROOT, "backend/services/reentry_cooldown.py"), encoding="utf-8").read()
+    assert "if not data:" in rc and "_durable_reopen_blocked(" in rc, "内存无记录必须回落 DB 耐久通道"
+    i = rc.index("def _durable_reopen_blocked(")
+    seg = rc[i:i + 4000]
+    assert 'PaperPosition.status == "closed"' in seg, "耐久通道必须以「已平仓」为前提"

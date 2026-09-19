@@ -1498,11 +1498,29 @@ def record_exec_false_audit(*, symbol: str, tier: str, action: str, session=None
     # 真实原因是 `[V5Gate] BLOCK rule=regime_extreme`，由 proposal_execution 登记后被本函数取走）。
     # 本函数是 `evaluate_and_execute` 返回 False 的**终端汇合点** ⇒ 在此再留一份按 (symbol,tier)
     # 归位的副本，即可让上层读到，覆盖所有经此汇合的路径（含 V5Gate / paper_execution / 裸 return False）。
+    #
+    # [轮114 2026-09-19 修无信息事件] 原来是**无条件** remember(event 里的 reason)，
+    # 而 `_code` 为空时 reason 就是那句通用兜底串 `evaluate_and_execute_returned_false`
+    # ⇒ 上层 brain 读回它、写进台账，"为什么没开成"在库里等于没说
+    # （实测近 24h 该类通用串 75 条、reason_detail 全空）。
+    #
+    # 但**也不能干脆不写**：`last_open_block` 是按 (symbol,tier) 归位的"最近一次"，
+    # 不说清楚就会把若干分钟前那条真实原因（如 `size_below_floor`）当成本次原因
+    # ——陈旧原因比"未登记"更误导。故：
+    #   有真实 code → 副本带 code/detail/layer（原行为）；
+    #   无真实 code → **显式**写 `<未登记>` 标记（layer 标明来路是 exec_false 终端），
+    #                 既不伪装成一条真实原因，也不残留旧原因。
+    if _code:
+        _rm_code = reason
+        _rm_detail = str(_blk.get("detail") or "")
+        _rm_layer = str(_blk.get("layer") or "exec_false")
+    else:
+        _rm_code = "<未登记>"
+        _rm_detail = ""
+        _rm_layer = "exec_false_unregistered"
     try:
         from backend.services.mlto.open_block_reason import remember_open_block
-        remember_open_block(symbol, tier, reason,
-                            detail=str(_blk.get("detail") or ""),
-                            layer=str(_blk.get("layer") or "exec_false"))
+        remember_open_block(symbol, tier, _rm_code, detail=_rm_detail, layer=_rm_layer)
     except Exception:
         pass
     try:

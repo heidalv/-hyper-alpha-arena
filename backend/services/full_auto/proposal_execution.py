@@ -82,6 +82,26 @@ def evaluate_and_execute_proposal(
                 "[BlockCooldown] %s tier=%s 冷却中(因%s，剩%.0f分钟) 跳过本轮",
                 proposal.symbol, proposal.tier, _cd.get("code"),
                 max(0.0, (_cd.get("until") or 0) - time.time()) / 60)
+            # [轮114 2026-09-19 修审计空洞] 这条早退**此前不发任何 block code**，
+            # 而函数尾部那段 `record_proposal_block(peek())` 登记块被 `return` 直接跳过
+            # ⇒ 冷却期内每一次重试在下游 `record_exec_false_audit()` 里都 take 不到原因，
+            # 落成通用串 `evaluate_and_execute_returned_false`。
+            #
+            # 实测（本次修复的现场证据）：本冷却 2026-09-18 上线，`open_execute_false`
+            # 的通用串就从 **0 条/天** 跳到 30–48 条/天（24h 窗口 75 条），且逐条都能
+            # 对回 `data/proposal_block_streaks.json` 里 `cooldowns` 的 (symbol,tier)：
+            #   ASTER:mid size_below_floor count=6 于 14:03 触发 30 分钟冷却
+            #   → 14:10:00 那条"无因"事件正是这次冷却跳过（其后无任何新成交尝试）。
+            # 换句话说：**是修 WLFI 回环的那天，我自己制造了这个审计空洞**。
+            #
+            # 姿态：只登记审计文本（`mark_open_block` 不参与任何交易判定）。
+            # 安全性：本 return 早于函数尾部的登记块 ⇒ 绝不会把"冷却"这个派生原因
+            # 写回 `_record_proposal_block` 的连续计数里（否则冷却会自我续期）。
+            _mark_block(
+                f"cooldown:{_cd.get('code') or '?'}",
+                detail=(f"同因拦截已达阈值进入冷却(原原因={_cd.get('code') or '?'}) "
+                        f"剩{max(0.0, (_cd.get('until') or 0) - time.time()) / 60:.0f}分钟"),
+            )
             return False
     except Exception:
         pass

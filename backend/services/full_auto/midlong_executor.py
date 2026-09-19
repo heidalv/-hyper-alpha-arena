@@ -138,54 +138,6 @@ class MidLongIntent:
     regime: str = ""
 
 
-def reentry_cooldown_verdict(
-    last_exit, now, cooldown_sec: float, *, symbol: str = "", tier: str = "",
-) -> Tuple[bool, str]:
-    """纯判定：距上次同币平仓是否已过冷却期。`(允许开仓?, 原因文本)`。
-
-    [轮111 2026-09-19 新增] 抽成纯函数是为了单测能直接钉住三类边界
-    （无前次 / 恰好等于冷却 / 冷却为 0），不必构造 DB 会话。
-    证据见 `execute_midlong_open` 里的分桶表：0–2h 重开那档胜率 0.351 / 均值 −0.357%。
-    """
-    if not cooldown_sec or float(cooldown_sec) <= 0:
-        return True, "cooldown_off"
-    if last_exit is None:
-        return True, "no_prior_exit"
-    try:
-        _elapsed = (now - last_exit).total_seconds()
-    except Exception:
-        return True, "bad_timestamp"          # 时间戳不可比 → 不拦（fail-open）
-    if _elapsed < 0:
-        return True, "clock_skew"
-    if _elapsed < float(cooldown_sec):
-        return False, (f"{symbol} 距上次平仓 {_elapsed/3600.0:.2f}h < "
-                       f"{float(cooldown_sec)/3600.0:.2f}h")
-    return True, f"elapsed={_elapsed/3600.0:.2f}h"
-
-
-def mid_reentry_wait_ok(db, symbol: str, *, tier: str = "mid",
-                        cooldown_sec: float = 7200.0) -> Tuple[bool, str]:
-    """查该币最近一次同 tier 的平仓时间 → 交给 `reentry_cooldown_verdict`。
-
-    只读；任何异常由调用方按 fail-open 处理（冷却不是风控闸，不该拦掉正常单）。
-    """
-    from sqlalchemy import text as _sa_text
-
-    sym_u = str(symbol or "").upper()
-    if not sym_u:
-        return True, "no_symbol"
-    row = db.execute(_sa_text("""
-        SELECT closed_at FROM paper_positions
-        WHERE UPPER(symbol) = :s AND status = 'closed'
-          AND COALESCE(timeframe_tier, '') = :t
-          AND closed_at IS NOT NULL
-        ORDER BY closed_at DESC LIMIT 1"""), {"s": sym_u, "t": str(tier or "mid")}).first()
-    return reentry_cooldown_verdict(
-        (row[0] if row else None), __import__("datetime").datetime.now(),
-        cooldown_sec, symbol=sym_u, tier=tier,
-    )
-
-
 def authority_allows_open(authority: str, source: str, trading_mode: Optional[str] = None) -> bool:
     """source: trend | mlto | factor_route。仅当与当前 Single Writer 一致才允许开仓。
 
@@ -512,39 +464,18 @@ def execute_midlong_open(
     except Exception:
         pass
 
-    # ── [轮111 2026-09-19] 中线同币**冷却**：刚平完就重开是实测最差的一档 ──────
-    # 依据（同一口径：opened_at 近 30 天、已平仓、entry/close 有效 = **158 笔**）：
-    #     全样本          均值 −0.119%  胜率 0.468
-    #     0–2h 重开档 n=40 均值 **−0.389%**  胜率 **0.375**   ← 显著最差
-    #     2–6h        n=29 −0.237%  0.517
-    #     6–12h       n=22 +0.051%  0.455
-    #     12–24h      n=13 −0.126%  0.462
-    #     24h+        n=44 −0.080%  0.455
-    #     首次(无前次) n=10 **+0.774%** 胜率 **0.800**   ← 最好
-    #     去掉 0–2h 档后  n=118 均值 **−0.027%**  胜率 0.500
-    # 解读：平仓后马上重开=在没有新信息的情况下重复下注，且往往落在震荡段。
-    # ⇒ ≈30 天避免亏损 $62.8 + 省手续费 $23.8 ≈ +$87/30 天，并少 40 笔换手。
-    # 只作用于 tier=mid；`MIDLONG_MID_REENTRY_COOLDOWN_SEC=0` 关闭（回滚）。
-    if str(tier or "").lower() == "mid":
-        try:
-            from backend.config.settings import MIDLONG_MID_REENTRY_COOLDOWN_SEC as _cd
-            _cd = float(_cd or 0)
-        except Exception:
-            _cd = 7200.0
-        if _cd > 0:
-            try:
-                _wait_ok, _wait_why = mid_reentry_wait_ok(db, sym_u, tier="mid", cooldown_sec=_cd)
-            except Exception as _cd_err:      # noqa: BLE001 — 冷却判定异常不得拦单（fail-open）
-                logger.debug("[MidLong] 同币冷却判定跳过: %s", _cd_err)
-                _wait_ok, _wait_why = True, ""
-            if not _wait_ok:
-                logger.info(
-                    "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
-                    "reason=reentry_cooldown (%s)",
-                    sym_u, auth, source, _wait_why,
-                )
-                _record_fail(f"reentry_cooldown {_wait_why}")
-                return False
+    # [轮114 2026-09-19 **撤回轮111 的重复闸**]
+    # 轮111 我在这里加了一道"同币 2h 冷却"，实测发现**重复了既有机制**：
+    # `midlong_helpers.try_execute_independent_agent_open` 早已调用
+    # `reentry_cooldown.reopen_blocked(account, symbol, action, tier)`（24h 拦截榜首，
+    # 439 次），而那个模块比我写的更完备：按 tier/account 隔离、**连亏倍率**、
+    # close_reason 感知（TP 地板 / 亏损 4h / SL 2h）、还有 DB 耐久冷却。
+    # 我那道闸还更靠前 ⇒ 会把既有模块更具体的原因（如"刚sl平long仓…"）挡在审计之外。
+    # 按本文件自己的原则（"复用现有 reentry_cooldown 而非新建独立冷却模块"）撤回，
+    # 改为**把既有 mid 冷却基准从 30min 提到 2h**：`.env` `TIER_MID_COOLDOWN_SEC=7200`
+    # （改的是配置，不是代码；见 reports 轮114 §12）。
+    # 实测依据不变（158 笔中线已平仓）：距上次同币平仓 0–2h 那档 n=40、均值 −0.389%、
+    # 胜率 0.375；去掉后 n=118、均值 −0.027%、胜率 0.500。
 
     if margin <= 0:
         logger.info(
