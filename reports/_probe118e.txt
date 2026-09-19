@@ -1,0 +1,26 @@
+文件: data/midlong_circuit_state.json mtime = 2026-09-10 20:48:16.414469
+
+== 与今日亏损相关的键（14:UNI / 14:ASTER / 14:BNB ...）==
+   14:ASTER     day=2026-09-10 consec=2 day_pnl=-17.0155 banned=无
+   14:BNB       day=2026-09-10 consec=2 day_pnl=-32.3619 banned=无
+   14:BTC       day=2026-09-07 consec=2 day_pnl=-2.4551 banned=无
+   14:ETH       day=2026-09-10 consec=3 day_pnl=-4.8899 banned_until=09-11 08:30 if banned>0 else '-'
+   14:SOL       day=2026-09-10 consec=2 day_pnl=-16.564 banned=无
+   14:UNI       day=2026-09-08 consec=0 day_pnl=2.0594 banned=无
+   14:VIRTUAL   day=2026-09-10 consec=1 day_pnl=-13.029 banned=无
+   14:XPL       day=2026-09-03 consec=0 day_pnl=1.1573 banned=无
+   14:XRP       day=2026-09-10 consec=2 day_pnl=-27.6761 banned=无
+
+== 参数 ==
+   CONSEC_LOSSES_LIMIT = 3
+   COOLDOWN_S = 43200
+   DAILY_LOSS_CAP = 60.0
+
+== 今日 mid 平仓 → 是否应触发单币冻结（UNI 3 连亏 SL）==
+    ('UNI', 'sl', 3, Decimal('-13.43'), datetime.datetime(2026, 9, 19, 21, 7, 9, 257096))
+    ('BNB', 'exit_policy:min_roi_decay', 1, Decimal('-0.08'), datetime.datetime(2026, 9, 19, 11, 17, 55, 757369))
+    ('ASTER', 'breakeven_tp', 1, Decimal('5.74'), datetime.datetime(2026, 9, 19, 7, 44, 45, 457182))
+    ('UNI', 'breakeven_tp', 1, Decimal('3.78'), datetime.datetime(2026, 9, 19, 5, 43, 42, 630255))
+    ('ETH', 'thesis_should_close', 1, Decimal('1.63'), datetime.datetime(2026, 9, 19, 5, 18, 3, 249565))
+    ('SOL', 'thesis_should_close', 1, Decimal('2.57'), datetime.datetime(2026, 9, 19, 3, 23, 1, 380890))
+    ('ASTER', 'sl', 1, Decimal('-4.13'), datetime.datetime(2026, 9, 19, 0, 48, 58, 292247))

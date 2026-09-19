@@ -1,0 +1,50 @@
+now = 2026-09-19 23:23:20
+
+== 1. 最近 90 分钟 open_execute_false 的原因分布 ==
+    ('eval_false:long_template_source_block', 'long', 4, datetime.datetime(2026, 9, 19, 21, 55, 42, 766987), datetime.datetime(2026, 9, 19, 23, 12, 11, 773122))
+    ('eval_false:cooldown:strategy_detached', 'mid', 3, datetime.datetime(2026, 9, 19, 22, 1, 35, 709802), datetime.datetime(2026, 9, 19, 23, 12, 11, 290709))
+    ('eval_false:v5gate', 'mid', 1, datetime.datetime(2026, 9, 19, 22, 34, 17, 269743), datetime.datetime(2026, 9, 19, 22, 34, 17, 269743))
+   -- open_blocked（brain 侧，30min 节流）--
+
+== 2. tier_circuit_breaker（按 tier 全局冻结？）==
+   tier=short  blocked=False why=
+   tier=mid    blocked=False why=
+   tier=long   blocked=False why=
+   snapshot: {"short": {"tier": "short", "day": "2026-09-19", "loss": null, "budget": null, "budget_pct": 2.0, "equity": null, "frozen": false, "reason": "", "frozen_at": null}, "mid": {"tier": "mid", "day": "2026-09-19", "loss": null, "budget": null, "budget_pct": 2.0, "equity": null, "frozen": false, "reason": "", "frozen_at": null}, "long": {"tier": "long", "day": "2026-09-19", "loss": null, "budget": null, "budget_pct": 3.0, "equity": null, "frozen": false, "reason": "", "frozen_at": null}}
+
+== 3. risk_constitution：日亏硬停 / 敞口（全局）==
+   daily_loss_pct(14) = 0.00874349165427271
+   margin_usage(14) = {"symbol_margin_pct": 0.0, "total_margin_pct": 0.10192367949274338}
+   阈值: 日亏 0.06 / 总保证金 0.6
+
+== 4. midlong_circuit_gate 状态（单币）==
+   （以上为仍在禁开期的；空=没有单币被 ban）
+   (失败) ImportError cannot import name 'MIDLONG_DAILY_LOSS_CAP' from 'backend.config.settings' (D:\001Alpha\Hyper-Alpha-Arena\backend\config\settings.py)
+
+== 5. freeze_coordinator / portfolio_budget（账户级 & 全局）==
+   active_freeze_count = 0
+   budget = {"enabled": true, "global_frozen": false, "account_frozen": {}, "strategy_frozen": {}, "trigger_count": {}}
+   event_kinds = {}
+
+== 6. proposal_block_streaks（单币冷却）==
+
+== 7. 今日 mid 已平仓 ==
+   n / 净额 / 首末: (9, Decimal('-3.93'), datetime.datetime(2026, 9, 19, 0, 48, 58, 292247), datetime.datetime(2026, 9, 19, 21, 7, 9, 257096))
+
+== 8. 当前 open 仓位 ==
+    (4733, datetime.datetime(2026, 9, 19, 16, 56, 48, 581585), 'ASTER', 'mid', 'swing', 'open', Decimal('234.55'), Decimal('4.91'))
+    (4732, datetime.datetime(2026, 9, 19, 8, 20, 13, 348798), 'LINK', 'long', 'trend_follow', 'open', Decimal('54.76'), Decimal('4.83'))
+    (4731, datetime.datetime(2026, 9, 19, 8, 20, 9, 682758), 'SOL', 'long', 'trend_follow', 'open', Decimal('70.37'), Decimal('-4.08'))
+    (4730, datetime.datetime(2026, 9, 19, 8, 20, 4, 515229), 'ETH', 'long', 'trend_follow', 'open', Decimal('56.26'), Decimal('2.09'))
+    (4712, datetime.datetime(2026, 9, 18, 8, 20, 2, 686218), 'BTC', 'long', 'trend_follow', 'open', Decimal('57.71'), Decimal('11.52'))
+
+== 9. 今日该账户平仓明细（谁亏的）==
+    (datetime.datetime(2026, 9, 19, 21, 7, 9, 257096), 'UNI', 'mid', 'sl', Decimal('-1.83'))
+    (datetime.datetime(2026, 9, 19, 18, 35, 46, 851907), 'UNI', 'mid', 'sl', Decimal('-2.09'))
+    (datetime.datetime(2026, 9, 19, 17, 19, 18, 409185), 'UNI', 'mid', 'sl', Decimal('-1.82'))
+    (datetime.datetime(2026, 9, 19, 11, 17, 55, 757369), 'BNB', 'mid', 'exit_policy:min_roi_decay', Decimal('-0.05'))
+    (datetime.datetime(2026, 9, 19, 7, 44, 45, 457182), 'ASTER', 'mid', 'breakeven_tp', Decimal('3.30'))
+    (datetime.datetime(2026, 9, 19, 5, 43, 42, 630255), 'UNI', 'mid', 'breakeven_tp', Decimal('1.65'))
+    (datetime.datetime(2026, 9, 19, 5, 18, 3, 249565), 'ETH', 'mid', 'thesis_should_close', Decimal('1.17'))
+    (datetime.datetime(2026, 9, 19, 3, 23, 1, 380890), 'SOL', 'mid', 'thesis_should_close', Decimal('1.48'))
+    (datetime.datetime(2026, 9, 19, 0, 48, 58, 292247), 'ASTER', 'mid', 'sl', Decimal('-1.78'))

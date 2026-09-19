@@ -2376,27 +2376,79 @@ def run_midlong_open_sweep(
     tier_l = _tier3(tier)
     acct = getattr(session, "paper_account_id", None) or getattr(session, "account_id", None)
     results: List[Dict[str, Any]] = []
+    # [轮118 2026-09-19] 逐币记"为什么没进候选/没成交"——此前只有 `候选=N 成交=0`
+    # 一行，用户看到的是"整条车道冻住却查不出原因"（实测 22:10–23:21 连续 24 轮
+    # 候选=1 成交=0，而唯一候选 ZEC 根本没有 mid 策略、每次都 strategy_detached）。
+    _skip_stat: Dict[str, int] = {}
+    _no_strategy_logged: Dict[str, float] = {}
+
+    def _bump(_k: str) -> None:
+        _skip_stat[_k] = int(_skip_stat.get(_k, 0)) + 1
+
     for sym_raw in (symbols or []):
         sym = str(sym_raw).upper()
         if not sym:
             continue
         try:
             if reserve_key is not None and not reserve_key(f"{sym}:{tier_l}"):
+                _bump("reserved")
                 continue
         except Exception:
             pass
         dto = thesis_store.get(sid, sym, tier_l)
-        if not (dto and bool(getattr(dto, "accepted", False)) and bool(getattr(dto, "recommend_open", False))):
+        if dto is None or not bool(getattr(dto, "accepted", False)):
+            _bump("no_thesis")
+            continue
+        if not bool(getattr(dto, "recommend_open", False)):
+            # 论题自己说"别开"（主脑判断），不是闸门拦的 —— 必须在日志里区分开
+            _bump("not_recommended")
             continue
         if not thesis_is_fresh(dto):
+            _bump("stale")
             continue
         try:  # 有仓不新开
             db = SessionLocal()
             try:
                 if has_open_position_of_nature(db, acct, sym, tier_l):
+                    _bump("has_position")
                     continue
             finally:
                 db.close()
+        except Exception:
+            pass
+        # ── [轮118] 无独立策略的候选**不得**进入执行层 ────────────────────
+        # 实测：ZEC 每 3 分钟被扫一次，执行层解析不到策略 → `strategy_detached`
+        # →（轮115 的棘轮修复后）5 次同因即装配 30 分钟冷却 → 再试 → 再冻。
+        # 它既不在会话标的内、也没有 mid 策略，属于"僵尸候选"：唯一的候选位被它占满，
+        # 审计里堆的也全是它的噪音，看起来就是"中线全冻结"。
+        try:
+            _resolve = getattr(host, "resolve_independent_strategy", None)
+            if callable(_resolve):
+                _db_s = SessionLocal()
+                try:
+                    if _resolve(_db_s, session, sym, tier_l) is None:
+                        _bump("no_strategy")
+                        _now = time.time()
+                        if _now - float(_no_strategy_logged.get(sym) or 0) > 1800:
+                            _no_strategy_logged[sym] = _now
+                            logger.info(
+                                "[MidLongBrain] 开仓扫描跳过 %s %s：解析不到独立策略"
+                                "（僵尸候选；不再进入执行层制造 strategy_detached 循环）",
+                                sym, tier_l,
+                            )
+                            try:
+                                from backend.services.mlto.midlong_direction_audit import (
+                                    record_decision_audit as _rda,
+                                )
+                                _rda(outcome="skip", stage="sweep", symbol=sym,
+                                     reason="sweep_skip:no_strategy",
+                                     session_id=sid, tier=tier_l, action="hold",
+                                     authority="mlto")
+                            except Exception:
+                                pass
+                        continue
+                finally:
+                    _db_s.close()
         except Exception:
             pass
         try:
@@ -2409,9 +2461,11 @@ def run_midlong_open_sweep(
             opened = False
         results.append({"symbol": sym, "tier": tier_l, "opened": bool(opened),
                         "action": ("buy" if dto.direction == "long" else "sell") if opened else "hold"})
-    if results:
-        logger.info("[MidLongBrain] 开仓扫描 tier=%s 候选=%d 成交=%d",
-                    tier_l, len(results), sum(1 for r in results if r["opened"]))
+    if results or _skip_stat:
+        logger.info("[MidLongBrain] 开仓扫描 tier=%s 候选=%d 成交=%d%s",
+                    tier_l, len(results), sum(1 for r in results if r["opened"]),
+                    ("｜未进候选: " + ", ".join(f"{k}={v}" for k, v in sorted(_skip_stat.items())))
+                    if _skip_stat else "")
     return results
 
 

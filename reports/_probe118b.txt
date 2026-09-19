@@ -1,0 +1,6 @@
+== 1. mid 相关策略的存活状态（谁把它们弄没了？）==
+    ('archived', 3214, datetime.datetime(2026, 6, 30, 11, 17, 43, 677252), datetime.datetime(2026, 9, 19, 13, 8, 5, 651891))
+    ('active', 55, datetime.datetime(2026, 8, 15, 12, 35, 59, 731974), datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('paused', 6, datetime.datetime(2026, 9, 11, 9, 25, 48, 414533), datetime.datetime(2026, 9, 19, 10, 28, 30, 488051))
+
+== 2. 逐个 mid 候选币的策略（含 tier / range / source）==

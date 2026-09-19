@@ -1,0 +1,52 @@
+ai_strategies 列: id, id, strategy_id, strategy_id, name, name, description, description, master_prompt_template_id, master_prompt_template_id, prompt_version, prompt_version, prompt_variables, prompt_variables, signal_pool_ids, signal_pool_ids, trigger_mode, trigger_mode, trigger_interval, trigger_interval, enabled_factors, enabled_factors, factor_weights, factor_weights, max_position_size, max_position_size, stop_loss_pct, stop_loss_pct, take_profit_pct, take_profit_pct, max_daily_loss, max_daily_loss, max_leverage, max_leverage, default_leverage, default_leverage, leverage_mode, leverage_mode, snowball_enabled, snowball_enabled, snowball_max_adds, snowball_max_adds, snowball_profit_threshold, snowball_profit_threshold, auto_execute, auto_execute, require_confirmation, require_confirmation, min_confidence, min_confidence, target_symbols, target_symbols, primary_symbol, primary_symbol, timeframe, timeframe, learning_enabled, learning_enabled, optimization_target, optimization_target, training_frequency, training_frequency, status, status, account_id, account_id, created_at, created_at, activated_at, activated_at, last_executed_at, last_executed_at, updated_at, updated_at, auto_mode, auto_mode, analysis_intervals, analysis_intervals, last_short_analysis_at, last_short_analysis_at, last_mid_analysis_at, last_mid_analysis_at, last_long_analysis_at, last_long_analysis_at, analysis_results_cache, analysis_results_cache, timeframe_tier, timeframe_tier, genome, genome, last_trade_at, last_trade_at, parent_strategy_id, parent_strategy_id, lineage_generation, lineage_generation, archived_at, archived_at, archive_reason, archive_reason, tenant_id, tenant_id, llm_config_id, llm_config_id_deep
+
+== mid 候选币的策略（active / paused / 最近 archived）==
+    ('ASTER', 'tpl_long_swing_10202b', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('ASTER', 'tpl_long_swing_acf4d2', 'active', 'long', 'swing', datetime.datetime(2026, 9, 5, 8, 14, 21, 536939))
+    ('ASTER', 'tpl_pro_075b93de_ee7eb2', 'active', 'mid', 'trend_follow', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('ASTER', 'tpl_mid_range_814602', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('ASTER', 'tpl_short_range_360bed', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('ASTER', 'tpl_short_range_722362', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('BNB', 'tpl_long_swing_42c24a', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 10, 38, 263288))
+    ('BNB', 'tpl_pro_075b93de_349463', 'active', 'mid', 'trend_follow', datetime.datetime(2026, 8, 22, 1, 3, 5, 420231))
+    ('BNB', 'tpl_mid_range_253ba5', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 38, 263288))
+    ('BNB', 'tpl_pro_5a781e57_6b2447', 'active', 'short', 'trend_follow', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('BNB', 'tpl_short_range_f3d458', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 22, 54, 30, 707279))
+    ('ETH', 'tpl_long_swing_36a95e', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('ETH', 'tpl_pro_075b93de_3eca42', 'active', 'mid', 'trend_follow', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('ETH', 'tpl_mid_range_5226c6', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 22, 54, 30, 707279))
+    ('ETH', 'tpl_short_range_982f08', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('ETH', 'tpl_short_range_fd7b7d', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('SOL', 'tpl_long_swing_6f70ea', 'active', 'long', 'swing', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('SOL', 'tpl_long_swing_5febbb', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('SOL', 'tpl_mid_range_c3e85c', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 22, 34, 55, 438876))
+    ('SOL', 'tpl_mid_range_45f2a0', 'active', 'mid', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('SOL', 'tpl_short_range_f72a74', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('SOL', 'tpl_short_range_311f5b', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 22, 34, 55, 438876))
+    ('UNI', 'tpl_long_swing_4e727e', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('UNI', 'tpl_mid_range_89e53b', 'active', 'mid', 'intraday', datetime.datetime(2026, 8, 23, 6, 9, 22, 522667))
+    ('UNI', 'tpl_mid_range_444876', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('UNI', 'tpl_short_range_15a1a7', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('UNI', 'tpl_short_range_39e5ae', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 23, 19, 51, 550109))
+    ('XPL', 'tpl_long_swing_5d8739', 'active', 'long', 'swing', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('XPL', 'tpl_long_swing_d13479', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('XPL', 'tpl_pro_075b93de_6ab888', 'active', 'mid', 'trend_follow', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('XPL', 'tpl_mid_range_0d4016', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 38, 263288))
+    ('XPL', 'tpl_short_range_b237c5', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('XPL', 'tpl_short_range_b144c5', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('XRP', 'tpl_long_swing_ad92f2', 'active', 'long', 'swing', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+    ('XRP', 'tpl_long_swing_1e87a0', 'active', 'long', 'swing', datetime.datetime(2026, 9, 13, 8, 46, 7, 111282))
+    ('XRP', 'tpl_mid_range_c1126e', 'active', 'mid', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 38, 263288))
+    ('XRP', 'tpl_mid_range_a4e810', 'active', 'mid', 'intraday', datetime.datetime(2026, 8, 27, 9, 52, 26, 442391))
+    ('XRP', 'tpl_short_range_dc9897', 'active', 'short', 'intraday', datetime.datetime(2026, 8, 22, 2, 10, 43, 202808))
+    ('XRP', 'tpl_short_range_b55aa9', 'active', 'short', 'intraday', datetime.datetime(2026, 9, 19, 23, 10, 33, 151315))
+
+== 今天被归档的策略（谁在删？）==
+    ('VIRTUAL', 'tpl_mid_range_c896ae', 'mid', datetime.datetime(2026, 9, 19, 13, 8, 5, 651891), 'intraday')
+
+== 近 6 小时 mid 的 strategy_detached 明细 ==
+    (datetime.datetime(2026, 9, 19, 23, 12, 11, 290709), 'ZEC', 'mid', '同因拦截已达阈值进入冷却(原原因=strategy_detached) 剩7分钟')
+    (datetime.datetime(2026, 9, 19, 23, 4, 25, 507835), 'ZEC', 'mid', '同因拦截已达阈值进入冷却(原原因=strategy_detached) 剩15分钟')
+    (datetime.datetime(2026, 9, 19, 22, 1, 35, 709802), 'ZEC', 'mid', '同因拦截已达阈值进入冷却(原原因=strategy_detached) 剩24分钟')
+
+== 近 6 小时 mid 的**关键日志**（fuse/exec 层）==
