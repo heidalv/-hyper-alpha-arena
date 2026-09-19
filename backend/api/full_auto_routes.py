@@ -917,6 +917,14 @@ def _tier_status_impl(session_id: str, db: Session) -> dict:
     _fixed_short = {str(s).upper() for s in (_get_fixed(session_id, tier="short") or set())}
     _fixed_set = _fixed_long  # lanes.fixed_long 兼容
     _ai_mid_set = {str(s).upper() for s in (_get_ai_mid(session_id, db=db) or [])}
+    # [2026-09-17] lanes 增加 ai_long：与决策循环同源，前端可完整展示两条 AI 池
+    try:
+        from backend.services.auto_coin_selector import get_ai_long_candidates_for_session
+        _ai_long_set = {
+            str(s).upper() for s in (get_ai_long_candidates_for_session(session_id, db=db) or [])
+        }
+    except Exception:
+        _ai_long_set = set()
     _mid_cfg = get_session_mid_ai_config(session_id, db=db)
     _by_tier = _parse_by_tier_map(getattr(session, "fixed_symbols_by_tier", None))
 
@@ -964,8 +972,12 @@ def _tier_status_impl(session_id: str, db: Session) -> dict:
                 ),
             ).all()
         margin_used = sum(float(p.margin or 0) for p in positions)
-        budget = total_equity * TIER_BUDGET_ALLOCATION.get(t, 0.3)
-        max_margin = total_equity * TIER_MAX_MARGIN_PCT.get(t, 0.4)
+        # [轮116 2026-09-19] 展示口径也收敛到 budget_service.get_tier_cap（唯一实现）。
+        # 这条接口是"短线配额是多少"的可视面，此前自己重算一份 ⇒ 与真正拦单的
+        # master_execution 可能在 .env 改动后显示不同的数字。
+        from backend.services.budget_service import budget_service as _budget_service
+        budget = _budget_service.get_tier_cap(t, total_equity)
+        max_margin = _budget_service.get_tier_max_margin(t, total_equity)
 
         if t == "long":
             _tier_symbols = sorted(_fixed_long)
@@ -1000,6 +1012,7 @@ def _tier_status_impl(session_id: str, db: Session) -> dict:
             "fixed_mid": sorted(_fixed_mid),
             "fixed_short": sorted(_fixed_short),
             "ai_mid": sorted(_ai_mid_set),
+            "ai_long": sorted(_ai_long_set),
             "auto_coin": sorted(_auto_coin_set),
         },
         "fixed_symbols_by_tier": _by_tier or {

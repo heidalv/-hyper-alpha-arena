@@ -412,21 +412,28 @@ def execute_master_decisions(
         float(p.get("margin", 0)) for p in (positions_list or []) if p.get("side") == "short")
 
     # ── 多周期并行：per-tier 保证金追踪 ──
-    from backend.config.settings import TIER_BUDGET_ALLOCATION, TIER_MAX_MARGIN_PCT
+    # [轮116 2026-09-19] 归类改用 `budget_service.tier_for_position`（以 lane_semantics
+    # 为车道真源）：原实现用 `sub_position_manager.NATURE_TO_TIER`（**引擎存储档位**，
+    # 把 intraday 存成 short），于是日内仓位在预算账上被算进"已停的短线桶"，
+    # 而按 tier 上限它又该算 mid ⇒ 用量与配额两边口径不一致。
     _tier_margin_used: Dict[str, float] = {"short": 0, "mid": 0, "long": 0}
     for p in (positions_list or []):
-        _p_tier = p.get("timeframe_tier") or "mid"
-        _p_nature = p.get("trade_nature", "")
-        if _p_nature:
-            from backend.services.sub_position_manager import NATURE_TO_TIER
-            _p_tier = NATURE_TO_TIER.get(_p_nature, _p_tier)
+        try:
+            from backend.services.budget_service import tier_for_position as _tfp
+            _p_tier = _tfp(p) or "mid"
+        except Exception:
+            _p_tier = p.get("timeframe_tier") or "mid"
         _tier_margin_used[_p_tier] = _tier_margin_used.get(_p_tier, 0) + float(p.get("margin", 0))
 
-    _tier_budget_caps: Dict[str, float] = {}
-    for _t in ("short", "mid", "long"):
-        _alloc = TIER_BUDGET_ALLOCATION.get(_t, 0.3)
-        _max_pct = TIER_MAX_MARGIN_PCT.get(_t, 0.4)
-        _tier_budget_caps[_t] = total_equity * min(_alloc, _max_pct)
+    # tier 配额 = budget_service.get_tier_cap（**唯一实现**）。
+    # 原实现在此处重算 `equity × min(TIER_BUDGET_ALLOCATION, TIER_MAX_MARGIN_PCT)`，
+    # 与 budget_service 里的同名方法、tier_parallel_executor、full_auto_routes 四处并存；
+    # 而 budget_service 那份**零调用者** ⇒ "改 .env 只影响一部分闸门"。
+    from backend.services.budget_service import budget_service as _budget_service
+    _tier_budget_caps: Dict[str, float] = {
+        _t: _budget_service.get_tier_cap(_t, total_equity)
+        for _t in ("short", "mid", "long")
+    }
 
     _position_dirty = False  # 标记：本轮循环中是否发生了仓位变更
 

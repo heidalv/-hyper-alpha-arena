@@ -43,10 +43,19 @@ class _FakeSession:
 
 
 def test_nature_to_layer_unknown_returns_none():
+    """[轮116 2026-09-19 更新] `scalp` 从 scalp 层改到 **trend** 层。
+
+    依据轮63（2026-09-18 用户确认的车道口径）：交易只有两条车道 ——
+    `intraday` 日内（tier=mid）与 `trend` 长线趋势（tier=long），且
+    "`scalp` 不再是独立车道：短线车道已停（2026-09-17），存量 scalp 仓位归入 intraday"。
+    旧映射把 scalp/intraday 的保证金记进**已停开的 scalp 池**（配额已归零），
+    于是日内车道的钱从一个死池子里出 —— 预算层停在三车道时代。
+    """
     from backend.services.budget_service import budget_service
     assert budget_service.nature_to_layer("swing") == "trend"
     assert budget_service.nature_to_layer("trend_follow") == "trend"
-    assert budget_service.nature_to_layer("scalp") == "scalp"
+    assert budget_service.nature_to_layer("scalp") == "trend"
+    assert budget_service.nature_to_layer("intraday") == "trend"
     assert budget_service.nature_to_layer("pair_research") is None
     assert budget_service.nature_to_layer("research") is None
 
@@ -64,10 +73,14 @@ def test_used_margin_scoped_to_account_and_excludes_unknown_nature(monkeypatch):
     ]
     monkeypatch.setattr(conn, "SessionLocal", lambda: _FakeSession(rows))
 
-    # 账户 14 的 trend 层只有 swing(100)；pair_research 被排除、scalp 属另一层
-    assert budget_service.get_used_margin("trend", account_id=14) == pytest.approx(100.0)
+    # [轮116 更新] 账户 14 的 trend 层 = swing(100) + scalp(20，轮63 起归入日内/trend 层)；
+    # pair_research 仍被排除（研究车道不占交易层额度）。
+    assert budget_service.get_used_margin("trend", account_id=14) == pytest.approx(120.0)
     # 全局聚合也排除未知 nature，且不跨层
-    assert budget_service.get_used_margin("trend") == pytest.approx(400.0)
+    assert budget_service.get_used_margin("trend") == pytest.approx(420.0)
+    # scalp 层已退役：不再有任何 nature 映射到它（配额 0，用量恒 0）
+    assert budget_service.get_used_margin("scalp", account_id=14) == pytest.approx(0.0)
+    assert budget_service.get_used_margin("scalp") == pytest.approx(0.0)
 
 
 def test_scale_factor_passes_account_id(monkeypatch):

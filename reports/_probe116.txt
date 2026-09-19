@@ -1,0 +1,65 @@
+== 1. 配置现状 ==
+   MIDLONG_ACTIVATION_ENABLED = True
+   layer_allocations          = {'scalp': 0.35, 'trend': 0.65}
+   TIER_BUDGET_ALLOCATION     = {'short': 0.25, 'mid': 0.25, 'long': 0.35}  合计=0.85
+   TIER_MAX_MARGIN_PCT        = {'short': 0.25, 'mid': 0.25, 'long': 0.35}  合计=0.85
+   TIER_TO_LAYER              = {'short': 'scalp', 'mid': 'trend', 'long': 'trend', 'scalp': 'scalp', 'swing': 'trend', 'trend': 'trend'}
+   NATURE_TO_LAYER            = {'scalp': 'scalp', 'intraday': 'scalp', 'swing': 'trend', 'trend_follow': 'trend', 'position': 'trend'}
+
+   .env 里的相关键：
+     LAYER_BUDGET_SCALP       = '0.35'
+     LAYER_BUDGET_TREND       = '0.65'
+     LAYER_BUDGET_SWING       = None
+     TIER_SHORT_BUDGET        = '0.25'
+     TIER_SHORT_MAX_MARGIN    = '0.25'
+     TIER_MID_BUDGET          = '0.25'
+     TIER_MID_MAX_MARGIN      = '0.25'
+     TIER_LONG_BUDGET         = '0.35'
+     TIER_LONG_MAX_MARGIN     = '0.35'
+     SCALP_OPEN_DISABLED      = 'true'
+     SCALP_SHADOW_MODE        = 'true'
+
+   paper_balances(14): equity=4676.586096323266 available=4431.033942512696 frozen_margin=239.1308630942513 unrealized=6.42129071631929 realized=-240.87266630339087 fees=88.962528089663
+
+== 2. account 14 当前 open 仓位（按 tier / nature / entry_source）==
+   ('long', 'trend_follow', 4, Decimal('239.09'), Decimal('1070.52'))
+
+== 3. account 14 近 30 天已平仓：按 tier 的经济性（毛/费估/净/笔均/胜率）==
+   ('short', 853, Decimal('-159.67'), Decimal('41.88'), Decimal('-201.55'), Decimal('-0.122'), Decimal('0.393'), datetime.date(2026, 8, 20), datetime.date(2026, 9, 8))
+   ('mid', 152, Decimal('-42.31'), Decimal('27.10'), Decimal('-69.41'), Decimal('-0.107'), Decimal('0.461'), datetime.date(2026, 8, 20), datetime.date(2026, 9, 19))
+   ('long', 48, Decimal('-82.25'), Decimal('6.25'), Decimal('-88.50'), Decimal('0.099'), Decimal('0.542'), datetime.date(2026, 8, 23), datetime.date(2026, 9, 18))
+
+== 4. 近 30 天按 entry_source（谁在赚）==
+   ('(无)', 'short', 851, Decimal('-152.47'), Decimal('-0.121'))
+   ('(无)', 'mid', 80, Decimal('19.95'), Decimal('-0.144'))
+   ('mlto', 'mid', 38, Decimal('41.79'), Decimal('0.205'))
+   ('factor_route', 'mid', 34, Decimal('-104.05'), Decimal('-0.370'))
+   ('trend_e1', 'long', 22, Decimal('45.44'), Decimal('1.128'))
+   ('mlto', 'long', 17, Decimal('-140.18'), Decimal('-0.981'))
+   ('(无)', 'long', 9, Decimal('12.49'), Decimal('-0.379'))
+   ('mlto', 'short', 2, Decimal('-7.20'), Decimal('-0.474'))
+
+== 5. 近 30 天按 trade_nature（短线是否真的死了）==
+   ('scalp', 844, datetime.date(2026, 8, 20), datetime.date(2026, 9, 5), Decimal('-146.21'))
+   ('swing', 152, datetime.date(2026, 8, 20), datetime.date(2026, 9, 19), Decimal('-42.31'))
+   ('trend_follow', 41, datetime.date(2026, 8, 23), datetime.date(2026, 9, 18), Decimal('-122.68'))
+   ('position', 7, datetime.date(2026, 8, 31), datetime.date(2026, 9, 11), Decimal('40.43'))
+   ('intraday', 3, datetime.date(2026, 9, 8), datetime.date(2026, 9, 8), Decimal('-7.38'))
+
+== 6. 预算夹逼实算（equity=当前账户权益）==
+   账户权益 = 4676.59（paper_balances.total_equity；持仓浮盈 6.42 已含在内）
+   tier=short  layer=scalp  layer_cap=  1636.81 tier_cap=  1169.15 → 有效=  1169.15
+   tier=mid    layer=trend  layer_cap=  3039.78 tier_cap=  1169.15 → 有效=  1169.15
+   tier=long   layer=trend  layer_cap=  3039.78 tier_cap=  1636.81 → 有效=  1636.81
+   get_budget_utilization = {"scalp": {"alloc": 0.35, "cap": 1636.81, "used": 0.0, "utilization": 0.0, "idle_pct": 1.0}, "trend": {"alloc": 0.65, "cap": 3039.78, "used": 239.09, "utilization": 0.0787, "idle_pct": 0.9213}}
+   scale_factor(mid)=1.0 scale_factor(long)=1.0 scale_factor(short)=1.0
+
+   未知 tier 会落到哪一层/哪个 tier 上限（静默兜底排查）：
+     tier='intraday'             → layer='scalp'   tier_cap=  1169.15
+     tier='1h'                   → layer=None      tier_cap=  1169.15
+     tier='15m'                  → layer=None      tier_cap=  1169.15
+     tier='scalp'                → layer='scalp'   tier_cap=  1169.15
+     tier='swing'                → layer='trend'   tier_cap=  1169.15
+     tier='trend'                → layer='trend'   tier_cap=  1636.81
+     tier='scalp_directional'    → layer=None      tier_cap=  1169.15
+     tier=''                     → layer='trend'   tier_cap=  1169.15

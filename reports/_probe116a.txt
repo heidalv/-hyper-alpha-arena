@@ -1,0 +1,23 @@
+== 含 balance/account 的表 ==
+   account_asset_snapshots
+   account_prompt_bindings
+   account_strategy_configs
+   accounts
+   arbitrage_paper_accounts
+   arbitrage_paper_exchange_balances
+   bak_20260821_accounts
+   bak_20260821_paper_balances
+   hyperliquid_account_snapshots
+   paper_balances
+
+== paper_positions 列 ==
+   id id account_id account_id strategy_id strategy_id symbol symbol side side size size entry_price entry_price mark_price mark_price leverage leverage margin margin unrealized_pnl unrealized_pnl liquidation_price liquidation_price tp_price tp_price sl_price sl_price trailing_stop_price trailing_stop_price status status close_price close_price close_reason close_reason partial_realized_pnl partial_realized_pnl partial_fee_paid partial_fee_paid original_size original_size tp_level_reached tp_level_reached timeframe_tier timeframe_tier add_count add_count original_margin original_margin last_add_at last_add_at dca_count dca_count dca_total_added dca_total_added trade_nature trade_nature expected_hold_hours expected_hold_hours reduce_count reduce_count last_reduce_at last_reduce_at opened_at opened_at closed_at closed_at updated_at updated_at peak_unrealized_pnl peak_unrealized_pnl peak_pnl_pct peak_pnl_pct health_score health_score health_regime health_regime exit_state_json exit_state_json exchange exchange tenant_id tenant_id trough_unrealized_pnl trough_pnl_pct 
+
+== account_strategy_configs 列（层额度可能在这里）==
+   id id account_id account_id price_threshold price_threshold trigger_interval trigger_interval signal_pool_id signal_pool_id enabled enabled last_trigger_at last_trigger_at created_at created_at updated_at updated_at tenant_id tenant_id 
+
+== layer_allocations 表存在吗 ==
+   []
+
+== accounts(14) ==
+   {'id': 14, 'user_id': 326, 'version': 'v1', 'name': '小资金', 'account_type': 'PAPER', 'is_active': 'true', 'auto_trading_enabled': 'true', 'model': '', 'base_url': '', 'api_key': '', 'llm_config_id': 17, 'llm_config_id_deep': 17, 'initial_capital': Decimal('500.00'), 'current_cash': Decimal('500.00'), 'frozen_cash': Decimal('0.00'), 'hyperliquid_enabled': 'false', 'hyperliquid_environment': None, 'hyperliquid_testnet_private_key': None, 'hyperliquid_mainnet_private_key': None, 'max_leverage': 20, 'default_leverage': 10, 'binance_enabled': 'false', 'binance_market_type': None, 'binance_testnet': 'false', 'binance_api_credentials': None, 'binance_max_leverage': 20, 'trading_mode': 'paper', 'selected_exchange': 'binance', 'created_at': datetime.datetime(2026, 6, 30, 9, 51, 1, 402964), 'updated_at': datetime.datetime(2026, 8, 28, 12, 9, 14, 675854), 'ai_coin_select_enabled': 'false', 'tier_overrides': {}}

@@ -115,8 +115,8 @@ class TierParallelExecutor:
             CoordinatedResult 或 None（全部 tier 都跳过/失败时）
         """
         from backend.config.settings import (
-            TIER_ANALYSIS_INTERVAL, TIER_BUDGET_ALLOCATION,
-            TIER_PRIMARY_PERIOD, TIER_MAX_MARGIN_PCT,
+            TIER_ANALYSIS_INTERVAL,
+            TIER_PRIMARY_PERIOD,
         )
         from backend.database.models import AIStrategy as _AIStrategy
 
@@ -148,8 +148,12 @@ class TierParallelExecutor:
         balance_info = self._get_balance(db, account_id)
         balance_info["account_id"] = account_id
         total_equity = float(balance_info.get("total_equity", 10000))
+        # [轮116 2026-09-19] 收敛到 budget_service.get_tier_cap（唯一实现）。
+        # 原实现是同一算式的第二份拷贝（另有 master_execution / full_auto_routes 两份），
+        # 而 budget_service 里那份反而零调用者 —— 改 .env 的 tier 配额时无法保证一致。
+        from backend.services.budget_service import budget_service as _budget_service
         tier_budgets = {
-            t: total_equity * TIER_BUDGET_ALLOCATION.get(t, 0.3)
+            t: _budget_service.get_tier_cap(t, total_equity)
             for t in TIERS
         }
 

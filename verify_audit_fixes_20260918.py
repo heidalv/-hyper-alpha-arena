@@ -1660,6 +1660,88 @@ try:
 except Exception as e:
     check("轮115 冷却解冻验证执行", False, f"{type(e).__name__}: {e}")
 
+# ── 轮116  车道资金重新分配 + tier 阀口接线（用户：短线配额从来没动过）──
+print("\n── 轮116  两车道重新分配：短线配额回收、阀口接线、未知 tier fail-closed ──")
+try:
+    _root116 = os.path.dirname(os.path.abspath(__file__))
+    from backend.config.settings import (
+        TIER_BUDGET_ALLOCATION as _A116, TIER_MAX_MARGIN_PCT as _M116,
+    )
+    from backend.config.lane_semantics import (
+        LANE_INTRADAY as _LI116, LANE_TREND as _LT116, LANE_SPECS as _LS116,
+    )
+    from backend.services.budget_service import (
+        budget_service as _BS116, normalize_tier as _nt116,
+        NATURE_TO_LAYER as _N2L116, tier_for_position as _tfp116,
+    )
+
+    check("① 配额与轮63 的两车道口径对齐（short 退役 / intraday=mid / trend=long）",
+          _LS116[_LI116].tier == "mid" and _LS116[_LT116].tier == "long"
+          and _A116["short"] == 0.0
+          and abs(float(_A116["mid"]) - 0.35) < 1e-9
+          and abs(float(_A116["long"]) - 0.50) < 1e-9,
+          f"TIER_BUDGET_ALLOCATION={_A116} 合计={sum(_A116.values()):.2f}（安全边际 0.15 不变）")
+
+    _la116 = _BS116.layer_allocations
+    check("② 层额度随车道退役归零，且 ≥ 该层 tier 配额之和（否则 tier 阀口被层盖住）",
+          _la116.get("scalp") == 0.0
+          and _la116.get("trend", 0) + 1e-9 >= _A116["mid"] + _A116["long"],
+          f"layer_allocations={_la116}；trend 层 {_la116.get('trend')} ≥ mid+long "
+          f"{_A116['mid'] + _A116['long']:.2f}")
+
+    _eq116 = 4676.0
+    check("③ 退役车道真的开不出来（配额 0 ⇒ 乘子 0 ⇒ 硬拒）",
+          _BS116.get_tier_cap("short", _eq116) == 0.0
+          and _BS116.scale_factor_for_layer("short", _eq116, "paper", 14) == 0.0
+          and _BS116.can_open("short", 10.0, _eq116, "paper", 14) is False,
+          "can_open(short)=False；scale_factor(short)=0.0（原实现 `cap<=0 → 1.0` = 不限仓）")
+
+    check("④ 未知 tier 不再静默拿 mid 的配额（fail-closed + 限流告警）",
+          all(_nt116(_j) is None and _BS116.get_tier_cap(_j, _eq116) == 0.0
+              and _BS116.scale_factor_for_layer(_j, _eq116) == 0.0
+              for _j in ("1h", "15m", "scalp_directional"))
+          and _nt116("intraday") == "mid" and _nt116("") == "mid",
+          "1h/15m/scalp_directional → 0（原实现 `else → mid` 让脏标签拿到 mid 的配额）；"
+          "intraday/swing → mid；空值 → 默认车道 mid")
+
+    check("④b 研究车道 ≠ 未知标签：刻意不预算 ⇒ 不缩仓（1.0），但也没有配额",
+          _BS116.scale_factor_for_layer("pair_research", _eq116) == 1.0
+          and _BS116.get_tier_cap("pair_research", _eq116) == 0.0
+          and _BS116.is_research_tier("pair_research")
+          and not _BS116.is_research_tier("1h"),
+          "原语义（tier_to_layer is None → 1.0）对研究车道是对的；本轮只把"
+          "『刻意不预算』与『没人认识的脏标签』分开")
+
+    check("⑤ 日内车道的钱不再记进已停的 scalp 池（预算按车道的钱归属）",
+          _N2L116.get("intraday") == "trend" and _N2L116.get("scalp") == "trend"
+          and _tfp116(type("P", (), {"trade_nature": "intraday",
+                                     "timeframe_tier": "short",
+                                     "margin": 1.0})()) == "mid",
+          "NATURE_TO_LAYER: scalp/intraday → trend 层；"
+          "存量 intraday 仓位（存储 tier=short）在预算上算 **mid** 桶")
+
+    _dup116 = []
+    for _rel in ("backend/services/full_auto/master_execution.py",
+                 "backend/services/tier_parallel_executor.py",
+                 "backend/api/full_auto_routes.py"):
+        _s = io.open(os.path.join(_root116, _rel), encoding="utf-8").read()
+        if "get_tier_cap(" not in _s or "TIER_BUDGET_ALLOCATION.get(" in _s:
+            _dup116.append(_rel)
+    check("⑥ tier 配额只有一处实现（此前四处各自重算，其中 budget_service 那份零调用者）",
+          not _dup116,
+          "master_execution / tier_parallel_executor / full_auto_routes 已收敛到 "
+          "budget_service.get_tier_cap；" + ("残留 " + str(_dup116) if _dup116 else "无残留"))
+
+    _u116 = _BS116.get_tier_utilization(_eq116, "paper", 14)
+    check("⑦ 阀口可观测：各桶配额/用量快照（退役桶标记 retired）",
+          set(_u116) == {"short", "mid", "long"} and _u116["short"]["retired"] is True
+          and _u116["mid"]["cap"] > 0 and _u116["long"]["cap"] > _u116["mid"]["cap"],
+          "；".join(f"{k}: cap={v['cap']:.0f} used={v['used']:.0f} "
+                    f"util={v['utilization']:.1%}{'(退役)' if v['retired'] else ''}"
+                    for k, v in _u116.items()))
+except Exception as e:
+    check("轮116 车道重新分配验证执行", False, f"{type(e).__name__}: {e}")
+
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")
 for path in ("/api/health", "/api/period/lanes", "/api/full-auto/sessions",

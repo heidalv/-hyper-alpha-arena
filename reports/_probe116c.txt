@@ -1,0 +1,59 @@
+account 14 equity = 4676.15
+
+== 1. 配置生效值 ==
+   TIER_BUDGET_ALLOCATION = {'short': 0.0, 'mid': 0.35, 'long': 0.5}  合计=0.85
+   TIER_MAX_MARGIN_PCT    = {'short': 0.0, 'mid': 0.35, 'long': 0.5}  合计=0.85
+   layer_allocations      = {'scalp': 0.0, 'trend': 0.85}  合计=0.85
+
+== 2. 每车道：层额度 / tier 额度 / 有效额度 / 已用 / 乘子 ==
+   short  layer=scalp  层额度=     0.00 tier额度=     0.00 可用=     0.00 已用(tier)=    0.00 已用(层)=    0.00 乘子=0.0
+   mid    layer=trend  层额度=  3974.73 tier额度=  1636.65 可用=  1636.65 已用(tier)=    0.00 已用(层)=  239.09 乘子=1.0
+   long   layer=trend  层额度=  3974.73 tier额度=  2338.07 可用=  2098.98 已用(tier)=  239.09 已用(层)=  239.09 乘子=1.0
+
+== 3. tier 用量快照（新接口）==
+   {
+    "short": {
+     "alloc": 0.0,
+     "max_margin_pct": 0.0,
+     "cap": 0.0,
+     "used": 0.0,
+     "utilization": 0.0,
+     "retired": true
+    },
+    "mid": {
+     "alloc": 0.35,
+     "max_margin_pct": 0.35,
+     "cap": 1636.65,
+     "used": 0.0,
+     "utilization": 0.0,
+     "retired": false
+    },
+    "long": {
+     "alloc": 0.5,
+     "max_margin_pct": 0.5,
+     "cap": 2338.07,
+     "used": 239.09,
+     "utilization": 0.1023,
+     "retired": false
+    }
+   }
+
+== 4. 别名归一（两车道口径）==
+   'short'        → tier='short' layer='scalp'  cap=    0.00 乘子=0.0
+   'scalp'        → tier='short' layer='scalp'  cap=    0.00 乘子=0.0
+   'mid'          → tier='mid'   layer='trend'  cap= 1636.65 乘子=1.0
+   'swing'        → tier='mid'   layer='trend'  cap= 1636.65 乘子=1.0
+   'intraday'     → tier='mid'   layer='trend'  cap= 1636.65 乘子=1.0
+   'long'         → tier='long'  layer='trend'  cap= 2338.07 乘子=1.0
+   'trend'        → tier='long'  layer='trend'  cap= 2338.07 乘子=1.0
+   'trend_follow' → tier='long'  layer='trend'  cap= 2338.07 乘子=1.0
+   '1h'           → tier=None    layer=None     cap=    0.00 乘子=0.0
+   '15m'          → tier=None    layer=None     cap=    0.00 乘子=0.0
+   ''             → tier='mid'   layer='trend'  cap= 1636.65 乘子=1.0
+   'research'     → tier=None    layer=None     cap=    0.00 乘子=0.0
+
+== 5. can_open 抽查（短线必须被拦、日内/趋势放行）==
+   can_open('short', need=10.0) = False
+   can_open('mid', need=100.0) = True
+   can_open('long', need=100.0) = True
+   can_open('1h', need=10.0) = False
