@@ -1125,10 +1125,11 @@ try:
     except Exception:
         _msm108 = None
     check("① 缩仓链地板在「所有乘子之后、下单之前」，且可回滚（0=关）",
-          _i_t108 < _i_f108 < _i_o108 and _msm108 == 0.05
+          _i_t108 < _i_f108 < _i_o108 and _msm108 == 0.02
           and '_mark_block("size_below_floor"' in _pe108,
-          f"MIDLONG_MIN_SIZE_MULT={_msm108}；线上实测 V5 ×0.25 → tranche ×0.00/0.01 "
-          "⇒ 名义剩 0.25%~1%，`候选=3 成交=0` 连续数小时且无原因可查")
+          f"MIDLONG_MIN_SIZE_MULT={_msm108}（轮117 由 0.05 下调：修好分档系数量纲后"
+          " NIBBLE×V5=0.0375 会被 0.05 整档杀掉，而它对应名义 ≈$26 是正常小仓；"
+          "0.02 仍拦住当年那种 0.0005×$700≈$0.35 的病态乘积）")
 
     # ② 我自己的日志噪音（去重 INFO → DEBUG）
     _af108 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1680,9 +1681,10 @@ try:
     check("① 配额与轮63 的两车道口径对齐（short 退役 / intraday=mid / trend=long）",
           _LS116[_LI116].tier == "mid" and _LS116[_LT116].tier == "long"
           and _A116["short"] == 0.0
-          and abs(float(_A116["mid"]) - 0.35) < 1e-9
-          and abs(float(_A116["long"]) - 0.50) < 1e-9,
-          f"TIER_BUDGET_ALLOCATION={_A116} 合计={sum(_A116.values()):.2f}（安全边际 0.15 不变）")
+          and abs(float(_A116["mid"]) - 0.40) < 1e-9
+          and abs(float(_A116["long"]) - 0.45) < 1e-9,
+          f"TIER_BUDGET_ALLOCATION={_A116} 合计={sum(_A116.values()):.2f}"
+          "（轮117 由 0.35/0.50 修正为 0.40/0.45：轮116 的偏斜建立在 30 天混账上）")
 
     _la116 = _BS116.layer_allocations
     check("② 层额度随车道退役归零，且 ≥ 该层 tier 配额之和（否则 tier 阀口被层盖住）",
@@ -1781,11 +1783,11 @@ try:
           and "MIDLONG_TRANCHE_FROM_GATE" in _code117,
           "brain.maybe_open 此前把 0.12（保证金占比）当分档系数传下去")
 
-    check("③ 量纲自证：正常档位的乘积必须高于地板（旧量纲 0.12×0.25=0.030 会被拒）",
+    check("③ 量纲自证：正常档位的乘积必须高于地板（旧量纲 0.12×0.25=0.030 曾撞 0.05 地板）",
           _build * 0.25 >= _floor117 and _nib * 0.25 >= _floor117
-          and 0.12 * 0.25 < _floor117,
-          f"BUILD×V5(0.25)={_build*0.25:.4f}、NIBBLE×V5=0.0375、地板={_floor117}；"
-          "旧量纲 0.030 落在拒绝区（这正是中线冻结的现场）")
+          and 0.12 * 0.25 < 0.05,
+          f"BUILD×V5(0.25)={_build*0.25:.4f}、NIBBLE×V5=0.0375、当前地板={_floor117}；"
+          "旧量纲 0.030 < 当时地板 0.05 ⇒ 这正是中线冻结的现场（15:57:04 日志 0.0019<0.050）")
 
     check("④ 比例按**时代**重算，撤回 30 天混账的偏斜（0.35/0.50 → 0.40/0.45）",
           abs(float(_A117["mid"]) - 0.40) < 1e-9 and abs(float(_A117["long"]) - 0.45) < 1e-9

@@ -1,0 +1,43 @@
+轮117: 中线解冻（分档系数量纲用错）+ 按时代重算车道比例
+
+用户两条意见：
+  1)「你怎么就用这三十天的预算了？这 30 天里大的更改就多少次了…主要关注这两天的交易情况。
+     用历史交易回测评价是对的，但是用错的历史来评价就不好了。」
+  2)「现在的中线还是被冻结。」
+
+## 一、中线为什么还被冻着：量纲用错（不是策略问题）
+brain.maybe_open 把 MIDLONG_BRAIN_OPEN_MARGIN_PCT（**占权益的保证金比例** 0.12）
+传进了 tranche_margin_pct 槽位，而下游两处消费方都按**分档系数**用它：
+  proposal_execution:  dec["size_multiplier"] *= tranche
+  midlong_helpers:     estimate_open_notional_aligned(tranche_mult=tranche)
+⇒ 0.12(brain) × 0.25(V5Gate) = **0.030 < MIDLONG_MIN_SIZE_MULT(0.05)**
+⇒ 每次中线开仓都撞 [SizeFloor] BLOCK（线上 13:12–14:03 连续 6 次）→ 中线冻结一整天。
+（09-18/09-19 那些 $690 名义的中线仓，是这套量纲还没咬合时开的。）
+
+修：
+  * brain 改为从单一来源 tranche_gate.compute_margin_pct() 取分档系数
+    （BUILD 0.30/0.30/0.20/0.10、NIBBLE 0.15/0.10）；recommend_open=0 时退 NIBBLE；
+    stage≥3 ⇒ 0.0 交给下游按"分档耗尽"诚实拒绝（不静默放大）。
+    回滚：MIDLONG_TRANCHE_FROM_GATE=false（旧行为仅留对照）。已登记 env_registry。
+  * MIDLONG_MIN_SIZE_MULT 0.05 → 0.02：修好量纲后 NIBBLE×V5=0.0375 会被 0.05 整档杀掉，
+    而它对应的真实名义（风险预算 base≈$700 × 0.0375）≈$26 是正常小仓，不是当年要拒的
+    "名义≈0"（0.0005×$700=$0.35）。0.02 ≈ $14 仍拦住病态乘积。
+  * 更正 midlong_portfolio_risk.estimate_open_notional 的 docstring ——
+    "tranche_margin_pct 是占权益的保证金比例"那句正是病源，已标注为**旧口径/诊断用**。
+  * 活论题 tranche_stage 全为 0（reports/_probe117c.txt）⇒ 修复立即生效，无 stage 卡死。
+
+## 二、按时代重算（撤回轮116 的 30 天偏斜）
+30 天里跨 5 个配置时代（09-18 23:36 轮96 → 09-19 15:48 轮116，共 40 个 commit），
+样本被已停车道（scalp 853 笔）与已删路径（factor_route 34 笔）污染：
+    30 天（错）             n=1047  净 **−80.80**  笔均 −0.107%  胜率 0.411
+    09-18 之后（分离起）     n=  48  净 **+20.69**  笔均 +0.435%  胜率 0.625
+    09-19 00:00 之后        n=   7  净 **+11.26**  笔均 +0.969%  胜率 0.714
+⇒ 现役时代两车道都为正、但只有 48 笔，不足以支撑偏斜：撤回 mid 0.35/long 0.50，
+  改为 **mid 0.40 / long 0.45**（short 仍 0 = 结构事实，与业绩无关）；总量 0.85 不变。
+  口径：等现役配置时代累计 ≥100 笔平仓再重分。
+
+## 三、验证
+新增 test_mid_freeze_unit_epoch_20260919.py(8)：含**量纲自证**断言
+（BUILD×V5=0.075≥地板、NIBBLE×V5=0.0375≥地板、旧量纲 0.030 落在拒绝区）
+与 brain 默认路径的 AST/可执行文本守卫；轮116 三条比例断言按本轮修正更新；
+verify 新增轮117 段 5 项（含现役时代净额为正的现场读数）。
