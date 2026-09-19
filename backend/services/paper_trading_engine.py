@@ -1767,14 +1767,25 @@ class PaperTradingEngine:
         # 判据参考价：限价单用自身 `price`（耐心挂单的入场基准），市价单用 `current_price`。
         _ref_entry = float(order.price) if (order.price and float(order.price) > 0) else float(current_price or 0)
         if order.tp_price:
+            # [轮117 2026-09-19 修 **致命 NameError**] 本函数签名是
+            # `(self, db, order, bal, timeframe_tier, add_type, trade_nature, …)` ——
+            # **没有 `side` / `symbol` 这两个参数**。轮104 续加的这段复验写成了
+            # `side=str(side or "")` 与 `symbol` ⇒ 只要 `order.tp_price` 非空就抛
+            # `NameError: name 'side' is not defined` ⇒ `place_order` 返回 False ⇒
+            # `[FullAuto] 模拟交易执行异常` ⇒ 审计里统一落成 `paper_trade_false`。
+            # 实测（16:49:46）：**中线每一单都带 TP ⇒ 全军覆没**；长线 trend_e1 的
+            # 订单 TP 为空 ⇒ 恰好绕过（所以"只有中线被冻结，长线正常"）。
+            # 时间线也吻合：轮104 续 02:44 提交，中线最后一笔成交停在 02:28。
+            _side = str(getattr(order, "side", "") or "")
+            _sym = str(getattr(order, "symbol", "") or "")
             _tp_choke = self.safe_tp_price(
-                order.tp_price, side=str(side or ""), market=float(current_price or 0),
+                order.tp_price, side=_side, market=float(current_price or 0),
                 entry=_ref_entry)
             if _tp_choke <= 0 and float(current_price or 0) > 0:
                 logger.error(
                     "[Paper] 下单 TP 被止盈侧不变式拦截（丢弃该 TP）: %s %s TP=%s "
                     "参考入场=%s 市价=%s —— 多头 TP 必须在开仓价上方、空头在下方",
-                    symbol, side, order.tp_price, _ref_entry, current_price,
+                    _sym, _side, order.tp_price, _ref_entry, current_price,
                 )
                 order.tp_price = None
                 tp_price = None      # 入参副本同步（位置构造随后改用 order.tp_price）
