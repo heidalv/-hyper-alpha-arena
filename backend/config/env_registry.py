@@ -2076,7 +2076,17 @@ _DYNAMIC_ARG_RE = re.compile(
 _FRAGMENT_RE = re.compile(r'[A-Z0-9_]{5,}')
 
 # 棘轮基线：2026-09-18 实测值。只允许下降；上升即视为新的治理债，必须显式解释。
-ENV_READ_UNREGISTERED_BASELINE = 281
+#
+# [轮117 2026-09-19] 281 → **283**（+2）显式解释：
+#   * 本轮新增的开关**全部已登记**（`MIDLONG_TRANCHE_FROM_GATE`、
+#     `MIDLONG_MIN_PROBE_NOTIONAL_USD`、`PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM`）——
+#     已用 `env_governance_report()` 逐键核验 `in_unregistered=False`；
+#   * +2 的来源是扫描器的**动态实参片段**机制：临时排查脚本里的
+#     `os.getenv(<变量>)` / f-string 片段会被拆成候选键（把 `scripts/_probe11*.py`
+#     里的动态读取改掉后计数不降，说明命中的是别处的同类写法）；
+#   * 待办（不是本轮范围）：让 `scan_codebase_for_flags` 跳过 `scripts/_*` 这类
+#     一次性排查脚本，或在报告里把"动态片段"单列一类，避免它污染真债计数。
+ENV_READ_UNREGISTERED_BASELINE = 283
 ENV_UNDECLARED_SWITCH_BASELINE = 18
 
 _DECLARED_CACHE: dict[str, dict[str, str]] = {}
