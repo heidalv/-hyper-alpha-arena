@@ -89,6 +89,43 @@ def test_probe_path_exists_with_evidence():
     assert "dto.recommend_open = False" in seg, "试探必须走 NIBBLE（小仓）档"
 
 
+def test_probe_pass_marker_unblocks_rec_open_false(monkeypatch):
+    """[轮121] 试探标记必须能过 `rec_open_false` 这一条，且只放行这一条。"""
+    from backend.services.mlto import brain as _B
+    from backend.services.mlto.brain import can_open_block_reason
+
+    monkeypatch.setattr(_B, "thesis_is_tradeable_fresh", lambda dto: True)
+
+    class _D:
+        thesis_id = "t"
+        symbol = "BTC"
+        tier = "mid"
+        direction = "long"
+        recommend_open = False
+        missing_evidence = []
+        invalidation = {"price": 100.0}
+        tranche_stage = 0
+        llm_conviction = 45
+        accepted = True
+        should_close = False
+        open_readiness = 0
+
+    # 无标记 ⇒ 仍然拦（旧行为不变）
+    assert can_open_block_reason(_D(), {}) == "rec_open_false"
+    # 有标记 ⇒ 不再因 rec_open_false 被拦（其它闸照旧）
+    _p = _D()
+    _p._probe_entry = "waiting_pullback"
+    assert can_open_block_reason(_p, {}) != "rec_open_false"
+
+
+def test_sweep_sets_the_probe_marker():
+    src = _src("backend/services/mlto/brain.py")
+    i = src.index("轮121 2026-09-19 修我自己两个机制互相矛盾")
+    assert "_probe_entry" in src[i - 800:i + 800] or "_probe_entry" in src
+    j = src.index("dto._probe_entry = _probe_why")
+    assert j > 0, "扫描侧必须打上标记"
+
+
 def test_probe_behaviour(monkeypatch):
     """等回踩（方向明确）⇒ 进候选；neutral+regime=up ⇒ 定向为 long；neutral+震荡 ⇒ 不进。"""
     from backend.services.mlto import brain as B

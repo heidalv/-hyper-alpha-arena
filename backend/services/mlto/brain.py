@@ -1767,7 +1767,17 @@ def can_open_block_reason(
         return "not_tradeable_fresh"
     assert dto is not None
     if dto.recommend_open is not True:
-        return "rec_open_false"
+        # ── [轮121 2026-09-19 修我自己两个机制互相矛盾] ────────────────────
+        # 轮120 的小仓试探为了让分档系数走 **NIBBLE（0.15，小仓）** 档，
+        # 刻意把 `recommend_open` 置为 False；而这里又要求 `recommend_open is True`
+        # ⇒ 试探刚进 `maybe_open` 就被自己这条闸拒掉（实测 23:49:09：
+        # `小仓试探 BTC mid 原因=waiting_pullback` 紧跟 `skip open ... reason=rec_open_false`，
+        # 三个试探全军覆没，成交恒 0）。
+        # 修法：带 `_probe_entry` 标记的论题**允许** `recommend_open=False` 通过这一条
+        # （其余所有闸——方向/失效价/缺失证据/周期联动/宪法——一条都不豁免），
+        # 尺寸仍由 NIBBLE 档保证是"小仓"。
+        if not getattr(dto, "_probe_entry", ""):
+            return "rec_open_false"
     if dto.direction not in ("long", "short"):
         return "dir_unclear"
     if missing_blocks_open(dto.missing_evidence):
@@ -2442,6 +2452,9 @@ def run_midlong_open_sweep(
                 dto = copy.copy(dto)
                 dto.direction = _probe_dir
                 dto.recommend_open = False   # ⇒ NIBBLE 档（小仓）
+                # [轮121] 显式标记：`can_open_block_reason` 据此放行 rec_open_false
+                # （否则上面这行会把自己刚放进来的试探拒掉 —— 实测三个试探全灭）
+                dto._probe_entry = _probe_why
             except Exception:
                 pass
             logger.info(
