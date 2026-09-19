@@ -100,6 +100,34 @@ def test_layer_is_json_serializable(pack_layers):
 
 
 # ══════════════════════════════════════════════════════════════════════
+# ②b 轮108：另外两处"写好了没进 prompt"的学习产物
+# ══════════════════════════════════════════════════════════════════════
+
+def test_text_quant_brief_wired(pack_layers):
+    """`decision_core.quant_brief.build_quant_brief` 此前只被已退场的 trend_agent 引用。"""
+    txt = (pack_layers["factors"]["symbols"]["BTC"] or {}).get("brief_text") or ""
+    assert "量化简报" in txt, txt[:200]
+    assert "数据完整度" in txt and "决策指引" in txt
+
+
+def test_factor_system_snapshot_wired(pack_layers):
+    """`learning_readback.factor_system_snapshot` 的 docstring 写着"供决策 prompt 参考"，
+    此前只有它自己的 CLI 在读。"""
+    sysblk = pack_layers["factors"].get("system") or {}
+    assert sysblk.get("role") == "证据，非指令"
+    rw = sysblk.get("runtime_weights") or {}
+    assert isinstance(rw.get("n_file"), int) and rw["n_file"] > 0
+    decay = sysblk.get("decay") or {}
+    assert isinstance(decay.get("n"), int) or decay == {}
+
+
+def test_both_new_blocks_render_into_prompt():
+    pack = CP.build("midlong_thesis", symbols=_SYMS)
+    txt = pack.to_prompt_text(40000)
+    assert "brief_text" in txt and '"system"' in txt
+
+
+# ══════════════════════════════════════════════════════════════════════
 # ③ 进入 prompt 文本 + 预算裁剪
 # ══════════════════════════════════════════════════════════════════════
 

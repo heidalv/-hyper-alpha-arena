@@ -183,7 +183,10 @@ class MidLongActiveFactorSet:
             if _dedup:
                 _s = _sig(ast)
                 if _s and _s in _seen:
-                    logger.info(
+                    # [轮108] 原本是 INFO：实测这一行**每个币每个周期**都要打 3 条
+                    # （日志 90MB 里有大量重复），对排查毫无增量。降为 DEBUG，
+                    # 只保留"这条被谁取代"的信息；要看去重结果请用 get_health_snapshot。
+                    logger.debug(
                         "[MidLongActiveSet] AST 同族去重: %s(|ICIR|=%.3f) 与 %s 同结构，跳过桥接",
                         fid, _abs_icir, _seen[_s],
                     )

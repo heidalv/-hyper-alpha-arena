@@ -1056,6 +1056,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "FACTOR_ROUTE_MIN_ACTIVE_FACTORS",
     "FACTOR_ROUTE_AST_IC_CAP",           # 轮105：AST 桥接 ic_mean(实为ICIR) 幅度封顶
     "CONTEXT_PACK_FACTORS_ENABLED",      # 轮107：主脑上下文因子层开关
+    "MIDLONG_MIN_SIZE_MULT",             # 轮108：缩仓链地板（低于则诚实拒绝）
     "FACTOR_CRITIC_ENABLED",
     "FACTOR_CRITIC_MODEL",
     "FACTOR_ROUTE_ENTRY_THRESHOLD",

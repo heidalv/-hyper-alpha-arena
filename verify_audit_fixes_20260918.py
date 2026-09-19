@@ -953,16 +953,24 @@ try:
     if _px105 > 0:
         _live105 = _R105.factor_route_decide("BTC", {"BTC": {"current_price": _px105}}, "paper")
         _lv = _live105.get("votes") or {}
-        _evo_w = {k: v.get("w") for k, v in _lv.items() if str(k).startswith("evo_")}
+        # 注意：AST 桥接是「每个**结构族**留一条」，族数会随进化仓产出变化（实测 2→3），
+        # 所以不变量是「票权比例」与「同族唯一」，不是"evo 恒为 2 条"。
+        _evo_w = {k: v.get("w") for k, v in _lv.items()
+                  if str(k).startswith("evo_") and isinstance(v.get("w"), (int, float))}
         _fml_w = [v.get("w") for k, v in _lv.items()
                   if not str(k).startswith("evo_") and isinstance(v.get("w"), (int, float))]
-        check("⑤ 现场路由票权不再失衡（AST 票权 ≤ 公式中位 3×，且不再 17 票里 5 条重复）",
+        _med = float(__import__("numpy").median(_fml_w)) if _fml_w else 0.0
+        _ast = _M105._tradable_ast_bridge()
+        _sigs = {_R105._structure_signature((r.get("extra") or {}).get("expr_ast")) for r in _ast}
+        check("⑤ 现场路由票权不再失衡（AST ≤ 公式中位 3×）+ 同族去重唯一",
               (not _live105.get("weight_concentration"))
-              and len(_evo_w) <= 2
-              and (_evo_w and max(_evo_w.values()) <= 3 * float(__import__("numpy").median(_fml_w))),
+              and bool(_evo_w) and bool(_fml_w)
+              and max(_evo_w.values()) <= 3 * _med + 1e-9
+              and len(_sigs) == len(_ast),
               f"BTC score={_live105.get('score')} action={_live105.get('action')} "
-              f"票数={len(_lv)} evo票权={_evo_w} 公式中位={float(__import__('numpy').median(_fml_w)):.5f}"
-              f" 集中度告警={_live105.get('weight_concentration')}")
+              f"票数={len(_lv)} evo票权={_evo_w} 公式中位={_med:.5f} "
+              f"集中度告警={_live105.get('weight_concentration')} "
+              f"桥接 {len(_ast)} 条/结构签名 {len(_sigs)} 个")
     else:
         check("⑤ 现场路由票权检查（取价失败 → 跳过，不误报）", True, "未能取到 BTC 市价")
 except Exception as e:
@@ -1090,6 +1098,52 @@ try:
           "不是原始因子值 ⇒ 不需要方向标注")
 except Exception as e:
     check("轮107 主脑因子层验证执行", False, f"{type(e).__name__}: {e}")
+
+# ── 轮108  中线体检：缩仓链把仓位压死 + 因子层补两块学习产物 ──────────
+print("\n── 轮108  中线体检（缩仓链地板 / 因子层补全）──")
+try:
+    # ① 缩仓链地板
+    _pe108 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/full_auto/proposal_execution.py"),
+                     encoding="utf-8").read()
+    _i_t108 = _pe108.index("[TrancheGate] DOWNSIZE")
+    _i_f108 = _pe108.index("[SizeFloor] BLOCK")
+    _i_o108 = _pe108.index("execute_paper_trade(db, session, strat, dec)")
+    try:
+        from backend.config.settings import MIDLONG_MIN_SIZE_MULT as _msm108
+    except Exception:
+        _msm108 = None
+    check("① 缩仓链地板在「所有乘子之后、下单之前」，且可回滚（0=关）",
+          _i_t108 < _i_f108 < _i_o108 and _msm108 == 0.05
+          and '_mark_block("size_below_floor"' in _pe108,
+          f"MIDLONG_MIN_SIZE_MULT={_msm108}；线上实测 V5 ×0.25 → tranche ×0.00/0.01 "
+          "⇒ 名义剩 0.25%~1%，`候选=3 成交=0` 连续数小时且无原因可查")
+
+    # ② 我自己的日志噪音（去重 INFO → DEBUG）
+    _af108 = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "backend/services/factor_engine/midlong_active_factor_set.py"),
+                     encoding="utf-8").read()
+    _i_d108 = _af108.index("AST 同族去重")
+    check("② AST 去重日志降级（曾每币每周期 3 条 INFO，日志 90MB 全是重复）",
+          "logger.debug(" in _af108[max(0, _i_d108 - 200): _i_d108 + 200],
+          "要看去重结果请用 get_health_snapshot()")
+
+    # ③ 因子层补的两块：文本简报 + 因子系统状态
+    _pack108 = _CP107.build("midlong_thesis", symbols=["BTC"])
+    _fl108 = (_pack108.layers.get("factors") or {})
+    _bt108 = ((_fl108.get("symbols") or {}).get("BTC") or {}).get("brief_text") or ""
+    _sys108 = _fl108.get("system") or {}
+    check("③ 文本版量化简报接入（此前只被已退场的 trend_agent 引用）",
+          "量化简报" in _bt108 and "数据完整度" in _bt108,
+          _bt108.splitlines()[0] if _bt108 else "（空）")
+    check("③ 因子系统状态接入（learning_readback.factor_system_snapshot → prompt）",
+          (_sys108.get("runtime_weights") or {}).get("n_file", 0) > 0,
+          f"file 权重={(_sys108.get('runtime_weights') or {}).get('n_file')} "
+          f"归零={(_sys108.get('runtime_weights') or {}).get('n_file_zero')} "
+          f"衰减样本 n={(_sys108.get('decay') or {}).get('n')} "
+          f"{(_sys108.get('decay') or {}).get('by_recommendation')}")
+except Exception as e:
+    check("轮108 中线体检验证执行", False, f"{type(e).__name__}: {e}")
 
 # ── 可用性：HTTP 端到端 ───────────────────────────────────────────────
 print("\n── 可用性：运行中后端 HTTP ──")

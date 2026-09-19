@@ -2762,6 +2762,11 @@ FACTOR_ROUTE_MIN_ACTIVE_FACTORS: int = int(os.getenv("FACTOR_ROUTE_MIN_ACTIVE_FA
 CONTEXT_PACK_FACTORS_ENABLED: bool = (
     os.getenv("CONTEXT_PACK_FACTORS_ENABLED", "true") or "true"
 ).strip().lower() in ("1", "true", "yes", "on")
+# [轮108 2026-09-19] 缩仓链地板：V5Gate × budget × MTF × tranche 相乘后
+# `size_multiplier` 低于此值 → 诚实拒绝（写 `size_below_floor` 进漏斗审计），
+# 不再默默下一张名义≈0 的单。实测线上出现 `×0.25 × ×0.00` = 0.25% 名义、
+# 而 `[MidLongBrain] 候选=3 成交=0` 连续数小时无原因可查。0 = 关闭地板。
+MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.05") or "0.05")
 # [item14 2026-08-21] AST 桥接：中线活跃集合并进化仓 TRADABLE AST 因子的上限
 MIDLONG_AST_BRIDGE_MAX: int = int(os.getenv("MIDLONG_AST_BRIDGE_MAX", "10") or "10")
 # [轮105 2026-09-19] AST 同族去重：按结构签名（数值常量归一）识别"只差窗口"的重复因子，

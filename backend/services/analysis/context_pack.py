@@ -867,8 +867,54 @@ def build_factor_layer(
             except Exception as _qb_err:
                 errors.append(f"factors:{sym_u}: 简报失败 {str(_qb_err)[:80]}")
 
+        # ③b [轮108] 文本版量化简报（`decision_core.quant_brief.build_quant_brief`）。
+        # 该模块此前只被**已退场**的 `trend_agent` 引用 —— 同样是"写好了没进 prompt"。
+        # 它给的是"先看证据质量再下结论"的口径（多周期一致性 / 结构位 / 数据完整度 +
+        # 决策指引），与 ③ 的结构化简报互补。
+        try:
+            from backend.services.decision_core.quant_brief import build_quant_brief as _bqb
+            _menv = {
+                "orchestrator": {},
+                "price": _px,
+                "indicators_1h": {k: v for k, v in
+                                  {"rsi": row.get("rsi14_1h")}.items() if v is not None},
+                "indicators_4h": {k: v for k, v in
+                                  {"rsi": row.get("rsi14_4h"), "trend": row.get("ema_trend_4h")}.items()
+                                  if v is not None},
+                "indicators_1d": {k: v for k, v in
+                                  {"rsi": row.get("rsi14_1d"), "adx": row.get("adx_1d")}.items()
+                                  if v is not None},
+                "structure_levels": {"support": row.get("range_24h_low"),
+                                     "resistance": row.get("range_24h_high")},
+                "midlong_factors": {"count": (entry.get("active") or {}).get("count") or 0},
+                "mtf_resonance": row.get("mtf_resonance") or {},
+            }
+            _txt = str(_bqb(sym_u, {sym_u: _menv}, nature="swing") or "").strip()
+            if _txt:
+                entry["brief_text"] = _txt[:1200]
+        except Exception as _bt_err:
+            errors.append(f"factors:{sym_u}: 文本简报失败 {str(_bt_err)[:80]}")
+
         if entry:
             out["symbols"][sym_u] = entry
+
+    # ④ [轮108] 因子系统状态（学习产物，全局一份）：权重覆盖/归零/负权重 + 衰减退役。
+    # `learning_readback.factor_system_snapshot()` 的 docstring 就写着"供决策 prompt 参考"，
+    # 但此前只有它自己的 CLI 在读 —— 主脑看不到"因子池现在是什么状态"。
+    try:
+        from backend.services.learning_readback import factor_system_snapshot as _fss
+        _sys = _fss(top_n=4) or {}
+        _rw = _sys.get("runtime_weights") or {}
+        if isinstance(_rw, dict) and "error" not in _rw:
+            out["system"] = {
+                "role": "证据，非指令",
+                "runtime_weights": {k: _rw.get(k) for k in (
+                    "n", "n_zero", "n_negative", "n_file", "n_file_zero", "zero_sample")},
+                "decay": _sys.get("decay") or _sys.get("decay_status") or {},
+                "backtest_attr": _sys.get("backtest_attr") or {},
+            }
+    except Exception as _sys_err:
+        errors.append(f"factors:system 失败 {str(_sys_err)[:80]}")
 
     if not out["symbols"]:
         return {}

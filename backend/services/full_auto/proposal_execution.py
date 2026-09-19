@@ -301,6 +301,33 @@ def _evaluate_and_execute_proposal_inner(
             "[TrancheGate] DOWNSIZE symbol=%s tier=%s stage→size×%.2f", sym_u, tier, _tranche_mult,
         )
 
+    # ── [轮108 2026-09-19] 缩仓链地板：多层独立缩仓相乘会把仓位压到"事实上不开" ──
+    # 实测（13:00 线上）：`[V5Gate] ×0.25` → `[TrancheGate] stage→size×0.00`，
+    # 于是 `[MidLongBrain] 开仓扫描 tier=mid 候选=3 成交=0` 连续数小时。
+    # 每一层都以为自己在"轻微打折"（V5 0.25 / budget / MTF / tranche 0.03~0.12），
+    # 但**乘起来**是 0.25% 的名义 —— 既开不出有意义的仓，也不留下任何可查的原因
+    # （live 有 `[LiveDust]` 地板，paper 没有）。
+    # 这里按同一个姿态补上：低于地板就**诚实拒绝**，并把原因写进漏斗审计
+    # （`_mark_block`），让"为什么中线一整天没开仓"一眼可查。
+    # 回滚：`MIDLONG_MIN_SIZE_MULT=0`（关闭地板）。
+    _size_mult_now = float(dec.get("size_multiplier") or 1.0)
+    try:
+        from backend.config.settings import MIDLONG_MIN_SIZE_MULT as _min_sm
+        _min_sm = float(_min_sm or 0.0)
+    except Exception:
+        _min_sm = 0.05
+    if _min_sm > 0 and _size_mult_now < _min_sm:
+        logger.info(
+            "[SizeFloor] BLOCK symbol=%s tier=%s 缩仓链乘积 size_multiplier=%.4f < 地板%.3f "
+            "→ 跳过（V5/budget/MTF/tranche 相乘后名义过小）", sym_u, tier, _size_mult_now, _min_sm,
+        )
+        host.append_event(
+            session, "size_below_floor",
+            f"[缩仓地板] {sym_u} {action} size_multiplier={_size_mult_now:.4f}<{_min_sm:.3f}",
+        )
+        _mark_block("size_below_floor", detail=f"mult={_size_mult_now:.5f} floor={_min_sm:.3f}")
+        return False
+
     logger.info("[V5Gate] PASS symbol=%s action=%s conf=%s nature=%s", sym_u, action, proposal.confidence, trade_nature)
 
     # 决策价一致性门禁：放行后、下单前，校验决策价与下单前实时价的偏离（默认关，见方法注释）
