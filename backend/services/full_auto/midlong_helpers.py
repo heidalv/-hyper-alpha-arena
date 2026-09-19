@@ -1205,6 +1205,10 @@ def try_execute_independent_agent_open(
         "invalidation_condition": invalidation_condition or "",
         "expected_hold_hours": float(expected_hold_hours or 0),
         "tranche_margin_pct": _tranche_mult,
+        # [轮117 2026-09-19] 下传 sl_pct：缩仓链地板需要把"乘子乘积"换算成**名义**才能判断
+        # 是不是"名义≈0 的废单"（乘子本身没有绝对含义 —— 六层叠乘下 0.0014 与 1.4% 名义
+        # 是两回事）。proposal_execution 用它算 base = equity × risk / sl。
+        "sl_pct": float(sl_pct or 0),
         # [M1-A] entry_source 只在非空时下发（历史调用方不受影响）
         **({"entry_source": entry_source} if entry_source else {}),
     }

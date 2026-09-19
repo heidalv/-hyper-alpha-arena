@@ -1,0 +1,20 @@
+== atr_size_multiplier 实算（use live 1d ATR）==
+   ASTER    atr_1d= 6.62%  sl= 1.5%  → ×1.000  atr=6.62% ref_sl=9.93% trade_sl=1.50% →×1.00
+   ASTER    atr_1d= 6.62%  sl= 3.0%  → ×1.000  atr=6.62% ref_sl=9.93% trade_sl=3.00% →×1.00
+   ASTER    atr_1d= 6.62%  sl= 5.0%  → ×1.000  atr=6.62% ref_sl=9.93% trade_sl=5.00% →×1.00
+   UNI      atr_1d=11.32%  sl= 1.5%  → ×1.000  atr=11.32% ref_sl=16.98% trade_sl=1.50% →×1.00
+   UNI      atr_1d=11.32%  sl= 3.0%  → ×1.000  atr=11.32% ref_sl=16.98% trade_sl=3.00% →×1.00
+   UNI      atr_1d=11.32%  sl= 5.0%  → ×1.000  atr=11.32% ref_sl=16.98% trade_sl=5.00% →×1.00
+   BNB      atr_1d= 3.72%  sl= 1.5%  → ×1.000  atr=3.72% ref_sl=5.58% trade_sl=1.50% →×1.00
+   BNB      atr_1d= 3.72%  sl= 3.0%  → ×1.000  atr=3.72% ref_sl=5.58% trade_sl=3.00% →×1.00
+   BNB      atr_1d= 3.72%  sl= 5.0%  → ×1.000  atr=3.72% ref_sl=5.58% trade_sl=5.00% →×1.00
+
+== brain 的 margin 现值（模拟 live 分支）==
+   compute_margin_pct(BUILD, stage0) = 0.3
+   夹紧后 max(0.04, min(0.20, 0.30)) = 0.2   ← 注意上界 0.20
+
+== 从日志反推（16:27:38 ASTER 那条）==
+   size_multiplier=0.0009，V5=0.25，MTF=0.60
+   ⇒ 到达 proposal_execution 的 tranche = 0.0009/(0.25*0.60) = 0.0060
+   ⇒ 若 regime 探针 ×0.25 已作用于 margin：margin_in = 0.0240
+   ⇒ ⇒ 若 margin 上界 0.20：ATR/其它乘子 = 0.1200

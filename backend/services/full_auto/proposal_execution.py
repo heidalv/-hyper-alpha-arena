@@ -348,18 +348,68 @@ def _evaluate_and_execute_proposal_inner(
         from backend.config.settings import MIDLONG_MIN_SIZE_MULT as _min_sm
         _min_sm = float(_min_sm or 0.0)
     except Exception:
-        _min_sm = 0.05
+        _min_sm = 0.02
     if _min_sm > 0 and _size_mult_now < _min_sm:
-        logger.info(
-            "[SizeFloor] BLOCK symbol=%s tier=%s 缩仓链乘积 size_multiplier=%.4f < 地板%.3f "
-            "→ 跳过（V5/budget/MTF/tranche 相乘后名义过小）", sym_u, tier, _size_mult_now, _min_sm,
-        )
-        host.append_event(
-            session, "size_below_floor",
-            f"[缩仓地板] {sym_u} {action} size_multiplier={_size_mult_now:.4f}<{_min_sm:.3f}",
-        )
-        _mark_block("size_below_floor", detail=f"mult={_size_mult_now:.5f} floor={_min_sm:.3f}")
-        return False
+        # ── [轮117 2026-09-19] 先判"是不是废单"，再决定拒绝还是抬到**最小试探仓** ──
+        # 现场（16:34 日志，ASTER mid）：六层同维度缩仓叠乘
+        #   位置闸×0.25 × regime探针×0.25 × swing共识×0.50 × V5×0.25 × MTF×0.60
+        #   × brain 上界(0.30→0.20) = **0.0014** ⇒ 名义只有计划的 0.14% ⇒ 每次都被拒 ⇒ 中线冻结。
+        # 乘子本身没有绝对含义，关键是**名义**：base = equity × MIDLONG_RISK_PCT / sl_pct。
+        # 若名义低于最小试探仓（默认 $60），旧行为是"诚实拒绝"（=用户看到的冻结）；
+        # 新行为把它**抬到最小试探仓**（同时打审计），因为该车道开着
+        # `MIDLONG_ALLOW_RANGE_PROBE`（本意就是"不利行情里用小仓试探、攒证据"）——
+        # $13 的仓位攒不到证据（手续费就吃掉），$60 的可以。
+        # 关闭：`MIDLONG_MIN_PROBE_NOTIONAL_USD=0` ⇒ 回到"算不出/过小就拒绝"。
+        _sl_dec = 0.0
+        try:
+            _sl_dec = float((getattr(proposal, "extra", None) or {}).get("sl_pct") or 0)
+        except Exception:
+            _sl_dec = 0.0
+        _base_notional = 0.0
+        try:
+            from backend.config.settings import MIDLONG_RISK_PCT as _risk_pct
+            if _equity > 0 and _sl_dec > 0:
+                _base_notional = float(_equity) * float(_risk_pct or 0.01) / _sl_dec
+        except Exception:
+            _base_notional = 0.0
+        try:
+            from backend.config.settings import MIDLONG_MIN_PROBE_NOTIONAL_USD as _probe_usd
+            _probe_usd = float(_probe_usd or 0.0)
+        except Exception:
+            _probe_usd = 60.0
+        _est_notional = _base_notional * _size_mult_now
+        if _probe_usd > 0 and _base_notional > 0 and _est_notional < _probe_usd:
+            _clamped = min(1.0, _probe_usd / _base_notional)
+            logger.info(
+                "[SizeFloor] PROBE-CLAMP symbol=%s tier=%s 叠乘后 size_multiplier=%.4f "
+                "(估算名义 $%.2f < 最小试探 $%.0f) → 抬到 ×%.4f（名义≈$%.2f；"
+                "六层同维度缩仓不得把仓位压成废单）",
+                sym_u, tier, _size_mult_now, _est_notional, _probe_usd, _clamped,
+                _base_notional * _clamped,
+            )
+            dec["size_multiplier"] = _clamped
+            try:
+                host.append_event(
+                    session, "size_probe_clamped",
+                    f"[缩仓抬底] {sym_u} {action} 叠乘 {_size_mult_now:.4f}→{_clamped:.4f}"
+                    f"（名义 ${_est_notional:.2f}→${_base_notional * _clamped:.2f}）",
+                )
+            except Exception:
+                pass
+            _size_mult_now = _clamped
+        else:
+            logger.info(
+                "[SizeFloor] BLOCK symbol=%s tier=%s 缩仓链乘积 size_multiplier=%.4f < 地板%.3f "
+                "→ 跳过（V5/budget/MTF/tranche 相乘后名义过小；"
+                "估算名义 $%.2f，base=$%.2f sl=%.4f）",
+                sym_u, tier, _size_mult_now, _min_sm, _est_notional, _base_notional, _sl_dec,
+            )
+            host.append_event(
+                session, "size_below_floor",
+                f"[缩仓地板] {sym_u} {action} size_multiplier={_size_mult_now:.4f}<{_min_sm:.3f}",
+            )
+            _mark_block("size_below_floor", detail=f"mult={_size_mult_now:.5f} floor={_min_sm:.3f}")
+            return False
 
     logger.info("[V5Gate] PASS symbol=%s action=%s conf=%s nature=%s", sym_u, action, proposal.confidence, trade_nature)
 

@@ -1057,6 +1057,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "FACTOR_ROUTE_AST_IC_CAP",           # 轮105：AST 桥接 ic_mean(实为ICIR) 幅度封顶
     "CONTEXT_PACK_FACTORS_ENABLED",      # 轮107：主脑上下文因子层开关
     "MIDLONG_MIN_SIZE_MULT",             # 轮108：缩仓链地板（低于则诚实拒绝）
+    "MIDLONG_MIN_PROBE_NOTIONAL_USD",    # 轮117：叠乘后名义过小 ⇒ 抬到最小试探仓而不是拒绝
     "MIDLONG_TRANCHE_FROM_GATE",         # 轮117：分档系数改由 tranche_gate 单一来源
     "MIDLONG_MID_FACTOR_ROUTE_SHADOW",   # 轮109：因子路由影子档（只决策不开仓）
     "PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM",  # 轮115：同因拦截冷却的解冻语义（计数归零）
@@ -2337,3 +2338,4 @@ def _cli() -> int:
 
 if __name__ == "__main__":
     sys.exit(_cli())
+

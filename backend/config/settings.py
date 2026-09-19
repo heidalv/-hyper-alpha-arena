@@ -2780,6 +2780,16 @@ CONTEXT_PACK_FACTORS_ENABLED: bool = (
 # $52 / $26 —— 是**正常小仓**，不是当年要拒的"名义≈0"（0.0005×$700 = $0.35）。
 # 地板降到 0.02（≈ $14）后，既不再误杀试探档，也仍然拦住病态乘积。
 MIDLONG_MIN_SIZE_MULT: float = float(os.getenv("MIDLONG_MIN_SIZE_MULT", "0.02") or "0.02")
+# [轮117 2026-09-19] 缩仓链**最小试探名义**（USD，默认 60；0 = 关闭 = 回到"过小就拒绝"）。
+# 现场：中线一次开仓要过六层同维度缩仓（位置闸 0.25 × regime探针 0.25 × swing共识 0.50
+# × V5 0.25 × MTF 0.60 × brain 上界 0.20/0.30）⇒ 乘子乘积 **0.0014** ⇒ 名义只有计划的
+# 0.14% ⇒ 每次都被 `[SizeFloor] BLOCK` ⇒ **中线冻结一整天**。
+# 乘子没有绝对含义，名义才有：base = equity × MIDLONG_RISK_PCT / sl_pct。
+# 低于本值时把仓位**抬到该名义**（而不是拒绝）—— 该车道本就开着
+# `MIDLONG_ALLOW_RANGE_PROBE`（不利行情用小仓试探、攒证据）；$13 的仓位攒不到证据。
+MIDLONG_MIN_PROBE_NOTIONAL_USD: float = float(
+    os.getenv("MIDLONG_MIN_PROBE_NOTIONAL_USD", "60") or "60"
+)
 # [轮109 2026-09-19] 因子路由**影子档**：`MIDLONG_MID_VIA_FACTOR_ROUTE=false` 时
 # 不再开仓，但仍逐币决策并记 `[FactorRouteShadow]`（证据不断）。
 # 依据：`entry_source=factor_route` 34 笔净 −103.55（笔均 −3.05），
