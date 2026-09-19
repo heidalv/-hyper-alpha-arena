@@ -41,6 +41,16 @@ def _src(rel):
 # 一、单币连亏冻结恢复
 # ══════════════════════════════════════════════════════════════════════
 
+class _ActiveStrat:
+    """真实形状的 active 策略（account 与会话一致 ⇒ 可绑定）。"""
+
+    def __init__(self, status="active", account_id=14):
+        self.status = status
+        self.account_id = account_id
+        self.strategy_id = "tpl_test_active"
+
+
+
 def test_paper_loss_recording_restored():
     src = _src("backend/services/full_auto/midlong_circuit_gate.py")
     i = src.index("轮120 2026-09-19 **用户拍板恢复**")
@@ -159,7 +169,7 @@ def test_probe_behaviour(monkeypatch):
     class _Host:
         @staticmethod
         def resolve_independent_strategy(db, session, sym, tier):
-            return object()
+            return _ActiveStrat()
 
     class _Session:
         session_id = "fa_test"

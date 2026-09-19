@@ -86,16 +86,29 @@ def _sweep_src():
     return src[i: j if j > 0 else len(src)]
 
 
+class _ActiveStrat:
+    """真实形状的 active 策略（account 与会话一致 ⇒ 可绑定）。"""
+
+    def __init__(self, status="active", account_id=14):
+        self.status = status
+        self.account_id = account_id
+        self.strategy_id = "tpl_test_active"
+
+
+
 def test_sweep_skips_candidates_without_strategy():
     seg = _sweep_src()
     assert "resolve_independent_strategy" in seg, "必须在扫描入口解析独立策略"
     assert "sweep_skip:no_strategy" in seg, "跳过必须留审计（否则又是一条无信息事件）"
-    assert "_bump(\"no_strategy\")" in seg
+    # [轮122] 计数按三种不可用形态分开记（无策略 / 非 active / 绑不上）
+    assert '_bump("no_strategy" if _strat is None else (' in seg
+    assert '"strategy_inactive"' in seg and '"strategy_unbound"' in seg
 
 
 def test_sweep_log_distinguishes_reasons():
     seg = _sweep_src()
-    for k in ("no_thesis", "not_recommended", "stale", "has_position", "no_strategy"):
+    for k in ("no_thesis", "not_recommended", "stale", "has_position", "no_strategy",
+              "strategy_inactive", "strategy_unbound"):
         assert f'"{k}"' in seg, f"扫描统计缺少分类 {k}"
     assert "未进候选" in seg, "日志必须把分类打出来"
 
@@ -128,7 +141,9 @@ def test_sweep_behavior_with_stub_host(monkeypatch):
     class _Host:
         @staticmethod
         def resolve_independent_strategy(db, session, sym, tier):
-            return None if sym == "ZEC" else object()
+            if sym == "ZEC":
+                return None
+            return _ActiveStrat()
 
     class _Session:
         session_id = "fa_test"

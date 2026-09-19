@@ -2501,13 +2501,33 @@ def run_midlong_open_sweep(
                 _db_s = SessionLocal()
                 try:
                     _strat = _resolve(_db_s, session, sym, tier_l)
-                    # [轮122 2026-09-19 ZEC 根除] 解析到的策略**必须是 active**。
-                    # 实测：ZEC 有 `tpl_mid_reversion_a9e8e8` 但 **status=paused**
-                    # ⇒ 入口解析拿到对象（非 None）就放行，执行层却要 active
-                    # ⇒ `strategy_detached` ⇒ 5 次同因 ⇒ 30 分钟冷却 ⇒ 无限循环。
+                    # [轮122 2026-09-19 ZEC 根除] 解析到的策略必须
+                    #   ① status=active（`resolve_independent_strategy` 三个分支都要求 active，
+                    #      但 ZEC 的 `tpl_mid_reversion_a9e8e8` 是 **paused**）；
+                    #   ② **能绑定到本会话/本账户** —— 该函数在 paper 下有"跨账户兜底"
+                    #      （取任何账户的同币 active 策略），拿到的对象执行层
+                    #      `ensure_bound_strategy` 绑不上 ⇒ `strategy_detached`
+                    #      ⇒ 5 次同因 ⇒ 30 分钟冷却 ⇒ 无限循环（ZEC 实测）。
+                    # 两道都过才放行；否则记 `no_strategy` / `strategy_inactive` /
+                    # `strategy_unbound` 并跳过（不再进执行层制造冷却）。
                     _st_status = str(getattr(_strat, "status", "") or "").lower()
-                    if _strat is None or (_st_status and _st_status != "active"):
-                        _bump("no_strategy" if _strat is None else "strategy_inactive")
+                    _ok_bind = False
+                    if _strat is not None and _st_status in ("", "active"):
+                        try:
+                            _sess_ids = {str(x) for x in (
+                                getattr(session, "active_strategy_ids", None) or [])}
+                            _acct_t = (getattr(session, "paper_account_id", None)
+                                       or getattr(session, "account_id", None))
+                            _sid_s = str(getattr(_strat, "strategy_id", "") or "")
+                            _acct_s = int(getattr(_strat, "account_id", 0) or 0)
+                            _ok_bind = (_sid_s and _sid_s in _sess_ids) or (
+                                _acct_t is not None and _acct_s == int(_acct_t))
+                        except Exception:
+                            _ok_bind = False
+                    if _strat is None or (not _ok_bind):
+                        _bump("no_strategy" if _strat is None else (
+                            "strategy_inactive" if _st_status not in ("", "active")
+                            else "strategy_unbound"))
                         _now = time.time()
                         if _now - float(_no_strategy_logged.get(sym) or 0) > 1800:
                             _no_strategy_logged[sym] = _now

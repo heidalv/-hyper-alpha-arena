@@ -6093,12 +6093,25 @@ def get_ai_mid_candidates_for_session(
             # 已换代，sticky 视为过期立即重采（池子跟随「最新看板」，而非自己的计时器；
             # _resample 只防同代抖动）。用户实测：按计时器跟随会让池滞后看板一整轮。
             try:
+                # [轮122 2026-09-19 修「看板换代即重采」失效] 原用
+                # `coin_select_scans.finished_at`（status='done'）当换代时间戳，
+                # 实测它**停在 2026-09-19 15:52** 而候选表 `coin_select_candidates`
+                # 一直写到 23:52 ⇒ `sticky_ts >= _board_ts` 恒真 ⇒ 换代检测形同虚设，
+                # 池子只能靠 30 分钟计时器换血（用户看到"名单和看板对不上"的第二因）。
+                # 改用**池子真正消费的那张表**的生成时间（候选 created_at），
+                # 语义直接对应"看板出新一轮了吗"。
                 _board_ts = float(db.execute(_sa_text(
-                    "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(finished_at)), 0) "
-                    "FROM coin_select_scans WHERE status = 'done'"
-                )).scalar() or 0)
+                    "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(created_at)), 0) "
+                    "FROM coin_select_candidates WHERE horizon = ANY(:hzs)"
+                ), {"hzs": ["mid", "midlong"]}).scalar() or 0)
             except Exception:
-                _board_ts = 0.0
+                try:
+                    _board_ts = float(db.execute(_sa_text(
+                        "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(finished_at)), 0) "
+                        "FROM coin_select_scans WHERE status = 'done'"
+                    )).scalar() or 0)
+                except Exception:
+                    _board_ts = 0.0
             # [2026-09-17] _resample 语义降级为「查询节流」：节流窗内且看板未换代
             # → 沿用 sticky（免高频查库）。真正的轮换在换代/到期后的留存式评估里做。
             if (
