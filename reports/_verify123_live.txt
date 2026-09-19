@@ -1,0 +1,24 @@
+== 会话 AI 中线池（落盘）==
+   mid = {'symbols': ['AAVE', 'SYN', 'ADA'], 'updated_at': 1789835669.3068452, 'reason': 'retention kept=3 evicted=[] added=[] from midlong_board min_conf=0.4'}
+
+== 看板最新一轮（horizon=mid）==
+   ('AAVE', 0.68, 'approve')
+   ('ADA', 0.5, 'watch')
+   ('APT', 0.45, 'watch')
+   ('LINK', 0.42, 'watch')
+   ('ATOM', 0.4, 'watch')
+   ('DOGE', 0.4, 'watch')
+   ('OP', 0.4, 'watch')
+   ('AVAX', 0.4, 'watch')
+   ('DOT', 0.4, 'watch')
+   ('SEI', 0.3, 'reject')
+   ('SUI', 0.3, 'reject')
+
+== 看板换代时间（新判据：候选表 MAX(created_at)）==
+   2026-09-20 00:31:49.870659
+   （旧判据 coin_select_scans.finished_at 停在 15:52 —— 本轮已弃用）
+
+== ZEC ==
+   ('tpl_mid_reversion_a9e8e8', 'paused', 'mid')
+   ('tpl_short_range_a0d282', 'paused', 'short')
+   池内是否仍含 ZEC: False
