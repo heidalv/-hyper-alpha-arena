@@ -1,0 +1,9 @@
+== 本次 boot(16:2x) 之后的 open_execute_false 原因 ==
+
+== 今天 13:00 起的原因全貌（含修复前后对照）==
+    ('eval_false:size_below_floor', 10, datetime.datetime(2026, 9, 19, 13, 12, 20, 718496), datetime.datetime(2026, 9, 19, 15, 57, 4, 327763))
+    ('evaluate_and_execute_returned_false', 4, datetime.datetime(2026, 9, 19, 13, 12, 30, 658683), datetime.datetime(2026, 9, 19, 14, 10, 0, 297713))
+    ('eval_false:cooldown:size_below_floor', 3, datetime.datetime(2026, 9, 19, 14, 26, 35, 814638), datetime.datetime(2026, 9, 19, 16, 14, 7, 588897))
+    ('eval_false:cooldown:v5gate', 2, datetime.datetime(2026, 9, 19, 15, 43, 42, 249423), datetime.datetime(2026, 9, 19, 15, 57, 5, 152033))
+    ('eval_false:cooldown:long_template_source_block', 1, datetime.datetime(2026, 9, 19, 15, 8, 51, 385922), datetime.datetime(2026, 9, 19, 15, 8, 51, 385922))
+    ('eval_false:long_template_source_block', 1, datetime.datetime(2026, 9, 19, 14, 37, 34, 909566), datetime.datetime(2026, 9, 19, 14, 37, 34, 909566))
