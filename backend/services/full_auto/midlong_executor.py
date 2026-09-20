@@ -361,6 +361,8 @@ def execute_midlong_open(
     reason: str = "",
     trading_mode: str = "paper",
     skip_regime: bool = False,
+    # [轮146 方案 B] 小仓探针标记（由 brain.maybe_open 透传；空串=非探针）
+    probe_entry: str = "",
     thesis_dir: str = "",
     hub_dir: str = "",
     hub_mode: str = "",
@@ -722,6 +724,8 @@ def execute_midlong_open(
             # [M1-A 2026-08-21] 入场来源落库（factor_route/trend/mlto），
             # 写入持仓 exit_state_json["entry_source"]，出场分流据此识别因子仓。
             entry_source=str(source or ""),
+            # [轮146 方案 B] 透传"是否小仓探针"（风控官据此不适用辩论否决）
+            probe_entry=str(probe_entry or ""),
         )
     )
 

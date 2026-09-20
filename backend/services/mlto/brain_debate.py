@@ -594,6 +594,9 @@ def _persist(thesis_id: str, symbol: str, tier: str, proposal: Dict[str, Any], o
                         "horizon_conflict": out.get("horizon_conflict"),
                         "horizons_insufficient": out.get("horizons_insufficient"),
                         "risk_min": out.get("risk_min"),
+                        # [轮146] 落库分周期明细（net/方向/裁决）：轮145 模拟时发现**缺这一项**
+                        # ⇒ 只能拿总 net 做代理，无法精确评估"只否强反向"这类阈值方案。
+                        "horizons": out.get("horizons"),
                     }, ensure_ascii=False)[:4000],
                     cited_event_ids_json=json.dumps([]),
                 ))

@@ -2059,6 +2059,9 @@ def maybe_open(
             hub_dir=thesis.direction,
             hub_mode="llm_brain",
             dir_src="midlong_thesis",
+            # [轮146 方案 B] 把"这是小仓探针"显式下传：风控官据此不适用辩论否决
+            # （否则该否决会掐掉所有 waiting_pullback 探针 —— 近 24h 实测 210 次）。
+            probe_entry=str(getattr(thesis, "_probe_entry", "") or ""),
         ))
         if opened:
             logger.info(

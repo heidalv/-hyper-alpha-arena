@@ -110,6 +110,7 @@ def evaluate_open(
     sl_pct: float = 0.0,
     session_id: str = "",
     thesis_id: str = "",
+    is_probe: bool = False,
     persist: bool = True,
 ) -> Dict[str, Any]:
     """开仓前的**权威风控判定**。返回 {allow, reason, checks, inputs, debate}。"""
@@ -167,13 +168,16 @@ def evaluate_open(
             checks.append({"name": "notional_pct", "ok": True, "value": round(pct, 3), "cap": cap})
 
     # ── 3) 辩论风险姿态（**只否决"方向与辩论相反"的探针**，同向放行）──
-    # [轮142 2026-09-20 用户指令] 用户原话：「放宽：只否决"方向与辩论相反"的探针，同向的放行」。
-    # 旧口径（主周期 reject + 风险共识低 ⇒ 否决）在实测中把大量 `waiting_pullback` 探针也否掉了
-    # （审计里 `risk_officer_veto:debate_reject:intraday:risk0`），因为"日内偏弱/观望"很常见。
-    # 新口径：辩论主周期给出**明确方向**且与本次开仓方向**相反** ⇒ 否决；
-    #         同向（或辩论无方向）⇒ 放行（那只是"观望/偏弱"，不是"反对"）。
+    # [轮142 2026-09-20 用户指令] 「放宽：只否决"方向与辩论相反"的探针，同向的放行」。
+    # [轮146 2026-09-21 用户指令·方案 B] 「走 b」= **否决权只管"正常档开仓"，不管小仓探针**：
+    #   探针（NIBBLE 小仓）本就是"允许小仓位试"的落地，辩论的作用应体现在**规模**上；
+    #   大仓逆着辩论仍被否决 ⇒ 否决权不废，只是不再掐死小仓。
+    #   依据（轮145 模拟）：近 24h 210 次反向否决里 100% 都是探针场景，
+    #   且辩论净倾向中位 0、|net| 从不 ≥0.30（"只否强反向"实际等于关掉否决）。
+    #   开关：`RISK_OFFICER_DEBATE_VETO_PROBE`（默认 false=探针不看辩论姿态）。
     debate: Optional[Dict[str, Any]] = None
-    if enabled() and _flag("RISK_OFFICER_VETO_ON_DEBATE_REJECT", "true"):
+    _veto_probe = _flag("RISK_OFFICER_DEBATE_VETO_PROBE", "false")
+    if enabled() and _flag("RISK_OFFICER_VETO_ON_DEBATE_REJECT", "true") and not (is_probe and not _veto_probe):
         try:
             from backend.services.mlto.brain_debate import debate_context
 
@@ -190,13 +194,26 @@ def evaluate_open(
                                          "primary_verdict": pv, "risk_min": rmin,
                                          "side": side_l, "opposes": opposes,
                                          "horizon_verdicts": debate.get("horizon_verdicts")},
-                               "policy": "只否决方向相反"})
+                               "policy": "只否决方向相反（正常档）"})
                 if opposes:
                     reasons.append(f"debate_opposes:{debate.get('primary_horizon')}:{dd}!={side_l}")
             else:
                 checks.append({"name": "debate_posture", "ok": True, "skipped": "近期无该标的辩论记录"})
         except Exception as exc:  # noqa: BLE001
             checks.append({"name": "debate_posture", "ok": True, "error": f"{type(exc).__name__}: {str(exc)[:80]}"})
+    elif is_probe and not _veto_probe:
+        # 探针豁免：**显式记录**（不静默），并保留辩论姿态供复盘
+        try:
+            from backend.services.mlto.brain_debate import debate_context as _dc
+
+            debate = _dc(sym_u, tier, hours=_num("RISK_OFFICER_DEBATE_MAX_AGE_H", 3.0))
+        except Exception:  # noqa: BLE001
+            debate = None
+        checks.append({"name": "debate_posture", "ok": True,
+                       "skipped": "小仓探针不适用辩论否决（方案 B）",
+                       "value": ({"primary_direction": (debate or {}).get("primary_direction"),
+                                  "primary_verdict": (debate or {}).get("primary_verdict")}
+                                 if debate else None)})
 
     allow = not reasons
     reason = ";".join(reasons)[:200]

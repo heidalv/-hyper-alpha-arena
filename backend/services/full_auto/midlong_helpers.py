@@ -529,6 +529,8 @@ def try_execute_independent_agent_open(
     # [M1-A 2026-08-21] 入场来源（trend/mlto/factor_route），透传到
     # TradeProposal.extra → 持仓 exit_state_json["entry_source"]，出场分流用。
     entry_source: str = "",
+    # [轮146 方案 B] 小仓探针标记：风控官据此不适用"辩论反向否决"（大仓仍适用）
+    probe_entry: str = "",
 ) -> bool:
     from backend.services.decision_core.proposal import TradeProposal
 
@@ -1242,6 +1244,8 @@ def try_execute_independent_agent_open(
                 sl_pct=float(sl_pct or 0),
                 session_id=str(getattr(session, "session_id", "") or ""),
                 thesis_id=_ro_thesis_id,
+                # [轮146 方案 B] 小仓探针 ⇒ 不适用辩论否决（其余检查照旧全部执行）
+                is_probe=bool(probe_entry) or (float(_tranche_mult or 0) <= 0.20),
             )
             if not _ro["allow"]:
                 logger.warning("[RiskOfficer] BLOCK %s %s: %s", _sym_u, _act, _ro["reason"])

@@ -93,14 +93,40 @@ def test_debate_veto_only_when_direction_opposes(monkeypatch):
                                          "primary_verdict": "reject",
                                          "risk_min": 0.2,
                                          "horizon_verdicts": {"intraday": "reject"}})
-    # 反向：辩论说 short，本次要做 long ⇒ 否决
-    r_opp = _eval(side="long", planned_notional_usd=300.0)
+    # 反向：辩论说 short，本次要做 long ⇒ 否决（**非探针**）
+    r_opp = _eval(side="long", planned_notional_usd=300.0, is_probe=False)
     assert r_opp["allow"] is False and "debate_opposes" in r_opp["reason"], r_opp["reason"]
     # 同向：辩论说 short，本次也做 short ⇒ 放行（即使主周期 reject）
-    r_same = _eval(side="short", planned_notional_usd=300.0)
-    assert r_same["allow"] is True, f"同向探针不该被否：{r_same['reason']}"
+    r_same = _eval(side="short", planned_notional_usd=300.0, is_probe=False)
+    assert r_same["allow"] is True, f"同向不该被否：{r_same['reason']}"
     con = [c for c in r_same["checks"] if c["name"] == "debate_posture"][0]
     assert con["ok"] is True and con["value"]["opposes"] is False
+
+
+def test_probe_bypasses_debate_veto_but_not_other_checks(monkeypatch):
+    """[轮146 用户指令·方案 B] 小仓探针不适用辩论否决；**其余检查照旧**。
+
+    依据（轮145 模拟）：近 24h 210 次反向否决 100% 是探针场景，且辩论净倾向中位 0、
+    |net| 从不 ≥0.30（"只否强反向"等于关掉否决）⇒ 让否决只管正常档开仓。
+    """
+    monkeypatch.setattr(
+        "backend.services.mlto.brain_debate.debate_context",
+        lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday",
+                                         "primary_direction": "short",
+                                         "primary_verdict": "reject", "risk_min": 0.2})
+    # 探针 + 反向 ⇒ 放行（豁免辩论）
+    r_probe = _eval(side="long", planned_notional_usd=300.0, is_probe=True)
+    assert r_probe["allow"] is True, f"探针不该被辩论否：{r_probe['reason']}"
+    skip = [c for c in r_probe["checks"] if c["name"] == "debate_posture"][0]
+    assert "探针" in str(skip.get("skipped")), "豁免必须显式记录（不静默）"
+    # 但宪法/名义等检查仍必须执行：探针 + 保证金 40% ⇒ 仍否决
+    r_bad = _eval(side="long", planned_notional_usd=1200.0, leverage=3.0, is_probe=True)
+    assert r_bad["allow"] is False and "single_margin" in r_bad["reason"], \
+        "探针豁免只针对辩论否决，不得绕过宪法红线"
+    # 开关：显式要求连探针也按辩论否决 ⇒ 恢复否决
+    monkeypatch.setenv("RISK_OFFICER_DEBATE_VETO_PROBE", "true")
+    r_on = _eval(side="long", planned_notional_usd=300.0, is_probe=True)
+    assert r_on["allow"] is False and "debate_opposes" in r_on["reason"]
 
 
 def test_debate_without_direction_never_vetoes(monkeypatch):
@@ -110,7 +136,7 @@ def test_debate_without_direction_never_vetoes(monkeypatch):
         lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday",
                                          "primary_direction": "neutral",
                                          "primary_verdict": "reject", "risk_min": 0.1})
-    r = _eval(side="long", planned_notional_usd=300.0)
+    r = _eval(side="long", planned_notional_usd=300.0, is_probe=False)
     assert r["allow"] is True, f"辩论无方向时不该否决：{r['reason']}"
 
 
