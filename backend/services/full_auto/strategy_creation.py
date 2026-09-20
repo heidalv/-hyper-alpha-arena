@@ -32,6 +32,24 @@ def build_strategy_creation_host(svc) -> StrategyCreationHost:
 def try_create_from_template(db, symbol: str, tier: str,
                             account_id: int, risk_level: str,
                             trading_mode: str) -> Optional[str]:
+    # ── [轮151 2026-09-21] **long 车道不接模板族**：补建路径此前仍「优先从模板创建」，
+    # 于是铸出 `tpl_long_swing_*` 又被轮40 的规则拒（`proposal_execution`：
+    # 模板族只做 mid）⇒ 实测 UNI/long **15 次/小时**空转，全库 `tpl_long*` 策略积压
+    # **669 个**（9 个 active）。这里按**同一配置**提前跳过模板路径，
+    # 让 `auto_create_strategy` 走非模板回退（前缀不是 tpl_ ⇒ 不再被该规则拦）。
+    # 回滚：MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false（那时 long 可再用模板族）。
+    try:
+        from backend.config.settings import (
+            MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES as _lbt_skip_tpl,
+        )
+    except Exception:  # noqa: BLE001
+        _lbt_skip_tpl = True
+    if _lbt_skip_tpl and str(tier or "").lower() == "long":
+        logger.info(
+            "[FullAuto] long 车道跳过模板族建策略（轮40 决策：模板族只做 mid）symbol=%s",
+            symbol,
+        )
+        return None
     try:
         from backend.database.models import StrategyTemplate
         # 查找匹配 tier 的高评分模板（rating >= 3.0）
