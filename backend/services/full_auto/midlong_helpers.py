@@ -959,6 +959,19 @@ def try_execute_independent_agent_open(
         _tranche_mult = max(0.0, min(1.0, float(_tranche_mult) * float(_atr_size_mult or 1.0)))
     except Exception:
         pass
+    # ── [轮137 2026-09-20] 六分析师信号的**规模通道**（不是门槛置信度）──────────────
+    # 教训（轮136 实测）：把倾向折减写进 `llm_conviction` 会撞 `[V5Gate] rule=confidence`
+    # 的 30% 门槛 ⇒ "去风险"变成**硬拦**（辩论 ×0.6 让 40→24，25~28% 被拦 20 次）。
+    # 故此处只作用于**规模**，门槛继续看 LLM 原始置信度；乘子有界 [0.80, 1.10]。
+    # 开关：ANALYST_BLEND_SIZE_ENABLED（默认 true）；停用即恒为 1.0。
+    try:
+        from backend.services.analysts.service import size_multiplier as _analyst_size_mult
+        _as_mult, _as_note = _analyst_size_mult(_sym_u, tier=str(tier or "mid"))
+        if abs(float(_as_mult) - 1.0) > 1e-6:
+            logger.info("[AnalystSize] %s tier=%s ×%.3f（%s）", _sym_u, tier, _as_mult, _as_note)
+            _tranche_mult = max(0.0, min(1.0, float(_tranche_mult) * float(_as_mult)))
+    except Exception as _as_err:
+        logger.debug("[AnalystSize] 跳过(fail-open): %s", _as_err)
     # [轮117 2026-09-19 乘子链留痕] 中线"开不出来"排查时，日志里只有各层的 `size×0.xx`
     # 与最终乘积，缺"**这个值从哪来**"。这里把入参/ATR 项/出参一次打全，
     # 以后任何"被压成 0"都能一眼定位是哪一层（而不是靠反推）。

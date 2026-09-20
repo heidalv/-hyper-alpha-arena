@@ -1549,6 +1549,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # KlineAnalyst 每 24h 烧 ~222 次 LLM，但 `_warmup_analyst_reports` 丢弃返回值 ⇒
     # kline_ai_analysis_logs 0 行、kline_deep 域只能报 missing（用户指令：不要为省预算而不落库）。
     "KLINE_DEEP_PERSIST_ENABLED",          # 默认 true；false=恢复"只预热不落库"
+    # [轮137 2026-09-20] 六分析师信号的**规模通道**（analysts/service.py::size_multiplier）：
+    # 轮136 教训 —— 折减写回 llm_conviction 会撞 [V5Gate] rule=confidence 的 30% 门槛，
+    # 把"去风险"变成硬拦。故分析师/辩论倾向只作用于规模，门槛永远看 LLM 原始置信度。
+    "ANALYST_BLEND_SIZE_ENABLED",          # 默认 true；false=规模乘子恒 1.0（回滚）
+    "ANALYST_BLEND_SIZE_GAIN",             # 规模增益（默认 0.20，乘子夹在 [0.80, 1.10]）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

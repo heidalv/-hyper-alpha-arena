@@ -157,6 +157,36 @@ def latest_signals(symbols: Optional[Sequence[str]] = None, *, within_hours: Opt
     return out
 
 
+#: 规模通道的边界（分析师倾向只作用于**规模**，且必须有界）
+SIZE_MULT_MIN, SIZE_MULT_MAX = 0.80, 1.10
+
+
+def size_multiplier(symbol: str, *, tier: str = "mid") -> tuple:
+    """六分析师信号的**规模乘子**（轮137）—— 返回 `(mult, note)`。
+
+    为什么走规模而不是 conviction（**轮136 的教训**）：`llm_conviction` 同时是下游门槛的
+    confidence 输入（`[V5Gate] rule=confidence` 要求 ≥30%），把折减写回去会让"去风险"变成
+    **硬拦**（实测辩论 ×0.6 使 40→24 ⇒ 25~28% 撞门槛 20 次）。所以：
+      · 门槛永远看 **LLM 原始置信度**；
+      · 分析师/辩论的倾向只调**规模**（本函数），有界 [0.80, 1.10]。
+    开关：`ANALYST_BLEND_SIZE_ENABLED`（默认 true）、`ANALYST_BLEND_SIZE_GAIN`（默认 0.20）。
+    """
+    if (os.getenv("ANALYST_BLEND_SIZE_ENABLED", "true") or "true").strip().lower() not in (
+            "1", "true", "yes", "on"):
+        return 1.0, "规模通道已停用"
+    try:
+        r = blend_for_symbol(symbol, tier=tier, conviction=0.0)
+    except Exception as exc:  # noqa: BLE001
+        return 1.0, f"计算失败 {type(exc).__name__}"
+    n = int(r.get("n_domains") or 0)
+    if n <= 0:
+        return 1.0, "无可用域信号"
+    score = float(r.get("analyst_score") or 0.0)
+    gain = float(os.getenv("ANALYST_BLEND_SIZE_GAIN", "0.20") or 0.20)
+    mult = max(SIZE_MULT_MIN, min(SIZE_MULT_MAX, 1.0 + gain * score))
+    return round(mult, 4), f"analyst_score={score:+.3f} 域={n} gain={gain}"
+
+
 def _q(sql: str, params: Dict[str, Any]):
     from sqlalchemy import text
 
