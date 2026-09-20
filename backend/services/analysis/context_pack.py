@@ -210,6 +210,80 @@ def _atr_pct(kl: list, n: int = 14) -> Optional[float]:
     return sum(trs[-n:]) / n / prev_close * 100.0
 
 
+# ── [轮138 2026-09-20] 主脑预检长期报缺的五项指标（都能直接从**已在取的 K 线**算出）──
+# 实测（300 次 refresh）：missing 恒为 rsi_4h(102) / macd_hist_1h(101) / vol_ratio_1h(104)
+# / adx_1d(107) / trend_1w(102) / fear_greed(102)；主脑每轮都在"缺一大片证据"下判断
+# ⇒ 85% 的 refresh 是 accepted=False dir=neutral（不成交的最后一环）。
+# 这五项不需要新数据源：4h/1h/1d K 线本来就在取，1w 也在库里（crypto_klines period='1w'）。
+def _macd_hist(vals: List[float], fast: int = 12, slow: int = 26, signal: int = 9) -> Optional[float]:
+    if len(vals) < slow + signal:
+        return None
+    ef, es = _ema(vals, fast), _ema(vals, slow)
+    if ef is None or es is None:
+        return None
+    # 用滚动序列算 signal 线（避免只看最后一点的假值）
+    macd_series = []
+    for i in range(slow, len(vals) + 1):
+        a, b = _ema(vals[:i], fast), _ema(vals[:i], slow)
+        if a is not None and b is not None:
+            macd_series.append(a - b)
+    if len(macd_series) < signal:
+        return None
+    sig = _ema(macd_series, signal)
+    if sig is None:
+        return None
+    return macd_series[-1] - sig
+
+
+def _vol_ratio_1h(kl: list, recent: int = 3, base: int = 20) -> Optional[float]:
+    vols = []
+    for r in kl:
+        try:
+            v = float(r.get("volume") or 0)
+        except Exception:
+            continue
+        if v > 0:
+            vols.append(v)
+    if len(vols) < base:
+        return None
+    avg = sum(vols[-base:]) / base
+    rec = sum(vols[-recent:]) / max(1, min(recent, len(vols)))
+    return (rec / avg) if avg > 0 else None
+
+
+def _adx(kl: list, n: int = 14) -> Optional[float]:
+    """简化 ADX(14)：用 DI 差与和推导 DX，再做 Wilder 平滑。"""
+    if len(kl) < n * 2:
+        return None
+    plus_dm, minus_dm, trs = [], [], []
+    prev_h = prev_l = prev_c = None
+    for r in kl:
+        try:
+            h, l, c = float(r["high"]), float(r["low"]), float(r["close"])
+        except Exception:
+            continue
+        if prev_h is not None:
+            up, dn = h - prev_h, prev_l - l
+            plus_dm.append(up if (up > dn and up > 0) else 0.0)
+            minus_dm.append(dn if (dn > up and dn > 0) else 0.0)
+            trs.append(max(h - l, abs(h - prev_c), abs(l - prev_c)))
+        prev_h, prev_l, prev_c = h, l, c
+    if len(trs) < n:
+        return None
+    dxs = []
+    for i in range(n, len(trs) + 1):
+        tr_s = sum(trs[i - n:i])
+        if tr_s <= 0:
+            continue
+        pdi = 100.0 * sum(plus_dm[i - n:i]) / tr_s
+        mdi = 100.0 * sum(minus_dm[i - n:i]) / tr_s
+        denom = pdi + mdi
+        dxs.append(100.0 * abs(pdi - mdi) / denom if denom > 0 else 0.0)
+    if not dxs:
+        return None
+    return sum(dxs[-n:]) / min(n, len(dxs))
+
+
 def _log_returns(vals: List[float]) -> List[float]:
     out = []
     for a, b in zip(vals[:-1], vals[1:]):
@@ -336,6 +410,25 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
                 ),
             })
         d.update(_regime(sym, kl_4h))
+        # ── [轮138] 补齐主脑预检长期报缺的五项（全部由已取 K 线派生，不新增数据源）──
+        if len(kl_4h) >= 20:
+            d["rsi14_4h"] = _r(_rsi(_series(kl_4h)), 1)
+        if len(kl_1h) >= 30:
+            _c1h = _series(kl_1h)
+            d["macd_hist_1h"] = _r(_macd_hist(_c1h), 6)
+            d["vol_ratio_1h"] = _r(_vol_ratio_1h(kl_1h), 2)
+        if len(kl_1d) >= 30:
+            d["adx14_1d"] = _r(_adx(kl_1d), 1)
+        try:
+            kl_1w = _klines(sym, "1w", 60)
+            if len(kl_1w) >= 12:
+                _cw = _series(kl_1w)
+                _e9w, _e21w = _ema(_cw, 9), _ema(_cw, 21)
+                if _e9w and _e21w:
+                    d["trend_1w"] = ("bullish" if _e9w > _e21w
+                                     else ("bearish" if _e9w < _e21w else "mixed"))
+        except Exception as _w_err:  # noqa: BLE001
+            errors.append(f"market:{sym}: 1w 派生失败 {str(_w_err)[:60]}")
         out["symbols"][sym] = d
         if len(lr) >= 10:
             daily_returns[sym] = lr
@@ -848,20 +941,30 @@ def build_factor_layer(
         # ③ 零 LLM 量化简报（对齐分/证据可用率/缺失项）
         if _qbld is not None:
             try:
-                _ind_1h = {"rsi": row.get("rsi14_1h"), "ema_trend": row.get("ema_trend_1h")}
+                # [轮138 2026-09-20 根因修复] 这里原来只塞 rsi/ema_trend，而
+                # `mid_long_quant_brief` 的预检要的是 `ind_1h.macd_hist` / `ind_1h.vol_ratio`
+                # / `ind_1d.adx` / `md.adx_1d` —— 于是 300 次 refresh 里
+                # `macd_hist_1h(101) / vol_ratio_1h(104) / adx_1d(107)` **恒缺**，
+                # 主脑每轮都在"缺一大片证据"下判断 ⇒ 85% 是 accepted=False/neutral（不成交的最后一环）。
+                # 现按 market 层已有的派生字段补齐（`adx_1d` 兼容两种键名）。
+                _ind_1h = {"rsi": row.get("rsi14_1h"), "ema_trend": row.get("ema_trend_1h"),
+                           "macd_hist": row.get("macd_hist_1h"), "vol_ratio": row.get("vol_ratio_1h")}
                 _ind_4h = {"rsi": row.get("rsi14_4h"), "ema_trend": row.get("ema_trend_4h")}
-                _ind_1d = {"rsi": row.get("rsi14_1d"), "atr_pct": row.get("atr14_1d_pct")}
+                _ind_1d = {"rsi": row.get("rsi14_1d"), "atr_pct": row.get("atr14_1d_pct"),
+                           "adx": row.get("adx14_1d") or row.get("adx_1d")}
                 _fr = (_fund.get(sym_u) or {})
                 _md = {
                     "indicators_1h": {k: v for k, v in _ind_1h.items() if v is not None},
                     "indicators_4h": {k: v for k, v in _ind_4h.items() if v is not None},
                     "indicators_1d": {k: v for k, v in _ind_1d.items() if v is not None},
-                    "adx_1d": row.get("adx_1d"),
+                    "adx_1d": row.get("adx14_1d") or row.get("adx_1d"),
                     "trend_1w": row.get("trend_1w"),
                     "funding_rate": (list(_fr.values())[0] if _fr else None),
                     "market_cycle": row.get("regime") or row.get("market_cycle"),
                     "swing_low": row.get("range_24h_low"),
                     "swing_high": row.get("range_24h_high"),
+                    # 若 market 层提供则透传（当前无源，预检会如实记缺）
+                    "fear_greed": row.get("fear_greed"),
                 }
                 _b = _qbld.build(sym_u, _md, orchestrator=None, side_hint="long").to_dict()
                 entry["brief"] = {
