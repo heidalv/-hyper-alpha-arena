@@ -1365,6 +1365,22 @@ def on_startup():
                         _analysts_run_once()
                     except Exception as _an_err:
                         logger.warning("[Analysts] 信号 tick 失败: %s", _an_err)
+                    # [轮134 2026-09-20] K线深度：本轮**顺带**做一次真实深度分析并落库。
+                    # 为什么挂这里：落库点原先只在"会话恢复"时触发（_warmup_analyst_reports），
+                    # 而 kline_deep 是六域之一 —— 它不能依赖"会话是否恢复"才有产物。
+                    # 用户指令：先不要考虑 LLM 预算 ⇒ 产物必须落库并被消费。
+                    # 回滚：KLINE_DEEP_PERSIST_ENABLED=false（只停落库，不动分析）。
+                    try:
+                        from backend.services.analysts.kline_deep_store import persist_report
+                        from backend.services.analysts.service import default_symbols
+                        from backend.services.trading_analysts import KlineAnalyst
+
+                        _kd_syms = [s.upper() for s in default_symbols()[:3]]
+                        _kd_rep = KlineAnalyst().analyze(_kd_syms)
+                        _kd_n = persist_report(_kd_rep)
+                        logger.info("[Analysts] K线深度本轮落库 %d 条 symbols=%s", _kd_n, _kd_syms)
+                    except Exception as _kd_err:
+                        logger.warning("[Analysts] K线深度落库失败（不影响六域信号）: %s", _kd_err)
 
                 # 日频：分析师 thesis 是日频产物（新闻/资金流按小时变，但"日频落地"是设计口径）。
                 # 1800s 的窗口内重复跑只是刷新同一批信号（幂等：每轮全量重算 + 追加落库）。

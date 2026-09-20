@@ -108,3 +108,30 @@ def test_kline_deep_contract_domain_now_deliverable():
     sigs = SC.score_kline_deep(["ZZTEST"])
     assert any(s.data_quality != "missing" for s in sigs), \
         "落库后 kline_deep 仍全 missing ⇒ 落库或读取链路断了"
+
+
+def test_periodic_job_also_produces_kline_deep():
+    """周期任务也必须产出 K线深度（否则 kline_deep 依赖"会话是否恢复"才有产物）。
+
+    实测：落库点最初只挂在 `_warmup_analyst_reports`（会话恢复触发），
+    重启/长跑会话下 kline_deep 会长期没有新产物 ⇒ 必须挂到 `analyst_signals_daily` 同一 tick。
+    """
+    src = (ROOT / "backend/main.py").read_text(encoding="utf-8", errors="replace")
+    tree = ast.parse(src)
+    names = {n.func.attr if isinstance(n.func, ast.Attribute) else
+             (n.func.id if isinstance(n.func, ast.Name) else "")
+             for n in ast.walk(tree) if isinstance(n, ast.Call)}
+    assert "persist_report" in names, "周期任务里没有 K线深度落库调用"
+    assert "KlineAnalyst" in src, "周期任务没有调用 KlineAnalyst"
+    assert "K线深度本轮落库" in src, "缺少可观测日志（落库条数）"
+
+
+def test_real_analyst_report_shape_is_persistable():
+    """真实 `AnalystReport` 的字段名必须与落库实现一致（防"字段改名后静默落 0 条"）。"""
+    from backend.services.trading_analysts import AnalystReport
+
+    rep = AnalystReport(analyst="K线分析师", summary="s", recommendation="r", signals=[
+        {"symbol": "ZZTEST3", "signal": "bullish", "score": 60, "detail": "d"},
+    ])
+    n = KDS.persist_report(rep, account_id=14)
+    assert n == 1, f"真实 AnalystReport 落库失败（字段不匹配？）实际 {n}"
