@@ -1361,14 +1361,11 @@ def on_startup():
                 _analyst_sched.start()
 
                 def _analyst_signals_tick():
-                    try:
-                        _analysts_run_once()
-                    except Exception as _an_err:
-                        logger.warning("[Analysts] 信号 tick 失败: %s", _an_err)
-                    # [轮134 2026-09-20] K线深度：本轮**顺带**做一次真实深度分析并落库。
-                    # 为什么挂这里：落库点原先只在"会话恢复"时触发（_warmup_analyst_reports），
-                    # 而 kline_deep 是六域之一 —— 它不能依赖"会话是否恢复"才有产物。
-                    # 用户指令：先不要考虑 LLM 预算 ⇒ 产物必须落库并被消费。
+                    # [轮148 2026-09-21 顺序对账] **先写 K 线深度产物，再算六域信号**。
+                    # 旧顺序（先 run_once 再落库）使每轮首个 cycle 的 `kline_deep` 域必然读不到产物
+                    # ⇒ 落一条 `missing` 信号 ⇒ 主脑上下文持续出现「kline_deep 近72h无产物」
+                    # （实测 01:46 SOL/ASTER 仍在报），而产物其实每个周期都写了 3 条。
+                    # 调换顺序后同一轮即可见。用户指令：先不要考虑 LLM 预算 ⇒ 分析照常真跑。
                     # 回滚：KLINE_DEEP_PERSIST_ENABLED=false（只停落库，不动分析）。
                     try:
                         from backend.services.analysts.kline_deep_store import persist_report
@@ -1381,6 +1378,10 @@ def on_startup():
                         logger.info("[Analysts] K线深度本轮落库 %d 条 symbols=%s", _kd_n, _kd_syms)
                     except Exception as _kd_err:
                         logger.warning("[Analysts] K线深度落库失败（不影响六域信号）: %s", _kd_err)
+                    try:
+                        _analysts_run_once()
+                    except Exception as _an_err:
+                        logger.warning("[Analysts] 信号 tick 失败: %s", _an_err)
 
                 # 日频：分析师 thesis 是日频产物（新闻/资金流按小时变，但"日频落地"是设计口径）。
                 # 1800s 的窗口内重复跑只是刷新同一批信号（幂等：每轮全量重算 + 追加落库）。
@@ -2544,6 +2545,17 @@ try:
     logger.info("[LaneRegistry] 车道 API 已挂载 /api/trading/lanes*")
 except Exception as e:
     logger.info(f"[LaneRegistry] 车道 API 加载失败: {e}")
+
+# [F250 2026-09-20] 中短期高频交易模块 API（**独立命名空间**，不属于套利中心）
+# 依据：用户要求「新模块，以 L1 赛道为借鉴，不用套利中心」。
+# 与 /api/trading/*（车道注册表/账本/晋升，面向"哪条车道赚钱"）职责不同：
+# 本模块面向"这一笔挂单值不值"——宇宙选币 / 20 档深度 / 队列前方量。
+try:
+    from .api.hft_routes import router as hft_router
+    app.include_router(hft_router)
+    logger.info("[HFT] 中短期高频交易 API 已挂载 /api/hft/*")
+except Exception as e:
+    logger.info(f"[HFT] API 加载失败: {e}")
 
 # [F61 2026-09-09] 交易中心聚合 API（总览/持仓/机会/风险/配置；套利中心前端契约）
 try:

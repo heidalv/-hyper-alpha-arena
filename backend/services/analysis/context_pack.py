@@ -437,7 +437,11 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
         d.update(_regime(sym, kl_4h))
         # ── [轮138] 补齐主脑预检长期报缺的五项（全部由已取 K 线派生，不新增数据源）──
         if len(kl_4h) >= 20:
-            d["rsi14_4h"] = _r(_rsi(_series(kl_4h)), 1)
+            _c4h = _series(kl_4h)
+            d["rsi14_4h"] = _r(_rsi(_c4h), 1)
+            # [轮148] 模型点名要「4h 精确指标数值」：4h 的 MACD/ATR 一并给出
+            d["macd_hist_4h"] = _r(_macd_hist(_c4h), 6)
+            d["atr14_4h_pct"] = _r(_atr_pct(kl_4h), 2)
         if len(kl_1h) >= 30:
             _c1h = _series(kl_1h)
             d["macd_hist_1h"] = _r(_macd_hist(_c1h), 6)
@@ -452,6 +456,17 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
                 if _e9w and _e21w:
                     d["trend_1w"] = ("bullish" if _e9w > _e21w
                                      else ("bearish" if _e9w < _e21w else "mixed"))
+                    d["ema_trend_1w"] = d["trend_1w"]
+                # [轮148 2026-09-21] 模型在 missing_evidence 里点名「1w 精确指标数值缺失」
+                # （只给了方向不够）⇒ 补周线**数值**：RSI14 / ATR% / 距均线 / 4 周收益。
+                d["rsi14_1w"] = _r(_rsi(_cw), 1)
+                d["atr14_1w_pct"] = _r(_atr_pct(kl_1w), 2)
+                _e50w = _ema(_cw, 50)
+                if _e50w and _cw[-1]:
+                    d["dist_ema50_1w_pct"] = _r((_cw[-1] / _e50w - 1) * 100, 2)
+                    d["above_ema50_1w"] = bool(_cw[-1] > _e50w)
+                if len(_cw) >= 5 and _cw[-5] > 0:
+                    d["ret_4w_pct"] = _r((_cw[-1] / _cw[-5] - 1) * 100, 2)
         except Exception as _w_err:  # noqa: BLE001
             errors.append(f"market:{sym}: 1w 派生失败 {str(_w_err)[:60]}")
         # ── [轮147] 链上/宏观辅助读数（fear_greed 等）──
@@ -987,11 +1002,16 @@ def build_factor_layer(
                 _ind_4h = {"rsi": row.get("rsi14_4h"), "ema_trend": row.get("ema_trend_4h")}
                 _ind_1d = {"rsi": row.get("rsi14_1d"), "atr_pct": row.get("atr14_1d_pct"),
                            "adx": row.get("adx14_1d") or row.get("adx_1d")}
+                # [轮148] 周线数值块（模型点名要"1w 精确指标数值"）
+                _ind_1w = {"rsi": row.get("rsi14_1w"), "atr_pct": row.get("atr14_1w_pct"),
+                           "trend": row.get("trend_1w") or row.get("ema_trend_1w"),
+                           "ema_trend": row.get("ema_trend_1w") or row.get("trend_1w")}
                 _fr = (_fund.get(sym_u) or {})
                 _md = {
                     "indicators_1h": {k: v for k, v in _ind_1h.items() if v is not None},
                     "indicators_4h": {k: v for k, v in _ind_4h.items() if v is not None},
                     "indicators_1d": {k: v for k, v in _ind_1d.items() if v is not None},
+                    "indicators_1w": {k: v for k, v in _ind_1w.items() if v is not None},
                     "adx_1d": row.get("adx14_1d") or row.get("adx_1d"),
                     "trend_1w": row.get("trend_1w"),
                     "funding_rate": (list(_fr.values())[0] if _fr else None),
