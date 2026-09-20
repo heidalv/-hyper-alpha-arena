@@ -1858,6 +1858,11 @@ def can_open_block_reason(
         pass
     # [2026-09-07] 宪法级风控（最后红线，env 不可覆盖）：止损幅度/单笔保证金/
     # 日亏损硬停/敞口上限。任何上层判断都不得越过。
+    # [轮131 2026-09-20 订正] 这里**只传了 sl_pct**：单笔保证金/日亏损/敞口三项依赖
+    # `equity_usd`/`margin_usd`，而本函数（can_open_block_reason）拿不到账户权益与计划名义 ——
+    # 所以过去那三项**从未生效**（空转）。完整判定已挪到**下单前唯一同时拿得到
+    # 权益/名义/杠杆**的位置：`full_auto/midlong_helpers.try_execute_independent_agent_open`
+    # 里的风控官（`services/risk_officer.py`）。此处保留 sl_pct 早筛，避免白跑后面的链路。
     try:
         from backend.services.risk_constitution import constitutional_veto
         side = "short" if str(dto.direction).lower() == "short" else "long"

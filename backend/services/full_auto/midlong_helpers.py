@@ -1199,6 +1199,49 @@ def try_execute_independent_agent_open(
             except Exception as _pb_err:
                 logger.debug("[MidLongPortfolio] %s 组合预算跳过: %s", _sym_u, _pb_err)
 
+    # ── 风控官（有否决权）—— 架构第 3 环，**下单前最后一道**（轮131）──
+    # 为什么放在这里：这是全链路里**唯一**同时拿得到 权益/计划名义/杠杆 的位置，
+    # 而 `risk_constitution.constitutional_veto` 的单笔保证金、日亏损、敞口三项检查
+    # **全都依赖 equity_usd/margin_usd** —— 此前调用点（brain.py）没传，等于空转。
+    # 编排：五分析师 → 牛熊辩论（主周期裁决已落库）→ **风控官** → 交易员。
+    # 回滚：RISK_OFFICER_ENABLED=false（整段跳过并记录一条 skipped）。
+    if _act in ("buy", "sell"):
+        try:
+            from backend.services.risk_officer import evaluate_open as _ro_eval
+            _ro_thesis_id = ""
+            try:
+                # 论题 id 顺带落进风控记录：否决时能直接追到"是哪张论题被否的"
+                from backend.services.mlto.thesis_store import get as _thesis_ro
+                _td_ro = _thesis_ro(str(getattr(session, "session_id", "") or ""),
+                                    _sym_u, str(_tier_l or tier or "mid"))
+                _ro_thesis_id = str(getattr(_td_ro, "thesis_id", "") or "")
+            except Exception:
+                pass
+            _ro = _ro_eval(
+                account_id=int(_acct_pf or 0) or None,
+                symbol=_sym_u,
+                side=("long" if _act == "buy" else "short"),
+                tier=str(_tier_l or tier or "mid"),
+                mode=str(getattr(session, "trading_mode", "") or "paper"),
+                equity_usd=float(_equity or 0),
+                planned_notional_usd=float(_est_notional or 0),
+                leverage=float(locals().get("_lev") or 1.0),
+                sl_pct=float(sl_pct or 0),
+                session_id=str(getattr(session, "session_id", "") or ""),
+                thesis_id=_ro_thesis_id,
+            )
+            if not _ro["allow"]:
+                logger.warning("[RiskOfficer] BLOCK %s %s: %s", _sym_u, _act, _ro["reason"])
+                host.append_event(
+                    session, "risk_officer_veto",
+                    f"[风控官] {_sym_u} {_act} 否决：{_ro['reason']}",
+                )
+                _audit_skip(f"risk_officer_veto:{_ro['reason']}")
+                return False
+        except Exception as _ro_err:
+            # fail-open 但**可见**（与 live 持仓查询失败同一纪律：不能静默无保护）
+            logger.warning("[RiskOfficer] %s 判定失败(fail-open，本次未做风控官检查): %s", _sym_u, _ro_err)
+
     _extra_kwargs = {
         "mtf_size_mult": _mtf_size_mult,
         "tp_sl_proposal": tp_sl_proposal or None,

@@ -1525,6 +1525,15 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_DEBATE_TRANSPORT",      # 空=取 ANALYSIS_PRIMARY_TRANSPORTS 第一项
     "MIDLONG_DEBATE_MAX_OUTPUT_TOKENS",   # 单次论点输出上限（默认 900）
     "MIDLONG_DEBATE_TIMEOUT_S",      # 单次调用超时（默认 120）
+    # [轮131 2026-09-20] 风控官（backend/services/risk_officer.py）—— 架构第 3 环，**有否决权**。
+    # 背景：`constitutional_veto` 过去在 brain.py:1864 被调用时**没传 equity_usd/margin_usd**
+    # ⇒ 单笔保证金硬顶 / 日亏损硬停 / 单币与总敞口三项检查**全部空转**，只剩止损幅度校验。
+    "RISK_OFFICER_ENABLED",                # 默认 true；false=整段跳过（记录一条 skipped）
+    "RISK_OFFICER_MAX_NOTIONAL_PCT",       # 计划名义/净值硬顶（默认 2.0，不依赖杠杆口径）
+    "RISK_OFFICER_VETO_ON_DEBATE_REJECT",  # 辩论主周期 reject 且风险共识低 ⇒ 否决（默认 true）
+    "RISK_OFFICER_DEBATE_RISK_FLOOR",      # 辩论风险共识下限（默认 0.5）
+    "RISK_OFFICER_PAPER_DAILY_LOSS",       # paper 是否执行日亏损硬停（默认 false；与 PB_PAPER_SKIP 同立场）
+    "RISK_OFFICER_DEBATE_MAX_AGE_H",       # 辩论姿态有效期（默认 3.0 小时）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

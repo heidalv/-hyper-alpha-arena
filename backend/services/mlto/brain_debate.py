@@ -547,7 +547,11 @@ def run_debate_for_thesis(
 
 
 def _persist(thesis_id: str, symbol: str, tier: str, proposal: Dict[str, Any], out: Dict[str, Any]) -> int:
-    """写 bull/bear 两行（沿用既有表结构 `mlto_debate_log`，此前 0 行）。"""
+    """写 bull/bear 两行（沿用既有表结构 `mlto_debate_log`，此前 0 行）。
+
+    [轮131] content_json 里**必须**带分周期字段：风控官（risk_officer）要靠它读"辩论风险姿态"，
+    否则两环之间又靠内存变量传值 —— 跨进程（子进程写论题、主进程执行开仓）就会丢。
+    """
     try:
         import uuid
 
@@ -568,6 +572,13 @@ def _persist(thesis_id: str, symbol: str, tier: str, proposal: Dict[str, Any], o
                         "consensus_confidence": out["consensus_confidence"],
                         "used_llm": out["used_llm"], "arguments": args,
                         "risk": out.get("risk"), "evidence": out.get("evidence"),
+                        # ── 分周期（风控官与画布都读这些字段） ──
+                        "primary_horizon": out.get("primary_horizon"),
+                        "primary_verdict": out.get("primary_verdict"),
+                        "horizon_verdicts": out.get("horizon_verdicts"),
+                        "horizon_conflict": out.get("horizon_conflict"),
+                        "horizons_insufficient": out.get("horizons_insufficient"),
+                        "risk_min": out.get("risk_min"),
                     }, ensure_ascii=False)[:4000],
                     cited_event_ids_json=json.dumps([]),
                 ))
@@ -579,6 +590,43 @@ def _persist(thesis_id: str, symbol: str, tier: str, proposal: Dict[str, Any], o
         _STATS["errors"] += 1
         logger.debug("[Debate] 落库失败（不阻塞主链）: %s", exc)
         return 0
+
+
+def debate_context(symbol: str, tier: str = "", *, hours: float = 3.0) -> Optional[Dict[str, Any]]:
+    """读最近一次辩论的**风险姿态**（给风控官用）。
+
+    为什么读库而不是读内存：辩论跑在主脑子进程里，而开仓执行在主进程 —— 跨进程传值必丢。
+    """
+    try:
+        from sqlalchemy import text
+
+        from backend.database.connection import analytics_engine
+
+        with analytics_engine.connect() as c:
+            row = c.execute(text(
+                "select ts, content_json from mlto_debate_log "
+                "where side = 'bull' and content_json like :pat "
+                "and ts >= now() - make_interval(secs => :secs) "
+                "order by id desc limit 1"),
+                {"pat": f'%"symbol": "{str(symbol).upper()}"%', "secs": float(hours) * 3600},
+            ).fetchone()
+        if not row:
+            return None
+        d = json.loads(row[1] or "{}")
+        if tier and str(d.get("tier") or "").lower() != str(tier).lower():
+            return None
+        return {
+            "ts": str(row[0])[:19],
+            "verdict": d.get("verdict"),
+            "primary_horizon": d.get("primary_horizon"),
+            "primary_verdict": d.get("primary_verdict"),
+            "horizon_verdicts": d.get("horizon_verdicts"),
+            "horizon_conflict": d.get("horizon_conflict"),
+            "risk_min": d.get("risk_min"),
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[Debate] debate_context 读取失败: %s", exc)
+        return None
 
 
 def apply_conviction_effect(conviction: float, result: Optional[Dict[str, Any]]) -> Tuple[float, str]:
