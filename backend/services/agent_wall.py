@@ -149,7 +149,7 @@ NODES: List[Dict[str, Any]] = [
      # 124 行**全是本卡自己的轮询访问日志**（`uvicorn.access ... "/api/agent-wall/tail?
      # nodes=...,trend_e1_engine,..."`），真实 E1 业务行 0 条 ⇒ 卡片内容与长线无关。
      # 改为读 **E1 最近一次运行产物**（cron 每天 08:20 写一次）。
-     "source": {"kind": "json_file", "path": "data/trend_drift/e1_last_run.json"},
+     "source": {"kind": "json_file", "path": "backend/data/trend_drift/e1_last_run.json"},
      "deps": ["thesis_store"]},
     # [2026-09-19 撤回误塞] 本节点原为「中线因子路线 A/B（会开仓）」——那属于**因子区**独立区块的内容，
     # 我不该在设计之前就塞进主策略画布；且用户已停用 A/B，故此处只保留"已停用"的实况占位。
