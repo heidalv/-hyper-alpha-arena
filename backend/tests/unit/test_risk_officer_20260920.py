@@ -129,6 +129,28 @@ def test_probe_bypasses_debate_veto_but_not_other_checks(monkeypatch):
     assert r_on["allow"] is False and "debate_opposes" in r_on["reason"]
 
 
+def test_size_based_probe_detection(monkeypatch):
+    """[轮146 修正] 探针识别**不能只靠上游标记**（实测 01:12 ETH 探针因标记丢失被否）。
+
+    加与来源无关的规模判据：开仓名义 ≤ 净值 × 5% ⇒ 视为小仓探针 ⇒ 豁免辩论否决。
+    实测 ETH $55/权益 $4617 = 1.2%、ZEC $171/$4616 = 3.7% 都属探针；正常档在 10%+。
+    """
+    monkeypatch.setattr(
+        "backend.services.mlto.brain_debate.debate_context",
+        lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday",
+                                         "primary_direction": "short",
+                                         "primary_verdict": "reject", "risk_min": 0.2})
+    # 未传 is_probe，但名义只有净值 1.2% ⇒ 按规模识别为探针 ⇒ 放行
+    r_small = _eval(equity_usd=4617.0, planned_notional_usd=55.0, leverage=5.0, is_probe=False)
+    assert r_small["allow"] is True, f"小仓（1.2%）应识别为探针：{r_small['reason']}"
+    d = [c for c in r_small["checks"] if c["name"] == "probe_detect"]
+    assert d and d[0]["value"]["by"] == "notional_pct", "识别方式必须显式记录"
+    # 名义 20% ⇒ 正常档 ⇒ 仍按辩论反向否决
+    r_big = _eval(equity_usd=4617.0, planned_notional_usd=923.0, leverage=5.0, is_probe=False)
+    assert r_big["allow"] is False and "debate_opposes" in r_big["reason"], \
+        f"正常档（20%）逆着辩论必须否决：{r_big['reason']}"
+
+
 def test_debate_without_direction_never_vetoes(monkeypatch):
     """辩论没有明确方向（neutral）⇒ 不是"反对"，一律放行。"""
     monkeypatch.setattr(

@@ -1542,6 +1542,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [轮146 2026-09-21 方案 B] 辩论否决是否适用于**小仓探针**（默认 false=不适用）：
     # 探针本就是"允许小仓位试"的落地，辩论的作用体现在规模上；大仓逆着辩论仍否决。
     "RISK_OFFICER_DEBATE_VETO_PROBE",      # 默认 false；true=连小仓探针也按辩论反向否决
+    "RISK_OFFICER_PROBE_NOTIONAL_PCT",     # 规模判据：开仓名义 ≤ 净值×此值 ⇒ 视为小仓探针（默认 0.05）
     # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
     # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
     # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。

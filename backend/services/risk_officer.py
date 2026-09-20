@@ -177,7 +177,19 @@ def evaluate_open(
     #   开关：`RISK_OFFICER_DEBATE_VETO_PROBE`（默认 false=探针不看辩论姿态）。
     debate: Optional[Dict[str, Any]] = None
     _veto_probe = _flag("RISK_OFFICER_DEBATE_VETO_PROBE", "false")
-    if enabled() and _flag("RISK_OFFICER_VETO_ON_DEBATE_REJECT", "true") and not (is_probe and not _veto_probe):
+    # [轮146 修正] 不能只靠上游传 `is_probe`：实测（01:12 ETH 探针被否）扫单里有**两条**
+    # open 路径，只有一条带了探针标记 ⇒ 标记丢失时豁免失效。
+    # 这里再加一道**与来源无关**的规模判据：**开仓名义 ≤ 净值 × RISK_OFFICER_PROBE_NOTIONAL_PCT
+    # （默认 5%）即视为小仓探针**。实测 ETH $55/权益 $4617 = 1.2%、ZEC $171/4616 = 3.7%
+    # ⇒ 都属探针；正常档开仓在 10%+ 量级，不会被误判。
+    _probe_pct = _num("RISK_OFFICER_PROBE_NOTIONAL_PCT", 0.05)
+    _probe_by_size = bool(equity > 0 and 0 < notional <= equity * _probe_pct)
+    _is_probe = bool(is_probe or _probe_by_size)
+    if _is_probe and not is_probe:
+        checks.append({"name": "probe_detect", "ok": True,
+                       "value": {"by": "notional_pct", "notional_pct": round(notional / equity, 4)
+                                 if equity > 0 else None, "threshold": _probe_pct}})
+    if enabled() and _flag("RISK_OFFICER_VETO_ON_DEBATE_REJECT", "true") and not (_is_probe and not _veto_probe):
         try:
             from backend.services.mlto.brain_debate import debate_context
 
@@ -201,7 +213,7 @@ def evaluate_open(
                 checks.append({"name": "debate_posture", "ok": True, "skipped": "近期无该标的辩论记录"})
         except Exception as exc:  # noqa: BLE001
             checks.append({"name": "debate_posture", "ok": True, "error": f"{type(exc).__name__}: {str(exc)[:80]}"})
-    elif is_probe and not _veto_probe:
+    elif _is_probe and not _veto_probe:
         # 探针豁免：**显式记录**（不静默），并保留辩论姿态供复盘
         try:
             from backend.services.mlto.brain_debate import debate_context as _dc
