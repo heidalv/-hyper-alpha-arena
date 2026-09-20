@@ -2690,6 +2690,49 @@ def run_midlong_open_sweep(
                     _db_s.close()
         except Exception:
             pass
+        # ── [轮144 2026-09-21] long 车道 + 模板族 ⇒ **扫单侧也上游跳过** ────────────
+        # 轮133 只在 `ai_decisions` 堵了这条（当时实测 24h 193 次），但**扫单这条路径没堵**：
+        # 实测近 24h 审计里 `eval_false:long_template_source_block` 仍 **127 次** ——
+        # 每次都生成→执行层按轮40 决策拒→下个 tick 再来，候选位与审计被占满。
+        # 这里按同一配置提前跳过（闸保留，只是不再产生注定被拒的提案）。
+        # 回滚：MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false 即恢复"照常提案、由执行层拒"。
+        if tier_l == "long":
+            try:
+                from backend.config.settings import (
+                    MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES as _lbt_skip2,
+                )
+                from backend.services.mlto.thesis_store import get as _ts_get
+                _td_skip = _ts_get(sid, sym, tier_l)
+                _sid_skip = ""
+                try:
+                    _db_skip = SessionLocal()
+                    try:
+                        _resolve_skip = getattr(host, "resolve_independent_strategy", None)
+                        if callable(_resolve_skip):
+                            _st_skip = _resolve_skip(_db_skip, session, sym, tier_l)
+                            _sid_skip = str(getattr(_st_skip, "strategy_id", "") or "")
+                    finally:
+                        _db_skip.close()
+                except Exception:
+                    _sid_skip = ""
+                if _lbt_skip2 and _sid_skip.startswith("tpl_"):
+                    _bump("long_template_source_upstream")
+                    logger.info(
+                        "[MidLongBrain] 开仓扫描 %s tier=long 模板族上游跳过（sid=%s，"
+                        "轮40 决策：模板族只做 mid）", sym, _sid_skip[:14],
+                    )
+                    try:
+                        from backend.services.mlto.midlong_direction_audit import (
+                            record_decision_audit as _rda2,
+                        )
+                        _rda2(outcome="skip", stage="sweep", symbol=sym,
+                              reason=f"upstream_skip:long_template_source sid={_sid_skip[:14]}",
+                              session_id=sid, tier=tier_l, action="hold", authority="mlto")
+                    except Exception:
+                        pass
+                    continue
+            except Exception as _lbt_err:
+                logger.debug("[MidLongBrain] long 模板族上游跳过失败(fail-open): %s", _lbt_err)
         try:
             opened = maybe_open(
                 host=host, session=session, symbol=sym, tier=tier_l,
