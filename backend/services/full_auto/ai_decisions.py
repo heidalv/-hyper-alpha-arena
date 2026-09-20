@@ -334,15 +334,56 @@ def execute_ai_decisions(
             _eff_tier = _dec_tier_raw or _nature_derived_tier or "mid"
 
             # 按 (symbol, tier) 精确匹配策略，回退到 symbol 匹配
+            _strat_key = strat_tier_map.get((sym.upper(), _eff_tier)) or strat_map.get(sym)
             strat = host.ensure_bound_strategy(
                 db,
-                strat_tier_map.get((sym.upper(), _eff_tier))
-                or strat_map.get(sym),
+                _strat_key,
                 active_ids=active_ids,
                 status=("active", "paused"),
             )
+            # ── [轮133 2026-09-20 修 strategy_detached 循环] ──────────────────────
+            # 实测（24h 审计）：`strategy_detached` 94 次 + 其冷却 127 次 = 221 次，
+            # 集中在 AAVE/LINK/ZEC。根因：这里策略解析不到就**静默 continue** ——
+            # 既不补建、也不留原因，于是执行层拿到 strat=None 后记 `strategy_detached`，
+            # 下个 tick 再来一遍（与轮118/122 的 ZEC 循环同一模式）。
+            # 现在与**主脑扫单同一模式**处理：缺位 → 先补建 → 重解析（含去掉 active_ids 约束
+            # 再试一次，因为补建出的新策略未必已在会话的 active_strategy_ids 里）→ 仍无才跳过。
             if not strat:
+                try:
+                    _ac_fn = getattr(host, "auto_create_strategy", None)
+                    if callable(_ac_fn):
+                        _ac_fn(db, session, sym, {})
+                except Exception as _ac_err:  # noqa: BLE001
+                    logger.debug("[AI Decisions] %s 策略补建跳过: %s", sym, _ac_err)
+                strat = host.ensure_bound_strategy(
+                    db, _strat_key, active_ids=active_ids, status=("active", "paused"),
+                ) or host.ensure_bound_strategy(
+                    db, _strat_key, status=("active", "paused"),
+                )
+            if not strat:
+                logger.info("[AI Decisions] %s tier=%s 无可用策略（补建后仍无），跳过",
+                            sym, _eff_tier)
                 continue
+            # ── [轮133] long 车道不接模板族：**上游跳过**，别再造注定被拒的提案 ──────
+            # 轮40 决策（有数据依据）：`tpl_` 模板族在 long 车道 30 天 21 笔净 −127.29
+            # ⇒ `proposal_execution` 会以 `long_template_source_block` 拒绝。
+            # 但实测 24h 里 UNI 被这条拒了 **193 次**（每 tick 生成→拒→再生成），
+            # 把审计与候选位全占满。这里按同一配置**提前**跳过，原因照写日志。
+            if str(_eff_tier).lower() == "long" and \
+                    str(getattr(strat, "strategy_id", "") or "").startswith("tpl_"):
+                try:
+                    from backend.config.settings import (
+                        MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES as _lbt_skip,
+                    )
+                except Exception:  # noqa: BLE001
+                    _lbt_skip = True
+                if _lbt_skip:
+                    logger.info(
+                        "[AI Decisions] %s tier=long 模板族上游跳过（sid=%s，"
+                        "轮40 决策：模板族只做 mid）",
+                        sym, str(getattr(strat, "strategy_id", ""))[:14],
+                    )
+                    continue
 
             trading_mode = session.trading_mode or "paper"
             side = "buy" if operation == "buy" else "sell"
