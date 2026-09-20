@@ -343,6 +343,31 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
     out: Dict[str, Any] = {"symbols": {}, "as_of_ms": None}
     daily_returns: Dict[str, List[float]] = {}
     latest_ts = 0
+    # ── [轮147 2026-09-21] 接上 **fear_greed 等链上/宏观辅助序列** ──────────────────
+    # 为什么必须接：主脑预检里 `fear_greed` 此前**恒缺**（24h 102 次），是最后一个长期缺项
+    # （其余五项已在轮138 由 K 线派生补齐）。实测源：`market.symbol_aux_timeseries`
+    # （188,810 行、35 币近 1h 有数据、fear_greed=71），另有 btc_dominance/tvl/active_addresses。
+    # 开关：CTX_FEAR_GREED_ENABLED（默认 true）；取不到就**留空**（预检继续如实记缺，不编数）。
+    _aux: Dict[str, Dict[str, Any]] = {}
+    if (os.getenv("CTX_FEAR_GREED_ENABLED", "true") or "true").strip().lower() in (
+            "1", "true", "yes", "on"):
+        try:
+            _adb = _market_db()
+            try:
+                _aux_rows = _rows(
+                    _adb,
+                    "SELECT DISTINCT ON (symbol) symbol, fear_greed, btc_dominance, active_addresses, "
+                    "news_sentiment, timestamp_ms FROM symbol_aux_timeseries "
+                    "WHERE timestamp_ms >= :since ORDER BY symbol, timestamp_ms DESC",
+                    {"since": int(time.time() * 1000) - 6 * 3600 * 1000},
+                    errors, "market.aux_series",
+                )
+            finally:
+                _adb.close()
+            for _r_aux in _aux_rows or []:
+                _aux[_base(_r_aux["symbol"])] = _r_aux
+        except Exception as _aux_err:  # noqa: BLE001
+            errors.append(f"market.aux_series: {str(_aux_err)[:90]}")
     for sym in symbols:
         kl_1d = _klines(sym, "1d", 230)
         kl_4h = _klines(sym, "4h", 80)
@@ -429,6 +454,16 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
                                      else ("bearish" if _e9w < _e21w else "mixed"))
         except Exception as _w_err:  # noqa: BLE001
             errors.append(f"market:{sym}: 1w 派生失败 {str(_w_err)[:60]}")
+        # ── [轮147] 链上/宏观辅助读数（fear_greed 等）──
+        _aux_row = _aux.get(_base(sym))
+        if _aux_row:
+            d["fear_greed"] = _r(_aux_row.get("fear_greed"), 1)
+            d["btc_dominance"] = _r(_aux_row.get("btc_dominance"), 2)
+            d["active_addresses"] = _r(_aux_row.get("active_addresses"), 0)
+            # 量化简报的另一条读取路径（`md.onchain_macro.fear_greed`）
+            d["onchain_macro"] = {"fear_greed": d["fear_greed"],
+                                  "btc_dominance": d["btc_dominance"],
+                                  "ts_ms": _aux_row.get("timestamp_ms")}
         out["symbols"][sym] = d
         if len(lr) >= 10:
             daily_returns[sym] = lr

@@ -1543,6 +1543,10 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 探针本就是"允许小仓位试"的落地，辩论的作用体现在规模上；大仓逆着辩论仍否决。
     "RISK_OFFICER_DEBATE_VETO_PROBE",      # 默认 false；true=连小仓探针也按辩论反向否决
     "RISK_OFFICER_PROBE_NOTIONAL_PCT",     # 规模判据：开仓名义 ≤ 净值×此值 ⇒ 视为小仓探针（默认 0.05）
+    # [轮147 2026-09-21] 主脑 market 层接 fear_greed 等链上/宏观辅助序列
+    # （源：market.symbol_aux_timeseries，实测 35 币近 1h 有数据、fear_greed=71）。
+    # 这是主脑预检里最后一个长期恒缺项（其余五项已由 K 线派生补齐）。
+    "CTX_FEAR_GREED_ENABLED",              # 默认 true；false=不接（预检会继续如实记缺）
     # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
     # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
     # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。
