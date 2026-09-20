@@ -281,8 +281,8 @@ def apply_regime_to_open(
                 if _af_n < int(FACTOR_ROUTE_MIN_ACTIVE_FACTORS):
                     allow_range = False
                     logger.info(
-                        "[MidLong] stage=fuse symbol=%s 探针关闭：活跃因子%d<%d",
-                        sym_u, _af_n, int(FACTOR_ROUTE_MIN_ACTIVE_FACTORS),
+                        "[MidLong] stage=fuse tier=%s symbol=%s 探针关闭：活跃因子%d<%d",
+                        tier, sym_u, _af_n, int(FACTOR_ROUTE_MIN_ACTIVE_FACTORS),
                     )
             except Exception as _af_err:
                 logger.debug("[MidLong] 探针因子数检查跳过: %s", _af_err)
@@ -302,7 +302,7 @@ def apply_regime_to_open(
     if regime == "ranging":
         if not allow_range:
             logger.info(
-                "[MidLong] stage=fuse symbol=%s regime=ranging action=hold "
+                "[MidLong] stage=fuse tier=%s symbol=%s regime=ranging action=hold "
                 "reason=range_block (ALLOW_RANGE_PROBE=false or live)",
                 sym_u,
             )
@@ -515,8 +515,8 @@ def execute_midlong_open(
                 _pm = max(0.05, min(1.0, _pm))
                 margin = margin * _pm
                 logger.info(
-                    "[MidLong] stage=fuse symbol=%s 熔断窄带 paper 缩仓×%.2f（%s）",
-                    sym_u, _pm, str(_ml_reason)[:90],
+                    "[MidLong] stage=fuse tier=%s symbol=%s 熔断窄带 paper 缩仓×%.2f（%s）",
+                    tier, sym_u, _pm, str(_ml_reason)[:90],
                 )
             except (ValueError, IndexError):
                 pass
@@ -581,8 +581,8 @@ def execute_midlong_open(
             _shrink = float(_lg_detail["paper_shrink_mult"])
             margin = margin * _shrink
             logger.info(
-                "[MidLong] stage=fuse symbol=%s 位置闸 paper 缩仓×%.2f（%s）",
-                sym_u, _shrink,
+                "[MidLong] stage=fuse tier=%s symbol=%s 位置闸 paper 缩仓×%.2f（%s）",
+                tier, sym_u, _shrink,
                 (_lg_detail.get("paper_shrink_veto_reason") or "")[:90],
             )
     except Exception as _lg_err:
@@ -596,8 +596,8 @@ def execute_midlong_open(
             _v2_ok, _v2_reason = entry_gate(sym_u, act, market_summary)
             if not _v2_ok:
                 logger.info(
-                    "[MidLong] stage=fuse symbol=%s tier=long 拦截: %s",
-                    sym_u, _v2_reason,
+                    "[MidLong] stage=fuse tier=%s symbol=%s tier=long 拦截: %s",
+                    tier, sym_u, _v2_reason,
                 )
                 try:
                     from backend.services.period_daily_report import log_long_action
@@ -652,16 +652,16 @@ def execute_midlong_open(
         _ct_ok, _ct_reason, _ct_mult = _swing_consensus_gate(sym_u, act, market_summary)
         if not _ct_ok:
             logger.info(
-                "[MidLong] stage=fuse symbol=%s nature=swing action=hold reason=%s",
-                sym_u, _ct_reason,
+                "[MidLong] stage=fuse tier=%s symbol=%s nature=swing action=hold reason=%s",
+                tier, sym_u, _ct_reason,
             )
             _record_fail(_ct_reason)
             return False
         if _ct_mult < 1.0:
             margin = margin * _ct_mult
             logger.info(
-                "[MidLong] stage=fuse symbol=%s nature=swing 单周期反向 缩仓×%.2f (%s)",
-                sym_u, _ct_mult, _ct_reason,
+                "[MidLong] stage=fuse tier=%s symbol=%s nature=swing 单周期反向 缩仓×%.2f (%s)",
+                tier, sym_u, _ct_mult, _ct_reason,
             )
     # AI 中线单保留 tier=mid（分通道计数/槽位/风控）
     # [2026-09-08] exec_tier 三档：short/intraday → short（日内波段），

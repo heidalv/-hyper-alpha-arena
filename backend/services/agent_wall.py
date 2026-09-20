@@ -169,9 +169,9 @@ NODES: List[Dict[str, Any]] = [
      # 此前只有一张"中线执行"卡、且混着两条车道的行（实测 `tier=mid`=0、`tier=long`=1，
      # 因为执行日志**根本没带 tier**；同一轮已给日志补上 tier）⇒ 长线执行在画布上无处可见
      # —— 这正是用户问的"怎么没有长线执行"。现在按 tier 拆成两张对称的卡。
-     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"\[MidLong\].*tier=mid"},
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"\[MidLong\](?!.*tier=long)"},
      "deps": ["thesis_store"]},
-    {"id": "midlong_exec", "group": "G4", "size": "L", "label": "长线执行（tier=long）",
+    {"id": "midlong_exec", "group": "G4", "size": "L", "label": "长线执行（execute_midlong_open · tier=long）",
      "role": "**长线**新开：与中线共用同一 Writer（`execute_midlong_open`），按 tier 分卡显示；"
              "长线另有独立通道 `trend_e1_engine`（cron 直连 place_order，绕过 Single Writer）",
      "cadence_label": "随 tick",
@@ -212,6 +212,15 @@ EDGES: List[Dict[str, Any]] = [
     {"from": "kline_collector", "to": "coin_select", "kind": "data", "label": "K线"},
     {"from": "factor_engine", "to": "brain_mid", "kind": "data", "label": "因子"},
     {"from": "factor_engine", "to": "brain_long", "kind": "data", "label": "因子"},
+    # [轮125 2026-09-19 补关联] 上一轮的补边锚点没匹配、一条都没进图（用户："关联关系没有"）：
+    # 长线执行与中线执行是**同一个 Writer 的两个 tier**，E1 是长线另一条独立通道，
+    # 持仓复核(revtrend_agent 的 review_position)挂在长线执行之后。
+    {"from": "thesis_store", "to": "midlong_exec", "kind": "data", "label": "长线论题"},
+    {"from": "midlong_loop", "to": "midlong_exec", "kind": "trigger", "label": "tick(tier=long)"},
+    {"from": "midlong_exec", "to": "trend_agent", "kind": "trigger", "label": "持仓复核/加仓"},
+    {"from": "data_center", "to": "trend_e1_engine", "kind": "data", "label": "日线行情"},
+    {"from": "trend_e1_engine", "to": "position_sizing", "kind": "trigger", "label": "E1 直接下单"},
+    {"from": "coin_select", "to": "midlong_exec", "kind": "data", "label": "AI 长线候选"},
     {"from": "coin_select", "to": "brain_mid", "kind": "data", "label": "候选池"},
     # [2026-09-19 修正] 中/长线的真实触发链：`midlong_loop`（同一循环的两个 tier）
     # → 派发 mid/long 主脑子进程；→ 触发 trend_agent 持仓复核。
