@@ -288,6 +288,13 @@ def direction_to_int(v: Any) -> int:
         return 1
     if s in ("bearish", "short", "down", "negative", "-1"):
         return -1
+    # [轮140 2026-09-20] 中文方向词归一：实测（core.analysis_runs 最近 30 条）
+    # 有模型直接返回 `direction="中性"` —— 不在白名单里就被静默当 0（中性），
+    # 与"模型明确说了中性"无法区分（噪声掩盖）。补中文映射；仍未知的保持 0。
+    if s in ("看多", "做多", "偏多", "多", "上涨"):
+        return 1
+    if s in ("看空", "做空", "偏空", "空", "下跌"):
+        return -1
     return 0
 
 
