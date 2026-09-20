@@ -118,10 +118,27 @@ def test_master_execution_mid_swing_branch_removed_long_kept():
     assert "long_trend_v2" in src, "长线决策源 long_trend_v2 的引用必须保留"
     assert "is_trend_nature" in src, "长线 tier 检测必须保留"
 
-    # MidLongExecutionLane delegate 路由检测仍依赖 is_swing_nature（mid 仍要被识别为
-    # midlong 委托对象，只是不再调 analyze）。
-    assert "is_swing_nature" in src, (
-        "is_swing_nature 路由检测应保留（MidLongExecutionLane delegate 仍需识别 mid）"
+    # [轮128 2026-09-20 订正假 ratchet] 原断言是 `assert "is_swing_nature" in src`，
+    # 理由是「MidLongExecutionLane delegate 路由检测仍依赖 is_swing_nature」。
+    # 实测该理由不成立：master_execution.py 里 `is_swing_nature` **只出现在一句注释里**
+    # （3 处 `import swing_agent` 也全是死导入，AST 证实名字从未被使用）
+    # ⇒ 这条断言是被注释满足的，等于没守住任何东西。
+    # 改成守**真实事实**：master 路径不再真正引用已废弃的 swing_agent。
+    # 用 AST 判定（不是文本包含）：注释里保留的"此处曾 import、现已删除"历史说明不算引用。
+    import ast as _ast
+
+    _hits = []
+    for _n in _ast.walk(_ast.parse(src)):
+        if isinstance(_n, _ast.ImportFrom) and _n.module == "backend.services.swing_agent":
+            _hits.append(f"L{_n.lineno} from-import")
+        elif isinstance(_n, _ast.Attribute) and isinstance(_n.value, _ast.Name) \
+                and _n.value.id == "swing_agent":
+            _hits.append(f"L{_n.lineno} swing_agent.{_n.attr}")
+        elif isinstance(_n, _ast.Name) and _n.id == "_swing_router":
+            _hits.append(f"L{_n.lineno} name:_swing_router")
+    assert not _hits, (
+        f"master_execution.py 不应再真正引用已废弃的 swing_agent，实测 {_hits}"
+        "（原 is_swing_nature 路由依赖是注释里的假声明，轮128 已订正）"
     )
 
 

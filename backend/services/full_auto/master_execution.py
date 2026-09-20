@@ -278,7 +278,10 @@ def execute_master_decisions(
     from backend.services.sub_position_manager import normalize_nature
     from backend.services.decision_core.direction_coherence import evaluate_direction_coherence
     from backend.services.decision_consistency_gate import get_consistency_gate
-    from backend.services.swing_agent import swing_agent
+    # [轮128 2026-09-20] 删除死导入 `from backend.services.swing_agent import swing_agent`：
+    # AST 证实该名字在本文件内**从未被 Load/Attribute 访问**（3 处 import 全是死导入），
+    # 且导入已废弃模块会触发 DeprecationWarning 噪音。防回退：
+    # backend/tests/unit/test_agent_wall_retired_swing_20260920.py
     from backend.services.trend_agent import trend_agent
     from backend.services.scalp_factor_router import scalp_factor_router
     # 优化：DecisionSnapshot/AIDecisionLog imports 提升到顶层（减少循环内重复 import）
@@ -675,7 +678,8 @@ def execute_master_decisions(
         try:
             from backend.config.settings import MIDLONG_MASTER_DELEGATE
             if MIDLONG_MASTER_DELEGATE:
-                from backend.services.swing_agent import swing_agent as _swing_router
+                # [轮128 2026-09-20] 死导入 `import swing_agent as _swing_router` 已删
+                # （AST：`_swing_router` 在本文件内从未被使用）。
                 from backend.services.trend_agent import trend_agent as _trend_router
                 # [中长线合并] 中线已并入长线（mid_view 统一提供）：所有非短线策略
                 # 的新开均由中长线链路负责，总控不再单独跑中线/长线 LLM 决策。
@@ -761,7 +765,8 @@ def execute_master_decisions(
         # agent 的深度思考需要 1h/4h/1d 实际数据，原 market_summary 只有标量价格
         # 修复（2026-06-25）：所有策略都注入完整数据（不只 swing/trend），
         # 并补充 regime/orchestrator/fear_greed/衍生品 等缺失字段
-        from backend.services.swing_agent import swing_agent
+        # [轮128 2026-09-20] 死导入 `from backend.services.swing_agent import swing_agent` 已删
+        # （AST：该名字在本文件内从未被使用；数据预加载实际只经 trend_agent 完成）。
         from backend.services.trend_agent import trend_agent
         # [中长线合并] 非短线策略（swing/trend/mean_reversion/position 等）统一视为
         # 中长线，由 long thesis + mid_view 链路分析，主循环不再重复调 LLM。
@@ -1014,8 +1019,12 @@ def execute_master_decisions(
         # 中线分析能力完全由长线 thesis 的 mid_view 子结构提供（Phase 2 起 MLTO 的
         # qual_layer prompt 同时产出 long 方向 + mid_view；decision_hub 已含 mid_timing 权重）。
         # 原 SwingAgent.analyze 独立分支曾是"3 killers"路径之一，现随 mid-into-long 合并删除。
-        # 注意：mid-tier 的 *路由检测* 仍依赖 swing_agent.is_swing_nature（见上方
-        # MidLongExecutionLane delegate 与 agent 数据预加载段），SwingAgent 模块本身不删。
+        # [轮128 2026-09-20 订正] 这里原来写着「mid-tier 的路由检测仍依赖 swing_agent.is_swing_nature
+        # （见上方 MidLongExecutionLane delegate 与 agent 数据预加载段），SwingAgent 模块本身不删」。
+        # 实测那句是**假的**：上方的 3 处 `import swing_agent` 全是死导入（AST：名字从未被使用），
+        # 本文件里 `is_swing_nature` 除了这句话本身**没有任何调用点**（它只是被
+        # backend/tests/integration/test_swing_deprecated.py 当成字符串断言，所以一直"通过"）。
+        # 本轮已删掉那 3 处死导入，并把该测试改成断言"master 路径不再引用 swing_agent"。
         # 中线性质决策在主循环这里直接保持 hold/既定 action，由独立 midlong_loop + MLTO
         # 长线 thesis（含 mid_view）统一处理。
 

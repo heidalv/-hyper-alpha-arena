@@ -196,11 +196,16 @@ NODES: List[Dict[str, Any]] = [
      "cadence_label": "名义 5400s（实测 7~15 分钟，见审计）", "expected_interval_s": 5400,
      "source": {"kind": "file", "path": "logs/backend.log", "filter": r"TrendAgent"},
      "deps": ["coordinator"]},
-    {"id": "swing_agent", "group": "G4", "size": "S", "label": "旧 swing 模块（非中线！）",
-     "role": "swing_agent.py 自声明 DEPRECATED（2026-07 起无调度）；**中线车道由 brain_mid + midlong_executor 承担**，本节点只是历史模块",
-     "cadence_label": "无调度（模块已废弃）", "status_hint": "static_dead",
-     "source": {"kind": "none", "reason": "模块自声明废弃：swing_agent.py:27-34；analyze 无生产调用点（残活：_archive_prompt 被 trend_agent 复用、update_thesis 被 mlto/qual_layer 调用）"},
-     "deps": []},
+    # [轮128 2026-09-20 用户指令] 「旧 swing 模块（非中线！）」节点**已删除**：
+    #   它 source=kind:none（0 行、边=断链），本质是一个**代码模块**而不是画面上的 agent，
+    #   画出来只会让人问「这是怎么回事」。退役事实改由 `retired_layers` 说明（同 QAA 的处理）。
+    #   删除前把该卡原来的说法逐条核实了一遍（原文本称有 4 处"仍在使用"）：
+    #     · `_archive_prompt`              → **活**（trend_agent.py:389-390 复用做 prompt 落盘）
+    #     · `swing_agent.update_thesis`    → 死路径（唯一调用者 orchestrator 已于 09-05 下线）
+    #     · master_execution.py 的 3 处 import → 死导入（AST：名字从未被使用，本轮已删）
+    #     · `is_swing_nature` / `derive_swing_side` → 0 个生产调用点（仅注释里被提到）
+    #   取证：scripts/_probe128_swing_residuals.py + _probe128g_calltype.py（call_type 全表 swing=0）
+    #   防回退：backend/tests/unit/test_agent_wall_retired_swing_20260920.py
     {"id": "scalp_lane", "group": "G4", "size": "S", "label": "短线（已关停）",
      "role": "SCALP_OPEN_DISABLED=true",
      "cadence_label": "已关停", "status_hint": "disabled",
@@ -328,13 +333,32 @@ def _observe_mode(agent_id: str) -> Optional[str]:
     return (d or {}).get("mode")
 
 
-def _qaa_retired_note() -> List[Dict[str, str]]:
-    """已退役、因此**不在画布列出**的层（避免"为什么没有 QAA"重复发问）。"""
+def _retired_layers_note() -> List[Dict[str, str]]:
+    """已退役、因此**不在画布列出**的层（避免"为什么没有 X"重复发问）。
+
+    [轮128 2026-09-20] 原函数名 `_qaa_retired_note` 只覆盖 QAA 一项；现已含 swing_agent，
+    故改名（旧名不再保留别名——全库无其它调用点，见 test_agent_wall_retired_swing_20260920.py）。
+    """
     return [{
         "id": "qaa_v3_cards",
         "since": "2026-09-17",
         "doc": "docs/ADR_QAA退役_20260919.md",
         "note": "QAA v3 卡片编排层（9 张卡 + EventBus 调度）已正式退役；能力由 ai_first 统一循环 + 主脑 MLTO + 观察型 Agent 群承接",
+    }, {
+        # [轮128 2026-09-20 用户指令] 用户看着这张 0 行/断链卡问「这是怎么回事，有用么，没用删掉」。
+        # 结论：**模块不删（有 1 个活引用），卡删**——它不是 agent（无调度、无产物、无 job_registry 行）。
+        # 实测（AST + 运行时审计）：唯一活引用是 `_archive_prompt`（trend_agent.py:389-390）；
+        # `swing_agent.update_thesis` 因唯一调用者 orchestrator 于 09-05 下线而成为死路径；
+        # master_execution.py 里 3 处 import 是死导入（本轮已删）；
+        # `is_swing_nature`/`derive_swing_side` 0 个生产调用点（原卡片称"仍在使用"，与代码不符）。
+        # 中线车道真实承担者 = mlto/brain.py 的 model_gateway（call_type=sync:analysis.model_gateway）。
+        "id": "swing_agent_v1",
+        "since": "2026-09-20",
+        "doc": "backend/services/swing_agent.py:26-51（模块自述+实测表）+ scripts/_probe128_swing_residuals.py",
+        "note": ("旧 swing 独立分析路径已并入长线 thesis 的 mid_view（Phase 4）；画布不再列它。"
+                 "文件保留仅因 `_archive_prompt` 仍被 trend_agent 复用（唯一活引用，trend_agent.py:389-390）；"
+                 "其余引用经实测为死路径/死导入（详见模块 docstring 的核实表）。"
+                 "中线车道由 brain_mid + midlong_executor 承担，mid 论题 LLM 走 model_gateway"),
     }]
 
 
@@ -445,7 +469,7 @@ def build_state() -> Dict[str, Any]:
         "groups": [groups[k] for k in sorted(groups)],
         "nodes": nodes,
         "edges": edges,
-        "retired_layers": _qaa_retired_note(),
+        "retired_layers": _retired_layers_note(),
         "warnings": [jobs_warn] if jobs_warn else [],
         "note": ("节点状态复用 job_registry 的 stale 判定（None→ok / warn→stale / critical→dead / "
                  "never_ran→never）；dead/disabled 为结构性事实，依据见 /api/agent-wall/audit"),

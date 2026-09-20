@@ -24,12 +24,28 @@
   - decision_hub 已含 mid_timing 权重（0.15）
 
 模块保留原因（不删文件，留一版安全）：
-  - `swing_agent.is_swing_nature` 仍用于路由检测（master_execution 的
-    MidLongExecutionLane delegate + agent 数据预加载）
-  - `derive_swing_side` 仍被 mlto/orchestrator 用于构建 quant brief
-  - `_archive_prompt` 仍被 trend_agent 复用做 prompt 落盘
-  - `swing_agent.update_thesis` 仍被 mlto/qual_layer 的 tier=mid LLM 分支引用
-    （mid-tier thesis 段已 hard-skip，分支实际不可达，保留兼容签名）
+  [轮128 2026-09-20 实测订正] 原段声称有 4 处"仍在使用"，逐条用 AST + 运行时审计核实后，
+  **只有 1 处是真的**。原描述会把读者（以及曾经画在 Agent 画布上的那张卡）引向
+  "这些函数还在被调用"的错误结论。核实结果：
+
+  | 引用                                   | 位置                          | 状态 |
+  |----------------------------------------|-------------------------------|------|
+  | `_archive_prompt`                      | trend_agent.py:389-390        | **活**：长线方向 prompt 落盘（在 try/except 内） |
+  | `swing_agent.update_thesis`            | mlto/qual_layer.py:821-823    | **死路径**：唯一调用者 orchestrator.run_tick 已于 2026-09-05 下线（brain.py:1489 自述）⇒ 不可达 |
+  | `import swing_agent` ×3（名字从未被使用）| full_auto/master_execution.py 281/678/764 | **死导入**：AST 证实无任何 Load/Attribute ⇒ 轮128 已删 |
+  | `is_swing_nature` / `derive_swing_side` | 仅注释与文档提及              | **0 个生产调用点** |
+
+  运行时三重取证（scripts/_probe128*.py）：
+    ① 当前 logs/backend.log 与 logs/brain_subprocess.log 的 `[SwingAgent]` 命中 = 0；
+    ② 归档日志里最后一条 `[SwingAgent]` = 2026-08-13 16:25:56；
+    ③ `alpha_analytics.llm_usage_logs.call_type` 全表含 swing = 0 条
+       （而对照 sync:TrendAgent:review/pyramid 各 277/253 条，最新就在当下）。
+  结论：本模块**当前没有任何运行时活动**；中线车道由 mlto/brain.py 的 model_gateway
+  （call_type=sync:analysis.model_gateway）承担，与本模块无关。
+
+  防回退：backend/tests/unit/test_agent_wall_retired_swing_20260920.py
+  （若将来真有新代码要用本模块，那个测试会失败——届时请把本段改成**带调用点**的事实描述，
+   而不是恢复一句没有出处的"仍在使用"）。
 
 新代码不应再调用 `swing_agent.analyze`。导入本模块会触发 DeprecationWarning。
 ============================================================================
