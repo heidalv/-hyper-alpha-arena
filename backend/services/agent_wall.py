@@ -177,6 +177,20 @@ NODES: List[Dict[str, Any]] = [
      "cadence_label": "随 tick",
      "source": {"kind": "file", "path": "logs/backend.log", "filter": r"\[MidLong\].*tier=long"},
      "deps": ["thesis_store"]},
+    {"id": "mid_position_mgr", "group": "G4", "size": "M", "label": "中线持仓管理（midlong_position_manager）",
+     "role": "中线持仓的读取/合并/减仓与退出触发（`_open_midlong_positions` 等）；"
+             "长线对应物是 `trend_agent.review_position`——**两条车道各有自己的持仓层**",
+     "cadence_label": "随 tick",
+     "source": {"kind": "file", "path": "logs/backend.log",
+                "filter": r"midlong_position_manager|MidLongPositionManager"},
+     "deps": ["midlong_executor"]},
+    {"id": "mid_exit", "group": "G4", "size": "M", "label": "中线出场（ExitPolicy · 与长线参数已分离）",
+     "role": "出场唯一权威 `ExitPolicy`（轮100/101 已把中/长线参数拆开：止损来源、复查节奏、"
+             "TP 分档各自独立）。长线走 Chandelier + 滚仓，中线走 ExitPolicy 分档止盈——"
+             "**这正是「中线与长线最后完全不同」的落点之一**",
+     "cadence_label": "事件驱动",
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"ExitPolicy|exit_policy"},
+     "deps": ["mid_position_mgr"]},
     {"id": "direction_audit", "group": "G4", "size": "M", "label": "中线决策审计漏斗",
      "role": "中/长线决策漏斗审计（jsonl，无 API）",
      "cadence_label": "事件驱动",
@@ -221,6 +235,13 @@ EDGES: List[Dict[str, Any]] = [
     {"from": "data_center", "to": "trend_e1_engine", "kind": "data", "label": "日线行情"},
     {"from": "trend_e1_engine", "to": "position_sizing", "kind": "trigger", "label": "E1 直接下单"},
     {"from": "coin_select", "to": "midlong_exec", "kind": "data", "label": "AI 长线候选"},
+    # [轮126 车道对称] 中线链：主脑 → 执行 → 持仓管理 → 出场 → 审计（与长线链同形）
+    {"from": "coin_select", "to": "brain_mid", "kind": "data", "label": "中线候选池"},
+    {"from": "brain_mid", "to": "midlong_executor", "kind": "trigger", "label": "开仓决策(tier=mid)"},
+    {"from": "midlong_executor", "to": "mid_position_mgr", "kind": "data", "label": "持仓管理"},
+    {"from": "mid_position_mgr", "to": "mid_exit", "kind": "trigger", "label": "退出触发"},
+    {"from": "mid_exit", "to": "direction_audit", "kind": "audit", "label": "出场审计"},
+    {"from": "midlong_exec", "to": "direction_audit", "kind": "audit", "label": "开仓审计(long)"},
     {"from": "coin_select", "to": "brain_mid", "kind": "data", "label": "候选池"},
     # [2026-09-19 修正] 中/长线的真实触发链：`midlong_loop`（同一循环的两个 tier）
     # → 派发 mid/long 主脑子进程；→ 触发 trend_agent 持仓复核。
