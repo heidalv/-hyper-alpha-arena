@@ -4754,13 +4754,25 @@ class FullAutoTradingService:
                 _t = time.perf_counter()
                 _analyst = KlineAnalyst()
                 _syms = [s.upper() for s in symbols[:3]]
+                _rep = None
                 try:
-                    _analyst.analyze(_syms)
+                    _rep = _analyst.analyze(_syms)
                 except Exception:
                     pass
+                # [轮134 2026-09-20] 产物**必须落库**：此前这里丢弃返回值 ⇒
+                # `alpha_analytics.kline_ai_analysis_logs` 0 行，六分析师里的 kline_deep 域
+                # 只能报 missing（而 KlineAnalyst 每 24h 实际烧 ~222 次 LLM）。
+                # 落库后 score_kline_deep 直接读结构化结论，不再靠关键词猜方向。
+                # 回滚：KLINE_DEEP_PERSIST_ENABLED=false（恢复"只预热不落库"）。
+                try:
+                    from backend.services.analysts.kline_deep_store import persist_report
+                    _n = persist_report(_rep)
+                except Exception as _pe:
+                    logger.debug("[AnalystWarmup] K线深度落库跳过: %s", _pe)
+                    _n = 0
                 logger.info(
-                    "[AnalystWarmup] KlineAnalyst 缓存预热完成 symbols=%s 耗时=%.1fs",
-                    _syms, time.perf_counter() - _t,
+                    "[AnalystWarmup] KlineAnalyst 缓存预热完成 symbols=%s 耗时=%.1fs 落库=%d",
+                    _syms, time.perf_counter() - _t, _n,
                 )
             except Exception as _e:
                 logger.debug("[AnalystWarmup] 分析师报告预热跳过: %s", _e)

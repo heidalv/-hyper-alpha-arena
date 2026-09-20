@@ -1544,6 +1544,10 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "ANALYST_BLEND_SHADOW_ENABLED",        # 默认 true：记录影子对照
     "ANALYST_BLEND_APPLY",                 # 默认 false：true 才真的改 conviction（策略变更）
     "ANALYST_BLEND_GAIN",                  # 混合增益（默认 0.15，即最强信号 ±15%）
+    # [轮134 2026-09-20] K线深度产物落库（backend/services/analysts/kline_deep_store.py）：
+    # KlineAnalyst 每 24h 烧 ~222 次 LLM，但 `_warmup_analyst_reports` 丢弃返回值 ⇒
+    # kline_ai_analysis_logs 0 行、kline_deep 域只能报 missing（用户指令：不要为省预算而不落库）。
+    "KLINE_DEEP_PERSIST_ENABLED",          # 默认 true；false=恢复"只预热不落库"
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

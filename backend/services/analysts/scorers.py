@@ -482,9 +482,10 @@ _BEAR_KW = ("看空", "偏空", "做空", "下跌", "跌破", "bearish", "short"
 def score_kline_deep(symbols: Sequence[str]) -> List[AnalystSignal]:
     """K线深度：消费 `analytics.kline_ai_analysis_logs`。
 
-    **现状（轮129 实测）**：该表 0 行 —— KlineAnalyst 每 24h 仍在烧 ~222 次 LLM 调用，
-    但结果从未落库。本 scorer 如实返回 `missing`，把这个"烧钱无产物"暴露在契约里，
-    而不是假装有个信号。
+    **现状（轮134 起）**：`_warmup_analyst_reports` 已把 `KlineAnalyst.analyze()` 的逐币结论
+    **结构化落库**（`analysts/kline_deep_store.py`：direction/score/summary/recommendation/detail）。
+    本 scorer 优先解析该结构；只有旧行（纯文本）才退回关键词近似。
+    若表仍为空 ⇒ 如实返回 `missing`（不假装有信号）。
     """
     from backend.database.connection import analytics_engine
 
@@ -510,22 +511,48 @@ def score_kline_deep(symbols: Sequence[str]) -> List[AnalystSignal]:
     out: List[AnalystSignal] = []
     for sym, result, created in rows:
         txt = str(result or "")
+        payload: Dict[str, Any] = {}
+        try:
+            _p = json.loads(txt)
+            if isinstance(_p, dict):
+                payload = _p
+        except Exception:  # noqa: BLE001
+            payload = {}
+        if payload:
+            # ── 结构化路径（轮134 起的新产物）──
+            try:
+                direction = float(payload.get("direction") or 0.0)
+            except Exception:  # noqa: BLE001
+                direction = 0.0
+            detail = str(payload.get("detail") or "")
+            score = _clamp(direction)
+            conf = _clamp(min(1.0, len(detail) / 800.0), 0.0, 1.0) if detail else 0.4
+            out.append(AnalystSignal(
+                domain="kline_deep", symbol=_base(sym), score=score,
+                confidence=conf, data_quality=QUALITY_OK, n_samples=1, producer=PRODUCER,
+                as_of=str(created)[:19],
+                evidence={"signal": payload.get("signal"), "score_raw": payload.get("score"),
+                          "summary": str(payload.get("summary") or "")[:160],
+                          "recommendation": str(payload.get("recommendation") or "")[:160],
+                          "detail_chars": len(detail),
+                          "parsed": "structured"},
+            ))
+            continue
+        # ── 旧行兜底：纯文本关键词近似（标注 parsed=keywords，不冒充结构化）──
         low = txt.lower()
         pos = sum(low.count(k.lower()) for k in _BULL_KW)
         neg = sum(low.count(k.lower()) for k in _BEAR_KW)
         if not txt.strip():
             continue
-        score = _clamp((pos - neg) / max(1, pos + neg))
         out.append(AnalystSignal(
-            domain="kline_deep", symbol=_base(sym), score=score,
+            domain="kline_deep", symbol=_base(sym), score=_clamp((pos - neg) / max(1, pos + neg)),
             confidence=_clamp(min(1.0, len(txt) / 800.0), 0.0, 1.0),
             data_quality=QUALITY_WEAK, n_samples=1, producer=PRODUCER,
             as_of=str(created)[:19],
             evidence={"chars": len(txt), "bull_kw": pos, "bear_kw": neg,
-                      "excerpt": txt[:200],
-                      "note": "关键词口径为临时实现（产物为自由文本），落库结构化后应替换"},
-            missing_sources=["结构化字段（direction/score）未落库，当前用关键词近似"],
-            reason="产物为自由文本，方向判定为关键词近似",
+                      "excerpt": txt[:200], "parsed": "keywords"},
+            missing_sources=["结构化字段未落库（旧行），当前用关键词近似"],
+            reason="旧格式产物为自由文本，方向判定为关键词近似",
         ))
     if not out:
         return [_missing("kline_deep", "有产物行但内容为空", missing_sources=["analytics.kline_ai_analysis_logs"])]
