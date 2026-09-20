@@ -48,6 +48,9 @@ TASK_CLASS_OF = {
     "trend_chart_review": "event",
     # [2026-09-05] 中长线论题主脑：与图审同级 event，避免默认 light 被挤成单票假共识
     "midlong_thesis": "event",
+    # [轮130 2026-09-20] 牛熊对抗辩论（brain_debate.py）：单次上下文小（提案+证据链），
+    # 但一次辩论会连发牛/熊/风险角色多次调用 ⇒ 按 light 计，靠小时上限而不是配额控量。
+    "mlto_debate": "light",
     "gateway_test": "light",
     "adhoc": "light",
     # 新闻标注：单条标题，上下文极小，但条数多（去重后约 21 条/天）。

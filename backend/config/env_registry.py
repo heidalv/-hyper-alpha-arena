@@ -1512,6 +1512,19 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 关闭后 run_once 直接返回 enabled=False（不写库、不影响任何既有判定）。
     "ANALYST_SIGNALS_ENABLED",       # 默认 true；false=整层停用（回滚开关）
     "ANALYST_SIGNAL_LOOKBACK_H",     # 信号回看窗口（小时，默认 24）
+    # [轮130 2026-09-20] 牛熊对抗辩论接线（backend/services/mlto/brain_debate.py）：
+    # 辩论层此前**只被生产 0 调用点的 orchestrator 调用**（mlto/orchestrator.py:* ，
+    # 旧 MLTO 主脑 09-05 下线）⇒ `mlto_debate_log` 0 行。现已接到活主脑 refresh_thesis。
+    "MIDLONG_DEBATE_ENABLED",        # 默认 true；false=完全不跑（回滚开关）
+    "MIDLONG_DEBATE_LLM",            # 默认 true；false=规则降级（0 LLM 成本）
+    "MIDLONG_DEBATE_LLM_RISK",       # 默认 false：风控角色走规则（LLM 只在牛/熊，省 3/5 成本）
+    "MIDLONG_DEBATE_APPLY",          # 默认 true；false=只记录裁决、不改 conviction
+    "MIDLONG_DEBATE_MAX_ROUNDS",     # 默认 1（每轮=2 次贸易辩论 + 3 个风险角色）
+    "MIDLONG_DEBATE_COOLDOWN_S",     # 同标的两次辩论最小间隔（默认 1800）
+    "MIDLONG_DEBATE_HOURLY_CAP",     # 全局每小时辩论次数上限（默认 6，防灰区刷爆）
+    "MIDLONG_DEBATE_TRANSPORT",      # 空=取 ANALYSIS_PRIMARY_TRANSPORTS 第一项
+    "MIDLONG_DEBATE_MAX_OUTPUT_TOKENS",   # 单次论点输出上限（默认 900）
+    "MIDLONG_DEBATE_TIMEOUT_S",      # 单次调用超时（默认 120）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

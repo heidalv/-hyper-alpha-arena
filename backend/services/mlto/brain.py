@@ -1619,6 +1619,34 @@ def refresh_thesis(
                     )
         except Exception as _owm_err:
             logger.debug("[MidLongBrain] OWM 接线跳过(fail-open): %s", _owm_err)
+        # [轮130 2026-09-20 用户指令] 牛熊研究员对抗辩论 —— 接线到**活主脑**。
+        # 架构：五分析师+六域信号 → 牛熊对抗辩论 → 风控官（否决权）→ 交易员。
+        # 实测：`mlto/debate_layer.py` 此前唯一调用者是生产 0 调用点的 orchestrator（09-05 下线），
+        # 故 `mlto_debate_log` 0 行。本轮把它接到这里（OUW 调整后、accepted/recommend_open 定型前），
+        # 证据取自 context_pack 的市场/资金流/因子/**六分析师信号**层；灰区（conv 40~70）才跑，
+        # 且受冷却 + 小时上限约束（LLM 是花钱的）。生效幅度有界：reject×0.6 / reduce×0.85，
+        # **否决权不在这一层**（属风控官）。回滚：MIDLONG_DEBATE_ENABLED=false。
+        _debate: Optional[Dict[str, Any]] = None
+        try:
+            from backend.services.mlto.brain_debate import (
+                apply_conviction_effect,
+                run_debate_for_thesis,
+            )
+            from backend.services.full_auto.midlong_executor import get_cached_regime as _reg_of
+            _debate = run_debate_for_thesis(
+                symbol=symbol, tier=tier, conviction=dto.llm_conviction, direction=str(dto.direction or ""),
+                pack=feed.get("pack"), extras=feed.get("extras"),
+                regime=str(_reg_of(symbol) or ""), thesis_id=str(dto.thesis_id or ""),
+                session_id=session_id,
+            )
+            if _debate:
+                _new_conv, _note = apply_conviction_effect(dto.llm_conviction, _debate)
+                if abs(_new_conv - float(dto.llm_conviction)) > 1e-6:
+                    logger.info("[MidLongBrain] 辩论调整 conviction %d→%d（%s %s %s）",
+                                dto.llm_conviction, int(_new_conv), _note, symbol, tier)
+                    dto.llm_conviction = int(_new_conv)
+        except Exception as _deb_err:
+            logger.debug("[MidLongBrain] 辩论接线跳过(fail-open): %s", _deb_err)
         dto.missing_evidence = miss[:10]
         dto.invalidation = inv_norm
         try:
@@ -1660,6 +1688,16 @@ def refresh_thesis(
                 "missing": dto.missing_evidence,
                 "expiry_s": thesis_expiry_s(tier, accepted=dto.accepted),
                 "inv_price": _inv_price(dto.invalidation),
+                # [轮130] 辩论裁决随论题事件落库（含证据）——画布与复盘据此可查"辩论说了什么"
+                **({"debate": {"verdict": _debate.get("verdict"),
+                               "primary_horizon": _debate.get("primary_horizon"),
+                               "primary_verdict": _debate.get("primary_verdict"),
+                               "horizon_verdicts": _debate.get("horizon_verdicts"),
+                               "horizon_conflict": _debate.get("horizon_conflict"),
+                               "net": _debate.get("net_sentiment"),
+                               "risk_min": _debate.get("risk_min"),
+                               "llm": _debate.get("used_llm"),
+                               "evidence": (_debate.get("evidence") or [])[:4]}} if _debate else {}),
             },
         )
         # [2026-09-07] 情景记忆：论题刷新后快照市场指纹（海马体情景记忆写入）。

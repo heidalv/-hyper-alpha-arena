@@ -290,15 +290,20 @@ class AdversarialDebateLayer:
     def _rule_risk_turn(self, role, vol, leverage) -> DebateTurn:
         # 风险信心 = 对"应继续开仓"的支持度；高波动+高杠杆 → 保守方降信心
         risk_load = min(1.0, vol * 20.0) * 0.6 + min(1.0, max(0.0, (leverage - 1) / 10.0)) * 0.4
+        # [轮130 2026-09-20 措辞修复] 原文案把"偏高"写死，导致 risk_load=0.05 时也输出
+        # 「负荷0.05 偏高，建议减仓」——实测出现过。现在按档位给出与数值一致的措辞
+        # （数值本身不变，仅影响给 LLM/人看的文本，避免误导复盘）。
+        _lvl = "低" if risk_load < 0.25 else ("中" if risk_load < 0.55 else "高")
         if role == "risk_aggressive":
             conf = max(0.3, 1.0 - 0.3 * risk_load)
-            arg = f"激进：波动/杠杆负荷{risk_load:.2f} 可接受，倾向按计划执行"
+            arg = f"激进：波动/杠杆负荷{risk_load:.2f}（{_lvl}）可接受，倾向按计划执行"
         elif role == "risk_conservative":
             conf = max(0.1, 1.0 - risk_load)
-            arg = f"保守：负荷{risk_load:.2f} 偏高，建议减仓或收紧止损"
+            _tip = "建议减仓或收紧止损" if _lvl != "低" else "当前负荷可承受，但需保留退出纪律"
+            arg = f"保守：负荷{risk_load:.2f}（{_lvl}），{_tip}"
         else:
             conf = max(0.2, 1.0 - 0.6 * risk_load)
-            arg = f"中立：负荷{risk_load:.2f}，可执行但需风控约束"
+            arg = f"中立：负荷{risk_load:.2f}（{_lvl}），可执行但需风控约束"
         return DebateTurn(role=role, argument=arg, confidence=round(conf, 4))
 
     # ---------- 综合 ----------
