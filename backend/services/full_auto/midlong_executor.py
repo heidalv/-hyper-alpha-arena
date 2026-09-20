@@ -232,6 +232,7 @@ def apply_regime_to_open(
     market_summary: Optional[dict],
     trading_mode: str = "paper",
     tranche_margin_pct: float = 1.0,
+    tier: str = "",
 ) -> Tuple[str, float, str, str]:
     """Regime 路由（R5）：返回 (action, margin_pct, regime, reason)。
 
@@ -239,6 +240,14 @@ def apply_regime_to_open(
     ranging → 默认禁止；Paper + ALLOW_RANGE_PROBE 时 size×0.25
     extreme → 禁止新开
     unknown → size×0.5
+
+    [轮132 2026-09-20 致命修复] 本函数的三处日志（ranging_block/ranging_probe/unknown）
+    都写了 `tier=%s`，但**形参里没有 `tier`** ⇒ 走到 ranging 分支就抛
+    `NameError: name 'tier' is not defined`，被 `maybe_open` 兜住记成
+    「[MidLongBrain] 开仓失败 …」，**所有中线/长线开仓全挂**（实测 11:47 起 24 次）。
+    这正是 轮117 `name 'side' is not defined` 的同类事故（当时也是打日志用了作用域外的名字）。
+    修复：①补 `tier` 形参并在调用点传入；②ranging_block 那处日志只有 1 个实参却有 2 个 %s，
+    一并补齐。防回退见 `test_midlong_log_scope_guard_20260920.py`（全库扫描同类作用域错）。
     """
     act = (action or "hold").lower()
     try:
@@ -304,7 +313,7 @@ def apply_regime_to_open(
             logger.info(
                 "[MidLong] stage=fuse tier=%s symbol=%s regime=ranging action=hold "
                 "reason=range_block (ALLOW_RANGE_PROBE=false or live)",
-                sym_u,
+                tier or "-", sym_u,
             )
             return "hold", 0.0, regime, "regime_ranging_block"
         # [P2-8] 统一 regime→size 口径：以 regime_agent.classify_regime 的
@@ -622,6 +631,8 @@ def execute_midlong_open(
             market_summary=market_summary,
             trading_mode=_tm or "paper",
             tranche_margin_pct=margin,
+            # [轮132] 必须传 tier：该函数内部三处日志都打 tier（不传就 NameError，见其 docstring）
+            tier=str(tier or ""),
         )
         # [轮117 2026-09-19 乘子链留痕] regime 层对分档系数的实际作用（进/出）
         try:
@@ -635,7 +646,9 @@ def execute_midlong_open(
             logger.info(
                 "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
                 "regime=%s reason=%s",
-                sym_u, auth, source, regime, reg_reason,
+                # [轮132] 原来 6 个 %s 只给了 5 个实参（缺 tier）⇒ logging 内部报错、
+                # 该行输出被打断。补上 tier。
+                tier or "-", sym_u, auth, source, regime, reg_reason,
             )
             _record_fail(reg_reason or "regime_block", regime)
             return False

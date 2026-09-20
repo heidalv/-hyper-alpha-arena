@@ -11,16 +11,21 @@
 本模块把辩论接到活主脑 `mlto/brain.py::refresh_thesis`（OWM 调整之后、accepted/recommend_open 定型之前），
 并且只用**真实的上下文证据**（context_pack 的市场/资金流/因子/**六分析师信号**层）喂它。
 
-## 成本闸（LLM 是花钱的，必须闸住）
+## 成本与闸门（**用户 2026-09-20 明确：先不要考虑 LLM 预算**）
+> 原话：「强调过，先不要考虑 llm 预算，你怎么还想给我省，你这个省会坏大事情」。
+> 因此下列默认值**不再为省钱设限**：风控角色也用 LLM（`MIDLONG_DEBATE_LLM_RISK=true`）、
+> 轮数 2、小时上限 0（不限）、冷却 120s（仅防同一 tick 内重复，不是预算控制）。
+> 保留的开关只是**可控性**（便于定位问题/回滚），不是省钱手段。
+
 | 开关 | 默认 | 作用 |
 |---|---|---|
 | `MIDLONG_DEBATE_ENABLED` | true | 总闸（false = 完全不跑，回滚开关） |
-| `MIDLONG_DEBATE_LLM` | true | true=牛/熊/风险角色用 LLM 生成论点；false=规则降级（0 成本） |
-| `MIDLONG_DEBATE_LLM_RISK` | false | 风控角色是否也用 LLM（默认 false ⇒ 每轮 2 次调用而非 5 次） |
-| `MIDLONG_DEBATE_APPLY` | true | 是否让裁决**有界地**影响 conviction（false=只记录不生效） |
-| `MIDLONG_DEBATE_MAX_ROUNDS` | 1 | 辩论轮数（每轮 2 次贸易辩论 + 3 个风险角色） |
-| `MIDLONG_DEBATE_COOLDOWN_S` | 1800 | 同一标的两次辩论的最小间隔 |
-| `MIDLONG_DEBATE_HOURLY_CAP` | 6 | 全局每小时最多几次辩论（防灰区刷爆） |
+| `MIDLONG_DEBATE_LLM` | true | true=LLM 生成论点；false=规则降级（仅用于离线/故障排查） |
+| `MIDLONG_DEBATE_LLM_RISK` | **true** | 风控角色**也走 LLM**（架构要求"风控官"独立评估） |
+| `MIDLONG_DEBATE_APPLY` | true | 是否让**主周期**裁决有界影响 conviction |
+| `MIDLONG_DEBATE_MAX_ROUNDS` | **2** | 辩论轮数（每轮 = 牛 + 熊 + 3 风险角色） |
+| `MIDLONG_DEBATE_COOLDOWN_S` | **120** | 同标的两次辩论最小间隔（防同 tick 重复，非预算控制） |
+| `MIDLONG_DEBATE_HOURLY_CAP` | **0** | 0 = **不限**（仅防失控；设 >0 时才生效） |
 | `MIDLONG_DEBATE_TRANSPORT` | 空 | 指定传输；空=取 `ANALYSIS_PRIMARY_TRANSPORTS` 第一项 |
 
 ## 生效幅度（**有界**，且不与"风控官否决权"混淆）
@@ -91,7 +96,7 @@ def _make_llm_client(tier: str, recorder: Optional[List[Tuple[str, str]]] = None
 
     gw = get_model_gateway()
     transport = _llm_transport()
-    allow_risk_llm = _flag("MIDLONG_DEBATE_LLM_RISK", "false")
+    allow_risk_llm = _flag("MIDLONG_DEBATE_LLM_RISK", "true")
     suffix = _horizon_instruction()
 
     def _client(prompt: str) -> str:
@@ -133,15 +138,16 @@ def _gate(symbol: str, conviction: float, tier: str) -> Optional[str]:
         _STATS["skipped_zone"] += 1
         return f"not_gray_zone(hub={hub:.2f})"
     now = time.time()
-    cd = _num("MIDLONG_DEBATE_COOLDOWN_S", 1800)
+    cd = _num("MIDLONG_DEBATE_COOLDOWN_S", 120)
     with _LOCK:
         last = _LAST_BY_SYMBOL.get(symbol.upper(), 0.0)
         if now - last < cd:
             _STATS["skipped_cooldown"] += 1
             return f"cooldown({int(cd - (now - last))}s)"
-        cap = _num("MIDLONG_DEBATE_HOURLY_CAP", 6)
+        # [轮132 用户指令] 不再为省 LLM 设限：cap=0 表示**不限**（只保留"设了才生效"的失控保护）
+        cap = _num("MIDLONG_DEBATE_HOURLY_CAP", 0)
         _HOURLY[:] = [t for t in _HOURLY if now - t < 3600]
-        if len(_HOURLY) >= cap:
+        if cap > 0 and len(_HOURLY) >= cap:
             _STATS["skipped_cap"] += 1
             return f"hourly_cap({cap})"
     return None
@@ -465,7 +471,7 @@ def run_debate_for_thesis(
             if len(ev_sorted) >= 12:
                 break
     layer = AdversarialDebateLayer(llm_client=llm_client,
-                                   max_rounds=int(_num("MIDLONG_DEBATE_MAX_ROUNDS", 1)))
+                                   max_rounds=int(_num("MIDLONG_DEBATE_MAX_ROUNDS", 2)))
     t0 = time.time()
     res = layer.debate(proposal, ctx, ev_sorted[:12])
     used_llm = llm_client is not None
@@ -671,9 +677,9 @@ def status() -> Dict[str, Any]:
         "llm": _flag("MIDLONG_DEBATE_LLM", "true"),
         "apply": _flag("MIDLONG_DEBATE_APPLY", "true"),
         "transport": _llm_transport(),
-        "max_rounds": int(_num("MIDLONG_DEBATE_MAX_ROUNDS", 1)),
-        "cooldown_s": _num("MIDLONG_DEBATE_COOLDOWN_S", 1800),
-        "hourly_cap": _num("MIDLONG_DEBATE_HOURLY_CAP", 6),
+        "max_rounds": int(_num("MIDLONG_DEBATE_MAX_ROUNDS", 2)),
+        "cooldown_s": _num("MIDLONG_DEBATE_COOLDOWN_S", 120),
+        "hourly_cap": _num("MIDLONG_DEBATE_HOURLY_CAP", 0),
         "horizons": [{"key": k, "cn": cn, "evidence_scope": scope} for k, cn, scope in HORIZONS],
         "tier_primary_horizon": dict(TIER_PRIMARY_HORIZON),
         "runs_last_hour": len(recent),

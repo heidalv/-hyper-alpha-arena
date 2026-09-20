@@ -1516,12 +1516,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 辩论层此前**只被生产 0 调用点的 orchestrator 调用**（mlto/orchestrator.py:* ，
     # 旧 MLTO 主脑 09-05 下线）⇒ `mlto_debate_log` 0 行。现已接到活主脑 refresh_thesis。
     "MIDLONG_DEBATE_ENABLED",        # 默认 true；false=完全不跑（回滚开关）
-    "MIDLONG_DEBATE_LLM",            # 默认 true；false=规则降级（0 LLM 成本）
-    "MIDLONG_DEBATE_LLM_RISK",       # 默认 false：风控角色走规则（LLM 只在牛/熊，省 3/5 成本）
+    "MIDLONG_DEBATE_LLM",            # 默认 true；false=规则降级（仅离线/故障排查用）
+    "MIDLONG_DEBATE_LLM_RISK",       # 默认 true：风控角色**也走 LLM**（2026-09-20 用户：先不要考虑 LLM 预算）
     "MIDLONG_DEBATE_APPLY",          # 默认 true；false=只记录裁决、不改 conviction
-    "MIDLONG_DEBATE_MAX_ROUNDS",     # 默认 1（每轮=2 次贸易辩论 + 3 个风险角色）
-    "MIDLONG_DEBATE_COOLDOWN_S",     # 同标的两次辩论最小间隔（默认 1800）
-    "MIDLONG_DEBATE_HOURLY_CAP",     # 全局每小时辩论次数上限（默认 6，防灰区刷爆）
+    "MIDLONG_DEBATE_MAX_ROUNDS",     # 默认 2（每轮=牛+熊+3 风险角色，全部走 LLM）
+    "MIDLONG_DEBATE_COOLDOWN_S",     # 同标的两次辩论最小间隔（默认 120，仅防同 tick 重复）
+    "MIDLONG_DEBATE_HOURLY_CAP",     # 每小时上限（默认 0=**不限**；非 0 才生效，仅作失控保护）
     "MIDLONG_DEBATE_TRANSPORT",      # 空=取 ANALYSIS_PRIMARY_TRANSPORTS 第一项
     "MIDLONG_DEBATE_MAX_OUTPUT_TOKENS",   # 单次论点输出上限（默认 900）
     "MIDLONG_DEBATE_TIMEOUT_S",      # 单次调用超时（默认 120）
