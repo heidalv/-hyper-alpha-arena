@@ -1507,6 +1507,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "EXIT_POLICY_REFRESH_OPEN",
     "LIVE_NATIVE_TRAILING_STOP",     # live 侧 ExitPolicy trailing 激活时挂交易所原生 TRAILING_STOP_MARKET（默认 false）
     "ANALYSIS_UNIVERSE",             # context pack 币池（默认 BTC,ETH,SOL,BNB,XRP,DOGE,ADA,AVAX）
+    # [轮129 2026-09-20] 六分析师数值化信号层（backend/services/analysts/*）：
+    # 把基本面/量价/舆情/资金流/宏观/K线深度六域判断落成 [-1,1] 一等 alpha 信号。
+    # 关闭后 run_once 直接返回 enabled=False（不写库、不影响任何既有判定）。
+    "ANALYST_SIGNALS_ENABLED",       # 默认 true；false=整层停用（回滚开关）
+    "ANALYST_SIGNAL_LOOKBACK_H",     # 信号回看窗口（小时，默认 24）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

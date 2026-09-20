@@ -394,14 +394,20 @@ from .middleware.trace import TraceMiddleware
 app.add_middleware(TraceMiddleware)
 
 # [2026-08-18 性能治理] 慢请求计时中间件：≥3s 的 API 请求记录路径+耗时（定位页面卡顿端点）
+# [2026-09-18 前端刷新慢治理] 同一处顺带记账到 gil_watch：把"排队久"与"查询慢"分开。
+#   实测背景：进程无请求时也中位占用 ~99% 单核（GIL 饱和），同步端点排队 ⇒ 同端点 25ms~4.6s。
+#   快照见 GET /api/ops/gil-watch，窗口行见 [GILWatch] 日志。
 @app.middleware("http")
 async def _slow_request_profiler(request, call_next):
     import time as _t
+    from backend.services import gil_watch as _gw
     _t0 = _t.perf_counter()
+    _gw.request_started()
     try:
         resp = await call_next(request)
     finally:
         _el = _t.perf_counter() - _t0
+        _gw.request_finished(_el, request.url.path)
         if _el >= 3.0:
             logging.getLogger("slowapi").warning(
                 "SLOW %5.1fs %s %s%s",
@@ -549,6 +555,13 @@ def on_startup():
         logger.info("[Startup] anyio 线程池容量设为 100 (默认40)")
     except Exception as _e:
         logger.debug(f"[Startup] anyio 线程池设置跳过: {_e}")
+
+    # [2026-09-18 前端刷新慢治理] GIL/排队可观测（无请求时进程也贴 1 核，请求在 GIL 队列里排队）
+    try:
+        from backend.services import gil_watch as _gw
+        _gw.start()
+    except Exception as _e:
+        logger.debug(f"[Startup] gil_watch 启动跳过: {_e}")
 
     # [阶段0] 前端文件监视线程启动块已删(后端不再热构建前端,前端由独立构建/托管)
 
@@ -1333,6 +1346,40 @@ def on_startup():
         except Exception as e:
             logger.info(f"[async] FactorExposure 快照注册失败: {e}")
 
+        # [轮129 2026-09-20] 六分析师数值化信号层（日频落地）
+        # 背景（用户指令）：五分析师（基本面/量价/舆情/资金流/宏观）+ K线分析师，
+        # 每日 thesis 数值化成**一等 alpha 信号**，供主脑上下文与后续混合打分消费。
+        # 为什么必须落库而不是现算：审计发现"说做了其实没做"都发生在**没有产物可查**的地方；
+        # 本任务每轮把六域结果（含 missing）写进 alpha_analytics.analyst_signals，
+        # 由 `analysts.contract_report()` 与单测对照"承诺 vs 交付"。
+        # 开关：ANALYST_SIGNALS_ENABLED（默认开）；回滚=置 false（不写库、不影响任何判定）。
+        try:
+            from backend.services.analysts import run_once as _analysts_run_once
+            from backend.services.analysts.scorers import _enabled as _analysts_enabled
+            if _analysts_enabled():
+                from backend.services.scheduler import task_scheduler as _analyst_sched
+                _analyst_sched.start()
+
+                def _analyst_signals_tick():
+                    try:
+                        _analysts_run_once()
+                    except Exception as _an_err:
+                        logger.warning("[Analysts] 信号 tick 失败: %s", _an_err)
+
+                # 日频：分析师 thesis 是日频产物（新闻/资金流按小时变，但"日频落地"是设计口径）。
+                # 1800s 的窗口内重复跑只是刷新同一批信号（幂等：每轮全量重算 + 追加落库）。
+                _analyst_sched.add_interval_task(
+                    task_func=_analyst_signals_tick,
+                    interval_seconds=1800,
+                    task_id="analyst_signals_daily",
+                    max_instances=1,
+                )
+                logger.info("[async] Analysts 六域信号任务已注册（1800s）")
+            else:
+                logger.info("[async] Analysts 信号任务跳过（ANALYST_SIGNALS_ENABLED=false）")
+        except Exception as e:
+            logger.info(f"[async] Analysts 信号任务注册失败: {e}")
+
         # 根因2修复：全历史数据回填纳入自动启动流程。 # 数据中台整改：系统启动时自动检查并补齐全历史数据（上市日起）， # 而非仅靠实时采集器补当前分钟。受 KLINE_FULL_HISTORY_AUTOFILL 控制（默认开）。 # 独立数据中心模式下由 worker 负责，避免双进程抢写。
         if (not _dc_external) and os.environ.get("KLINE_FULL_HISTORY_AUTOFILL", "true").lower() in ("1", "true", "yes", "on"):
             try:
@@ -1637,6 +1684,96 @@ def on_startup():
                 logger.info("[async] 选币ROI周报任务已注册（周一08:00）")
             except Exception as _roi_reg_err:
                 logger.warning("[async] 选币ROI周报注册失败(非致命): %s", _roi_reg_err)
+            # [混合打分中心 ADR-23] 命中回填（每日08:05，≥24h 的影子条目算 24h 前瞻
+            # 收益 + 更新滚动 IC）与消融周报（周一08:10，臂×regime×周）。仅 off 模式跳过。
+            try:
+                from backend.services.hybrid_scoring import report as _hybrid_report
+                from backend.services.hybrid_scoring import service as _hybrid_service
+
+                def _hybrid_evaluate_tick():
+                    try:
+                        if _hybrid_service.config.mode() != "off":
+                            _hybrid_service.evaluate_hits()
+                    except Exception as _he_err:
+                        logger.warning("[HybridScore] 命中回填异常: %s", _he_err)
+
+                def _hybrid_report_tick():
+                    try:
+                        if _hybrid_service.config.mode() != "off":
+                            _hybrid_report.weekly_report()
+                    except Exception as _hr_err:
+                        logger.warning("[HybridScore] 周报异常: %s", _hr_err)
+
+                task_scheduler.add_cron_task(
+                    task_func=_hybrid_evaluate_tick,
+                    hour=8, minute=5,
+                    task_id="hybrid_score_evaluate_daily",
+                    max_instances=1,
+                )
+                task_scheduler.add_cron_task(
+                    task_func=_hybrid_report_tick,
+                    hour=8, minute=10, day_of_week=0,
+                    task_id="hybrid_score_report_weekly",
+                    max_instances=1,
+                )
+                logger.info("[async] 混合打分任务已注册（每日08:05命中回填 / 周一08:10消融周报）")
+            except Exception as _hybrid_reg_err:
+                logger.warning("[async] 混合打分任务注册失败(非致命): %s", _hybrid_reg_err)
+            # [五Agent闭环 ADR-21] factors_lab：每日 05:40 一轮（文献→假设→工程→回测→记忆，
+            # FACTORS_LAB_ENABLED 门控）；周日 05:20 WorldQuant101 金样本校准回归。
+            try:
+                from backend.services.factors_lab import calibration as _fl_calib
+                from backend.services.factors_lab import config as _fl_cfg
+
+                def _fl_round_tick():
+                    try:
+                        if _fl_cfg.enabled():
+                            import importlib
+                            importlib.import_module("backend.services.factors_lab.loop").run_round()
+                    except Exception as _fl_err:
+                        logger.warning("[FactorsLab] 自动轮异常: %s", _fl_err)
+
+                def _fl_calib_tick():
+                    try:
+                        _fl_calib.run_calibration()
+                    except Exception as _fc_err:
+                        logger.warning("[FactorsLab] 校准异常: %s", _fc_err)
+
+                task_scheduler.add_cron_task(
+                    task_func=_fl_round_tick,
+                    hour=5, minute=40,
+                    task_id="factors_lab_round_daily",
+                    max_instances=1,
+                )
+                task_scheduler.add_cron_task(
+                    task_func=_fl_calib_tick,
+                    hour=5, minute=20, day_of_week=6,
+                    task_id="factors_lab_calibration_weekly",
+                    max_instances=1,
+                )
+                logger.info("[async] factors_lab 已注册（每日05:40闭环轮 / 周日05:20校准）")
+            except Exception as _fl_reg_err:
+                logger.warning("[async] factors_lab 注册失败(非致命): %s", _fl_reg_err)
+            # [统一策略 2026-09-17·流C] 周外循环：周一 08:15 三表联查
+            # （thesis准确率 × 因子贡献盈亏 × 模拟实盘偏差）→ 周进化报告 + v7 指导教训。
+            try:
+                from backend.services.unified_strategy import weekly_loop as _us_loop
+
+                def _us_weekly_tick():
+                    try:
+                        _us_loop.run_weekly()
+                    except Exception as _us_err:
+                        logger.warning("[UnifiedStrategy] 周报异常: %s", _us_err)
+
+                task_scheduler.add_cron_task(
+                    task_func=_us_weekly_tick,
+                    hour=8, minute=15, day_of_week=0,
+                    task_id="unified_strategy_weekly",
+                    max_instances=1,
+                )
+                logger.info("[async] 统一策略周外循环已注册（周一08:15）")
+            except Exception as _us_reg_err:
+                logger.warning("[async] 统一策略注册失败(非致命): %s", _us_reg_err)
             logger.info(
                 "[async] V7 进化排程：03:00 4h(L) / "
                 + ("04:00 5m(S) / " if _scalp_research_on else "5m(S)已停 / ")
@@ -2298,6 +2435,9 @@ try:
     app.include_router(cashflow_router)
     from .api.agent_routes import router as agents_router
     app.include_router(agents_router)
+    # [2026-09-19] Agent Wall：画布式多 Agent 分析墙（/api/agent-wall/{state,tail,audit}，全部只读）
+    from .api.agent_wall_routes import router as agent_wall_router
+    app.include_router(agent_wall_router)
     from .api.event_strategy_routes import router as event_strategy_router
     app.include_router(event_strategy_router)
     from .api.experiment_routes import router as experiments_router
@@ -2349,12 +2489,15 @@ try:
 except Exception as _mi_err:
     logger.warning(f"[MarketIntel] 挂载失败（非致命）: {_mi_err}")
 
-try:
-    from .api.scalp_config_routes import router as scalp_config_router
-    app.include_router(scalp_config_router)
-    logger.info("[ScalpConfig] /api/scalp-config/* 已挂载")
-except Exception as _sc_err:
-    logger.warning(f"[ScalpConfig] 挂载失败（非致命）: {_sc_err}")
+# [2026-09-17] /api/scalp-config/* 已下架：短线车道停用（SCALP_OPEN_DISABLED=true），
+# 该面板只服务于已死的短线参数调优。router 文件保留在 backend/api/scalp_config_routes.py。
+# 恢复：还原下面这段挂载并重启后端。
+# try:
+#     from .api.scalp_config_routes import router as scalp_config_router
+#     app.include_router(scalp_config_router)
+#     logger.info("[ScalpConfig] /api/scalp-config/* 已挂载")
+# except Exception as _sc_err:
+#     logger.warning(f"[ScalpConfig] 挂载失败（非致命）: {_sc_err}")
 
 try:
     from .api.strategy_config_routes import router as strategy_config_router
@@ -2393,6 +2536,13 @@ try:
     logger.info("[TradingHub] 交易中心 API 已挂载 /api/trading/*")
 except Exception as e:
     logger.info(f"[TradingHub] 交易中心 API 加载失败: {e}")
+# [五Agent闭环 ADR-21] factors_lab 因子研究闭环 API（隔离命名空间，只写 lab 目录+v7记忆）
+try:
+    from .api.factors_lab_routes import router as factors_lab_router
+    app.include_router(factors_lab_router)
+    logger.info("[FactorsLab] 五Agent闭环 API 已挂载 /api/factors-lab/*")
+except Exception as e:
+    logger.info(f"[FactorsLab] API 加载失败: {e}")
 # ATAS - 高级自动化交易系统 (安全加载，不影响主系统)
 try:
     from .api.atas_routes import router as atas_router

@@ -102,6 +102,12 @@ class ContextPack:
             if isinstance(fs, dict):
                 fs["symbols"] = dict(list((fs.get("symbols") or {}).items())[:1])
 
+        def _trim_analyst_symbols(L: Dict[str, Any]) -> None:
+            """[轮129] 分析师信号层超预算时先砍币数（保留全局宏观 + 前 3 个币）。"""
+            an = L.get("analysts")
+            if isinstance(an, dict):
+                an["symbols"] = dict(list((an.get("symbols") or {}).items())[:3])
+
         trims = [
             lambda L: L.get("flows", {}).update({"events": (L.get("flows", {}).get("events") or [])[:12]}),
             lambda L: L.get("market", {}).pop("correlation_pairs", None),
@@ -110,6 +116,7 @@ class ContextPack:
             lambda L: L.get("performance", {}).pop("signal_sources", None),
             _trim_factor_route,
             _trim_factor_symbols,
+            _trim_analyst_symbols,
             lambda L: L.get("market", {}).update({"symbols": dict(list((L.get("market", {}).get("symbols") or {}).items())[:6])}),
             lambda L: L.get("positions", {}).update({"open": []}),
         ]
@@ -922,14 +929,39 @@ def build_factor_layer(
 
 
 # --------------------------------------------------------------------------- build
+def build_analyst_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, Any]:
+    """[轮129 2026-09-20] 六分析师数值化信号层（**读库**，不在 prompt 路径里现算）。
+
+    为什么读库而不是现场计算：计算要走 6 张表 + 多周期 K 线，放在主脑每轮 prompt 路径上
+    会把 tick 拖慢；而"日频落地"本来就允许半小时级的延迟（见 main.py 的 analyst_signals_daily）。
+    没有数据时返回 `{}`（层缺省），并**在 errors 里写明原因**，绝不塞中性 0 冒充有数据。
+    """
+    try:
+        from backend.services.analysts import prompt_block as _pb
+        from backend.services.analysts.scorers import _enabled as _an_enabled
+
+        if not _an_enabled():
+            errors.append("analysts: 层已停用（ANALYST_SIGNALS_ENABLED=false）")
+            return {}
+        blk = _pb(list(symbols)) or {}
+        if not blk.get("available"):
+            errors.append(f"analysts: {(blk.get('note') or '无信号')[:100]}")
+            return {}
+        return blk
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"analysts: {type(exc).__name__}: {str(exc)[:100]}")
+        return {}
+
+
 def build(task: str, *, symbols: Optional[Sequence[str]] = None, layers: Optional[Sequence[str]] = None,
           events_hours: float = 24.0) -> ContextPack:
     """构建 context pack。layers 缺省 = 全部五层；事件评估任务可只取 market+flows。"""
     syms = list(symbols) if symbols else universe()
     # [轮107] 主脑的中长线论文任务默认带上因子层（其余任务按需显式传 layers）
+    # [轮129] 再带上 `analysts`（六分析师数值化信号）——这是"分析师判断进主脑"的落点。
     _default_layers = ("market", "flows", "positions", "performance", "config")
     if str(task or "") == "midlong_thesis":
-        _default_layers = _default_layers + ("factors",)
+        _default_layers = _default_layers + ("factors", "analysts")
     want = set(layers or _default_layers)
     errors: List[str] = []
     out: Dict[str, Any] = {"universe": syms}
@@ -949,6 +981,10 @@ def build(task: str, *, symbols: Optional[Sequence[str]] = None, layers: Optiona
                                  flows_layer=out.get("flows"))
         if _fl:
             out["factors"] = _fl
+    if "analysts" in want:
+        _al = build_analyst_layer(syms, errors)
+        if _al:
+            out["analysts"] = _al
     cutoff = int(time.time() * 1000)
     m_as_of = (out.get("market") or {}).get("as_of_ms")
     if m_as_of:
