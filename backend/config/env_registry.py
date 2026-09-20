@@ -1518,7 +1518,8 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_DEBATE_ENABLED",        # 默认 true；false=完全不跑（回滚开关）
     "MIDLONG_DEBATE_LLM",            # 默认 true；false=规则降级（仅离线/故障排查用）
     "MIDLONG_DEBATE_LLM_RISK",       # 默认 true：风控角色**也走 LLM**（2026-09-20 用户：先不要考虑 LLM 预算）
-    "MIDLONG_DEBATE_APPLY",          # 默认 true；false=只记录裁决、不改 conviction
+    "MIDLONG_DEBATE_APPLY",          # 默认 **false**（轮136 实测：写回会撞 [V5Gate] rule=confidence 硬拦）；
+                                     # 折减改由规模链/风控官消费，true 才写回 conviction
     "MIDLONG_DEBATE_MAX_ROUNDS",     # 默认 2（每轮=牛+熊+3 风险角色，全部走 LLM）
     "MIDLONG_DEBATE_COOLDOWN_S",     # 同标的两次辩论最小间隔（默认 120，仅防同 tick 重复）
     "MIDLONG_DEBATE_HOURLY_CAP",     # 每小时上限（默认 0=**不限**；非 0 才生效，仅作失控保护）

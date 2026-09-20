@@ -258,6 +258,8 @@ def test_single_sided_answer_yields_insufficient_not_a_verdict(monkeypatch):
     若把它当 0.5 参与比较，就会得到「牛方信心 − 0.5」这种半盲裁决。
     """
     assert BD._horizon_verdict(0.0, 0.9) == "reduce"          # 两侧都有立场时才成立
+    # [轮136] 必须显式开启生效，否则默认是"只记录"（APPLY=false）——那样测不到 insufficient 分支
+    monkeypatch.setenv("MIDLONG_DEBATE_APPLY", "true")
     c, note = BD.apply_conviction_effect(50.0, {"primary_horizon": "intraday",
                                                 "primary_verdict": "insufficient"})
     assert c == 50.0 and "不生效" in note

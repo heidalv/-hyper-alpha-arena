@@ -638,11 +638,18 @@ def debate_context(symbol: str, tier: str = "", *, hours: float = 3.0) -> Option
 def apply_conviction_effect(conviction: float, result: Optional[Dict[str, Any]]) -> Tuple[float, str]:
     """**有界**生效，且**按周期**取用（用户指令：牛熊分析必须明确周期）。
 
-    生效依据 = 该 tier 的**主周期**裁决（mid→日内，long→长期趋势），而不是那个跨周期平均出来的
-    总 verdict —— 否则「日内看空、长期看多」会被平均成"什么都没说"。
-    reject→×0.6（下限 10）/ reduce→×0.85 / proceed→不变；`MIDLONG_DEBATE_APPLY=false` 时只记录。
+    ⚠️ [轮136 2026-09-20 实测教训] 这个函数的返回值**不能写回 `dto.llm_conviction`**：
+    该字段同时是下游门槛的 confidence 输入（`[V5Gate] rule=confidence` 要求 ≥30%），
+    辩论 ×0.6 把 40 折到 24 后，提案以 25~28% **被 v5gate 硬拦**（UNI/BTC 实测 20 次）——
+    "去风险"变成了"事实否决"，与架构分工相反（否决权属风控官）。
+    因此 `MIDLONG_DEBATE_APPLY` 默认 **false**：只记录、不改写；折减值留给规模链消费
+    （或由 `risk_officer` 按辩论姿态行使否决）。
+
+    生效依据 = 该 tier 的**主周期**裁决（mid→日内，long→长期趋势），而不是跨周期平均的总 verdict
+    —— 否则「日内看空、长期看多」会被平均成"什么都没说"。
+    reject→×0.6（下限 10）/ reduce→×0.85 / proceed→不变。
     """
-    if not result or not _flag("MIDLONG_DEBATE_APPLY", "true"):
+    if not result or not _flag("MIDLONG_DEBATE_APPLY", "false"):
         return float(conviction), "off"
     prim = str(result.get("primary_horizon") or "")
     v = str(result.get("primary_verdict") or result.get("verdict") or "")

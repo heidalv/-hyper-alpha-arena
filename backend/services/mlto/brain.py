@@ -1641,10 +1641,22 @@ def refresh_thesis(
             )
             if _debate:
                 _new_conv, _note = apply_conviction_effect(dto.llm_conviction, _debate)
+                # [轮136 2026-09-20 根因修复] **不要把辩论折减写回 `dto.llm_conviction`**。
+                # 实测：`llm_conviction` 同时是**下游门槛的 confidence 输入**
+                # （`brain.py` maybe_open 传 `confidence=llm_conviction`；`[V5Gate] rule=confidence`
+                #   要求 ≥30%，warmup 期门槛 30%）。辩论把 40 折到 24（×0.6）后，
+                # 提案以 25~28% 撞 v5gate **被硬拦**（UNI/BTC 实测 20 次）——
+                # 即"辩论的去风险"意外变成了"事实否决"，这与架构分工相反：
+                #   · 辩论 → 只产出裁决与证据（+ 规模倾向）；
+                #   · **否决权属风控官**（`risk_officer.evaluate_open`，已按辩论主周期裁决否决）。
+                # 故此处只**记录**（`MIDLONG_DEBATE_APPLY` 默认 false），折减值进日志/事件可复盘；
+                # 待"规模链消费 debate_size_mult"落地后再启用数值生效。
                 if abs(_new_conv - float(dto.llm_conviction)) > 1e-6:
-                    logger.info("[MidLongBrain] 辩论调整 conviction %d→%d（%s %s %s）",
-                                dto.llm_conviction, int(_new_conv), _note, symbol, tier)
-                    dto.llm_conviction = int(_new_conv)
+                    logger.info(
+                        "[MidLongBrain] 辩论折减记录（未写回 confidence）%d→%d（%s %s %s）"
+                        "：折减应作用于规模/由风控官否决，不得改变门槛用置信度",
+                        dto.llm_conviction, int(_new_conv), _note, symbol, tier,
+                    )
         except Exception as _deb_err:
             logger.debug("[MidLongBrain] 辩论接线跳过(fail-open): %s", _deb_err)
         # [轮131 2026-09-20] 混合打分：六分析师信号作为**一等 alpha 信号**参与打分。
