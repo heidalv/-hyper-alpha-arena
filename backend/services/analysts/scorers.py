@@ -509,7 +509,15 @@ def score_kline_deep(symbols: Sequence[str]) -> List[AnalystSignal]:
         )]
 
     out: List[AnalystSignal] = []
+    _seen_sym: set = set()
     for sym, result, created in rows:
+        # 每币只取**最新一行**（rows 已按 created_at desc）：否则同一币会产出多条信号，
+        # 让契约计数与混合打分重复计权（`latest_signals` 虽按 (domain,symbol) 去重，
+        # 但 run_once 会把重复行也写库）。
+        _b = _base(sym)
+        if _b in _seen_sym:
+            continue
+        _seen_sym.add(_b)
         txt = str(result or "")
         payload: Dict[str, Any] = {}
         try:

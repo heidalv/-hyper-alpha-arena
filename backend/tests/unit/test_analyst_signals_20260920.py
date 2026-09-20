@@ -102,16 +102,29 @@ def test_run_once_persists_and_report_matches():
         assert rep["missing_reasons"].get(d), f"{d} 被判未交付却没有给出原因"
 
 
-def test_kline_deep_reports_missing_not_fake_neutral():
-    """K线深度：产物表 0 行时必须报 missing（**不许**返回中性 0 冒充有信号）。
+def test_kline_deep_delivered_or_explicitly_missing(monkeypatch):
+    """K线深度：**有产物就必须交付**；无产物时必须报 missing（不许返回中性 0 冒充）。
 
-    现状（轮129 实测）：KlineAnalyst 每 24h 烧 ~222 次 LLM 调用但产物未落库。
-    这条测试的作用是：**等哪天有人把产物落库了**，它会失败并提示更新契约与说明。
+    [轮135 2026-09-20 更新] 原断言写"必须 missing"（当时 `kline_ai_analysis_logs` 0 行、
+    KlineAnalyst 产物被丢弃）。轮134/135 已把产物落库并修掉键名不匹配（`current` vs `close`）
+    ⇒ 该域**已交付真实方向**。守卫改成与数据状态无关的两条：
+      ① 有产物 ⇒ 至少一条非 missing；
+      ② 人为把表读空 ⇒ 必须 missing（不许假装中性）。
     """
+    from backend.services.analysts import scorers as SC
+
     sigs = SC.score_kline_deep(["BTC"])
-    assert sigs, "kline_deep 必须至少返回一条（missing 也算）"
-    assert any(s.data_quality == S.QUALITY_MISSING for s in sigs), \
-        "kline_ai_analysis_logs 现在应有产物了？请核对并更新 signals.py 的已知缺口说明"
+    assert sigs, "kline_deep 必须至少返回一条"
+    if any(s.data_quality != S.QUALITY_MISSING for s in sigs):
+        # 有产物：必须是结构化口径（不许是关键词近似冒充）
+        ok = [s for s in sigs if s.data_quality != S.QUALITY_MISSING]
+        assert any(s.evidence.get("parsed") in ("structured", "keywords") for s in ok)
+    # ② 空表 ⇒ 必须 missing（用 monkeypatch 制造"无产物"）
+    monkeypatch.setattr(SC, "_q", lambda *a, **k: [])
+    empty = SC.score_kline_deep(["BTC"])
+    assert empty and all(s.data_quality == S.QUALITY_MISSING for s in empty), \
+        "无产物时必须报 missing，不得返回中性 0 冒充有信号"
+    assert all(s.reason for s in empty), "missing 必须带原因"
 
 
 # ───────────────── 4. 真的进了主脑上下文 ─────────────────
@@ -139,14 +152,27 @@ def test_analysts_layer_declares_missing_explicitly():
 
 # ───────────────── 5. 混合打分：一等 alpha 信号入权重（轮131）─────────────────
 
-def test_blend_excludes_missing_domains_without_faking_neutral():
-    """缺产的域必须**排除并归一化**，不能当 0 参与（那会假装"中性"拉低信号）。"""
+def test_blend_excludes_missing_domains_without_faking_neutral(monkeypatch):
+    """缺产的域必须**排除并归一化**，不能当 0 参与（那会假装"中性"拉低信号）。
+
+    [轮135 更新] 原断言依赖"kline_deep 当前缺产"这一事实；该域已交付真实产物，
+    故改为**构造**一个缺产域来验证归一化语义（与数据状态无关）。
+    """
     from backend.services.analysts import service as SVC
 
+    monkeypatch.setattr(SVC, "latest_signals", lambda *a, **k: [
+        {"domain": "technical", "symbol": "BTC", "score": 0.5, "confidence": 1.0,
+         "data_quality": "ok", "n_samples": 1, "as_of": "", "evidence": {},
+         "missing_sources": [], "reason": "", "ts": ""},
+        {"domain": "flow", "symbol": "BTC", "score": -0.9, "confidence": 1.0,
+         "data_quality": "missing", "n_samples": 0, "as_of": "", "evidence": {},
+         "missing_sources": ["market.perp_funding"], "reason": "无数据", "ts": ""},
+    ])
     r = SVC.blend_for_symbol("BTC", tier="mid", conviction=40.0)
-    assert r["n_domains"] >= 1
-    assert "kline_deep" not in r["contributions"], "缺产的域不得当成 0 参与混合"
-    assert any("kline_deep" in m for m in r["missing"]), "缺产必须显式可见"
+    assert "flow" not in r["contributions"], "缺产域不得当成 0 参与混合"
+    assert any("flow" in m for m in r["missing"]), "缺产必须显式可见"
+    assert r["analyst_score"] == pytest.approx(0.5, abs=1e-6), \
+        "只剩 technical(=0.5) 时，归一化后应等于 0.5（不被缺产域摊薄）"
 
 
 def test_blend_gain_is_bounded(monkeypatch):

@@ -1300,6 +1300,12 @@ class KlineAnalyst:
 
             snapshot[tf] = {
                 "current": round(current, 2),
+                # [轮135 2026-09-20 根因修复] 快照此前只写 `current`，而严格门控
+                # （`_rule_based_analysis` 里 `tech.get("close")`）读的是 **`close`** ⇒
+                # 门控永远拿不到价格 ⇒ `has_real=False` ⇒ **K线深度分析师 100% 恒判
+                # DATA_MISSING/中性**（实测 BTC/ETH/SOL 全中，整段静默失效）。
+                # 现在两个键都写（下游既有消费者按 `close` 读，老消费者按 `current` 读）。
+                "close": round(current, 2),
                 "ma5": round(ma5, 2),
                 "ma10": round(ma10, 2),
                 "ma20": round(ma20, 2),
@@ -1607,7 +1613,10 @@ class KlineAnalyst:
                 for tf, tech in (snapshot or {}).items():
                     if not isinstance(tech, dict):
                         continue
-                    close = float(tech.get("close", 0) or 0)
+                    # [轮135] 必须同时认 `close` 与 `current`：快照历史上只写 `current`，
+                    # 而本门控只读 `close` ⇒ 恒判"无真实K线"（实测整段失效）。
+                    # 两键都读，任一新旧生产方都不会再让门控瞎掉。
+                    close = float(tech.get("close") or tech.get("current") or 0)
                     trend = tech.get("trend", "neutral")
                     if close > 0 and trend not in ("neutral", "", None):
                         has_real = True
@@ -1878,6 +1887,82 @@ class MasterController:
             len(_seen), bool(self._db_session),
         )
         return "\n".join(_factor_lines)
+
+    def _build_factor_track_record_block(self) -> str:
+        """[2026-09-17 统一策略·流A] 因子战绩块——逐单归因回流进主控 prompt。
+
+        数据源：signal_feedback_tracker.analyze_factor_contribution（近N日"因子活跃时
+        交易的平均PnL − 全局平均PnL"）。LLM 第一次能看到每个因子近期投票的胜负记录，
+        这是"因子带着战绩进证据包"的第一步。FACTOR_TRACK_RECORD_ENABLED=false 关闭。
+        """
+        import os as _os
+
+        if _os.getenv("FACTOR_TRACK_RECORD_ENABLED", "true").strip().lower() not in (
+                "1", "true", "yes", "on"):
+            return ""
+        db = getattr(self, "_db_session", None)
+        if db is None:
+            return ""
+        try:
+            from backend.services.signal_feedback_tracker import signal_feedback_tracker
+
+            contrib = signal_feedback_tracker.analyze_factor_contribution(db) or {}
+            # [2026-09-18 统一策略] LLM 分析师战绩（swing/trend agent 等非因子信号）
+            agent_lines = []
+            try:
+                all_sig = signal_feedback_tracker.analyze_all_signal_contribution(db) or {}
+                agent_lines = sorted(
+                    [(k, v) for k, v in all_sig.items()
+                     if not k.startswith("factor:") and abs(v) >= 0.001],
+                    key=lambda kv: kv[1])
+            except Exception:
+                agent_lines = []
+            if not contrib and not agent_lines:
+                return ""
+            ranked = sorted(contrib.items(), key=lambda kv: kv[1])
+            worst = ranked[:3]
+            best = ranked[-3:][::-1]
+            lines = ["### 🏅 因子战绩（近N日逐单归因：因子活跃时交易的平均PnL相对全局的偏离）"]
+            for name, c in best:
+                if c > 0:
+                    lines.append(f"- 🟢 {name}: {c:+.2%}（投票偏正向贡献）")
+            for name, c in worst:
+                if c < 0:
+                    lines.append(f"- 🔴 {name}: {c:+.2%}（近期拖累，参考降权）")
+            lines.append("使用提示：正向战绩因子的信号可加重参考；负向战绩因子信号请打折扣。")
+            if agent_lines:
+                lines.append("")
+                lines.append("### 📊 LLM 分析师/信号源战绩（近N日增量）")
+                for name, inc in agent_lines[:6]:
+                    mark = "🟢" if inc > 0 else "🔴"
+                    lines.append(f"- {mark} {name}: {inc:+.2%}")
+            return "\n".join(lines)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("[MasterController] 因子战绩块构建失败（跳过）: %s", str(e)[:120])
+            return ""
+
+    def _build_v7_lessons_block(self) -> str:
+        """[2026-09-17 统一策略·流C] v7 教训池精华注入主控 prompt。
+
+        此前 v7 教训只流向因子挖掘的 Codegen prompt——交易决策 LLM 看不到硬指标教训
+        （诊断断点5的表现）。`V7_LESSONS_IN_MASTER=false` 关闭（默认 true，语义不变）。
+
+        [F345 2026-09-18 读回路统一] 改走 `backend.services.learning_readback.decision_block`，
+        修掉本函数旧实现的三处硬伤（实测）：
+          ① `kind IN ('gate_lesson','decay_case','failure_case','success_recipe')` 把
+             `trajectory`/`pipeline_issue` **结构性排除**——810 条 active 里 459 条（56.7%）不可达；
+          ② 打分 `quality + 0.5*recency` 对同期条目饱和（实测 top4 全部 = 1.450，退化为
+             id 倒序）⇒ 每次决策拿到的是**同样 4 条最新 success_recipe**；
+          ③ 只读打开、不写 `use_count`，而 `evolution_memory_v7.maintenance()` 按
+             `use_count=0 AND 30 天` 退役教训 ⇒ **被真读过的教训反被当垃圾清掉**
+             （active 中 751/810 = 92.7% 仍记 0 次）。新实现分层配额 + 读取留痕。
+        """
+        try:
+            from backend.services.learning_readback import decision_block
+            return decision_block(lane="master", limit=6)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("[MasterController] v7 教训块构建失败（跳过）: %s", str(e)[:120])
+            return ""
 
     def synthesize(
         self,
@@ -2726,6 +2811,14 @@ class MasterController:
         _factor_block = self._build_factor_signals_prompt_block(market_envs)
         if _factor_block:
             parts.append(_factor_block)
+        # [2026-09-17 统一策略·流A] 因子战绩块（逐单归因回流，flag 守护）
+        _track_block = self._build_factor_track_record_block()
+        if _track_block:
+            parts.append(_track_block)
+        # [2026-09-17 统一策略·流C] v7 硬指标教训进主控 prompt（此前只进 Codegen）
+        _v7_block = self._build_v7_lessons_block()
+        if _v7_block:
+            parts.append(_v7_block)
 
         # 注入账户概况（让 LLM 了解资金与持仓全貌）
         if portfolio:
