@@ -164,6 +164,176 @@ def _q(sql: str, params: Dict[str, Any]):
         return c.execute(text(sql), params).fetchall()
 
 
+# ───────────────────── 混合打分（一等 alpha 信号入权重，轮131）─────────────────────
+# 用户架构：「分析师每日 thesis 数值化后**直接作为一等 alpha 信号进混合打分**」。
+# 落地策略：先**影子**（只记录"如果生效会变成多少"），积累对照后再开生效 —— 因为这会改
+# 主脑 conviction，属于策略变更，必须先看到"影子 vs 实际"的差异分布。
+BLEND_TABLE = "analyst_blend_shadow"
+
+_BLEND_DDL = f"""
+CREATE TABLE IF NOT EXISTS {BLEND_TABLE} (
+    id                BIGSERIAL PRIMARY KEY,
+    ts                TIMESTAMP      NOT NULL DEFAULT now(),
+    symbol            VARCHAR(24)    NOT NULL,
+    tier              VARCHAR(8),
+    conviction_before DOUBLE PRECISION,
+    analyst_score     DOUBLE PRECISION,
+    gain              DOUBLE PRECISION,
+    blended           DOUBLE PRECISION,
+    would_change      BOOLEAN,
+    applied           BOOLEAN        NOT NULL DEFAULT false,
+    contributions_json TEXT,
+    missing_json      TEXT,
+    producer          VARCHAR(160)
+)
+"""
+
+#: 各域在混合打分里的默认权重（**只在有信号的域之间**归一化；缺域不摊薄、不冒充 0）
+DEFAULT_BLEND_WEIGHTS: Dict[str, float] = {
+    "technical": 0.30,     # 量价：最直接的价格证据
+    "flow": 0.25,          # 资金流：拥挤度/清算/鲸鱼
+    "sentiment": 0.20,     # 舆情：新闻情绪
+    "fundamental": 0.10,   # 基本面：事件+利率（弱源，权重最低）
+    "macro": 0.10,         # 宏观：全局风险偏好（symbol='*'）
+    "kline_deep": 0.05,    # K线深度：产物当前缺失，权重留位
+}
+
+
+def blend_weights() -> Dict[str, float]:
+    """权重表（可用 env `ANALYST_BLEND_W_<DOMAIN>` 覆盖单项；非法值忽略）。"""
+    out = dict(DEFAULT_BLEND_WEIGHTS)
+    for d in DOMAINS:
+        raw = os.getenv(f"ANALYST_BLEND_W_{d.upper()}")
+        if raw is None:
+            continue
+        try:
+            out[d] = max(0.0, float(raw))
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def blend_for_symbol(symbol: str, *, tier: str = "mid",
+                     conviction: float = 0.0) -> Dict[str, Any]:
+    """把六域信号合成一个 [-1,1] 的 `analyst_score`，并给出**影子**混合结果。
+
+    规则（可解释、可复核）：
+      · 只在该标的有信号的域之间按权重归一化（缺域既不摊薄、也不当 0 —— 那会假装"中性"）；
+      · `macro` 是全局信号（symbol='*'），所有标的都吃它；
+      · 混合方式：`blended = conviction × (1 + gain × analyst_score)`，再钳到 [0,100]；
+        gain 默认 0.15（即最强信号也只能把 conviction 拉动 ±15%），**有界**。
+    """
+    sym = _base(symbol)
+    sigs = latest_signals([sym])
+    weights = blend_weights()
+    contrib: Dict[str, Any] = {}
+    missing: List[str] = []
+    num = den = 0.0
+    for s in sigs:
+        dom = str(s["domain"])
+        if dom not in weights:
+            continue
+        if s["symbol"] not in (sym, "*"):
+            continue
+        if s["data_quality"] == "missing":
+            missing.append(f"{dom}: {str(s.get('reason') or '')[:70]}")
+            continue
+        w = float(weights[dom])
+        if w <= 0:
+            continue
+        score = float(s["score"])
+        conf = float(s["confidence"])
+        w_eff = w * max(0.2, conf)          # 低信心信号按比例减权（不是丢掉）
+        num += score * w_eff
+        den += w_eff
+        contrib[dom] = {"score": round(score, 3), "conf": round(conf, 2), "w": w,
+                        "symbol": s["symbol"], "quality": s["data_quality"]}
+    analyst_score = (num / den) if den > 0 else 0.0
+    gain = float(os.getenv("ANALYST_BLEND_GAIN", "0.15") or 0.15)
+    before = float(conviction or 0.0)
+    blended = max(0.0, min(100.0, before * (1.0 + gain * analyst_score))) if before > 0 else before
+    return {
+        "symbol": sym, "tier": tier,
+        "conviction_before": round(before, 2),
+        "analyst_score": round(analyst_score, 4),
+        "gain": gain,
+        "blended": round(blended, 2),
+        "would_change": abs(blended - before) >= 0.5,
+        "contributions": contrib,
+        "missing": missing,
+        "n_domains": len(contrib),
+    }
+
+
+def ensure_blend_table() -> bool:
+    from sqlalchemy import text
+
+    try:
+        with _engine().begin() as c:
+            c.execute(text(_BLEND_DDL))
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Analysts] 混合打分影子表建表失败: %s", exc)
+        return False
+
+
+def record_blend_shadow(result: Dict[str, Any], *, applied: bool = False) -> bool:
+    """把影子结果落库（供对照"如果生效会怎样"）。失败不阻塞主链。"""
+    from sqlalchemy import text
+
+    try:
+        if not ensure_blend_table():
+            return False
+        with _engine().begin() as c:
+            c.execute(text(
+                f"INSERT INTO {BLEND_TABLE} (symbol, tier, conviction_before, analyst_score, gain, "
+                f"blended, would_change, applied, contributions_json, missing_json, producer) VALUES "
+                f"(:symbol, :tier, :cb, :score, :gain, :blended, :wc, :applied, :contrib, :missing, :producer)"),
+                {"symbol": result["symbol"], "tier": result.get("tier"), 
+                 "cb": result.get("conviction_before"), "score": result.get("analyst_score"),
+                 "gain": result.get("gain"), "blended": result.get("blended"),
+                 "wc": bool(result.get("would_change")), "applied": bool(applied),
+                 "contrib": json.dumps(result.get("contributions") or {}, ensure_ascii=False)[:4000],
+                 "missing": json.dumps(result.get("missing") or [], ensure_ascii=False)[:2000],
+                 "producer": PRODUCER})
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[Analysts] 影子落库失败: %s", exc)
+        return False
+
+
+def blend_shadow_report(*, hours: float = 24.0) -> Dict[str, Any]:
+    """影子对照报告：多少标的会变、平均拉动多少、分域贡献分布。"""
+    from sqlalchemy import text
+
+    try:
+        if not ensure_blend_table():
+            return {"ok": False, "error": "建表失败"}
+        with _engine().connect() as c:
+            r = c.execute(text(
+                f"select count(*), count(*) filter (where would_change), "
+                f"avg(blended - conviction_before), max(abs(blended - conviction_before)) "
+                f"from {BLEND_TABLE} where ts >= now() - make_interval(secs => :secs)"),
+                {"secs": float(hours) * 3600}).fetchone()
+            by_dom = c.execute(text(
+                f"select contributions_json from {BLEND_TABLE} "
+                f"where ts >= now() - make_interval(secs => :secs) limit 500"),
+                {"secs": float(hours) * 3600}).fetchall()
+        dom_n: Dict[str, int] = {}
+        for (cj,) in by_dom:
+            try:
+                for k in (json.loads(cj or "{}") or {}):
+                    dom_n[k] = dom_n.get(k, 0) + 1
+            except Exception:  # noqa: BLE001
+                continue
+        return {"ok": True, "window_hours": hours, "n": int(r[0] or 0),
+                "would_change": int(r[1] or 0), "avg_delta": (round(float(r[2]), 3) if r[2] is not None else None),
+                "max_abs_delta": (round(float(r[3]), 2) if r[3] is not None else None),
+                "domain_presence": dict(sorted(dom_n.items(), key=lambda kv: -kv[1]))}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(exc).__name__}: {str(exc)[:120]}"}
+
+
 def contract_report() -> Dict[str, Any]:
     """**承诺 vs 实际交付**：逐域给出最近一轮的行数、质量分布、未交付原因。
 

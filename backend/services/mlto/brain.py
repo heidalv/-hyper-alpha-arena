@@ -1647,6 +1647,33 @@ def refresh_thesis(
                     dto.llm_conviction = int(_new_conv)
         except Exception as _deb_err:
             logger.debug("[MidLongBrain] 辩论接线跳过(fail-open): %s", _deb_err)
+        # [轮131 2026-09-20] 混合打分：六分析师信号作为**一等 alpha 信号**参与打分。
+        # 架构：「分析师每日 thesis 数值化后直接作为一等 alpha 信号进混合打分」。
+        # 落地：先**影子**（ANALYST_BLEND_APPLY 默认 false）——只记录"若生效会变成多少"，
+        # 因为这会改 conviction（=改交易行为），必须先看到影子与实际决策的差异分布再开。
+        # 组合方式有界：blended = conviction × (1 + gain × analyst_score)，gain 默认 0.15。
+        try:
+            from backend.services.analysts.service import (
+                blend_for_symbol,
+                record_blend_shadow,
+            )
+            _blend = blend_for_symbol(symbol, tier=tier, conviction=dto.llm_conviction)
+            _apply_blend = (os.getenv("ANALYST_BLEND_APPLY", "false") or "false").strip().lower() in (
+                "1", "true", "yes", "on")
+            if (os.getenv("ANALYST_BLEND_SHADOW_ENABLED", "true") or "true").strip().lower() in (
+                    "1", "true", "yes", "on"):
+                record_blend_shadow(_blend, applied=bool(_apply_blend))
+                logger.info(
+                    "[MidLongBrain] 混合打分%s %s %s: 分析师=%+.3f(域=%d) conviction %.1f→%.1f%s",
+                    "(生效)" if _apply_blend else "(影子)",
+                    symbol, tier, _blend["analyst_score"], _blend["n_domains"],
+                    _blend["conviction_before"], _blend["blended"],
+                    "" if _blend["would_change"] else "（无变化）",
+                )
+            if _apply_blend and _blend["would_change"]:
+                dto.llm_conviction = int(round(_blend["blended"]))
+        except Exception as _blend_err:
+            logger.debug("[MidLongBrain] 混合打分跳过(fail-open): %s", _blend_err)
         dto.missing_evidence = miss[:10]
         dto.invalidation = inv_norm
         try:

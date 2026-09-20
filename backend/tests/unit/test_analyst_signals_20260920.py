@@ -135,3 +135,73 @@ def test_analysts_layer_declares_missing_explicitly():
     an = pack.layers.get("analysts") or {}
     if an.get("available"):
         assert isinstance(an.get("missing"), list), "缺失域必须以 missing 列表暴露给主脑，而不是静默省略"
+
+
+# ───────────────── 5. 混合打分：一等 alpha 信号入权重（轮131）─────────────────
+
+def test_blend_excludes_missing_domains_without_faking_neutral():
+    """缺产的域必须**排除并归一化**，不能当 0 参与（那会假装"中性"拉低信号）。"""
+    from backend.services.analysts import service as SVC
+
+    r = SVC.blend_for_symbol("BTC", tier="mid", conviction=40.0)
+    assert r["n_domains"] >= 1
+    assert "kline_deep" not in r["contributions"], "缺产的域不得当成 0 参与混合"
+    assert any("kline_deep" in m for m in r["missing"]), "缺产必须显式可见"
+
+
+def test_blend_gain_is_bounded(monkeypatch):
+    """混合有界：|blended − before| ≤ before × gain（gain 默认 0.15）。"""
+    from backend.services.analysts import service as SVC
+
+    monkeypatch.setenv("ANALYST_BLEND_GAIN", "0.15")
+    r = SVC.blend_for_symbol("BTC", tier="mid", conviction=50.0)
+    assert abs(r["blended"] - r["conviction_before"]) <= 50.0 * 0.15 + 1e-6
+    assert -1.0 <= r["analyst_score"] <= 1.0
+
+
+def test_low_confidence_domain_gets_less_weight(monkeypatch):
+    """低信心信号按比例减权（不是丢掉、也不是等权）。"""
+    from backend.services.analysts import service as SVC
+
+    monkeypatch.setattr(SVC, "latest_signals", lambda *a, **k: [
+        {"domain": "technical", "symbol": "BTC", "score": 1.0, "confidence": 1.0,
+         "data_quality": "ok", "n_samples": 1, "as_of": "", "evidence": {},
+         "missing_sources": [], "reason": "", "ts": ""},
+        {"domain": "flow", "symbol": "BTC", "score": -1.0, "confidence": 0.1,
+         "data_quality": "ok", "n_samples": 1, "as_of": "", "evidence": {},
+         "missing_sources": [], "reason": "", "ts": ""},
+    ])
+    r = SVC.blend_for_symbol("BTC", tier="mid", conviction=50.0)
+    assert r["analyst_score"] > 0.3, r
+
+
+def test_blend_shadow_persisted_and_report():
+    from sqlalchemy import text
+
+    from backend.database.connection import analytics_engine
+    from backend.services.analysts import service as SVC
+
+    r = SVC.blend_for_symbol("ETH", tier="mid", conviction=30.0)
+    assert SVC.record_blend_shadow(r, applied=False) is True
+    with analytics_engine.connect() as c:
+        row = c.execute(text(
+            "select symbol, conviction_before, analyst_score, applied from analyst_blend_shadow "
+            "where symbol='ETH' order by id desc limit 1")).fetchone()
+    assert row is not None and row[0] == "ETH" and row[3] is False
+    rep = SVC.blend_shadow_report(hours=2.0)
+    assert rep["ok"] is True and rep["n"] >= 1 and "domain_presence" in rep
+
+
+def test_brain_wires_blend_shadow_and_apply_switch():
+    """接线 ratchet：主脑必须调混合打分；默认**影子**（APPLY 不设时不得改 conviction）。"""
+    import ast as _ast
+
+    src = (ROOT / "backend/services/mlto/brain.py").read_text(encoding="utf-8", errors="replace")
+    names = set()
+    for node in _ast.walk(_ast.parse(src)):
+        if isinstance(node, _ast.Call):
+            f = node.func
+            names.add(f.attr if isinstance(f, _ast.Attribute) else (f.id if isinstance(f, _ast.Name) else ""))
+    assert "blend_for_symbol" in names, "brain.py 未调用混合打分（接线被摘掉）"
+    assert "record_blend_shadow" in names, "brain.py 未落影子对照"
+    assert 'os.getenv("ANALYST_BLEND_APPLY", "false")' in src, "生效开关默认值必须是 false（影子）"

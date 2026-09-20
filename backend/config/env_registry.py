@@ -1534,6 +1534,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "RISK_OFFICER_DEBATE_RISK_FLOOR",      # 辩论风险共识下限（默认 0.5）
     "RISK_OFFICER_PAPER_DAILY_LOSS",       # paper 是否执行日亏损硬停（默认 false；与 PB_PAPER_SKIP 同立场）
     "RISK_OFFICER_DEBATE_MAX_AGE_H",       # 辩论姿态有效期（默认 3.0 小时）
+    # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
+    # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
+    # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。
+    "ANALYST_BLEND_SHADOW_ENABLED",        # 默认 true：记录影子对照
+    "ANALYST_BLEND_APPLY",                 # 默认 false：true 才真的改 conviction（策略变更）
+    "ANALYST_BLEND_GAIN",                  # 混合增益（默认 0.15，即最强信号 ±15%）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）
