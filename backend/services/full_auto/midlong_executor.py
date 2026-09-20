@@ -294,8 +294,8 @@ def apply_regime_to_open(
 
     if regime == "extreme":
         logger.info(
-            "[MidLong] stage=fuse symbol=%s regime=extreme action=hold reason=regime_block",
-            sym_u,
+            "[MidLong] stage=fuse tier=%s symbol=%s regime=extreme action=hold reason=regime_block",
+            tier, sym_u,
         )
         return "hold", 0.0, regime, "regime_extreme"
 
@@ -312,8 +312,8 @@ def apply_regime_to_open(
         # 消除原硬编码 0.25 与 classify_regime 0.5 的「双口径」漂移。
         margin = margin * reg_size * 0.5
         logger.info(
-            "[MidLong] stage=fuse symbol=%s regime=ranging action=%s size×%.2f (probe)",
-            sym_u, act, reg_size * 0.5,
+            "[MidLong] stage=fuse tier=%s symbol=%s regime=ranging action=%s size×%.2f (probe)",
+            tier, sym_u, act, reg_size * 0.5,
         )
         return act, margin, regime, "regime_ranging_probe"
 
@@ -321,8 +321,8 @@ def apply_regime_to_open(
         # [P2-8] 同上：使用 classify_regime 的 size_multiplier（unknown=0.75）
         margin = margin * reg_size
         logger.info(
-            "[MidLong] stage=fuse symbol=%s regime=unknown action=%s size×%.2f",
-            sym_u, act, reg_size,
+            "[MidLong] stage=fuse tier=%s symbol=%s regime=unknown action=%s size×%.2f",
+            tier, sym_u, act, reg_size,
         )
         return act, margin, regime, "regime_unknown_scale"
 
@@ -436,15 +436,15 @@ def execute_midlong_open(
 
     if act not in ("buy", "sell"):
         logger.info(
-            "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold reason=%s",
-            sym_u, auth, source, reason or "not_entry",
+            "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold reason=%s",
+            tier, sym_u, auth, source, reason or "not_entry",
         )
         _record_fail(reason or "not_entry")
         return False
 
     if not authority_allows_open(auth, source, trading_mode=trading_mode):
         logger.info(
-            "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+            "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
             "reason=authority_block (writer=%s)",
             sym_u, auth, source, auth,
         )
@@ -455,7 +455,7 @@ def execute_midlong_open(
         from backend.config.settings import midlong_new_open_halted
         if midlong_new_open_halted():
             logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
                 "reason=midlong_open_halted",
                 sym_u, auth, source,
             )
@@ -479,7 +479,7 @@ def execute_midlong_open(
 
     if margin <= 0:
         logger.info(
-            "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+            "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
             "reason=margin_zero",
             sym_u, auth, source,
         )
@@ -503,7 +503,7 @@ def execute_midlong_open(
         )
         if not _ml_ok:
             logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
                 "reason=%s",
                 sym_u, auth, source, _ml_reason,
             )
@@ -533,8 +533,8 @@ def execute_midlong_open(
         )
         if not _cg_ok:
             logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold reason=%s",
-                sym_u, auth, source, _cg_reason,
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold reason=%s",
+                tier, sym_u, auth, source, _cg_reason,
             )
             _record_fail(_cg_reason[:80] or "chart_gate_veto")
             return False
@@ -572,8 +572,8 @@ def execute_midlong_open(
         )
         if not _lg_ok:
             logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold reason=%s",
-                sym_u, auth, source, _lg_reason,
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold reason=%s",
+                tier, sym_u, auth, source, _lg_reason,
             )
             _record_fail(_lg_reason[:80] or "location_gate_veto", _reg_now)
             return False
@@ -633,7 +633,7 @@ def execute_midlong_open(
             pass
         if act not in ("buy", "sell"):
             logger.info(
-                "[MidLong] stage=fuse symbol=%s authority=%s source=%s action=hold "
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold "
                 "regime=%s reason=%s",
                 sym_u, auth, source, regime, reg_reason,
             )
@@ -673,7 +673,7 @@ def execute_midlong_open(
     else:
         exec_tier = "long"
     logger.info(
-        "[MidLong] stage=exec symbol=%s authority=%s source=%s action=%s "
+        "[MidLong] stage=exec tier=%s symbol=%s authority=%s source=%s action=%s "
         "conf=%d nature=%s regime=%s margin=%.3f rr_hint=%.2f reason=%s",
         sym_u, auth, source, act, int(confidence or 0), nature, regime or "-",
         margin,
