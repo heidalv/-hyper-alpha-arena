@@ -1372,10 +1372,27 @@ def on_startup():
                         from backend.services.analysts.service import default_symbols
                         from backend.services.trading_analysts import KlineAnalyst
 
-                        _kd_syms = [s.upper() for s in default_symbols()[:3]]
+                        # [轮149 2026-09-21] 分析标的**按实盘宇宙**，不再只取前 3 个：
+                        # 实测主脑在分析 WIF/XRP/VIRTUAL/ASTER… 而周期任务只跑 BTC/ETH/SOL
+                        # ⇒ 其它标的的 kline_deep 域永远报「近72h无产物」（7/9 行都带这条）。
+                        # KlineAnalyst 自带 `KLINE_ANALYST_MODE=rotate` + ROTATE_BATCH_SIZE
+                        # （LLM 分批、其余复用缓存）⇒ 传更多标的不会线性增加 LLM 调用。
+                        # 用户指令：先不要考虑 LLM 预算。
+                        _kd_syms: list = []
+                        try:
+                            from backend.services.kline_realtime_collector import (
+                                get_trade_universe_symbols,
+                            )
+                            _kd_syms = [s.upper() for s in (get_trade_universe_symbols() or [])]
+                        except Exception:
+                            _kd_syms = []
+                        if not _kd_syms:
+                            _kd_syms = [s.upper() for s in default_symbols()]
+                        _kd_syms = _kd_syms[:24]
                         _kd_rep = KlineAnalyst().analyze(_kd_syms)
                         _kd_n = persist_report(_kd_rep)
-                        logger.info("[Analysts] K线深度本轮落库 %d 条 symbols=%s", _kd_n, _kd_syms)
+                        logger.info("[Analysts] K线深度本轮落库 %d 条 symbols=%s",
+                                    _kd_n, _kd_syms[:10])
                     except Exception as _kd_err:
                         logger.warning("[Analysts] K线深度落库失败（不影响六域信号）: %s", _kd_err)
                     try:
