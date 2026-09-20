@@ -645,12 +645,18 @@ def apply_conviction_effect(conviction: float, result: Optional[Dict[str, Any]])
     if v == "insufficient":
         # 主周期两侧没有可比立场（某侧没按周期作答且文本也抽不出）⇒ 不生效，如实标注
         return c, f"{tag}→不生效(缺可比立场)"
+    # 乘数可调（实测：×0.6 会把 40 压到 24 —— 对中线是小仓探针可接受的去风险，
+    # 但若发现压得过狠导致车道不动，用 MIDLONG_DEBATE_REJECT_MULT / _REDUCE_MULT 调，
+    # 不必改代码；下限 MIDLONG_DEBATE_CONVICTION_FLOOR 保证不会压到"事实静默"）。
+    floor = _num("MIDLONG_DEBATE_CONVICTION_FLOOR", 10)
     if v == "reject":
         _STATS["apply_reject"] += 1
-        return max(10.0, c * 0.6), f"{tag}→×0.6"
+        m = _num("MIDLONG_DEBATE_REJECT_MULT", 0.6)
+        return max(floor, c * m), f"{tag}→×{m}"
     if v == "reduce":
         _STATS["apply_reduce"] += 1
-        return max(10.0, c * 0.85), f"{tag}→×0.85"
+        m = _num("MIDLONG_DEBATE_REDUCE_MULT", 0.85)
+        return max(floor, c * m), f"{tag}→×{m}"
     return c, f"{tag}→不变"
 
 

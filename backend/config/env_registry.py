@@ -1525,6 +1525,10 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MIDLONG_DEBATE_TRANSPORT",      # 空=取 ANALYSIS_PRIMARY_TRANSPORTS 第一项
     "MIDLONG_DEBATE_MAX_OUTPUT_TOKENS",   # 单次论点输出上限（默认 900）
     "MIDLONG_DEBATE_TIMEOUT_S",      # 单次调用超时（默认 120）
+    # [轮131] 辩论生效幅度可调（实测 ×0.6 把 conviction 40 压到 24；要软化不必改代码）
+    "MIDLONG_DEBATE_REJECT_MULT",    # 主周期 reject 的乘数（默认 0.6）
+    "MIDLONG_DEBATE_REDUCE_MULT",    # 主周期 reduce 的乘数（默认 0.85）
+    "MIDLONG_DEBATE_CONVICTION_FLOOR",  # 生效下限（默认 10，防"事实静默"）
     # [轮131 2026-09-20] 风控官（backend/services/risk_officer.py）—— 架构第 3 环，**有否决权**。
     # 背景：`constitutional_veto` 过去在 brain.py:1864 被调用时**没传 equity_usd/margin_usd**
     # ⇒ 单笔保证金硬顶 / 日亏损硬停 / 单币与总敞口三项检查**全部空转**，只剩止损幅度校验。
