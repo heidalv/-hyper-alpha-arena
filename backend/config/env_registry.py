@@ -1554,6 +1554,12 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 把"去风险"变成硬拦。故分析师/辩论倾向只作用于规模，门槛永远看 LLM 原始置信度。
     "ANALYST_BLEND_SIZE_ENABLED",          # 默认 true；false=规模乘子恒 1.0（回滚）
     "ANALYST_BLEND_SIZE_GAIN",             # 规模增益（默认 0.20，乘子夹在 [0.80, 1.10]）
+    # [轮141 2026-09-20] LLM 中性时的**探针方向来源**（analysts/service.py::probe_direction）：
+    # 实测两模型对绝大多数标的判 neutral/不开仓（recommend_open False 18/18）⇒ 中线不成交。
+    # 用户架构要求分析师信号作为一等 alpha 参与决策 ⇒ 六域一致时给**有界小仓探针**方向。
+    "ANALYST_PROBE_ENABLED",               # 默认 true；false=LLM 中性时不再用信号定方向（回滚）
+    "ANALYST_PROBE_MIN_ABS",               # |blend score| 门槛（默认 0.20）
+    "ANALYST_PROBE_MIN_DOMAINS",           # 最少参与域数（默认 2）
     "ANALYSIS_DEEP_DAILY_PER_MODEL",     # 深度任务每模型每日次数（默认 6）
     "ANALYSIS_EVENT_DAILY_PER_MODEL",    # 事件评估每模型每日次数（默认 20）
     "ANALYSIS_LIGHT_DAILY_PER_MODEL",    # 轻量/测试调用每模型每日次数（默认 40）

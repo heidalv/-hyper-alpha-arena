@@ -187,6 +187,53 @@ def size_multiplier(symbol: str, *, tier: str = "mid") -> tuple:
     return round(mult, 4), f"analyst_score={score:+.3f} 域={n} gain={gain}"
 
 
+#: 探针方向的默认阈值与一致度要求
+PROBE_MIN_ABS_DEFAULT = 0.20
+
+
+def probe_direction(symbol: str, *, tier: str = "mid") -> tuple:
+    """[轮141 2026-09-20] **LLM 中性时的探针方向来源**：六域信号一致就给方向。
+
+    背景（轮140 实测）：`core.analysis_runs` 最近 30 条 midlong_thesis 里
+    neutral 14 / bearish 4 / bullish 2，`recommend_open` False 18/18，consensus 中位 0.31
+    ⇒ **两个模型自己判断观望**，于是中线整段不成交（不是闸门问题）。
+    用户架构要的是"分析师数值化后**作为一等 alpha 信号**参与决策"，所以：
+    LLM 给不出方向、regime 也判不出方向时，**由六域信号的一致方向**做**有界小仓探针**。
+
+    规则（可解释、有界、可回滚）：
+      · 域数 ≥ `ANALYST_PROBE_MIN_DOMAINS`（默认 2），否则不猜；
+      · |blend analyst_score| ≥ `ANALYST_PROBE_MIN_ABS`（默认 0.20）；
+      · **一致性**：与该方向同号的域 ≥ 2，且反向域 ≤ 1（避免一两票极端值绑架方向）；
+    返回 `(direction, note)`；不满足时返回 `("", 原因)`。
+    开关 `ANALYST_PROBE_ENABLED`（默认 true）。
+    """
+    if (os.getenv("ANALYST_PROBE_ENABLED", "true") or "true").strip().lower() not in (
+            "1", "true", "yes", "on"):
+        return "", "探针方向来源已停用"
+    try:
+        r = blend_for_symbol(symbol, tier=tier, conviction=0.0)
+    except Exception as exc:  # noqa: BLE001
+        return "", f"计算失败 {type(exc).__name__}"
+    n = int(r.get("n_domains") or 0)
+    min_dom = int(float(os.getenv("ANALYST_PROBE_MIN_DOMAINS", "2") or 2))
+    if n < min_dom:
+        return "", f"域数不足({n}<{min_dom})"
+    score = float(r.get("analyst_score") or 0.0)
+    thr = abs(float(os.getenv("ANALYST_PROBE_MIN_ABS", str(PROBE_MIN_ABS_DEFAULT)) or PROBE_MIN_ABS_DEFAULT))
+    if abs(score) < thr:
+        return "", f"|score|={abs(score):.3f}<{thr:.2f}"
+    want = "long" if score > 0 else "short"
+    contrib = r.get("contributions") or {}
+    agree = [k for k, v in contrib.items() if float(v.get("score") or 0) > 0.05 and want == "long"]
+    agree += [k for k, v in contrib.items() if float(v.get("score") or 0) < -0.05 and want == "short"]
+    against = [k for k, v in contrib.items() if float(v.get("score") or 0) < -0.05 and want == "long"]
+    against += [k for k, v in contrib.items() if float(v.get("score") or 0) > 0.05 and want == "short"]
+    if len(agree) < 2 or len(against) > 1:
+        return "", f"一致度不足(同向={len(agree)} 反向={len(against)})"
+    return want, (f"score={score:+.3f} 同向={'/'.join(sorted(agree))} "
+                  f"反向={'/'.join(sorted(against)) or '无'}")
+
+
 def _q(sql: str, params: Dict[str, Any]):
     from sqlalchemy import text
 

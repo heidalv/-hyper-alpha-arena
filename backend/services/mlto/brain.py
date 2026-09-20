@@ -2523,6 +2523,24 @@ def run_midlong_open_sweep(
                     _probe_dir, _probe_why = "long", f"neutral_regime_{_reg}"
                 elif _reg in ("down", "bear", "bearish"):
                     _probe_dir, _probe_why = "short", f"neutral_regime_{_reg}"
+            # ── [轮141 2026-09-20] LLM 中性 + regime 判不出方向 ⇒ **由六域信号给方向** ──
+            # 依据（轮140 实测）：最近 30 条 midlong_thesis 里 neutral 14 / bearish 4 /
+            # bullish 2、`recommend_open` False 18/18、consensus 中位 0.31 ⇒ 模型自己在观望，
+            # 中线因此整段不成交。用户架构要求"分析师数值化后作为一等 alpha 信号参与决策"，
+            # 故此处用**六域一致方向**做**有界小仓探针**（仍走 NIBBLE 小仓 + 全部风控闸）。
+            # 规则与阈值见 `analysts/service.probe_direction`；开关 ANALYST_PROBE_ENABLED。
+            if not _probe_dir:
+                try:
+                    from backend.services.analysts.service import probe_direction as _ap_dir
+                    _ap_d, _ap_note = _ap_dir(sym, tier=tier_l)
+                    if _ap_d:
+                        _probe_dir, _probe_why = _ap_d, f"analyst_signal:{_ap_note}"
+                        logger.info(
+                            "[MidLongBrain] 六域信号给方向 %s %s → %s（%s）",
+                            sym, tier_l, _ap_d, _ap_note,
+                        )
+                except Exception as _ap_err:
+                    logger.debug("[MidLongBrain] 六域探针方向跳过(fail-open): %s", _ap_err)
             if not _probe_dir:
                 _bump("no_thesis" if dto is None else
                       ("no_direction" if not _pn else "probe_no_regime"))
