@@ -515,12 +515,18 @@ def run_debate_for_thesis(
             "derived": {"bull": bool(b.get("derived")), "bear": bool(r.get("derived"))},
             "net": (round(net_h, 3) if net_h is not None else None),
             "verdict": verdict_h,
+            # [轮142 2026-09-20 用户指令] 该周期的**方向**：与裁决同口径（net ±0.15 分档）
+            # —— 风控官据此只否决"方向与辩论相反"的探针，同向放行。
+            "direction": ("long" if (net_h is not None and net_h >= _VERDICT_REDUCE_NET)
+                          else ("short" if (net_h is not None and net_h <= _VERDICT_REJECT_NET)
+                                else "neutral")),
             "bull_arg": str(b.get("argument") or "")[:220],
             "bear_arg": str(r.get("argument") or "")[:220],
         }
     prim = primary_horizon(tier)
     stances = {k: h["verdict"] for k, h in horizons.items()}
     conflict = len({v for v in stances.values() if v != "insufficient"}) > 1
+    _prim_dir = str((horizons.get(prim) or {}).get("direction") or "neutral")
 
     out: Dict[str, Any] = {
         "verdict": res.final_verdict,                 # 辩论层总口径（含风险共识）
@@ -529,6 +535,8 @@ def run_debate_for_thesis(
         "horizon_verdicts": stances,
         "horizon_conflict": conflict,
         "horizons_insufficient": insufficient,
+        # [轮142] 主周期的**方向**（风控官据此只否决"方向相反"的探针，同向放行）
+        "primary_direction": _prim_dir,
         "primary_verdict": horizons.get(prim, {}).get("verdict", res.final_verdict),
         "net_sentiment": float(res.net_sentiment),
         "consensus_confidence": float(res.consensus_confidence),
@@ -580,6 +588,7 @@ def _persist(thesis_id: str, symbol: str, tier: str, proposal: Dict[str, Any], o
                         "risk": out.get("risk"), "evidence": out.get("evidence"),
                         # ── 分周期（风控官与画布都读这些字段） ──
                         "primary_horizon": out.get("primary_horizon"),
+                        "primary_direction": out.get("primary_direction"),
                         "primary_verdict": out.get("primary_verdict"),
                         "horizon_verdicts": out.get("horizon_verdicts"),
                         "horizon_conflict": out.get("horizon_conflict"),
@@ -625,6 +634,7 @@ def debate_context(symbol: str, tier: str = "", *, hours: float = 3.0) -> Option
             "ts": str(row[0])[:19],
             "verdict": d.get("verdict"),
             "primary_horizon": d.get("primary_horizon"),
+            "primary_direction": d.get("primary_direction"),
             "primary_verdict": d.get("primary_verdict"),
             "horizon_verdicts": d.get("horizon_verdicts"),
             "horizon_conflict": d.get("horizon_conflict"),

@@ -166,7 +166,12 @@ def evaluate_open(
         else:
             checks.append({"name": "notional_pct", "ok": True, "value": round(pct, 3), "cap": cap})
 
-    # ── 3) 辩论风险姿态（主周期 reject + 风险共识偏低 ⇒ 否决）──
+    # ── 3) 辩论风险姿态（**只否决"方向与辩论相反"的探针**，同向放行）──
+    # [轮142 2026-09-20 用户指令] 用户原话：「放宽：只否决"方向与辩论相反"的探针，同向的放行」。
+    # 旧口径（主周期 reject + 风险共识低 ⇒ 否决）在实测中把大量 `waiting_pullback` 探针也否掉了
+    # （审计里 `risk_officer_veto:debate_reject:intraday:risk0`），因为"日内偏弱/观望"很常见。
+    # 新口径：辩论主周期给出**明确方向**且与本次开仓方向**相反** ⇒ 否决；
+    #         同向（或辩论无方向）⇒ 放行（那只是"观望/偏弱"，不是"反对"）。
     debate: Optional[Dict[str, Any]] = None
     if enabled() and _flag("RISK_OFFICER_VETO_ON_DEBATE_REJECT", "true"):
         try:
@@ -177,15 +182,17 @@ def evaluate_open(
             if debate:
                 pv = str(debate.get("primary_verdict") or "")
                 rmin = debate.get("risk_min")
-                floor = _num("RISK_OFFICER_DEBATE_RISK_FLOOR", 0.5)
-                risky = (pv == "reject") and (rmin is not None and float(rmin) < floor)
-                checks.append({"name": "debate_posture", "ok": not risky,
+                dd = str(debate.get("primary_direction") or "").lower()
+                opposes = bool(dd in ("long", "short") and side_l in ("long", "short") and dd != side_l)
+                checks.append({"name": "debate_posture", "ok": not opposes,
                                "value": {"primary_horizon": debate.get("primary_horizon"),
+                                         "primary_direction": dd,
                                          "primary_verdict": pv, "risk_min": rmin,
+                                         "side": side_l, "opposes": opposes,
                                          "horizon_verdicts": debate.get("horizon_verdicts")},
-                               "floor": floor})
-                if risky:
-                    reasons.append(f"debate_reject:{debate.get('primary_horizon')}:risk{rmin}")
+                               "policy": "只否决方向相反"})
+                if opposes:
+                    reasons.append(f"debate_opposes:{debate.get('primary_horizon')}:{dd}!={side_l}")
             else:
                 checks.append({"name": "debate_posture", "ok": True, "skipped": "近期无该标的辩论记录"})
         except Exception as exc:  # noqa: BLE001

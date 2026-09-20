@@ -79,26 +79,53 @@ def test_notional_pct_cap(monkeypatch):
 
 # ───────────────── 3. 辩论联动（主周期 reject + 风险共识低 ⇒ 否决）─────────────────
 
+def test_debate_veto_only_when_direction_opposes(monkeypatch):
+    """[轮142 用户指令] 只否决「方向与辩论相反」的探针，同向放行。
+
+    旧口径（主周期 reject + 风险共识低）实测把大量 waiting_pullback 探针也否掉
+    （审计 `risk_officer_veto:debate_reject:intraday:risk0`）——"日内偏弱/观望"很常见，
+    那不代表"反对这个方向"。
+    """
+    monkeypatch.setattr(
+        "backend.services.mlto.brain_debate.debate_context",
+        lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday",
+                                         "primary_direction": "short",
+                                         "primary_verdict": "reject",
+                                         "risk_min": 0.2,
+                                         "horizon_verdicts": {"intraday": "reject"}})
+    # 反向：辩论说 short，本次要做 long ⇒ 否决
+    r_opp = _eval(side="long", planned_notional_usd=300.0)
+    assert r_opp["allow"] is False and "debate_opposes" in r_opp["reason"], r_opp["reason"]
+    # 同向：辩论说 short，本次也做 short ⇒ 放行（即使主周期 reject）
+    r_same = _eval(side="short", planned_notional_usd=300.0)
+    assert r_same["allow"] is True, f"同向探针不该被否：{r_same['reason']}"
+    con = [c for c in r_same["checks"] if c["name"] == "debate_posture"][0]
+    assert con["ok"] is True and con["value"]["opposes"] is False
+
+
+def test_debate_without_direction_never_vetoes(monkeypatch):
+    """辩论没有明确方向（neutral）⇒ 不是"反对"，一律放行。"""
+    monkeypatch.setattr(
+        "backend.services.mlto.brain_debate.debate_context",
+        lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday",
+                                         "primary_direction": "neutral",
+                                         "primary_verdict": "reject", "risk_min": 0.1})
+    r = _eval(side="long", planned_notional_usd=300.0)
+    assert r["allow"] is True, f"辩论无方向时不该否决：{r['reason']}"
+
+
 def test_debate_reject_with_low_risk_vetoes(monkeypatch):
+    """（历史口径保留为对照：主周期 reject + 风险共识低 —— 现在**不再**据此否决。）"""
     monkeypatch.setattr(
         "backend.services.mlto.brain_debate.debate_context",
         lambda sym, tier="", hours=3.0: {"verdict": "reduce", "primary_horizon": "intraday",
+                                         "primary_direction": "neutral",
                                          "primary_verdict": "reject", "risk_min": 0.2,
                                          "horizon_verdicts": {"intraday": "reject"},
                                          "horizon_conflict": True, "ts": "2026-09-20 11:00:00"})
     r = _eval(planned_notional_usd=300.0)
-    assert r["allow"] is False and "debate_reject" in r["reason"], r["reason"]
+    assert r["allow"] is True, "新口径下：无明确反向方向 ⇒ 不否决"
     assert r["debate"]["primary_horizon"] == "intraday"
-
-
-def test_debate_reject_but_healthy_risk_does_not_veto(monkeypatch):
-    """主周期 reject 但风险共识健康 ⇒ 不否决（辩论已通过 conviction×0.6 表达过，不重复惩罚）。"""
-    monkeypatch.setattr(
-        "backend.services.mlto.brain_debate.debate_context",
-        lambda sym, tier="", hours=3.0: {"primary_horizon": "intraday", "primary_verdict": "reject",
-                                         "risk_min": 0.9, "horizon_verdicts": {}})
-    r = _eval(planned_notional_usd=300.0)
-    assert r["allow"] is True, r["reason"]
 
 
 def test_debate_veto_switch_off(monkeypatch):
