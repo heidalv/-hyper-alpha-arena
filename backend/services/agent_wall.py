@@ -151,15 +151,9 @@ NODES: List[Dict[str, Any]] = [
      # 改为读 **E1 最近一次运行产物**（cron 每天 08:20 写一次）。
      "source": {"kind": "json_file", "path": "backend/data/trend_drift/e1_last_run.json"},
      "deps": ["thesis_store"]},
-    # [2026-09-19 撤回误塞] 本节点原为「中线因子路线 A/B（会开仓）」——那属于**因子区**独立区块的内容，
-    # 我不该在设计之前就塞进主策略画布；且用户已停用 A/B，故此处只保留"已停用"的实况占位。
-    {"id": "factor_route_ab", "group": "G4", "size": "S", "label": "中线因子路线 A/B（已停用）",
-     "role": "**2026-09-19 已按用户指令停止**：本项目不做 A/B 测试（`.env` `MIDLONG_MID_FACTOR_ROUTE_AB=false`）。"
-             "此前为「与主脑并行开仓」路线；现因子路线**只产证据、不再开仓**。"
-             "因子内部结构见「因子区」独立区块设计（`docs/AgentWall扩展设计_节拍拆分_因子_学习进化_20260919.md`，尚未实现）",
-     "cadence_label": "已停用（A/B 关闭）", "status_hint": "disabled",
-     "source": {"kind": "none", "reason": "用户指令停用 A/B：.env MIDLONG_MID_FACTOR_ROUTE_AB=false（2026-09-19）"},
-     "deps": []},
+    # [轮127 2026-09-19 用户指令] 「中线因子路线 A/B（已停用）」节点**已删除**：
+    #   它当时只是个"已停用"占位（source=kind:none、0 行），用户看过截图后要求去掉。
+    #   因子路线本身仍只产证据、不开仓（.env MIDLONG_MID_FACTOR_ROUTE_AB=false）。
     # [2026-09-19 撤回误塞] `trend_chart_review`（多模态图审）属于**学习进化区**，已从主策略画布移除；
     # 它的设计见上述文档 G6。这里删除节点，不留下"看着在跑但不知属于哪块"的孤儿。
     {"id": "midlong_executor", "group": "G4", "size": "L", "label": "中线执行（tier=mid）",
@@ -249,7 +243,6 @@ EDGES: List[Dict[str, Any]] = [
     {"from": "midlong_loop", "to": "brain_mid", "kind": "trigger", "label": "派发 mid tier"},
     {"from": "midlong_loop", "to": "brain_long", "kind": "trigger", "label": "派发 long tier"},
     {"from": "midlong_loop", "to": "trend_agent", "kind": "trigger", "label": "持仓复核(review/pyramid)"},
-    {"from": "midlong_loop", "to": "factor_route_ab", "kind": "trigger", "label": "因子路线 A/B"},
     {"from": "midlong_loop", "to": "midlong_executor", "kind": "trigger", "label": "执行派发"},
     {"from": "brain_mid", "to": "thesis_store", "kind": "decision", "label": "论题写入"},
     {"from": "brain_long", "to": "thesis_store", "kind": "decision", "label": "论题写入"},
@@ -259,7 +252,6 @@ EDGES: List[Dict[str, Any]] = [
     # 长线 E1 开仓：读长线提案，可拒（逐笔拒绝率未统计）。
     {"from": "thesis_store", "to": "trend_e1_engine", "kind": "decision", "label": "长线提案(可被拒)"},
     # 中线因子路线：已证实会成交（近 24h 中线 9 笔中 2 笔 entry_source=factor_route）。
-    {"from": "factor_route_ab", "to": "midlong_executor", "kind": "decision", "label": "因子路线开仓"},
     {"from": "midlong_executor", "to": "direction_audit", "kind": "audit", "label": "审计落盘"},
     {"from": "midlong_executor", "to": "position_sizing", "kind": "decision", "label": "仓位"},
     # 观察型 → 预测账本 → 评分 → 可信度门（observe：建议不生效 —— 画灰虚线）
