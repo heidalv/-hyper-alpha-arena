@@ -1,0 +1,64 @@
+﻿
+================================================================================================
+① 这 9 个 active tpl_long* 在 paper_positions 里的行（按 status 分组）
+   tpl_long_swing_10202b      status=closed     n=2    last_closed=2026-09-12 02:56:14
+   tpl_long_swing_42c24a      status=closed     n=5    last_closed=2026-09-12 02:06:18
+   tpl_long_swing_4e727e      status=closed     n=2    last_closed=2026-09-11 23:52:07
+   tpl_long_swing_ad92f2      status=closed     n=2    last_closed=2026-09-12 02:45:06
+   tpl_long_swing_b16885      status=closed     n=1    last_closed=2026-09-10 05:26:43
+
+② 账户 14 当前 open 持仓的 strategy_id 分布
+Traceback (most recent call last):
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: �ֶ� "margin_usd" ������
+LINE 1: ... sid, symbol, side, timeframe_tier, trade_nature, margin_usd...
+                                                             ^
+System.Management.Automation.RemoteException
+The above exception was the direct cause of the following exception:
+System.Management.Automation.RemoteException
+Traceback (most recent call last):
+  File "D:\001Alpha\Hyper-Alpha-Arena\scripts\_probe154_position_refs.py", line 36, in <module>
+    rows = c.execute(text(
+           ^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_con
+nection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clause
+element
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_contex
+t
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_co
+ntext
+    self._handle_dbapi_exception(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_e
+xception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedColumn) �ֶ� "margin_usd" ������
+LINE 1: ... sid, symbol, side, timeframe_tier, trade_nature, margin_usd...
+                                                             ^
+[SQL: select coalesce(strategy_id,'(null)') sid, symbol, side, timeframe_tier, trade_nature, margin_usd, opened_at from
+ paper_positions where account_id = 14 and status = 'open' order by opened_at desc]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+

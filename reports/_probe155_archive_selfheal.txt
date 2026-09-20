@@ -1,0 +1,25 @@
+﻿
+================================================================================================
+① 轮153 归档的 21 行：archived_at 时间戳
+   tpl_long_mean_reversion_244ef0 XMR      archived_at=2026-09-21 02:50:19.265676  reason=轮153 清理：长线模板族退役（轮151 已禁止 long
+ 层用模板族建策略；残…
+   tpl_long_swing_42c24a          BNB      archived_at=2026-09-21 02:50:19.265676  reason=轮153 清理：长线模板族退役（轮151 已禁止 long
+ 层用模板族建策略；残…
+   tpl_long_mean_reversion_4b604c CHIP     archived_at=2026-09-21 02:50:19.265676  reason=轮153 清理：长线模板族退役（轮151 已禁止 long
+ 层用模板族建策略；残…
+
+② 归档后新建的策略（近 2 小时）
+   auto_62ac533759            HYPE     tier=long   status=paused   created=2026-09-21 01:32:56.206963
+      desc: AI自主交易 | 长线AI分析 | 保守风险 | 市场:bull
+   auto_9ab2fb0361            UNI      tier=long   status=active   created=2026-09-21 02:50:39.979390
+      desc: AI自主交易 | 长线AI分析 | 保守风险 | 市场:bull
+
+③ UNI 现在的 long 策略全集（含终态）
+   auto_9ab2fb0361                active     created=2026-09-21 02:50:39 archived=None
+   tpl_long_swing_d4ea67          archived   created=2026-09-17 11:16:56 archived=None
+   tpl_long_swing_eaa67a          archived   created=2026-09-17 09:59:22 archived=None
+   tpl_long_swing_79dd10          archived   created=2026-09-17 07:58:43 archived=None
+   tpl_long_swing_80664e          archived   created=2026-09-17 02:38:42 archived=None
+   tpl_long_swing_87387d          archived   created=2026-09-16 16:52:07 archived=None
+
+

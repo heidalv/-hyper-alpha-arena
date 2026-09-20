@@ -1,0 +1,19 @@
+﻿
+================================================================================================
+① 全部 active 策略 = 23
+   按 tier： {'mid': 11, 'short': 10, 'long': 2}
+   按 id 前缀： {'scalp': 1, 'tpl': 16, 'auto': 6}
+
+   active 且 tpl_long* = 0
+
+② 非 tpl_long* 的 active long 策略 = 2
+     auto_9ab2fb0361                    UNI       auto=full_auto updated=2026-09-21 02:50:39.903642
+     auto_cbc7a4d817                    BTC       auto=full_auto updated=2026-09-17 14:20:23.111957
+
+③ active 且 tier=mid 的策略 = 11
+   前缀分布： {'scalp': 1, 'tpl': 7, 'auto': 3}
+
+④ donor 池检查：pick_strategy_donor(tier='long') 依赖 active+timeframe_tier=long
+   当前可用 long 母本 = 2；归档 tpl_long* 后 = 2
+
+

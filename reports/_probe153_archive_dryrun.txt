@@ -1,0 +1,34 @@
+﻿
+================================================================================================
+[轮153] 待归档 tpl_long* (active/paused) = 21
+   tpl_long_swing_6fa8fc            1000PEPE tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_10202b            ASTER    tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_42c24a            BNB      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_f75cae            BTC      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_4b604c   CHIP     tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_0bc921            DOT      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_1cbd3f   ENA      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_36a95e            ETH      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_f88c7a   KAITO    tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_66639a   KBONK    tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_ceeafd   LDO      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_cbfeea            LIT      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_c41c4f   ONDO     tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_e0c9c1   PUMP     tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_5febbb            SOL      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_514dda            TIA      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_4e727e            UNI      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_b16885            VIRTUAL  tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_mean_reversion_244ef0   XMR      tier=long   status=paused  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_d13479            XPL      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+   tpl_long_swing_ad92f2            XRP      tier=long   status=active  acct=14 持仓=无 近7天订单=0
+
+   归档后 long 层 active 母本 = 1
+     auto_cbc7a4d817  BTC  auto_mode=full_auto
+
+   会话 fa_7e12e7a1b6 active_strategy_ids 含 9 个待归档：['tpl_long_swing_42c24a', 'tpl_long_swing_d13479', 'tpl_long_swing_b16
+885', 'tpl_long_swing_10202b']…
+
+[干跑] 未改动任何数据。加 --apply 落库。
+
+

@@ -1,0 +1,32 @@
+﻿
+paper_positions 列： ['id', 'id', 'account_id', 'account_id', 'strategy_id', 'strategy_id', 'symbol', 'symbol', 'side', '
+side', 'size', 'size', 'entry_price', 'entry_price', 'mark_price', 'mark_price', 'leverage', 'leverage', 'margin', 'mar
+gin', 'unrealized_pnl', 'unrealized_pnl', 'liquidation_price', 'liquidation_price', 'tp_price', 'tp_price', 'sl_price',
+ 'sl_price', 'trailing_stop_price', 'trailing_stop_price', 'status', 'status', 'close_price', 'close_price', 'close_rea
+son', 'close_reason', 'partial_realized_pnl', 'partial_realized_pnl', 'partial_fee_paid', 'partial_fee_paid', 'original
+_size', 'original_size', 'tp_level_reached', 'tp_level_reached', 'timeframe_tier', 'timeframe_tier', 'add_count', 'add_
+count', 'original_margin', 'original_margin', 'last_add_at', 'last_add_at', 'dca_count', 'dca_count', 'dca_total_added'
+, 'dca_total_added', 'trade_nature', 'trade_nature', 'expected_hold_hours', 'expected_hold_hours', 'reduce_count', 'red
+uce_count', 'last_reduce_at', 'last_reduce_at', 'opened_at', 'opened_at', 'closed_at', 'closed_at', 'updated_at', 'upda
+ted_at', 'peak_unrealized_pnl', 'peak_unrealized_pnl', 'peak_pnl_pct', 'peak_pnl_pct', 'health_score', 'health_score', 
+'health_regime', 'health_regime', 'exit_state_json', 'exit_state_json', 'exchange', 'exchange', 'tenant_id', 'tenant_id
+', 'trough_unrealized_pnl', 'trough_pnl_pct']
+
+② 账户 14 当前 open 持仓（strategy_id 归属）
+   open 持仓 = 7
+   tpl_mid_range_253ba5       BNB      long  tier=mid    nature=swing          opened=2026-09-21 02:38:56
+   tpl_mid_range_5226c6       ETH      long  tier=mid    nature=swing          opened=2026-09-21 01:29:26
+   auto_5d5d1ae203            BTC      long  tier=mid    nature=swing          opened=2026-09-20 23:14:27
+   trend_e1:XRP               XRP      long  tier=long   nature=trend_follow   opened=2026-09-20 08:20:19
+   trend_e1:BNB               BNB      long  tier=long   nature=trend_follow   opened=2026-09-20 08:20:01
+   trend_e1:ETH               ETH      long  tier=long   nature=trend_follow   opened=2026-09-19 08:20:04
+   trend_e1:BTC               BTC      long  tier=long   nature=trend_follow   opened=2026-09-18 08:20:02
+
+③ paper_positions.status 取值全集
+   closed       3256
+   open         7
+
+④ 这 9 个 active tpl_long* 是否有 open 行（精确复核 probe152 的结论）
+   tpl_long* 的 open 持仓 = 0
+
+
