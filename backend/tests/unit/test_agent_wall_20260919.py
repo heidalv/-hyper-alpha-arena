@@ -23,12 +23,16 @@ sys.path.insert(0, str(ROOT))
 
 from backend.services import agent_wall as W  # noqa: E402
 
-VALID_GROUPS = {"G0", "G1", "G2", "G3", "G4"}
+VALID_GROUPS = {"G0", "G1", "G2", "G3", "G4", "G5"}
 VALID_SIZES = {"XL", "L", "M", "S"}
 # [轮125 2026-09-19] 新增 `json_file`：读**运行产物 JSON**（E1 卡用它 ——
 # 那个节点每天 08:20 才跑一次，日志里非运行时段本来就没有业务行，
 # 此前用日志过滤只能捞到卡片自己的轮询访问日志）。
-VALID_KINDS = {"file", "json_latest", "json_thesis", "json_file", "none"}
+# [轮139 2026-09-20] 新增 `db_table`：**表驱动卡**（风控官判定 / 六域信号 / 因子暴露快照）。
+# 为什么必须有它：这些模块不写日志、只有一张表 —— 用 `kind:file` 硬套日志过滤会得到 0 行，
+# 于是出现"0 行却显示 ok"的假绿（用户抱怨过「很多没有数据」）。
+# 现在按**表行数 + 最新 ts** 判状态：0 行 = never（诚实）。
+VALID_KINDS = {"file", "json_latest", "json_thesis", "json_file", "db_table", "none"}
 VALID_STATUS = {"ok", "stale", "dead", "never", "disabled", "unknown"}
 
 

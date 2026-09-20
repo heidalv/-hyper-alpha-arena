@@ -216,6 +216,110 @@ NODES: List[Dict[str, Any]] = [
      "cadence_label": "事件驱动",
      "source": {"kind": "file", "path": "logs/backend.log", "filter": r"\[SizingAgent\]"},
      "deps": ["midlong_executor"]},
+
+    # ═══════════════ G1 主脑层（轮139 2026-09-20 按用户指令「主脑那6大agent怎么还没弄」补全）═══════════════
+    # 用户在 v2 设计里就指出「主脑层可是有很多 agent，完全忽略了」。此前 G1 只有 brain_mid/brain_long/
+    # coordinator/thesis_store —— 主脑**内部真正在跑**的环节（证据装配/批次/OWM/辩论/风控官/六分析师）
+    # 一个都没画；而用户记忆里的「主控+6 分析师」实测是**死路径**，必须画成灰卡并给证据，
+    # 否则下次还会问"那 6 个 agent 去哪了"。
+    {"id": "mlto_context", "group": "G1", "size": "M", "label": "证据装配（context_pack）",
+     "role": "主脑每轮的输入装配：market / flows / positions / performance / config / factors / **analysts（六域信号）**；"
+             "layers= 会打进日志，是「主脑到底看到什么」的唯一权威记录",
+     "cadence_label": "随主脑 tick",
+     "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"\[context_pack\]"},
+     "deps": ["brain_mid", "brain_long"]},
+    {"id": "mlto_batch", "group": "G1", "size": "M", "label": "主脑批次（tier 派发）",
+     "role": "每轮批次：n/watch/idle/opened + 优先标的（batch tier=… 行）",
+     "cadence_label": "实测 p50=157s/tick",
+     "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"\[MidLongBrain\] batch"},
+     "deps": ["coordinator"]},
+    {"id": "mlto_owm", "group": "G1", "size": "S", "label": "OWM 权重回写",
+     "role": "learning_bridge 的 OWM 乘子（clamp [0.5,1.5]）按 tier 作用到 LLM conviction",
+     "cadence_label": "随主脑 tick",
+     "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"OWM llm×"},
+     "deps": ["mlto_batch"]},
+    {"id": "mlto_debate", "group": "G1", "size": "L", "label": "牛熊对抗辩论（分周期）",
+     "role": "**用户架构第 2 环**：日内 / 中期 / 长期趋势三档各自举证与裁决（proceed/reduce/reject），"
+             "标注周期冲突；裁决只记录 + 供风控官否决，**不写回门槛置信度**（轮136 教训）",
+     "cadence_label": "灰区 conviction 40~70 且过冷却",
+     "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"辩论 .*主周期="},
+     "deps": ["mlto_context"]},
+    {"id": "risk_officer", "group": "G1", "size": "L", "label": "风控官（有否决权）",
+     "role": "**用户架构第 3 环**：宪法红线（单笔保证金/日亏损/单币与总敞口，**传全参**）"
+             "+ 名义暴露硬顶 + 辩论风险姿态 ⇒ 否决；**每次判定落库**（含输入实参、逐项检查、结论）",
+     "cadence_label": "每次开仓尝试",
+     "source": {"kind": "db_table", "db": "analytics", "table": "risk_officer_decisions",
+                "ts": "ts", "cols": [{"col": "symbol"}, {"col": "side"}, {"col": "allow"}, {"col": "reason"}]},
+     "deps": ["mlto_debate"]},
+    {"id": "analysts_layer", "group": "G1", "size": "L", "label": "六分析师数值化信号（一等 alpha）",
+     "role": "**用户架构第 1 环**：基本面/量价/舆情/资金流/宏观/K线深度，每域给 [-1,1] 数值 + confidence + evidence；"
+             "缺产域**显式报 missing**（契约 `undelivered` 可查）；已进主脑上下文并走**规模通道**",
+     "cadence_label": "1800s（analyst_signals_daily）",
+     "source": {"kind": "db_table", "db": "analytics", "table": "analyst_signals", "ts": "ts",
+                "cols": [{"col": "symbol"}, {"col": "domain"}, {"col": "score"}, {"col": "data_quality"}]},
+     "deps": ["mlto_context"]},
+    {"id": "analyst_legacy_dead", "group": "G1", "size": "S", "label": "旧分析师体系（主控 + 6 分析师 · 死路径）",
+     "role": "用户问的「主脑那 6 大 agent」= `trading_analysts.py` 的 MasterController + Position/Market/Intel/Risk/Strategy/Kline。"
+             "**实测全部为死路径**：`[Analysts]`/`[MasterController]` 日志 0 命中、"
+             "`caller=MasterController:synthesize` 0 次、`full_auto_sessions.analyst_reports` NULL，"
+             "入口被 `coordinator_loop._ai=[]`/`maintenance_only` 封死。**只留 KlineAnalyst 仍被调用**"
+             "（已单独立卡）。真正的替代者是 MLTO 主脑 + 六分析师数值化信号层。",
+     "cadence_label": "无调度（结构性死亡）", "status_hint": "static_dead",
+     "source": {"kind": "none", "reason": "死路径依据：日志 0 命中 + caller 0 + analyst_reports NULL + 入口 _ai=[]（见 reports/_轮129_六分析师信号层落地_20260920.md §0）"},
+     "deps": []},
+    {"id": "kline_analyst", "group": "G1", "size": "M", "label": "K线深度分析师（活跃）",
+     "role": "六域里的 kline_deep：多周期形态/结构 LLM 解读。**实测每 24h ~222 次 LLM 调用**；"
+             "轮134 起产物落库（`kline_ai_analysis_logs`）供六域消费；轮135 修掉"
+             "「快照键 current vs 门控键 close」导致它**恒判无数据**的 bug",
+     "cadence_label": "随预热与 1800s 周期任务",
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"KlineAnalyst"},
+     "deps": ["analysts_layer"]},
+
+    # ═══════════════ G5 因子区（轮139 2026-09-20 用户指令「画布现在开始做 因子这个大模块」）═══════════════
+    # 设计见 docs/AgentWall_v2_三区并行设计_20260919.md §2；每条 source 都经实测确认有数据。
+    {"id": "factor_calc", "group": "G5", "size": "M", "label": "单因子计算",
+     "role": "`factor_engine.factor_calculator`：按币/周期算因子（Calculating N factors 行）",
+     "cadence_label": "按需（被主脑/路线/演化调用）",
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"Calculating \d+ factors"},
+     "deps": ["kline_collector"]},
+    {"id": "factor_loader", "group": "G5", "size": "S", "label": "因子装载 / 活跃集",
+     "role": "FactorLoader：把因子文件/活跃集装进引擎（含被隔离的 ai_gen 因子提示）",
+     "cadence_label": "启动 + 按需", 
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"FactorLoader"},
+     "deps": ["factor_calc"]},
+    {"id": "factor_ai_discovery", "group": "G5", "size": "M", "label": "AI 因子发现",
+     "role": "`ai_factor_discovery_service`：LLM 生成候选因子文件（未激活），需经校验才进池",
+     "cadence_label": "事件/调度",
+     "source": {"kind": "file", "path": "logs/backend.log", "filter": r"\[AIFactor\]"},
+     "deps": ["factor_loader"]},
+    {"id": "factor_evolution", "group": "G5", "size": "L", "label": "因子进化循环（FactorEvo）",
+     "role": "`evolution.factor_evolution_loop`：GP/MCTS 演化 + PBO/DSR 过拟合把关（独立子进程日志）",
+     "cadence_label": "子进程周期（实测最新 07:37）",
+     "source": {"kind": "file", "path": "logs/evo_subprocess.log", "filter": r"\[FactorEvo\]"},
+     "deps": ["factor_calc"]},
+    {"id": "factor_codegen_critic", "group": "G5", "size": "S", "label": "因子代码评审（CodegenCritic）",
+     "role": "生成因子的代码级评审（云端优先），拦幻觉/危险代码",
+     "cadence_label": "随演化",
+     "source": {"kind": "file", "path": "logs/evo_subprocess.log", "filter": r"\[CodegenCritic\]"},
+     "deps": ["factor_ai_discovery"]},
+    {"id": "factor_purge", "group": "G5", "size": "S", "label": "因子退役 / 净化（Purge）",
+     "role": "`purge_pipeline`：按 PBO/衰减退役因子（冷启动豁免会打 [Purge] 行）",
+     "cadence_label": "随演化",
+     "source": {"kind": "file", "path": "logs/evo_subprocess.log", "filter": r"\[Purge\]"},
+     "deps": ["factor_evolution"]},
+    {"id": "factor_exposure", "group": "G5", "size": "M", "label": "因子暴露快照",
+     "role": "每 10 分钟写 `factor_exposure_snapshots`（**表驱动卡**：按行数与最新 ts 判状态，不再用共享日志 mtime 冒充）",
+     "cadence_label": "600s（main.py 的 factor_exposure_snapshot 任务）", "expected_interval_s": 600,
+     "source": {"kind": "db_table", "db": "analytics", "table": "factor_exposure_snapshots", "ts": "ts",
+                "cols": [{"col": "symbol"}, {"col": "ts"}]},
+     "deps": ["factor_calc"]},
+    {"id": "factor_routes", "group": "G5", "size": "M", "label": "三条因子路线（旧 / A-B / Shadow）",
+     "role": "三个前缀极易混：`[FactorRoute]`（旧，**不可达**）/ `[FactorRouteAB]`（**会开仓**，"
+             "但 2026-09-19 起按用户指令 `.env MIDLONG_MID_FACTOR_ROUTE_AB=false` 关闭 ⇒ 现只产证据）"
+             "/ `[FactorRouteShadow]`（只决策不下单）。**只有 AB 曾能开仓**，禁止再画成开仓边",
+     "cadence_label": "随中线 tick（影子路线最新 09-19 17:09）",
+     "source": {"kind": "file", "path": "logs/backend-console.log", "filter": r"\[FactorRoute"},
+     "deps": ["factor_calc"]},
 ]
 
 # ─────────────────────────── 边（关系） ───────────────────────────
@@ -264,7 +368,30 @@ EDGES: List[Dict[str, Any]] = [
     {"from": "signal_review", "to": "experiment_advance", "kind": "advice", "label": "建议(observe 未生效)", "ineffective": True},
     {"from": "event_impact", "to": "experiment_advance", "kind": "advice", "label": "建议(observe 未生效)", "ineffective": True},
     {"from": "execution_qa", "to": "experiment_advance", "kind": "advice", "label": "建议(observe 未生效)", "ineffective": True},
-    {"from": "experiment_advance", "to": "midlong_executor", "kind": "config", "label": "采纳后生效", "ineffective": True},
+    # [轮139] 主脑层内部关系（用户 v2 设计 §1A：主脑里有很多 agent，要画出来）
+    {"from": "brain_mid", "to": "mlto_context", "kind": "data", "label": "装配输入"},
+    {"from": "brain_long", "to": "mlto_context", "kind": "data", "label": "装配输入"},
+    {"from": "brain_mid", "to": "mlto_batch", "kind": "trigger", "label": "批次"},
+    {"from": "brain_long", "to": "mlto_batch", "kind": "trigger", "label": "批次"},
+    {"from": "mlto_batch", "to": "mlto_owm", "kind": "config", "label": "OWM 加权"},
+    {"from": "mlto_owm", "to": "thesis_store", "kind": "data", "label": "conviction 落库"},
+    {"from": "mlto_context", "to": "mlto_debate", "kind": "data", "label": "证据链（分周期）"},
+    {"from": "analysts_layer", "to": "mlto_context", "kind": "data", "label": "六域信号"},
+    {"from": "mlto_debate", "to": "risk_officer", "kind": "data", "label": "风险姿态（主周期裁决）"},
+    {"from": "risk_officer", "to": "midlong_executor", "kind": "trigger", "label": "放行/否决"},
+    {"from": "kline_analyst", "to": "analysts_layer", "kind": "data", "label": "kline_deep 域"},
+    # [轮139] 因子区内部关系（设计 §3.2）
+    {"from": "kline_collector", "to": "factor_calc", "kind": "data", "label": "K线"},
+    {"from": "factor_calc", "to": "factor_loader", "kind": "data", "label": "因子读数"},
+    {"from": "factor_loader", "to": "factor_ai_discovery", "kind": "trigger", "label": "候选生成"},
+    {"from": "factor_ai_discovery", "to": "factor_codegen_critic", "kind": "data", "label": "代码评审"},
+    {"from": "factor_calc", "to": "factor_evolution", "kind": "trigger", "label": "演化评估"},
+    {"from": "factor_evolution", "to": "factor_purge", "kind": "trigger", "label": "退役/净化"},
+    {"from": "factor_purge", "to": "factor_loader", "kind": "data", "label": "回灌活跃集"},
+    {"from": "factor_calc", "to": "factor_exposure", "kind": "data", "label": "暴露快照"},
+    {"from": "factor_calc", "to": "factor_routes", "kind": "data", "label": "路线决策（只产证据）"},
+    {"from": "factor_routes", "to": "midlong_executor", "kind": "data", "label": "证据（AB 已停用）"},
+    {"from": "factor_loader", "to": "analysts_layer", "kind": "data", "label": "因子系统状态"},
 ]
 
 #: 结构性死链（2026-09-19 实测，每条带证据；不是现场计算出来的，故单独标注 kind）
@@ -331,6 +458,112 @@ def _artifact_age_s(path: Path) -> Optional[float]:
 def _observe_mode(agent_id: str) -> Optional[str]:
     d = _latest_agent(agent_id)
     return (d or {}).get("mode")
+
+
+# ─────────────── db_table 源：让"表驱动"的模块有真实来源（轮129） ───────────────
+# 为什么需要它：因子暴露快照 `/ 实验卡 / 智慧库` 这类模块**不写日志**，只有一张表。
+# 用 `kind:"file"` 硬套日志过滤会得到 0 行（或只剩 db_maintenance 的清理行），
+# 于是画布出现"0 行却显示 ok"的假绿 —— 正是用户抱怨的「很多没有数据」。
+# 这里直接量**表的行数与最新时间**：0 行就是 never，不再有假绿。
+_DB_SOURCES = {"core": "engine", "market": "market_engine", "analytics": "analytics_engine"}
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _db_engine(name: str):
+    from backend.database import connection as _conn
+
+    attr = _DB_SOURCES[str(name)]
+    return getattr(_conn, attr)
+
+
+def _db_table_stat(src: Dict[str, Any]) -> Dict[str, Any]:
+    """只读统计：行数 + 最新时间戳（+ 可选样例行）。失败**不抛**，返回 error。"""
+    table = str(src.get("table") or "")
+    ts_col = str(src.get("ts") or "")
+    dbname = str(src.get("db") or "core")
+    if not _IDENT_RE.match(table) or (ts_col and not _IDENT_RE.match(ts_col)):
+        return {"error": f"非法表名/列名: table={table!r} ts={ts_col!r}"}
+    if dbname not in _DB_SOURCES:
+        return {"error": f"未知库名: {dbname!r}（可选 {sorted(_DB_SOURCES)}）"}
+    try:
+        eng = _db_engine(dbname)
+        from sqlalchemy import text as _sa_text
+
+        with eng.connect() as c:
+            rows = c.execute(_sa_text(f"SELECT COUNT(*) FROM {table}")).scalar()
+            newest = None
+            if ts_col:
+                newest = c.execute(_sa_text(f"SELECT MAX({ts_col}) FROM {table}")).scalar()
+            sample: List[Any] = []
+            cols = [str(x.get("col")) for x in (src.get("cols") or []) if _IDENT_RE.match(str(x.get("col") or ""))]
+            if cols and rows:
+                order = f" ORDER BY {ts_col} DESC" if ts_col else ""
+                sel = ", ".join(cols)
+                sample = [tuple(r) for r in c.execute(_sa_text(f"SELECT {sel} FROM {table}{order} LIMIT 5"))]
+        return {"rows": int(rows or 0), "newest": newest, "sample": sample, "cols": cols,
+                "table": table, "db": dbname}
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"{type(exc).__name__}: {str(exc)[:160]}"}
+
+
+def _age_s(ts: Any) -> Optional[float]:
+    """把 DB 时间戳换算成"多少秒前"。支持 datetime / epoch 秒 / epoch 毫秒 / 字符串。"""
+    try:
+        import datetime as _dt
+
+        if ts is None:
+            return None
+        if isinstance(ts, _dt.datetime):
+            ref = _dt.datetime.now(ts.tzinfo) if ts.tzinfo else _dt.datetime.now()
+            return max(0.0, (ref - ts).total_seconds())
+        if isinstance(ts, (int, float)):
+            v = float(ts)
+            if v > 1e12:      # 毫秒
+                v /= 1000.0
+            return max(0.0, time.time() - v)
+        if isinstance(ts, str):
+            for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return max(0.0, (time.time() - time.mktime(time.strptime(ts[:26], fmt))))
+                except Exception:  # noqa: BLE001
+                    continue
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _fmt_age(age: Optional[float]) -> str:
+    if age is None:
+        return "未知"
+    if age < 90:
+        return f"{int(age)}s 前"
+    if age < 5400:
+        return f"{age/60:.0f} 分钟前"
+    if age < 172800:
+        return f"{age/3600:.1f} 小时前"
+    return f"{age/86400:.1f} 天前"
+
+
+def _db_table_lines(src: Dict[str, Any], limit: int = 12) -> List[Dict[str, Any]]:
+    st = _db_table_stat(src)
+    if st.get("error"):
+        return [{"ts": "", "text": f"表读取失败：{st['error']}", "raw": str(st["error"])}]
+    ts_txt = ""
+    if st.get("newest") is not None:
+        ts_txt = str(st["newest"])[:19]
+    ts_s = ts_txt or time.strftime("%Y-%m-%d %H:%M:%S")
+    out: List[Dict[str, Any]] = [{
+        "ts": ts_s,
+        "text": (f"表 {st['table']}（{st['db']} 库）共 {st['rows']:,} 行｜最新记录 "
+                 f"{_fmt_age(_age_s(st.get('newest')))}" if st.get("newest") is not None
+                 else f"表 {st['table']}（{st['db']} 库）共 {st['rows']:,} 行（无时间列）"),
+        "raw": json.dumps({k: str(v) for k, v in st.items() if k != "sample"}, ensure_ascii=False),
+    }]
+    cols = st.get("cols") or []
+    for row in (st.get("sample") or [])[:limit - 1]:
+        txt = "｜".join(f"{c}={v}" for c, v in zip(cols, row))
+        out.append({"ts": ts_txt, "text": txt[:300], "raw": txt[:600]})
+    return out
 
 
 def _retired_layers_note() -> List[Dict[str, str]]:
@@ -414,6 +647,37 @@ def _status_for_node(node: Dict[str, Any], jobs: Dict[str, Dict[str, Any]]) -> D
     if hint:
         out["status"] = {"disabled": "disabled", "static_dead": "dead"}.get(hint, "unknown")
         out["reason"] = "结构性事实（见审计依据）"
+        return out
+
+    if src.get("kind") == "db_table":
+        # [轮129/139] 表驱动模块（因子暴露快照 / 六域信号 / 风控官判定 / 辩论落库…）：
+        # **按表行数与最新时间判状态**，而不是拿共享日志的 mtime 冒充"在跑"。
+        # 0 行 = never（诚实），不再出现"0 行却显示 ok"的假绿。
+        st = _db_table_stat(src)
+        if st.get("error"):
+            out["status"], out["reason"] = "unknown", f"表读取失败：{st['error']}"
+            return out
+        rows = int(st.get("rows") or 0)
+        newest = st.get("newest")
+        age = _age_s(newest) if newest is not None else None
+        out["last_success_ms"] = (int((time.time() - age) * 1000) if age is not None else None)
+        out["rows"] = rows
+        if rows <= 0:
+            out["status"] = "never"
+            out["reason"] = f"表 {st.get('db')}.{st.get('table')} 0 行（尚无产物）"
+            return out
+        # 新鲜度：有 ts 列且声明了期望间隔就按 stale 判定，否则只报行数
+        exp = node.get("expected_interval_s")
+        if age is not None and exp:
+            if age > float(exp) * 5:
+                out["status"], out["reason"] = "dead", f"最新记录 {_fmt_age(age)}（>5×期望间隔）"
+                return out
+            if age > float(exp) * 2:
+                out["status"], out["reason"] = "stale", f"最新记录 {_fmt_age(age)}（>2×期望间隔）"
+                return out
+        out["status"] = "ok"
+        out["reason"] = (f"表 {st.get('db')}.{st.get('table')} {rows:,} 行"
+                         + (f"，最新 {_fmt_age(age)}" if age is not None else "（无时间列）"))
         return out
 
     fp = src.get("path")
@@ -707,6 +971,9 @@ def _node_lines(node: Dict[str, Any]) -> List[Dict[str, Any]]:
         return lines
     if kind == "json_thesis":
         return _thesis_lines(str(src.get("session") or ""))
+    if kind == "db_table":
+        # [轮139] 表驱动卡的滚屏：第一行给"共 N 行 + 最新记录时间"，其余给样本行
+        return _db_table_lines(src)
     if kind == "none":
         return []
     return []
