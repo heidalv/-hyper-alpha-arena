@@ -159,7 +159,15 @@ def _src(rel):
 def test_build_defaults_factor_layer_for_thesis_task():
     src = _src("backend/services/analysis/context_pack.py")
     assert 'if str(task or "") == "midlong_thesis":' in src
-    assert '_default_layers + ("factors",)' in src
+    # [轮153d 2026-09-21] 原断言钉的是**字面量** `_default_layers + ("factors",)`；
+    # 轮129 给同一个元组加了 "analysts" 层 ⇒ 字面量变了、本断言自那时起**恒红**
+    # （陈旧棘轮会让"真的丢了 factors 层"这种回归淹在噪声里）。
+    # 现改钉语义：该分支必须把 factors 加进默认层，允许后续继续追加层。
+    import re
+    m = re.search(r"_default_layers\s*=\s*_default_layers\s*\+\s*\(([^)]*)\)", src)
+    assert m, "找不到『midlong_thesis 默认层扩展』那一行（结构变了要同步本棘轮）"
+    layers = [s.strip().strip("\"'") for s in m.group(1).split(",") if s.strip()]
+    assert "factors" in layers, f"midlong_thesis 默认层缺 factors：{layers}"
 
 
 def test_brain_uses_midlong_thesis_task():

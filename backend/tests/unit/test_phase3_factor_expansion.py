@@ -516,7 +516,12 @@ class TestOnchainDataCollector:
             btc = result['BTC']
             # [2026-08-05 v6 2.3] 无 Coinglass key 时不输出 exchange_net_flow（不造假）
             assert btc.get('exchange_net_flow') is None
-            assert btc['tvl'] == 0.0
+            # [轮153d 2026-09-21·用户批准方案 A] 语义反转：取不到就**不输出**。
+            # 旧断言 `btc['tvl'] == 0.0` / `btc['fear_greed'] == 50.0` 钉的是"失败默认值当数据"，
+            # 而那正是 btc_dominance 在库里恒为 0.0 的成因（见 reports/_轮153_*.md 5.5）。
+            assert 'tvl' not in btc, "tvl 取不到（0.0）时不得输出该键"
+            # 注意：这里 macro 是**被 patch 成真的返回了 50.0**（源成功给出的值），故仍应保留；
+            # "源失败"的情形见 test_collect_fear_greed_failure / test_injection_fallback_on_failure。
             assert btc['fear_greed'] == 50.0
 
     def test_cache_ttl(self):
@@ -542,14 +547,27 @@ class TestOnchainDataCollector:
         collector = OnchainDataCollector()
         with patch('requests.get', side_effect=Exception("network error")):
             result = collector._collect_fear_greed()
-            assert result == 50.0  # 中性默认值
+            # [轮153d 2026-09-21·用户批准方案 A] 旧断言是 `== 50.0`（"中性默认值"）——
+            # 那是**伪造数据**：源挂掉时下游看到的 50 与真实"极度恐惧/中性"无法区分。
+            assert result is None, "取不到必须返回 None（下游写 NULL / 预检记缺），不得伪造 50"
 
     def test_collect_btc_dominance_failure(self):
         from backend.services.onchain_data_collector import OnchainDataCollector
         collector = OnchainDataCollector()
         with patch('requests.get', side_effect=Exception("network error")):
             result = collector._collect_btc_dominance()
-            assert result == 0.0
+            # [轮153d] 旧断言是 `== 0.0` —— 实测该默认值让库里 9,926 行 btc_dominance
+            # 只有一个去重值 0.0（真值 ~55%），并原样进了主脑 LLM 的 market 层。
+            assert result is None, "取不到必须返回 None，不得伪造 0.0"
+
+    def test_macro_defaults_reachable_only_via_rollback_switch(self, monkeypatch):
+        """回滚开关 AUX_MACRO_OMIT_MISSING=false 时恢复旧的 50.0 / 0.0（出问题可对照排查）。"""
+        monkeypatch.setenv("AUX_MACRO_OMIT_MISSING", "false")
+        from backend.services.onchain_data_collector import OnchainDataCollector
+        collector = OnchainDataCollector()
+        with patch('requests.get', side_effect=Exception("network error")):
+            assert collector._collect_fear_greed() == 50.0
+            assert collector._collect_btc_dominance() == 0.0
 
     def test_clear_cache(self):
         from backend.services.onchain_data_collector import OnchainDataCollector
@@ -678,11 +696,14 @@ class TestDataInjection:
         from backend.services.onchain_data_collector import OnchainDataCollector
 
         collector = OnchainDataCollector()
-        # 所有 API 都失败时应返回零值
+        # [轮153d 2026-09-21·用户批准方案 A] 旧断言：所有 API 失败时 fear_greed==50.0、
+        # btc_dominance==0.0（"返回零值"）。那正是假数据来源 —— 现在改为：**失败就不输出该键**，
+        # 主流程仍然不阻塞（result['BTC'] 存在即可）。
         with patch('requests.get', side_effect=Exception("API down")):
             result = collector.collect_all(['BTC'])
-            assert result['BTC']['fear_greed'] == 50.0  # 中性默认值
-            assert result['BTC']['btc_dominance'] == 0.0
+            assert 'BTC' in result, "采集失败不得阻塞主流程（币的行必须存在）"
+            assert 'fear_greed' not in result['BTC'], "源失败时不得伪造 50 中性值"
+            assert 'btc_dominance' not in result['BTC'], "源失败时不得伪造 0.0"
 
 
 # ════════════════════════════════════════════════════════

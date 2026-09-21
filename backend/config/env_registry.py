@@ -1560,6 +1560,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # ⇒ 每个币都带一个"有键无值"的错标字段。
     # 现改为：非空才写 + 真实语义名 `btc_network_tx_count`。
     "CTX_AUX_LEGACY_ACTIVE_ADDRESSES",     # 默认 false；true=回滚旧行为（每个币都写 active_addresses）
+    # [轮153d 2026-09-21] btc_dominance 的存量假 0：`market.symbol_aux_timeseries` 近 3 天
+    # 9,926 行只有一个去重值 0.0（源 CoinGecko 取不到 → 采集器旧默认值 0.0 落库）。
+    # 采集端已改为「取不到不输出」（见 AUX_MACRO_OMIT_MISSING），展示端把 0 当缺失。
+    "CTX_AUX_LEGACY_ZERO_READINGS",        # 默认 false；true=回滚（0.0 照写进 market 层）
+    "AUX_MACRO_OMIT_MISSING",              # 默认 true；false=采集器恢复旧默认值（fear_greed→50、btc_dominance→0.0、tvl→0.0）
     # [轮153] `pick_strategy_donor` 跨层回退：轮153 归档 21 条 tpl_long* 后 long 层母本一度只剩 1 个，
     # 母本为 None 会让 `provision_ai_strategy` 退化成「无同层 active 母本可克隆」→ 长线提案被静默拒绝。
     # 克隆的是配置面（不继承 genome），与周期无关 ⇒ 允许借用其他层的 active 母本。

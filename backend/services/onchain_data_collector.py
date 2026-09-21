@@ -31,6 +31,23 @@ from typing import Dict, List, Any, Tuple, Optional
 logger = logging.getLogger(__name__)
 
 
+def macro_omit_missing() -> bool:
+    """[轮153d 2026-09-21·用户批准方案 A] 采集不到时是否**不输出**该字段（默认 true）。
+
+    true ：取不到就不输出该键（下游一律 `.get()` → None → DB 列 NULL → 预检如实记缺）。
+    false：轮153d 之前的旧行为 —— fear_greed 缺→50.0（中性）、btc_dominance 缺→0.0、
+           tvl 缺→0.0、mempool 缺→0/0.0/0.0。
+
+    为什么改（实测证据）：`market.symbol_aux_timeseries` 近 3 天 9,926 行里
+    `btc_dominance` **只有一个去重值 0.0**（真实 BTC 市占率是 ~55% 量级），
+    且该 0.0 原样进了主脑 LLM 的 market 层 —— 假 0 不会被预检记缺，比缺项更危险。
+    溯源见 `reports/_轮153_模板族归档与aux字段溯源_20260921.md` 第 5.5 节。
+    回滚：`AUX_MACRO_OMIT_MISSING=false`。
+    """
+    return (os.getenv("AUX_MACRO_OMIT_MISSING", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 class OnchainDataCollector:
     """链上与宏观数据采集器"""
 
@@ -106,14 +123,38 @@ class OnchainDataCollector:
                 if 'stablecoin_mint_burn' in cg_chain:
                     result.setdefault('stablecoin_mint_burn', cg_chain['stablecoin_mint_burn'])
 
-            result[symbol] = {
-                'tvl': tvl,
-                'fear_greed': macro.get('fear_greed', 50),
-                'btc_dominance': macro.get('btc_dominance', 0.0),
-                'mempool_size': mempool.get('mempool_size', 0),
-                'mempool_fee_rate': mempool.get('fee_rate', 0.0),
-                'network_congestion': mempool.get('congestion', 0.0),
-            }
+            # [轮153d 2026-09-21·用户批准方案 A] **取不到就不输出该字段**。
+            # 旧实现把"失败默认值"当数据落库：fear_greed 缺→50（中性）、btc_dominance 缺→0.0、
+            # tvl 缺→0.0、mempool 缺→0/0.0/0.0。实测后果：symbol_aux_timeseries 近 3 天
+            # 9,926 行 btc_dominance 只有一个去重值 0.0，且原样进了主脑 LLM 的 market 层。
+            # 下游（agent_deep_context / v3_factor_pipeline / unified_data_pool / master_execution）
+            # 一律 `.get(key)` + `is not None and != 0` 过滤，因此**省略键是安全的**。
+            # 回滚：AUX_MACRO_OMIT_MISSING=false（恢复下方 else 分支的旧 dict）。
+            if macro_omit_missing():
+                _row: Dict[str, Any] = {}
+                if tvl:
+                    _row['tvl'] = tvl
+                if macro.get('fear_greed') is not None:
+                    _row['fear_greed'] = macro['fear_greed']
+                if macro.get('btc_dominance') is not None:
+                    _row['btc_dominance'] = macro['btc_dominance']
+                # mempool 按**键存在性**判断（空 mempool 的 0 是真实读数，源失败才没有键）
+                if 'mempool_size' in mempool:
+                    _row['mempool_size'] = mempool['mempool_size']
+                if 'fee_rate' in mempool:
+                    _row['mempool_fee_rate'] = mempool['fee_rate']
+                if 'congestion' in mempool:
+                    _row['network_congestion'] = mempool['congestion']
+            else:
+                _row = {
+                    'tvl': tvl,
+                    'fear_greed': macro.get('fear_greed', 50),
+                    'btc_dominance': macro.get('btc_dominance', 0.0),
+                    'mempool_size': mempool.get('mempool_size', 0),
+                    'mempool_fee_rate': mempool.get('fee_rate', 0.0),
+                    'network_congestion': mempool.get('congestion', 0.0),
+                }
+            result[symbol] = _row
             # [2026-07-10 数据修复] exchange_net_flow/whale_tx_*/active_addresses 只在
             # 采集器真实产出时才填（原 .get(key, 0) 会把缺失填成 0，虽被下游 !=0 过滤，
             # 但更干净的做法是根本不输出这些字段，让 AI 明确知道"无此项数据"）。
@@ -236,12 +277,13 @@ class OnchainDataCollector:
             'btc_dominance': self._collect_btc_dominance(),
         }
 
-    def _collect_fear_greed(self) -> float:
+    def _collect_fear_greed(self) -> Optional[float]:
         """
         从 alternative.me 获取恐惧贪婪指数
 
         Returns:
-            0-100 的指数值，失败返回 50 (中性)
+            0-100 的指数值；[轮153d] 失败返回 **None**（不再伪造 50 中性值）。
+            回滚 `AUX_MACRO_OMIT_MISSING=false` 时恢复旧的 `50.0`。
         """
         cache_key = 'fear_greed'
         cached = self._get_cached(cache_key, self.FEAR_GREED_TTL)
@@ -260,14 +302,16 @@ class OnchainDataCollector:
         except Exception as e:
             logger.debug(f"[OnchainDataCollector] Fear&Greed采集失败: {e}")
 
-        return 50.0
+        return None if macro_omit_missing() else 50.0
 
-    def _collect_btc_dominance(self) -> float:
+    def _collect_btc_dominance(self) -> Optional[float]:
         """
         从 CoinGecko 获取 BTC 市值占比
 
         Returns:
-            BTC主导率 (0-100)，失败返回 0.0
+            BTC主导率 (0-100)；[轮153d] 失败返回 **None**（不再伪造 0.0 ——
+            真实市占率是 ~55% 量级，"0%" 会作为错读数进 LLM）。
+            回滚 `AUX_MACRO_OMIT_MISSING=false` 时恢复旧的 `0.0`。
         """
         cache_key = 'btc_dominance'
         cached = self._get_cached(cache_key, self.BTC_DOM_TTL)
@@ -286,7 +330,7 @@ class OnchainDataCollector:
         except Exception as e:
             logger.debug(f"[OnchainDataCollector] BTC Dominance采集失败: {e}")
 
-        return 0.0
+        return None if macro_omit_missing() else 0.0
 
     # ── Blockchain.info (BTC) ──────────────────
 

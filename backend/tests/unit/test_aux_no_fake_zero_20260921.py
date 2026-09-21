@@ -93,6 +93,80 @@ def test_deep_context_summary_uses_true_name():
         assert _aux_display_name(k) == k, f"{k} 不该被改名"
 
 
+# ── [轮153d] 方案 A 全链：采集端不输出缺失项 + 展示端不写 btc_dominance 的 0 ──
+
+def test_stored_zero_dominance_is_treated_as_missing(monkeypatch):
+    """存量行里 btc_dominance=0.0（近 3 天 9,926 行唯一去重值）不得进 LLM market 层。"""
+    d = _emit({"fear_greed": 71, "btc_dominance": 0.0, "active_addresses": None,
+               "timestamp_ms": 1}, monkeypatch=monkeypatch)
+    assert "btc_dominance" not in d, "0.0 是采集器旧默认值造成的假读数（真值 ~55%）"
+    assert (d.get("onchain_macro") or {}).get("btc_dominance") is None
+
+
+def test_real_dominance_still_passes(monkeypatch):
+    d = _emit({"fear_greed": 71, "btc_dominance": 54.83, "active_addresses": None,
+               "timestamp_ms": 1}, monkeypatch=monkeypatch)
+    assert d.get("btc_dominance") == 54.83
+
+
+def test_dominance_rollback_switch(monkeypatch):
+    d = _emit({"fear_greed": 71, "btc_dominance": 0.0, "active_addresses": None,
+               "timestamp_ms": 1}, legacy="true", monkeypatch=monkeypatch)
+    # legacy 开关只回滚 active_addresses；btc_dominance 另有 CTX_AUX_LEGACY_ZERO_READINGS
+    monkeypatch.setenv("CTX_AUX_LEGACY_ZERO_READINGS", "true")
+    d = _emit({"fear_greed": 71, "btc_dominance": 0.0, "active_addresses": None,
+               "timestamp_ms": 1}, monkeypatch=monkeypatch)
+    assert d.get("btc_dominance") == 0.0, "回滚开关未生效"
+
+
+def test_collector_omits_missing_macro_fields(monkeypatch):
+    """采集端：源取不到就不输出该键（旧行为是 fear_greed→50 / btc_dominance→0.0）。"""
+    from backend.services import onchain_data_collector as odc
+
+    monkeypatch.delenv("AUX_MACRO_OMIT_MISSING", raising=False)
+    coll = odc.OnchainDataCollector()
+    monkeypatch.setattr(coll, "_collect_macro", lambda: {"fear_greed": None, "btc_dominance": None})
+    monkeypatch.setattr(coll, "_collect_tvl", lambda s: 0.0)
+    monkeypatch.setattr(coll, "_collect_mempool", lambda: {})
+    monkeypatch.setattr(coll, "_collect_blockchain_info", lambda: {})
+    monkeypatch.setattr(coll, "_collect_etherscan", lambda: {})
+    monkeypatch.setattr(coll, "_collect_coinglass", lambda: {})
+    row = coll.collect_all(["BTC"])["BTC"]
+    assert "fear_greed" not in row, "源失败时不得写入 50 中性值"
+    assert "btc_dominance" not in row, "源失败时不得写入 0.0"
+    assert "tvl" not in row, "tvl 为 0（取不到）时不得输出"
+    assert "mempool_size" not in row, "mempool 源失败时不得输出 0"
+
+
+def test_collector_keeps_real_macro_values(monkeypatch):
+    from backend.services import onchain_data_collector as odc
+
+    coll = odc.OnchainDataCollector()
+    monkeypatch.setattr(coll, "_collect_macro", lambda: {"fear_greed": 71.0, "btc_dominance": 54.8})
+    monkeypatch.setattr(coll, "_collect_tvl", lambda s: 1.2e9)
+    monkeypatch.setattr(coll, "_collect_mempool",
+                        lambda: {"mempool_size": 0, "fee_rate": 3.0, "congestion": 0.0})
+    monkeypatch.setattr(coll, "_collect_blockchain_info", lambda: {})
+    monkeypatch.setattr(coll, "_collect_etherscan", lambda: {})
+    monkeypatch.setattr(coll, "_collect_coinglass", lambda: {})
+    row = coll.collect_all(["BTC"])["BTC"]
+    assert row["fear_greed"] == 71.0 and row["btc_dominance"] == 54.8 and row["tvl"] == 1.2e9
+    # 空 mempool 的 0 是**真实读数**（键存在即保留），与"源失败"区别对待
+    assert row["mempool_size"] == 0 and row["mempool_fee_rate"] == 3.0
+
+
+def test_collector_rollback_switch_restores_defaults(monkeypatch):
+    from backend.services import onchain_data_collector as odc
+
+    monkeypatch.setenv("AUX_MACRO_OMIT_MISSING", "false")
+    assert odc.macro_omit_missing() is False
+    coll = odc.OnchainDataCollector()
+    with __import__("unittest").mock.patch("requests.get",
+                                          side_effect=Exception("down")):
+        assert coll._collect_fear_greed() == 50.0
+        assert coll._collect_btc_dominance() == 0.0
+
+
 def test_live_market_layer_has_no_fake_zero(monkeypatch):
     """端到端（真库）：market 层不得再出现 active_addresses=0 这种假读数。"""
     from backend.services.analysis import context_pack as cp

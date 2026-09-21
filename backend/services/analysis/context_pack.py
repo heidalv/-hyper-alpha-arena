@@ -339,6 +339,12 @@ def _legacy_active_addresses() -> bool:
         "1", "true", "yes", "on")
 
 
+def _legacy_zero_readings() -> bool:
+    """[轮153d] 回滚开关：`CTX_AUX_LEGACY_ZERO_READINGS=true` 时 btc_dominance 的 0.0 照写。"""
+    return (os.getenv("CTX_AUX_LEGACY_ZERO_READINGS", "false") or "false").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 def _emit_aux_readings(d: Dict[str, Any], aux_row: Dict[str, Any]) -> None:
     """把 `market.symbol_aux_timeseries` 的链上/宏观读数写进 market 层的一行。
 
@@ -354,15 +360,23 @@ def _emit_aux_readings(d: Dict[str, Any], aux_row: Dict[str, Any]) -> None:
       · 回滚：`CTX_AUX_LEGACY_ACTIVE_ADDRESSES=true`（恢复写 `active_addresses`，值仍为 None）。
     """
     d["fear_greed"] = _r(aux_row.get("fear_greed"), 1)
-    d["btc_dominance"] = _r(aux_row.get("btc_dominance"), 2)
+    _bd = aux_row.get("btc_dominance")
+    # [轮153d 2026-09-21·用户批准方案 A] btc_dominance 的历史行里有大量 **0.0 假值**
+    # （源 CoinGecko 取不到 → 采集器旧默认值 0.0 被当数据落库；近 3 天 9,926 行只有 1 个
+    # 去重值 0.0）。真实的 BTC 市占率是 ~55% 量级，"0%" 是错读数而不是缺失。
+    # 采集端已改为"取不到不输出"，但**存量行仍是 0.0** ⇒ 展示端也要把 0 当缺失处理。
+    if _legacy_zero_readings():
+        d["btc_dominance"] = _r(_bd, 2)
+    elif _bd:
+        d["btc_dominance"] = _r(_bd, 2)
     _aa = aux_row.get("active_addresses")
     if _legacy_active_addresses():
         d["active_addresses"] = _r(_aa, 0)
     elif _aa is not None:
         d["btc_network_tx_count"] = _r(_aa, 0)
     # 量化简报的另一条读取路径（`md.onchain_macro.fear_greed`）
-    d["onchain_macro"] = {"fear_greed": d["fear_greed"],
-                          "btc_dominance": d["btc_dominance"],
+    d["onchain_macro"] = {"fear_greed": d.get("fear_greed"),
+                          "btc_dominance": d.get("btc_dominance"),
                           "ts_ms": aux_row.get("timestamp_ms")}
 
 
