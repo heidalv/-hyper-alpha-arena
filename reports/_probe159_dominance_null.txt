@@ -1,0 +1,21 @@
+﻿
+[OnchainDataCollector] COINGLASS_API_KEY / COINGLASS_FREE_API_KEY ��Ϊ�գ�������������/�ȶ��Ҿ���������ȱʧ�����������Ѱ� NaN 
+������������ coinglass.com ������� API key ���� .env ���ø���·��
+================================================================================================
+① 直接调用采集器（源可用性 check）
+   _collect_btc_dominance() = None   （None = 源取不到，旧行为是 0.0）
+   _collect_fear_greed()    = 70.0   （None = 源取不到，旧行为是 50.0）
+   collect_all(['BTC'])['BTC'] 的键 = ['active_addresses', 'fear_greed', 'mempool_fee_rate', 'mempool_size', 'network_con
+gestion', 'total_btc_sent', 'tvl']
+     btc_dominance 在键里? False；tvl 在键里? True
+
+② 库里最新行的 btc_dominance（修复后应开始出现 NULL）
+   2026-09-21 09:39:00  n=18    btc_dominance 非空=1     等于0=0
+   2026-09-21 09:32:00  n=9     btc_dominance 非空=1     等于0=9
+   2026-09-21 09:24:00  n=9     btc_dominance 非空=1     等于0=9
+   2026-09-21 09:19:00  n=17    btc_dominance 非空=1     等于0=17
+   2026-09-21 09:17:00  n=17    btc_dominance 非空=1     等于0=17
+
+   近 10 分钟 btc_dominance 为 NULL 的行数 = 18（>0 即采集端修复已生效）
+
+

@@ -1,0 +1,17 @@
+﻿
+================================================================================================
+① symbol_aux_timeseries 近 3 天各列的取值分布（找『非空但恒 0』的假值）
+   btc_dominance      非空=9929   去重=1      min=0.0 max=0.0 等于0的行=9929
+   tvl                非空=9929   去重=246    min=0.0 max=52818956470.0 等于0的行=2
+   fear_greed         非空=9929   去重=3      min=56.0 max=71.0 等于0的行=0
+   active_addresses   非空=704    去重=179    min=561304.0 max=821441.0 等于0的行=0
+
+② market 层键位（键是否存在，而不是 .get 的 None）
+   BTC: fear_greed=70.0 btc_dominance=None | 'active_addresses' in row = False | 'btc_network_tx_count' in row = True |
+ 值=746287.0
+   ETH: fear_greed=70.0 btc_dominance=None | 'active_addresses' in row = False | 'btc_network_tx_count' in row = False 
+| 值=None
+   SOL: fear_greed=70.0 btc_dominance=None | 'active_addresses' in row = False | 'btc_network_tx_count' in row = False 
+| 值=None
+
+
