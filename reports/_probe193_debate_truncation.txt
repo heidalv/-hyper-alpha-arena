@@ -1,0 +1,23 @@
+﻿
+mlto_debate 最近 14 行：status / output_tokens / 是否贴上限（上限取 MIDLONG_DEBATE_MAX_OUTPUT_TOKENS）
+   （env MIDLONG_DEBATE_MAX_OUTPUT_TOKENS = 2500）
+   09-21 15:59:56 ok      out=1     in=1      nojson=False 
+   09-21 15:59:54 error   out=100   in=1      nojson=True 输出被 max_tokens 截断（finish
+   09-21 15:57:55 ok      out=400   in=747    nojson=False 
+   09-21 15:57:52 ok      out=520   in=749    nojson=False 
+   09-21 15:57:02 ok      out=433   in=754    nojson=False 
+   09-21 15:56:53 ok      out=775   in=1502   nojson=False 
+   09-21 15:56:41 error   out=900   in=1492   nojson=True 输出中无可解析 JSON（原文摘要：{"argu
+   09-21 15:56:32 error   out=900   in=1208   nojson=True 输出中无可解析 JSON（原文摘要：{"argu
+   09-21 15:56:01 error   out=900   in=1204   nojson=True 输出中无可解析 JSON（原文摘要：{"argu
+   09-21 15:50:37 ok      out=1     in=1      nojson=False 
+   09-21 15:48:48 ok      out=1     in=1      nojson=False 
+   09-21 15:48:17 ok      out=1     in=1      nojson=False 
+   09-21 15:47:40 ok      out=465   in=747    nojson=False 
+   09-21 15:47:37 ok      out=476   in=749    nojson=False 
+
+   近 3h：status / n / avg_out / max_out
+     error    n=176  avg=750 max=1510
+     ok       n=47   avg=407 max=775
+
+

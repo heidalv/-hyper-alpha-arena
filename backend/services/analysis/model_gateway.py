@@ -138,6 +138,10 @@ class RawCompletion:
     output_tokens: int = 0
     model: str = ""
     tokens_estimated: bool = False
+    # [轮158 2026-09-21] 供应商返回的 finish_reason（"stop" / "length" / …）。
+    # 为什么必须留：辩论轮那 175 条"无可解析 JSON"全部 output_tokens == 900 == max_tokens，
+    # 即**被截断**成半截 JSON；但账本只写"无可解析 JSON"，定位花了好几轮。
+    finish_reason: str = ""
 
 
 @dataclass
@@ -478,12 +482,18 @@ class DeepSeekTransport(Transport):
         except Exception:
             raise RuntimeError(f"deepseek 响应格式异常: {str(resp)[:300]}")
         usage = resp.get("usage") or {}
+        _fr = ""
+        try:
+            _fr = str((resp.get("choices") or [{}])[0].get("finish_reason") or "")
+        except Exception:
+            _fr = ""
         return RawCompletion(
             text=content or "",
             input_tokens=int(usage.get("prompt_tokens", 0) or 0),
             output_tokens=int(usage.get("completion_tokens", 0) or 0),
             model=str(resp.get("model") or cfg.model),
             tokens_estimated=not usage,
+            finish_reason=_fr,
         )
 
 
@@ -892,11 +902,14 @@ class ModelGateway:
             res.input_tokens, res.output_tokens = raw.input_tokens, raw.output_tokens
             obj = extract_json(res.text)
             if obj is None:
-                # [轮157 2026-09-21] 带上原文摘要：此前只写"输出中无可解析 JSON"，
-                # 账本里不留任何痕迹 ⇒ 无法判断是模型没给 JSON、还是 JSON 里有未转义引号
-                # （辩论轮实测约 1/3 落这一类）。只加观测信息，不改任何判定。
+                # [轮157/158 2026-09-21] 带上原文摘要 + finish_reason：此前只写"输出中无可解析
+                # JSON"，既不知是模型没给 JSON、还是被 max_tokens 截断成半截 JSON
+                # （实测辩论轮 175 条失败的 output_tokens **全部等于** 上限 900 ⇒ 截断）。
+                # 只加观测信息，不改任何判定。
                 _snip = " ".join((res.text or "").split())[:180]
-                res.error = f"输出中无可解析 JSON（原文摘要：{_snip}）" if _snip else "输出中无可解析 JSON"
+                _fr = str(getattr(raw, "finish_reason", "") or "")
+                _why = "输出被 max_tokens 截断（finish_reason=length）" if _fr == "length" else "输出中无可解析 JSON"
+                res.error = f"{_why}（finish_reason={_fr or '?'}；原文摘要：{_snip}）" if _snip else _why
             else:
                 valid, errs = schemas.validate(schema_task or task, obj)
                 res.json = obj

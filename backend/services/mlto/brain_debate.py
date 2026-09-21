@@ -110,7 +110,14 @@ def _make_llm_client(tier: str, recorder: Optional[List[Tuple[str, str]]] = None
             f"你是加密货币中长线（tier={tier}）交易台的辩论参与者，只输出 JSON。",
             prompt + suffix,
             transport=transport,
-            max_output_tokens=int(_num("MIDLONG_DEBATE_MAX_OUTPUT_TOKENS", 900)),
+            # [轮158 2026-09-21] 900 → 2500：实测 175 条"无可解析 JSON"的失败行
+            # output_tokens **全部等于 900**（= 上限），即回答被截断成半截 JSON；
+            # 而成功的行只需 400~775。辩论每轮要写 argument+evidence+counterargument+
+            # weakness + 三个周期的 horizons，且 DeepSeek 的 thinking token 也计入
+            # completion_tokens ⇒ 900 根本不够。max_tokens 只是上限、不预扣费，
+            # 故抬高不影响成本（用户明确"先不要考虑 LLM 预算"）。
+            # 回滚：MIDLONG_DEBATE_MAX_OUTPUT_TOKENS=900。
+            max_output_tokens=int(_num("MIDLONG_DEBATE_MAX_OUTPUT_TOKENS", 2500)),
             temperature=0.3,
             timeout_s=float(_num("MIDLONG_DEBATE_TIMEOUT_S", 120)),
         )
