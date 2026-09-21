@@ -1,0 +1,39 @@
+﻿
+====================================================================================================
+CONSENSUS_THRESHOLD = 0.7   allow_single_vote() = True
+primary_names() = ['deepseek']   arbiter = deepseek
+
+====================================================================================================
+① 只用 deepseek（单票）
+   status          = ok
+   consensus_score = 0.55   （accepted 需要 ≥ 0.7）
+   accepted        = True
+   primaries       = ['deepseek']
+   ok 票数         = 1
+   comparison      = {"single_model": "deepseek", "verification": "disabled", "model": "deepseek-v4-flash"}
+   notes           = ["单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"]
+   final.direction = neutral confidence=0.55 recommend_open=False
+
+====================================================================================================
+② deepseek + deepseek（想凑两票）
+   status          = ok
+   consensus_score = 0.55   （accepted 需要 ≥ 0.7）
+   accepted        = True
+   primaries       = ['deepseek']
+   ok 票数         = 1
+   comparison      = {"single_model": "deepseek", "verification": "disabled", "model": "deepseek-v4-flash"}
+   notes           = ["单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"]
+   final.direction = neutral confidence=0.55 recommend_open=False
+
+====================================================================================================
+③ deepseek + glm_opencode_alt（对照）
+   status          = ok
+   consensus_score = 0.55   （accepted 需要 ≥ 0.7）
+   accepted        = True
+   primaries       = ['deepseek']
+   ok 票数         = 1
+   comparison      = {"single_model": "deepseek", "verification": "disabled", "model": "deepseek-v4-flash"}
+   notes           = ["单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"]
+   final.direction = neutral confidence=0.55 recommend_open=False
+
+

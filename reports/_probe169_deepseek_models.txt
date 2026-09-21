@@ -1,0 +1,23 @@
+﻿
+base_url = https://api.deepseek.com   key = sk-832f3…9c96
+
+逐一实测（含 .env 里配的与 DB 里那条 deepseek-chat）：
+   deepseek-v4-flash      OK   2.1s  回显 model='deepseek-flash'  usage={'prompt_tokens': 96, 'completion_tokens': 75, 't
+otal_tokens': 171, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 53}
+, 'prompt_cache_hit_tokens': 0, 'prompt_cache_miss_tokens': 96}
+      内容: {"direction":"neutral","confidence":0.3,"reason":"无实时行情数据，无法判断"}
+   deepseek-chat          OK   2.3s  回显 model='deepseek-flash'  usage={'prompt_tokens': 71, 'completion_tokens': 18, 't
+otal_tokens': 89, 'prompt_tokens_details': {'cached_tokens': 0}, 'prompt_cache_hit_tokens': 0, 'prompt_cache_miss_token
+s': 71}
+      内容: {"direction":"neutral","confidence":0.5,"reason":"无数据无法判断"}
+   deepseek-reasoner      OK   1.7s  回显 model='deepseek-flash'  usage={'prompt_tokens': 96, 'completion_tokens': 105, '
+total_tokens': 201, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 83
+}, 'prompt_cache_hit_tokens': 0, 'prompt_cache_miss_tokens': 96}
+      内容: {"direction":"neutral","confidence":0.2,"reason":"无实时行情数据，无法判断"}
+   deepseek-flash         FAIL  62.2s  TimeoutError: The read operation timed out
+
+/models 列表（若接口支持）：
+    {"object": "list", "data": [{"id": "deepseek-flash", "object": "model", "owned_by": "deepseek"}, {"id": "deepseek-v
+4-pro", "object": "model", "owned_by": "deepseek"}]}
+
+

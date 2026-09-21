@@ -602,7 +602,9 @@ class NewsIntelligenceService:
     )
 
     def _annotate_via_gateway(self, item: Dict) -> Optional["NewsImpact"]:
-        """系统级网关标注（MiniMax / GLM / 本地票）。
+        """系统级网关标注（DeepSeek 首选；GLM / 本地票兜底）。
+
+        [轮155 2026-09-21·用户指令] 本条原为「MiniMax / GLM / 本地票」，现 MiniMax 已停用。
 
         [2026-09-04] 原实现只走 `get_llm_config()`，而该函数**要求 tenant_id**，
         新闻服务作为系统级采集器并没有租户上下文 —— 于是每条新闻都拿到 None，
@@ -620,9 +622,11 @@ class NewsIntelligenceService:
             gw = get_model_gateway()
             user = f"新闻标题: {item.get('title', '')}\n来源: {item.get('source', '')}"
             # 单模型即可：标注是客观信息抽取，不像策略判断那样需要交叉验证。
-            # 顺序按实测定：MiniMax 4.5s、GLM 17~26s，两者标注质量相当（同一批样本上
-            # 方向与分类一致），故快的在前；本地票兜底，免费不限量。
-            for tr in ("minimax", "glm_opencode", "ollama"):
+            # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」]
+            # 原顺序 ("minimax","glm_opencode","ollama")：minimax 实测 4.5s 最快，故在首位。
+            # 现改为 deepseek（实测 deepseek-v4-flash 2.1s，比 minimax 更快）；
+            # GLM 保留为兜底（订阅内成本），本地票已被 LLM_LOCAL_FIRST_DISABLED 关闭。
+            for tr in ("deepseek", "glm_opencode", "glm_opencode_alt", "ollama"):
                 res = gw.call("news_annotate", self._ANNOTATE_SYSTEM, user,
                               transport=tr, schema_task="news_annotate",
                               max_output_tokens=400, timeout_s=60)

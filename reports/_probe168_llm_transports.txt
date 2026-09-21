@@ -1,0 +1,29 @@
+﻿
+====================================================================================================
+① DB 里的 LLM 配置（谁在用 minimax / deepseek）
+   相关表： ['llm_configurations', 'llm_quota_usage']
+
+   ── llm_configurations ──
+      {'id': 17, 'name': 'DeepSeek V4 (Flash)', 'provider': 'deepseek', 'model': 'deepseek-v4-flash', 'base_url': 'http
+s://api.deepseek.com', 'tenant_id': 326, 'is_active': 'true', 'is_default': 'true'}
+      {'id': 80, 'name': 'Local Ollama - Batch Labeler', 'provider': 'ollama', 'model': 'qwen2.5:7b-instruct-q4_K_M', '
+base_url': 'http://127.0.0.1:11434/v1', 'tenant_id': 326, 'is_active': 'false', 'is_default': 'false'}
+      {'id': 84, 'name': '本地Ollama-Qwen3-14B(主力)', 'provider': 'ollama', 'model': 'qwen3:14b', 'base_url': 'http://127.
+0.0.1:11434/v1', 'tenant_id': 326, 'is_active': 'false', 'is_default': 'false'}
+      {'id': 85, 'name': 'DeepSeek-云端降级(因子挖掘)', 'provider': 'deepseek', 'model': 'deepseek-chat', 'base_url': 'https://
+api.deepseek.com/v1', 'tenant_id': 326, 'is_active': 'true', 'is_default': 'false'}
+
+====================================================================================================
+② 网关当前链路（load_dotenv 后）
+   primary_names    = ['minimax', 'deepseek']
+   arbiter_name     = glm_opencode_alt
+   fallback_names   = ['glm_opencode_alt', 'deepseek', 'minimax']
+   各传输 configured：
+     minimax            configured=True  base_url=https://api.minimax.cn/anthropic
+     glm_opencode       configured=True  sidecar ok, model=zai-coding-plan/glm-5.3-flash, agent=analysis
+     glm_opencode_alt   configured=True  sidecar ok, model=zai-coding-plan/glm-5.3, agent=analysis
+     deepseek           configured=True  model=deepseek-v4-flash via db
+     ollama             configured=False  本地 Ollama 已停用（LLM_LOCAL_FIRST_DISABLED=true），一律走线上 LLM
+     ollama2            configured=False  本地 Ollama 已停用（LLM_LOCAL_FIRST_DISABLED=true），一律走线上 LLM
+
+

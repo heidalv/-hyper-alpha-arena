@@ -1,0 +1,39 @@
+﻿
+====================================================================================================
+CONSENSUS_THRESHOLD = 0.7   allow_single_vote() = False
+primary_names() = ['minimax', 'deepseek']   arbiter = glm_opencode_alt
+
+====================================================================================================
+① 只用 deepseek（单票）
+   status          = degraded
+   consensus_score = 0.375   （accepted 需要 ≥ 0.7）
+   accepted        = False
+   primaries       = ['deepseek']
+   ok 票数         = 1
+   comparison      = {"single_vote": "deepseek"}
+   notes           = ["单模型结论（deepseek），不得入 signal_ledger"]
+   final.direction = neutral confidence=0.55 recommend_open=False
+
+====================================================================================================
+② deepseek + deepseek（想凑两票）
+   status          = skipped
+   consensus_score = 0.0   （accepted 需要 ≥ 0.7）
+   accepted        = False
+   primaries       = ['deepseek']
+   ok 票数         = 0
+   comparison      = {}
+   notes           = ["deepseek 与 deepseek 同为模型 deepseek-v4-flash → 视作单票（同模型一致不构成交叉验证）", "deepseek: schema 校验失败: 缺少字段 t
+p_pct; 缺少字段 thesis_summary"]
+
+====================================================================================================
+③ deepseek + glm_opencode_alt（对照）
+   status          = skipped
+   consensus_score = 0.0   （accepted 需要 ≥ 0.7）
+   accepted        = False
+   primaries       = ['deepseek', 'glm_opencode_alt']
+   ok 票数         = 0
+   comparison      = {}
+   notes           = ["deepseek: schema 校验失败: 缺少字段 tp_pct; 缺少字段 thesis_summary", "glm_opencode_alt: schema 校验失败: 缺少字段 t
+p_pct; 缺少字段 thesis_summary"]
+
+

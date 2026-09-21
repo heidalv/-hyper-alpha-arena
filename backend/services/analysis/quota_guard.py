@@ -387,7 +387,8 @@ class QuotaGuard:
         # [2026-09-04] 本地传输一并纳入看板。它们不受次数配额约束，但流水照写
         # （见 record 注释：耗时 / token / 成功率要能与云端横向对比），此前硬编码
         # 只列三家云端 → 本地模型跑了多少、成功率如何在看板上完全不可见。
-        for tr in ("minimax", "glm_opencode", "deepseek", *sorted(local_transports())):
+        # [轮155 2026-09-21] 顺序改为 deepseek 优先（用户指令：LLM 全部换 deepseek，不用 minimax）。
+        for tr in ("deepseek", "glm_opencode", "glm_opencode_alt", *sorted(local_transports())):
             per_class = {}
             for cls_ in ("deep", "event", "light"):
                 c = self._counts(tr, cls_, now)

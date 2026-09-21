@@ -699,13 +699,13 @@ def run_trend_chart_review(
         "trend_chart_review",
         symbols=[symbol],
         images=images or None,
-        # [调研轮14 方案A 2026-09-16] 图片改发给**快通道主票**。
-        # 原值 ["glm_opencode"]：GLM 是唯一带图票（Coding Plan 内图片零边际成本）；
-        # 但 GLM 已退出每题必调（主票改为 minimax+deepseek），继续只发 GLM 会导致
-        # 图审的图**没人看**（主票变纯文本）。MiniMax-M3 的多模态能力项目里已实测
-        # （代码注释：可精确读出 K 线结构/放量位置/价格区间），代价是按 token 计费。
-        # 回滚：改回 ["glm_opencode"]。
-        images_for=["minimax", "glm_opencode"] if images else None,
+        # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」]
+        # 原值 ["minimax","glm_opencode"]。注意：**DeepSeek 传输是纯文本**（`complete()` 完全
+        # 忽略 `images` 参数），所以主票换成 deepseek 后，本任务的 K 线图**没有票会看**——
+        # 图审退化为"深度 K 线数值分析"。这里保留 GLM 作为带图票：仅当 GLM 因降级被顶上
+        # 主票时才会真的收到图，其余情况图不会被任何票消费（提示词里已要求"没有图片就
+        # 仅依据数值数据分析，不要臆测图内容"）。
+        images_for=["glm_opencode", "glm_opencode_alt"] if images else None,
         event_block=event_block,
         event_meta={"symbol": symbol, "charts": [im["title"] for im in images]},
         max_output_tokens=2000,

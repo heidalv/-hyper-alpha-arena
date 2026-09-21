@@ -24,7 +24,7 @@ def guard(monkeypatch):
     monkeypatch.setenv("ANALYSIS_5H_CALLS_PER_MODEL", "3")
     monkeypatch.setenv("ANALYSIS_WEEKLY_CALLS_PER_MODEL", "10")
     monkeypatch.setenv("ANALYSIS_LIGHT_DAILY_PER_MODEL", "100")
-    monkeypatch.setenv("ANALYSIS_5H_CALLS_MAP", "glm_opencode:8,minimax:5")
+    monkeypatch.setenv("ANALYSIS_5H_CALLS_MAP", "glm_opencode:8,glm_opencode_alt:5")
     monkeypatch.setenv("ANALYSIS_WEEKLY_CALLS_MAP", "glm_opencode:40")
     monkeypatch.setenv("ANALYSIS_DAILY_CALLS_MAP", "deepseek:4")
     g = qg.QuotaGuard()
@@ -61,9 +61,10 @@ def test_未配置的传输回落全局默认(guard):
 
 
 def test_各传输的额度互不干扰(guard):
-    """MiniMax 用满不应影响 GLM —— 两家是独立套餐。"""
-    _record(guard, "minimax", n=5)
-    assert guard.check("minimax", "gateway_test", est_context_tokens=100).action == "degrade"
+    """[轮155 2026-09-21] 原用 minimax 举例（用户已停用 minimax）→ 改为 GLM 两条通道：
+    同一套餐的两条通道也是独立计数，用满一条不影响另一条。"""
+    _record(guard, "glm_opencode_alt", n=5)
+    assert guard.check("glm_opencode_alt", "gateway_test", est_context_tokens=100).action == "degrade"
     assert guard.check("glm_opencode", "gateway_test", est_context_tokens=100).action == "allow"
 
 
@@ -78,14 +79,14 @@ def test_按传输日上限与分类上限取较小者(guard):
 def test_周上限同样按传输(guard):
     b = guard.budget
     assert b.calls_weekly_for("glm_opencode") == 40
-    assert b.calls_weekly_for("minimax") == 10, "未配周上限的传输回落全局"
+    assert b.calls_weekly_for("glm_opencode_alt") == 10, "未配周上限的传输回落全局"
 
 
 def test_非法配置项被忽略而不炸(monkeypatch):
     """配置写错不该让整个配额体系失效 —— 那会导致要么全拦要么全放。"""
-    monkeypatch.setenv("ANALYSIS_5H_CALLS_MAP", "glm_opencode:abc,minimax:5,,坏数据")
+    monkeypatch.setenv("ANALYSIS_5H_CALLS_MAP", "glm_opencode:abc,deepseek:5,,坏数据")
     b = qg.Budget.from_env()
-    assert b.calls_5h_for("minimax") == 5, "合法项仍应生效"
+    assert b.calls_5h_for("deepseek") == 5, "合法项仍应生效"
     assert b.calls_5h_for("glm_opencode") == b.calls_5h, "非法项回落全局默认"
 
 
@@ -99,7 +100,7 @@ def test_看板给出各传输的上限(guard):
     snap = guard.snapshot()
     tr = snap["transports"]
     assert tr["glm_opencode"]["calls_5h_budget"] == 8
-    assert tr["minimax"]["calls_5h_budget"] == 5
+    assert tr["glm_opencode_alt"]["calls_5h_budget"] == 5
     assert tr["deepseek"]["calls_5h_budget"] == 3, "未配置的回落全局"
 
 

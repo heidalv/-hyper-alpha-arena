@@ -1465,7 +1465,7 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "GLM_OPENCODE_MODEL",            # sidecar 模型 slug（默认 zai-coding-plan/glm-5.3）
     "GLM_OPENCODE_AGENT",            # sidecar agent（默认 analysis：只读、纯 JSON）
     "DEEPSEEK_MODEL",                # 仲裁票 env 兜底模型（默认 deepseek-v4-flash；优先用租户 deep_analysis 用途配置）
-    "ANALYSIS_PRIMARY_TRANSPORTS",   # 两条主传输（默认 minimax,glm_opencode）
+    "ANALYSIS_PRIMARY_TRANSPORTS",   # 主传输（轮155 起部署值=deepseek 单模型；双票模式下为两条不同模型）
     "ANALYSIS_ARBITER_TRANSPORT",    # 第三票（默认 deepseek）
     "ANALYSIS_FALLBACK_TRANSPORTS",  # 主票缺席时的顶替候选（默认 deepseek,ollama）
     "ANALYSIS_OLLAMA_MODEL",         # 本地票模型（默认 qwen3:14b）
@@ -1576,6 +1576,11 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # [轮154] 缩仓链（V5Gate/MTF/tranche/蒙特卡洛/位置闸/learned）只产出 size_multiplier，
     # 而 paper 路径此前从不读取（live 读了）⇒ 风险链的"少买点"无效：$60 意图 → $693 名义成交。
     "PAPER_APPLY_SIZE_MULTIPLIER",         # 默认 true；false=回到"paper 忽略缩仓链"的旧行为
+    # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek-flash；去掉双模型验证（这个也是累赘）」]
+    # 单模型模式：`dual_call` 只调一条传输，其 JSON 即结论（consensus_score=自报置信度，
+    # "该不该开"交给下游闸门）。false=回滚到双票盲评+分歧仲裁+共识分 ≥0.7 的旧协议。
+    "ANALYSIS_SINGLE_MODEL_MODE",          # 默认 true
+    "ANALYSIS_SINGLE_MODEL_MIN_CONF",      # 默认 0.0：单模型下不额外设置信门槛（交给下游闸门）
     # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
     # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
     # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。

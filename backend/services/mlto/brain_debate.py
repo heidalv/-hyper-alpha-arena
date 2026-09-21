@@ -76,8 +76,10 @@ def _llm_transport() -> str:
     t = (os.getenv("MIDLONG_DEBATE_TRANSPORT") or "").strip()
     if t:
         return t
-    prim = (os.getenv("ANALYSIS_PRIMARY_TRANSPORTS", "minimax,glm_opencode") or "minimax").split(",")
-    return (prim[0] or "minimax").strip()
+    # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」]
+    # 默认值随之改为 deepseek；不再回落到 minimax（MiniMaxTransport 仍注册，供回滚）。
+    prim = (os.getenv("ANALYSIS_PRIMARY_TRANSPORTS", "deepseek") or "deepseek").split(",")
+    return (prim[0] or "deepseek").strip()
 
 
 def _make_llm_client(tier: str, recorder: Optional[List[Tuple[str, str]]] = None):

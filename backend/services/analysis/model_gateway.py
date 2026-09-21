@@ -1,20 +1,30 @@
 # -*- coding: utf-8 -*-
-"""ModelGateway：双模型深度分析的统一入口（v3 方向 2）。
+"""ModelGateway：深度分析的统一入口（v3 方向 2）。
 
-三条传输（transport）：
-  minimax         MiniMax Token Plan 订阅 Key，Anthropic 兼容 API 直连（MINIMAX_BASE_URL，默认 https://api.minimax.io/anthropic）
-  glm_opencode    GLM Coding Plan 只允许在 OpenCode / Claude Code 等受支持工具内使用 → 经本地 OpenCode sidecar
-                 （opencode.json 的 zai-coding-plan provider，模型 GLM_OPENCODE_MODEL，默认 zai-coding-plan/glm-5.3-flash）
-  glm_opencode_alt 同 sidecar 通道的 GLM 第三票（模型 GLM_ARBITER_MODEL，默认 zai-coding-plan/glm-5.3）。
-                 [2026-09-05] deepseek 全面退役后由它承担仲裁与主票顶补
-  deepseek        已退役（2026-09-05）：传输保留仅作应急后备，不再进入仲裁/降级默认链路
+[轮155 2026-09-21·用户指令「LLM 全部换 deepseek-flash，不用 minimax；去掉双模型验证」]
+**当前部署口径**（`.env` 决定；代码默认亦为此）：
+  · `ANALYSIS_PRIMARY_TRANSPORTS=deepseek` → 只调 DeepSeek（`deepseek-v4-flash`，实测 2.1s，
+    回显模型名 `deepseek-flash`）；
+  · `ANALYSIS_SINGLE_MODEL_MODE=true` → **单模型模式**：一次调用即结论，
+    `consensus_score` = 模型自报 confidence，"该不该开"交给下游闸门
+    （V5Gate / 风控官 / 位置闸 / learned / 蒙特卡洛 / 预算 …）。**没有交叉验证。**
+  · 回滚：`ANALYSIS_SINGLE_MODEL_MODE=false` + `ANALYSIS_PRIMARY_TRANSPORTS=<两条不同模型>`
+    ⇒ 恢复本文件下方的双票协议。
+
+传输（transport）——都保留注册，供回滚或换供应商：
+  deepseek         DeepSeek 直连（OpenAI 兼容），默认模型 deepseek-v4-flash ★当前唯一在用
+  minimax          MiniMax Token Plan 订阅 Key，Anthropic 兼容直连（**已停用**：用户指令不再使用）
+  glm_opencode     GLM Coding Plan → 本地 OpenCode sidecar（模型 GLM_OPENCODE_MODEL）
+  glm_opencode_alt 同 sidecar 通道的 GLM 第三票（模型 GLM_ARBITER_MODEL）
+  ollama / ollama2 本地票（`LLM_LOCAL_FIRST_DISABLED=true` 时停用）
 
 统一协议：
   call(task, system, user, transport)      单模型：QuotaGuard 预检 → 调用 → 抽 JSON → schema 校验 → analysis_runs 落库
-  dual_call(task, system, user)             盲评（两主模型互不见对方，相同 context）→ 结构化比对 → 分歧走第三票仲裁
-                                            → consensus_score；≥ 0.7 才算可入 signal_ledger 的结论
-  degrade 规则：任一主传输被 QuotaGuard 判 degrade / 未配置 / 调用失败 → 单模型结论（status=degraded，consensus 仍按
-  单票折算，永不超过 0.6，即不能成为信号）；两条都不可用 → status=skipped 并发 P2 告警。
+  dual_call(task, system, user)             **单模型模式**：只调一条主票（缺席按候选池顶替）→ 直接返回；
+                                            **双票模式（回滚口径）**：盲评 → 比对 → 分歧走第三票仲裁
+                                            → consensus_score ≥ 0.7 才可入 signal_ledger
+  degrade 规则（双票模式）：任一主传输不可用 → 单模型结论（status=degraded，consensus 按单票折算、
+  永不超过 0.6，即不能成为信号）；两条都不可用 → status=skipped 并发 P2 告警。
 
 不造数：任何失败都记 error 并如实返回；不用占位输出补位。
 """
@@ -43,6 +53,40 @@ logger = logging.getLogger(__name__)
 
 TRANSPORTS = ("minimax", "glm_opencode", "glm_opencode_alt", "deepseek", "ollama", "ollama2")
 CONSENSUS_THRESHOLD = 0.7
+
+
+def allow_single_vote() -> bool:
+    """（已由 `single_model_mode()` 取代，保留仅为兼容旧调用；两者语义见下。）"""
+    return single_model_mode()
+
+
+def single_model_mode() -> bool:
+    """[轮155 2026-09-21·用户指令] **单模型模式**：去掉双模型交叉验证（用户原话"这个也是累赘"）。
+
+    true （默认，按 .env 部署）：`dual_call` 只调**一条**传输（首条主票，缺席时按候选池顶替），
+      该票的 JSON 就是结论：
+        · `status = "ok"`、`consensus_score = 模型自报 confidence`；
+        · `accepted = confidence ≥ ANALYSIS_SINGLE_MODEL_MIN_CONF`（默认 0.0，即不额外设门槛）；
+        · "该不该开仓"交给**下游既有闸门**（V5Gate 置信门槛 / 风控官 / 位置闸 / learned 带 /
+          蒙特卡洛 / 组合预算 / 段闸…）与 `consensus_is_tradeable` 自身的方向+失效价校验。
+    false：回到原**双票交叉验证**（盲评→比对→分歧仲裁→共识分 ≥0.7 才 accepted）。
+      该路径仍在代码里，可随时用 `ANALYSIS_SINGLE_MODEL_MODE=false` 回滚。
+
+    ⚠️ 为什么必须显式二选一：双票路径下，只有一票时共识分被硬压 ≤0.6 < 0.7（永不可交易）；
+    两条同模型票会被防假交叉验证守卫折叠成单票（实测 0.375，accepted=False）。
+    DeepSeek 侧 `/models` 只有 deepseek-flash 与 deepseek-v4-pro，用户只用前者 ⇒ 没有第二个
+    模型可当第二票，故"单模型直采"是唯一能跑通的形态。
+    """
+    return (os.getenv("ANALYSIS_SINGLE_MODEL_MODE", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def single_model_min_conf() -> float:
+    """单模型模式下的最低自报置信度（默认 0.0 = 不额外设门槛，交给下游闸门）。"""
+    try:
+        return float(os.getenv("ANALYSIS_SINGLE_MODEL_MIN_CONF", "0.0") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 DEFAULT_TEMPERATURE = 0.2
 DEFAULT_TIMEOUT_S = 240.0
 # 本地推理 30–120s，比云端慢一个量级；给 ollama 单独兜底超时，避免沿用云端值被掐断
@@ -716,15 +760,21 @@ class ModelGateway:
 
     @staticmethod
     def primary_names() -> List[str]:
-        raw = _env("ANALYSIS_PRIMARY_TRANSPORTS", "minimax,glm_opencode")
+        # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」] 默认值改为 deepseek，
+        # 不再回落到 minimax。⚠️ 注意：主票若只有**一条**（或两条同模型被下面的守卫折叠成一条），
+        # consensus_score 会被硬压 ≤0.6 < CONSENSUS_THRESHOLD(0.7) ⇒ 永远不会 accepted
+        # ⇒ 主线分析产不出信号。DeepSeek 侧 `/models` 只有 deepseek-flash 与 deepseek-v4-pro
+        # 两个模型，故"只用 flash"在数学上凑不出两票，必须另配第二条**不同模型**的票
+        # （当前部署用 glm_opencode_alt；用哪条由 .env ANALYSIS_PRIMARY_TRANSPORTS 决定）。
+        raw = _env("ANALYSIS_PRIMARY_TRANSPORTS", "deepseek")
         names = [x.strip() for x in raw.split(",") if x.strip() in TRANSPORTS]
-        return names[:2] if names else ["minimax", "glm_opencode"]
+        return names[:2] if names else ["deepseek"]
 
     @staticmethod
     def arbiter_name() -> str:
-        # [2026-09-05] 默认仲裁 deepseek → glm_opencode_alt（deepseek 全面退役）
-        name = _env("ANALYSIS_ARBITER_TRANSPORT", "glm_opencode_alt")
-        return name if name in TRANSPORTS else "glm_opencode_alt"
+        # [轮155] 默认仲裁改 deepseek（原 glm_opencode_alt）；仍受"仲裁不得同时是主票"约束。
+        name = _env("ANALYSIS_ARBITER_TRANSPORT", "deepseek")
+        return name if name in TRANSPORTS else "deepseek"
 
     @staticmethod
     def fallback_names() -> List[str]:
@@ -740,8 +790,10 @@ class ModelGateway:
         （本地已停用）时，本地票不再作为降级候选——否则主传输一失败就回落到本地，
         每次白等 26~54s 再失败（实测 `midlong_thesis` 42.7s 失败、`event_impact` 13.7s），
         而这些恰恰是关键路径。要恢复本地票：`LLM_LOCAL_FIRST_DISABLED=false`。
+
+        [轮155 2026-09-21] 默认值去掉 minimax（用户指令不再用 minimax）。
         """
-        raw = _env("ANALYSIS_FALLBACK_TRANSPORTS", "glm_opencode_alt,deepseek,minimax")
+        raw = _env("ANALYSIS_FALLBACK_TRANSPORTS", "deepseek,glm_opencode_alt")
         names = [x.strip() for x in raw.split(",") if x.strip() in TRANSPORTS]
         try:
             if str(os.getenv("LLM_LOCAL_FIRST_DISABLED", "true")).strip().lower() in (
@@ -890,6 +942,81 @@ class ModelGateway:
         ledgers.record_run(run)
         return run.id
 
+    # ------------------------------------------------------------------ single model
+    def _single_model_call(
+        self, *, task: str, system: str, user: str, names: List[str], notes: List[str],
+        group: str, ch: str, data_cutoff_ms: Optional[int], max_output_tokens: Optional[int],
+        temperature: float, timeout_s: float, context_pack: Optional[Dict[str, Any]],
+        images: Optional[List[Dict[str, str]]], images_for: Optional[List[str]],
+    ) -> ConsensusResult:
+        """[轮155 2026-09-21·用户指令] 单模型模式：只调一条传输，它的 JSON 就是结论。
+
+        与双票路径的差别（全部有意为之）：
+          · 不比对、不仲裁 ⇒ 没有 `consensus_score` 的"一致性"含义，改记为**模型自报 confidence**；
+          · `accepted` 只要求 `confidence ≥ ANALYSIS_SINGLE_MODEL_MIN_CONF`（默认 0.0 = 不设），
+            "该不该开"由下游既有闸门决定（V5Gate / 风控官 / 位置闸 / learned / 蒙特卡洛 / 预算…），
+            外加 `brain.consensus_is_tradeable` 自己的方向与失效价校验；
+          · `notes`/`comparison` 明确标注 `verification="disabled"`，保证审计里看得见"这单没有第二方"。
+        传输不可用时**依次**尝试候选池（这是可用性问题，不是验证问题，保留）。
+        """
+        min_conf = single_model_min_conf()
+        tried: List[str] = []
+        res: Optional[ModelResult] = None
+        for name in list(names) + [n for n in self.fallback_names() if n not in names]:
+            if name in tried:
+                continue
+            tried.append(name)
+            r = self.call(
+                task, system, user, transport=name, max_output_tokens=max_output_tokens,
+                temperature=temperature, timeout_s=timeout_s, context_hash=ch,
+                data_cutoff_ms=data_cutoff_ms, consensus_group=group, role="primary",
+                context_pack=context_pack,
+                images=(images if (images_for is None or name in images_for) else None),
+            )
+            if r.ok and r.json:
+                res = r
+                break
+            notes.append(f"{name}: {r.error or '空结果'}")
+            if len(tried) > 1:
+                notes.append(f"{name} 顶替失败，继续下一条")
+
+        cres = ConsensusResult(
+            task=task, status="skipped", consensus_group=group, consensus_score=0.0,
+            accepted=False, final=None, primaries=[res] if res else [], context_hash=ch,
+            notes=notes,
+        )
+        if res is None:
+            self._alert_skipped(task, notes)
+        else:
+            conf = float(res.json.get("confidence", 0.5) or 0.5)
+            conf = max(0.0, min(1.0, conf))
+            cres.status = "ok"
+            cres.final = dict(res.json)
+            cres.consensus_score = round(conf, 3)
+            cres.comparison = {"single_model": res.transport, "verification": "disabled",
+                               "model": res.model}
+            cres.accepted = bool(conf >= min_conf)
+            notes.append(
+                f"单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，{res.transport}）："
+                f"自报置信度 {cres.consensus_score} ≥ 门槛 {min_conf} → "
+                f"{'accepted' if cres.accepted else 'not accepted'}；**无第二方验证**"
+            )
+
+        run = ledgers.AnalysisRun(
+            task=task, transport="single_model", model=getattr(res, "model", None),
+            role="consensus", status=cres.status, consensus_group=group, context_hash=ch,
+            data_cutoff_ms=data_cutoff_ms, system_prompt_hash=sha256_text(system),
+            prompt_excerpt=user[:2000], output_json=cres.final,
+            consensus_score=cres.consensus_score,
+            input_tokens=getattr(res, "input_tokens", 0), output_tokens=getattr(res, "output_tokens", 0),
+            latency_ms=getattr(res, "latency_ms", 0),
+            error="; ".join(notes) if notes and not cres.final else None,
+            meta={"comparison": cres.comparison, "accepted": cres.accepted,
+                  "transports_tried": tried, "notes": notes, "mode": "single_model"},
+        )
+        cres.run_id = ledgers.record_run(run)
+        return cres
+
     # ------------------------------------------------------------------ dual call
     def dual_call(
         self,
@@ -957,6 +1084,18 @@ class ModelGateway:
                 break
             else:
                 notes.append(f"{n} 不可用（{why_n}）且无可用备胎")
+
+        # ── [轮155 2026-09-21·用户指令] 单模型模式：不做交叉验证，一次调用即结论 ──
+        # 用户原话："那就去掉这个双模型验证，这个也是累赘"。
+        # 与下面的双票路径互斥：这里直接返回，不走比对/仲裁，也不受 CONSENSUS_THRESHOLD 约束。
+        if single_model_mode():
+            return self._single_model_call(
+                task=task, system=system, user=user, names=names, notes=notes, group=group,
+                ch=ch, data_cutoff_ms=data_cutoff_ms, max_output_tokens=max_output_tokens,
+                temperature=temperature, timeout_s=timeout_s,
+                context_pack=context_pack, images=images, images_for=images_for,
+            )
+
         # 防「假交叉验证」：两条主票落到同一个模型时，它们的一致毫无信息量，
         # 却会算出很高的 consensus_score 并被写进 signal_ledger —— 这比没有交叉验证
         # 更危险。宁可退化成单票（单票的共识分被硬性压在 ≤0.6，不会入账本）。
@@ -1016,10 +1155,12 @@ class ModelGateway:
             cres.status = "skipped"
             self._alert_skipped(task, notes)
         elif len(valid) == 1:
+            # 双票路径下只剩一票（另一票失败/被折叠）——**不由本分支入账**，保持原防线：
+            # 折半且上限 0.6 ⇒ 永不达阈值。（"只要一条模型结论"的形态走
+            # `single_model_mode()` 的 `_single_model_call`，与这里互斥、语义分明。）
             r = valid[0]
             cres.status = "degraded"
             cres.final = dict(r.json)
-            # 单票：置信折半且上限 0.6（永不达阈值，不可成为信号）
             conf = float(r.json.get("confidence", 0.5) or 0.5)
             cres.consensus_score = round(min(0.6, 0.5 * max(0.0, min(1.0, conf)) + 0.1), 3)
             cres.comparison = {"single_vote": r.transport}

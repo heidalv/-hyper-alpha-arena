@@ -439,7 +439,9 @@ def _interpret_move(move: Dict[str, Any], trader_name: str, source: str) -> Opti
             + (f"（之前 ${(move.get('prev_notional_usd') or 0):,.0f}）" if move.get("prev_notional_usd") else "")
             + f"，杠杆 {move.get('leverage') or '?'}x"
         )
-        for tr in ("minimax", "glm_opencode", "ollama"):
+        # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」]
+        # 原 ("minimax","glm_opencode","ollama") → deepseek 优先，GLM 兜底。
+        for tr in ("deepseek", "glm_opencode", "glm_opencode_alt", "ollama"):
             res = gw.call("news_annotate", system, user, transport=tr,
                           schema_task="news_annotate", max_output_tokens=400, timeout_s=60)
             if res.ok and res.json:
