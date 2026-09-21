@@ -1,0 +1,44 @@
+﻿
+====================================================================================================
+① `single_model` 且 model=MiniMax-M3 的行（过渡窗口取证）
+   2026-09-21 14:35:36 task=midlong_thesis     status=ok       10801ms err=
+   2026-09-21 14:35:16 task=midlong_thesis     status=ok       12559ms err=
+   2026-09-21 14:31:38 task=midlong_thesis     status=ok       15984ms err=
+   2026-09-21 14:31:13 task=midlong_thesis     status=ok       12445ms err=
+
+   （对照）当前 .env 生效后的 single_model 行时间范围：
+     deepseek-v4-flash: 2026-09-21 14:28:36.902000+08:00 → 2026-09-21 15:00:51.151000+08:00（32 行）
+
+====================================================================================================
+② `mlto_debate` 按模型看 status（近 8h）——判断 schema 失败是不是 deepseek 特有
+   model=deepseek-v4-flash        status=error    n=9
+   model=deepseek-v4-flash        status=ok       n=6
+   model=MiniMax-M3               status=error    n=444
+   model=MiniMax-M3               status=ok       n=116
+
+   逐小时看 mlto_debate 的错误占比（判断是否本轮引入）：
+     07:00  err=49/63  models=MiniMax-M3
+     08:00  err=85/105  models=MiniMax-M3
+     09:00  err=52/70  models=MiniMax-M3
+     10:00  err=39/42  models=MiniMax-M3
+     11:00  err=44/63  models=MiniMax-M3
+     12:00  err=64/84  models=MiniMax-M3
+     13:00  err=69/84  models=MiniMax-M3
+     14:00  err=46/57  models=deepseek-v4-flash,MiniMax-M3
+     15:00  err=5/7  models=deepseek-v4-flash
+
+====================================================================================================
+③ 14:46 两笔小仓开单（轮154 缩仓链是否在真实下单里生效）
+   #4758 BNB    mid   long  size=0.140 entry=775.3075564080001 名义=$108.2 保证金=$27.0 lev=4.0 opened=2026-09-21 14:46:35
+   #4757 UNI    mid   long  size=11.464 entry=8.651827483200002 名义=$99.2 保证金=$33.1 lev=3.0 opened=2026-09-21 14:46:02
+   #4756 SOL    mid   long  size=1.078 entry=111.50977094400001 名义=$120.2 保证金=$30.1 lev=4.0 opened=2026-09-21 12:23:10
+
+   同期的 [SizeChain] 日志（轮154 新增的缩仓链生效行）：
+      2026-09-21 14:46:00 [INFO] [tr=-] backend.services.full_auto.paper_execution:304 - [SizeChain] UNI buy 缩仓链生效 size
+_multiplier=0.0719 → 名义 $99.00 保证金 $33.00 size=2.43%（paper 与 live 同口径；回滚 PAPER_APPLY_SI
+      2026-09-21 14:46:20 [INFO] [tr=-] backend.services.full_auto.paper_execution:304 - [SizeChain] BTC buy 缩仓链生效 size
+_multiplier=0.0523 → 名义 $119.99 保证金 $24.00 size=2.97%（paper 与 live 同口径；回滚 PAPER_APPLY_S
+      2026-09-21 14:46:35 [INFO] [tr=-] backend.services.full_auto.paper_execution:304 - [SizeChain] BNB buy 缩仓链生效 size
+_multiplier=0.0588 → 名义 $107.99 保证金 $27.00 size=2.67%（paper 与 live 同口径；回滚 PAPER_APPLY_S
+
+

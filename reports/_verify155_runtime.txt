@@ -1,0 +1,98 @@
+﻿
+====================================================================================================
+① 分界点：API 进程启动于 '2026-09-21 14:47:57'
+
+② 重启后日志：minimax 行 = 0（期望 0）；deepseek 200 OK = 55；deepseek 非 2xx = 11
+   deepseek 非 2xx 明细（去重计次）：
+   [ModelGateway] 相关行 0 条，最后 6 条：
+
+③ analysis_runs（近 3h，core 库；时间列是 created_ms）：按 transport / status 分布
+     transport=minimax        role=primary    status=error      n=178   avg=11405ms models=MiniMax-M3
+     transport=minimax        role=primary    status=ok         n=140   avg=9167ms models=MiniMax-M3
+     transport=deepseek       role=primary    status=ok         n=137   avg=3985ms models=deepseek-v4-flash
+     transport=consensus      role=consensus  status=ok         n=91    avg=9590ms models=deepseek-v4+qwen3:14b,MiniMax
+-M3+deepseek-v4-flash,qwen3:14b
+     transport=glm_opencode_alt role=arbiter    status=ok         n=46    avg=78138ms models=zai-coding-plan/glm-5.3
+     transport=single_model   role=consensus  status=ok         n=36    avg=3664ms models=deepseek-v4-flash,MiniMax-M3
+     transport=consensus      role=consensus  status=degraded   n=20    avg=4442ms models=deepseek-v4-flash,MiniMax-M3+
+deepseek-v4-flash,qwen3:14b
+     transport=deepseek       role=primary    status=error      n=16    avg=3879ms models=deepseek-v4-flash
+     transport=single_model   role=consensus  status=skipped    n=15    avg=0ms models=None
+     transport=consensus      role=consensus  status=skipped    n=8     avg=5583ms models=None
+     transport=glm_opencode_alt role=primary    status=error      n=3     avg=25627ms models=zai-coding-plan/glm-5.3
+     transport=glm_opencode   role=primary    status=ok         n=2     avg=24220ms models=zai-coding-plan/glm-5.3-flas
+h
+     transport=glm_opencode_alt role=arbiter    status=error      n=1     avg=100547ms models=zai-coding-plan/glm-5.3
+     其中 meta.mode=single_model 的行数 = 51
+
+⑥ single_model 账本明细（近 3h，逐行看模型与时刻，确认有没有 minimax 混进来）
+     09-21 15:00:51 status=ok       task=midlong_thesis     model=deepseek-v4-flash      3920ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:59:59 status=ok       task=trend_chart_review model=deepseek-v4-flash      5756ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:59:43 status=ok       task=midlong_thesis     model=deepseek-v4-flash      2844ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:52:04 status=ok       task=midlong_thesis     model=deepseek-v4-flash      3680ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:51:51 status=ok       task=midlong_thesis     model=deepseek-v4-flash      5054ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:50:59 status=ok       task=trend_chart_review model=deepseek-v4-flash      8328ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:50:41 status=ok       task=trend_chart_review model=deepseek-v4-flash      6246ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:50:23 status=ok       task=trend_chart_review model=deepseek-v4-flash      6186ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:49:48 status=ok       task=event_impact       model=deepseek-v4-flash      4596ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:45:49 status=ok       task=trend_chart_review model=deepseek-v4-flash      6286ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:45:27 status=ok       task=trend_chart_review model=deepseek-v4-flash      5849ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:45:07 status=ok       task=trend_chart_review model=deepseek-v4-flash      8044ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:44:48 status=ok       task=trend_chart_review model=deepseek-v4-flash      8782ms mode=single_model src={
+"mode": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:41:11 status=ok       task=midlong_thesis     model=deepseek-v4-flash      1ms mode=single_model src={"mo
+de": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:41:11 status=ok       task=midlong_thesis     model=deepseek-v4-flash      0ms mode=single_model src={"mo
+de": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:38:30 status=ok       task=midlong_thesis     model=deepseek-v4-flash      0ms mode=single_model src={"mo
+de": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:38:29 status=ok       task=midlong_thesis     model=deepseek-v4-flash      0ms mode=single_model src={"mo
+de": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+     09-21 14:37:27 status=ok       task=midlong_thesis     model=deepseek-v4-flash      1ms mode=single_model src={"mo
+de": "single_model", "notes": ["单模型模式（ANALYSIS_SINGLE_MO
+
+⑦ 最近 12 条任意账本行（含重启后的 primary 传输，看还有没有 minimax）
+     09-21 15:01:25 deepseek         primary    ok        task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:01:22 deepseek         primary    error     task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:01:17 deepseek         primary    ok        task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:01:15 deepseek         primary    error     task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:01:08 deepseek         primary    error     task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:01:03 deepseek         primary    error     task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:00:57 deepseek         primary    error     task=mlto_debate        model=deepseek-v4-flash
+     09-21 15:00:51 single_model     consensus  ok        task=midlong_thesis     model=deepseek-v4-flash
+     09-21 15:00:51 deepseek         primary    ok        task=midlong_thesis     model=deepseek-v4-flash
+     09-21 15:00:02 deepseek         primary    ok        task=event_impact       model=deepseek-v4-flash
+     09-21 15:00:01 deepseek         primary    ok        task=daily_brief        model=deepseek-v4-flash
+     09-21 15:00:00 deepseek         primary    ok        task=news_annotate      model=deepseek-v4-flash
+
+④ mlto_thesis（重启后更新的行）：accepted / recommend_open / 方向
+     XRP      mid   long     accepted=1 rec_open=0 conv=47 updated=2026-09-21 15:01:25
+     AVAX     mid   long     accepted=1 rec_open=0 conv=49 updated=2026-09-21 14:52:44
+     BR       mid   neutral  accepted=0 rec_open=0 conv=33 updated=2026-09-21 14:51:51
+     近 3h 论题 accepted 分布：[(0, 10), (1, 10)]
+
+⑤ 交易面（重启后是否仍有动作）
+     重启后新开持仓: 0
+     重启后平仓: 0
+     近 3h 新开持仓: 3
+     近 3h 订单: 11
+     近 6h 新开持仓明细：
+       #4758 BNB      mid   long  margin=27.038851029729006 opened=2026-09-21 14:46:35
+       #4757 UNI      mid   long  margin=33.06036317880385 opened=2026-09-21 14:46:02
+       #4756 SOL      mid   long  margin=30.060246502228804 opened=2026-09-21 12:23:10
+       #4755 UNI      mid   long  margin=228.81646070231523 opened=2026-09-21 10:02:24
+       #4754 ETH      mid   long  margin=80.4024969941952 opened=2026-09-21 09:56:44
+
+

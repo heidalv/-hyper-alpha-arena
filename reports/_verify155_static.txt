@@ -1,0 +1,282 @@
+﻿
+====================================================================================================
+① 源码里 'minimax' 的语法位置（AST 字符串常量，排除注释/文档字符串）
+   命中 167 处（文档字符串已排除）：
+     backend/.venv/Lib/site-packages/transformers/configuration_utils.py:69  'minimax_m3_sparse'
+     backend/.venv/Lib/site-packages/transformers/conversion_mapping.py:44  'minimax'
+     backend/.venv/Lib/site-packages/transformers/conversion_mapping.py:45  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/conversion_mapping.py:632  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/conversion_mapping.py:1770  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/conversion_mapping.py:1771  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/generation/utils.py:1897  'minimax'
+     backend/.venv/Lib/site-packages/transformers/generation/utils.py:1907  'minimaxm2'
+     backend/.venv/Lib/site-packages/transformers/generation/utils.py:1908  'minimaxm3'
+     backend/.venv/Lib/site-packages/transformers/integrations/ggml.py:322  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/integrations/ggml.py:373  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/integrations/ggml.py:826  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/masking_utils.py:1482  'minimax_m3_sparse'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:470  'minimax-m2'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:709  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:635  'minimax-m2'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:636  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:521  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/modeling_gguf_pytorch_utils.py:522  'minimax-m2'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:374  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:374  'MiniMaxConfig'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:375  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:375  'MiniMaxM2Config'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:376  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:376  'MiniMaxM3VLConfig'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:377  'minimax_m3_vl_text'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:377  'MiniMaxM3VLTextConfig'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:378  'minimax_m3_vl_vision'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:378  'MiniMaxM3VLVisionConfig'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:830  'minimax_m3_vl_text'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:830  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:831  'minimax_m3_vl_vision'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:831  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:958  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:958  'MiniMaxM3VLVideoProcessor'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:1079  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:1079  'MiniMaxM3VLProcessor'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:1210  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/auto_mappings.py:1210  'MiniMaxM3VLImageProcessor'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:313  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:313  'MiniMaxModel'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:314  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:314  'MiniMaxM2Model'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:315  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:315  'MiniMaxM3VLModel'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:316  'minimax_m3_vl_text'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:316  'MiniMaxM3VLTextModel'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:771  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:771  'MiniMaxForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:772  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:772  'MiniMaxM2ForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:773  'minimax_m3_vl_text'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:773  'MiniMaxM3VLForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1100  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1100  'MiniMaxM3SparseForConditionalGene
+ration'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1401  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1401  'MiniMaxForSequenceClassification'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1506  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1506  'MiniMaxForQuestionAnswering'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1621  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/auto/modeling_auto.py:1621  'MiniMaxForTokenClassification'
+     backend/.venv/Lib/site-packages/transformers/models/auto/tokenization_auto.py:392  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/configuration_minimax.py:61  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/configuration_minimax.py:131  'MiniMaxConfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/configuration_minimax.py:28  'MiniMaxAI/MiniMax-Text-0
+1-hf'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:907  'MiniMaxPreTrainedModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:908  'MiniMaxModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:909  'MiniMaxForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:910  'MiniMaxForSequenceClassifica
+tion'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:911  'MiniMaxForTokenClassificatio
+n'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:912  'MiniMaxForQuestionAnswering'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:593  'MiniMaxDecoderLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:112  'MiniMaxCache doesnot support
+ `crop` method'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modeling_minimax.py:661  'MiniMax uses cache of its ow
+n and is not compatible with `pa'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:87  'minimax'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:538  'MiniMaxConfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:539  'MiniMaxPreTrainedModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:540  'MiniMaxModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:541  'MiniMaxForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:542  'MiniMaxForSequenceClassificat
+ion'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:543  'MiniMaxForTokenClassification
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:544  'MiniMaxForQuestionAnswering'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:54  'MiniMaxAI/MiniMax-Text-01-hf'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:195  'MiniMaxCache doesnot support 
+`crop` method'
+     backend/.venv/Lib/site-packages/transformers/models/minimax/modular_minimax.py:450  'MiniMax uses cache of its own
+ and is not compatible with `pa'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/configuration_minimax_m2.py:48  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/configuration_minimax_m2.py:100  'MiniMaxM2Config'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/configuration_minimax_m2.py:29  'MiniMaxAI/MiniMax-
+Text-01-hf'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modeling_minimax_m2.py:690  'MiniMaxM2ForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modeling_minimax_m2.py:690  'MiniMaxM2Model'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modeling_minimax_m2.py:690  'MiniMaxM2PreTrainedMod
+el'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modeling_minimax_m2.py:402  'MiniMaxM2DecoderLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:67  'minimax_m2'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:249  'MiniMaxM2Config'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:250  'MiniMaxM2ForCausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:251  'MiniMaxM2Model'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:252  'MiniMaxM2PreTrainedMode
+l'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m2/modular_minimax_m2.py:48  'MiniMaxAI/MiniMax-Text-0
+1-hf'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:56  'minimax_m3_v
+l_text'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:164  'minimax_m3_
+vl_vision'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:187  'minimax_m3_
+vl'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:224  'MiniMaxM3VL
+Config'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:224  'MiniMaxM3VL
+TextConfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:224  'MiniMaxM3VL
+VisionConfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:28  'MiniMaxAI/Mi
+niMax-M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:156  'MiniMaxAI/M
+iniMax-M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:184  'MiniMaxAI/M
+iniMax-M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/configuration_minimax_m3_vl.py:144  'minimax_m3_
+sparse'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/image_processing_minimax_m3_vl.py:204  'MiniMaxM
+3VLImageProcessor'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:55  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:90  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1583  'MiniMaxM3VLForC
+ausalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1584  'MiniMaxM3Sparse
+ForConditionalGeneration'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1585  'MiniMaxM3VLMode
+l'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1586  'MiniMaxM3VLPreT
+rainedModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1587  'MiniMaxM3VLText
+Model'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1588  'MiniMaxM3VLVisi
+onModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:687  'MiniMaxM3VLDecod
+erLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:687  'MiniMaxM3VLVisio
+nEncoderLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:701  'MiniMaxAI/msa'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1237  '\n    Base clas
+s for MiniMaxM3VL outputs, with hidden states '
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1263  '\n    Base clas
+s for MiniMaxM3VL causal language model (or au'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1297  'MiniMax M3 VL b
+ackbone (vision + projector + text), without '
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:1463  'MiniMax M3 VL f
+ull model with LM head (text + vision).'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modeling_minimax_m3_vl.py:431  'minimax_m3_spars
+e'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:96  'minimax_m3_vl_text
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:172  'minimax_m3_vl_vis
+ion'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:195  'minimax_m3_vl'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:233  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:268  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1294  'MiniMaxM3VLConfi
+g'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1295  'MiniMaxM3VLTextC
+onfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1296  'MiniMaxM3VLVisio
+nConfig'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1297  'MiniMaxM3VLForCa
+usalLM'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1298  'MiniMaxM3SparseF
+orConditionalGeneration'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1299  'MiniMaxM3VLModel
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1300  'MiniMaxM3VLPreTr
+ainedModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1301  'MiniMaxM3VLProce
+ssor'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1302  'MiniMaxM3VLTextM
+odel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1303  'MiniMaxM3VLVisio
+nModel'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:68  'MiniMaxAI/MiniMax-
+M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:164  'MiniMaxAI/MiniMax
+-M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:192  'MiniMaxAI/MiniMax
+-M3-preview'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:621  'MiniMaxM3VLDecode
+rLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:621  'MiniMaxM3VLVision
+EncoderLayer'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:629  'MiniMaxAI/msa'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:965  'MiniMax M3 VL bac
+kbone (vision + projector + text), without '
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:1126  'MiniMax M3 VL fu
+ll model with LM head (text + vision).'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:394  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/modular_minimax_m3_vl.py:152  'minimax_m3_sparse
+'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/processing_minimax_m3_vl.py:153  'MiniMaxM3VLPro
+cessor'
+     backend/.venv/Lib/site-packages/transformers/models/minimax_m3_vl/video_processing_minimax_m3_vl.py:137  'MiniMaxM
+3VLVideoProcessor'
+     backend/config/env_registry.py:1460  'MINIMAX_API_KEY'
+     backend/config/env_registry.py:1461  'MINIMAX_BASE_URL'
+     backend/config/env_registry.py:1462  'MINIMAX_MODEL'
+     backend/config/env_registry.py:1463  'MINIMAX_HTTPS_PROXY'
+     backend/services/analysis/model_gateway.py:54  'minimax'
+     backend/services/analysis/model_gateway.py:221  'minimax'
+     backend/services/analysis/model_gateway.py:233  'MINIMAX_BASE_URL'
+     backend/services/analysis/model_gateway.py:233  'https://api.minimax.io/anthropic'
+     backend/services/analysis/model_gateway.py:236  'MINIMAX_MODEL'
+     backend/services/analysis/model_gateway.py:236  'MiniMax-M3'
+     backend/services/analysis/model_gateway.py:224  'MINIMAX_API_KEY'
+     backend/services/analysis/model_gateway.py:225  'MINIMAX_API_KEY 未配置'
+     backend/services/analysis/model_gateway.py:242  'MINIMAX_API_KEY'
+     backend/services/analysis/model_gateway.py:247  'MINIMAX_HTTPS_PROXY'
+     backend/services/analysis/model_gateway.py:703  'minimax'
+
+====================================================================================================
+② 传输选择 helper 的真实返回值
+   TRANSPORTS（注册表，含可回滚项） = ('minimax', 'glm_opencode', 'glm_opencode_alt', 'deepseek', 'ollama', 'ollama2')
+   primary_names()   = ['deepseek']      ← 真正会被调用的
+   arbiter_name()    = deepseek
+   fallback_names()  = ['deepseek']
+   single_model_mode() = True   min_conf = 0.0
+   各传输此刻可用性：
+     minimax            configured=True  （未选用）    base_url=https://api.minimax.cn/anthropic
+     glm_opencode       configured=True  （未选用）    sidecar ok, model=zai-coding-plan/glm-5.3-flash, agent=analysis
+     glm_opencode_alt   configured=True  （未选用）    sidecar ok, model=zai-coding-plan/glm-5.3, agent=analysis
+     deepseek           configured=True  ★在用      model=deepseek-v4-flash via db
+     ollama             configured=False （未选用）    本地 Ollama 已停用（LLM_LOCAL_FIRST_DISABLED=true），一律走线上 LLM
+     ollama2            configured=False （未选用）    本地 Ollama 已停用（LLM_LOCAL_FIRST_DISABLED=true），一律走线上 LLM
+
+====================================================================================================
+③ 部署配置与 DB 绑定
+   .env/env 中相关键（只列与传输/配额/模型有关）：
+     ANALYSIS_5H_CALLS_MAP                  = glm_opencode:4500,glm_opencode_alt:4500
+     ANALYSIS_5H_CALLS_PER_MODEL            = 100000
+     ANALYSIS_ARBITER_TRANSPORT             = deepseek
+     ANALYSIS_DAILY_CALLS_MAP               = glm_opencode_alt:5000,glm_opencode:5000
+     ANALYSIS_DEEP_DAILY_PER_MODEL          = 5000
+     ANALYSIS_EVENT_DAILY_PER_MODEL         = 5000
+     ANALYSIS_FALLBACK_TRANSPORTS           = deepseek
+     ANALYSIS_LIGHT_DAILY_PER_MODEL         = 5000
+     ANALYSIS_LOCAL_TRANSPORTS              = 
+     ANALYSIS_OLLAMA2_MODEL                 = qwen2.5:7b-instruct-q4_K_M
+     ANALYSIS_OLLAMA_MODEL                  = qwen3:14b
+     ANALYSIS_PRIMARY_TRANSPORTS            = deepseek
+     ANALYSIS_SINGLE_MODEL_MIN_CONF         = 0.0
+     ANALYSIS_SINGLE_MODEL_MODE             = true
+     ANALYSIS_WEEKLY_CALLS_MAP              = glm_opencode:100000,glm_opencode_alt:100000
+     ANALYSIS_WEEKLY_CALLS_PER_MODEL        = 1000000
+     DEEPSEEK_BASE_URL                      = https://api.deepseek.com
+     DEEPSEEK_MODEL                         = deepseek-v4-flash
+     MINIMAX_BASE_URL                       = https://api.minimax.cn/anthropic
+     MINIMAX_MODEL                          = MiniMax-M3
+
+   llm_configurations 里 provider 分布：
+     ollama       3 个  模型: qwen2.5:7b-instruct-q4_K_M,qwen3:14b
+     deepseek     2 个  模型: deepseek-chat,deepseek-v4-flash
+   是否存在 provider=minimax 的绑定： False
+
+

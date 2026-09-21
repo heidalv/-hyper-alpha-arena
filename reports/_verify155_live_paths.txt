@@ -1,0 +1,32 @@
+﻿
+====================================================================================================
+① 主脑论题（单模型模式）
+   gw.dual_call(midlong_thesis)          6.5s  status=ok score=0.35 accepted=True model=deepseek-v4-flash verification=
+disabled notes=['单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.35 ≥ 门槛 0.0 → accepted；**无第二方验证*
+
+② 辩论层（brain_debate 用的传输 + 真实调用）
+   brain_debate._llm_transport() = 'deepseek'
+   gw.call(mlto_debate)                  1.0s  ok=True transport=deepseek model=deepseek-v4-flash json_keys=['direction
+', 'strength', 'confidence', 'key_factors', 'summary'] err=None
+
+③ 图审（看图发给谁）
+   run_trend_chart_review(BTC)          14.6s  ok=True skipped=None transports=None consensus=0.55 reason=None
+
+④~⑥ 其余业务 task 各真跑一次
+   gw.call(news_annotate)                0.8s  ok=True model=deepseek-v4-flash json={"direction": 0.0, "strength": 1, "
+duration": "short", "symbols": ["BTC"], "category": "ge err=None
+   gw.call(daily_brief)                  1.1s  ok=True model=deepseek-v4-flash json={"direction": "neutral", "strength"
+: 0, "confidence": 0.5, "regime": "unknown", "regime_co err=None
+   gw.call(event_impact)                 1.3s  ok=True model=deepseek-v4-flash json={"direction": "neutral", "strength"
+: 0, "confidence": 0.5, "half_life_hours": 0, "affected err=None
+
+⑦ KlineAnalyst / deep_analysis 用途的账户配置（非网关路径）
+   tenant=326 provider=deepseek model=deepseek-v4-flash base=https://api.deepseek.com
+
+⑧ 分析师六域的 LLM 使用面（代码层）
+   （analysts 六域的 LLM 入口以上面命中的方式调用；逐域真跑需要整轮 run_once，见 ⑨）
+
+⑨ 六分析师整轮（真跑 run_once，落库 analyst_signals）
+   analysts.service.run_once()           1.8s  ✗ TypeError: object of type 'int' has no len()
+
+
