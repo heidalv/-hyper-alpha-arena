@@ -1,0 +1,52 @@
+﻿最近几处启动标记：
+   2026-08-23 22:52:23  [backend_watchdog.log]
+   2026-08-23 23:02:42  [backend_watchdog.log]
+   2026-08-23 23:41:04  [backend_watchdog.log]
+   2026-08-23 23:47:30  [backend_watchdog.log]
+   2026-08-24 21:33:46  [backend_watchdog.log]
+
+以最后一次启动标记 2026-08-24 21:33:46 为分界
+
+① 全日志里最后 5 条 minimax 相关行（含时间）：
+   2026-09-21 14:38:02 [brain_subprocess.log] 2026-09-21 14:38:02,206 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 O
+   2026-09-21 14:38:11 [brain_subprocess.log] 2026-09-21 14:38:11,724 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 O
+   2026-09-21 14:38:21 [brain_subprocess.log] 2026-09-21 14:38:21,397 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 O
+   2026-09-21 14:38:40 [brain_subprocess.log] 2026-09-21 14:38:40,716 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 O
+   2026-09-21 14:40:19 [backend.log] 2026-09-21 14:40:19 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+
+② 启动标记(2026-08-24 21:33:46)之后：minimax 行 3529 条；deepseek 200 OK 2642 次
+   !! 2026-09-21 02:56:35 [backend-console.log] 2026-09-21 02:56:35 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 02:56:56 [backend-console.log] 2026-09-21 02:56:56 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 02:57:19 [backend-console.log] 2026-09-21 02:57:19 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 02:59:19 [backend-console.log] 2026-09-21 02:59:19 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 04:11:32 [backend-console.log] 2026-09-21 04:11:32 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 04:12:35 [backend-console.log] 2026-09-21 04:12:35 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 04:13:22 [backend-console.log] 2026-09-21 04:13:22 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 04:16:07 [backend-console.log] 2026-09-21 04:16:07 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   !! 2026-09-21 07:01:15 [backend-console.log] 2026-09-21 07:01:15 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 400 Bad R
+   !! 2026-09-21 07:01:16 [backend-console.log] 2026-09-21 07:01:16 [WARNING] [tr=-] backend.services.analysis.model_gateway:867 - [ModelGateway] minimax/daily_brief 调用失败: BadReq
+
+③ 当前 python 进程（看 brain 子进程的启动时间）
+
+ProcessId CreationDate       cmd                                                                                                           
+--------- ------------       ---                                                                                                           
+     9776 2026/9/8 4:25:03   D:\001Alpha\Hyper-Alpha-Arena\backend\.venv\Scripts\python.exe D:\001Alpha\Hyper-Alpha-Arena\scripts\binance_s
+    22756 2026/9/8 4:25:03   "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" D:\001Alpha\Hyper-Alpha-Arena\scripts\binance_so
+    27452 2026/9/21 10:31:41 D:\001Alpha\Hyper-Alpha-Arena\.venv\Scripts\python.exe services\aster_ws_ingest.py --symbols BTCUSDT,ETHUSDT,S
+    28648 2026/9/21 10:31:41 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" services\aster_ws_ingest.py --symbols BTCUSDT,ET
+    12480 2026/9/21 14:09:06 "D:\001Alpha\Hyper-Alpha-Arena\.venv\Scripts\python.exe"  D:\001Alpha\Hyper-Alpha-Arena\scripts\mm_lane_worker
+    36172 2026/9/21 14:09:06 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" D:\001Alpha\Hyper-Alpha-Arena\scripts\mm_lane_wo
+    20520 2026/9/21 14:27:10 "D:\001Alpha\Hyper-Alpha-Arena\backend\.venv\Scripts\python.exe" -m backend.workers.market_data_center        
+    35204 2026/9/21 14:27:10 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" -m backend.workers.market_data_center           
+    14892 2026/9/21 14:42:06 D:\001Alpha\Hyper-Alpha-Arena\backend\.venv\Scripts\python.exe D:\001Alpha\Hyper-Alpha-Arena\scripts\run_uvico
+    24476 2026/9/21 14:42:06 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" D:\001Alpha\Hyper-Alpha-Arena\scripts\run_uvicor
+    36760 2026/9/21 14:42:38 D:\001Alpha\Hyper-Alpha-Arena\backend\.venv\Scripts\python.exe D:\001Alpha\Hyper-Alpha-Arena\backend\workers\b
+    18964 2026/9/21 14:42:38 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" D:\001Alpha\Hyper-Alpha-Arena\backend\workers\bi
+    42584 2026/9/21 14:45:04 "D:\001Alpha\Hyper-Alpha-Arena\.venv\Scripts\python.exe" scripts\_probe173_after_restart_minimax.py           
+    10504 2026/9/21 14:45:04 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" scripts\_probe173_after_restart_minimax.py      
+    42004 2026/9/21 14:46:02 "D:\001Alpha\Hyper-Alpha-Arena\.venv\Scripts\python.exe" D:\001Alpha\Hyper-Alpha-Arena\scripts\depth_age_probe
+    41264 2026/9/21 14:46:02 "D:\001Alpha\Hyper-Alpha-Arena\.runtime\Python312\python.exe" D:\001Alpha\Hyper-Alpha-Arena\scripts\depth_age_
+
+
+
+
