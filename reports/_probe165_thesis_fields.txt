@@ -1,0 +1,55 @@
+﻿
+====================================================================================================
+论题 982fc260 的全部字段（截断 220 字）：
+   accepted                   = 1
+   analysis_run_id            = 803e0c0f27b04cba9cd5c6eea2013aef
+   consistency                = 0
+   created_at                 = 2026-08-28T17:45:36.448866
+   direction                  = long
+   expires_at                 = 2026-09-21T13:57:10.196341
+   hub_adjusted               = 0
+   hub_composite              = 0
+   id                         = 2386
+   invalidation_json          = {"price": 8.454, "condition": "1d 收盘跌破 8.454（24h 低点）并伴随放量，或 4h 持续收于 EMA21 下方且 1d 摆动结构由 
+HL 转 LL，则多头论题作废", "_watch": {"price": 8.649, "bar_tf": "4h", "bar_open_ms": 1789948800000, "captured_ms": 1789955830196
+}}
+   llm_conviction             = 47
+   mid_view_json              = None
+   missing_evidence_json      = ["无实时盘口/逐笔与最新 1h 收盘确认，现价 8.649 与 pack last 8.863 存在偏差"]
+   open_readiness             = 0
+   owm_weights_json           = {}
+   prompt_version             = bp_cd81655773
+   reasoning_snapshot         = [minimax/MiniMax-M3]
+{"direction":"neutral","strength":3,"confidence":0.35,"recommend_open":false,"should_close":false,"invalidation":{"pric
+e":8.454,"condition":"1d收盘跌破24h低点8.454并伴随放量，或4h持续收于EMA21下方且1d摆动结构由HL转LL，则多头论题作废"…
+   recommend_open             = 1
+   regime_hash                = 
+   regime_suggestion_json     = None
+   review_count               = 223
+   session_id                 = fa_7e12e7a1b6
+   should_close               = 0
+   sl_pct                     = 0.055
+   stable_since               = 2026-09-05T11:17:38.978154
+   symbol                     = UNI
+   thesis_id                  = 982fc260-f1d4-400c-9f19-9cf054fcec3c
+   thesis_summary             = 1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%），4h/1h 高位回调缩量、无派发证据，方向仍偏多；但 1w RSI 71.8、1d
+ RSI 76 超买，global_ls 1.698、top 账户 3.241 多头拥挤，且 UNI 近 14d 同向多头连续三笔 -1.77%~-1.96% 止损、相似情景 5 例中 1 例止损，故不追高。现价 8.649 相对入场区 
+8.55-8.75 基本贴沿…
+   tier                       = mid
+   tp_pct                     = 0.09
+   tranche_stage              = 0
+   updated_at                 = 2026-09-21T09:57:10.196341
+   wisdom_ids_json            = None
+
+====================================================================================================
+对照：长期论题 2394（tier=long）的关键字段
+   symbol               = UNI
+   tier                 = long
+   direction            = long
+   llm_conviction       = 28
+   accepted             = 0
+   recommend_open       = 0
+   open_readiness       = 0
+   updated_at           = 2026-09-21T09:44:33.289807
+
+

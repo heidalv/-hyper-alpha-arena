@@ -1,0 +1,30 @@
+﻿====================================================================================================
+三个开仓时刻附近的『探针/试探/rec_open_false』日志（去重后 24 条）
+   [backend-console.log] 2026-09-21 03:06:42 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log.20260921_025357] 2026-09-21 02:27:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log.20260921_025357] 2026-09-21 02:33:54 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 02:27:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 02:33:54 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 03:06:42 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+
+====================================================================================================
+附加：近 24h 里 UNI 的『小仓试探』与 rec_open_false 计数
+   {'试探': 552, 'rec_open_false': 0, 'probe_entry': 552}

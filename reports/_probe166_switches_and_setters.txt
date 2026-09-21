@@ -1,0 +1,33 @@
+﻿====================================================================================================
+① .env 里这些键的实际取值（未出现=用代码默认值）
+   MIDLONG_AGGRESSIVE_ENTRY               = （.env 未设置 → 用代码默认）
+   MIDLONG_AGGRESSIVE_MIN_CONF            = （.env 未设置 → 用代码默认）
+   MIDLONG_CHASE_TOL_PCT                  = （.env 未设置 → 用代码默认）
+   MIDLONG_DEBATE_APPLY                   = （.env 未设置 → 用代码默认）
+   RISK_OFFICER_VETO_ON_DEBATE_REJECT     = （.env 未设置 → 用代码默认）
+   MIDLONG_MIN_PROBE_NOTIONAL_USD         = （.env 未设置 → 用代码默认）
+   ANALYST_BLEND_APPLY                    = （.env 未设置 → 用代码默认）
+   MIDLONG_TIER_MARGIN_PCT_MID            = 0.10
+   PC_MAX_WEIGHT_PER_SYMBOL_MID           = 0.15
+   MIDLONG_RISK_PCT                       = 0.01
+
+====================================================================================================
+② 全库『把 recommend_open 置 True』的位置
+    backend/services/mlto/brain.py:843: out["recommend_open"] = True
+    backend/services/mlto/brain.py:864: out["recommend_open"] = True
+    backend/services/mlto/open_gate.py:97: _rec_ok, _rec_label = True, "LLM recommend_open=True"
+
+====================================================================================================
+③ 『把 recommend_open 置 False』的位置（对照）
+    backend/services/full_auto/midlong_helpers.py:1797: LLM 长期 neutral + recommend_open=False，中长线开不出仓。
+    backend/services/mlto/brain.py:775: out["recommend_open"] = False
+    backend/services/mlto/brain.py:1438: final["recommend_open"] = False
+    backend/services/mlto/brain.py:1853: # 修法：带 `_probe_entry` 标记的论题**允许** `recommend_open=False` 通过这一条
+    backend/services/mlto/brain.py:2505: # 尺寸由分档系数保证是"小仓"（recommend_open=False ⇒ tranche_gate 走 NIBBLE 0.15 档），
+    backend/services/mlto/brain.py:2557: dto.recommend_open = False   # ⇒ NIBBLE 档（小仓）
+    backend/services/mlto/open_gate.py:95: _rec_ok, _rec_label = False, "LLM recommend_open=False"
+    backend/services/mlto/open_gate.py:167: # ── 底线 4：尊重 LLM 的 recommend_open=False（AI 自己说不建议开仓）──
+    backend/services/mlto/open_gate.py:169: # Paper 探针例外：Hub 已 NIBBLE/BUILD 且有方向时，recommend_open=False 只 soft
+    backend/services/mlto/open_gate.py:187: "[OpenGate] recommend_open=False soft_pass (nibble_probe) %s %s/%s",
+    backend/services/mlto/open_gate.py:192: return False, "llm recommend_open=False"
+    backend/services/mlto/qual_layer.py:905: # recommend_open=False 拦截 457 次，长线系统性开不出仓。

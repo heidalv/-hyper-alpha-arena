@@ -1,0 +1,569 @@
+﻿
+====================================================================================================
+① 论题全文（thesis 982fc260 = UNI mid，就是驱动 02:30/03:10/07:04 三笔的那条）
+   symbol = UNI
+   tier = mid
+   direction = long
+   llm_conviction = 47
+   stable_since = 2026-09-05T11:17:38.978154
+   review_count = 223
+   invalidation_json = {"price": 8.454, "condition": "1d 收盘跌破 8.454（24h 低点）并伴随放量，或 4h 持续收于 EMA21 下方且 1d 摆动结构由 HL 转 LL，则
+多头论题作废", "_watch": {"price": 8.649, "bar_tf": "4h", "bar_open_ms": 1789948800000, "captured_ms": 1789955830196}}
+   updated_at = 2026-09-21T09:57:10.196341
+   created_at = 2026-08-28T17:45:36.448866
+
+   thesis_summary:
+   1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%），4h/1h 高位回调缩量、无派发证据，方向仍偏多；但 1w RSI 71.8、1d RSI 76 超买，global_ls 1.698、to
+p 账户 3.241 多头拥挤，且 UNI 近 14d 同向多头连续三笔 -1.77%~-1.96% 止损、相似情景 5 例中 1 例止损，故不追高。现价 8.649 相对入场区 8.55-8.75 基本贴沿，但短周期动能未止跌、追入风险
+回报不佳，选择观望等 4h 企稳信号。
+
+====================================================================================================
+② 该论题的全部辩论轮次
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.22 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"direction":"bull","strength":3,"confidence":0.35,"key_factors":["长期EMA200偏离度110%处于极端超买区间","1d RSI14=75.2进入超买
+阈值","30d涨幅108%已透支大量中期动能","持仓结构ls=1.921接近2.0偏多头拥挤","宏观周期阶段score=-0.075与做多方向背离"],"summary":"作为看空方提出对UNI做多提案的反对意见：在长期超买(距E
+MA200偏离110%、RSI75.2)与中期+108%涨幅的背景下，做多风险回报不对称；同时承认日内动量信号中性，长期证据最弱。","argument":"UNI做多提案缺乏安全边际：长期偏离EMA200高达110.25%叠加1d RS
+I 75.2，已进入统计意义上的超买区；30天累计涨幅108%意味着短期回调概率显著上升。持仓ls_ratio=1.921接近2.0，多头头寸偏
+     论点: {"direction":"bearish","strength":5,"confidence":0.62,"key_factors":["1d RSI=75.2严重超买，与110.25%的EMA200偏离形成顶部过热组
+合","ret_7d=+41.99%叠加ret_30d=+108.39%意味着大量浮盈盘，抛压随时释放","OI=2.07亿+ls_ratio=1.921显示多头持仓过重，方向反转会引发强制减仓连锁","宏观周期得分score=-0.07
+5(conf=0.35)与个股看多叙事背离，大盘不支持","1h EMA已转bearish、ret_24h=-2.4%、technical=-0.178，短周期动量率先确认转弱"],"summary":"UNI在30d翻倍+108%后1d
+ RSI触及75.2超买区、距EMA200偏离+110%处于统计极端，叠加OI多头拥挤(ls=1.92)与宏观周期负向，偏mid-tier做多的
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=-0.065 consensus_conf=0.2158 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: {"direction":"bearish","strength":4,"confidence":0.55,"key_factors":["1d RSI=76.3严重超买，30d涨幅113.93%处于极端拉伸状态","4
+h EMA趋势虽bullish但regime=ranging(conf仅0.3)，动量已现背离信号ret_24h=-0.86%而ret_7d=45.76%","long/short比率1.812严重偏向多头，叠加资金费0.01%持续正费率
+，多头拥挤清算风险上升","距EMA200高达115.71%，长期均值回归压力大","宏观score=-0.075 conf仅0.35，与中性提案的隐含乐观矛盾"],"summary":"UNI在113.93%的月涨幅后RSI触及76.3
+超买区，短期动量已转负（ret_24h=-0.86%），但持仓结构显示多头拥挤（ls=1.812）+ 持续正资金费，4h虽维持bullish却仅
+     论点: UNI 在 30d +113.93% 后 RSI1d 已达 76.3 极端超买区，距 EMA200 +115.71% 意味着均值回归风险极高；多周期动量已现背离信号（composite_score=0.6032 但 tr
+end_alignment=-1.0），中期 overheat 信号随时触发，技术性回调而非健康洗筹的概率更大。
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=-0.04 consensus_conf=0.27 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"direction":"bearish","strength":6,"confidence":0.62,"key_factors":["ret_7d=42.87% + ret_30d=109.68% 涨幅过大,日线R
+SI14=75.4进入超买区","4h技术信号technical=-0.103已转负,与价格新高背离","宏观score=-0.075 conf=0.35长期周期不支撑单边做多","资金费0.0066~0.01%全网正费率,长仓拥挤存在清
+算踩踏风险","ls比率1.921多空失衡,极端多头持仓意味着潜在空头回补已饱和","1h EMA bearish但4h仍为bullish,ranging conf仅0.3趋势脆弱"],"summary":"综合三个周期证据看,UNI 3
+0日暴涨109%且日线RSI=75.4进入超买,价格远高于EMA200(111.53%),中期technical信号已转负背离;虽然长期趋势仍a
+     论点: {"argument": "UNI 在中长期已严重过热——30d 涨幅 +109.68%、距 EMA200 偏离 +111.53%、1d RSI=75.4 均为经典末升段信号，叠加 7d 暴力拉升 +42.87% 后的 
+1h/4h 同步走弱（ema_trend_1h=bearish、ret_24h=-1.27%），趋势正进入动能耗尽阶段；此时做多本质上是接一把已经在空中的刀，期望值显著为负。", "confidence": 0.62, "evidence
+": ["【长期】30d +109.68%、距 EMA200 +111.53%（>100% 偏离在加密历史中回撤中位数 ~40%-60%），1d RSI=75.4 已进入超买区，顶部钝化随时可触发反转", "【中期】7d +42.87% 
+后出现 ret_24h=-1.27% 与 ema_trend_1h=bearish 的日内转弱信号，technical=-0.103(conf1
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.01 consensus_conf=0.205 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: {"argument":"UNI 在多个周期上呈现明显的超买回调风险：日线 RSI=75.8 严重超买，30天涨幅高达111.29%且距EMA200偏离113.11%，中期技术因子已转负(-0.168)，持仓结构多空比1
+.816偏向多头拥挤，配合24h已下跌4.96%，短期顶部特征显著，中性持仓缺乏安全边际。","confidence":0.62,"evidence":["【中期】rsi14_1d=75.8 严重超买区，历史上70+持续往往伴随5-15%
+回调","【长期趋势】距EMA200=113.11% 极度偏离均值回归阈值（健康区间通常<30%）","【长期趋势】ret_30d=111.29% 一个月翻倍后均值回归压力极大","【中期】technical信号=-0.168(conf1
+.0) 已确认动能衰减","【日内】持仓结构 ls=1.816 多头拥挤，多空失衡放大下行风险","【日内】ret_24h=-4.96% 已开始
+     论点: {"argument":"UNI短期多头拥挤度已升至危险水平：1h EMA趋势转负、24h回撤4.96%但ls比1.816显示持仓极度偏多，叠加全平台funding 0.01（年化>100%）的持续溢价，中期techni
+cal信号转负-0.168、ranging regime confidence仅0.3表明4h上升动能衰竭，长期距EMA200 113%的极端超买+1d RSI 75.8形成多重技术性顶部信号，倾向短期向下修正。","confidence
+":0.62,"evidence":["1h ema_trend=bearish且ret_24h=-4.96%，日内动量确认转弱","持仓ls=1.816显示极端多头拥挤，配合all 0.01持续正费率=典型过热结构","OI 2.1亿美
+元规模下若拥挤翻转将触发级联清算下挫","4h technical=-0.168、regime=ranging(conf 0.3)，中期上行动能
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2333 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.45}
+     论点: {"argument": "UNI 在多个周期均显现过热与结构转弱信号，做空风险回报优于做多：1d RSI=75.7 严重超买，7d/30d 涨幅分别达 43.88%/111.17%，且价格距 EMA200 高达 112
+.99%，均值回归压力巨大；日内 1h EMA 转空、24h 区间位置 pos24=71.9% 处于上沿，1.95 的长仓/空仓比显示散户极度过度做多；资金费虽仅 0.01%（未到清算阈值）但方向上偏向多头拥挤——上述条件叠加是中线顶部形
+态的经典组合。", "confidence": 0.62, "evidence": ["【长期】1d RSI14=75.7 严重超买区域", "【长期】距 EMA200=112.99%，价格偏离长期均值超过一倍，回归压力大", "【中期】
+ret_7d=+43.88% / ret_30d=+111.17%，短期涨幅过大消耗买盘", "【中期】4h EMA 虽 bullish 但 r
+     论点: {"horizons":{"intraday":{"stance":"short","confidence":0.62,"argument":"1h EMA 趋势已经转 bearish 但 1h RSI 仍位于 53.8
+ 区间中位，价格在 24h 区间的上沿（pos24=71.9%）但缺乏动能跟进，典型的 1h 顶背离雏形；资金费率全网均值约 0.0078%（折年化约 28%），对 UNI 这种 mid-cap 而言处于偏拥挤但未极端水平，叠加 OI=2
+.1 亿且 ls=1.954 多头持仓占优，短线最容易发生多头挤压式回吐"},"swing":{"stance":"bearish","confidence":0.6,"argument":"1d RSI=75.7 严重超买，ret_7d
+=+43.88%、ret_30d=+111.17% 已是两到四周级别均值回归风险窗口，rv30=118.1% 暗示已进入高波动后期阶段；同时 a
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1583 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.4}
+     论点: {"argument":"UNI 在短期超买严重（1d RSI 74.9 + 7d/30d 巨幅拉升 +41.52%/+107.69%），叠加 24h 已回撤 -5.44% 至区间下沿（pos24=20.1），持仓结构极
+度多头拥挤（ls=1.864、OI 超 2 亿），任何风吹草动都极易触发多头踩踏式清算。做多 mid 仓位的风险收益比不对称——上方阻力密集，下方缺乏支撑。", "confidence": 0.62, "evidence": ["1d R
+SI=74.9 严重超买，30d 涨幅 +107.69% 已远离均值，存在技术性回调压力", "ret_24h=-5.44% 且 pos24=20.1，价格跌至 24h 区间下沿 20% 分位，短期动能转弱", "持仓结构 ls=1.86
+4 表明多头持仓约为空头 1.86 倍，OI=2.08 亿，多头拥挤度极高，逆向清算风险显著", "宏观全局 score=-0.075（偏空），
+     论点: {"direction":"bearish","strength":4,"confidence":0.62,"key_factors":["日内：1h EMA bearish + RSI 46.1 叠加 24h 回撤 -
+5.44% 且 pos24=20.1 处于弱势区间，动量直接走坏","日内：资金费 0.01% 极低说明现货抛压下杠杆多头不愿承接，回调非健康而是结构转弱","中期：4h 虽 EMA bullish 但 regime=ranging(co
+nf 0.3) 信心极低，且 1d RSI 已达 74.9 超买区，30d 涨幅 107.69% 严重透支","中期：technical 信号 conf=1.0 过度一致，历史上意味着趋势末端而非中段","长期：宏观 score=-0.0
+75 偏负，但价格距 EMA200 高达 109.56%，均值回归压力巨大","趋势：trend_alignment=-1.0 与 long 提
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1717 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"direction":"bearish","strength":4,"confidence":0.68,"key_factors":["1d RSI=75.5 显著超买，且过去30天已涨109.83%，距EMA200
+偏离111.67%，均值回归风险极高","日内1h EMA趋势=bearish 与4h bullish 出现短周期背离，动量momentum=0.0085 接近停滞","资金费多空分化且整体处于正常水平，未提供额外的多头拥挤补偿","中期
+regime=ranging(conf 0.3) 表明趋势强度弱，追涨胜率偏低","宏观全局score=-0.075 略偏空，战略层不支持 risk-on 加码"],"summary":"UNI 30天已翻倍、1d RSI=75.5 严重
+超买、距EMA200偏离111.67%，均值回归/回吐风险远大于继续上行的风险补偿；短期1h已转弱与中期bullish背离，多周期共振证据不足以
+     论点: {"argument": "UNI 在 30 天暴涨 109.83%、1d RSI 触及 75.5 严重超买区的同时，距 1d EMA200 高达 111.67%，价格已严重脱离长期均线支撑，技术性回吐风险极高；1h E
+MA 仍偏空与 4h 仅 ranging(conf 0.3) 形成多周期背离，追多极易被超买修正与中期回踩 EMA200 一击打穿。中期动量虽强但已接近末端，ranging regime 下 EMA 翻多更像是趋势恢复还是反弹末段冲顶，本
+身就值得质疑。", "confidence": 0.7, "evidence": ["1d RSI14=75.5 已进入超买区（>70 为传统超买阈值），叠加 ret_30d=+109.83%，短期均值回归风险陡增", "距 1d EMA
+200 高达 111.67%，历史上如此大幅度乖离后的回撤幅度通常在 20-40% 之间", "1h EMA trend=bearish 与 4
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=-0.11 consensus_conf=0.2217 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: UNI 做多存在显著风险：日内结构转弱（1h EMA bearish、24h 跌 3.48%、pos24 仅 41.2 偏下半区），中期 RSI 1d=75.7 严重超买且 7d/30d 已暴涨 43.87%/111.1
+5%，长期距 EMA200 高达 112.97% 严重偏离，长期宏观 score=-0.075 偏空。多周期共振显示追多风险回报极差。
+     论点: {"direction":"bearish","strength":5,"confidence":0.58,"key_factors":["1d RSI 75.7 进入超买区，距EMA200 +113% 极端偏离，月度涨
+幅+111% 已严重透支","ls=1.816 持仓结构严重偏空头，pos24=41.2 显示价格已从区间高位回落且动能转负","宏观全局score=-0.075(conf 0.35)偏向逆风，1h ema_trend=bearish 与
+4h bullish 出现短期结构背离","ret_24h=-3.48% 叠加1h RSI 49.8 表明日内下行已成趋势而非健康回调"],"summary":"尽管UNI长期结构看似强劲，但+113%偏离EMA200与1d RSI 75
+.7构成典型超买延伸，配合1h转为bearish、ls空头持仓优势1.816、宏观偏空(-0.075)三重证据，'逢低做多'实际是接坠落的刀。建
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=-0.025 consensus_conf=0.1575 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.51}
+     论点: {"argument":"UNI 在 7d+42.54% / 30d+109.2% 后 1d RSI=75.3 接近超买，1h EMA 已转 bearish 而 4h/1d 仍 bullish，形成顶部分歧；OI=2.1
+亿、ls=1.954（多头持仓近 2 倍）放大清算风险，叠加距 EMA200 高达 111%，长期回归压力显著。整体偏向看空，强度 6/10。", "confidence": 0.58, "evidence":["1d RSI=75.3 
+接近超买阈值,ret_7d=+42.54% / ret_30d=+109.2% 短期涨幅过大","1h ema_trend=bearish 但 4h=bullish,小周期趋势已先于大周期翻空,典型顶部背离信号","OI=209,757,
+872 美元配合 ls=1.954,多头持仓约 2 倍空头,价格回撤易触发连环清算","价格距 EMA200=+111.05%,长期均值回归风险
+     论点: UNI的做空风险/回报比正在恶化：尽管资金费率仅0.01%显示杠杆不高，但多空比1.954揭示持仓结构已严重不对称——210M OI中多头占比超66%，一旦价格回踩将触发被动平仓链式反应；叠加30日累计涨幅109%、距E
+MA200溢价111%、RSI 1d=75.3接近超买，中期均值回归概率远高于继续上攻空间。
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.4316 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"direction":"bearish","strength":4,"confidence":0.62,"argument":"UNI 做多面临多周期共振的逆风：日内 1h EMA 转空且 RSI 仅 48.6，价格
+已回吐 24h 的 -2.91%，说明短线买盘动能正在流失；中期尽管 4h EMA 仍 bullish 但 regime 仅为 ranging(conf 0.3)、ret_7d 已 +41.55% 且 1d RSI 触及 75 超买区，典
+型'强弩之末'形态，长期趋势价格距 EMA200 偏离 109.61%、ret_30d+107.74% 叠加宏观 score=-0.075，这种极端超买+宏观逆风的组合下做多属于接刀。","key_factors":["日内 1h ema
+_trend=bearish + RSI 48.6 表明短线动能已切换","24h 区间位置 pos24=26.1，价格位于 8.454~9.5
+
+   round=1 side=bear model=None
+     {"symbol": "UNI", "tier": "mid", "proposal": {"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0
+.52}, "verdict": "reduce", "net_sentiment": 0.0, "consensus_confidence": 0.2083, "used_llm": true, "arguments": ["{\"ar
+gument\":\"UNI在7天暴涨43.5%、30天暴涨110.6%后，1d RSI已达75.6超买区，且当前价格距EMA200高达112.45%，中期回归风险极大；同时多空比1.642显示多头过度拥挤，1h EMA趋势已转为bear
+ish，4h regime=ranging且置信度仅0.3，追涨风险回报比极差。\", \"co
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.155 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: {"direction":"bearish","strength":5,"confidence":0.55,"key_factors":["日线RSI74.5深度超买叠加30日涨幅106.98%，均值回归风险极高","长
+空比1.886表明多头持仓严重倾斜，清算下行风险放大","资金费全面正向（4/5交易所≈0.01）显示多头拥挤，费率挤压即将来临","ret_24h=-3.54%配合pos24=32.3已在低位，预示跌破区间下沿8.45的抛压尚未释放",
+"4h虽标注bullish但regime=ranging(conf仅0.3)，中期趋势实质为震荡偏弱"],"summary":"UNI在30日暴涨106.98%、RSI触及74.5超买区的同时，长空比1.886与全面正向资金费揭示多头极度
+拥挤，24h已转跌3.54%且位于区间下沿附近，提示下行清算风险正在累积，倾向看空。","argument":"UNI当前处于严重的超买+多头拥
+     论点: {"argument":"UNI在7d暴涨41%、30d翻倍后，1d RSI=74.5触及超买区，technical信号一致偏空且conf=1.0，1h EMA仍为bearish，多周期动量背离明显；虽然资金费全网中性偏
+低未现拥挤多头费率，但OI高达2.08亿+ls=1.886的多头拥挤结构在价格滞涨时极易触发long squeeze修正，叠加距EMA200已达108.85%的极端乖离，中期回归风险显著。","confidence":0.62,"evid
+ence":["1d RSI=74.5接近超买阈值，ret_7d=+41.03%、ret_30d=+106.98%属末升段典型形态","technical=-0.151(conf=1.0)多因子一致偏空信号","OI=208,263,85
+2+ls=1.886多头持仓高度拥挤，价格一旦滞涨即面临清算风险","距EMA200=108.85%极端正乖离，均值回归压力大","1h EMA
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.225 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"direction":"bearish","strength":4,"confidence":0.4,"key_factors":["日内RSI 57.5接近超买且pos24处于79.8%高位","中期RSI 1d=
+75.6严重超买+7d涨43.59%获利盘堆积","长期距EMA200偏离112.57%极端超买回归风险","资金费率多交易所0.01拥挤度偏高，多空比1.655偏多头","宏观score=-0.075逆风","ranging regim
+e内动量衰竭风险"],"summary":"UNI在三个周期均存在显著的过热信号：日内RSI偏高且价格处于24h区间79.8%分位、中期1d RSI 75.6叠加7天43.59%和30天110.74%的巨幅涨幅、长期偏离EMA200达11
+2.57%处于统计极端区域。虽然当前无持仓且4h EMA趋势仍偏多，但ranging regime(0.3置信度)环境下反弹动量随时可能衰竭，加
+     论点: {
+  "argument": "UNI在多周期均已处于'末端加速'阶段，30d+110.74%涨幅叠加pos24=79.8%表明价格已消耗绝大多数阶段性空间；多空持仓比1.655配合OI 2.07亿构筑了明显拥挤结构，任何回撤都会触发多杀多
+；rsi1d=75.6虽未触及80，但配合atr14_1d=8.78%的高波动，已具备均值回归条件。做多的风险收益比在当前位置明显恶化。",
+  "confidence": 0.62,
+  "evidence": [
+    "30d累计涨幅+110.74%，属于典型的'末段加速'统计区间（>100%后30d均值回撤概率显著上升）",
+    "pos24=79.8%意味着24h波动已穷尽，今日继续上行的赔率天然不利（剩余空间仅20.2%）",
+    "rsi1d=75.6+atr14_1d=8.78%：日级RSI进入偏热区且日波幅近9%，历史上该组合出现后7d负收益概率高于正收益",
+ 
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2125 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.4}
+     论点: {"direction":"bearish","strength":6,"confidence":0.6,"key_factors":["日线RSI 74.9严重超买，7日涨幅41.52%后出现5.44%回撤，短期顶部信
+号明确","持仓结构ls_ratio=1.864显示多头过度拥挤，OI 2.08亿美元面临多头清算风险","价格距EMA200偏离109.56%，中期回归压力巨大","1h EMA趋势转空与4h EMA仍多形成背离，小时级动能转弱","宏
+观score=-0.075偏空，与技术面超买形成共振"],"summary":"UNI在经历30天107%涨幅后处于严重超买区域（RSI 74.9），价格偏离EMA200超过109%，短期出现5.44%回撤和多空比1.864的多头拥挤结构
+，叠加宏观偏空背景，技术回调风险显著高于上行空间。","argument":"UNI当前的核心风险在于超买回归：30天涨幅107.69%已将价格
+     论点: {"argument":"UNI虽然中期趋势看似完好，但日内结构已明显走弱，且多项指标暗示追多风险收益比不佳：1h EMA转bearish、24h跌-5.44%处于区间下沿(pos24=20.1)接近8.45支撑，一旦跌
+破易触发清算链；1d RSI 74.9已进入超买区，30d暴涨107.69%后技术性回调概率极高；宏观score=-0.075偏空，中期强度与宏观背离。", "confidence":0.68, "evidence":["【日内】1h E
+MA已转bearish，rsi14_1h=46.1但价格刚跌破区间下沿，跌破8.45将打开下行空间","【日内】24h表现-5.44%，pos24=20.1处于8.454~9.522区间下沿1/5位置，技术性破位风险显著","【日内】OI
+=2.08亿+ls=1.864，多头持仓是空头1.86倍，逆向轧多清算风险大而非轧空","【中期】1d RSI=74.9严重超买，30d收益+1
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2375 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"argument": "UNI 在 ret_7d=44.05%、ret_30d=111.41%、距 EMA200=113.23% 的极端超买背景下做多，中期均值回归风险极高；日内资金费多交易所读数在 0.0057%-
+0.01%，处于偏高但非极值，叠加 1d RSI=75.8 接近超买阈值，且 long/short ratio=1.627 偏向多头拥挤，任何回调都可能触发长清算连锁反应。", "confidence": 0.65, "evidence"
+: ["ret_30d=111.41% 与距 EMA200=113.23% 显示价格已极度偏离长期均线，技术性回调引力强", "rsi14_1d=75.8 进入超买区间，1h RSI=52.4 已显示短期动能衰减", "long/shor
+t ratio=1.627 表明多头持仓过重，下行时清算风险放大", "资金费在 asterdex/binance/gateio/hyperli
+     论点: {"direction":"bearish","strength":5,"confidence":0.62,"argument":"虽然UNI多周期趋势结构看似共振向上，但关键风险在于：1) 中期ret_7d=44%、r
+et_30d=111%已属极端超买区间，日线RSI14=75.8进一步确认超买，新高后回撤风险远大于继续突破的概率；2) 日内长空比1.627偏高，做多情绪已显拥挤，资金费率虽不极端但已转正，配合2.89%的24h涨幅说明杠杆多头已部分建
+仓，追多止损风险大；3) 价格距离EMA200达113.23%，均值回归引力极强，技术性回调概率显著高于趋势延续；4) 中期regime=ranging(conf 0.3)说明4h级别本质上仍是无方向震荡，所谓'趋势bullish'只是E
+MA斜率的滞后反映，缺乏突破确认。多周期对齐的表象掩盖了'已经涨完'的本质。","key_factors":["ret_30d=111.41%叠
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2333 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.43}
+     论点: {"argument":"UNI当前面临多周期共振的见顶风险：日内已转为bearish EMA趋势叠加4h范围震荡失速，中期RSI 1d=74严重超买且30d涨幅106%已透支，长期距EMA200偏离108%处于极端泡沫
+区。资金费率虽中性但持仓多空比1.932显示散户重仓做多，一旦反转将触发集中清算。我反对中性立场，主张短期至中期看空。","confidence":0.62,"evidence":["中期RSI 1d=74处于严重超买区间（>70为超买阈
+值），叠加30d涨幅106.26%，技术回调概率显著","长期距EMA200偏离108.14%，历史经验显示偏离>80%后中长期回归EMA200的概率极高","日内EMA趋势转bearish，24h回撤-4%且pos24=25.8处于区间
+下沿，动能衰减","持仓ls_ratio=1.932显示多头持仓是空头近2倍，拥挤做多放大下行清算风险","funding rate虽中性但OI
+     论点: {
+  "argument": "UNI 在 30 天 +106% 涨幅后已处于极端超买状态（1d RSI=74，1d 距 EMA200 乖离 108%），历史上这种乖离水平的均值回归几乎不可避免。日内端 -4% 回撤叠加 ls=1.93 的
+多头拥挤头寸，意味着任何进一步下跌都会触发级联清算。中期 4h 虽未破但 regime 已从趋势降级为 ranging（conf 仅 0.3），是趋势衰减的早期信号。长期虽在 EMA200 上方，但 108% 乖离本身是反向风险而非趋势强
+度证据。综合看空概率大于看多，原提案的 neutral/0.43 偏乐观。",
+  "confidence": 0.62,
+  "evidence": [
+    "【长期】1d 距 EMA200 乖离 108.14% + 30d 收益 106.26% + 1d RSI=74，组合指标显示极端超买，历史均值回归概率极高",
+    "【长期】1d ATR=8
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=-0.015 consensus_conf=0.1908 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI在多周期上均呈现明显的追高风险特征：1d RSI=75.4处于超买区、30天涨幅109.32%距EMA200高达111.17%，中期动能严重透支；资金费全面转正（0.0088~0.01）且
+长仓/短仓比=1.649显示多头拥挤；同时宏观战略报告score=-0.075 conf=0.35与中长期方向背离。现价做多缺乏安全边际，追涨风险收益比极差。","confidence":0.72,"evidence":["1d RSI=
+75.4进入超买区域，30日累计涨幅109.32%，距EMA200偏离111.17%，均值回归风险显著","资金费多平台同步转正（binance 0.0088、bybit/asterdex/hyperliquid/gateio均为0.01
+），持仓结构ls=1.649显示多头拥挤","4h结构虽为bullish但regime=ranging conf仅0.3，动能信号不可靠；1h 
+     论点: {"argument": "UNI 在三重时间框架上均呈现'趋势过热+位置不利'的看空结构：日内 RSI1h 已从超买回落至 49.8 但 1h EMA 仍 bearish，24h 区间位置仅 45% 说明动能边际衰减；
+中期 30d 暴涨 109% + RSI1d=75.4 严重超买，4h 虽 bullish 但 regime=ranging(conf 0.3) 暗示趋势脆弱；长期虽 above_ema200 +111% 但该偏离度本身就是均值回归的强引
+力。资金费全网 0.0088-0.01% 偏高，OI=2.1 亿且 ls=1.649（多头持仓是空头 1.65 倍），一旦回撤将引发多头踩踏清算。当前做多位置极差，风险收益比不利。", "confidence": 0.72, "evide
+nce": ["【日内】1h EMA trend=bearish，RSI1h=49.8 已从超买区回落，24h 仅 +0.6% 动能衰减", "
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2167 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"direction":"bearish","strength":5,"confidence":0.62,"key_factors":["日内：1h EMA bearish + 24h 已跌4.32%且处于区间下半部(
+pos24=29.8),短线动量向下","中期：7d暴涨44.6%、30d暴涨112%、1d RSI=75.9已严重超买,回调风险极高","持仓结构多空比ls=1.811,做多拥挤,挤空/反向清算风险大","长期：距EMA200偏离达11
+4%,历史级别的超买回归风险,宏观score=-0.075偏空"],"summary":"UNI在三个周期均呈现回调风险：日内动量已转负且处区间下半部,中期1d RSI 75.9叠加7d/30d暴涨后的均值回归压力,长期距EMA200偏离
+114%属极端超买。多空比1.811表明多头拥挤。提案confidence仅0.52,风险收益比不利于做多。","horizons":{"int
+     论点: {"direction":"bearish","strength":3,"confidence":0.45,"key_factors":["1d RSI=75.9 严重超买，存在技术性回调压力","ret_7d=44.5
+9%、ret_30d=112.2% 短期涨幅过猛，获利盘兑现风险高","long/short ratio=1.811 多头持仓倾斜，资金费虽中性但杠杆多头拥挤","1h EMA trend=bearish 已与 4h bullish 形成
+小时级结构背离","pos24=29.8 价格回撤但仍在区间中下沿，尚未测试关键支撑"],"summary":"虽然 UNI 长期仍处 EMA200 之上且中期 4h 趋势为 bullish，但 1d RSI=75.9 严重超买配合 30
+d+112.2% 的极端涨幅，叠加 1h 结构已转弱、多头持仓明显倾斜（ls=1.811），短期回调风险显著大于继续上行空间。中线持有可接受，但
+
+   round=1 side=bear model=None
+     {"symbol": "UNI", "tier": "mid", "proposal": {"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0
+.47}, "verdict": "reduce", "net_sentiment": 0.0, "consensus_confidence": 0.2117, "used_llm": true, "arguments": ["{\"ar
+gument\":\"UNI当前价位处于短期高位区间、RSI日线触及超买区（76），且30天涨幅超100%，均值回归与获利了结风险显著大于进一步上行的赔率，long置信度0.47是高估的。1h虽维持EMA看涨，但atr仅1.94%意味着波
+动已被压缩、缺乏突破动能；多周期指标间的背离（1h RSI 56.9中性 vs 1d RSI 7
+
+   round=1 side=bear model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1633 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI在多周期均显示明确空头信号，提案以0.47的低信心做多本质上是逆势交易：日内处于下行通道1h结构转弱+24h跌4.3%；中期1d RSI已74严重超买+7d/30d暴涨106%后的均值回归
+压力；长期虽在EMA200之上但距均值偏离108%极度危险。资金费虽正但OI高达2.06亿且ls=1.93倍，说明多头拥挤而非健康的趋势持仓，'回调做多'是典型的高位接飞刀陷阱。","confidence":0.68,"evidence"
+:["【日内】1h ema_trend=bearish, RSI1h=44.5且下行, 24h ret=-4.3% 价格已跌破24h区间中位至pos24=32.6，确认短期卖压","【日内】OI=2.06亿 ls=1.93，多头持仓占比近
+2倍，浮盈兑现的回踩极易引发踩踏式多头平仓","【中期】rsi14_1d=74.0 进入超买区，ret_7d=40.54% ret_30d=10
+     论点: {"argument":"UNI在中期已大幅透支（日线RSI=74、30天+106%、距EMA200+108%），日内结构已转为bearish（1h EMA bearish、ret_24h=-4.3%），叠加持仓多空比1
+.932的极端多头拥挤和正资金费（除Bybit外均+0.01），回调远未结束，逢低做多是接飞刀。", "confidence":0.68, "evidence":["【日内看空】1h EMA趋势已转为bearish，RSI1h仅44.5说
+明短期动能持续走弱，ret_24h=-4.3%叠加pos24=32.6显示价格已跌破中位下行，趋势性回调而非随机震荡","【日内看空】持仓多空比ls=1.932极端偏多，4家交易所资金费为正（binance/asterdex/gateio
+/hyperliquid均+0.01），仅Bybit=-0.0004，拥挤多头面临费率成本累积和清算风险","【中期看空】日线RSI=74处于超
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2075 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"argument":"UNI 在 7d +35.68% / 30d +106% 的爆发性拉升后，多周期 RSI 与持仓结构已显著透支，任何追多的风险回报比都不对称。日内 pos24=70.7% 接近区间上沿，中期 1
+d RSI=75.9 严重超买，长期距 EMA200 高达 111.56%，均值回归概率远大于趋势延续。同时全局宏观 score=-0.075 偏空，技术面强势与战略面背离，long 仓位的安全边际极薄。","confidence":0.
+72,"evidence":["30d 收益 +106.11%，距 EMA200 高达 111.56%，历史级别拉伸后均值回归风险陡增","1d RSI14=75.9 处于强超买区，且 7d 已 +35.68%，动能极度饱和","1h R
+SI56.1 但 24h 区间位置 pos24=70.7% 接近上沿，短线追买空间有限","OI=2.06 亿、ls=1.669 多头持仓明显倾
+     论点: {"argument":"UNI处于'长期严重超买+短期顶部钝化'的危险节点：30d涨幅106%、距EMA200偏离111.56%、1d RSI75.9，历史上这种偏离度回归EMA200的均值回复概率显著；同时hyper
+liquid资金费0.056%已暗示局部杠杆多头拥挤、持仓量OI>2亿且ls=1.669的多头倾斜结构放大了下行清算级联风险；虽然4h trend仍bullish，但ranging regime(conf 0.3)说明趋势强度本身在衰减，
+等待技术破位而非追高才是更优风险收益比。","confidence":0.68,"evidence":["30d收益+106.11%、距EMA200偏离111.56%——长期超买极端值，回归风险高","1d RSI14=75.9进入超买区
+，1d ATR=8.52%意味着日内波动幅度可吞噬数周涨幅","hyperliquid资金费0.056%显著高于其他交易所的0.01%，显示局部
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=-0.09 consensus_conf=0.295 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI 多头提案面临三重逆风：日内资金费率全面翻正+持仓 L/S 高达 1.864 暗示多头拥挤、24h 跌幅 -4.54% 且处于区间下沿；中期 1d RSI=75.2 严重超买叠加 7d/3
+0d 暴涨 42%/108.82% 后技术因子转负 (-0.152) 出现量价背离；长期虽处 EMA200 之上 110% 但宏观 score=-0.075 为负，趋势延续性存疑。当前价格 8.45-9.52 区间 pos24=23.3 
+表明弱势，composite_score 0.6045 与 trend_alignment=-1.0 严重背离，进一步压缩上行空间。","confidence":0.62,"evidence":["资金费 5 家交易所均 ≈0.01% 同
+步正费率：asterdex=0.01, binance=0.01, bybit=0.0097, gateio=0.01, hyperliquid
+     论点: UNI当前处于'高位回撤'陷阱中，多项指标暗示做多风险回报极差。1d RSI=75.2严重超买，30d暴涨108.82%后回撤-4.54%且pos24=23.3%已破区间下沿——这是动量衰竭的典型形态而非'回踩加仓'。l
+s_ratio=1.864显示多头持仓远超空头，一旦价格破位下行将引发连环清算。technical因子=-0.152（conf1.0）为负，配合trend_alignment=-1.0全市场趋势偏空，宏观score=-0.075 conf
+=0.35不支持逆势做多。资金费年化36.5%虽未极端，但已说明多头杠杆成本高昂，多头拥挤度不可忽视。
+
+   round=1 side=bear model=None
+     verdict=reduce net_sentiment=-0.06 consensus_conf=0.205 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: 在长期趋势已大幅拉升+106.69%（距EMA200达112.15%）且1d RSI=76严重超买的背景下，博取仅0.47置信度的做多属于逆势接刀；日内资金费多空分化（hyperliquid 0.0342高位 vs by
+bit -0.0098）暗示拥挤度不均且ls=1.698显示多头持仓偏重，一旦价格回落将放大清算连锁风险；中期4h虽为bullish但regime=ranging且conf仅0.3，技术信号0.602并不支持追高。
+     论点: {"direction":"bearish","strength":5,"confidence":0.62,"key_factors":["1d RSI=76 处于超买区且 30d 已暴涨 +106.69%，均值回归风险
+显著","长期价格距 EMA200 高达 +112%，乖离率极端，历史上此类背离后回撤概率>70%","日内 pos24=25.4% 配合 1h EMA 转 bearish + 1h RSI=45.2 显示短线动能衰竭","宏观 scor
+e=-0.075(conf=0.35) 与 composite_score=0.4155 中等偏低，未支持强势上行","持仓结构 ls=1.698 接近 2.0，多头拥挤放大下行清算连锁风险"],"summary":"UNI 在 30 天
+暴涨 106% 且 RSI=76 严重超买背景下，距 EMA200 乖离 +112% 已处极端区域，叠加日内结构转弱、宏观偏空，做多风险回报不对
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1717 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"horizons":{"intraday":{"stance":"neutral","confidence":0.45,"argument":"1h EMA仍偏空但RSI49.6处于中位，资金费多空分化（Binanc
+e/Bybit/Hyper正值，Bybit略负），未形成单边拥挤；24h仅+0.85%且pos24=55.5，处于区间上半沿，缺乏继续上行的即时催化，更适合区间震荡思路而非追多。"},"swing":{"stance":"long","c
+onfidence":0.6,"argument":"4h EMA已转bullish且regime=ranging但置信仅0.3，技术因子technical=0.467；中期维度最有力的是ret_7d=42.97%、ret_30d=109
+.83%叠加1d RSI75.5，动量仍在扩张通道内，ranging regime中的EMA翻多往往是趋势恢复的第一信号。"},"trend":
+     论点: {"argument": "支持做多UNI的核心论点集中在长期与中期趋势的残存动能与结构性偏离上：30d已涨109.83%且仍站上1d EMA200、距EMA200为111.67%，说明长期趋势仍向上，中期4h ema_
+trend=bullish未被破坏；中期regime=ranging(conf仅0.3)表明趋势强度弱但并未翻空，技术因子technical=0.467配合1d RSI=75.5说明动量虽超买却未背离——历史上强势资产在ranging+t
+rend未坏时倾向于高位震荡换手而非直接反转；资金费多空分化（bybit=-0.0072负费，其余正费）且整体水平正常，并非拥挤多头的极端读数，反而为加仓提供了不至于过热的安全边际；量价ret_24h=0.85% pos24=55.5显示
+价格仍在24h区间中上部运行，未出现放量下挫的衰竭信号。综上，只要1h转弱不被4h/1d趋势破坏，'ranging中的趋势延续'是合理情形。",
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=-0.065 consensus_conf=0.2158 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: {"argument": "UNI 长期趋势结构完好，距 EMA200 偏离 +115.7% 表明中期已积累显著涨幅，但 1d/4h EMA 仍维持多头排列，ranging 整理而非趋势反转；中期动量虽过买（RSI1d=
+76.3），但在 4h 级别 bullish 结构与 funding 维持 0.01 中性费率（未现拥挤多头）共同支持下，回调反而为趋势延续提供健康换手。", "confidence": 0.48, "evidence": ["1d 站上
+ EMA200 且距 +115.71%，ret_30d=+113.93%，长期趋势未破坏", "4h EMA trend=bullish，technical 信号 0.665（conf 1.0），中期动能仍正向", "全所 funding
+ 0.0094~0.01，未出现 >0.03 的拥挤多头信号，回调属健康洗筹", "ret_7d=+45.76% 后出现 -0.86% 日内回撤
+     论点: UNI的中期上行结构仍然完整。4h EMA trend=bullish叠加technical信号0.665(conf1.0)，说明中期动量因子尚未给出反转信号；1d级别虽RSI=76.3超买，但30d涨幅113.93%后
+的强势惯性通常以'ranging consolidation'消化而非V型反转——当前regime=ranging(conf 0.3)恰好印证这一点。ret_24h仅-0.86%对比ret_7d=45.76%，回调/涨幅比<2%，完全不构
+成趋势破位。资金费0.01%虽显示拥挤但绝对水平极低，远未到泡沫化清算阈值。距EMA200 115.71%偏高估但与DeFi Summer周期高点偏离度类似，趋势可在该偏离水平上维持数周。
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2167 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"argument": "中期与长期趋势结构仍是多头主导：UNI 处于 1d EMA200 之上 114%、30d 涨幅 112.2%、7d 涨幅 44.59%，且 4h EMA 趋势为 bullish、technic
+al 信号 0.645(conf 1.0)，中期趋势延续性强；当前 -4.32% 的日内回撤发生在 24h 区间偏下沿(pos24=29.8)，更像是上涨途中的健康回调而非趋势反转；OI 21.4M、ls 1.811 偏高但资金费全平台 
+0.01% 仍属中性、未出现明显拥挤定价，因此逢回调介入的赔率优于做空。", "confidence": 0.55, "evidence": ["【长期】above_ema200_1d=True，距 EMA200=114.01%，30d 
+收益 112.2%——长期趋势明确多头", "【中期】4h ema_trend_4h=bullish、technical=0.645(conf 
+     论点: {"direction":"bullish","strength":4,"confidence":0.48,"key_factors":["1d结构 above_ema200=True,长期趋势未被破坏","4h EMA
+仍为bullish,中期结构尚未反转","资金费0.01%处于正常区间,无明显过热信号","宏观score仅-0.075(conf=0.35)方向性弱,并非强烈逆风","ranging regime conf仅0.3,4h趋势仍偏多"],
+"summary":"承认短期回调压力真实存在,但中长期趋势结构(1d站上EMA200、4h EMA bullish、30d涨幅112%)表明UNI处于强势牛市的健康回调阶段,逢低做多风险收益比合理。confidence偏低反映短期不利证
+据较多,需要耐心等待更好的入场窗口。","horizons":{"intraday":{"stance":"neutral","confiden
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1583 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.4}
+     论点: {"argument":"尽管24h回撤-5.44%且pos24处于20.1的弱势区间，但中期动量依然完好——4h EMA趋势仍为bullish、7d收益41.52%、30d收益107.69%、价格高于EMA200达10
+9.56%、technical信号0.683(conf1.0)，中期结构未破，长期趋势仍向上。资金费仅0.01%处于中性偏低水平，未现拥挤多头，OI/持仓未给出明确方向，整体属于健康回调中的逢低机会。","confidence":0.45
+,"evidence":["4h EMA趋势仍为bullish，regime=ranging(conf 0.3)表示中期结构未破","ret_7d=41.52% ret_30d=107.69%，中期动量极强","价格高于1d EMA200
+且距EMA200=109.56%，长期趋势完好","technical信号=0.683(conf1.0)，量价因子确认中期强势","资金费全平台
+     论点: {"direction":"bullish","strength":4,"confidence":0.4,"key_factors":["【长期】价格高于EMA200达109.56%，30d涨幅+107.69%处于强势趋
+势中，回调属健康修正","【微观】资金费仅0.01%（5所交易所同步），未现拥挤溢价，多头支付意愿温和","【中期】4h EMA趋势仍为bullish，仅处于ranging阶段未转空头"] ,"summary":"中期看多论点的核心是：U
+NI在突破EMA200并上涨超100%的强势趋势中，24h回撤-5.44%至区间下沿20%分位属于强势趋势中的健康洗盘，资金费仅0.01%说明拥挤度被高估，4h结构未破，回踩后仍具备重启上行的条件。","argument":"UNI当前虽
+短期动能耗损，但中期趋势结构未被破坏——4h EMA仍维持bullish（仅ranging状态未确认转空），价格仍稳固站上1d EMA200（偏
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2125 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.4}
+     论点: 尽管日内回调-5.44%且处于区间下沿(pos24=20.1)，但中长周期结构仍支持逢低吸纳：4h EMA趋势仍为bullish、1d站上EMA200且距其109.56%，叠加7d+41.52%、30d+107.69%的
+强势中期收益，技术分0.683(conf 1.0)确认趋势未破。资金费率0.01水平适中未现拥挤，多空比1.864偏空反而提供轧空空间。
+     论点: {"direction":"bullish","strength":4,"confidence":0.45,"key_factors":["30天107.69%涨幅与7天41.52%涨幅形成强趋势惯性，1d结构仍站稳EM
+A200之上","4h EMA趋势仍为bullish且technical信号0.683(conf1.0)，中期量价因子未确认反转","资金费全网0.0096~0.01处于中性偏低水平，未出现极端多头过热定价","宏观score=-0.07
+5 conf仅0.35，方向性信号弱，并非强空头环境"],"summary":"UNI虽短期超买且出现5.44%回撤，但中长期趋势结构（4h bullish、价格109%偏离EMA200、30d+107.69%）仍显示强趋势惯性，资金费未
+极端过热，宏观偏空信号置信度低。回撤更可能是趋势中的健康修正而非趋势反转，支持逢低偏多思路。","argument":"UNI的核心多头逻辑在于
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=-0.09 consensus_conf=0.295 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI的中长期结构性多头格局未破坏——1d仍站上EMA200且距均线+110.67%，30d回报+108.82%表明中期趋势仍由买盘主导；4h EMA趋势虽为bullish但regime=ran
+ging(conf 0.3)，属于强势回调而非反转。当前24h回撤-4.54%、pos24=23.3%处于区间下沿，结合1h RSI 47.5（未极端超卖），为中期多头提供更有利的入场风险回报。资金费一致维持+0.01%（年化约36.5%
+），并未出现拥挤多头溃散的极端读数，OI 208M、ls_ratio 1.864虽有偏空结构但费率稳定说明空头并未激进加仓——更可能是现货抛压而非空头挤压。综合判断为回踩加仓型做多机会。","confidence":0.45,"evide
+nce":["1d above_ema200=True 且距EMA200=110.67%，长期多头结构完整","30d回报+108.82%、7d
+     论点: {"argument":"UNI 在多周期框架下呈现'长期趋势完好、中期结构转震荡、日内技术性回调'的分层格局，多头逻辑的核心锚点是 30d +108.82% 的强势趋势仍运行于 1d EMA200 之上 110% 处，
+趋势一旦形成不会轻易终结，当前 24h -4.54% 的回撤更应解读为对前期超买的健康释放，而非趋势反转。4h EMA 仍为 bullish（regime=ranging, conf=0.3 暗示震荡偏多），中期因子虽转负但 conf 仅
+ 1.0 的单信号不足以否定结构。日内 L/S=1.864 的拥挤在正费率 0.01% 环境下确实构成短期回撤压力，但 1h RSI=47.5 已回到中性区，atr14_1h=1.95% 的低波动意味着拥挤度可被时间消化而非价格清算。多头
+应将当前区间下沿（pos24=23.3）视为中期趋势的二次上车机会。", "confidence":0.47, "evidence":["长期：
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.01 consensus_conf=0.205 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: UNI在长期趋势上仍处于强势格局——价格距EMA200高达113%，30天收益111%，结构明确在EMA200之上，但短期面临4h级别的健康回调（24h回撤4.96%，funding普遍0.01偏高、OI近2.1亿美元且
+ls比1.816偏多头拥挤），中期4h结构虽bullish但regime=conf 0.3的ranging区间尚未突破。综合多周期信号，应当承认当前为中性偏多的观望格局，中长期多头结构未破但短期需要消化拥挤仓位。
+     论点: {"argument": "UNI的中长期结构性强势足以覆盖短期超买回调风险：长期价格站上EMA200且偏离113%反映的是趋势级别的资金沉淀与生态价值重估（Uniswap v4+协议费开关持续推进），4h结构仍维持bu
+llish regime，30d收益111%与7d收益44%构成的动量惯性在ranging环境中往往以时间换空间完成修复而非深度反转，资金费率全线正向但绝对水平仅0.0066~0.01处于健康拥挤区（远未到0.05%+的过热阈值），1h 
+RSI=53.2显示短期抛压正在被快速消化，中性持仓实为在中期趋势完好背景下的合理防御位而非看空信号。","confidence":0.55,"evidence":["【长期】above_ema200_1d=True 且距EMA200=1
+13.11%，长期趋势结构未破坏","【长期】ret_30d=111.29% 确立中期级别趋势性行情而非局部噪音","【中期】4h EMA仍为b
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=-0.11 consensus_conf=0.2217 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI在长期趋势上仍处强势结构（30d +111%、距EMA200 +113%、1d RSI75.7），4h EMA趋势维持bullish，技术信号0.591(conf1.0)支持中期方向；当前
+日内回撤（-3.48%）至区间下半部(41.2%)叠加1h RSI 49.8 接近超卖，是结构内逢低建仓的机会，而非趋势反转。空头持仓占比优势(ls=1.816)叠加资金费率全面微正(+0.01为主)反映做空成本不便宜，反而为long提供
+不对称赔率。","confidence":0.52,"evidence":["长期：above_ema200_1d=True，距EMA200=+112.97%，ret_30d=+111.15%，说明趋势仍在大级别bullish regim
+e","中期：4h ema_trend_4h=bullish，technical=0.591(conf=1.0)，结构未被破坏","中期量价：r
+     论点: {"direction":"neutral","strength":3,"confidence":0.32,"key_factors":["长期趋势严重偏离EMA200达112.97%，30d涨幅111%已处极度超买区域
+","日线RSI=75.7接近超买阈值，中期动能存在衰竭风险","4h结构仍为bullish但regime=ranging(conf仅0.3)，中期趋势强度存疑","资金费多交易所维持+0.01正费率，OI达2.1亿，多头持仓拥挤","宏
+观周期score=-0.075偏空，与做多方向形成逆风","7d已涨43.87%，短期获利盘兑现压力大"],"summary":"UNI做多在多周期共振下风险回报较差。中长期已严重超买（距EMA200+113%，30d+111%，1d R
+SI 75.7），继续追多空间有限；日内结构转弱（1h EMA bearish、24h跌3.48%）；虽4h趋势仍bullish但conf仅0.
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.155 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.47}
+     论点: {"horizons":[{"argument":"日内多头不强：1h EMA 仍呈 bearish 趋势，RSI 仅 45.7 未现背离；但资金费全网中性偏低（asterdex/binance/gateio/hyper
+liquid≈0.01%，bybit 略负），未出现拥挤空头拥挤费。24h 跌幅 -3.54%，位于 8.454~9.079 区间 32.3% 位置，距离下沿支撑 8.45 较近，存在短线超跌反弹的赔率。","confidence":0.
+4,"stance":"short"},{"argument":"中期多空分歧：4h 结构仍维持 bullish 但 regime=ranging 且 conf 仅 0.3，表明趋势强度极弱。7d 涨幅 41.03%、30d 涨幅 106
+.98% 属典型末升段叙事；1d RSI=74.5 已近超买，technical=-0.151(conf=1.0) 给出一致偏空信号。但 OI=
+     论点: {"argument":"UNI在长期趋势维度拥有极强结构性支撑：30日涨幅106.98%且站上EMA200、距EMA200偏离108.85%表明趋势性买盘已确立，1d atr8.9%显示波动率扩张伴随趋势延续而非衰竭；
+中期4h EMA仍为bullish，技术面因子仅-0.151(conf1.0)反映的是健康回调而非趋势反转；日内虽超买但资金费率0.01并非极端(未达0.03+拥挤阈值)，且pos24=32.3接近区间底部往往构成短期反弹支点。综合看当前
+位置是趋势中的健康回踩，30d+106%的动量不应被一次3.54%的日内回撤否定。","confidence":0.55,"evidence":["1d above_ema200=True且距EMA200=108.85%，30d收益106
+.98%，长期趋势结构完好","4h ema_trend_4h=bullish，regime虽ranging但conf仅0.3说明方向判别弱，不
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2333 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.43}
+     论点: {"argument":"UNI 在 30 天 106% 的暴力拉升后已进入盘整/吸筹阶段，1d 仍站稳 EMA200 之上 108%，距 EMA200 的乖离显示长期趋势完好；4h EMA 仍为 bullish（尽管 
+regime 降级为 ranging），中期上行结构未被破坏。日内虽出现 -4% 的回撤和 ls=1.93 的多头拥挤，但资金费全网仅 0.0002~0.01（并未过热），1h RSI 43.9 进入超卖边缘，存在均值回归修复机会。综合判
+断偏多但不强势，适合逢低建仓而非追涨。","confidence":0.55,"evidence":["长期：1d above_ema200=True，距 EMA200=108.14%，ret_30d=+106.26% 长期趋势完好","
+长期：宏观 score=-0.075 conf=0.35 虽偏空但置信度低，非强空证据","中期：4h ema_trend=bullish，re
+     论点: {"argument":"UNI中期动量结构仍偏多：4h EMA趋势保持bullish，30d涨幅106%且ret_7d=40.54%表明中期趋势尚未破坏，距EMA200的108%偏离虽极端但对应的是强势趋势而非泡沫末期
+——只要1d结构维持above_ema200且无明确反转信号，趋势延续概率高于反转。中性立场低估了中期趋势惯性和长期均线支撑。","confidence":0.45,"evidence":["4h EMA趋势=bullish，rangin
+g regime conf仅0.3说明震荡而非反转，中期结构未破","30d收益+106.26%、7d收益+40.54%，中期动量仍为正向主驱动","1d above_ema200=True且距EMA200=108%属于强趋势特征，历史上
+>80%偏离后趋势延续1-3个月概率高于立即回归","资金费率主要交易所=0.01%处于中性偏低水平（年化约10.9%），远未到拥挤做多阈值（>
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=0.0 consensus_conf=0.1633 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"direction":"bullish","strength":5,"confidence":0.55,"argument":"中期动量是核心论据——7天+40.5%、30天+106%且价格位于EMA200上方108
+%，中期4h趋势仍为bullish（即使regime=rangeing且conf仅0.3），意味着趋势回调是逢低吸纳而非反转。日内短期超卖（ret_24h=-4.3%、RSI1h=44.5、pos24=32.6）反而提供更好的入场风险回报
+比。","confidence":0.55,"evidence":["中期4h EMA结构仍为bullish，仅regime切换至ranging，conf=0.3表明趋势弱化但未反转","30天回报+106%、距EMA200=+108%，
+长期趋势结构完好","ret_24h=-4.3%叠加pos24=32.6，处于区间下半部，短期超卖为long提供入场空间","7天+40.5%的
+     论点: {"direction":"neutral","strength":3,"confidence":0.42,"key_factors":["【日内】1h ema=bearish、RSI 44.5下行、24h -4.3%、
+pos24=32.6位于下半区，资金费正但OI高企+ls=1.93显示多头拥挤","【中期】4h结构仍为bullish(尽管confidence仅0.3且regime=ranging)，与1d RSI=74超买+7d/40% /30d/1
+06% 严重透支并存，technical=-0.313","【长期】价格在EMA200之上108%，长期趋势已确立，但短期严重超买且宏观score=-0.075偏空"],"summary":"综合多周期证据，UNI目前处于长期上涨趋势的末
+端/超买区，短期卖压明确，中期结构虽残留多头倾向但信号冲突严重。在没有看到明确回调企稳与情绪降温之前，做多的风险回报比并不吸引人；建议以中性观望
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.22 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"direction":"bullish","strength":3,"confidence":0.42,"key_factors":["长期趋势：价格仍站上1d EMA200，距EMA200偏离+110.25%，30
+d收益+108.39%，大级别多头结构未被破坏","中期收益：ret_7d=+41.99%、ret_30d=+108.39%显示中期趋势仍强势","资金费：五所(asterdex/binance/bybit/gateio/hyperliq
+uid)均为0.01%偏低水平，多头拥挤度不高，杠杆现货成本轻，做多空间存在","4h结构仍为bullish(尽管regime=ranging conf=0.3)，未确认中期反转","链上治理/费用切换预期为UNI中长期提供基本面催化剂(
+叙事支撑)"],"summary":"UNI长期多头结构完好(站EMA200、30d翻倍)但短期动量转负(1h EMA bearish、24h回
+     论点: {"horizons": {"intraday": {"stance": "neutral", "confidence": 0.35, "argument": "1h EMA bearish、RSI46.3中性偏弱、re
+t_24h=-2.4%显示日内卖压存在；但资金费五家均为0.01%中性，未现空头拥挤或恐慌，区间位置43.7%偏低说明抛压后已回落至中位以下，下行空间受限。日内不支持追多，但也不给出清仓做空信号。"}, "swing": {"stance
+": "long", "confidence": 0.55, "argument": "4h EMA仍为bullish、regime=ranging conf仅0.3说明趋势未坏仅是盘整；7d+41.99%、30d+108.39%的中期动
+量依然强劲，量价信号technical=-0.178只是短期回踩并非趋势反转。1d RSI75.2虽高但未触及超买极端(>80)，中期趋势结构对
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=-0.04 consensus_conf=0.27 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument": "UNI 中长期结构性多头格局完好——价格仍位于 1d EMA200 之上且偏离达 111.53%，30d 涨幅 109.68%，1d RSI=75.4 表明趋势极强而非末端；4h 虽处 ran
+ging 但 ema_trend_4h=bullish，回调至 1h/24h 中性偏低位置（pos24=56.3、ret_24h=-1.27%）恰好提供中期低吸机会。资金费全网在 0.0066%–0.01%（年化 ~23%–36%）属于温
+和正费，不构成拥挤多头陷阱，且 OI=2.07 亿、ls=1.92 显示空头持仓更重——若价格向上，空头回补将提供额外燃料。", "confidence": 0.5, "evidence": ["【长期】above_ema200_1d=T
+rue，距 EMA200=111.53%，30d 收益 +109.68%，1d RSI=75.4（强势趋势确认，未现顶背离）", "【中期】em
+     论点: 长期EMA200上方111%距离+ret_30d=109%确立强趋势未坏;中期4h EMA仍bullish、7d+42%动量仍在;日内资金费0.0066~0.01%绝对值很低,远低于0.05%的拥挤警戒线,所谓'挤踩'论
+据被夸大;ls=1.921极端高更可能是空头持续累积的结果,一旦价格突破前期高点,空头回补将放大上行。
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.2333 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.45}
+     论点: {"argument":"UNI 中长期趋势结构依然强劲，价格在 EMA200 之上且 30 天收益已达 111%，叠加 4h EMA 仍呈 bullish，只是短线已严重超买（1d RSI 75.7、24h 区间位置 
+71.9%），资金费率边际走高显示短期多头拥挤，整体更适合等待回调后再行介入的看多叙事", "confidence":0.42, "evidence":["1d 结构 above_ema200_1d=True 且距 EMA200 +112
+.99%，长期趋势未被破坏","30 天收益 +111.17%、7 天收益 +43.88%，中期动能仍具惯性","4h EMA 趋势仍为 bullish，regime=ranging 但方向并未转空","资金费率全网均值约 0.0078%
+，显示多头仓位持续累积但尚未到极端拥挤","ls=1.954 多头持仓占优但未触及极端水平"], "counterargument":"（暂无对
+     论点: {"argument": "UNI 的中长线结构并未真正转弱，多周期证据更支持\"强势整理后向上\"而非\"顶部反转\"：长期仍稳站 EMA200 之上（距 EMA200=+112.99% 且 above_ema200_
+1d=True），说明趋势背景未破；中期 4h EMA 维持 bullish、technical 信号 0.537(conf1.0) 显示因子模型看多；日内虽 1h EMA 转 bearish、pos24=71.9% 偏高，但 RSI14
+=53.8 处于中位而非超买，资金费率 0.01% 仅是中性拥挤而非过热信号，1.95 的多空比在强势趋势中是健康回踩而非顶部特征——典型的\"趋势内消化\"形态，做多风险回报优于做空。", "confidence": 0.55, "ev
+idence": ["【长期】above_ema200_1d=True，价格距 EMA200=+112.99%，长期趋势线未被跌破，多头结构完整
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.4316 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"UNI 在长期趋势上仍处于强势多头格局，价格距 EMA200 高出 109.61%，30 天收益 +107.74%，1d 级别趋势结构未被破坏，中长期资金未出现离场信号；当前 24h 回撤 -2
+.91% 至区间下沿（pos24=26.1）更像是强势趋势中的健康回调，配合 4h 仍维持 EMA 多头结构与 ranging 蓄势，提供较好的逢低介入窗口。", "confidence": 0.5, "evidence":["长期：ab
+ove_ema200_1d=True，距 EMA200=109.61%，ret_30d=107.74%，趋势结构未破","中期：4h ema_trend_4h=bullish，ret_7d=+41.55%，ret_30d=+107.74%
+，technical 信号 0.609（conf 1.0）","日内回调：ret_24h=-2.91%，pos24=26.1，处于 24h 区间
+
+   round=1 side=bull model=None
+     verdict=reject net_sentiment=-0.025 consensus_conf=0.1575 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "neutral", "confidence": 0.51}
+     论点: {"argument":"UNI 在中期和长期趋势上展现出极强的爆发力（7日+42.5%、30日+109.2%、距EMA200+111%），但日内结构偏弱（1h EMA bearish）且资金费率仅0.01%（不拥挤），
+叠加多空比1.954显示多头持仓过重，短期有回调风险；当前并非突破追多窗口，更适合等待回踩确认后再行介入，整体维持中性偏多但需耐心。","confidence":0.45,"evidence":["中期ret_7d=42.54% ret_
+30d=109.2% 显示中期爆发力极强","长期above_ema200_1d=True 距EMA200=111.05% 趋势性溢价显著","4h EMA仍为bullish，rsi14_1d=75.3处强势区但未到极端超买","资金费率
+仅0.01% 表明当前并非拥挤多头，杠杆压力低","多空比ls=1.954偏高，多头持仓集中存在被动平仓风险","宏观score=-0.075 
+     论点: {"argument":"UNI 在 30d +109% 的趋势行情中，4h EMA 仍维持 bullish、1d 价格稳守 EMA200 之上（距 EMA200 +111% 已被市场共识定价为强势而非泡沫），资金费在多
+家交易所仅 +0.01%（多空接近平衡，未出现典型顶部那种双边拥挤费率），且 ls=1.954 虽偏高但在强势趋势中属于健康的中继结构而非末端信号，composite_score=0.5978 仍处于偏多区间。即使 1h 已转 beari
+sh、1d RSI=75.3 接近超买，更合理的解读是强势趋势中的小时级回调，而非反转。整体维持偏多立场，但鉴于短期涨幅巨大与 regime=ranging(conf 0.3) 的无方向特征，强度仅 4/10。", "confidence
+":0.52,"evidence":["4h ema_trend=bullish，4h 与 1d 大周期结构尚未转空，与 1h bearish 
+
+   round=1 side=bull model=None
+     {"symbol": "UNI", "tier": "mid", "proposal": {"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0
+.52}, "verdict": "reduce", "net_sentiment": 0.0, "consensus_confidence": 0.2083, "used_llm": true, "arguments": ["{\"ar
+gument\":\"UNI 中长期趋势动能强劲，7日+43.51%、30日+110.62% 且站稳 EMA200 之上 112%，4h EMA 结构已翻 bullish，资金费率与 OI 多头占优 1.642 表明做多共识正在形成；尽管
+趋势对齐信号为 -1 与宏观 score=-0.075 偏弱，但强势的长期动量与中期结构修复共振
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.0 consensus_conf=0.225 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: {"argument":"UNI在多周期框架下呈现共振偏多结构：日内价格强势领涨于24h区间79.8%位置且1h EMA趋势确认；中期4h虽处于ranging但技术信号0.67已转强；长期处于EMA200上方112%，3
+0d收益+110.74%确立主升趋势。但空仓状态下乘势建仓的安全性依赖于拥挤度可控与宏观不恶化。","confidence":0.55,"evidence":["1h EMA趋势bullish，RSI14=57.5健康未超买","24h涨
+幅4.25%且区间位置79.8%——多头控盘","资金费率多空均位于0.01%附近（hyperliquid/asterdex/binance/gateio），未见极度拥挤","4h技术信号0.67(conf1.0)动量因子已强化","30
+d收益+110.74%、位于EMA200上方112.57%，长期主升趋势确立","rsi1d=75.6提示短期偏热但不极端（未达80超买阈）",
+     论点: {"direction":"bullish","strength":5,"confidence":0.5,"key_factors":["4h EMA趋势仍维持bullish，趋势结构未被破坏","技术因子technic
+al=0.67且conf1.0，中期量价信号偏多","距EMA200偏离虽大但above_ema200_1d=True确认长期多头格局","资金费率0.01虽偏高但远未到极端拥挤(通常>0.03才危险)","ranging regime 
+conf仅0.3，趋势仍可能向上突破","动量momentum=0.0425为正且趋势对齐trend_alignment=1.0","日线RSI 75.6在强势趋势中可维持数周不回归"],"summary":"UNI虽多周期RSI偏高显示
+过热，但4h EMA趋势仍为bullish且趋势对齐度高达1.0，技术因子0.67强力看多。在ranging regime conf仅0.3的不
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2375 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: UNI 在多重周期上呈现共振向上的趋势结构：日内资金费率温和正值（0.0057%-0.01%）、24h 收益+2.89%且位于区间55.8%偏多位置；中期4h与1d EMA趋势均为bullish，ret_7d=44.05
+%、ret_30d=111.41%显示强劲中期动能；长期价格高于EMA200达113.23%，且整体宏观虽偏负但conf仅0.35，未构成强阻力。多周期对齐（trend_alignment=1.0）支持逢低做多。
+     论点: {"argument": "UNI 多周期结构同步看多：日内 1h EMA 趋势 bullish 且 24h 区间位置 55.8% 处于偏强半区而无超买迹象(rsi14_1h=52.4)，资金费 0.0057%-0.01
+% 处于健康正费率水平表明多头有成本但远未达极端拥挤；中期 4h EMA 趋势 bullish + technical 信号 0.585(conf1.0) 给出确认性动量信号，ranging 形态置信仅 0.3 反而意味着这是一次有序突破
+而非末端狂热；长期 price 站上 EMA200 且 30d+111.41% 体现 DeFi 龙头叙事的资金持续涌入。", "confidence": 0.55, "evidence": ["日内：ema_trend_1h=bullis
+h, pos24=55.8% 强势半区, rsi14_1h=52.4 中性未超买, 资金费 0.0057-0.01% 健康偏低", "中期：em
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=-0.015 consensus_conf=0.1908 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: UNI 中期与长期趋势仍处强势结构中：1d 站上 EMA200 且距 EMA200 +111%，30d 收益 +109%，4h EMA 趋势 bullish，构成趋势性做多的核心支撑；但日内 1h 偏弱、RSI1d 已达
+ 75.4 超买区，短期需消化。综合倾向于‘顺势做多但位置不优’的低置信度看多。
+     论点: {"direction":"bullish","strength":3,"confidence":0.38,"argument":"UNI做多的最强论点在于长期趋势的强势结构：价格站稳EMA200之上、距EMA200偏离
+虽大但30日涨幅109.32%说明趋势尚未确认反转，且4h级别保持bullish结构、technical信号0.543（conf 1.0）提供中期因子共振；当前1h RSI=49.8处于中性、24h仅+0.6%显示短期回踩而非趋势崩塌，资
+金费虽正但绝对值仅0.0088-0.01%属于温和水平而非极端拥挤，提供了'强势趋势中继+短期动能冷却'的入场窗口。","confidence_overall":0.38,"evidence":["长期：above_ema200_1d=T
+rue，30日涨幅109.32%且仍维持上行结构未破","中期：4h ema_trend=bullish、technical=0.543(con
+
+   round=1 side=bull model=None
+     {"symbol": "UNI", "tier": "mid", "proposal": {"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0
+.47}, "verdict": "reduce", "net_sentiment": 0.0, "consensus_confidence": 0.2117, "used_llm": true, "arguments": ["{\"ar
+gument\":\"UNI在多周期趋势结构上呈现高度一致的看涨对齐：日内EMA趋势bullish且资金费率全面温和正、中期4h趋势bullish叠加周/月级别两位数到三位数涨幅、长期价格远离EMA200达112%且站稳其上，量价技术面评
+分0.533(置信1.0)。综合证据链支持逢低做多的中线思路。\",\"confidence\"
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=0.025 consensus_conf=0.2075 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.52}
+     论点: UNI的多周期结构呈现典型的'中期趋势延续+短期动量过热+长期超买'组合。4h EMA仍维持bullish、technical信号强度0.59且置信度1.0，配合7d+35.68%/30d+106.11%的中期动量，说明
+趋势尚未结构性反转；资金费率多数交易所处于0.01%上下的中性区，未出现拥挤多头的极端读数，说明当前上涨并未由杠杆驱动，可持续性更强。
+     论点: {"direction":"bull","strength":5,"key_factors":["1h/4h EMA趋势共振bullish，trend_alignment=1.0，技术面多周期同向","1h RSI=56
+.1尚未超买，距日内天花板仍有空间","1d above_ema200=True，长期趋势仍由多头主导","30d +106%虽大但趋势结构未破坏，回调即视为趋势延续机会","资金费率主流交易所仅+0.01%，远未到拥挤阈值"],"sum
+mary":"UNI多周期技术面同向bullish且资金费率未过热，回调提供中期入场机会，但短期超买与宏观背离限制了上行空间，应控制仓位等待确认。","argument":"UNI的多周期技术面在经历30d +106%拉升后仍维持有序结构
+——1h/4h EMA趋势同步bullish，trend_alignment=1.0，1h RSI=56.1未进入超买区，1d仍站稳EMA200
+
+   round=1 side=bull model=None
+     verdict=reduce net_sentiment=-0.06 consensus_conf=0.205 used_llm=True
+     proposal={"symbol": "UNI", "tier": "mid", "direction": "long", "confidence": 0.47}
+     论点: {"argument":"中期与长期趋势仍处于强势上行通道，UNI 距 1d EMA200 高达 112.15%，30d 收益 +106.69%，远未到趋势衰竭阶段，当前 -1.33% 的日内回撤在强势趋势中属于健康洗盘
+，提供低吸机会", "confidence":0.45, "evidence":["1d EMA200 距离 +112.15%，长期均线乖离巨大但 ret_30d=+106.69% 确认趋势成立，回调不破结构","ret_7d=+36.0
+6% 配合 4h EMA 仍 bullish(regime=ranging, conf=0.3)，中期结构未被破坏","量价 technical=0.602（conf=1.0）为中等偏多信号，在回撤中提供入场边际","4h 技术结构维持 
+bullish，1d RSI=76 虽偏高但未达顶背离区","pos24=25.4% 处于近期区间低位，估值再吸筹码"]} , "counter
+     论点: {"argument":"UNI 的核心多头逻辑在于长期趋势的强劲结构性突破叠加中期量价信号的边际改善——价格已远离 EMA200(+112.15%)且 30d 收益 +106.69%，说明趋势强度足以支撑回调后的二次上
+攻；尽管 1d RSI 触及 76 超买区，但 4h 仍维持 bullish 排列且 technical 信号 0.602(conf=1.0) 显示中期动量尚未真正衰竭。当前 0.47 的低置信度反而提供了较好的风险报酬比入场窗口。", 
+"evidence":["长期趋势：above_ema200_1d=True 且距 EMA200=+112.15%，30d 收益 +106.69%，趋势结构完好","中期：4h ema_trend=bullish，technical 信号
+=0.602(conf=1.0)，量价配合尚可","日内：pos24=25.4 处于区间下半部，rsi14_1h=45.2 中性偏低，提供短期反
+
+====================================================================================================
+③ 风控官对该论题/该 symbol 的判定（近 12h 全部 UNI 行）
+
+   ts=2026-09-21T07:57:20.979985 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 59.2, "equity_usd": 4584.56, "sl_pct": 0.112}
+}, {"name": "notional_pct", "ok": true, "value": 0.039, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped": 
+"小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+   ts=2026-09-21T07:54:32.006553 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 55.1, "equity_usd": 4583.41, "sl_pct": 0.112}
+}, {"name": "notional_pct", "ok": true, "value": 0.036, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped": 
+"小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+   ts=2026-09-21T07:51:23.042668 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 55.14, "equity_usd": 4586.06, "sl_pct": 0.112
+}}, {"name": "notional_pct", "ok": true, "value": 0.036, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped":
+ "小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+   ts=2026-09-21T07:49:03.689473 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 55.12, "equity_usd": 4584.57, "sl_pct": 0.112
+}}, {"name": "notional_pct", "ok": true, "value": 0.036, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped":
+ "小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+   ts=2026-09-21T07:44:19.107642 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 55.13, "equity_usd": 4585.79, "sl_pct": 0.112
+}}, {"name": "notional_pct", "ok": true, "value": 0.036, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped":
+ "小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+   ts=2026-09-21T07:40:27.04223 allow=True tier=long side=long reason=
+     checks=[{"name": "constitution", "ok": true, "value": {"margin_usd": 55.11, "equity_usd": 4584.03, "sl_pct": 0.112
+}}, {"name": "notional_pct", "ok": true, "value": 0.036, "cap": 2.0}, {"name": "debate_posture", "ok": true, "skipped":
+ "小仓探针不适用辩论否决（方案 B）", "value": null}]
+     debate=null
+
+

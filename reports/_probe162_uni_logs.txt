@@ -1,0 +1,616 @@
+﻿====================================================================================================
+── 第1笔 02:30:41 开多  [2026-09-21 02:28 ~ 2026-09-21 02:33] ──
+   [brain_subprocess.log] 2026-09-21 02:29:09,175 [INFO] [tr=-] backend.services.mlto.brain:1616 - [MidLongBrain] OWM llm×0.945: conviction 55→52 (UNI mid)
+   [brain_subprocess.log] 2026-09-21 02:30:11,348 [INFO] [tr=-] backend.services.mlto.brain_debate:554 - [MidLongBrain] 辩论 UNI mid 主周期=日内(reject) 日内=reject 中期=reject 长期=reject 冲突=False 证据不足=无 risk=0.25 llm=True 62.1s
+   [brain_subprocess.log] 2026-09-21 02:30:11,377 [INFO] [tr=-] backend.services.mlto.brain:1678 - [MidLongBrain] 混合打分(影子) UNI mid: 分析师=+0.188(域=5) conviction 52.0→53.5
+   [brain_subprocess.log] 2026-09-21 02:30:11,462 [INFO] [tr=-] backend.services.mlto.brain:1754 - [MidLongBrain] refresh UNI mid accepted=True rec_open=True dir=long conv=52 miss=['kline_deep 近 72h 无产物，该域信号不可用'] score=0.700 expiry=14400s
+   [backend.log.1] 2026-09-21 02:28:13 [INFO] [tr=-] backend.services.full_auto.orch_background:467 - [FullAuto][OrchBG] 编排器评估完成: 30/30 个币种 symbols=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 'DOGE', 'SYN', 'WIF', 'DOT', 'HYPE', 'SUI', 'EVAA', 'ONE', 'ZAMA', 'ICP', 'FET', 'AVAX', 'BR', 'GENIU
+   [backend.log.1] 2026-09-21 02:30:08 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:09 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:11 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:13 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:15 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:17 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:18 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#4 固定long=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB'] ai_long=['SUI'] long_hold=[] long_universe=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 
+   [backend.log.1] 2026-09-21 02:30:18 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['SUI', 'ASTER', 'VIRTUAL', 'SOL', 'DOT', 'HYPE'] mid=True long=True scan_n=6 ai_mid=['DOT', 'HYPE', 'ONE'] mid_u=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 'DOT', 
+   [backend.log.1] 2026-09-21 02:30:19 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:21 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:21 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+0.8<+3.0）
+   [backend.log.1] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位64%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend.log.1] 2026-09-21 02:30:23 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend.log.1] 2026-09-21 02:30:23 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:25 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.038（analyst_score=+0.188 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 02:30:25 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend.log.1] 2026-09-21 02:30:25 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.50%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend.log.1] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=9.00%
+   [backend.log.1] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.00
+   [backend.log.1] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=31.13% → size×0.25
+   [backend.log.1] 2026-09-21 02:30:27 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10367858.00 → 10107275.80 = -0.0251
+   [backend.log.1] 2026-09-21 02:30:27 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend.log.1] 2026-09-21 02:30:27 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:56622 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:29 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:56622 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend.log.1] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend.log.1] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend.log.1] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.68 < 最小试探 $60) → 抬到 ×0.0714（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend.log.1] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend.log.1] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.77
+   [backend.log.1] 2026-09-21 02:30:40 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.0% notional=$1387 margin=$462 TP=$9.37 SL=$8.64 | state=aggressive mem_adj=0.70
+   [backend.log.1] 2026-09-21 02:30:41 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='short', timeframe_tier='mid')
+   [backend.log.1] 2026-09-21 02:30:41 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1386.56→693.25 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend.log.1] 2026-09-21 02:30:42 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=79.02073461090671 scenario=open_new cur_net=flat0.000000 margin_delta=231.82 (raw_margin_needed=231.82)
+   [backend.log.1] 2026-09-21 02:30:44 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=79.02073461090671 @8.80 lev=3.0x fee=0.2782 pos_id=4747
+   [backend.log.1] 2026-09-21 02:30:45 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.773 lev=3.0x margin=$462
+   [backend.log.1] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend.log.1] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4747 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend.log.1] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend.log.1] 2026-09-21 02:30:47 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=01a02863793b47ab9353eaa8ce693e34
+   [backend.log.1] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位60%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.61% 已按抬升上限2.0×封顶)
+   [backend.log.1] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend.log.1] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.038（analyst_score=+0.188 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0130
+   [backend.log.1] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend.log.1] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend.log.1] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.proposal_execution:225 - [Agent独立] UNI tier=long 模板族策略禁止开多（sid=tpl_long_swing）
+   [backend.log.1] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:long_template_source_block hub=- score=-
+   [backend.log.1] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 02:31:22 [INFO] [tr=-] backend.services.paper_trading_engine:6672 - [Paper] Funding结算: UNI long rate=0.000100 notional=693.41 payment=-0.0693
+   [backend.log.1] 2026-09-21 02:31:22 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.641405 → 8.66900045（long_sl_cap(1.50%)）
+   [backend.log.1] 2026-09-21 02:32:20 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.669 → 8.66900045（long_sl_cap(1.50%)）
+   [backend-console.log.20260921_025357] 2026-09-21 02:28:13 [INFO] [tr=-] backend.services.full_auto.orch_background:467 - [FullAuto][OrchBG] 编排器评估完成: 30/30 个币种 symbols=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 'DOGE', 'SYN', 'WIF', 'DOT', 'HYPE', 'SUI', 'EVAA', 'ONE', 'ZAMA', 'ICP', 'FET', 'AVAX', 'BR', 'GENIU
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:08 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:09 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:11 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:13 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:15 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:17 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:18 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#4 固定long=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB'] ai_long=['SUI'] long_hold=[] long_universe=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:18 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['SUI', 'ASTER', 'VIRTUAL', 'SOL', 'DOT', 'HYPE'] mid=True long=True scan_n=6 ai_mid=['DOT', 'HYPE', 'ONE'] mid_u=['ASTER', 'VIRTUAL', 'UNI', 'SOL', 'BTC', 'XPL', 'ETH', 'XRP', 'BNB', 'DOT', 
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:19 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:21 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:21 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+0.8<+3.0）
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位64%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:22 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:23 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:23 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:51578 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:25 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.038（analyst_score=+0.188 域=5 gain=0.2）
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:25 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:25 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:55887 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.50%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=9.00%
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.00
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:26 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=31.13% → size×0.25
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:27 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10367858.00 → 10107275.80 = -0.0251
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:27 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:27 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:56622 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:29 [INFO] [tr=-] uvicorn.access:468 - 127.0.0.1:56622 - "GET /api/hft/board?depth=20&symbols=ASTER%2CXRP%2CSOL%2CDOGE%2CUNI%2CVIRTUAL%2CPENDLE%2CSEI%2CONDO%2CARB HTTP/1.1" 200
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.68 < 最小试探 $60) → 抬到 ×0.0714（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:39 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.77
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:40 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.0% notional=$1387 margin=$462 TP=$9.37 SL=$8.64 | state=aggressive mem_adj=0.70
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:41 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='short', timeframe_tier='mid')
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:41 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1386.56→693.25 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:42 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=79.02073461090671 scenario=open_new cur_net=flat0.000000 margin_delta=231.82 (raw_margin_needed=231.82)
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:44 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=79.02073461090671 @8.80 lev=3.0x fee=0.2782 pos_id=4747
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:45 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.773 lev=3.0x margin=$462
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4747 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:46 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend-console.log.20260921_025357] 2026-09-21 02:30:47 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=01a02863793b47ab9353eaa8ce693e34
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位60%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:02 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.61% 已按抬升上限2.0×封顶)
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.038（analyst_score=+0.188 域=5 gain=0.2）
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:03 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0130
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.full_auto.proposal_execution:225 - [Agent独立] UNI tier=long 模板族策略禁止开多（sid=tpl_long_swing）
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:long_template_source_block hub=- score=-
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:05 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:22 [INFO] [tr=-] backend.services.paper_trading_engine:6672 - [Paper] Funding结算: UNI long rate=0.000100 notional=693.41 payment=-0.0693
+   [backend-console.log.20260921_025357] 2026-09-21 02:31:22 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.641405 → 8.66900045（long_sl_cap(1.50%)）
+   [backend-console.log.20260921_025357] 2026-09-21 02:32:20 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.669 → 8.66900045（long_sl_cap(1.50%)）
+   [data-center.log] 2026-09-21 02:28:02,577 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 02:28:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=107, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 02:28:15,081 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/1m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:28:15,422 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:28:15,689 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/3m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:29:02,791 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 02:29:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=107, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 02:30:00,529 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 02:30:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=107, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 02:30:13,845 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:30:13,847 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/3m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:30:13,848 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/1m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 02:31:02,582 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 02:31:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=107, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   —— 命中 132 行 ——
+====================================================================================================
+── 第2笔 03:10:00 开多  [2026-09-21 03:07 ~ 2026-09-21 03:12] ──
+   [backend.error.log] 2026-09-21 03:07:38 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=219s（阈值 180s），trade 用途返回不可用
+   [backend.error.log] 2026-09-21 03:07:55 [WARNING] [tr=-] backend.services.unified_data_pool:286 - [UnifiedDataPool] 快照 b5dfccbb 数据不完整: UNI,XRP,DOGE,SYN,FET,DOT,HYPE,SUI,EVAA,ONE,WIF,ZAMA,ICP,SEI,ATOM,BR,GENIUS,RENDER,UAI,USELESS,ENA,LINK,ONDO
+   [backend.log.1] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.health_check_cycle:420 - [FullAuto] 编排器评估完成: XPL=enter, BNB=enter, UNI=enter, VIRTUAL=enter, ASTER=enter, XRP=enter, SOL=enter, ETH=enter, BTC=enter, DOGE=wait, SYN=wait, HYPE=wait, ONE=wait, FET=wait, EVAA=wait, ZAMA=wait, WIF=wait, SEI=w
+   [backend.log.1] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_mid_range_444876: 杠杆=10x 仓位=12.0% SL=2.0% TP=5.0% 置信=90% | regime=high_volatility→止损×0.8
+   [backend.log.1] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_short_range_39e5ae: 杠杆=10x 仓位=12.0% SL=1.2% TP=3.0% 置信=90% | regime=high_volatility→止损×0.8
+   [backend.log.1] 2026-09-21 03:07:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位45%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 03:07:38 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=219s（阈值 180s），trade 用途返回不可用
+   [backend.log.1] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.35%→10.70% (ATR×mult floor=26.77% 已按抬升上限2.0×封顶)
+   [backend.log.1] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 21.4% → 20.0% (max)
+   [backend.log.1] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 10.70%→3.00% (止损距离上限 long cap=3.00%)
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.strategy_creation:133 - [FullAuto] UNI/long 已存在策略 auto_9ab...（tier=long），跳过创建
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.proposal_execution:187 - [Agent独立] UNI tier=long 无 active 策略
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:no_active_strategy hub=- score=-
+   [backend.log.1] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 03:07:53 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 10107275.80 = -0.0297
+   [backend.log.1] 2026-09-21 03:07:54 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend.log.1] 2026-09-21 03:07:55 [WARNING] [tr=-] backend.services.unified_data_pool:286 - [UnifiedDataPool] 快照 b5dfccbb 数据不完整: UNI,XRP,DOGE,SYN,FET,DOT,HYPE,SUI,EVAA,ONE,WIF,ZAMA,ICP,SEI,ATOM,BR,GENIUS,RENDER,UAI,USELESS,ENA,LINK,ONDO
+   [backend.log.1] 2026-09-21 03:07:56 [INFO] [tr=-] backend.services.strategy_library:802 - [StrategyLibrary] 从模板 tpl_long_swing 创建 AIStrategy: tpl_long_swing_f0da4e symbol=UNI tier=long
+   [backend.log.1] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:1369 - [MTOrchestrator] UNI: Regime=ranging(conf=60%), scale=12.5%
+   [backend.log.1] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:2407 - [MTOrch] 频率约束链 UNI: 2条 (H1_4h_vs_15m_conflict(hard); S2_15m_divergence(soft))
+   [backend.log.1] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:332 - [MTOrchestrator] UNI: L=bullish(60%) M=bullish(49%) S=bearish(34%) → slots=[long,mid,short] enter long | 情绪50(neutral)
+   [backend.log.1] 2026-09-21 03:08:02 [INFO] [tr=-] backend.services.full_auto.symbol_risk:229 - [PerSymbolRisk] fa_7e12e7a1b6 日亏损追踪: UNI=$-12
+   [backend.log.1] 2026-09-21 03:08:02 [INFO] [tr=-] backend.services.full_auto.symbol_risk:235 - [PerSymbolRisk] fa_7e12e7a1b6 日亏损(tier归因): UNI[mid]=$-12
+   [backend.log.1] 2026-09-21 03:08:48 [INFO] [tr=-] backend.services.full_auto.orch_background:467 - [FullAuto][OrchBG] 编排器评估完成: 30/30 个币种 symbols=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'DOGE', 'SYN', 'FET', 'DOT', 'HYPE', 'SUI', 'EVAA', 'ONE', 'WIF', 'ZAMA', 'ICP', 'SEI', 'ATOM', 'BR',
+   [backend.log.1] 2026-09-21 03:09:26 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#5 固定long=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH'] ai_long=['FET'] long_hold=[] long_universe=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 
+   [backend.log.1] 2026-09-21 03:09:26 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['VIRTUAL', 'UNI', 'XPL', 'ONE', 'FET'] mid=True long=True scan_n=5 ai_mid=['FET', 'HYPE', 'ONE'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'HYPE', 'O
+   [backend.log.1] 2026-09-21 03:09:28 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_-0.5<+3.0）
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位54%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend.log.1] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend.log.1] 2026-09-21 03:09:33 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 03:09:33 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend.log.1] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.50%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend.log.1] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=9.00%
+   [backend.log.1] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.00
+   [backend.log.1] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=28.30% → size×0.25
+   [backend.log.1] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend.log.1] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend.log.1] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.68 < 最小试探 $60) → 抬到 ×0.0717（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend.log.1] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend.log.1] 2026-09-21 03:09:55 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.74
+   [backend.log.1] 2026-09-21 03:09:55 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.7% notional=$1381 margin=$460 TP=$9.33 SL=$8.61 | state=aggressive mem_adj=0.70
+   [backend.log.1] 2026-09-21 03:10:00 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='mid', timeframe_tier='mid')
+   [backend.log.1] 2026-09-21 03:10:01 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1380.61→690.30 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend.log.1] 2026-09-21 03:10:01 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=78.99939219560373 scenario=open_new cur_net=flat0.000000 margin_delta=230.57 (raw_margin_needed=230.57)
+   [backend.log.1] 2026-09-21 03:10:02 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=78.99939219560373 @8.76 lev=3.0x fee=0.2767 pos_id=4749
+   [backend.log.1] 2026-09-21 03:10:03 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 9988932.00 = -0.0411
+   [backend.log.1] 2026-09-21 03:10:04 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend.log.1] 2026-09-21 03:10:05 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.738 lev=3.0x margin=$460
+   [backend.log.1] 2026-09-21 03:10:05 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend.log.1] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4749 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend.log.1] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend.log.1] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=01a02863793b47ab9353eaa8ce693e34
+   [backend.log.1] 2026-09-21 03:10:24 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.60693 → 8.62458453（long_sl_cap(1.50%)）
+   [backend.log.1] 2026-09-21 03:10:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位45%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.35%→10.70% (ATR×mult floor=26.77% 已按抬升上限2.0×封顶)
+   [backend.log.1] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 21.4% → 20.0% (max)
+   [backend.log.1] 2026-09-21 03:10:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 03:10:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 10.70%→3.00% (止损距离上限 long cap=3.00%)
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.decision_core.unified_gate:106 - [V5Gate] BLOCK symbol=UNI action=buy rule=confidence detail=置信度 26% < 有效门槛 30%(生效门=trend 成熟度=warmup 松紧+20)
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.proposal_execution:267 - [V5Gate] BLOCK symbol=UNI tier=long action=buy detail=置信度 26% < 有效门槛 30%(生效门=trend 成熟度=warmup 松紧+20)
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:v5gate hub=- score=-
+   [backend.log.1] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 03:11:22 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.62458453 → 8.62458453（long_sl_cap(1.50%)）
+   [backend.log.1] 2026-09-21 03:11:52 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 9988932.00 = -0.0411
+   [backend.log.1] 2026-09-21 03:11:52 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.health_check_cycle:420 - [FullAuto] 编排器评估完成: XPL=enter, BNB=enter, UNI=enter, VIRTUAL=enter, ASTER=enter, XRP=enter, SOL=enter, ETH=enter, BTC=enter, DOGE=wait, SYN=wait, HYPE=wait, ONE=wait, FET=wait, EVAA=wait, ZAMA=wait, WIF=wait, SEI=w
+   [backend-console.log] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_mid_range_444876: 杠杆=10x 仓位=12.0% SL=2.0% TP=5.0% 置信=90% | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 03:07:12 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_short_range_39e5ae: 杠杆=10x 仓位=12.0% SL=1.2% TP=3.0% 置信=90% | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 03:07:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位45%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 03:07:38 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=219s（阈值 180s），trade 用途返回不可用
+   [backend-console.log] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 03:07:39 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.35%→10.70% (ATR×mult floor=26.77% 已按抬升上限2.0×封顶)
+   [backend-console.log] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 21.4% → 20.0% (max)
+   [backend-console.log] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 03:07:41 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 10.70%→3.00% (止损距离上限 long cap=3.00%)
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.strategy_creation:133 - [FullAuto] UNI/long 已存在策略 auto_9ab...（tier=long），跳过创建
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.full_auto.proposal_execution:187 - [Agent独立] UNI tier=long 无 active 策略
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:no_active_strategy hub=- score=-
+   [backend-console.log] 2026-09-21 03:07:43 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend-console.log] 2026-09-21 03:07:53 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 10107275.80 = -0.0297
+   [backend-console.log] 2026-09-21 03:07:54 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log] 2026-09-21 03:07:55 [WARNING] [tr=-] backend.services.unified_data_pool:286 - [UnifiedDataPool] 快照 b5dfccbb 数据不完整: UNI,XRP,DOGE,SYN,FET,DOT,HYPE,SUI,EVAA,ONE,WIF,ZAMA,ICP,SEI,ATOM,BR,GENIUS,RENDER,UAI,USELESS,ENA,LINK,ONDO
+   [backend-console.log] 2026-09-21 03:07:56 [INFO] [tr=-] backend.services.strategy_library:802 - [StrategyLibrary] 从模板 tpl_long_swing 创建 AIStrategy: tpl_long_swing_f0da4e symbol=UNI tier=long
+   [backend-console.log] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:1369 - [MTOrchestrator] UNI: Regime=ranging(conf=60%), scale=12.5%
+   [backend-console.log] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:2407 - [MTOrch] 频率约束链 UNI: 2条 (H1_4h_vs_15m_conflict(hard); S2_15m_divergence(soft))
+   [backend-console.log] 2026-09-21 03:07:58 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:332 - [MTOrchestrator] UNI: L=bullish(60%) M=bullish(49%) S=bearish(34%) → slots=[long,mid,short] enter long | 情绪50(neutral)
+   [backend-console.log] 2026-09-21 03:08:02 [INFO] [tr=-] backend.services.full_auto.symbol_risk:229 - [PerSymbolRisk] fa_7e12e7a1b6 日亏损追踪: UNI=$-12
+   [backend-console.log] 2026-09-21 03:08:02 [INFO] [tr=-] backend.services.full_auto.symbol_risk:235 - [PerSymbolRisk] fa_7e12e7a1b6 日亏损(tier归因): UNI[mid]=$-12
+   [backend-console.log] 2026-09-21 03:08:48 [INFO] [tr=-] backend.services.full_auto.orch_background:467 - [FullAuto][OrchBG] 编排器评估完成: 30/30 个币种 symbols=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'DOGE', 'SYN', 'FET', 'DOT', 'HYPE', 'SUI', 'EVAA', 'ONE', 'WIF', 'ZAMA', 'ICP', 'SEI', 'ATOM', 'BR',
+   [backend-console.log] 2026-09-21 03:09:26 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#5 固定long=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH'] ai_long=['FET'] long_hold=[] long_universe=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 
+   [backend-console.log] 2026-09-21 03:09:26 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['VIRTUAL', 'UNI', 'XPL', 'ONE', 'FET'] mid=True long=True scan_n=5 ai_mid=['FET', 'HYPE', 'ONE'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'HYPE', 'O
+   [backend-console.log] 2026-09-21 03:09:28 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_-0.5<+3.0）
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位54%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend-console.log] 2026-09-21 03:09:29 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend-console.log] 2026-09-21 03:09:33 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 03:09:33 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend-console.log] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.50%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend-console.log] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=9.00%
+   [backend-console.log] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.00
+   [backend-console.log] 2026-09-21 03:09:34 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=28.30% → size×0.25
+   [backend-console.log] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend-console.log] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend-console.log] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.68 < 最小试探 $60) → 抬到 ×0.0717（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend-console.log] 2026-09-21 03:09:54 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend-console.log] 2026-09-21 03:09:55 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.74
+   [backend-console.log] 2026-09-21 03:09:55 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.7% notional=$1381 margin=$460 TP=$9.33 SL=$8.61 | state=aggressive mem_adj=0.70
+   [backend-console.log] 2026-09-21 03:10:00 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='mid', timeframe_tier='mid')
+   [backend-console.log] 2026-09-21 03:10:01 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1380.61→690.30 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend-console.log] 2026-09-21 03:10:01 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=78.99939219560373 scenario=open_new cur_net=flat0.000000 margin_delta=230.57 (raw_margin_needed=230.57)
+   [backend-console.log] 2026-09-21 03:10:02 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=78.99939219560373 @8.76 lev=3.0x fee=0.2767 pos_id=4749
+   [backend-console.log] 2026-09-21 03:10:03 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 9988932.00 = -0.0411
+   [backend-console.log] 2026-09-21 03:10:04 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log] 2026-09-21 03:10:05 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.738 lev=3.0x margin=$460
+   [backend-console.log] 2026-09-21 03:10:05 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend-console.log] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4749 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend-console.log] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend-console.log] 2026-09-21 03:10:06 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=01a02863793b47ab9353eaa8ce693e34
+   [backend-console.log] 2026-09-21 03:10:24 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.60693 → 8.62458453（long_sl_cap(1.50%)）
+   [backend-console.log] 2026-09-21 03:10:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位45%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.35%→10.70% (ATR×mult floor=26.77% 已按抬升上限2.0×封顶)
+   [backend-console.log] 2026-09-21 03:10:31 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 21.4% → 20.0% (max)
+   [backend-console.log] 2026-09-21 03:10:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.034（analyst_score=+0.170 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 03:10:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 10.70%→3.00% (止损距离上限 long cap=3.00%)
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.decision_core.unified_gate:106 - [V5Gate] BLOCK symbol=UNI action=buy rule=confidence detail=置信度 26% < 有效门槛 30%(生效门=trend 成熟度=warmup 松紧+20)
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.full_auto.proposal_execution:267 - [V5Gate] BLOCK symbol=UNI tier=long action=buy detail=置信度 26% < 有效门槛 30%(生效门=trend 成熟度=warmup 松紧+20)
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:v5gate hub=- score=-
+   [backend-console.log] 2026-09-21 03:10:34 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend-console.log] 2026-09-21 03:11:22 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.62458453 → 8.62458453（long_sl_cap(1.50%)）
+   [backend-console.log] 2026-09-21 03:11:52 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10416916.20 → 9988932.00 = -0.0411
+   [backend-console.log] 2026-09-21 03:11:52 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [data-center.log] 2026-09-21 03:07:31,309 [INFO] backend.services.kline_collectors.hyperliquid: [Historical] UNI/30m: fetched 1/1 roots
+   [data-center.log] 2026-09-21 03:07:32,144 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/30m@hyperliquid: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:07:38,646 [INFO] backend.services.kline_collectors.binance: [Historical] binance UNI/30m: fetched 1 roots
+   [data-center.log] 2026-09-21 03:07:39,315 [INFO] backend.services.kline_collectors.okx: [Historical] okx UNI/30m: fetched 1 roots
+   [data-center.log] 2026-09-21 03:07:40,054 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/30m@binance: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:07:40,341 [INFO] backend.services.kline_collectors.bybit: [Historical] bybit UNI/30m: fetched 1 roots
+   [data-center.log] 2026-09-21 03:07:42,631 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/30m@okx: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:07:42,882 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/30m@bybit: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:07:43,388 [INFO] backend.services.kline_collectors.asterdex: [Historical] asterdex UNI/30m: fetched 2 roots
+   [data-center.log] 2026-09-21 03:07:44,175 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/30m@asterdex: +2 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:08:03,005 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 03:08:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=106, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 03:08:07,951 [INFO] backend.services.kline_realtime_collector: [P1-Watch] done ok=97 err=491 elapsed=309s symbols=['BTC', 'ETH', 'SOL', 'BNB', 'ASTER', 'XPL', 'VIRTUAL', 'AAVE', 'APT', 'AR', 'BTW', 'HOME', 'HUMA', 'ZEC', 'JTO', 'UNI', 'XRP', 'DOGE', 'HYPE'] exchanges=['binance', 'asterdex
+   [data-center.log] 2026-09-21 03:09:02,898 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 03:09:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=106, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 03:09:16,490 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/1m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 03:09:16,503 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/3m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 03:09:16,525 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 03:09:41,604 [INFO] backend.services.kline_collectors.hyperliquid: [Historical] UNI/1h: fetched 1/1 roots
+   [data-center.log] 2026-09-21 03:09:42,408 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1h@hyperliquid: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:09:44,340 [INFO] backend.services.kline_collectors.binance: [Historical] binance UNI/1h: fetched 1 roots
+   [data-center.log] 2026-09-21 03:09:45,252 [INFO] backend.services.kline_collectors.okx: [Historical] okx UNI/1h: fetched 1 roots
+   [data-center.log] 2026-09-21 03:09:47,264 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1h@binance: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:09:47,493 [WARNING] backend.services.kline_collectors.bybit: [bybit] UNI/1h batch at 2026-09-20 failed: bybit GET https://api.bybit.com/v5/market/kline?symbol=UNIUSDT&start=1789927260000&limit=1000&interval=60&category=linear
+   [data-center.log] 2026-09-21 03:09:47,493 [INFO] backend.services.kline_collectors.bybit: [Historical] bybit UNI/1h: fetched 0 roots
+   [data-center.log] 2026-09-21 03:09:47,891 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1h@okx: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:09:49,721 [INFO] backend.services.kline_collectors.asterdex: [Historical] asterdex UNI/1h: fetched 1 roots
+   [data-center.log] 2026-09-21 03:09:50,771 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1h@asterdex: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 03:11:02,829 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 03:11:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=106, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   —— 命中 179 行 ——
+====================================================================================================
+── 第3笔 07:04:04 开多（59 秒后被止损）  [2026-09-21 07:01 ~ 2026-09-21 07:06] ──
+   [backend.error.log] 2026-09-21 07:04:41 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=222s（阈值 180s），trade 用途返回不可用
+   [backend.error.log] 2026-09-21 07:04:59 [WARNING] [tr=-] backend.services.paper_trading_engine:6390 - [Paper][Fast] UNI long 触发线 8.63456331 落在市价 8.617 的错误一侧，成交价按市价修正（防幽灵成交）
+   [backend.log.1] 2026-09-21 07:01:00 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['VIRTUAL', 'UNI', 'XPL', 'AVAX', 'FET'] mid=True long=True scan_n=5 ai_mid=['FET', 'FLOCK', 'AVAX'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'FLOCK'
+   [backend.log.1] 2026-09-21 07:01:06 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+2.9<+3.0）
+   [backend.log.1] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位48%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 07:01:12 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend.log.1] 2026-09-21 07:01:12 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend.log.1] 2026-09-21 07:01:18 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:725 - [MidLongCooldown] BLOCK UNI buy tier=mid: 刚平多仓(tier=mid)未满120分钟，抑制同向再开（约剩1分钟）——避免信号未变时重复付手续费
+   [backend.log.1] 2026-09-21 07:01:20 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=midlong_cooldown_block:刚平多仓(tier=mid)未满120分钟，抑制同向再开（约剩1分钟）——避免信号未变时重复付手续费 hub=- score=52
+   [backend.log.1] 2026-09-21 07:01:20 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位50%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.72% 已按抬升上限2.0×封顶)
+   [backend.log.1] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend.log.1] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend.log.1] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend.log.1] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend.log.1] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.proposal_execution:83 - [BlockCooldown] UNI tier=long 冷却中(因v5gate，剩11分钟) 跳过本轮
+   [backend.log.1] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:cooldown:v5gate hub=- score=-
+   [backend.log.1] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 07:03:32 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#69 固定long=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH'] ai_long=['FLOCK'] long_hold=[] long_universe=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH
+   [backend.log.1] 2026-09-21 07:03:33 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['BTC', 'SOL', 'XRP', 'FLOCK', 'AVAX'] mid=True long=True scan_n=5 ai_mid=['FET', 'FLOCK', 'AVAX'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'FLOCK', 
+   [backend.log.1] 2026-09-21 07:03:35 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+2.9<+3.0）
+   [backend.log.1] 2026-09-21 07:03:37 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位48%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend.log.1] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend.log.1] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend.log.1] 2026-09-21 07:03:42 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 07:03:42 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend.log.1] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.00%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend.log.1] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=10.00%
+   [backend.log.1] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.67
+   [backend.log.1] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=29.17% → size×0.25
+   [backend.log.1] 2026-09-21 07:03:59 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend.log.1] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend.log.1] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.74 < 最小试探 $60) → 抬到 ×0.0652（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend.log.1] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend.log.1] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.75
+   [backend.log.1] 2026-09-21 07:04:01 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.8% notional=$1379 margin=$460 TP=$9.34 SL=$8.62 | state=aggressive mem_adj=0.70
+   [backend.log.1] 2026-09-21 07:04:04 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='short', timeframe_tier='mid')
+   [backend.log.1] 2026-09-21 07:04:04 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1379.30→689.68 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend.log.1] 2026-09-21 07:04:05 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=78.8390116880075 scenario=open_new cur_net=flat0.000000 margin_delta=230.37 (raw_margin_needed=230.37)
+   [backend.log.1] 2026-09-21 07:04:05 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=78.8390116880075 @8.77 lev=3.0x fee=0.2764 pos_id=4750
+   [backend.log.1] 2026-09-21 07:04:06 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10280677.00 → 9988932.00 = -0.0284
+   [backend.log.1] 2026-09-21 07:04:06 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend.log.1] 2026-09-21 07:04:09 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.748 lev=3.0x margin=$460
+   [backend.log.1] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend.log.1] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4750 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend.log.1] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend.log.1] 2026-09-21 07:04:12 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=5497be1198ee4b19b50bf4eda4aab0c1
+   [backend.log.1] 2026-09-21 07:04:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位50%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend.log.1] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend.log.1] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend.log.1] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.72% 已按抬升上限2.0×封顶)
+   [backend.log.1] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend.log.1] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend.log.1] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend.log.1] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend.log.1] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend.log.1] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.proposal_execution:83 - [BlockCooldown] UNI tier=long 冷却中(因v5gate，剩9分钟) 跳过本轮
+   [backend.log.1] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:cooldown:v5gate hub=- score=-
+   [backend.log.1] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend.log.1] 2026-09-21 07:04:41 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=222s（阈值 180s），trade 用途返回不可用
+   [backend.log.1] 2026-09-21 07:04:55 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.61678 → 8.63456331（long_sl_cap(1.50%)）
+   [backend.log.1] 2026-09-21 07:04:59 [INFO] [tr=-] backend.services.paper_trading_engine:6376 - [Paper][Fast] SL 触发: UNI long @8.617 sl_price=8.63456331 [保护型止损 止损位在成本-1.50%处]
+   [backend.log.1] 2026-09-21 07:04:59 [WARNING] [tr=-] backend.services.paper_trading_engine:6390 - [Paper][Fast] UNI long 触发线 8.63456331 落在市价 8.617 的错误一侧，成交价按市价修正（防幽灵成交）
+   [backend.log.1] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.evolution.factor_evolution_loop:585 - [FactorEvo] 本轮进化币池(9): ASTER,BNB,BTC,ETH,SOL,UNI,VIRTUAL,XPL,XRP
+   [backend.log.1] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.reentry_cooldown:223 - [ReentryCooldown] 记录全平 account=14 UNI long tier=mid master=False pnl=-13.57 同向240分钟(base=120min x2倍)/反向30分钟冷却（仅影响同 tier 再开仓）
+   [backend.log.1] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.paper_trading_engine:4733 - [Retrospective] UNI long no: pnl=-13.57 reason=sl → analytics
+   [backend.log.1] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.decision_feedback_service:911 - [Feedback] key_lessons 更新 strategy=tpl_mid_ symbol=UNI type=loss_analysis
+   [backend.log.1] 2026-09-21 07:05:02 [INFO] [tr=-] backend.services.paper_trading_engine:2640 - [Paper] 平仓: UNI long @8.59 final_pnl=-13.57 + partial=+0.00 = total=-13.57 fee=0.2710 reason=sl
+   [backend.log.1] 2026-09-21 07:05:06 [INFO] [tr=-] backend.services.learning_bus:186 - [LearningBus] MLTO postmortem queued: UNI swing thesis=982fc260
+   [backend.log.1] 2026-09-21 07:05:12 [INFO] [tr=-] backend.services.causal_analyzer:227 - [CausalAnalyzer] UNI pnl=0.00 cause=unknown_risk conf=40% regime=unknown
+   [backend.log.1] 2026-09-21 07:05:13 [INFO] [tr=-] backend.services.trade_memory_context:347 - [TradeMemoryContext] Reflexion 教训已存(shallow): tpl_mid_range_444876/UNI pnl=-13.57
+   [backend.log.1] 2026-09-21 07:05:14 [INFO] [tr=-] backend.services.hermes_agent_wisdom_engine:93 - [HermesAgentWisdom] swing UNI ranging_long_swing:thesis_982fc260-f1d pnl=-13.57 outcome=loss
+   [backend.log.1] 2026-09-21 07:05:14 [INFO] [tr=-] backend.services.unified_learning_service:367 - [UnifiedLearning] 处理完成: paper/tpl_mid_range_444876 UNI[swing] pnl=-13.5739 regime=ranging
+   [backend.log.1] 2026-09-21 07:05:15 [INFO] [tr=-] backend.services.paper_trading_engine:5252 - [Paper] DecisionSnapshot 回写: UNI pnl=-13.57 quality=bad
+   [backend.log.1] 2026-09-21 07:05:16 [INFO] [tr=-] backend.services.position_memory_manager:1194 - [PosMgr] 记录交易: UNI long PnL=$-13.57(-5.9%) → state=aggressive wins=0 losses=3 daily_pnl=$-107.41
+   [backend.log.1] 2026-09-21 07:05:28 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10280709.00 → 10253811.40 = -0.0026
+   [backend.log.1] 2026-09-21 07:05:29 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend.log.1] 2026-09-21 07:05:30 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:1369 - [MTOrchestrator] UNI: Regime=ranging(conf=60%), scale=12.5%
+   [backend.log.1] 2026-09-21 07:05:30 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:332 - [MTOrchestrator] UNI: L=bullish(60%) M=bullish(49%) S=bullish(-2%) → slots=[long,mid] enter long | 情绪49(neutral)
+   [backend.log.1] 2026-09-21 07:05:36 [INFO] [tr=-] backend.services.full_auto.health_check_cycle:420 - [FullAuto] 编排器评估完成: BNB=enter, ASTER=enter, VIRTUAL=wait, XPL=enter, XRP=enter, SOL=enter, ETH=enter, UNI=enter, BTC=enter, DOGE=wait, FET=wait, SYN=wait, FLOCK=wait, AVAX=wait, EVAA=wait, 1000PEPE=wait, WIF=wait
+   [backend.log.1] 2026-09-21 07:05:37 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/auto_9ab2fb0361: 杠杆=5x 仓位=8.1% SL=3.6% TP=8.3% 置信=75% | 高波动[position]→杠杆×0.75 | regime=high_volatility→止损×0.8
+   [backend.log.1] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_long_swing_f0da4e: 杠杆=5x 仓位=7.0% SL=7.7% TP=26.7% 置信=70% | 高波动[swing]→杠杆×0.578 | regime=high_volatility→止损×0.8
+   [backend.log.1] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_mid_range_444876: 杠杆=6x 仓位=8.4% SL=2.4% TP=6.5% 置信=90% | 高波动[intraday]→杠杆×0.556 | regime=high_volatility→止损×0.8
+   [backend.log.1] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_short_range_39e5ae: 杠杆=6x 仓位=8.4% SL=1.5% TP=3.9% 置信=90% | 高波动[intraday]→杠杆×0.556 | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 07:01:00 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['VIRTUAL', 'UNI', 'XPL', 'AVAX', 'FET'] mid=True long=True scan_n=5 ai_mid=['FET', 'FLOCK', 'AVAX'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'FLOCK'
+   [backend-console.log] 2026-09-21 07:01:06 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+2.9<+3.0）
+   [backend-console.log] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位48%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 07:01:11 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 07:01:12 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend-console.log] 2026-09-21 07:01:12 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend-console.log] 2026-09-21 07:01:18 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:725 - [MidLongCooldown] BLOCK UNI buy tier=mid: 刚平多仓(tier=mid)未满120分钟，抑制同向再开（约剩1分钟）——避免信号未变时重复付手续费
+   [backend-console.log] 2026-09-21 07:01:20 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=midlong_cooldown_block:刚平多仓(tier=mid)未满120分钟，抑制同向再开（约剩1分钟）——避免信号未变时重复付手续费 hub=- score=52
+   [backend-console.log] 2026-09-21 07:01:20 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c (见 stage=fuse 日志)
+   [backend-console.log] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位50%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 07:01:45 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.72% 已按抬升上限2.0×封顶)
+   [backend-console.log] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend-console.log] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 07:01:47 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend-console.log] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend-console.log] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend-console.log] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.full_auto.proposal_execution:83 - [BlockCooldown] UNI tier=long 冷却中(因v5gate，剩11分钟) 跳过本轮
+   [backend-console.log] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:cooldown:v5gate hub=- score=-
+   [backend-console.log] 2026-09-21 07:01:52 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend-console.log] 2026-09-21 07:03:32 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:247 - [MidLongAgent独立] tick#69 固定long=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH'] ai_long=['FLOCK'] long_hold=[] long_universe=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH
+   [backend-console.log] 2026-09-21 07:03:33 [INFO] [tr=-] backend.services.full_auto.loops.midlong_loop:366 - [MidLongAgent独立] batch=['BTC', 'SOL', 'XRP', 'FLOCK', 'AVAX'] mid=True long=True scan_n=5 ai_mid=['FET', 'FLOCK', 'AVAX'] mid_u=['ASTER', 'BNB', 'VIRTUAL', 'UNI', 'XPL', 'BTC', 'SOL', 'XRP', 'ETH', 'FET', 'FLOCK', 
+   [backend-console.log] 2026-09-21 07:03:35 [INFO] [tr=-] backend.services.full_auto.midlong_executor:528 - [MidLong] stage=fuse tier=mid symbol=UNI 熔断窄带 paper 缩仓×0.25（paper_probe×0.25: midlong_long_learned_block: learned_long_up_chg24_+2.9<+3.0）
+   [backend-console.log] 2026-09-21 07:03:37 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=mid symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位48%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=mid symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=mid regime=ranging(regime_ranging_probe) margin→0.0031
+   [backend-console.log] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for UNI 4h
+   [backend-console.log] 2026-09-21 07:03:38 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for UNI 1d
+   [backend-console.log] 2026-09-21 07:03:42 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=mid ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 07:03:42 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=mid tranche_in=0.0031 atr_mult=1.000 → tranche_out=0.0032
+   [backend-console.log] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=mid sl 5.00%→1.50% (止损距离上限 mid cap=1.50%)
+   [backend-console.log] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm sl=1.50% tp=10.00%
+   [backend-console.log] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.decision_core.unified_gate:643 - [V5Gate] PASS symbol=UNI action=buy conf=52% nature=trend_follow rr=6.67
+   [backend-console.log] 2026-09-21 07:03:44 [INFO] [tr=-] backend.services.decision_core.pipeline:316 - [MonteCarlo] UNI buy tail=29.17% → size×0.25
+   [backend-console.log] 2026-09-21 07:03:59 [INFO] [tr=-] backend.services.full_auto.proposal_execution:278 - [V5Gate] DOWNSIZE symbol=UNI tier=mid size×0.25
+   [backend-console.log] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:333 - [TrancheGate] DOWNSIZE symbol=UNI tier=mid stage→size×0.00
+   [backend-console.log] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:385 - [SizeFloor] PROBE-CLAMP symbol=UNI tier=mid 叠乘后 size_multiplier=0.0008 (估算名义 $0.74 < 最小试探 $60) → 抬到 ×0.0652（名义≈$60.00；六层同维度缩仓不得把仓位压成废单）
+   [backend-console.log] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.full_auto.proposal_execution:416 - [V5Gate] PASS symbol=UNI action=buy conf=52.0 nature=swing
+   [backend-console.log] 2026-09-21 07:04:00 [INFO] [tr=-] backend.services.strategy_coordinator:920 - [Coordinator] UNI 实时价格(data_center ticker): $8.75
+   [backend-console.log] 2026-09-21 07:04:01 [INFO] [tr=-] backend.services.position_memory_manager:1051 - [PosMgr] UNI buy: action=open lev=3.0x size=33.8% notional=$1379 margin=$460 TP=$9.34 SL=$8.62 | state=aggressive mem_adj=0.70
+   [backend-console.log] 2026-09-21 07:04:04 [INFO] [tr=-] backend.services.full_auto.paper_nature:59 - [ExecTrade] strat=[range] UNI mid genome_nature='intraday' decision_nature='swing' final_nature='swing' -> sub_tier='mid' (strat_tier='mid', nature_tier='short', timeframe_tier='mid')
+   [backend-console.log] 2026-09-21 07:04:04 [INFO] [tr=-] backend.services.paper_trading_engine:1410 - [Paper][PositionConstruction] UNI buy lane=mid notional 1379.30→689.68 lev 3.0→3.0 caps=['max_weight_per_symbol(0.15)']
+   [backend-console.log] 2026-09-21 07:04:05 [INFO] [tr=-] backend.services.paper_trading_engine:1899 - [Paper] 净额增量审计: UNI buy qty=78.8390116880075 scenario=open_new cur_net=flat0.000000 margin_delta=230.37 (raw_margin_needed=230.37)
+   [backend-console.log] 2026-09-21 07:04:05 [INFO] [tr=-] backend.services.paper_trading_engine:2188 - [Paper] 成交: UNI buy qty=78.8390116880075 @8.77 lev=3.0x fee=0.2764 pos_id=4750
+   [backend-console.log] 2026-09-21 07:04:06 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10280677.00 → 9988932.00 = -0.0284
+   [backend-console.log] 2026-09-21 07:04:06 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log] 2026-09-21 07:04:09 [INFO] [tr=-] backend.services.full_auto.paper_execution:652 - [FullAuto] 模拟下单成功: UNI[swing] buy @ 8.748 lev=3.0x margin=$460
+   [backend-console.log] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.full_auto.proposal_execution:506 - [TCP] 已开单 UNI tier=mid buy conf=52.0
+   [backend-console.log] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.full_auto.proposal_execution:591 - [S2-5] UNI pos#4750 exit_plan 写入: tp_stages=默认 trailing_mult=默认 invalidation=有
+   [backend-console.log] 2026-09-21 07:04:11 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:233 - [MidLongAudit] open symbol=UNI thesis=long hub=long fill=long sl_source=llm mode=llm_brain dir_src=midlong_thesis consistent=True
+   [backend-console.log] 2026-09-21 07:04:12 [INFO] [tr=-] backend.services.mlto.brain:2067 - [MidLongBrain] opened UNI mid dir=long thesis=982fc260-f1d4-400c-9f19-9cf054fcec3c run=5497be1198ee4b19b50bf4eda4aab0c1
+   [backend-console.log] 2026-09-21 07:04:29 [INFO] [tr=-] backend.services.full_auto.midlong_executor:594 - [MidLong] stage=fuse tier=long symbol=UNI 位置闸 paper 缩仓×0.25（location_gate_veto: 24h区间分位50%≥40% 高位追多（实测该带 24h 胜率 0.15-0.23））
+   [backend-console.log] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:323 - [MidLong] stage=fuse tier=long symbol=UNI regime=ranging action=buy size×0.25 (probe)
+   [backend-console.log] 2026-09-21 07:04:30 [INFO] [tr=-] backend.services.full_auto.midlong_executor:641 - [TrancheChain] UNI tier=long regime=ranging(regime_ranging_probe) margin→0.0125
+   [backend-console.log] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:874 - [MidLongATR] UNI sl 5.60%→11.20% (ATR×mult floor=26.72% 已按抬升上限2.0×封顶)
+   [backend-console.log] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:136 - [MidLongTPClamp] UNI buy tier=long: tp 22.4% → 20.0% (max)
+   [backend-console.log] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:973 - [AnalystSize] UNI tier=long ×1.032（analyst_score=+0.160 域=5 gain=0.2）
+   [backend-console.log] 2026-09-21 07:04:32 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:981 - [TrancheChain] UNI tier=long tranche_in=0.0125 atr_mult=1.000 → tranche_out=0.0129
+   [backend-console.log] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1320 - [MidLongSL] UNI buy tier=long sl 11.20%→3.00% (止损距离上限 long cap=3.00%)
+   [backend-console.log] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.midlong_helpers:1332 - [MidLong] stage=open_ready symbol=UNI action=buy sl_source=llm+atr_floor sl=3.00% tp=20.00%
+   [backend-console.log] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.full_auto.proposal_execution:83 - [BlockCooldown] UNI tier=long 冷却中(因v5gate，剩9分钟) 跳过本轮
+   [backend-console.log] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.mlto.midlong_direction_audit:166 - [MidLongAudit] skip stage=exec symbol=UNI reason=eval_false:cooldown:v5gate hub=- score=-
+   [backend-console.log] 2026-09-21 07:04:34 [INFO] [tr=-] backend.services.mlto.brain:2073 - [MidLongBrain] execute_false UNI long dir=long thesis=f334e61e-de71-441e-8427-48eb0ba86386 (见 stage=fuse 日志)
+   [backend-console.log] 2026-09-21 07:04:41 [WARNING] [tr=-] backend.services.data_center:121 - [DataCenter] UNI/1m@binance 数据过期 stale=222s（阈值 180s），trade 用途返回不可用
+   [backend-console.log] 2026-09-21 07:04:55 [INFO] [tr=-] backend.services.paper_trading_engine:4449 - [Paper] SL 距离超上限，随 tick 收窄 UNI long tier=mid: 8.61678 → 8.63456331（long_sl_cap(1.50%)）
+   [backend-console.log] 2026-09-21 07:04:59 [INFO] [tr=-] backend.services.paper_trading_engine:6376 - [Paper][Fast] SL 触发: UNI long @8.617 sl_price=8.63456331 [保护型止损 止损位在成本-1.50%处]
+   [backend-console.log] 2026-09-21 07:04:59 [WARNING] [tr=-] backend.services.paper_trading_engine:6390 - [Paper][Fast] UNI long 触发线 8.63456331 落在市价 8.617 的错误一侧，成交价按市价修正（防幽灵成交）
+   [backend-console.log] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.evolution.factor_evolution_loop:585 - [FactorEvo] 本轮进化币池(9): ASTER,BNB,BTC,ETH,SOL,UNI,VIRTUAL,XPL,XRP
+   [backend-console.log] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.reentry_cooldown:223 - [ReentryCooldown] 记录全平 account=14 UNI long tier=mid master=False pnl=-13.57 同向240分钟(base=120min x2倍)/反向30分钟冷却（仅影响同 tier 再开仓）
+   [backend-console.log] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.paper_trading_engine:4733 - [Retrospective] UNI long no: pnl=-13.57 reason=sl → analytics
+   [backend-console.log] 2026-09-21 07:05:00 [INFO] [tr=-] backend.services.decision_feedback_service:911 - [Feedback] key_lessons 更新 strategy=tpl_mid_ symbol=UNI type=loss_analysis
+   [backend-console.log] 2026-09-21 07:05:02 [INFO] [tr=-] backend.services.paper_trading_engine:2640 - [Paper] 平仓: UNI long @8.59 final_pnl=-13.57 + partial=+0.00 = total=-13.57 fee=0.2710 reason=sl
+   [backend-console.log] 2026-09-21 07:05:06 [INFO] [tr=-] backend.services.learning_bus:186 - [LearningBus] MLTO postmortem queued: UNI swing thesis=982fc260
+   [backend-console.log] 2026-09-21 07:05:12 [INFO] [tr=-] backend.services.causal_analyzer:227 - [CausalAnalyzer] UNI pnl=0.00 cause=unknown_risk conf=40% regime=unknown
+   [backend-console.log] 2026-09-21 07:05:13 [INFO] [tr=-] backend.services.trade_memory_context:347 - [TradeMemoryContext] Reflexion 教训已存(shallow): tpl_mid_range_444876/UNI pnl=-13.57
+   [backend-console.log] 2026-09-21 07:05:14 [INFO] [tr=-] backend.services.hermes_agent_wisdom_engine:93 - [HermesAgentWisdom] swing UNI ranging_long_swing:thesis_982fc260-f1d pnl=-13.57 outcome=loss
+   [backend-console.log] 2026-09-21 07:05:14 [INFO] [tr=-] backend.services.unified_learning_service:367 - [UnifiedLearning] 处理完成: paper/tpl_mid_range_444876 UNI[swing] pnl=-13.5739 regime=ranging
+   [backend-console.log] 2026-09-21 07:05:15 [INFO] [tr=-] backend.services.paper_trading_engine:5252 - [Paper] DecisionSnapshot 回写: UNI pnl=-13.57 quality=bad
+   [backend-console.log] 2026-09-21 07:05:16 [INFO] [tr=-] backend.services.position_memory_manager:1194 - [PosMgr] 记录交易: UNI long PnL=$-13.57(-5.9%) → state=aggressive wins=0 losses=3 daily_pnl=$-107.41
+   [backend-console.log] 2026-09-21 07:05:28 [INFO] [tr=-] backend.services.derivatives_analytics_service:417 - [DerivAnalytics] UNI raw OI change fallback: 10280709.00 → 10253811.40 = -0.0026
+   [backend-console.log] 2026-09-21 07:05:29 [INFO] [tr=-] backend.services.derivatives_analytics_service:287 - [DerivAnalytics] UNI: sources=perp_funding,local, liq=0/0, funding=0.0001
+   [backend-console.log] 2026-09-21 07:05:30 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:1369 - [MTOrchestrator] UNI: Regime=ranging(conf=60%), scale=12.5%
+   [backend-console.log] 2026-09-21 07:05:30 [INFO] [tr=-] backend.services.multi_timeframe_orchestrator:332 - [MTOrchestrator] UNI: L=bullish(60%) M=bullish(49%) S=bullish(-2%) → slots=[long,mid] enter long | 情绪49(neutral)
+   [backend-console.log] 2026-09-21 07:05:36 [INFO] [tr=-] backend.services.full_auto.health_check_cycle:420 - [FullAuto] 编排器评估完成: BNB=enter, ASTER=enter, VIRTUAL=wait, XPL=enter, XRP=enter, SOL=enter, ETH=enter, UNI=enter, BTC=enter, DOGE=wait, FET=wait, SYN=wait, FLOCK=wait, AVAX=wait, EVAA=wait, 1000PEPE=wait, WIF=wait
+   [backend-console.log] 2026-09-21 07:05:37 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/auto_9ab2fb0361: 杠杆=5x 仓位=8.1% SL=3.6% TP=8.3% 置信=75% | 高波动[position]→杠杆×0.75 | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_long_swing_f0da4e: 杠杆=5x 仓位=7.0% SL=7.7% TP=26.7% 置信=70% | 高波动[swing]→杠杆×0.578 | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_mid_range_444876: 杠杆=6x 仓位=8.4% SL=2.4% TP=6.5% 置信=90% | 高波动[intraday]→杠杆×0.556 | regime=high_volatility→止损×0.8
+   [backend-console.log] 2026-09-21 07:05:38 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_short_range_39e5ae: 杠杆=6x 仓位=8.4% SL=1.5% TP=3.9% 置信=90% | 高波动[intraday]→杠杆×0.556 | regime=high_volatility→止损×0.8
+   [data-center.log] 2026-09-21 07:01:01,564 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 07:01:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=104, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 07:01:14,142 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:01:56,196 [INFO] backend.services.kline_history_sync: [DepthBackfill] 核心币前置: BTC,ETH,SOL,ASTER,BNB,VIRTUAL,XPL,UNI,XRP
+   [data-center.log] 2026-09-21 07:02:04,880 [INFO] backend.services.kline_collectors.binance: [Historical] binance UNI/1m: fetched 1 roots
+   [data-center.log] 2026-09-21 07:02:42,986 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1m@binance: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:02:44,149 [INFO] backend.services.kline_collectors.hyperliquid: [Historical] UNI/1m: fetched 23/22 roots
+   [data-center.log] 2026-09-21 07:02:44,169 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1m@hyperliquid: +23 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:02:53,118 [INFO] backend.services.kline_collectors.asterdex: [Historical] asterdex UNI/1m: fetched 46 roots
+   [data-center.log] 2026-09-21 07:02:55,441 [INFO] backend.services.kline_collectors.bybit: [Historical] bybit UNI/1m: fetched 15 roots
+   [data-center.log] 2026-09-21 07:02:55,444 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1m@asterdex: +46 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:02:56,093 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1m@bybit: +15 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:03:00,528 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 07:03:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=104, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 07:03:05,545 [INFO] backend.services.kline_collectors.okx: [Historical] okx UNI/1m: fetched 29 roots
+   [data-center.log] 2026-09-21 07:03:11,076 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/1m@okx: +29 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:03:16,827 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/1m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:03:16,829 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/3m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:03:16,830 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:04:17,170 [INFO] backend.services.kline_collectors.hyperliquid: [Historical] UNI/5m: fetched 5/5 roots
+   [data-center.log] 2026-09-21 07:04:23,195 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/5m@hyperliquid: +5 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:04:23,741 [INFO] backend.services.kline_collectors.asterdex: [Historical] asterdex UNI/5m: fetched 9 roots
+   [data-center.log] 2026-09-21 07:04:25,638 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/5m@asterdex: +9 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:04:30,506 [INFO] backend.services.kline_collectors.binance: [Historical] binance UNI/5m: fetched 1 roots
+   [data-center.log] 2026-09-21 07:04:30,510 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/5m@binance: +1 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:04:31,291 [INFO] backend.services.kline_collectors.okx: [Historical] okx UNI/5m: fetched 6 roots
+   [data-center.log] 2026-09-21 07:04:31,320 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/5m@okx: +6 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:04:36,225 [INFO] backend.services.kline_collectors.bybit: [Historical] bybit UNI/5m: fetched 3 roots
+   [data-center.log] 2026-09-21 07:04:37,733 [INFO] backend.services.kline_history_sync: [DepthBackfill] UNI/5m@bybit: +3 bars (prefix/suffix 补齐)
+   [data-center.log] 2026-09-21 07:05:03,212 [INFO] backend.services.kline_realtime_collector: [P0] Collecting at 2026-09-21 07:05:00, exchange=binance, periods=['1m', '3m', '5m'], symbols=104, sample=['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL', 'XPL', 'XRP', 'JTO', 'DOGE', 'SYN']
+   [data-center.log] 2026-09-21 07:05:18,117 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/3m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:05:18,203 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/1m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   [data-center.log] 2026-09-21 07:05:18,337 [WARNING] backend.services.kline_realtime_collector: [P0] 请求超时（6s×2 次）UNI/5m@binance —— 单任务放弃，不再拖到轮级超时（旧行为会让整轮 0ok）
+   —— 命中 213 行 ——
+====================================================================================================
+附加：三笔开仓前后 brain_subprocess.log 里的决策摘要（按时间窗）
+
+── 第1笔 02:30:41 开多 ──
+   2026-09-21 02:28:05,888 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:28:06,354 [INFO] [tr=-] httpx:1038 - HTTP Request: GET http://127.0.0.1:4096/global/health "HTTP/1.1 200 OK"
+   2026-09-21 02:28:06,757 [INFO] [tr=-] httpx:1038 - HTTP Request: GET http://127.0.0.1:4096/global/health "HTTP/1.1 200 OK"
+   2026-09-21 02:28:07,174 [INFO] [tr=-] httpx:1038 - HTTP Request: POST http://127.0.0.1:4096/session "HTTP/1.1 200 OK"
+   2026-09-21 02:29:09,135 [INFO] [tr=-] httpx:1038 - HTTP Request: POST http://127.0.0.1:4096/session/ses_f3fecac6cffeAg0nNormn96T21/message "HTTP/1.1 200 OK"
+   2026-09-21 02:29:09,175 [INFO] [tr=-] backend.services.mlto.brain:1616 - [MidLongBrain] OWM llm×0.945: conviction 55→52 (UNI mid)
+   2026-09-21 02:29:25,179 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:29:42,623 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:29:48,218 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:29:54,745 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:30:01,079 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:30:05,629 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:30:11,213 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 02:30:11,348 [INFO] [tr=-] backend.services.mlto.brain_debate:554 - [MidLongBrain] 辩论 UNI mid 主周期=日内(reject) 日内=reject 中期=reject 长期=reject 冲突=False 证据不足=无 risk=0.25 llm=True 62.1s
+   2026-09-21 02:30:11,377 [INFO] [tr=-] backend.services.mlto.brain:1678 - [MidLongBrain] 混合打分(影子) UNI mid: 分析师=+0.188(域=5) conviction 52.0→53.5
+   2026-09-21 02:30:11,462 [INFO] [tr=-] backend.services.mlto.brain:1754 - [MidLongBrain] refresh UNI mid accepted=True rec_open=True dir=long conv=52 miss=['kline_deep 近 72h 无产物，该域信号不可用'] score=0.700 expiry=14400s
+   2026-09-21 02:30:11,467 [INFO] [tr=-] backend.services.mlto.brain:2369 - [MidLongBrain] watch-refresh XRP mid reason=fail_backoff
+   2026-09-21 02:30:19,056 [INFO] [tr=-] backend.services.regime_policy_library:141 - [RegimeLib] 门控组合 regime=ranging 桶因子=303 全局=119 α=0.65
+   2026-09-21 02:30:19,068 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for XRP 4h
+   2026-09-21 02:30:19,091 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:135 - Calculated 10 factors in 0.02s (200 data points)
+   2026-09-21 02:30:19,103 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 2 factors (2 requested, 0 dependencies) for XRP 1d
+   2026-09-21 02:30:19,109 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:135 - Calculated 2 factors in 0.01s (200 data points)
+   2026-09-21 02:30:19,184 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 1 factors (1 requested, 0 dependencies) for XRP 4h
+   2026-09-21 02:30:19,187 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:135 - Calculated 1 factors in 0.00s (260 data points)
+   2026-09-21 02:30:19,247 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 1 factors (1 requested, 0 dependencies) for XRP 4h
+
+── 第2笔 03:10:00 开多 ──
+   2026-09-21 03:07:17,121 [INFO] [tr=-] httpx:1038 - HTTP Request: POST http://127.0.0.1:4096/session/ses_f3fc9a58affeqnzxwTWd302MHX/message "HTTP/1.1 200 OK"
+   2026-09-21 03:07:17,176 [INFO] [tr=-] backend.services.mlto.brain:1616 - [MidLongBrain] OWM llm×0.500: conviction 35→18 (VIRTUAL long)
+   2026-09-21 03:07:17,188 [INFO] [tr=-] backend.services.mlto.brain:1678 - [MidLongBrain] 混合打分(影子) VIRTUAL long: 分析师=+0.364(域=4) conviction 18.0→19.0
+   2026-09-21 03:07:17,225 [INFO] [tr=-] backend.services.mlto.brain:1754 - [MidLongBrain] refresh VIRTUAL long accepted=False rec_open=False dir=neutral conv=18 miss=['kline_deep缺失(72h无产物)'] score=0.700 expiry=3600s
+   2026-09-21 03:07:17,395 [INFO] [tr=-] backend.services.mlto.brain:2396 - [MidLongBrain] batch tier=long n=9 watch=3 idle=0 opened=0 priority=['XRP', 'BNB', 'ETH', 'BTC'] pass=1
+   2026-09-21 03:07:17,396 [INFO] [tr=-] __main__:215 - [BrainSubprocess] 完成 tier=long n=9
+   2026-09-21 03:07:40,395 [INFO] [tr=-] __main__:178 - [BrainSubprocess] 启动 tier=long symbols=9 trigger=scheduler pid=24868
+   2026-09-21 03:07:41,867 [INFO] [tr=-] backend.database.connection:334 - [DB] Market PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_market
+   2026-09-21 03:07:41,868 [INFO] [tr=-] backend.database.connection:334 - [DB] Analytics PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics
+   2026-09-21 03:07:46,158 [INFO] [tr=-] backend.services.fee_schedule_service:184 - [FeeSchedule] 费率中心已加载: 6 个交易所, 默认=asterdex, asterdex(maker/taker)=0.000000/0.000400
+   2026-09-21 03:07:46,336 [INFO] [tr=-] backend.services.data_center:254 - [DataCenter] 统一市场数据中心初始化完成 — 所有数据读取的唯一入口
+   2026-09-21 03:07:46,727 [INFO] [tr=-] backend.services.unified_data_pool:185 - [UnifiedDataPool] 初始化完成
+   2026-09-21 03:07:46,727 [INFO] [tr=-] backend.services.unified_data_pool:2827 - [DataHub] 统一数据中枢初始化完成（Phase 2.5）
+   2026-09-21 03:07:47,601 [INFO] [tr=-] backend.services.mlto.brain:2396 - [MidLongBrain] batch tier=long n=9 watch=0 idle=0 opened=0 priority=['XRP', 'BNB', 'ETH', 'BTC'] pass=1
+   2026-09-21 03:07:47,601 [INFO] [tr=-] __main__:215 - [BrainSubprocess] 完成 tier=long n=9
+   2026-09-21 03:09:30,634 [INFO] [tr=-] __main__:178 - [BrainSubprocess] 启动 tier=mid symbols=12 trigger=scheduler pid=29920
+   2026-09-21 03:09:32,082 [INFO] [tr=-] backend.database.connection:334 - [DB] Market PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_market
+   2026-09-21 03:09:32,082 [INFO] [tr=-] backend.database.connection:334 - [DB] Analytics PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics
+   2026-09-21 03:09:36,277 [INFO] [tr=-] backend.services.fee_schedule_service:184 - [FeeSchedule] 费率中心已加载: 6 个交易所, 默认=asterdex, asterdex(maker/taker)=0.000000/0.000400
+   2026-09-21 03:09:36,447 [INFO] [tr=-] backend.services.data_center:254 - [DataCenter] 统一市场数据中心初始化完成 — 所有数据读取的唯一入口
+   2026-09-21 03:09:36,753 [INFO] [tr=-] backend.services.unified_data_pool:185 - [UnifiedDataPool] 初始化完成
+   2026-09-21 03:09:36,753 [INFO] [tr=-] backend.services.unified_data_pool:2827 - [DataHub] 统一数据中枢初始化完成（Phase 2.5）
+   2026-09-21 03:09:37,347 [INFO] [tr=-] backend.services.mlto.brain:2369 - [MidLongBrain] watch-refresh ASTER mid reason=fail_backoff
+   2026-09-21 03:09:46,541 [INFO] [tr=-] backend.services.factor_engine.base_factors:688 - [FactorEngine] Registered 21 factors
+   2026-09-21 03:09:46,546 [INFO] [tr=-] backend.services.factor_engine.factor_registry:42 - FactorRegistry initialized
+
+── 第3笔 07:04:04 开多（59 秒后被止损） ──
+   2026-09-21 07:01:25,635 [INFO] [tr=-] __main__:178 - [BrainSubprocess] 启动 tier=long symbols=9 trigger=scheduler pid=30468
+   2026-09-21 07:01:27,080 [INFO] [tr=-] backend.database.connection:334 - [DB] Market PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_market
+   2026-09-21 07:01:27,081 [INFO] [tr=-] backend.database.connection:334 - [DB] Analytics PostgreSQL engine created: postgresql+psycopg://laobao:alpha_pass@localhost:5432/alpha_analytics
+   2026-09-21 07:01:31,253 [INFO] [tr=-] backend.services.fee_schedule_service:184 - [FeeSchedule] 费率中心已加载: 6 个交易所, 默认=asterdex, asterdex(maker/taker)=0.000000/0.000400
+   2026-09-21 07:01:31,452 [INFO] [tr=-] backend.services.data_center:254 - [DataCenter] 统一市场数据中心初始化完成 — 所有数据读取的唯一入口
+   2026-09-21 07:01:31,884 [INFO] [tr=-] backend.services.unified_data_pool:185 - [UnifiedDataPool] 初始化完成
+   2026-09-21 07:01:31,884 [INFO] [tr=-] backend.services.unified_data_pool:2827 - [DataHub] 统一数据中枢初始化完成（Phase 2.5）
+   2026-09-21 07:01:32,586 [INFO] [tr=-] backend.services.mlto.brain:2396 - [MidLongBrain] batch tier=long n=9 watch=0 idle=0 opened=0 priority=['XRP', 'BNB', 'ETH', 'BTC'] pass=1
+   2026-09-21 07:01:32,586 [INFO] [tr=-] __main__:215 - [BrainSubprocess] 完成 tier=long n=9
+   2026-09-21 07:01:59,714 [INFO] [tr=-] httpx:1038 - HTTP Request: POST http://127.0.0.1:4096/session/ses_f3ef371a3ffedyK3LXDolYj7KE/message "HTTP/1.1 200 OK"
+   2026-09-21 07:01:59,754 [INFO] [tr=-] backend.services.mlto.brain:1616 - [MidLongBrain] OWM llm×0.945: conviction 55→52 (BNB mid)
+   2026-09-21 07:02:06,526 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:14,801 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:21,169 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:32,090 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:38,587 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:45,922 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:54,994 [INFO] [tr=-] httpx:1038 - HTTP Request: POST https://api.minimax.cn/anthropic/v1/messages "HTTP/1.1 200 OK"
+   2026-09-21 07:02:55,193 [INFO] [tr=-] backend.services.mlto.brain_debate:554 - [MidLongBrain] 辩论 BNB mid 主周期=日内(reject) 日内=reject 中期=reject 长期=insufficient 冲突=False 证据不足=['trend'] risk=0.25 llm=True 55.3s
+   2026-09-21 07:02:55,225 [INFO] [tr=-] backend.services.mlto.brain:1678 - [MidLongBrain] 混合打分(影子) BNB mid: 分析师=+0.018(域=6) conviction 52.0→52.1（无变化）
+   2026-09-21 07:02:55,421 [INFO] [tr=-] backend.services.mlto.brain:1754 - [MidLongBrain] refresh BNB mid accepted=True rec_open=False dir=long conv=52 miss=['kline_deep 近 72h 无 K 线深度分析产物，该域信号不可用'] score=0.700 expiry=14400s
+   2026-09-21 07:02:55,424 [INFO] [tr=-] backend.services.mlto.brain:2369 - [MidLongBrain] watch-refresh BTC mid reason=fail_backoff
+   2026-09-21 07:03:02,852 [INFO] [tr=-] backend.services.regime_policy_library:141 - [RegimeLib] 门控组合 regime=ranging 桶因子=303 全局=229 α=0.65
+   2026-09-21 07:03:02,887 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:98 - Calculating 10 factors (10 requested, 0 dependencies) for BTC 4h
+   2026-09-21 07:03:02,913 [INFO] [tr=-] backend.services.factor_engine.factor_calculator:135 - Calculated 10 factors in 0.03s (200 data points)

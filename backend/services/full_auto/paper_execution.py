@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Set
@@ -55,6 +56,48 @@ def build_paper_execution_host(svc) -> PaperExecutionHost:
         recover_db_session=svc._recover_db_session,
         is_unified_executor_on=svc._is_unified_executor_on,
     )
+
+
+def _paper_apply_size_multiplier() -> bool:
+    """[轮154 2026-09-21·用户批准方案 C] paper 下单是否消费缩仓链乘子（默认 true）。
+
+    为什么必须修：`proposal_execution` 把六层缩仓的结果写进 `decision["size_multiplier"]`
+    （实测 UNI mid：×0.25×0.25×0.25×0.25 → 0.0008，被 `[SizeFloor] PROBE-CLAMP` 抬到 ×0.0714
+    ≈ $60 名义），但**本模块全文从未读取该字段**（grep 0 命中）⇒ 实际下单规模 =
+    `equity × MIDLONG_TIER_MARGIN_PCT_MID(0.10) × leverage` = $1387 名义，再被
+    `PC_MAX_WEIGHT_PER_SYMBOL_MID(0.15)` 压到 $693 名义 / $231 保证金 —— 即风险链意图的 11.5×。
+    实盘路径本来就消费它（`live_trading.py` "下游缩仓乘子必须计入敞口估算"），paper 是漏的；
+    后果是模拟盘（训练数据）系统性放大风险：UNI mid 每次止损 −$12.5 而非 −$1.05。
+    回滚：`PAPER_APPLY_SIZE_MULTIPLIER=false`。
+    """
+    return (os.getenv("PAPER_APPLY_SIZE_MULTIPLIER", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _scale_plan_by_size_chain(plan, size_multiplier: float, *, respect_raw_sizing: bool) -> float:
+    """把缩仓链乘子作用到 plan 的 notional/margin/size_pct 上，返回实际应用的乘子。
+
+    **不重复缩仓**的口径（与 `live_trading._live_scale_decision_to_cap` 同一原则）：
+    `respect_raw_sizing=True` 时上游 SizingPlan 的 notional 已含各自乘子 ⇒ 不再二次相乘
+    （实测二次相乘会把 $5.5 缩成 $0.12）。只有 tier 目标 sizing 这条路径才需要补乘。
+    """
+    try:
+        sm = float(size_multiplier or 1.0)
+    except (TypeError, ValueError):
+        return 1.0
+    if not _paper_apply_size_multiplier() or respect_raw_sizing:
+        return 1.0
+    if not (0.0 < sm < 0.999):
+        return 1.0
+    if getattr(plan, "action", "") not in ("open", "close_and_open"):
+        return 1.0
+    try:
+        plan.margin_usd = round(float(getattr(plan, "margin_usd", 0) or 0) * sm, 2)
+        plan.notional_usd = round(float(getattr(plan, "notional_usd", 0) or 0) * sm, 2)
+        plan.size_pct = float(getattr(plan, "size_pct", 0) or 0) * sm
+    except (TypeError, ValueError):
+        return 1.0
+    return sm
 
 
 def execute_paper_trade(
@@ -227,6 +270,7 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
         _ai_pos_pct = host.extract_ai_position_pct(decision) or float(
             decision.get("position_pct", 0) or 0
         )
+        _respect_raw = bool(decision.get("_respect_sizing_plan"))
         plan = position_manager.evaluate_trade(
             db=db,
             account_id=account_id,
@@ -241,7 +285,7 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             raw_position_pct=_ai_pos_pct,
             raw_notional_usd=float(decision.get("_sizing_notional_usd", 0) or 0),
             raw_margin_usd=float(decision.get("_sizing_margin_usd", 0) or 0),
-            respect_raw_sizing=bool(decision.get("_respect_sizing_plan")),
+            respect_raw_sizing=_respect_raw,
             raw_tp_price=take_profit,
             raw_sl_price=stop_loss,
             strategy_id=strat.strategy_id,
@@ -249,6 +293,22 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             trade_nature=_pre_nature,
             orchestrator_context=decision.get("_orchestrator_context"),
         )
+
+        # ── [轮154 2026-09-21·用户批准方案 C] 缩仓链乘子必须在 paper 生效 ──
+        # 背景：V5Gate/MTF/tranche/蒙特卡洛/位置闸/learned 六层只产出 size_multiplier，
+        # 而本模块此前从不读取它 ⇒ 风险链的"少买点"完全无效（live 路径读了，paper 没读）。
+        _sm_applied = _scale_plan_by_size_chain(
+            plan, decision.get("size_multiplier"), respect_raw_sizing=_respect_raw,
+        )
+        if _sm_applied < 0.999:
+            logger.info(
+                "[SizeChain] %s %s 缩仓链生效 size_multiplier=%.4f → 名义 $%.2f 保证金 $%.2f "
+                "size=%.2f%%（paper 与 live 同口径；回滚 PAPER_APPLY_SIZE_MULTIPLIER=false）",
+                symbol, side, _sm_applied,
+                float(getattr(plan, "notional_usd", 0) or 0),
+                float(getattr(plan, "margin_usd", 0) or 0),
+                float(getattr(plan, "size_pct", 0) or 0) * 100.0,
+            )
 
         # ── 恢复模式：退出防守后的过渡期，缩减仓位 ──
         recovery_ts = host.recovery_until.get(session.session_id, 0)

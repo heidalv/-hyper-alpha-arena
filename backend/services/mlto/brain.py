@@ -794,20 +794,81 @@ def _entry_zone_bounds(raw: Any) -> Optional[Tuple[float, float]]:
     return lo, hi
 
 
+def _entry_zone_promote_enabled() -> bool:
+    """[轮154 2026-09-21·用户批准方案 A] entry-zone promotion 总开关，**默认关**。
+
+    为什么默认关：实测 UNI mid（论题 982fc260）模型原始 JSON 给的是
+    `direction=neutral, recommend_open=false`、散文写"不追高…选择观望等 4h 企稳信号"，
+    而本函数以"现价 8.649 落入它自己给的入场区 8.55-8.75"为由把 `recommend_open` 改写成
+    true ⇒ 02:30/03:10/07:04 三笔满档多头、每次止损 −$12.5（三天 UNI mid 净 −$47.5）。
+    它还跑在 `open_gate` 之前，使「底线 4：尊重 LLM recommend_open=False」结构上不可能命中。
+    回滚/复核：`MIDLONG_ENTRY_ZONE_PROMOTE=true` 重新打开（打开后仍受下面两条硬前提约束）。
+    """
+    return (os.getenv("MIDLONG_ENTRY_ZONE_PROMOTE", "false") or "false").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _promotion_blocked_by_analysis(symbol: str, tier: str, market_block: Optional[Dict[str, Any]]):
+    """[轮154·用户批准方案 B] promotion 的两条硬前提。
+
+    返回 (是否禁止 promotion, 原因)。分析层的明确反对必须能压过"现价已在入场区"这一条：
+      · 辩论：该 (symbol, tier) 近 3h 内**主周期裁决 = reject** ⇒ 禁止 promotion；
+      · 位置：24h 区间分位 ≥ `MIDLONG_LOCATION_MAX_PCT_LONG`（= 执行侧位置闸"高位追多"的同一阈值）
+        ⇒ 禁止 promotion。
+    任一侧读不到数据时**不禁止**（保持可开、fail-open），并把原因如实返回供审计。
+    """
+    sym_u = str(symbol or "").upper()
+    # ── ① 辩论主周期裁决 ──
+    try:
+        from backend.services.mlto.brain_debate import debate_context
+
+        deb = debate_context(sym_u, tier, hours=3.0)
+        pv = str((deb or {}).get("primary_verdict") or "").lower()
+        if pv == "reject":
+            return True, (f"debate_primary_reject:{deb.get('primary_horizon')}"
+                          f"(risk_min={deb.get('risk_min')})")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[MidLongBrain] promotion 辩论前置读取失败(不禁止): %s", exc)
+    # ── ② 位置：高位追多 ──
+    try:
+        from backend.services.full_auto.midlong_location_gate import high_position_long
+
+        hit, why = high_position_long(market_block or {}, tier=tier)
+        if hit:
+            return True, f"location:{why}"
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[MidLongBrain] promotion 位置前置读取失败(不禁止): %s", exc)
+    return False, ""
+
+
 def promote_open_if_in_zone(
     final: Dict[str, Any],
     *,
     last_price: Optional[float],
     has_position: bool = False,
     atr_pct: Optional[float] = None,
+    symbol: str = "",
+    tier: str = "",
+    market_block: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """无仓 + 方向明确 + 现价已在 entry_zone → 强制 recommend_open=true。
+    """无仓 + 方向明确 + 现价已在 entry_zone → 允许把 `recommend_open` 提为 true。
 
-    模型常写「等回踩」却把 recommend_open 留 false；入场区是它自己给的数字契约，
-    现价已落入则视为条件达成，避免永远观望。
+    [轮154 2026-09-21·用户批准方案 A/B] 本函数**不再改写模型的明确 false**，且默认关闭：
+      1. 总开关 `MIDLONG_ENTRY_ZONE_PROMOTE`（默认 **false**）—— 关着就完全不动 `final`；
+      2. 开关打开时，`recommend_open is False`（模型**明确**说不开）⇒ 一律不改写，
+         只对"模型没表态"（缺字段/None）的情形生效；这正是 `open_gate` 底线 4
+         「尊重 LLM recommend_open=False」的本意 —— 在此之前它被本函数抢跑，永远看不到 false；
+      3. 硬前提（方案 B）：辩论主周期 `reject` 或 位置闸口径的"高位追多"命中 ⇒ 不 promotion；
+      4. 每次 promotion / 每次被前置拦下都写 INFO 日志，并把 `_promoted_open` 落进论题事件
+         （此前该标记全库无人消费 ⇒ 这类改写完全不可审计）。
     """
     out = dict(final or {})
     if has_position:
+        return out
+    if not _entry_zone_promote_enabled():
+        return out
+    if out.get("recommend_open") is False:
+        # 模型的明确判断：不得改写（这是用户点名的"分析的问题"）
         return out
     if bool(out.get("recommend_open")):
         return out
@@ -815,6 +876,11 @@ def promote_open_if_in_zone(
     if direction not in ("long", "short"):
         return out
     if _inv_price(out.get("invalidation")) is None:
+        return out
+    _blocked, _why = _promotion_blocked_by_analysis(symbol, tier, market_block)
+    if _blocked:
+        logger.info("[MidLongBrain] promotion 被分析层拦下 %s %s: %s", symbol, tier, _why)
+        out["_promoted_open_blocked"] = _why
         return out
     bounds = _entry_zone_bounds(out.get("entry_zone"))
     if bounds is None or last_price is None:
@@ -842,6 +908,11 @@ def promote_open_if_in_zone(
     if in_zone or chase_long or chase_short:
         out["recommend_open"] = True
         out["_promoted_open"] = "entry_zone_touched" if in_zone else "entry_zone_chase_tol"
+        logger.info(
+            "[MidLongBrain] promotion(entry_zone) %s %s: recommend_open 未表态→true (%s) "
+            "dir=%s px=%.6f zone=[%.6f, %.6f]",
+            symbol, tier, out["_promoted_open"], direction, px, lo, hi,
+        )
         summary = str(out.get("thesis_summary") or "")
         if "入场区" not in summary:
             _note = "；现价已落入入场区，允许开仓" if in_zone else "；现价贴近入场区沿（容忍内），允许开仓"
@@ -850,6 +921,7 @@ def promote_open_if_in_zone(
     # [2026-09-08 进取模式] 用户拍板（模拟盘快速找平衡）：模型把入场区设在远离现价处
     # 等回踩、连 chase 容忍都够不着时，若方向明确+置信达标+有失效价，按市价直接开仓——
     # 模型的入场区保守是择时谨慎，不该否决一个清晰的方向判断。仅模拟盘默认开。
+    # [轮154] 仍受总开关 MIDLONG_ENTRY_ZONE_PROMOTE（默认关）与上面的"明确 false 不改写"约束。
     try:
         _agg = os.getenv("MIDLONG_AGGRESSIVE_ENTRY", "true").strip().lower() in ("1", "true", "yes", "on")
     except Exception:
@@ -863,6 +935,11 @@ def promote_open_if_in_zone(
         if _conf >= _conf_th:
             out["recommend_open"] = True
             out["_promoted_open"] = "aggressive_market_entry"
+            logger.info(
+                "[MidLongBrain] promotion(aggressive) %s %s: recommend_open 未表态→true "
+                "dir=%s conf=%.2f≥%.2f px=%.6f zone=[%.6f, %.6f]",
+                symbol, tier, direction, _conf, _conf_th, px, lo, hi,
+            )
             summary = str(out.get("thesis_summary") or "")
             out["thesis_summary"] = (summary + f"；方向明确(conf={_conf:.2f})，按市价进取开仓").strip("；")[:500]
     return out
@@ -1444,19 +1521,31 @@ def refresh_thesis(
         inv_norm = normalize_invalidation(final.get("invalidation"))
         final["invalidation"] = inv_norm
         has_pos = bool(feed.get("extras", {}).get("current_position"))
+        # [轮154] 记下**模型原始**的 recommend_open（promotion 之前），供审计对照
+        # "模型说不 / 代码改成开"（论题事件字段 model_recommend_open）。
+        _model_recommend_open = final.get("recommend_open")
         if not hard_miss:
             # [2026-09-07] 提取日线 ATR% 供追价容忍（1×ATR 自适应，替代固定 1%）
+            # [轮154] 同时取出该币的 market 层块，供 promotion 的两条硬前提（辩论 reject /
+            # 位置闸口径的"高位追多"）使用 —— 见 promote_open_if_in_zone 与
+            # midlong_location_gate.high_position_long。
             _atr_pct = None
+            _sym_d: Dict[str, Any] = {}
             try:
                 _pk = feed.get("pack")
                 _mkt = (_pk.to_dict().get("layers", {}) or {}).get("market", {}) if _pk else {}
-                _sym_d = (_mkt.get("symbols", {}) or {}).get(symbol) or {}
+                _sym_d = dict((_mkt.get("symbols", {}) or {}).get(symbol) or {})
                 _av = _sym_d.get("atr14_1d_pct")
                 _atr_pct = float(_av) if _av is not None else None
             except Exception:
                 _atr_pct = None
+                _sym_d = {}
+            _sym_d.setdefault("symbol", symbol)
+            if feed.get("last") is not None:
+                _sym_d.setdefault("price", feed.get("last"))
             final = promote_open_if_in_zone(
                 final, last_price=feed.get("last"), has_position=has_pos, atr_pct=_atr_pct,
+                symbol=symbol, tier=tier, market_block=_sym_d,
             )
 
         dto = latest or thesis or thesis_store.get_or_create(session_id, symbol, tier)
@@ -1727,6 +1816,13 @@ def refresh_thesis(
                 "missing": dto.missing_evidence,
                 "expiry_s": thesis_expiry_s(tier, accepted=dto.accepted),
                 "inv_price": _inv_price(dto.invalidation),
+                # [轮154 2026-09-21] entry-zone promotion 的落地痕迹：此前 `_promoted_open`
+                # 全库无人消费（无日志、无字段），"模型说不、代码改成开"这件事完全不可审计。
+                # 现随论题事件落库：取值 entry_zone_touched / entry_zone_chase_tol /
+                # aggressive_market_entry；被方案 B 前置拦下时记 blocked 原因。
+                "promoted_open": final.get("_promoted_open"),
+                "promoted_open_blocked": final.get("_promoted_open_blocked"),
+                "model_recommend_open": _model_recommend_open,
                 # [轮130] 辩论裁决随论题事件落库（含证据）——画布与复盘据此可查"辩论说了什么"
                 **({"debate": {"verdict": _debate.get("verdict"),
                                "primary_horizon": _debate.get("primary_horizon"),

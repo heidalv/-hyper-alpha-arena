@@ -1569,6 +1569,13 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # 母本为 None 会让 `provision_ai_strategy` 退化成「无同层 active 母本可克隆」→ 长线提案被静默拒绝。
     # 克隆的是配置面（不继承 genome），与周期无关 ⇒ 允许借用其他层的 active 母本。
     "MIDLONG_DONOR_CROSS_TIER_FALLBACK",   # 默认 true；false=只用同层母本
+    # [轮154 2026-09-21] UNI mid 连续开多根因（reports/_轮154_UNI连续开多_根因_20260921.md）：
+    # 模型明确 `recommend_open=false`（"不追高、观望"）却被 `promote_open_if_in_zone`
+    # 以"现价落入它自己给的入场区"改写成 true ⇒ 三笔满档多头、每次止损 −$12.5。
+    "MIDLONG_ENTRY_ZONE_PROMOTE",          # 默认 **false**：promotion 总开关（关=不改写模型的判断）
+    # [轮154] 缩仓链（V5Gate/MTF/tranche/蒙特卡洛/位置闸/learned）只产出 size_multiplier，
+    # 而 paper 路径此前从不读取（live 读了）⇒ 风险链的"少买点"无效：$60 意图 → $693 名义成交。
+    "PAPER_APPLY_SIZE_MULTIPLIER",         # 默认 true；false=回到"paper 忽略缩仓链"的旧行为
     # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
     # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
     # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。

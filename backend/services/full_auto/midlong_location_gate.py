@@ -218,7 +218,27 @@ def _range_position(ms: Dict[str, Any]) -> Tuple[Optional[float], Optional[float
 
     if px is None or hi is None or lo is None or hi <= lo:
         return None, hi, lo
-    return (px - lo) / (hi - lo) * 100.0, hi, lo
+    # [2026-09-18 根因修复·分位口径] 区间**必须包含现价**，否则分位会 >100%（数学上不可能）。
+    # 实测（解冻前统一窗口）：`location_gate_veto` 1006 条带分位里有 **120 条（11.9%）>100%**，
+    # 最高 **118%**（如「24h区间分位118%≥追高天花板70% 硬否决」）。
+    # 成因：`range_24h_high`（注入缓存）或 1h K 线序列**不含进行中的那根 bar**，
+    # 现价高于所用高点 ⇒ 分子超出分母区间。实测 UNI：含当前 bar=98.4%，剔除末根=102.5%。
+    # 口径：分位定义为"现价在**含现价**的 24h 区间中的位置" ⇒ 夹取后恒 ∈ [0,100]，
+    # 且与阈值的比较在边界上才有意义（旧口径会把 103% 这种不可能值拿去比 70%）。
+    _raw_hi, _raw_lo = hi, lo
+    if px > hi:
+        hi = px
+    elif px < lo:
+        lo = px
+    if hi <= lo:
+        return None, hi, lo
+    _pct = (px - lo) / (hi - lo) * 100.0
+    if (_raw_hi, _raw_lo) != (hi, lo):
+        logger.debug(
+            "[location_gate] 24h 区间不含现价，已扩张: hi %s→%s lo %s→%s ⇒ 分位 %.1f%%",
+            _raw_hi, hi, _raw_lo, lo, _pct,
+        )
+    return _pct, hi, lo
 
 
 def _change_24h_pct(ms: Dict[str, Any]) -> Optional[float]:
@@ -261,6 +281,31 @@ def _paper_shrink_ceiling() -> Optional[float]:
     except (TypeError, ValueError):
         v = 70.0
     return None if v <= 0 else v
+
+
+def high_position_long(ms: Dict[str, Any], *, tier: str = "mid") -> Tuple[bool, str]:
+    """[轮154 2026-09-21] 只判「高位追多」**这一条**，供 brain 的 entry-zone promotion 作前置。
+
+    为什么单列一个谓词：promotion 发生在 brain 子进程的 `refresh_thesis` 里，**拿不到**
+    `midlong_executor` 的 regime（位置闸只在 ranging/unknown 生效），所以不能直接复用
+    `location_gate_check`（它会因 regime 不符而返回"不限制"）。这里共用**同一套**
+    分位口径（`_range_position`）与**同一个**阈值 key（`MIDLONG_LOCATION_MAX_PCT_LONG`），
+    不复制逻辑、不引入第二份阈值。
+
+    语义边界：本函数**只读、只回答"是不是高位"**，不做任何否决 —— 真正的否决仍在
+    `location_gate_check`（执行侧，口径不变）。返回 (是否高位, 原因)。
+    """
+    t = str(tier or "").strip().lower()
+    tiers = (os.getenv("MIDLONG_LOCATION_TIERS", "mid,long") or "mid,long")
+    if t not in {x.strip().lower() for x in tiers.split(",") if x.strip()}:
+        return False, f"位置谓词：tier={t} 不适用"
+    pos_pct, _hi, _lo = _range_position(ms if isinstance(ms, dict) else {})
+    if pos_pct is None:
+        return False, "位置谓词：无区间分位数据（不拦）"
+    max_long = _f("MIDLONG_LOCATION_MAX_PCT_LONG", 60.0)
+    if pos_pct >= max_long:
+        return True, f"高位追多：24h区间分位{pos_pct:.0f}%≥{max_long:.0f}%"
+    return False, f"位置合规：24h区间分位{pos_pct:.0f}%<{max_long:.0f}%"
 
 
 def location_gate_check(
@@ -338,7 +383,7 @@ def location_gate_check(
                 _d3["paper_shrink_ceiling"] = _ceil
                 return False, (
                     f"location_gate_veto: 24h区间分位{pos_pct:.0f}%≥追高天花板{_ceil:.0f}% 硬否决"
-                    f"（paper 不追顶；<{_ceil:.0f}% 仍缩仓放行收集样本）"
+                    f"（高位追多；paper 不追顶；<{_ceil:.0f}% 仍缩仓放行收集样本）"
                 ), _d3
             return _veto(_v)
         if act == "sell" and pos_pct <= min_short:

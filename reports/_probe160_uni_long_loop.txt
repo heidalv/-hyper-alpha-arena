@@ -1,0 +1,356 @@
+﻿
+====================================================================================================
+① UNI 交易事实（account 14, 近 3 天, 按开仓时间）
+   共 10 笔
+   #4722 mid   long  swing         size=78.66790976425568 entry=8.81741432 close=8.94091293 margin=231.21582266144264 l
+ev=3.0 pnl=9.715377507491036 hold=27min status=closed
+        reason=breakeven_tp strategy=tpl_mid_range_444876 opened=2026-09-18 16:21:28 closed=2026-09-18 16:48:42
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.6945, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 1.0, "trailing_callback_pct": 0.5, "structural_stop": "price", "min_roi": [[43200
+   #4729 mid   long  swing         size=77.46402810859242 entry=8.876567397 close=9.023 margin=229.204805613736 lev=3.0
+ pnl=11.34325927480629 hold=195min status=closed
+        reason=breakeven_tp strategy=tpl_mid_range_444876 opened=2026-09-19 02:28:21 closed=2026-09-19 05:43:42
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.6062, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4734 mid   long  swing         size=75.81233888218311 entry=9.285376461 close=9.116437994 margin=234.64858195809015
+ lev=3.0 pnl=-12.807620310440528 hold=11min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-19 17:08:34 closed=2026-09-19 17:19:18
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.6949, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4735 mid   long  swing         size=75.31083226882166 entry=9.313431985000001 close=9.118432838199999 margin=233.80
+0671178646 lev=3.0 pnl=-14.685548037218322 hold=43min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-19 17:52:51 closed=2026-09-19 18:35:46
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.7055, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4736 mid   long  swing         size=76.5345183478022 entry=9.161130569000001 close=8.9937469604 margin=233.71418251
+104353 lev=3.0 pnl=-12.810623863518163 hold=29min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-19 20:38:06 closed=2026-09-19 21:07:09
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.8132, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4740 mid   long  swing         size=78.15473324351747 entry=8.923660598000001 close=8.767146449911749 margin=232.47
+53389795036 lev=3.0 pnl=-12.232321492673753 hold=69min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-20 00:14:11 closed=2026-09-20 01:23:13
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.6177, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4741 mid   long  swing         size=61.05027031676312 entry=8.497031232000001 close=8.753 margin=172.91522286041217
+ lev=3.0 pnl=22.199524689060187 hold=268min status=closed
+        reason=breakeven_tp strategy=tpl_mid_range_444876 opened=2026-09-20 06:08:17 closed=2026-09-20 10:36:38
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.6974, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4747 mid   long  swing         size=79.02073461090671 entry=8.801015689599998 close=8.6438885778 margin=231.8208068
+3439153 lev=3.0 pnl=-12.416299801725888 hold=9min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-21 02:30:41 closed=2026-09-21 02:39:12
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.8135, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4749 mid   long  swing         size=78.99939219560373 entry=8.7559233856 close=8.600913552 margin=230.5706061053433
+6 lev=3.0 pnl=-12.245682638741627 hold=113min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-21 03:10:00 closed=2026-09-21 05:02:53
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.7016, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+   #4750 mid   long  swing         size=78.8390116880075 entry=8.766054122399998 close=8.5938814507 margin=230.36898031
+863117 lev=3.0 pnl=-13.57392327651166 hold=1min status=closed
+        reason=sl strategy=tpl_mid_range_444876 opened=2026-09-21 07:04:04 closed=2026-09-21 07:04:59
+        exit_state={"exit_policy": {"lane": "mid", "sl_pct": 1.7029, "tp_pct": null, "time_limit_sec": 172800, "trailin
+g_activation_pct": 2.5, "trailing_callback_pct": 1.2, "structural_stop": "price", "min_roi": [[43200
+
+====================================================================================================
+② 决策审计 JSONL 里的 UNI（近 12h）
+   共 56 行（0 点起）
+   00:36:37 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:36:39 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:39:53 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:39:59 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:42:20 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:42:20 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:45:43 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:45:45 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:48:20 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:48:21 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:51:28 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:51:32 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:54:46 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:55:33 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:57:33 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   00:58:05 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:00:41 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:00:45 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:03:41 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:03:42 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:06:49 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:06:52 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:09:32 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:09:34 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:12:54 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:12:57 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:22:12 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:22:13 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:27:51 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:27:52 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:30:49 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:30:50 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:34:11 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:34:14 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:36:50 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:36:52 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:43:55 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:43:56 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:46:43 skip         stage=sweep  tier=mid   dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+   01:46:43 skip         stage=sweep  tier=long  dir=         action=buy    score=- mode=
+        reason=probe_entry:waiting_pullback
+
+====================================================================================================
+③ 分析侧内容（alpha_analytics，近 12h，UNI）
+
+   [mlto_thesis] 12h 内 3 行，含 UNI 的 0 行
+
+   [mlto_thesis_events] 12h 内 400 行，含 UNI 的 0 行
+
+   [mlto_debate_log] 12h 内 266 行，含 UNI 的 0 行
+
+   [risk_officer_decisions] 12h 内 386 行，含 UNI 的 212 行
+     {"account_id": "718", "allow": "2026-09-21 07:57:20.979985", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4584.56, \"planned_notional_usd\": 177.6115851,
+ \"leverage\": 3.0", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 59.2, \"equity_
+usd\": 4584.56, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.03", "side": "null", "tier
+": "backend/services/risk_officer.py"}
+     {"account_id": "715", "allow": "2026-09-21 07:54:32.006553", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4583.41, \"planned_notional_usd\": 165.31214017
+5, \"leverage\": 3", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 55.1, \"equity_
+usd\": 4583.41, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.03", "side": "null", "tier
+": "backend/services/risk_officer.py"}
+     {"account_id": "712", "allow": "2026-09-21 07:51:23.042668", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4586.06, \"planned_notional_usd\": 165.40771905
+000003, \"leverag", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 55.14, \"equity_
+usd\": 4586.06, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.0", "side": "null", "tier"
+: "backend/services/risk_officer.py"}
+     {"account_id": "709", "allow": "2026-09-21 07:49:03.689473", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4584.57, \"planned_notional_usd\": 165.35397847
+5, \"leverage\": 3", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 55.12, \"equity
+_usd\": 4584.57, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.0", "side": "null", "tier
+": "backend/services/risk_officer.py"}
+     {"account_id": "706", "allow": "2026-09-21 07:44:19.107642", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4585.79, \"planned_notional_usd\": 165.39798082
+5, \"leverage\": 3", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 55.13, \"equity
+_usd\": 4585.79, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.0", "side": "null", "tier
+": "backend/services/risk_officer.py"}
+     {"account_id": "703", "allow": "2026-09-21 07:40:27.042230", "ts": "14", "mode": "long", "reason": "long", "inputs
+_json": "paper", "checks_json": "True", "debate_json": "", "producer": "{\"account_id\": 14, \"symbol\": \"UNI\", \"sid
+e\": \"long\", \"tier\": \"long\", \"mode\": \"paper\", \"equity_usd\": 4584.03, \"planned_notional_usd\": 165.33450202
+499998, \"leverag", "symbol": "[{\"name\": \"constitution\", \"ok\": true, \"value\": {\"margin_usd\": 55.11, \"equity_
+usd\": 4584.03, \"sl_pct\": 0.112}}, {\"name\": \"notional_pct\", \"ok\": true, \"value\": 0.0", "side": "null", "tier"
+: "backend/services/risk_officer.py"}
+
+   [analyst_signals] 12h 内 400 行，含 UNI 的 23 行
+     {"created_at": "3603", "ts": "2026-09-21 09:43:20.686952", "score": "UNI", "confidence": "flow", "n_samples": "-0.
+2609762731015899", "data_quality": "ok", "reason": "3", "producer": "backend/services/analysts/scorers.py", "as_of": "2
+026-09-21 09:43:17", "symbol": "{\"funding_median_pct\": 0.0013, \"funding_rows\": 2176, \"global_ls_ratio\": 1.698, \"
+oi_usd\": 214261648.86, \"liq_short_usd\": 260634.38, \"liq_long_usd\": 350284.07}", "domain": "[]", "evidence_json": "
+", "missing_sources": "2026-09-21 09:43:20.759968"}
+     {"created_at": "3618", "ts": "2026-09-21 09:43:20.686952", "score": "UNI", "confidence": "kline_deep", "n_samples"
+: "1.0", "data_quality": "ok", "reason": "1", "producer": "backend/services/analysts/scorers.py", "as_of": "2026-09-21 
+09:43:10", "symbol": "{\"signal\": \"bullish\", \"score_raw\": 50.0, \"summary\": \"22个币种中13个偏多，整体偏好\", \"recommendatio
+n\": \"多周期技术面偏多，可寻找顺势机会\", \"detail_chars\": 145, \"parsed\": \"structured\"}", "domain": "[]", "evidence_json": "", "m
+issing_sources": "2026-09-21 09:43:20.759968"}
+     {"created_at": "3590", "ts": "2026-09-21 09:43:20.686952", "score": "UNI", "confidence": "technical", "n_samples":
+ "0.6020341778681376", "data_quality": "ok", "reason": "168", "producer": "backend/services/analysts/scorers.py", "as_o
+f": "2026-09-21 09:00:00", "symbol": "{\"bars_1h\": 168, \"bars_4h\": 220, \"bars_1d\": 220, \"ema9_1h\": 8.8531, \"ema
+21_1h\": 8.8274, \"trend_1h\": 1.0, \"pos24_pct\": 71.2, \"dist_ema200_1d_pct\": 52.06, \"rsi14_", "domain": "[]", "evi
+dence_json": "", "missing_sources": "2026-09-21 09:43:20.759968"}
+     {"created_at": "3608", "ts": "2026-09-21 09:43:20.686952", "score": "UNI", "confidence": "sentiment", "n_samples":
+ "-0.05", "data_quality": "ok", "reason": "2", "producer": "backend/services/analysts/scorers.py", "as_of": "2026-09-21
+ 09:25:39", "symbol": "{\"n\": 2, \"pos\": 0, \"neg\": 0, \"weighted_dir\": -0.05, \"top_title\": \"Uniswap创始人：SBF曾花七位数
+买下Uniswap.com域名并指向分叉项目\", \"top_summary\": \"Uniswap创始人披露SBF曾高价收购Uniswap.com域名并", "domain": "[]", "evidence_json": "", 
+"missing_sources": "2026-09-21 09:43:20.759968"}
+     {"created_at": "3537", "ts": "2026-09-21 09:21:34.357220", "score": "UNI", "confidence": "flow", "n_samples": "-0.
+2897625132201325", "data_quality": "ok", "reason": "3", "producer": "backend/services/analysts/scorers.py", "as_of": "2
+026-09-21 09:21:32", "symbol": "{\"funding_median_pct\": 0.0013, \"funding_rows\": 2186, \"global_ls_ratio\": 1.669, \"
+oi_usd\": 206325051.78, \"liq_short_usd\": 261348.3, \"liq_long_usd\": 289317.51}", "domain": "[]", "evidence_json": ""
+, "missing_sources": "2026-09-21 09:21:34.406701"}
+     {"created_at": "3524", "ts": "2026-09-21 09:21:34.357220", "score": "UNI", "confidence": "technical", "n_samples":
+ "0.5931363010792596", "data_quality": "ok", "reason": "168", "producer": "backend/services/analysts/scorers.py", "as_o
+f": "2026-09-21 09:00:00", "symbol": "{\"bars_1h\": 168, \"bars_4h\": 220, \"bars_1d\": 220, \"ema9_1h\": 8.852, \"ema2
+1_1h\": 8.8193, \"trend_1h\": 1.0, \"pos24_pct\": 71.2, \"dist_ema200_1d_pct\": 54.46, \"rsi14_1", "domain": "[]", "evi
+dence_json": "", "missing_sources": "2026-09-21 09:21:34.406701"}
+
+   [analyst_blend_shadow] 12h 内 330 行，含 UNI 的 18 行
+     {"ts": "2026-09-21 09:44:33.215485", "analyst_score": "UNI", "gain": "long", "blended": "28.0", "would_change": "0
+.1988", "applied": "0.15", "conviction_before": "28.84", "symbol": "True", "tier": "False", "contributions_json": "{\"f
+low\": {\"score\": -0.261, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"s
+core\": 1.0, \"conf\": 0.18, \"w\": 0.05, \"symbol\": \"UNI\", \"q", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（
+kline_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+     {"ts": "2026-09-21 09:19:28.950696", "analyst_score": "UNI", "gain": "mid", "blended": "52.0", "would_change": "0.
+2069", "applied": "0.15", "conviction_before": "53.61", "symbol": "True", "tier": "False", "contributions_json": "{\"fl
+ow\": {\"score\": -0.322, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"sc
+ore\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"qu", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（k
+line_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+     {"ts": "2026-09-21 08:43:48.990004", "analyst_score": "UNI", "gain": "mid", "blended": "47.0", "would_change": "0.
+1785", "applied": "0.15", "conviction_before": "48.26", "symbol": "True", "tier": "False", "contributions_json": "{\"fl
+ow\": {\"score\": -0.323, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"sc
+ore\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"qu", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（k
+line_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+     {"ts": "2026-09-21 08:42:47.055369", "analyst_score": "UNI", "gain": "long", "blended": "25.0", "would_change": "0
+.1785", "applied": "0.15", "conviction_before": "25.67", "symbol": "True", "tier": "False", "contributions_json": "{\"f
+low\": {\"score\": -0.323, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"s
+core\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"qu", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（
+kline_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+     {"ts": "2026-09-21 08:12:12.415234", "analyst_score": "UNI", "gain": "mid", "blended": "47.0", "would_change": "0.
+1655", "applied": "0.15", "conviction_before": "48.17", "symbol": "True", "tier": "False", "contributions_json": "{\"fl
+ow\": {\"score\": -0.326, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"sc
+ore\": 0.0, \"conf\": 0.16, \"w\": 0.05, \"symbol\": \"UNI\", \"q", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（k
+line_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+     {"ts": "2026-09-21 08:10:12.590909", "analyst_score": "UNI", "gain": "long", "blended": "28.0", "would_change": "0
+.1655", "applied": "0.15", "conviction_before": "28.7", "symbol": "True", "tier": "False", "contributions_json": "{\"fl
+ow\": {\"score\": -0.326, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"sc
+ore\": 0.0, \"conf\": 0.16, \"w\": 0.05, \"symbol\": \"UNI\", \"q", "missing_json": "[\"kline_deep: 近 72h 无 K 线深度分析产物（k
+line_ai_analysis_logs 0 行）：KlineAnalyst 仍在被调用但不落库 ⇒\"]", "producer": "backend/services/analysts/service.py"}
+
+   [ai_decision_logs] 12h 内 330 行，含 UNI 的 18 行
+     {"long_confidence": "463313", "account_id": "0", "decision_time": "2026-09-21 09:44:33.033434", "prev_portion": "U
+NI 大周期（1w/1d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.863 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，
+4h MACD 柱转负、1h/4h 短周期回调，资金费转正、global_ls=", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "UNI 大周期（1w/1d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.863 已贴近 24h 高点 9.01 与阻力 
+8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h/4h 短周期回调，资金费转正、global_ls=", "decision_quality_score": "{\"tier\": \"long
+\", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.25, \"llm_conviction\": 25, \"fw_mean\": null,
+ \"alignment_score\": 0, \"consensus_score\": ", "wisdom_applied": "2026
+     {"long_confidence": "463300", "account_id": "0", "decision_time": "2026-09-21 09:17:57.018024", "prev_portion": "1
+w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 75.9 超买，4h MACD 柱 -0.088、1h 转弱，属强趋势中的
+高位整理；现价 8.838 已贴近 24h 高点 9.01 与入场区上沿，且 U", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 75.9 
+超买，4h MACD 柱 -0.088、1h 转弱，属强趋势中的高位整理；现价 8.838 已贴近 24h 高点 9.01 与入场区上沿，且 U", "decision_quality_score": "{\"tier\": \"mid\
+", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.47, \"llm_conviction\": 47, \"fw_mean\": null, 
+\"alignment_score\": 0, \"consensus_score\": 0", "wisdom_applied": "2026
+     {"long_confidence": "463287", "account_id": "0", "decision_time": "2026-09-21 08:42:46.950155", "prev_portion": "U
+NI 大周期（1w/1d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.849 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，
+4h MACD 柱转负、1h 与 4h 短周期回调，资金费转正、global_l", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "UNI 大周期（1w/1d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.849 已贴近 24h 高点 9.01 与阻力 
+8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h 与 4h 短周期回调，资金费转正、global_l", "decision_quality_score": "{\"tier\": \"long
+\", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.28, \"llm_conviction\": 28, \"fw_mean\": null,
+ \"alignment_score\": 0, \"consensus_score\": ", "wisdom_applied": "2026
+     {"long_confidence": "463286", "account_id": "0", "decision_time": "2026-09-21 08:42:46.334187", "prev_portion": "1
+w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 76 超买，4h MACD 柱 -0.087、1h 转弱，属强趋势中的高位
+整理；现价 8.849 已贴近 24h 高点 9.01 与入场区上沿，且 UNI", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 76 超买
+，4h MACD 柱 -0.087、1h 转弱，属强趋势中的高位整理；现价 8.849 已贴近 24h 高点 9.01 与入场区上沿，且 UNI", "decision_quality_score": "{\"tier\": \"mid\
+", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.47, \"llm_conviction\": 47, \"fw_mean\": null, 
+\"alignment_score\": 0, \"consensus_score\": 0", "wisdom_applied": "2026
+     {"long_confidence": "463270", "account_id": "0", "decision_time": "2026-09-21 08:10:59.397938", "prev_portion": "1
+w/1d 多头结构完好（EMA 全多头、ADX14=51.7、距 EMA200 +111%、1w 20 期收益 +171%），但 1w RSI 71.7、1d RSI 75.4 超买，4h MACD 柱 -0.093、1h EMA 转 b
+earish，属强趋势中的高位整理；现价 8.733 已高于入场区上沿 8.79", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "1w/1d 多头结构完好（EMA 全多头、ADX14=51.7、距 EMA200 +111%、1w 20 期收益 +171%），但 1w RSI 71.7、1d RSI 75.
+4 超买，4h MACD 柱 -0.093、1h EMA 转 bearish，属强趋势中的高位整理；现价 8.733 已高于入场区上沿 8.79", "decision_quality_score": "{\"tier\": \"mid\
+", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.52, \"llm_conviction\": 52, \"fw_mean\": null, 
+\"alignment_score\": 0, \"consensus_score\": 0", "wisdom_applied": "2026
+Traceback (most recent call last):
+     {"long_confidence": "463268", "account_id": "0", "decision_time": "2026-09-21 08:10:12.498142", "prev_portion": "大
+周期（1w/1d）多头结构完好、ADX14=51.7强趋势、90期区间位置89%，方向看多；但现价8.733已贴近1d区间上沿并压在阻力8.787/8.98之下，1w RSI=71.7与1d RSI=75.4超买，4h/1h短周期转弱回调
+（4h MACD柱-0.093、1h EMA趋势bearish），资金费转正、g", "target_portion": "buy", "total_balance": "UNI", "order_id": "0.000000", "cr
+eated_at": "0.000000", "prompt_template_id": "0.00", "signal_trigger_id": "false", "realized_pnl": null, "pnl_updated_a
+t": null, "strategy_version": "大周期（1w/1d）多头结构完好、ADX14=51.7强趋势、90期区间位置89%，方向看多；但现价8.733已贴近1d区间上沿并压在阻力8.787/8.98之下，1w RSI
+=71.7与1d RSI=75.4超买，4h/1h短周期转弱回调（4h MACD柱-0.093、1h EMA趋势bearish），资金费转正、g", "decision_quality_score": "{\"tier\": \"long
+\", \"direction\": \"long\", \"dir_src\": \"llm_brain\", \"llm_qual\": 0.27, \"llm_conviction\": 27, \"fw_mean\": null,
+ \"alignment_score\": 0, \"consensus_score\": ", "wisdom_applied": "2026
+
+====================================================================================================
+④ 形态：UNI 1h K 线（近 14 根）+ 4h/1d 指标
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: �ֶ� "open" ������
+LINE 1: select timestamp, open, high, low, close, volume from crypto...
+                          ^
+System.Management.Automation.RemoteException
+The above exception was the direct cause of the following exception:
+System.Management.Automation.RemoteException
+Traceback (most recent call last):
+  File "D:\001Alpha\Hyper-Alpha-Arena\scripts\_probe160_uni_long_loop.py", line 109, in <module>
+    rows = c.execute(text(
+           ^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_con
+nection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clause
+element
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_contex
+t
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_co
+ntext
+    self._handle_dbapi_exception(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_e
+xception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedColumn) �ֶ� "open" ������
+LINE 1: select timestamp, open, high, low, close, volume from crypto...
+                          ^
+[SQL: select timestamp, open, high, low, close, volume from crypto_klines where symbol = 'UNI' and timeframe = '1h' ord
+er by timestamp desc limit 14]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+

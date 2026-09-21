@@ -711,7 +711,17 @@ def test_midlong_thesis_quota_class_is_event():
     assert task_class("midlong_thesis") == "event"
 
 
-def test_promote_open_if_price_in_entry_zone():
+def test_promote_open_if_price_in_entry_zone(monkeypatch):
+    """[轮154 2026-09-21 重写] promotion 默认关闭，且**不得改写模型的明确 false**。
+
+    旧断言（现价 100 在 98-102 区内、`recommend_open=False` ⇒ 被强制改成 True）钉的
+    正是轮154 查实的根因：UNI mid 模型明确 false + 散文写"不追高、选择观望等 4h 企稳"，
+    被同一个函数改写成 true ⇒ 02:30/03:10/07:04 三笔满档多头、每次止损 −$12.5
+    （见 reports/_轮154_UNI连续开多_根因_20260921.md）。
+    现口径（用户批准 A/B）：`MIDLONG_ENTRY_ZONE_PROMOTE` 默认 false；打开时也只对
+    "模型未表态"生效；辩论主周期 reject / 位置闸"高位追多"命中时禁止 promotion。
+    """
+    monkeypatch.delenv("MIDLONG_ENTRY_ZONE_PROMOTE", raising=False)
     from backend.services.mlto.brain import promote_open_if_in_zone
     base = {
         "direction": "bullish",
@@ -720,13 +730,42 @@ def test_promote_open_if_price_in_entry_zone():
         "entry_zone": {"low": 98.0, "high": 102.0},
         "thesis_summary": "等回踩",
     }
-    out = promote_open_if_in_zone(base, last_price=100.0, has_position=False)
-    assert out["recommend_open"] is True
-    assert out.get("_promoted_open") == "entry_zone_touched"
-    hold = promote_open_if_in_zone(base, last_price=110.0, has_position=False)
-    assert hold["recommend_open"] is False
-    with_pos = promote_open_if_in_zone(base, last_price=100.0, has_position=True)
-    assert with_pos["recommend_open"] is False
+    # ① 默认关闭：明确 false 一个字都不改
+    out = promote_open_if_in_zone(base, last_price=100.0, has_position=False,
+                                  symbol="UNI", tier="mid")
+    assert out["recommend_open"] is False, "默认关闭时不得 promotion"
+    assert "_promoted_open" not in out
+    # ② 开关打开：明确 false 仍不得改写（本轮根因）
+    monkeypatch.setenv("MIDLONG_ENTRY_ZONE_PROMOTE", "true")
+    still = promote_open_if_in_zone(base, last_price=100.0, has_position=False,
+                                    symbol="UNI", tier="mid")
+    assert still["recommend_open"] is False, "模型明确 false 被改写了"
+    # ③ 开关打开 + 模型未表态：允许按入场区提为 true（并打标记）
+    #    注意：真实库里 UNI 近 3h 的辩论主周期正是 reject ⇒ 会被方案 B 前置拦下
+    #    （这本身就是 B 在真实数据上生效的证据）。这里先屏蔽前置，单测 promotion 本体。
+    from backend.services.mlto import brain as _brain_mod
+    monkeypatch.setattr(_brain_mod, "_promotion_blocked_by_analysis",
+                        lambda *a, **k: (False, ""))
+    silent = dict(base)
+    silent.pop("recommend_open")
+    ok = promote_open_if_in_zone(silent, last_price=100.0, has_position=False,
+                                 symbol="UNI", tier="mid")
+    assert ok["recommend_open"] is True
+    assert ok.get("_promoted_open") == "entry_zone_touched"
+    # ⑤ 前置命中（辩论 reject / 高位追多）⇒ 即使开关打开也不 promotion
+    monkeypatch.setattr(_brain_mod, "_promotion_blocked_by_analysis",
+                        lambda *a, **k: (True, "debate_primary_reject:intraday"))
+    blocked = promote_open_if_in_zone(silent, last_price=100.0, has_position=False,
+                                      symbol="UNI", tier="mid")
+    assert blocked.get("recommend_open") is not True
+    assert "debate_primary_reject" in str(blocked.get("_promoted_open_blocked"))
+    # ④ 有仓 / 价格不在区内：不动
+    hold = promote_open_if_in_zone(silent, last_price=110.0, has_position=False,
+                                   symbol="UNI", tier="mid")
+    assert hold.get("recommend_open") is not True
+    with_pos = promote_open_if_in_zone(silent, last_price=100.0, has_position=True,
+                                       symbol="UNI", tier="mid")
+    assert with_pos.get("recommend_open") is not True
 
 
 def test_merge_outputs_bool_and_or():
