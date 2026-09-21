@@ -1,0 +1,32 @@
+﻿
+====================================================================================================
+① 直接跑一次完整辩论（run_debate_for_thesis，含牛/熊/风控三轮 LLM）
+   context pack 构建 14.3s
+   耗时 32.6s
+   verdict            = "reduce"
+   net_sentiment      = 0.0
+   risk_min           = 0.35
+   used_llm           = true
+   primary_horizon    = "intraday"
+   primary_verdict    = "reduce"
+   horizon_verdicts   = {"intraday": "reduce", "swing": "reduce", "trend": "reduce"}
+   persist_rows       = 2
+   evidence(前2)      = ["【日内】1h 结构 ema_trend_1h=bullish rsi14_1h=56.8 atr14_1h=0.94%", "【日内】24h 表现 ret_24h=2.94% 区间位置 p
+os24=63.9 （2565.66~2700.73）"]
+
+====================================================================================================
+② 账本：最近 8 条 mlto_debate 的 status / schema_errors / 字段
+   09-21 15:47:40 ok       deepseek-flash     schema_errors=[] keys=['argument', 'evidence', 'horizons', 'weakness', 'c
+onfidence', 'counterargument']
+   09-21 15:47:37 ok       deepseek-flash     schema_errors=[] keys=['argument', 'evidence', 'horizons', 'weakness', 'c
+onfidence', 'counterargument']
+   09-21 15:47:33 ok       deepseek-flash     schema_errors=[] keys=['argument', 'evidence', 'horizons', 'weakness', 'c
+onfidence', 'counterargument']
+   09-21 15:47:30 error    deepseek-flash     schema_errors=[] keys=None
+   09-21 15:47:24 error    deepseek-flash     schema_errors=[] keys=None
+   09-21 15:47:19 error    deepseek-flash     schema_errors=[] keys=None
+   09-21 15:47:13 error    deepseek-flash     schema_errors=[] keys=None
+   09-21 15:46:19 error    deepseek-flash     schema_errors=["缺少字段 direction", "缺少字段 strength", "缺少字段 key_factors", "缺少
+字段 summary"] keys=['argument', 'evidence', 'horizons', 'confidence']
+
+

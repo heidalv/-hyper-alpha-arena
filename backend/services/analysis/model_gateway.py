@@ -892,7 +892,11 @@ class ModelGateway:
             res.input_tokens, res.output_tokens = raw.input_tokens, raw.output_tokens
             obj = extract_json(res.text)
             if obj is None:
-                res.error = "输出中无可解析 JSON"
+                # [轮157 2026-09-21] 带上原文摘要：此前只写"输出中无可解析 JSON"，
+                # 账本里不留任何痕迹 ⇒ 无法判断是模型没给 JSON、还是 JSON 里有未转义引号
+                # （辩论轮实测约 1/3 落这一类）。只加观测信息，不改任何判定。
+                _snip = " ".join((res.text or "").split())[:180]
+                res.error = f"输出中无可解析 JSON（原文摘要：{_snip}）" if _snip else "输出中无可解析 JSON"
             else:
                 valid, errs = schemas.validate(schema_task or task, obj)
                 res.json = obj

@@ -1,0 +1,43 @@
+﻿
+已注册 schema：
+   daily_brief            required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'regime', 'regime_
+confidence', 'bucket_weights', 'symbol_views', 'risks']
+   trend_chart_review     required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'structure', 'time
+frame_alignment', 'key_levels', 'invalidation', 'position_advice']
+   event_impact           required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'half_life_hours',
+ 'affected_symbols', 'hedging_window_hours', 'position_adjustments']
+   weekly_review          required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'lane_assessments'
+, 'experiments']
+   param_search           required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'candidates']
+   timing                 required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'regime', 'bucket_
+weights', 'engine_capital']
+   arbiter                required=['verdict', 'direction', 'strength', 'confidence', 'rationale', 'key_factors']
+   gateway_test           required=['direction', 'strength', 'confidence', 'summary']
+   signal_review          required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'source_findings']
+   news_annotate          required=['direction', 'strength', 'duration', 'symbols', 'category', 'confidence', 'summary'
+]
+   anomaly                required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'root_causes', 'co
+unter_scenarios']
+   midlong_thesis         required=['direction', 'strength', 'confidence', 'key_factors', 'summary', 'recommend_open', 
+'should_close', 'invalidation', 'missing_evidence', 'sl_pct', 'tp_pct', 'thesis_summary']
+   mlto_debate            required=['argument', 'confidence']
+
+代码里出现过的 task 名（按调用点计数）：
+   gateway_test           n=2   已注册      例：backend/api/analysis_routes.py
+   timing                 n=2   已注册      例：backend/services/agents/timing_agent.py
+   news_annotate          n=2   已注册      例：backend/services/events/smart_money.py
+   anomaly                n=1   已注册      例：backend/services/agents/anomaly_agent.py
+   signal_review          n=1   已注册      例：backend/services/agents/signal_review.py
+   daily_brief            n=1   已注册      例：backend/services/analysis/tasks.py
+   weekly_review          n=1   已注册      例：backend/services/analysis/tasks.py
+   event_impact           n=1   已注册      例：backend/services/analysis/tasks.py
+   trend_chart_review     n=1   已注册      例：backend/services/analysis/tasks.py
+   midlong_thesis         n=1   已注册      例：backend/services/mlto/brain.py
+   mlto_debate            n=1   已注册      例：backend/services/mlto/brain_debate.py
+
+未注册却会被网关注入公共契约的 task：[]
+   ⇒ 这些 task 的调用方若自己要求了别的 JSON 形状，必然出现「契约冲突 / schema 报错 / 解析拿不到字段」
+
+公共契约字段 = ['direction', 'strength', 'confidence', 'key_factors', 'summary']
+
+

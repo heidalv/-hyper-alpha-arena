@@ -22,7 +22,7 @@ _BACKEND = Path(__file__).resolve().parents[2]
 
 
 def _kind_of(value):
-    """把 template 里的示例值映射成 schemas 的类型标记。"""
+    """把 template 里的示例值映射成 schemas 的类型标记（**仅**供 enum 之外的历史断言用）。"""
     if isinstance(value, bool):
         return "bool"
     if isinstance(value, (int, float)):
@@ -32,6 +32,27 @@ def _kind_of(value):
     if isinstance(value, dict):
         return "weights"  # dict 型字段目前只有 bucket_weights
     return "str"
+
+
+def _example_ok(kind: str, value) -> "str | None":
+    """[轮157 2026-09-21] 判断 template 示例是否满足该字段的声明。
+
+    原实现用 `_kind_of()` 粗推断（**任何 dict 都判成 weights**），于是
+    `midlong_thesis.invalidation`（声明 `inv_px`、示例 `{"price":2400.0,"condition":"…"}`）
+    被误判成 weights ⇒ 本用例自那时起**恒红**，既掩盖真实回归又没人看。
+    现改为直接调用**生产校验器** `schemas._check`（判据与线上完全一致）；
+    只对 enum 特判：契约示例常写成 `"a|b|c"` 的取值列表，逐个核对合法性。
+    """
+    head = kind.split(":")[0]
+    if head == "enum":
+        if not isinstance(value, str):
+            return "枚举示例应为字符串（取值列表 a|b|c 或其中一项）"
+        allowed = {"direction": schemas.DIRECTIONS, "regime": schemas.REGIMES,
+                   "arbiter": schemas.ARBITER_VERDICTS}.get(kind.split(":")[1], ())
+        opts = [x.strip() for x in value.split("|") if x.strip()]
+        bad = [o for o in opts if o not in allowed]
+        return f"示例含非法枚举值 {bad}（合法：{list(allowed)}）" if bad else None
+    return schemas._check(kind, value)  # noqa: SLF001 — 与线上同一个校验器
 
 
 def _declared_kind(kind: str) -> str:
@@ -61,7 +82,10 @@ def test_all_called_tasks_are_registered():
 
 
 def test_每个task的template与required类型自洽():
-    """契约示例本身必须是合法类型，否则等于教模型犯错。"""
+    """契约示例本身必须是合法类型，否则等于教模型犯错。
+
+    [轮157] 判据改用生产校验器 `schemas._check`（见 `_example_ok` 的注释）。
+    """
     problems = []
     for task, spec in schemas.TASK_SCHEMAS.items():
         tpl = spec.get("template") or {}
@@ -69,10 +93,10 @@ def test_每个task的template与required类型自洽():
             if field not in tpl:
                 problems.append(f"{task}.{field}: required 声明了但 template 没给示例")
                 continue
-            want, got = _declared_kind(kind), _kind_of(tpl[field])
-            if want != got:
+            err = _example_ok(kind, tpl[field])
+            if err:
                 problems.append(
-                    f"{task}.{field}: 声明 {kind} 但 template 示例是 {got}（{tpl[field]!r}）"
+                    f"{task}.{field}: 声明 {kind} 但示例不合法 — {err}（{tpl[field]!r}）"
                 )
     assert not problems, "契约示例与声明类型不符:\n  " + "\n  ".join(problems)
 

@@ -277,6 +277,41 @@ TASK_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "summary": "入场区已触及，recommend_open=true",
         },
     },
+    # [轮157 2026-09-21] **牛熊辩论**的真实契约（此前未注册，是唯一一个）。
+    # 未注册的后果（实测近 12 行账本 + 8h 统计）：
+    #   · `validate()` 退回 `COMMON_REQUIRED`（direction/strength/key_factors/summary），
+    #     而 `call()` 还会把这份**公共契约注入 system prompt** ⇒ 与辩论自己的 JSON 要求冲突；
+    #   · 牛/熊按辩论 prompt 输出 `{argument,evidence,horizons,…}` ⇒ 被判 schema 失败
+    #     （`status=error`，MiniMax 时期 444/560 = 79% 错误率，把账本错误率彻底污染）；
+    #   · 风控轮反而照抄注入的公共契约（summary/direction/strength）⇒ 校验通过，
+    #     但辩论解析器要的 `argument` 缺失 ⇒ 静默退化成规则中性（"LLM 用了但没读到"）。
+    # 契约（来自 debate_layer 的两个 prompt + brain_debate._horizon_instruction）：
+    #   牛/熊：argument / confidence / evidence / counterargument / weakness，**外加** horizons；
+    #   风控  ：argument / confidence（+ evidence，可省 counterargument/weakness）；
+    #   周期  ：horizons.{intraday,swing,trend}.{stance,confidence,argument}（辩论层硬要求）。
+    # 只把 argument/confidence 列为必填：horizons 是嵌套对象，缺它时辩论层有自己的
+    # `_salvage_horizons` 容错，不该让整轮辩论在账本里变成 error。
+    "mlto_debate": {
+        "required": {
+            "argument": "str",
+            "confidence": "number:0:1",
+        },
+        "template": {
+            "argument": "你的核心论点（一句话，锚定你所负责周期的证据）",
+            "confidence": 0.5,
+            "evidence": ["支持你论点的具体证据"],
+            "counterargument": "对对方论点的反驳（风控轮可省略）",
+            "weakness": "你论点的最大弱点（风控轮可省略）",
+            "horizons": {
+                "intraday": {"stance": "long|short|neutral", "confidence": 0.5,
+                             "argument": "日内（小时~1天）的核心论点"},
+                "swing": {"stance": "long|short|neutral", "confidence": 0.5,
+                          "argument": "中期（数天~两周）的核心论点"},
+                "trend": {"stance": "long|short|neutral", "confidence": 0.5,
+                          "argument": "长期趋势（数周~数月）的核心论点"},
+            },
+        },
+    },
 }
 
 
