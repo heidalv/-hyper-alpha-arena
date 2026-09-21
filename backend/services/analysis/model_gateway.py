@@ -411,7 +411,7 @@ class DeepSeekTransport(Transport):
                     id=0,
                     name="deepseek-env",
                     provider="deepseek",
-                    model=_env("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+                    model=_env("DEEPSEEK_MODEL", "deepseek-flash"),
                     base_url=_env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
                     api_key=key,
                 )
@@ -428,7 +428,7 @@ class DeepSeekTransport(Transport):
 
     def model_name(self) -> str:
         cfg = self._resolve()
-        return getattr(cfg, "model", "") or _env("DEEPSEEK_MODEL", "deepseek-v4-flash")
+        return getattr(cfg, "model", "") or _env("DEEPSEEK_MODEL", "deepseek-flash")
 
     def complete(self, system: str, user: str, *, max_tokens: int, temperature: float, timeout_s: float, task: str,
                  images: Optional[List[Dict[str, str]]] = None) -> RawCompletion:
@@ -437,9 +437,33 @@ class DeepSeekTransport(Transport):
         cfg = self._resolve()
         if not cfg:
             raise RuntimeError("deepseek 未配置")
+        # [轮156 2026-09-21·用户指正 + 官方文档] **deepseek-flash（V4.1 Flash）原生多模态**，
+        # 不是纯文本。依据 api-docs.deepseek.com/zh-cn/guides/vision：
+        #   · 图片走 OpenAI 兼容的 content **块数组**：
+        #     {"type":"image_url","image_url":{"url":"data:image/png;base64,<B64>"}}
+        #   · **图片只能出现在 user 消息里**；放进 system/assistant 会 400
+        #     （实测原文：`Image in system message is unsupported`，已复现）。
+        # 故这里把 system 保持为纯字符串，图片与正文一起放进同一条 user 消息。
+        if images:
+            content_parts: List[Dict[str, Any]] = [{"type": "text", "text": user}]
+            for img in images:
+                b64 = str((img or {}).get("b64") or "").strip()
+                if not b64:
+                    continue
+                _mt = str((img or {}).get("media_type") or "image/png").strip() or "image/png"
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{_mt};base64,{b64}"},
+                })
+            if len(content_parts) == 1:
+                # 声明了 images 但一张都没拿到 b64 ⇒ 退回纯文本，不编造图片块
+                content_parts = []
+            user_msg: Any = content_parts or user
+        else:
+            user_msg = user
         resp = call_llm_api_sync(
             cfg,
-            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            [{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
             temperature=float(temperature),
             max_tokens=int(max_tokens),
             response_format={"type": "json_object"},

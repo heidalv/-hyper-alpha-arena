@@ -699,13 +699,12 @@ def run_trend_chart_review(
         "trend_chart_review",
         symbols=[symbol],
         images=images or None,
-        # [轮155 2026-09-21·用户指令「LLM 全部换 deepseek，不用 minimax」]
-        # 原值 ["minimax","glm_opencode"]。注意：**DeepSeek 传输是纯文本**（`complete()` 完全
-        # 忽略 `images` 参数），所以主票换成 deepseek 后，本任务的 K 线图**没有票会看**——
-        # 图审退化为"深度 K 线数值分析"。这里保留 GLM 作为带图票：仅当 GLM 因降级被顶上
-        # 主票时才会真的收到图，其余情况图不会被任何票消费（提示词里已要求"没有图片就
-        # 仅依据数值数据分析，不要臆测图内容"）。
-        images_for=["glm_opencode", "glm_opencode_alt"] if images else None,
+        # [轮156 2026-09-21·用户指正 + 官方文档] **deepseek-flash 原生多模态**（V4.1 Flash），
+        # 上一轮"DeepSeek 传输是纯文本"的判断是**错的**：官方 /guides/vision 明确支持用
+        # OpenAI 兼容 content 块数组传图，本轮已在 `DeepSeekTransport.complete` 接上
+        # （图只放进 user 消息，符合文档「system 带图会 400」的约束，已实测复现该 400）。
+        # ⇒ 图审的 K 线图现在真的会被主模型看到，带图票改回主票。
+        images_for=["deepseek", "glm_opencode", "glm_opencode_alt"] if images else None,
         event_block=event_block,
         event_meta={"symbol": symbol, "charts": [im["title"] for im in images]},
         max_output_tokens=2000,

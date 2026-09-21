@@ -1,0 +1,27 @@
+﻿
+====================================================================================================
+① 纯文本：两个模型名是否都能用（上次 deepseek-flash 报 62s 超时，复核）
+   deepseek-flash       ok=True   1.3s echoed=deepseek-flash out={"ok":true} usage=83
+   deepseek-v4-flash    ok=True   1.2s echoed=deepseek-flash out={"ok":true} usage=107
+
+====================================================================================================
+② 渲染我们自己的 K 线图（chart_service）
+   charts=1 errors=[]
+   第一张：title='BTC 4h (bars=110, last_close=81,533.7)' media_type=image/png png_bytes=17512 b64_chars=23352
+
+====================================================================================================
+③ 把图喂给模型（deepseek-flash = 官方多模态模型名）
+   ok=True 1.8s echoed=deepseek-flash usage={'prompt_tokens': 363, 'completion_tokens': 103, 'total_tokens': 466, 'prom
+pt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 63}, 'prompt_cache_hit_toke
+ns': 0, 'prompt_cache_miss_tokens': 363}
+   回答：{"sees_chart":true,"trend":"up","last_close":81594.4,"evidence":"底部连续阳线拉升，EMA9上穿EMA21并向上发散"}
+
+   （旧名 deepseek-v4-flash）ok=True 1.6s echoed=deepseek-flash
+   回答：{"sees_chart":true,"trend":"up","last_close":81594.4,"evidence":"EMA9上穿EMA21，自76600低点连续大阳线拉升"}
+
+====================================================================================================
+④ 反例：把图放进 system 消息（文档说会 400）——验证我们的实现对不对得上
+   如文档所述被拒：HTTPError {"error":{"message":"Image in system message is unsupported","type":"invalid_request_error","param
+":null,"code":"invalid_request_error"}}
+
+

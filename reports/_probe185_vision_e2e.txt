@@ -1,0 +1,26 @@
+﻿
+====================================================================================================
+① 传输配置：model_name='deepseek-flash'  configured=(True, 'model=deepseek-flash via db')
+② 渲染 K 线图：1 张 errs=[] title=BTC 4h (bars=110, last_close=81,533.7)
+
+③ 不给图（对照组）
+   1.5s model=deepseek-flash in_tok=74 out_tok=33
+   {"sees_chart":false,"trend":"range","key_structure":"无图表数据","ema_state":"无法判断","confidence":0.0}
+
+④ 给图（实验组）——走 DeepSeekTransport.complete 的真实拼装
+   0.7s model=deepseek-flash in_tok=316 out_tok=44
+   {"sees_chart":true,"trend":"up","key_structure":"低点抬高，逼近前高","ema_state":"EMA9在EMA21上方，多头排列","confidence":0.85}
+
+⑤ 判定
+   sees_chart=True trend=up structure='低点抬高，逼近前高' ema='EMA9在EMA21上方，多头排列'
+   → ✅ 模型确实读到了图
+   输入 token 对照：不给图 74 → 给图 316（相差 242，图片按 token 计费）
+
+====================================================================================================
+⑥ 真实任务入口 run_trend_chart_review（与线上同一条代码路径）
+   13.0s ok=True consensus=0.55 status=ok images_for=None
+   final 摘要：{"direction": "bullish", "strength": 6, "confidence": 0.55, "structure": "4h 图上自区间低点连续拉升后进入高位窄幅整理，EMA9 上穿 E
+MA21 且价格站上双均线，重心持续上移，属上升趋势中的高位旗形/横盘消化阶段，尚未出现顶部派发特征。", "timeframe_alignment": "1w 趋势与 EMA 结构均为 bullish，1d 价格位于 EMA200 上方
+ 14.06%、RSI14 64.9，1h/4h EMA 趋势同为 bullish，三周期方向共振向上；唯一背离在 4h MACD 柱（contex
+
+
