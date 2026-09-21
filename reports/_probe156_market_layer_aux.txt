@@ -1,0 +1,10 @@
+﻿
+================================================================================================
+market 层的链上/宏观读数（轮153 修正后）
+  BTC: fear_greed=70.0 btc_dominance=0.0 btc_network_tx_count=789187.0 active_addresses=<键缺席>
+  ETH: fear_greed=70.0 btc_dominance=0.0 btc_network_tx_count=None active_addresses=<键缺席>
+  SOL: fear_greed=70.0 btc_dominance=0.0 btc_network_tx_count=None active_addresses=<键缺席>
+
+注：'active_addresses' 只应出现在回滚开关打开时；正常路径下 BTC 用 btc_network_tx_count，其他币两个键都不该有。
+
+
