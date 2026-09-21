@@ -333,6 +333,39 @@ _MARKET_LAYER_CACHE: Dict[tuple, tuple] = {}  # (tuple(symbols)) -> (ts, result)
 _MARKET_LAYER_CACHE_TTL = 60.0
 
 
+def _legacy_active_addresses() -> bool:
+    """[轮153] 回滚开关：`CTX_AUX_LEGACY_ACTIVE_ADDRESSES=true` 恢复旧行为（写 0 假值）。"""
+    return (os.getenv("CTX_AUX_LEGACY_ACTIVE_ADDRESSES", "false") or "false").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _emit_aux_readings(d: Dict[str, Any], aux_row: Dict[str, Any]) -> None:
+    """把 `market.symbol_aux_timeseries` 的链上/宏观读数写进 market 层的一行。
+
+    [轮153 2026-09-21·用户批准方案 A] **字段语义修正 + 缺失不写键**：
+      · `active_addresses` 全表唯一有值的是 BTC，且入库值本身就是 `onchain_data_collector`
+        从 blockchain.info 取的 `n_tx` = **全比特币网络日交易笔数**，被错标成"活跃地址"
+        （溯源见 `reports/_轮153_模板族归档与aux字段溯源_20260921.md` 第五节）；
+        ETH 那路的合成值（`block_num % 100000`）已在 2026-07-10 删除，其余 symbol 恒 NULL。
+      · 原实现 `_r(..., 0)` 的第二个参数是**精度**不是默认值，NULL 时值为 `None` ——
+        即每个 symbol 都带一个 `active_addresses: null` 的键（"有键无值"），
+        与本仓 2026-07-10 既有原则「取不到就不填，让下游明确无此项数据」不一致。
+      · 现在：**非空才写**，并按真实语义改名 `btc_network_tx_count`；BTC 之外没有这个键。
+      · 回滚：`CTX_AUX_LEGACY_ACTIVE_ADDRESSES=true`（恢复写 `active_addresses`，值仍为 None）。
+    """
+    d["fear_greed"] = _r(aux_row.get("fear_greed"), 1)
+    d["btc_dominance"] = _r(aux_row.get("btc_dominance"), 2)
+    _aa = aux_row.get("active_addresses")
+    if _legacy_active_addresses():
+        d["active_addresses"] = _r(_aa, 0)
+    elif _aa is not None:
+        d["btc_network_tx_count"] = _r(_aa, 0)
+    # 量化简报的另一条读取路径（`md.onchain_macro.fear_greed`）
+    d["onchain_macro"] = {"fear_greed": d["fear_greed"],
+                          "btc_dominance": d["btc_dominance"],
+                          "ts_ms": aux_row.get("timestamp_ms")}
+
+
 def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, Any]:
     _key = tuple(str(s).upper() for s in (symbols or []))
     _now = time.time()
@@ -472,13 +505,7 @@ def build_market_layer(symbols: Sequence[str], errors: List[str]) -> Dict[str, A
         # ── [轮147] 链上/宏观辅助读数（fear_greed 等）──
         _aux_row = _aux.get(_base(sym))
         if _aux_row:
-            d["fear_greed"] = _r(_aux_row.get("fear_greed"), 1)
-            d["btc_dominance"] = _r(_aux_row.get("btc_dominance"), 2)
-            d["active_addresses"] = _r(_aux_row.get("active_addresses"), 0)
-            # 量化简报的另一条读取路径（`md.onchain_macro.fear_greed`）
-            d["onchain_macro"] = {"fear_greed": d["fear_greed"],
-                                  "btc_dominance": d["btc_dominance"],
-                                  "ts_ms": _aux_row.get("timestamp_ms")}
+            _emit_aux_readings(d, _aux_row)
         out["symbols"][sym] = d
         if len(lr) >= 10:
             daily_returns[sym] = lr

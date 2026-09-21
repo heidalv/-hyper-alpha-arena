@@ -260,28 +260,63 @@ def count_ai_provisioned_today(db: Session) -> int:
         return 10 ** 6
 
 
+def _donor_cross_tier_fallback() -> bool:
+    """[轮153] 母本跨层回退开关（默认开）。回滚：MIDLONG_DONOR_CROSS_TIER_FALLBACK=false。"""
+    return (os.getenv("MIDLONG_DONOR_CROSS_TIER_FALLBACK", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 def pick_strategy_donor(db: Session, account_id: int, tier: str):
-    """选配置母本：同账户同层 active 策略，优先 full_auto（与本车道一致）。"""
+    """选配置母本：同账户同层 active 策略，优先 full_auto（与本车道一致）。
+
+    [轮153 2026-09-21] 追加**跨层回退**：本层没有 active 母本时，取同账户任意层的 active 母本。
+    为什么需要：轮153 把 21 条 `tpl_long*`（长线模板族残余）落成 archived 后，long 层 active
+    母本一度只剩 1 个；`pick_strategy_donor` 返回 None ⇒ `provision_ai_strategy` 直接退化成
+    「无同层 active 母本可克隆」⇒ 走该路径的长线提案被静默拒绝。
+    跨层取母本语义成立：克隆的是**配置面**（杠杆/仓位/因子口径/触发参数），
+    `build_cloned_strategy` **不继承 genome**（母本 genome 内嵌原 symbol 的模板绑定），
+    与"周期"本身无关 —— 新策略的 `timeframe_tier` 由调用方按目标层写入。
+    """
     from backend.database.models import AIStrategy as _AIS
 
-    _q = db.query(_AIS).filter(
-        _AIS.account_id == account_id,
-        _AIS.timeframe_tier == tier,
-        _AIS.status == "active",
-        _AIS.primary_symbol.isnot(None),
-    )
-    try:
-        _best = (_q.filter(_AIS.auto_mode == "full_auto")
-                 .order_by(_AIS.updated_at.desc()).first())
-        if _best is not None:
-            return _best
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("[AIStrat] 母本优选查询失败(回退任意 active): %s", exc)
-    try:
-        return _q.order_by(_AIS.updated_at.desc()).first()
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("[AIStrat] 母本查询失败: %s", exc)
+    def _pick(_tier: str):
+        _q = db.query(_AIS).filter(
+            _AIS.account_id == account_id,
+            _AIS.timeframe_tier == _tier,
+            _AIS.status == "active",
+            _AIS.primary_symbol.isnot(None),
+        )
+        try:
+            _best = (_q.filter(_AIS.auto_mode == "full_auto")
+                     .order_by(_AIS.updated_at.desc()).first())
+            if _best is not None:
+                return _best
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[AIStrat] 母本优选查询失败(回退任意 active): %s", exc)
+        try:
+            return _q.order_by(_AIS.updated_at.desc()).first()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[AIStrat] 母本查询失败: %s", exc)
+            return None
+
+    found = _pick(tier)
+    if found is not None:
+        return found
+
+    if not _donor_cross_tier_fallback():
         return None
+
+    _want = (tier or "").strip().lower()
+    for _alt in ("mid", "long", "short"):
+        if _alt == _want:
+            continue
+        found = _pick(_alt)
+        if found is not None:
+            logger.warning(
+                "[AIStrat] 本层(%s)无 active 母本 → 跨层回退：借用 %s 的母本 %s(tier=%s)",
+                tier, _alt, getattr(found, "strategy_id", "?"), _alt)
+            return found
+    return None
 
 
 def build_cloned_strategy(donor, *, symbol: str, tier: str, account_id: int,

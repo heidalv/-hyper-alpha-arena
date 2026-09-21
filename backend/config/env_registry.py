@@ -639,6 +639,13 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     "MM_EVOLUTION_SINCE",
     # [2026-09-16 调研轮8] MM 车道 ticker（.env 已存在但未登记 → 死键审计交叉验证失败）
     "MM_LANE_TICKER",
+    # [轮153 2026-09-21] 做市报价参数：`market_maker/core.py:107/122` 一直在读、
+    # `runner.py:523-526` 也在同步，但从未登记 ⇒ `test_env_registry_visibility` 的
+    # 「registry 报出但静态审计不认为是死键」自 ~F287 起恒红
+    # （同一不一致已记录在 data/audit_reports/midlong_audit_20260921_0912.json:31）。
+    "MM_SPREAD_MULT",
+    "MM_SPREAD_MULT_REDUCE",
+    "MM_SPREAD_CROSS_MARGIN",
     # [§84 执行 2026-09-11 / 决策 P27-A / 缺陷 #69] 熔断证据新鲜度（天；0=关闭约束）
     "BREAKER_EVIDENCE_STALE_DAYS",
     # [§88 执行 2026-09-11 / 决策 P29-A] long 层 SL 距离上限（0=关闭）
@@ -1547,6 +1554,16 @@ KNOWN_FLAGS: frozenset[str] = frozenset({
     # （源：market.symbol_aux_timeseries，实测 35 币近 1h 有数据、fear_greed=71）。
     # 这是主脑预检里最后一个长期恒缺项（其余五项已由 K 线派生补齐）。
     "CTX_FEAR_GREED_ENABLED",              # 默认 true；false=不接（预检会继续如实记缺）
+    # [轮153 2026-09-21] 链上辅助读数的字段语义修正（用户批准方案 A）：
+    # `active_addresses` 唯一有值的是 BTC，且入库值是 blockchain.info 的全网日交易笔数（n_tx）
+    # 被错标成"活跃地址"；原 `_r(...,0)` 的第二参是**精度**，NULL 时写出 `active_addresses: null`
+    # ⇒ 每个币都带一个"有键无值"的错标字段。
+    # 现改为：非空才写 + 真实语义名 `btc_network_tx_count`。
+    "CTX_AUX_LEGACY_ACTIVE_ADDRESSES",     # 默认 false；true=回滚旧行为（每个币都写 active_addresses）
+    # [轮153] `pick_strategy_donor` 跨层回退：轮153 归档 21 条 tpl_long* 后 long 层母本一度只剩 1 个，
+    # 母本为 None 会让 `provision_ai_strategy` 退化成「无同层 active 母本可克隆」→ 长线提案被静默拒绝。
+    # 克隆的是配置面（不继承 genome），与周期无关 ⇒ 允许借用其他层的 active 母本。
+    "MIDLONG_DONOR_CROSS_TIER_FALLBACK",   # 默认 true；false=只用同层母本
     # [轮131 2026-09-20] 六分析师信号进**混合打分**（backend/services/analysts/service.py）：
     # 架构要求"分析师 thesis 数值化后作为一等 alpha 信号进混合打分"。
     # 先影子（只记录"若生效会怎样"），确认差异分布后再开生效。

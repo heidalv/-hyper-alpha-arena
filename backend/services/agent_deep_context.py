@@ -27,6 +27,54 @@ def _safe_round(v, n=2):
         return v
 
 
+def _api_klines_fallback(symbol: str, tf: str, count: int) -> list:
+    """[2026-09-18 根因修复·K线兜底] 复用协调器的交易所 API 取数（自带短 TTL 缓存防 429）。
+
+    为什么需要：数据库聚合对**陈旧**数据是 **fail-closed** 的
+    （`[KlineAgg] …基准所 K 线过期…拒绝聚合返回`）⇒ 主脑那条 `_klines` 拿到空表
+    ⇒ `_kline_ok` 报 `K线:4h/1d` 硬缺项 ⇒ `hard_miss=True` 短路 `consensus_is_tradeable`
+    ⇒ 论题被拒（30 分钟退避）⇒ **这些标的永远没有可执行论题**。
+    实测（14:1x 的 `refresh` 日志）：MU `K线:4h(数据不足)`×6、SUI `K线:4h/1d`、
+    PLAY `K线:4h/1d(完整)` 全因此被拒；而协调器那条路早就有 API 兜底
+    （`[Coordinator] …从API实时拉取`）——**prompt 这条路没有**。
+
+    口径：只**补数据**，不改任何阈值/判定；返回**尾部 `count` 根**，
+    与 DB 路径的窗口一致（否则 200 根会改变 EMA/RSI 的种子窗口）。
+    回滚：`PROMPT_KLINE_API_FALLBACK=0`。
+
+    ## ⚠️ 本部署（`MARKET_DATA_DC_ONLY=true`，代码默认即 true）里它是**不生效**的
+    实测（2026-09-18 真实集成验证）：
+        `[Coordinator] API获取K线失败 AVAX/1h: … DC_ONLY 模式不允许直接访问交易所`
+    ⇒ DC_ONLY 下直连被**设计禁止**，协调器那条"API 实时拉取"同样是死的（只记失败再退回陈旧 DB）。
+    因此本函数在 DC_ONLY 下**立即返回空**（不再发起注定失败的调用、不刷日志）；
+    陈旧 K 线的真正修法在**数据中心采集侧**（见待办 B29：`p2_depth` 的 4h/1d 池只覆盖 13 个标的）。
+    保留本兜底是为了**非 DC_ONLY 部署**（`MARKET_DATA_DC_ONLY=false`）与将来放开直连时可用。
+    """
+    try:
+        if str(os.getenv("PROMPT_KLINE_API_FALLBACK", "1")).strip().lower() in (
+            "0", "false", "off", "no",
+        ):
+            return []
+    except Exception:  # noqa: BLE001
+        pass
+    # DC_ONLY：直连被设计禁止 ⇒ 不去撞墙（否则每个标的每个周期都刷一条失败告警）
+    try:
+        from backend.services.market_data import _dc_only_enabled
+        if _dc_only_enabled():
+            return []
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from backend.services.strategy_coordinator import StrategyCoordinator
+        rows = StrategyCoordinator._fetch_klines_from_api(
+            str(symbol).upper(), str(tf), "binance",
+        ) or []
+        return list(rows)[-int(count):] if count else list(rows)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AgentDeepContext] API 兜底失败 %s/%s: %s", symbol, tf, exc)
+        return []
+
+
 def _fetch_klines_for_prompt(symbol: str, tf: str, count: int) -> list:
     """AI prompt 侧 K 线取数（unified_data_pool 全量整合 · 灰度切片 2026-07-06）。
 
@@ -58,6 +106,18 @@ def _fetch_klines_for_prompt(symbol: str, tf: str, count: int) -> list:
         logger.debug("[AgentDeepContext] 快照 K 线复用失败 %s/%s，回退 DB: %s", symbol, tf, e)
     if not rows:
         rows = ks.get_aggregated_klines(symbol, tf, count=count) or []
+    # [2026-09-18 根因修复·K线兜底] DB 聚合**不足**时用交易所 API 补齐（见上方函数 docstring）。
+    # 触发条件用 `< count`（不只是空表）：DB 陈旧时聚合是 fail-closed 返回空，
+    # 但"只有几根"同样会让主脑判硬缺项。只在 API 拿到的**更多**时才替换。
+    if len(rows) < count:
+        _api = _api_klines_fallback(symbol, tf, count)
+        if len(_api) > len(rows):
+            logger.info(
+                "[AgentDeepContext] %s/%s DB 聚合不足(%d<%d) ⇒ API 兜底取到 %d 根"
+                "（不兜底则主脑会判 `K线:%s` 硬缺项 ⇒ 论题被自动拒）",
+                symbol, tf, len(rows), count, len(_api), tf,
+            )
+            rows = _api
     # 补时间轴，保证 deep_context OHLCV 表有可读时间
     for r in rows:
         if not isinstance(r, dict):
@@ -460,6 +520,21 @@ def build_full_deep_context(
     return result
 
 
+# [轮153 2026-09-21] 展示名修正表：字段名 → 给 LLM 看的真实语义名。
+_AUX_DISPLAY_RENAME = {"active_addresses": "btc_network_tx_count"}
+
+
+def _aux_display_name(key: str) -> str:
+    """[轮153 2026-09-21] 链上摘要里的字段展示名。
+
+    `onchain_data_collector._collect_blockchain_info` 把 blockchain.info 的 `n_tx`
+    （**全比特币网络日交易笔数**）写进了 `active_addresses` 字段；只有 BTC 会有这个值。
+    给 LLM 的摘要必须用真实语义名，否则等于把一个网络级日频数字伪装成"该币的活跃地址数"。
+    溯源见 `reports/_轮153_模板族归档与aux字段溯源_20260921.md` 第五节。
+    """
+    return _AUX_DISPLAY_RENAME.get(key, key)
+
+
 def build_onchain_summary(symbol: str) -> str:
     """best-effort 链上/巨鲸摘要；无数据时明确标注不可用，绝不虚构数字。"""
     lines: list = []
@@ -474,7 +549,7 @@ def build_onchain_summary(symbol: str) -> str:
                 _v = _data.get(_k)
                 try:
                     if _v is not None and float(_v) != 0:
-                        lines.append(f"  {_k}: {float(_v):.4f}")
+                        lines.append(f"  {_aux_display_name(_k)}: {float(_v):.4f}")
                 except (TypeError, ValueError):
                     pass
             _smb = _data.get("stablecoin_mint_burn")

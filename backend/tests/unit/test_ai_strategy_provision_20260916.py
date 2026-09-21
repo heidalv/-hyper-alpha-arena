@@ -240,5 +240,9 @@ def test_deployed_env_defaults():
     import os
 
     assert os.environ.get("MIDLONG_AI_AUTOCREATE_STRATEGY", "").lower() == "true"
-    assert int(os.environ.get("MIDLONG_AI_AUTOCREATE_MAX_PER_DAY", "0")) == 3
+    # [轮153 2026-09-21] 3 → 8：调研轮18（2026-09-17「放开容量与出场语义」）已把部署值
+    # 提为 8（见 reports/_调研轮18_放开容量与出场语义_20260917.md 第 54 行），
+    # 但本断言仍钉着 3 ⇒ 自轮18 起**一直是红的**（陈旧棘轮会掩盖真实回归）。
+    # 现已对齐部署值；若要再改容量，请同时改 `.env` 与本行。
+    assert int(os.environ.get("MIDLONG_AI_AUTOCREATE_MAX_PER_DAY", "0")) == 8
     assert os.environ.get("MIDLONG_AI_AUTOCREATE_LIVE", "").lower() == "false"
