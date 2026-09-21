@@ -1,0 +1,17 @@
+﻿
+====================================================================================================
+① promotion 开关（默认应为 False）与两条硬前提
+   _entry_zone_promote_enabled() = False   （期望 False）
+   复现 02:30 场景（UNI 明确 false + 现价 8.649 在区内）→ recommend_open = False   （修复前会被改成 True）
+
+② 让开关打开，看方案 B 的两条硬前提是否真的拦下 UNI（真实库里的辩论记录）
+   开关=true 后：recommend_open=None blocked=debate_primary_reject:intraday(risk_min=0.25)   （期望被拦）
+
+③ 位置谓词（与位置闸共用阈值）
+    (True, '高位追多：24h区间分位78%≥40%')
+
+④ paper 缩仓链（方案 C）：UNI 那笔的乘子现在会落到下单规模
+   _paper_apply_size_multiplier() = True   （期望 True）
+   ×0.0714 → applied=0.0714 名义 $99.0 保证金 $32.99   （修复前成交 $693 名义 / $231 保证金）
+
+
